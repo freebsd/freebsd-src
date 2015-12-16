@@ -25,23 +25,3 @@
 #
 # ident	"@(#)utils_test.kshlib	1.2	07/01/09 SMI"
 #
-
-#
-# Given a number of files, this function will iterate through
-# the loop creating the specified number of files. The default
-# values from the .cfg file are used for block size, number of
-# writes per file and the contents of the file.
-#
-# Returns the errno if any of the writes fail.
-#
-function populate_dir # num_files
-{
-	typeset -i num_files=$1
-
-	typeset -i filenum=0
-	while (( filenum < num_files )); do
-        	log_must $FILE_WRITE -o create -c $WRITE_COUNT \
-		    -f $TESTDIR/$TESTFILE.$filenum -b $BLOCKSZ -d $DATA
-		(( filenum = filenum + 1 ))
-	done
-}

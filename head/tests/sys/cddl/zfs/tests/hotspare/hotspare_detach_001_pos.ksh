@@ -70,12 +70,9 @@ function cleanup
 function verify_assertion # dev
 {
 	typeset dev=$1
-	typeset fsize
 	typeset odev=${pooldevs[0]}
 
-	fsize=$(get_prop available $TESTPOOL)
-	(( fsize = fsize * 3 / 4 ))
-	log_must $MKFILE $fsize /$TESTPOOL/$TESTFILE1
+	log_must $MKFILE 100m /$TESTPOOL/$TESTFILE1
 	log_must $SYNC
 	log_must $ZPOOL replace $TESTPOOL $odev $dev
 

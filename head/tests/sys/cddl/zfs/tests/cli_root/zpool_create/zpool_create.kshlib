@@ -50,33 +50,26 @@ function create_pool_test
 }
 
 #
-# Create a ufs file system and make a file within the file 
-# system for storage pool vdev
-# $1, file size
+# Create a ufs file system and make a vdev file on it
+#
+# $1, disk name to create ufs file system
 # $2, file name
-# $3, disk name to create ufs file system
 #
 function create_blockfile
 {
-	typeset size=$1
+	typeset disk=$1
 	typeset file=$2
-	typeset disk=$3
 	typeset dir=`$DIRNAME $file`
 	
 	if [[ -d $dir ]]; then
-		ismounted $dir ufs
-		(( $? == 0 )) && \
-			log_must $UMOUNT -f $dir
+		ismounted $dir ufs && log_must $UMOUNT -f $dir
 	else
-        	log_must $MKDIR -p $dir
+		log_must $MKDIR -p $dir
 	fi
 
-	$ECHO "y" | $NEWFS $disk >/dev/null 2>&1
-	(( $? != 0 )) &&
-		log_fail "Create ufs file system fail."
-
-        log_must $MOUNT $disk $dir
-        log_must $MKFILE $size $file
+	log_must $NEWFS $disk
+	log_must $MOUNT $disk $dir
+	log_must create_vdevs $file
 }
 
 #

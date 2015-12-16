@@ -65,7 +65,7 @@ function cleanup
 	log_must $RM -rf $DEVICE_DIR/*
 	typeset i=0
 	while (( i < $MAX_NUM )); do
-		log_must $MKFILE $FILE_SIZE ${DEVICE_DIR}/${DEVICE_FILE}$i
+		log_must create_vdevs ${DEVICE_DIR}/${DEVICE_FILE}$i
 		((i += 1))
 	done
 }
@@ -90,7 +90,7 @@ function perform_test
 	log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
 
 	# Restore the vdev.
-	log_must $MKFILE $FILE_SIZE $VDEV2
+	log_must create_vdevs $VDEV2
 }
 
 log_note "Testing import by name."

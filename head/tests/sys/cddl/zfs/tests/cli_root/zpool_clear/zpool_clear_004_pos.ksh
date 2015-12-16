@@ -78,14 +78,8 @@ log_onexit cleanup
 stop_zfsd
 
 #make raw files to create various configuration pools
-typeset -i i=0
-while (( i < 3 )); do
-	log_must $MKFILE $FILESIZE $TMPDIR/file.$i
-
-	(( i = i + 1 ))
-done
-
 fbase=$TMPDIR/file
+log_must create_vdevs $fbase.0 $fbase.1 $fbase.2
 VDEV1=$fbase.0
 VDEV2=$fbase.1
 SDEV=$fbase.2

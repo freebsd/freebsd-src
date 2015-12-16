@@ -64,7 +64,7 @@ log_onexit cleanup
 
 log_assert "Ensure that the fsdb(1M) utility fails on a ZFS file system."
 
-populate_dir $NUM_FILES
+populate_dir $TESTDIR/$TESTFILE $NUM_FILES $WRITE_COUNT $BLOCKSZ $DATA
 inode_num=`$LS -li $TESTDIR/$TESTFILE.0 | $AWK '{print $1}'`
 [[ -z $inode_num ]] && \
     log_fail "Failed to determine inode of file: $TESTDIR/$TESTFILE.0"

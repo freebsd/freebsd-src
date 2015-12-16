@@ -58,24 +58,19 @@ verify_runnable "global"
 log_assert "A raidz/raidz2 log can not be added to existed pool."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		for logtype in "raidz" "raidz1" "raidz2"
-		do
-			log=$(random_get_with_non "log")
-			log_must $ZPOOL create $TESTPOOL $type $VDEV \
-				$spare $SDEV $log $LDEV
+function test_no_raidz_slog_add # <pooltype> <sparetype> <logtype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
+	typeset logtype=$3
 
-			log_mustnot $ZPOOL add $TESTPOOL log $logtype $LDEV2
-			ldev=$(random_get $LDEV2)
-			log_mustnot verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' $logtype
+	log=$(random_get_with_non "log")
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV $logtype $LDEV
 
-			log_must $ZPOOL destroy $TESTPOOL
-		done
-	done
-done
+	log_mustnot $ZPOOL add $TESTPOOL log $logtype $LDEV2
+	ldev=$(random_get $LDEV2)
+	log_mustnot verify_slog_device $TESTPOOL $ldev 'ONLINE' $logtype
+	destroy_pool $TESTPOOL
+}
 
 log_pass "A raidz/raidz2 log can not be added to existed pool."

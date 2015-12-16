@@ -75,7 +75,7 @@ log_assert "ZFS will degrade a vdev that produces checksum errors"
 
 log_onexit cleanup
 
-log_must $MKFILE 64M ${VDEV0} ${VDEV1}
+log_must create_vdevs $VDEV0 $VDEV1
 ensure_zfsd_running
 for type in "raidz" "mirror"; do
 	log_note "Testing raid type $type"

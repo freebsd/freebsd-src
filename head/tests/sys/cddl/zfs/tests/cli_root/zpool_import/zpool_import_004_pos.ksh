@@ -85,9 +85,9 @@ function perform_test
 	log_must $ZPOOL destroy -f $TESTPOOL1
 
 	# Revert at the end so this test can be rerun.
-	log_must $MV $DEVICE_DIR/newdir2/$(basename $VDEV0) $VDEV0
-	log_must $MV $DEVICE_DIR/newdir2/$(basename $VDEV1) $VDEV1
-	log_must $MV $DEVICE_DIR/newdir2/$(basename $VDEV2) $VDEV2
+	log_must $MV $DEVICE_DIR/newdir2/$VDEV0F $VDEV0
+	log_must $MV $DEVICE_DIR/newdir2/$VDEV1F $VDEV1
+	log_must $MV $DEVICE_DIR/newdir2/$VDEV2F $VDEV2
 }
 
 log_assert "Destroyed pools devices was moved to another directory," \

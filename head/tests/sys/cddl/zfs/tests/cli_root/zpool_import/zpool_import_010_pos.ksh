@@ -68,7 +68,7 @@ function cleanup
 	log_must $RM -rf $DEVICE_DIR/*
 	typeset i=0
 	while (( i < $MAX_NUM )); do
-		log_must $MKFILE $FILE_SIZE ${DEVICE_DIR}/${DEVICE_FILE}$i
+		log_must create_vdevs ${DEVICE_DIR}/${DEVICE_FILE}$i
 		((i += 1))
 	done
 }
@@ -77,7 +77,11 @@ log_assert "'zpool -D -a' can import all the specified directories " \
 	"destroyed pools."
 log_onexit cleanup
 
-poolA=poolA.${TESTCASE_ID}; poolB=poolB.${TESTCASE_ID}; poolC=poolC.${TESTCASE_ID}; poolD=poolD.${TESTCASE_ID}; poolE=poolE.${TESTCASE_ID}
+poolA=poolA.${TESTCASE_ID}
+poolB=poolB.${TESTCASE_ID}
+poolC=poolC.${TESTCASE_ID}
+poolD=poolD.${TESTCASE_ID}
+poolE=poolE.${TESTCASE_ID}
 
 log_must $ZPOOL create $poolA mirror $VDEV0 $VDEV1 $VDEV2 $VDEV3 $VDEV4
 log_must $ZPOOL destroy $poolA

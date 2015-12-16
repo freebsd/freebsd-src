@@ -59,21 +59,16 @@ verify_runnable "global"
 log_assert "Adding a log device to normal pool works."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		for logtype in "" "mirror"
-		do
-			log_must $ZPOOL create $TESTPOOL $type $VDEV $spare $SDEV
-			log_must $ZPOOL add $TESTPOOL log $logtype $LDEV
-			log_must display_status $TESTPOOL
-			typeset ldev=$(random_get $LDEV)
-			log_must verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' $logtype
-			log_must $ZPOOL destroy -f $TESTPOOL
-		done
-	done
-done
+function test_adding_slog # <pooltype> <sparetype> <logtype>
+{
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV
+	log_must $ZPOOL add $TESTPOOL log $logtype $LDEV
+	log_must display_status $TESTPOOL
+	typeset ldev=$(random_get $LDEV)
+	log_must verify_slog_device $TESTPOOL $ldev ONLINE $logtype
+	destroy_pool $TESTPOOL
+}
+
+slog_foreach_all test_adding_slog
 
 log_pass "Adding a log device to normal pool works."

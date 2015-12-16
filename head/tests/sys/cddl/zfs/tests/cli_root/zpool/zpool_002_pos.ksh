@@ -80,9 +80,7 @@ pool=pool.${TESTCASE_ID}
 vdev1=$TESTDIR/file1
 vdev2=$TESTDIR/file2
 vdev3=$TESTDIR/file3
-for vdev in $vdev1 $vdev2 $vdev3; do
-	$MKFILE 64m $vdev
-done
+log_must create_vdevs $vdev1 $vdev2 $vdev3
 
 set -A cmds "create $pool mirror $vdev1 $vdev2" "list $pool" "iostat $pool" \
 	"status $pool" "upgrade $pool" "get delegation $pool" "set delegation=off $pool" \

@@ -83,13 +83,7 @@ log_onexit cleanup
 typeset -i COUNT=10
 
 log_note "Populate the $TESTDIR directory (prior to first snapshot)"
-typeset -i i=1
-while [[ $i -le $COUNT ]]; do
-	log_must $FILE_WRITE -o create -f $TESTDIR/original_file$i \
-	   -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-	(( i = i + 1 ))
-done
+populate_dir $TESTDIR/original_file $COUNT $NUM_WRITES $BLOCKSZ ITER
 
 log_must $ZFS snapshot $SNAPFS
 
@@ -100,24 +94,11 @@ if [[ $FILE_COUNT -ne $COUNT ]]; then
 fi
 
 log_note "Populate the $TESTDIR directory (prior to second snapshot)"
-typeset -i i=1
-while [[ $i -le $COUNT ]]; do
-        log_must $FILE_WRITE -o create -f $TESTDIR/afterfirst_file$i \
-           -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-        (( i = i + 1 ))
-done
-
+populate_dir $TESTDIR/afterfirst_file $COUNT $NUM_WRITES $BLOCKSZ ITER
 log_must $ZFS snapshot $SNAPFS.1
 
 log_note "Populate the $TESTDIR directory (Post second snapshot)"
-typeset -i i=1
-while [[ $i -le $COUNT ]]; do
-        log_must $FILE_WRITE -o create -f $TESTDIR/aftersecond_file$i \
-           -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-        (( i = i + 1 ))
-done
+populate_dir $TESTDIR/aftersecond_file $COUNT $NUM_WRITES $BLOCKSZ ITER
 
 [[ -n $TESTDIR ]] && \
     log_must $RM -rf $TESTDIR/original_file* > /dev/null 2>&1

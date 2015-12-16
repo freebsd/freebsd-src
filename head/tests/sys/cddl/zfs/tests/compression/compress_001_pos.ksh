@@ -71,7 +71,7 @@ log_must $ZFS set compression=on $TESTPOOL/$TESTFS
 log_must $FILE_WRITE -o $OP -f $TESTDIR/$TESTFILE1 -b $BLOCKSZ \
     -c $NUM_WRITES -d $DATA
 
-$SLEEP 60
+log_must $SYNC $TESTDIR
 
 FILE0_BLKS=`$DU -k $TESTDIR/$TESTFILE0 | $AWK '{ print $1}'`
 FILE1_BLKS=`$DU -k $TESTDIR/$TESTFILE1 | $AWK '{ print $1}'`

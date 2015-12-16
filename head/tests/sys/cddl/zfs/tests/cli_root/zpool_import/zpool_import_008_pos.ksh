@@ -65,7 +65,7 @@ function cleanup
 	log_must $RM -rf $DEVICE_DIR/*
 	typeset i=0
 	while (( i < $MAX_NUM )); do
-		log_must $MKFILE $FILE_SIZE ${DEVICE_DIR}/${DEVICE_FILE}$i
+		log_must create_vdevs ${DEVICE_DIR}/${DEVICE_FILE}$i
 		((i += 1))
 	done
 }
@@ -88,7 +88,7 @@ function perform_test
 
 	log_note "For raidz2, more than two destroyed pool's devices were used, " \
 		"import failed."
-	log_must $MKFILE $FILE_SIZE $VDEV0 $VDEV1
+	log_must create_vdevs $VDEV0 $VDEV1
 	log_must $ZPOOL create $TESTPOOL2 $VDEV0 $VDEV1 $VDEV2
 	log_mustnot $ZPOOL import -d $DEVICE_DIR -D -f $target
 	log_must $ZPOOL destroy $TESTPOOL2
@@ -99,11 +99,11 @@ log_assert "For raidz2, two destroyed pools devices was removed or used by " \
 log_onexit cleanup
 
 log_note "Testing import by name."
-log_must $ZPOOL create $TESTPOOL1 raidz2 $VDEV0 $VDEV1 $VDEV2 $VDIV3
+log_must $ZPOOL create $TESTPOOL1 raidz2 $VDEV0 $VDEV1 $VDEV2 $VDEV3
 perform_test $TESTPOOL1
 
 log_note "Testing import by GUID."
-log_must $ZPOOL create $TESTPOOL1 raidz2 $VDEV0 $VDEV1 $VDEV2 $VDIV3
+log_must $ZPOOL create $TESTPOOL1 raidz2 $VDEV0 $VDEV1 $VDEV2 $VDEV3
 typeset guid=$(get_config $TESTPOOL1 pool_guid)
 perform_test $guid
 

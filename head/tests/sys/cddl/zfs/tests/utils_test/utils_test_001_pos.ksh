@@ -64,7 +64,7 @@ log_onexit cleanup
 
 log_assert "Ensure that the clri(1M) utility fails on a ZFS file system."
 
-populate_dir $NUM_FILES
+populate_dir $TESTDIR/$TESTFILE $NUM_FILES $WRITE_COUNT $BLOCKSZ $DATA
 
 inode=`$LS -i $TESTDIR/$TESTFILE.0 | $AWK '{print $1}'`
 log_mustnot $CLRI /dev/rdsk/$DISK $inode

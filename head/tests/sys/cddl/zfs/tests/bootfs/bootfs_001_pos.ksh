@@ -74,7 +74,7 @@ log_onexit cleanup
 
 typeset VDEV=$TMPDIR/bootfs_001_pos_a.${TESTCASE_ID}.dat
 
-log_must $MKFILE 400m $VDEV
+log_must create_vdevs $VDEV
 create_pool "$TESTPOOL" "$VDEV"
 log_must $ZFS create $TESTPOOL/$FS
 

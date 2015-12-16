@@ -78,7 +78,7 @@ fi
 log_onexit cleanup
 
 log_assert "Valid pool names are accepted by zpool set bootfs"
-$MKFILE 64m $VDEV
+create_vdevs $VDEV
 
 typeset -i i=0;
 

@@ -66,7 +66,7 @@ test_requires FF
 
 log_assert "Ensure that the ff(1M) utility fails on a ZFS file system."
 
-populate_dir $NUM_FILES
+populate_dir $TESTDIR/$TESTFILE $NUM_FILES $WRITE_COUNT $BLOCKSZ $DATA
 
 log_mustnot $FF -F zfs /dev/rdsk/${DISK}s0
 

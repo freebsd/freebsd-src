@@ -94,14 +94,7 @@ typeset OP=create
 [[ -n $TESTDIR1 ]] && $RM -rf $TESTDIR1/* > /dev/null 2>&1
 
 log_note "Create files in the zfs dataset ..."
-
-typeset i=1
-while [ $i -lt $COUNT ]; do
-	log_must $FILE_WRITE -o $OP -f $TESTDIR1/file$i \
-	    -b $BLOCKSZ -c $NUM_WRITES -d $DATA
-
-	(( i = i + 1 ))
-done
+populate_dir $TESTDIR1/file $COUNT $NUM_WRITES $BLOCKSZ $DATA
 
 log_note "Create a tarball from $TESTDIR1 contents..."
 CWD=$PWD

@@ -55,49 +55,37 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-	if [[ ! -f $VDIR/a ]]; then
-		$MKFILE $SIZE $VDIR/a
-	fi
-}
-
 log_assert "log device can survive when one of the pool device get corrupted."
 log_onexit cleanup
 
-for type in "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		log_must $ZPOOL create $TESTPOOL $type $VDEV $spare $SDEV \
-			log $LDEV 
+function test_slog_survives_pool_corruption # <pooltype> <sparetype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
 
-		# remove one of the pool device to make the pool DEGRADED
-		log_must $RM -f $VDIR/a
-		# Export and import the pool to force a close() and open() of
-		# the missing vdev file.
-		log_must $ZPOOL export $TESTPOOL
-		log_must $ZPOOL import -d $VDIR $TESTPOOL
+	# This only works for pools that have redundancy
+	[ -z "$pooltype" ] && return
 
-		# Check and verify pool status
-		log_must display_status $TESTPOOL
-		log_must $ZPOOL status $TESTPOOL 2>&1 >/dev/null
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV log $LDEV 
 
-		# Check that there is some status: field informing us of a
-		# problem.  The exact error string is unspecified.
-		$ZPOOL status -v $TESTPOOL | \
-			$GREP "status:" 2>&1 >/dev/null
-		if (( $? != 0 )); then
-			log_fail "pool $TESTPOOL status should indicate a missing device"
-		fi
+	# Remove one of the pool device, then scrub to make the pool DEGRADED
+	log_must $RM -f $VDIR/a
+	log_must $ZPOOL scrub $TESTPOOL
 
-		for l in $LDEV; do
-			log_must check_state $TESTPOOL $l "ONLINE"
-		done
-		
-		log_must $ZPOOL destroy -f $TESTPOOL
-		log_must $MKFILE $SIZE $VDIR/a
+	# Check and verify pool status
+	log_must display_status $TESTPOOL
+	log_must $ZPOOL status $TESTPOOL 2>&1 >/dev/null
+
+	# Check that there is some status: field informing us of a
+	# problem.  The exact error string is unspecified.
+	log_must $ZPOOL status -v $TESTPOOL | $GREP "status:"
+	for l in $LDEV; do
+		log_must check_state $TESTPOOL $l ONLINE
 	done
-done
+
+	destroy_pool $TESTPOOL
+	create_vdevs $VDIR/a
+}
+slog_foreach_nologtype test_slog_survives_pool_corruption
 
 log_pass "log device can survive when one of the pool device get corrupted."

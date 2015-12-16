@@ -76,8 +76,9 @@ log_onexit cleanup
 
 log_assert "zpool set cannot set a readonly property"
 
-log_must $MKFILE 64m $TMPDIR/zpool_set_003.${TESTCASE_ID}.dat
-log_must $ZPOOL create $TESTPOOL $TMPDIR/zpool_set_003.${TESTCASE_ID}.dat
+VDEV=$TMPDIR/zpool_set_003.${TESTCASE_ID}.vdev
+log_must create_vdevs $VDEV
+log_must $ZPOOL create $TESTPOOL $VDEV
 
 typeset -i i=0;
 while [ $i -lt "${#props[@]}" ]

@@ -79,14 +79,7 @@ log_onexit cleanup
 typeset -i COUNT=10
 
 log_note "Populate the $TESTDIR directory (prior to snapshot)"
-typeset -i i=1
-while [[ $i -le $COUNT ]]; do
-	log_must $FILE_WRITE -o create -f $TESTDIR/before_file$i \
-	   -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-	(( i = i + 1 ))
-done
-
+populate_dir $TESTDIR/before_file $COUNT $NUM_WRITES $BLOCKSZ ITER
 log_must $ZFS snapshot $SNAPFS
 
 FILE_COUNT=`$LS -Al $SNAPDIR | $GREP -v "total" | wc -l`
@@ -96,13 +89,7 @@ if [[ $FILE_COUNT -ne $COUNT ]]; then
 fi
 
 log_note "Populate the $TESTDIR directory (post snapshot)"
-typeset -i i=1
-while [[ $i -le $COUNT ]]; do
-        log_must $FILE_WRITE -o create -f $TESTDIR/after_file$i \
-           -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-        (( i = i + 1 ))
-done
+populate_dir $TESTDIR/after_file $COUNT $NUM_WRITES $BLOCKSZ ITER
 
 #
 # Now rollback to latest snapshot

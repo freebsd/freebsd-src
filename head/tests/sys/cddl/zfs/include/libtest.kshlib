@@ -745,49 +745,37 @@ function size_of_file # fname
 #	destdir:    is the directory where everything is to be created under
 #	dirnum:	    the maximum number of subdirectories to use, -1 no limit
 #	filenum:    the maximum number of files per subdirectory
-#	bytes:	    number of bytes to write
-#	num_writes: numer of types to write out bytes
-#	data:	    the data that will be writen
+#	blocksz:    number of bytes per block
+#	num_writes: number of blocks to write
+#	data:	    the data that will be written
 #
 #	E.g.
 #	file_fs /testdir 20 25 1024 256 0
 #
-# Note: bytes * num_writes equals the size of the testfile
+# Note: blocksz * num_writes equals the size of the testfile
 #
-function fill_fs # destdir dirnum filenum bytes num_writes data
+function fill_fs # destdir dirnum filenum blocksz num_writes data
 {
 	typeset destdir=${1:-$TESTDIR}
 	typeset -i dirnum=${2:-50}
 	typeset -i filenum=${3:-50}
-	typeset -i bytes=${4:-8192}
+	typeset -i blocksz=${4:-8192}
 	typeset -i num_writes=${5:-10240}
 	typeset -i data=${6:-0}
 
-	typeset -i odirnum=1
-	typeset -i idirnum=0
-	typeset -i fn=0
 	typeset -i retval=0
-
-	log_must $MKDIR -p $destdir/$idirnum
-	while (( $odirnum > 0 )); do
-		if (( dirnum >= 0 && idirnum >= dirnum )); then
-			odirnum=0
-			break
-		fi
-		$FILE_WRITE -o create -f $destdir/$idirnum/$TESTFILE.$fn \
-		    -b $bytes -c $num_writes -d $data
-		retval=$?
-		if (( $retval != 0 )); then
-			odirnum=0
-			break
-		fi
-		if (( $fn >= $filenum )); then
-			fn=0
-			(( idirnum = idirnum + 1 ))
-			log_must $MKDIR -p $destdir/$idirnum
-		else
-			(( fn = fn + 1 ))
-		fi
+	typeset -i dn=0 # current dir number
+	typeset -i fn=0 # current file number
+	while (( retval == 0 )); do
+		(( dirnum >= 0 && dn >= dirnum )) && break
+		typeset curdir=$destdir/$dn
+		log_must $MKDIR -p $curdir
+		for (( fn = 0; $fn < $filenum && $retval == 0; fn++ )); do
+			log_cmd $FILE_WRITE -o create -f $curdir/$TESTFILE.$fn \
+			    -b $blocksz -c $num_writes -d $data
+			retval=$?
+		done
+		(( dn = dn + 1 ))
 	done
 	return $retval
 }
@@ -806,8 +794,7 @@ function get_prop # property dataset
 
 	prop_val=$($ZFS get -pH -o value $prop $dataset 2>/dev/null)
 	if [[ $? -ne 0 ]]; then
-		log_note "Unable to get $prop property for dataset " \
-		"$dataset"
+		log_note "Unable to get $prop property for dataset $dataset"
 		return 1
 	fi
 
@@ -1160,6 +1147,19 @@ function destroy_pool #pool
 }
 
 #
+# Create file vdevs.
+# By default this generates sparse vdevs 10GB in size, for performance.
+#
+function create_vdevs # vdevs
+{
+	typeset vdsize=10G
+
+	[ -n "$VDEV_SIZE" ] && vdsize=$VDEV_SIZE
+	rm -f $@ || return 1
+	truncate -s $vdsize $vdev $@
+}
+
+#
 # Firstly, create a pool with 5 datasets. Then, create a single zone and 
 # export the 5 datasets to it. In addition, we also add a ZFS filesystem
 # and a zvol device to the zone.
@@ -1195,7 +1195,7 @@ function zfs_zones_setup #zone_name zone_root zone_ip
 	#
 	if verify_slog_support ; then
 		typeset sdevs="$TMPDIR/sdev1 $TMPDIR/sdev2"
-		log_must $MKFILE 100M $sdevs
+		log_must create_vdevs $sdevs
 		log_must $ZPOOL add $pool_name log mirror $sdevs
 	fi
 
@@ -1307,6 +1307,7 @@ function wait_for_checked # timeout dt <method> [args...]
 	typeset -i start=$(date '+%s')
 	typeset -i endtime
 
+	log_note "Waiting $timeout seconds (checked every $dt seconds) for: $*"
 	((endtime = start + timeout))
 	while :; do
 		$*
@@ -1630,6 +1631,147 @@ function check_pool_status # pool token keyword
 		$GREP -i "$keyword" >/dev/null 2>&1
 
 	return $?
+}
+
+function vdev_pool_error_count
+{
+	typeset errs=$1
+	if [ -z "$2" ]; then
+		test $errs -gt 0; ret=$?
+	else
+		test $errs -eq $2; ret=$?
+	fi
+	log_debug "vdev_pool_error_count: errs='$errs' \$2='$2' ret='$ret'"
+	return $ret
+}
+
+#
+# Generate a pool status error file suitable for pool_errors_from_file.
+# If the pool is healthy, returns 0.  Otherwise, the caller must handle the
+# returned temporarily file appropriately.
+#
+function pool_error_file # <pool>
+{
+	typeset pool="$1"
+
+	typeset tmpfile=$TMPDIR/pool_status.${TESTCASE_ID}
+	$ZPOOL status -x $pool > ${tmpfile}
+	echo $tmpfile
+}
+
+#
+# Evaluates <file> counting the number of errors.  If vdev specified, only
+# that vdev's errors are counted.  Returns the total number.  <file> will be
+# deleted on exit.
+#
+function pool_errors_from_file # <file> [vdev]
+{
+	typeset file=$1
+	shift
+	typeset checkvdev="$2"
+
+	typeset line
+	typeset -i fetchbegin=1
+	typeset -i errnum=0
+	typeset -i c_read=0
+	typeset -i c_write=0
+	typeset -i c_cksum=0
+
+	cat ${file} | $EGREP -v "pool:" | while read line; do 
+	 	if (( $fetchbegin != 0 )); then
+                        $ECHO $line | $GREP "NAME" >/dev/null 2>&1
+                        (( $? == 0 )) && (( fetchbegin = 0 ))
+                         continue
+                fi
+
+		if [[ -n $checkvdev ]]; then 
+			$ECHO $line | $GREP $checkvdev >/dev/null 2>&1
+			(( $? != 0 )) && continue
+			c_read=`$ECHO $line | $AWK '{print $3}'`
+			c_write=`$ECHO $line | $AWK '{print $4}'`
+			c_cksum=`$ECHO $line | $AWK '{print $5}'`
+			if [ $c_read != 0 ] || [ $c_write != 0 ] || \
+		   	   [ $c_cksum != 0 ]
+			then
+				(( errnum = errnum + 1 ))
+			fi
+			break
+		fi
+
+		c_read=`$ECHO $line | $AWK '{print $3}'`
+		c_write=`$ECHO $line | $AWK '{print $4}'`
+		c_cksum=`$ECHO $line | $AWK '{print $5}'`
+		if [ $c_read != 0 ] || [ $c_write != 0 ] || \
+		    [ $c_cksum != 0 ]
+		then
+			(( errnum = errnum + 1 ))
+		fi
+	done
+
+	rm -f $file
+	echo $errnum
+}
+
+#
+# Returns whether the vdev has the given number of errors.
+# If the number is unspecified, any non-zero number returns true.
+#
+function vdev_has_errors # pool vdev [errors]
+{
+	typeset pool=$1
+	typeset vdev=$2
+	typeset tmpfile=$(pool_error_file $pool)
+	log_note "Original pool status:"
+	cat $tmpfile
+
+	typeset -i errs=$(pool_errors_from_file $tmpfile $vdev)
+	vdev_pool_error_count $errs $3
+}
+
+#
+# Returns whether the pool has the given number of errors.
+# If the number is unspecified, any non-zero number returns true.
+#
+function pool_has_errors # pool [errors]
+{
+	typeset pool=$1
+	typeset tmpfile=$(pool_error_file $pool)
+	log_note "Original pool status:"
+	cat $tmpfile
+
+	typeset -i errs=$(pool_errors_from_file $tmpfile)
+	vdev_pool_error_count $errs $2
+}
+
+#
+# Return whether the pool is healthy
+#
+function is_pool_healthy # pool
+{
+	typeset pool=$1
+
+	typeset healthy_output="pool '$pool' is healthy"
+	typeset real_output=$($ZPOOL status -x $pool)
+
+	if [[ "$real_output" == "$healthy_output" ]]; then
+		return 0
+	else
+		typeset -i ret
+		$ZPOOL status -x $pool | $GREP "state:" | \
+			$GREP "FAULTED" >/dev/null 2>&1
+		ret=$?
+		(( $ret == 0 )) && return 1
+		typeset l_scan
+		typeset errnum
+		l_scan=$($ZPOOL status -x $pool | $GREP "scan:")
+		l_scan=${l_scan##*"with"}
+		errnum=$($ECHO $l_scan | $AWK '{print $1}')
+		if [ "$errnum" != "0" ]; then
+		 	return 1
+		else
+			return 0
+		fi
+	fi
 }
 
 #
@@ -2503,7 +2645,7 @@ function verify_slog_support
 	typeset sdev=$dir/b
 
 	$MKDIR -p $dir
-	$MKFILE 64M $vdev $sdev
+	log_must create_vdevs $vdev $sdev
 
 	typeset -i ret=0
 	if ! $ZPOOL create -n $pool $vdev log $sdev > /dev/null 2>&1; then
@@ -2996,4 +3138,352 @@ function restart_zfsd
 		/etc/rc.d/zfsd start || /etc/rc.d/zfsd onestart
 	fi
 	$RM -f $TMPDIR/.zfsd_enabled_during_stf_zfs_tests
+}
+
+#
+# Using the given <vdev>, obtain the value of the property <propname> for
+# the given <tvd> identified by numeric id.
+#
+function get_tvd_prop # vdev tvd propname
+{
+	typeset vdev=$1
+	typeset -i tvd=$2
+	typeset propname=$3
+
+	$ZDB -l $vdev | $AWK -v tvd=$tvd -v prop="${propname}:" '
+		BEGIN { start = 0; }
+		/^        id:/ && ($2==tvd) { start = 1; next; }
+		(start==0) { next; }
+		/^        [a-z]+/ && ($1==prop) { print $2; exit; }
+		/^        children/ { exit; }
+		'
+}
+
+#
+# Convert a DVA into a physical block address.  Prints number of blocks.
+# This takes the usual printed form, in which offsets are left shifted so
+# they represent bytes rather than the native sector count.
+#
+function dva_to_block_addr # dva
+{
+	typeset dva=$1
+
+	typeset offcol=$(echo $dva | cut -f2 -d:)
+	typeset -i offset="0x${offcol}"
+	# First add 4MB to skip the boot blocks and first two vdev labels,
+	# then convert to 512 byte blocks (for use with dd).  Note that this
+	# differs from simply adding 8192 blocks, since the input offset is
+	# given in bytes and has the actual ashift baked in.
+	(( offset += 4*1024*1024 ))
+	(( offset >>= 9 ))
+	echo "$offset"
+}
+
+#
+# Convert a RAIDZ DVA into a physical block address.  This has the same
+# output as dva_to_block_addr, but is more complicated due to RAIDZ.  ashift
+# is normally always 9, but RAIDZ uses the actual tvd ashift instead.
+# Furthermore, the number of vdevs changes the actual block for each device.
+# This is also tricky because ksh93 requires special effort to round up.
+#
+function raidz_dva_to_block_addr # dva ncols ashift
+{
+	typeset dva=$1
+	typeset -F ncols="${2}.0"
+	typeset -i ashift=$3
+
+	typeset -i offset=0x$(echo $dva | cut -f2 -d:)
+	(( offset >>= ashift ))
+
+	# Calculate the floating point offset after dividing by #columns.
+	typeset -F foff=$offset
+	(( foff /= ncols ))
+
+	# Convert the calculation to integer, then figure out if the
+	# remainder requires rounding up the integer calculation.
+	typeset -i ioff=$foff
+	(( foff -= ioff ))
+	[[ $foff -ge 0.5 ]] && (( ioff += 1 ))
+
+	# Now add the front 4MB and return.
+	(( ioff += 8192 ))
+	echo "$ioff"
+}
+
+#
+# Return the vdevs for the given toplevel vdev number.
+# Child vdevs will only be included if they are ONLINE.  Output format:
+#
+#   <toplevel vdev type> <nchildren> <child1>[:<child2> ...]
+#
+# Valid toplevel vdev types are mirror, raidz[1-3], leaf (which can be a
+# disk or a file).  Note that 'nchildren' can be larger than the number of
+# returned children; it represents the number of children regardless of how
+# many are actually online.
+#
+function vdevs_for_tvd # pool tvd
+{
+	typeset pool=$1
+	typeset -i tvd=$2
+
+	$ZPOOL status $pool | $AWK -v want_tvd=$tvd '
+		BEGIN {
+			 start = 0; tvd = -1; lvd = -1;
+			 type = "UNKNOWN"; disks = ""; disk = "";
+			 nchildren = 0;
+		}
+		/NAME.*STATE/ { start = 1; next; }
+		(start==0) { next; }
+
+		(tvd > want_tvd) { exit; }
+		END { print type " " nchildren " " disks; }
+
+		length(disk) > 0 {
+			if (length(disks) > 0) { disks = disks " "; }
+			if (substr(disk, 0, 1) == "/") {
+				disks = disks disk;
+			} else {
+				disks = disks "/dev/" disk;
+			}
+			disk = "";
+		}
+
+		/^\t(spares|logs)/ { tvd = want_tvd + 1; next; }
+		/^\t  (mirror|raidz[1-3])-[0-9]+/ { 
+			tvd += 1;
+			(tvd == want_tvd) && type = substr($1, 0, 6);
+			next;
+		}
+		/^\t  [\/A-Za-z]+/ {
+			tvd += 1;
+			if (tvd == want_tvd) {
+				(( nchildren += 1 ))
+				type = "leaf";
+				($2 == "ONLINE") && disk = $1;
+			}
+			next;
+		}
+
+		(tvd < want_tvd) { next; }
+
+		/^\t    spare-[0-9]+/ { next; }
+		/^\t      [\/A-Za-z]+/ {
+			(( nchildren += 1 ))
+			($2 == "ONLINE") && disk = $1;
+			next;
+		}
+
+		/^\t    [\/A-Za-z]+/ {
+			(( nchildren += 1 ))
+			($2 == "ONLINE") && disk = $1;
+			next;
+		}
+		'
+}
+
+#
+# Get a vdev path & offset for a given pool/dataset and DVA.
+# If desired, can also select the toplevel vdev child number.
+#
+function dva_to_vdev_off # pool/dataset dva [leaf_vdev_num]
+{
+	typeset poollike=$1
+	typeset dva=$2
+	typeset -i leaf_vdev_num=$3
+
+	# vdevs are normally 0-indexed while arguments are 1-indexed.
+	(( leaf_vdev_num += 1 ))
+
+	# Strip any child datasets or snapshots.
+	pool=$(echo $poollike | sed -e 's,[/@].*,,g')
+	tvd=$(echo $dva | cut -d: -f1)
+
+	set -- $(vdevs_for_tvd $pool $tvd)
+	log_debug "vdevs_for_tvd: $* <EOM>"
+	tvd_type=$1; shift
+	nchildren=$1; shift
+
+	lvd=$(eval echo \$$leaf_vdev_num)
+	log_debug "type='$tvd_type' children='$nchildren' lvd='$lvd' dva='$dva'"
+	case $tvd_type in
+	raidz*)
+		ashift=$(get_tvd_prop $lvd $tvd ashift)
+		log_debug "raidz: ashift='${ashift}'"
+		off=$(raidz_dva_to_block_addr $dva $nchildren $ashift)
+		;;
+	*)
+		off=$(dva_to_block_addr $dva)
+		;;
+	esac
+	echo "${lvd}:${off}"
+}
+
+#
+# Get the DVA for the specified dataset's given filepath.
+#
+function file_dva # dataset filepath [level] [offset] [dva_num]
+{
+	typeset dataset=$1
+	typeset filepath=$2
+	typeset -i level=$3
+	typeset -F offset=$4
+	typeset -i dva_num=$5
+
+	# A lot of these numbers can be larger than 32-bit, so we have to
+	# use floats to manage them...  :(
+	typeset -F blksz=0
+	typeset -i blknum=0
+	typeset -F startoff
+
+	# The inner match is for 'DVA[0]=<0:1b412600:200>', in which the
+	# text surrounding the actual DVA is a fixed size with 8 characters
+	# before it and 1 after.
+	$ZDB -P -vvvvv -o "ZFS plain file" $dataset $filepath | \
+	    $AWK -v level=${level} -v dva_num=${dva_num} '
+		BEGIN { stage = 0; }
+		(stage == 0) && ($1=="Object") { stage = 1; next; }
+
+		(stage == 1) {
+			print $3 " " $4;
+			stage = 2; next;
+		}
+
+		(stage == 2) && /^Indirect blocks/ { stage=3; next; }
+		(stage < 3) { next; }
+
+		match($2, /L[0-9]/) {
+			if (substr($2, RSTART+1, RLENGTH-1) != level) { next; }
+		}
+		match($3, /DVA\[.*>/) {
+			dva = substr($3, RSTART+8, RLENGTH-9);
+			if (substr($3, RSTART+4, 1) == dva_num) {
+				print $1 " " dva;
+			}
+		}
+		' | \
+	while read line; do
+		log_debug "params='$blksz/$blknum/$startoff' line='$line'"
+		if (( blksz == 0 )); then
+			typeset -i iblksz=$(echo $line | cut -d " " -f1)
+			typeset -i dblksz=$(echo $line | cut -d " " -f2)
+
+			# Calculate the actual desired block starting offset.
+			if (( level > 0 )); then
+				typeset -i nbps_per_level
+				typeset -F indsz
+				typeset -i i=0
+
+				(( nbps_per_level = iblksz / 128 ))
+				(( blksz = dblksz ))
+				for (( i = 0; $i < $level; i++ )); do
+					(( blksz *= nbps_per_level ))
+				done
+			else
+				blksz=$dblksz
+			fi
+
+			(( blknum = offset / blksz ))
+			(( startoff = blknum * blksz ))
+			continue
+		fi
+
+		typeset lineoffstr=$(echo $line | cut -d " " -f1)
+		typeset -F lineoff=$(printf "%d" "0x${lineoffstr}")
+		typeset dva="$(echo $line | cut -d " " -f2)"
+		log_debug "str='$lineoffstr' lineoff='$lineoff' dva='$dva'"
+		if [[ -n "$dva" ]] && (( lineoff == startoff )); then
+			echo $line | cut -d " " -f2
+			return 0
+		fi
+	done
+	return 1
+}
+
+#
+# Corrupt the given dataset's filepath file.  This will obtain the first
+# level 0 block's DVA and scribble random bits on it.
+#
+function corrupt_file # dataset filepath [leaf_vdev_num]
+{
+	typeset dataset=$1
+	typeset filepath=$2
+	typeset -i leaf_vdev_num="$3"
+
+	dva=$(file_dva $dataset $filepath)
+	[ $? -ne 0 ] && log_fail "ERROR: Can't find file $filepath on $dataset"
+
+	vdoff=$(dva_to_vdev_off $dataset $dva $leaf_vdev_num)
+	vdev=$(echo $vdoff | cut -d: -f1)
+	off=$(echo $vdoff | cut -d: -f2)
+
+	log_note "Corrupting ${dataset}'s $filepath on $vdev at DVA $dva"
+	log_must $DD if=/dev/urandom of=$vdev seek=$off count=1 conv=notrunc
+}
+
+#
+# Given a number of files, this function will iterate through
+# the loop creating the specified number of files, whose names
+# will start with <basename>.
+#
+# The <data> argument is special: it can be "ITER", in which case
+# the -d argument will be the value of the current iteration.  It
+# can be 0, in which case it will always be 0.  Otherwise, it will
+# always be the given value.
+#
+# If <snapbase> is specified, a snapshot will be taken using the
+# argument as the snapshot basename.
+#
+function populate_dir # basename num_files write_count blocksz data snapbase
+{
+	typeset basename=$1
+	typeset -i num_files=$2
+	typeset -i write_count=$3
+	typeset -i blocksz=$4
+	typeset data=$5
+	typeset snapbase="$6"
+
+	log_note "populate_dir: data='$data'"
+	for (( i = 0; i < num_files; i++ )); do
+		case "$data" in
+		0)	d=0	;;
+		ITER)	d=$i ;;
+		*)	d=$data	;;
+		esac
+
+        	log_must $FILE_WRITE -o create -c $write_count \
+		    -f ${basename}.$i -b $blocksz -d $d
+
+		[ -n "$snapbase" ] && log_must $ZFS snapshot ${snapbase}.${i}
+	done
+}
+
+# Reap all children registered in $child_pids.
+function reap_children
+{
+	[ -z "$child_pids" ] && return
+	for wait_pid in $child_pids; do
+		log_must $KILL $wait_pid
+	done
+	child_pids=""
+}
+
+# Busy a path.  Expects to be reaped via reap_children.  Tries to run as
+# long and slowly as possible.  [num] is taken as a hint; if such a file
+# already exists a different one will be chosen.
+function busy_path # <path> [num]
+{
+	typeset busypath=$1
+	typeset -i num=$2
+
+	while :; do
+		busyfile="$busypath/busyfile.${num}"
+		[ ! -f "$busyfile" ] && break
+	done
+
+	cmd="$DD if=/dev/urandom of=$busyfile bs=512"
+	( cd $busypath && $cmd ) &
+	typeset pid=$!
+	$SLEEP 1
+	log_must $PS -p $pid
+	child_pids="$child_pids $pid"
 }

@@ -120,19 +120,17 @@ if (( $? == 0 )); then
 	log_must $ZFS allow everyone create $TESTPOOL/$TESTFS/allowed
 fi
 
-if is_global_zone
-then
-
+if is_global_zone; then
 	# Now create several virtual disks to test zpool with
-
-	$MKFILE 100m /$TESTDIR/disk1.dat
-	$MKFILE 100m /$TESTDIR/disk2.dat
-	$MKFILE 100m /$TESTDIR/disk3.dat
-	$MKFILE 100m /$TESTDIR/disk-additional.dat
-	$MKFILE 100m /$TESTDIR/disk-export.dat
-	$MKFILE 100m /$TESTDIR/disk-offline.dat
-	$MKFILE 100m /$TESTDIR/disk-spare1.dat
-	$MKFILE 100m /$TESTDIR/disk-spare2.dat
+	log_must create_vdevs \
+		/$TESTDIR/disk1.dat \
+		/$TESTDIR/disk2.dat \
+		/$TESTDIR/disk3.dat \
+		/$TESTDIR/disk-additional.dat \
+		/$TESTDIR/disk-export.dat \
+		/$TESTDIR/disk-offline.dat \
+		/$TESTDIR/disk-spare1.dat \
+		/$TESTDIR/disk-spare2.dat
 
 	# and create a pool we can perform attach remove replace,
 	# etc. operations with
@@ -140,10 +138,8 @@ then
 	 /$TESTDIR/disk2.dat /$TESTDIR/disk3.dat /$TESTDIR/disk-offline.dat \
 	 spare /$TESTDIR/disk-spare1.dat
 
-
 	# Offline one of the disks to test online
 	log_must $ZPOOL offline $TESTPOOL.virt /$TESTDIR/disk-offline.dat
-
 
 	# create an exported pool to test import
 	log_must $ZPOOL create $TESTPOOL.exported /$TESTDIR/disk-export.dat

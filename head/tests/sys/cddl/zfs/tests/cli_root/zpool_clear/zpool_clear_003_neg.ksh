@@ -68,16 +68,10 @@ function cleanup
 log_assert "Verify 'zpool clear' cannot clear error for spare device."
 log_onexit cleanup
 
-#make raw files to create a spare pool 
-typeset -i i=0
-while (( i < 5 )); do
-	log_must $MKFILE $FILESIZE $TMPDIR/file.$i
-
-	(( i = i + 1 ))
-done
-log_must $ZPOOL create $TESTPOOL1 raidz $TMPDIR/file.1 $TMPDIR/file.2 \
-	$TMPDIR/file.3 spare $TMPDIR/file.4
-
-log_mustnot $ZPOOL clear $TESTPOOL1 $TMPDIR/file.4
+# make raw files to create a spare pool 
+fbase=$TMPDIR/file
+log_must create_vdevs $fbase.1 $fbase.2 $fbase.3 $fbase.4
+log_must create_pool $TESTPOOL1 raidz $fbase.1 $fbase.2 $fbase.3 spare $fbase.4
+log_mustnot $ZPOOL clear $TESTPOOL1 $fbase.4
 
 log_pass "'zpool clear' works on spare device failed as expected."

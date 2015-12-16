@@ -59,26 +59,20 @@ verify_runnable "global"
 log_assert "Replacing a log device passes."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		for logtype in "" "mirror"
-		do
-			log_must $ZPOOL create $TESTPOOL $type $VDEV \
-				$spare $SDEV log $logtype $LDEV
-			sdev=$(random_get $LDEV)
-			tdev=$(random_get $LDEV2)
-			log_must $ZPOOL replace $TESTPOOL $sdev $tdev
-			log_must display_status $TESTPOOL
-			# sleep 15 to make sure replacement completely.
-			log_must $SLEEP 15
-			log_must verify_slog_device \
-				$TESTPOOL $tdev 'ONLINE' $logtype
+function test_slog_replacing # <pooltype> <sparetype> <logtype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
+	typeset logtype=$3
 
-			log_must $ZPOOL destroy -f $TESTPOOL
-		done
-	done
-done
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV log $logtype $LDEV
+	sdev=$(random_get $LDEV)
+	tdev=$(random_get $LDEV2)
+	log_must $ZPOOL replace $TESTPOOL $sdev $tdev
+	log_must display_status $TESTPOOL
+	wait_for 15 1 verify_slog_device $TESTPOOL $tdev ONLINE $logtype
+	destroy_pool $TESTPOOL
+}
+slog_foreach_all test_slog_replacing
 
 log_pass "Replacing a log device passes."

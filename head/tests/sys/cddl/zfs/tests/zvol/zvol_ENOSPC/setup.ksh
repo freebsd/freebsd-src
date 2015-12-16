@@ -34,9 +34,7 @@ verify_runnable "global"
 
 default_zvol_setup $DISK $VOLSIZE
 
-$NEWFS /dev/zvol/$TESTPOOL/$TESTVOL >/dev/null 2>&1
-(( $? != 0 )) && log_fail "Unable to newfs(1M) $TESTPOOL/$TESTVOL"
-
+log_must $NEWFS /dev/zvol/$TESTPOOL/$TESTVOL
 log_must $MKDIR $TESTDIR
 log_must $MOUNT /dev/zvol/$TESTPOOL/$TESTVOL $TESTDIR
 

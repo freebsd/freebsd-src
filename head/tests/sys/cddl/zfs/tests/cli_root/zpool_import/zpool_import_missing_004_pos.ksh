@@ -63,28 +63,18 @@ set -A vdevs "mirror" "raidz" ""
 
 function cleanup
 {
-	if poolexists "$TESTPOOL1" ; then
-		cleanup_filesystem $TESTPOOL1 $TESTFS
-		destroy_pool $TESTPOOL1
-	fi
-
+	destroy_pool $TESTPOOL1
 	log_must $RM -rf $DEVICE_DIR/*
 }
 
 function recreate_files
 {
-	if poolexists "$TESTPOOL1" ; then
-		cleanup_filesystem $TESTPOOL1 $TESTFS
-		destroy_pool $TESTPOOL1
-	fi
-
-	log_must $RM -rf $DEVICE_DIR/*
-	typeset i=0
-	while (( i < $GROUP_NUM )); do
-		$MKDIR -p ${DEVICE_DIR}
-		log_must $MKFILE $FILE_SIZE ${DEVICE_DIR}/${DEVICE_FILE}$i
-		((i += 1))
+	cleanup
+	typeset -i i=0
+	for (( ; $i < $GROUP_NUM; i += 1 )); do
+		log_must create_vdevs ${DEVICE_DIR}/${DEVICE_FILE}$i
 	done
+	log_must $SYNC
 }
 
 log_onexit cleanup
@@ -93,15 +83,15 @@ log_assert "Verify that zpool import succeeds when devices are missing"
 
 typeset rootvdev
 typeset option
+log_must $MKDIR -p $DEVICE_DIR
 for rootvdev in "${vdevs[@]}"; do
 	recreate_files
-	poolexists $pool || \
+	poolexists $TESTPOOL1 || \
 		create_pool $TESTPOOL1 "${rootvdev}" $DEVICE_FILES
 
 	# Remove all devices but the last, one at a time
 	for device in ${DEVICE_FILES% *} ; do
-		poolexists $TESTPOOL1 && \
-			log_must $ZPOOL export $TESTPOOL1
+		poolexists $TESTPOOL1 && log_must $ZPOOL export $TESTPOOL1
 		log_must $RM -f $device
 		log_must $ZPOOL import -d $DEVICE_DIR 
 	done

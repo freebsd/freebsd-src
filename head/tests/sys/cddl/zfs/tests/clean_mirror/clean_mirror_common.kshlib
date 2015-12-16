@@ -38,15 +38,12 @@ function overwrite_verify_mirror
 	typeset OVERWRITING_DEVICE=$2
 
 	typeset atfile=0
-	set -A files
 	set -A cksums
 	set -A newcksums
 
+	populate_dir $TESTDIR/file $FILE_COUNT $WRITE_COUNT $BLOCKSZ 0
 	while (( atfile < FILE_COUNT )); do
-		files[$atfile]=$TESTDIR/file.$atfile
-		log_must $FILE_WRITE -o create -f $TESTDIR/file.$atfile \
-			-b $FILE_SIZE -c 1
-		cksums[$atfile]=$($CKSUM ${files[$atfile]})
+		cksums[$atfile]=$($CKSUM ${TESTDIR}/file.${atfile})
 		(( atfile = atfile + 1 ))
 	done
 
@@ -62,11 +59,9 @@ function overwrite_verify_mirror
 	log_must $ZPOOL import $TESTPOOL
 
 	atfile=0
-
 	typeset -i failedcount=0
 	while (( atfile < FILE_COUNT )); do
-		files[$atfile]=$TESTDIR/file.$atfile
-		newcksum=$($CKSUM ${files[$atfile]})
+		newcksum=$($CKSUM $TESTDIR/file.${atfile})
 		if [[ $newcksum != ${cksums[$atfile]} ]]; then
 			(( failedcount = failedcount + 1 ))
 		fi

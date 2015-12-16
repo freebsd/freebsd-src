@@ -32,24 +32,12 @@ verify_runnable "global"
 
 function cleanup
 {
-	for wait_pid in $child_pids
-	do
-		$KILL $wait_pid
-	done
+	reap_children
 }
 
 function verify_assertion
 {
-	log_note "Busying the pool with: $DD if=/dev/urandom of=$TESTDIR/$TESTFILE bs=131072 count=8000000"
-	$DD if=/dev/urandom of=$TESTDIR/$TESTFILE bs=131072 count=8000000 &
-	typeset pid=$!
-
-	if ! $PS -p $pid > /dev/null 2>&1; then
-		log_fail "ERROR: $DD is no longer running"
-	fi
-
-	child_pids="$child_pids $pid"
-
+	busy_path $TESTDIR
 	for disk in $DISKS; do
 		log_must $ZPOOL offline $TESTPOOL $disk
 		check_state $TESTPOOL $disk "offline"
@@ -63,11 +51,7 @@ function verify_assertion
 			log_fail "$disk of $TESTPOOL did not match online state"
 		fi
 	done
-
-	for wait_pid in $child_pids
-	do
-		$KILL $wait_pid
-	done
+	reap_children
 
 	typeset dir=$(get_device_dir $DISKS)
 	verify_filesys "$TESTPOOL" "$TESTPOOL/$TESTFS" "$dir"

@@ -13,6 +13,5 @@ FILES+=	compress_003_pos.ksh
 FILES+=	setup.ksh
 FILES+=	compress.cfg
 FILES+=	cleanup.ksh
-FILES+=	compress_002_pos.ksh
 
 .include <bsd.test.mk>

@@ -120,19 +120,13 @@ setup_all
     log_must $RM -rf $TESTDIR/* > /dev/null 2>&1
 
 typeset -i COUNT=10
-typeset -i i=0
 
 for mtpt in $TESTDIR $TESTDIR2 ; do
 	log_note "Populate the $mtpt directory (prior to snapshot)"
-	typeset -i j=1
-	while [[ $j -le $COUNT ]]; do
-		log_must $FILE_WRITE -o create -f $mtpt/before_file$j \
-			-b $BLOCKSZ -c $NUM_WRITES -d $j
-
-		(( j = j + 1 ))
-	done
+	populate_dir $mtpt/before_file $COUNT $NUM_WRITES $BLOCKSZ ITER
 done
 
+typeset -i i=0
 while (( i < ${#args[*]} )); do 
 	#
 	# Take a snapshot of the test file system.
@@ -153,12 +147,8 @@ while (( i < ${#args[*]} )); do
 		fi
 
 		log_note "Verify the ${args[i+3]} directory is writable"
-		j=1
-		while [[ $j -le $COUNT ]]; do
-			log_must $FILE_WRITE -o create -f ${args[i+3]}/after_file$j \
-			-b $BLOCKSZ -c $NUM_WRITES -d $j
-			(( j = j + 1 ))
-		done
+		populate_dir ${args[i+3]}/after_file $COUNT $NUM_WRITES \
+			$BLOCKSZ ITER
 
 		FILE_COUNT=`$LS -Al ${args[i+3]}/after* | $GREP -v "total" | wc -l`
 		if [[ $FILE_COUNT -ne $COUNT ]]; then

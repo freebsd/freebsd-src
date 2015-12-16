@@ -66,7 +66,7 @@ for cnt in 2 3; do
 	setup_test_env $TESTPOOL "" $cnt
 	damage_devs $TESTPOOL 1 "keep_label"
 	log_must $ZPOOL clear $TESTPOOL
-	log_mustnot is_healthy $TESTPOOL
+	log_mustnot is_pool_healthy $TESTPOOL
 done
 
 log_pass "Striped pool has no data redundancy as expected."

@@ -58,28 +58,28 @@ verify_runnable "global"
 log_assert "Pool can survive when one of mirror log device get corrupted."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		log_must $ZPOOL create $TESTPOOL $type $VDEV $spare $SDEV \
-			log mirror $LDEV 
+function test_slog_mirror_corruption # <pooltype> <sparetype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
 
-		mntpnt=$(get_prop mountpoint $TESTPOOL)
-		#
-		# Create file in pool to trigger writting in slog devices
-		#
-		log_must $DD if=/dev/random of=$mntpnt/testfile.${TESTCASE_ID} count=100
+	create_pool $TESTPOOL $type $VDEV $spare $SDEV log mirror $LDEV 
 
-		ldev=$(random_get $LDEV)
-		log_must $MKFILE $SIZE $ldev
-		log_must $ZPOOL scrub $TESTPOOL
+	mntpnt=$(get_prop mountpoint $TESTPOOL)
+	#
+	# Create file in pool to trigger writting in slog devices
+	#
+	log_must $DD if=/dev/urandom of=$mntpnt/testfile.${TESTCASE_ID} count=100
 
-		log_must display_status $TESTPOOL
-		log_must verify_slog_device $TESTPOOL $ldev 'UNAVAIL' 'mirror'
+	ldev=$(random_get $LDEV)
+	log_must create_vdevs $ldev
+	log_must $ZPOOL scrub $TESTPOOL
 
-		log_must $ZPOOL destroy -f $TESTPOOL
-	done
-done
+	log_must display_status $TESTPOOL
+	log_must verify_slog_device $TESTPOOL $ldev UNAVAIL mirror
+
+	destroy_pool $TESTPOOL
+}
+slog_foreach_nologtype test_slog_mirror_corruption
 
 log_pass "Pool can survive when one of mirror log device get corrupted."

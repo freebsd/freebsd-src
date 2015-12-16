@@ -92,9 +92,7 @@ done
 pools[${#pools[@]}]="$bigname"
 
 
-
-$MKFILE 64m $VDEV
-
+create_vdevs $VDEV
 typeset -i i=0;
 
 while [ $i -lt "${#pools[@]}" ]

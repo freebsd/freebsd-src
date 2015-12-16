@@ -11,5 +11,6 @@ FILES+=	replacement_002_pos.ksh
 FILES+=	replacement_003_pos.ksh
 FILES+=	replacement_001_pos.ksh
 FILES+=	cleanup.ksh
+FILES+=	replacement.kshlib
 
 .include <bsd.test.mk>

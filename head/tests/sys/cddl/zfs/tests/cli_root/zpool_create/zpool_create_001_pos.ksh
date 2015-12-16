@@ -82,8 +82,8 @@ case $DISK_ARRAY_NUM in
 		disk=$DISK0
 	fi
 	typeset diskname=${disk#/dev/}
-	create_blockfile $FILESIZE $TESTDIR0/$FILEDISK0 ${disk}p5
-        create_blockfile $FILESIZE $TESTDIR1/$FILEDISK1 ${disk}p6
+	create_blockfile ${disk}p5 $TESTDIR0/$FILEDISK0
+	create_blockfile ${disk}p6 $TESTDIR1/$FILEDISK1
 
 	pooldevs="${diskname}p1 \
                   /dev/${diskname}p1 \
@@ -97,8 +97,8 @@ case $DISK_ARRAY_NUM in
 	mirrordevs=$raidzdevs
 	;;
 2|*)
-	create_blockfile $FILESIZE $TESTDIR0/$FILEDISK0 ${DISK0}p5
-        create_blockfile $FILESIZE $TESTDIR1/$FILEDISK1 ${DISK1}p5
+	create_blockfile ${DISK0}p5 $TESTDIR0/$FILEDISK0
+	create_blockfile ${DISK1}p5 $TESTDIR1/$FILEDISK1
 
 	pooldevs="${diskname0}p1\
                  \"/dev/${diskname0}p1 ${diskname1}p1\" \

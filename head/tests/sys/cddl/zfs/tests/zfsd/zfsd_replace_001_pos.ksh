@@ -71,7 +71,7 @@ for type in "raidz" "mirror"; do
 	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$REMOVAL_DISK\" was not removed"
 
 	# Write out data to make sure we can do I/O after the disk failure
-	log_must dd if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=512
+	log_must $DD if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=512
 
 	# Check to make sure ZFS sees the disk as removed
 	wait_for_pool_removal 20

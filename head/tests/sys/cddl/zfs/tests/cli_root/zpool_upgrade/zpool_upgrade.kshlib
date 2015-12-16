@@ -56,7 +56,7 @@ function create_old_pool
 	COUNT=0
 	while [ "$COUNT" -lt 1024 ]; do
 		$DD if=/dev/urandom of=/$POOL_NAME/random.$COUNT \
-		count=1 bs=1024 > /dev/null 2>&1
+			count=1 bs=1024 > /dev/null 2>&1
 		COUNT=$(( $COUNT + 1 ))
 	done
 }

@@ -58,23 +58,19 @@ verify_runnable "global"
 log_assert "Creating a pool with a log device succeeds."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		for logtype in "" "mirror"
-		do
-			log_must $ZPOOL create $TESTPOOL $type $VDEV \
-				$spare $SDEV log $logtype $LDEV
-			log_must display_status $TESTPOOL
+function test_creating_with_slog # <pooltype> <sparetype> <logtype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
+	typeset logtype=$3
 
-			ldev=$(random_get $LDEV)
-			log_must verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' $logtype
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV log $logtype $LDEV
+	log_must display_status $TESTPOOL
+	ldev=$(random_get $LDEV)
+	log_must verify_slog_device $TESTPOOL $ldev ONLINE $logtype
+	destroy_pool $TESTPOOL
+}
 
-			log_must $ZPOOL destroy -f $TESTPOOL
-		done
-	done
-done
+slog_foreach_all test_creating_with_slog
 
 log_pass "Creating a pool with a log device succeeds."

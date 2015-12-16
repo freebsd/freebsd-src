@@ -68,7 +68,7 @@ log_onexit cleanup
 
 log_assert "Ensure that the fsirand(1M) utility fails on a ZFS file system."
 
-populate_dir $NUM_FILES
+populate_dir $TESTDIR/$TESTFILE $NUM_FILES $WRITE_COUNT $BLOCKSZ $DATA
 
 log_must $ZFS unmount $TESTDIR
 

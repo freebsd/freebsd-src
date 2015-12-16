@@ -79,8 +79,7 @@ log_onexit cleanup
 VDEV1=$TMPDIR/vdev1; VDEV2=$TMPDIR/vdev2;
 VDEV3=$TMPDIR/vdev3; VDEV4=$TMPDIR/vdev4;
 
-log_must $MKFILE 64m $VDEV1 $VDEV2 $VDEV3
-log_must $MKFILE 100m $VDEV4
+log_must create_vdevs $VDEV1 $VDEV2 $VDEV3 $VDEV4
 $CAT /dev/null > $EXPECT_HISTORY
 
 exec_record $ZPOOL create $MPOOL mirror $VDEV1 $VDEV2

@@ -28,6 +28,7 @@
 #
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zfs_mount/zfs_mount.kshlib
+. $STF_SUITE/tests/cli_root/zpool_import/zpool_import.kshlib
 
 ################################################################################
 #
@@ -80,35 +81,12 @@ verify_runnable "global"
 set -A vdevs "" "mirror" "raidz"
 set -A options "" "-R $ALTER_ROOT"
 
-function cleanup
-{
-	# recover the vdevs
-	recreate_files
-	
-	[[ -d $ALTER_ROOT ]] && \
-		log_must $RM -rf $ALTER_ROOT
-}
-
-function recreate_files
-{
-	if poolexists "$TESTPOOL1" ; then
-		cleanup_filesystem $TESTPOOL1 $TESTFS
-		destroy_pool $TESTPOOL1
-	fi
-
-	log_must $RM -rf $DEVICE_DIR/*
-	typeset i=0
-	while (( i < $MAX_NUM )); do
-		log_must $MKFILE $FILE_SIZE ${DEVICE_DIR}/${DEVICE_FILE}$i
-		((i += 1))
-	done
-}
-
 function perform_inner_test
 {
 	typeset action=$1
 	typeset import_opts=$2
 	typeset target=$3
+	typeset basedir
 
 	$action $ZPOOL import -d $DEVICE_DIR ${import_opts} $target
 	[[ $action == "log_mustnot" ]] && return
@@ -132,7 +110,7 @@ function perform_inner_test
 	log_must $ZPOOL export $TESTPOOL1
 }
 
-log_onexit cleanup
+log_onexit cleanup_missing
 
 log_assert "Verify that import could handle damaged or missing device."
 
@@ -142,53 +120,28 @@ cd $DEVICE_DIR || log_fail "ERROR: Unable change directory to $DEVICE_DIR"
 checksum1=$($SUM $MYTESTFILE | $AWK '{print $1}')
 
 typeset -i i=0
-typeset -i j=0
-typeset -i count=0
-typeset basedir backup
+while :; do
+	typeset vdtype="${vdevs[i]}"
 
-while (( i < ${#vdevs[*]} )); do
+	typeset -i j=0
+	while (( j < ${#options[*]} )); do
+		typeset opts="${options[j]}"
+		[ -n "$vdtype" ] && typestr="$vdtype" || typestr="stripe"
 
-	setup_filesystem "$DEVICE_FILES" \
-		$TESTPOOL1 $TESTFS $TESTDIR1 \
-		"" ${vdevs[i]}
+		# Prepare the pool.
+		setup_missing_test_pool $vdtype
+		guid=$(get_config $TESTPOOL1 pool_guid $DEVICE_DIR)
+		log_note "*** Testing $typestr tvd guid $guid opts '${opts}'"
 
-	backup=""
-
-	guid=$(get_config $TESTPOOL1 pool_guid)
-	log_must $CP $MYTESTFILE $TESTDIR1/$TESTFILE0
-
-	log_must $ZFS umount $TESTDIR1
-
-	j=0
-	while (( j <  ${#options[*]} )); do
-
-		count=0
-		action=log_must
-
-		#
-		# Restore all device files.
-		#
-		[[ -n $backup ]] && \
-			log_must $TAR xf $DEVICE_DIR/$DEVICE_ARCHIVE
-
+		typeset -i count=0
 		for device in $DEVICE_FILES ; do
+			log_mustnot poolexists $TESTPOOL1
 			log_must $RM -f $device
-
-			poolexists $TESTPOOL1 && \
-				log_must $ZPOOL export $TESTPOOL1
-
-			#
-			# Backup all device files while filesystem prepared.
-			#
-			if [[ -z $backup ]]; then
-				log_must $TAR cf $DEVICE_DIR/$DEVICE_ARCHIVE \
-					${DEVICE_FILE}*
-				backup="true"
-			fi
 
 			(( count = count + 1 ))
 
-			case "${vdevs[i]}" in
+			action=log_must
+			case "$vdtype" in
 				'mirror') (( count == $GROUP_NUM )) && \
 						action=log_mustnot
 					;;
@@ -197,21 +150,20 @@ while (( i < ${#vdevs[*]} )); do
 					;;
 				'')  action=log_mustnot
 					;;
- 			esac
+			esac
 
-			log_note "Testing import by name."
-			perform_inner_test $action "${options[j]}" $TESTPOOL1
+			log_note "Testing import by name; ${count} removed."
+			perform_inner_test $action "${opts}" $TESTPOOL1
 
-			log_note "Testing import by GUID."
-			perform_inner_test $action "${options[j]}" $guid
+			log_note "Testing import by GUID; ${count} removed."
+			perform_inner_test $action "${opts}" $guid
 		done
 
-		((j = j + 1))
+		recreate_missing_files
+		(( j = j + 1 ))
 	done
-
-	recreate_files
-
-	((i = i + 1))
+	(( i = i + 1 ))
+	(( i == ${#vdevs[*]} )) && break
 done
 
 log_pass "Import could handle damaged or missing device."

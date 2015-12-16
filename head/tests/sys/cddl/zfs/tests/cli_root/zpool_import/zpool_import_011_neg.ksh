@@ -67,7 +67,7 @@ function cleanup
 	# Recreate virtual devices to avoid destroyed pool information on files.
 	#
 	log_must $RM -rf $VDEV0 $VDEV1 $VDEV2
-	log_must $MKFILE $FILE_SIZE $VDEV0 $VDEV1 $VDEV2
+	log_must create_vdevs $VDEV0 $VDEV1 $VDEV2
 }
 
 log_assert "For strip pool, any destroyed pool devices was demaged," \

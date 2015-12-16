@@ -78,7 +78,7 @@ function do_testing # <prop> <prop_value>
 	typeset prop_val=$2
 
 	log_must $ZFS set $property=$prop_val $fs
-	$FILE_WRITE -o create -f $origfile -b $BLOCK_SIZE -c $WRITE_COUNT
+	log_must $FILE_WRITE -o create -f $origfile -b $BLOCK_SIZE -c $WRITE_COUNT
 	log_must $ZFS snapshot $snap
 	$ZFS send $snap > $stream
 	(( $? != 0 )) && \

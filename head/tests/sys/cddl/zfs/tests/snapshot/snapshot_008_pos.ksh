@@ -81,18 +81,11 @@ typeset -i COUNT=10
 orig_size=`get_prop available $TESTPOOL`
 
 log_note "Populate the $TESTDIR directory"
-typeset -i i=1
-while [[ $i -lt $COUNT ]]; do
-	log_must $FILE_WRITE -o create -f $TESTDIR/file$i \
-	   -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-	log_must $ZFS snapshot $SNAPFS.$i
-	(( i = i + 1 ))
-done
+populate_dir $TESTDIR/file $COUNT $NUM_WRITES $BLOCKSZ ITER $SNAPFS
 
 typeset -i i=1
 while [[ $i -lt $COUNT ]]; do
-	log_must rm -rf $TESTDIR/file$i > /dev/null 2>&1
+	log_must rm -f $TESTDIR/file.$i > /dev/null 2>&1
 	log_must $ZFS destroy $SNAPFS.$i
 
 	(( i = i + 1 ))

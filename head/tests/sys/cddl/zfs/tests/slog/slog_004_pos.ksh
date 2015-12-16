@@ -59,27 +59,22 @@ verify_runnable "global"
 log_assert "Attaching a log device passes."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		for logtype in "" "mirror"
-		do
-			log_must $ZPOOL create $TESTPOOL $type $VDEV \
-				$spare $SDEV log $logtype $LDEV
+function test_attaching_slog # <pooltype> <sparetype> <logtype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
+	typeset logtype=$3
 
-			ldev=$(random_get $LDEV)
-			typeset ldev2=$(random_get $LDEV2)
-			log_must $ZPOOL attach $TESTPOOL $ldev $ldev2
-			log_must display_status $TESTPOOL
-			log_must verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' 'mirror'
-			log_must verify_slog_device \
-				$TESTPOOL $ldev2 'ONLINE' 'mirror'
-
-			log_must $ZPOOL destroy -f $TESTPOOL
-		done
-	done
-done
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV \
+		log $logtype $LDEV
+	typeset ldev=$(random_get $LDEV)
+	typeset ldev2=$(random_get $LDEV2)
+	log_must $ZPOOL attach $TESTPOOL $ldev $ldev2
+	log_must display_status $TESTPOOL
+	log_must verify_slog_device $TESTPOOL $ldev ONLINE mirror
+	log_must verify_slog_device $TESTPOOL $ldev2 ONLINE mirror
+	destroy_pool $TESTPOOL
+}
+slog_foreach_all test_attaching_slog
 
 log_pass "Attaching a log device passes."

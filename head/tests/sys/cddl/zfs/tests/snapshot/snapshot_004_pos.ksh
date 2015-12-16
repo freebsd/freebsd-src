@@ -83,13 +83,7 @@ fi
 typeset -i COUNT=10
 
 log_note "Populate the $TESTDIR directory"
-typeset -i i=1
-while [[ $i -lt $COUNT ]]; do
-	log_must $FILE_WRITE -o create -f $TESTDIR/file$i \
-	   -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-	(( i = i + 1 ))
-done
+populate_dir $TESTDIR/file $COUNT $NUM_WRITES $BLOCKSZ ITER
 
 FILE_COUNT=`$LS -Al $SNAPDIR | $GREP -v "total 0" | wc -l`
 if [[ $FILE_COUNT -ne 0 ]]; then

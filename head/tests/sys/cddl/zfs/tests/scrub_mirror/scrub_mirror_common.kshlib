@@ -37,11 +37,9 @@ function overwrite_verify_mirror
 	set -A cksums
 	set -A newcksums
 
+	fill_fs $TESTDIR $FILE_COUNT $BLOCKSZ $WRITE_COUNT
 	while (( atfile < FILE_COUNT )); do
-		files[$atfile]=$TESTDIR/file.$atfile
-		log_must $FILE_WRITE -o create -f $TESTDIR/file.$atfile \
-			-b $FILE_SIZE -c 1
-		cksums[$atfile]=$($CKSUM ${files[$atfile]})
+		cksums[$atfile]=$($CKSUM ${TESTDIR}/${TESTFILE}.${i})
 		(( atfile = atfile + 1 ))
 	done
 
@@ -51,25 +49,22 @@ function overwrite_verify_mirror
 
 	# dd the affected side of the mirror
 	log_must $DD if=$OVERWRITING_DEVICE of=$(bsddevmap $AFFECTED_DEVICE) \
-		seek=8 bs=$DD_BLOCK count=$(( DD_COUNT - 8 )) conv=notrunc
+		seek=8 bs=$BLOCKSZ count=$(( WRITE_COUNT - 8 )) conv=notrunc
 
-	# now remount
+	# now remount and scrub
 	log_must $ZPOOL import $POOL
-
 	log_must $ZPOOL scrub $POOL
-
-	while ! is_pool_scrubbed $POOL; do
-		log_must $SLEEP 2
-	done
+	wait_for 60 1 is_pool_scrubbed $POOL
 
 	atfile=0
-
 	typeset -i failedcount=0
 	while (( atfile < FILE_COUNT )); do
-		files[$atfile]=$TESTDIR/file.$atfile
-		newcksum=$($CKSUM ${files[$atfile]})
+		newcksum=$($CKSUM $TESTDIR/${TESTFILE}.${i})
 		if [[ $newcksum != ${cksums[$atfile]} ]]; then
 			(( failedcount = failedcount + 1 ))
+		else
+			log_note "${TESTFILE}.${i} checksums match:"\
+			    "old ${cksums[$atfile]} new $newcksum"
 		fi
 		$RM -f ${files[$atfile]}
 		(( atfile = atfile + 1 ))

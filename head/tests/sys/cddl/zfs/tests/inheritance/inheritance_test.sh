@@ -29,7 +29,7 @@ inherit_001_pos_head()
 {
 	atf_set "descr" "Test properties are inherited correctly"
 	atf_set "require.config" rt_long
-	atf_set "timeout" 900
+	atf_set "timeout" 1800
 	atf_set "require.progs"  zfs
 }
 inherit_001_pos_body()

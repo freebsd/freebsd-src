@@ -28,6 +28,7 @@
 #
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/tests/cli_root/zfs_mount/zfs_mount.kshlib
+. $STF_SUITE/tests/cli_root/zpool_import/zpool_import.kshlib
 
 ################################################################################
 #
@@ -75,101 +76,46 @@ verify_runnable "global"
 set -A vdevs "" "mirror" "raidz"
 set -A options "" "-R $ALTER_ROOT"
 
-function cleanup
-{
-	cd $DEVICE_DIR || log_fail "Unable change directory to $DEVICE_DIR"
-	[[ -e $DEVICE_DIR/$DEVICE_ARCHIVE ]] && \
-		log_must $TAR xf $DEVICE_DIR/$DEVICE_ARCHIVE
-		
-	poolexists $TESTPOOL1 || \
-		log_must $ZPOOL import -d $DEVICE_DIR $TESTPOOL1
-
-	cleanup_filesystem $TESTPOOL1 $TESTFS
-
-	destroy_pool $TESTPOOL1
-}
-
-function cleanup_all
-{
-	cleanup
-
-	# recover dev files 
-	typeset i=0
-	while (( i < $MAX_NUM )); do
-		typeset dev_file=${DEVICE_DIR}/${DEVICE_FILE}$i
-		[ ! -e ${dev_file} ] && log_must $MKFILE $FILE_SIZE ${dev_file}
-		((i += 1))
-	done
-
-	log_must $RM -f $DEVICE_DIR/$DEVICE_ARCHIVE
-	cd $CWD || log_fail "Unable change directory to $CWD"
-
-	[[ -d $ALTER_ROOT ]] && \
-		log_must $RM -rf $ALTER_ROOT
-
-	[[ -d $BACKUP_DEVICE_DIR ]] && \
-		log_must $RM -rf $BACKUP_DEVICE_DIR
-}
-
-log_onexit cleanup_all
+log_onexit cleanup_missing
 
 log_assert "Verify that import could handle moving device."
 
-CWD=$PWD
-
-[[ ! -d $BACKUP_DEVICE_DIR ]] && 
-	log_must $MKDIR -p $BACKUP_DEVICE_DIR
-
+log_must $MKDIR -p $BACKUP_DEVICE_DIR
 cd $DEVICE_DIR || log_fail "Unable change directory to $DEVICE_DIR"
 
 typeset -i i=0
-typeset -i j=0
 typeset -i count=0
-typeset basedir backup
 typeset action
 
-while (( i < ${#vdevs[*]} )); do
+function try_import # <action> <poolish> [opts]
+{
+	typeset action=$1; shift
+	typeset poolish="$1"; shift
+	log_note "try_import action=$action poolish=$poolish opts='$1'"
+	if [ -z "$1" ]; then
+		$action $ZPOOL import -d $DEVICE_DIR $poolish
+	else
+		$action $ZPOOL import -d $DEVICE_DIR $1 $poolish
+	fi
+	[ "$action" = "log_mustnot" ] && return
+	log_must $ZPOOL export $TESTPOOL1
+}
 
-	(( i != 0 )) && \
-		log_must $TAR xf $DEVICE_DIR/$DEVICE_ARCHIVE
-		
-	setup_filesystem "$DEVICE_FILES" \
-		$TESTPOOL1 $TESTFS $TESTDIR1 \
-		"" ${vdevs[i]}
+while :; do
+	typeset vdtype="${vdevs[i]}"
 
-	guid=$(get_config $TESTPOOL1 pool_guid)
-	backup=""
+	typeset -i j=0
+	while (( j < ${#options[*]} )); do
+		typeset opts="${options[j]}"
 
-	log_must $CP $MYTESTFILE $TESTDIR1/$TESTFILE0
+		[ -n "$vdtype" ] && typestr="$vdtype" || typestr="stripe"
+		setup_missing_test_pool $vdtype
+		guid=$(get_config $TESTPOOL1 pool_guid $DEVICE_DIR)
+		log_note "*** Testing $typestr tvd guid $guid opts '${opts}'"
 
-	log_must $ZFS umount $TESTDIR1
-
-	j=0
-	while (( j <  ${#options[*]} )); do
-
-		count=0
-
-		#
-		# Restore all device files.
-		#
-		[[ -n $backup ]] && \
-			log_must $TAR xf $DEVICE_DIR/$DEVICE_ARCHIVE
-
-		log_must $RM -f $BACKUP_DEVICE_DIR/*
-
+		typeset -i count=0
 		for device in $DEVICE_FILES ; do
-
-			poolexists $TESTPOOL1 && \
-				log_must $ZPOOL export $TESTPOOL1
-
-			#
-			# Backup all device files while filesystem prepared.
-			#
-			if [[ -z $backup ]] ; then
-				log_must $TAR cf $DEVICE_DIR/$DEVICE_ARCHIVE ${DEVICE_FILE}*
-				backup="true"
-			fi
-
+			log_mustnot poolexists $TESTPOOL1
 			log_must $MV $device $BACKUP_DEVICE_DIR
 
 			(( count = count + 1 ))
@@ -184,26 +130,19 @@ while (( i < ${#vdevs[*]} )); do
 					;;
  			esac
 
-			log_note "Testing import by name."
-			$action $ZPOOL import \
-				-d $DEVICE_DIR ${options[j]} $TESTPOOL1
+			log_note "Testing import by name; ${count} moved."
+			try_import $action $TESTPOOL1 "$opts"
 
-			# We have to test for pool existence since action
-			# may be 'log_mustnot'.
-			poolexists $TESTPOOL1 && \
-				log_must $ZPOOL export $TESTPOOL1
-
-			log_note "Testing import by GUID."
-			$action $ZPOOL import \
-				-d $DEVICE_DIR ${options[j]} $guid
+			log_note "Testing import by GUID; ${count} moved."
+			try_import $action $guid "$opts"
 		done
 
+		log_must $RM -f $BACKUP_DEVICE_DIR/*
+		recreate_missing_files
 		((j = j + 1))
 	done
-
-	cleanup
-
 	((i = i + 1))
+	(( i == ${#vdevs[*]} )) && break
 done
 
 log_pass "Import could handle moving device."

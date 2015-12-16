@@ -74,13 +74,13 @@ function verify_assertion # dev
 	typeset dev=$1
 	typeset odev=${pooldevs[0]}
 
-	log_must $MKFILE $fsize $mtpt/$TESTFILE0
+	log_must $MKFILE 100m $mtpt/$TESTFILE0
 	log_must $ZPOOL scrub $TESTPOOL
 	while is_pool_scrubbing $TESTPOOL ; do
 		$SLEEP 2
 	done
 
-	log_must $MKFILE $fsize $mtpt/$TESTFILE1
+	log_must $MKFILE 100m $mtpt/$TESTFILE1
 	log_must $ZPOOL replace $TESTPOOL $odev $dev
 
 	while ! is_pool_resilvered $TESTPOOL ; do
@@ -103,20 +103,14 @@ log_assert "'zpool scrub <pool>' should runs successfully regardless " \
 
 log_onexit cleanup
 
-typeset -i fsize
 typeset mtpt=""
 
 set_devs
 
 for keyword in "${keywords[@]}" ; do
 	setup_hotspares "$keyword"
-
 	mtpt=$(get_prop mountpoint $TESTPOOL)
-	fsize=$(get_prop available $TESTPOOL)
-	(( fsize = fsize * 3 / 8 ))
-
 	iterate_over_hotspares verify_assertion "${vdev%% *}"
-
 	destroy_pool "$TESTPOOL"
 done
 

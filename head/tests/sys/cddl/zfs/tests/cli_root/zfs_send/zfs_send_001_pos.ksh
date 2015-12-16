@@ -106,7 +106,7 @@ log_must $ZFS create $rst_root
 	log_must $MKDIR -p $TESTDIR1
 log_must $ZFS set mountpoint=$TESTDIR1 $rst_root
 
-$FILE_WRITE -o create -f $init_data -b $BLOCK_SIZE -c $WRITE_COUNT
+log_must $FILE_WRITE -o create -f $init_data -b $BLOCK_SIZE -c $WRITE_COUNT
 
 log_must $ZFS snapshot $init_snap
 $ZFS send $init_snap > $full_bkup
@@ -121,7 +121,7 @@ compare_cksum $init_data $rst_data
 
 log_note "Verify 'zfs send -i' can create incremental send stream."
 
-$FILE_WRITE -o create -f $inc_data -b $BLOCK_SIZE -c $WRITE_COUNT -d 0
+log_must $FILE_WRITE -o create -f $inc_data -b $BLOCK_SIZE -c $WRITE_COUNT -d 0
 
 log_must $ZFS snapshot $inc_snap
 $ZFS send -i $init_snap $inc_snap > $inc_bkup

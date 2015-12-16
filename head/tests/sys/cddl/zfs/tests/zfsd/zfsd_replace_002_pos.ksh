@@ -40,20 +40,11 @@ verify_runnable "global"
 
 function cleanup
 {
-	if [[ -n "$child_pids" ]]; then
-		for wait_pid in $child_pids
-		do
-		        $KILL $wait_pid
-		done
-	fi
-
-	if poolexists $TESTPOOL; then
-		destroy_pool $TESTPOOL
-	fi
+	reap_children
+	destroy_pool $TESTPOOL
 
 	# See if the phy has been disabled, and try to re-enable it if possible.
-	for CURDISK in $TMPDISKS[*]
-	do
+	for CURDISK in $TMPDISKS[*]; do
 		if [ ! -z ${EXPANDER_LIST[$CURDISK]} -a ! -z ${PHY_LIST[$CURDISK]} ]; then
 			find_disk_by_phy ${EXPANDER_LIST[$CURDISK]} ${PHY_LIST[$CURDISK]}
 			[ -n "$FOUNDDISK" ] && continue
@@ -63,28 +54,6 @@ function cleanup
 	rescan_disks
 
 	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
-}
-
-function run_io
-{
-	typeset -i processes=$1
-	typeset -i mbcount=$2
-	typeset i=0
-
-	while [[ $i -lt $processes ]]; do
-		log_note "Invoking dd if=/dev/zero of=$TESTDIR/$TESTFILE.$i &"
-		dd if=/dev/zero of=$TESTDIR/$TESTFILE.$i bs=1m count=$mbcount &
-		typeset pid=$!
-
-		$SLEEP 1
-		if ! $PS -p $pid > /dev/null 2>&1; then
-			log_fail "dd if=/dev/zero $TESTDIR/$TESTFILE.$i"
-		fi
-
-		child_pids="$child_pids $pid"
-		((i = i + 1))
-	done
-
 }
 
 log_assert "A pool can come back online after all disks are failed and reactivated"
@@ -116,14 +85,9 @@ for type in "raidz" "mirror"; do
 	typeset -A EXPANDER_LIST
 	unset PHY_LIST
 	typeset -A PHY_LIST
-	# Tell the enable/disable SAS disk routines that we don't want to
-	# wait for the disk to disappear or reappear.  We'll do the wait at
-	# the end.
-	export NO_SAS_DISK_WAIT=1
 
 	# First, disable the PHYs for all of the disks.
-	for CURDISK in ${TMPDISKS[*]}
-	do
+	for CURDISK in ${TMPDISKS[*]}; do
 		# Find the first disk, get the expander and phy
 		log_note "Looking for expander and phy information for $CURDISK"
 		find_verify_sas_disk $CURDISK
@@ -142,26 +106,18 @@ for type in "raidz" "mirror"; do
 	rescan_disks
 
 	# Now go through the list of disks, and make sure they are all gone.
-	for CURDISK in ${TMPDISKS[*]}
-	do
+	for CURDISK in ${TMPDISKS[*]}; do
 		# Check to make sure disk is gone.
-		camcontrol inquiry $CURDISK > /dev/null 2>&1
-		if [ $? = 0 ]; then
-			log_fail "Disk \"$CURDISK\" was not removed"
-		fi
+		log_mustnot camcontrol inquiry $CURDISK
 	done
 
 	# Make sure that the pool status is "UNAVAIL".  We have taken all
 	# of the drives offline, so it should be.
-	$ZPOOL status $TESTPOOL |grep "state:" |grep UNAVAIL > /dev/null
-	if [ $? != 0 ]; then
-		log_fail "Pool $TESTPOOL not listed as UNAVAIL"
-	fi
+	log_must is_pool_state $TESTPOOL UNAVAIL
 
 	# Now we re-enable all of the PHYs.  Note that we turned off the
 	# sleep inside enable_sas_disk, so this should quickly.
-	for CURDISK in ${TMPDISKS[*]}
-	do
+	for CURDISK in ${TMPDISKS[*]}; do
 		# Re-enable the disk, we don't want to leave it turned off
 		log_note "Re-enabling phy ${PHY_LIST[$CURDISK]} on expander ${EXPANDER_LIST[$CURDISK]}"
 		enable_sas_disk ${EXPANDER_LIST[$CURDISK]} ${PHY_LIST[$CURDISK]}
@@ -176,19 +132,14 @@ for type in "raidz" "mirror"; do
 	while [ ${#DISK_FOUND[*]} -lt $NUMDISKS ] && [ $retries -lt 3 ]; do
 		# If this isn't the first time through, give the disk a
 		# little more time to show up.
-		if [ $retries -ne 0 ]; then
-			$SLEEP 5
-		fi
+		[ $retries -ne 0 ] && $SLEEP 5
 
-		for CURDISK in ${TMPDISKS[*]}
-		do
+		for CURDISK in ${TMPDISKS[*]}; do
 			# If we already found this disk, we don't need to
 			# check again.  Note that the new name may not be
 			# the same as the name referenced in CURDISK.  That
 			# is why we look for the disk by expander and PHY.
-			if [ ! -z ${DISK_FOUND[$CURDISK]} ]; then
-				continue
-			fi
+			[ ! -z ${DISK_FOUND[$CURDISK]} ] && continue
 
 			# Make sure the disk is back in the topology
 			find_disk_by_phy ${EXPANDER_LIST[$CURDISK]} ${PHY_LIST[$CURDISK]}
@@ -202,18 +153,14 @@ for type in "raidz" "mirror"; do
 	done
 
 	if [ ${#DISK_FOUND[*]} -lt $NUMDISKS ]; then
-		for CURDISK in ${TMPDISKS[*]}
-		do
-			if [ ! -z ${DISK_FOUND[$CURDISK]} ]; then
-				continue
-			fi
+		for CURDISK in ${TMPDISKS[*]}; do
+			[ ! -z ${DISK_FOUND[$CURDISK]} ] && continue
 			log_note "Disk $CURDISK has not appeared at phy $PHY_LIST[$CURDISK] on expander $EXPANDER_LIST[$CURDISK] after 20 seconds"
 		done
 		((num_missing=${NUM_DISKS} - ${#DISK_FOUND[*]}))
 		log_fail "Missing $num_missing Disks out of $NUM_DISKS Disks"
 	else
-		for CURDISK in ${TMPDISKS[*]}
-		do
+		for CURDISK in ${TMPDISKS[*]}; do
 			log_note "Disk $CURDISK is back as ${DISK_FOUND[$CURDISK]}"
 		done
 		# Reset our array of disks, because we may have disks that

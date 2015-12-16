@@ -71,18 +71,6 @@ log_onexit cleanup
 typeset -i fn=0
 typeset -i retval=0
 
-while (( 1 )); do
-        $FILE_WRITE -o create -f $TESTDIR/testfile${TESTCASE_ID}.$fn \
-            -b $BLOCKSZ -c $NUM_WRITES
-        retval=$?
-        if (( $retval != 0 )); then
-                break
-        fi
-
-        (( fn = fn + 1 ))
-done
-
-(( $retval != $ENOSPC )) &&
-    log_fail "ENOSPC was not returned, $retval was received instead"
+log_mustbe ENOSPC fill_fs $TESTDIR -1 50 $BLOCKSZ $NUM_WRITES
 
 log_pass "ENOSPC was returned as expected"

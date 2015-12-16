@@ -59,24 +59,22 @@ verify_runnable "global"
 log_assert "Offline and online a log device passes."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		log_must $ZPOOL create $TESTPOOL $type $VDEV $spare $SDEV \
-			log mirror $LDEV mirror $LDEV2
+function test_slog_online_offline # <pooltype> <sparetype>
+{
+	create_pool $TESTPOOL $type $VDEV $spare $SDEV \
+		log mirror $LDEV mirror $LDEV2
 
-		ldev=$(random_get $LDEV $LDEV2)
-		log_must $ZPOOL offline $TESTPOOL $ldev
-		log_must display_status $TESTPOOL
-		log_must verify_slog_device $TESTPOOL $ldev 'OFFLINE' 'mirror'
+	ldev=$(random_get $LDEV $LDEV2)
+	log_must $ZPOOL offline $TESTPOOL $ldev
+	log_must display_status $TESTPOOL
+	log_must verify_slog_device $TESTPOOL $ldev OFFLINE mirror
 
-		log_must $ZPOOL online $TESTPOOL $ldev
-		log_must display_status $TESTPOOL
-		log_must verify_slog_device $TESTPOOL $ldev 'ONLINE' 'mirror'
+	log_must $ZPOOL online $TESTPOOL $ldev
+	log_must display_status $TESTPOOL
+	log_must verify_slog_device $TESTPOOL $ldev ONLINE mirror
 
-		log_must $ZPOOL destroy -f $TESTPOOL
-	done
-done
+	destroy_pool $TESTPOOL
+}
+slog_foreach_nologtype test_slog_online_offline
 
 log_pass "Offline and online a log device passes."

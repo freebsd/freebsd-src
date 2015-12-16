@@ -69,161 +69,39 @@ log_assert "Verify 'zpool clear' can clear errors of a storage pool."
 log_onexit cleanup
 
 #make raw files to create various configuration pools
-typeset -i i=0
-while (( i < 3 )); do
-	log_must $MKFILE $FILESIZE $TMPDIR/file.$i
-
-	(( i = i + 1 ))
-done
-
 fbase=$TMPDIR/file
+log_must create_vdevs $fbase.0 $fbase.1 $fbase.2
 set -A poolconf "mirror $fbase.0 $fbase.1 $fbase.2" \
                 "raidz1 $fbase.0 $fbase.1 $fbase.2" \
                 "raidz2 $fbase.0 $fbase.1 $fbase.2" 
 
-function check_err # <pool> [<vdev>]
+function test_clear
 {
-	typeset pool=$1
-	shift
-	if (( $# > 0 )); then
-		typeset	checkvdev=$1
-	else
-		typeset checkvdev=""
-	fi
-	typeset -i errnum=0
-	typeset c_read=0
-	typeset c_write=0
-	typeset c_cksum=0
-	typeset tmpfile=$TMPDIR/file.${TESTCASE_ID}
-	typeset healthstr="pool '$pool' is healthy"
-	typeset output="`$ZPOOL status -x $pool`"
+	typeset type="$1"
+	typeset vdev_arg=""
 
-	[[ "$output" ==  "$healthstr" ]] && return $errnum
+	log_note "Testing ${type} clear type ..."
+	[ "$type" = "device" ] && vdev_arg="${fbase}.0"
 
-	$ZPOOL status -x $pool | $GREP -v "^$" | $GREP -v "pool:" \
-			| $GREP -v "state:" | $GREP -v "config:" \
-			| $GREP -v "errors:" > $tmpfile
-	typeset line
-	typeset -i fetchbegin=1
-	while read line; do 
-	 	if (( $fetchbegin != 0 )); then
-                        $ECHO $line | $GREP "NAME" >/dev/null 2>&1
-                        (( $? == 0 )) && (( fetchbegin = 0 ))
-                         continue
-                fi
-
-		if [[ -n $checkvdev ]]; then 
-			$ECHO $line | $GREP $checkvdev >/dev/null 2>&1
-			(( $? != 0 )) && continue
-			c_read=`$ECHO $line | $AWK '{print $3}'`
-			c_write=`$ECHO $line | $AWK '{print $4}'`
-			c_cksum=`$ECHO $line | $AWK '{print $5}'`
-			if [ $c_read != 0 ] || [ $c_write != 0 ] || \
-		   	   [ $c_cksum != 0 ]
-			then
-				(( errnum = errnum + 1 ))
-			fi
-			break
-		fi
-
-		c_read=`$ECHO $line | $AWK '{print $3}'`
-		c_write=`$ECHO $line | $AWK '{print $4}'`
-		c_cksum=`$ECHO $line | $AWK '{print $5}'`
-		if [ $c_read != 0 ] || [ $c_write != 0 ] || \
-		    [ $c_cksum != 0 ]
-		then
-			(( errnum = errnum + 1 ))
-		fi
-	done <$tmpfile
-
-	return $errnum
-}
-
-function do_testing #<clear type> <vdevs>
-{
-	typeset FS=$TESTPOOL1/fs
-	typeset file=/$FS/f
-	typeset type=$1
-	shift
-	typeset vdev="$@"
-
-	log_note "Testing with vdevs ${vdev} ..."
-
-	log_must $ZPOOL create -f $TESTPOOL1 $vdev
-	log_must $ZFS create $FS
-	#
-	# Fully fill up the zfs filesystem in order to make data block errors
-	# zfs filesystem
-	# 
-	typeset -i ret=0
-	typeset -i i=0
-	while $TRUE ; do
-        	$FILE_WRITE -o create -f $file.$i \
-            		-b $BLOCKSZ -c $NUM_WRITES
-        	ret=$?
-        	(( $ret != 0 )) && break
-        	(( i = i + 1 ))
-	done
-	(( $ret != 28 )) && log_fail "ERROR: $FILE_WRITE failed with error $ret"
-	log_note "$FILE_WRITE has filled up $FS."
-	
-	#
-	# Make errors to the testing pool by overwrite the vdev device with  
-	# the dd command, taking care to skip the first and last labels.
-	#
-	(( i = $RANDOM % 3 ))
-	typeset -i wcount=0
-	typeset -i size
-	case $FILESIZE in 
-		*g|*G) 
-			(( size = ${FILESIZE%%[g|G]} ))
-			(( wcount = size*1024*1024 - 512 ))
-			;;
-		*m|*M)
-			(( size = ${FILESIZE%%[m|M]} ))
-			(( wcount = size*1024 - 512 ))
-			;;
-		*k|*K)
-			(( size = ${FILESIZE%%[k|K]} ))
-			(( wcount = size - 512 ))
-			;;
-		*)	
-			(( wcount = FILESIZE/1024 - 512 ))
-			;;
-	esac
-	$DD if=/dev/zero of=$fbase.$i seek=512 bs=1024 count=$wcount conv=notrunc \
-			> /dev/null 2>&1
-	log_must $SYNC
+	corrupt_file $TESTPOOL1 /f
 	log_must $ZPOOL scrub $TESTPOOL1
-	# Wait for the completion of scrub operation
-	while is_pool_scrubbing $TESTPOOL1; do
-		$SLEEP 1
-	done
-		
-	check_err $TESTPOOL1 && \
-		log_fail "No error generated."
-	if [[ $type == "device" ]]; then
-		log_must $ZPOOL clear $TESTPOOL1 $fbase.$i 
-		! check_err $TESTPOOL1 $fbase.$i && \
-	     	      log_fail "'zpool clear' fails to clear error for $fbase.$i device." 
-	fi
+	wait_for 20 1 is_pool_scrubbed $TESTPOOL1
+	log_must pool_has_errors $TESTPOOL1
 
-	if [[ $type == "pool" ]]; then
-		log_must $ZPOOL clear $TESTPOOL1
-		! check_err $TESTPOOL1 && \
-	     		log_fail "'zpool clear' fails to clear error for pool $TESTPOOL1."
-	fi
-
-	log_must $ZPOOL destroy $TESTPOOL1
+	log_must $ZPOOL clear $TESTPOOL1 $vdev_arg
+	log_mustnot pool_has_errors $TESTPOOL1
 }
 
-log_note "'zpool clear' clears leaf-device error."
 for devconf in "${poolconf[@]}"; do
-	do_testing "device" $devconf  
-done
-log_note "'zpool clear' clears top-level pool error."
-for devconf in "${poolconf[@]}"; do
-	do_testing "pool" $devconf 
+	# Create the pool and sync out a file to it.
+	log_must $ZPOOL create -f $TESTPOOL1 $devconf
+	log_must $FILE_WRITE -o create -f /$TESTPOOL1/f -b 131072 -c 32
+	log_must $SYNC /$TESTPOOL1
+
+	test_clear "device"
+	test_clear "pool"
+
+	log_must $ZPOOL destroy -f $TESTPOOL1
 done
 
 log_pass "'zpool clear' clears pool errors as expected."

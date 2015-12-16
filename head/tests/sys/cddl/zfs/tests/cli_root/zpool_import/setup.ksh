@@ -71,7 +71,7 @@ log_must $MOUNT $ZFSSIDE_DISK2 $DEVICE_DIR
 
 i=0
 while (( i < $MAX_NUM )); do
-	log_must $MKFILE $FILE_SIZE ${DEVICE_DIR}/${DEVICE_FILE}$i
+	log_must create_vdevs ${DEVICE_DIR}/${DEVICE_FILE}$i
 	(( i = i + 1 ))
 done
 

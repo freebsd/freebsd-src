@@ -57,20 +57,19 @@ verify_runnable "global"
 log_assert "A raidz/raidz2 log is not supported."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		for logtype in "raidz" "raidz1" "raidz2"
-		do
-			log_mustnot $ZPOOL create $TESTPOOL $type $VDEV \
-				$spare $SDEV log $logtype $LDEV $LDEV2
-			ldev=$(random_get $LDEV $LDEV2)
-			log_mustnot verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' $logtype
-			log_must datasetnonexists $TESTPOOL
-		done
+function test_no_raidz_slog # <pooltype> <sparetype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
+
+	for logtype in "raidz" "raidz1" "raidz2"; do
+		log_mustnot $ZPOOL create $TESTPOOL $type $VDEV \
+			$spare $SDEV log $logtype $LDEV $LDEV2
+		ldev=$(random_get $LDEV $LDEV2)
+		log_mustnot verify_slog_device $TESTPOOL $ldev ONLINE $logtype
+		log_must datasetnonexists $TESTPOOL
 	done
-done
+}
+slog_foreach_nologtype test_no_raidz_slog
 
 log_pass "A raidz/raidz2 log is not supported."

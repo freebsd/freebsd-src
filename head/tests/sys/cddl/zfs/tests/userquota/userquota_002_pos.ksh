@@ -71,8 +71,7 @@ log_assert \
 
 typeset pool_vdev=$TMPDIR/pool_dev.${TESTCASE_ID}
 
-log_must $MKFILE 500m $pool_vdev
-
+log_must create_vdevs $pool_vdev
 destroy_pool $TESTPOOL1
 
 log_must $ZPOOL create -O userquota@$QUSER1=$UQUOTA_SIZE \

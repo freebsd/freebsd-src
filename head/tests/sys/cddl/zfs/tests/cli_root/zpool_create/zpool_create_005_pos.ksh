@@ -72,16 +72,12 @@ log_onexit cleanup
 set -A pooltype "" "mirror" "raidz" "raidz1" "raidz2"
 
 #prepare raw file for file disk
-log_must $MKDIR $TMPDIR/zpool_create_005_pos
-typeset -i i=1 
-while (( i < 4 )); do
-	log_must $MKFILE $FILESIZE $TMPDIR/zpool_create_005_pos/file.$i	
-	(( i = i + 1 ))
-done
-
+TDIR=$TMPDIR/zpool_create_005_pos
+FBASE=$TDIR/file
+log_must $MKDIR $TDIR
+log_must create_vdevs $FBASE.0 $FBASE.1 $FBASE.2 $FBASE.3
 #Remove the directory with name as pool name if it exists
 [[ -d /$TESTPOOL ]] && $RM -rf /$TESTPOOL
-file=$TMPDIR/zpool_create_005_pos/file
 
 for opt in "-R $TESTDIR1" "-m $TESTDIR1" \
 	"-R $TESTDIR1 -m $TESTDIR1" "-m $TESTDIR1 -R $TESTDIR1"
@@ -93,9 +89,7 @@ do
 			log_must $ZPOOL destroy -f $TESTPOOL
 		[[ -d $TESTDIR1 ]] && $RM -rf $TESTDIR1
 		log_must $ZPOOL create $opt $TESTPOOL ${pooltype[i]} \
-			$file.1 $file.2 $file.3
-		! poolexists $TESTPOOL && \
-			log_fail "Createing pool with $opt fails."
+			$FBASE.1 $FBASE.2 $FBASE.3
 		mpt=`$ZFS mount | $EGREP "^$TESTPOOL[^/]" | $AWK '{print $2}'`
 		(( ${#mpt} == 0 )) && \
 			log_fail "$TESTPOOL created with $opt is not mounted."
@@ -103,11 +97,9 @@ do
 		[[ "$mpt" != "$mpt_val" ]] && \
 			log_fail "The value of mountpoint property is different\
 				from the output of zfs mount"
-		if [[ "$opt" == "-R $TESTDIR1" ]]
-		then
+		if [[ "$opt" == "-R $TESTDIR1" ]]; then
 			expected_mpt=${TESTDIR1}/${TESTPOOL}
-		elif [[ "$opt" == "-m $TESTDIR1" ]]
-		then
+		elif [[ "$opt" == "-m $TESTDIR1" ]]; then
 			expected_mpt=${TESTDIR1}
 		else
 			expected_mpt=${TESTDIR1}${TESTDIR1}

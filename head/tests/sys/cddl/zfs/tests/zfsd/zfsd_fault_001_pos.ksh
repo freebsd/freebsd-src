@@ -105,17 +105,15 @@ for type in "raidz" "mirror"; do
 	log_must $ZFS create $TESTPOOL/$TESTFS
 
 	# Cause some IO errors writing to the pool
-	while true
-	do
+	while true; do
 		# Running zpool status after every dd operation is too slow.
 		# So we will run several dd's in a row before checking zpool
 		# status.  sync between dd operations to ensure that the disk
 		# gets IO
-		for ((i=0; $i<64; i=$i+1))
-		do
+		for ((i=0; $i<64; i=$i+1)); do
 			sysctl kern.cam.da.$TMPDISKNUM.error_inject=1 > \
 				/dev/null
-			dd if=/dev/zero bs=128k count=1 >> \
+			$DD if=/dev/zero bs=128k count=1 >> \
 				/$TESTPOOL/$TESTFS/$TESTFILE 2> /dev/null
 			$FSYNC /$TESTPOOL/$TESTFS/$TESTFILE
 		done

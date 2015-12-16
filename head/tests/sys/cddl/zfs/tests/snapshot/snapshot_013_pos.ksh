@@ -86,13 +86,7 @@ snapdir=$fsdir/$(get_snapdir_name)/$TESTSNAP
 typeset -i COUNT=10
 
 log_note "Populate the $TESTDIR directory (prior to snapshot)"
-typeset -i i=0
-while (( i < COUNT )); do
-	log_must $FILE_WRITE -o create -f $TESTDIR/file$i \
-	   -b $BLOCKSZ -c $NUM_WRITES -d $i
-
-	(( i = i + 1 ))
-done
+populate_dir $TESTDIR/file $COUNT $NUM_WRITES $BLOCKSZ ITER
 
 log_must $ZFS snapshot -r $snappool
 

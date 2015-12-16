@@ -61,45 +61,29 @@ verify_runnable "global"
 log_assert "Exporting and importing pool with log devices passes."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		for logtype in "" "mirror"
-		do
-			#
-			# Create pool which devices resider in different
-			# directory
-			#
-			log_must $ZPOOL create $TESTPOOL $type $VDEV \
-				$spare $SDEV log $logtype $LDEV $LDEV2
-			ldev=$(random_get $LDEV $LDEV2)
-			log_must verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' $logtype
+function test_slog_exporting_importing # <pooltype> <sparetype> <logtype>
+{
+	typeset pooltype=$1
+	typeset sparetype=$2
+	typeset logtype=$3
 
-			#
-			# Nomal export/import operating
-			#
-			log_must $ZPOOL export $TESTPOOL
-			log_must $ZPOOL import -d $VDIR -d $VDIR2 $TESTPOOL
-			log_must display_status $TESTPOOL
-			ldev=$(random_get $LDEV $LDEV2)
-			log_must verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' $logtype
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV \
+		log $logtype $LDEV $LDEV2
+	ldev=$(random_get $LDEV $LDEV2)
+	log_must verify_slog_device $TESTPOOL $ldev ONLINE $logtype
+	log_must $ZPOOL export $TESTPOOL
+	log_must $ZPOOL import -d $VDIR -d $VDIR2 $TESTPOOL
+	log_must display_status $TESTPOOL
+	ldev=$(random_get $LDEV $LDEV2)
+	log_must verify_slog_device $TESTPOOL $ldev ONLINE $logtype
 
-			#
-			# Destroy the pool and import again
-			#
-			log_must $ZPOOL destroy -f $TESTPOOL
-			log_must $ZPOOL import -Df -d $VDIR -d $VDIR2 $TESTPOOL
-			log_must display_status $TESTPOOL
-			ldev=$(random_get $LDEV $LDEV2)
-			log_must verify_slog_device \
-				$TESTPOOL $ldev 'ONLINE' $logtype
-
-			log_must $ZPOOL destroy -f $TESTPOOL
-		done
-	done
-done
+	destroy_pool $TESTPOOL
+	log_must $ZPOOL import -Df -d $VDIR -d $VDIR2 $TESTPOOL
+	log_must display_status $TESTPOOL
+	ldev=$(random_get $LDEV $LDEV2)
+	log_must verify_slog_device $TESTPOOL $ldev ONLINE $logtype
+	destroy_pool $TESTPOOL
+}
+slog_foreach_all test_slog_exporting_importing
 
 log_pass "Exporting and importing pool with log devices passes."

@@ -59,19 +59,20 @@ verify_runnable "global"
 log_assert "Detaching a log device passes."
 log_onexit cleanup
 
-for type in "" "mirror" "raidz" "raidz2"
-do
-	for spare in "" "spare"
-	do
-		log_must $ZPOOL create $TESTPOOL $type $VDEV $spare $SDEV \
-			log mirror $LDEV mirror $LDEV2
-		ldev=$(random_get $LDEV $LDEV2)
-		log_must $ZPOOL detach $TESTPOOL $ldev
-		log_must display_status $TESTPOOL
-		log_mustnot verify_slog_device $TESTPOOL $ldev 'ONLINE' 'mirror'
+function test_detaching_slog # <pooltype> <sparetype>
+{
+	typeset pooltype="$1"
+	typeset sparetype="$2"
 
-		log_must $ZPOOL destroy -f $TESTPOOL
-	done
-done
+	log_note "test_detaching_slog args: $* -EOA-"
+	create_pool $TESTPOOL $pooltype $VDEV $sparetype $SDEV \
+		log mirror $LDEV mirror $LDEV2
+	ldev=$(random_get $LDEV $LDEV2)
+	log_must $ZPOOL detach $TESTPOOL $ldev
+	log_must display_status $TESTPOOL
+	log_mustnot verify_slog_device $TESTPOOL $ldev ONLINE mirror
+	destroy_pool $TESTPOOL
+}
+slog_foreach_nologtype test_detaching_slog
 
 log_pass "Detaching a log device passes."

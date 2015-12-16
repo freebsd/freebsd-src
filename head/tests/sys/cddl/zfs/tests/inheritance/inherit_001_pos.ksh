@@ -63,7 +63,8 @@ log_assert "Test properties are inherited correctly"
 #
 # Simple function to create specified datasets.
 #
-function create_dataset { #name type disks
+function create_dataset #name type disks
+{
         typeset dataset=$1
         typeset type=$2
         typeset disks=$3
@@ -76,7 +77,7 @@ function create_dataset { #name type disks
         elif [[ $type == "FS" ]]; then
                 log_must $ZFS create $dataset
         else
-                log_fail "Unrecognised type $type"
+                log_fail "ERROR: Unrecognised type $type"
         fi
 
         list="$list $dataset"
@@ -86,7 +87,8 @@ function create_dataset { #name type disks
 # Function to walk through all the properties in a
 # dataset, setting them to a 'local' value if required.
 #
-function init_props { #dataset init_code
+function init_props #dataset init_code
+{
         typeset dataset=$1
         typeset init_code=$2
 	typeset new_val
@@ -109,18 +111,16 @@ function init_props { #dataset init_code
                 return;
         elif [[ $init_code == "local" ]]; then
                 log_note "Setting properties for $dataset to local values."
-                while (( i <  ${#prop[*]} )); do
-			if [[ ${prop[i]} == "recordsize" ]]; then
+		for (( ; i < ${#props[*]}; i += 2 )); do
+			if [[ ${props[i]} == "recordsize" ]]; then
 				update_recordsize $dataset $init_code
                 	else
-				set_n_verify_prop ${prop[i]} \
+				set_n_verify_prop ${props[i]} \
 					${local_val[((i/2))]} $dataset
                 	fi
-
-                        (( i = i + 2 ))
                 done
         else
-		log_fail "Unrecognised init code $init_code"
+		log_fail "ERROR: Unrecognised init code $init_code"
 	fi
 }
 
@@ -138,11 +138,9 @@ function update_recordsize { #dataset init_code
 	# First need to find where the recordsize property is
 	# located in the arrays
 	#
-	while (( idx <  ${#prop[*]} )); do
-		[[ ${prop[idx]} == "recordsize" ]] && \
+	for (( ; idx < ${#props[*]}; idx += 2 )); do
+		[[ ${props[idx]} == "recordsize" ]] && \
 			break
-		
-		(( idx = idx + 2))
 	done
 
 	(( idx = idx / 2 ))
@@ -223,8 +221,8 @@ function get_mntpt_val #dataset src index
 #
 function verify_prop_val #property dataset src index
 {
-	typeset prop=$1
-	typeset dataset=$2
+	typeset dataset=$1
+	typeset prop=$2
 	typeset src=$3
 	typeset idx=$4
 	typeset new_path=""
@@ -251,27 +249,25 @@ function verify_prop_val #property dataset src index
 		fi
 	fi
 
-	if [[ $prop_val != $exp_val ]]; then
-		# After putback PSARC/2008/231 Apr,09,2008, 
-		# the default value of aclinherit has changed to be
-		# 'restricted' instead of 'secure',
-		# but the old interface of 'secure' still exist
+	[ "$prop_val" = "$exp_val" ] && return
 
-		if [[ $prop != "aclinherit" || \
-			$exp_val != "secure" || \
-			$prop_val != "restricted" ]]; then
+	# After putback PSARC/2008/231 Apr,09,2008, the default value of
+	# aclinherit has changed to be 'restricted' instead of 'secure',
+	# but the old interface of 'secure' still exist
+	[ "$prop" = "aclinherit" ] && return
+	[ "$exp_val" = "secure" ] && return
+	[ "$prop_val" = "restricted" ] && return
 
-			log_fail "$prop of $dataset is [$prop_val] rather "\
-				"than [$exp_val]"
-		fi
-	fi
+	log_fail "ERROR: Property $prop (source $src index $idx) for $dataset" \
+	    "was [$prop_val]; expected [$exp_val]"
 }
 
 #
 # Function to read the configX.cfg files and create the specified 
 # dataset hierarchy
 #
-function scan_config { #config-file
+function scan_config #config-file
+{
 	typeset config_file=$1
 
 	DISK=${DISKS%% *}
@@ -286,99 +282,68 @@ function scan_config { #config-file
         }
 }
 
-#
-# Function to check an exit flag, calling log_fail if that exit flag
-# is non-zero. Can be used from code that runs in a tight loop, which
-# would otherwise result in a lot of journal output.
-#
-function check_failure { # int status, error message to use
-	
-	typeset -i exit_flag=$1
-	error_message=$2
+function check_state
+{
+	typeset i=$1
+	typeset j=$2
+	typeset op=$3
+	typeset target=$4
 
-	if [ $exit_flag -ne 0 ]
-	then
-		log_fail "$error_message"
+	#
+	# The user can if they wish specify that no operation be performed
+	# (by specifying '-' rather than a command). This is not as 
+	# useless as it sounds as it allows us to verify that the dataset
+	# hierarchy has been set up correctly as specified in the 
+	# configX.cfg file (which includes 'set'ting properties at a higher
+	# level and checking that they propogate down to the lower levels.
+	#
+	# Note in a few places here, we use log_onfail, rather than
+	# log_must - this substantially reduces journal output.
+	#
+	if [[ $op != "-" ]]; then
+		# Unmount the test datasets if they are still mounted.
+		# Most often, they won't be, so discard the output
+		unmount_all_safe > /dev/null 2>&1
+
+		for p in ${props[i]} ${props[((i+1))]}; do
+			log_onfail $ZFS $op $p $target
+		done
 	fi
-}
+	for check_obj in $list; do
+		read init_src final_src
 
+		for p in ${props[i]} ${props[((i+1))]}; do
+			verify_args="$check_obj $p $final_src"
+
+			log_onfail verify_prop_src $check_obj $p $final_src
+			log_onfail verify_prop_val $check_obj $p $final_src $j
+		done
+	done
+}
 
 #
 # Main function. Executes the commands specified in the stateX.cfg
 # files and then verifies that all the properties have the correct
 # values and 'source' fields.
 #
-function scan_state { #state-file
+function scan_state #state-file
+{
 	typeset state_file=$1
 	typeset -i i=0
 	typeset -i j=0
 
 	log_note "Reading state from $state_file"
-
-	while (( i <  ${#prop[*]} )); do
+	for (( ; i < ${#props[*]}; i += 2, j += 1 )); do
 		grep "^[^#]" $state_file | {
 			while IFS=: read target op; do
-				#
-				# The user can if they wish specify that no 
-				# operation be performed (by specifying '-' 
-				# rather than a command). This is not as 
-				# useless as it sounds as it allows us to 
-				# verify that the dataset hierarchy has been 
-				# set up correctly as specified in the 
-				# configX.cfg file (which includes 'set'ting 
-				# properties at a higher level and checking 
-				# that they propogate down to the lower levels.
-				#
-				# Note in a few places here, we use
-				# check_failure, rather than log_must - this
-				# substantially reduces journal output.
-				#
-				if [[ $op == "-" ]]; then
-					log_note "No operation specified"
-				else
-					# Unmount the test datasets if they
-					# are still mounted.  Most often, they
-					# won't be, so discard the output
-					unmount_all_safe > /dev/null 2>&1
-
-					for p in ${prop[i]} ${prop[((i+1))]}; do
-						$ZFS $op $p $target
-						ret=$?
-						check_failure $ret "$ZFS $op $p \
-						$target"
-					done
-				fi
-				for check_obj in $list; do
-					read init_src final_src
-
-					for p in ${prop[i]} ${prop[((i+1))]}; do
-						# check_failure to keep journal
-						# small
-						verify_prop_src $check_obj $p \
-							$final_src
-						ret=$?
-						check_failure $ret "verify_prop_src \
-							$check_obj $p \
-							$final_src"
-						
-					# Again, to keep journal size down.
-						verify_prop_val $p $check_obj \
-							$final_src $j
-						ret=$?
-						check_failure $ret "verify_prop_val \
-							$check_obj $p \
-							$final_src"
-					done
-                                done
-                        done
+				check_state $i $j "$op" "$target"
+			done
                 }
-                (( i = i + 2 ))
-                (( j = j + 1 ))
         done
 }
 
 
-set -A prop "checksum" "" \
+set -A props "checksum" "" \
 	"compression" "compress" \
 	"atime" "" \
 	"exec" "" \
@@ -393,12 +358,20 @@ set -A prop "checksum" "" \
 
 # 
 # Note except for the mountpoint default value (which is handled in
-# the routine itself), each property specified in the 'prop' array
+# the routine itself), each property specified in the 'props' array
 # above must have a corresponding entry in the two arrays below.
 # 
-set -A def_val "on" "off" "on"  "on" \
-	"on" "off" "" \
-	"" "hidden" "discard" "secure" \
+set -A def_val "on" \
+	"off" \
+	"on" \
+	"on" \
+	"on" \
+	"off" \
+	"" \
+	"" \
+	"hidden" \
+	"discard" \
+	"secure" \
 	"off"
 
 set -A local_val "off" "on" "off"  "off" \
@@ -406,28 +379,30 @@ set -A local_val "off" "on" "off"  "off" \
 	"$TESTDIR" "visible" "groupmask" "discard" \
 	"off"
 
+log_must $ZPOOL create $TESTPOOL ${DISKS%% *}
+
 # Append the "shareiscsi" property if it is supported
-$ZFS get shareiscsi > /dev/null 2>&1
+$ZFS get shareiscsi $TESTPOOL > /dev/null 2>&1
 if [[ $? -eq 0 ]]; then
-	typeset -i i=${#prop[*]}
-	prop[i]="shareiscsi"
-	prop[((i+1))]=""
+	typeset -i i=${#props[*]}
+	props[i]="shareiscsi"
+	props[((i+1))]=""
 	def_val[((i/2))]="off"
 	local_val[((i/2))]="on"
 fi
 
 # Append the "devices" property if it is settable
-log_must $ZPOOL create $TESTPOOL ${DISKS%% *}
 $ZFS set devices=off $TESTPOOL
 if [[ $? -eq 0 ]]; then
-	typeset -i i=${#prop[*]}
-	prop[i]="devices"
-	prop[((i+1))]=""
+	typeset -i i=${#props[*]}
+	props[i]="devices"
+	props[((i+1))]=""
 	def_val[((i/2))]="on"
 	local_val[((i/2))]="off"
 else
 	log_note "Setting devices=off is not supported on this system"
 fi
+
 log_must $ZPOOL destroy $TESTPOOL
 
 #
@@ -436,31 +411,28 @@ log_must $ZPOOL destroy $TESTPOOL
 #
 typeset def_recordsize=0
 
-set -A config_files $(ls $STF_SUITE/tests/inheritance/config*[1-9]*.cfg)
-set -A state_files $(ls $STF_SUITE/tests/inheritance/state*.cfg)
+TDIR=$STF_SUITE/tests/inheritance
+set -A config_files $(ls $TDIR/config*[1-9]*.cfg)
+set -A state_files $(ls $TDIR/state*.cfg)
 
 #
 # Global list of datasets created.
 #
 list=""
 
-typeset -i k=0
-
 if [[ ${#config_files[*]} != ${#state_files[*]} ]]; then
-	log_fail "Must have the same number of config files "\
-		" (${#config_files[*]}) and state files ${#state_files[*]}"
+	log_fail "ERROR: Must have the same number of config files"\
+		"(${#config_files[*]}) and state files ${#state_files[*]}"
 fi
 
-while (( k < ${#config_files[*]} )); do
+typeset -i fnum=0
+for (( ; fnum < ${#config_files[*]}; fnum += 1 )); do
 	default_cleanup_noexit
 	def_recordsize=0
 
-	log_note "Testing configuration ${config_files[k]}"
-
-	scan_config ${config_files[k]}
-	scan_state ${state_files[k]}
-
-	(( k = k + 1 ))
+	log_note "*** Testing configuration ${config_files[fnum]}"
+	scan_config ${config_files[fnum]}
+	scan_state ${state_files[fnum]}
 done
 
 log_pass "Properties correctly inherited as expected"

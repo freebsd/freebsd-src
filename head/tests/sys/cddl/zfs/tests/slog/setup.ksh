@@ -42,6 +42,6 @@ if [[ -d $VDEV2 ]]; then
 	log_must $RM -rf $VDIR2
 fi
 log_must $MKDIR -p $VDIR $VDIR2
-log_must $MKFILE $SIZE $VDEV $SDEV $LDEV $VDEV2 $SDEV2 $LDEV2
+log_must create_vdevs $VDEV $SDEV $LDEV $VDEV2 $SDEV2 $LDEV2
 
 log_pass

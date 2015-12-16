@@ -50,7 +50,7 @@ function set_devs
 	typeset -i i=0
 	while (( i < $N_DEVARRAY_FILES )) ; do
 		eval devarray[$i]=$HOTSPARE_TMPDIR/file.$i
-		$MKFILE $SIZE ${devarray[$i]}
+		log_must create_vdevs ${devarray[$i]}
 		(( i = i + 1 ))
 	done
 

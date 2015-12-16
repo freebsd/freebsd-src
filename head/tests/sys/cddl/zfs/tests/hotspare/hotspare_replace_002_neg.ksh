@@ -80,8 +80,9 @@ log_onexit cleanup
 set_devs
 
 typeset smalldev="${devarray[6]}"
-[[ -e $smalldev ]] && log_must $RM -f $smalldev
-log_must $MKFILE $SIZE1 $smalldev
+VDEV_SIZE=$SIZE1
+log_must create_vdevs $smalldev
+unset VDEV_SIZE
 
 for keyword in "${keywords[@]}" ; do
 	setup_hotspares "$keyword" "$smalldev"

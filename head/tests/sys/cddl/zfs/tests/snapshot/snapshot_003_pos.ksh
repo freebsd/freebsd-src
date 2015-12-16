@@ -86,14 +86,7 @@ log_onexit cleanup
 typeset -i COUNT=10
 
 log_note "Create some files in the $TESTDIR directory..."
-typeset -i i=1
-while [[ $i -lt $COUNT ]]; do
-	log_must $FILE_WRITE -o create -f $TESTDIR/file$i \
-	   -b $BLOCKSZ -c $NUM_WRITES -d $i
-	log_must $ZFS snapshot $SNAPFS.$i 
-
-	(( i = i + 1 ))
-done
+populate_dir $TESTDIR/file $COUNT $NUM_WRITES $BLOCKSZ ITER $SNAPFS
 
 log_note "Remove all of the original files"
 [[ -n $TESTDIR ]] && \
@@ -104,7 +97,7 @@ while [[ $i -lt $COUNT ]]; do
 	FILECOUNT=`$LS $SNAPDIR.$i/file* | wc -l`
 	typeset j=1
 	while [ $j -lt $FILECOUNT ]; do
-		log_must $FILE_CHECK $SNAPDIR.$i/file$j $j
+		log_must $FILE_CHECK $SNAPDIR.$i/file.$j $j
 		(( j = j + 1 ))
 	done
 	(( i = i + 1 ))

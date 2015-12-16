@@ -60,9 +60,7 @@ function cleanup
 	snapexists $TESTPOOL/$TESTVOL@snap && \
 		$ZFS destroy $TESTPOOL/$TESTVOL@snap
 
-	ismounted $TESTDIR ufs
-	(( $? == 0 )) && log_must $UMOUNT $TESTDIR
-
+	ismounted $TESTDIR ufs && log_must $UMOUNT $TESTDIR
 	[[ -e $TESTDIR ]] && $RM -rf $TESTDIR
 }
 
@@ -79,12 +77,7 @@ typeset -i fn=0
 typeset -i retval=0
 
 # Write about 200MB of data.
-while (( fn < 5 )); do
-        log_must $FILE_WRITE -o create -f $TESTDIR/testfile${TESTCASE_ID}.$fn \
-            -b $BLOCKSZ -c $NUM_WRITES
-
-        (( fn = fn + 1 ))
-done
+populate_dir $TESTDIR/testfile 5 $NUM_WRITES $BLOCKSZ 0
 
 log_must sync
 log_must $MOUNT -o rw -u $TESTDIR

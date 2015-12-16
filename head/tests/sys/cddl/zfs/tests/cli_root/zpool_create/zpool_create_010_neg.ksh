@@ -77,10 +77,9 @@ create_pool $TESTPOOL $disk
 log_must $ZFS create $TESTPOOL/$TESTFS
 log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
 
-for files in $TESTDIR/file1 $TESTDIR/file2
-do
-	log_must $MKFILE 63m $files
-done
+VDEV_SIZE=63m
+log_must create_vdevs $TESTDIR/file1 $TESTDIR/file2
+unset VDEV_SIZE
 
 set -A args \
 	"$TOOSMALL $TESTDIR/file1" "$TESTPOOL1 $TESTDIR/file1 $TESTDIR/file2" \

@@ -35,6 +35,7 @@
 
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/tests/zfsd/zfsd.kshlib
 
 verify_runnable "global"
 
