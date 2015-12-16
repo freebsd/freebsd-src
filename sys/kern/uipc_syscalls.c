@@ -2215,6 +2215,8 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		 * pages for it.  Since readahead is optional, we prefer
 		 * failure over sleep and thus say VM_ALLOC_NOWAIT.
 		 */
+		if (j < npages)
+			a = min(a, j - i - 1);
 		count = min(a + 1, npages + rhpages - i);
 		for (j = npages; j < i + count; j++) {
 			pa[j] = vm_page_grab(obj, OFF_TO_IDX(vmoff(j, off)),
