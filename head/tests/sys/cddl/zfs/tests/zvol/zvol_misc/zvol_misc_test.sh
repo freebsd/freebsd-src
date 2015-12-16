@@ -186,6 +186,7 @@ zvol_misc_007_pos_head()
 	atf_set "descr" "zfs volume device nodes are modified appropriately"
 	atf_set "require.config"  disks_are_physical
 	atf_set "require.progs"  zfs
+	atf_set "timeout" 1200
 }
 zvol_misc_007_pos_body()
 {
@@ -212,6 +213,7 @@ zvol_misc_008_pos_head()
 	atf_set "descr" "zfs volume device nodes are modified appropriately"
 	atf_set "require.config"  disks_are_physical
 	atf_set "require.progs"  zfs
+	atf_set "timeout" 1200
 }
 zvol_misc_008_pos_body()
 {
@@ -238,6 +240,7 @@ zvol_misc_009_pos_head()
 	atf_set "descr" "zfs volume device nodes are modified appropriately"
 	atf_set "require.config"  disks_are_physical
 	atf_set "require.progs"  zfs
+	atf_set "timeout" 1200
 }
 zvol_misc_009_pos_body()
 {

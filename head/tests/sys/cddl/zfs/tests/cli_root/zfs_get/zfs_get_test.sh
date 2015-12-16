@@ -262,6 +262,7 @@ zfs_get_009_pos_head()
 {
 	atf_set "descr" "'zfs get -d <n>' should get expected output."
 	atf_set "require.progs"  zfs
+	atf_set "timeout" 1200
 }
 zfs_get_009_pos_body()
 {
