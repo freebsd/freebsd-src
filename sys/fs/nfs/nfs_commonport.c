@@ -624,6 +624,8 @@ nfscommon_modevent(module_t mod, int type, void *data)
 
 		nfsd_call_nfscommon = NULL;
 		callout_drain(&newnfsd_callout);
+		/* Clean out the name<-->id cache. */
+		nfsrv_cleanusergroup();
 		/* and get rid of the mutexes */
 		mtx_destroy(&nfs_nameid_mutex);
 		mtx_destroy(&newnfsd_mtx);
