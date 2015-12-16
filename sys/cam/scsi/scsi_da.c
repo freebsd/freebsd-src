@@ -2332,29 +2332,40 @@ skipstate:
 
 		switch (bp->bio_cmd) {
 		case BIO_WRITE:
-			softc->flags |= DA_FLAG_DIRTY;
-			/* FALLTHROUGH */
 		case BIO_READ:
+		{
+			void *data_ptr;
+			int rw_op;
+
+			if (bp->bio_cmd == BIO_WRITE) {
+				softc->flags |= DA_FLAG_DIRTY;
+				rw_op = SCSI_RW_WRITE;
+			} else {
+				rw_op = SCSI_RW_READ;
+			}
+
+			data_ptr = bp->bio_data;
+			if ((bp->bio_flags & (BIO_UNMAPPED|BIO_VLIST)) != 0) {
+				rw_op |= SCSI_RW_BIO;
+				data_ptr = bp;
+			}
+
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/da_retry_count,
 					/*cbfcnp*/dadone,
 					/*tag_action*/tag_code,
-					/*read_op*/(bp->bio_cmd == BIO_READ ?
-					SCSI_RW_READ : SCSI_RW_WRITE) |
-					((bp->bio_flags & BIO_UNMAPPED) != 0 ?
-					SCSI_RW_BIO : 0),
+					rw_op,
 					/*byte2*/0,
 					softc->minimum_cmd_size,
 					/*lba*/bp->bio_pblkno,
 					/*block_count*/bp->bio_bcount /
 					softc->params.secsize,
-					/*data_ptr*/ (bp->bio_flags &
-					BIO_UNMAPPED) != 0 ? (void *)bp :
-					bp->bio_data,
+					data_ptr,
 					/*dxfer_len*/ bp->bio_bcount,
 					/*sense_len*/SSD_FULL_SIZE,
 					da_default_timeout * 1000);
 			break;
+		}
 		case BIO_FLUSH:
 			/*
 			 * BIO_FLUSH doesn't currently communicate

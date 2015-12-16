@@ -111,6 +111,9 @@ typedef enum {
 
 typedef enum {
 	CAM_EXTLUN_VALID	= 0x00000001,/* 64bit lun field is valid      */
+	CAM_USER_DATA_ADDR	= 0x00000002,/* Userspace data pointers */
+	CAM_SG_FORMAT_IOVEC	= 0x00000004,/* iovec instead of busdma S/G*/
+	CAM_UNMAPPED_BUF	= 0x00000008 /* use unmapped I/O */
 } ccb_xflags;
 
 /* XPT Opcodes for xpt_action */

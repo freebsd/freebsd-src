@@ -123,6 +123,7 @@
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
+#ifdef _KERNEL
 
 /*
  * Map and unmap a region of device bus space into CPU virtual address space.
@@ -814,6 +815,8 @@ bus_space_copy_region_8(bus_space_tag_t bst, bus_space_handle_t sbsh,
 #define	bus_space_copy_region_stream_2	bus_space_copy_region_2
 #define	bus_space_copy_region_stream_4	bus_space_copy_region_4
 #define	bus_space_copy_region_stream_8	bus_space_copy_region_8
+
+#endif /* _KERNEL */
 
 #include <machine/bus_dma.h>
 
