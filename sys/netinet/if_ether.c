@@ -1217,7 +1217,8 @@ arp_announce(struct ifnet *ifp)
 	struct ifaddr *ifa;
 	struct in_addr *addr, *head;
 
-	if (!(ifp->if_flags & IFF_UP) || (ifp->if_flags & IFF_NOARP))
+	if (!(ifp->if_flags & IFF_UP) || (ifp->if_flags & IFF_NOARP) ||
+	    ifp->if_addr == NULL)
 		return;
 
 	entries = 8;
@@ -1254,9 +1255,11 @@ arp_announce(struct ifnet *ifp)
 	}
 	IF_ADDR_RUNLOCK(ifp);
 
-	lladdr = IF_LLADDR(ifp);
-	for (i = 0; i < cnt; i++) {
-		arp_announce_addr(ifp, head + i, lladdr);
+	if (cnt > 0) {
+		lladdr = IF_LLADDR(ifp);
+		for (i = 0; i < cnt; i++) {
+			arp_announce_addr(ifp, head + i, lladdr);
+		}
 	}
 	free(head, M_TEMP);
 }
