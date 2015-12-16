@@ -275,6 +275,8 @@
                 data
                 ..
             ..
+            resolv
+            ..
             rpc
             ..
             ssp

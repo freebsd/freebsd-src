@@ -39,9 +39,10 @@ __RCSID("$NetBSD: resolv.c,v 1.6 2004/05/23 16:59:11 christos Exp $");
 #include <netdb.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <err.h>
 #include <string.h>
 #include <stringlist.h>
+
+#include <atf-c.h>
 
 #define NTHREADS	10
 #define NHOSTS		100
@@ -54,28 +55,16 @@ enum method {
 };
 
 static StringList *hosts = NULL;
-static int debug = 0;
 static enum method method = METHOD_GETADDRINFO;
-static int reverse = 0;
 static int *ask = NULL;
 static int *got = NULL;
 
-static void usage(void)  __attribute__((__noreturn__));
 static void load(const char *);
 static void resolvone(int);
 static void *resolvloop(void *);
 static void run(int *);
 
 static pthread_mutex_t stats = PTHREAD_MUTEX_INITIALIZER;
-
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-	    "Usage: %s [-AdHIr] [-h <nhosts>] [-n <nthreads>] <file> ...\n",
-	    getprogname());
-	exit(1);
-}
 
 static void
 load(const char *fname)
@@ -85,7 +74,7 @@ load(const char *fname)
 	char *line;
 
 	if ((fp = fopen(fname, "r")) == NULL)
-		err(1, "Cannot open `%s'", fname);
+	ATF_REQUIRE(fp != NULL);
 	while ((line = fgetln(fp, &len)) != NULL) {
 		char c = line[len];
 		char *ptr;
@@ -114,21 +103,17 @@ resolv_getaddrinfo(pthread_t self, char *host, int port)
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(host, portstr, &hints, &res);
-	if (debug) {
-		len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
-		    self, host, error ? "not found" : "ok");
-		(void)write(STDOUT_FILENO, buf, len);
-	}
-	if (error == 0 && reverse) {
+	len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
+	    self, host, error ? "not found" : "ok");
+	(void)write(STDOUT_FILENO, buf, len);
+	if (error == 0) {
 		memset(hbuf, 0, sizeof(hbuf));
 		memset(pbuf, 0, sizeof(pbuf));
 		getnameinfo(res->ai_addr, res->ai_addrlen, hbuf, sizeof(hbuf),
 			    pbuf, sizeof(pbuf), 0);
-		if (debug) {
-			len = snprintf(buf, sizeof(buf),
-			    "%p: reverse %s %s\n", self, hbuf, pbuf);
-			(void)write(STDOUT_FILENO, buf, len);
-		}
+		len = snprintf(buf, sizeof(buf),
+		    "%p: reverse %s %s\n", self, hbuf, pbuf);
+		(void)write(STDOUT_FILENO, buf, len);
 	}
 	if (error == 0)
 		freeaddrinfo(res);
@@ -143,15 +128,13 @@ resolv_gethostby(pthread_t self, char *host)
 	int len;
 
 	hp = gethostbyname(host);
-	if (debug) {
-		len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
-		    self, host, (hp == NULL) ? "not found" : "ok");
-		(void)write(STDOUT_FILENO, buf, len);
-	}
-	if (hp && reverse) {
+	len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
+	    self, host, (hp == NULL) ? "not found" : "ok");
+	(void)write(STDOUT_FILENO, buf, len);
+	if (hp) {
 		memcpy(buf, hp->h_addr, hp->h_length);
 		hp2 = gethostbyaddr(buf, hp->h_length, hp->h_addrtype);
-		if (hp2 && debug) {
+		if (hp2) {
 			len = snprintf(buf, sizeof(buf),
 			    "%p: reverse %s\n", self, hp2->h_name);
 			(void)write(STDOUT_FILENO, buf, len);
@@ -168,16 +151,14 @@ resolv_getipnodeby(pthread_t self, char *host)
 	int len, h_error;
 
 	hp = getipnodebyname(host, AF_INET, 0, &h_error);
-	if (debug) {
-		len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
-		    self, host, (hp == NULL) ? "not found" : "ok");
-		(void)write(STDOUT_FILENO, buf, len);
-	}
-	if (hp && reverse) {
+	len = snprintf(buf, sizeof(buf), "%p: host %s %s\n",
+	    self, host, (hp == NULL) ? "not found" : "ok");
+	(void)write(STDOUT_FILENO, buf, len);
+	if (hp) {
 		memcpy(buf, hp->h_addr, hp->h_length);
 		hp2 = getipnodebyaddr(buf, hp->h_length, hp->h_addrtype,
 		    &h_error);
-		if (hp2 && debug) {
+		if (hp2) {
 			len = snprintf(buf, sizeof(buf),
 			    "%p: reverse %s\n", self, hp2->h_name);
 			(void)write(STDOUT_FILENO, buf, len);
@@ -200,11 +181,9 @@ resolvone(int n)
 	struct addrinfo hints, *res;
 	int error, len;
 
-	if (debug) {
-		len = snprintf(buf, sizeof(buf), "%p: %d resolving %s %d\n",
-		    self, n, host, (int)i);
-		(void)write(STDOUT_FILENO, buf, len);
-	}
+	len = snprintf(buf, sizeof(buf), "%p: %d resolving %s %d\n",
+	    self, n, host, (int)i);
+	(void)write(STDOUT_FILENO, buf, len);
 	switch (method) {
 	case METHOD_GETADDRINFO:
 		error = resolv_getaddrinfo(self, host, i);
@@ -239,13 +218,16 @@ resolvloop(void *p)
 static void
 run(int *nhosts)
 {
-	pthread_t self = pthread_self();
-	if (pthread_create(&self, NULL, resolvloop, nhosts) != 0)
-		err(1, "pthread_create");
+	pthread_t self;
+	int rc;
+
+	self = pthread_self();
+	rc = pthread_create(&self, NULL, resolvloop, nhosts);
+	ATF_REQUIRE_MSG(rc == 0, "pthread_create failed: %s", strerror(rc));
 }
 
-int
-main(int argc, char *argv[])
+static int
+run_tests(const char *hostlist_file, enum method method)
 {
 	int nthreads = NTHREADS;
 	int nhosts = NHOSTS;
@@ -254,46 +236,18 @@ main(int argc, char *argv[])
 
 	srandom(1234);
 
-	while ((c = getopt(argc, argv, "Adh:HIn:r")) != -1)
-		switch (c) {
-		case 'A':
-			method = METHOD_GETADDRINFO;
-			break;
-		case 'd':
-			debug++;
-			break;
-		case 'h':
-			nhosts = atoi(optarg);
-			break;
-		case 'H':
-			method = METHOD_GETHOSTBY;
-			break;
-		case 'I':
-			method = METHOD_GETIPNODEBY;
-			break;
-		case 'n':
-			nthreads = atoi(optarg);
-			break;
-		case 'r':
-			reverse++;
-			break;
-		default:
-			usage();
-		}
+	load(hostlist_file);
 
-	for (i = optind; i < argc; i++)
-		load(argv[i]);
+	ATF_REQUIRE_MSG(0 < hosts->sl_cur, "0 hosts in %s", hostlist_file);
 
-	if (hosts->sl_cur == 0)
-		usage();
+	nleft = malloc(nthreads * sizeof(int));
+	ATF_REQUIRE(nleft != NULL);
 
-	if ((nleft = malloc(nthreads * sizeof(int))) == NULL)
-		err(1, "malloc");
-	if ((ask = calloc(hosts->sl_cur, sizeof(int))) == NULL)
-		err(1, "calloc");
-	if ((got = calloc(hosts->sl_cur, sizeof(int))) == NULL)
-		err(1, "calloc");
+	ask = calloc(hosts->sl_cur, sizeof(int));
+	ATF_REQUIRE(ask != NULL);
 
+	got = calloc(hosts->sl_cur, sizeof(int));
+	ATF_REQUIRE(got != NULL);
 
 	for (i = 0; i < nthreads; i++) {
 		nleft[i] = nhosts;
@@ -313,7 +267,7 @@ main(int argc, char *argv[])
 	c = 0;
 	for (i = 0; i < hosts->sl_cur; i++) {
 		if (ask[i] != got[i] && got[i] != 0) {
-			warnx("Error: host %s ask %d got %d\n",
+			printf("Error: host %s ask %d got %d\n",
 			    hosts->sl_str[i], ask[i], got[i]);
 			c++;
 		}
@@ -323,4 +277,45 @@ main(int argc, char *argv[])
 	free(got);
 	sl_free(hosts, 1);
 	return c;
+}
+
+#define	HOSTLIST_FILE	"mach"
+
+#define	RUN_TESTS(tc, method) \
+do {									\
+	char *_hostlist_file;						\
+	ATF_REQUIRE(0 < asprintf(&_hostlist_file, "%s/%s",		\
+	    atf_tc_get_config_var(tc, "srcdir"), HOSTLIST_FILE));	\
+	ATF_REQUIRE(run_tests(_hostlist_file, method) == 0);		\
+} while(0)
+
+ATF_TC_WITHOUT_HEAD(getaddrinfo_test);
+ATF_TC_BODY(getaddrinfo_test, tc)
+{
+
+	RUN_TESTS(tc, METHOD_GETADDRINFO);
+}
+
+ATF_TC_WITHOUT_HEAD(gethostby_test);
+ATF_TC_BODY(gethostby_test, tc)
+{
+
+	RUN_TESTS(tc, METHOD_GETHOSTBY);
+}
+
+ATF_TC_WITHOUT_HEAD(getipnodeby_test);
+ATF_TC_BODY(getipnodeby_test, tc)
+{
+
+	RUN_TESTS(tc, METHOD_GETIPNODEBY);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, getaddrinfo_test);
+	ATF_TP_ADD_TC(tp, gethostby_test);
+	ATF_TP_ADD_TC(tp, getipnodeby_test);
+
+	return (atf_no_error());
 }
