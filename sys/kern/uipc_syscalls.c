@@ -2138,21 +2138,28 @@ sf_iodone(void *arg, vm_page_t *pg, int count, int error)
  */
 static int
 sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
-    int npages, int rhpages)
+    int npages, int rhpages, int flags)
 {
 	vm_page_t *pa = sfio->pa;
 	int nios;
 
 	nios = 0;
-	VM_OBJECT_WLOCK(obj);
+	flags = (flags & SF_NODISKIO) ? VM_ALLOC_NOWAIT : 0;
 
 	/*
 	 * First grab all the pages and wire them.  Note that we grab
 	 * only required pages.  Readahead pages are dealt with later.
 	 */
-	for (int i = 0; i < npages; i++)
+	VM_OBJECT_WLOCK(obj);
+	for (int i = 0; i < npages; i++) {
 		pa[i] = vm_page_grab(obj, OFF_TO_IDX(vmoff(i, off)),
-		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
+		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL | flags);
+		if (pa[i] == NULL) {
+			npages = i;
+			rhpages = 0;
+			break;
+		}
+	}
 
 	for (int i = 0; i < npages;) {
 		int j, a, count, rv;
@@ -2552,7 +2559,8 @@ retry_space:
 		refcount_init(&sfio->nios, 1);
 		sfio->error = 0;
 
-		nios = sendfile_swapin(obj, sfio, off, space, npages, rhpages);
+		nios = sendfile_swapin(obj, sfio, off, space, npages, rhpages,
+		    flags);
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
@@ -2561,6 +2569,18 @@ retry_space:
 		pa = sfio->pa;
 		for (int i = 0; i < npages; i++) {
 			struct mbuf *m0;
+
+			/*
+			 * If a page wasn't grabbed successfully, then
+			 * trim the array. Can happen only with SF_NODISKIO.
+			 */
+			if (pa[i] == NULL) {
+				SFSTAT_INC(sf_busy);
+				fixspace(npages, i, off, &space);
+				npages = i;
+				softerr = EBUSY;
+				break;
+			}
 
 			/*
 			 * Get a sendfile buf.  When allocating the

@@ -38,6 +38,7 @@ struct sfstat {				/* sendfile statistics */
 	uint64_t	sf_pages_valid;	/* pages were valid for a request */
 	uint64_t	sf_rhpages_requested;	/* readahead pages requested */
 	uint64_t	sf_rhpages_read;	/* readahead pages read */
+	uint64_t	sf_busy;	/* times aborted on a busy page */
 	uint64_t	sf_allocfail;	/* times sfbuf allocation failed */
 	uint64_t	sf_allocwait;	/* times sfbuf allocation had to wait */
 };

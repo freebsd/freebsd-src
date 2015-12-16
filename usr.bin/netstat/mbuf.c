@@ -346,6 +346,9 @@ mbpr(void *kvmd, u_long mbaddr)
         xo_emit("{:sendfile-readahead/%ju} "
 	    "{N:pages were read ahead by sendfile}\n",
             (uintmax_t)sfstat.sf_rhpages_read);
+	xo_emit("{:sendfile-busy-encounters/%ju} "
+	    "{N:times sendfile encountered an already busy page}\n",
+	    (uintmax_t)sfstat.sf_busy);
 	xo_emit("{:sfbufs-alloc-failed/%ju} {N:requests for sfbufs denied}\n",
 	    (uintmax_t)sfstat.sf_allocfail);
 	xo_emit("{:sfbufs-alloc-wait/%ju} {N:requests for sfbufs delayed}\n",
