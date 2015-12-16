@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stringlist.h>
 #include <unistd.h>
+
+#include <atf-c.h>
+
 #include "testutil.h"
 
 enum test_methods {
@@ -46,9 +49,6 @@ enum test_methods {
 	TEST_GETPROTOENT_2PASS,
 	TEST_BUILD_SNAPSHOT
 };
-
-static int debug = 0;
-static enum test_methods method = TEST_BUILD_SNAPSHOT;
 
 DECLARE_TEST_DATA(protoent)
 DECLARE_TEST_FILE_SNAPSHOT(protoent)
@@ -70,8 +70,6 @@ static int protoent_test_correctness(struct protoent *, void *);
 static int protoent_test_getprotobyname(struct protoent *, void *);
 static int protoent_test_getprotobynumber(struct protoent *, void *);
 static int protoent_test_getprotoent(struct protoent *, void *);
-
-static void usage(void)  __attribute__((__noreturn__));
 
 IMPLEMENT_TEST_DATA(protoent)
 IMPLEMENT_TEST_FILE_SNAPSHOT(protoent)
@@ -101,9 +99,8 @@ clone_protoent(struct protoent *dest, struct protoent const *src)
 		for (cp = src->p_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->p_aliases = (char **)malloc((aliases_num+1) * (sizeof(char *)));
+		dest->p_aliases = calloc(1, (aliases_num+1) * sizeof(char *));
 		assert(dest->p_aliases != NULL);
-		memset(dest->p_aliases, 0, (aliases_num+1) * (sizeof(char *)));
 
 		for (cp = src->p_aliases; *cp; ++cp) {
 			dest->p_aliases[cp - src->p_aliases] = strdup(*cp);
@@ -157,7 +154,7 @@ compare_protoent(struct protoent *pe1, struct protoent *pe2, void *mdata)
 	return 0;
 
 errfin:
-	if ((debug) && (mdata == NULL)) {
+	if (mdata == NULL) {
 		printf("following structures are not equal:\n");
 		dump_protoent(pe1);
 		dump_protoent(pe2);
@@ -204,8 +201,7 @@ protoent_read_snapshot_func(struct protoent *pe, char *line)
 	char *s, *ps, *ts;
 	int i;
 
-	if (debug)
-		printf("1 line read from snapshot:\n%s\n", line);
+	printf("1 line read from snapshot:\n%s\n", line);
 
 	i = 0;
 	sl = NULL;
@@ -245,7 +241,7 @@ protoent_read_snapshot_func(struct protoent *pe, char *line)
 					sl_add(sl, ts);
 				}
 			break;
-		};
+		}
 		++i;
 	}
 
@@ -294,10 +290,8 @@ protoent_fill_test_data(struct protoent_test_data *td)
 static int
 protoent_test_correctness(struct protoent *pe, void *mdata)
 {
-	if (debug) {
-		printf("testing correctness with the following data:\n");
-		dump_protoent(pe);
-	}
+	printf("testing correctness with the following data:\n");
+	dump_protoent(pe);
 
 	if (pe == NULL)
 		goto errfin;
@@ -311,13 +305,11 @@ protoent_test_correctness(struct protoent *pe, void *mdata)
 	if (pe->p_aliases == NULL)
 		goto errfin;
 
-	if (debug)
-		printf("correct\n");
+	printf("correct\n");
 
 	return (0);
 errfin:
-	if (debug)
-		printf("incorrect\n");
+	printf("incorrect\n");
 
 	return (-1);
 }
@@ -341,10 +333,8 @@ protoent_test_getprotobyname(struct protoent *pe_model, void *mdata)
 	char **alias;
 	struct protoent *pe;
 
-	if (debug) {
-		printf("testing getprotobyname() with the following data:\n");
-		dump_protoent(pe_model);
-	}
+	printf("testing getprotobyname() with the following data:\n");
+	dump_protoent(pe_model);
 
 	pe = getprotobyname(pe_model->p_name);
 	if (protoent_test_correctness(pe, NULL) != 0)
@@ -367,13 +357,11 @@ protoent_test_getprotobyname(struct protoent *pe_model, void *mdata)
 		    goto errfin;
 	}
 
-	if (debug)
-		printf("ok\n");
+	printf("ok\n");
 	return (0);
 
 errfin:
-	if (debug)
-		printf("not ok\n");
+	printf("not ok\n");
 
 	return (-1);
 }
@@ -383,23 +371,19 @@ protoent_test_getprotobynumber(struct protoent *pe_model, void *mdata)
 {
 	struct protoent *pe;
 
-	if (debug) {
-		printf("testing getprotobyport() with the following data...\n");
-		dump_protoent(pe_model);
-	}
+	printf("testing getprotobyport() with the following data...\n");
+	dump_protoent(pe_model);
 
 	pe = getprotobynumber(pe_model->p_proto);
 	if ((protoent_test_correctness(pe, NULL) != 0) ||
 	    ((compare_protoent(pe, pe_model, NULL) != 0) &&
 	    (protoent_check_ambiguity((struct protoent_test_data *)mdata, pe)
 	    != 0))) {
-	    if (debug)
 		printf("not ok\n");
-	    return (-1);
+		return (-1);
 	} else {
-	    if (debug)
 		printf("ok\n");
-	    return (0);
+		return (0);
 	}
 }
 
@@ -411,50 +395,11 @@ protoent_test_getprotoent(struct protoent *pe, void *mdata)
 	return (protoent_test_correctness(pe, NULL));
 }
 
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-	    "Usage: %s -nve2 [-d] [-s <file>]\n",
-	    getprogname());
-	exit(1);
-}
-
 int
-main(int argc, char **argv)
+run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct protoent_test_data td, td_snap, td_2pass;
-	char *snapshot_file;
 	int rv;
-	int c;
-
-	if (argc < 2)
-		usage();
-
-	snapshot_file = NULL;
-	while ((c = getopt(argc, argv, "nve2ds:")) != -1)
-		switch (c) {
-		case 'd':
-			debug++;
-			break;
-		case 'n':
-			method = TEST_GETPROTOBYNAME;
-			break;
-		case 'v':
-			method = TEST_GETPROTOBYNUMBER;
-			break;
-		case 'e':
-			method = TEST_GETPROTOENT;
-			break;
-		case '2':
-			method = TEST_GETPROTOENT_2PASS;
-			break;
-		case 's':
-			snapshot_file = strdup(optarg);
-			break;
-		default:
-			usage();
-		}
 
 	TEST_DATA_INIT(protoent, &td, clone_protoent, free_protoent);
 	TEST_DATA_INIT(protoent, &td_snap, clone_protoent, free_protoent);
@@ -463,9 +408,8 @@ main(int argc, char **argv)
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
-				if (debug)
-					printf("can't access the file %s\n",
-				snapshot_file);
+				printf("can't access the file %s\n",
+				    snapshot_file);
 
 				rv = -1;
 				goto fin;
@@ -510,27 +454,103 @@ main(int argc, char **argv)
 				compare_protoent, NULL);
 		break;
 	case TEST_GETPROTOENT_2PASS:
-			TEST_DATA_INIT(protoent, &td_2pass, clone_protoent,
-				free_protoent);
-			rv = protoent_fill_test_data(&td_2pass);
-			if (rv != -1)
-				rv = DO_2PASS_TEST(protoent, &td, &td_2pass,
-					compare_protoent, NULL);
-			TEST_DATA_DESTROY(protoent, &td_2pass);
+		TEST_DATA_INIT(protoent, &td_2pass, clone_protoent,
+		    free_protoent);
+		rv = protoent_fill_test_data(&td_2pass);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(protoent, &td, &td_2pass,
+				compare_protoent, NULL);
+		TEST_DATA_DESTROY(protoent, &td_2pass);
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
-		    rv = TEST_SNAPSHOT_FILE_WRITE(protoent, snapshot_file, &td,
-			sdump_protoent);
+			rv = TEST_SNAPSHOT_FILE_WRITE(protoent, snapshot_file,
+			    &td, sdump_protoent);
 		break;
 	default:
 		rv = 0;
 		break;
-	};
+	}
 
 fin:
 	TEST_DATA_DESTROY(protoent, &td_snap);
 	TEST_DATA_DESTROY(protoent, &td);
-	free(snapshot_file);
+
 	return (rv);
+}
+
+#define	SNAPSHOT_FILE	"snapshot_proto"
+
+ATF_TC_WITHOUT_HEAD(build_snapshot);
+ATF_TC_BODY(build_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getprotoent);
+ATF_TC_BODY(getprotoent, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPROTOENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getprotoent_with_snapshot);
+ATF_TC_BODY(getprotoent_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPROTOENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getprotoent_with_two_pass);
+ATF_TC_BODY(getprotoent_with_two_pass, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPROTOENT_2PASS) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getprotobyname);
+ATF_TC_BODY(getprotobyname, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPROTOBYNAME) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getprotobyname_with_snapshot);
+ATF_TC_BODY(getprotobyname_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPROTOBYNAME) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getprotobynumber);
+ATF_TC_BODY(getprotobynumber, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPROTOBYNUMBER) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getprotobynumber_with_snapshot);
+ATF_TC_BODY(getprotobynumber_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPROTOBYNUMBER) == 0);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, build_snapshot);
+	ATF_TP_ADD_TC(tp, getprotoent);
+	ATF_TP_ADD_TC(tp, getprotoent_with_snapshot);
+	ATF_TP_ADD_TC(tp, getprotoent_with_two_pass);
+	ATF_TP_ADD_TC(tp, getprotobyname);
+	ATF_TP_ADD_TC(tp, getprotobyname_with_snapshot);
+	ATF_TP_ADD_TC(tp, getprotobynumber);
+	ATF_TP_ADD_TC(tp, getprotobynumber_with_snapshot);
+
+	return (atf_no_error());
 }

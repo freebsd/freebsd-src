@@ -73,9 +73,9 @@ __##ent##_test_data_init(struct ent##_test_data *td,			\
 	void (*clonef)(struct ent *, struct ent const *),		\
 	void (*freef)(struct ent *))					\
 {									\
-	assert(td != NULL);						\
-	assert(clonef != NULL);						\
-	assert(freef != NULL);						\
+	ATF_REQUIRE(td != NULL);					\
+	ATF_REQUIRE(clonef != NULL);					\
+	ATF_REQUIRE(freef != NULL);					\
 									\
 	memset(td, 0, sizeof(*td));					\
 	td->clone_func = clonef;					\
@@ -94,11 +94,11 @@ __##ent##_test_data_append(struct ent##_test_data *td, struct ent *app_data)\
 {									\
 	struct ent##_entry *e;						\
 									\
-	assert(td != NULL);						\
-	assert(app_data != NULL);					\
+	ATF_REQUIRE(td != NULL);					\
+	ATF_REQUIRE(app_data != NULL);					\
 									\
 	e = (struct ent##_entry *)malloc(sizeof(struct ent##_entry));	\
-	assert(e != NULL);						\
+	ATF_REQUIRE(e != NULL);						\
 	memset(e, 0, sizeof(struct ent##_entry));			\
 									\
 	td->clone_func(&e->data, app_data);				\
@@ -112,8 +112,8 @@ __##ent##_test_data_foreach(struct ent##_test_data *td,			\
 	struct ent##_entry *e;						\
 	int rv;								\
 									\
-	assert(td != NULL);						\
-	assert(forf != NULL);						\
+	ATF_REQUIRE(td != NULL);					\
+	ATF_REQUIRE(forf != NULL);					\
 									\
 	rv = 0;								\
 	STAILQ_FOREACH(e, &td->snapshot_data, entries) {		\
@@ -132,9 +132,9 @@ __##ent##_test_data_compare(struct ent##_test_data *td1, struct ent##_test_data 
 	struct ent##_entry *e1, *e2;					\
 	int rv;								\
 									\
-	assert(td1 != NULL);						\
-	assert(td2 != NULL);						\
-	assert(cmp_func != NULL);					\
+	ATF_REQUIRE(td1 != NULL);					\
+	ATF_REQUIRE(td2 != NULL);					\
+	ATF_REQUIRE(cmp_func != NULL);					\
 									\
 	e1 = STAILQ_FIRST(&td1->snapshot_data);				\
 	e2 = STAILQ_FIRST(&td2->snapshot_data);				\
@@ -163,8 +163,8 @@ __##ent##_test_data_find(struct ent##_test_data *td, struct ent *data,	\
 	struct ent##_entry *e;						\
 	struct ent *result;						\
 									\
-	assert(td != NULL);						\
-	assert(cmp != NULL);						\
+	ATF_REQUIRE(td != NULL);					\
+	ATF_REQUIRE(cmp != NULL);					\
 									\
 	result = NULL;							\
 	STAILQ_FOREACH(e, &td->snapshot_data, entries) {		\
@@ -182,7 +182,7 @@ void									\
 __##ent##_test_data_clear(struct ent##_test_data *td)			\
 {									\
 	struct ent##_entry *e;						\
-	assert(td != NULL);						\
+	ATF_REQUIRE(td != NULL);					\
 									\
 	while (!STAILQ_EMPTY(&td->snapshot_data)) {			\
 		e = STAILQ_FIRST(&td->snapshot_data);			\
@@ -190,6 +190,7 @@ __##ent##_test_data_clear(struct ent##_test_data *td)			\
 									\
 		td->free_func(&e->data);				\
 		free(e);						\
+		e = NULL;						\
 	}								\
 }
 
@@ -217,7 +218,7 @@ __##ent##_snapshot_write_func(struct ent *data, void *mdata)		\
 	char buffer[1024];						\
 	struct ent##_snp_param *param;					\
 									\
-	assert(data != NULL);						\
+	ATF_REQUIRE(data != NULL);					\
 									\
 	param = (struct ent##_snp_param *)mdata;			\
 	param->sdump_func(data, buffer, sizeof(buffer));		\
@@ -233,8 +234,8 @@ __##ent##_snapshot_write(char const *fname, struct ent##_test_data *td,	\
 {									\
 	struct ent##_snp_param	param;					\
 									\
-	assert(fname != NULL);						\
-	assert(td != NULL);						\
+	ATF_REQUIRE(fname != NULL);					\
+	ATF_REQUIRE(td != NULL);					\
 									\
 	param.fp = fopen(fname, "w");					\
 	if (param.fp == NULL)						\
@@ -258,8 +259,8 @@ __##ent##_snapshot_read(char const *fname, struct ent##_test_data *td,	\
 	size_t len;							\
 	int rv;								\
 									\
-	assert(fname != NULL);						\
-	assert(td != NULL);						\
+	ATF_REQUIRE(fname != NULL);					\
+	ATF_REQUIRE(td != NULL);					\
 									\
 	fi = fopen(fname, "r");						\
 	if (fi == NULL)							\
