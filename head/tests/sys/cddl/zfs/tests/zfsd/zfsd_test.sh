@@ -603,7 +603,7 @@ save_artifacts()
 	if [[ -n $ARTIFACTS_DIR ]]; then
 		TC_ARTIFACTS_DIR=${ARTIFACTS_DIR}/sys/cddl/zfs/tests/zfsd/$(atf_get ident)
 		mkdir -p $TC_ARTIFACTS_DIR
-		cp -a /var/log/zfsd.log $TC_ARTIFACTS_DIR
+		cp -a /var/log/zfsd.log* $TC_ARTIFACTS_DIR
 		bzip2 $TC_ARTIFACTS_DIR/zfsd.log
 	fi
 }
