@@ -495,13 +495,13 @@ racct_destroy(struct racct **racct)
 }
 
 /*
- * Increase consumption of 'resource' by 'amount' for 'racct'
- * and all its parents.  Differently from other cases, 'amount' here
+ * Increase consumption of 'resource' by 'amount' for 'racct',
+ * but not its parents.  Differently from other cases, 'amount' here
  * may be less than zero.
  */
 static void
 racct_adjust_resource(struct racct *racct, int resource,
-    uint64_t amount)
+    int64_t amount)
 {
 
 	ASSERT_RACCT_ENABLED();
@@ -631,8 +631,8 @@ racct_add_force(struct proc *p, int resource, uint64_t amount)
 
 	mtx_lock(&racct_lock);
 	racct_adjust_resource(p->p_racct, resource, amount);
+	racct_add_cred_locked(p->p_ucred, resource, amount);
 	mtx_unlock(&racct_lock);
-	racct_add_cred(p->p_ucred, resource, amount);
 }
 
 static int

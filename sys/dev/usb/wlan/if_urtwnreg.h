@@ -158,6 +158,9 @@
 #define R92C_INIRTS_RATE_SEL		0x480
 #define R92C_INIDATA_RATE_SEL(macid)	(0x484 + (macid))
 #define R92C_MAX_AGGR_NUM		0x4ca
+#define R88E_TX_RPT_CTRL		0x4ec
+#define R88E_TX_RPT_MACID_MAX		0x4ed
+#define R88E_TX_RPT_TIME		0x4f0
 /* EDCA Configuration. */
 #define R92C_EDCA_VO_PARAM		0x500
 #define R92C_EDCA_VI_PARAM		0x504
@@ -479,6 +482,10 @@
 #define R92C_RRSR_RSC_UPSUBCHNL		0x00400000
 #define R92C_RRSR_SHORT			0x00800000
 
+/* Bits for R88E_TX_RPT_CTRL. */
+#define R88E_TX_RPT1_ENA		0x01
+#define R88E_TX_RPT2_ENA		0x02
+
 /* Bits for R92C_EDCA_XX_PARAM. */
 #define R92C_EDCA_PARAM_AIFS_M		0x000000ff
 #define R92C_EDCA_PARAM_AIFS_S		0
@@ -549,6 +556,16 @@
 #define R92C_CAMCMD_WRITE	0x00010000
 #define R92C_CAMCMD_CLR		0x40000000
 #define R92C_CAMCMD_POLLING	0x80000000
+
+/* Bits for R92C_SECCFG. */
+#define R92C_SECCFG_TXUCKEY_DEF	0x0001
+#define R92C_SECCFG_RXUCKEY_DEF	0x0002
+#define R92C_SECCFG_TXENC_ENA	0x0004
+#define R92C_SECCFG_RXDEC_ENA	0x0008
+#define R92C_SECCFG_CMP_A2	0x0010
+#define R92C_SECCFG_TXBCKEY_DEF	0x0040
+#define R92C_SECCFG_RXBCKEY_DEF	0x0080
+#define R88E_SECCFG_CHK_KEYID	0x0100
 
 /* Bits for R92C_RXFLTMAP*. */
 #define R92C_RXFLTMAP_SUBTYPE(subtype)	\
@@ -895,6 +912,11 @@ struct r92c_fw_cmd_macid_cfg {
 	uint8_t		macid;
 #define URTWN_MACID_BSS		0
 #define URTWN_MACID_BC		4	/* Broadcast. */
+#define R92C_MACID_MAX		31
+#define R88E_MACID_MAX		63
+#define URTWN_MACID_MAX(sc)	(((sc)->chip & URTWN_CHIP_88E) ? \
+				    R88E_MACID_MAX : R92C_MACID_MAX)
+#define URTWN_MACID_UNDEFINED	(uint8_t)-1
 #define URTWN_MACID_VALID	0x80
 } __packed;
 
@@ -956,6 +978,8 @@ struct r92c_rx_stat {
 #define R92C_RXDW0_ICVERR	0x00008000
 #define R92C_RXDW0_INFOSZ_M	0x000f0000
 #define R92C_RXDW0_INFOSZ_S	16
+#define R92C_RXDW0_CIPHER_M	0x00700000
+#define R92C_RXDW0_CIPHER_S	20
 #define R92C_RXDW0_QOS		0x00800000
 #define R92C_RXDW0_SHIFT_M	0x03000000
 #define R92C_RXDW0_SHIFT_S	24
@@ -972,6 +996,11 @@ struct r92c_rx_stat {
 #define R92C_RXDW3_RATE_S	0
 #define R92C_RXDW3_HT		0x00000040
 #define R92C_RXDW3_HTC		0x00000400
+#define R88E_RXDW3_RPT_M	0x0000c000
+#define R88E_RXDW3_RPT_S	14
+#define R88E_RXDW3_RPT_RX	0
+#define R88E_RXDW3_RPT_TX1	1
+#define R88E_RXDW3_RPT_TX2	2
 
 	uint32_t	rxdw4;
 	uint32_t	rxdw5;
@@ -1059,6 +1088,7 @@ struct r92c_tx_desc {
 
 	uint32_t	txdw2;
 #define R88E_TXDW2_AGGBK	0x00010000
+#define R88E_TXDW2_CCX_RPT	0x00080000
 
 	uint16_t	txdw3;
 	uint16_t	txdseq;
@@ -1090,6 +1120,30 @@ struct r92c_tx_desc {
 	uint16_t	txdsum;
 	uint16_t	pad;
 } __packed __attribute__((aligned(4)));
+
+struct r88e_tx_rpt_ccx {
+	uint8_t		rptb0;
+	uint8_t		rptb1;
+#define R88E_RPTB1_MACID_M	0x3f
+#define R88E_RPTB1_MACID_S	0
+#define R88E_RPTB1_PKT_OK	0x40
+#define R88E_RPTB1_BMC		0x80
+
+	uint8_t		rptb2;
+#define R88E_RPTB2_RETRY_CNT_M	0x3f
+#define R88E_RPTB2_RETRY_CNT_S	0
+#define R88E_RPTB2_LIFE_EXPIRE	0x40
+#define R88E_RPTB2_RETRY_OVER	0x80
+
+	uint8_t		rptb3;
+	uint8_t		rptb4;
+	uint8_t		rptb5;
+	uint8_t		rptb6;
+#define R88E_RPTB6_QSEL_M	0xf0
+#define R88E_RPTB6_QSEL_S	4
+
+	uint8_t		rptb7;
+} __packed;
 
 
 static const uint8_t ridx2rate[] =

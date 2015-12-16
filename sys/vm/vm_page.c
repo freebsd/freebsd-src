@@ -979,38 +979,28 @@ vm_page_free_zero(vm_page_t m)
 
 /*
  * Unbusy and handle the page queueing for a page from the VOP_GETPAGES()
- * array which is not the request page.
+ * array which was optionally read ahead or behind.
  */
 void
 vm_page_readahead_finish(vm_page_t m)
 {
 
-	if (m->valid != 0) {
-		/*
-		 * Since the page is not the requested page, whether
-		 * it should be activated or deactivated is not
-		 * obvious.  Empirical results have shown that
-		 * deactivating the page is usually the best choice,
-		 * unless the page is wanted by another thread.
-		 */
-		vm_page_lock(m);
-		if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
-			vm_page_activate(m);
-		else
-			vm_page_deactivate(m);
-		vm_page_unlock(m);
-		vm_page_xunbusy(m);
-	} else {
-		/*
-		 * Free the completely invalid page.  Such page state
-		 * occurs due to the short read operation which did
-		 * not covered our page at all, or in case when a read
-		 * error happens.
-		 */
-		vm_page_lock(m);
-		vm_page_free(m);
-		vm_page_unlock(m);
-	}
+	/* We shouldn't put invalid pages on queues. */
+	KASSERT(m->valid != 0, ("%s: %p is invalid", __func__, m));
+
+	/*
+	 * Since the page is not the actually needed one, whether it should
+	 * be activated or deactivated is not obvious.  Empirical results
+	 * have shown that deactivating the page is usually the best choice,
+	 * unless the page is wanted by another thread.
+	 */
+	vm_page_lock(m);
+	if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
+		vm_page_activate(m);
+	else
+		vm_page_deactivate(m);
+	vm_page_unlock(m);
+	vm_page_xunbusy(m);
 }
 
 /*
@@ -1324,22 +1314,17 @@ vm_page_prev(vm_page_t m)
 vm_page_t
 vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t mold, mpred;
+	vm_page_t mold;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(mnew->object == NULL,
+	    ("vm_page_replace: page already in object"));
 
 	/*
 	 * This function mostly follows vm_page_insert() and
 	 * vm_page_remove() without the radix, object count and vnode
 	 * dance.  Double check such functions for more comments.
 	 */
-	mpred = vm_radix_lookup(&object->rtree, pindex);
-	KASSERT(mpred != NULL,
-	    ("vm_page_replace: replacing page not present with pindex"));
-	mpred = TAILQ_PREV(mpred, respgs, listq);
-	if (mpred != NULL)
-		KASSERT(mpred->pindex < pindex,
-		    ("vm_page_insert_after: mpred doesn't precede pindex"));
 
 	mnew->object = object;
 	mnew->pindex = pindex;
@@ -1347,17 +1332,17 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	KASSERT(mold->queue == PQ_NONE,
 	    ("vm_page_replace: mold is on a paging queue"));
 
-	/* Detach the old page from the resident tailq. */
+	/* Keep the resident page list in sorted order. */
+	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
 	TAILQ_REMOVE(&object->memq, mold, listq);
 
 	mold->object = NULL;
 	vm_page_xunbusy(mold);
 
-	/* Insert the new page in the resident tailq. */
-	if (mpred != NULL)
-		TAILQ_INSERT_AFTER(&object->memq, mpred, mnew, listq);
-	else
-		TAILQ_INSERT_HEAD(&object->memq, mnew, listq);
+	/*
+	 * The object's resident_page_count does not change because we have
+	 * swapped one page for another, but OBJ_MIGHTBEDIRTY.
+	 */
 	if (pmap_page_is_write_mapped(mnew))
 		vm_object_set_writeable_dirty(object);
 	return (mold);

@@ -121,16 +121,16 @@ siena_mcdi_request_copyin(
 	__in		boolean_t ev_cpl,
 	__in		boolean_t new_epoch);
 
+extern	__checkReturn	boolean_t
+siena_mcdi_poll_response(
+	__in		efx_nic_t *enp);
+
 extern			void
 siena_mcdi_read_response(
 	__in		efx_nic_t *enp,
 	__out		void *bufferp,
 	__in		size_t offset,
 	__in		size_t length);
-
-extern	__checkReturn	boolean_t
-siena_mcdi_request_poll(
-	__in		efx_nic_t *enp);
 
 extern			void
 siena_mcdi_request_copyout(
@@ -146,18 +146,9 @@ siena_mcdi_fini(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-siena_mcdi_fw_update_supported(
+siena_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp);
-
-extern	__checkReturn	efx_rc_t
-siena_mcdi_macaddr_change_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp);
-
-extern	__checkReturn	efx_rc_t
-siena_mcdi_link_control_supported(
-	__in		efx_nic_t *enp,
+	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp);
 
 #endif /* EFSYS_OPT_MCDI */

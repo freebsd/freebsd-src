@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/random.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -102,8 +103,12 @@ VNET_DEFINE(int, nd6_maxnudhint) = 0;	/* max # of subsequent upper
 					 * layer hints */
 static VNET_DEFINE(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
 					 * ND entries */
+
+static VNET_DEFINE(int, nd6_on_link) = 1; /* Send unsolicited ND's on link up */
+
 #define	V_nd6_maxndopt			VNET(nd6_maxndopt)
 #define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)
+#define	V_nd6_on_link			VNET(nd6_on_link)
 
 #ifdef ND6_DEBUG
 VNET_DEFINE(int, nd6_debug) = 1;
@@ -112,6 +117,7 @@ VNET_DEFINE(int, nd6_debug) = 0;
 #endif
 
 static eventhandler_tag lle_event_eh;
+static eventhandler_tag ifnet_link_event_eh;
 
 /* for debugging? */
 #if 0
@@ -196,6 +202,13 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	    type == RTM_ADD ? RTF_UP: 0), 0, RT_DEFAULT_FIB);
 }
 
+static void
+nd6_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
+{
+
+	if (linkstate == LINK_STATE_UP && V_nd6_on_link)
+		nd6_na_output_unsolicited(ifp);
+}
 void
 nd6_init(void)
 {
@@ -211,9 +224,12 @@ nd6_init(void)
 	    nd6_slowtimo, curvnet);
 
 	nd6_dad_init();
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		lle_event_eh = EVENTHANDLER_REGISTER(lle_event, nd6_lle_event,
 		    NULL, EVENTHANDLER_PRI_ANY);
+		ifnet_link_event_eh = EVENTHANDLER_REGISTER(ifnet_link_event,
+		    nd6_ifnet_link_event, NULL, EVENTHANDLER_PRI_ANY);
+	}
 }
 
 #ifdef VIMAGE
@@ -223,8 +239,10 @@ nd6_destroy()
 
 	callout_drain(&V_nd6_slowtimo_ch);
 	callout_drain(&V_nd6_timer_ch);
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
+		EVENTHANDLER_DEREGISTER(ifnet_link_event, ifnet_link_event_eh);
+	}
 }
 #endif
 
@@ -285,6 +303,8 @@ nd6_ifdetach(struct nd_ifinfo *nd)
 void
 nd6_setmtu(struct ifnet *ifp)
 {
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return;
 
 	nd6_setmtu0(ifp, ND_IFINFO(ifp));
 }
@@ -542,6 +562,107 @@ nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
 }
 
 /*
+ * Checks if we need to switch from STALE state.
+ *
+ * RFC 4861 requires switching from STALE to DELAY state
+ * on first packet matching entry, waiting V_nd6_delay and
+ * transition to PROBE state (if upper layer confirmation was
+ * not received).
+ *
+ * This code performs a bit differently:
+ * On packet hit we don't change state (but desired state
+ * can be guessed by control plane). However, after V_nd6_delay
+ * seconds code will transition to PROBE state (so DELAY state
+ * is kinda skipped in most situations).
+ *
+ * Typically, V_nd6_gctimer is bigger than V_nd6_delay, so
+ * we perform the following upon entering STALE state:
+ *
+ * 1) Arm timer to run each V_nd6_delay seconds to make sure that
+ * if packet was transmitted at the start of given interval, we
+ * would be able to switch to PROBE state in V_nd6_delay seconds
+ * as user expects.
+ *
+ * 2) Reschedule timer until original V_nd6_gctimer expires keeping
+ * lle in STALE state (remaining timer value stored in lle_remtime).
+ *
+ * 3) Reschedule timer if packet was transmitted less that V_nd6_delay
+ * seconds ago.
+ *
+ * Returns non-zero value if the entry is still STALE (storing
+ * the next timer interval in @pdelay).
+ *
+ * Returns zero value if original timer expired or we need to switch to
+ * PROBE (store that in @do_switch variable).
+ */
+static int
+nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
+{
+	int nd_delay, nd_gctimer, r_skip_req;
+	time_t lle_hittime;
+	long delay;
+
+	*do_switch = 0;
+	nd_gctimer = V_nd6_gctimer;
+	nd_delay = V_nd6_delay;
+
+	LLE_REQ_LOCK(lle);
+	r_skip_req = lle->r_skip_req;
+	lle_hittime = lle->lle_hittime;
+	LLE_REQ_UNLOCK(lle);
+
+	if (r_skip_req > 0) {
+
+		/*
+		 * Nonzero r_skip_req value was set upon entering
+		 * STALE state. Since value was not changed, no
+		 * packets were passed using this lle. Ask for
+		 * timer reschedule and keep STALE state.
+		 */
+		delay = (long)(MIN(nd_gctimer, nd_delay));
+		delay *= hz;
+		if (lle->lle_remtime > delay)
+			lle->lle_remtime -= delay;
+		else {
+			delay = lle->lle_remtime;
+			lle->lle_remtime = 0;
+		}
+
+		if (delay == 0) {
+
+			/*
+			 * The original ng6_gctime timeout ended,
+			 * no more rescheduling.
+			 */
+			return (0);
+		}
+
+		*pdelay = delay;
+		return (1);
+	}
+
+	/*
+	 * Packet received. Verify timestamp
+	 */
+	delay = (long)(time_uptime - lle_hittime);
+	if (delay < nd_delay) {
+
+		/*
+		 * V_nd6_delay still not passed since the first
+		 * hit in STALE state.
+		 * Reshedule timer and return.
+		 */
+		*pdelay = (long)(nd_delay - delay) * hz;
+		return (1);
+	}
+
+	/* Request switching to probe */
+	*do_switch = 1;
+	return (0);
+}
+
+
+/*
  * Switch @lle state to new state optionally arming timers.
  *
  * Set noinline to be dtrace-friendly
@@ -550,9 +671,11 @@ __noinline void
 nd6_llinfo_setstate(struct llentry *lle, int newstate)
 {
 	struct ifnet *ifp;
-	long delay;
+	int nd_gctimer, nd_delay;
+	long delay, remtime;
 
 	delay = 0;
+	remtime = 0;
 
 	switch (newstate) {
 	case ND6_LLINFO_INCOMPLETE:
@@ -566,7 +689,19 @@ nd6_llinfo_setstate(struct llentry *lle, int newstate)
 		}
 		break;
 	case ND6_LLINFO_STALE:
-		delay = (long)V_nd6_gctimer * hz;
+
+		/*
+		 * Notify fast path that we want to know if any packet
+		 * is transmitted by setting r_skip_req.
+		 */
+		LLE_REQ_LOCK(lle);
+		lle->r_skip_req = 1;
+		LLE_REQ_UNLOCK(lle);
+		nd_delay = V_nd6_delay;
+		nd_gctimer = V_nd6_gctimer;
+
+		delay = (long)(MIN(nd_gctimer, nd_delay)) * hz;
+		remtime = (long)nd_gctimer * hz - delay;
 		break;
 	case ND6_LLINFO_DELAY:
 		lle->la_asked = 0;
@@ -577,6 +712,7 @@ nd6_llinfo_setstate(struct llentry *lle, int newstate)
 	if (delay > 0)
 		nd6_llinfo_settimer_locked(lle, delay);
 
+	lle->lle_remtime = remtime;
 	lle->ln_state = newstate;
 }
 
@@ -592,7 +728,8 @@ nd6_llinfo_timer(void *arg)
 	struct in6_addr *dst, *pdst, *psrc, src;
 	struct ifnet *ifp;
 	struct nd_ifinfo *ndi = NULL;
-	int send_ns;
+	int do_switch, send_ns;
+	long delay;
 
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
@@ -680,13 +817,35 @@ nd6_llinfo_timer(void *arg)
 		break;
 
 	case ND6_LLINFO_STALE:
-		/* Garbage Collection(RFC 2461 5.3) */
-		if (!ND6_LLINFO_PERMANENT(ln)) {
-			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
-			nd6_free(ln, 1);
-			ln = NULL;
+		if (nd6_is_stale(ln, &delay, &do_switch) != 0) {
+
+			/*
+			 * No packet has used this entry and GC timeout
+			 * has not been passed. Reshedule timer and
+			 * return.
+			 */
+			nd6_llinfo_settimer_locked(ln, delay);
+			break;
 		}
-		break;
+
+		if (do_switch == 0) {
+
+			/*
+			 * GC timer has ended and entry hasn't been used.
+			 * Run Garbage collector (RFC 4861, 5.3)
+			 */
+			if (!ND6_LLINFO_PERMANENT(ln)) {
+				EVENTHANDLER_INVOKE(lle_event, ln,
+				    LLENTRY_EXPIRED);
+				nd6_free(ln, 1);
+				ln = NULL;
+			}
+			break;
+		}
+
+		/* Entry has been used AND delay timer has ended. */
+
+		/* FALLTHROUGH */
 
 	case ND6_LLINFO_DELAY:
 		if (ndi && (ndi->flags & ND6_IFF_PERFORMNUD) != 0) {
@@ -1589,7 +1748,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		if (ln->la_expire == 0)
 			nbi->expire = 0;
 		else
-			nbi->expire = ln->la_expire +
+			nbi->expire = ln->la_expire + ln->lle_remtime / hz +
 			    (time_second - time_uptime);
 		LLE_RUNLOCK(ln);
 		break;
@@ -1796,7 +1955,11 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Record source link-layer address
 		 * XXX is it dependent to ifp->if_type?
 		 */
-		lltable_set_entry_addr(ifp, ln, lladdr);
+		if (lltable_try_set_entry_addr(ifp, ln, lladdr) == 0) {
+			/* Entry was deleted */
+			return;
+		}
+
 		nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
@@ -1996,31 +2159,25 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	}
 
 	IF_AFDATA_RLOCK(ifp);
-	ln = nd6_lookup(&dst6->sin6_addr, 0, ifp);
+	ln = nd6_lookup(&dst6->sin6_addr, LLE_UNLOCKED, ifp);
+	if (ln != NULL && (ln->r_flags & RLLE_VALID) != 0) {
+		/* Entry found, let's copy lle info */
+		bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
+		if (pflags != NULL)
+			*pflags = LLE_VALID | (ln->r_flags & RLLE_IFADDR);
+		/* Check if we have feedback request from nd6 timer */
+		if (ln->r_skip_req != 0) {
+			LLE_REQ_LOCK(ln);
+			ln->r_skip_req = 0; /* Notify that entry was used */
+			ln->lle_hittime = time_uptime;
+			LLE_REQ_UNLOCK(ln);
+		}
+		IF_AFDATA_RUNLOCK(ifp);
+		return (0);
+	}
 	IF_AFDATA_RUNLOCK(ifp);
 
-	/*
-	 * Perform fast path for the following cases:
-	 * 1) lle state is REACHABLE
-	 * 2) lle state is DELAY (NS message sent)
-	 *
-	 * Every other case involves lle modification, so we handle
-	 * them separately.
-	 */
-	if (ln == NULL || (ln->ln_state != ND6_LLINFO_REACHABLE &&
-	    ln->ln_state != ND6_LLINFO_DELAY)) {
-		/* Fall back to slow processing path */
-		if (ln != NULL)
-			LLE_RUNLOCK(ln);
-		return (nd6_resolve_slow(ifp, m, dst6, desten, pflags));
-	}
-
-
-	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
-	if (pflags != NULL)
-		*pflags = ln->la_flags;
-	LLE_RUNLOCK(ln);
-	return (0);
+	return (nd6_resolve_slow(ifp, m, dst6, desten, pflags));
 }
 
 
@@ -2318,13 +2475,18 @@ static int nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS);
 SYSCTL_DECL(_net_inet6_icmp6);
 #endif
 SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_DRLIST, nd6_drlist,
-	CTLFLAG_RD, nd6_sysctl_drlist, "");
+    CTLFLAG_RD, nd6_sysctl_drlist, "List default routers");
 SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_PRLIST, nd6_prlist,
-	CTLFLAG_RD, nd6_sysctl_prlist, "");
+    CTLFLAG_RD, nd6_sysctl_prlist, "List prefixes");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1, "");
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1,
+    "Max packets cached in unresolved ND entries");
 SYSCTL_INT(_net_inet6_icmp6, OID_AUTO, nd6_gctimer,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_gctimer), (60 * 60 * 24), "");
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_gctimer), (60 * 60 * 24),
+    "Interface in seconds between garbage collection passes");
+SYSCTL_INT(_net_inet6_icmp6, OID_AUTO, nd6_on_link, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(nd6_on_link), 0,
+    "Send unsolicited neighbor discovery on interface link up events");
 
 static int
 nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)

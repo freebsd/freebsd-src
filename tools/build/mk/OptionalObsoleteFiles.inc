@@ -4254,6 +4254,11 @@ OLD_DIRS+=usr/include/c++/v1
 # to be filled in
 #.endif
 
+.if ${MK_LLDB} == no
+OLD_FILES+=usr/bin/lldb
+OLD_FILES+=usr/share/man/man1/lldb.1.gz
+.endif
+
 .if ${MK_LOCALES} == no
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-1/LC_COLLATE
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-1/LC_CTYPE

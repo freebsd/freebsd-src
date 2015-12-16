@@ -86,7 +86,7 @@ NANO_CFG_BASE=$(pwd)
 NANO_CFG_BASE=$(realpath ${NANO_CFG_BASE}/..)
 NANO_SRC=$(realpath ${NANO_CFG_BASE}/../../..)
 #### XXX share obj 
-NANO_OBJ=${NANO_SRC}/../$NANO_NAME/obj
+NANO_OBJ=$(realpath ${NANO_SRC}/../$NANO_NAME/obj)
 # Where cust_pkg() finds packages to install
 #XXX: Is this the right place?
 #NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
@@ -296,13 +296,18 @@ create_diskimage_mbr ( ) (
 		rm -fr ${NANO_OBJ}/_.${i}*
 	done
 
-	# Populate the FAT partition
+	# Populate the FAT partition, if needed
 	if [-n "${NANO_SLICE_FAT}" ]; then
 		echo Creating MSDOS partition for kernel
 		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F 16 -L ${NANO_NAME} \
 			${NANO_OBJ}/_.${NANO_SLICE_FAT}
 		# Need to copy files from ${NANO_FATDIR} with mtools, or use
 		# makefs -t msdos once that's supported
+	fi
+
+	# Populate the Powerpc boot image, if needed
+	if [ "${NANO_LAYOUT}" = powerpc64-ibm ]; then
+		dd if=${NANO_WORLDDIR}/boot/boot1.elf of=${NANO_OBJ}/_.s1 bs=800k count=1 conv=sync
 	fi
 
 	# Populate the / partition, and place it into a slice with a
@@ -357,9 +362,9 @@ create_diskimage_mbr ( ) (
 		# boot image is on a special partition, ala std-embedded, but that
 		# partition isn't FAT with special files, but a copy of the boot
 		# loader itself.
-		mkimg ${fmtarg} -s mbr -p ppcboot:=${NANO_WORLDDIR}/boot/boot1.elf \
+		mkimg -a 1 ${fmtarg} -s mbr -p prepboot:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
-			-p ${s3}:=${NANO_OBJ}/_.s3 \
+			-p ${s3}:=${NANO_OBJ}/_.s3a \
 			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
 		;;
 	esac

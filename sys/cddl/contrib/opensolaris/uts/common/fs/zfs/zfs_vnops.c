@@ -5762,12 +5762,13 @@ ioflags(int ioflags)
 }
 
 static int
-zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
+zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
+    int *rahead)
 {
 	znode_t *zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	objset_t *os = zp->z_zfsvfs->z_os;
-	vm_page_t mfirst, mlast, mreq;
+	vm_page_t mlast;
 	vm_object_t object;
 	caddr_t va;
 	struct sf_buf *sf;
@@ -5776,82 +5777,46 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	vm_pindex_t reqstart, reqend;
 	int pcount, lsize, reqsize, size;
 
+	if (rbehind)
+		*rbehind = 0;
+	if (rahead)
+		*rahead = 0;
+
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
 
 	pcount = OFF_TO_IDX(round_page(count));
-	mreq = m[reqpage];
-	object = mreq->object;
-	error = 0;
-
-	if (pcount > 1 && zp->z_blksz > PAGESIZE) {
-		startoff = rounddown(IDX_TO_OFF(mreq->pindex), zp->z_blksz);
-		reqstart = OFF_TO_IDX(round_page(startoff));
-		if (reqstart < m[0]->pindex)
-			reqstart = 0;
-		else
-			reqstart = reqstart - m[0]->pindex;
-		endoff = roundup(IDX_TO_OFF(mreq->pindex) + PAGE_SIZE,
-		    zp->z_blksz);
-		reqend = OFF_TO_IDX(trunc_page(endoff)) - 1;
-		if (reqend > m[pcount - 1]->pindex)
-			reqend = m[pcount - 1]->pindex;
-		reqsize = reqend - m[reqstart]->pindex + 1;
-		KASSERT(reqstart <= reqpage && reqpage < reqstart + reqsize,
-		    ("reqpage beyond [reqstart, reqstart + reqsize[ bounds"));
-	} else {
-		reqstart = reqpage;
-		reqsize = 1;
-	}
-	mfirst = m[reqstart];
-	mlast = m[reqstart + reqsize - 1];
 
 	zfs_vmobject_wlock(object);
-
-	for (i = 0; i < reqstart; i++) {
-		vm_page_lock(m[i]);
-		vm_page_free(m[i]);
-		vm_page_unlock(m[i]);
-	}
-	for (i = reqstart + reqsize; i < pcount; i++) {
-		vm_page_lock(m[i]);
-		vm_page_free(m[i]);
-		vm_page_unlock(m[i]);
-	}
-
-	if (mreq->valid && reqsize == 1) {
-		if (mreq->valid != VM_PAGE_BITS_ALL)
-			vm_page_zero_invalid(mreq, TRUE);
+	if (m[pcount - 1]->valid != 0 && --pcount == 0) {
 		zfs_vmobject_wunlock(object);
 		ZFS_EXIT(zfsvfs);
 		return (zfs_vm_pagerret_ok);
 	}
 
-	PCPU_INC(cnt.v_vnodein);
-	PCPU_ADD(cnt.v_vnodepgsin, reqsize);
+	object = m[0]->object;
+	mlast = m[pcount - 1];
 
-	if (IDX_TO_OFF(mreq->pindex) >= object->un_pager.vnp.vnp_size) {
-		for (i = reqstart; i < reqstart + reqsize; i++) {
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		}
+	if (IDX_TO_OFF(mlast->pindex) >=
+	    object->un_pager.vnp.vnp_size) {
 		zfs_vmobject_wunlock(object);
 		ZFS_EXIT(zfsvfs);
 		return (zfs_vm_pagerret_bad);
 	}
 
+	PCPU_INC(cnt.v_vnodein);
+	PCPU_ADD(cnt.v_vnodepgsin, reqsize);
+
 	lsize = PAGE_SIZE;
 	if (IDX_TO_OFF(mlast->pindex) + lsize > object->un_pager.vnp.vnp_size)
-		lsize = object->un_pager.vnp.vnp_size - IDX_TO_OFF(mlast->pindex);
-
+		lsize = object->un_pager.vnp.vnp_size -
+		    IDX_TO_OFF(mlast->pindex);
 	zfs_vmobject_wunlock(object);
 
-	for (i = reqstart; i < reqstart + reqsize; i++) {
+	error = 0;
+	for (i = 0; i < pcount; i++) {
 		size = PAGE_SIZE;
-		if (i == (reqstart + reqsize - 1))
+		if (i == pcount - 1)
 			size = lsize;
 		va = zfs_map_page(m[i], &sf);
 		error = dmu_read(os, zp->z_id, IDX_TO_OFF(m[i]->pindex),
@@ -5860,21 +5825,15 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 			bzero(va + size, PAGE_SIZE - size);
 		zfs_unmap_page(sf);
 		if (error != 0)
-			break;
+			goto out;
 	}
 
 	zfs_vmobject_wlock(object);
-
-	for (i = reqstart; i < reqstart + reqsize; i++) {
-		if (!error)
-			m[i]->valid = VM_PAGE_BITS_ALL;
-		KASSERT(m[i]->dirty == 0, ("zfs_getpages: page %p is dirty", m[i]));
-		if (i != reqpage)
-			vm_page_readahead_finish(m[i]);
-	}
-
+	for (i = 0; i < pcount; i++)
+		m[i]->valid = VM_PAGE_BITS_ALL;
 	zfs_vmobject_wunlock(object);
 
+out:
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 	ZFS_EXIT(zfsvfs);
 	return (error ? zfs_vm_pagerret_error : zfs_vm_pagerret_ok);
@@ -5886,11 +5845,13 @@ zfs_freebsd_getpages(ap)
 		struct vnode *a_vp;
 		vm_page_t *a_m;
 		int a_count;
-		int a_reqpage;
+		int *a_rbehind;
+		int *a_rahead;
 	} */ *ap;
 {
 
-	return (zfs_getpages(ap->a_vp, ap->a_m, ap->a_count, ap->a_reqpage));
+	return (zfs_getpages(ap->a_vp, ap->a_m, ap->a_count, ap->a_rbehind,
+	    ap->a_rahead));
 }
 
 static int

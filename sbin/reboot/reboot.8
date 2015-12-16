@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2015
+.Dd Dec 12, 2015
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -39,16 +39,16 @@
 .Nd stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl lnpq
+.Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl dlnpqr
+.Op Fl dlNnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
-.Op Fl lnpq
+.Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm fastboot
-.Op Fl dlnpq
+.Op Fl dlNnpq
 .Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
@@ -94,6 +94,16 @@ that call
 or
 .Nm halt
 and log this themselves.
+.It Fl N
+The file system cache is not flushed during the initial process clean-up,
+however the kernel level
+.Xr reboot 2
+is still processed with a sync.
+This option can be useful for performing a
+.Dq best-effort
+reboot when devices might be unavailable.
+This can happen when devices have been disconnected, such as with
+.Xr iscsi 4 .
 .It Fl n
 The file system cache is not flushed.
 This option should probably not be used.
