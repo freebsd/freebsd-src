@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <atf-c.h>
+
 #include "testutil.h"
 
 enum test_methods {
@@ -45,7 +48,6 @@ struct usershell {
 	char *path;
 };
 
-static int debug = 0;
 static enum test_methods method = TEST_GETUSERSHELL;
 
 DECLARE_TEST_DATA(usershell)
@@ -58,10 +60,6 @@ static void free_usershell(struct usershell *);
 
 static void sdump_usershell(struct usershell *, char *, size_t);
 static void dump_usershell(struct usershell *);
-
-static int usershell_read_snapshot_func(struct usershell *, char *);
-
-static void usage(void)  __attribute__((__noreturn__));
 
 IMPLEMENT_TEST_DATA(usershell)
 IMPLEMENT_TEST_FILE_SNAPSHOT(usershell)
@@ -129,69 +127,39 @@ dump_usershell(struct usershell *us)
 static int
 usershell_read_snapshot_func(struct usershell *us, char *line)
 {
+
 	us->path = strdup(line);
-	assert(us->path != NULL);
+	ATF_REQUIRE(us->path != NULL);
 
 	return (0);
 }
 
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-	    "Usage: %s [-d] -s <file>\n",
-	    getprogname());
-	exit(1);
-}
-
 int
-main(int argc, char **argv)
+run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct usershell_test_data td, td_snap;
 	struct usershell ushell;
-	char *snapshot_file;
 	int rv;
-	int c;
-
-	if (argc < 2)
-		usage();
 
 	rv = 0;
-	snapshot_file = NULL;
-	while ((c = getopt(argc, argv, "ds:")) != -1) {
-		switch (c) {
-		case 'd':
-			debug = 1;
-			break;
-		case 's':
-			snapshot_file = strdup(optarg);
-			break;
-		default:
-			usage();
-		}
-	}
 
 	TEST_DATA_INIT(usershell, &td, clone_usershell, free_usershell);
 	TEST_DATA_INIT(usershell, &td_snap, clone_usershell, free_usershell);
 
 	setusershell();
 	while ((ushell.path = getusershell()) != NULL) {
-		if (debug) {
-			printf("usershell found:\n");
-			dump_usershell(&ushell);
-		}
+		printf("usershell found:\n");
+		dump_usershell(&ushell);
 		TEST_DATA_APPEND(usershell, &td, &ushell);
 	}
 	endusershell();
-
 
 	if (snapshot_file != NULL) {
 		if (access(snapshot_file, W_OK | R_OK) != 0) {
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
-				if (debug)
-				    printf("can't access the snapshot file %s\n",
+				printf("can't access the snapshot file %s\n",
 				    snapshot_file);
 
 				rv = -1;
@@ -201,8 +169,7 @@ main(int argc, char **argv)
 			rv = TEST_SNAPSHOT_FILE_READ(usershell, snapshot_file,
 				&td_snap, usershell_read_snapshot_func);
 			if (rv != 0) {
-				if (debug)
-					printf("error reading snapshot file\n");
+				printf("error reading snapshot file\n");
 				goto fin;
 			}
 		}
@@ -210,26 +177,49 @@ main(int argc, char **argv)
 
 	switch (method) {
 	case TEST_GETUSERSHELL:
-		if (snapshot_file != NULL) {
-			rv = DO_2PASS_TEST(usershell, &td, &td_snap,
-				compare_usershell, NULL);
-		}
+		rv = DO_2PASS_TEST(usershell, &td, &td_snap,
+			compare_usershell, NULL);
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL) {
-		    rv = TEST_SNAPSHOT_FILE_WRITE(usershell, snapshot_file, &td,
-			sdump_usershell);
+			rv = TEST_SNAPSHOT_FILE_WRITE(usershell, snapshot_file,
+			    &td, sdump_usershell);
 		}
 		break;
 	default:
 		rv = 0;
 		break;
-	};
+	}
 
 fin:
 	TEST_DATA_DESTROY(usershell, &td_snap);
 	TEST_DATA_DESTROY(usershell, &td);
-	free(snapshot_file);
-	return (rv);
 
+	return (rv);
+}
+
+#define	SNAPSHOT_FILE	"snapshot_usershell"
+
+ATF_TC_WITHOUT_HEAD(getusershell_with_snapshot);
+ATF_TC_BODY(getusershell_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getusershell_with_two_pass);
+ATF_TC_BODY(getusershell_with_two_pass, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETUSERSHELL) == 0);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, getusershell_with_snapshot);
+	ATF_TP_ADD_TC(tp, getusershell_with_two_pass);
+
+	return (atf_no_error());
 }

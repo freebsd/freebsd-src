@@ -29,7 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
-#include <assert.h>
 #include <errno.h>
 #include <grp.h>
 #include <stdio.h>
@@ -37,17 +36,19 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stringlist.h>
 #include <unistd.h>
+
+#include <atf-c.h>
+
 #include "testutil.h"
 
 enum test_methods {
-	TEST_GETGRENT,
-	TEST_GETGRNAM,
-	TEST_GETGRGID,
-	TEST_GETGRENT_2PASS,
-	TEST_BUILD_SNAPSHOT
+	TEST_GETGRENT = 1,
+	TEST_GETGRNAM = 2,
+	TEST_GETGRGID = 4,
+	TEST_GETGRENT_2PASS = 8,
+	TEST_BUILD_SNAPSHOT = 16,
 };
 
-static int debug = 0;
 static enum test_methods method = TEST_BUILD_SNAPSHOT;
 
 DECLARE_TEST_DATA(group)
@@ -71,8 +72,6 @@ static int group_test_getgrnam(struct group *, void *);
 static int group_test_getgrgid(struct group *, void *);
 static int group_test_getgrent(struct group *, void *);
 
-static void usage(void)  __attribute__((__noreturn__));
-
 IMPLEMENT_TEST_DATA(group)
 IMPLEMENT_TEST_FILE_SNAPSHOT(group)
 IMPLEMENT_1PASS_TEST(group)
@@ -81,8 +80,8 @@ IMPLEMENT_2PASS_TEST(group)
 static void
 clone_group(struct group *dest, struct group const *src)
 {
-	assert(dest != NULL);
-	assert(src != NULL);
+	ATF_REQUIRE(dest != NULL);
+	ATF_REQUIRE(src != NULL);
 
 	char **cp;
 	int members_num;
@@ -91,12 +90,12 @@ clone_group(struct group *dest, struct group const *src)
 
 	if (src->gr_name != NULL) {
 		dest->gr_name = strdup(src->gr_name);
-		assert(dest->gr_name != NULL);
+		ATF_REQUIRE(dest->gr_name != NULL);
 	}
 
 	if (src->gr_passwd != NULL) {
 		dest->gr_passwd = strdup(src->gr_passwd);
-		assert(dest->gr_passwd != NULL);
+		ATF_REQUIRE(dest->gr_passwd != NULL);
 	}
 	dest->gr_gid = src->gr_gid;
 
@@ -105,14 +104,12 @@ clone_group(struct group *dest, struct group const *src)
 		for (cp = src->gr_mem; *cp; ++cp)
 			++members_num;
 
-		dest->gr_mem = (char **)malloc(
-			(members_num + 1) * (sizeof(char *)));
-		assert(dest->gr_mem != NULL);
-		memset(dest->gr_mem, 0, (members_num+1) * (sizeof(char *)));
+		dest->gr_mem = calloc(1, (members_num + 1) * sizeof(char *));
+		ATF_REQUIRE(dest->gr_mem != NULL);
 
 		for (cp = src->gr_mem; *cp; ++cp) {
 			dest->gr_mem[cp - src->gr_mem] = strdup(*cp);
-			assert(dest->gr_mem[cp - src->gr_mem] != NULL);
+			ATF_REQUIRE(dest->gr_mem[cp - src->gr_mem] != NULL);
 		}
 	}
 }
@@ -122,7 +119,7 @@ free_group(struct group *grp)
 {
 	char **cp;
 
-	assert(grp != NULL);
+	ATF_REQUIRE(grp != NULL);
 
 	free(grp->gr_name);
 	free(grp->gr_passwd);
@@ -140,31 +137,31 @@ compare_group(struct group *grp1, struct group *grp2, void *mdata)
 	if (grp1 == grp2)
 		return (0);
 
-	if ((grp1 == NULL) || (grp2 == NULL))
+	if (grp1 == NULL || grp2 == NULL)
 		goto errfin;
 
-	if ((strcmp(grp1->gr_name, grp2->gr_name) != 0) ||
-		(strcmp(grp1->gr_passwd, grp2->gr_passwd) != 0) ||
-		(grp1->gr_gid != grp2->gr_gid))
+	if (strcmp(grp1->gr_name, grp2->gr_name) != 0 ||
+	    strcmp(grp1->gr_passwd, grp2->gr_passwd) != 0 ||
+	    grp1->gr_gid != grp2->gr_gid)
 			goto errfin;
 
 	c1 = grp1->gr_mem;
 	c2 = grp2->gr_mem;
 
-	if ((grp1->gr_mem == NULL) || (grp2->gr_mem == NULL))
+	if (grp1->gr_mem == NULL || grp2->gr_mem == NULL)
 		goto errfin;
 
-	for (;*c1 && *c2; ++c1, ++c2)
+	for (; *c1 && *c2; ++c1, ++c2)
 		if (strcmp(*c1, *c2) != 0)
 			goto errfin;
 
-	if ((*c1 != '\0') || (*c2 != '\0'))
+	if (*c1 != '\0' || *c2 != '\0')
 		goto errfin;
 
 	return 0;
 
 errfin:
-	if ((debug) && (mdata == NULL)) {
+	if (mdata == NULL) {
 		printf("following structures are not equal:\n");
 		dump_group(grp1);
 		dump_group(grp2);
@@ -211,54 +208,55 @@ group_read_snapshot_func(struct group *grp, char *line)
 	char *s, *ps, *ts;
 	int i;
 
-	if (debug)
-		printf("1 line read from snapshot:\n%s\n", line);
+	printf("1 line read from snapshot:\n%s\n", line);
 
 	i = 0;
 	sl = NULL;
 	ps = line;
 	memset(grp, 0, sizeof(struct group));
-	while ( (s = strsep(&ps, " ")) != NULL) {
+	while ((s = strsep(&ps, " ")) != NULL) {
 		switch (i) {
-			case 0:
-				grp->gr_name = strdup(s);
-				assert(grp->gr_name != NULL);
+		case 0:
+			grp->gr_name = strdup(s);
+			ATF_REQUIRE(grp->gr_name != NULL);
 			break;
 
-			case 1:
-				grp->gr_passwd = strdup(s);
-				assert(grp->gr_passwd != NULL);
+		case 1:
+			grp->gr_passwd = strdup(s);
+			ATF_REQUIRE(grp->gr_passwd != NULL);
 			break;
 
-			case 2:
-				grp->gr_gid = (gid_t)strtol(s, &ts, 10);
-				if (*ts != '\0') {
-					free(grp->gr_name);
-					free(grp->gr_passwd);
-					return (-1);
-				}
+		case 2:
+			grp->gr_gid = (gid_t)strtol(s, &ts, 10);
+			if (*ts != '\0') {
+				free(grp->gr_name);
+				free(grp->gr_passwd);
+				grp->gr_name = NULL;
+				grp->gr_passwd = NULL;
+				return (-1);
+			}
 			break;
 
-			default:
-				if (sl == NULL) {
-					if (strcmp(s, "(null)") == 0)
-						return (0);
+		default:
+			if (sl == NULL) {
+				if (strcmp(s, "(null)") == 0)
+					return (0);
 
-					sl = sl_init();
-					assert(sl != NULL);
+				sl = sl_init();
+				ATF_REQUIRE(sl != NULL);
 
-					if (strcmp(s, "nomem") != 0) {
-						ts = strdup(s);
-						assert(ts != NULL);
-						sl_add(sl, ts);
-					}
-				} else {
+				if (strcmp(s, "nomem") != 0) {
 					ts = strdup(s);
-					assert(ts != NULL);
+					ATF_REQUIRE(ts != NULL);
 					sl_add(sl, ts);
 				}
+			} else {
+				ts = strdup(s);
+				ATF_REQUIRE(ts != NULL);
+				sl_add(sl, ts);
+			}
 			break;
-		};
+		}
 		++i;
 	}
 
@@ -308,10 +306,8 @@ group_fill_test_data(struct group_test_data *td)
 static int
 group_test_correctness(struct group *grp, void *mdata)
 {
-	if (debug) {
-		printf("testing correctness with the following data:\n");
-		dump_group(grp);
-	}
+	printf("testing correctness with the following data:\n");
+	dump_group(grp);
 
 	if (grp == NULL)
 		goto errfin;
@@ -325,13 +321,11 @@ group_test_correctness(struct group *grp, void *mdata)
 	if (grp->gr_mem == NULL)
 		goto errfin;
 
-	if (debug)
-		printf("correct\n");
+	printf("correct\n");
 
 	return (0);
 errfin:
-	if (debug)
-		printf("incorrect\n");
+	printf("incorrect\n");
 
 	return (-1);
 }
@@ -352,28 +346,20 @@ group_test_getgrnam(struct group *grp_model, void *mdata)
 {
 	struct group *grp;
 
-	if (debug) {
-		printf("testing getgrnam() with the following data:\n");
-		dump_group(grp_model);
-	}
+	printf("testing getgrnam() with the following data:\n");
+	dump_group(grp_model);
 
 	grp = getgrnam(grp_model->gr_name);
 	if (group_test_correctness(grp, NULL) != 0)
 		goto errfin;
 
-	if ((compare_group(grp, grp_model, NULL) != 0) &&
-	    (group_check_ambiguity((struct group_test_data *)mdata, grp)
-	    !=0))
+	if (compare_group(grp, grp_model, NULL) != 0 &&
+	    group_check_ambiguity((struct group_test_data *)mdata, grp) != 0)
 	    goto errfin;
 
-	if (debug)
-		printf("ok\n");
 	return (0);
 
 errfin:
-	if (debug)
-		printf("not ok\n");
-
 	return (-1);
 }
 
@@ -382,23 +368,16 @@ group_test_getgrgid(struct group *grp_model, void *mdata)
 {
 	struct group *grp;
 
-	if (debug) {
-		printf("testing getgrgid() with the following data...\n");
-		dump_group(grp_model);
-	}
+	printf("testing getgrgid() with the following data...\n");
+	dump_group(grp_model);
 
 	grp = getgrgid(grp_model->gr_gid);
-	if ((group_test_correctness(grp, NULL) != 0) ||
-	    ((compare_group(grp, grp_model, NULL) != 0) &&
-	    (group_check_ambiguity((struct group_test_data *)mdata, grp)
-	    != 0))) {
-	    if (debug)
-		printf("not ok\n");
-	    return (-1);
+	if (group_test_correctness(grp, NULL) != 0 ||
+	    (compare_group(grp, grp_model, NULL) != 0 &&
+	     group_check_ambiguity((struct group_test_data *)mdata, grp) != 0)) {
+		return (-1);
 	} else {
-	    if (debug)
-		printf("ok\n");
-	    return (0);
+		return (0);
 	}
 }
 
@@ -410,50 +389,11 @@ group_test_getgrent(struct group *grp, void *mdata)
 	return (group_test_correctness(grp, NULL));
 }
 
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-	    "Usage: %s -nge2 [-d] [-s <file>]\n",
-	    getprogname());
-	exit(1);
-}
-
-int
-main(int argc, char **argv)
+static int
+run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct group_test_data td, td_snap, td_2pass;
-	char *snapshot_file;
 	int rv;
-	int c;
-
-	if (argc < 2)
-		usage();
-
-	snapshot_file = NULL;
-	while ((c = getopt(argc, argv, "nge2ds:")) != -1)
-		switch (c) {
-		case 'd':
-			debug++;
-			break;
-		case 'n':
-			method = TEST_GETGRNAM;
-			break;
-		case 'g':
-			method = TEST_GETGRGID;
-			break;
-		case 'e':
-			method = TEST_GETGRENT;
-			break;
-		case '2':
-			method = TEST_GETGRENT_2PASS;
-			break;
-		case 's':
-			snapshot_file = strdup(optarg);
-			break;
-		default:
-			usage();
-		}
 
 	TEST_DATA_INIT(group, &td, clone_group, free_group);
 	TEST_DATA_INIT(group, &td_snap, clone_group, free_group);
@@ -462,9 +402,8 @@ main(int argc, char **argv)
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
-				if (debug)
-					printf("can't access the file %s\n",
-				snapshot_file);
+				printf("can't access the file %s\n",
+				    snapshot_file);
 
 				rv = -1;
 				goto fin;
@@ -518,17 +457,85 @@ main(int argc, char **argv)
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
-		    rv = TEST_SNAPSHOT_FILE_WRITE(group, snapshot_file, &td,
-			sdump_group);
+			rv = TEST_SNAPSHOT_FILE_WRITE(group, snapshot_file, &td,
+			    sdump_group);
 		break;
 	default:
 		rv = 0;
 		break;
-	};
+	}
 
 fin:
 	TEST_DATA_DESTROY(group, &td_snap);
 	TEST_DATA_DESTROY(group, &td);
-	free(snapshot_file);
+
 	return (rv);
+}
+
+#define	SNAPSHOT_FILE	"snapshot_grp"
+
+ATF_TC_BODY(getgrent, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrent_with_snapshot);
+ATF_TC_BODY(getgrent_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrent_with_two_pass);
+ATF_TC_BODY(getgrent_with_two_pass, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT_2PASS) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrgid);
+ATF_TC_BODY(getgrgid, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRGID) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrgid_with_snapshot);
+ATF_TC_BODY(getgrgid_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRGID) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrnam);
+ATF_TC_BODY(getgrnam, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRNAM) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrnam_with_snapshot);
+ATF_TC_BODY(getgrnam_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRNAM) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrent);
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, getgrent);
+	ATF_TP_ADD_TC(tp, getgrent_with_snapshot);
+	ATF_TP_ADD_TC(tp, getgrent_with_two_pass);
+	ATF_TP_ADD_TC(tp, getgrgid);
+	ATF_TP_ADD_TC(tp, getgrgid_with_snapshot);
+	ATF_TP_ADD_TC(tp, getgrnam);
+	ATF_TP_ADD_TC(tp, getgrnam_with_snapshot);
+
+	return (atf_no_error());
 }

@@ -29,7 +29,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
-#include <assert.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -37,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stringlist.h>
 #include <unistd.h>
+
+#include <atf-c.h>
+
 #include "testutil.h"
 
 enum test_methods {
@@ -46,9 +48,6 @@ enum test_methods {
 	TEST_GETSERVENT_2PASS,
 	TEST_BUILD_SNAPSHOT
 };
-
-static int debug = 0;
-static enum test_methods method = TEST_BUILD_SNAPSHOT;
 
 DECLARE_TEST_DATA(servent)
 DECLARE_TEST_FILE_SNAPSHOT(servent)
@@ -71,8 +70,6 @@ static int servent_test_getservbyname(struct servent *, void *);
 static int servent_test_getservbyport(struct servent *, void *);
 static int servent_test_getservent(struct servent *, void *);
 
-static void usage(void)  __attribute__((__noreturn__));
-
 IMPLEMENT_TEST_DATA(servent)
 IMPLEMENT_TEST_FILE_SNAPSHOT(servent)
 IMPLEMENT_1PASS_TEST(servent)
@@ -81,8 +78,8 @@ IMPLEMENT_2PASS_TEST(servent)
 static void
 clone_servent(struct servent *dest, struct servent const *src)
 {
-	assert(dest != NULL);
-	assert(src != NULL);
+	ATF_REQUIRE(dest != NULL);
+	ATF_REQUIRE(src != NULL);
 
 	char **cp;
 	int aliases_num;
@@ -91,12 +88,12 @@ clone_servent(struct servent *dest, struct servent const *src)
 
 	if (src->s_name != NULL) {
 		dest->s_name = strdup(src->s_name);
-		assert(dest->s_name != NULL);
+		ATF_REQUIRE(dest->s_name != NULL);
 	}
 
 	if (src->s_proto != NULL) {
 		dest->s_proto = strdup(src->s_proto);
-		assert(dest->s_proto != NULL);
+		ATF_REQUIRE(dest->s_proto != NULL);
 	}
 	dest->s_port = src->s_port;
 
@@ -105,13 +102,12 @@ clone_servent(struct servent *dest, struct servent const *src)
 		for (cp = src->s_aliases; *cp; ++cp)
 			++aliases_num;
 
-		dest->s_aliases = (char **)malloc((aliases_num+1) * (sizeof(char *)));
-		assert(dest->s_aliases != NULL);
-		memset(dest->s_aliases, 0, (aliases_num+1) * (sizeof(char *)));
+		dest->s_aliases = calloc(1, (aliases_num + 1) * sizeof(char *));
+		ATF_REQUIRE(dest->s_aliases != NULL);
 
 		for (cp = src->s_aliases; *cp; ++cp) {
 			dest->s_aliases[cp - src->s_aliases] = strdup(*cp);
-			assert(dest->s_aliases[cp - src->s_aliases] != NULL);
+			ATF_REQUIRE(dest->s_aliases[cp - src->s_aliases] != NULL);
 		}
 	}
 }
@@ -121,7 +117,7 @@ free_servent(struct servent *serv)
 {
 	char **cp;
 
-	assert(serv != NULL);
+	ATF_REQUIRE(serv != NULL);
 
 	free(serv->s_name);
 	free(serv->s_proto);
@@ -163,7 +159,7 @@ compare_servent(struct servent *serv1, struct servent *serv2, void *mdata)
 	return 0;
 
 errfin:
-	if ((debug) && (mdata == NULL)) {
+	if (mdata == NULL) {
 		printf("following structures are not equal:\n");
 		dump_servent(serv1);
 		dump_servent(serv2);
@@ -210,8 +206,7 @@ servent_read_snapshot_func(struct servent *serv, char *line)
 	char *s, *ps, *ts;
 	int i;
 
-	if (debug)
-		printf("1 line read from snapshot:\n%s\n", line);
+	printf("1 line read from snapshot:\n%s\n", line);
 
 	i = 0;
 	sl = NULL;
@@ -221,7 +216,7 @@ servent_read_snapshot_func(struct servent *serv, char *line)
 		switch (i) {
 			case 0:
 				serv->s_name = strdup(s);
-				assert(serv->s_name != NULL);
+				ATF_REQUIRE(serv->s_name != NULL);
 			break;
 
 			case 1:
@@ -235,7 +230,7 @@ servent_read_snapshot_func(struct servent *serv, char *line)
 
 			case 2:
 				serv->s_proto = strdup(s);
-				assert(serv->s_proto != NULL);
+				ATF_REQUIRE(serv->s_proto != NULL);
 			break;
 
 			default:
@@ -244,20 +239,20 @@ servent_read_snapshot_func(struct servent *serv, char *line)
 						return (0);
 
 					sl = sl_init();
-					assert(sl != NULL);
+					ATF_REQUIRE(sl != NULL);
 
 					if (strcmp(s, "noaliases") != 0) {
 						ts = strdup(s);
-						assert(ts != NULL);
+						ATF_REQUIRE(ts != NULL);
 						sl_add(sl, ts);
 					}
 				} else {
 					ts = strdup(s);
-					assert(ts != NULL);
+					ATF_REQUIRE(ts != NULL);
 					sl_add(sl, ts);
 				}
 			break;
-		};
+		}
 		++i;
 	}
 
@@ -307,10 +302,8 @@ servent_fill_test_data(struct servent_test_data *td)
 static int
 servent_test_correctness(struct servent *serv, void *mdata)
 {
-	if (debug) {
-		printf("testing correctness with the following data:\n");
-		dump_servent(serv);
-	}
+	printf("testing correctness with the following data:\n");
+	dump_servent(serv);
 
 	if (serv == NULL)
 		goto errfin;
@@ -327,13 +320,11 @@ servent_test_correctness(struct servent *serv, void *mdata)
 	if (serv->s_aliases == NULL)
 		goto errfin;
 
-	if (debug)
-		printf("correct\n");
+	printf("correct\n");
 
 	return (0);
 errfin:
-	if (debug)
-		printf("incorrect\n");
+	printf("incorrect\n");
 
 	return (-1);
 }
@@ -357,10 +348,8 @@ servent_test_getservbyname(struct servent *serv_model, void *mdata)
 	char **alias;
 	struct servent *serv;
 
-	if (debug) {
-		printf("testing getservbyname() with the following data:\n");
-		dump_servent(serv_model);
-	}
+	printf("testing getservbyname() with the following data:\n");
+	dump_servent(serv_model);
 
 	serv = getservbyname(serv_model->s_name, serv_model->s_proto);
 	if (servent_test_correctness(serv, NULL) != 0)
@@ -369,7 +358,7 @@ servent_test_getservbyname(struct servent *serv_model, void *mdata)
 	if ((compare_servent(serv, serv_model, NULL) != 0) &&
 	    (servent_check_ambiguity((struct servent_test_data *)mdata, serv)
 	    !=0))
-	    goto errfin;
+		goto errfin;
 
 	for (alias = serv_model->s_aliases; *alias; ++alias) {
 		serv = getservbyname(*alias, serv_model->s_proto);
@@ -383,13 +372,11 @@ servent_test_getservbyname(struct servent *serv_model, void *mdata)
 		    goto errfin;
 	}
 
-	if (debug)
-		printf("ok\n");
+	printf("ok\n");
 	return (0);
 
 errfin:
-	if (debug)
-		printf("not ok\n");
+	printf("not ok\n");
 
 	return (-1);
 }
@@ -399,23 +386,19 @@ servent_test_getservbyport(struct servent *serv_model, void *mdata)
 {
 	struct servent *serv;
 
-	if (debug) {
-		printf("testing getservbyport() with the following data...\n");
-		dump_servent(serv_model);
-	}
+	printf("testing getservbyport() with the following data...\n");
+	dump_servent(serv_model);
 
 	serv = getservbyport(serv_model->s_port, serv_model->s_proto);
 	if ((servent_test_correctness(serv, NULL) != 0) ||
 	    ((compare_servent(serv, serv_model, NULL) != 0) &&
 	    (servent_check_ambiguity((struct servent_test_data *)mdata, serv)
 	    != 0))) {
-	    if (debug)
 		printf("not ok\n");
-	    return (-1);
+		return (-1);
 	} else {
-	    if (debug)
 		printf("ok\n");
-	    return (0);
+		return (0);
 	}
 }
 
@@ -427,50 +410,11 @@ servent_test_getservent(struct servent *serv, void *mdata)
 	return (servent_test_correctness(serv, NULL));
 }
 
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-	    "Usage: %s -npe2 [-d] [-s <file>]\n",
-	    getprogname());
-	exit(1);
-}
-
 int
-main(int argc, char **argv)
+run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct servent_test_data td, td_snap, td_2pass;
-	char *snapshot_file;
 	int rv;
-	int c;
-
-	if (argc < 2)
-		usage();
-
-	snapshot_file = NULL;
-	while ((c = getopt(argc, argv, "npe2ds:")) != -1)
-		switch (c) {
-		case 'd':
-			debug++;
-			break;
-		case 'n':
-			method = TEST_GETSERVBYNAME;
-			break;
-		case 'p':
-			method = TEST_GETSERVBYPORT;
-			break;
-		case 'e':
-			method = TEST_GETSERVENT;
-			break;
-		case '2':
-			method = TEST_GETSERVENT_2PASS;
-			break;
-		case 's':
-			snapshot_file = strdup(optarg);
-			break;
-		default:
-			usage();
-		}
 
 	TEST_DATA_INIT(servent, &td, clone_servent, free_servent);
 	TEST_DATA_INIT(servent, &td_snap, clone_servent, free_servent);
@@ -479,9 +423,8 @@ main(int argc, char **argv)
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
-				if (debug)
-					printf("can't access the file %s\n",
-				snapshot_file);
+				printf("can't access the file %s\n",
+				    snapshot_file);
 
 				rv = -1;
 				goto fin;
@@ -541,11 +484,87 @@ main(int argc, char **argv)
 	default:
 		rv = 0;
 		break;
-	};
+	}
 
 fin:
 	TEST_DATA_DESTROY(servent, &td_snap);
 	TEST_DATA_DESTROY(servent, &td);
-	free(snapshot_file);
+
 	return (rv);
+}
+
+#define	SNAPSHOT_FILE	"snapshot_serv"
+
+ATF_TC_WITHOUT_HEAD(build_snapshot);
+ATF_TC_BODY(build_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getservbyname);
+ATF_TC_BODY(getservbyname, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETSERVBYNAME) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getservbyname_with_snapshot);
+ATF_TC_BODY(getservbyname_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETSERVBYNAME) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getservbyport);
+ATF_TC_BODY(getservbyport, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETSERVBYPORT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getservbyport_with_snapshot);
+ATF_TC_BODY(getservbyport_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETSERVBYPORT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getservbyent);
+ATF_TC_BODY(getservbyent, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETSERVENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getservbyent_with_snapshot);
+ATF_TC_BODY(getservbyent_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETSERVENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getservbyent_with_two_pass);
+ATF_TC_BODY(getservbyent_with_two_pass, tc)
+{
+
+	ATF_REQUIRE(run_tests(NULL, TEST_GETSERVENT_2PASS) == 0);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, build_snapshot);
+	ATF_TP_ADD_TC(tp, getservbyent);
+	ATF_TP_ADD_TC(tp, getservbyent_with_snapshot);
+	ATF_TP_ADD_TC(tp, getservbyent_with_two_pass);
+	ATF_TP_ADD_TC(tp, getservbyname);
+	ATF_TP_ADD_TC(tp, getservbyname_with_snapshot);
+	ATF_TP_ADD_TC(tp, getservbyport);
+	ATF_TP_ADD_TC(tp, getservbyport_with_snapshot);
+
+	return (atf_no_error());
 }
