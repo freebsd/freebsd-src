@@ -89,6 +89,12 @@ log_onexit cleanup
 create_snapshot $TESTPOOL/$TESTFS $TESTSNAP
 create_snapshot $TESTPOOL/$TESTVOL $TESTSNAP
 
+# Make sure any history logs have been synced.  They're asynchronously
+# pushed to the syncing context, and could influence the value of some
+# properties on $TESTPOOL, like 'used'.  Fetching it here forces the sync,
+# per spa_history.c:spa_history_get().
+log_must $ZPOOL history $TESTPOOL
+
 typeset -i i=0
 typeset -i j=0
 typeset cur_value=""
@@ -126,4 +132,4 @@ while (( i < ${#dataset[@]} )); do
 	(( i += 1 ))
 done
 
-log_pass "Setting uneditable properties should failed. It passed."
+log_pass "Setting uneditable properties fail, as required."
