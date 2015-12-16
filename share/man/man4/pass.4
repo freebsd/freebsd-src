@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 1998
+.Dd March 17, 2015
 .Dt PASS 4
 .Os
 .Sh NAME
@@ -53,9 +53,13 @@ The
 .Nm
 driver attaches to every
 .Tn SCSI
+and
+.Tn ATA
 device found in the system.
 Since it attaches to every device, it provides a generic means of accessing
 .Tn SCSI
+and
+.Tn ATA
 devices, and allows the user to access devices which have no
 "standard" peripheral driver associated with them.
 .Sh KERNEL CONFIGURATION
@@ -65,10 +69,12 @@ device in the kernel;
 .Nm
 devices are automatically allocated as
 .Tn SCSI
+and
+.Tn ATA
 devices are found.
 .Sh IOCTLS
-.Bl -tag -width 012345678901234
-.It CAMIOCOMMAND
+.Bl -tag -width 5n
+.It CAMIOCOMMAND union ccb *
 This ioctl takes most kinds of CAM CCBs and passes them through to the CAM
 transport layer for action.
 Note that some CCB types are not allowed
@@ -79,7 +85,7 @@ Some examples of xpt-only CCBs are XPT_SCAN_BUS,
 XPT_DEV_MATCH, XPT_RESET_BUS, XPT_SCAN_LUN, XPT_ENG_INQ, and XPT_ENG_EXEC.
 These CCB types have various attributes that make it illogical or
 impossible to service them through the passthrough interface.
-.It CAMGETPASSTHRU
+.It CAMGETPASSTHRU union ccb *
 This ioctl takes an XPT_GDEVLIST CCB, and returns the passthrough device
 corresponding to the device in question.
 Although this ioctl is available through the
@@ -90,6 +96,109 @@ ioctl.
 It is probably more useful to issue this ioctl through the
 .Xr xpt 4
 device.
+.It CAMIOQUEUE union ccb *
+Queue a CCB to the
+.Xr pass 4
+driver to be executed asynchronously.
+The caller may use
+.Xr select 2 ,
+.Xr poll 2 
+or
+.Xr kevent 2
+to receive notification when the CCB has completed.
+.Pp
+This ioctl takes most CAM CCBs, but some CCB types are not allowed through
+the pass device, and must be sent through the
+.Xr xpt 4
+device instead.
+Some examples of xpt-only CCBs are XPT_SCAN_BUS,
+XPT_DEV_MATCH, XPT_RESET_BUS, XPT_SCAN_LUN, XPT_ENG_INQ, and XPT_ENG_EXEC.
+These CCB types have various attributes that make it illogical or
+impossible to service them through the passthrough interface.
+.Pp
+Although the
+.Dv CAMIOQUEUE
+ioctl is not defined to take an argument, it does require a
+pointer to a union ccb.
+It is not defined to take an argument to avoid an extra malloc and copy 
+inside the generic 
+.Xr ioctl 2
+handler.
+.pp
+The completed CCB will be returned via the
+.Dv CAMIOGET
+ioctl.
+An error will only be returned from the
+.Dv CAMIOQUEUE
+ioctl if there is an error allocating memory for the request or copying
+memory from userland.
+All other errors will be reported as standard CAM CCB status errors.
+Since the CCB is not copied back to the user process from the pass driver
+in the
+.Dv CAMIOQUEUE
+ioctl, the user's passed-in CCB will not be modfied.
+This is the case even with immediate CCBs.
+Instead, the completed CCB must be retrieved via the
+.Dv CAMIOGET
+ioctl and the status examined.
+.Pp
+Multiple CCBs may be queued via the
+.Dv CAMIOQUEUE
+ioctl at any given time, and they may complete in a different order than
+the order that they were submitted.
+The caller must take steps to identify CCBs that are queued and completed.
+The
+.Dv periph_priv
+structure inside struct ccb_hdr is available for userland use with the
+.Dv CAMIOQUEUE
+and
+.Dv CAMIOGET
+ioctls, and will be preserved across calls.
+Also, the periph_links linked list pointers inside struct ccb_hdr are
+available for userland use with the
+.Dv CAMIOQUEUE
+and
+.Dv CAMIOGET
+ioctls and will be preserved across calls.
+.It CAMIOGET union ccb *
+Retrieve completed CAM CCBs queued via the
+.Dv CAMIOQUEUE
+ioctl.
+An error will only be returned from the
+.Dv CAMIOGET
+ioctl if the
+.Xr pass 4
+driver fails to copy data to the user process or if there are no completed
+CCBs available to retrieve.
+If no CCBs are available to retrieve,
+errno will be set to 
+.Dv ENOENT .
+.Pp
+All other errors will be reported as standard CAM CCB status errors.
+.Pp
+Although the
+.Dv CAMIOGET
+ioctl is not defined to take an argument, it does require a
+pointer to a union ccb.
+It is not defined to take an argument to avoid an extra malloc and copy 
+inside the generic 
+.Xr ioctl 2
+handler.
+.Pp
+The pass driver will report via
+.Xr select 2 ,
+.Xr poll 2 
+or
+.Xr kevent 2
+when a CCB has completed.
+One CCB may be retrieved per
+.Dv CAMIOGET
+call.
+CCBs may be returned in an order different than the order they were
+submitted.
+So the caller should use the
+.Dv periph_priv
+area inside the CCB header to store pointers to identifying information.
 .El
 .Sh FILES
 .Bl -tag -width /dev/passn -compact
@@ -103,18 +212,21 @@ CAM subsystem.
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr select 2 ,
 .Xr cam 3 ,
 .Xr cam 4 ,
 .Xr cam_cdbparse 3 ,
+.Xr cd 4 ,
+.Xr ctl 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
 .Xr xpt 4 ,
-.Xr camcontrol 8
+.Xr camcontrol 8 ,
+.Xr camdd 8
 .Sh HISTORY
 The CAM passthrough driver first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 .An Kenneth Merry Aq ken@FreeBSD.org
-.Sh BUGS
-It might be nice to have a way to asynchronously send CCBs through the
-passthrough driver.
-This would probably require some sort of read/write
-interface or an asynchronous ioctl interface.

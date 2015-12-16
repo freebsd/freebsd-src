@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/led/led.h>
 
+#include <machine/bus.h>
+
 struct g_disk_softc {
 	struct mtx		 done_mtx;
 	struct disk		*dp;
@@ -273,6 +275,145 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 	return (error);
 }
 
+static off_t
+g_disk_maxsize(struct disk *dp, struct bio *bp)
+{
+	if (bp->bio_cmd == BIO_DELETE)
+		return (dp->d_delmaxsize);
+	return (dp->d_maxsize);
+}
+
+static int
+g_disk_maxsegs(struct disk *dp, struct bio *bp)
+{
+	return ((g_disk_maxsize(dp, bp) / PAGE_SIZE) + 1);
+}
+
+static void
+g_disk_advance(struct disk *dp, struct bio *bp, off_t off)
+{
+
+	bp->bio_offset += off;
+	bp->bio_length -= off;
+
+	if ((bp->bio_flags & BIO_VLIST) != 0) {
+		bus_dma_segment_t *seg, *end;
+
+		seg = (bus_dma_segment_t *)bp->bio_data;
+		end = (bus_dma_segment_t *)bp->bio_data + bp->bio_ma_n;
+		off += bp->bio_ma_offset;
+		while (off >= seg->ds_len) {
+			KASSERT((seg != end),
+			    ("vlist request runs off the end"));
+			off -= seg->ds_len;
+			seg++;
+		}
+		bp->bio_ma_offset = off;
+		bp->bio_ma_n = end - seg;
+		bp->bio_data = (void *)seg;
+	} else if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+		bp->bio_ma += off / PAGE_SIZE;
+		bp->bio_ma_offset += off;
+		bp->bio_ma_offset %= PAGE_SIZE;
+		bp->bio_ma_n -= off / PAGE_SIZE;
+	} else {
+		bp->bio_data += off;
+	}
+}
+
+static void
+g_disk_seg_limit(bus_dma_segment_t *seg, off_t *poffset,
+    off_t *plength, int *ppages)
+{
+	uintptr_t seg_page_base;
+	uintptr_t seg_page_end;
+	off_t offset;
+	off_t length;
+	int seg_pages;
+
+	offset = *poffset;
+	length = *plength;
+
+	if (length > seg->ds_len - offset)
+		length = seg->ds_len - offset;
+
+	seg_page_base = trunc_page(seg->ds_addr + offset);
+	seg_page_end  = round_page(seg->ds_addr + offset + length);
+	seg_pages = (seg_page_end - seg_page_base) >> PAGE_SHIFT;
+
+	if (seg_pages > *ppages) {
+		seg_pages = *ppages;
+		length = (seg_page_base + (seg_pages << PAGE_SHIFT)) -
+		    (seg->ds_addr + offset);
+	}
+
+	*poffset = 0;
+	*plength -= length;
+	*ppages -= seg_pages;
+}
+
+static off_t
+g_disk_vlist_limit(struct disk *dp, struct bio *bp, bus_dma_segment_t **pendseg)
+{
+	bus_dma_segment_t *seg, *end;
+	off_t residual;
+	off_t offset;
+	int pages;
+
+	seg = (bus_dma_segment_t *)bp->bio_data;
+	end = (bus_dma_segment_t *)bp->bio_data + bp->bio_ma_n;
+	residual = bp->bio_length;
+	offset = bp->bio_ma_offset;
+	pages = g_disk_maxsegs(dp, bp);
+	while (residual != 0 && pages != 0) {
+		KASSERT((seg != end),
+		    ("vlist limit runs off the end"));
+		g_disk_seg_limit(seg, &offset, &residual, &pages);
+		seg++;
+	}
+	if (pendseg != NULL)
+		*pendseg = seg;
+	return (residual);
+}
+
+static bool
+g_disk_limit(struct disk *dp, struct bio *bp)
+{
+	bool limited = false;
+	off_t maxsz;
+
+	maxsz = g_disk_maxsize(dp, bp);
+
+	/*
+	 * XXX: If we have a stripesize we should really use it here.
+	 *      Care should be taken in the delete case if this is done
+	 *      as deletes can be very sensitive to size given how they
+	 *      are processed.
+	 */
+	if (bp->bio_length > maxsz) {
+		bp->bio_length = maxsz;
+		limited = true;
+	}
+
+	if ((bp->bio_flags & BIO_VLIST) != 0) {
+		bus_dma_segment_t *firstseg, *endseg;
+		off_t residual;
+
+		firstseg = (bus_dma_segment_t*)bp->bio_data;
+		residual = g_disk_vlist_limit(dp, bp, &endseg);
+		if (residual != 0) {
+			bp->bio_ma_n = endseg - firstseg;
+			bp->bio_length -= residual;
+			limited = true;
+		}
+	} else if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+		bp->bio_ma_n =
+		    howmany(bp->bio_ma_offset + bp->bio_length, PAGE_SIZE);
+	}
+
+	return (limited);
+}
+
 static void
 g_disk_start(struct bio *bp)
 {
@@ -297,6 +438,9 @@ g_disk_start(struct bio *bp)
 		/* fall-through */
 	case BIO_READ:
 	case BIO_WRITE:
+		KASSERT((dp->d_flags & DISKFLAG_UNMAPPED_BIO) != 0 ||
+		    (bp->bio_flags & BIO_UNMAPPED) == 0,
+		    ("unmapped bio not supported by disk %s", dp->d_name));
 		off = 0;
 		bp3 = NULL;
 		bp2 = g_clone_bio(bp);
@@ -304,39 +448,10 @@ g_disk_start(struct bio *bp)
 			error = ENOMEM;
 			break;
 		}
-		do {
-			off_t d_maxsize;
+		for (;;) {
+			if (g_disk_limit(dp, bp2)) {
+				off += bp2->bio_length;
 
-			d_maxsize = (bp->bio_cmd == BIO_DELETE) ?
-			    dp->d_delmaxsize : dp->d_maxsize;
-			bp2->bio_offset += off;
-			bp2->bio_length -= off;
-			if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
-				bp2->bio_data += off;
-			} else {
-				KASSERT((dp->d_flags & DISKFLAG_UNMAPPED_BIO)
-				    != 0,
-				    ("unmapped bio not supported by disk %s",
-				    dp->d_name));
-				bp2->bio_ma += off / PAGE_SIZE;
-				bp2->bio_ma_offset += off;
-				bp2->bio_ma_offset %= PAGE_SIZE;
-				bp2->bio_ma_n -= off / PAGE_SIZE;
-			}
-			if (bp2->bio_length > d_maxsize) {
-				/*
-				 * XXX: If we have a stripesize we should really
-				 * use it here. Care should be taken in the delete
-				 * case if this is done as deletes can be very 
-				 * sensitive to size given how they are processed.
-				 */
-				bp2->bio_length = d_maxsize;
-				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
-					bp2->bio_ma_n = howmany(
-					    bp2->bio_ma_offset +
-					    bp2->bio_length, PAGE_SIZE);
-				}
-				off += d_maxsize;
 				/*
 				 * To avoid a race, we need to grab the next bio
 				 * before we schedule this one.  See "notes".
@@ -355,9 +470,14 @@ g_disk_start(struct bio *bp)
 			g_disk_lock_giant(dp);
 			dp->d_strategy(bp2);
 			g_disk_unlock_giant(dp);
+
+			if (bp3 == NULL)
+				break;
+
 			bp2 = bp3;
 			bp3 = NULL;
-		} while (bp2 != NULL);
+			g_disk_advance(dp, bp2, off);
+		}
 		break;
 	case BIO_GETATTR:
 		/* Give the driver a chance to override */
