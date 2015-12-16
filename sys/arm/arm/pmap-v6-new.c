@@ -4153,10 +4153,25 @@ pmap_remove_pages(pmap_t pmap)
 	uint32_t inuse, bitmask;
 	boolean_t allfree;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
-		printf("warning: %s called with non-current pmap\n", __func__);
-		return;
+	/*
+	 * Assert that the given pmap is only active on the current
+	 * CPU.  Unfortunately, we cannot block another CPU from
+	 * activating the pmap while this function is executing.
+	 */
+	KASSERT(pmap == vmspace_pmap(curthread->td_proc->p_vmspace),
+	    ("%s: non-current pmap %p", __func__, pmap));
+#if defined(SMP) && defined(INVARIANTS)
+	{
+		cpuset_t other_cpus;
+
+		sched_pin();
+		other_cpus = pmap->pm_active;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		sched_unpin();
+		KASSERT(CPU_EMPTY(&other_cpus),
+		    ("%s: pmap %p active on other cpus", __func__, pmap));
 	}
+#endif
 	SLIST_INIT(&free);
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
