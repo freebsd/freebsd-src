@@ -1034,10 +1034,9 @@ vop_stdallocate(struct vop_allocate_args *ap)
 int
 vop_stdadvise(struct vop_advise_args *ap)
 {
-	struct buf *bp;
-	struct buflists *bl;
 	struct vnode *vp;
-	daddr_t bn, startn, endn;
+	struct bufobj *bo;
+	daddr_t startn, endn;
 	off_t start, end;
 	int bsize, error;
 
@@ -1074,36 +1073,21 @@ vop_stdadvise(struct vop_advise_args *ap)
 			VM_OBJECT_WUNLOCK(vp->v_object);
 		}
 
-		BO_RLOCK(&vp->v_bufobj);
+		bo = &vp->v_bufobj;
+		BO_RLOCK(bo);
 		bsize = vp->v_bufobj.bo_bsize;
 		startn = ap->a_start / bsize;
-		endn = -1;
-		bl = &vp->v_bufobj.bo_clean.bv_hd;
-		if (!TAILQ_EMPTY(bl))
-			endn = TAILQ_LAST(bl, buflists)->b_lblkno;
-		bl = &vp->v_bufobj.bo_dirty.bv_hd;
-		if (!TAILQ_EMPTY(bl) &&
-		    endn < TAILQ_LAST(bl, buflists)->b_lblkno)
-			endn = TAILQ_LAST(bl, buflists)->b_lblkno;
-		if (ap->a_end != OFF_MAX && endn != -1)
-			endn = ap->a_end / bsize;
-		BO_RUNLOCK(&vp->v_bufobj);
-		/*
-		 * In the VMIO case, use the B_NOREUSE flag to hint that the
-		 * pages backing each buffer in the range are unlikely to be
-		 * reused.  Dirty buffers will have the hint applied once
-		 * they've been written.
-		 */
-		for (bn = startn; bn <= endn; bn++) {
-			bp = getblk(vp, bn, bsize, 0, 0, GB_NOCREAT |
-			    GB_UNMAPPED);
-			if (bp == NULL)
+		endn = ap->a_end / bsize;
+		for (;;) {
+			error = bnoreuselist(&bo->bo_clean, bo, startn, endn);
+			if (error == EAGAIN)
 				continue;
-			bp->b_flags |= B_RELBUF;
-			if (vp->v_object != NULL)
-				bp->b_flags |= B_NOREUSE;
-			brelse(bp);
+			error = bnoreuselist(&bo->bo_dirty, bo, startn, endn);
+			if (error == EAGAIN)
+				continue;
+			break;
 		}
+		BO_RUNLOCK(bo);
 		VOP_UNLOCK(vp, 0);
 		break;
 	default:
