@@ -42,6 +42,7 @@ dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebs
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 fetch		des	Pre-commit review requested.
+geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
 isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
@@ -125,7 +126,6 @@ file		obrien	Insists to keep file blocked from other's unapproved
 contrib/bzip2	obrien	Pre-commit review required.
 geom		freebsd-geom@FreeBSD.org
 geom_concat	pjd	Pre-commit review preferred.
-geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
 geom_label	pjd	Pre-commit review preferred.
 geom_mirror	pjd	Pre-commit review preferred.
