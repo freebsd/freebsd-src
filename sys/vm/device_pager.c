@@ -59,7 +59,7 @@ static void dev_pager_init(void);
 static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void dev_pager_dealloc(vm_object_t);
-static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static void dev_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dev_pager_free_page(vm_object_t object, vm_page_t m);
@@ -257,28 +257,33 @@ dev_pager_dealloc(vm_object_t object)
 }
 
 static int
-dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
+dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
+    int *rahead)
 {
 	int error;
 
+	/* Since our haspage reports zero after/before, the count is 1. */
+	KASSERT(count == 1, ("%s: count %d", __func__, count));
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
-	    IDX_TO_OFF(ma[reqpage]->pindex), PROT_READ, &ma[reqpage]);
+	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-
-	vm_pager_free_nonreq(object, ma, reqpage, count, TRUE);
 
 	if (error == VM_PAGER_OK) {
 		KASSERT((object->type == OBJT_DEVICE &&
-		     (ma[reqpage]->oflags & VPO_UNMANAGED) != 0) ||
+		     (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
 		    (object->type == OBJT_MGTDEVICE &&
-		     (ma[reqpage]->oflags & VPO_UNMANAGED) == 0),
-		    ("Wrong page type %p %p", ma[reqpage], object));
+		     (ma[0]->oflags & VPO_UNMANAGED) == 0),
+		    ("Wrong page type %p %p", ma[0], object));
 		if (object->type == OBJT_DEVICE) {
 			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
-			    ma[reqpage], plinks.q);
+			    ma[0], plinks.q);
 		}
+		if (rbehind)
+			*rbehind = 0;
+		if (rahead)
+			*rahead = 0;
 	}
 
 	return (error);
