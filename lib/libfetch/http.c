@@ -130,8 +130,8 @@ struct httpio
 	int		 chunked;	/* chunked mode */
 	char		*buf;		/* chunk buffer */
 	size_t		 bufsize;	/* size of chunk buffer */
-	ssize_t		 buflen;	/* amount of data currently in buffer */
-	int		 bufpos;	/* current read offset in buffer */
+	size_t		 buflen;	/* amount of data currently in buffer */
+	size_t		 bufpos;	/* current read offset in buffer */
 	int		 eof;		/* end-of-file flag */
 	int		 error;		/* error flag */
 	size_t		 chunksize;	/* remaining size of current chunk */
@@ -215,6 +215,7 @@ http_fillbuf(struct httpio *io, size_t len)
 	if (io->eof)
 		return (0);
 
+	/* not chunked: just fetch the requested amount */
 	if (io->chunked == 0) {
 		if (http_growbuf(io, len) == -1)
 			return (-1);
@@ -227,6 +228,7 @@ http_fillbuf(struct httpio *io, size_t len)
 		return (io->buflen);
 	}
 
+	/* chunked, but we ran out: get the next chunk header */
 	if (io->chunksize == 0) {
 		switch (http_new_chunk(io)) {
 		case -1:
@@ -238,6 +240,7 @@ http_fillbuf(struct httpio *io, size_t len)
 		}
 	}
 
+	/* fetch the requested amount, but no more than the current chunk */
 	if (len > io->chunksize)
 		len = io->chunksize;
 	if (http_growbuf(io, len) == -1)
