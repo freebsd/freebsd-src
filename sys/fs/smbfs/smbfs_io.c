@@ -424,7 +424,7 @@ smbfs_getpages(ap)
 #ifdef SMBFS_RWGENERIC
 	return vop_stdgetpages(ap);
 #else
-	int i, error, nextoff, size, toff, npages, count, reqpage;
+	int i, error, nextoff, size, toff, npages, count;
 	struct uio uio;
 	struct iovec iov;
 	vm_offset_t kva;
@@ -436,7 +436,7 @@ smbfs_getpages(ap)
 	struct smbnode *np;
 	struct smb_cred *scred;
 	vm_object_t object;
-	vm_page_t *pages, m;
+	vm_page_t *pages;
 
 	vp = ap->a_vp;
 	if ((object = vp->v_object) == NULL) {
@@ -451,26 +451,25 @@ smbfs_getpages(ap)
 	pages = ap->a_m;
 	count = ap->a_count;
 	npages = btoc(count);
-	reqpage = ap->a_reqpage;
+	if (ap->a_rbehind)
+		*ap->a_rbehind = 0;
+	if (ap->a_rahead)
+		*ap->a_rahead = 0;
 
 	/*
 	 * If the requested page is partially valid, just return it and
 	 * allow the pager to zero-out the blanks.  Partially valid pages
 	 * can only occur at the file EOF.
+	 *
+	 * XXXGL: is that true for SMB filesystem?
 	 */
-	m = pages[reqpage];
-
 	VM_OBJECT_WLOCK(object);
-	if (m->valid != 0) {
-		for (i = 0; i < npages; ++i) {
-			if (i != reqpage) {
-				vm_page_lock(pages[i]);
-				vm_page_free(pages[i]);
-				vm_page_unlock(pages[i]);
-			}
+	if (pages[npages - 1]->valid != 0) {
+		if (--npages == 0) {
+			VM_OBJECT_WUNLOCK(object);
+			return (VM_PAGER_OK);
 		}
-		VM_OBJECT_WUNLOCK(object);
-		return 0;
+		count = npages << PAGE_SHIFT;
 	}
 	VM_OBJECT_WUNLOCK(object);
 
@@ -500,22 +499,14 @@ smbfs_getpages(ap)
 
 	relpbuf(bp, &smbfs_pbuf_freecnt);
 
-	VM_OBJECT_WLOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
-		for (i = 0; i < npages; i++) {
-			if (reqpage != i) {
-				vm_page_lock(pages[i]);
-				vm_page_free(pages[i]);
-				vm_page_unlock(pages[i]);
-			}
-		}
-		VM_OBJECT_WUNLOCK(object);
 		return VM_PAGER_ERROR;
 	}
 
 	size = count - uio.uio_resid;
 
+	VM_OBJECT_WLOCK(object);
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -544,9 +535,6 @@ smbfs_getpages(ap)
 			 */
 			;
 		}
-
-		if (i != reqpage)
-			vm_page_readahead_finish(m);
 	}
 	VM_OBJECT_WUNLOCK(object);
 	return 0;
