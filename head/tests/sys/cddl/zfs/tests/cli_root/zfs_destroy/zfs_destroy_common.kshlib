@@ -56,13 +56,7 @@ function setup_testenv #[dtst]
 	# Volume test is only availible on globle zone
 	if ! datasetexists $VOL && is_global_zone; then
 		log_must $ZFS create -V $VOLSIZE $VOL
-
-		$ECHO "y" | $NEWFS /dev/zvol/$VOL > /dev/null 2>&1
-		if (( $? == 0 )); then
-			log_note "SUCCESS: $NEWFS /dev/zvol/$VOL>/dev/null"
-		else
-			log_fail "$NEWFS /dev/zvol/$VOL > /dev/null"
-		fi
+		log_must $NEWFS /dev/zvol/$VOL
 
 		if [[ ! -d $TESTDIR1 ]]; then
 			log_must $MKDIR $TESTDIR1
