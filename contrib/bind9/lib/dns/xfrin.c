@@ -1215,6 +1215,8 @@ xfrin_recv_done(isc_task_t *task, isc_event_t *ev) {
 	msg->tsigctx = xfr->tsigctx;
 	xfr->tsigctx = NULL;
 
+	dns_message_setclass(msg, xfr->rdclass);
+
 	if (xfr->nmsg > 0)
 		msg->tcp_continuation = 1;
 

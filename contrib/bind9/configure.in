@@ -810,12 +810,17 @@ yes|'')
 int main() {
 	if ((OPENSSL_VERSION_NUMBER >= 0x009070cfL &&
 	     OPENSSL_VERSION_NUMBER < 0x00908000L) ||
-	     OPENSSL_VERSION_NUMBER >= 0x0090804fL)
+	     (OPENSSL_VERSION_NUMBER >= 0x0090804fL &&
+	     OPENSSL_VERSION_NUMBER < 0x10002000L) ||
+	     OPENSSL_VERSION_NUMBER >= 0x1000205fL)
 		return (0);
 	printf("\n\nFound   OPENSSL_VERSION_NUMBER %#010x\n",
 		OPENSSL_VERSION_NUMBER);
 	printf("Require OPENSSL_VERSION_NUMBER 0x009070cf or greater (0.9.7l)\n"
-	       "Require OPENSSL_VERSION_NUMBER 0x0090804f or greater (0.9.8d)\n\n");
+	       "Require OPENSSL_VERSION_NUMBER 0x0090804f or greater (0.9.8d)\n"
+	       "Require OPENSSL_VERSION_NUMBER 0x1000000f or greater (1.0.0)\n"
+	       "Require OPENSSL_VERSION_NUMBER 0x1000100f or greater (1.0.1)\n"
+	       "Require OPENSSL_VERSION_NUMBER 0x1000205f or greater (1.0.2e)\n\n");
 	return (1);
 }
 		],
@@ -4282,15 +4287,16 @@ WARNING         Your OpenSSL crypto library may be vulnerable to        WARNING
 WARNING         one or more of the the following known security         WARNING
 WARNING         flaws:                                                  WARNING
 WARNING                                                                 WARNING
-WARNING         CAN-2002-0659, CAN-2006-4339, CVE-2006-2937 and         WARNING
-WARNING         CVE-2006-2940.                                          WARNING
+WARNING         CAN-2002-0659, CAN-2006-4339, CVE-2006-2937,            WARNING
+WARNING         CVE-2006-2940 and CVE-2015-3193.                        WARNING
 WARNING                                                                 WARNING
 WARNING         It is recommended that you upgrade to OpenSSL           WARNING
-WARNING         version 0.9.8d/0.9.7l (or greater).                     WARNING
+WARNING         version 1.0.2e/1.0.1/1.0.0/0.9.9/0.9.8d/0.9.7l          WARNING
+WARNING         (or greater).                                           WARNING
 WARNING                                                                 WARNING
 WARNING         You can disable this warning by specifying:             WARNING
 WARNING                                                                 WARNING
-WARNING               --disable-openssl-version-check          	        WARNING
+WARNING               --disable-openssl-version-check                   WARNING
 WARNING                                                                 WARNING
 WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
 WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
