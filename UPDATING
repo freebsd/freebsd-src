@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20151216	p32	FreeBSD-SA-15:27.bind
+	Fix BIND remote denial of service vulnerability. [SA-15:27]
+
 20151205	p31	FreeBSD-SA-15:26.openssl
 
 	Fix OpenSSL X509_ATTRIBUTE memory leak. [SA-15:26]
