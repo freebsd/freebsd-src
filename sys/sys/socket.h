@@ -493,19 +493,31 @@ struct sockcred {
 
 #endif /* __BSD_VISIBLE */
 
+#ifndef __CHERI_SANDBOX__
+#define	_CMSG_ALIGN(n)	_ALIGN(n)
+#else
+/*
+ * Don't align for capabilities in CheriABI.  Sending them makes little
+ * sense and would be a major potential security hole.
+ */
+#define	_CMSG_ALIGNBYTES	(sizeof(u_long) - 1)
+#define	_CMSG_ALIGN(n)	(((uintptr_t)(n) + _CMSG_ALIGNBYTES) &~ _CMSG_ALIGNBYTES)
+#endif
+
 /* given pointer to struct cmsghdr, return pointer to data */
 #define	CMSG_DATA(cmsg)		((unsigned char *)(cmsg) + \
-				 _ALIGN(sizeof(struct cmsghdr)))
+				 _CMSG_ALIGN(sizeof(struct cmsghdr)))
 
 /* given pointer to struct cmsghdr, return pointer to next cmsghdr */
 #define	CMSG_NXTHDR(mhdr, cmsg)	\
 	((char *)(cmsg) == NULL ? CMSG_FIRSTHDR(mhdr) : \
-	    ((char *)(cmsg) + _ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len) + \
-	  _ALIGN(sizeof(struct cmsghdr)) > \
+	    ((char *)(cmsg) + \
+	    _CMSG_ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len) + \
+	    _CMSG_ALIGN(sizeof(struct cmsghdr)) > \
 	    (char *)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
 	    (struct cmsghdr *)0 : \
 	    (struct cmsghdr *)(void *)((char *)(cmsg) + \
-	    _ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len)))
+	    _CMSG_ALIGN(((struct cmsghdr *)(cmsg))->cmsg_len)))
 
 /*
  * RFC 2292 requires to check msg_controllen, in case that the kernel returns
@@ -518,12 +530,12 @@ struct sockcred {
 
 #if __BSD_VISIBLE
 /* RFC 2292 additions */
-#define	CMSG_SPACE(l)		(_ALIGN(sizeof(struct cmsghdr)) + _ALIGN(l))
-#define	CMSG_LEN(l)		(_ALIGN(sizeof(struct cmsghdr)) + (l))
+#define	CMSG_SPACE(l)		(_CMSG_ALIGN(sizeof(struct cmsghdr)) + _CMSG_ALIGN(l))
+#define	CMSG_LEN(l)		(_CMSG_ALIGN(sizeof(struct cmsghdr)) + (l))
 #endif
 
 #ifdef _KERNEL
-#define	CMSG_ALIGN(n)	_ALIGN(n)
+#define	CMSG_ALIGN(n)   _CMSG_ALIGN(n)
 #endif
 
 /* "Socket"-level control message types: */
