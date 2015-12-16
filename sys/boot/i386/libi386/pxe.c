@@ -288,8 +288,10 @@ pxe_open(struct open_file *f, ...)
 		bootp(pxe_sock, BOOTP_PXE);
 		if (rootip.s_addr == 0)
 			rootip.s_addr = bootplayer.sip;
+#ifdef LOADER_NFS_SUPPORT
 		if (!rootpath[0])
 			strcpy(rootpath, PXENFSROOTPATH);
+#endif
 
 		for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
 			if (rootpath[i] == ':')
@@ -317,6 +319,7 @@ pxe_open(struct open_file *f, ...)
 		setenv("boot.nfsroot.path", rootpath, 1);
 #else
 		setenv("boot.netif.server", inet_ntoa(rootip), 1);
+		setenv("boot.tftproot.path", rootpath, 1);
 #endif
 		setenv("dhcp.host-name", hostname, 1);
 
@@ -704,27 +707,4 @@ readudp(struct iodesc *h, void *pkt, size_t len, time_t timeout)
 	bcopy(data_buffer, pkt, udpread_p->buffer_size);
 	uh->uh_sport = udpread_p->s_port;
 	return udpread_p->buffer_size;
-}
-
-char *
-pxe_default_rc(void)
-{
-	char *rc;
-	size_t count, rcsz;
-
-	/* XXX It may not be a good idea to modify the PXE boot file. */
-	rc = (char *)bootplayer.bootfile;
-	rcsz = sizeof(bootplayer.bootfile);
-
-	/* Ignore how we define rc and rcsz above -- it can change. */
-	if (rcsz < 6)
-		return (NULL);
-	if (*rc == '\0') {
-		strncpy(rc, "pxeboot", rcsz);
-		rc[rcsz - 1] = '\0';
-	}
-	count = strlen(rc);
-	strncat(rc, ".4th", rcsz - count - 1);
-	printf("PXE: loading Forth from %s\n", rc);
-	return (rc);
 }

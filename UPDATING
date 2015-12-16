@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151216:
+	The tftp loader (pxeboot) now uses the option root-path directive. As a
+	consequence it no longer looks for a pxeboot.4th file on the tftp
+	server. Instead it uses the regular /boot infrastructure as with the
+	other loaders.
+
 20151211:
 	The code to start recording plug and play data into the modules has
 	been committed. While the old tools will properly build a new kernel,
