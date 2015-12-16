@@ -30,6 +30,8 @@
 
 function cleanup
 {
+	# Log the status of the pool to assist failures.
+	poolexists $TESTPOOL && $ZPOOL status -v $TESTPOOL
 	destroy_pool $TESTPOOL
 	typeset dir
 	for dir in $TESTDIR $BASEDIR; do
@@ -184,6 +186,7 @@ function sync_pool #pool
 	log_must $SLEEP 2
 	# Flush all the pool data.
 	typeset -i ret
+
 	# If the OS has detected corruption on the pool, it will have
 	# automatically initiated a scrub.  In that case, our "zpool scrub"
 	# command will fail.  So we ignore its exit status and just check that
@@ -191,12 +194,6 @@ function sync_pool #pool
 	$ZPOOL scrub $pool >/dev/null 2>&1
 	is_pool_scrubbing $pool || is_pool_scrubbed $pool || \
 		log_fail "$ZPOOL scrub $pool failed." 
-
-	# The pool has been damaged; the sync should notice this fact.
-	log_note "Waiting for pool to sync..."
-	while ! is_pool_scrubbed $pool || is_pool_resilvered $pool; do
-		log_must $SLEEP 2
-	done
 }
 
 #
@@ -214,10 +211,28 @@ function replace_missing_devs
 	for vdev in $@; do
 		log_must $MKFILE $DEV_SIZE $vdev
 		log_must $ZPOOL replace -f $pool $vdev $vdev
-		while ! is_pool_resilvered $pool; do
-			log_must $SLEEP 2
-		done
+		wait_for 20 2 is_pool_resilvered $pool
 	done
+}
+
+#
+# Damage the labels of the specified devices.  Returns 0 if all such devices
+# are UNAVAIL, 1 otherwise.
+#
+function damage_dev_labels # pool <vdev> [vdev ...]
+{
+	typeset pool=$1
+	typeset -i ret=0
+	shift
+
+	for vdev in $*; do
+		check_state $pool $vdev UNAVAIL && continue
+		log_must $MKFILE $DEV_SIZE $vdev
+		ret=1
+	done
+	[ $ret -eq 0 ] && return $ret
+	sync_pool $pool
+	return $ret
 }
 
 #
@@ -243,14 +258,16 @@ function damage_devs
 		for dev in $vdevs; do 
 			bs_count=$($LS -l $dev | $AWK '{print $5}')
 			(( bs_count = bs_count/1024 - 512 ))
-			$DD if=/dev/zero of=$dev seek=512 bs=1024 \
-				count=$bs_count conv=notrunc >/dev/null 2>&1
+			log_must $DD if=/dev/zero of=$dev seek=512 bs=1024 \
+				count=$bs_count conv=notrunc
 		done	
+		sync_pool $pool
 	else
-		log_must $MKFILE $DEV_SIZE $vdevs
+		# The pool can be syncing, thus fixing its labels.  So we
+		# have to keep trying until all the devices go offline.
+		wait_for 20 2 damage_dev_labels $pool $vdevs
 	fi
 
-	sync_pool $pool
 	log_note "Pool $pool vdevs $vdevs damage completed."
 }
 
@@ -264,12 +281,10 @@ function clear_errors
 	typeset pool=$1
 
 	log_must $ZPOOL clear $pool
+	# The pool may need to resilver (issued async by 'zpool clear'),
+	# give it a chance to do so.
+	wait_for 30 2 is_healthy $pool 
 
-	if ! is_healthy $pool ; then
-		$ZPOOL status -x $pool
-		log_note "$pool should be healthy."
-		return 1
-	fi
 	if ! is_data_valid $pool ; then
 		$ZPOOL status -x $pool
 		log_note "Data should be valid in $pool."
@@ -296,6 +311,9 @@ function remove_devs
 	log_must $RM -f $vdevs
 
 	sync_pool $pool
+	for vdev in $vdevs; do
+		wait_for 20 2 check_state $pool $vdev UNAVAIL
+	done
 }
 
 #

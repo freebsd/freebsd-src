@@ -1297,6 +1297,41 @@ function reexport_pool
 }
 
 #
+# Wait for something to return true, checked by the caller.
+#
+function wait_for_checked # timeout dt <method> [args...]
+{
+	typeset timeout=$1
+	typeset dt=$2
+	shift; shift
+	typeset -i start=$(date '+%s')
+	typeset -i endtime
+
+	((endtime = start + timeout))
+	while :; do
+		$*
+		[ $? -eq 0 ] && return
+		curtime=$(date '+%s')
+		[ $curtime -gt $endtime ] && return 1
+		sleep $dt
+	done
+	return 0
+}
+
+#
+# Wait for something to return true.
+#
+function wait_for # timeout dt <method> [args...]
+{
+	typeset timeout=$1
+	typeset dt=$2
+	shift; shift
+
+	wait_for_checked $timeout $dt $* || \
+		log_fail "ERROR: Timed out waiting for: $*"
+}
+
+#
 # Verify a given disk is online or offline
 #
 # Return 0 is pool/disk matches expected state, 1 otherwise
@@ -1327,6 +1362,26 @@ function wait_for_state_exit
 	while check_state "$pool" "$disk" "$state"; do
 		$SLEEP 1
 	done
+}
+
+#
+# Wait for a given disk to enter a state
+#
+function wait_for_state_enter
+{
+	typeset -i timeout=$1
+	typeset pool=$2
+	typeset disk=$3
+	typeset state=$4
+
+	log_note "Waiting up to $timeout seconds for $disk to become $state ..."
+	for ((; $timeout > 0; timeout=$timeout-1)); do
+		check_state $pool "$disk" "$state"
+		[ $? -eq 0 ] && return
+		$SLEEP 1
+	done
+	log_must $ZPOOL status $pool
+	log_fail "ERROR: Disk $disk not marked as $state in $pool"
 }
 
 #
@@ -1612,6 +1667,12 @@ function is_pool_scrubbed #pool
 function is_pool_scrub_stopped #pool
 {
 	check_pool_status "$1" "scan" "scrub canceled"
+	return $?
+}
+
+function is_pool_state # pool state
+{
+	check_pool_status "$1" "state" "$2"
 	return $?
 }
 
