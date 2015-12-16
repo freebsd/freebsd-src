@@ -28,11 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <arpa/inet.h>
-#include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
-#include <assert.h>
 #include <errno.h>
 #include <netdb.h>
 #include <resolv.h>
@@ -41,6 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stringlist.h>
 #include <unistd.h>
+
+#include <atf-c.h>
+
+#include "freebsd_test_suite/macros.h"
 #include "testutil.h"
 
 enum test_methods {
@@ -48,7 +51,6 @@ enum test_methods {
 	TEST_BUILD_SNAPSHOT
 };
 
-static int debug = 0;
 static struct addrinfo hints;
 static enum test_methods method = TEST_GETADDRINFO;
 
@@ -59,7 +61,6 @@ DECLARE_2PASS_TEST(addrinfo)
 static void clone_addrinfo(struct addrinfo *, struct addrinfo const *);
 static int compare_addrinfo(struct addrinfo *, struct addrinfo *, void *);
 static void dump_addrinfo(struct addrinfo *);
-static void free_addrinfo(struct addrinfo *);
 
 static void sdump_addrinfo(struct addrinfo *, char *, size_t);
 
@@ -70,23 +71,23 @@ IMPLEMENT_2PASS_TEST(addrinfo)
 static void
 clone_addrinfo(struct addrinfo *dest, struct addrinfo const *src)
 {
-	assert(dest != NULL);
-	assert(src != NULL);
+
+	ATF_REQUIRE(dest != NULL);
+	ATF_REQUIRE(src != NULL);
 
 	memcpy(dest, src, sizeof(struct addrinfo));
 	if (src->ai_canonname != NULL)
 		dest->ai_canonname = strdup(src->ai_canonname);
 
 	if (src->ai_addr != NULL) {
-		dest->ai_addr = (struct sockaddr *)malloc(src->ai_addrlen);
-		assert(dest->ai_addr != NULL);
+		dest->ai_addr = malloc(src->ai_addrlen);
+		ATF_REQUIRE(dest->ai_addr != NULL);
 		memcpy(dest->ai_addr, src->ai_addr, src->ai_addrlen);
 	}
 
 	if (src->ai_next != NULL) {
-		dest->ai_next = (struct addrinfo *)malloc(
-			sizeof(struct addrinfo));
-		assert(dest->ai_next != NULL);
+		dest->ai_next = malloc(sizeof(struct addrinfo));
+		ATF_REQUIRE(dest->ai_next != NULL);
 		clone_addrinfo(dest->ai_next, src->ai_next);
 	}
 }
@@ -94,29 +95,30 @@ clone_addrinfo(struct addrinfo *dest, struct addrinfo const *src)
 static int
 compare_addrinfo_(struct addrinfo *ai1, struct addrinfo *ai2)
 {
+
 	if ((ai1 == NULL) || (ai2 == NULL))
 		return (-1);
 
-	if ((ai1->ai_flags != ai2->ai_flags) ||
-	    (ai1->ai_family != ai2->ai_family) ||
-	    (ai1->ai_socktype != ai2->ai_socktype) ||
-	    (ai1->ai_protocol != ai2->ai_protocol) ||
-	    (ai1->ai_addrlen != ai2->ai_addrlen) ||
-	    (((ai1->ai_addr == NULL) || (ai2->ai_addr == NULL)) &&
-	    (ai1->ai_addr != ai2->ai_addr)) ||
-	    (((ai1->ai_canonname == NULL) || (ai2->ai_canonname == NULL)) &&
-	    (ai1->ai_canonname != ai2->ai_canonname)))
+	if (ai1->ai_flags != ai2->ai_flags ||
+	    ai1->ai_family != ai2->ai_family ||
+	    ai1->ai_socktype != ai2->ai_socktype ||
+	    ai1->ai_protocol != ai2->ai_protocol ||
+	    ai1->ai_addrlen != ai2->ai_addrlen ||
+	    ((ai1->ai_addr == NULL || ai2->ai_addr == NULL) &&
+	     ai1->ai_addr != ai2->ai_addr) ||
+	    ((ai1->ai_canonname == NULL || ai2->ai_canonname == NULL) &&
+	     ai1->ai_canonname != ai2->ai_canonname))
 		return (-1);
 
-	if ((ai1->ai_canonname != NULL) &&
-		(strcmp(ai1->ai_canonname, ai2->ai_canonname) != 0))
+	if (ai1->ai_canonname != NULL &&
+	    strcmp(ai1->ai_canonname, ai2->ai_canonname) != 0)
 		return (-1);
 
-	if ((ai1->ai_addr != NULL) &&
-		(memcmp(ai1->ai_addr, ai2->ai_addr, ai1->ai_addrlen) != 0))
+	if (ai1->ai_addr != NULL &&
+	    memcmp(ai1->ai_addr, ai2->ai_addr, ai1->ai_addrlen) != 0)
 		return (-1);
 
-	if ((ai1->ai_next == NULL) && (ai2->ai_next == NULL))
+	if (ai1->ai_next == NULL && ai2->ai_next == NULL)
 		return (0);
 	else
 		return (compare_addrinfo_(ai1->ai_next, ai2->ai_next));
@@ -127,20 +129,16 @@ compare_addrinfo(struct addrinfo *ai1, struct addrinfo *ai2, void *mdata)
 {
 	int rv;
 
-	if (debug) {
-		printf("testing equality of 2 addrinfo structures\n");
-	}
+	printf("testing equality of 2 addrinfo structures\n");
 
 	rv = compare_addrinfo_(ai1, ai2);
 
-	if (debug) {
-		if (rv == 0)
-			printf("equal\n");
-		else {
-			dump_addrinfo(ai1);
-			dump_addrinfo(ai2);
-			printf("not equal\n");
-		}
+	if (rv == 0)
+		printf("equal\n");
+	else {
+		dump_addrinfo(ai1);
+		dump_addrinfo(ai2);
+		printf("not equal\n");
 	}
 
 	return (rv);
@@ -184,18 +182,18 @@ sdump_addrinfo(struct addrinfo *ai, char *buffer, size_t buflen)
 			return;
 		buflen -= written;
 	} else {
-	    for (i = 0; i < ai->ai_addrlen; ++i ) {
-		written = snprintf(buffer, buflen,
-		    i + 1 != ai->ai_addrlen ? "%d." : "%d",
-				    	((unsigned char *)ai->ai_addr)[i]);
-		    buffer += written;
-		    if (written > buflen)
-			return;
-		    buflen -= written;
+		for (i = 0; i < ai->ai_addrlen; i++) {
+			written = snprintf(buffer, buflen,
+			    i + 1 != ai->ai_addrlen ? "%d." : "%d",
+			    ((unsigned char *)ai->ai_addr)[i]);
+			buffer += written;
+			if (written > buflen)
+				return;
+			buflen -= written;
 
-		    if (buflen == 0)
-			return;
-	    }
+			if (buflen == 0)
+				return;
+		}
 	}
 
 	if (ai->ai_next != NULL) {
@@ -226,7 +224,7 @@ addrinfo_read_snapshot_addr(char *addr, unsigned char *result, size_t len)
 	char *s, *ps, *ts;
 
 	ps = addr;
-	while ( (s = strsep(&ps, ".")) != NULL) {
+	while ((s = strsep(&ps, ".")) != NULL) {
 		if (len == 0)
 			return (-1);
 
@@ -253,55 +251,53 @@ addrinfo_read_snapshot_ai(struct addrinfo *ai, char *line)
 	i = 0;
 	ps = line;
 	memset(ai, 0, sizeof(struct addrinfo));
-	while ( (s = strsep(&ps, " ")) != NULL) {
+	while ((s = strsep(&ps, " ")) != NULL) {
 		switch (i) {
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-				pi = &ai->ai_flags + i;
-				*pi = (int)strtol(s, &ts, 10);
-				if (*ts != '\0')
-					goto fin;
-				break;
-			case 4:
-				ai->ai_addrlen = (socklen_t)strtol(s, &ts, 10);
-				if (*ts != '\0')
-					goto fin;
-				break;
-			case 5:
-				if (strcmp(s, "(null)") != 0) {
-					ai->ai_canonname = strdup(s);
-					assert(ai->ai_canonname != NULL);
-				}
-				break;
-			case 6:
-				if (strcmp(s, "(null)") != 0) {
-				    ai->ai_addr = (struct sockaddr *)malloc(
-					ai->ai_addrlen);
-				    assert(ai->ai_addr != NULL);
-				    memset(ai->ai_addr, 0, ai->ai_addrlen);
-				    rv = addrinfo_read_snapshot_addr(s,
-					(unsigned char *)ai->ai_addr,
-				    	ai->ai_addrlen);
-
-				    if (rv != 0)
-					goto fin;
-				}
-				break;
-			default:
-				/* NOTE: should not be reachable */
-				rv = -1;
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+			pi = &ai->ai_flags + i;
+			*pi = (int)strtol(s, &ts, 10);
+			if (*ts != '\0')
 				goto fin;
-		};
+			break;
+		case 4:
+			ai->ai_addrlen = (socklen_t)strtol(s, &ts, 10);
+			if (*ts != '\0')
+				goto fin;
+			break;
+		case 5:
+			if (strcmp(s, "(null)") != 0) {
+				ai->ai_canonname = strdup(s);
+				ATF_REQUIRE(ai->ai_canonname != NULL);
+			}
+			break;
+		case 6:
+			if (strcmp(s, "(null)") != 0) {
+				ai->ai_addr = calloc(1, ai->ai_addrlen);
+				ATF_REQUIRE(ai->ai_addr != NULL);
+				rv = addrinfo_read_snapshot_addr(s,
+				    (unsigned char *)ai->ai_addr,
+				    ai->ai_addrlen);
+
+				if (rv != 0)
+					goto fin;
+			}
+			break;
+		default:
+			/* NOTE: should not be reachable */
+			rv = -1;
+			goto fin;
+		}
 
 		++i;
 	}
 
 fin:
-	if ((i != 7) || (rv != 0)) {
+	if (i != 7 || rv != 0) {
 		free_addrinfo(ai);
-		memset(ai, 0, sizeof(struct addrinfo));
+		ai = NULL;
 		return (-1);
 	}
 
@@ -315,8 +311,7 @@ addrinfo_read_snapshot_func(struct addrinfo *ai, char *line)
 	char *s, *ps;
 	int i, rv;
 
-	if (debug)
-		printf("1 line read from snapshot:\n%s\n", line);
+	printf("1 line read from snapshot:\n%s\n", line);
 
 	rv = 0;
 	i = 0;
@@ -331,15 +326,14 @@ addrinfo_read_snapshot_func(struct addrinfo *ai, char *line)
 		return (-1);
 
 	ai2 = ai;
-	while ( (s = strsep(&ps, ":")) != NULL) {
-		ai2->ai_next = (struct addrinfo *)malloc(
-			sizeof(struct addrinfo));
-		assert(ai2->ai_next != NULL);
-		memset(ai2->ai_next, 0, sizeof(struct addrinfo));
+	while ((s = strsep(&ps, ":")) != NULL) {
+		ai2->ai_next = calloc(1, sizeof(struct addrinfo));
+		ATF_REQUIRE(ai2->ai_next != NULL);
 
 		rv = addrinfo_read_snapshot_ai(ai2->ai_next, s);
 		if (rv != 0) {
 			free_addrinfo(ai);
+			ai = NULL;
 			return (-1);
 		}
 
@@ -352,39 +346,36 @@ addrinfo_read_snapshot_func(struct addrinfo *ai, char *line)
 static int
 addrinfo_test_correctness(struct addrinfo *ai, void *mdata)
 {
-	if (debug) {
-		printf("testing correctness with the following data:\n");
-		dump_addrinfo(ai);
-	}
+
+	printf("testing correctness with the following data:\n");
+	dump_addrinfo(ai);
 
 	if (ai == NULL)
 		goto errfin;
 
-	if (!((ai->ai_family >= 0) && (ai->ai_family < AF_MAX)))
+	if (!(ai->ai_family >= 0 && ai->ai_family < AF_MAX))
 		goto errfin;
 
-	if ((ai->ai_socktype != 0) && (ai->ai_socktype != SOCK_STREAM) &&
-	    (ai->ai_socktype != SOCK_DGRAM) && (ai->ai_socktype != SOCK_RAW))
+	if (ai->ai_socktype != 0 && ai->ai_socktype != SOCK_STREAM &&
+	    ai->ai_socktype != SOCK_DGRAM && ai->ai_socktype != SOCK_RAW)
 		goto errfin;
 
-	if ((ai->ai_protocol != 0) && (ai->ai_protocol != IPPROTO_UDP) &&
-	    (ai->ai_protocol != IPPROTO_TCP))
+	if (ai->ai_protocol != 0 && ai->ai_protocol != IPPROTO_UDP &&
+	    ai->ai_protocol != IPPROTO_TCP)
 		goto errfin;
 
 	if ((ai->ai_flags & ~(AI_CANONNAME | AI_NUMERICHOST | AI_PASSIVE)) != 0)
 		goto errfin;
 
-	if ((ai->ai_addrlen != ai->ai_addr->sa_len) ||
-	    (ai->ai_family != ai->ai_addr->sa_family))
+	if (ai->ai_addrlen != ai->ai_addr->sa_len ||
+	    ai->ai_family != ai->ai_addr->sa_family)
 		goto errfin;
 
-	if (debug)
-		printf("correct\n");
+	printf("correct\n");
 
 	return (0);
 errfin:
-	if (debug)
-		printf("incorrect\n");
+	printf("incorrect\n");
 
 	return (-1);
 }
@@ -395,93 +386,49 @@ addrinfo_read_hostlist_func(struct addrinfo *ai, char *line)
 	struct addrinfo *result;
 	int rv;
 
-	if (debug)
-		printf("resolving %s: ", line);
+	printf("resolving %s: ", line);
 	rv = getaddrinfo(line, NULL, &hints, &result);
 	if (rv == 0) {
-		if (debug)
-			printf("found\n");
+		printf("found\n");
 
 		rv = addrinfo_test_correctness(result, NULL);
 		if (rv != 0) {
 			freeaddrinfo(result);
+			result = NULL;
 			return (rv);
 		}
 
 		clone_addrinfo(ai, result);
 		freeaddrinfo(result);
+		result = NULL;
 	} else {
-		if (debug)
-			printf("not found\n");
+		printf("not found\n");
 
  		memset(ai, 0, sizeof(struct addrinfo));
 	}
 	return (0);
 }
 
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-	    "Usage: %s [-d] [-46] [-s <file]> -f <file>\n",
-	    getprogname());
-	exit(1);
-}
-
-int
-main(int argc, char **argv)
+void
+run_tests(char *hostlist_file, char *snapshot_file, int ai_family)
 {
 	struct addrinfo_test_data td, td_snap;
-	char *snapshot_file, *hostlist_file;
 	int rv;
-	int c;
 
-	if (argc < 2)
-		usage();
-
-	snapshot_file = NULL;
-	hostlist_file = NULL;
 	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = PF_UNSPEC;
+	hints.ai_family = ai_family;
 	hints.ai_flags = AI_CANONNAME;
-	while ((c = getopt(argc, argv, "46dns:f:")) != -1)
-		switch (c) {
-		case '4':
-			hints.ai_family = PF_INET;
-			break;
-		case '6':
-			hints.ai_family = PF_INET6;
-			break;
-		case 'd':
-			debug = 1;
-			break;
-		case 's':
-			snapshot_file = strdup(optarg);
-			method = TEST_BUILD_SNAPSHOT;
-			break;
-		case 'f':
-			hostlist_file = strdup(optarg);
-			break;
-		default:
-			usage();
-		}
+
+	if (snapshot_file != NULL)
+		method = TEST_BUILD_SNAPSHOT;
 
 	TEST_DATA_INIT(addrinfo, &td, clone_addrinfo, free_addrinfo);
 	TEST_DATA_INIT(addrinfo, &td_snap, clone_addrinfo, free_addrinfo);
 
-	if (hostlist_file == NULL)
-		usage();
+	ATF_REQUIRE_MSG(access(hostlist_file, R_OK) == 0,
+		"can't access the hostlist file %s\n", hostlist_file);
 
-	if (access(hostlist_file, R_OK) != 0) {
-		if (debug)
-			printf("can't access the hostlist file %s\n",
-				hostlist_file);
-
-		usage();
-	}
-
-	if (debug)
-		printf("building host lists from %s\n", hostlist_file);
+	printf("building host lists from %s\n", hostlist_file);
 
 	rv = TEST_SNAPSHOT_FILE_READ(addrinfo, hostlist_file, &td,
 		addrinfo_read_hostlist_func);
@@ -493,9 +440,8 @@ main(int argc, char **argv)
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
-				if (debug)
-				    printf("can't access the snapshot file %s\n",
-				    snapshot_file);
+				printf("can't access the snapshot "
+				    "file %s\n", snapshot_file);
 
 				rv = -1;
 				goto fin;
@@ -504,8 +450,8 @@ main(int argc, char **argv)
 			rv = TEST_SNAPSHOT_FILE_READ(addrinfo, snapshot_file,
 				&td_snap, addrinfo_read_snapshot_func);
 			if (rv != 0) {
-				if (debug)
-					printf("error reading snapshot file\n");
+				printf("error reading snapshot file: %s\n",
+				    strerror(errno));
 				goto fin;
 			}
 		}
@@ -514,26 +460,97 @@ main(int argc, char **argv)
 	switch (method) {
 	case TEST_GETADDRINFO:
 		if (snapshot_file != NULL)
-			rv = DO_2PASS_TEST(addrinfo, &td, &td_snap,
-				compare_addrinfo, NULL);
+			ATF_CHECK(DO_2PASS_TEST(addrinfo, &td, &td_snap,
+				compare_addrinfo, NULL) == 0);
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL) {
-		    rv = TEST_SNAPSHOT_FILE_WRITE(addrinfo, snapshot_file, &td,
-			sdump_addrinfo);
+			ATF_CHECK(TEST_SNAPSHOT_FILE_WRITE(addrinfo,
+			    snapshot_file, &td, sdump_addrinfo) == 0);
 		}
 		break;
 	default:
-		rv = 0;
 		break;
-	};
+	}
 
 fin:
 	TEST_DATA_DESTROY(addrinfo, &td_snap);
 	TEST_DATA_DESTROY(addrinfo, &td);
+
 	free(hostlist_file);
 	free(snapshot_file);
-	return (rv);
-
 }
 
+#define	HOSTLIST_FILE	"mach"
+#define	RUN_TESTS(tc, snapshot_file, ai_family) do {			\
+	char *_hostlist_file;						\
+	char *_snapshot_file;						\
+	ATF_REQUIRE(0 < asprintf(&_hostlist_file, "%s/%s",		\
+	    atf_tc_get_config_var(tc, "srcdir"), HOSTLIST_FILE));	\
+	if (snapshot_file == NULL)					\
+		_snapshot_file = NULL;					\
+	else {							\
+		_snapshot_file = strdup(snapshot_file); 		\
+		ATF_REQUIRE(_snapshot_file != NULL);			\
+	}								\
+	run_tests(_hostlist_file, _snapshot_file, ai_family);		\
+} while(0)
+
+ATF_TC_WITHOUT_HEAD(pf_unspec);
+ATF_TC_BODY(pf_unspec, tc)
+{
+
+	RUN_TESTS(tc, NULL, AF_UNSPEC);
+}
+
+ATF_TC_WITHOUT_HEAD(pf_unspec_with_snapshot);
+ATF_TC_BODY(pf_unspec_with_snapshot, tc)
+{
+
+	RUN_TESTS(tc, "snapshot_ai", AF_UNSPEC);
+}
+
+ATF_TC_WITHOUT_HEAD(pf_inet);
+ATF_TC_BODY(pf_inet, tc)
+{
+
+	ATF_REQUIRE_FEATURE("inet");
+	RUN_TESTS(tc, NULL, AF_INET);
+}
+
+ATF_TC_WITHOUT_HEAD(pf_inet_with_snapshot);
+ATF_TC_BODY(pf_inet_with_snapshot, tc)
+{
+
+	ATF_REQUIRE_FEATURE("inet");
+	RUN_TESTS(tc, "snapshot_ai4", AF_INET);
+}
+
+ATF_TC_WITHOUT_HEAD(pf_inet6);
+ATF_TC_BODY(pf_inet6, tc)
+{
+
+	ATF_REQUIRE_FEATURE("inet6");
+	RUN_TESTS(tc, NULL, AF_INET6);
+}
+
+ATF_TC_WITHOUT_HEAD(pf_inet6_with_snapshot);
+ATF_TC_BODY(pf_inet6_with_snapshot, tc)
+{
+
+	ATF_REQUIRE_FEATURE("inet6");
+	RUN_TESTS(tc, "snapshot_ai6", AF_INET6);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, pf_unspec);
+	ATF_TP_ADD_TC(tp, pf_unspec_with_snapshot);
+	ATF_TP_ADD_TC(tp, pf_inet);
+	ATF_TP_ADD_TC(tp, pf_inet_with_snapshot);
+	ATF_TP_ADD_TC(tp, pf_inet6);
+	ATF_TP_ADD_TC(tp, pf_inet6_with_snapshot);
+
+	return (atf_no_error());
+}

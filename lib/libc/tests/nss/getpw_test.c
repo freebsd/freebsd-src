@@ -28,13 +28,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <atf-c.h>
+
 #include "testutil.h"
 
 enum test_methods {
@@ -45,7 +47,6 @@ enum test_methods {
 	TEST_BUILD_SNAPSHOT
 };
 
-static int debug = 0;
 static enum test_methods method = TEST_BUILD_SNAPSHOT;
 
 DECLARE_TEST_DATA(passwd)
@@ -69,8 +70,6 @@ static int passwd_test_getpwnam(struct passwd *, void *);
 static int passwd_test_getpwuid(struct passwd *, void *);
 static int passwd_test_getpwent(struct passwd *, void *);
 
-static void usage(void)  __attribute__((__noreturn__));
-
 IMPLEMENT_TEST_DATA(passwd)
 IMPLEMENT_TEST_FILE_SNAPSHOT(passwd)
 IMPLEMENT_1PASS_TEST(passwd)
@@ -79,8 +78,8 @@ IMPLEMENT_2PASS_TEST(passwd)
 static void
 clone_passwd(struct passwd *dest, struct passwd const *src)
 {
-	assert(dest != NULL);
-	assert(src != NULL);
+	ATF_REQUIRE(dest != NULL);
+	ATF_REQUIRE(src != NULL);
 
 	memcpy(dest, src, sizeof(struct passwd));
 	if (src->pw_name != NULL)
@@ -100,24 +99,23 @@ clone_passwd(struct passwd *dest, struct passwd const *src)
 static int
 compare_passwd(struct passwd *pwd1, struct passwd *pwd2, void *mdata)
 {
-	assert(pwd1 != NULL);
-	assert(pwd2 != NULL);
+	ATF_REQUIRE(pwd1 != NULL);
+	ATF_REQUIRE(pwd2 != NULL);
 
 	if (pwd1 == pwd2)
 		return (0);
 
-	if ((pwd1->pw_uid != pwd2->pw_uid) ||
-		(pwd1->pw_gid != pwd2->pw_gid) ||
-		(pwd1->pw_change != pwd2->pw_change) ||
-		(pwd1->pw_expire != pwd2->pw_expire) ||
-		(pwd1->pw_fields != pwd2->pw_fields) ||
-		(strcmp(pwd1->pw_name, pwd2->pw_name) != 0) ||
-		(strcmp(pwd1->pw_passwd, pwd2->pw_passwd) != 0) ||
-		(strcmp(pwd1->pw_class, pwd2->pw_class) != 0) ||
-		(strcmp(pwd1->pw_gecos, pwd2->pw_gecos) != 0) ||
-		(strcmp(pwd1->pw_dir, pwd2->pw_dir) != 0) ||
-		(strcmp(pwd1->pw_shell, pwd2->pw_shell) != 0)
-		)
+	if (pwd1->pw_uid != pwd2->pw_uid ||
+	    pwd1->pw_gid != pwd2->pw_gid ||
+	    pwd1->pw_change != pwd2->pw_change ||
+	    pwd1->pw_expire != pwd2->pw_expire ||
+	    pwd1->pw_fields != pwd2->pw_fields ||
+	    strcmp(pwd1->pw_name, pwd2->pw_name) != 0 ||
+	    strcmp(pwd1->pw_passwd, pwd2->pw_passwd) != 0 ||
+	    strcmp(pwd1->pw_class, pwd2->pw_class) != 0 ||
+	    strcmp(pwd1->pw_gecos, pwd2->pw_gecos) != 0 ||
+	    strcmp(pwd1->pw_dir, pwd2->pw_dir) != 0 ||
+	    strcmp(pwd1->pw_shell, pwd2->pw_shell) != 0)
 		return (-1);
 	else
 		return (0);
@@ -137,10 +135,11 @@ free_passwd(struct passwd *pwd)
 static void
 sdump_passwd(struct passwd *pwd, char *buffer, size_t buflen)
 {
-	snprintf(buffer, buflen, "%s:%s:%d:%d:%d:%s:%s:%s:%s:%d:%d",
-		pwd->pw_name, pwd->pw_passwd, pwd->pw_uid, pwd->pw_gid,
-		pwd->pw_change, pwd->pw_class, pwd->pw_gecos, pwd->pw_dir,
-		pwd->pw_shell, pwd->pw_expire, pwd->pw_fields);
+	snprintf(buffer, buflen, "%s:%s:%d:%d:%jd:%s:%s:%s:%s:%jd:%d",
+	    pwd->pw_name, pwd->pw_passwd, pwd->pw_uid, pwd->pw_gid,
+	    (uintmax_t)pwd->pw_change, pwd->pw_class, pwd->pw_gecos,
+	    pwd->pw_dir, pwd->pw_shell, (uintmax_t)pwd->pw_expire,
+	    pwd->pw_fields);
 }
 
 static void
@@ -160,66 +159,67 @@ passwd_read_snapshot_func(struct passwd *pwd, char *line)
 	char *s, *ps, *ts;
 	int i;
 
-	if (debug)
-		printf("1 line read from snapshot:\n%s\n", line);
+#ifdef DEBUG
+	printf("1 line read from snapshot:\n%s\n", line);
+#endif
 
 	i = 0;
 	ps = line;
 	memset(pwd, 0, sizeof(struct passwd));
-	while ( (s = strsep(&ps, ":")) != NULL) {
+	while ((s = strsep(&ps, ":")) != NULL) {
 		switch (i) {
-			case 0:
-				pwd->pw_name = strdup(s);
-				assert(pwd->pw_name != NULL);
+		case 0:
+			pwd->pw_name = strdup(s);
+			ATF_REQUIRE(pwd->pw_name != NULL);
 			break;
-			case 1:
-				pwd->pw_passwd = strdup(s);
-				assert(pwd->pw_passwd != NULL);
+		case 1:
+			pwd->pw_passwd = strdup(s);
+			ATF_REQUIRE(pwd->pw_passwd != NULL);
 			break;
-			case 2:
-				pwd->pw_uid = (uid_t)strtol(s, &ts, 10);
-				if (*ts != '\0')
-					goto fin;
+		case 2:
+			pwd->pw_uid = (uid_t)strtol(s, &ts, 10);
+			if (*ts != '\0')
+				goto fin;
 			break;
-			case 3:
-				pwd->pw_gid = (gid_t)strtol(s, &ts, 10);
-				if (*ts != '\0')
-					goto fin;
+		case 3:
+			pwd->pw_gid = (gid_t)strtol(s, &ts, 10);
+			if (*ts != '\0')
+				goto fin;
 			break;
-			case 4:
-				pwd->pw_change = (time_t)strtol(s, &ts, 10);
-				if (*ts != '\0')
-					goto fin;
+		case 4:
+			pwd->pw_change = (time_t)strtol(s, &ts, 10);
+			if (*ts != '\0')
+				goto fin;
 			break;
-			case 5:
-				pwd->pw_class = strdup(s);
-				assert(pwd->pw_class != NULL);
+		case 5:
+			pwd->pw_class = strdup(s);
+			ATF_REQUIRE(pwd->pw_class != NULL);
 			break;
-			case 6:
-				pwd->pw_gecos = strdup(s);
-				assert(pwd->pw_gecos != NULL);
+		case 6:
+			pwd->pw_gecos = strdup(s);
+			ATF_REQUIRE(pwd->pw_gecos != NULL);
 			break;
-			case 7:
-				pwd->pw_dir = strdup(s);
-				assert(pwd->pw_dir != NULL);
+		case 7:
+			pwd->pw_dir = strdup(s);
+			ATF_REQUIRE(pwd->pw_dir != NULL);
 			break;
-			case 8:
-				pwd->pw_shell = strdup(s);
-				assert(pwd->pw_shell != NULL);
+		case 8:
+			pwd->pw_shell = strdup(s);
+			ATF_REQUIRE(pwd->pw_shell != NULL);
 			break;
-			case 9:
-				pwd->pw_expire = (time_t)strtol(s, &ts, 10);
-				if (*ts != '\0')
-					goto fin;
+		case 9:
+			pwd->pw_expire = (time_t)strtol(s, &ts, 10);
+			if (*ts != '\0')
+				goto fin;
 			break;
-			case 10:
-				pwd->pw_fields = (int)strtol(s, &ts, 10);
-				if (*ts != '\0')
-					goto fin;
+		case 10:
+			pwd->pw_fields = (int)strtol(s, &ts, 10);
+			if (*ts != '\0')
+				goto fin;
 			break;
-			default:
+		default:
 			break;
-		};
+		}
 		++i;
 	}
 
@@ -253,10 +253,11 @@ passwd_fill_test_data(struct passwd_test_data *td)
 static int
 passwd_test_correctness(struct passwd *pwd, void *mdata)
 {
-	if (debug) {
-		printf("testing correctness with the following data:\n");
-		dump_passwd(pwd);
-	}
+
+#ifdef DEBUG
+	printf("testing correctness with the following data:\n");
+	dump_passwd(pwd);
+#endif
 
 	if (pwd == NULL)
 		return (-1);
@@ -279,13 +280,15 @@ passwd_test_correctness(struct passwd *pwd, void *mdata)
 	if (pwd->pw_shell == NULL)
 		goto errfin;
 
-	if (debug)
-		printf("correct\n");
+#ifdef DEBUG
+	printf("correct\n");
+#endif
 
 	return (0);
 errfin:
-	if (debug)
-		printf("incorrect\n");
+#ifdef DEBUG
+	printf("incorrect\n");
+#endif
 
 	return (-1);
 }
@@ -306,10 +309,10 @@ passwd_test_getpwnam(struct passwd *pwd_model, void *mdata)
 {
 	struct passwd *pwd;
 
-	if (debug) {
-		printf("testing getpwnam() with the following data:\n");
-		dump_passwd(pwd_model);
-	}
+#ifdef DEBUG
+	printf("testing getpwnam() with the following data:\n");
+	dump_passwd(pwd_model);
+#endif
 
 	pwd = getpwnam(pwd_model->pw_name);
 	if (passwd_test_correctness(pwd, NULL) != 0)
@@ -320,14 +323,15 @@ passwd_test_getpwnam(struct passwd *pwd_model, void *mdata)
 	    !=0))
 	    goto errfin;
 
-	if (debug)
-		printf("ok\n");
+#ifdef DEBUG
+	printf("ok\n");
+#endif
 	return (0);
 
 errfin:
-	if (debug)
-		printf("not ok\n");
-
+#ifdef DEBUG
+	printf("not ok\n");
+#endif
 	return (-1);
 }
 
@@ -336,23 +340,25 @@ passwd_test_getpwuid(struct passwd *pwd_model, void *mdata)
 {
 	struct passwd *pwd;
 
-	if (debug) {
-		printf("testing getpwuid() with the following data...\n");
-		dump_passwd(pwd_model);
-	}
+#ifdef DEBUG
+	printf("testing getpwuid() with the following data...\n");
+	dump_passwd(pwd_model);
+#endif
 
 	pwd = getpwuid(pwd_model->pw_uid);
 	if ((passwd_test_correctness(pwd, NULL) != 0) ||
 	    ((compare_passwd(pwd, pwd_model, NULL) != 0) &&
 	    (passwd_check_ambiguity((struct passwd_test_data *)mdata, pwd)
 	    != 0))) {
-	    if (debug)
+#ifdef DEBUG
 		printf("not ok\n");
-	    return (-1);
+#endif
+		return (-1);
 	} else {
-	    if (debug)
+#ifdef DEBUG
 		printf("ok\n");
-	    return (0);
+#endif
+		return (0);
 	}
 }
 
@@ -364,50 +370,11 @@ passwd_test_getpwent(struct passwd *pwd, void *mdata)
 	return (passwd_test_correctness(pwd, NULL));
 }
 
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-	    "Usage: %s -nue2 [-d] [-s <file>]\n",
-	    getprogname());
-	exit(1);
-}
-
-int
-main(int argc, char **argv)
+static int
+run_tests(const char *snapshot_file, enum test_methods method)
 {
 	struct passwd_test_data td, td_snap, td_2pass;
-	char *snapshot_file;
 	int rv;
-	int c;
-
-	if (argc < 2)
-		usage();
-
-	snapshot_file = NULL;
-	while ((c = getopt(argc, argv, "nue2ds:")) != -1)
-		switch (c) {
-		case 'd':
-			debug++;
-			break;
-		case 'n':
-			method = TEST_GETPWNAM;
-			break;
-		case 'u':
-			method = TEST_GETPWUID;
-			break;
-		case 'e':
-			method = TEST_GETPWENT;
-			break;
-		case '2':
-			method = TEST_GETPWENT_2PASS;
-			break;
-		case 's':
-			snapshot_file = strdup(optarg);
-			break;
-		default:
-			usage();
-		}
 
 	TEST_DATA_INIT(passwd, &td, clone_passwd, free_passwd);
 	TEST_DATA_INIT(passwd, &td_snap, clone_passwd, free_passwd);
@@ -416,10 +383,8 @@ main(int argc, char **argv)
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
-				if (debug)
-					printf("can't access the file %s\n",
-				snapshot_file);
-
+				printf("can't access the file %s\n",
+				    snapshot_file);
 				rv = -1;
 				goto fin;
 			}
@@ -464,26 +429,102 @@ main(int argc, char **argv)
 				compare_passwd, NULL);
 		break;
 	case TEST_GETPWENT_2PASS:
-			TEST_DATA_INIT(passwd, &td_2pass, clone_passwd, free_passwd);
-			rv = passwd_fill_test_data(&td_2pass);
-			if (rv != -1)
-				rv = DO_2PASS_TEST(passwd, &td, &td_2pass,
-					compare_passwd, NULL);
-			TEST_DATA_DESTROY(passwd, &td_2pass);
+		TEST_DATA_INIT(passwd, &td_2pass, clone_passwd, free_passwd);
+		rv = passwd_fill_test_data(&td_2pass);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(passwd, &td, &td_2pass,
+			    compare_passwd, NULL);
+		TEST_DATA_DESTROY(passwd, &td_2pass);
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
-		    rv = TEST_SNAPSHOT_FILE_WRITE(passwd, snapshot_file, &td,
-			sdump_passwd);
+			rv = TEST_SNAPSHOT_FILE_WRITE(passwd, snapshot_file,
+			    &td, sdump_passwd);
 		break;
 	default:
 		rv = 0;
 		break;
-	};
+	}
 
 fin:
 	TEST_DATA_DESTROY(passwd, &td_snap);
 	TEST_DATA_DESTROY(passwd, &td);
-	free(snapshot_file);
+
 	return (rv);
+}
+
+#define	SNAPSHOT_FILE	"snapshot_pwd"
+
+ATF_TC_WITHOUT_HEAD(build_snapshot);
+ATF_TC_BODY(build_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwent);
+ATF_TC_BODY(getpwent, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwent_with_snapshot);
+ATF_TC_BODY(getpwent_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWENT) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwent_with_two_pass);
+ATF_TC_BODY(getpwent_with_two_pass, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWENT_2PASS) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwnam);
+ATF_TC_BODY(getpwnam, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWNAM) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwnam_with_snapshot);
+ATF_TC_BODY(getpwnam_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWNAM) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwuid);
+ATF_TC_BODY(getpwuid, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWUID) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwuid_with_snapshot);
+ATF_TC_BODY(getpwuid_with_snapshot, tc)
+{
+
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
+	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWUID) == 0);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, build_snapshot);
+	ATF_TP_ADD_TC(tp, getpwent);
+	ATF_TP_ADD_TC(tp, getpwent_with_snapshot);
+	ATF_TP_ADD_TC(tp, getpwent_with_two_pass);
+	ATF_TP_ADD_TC(tp, getpwnam);
+	ATF_TP_ADD_TC(tp, getpwnam_with_snapshot);
+	ATF_TP_ADD_TC(tp, getpwuid);
+	ATF_TP_ADD_TC(tp, getpwuid_with_snapshot);
+
+	return (atf_no_error());
 }
