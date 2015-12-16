@@ -209,6 +209,7 @@ nd6_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
 	if (linkstate == LINK_STATE_UP && V_nd6_on_link)
 		nd6_na_output_unsolicited(ifp);
 }
+
 void
 nd6_init(void)
 {

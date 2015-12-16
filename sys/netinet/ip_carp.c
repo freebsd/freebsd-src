@@ -1045,7 +1045,7 @@ carp_send_na(struct carp_softc *sc)
 
 		nd6_na_output_unsolicited_addr(sc->sc_carpdev, IFA_IN6(ifa),
 		    IFA_ND6_NA_BASE_FLAGS(sc->sc_carpdev, ifa));
-		nd6_na_unsolicited_addr_delay(ifa);
+		DELAY(nd6_na_unsolicited_addr_delay(ifa));
 	}
 }
 

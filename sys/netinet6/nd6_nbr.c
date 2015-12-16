@@ -1646,7 +1646,8 @@ nd6_na_output_unsolicited(struct ifnet *ifp)
 		i++;
 		if (i == cnt)
 			break;
-		DELAY(ann1->delay);
+		/* XXX DELAY needs to be done in taskqueue to avoid stalling. */
+		//DELAY(ann1->delay);
 	}
 	free(head, M_TEMP);
 }
