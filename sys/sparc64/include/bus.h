@@ -146,8 +146,8 @@ bus_space_barrier(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 }
 
 static __inline int
-bus_space_subregion(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
-    bus_size_t s, bus_space_handle_t *hp)
+bus_space_subregion(bus_space_tag_t t __unused, bus_space_handle_t h,
+    bus_size_t o __unused, bus_size_t s __unused, bus_space_handle_t *hp)
 {
 
 	*hp = h + o;
