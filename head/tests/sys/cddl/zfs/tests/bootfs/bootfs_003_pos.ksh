@@ -60,7 +60,7 @@ set -A pools "pool.${TESTCASE_ID}" "pool123" "mypool"
 typeset VDEV=$TMPDIR/bootfs_003.${TESTCASE_ID}.dat
 
 function cleanup {
-	typeset -i=0
+	typeset -i i=0
 	while [ $i -lt "${#pools[@]}" ]; do
 		destroy_pool ${pools[$i]}
 		i=$(( $i + 1 ))
@@ -100,7 +100,7 @@ when encryption is set to on."
 	then
 		log_fail "Expected $RES == $POOL/$FS"
 	fi
-	log_must $ZPOOL destroy $POOL
+	log_must $ZPOOL destroy -f $POOL
 	i=$(( $i + 1 ))
 done
 
