@@ -449,12 +449,7 @@ smbfs_getpages(ap)
 	np = VTOSMB(vp);
 	smp = VFSTOSMBFS(vp->v_mount);
 	pages = ap->a_m;
-	count = ap->a_count;
-	npages = btoc(count);
-	if (ap->a_rbehind)
-		*ap->a_rbehind = 0;
-	if (ap->a_rahead)
-		*ap->a_rahead = 0;
+	npages = ap->a_count;
 
 	/*
 	 * If the requested page is partially valid, just return it and
@@ -464,13 +459,8 @@ smbfs_getpages(ap)
 	 * XXXGL: is that true for SMB filesystem?
 	 */
 	VM_OBJECT_WLOCK(object);
-	if (pages[npages - 1]->valid != 0) {
-		if (--npages == 0) {
-			VM_OBJECT_WUNLOCK(object);
-			return (VM_PAGER_OK);
-		}
-		count = npages << PAGE_SHIFT;
-	}
+	if (pages[npages - 1]->valid != 0 && --npages == 0)
+		goto out;
 	VM_OBJECT_WUNLOCK(object);
 
 	scred = smbfs_malloc_scred();
@@ -483,6 +473,7 @@ smbfs_getpages(ap)
 	PCPU_INC(cnt.v_vnodein);
 	PCPU_ADD(cnt.v_vnodepgsin, npages);
 
+	count = npages << PAGE_SHIFT;
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
 	uio.uio_iov = &iov;
@@ -536,8 +527,13 @@ smbfs_getpages(ap)
 			;
 		}
 	}
+out:
 	VM_OBJECT_WUNLOCK(object);
-	return 0;
+	if (ap->a_rbehind)
+		*ap->a_rbehind = 0;
+	if (ap->a_rahead)
+		*ap->a_rahead = 0;
+	return (VM_PAGER_OK);
 #endif /* SMBFS_RWGENERIC */
 }
 
