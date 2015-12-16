@@ -218,9 +218,7 @@ function damage_devs
 		sync_pool $pool
 		wait_for 20 1 is_pool_scrubbed $pool
 
-		cnt_arg=$cnt
-		[ "$label" = "keep_label" ] && cnt_arg=""
-		log_must pool_has_errors $pool $cnt_arg
+		log_must pool_has_errors $pool
 	else
 		# The pool can be syncing, thus fixing its labels.  So we
 		# have to keep trying until all the devices go offline.
