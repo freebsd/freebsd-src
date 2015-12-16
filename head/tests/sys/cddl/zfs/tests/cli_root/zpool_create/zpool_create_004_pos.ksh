@@ -105,8 +105,6 @@ function setup_vdevs #<disk>
 	destroy_pool $VDEVS_POOL
 	# Creating VDEVS_POOL corrupted the gpart label.  We must erase the disk
 	# before we can partition it again.
-	# Calling "zfs list" will wait for the asynchronous pool destroy to complete
-	$ZFS list > /dev/null 2>&1
 	cleanup_devices $disk
 
 	(( largest_num = fs_size / (1024 * 1024 * ${POOL_MINSIZE}) )) 
