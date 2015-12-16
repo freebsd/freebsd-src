@@ -1744,6 +1744,18 @@ function pool_has_errors # pool [errors]
 }
 
 #
+# Returns whether clearing $pool at $vdev (if given) succeeds.
+#
+function pool_clear_succeeds
+{
+	typeset pool="$1"
+	typeset vdev=$2
+
+	$ZPOOL clear $pool $vdev
+	! pool_has_errors $pool
+}
+
+#
 # Return whether the pool is healthy
 #
 function is_pool_healthy # pool

@@ -88,8 +88,9 @@ function test_clear
 	wait_for 20 1 is_pool_scrubbed $TESTPOOL1
 	log_must pool_has_errors $TESTPOOL1
 
-	log_must $ZPOOL clear $TESTPOOL1 $vdev_arg
-	log_mustnot pool_has_errors $TESTPOOL1
+	# zpool clear races with things that set error counts; try several
+	# times in case that race is hit.
+	wait_for 10 1 pool_clear_succeeds $TESTPOOL1 $vdev_arg
 }
 
 for devconf in "${poolconf[@]}"; do
