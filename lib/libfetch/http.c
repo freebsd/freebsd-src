@@ -246,16 +246,15 @@ http_fillbuf(struct httpio *io, size_t len)
 		io->error = errno;
 		return (-1);
 	}
+	io->bufpos = 0;
 	io->buflen = nbytes;
-	io->chunksize -= io->buflen;
+	io->chunksize -= nbytes;
 
 	if (io->chunksize == 0) {
 		if (fetch_read(io->conn, &ch, 1) != 1 || ch != '\r' ||
 		    fetch_read(io->conn, &ch, 1) != 1 || ch != '\n')
 			return (-1);
 	}
-
-	io->bufpos = 0;
 
 	return (io->buflen);
 }
