@@ -2909,7 +2909,7 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int maxsize, int gbflags)
 	} while(buf_scan(false) == 0);
 
 	if (reserved)
-		bufspace_release(maxsize);
+		atomic_subtract_long(&bufspace, maxsize);
 	if (bp != NULL) {
 		bp->b_flags |= B_INVAL;
 		brelse(bp);
