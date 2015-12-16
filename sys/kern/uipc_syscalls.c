@@ -2084,13 +2084,14 @@ struct sf_io {
 };
 
 static void
-sf_iodone(void *arg, vm_page_t *pg, int reqpage, int error)
+sf_iodone(void *arg, vm_page_t *pg, int count, int error)
 {
 	struct sf_io *sfio = arg;
 	struct socket *so;
 
 	if (pg) {
-		vm_page_xunbusy(pg[reqpage]);
+		for (int i = 0; i < count; i++)
+			vm_page_xunbusy(pg[i]);
 		if (error)
 			sfio->error = error;
 	}
@@ -2220,7 +2221,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		}
 
 		refcount_acquire(&sfio->nios);
-		rv = vm_pager_get_pages_async(obj, pa + i, count, 0,
+		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL, NULL,
 		    &sf_iodone, sfio);
 
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
