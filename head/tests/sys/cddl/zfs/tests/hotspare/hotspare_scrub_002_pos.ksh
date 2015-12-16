@@ -82,7 +82,9 @@ function verify_assertion # odev
 	log_must $DD if=/dev/zero bs=1024k count=63 oseek=1 conv=notrunc of=$sdev
 
 	$SYNC
-	log_must $ZPOOL scrub $TESTPOOL
+	# The pool may already have started scrubbing, so don't assert this.
+	# Expected postconditions are checked below anyway.
+	$ZPOOL scrub $TESTPOOL
 	while is_pool_scrubbing $TESTPOOL ; do
 		$SLEEP 2
 	done
