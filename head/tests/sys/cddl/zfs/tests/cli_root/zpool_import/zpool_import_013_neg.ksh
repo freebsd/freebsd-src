@@ -82,9 +82,7 @@ function cleanup
 	if [[ -z $POOL_NAME ]]; then
 		return 1
 	fi
-	if poolexists $POOL_NAME; then
-		log_must $ZPOOL destroy $POOL_NAME
-	fi
+	destroy_pool $POOL_NAME
 	for file in $POOL_FILES; do
 		if [[ -e /$TESTPOOL/$file ]]; then
 			$RM /$TESTPOOL/$file

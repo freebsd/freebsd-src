@@ -62,9 +62,7 @@ log_assert "Ensure that pool names can use the ASCII subset of UTF-8"
 
 function cleanup
 {
-	if [[ -n $name ]] && poolexists $name ; then
-		log_must $ZPOOL destroy $name
-	fi
+	[[ -n "$name" ]] && destroy_pool $name
 
 	if [[ -d $TESTDIR ]]; then
 		log_must $RM -rf $TESTDIR

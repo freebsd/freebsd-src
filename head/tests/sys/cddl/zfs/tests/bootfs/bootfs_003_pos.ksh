@@ -60,9 +60,11 @@ set -A pools "pool.${TESTCASE_ID}" "pool123" "mypool"
 typeset VDEV=$TMPDIR/bootfs_003.${TESTCASE_ID}.dat
 
 function cleanup {
-	if poolexists $POOL ; then
-		log_must $ZPOOL destroy $POOL
-	fi
+	typeset -i=0
+	while [ $i -lt "${#pools[@]}" ]; do
+		destroy_pool ${pools[$i]}
+		i=$(( $i + 1 ))
+	done
 	$RM $VDEV
 }
 

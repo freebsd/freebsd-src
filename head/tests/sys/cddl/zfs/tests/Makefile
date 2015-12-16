@@ -81,4 +81,13 @@ TESTS_SUBDIRS+=	zil
 TESTS_SUBDIRS+=	zvol
 TESTS_SUBDIRS+=	zvol_thrash
 
+# This is primarily useful for identifying which test a testid corresponds to.
+# Sometimes all you might have is a pool name like 'testpool.1316'.
+testids:
+	for i in `find ${.CURDIR} -name '*.sh' | xargs grep '^atf_test_case '|awk '{print $$2}'`; do \
+		echo "$${i}: $$(echo $$i | cksum -o 2 | cut -d" " -f1)"; \
+	done
+
+.PHONY: testids
+
 .include <bsd.test.mk>

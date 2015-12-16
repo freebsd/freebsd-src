@@ -57,7 +57,7 @@ verify_runnable "global"
 
 function cleanup
 {
-        $ZPOOL destroy $TESTPOOL
+	destroy_pool $TESTPOOL
         $RM $TMPDIR/zpool_set_003.${TESTCASE_ID}.dat
 }
 

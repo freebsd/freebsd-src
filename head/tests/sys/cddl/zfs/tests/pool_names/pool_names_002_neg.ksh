@@ -64,9 +64,7 @@ POOLNAME=""
 
 function cleanup
 {
-	if poolexists $POOLNAME; then
-		log_must $ZPOOL destroy $POOLNAME
-	fi
+	destroy_pool $POOLNAME
 
 	if [[ -d $TESTDIR ]]; then
 		log_must $RM -rf $TESTDIR

@@ -59,8 +59,7 @@ verify_runnable "global"
 # note to self - need to make sure there isn't a pool called bootfs
 # before running this test...
 function cleanup {
-
-	$ZPOOL destroy bootfs
+	destroy_pool bootfs
 	$RM $TMPDIR/zpool_set_002.${TESTCASE_ID}.dat
 }
 

@@ -37,7 +37,7 @@ then
 	log_unsupported "zpool version property not supported on this system."
 fi
 
-log_must $ZPOOL destroy $TESTPOOL
-log_must $ZPOOL destroy $TESTPOOL2
+destroy_pool $TESTPOOL
+destroy_pool $TESTPOOL2
 
 default_cleanup

@@ -68,13 +68,10 @@ function cleanup {
 		pool_name=$($ENV| $GREP "ZPOOL_VERSION_${config}_NAME"\
                 	| $AWK -F= '{print $2}')
 		if poolexists $pool_name; then
-			log_must $ZPOOL destroy $pool_name
+			log_must $ZPOOL destroy -f $pool_name
 		fi
 	done
-	
-	if poolexists $TESTPOOL ; then
-		log_must $ZPOOL destroy $TESTPOOL
-	fi
+	destroy_pool $TESTPOOL
 }
 
 $ZPOOL set 2>&1 | $GREP bootfs > /dev/null

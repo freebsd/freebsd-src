@@ -63,7 +63,7 @@ verify_runnable "global"
 
 function cleanup
 {
-	datasetexists $TESTPOOL && destroy_pool $TESTPOOL
+	destroy_pool $TESTPOOL
 }
 
 log_onexit cleanup
@@ -95,7 +95,7 @@ while (( $i < ${#RW_FS_PROP[*]} )); do
 		log_fail "zpool create $TESTPOOL fail."
 	propertycheck $TESTPOOL ${RW_FS_PROP[i]} || \
 		log_fail "${RW_FS_PROP[i]} is failed to set."
-	log_must $ZPOOL destroy $TESTPOOL
+	destroy_pool $TESTPOOL
 	(( i = i + 1 ))
 done
 

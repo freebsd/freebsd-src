@@ -61,8 +61,7 @@ verify_runnable "global"
 
 function cleanup
 {
-        poolexists $TESTPOOL1 && \
-                log_must $ZPOOL destroy -f $TESTPOOL1
+	destroy_pool $TESTPOOL1
 
         for file in `$LS $TMPDIR/file.*`; do
 		log_must $RM -f $file
@@ -98,7 +97,5 @@ log_note "'zpool clear' clears leaf-device error."
 log_must $ZPOOL create -f $TESTPOOL1 $devlist
 log_must $ZPOOL replace $TESTPOOL1 $VDEV1 $SDEV
 log_must $ZPOOL clear $TESTPOOL1 "spare-0"
-	
-log_must $ZPOOL destroy $TESTPOOL1
 
 log_pass "'zpool clear' works on spare vdevs"

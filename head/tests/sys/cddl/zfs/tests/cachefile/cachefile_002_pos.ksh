@@ -62,9 +62,7 @@
 
 function cleanup
 {
-	if poolexists $TESTPOOL ; then
-                destroy_pool $TESTPOOL
-        fi
+	destroy_pool $TESTPOOL
 }
 
 verify_runnable "global"

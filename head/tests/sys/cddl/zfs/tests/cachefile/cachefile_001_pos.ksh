@@ -62,9 +62,7 @@ function cleanup
 {
 	typeset file
 
-	if poolexists $TESTPOOL ; then
-                destroy_pool $TESTPOOL
-        fi
+	destroy_pool $TESTPOOL
 	for file in $CPATH1 $CPATH2 ; do
 		if [[ -f $file ]] ; then
 			log_must $RM $file

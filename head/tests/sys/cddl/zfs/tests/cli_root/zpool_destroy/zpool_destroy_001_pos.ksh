@@ -56,15 +56,9 @@ verify_runnable "global"
 
 function cleanup
 {
-	poolexists $TESTPOOL2 && destroy_pool $TESTPOOL2
-	datasetexists $TESTPOOL1/$TESTVOL && \
-		log_must $ZFS destroy -f $TESTPOOL1/$TESTVOL
-
-	typeset pool
-	for pool in $TESTPOOL1 $TESTPOOL; do
-		poolexists $pool && destroy_pool $pool
-	done
-
+	destroy_pool $TESTPOOL2
+	destroy_pool $TESTPOOL1
+	destroy_pool $TESTPOOL
 	wipe_partition_table $DISK
 }
 

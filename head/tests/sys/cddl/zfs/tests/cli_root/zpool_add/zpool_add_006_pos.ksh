@@ -90,20 +90,14 @@ function setup_vdevs #<disk>
 	typeset -i largest_num=0
 	typeset -i slicesize=0
 	typeset vdev=""
-	
 
-	#
-	# Get disk size for zfs filesystem
-	#
-	create_pool foo $disk
-	log_must $ZFS create foo/fs
-	typeset -li fs_size=$(get_prop "available" foo/fs)
-	destroy_pool foo
+	fs_size=$(get_available_disk_size $disk)
 
-	(( largest_num = fs_size / (1024 * 1024 * 64) )) #64m is the minmum size for pool
+	# 64M is the minimum size for the pool
+	(( largest_num = fs_size / (1024 * 1024 * 64) ))
 	if (( largest_num < $VDEVS_NUM )); then
-		(( vdevs_num=largest_num - largest_num/20 )) # minus $largest_num/20 to leave 
-							      #5% space for metadata.
+		# Minus $largest_num/20 to leave 5% space for metadata.
+		(( vdevs_num=largest_num - largest_num/20 ))
 		file_size=64
 		vdev=$disk
 	else
@@ -112,8 +106,8 @@ function setup_vdevs #<disk>
 		if (( file_size > FILE_SIZE )); then
 			file_size=$FILE_SIZE
 		fi
-		(( slice_size = file_size * (vdevs_num + vdevs_num/20) )) # plus $vdevs_num/20 to provide 
-								#enough space for metadata. 
+		# Plus $vdevs_num/20 to provide enough space for metadata.
+		(( slice_size = file_size * (vdevs_num + vdevs_num/20) ))
 		wipe_partition_table $disk					
 		set_partition 0 "" ${slice_size}m $disk
 		vdev=${disk}p1

@@ -57,9 +57,7 @@
 verify_runnable "global"
 
 function cleanup {
-	if poolexists $TESTPOOL ; then
-		log_must $ZPOOL destroy $TESTPOOL
-	fi
+	destroy_pool $TESTPOOL
 }
 
 $ZPOOL set 2>&1 | $GREP bootfs > /dev/null

@@ -56,17 +56,7 @@
 verify_runnable "global"
 
 function cleanup {
-	if snapexists $TESTPOOL/$FS@snap ; then
-		log_must $ZFS destroy $TESTPOOL/$FS@snap
-	fi
-	
- 	if datasetexists $TESTPOOL/$FS ; then 
-		log_must $ZFS destroy $TESTPOOL/$FS
-	fi
-
-	if poolexists $TESTPOOL ; then
-		log_must $ZPOOL destroy $TESTPOOL
-	fi
+	destroy_pool $TESTPOOL
 
 	if [[ -f $VDEV ]]; then
 		log_must $RM -f $VDEV

@@ -63,8 +63,8 @@ verify_runnable "global"
 
 function cleanup
 {
-	poolexists $TESTPOOL1 && destroy_pool $TESTPOOL1
-	poolexists $TESTPOOL2 && destroy_pool $TESTPOOL2
+	destroy_pool $TESTPOOL1
+	destroy_pool $TESTPOOL2
 
 	mntpnt=$(get_prop mountpoint $TESTPOOL)
 	typeset -i i=0
@@ -75,9 +75,7 @@ function cleanup
 		((i += 1))
 	done
 
-	if poolexists $TESTPOOL ; then
-		destroy_pool $TESTPOOL
-	fi
+	destroy_pool $TESTPOOL
 
 	for file in $CPATH1 $CPATH2 ; do
 		if [[ -f $file ]] ; then

@@ -661,6 +661,20 @@ function set_partition #<slice_num> <slice_start> <size_plus_units>  <whole_disk
 	return 0
 }
 
+function get_disk_size #<disk>
+{
+	typeset disk=$1
+	diskinfo da0 | awk '{print $3}'
+}
+
+function get_available_disk_size #<disk>
+{
+	typeset disk=$1
+	raw_size=`get_disk_size $disk`
+	(( available_size = raw_size * 95 / 100 ))
+	echo $available_size
+}
+
 #
 # Get the end cyl of the given slice
 # #TODO: fix this to be GPT-compatible if we want to use the SMI WRAPPER.  This
@@ -1133,7 +1147,7 @@ function destroy_pool #pool
 			[[ -d $mtpt ]] && \
 				log_must $RM -rf $mtpt
 		else
-			log_note "Pool not exist. ($pool)"
+			log_note "Pool $pool does not exist, skipping destroy."
 			return 1
 		fi
 	fi

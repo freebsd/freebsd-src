@@ -54,9 +54,7 @@
 
 function cleanup
 {
-	if poolexists $TESTPOOL; then
-		destroy_pool $TESTPOOL
-	fi       	
+	destroy_pool $TESTPOOL
 }
 
 log_onexit cleanup

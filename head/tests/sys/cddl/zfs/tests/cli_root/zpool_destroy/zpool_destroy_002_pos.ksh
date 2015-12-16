@@ -68,14 +68,7 @@ function cleanup
 		log_must $RM -rf $TESTDIR
 	fi
 
-	typeset -i i=0
-	while (( $i < ${#datasets[*]} )); do
-		datasetexists ${datasets[i]} && \
-			log_must $ZFS destroy ${datasets[i]}
-		(( i = i + 1 ))	
-	done
-
-	poolexists $TESTPOOL && destroy_pool $TESTPOOL
+	destroy_pool $TESTPOOL
 }
 
 set -A datasets "$TESTPOOL/$TESTFS" "$TESTPOOL/$TESTCTR/$TESTFS1" \

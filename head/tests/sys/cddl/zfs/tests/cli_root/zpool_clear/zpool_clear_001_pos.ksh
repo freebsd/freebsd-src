@@ -57,8 +57,7 @@ verify_runnable "global"
 
 function cleanup
 {
-        poolexists $TESTPOOL1 && \
-                log_must $ZPOOL destroy -f $TESTPOOL1
+	destroy_pool $TESTPOOL1
 
         for file in `$LS $TMPDIR/file.*`; do
 		log_must $RM -f $file

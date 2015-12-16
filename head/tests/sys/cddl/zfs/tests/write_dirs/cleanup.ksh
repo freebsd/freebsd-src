@@ -29,7 +29,7 @@
 
 . $STF_SUITE/include/libtest.kshlib
 
-log_must $ZPOOL destroy $TESTPOOL
+destroy_pool $TESTPOOL
 log_must wipe_partition_table $DISKS
 log_must $RM -rf $TESTDIR
 log_pass

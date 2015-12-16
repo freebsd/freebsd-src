@@ -60,7 +60,7 @@ verify_runnable "global"
 
 function cleanup
 {
-	datasetexists $TESTPOOL && log_must $ZPOOL destroy $TESTPOOL
+	destroy_pool $TESTPOOL
 }
 
 log_onexit cleanup

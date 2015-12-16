@@ -94,6 +94,20 @@ function root_setup
 	done
 }
 
+function test_exists
+{
+	for zvolds in $*; do
+		log_must test -c /dev/zvol/${zvolds}
+	done
+}
+
+function test_notexists
+{
+	for zvolds in $*; do
+		log_mustnot test -e /dev/zvol/${zvolds}
+	done
+}
+
 typeset -i i=0
 while (( i != NUM_ITERATIONS )); do
 	root=${ROOTPREFIX}_iter${i}
@@ -101,57 +115,42 @@ while (( i != NUM_ITERATIONS )); do
 	root_setup $root
 	log_must $ZFS snapshot -r $root@snap
 	log_must $ZFS clone $root/vol0@snap $root/vol1
-	log_must test -c /dev/zvol/$root/vol1
-	log_mustnot test -e /dev/zvol/$root/vol1@snap
+	test_exists $root/vol1
+	test_notexists $root/vol1@snap
 
 	log_must $ZFS promote $root/vol1
-	log_must test -c /dev/zvol/$root/vol1
-	log_must test -c /dev/zvol/$root/vol0
-	log_mustnot test -e /dev/zvol/$root/vol0@snap
-	log_must test -c /dev/zvol/$root/vol1@snap
+	test_exists $root/vol0 $root/vol1 $root/vol1@snap
+	test_notexists $root/vol0@snap
 
 	# Re-promote the original volume.
 	log_must $ZFS promote $root/vol0
-	log_must test -c /dev/zvol/$root/vol0
-	log_must test -c /dev/zvol/$root/vol1
-	log_must test -c /dev/zvol/$root/vol0@snap
-	log_mustnot test -e /dev/zvol/$root/vol1@snap
+	test_exists $root/vol0 $root/vol1 $root/vol0@snap
+	test_notexists $root/vol1@snap
 
 	# Clone a clone's snapshot.
 	log_must $ZFS snapshot $root/vol1@newsnap
 	log_must $ZFS clone $root/vol1@newsnap $root/vol2
-	log_must test -c /dev/zvol/$root/vol2
-	log_mustnot test -e /dev/zvol/$root/vol2@snap
+	test_exists $root/vol2
+	test_notexists $root/vol2@snap
 
 	# Now promote *that* clone.
 	log_must $ZFS promote $root/vol2
-	log_must test -c /dev/zvol/$root/vol0
-	log_must test -c /dev/zvol/$root/vol0@snap
-	log_must test -c /dev/zvol/$root/vol1
-	log_mustnot test -e /dev/zvol/$root/vol1@snap
-	log_mustnot test -e /dev/zvol/$root/vol1@newsnap
-	log_must test -c /dev/zvol/$root/vol2
-	log_must test -c /dev/zvol/$root/vol2@newsnap
+	test_exists $root/vol0 $root/vol0@snap \
+		$root/vol1 $root/vol2 $root/vol2@newsnap
+	test_notexists $root/vol1@snap $root/vol1@newsnap
 
 	renamed=${root}_renamed
 	log_must $ZFS rename $root $renamed
 	# Ensure that the root rename applies to clones and promoted clones.
-	log_mustnot test -e /dev/zvol/$root/vol1
-	log_must test -c /dev/zvol/$renamed/vol1
-	log_mustnot test -e /dev/zvol/$renamed/vol1@snap
-	log_mustnot test -e /dev/zvol/$renamed/vol1@newsnap
-	log_must test -c /dev/zvol/$renamed/vol2
-	log_must test -c /dev/zvol/$renamed/vol2@newsnap
+	test_exists $renamed/vol1 $renamed/vol2 $renamed/vol2@newsnap
+	test_notexists $root/vol1 $renamed/vol1@snap $renamed/vol1@newsnap
 	for vol in $VOLS; do
-		log_mustnot test -e /dev/zvol/$root/$vol
-		log_mustnot test -e /dev/zvol/$root/$vol@snap
-		log_must test -c /dev/zvol/$renamed/$vol
-		log_must test -c /dev/zvol/$renamed/$vol@snap
+		test_notexists $root/$vol $root/$vol@snap
+		test_exists $renamed/$vol $renamed/$vol@snap
 	done
+
 	log_must $ZFS destroy -r $renamed
-	log_mustnot test -e /dev/zvol/$renamed/vol0
-	log_mustnot test -e /dev/zvol/$renamed/vol1
-	log_mustnot test -e /dev/zvol/$renamed/vol2
+	test_notexists $renamed/vol0 $renamed/vol1 $renamed/vol2
 
 	(( i += 1 ))
 done

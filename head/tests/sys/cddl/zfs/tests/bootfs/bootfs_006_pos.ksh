@@ -100,10 +100,7 @@ function verify_no_bootfs { # $POOL
 }
 
 function cleanup {
-	if poolexists $TESTPOOL
-	then
-		log_must $ZPOOL destroy $TESTPOOL
-	fi
+	destroy_pool $TESTPOOL
 	log_must $RM $VDEV1 $VDEV2 $VDEV3 $VDEV4
 }
 

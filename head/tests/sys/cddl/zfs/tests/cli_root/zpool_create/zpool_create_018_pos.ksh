@@ -58,9 +58,7 @@
 
 function cleanup
 {
-	if poolexists $TESTPOOL ; then
-                destroy_pool $TESTPOOL
-        fi
+	destroy_pool $TESTPOOL
 
 	if [[ -f $CPATH ]] ; then
 		log_must $RM $CPATH
@@ -97,29 +95,24 @@ do
 		$ZPOOL get all $TESTPOOL
 		log_fail "Pool was created without setting the ${props[$i]} property"
 	fi
-	log_must $ZPOOL destroy $TESTPOOL
+	destroy_pool $TESTPOOL
         (( i = i + 1 ))
 done
-
-# Destroy our pool
-if poolexists $TESTPOOL ; then
-                destroy_pool $TESTPOOL
-fi
 
 # pick two properties, and verify we can create with those as well
 log_must $ZPOOL create -o delegation=off -o cachefile=$CPATH $TESTPOOL $disk
 RESULT=$(get_pool_prop delegation $TESTPOOL)
 if [[ $RESULT != off ]]
 then
-		$ZPOOL get all $TESTPOOL
-		log_fail "Pool created without the delegation prop."
+	$ZPOOL get all $TESTPOOL
+	log_fail "Pool created without the delegation prop."
 fi
 
 RESULT=$(get_pool_prop cachefile $TESTPOOL)
 if [[ $RESULT != $CPATH ]]
 then
-		$ZPOOL get all $TESTPOOL
-		log_fail "Pool created without the cachefile prop."
+	$ZPOOL get all $TESTPOOL
+	log_fail "Pool created without the cachefile prop."
 fi
 
 log_pass "zpool create can create pools with specified properties"

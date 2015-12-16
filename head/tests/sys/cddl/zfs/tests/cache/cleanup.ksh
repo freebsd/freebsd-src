@@ -35,12 +35,7 @@ if ! verify_cache_support ; then
 	log_unsupported "This system doesn't support cache device"
 fi
 
-if datasetexists $TESTPOOL ; then
-	log_must $ZPOOL destroy -f $TESTPOOL
-fi
-if datasetexists $TESTPOOL2 ; then
-	log_must $ZPOOL destroy -f $TESTPOOL2
-fi
+cleanup
 if [[ -d $VDIR ]]; then
 	log_must $RM -rf $VDIR
 fi
