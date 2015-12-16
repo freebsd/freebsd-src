@@ -1753,6 +1753,10 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	cred = curthread->td_ucred;	/* XXX */
 	pages = ap->a_m;
 	count = ap->a_count;
+	if (ap->a_rbehind)
+		*ap->a_rbehind = 0;
+	if (ap->a_rahead)
+		*ap->a_rahead = 0;
 
 	if (!fsess_opt_mmap(vnode_mount(vp))) {
 		FS_DEBUG("called on non-cacheable vnode??\n");
@@ -1761,26 +1765,21 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	npages = btoc(count);
 
 	/*
-	 * If the requested page is partially valid, just return it and
-	 * allow the pager to zero-out the blanks.  Partially valid pages
-	 * can only occur at the file EOF.
+	 * If the last page is partially valid, just return it and allow
+	 * the pager to zero-out the blanks.  Partially valid pages can
+	 * only occur at the file EOF.
+	 *
+	 * XXXGL: is that true for FUSE, which is a local filesystem,
+	 * but still somewhat disconnected from the kernel?
 	 */
-
 	VM_OBJECT_WLOCK(vp->v_object);
-	fuse_vm_page_lock_queues();
-	if (pages[ap->a_reqpage]->valid != 0) {
-		for (i = 0; i < npages; ++i) {
-			if (i != ap->a_reqpage) {
-				fuse_vm_page_lock(pages[i]);
-				vm_page_free(pages[i]);
-				fuse_vm_page_unlock(pages[i]);
-			}
+	if (pages[npages - 1]->valid != 0) {
+		if (--npages == 0) {
+			VM_OBJECT_WUNLOCK(vp->v_object);
+			return (VM_PAGER_OK);
 		}
-		fuse_vm_page_unlock_queues();
-		VM_OBJECT_WUNLOCK(vp->v_object);
-		return 0;
-	}
-	fuse_vm_page_unlock_queues();
+		count = npages << PAGE_SHIFT;
+        }
 	VM_OBJECT_WUNLOCK(vp->v_object);
 
 	/*
@@ -1811,17 +1810,6 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		FS_DEBUG("error %d\n", error);
-		VM_OBJECT_WLOCK(vp->v_object);
-		fuse_vm_page_lock_queues();
-		for (i = 0; i < npages; ++i) {
-			if (i != ap->a_reqpage) {
-				fuse_vm_page_lock(pages[i]);
-				vm_page_free(pages[i]);
-				fuse_vm_page_unlock(pages[i]);
-			}
-		}
-		fuse_vm_page_unlock_queues();
-		VM_OBJECT_WUNLOCK(vp->v_object);
 		return VM_PAGER_ERROR;
 	}
 	/*
@@ -1862,8 +1850,6 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 			 */
 			;
 		}
-		if (i != ap->a_reqpage)
-			vm_page_readahead_finish(m);
 	}
 	fuse_vm_page_unlock_queues();
 	VM_OBJECT_WUNLOCK(vp->v_object);

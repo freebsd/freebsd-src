@@ -88,7 +88,7 @@ int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 struct buf *swbuf;
 
-static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static vm_object_t dead_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void dead_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
@@ -96,13 +96,11 @@ static boolean_t dead_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dead_pager_dealloc(vm_object_t);
 
 static int
-dead_pager_getpages(obj, ma, count, req)
-	vm_object_t obj;
-	vm_page_t *ma;
-	int count;
-	int req;
+dead_pager_getpages(vm_object_t obj, vm_page_t *ma, int count, int *rbehind,
+    int *rahead)
 {
-	return VM_PAGER_FAIL;
+
+	return (VM_PAGER_FAIL);
 }
 
 static vm_object_t
@@ -282,45 +280,47 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
  * The requested page must be fully valid on successful return.
  */
 int
-vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int reqpage)
+vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
+    int *rahead)
 {
+#ifdef INVARIANTS
+	vm_pindex_t pindex = m[0]->pindex;
+#endif
 	int r;
 
 	vm_pager_assert_in(object, m, count);
 
-	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage);
+	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, rbehind,
+	    rahead);
 	if (r != VM_PAGER_OK)
 		return (r);
 
-	/*
-	 * If pager has replaced the page, assert that it had
-	 * updated the array.  Also assert that page is still
-	 * busied.
-	 */
-	KASSERT(m[reqpage] == vm_page_lookup(object, m[reqpage]->pindex),
-	    ("%s: mismatch page %p pindex %ju", __func__,
-	    m[reqpage], (uintmax_t )m[reqpage]->pindex));
-	vm_page_assert_xbusied(m[reqpage]);
-
-	/*
-	 * Pager didn't fill up entire page.  Zero out
-	 * partially filled data.
-	 */
-	if (m[reqpage]->valid != VM_PAGE_BITS_ALL)
-		vm_page_zero_invalid(m[reqpage], TRUE);
-
+	for (int i = 0; i < count; i++) {
+		/*
+		 * If pager has replaced a page, assert that it had
+		 * updated the array.
+		 */
+		KASSERT(m[i] == vm_page_lookup(object, pindex++),
+		    ("%s: mismatch page %p pindex %ju", __func__,
+		    m[i], (uintmax_t )pindex - 1));
+		/*
+		 * Zero out partially filled data.
+		 */
+		if (m[i]->valid != VM_PAGE_BITS_ALL)
+			vm_page_zero_invalid(m[i], TRUE);
+	}
 	return (VM_PAGER_OK);
 }
 
 int
 vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
-    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
+    int *rbehind, int *rahead, pgo_getpages_iodone_t iodone, void *arg)
 {
 
 	vm_pager_assert_in(object, m, count);
 
 	return ((*pagertab[object->type]->pgo_getpages_async)(object, m,
-	    count, reqpage, iodone, arg));
+	    count, rbehind, rahead, iodone, arg));
 }
 
 /*
@@ -352,39 +352,6 @@ vm_pager_object_lookup(struct pagerlst *pg_list, void *handle)
 		}
 	}
 	return (object);
-}
-
-/*
- * Free the non-requested pages from the given array.  To remove all pages,
- * caller should provide out of range reqpage number.
- */
-void
-vm_pager_free_nonreq(vm_object_t object, vm_page_t ma[], int reqpage,
-    int npages, boolean_t object_locked)
-{
-	enum { UNLOCKED, CALLER_LOCKED, INTERNALLY_LOCKED } locked;
-	int i;
-
-	if (object_locked) {
-		VM_OBJECT_ASSERT_WLOCKED(object);
-		locked = CALLER_LOCKED;
-	} else {
-		VM_OBJECT_ASSERT_UNLOCKED(object);
-		locked = UNLOCKED;
-	}
-	for (i = 0; i < npages; ++i) {
-		if (i != reqpage) {
-			if (locked == UNLOCKED) {
-				VM_OBJECT_WLOCK(object);
-				locked = INTERNALLY_LOCKED;
-			}
-			vm_page_lock(ma[i]);
-			vm_page_free(ma[i]);
-			vm_page_unlock(ma[i]);
-		}
-	}
-	if (locked == INTERNALLY_LOCKED)
-		VM_OBJECT_WUNLOCK(object);
 }
 
 /*

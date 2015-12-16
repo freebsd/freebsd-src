@@ -950,8 +950,7 @@ int
 exec_map_first_page(imgp)
 	struct image_params *imgp;
 {
-	int rv, i;
-	int initial_pagein;
+	int rv, i, after, initial_pagein;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
 	vm_object_t object;
 
@@ -967,9 +966,18 @@ exec_map_first_page(imgp)
 #endif
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL);
 	if (ma[0]->valid != VM_PAGE_BITS_ALL) {
-		initial_pagein = VM_INITIAL_PAGEIN;
-		if (initial_pagein > object->size)
-			initial_pagein = object->size;
+		if (!vm_pager_has_page(object, 0, NULL, &after)) {
+			vm_page_lock(ma[0]);
+			vm_page_free(ma[0]);
+			vm_page_unlock(ma[0]);
+			vm_page_xunbusy(ma[0]);
+			VM_OBJECT_WUNLOCK(object);
+			return (EIO);
+		}
+		initial_pagein = min(after, VM_INITIAL_PAGEIN);
+		KASSERT(initial_pagein <= object->size,
+		    ("%s: initial_pagein %d object->size %ju",
+		    __func__, initial_pagein, (uintmax_t )object->size));
 		for (i = 1; i < initial_pagein; i++) {
 			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
 				if (ma[i]->valid)
@@ -984,14 +992,19 @@ exec_map_first_page(imgp)
 			}
 		}
 		initial_pagein = i;
-		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
+		rv = vm_pager_get_pages(object, ma, initial_pagein, NULL, NULL);
 		if (rv != VM_PAGER_OK) {
-			vm_page_lock(ma[0]);
-			vm_page_free(ma[0]);
-			vm_page_unlock(ma[0]);
+			for (i = 0; i < initial_pagein; i++) {
+				vm_page_lock(ma[i]);
+				vm_page_free(ma[i]);
+				vm_page_unlock(ma[i]);
+				vm_page_xunbusy(ma[i]);
+			}
 			VM_OBJECT_WUNLOCK(object);
 			return (EIO);
 		}
+		for (i = 1; i < initial_pagein; i++)
+			vm_page_readahead_finish(ma[i]);
 	}
 	vm_page_xunbusy(ma[0]);
 	vm_page_lock(ma[0]);

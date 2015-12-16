@@ -731,12 +731,13 @@ vop_stdgetpages(ap)
 		struct vnode *a_vp;
 		vm_page_t *a_m;
 		int a_count;
-		int a_reqpage;
+		int *a_rbehind;
+		int *a_rahead;
 	} */ *ap;
 {
 
 	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
-	    ap->a_count, ap->a_reqpage, NULL, NULL);
+	    ap->a_count, ap->a_rbehind, ap->a_rahead, NULL, NULL);
 }
 
 static int
@@ -744,8 +745,9 @@ vop_stdgetpages_async(struct vop_getpages_async_args *ap)
 {
 	int error;
 
-	error = VOP_GETPAGES(ap->a_vp, ap->a_m, ap->a_count, ap->a_reqpage);
-	ap->a_iodone(ap->a_arg, ap->a_m, ap->a_reqpage, error);
+	error = VOP_GETPAGES(ap->a_vp, ap->a_m, ap->a_count, ap->a_rbehind,
+	    ap->a_rahead);
+	ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
 	return (error);
 }
 

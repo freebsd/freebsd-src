@@ -122,14 +122,13 @@ struct buf {
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	union {
-		TAILQ_ENTRY(buf) bu_freelist; /* (Q) */
+		TAILQ_ENTRY(buf) b_freelist; /* (Q) */
 		struct {
-			void	(*pg_iodone)(void *, vm_page_t *, int, int);
-			int	pg_reqpage;
-		} bu_pager;
-	} b_union;
-#define	b_freelist	b_union.bu_freelist
-#define	b_pager         b_union.bu_pager
+			void	(*b_pgiodone)(void *, vm_page_t *, int, int);
+			int	b_pgbefore;
+			int	b_pgafter;
+		};
+	};
 	union	cluster_info {
 		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
 		TAILQ_ENTRY(buf) cluster_entry;
