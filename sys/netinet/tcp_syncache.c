@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/hash.h>
+#include <sys/refcount.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/limits.h>
@@ -626,6 +627,7 @@ done:
 static struct socket *
 syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 {
+	struct tcp_function_block *blk;
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
@@ -817,6 +819,26 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tp->irs = sc->sc_irs;
 	tcp_rcvseqinit(tp);
 	tcp_sendseqinit(tp);
+	blk = sototcpcb(lso)->t_fb;
+	if (blk != tp->t_fb) {
+		/*
+		 * Our parents t_fb was not the default,
+		 * we need to release our ref on tp->t_fb and 
+		 * pickup one on the new entry.
+		 */
+		struct tcp_function_block *rblk;
+		
+		rblk = find_and_ref_tcp_fb(blk);
+		KASSERT(rblk != NULL,
+		    ("cannot find blk %p out of syncache?", blk));
+		if (tp->t_fb->tfb_tcp_fb_fini)
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+		refcount_release(&tp->t_fb->tfb_refcnt);
+		tp->t_fb = rblk;
+		if (tp->t_fb->tfb_tcp_fb_init) {
+			(*tp->t_fb->tfb_tcp_fb_init)(tp);
+		}
+	}		
 	tp->snd_wl1 = sc->sc_irs;
 	tp->snd_max = tp->iss + 1;
 	tp->snd_nxt = tp->iss + 1;
