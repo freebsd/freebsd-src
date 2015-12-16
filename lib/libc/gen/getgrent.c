@@ -1225,7 +1225,7 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 #endif
 		{ NULL, 0 }
 	};
-	ns_dtab dtab[] = {
+	static ns_dtab dtab[] = {
 #ifdef HESIOD
 		{ NSSRC_DNS, dns_setgrent, NULL },
 #endif
