@@ -5775,27 +5775,21 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
 	off_t startoff, endoff;
 	int i, error;
 	vm_pindex_t reqstart, reqend;
-	int pcount, lsize, reqsize, size;
+	int lsize, reqsize, size;
 
-	if (rbehind)
-		*rbehind = 0;
-	if (rahead)
-		*rahead = 0;
+	object = m[0]->object;
+	error = 0;
 
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
 
-	pcount = OFF_TO_IDX(round_page(count));
-
 	zfs_vmobject_wlock(object);
-	if (m[pcount - 1]->valid != 0 && --pcount == 0) {
+	if (m[count - 1]->valid != 0 && --count == 0) {
 		zfs_vmobject_wunlock(object);
-		ZFS_EXIT(zfsvfs);
-		return (zfs_vm_pagerret_ok);
+		goto out;
 	}
 
-	object = m[0]->object;
-	mlast = m[pcount - 1];
+	mlast = m[count - 1];
 
 	if (IDX_TO_OFF(mlast->pindex) >=
 	    object->un_pager.vnp.vnp_size) {
@@ -5813,10 +5807,9 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
 		    IDX_TO_OFF(mlast->pindex);
 	zfs_vmobject_wunlock(object);
 
-	error = 0;
-	for (i = 0; i < pcount; i++) {
+	for (i = 0; i < count; i++) {
 		size = PAGE_SIZE;
-		if (i == pcount - 1)
+		if (i == count - 1)
 			size = lsize;
 		va = zfs_map_page(m[i], &sf);
 		error = dmu_read(os, zp->z_id, IDX_TO_OFF(m[i]->pindex),
@@ -5829,14 +5822,21 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
 	}
 
 	zfs_vmobject_wlock(object);
-	for (i = 0; i < pcount; i++)
+	for (i = 0; i < count; i++)
 		m[i]->valid = VM_PAGE_BITS_ALL;
 	zfs_vmobject_wunlock(object);
 
 out:
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 	ZFS_EXIT(zfsvfs);
-	return (error ? zfs_vm_pagerret_error : zfs_vm_pagerret_ok);
+	if (error == 0) {
+		if (rbehind)
+			*rbehind = 0;
+		if (rahead)
+			*rahead = 0;
+		return (zfs_vm_pagerret_ok);
+	} else
+		return (zfs_vm_pagerret_error);
 }
 
 static int

@@ -1752,17 +1752,12 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	td = curthread;			/* XXX */
 	cred = curthread->td_ucred;	/* XXX */
 	pages = ap->a_m;
-	count = ap->a_count;
-	if (ap->a_rbehind)
-		*ap->a_rbehind = 0;
-	if (ap->a_rahead)
-		*ap->a_rahead = 0;
+	npages = ap->a_count;
 
 	if (!fsess_opt_mmap(vnode_mount(vp))) {
 		FS_DEBUG("called on non-cacheable vnode??\n");
 		return (VM_PAGER_ERROR);
 	}
-	npages = btoc(count);
 
 	/*
 	 * If the last page is partially valid, just return it and allow
@@ -1773,13 +1768,8 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	 * but still somewhat disconnected from the kernel?
 	 */
 	VM_OBJECT_WLOCK(vp->v_object);
-	if (pages[npages - 1]->valid != 0) {
-		if (--npages == 0) {
-			VM_OBJECT_WUNLOCK(vp->v_object);
-			return (VM_PAGER_OK);
-		}
-		count = npages << PAGE_SHIFT;
-        }
+	if (pages[npages - 1]->valid != 0 && --npages == 0)
+		goto out;
 	VM_OBJECT_WUNLOCK(vp->v_object);
 
 	/*
@@ -1793,6 +1783,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	PCPU_INC(cnt.v_vnodein);
 	PCPU_ADD(cnt.v_vnodepgsin, npages);
 
+	count = npages << PAGE_SHIFT;
 	iov.iov_base = (caddr_t)kva;
 	iov.iov_len = count;
 	uio.uio_iov = &iov;
@@ -1852,8 +1843,13 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 		}
 	}
 	fuse_vm_page_unlock_queues();
+out:
 	VM_OBJECT_WUNLOCK(vp->v_object);
-	return 0;
+	if (ap->a_rbehind)
+		*ap->a_rbehind = 0;
+	if (ap->a_rahead)
+		*ap->a_rahead = 0;
+	return (VM_PAGER_OK);
 }
 
 /*
