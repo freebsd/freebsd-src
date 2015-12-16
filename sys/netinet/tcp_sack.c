@@ -599,7 +599,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	if (tp->snd_cwnd > tp->snd_ssthresh)
 		tp->snd_cwnd = tp->snd_ssthresh;
 	tp->t_flags |= TF_ACKNOW;
-	(void) tcp_output(tp);
+	(void) tp->t_fb->tfb_tcp_output(tp);
 }
 
 #if 0
