@@ -1156,7 +1156,7 @@ function create_vdevs # vdevs
 
 	[ -n "$VDEV_SIZE" ] && vdsize=$VDEV_SIZE
 	rm -f $@ || return 1
-	truncate -s $vdsize $vdev $@
+	truncate -s $vdsize $@
 }
 
 #

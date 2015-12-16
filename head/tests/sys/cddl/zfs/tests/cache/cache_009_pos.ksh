@@ -69,11 +69,15 @@ do
 	log_must $ZPOOL offline $TESTPOOL $ldev
 	log_must display_status $TESTPOOL
 	log_must verify_cache_device $TESTPOOL $ldev 'OFFLINE' ''
+	log_note "Offline pool configuration, for reference:"
+	log_must $ZPOOL status -v $TESTPOOL
 
 	log_must $ZPOOL online $TESTPOOL $ldev
 	log_must display_status $TESTPOOL
 	log_must verify_cache_device $TESTPOOL $ldev 'ONLINE' ''
 
+	log_note "Final pool configuration, for reference:"
+	log_must $ZPOOL status -v $TESTPOOL
 	log_must $ZPOOL destroy -f $TESTPOOL
 done
 

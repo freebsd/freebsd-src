@@ -50,32 +50,6 @@ compress_001_pos_cleanup()
 }
 
 
-atf_test_case compress_002_pos cleanup
-compress_002_pos_head()
-{
-	atf_set "descr" "Ensure that compressed files in a dataset are smaller."
-	atf_set "require.config" rt_long
-	atf_set "require.progs"  zfs
-}
-compress_002_pos_body()
-{
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
-	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/compress.cfg
-
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/compress_002_pos.ksh || atf_fail "Testcase failed"
-}
-compress_002_pos_cleanup()
-{
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
-	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/compress.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
-
 atf_test_case compress_003_pos cleanup
 compress_003_pos_head()
 {
@@ -135,7 +109,6 @@ atf_init_test_cases()
 {
 
 	atf_add_test_case compress_001_pos
-	atf_add_test_case compress_002_pos
 	atf_add_test_case compress_003_pos
 	atf_add_test_case compress_004_pos
 }
