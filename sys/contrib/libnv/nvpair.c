@@ -861,7 +861,7 @@ nvpair_create_descriptor(const char *name, int value)
 		return (NULL);
 
 	nvp = nvpair_allocv(name, NV_TYPE_DESCRIPTOR, (uintptr_t)value,
-	    sizeof(intptr_t));
+	    sizeof(int64_t));
 	if (nvp == NULL) {
 		ERRNO_SAVE();
 		close(value);
