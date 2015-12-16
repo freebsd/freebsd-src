@@ -3539,6 +3539,55 @@ nfsrv_removeuser(struct nfsusrgrp *usrp, int isuser)
 }
 
 /*
+ * Free up all the allocations related to the name<-->id cache.
+ * This function should only be called when the nfsuserd daemon isn't
+ * running, since it doesn't do any locking.
+ * This function is meant to be used when the nfscommon module is unloaded.
+ */
+APPLESTATIC void
+nfsrv_cleanusergroup(void)
+{
+	struct nfsrv_lughash *hp, *hp2;
+	struct nfsusrgrp *nusrp, *usrp;
+	int i;
+
+	if (nfsuserhash == NULL)
+		return;
+
+	for (i = 0; i < nfsrv_lughashsize; i++) {
+		hp = &nfsuserhash[i];
+		TAILQ_FOREACH_SAFE(usrp, &hp->lughead, lug_numhash, nusrp) {
+			TAILQ_REMOVE(&hp->lughead, usrp, lug_numhash);
+			hp2 = NFSUSERNAMEHASH(usrp->lug_name,
+			    usrp->lug_namelen);
+			TAILQ_REMOVE(&hp2->lughead, usrp, lug_namehash);
+			if (usrp->lug_cred != NULL)
+				crfree(usrp->lug_cred);
+			free(usrp, M_NFSUSERGROUP);
+		}
+		hp = &nfsgrouphash[i];
+		TAILQ_FOREACH_SAFE(usrp, &hp->lughead, lug_numhash, nusrp) {
+			TAILQ_REMOVE(&hp->lughead, usrp, lug_numhash);
+			hp2 = NFSGROUPNAMEHASH(usrp->lug_name,
+			    usrp->lug_namelen);
+			TAILQ_REMOVE(&hp2->lughead, usrp, lug_namehash);
+			if (usrp->lug_cred != NULL)
+				crfree(usrp->lug_cred);
+			free(usrp, M_NFSUSERGROUP);
+		}
+		mtx_destroy(&nfsuserhash[i].mtx);
+		mtx_destroy(&nfsusernamehash[i].mtx);
+		mtx_destroy(&nfsgroupnamehash[i].mtx);
+		mtx_destroy(&nfsgrouphash[i].mtx);
+	}
+	free(nfsuserhash, M_NFSUSERGROUP);
+	free(nfsusernamehash, M_NFSUSERGROUP);
+	free(nfsgrouphash, M_NFSUSERGROUP);
+	free(nfsgroupnamehash, M_NFSUSERGROUP);
+	free(nfsrv_dnsname, M_NFSSTRING);
+}
+
+/*
  * This function scans a byte string and checks for UTF-8 compliance.
  * It returns 0 if it conforms and NFSERR_INVAL if not.
  */
