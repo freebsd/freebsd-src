@@ -30,6 +30,9 @@
 
 function cleanup
 {
+	log_note "Final pool configurations:"
+	poolexists $TESTPOOL && log_must $ZPOOL status -v $TESTPOOL
+	poolexists $TESTPOOL2 && log_must $ZPOOL status -v $TESTPOOL2
 	destroy_pool $TESTPOOL
 	destroy_pool $TESTPOOL2
 }
@@ -104,24 +107,33 @@ function verify_cache_device
 				function parse_name(status)
 				{
 					if (status == "OFFLINE")
-						return substr($7,6,3)
+						return substr($7,6)
 					else if (status == "UNAVAIL")
-						return substr($7,6,3)
+						return substr($7,6)
 					else
 						return $1
 				}
 
-				BEGIN {start=0} \
-				/\tcache/ {start=1}
-				/\tmirror/ || /\tspares/ || /^$/ {start=0}
-				(start==1) && /\t  (\/|[0-9a-zA-Z])/ \
-					{print "stripe:" parse_name($2) " " $2}
-				(start==1) && /\t    (\/|[a-zA-Z])/ \
-					{print "mirror:" parse_name($2) " " $2}
+				BEGIN {in_cache=0}
+				/\tcache/ {in_cache=1}
+				/\tlog/ || /\tspares/ || /^$/ {in_cache=0}
+
+				# Skip if not in a cache section
+				(in_cache==0) { next; }
+
+				/\t  (\/|[0-9a-zA-Z])/ {
+					print "stripe:" parse_name($2) " " $2;
+				}
+
+				/\t    (\/|[a-zA-Z])/ {
+					print "mirror:" parse_name($2) " " $2;
+				}
+
 				# When hotspare is replacing
-				(start==1) && /\t      (\/|[a-zA-Z])/ \
-					{print "mirror:" parse_name($2) " " $2}'
-			     )
+				/\t      (\/|[a-zA-Z])/ {
+					print "mirror:" parse_name($2) " " $2;
+				}
+	')
 
 	typeset -i i=0
 	typeset find=0
