@@ -118,13 +118,6 @@ elf64_exec(struct preloaded_file *fp)
 	if (err != 0)
 		return (err);
 
-	status = BS->ExitBootServices(IH, efi_mapkey);
-        if (EFI_ERROR(status)) {
-		printf("%s: ExitBootServices() returned 0x%lx\n", __func__,
-		    (long)status);
-		return (EINVAL);
-	}
-
 	/* Clean D-cache under kernel area and invalidate whole I-cache */
 	clean_addr = efi_translate(fp->f_addr);
 	clean_size = efi_translate(kernendp) - clean_addr;

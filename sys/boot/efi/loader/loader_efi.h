@@ -44,8 +44,6 @@ ssize_t	efi_copyout(const vm_offset_t src, void *dest, const size_t len);
 ssize_t	efi_readin(const int fd, vm_offset_t dest, const size_t len);
 void * efi_translate(vm_offset_t ptr);
 
-extern UINTN efi_mapkey;
-
 void	efi_copy_finish(void);
 
 #endif	/* _LOADER_EFI_COPY_H_ */

@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <fdt_platform.h>
 #endif
 
-UINTN efi_mapkey;
-
 static const char howto_switches[] = "aCdrgDmphsv";
 static int howto_masks[] = {
 	RB_ASKNAME, RB_CDROM, RB_KDB, RB_DFLTROOT, RB_GDB, RB_MULTIPLE,
@@ -234,12 +232,50 @@ bi_copymodules(vm_offset_t addr)
 }
 
 static int
+bi_add_efi_data_and_exit(struct preloaded_file *kfp,
+    struct efi_map_header *efihdr, size_t efisz, EFI_MEMORY_DESCRIPTOR *mm,
+    UINTN sz)
+{
+	UINTN efi_mapkey;
+	UINTN mmsz;
+	UINT32 mmver;
+	EFI_STATUS status;
+	UINTN retry;
+
+	/*
+	 * It is possible that the first call to ExitBootServices may change
+	 * the map key. Fetch a new map key and retry ExitBootServices in that
+	 * case.
+	 */
+	for (retry = 2; retry > 0; retry--) {
+		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
+		if (EFI_ERROR(status)) {
+			printf("%s: GetMemoryMap() returned 0x%lx\n", __func__,
+			    (long)status);
+			return (EINVAL);
+		}
+		status = BS->ExitBootServices(IH, efi_mapkey);
+		if (EFI_ERROR(status) == 0) {
+			efihdr->memory_size = sz;
+			efihdr->descriptor_size = mmsz;
+			efihdr->descriptor_version = mmver;
+			file_addmetadata(kfp, MODINFOMD_EFI_MAP, efisz + sz,
+			    efihdr);
+			return (0);
+		}
+	}
+	printf("ExitBootServices() returned 0x%lx\n", (long)status);
+	return (EINVAL);
+}
+
+static int
 bi_load_efi_data(struct preloaded_file *kfp)
 {
 	EFI_MEMORY_DESCRIPTOR *mm;
 	EFI_PHYSICAL_ADDRESS addr;
 	EFI_STATUS status;
 	size_t efisz;
+	UINTN efi_mapkey;
 	UINTN mmsz, pages, sz;
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
@@ -294,20 +330,8 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	efihdr = (struct efi_map_header *)addr;
 	mm = (void *)((uint8_t *)efihdr + efisz);
 	sz = (EFI_PAGE_SIZE * pages) - efisz;
-	status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
-	if (EFI_ERROR(status)) {
-		printf("%s: GetMemoryMap() returned 0x%lx\n", __func__,
-		    (long)status);
-		return (EINVAL);
-	}
 
-	efihdr->memory_size = sz;
-	efihdr->descriptor_size = mmsz;
-	efihdr->descriptor_version = mmver;
-
-	file_addmetadata(kfp, MODINFOMD_EFI_MAP, efisz + sz, efihdr);
-
-	return (0);
+	return (bi_add_efi_data_and_exit(kfp, efihdr, efisz, mm, sz));
 }
 
 /*

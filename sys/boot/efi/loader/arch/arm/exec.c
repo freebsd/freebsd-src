@@ -82,13 +82,6 @@ __elfN(arm_exec)(struct preloaded_file *fp)
 	printf("modulep: %#x\n", modulep);
 	printf("relocation_offset %llx\n", __elfN(relocation_offset));
 
-	status = BS->ExitBootServices(IH, efi_mapkey);
-	if (EFI_ERROR(status)) {
-		printf("%s: ExitBootServices() returned 0x%lx\n", __func__,
-		    (long)status);
-		return (EINVAL);
-	}
-
 	dev_cleanup();
 
 	(*entry)((void *)modulep);
