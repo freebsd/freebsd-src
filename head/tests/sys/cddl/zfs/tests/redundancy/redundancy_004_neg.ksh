@@ -62,11 +62,11 @@ verify_runnable "global"
 log_assert "Verify striped pool have no data redundancy."
 log_onexit cleanup
 
-typeset -i cnt=$(random 2 5)
-setup_test_env $TESTPOOL "" $cnt
-
-damage_devs $TESTPOOL 1 "keep_label"
-log_must $ZPOOL clear $TESTPOOL
-log_mustnot is_healthy $TESTPOOL
+for cnt in 2 3; do
+	setup_test_env $TESTPOOL "" $cnt
+	damage_devs $TESTPOOL 1 "keep_label"
+	log_must $ZPOOL clear $TESTPOOL
+	log_mustnot is_healthy $TESTPOOL
+done
 
 log_pass "Striped pool has no data redundancy as expected."

@@ -62,44 +62,45 @@ verify_runnable "global"
 log_assert "Verify mirrored pool can withstand N-1 devices are failing or missing."
 log_onexit cleanup
 
-typeset -i cnt=$(random 2 5)
-setup_test_env $TESTPOOL mirror $cnt
+for cnt in 3 2; do
+	typeset -i i=1
 
-typeset -i i=1
+	setup_test_env $TESTPOOL mirror $cnt
 
-#
-# Inject data corruption errors for mirrored pool
-#
-while (( i < cnt )); do
-	damage_devs $TESTPOOL $i "label"
-	log_must is_data_valid $TESTPOOL
-	log_must clear_errors $TESTPOOL
-	
-	(( i +=1 ))
-done
+	#
+	# Inject data corruption errors for mirrored pool
+	#
+	while (( i < cnt )); do
+		damage_devs $TESTPOOL $i "label"
+		log_must is_data_valid $TESTPOOL
+		log_must clear_errors $TESTPOOL
+		
+		(( i +=1 ))
+	done
 
-#
-# Inject  bad devices errors for mirrored pool
-#
-i=1
-while (( i < cnt )); do
-        damage_devs $TESTPOOL $i
-        log_must is_data_valid $TESTPOOL
-	log_must recover_bad_missing_devs $TESTPOOL $i
+	#
+	# Inject  bad devices errors for mirrored pool
+	#
+	i=1
+	while (( i < cnt )); do
+		damage_devs $TESTPOOL $i
+		log_must is_data_valid $TESTPOOL
+		log_must recover_bad_missing_devs $TESTPOOL $i
 
-	(( i +=1 ))
-done
+		(( i +=1 ))
+	done
 
-#
-# Inject missing device errors for mirrored pool
-#
-i=1
-while (( i < cnt )); do
-        remove_devs $TESTPOOL $i
-        log_must is_data_valid $TESTPOOL
-	log_must recover_bad_missing_devs $TESTPOOL $i
+	#
+	# Inject missing device errors for mirrored pool
+	#
+	i=1
+	while (( i < cnt )); do
+		remove_devs $TESTPOOL $i
+		log_must is_data_valid $TESTPOOL
+		log_must recover_bad_missing_devs $TESTPOOL $i
 
-	(( i +=1 ))
+		(( i +=1 ))
+	done
 done
 
 log_pass "Mirrored pool can withstand N-1 devices failing as expected."

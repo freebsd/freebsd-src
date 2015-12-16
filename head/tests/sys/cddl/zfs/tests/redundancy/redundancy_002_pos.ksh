@@ -62,34 +62,35 @@ verify_runnable "global"
 log_assert "Verify raidz2 pool can withstand two devices are failing."
 log_onexit cleanup
 
-typeset -i cnt=$(random 3 5)
-setup_test_env $TESTPOOL raidz2 $cnt
+for cnt in 3 4; do
+	setup_test_env $TESTPOOL raidz2 $cnt
 
-#
-# Inject data corruption errors for raidz2 pool
-#
-for i in 1 2; do
-	damage_devs $TESTPOOL $i "label"
-	log_must is_data_valid $TESTPOOL
-	log_must clear_errors $TESTPOOL
-done
+	#
+	# Inject data corruption errors for raidz2 pool
+	#
+	for i in 1 2; do
+		damage_devs $TESTPOOL $i "label"
+		log_must is_data_valid $TESTPOOL
+		log_must clear_errors $TESTPOOL
+	done
 
-#
-# Inject bad devices errors for raidz2 pool
-#
-for i in 1 2; do
-	damage_devs $TESTPOOL $i 
-	log_must is_data_valid $TESTPOOL
-	log_must recover_bad_missing_devs $TESTPOOL $i
-done
+	#
+	# Inject bad devices errors for raidz2 pool
+	#
+	for i in 1 2; do
+		damage_devs $TESTPOOL $i 
+		log_must is_data_valid $TESTPOOL
+		log_must recover_bad_missing_devs $TESTPOOL $i
+	done
 
-#
-# Inject missing device errors for raidz2 pool
-#
-for i in 1 2; do
-	remove_devs $TESTPOOL $i
-	log_must is_data_valid $TESTPOOL
-	log_must recover_bad_missing_devs $TESTPOOL $i
+	#
+	# Inject missing device errors for raidz2 pool
+	#
+	for i in 1 2; do
+		remove_devs $TESTPOOL $i
+		log_must is_data_valid $TESTPOOL
+		log_must recover_bad_missing_devs $TESTPOOL $i
+	done
 done
 
 log_pass "Raidz2 pool can withstand two devices are failing passed."

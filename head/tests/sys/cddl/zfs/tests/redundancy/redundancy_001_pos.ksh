@@ -62,27 +62,28 @@ verify_runnable "global"
 log_assert "Verify raidz pool can withstand one device is failing."
 log_onexit cleanup
 
-typeset -i cnt=$(random 2 5)
-setup_test_env $TESTPOOL raidz $cnt
+for cnt in 3 2; do
+	setup_test_env $TESTPOOL raidz $cnt
 
-#
-# Inject data corruption error for raidz pool 
-#
-damage_devs $TESTPOOL 1 "label"
-log_must is_data_valid $TESTPOOL
-log_must clear_errors $TESTPOOL
+	#
+	# Inject data corruption error for raidz pool 
+	#
+	damage_devs $TESTPOOL 1 "label"
+	log_must is_data_valid $TESTPOOL
+	log_must clear_errors $TESTPOOL
 
-#
-# Inject bad device error for raidz pool
-#
-damage_devs $TESTPOOL 1
-log_must is_data_valid $TESTPOOL
-log_must recover_bad_missing_devs $TESTPOOL 1
+	#
+	# Inject bad device error for raidz pool
+	#
+	damage_devs $TESTPOOL 1
+	log_must is_data_valid $TESTPOOL
+	log_must recover_bad_missing_devs $TESTPOOL 1
 
-#
-# Inject missing device error for raidz pool
-#
-remove_devs $TESTPOOL 1
-log_must is_data_valid $TESTPOOL
+	#
+	# Inject missing device error for raidz pool
+	#
+	remove_devs $TESTPOOL 1
+	log_must is_data_valid $TESTPOOL
+done
 
 log_pass "Raidz pool can withstand one devices is failing passed."

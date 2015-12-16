@@ -30,37 +30,13 @@
 
 function cleanup
 {
-	if poolexists $TESTPOOL; then
-		destroy_pool $TESTPOOL
-	fi
+	destroy_pool $TESTPOOL
 	typeset dir
 	for dir in $TESTDIR $BASEDIR; do
 		if [[ -d $dir ]]; then 
 			log_must $RM -rf $dir
 		fi
 	done
-}
-
-#
-# Get random number between min and max number.
-#
-# $1 Minimal value
-# $2 Maximal value
-#
-function random
-{
-	typeset -i min=$1
-	typeset -i max=$2
-	typeset -i value
-
-	while true; do
-		((value = RANDOM % (max + 1)))
-		if ((value >= min)); then
-			break
-		fi
-	done
-
-	$ECHO $value
 }
 
 #
@@ -108,20 +84,14 @@ function setup_test_env
 		((i += 1))
 	done
 
-	if [[ ! -d $BASEDIR ]]; then
-		log_must $MKDIR $BASEDIR
-	fi
-
-	if poolexists $pool ; then
-		destroy_pool $pool
-	fi
-
+	log_must $MKDIR -p $BASEDIR
+	destroy_pool $pool
 	log_must $MKFILE $DEV_SIZE $vdevs
 
 	$ECHO $vdevs | tr ' ' '\n' > $BASEDIR/vdevs
 	log_must $ZPOOL create -m $TESTDIR $pool $keyword $vdevs
 
-	log_note "Filling up the filesystem ..."
+	log_note "Pool $pool created with $vdev_cnt vdevs, filling up..."
 	typeset -i ret=0
 	typeset -i i=0
 	typeset file=$TESTDIR/file
@@ -222,10 +192,9 @@ function sync_pool #pool
 	is_pool_scrubbing $pool || is_pool_scrubbed $pool || \
 		log_fail "$ZPOOL scrub $pool failed." 
 
-	while ! is_pool_scrubbed $pool; do
-		if is_pool_resilvered $pool ; then
-			log_fail "$pool should not be resilver completed."
-		fi
+	# The pool has been damaged; the sync should notice this fact.
+	log_note "Waiting for pool to sync..."
+	while ! is_pool_scrubbed $pool || is_pool_resilvered $pool; do
 		log_must $SLEEP 2
 	done
 }
@@ -245,12 +214,8 @@ function replace_missing_devs
 	for vdev in $@; do
 		log_must $MKFILE $DEV_SIZE $vdev
 		log_must $ZPOOL replace -f $pool $vdev $vdev
-		while true; do
-			if ! is_pool_resilvered $pool ; then
-				log_must $SLEEP 2
-			else
-				break
-			fi
+		while ! is_pool_resilvered $pool; do
+			log_must $SLEEP 2
 		done
 	done
 }
@@ -286,6 +251,7 @@ function damage_devs
 	fi
 
 	sync_pool $pool
+	log_note "Pool $pool vdevs $vdevs damage completed."
 }
 
 #
