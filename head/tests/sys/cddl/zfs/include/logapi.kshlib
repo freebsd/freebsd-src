@@ -33,6 +33,15 @@
 
 . ${STF_SUITE}/include/stf.shlib
 
+#
+# Send a debug message to stderr, if $STF_DEBUG set.
+#
+function log_debug
+{
+	[ -z "$STF_DEBUG" ] && return
+	echo "$*" >&2
+}
+
 # Output an assertion
 #
 # $@ - assertion text
@@ -61,6 +70,18 @@ function log_must
 	(( $? != 0 )) && log_fail
 }
 
+# Execute a command that must exit $1
+#
+# $@ - command to execute
+function log_mustbe
+{
+	typeset exitcode_wanted=$1
+	shift
+
+	log_cmd "$@"
+	(( $? != $exitcode_wanted )) && log_fail
+}
+
 # Execute a negative test and exit $STF_FAIL if test passes
 #
 # $@ - command to execute
@@ -69,6 +90,17 @@ function log_mustnot
 {
 	log_neg "$@"
 	(( $? != 0 )) && log_fail
+}
+
+# Execute a command that should only be logged if it fails.
+#
+# $@ - command to execute
+function log_onfail
+{
+	eval $@
+	typeset status=$?
+	[ $status -eq 0 ] && return
+	_printerror "$@" "unexpectedly exited $status"
 }
 
 # Execute and print command with status where success equals non-zero result
@@ -133,6 +165,23 @@ function log_neg
 	fi
 	_recursive_output $logfile "false"
 	return $ret
+}
+
+# Execute and print command; unconditionally return its exit code.
+# Useful for code that needs to do more specialized exit status filtering.
+function log_cmd
+{
+	typeset logfile="$TMPDIR/log.$$"
+
+	while [[ -e $logfile ]]; do
+		logfile="$logfile.$$"
+	done
+
+	"$@" 2>$logfile
+	typeset status=$?
+	_printline "EXECUTED (exited $status): $@"
+	_recursive_output $logfile "false"
+	return $status
 }
 
 # Execute and print command with status where success equals zero result
