@@ -94,9 +94,9 @@ dtrace_execexit_func_t	dtrace_fasttrap_exec;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE1(proc, kernel, , exec, "char *");
-SDT_PROBE_DEFINE1(proc, kernel, , exec__failure, "int");
-SDT_PROBE_DEFINE1(proc, kernel, , exec__success, "char *");
+SDT_PROBE_DEFINE1(proc, , , exec, "char *");
+SDT_PROBE_DEFINE1(proc, , , exec__failure, "int");
+SDT_PROBE_DEFINE1(proc, , , exec__success, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
@@ -423,7 +423,7 @@ do_execve(td, args, mac_p)
 		    | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 	}
 
-	SDT_PROBE1(proc, kernel, , exec, args->fname);
+	SDT_PROBE1(proc, , , exec, args->fname);
 
 interpret:
 	if (args->fname != NULL) {
@@ -851,7 +851,7 @@ interpret:
 
 	vfs_mark_atime(imgp->vp, td->td_ucred);
 
-	SDT_PROBE1(proc, kernel, , exec__success, args->fname);
+	SDT_PROBE1(proc, , , exec__success, args->fname);
 
 	VOP_UNLOCK(imgp->vp, 0);
 done1:
@@ -923,7 +923,7 @@ exec_fail:
 	p->p_flag &= ~P_INEXEC;
 	PROC_UNLOCK(p);
 
-	SDT_PROBE1(proc, kernel, , exec__failure, error);
+	SDT_PROBE1(proc, , , exec__failure, error);
 
 done2:
 #ifdef MAC
