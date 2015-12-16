@@ -2696,6 +2696,25 @@ function gen_dataset_name
 }
 
 #
+# Ensure that a given path has been synced, not just ZIL committed.
+#
+# XXX The implementation currently requires calling 'zpool history'.  On
+#     FreeBSD, the sync(8) command (via $SYNC) calls zfs_sync() which just
+#     does a zil_commit(), as opposed to a txg_wait_synced().  For things that
+#     require writing to their final destination (e.g. for intentional
+#     corruption purposes), zil_commit() is not good enough.
+#
+function force_sync_path # path
+{
+	typeset path="$1"
+
+	zfspath=$($DF $path 2>/dev/null | tail -1 | cut -d" " -f1 | cut -d/ -f1)
+	[ -z "$zfspath" ] && return false
+	log_note "Force syncing ${zfspath} for ${path} ..."
+	$ZPOOL history $zfspath >/dev/null 2>&1
+}
+
+#
 # Get cksum tuple of dataset
 # $1 dataset name
 #
