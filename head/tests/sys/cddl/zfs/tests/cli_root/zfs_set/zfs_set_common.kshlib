@@ -51,14 +51,16 @@ function set_n_check_prop
 	typeset prop=$2
 	typeset dataset=$3
 	typeset expect_result=${4:-true}
+	typeset old_value=""
+	typeset cur_value=""
 
-	typeset old_value=$(get_prop $prop $dataset)
+	[ -n "$prop" ] && old_value=$(get_prop $prop $dataset)
 	if [ "$expect_result" = "true" ]; then
 		log_must $ZFS set $prop=$expect_value $dataset
 	else
 		log_mustnot $ZFS set $prop=$expect_value $dataset
 	fi
-	typeset cur_value=$(get_prop $prop $dataset)
+	[ -n "$prop" ] && cur_value=$(get_prop $prop $dataset)
 
 	err="ERROR: Dataset '$dataset': '$prop' value '$cur_value'"
 	if [ "$expect_result" = "true" ]; then
