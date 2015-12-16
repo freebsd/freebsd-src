@@ -804,6 +804,7 @@ CaseFile::SerializeEvList(const EventList events, int fd,
 	     curEvent != events.end(); curEvent++) {
 		const string &eventString((*curEvent)->GetEventString());
 
+		// TODO: replace many write(2) calls with a single writev(2)
 		if (prefix)
 			write(fd, prefix, strlen(prefix));
 		write(fd, eventString.c_str(), eventString.length());

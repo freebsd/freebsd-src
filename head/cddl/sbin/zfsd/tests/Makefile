@@ -39,7 +39,7 @@ CFLAGS+= -DGTEST_HAS_PTHREAD
 
 # Install the tests
 TESTSBASE?=	/usr/tests
-TESTSDIR=	${TESTSBASE}/cddl/sbin/zfsd
+TESTSDIR?=	${TESTSBASE}/cddl/sbin/zfsd
 # TODO: Convert from an ATF SH test to a Kyua plain test
 # Long term TODO: Convert to a Kyua googletest test
 ATF_TESTS_SH+=	zfsd_test
