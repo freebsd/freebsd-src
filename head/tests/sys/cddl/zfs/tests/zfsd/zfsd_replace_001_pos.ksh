@@ -79,7 +79,7 @@ for type in "raidz" "mirror"; do
 	# Re-enable the disk, we don't want to leave it turned off
 	log_note "Re-enabling phy $PHY on expander $EXPANDER"
 	enable_sas_disk $EXPANDER $PHY
-	wait_for_disk_to_reappear 20
+	wait_for_disk_to_reappear 20 $EXPANDER $PHY
 
 	# Disk should auto-join the zpool & be resilvered.
 	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE

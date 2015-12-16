@@ -30,14 +30,15 @@
 function wait_for_disk_to_reappear
 {
 	typeset -i timeout=$1
-	typeset EXPECTED_DISK=$2
+	typeset EXPANDER=$2
+	typeset PHY=$3
 
 	for ((; $timeout > 0; timeout=$timeout-1)); do
 		find_disk_by_phy $EXPANDER $PHY
 		[ -n "$FOUNDDISK" -a -e "/dev/$FOUNDDISK" ] && return
 		$SLEEP 1
 	done
-	log_fail "ERROR: Disk ${EXPECTED_DISK} never reappeared"
+	log_fail "ERROR: Disk at ${EXPANDER}:${PHY} never reappeared"
 }
 
 function wait_for_pool_dev_state_change
@@ -79,7 +80,7 @@ function corrupt_pool_vdev
 	typeset file=$3
 
 	# do some IO on the pool
-	log_must $DD if=/dev/zero of=$file bs=1024k count=16
+	log_must $DD if=/dev/zero of=$file bs=1024k count=128
 	# scribble on the underlying file to corrupt the vdev
 	log_must $DD if=/dev/urandom of=$vdev bs=1024k count=64 conv=notrunc
 
@@ -135,7 +136,7 @@ function do_autoreplace
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
 	rescan_disks $EXPANDER
-	wait_for_disk_to_reappear 30 $REMOVAL_DISK
+	wait_for_disk_to_reappear 30 $EXPANDER $PHY
 
 	# Erase the missing dev's ZFS label
 	log_must $ZPOOL labelclear -f $( find_disks $FOUNDDISK )
@@ -158,7 +159,7 @@ function do_autoreplace
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
 	rescan_disks $EXPANDER
-	wait_for_disk_to_reappear 30 $REMOVAL_DISK
+	wait_for_disk_to_reappear 30 $EXPANDER $PHY
 }
 
 function autoreplace_cleanup

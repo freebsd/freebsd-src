@@ -28,12 +28,13 @@
 # $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/zfsd/zfsd.kshlib
 
 ################################################################################
 #
 # __stc_assertion_start
 #
-# ID: zfsd_degrade_001_pos
+# ID: zfsd_degrade_002_pos
 #
 # DESCRIPTION: 
 #   If an active hotspare experiences checksum errors, it will become degraded.
@@ -74,7 +75,7 @@ function cleanup
 	$RM -f $VDEVS
 }
 
-log_assert "ZFS will degrade a vdev that produces checksum errors"
+log_assert "ZFS will degrade a spare vdev that produces checksum errors"
 
 log_onexit cleanup
 
@@ -93,7 +94,7 @@ for type in "mirror" "raidz"; do
 	# (though it's usually faster).  
 	wait_for_pool_dev_state_change 60 $SPARE_VDEV INUSE
 
-	corrupt_pool $TESTPOOL $SPARE_VDEV $TESTFILE
+	corrupt_pool_vdev $TESTPOOL $SPARE_VDEV $TESTFILE
 	destroy_pool $TESTPOOL
 done
 

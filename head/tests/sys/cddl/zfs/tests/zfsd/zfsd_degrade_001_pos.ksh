@@ -28,6 +28,7 @@
 # $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/tests/zfsd/zfsd.kshlib
 
 ################################################################################
 #
@@ -81,7 +82,7 @@ for type in "raidz" "mirror"; do
 	log_note "Testing raid type $type"
 
 	create_pool $TESTPOOL $type ${VDEVS}
-	corrupt_pool $TESTPOOL $VDEV1 $TESTFILE
+	corrupt_pool_vdev $TESTPOOL $VDEV1 $TESTFILE
 	destroy_pool $TESTPOOL
 done
 

@@ -131,7 +131,7 @@ function find_disk_by_phy
 		IFS=", \n"
 		set -A PERIPHLIST $j
 		unset IFS
-		[ "${PERIPHLIST[0]}" != "$2" ] && continue
+		[ "${PERIPHLIST[0]}" != "$PHY" ] && continue
 
 		typeset NUMPERIPHS=${#PERIPHLIST[*]}
 

@@ -38,7 +38,7 @@
 #
 # DESCRIPTION: 
 #   If a removed drive gets reinserted while the pool is exported, it will
-#   replace its spare when reinserted.
+#   replace its spare when reimported.
 #
 #   This also applies to drives that get reinserted while the machine is
 #   powered off.
@@ -92,7 +92,7 @@ function verify_assertion # spare_dev
 	enable_sas_disk $EXPANDER $PHY
 
 	# Check that the disk has returned
-	wait_for_disk_to_reappear 20
+	wait_for_disk_to_reappear 20 $EXPANDER $PHY
 
 	# Import the pool
 	log_must $ZPOOL import $TESTPOOL
@@ -104,7 +104,7 @@ function verify_assertion # spare_dev
 	while ! is_pool_resilvered $TESTPOOL; do
 		$SLEEP 2
 	done
-	log_must $ZPOOL status
+	log_must $ZPOOL status $TESTPOOL
 
 	#Finally, check that the spare deactivated
 	wait_for_pool_dev_state_change 20 $spare_dev AVAIL

@@ -87,12 +87,12 @@ function verify_assertion # spare_dev
 	restart_zfsd
 
 	# Check that the spare was activated
-	wait_for_pool_dev_state_change $spare_dev INUSE
+	wait_for_pool_dev_state_change 20 $spare_dev INUSE
 
 	# Reenable the  missing disk
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
-	wait_for_disk_to_reappear 20
+	wait_for_disk_to_reappear 20 $EXPANDER $PHY
 }
 
 typeset REMOVAL_DISK=$DISK0

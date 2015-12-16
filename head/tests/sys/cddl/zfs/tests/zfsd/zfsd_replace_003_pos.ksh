@@ -35,6 +35,7 @@
 
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/tests/hotspare/hotspare.kshlib
 . $STF_SUITE/tests/zfsd/zfsd.kshlib
 
 verify_runnable "global"
@@ -68,7 +69,7 @@ function remove_disk
 	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$DISK\" was not removed"
 
 	# Check to make sure ZFS sees the disk as removed
-	wait_for_pool_removal 20
+	wait_for_pool_dev_state_change 20 $DISK REMOVED
 }
 
 # arg1: disk's old devname
@@ -80,7 +81,6 @@ function reconnect_disk
 	typeset DISK=$1
 	typeset EXPANDER=$2
 	typeset PHY=$3
-	typeset DEVNAME_DIFFERS=$4
 
 	# Re-enable the disk, we don't want to leave it turned off
 	log_note "Re-enabling phy $PHY on expander $EXPANDER"
@@ -88,20 +88,18 @@ function reconnect_disk
 
 	log_note "Checking to see whether disk has reappeared"
 	# Make sure the disk is back in the topology
-	wait_for_disk_to_reappear 20
+	wait_for_disk_to_reappear 20 $EXPANDER $PHY
 
-	if [ -n "$DEVNAME_MUST_DIFFER" ]; then
-		prev_disks=$(find_disks $FOUNDDISK)
-		cur_disks=$(find_disks $DISK)
+	prev_disk=$(find_disks $DISK)
+	cur_disk=$(find_disks $FOUNDDISK)
 
-		# If you get this, the test must be fixed to guarantee that
-		# it will reappear with a different name.
-		[ "${prev_disk}" = "${cur_disk}" ] && log_unsupported \
-			"Disk $DISK reappeared with the same devname."
-	fi
+	# If you get this, the test must be fixed to guarantee that
+	# it will reappear with a different name.
+	[ "${prev_disk}" = "${cur_disk}" ] && log_unsupported \
+		"Disk $DISK reappeared with the same devname."
 
 	#Disk should have auto-joined the zpool. Verify it's status is online.
-	wait_for_pool_dev_state_change 20 $DISK ONLINE
+	wait_for_pool_dev_state_change 20 $FOUNDDISK ONLINE
 }
 
 log_assert "ZFSD will correctly replace disks that disappear and reappear \
@@ -122,6 +120,12 @@ child_pids=""
 set -A DISKS_ARRAY $DISKS
 typeset DISK0=${DISKS_ARRAY[0]}
 typeset DISK1=${DISKS_ARRAY[1]}
+if [ ${DISK0##/dev/da} -gt ${DISK1##/dev/da} ]; then
+	# Swap disks so we'll disable the lowest numbered first
+	typeset TMP="$DISK1"
+	DISK1="$DISK0"
+	DISK0="$TMP"
+fi
 
 for type in "raidz2" "mirror"; do
 	# Create a pool on the supplied disks
