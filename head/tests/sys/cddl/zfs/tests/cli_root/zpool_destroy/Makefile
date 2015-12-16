@@ -13,5 +13,6 @@ FILES+=	zpool_destroy.cfg
 FILES+=	zpool_destroy_001_pos.ksh
 FILES+=	zpool_destroy_002_pos.ksh
 FILES+=	zpool_destroy_003_neg.ksh
+FILES+=	zpool_destroy_004_pos.ksh
 
 .include <bsd.test.mk>

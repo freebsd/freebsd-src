@@ -98,10 +98,37 @@ zpool_destroy_003_neg_cleanup()
 }
 
 
+atf_test_case zpool_destroy_004_pos cleanup
+zpool_destroy_004_pos_head()
+{
+	atf_set "descr" "'zpool destroy -f' should work on active pools."
+	atf_set "require.progs" zfs zpool
+	atf_set "require.config" at_least_2_disks
+	atf_set "timeout" 2000
+}
+zpool_destroy_004_pos_body()
+{
+	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_destroy.cfg
+
+	ksh93 $(atf_get_srcdir)/zpool_destroy_004_pos.ksh || atf_fail "Testcase failed"
+}
+zpool_destroy_004_pos_cleanup()
+{
+	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_destroy.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
+
 atf_init_test_cases()
 {
 
 	atf_add_test_case zpool_destroy_001_pos
 	atf_add_test_case zpool_destroy_002_pos
 	atf_add_test_case zpool_destroy_003_neg
+	atf_add_test_case zpool_destroy_004_pos
 }
