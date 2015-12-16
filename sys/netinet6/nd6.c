@@ -1748,7 +1748,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		if (ln->la_expire == 0)
 			nbi->expire = 0;
 		else
-			nbi->expire = ln->la_expire +
+			nbi->expire = ln->la_expire + ln->lle_remtime / hz +
 			    (time_second - time_uptime);
 		LLE_RUNLOCK(ln);
 		break;
