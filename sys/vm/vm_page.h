@@ -514,37 +514,38 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #define	vm_page_assert_sbusied(m)					\
 	KASSERT(vm_page_sbusied(m),					\
 	    ("vm_page_assert_sbusied: page %p not shared busy @ %s:%d", \
-	    (void *)m, __FILE__, __LINE__));
+	    (m), __FILE__, __LINE__))
 
 #define	vm_page_assert_unbusied(m)					\
 	KASSERT(!vm_page_busied(m),					\
 	    ("vm_page_assert_unbusied: page %p busy @ %s:%d",		\
-	    (void *)m, __FILE__, __LINE__));
+	    (m), __FILE__, __LINE__))
 
 #define	vm_page_assert_xbusied(m)					\
 	KASSERT(vm_page_xbusied(m),					\
 	    ("vm_page_assert_xbusied: page %p not exclusive busy @ %s:%d", \
-	    (void *)m, __FILE__, __LINE__));
+	    (m), __FILE__, __LINE__))
 
 #define	vm_page_busied(m)						\
 	((m)->busy_lock != VPB_UNBUSIED)
 
 #define	vm_page_sbusy(m) do {						\
 	if (!vm_page_trysbusy(m))					\
-		panic("%s: page %p failed shared busing", __func__, m);	\
+		panic("%s: page %p failed shared busying", __func__,	\
+		    (m));						\
 } while (0)
 
 #define	vm_page_tryxbusy(m)						\
-	(atomic_cmpset_acq_int(&m->busy_lock, VPB_UNBUSIED,		\
+	(atomic_cmpset_acq_int(&(m)->busy_lock, VPB_UNBUSIED,		\
 	    VPB_SINGLE_EXCLUSIVER))
 
 #define	vm_page_xbusied(m)						\
-	((m->busy_lock & VPB_SINGLE_EXCLUSIVER) != 0)
+	(((m)->busy_lock & VPB_SINGLE_EXCLUSIVER) != 0)
 
 #define	vm_page_xbusy(m) do {						\
 	if (!vm_page_tryxbusy(m))					\
-		panic("%s: page %p failed exclusive busing", __func__,	\
-		    m);							\
+		panic("%s: page %p failed exclusive busying", __func__,	\
+		    (m));						\
 } while (0)
 
 #define	vm_page_xunbusy(m) do {						\
