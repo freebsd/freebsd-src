@@ -63,11 +63,36 @@ set -A values filesystem volume snapshot -3 0 1 50K 10G 80G \
 set -A dataset $TESTPOOL $TESTPOOL/$TESTFS $TESTPOOL/$TESTVOL \
 	$TESTPOOL/$TESTCTR/$TESTFS1 $TESTPOOL/$TESTFS@$TESTSNAP \
 	$TESTPOOL/$TESTVOL@$TESTSNAP
-typeset ro_props="type used available avail creation referenced refer compressratio \
-	mounted origin"
-typeset snap_ro_props="volsize recordsize recsize quota reservation reserv mountpoint \
-	sharenfs checksum compression compress atime devices exec readonly rdonly \
-	setuid"
+
+typeset ro_props="type"
+ro_props="$ro_props creation"
+ro_props="$ro_props compressratio"
+ro_props="$ro_props mounted"
+ro_props="$ro_props origin"
+# Uncomment these once the test ensures they can't be changed.
+#ro_props="$ro_props used"
+#ro_props="$ro_props available"
+#ro_props="$ro_props avail"
+#ro_props="$ro_props referenced"
+#ro_props="$ro_props refer"
+
+typeset snap_ro_props="volsize"
+snap_ro_props="$snap_ro_props recordsize"
+snap_ro_props="$snap_ro_props recsize"
+snap_ro_props="$snap_ro_props quota"
+snap_ro_props="$snap_ro_props reservation"
+snap_ro_props="$snap_ro_props reserv"
+snap_ro_props="$snap_ro_props mountpoint"
+snap_ro_props="$snap_ro_props sharenfs"
+snap_ro_props="$snap_ro_props checksum"
+snap_ro_props="$snap_ro_props compression"
+snap_ro_props="$snap_ro_props compress"
+snap_ro_props="$snap_ro_props atime"
+snap_ro_props="$snap_ro_props devices"
+snap_ro_props="$snap_ro_props exec"
+snap_ro_props="$snap_ro_props readonly"
+snap_ro_props="$snap_ro_props rdonly"
+snap_ro_props="$snap_ro_props setuid"
 
 $ZFS upgrade -v > /dev/null 2>&1
 if [[ $? -eq 0 ]]; then
@@ -76,6 +101,7 @@ fi
 	
 function cleanup
 {
+	poolexists $TESTPOOL && log_must $ZPOOL history $TESTPOOL
 	datasetexists $TESTPOOL/$TESTVOL@$TESTSNAP && \
 		destroy_snapshot $TESTPOOL/$TESTVOL@$TESTSNAP
 	datasetexists $TESTPOOL/$TESTFS@$TESTSNAP && \
