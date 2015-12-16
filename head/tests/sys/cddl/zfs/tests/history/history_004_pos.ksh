@@ -58,7 +58,7 @@ verify_runnable "global"
 
 log_assert "'zpool history' can copes with many simultaneous command."
 
-typeset -i orig_count=$($ZPOOL history $spool | $WC -l | $AWK '{print $1}')
+typeset -i orig_count=$($ZPOOL history $TESTPOOL | $WC -l | $AWK '{print $1}')
 
 typeset -i i=0
 while ((i < 10)); do
@@ -102,11 +102,11 @@ while ((i < 10)); do
 	((i += 1))
 done
 
-typeset -i entry_count=$($ZPOOL history $spool | $WC -l | $AWK '{print $1}')
+typeset -i count=$($ZPOOL history $TESTPOOL | $WC -l | $AWK '{print $1}')
 
-if ((entry_count - orig_count != 200)); then
-	log_fail "The entries count error: entry_count=$entry_count " \
-		 "orig_count = $orig_count"
+if ((count - orig_count != 200)); then
+	$ZPOOL history $spool
+	log_fail "Expected 200 more than $orig_count entries, but got $count"
 fi
 
 log_pass "zpool history copes with simultaneous commands passed."

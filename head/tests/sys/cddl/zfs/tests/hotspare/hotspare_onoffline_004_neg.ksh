@@ -89,11 +89,6 @@ function start_all_wp
 		$FILE_TRUNC $options $TESTDIR/$TESTFILE.$i &
 		typeset pid=$!
 
-		$SLEEP 1
-		if ! $PS -p $pid > /dev/null 2>&1; then
-			log_fail "$FILE_TRUNC $options $TESTDIR/$TESTFILE.$i"
-		fi
-
 		child_pids="$child_pids $pid"
 		((i = i + 1))
 	done
@@ -116,6 +111,7 @@ function verify_assertion # dev
 		done
 
 		kill_all_wp
+		log_must test -f $TESTDIR/$TESTFILE.$i
 
 		log_must $ZPOOL offline $TESTPOOL $odev
 		log_must check_state $TESTPOOL $odev "offline"

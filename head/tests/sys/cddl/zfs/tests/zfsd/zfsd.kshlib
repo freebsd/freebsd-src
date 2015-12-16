@@ -34,8 +34,8 @@ function wait_for_disk_to_reappear
 
 	for ((; $timeout > 0; timeout=$timeout-1)); do
 		find_disk_by_phy $EXPANDER $PHY
-		[ -n "$FOUNDDISK" ] && return
-		$SLEEP 3
+		[ -n "$FOUNDDISK" -a -e "/dev/$FOUNDDISK" ] && return
+		$SLEEP 1
 	done
 	log_fail "ERROR: Disk ${EXPECTED_DISK} never reappeared"
 }
