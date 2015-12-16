@@ -142,31 +142,6 @@ VNET_DECLARE(int, tcp_insecure_rst);
 VNET_DECLARE(int, tcp_insecure_syn);
 #define	V_tcp_insecure_syn	VNET(tcp_insecure_syn)
 
-
-
-
-extern void	tcp_dooptions(struct tcpopt *, u_char *, int, int);
-extern void	tcp_dropwithreset(struct mbuf *, struct tcphdr *,
-		     struct tcpcb *, int, int);
-extern void	tcp_pulloutofband(struct socket *,
-		     struct tcphdr *, struct mbuf *, int);
-extern void	tcp_xmit_timer(struct tcpcb *, int);
-extern void	tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
-extern void	tcp_mss(struct tcpcb *tp, int offer);
-extern void 	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
-				uint16_t type);
-extern void cc_conn_init(struct tcpcb *tp);
-extern void cc_post_recovery(struct tcpcb *tp, struct tcphdr *th);
-extern void cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
-extern void hhook_run_tcp_est_in(struct tcpcb *tp,
-				 struct tcphdr *th, struct tcpopt *to);
-
-extern void kmod_tcpstat_inc(int statnum);
-#ifdef TCP_SIGNATURE
-extern int tcp_signature_verify_input(struct mbuf *m, int off0, int tlen, int optlen,
-	     struct tcpopt *to, struct tcphdr *th, u_int tcpbflag);
-#endif
-
 static void	 tcp_do_segment_fastslow(struct mbuf *, struct tcphdr *,
 			struct socket *, struct tcpcb *, int, int, uint8_t,
 			int);
