@@ -76,7 +76,7 @@
 /sbin/fsdb
 /sbin/fsirand
 /usr/bin/fsync
-#%%STFSUITEDIR%%/bin/fstyp
+/usr/sbin/fstyp
 /usr/bin/id
 #/usr/bin/isainfo
 #/usr/sbin/iscsiadm

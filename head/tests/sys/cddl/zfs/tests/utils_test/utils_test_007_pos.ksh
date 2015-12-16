@@ -36,12 +36,12 @@
 # ID: utils_test_007_pos
 #
 # DESCRIPTION:
-# Ensure that the fstyp(1M) utility succeeds on a ZFS file system.
+# Ensure that the fstyp(8) utility succeeds on a ZFS file system.
 #
 # STRATEGY:
 # 1. Populate a ZFS file system with some files.
-# 2. Run fstyp(1M) against the device.
-# 3. Ensure it fails.
+# 2. Run fstyp(8) against the device.
+# 3. Ensure it passes
 #
 # TESTABILITY: explicit
 #
@@ -66,7 +66,7 @@ function cleanup
 
 log_onexit cleanup
 
-log_assert "Ensure that the fstyp(1M) utility succeeds on a ZFS file system."
+log_assert "Ensure that the fstyp(8) utility succeeds on a ZFS file system."
 
 test_requires FSTYP
 
@@ -74,12 +74,10 @@ populate_dir $TESTDIR/$TESTFILE $NUM_FILES $WRITE_COUNT $BLOCKSZ $DATA
 
 log_must $ZFS unmount $TESTDIR
 
-if ! $(is_physical_device $DISK); then
-	log_must $FSTYP $DISK
-elif [[ $WRAPPER == "smi" ]]; then
-	log_must $FSTYP /dev/rdsk/${DISK}s2
-else
-	log_must $FSTYP /dev/rdsk/${DISK}s0
-fi	
+log_must $FSTYP $DISK
+detected_filesystem=$( $FSTYP $DISK )
+if [ "$detected_filesystem" != "zfs" ]; then
+	log_fail "fstyp(8) detected $detected_filesystem instead of zfs"
+fi
 
-log_pass "fstyp(1M) returned successfully."
+log_pass "fstyp(8) returned successfully."

@@ -14,7 +14,6 @@ SCRIPTS+=	ff.ksh
 SCRIPTS+=	fmadm.ksh
 SCRIPTS+=	fmdump.ksh
 SCRIPTS+=	format.ksh
-SCRIPTS+=	fstyp.ksh
 SCRIPTS+=	groupadd.ksh
 SCRIPTS+=	groupdel.ksh
 SCRIPTS+=	groupmod.ksh
