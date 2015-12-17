@@ -1,4 +1,4 @@
-.if !${.TARGETS:Mbuild-tools}
+.if !${.TARGETS:Mbuild-tools} && !defined(BOOTSTRAPPING)
 .if defined(NEED_CHERI)
 .if ${MK_CHERI} == "no"
 .error NEED_CHERI defined, but CHERI is not enabled
@@ -27,8 +27,9 @@ _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
 
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
-_CHERI_CC+=	-mabi=sandbox
+_CHERI_CC+=	-mabi=sandbox -mxgot
 LIBDIR:=	/usr/libcheri
+ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
 .if ${MK_CHERI_LINKER} == "yes"
 _CHERI_CC+=	-cheri-linker
 CFLAGS+=	-Wno-error

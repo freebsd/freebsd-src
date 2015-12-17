@@ -10,9 +10,9 @@
 .include <src.opts.mk>
 
 .if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
-ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+ROOTOBJDIR?=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 .elif defined(OBJTOP) && ${.OBJDIR:M${OBJTOP}*} != ""
-ROOTOBJDIR=	${OBJTOP}
+ROOTOBJDIR?=	${OBJTOP}
 .endif
 
 _PRIVATELIBS=	\
