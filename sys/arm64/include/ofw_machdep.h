@@ -41,4 +41,7 @@ struct mem_region {
 	vm_size_t	mr_size;
 };
 
+/* FDT follows ePAPR */
+#define	OFW_EPAPR
+
 #endif /* _MACHINE_OFW_MACHDEP_H_ */
