@@ -251,17 +251,7 @@ atomic_set_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	%0, %3\n\t"		/* load old value */
-		"or	%0, %2, %0\n\t"		/* calculate new value */
-		"cscd	%0, %0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=C" (p)
-		: "r" (v), "C" (p)
-		: "memory");
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -270,6 +260,16 @@ atomic_set_64(__volatile uint64_t *p, uint64_t v)
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
+		: "memory");
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, %3\n\t"		/* load old value */
+		"or	%0, %2, %0\n\t"		/* calculate new value */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
 		: "memory");
 #endif
 
@@ -281,17 +281,7 @@ atomic_clear_64(__volatile uint64_t *p, uint64_t v)
 	uint64_t temp;
 	v = ~v;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	%0, %3\n\t"		/* load old value */
-		"and	%0, %2, %0\n\t"		/* calculate new value */
-		"cscd	%0, %0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=C" (p)
-		: "r" (v), "C" (p)
-		: "memory");
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -300,6 +290,16 @@ atomic_clear_64(__volatile uint64_t *p, uint64_t v)
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
+		: "memory");
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, %3\n\t"		/* load old value */
+		"and	%0, %2, %0\n\t"		/* calculate new value */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
 		: "memory");
 #endif
 }
@@ -309,17 +309,7 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	%0, %3\n\t"		/* load old value */
-		"daddu	%0, %2, %0\n\t"		/* calculate new value */
-		"cscd	%0, %0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=C" (p)
-		: "r" (v), "C" (p)
-		: "memory");
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -328,6 +318,16 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
+		: "memory");
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, %3\n\t"		/* load old value */
+		"daddu	%0, %2, %0\n\t"		/* calculate new value */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
 		: "memory");
 #endif
 }
@@ -337,17 +337,7 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	%0, %3\n\t"		/* load old value */
-		"dsubu	%0, %2\n\t"		/* calculate new value */
-		"cscd	%0, %0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"		/* spin if failed */
-		: "=&r" (temp), "=C" (p)
-		: "r" (v), "C" (p)
-		: "memory");
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -357,6 +347,16 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
 		: "memory");
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, %3\n\t"		/* load old value */
+		"dsubu	%0, %2\n\t"		/* calculate new value */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
+		: "memory");
 #endif
 }
 
@@ -365,17 +365,7 @@ atomic_readandclear_64(__volatile uint64_t *addr)
 {
 	uint64_t result,temp;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	 %0, %3\n\t"		/* load old value */
-		"li	 %1, 0\n\t"		/* value to store */
-		"cscd	 %1, %1, %2\n\t"	/* attempt to store */
-		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "=C" (addr)
-		: "C" (addr)
-		: "memory");
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	 %0, %3\n\t"		/* load old value */
@@ -384,6 +374,16 @@ atomic_readandclear_64(__volatile uint64_t *addr)
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "m" (*addr)
+		: "memory");
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	 %0, %3\n\t"		/* load old value */
+		"li	 %1, 0\n\t"		/* value to store */
+		"cscd	 %1, %1, %2\n\t"	/* attempt to store */
+		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
+		: "=&r"(result), "=&r"(temp), "=C" (addr)
+		: "C" (addr)
 		: "memory");
 #endif
 
@@ -395,17 +395,7 @@ atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
 {
 	uint64_t result,temp;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	 %0, %3\n\t"		/* load old value*/
-		"or      %1, $0, %4\n\t"
-		"cscd	 %1, %1, %2\n\t"	/* attempt to store */
-		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
-		: "=&r"(result), "=&r"(temp), "=C" (addr)
-		: "C" (addr), "r" (value)
-		: "memory");
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	 %0,%3\n\t"		/* Load old value*/
@@ -414,6 +404,16 @@ atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "m" (*addr), "r" (value)
+		: "memory");
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	 %0, %3\n\t"		/* load old value*/
+		"or      %1, $0, %4\n\t"
+		"cscd	 %1, %1, %2\n\t"	/* attempt to store */
+		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
+		: "=&r"(result), "=&r"(temp), "=C" (addr)
+		: "C" (addr), "r" (value)
 		: "memory");
 #endif
 
@@ -607,22 +607,7 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 {
 	uint64_t ret;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	%0, %4\n\t"		/* load old value */
-		"bne	%0, %2, 2f\n\t"		/* compare */
-		"move	%0, %3\n\t"		/* value to store */
-		"cscd	%0, %0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"		/* if it failed, spin */
-		"j	3f\n\t"
-		"2:\n\t"
-		"li	%0, 0\n\t"
-		"3:\n"
-		: "=&r" (ret), "=C" (p)
-		: "r" (cmpval), "r" (newval), "C" (p)
-		: "memory");
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %4\n\t"		/* load old value */
@@ -636,6 +621,21 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 		"3:\n"
 		: "=&r" (ret), "=m" (*p)
 		: "r" (cmpval), "r" (newval), "m" (*p)
+		: "memory");
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, %4\n\t"		/* load old value */
+		"bne	%0, %2, 2f\n\t"		/* compare */
+		"move	%0, %3\n\t"		/* value to store */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* if it failed, spin */
+		"j	3f\n\t"
+		"2:\n\t"
+		"li	%0, 0\n\t"
+		"3:\n"
+		: "=&r" (ret), "=C" (p)
+		: "r" (cmpval), "r" (newval), "C" (p)
 		: "memory");
 #endif
 
@@ -673,16 +673,7 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t value, temp;
 
-#ifdef __CHERI_SANDBOX__
-	__asm __volatile (
-		"1:\n\t"
-		"clld	%0, %1\n\t"		/* load old value */
-		"daddu	%2, %3, %0\n\t"		/* calculate new value */
-		"cscd	%2, %2, %1\n\t"		/* attempt to store */
-		"beqz	%2, 1b\n\t"		/* spin if failed */
-		: "=&r" (value), "=C" (p), "=&r" (temp)
-		: "r" (v), "C" (p));
-#else
+#ifndef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %1\n\t"		/* load old value */
@@ -691,6 +682,15 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 		"beqz	%2, 1b\n\t"		/* spin if failed */
 		: "=&r" (value), "=m" (*p), "=&r" (temp)
 		: "r" (v), "m" (*p));
+#else
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, %1\n\t"		/* load old value */
+		"daddu	%2, %3, %0\n\t"		/* calculate new value */
+		"cscd	%2, %2, %1\n\t"		/* attempt to store */
+		"beqz	%2, 1b\n\t"		/* spin if failed */
+		: "=&r" (value), "=C" (p), "=&r" (temp)
+		: "r" (v), "C" (p));
 #endif
 	return (value);
 }
