@@ -129,9 +129,6 @@ extern	struct rmlock in_ifaddr_lock;
 #define	IN_IFADDR_WLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_WLOCKED)
 #define	IN_IFADDR_WUNLOCK()	rm_wunlock(&in_ifaddr_lock)
 
-#define	IFA_IN(ifa) \
-	(&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr)
-
 /*
  * Macro for finding the internet address structure (in_ifaddr)
  * corresponding to one of our IP addresses (in_addr).
