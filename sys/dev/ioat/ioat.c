@@ -736,6 +736,15 @@ ioat_put_dmaengine(bus_dmaengine_t dmaengine)
 }
 
 int
+ioat_get_hwversion(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->version);
+}
+
+int
 ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay)
 {
 	struct ioat_softc *ioat;
