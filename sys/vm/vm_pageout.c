@@ -226,6 +226,11 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_oom_seq,
 	CTLFLAG_RW, &vm_pageout_oom_seq, 0,
 	"back-to-back calls to oom detector to start OOM");
 
+static int act_scan_laundry_weight = 3;
+SYSCTL_INT(_vm, OID_AUTO, act_scan_laundry_weight,
+	CTLFLAG_RW, &act_scan_laundry_weight, 0,
+	"weight given to clean vs. dirty pages in active queue scans");
+
 #define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 
@@ -1494,10 +1499,19 @@ drop_page:
 	/*
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to either the inactive or laundry queue.
+	 *
+	 * When scanning active pages, we make clean pages count more heavily
+	 * towards the page shortage than dirty pages.  This is because dirty
+	 * pages must be laundered before they can be reused and thus have less
+	 * utility when attempting to quickly alleviate a shortage.  However,
+	 * this weighting also causes the scan to deactivate dirty pages more
+	 * more aggressively, improving the effectiveness of clustering and
+	 * ensuring that they can eventually be reused.
 	 */
 	page_shortage = vm_cnt.v_inactive_target - (vm_cnt.v_inactive_count +
-	    vm_cnt.v_laundry_count) + vm_paging_target() + deficit +
-	    addl_page_shortage;
+	    vm_cnt.v_laundry_count / act_scan_laundry_weight) +
+	    vm_paging_target() + deficit + addl_page_shortage;
+	page_shortage *= act_scan_laundry_weight;
 
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
 	vm_pagequeue_lock(pq);
@@ -1578,7 +1592,7 @@ drop_page:
 			m->act_count -= min(m->act_count, ACT_DECLINE);
 
 		/*
-		 * Move this page to the tail of the active or inactive
+		 * Move this page to the tail of the active, inactive or laundry
 		 * queue depending on usage.
 		 */
 		if (m->act_count == 0) {
@@ -1588,11 +1602,13 @@ drop_page:
 			if (m->object->ref_count != 0)
 				vm_page_test_dirty(m);
 #endif
-			if (m->dirty == 0)
+			if (m->dirty == 0) {
 				vm_page_deactivate(m);
-			else
+				page_shortage -= act_scan_laundry_weight;
+			} else {
 				vm_page_launder(m);
-			page_shortage--;
+				page_shortage--;
+			}
 		} else
 			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
