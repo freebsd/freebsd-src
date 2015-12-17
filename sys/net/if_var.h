@@ -500,6 +500,7 @@ struct ifmultiaddr *
 void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
+void	if_link_state_change_cond(struct ifnet *, int, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
 void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);

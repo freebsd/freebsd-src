@@ -5,7 +5,7 @@
 
 PROG=   smpdump
 SRCS=   smpdump.c
-LDADD=	-libumad -libcommon -libmad
+LIBADD= ibumad ibcommon ibmad
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	smpdump.8
 

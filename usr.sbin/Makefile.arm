@@ -1,4 +1,5 @@
 # $FreeBSD$
 
-SUBDIR+=	ofwdump
 SUBDIR+=	kgmon
+SUBDIR+=	mount_smbfs
+SUBDIR+=	ofwdump

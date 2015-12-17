@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2014
+.Dd December 16, 2015
 .Dt VOP_GETPAGES 9
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .In sys/vnode.h
 .In vm/vm.h
 .Ft int
-.Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int reqpage"
+.Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int *rbehind" "int *rahead"
 .Ft int
 .Fn VOP_PUTPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int sync" "int *rtvals"
 .Sh DESCRIPTION
@@ -63,7 +63,7 @@ locks are held.
 Both methods return in the same state on both success and error returns.
 .Pp
 The arguments are:
-.Bl -tag -width reqpage
+.Bl -tag -width rbehind
 .It Fa vp
 The file to access.
 .It Fa ma
@@ -78,9 +78,16 @@ if the write should be synchronous.
 An array of VM system result codes indicating the status of each
 page written by
 .Fn VOP_PUTPAGES .
-.It Fa reqpage
-The index in the page array of the requested page; i.e., the one page which
-the implementation of this method must handle.
+.It Fa rbehind
+Optional pointer to integer specifying number of pages to be read behind, if
+possible.
+If the filesystem supports that feature, number of actually read pages is
+reported back, otherwise zero is returned.
+.It Fa rahead
+Optional pointer to integer specifying number of pages to be read ahead, if
+possible.
+If the filesystem supports that feature, number of actually read pages is
+reported back, otherwise zero is returned.
 .El
 .Pp
 The status of the

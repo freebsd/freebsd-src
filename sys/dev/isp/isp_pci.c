@@ -294,6 +294,10 @@ static struct ispmdvec mdvec_2600 = {
 #define	PCI_PRODUCT_QLOGIC_ISP2031	0x2031
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP8031
+#define	PCI_PRODUCT_QLOGIC_ISP8031	0x8031
+#endif
+
 #define        PCI_QLOGIC_ISP5432      \
        ((PCI_PRODUCT_QLOGIC_ISP5432 << 16) | PCI_VENDOR_QLOGIC)
 
@@ -348,6 +352,9 @@ static struct ispmdvec mdvec_2600 = {
 #define	PCI_QLOGIC_ISP2031	\
 	((PCI_PRODUCT_QLOGIC_ISP2031 << 16) | PCI_VENDOR_QLOGIC)
 
+#define	PCI_QLOGIC_ISP8031	\
+	((PCI_PRODUCT_QLOGIC_ISP8031 << 16) | PCI_VENDOR_QLOGIC)
+
 /*
  * Odd case for some AMI raid cards... We need to *not* attach to this.
  */
@@ -366,11 +373,14 @@ struct isp_pcisoftc {
 	ispsoftc_t			pci_isp;
 	device_t			pci_dev;
 	struct resource *		regs;
+	struct resource *		regs1;
 	struct resource *		regs2;
 	void *				irq;
 	int				iqd;
 	int				rtp;
 	int				rgd;
+	int				rtp1;
+	int				rgd1;
 	int				rtp2;
 	int				rgd2;
 	void *				ih;
@@ -457,6 +467,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP2031:
 		device_set_desc(dev, "Qlogic ISP 2031 PCI FC-AL Adapter");
+		break;
+	case PCI_QLOGIC_ISP8031:
+		device_set_desc(dev, "Qlogic ISP 8031 PCI FCoE Adapter");
 		break;
 	default:
 		return (ENXIO);
@@ -800,6 +813,7 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
 		break;
 	case PCI_QLOGIC_ISP2031:
+	case PCI_QLOGIC_ISP8031:
 		did = 0x2600;
 		isp->isp_nchan += isp_nvports;
 		isp->isp_mdvec = &mdvec_2600;
@@ -817,6 +831,10 @@ isp_pci_attach(device_t dev)
 		pcs->rtp = SYS_RES_MEMORY;
 		pcs->rgd = PCIR_BAR(0);
 		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd,
+		    RF_ACTIVE);
+		pcs->rtp1 = SYS_RES_MEMORY;
+		pcs->rgd1 = PCIR_BAR(2);
+		pcs->regs1 = bus_alloc_resource_any(dev, pcs->rtp1, &pcs->rgd1,
 		    RF_ACTIVE);
 		pcs->rtp2 = SYS_RES_MEMORY;
 		pcs->rgd2 = PCIR_BAR(4);
@@ -925,20 +943,28 @@ isp_pci_attach(device_t dev)
 	data &= ~1;
 	pci_write_config(dev, PCIR_ROMADDR, data, 4);
 
-	/*
-	 * Do MSI
-	 *
-	 * NB: MSI-X needs to be disabled for the 2432 (PCI-Express)
-	 */
-	if (IS_24XX(isp) || IS_2322(isp)) {
-		pcs->msicount = pci_msi_count(dev);
-		if (pcs->msicount > 1) {
-			pcs->msicount = 1;
-		}
-		if (pci_alloc_msi(dev, &pcs->msicount) == 0) {
+	if (IS_26XX(isp)) {
+		/* 26XX chips support only MSI-X, so start from them. */
+		pcs->msicount = imin(pci_msix_count(dev), 1);
+		if (pcs->msicount > 0 &&
+		    (i = pci_alloc_msix(dev, &pcs->msicount)) == 0) {
 			pcs->iqd = 1;
 		} else {
-			pcs->iqd = 0;
+			pcs->msicount = 0;
+		}
+	}
+	if (pcs->msicount == 0 && (IS_24XX(isp) || IS_2322(isp))) {
+		/*
+		 * Older chips support both MSI and MSI-X, but I have
+		 * feeling that older firmware may not support MSI-X,
+		 * but we have no way to check the firmware flag here.
+		 */
+		pcs->msicount = imin(pci_msi_count(dev), 1);
+		if (pcs->msicount > 0 &&
+		    pci_alloc_msi(dev, &pcs->msicount) == 0) {
+			pcs->iqd = 1;
+		} else {
+			pcs->msicount = 0;
 		}
 	}
 	pcs->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &pcs->iqd, RF_ACTIVE | RF_SHAREABLE);
@@ -995,6 +1021,8 @@ bad:
 	}
 	if (pcs->regs)
 		(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
+	if (pcs->regs1)
+		(void) bus_release_resource(dev, pcs->rtp1, pcs->rgd1, pcs->regs1);
 	if (pcs->regs2)
 		(void) bus_release_resource(dev, pcs->rtp2, pcs->rgd2, pcs->regs2);
 	if (pcs->pci_isp.isp_param) {
@@ -1035,6 +1063,8 @@ isp_pci_detach(device_t dev)
 		pci_release_msi(dev);
 	}
 	(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
+	if (pcs->regs1)
+		(void) bus_release_resource(dev, pcs->rtp1, pcs->rgd1, pcs->regs1);
 	if (pcs->regs2)
 		(void) bus_release_resource(dev, pcs->rtp2, pcs->rgd2, pcs->regs2);
 	/*

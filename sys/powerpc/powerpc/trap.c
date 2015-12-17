@@ -252,6 +252,7 @@ trap(struct trapframe *frame)
 			enable_fpu(td);
 			break;
 
+		case EXC_VECAST_E:
 		case EXC_VECAST_G4:
 		case EXC_VECAST_G5:
 			/*

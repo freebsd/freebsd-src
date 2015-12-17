@@ -870,6 +870,7 @@ const char *	nvme_ns_get_serial_number(struct nvme_namespace *ns);
 const char *	nvme_ns_get_model_number(struct nvme_namespace *ns);
 const struct nvme_namespace_data *
 		nvme_ns_get_data(struct nvme_namespace *ns);
+uint32_t	nvme_ns_get_optimal_sector_size(struct nvme_namespace *ns);
 uint32_t	nvme_ns_get_stripesize(struct nvme_namespace *ns);
 
 int	nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,

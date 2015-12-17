@@ -271,9 +271,13 @@
                     ..
                 ..
             ..
+            nss
+            ..
             regex
                 data
                 ..
+            ..
+            resolv
             ..
             rpc
             ..
