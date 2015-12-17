@@ -2207,6 +2207,8 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
+	res = __res_state();
+
 	buf = malloc(sizeof(*buf));
 	if (!buf) {
 		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
@@ -2253,7 +2255,6 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 		return NS_UNAVAIL;
 	}
 
-	res = __res_state();
 	if ((res->options & RES_INIT) == 0 && res_ninit(res) == -1) {
 		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
 		free(buf);
