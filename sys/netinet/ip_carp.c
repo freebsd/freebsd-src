@@ -1009,12 +1009,13 @@ static void
 carp_send_arp(struct carp_softc *sc)
 {
 	struct ifaddr *ifa;
+	struct in_addr addr;
 
 	CARP_FOREACH_IFA(sc, ifa) {
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
-		arp_announce_addr(sc->sc_carpdev, IFA_IN(ifa),
-		    LLADDR(&sc->sc_addr));
+		addr = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+		arp_announce_ifaddr(sc->sc_carpdev, addr, LLADDR(&sc->sc_addr));
 	}
 }
 
@@ -1036,16 +1037,18 @@ carp_iamatch(struct ifaddr *ifa, uint8_t **enaddr)
 static void
 carp_send_na(struct carp_softc *sc)
 {
+	static struct in6_addr mcast = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
 	struct ifaddr *ifa;
+	struct in6_addr *in6;
 
 	CARP_FOREACH_IFA(sc, ifa) {
-		if (ifa->ifa_addr->sa_family != AF_INET6 ||
-		    IFA_ND6_NA_UNSOLICITED_SKIP(ifa))
+		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
-		nd6_na_output_unsolicited_addr(sc->sc_carpdev, IFA_IN6(ifa),
-		    IFA_ND6_NA_BASE_FLAGS(sc->sc_carpdev, ifa));
-		DELAY(nd6_na_unsolicited_addr_delay(ifa));
+		in6 = IFA_IN6(ifa);
+		nd6_na_output(sc->sc_carpdev, &mcast, in6,
+		    ND_NA_FLAG_OVERRIDE, 1, NULL);
+		DELAY(1000);	/* XXX */
 	}
 }
 
