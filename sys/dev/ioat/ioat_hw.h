@@ -46,9 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #define	IOAT_CBVER_OFFSET		0x08
 
-#define	IOAT_VER_3_0			0x30
-#define	IOAT_VER_3_3			0x33
-
 #define	IOAT_INTRDELAY_OFFSET		0x0C
 #define	IOAT_INTRDELAY_SUPPORTED	(1 << 15)
 /* Reserved.				(1 << 14) */
