@@ -254,9 +254,9 @@ atomic_set_64(__volatile uint64_t *p, uint64_t v)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"clld	%0, %3\n\t"		/* load old value */
 		"or	%0, %2, %0\n\t"		/* calculate new value */
-		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -284,9 +284,9 @@ atomic_clear_64(__volatile uint64_t *p, uint64_t v)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"clld	%0, %3\n\t"		/* load old value */
 		"and	%0, %2, %0\n\t"		/* calculate new value */
-		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -312,9 +312,9 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"clld	%0, %3\n\t"		/* load old value */
 		"daddu	%0, %2, %0\n\t"		/* calculate new value */
-		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -340,9 +340,9 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"clld	%0, %3\n\t"		/* load old value */
 		"dsubu	%0, %2\n\t"		/* calculate new value */
-		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=C" (p)
 		: "r" (v), "C" (p)
@@ -368,9 +368,9 @@ atomic_readandclear_64(__volatile uint64_t *addr)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	 %0, $0, 0(%3)\n\t"	/* load old value */
+		"clld	 %0, %3\n\t"		/* load old value */
 		"li	 %1, 0\n\t"		/* value to store */
-		"cscd	 %1, $0, 0(%2)\n\t"	/* attempt to store */
+		"cscd	 %1, %1, %2\n\t"	/* attempt to store */
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "=C" (addr)
 		: "C" (addr)
@@ -398,9 +398,9 @@ atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	 %0, $0, 0(%3)\n\t"	/* load old value*/
+		"clld	 %0, %3\n\t"		/* load old value*/
 		"or      %1, $0, %4\n\t"
-		"cscd	 %1, $0, 0(%2)\n\t"	/* attempt to store */
+		"cscd	 %1, %1, %2\n\t"	/* attempt to store */
 		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "=C" (addr)
 		: "C" (addr), "r" (value)
@@ -610,10 +610,10 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	%0, $0, 0(%4)\n\t"	/* load old value */
+		"clld	%0, %4\n\t"		/* load old value */
 		"bne	%0, %2, 2f\n\t"		/* compare */
 		"move	%0, %3\n\t"		/* value to store */
-		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"cscd	%0, %0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* if it failed, spin */
 		"j	3f\n\t"
 		"2:\n\t"
@@ -676,9 +676,9 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 #ifdef __CHERI_SANDBOX__
 	__asm __volatile (
 		"1:\n\t"
-		"clld	%0, $0, 0(%1)\n\t"		/* load old value */
+		"clld	%0, %1\n\t"		/* load old value */
 		"daddu	%2, %3, %0\n\t"		/* calculate new value */
-		"cscd	%2, $0, 0(%1)\n\t"		/* attempt to store */
+		"cscd	%2, %2, %1\n\t"		/* attempt to store */
 		"beqz	%2, 1b\n\t"		/* spin if failed */
 		: "=&r" (value), "=C" (p), "=&r" (temp)
 		: "r" (v), "C" (p));
