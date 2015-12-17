@@ -307,7 +307,8 @@ int		__sys_accept4(int, struct sockaddr *, __socklen_t *, int);
 int		__sys_clock_gettime(__clockid_t, struct timespec *ts);
 int		__sys_close(int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
-int		__sys_fcntl(int, int, ...);
+		/* fcntl declared to match the kernel so we can call directly */
+int		__sys_fcntl(int, int, __intptr_t);
 int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);
@@ -320,8 +321,8 @@ __off_t		__sys_lseek(int, __off_t, int);
 void	       *__sys_mmap(void *, __size_t, int, int, int, __off_t);
 int		__sys_msync(void *, __size_t, int);
 int		__sys_nanosleep(const struct timespec *, struct timespec *);
-int		__sys_open(const char *, int, ...);
-int		__sys_openat(int, const char *, int, ...);
+		/* openat declared to match the kernel so we can call directly */
+int		__sys_openat(int, const char *, int, int);
 int		__sys_pselect(int, struct fd_set *, struct fd_set *,
 		    struct fd_set *, const struct timespec *,
 		    const __sigset_t *);

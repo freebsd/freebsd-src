@@ -57,6 +57,6 @@ openat(int fd, const char *path, int flags, ...)
 	} else {
 		mode = 0;
 	}
-	return (((int (*)(int, const char *, int, ...))
+	return (((int (*)(int, const char *, int, int))
 	    __libc_interposing[INTERPOS_openat])(fd, path, flags, mode));
 }
