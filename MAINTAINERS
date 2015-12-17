@@ -37,9 +37,12 @@ contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
 contrib/pjdfstest	freebsd-testing,ngie,pjd	Pre-commit review requested.
 dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+*env(3)		secteam	Due to the problematic security history of this
+			code, please have patches reviewed by secteam.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 fetch		des	Pre-commit review requested.
+geli		pjd	Pre-commit review requested (both sys/geom/eli/ and sbin/geom/class/eli/).
 isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
@@ -51,6 +54,7 @@ lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 nanobsd		imp	Pre-commit phabricator review requested.
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
 nis(8), yp(8)	araujo	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvme(4)		jimharris	Pre-commit review requested.
@@ -59,6 +63,7 @@ opencrypto	jmg	Pre-commit review requested.  Documentation Required.
 openssh		des	Pre-commit review requested.
 openssl		benl,jkim	Pre-commit review requested.
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+pci bus		imp,jhb	Pre-commit review requested.
 pmcstudy(8)	rrs		Pre-commit review requested.
 procfs		des	Pre-commit review requested.
 pseudofs	des	Pre-commit review requested.
@@ -92,7 +97,6 @@ contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
-pci bus		imp,jhb	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
@@ -122,7 +126,6 @@ file		obrien	Insists to keep file blocked from other's unapproved
 contrib/bzip2	obrien	Pre-commit review required.
 geom		freebsd-geom@FreeBSD.org
 geom_concat	pjd	Pre-commit review preferred.
-geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
 geom_label	pjd	Pre-commit review preferred.
 geom_mirror	pjd	Pre-commit review preferred.
@@ -133,7 +136,6 @@ geom_stripe	pjd	Pre-commit review preferred.
 geom_zero	pjd	Pre-commit review preferred.
 sbin/geom	pjd	Pre-commit review preferred.
 zfs		freebsd-fs@FreeBSD.org
-nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
@@ -143,8 +145,6 @@ lib/libbluetooth	emax	Pre-commit review preferred.
 lib/libsdp		emax	Pre-commit review preferred.
 usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
-*env(3)		secteam	Due to the problematic security history of this
-			code, please have patches reviewed by secteam.
 share/zoneinfo		edwin	Heads-up appreciated, since our data is coming
 				from a third party source.
 usr.sbin/zic		edwin   Heads-up appreciated, since this code is

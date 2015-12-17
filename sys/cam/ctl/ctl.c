@@ -6868,6 +6868,8 @@ ctl_log_sense(struct ctl_scsiio *ctsio)
 
 	header = (struct scsi_log_header *)ctsio->kern_data_ptr;
 	header->page = page_index->page_code;
+	if (page_index->page_code == SLS_LOGICAL_BLOCK_PROVISIONING)
+		header->page |= SL_DS;
 	if (page_index->subpage) {
 		header->page |= SL_SPF;
 		header->subpage = page_index->subpage;
