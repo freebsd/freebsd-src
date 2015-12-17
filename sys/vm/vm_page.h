@@ -678,5 +678,20 @@ vm_page_undirty(vm_page_t m)
 	m->dirty = 0;
 }
 
+static inline void
+vm_page_replace_checked(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
+    vm_page_t mold)
+{
+	vm_page_t mret;
+
+	mret = vm_page_replace(mnew, object, pindex);
+	KASSERT(mret == mold,
+	    ("invalid page replacement, mold=%p, mret=%p", mold, mret));
+
+	/* Unused if !INVARIANTS. */
+	(void)mold;
+	(void)mret;
+}
+
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */
