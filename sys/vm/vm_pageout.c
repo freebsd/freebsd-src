@@ -155,6 +155,11 @@ static struct kproc_desc vm_kp = {
 SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 #endif
 
+/* Sleep intervals for pagedaemon threads, in subdivisions of one second. */
+#define	VM_LAUNDER_INTERVAL	10
+#define	VM_INACT_SCAN_INTERVAL	2
+
+#define	VM_LAUNDER_RATE		(VM_LAUNDER_INTERVAL / VM_INACT_SCAN_INTERVAL)
 
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
@@ -1042,13 +1047,19 @@ vm_pageout_launder1(struct vm_domain *vmd)
 	boolean_t pageout_ok, queues_locked;
 
 	/*
-	 * XXX
+	 * Compute the number of pages we want to move from the laundry queue to
+	 * the inactive queue.  If there is no shortage of clean, inactive
+	 * pages, we allow laundering to proceed at a trickle to ensure that
+	 * dirty pages will eventually be reused.  Otherwise, the inactive queue
+	 * target is scaled by the ratio of the sleep intervals of the laundry
+	 * queue and inactive queue worker threads.
 	 */
 	launder = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
 	    vm_paging_target() + vm_pageout_deficit;
 	if (launder < 0)
-		launder = 5;
-	launder /= 5;
+		launder = 1;
+	else
+		launder /= VM_LAUNDER_RATE;
 
 	vnodes_skipped = 0;
 
@@ -1223,7 +1234,8 @@ vm_pageout_laundry_worker(void *arg)
 	 * The pageout laundry worker is never done, so loop forever.
 	 */
 	for (;;) {
-		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr", hz / 10);
+		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
+		    hz / VM_LAUNDER_INTERVAL);
 		vm_pageout_launder1(domain);
 	}
 }
@@ -1872,7 +1884,7 @@ vm_pageout_worker(void *arg)
 			if (domain->vmd_pass > 0)
 				msleep(&vm_pages_needed,
 				    &vm_page_queue_free_mtx, PVM, "psleep",
-				    hz / 2);
+				    hz / VM_INACT_SCAN_INTERVAL);
 		} else {
 			/*
 			 * Good enough, sleep until required to refresh
