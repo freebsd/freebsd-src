@@ -124,16 +124,20 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	struct in6_addr saddr6 = ip6->ip6_src;
 	struct in6_addr daddr6 = ip6->ip6_dst;
 	struct in6_addr taddr6;
+	struct in6_addr myaddr6;
 	char *lladdr = NULL;
 	struct ifaddr *ifa = NULL;
-	u_long flags;
 	int lladdrlen = 0;
-	int proxy = 0;
+	int anycast = 0, proxy = 0, tentative = 0;
 	int tlladdr;
+	int rflag;
 	union nd_opts ndopts;
 	struct sockaddr_dl proxydl;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
+	rflag = (V_ip6_forwarding) ? ND_NA_FLAG_ROUTER : 0;
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV && V_ip6_norbit_raif)
+		rflag = 0;
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, icmp6len,);
 	nd_ns = (struct nd_neighbor_solicit *)((caddr_t)ip6 + off);
@@ -225,7 +229,10 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 * In implementation, we add target link-layer address by default.
 	 * We do not add one in MUST NOT cases.
 	 */
-	tlladdr = !IN6_IS_ADDR_MULTICAST(&daddr6);
+	if (!IN6_IS_ADDR_MULTICAST(&daddr6))
+		tlladdr = 0;
+	else
+		tlladdr = 1;
 
 	/*
 	 * Target address (taddr6) must be either:
@@ -282,6 +289,9 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		 */
 		goto freeit;
 	}
+	myaddr6 = *IFA_IN6(ifa);
+	anycast = ((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST;
+	tentative = ((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE;
 	if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DUPLICATED)
 		goto freeit;
 
@@ -293,7 +303,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-	if (IN6_ARE_ADDR_EQUAL(IFA_IN6(ifa), &saddr6)) {
+	if (IN6_ARE_ADDR_EQUAL(&myaddr6, &saddr6)) {
 		nd6log((LOG_INFO, "nd6_ns_input: duplicate IP6 address %s\n",
 		    ip6_sprintf(ip6bufs, &saddr6)));
 		goto freeit;
@@ -311,7 +321,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 *
 	 * The processing is defined in RFC 2462.
 	 */
-	if (IFA_IN6_FLAGS(ifa) & IN6_IFF_TENTATIVE) {
+	if (tentative) {
 		/*
 		 * If source address is unspecified address, it is for
 		 * duplicate address detection.
@@ -324,10 +334,6 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 		goto freeit;
 	}
-
-	flags = IFA_ND6_NA_BASE_FLAGS(ifp, ifa);
-	if (proxy || !tlladdr)
-		flags &= ~ND_NA_FLAG_OVERRIDE;
 
 	/*
 	 * If the source address is unspecified address, entries must not
@@ -343,16 +349,20 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		in6_all = in6addr_linklocal_allnodes;
 		if (in6_setscope(&in6_all, ifp, NULL) != 0)
 			goto bad;
-		nd6_na_output_fib(ifp, &in6_all, &taddr6, flags, tlladdr,
-		    proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
+		nd6_na_output_fib(ifp, &in6_all, &taddr6,
+		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
+		    rflag, tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL,
+		    M_GETFIB(m));
 		goto freeit;
 	}
 
 	nd6_cache_lladdr(ifp, &saddr6, lladdr, lladdrlen,
 	    ND_NEIGHBOR_SOLICIT, 0);
 
-	nd6_na_output_fib(ifp, &saddr6, &taddr6, flags | ND_NA_FLAG_SOLICITED,
-	    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
+	nd6_na_output_fib(ifp, &saddr6, &taddr6,
+	    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
+	    rflag | ND_NA_FLAG_SOLICITED, tlladdr,
+	    proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
  freeit:
 	if (ifa != NULL)
 		ifa_free(ifa);
@@ -1587,111 +1597,3 @@ nd6_dad_na_input(struct ifaddr *ifa)
 		nd6_dad_rele(dp);
 	}
 }
-
-/*
- * Send unsolicited neighbor advertisements for all interface addresses to
- * notify other nodes of changes.
- *
- * This is a noop if the interface isn't up.
- */
-void __noinline
-nd6_na_output_unsolicited(struct ifnet *ifp)
-{
-	int i, cnt, entries;
-	struct ifaddr *ifa;
-	struct ann {
-		struct in6_addr addr;
-		u_long flags;
-		int delay;
-	} *ann1, *head;
-
-	if (!(ifp->if_flags & IFF_UP))
-		return;
-
-	entries = 8;
-	cnt = 0;
-	head = malloc(sizeof(struct ann) * entries, M_TEMP, M_WAITOK);
-
-	/* Take a copy then process to avoid locking issues. */
-	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != AF_INET6 ||
-		    IFA_ND6_NA_UNSOLICITED_SKIP(ifa))
-			continue;
-
-		if (cnt == entries) {
-			ann1 = (struct ann*)realloc(head, sizeof(struct ann) *
-			    (entries + 8), M_TEMP, M_NOWAIT);
-			if (ann1 == NULL) {
-				log(LOG_INFO, "nd6_announce: realloc to %d "
-				    "entries failed\n", entries + 8);
-				/* Process what we have. */
-				break;
-			}
-			entries += 8;
-			head = ann1;
-		}
-
-		ann1 = head + cnt;
-		bcopy(IFA_IN6(ifa), &ann1->addr, sizeof(ann1->addr));
-		ann1->flags = IFA_ND6_NA_BASE_FLAGS(ifp, ifa);
-		ann1->delay = nd6_na_unsolicited_addr_delay(ifa);
-		cnt++;
-	}
-	IF_ADDR_RUNLOCK(ifp);
-
-	for (i = 0; i < cnt;) {
-		ann1 = head + i;
-		nd6_na_output_unsolicited_addr(ifp, &ann1->addr, ann1->flags);
-		i++;
-		if (i == cnt)
-			break;
-		/* XXX DELAY needs to be done in taskqueue to avoid stalling. */
-		//DELAY(ann1->delay);
-	}
-	free(head, M_TEMP);
-}
-
-/*
- * Return the delay required for announcements of the address as per RFC 4861.
- */
-int
-nd6_na_unsolicited_addr_delay(struct ifaddr *ifa)
-{
-
-	if (IFA_IN6_FLAGS(ifa) & IN6_IFF_ANYCAST) {
-		/*
-		 * Random value between 0 and MAX_ANYCAST_DELAY_TIME
-		 * as per section 7.2.7.
-		 */
-		return (random() % IN6_MAX_ANYCAST_DELAY_TIME_MS);
-	}
-
-	/* Small delay as per section 7.2.6. */
-	return (IN6_BROADCAST_DELAY_TIME_MS);
-}
-
-/*
- * Send an unsolicited neighbor advertisement for an address to notify other
- * nodes of changes.
- */
-void __noinline
-nd6_na_output_unsolicited_addr(struct ifnet *ifp, const struct in6_addr *addr,
-    u_long flags)
-{
-	int error;
-	struct in6_addr mcast;
-
-	mcast = in6addr_linklocal_allnodes;
-	if ((error = in6_setscope(&mcast, ifp, NULL)) != 0) {
-		/*
-		 * This shouldn't by possible as the only error is for loopback
-		 * address which we're not using.
-		 */
-		log(LOG_INFO, "in6_setscope: on mcast failed: %d\n", error);
-		return;
-	}
-	nd6_na_output(ifp, &mcast, addr, flags, 1, NULL);
-}
-
-
