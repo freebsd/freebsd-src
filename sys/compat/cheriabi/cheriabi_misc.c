@@ -583,18 +583,15 @@ cheriabi_recvmsg(struct thread *td,
 	} */ *uap)
 {
 	struct msghdr msg;
-	struct msghdr_c msg_c;
 	struct iovec *uiov, *iov;
 
 	int error;
-	error = copyin(uap->msg, &msg_c, sizeof(msg_c));
-	if (error)
-		return (error);
+
 	error = cheriabi_copyinmsghdr(uap->msg, &msg);
 	if (error)
 		return (error);
-	error = cheriabi_copyiniov(PTRIN(msg_c.msg_iov), msg_c.msg_iovlen, &iov,
-	    EMSGSIZE);
+	error = cheriabi_copyiniov((struct iovec_c *)msg.msg_iov, msg.msg_iovlen,
+	    &iov, EMSGSIZE);
 	if (error)
 		return (error);
 	msg.msg_flags = uap->flags;
@@ -621,20 +618,16 @@ cheriabi_sendmsg(struct thread *td,
 		  struct cheriabi_sendmsg_args *uap)
 {
 	struct msghdr msg;
-	struct msghdr_c msg_c;
 	struct iovec *iov;
 	struct mbuf *control = NULL;
 	struct sockaddr *to = NULL;
 	int error;
 
-	error = copyincap(uap->msg, &msg_c, sizeof(msg_c));
-	if (error)
-		return (error);
 	error = cheriabi_copyinmsghdr(uap->msg, &msg);
 	if (error)
 		return (error);
-	error = cheriabi_copyiniov(PTRIN(msg_c.msg_iov), msg_c.msg_iovlen, &iov,
-	    EMSGSIZE);
+	error = cheriabi_copyiniov((struct iovec_c *)msg.msg_iov, msg.msg_iovlen,
+	    &iov, EMSGSIZE);
 	if (error)
 		return (error);
 	msg.msg_iov = iov;
