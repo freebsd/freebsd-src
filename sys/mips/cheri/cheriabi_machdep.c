@@ -472,6 +472,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct cheri_frame *capreg;
 	struct sigacts *psp;
 	struct sigframe_c sf, *sfp;
+	uintptr_t stackbase;
 	vm_offset_t sp;
 	int cheri_is_sandboxed;
 	int sig;
@@ -637,7 +638,11 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Copy the sigframe out to the user's stack.
 	 */
-	if (copyoutcap(&sf, sfp, sizeof(sf)) != 0) {
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+	    &td->td_pcb->pcb_cherisignal.csig_c11, 0);
+	CHERI_CTOPTR(stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	if (copyoutcap(&sf, (void *)(stackbase + (uintptr_t)sfp),
+	    sizeof(sf)) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
