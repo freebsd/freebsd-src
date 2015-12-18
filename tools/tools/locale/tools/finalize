@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# $FreeBSD$
+#
 # This is a helper script for the Makefile in the parent directory.
 # When the localization definitions are generated in the draft area,
 # this script will copy base ones that others symlink to, and rearrange
@@ -43,7 +45,7 @@ for original in ${keep}
 do
 	cp ${old}/${original} ${new}/
 done
-awk '{ if ($1 == last1) { print "SYMPAIRS+=\t" last2 ":" $2 } \
+awk '{ if ($1 == last1) { print "SYMPAIRS+=\t" last2 " " $2 } \
 else {last1 = $1; last2 = $2}}' ${TEMP2} > ${TEMP3}
 rm -f ${TEMP2}
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
