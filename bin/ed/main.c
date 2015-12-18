@@ -506,7 +506,7 @@ exec_command(void)
 		else if (open_sbuf() < 0)
 			return FATAL;
 		if (*fnp && *fnp != '!')
-			 strncpy(old_filename, fnp, PATH_MAX);
+			 strlcpy(old_filename, fnp, PATH_MAX);
 #ifdef BACKWARDS
 		if (*fnp == '\0' && *old_filename == '\0') {
 			errmsg = "no current filename";
@@ -534,7 +534,7 @@ exec_command(void)
 		}
 		GET_COMMAND_SUFFIX();
 		if (*fnp)
-			strncpy(old_filename, fnp, PATH_MAX);
+			strlcpy(old_filename, fnp, PATH_MAX);
 		printf("%s\n", strip_escapes(old_filename));
 		break;
 	case 'g':
@@ -665,7 +665,7 @@ exec_command(void)
 		GET_COMMAND_SUFFIX();
 		if (!isglobal) clear_undo_stack();
 		if (*old_filename == '\0' && *fnp != '!')
-			strncpy(old_filename, fnp, PATH_MAX);
+			strlcpy(old_filename, fnp, PATH_MAX);
 #ifdef BACKWARDS
 		if (*fnp == '\0' && *old_filename == '\0') {
 			errmsg = "no current filename";
@@ -799,7 +799,7 @@ exec_command(void)
 			return ERR;
 		GET_COMMAND_SUFFIX();
 		if (*old_filename == '\0' && *fnp != '!')
-			strncpy(old_filename, fnp, PATH_MAX);
+			strlcpy(old_filename, fnp, PATH_MAX);
 #ifdef BACKWARDS
 		if (*fnp == '\0' && *old_filename == '\0') {
 			errmsg = "no current filename";
