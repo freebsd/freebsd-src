@@ -815,9 +815,9 @@ sub make_makefile {
 		$MAPLOC = "MAPLOC=\t\t\${.CURDIR}/../../tools/tools/" .
 				"locale/etc/final-maps\n";
 		$SRCOUT3 = "## SYMPAIRS\n\n" .
-			".for PAIR in \${SYMPAIRS}\n" .
-			"\${PAIR:C/^.*://:S/src\$/LC_CTYPE/}: " .
-			"\${PAIR:C/:.*//}\n" .
+			".for s t in \${SYMPAIRS}\n" .
+			"\${t:S/src\$/LC_CTYPE/}: " .
+			"\$s\n" .
 			"\tlocaledef -D -U -c -w \${MAPLOC}/widths.txt \\\n" .
 			"\t-f \${MAPLOC}/map.\${.TARGET:T:R:C/^.*\\.//} " .
 			"\\\n\t-i \${.ALLSRC} \${.OBJDIR}/\${.TARGET:T:R} " .
@@ -891,7 +891,7 @@ EOF
 				my @a = split(/_/, $file);
 				my @b = split(/\./, $a[-1]);
 				$file =~ s/_x_/_/;
-				print FOUT "SAME+=\t\t$link:$file\n";
+				print FOUT "SAME+=\t\t$link $file\n";
 				undef($languages{$a[0]}{$a[1]}{data}{$b[0]}{$b[1]});
 			}
 		}
@@ -923,7 +923,7 @@ EOF
 				my $file = $l . "_";
 				$file .= $f . "_" if ($f ne "x");
 				$file .= $c;
-				print FOUT "SAME+=\t\t$file.$e:$languages{$l}{$f}{nc_link}.$e\t# legacy (lang/country change)\n";
+				print FOUT "SAME+=\t\t$file.$e $languages{$l}{$f}{nc_link}.$e\t# legacy (lang/country change)\n";
 			}
 		}
 
@@ -933,7 +933,7 @@ EOF
 				my $file = $l . "_";
 				$file .= $f . "_" if ($f ne "x");
 				$file .= $c;
-				print FOUT "SAME+=\t\t$file.$a[0]:$file.$a[1]\t# legacy (same charset)\n";
+				print FOUT "SAME+=\t\t$file.$a[0] $file.$a[1]\t# legacy (same charset)\n";
 			}
 		}
 
@@ -946,9 +946,9 @@ EOF
 FILES=		\${LOCALES:S/\$/.${SRCOUT2}/}
 CLEANFILES=	\${FILES}
 
-.for f in \${SAME}
-SYMLINKS+=	../\${f:C/:.*\$//}/\${FILESNAME} \\
-    \${LOCALEDIR}/\${f:C/^.*://}/\${FILESNAME}
+.for f t in \${SAME}
+SYMLINKS+=	../\$f/\${FILESNAME} \\
+    \${LOCALEDIR}/\$t/\${FILESNAME}
 .endfor
 
 .for f in \${LOCALES}
