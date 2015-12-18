@@ -16,7 +16,7 @@ enum {
 	IPI_HARDCLOCK,
 	IPI_TLB,
 	IPI_CACHE,
-	ARM_IPI_COUNT
+	INTR_IPI_COUNT
 };
 #else
 #define IPI_AST		0

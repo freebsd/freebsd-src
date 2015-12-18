@@ -32,7 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- *	ARM Interrupt Framework
+ *	New-style Interrupt Framework
  *
  *  TODO: - to support IPI (PPI) enabling on other CPUs if already started
  *        - to complete things for removable PICs
@@ -82,33 +82,33 @@ __FBSDID("$FreeBSD$");
 #endif
 
 MALLOC_DECLARE(M_INTRNG);
-MALLOC_DEFINE(M_INTRNG, "intrng", "ARM interrupt handling");
+MALLOC_DEFINE(M_INTRNG, "intr", "intr interrupt handling");
 
-/* Main ARM interrupt handler called from assembler -> 'hidden' for C code. */
-void arm_irq_handler(struct trapframe *tf);
+/* Main interrupt handler called from assembler -> 'hidden' for C code. */
+void intr_irq_handler(struct trapframe *tf);
 
 /* Root interrupt controller stuff. */
-static struct arm_irqsrc *irq_root_isrc;
+static struct intr_irqsrc *irq_root_isrc;
 static device_t irq_root_dev;
-static arm_irq_filter_t *irq_root_filter;
+static intr_irq_filter_t *irq_root_filter;
 static void *irq_root_arg;
 static u_int irq_root_ipicount;
 
 /* Interrupt controller definition. */
-struct arm_pic {
-	SLIST_ENTRY(arm_pic)	pic_next;
+struct intr_pic {
+	SLIST_ENTRY(intr_pic)	pic_next;
 	intptr_t		pic_xref;	/* hardware identification */
 	device_t		pic_dev;
 };
 
 static struct mtx pic_list_lock;
-static SLIST_HEAD(, arm_pic) pic_list;
+static SLIST_HEAD(, intr_pic) pic_list;
 
-static struct arm_pic *pic_lookup(device_t dev, intptr_t xref);
+static struct intr_pic *pic_lookup(device_t dev, intptr_t xref);
 
 /* Interrupt source definition. */
 static struct mtx isrc_table_lock;
-static struct arm_irqsrc *irq_sources[NIRQ];
+static struct intr_irqsrc *irq_sources[NIRQ];
 u_int irq_next_free;
 
 #define IRQ_INVALID	nitems(irq_sources)
@@ -116,7 +116,7 @@ u_int irq_next_free;
 #ifdef SMP
 static boolean_t irq_assign_cpu = FALSE;
 
-static struct arm_irqsrc ipi_sources[ARM_IPI_COUNT];
+static struct intr_irqsrc ipi_sources[INTR_IPI_COUNT];
 static u_int ipi_next_num;
 #endif
 
@@ -125,7 +125,7 @@ static u_int ipi_next_num;
  * - MAXCPU counters for each IPI counters for SMP.
  */
 #ifdef SMP
-#define INTRCNT_COUNT   (NIRQ * 2 + ARM_IPI_COUNT * MAXCPU)
+#define INTRCNT_COUNT   (NIRQ * 2 + INTR_IPI_COUNT * MAXCPU)
 #else
 #define INTRCNT_COUNT   (NIRQ * 2)
 #endif
@@ -141,14 +141,14 @@ static u_int intrcnt_index;
  *  Interrupt framework initialization routine.
  */
 static void
-arm_irq_init(void *dummy __unused)
+intr_irq_init(void *dummy __unused)
 {
 
 	SLIST_INIT(&pic_list);
-	mtx_init(&pic_list_lock, "arm pic list", NULL, MTX_DEF);
-	mtx_init(&isrc_table_lock, "arm isrc table", NULL, MTX_DEF);
+	mtx_init(&pic_list_lock, "intr pic list", NULL, MTX_DEF);
+	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
 }
-SYSINIT(arm_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, arm_irq_init, NULL);
+SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
 
 static void
 intrcnt_setname(const char *name, int index)
@@ -162,7 +162,7 @@ intrcnt_setname(const char *name, int index)
  *  Update name for interrupt source with interrupt event.
  */
 static void
-intrcnt_updatename(struct arm_irqsrc *isrc)
+intrcnt_updatename(struct intr_irqsrc *isrc)
 {
 
 	/* QQQ: What about stray counter name? */
@@ -174,7 +174,7 @@ intrcnt_updatename(struct arm_irqsrc *isrc)
  *  Virtualization for interrupt source interrupt counter increment.
  */
 static inline void
-isrc_increment_count(struct arm_irqsrc *isrc)
+isrc_increment_count(struct intr_irqsrc *isrc)
 {
 
 	/*
@@ -189,7 +189,7 @@ isrc_increment_count(struct arm_irqsrc *isrc)
  *  Virtualization for interrupt source interrupt stray counter increment.
  */
 static inline void
-isrc_increment_straycount(struct arm_irqsrc *isrc)
+isrc_increment_straycount(struct intr_irqsrc *isrc)
 {
 
 	isrc->isrc_count[1]++;
@@ -199,7 +199,7 @@ isrc_increment_straycount(struct arm_irqsrc *isrc)
  *  Virtualization for interrupt source interrupt name update.
  */
 static void
-isrc_update_name(struct arm_irqsrc *isrc, const char *name)
+isrc_update_name(struct intr_irqsrc *isrc, const char *name)
 {
 	char str[INTRNAME_LEN];
 
@@ -223,7 +223,7 @@ isrc_update_name(struct arm_irqsrc *isrc, const char *name)
  *  Virtualization for interrupt source interrupt counters setup.
  */
 static void
-isrc_setup_counters(struct arm_irqsrc *isrc)
+isrc_setup_counters(struct intr_irqsrc *isrc)
 {
 	u_int index;
 
@@ -242,7 +242,7 @@ isrc_setup_counters(struct arm_irqsrc *isrc)
  *  Virtualization for interrupt source IPI counter increment.
  */
 static inline void
-isrc_increment_ipi_count(struct arm_irqsrc *isrc, u_int cpu)
+isrc_increment_ipi_count(struct intr_irqsrc *isrc, u_int cpu)
 {
 
 	isrc->isrc_count[cpu]++;
@@ -252,7 +252,7 @@ isrc_increment_ipi_count(struct arm_irqsrc *isrc, u_int cpu)
  *  Virtualization for interrupt source IPI counters setup.
  */
 static void
-isrc_setup_ipi_counters(struct arm_irqsrc *isrc, const char *name)
+isrc_setup_ipi_counters(struct intr_irqsrc *isrc, const char *name)
 {
 	u_int index, i;
 	char str[INTRNAME_LEN];
@@ -273,11 +273,11 @@ isrc_setup_ipi_counters(struct arm_irqsrc *isrc, const char *name)
 #endif
 
 /*
- *  Main ARM interrupt dispatch handler. It's called straight
+ *  Main interrupt dispatch handler. It's called straight
  *  from the assembler, where CPU interrupt is served.
  */
 void
-arm_irq_handler(struct trapframe *tf)
+intr_irq_handler(struct trapframe *tf)
 {
 	struct trapframe * oldframe;
 	struct thread * td;
@@ -295,12 +295,12 @@ arm_irq_handler(struct trapframe *tf)
 }
 
 /*
- *  ARM interrupt controller dispatch function for interrupts. It should
+ *  interrupt controller dispatch function for interrupts. It should
  *  be called straight from the interrupt controller, when associated interrupt
  *  source is learned.
  */
 void
-arm_irq_dispatch(struct arm_irqsrc *isrc, struct trapframe *tf)
+intr_irq_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 {
 
 	KASSERT(isrc != NULL, ("%s: no source", __func__));
@@ -331,15 +331,15 @@ arm_irq_dispatch(struct arm_irqsrc *isrc, struct trapframe *tf)
 /*
  *  Allocate interrupt source.
  */
-static struct arm_irqsrc *
+static struct intr_irqsrc *
 isrc_alloc(u_int type, u_int extsize)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 
 	isrc = malloc(sizeof(*isrc) + extsize, M_INTRNG, M_WAITOK | M_ZERO);
 	isrc->isrc_irq = IRQ_INVALID;	/* just to be safe */
 	isrc->isrc_type = type;
-	isrc->isrc_nspc_type = ARM_IRQ_NSPC_NONE;
+	isrc->isrc_nspc_type = INTR_IRQ_NSPC_NONE;
 	isrc->isrc_trig = INTR_TRIGGER_CONFORM;
 	isrc->isrc_pol = INTR_POLARITY_CONFORM;
 	CPU_ZERO(&isrc->isrc_cpu);
@@ -350,19 +350,19 @@ isrc_alloc(u_int type, u_int extsize)
  *  Free interrupt source.
  */
 static void
-isrc_free(struct arm_irqsrc *isrc)
+isrc_free(struct intr_irqsrc *isrc)
 {
 
 	free(isrc, M_INTRNG);
 }
 
 void
-arm_irq_set_name(struct arm_irqsrc *isrc, const char *fmt, ...)
+intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	vsnprintf(isrc->isrc_name, ARM_ISRC_NAMELEN, fmt, ap);
+	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
 	va_end(ap);
 }
 
@@ -377,7 +377,7 @@ arm_irq_set_name(struct arm_irqsrc *isrc, const char *fmt, ...)
  *     constantly...
  */
 static int
-isrc_alloc_irq_locked(struct arm_irqsrc *isrc)
+isrc_alloc_irq_locked(struct intr_irqsrc *isrc)
 {
 	u_int maxirqs, irq;
 
@@ -403,7 +403,7 @@ found:
 	isrc->isrc_irq = irq;
 	irq_sources[irq] = isrc;
 
-	arm_irq_set_name(isrc, "irq%u", irq);
+	intr_irq_set_name(isrc, "irq%u", irq);
 	isrc_setup_counters(isrc);
 
 	irq_next_free = irq + 1;
@@ -416,7 +416,7 @@ found:
  *  Free unique interrupt number (resource handle) from interrupt source.
  */
 static int
-isrc_free_irq(struct arm_irqsrc *isrc)
+isrc_free_irq(struct intr_irqsrc *isrc)
 {
 	u_int maxirqs;
 
@@ -442,7 +442,7 @@ isrc_free_irq(struct arm_irqsrc *isrc)
 /*
  *  Lookup interrupt source by interrupt number (resource handle).
  */
-static struct arm_irqsrc *
+static struct intr_irqsrc *
 isrc_lookup(u_int irq)
 {
 
@@ -454,11 +454,11 @@ isrc_lookup(u_int irq)
 /*
  *  Lookup interrupt source by namespace description.
  */
-static struct arm_irqsrc *
+static struct intr_irqsrc *
 isrc_namespace_lookup(device_t dev, uint16_t type, uint16_t num)
 {
 	u_int irq;
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
@@ -477,12 +477,12 @@ isrc_namespace_lookup(device_t dev, uint16_t type, uint16_t num)
  *  associated with mapped interrupt source.
  */
 u_int
-arm_namespace_map_irq(device_t dev, uint16_t type, uint16_t num)
+intr_namespace_map_irq(device_t dev, uint16_t type, uint16_t num)
 {
-	struct arm_irqsrc *isrc, *new_isrc;
+	struct intr_irqsrc *isrc, *new_isrc;
 	int error;
 
-	new_isrc = isrc_alloc(ARM_ISRCT_NAMESPACE, 0);
+	new_isrc = isrc_alloc(INTR_ISRCT_NAMESPACE, 0);
 
 	mtx_lock(&isrc_table_lock);
 	isrc = isrc_namespace_lookup(dev, type, num);
@@ -511,18 +511,18 @@ arm_namespace_map_irq(device_t dev, uint16_t type, uint16_t num)
 /*
  *  Lookup interrupt source by FDT description.
  */
-static struct arm_irqsrc *
+static struct intr_irqsrc *
 isrc_fdt_lookup(intptr_t xref, pcell_t *cells, u_int ncells)
 {
 	u_int irq, cellsize;
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
 	cellsize = ncells * sizeof(*cells);
 	for (irq = 0; irq < nitems(irq_sources); irq++) {
 		isrc = irq_sources[irq];
-		if (isrc != NULL && isrc->isrc_type == ARM_ISRCT_FDT &&
+		if (isrc != NULL && isrc->isrc_type == INTR_ISRCT_FDT &&
 		    isrc->isrc_xref == xref && isrc->isrc_ncells == ncells &&
 		    memcmp(isrc->isrc_cells, cells, cellsize) == 0)
 			return (isrc);
@@ -536,9 +536,9 @@ isrc_fdt_lookup(intptr_t xref, pcell_t *cells, u_int ncells)
  *  associated with mapped interrupt source.
  */
 u_int
-arm_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
+intr_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 {
-	struct arm_irqsrc *isrc, *new_isrc;
+	struct intr_irqsrc *isrc, *new_isrc;
 	u_int cellsize;
 	intptr_t xref;
 	int error;
@@ -546,7 +546,7 @@ arm_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
 	xref = (intptr_t)node;	/* It's so simple for now. */
 
 	cellsize = ncells * sizeof(*cells);
-	new_isrc = isrc_alloc(ARM_ISRCT_FDT, cellsize);
+	new_isrc = isrc_alloc(INTR_ISRCT_FDT, cellsize);
 
 	mtx_lock(&isrc_table_lock);
 	isrc = isrc_fdt_lookup(xref, cells, ncells);
@@ -576,13 +576,13 @@ arm_fdt_map_irq(phandle_t node, pcell_t *cells, u_int ncells)
  *  Register interrupt source into interrupt controller.
  */
 static int
-isrc_register(struct arm_irqsrc *isrc)
+isrc_register(struct intr_irqsrc *isrc)
 {
-	struct arm_pic *pic;
+	struct intr_pic *pic;
 	boolean_t is_percpu;
 	int error;
 
-	if (isrc->isrc_flags & ARM_ISRCF_REGISTERED)
+	if (isrc->isrc_flags & INTR_ISRCF_REGISTERED)
 		return (0);
 
 	if (isrc->isrc_dev == NULL) {
@@ -597,9 +597,9 @@ isrc_register(struct arm_irqsrc *isrc)
 		return (error);
 
 	mtx_lock(&isrc_table_lock);
-	isrc->isrc_flags |= ARM_ISRCF_REGISTERED;
+	isrc->isrc_flags |= INTR_ISRCF_REGISTERED;
 	if (is_percpu)
-		isrc->isrc_flags |= ARM_ISRCF_PERCPU;
+		isrc->isrc_flags |= INTR_ISRCF_PERCPU;
 	isrc_update_name(isrc, NULL);
 	mtx_unlock(&isrc_table_lock);
 	return (0);
@@ -610,8 +610,8 @@ isrc_register(struct arm_irqsrc *isrc)
  *  Setup filter into interrupt source.
  */
 static int
-iscr_setup_filter(struct arm_irqsrc *isrc, const char *name,
-    arm_irq_filter_t *filter, void *arg, void **cookiep)
+iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
+    intr_irq_filter_t *filter, void *arg, void **cookiep)
 {
 
 	if (filter == NULL)
@@ -640,9 +640,9 @@ iscr_setup_filter(struct arm_irqsrc *isrc, const char *name,
  *  Interrupt source pre_ithread method for MI interrupt framework.
  */
 static void
-arm_isrc_pre_ithread(void *arg)
+intr_isrc_pre_ithread(void *arg)
 {
-	struct arm_irqsrc *isrc = arg;
+	struct intr_irqsrc *isrc = arg;
 
 	PIC_PRE_ITHREAD(isrc->isrc_dev, isrc);
 }
@@ -651,9 +651,9 @@ arm_isrc_pre_ithread(void *arg)
  *  Interrupt source post_ithread method for MI interrupt framework.
  */
 static void
-arm_isrc_post_ithread(void *arg)
+intr_isrc_post_ithread(void *arg)
 {
-	struct arm_irqsrc *isrc = arg;
+	struct intr_irqsrc *isrc = arg;
 
 	PIC_POST_ITHREAD(isrc->isrc_dev, isrc);
 }
@@ -662,9 +662,9 @@ arm_isrc_post_ithread(void *arg)
  *  Interrupt source post_filter method for MI interrupt framework.
  */
 static void
-arm_isrc_post_filter(void *arg)
+intr_isrc_post_filter(void *arg)
 {
-	struct arm_irqsrc *isrc = arg;
+	struct intr_irqsrc *isrc = arg;
 
 	PIC_POST_FILTER(isrc->isrc_dev, isrc);
 }
@@ -673,10 +673,10 @@ arm_isrc_post_filter(void *arg)
  *  Interrupt source assign_cpu method for MI interrupt framework.
  */
 static int
-arm_isrc_assign_cpu(void *arg, int cpu)
+intr_isrc_assign_cpu(void *arg, int cpu)
 {
 #ifdef SMP
-	struct arm_irqsrc *isrc = arg;
+	struct intr_irqsrc *isrc = arg;
 	int error;
 
 	if (isrc->isrc_dev != irq_root_dev)
@@ -685,10 +685,10 @@ arm_isrc_assign_cpu(void *arg, int cpu)
 	mtx_lock(&isrc_table_lock);
 	if (cpu == NOCPU) {
 		CPU_ZERO(&isrc->isrc_cpu);
-		isrc->isrc_flags &= ~ARM_ISRCF_BOUND;
+		isrc->isrc_flags &= ~INTR_ISRCF_BOUND;
 	} else {
 		CPU_SETOF(cpu, &isrc->isrc_cpu);
-		isrc->isrc_flags |= ARM_ISRCF_BOUND;
+		isrc->isrc_flags |= INTR_ISRCF_BOUND;
 	}
 
 	/*
@@ -716,14 +716,14 @@ arm_isrc_assign_cpu(void *arg, int cpu)
  *  Create interrupt event for interrupt source.
  */
 static int
-isrc_event_create(struct arm_irqsrc *isrc)
+isrc_event_create(struct intr_irqsrc *isrc)
 {
 	struct intr_event *ie;
 	int error;
 
 	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
-	    arm_isrc_pre_ithread, arm_isrc_post_ithread, arm_isrc_post_filter,
-	    arm_isrc_assign_cpu, "%s:", isrc->isrc_name);
+	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
+	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
 	if (error)
 		return (error);
 
@@ -747,7 +747,7 @@ isrc_event_create(struct arm_irqsrc *isrc)
  *  Destroy interrupt event for interrupt source.
  */
 static void
-isrc_event_destroy(struct arm_irqsrc *isrc)
+isrc_event_destroy(struct intr_irqsrc *isrc)
 {
 	struct intr_event *ie;
 
@@ -764,7 +764,7 @@ isrc_event_destroy(struct arm_irqsrc *isrc)
  *  Add handler to interrupt source.
  */
 static int
-isrc_add_handler(struct arm_irqsrc *isrc, const char *name,
+isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
     driver_filter_t filter, driver_intr_t handler, void *arg,
     enum intr_type flags, void **cookiep)
 {
@@ -790,10 +790,10 @@ isrc_add_handler(struct arm_irqsrc *isrc, const char *name,
 /*
  *  Lookup interrupt controller locked.
  */
-static struct arm_pic *
+static struct intr_pic *
 pic_lookup_locked(device_t dev, intptr_t xref)
 {
-	struct arm_pic *pic;
+	struct intr_pic *pic;
 
 	mtx_assert(&pic_list_lock, MA_OWNED);
 
@@ -809,10 +809,10 @@ pic_lookup_locked(device_t dev, intptr_t xref)
 /*
  *  Lookup interrupt controller.
  */
-static struct arm_pic *
+static struct intr_pic *
 pic_lookup(device_t dev, intptr_t xref)
 {
-	struct arm_pic *pic;
+	struct intr_pic *pic;
 
 	mtx_lock(&pic_list_lock);
 	pic = pic_lookup_locked(dev, xref);
@@ -824,10 +824,10 @@ pic_lookup(device_t dev, intptr_t xref)
 /*
  *  Create interrupt controller.
  */
-static struct arm_pic *
+static struct intr_pic *
 pic_create(device_t dev, intptr_t xref)
 {
-	struct arm_pic *pic;
+	struct intr_pic *pic;
 
 	mtx_lock(&pic_list_lock);
 	pic = pic_lookup_locked(dev, xref);
@@ -850,7 +850,7 @@ pic_create(device_t dev, intptr_t xref)
 static void
 pic_destroy(device_t dev, intptr_t xref)
 {
-	struct arm_pic *pic;
+	struct intr_pic *pic;
 
 	mtx_lock(&pic_list_lock);
 	pic = pic_lookup_locked(dev, xref);
@@ -858,7 +858,7 @@ pic_destroy(device_t dev, intptr_t xref)
 		mtx_unlock(&pic_list_lock);
 		return;
 	}
-	SLIST_REMOVE(&pic_list, pic, arm_pic, pic_next);
+	SLIST_REMOVE(&pic_list, pic, intr_pic, pic_next);
 	mtx_unlock(&pic_list_lock);
 
 	free(pic, M_INTRNG);
@@ -868,9 +868,9 @@ pic_destroy(device_t dev, intptr_t xref)
  *  Register interrupt controller.
  */
 int
-arm_pic_register(device_t dev, intptr_t xref)
+intr_pic_register(device_t dev, intptr_t xref)
 {
-	struct arm_pic *pic;
+	struct intr_pic *pic;
 
 	pic = pic_create(dev, xref);
 	if (pic == NULL)
@@ -887,7 +887,7 @@ arm_pic_register(device_t dev, intptr_t xref)
  *  Unregister interrupt controller.
  */
 int
-arm_pic_unregister(device_t dev, intptr_t xref)
+intr_pic_unregister(device_t dev, intptr_t xref)
 {
 
 	panic("%s: not implemented", __func__);
@@ -906,7 +906,7 @@ arm_pic_unregister(device_t dev, intptr_t xref)
  *     an interrupts property and thus no explicit interrupt parent."
  */
 int
-arm_pic_claim_root(device_t dev, intptr_t xref, arm_irq_filter_t *filter,
+intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg, u_int ipicount)
 {
 	int error;
@@ -924,14 +924,14 @@ arm_pic_claim_root(device_t dev, intptr_t xref, arm_irq_filter_t *filter,
 	/*
 	 * Only one interrupt controllers could be on the root for now.
 	 * Note that we further suppose that there is not threaded interrupt
-	 * routine (handler) on the root. See arm_irq_handler().
+	 * routine (handler) on the root. See intr_irq_handler().
 	 */
 	if (irq_root_dev != NULL) {
 		device_printf(dev, "another root already set\n");
 		return (EBUSY);
 	}
 
-	rootirq = arm_namespace_map_irq(device_get_parent(dev), 0, 0);
+	rootirq = intr_namespace_map_irq(device_get_parent(dev), 0, 0);
 	if (rootirq == IRQ_INVALID) {
 		device_printf(dev, "failed to map an irq for the root pic\n");
 		return (ENOMEM);
@@ -941,9 +941,9 @@ arm_pic_claim_root(device_t dev, intptr_t xref, arm_irq_filter_t *filter,
 	irq_root_isrc = isrc_lookup(rootirq);
 
         /* XXX "register" with the PIC.  We are the "pic" here, so fake it. */
-	irq_root_isrc->isrc_flags |= ARM_ISRCF_REGISTERED;
+	irq_root_isrc->isrc_flags |= INTR_ISRCF_REGISTERED;
 
-	error = arm_irq_add_handler(device_get_parent(dev), 
+	error = intr_irq_add_handler(device_get_parent(dev), 
 		(void*)filter, NULL, arg, rootirq, INTR_TYPE_CLK, NULL);
 	if (error != 0) {
 		device_printf(dev, "failed to install root pic handler\n");
@@ -959,11 +959,11 @@ arm_pic_claim_root(device_t dev, intptr_t xref, arm_irq_filter_t *filter,
 }
 
 int
-arm_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
+intr_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
     void *arg, u_int irq, int flags, void **cookiep)
 {
 	const char *name;
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 	int error;
 
 	name = device_get_nameunit(dev);
@@ -977,7 +977,7 @@ arm_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
 	 * chained, MI interrupt framework is called only in leaf controller.
 	 *
 	 * Note that root interrupt controller routine is served as well,
-	 * however in arm_irq_handler(), i.e. main system dispatch routine.
+	 * however in intr_irq_handler(), i.e. main system dispatch routine.
 	 */
 	if (flags & INTR_SOLO && hand != NULL) {
 		debugf("irq %u cannot solo on %s\n", irq, name);
@@ -999,7 +999,7 @@ arm_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
 
 #ifdef INTR_SOLO
 	if (flags & INTR_SOLO) {
-		error = iscr_setup_filter(isrc, name, (arm_irq_filter_t *)filt,
+		error = iscr_setup_filter(isrc, name, (intr_irq_filter_t *)filt,
 		    arg, cookiep);
 		debugf("irq %u setup filter error %d on %s\n", irq, error,
 		    name);
@@ -1024,9 +1024,9 @@ arm_irq_add_handler(device_t dev, driver_filter_t filt, driver_intr_t hand,
 }
 
 int
-arm_irq_remove_handler(device_t dev, u_int irq, void *cookie)
+intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 	int error;
 
 	isrc = isrc_lookup(irq);
@@ -1066,9 +1066,9 @@ arm_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 }
 
 int
-arm_irq_config(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
+intr_irq_config(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL)
@@ -1090,9 +1090,9 @@ arm_irq_config(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
 }
 
 int
-arm_irq_describe(u_int irq, void *cookie, const char *descr)
+intr_irq_describe(u_int irq, void *cookie, const char *descr)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 	int error;
 
 	isrc = isrc_lookup(irq);
@@ -1120,16 +1120,16 @@ arm_irq_describe(u_int irq, void *cookie, const char *descr)
 
 #ifdef SMP
 int
-arm_irq_bind(u_int irq, int cpu)
+intr_irq_bind(u_int irq, int cpu)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
 
 	if (isrc->isrc_filter != NULL)
-		return (arm_isrc_assign_cpu(isrc, cpu));
+		return (intr_isrc_assign_cpu(isrc, cpu));
 
 	return (intr_event_bind(isrc->isrc_event, cpu));
 }
@@ -1139,7 +1139,7 @@ arm_irq_bind(u_int irq, int cpu)
  * For now just returns the next CPU according to round-robin.
  */
 u_int
-arm_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
+intr_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
 {
 
 	if (!irq_assign_cpu || mp_ncpus == 1)
@@ -1158,9 +1158,9 @@ arm_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
  *  CPUs once the AP's have been launched.
  */
 static void
-arm_irq_shuffle(void *arg __unused)
+intr_irq_shuffle(void *arg __unused)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 	u_int i;
 
 	if (mp_ncpus == 1)
@@ -1171,15 +1171,15 @@ arm_irq_shuffle(void *arg __unused)
 	for (i = 0; i < NIRQ; i++) {
 		isrc = irq_sources[i];
 		if (isrc == NULL || isrc->isrc_handlers == 0 ||
-		    isrc->isrc_flags & ARM_ISRCF_PERCPU)
+		    isrc->isrc_flags & INTR_ISRCF_PERCPU)
 			continue;
 
 		if (isrc->isrc_event != NULL &&
-		    isrc->isrc_flags & ARM_ISRCF_BOUND &&
+		    isrc->isrc_flags & INTR_ISRCF_BOUND &&
 		    isrc->isrc_event->ie_cpu != CPU_FFS(&isrc->isrc_cpu) - 1)
 			panic("%s: CPU inconsistency", __func__);
 
-		if ((isrc->isrc_flags & ARM_ISRCF_BOUND) == 0)
+		if ((isrc->isrc_flags & INTR_ISRCF_BOUND) == 0)
 			CPU_ZERO(&isrc->isrc_cpu); /* start again */
 
 		/*
@@ -1192,11 +1192,11 @@ arm_irq_shuffle(void *arg __unused)
 	}
 	mtx_unlock(&isrc_table_lock);
 }
-SYSINIT(arm_irq_shuffle, SI_SUB_SMP, SI_ORDER_SECOND, arm_irq_shuffle, NULL);
+SYSINIT(intr_irq_shuffle, SI_SUB_SMP, SI_ORDER_SECOND, intr_irq_shuffle, NULL);
 
 #else
 u_int
-arm_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask)
+intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask)
 {
 
 	return (PCPU_GET(cpuid));
@@ -1209,91 +1209,28 @@ dosoftints(void)
 {
 }
 
-/*
- * arm_irq_memory_barrier()
- *
- * Ensure all writes to device memory have reached devices before proceeding.
- *
- * This is intended to be called from the post-filter and post-thread routines
- * of an interrupt controller implementation.  A peripheral device driver should
- * use bus_space_barrier() if it needs to ensure a write has reached the
- * hardware for some reason other than clearing interrupt conditions.
- *
- * The need for this function arises from the ARM weak memory ordering model.
- * Writes to locations mapped with the Device attribute bypass any caches, but
- * are buffered.  Multiple writes to the same device will be observed by that
- * device in the order issued by the cpu.  Writes to different devices may
- * appear at those devices in a different order than issued by the cpu.  That
- * is, if the cpu writes to device A then device B, the write to device B could
- * complete before the write to device A.
- *
- * Consider a typical device interrupt handler which services the interrupt and
- * writes to a device status-acknowledge register to clear the interrupt before
- * returning.  That write is posted to the L2 controller which "immediately"
- * places it in a store buffer and automatically drains that buffer.  This can
- * be less immediate than you'd think... There may be no free slots in the store
- * buffers, so an existing buffer has to be drained first to make room.  The
- * target bus may be busy with other traffic (such as DMA for various devices),
- * delaying the drain of the store buffer for some indeterminate time.  While
- * all this delay is happening, execution proceeds on the CPU, unwinding its way
- * out of the interrupt call stack to the point where the interrupt driver code
- * is ready to EOI and unmask the interrupt.  The interrupt controller may be
- * accessed via a faster bus than the hardware whose handler just ran; the write
- * to unmask and EOI the interrupt may complete quickly while the device write
- * to ack and clear the interrupt source is still lingering in a store buffer
- * waiting for access to a slower bus.  With the interrupt unmasked at the
- * interrupt controller but still active at the device, as soon as interrupts
- * are enabled on the core the device re-interrupts immediately: now you've got
- * a spurious interrupt on your hands.
- *
- * The right way to fix this problem is for every device driver to use the
- * proper bus_space_barrier() calls in its interrupt handler.  For ARM a single
- * barrier call at the end of the handler would work.  This would have to be
- * done to every driver in the system, not just arm-specific drivers.
- *
- * Another potential fix is to map all device memory as Strongly-Ordered rather
- * than Device memory, which takes the store buffers out of the picture.  This
- * has a pretty big impact on overall system performance, because each strongly
- * ordered memory access causes all L2 store buffers to be drained.
- *
- * A compromise solution is to have the interrupt controller implementation call
- * this function to establish a barrier between writes to the interrupt-source
- * device and writes to the interrupt controller device.
- *
- * This takes the interrupt number as an argument, and currently doesn't use it.
- * The plan is that maybe some day there is a way to flag certain interrupts as
- * "memory barrier safe" and we can avoid this overhead with them.
- */
-void
-arm_irq_memory_barrier(uintptr_t irq)
-{
-
-	dsb();
-	cpu_l2cache_drain_writebuf();
-}
-
 #ifdef SMP
 /*
  *  Lookup IPI source.
  */
-static struct arm_irqsrc *
-arm_ipi_lookup(u_int ipi)
+static struct intr_irqsrc *
+intr_ipi_lookup(u_int ipi)
 {
 
-	if (ipi >= ARM_IPI_COUNT)
+	if (ipi >= INTR_IPI_COUNT)
 		panic("%s: no such IPI %u", __func__, ipi);
 
 	return (&ipi_sources[ipi]);
 }
 
 /*
- *  ARM interrupt controller dispatch function for IPIs. It should
+ *  interrupt controller dispatch function for IPIs. It should
  *  be called straight from the interrupt controller, when associated
  *  interrupt source is learned. Or from anybody who has an interrupt
  *  source mapped.
  */
 void
-arm_ipi_dispatch(struct arm_irqsrc *isrc, struct trapframe *tf)
+intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 {
 	void *arg;
 
@@ -1315,18 +1252,18 @@ arm_ipi_dispatch(struct arm_irqsrc *isrc, struct trapframe *tf)
  *  Not SMP coherent.
  */
 static int
-ipi_map(struct arm_irqsrc *isrc, u_int ipi)
+ipi_map(struct intr_irqsrc *isrc, u_int ipi)
 {
 	boolean_t is_percpu;
 	int error;
 
-	if (ipi >= ARM_IPI_COUNT)
+	if (ipi >= INTR_IPI_COUNT)
 		panic("%s: no such IPI %u", __func__, ipi);
 
 	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
 
-	isrc->isrc_type = ARM_ISRCT_NAMESPACE;
-	isrc->isrc_nspc_type = ARM_IRQ_NSPC_IPI;
+	isrc->isrc_type = INTR_ISRCT_NAMESPACE;
+	isrc->isrc_nspc_type = INTR_IRQ_NSPC_IPI;
 	isrc->isrc_nspc_num = ipi_next_num;
 
 	error = PIC_REGISTER(irq_root_dev, isrc, &is_percpu);
@@ -1347,21 +1284,21 @@ ipi_map(struct arm_irqsrc *isrc, u_int ipi)
  *  Note that there could be more ways how to send and receive IPIs
  *  on a platform like fast interrupts for example. In that case,
  *  one can call this function with ASIF_NOALLOC flag set and then
- *  call arm_ipi_dispatch() when appropriate.
+ *  call intr_ipi_dispatch() when appropriate.
  *
  *  Not SMP coherent.
  */
 int
-arm_ipi_set_handler(u_int ipi, const char *name, arm_ipi_filter_t *filter,
+intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
     void *arg, u_int flags)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 	int error;
 
 	if (filter == NULL)
 		return(EINVAL);
 
-	isrc = arm_ipi_lookup(ipi);
+	isrc = intr_ipi_lookup(ipi);
 	if (isrc->isrc_ipifilter != NULL)
 		return (EEXIST);
 
@@ -1391,9 +1328,9 @@ arm_ipi_set_handler(u_int ipi, const char *name, arm_ipi_filter_t *filter,
 void
 pic_ipi_send(cpuset_t cpus, u_int ipi)
 {
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 
-	isrc = arm_ipi_lookup(ipi);
+	isrc = intr_ipi_lookup(ipi);
 
 	KASSERT(irq_root_dev != NULL, ("%s: no root attached", __func__));
 	PIC_IPI_SEND(irq_root_dev, isrc, cpus);
@@ -1403,7 +1340,7 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
  *  Init interrupt controller on another CPU.
  */
 void
-arm_pic_init_secondary(void)
+intr_pic_init_secondary(void)
 {
 
 	/*
@@ -1421,7 +1358,7 @@ arm_pic_init_secondary(void)
 DB_SHOW_COMMAND(irqs, db_show_irqs)
 {
 	u_int i, irqsum;
-	struct arm_irqsrc *isrc;
+	struct intr_irqsrc *isrc;
 
 #ifdef SMP
 	for (i = 0; i <= mp_maxid; i++) {
@@ -1430,8 +1367,8 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 
 		pc = pcpu_find(i);
 		if (pc != NULL) {
-			for (ipisum = 0, ipi = 0; ipi < ARM_IPI_COUNT; ipi++) {
-				isrc = arm_ipi_lookup(ipi);
+			for (ipisum = 0, ipi = 0; ipi < INTR_IPI_COUNT; ipi++) {
+				isrc = intr_ipi_lookup(ipi);
 				if (isrc->isrc_count != NULL)
 					ipisum += isrc->isrc_count[i];
 			}
@@ -1449,7 +1386,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 
 		db_printf("irq%-3u <%s>: cpu %02lx%s cnt %lu\n", i,
 		    isrc->isrc_name, isrc->isrc_cpu.__bits[0],
-		    isrc->isrc_flags & ARM_ISRCF_BOUND ? " (bound)" : "",
+		    isrc->isrc_flags & INTR_ISRCF_BOUND ? " (bound)" : "",
 		    isrc->isrc_count[0]);
 		irqsum += isrc->isrc_count[0];
 	}

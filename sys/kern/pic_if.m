@@ -36,17 +36,17 @@
 INTERFACE pic;
 
 CODE {
-	static int null_pic_bind(device_t dev, struct arm_irqsrc *isrc)
+	static int null_pic_bind(device_t dev, struct intr_irqsrc *isrc)
 	{
 		return (EOPNOTSUPP);
 	}
 
-	static void null_pic_disable_intr(device_t dev, struct arm_irqsrc *isrc)
+	static void null_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 	{
 		return;
 	}
 
-	static void null_pic_enable_intr(device_t dev, struct arm_irqsrc *isrc)
+	static void null_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	{
 		return;
 	}
@@ -64,53 +64,53 @@ CODE {
 
 METHOD int register {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 	boolean_t		*is_percpu;
 };
 
 METHOD int unregister {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 };
 
 METHOD void disable_intr {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 } DEFAULT null_pic_disable_intr;
 
 METHOD void disable_source {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 };
 
 METHOD void enable_source {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 };
 
 METHOD void enable_intr {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 } DEFAULT null_pic_enable_intr;
 
 METHOD void pre_ithread {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 };
 
 METHOD void post_ithread {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 };
 
 METHOD void post_filter {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 };
 
 METHOD int bind {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 } DEFAULT null_pic_bind;
 
 METHOD void init_secondary {
@@ -119,6 +119,6 @@ METHOD void init_secondary {
 
 METHOD void ipi_send {
 	device_t		dev;
-	struct arm_irqsrc	*isrc;
+	struct intr_irqsrc	*isrc;
 	cpuset_t		cpus;
 } DEFAULT null_pic_ipi_send;
