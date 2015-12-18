@@ -73,7 +73,7 @@ void
 platform_mp_init_secondary(void)
 {
 
-	arm_pic_init_secondary();
+	intr_pic_init_secondary();
 }
 
 void
