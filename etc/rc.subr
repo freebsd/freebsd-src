@@ -974,6 +974,14 @@ run_rc_command()
 			fi
 		fi
 
+		if [ $rc_arg = "start" -a -z "$rc_fast" -a -n "$rc_pid" ]; then
+			if [ -z "$rc_quiet" ]; then
+				echo 1>&2 "${name} already running? " \
+				    "(pid=$rc_pid)."
+			fi
+			return 1
+		fi
+
 					# if there's a custom ${XXX_cmd},
 					# run that instead of the default
 					#
@@ -1002,14 +1010,6 @@ run_rc_command()
 			;;
 
 		start)
-			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
-				if [ -z "$rc_quiet" ]; then
-					echo 1>&2 "${name} already running? " \
-					    "(pid=$rc_pid)."
-				fi
-				return 1
-			fi
-
 			if [ ! -x "${_chroot}${_chroot:+/}${command}" ]; then
 				warn "run_rc_command: cannot run $command"
 				return 1
