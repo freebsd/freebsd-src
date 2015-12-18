@@ -201,8 +201,7 @@ g_delay_init(struct g_geom *geom)
 {
 	struct g_delay_softc *sc;
 
-	/* XXX check whether we can sleep */
-	sc = malloc(sizeof *sc, M_GEOM_SCHED, M_NOWAIT | M_ZERO);
+	sc = malloc(sizeof *sc, M_GEOM_SCHED, M_WAITOK | M_ZERO);
 	sc->sc_geom = geom;
 	bioq_init(&sc->sc_bioq);
 	callout_init(&sc->sc_wait, CALLOUT_MPSAFE);
