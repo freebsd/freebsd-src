@@ -280,6 +280,7 @@
 >18	leshort		0xad45		xstormy16 (unofficial),
 >18	leshort		0xbaab		Old MicroBlaze (unofficial),,
 >18	leshort		0xbeef		Cygnus MN10300 (unofficial),
+>18	leshort		0xc256		MIPS with CHERI (unofficial),
 >18	leshort		0xdead		Cygnus MN10200 (unofficial),
 >18	leshort		0xf00d		Toshiba MeP (unofficial),
 >18	leshort		0xfeb0		Renesas M32C (unofficial),
