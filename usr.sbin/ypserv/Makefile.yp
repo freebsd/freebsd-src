@@ -387,9 +387,20 @@ netgroup.byuser: $(NETGROUP)
 .endif
 
 
+# Solaris 8 does the following:
+# - /etc/hosts and hosts.{byname,byaddr} are IPv4 only.
+# - /etc/inet/ipnodes and ipnodes.{byname,byaddr} are used for protocol
+#   independent name-to-address mapping.
+#
+# For local name resolution, we made /etc/hosts protocol independent.
+# For NIS name resolution, we obey Solaris 8 practice.
+# - We keep hosts.{byname,byaddr} IPv4 only, to be friendly with Solaris 8
+#   clients.
+# - ipnodes.{byname,byaddr} is used for protocol independent mapping.
+#
 hosts.byname: $(HOSTS)
 	@echo "Updating $@..."
-	@$(AWK) '/^[0-9]/ { for (n=2; n<=NF && $$n !~ "^#.*"; n++) \
+	@$(AWK) '/^[0-9.]+[\t ]/ { for (n=2; n<=NF && $$n !~ "^#.*"; n++) \
 		print $$n"\t"$$0 }' $(HOSTS) | $(DBLOAD) ${B} -i $(HOSTS)  \
 		-o $(YPMAPDIR)/$@ - $(TMP); $(RMV) $(TMP) $@
 	@$(DBLOAD) -c
@@ -399,7 +410,7 @@ hosts.byname: $(HOSTS)
 
 hosts.byaddr: $(HOSTS)
 	@echo "Updating $@..."
-	@$(AWK) '$$1 !~ "^#.*" { print $$1"\t"$$0 }' $(HOSTS) \
+	@$(AWK) '/^[0-9.]+[\t ]/ { print $$1"\t"$$0 }' $(HOSTS) \
 		| $(DBLOAD) ${B} -i $(HOSTS) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
