@@ -341,6 +341,7 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	uint8_t *uiregs = regs;
 	uint8_t *uiimapmsk = imapmsk;
 	uint8_t *mptr;
+	pcell_t paddrsz;
 	pcell_t pintrsz;
 	int i, rsz, tsz;
 
@@ -357,19 +358,31 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 
 	mptr = imap;
 	i = imapsz;
+	paddrsz = 0;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
+#ifdef OFW_EPAPR
+		/*
+		 * Find if we need to read the parent address data. Sparc64
+		 * uses a different encoding that doesn't include this data.
+		 */
+		if (OF_getencprop(OF_node_from_xref(parent),
+		    "#address-cells", &paddrsz, sizeof(paddrsz)) == -1)
+			paddrsz = 0;	/* default */
+		paddrsz *= sizeof(pcell_t);
+#endif
+
 		if (OF_searchencprop(OF_node_from_xref(parent),
 		    "#interrupt-cells", &pintrsz, sizeof(pintrsz)) == -1)
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);
 
 		/* Compute the map stride size. */
-		tsz = physsz + intrsz + sizeof(phandle_t) + pintrsz;
+		tsz = physsz + intrsz + sizeof(phandle_t) + paddrsz + pintrsz;
 		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
 
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
-			bcopy(mptr + physsz + intrsz + sizeof(parent),
+			bcopy(mptr + physsz + intrsz + sizeof(parent) + paddrsz,
 			    result, MIN(rintrsz, pintrsz));
 
 			if (iparent != NULL)

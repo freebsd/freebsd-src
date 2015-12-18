@@ -126,7 +126,7 @@ SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
 
 void	(*bridge_linkstate_p)(struct ifnet *ifp);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
-void	(*lagg_linkstate_p)(struct ifnet *ifp);
+void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
 /* These are external hooks for CARP. */
 void	(*carp_linkstate_p)(struct ifnet *ifp);
 void	(*carp_demote_adj_p)(int, char *);
@@ -1984,8 +1984,6 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
-	if (ifp->if_lagg)
-		(*lagg_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 }
 
@@ -2007,8 +2005,6 @@ if_route(struct ifnet *ifp, int flag, int fam)
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
-	if (ifp->if_lagg)
-		(*lagg_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 #ifdef INET6
 	in6_if_up(ifp);
@@ -2023,27 +2019,17 @@ int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
 int	(*vlan_setcookie_p)(struct ifnet *, void *);
 void	*(*vlan_cookie_p)(struct ifnet *);
 
-void
-if_link_state_change(struct ifnet *ifp, int link_state)
-{
-
-	return if_link_state_change_cond(ifp, link_state, 0);
-}
-
 /*
  * Handle a change in the interface link state. To avoid LORs
  * between driver lock and upper layer locks, as well as possible
  * recursions, we post event to taskqueue, and all job
  * is done in static do_link_state_change().
- *
- * If the current link state matches link_state and force isn't
- * specified no action is taken.
  */
 void
-if_link_state_change_cond(struct ifnet *ifp, int link_state, int force)
+if_link_state_change(struct ifnet *ifp, int link_state)
 {
-
-	if (ifp->if_link_state == link_state && !force)
+	/* Return if state hasn't changed. */
+	if (ifp->if_link_state == link_state)
 		return;
 
 	ifp->if_link_state = link_state;
@@ -2071,7 +2057,7 @@ do_link_state_change(void *arg, int pending)
 	if (ifp->if_bridge)
 		(*bridge_linkstate_p)(ifp);
 	if (ifp->if_lagg)
-		(*lagg_linkstate_p)(ifp);
+		(*lagg_linkstate_p)(ifp, link_state);
 
 	if (IS_DEFAULT_VNET(curvnet))
 		devctl_notify("IFNET", ifp->if_xname,

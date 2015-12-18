@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  *
  * Derived from FreeBSD head/lib/libutil/flopen.c r193591
- * $P4: //depot/projects/trustedbsd/openbsm/compat/flopen.h#1 $
  */
 
 #include <sys/file.h>

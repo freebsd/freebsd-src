@@ -188,8 +188,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	page = vm_page_getfake(paddr, memattr);
 	VM_OBJECT_WLOCK(object);
 	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, plinks.q);
-	if (vm_page_replace(page, object, offset) != m[0])
-		panic("sg_pager_getpages: invalid place replacement");
+	vm_page_replace_checked(page, object, offset, m[0]);
 	m[0] = page;
 	page->valid = VM_PAGE_BITS_ALL;
 

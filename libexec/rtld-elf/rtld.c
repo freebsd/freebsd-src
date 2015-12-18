@@ -257,7 +257,7 @@ bool ld_library_path_rpath = false;
 /*
  * Globals for path names, and such
  */
-char *ld_path_elf_hints = _PATH_ELF_HINTS;
+char *ld_elf_hints_default = _PATH_ELF_HINTS;
 char *ld_path_libmap_conf = _PATH_LIBMAP_CONF;
 char *ld_path_rtld = _PATH_RTLD;
 char *ld_standard_library_path = STANDARD_LIBRARY_PATH;
@@ -458,7 +458,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_utrace = getenv(LD_ "UTRACE");
 
     if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
-	ld_elf_hints_path = ld_path_elf_hints;
+	ld_elf_hints_path = ld_elf_hints_default;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
