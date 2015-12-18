@@ -91,7 +91,7 @@
     AcpiOsPrintf (Description);
 
 #define ACPI_OPTION(Name, Description) \
-    AcpiOsPrintf ("  %-18s%s\n", Name, Description);
+    AcpiOsPrintf ("  %-20s%s\n", Name, Description);
 
 
 /* Check for unexpected exceptions */
@@ -115,10 +115,20 @@
 /* acfileio */
 
 ACPI_STATUS
-AcpiAcGetAllTablesFromFile (
+AcGetAllTablesFromFile (
     char                    *Filename,
     UINT8                   GetOnlyAmlTables,
     ACPI_NEW_TABLE_DESC     **ReturnListHead);
+
+BOOLEAN
+AcIsFileBinary (
+    FILE                    *File);
+
+ACPI_STATUS
+AcValidateTableHeader (
+    FILE                    *File,
+    long                    TableOffset);
+
 
 /* Values for GetOnlyAmlTables */
 

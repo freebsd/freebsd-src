@@ -859,21 +859,8 @@ AnAnalyzeStoreOperator (
     case PARSEOP_DEREFOF:
     case PARSEOP_REFOF:
     case PARSEOP_INDEX:
-
-        return;
-
     case PARSEOP_METHODCALL:
-        /*
-         * A target is not allowed to be a method call.
-         * It is technically allowed to be a method call, but this only
-         * makes sense in one case: if the method returns a reference object,
-         * which will then allow the Store to complete successfully.
-         * However, this is not supported by the ACPICA interpreter,
-         * and not supported by the MS ASL compiler
-         * at this time. (09/2015)
-         */
-        AslError (ASL_ERROR, ASL_MSG_UNSUPPORTED,
-            TargetOperandOp, "Method invocation cannot be a target");
+
         return;
 
     default:

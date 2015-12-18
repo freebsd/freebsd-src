@@ -149,34 +149,19 @@ AeRegionInit (
 }
 
 
-void
-AeInstallRegionHandlers (
-    void)
-{
-    UINT32                  i;
-    ACPI_STATUS             Status;
-
-    /*
-     * Install handlers for some of the "device driver" address spaces
-     * such as SMBus, etc.
-     */
-    for (i = 0; i < ACPI_ARRAY_LENGTH (SpaceIdList); i++)
-    {
-        /* Install handler at the root object */
-
-        Status = AcpiInstallAddressSpaceHandler (ACPI_ROOT_OBJECT,
-            SpaceIdList[i], AeRegionHandler,
-            AeRegionInit, &AeMyContext);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_EXCEPTION ((AE_INFO, Status,
-                "Could not install an OpRegion handler for %s space(%u)",
-                AcpiUtGetRegionName((UINT8) SpaceIdList[i]), SpaceIdList[i]));
-            return;
-        }
-    }
-}
-
+/******************************************************************************
+ *
+ * FUNCTION:    AeOverrideRegionHandlers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Override the default region handlers for memory, i/o, and
+ *              pci_config. Also install a handler for EC. This is part of
+ *              the "install early handlers" functionality.
+ *
+ *****************************************************************************/
 
 void
 AeOverrideRegionHandlers (
@@ -196,12 +181,55 @@ AeOverrideRegionHandlers (
         Status = AcpiInstallAddressSpaceHandler (ACPI_ROOT_OBJECT,
             DefaultSpaceIdList[i], AeRegionHandler,
             AeRegionInit, &AeMyContext);
+
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Could not install a default OpRegion handler for %s space(%u)",
+                "Could not install an OpRegion handler for %s space(%u)",
                 AcpiUtGetRegionName ((UINT8) DefaultSpaceIdList[i]),
                 DefaultSpaceIdList[i]));
+        }
+    }
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeInstallRegionHandlers
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Install handlers for the address spaces other than memory,
+ *              i/o, and pci_config.
+ *
+ *****************************************************************************/
+
+void
+AeInstallRegionHandlers (
+    void)
+{
+    UINT32                  i;
+    ACPI_STATUS             Status;
+
+    /*
+     * Install handlers for some of the "device driver" address spaces
+     * such as SMBus, etc.
+     */
+    for (i = 0; i < ACPI_ARRAY_LENGTH (SpaceIdList); i++)
+    {
+        /* Install handler at the root object */
+
+        Status = AcpiInstallAddressSpaceHandler (ACPI_ROOT_OBJECT,
+            SpaceIdList[i], AeRegionHandler,
+            AeRegionInit, &AeMyContext);
+
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "Could not install an OpRegion handler for %s space(%u)",
+                AcpiUtGetRegionName((UINT8) SpaceIdList[i]), SpaceIdList[i]));
             return;
         }
     }

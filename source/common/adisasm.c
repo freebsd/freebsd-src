@@ -192,10 +192,12 @@ AdAmlDisassemble (
     {
         /* Get the list of all AML tables in the file */
 
-        Status = AcpiAcGetAllTablesFromFile (Filename,
+        Status = AcGetAllTablesFromFile (Filename,
             ACPI_GET_ALL_TABLES, &ListHead);
         if (ACPI_FAILURE (Status))
         {
+            AcpiOsPrintf ("Could not get ACPI tables from %s, %s\n",
+                Filename, AcpiFormatException (Status));
             return (Status);
         }
 
@@ -281,13 +283,12 @@ AdAmlDisassemble (
 
 Cleanup:
 
-// check!
-#if 0
-    if (Table && !AcpiGbl_ForceAmlDisassembly && !AcpiUtIsAmlTable (Table))
+    if (Table &&
+        !AcpiGbl_ForceAmlDisassembly &&
+        !AcpiUtIsAmlTable (Table))
     {
         ACPI_FREE (Table);
     }
-#endif
 
     if (File)
     {
@@ -592,7 +593,7 @@ AdDoExternalFileList (
         AcpiOsPrintf ("External object resolution file %16s\n",
             ExternalFilename);
 
-        Status = AcpiAcGetAllTablesFromFile (
+        Status = AcGetAllTablesFromFile (
             ExternalFilename, ACPI_GET_ONLY_AML_TABLES, &ExternalListHead);
         if (ACPI_FAILURE (Status))
         {

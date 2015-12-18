@@ -60,6 +60,10 @@ static void
 AcpiDmMatchKeyword (
     ACPI_PARSE_OBJECT       *Op);
 
+static void
+AcpiDmConvertToElseIf (
+    ACPI_PARSE_OBJECT       *Op);
+
 
 /*******************************************************************************
  *
@@ -683,6 +687,11 @@ AcpiDmDisassembleOneOp (
         return;
     }
 
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_ELSEIF)
+    {
+        return; /* ElseIf macro was already emitted */
+    }
+
     switch (Op->Common.DisasmOpcode)
     {
     case ACPI_DASM_MATCHOP:
@@ -955,6 +964,11 @@ AcpiDmDisassembleOneOp (
         AcpiDmNamestring (Op->Common.Value.Name);
         break;
 
+    case AML_ELSE_OP:
+
+        AcpiDmConvertToElseIf (Op);
+        break;
+
     default:
 
         /* Just get the opcode name and print it */
@@ -978,4 +992,114 @@ AcpiDmDisassembleOneOp (
 
         break;
     }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmConvertToElseIf
+ *
+ * PARAMETERS:  OriginalElseOp          - ELSE Object to be examined
+ *
+ * RETURN:      None. Emits either an "Else" or an "ElseIf" ASL operator.
+ *
+ * DESCRIPTION: Detect and convert an If..Else..If sequence to If..ElseIf
+ *
+ * EXAMPLE:
+ *
+ * This If..Else..If nested sequence:
+ *
+ *        If (Arg0 == 1)
+ *        {
+ *            Local0 = 4
+ *        }
+ *        Else
+ *        {
+ *            If (Arg0 == 2)
+ *            {
+ *                Local0 = 5
+ *            }
+ *        }
+ *
+ * Is converted to this simpler If..ElseIf sequence:
+ *
+ *        If (Arg0 == 1)
+ *        {
+ *            Local0 = 4
+ *        }
+ *        ElseIf (Arg0 == 2)
+ *        {
+ *            Local0 = 5
+ *        }
+ *
+ * NOTE: There is no actual ElseIf AML opcode. ElseIf is essentially an ASL
+ * macro that emits an Else opcode followed by an If opcode. This function
+ * reverses these AML sequences back to an ElseIf macro where possible. This
+ * can make the disassembled ASL code simpler and more like the original code.
+ *
+ ******************************************************************************/
+
+static void
+AcpiDmConvertToElseIf (
+    ACPI_PARSE_OBJECT       *OriginalElseOp)
+{
+    ACPI_PARSE_OBJECT       *IfOp;
+    ACPI_PARSE_OBJECT       *ElseOp;
+
+
+    /* Examine the first child of the Else */
+
+    IfOp = OriginalElseOp->Common.Value.Arg;
+    if (!IfOp || (IfOp->Common.AmlOpcode != AML_IF_OP))
+    {
+        /* Not an Else..If sequence, cannot convert to ElseIf */
+
+        AcpiOsPrintf ("%s", "Else");
+        return;
+    }
+
+    /* Emit ElseIf, mark the IF as now an ELSEIF */
+
+    AcpiOsPrintf ("%s", "ElseIf");
+    IfOp->Common.DisasmFlags |= ACPI_PARSEOP_ELSEIF;
+
+    /* The IF parent will now be the same as the original ELSE parent */
+
+    IfOp->Common.Parent = OriginalElseOp->Common.Parent;
+
+    /*
+     * Update the NEXT pointers to restructure the parse tree, essentially
+     * promoting an If..Else block up to the same level as the original
+     * Else.
+     *
+     * Check if the IF has a corresponding ELSE peer
+     */
+    ElseOp = IfOp->Common.Next;
+    if (ElseOp &&
+        (ElseOp->Common.AmlOpcode == AML_ELSE_OP))
+    {
+        /* If an ELSE matches the IF, promote it also */
+
+        ElseOp->Common.Parent = OriginalElseOp->Common.Parent;
+        ElseOp->Common.Next = OriginalElseOp->Common.Next;
+    }
+    else
+    {
+        /* Otherwise, set the IF NEXT to the original ELSE NEXT */
+
+        IfOp->Common.Next = OriginalElseOp->Common.Next;
+    }
+
+    /* Detach the child IF block from the original ELSE */
+
+    OriginalElseOp->Common.Value.Arg = NULL;
+
+    /* Ignore the original ELSE from now on */
+
+    OriginalElseOp->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+    OriginalElseOp->Common.DisasmOpcode = ACPI_DASM_LNOT_PREFIX;
+
+    /* Insert IF (now ELSEIF) as next peer of the original ELSE */
+
+    OriginalElseOp->Common.Next = IfOp;
 }

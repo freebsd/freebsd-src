@@ -55,20 +55,20 @@
 /* Local prototypes */
 
 static ACPI_STATUS
-AcpiAcGetOneTableFromFile (
+AcGetOneTableFromFile (
     char                    *Filename,
     FILE                    *File,
     UINT8                   GetOnlyAmlTables,
     ACPI_TABLE_HEADER       **Table);
 
 static ACPI_STATUS
-AcpiAcCheckTextModeCorruption (
+AcCheckTextModeCorruption (
     ACPI_TABLE_HEADER       *Table);
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAcGetAllTablesFromFile
+ * FUNCTION:    AcGetAllTablesFromFile
  *
  * PARAMETERS:  Filename            - Table filename
  *              GetOnlyAmlTables    - TRUE if the tables must be AML tables
@@ -81,7 +81,7 @@ AcpiAcCheckTextModeCorruption (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAcGetAllTablesFromFile (
+AcGetAllTablesFromFile (
     char                    *Filename,
     UINT8                   GetOnlyAmlTables,
     ACPI_NEW_TABLE_DESC     **ReturnListHead)
@@ -115,9 +115,25 @@ AcpiAcGetAllTablesFromFile (
         return (AE_ERROR);
     }
 
-    if (FileSize < 4)
+    fprintf (stderr,
+        "Input file %s, Length 0x%X (%u) bytes\n",
+        Filename, FileSize, FileSize);
+
+    /* We must have at least one ACPI table header */
+
+    if (FileSize < sizeof (ACPI_TABLE_HEADER))
     {
         return (AE_BAD_HEADER);
+    }
+
+    /* Check for an non-binary file */
+
+    if (!AcIsFileBinary (File))
+    {
+        fprintf (stderr,
+            "    %s: File does not appear to contain a valid AML table\n",
+            Filename);
+        return (AE_TYPE);
     }
 
     /* Read all tables within the file */
@@ -126,8 +142,9 @@ AcpiAcGetAllTablesFromFile (
     {
         /* Get one entire ACPI table */
 
-        Status = AcpiAcGetOneTableFromFile (
+        Status = AcGetOneTableFromFile (
             Filename, File, GetOnlyAmlTables, &Table);
+
         if (Status == AE_CTRL_TERMINATE)
         {
             Status = AE_OK;
@@ -135,12 +152,19 @@ AcpiAcGetAllTablesFromFile (
         }
         else if (Status == AE_TYPE)
         {
-            continue;
+            return (AE_OK);
         }
         else if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
+
+        /* Print table header for iASL/disassembler only */
+
+#ifdef ACPI_ASL_COMPILER
+
+            AcpiTbPrintTableHeader (0, Table);
+#endif
 
         /* Allocate and link a table descriptor */
 
@@ -186,7 +210,7 @@ AcpiAcGetAllTablesFromFile (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAcGetOneTableFromFile
+ * FUNCTION:    AcGetOneTableFromFile
  *
  * PARAMETERS:  Filename            - File where table is located
  *              File                - Open FILE pointer to Filename
@@ -204,7 +228,7 @@ AcpiAcGetAllTablesFromFile (
  ******************************************************************************/
 
 static ACPI_STATUS
-AcpiAcGetOneTableFromFile (
+AcGetOneTableFromFile (
     char                    *Filename,
     FILE                    *File,
     UINT8                   GetOnlyAmlTables,
@@ -214,19 +238,26 @@ AcpiAcGetOneTableFromFile (
     ACPI_TABLE_HEADER       TableHeader;
     ACPI_TABLE_HEADER       *Table;
     INT32                   Count;
-    long                    Position;
+    long                    TableOffset;
 
 
     *ReturnTable = NULL;
 
+    /* Get the table header to examine signature and length */
 
-    /* Get just the table header to get signature and length */
-
-    Position = ftell (File);
+    TableOffset = ftell (File);
     Count = fread (&TableHeader, 1, sizeof (ACPI_TABLE_HEADER), File);
     if (Count != sizeof (ACPI_TABLE_HEADER))
     {
         return (AE_CTRL_TERMINATE);
+    }
+
+    /* Validate the table signature/header (limited ASCII chars) */
+
+    Status = AcValidateTableHeader (File, TableOffset);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
     }
 
     if (GetOnlyAmlTables)
@@ -237,7 +268,7 @@ AcpiAcGetOneTableFromFile (
             !AcpiUtIsAmlTable (&TableHeader))
         {
             fprintf (stderr,
-                "    %s: [%4.4s] is not an AML table - ignoring\n",
+                "    %s: Table [%4.4s] is not an AML table - ignoring\n",
                 Filename, TableHeader.Signature);
 
             return (AE_TYPE);
@@ -252,9 +283,9 @@ AcpiAcGetOneTableFromFile (
         return (AE_NO_MEMORY);
     }
 
-    /* Now read the entire table */
+    /* Read the entire ACPI table, including header */
 
-    fseek (File, Position, SEEK_SET);
+    fseek (File, TableOffset, SEEK_SET);
 
     Count = fread (Table, 1, TableHeader.Length, File);
     if (Count != (INT32) TableHeader.Length)
@@ -268,17 +299,12 @@ AcpiAcGetOneTableFromFile (
     Status = AcpiTbVerifyChecksum (Table, TableHeader.Length);
     if (ACPI_FAILURE (Status))
     {
-        Status = AcpiAcCheckTextModeCorruption (Table);
+        Status = AcCheckTextModeCorruption (Table);
         if (ACPI_FAILURE (Status))
         {
             goto ErrorExit;
         }
     }
-
-    fprintf (stderr,
-        "Loading ACPI table [%4.4s] from file %12s - Length 0x%06X (%u)\n",
-        TableHeader.Signature, Filename,
-        TableHeader.Length, TableHeader.Length);
 
     *ReturnTable = Table;
     return (AE_OK);
@@ -292,7 +318,159 @@ ErrorExit:
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAcCheckTextModeCorruption
+ * FUNCTION:    AcIsFileBinary
+ *
+ * PARAMETERS:  File                - Open input file
+ *
+ * RETURN:      TRUE if file appears to be binary
+ *
+ * DESCRIPTION: Scan a file for any non-ASCII bytes.
+ *
+ * Note: Maintains current file position.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcIsFileBinary (
+    FILE                    *File)
+{
+    UINT8                   Byte;
+    BOOLEAN                 IsBinary = FALSE;
+    long                    FileOffset;
+
+
+    /* Scan entire file for any non-ASCII bytes */
+
+    FileOffset = ftell (File);
+    while (fread (&Byte, 1, 1, File) == 1)
+    {
+        if (!isprint (Byte) && !isspace (Byte))
+        {
+            IsBinary = TRUE;
+            goto Exit;
+        }
+    }
+
+Exit:
+    fseek (File, FileOffset, SEEK_SET);
+    return (IsBinary);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcValidateTableHeader
+ *
+ * PARAMETERS:  File                - Open input file
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Determine if a file seems to contain one or more binary ACPI
+ *              tables, via the
+ *              following checks on what would be the table header:
+ *              1) File must be at least as long as an ACPI_TABLE_HEADER
+ *              2) There must be enough room in the file to hold entire table
+ *              3) Signature, OemId, OemTableId, AslCompilerId must be ASCII
+ *
+ * Note: There can be multiple definition blocks per file, so we cannot
+ * expect/compare the file size to be equal to the table length. 12/2015.
+ *
+ * Note: Maintains current file position.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcValidateTableHeader (
+    FILE                    *File,
+    long                    TableOffset)
+{
+    ACPI_TABLE_HEADER       TableHeader;
+    size_t                  Actual;
+    long                    OriginalOffset;
+    UINT32                  FileSize;
+    UINT32                  i;
+
+
+    ACPI_FUNCTION_TRACE ("AcValidateTableHeader");
+
+
+    /* Read a potential table header */
+
+    OriginalOffset = ftell (File);
+    fseek (File, TableOffset, SEEK_SET);
+
+    Actual = fread (&TableHeader, 1, sizeof (ACPI_TABLE_HEADER), File);
+    fseek (File, OriginalOffset, SEEK_SET);
+
+    if (Actual < sizeof (ACPI_TABLE_HEADER))
+    {
+        return (AE_ERROR);
+    }
+
+    /* Validate the signature (limited ASCII chars) */
+
+    if (!AcpiIsValidSignature (TableHeader.Signature))
+    {
+        fprintf (stderr, "Invalid table signature: 0x%8.8X\n",
+            *ACPI_CAST_PTR (UINT32, TableHeader.Signature));
+        return (AE_BAD_SIGNATURE);
+    }
+
+    /* Validate table length against bytes remaining in the file */
+
+    FileSize = CmGetFileSize (File);
+    if (TableHeader.Length > (UINT32) (FileSize - TableOffset))
+    {
+        fprintf (stderr, "Table [%4.4s] is too long for file - "
+            "needs: 0x%.2X, remaining in file: 0x%.2X\n",
+            TableHeader.Signature, TableHeader.Length,
+            (UINT32) (FileSize - TableOffset));
+        return (AE_BAD_HEADER);
+    }
+
+    /*
+     * These fields must be ASCII: OemId, OemTableId, AslCompilerId.
+     * We allow a NULL terminator in OemId and OemTableId.
+     */
+    for (i = 0; i < ACPI_NAME_SIZE; i++)
+    {
+        if (!ACPI_IS_ASCII ((UINT8) TableHeader.AslCompilerId[i]))
+        {
+            goto BadCharacters;
+        }
+    }
+
+    for (i = 0; (i < ACPI_OEM_ID_SIZE) && (TableHeader.OemId[i]); i++)
+    {
+        if (!ACPI_IS_ASCII ((UINT8) TableHeader.OemId[i]))
+        {
+            goto BadCharacters;
+        }
+    }
+
+    for (i = 0; (i < ACPI_OEM_TABLE_ID_SIZE) && (TableHeader.OemTableId[i]); i++)
+    {
+        if (!ACPI_IS_ASCII ((UINT8) TableHeader.OemTableId[i]))
+        {
+            goto BadCharacters;
+        }
+    }
+
+    return (AE_OK);
+
+
+BadCharacters:
+
+    ACPI_WARNING ((AE_INFO,
+        "Table header for [%4.4s] has invalid ASCII character(s)",
+        TableHeader.Signature));
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcCheckTextModeCorruption
  *
  * PARAMETERS:  Table           - Table buffer starting with table header
  *
@@ -305,7 +483,7 @@ ErrorExit:
  ******************************************************************************/
 
 static ACPI_STATUS
-AcpiAcCheckTextModeCorruption (
+AcCheckTextModeCorruption (
     ACPI_TABLE_HEADER       *Table)
 {
     UINT32                  i;

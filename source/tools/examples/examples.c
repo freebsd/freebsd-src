@@ -176,6 +176,7 @@ InitializeFullAcpica (void)
 
     /* Initialize the ACPICA subsystem */
 
+    AcpiGbl_OverrideDefaultRegionHandlers = TRUE;
     Status = AcpiInitializeSubsystem ();
     if (ACPI_FAILURE (Status))
     {
@@ -194,15 +195,6 @@ InitializeFullAcpica (void)
         return (Status);
     }
 
-    /* Create the ACPI namespace from ACPI tables */
-
-    Status = AcpiLoadTables ();
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_EXCEPTION ((AE_INFO, Status, "While loading ACPI tables"));
-        return (Status);
-    }
-
     /* Install local handlers */
 
     Status = InstallHandlers ();
@@ -218,6 +210,15 @@ InitializeFullAcpica (void)
     if (ACPI_FAILURE (Status))
     {
         ACPI_EXCEPTION ((AE_INFO, Status, "While enabling ACPICA"));
+        return (Status);
+    }
+
+    /* Create the ACPI namespace from ACPI tables */
+
+    Status = AcpiLoadTables ();
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_EXCEPTION ((AE_INFO, Status, "While loading ACPI tables"));
         return (Status);
     }
 
@@ -283,6 +284,7 @@ InitializeAcpi (
 
     /* Initialize the ACPICA subsystem */
 
+    AcpiGbl_OverrideDefaultRegionHandlers = TRUE;
     Status = AcpiInitializeSubsystem ();
     if (ACPI_FAILURE (Status))
     {
@@ -292,14 +294,6 @@ InitializeAcpi (
     /* Copy the root table list to dynamic memory */
 
     Status = AcpiReallocateRootTable ();
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
-    /* Create the ACPI namespace from ACPI tables */
-
-    Status = AcpiLoadTables ();
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -317,6 +311,14 @@ InitializeAcpi (
     /* Initialize the ACPI hardware */
 
     Status = AcpiEnableSubsystem (ACPI_FULL_INITIALIZATION);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Create the ACPI namespace from ACPI tables */
+
+    Status = AcpiLoadTables ();
     if (ACPI_FAILURE (Status))
     {
         return (Status);

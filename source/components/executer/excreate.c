@@ -350,9 +350,10 @@ AcpiExCreateRegion (
      * Remember location in AML stream of address & length
      * operands since they need to be evaluated at run time.
      */
-    RegionObj2 = ObjDesc->Common.NextObject;
+    RegionObj2 = AcpiNsGetSecondaryObject (ObjDesc);
     RegionObj2->Extra.AmlStart = AmlStart;
     RegionObj2->Extra.AmlLength = AmlLength;
+    RegionObj2->Extra.Method_REG = NULL;
     if (WalkState->ScopeInfo)
     {
         RegionObj2->Extra.ScopeNode = WalkState->ScopeInfo->Scope.Node;
@@ -368,6 +369,10 @@ AcpiExCreateRegion (
     ObjDesc->Region.Address = 0;
     ObjDesc->Region.Length = 0;
     ObjDesc->Region.Node = Node;
+    ObjDesc->Region.Handler = NULL;
+    ObjDesc->Common.Flags &=
+        ~(AOPOBJ_SETUP_COMPLETE | AOPOBJ_REG_CONNECTED |
+          AOPOBJ_OBJECT_INITIALIZED);
 
     /* Install the new region object in the parent Node */
 

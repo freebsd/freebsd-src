@@ -157,10 +157,30 @@ TrReleaseNode (
 
 /*******************************************************************************
  *
+ * FUNCTION:    TrSetCurrentFilename
+ *
+ * PARAMETERS:  Op                  - An existing parse node
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Save the include file filename. Used for debug output only.
+ *
+ ******************************************************************************/
+
+void
+TrSetCurrentFilename (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    Op->Asl.Filename = Gbl_PreviousIncludeFilename;
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    TrUpdateNode
  *
  * PARAMETERS:  ParseOpcode         - New opcode to be assigned to the node
- *              Op                - An existing parse node
+ *              Op                  - An existing parse node
  *
  * RETURN:      The updated node
  *
