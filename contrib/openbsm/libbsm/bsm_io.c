@@ -31,8 +31,6 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#75 $
  */
 
 #include <sys/types.h>
@@ -268,7 +266,7 @@ print_xml_string(FILE *fp, const char *str, size_t len)
 }
 
 /*
- * Prints the beggining of attribute.
+ * Prints the beginning of an attribute.
  */
 static void
 open_attr(FILE *fp, const char *str)
@@ -278,7 +276,7 @@ open_attr(FILE *fp, const char *str)
 }
 
 /*
- * Prints the end of attribute.
+ * Prints the end of an attribute.
  */
 static void
 close_attr(FILE *fp)
@@ -288,7 +286,7 @@ close_attr(FILE *fp)
 }
 
 /*
- * Prints the end of tag.
+ * Prints the end of a tag.
  */
 static void
 close_tag(FILE *fp, u_char type)
@@ -596,6 +594,7 @@ print_tok_type(FILE *fp, u_char type, const char *tokname, int oflags)
 
 		case AUT_SOCKINET128:
 			fprintf(fp, "<socket-inet6 ");
+			break;
 
 		case AUT_SUBJECT32:
 			fprintf(fp, "<subject ");
