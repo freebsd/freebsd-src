@@ -669,6 +669,7 @@ static void
 cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct cheri_frame *cfp;
+	struct cheri_signal *csigp;
 	u_long stackbase, stacklen;
 
 	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
@@ -708,6 +709,13 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	cheri_capability_set(&cfp->cf_c11, CHERI_CAP_USER_DATA_PERMS,
 	    CHERI_CAP_USER_DATA_OTYPE, (void *)stackbase, stacklen, 0);
 	td->td_frame->sp = stacklen;
+	/*
+	 * Also update the signal stack.  The default set in
+	 * cheri_exec_setregs() covers the whole address space.
+	 */
+	csigp = &td->td_pcb->pcb_cherisignal;
+	cheri_capability_set(&csigp->csig_c11, CHERI_CAP_USER_DATA_PERMS,
+	    CHERI_CAP_USER_DATA_OTYPE, (void *)stackbase, stacklen, 0);
 
 	td->td_md.md_flags &= ~MDTD_FPUSED;
 	if (PCPU_GET(fpcurthread) == td)
