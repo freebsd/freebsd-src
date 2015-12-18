@@ -1,7 +1,3 @@
-##
-## $P4: //depot/projects/trustedbsd/openbsm/man/Makefile.am#2 $
-##
-
 man2_MANS =			\
 	audit.2			\
 	auditctl.2		\
@@ -19,6 +15,7 @@ man5_MANS =			\
 	audit_user.5		\
 	audit_warn.5
 
-# How to do MLINKS in automake?
-# MLINKS= getaudit.2 getaudit_addr.2					\
-# 	setaudit.2 setaudit_addr.2
+install-exec-hook:
+	cd $(DESTDIR)$(mandir) && \
+          $(LN_S) -f getaudit.2 getaudit_addr.2 && \
+          $(LN_S) -f setaudit.2 setaudit_addr.2

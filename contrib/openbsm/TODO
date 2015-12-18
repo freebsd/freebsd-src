@@ -7,8 +7,6 @@ OpenBSM TODO
 - Document contents of libbsm "public" data structures in libbsm man pages.
 - The audit.log.5 man page is incomplete, as it does not describe all
   token types.
-- With the move to autoconf/automake, man page symlinks are no longer
-  installed.  This needs to be fixed.
 - It might be desirable to be able to provide EOPNOTSUPP system call stubs
   on systems that don't have the necessary audit system calls; that would
   allow the full libbsm and tool set to build, just not run.
@@ -23,5 +21,3 @@ OpenBSM TODO
   not available on the local OS platform.
 - Support for client certificates in auditdistd, to include certificate chain
   validation.
-
-$P4: //depot/projects/trustedbsd/openbsm/TODO#14 $

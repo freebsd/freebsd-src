@@ -1,5 +1,4 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_class#6 $
 # $FreeBSD$
 #
 0x00000000:no:invalid class

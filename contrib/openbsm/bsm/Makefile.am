@@ -1,7 +1,3 @@
-##
-## $P4: //depot/projects/trustedbsd/openbsm/bsm/Makefile.am#5 $
-##
-
 openbsmdir = $(includedir)/bsm
 
 openbsm_HEADERS =		\
