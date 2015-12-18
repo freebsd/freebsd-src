@@ -453,6 +453,7 @@ typedef union acpi_predefined_info
 /* Return object auto-repair info */
 
 typedef ACPI_STATUS (*ACPI_OBJECT_CONVERTER) (
+    struct acpi_namespace_node  *Scope,
     union acpi_operand_object   *OriginalObject,
     union acpi_operand_object   **ConvertedObject);
 
@@ -488,6 +489,7 @@ typedef struct acpi_simple_repair_info
 typedef struct acpi_reg_walk_info
 {
     ACPI_ADR_SPACE_TYPE     SpaceId;
+    UINT32                  Function;
     UINT32                  RegRunCount;
 
 } ACPI_REG_WALK_INFO;
@@ -1040,6 +1042,7 @@ typedef struct acpi_parse_state
 #define ACPI_PARSEOP_CLOSING_PAREN      0x10
 #define ACPI_PARSEOP_COMPOUND           0x20
 #define ACPI_PARSEOP_ASSIGNMENT         0x40
+#define ACPI_PARSEOP_ELSEIF             0x80
 
 
 /*****************************************************************************

@@ -419,7 +419,7 @@ NextTable:
  *
  * PARAMETERS:  Signature           - Sig string to be validated
  *
- * RETURN:      TRUE if signature is correct length and has valid characters
+ * RETURN:      TRUE if signature is has 4 valid ACPI characters
  *
  * DESCRIPTION: Validate an ACPI table signature.
  *
@@ -431,13 +431,6 @@ AcpiIsValidSignature (
 {
     UINT32                  i;
 
-
-    /* Validate the signature length */
-
-    if (strlen (Signature) != ACPI_NAME_SIZE)
-    {
-        return (FALSE);
-    }
 
     /* Validate each character in the signature */
 

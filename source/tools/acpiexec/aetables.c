@@ -229,9 +229,6 @@ AeBuildLocalTables (
     /*
      * Install the user tables. The DSDT must be installed in the FADT.
      * All other tables are installed directly into the XSDT.
-     *
-     * Note: The tables are loaded in reverse order from the incoming
-     * input, which makes it match the command line order.
      */
     NextTable = ListHead;
     while (NextTable)
@@ -262,7 +259,7 @@ AeBuildLocalTables (
         {
             /* Install the table in the XSDT */
 
-            LocalXSDT->TableOffsetEntry[TableCount - NextIndex + 1] =
+            LocalXSDT->TableOffsetEntry[NextIndex] =
                 ACPI_PTR_TO_PHYSADDR (NextTable->Table);
             NextIndex++;
         }
@@ -493,27 +490,6 @@ AeInstallTables (
     Status = AcpiInitializeTables (NULL, ACPI_MAX_INIT_TABLES, TRUE);
     ACPI_CHECK_OK (AcpiInitializeTables, Status);
 
-    Status = AcpiLoadTables ();
-    ACPI_CHECK_OK (AcpiLoadTables, Status);
-
-    /*
-     * Test run-time control method installation. Do it twice to test code
-     * for an existing name.
-     */
-    Status = AcpiInstallMethod (MethodCode);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiOsPrintf ("%s, Could not install method\n",
-            AcpiFormatException (Status));
-    }
-
-    Status = AcpiInstallMethod (MethodCode);
-    if (ACPI_FAILURE (Status))
-    {
-        AcpiOsPrintf ("%s, Could not install method\n",
-            AcpiFormatException (Status));
-    }
-
     if (AcpiGbl_LoadTestTables)
     {
         /* Test multiple table/UEFI support. First, get the headers */
@@ -550,6 +526,50 @@ AeInstallTables (
         }
 
         ACPI_CHECK_OK (AcpiGetTableByIndex, Status);
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeLoadTables
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Load the definition block ACPI tables
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+AeLoadTables (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    Status = AcpiLoadTables ();
+    ACPI_CHECK_OK (AcpiLoadTables, Status);
+
+    /*
+     * Test run-time control method installation. Do it twice to test code
+     * for an existing name.
+     */
+    Status = AcpiInstallMethod (MethodCode);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("%s, Could not install method\n",
+            AcpiFormatException (Status));
+    }
+
+    Status = AcpiInstallMethod (MethodCode);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("%s, Could not install method\n",
+            AcpiFormatException (Status));
     }
 
     return (AE_OK);

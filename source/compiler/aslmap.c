@@ -313,7 +313,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* NOR */                       OP_TABLE_ENTRY (AML_BIT_NOR_OP,             0,                              0,                  ACPI_BTYPE_INTEGER),
 /* NOT */                       OP_TABLE_ENTRY (AML_BIT_NOT_OP,             0,                              0,                  ACPI_BTYPE_INTEGER),
 /* NOTIFY */                    OP_TABLE_ENTRY (AML_NOTIFY_OP,              0,                              0,                  0),
-/* OBJECTTYPE */                OP_TABLE_ENTRY (AML_TYPE_OP,                0,                              0,                  ACPI_BTYPE_INTEGER),
+/* OBJECTTYPE */                OP_TABLE_ENTRY (AML_OBJECT_TYPE_OP,         0,                              0,                  ACPI_BTYPE_INTEGER),
 /* OBJECTTYPE_BFF */            OP_TABLE_ENTRY (AML_BYTE_OP,                ACPI_TYPE_BUFFER_FIELD,         0,                  0),
 /* OBJECTTYPE_BUF */            OP_TABLE_ENTRY (AML_BYTE_OP,                ACPI_TYPE_BUFFER,               0,                  0),
 /* OBJECTTYPE_DDB */            OP_TABLE_ENTRY (AML_BYTE_OP,                ACPI_TYPE_DDB_HANDLE,           0,                  0),

@@ -693,7 +693,39 @@ AeInstallLateHandlers (
     void)
 {
     ACPI_STATUS             Status;
+    ACPI_HANDLE             Handle;
 
+
+    Status = AcpiGetHandle (NULL, "\\_TZ.TZ1", &Handle);
+    if (ACPI_SUCCESS (Status))
+    {
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
+
+        Status = AcpiRemoveNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1);
+        Status = AcpiRemoveNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler2);
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
+    }
+
+    Status = AcpiGetHandle (NULL, "\\_PR.CPU0", &Handle);
+    if (ACPI_SUCCESS (Status))
+    {
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
+            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
+
+        Status = AcpiInstallNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
+            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
+    }
 
 #if (!ACPI_REDUCED_HARDWARE)
     if (!AcpiGbl_ReducedHardware)
@@ -877,37 +909,6 @@ AeInstallEarlyHandlers (
     else
     {
         printf ("No _SB_ found, %s\n", AcpiFormatException (Status));
-    }
-
-    Status = AcpiGetHandle (NULL, "\\_TZ.TZ1", &Handle);
-    if (ACPI_SUCCESS (Status))
-    {
-        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
-
-        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
-
-        Status = AcpiRemoveNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-            AeNotifyHandler1);
-        Status = AcpiRemoveNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-            AeNotifyHandler2);
-
-        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
-
-        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
-    }
-
-    Status = AcpiGetHandle (NULL, "\\_PR.CPU0", &Handle);
-    if (ACPI_SUCCESS (Status))
-    {
-        Status = AcpiInstallNotifyHandler (Handle, ACPI_ALL_NOTIFY,
-            AeNotifyHandler1, ACPI_CAST_PTR (void, 0x01234567));
-
-        Status = AcpiInstallNotifyHandler (Handle, ACPI_SYSTEM_NOTIFY,
-            AeNotifyHandler2, ACPI_CAST_PTR (void, 0x89ABCDEF));
     }
 
     /*

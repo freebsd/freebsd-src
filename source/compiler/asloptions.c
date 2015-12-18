@@ -107,7 +107,7 @@ AslCommandLine (
 
     if (Gbl_DoTemplates)
     {
-        Status = DtCreateTemplates (Gbl_TemplateSignature);
+        Status = DtCreateTemplates (argv);
         if (ACPI_FAILURE (Status))
         {
             exit (-1);
@@ -662,7 +662,6 @@ AslDoOptions (
     case 'T':   /* Create a ACPI table template file */
 
         Gbl_DoTemplates = TRUE;
-        Gbl_TemplateSignature = AcpiGbl_Optarg;
         break;
 
     case 'v':   /* Version and verbosity settings */

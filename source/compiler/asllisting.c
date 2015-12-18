@@ -277,6 +277,34 @@ LsTreeWriteWalk (
 
     UtPrintFormattedName (Op->Asl.ParseOpcode, Level);
 
+    if (Op->Asl.ParseOpcode == PARSEOP_NAMESEG)
+    {
+        DbgPrint (ASL_TREE_OUTPUT,
+            "%10.4s      ", Op->Asl.Value.Name);
+    }
+    else if ((Op->Asl.ParseOpcode == PARSEOP_NAMESTRING) ||
+        (Op->Asl.ParseOpcode == PARSEOP_METHODCALL))
+    {
+        DbgPrint (ASL_TREE_OUTPUT,
+            "%10.32s      ", Op->Asl.Value.String);
+    }
+    else if (Op->Asl.ParseOpcode == PARSEOP_INCLUDE)
+    {
+        DbgPrint (ASL_TREE_OUTPUT,
+            "Open: %s\n", Op->Asl.Value.String);
+        return (AE_OK);
+    }
+    else if (Op->Asl.ParseOpcode == PARSEOP_INCLUDE_END)
+    {
+        DbgPrint (ASL_TREE_OUTPUT,
+            "Close: %s\n", Op->Asl.Filename);
+        return (AE_OK);
+    }
+    else
+    {
+        DbgPrint (ASL_TREE_OUTPUT, "                ");
+    }
+
     DbgPrint (ASL_TREE_OUTPUT, "    (%.4X) Flags %8.8X",
         Op->Asl.ParseOpcode, Op->Asl.CompileFlags);
     TrPrintNodeCompileFlags (Op->Asl.CompileFlags);
@@ -428,7 +456,7 @@ LsWriteNodeToListing (
 
         /* Create a new listing node and push it */
 
-        LsPushNode (Op->Asl.Child->Asl.Value.String);
+        LsPushNode (Op->Asl.Value.String);
         return;
 
 

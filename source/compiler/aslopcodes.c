@@ -1510,7 +1510,6 @@ OpcGenerateAmlOpcode (
 
     case PARSEOP_INCLUDE:
 
-        Op->Asl.Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
         Gbl_HasIncludeFiles = TRUE;
         break;
 

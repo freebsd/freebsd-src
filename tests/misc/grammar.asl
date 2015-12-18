@@ -1280,6 +1280,10 @@ DefinitionBlock (
             Store ("****** There were errors during the execution of the test ******", Debug)
         }
 
+        // Flush all notifies
+
+        Sleep (250)
+
         //
         // Last Test
         //
@@ -1921,8 +1925,6 @@ DefinitionBlock (
                 0x11, 0x12, 0x12, 0x14, 0x15, 0x16
             }
         })
-
-    /* Parser thinks this is a method invocation!! */
 
         Store (RefOf (MAIN), Local5)
 
