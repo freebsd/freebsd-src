@@ -267,7 +267,7 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 	int ret = ENODEV;
 
 #ifdef ARM_INTRNG
-	ret = arm_irq_config(irq, trig, pol);
+	ret = intr_irq_config(irq, trig, pol);
 #else
 	if (arm_config_irq)
 		ret = (*arm_config_irq)(irq, trig, pol);
@@ -286,7 +286,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 
 	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
 #ifdef ARM_INTRNG
-		arm_irq_add_handler(child, filt, intr, arg, irq, flags,
+		intr_irq_add_handler(child, filt, intr, arg, irq, flags,
 		    cookiep);
 #else
 		arm_setup_irqhandler(device_get_nameunit(child),
@@ -302,7 +302,7 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
 #ifdef ARM_INTRNG
-	return (arm_irq_remove_handler(child, rman_get_start(r), ih));
+	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
 #else
 	return (arm_remove_irqhandler(rman_get_start(r), ih));
 #endif
@@ -314,7 +314,7 @@ nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie, const char *descr)
 {
 
-	return (arm_irq_describe(rman_get_start(irq), cookie, descr));
+	return (intr_irq_describe(rman_get_start(irq), cookie, descr));
 }
 
 #ifdef SMP
@@ -322,7 +322,7 @@ static int
 nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 {
 
-	return (arm_irq_bind(rman_get_start(irq), cpu));
+	return (intr_irq_bind(rman_get_start(irq), cpu));
 }
 #endif
 #endif
@@ -396,6 +396,6 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
 
-	return (arm_fdt_map_irq(iparent, intr, icells));
+	return (intr_fdt_map_irq(iparent, intr, icells));
 }
 #endif
