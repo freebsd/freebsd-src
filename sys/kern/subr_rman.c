@@ -1052,7 +1052,8 @@ dump_rman(struct rman *rm)
 				devname = "nomatch";
 		} else
 			devname = NULL;
-		db_printf("    0x%lx-0x%lx ", r->r_start, r->r_end);
+		db_printf("    0x%lx-0x%lx (RID=%d) ",
+		    r->r_start, r->r_end, r->r_rid);
 		if (devname != NULL)
 			db_printf("(%s)\n", devname);
 		else
