@@ -188,6 +188,12 @@ extern char kernphys[];
 
 struct msgbuf *msgbufp;
 
+/*
+ * Physical address of the EFI System Table. Stashed from the metadata hints
+ * passed into the kernel and used by the EFI code to call runtime services.
+ */
+vm_paddr_t efi_systbl;
+
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
@@ -1495,6 +1501,7 @@ native_parse_preload_data(u_int64_t modulep)
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
+	efi_systbl = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	return (kmdp);
 }
@@ -1615,6 +1622,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/*
 	 * Use vt(4) by default for UEFI boot (during the sc(4)/vt(4)
 	 * transition).
+	 * Once bootblocks have updated, we can test directly for
+	 * efi_systbl != NULL here...
 	 */
 	if (preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP)
 	    != NULL)
