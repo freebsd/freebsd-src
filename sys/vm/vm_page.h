@@ -474,6 +474,8 @@ vm_page_t vm_page_prev(vm_page_t m);
 boolean_t vm_page_ps_is_valid(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
+bool vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 int vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
@@ -482,6 +484,8 @@ vm_page_t vm_page_replace(vm_page_t mnew, vm_object_t object,
 void vm_page_requeue(vm_page_t m);
 void vm_page_requeue_locked(vm_page_t m);
 int vm_page_sbusied(vm_page_t m);
+vm_page_t vm_page_scan_contig(u_long npages, vm_page_t m_start,
+    vm_page_t m_end, u_long alignment, vm_paddr_t boundary, int options);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
