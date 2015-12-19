@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <fdt_platform.h>
 #endif
 
+extern EFI_SYSTEM_TABLE	*ST;
+
 static const char howto_switches[] = "aCdrgDmphsv";
 static int howto_masks[] = {
 	RB_ASKNAME, RB_CDROM, RB_KDB, RB_DFLTROOT, RB_GDB, RB_MULTIPLE,
@@ -435,6 +437,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 		    "device tree blob found!\n");
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
+	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof ST, &ST);
 
 	bi_load_efi_data(kfp);
 
