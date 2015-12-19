@@ -868,13 +868,13 @@ static const u_int cheri_tests_len = sizeof(cheri_tests) /
 /* Shared memory page with child process. */
 struct cheritest_child_state *ccsp;
 
-int tests_failed, tests_passed, tests_xfailed;
-int expected_failures;
-int list;
-int run_all;
-int fast_tests_only;
-int sleep_after_test;
-int verbose;
+static int tests_failed, tests_passed, tests_xfailed;
+static int expected_failures;
+static int list;
+static int run_all;
+static int fast_tests_only;
+static int sleep_after_test;
+static int verbose;
 
 static void
 usage(void)
@@ -947,8 +947,13 @@ signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 	ucontext_t *uap;
 
 	uap = (ucontext_t *)vuap;
+#ifdef __CHERI_SANDBOX__
+	cfp = &uap->uc_mcontext.mc_cheriframe;
+	if (cfp == NULL) {
+#else
 	cfp = (struct cheri_frame *)uap->uc_mcontext.mc_cp2state;
 	if (cfp == NULL || uap->uc_mcontext.mc_cp2state_len != sizeof(*cfp)) {
+#endif
 		ccsp->ccs_signum = -1;
 		_exit(EX_SOFTWARE);
 	}
