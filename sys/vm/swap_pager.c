@@ -1641,7 +1641,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_object_pip_wakeup(object);
 	vm_page_dirty(m);
 	vm_page_lock(m);
-	vm_page_laundry(m);
+	vm_page_launder(m);
 	vm_page_unlock(m);
 	vm_page_xunbusy(m);
 	vm_pager_page_unswapped(m);
