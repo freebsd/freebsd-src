@@ -107,7 +107,6 @@ VNET_PCPUSTAT_SYSUNINIT(arpstat);
 #endif /* VIMAGE */
 
 static VNET_DEFINE(int, arp_maxhold) = 1;
-static VNET_DEFINE(int, arp_on_link) = 1;
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arpt_down		VNET(arpt_down)
@@ -115,7 +114,6 @@ static VNET_DEFINE(int, arp_on_link) = 1;
 #define	V_arp_maxtries		VNET(arp_maxtries)
 #define	V_arp_proxyall		VNET(arp_proxyall)
 #define	V_arp_maxhold		VNET(arp_maxhold)
-#define	V_arp_on_link		VNET(arp_on_link)
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arpt_keep), 0,
@@ -138,9 +136,6 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
 	CTLFLAG_RW, &arp_maxpps, 0,
 	"Maximum number of remotely triggered ARP messages that can be "
 	"logged per second");
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, arp_on_link, CTLFLAG_VNET | CTLFLAG_RW,
-	&VNET_NAME(arp_on_link), 0,
-	"Send gratuitous ARP's on interface link up events");
 
 #define	ARP_LOG(pri, ...)	do {					\
 	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
@@ -161,7 +156,6 @@ static void arp_mark_lle_reachable(struct llentry *la);
 static void arp_iflladdr(void *arg __unused, struct ifnet *ifp);
 
 static eventhandler_tag iflladdr_tag;
-static eventhandler_tag ifnet_link_event_tag;
 
 static const struct netisr_handler arp_nh = {
 	.nh_name = "arp",
@@ -1190,99 +1184,43 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 
 	if (ntohl(dst_in->sin_addr.s_addr) == INADDR_ANY)
 		return;
-	arp_announce_addr(ifp, &dst_in->sin_addr, IF_LLADDR(ifp));
+	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
 
 	arp_add_ifa_lle(ifp, dst);
 }
 
-void __noinline
-arp_announce_addr(struct ifnet *ifp, const struct in_addr *addr, u_char *enaddr)
+void
+arp_announce_ifaddr(struct ifnet *ifp, struct in_addr addr, u_char *enaddr)
 {
 
-	if (ntohl(addr->s_addr) != INADDR_ANY)
-		arprequest(ifp, addr, addr, enaddr);
+	if (ntohl(addr.s_addr) != INADDR_ANY)
+		arprequest(ifp, &addr, &addr, enaddr);
 }
 
 /*
- * Send gratuitous ARPs for all interfaces addresses to notify other nodes of
- * changes.
- *
- * This is a noop if the interface isn't up or has been flagged for no ARP.
+ * Sends gratuitous ARPs for each ifaddr to notify other
+ * nodes about the address change.
  */
-void __noinline
-arp_announce(struct ifnet *ifp)
+static __noinline void
+arp_handle_ifllchange(struct ifnet *ifp)
 {
-	int i, cnt, entries;
-	u_char *lladdr;
 	struct ifaddr *ifa;
-	struct in_addr *addr, *head;
 
-	if (!(ifp->if_flags & IFF_UP) || (ifp->if_flags & IFF_NOARP) ||
-	    ifp->if_addr == NULL)
-		return;
-
-	entries = 8;
-	cnt = 0;
-	head = malloc(sizeof(*addr) * entries, M_TEMP, M_NOWAIT);
-	if (head == NULL) {
-		log(LOG_INFO, "arp_announce: malloc %d entries failed\n",
-		    entries);
-		return;
-	}
-
-	/* Take a copy then process to avoid locking issues. */
-	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != AF_INET)
-			continue;
-
-		if (cnt == entries) {
-			addr = (struct in_addr *)realloc(head, sizeof(*addr) *
-			    (entries + 8), M_TEMP, M_NOWAIT);
-			if (addr == NULL) {
-				log(LOG_INFO, "arp_announce: realloc to %d "
-				    "entries failed\n", entries + 8);
-				/* Process what we have. */
-				break;
-			}
-			entries += 8;
-			head = addr;
-		}
-
-		addr = head + cnt;
-		bcopy(IFA_IN(ifa), addr, sizeof(*addr));
-		cnt++;
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			arp_ifinit(ifp, ifa);
 	}
-	IF_ADDR_RUNLOCK(ifp);
-
-	if (cnt > 0) {
-		lladdr = IF_LLADDR(ifp);
-		for (i = 0; i < cnt; i++) {
-			arp_announce_addr(ifp, head + i, lladdr);
-		}
-	}
-	free(head, M_TEMP);
 }
 
 /*
- * A handler for interface linkstate change events.
- */
-static void
-arp_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
-{
-
-	if (linkstate == LINK_STATE_UP && V_arp_on_link)
-		arp_announce(ifp);
-}
-
-/*
- * A handler for interface link layer address change events.
+ * A handler for interface link layer address change event.
  */
 static __noinline void
 arp_iflladdr(void *arg __unused, struct ifnet *ifp)
 {
 
-	arp_announce(ifp);
+	if ((ifp->if_flags & IFF_UP) != 0)
+		arp_handle_ifllchange(ifp);
 }
 
 static void
@@ -1290,12 +1228,8 @@ arp_init(void)
 {
 
 	netisr_register(&arp_nh);
-
-	if (IS_DEFAULT_VNET(curvnet)) {
+	if (IS_DEFAULT_VNET(curvnet))
 		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
 		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
-		ifnet_link_event_tag = EVENTHANDLER_REGISTER(ifnet_link_event,
-		    arp_ifnet_link_event, 0, EVENTHANDLER_PRI_ANY);
-	}
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);

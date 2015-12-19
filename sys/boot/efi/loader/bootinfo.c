@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <fdt_platform.h>
 #endif
 
+extern EFI_SYSTEM_TABLE	*ST;
+
 static const char howto_switches[] = "aCdrgDmphsv";
 static int howto_masks[] = {
 	RB_ASKNAME, RB_CDROM, RB_KDB, RB_DFLTROOT, RB_GDB, RB_MULTIPLE,
@@ -250,8 +252,8 @@ bi_add_efi_data_and_exit(struct preloaded_file *kfp,
 	for (retry = 2; retry > 0; retry--) {
 		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
 		if (EFI_ERROR(status)) {
-			printf("%s: GetMemoryMap() returned 0x%lx\n", __func__,
-			    (long)status);
+			printf("%s: GetMemoryMap error %lu\n", __func__,
+			    (unsigned long)(status & ~EFI_ERROR_MASK));
 			return (EINVAL);
 		}
 		status = BS->ExitBootServices(IH, efi_mapkey);
@@ -264,7 +266,8 @@ bi_add_efi_data_and_exit(struct preloaded_file *kfp,
 			return (0);
 		}
 	}
-	printf("ExitBootServices() returned 0x%lx\n", (long)status);
+	printf("ExitBootServices error %lu\n",
+	    (unsigned long)(status & ~EFI_ERROR_MASK));
 	return (EINVAL);
 }
 
@@ -317,8 +320,8 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, pages,
 	    &addr);
 	if (EFI_ERROR(status)) {
-		printf("%s: AllocatePages() returned 0x%lx\n", __func__,
-		    (long)status);
+		printf("%s: AllocatePages error %lu\n", __func__,
+		    (unsigned long)(status & ~EFI_ERROR_MASK));
 		return (ENOMEM);
 	}
 
@@ -434,6 +437,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 		    "device tree blob found!\n");
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
+	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof ST, &ST);
 
 	bi_load_efi_data(kfp);
 

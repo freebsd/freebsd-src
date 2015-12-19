@@ -69,7 +69,7 @@ SRCS+=	syncicache.c
 
 # uuid functions from libc
 .PATH: ${LIBC_SRC}/uuid
-SRCS+= uuid_equal.c uuid_is_nil.c
+SRCS+= uuid_create_nil.c uuid_equal.c uuid_from_string.c uuid_is_nil.c uuid_to_string.c
 
 # _setjmp/_longjmp
 .PATH: ${LIBSTAND_SRC}/${MACHINE_CPUARCH}

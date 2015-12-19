@@ -114,7 +114,7 @@ VNET_DECLARE(int, icmp6_nodeinfo_oldmcprefix);
 #define V_icmp6_nodeinfo_oldmcprefix	VNET(icmp6_nodeinfo_oldmcprefix)
 
 /*
- * Definitions of some constant IP6 addresses.
+ * Definitions of some costant IP6 addresses.
  */
 const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
