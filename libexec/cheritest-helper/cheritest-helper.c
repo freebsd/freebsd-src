@@ -137,7 +137,7 @@ invoke_vm_fault(register_t op)
 	volatile char *chp;
 	char ch;
 
-	chp = (void *)4;
+	chp = (void *)cheri_setoffset(cheri_getdefault(), 4);
 	switch (op) {
 	case CHERITEST_HELPER_VM_FAULT_RFAULT:
 		ch = chp[0];
