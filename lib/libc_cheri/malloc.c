@@ -61,6 +61,8 @@ static int findbucket(union overhead *, int);
 
 /*
  * Location and size of the static sandbox heap.
+ *
+ * XXXRW: This should be converted to a single _sb_heapcap in due course.
  */
 extern register_t	_sb_heapbase;
 extern size_t		_sb_heaplen;
@@ -149,6 +151,7 @@ malloc(size_t nbytes)
 	int bucket;
 	long n;
 	unsigned amt;
+	void *sb_heap;
 
 	/*
 	 * First time malloc is called, setup page size and
@@ -161,7 +164,12 @@ malloc(size_t nbytes)
 		 */
 		assert(_sb_heapbase == roundup2(_sb_heapbase, pagesz));
 
-		pagepool_start = cheri_csetbounds((void *)_sb_heapbase, _sb_heaplen);
+		sb_heap = cheri_setoffset(cheri_getdefault(), _sb_heapbase);
+		sb_heap = cheri_csetbounds(sb_heap, _sb_heaplen);
+		assert(cheri_getoffset(sb_heap) == 0);
+		assert(cheri_getlen(sb_heap) == _sb_heaplen);
+
+		pagepool_start = sb_heap;
 		pagepool_end = pagepool_start + _sb_heaplen;
 		op = (union overhead *)(pagepool_start);
 
