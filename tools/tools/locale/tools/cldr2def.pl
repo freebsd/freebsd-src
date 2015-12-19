@@ -796,7 +796,7 @@ sub make_makefile {
 	print "Creating Makefile for $TYPE\n";
 	my $SRCOUT;
 	my $SRCOUT2;
-	my $SRCOUT3;
+	my $SRCOUT3 = "";
 	my $MAPLOC;
 	if ($TYPE eq "colldef") {
 		$SRCOUT = "localedef -D -U -i \${.IMPSRC} \\\n" .
