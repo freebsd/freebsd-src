@@ -239,7 +239,7 @@ SYSCTL_INT(_vm, OID_AUTO, max_wired,
 	CTLFLAG_RW, &vm_page_max_wired, 0, "System-wide limit to wired page count");
 
 static boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
-static void vm_pageout_launder1(struct vm_domain *vmd);
+static void vm_pageout_launder(struct vm_domain *vmd);
 static void vm_pageout_laundry_worker(void *arg);
 #if !defined(NO_SWAPPING)
 static void vm_pageout_map_deactivate_pages(vm_map_t, long);
@@ -877,7 +877,7 @@ unlock_mp:
  * XXX
  */
 static void
-vm_pageout_launder1(struct vm_domain *vmd)
+vm_pageout_launder(struct vm_domain *vmd)
 {
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
@@ -1075,7 +1075,7 @@ vm_pageout_laundry_worker(void *arg)
 	for (;;) {
 		tsleep(&vm_cnt.v_laundry_count, PVM, "laundr",
 		    hz / VM_LAUNDER_INTERVAL);
-		vm_pageout_launder1(domain);
+		vm_pageout_launder(domain);
 	}
 }
 
