@@ -808,7 +808,7 @@ sub make_makefile {
 	}
 	elsif ($TYPE eq "ctypedef") {
 		$SRCOUT = "localedef -D -U -c -w \${MAPLOC}/widths.txt \\\n" .
-			"\t-f \${MAPLOC}/map.\${.IMPSRC:T:R:C/^.*\\.//} " .
+			"\t-f \${MAPLOC}/map.\${.IMPSRC:T:R:E} " .
 			"\\\n\t-i \${.IMPSRC} \${.OBJDIR}/\${.IMPSRC:T:R} " .
 			" || true";
 		$SRCOUT2 = "LC_CTYPE";
