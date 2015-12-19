@@ -9,7 +9,7 @@ MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
 .src.LC_CTYPE:
 	localedef -D -U -c -w ${MAPLOC}/widths.txt \
-	-f ${MAPLOC}/map.${.IMPSRC:T:R:C/^.*\.//} \
+	-f ${MAPLOC}/map.${.IMPSRC:T:R:E} \
 	-i ${.IMPSRC} ${.OBJDIR}/${.IMPSRC:T:R}  || true
 
 LOCALES+=	be_BY.CP1131
