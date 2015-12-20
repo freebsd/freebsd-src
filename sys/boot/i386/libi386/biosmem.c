@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
+#include "smbios.h"
 
 vm_offset_t	memtop, memtop_copyin, high_heap_base;
 uint32_t	bios_basemem, bios_extmem, high_heap_size;
