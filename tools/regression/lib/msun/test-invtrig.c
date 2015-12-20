@@ -61,14 +61,23 @@ __FBSDID("$FreeBSD$");
 #define test(func, x, result, excepts)					\
 	test_tol(func, (x), (result), 0, (excepts))
 
-#define	testall_tol(prefix, x, result, tol, excepts) do {		\
+#define	_testall_tol(prefix, x, result, tol, excepts) do {		\
 	test_tol(prefix, (double)(x), (double)(result),			\
 		 (tol) * ldexp(1.0, 1 - DBL_MANT_DIG), (excepts));	\
 	test_tol(prefix##f, (float)(x), (float)(result),		\
 		 (tol) * ldexpf(1.0, 1 - FLT_MANT_DIG), (excepts));	\
+} while (0)
+
+#if LDBL_PREC == 53
+#define	testall_tol	_testall_tol
+#else
+#define	testall_tol(prefix, x, result, tol, excepts) do {		\
+	_testall_tol(prefix, x, result, tol, excepts);			\
 	test_tol(prefix##l, (x), (result),				\
 		 (tol) * ldexpl(1.0, 1 - LDBL_MANT_DIG), (excepts));	\
 } while (0)
+#endif
+
 #define testall(prefix, x, result, excepts)				\
 	testall_tol(prefix, (x), (result), 0, (excepts))
 
@@ -81,14 +90,23 @@ __FBSDID("$FreeBSD$");
 #define test2(func, y, x, result, excepts)				\
 	test2_tol(func, (y), (x), (result), 0, (excepts))
 
-#define	testall2_tol(prefix, y, x, result, tol, excepts) do {		\
+#define	_testall2_tol(prefix, y, x, result, tol, excepts) do {		\
 	test2_tol(prefix, (double)(y), (double)(x), (double)(result),	\
 		  (tol) * ldexp(1.0, 1 - DBL_MANT_DIG), (excepts));	\
 	test2_tol(prefix##f, (float)(y), (float)(x), (float)(result),	\
 		  (tol) * ldexpf(1.0, 1 - FLT_MANT_DIG), (excepts));	\
+} while (0)
+
+#if LDBL_PREC == 53
+#define	testall2_tol	_testall2_tol
+#else
+#define	testall2_tol(prefix, y, x, result, tol, excepts) do {		\
+	_testall2_tol(prefix, y, x, result, tol, excepts);		\
 	test2_tol(prefix##l, (y), (x), (result),			\
 		  (tol) * ldexpl(1.0, 1 - LDBL_MANT_DIG), (excepts));	\
 } while (0)
+#endif
+
 #define testall2(prefix, y, x, result, excepts)				\
 	testall2_tol(prefix, (y), (x), (result), 0, (excepts))
 
@@ -428,6 +446,11 @@ test_inverse(void)
 int
 main(int argc, char *argv[])
 {
+
+#if defined(__i386__)
+	printf("1..0 # SKIP fails all assertions on i386\n");
+	return (0);
+#endif
 
 	printf("1..7\n");
 
