@@ -28,7 +28,7 @@
 .\"     @(#)sigaltstack.2	8.2 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2010
+.Dd December 18, 2015
 .Dt SIGALTSTACK 2
 .Os
 .Sh NAME
@@ -160,3 +160,13 @@ the
 .Fn sigstack
 system call, appeared in
 .Bx 4.2 .
+.Sh BUGS
+If
+.Fa ss
+is valid and
+.Fa oss
+is invalid then
+.Nm
+will return -1 and set
+.Va errno
+as documented, but the signal stack will be updated.
