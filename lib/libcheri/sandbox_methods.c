@@ -693,8 +693,20 @@ sandbox_make_vtable(void *dataptr, const char *class,
 		warnx("%s: calloc", __func__);
 		return (NULL);
 	}
+
+#ifdef __CHERI_SANDBOX__
+	/*
+	 * XXXRW: For system classes, a NULL dataptr is passed in, signifying
+	 * that bases are relative to virtual address 0x0.  This isn't really
+	 * the right thing for CheriABI, where we should instead pass in the
+	 * default capability with an offset of zero.  For now, handle that
+	 * here, but probably the caller should do that instead.
+	 */
+	if (dataptr == NULL)
+		dataptr = cheri_getdefault();
+#endif
 	cheri_ccallee_base = (intptr_t *)dataptr + provided_classes->spcs_base
-	/ sizeof(intptr_t);
+	    / sizeof(intptr_t);
 	length = provided_classes->spcs_nmethods * sizeof(*vtable);
 
 	if (class == NULL) {
