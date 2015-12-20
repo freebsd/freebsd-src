@@ -353,6 +353,7 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	bzero(csigp, sizeof(*csigp));
 	cheri_capability_set_user_c0(&csigp->csig_c0);
 	cheri_capability_set_user_stack(&csigp->csig_c11);
+	cheri_capability_set_user_stack(&csigp->csig_default_stack);
 	cheri_capability_set_user_idc(&csigp->csig_idc);
 	cheri_capability_set_user_pcc(&csigp->csig_pcc);
 	cheri_capability_set_user_sigcode(&csigp->csig_sigcode,

@@ -166,8 +166,41 @@ int
 cheriabi_sigaltstack(struct thread *td,
     struct cheriabi_sigaltstack_args *uap)
 {
+	struct chericap old_ss_sp;
+	struct sigaltstack_c s_c;
+	struct sigaltstack ss, oss, *ssp;
+	int error;
 
-	return (ENOSYS);
+	if (uap->ss != NULL) {
+		error = copyincap(uap->ss, &s_c, sizeof(s_c));
+		if (error)
+			return (error);
+		/* XXX-BD: check that s_c.ss_sp's length is >= s_c.ss_size */
+		PTRIN_CP(s_c, ss, ss_sp);
+		CP(s_c, ss, ss_size);
+		CP(s_c, ss, ss_flags);
+		ssp = &ss;
+	} else
+		ssp = NULL;
+	error = kern_sigaltstack(td, ssp, &oss);
+	if (error == 0) {
+		cheriabi_get_signal_stack_capability(td, &old_ss_sp);
+		if (uap->ss != NULL) {
+			/*
+			 * Install the new signal capability or restore the
+			 * thread's default one.
+			 */
+			cheriabi_set_signal_stack_capability(td,
+			    (ss.ss_flags & SS_DISABLE) ? NULL : &s_c.ss_sp);
+		}
+		if (uap->oss != NULL) {
+			cheriabi_get_signal_stack_capability(td, &s_c.ss_sp);
+			CP(oss, s_c, ss_size);
+			CP(oss, s_c, ss_flags);
+			error = copyout(&s_c, uap->oss, sizeof(s_c));
+		}
+	}
+	return (error);
 }
 
 /*

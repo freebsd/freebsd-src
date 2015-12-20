@@ -727,3 +727,23 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 		PCPU_SET(fpcurthread, (struct thread *)0);
 	td->td_md.md_ss_addr = 0;
 }
+
+void
+cheriabi_get_signal_stack_capability(struct thread *td, struct chericap *csig)
+{
+
+	cheri_capability_copy(csig, &td->td_pcb->pcb_cherisignal.csig_c11);
+}
+
+/*
+ * Set a thread's signal stack capability.  If NULL is passed, restore
+ * the default stack capability.
+ */
+void
+cheriabi_set_signal_stack_capability(struct thread *td, struct chericap *csig)
+{
+
+	cheri_capability_copy(&td->td_pcb->pcb_cherisignal.csig_c11,
+	    csig != NULL ? csig :
+	    &td->td_pcb->pcb_cherisignal.csig_default_stack);
+}
