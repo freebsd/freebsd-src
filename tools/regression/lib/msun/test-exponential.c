@@ -66,13 +66,22 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 /* Test all the functions that compute b^x. */
-#define	testall0(x, result, exceptmask, excepts)	do {		\
+#define	_testall0(x, result, exceptmask, excepts)	do {		\
 	test(exp, x, result, exceptmask, excepts);			\
 	test(expf, x, result, exceptmask, excepts);			\
 	test(exp2, x, result, exceptmask, excepts);			\
 	test(exp2f, x, result, exceptmask, excepts);			\
+} while (0)
+
+/* Skip over exp2l on platforms that don't support it. */
+#if LDBL_PREC == 53
+#define	testall0	_testall0
+#else
+#define	testall0(x, result, exceptmask, excepts)	do {		\
+	_testall0(x, result, exceptmask, excepts); 			\
 	test(exp2l, x, result, exceptmask, excepts);			\
 } while (0)
+#endif
 
 /* Test all the functions that compute b^x - 1. */
 #define	testall1(x, result, exceptmask, excepts)	do {		\
@@ -102,12 +111,14 @@ run_generic_tests(void)
 	testall0(-INFINITY, 0.0, ALL_STD_EXCEPT, 0);
 	testall1(-INFINITY, -1.0, ALL_STD_EXCEPT, 0);
 
+#if !defined(__i386__)
 	/* exp(big) == Inf, overflow exception */
 	testall0(50000.0, INFINITY, ALL_STD_EXCEPT & ~FE_INEXACT, FE_OVERFLOW);
 	testall1(50000.0, INFINITY, ALL_STD_EXCEPT & ~FE_INEXACT, FE_OVERFLOW);
 
 	/* exp(small) == 0, underflow and inexact exceptions */
 	testall0(-50000.0, 0.0, ALL_STD_EXCEPT, FE_UNDERFLOW | FE_INEXACT);
+#endif
 	testall1(-50000.0, -1.0, ALL_STD_EXCEPT, FE_INEXACT);
 }
 
