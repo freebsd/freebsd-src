@@ -1911,6 +1911,7 @@ MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zone_get_cur.9 \
 	zone.9 uma_zone_get_max.9 \
 	zone.9 uma_zone_set_max.9 \
-	zone.9 uma_zone_set_warning.9
+	zone.9 uma_zone_set_warning.9 \
+	zone.9 uma_zone_set_maxaction.9
 
 .include <bsd.prog.mk>
