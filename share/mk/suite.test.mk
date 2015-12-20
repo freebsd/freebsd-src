@@ -80,7 +80,7 @@ Kyuafile: Makefile
 	    >>${.TARGET}.tmp
 .endfor
 .for _T in ${TESTS_SUBDIRS:N.WAIT}
-	@echo "include(\"${_T}/Kyuafile\")" >>${.TARGET}.tmp
+	@echo "include(\"${_T}/${.TARGET}\")" >>${.TARGET}.tmp
 .endfor
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
