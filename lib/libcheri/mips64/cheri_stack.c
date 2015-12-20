@@ -95,8 +95,13 @@ cheri_stack_unwind(ucontext_t *uap, register_t ret, int flags __unused)
 	cs.cs_tsp += stack_frames * CHERI_FRAME_SIZE;
 	assert(cs.cs_tsp == cs.cs_tsize);
 
+#ifdef __CHERI_SANDBOX__
+	cfp = &uap->uc_mcontext.mc_cheriframe;
+	if (cfp == NULL)
+#else
 	cfp = (struct cheri_frame *)uap->uc_mcontext.mc_cp2state;
 	if (cfp == NULL || uap->uc_mcontext.mc_cp2state_len != sizeof(*cfp))
+#endif
 		return (-1);
 
 	memset(cfp, 0, sizeof(*cfp));
