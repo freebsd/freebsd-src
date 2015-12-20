@@ -492,6 +492,10 @@ KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		subdirectories providing helper programs or data files
 		only).
 
+LOCALBASE	The --prefix for the kyua package.
+
+		The value of LOCALBASE defaults to /usr/local .
+
 ATF_TESTS_C	The names of the ATF C test programs to build.
 
 ATF_TESTS_CXX	The names of the ATF C++ test programs to build.
