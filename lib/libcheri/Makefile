@@ -41,7 +41,9 @@ SHLIB_MAJOR=	1
 MAN=	cheri_invoke.3			\
 	libcheri.3
 
+.if !defined(NEED_CHERI)
 NEED_CHERI=	hybrid
+.endif
 
 CLEANFILES=	cheri_classes.o cheri_invoke.o
 
