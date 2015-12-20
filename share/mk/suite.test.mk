@@ -51,7 +51,7 @@ FILESDIR_Kyuafile= ${TESTSDIR}
 .endif
 
 .if ${KYUAFILE:tl} == "auto"
-CLEANFILES+= Kyuafile Kyuafile.auto.tmp
+CLEANFILES+= Kyuafile Kyuafile.tmp
 .endif
 
 .for _T in ${_TESTS}
