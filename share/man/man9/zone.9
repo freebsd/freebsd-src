@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2014
+.Dd December 20, 2015
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -39,7 +39,8 @@
 .Nm uma_zone_set_max,
 .Nm uma_zone_get_max,
 .Nm uma_zone_get_cur,
-.Nm uma_zone_set_warning
+.Nm uma_zone_set_warning,
+.Nm uma_zone_set_maxaction
 .Nd zone allocator
 .Sh SYNOPSIS
 .In sys/param.h
@@ -71,6 +72,8 @@
 .Fn uma_zone_get_cur "uma_zone_t zone"
 .Ft void
 .Fn uma_zone_set_warning "uma_zone_t zone" "const char *warning"
+.Ft void
+.Fn uma_zone_set_maxaction "uma_zone_t zone" "void (*maxaction)(uma_zone_t)"
 .In sys/sysctl.h
 .Fn SYSCTL_UMA_MAX parent nbr name access zone descr
 .Fn SYSCTL_ADD_UMA_MAX ctx parent nbr name access zone descr
@@ -307,11 +310,19 @@ The
 .Fn uma_zone_set_warning
 function sets a warning that will be printed on the system console when the
 given zone becomes full and fails to allocate an item.
-The warning will be printed not often than every five minutes.
+The warning will be printed no more often than every five minutes.
 Warnings can be turned off globally by setting the
 .Va vm.zone_warnings
 sysctl tunable to
 .Va 0 .
+.Pp
+The
+.Fn uma_zone_set_maxaction
+function sets a function that will be called when the given zone becomes full
+and fails to allocate an item.
+The function will be called with the zone locked. Also, the function
+that called the allocation function may have held additional locks. Therefore,
+this function should do very little work (similar to a signal handler).
 .Pp
 The
 .Fn SYSCTL_UMA_MAX parent nbr name access zone descr
