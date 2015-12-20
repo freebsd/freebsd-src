@@ -162,10 +162,15 @@ cheri_ptrpermoff(const void *ptr, size_t len, register_t perm, off_t off)
  * types.
  */
 static __inline __capability void *
-cheri_maketype(const void *ptr, register_t perm)
+cheri_maketype(register_t type)
 {
+	__capability void *c;
 
-	return (cheri_ptrpermoff(ptr, 1, perm, 0));
+	c = cheri_getdefault();		/* Derive from $c0. */
+	c = cheri_setoffset(c, type);	/* Set type as desired. */
+	c = cheri_csetbounds(c, 1);	/* ISA implies length of 1. */
+	c = cheri_andperm(c, CHERI_PERM_GLOBAL | CHERI_PERM_SEAL); /* Perms. */
+	return (c);
 }
 
 static __inline __capability void *

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Robert N. M. Watson
+ * Copyright (c) 2014-2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -52,11 +52,10 @@ static uint64_t cheri_type_next = 1;
 __capability void *
 cheri_type_alloc(void)
 {
-	uint64_t v;
+	__capability void *type_next;
 
-	/* XXXRW: Concurrency. */
-	v = cheri_type_next;
-	assert(v < 1<<24);
+	assert(cheri_type_next < 1<<24);
+	type_next = cheri_maketype(cheri_type_next);
 	cheri_type_next++;
-	return (cheri_maketype(v, CHERI_PERM_GLOBAL | CHERI_PERM_SEAL));
+	return (type_next);
 }
