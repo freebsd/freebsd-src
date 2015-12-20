@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 TESTS=	test-ctrig \
-	test-exponential test-fma \
-	test-lround test-nearbyint test-next test-rem test-trig
+	test-exponential test-fma test-invtrig \
+	test-lround
 CFLAGS+= -O0 -lm -Wno-unknown-pragmas
 
 .PHONY: tests
