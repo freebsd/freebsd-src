@@ -42,19 +42,8 @@
 
 __FBSDID("$FreeBSD$");
 
-/*
- * Sanity check the configuration.
- * FLASHADDR and LOADERRAMADDR depend on PHYSADDR in some cases.
- * ARMv4 and ARMv5 make assumptions on where they are loaded.
- *
- * TODO: Fix the ARMv4/v5 case.
- */
-#ifndef PHYSADDR
-#error PHYSADDR must be defined for this configuration
-#endif
-
-/* What size should this really be ? It is only used by initarm() */
-#define INIT_ARM_STACK_SIZE	(2048 * 4)
+/* 2K initial stack is plenty, it is only used by initarm() */
+#define INIT_ARM_STACK_SIZE	2048
 
 #define	CPWAIT_BRANCH							 \
 	sub	pc, pc, #4
@@ -109,6 +98,16 @@ ASENTRY_NP(_start)
 	msr	cpsr_c, r7
 
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
+/*
+ * Sanity check the configuration.
+ * FLASHADDR and LOADERRAMADDR depend on PHYSADDR in some cases.
+ * ARMv4 and ARMv5 make assumptions on where they are loaded.
+ * TODO: Fix the ARMv4/v5 case.
+ */
+#ifndef PHYSADDR
+#error PHYSADDR must be defined for this configuration
+#endif
+
 	/* Check if we're running from flash. */
 	ldr	r7, =FLASHADDR
 	/*
@@ -164,37 +163,45 @@ Lunmapped:
 	 * Build page table from scratch.
 	 */
 
-	/* Find the delta between VA and PA */
+	/* 
+	 * Figure out the physical address we're loaded at by assuming this
+	 * entry point code is in the first L1 section and so if we clear the
+	 * offset bits of the pc that will give us the section-aligned load
+	 * address, which remains in r5 throughout all the following code.
+	 */
+	ldr	r2, =(L1_S_OFFSET)
+	bic	r5, pc, r2
+
+	/* Find the delta between VA and PA, result stays in r0 throughout. */
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
 
-	/*
-	 * Some of the older ports (the various XScale, mostly) assume
-	 * that the memory before the kernel is mapped, and use it for
-	 * the various stacks, page tables, etc. For those CPUs, map the
-	 * 64 first MB of RAM, as it used to be.
+	/* 
+	 * First map the entire 4GB address space as VA=PA.  It's mapped as
+	 * normal (cached) memory because it's for things like accessing the
+	 * parameters passed in from the bootloader, which might be at any
+	 * physical address, different for every platform.
 	 */
-	/*
-	 * Map PA == VA
+	mov	r1, #0
+	mov	r2, #0
+	mov	r3, #4096
+	bl	build_pagetables
+
+	/* 
+	 * Next we do 64MiB starting at the physical load address, mapped to
+	 * the VA the kernel is linked for.
 	 */
-	ldr	r5, =PHYSADDR
 	mov	r1, r5
-	mov	r2, r5
-	/* Map 64MiB, preserved over calls to build_pagetables */
+	ldr	r2, =(KERNVIRTADDR)
 	mov	r3, #64
 	bl	build_pagetables
 
-	/* Create the kernel map to jump to */
-	mov	r1, r5
-	ldr	r2, =(KERNBASE)
-	bl	build_pagetables
-	ldr	r5, =(KERNPHYSADDR)
-
+	/* Create a device mapping for early_printf if specified. */
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
-	/* Create the custom map */
 	ldr	r1, =SOCDEV_PA
 	ldr	r2, =SOCDEV_VA
-	bl	build_pagetables
+	mov	r3, #1
+	bl	build_device_pagetables
 #endif
 
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
@@ -205,9 +212,6 @@ Lunmapped:
 	mcr	p15, 0, r0, c3, c0, 0
 	/*
 	 * Enable MMU.
-	 * On armv6 enable extended page tables, and set alignment checking
-	 * to modulo-4 (CPU_CONTROL_UNAL_ENABLE) for the ldrd/strd
-	 * instructions emitted by clang.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
@@ -216,6 +220,9 @@ Lunmapped:
 	nop
 	nop
 	CPWAIT(r0)
+
+	/* Transition the PC from physical to virtual addressing. */
+	ldr	pc,=mmu_done
 
 mmu_done:
 	nop
@@ -227,7 +234,6 @@ mmu_done:
 	str	r3, [r1], #0x0004	/* get zero init data */
 	subs	r2, r2, #4
 	bgt	.L1
-	ldr	pc, .Lvirt_done
 
 virt_done:
 	mov	r1, #28			/* loader info size is 28 bytes also second arg */
@@ -301,21 +307,25 @@ translate_va_to_pa:
  *
  * Addresses must be 1MiB aligned
  */
+build_device_pagetables:
+	ldr	r4, =(L1_TYPE_S|L1_S_AP(AP_KRW))
+	b	1f
 build_pagetables:
 	/* Set the required page attributed */
 	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+1:
 	orr	r1, r4
 
 	/* Move the virtual address to the correct bit location */
 	lsr	r2, #(L1_S_SHIFT - 2)
 
 	mov	r4, r3
-1:
+2:
 	str	r1, [r0, r2]
 	add	r2, r2, #4
 	add	r1, r1, #(L1_S_SIZE)
 	adds	r4, r4, #-1
-	bhi	1b
+	bhi	2b
 
 	RET
 
