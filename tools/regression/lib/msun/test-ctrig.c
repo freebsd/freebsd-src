@@ -427,6 +427,7 @@ test_large(void)
 	test_odd_tol(ctanh, z,
 		     CMPLXL(1.0, 8.95257245135025991216632140458264468e-309L),
 		     DBL_ULP());
+#if !defined(__i386__)
 	z = CMPLXL(30, 0x1p1023L);
 	test_odd_tol(ctanh, z,
 		     CMPLXL(1.0, -1.62994325413993477997492170229268382e-26L),
@@ -436,6 +437,7 @@ test_large(void)
 		     CMPLXL(0.878606311888306869546254022621986509L,
 			    -0.225462792499754505792678258169527424L),
 		     DBL_ULP());
+#endif
 
 	z = CMPLXL(710.6, 0.78539816339744830961566084581987572L);
 	test_odd_tol(csinh, z,
