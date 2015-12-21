@@ -2401,6 +2401,7 @@ xdsxdm		6558/udp
 sane-port	6566/tcp   #Scanner Access Now Easy (SANE) Control Port
 sane-port	6566/udp   #Scanner Access Now Easy (SANE) Control Port
 ircd		6667/tcp   #Internet Relay Chat (unofficial)
+ircs-u          6697/tcp   #Internet Relay Chat over TLS/SSL
 frc-hp		6704/sctp  #ForCES HP (High Priority) channel
 frc-mp		6705/sctp  #ForCES MP (Medium Priority) channel
 frc-lp		6706/sctp  #ForCES LP (Low priority) channel
