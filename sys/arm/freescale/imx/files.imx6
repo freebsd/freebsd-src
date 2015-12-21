@@ -27,6 +27,8 @@ arm/freescale/imx/imx6_ssi.c		optional sound
 arm/arm/hdmi_if.m			optional hdmi
 arm/freescale/imx/imx6_hdmi.c		optional hdmi
 
+arm/freescale/imx/imx6_ipu.c		optional	vt
+
 #
 # Optional devices.
 #
