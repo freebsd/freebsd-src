@@ -103,8 +103,10 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=macb0
 
-# alternatively, boot from a MMC/SD memory card
-# s1 is FAT on this platform.
+# s3 because s1 is reserved for the DOS parittions sometimes needed to
+# boot off SD cards on the G20 and newer chips. s2 is reserved for
+# nanobsd's config partition. s3 and s4 are for the ping-pong upgrade
+# path. 9260 doesn't boot off SD, but let's keep things sane.
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s3a\"
 
 # Alternatively, boot from a USB card.
