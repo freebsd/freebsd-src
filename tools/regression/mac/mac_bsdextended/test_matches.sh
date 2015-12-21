@@ -19,6 +19,10 @@ if [ $(id -u) -ne 0 ]; then
 	echo "1..0 # SKIP test must be run as root"
 	exit 0
 fi
+if ! sysctl -N security.mac.bsdextended >/dev/null 2>&1; then
+	echo "1..0 # SKIP mac_bsdextended(4) support isn't available"
+	exit 0
+fi
 if ! playground=$(mktemp -d $TMPDIR/tmp.XXXXXXX); then
 	echo "1..0 # SKIP failed to create temporary directory"
 	exit 0
