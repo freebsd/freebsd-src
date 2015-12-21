@@ -4,8 +4,7 @@ LIB=	cheri
 
 # XXXRW: When compiling for CheriABI, will need to use cheri_invoke_cabi.S
 # here.
-SRCS=	cheri_invoke_hybrid.S		\
-	cheri_enter.c			\
+SRCS=	cheri_enter.c			\
 	cheri_fd.c			\
 	cheri_stack.c			\
 	cheri_system.c			\
@@ -16,6 +15,12 @@ SRCS=	cheri_invoke_hybrid.S		\
 	sandbox_elf.c			\
 	sandbox_loader.c		\
 	sandbox_methods.c		\
+
+.if defined(LIBCHERI)
+SRCS+=	cheri_invoke_cabi.S
+.else
+SRCS+=	cheri_invoke_hybrid.S
+.endif
 
 INCS=	cheri_class.h			\
 	cheri_enter.h			\
