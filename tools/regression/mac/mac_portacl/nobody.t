@@ -10,6 +10,8 @@ echo "1..64"
 # behaviour.
 # mac_portacl has no impact on ports <= net.inet.ip.portrange.reservedhigh.
 
+trap restore_settings EXIT INT TERM
+
 sysctl security.mac.portacl.suser_exempt=1 >/dev/null
 sysctl net.inet.ip.portrange.reservedhigh=78 >/dev/null
 
@@ -63,5 +65,3 @@ bind_test fl ok gid nobody tcp 77
 bind_test ok ok gid nobody tcp 7777
 bind_test fl ok gid nobody udp 77
 bind_test ok ok gid nobody udp 7777
-
-restore_settings
