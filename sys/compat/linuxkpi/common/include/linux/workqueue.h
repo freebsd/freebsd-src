@@ -105,13 +105,15 @@ queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *work,
 {
 	int pending;
 
-	pending = work->work.work_task.ta_pending;
 	work->work.taskqueue = wq->taskqueue;
-	if (delay != 0)
+	if (delay != 0) {
+		pending = work->work.work_task.ta_pending;
 		callout_reset(&work->timer, delay, linux_delayed_work_fn, work);
-	else
-		linux_delayed_work_fn((void *)work);
-
+	} else {
+		callout_stop(&work->timer);
+		pending = taskqueue_enqueue(work->work.taskqueue,
+		    &work->work.work_task);
+	}
 	return (!pending);
 }
 
