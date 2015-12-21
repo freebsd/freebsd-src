@@ -26,6 +26,8 @@ SRCS=	autoload.c \
 	vers.c
 SRCS+=	amd64_tramp.S \
 	start.S
+SRCS+=	nullconsole.c \
+	comconsole.c
 
 CFLAGS+=	-fPIC
 CFLAGS+=	-I.
@@ -53,7 +55,7 @@ CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
-# For smbios.c
+# For smbios.c, nullconsole.c, comconsole.c
 .PATH:		${.CURDIR}/../../i386/libi386
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
