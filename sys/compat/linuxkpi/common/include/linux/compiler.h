@@ -72,4 +72,20 @@
 
 #define	barrier()			__asm__ __volatile__("": : :"memory")
 
+#define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
+  
+#define	WRITE_ONCE(x,v) do {		\
+	barrier();			\
+	ACCESS_ONCE(x) = (v);		\
+	barrier();			\
+} while (0)
+
+#define	READ_ONCE(x) ({			\
+	__typeof(x) __var;		\
+	barrier();			\
+	__var = ACCESS_ONCE(x);		\
+	barrier();			\
+	__var;				\
+})
+  
 #endif	/* _LINUX_COMPILER_H_ */
