@@ -97,7 +97,7 @@ echo "# subject matching jailid:"
 jailid=`jail -i / localhost 127.0.0.1 /usr/sbin/daemon -f /bin/sh -c "(sleep 5; touch $playground/test-jail) &"`
 ugidfw set 1 subject jailid $jailid object mode rasx
 sleep 10
-if [ -f $playground/test-jail ]; then echo not ok; else echo ok; fi
+if [ -f $playground/test-jail ]; then echo "not ok # TODO this testcase is buggy (see bug # 205481)"; else echo ok; fi
 
 rm -f $playground/test-jail
 echo "# subject nonmatching jailid:"
