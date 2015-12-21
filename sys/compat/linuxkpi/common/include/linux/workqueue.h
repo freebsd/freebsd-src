@@ -36,10 +36,13 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 
+#include <asm/atomic.h>
+
 #include <sys/taskqueue.h>
 
 struct workqueue_struct {
 	struct taskqueue	*taskqueue;
+	atomic_t		draining;
 };
 
 struct work_struct {
@@ -95,6 +98,9 @@ static inline int
 queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
 	work->taskqueue = wq->taskqueue;
+	/* Check for draining */
+	if (atomic_read(&wq->draining) != 0)
+		return (!work->work_task.ta_pending);
 	/* Return opposite value to align with Linux logic */
 	return (!taskqueue_enqueue(wq->taskqueue, &work->work_task));
 }
@@ -106,7 +112,9 @@ queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *work,
 	int pending;
 
 	work->work.taskqueue = wq->taskqueue;
-	if (delay != 0) {
+	if (atomic_read(&wq->draining) != 0) {
+	  	pending = work->work.work_task.ta_pending;
+	} else if (delay != 0) {
 		pending = work->work.work_task.ta_pending;
 		callout_reset(&work->timer, delay, linux_delayed_work_fn, work);
 	} else {
@@ -124,6 +132,7 @@ schedule_delayed_work(struct delayed_work *dwork,
 	struct workqueue_struct wq;
 
 	wq.taskqueue = taskqueue_thread;
+	atomic_set(&wq.draining, 0);
 	return (queue_delayed_work(&wq, dwork, delay));
 }
 
@@ -151,6 +160,14 @@ flush_taskqueue(struct taskqueue *tq)
 	taskqueue_enqueue(tq, &flushtask);
 	taskqueue_drain(tq, &flushtask);
 	PRELE(curproc);
+}
+
+static inline void
+drain_workqueue(struct workqueue_struct *wq)
+{
+	atomic_inc(&wq->draining);
+	flush_taskqueue(wq->taskqueue);
+	atomic_dec(&wq->draining);
 }
 
 static inline int
