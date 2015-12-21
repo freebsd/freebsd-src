@@ -154,19 +154,19 @@ cheri_ptrpermoff(const void *ptr, size_t len, register_t perm, off_t off)
 
 /*
  * Construct a capability suitable to describe a type identified by 'ptr';
- * set it to zero-length with the offset equal to the base.
+ * set it to zero-length with the offset equal to the base.  The caller must
+ * provide a root capability (in the old world order, derived from $c0, but in
+ * the new world order, likely extracted from the kernel using sysarch(2)).
  *
- * NB: We choose to derive 'type' capabilities from the default data
- * capability.  There's a legitimate argument that a third root capability
- * should provide access to types, to fully differentiate data, code, and
- * types.
+ * The caller may wish to assert various properties about the returned
+ * capability, including that CHERI_PERM_SEAL is set.
  */
 static __inline __capability void *
-cheri_maketype(register_t type)
+cheri_maketype(__capability void *root_type, register_t type)
 {
 	__capability void *c;
 
-	c = cheri_getdefault();		/* Derive from $c0. */
+	c = root_type;
 	c = cheri_setoffset(c, type);	/* Set type as desired. */
 	c = cheri_csetbounds(c, 1);	/* ISA implies length of 1. */
 	c = cheri_andperm(c, CHERI_PERM_GLOBAL | CHERI_PERM_SEAL); /* Perms. */

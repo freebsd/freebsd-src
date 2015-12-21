@@ -137,6 +137,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	cheri_context_copy(pcb2, td1->td_pcb);
 	cheri_signal_copy(pcb2, td1->td_pcb);
 	cheri_stack_copy(pcb2, td1->td_pcb);
+	cheri_typecap_copy(pcb2, td1->td_pcb);
 #endif
 
 	/* Point mdproc and then copy over td1's contents

@@ -289,6 +289,15 @@ cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 	    CHERI_CAP_USER_CODE_OTYPE, (void *)base, szsigcode, 0);
 }
 
+static void
+cheri_capability_set_user_type(struct chericap *cp)
+{
+
+	cheri_capability_set(cp, CHERI_CAP_USER_TYPE_PERMS,
+	    CHERI_CAP_USER_TYPE_OTYPE, CHERI_CAP_USER_TYPE_BASE,
+	    CHERI_CAP_USER_TYPE_LENGTH, CHERI_CAP_USER_TYPE_OFFSET);
+}
+
 void
 cheri_capability_set_null(struct chericap *cp)
 {
@@ -358,6 +367,12 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	cheri_capability_set_user_pcc(&csigp->csig_pcc);
 	cheri_capability_set_user_sigcode(&csigp->csig_sigcode,
 	    td->td_proc->p_sysent);
+
+	/*
+	 * Set up root for the userspace object-type capability tree.  This
+	 * can be queried using sysarch(2).
+	 */
+	cheri_capability_set_user_type(&td->td_pcb->pcb_typecap);
 }
 
 void

@@ -672,7 +672,9 @@ void	cheri_stack_init(struct pcb *pcb);
 int	cheri_stack_unwind(struct thread *td, struct trapframe *tf,
 	    int signum);
 int	cheri_sysarch_getstack(struct thread *td, struct sysarch_args *uap);
+int	cheri_sysarch_gettypecap(struct thread *td, struct sysarch_args *uap);
 int	cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap);
+void	cheri_typecap_copy(struct pcb *dst, struct pcb *src);
 
 /*
  * Global sysctl definitions.

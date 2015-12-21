@@ -50,8 +50,14 @@
  * XXXRW: Is there an ifdef of some sort I should be using here?  The kernel
  * code is ifdef'd so it probably doesn't matter.
  */
-#define	CHERI_GET_STACK	4
-#define	CHERI_SET_STACK	5
+#define	CHERI_GET_STACK		4	/* Get trusted stack. */
+#define	CHERI_SET_STACK		5	/* Set trusted stack. */
+
+/*
+ * Query the root of the object-type capability provenance tree.  This allows
+ * us to avoid setting CHERI_PERM_SEAL on data and code capabilities.
+ */
+#define	CHERI_GET_TYPECAP	6	/* Get root 'type' capability. */
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>

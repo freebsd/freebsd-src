@@ -131,12 +131,18 @@
  */
 #define	CHERI_PERM_USER							\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |	\
-	CHERI_PERM_SEAL | CHERI_PERM_SETTYPE | CHERI_PERM_USER_PRIVS)
+	CHERI_PERM_SETTYPE | CHERI_PERM_USER_PRIVS)
 
 #define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_EXECUTE)
 #define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
 				CHERI_PERM_STORE_CAP |			\
 				CHERI_PERM_STORE_LOCAL_CAP)
+
+/*
+ * Root "object-type" capability -- queried via sysarch(2) when libcheri needs
+ * to allocate types.  This can be used neither as a data nor code capability.
+ */
+#define	CHERI_PERM_USER_TYPE	(CHERI_PERM_GLOBAL | CHERI_PERM_SEAL)
 
 /*
  * Definition for kernel "privileged" capability able to name the entire
@@ -163,6 +169,12 @@
 #define	CHERI_CAP_USER_DATA_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_DATA_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_DATA_OFFSET	0x0
+
+#define	CHERI_CAP_USER_TYPE_PERMS	CHERI_PERM_USER_TYPE
+#define	CHERI_CAP_USER_TYPE_OTYPE	0x0
+#define	CHERI_CAP_USER_TYPE_BASE	MIPS_XUSEG_START
+#define	CHERI_CAP_USER_TYPE_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
+#define	CHERI_CAP_USER_TYPE_OFFSET	0x0
 
 /*
  * A blend of hardware and software allocation of capability registers.

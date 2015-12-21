@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 Robert N. M. Watson
+ * Copyright (c) 2015 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -28,57 +28,43 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "opt_ddb.h"
 
-#if !__has_feature(capabilities)
-#error "This code requires a CHERI-aware compiler"
-#endif
-
-#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/syscall.h>
+#include <sys/sysctl.h>
+#include <sys/sysproto.h>
 
+#include <ddb/ddb.h>
+#include <sys/kdb.h>
+
+#include <machine/atomic.h>
 #include <machine/cheri.h>
-#include <machine/cheric.h>
+#include <machine/pcb.h>
 #include <machine/sysarch.h>
 
-#include <assert.h>
-
-#include "cheri_type.h"
-
-static __capability void *cheri_type_root;
-static uint64_t cheri_type_next = 1;
-
-__attribute__ ((constructor)) static void
-cheri_type_init(void)
+/*
+ * Propagate the root object-type capability across fork().
+ */
+void
+cheri_typecap_copy(struct pcb *dst, struct pcb *src)
 {
 
-	/*
-	 * Request a root type capability from the kernel.  Ensure it is set
-	 * to NULL if this fails, as failure could represent partial copyout()
-	 * with confusing failure modes, etc.  We can validate properties of
-	 * the capability later, should compartmentalisation actually be used
-	 * by the application.
-	 */
-	if (sysarch(CHERI_GET_TYPECAP, &cheri_type_root) < 0)
-		cheri_type_root = NULL;
-	assert((cheri_getperm(cheri_type_root) & CHERI_PERM_SEAL) != 0);
-	assert(cheri_getlen(cheri_type_root) != 0);
+	cheri_memcpy(&dst->pcb_typecap, &src->pcb_typecap,
+	    sizeof(dst->pcb_typecap));
 }
 
 /*
- * A [very] simple CHERI type allocator.
+ * Allow userspace to query a root 'object type' capability using sysarch(2).
  */
-__capability void *
-cheri_type_alloc(void)
+int
+cheri_sysarch_gettypecap(struct thread *td, struct sysarch_args *uap)
 {
-	__capability void *type_next;
 
-	assert((cheri_getperm(cheri_type_root) & CHERI_PERM_SEAL) != 0);
-	assert(cheri_type_next < 1<<24);
-
-	type_next = cheri_maketype(cheri_type_root, cheri_type_next);
-
-	assert((cheri_getperm(type_next) & CHERI_PERM_SEAL) != 0);
-	cheri_type_next++;
-	return (type_next);
+	return (copyoutcap(&td->td_pcb->pcb_typecap, uap->parms,
+	    sizeof(td->td_pcb->pcb_typecap)));
 }
