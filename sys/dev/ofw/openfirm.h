@@ -61,6 +61,7 @@
 #define _DEV_OPENFIRM_H_
 
 #include <sys/types.h>
+#include <machine/_bus.h>
 
 /*
  * Prototypes for Open Firmware Interface Routines
