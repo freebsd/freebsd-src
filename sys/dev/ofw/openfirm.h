@@ -167,5 +167,16 @@ void		OF_exit(void) __attribute__((noreturn));
 /* User interface functions */
 int		OF_interpret(const char *cmd, int nreturns, ...);
 
+/*
+ * Decode the Nth register property of the given device node and create a bus
+ * space tag and handle for accessing it.  This is for use in setting up things
+ * like early console output before newbus is available.  The implementation is
+ * machine-dependent, and sparc uses a different function signature as well.
+ */
+#ifndef __sparc64__
+int		OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *ptag,
+		    bus_space_handle_t *phandle);
+#endif
+
 #endif /* _KERNEL */
 #endif /* _DEV_OPENFIRM_H_ */
