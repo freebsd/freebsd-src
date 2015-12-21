@@ -92,7 +92,7 @@ loader.efi: loader.sym
 	${OBJCOPY} -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
-		--target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
+		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
 CFLAGS+=	-I${.CURDIR}/../../common
