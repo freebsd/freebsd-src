@@ -945,6 +945,7 @@ linux_create_workqueue_common(const char *name, int cpus)
 	wq = kmalloc(sizeof(*wq), M_WAITOK);
 	wq->taskqueue = taskqueue_create(name, M_WAITOK,
 	    taskqueue_thread_enqueue,  &wq->taskqueue);
+	atomic_set(&wq->draining, 0);
 	taskqueue_start_threads(&wq->taskqueue, cpus, PWAIT, "%s", name);
 
 	return (wq);
