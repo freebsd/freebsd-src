@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2009 The FreeBSD Foundation
+ * Copyright (c) 2015 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
- *
- * This software was developed by Semihalf under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -17,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,23 +22,50 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_OFW_MACHDEP_H_
-#define _MACHINE_OFW_MACHDEP_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
-#include <vm/vm.h>
 
-typedef	uint32_t	cell_t;
+#include <machine/bus.h>
+#include <machine/fdt.h>
 
-struct mem_region {
-	vm_offset_t	mr_start;
-	vm_size_t	mr_size;
-};
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_subr.h>
 
-#endif /* _MACHINE_OFW_MACHDEP_H_ */
+int
+OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
+    bus_space_handle_t *handle)
+{
+	bus_addr_t addr;
+	bus_size_t size;
+	pcell_t pci_hi;
+	int flags, res;
+
+	res = ofw_reg_to_paddr(dev, regno, &addr, &size, &pci_hi);
+	if (res < 0)
+		return (res);
+
+	/*
+	 * Nothing special to do for PCI busses right now.
+	 * This may need to be handled per-platform when it does come up.
+	 */
+#ifdef notyet
+	if (pci_hi == OFW_PADDR_NOT_PCI) {
+		*tag = fdtbus_bs_tag;
+		flags = 0;
+	} else {
+		*tag = fdtbus_bs_tag;
+		flags = (pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) ? 
+		    BUS_SPACE_MAP_PREFETCHABLE: 0;
+	}
+#else
+	*tag = fdtbus_bs_tag;
+	flags = 0;
+#endif
+	return (bus_space_map(*tag, addr, size, flags, handle));
+}
+
