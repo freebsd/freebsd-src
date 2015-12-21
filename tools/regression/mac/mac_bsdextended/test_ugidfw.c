@@ -35,10 +35,11 @@
 #include <err.h>
 #include <grp.h>
 #include <pwd.h>
-#include <ugidfw.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ugidfw.h>
+#include <unistd.h>
 
 /*
  * Starting point for a regression test for mac_bsdextended(4) and the
@@ -49,7 +50,7 @@ usage(void)
 {
 
 	fprintf(stderr, "test_ugidfw\n");
-	exit(-1);
+	exit(1);
 }
 
 /*
@@ -159,13 +160,13 @@ test_libugidfw_strings(void)
 
 	for (i = 0; i < test_users_len; i++) {
 		if (getpwnam(test_users[i]) == NULL)
-			err(-1, "test_libugidfw_strings: getpwnam: %s",
+			err(1, "test_libugidfw_strings: getpwnam: %s",
 			    test_users[i]);
 	}
 
 	for (i = 0; i < test_groups_len; i++) {
 		if (getgrnam(test_groups[i]) == NULL)
-			err(-1, "test_libugidfw_strings: getgrnam: %s",
+			err(1, "test_libugidfw_strings: getgrnam: %s",
 			    test_groups[i]);
 	}
 
@@ -173,15 +174,15 @@ test_libugidfw_strings(void)
 		error = bsde_parse_rule_string(test_strings[i], &rule,
 		    sizeof(errorstr), errorstr);
 		if (error == -1)
-			errx(-1, "bsde_parse_rule_string: '%s' (%d): %s",
+			errx(1, "bsde_parse_rule_string: '%s' (%d): %s",
 			    test_strings[i], i, errorstr);
 		error = bsde_rule_to_string(&rule, rulestr, sizeof(rulestr));
 		if (error < 0)
-			errx(-1, "bsde_rule_to_string: rule for '%s' "
+			errx(1, "bsde_rule_to_string: rule for '%s' "
 			    "returned %d", test_strings[i], error);
 
 		if (strcmp(test_strings[i], rulestr) != 0)
-			errx(-1, "test_libugidfw: '%s' in, '%s' out",
+			errx(1, "test_libugidfw: '%s' in, '%s' out",
 			    test_strings[i], rulestr);
 	}
 }
@@ -210,12 +211,12 @@ main(int argc, char *argv[])
 
 	switch (mac_is_present("bsdextended")) {
 	case -1:
-		err(-1, "mac_is_present");
+		err(1, "mac_is_present");
 	case 1:
 		break;
 	case 0:
 	default:
-		errx(-1, "mac_bsdextended not loaded");
+		errx(1, "mac_bsdextended not loaded");
 	}
 
 	/*
@@ -226,13 +227,13 @@ main(int argc, char *argv[])
 	 */
 	count = bsde_get_rule_count(sizeof(errorstr), errorstr);
 	if (count == -1)
-		errx(-1, "bsde_get_rule_count: %s", errorstr);
+		errx(1, "bsde_get_rule_count: %s", errorstr);
 	if (count != 0)
-		errx(-1, "bsde_get_rule_count: %d rules", count);
+		errx(1, "bsde_get_rule_count: %d rules", count);
 
 	slots = bsde_get_rule_slots(sizeof(errorstr), errorstr);
 	if (slots == -1)
-		errx(-1, "bsde_get_rule_slots: %s", errorstr);
+		errx(1, "bsde_get_rule_slots: %s", errorstr);
 
 	return (0);
 }
