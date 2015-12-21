@@ -30,6 +30,9 @@
 #define	IMX6_CCMREG_H
 
 #define	CCM_CACCR			0x010
+#define	CCM_CBCDR			0x014
+#define	    CBCDR_MMDC_CH1_AXI_PODF_SHIFT	3
+#define	    CBCDR_MMDC_CH1_AXI_PODF_MASK	(7 << 3)
 #define	CCM_CSCMR1			0x01C
 #define	  SSI1_CLK_SEL_S		  10
 #define	  SSI2_CLK_SEL_S		  12
@@ -39,6 +42,7 @@
 #define	  SSI_CLK_SEL_454_PFD		  1
 #define	  SSI_CLK_SEL_PLL4		  2
 #define	CCM_CSCMR2			0x020
+#define	  CSCMR2_LDB_DI0_IPU_DIV_SHIFT	  10
 #define	CCM_CS1CDR			0x028
 #define	  SSI1_CLK_PODF_SHIFT		  0
 #define	  SSI1_CLK_PRED_SHIFT		  6
@@ -49,6 +53,18 @@
 #define	CCM_CS2CDR			0x02C
 #define	  SSI2_CLK_PODF_SHIFT		  0
 #define	  SSI2_CLK_PRED_SHIFT		  6
+#define	  LDB_DI0_CLK_SEL_SHIFT		  9
+#define	  LDB_DI0_CLK_SEL_MASK		  (3 << LDB_DI0_CLK_SEL_SHIFT)
+#define	CCM_CHSCCDR			0x034
+#define	  CHSCCDR_IPU1_DI0_PRE_CLK_SEL_MASK	(0x7 << 6)
+#define	  CHSCCDR_IPU1_DI0_PRE_CLK_SEL_SHIFT	6
+#define	  CHSCCDR_IPU1_DI0_PODF_MASK		(0x7 << 3)
+#define	  CHSCCDR_IPU1_DI0_PODF_SHIFT		3
+#define	  CHSCCDR_IPU1_DI0_CLK_SEL_MASK		(0x7)
+#define	  CHSCCDR_IPU1_DI0_CLK_SEL_SHIFT	0
+#define	  CHSCCDR_CLK_SEL_LDB_DI0		3
+#define	  CHSCCDR_PODF_DIVIDE_BY_3		2
+#define	  CHSCCDR_IPU_PRE_CLK_540M_PFD		5
 #define	CCM_CSCDR2			0x038
 #define	CCM_CLPCR			0x054
 #define	  CCM_CLPCR_LPM_MASK		  0x03
