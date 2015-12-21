@@ -227,6 +227,8 @@ nd6_ifdetach(struct nd_ifinfo *nd)
 void
 nd6_setmtu(struct ifnet *ifp)
 {
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return;
 
 	nd6_setmtu0(ifp, ND_IFINFO(ifp));
 }
