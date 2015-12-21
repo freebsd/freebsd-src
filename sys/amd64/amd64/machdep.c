@@ -1344,8 +1344,10 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	/*
 	 * Find insertion point while checking for overlap.  Start off by
 	 * assuming the new entry will be added to the end.
+	 *
+	 * NB: physmap_idx points to the next free slot.
 	 */
-	insert_idx = physmap_idx + 2;
+	insert_idx = physmap_idx;
 	for (i = 0; i <= physmap_idx; i += 2) {
 		if (base < physmap[i + 1]) {
 			if (base + length <= physmap[i]) {
@@ -1383,7 +1385,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	 * Move the last 'N' entries down to make room for the new
 	 * entry if needed.
 	 */
-	for (i = physmap_idx; i > insert_idx; i -= 2) {
+	for (i = (physmap_idx - 2); i > insert_idx; i -= 2) {
 		physmap[i] = physmap[i - 2];
 		physmap[i + 1] = physmap[i - 1];
 	}
@@ -1548,7 +1550,6 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	int page_counter;
 
 	bzero(physmap, sizeof(physmap));
-	basemem = 0;
 	physmap_idx = 0;
 
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
@@ -1566,21 +1567,29 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 		panic("No BIOS smap or EFI map info from loader!");
 	}
 
+	physmap_idx -= 2;
+
 	/*
 	 * Find the 'base memory' segment for SMP
 	 */
 	basemem = 0;
 	for (i = 0; i <= physmap_idx; i += 2) {
-		if (physmap[i] == 0x00000000) {
+		if (physmap[i] <= 0xA0000) {
 			basemem = physmap[i + 1] / 1024;
 			break;
 		}
 	}
-	if (basemem == 0)
-		panic("BIOS smap did not include a basemem segment!");
+	if (basemem == 0 || basemem > 640) {
+		if (bootverbose)
+			printf(
+		"Memory map doesn't contain a basemem segment, faking it");
+		basemem = 640;
+	}
 
 #ifdef SMP
 	/* make hole for AP bootstrap code */
+	if (physmap[1] >= 0x100000000)
+		panic("Basemem segment is not suitable for AP bootstrap code!");
 	physmap[1] = mp_bootaddress(physmap[1] / 1024);
 #endif
 
@@ -1634,12 +1643,14 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 */
 	physmem_start = (vm_guest > VM_GUEST_NO ? 1 : 16) << PAGE_SHIFT;
 	TUNABLE_ULONG_FETCH("hw.physmem.start", &physmem_start);
-	if (physmem_start < PAGE_SIZE)
-		physmap[0] = PAGE_SIZE;
-	else if (physmem_start >= physmap[1])
-		physmap[0] = round_page(physmap[1] - PAGE_SIZE);
-	else
-		physmap[0] = round_page(physmem_start);
+	if (physmap[0] < physmem_start) {
+		if (physmem_start < PAGE_SIZE)
+			physmap[0] = PAGE_SIZE;
+		else if (physmem_start >= physmap[1])
+			physmap[0] = round_page(physmap[1] - PAGE_SIZE);
+		else
+			physmap[0] = round_page(physmem_start);
+	}
 	pa_indx = 0;
 	da_indx = 1;
 	phys_avail[pa_indx++] = physmap[0];
