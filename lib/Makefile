@@ -91,7 +91,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libsbuf \
 	${_libsdp} \
 	${_libsm} \
-	${_libsmb} \
+	libsmb \
 	${_libsmdb} \
 	${_libsmutil} \
 	libsqlite3 \
@@ -243,7 +243,6 @@ _libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-_libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
@@ -263,15 +262,9 @@ _librtld_db=	librtld_db
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libproc=	libproc
 _librtld_db=	librtld_db
-_libsmb=	libsmb
-.endif
-
-.if ${MACHINE_CPUARCH} == "sparc64"
-_libsmb=	libsmb
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
-_libsmb=	libsmb
 _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
