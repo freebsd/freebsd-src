@@ -386,6 +386,12 @@
         ..
         kqueue
         ..
+        mac
+            bsdextended
+            ..
+            portacl
+            ..
+        ..
         mqueue
         ..
         netinet
