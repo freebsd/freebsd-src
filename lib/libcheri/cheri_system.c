@@ -50,8 +50,8 @@
  * This C file implements the CHERI system class.  Currently, pretty
  * minimalist.
  */
-__capability void	*cheri_system_type;
-__capability intptr_t	*cheri_system_vtable;
+__capability void		*cheri_system_type;
+__capability vm_offset_t	*cheri_system_vtable;
 
 static struct cheri_object null_object;
 

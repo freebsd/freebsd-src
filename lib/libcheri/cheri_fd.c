@@ -70,7 +70,7 @@
 CHERI_CLASS_DECL(cheri_fd);
 
 static __capability void	*cheri_fd_type;
-__capability intptr_t		*cheri_fd_vtable;
+__capability vm_offset_t	*cheri_fd_vtable;
 
 /*
  * Data segment for a cheri_fd.

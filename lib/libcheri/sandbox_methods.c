@@ -57,7 +57,7 @@
  */
 struct sandbox_provided_method {
 	char		*spm_method;		/* Method name */
-	intptr_t	 spm_index_offset;	/* Offset of callee variable */
+	vm_offset_t	 spm_index_offset;	/* Offset of callee variable */
 };
 
 /*
@@ -84,7 +84,7 @@ struct sandbox_provided_classes {
 	size_t				  spcs_nclasses; /* Number of methods */
 	size_t				  spcs_maxclasses; /* Array size */
 	size_t				  spcs_nmethods; /* Total methods */
-	intptr_t			  spcs_base;	/* Base of vtable */
+	vm_offset_t			  spcs_base;	/* Base of vtable */
 };
 
 /*
@@ -93,8 +93,8 @@ struct sandbox_provided_classes {
 struct sandbox_required_method {
 	char		*srm_class;		/* Class name */
 	char		*srm_method;		/* Method name */
-	intptr_t	 srm_index_offset;	/* Offset of caller variable */
-	intptr_t	 srm_vtable_offset;	/* Method number */
+	vm_offset_t	 srm_index_offset;	/* Offset of caller variable */
+	vm_offset_t	 srm_vtable_offset;	/* Method number */
 	bool		 srm_resolved;		/* Resolved? */
 };
 
@@ -522,7 +522,7 @@ bad:
 }
 
 static int
-sandbox_resolve_methods_one_class(intptr_t vtable_base,
+sandbox_resolve_methods_one_class(vm_offset_t vtable_base,
     struct sandbox_provided_methods *provided_methods,
     struct sandbox_required_methods *required_methods)
 {
@@ -675,12 +675,12 @@ sandbox_warn_unresolved_methods(
 	}
 }
 
-__capability intptr_t *
+__capability vm_offset_t *
 sandbox_make_vtable(void *dataptr, const char *class,
     struct sandbox_provided_classes *provided_classes)
 {
-	__capability intptr_t *vtable;
-	intptr_t *cheri_ccallee_base;
+	__capability vm_offset_t *vtable;
+	vm_offset_t *cheri_ccallee_base;
 	size_t i, index, length, m;
 	struct sandbox_provided_method *pm;
 	struct sandbox_provided_methods *pms;
@@ -688,7 +688,7 @@ sandbox_make_vtable(void *dataptr, const char *class,
 	if (provided_classes->spcs_nclasses == 0)
 		return (NULL);
 
-	if ((vtable = (__capability intptr_t *)calloc(
+	if ((vtable = (__capability vm_offset_t *)calloc(
 	    provided_classes->spcs_nmethods, sizeof(*vtable))) == NULL) {
 		warnx("%s: calloc", __func__);
 		return (NULL);
@@ -705,8 +705,8 @@ sandbox_make_vtable(void *dataptr, const char *class,
 	if (dataptr == NULL)
 		dataptr = cheri_getdefault();
 #endif
-	cheri_ccallee_base = (intptr_t *)dataptr + provided_classes->spcs_base
-	    / sizeof(intptr_t);
+	cheri_ccallee_base = (vm_offset_t *)dataptr + provided_classes->spcs_base
+	    / sizeof(vm_offset_t);
 	length = provided_classes->spcs_nmethods * sizeof(*vtable);
 
 	if (class == NULL) {
@@ -736,7 +736,7 @@ sandbox_set_required_method_variables(__capability void *datacap,
     struct sandbox_required_methods *required_methods)
 {
 	size_t i;
-	__capability intptr_t *method_var_p;
+	__capability vm_offset_t *method_var_p;
 	struct sandbox_required_method *rmethods;
 
 	assert(required_methods != NULL);

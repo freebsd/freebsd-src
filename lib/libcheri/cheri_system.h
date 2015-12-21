@@ -94,6 +94,6 @@ extern __capability void	*cheri_system_type;
 /*
  * Vtable for cheri_system methods.
  */
-extern __capability intptr_t	*cheri_system_vtable;
+extern __capability vm_offset_t	*cheri_system_vtable;
 
 #endif /* !_CHERI_SYSTEM_H_ */
