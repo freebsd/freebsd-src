@@ -133,6 +133,9 @@ device		u3g			# USB modems
 #options 	SC_DFLT_FONT		# compile font in
 #makeoptions	SC_DFLT_FONT=cp437
 
+device		videomode
+device		hdmi
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA=dtb/imx6
