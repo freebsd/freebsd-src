@@ -35,8 +35,9 @@ typedef	enum {
 
 #ifdef _SEARCH_PRIVATE
 typedef	struct node {
-	char         *key;
+	void         *key;
 	struct node  *llink, *rlink;
+	signed char   balance;
 } node_t;
 
 struct que_elem {

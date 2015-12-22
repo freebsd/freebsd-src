@@ -27,7 +27,7 @@
 .\"	OpenBSD: tsearch.3,v 1.2 1998/06/21 22:13:49 millert Exp
 .\" $FreeBSD$
 .\"
-.Dd June 15, 1997
+.Dd December 6, 2015
 .Dt TSEARCH 3
 .Os
 .Sh NAME
@@ -50,8 +50,12 @@ The
 .Fn tsearch ,
 and
 .Fn twalk
-functions manage binary search trees based on algorithms T and D
-from Knuth (6.2.2).
+functions manage binary search trees.
+This implementation uses a balanced AVL tree,
+which due to its strong theoretical limit on the height of the tree has
+the advantage of calling the comparison function relatively
+infrequently.
+.Pp
 The comparison function passed in by
 the user has the same style of return values as
 .Xr strcmp 3 .
