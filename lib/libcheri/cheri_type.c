@@ -48,7 +48,7 @@
 static __capability void *cheri_type_root;
 static uint64_t cheri_type_next = 1;
 
-__attribute__ ((constructor)) static void
+static void
 cheri_type_init(void)
 {
 
@@ -67,18 +67,23 @@ cheri_type_init(void)
 
 /*
  * A [very] simple CHERI type allocator.
+ *
+ * XXXRW: Concurrency.  We need locks around this.
  */
 __capability void *
 cheri_type_alloc(void)
 {
-	__capability void *type_next;
+	__capability void *new_type_cap;
 
-	assert((cheri_getperm(cheri_type_root) & CHERI_PERM_SEAL) != 0);
 	assert(cheri_type_next < 1<<24);
 
-	type_next = cheri_maketype(cheri_type_root, cheri_type_next);
-
-	assert((cheri_getperm(type_next) & CHERI_PERM_SEAL) != 0);
+	/*
+	 * On first use, query the root object-type capability from the
+	 * kernel.
+	 */
+	if ((cheri_getperm(cheri_type_root) & CHERI_PERM_SEAL) == 0)
+		cheri_type_init();
+	new_type_cap = cheri_maketype(cheri_type_root, cheri_type_next);
 	cheri_type_next++;
-	return (type_next);
+	return (new_type_cap);
 }
