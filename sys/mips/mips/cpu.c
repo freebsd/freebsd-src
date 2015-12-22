@@ -394,32 +394,30 @@ cpu_identify(void)
 			printf("Fixed mapping");
 		}
 		printf(", %d entries ", cpuinfo.tlb_nentries);
-
-		if (cpuinfo.tlb_pgmask) {
-			printf("(");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_MASKX)
-				printf("1K ");
-			printf("4K ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16K)
-				printf("16K ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64K)
-				printf("64K ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256K)
-				printf("256K ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_1M)
-				printf("1M ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_4M)
-				printf("4M ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16M)
-				printf("16M ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64M)
-				printf("64M ");
-			if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256M)
-				printf("256M ");
-			printf("pg sizes)");
-		}
-		printf("\n");
 	}
+
+	if (cpuinfo.tlb_pgmask) {
+		printf("(");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_MASKX)
+			printf("1K ");
+		printf("4K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16K)
+			printf("16K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64K)
+			printf("64K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256K)
+			printf("256K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_1M)
+			printf("1M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16M)
+			printf("16M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64M)
+			printf("64M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256M)
+			printf("256M ");
+		printf("pg sizes)");
+	}
+	printf("\n");
 
 	printf("  L1 i-cache: ");
 	if (cpuinfo.l1.ic_linesize == 0) {
