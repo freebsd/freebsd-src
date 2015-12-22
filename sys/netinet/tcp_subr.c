@@ -593,10 +593,6 @@ tcp_init(void)
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT,
 	    &V_tcp_hhh[HHOOK_TCP_EST_OUT], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
-	/* Setup the tcp function block list */
-	TAILQ_INIT(&t_functions);
-	rw_init_flags(&tcp_function_lock, "tcp_func_lock" , 0);
-	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
 	if (hashsize == 0) {
@@ -675,6 +671,10 @@ tcp_init(void)
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
+	/* Setup the tcp function block list */
+	TAILQ_INIT(&t_functions);
+	rw_init_flags(&tcp_function_lock, "tcp_func_lock" , 0);
+	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
