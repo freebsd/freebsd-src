@@ -251,7 +251,7 @@ struct {
 	[CHERIABI_SYS_getfh] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
-	[CHERIABI_SYS_sysarch] = {
+	[CHERIABI_SYS_cheriabi_sysarch] = {
 		.sam_ptrmask = 0x2
 	},
 	[CHERIABI_SYS_rtprio] = {

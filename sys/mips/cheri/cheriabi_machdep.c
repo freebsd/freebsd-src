@@ -57,12 +57,14 @@
 #include <sys/imgact.h>
 #include <sys/mman.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysproto.h>
 #include <sys/ucontext.h>
 
 #include <machine/cheri.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
+#include <machine/sysarch.h>
 
 #include <sys/cheriabi.h>
 
@@ -746,4 +748,27 @@ cheriabi_set_signal_stack_capability(struct thread *td, struct chericap *csig)
 	cheri_capability_copy(&td->td_pcb->pcb_cherisignal.csig_c11,
 	    csig != NULL ? csig :
 	    &td->td_pcb->pcb_cherisignal.csig_default_stack);
+}
+
+int
+cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
+{
+	struct cheri_frame *capreg = &td->td_pcb->pcb_cheriframe;
+	int error;
+
+	switch (uap->op) {
+	case MIPS_SET_TLS:
+		cheri_capability_copy(&td->td_md.md_tls_cap, &capreg->cf_c3);
+
+		/* XXX: no user local register (rdhwr) support. */
+		return (0);
+
+	case MIPS_GET_TLS:
+		error = copyoutcap(&td->td_md.md_tls_cap, uap->parms,
+		    sizeof(struct chericap));
+		return (error);
+
+	default:
+		return (sysarch(td, (struct sysarch_args*)uap));
+	}
 }

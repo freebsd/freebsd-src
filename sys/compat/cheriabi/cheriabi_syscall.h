@@ -161,7 +161,7 @@
 				/* 162 is obsolete getdomainname */
 				/* 163 is obsolete setdomainname */
 				/* 164 is obsolete uname */
-#define	CHERIABI_SYS_sysarch	165
+#define	CHERIABI_SYS_cheriabi_sysarch	165
 #define	CHERIABI_SYS_rtprio	166
 #define	CHERIABI_SYS_semsys	169
 #define	CHERIABI_SYS_msgsys	170

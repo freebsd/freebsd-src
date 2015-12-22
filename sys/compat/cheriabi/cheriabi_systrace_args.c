@@ -820,9 +820,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* sysarch */
+	/* cheriabi_sysarch */
 	case 165: {
-		struct sysarch_args *p = params;
+		struct cheriabi_sysarch_args *p = params;
 		iarg[0] = p->op; /* int */
 		uarg[1] = (intptr_t) p->parms; /* char * */
 		*n_args = 2;
@@ -4426,7 +4426,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* sysarch */
+	/* cheriabi_sysarch */
 	case 165:
 		switch(ndx) {
 		case 0:
@@ -8783,7 +8783,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* sysarch */
+	/* cheriabi_sysarch */
 	case 165:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
