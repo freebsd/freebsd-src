@@ -78,15 +78,11 @@ typedef union {
 void
 _map_v4v6_address(const char *src, char *dst)
 {
-	char tmp[NS_INADDRSZ];
-
-	/* Stash a temporary copy so our caller can update in place. */
-	memcpy(tmp, src, NS_INADDRSZ);
+	/* Our caller may update in place. */
+	memmove(&dst[12], src, NS_INADDRSZ);
 	/* Mark this ipv6 addr as a mapped ipv4. */
-	memset(&dst[0], 0, 10);
 	memset(&dst[10], 0xff, 2);
-	/* Retrieve the saved copy and we're done. */
-	memcpy(&dst[12], tmp, NS_INADDRSZ);
+	memset(&dst[0], 0, 10);
 }
 
 void
