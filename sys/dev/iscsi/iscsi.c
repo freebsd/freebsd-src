@@ -1371,6 +1371,11 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 	is->is_statsn = handoff->idh_statsn;
 	is->is_initial_r2t = handoff->idh_initial_r2t;
 	is->is_immediate_data = handoff->idh_immediate_data;
+
+	/*
+	 * Cap MaxRecvDataSegmentLength obtained from the target to the maximum
+	 * size supported by our ICL module.
+	 */
 	is->is_max_data_segment_length = min(ic->ic_max_data_segment_length,
 	    handoff->idh_max_data_segment_length);
 	is->is_max_burst_length = handoff->idh_max_burst_length;
