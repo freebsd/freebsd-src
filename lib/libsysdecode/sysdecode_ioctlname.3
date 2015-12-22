@@ -25,24 +25,33 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2015
-.Dt SYSDECODE 3
+.Dd December 12, 2015
+.Dt sysdecode_ioctlname 3
 .Os
 .Sh NAME
-.Nm sysdecode
-.Nd system argument decoding library
+.Nm sysdecode_ioctlname
+.Nd lookup name of device control command
 .Sh LIBRARY
 .Lb libsysdecode
+.Sh SYNOPSIS
+.Ft conts char *
+.Fn sysdecode_ioctlname "unsigned long request"
 .Sh DESCRIPTION
 The
-.Nm
-library includes several functions that provide descriptive names of
-values associated with system calls.
-.Sh SEE ALSO
-.Xr sysdecode_ioctlname 3 ,
-.Xr sysdecode_utrace 3
-.Sh HISTORY
+.Fn sysdecode_ioctlname
+function returns the name of a device control request identified by
+.Fa request .
+A table of names is generated during the build of the
+.Nm sysdecode
+library from system headers that maps device control request values to
+the name of the corresponding C macro.
+.Sh RETURN VALUES
 The
-.Nm
-library first appeared in
-.Fx 11.0 .
+.Fn sysdecode_ioctlname
+function returns the name of a device control request if
+.Fa request
+is a known value;
+otherwise
+.Dv NULL .
+.Sh SEE ALSO
+.Xr sysdecode 3
