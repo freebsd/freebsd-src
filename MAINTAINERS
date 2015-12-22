@@ -24,6 +24,15 @@ maintainer of a sub-system is to check recent logs for that directory or
 sub-system.
 ***
 
+***
+Maintainers are encouraged to visit:
+  https://reviews.freebsd.org/herald
+
+and configure notifications for parts of the tree which they maintain.
+Notifications can automatically be sent when someone proposes a revision or
+makes a commit to the specified subtree.
+***
+
 subsystem	login	notes
 -----------------------------
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
