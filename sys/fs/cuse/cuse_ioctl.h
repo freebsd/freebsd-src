@@ -40,8 +40,8 @@
 struct cuse_dev;
 
 struct cuse_data_chunk {
-	unsigned long local_ptr;
-	unsigned long peer_ptr;
+	uintptr_t local_ptr;
+	uintptr_t peer_ptr;
 	unsigned long length;
 };
 
@@ -54,7 +54,7 @@ struct cuse_command {
 	struct cuse_dev *dev;
 	unsigned long fflags;
 	uintptr_t per_file_handle;
-	unsigned long data_pointer;
+	uintptr_t data_pointer;
 	unsigned long argument;
 	unsigned long command;		/* see CUSE_CMD_XXX */
 };
