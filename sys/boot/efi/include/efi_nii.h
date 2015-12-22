@@ -21,7 +21,7 @@ Revision history:
     2000-Feb-18 M(f)J   GUID updated.
                 Structure order changed for machine word alignment.
                 Added StringId[4] to structure.
-                
+
     2000-Feb-14 M(f)J   Genesis.
 --*/
 

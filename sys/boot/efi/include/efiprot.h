@@ -307,9 +307,9 @@ typedef struct {
 //
 // The FileName field of the EFI_FILE_INFO data structure is variable length.
 // Whenever code needs to know the size of the EFI_FILE_INFO data structure, it needs to
-// be the size of the data structure without the FileName field.  The following macro 
+// be the size of the data structure without the FileName field.  The following macro
 // computes this size correctly no matter how big the FileName array is declared.
-// This is required to make the EFI_FILE_INFO data structure ANSI compilant. 
+// This is required to make the EFI_FILE_INFO data structure ANSI compilant.
 //
 
 #define SIZE_OF_EFI_FILE_INFO EFI_FIELD_OFFSET(EFI_FILE_INFO,FileName)
@@ -329,9 +329,9 @@ typedef struct {
 //
 // The VolumeLabel field of the EFI_FILE_SYSTEM_INFO data structure is variable length.
 // Whenever code needs to know the size of the EFI_FILE_SYSTEM_INFO data structure, it needs
-// to be the size of the data structure without the VolumeLable field.  The following macro 
+// to be the size of the data structure without the VolumeLable field.  The following macro
 // computes this size correctly no matter how big the VolumeLable array is declared.
-// This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI compilant. 
+// This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI compilant.
 //
 
 #define SIZE_OF_EFI_FILE_SYSTEM_INFO EFI_FIELD_OFFSET(EFI_FILE_SYSTEM_INFO,VolumeLabel)
@@ -411,7 +411,7 @@ typedef struct {
     EFI_DEVICE_IO                   Write;
 } EFI_IO_ACCESS;
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_PCI_DEVICE_PATH) (
     IN struct _EFI_DEVICE_IO_INTERFACE  *This,

@@ -60,7 +60,7 @@ struct devsw efipart_dev = {
 };
 
 static int
-efipart_init(void) 
+efipart_init(void)
 {
 	EFI_BLOCK_IO *blkio;
 	EFI_DEVICE_PATH *devpath, *devpathcpy, *tmpdevpath, *node;
@@ -174,7 +174,7 @@ efipart_print(int verbose)
 	}
 }
 
-static int 
+static int
 efipart_open(struct open_file *f, ...)
 {
 	va_list args;
@@ -202,7 +202,7 @@ efipart_open(struct open_file *f, ...)
 	return (0);
 }
 
-static int 
+static int
 efipart_close(struct open_file *f)
 {
 	struct devdesc *dev;
@@ -255,7 +255,7 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 	return (efi_status_to_errno(status));
 }
 
-static int 
+static int
 efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
     size_t *rsize)
 {

@@ -173,8 +173,8 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_START) (
     IN struct _EFI_SIMPLE_NETWORK  *This
 );
@@ -182,8 +182,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_STOP) (
     IN struct _EFI_SIMPLE_NETWORK  *This
 );
@@ -191,8 +191,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_INITIALIZE) (
     IN struct _EFI_SIMPLE_NETWORK  *This,
     IN UINTN                       ExtraRxBufferSize  OPTIONAL,
@@ -202,8 +202,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_RESET) (
     IN struct _EFI_SIMPLE_NETWORK   *This,
     IN BOOLEAN                      ExtendedVerification
@@ -212,8 +212,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_SHUTDOWN) (
     IN struct _EFI_SIMPLE_NETWORK  *This
 );
@@ -221,8 +221,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_RECEIVE_FILTERS) (
     IN struct _EFI_SIMPLE_NETWORK   *This,
     IN UINT32                       Enable,
@@ -235,8 +235,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_STATION_ADDRESS) (
     IN struct _EFI_SIMPLE_NETWORK   *This,
     IN BOOLEAN                      Reset,
@@ -246,8 +246,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_STATISTICS) (
     IN struct _EFI_SIMPLE_NETWORK   *This,
     IN BOOLEAN                      Reset,
@@ -258,8 +258,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_MCAST_IP_TO_MAC) (
     IN struct _EFI_SIMPLE_NETWORK   *This,
     IN BOOLEAN                      IPv6,
@@ -270,8 +270,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_NVDATA) (
     IN struct _EFI_SIMPLE_NETWORK  *This,
     IN BOOLEAN                     ReadWrite,
@@ -283,8 +283,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_GET_STATUS) (
     IN struct _EFI_SIMPLE_NETWORK  *This,
     OUT UINT32                     *InterruptStatus  OPTIONAL,
@@ -294,8 +294,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_TRANSMIT) (
     IN struct _EFI_SIMPLE_NETWORK   *This,
     IN UINTN                        HeaderSize,
@@ -309,8 +309,8 @@ EFI_STATUS
 ///////////////////////////////////////////////////////////////////////////////
 //
 
-typedef 
-EFI_STATUS 
+typedef
+EFI_STATUS
 (EFIAPI *EFI_SIMPLE_NETWORK_RECEIVE) (
     IN struct _EFI_SIMPLE_NETWORK   *This,
     OUT UINTN                       *HeaderSize  OPTIONAL,
