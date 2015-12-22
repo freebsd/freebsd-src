@@ -511,7 +511,7 @@ cuse_client_is_closing(struct cuse_client *pcc)
 
 static void
 cuse_client_send_command_locked(struct cuse_client_command *pccmd,
-    unsigned long data_ptr, unsigned long arg, int fflags, int ioflag)
+    uintptr_t data_ptr, unsigned long arg, int fflags, int ioflag)
 {
 	unsigned long cuse_fflags = 0;
 	struct cuse_server *pcs;
@@ -1547,7 +1547,7 @@ cuse_client_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 		cuse_lock();
 		cuse_client_send_command_locked(pccmd,
-		    (unsigned long)uio->uio_iov->iov_base,
+		    (uintptr_t)uio->uio_iov->iov_base,
 		    (unsigned long)(unsigned int)len, pcc->fflags, ioflag);
 
 		error = cuse_client_receive_command_locked(pccmd, 0, 0);
@@ -1607,7 +1607,7 @@ cuse_client_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 		cuse_lock();
 		cuse_client_send_command_locked(pccmd,
-		    (unsigned long)uio->uio_iov->iov_base,
+		    (uintptr_t)uio->uio_iov->iov_base,
 		    (unsigned long)(unsigned int)len, pcc->fflags, ioflag);
 
 		error = cuse_client_receive_command_locked(pccmd, 0, 0);
