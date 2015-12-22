@@ -137,9 +137,8 @@ ofw_reg_to_paddr(phandle_t dev, int regno, bus_addr_t *paddr,
 		res /= sizeof(cell[0]);
 		regno = 0;
 		while (regno < res) {
-			rspc = (pci)
-			    ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK
-			    : OFW_PADDR_NOT_PCI;
+			rspc = (pci ? cell[regno] : OFW_PADDR_NOT_PCI) &
+			    OFW_PCI_PHYS_HI_SPACEMASK;
 			if (rspc != spc) {
 				regno += naddr + nbridge + nsize;
 				continue;
