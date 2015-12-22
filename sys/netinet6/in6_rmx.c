@@ -266,6 +266,7 @@ in6_detachhead(void **head, int off)
 {
 
 	callout_drain(&V_rtq_mtutimer);
+	return (rn_detachhead(head));
 	return (1);
 }
 #endif
