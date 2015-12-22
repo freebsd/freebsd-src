@@ -1009,7 +1009,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		}
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0) {
-			uprintf("ELF interpreter %s not found\n", interp);
+			uprintf("ELF interpreter %s not found, error %d\n",
+			    interp, error);
 			goto ret;
 		}
 	} else
