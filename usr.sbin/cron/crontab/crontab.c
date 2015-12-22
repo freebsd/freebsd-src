@@ -558,7 +558,7 @@ replace_cmd() {
 		case FALSE:
 			e = load_entry(tmp, check_error, pw, envp);
 			if (e)
-				free(e);
+				free_entry(e);
 			break;
 		case TRUE:
 			break;
