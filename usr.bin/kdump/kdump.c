@@ -124,7 +124,6 @@ void ktrcreturn(struct ktr_creturn *);
 void ktrcexception(struct ktr_cexception *);
 void limitfd(int fd);
 void usage(void);
-void ioctlname(unsigned long, int);
 
 #define	TIMESTAMP_NONE		0x0
 #define	TIMESTAMP_ABSOLUTE	0x1
@@ -719,6 +718,20 @@ dumpheader(struct ktr_header *kth)
 #undef KTRACE
 int nsyscalls = sizeof (syscallnames) / sizeof (syscallnames[0]);
 
+static void
+ioctlname(unsigned long val)
+{
+	const char *str;
+
+	str = sysdecode_ioctlname(val);
+	if (str != NULL)
+		printf("%s", str);
+	else if (decimal)
+		printf("%lu", val);
+	else
+		printf("%#lx", val);
+}
+
 void
 ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 {
@@ -767,7 +780,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_ioctl: {
 				print_number(ip, narg, c);
 				putchar(c);
-				ioctlname(*ip, decimal);
+				ioctlname(*ip);
 				c = ',';
 				ip++;
 				narg--;

@@ -2,16 +2,11 @@
 
 NO_WERROR=
 PROG=	truss
-SRCS=	cloudabi.c ioctl.c main.c setup.c syscalls.c
+SRCS=	cloudabi.c main.c setup.c syscalls.c
 
 LIBADD=	sysdecode
 
 CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
-CLEANFILES= ioctl.c
-
-ioctl.c: ${.CURDIR}/../kdump/mkioctls
-	env MACHINE=${MACHINE} CPP="${CPP}" \
-		/bin/sh ${.CURDIR}/../kdump/mkioctls return ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
 # Define where to generate syscalls for each ABI.
 ABI_SYSPATH.freebsd=		sys/kern
