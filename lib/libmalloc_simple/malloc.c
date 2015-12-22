@@ -66,6 +66,9 @@ static void morecore(int);
 static caddr_t		pagepool_start, pagepool_end;
 static int		morepages(int n);
 
+static size_t n_pagepools, max_pagepools;
+static char **pagepool_list;
+
 /*
  * The overhead on a block is at least 4 bytes.  When free, this space
  * contains a pointer to the next free block, and the bottom two bits must
@@ -141,7 +144,7 @@ malloc(size_t nbytes)
 	union overhead *op;
 	int bucket;
 	long n;
-	unsigned amt;
+	size_t amt;
 
 	/*
 	 * First time malloc is called, setup page size and
@@ -209,7 +212,7 @@ malloc(size_t nbytes)
 	op->ov_rmagic = RMAGIC;
 	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
-	return ((void *)(op + 1));
+	return (cheri_csetbounds(op + 1, nbytes));
 }
 
 void *
@@ -262,8 +265,6 @@ morecore(int bucket)
 		if (morepages(amt/pagesz + NPOOLPAGES) == 0)
 			return;
 
-	/* non-zero offsets cause trouble */
-	ASSERT(cheri_getoffset(pagepool_start) == 0);
 	buf = cheri_csetbounds(pagepool_start, amt);
 	pagepool_start += amt;
 
@@ -282,13 +283,39 @@ morecore(int bucket)
 static union overhead *
 find_overhead(void * cp)
 {
+	size_t i;
+	vm_offset_t addr;
 	union overhead *op;
 
-	op = (union overhead *)(void *)((caddr_t)cp - sizeof (union overhead));
+	if (!cheri_gettag(cp))
+		return (NULL);
+	op = NULL;
+	addr = cheri_getbase(cp) + cheri_getoffset(cp);
+	for (i = 0; i < n_pagepools; i++) {
+		/*
+		 * XXX-BD: a NULL check against CFromPtr would be faster than
+		 * this range check.
+		 */
+		char *pool = pagepool_list[i];
+		vm_offset_t base = cheri_getbase(pool);
 
-	if (cheri_gettag(op) && cheri_getoffset(op) == 0 &&
-	    op->ov_magic == MAGIC)
-	return (op);
+		if (addr >= base + sizeof(union overhead) &&
+		    addr < base + cheri_getlen(pool)) {
+			op = cheri_setoffset(pool, addr - base);
+			op--;
+			break;
+		}
+	}
+	if (op == NULL) {
+		printf("%s: no region found for %#p\n", __func__, cp);
+		for (i = 0; i < n_pagepools; i++)
+			printf("%s: pagepool_list[%zu]  %#p\n", __func__, i,
+			    pagepool_list[i]);
+		return (NULL);
+	}
+
+	if (op->ov_magic == MAGIC)
+		return (op);
 
 	/*
 	 * XXX: the above will fail if the users calls free or realloc
@@ -305,7 +332,7 @@ find_overhead(void * cp)
 void
 free(void *cp)
 {
-	int size;
+	int bucket;
 	union overhead *op;
 
 	if (cp == NULL)
@@ -317,12 +344,12 @@ free(void *cp)
 	ASSERT(op->ov_rmagic == RMAGIC);
 	ASSERT(*(u_short *)((caddr_t)(op + 1) + op->ov_size) == RMAGIC);
 #endif
-	size = op->ov_index;
-	ASSERT(size < NBUCKETS);
-	op->ov_next = nextf[size];	/* also clobbers ov_magic */
-	nextf[size] = op;
+	bucket = op->ov_index;
+	ASSERT(bucket < NBUCKETS);
+	op->ov_next = nextf[bucket];	/* also clobbers ov_magic */
+	nextf[bucket] = op;
 #ifdef MSTATS
-	nmalloc[size]--;
+	nmalloc[bucket]--;
 #endif
 }
 
@@ -356,12 +383,17 @@ realloc(void *cp, size_t nbytes)
 		op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
 		*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
-		return(cp);
+		return(cheri_csetbounds(cp, nbytes));
 	}
 
 	if ((res = malloc(nbytes)) == NULL)
 		return (NULL);
-	bcopy(cp, res, (nbytes < onb) ? nbytes : onb);
+	/*
+	 * Only copy data the caller had access to even if this is less
+	 * than the size of the original allocation.  This risks surprise
+	 * for some programmers, but to do otherwise risks information leaks.
+	 */
+	memcpy(res, cp, (nbytes < cheri_getlen(cp)) ? nbytes : cheri_getlen(cp));
 	free(cp);
 	return (res);
 }
@@ -403,22 +435,58 @@ static int
 morepages(int n)
 {
 	int	fd = -1;
+	char **new_pagepool_list;
+
+	if (n_pagepools >= max_pagepools) {
+		if (max_pagepools == 0)
+			max_pagepools = pagesz / (sizeof(char *) * 2);
+
+		max_pagepools *= 2;
+		if ((new_pagepool_list = mmap(0,
+		    max_pagepools * sizeof(char *), PROT_READ|PROT_WRITE,
+		    MAP_ANON, fd, 0)) == MAP_FAILED) {
+			printf("%s: Can not map pagepool_list\n", __func__);
+			return (0);
+		}
+		memcpy(new_pagepool_list, pagepool_list,
+		    sizeof(char *) * n_pagepools);
+		if (pagepool_list != NULL) {
+			if (munmap(pagepool_list,
+			    max_pagepools * sizeof(char *) / 2) != 0) {
+				printf("%s: failed to unmap pagepool_list\n",
+				    __func__);
+				/* XXX: leak the region */
+			}
+		}
+		pagepool_list = new_pagepool_list;
+	}
 
 	if (pagepool_end - pagepool_start > pagesz) {
+		/*
+		 * XXX: CHERI128: Need to avoid rounding down to an imprecise
+		 * capability.
+		 */
 		caddr_t	addr = cheri_setoffset(pagepool_start,
 		    roundup2(cheri_getoffset(pagepool_start), pagesz));
-		if (munmap(addr, pagepool_end - addr) != 0)
-			fprintf(stderr, "morepages: munmap %p",
-			    addr);
+		if (munmap(addr, pagepool_end - addr) != 0) {
+			fprintf(stderr, "%s: munmap %p", __func__, addr);
+		} else {
+			/* Shrink the pool */
+			pagepool_list[n_pagepools - 1] =
+			    cheri_csetbounds(pagepool_list[n_pagepools - 1],
+			    cheri_getlen(pagepool_list[n_pagepools - 1]) -
+			    (pagepool_end - addr));
+		}
 	}
 
 	if ((pagepool_start = mmap(0, n * pagesz,
 			PROT_READ|PROT_WRITE,
-			MAP_ANON|MAP_COPY, fd, 0)) == (caddr_t)-1) {
+			MAP_ANON, fd, 0)) == (caddr_t)-1) {
 		printf("Cannot map anonymous memory\n");
 		return 0;
 	}
 	pagepool_end = pagepool_start + n * pagesz;
+	pagepool_list[n_pagepools++] = pagepool_start;
 
 	return n;
 }
