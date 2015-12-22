@@ -35,6 +35,7 @@ h_fail()
 {
 	echo "Executing command [ $2$1 ]"
 	# Begin FreeBSD
+	ulimit -c 0
 	if true; then
 		eval $2 atf_check -s signal -o ignore -e ignore $1
 	else
