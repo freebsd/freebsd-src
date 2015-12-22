@@ -86,7 +86,7 @@ NANO_CFG_BASE=$(pwd)
 NANO_CFG_BASE=$(realpath ${NANO_CFG_BASE}/..)
 NANO_SRC=$(realpath ${NANO_CFG_BASE}/../../..)
 #### XXX share obj 
-NANO_OBJ=$(realpath ${NANO_SRC}/../$NANO_NAME/obj || echo ${NANO_SRC}/../$NANO_NAME/obj)
+NANO_OBJ=${NANO_SRC}/../$NANO_NAME/obj
 # Where cust_pkg() finds packages to install
 #XXX: Is this the right place?
 #NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
@@ -100,6 +100,9 @@ unset MAKEOBJDIRPREFIX
 NANO_PORTS=${NANO_PORTS:-/usr/ports}
 
 mkdir -p ${NANO_OBJ}
+NANO_OBJ=$(realpath ${NANO_OBJ})
+
+NANO_FAT_DIR=${NANO_OBJ}/_.fat
 
 customize_cmd cust_allow_ssh_root
 
@@ -301,8 +304,11 @@ create_diskimage_mbr ( ) (
 		echo Creating MSDOS partition for kernel
 		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F 16 -L ${NANO_NAME} \
 			${NANO_OBJ}/_.${NANO_SLICE_FAT}
-		# Need to copy files from ${NANO_FATDIR} with mtools, or use
-		# makefs -t msdos once that's supported
+		if [ -d ${NANO_FAT_DIR} ]; then
+			# Need to copy files from ${NANO_FATDIR} with mtools, or use
+			# makefs -t msdos once that's supported
+			mcopy -i ${NANO_OBJ}/_.${NANO_SLICE_FAT} ${NANO_FAT_DIR}/* ::
+		fi
 	fi
 
 	# Populate the Powerpc boot image, if needed
@@ -440,7 +446,7 @@ save_build ( )
 }
 customize_cmd save_build
 
-shrink_md_fbsize()
+shrink_md_fbsize ( )
 {
 	# We have a lot of little files on our memory disks. Let's decrease
 	# the block and frag size to fit more little files on them (this
@@ -454,8 +460,28 @@ customize_cmd shrink_md_fbsize
 
 customize_cmd cust_comconsole
 
-product_custom()
-{
+dos_boot_part ( )
+(
+	local d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
+
+	mkdir ${NANO_FAT_DIR}
+	cp ${d}/* ${NANO_FAT_DIR}	
+)
+
+if [ -n "$NANO_BOOT_PKG" ]; then
+	if [ ! -d ${d} ]; then
+		echo ${NANO_BOOT_PKG} not installed. Sadly, it must be.
+		exit 1
+	fi
+	if [ ! -x /usr/local/bin/mcopy ]; then
+		echo mtools not installed. Sadly, we gotta have it.
+		exit 1
+	fi
+	customize_cmd dos_boot_part
+fi
+
+product_custom ( )
+(
 	# not quie ready to tweak these in nopriv build
 	if [ -z ${NANO_NOPRIV_BUILD} ]; then
 		# Last second tweaks -- generally not needed
@@ -467,7 +493,7 @@ product_custom()
 		chown root:wheel ${NANO_WORLDDIR}/
 		chown root:wheel ${NANO_WORLDDIR}/usr
 	fi
-}
+)
 late_customize_cmd product_custom
 
 #
