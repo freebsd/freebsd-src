@@ -277,6 +277,9 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		case ISP_HA_FC_2500:
 			btype = "2532";
 			break;
+		case ISP_HA_FC_2600:
+			btype = "2031";
+			break;
 		default:
 			break;
 		}
@@ -655,8 +658,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	ISP_WRITE(isp, isp->isp_respinrp, 0);
 	ISP_WRITE(isp, isp->isp_respoutrp, 0);
 	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
-		ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		if (!IS_26XX(isp)) {
+			ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
+			ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		}
 		ISP_WRITE(isp, BIU2400_ATIO_RSPINP, 0);
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
 	}
@@ -761,6 +766,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		code_org = ISP_CODE_ORG;
 	}
 
+	isp->isp_loaded_fw = 0;
 	if (dodnld && IS_24XX(isp)) {
 		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
 		int wordload;
@@ -956,8 +962,17 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			ISP_RESET0(isp);
 			return;
 		}
+	} else if (IS_26XX(isp)) {
+		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
+		mbs.ibitm = 0x01;
+		mbs.obitm = 0x07;
+		isp_mboxcmd(isp, &mbs);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			isp_prt(isp, ISP_LOGERR, "Flash F/W load failed");
+			ISP_RESET0(isp);
+			return;
+		}
 	} else {
-		isp->isp_loaded_fw = 0;
 		isp_prt(isp, ISP_LOGDEBUG2, "skipping f/w download");
 	}
 
@@ -966,7 +981,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 */
 	if (isp->isp_loaded_fw) {
 		MBSINIT(&mbs, MBOX_VERIFY_CHECKSUM, MBLOGNONE, 0);
-		mbs.param[0] = MBOX_VERIFY_CHECKSUM;
 		if (IS_24XX(isp)) {
 			mbs.param[1] = code_org >> 16;
 			mbs.param[2] = code_org;
@@ -997,9 +1011,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			mbs.param[3] = 0;
 		} else {
 			mbs.param[3] = 1;
-		}
-		if (IS_25XX(isp)) {
-			mbs.ibits |= 0x10;
 		}
 	} else if (IS_2322(isp)) {
 		mbs.param[1] = code_org;
@@ -1861,16 +1872,16 @@ isp_fibre_init(ispsoftc_t *isp)
 				icbp->icb_idelaytimer = 10;
 			}
 			icbp->icb_zfwoptions = fcp->isp_zfwoptions;
-			if (isp->isp_confopts & ISP_CFG_ONEGB) {
+			if (isp->isp_confopts & ISP_CFG_1GB) {
 				icbp->icb_zfwoptions &= ~ICBZOPT_RATE_MASK;
-				icbp->icb_zfwoptions |= ICBZOPT_RATE_ONEGB;
-			} else if (isp->isp_confopts & ISP_CFG_TWOGB) {
+				icbp->icb_zfwoptions |= ICBZOPT_RATE_1GB;
+			} else if (isp->isp_confopts & ISP_CFG_2GB) {
 				icbp->icb_zfwoptions &= ~ICBZOPT_RATE_MASK;
-				icbp->icb_zfwoptions |= ICBZOPT_RATE_TWOGB;
+				icbp->icb_zfwoptions |= ICBZOPT_RATE_2GB;
 			} else {
 				switch (icbp->icb_zfwoptions & ICBZOPT_RATE_MASK) {
-				case ICBZOPT_RATE_ONEGB:
-				case ICBZOPT_RATE_TWOGB:
+				case ICBZOPT_RATE_1GB:
+				case ICBZOPT_RATE_2GB:
 				case ICBZOPT_RATE_AUTO:
 					break;
 				default:
@@ -2122,18 +2133,26 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		break;
 	}
 
+	if (IS_26XX(isp)) {
+		/* We don't support MSI-X yet, so set this unconditionally. */
+		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHR;
+		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHA;
+	}
+
 	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RSPSZ_24;
 	}
 	icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_AUTO;
-	if (isp->isp_confopts & ISP_CFG_ONEGB) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_ONEGB;
-	} else if (isp->isp_confopts & ISP_CFG_TWOGB) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_TWOGB;
-	} else if (isp->isp_confopts & ISP_CFG_FOURGB) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_FOURGB;
-	} else if (IS_25XX(isp) && (isp->isp_confopts & ISP_CFG_EIGHTGB)) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_EIGHTGB;
+	if (isp->isp_confopts & ISP_CFG_1GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_1GB;
+	} else if (isp->isp_confopts & ISP_CFG_2GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_2GB;
+	} else if (isp->isp_confopts & ISP_CFG_4GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_4GB;
+	} else if (isp->isp_confopts & ISP_CFG_8GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_8GB;
+	} else if (isp->isp_confopts & ISP_CFG_16GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_16GB;
 	} else {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
 	}
@@ -6828,7 +6847,7 @@ static const char *scsi_mbcmd_names[] = {
 static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISP_FC_OPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
-	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISP_FC_OPMAP_HALF(0x07, 0xff, 0x00, 0x03),	/* 0x02: MBOX_EXEC_FIRMWARE */
 	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
 	ISP_FC_OPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISP_FC_OPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
@@ -7602,6 +7621,8 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 	fcp->isp_wwnn_nvram = DEFAULT_NODEWWN(isp, chan);
 	fcp->isp_wwpn_nvram = DEFAULT_PORTWWN(isp, chan);
 	fcp->isp_fwoptions = 0;
+	fcp->isp_xfwoptions = 0;
+	fcp->isp_zfwoptions = 0;
 	fcp->isp_lasthdl = NIL_HANDLE;
 
 	if (IS_24XX(isp)) {
@@ -7899,7 +7920,9 @@ isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 	uint32_t base = 0x7ffe0000;
 	uint32_t tmp = 0;
 
-	if (IS_25XX(isp)) {
+	if (IS_26XX(isp)) {
+		base = 0x7fe7c000;	/* XXX: Observation, may be wrong. */
+	} else if (IS_25XX(isp)) {
 		base = 0x7ff00000 | 0x48000;
 	}
 	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
