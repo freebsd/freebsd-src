@@ -22,6 +22,7 @@ SRCS=	args.c \
 	list.c \
 	main.c \
 	message.c \
+	mytime.c \
 	options.c \
 	signals.c \
 	suffix.c \
@@ -42,7 +43,7 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMALIBDIR} \
 		-I${XZDIR}/common
 
-DPADD=	${LIBLZMA}
-LDADD=	-llzma
+DPADD=	${LIBLZMA} ${LIBPTHREAD}
+LDADD=	-llzma -lpthread
 
 .include <bsd.prog.mk>

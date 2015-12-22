@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-/// \file       stream_encoder.h
-/// \brief      Encodes .xz Streams
+/// \file       hardware_cputhreads.c
+/// \brief      Get the number of CPU threads or cores
 //
 //  Author:     Lasse Collin
 //
@@ -10,14 +10,13 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef LZMA_STREAM_ENCODER_H
-#define LZMA_STREAM_ENCODER_H
-
 #include "common.h"
 
+#include "tuklib_cpucores.h"
 
-extern lzma_ret lzma_stream_encoder_init(
-		lzma_next_coder *next, lzma_allocator *allocator,
-		const lzma_filter *filters, lzma_check check);
 
-#endif
+extern LZMA_API(uint32_t)
+lzma_cputhreads(void)
+{
+	return tuklib_cpucores();
+}

@@ -5,7 +5,7 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2013-06-21" "Tukaani" "XZ Utils"
+.TH XZ 1 "2015-05-11" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -435,6 +435,29 @@ standard output instead of a file.
 This implies
 .BR \-\-keep .
 .TP
+.B \-\-single\-stream
+Decompress only the first
+.B .xz
+stream, and
+silently ignore possible remaining input data following the stream.
+Normally such trailing garbage makes
+.B xz
+display an error.
+.IP ""
+.B xz
+never decompresses more than one stream from
+.B .lzma
+files or raw streams, but this option still makes
+.B xz
+ignore the possible trailing data after the
+.B .lzma
+file or raw stream.
+.IP ""
+This option has no effect if the operation mode is not
+.B \-\-decompress
+or
+.BR \-\-test .
+.TP
 .B \-\-no\-sparse
 Disable creation of sparse files.
 By default, if decompressing into a regular file,
@@ -585,6 +608,25 @@ Integrity of the
 .B .xz
 headers is always verified with CRC32.
 It is not possible to change or disable it.
+.TP
+.B \-\-ignore\-check
+Don't verify the integrity check of the compressed data when decompressing.
+The CRC32 values in the
+.B .xz
+headers will still be verified normally.
+.IP ""
+.B "Do not use this option unless you know what you are doing."
+Possible reasons to use this option:
+.RS
+.IP \(bu 3
+Trying to recover data from a corrupt .xz file.
+.IP \(bu 3
+Speeding up decompression.
+This matters mostly with SHA-256 or
+with files that have compressed extremely well.
+It's recommended to not use this option for this purpose
+unless the file integrity is verified externally in some other way.
+.RE
 .TP
 .BR \-0 " ... " \-9
 Select a compression preset level.
@@ -778,6 +820,124 @@ These are provided only for backwards compatibility
 with LZMA Utils.
 Avoid using these options.
 .TP
+.BI \-\-block\-size= size
+When compressing to the
+.B .xz
+format, split the input data into blocks of
+.I size
+bytes.
+The blocks are compressed independently from each other,
+which helps with multi-threading and
+makes limited random-access decompression possible.
+This option is typically used to override the default
+block size in multi-threaded mode,
+but this option can be used in single-threaded mode too.
+.IP ""
+In multi-threaded mode about three times
+.I size
+bytes will be allocated in each thread for buffering input and output.
+The default
+.I size
+is three times the LZMA2 dictionary size or 1 MiB,
+whichever is more.
+Typically a good value is 2\-4 times
+the size of the LZMA2 dictionary or at least 1 MiB.
+Using
+.I size
+less than the LZMA2 dictionary size is waste of RAM
+because then the LZMA2 dictionary buffer will never get fully used.
+The sizes of the blocks are stored in the block headers,
+which a future version of
+.B xz
+will use for multi-threaded decompression.
+.IP ""
+In single-threaded mode no block splitting is done by default.
+Setting this option doesn't affect memory usage.
+No size information is stored in block headers,
+thus files created in single-threaded mode
+won't be identical to files created in multi-threaded mode.
+The lack of size information also means that a future version of
+.B xz
+won't be able decompress the files in multi-threaded mode.
+.TP
+.BI \-\-block\-list= sizes
+When compressing to the
+.B .xz
+format, start a new block after
+the given intervals of uncompressed data.
+.IP ""
+The uncompressed
+.I sizes
+of the blocks are specified as a comma-separated list.
+Omitting a size (two or more consecutive commas) is a shorthand
+to use the size of the previous block.
+.IP ""
+If the input file is bigger than the sum of
+.IR sizes ,
+the last value in
+.I sizes
+is repeated until the end of the file.
+A special value of
+.B 0
+may be used as the last value to indicate that
+the rest of the file should be encoded as a single block.
+.IP ""
+If one specifies
+.I sizes
+that exceed the encoder's block size
+(either the default value in threaded mode or
+the value specified with \fB\-\-block\-size=\fIsize\fR),
+the encoder will create additional blocks while
+keeping the boundaries specified in
+.IR sizes .
+For example, if one specifies
+.B \-\-block\-size=10MiB
+.B \-\-block\-list=5MiB,10MiB,8MiB,12MiB,24MiB
+and the input file is 80 MiB,
+one will get 11 blocks:
+5, 10, 8, 10, 2, 10, 10, 4, 10, 10, and 1 MiB.
+.IP ""
+In multi-threaded mode the sizes of the blocks
+are stored in the block headers.
+This isn't done in single-threaded mode,
+so the encoded output won't be
+identical to that of the multi-threaded mode.
+.TP
+.BI \-\-flush\-timeout= timeout
+When compressing, if more than
+.I timeout
+milliseconds (a positive integer) has passed since the previous flush and
+reading more input would block,
+all the pending input data is flushed from the encoder and
+made available in the output stream.
+This can be useful if
+.B xz
+is used to compress data that is streamed over a network.
+Small
+.I timeout
+values make the data available at the receiving end
+with a small delay, but large
+.I timeout
+values give better compression ratio.
+.IP ""
+This feature is disabled by default.
+If this option is specified more than once, the last one takes effect.
+The special
+.I timeout
+value of
+.B 0
+can be used to explicitly disable this feature.
+.IP ""
+This feature is not available on non-POSIX systems.
+.IP ""
+.\" FIXME
+.B "This feature is still experimental."
+Currently
+.B xz
+is unsuitable for decompressing the stream in real time due to how
+.B xz
+does buffering.
+.TP
 .BI \-\-memlimit\-compress= limit
 Set a memory usage limit for compression.
 If this option is specified multiple times,
@@ -876,24 +1036,33 @@ Automatic adjusting is always disabled when creating raw streams
 .TP
 \fB\-T\fR \fIthreads\fR, \fB\-\-threads=\fIthreads
 Specify the number of worker threads to use.
+Setting
+.I threads
+to a special value
+.B 0
+makes
+.B xz
+use as many threads as there are CPU cores on the system.
 The actual number of threads can be less than
 .I threads
+if the input file is not big enough
+for threading with the given settings or
 if using more threads would exceed the memory usage limit.
 .IP ""
-.B "Multithreaded compression and decompression are not"
-.B "implemented yet, so this option has no effect for now."
+Currently the only threading method is to split the input into
+blocks and compress them independently from each other.
+The default block size depends on the compression level and
+can be overriden with the
+.BI \-\-block\-size= size
+option.
 .IP ""
-.B "As of writing (2010-09-27), it hasn't been decided"
-.B "if threads will be used by default on multicore systems"
-.B "once support for threading has been implemented."
-.B "Comments are welcome."
-The complicating factor is that using many threads
-will increase the memory usage dramatically.
-Note that if multithreading will be the default,
-it will probably be done so that single-threaded and
-multithreaded modes produce the same output,
-so compression ratio won't be significantly affected
-if threading will be enabled by default.
+Threaded decompression hasn't been implemented yet.
+It will only work on files that contain multiple blocks
+with size information in block headers.
+All files compressed in multi-threaded mode meet this condition,
+but files compressed in single-threaded mode don't even if
+.BI \-\-block\-size= size
+is used.
 .
 .SS "Custom compressor filter chains"
 A custom filter chain allows specifying
@@ -1863,6 +2032,14 @@ or
 .B no
 indicating if all block headers have both compressed size and
 uncompressed size stored in them
+.PP
+.I Since
+.B xz
+.I 5.1.2alpha:
+.IP 4. 4
+Minimum
+.B xz
+version required to decompress the file
 .RE
 .PD
 .PP
@@ -1913,6 +2090,14 @@ or
 .B no
 indicating if all block headers have both compressed size and
 uncompressed size stored in them
+.PP
+.I Since
+.B xz
+.I 5.1.2alpha:
+.IP 12. 4
+Minimum
+.B xz
+version required to decompress the file
 .RE
 .PD
 .PP
@@ -2173,7 +2358,9 @@ If there is data left after the first
 .B .lzma
 stream,
 .B xz
-considers the file to be corrupt.
+considers the file to be corrupt unless
+.B \-\-single\-stream
+was used.
 This may break obscure scripts which have
 assumed that trailing garbage is ignored.
 .

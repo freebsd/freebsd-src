@@ -262,7 +262,7 @@ lzma2_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
 
 
 static void
-lzma2_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+lzma2_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_free(coder->lzma, allocator);
 	lzma_free(coder, allocator);
@@ -304,7 +304,7 @@ lzma2_encoder_options_update(lzma_coder *coder, const lzma_filter *filter)
 
 
 static lzma_ret
-lzma2_encoder_init(lzma_lz_encoder *lz, lzma_allocator *allocator,
+lzma2_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
 		const void *options, lzma_lz_options *lz_options)
 {
 	if (options == NULL)
@@ -349,7 +349,7 @@ lzma2_encoder_init(lzma_lz_encoder *lz, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_lzma2_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_lzma2_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	return lzma_lz_encoder_init(
@@ -387,7 +387,17 @@ lzma_lzma2_props_encode(const void *options, uint8_t *out)
 	if (d == UINT32_MAX)
 		out[0] = 40;
 	else
-		out[0] = get_pos_slot(d + 1) - 24;
+		out[0] = get_dist_slot(d + 1) - 24;
 
 	return LZMA_OK;
+}
+
+
+extern uint64_t
+lzma_lzma2_block_size(const void *options)
+{
+	const lzma_options_lzma *const opt = options;
+
+	// Use at least 1 MiB to keep compression ratio better.
+	return my_max((uint64_t)(opt->dict_size) * 3, UINT64_C(1) << 20);
 }

@@ -23,8 +23,8 @@ CFLAGS+= -I${LIBARCHIVEDIR}/cpio -I${LIBARCHIVEDIR}/libarchive_fe
 # statically linked, cannot use -lcrypto, and are size sensitive.
 CFLAGS+= -DSMALLER
 .endif
-DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBLZMA} ${LIBBSDXML}
-LDADD=	-larchive -lz -lbz2 -llzma -lbsdxml
+DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2} ${LIBLZMA} ${LIBPTHREAD} ${LIBBSDXML}
+LDADD=	-larchive -lz -lbz2 -llzma -lpthread -lbsdxml
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto

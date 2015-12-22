@@ -6,8 +6,8 @@
 PROG=		gzip
 MAN=		gzip.1 gzexe.1 zdiff.1 zforce.1 zmore.1 znew.1
 
-DPADD=		${LIBZ} ${LIBLZMA}
-LDADD=		-lz -llzma
+DPADD=		${LIBZ} ${LIBLZMA} ${LIBPTHREAD}
+LDADD=		-lz -llzma -lpthread
 
 .if ${MK_BZIP2_SUPPORT} != "no"
 DPADD+=		${LIBBZ2}

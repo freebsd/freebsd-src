@@ -126,7 +126,7 @@ decode_buffer(lzma_coder *coder,
 
 static lzma_ret
 lz_decode(lzma_coder *coder,
-		lzma_allocator *allocator lzma_attribute((__unused__)),
+		const lzma_allocator *allocator lzma_attribute((__unused__)),
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size, uint8_t *restrict out,
 		size_t *restrict out_pos, size_t out_size,
@@ -184,7 +184,7 @@ lz_decode(lzma_coder *coder,
 
 
 static void
-lz_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+lz_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_next_end(&coder->next, allocator);
 	lzma_free(coder->dict.buf, allocator);
@@ -200,10 +200,10 @@ lz_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
 
 
 extern lzma_ret
-lzma_lz_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters,
 		lzma_ret (*lz_init)(lzma_lz_decoder *lz,
-			lzma_allocator *allocator, const void *options,
+			const lzma_allocator *allocator, const void *options,
 			lzma_lz_options *lz_options))
 {
 	// Allocate the base structure if it isn't already allocated.

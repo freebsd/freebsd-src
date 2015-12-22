@@ -38,8 +38,8 @@ LDADD=	-lz
 DPADD=	${LIBZ}
 
 .if !defined(WITHOUT_LZMA_SUPPORT)
-LDADD+=	-llzma
-DPADD+=	${LIBLZMA}
+LDADD+=	-llzma -lpthread
+DPADD+=	${LIBLZMA} ${LIBPTHREAD}
 
 LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzegrep \

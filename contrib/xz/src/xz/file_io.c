@@ -17,6 +17,7 @@
 #ifdef TUKLIB_DOSLIKE
 #	include <io.h>
 #else
+#	include <poll.h>
 static bool warn_fchown;
 #endif
 
@@ -37,14 +38,30 @@ static bool warn_fchown;
 #endif
 
 
+typedef enum {
+	IO_WAIT_MORE,    // Reading or writing is possible.
+	IO_WAIT_ERROR,   // Error or user_abort
+	IO_WAIT_TIMEOUT, // poll() timed out
+} io_wait_ret;
+
+
 /// If true, try to create sparse files when decompressing.
 static bool try_sparse = true;
 
 #ifndef TUKLIB_DOSLIKE
+/// File status flags of standard input. This is used by io_open_src()
+/// and io_close_src().
+static int stdin_flags;
+static bool restore_stdin_flags = false;
+
 /// Original file status flags of standard output. This is used by
 /// io_open_dest() and io_close_dest() to save and restore the flags.
 static int stdout_flags;
 static bool restore_stdout_flags = false;
+
+/// Self-pipe used together with the user_abort variable to avoid
+/// race conditions with signal handling.
+static int user_abort_pipe[2];
 #endif
 
 
@@ -64,17 +81,47 @@ io_init(void)
 	// If fchown() fails setting the owner, we warn about it only if
 	// we are root.
 	warn_fchown = geteuid() == 0;
+
+	// Create a pipe for the self-pipe trick.
+	if (pipe(user_abort_pipe))
+		message_fatal(_("Error creating a pipe: %s"),
+				strerror(errno));
+
+	// Make both ends of the pipe non-blocking.
+	for (unsigned i = 0; i < 2; ++i) {
+		int flags = fcntl(user_abort_pipe[i], F_GETFL);
+		if (flags == -1 || fcntl(user_abort_pipe[i], F_SETFL,
+				flags | O_NONBLOCK) == -1)
+			message_fatal(_("Error creating a pipe: %s"),
+					strerror(errno));
+	}
 #endif
 
 #ifdef __DJGPP__
 	// Avoid doing useless things when statting files.
 	// This isn't important but doesn't hurt.
-	_djstat_flags = _STAT_INODE | _STAT_EXEC_EXT
-			| _STAT_EXEC_MAGIC | _STAT_DIRSIZE;
+	_djstat_flags = _STAT_EXEC_EXT | _STAT_EXEC_MAGIC | _STAT_DIRSIZE;
 #endif
 
 	return;
 }
+
+
+#ifndef TUKLIB_DOSLIKE
+extern void
+io_write_to_user_abort_pipe(void)
+{
+	// If the write() fails, it's probably due to the pipe being full.
+	// Failing in that case is fine. If the reason is something else,
+	// there's not much we can do since this is called in a signal
+	// handler. So ignore the errors and try to avoid warnings with
+	// GCC and glibc when _FORTIFY_SOURCE=2 is used.
+	uint8_t b = '\0';
+	const int ret = write(user_abort_pipe[1], &b, 1);
+	(void)ret;
+	return;
+}
+#endif
 
 
 extern void
@@ -83,6 +130,63 @@ io_no_sparse(void)
 	try_sparse = false;
 	return;
 }
+
+
+#ifndef TUKLIB_DOSLIKE
+/// \brief      Waits for input or output to become available or for a signal
+///
+/// This uses the self-pipe trick to avoid a race condition that can occur
+/// if a signal is caught after user_abort has been checked but before e.g.
+/// read() has been called. In that situation read() could block unless
+/// non-blocking I/O is used. With non-blocking I/O something like select()
+/// or poll() is needed to avoid a busy-wait loop, and the same race condition
+/// pops up again. There are pselect() (POSIX-1.2001) and ppoll() (not in
+/// POSIX) but neither is portable enough in 2013. The self-pipe trick is
+/// old and very portable.
+static io_wait_ret
+io_wait(file_pair *pair, int timeout, bool is_reading)
+{
+	struct pollfd pfd[2];
+
+	if (is_reading) {
+		pfd[0].fd = pair->src_fd;
+		pfd[0].events = POLLIN;
+	} else {
+		pfd[0].fd = pair->dest_fd;
+		pfd[0].events = POLLOUT;
+	}
+
+	pfd[1].fd = user_abort_pipe[0];
+	pfd[1].events = POLLIN;
+
+	while (true) {
+		const int ret = poll(pfd, 2, timeout);
+
+		if (user_abort)
+			return IO_WAIT_ERROR;
+
+		if (ret == -1) {
+			if (errno == EINTR || errno == EAGAIN)
+				continue;
+
+			message_error(_("%s: poll() failed: %s"),
+					is_reading ? pair->src_name
+						: pair->dest_name,
+					strerror(errno));
+			return IO_WAIT_ERROR;
+		}
+
+		if (ret == 0) {
+			assert(opt_flush_timeout != 0);
+			flush_needed = true;
+			return IO_WAIT_TIMEOUT;
+		}
+
+		if (pfd[0].revents != 0)
+			return IO_WAIT_MORE;
+	}
+}
+#endif
 
 
 /// \brief      Unlink a file
@@ -294,6 +398,28 @@ io_open_src_real(file_pair *pair)
 		pair->src_fd = STDIN_FILENO;
 #ifdef TUKLIB_DOSLIKE
 		setmode(STDIN_FILENO, O_BINARY);
+#else
+		// Try to set stdin to non-blocking mode. It won't work
+		// e.g. on OpenBSD if stdout is e.g. /dev/null. In such
+		// case we proceed as if stdin were non-blocking anyway
+		// (in case of /dev/null it will be in practice). The
+		// same applies to stdout in io_open_dest_real().
+		stdin_flags = fcntl(STDIN_FILENO, F_GETFL);
+		if (stdin_flags == -1) {
+			message_error(_("Error getting the file status flags "
+					"from standard input: %s"),
+					strerror(errno));
+			return true;
+		}
+
+		if ((stdin_flags & O_NONBLOCK) == 0
+				&& fcntl(STDIN_FILENO, F_SETFL,
+					stdin_flags | O_NONBLOCK) != -1)
+			restore_stdin_flags = true;
+#endif
+#ifdef HAVE_POSIX_FADVISE
+		// It will fail if stdin is a pipe and that's fine.
+		(void)posix_fadvise(STDIN_FILENO, 0, 0, POSIX_FADV_SEQUENTIAL);
 #endif
 		return false;
 	}
@@ -311,13 +437,12 @@ io_open_src_real(file_pair *pair)
 	int flags = O_RDONLY | O_BINARY | O_NOCTTY;
 
 #ifndef TUKLIB_DOSLIKE
-	// If we accept only regular files, we need to be careful to avoid
-	// problems with special files like devices and FIFOs. O_NONBLOCK
-	// prevents blocking when opening such files. When we want to accept
-	// special files, we must not use O_NONBLOCK, or otherwise we won't
-	// block waiting e.g. FIFOs to become readable.
-	if (reg_files_only)
-		flags |= O_NONBLOCK;
+	// Use non-blocking I/O:
+	//   - It prevents blocking when opening FIFOs and some other
+	//     special files, which is good if we want to accept only
+	//     regular files.
+	//   - It can help avoiding some race conditions with signal handling.
+	flags |= O_NONBLOCK;
 #endif
 
 #if defined(O_NOFOLLOW)
@@ -345,30 +470,13 @@ io_open_src_real(file_pair *pair)
 	(void)follow_symlinks;
 #endif
 
-	// Try to open the file. If we are accepting non-regular files,
-	// unblock the caught signals so that open() can be interrupted
-	// if it blocks e.g. due to a FIFO file.
-	if (!reg_files_only)
-		signals_unblock();
-
-	// Maybe this wouldn't need a loop, since all the signal handlers for
-	// which we don't use SA_RESTART set user_abort to true. But it
-	// doesn't hurt to have it just in case.
-	do {
-		pair->src_fd = open(pair->src_name, flags);
-	} while (pair->src_fd == -1 && errno == EINTR && !user_abort);
-
-	if (!reg_files_only)
-		signals_block();
+	// Try to open the file. Signals have been blocked so EINTR shouldn't
+	// be possible.
+	pair->src_fd = open(pair->src_name, flags);
 
 	if (pair->src_fd == -1) {
-		// If we were interrupted, don't display any error message.
-		if (errno == EINTR) {
-			// All the signals that don't have SA_RESTART
-			// set user_abort.
-			assert(user_abort);
-			return true;
-		}
+		// Signals (that have a signal handler) have been blocked.
+		assert(errno != EINTR);
 
 #ifdef O_NOFOLLOW
 		// Give an understandable error message if the reason
@@ -427,26 +535,20 @@ io_open_src_real(file_pair *pair)
 		return true;
 	}
 
-#ifndef TUKLIB_DOSLIKE
-	// Drop O_NONBLOCK, which is used only when we are accepting only
-	// regular files. After the open() call, we want things to block
-	// instead of giving EAGAIN.
-	if (reg_files_only) {
-		flags = fcntl(pair->src_fd, F_GETFL);
-		if (flags == -1)
-			goto error_msg;
-
-		flags &= ~O_NONBLOCK;
-
-		if (fcntl(pair->src_fd, F_SETFL, flags) == -1)
-			goto error_msg;
-	}
-#endif
-
 	// Stat the source file. We need the result also when we copy
 	// the permissions, and when unlinking.
+	//
+	// NOTE: Use stat() instead of fstat() with DJGPP, because
+	// then we have a better chance to get st_ino value that can
+	// be used in io_open_dest_real() to prevent overwriting the
+	// source file.
+#ifdef __DJGPP__
+	if (stat(pair->src_name, &pair->src_st))
+		goto error_msg;
+#else
 	if (fstat(pair->src_fd, &pair->src_st))
 		goto error_msg;
+#endif
 
 	if (S_ISDIR(pair->src_st.st_mode)) {
 		message_warning(_("%s: Is a directory, skipping"),
@@ -492,6 +594,23 @@ io_open_src_real(file_pair *pair)
 			goto error;
 		}
 	}
+
+	// If it is something else than a regular file, wait until
+	// there is input available. This way reading from FIFOs
+	// will work when open() is used with O_NONBLOCK.
+	if (!S_ISREG(pair->src_st.st_mode)) {
+		signals_unblock();
+		const io_wait_ret ret = io_wait(pair, -1, true);
+		signals_block();
+
+		if (ret != IO_WAIT_MORE)
+			goto error;
+	}
+#endif
+
+#ifdef HAVE_POSIX_FADVISE
+	// It will fail with some special files like FIFOs but that is fine.
+	(void)posix_fadvise(pair->src_fd, 0, 0, POSIX_FADV_SEQUENTIAL);
 #endif
 
 	return false;
@@ -542,6 +661,19 @@ io_open_src(const char *src_name)
 static void
 io_close_src(file_pair *pair, bool success)
 {
+#ifndef TUKLIB_DOSLIKE
+	if (restore_stdin_flags) {
+		assert(pair->src_fd == STDIN_FILENO);
+
+		restore_stdin_flags = false;
+
+		if (fcntl(STDIN_FILENO, F_SETFL, stdin_flags) == -1)
+			message_error(_("Error restoring the status flags "
+					"to standard input: %s"),
+					strerror(errno));
+	}
+#endif
+
 	if (pair->src_fd != STDIN_FILENO && pair->src_fd != -1) {
 #ifdef TUKLIB_DOSLIKE
 		(void)close(pair->src_fd);
@@ -575,11 +707,55 @@ io_open_dest_real(file_pair *pair)
 		pair->dest_fd = STDOUT_FILENO;
 #ifdef TUKLIB_DOSLIKE
 		setmode(STDOUT_FILENO, O_BINARY);
+#else
+		// Try to set O_NONBLOCK if it isn't already set.
+		// If it fails, we assume that stdout is non-blocking
+		// in practice. See the comments in io_open_src_real()
+		// for similar situation with stdin.
+		//
+		// NOTE: O_APPEND may be unset later in this function
+		// and it relies on stdout_flags being set here.
+		stdout_flags = fcntl(STDOUT_FILENO, F_GETFL);
+		if (stdout_flags == -1) {
+			message_error(_("Error getting the file status flags "
+					"from standard output: %s"),
+					strerror(errno));
+			return true;
+		}
+
+		if ((stdout_flags & O_NONBLOCK) == 0
+				&& fcntl(STDOUT_FILENO, F_SETFL,
+					stdout_flags | O_NONBLOCK) != -1)
+				restore_stdout_flags = true;
 #endif
 	} else {
 		pair->dest_name = suffix_get_dest_name(pair->src_name);
 		if (pair->dest_name == NULL)
 			return true;
+
+#ifdef __DJGPP__
+		struct stat st;
+		if (stat(pair->dest_name, &st) == 0) {
+			// Check that it isn't a special file like "prn".
+			if (st.st_dev == -1) {
+				message_error("%s: Refusing to write to "
+						"a DOS special file",
+						pair->dest_name);
+				free(pair->dest_name);
+				return true;
+			}
+
+			// Check that we aren't overwriting the source file.
+			if (st.st_dev == pair->src_st.st_dev
+					&& st.st_ino == pair->src_st.st_ino) {
+				message_error("%s: Output file is the same "
+						"as the input file",
+						pair->dest_name);
+				free(pair->dest_name);
+				return true;
+			}
+		}
+#endif
 
 		// If --force was used, unlink the target file first.
 		if (opt_force && unlink(pair->dest_name) && errno != ENOENT) {
@@ -590,8 +766,11 @@ io_open_dest_real(file_pair *pair)
 		}
 
 		// Open the file.
-		const int flags = O_WRONLY | O_BINARY | O_NOCTTY
+		int flags = O_WRONLY | O_BINARY | O_NOCTTY
 				| O_CREAT | O_EXCL;
+#ifndef TUKLIB_DOSLIKE
+		flags |= O_NONBLOCK;
+#endif
 		const mode_t mode = S_IRUSR | S_IWUSR;
 		pair->dest_fd = open(pair->dest_name, flags, mode);
 
@@ -603,17 +782,19 @@ io_open_dest_real(file_pair *pair)
 		}
 	}
 
-	// If this really fails... well, we have a safe fallback.
+#ifndef TUKLIB_DOSLIKE
+	// dest_st isn't used on DOS-like systems except as a dummy
+	// argument to io_unlink(), so don't fstat() on such systems.
 	if (fstat(pair->dest_fd, &pair->dest_st)) {
-#if defined(__VMS)
+		// If fstat() really fails, we have a safe fallback here.
+#	if defined(__VMS)
 		pair->dest_st.st_ino[0] = 0;
 		pair->dest_st.st_ino[1] = 0;
 		pair->dest_st.st_ino[2] = 0;
-#elif !defined(TUKLIB_DOSLIKE)
+#	else
 		pair->dest_st.st_dev = 0;
 		pair->dest_st.st_ino = 0;
-#endif
-#ifndef TUKLIB_DOSLIKE
+#	endif
 	} else if (try_sparse && opt_mode == MODE_DECOMPRESS) {
 		// When writing to standard output, we need to be extra
 		// careful:
@@ -629,10 +810,6 @@ io_open_dest_real(file_pair *pair)
 		// some testing.
 		if (pair->dest_fd == STDOUT_FILENO) {
 			if (!S_ISREG(pair->dest_st.st_mode))
-				return false;
-
-			stdout_flags = fcntl(STDOUT_FILENO, F_GETFL);
-			if (stdout_flags == -1)
 				return false;
 
 			if (stdout_flags & O_APPEND) {
@@ -653,14 +830,24 @@ io_open_dest_real(file_pair *pair)
 				if (lseek(STDOUT_FILENO, 0, SEEK_END) == -1)
 					return false;
 
-				if (fcntl(STDOUT_FILENO, F_SETFL,
-						stdout_flags & ~O_APPEND)
-						== -1)
+				// Construct the new file status flags.
+				// If O_NONBLOCK was set earlier in this
+				// function, it must be kept here too.
+				int flags = stdout_flags & ~O_APPEND;
+				if (restore_stdout_flags)
+					flags |= O_NONBLOCK;
+
+				// If this fcntl() fails, we continue but won't
+				// try to create sparse output. The original
+				// flags will still be restored if needed (to
+				// unset O_NONBLOCK) when the file is finished.
+				if (fcntl(STDOUT_FILENO, F_SETFL, flags) == -1)
 					return false;
 
 				// Disabling O_APPEND succeeded. Mark
 				// that the flags should be restored
-				// in io_close_dest().
+				// in io_close_dest(). (This may have already
+				// been set when enabling O_NONBLOCK.)
 				restore_stdout_flags = true;
 
 			} else if (lseek(STDOUT_FILENO, 0, SEEK_CUR)
@@ -673,8 +860,8 @@ io_open_dest_real(file_pair *pair)
 		}
 
 		pair->dest_try_sparse = true;
-#endif
 	}
+#endif
 
 	return false;
 }
@@ -790,6 +977,21 @@ io_close(file_pair *pair, bool success)
 }
 
 
+extern void
+io_fix_src_pos(file_pair *pair, size_t rewind_size)
+{
+	assert(rewind_size <= IO_BUFFER_SIZE);
+
+	if (rewind_size > 0) {
+		// This doesn't need to work on unseekable file descriptors,
+		// so just ignore possible errors.
+		(void)lseek(pair->src_fd, -(off_t)(rewind_size), SEEK_CUR);
+	}
+
+	return;
+}
+
+
 extern size_t
 io_read(file_pair *pair, io_buf *buf_union, size_t size)
 {
@@ -815,11 +1017,29 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
 				continue;
 			}
 
+#ifndef TUKLIB_DOSLIKE
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				const io_wait_ret ret = io_wait(pair,
+						mytime_get_flush_timeout(),
+						true);
+				switch (ret) {
+				case IO_WAIT_MORE:
+					continue;
+
+				case IO_WAIT_ERROR:
+					return SIZE_MAX;
+
+				case IO_WAIT_TIMEOUT:
+					return size - left;
+
+				default:
+					message_bug();
+				}
+			}
+#endif
+
 			message_error(_("%s: Read error: %s"),
 					pair->src_name, strerror(errno));
-
-			// FIXME Is this needed?
-			pair->src_eof = true;
 
 			return SIZE_MAX;
 		}
@@ -884,6 +1104,15 @@ io_write_buf(file_pair *pair, const uint8_t *buf, size_t size)
 
 				continue;
 			}
+
+#ifndef TUKLIB_DOSLIKE
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				if (io_wait(pair, -1, false) == IO_WAIT_MORE)
+					continue;
+
+				return true;
+			}
+#endif
 
 			// Handle broken pipe specially. gzip and bzip2
 			// don't print anything on SIGPIPE. In addition,
