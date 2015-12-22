@@ -50,7 +50,7 @@ static int efinet_match(struct netif *, void *);
 static int efinet_probe(struct netif *, void *);
 static int efinet_put(struct iodesc *, void *, size_t);
 
-struct netif_driver efinetif = {
+struct netif_driver efinetif = {   
 	.netif_bname = "efinet",
 	.netif_match = efinet_match,
 	.netif_probe = efinet_probe,
@@ -132,7 +132,7 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 		buf = 0;	/* XXX Is this needed? */
 		status = net->GetStatus(net, 0, &buf);
 		/*
-		 * XXX EFI1.1 and the E1000 card returns a different
+		 * XXX EFI1.1 and the E1000 card returns a different 
 		 * address than we gave.  Sigh.
 		 */
 	} while (status == EFI_SUCCESS && buf == 0);
@@ -234,7 +234,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 static void
 efinet_end(struct netif *nif)
 {
-	EFI_SIMPLE_NETWORK *net = nif->nif_devdata;
+	EFI_SIMPLE_NETWORK *net = nif->nif_devdata; 
 
 	net->Shutdown(net);
 }
