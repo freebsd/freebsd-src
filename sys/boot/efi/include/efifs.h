@@ -101,7 +101,7 @@ typedef struct _EFI_LBAL {
     UINT32              ArrayCount;
 } EFI_LBAL;
 
-// Array size 
+// Array size
 #define EFI_LBAL_ARRAY_SIZE(lbal,offs,blks)  \
         (((blks) - (offs) - (lbal)->Hdr.HeaderSize) / sizeof(EFI_RL))
 

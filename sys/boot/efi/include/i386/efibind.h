@@ -37,11 +37,11 @@ Revision History
 
 #if (__STDC_VERSION__ < 199901L )
 
-    // No ANSI C 1999/2000 stdint.h integer width declarations 
+    // No ANSI C 1999/2000 stdint.h integer width declarations
 
     #if _MSC_EXTENSIONS
 
-        // Use Microsoft C compiler integer width declarations 
+        // Use Microsoft C compiler integer width declarations
 
         typedef unsigned __int64    uint64_t;
         typedef __int64             int64_t;
@@ -51,10 +51,10 @@ Revision History
         typedef short               int16_t;
         typedef unsigned char       uint8_t;
         typedef char                int8_t;
-    #else             
+    #else
         #ifdef UNIX_LP64
 
-            // Use LP64 programming model from C_FLAGS for integer width declarations 
+            // Use LP64 programming model from C_FLAGS for integer width declarations
 
             typedef unsigned long       uint64_t;
             typedef long                int64_t;
@@ -66,7 +66,7 @@ Revision History
             typedef char                int8_t;
         #else
 
-            // Assume P64 programming model from C_FLAGS for integer width declarations 
+            // Assume P64 programming model from C_FLAGS for integer width declarations
 
             typedef unsigned long long  uint64_t;
             typedef long long           int64_t;
@@ -112,17 +112,17 @@ typedef uint32_t   UINTN;
 
 #ifdef EFI_NT_EMULATOR
     #define POST_CODE(_Data)
-#else    
+#else
     #ifdef EFI_DEBUG
 #define POST_CODE(_Data)    __asm mov eax,(_Data) __asm out 0x80,al
     #else
         #define POST_CODE(_Data)
-    #endif  
+    #endif
 #endif
 
 #define EFIERR(a)           (0x80000000 | a)
 #define EFI_ERROR_MASK      0x80000000
-#define EFIERR_OEM(a)       (0xc0000000 | a)      
+#define EFIERR_OEM(a)       (0xc0000000 | a)
 
 
 #define BAD_POINTER         0xFBFBFBFB
@@ -156,14 +156,14 @@ typedef uint32_t   UINTN;
 // BOOTSERVICE - prototype for implementation of a boot service interface
 // RUNTIMESERVICE - prototype for implementation of a runtime service interface
 // RUNTIMEFUNCTION - prototype for implementation of a runtime function that is not a service
-// RUNTIME_CODE - pragma macro for declaring runtime code    
+// RUNTIME_CODE - pragma macro for declaring runtime code
 //
 
-#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options 
+#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options
     #if _MSC_EXTENSIONS
-        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler 
+        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler
     #else
-        #define EFIAPI          // Substitute expresion to force C calling convention 
+        #define EFIAPI          // Substitute expresion to force C calling convention
     #endif
 #endif
 
@@ -180,7 +180,7 @@ typedef uint32_t   UINTN;
 
 #define VOLATILE    volatile
 
-#define MEMORY_FENCE()    
+#define MEMORY_FENCE()
 
 #ifdef EFI_NO_INTERFACE_DECL
   #define EFI_FORWARD_DECLARATION(x)
@@ -229,9 +229,9 @@ typedef uint32_t   UINTN;
 
 
     #define LOAD_INTERNAL_DRIVER(_if, type, name, entry)      \
-        (_if)->LoadInternal(type, name, NULL)             
+        (_if)->LoadInternal(type, name, NULL)
 
-#else // EFI_NT_EMULATOR 
+#else // EFI_NT_EMULATOR
 
 //
 // When build similiar to FW, then link everything together as
@@ -243,7 +243,7 @@ typedef uint32_t   UINTN;
     #define LOAD_INTERNAL_DRIVER(_if, type, name, entry)    \
             (_if)->LoadInternal(type, name, entry)
 
-#endif // EFI_FW_NT 
+#endif // EFI_FW_NT
 
 #ifdef __FreeBSD__
 #define INTERFACE_DECL(x) struct x

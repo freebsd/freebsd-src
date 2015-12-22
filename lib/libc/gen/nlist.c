@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-/* There is no a.out support on arm64 */
-#ifndef __aarch64__
+/* i386 is the only current FreeBSD architecture that used a.out format. */
+#ifdef __i386__
 #define _NLIST_DO_AOUT
 #endif
 #define _NLIST_DO_ELF
