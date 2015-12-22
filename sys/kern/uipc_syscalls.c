@@ -1849,13 +1849,12 @@ sf_ext_free(void *arg1, void *arg2)
 	sf_buf_free(sf);
 
 	vm_page_lock(pg);
-	vm_page_unwire(pg, PQ_INACTIVE);
 	/*
 	 * Check for the object going away on us. This can
 	 * happen since we don't hold a reference to it.
 	 * If so, we're responsible for freeing the page.
 	 */
-	if (pg->wire_count == 0 && pg->object == NULL)
+	if (vm_page_unwire(pg, PQ_INACTIVE) && pg->object == NULL)
 		vm_page_free(pg);
 	vm_page_unlock(pg);
 
@@ -1882,10 +1881,10 @@ sf_ext_free_nocache(void *arg1, void *arg2)
 	sf_buf_free(sf);
 
 	vm_page_lock(pg);
-	vm_page_unwire(pg, 0);
-	if (pg->wire_count == 0) {
+	if (vm_page_unwire(pg, PQ_NONE)) {
 		vm_object_t obj;
 
+		/* Try to free the page, but only if it is cheap to. */
 		if ((obj = pg->object) == NULL)
 			vm_page_free(pg);
 		else if (!vm_page_xbusied(pg) && VM_OBJECT_TRYWLOCK(obj)) {
