@@ -108,6 +108,7 @@ struct cuse_server {
 	TAILQ_HEAD(, cuse_client) hcli;
 	struct cv cv;
 	struct selinfo selinfo;
+	pid_t	pid;
 	int	is_closing;
 	int	refs;
 };
@@ -691,6 +692,10 @@ cuse_server_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 		free(pcs, M_CUSE);
 		return (ENOMEM);
 	}
+
+	/* store current process ID */
+	pcs->pid = curproc->p_pid;
+
 	TAILQ_INIT(&pcs->head);
 	TAILQ_INIT(&pcs->hdev);
 	TAILQ_INIT(&pcs->hcli);
@@ -1357,9 +1362,15 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	if (pcsd != NULL) {
 		pcs = pcsd->server;
 		pcd = pcsd->user_dev;
+		/*
+		 * Check that the refcount didn't wrap and that the
+		 * same process is not both client and server. This
+		 * can easily lead to deadlocks when destroying the
+		 * CUSE character device nodes:
+		 */
 		pcs->refs++;
-		if (pcs->refs < 0) {
-			/* overflow */
+		if (pcs->refs < 0 || pcs->pid == curproc->p_pid) {
+			/* overflow or wrong PID */
 			pcs->refs--;
 			pcsd = NULL;
 		}
