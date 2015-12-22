@@ -1345,7 +1345,6 @@ falconsiena_filter_delete(
 	falconsiena_filter_t *fsfp = enp->en_filter.ef_falconsiena_filter;
 	falconsiena_filter_tbl_id_t tbl_id;
 	falconsiena_filter_tbl_t *fsftp;
-	falconsiena_filter_spec_t *saved_spec;
 	efx_oword_t filter;
 	int filter_idx;
 	unsigned int depth;
@@ -1368,8 +1367,6 @@ falconsiena_filter_delete(
 	    &filter_idx, &depth);
 	if (rc != 0)
 		goto fail2;
-
-	saved_spec = &fsftp->fsft_spec[filter_idx];
 
 	falconsiena_filter_clear_entry(enp, fsftp, filter_idx);
 	if (fsftp->fsft_used == 0)

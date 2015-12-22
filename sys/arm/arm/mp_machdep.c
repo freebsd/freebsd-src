@@ -443,12 +443,12 @@ release_aps(void *dummy __unused)
 		return;
 
 #ifdef ARM_INTRNG
-	arm_ipi_set_handler(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL, 0);
-	arm_ipi_set_handler(IPI_AST, "ast", ipi_ast, NULL, 0);
-	arm_ipi_set_handler(IPI_STOP, "stop", ipi_stop, NULL, 0);
-	arm_ipi_set_handler(IPI_PREEMPT, "preempt", ipi_preempt, NULL, 0);
-	arm_ipi_set_handler(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL, 0);
-	arm_ipi_set_handler(IPI_TLB, "tlb", ipi_tlb, NULL, 0);
+	intr_ipi_set_handler(IPI_RENDEZVOUS, "rendezvous", ipi_rendezvous, NULL, 0);
+	intr_ipi_set_handler(IPI_AST, "ast", ipi_ast, NULL, 0);
+	intr_ipi_set_handler(IPI_STOP, "stop", ipi_stop, NULL, 0);
+	intr_ipi_set_handler(IPI_PREEMPT, "preempt", ipi_preempt, NULL, 0);
+	intr_ipi_set_handler(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL, 0);
+	intr_ipi_set_handler(IPI_TLB, "tlb", ipi_tlb, NULL, 0);
 
 #else
 #ifdef IPI_IRQ_START

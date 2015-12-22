@@ -37,7 +37,6 @@
 
 typedef	uint32_t	cell_t;
 
-int  OF_decode_addr(phandle_t, int, bus_space_tag_t *, bus_space_handle_t *);
 void OF_getetheraddr(device_t dev, u_char *addr);
 
 void OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *));

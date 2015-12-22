@@ -63,7 +63,8 @@ struct llentry {
 		uint16_t	mac16[3];
 		uint8_t		mac8[20];	/* IB needs 20 bytes. */
 	} ll_addr;
-	uint32_t		spare0;
+	uint16_t		r_flags;	/* LLE runtime flags */
+	uint16_t		r_skip_req;	/* feedback from fast path */
 	uint64_t		spare1;
 
 	struct lltable		 *lle_tbl;
@@ -78,11 +79,14 @@ struct llentry {
 	int16_t			 ln_state;	/* IPv6 has ND6_LLINFO_NOSTATE == -2 */
 	uint16_t		 ln_router;
 	time_t			 ln_ntick;
+	time_t			lle_remtime;	/* Real time remaining */
+	time_t			lle_hittime;	/* Time when r_skip_req was unset */
 	int			 lle_refcnt;
 
 	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
 	struct callout		lle_timer;
 	struct rwlock		 lle_lock;
+	struct mtx		req_mtx;
 };
 
 #define	LLE_WLOCK(lle)		rw_wlock(&(lle)->lle_lock)
@@ -94,6 +98,12 @@ struct llentry {
 #define	LLE_LOCK_INIT(lle)	rw_init_flags(&(lle)->lle_lock, "lle", RW_DUPOK)
 #define	LLE_LOCK_DESTROY(lle)	rw_destroy(&(lle)->lle_lock)
 #define	LLE_WLOCK_ASSERT(lle)	rw_assert(&(lle)->lle_lock, RA_WLOCKED)
+
+#define	LLE_REQ_INIT(lle)	mtx_init(&(lle)->req_mtx, "lle req", \
+	NULL, MTX_DEF)
+#define	LLE_REQ_DESTROY(lle)	mtx_destroy(&(lle)->req_mtx)
+#define	LLE_REQ_LOCK(lle)	mtx_lock(&(lle)->req_mtx)
+#define	LLE_REQ_UNLOCK(lle)	mtx_unlock(&(lle)->req_mtx)
 
 #define LLE_IS_VALID(lle)	(((lle) != NULL) && ((lle) != (void *)-1))
 
@@ -187,6 +197,11 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_LINKED	0x0040	/* linked to lookup structure */
 /* LLE request flags */
 #define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
+#define	LLE_UNLOCKED	0x4000	/* return lle unlocked */
+
+/* LLE flags used by fastpath code */
+#define	RLLE_VALID	0x0001		/* entry is valid */
+#define	RLLE_IFADDR	LLE_IFADDR	/* entry is ifaddr */
 
 #define LLATBL_HASH(key, mask) \
 	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)
@@ -208,6 +223,8 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
 void lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
+    const char *lladdr);
+int lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
     const char *lladdr);
 
 struct llentry *lltable_alloc_entry(struct lltable *llt, u_int flags,

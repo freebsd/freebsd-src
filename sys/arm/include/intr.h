@@ -51,33 +51,33 @@
 
 #ifdef notyet
 #define	INTR_SOLO	INTR_MD1
-typedef int arm_irq_filter_t(void *arg, struct trapframe *tf);
+typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
 #else
-typedef int arm_irq_filter_t(void *arg);
+typedef int intr_irq_filter_t(void *arg);
 #endif
 
-#define ARM_ISRC_NAMELEN	(MAXCOMLEN + 1)
+#define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
 
-typedef void arm_ipi_filter_t(void *arg);
+typedef void intr_ipi_filter_t(void *arg);
 
-enum arm_isrc_type {
-	ARM_ISRCT_NAMESPACE,
-	ARM_ISRCT_FDT
+enum intr_isrc_type {
+	INTR_ISRCT_NAMESPACE,
+	INTR_ISRCT_FDT
 };
 
-#define ARM_ISRCF_REGISTERED	0x01	/* registered in a controller */
-#define ARM_ISRCF_PERCPU	0x02	/* per CPU interrupt */
-#define ARM_ISRCF_BOUND		0x04	/* bound to a CPU */
+#define INTR_ISRCF_REGISTERED	0x01	/* registered in a controller */
+#define INTR_ISRCF_PERCPU	0x02	/* per CPU interrupt */
+#define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
 
 /* Interrupt source definition. */
-struct arm_irqsrc {
+struct intr_irqsrc {
 	device_t		isrc_dev;	/* where isrc is mapped */
 	intptr_t		isrc_xref;	/* device reference key */
 	uintptr_t		isrc_data;	/* device data for isrc */
 	u_int			isrc_irq;	/* unique identificator */
-	enum arm_isrc_type	isrc_type;	/* how is isrc decribed */
+	enum intr_isrc_type	isrc_type;	/* how is isrc decribed */
 	u_int			isrc_flags;
-	char			isrc_name[ARM_ISRC_NAMELEN];
+	char			isrc_name[INTR_ISRC_NAMELEN];
 	uint16_t		isrc_nspc_type;
 	uint16_t		isrc_nspc_num;
 	enum intr_trigger	isrc_trig;
@@ -87,8 +87,8 @@ struct arm_irqsrc {
 	u_long *		isrc_count;
 	u_int			isrc_handlers;
 	struct intr_event *	isrc_event;
-	arm_irq_filter_t *	isrc_filter;
-	arm_ipi_filter_t *	isrc_ipifilter;
+	intr_irq_filter_t *	isrc_filter;
+	intr_ipi_filter_t *	isrc_ipifilter;
 	void *			isrc_arg;
 #ifdef FDT
 	u_int			isrc_ncells;
@@ -96,45 +96,45 @@ struct arm_irqsrc {
 #endif
 };
 
-void arm_irq_set_name(struct arm_irqsrc *isrc, const char *fmt, ...)
+void intr_irq_set_name(struct intr_irqsrc *isrc, const char *fmt, ...)
     __printflike(2, 3);
 
-void arm_irq_dispatch(struct arm_irqsrc *isrc, struct trapframe *tf);
+void intr_irq_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
 
-#define ARM_IRQ_NSPC_NONE	0
-#define ARM_IRQ_NSPC_PLAIN	1
-#define ARM_IRQ_NSPC_IRQ	2
-#define ARM_IRQ_NSPC_IPI	3
+#define INTR_IRQ_NSPC_NONE	0
+#define INTR_IRQ_NSPC_PLAIN	1
+#define INTR_IRQ_NSPC_IRQ	2
+#define INTR_IRQ_NSPC_IPI	3
 
-u_int arm_namespace_map_irq(device_t dev, uint16_t type, uint16_t num);
+u_int intr_namespace_map_irq(device_t dev, uint16_t type, uint16_t num);
 #ifdef FDT
-u_int arm_fdt_map_irq(phandle_t, pcell_t *, u_int);
+u_int intr_fdt_map_irq(phandle_t, pcell_t *, u_int);
 #endif
 
-int arm_pic_register(device_t dev, intptr_t xref);
-int arm_pic_unregister(device_t dev, intptr_t xref);
-int arm_pic_claim_root(device_t dev, intptr_t xref, arm_irq_filter_t *filter,
+int intr_pic_register(device_t dev, intptr_t xref);
+int intr_pic_unregister(device_t dev, intptr_t xref);
+int intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg, u_int ipicount);
 
-int arm_irq_add_handler(device_t dev, driver_filter_t, driver_intr_t, void *,
+int intr_irq_add_handler(device_t dev, driver_filter_t, driver_intr_t, void *,
     u_int, int, void **);
-int arm_irq_remove_handler(device_t dev, u_int, void *);
-int arm_irq_config(u_int, enum intr_trigger, enum intr_polarity);
-int arm_irq_describe(u_int, void *, const char *);
+int intr_irq_remove_handler(device_t dev, u_int, void *);
+int intr_irq_config(u_int, enum intr_trigger, enum intr_polarity);
+int intr_irq_describe(u_int, void *, const char *);
 
-u_int arm_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
+u_int intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask);
 
 #ifdef SMP
-int arm_irq_bind(u_int, int);
+int intr_irq_bind(u_int, int);
 
-void arm_ipi_dispatch(struct arm_irqsrc *isrc, struct trapframe *tf);
+void intr_ipi_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf);
 
 #define AISHF_NOALLOC	0x0001
 
-int arm_ipi_set_handler(u_int ipi, const char *name, arm_ipi_filter_t *filter,
+int intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
     void *arg, u_int flags);
 
-void arm_pic_init_secondary(void);
+void intr_pic_init_secondary(void);
 #endif
 
 #else /* ARM_INTRNG */
@@ -178,11 +178,11 @@ extern void (*arm_post_filter)(void *);
 extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 
-void arm_pic_init_secondary(void);
+void intr_pic_init_secondary(void);
 
 #ifdef FDT
 int gic_decode_fdt(phandle_t, pcell_t *, int *, int *, int *);
-int arm_fdt_map_irq(phandle_t, pcell_t *, int);
+int intr_fdt_map_irq(phandle_t, pcell_t *, int);
 #endif
 
 #endif /* ARM_INTRNG */

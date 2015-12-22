@@ -42,6 +42,8 @@ enum ioat_test_kind {
 	IOAT_TEST_FILL = 0,
 	IOAT_TEST_DMA,
 	IOAT_TEST_RAW_DMA,
+	IOAT_TEST_DMA_8K,
+	IOAT_TEST_MEMCPY,
 	IOAT_NUM_TESTKINDS
 };
 
@@ -72,6 +74,10 @@ struct ioat_test {
 	void *raw_vtarget;
 	bool raw_write;
 	bool raw_is_virtual;
+
+	bool zero_stats;
+	/* Configure coalesce period */
+	uint16_t coalesce_period;
 
 	/* Internal usage -- not test inputs */
 	TAILQ_HEAD(, test_transaction) free_q;

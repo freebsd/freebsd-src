@@ -910,18 +910,23 @@ printcpuinfo(void)
 				       "\017MPX"
 				       /* AVX512 Foundation */
 				       "\021AVX512F"
+				       "\022AVX512DQ"
 				       /* Enhanced NRBG */
 				       "\023RDSEED"
 				       /* ADCX + ADOX */
 				       "\024ADX"
 				       /* Supervisor Mode Access Prevention */
 				       "\025SMAP"
+				       "\026AVX512IFMA"
+				       "\027PCOMMIT"
 				       "\030CLFLUSHOPT"
+				       "\031CLWB"
 				       "\032PROCTRACE"
 				       "\033AVX512PF"
 				       "\034AVX512ER"
 				       "\035AVX512CD"
 				       "\036SHA"
+				       "\037AVX512BW"
 				       );
 			}
 
@@ -930,6 +935,7 @@ printcpuinfo(void)
 				    cpu_stdext_feature2,
 				       "\020"
 				       "\001PREFETCHWT1"
+				       "\002AVX512VBMI"
 				       "\004PKU"
 				       "\005OSPKE"
 				       );

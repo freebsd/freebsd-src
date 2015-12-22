@@ -24,6 +24,6 @@ CFILES= \
      tst.sigwait.c  \
 
 
-LIBADD.tst.sigwait.exe=rt
+LIBADD.tst.sigwait.exe+= rt
 
 .include "../../dtrace.test.mk"

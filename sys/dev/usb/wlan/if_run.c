@@ -5186,7 +5186,7 @@ run_updateslot_cb(void *arg)
 
 	run_read(sc, RT2860_BKOFF_SLOT_CFG, &tmp);
 	tmp &= ~0xff;
-	tmp |= (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	tmp |= IEEE80211_GET_SLOTTIME(ic);
 	run_write(sc, RT2860_BKOFF_SLOT_CFG, tmp);
 }
 
@@ -6236,3 +6236,4 @@ MODULE_DEPEND(run, wlan, 1, 1, 1);
 MODULE_DEPEND(run, usb, 1, 1, 1);
 MODULE_DEPEND(run, firmware, 1, 1, 1);
 MODULE_VERSION(run, 1);
+USB_PNP_HOST_INFO(run_devs);
