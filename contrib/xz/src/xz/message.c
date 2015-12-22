@@ -12,10 +12,6 @@
 
 #include "private.h"
 
-#ifdef HAVE_SYS_TIME_H
-#	include <sys/time.h>
-#endif
-
 #include <stdarg.h>
 
 
@@ -64,9 +60,6 @@ static lzma_stream *progress_strm;
 /// and estimate remaining time.
 static uint64_t expected_in_size;
 
-/// Time when we started processing the file
-static uint64_t start_time;
-
 
 // Use alarm() and SIGALRM when they are supported. This has two minor
 // advantages over the alternative of polling gettimeofday():
@@ -110,16 +103,6 @@ static bool progress_needs_updating = false;
 static uint64_t progress_next_update;
 
 #endif
-
-
-/// Get the current time as microseconds since epoch
-static uint64_t
-my_time(void)
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return (uint64_t)(tv.tv_sec) * UINT64_C(1000000) + tv.tv_usec;
-}
 
 
 extern void
@@ -264,11 +247,10 @@ message_progress_start(lzma_stream *strm, uint64_t in_size)
 	// It is needed to find out the position in the stream.
 	progress_strm = strm;
 
-	// Store the processing start time of the file and its expected size.
-	// If we aren't printing any statistics, then these are unused. But
-	// since it is possible that the user sends us a signal to show
-	// statistics, we need to have these available anyway.
-	start_time = my_time();
+	// Store the expected size of the file. If we aren't printing any
+	// statistics, then is will be unused. But since it is possible
+	// that the user sends us a signal to show statistics, we need
+	// to have it available anyway.
 	expected_in_size = in_size;
 
 	// Indicate that progress info may need to be printed before
@@ -290,7 +272,7 @@ message_progress_start(lzma_stream *strm, uint64_t in_size)
 		alarm(1);
 #else
 		progress_needs_updating = true;
-		progress_next_update = 1000000;
+		progress_next_update = 1000;
 #endif
 	}
 
@@ -364,7 +346,7 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 {
 	// Don't print the speed immediately, since the early values look
 	// somewhat random.
-	if (elapsed < 3000000)
+	if (elapsed < 3000)
 		return "";
 
 	static const char unit[][8] = {
@@ -377,7 +359,7 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 
 	// Calculate the speed as KiB/s.
 	double speed = (double)(uncompressed_pos)
-			/ ((double)(elapsed) * (1024.0 / 1e6));
+			/ ((double)(elapsed) * (1024.0 / 1000.0));
 
 	// Adjust the unit of the speed if needed.
 	while (speed > 999.0) {
@@ -399,15 +381,16 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 }
 
 
-/// Make a string indicating elapsed or remaining time. The format is either
+/// Make a string indicating elapsed time. The format is either
 /// M:SS or H:MM:SS depending on if the time is an hour or more.
 static const char *
-progress_time(uint64_t useconds)
+progress_time(uint64_t mseconds)
 {
 	// 9999 hours = 416 days
 	static char buf[sizeof("9999:59:59")];
 
-	uint32_t seconds = useconds / 1000000;
+	// 32-bit variable is enough for elapsed time (136 years).
+	uint32_t seconds = (uint32_t)(mseconds / 1000);
 
 	// Don't show anything if the time is zero or ridiculously big.
 	if (seconds == 0 || seconds > ((9999 * 60) + 59) * 60 + 59)
@@ -445,14 +428,14 @@ progress_remaining(uint64_t in_pos, uint64_t elapsed)
 	//  - Only a few seconds has passed since we started (de)compressing,
 	//    so estimate would be too inaccurate.
 	if (expected_in_size == 0 || in_pos > expected_in_size
-			|| in_pos < (UINT64_C(1) << 19) || elapsed < 8000000)
+			|| in_pos < (UINT64_C(1) << 19) || elapsed < 8000)
 		return "";
 
 	// Calculate the estimate. Don't give an estimate of zero seconds,
 	// since it is possible that all the input has been already passed
 	// to the library, but there is still quite a bit of output pending.
 	uint32_t remaining = (double)(expected_in_size - in_pos)
-			* ((double)(elapsed) / 1e6) / (double)(in_pos);
+			* ((double)(elapsed) / 1000.0) / (double)(in_pos);
 	if (remaining < 1)
 		remaining = 1;
 
@@ -518,28 +501,26 @@ progress_remaining(uint64_t in_pos, uint64_t elapsed)
 }
 
 
-/// Calculate the elapsed time as microseconds.
-static uint64_t
-progress_elapsed(void)
-{
-	return my_time() - start_time;
-}
-
-
-/// Get information about position in the stream. This is currently simple,
-/// but it will become more complicated once we have multithreading support.
+/// Get how much uncompressed and compressed data has been processed.
 static void
 progress_pos(uint64_t *in_pos,
 		uint64_t *compressed_pos, uint64_t *uncompressed_pos)
 {
-	*in_pos = progress_strm->total_in;
+	uint64_t out_pos;
+	lzma_get_progress(progress_strm, in_pos, &out_pos);
+
+	// It cannot have processed more input than it has been given.
+	assert(*in_pos <= progress_strm->total_in);
+
+	// It cannot have produced more output than it claims to have ready.
+	assert(out_pos >= progress_strm->total_out);
 
 	if (opt_mode == MODE_COMPRESS) {
-		*compressed_pos = progress_strm->total_out;
-		*uncompressed_pos = progress_strm->total_in;
+		*compressed_pos = out_pos;
+		*uncompressed_pos = *in_pos;
 	} else {
-		*compressed_pos = progress_strm->total_in;
-		*uncompressed_pos = progress_strm->total_out;
+		*compressed_pos = *in_pos;
+		*uncompressed_pos = out_pos;
 	}
 
 	return;
@@ -553,13 +534,13 @@ message_progress_update(void)
 		return;
 
 	// Calculate how long we have been processing this file.
-	const uint64_t elapsed = progress_elapsed();
+	const uint64_t elapsed = mytime_get_elapsed();
 
 #ifndef SIGALRM
 	if (progress_next_update > elapsed)
 		return;
 
-	progress_next_update = elapsed + 1000000;
+	progress_next_update = elapsed + 1000;
 #endif
 
 	// Get our current position in the stream.
@@ -652,7 +633,7 @@ progress_flush(bool finished)
 
 	progress_active = false;
 
-	const uint64_t elapsed = progress_elapsed();
+	const uint64_t elapsed = mytime_get_elapsed();
 
 	signals_block();
 
@@ -1122,7 +1103,10 @@ message_help(bool long_help)
 "  -f, --force         force overwrite of output file and (de)compress links\n"
 "  -c, --stdout        write to standard output and don't delete input files"));
 
-	if (long_help)
+	if (long_help) {
+		puts(_(
+"      --single-stream decompress only the first stream, and silently\n"
+"                      ignore possible remaining input data"));
 		puts(_(
 "      --no-sparse     do not create sparse files when decompressing\n"
 "  -S, --suffix=.SUF   use the suffix `.SUF' on compressed files\n"
@@ -1130,6 +1114,7 @@ message_help(bool long_help)
 "                      omitted, filenames are read from the standard input;\n"
 "                      filenames must be terminated with the newline character\n"
 "      --files0[=FILE] like --files but use the null character as terminator"));
+	}
 
 	if (long_help) {
 		puts(_("\n Basic file format and compression options:\n"));
@@ -1138,6 +1123,8 @@ message_help(bool long_help)
 "                      `auto' (default), `xz', `lzma', and `raw'\n"
 "  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
 "                      `crc32', `crc64' (default), or `sha256'"));
+		puts(_(
+"      --ignore-check  don't verify the integrity check when decompressing"));
 	}
 
 	puts(_(
@@ -1148,7 +1135,25 @@ message_help(bool long_help)
 "  -e, --extreme       try to improve compression ratio by using more CPU time;\n"
 "                      does not affect decompressor memory requirements"));
 
+	puts(_(
+"  -T, --threads=NUM   use at most NUM threads; the default is 1; set to 0\n"
+"                      to use as many threads as there are processor cores"));
+
 	if (long_help) {
+		puts(_(
+"      --block-size=SIZE\n"
+"                      start a new .xz block after every SIZE bytes of input;\n"
+"                      use this to set the block size for threaded compression"));
+		puts(_(
+"      --block-list=SIZES\n"
+"                      start a new .xz block after the given comma-separated\n"
+"                      intervals of uncompressed data"));
+		puts(_(
+"      --flush-timeout=TIMEOUT\n"
+"                      when compressing, if more than TIMEOUT milliseconds has\n"
+"                      passed since the previous flush and reading more input\n"
+"                      would block, all pending data is flushed out"
+		));
 		puts(_( // xgettext:no-c-format
 "      --memlimit-compress=LIMIT\n"
 "      --memlimit-decompress=LIMIT\n"
@@ -1243,6 +1248,11 @@ message_help(bool long_help)
 	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
 			PACKAGE_BUGREPORT);
 	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_URL);
+
+#if LZMA_VERSION_STABILITY != LZMA_VERSION_STABILITY_STABLE
+	puts(_(
+"THIS IS A DEVELOPMENT VERSION NOT INTENDED FOR PRODUCTION USE."));
+#endif
 
 	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
 }

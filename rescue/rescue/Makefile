@@ -120,12 +120,15 @@ CRUNCH_PROGS_usr.sbin+= zdb
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
 
-CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
+CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec -llzma
 .if ${MK_IPX} != "no"
 CRUNCH_LIBS+= -lipx
 .endif
 .if ${MK_ZFS} != "no"
 CRUNCH_LIBS+= -lavl -lzpool -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
+.else
+# liblzma needs pthread
+CRUNCH_LIBS+= -lpthread
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv
 .if ${MK_OPENSSL} == "no"
@@ -197,7 +200,6 @@ CRUNCH_ALIAS_less= more
 
 CRUNCH_PROGS_usr.bin+= xz
 CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
-CRUNCH_LIBS+= -llzma
 
 CRUNCH_PROGS_usr.bin+= tar
 CRUNCH_LIBS+= -larchive

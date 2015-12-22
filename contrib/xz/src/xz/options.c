@@ -31,8 +31,8 @@ typedef struct {
 } option_map;
 
 
-/// Parses option=value pairs that are separated with colons, semicolons,
-/// or commas: opt=val:opt=val;opt=val,opt=val
+/// Parses option=value pairs that are separated with commas:
+/// opt=val,opt=val,opt=val
 ///
 /// Each option is a string, that is converted to an integer using the
 /// index where the option string is in the array.
@@ -59,7 +59,7 @@ typedef struct {
 static void
 parse_options(const char *str, const option_map *opts,
 		void (*set)(void *filter_options,
-			uint32_t key, uint64_t value, const char *valuestr),
+			unsigned key, uint64_t value, const char *valuestr),
 		void *filter_options)
 {
 	if (str == NULL || str[0] == '\0')
@@ -87,7 +87,7 @@ parse_options(const char *str, const option_map *opts,
 					"pairs separated with commas"), str);
 
 		// Look for the option name from the option map.
-		size_t i = 0;
+		unsigned i = 0;
 		while (true) {
 			if (opts[i].name == NULL)
 				message_fatal(_("%s: Invalid option name"),
@@ -103,7 +103,7 @@ parse_options(const char *str, const option_map *opts,
 		if (opts[i].map != NULL) {
 			// value is a string which we should map
 			// to an integer.
-			size_t j;
+			unsigned j;
 			for (j = 0; opts[i].map[j].name != NULL; ++j) {
 				if (strcmp(opts[i].map[j].name, value) == 0)
 					break;
@@ -149,7 +149,7 @@ enum {
 
 
 static void
-set_delta(void *options, uint32_t key, uint64_t value,
+set_delta(void *options, unsigned key, uint64_t value,
 		const char *valuestr lzma_attribute((__unused__)))
 {
 	lzma_options_delta *opt = options;
@@ -193,7 +193,7 @@ enum {
 
 
 static void
-set_bcj(void *options, uint32_t key, uint64_t value,
+set_bcj(void *options, unsigned key, uint64_t value,
 		const char *valuestr lzma_attribute((__unused__)))
 {
 	lzma_options_bcj *opt = options;
@@ -249,7 +249,7 @@ error_lzma_preset(const char *valuestr)
 
 
 static void
-set_lzma(void *options, uint32_t key, uint64_t value, const char *valuestr)
+set_lzma(void *options, unsigned key, uint64_t value, const char *valuestr)
 {
 	lzma_options_lzma *opt = options;
 

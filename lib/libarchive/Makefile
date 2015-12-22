@@ -15,6 +15,9 @@ DPADD+= ${LIBLZMA}
 LDADD+= -llzma
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
+DPADD+=	${LIBPTHREAD}
+LDADD+= -lpthread
+
 DPADD+= ${LIBBSDXML}
 LDADD+= -lbsdxml
 

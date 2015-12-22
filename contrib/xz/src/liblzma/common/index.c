@@ -191,8 +191,8 @@ index_tree_init(index_tree *tree)
 
 /// Helper for index_tree_end()
 static void
-index_tree_node_end(index_tree_node *node, lzma_allocator *allocator,
-		void (*free_func)(void *node, lzma_allocator *allocator))
+index_tree_node_end(index_tree_node *node, const lzma_allocator *allocator,
+		void (*free_func)(void *node, const lzma_allocator *allocator))
 {
 	// The tree won't ever be very huge, so recursion should be fine.
 	// 20 levels in the tree is likely quite a lot already in practice.
@@ -215,8 +215,8 @@ index_tree_node_end(index_tree_node *node, lzma_allocator *allocator,
 /// to free the Record groups from each index_stream before freeing
 /// the index_stream itself.
 static void
-index_tree_end(index_tree *tree, lzma_allocator *allocator,
-		void (*free_func)(void *node, lzma_allocator *allocator))
+index_tree_end(index_tree *tree, const lzma_allocator *allocator,
+		void (*free_func)(void *node, const lzma_allocator *allocator))
 {
 	if (tree->root != NULL)
 		index_tree_node_end(tree->root, allocator, free_func);
@@ -339,8 +339,8 @@ index_tree_locate(const index_tree *tree, lzma_vli target)
 /// Allocate and initialize a new Stream using the given base offsets.
 static index_stream *
 index_stream_init(lzma_vli compressed_base, lzma_vli uncompressed_base,
-		lzma_vli stream_number, lzma_vli block_number_base,
-		lzma_allocator *allocator)
+		uint32_t stream_number, lzma_vli block_number_base,
+		const lzma_allocator *allocator)
 {
 	index_stream *s = lzma_alloc(sizeof(index_stream), allocator);
 	if (s == NULL)
@@ -368,7 +368,7 @@ index_stream_init(lzma_vli compressed_base, lzma_vli uncompressed_base,
 
 /// Free the memory allocated for a Stream and its Record groups.
 static void
-index_stream_end(void *node, lzma_allocator *allocator)
+index_stream_end(void *node, const lzma_allocator *allocator)
 {
 	index_stream *s = node;
 	index_tree_end(&s->groups, allocator, NULL);
@@ -377,7 +377,7 @@ index_stream_end(void *node, lzma_allocator *allocator)
 
 
 static lzma_index *
-index_init_plain(lzma_allocator *allocator)
+index_init_plain(const lzma_allocator *allocator)
 {
 	lzma_index *i = lzma_alloc(sizeof(lzma_index), allocator);
 	if (i != NULL) {
@@ -395,7 +395,7 @@ index_init_plain(lzma_allocator *allocator)
 
 
 extern LZMA_API(lzma_index *)
-lzma_index_init(lzma_allocator *allocator)
+lzma_index_init(const lzma_allocator *allocator)
 {
 	lzma_index *i = index_init_plain(allocator);
 	if (i == NULL)
@@ -414,7 +414,7 @@ lzma_index_init(lzma_allocator *allocator)
 
 
 extern LZMA_API(void)
-lzma_index_end(lzma_index *i, lzma_allocator *allocator)
+lzma_index_end(lzma_index *i, const lzma_allocator *allocator)
 {
 	// NOTE: If you modify this function, check also the bottom
 	// of lzma_index_cat().
@@ -637,7 +637,7 @@ lzma_index_stream_padding(lzma_index *i, lzma_vli stream_padding)
 
 
 extern LZMA_API(lzma_ret)
-lzma_index_append(lzma_index *i, lzma_allocator *allocator,
+lzma_index_append(lzma_index *i, const lzma_allocator *allocator,
 		lzma_vli unpadded_size, lzma_vli uncompressed_size)
 {
 	// Validate.
@@ -765,7 +765,7 @@ index_cat_helper(const index_cat_info *info, index_stream *this)
 
 extern LZMA_API(lzma_ret)
 lzma_index_cat(lzma_index *restrict dest, lzma_index *restrict src,
-		lzma_allocator *allocator)
+		const lzma_allocator *allocator)
 {
 	const lzma_vli dest_file_size = lzma_index_file_size(dest);
 
@@ -859,7 +859,7 @@ lzma_index_cat(lzma_index *restrict dest, lzma_index *restrict src,
 
 /// Duplicate an index_stream.
 static index_stream *
-index_dup_stream(const index_stream *src, lzma_allocator *allocator)
+index_dup_stream(const index_stream *src, const lzma_allocator *allocator)
 {
 	// Catch a somewhat theoretical integer overflow.
 	if (src->record_count > PREALLOC_MAX)
@@ -919,7 +919,7 @@ index_dup_stream(const index_stream *src, lzma_allocator *allocator)
 
 
 extern LZMA_API(lzma_index *)
-lzma_index_dup(const lzma_index *src, lzma_allocator *allocator)
+lzma_index_dup(const lzma_index *src, const lzma_allocator *allocator)
 {
 	// Allocate the base structure (no initial Stream).
 	lzma_index *dest = index_init_plain(allocator);
@@ -1008,6 +1008,8 @@ iter_set_info(lzma_index_iter *iter)
 		iter->internal[ITER_GROUP].p = NULL;
 	}
 
+	// NOTE: lzma_index_iter.stream.number is lzma_vli but we use uint32_t
+	// internally.
 	iter->stream.number = stream->number;
 	iter->stream.block_count = stream->record_count;
 	iter->stream.compressed_offset = stream->node.compressed_base;

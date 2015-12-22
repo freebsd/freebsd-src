@@ -19,8 +19,8 @@ SRCS=	bsdtar.c	\
 SRCS+=	err.c		\
 	line_reader.c
 
-DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA} ${LIBBSDXML}
-LDADD=	-larchive -lbz2 -lz -llzma -lbsdxml
+DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA} ${LIBPTHREAD} ${LIBBSDXML}
+LDADD=	-larchive -lbz2 -lz -llzma -lpthread -lbsdxml
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto

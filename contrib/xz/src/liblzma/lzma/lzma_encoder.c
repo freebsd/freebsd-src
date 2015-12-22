@@ -148,28 +148,28 @@ match(lzma_coder *coder, const uint32_t pos_state,
 	length(&coder->rc, &coder->match_len_encoder, pos_state, len,
 			coder->fast_mode);
 
-	const uint32_t pos_slot = get_pos_slot(distance);
-	const uint32_t len_to_pos_state = get_len_to_pos_state(len);
-	rc_bittree(&coder->rc, coder->pos_slot[len_to_pos_state],
-			POS_SLOT_BITS, pos_slot);
+	const uint32_t dist_slot = get_dist_slot(distance);
+	const uint32_t dist_state = get_dist_state(len);
+	rc_bittree(&coder->rc, coder->dist_slot[dist_state],
+			DIST_SLOT_BITS, dist_slot);
 
-	if (pos_slot >= START_POS_MODEL_INDEX) {
-		const uint32_t footer_bits = (pos_slot >> 1) - 1;
-		const uint32_t base = (2 | (pos_slot & 1)) << footer_bits;
-		const uint32_t pos_reduced = distance - base;
+	if (dist_slot >= DIST_MODEL_START) {
+		const uint32_t footer_bits = (dist_slot >> 1) - 1;
+		const uint32_t base = (2 | (dist_slot & 1)) << footer_bits;
+		const uint32_t dist_reduced = distance - base;
 
-		if (pos_slot < END_POS_MODEL_INDEX) {
-			// Careful here: base - pos_slot - 1 can be -1, but
+		if (dist_slot < DIST_MODEL_END) {
+			// Careful here: base - dist_slot - 1 can be -1, but
 			// rc_bittree_reverse starts at probs[1], not probs[0].
 			rc_bittree_reverse(&coder->rc,
-				coder->pos_special + base - pos_slot - 1,
-				footer_bits, pos_reduced);
+				coder->dist_special + base - dist_slot - 1,
+				footer_bits, dist_reduced);
 		} else {
-			rc_direct(&coder->rc, pos_reduced >> ALIGN_BITS,
+			rc_direct(&coder->rc, dist_reduced >> ALIGN_BITS,
 					footer_bits - ALIGN_BITS);
 			rc_bittree_reverse(
-					&coder->rc, coder->pos_align,
-					ALIGN_BITS, pos_reduced & ALIGN_MASK);
+					&coder->rc, coder->dist_align,
+					ALIGN_BITS, dist_reduced & ALIGN_MASK);
 			++coder->align_price_count;
 		}
 	}
@@ -247,7 +247,7 @@ encode_symbol(lzma_coder *coder, lzma_mf *mf,
 		rc_bit(&coder->rc,
 			&coder->is_match[coder->state][pos_state], 1);
 
-		if (back < REP_DISTANCES) {
+		if (back < REPS) {
 			// It's a repeated match i.e. the same distance
 			// has been used earlier.
 			rc_bit(&coder->rc, &coder->is_rep[coder->state], 1);
@@ -255,7 +255,7 @@ encode_symbol(lzma_coder *coder, lzma_mf *mf,
 		} else {
 			// Normal match
 			rc_bit(&coder->rc, &coder->is_rep[coder->state], 0);
-			match(coder, pos_state, back - REP_DISTANCES, len);
+			match(coder, pos_state, back - REPS, len);
 		}
 	}
 
@@ -353,9 +353,9 @@ lzma_lzma_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
 
 		// Get optimal match (repeat position and length).
 		// Value ranges for pos:
-		//   - [0, REP_DISTANCES): repeated match
-		//   - [REP_DISTANCES, UINT32_MAX):
-		//     match at (pos - REP_DISTANCES)
+		//   - [0, REPS): repeated match
+		//   - [REPS, UINT32_MAX):
+		//     match at (pos - REPS)
 		//   - UINT32_MAX: not a match but a literal
 		// Value ranges for len:
 		//   - [MATCH_LEN_MIN, MATCH_LEN_MAX]
@@ -464,7 +464,7 @@ length_encoder_reset(lzma_length_encoder *lencoder,
 	bittree_reset(lencoder->high, LEN_HIGH_BITS);
 
 	if (!fast_mode)
-		for (size_t pos_state = 0; pos_state < num_pos_states;
+		for (uint32_t pos_state = 0; pos_state < num_pos_states;
 				++pos_state)
 			length_update_prices(lencoder, pos_state);
 
@@ -487,7 +487,7 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
 
 	// State
 	coder->state = STATE_LIT_LIT;
-	for (size_t i = 0; i < REP_DISTANCES; ++i)
+	for (size_t i = 0; i < REPS; ++i)
 		coder->reps[i] = 0;
 
 	literal_init(coder->literal, options->lc, options->lp);
@@ -505,14 +505,14 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
 		bit_reset(coder->is_rep2[i]);
 	}
 
-	for (size_t i = 0; i < FULL_DISTANCES - END_POS_MODEL_INDEX; ++i)
-		bit_reset(coder->pos_special[i]);
+	for (size_t i = 0; i < FULL_DISTANCES - DIST_MODEL_END; ++i)
+		bit_reset(coder->dist_special[i]);
 
 	// Bit tree encoders
-	for (size_t i = 0; i < LEN_TO_POS_STATES; ++i)
-		bittree_reset(coder->pos_slot[i], POS_SLOT_BITS);
+	for (size_t i = 0; i < DIST_STATES; ++i)
+		bittree_reset(coder->dist_slot[i], DIST_SLOT_BITS);
 
-	bittree_reset(coder->pos_align, ALIGN_BITS);
+	bittree_reset(coder->dist_align, ALIGN_BITS);
 
 	// Length encoders
 	length_encoder_reset(&coder->match_len_encoder,
@@ -545,7 +545,8 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
 
 
 extern lzma_ret
-lzma_lzma_encoder_create(lzma_coder **coder_ptr, lzma_allocator *allocator,
+lzma_lzma_encoder_create(lzma_coder **coder_ptr,
+		const lzma_allocator *allocator,
 		const lzma_options_lzma *options, lzma_lz_options *lz_options)
 {
 	// Allocate lzma_coder if it wasn't already allocated.
@@ -604,7 +605,7 @@ lzma_lzma_encoder_create(lzma_coder **coder_ptr, lzma_allocator *allocator,
 
 
 static lzma_ret
-lzma_encoder_init(lzma_lz_encoder *lz, lzma_allocator *allocator,
+lzma_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
 		const void *options, lzma_lz_options *lz_options)
 {
 	lz->code = &lzma_encode;
@@ -614,7 +615,7 @@ lzma_encoder_init(lzma_lz_encoder *lz, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_lzma_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_lzma_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters)
 {
 	return lzma_lz_encoder_init(

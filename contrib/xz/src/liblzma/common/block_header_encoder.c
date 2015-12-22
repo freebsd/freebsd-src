@@ -17,7 +17,7 @@
 extern LZMA_API(lzma_ret)
 lzma_block_header_size(lzma_block *block)
 {
-	if (block->version != 0)
+	if (block->version > 1)
 		return LZMA_OPTIONS_ERROR;
 
 	// Block Header Size + Block Flags + CRC32.
