@@ -43,6 +43,10 @@ case "$daily_scrub_zfs_enable" in
 			rc=3
 			echo "Skipping faulted pool: ${pool}"
 			continue ;;
+		*UNAVAIL*)
+			rc=4
+			echo "Skipping unavailable pool: ${pool}"
+			continue ;;
 		esac
 
 		# determine how many days shall be between scrubs

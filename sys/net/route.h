@@ -83,6 +83,9 @@ struct rt_metrics {
 #define	RTM_RTTUNIT	1000000	/* units for rtt, rttvar, as units per sec */
 #define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
 
+/* lle state is exported in rmx_state rt_metrics field */
+#define	rmx_state	rmx_weight
+
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
 #ifdef _KERNEL
@@ -169,6 +172,37 @@ struct rtentry {
 #define RTF_FMASK	\
 	(RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_BLACKHOLE | \
 	 RTF_REJECT | RTF_STATIC | RTF_STICKY)
+
+/*
+ * fib_ nexthop API flags.
+ */
+
+/* Consumer-visible nexthop info flags */
+#define	NHF_REJECT		0x0010	/* RTF_REJECT */
+#define	NHF_BLACKHOLE		0x0020	/* RTF_BLACKHOLE */
+#define	NHF_REDIRECT		0x0040	/* RTF_DYNAMIC|RTF_MODIFIED */
+#define	NHF_DEFAULT		0x0080	/* Default route */
+#define	NHF_BROADCAST		0x0100	/* RTF_BROADCAST */
+#define	NHF_GATEWAY		0x0200	/* RTF_GATEWAY */
+
+/* Nexthop request flags */
+#define	NHR_IFAIF		0x01	/* Return ifa_ifp interface */
+#define	NHR_REF			0x02	/* For future use */
+
+/* rte<>nhop translation */
+static inline uint16_t
+fib_rte_to_nh_flags(int rt_flags)
+{
+	uint16_t res;
+
+	res = (rt_flags & RTF_REJECT) ? NHF_REJECT : 0;
+	res |= (rt_flags & RTF_BLACKHOLE) ? NHF_BLACKHOLE : 0;
+	res |= (rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) ? NHF_REDIRECT : 0;
+	res |= (rt_flags & RTF_BROADCAST) ? NHF_BROADCAST : 0;
+	res |= (rt_flags & RTF_GATEWAY) ? NHF_GATEWAY : 0;
+
+	return (res);
+}
 
 /*
  * Routing statistics.

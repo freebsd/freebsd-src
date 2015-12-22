@@ -40,8 +40,8 @@
 struct cuse_dev;
 
 struct cuse_data_chunk {
-	unsigned long local_ptr;
-	unsigned long peer_ptr;
+	uintptr_t local_ptr;
+	uintptr_t peer_ptr;
 	unsigned long length;
 };
 
@@ -53,8 +53,8 @@ struct cuse_alloc_info {
 struct cuse_command {
 	struct cuse_dev *dev;
 	unsigned long fflags;
-	unsigned long per_file_handle;
-	unsigned long data_pointer;
+	uintptr_t per_file_handle;
+	uintptr_t data_pointer;
 	unsigned long argument;
 	unsigned long command;		/* see CUSE_CMD_XXX */
 };
@@ -76,7 +76,7 @@ struct cuse_create_dev {
 #define	CUSE_IOCTL_GET_SIG		_IOR('C', 4, int)
 #define	CUSE_IOCTL_ALLOC_MEMORY		_IOW('C', 5, struct cuse_alloc_info)
 #define	CUSE_IOCTL_FREE_MEMORY		_IOW('C', 6, struct cuse_alloc_info)
-#define	CUSE_IOCTL_SET_PFH		_IOW('C', 7, unsigned long)
+#define	CUSE_IOCTL_SET_PFH		_IOW('C', 7, uintptr_t)
 #define	CUSE_IOCTL_CREATE_DEV		_IOW('C', 8, struct cuse_create_dev)
 #define	CUSE_IOCTL_DESTROY_DEV		_IOW('C', 9, struct cuse_dev *)
 #define	CUSE_IOCTL_ALLOC_UNIT		_IOR('C',10, int)

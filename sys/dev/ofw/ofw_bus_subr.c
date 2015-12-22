@@ -341,6 +341,7 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	uint8_t *uiregs = regs;
 	uint8_t *uiimapmsk = imapmsk;
 	uint8_t *mptr;
+	pcell_t paddrsz;
 	pcell_t pintrsz;
 	int i, rsz, tsz;
 
@@ -357,19 +358,31 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 
 	mptr = imap;
 	i = imapsz;
+	paddrsz = 0;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
+#ifdef OFW_EPAPR
+		/*
+		 * Find if we need to read the parent address data. Sparc64
+		 * uses a different encoding that doesn't include this data.
+		 */
+		if (OF_getencprop(OF_node_from_xref(parent),
+		    "#address-cells", &paddrsz, sizeof(paddrsz)) == -1)
+			paddrsz = 0;	/* default */
+		paddrsz *= sizeof(pcell_t);
+#endif
+
 		if (OF_searchencprop(OF_node_from_xref(parent),
 		    "#interrupt-cells", &pintrsz, sizeof(pintrsz)) == -1)
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);
 
 		/* Compute the map stride size. */
-		tsz = physsz + intrsz + sizeof(phandle_t) + pintrsz;
+		tsz = physsz + intrsz + sizeof(phandle_t) + paddrsz + pintrsz;
 		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
 
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
-			bcopy(mptr + physsz + intrsz + sizeof(parent),
+			bcopy(mptr + physsz + intrsz + sizeof(parent) + paddrsz,
 			    result, MIN(rintrsz, pintrsz));
 
 			if (iparent != NULL)
@@ -606,4 +619,135 @@ ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node)
 	free(children, M_TEMP);
 
 	return (retval);
+}
+
+/*
+ * Parse property that contain list of xrefs and values
+ * (like standard "clocks" and "resets" properties)
+ * Input arguments:
+ *  node - consumers device node
+ *  list_name  - name of parsed list - "clocks"
+ *  cells_name - name of size property - "#clock-cells"
+ * Output arguments:
+ *  producer - handle of producer
+ *  ncells   - number of cells in result
+ *  cells    - array of decoded cells
+ */
+int
+ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
+    const char *cells_name, int idx, phandle_t *producer, int *ncells,
+    pcell_t **cells)
+{
+	phandle_t pnode;
+	phandle_t *elems;
+	uint32_t  pcells;
+	int rv, i, j, nelems, cnt;
+
+	elems = NULL;
+	nelems = OF_getencprop_alloc(node, list_name,  sizeof(*elems),
+	    (void **)&elems);
+	if (nelems <= 0)
+		return (ENOENT);
+	rv = ENOENT;
+	for (i = 0, cnt = 0; i < nelems; i += pcells, cnt++) {
+		pnode = elems[i++];
+		if (OF_getencprop(OF_node_from_xref(pnode),
+		    cells_name, &pcells, sizeof(pcells)) == -1) {
+			printf("Missing %s property\n", cells_name);
+			rv = ENOENT;
+			break;
+		}
+
+		if ((i + pcells) > nelems) {
+			printf("Invalid %s property value <%d>\n", cells_name,
+			    pcells);
+			rv = ERANGE;
+			break;
+		}
+		if (cnt == idx) {
+			*cells= malloc(pcells * sizeof(**cells), M_OFWPROP,
+			    M_WAITOK);
+			*producer = pnode;
+			*ncells = pcells;
+			for (j = 0; j < pcells; j++)
+				(*cells)[j] = elems[i + j];
+			rv = 0;
+			break;
+		}
+	}
+	if (elems != NULL)
+		free(elems, M_OFWPROP);
+	return (rv);
+}
+
+/*
+ * Find index of string in string list property (case sensitive).
+ */
+int
+ofw_bus_find_string_index(phandle_t node, const char *list_name,
+    const char *name, int *idx)
+{
+	char *elems;
+	int rv, i, cnt, nelems;
+
+	elems = NULL;
+	nelems = OF_getprop_alloc(node, list_name, 1, (void **)&elems);
+	if (nelems <= 0)
+		return (ENOENT);
+
+	rv = ENOENT;
+	for (i = 0, cnt = 0; i < nelems; cnt++) {
+		if (strcmp(elems + i, name) == 0) {
+			*idx = cnt;
+			rv = 0;
+			break;
+		}
+		i += strlen(elems + i) + 1;
+	}
+
+	if (elems != NULL)
+		free(elems, M_OFWPROP);
+	return (rv);
+}
+
+/*
+ * Create zero terminated array of strings from string list property.
+ */
+int
+ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
+   const char ***array)
+{
+	char *elems, *tptr;
+	int i, cnt, nelems, len;
+
+	elems = NULL;
+	nelems = OF_getprop_alloc(node, list_name, 1, (void **)&elems);
+	if (nelems <= 0)
+		return (nelems);
+
+	/* Count number of strings. */
+	for (i = 0, cnt = 0; i < nelems; cnt++)
+		i += strlen(elems + i) + 1;
+
+	/* Allocate space for arrays and all strings. */
+	*array = malloc((cnt + 1) * sizeof(char *) + nelems, M_OFWPROP,
+	    M_WAITOK);
+
+	/* Get address of first string. */
+	tptr = (char *)(*array + cnt);
+
+	/* Copy strings. */
+	memcpy(tptr, elems, nelems);
+	free(elems, M_OFWPROP);
+
+	/* Fill string pointers. */
+	for (i = 0, cnt = 0; i < nelems; cnt++) {
+		len = strlen(tptr + i) + 1;
+		*array[cnt] = tptr;
+		i += len;
+		tptr += len;
+	}
+	*array[cnt] = 0;
+
+	return (cnt);
 }

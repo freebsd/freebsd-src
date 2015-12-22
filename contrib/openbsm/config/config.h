@@ -229,13 +229,13 @@
 #define PACKAGE "OpenBSM"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "trustedbsd-audit@TrustesdBSD.org"
+#define PACKAGE_BUGREPORT "trustedbsd-audit@TrustedBSD.org"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "OpenBSM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "OpenBSM 1.2-alpha3"
+#define PACKAGE_STRING "OpenBSM 1.2-alpha4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "openbsm"
@@ -244,7 +244,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.2-alpha3"
+#define PACKAGE_VERSION "1.2-alpha4"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -280,7 +280,7 @@
 #define USE_SYS_ENDIAN_H /**/
 
 /* Version number of package */
-#define VERSION "1.2-alpha3"
+#define VERSION "1.2-alpha4"
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */

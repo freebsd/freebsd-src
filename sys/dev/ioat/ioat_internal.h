@@ -175,8 +175,8 @@ struct ioat_dma_hw_descriptor {
 	uint64_t src_addr;
 	uint64_t dest_addr;
 	uint64_t next;
-	uint64_t reserved;
-	uint64_t reserved2;
+	uint64_t next_src_addr;
+	uint64_t next_dest_addr;
 	uint64_t user1;
 	uint64_t user2;
 };
@@ -373,6 +373,8 @@ struct ioat_softc {
 	struct resource		*pci_resource;
 	uint32_t		max_xfer_size;
 	uint32_t		capabilities;
+	uint16_t		intrdelay_max;
+	uint16_t		cached_intrdelay;
 
 	struct resource		*res;
 	int			rid;
@@ -393,6 +395,7 @@ struct ioat_softc {
 	boolean_t		is_completion_pending;
 	boolean_t		is_reset_pending;
 	boolean_t		is_channel_running;
+	boolean_t		intrdelay_supported;
 
 	uint32_t		head;
 	uint32_t		tail;
@@ -407,6 +410,16 @@ struct ioat_softc {
 #ifdef INVARIANTS
 	volatile uint32_t	refkinds[IOAT_NUM_REF_KINDS];
 #endif
+
+	struct {
+		uint64_t	interrupts;
+		uint64_t	descriptors_processed;
+		uint64_t	descriptors_error;
+		uint64_t	descriptors_submitted;
+
+		uint32_t	channel_halts;
+		uint32_t	last_halt_chanerr;
+	} stats;
 };
 
 void ioat_test_attach(void);

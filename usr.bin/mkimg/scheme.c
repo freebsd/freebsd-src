@@ -61,6 +61,7 @@ static struct {
 	{ "freebsd-zfs", ALIAS_FREEBSD_ZFS },
 	{ "mbr", ALIAS_MBR },
 	{ "ntfs", ALIAS_NTFS },
+	{ "prepboot", ALIAS_PPCBOOT },
 	{ NULL, ALIAS_NONE }		/* Keep last! */
 };
 

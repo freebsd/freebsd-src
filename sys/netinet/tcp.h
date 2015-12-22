@@ -167,7 +167,7 @@ struct tcphdr {
 #define	TCP_KEEPCNT	1024	/* L,N number of keepalives before close */
 #define	TCP_PCAP_OUT	2048	/* number of output packets to keep */
 #define	TCP_PCAP_IN	4096	/* number of input packets to keep */
-
+#define TCP_FUNCTION_BLK 8192	/* Set the tcp function pointers to the specified stack */
 /* Start of reserved space for third-party user-settable options. */
 #define	TCP_VENDOR	SO_VENDOR
 
@@ -245,5 +245,11 @@ struct tcp_info {
 	u_int32_t	__tcpi_pad[26];		/* Padding. */
 };
 #endif
+#define TCP_FUNCTION_NAME_LEN_MAX 32
+
+struct tcp_function_set {
+	char function_set_name[TCP_FUNCTION_NAME_LEN_MAX];
+	uint32_t pcbcnt;
+};
 
 #endif /* !_NETINET_TCP_H_ */

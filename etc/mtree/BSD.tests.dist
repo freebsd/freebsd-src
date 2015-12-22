@@ -271,9 +271,13 @@
                     ..
                 ..
             ..
+            nss
+            ..
             regex
                 data
                 ..
+            ..
+            resolv
             ..
             rpc
             ..
@@ -381,6 +385,12 @@
             ..
         ..
         kqueue
+        ..
+        mac
+            bsdextended
+            ..
+            portacl
+            ..
         ..
         mqueue
         ..
