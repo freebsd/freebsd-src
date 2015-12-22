@@ -1315,7 +1315,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		unsigned long cmd;
 
 		cmd = args[sc->offset];
-		temp = ioctlname(cmd);
+		temp = sysdecode_ioctlname(cmd);
 		if (temp)
 			fputs(temp, fp);
 		else {
