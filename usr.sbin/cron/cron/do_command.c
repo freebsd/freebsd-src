@@ -114,7 +114,7 @@ child_process(e, u)
 		struct pam_conv pamc = {
 			.conv = openpam_nullconv,
 			.appdata_ptr = NULL
-		}
+		};
 
 		Debug(DPROC, ("[%d] checking account with PAM\n", getpid()))
 
