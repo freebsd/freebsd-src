@@ -557,7 +557,9 @@ devfs_access(struct vop_access_args *ap)
 	return (error);
 }
 
-/* ARGSUSED */
+_Static_assert(((FMASK | FCNTLFLAGS) & (FLASTCLOSE | FREVOKE)) == 0,
+    "devfs-only flag reuse failed");
+
 static int
 devfs_close(struct vop_close_args *ap)
 {
@@ -566,7 +568,7 @@ devfs_close(struct vop_close_args *ap)
 	struct proc *p;
 	struct cdev *dev = vp->v_rdev;
 	struct cdevsw *dsw;
-	int vp_locked, error, ref;
+	int dflags, error, ref, vp_locked;
 
 	/*
 	 * XXX: Don't call d_close() if we were called because of
@@ -621,9 +623,11 @@ devfs_close(struct vop_close_args *ap)
 	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
+	dflags = 0;
 	VI_LOCK(vp);
 	if (vp->v_iflag & VI_DOOMED) {
 		/* Forced close. */
+		dflags |= FREVOKE | FNONBLOCK;
 	} else if (dsw->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */
 	} else if (count_dev(dev) > 1) {
@@ -631,13 +635,15 @@ devfs_close(struct vop_close_args *ap)
 		dev_relthread(dev, ref);
 		return (0);
 	}
+	if (count_dev(dev) == 1)
+		dflags |= FLASTCLOSE;
 	vholdl(vp);
 	VI_UNLOCK(vp);
 	vp_locked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
+	error = dsw->d_close(dev, ap->a_fflag | dflags, S_IFCHR, td);
 	dev_relthread(dev, ref);
 	vn_lock(vp, vp_locked | LK_RETRY);
 	vdrop(vp);

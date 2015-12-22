@@ -138,6 +138,11 @@ typedef	__pid_t		pid_t;
  */
 
 #ifdef _KERNEL
+
+/* Only for devfs d_close() flags. */
+#define	FLASTCLOSE	O_DIRECTORY
+#define	FREVOKE		O_VERIFY
+
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)
 #define	OFLAGS(fflags)	((fflags) & O_EXEC ? (fflags) : (fflags) - 1)
