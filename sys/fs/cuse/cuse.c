@@ -1137,7 +1137,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		if (pccmd != NULL) {
 			pcc = pccmd->client;
 			for (n = 0; n != CUSE_CMD_MAX; n++) {
-				pcc->cmds[n].sub.per_file_handle = *(unsigned long *)data;
+				pcc->cmds[n].sub.per_file_handle = *(uintptr_t *)data;
 			}
 		} else {
 			error = ENXIO;
