@@ -438,7 +438,7 @@ link_elf_init(void* arg)
 		ctors_sizep = (Elf_Size *)preload_search_info(modptr,
 			MODINFO_METADATA | MODINFOMD_CTORS_SIZE);
 		if (ctors_addrp != NULL && ctors_sizep != NULL) {
-			linker_kernel_file->ctors_addr = ef->address
+			linker_kernel_file->ctors_addr = ef->address +
 			    *ctors_addrp;
 			linker_kernel_file->ctors_size = *ctors_sizep;
 		}
@@ -979,7 +979,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 #ifdef GPROF
 	/* Update profiling information with the new text segment. */
 	mtx_lock(&Giant);
-	kmupetext((uintfptr_t)(mapbase + segs[0]->p_vaddr - base_vaddr
+	kmupetext((uintfptr_t)(mapbase + segs[0]->p_vaddr - base_vaddr +
 	    segs[0]->p_memsz));
 	mtx_unlock(&Giant);
 #endif
