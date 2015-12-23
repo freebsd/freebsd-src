@@ -46,7 +46,6 @@ static char *rcsid = "$FreeBSD$";
 
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
@@ -56,18 +55,11 @@ static char *rcsid = "$FreeBSD$";
 #include <stdlib.h>
 #include <string.h>
 
+#include "malloc_heap.h"
+
 union overhead;
 static void morecore(int);
-
-/*
- * Pre-allocate mmap'ed pages
- */
-#define	NPOOLPAGES	(32*1024/pagesz)
-static caddr_t		pagepool_start, pagepool_end;
-static int		morepages(int n);
-
-static size_t n_pagepools, max_pagepools;
-static char **pagepool_list;
+static void init_pagebucket(void);
 
 /*
  * The overhead on a block is at least 4 bytes.  When free, this space
@@ -84,10 +76,6 @@ union	overhead {
 	struct {
 		u_char	ovu_magic;	/* magic number */
 		u_char	ovu_index;	/* bucket # */
-#ifdef RCHECK
-		u_short	ovu_rmagic;	/* range magic number */
-		u_int	ovu_size;	/* actual block size */
-#endif
 	} ovu;
 #define	ov_magic	ovu.ovu_magic
 #define	ov_index	ovu.ovu_index
@@ -98,12 +86,6 @@ union	overhead {
 #define	MAGIC		0xef		/* magic # on accounting info */
 #define RMAGIC		0x5555		/* magic # on range info */
 
-#ifdef RCHECK
-#define	RSLOP		sizeof (u_short)
-#else
-#define	RSLOP		0
-#endif
-
 /*
  * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
  * smallest allocatable block is 8 bytes.  The overhead information
@@ -112,17 +94,9 @@ union	overhead {
 #define	NBUCKETS 30
 static	union overhead *nextf[NBUCKETS];
 
-static	int pagesz;			/* page size */
+static	size_t pagesz;			/* page size */
 static	int pagebucket;			/* page size bucket */
 
-#ifdef MSTATS
-/*
- * nmalloc[i] is the difference between the number of mallocs and frees
- * for a given block size.
- */
-static	u_int nmalloc[NBUCKETS];
-#include <stdio.h>
-#endif
 
 #if defined(MALLOC_DEBUG) || defined(RCHECK)
 #define	ASSERT(p)   if (!(p)) botch("p")
@@ -143,7 +117,6 @@ malloc(size_t nbytes)
 {
 	union overhead *op;
 	int bucket;
-	long n;
 	size_t amt;
 
 	/*
@@ -152,36 +125,23 @@ malloc(size_t nbytes)
 	 */
 	if (pagesz == 0) {
 		pagesz = PAGE_SIZE;
-		if (morepages(NPOOLPAGES) == 0)
-			return NULL;
-		bucket = 0;
-		amt = 8;
-		while ((unsigned)pagesz > amt) {
-			amt <<= 1;
-			bucket++;
-		}
-		pagebucket = bucket;
+		init_pagebucket();
+		__init_heap(pagesz);
 	}
+	assert(pagesz != 0);
 	/*
 	 * Convert amount of memory requested into closest block size
 	 * stored in hash buckets which satisfies request.
 	 * Account for space used per block for accounting.
 	 */
-	n = pagesz - sizeof (*op) - RSLOP;
-	if (nbytes <= (unsigned long)n) {
-#ifndef RCHECK
+	if (nbytes <= pagesz - sizeof (*op)) {
 		amt = 32;	/* size of first bucket */
 		bucket = 2;
-#else
-		amt = 16;	/* size of first bucket */
-		bucket = 1;
-#endif
 	} else {
 		amt = pagesz;
 		bucket = pagebucket;
 	}
-	n = -(sizeof (*op) + RSLOP);
-	while (nbytes > (size_t)amt + n) {
+	while (nbytes > (size_t)amt - sizeof(*op)) {
 		amt <<= 1;
 		if (amt == 0)
 			return (NULL);
@@ -200,18 +160,6 @@ malloc(size_t nbytes)
 	nextf[bucket] = op->ov_next;
 	op->ov_magic = MAGIC;
 	op->ov_index = bucket;
-#ifdef MSTATS
-	nmalloc[bucket]++;
-#endif
-#ifdef RCHECK
-	/*
-	 * Record allocated size of block and
-	 * bound space with magic numbers.
-	 */
-	op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
-	op->ov_rmagic = RMAGIC;
-	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
-#endif
 	return (cheri_csetbounds(op + 1, nbytes));
 }
 
@@ -239,7 +187,7 @@ morecore(int bucket)
 {
 	char *buf;
 	union overhead *op;
-	int sz;				/* size of desired block */
+	size_t sz;			/* size of desired block */
 	int amt;			/* amount to allocate */
 	int nblks;			/* how many blocks we get */
 
@@ -262,7 +210,7 @@ morecore(int bucket)
 		nblks = 1;
 	}
 	if (amt > pagepool_end - pagepool_start)
-		if (morepages(amt/pagesz + NPOOLPAGES) == 0)
+		if (__morepages(amt/pagesz) == 0)
 			return;
 
 	buf = cheri_csetbounds(pagepool_start, amt);
@@ -272,7 +220,7 @@ morecore(int bucket)
 	 * Add new memory allocated to that on
 	 * free list for this hash bucket.
 	 */
-	nextf[bucket] = op = cheri_csetbounds(buf, sz);;
+	nextf[bucket] = op = cheri_csetbounds(buf, sz);
 	while (--nblks > 0) {
 		op->ov_next = (union overhead *)cheri_csetbounds(buf + sz, sz);
 		buf += sz;
@@ -283,36 +231,16 @@ morecore(int bucket)
 static union overhead *
 find_overhead(void * cp)
 {
-	size_t i;
-	vm_offset_t addr;
 	union overhead *op;
 
 	if (!cheri_gettag(cp))
 		return (NULL);
-	op = NULL;
-	addr = cheri_getbase(cp) + cheri_getoffset(cp);
-	for (i = 0; i < n_pagepools; i++) {
-		/*
-		 * XXX-BD: a NULL check against CFromPtr would be faster than
-		 * this range check.
-		 */
-		char *pool = pagepool_list[i];
-		vm_offset_t base = cheri_getbase(pool);
-
-		if (addr >= base + sizeof(union overhead) &&
-		    addr < base + cheri_getlen(pool)) {
-			op = cheri_setoffset(pool, addr - base);
-			op--;
-			break;
-		}
-	}
+	op = __rederive_pointer(cp);
 	if (op == NULL) {
 		printf("%s: no region found for %#p\n", __func__, cp);
-		for (i = 0; i < n_pagepools; i++)
-			printf("%s: pagepool_list[%zu]  %#p\n", __func__, i,
-			    pagepool_list[i]);
 		return (NULL);
 	}
+	op--;
 
 	if (op->ov_magic == MAGIC)
 		return (op);
@@ -340,24 +268,17 @@ free(void *cp)
 	op = find_overhead(cp);
 	if (op == NULL)
 		return;
-#ifdef RCHECK
-	ASSERT(op->ov_rmagic == RMAGIC);
-	ASSERT(*(u_short *)((caddr_t)(op + 1) + op->ov_size) == RMAGIC);
-#endif
 	bucket = op->ov_index;
 	ASSERT(bucket < NBUCKETS);
 	op->ov_next = nextf[bucket];	/* also clobbers ov_magic */
 	nextf[bucket] = op;
-#ifdef MSTATS
-	nmalloc[bucket]--;
-#endif
 }
 
 void *
 realloc(void *cp, size_t nbytes)
 {
 	u_int onb;
-	int i;
+	size_t i;
 	union overhead *op;
 	char *res;
 
@@ -368,21 +289,17 @@ realloc(void *cp, size_t nbytes)
 		return (NULL);
 	i = op->ov_index;
 	onb = 1 << (i + 3);
-	onb -= sizeof (*op) + RSLOP;
+	onb -= sizeof (*op);
 
 	/* avoid the copy if same size block */
 	if (i > 0) {
 		i = 1 << (i + 2);
 		if (i < pagesz)
-			i -= sizeof (*op) + RSLOP;
+			i -= sizeof (*op);
 		else
-			i += pagesz - sizeof (*op) - RSLOP;
+			i += pagesz - sizeof (*op);
 	}
 	if (nbytes <= onb && nbytes > (size_t)i) {
-#ifdef RCHECK
-		op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
-		*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
-#endif
 		return(cheri_csetbounds(cp, nbytes));
 	}
 
@@ -398,95 +315,18 @@ realloc(void *cp, size_t nbytes)
 	return (res);
 }
 
-#ifdef MSTATS
-/*
- * mstats - print out statistics about malloc
- *
- * Prints two lines of numbers, one showing the length of the free list
- * for each size category, the second showing the number of mallocs -
- * frees for each size category.
- */
-mstats(char *s)
+
+static void
+init_pagebucket(void)
 {
-	int i, j;
-	union overhead *p;
-	int totfree = 0,
-	totused = 0;
+	int bucket;
+	size_t amt;
 
-	fprintf(stderr, "Memory allocation statistics %s\nfree:\t", s);
-	for (i = 0; i < NBUCKETS; i++) {
-		for (j = 0, p = nextf[i]; p; p = p->ov_next, j++)
-			;
-		fprintf(stderr, " %d", j);
-		totfree += j * (1 << (i + 3));
+	bucket = 0;
+	amt = 8;
+	while ((unsigned)pagesz > amt) {
+		amt <<= 1;
+		bucket++;
 	}
-	fprintf(stderr, "\nused:\t");
-	for (i = 0; i < NBUCKETS; i++) {
-		fprintf(stderr, " %d", nmalloc[i]);
-		totused += nmalloc[i] * (1 << (i + 3));
-	}
-	fprintf(stderr, "\n\tTotal in use: %d, total free: %d\n",
-	    totused, totfree);
-}
-#endif
-
-
-static int
-morepages(int n)
-{
-	int	fd = -1;
-	char **new_pagepool_list;
-
-	if (n_pagepools >= max_pagepools) {
-		if (max_pagepools == 0)
-			max_pagepools = pagesz / (sizeof(char *) * 2);
-
-		max_pagepools *= 2;
-		if ((new_pagepool_list = mmap(0,
-		    max_pagepools * sizeof(char *), PROT_READ|PROT_WRITE,
-		    MAP_ANON, fd, 0)) == MAP_FAILED) {
-			printf("%s: Can not map pagepool_list\n", __func__);
-			return (0);
-		}
-		memcpy(new_pagepool_list, pagepool_list,
-		    sizeof(char *) * n_pagepools);
-		if (pagepool_list != NULL) {
-			if (munmap(pagepool_list,
-			    max_pagepools * sizeof(char *) / 2) != 0) {
-				printf("%s: failed to unmap pagepool_list\n",
-				    __func__);
-				/* XXX: leak the region */
-			}
-		}
-		pagepool_list = new_pagepool_list;
-	}
-
-	if (pagepool_end - pagepool_start > pagesz) {
-		/*
-		 * XXX: CHERI128: Need to avoid rounding down to an imprecise
-		 * capability.
-		 */
-		caddr_t	addr = cheri_setoffset(pagepool_start,
-		    roundup2(cheri_getoffset(pagepool_start), pagesz));
-		if (munmap(addr, pagepool_end - addr) != 0) {
-			fprintf(stderr, "%s: munmap %p", __func__, addr);
-		} else {
-			/* Shrink the pool */
-			pagepool_list[n_pagepools - 1] =
-			    cheri_csetbounds(pagepool_list[n_pagepools - 1],
-			    cheri_getlen(pagepool_list[n_pagepools - 1]) -
-			    (pagepool_end - addr));
-		}
-	}
-
-	if ((pagepool_start = mmap(0, n * pagesz,
-			PROT_READ|PROT_WRITE,
-			MAP_ANON, fd, 0)) == (caddr_t)-1) {
-		printf("Cannot map anonymous memory\n");
-		return 0;
-	}
-	pagepool_end = pagepool_start + n * pagesz;
-	pagepool_list[n_pagepools++] = pagepool_start;
-
-	return n;
+	pagebucket = bucket;
 }
