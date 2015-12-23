@@ -15,7 +15,7 @@ FILES+=	cleanup.ksh
 FILES+=	txg_integrity.cfg
 PROGS+=	txg_integrity
 PROGS+=	fsync_integrity
-LDADD+=	-lpthread
+LIBADD+=	pthread
 
 SRCS.fsync_integrity=	fsync_integrity.c
 SRCS.txg_integrity=	txg_integrity.c

@@ -54,7 +54,7 @@ PROGS+=		rm_lnkcnt_zero_file
 SRCS.$p=	$p.c
 .endfor
 
-LDADD.mmapwrite+=	-lpthread
-LDADD.rm_lnkcnt_zero_file+=	-lpthread
+LIBADD.mmapwrite+=	pthread
+LIBADD.rm_lnkcnt_zero_file+=	pthread
 
 .include <bsd.progs.mk>

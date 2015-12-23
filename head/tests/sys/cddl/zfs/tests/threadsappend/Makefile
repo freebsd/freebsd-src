@@ -13,7 +13,7 @@ FILES+=	threadsappend_001_pos.ksh
 FILES+=	threadsappend.cfg
 FILES+=	setup.ksh
 PROG+=	threadsappend
-LDADD+=	-lpthread
+LIBADD+=	pthread
 MAN=
 
 .include <bsd.test.mk>
