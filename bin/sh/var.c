@@ -328,7 +328,7 @@ setvareq(char *s, int flags)
 		if (vp->flags & VREADONLY) {
 			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
 				ckfree(s);
-			error("%.*s: is read only", vp->name_len, s);
+			error("%.*s: is read only", vp->name_len, vp->text);
 		}
 		if (flags & VNOSET) {
 			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
