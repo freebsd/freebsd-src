@@ -96,13 +96,8 @@ static int xen_pv_start_all_aps(void);
 /*---------------------------- Extern Declarations ---------------------------*/
 #ifdef SMP
 /* Variables used by amd64 mp_machdep to start APs */
-extern struct mtx ap_boot_mtx;
-extern void *bootstacks[];
 extern char *doublefault_stack;
 extern char *nmi_stack;
-extern void *dpcpu;
-extern int bootAP;
-extern char *bootSTK;
 #endif
 
 /*
