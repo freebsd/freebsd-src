@@ -456,18 +456,26 @@ customize_cmd cust_comconsole
 
 dos_boot_part ( ) (
 	local d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
+	local f=${NANO_FAT_DIR}
 
 	# For now, just copy all the files. However, for iMX6 and Allwinner,
 	# we'll need to put a special boot block at a fixed location
 	# on the disk as well.
-	rm -rf ${NANO_FAT_DIR}
-	mkdir ${NANO_FAT_DIR}
-	cp ${d}/* ${NANO_FAT_DIR}
+	rm -rf $f
+	mkdir $f
+	chdir $f
+	cp ${d}/* .
 
 	# Also copy ubldr. u-boot will load it and it will load the kernel
 	# from the ufs partition
-	cp ${NANO_WORLDDIR}/boot/ubldr ${NANO_FAT_DIR}
-	cp ${NANO_WORLDDIR}/boot/ubldr.bin ${NANO_FAT_DIR}
+	cp ${NANO_WORLDDIR}/boot/ubldr .
+	cp ${NANO_WORLDDIR}/boot/ubldr.bin .
+
+	# We have to touch the saveenv file
+	touch uEnv.txt
+
+	# Now we need to copy over dtb files from the build.
+	cp ${NANO_WORLDDIR}/boot/dtb/*.dtb .
 )
 
 if [ -n "$NANO_BOOT_PKG" ]; then
