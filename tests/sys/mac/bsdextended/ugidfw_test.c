@@ -224,11 +224,6 @@ main(void)
 	printf("1..%lu\n", nitems(test_users) + nitems(test_groups) +
 	    3 * nitems(test_strings) + 2);
 
-	/*
-	 * We can test some parts of the library without the MAC Framework
-	 * and policy loaded, so run those tests before calling
-	 * mac_is_present().
-	 */
 	test_libugidfw_strings();
 
 	/*
