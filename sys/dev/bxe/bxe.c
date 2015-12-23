@@ -472,6 +472,10 @@ static const struct {
                 4, STATS_FLAGS_FUNC, "rx_pkts"},
     { STATS_OFFSET32(rx_tpa_pkts),
                 4, STATS_FLAGS_FUNC, "rx_tpa_pkts"},
+    { STATS_OFFSET32(rx_erroneous_jumbo_sge_pkts),
+                4, STATS_FLAGS_FUNC, "rx_erroneous_jumbo_sge_pkts"},
+    { STATS_OFFSET32(rx_bxe_service_rxsgl),
+                4, STATS_FLAGS_FUNC, "rx_bxe_service_rxsgl"},
     { STATS_OFFSET32(rx_jumbo_sge_pkts),
                 4, STATS_FLAGS_FUNC, "rx_jumbo_sge_pkts"},
     { STATS_OFFSET32(rx_soft_errors),
@@ -585,6 +589,10 @@ static const struct {
                 4, "rx_pkts"},
     { Q_STATS_OFFSET32(rx_tpa_pkts),
                 4, "rx_tpa_pkts"},
+    { Q_STATS_OFFSET32(rx_erroneous_jumbo_sge_pkts),
+                4, "rx_erroneous_jumbo_sge_pkts"},
+    { Q_STATS_OFFSET32(rx_bxe_service_rxsgl),
+                4, "rx_bxe_service_rxsgl"},
     { Q_STATS_OFFSET32(rx_jumbo_sge_pkts),
                 4, "rx_jumbo_sge_pkts"},
     { Q_STATS_OFFSET32(rx_soft_errors),
@@ -3475,11 +3483,14 @@ bxe_rxeof(struct bxe_softc    *sc,
         m_adj(m, pad);
         m->m_pkthdr.len = m->m_len = len;
 
-        if (len != lenonbd){
+        if ((len > 60) && (len > lenonbd)) {
+            fp->eth_q_stats.rx_bxe_service_rxsgl++;
             rc = bxe_service_rxsgl(fp, len, lenonbd, m, cqe_fp);
             if (rc)
                 break;
             fp->eth_q_stats.rx_jumbo_sge_pkts++;
+        } else if (lenonbd < len) {
+            fp->eth_q_stats.rx_erroneous_jumbo_sge_pkts++;
         }
 
         /* assign packet to this interface interface */
@@ -16122,12 +16133,12 @@ bxe_sysctl_state(SYSCTL_HANDLER_ARGS)
     }
 
     if (result == 1) {
-	uint32_t  temp;
+        uint32_t  temp;
         sc = (struct bxe_softc *)arg1;
 
         BLOGI(sc, "... dumping driver state ...\n");
-	temp = SHMEM2_RD(sc, temperature_in_half_celsius);
-	BLOGI(sc, "\t Device Temperature = %d Celsius\n", (temp/2));
+        temp = SHMEM2_RD(sc, temperature_in_half_celsius);
+        BLOGI(sc, "\t Device Temperature = %d Celsius\n", (temp/2));
     }
 
     return (error);
