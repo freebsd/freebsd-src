@@ -19,6 +19,7 @@ SRCS=		cheri_clock_gettime.c	\
 		cheri_raise.c		\
 		cheri_stdio.c		\
 		cheri_stub.c		\
+		heap.c			\
 		malloc.c
 
 CFLAGS.malloc.c=	-Wno-cast-align
@@ -27,6 +28,7 @@ CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale \
 		-I${.CURDIR}/../libc/mips \
 		-I${.CURDIR}/../libcheri \
+		-I${.CURDIR}/../libmalloc_simple \
 		-I${.CURDIR}/../../contrib/gdtoa \
 		-I${.CURDIR}/../../contrib/tzcode/stdtime \
 		-mxgot
@@ -281,6 +283,8 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 .PATH: ${LIBCHERI_DIR}
 .PATH: ${LIBCHERI_DIR}/${MACHINE_ARCH}
+
+.PATH: ${.CURDIR}/../libmalloc_simple
 
 .PATH: ${LIBC_DIR}/gen
 .PATH: ${LIBC_DIR}/${MACHINE}/string

@@ -3,6 +3,6 @@
 LIB=	malloc_simple
 SHLIB_MAJOR=	1
 
-SRCS=	malloc.c
+SRCS=	heap.c malloc.c
 
 .include <bsd.lib.mk>

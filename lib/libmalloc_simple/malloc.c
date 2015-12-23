@@ -46,7 +46,6 @@ static char *rcsid = "$FreeBSD$";
 
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
@@ -56,19 +55,11 @@ static char *rcsid = "$FreeBSD$";
 #include <stdlib.h>
 #include <string.h>
 
+#include "malloc_heap.h"
+
 union overhead;
 static void morecore(int);
-static void init_heap(void);
-
-/*
- * Pre-allocate mmap'ed pages
- */
-#define	NPOOLPAGES	(32*1024/pagesz)
-static caddr_t		pagepool_start, pagepool_end;
-static int		morepages(int n);
-
-static size_t n_pagepools, max_pagepools;
-static char **pagepool_list;
+static void init_pagebucket(void);
 
 /*
  * The overhead on a block is at least 4 bytes.  When free, this space
@@ -151,8 +142,11 @@ malloc(size_t nbytes)
 	 * First time malloc is called, setup page size and
 	 * align break pointer so all data will be page aligned.
 	 */
-	if (pagesz == 0)
-		init_heap();
+	if (pagesz == 0) {
+		pagesz = PAGE_SIZE;
+		init_pagebucket();
+		__init_heap(pagesz);
+	}
 	assert(pagesz != 0);
 	/*
 	 * Convert amount of memory requested into closest block size
@@ -254,7 +248,7 @@ morecore(int bucket)
 		nblks = 1;
 	}
 	if (amt > pagepool_end - pagepool_start)
-		if (morepages(amt/pagesz) == 0)
+		if (__morepages(amt/pagesz) == 0)
 			return;
 
 	buf = cheri_csetbounds(pagepool_start, amt);
@@ -275,36 +269,16 @@ morecore(int bucket)
 static union overhead *
 find_overhead(void * cp)
 {
-	size_t i;
-	vm_offset_t addr;
 	union overhead *op;
 
 	if (!cheri_gettag(cp))
 		return (NULL);
-	op = NULL;
-	addr = cheri_getbase(cp) + cheri_getoffset(cp);
-	for (i = 0; i < n_pagepools; i++) {
-		/*
-		 * XXX-BD: a NULL check against CFromPtr would be faster than
-		 * this range check.
-		 */
-		char *pool = pagepool_list[i];
-		vm_offset_t base = cheri_getbase(pool);
-
-		if (addr >= base + sizeof(union overhead) &&
-		    addr < base + cheri_getlen(pool)) {
-			op = cheri_setoffset(pool, addr - base);
-			op--;
-			break;
-		}
-	}
+	op = __rederive_pointer(cp);
 	if (op == NULL) {
 		printf("%s: no region found for %#p\n", __func__, cp);
-		for (i = 0; i < n_pagepools; i++)
-			printf("%s: pagepool_list[%zu]  %#p\n", __func__, i,
-			    pagepool_list[i]);
 		return (NULL);
 	}
+	op--;
 
 	if (op->ov_magic == MAGIC)
 		return (op);
@@ -423,69 +397,6 @@ mstats(char *s)
 }
 #endif
 
-
-static int
-morepages(int n)
-{
-	int	fd = -1;
-	char **new_pagepool_list;
-
-	n += NPOOLPAGES;	/* round up allocation. */
-
-	if (n_pagepools >= max_pagepools) {
-		if (max_pagepools == 0)
-			max_pagepools = pagesz / (sizeof(char *) * 2);
-
-		max_pagepools *= 2;
-		if ((new_pagepool_list = mmap(0,
-		    max_pagepools * sizeof(char *), PROT_READ|PROT_WRITE,
-		    MAP_ANON, fd, 0)) == MAP_FAILED) {
-			printf("%s: Can not map pagepool_list\n", __func__);
-			return (0);
-		}
-		memcpy(new_pagepool_list, pagepool_list,
-		    sizeof(char *) * n_pagepools);
-		if (pagepool_list != NULL) {
-			if (munmap(pagepool_list,
-			    max_pagepools * sizeof(char *) / 2) != 0) {
-				printf("%s: failed to unmap pagepool_list\n",
-				    __func__);
-				/* XXX: leak the region */
-			}
-		}
-		pagepool_list = new_pagepool_list;
-	}
-
-	if (pagepool_end - pagepool_start > (ssize_t)pagesz) {
-		/*
-		 * XXX: CHERI128: Need to avoid rounding down to an imprecise
-		 * capability.
-		 */
-		caddr_t	addr = cheri_setoffset(pagepool_start,
-		    roundup2(cheri_getoffset(pagepool_start), pagesz));
-		if (munmap(addr, pagepool_end - addr) != 0) {
-			fprintf(stderr, "%s: munmap %p", __func__, addr);
-		} else {
-			/* Shrink the pool */
-			pagepool_list[n_pagepools - 1] =
-			    cheri_csetbounds(pagepool_list[n_pagepools - 1],
-			    cheri_getlen(pagepool_list[n_pagepools - 1]) -
-			    (pagepool_end - addr));
-		}
-	}
-
-	if ((pagepool_start = mmap(0, n * pagesz,
-			PROT_READ|PROT_WRITE,
-			MAP_ANON, fd, 0)) == (caddr_t)-1) {
-		printf("Cannot map anonymous memory\n");
-		return 0;
-	}
-	pagepool_end = pagepool_start + n * pagesz;
-	pagepool_list[n_pagepools++] = pagepool_start;
-
-	return n;
-}
-
 static void
 init_pagebucket(void)
 {
@@ -499,12 +410,4 @@ init_pagebucket(void)
 		bucket++;
 	}
 	pagebucket = bucket;
-}
-
-static void
-init_heap(void)
-{
-
-	pagesz = PAGE_SIZE;
-	init_pagebucket();
 }
