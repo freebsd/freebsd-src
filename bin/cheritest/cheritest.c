@@ -644,13 +644,11 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_divzero_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
 	  .ct_signum = SIGEMT,
-	  .ct_mips_exccode = T_TRAP,
-	  .ct_xfail_reason = "Clang optimizing out undefined behavior" },
+	  .ct_mips_exccode = T_TRAP },
 
 	{ .ct_name = "test_sandbox_divzero_nocatch",
 	  .ct_desc = "Exercise sandboxed divide-by-zero exception; uncaught",
-	  .ct_func = test_sandbox_divzero_nocatch,
-	  .ct_xfail_reason = "Clang optimizing out undefined behavior" },
+	  .ct_func = test_sandbox_divzero_nocatch },
 
 	{ .ct_name = "test_sandbox_vm_rfault_catch",
 	  .ct_desc = "Exercise sandboxed VM read fault; caught",
