@@ -75,6 +75,9 @@ size_t		_sb_heaplen;
  */
 static caddr_t		pagepool_start, pagepool_end;
 
+static size_t n_pagepools, max_pagepools;
+static char **pagepool_list;
+
 /*
  * The overhead on a block is at least 4 bytes.  When free, this space
  * contains a pointer to the next free block, and the bottom two bits must
@@ -209,7 +212,7 @@ malloc(size_t nbytes)
 	op->ov_rmagic = RMAGIC;
 	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
-	return ((void *)(op + 1));
+	return (cheri_csetbounds(op + 1, nbytes));
 }
 
 void *
@@ -276,6 +279,55 @@ morecore(int bucket)
 	}
 }
 
+static union overhead *
+find_overhead(void * cp)
+{
+	size_t i;
+	vm_offset_t addr;
+	union overhead *op;
+
+	if (!cheri_gettag(cp))
+		return (NULL);
+	op = NULL;
+	addr = cheri_getbase(cp) + cheri_getoffset(cp);
+	for (i = 0; i < n_pagepools; i++) {
+		/*
+		 * XXX-BD: a NULL check against CFromPtr would be faster than
+		 * this range check.
+		 */
+		char *pool = pagepool_list[i];
+		vm_offset_t base = cheri_getbase(pool);
+
+		if (addr >= base + sizeof(union overhead) &&
+		    addr < base + cheri_getlen(pool)) {
+			op = cheri_setoffset(pool, addr - base);
+			op--;
+			break;
+		}
+	}
+	if (op == NULL) {
+		printf("%s: no region found for %#p\n", __func__, cp);
+		for (i = 0; i < n_pagepools; i++)
+			printf("%s: pagepool_list[%zu]  %#p\n", __func__, i,
+			    pagepool_list[i]);
+		return (NULL);
+	}
+
+	if (op->ov_magic == MAGIC)
+		return (op);
+
+	/*
+	 * XXX: the above will fail if the users calls free or realloc
+	 * with a pointer that has had CSetBounds applied to it.  We
+	 * should save all allocation ranges to allow us to find the
+	 * metadata.
+	 */
+	printf("%s: Attempting to free or realloc unallocated memory\n",
+	    __func__);
+	CHERI_PRINT_PTR(cp);
+	return (NULL);
+}
+
 void
 free(void *cp)
 {
@@ -284,15 +336,9 @@ free(void *cp)
 
 	if (cp == NULL)
 		return;
-	op = (union overhead *)((char *)cp - sizeof (union overhead));
-	ASSERT(cheri_gettag(op) == 1);		/* is a capability */
-	ASSERT(cheri_getoffset(op) == 0);	/* at the beginning */
-#ifdef MALLOC_DEBUG
-	ASSERT(op->ov_magic == MAGIC);		/* make sure it was in use */
-#else
-	if (op->ov_magic != MAGIC)
-		return;				/* sanity */
-#endif
+	op = find_overhead(cp);
+	if (op == NULL)
+		return;
 #ifdef RCHECK
 	ASSERT(op->ov_rmagic == RMAGIC);
 	ASSERT(*(u_short *)((caddr_t)(op + 1) + op->ov_size) == RMAGIC);
@@ -316,8 +362,8 @@ realloc(void *cp, size_t nbytes)
 
 	if (cp == NULL)
 		return (malloc(nbytes));
-	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
-	if (op->ov_magic != MAGIC)
+	op = find_overhead(cp);
+	if (op == NULL)
 		return (NULL);
 	i = op->ov_index;
 	onb = 1 << (i + 3);
@@ -336,12 +382,17 @@ realloc(void *cp, size_t nbytes)
 		op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
 		*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
-		return(cp);
+		return(cheri_csetbounds(cp, nbytes));
 	}
 
 	if ((res = malloc(nbytes)) == NULL)
 		return (NULL);
-	memcpy(res, cp, (nbytes < onb) ? nbytes : onb);
+	/*
+	 * Only copy data the caller had access to even if this is less
+	 * than the size of the original allocation.  This risks surprise
+	 * for some programmers, but to do otherwise risks information leaks.
+	 */
+	memcpy(res, cp, (nbytes < cheri_getlen(cp)) ? nbytes : cheri_getlen(cp));
 	free(cp);
 	return (res);
 }
@@ -414,4 +465,8 @@ init_heap(void)
 
 	pagepool_start = sb_heap;
 	pagepool_end = pagepool_start + _sb_heaplen;
+
+	pagepool_list[0] = sb_heap;
+	n_pagepools = 1;
+	max_pagepools = 1;
 }
