@@ -50,8 +50,6 @@ static void vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_process_offer(void *context);
-struct hv_vmbus_channel*
-    vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
 /**
  * Channel message dispatch table
