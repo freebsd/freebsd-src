@@ -507,7 +507,8 @@ main(int argc, char *argv[])
 
 	fesetround(FE_TONEAREST);
 	test_nans();
-	printf("ok 9 - fma NaNs\n");
+	printf("ok %d - fma NaNs\n", j);
+	j++;
 
 	for (i = 0; i < nitems(rmodes); i++, j++) {
 		printf("rmode = %d\n", rmodes[i]);
