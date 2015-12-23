@@ -76,10 +76,6 @@ union	overhead {
 	struct {
 		u_char	ovu_magic;	/* magic number */
 		u_char	ovu_index;	/* bucket # */
-#ifdef RCHECK
-		u_short	ovu_rmagic;	/* range magic number */
-		u_int	ovu_size;	/* actual block size */
-#endif
 	} ovu;
 #define	ov_magic	ovu.ovu_magic
 #define	ov_index	ovu.ovu_index
@@ -89,12 +85,6 @@ union	overhead {
 
 #define	MAGIC		0xef		/* magic # on accounting info */
 #define RMAGIC		0x5555		/* magic # on range info */
-
-#ifdef RCHECK
-#define	RSLOP		sizeof (u_short)
-#else
-#define	RSLOP		0
-#endif
 
 /*
  * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
@@ -127,7 +117,6 @@ malloc(size_t nbytes)
 {
 	union overhead *op;
 	int bucket;
-	long n;
 	size_t amt;
 
 	/*
@@ -145,21 +134,14 @@ malloc(size_t nbytes)
 	 * stored in hash buckets which satisfies request.
 	 * Account for space used per block for accounting.
 	 */
-	n = pagesz - sizeof (*op) - RSLOP;
-	if (nbytes <= (unsigned long)n) {
-#ifndef RCHECK
+	if (nbytes <= pagesz - sizeof (*op)) {
 		amt = 32;	/* size of first bucket */
 		bucket = 2;
-#else
-		amt = 16;	/* size of first bucket */
-		bucket = 1;
-#endif
 	} else {
 		amt = pagesz;
 		bucket = pagebucket;
 	}
-	n = -(sizeof (*op) + RSLOP);
-	while (nbytes > (size_t)amt + n) {
+	while (nbytes > (size_t)amt - sizeof(*op)) {
 		amt <<= 1;
 		if (amt == 0)
 			return (NULL);
@@ -178,15 +160,6 @@ malloc(size_t nbytes)
 	nextf[bucket] = op->ov_next;
 	op->ov_magic = MAGIC;
 	op->ov_index = bucket;
-#ifdef RCHECK
-	/*
-	 * Record allocated size of block and
-	 * bound space with magic numbers.
-	 */
-	op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
-	op->ov_rmagic = RMAGIC;
-	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
-#endif
 	return (cheri_csetbounds(op + 1, nbytes));
 }
 
@@ -295,10 +268,6 @@ free(void *cp)
 	op = find_overhead(cp);
 	if (op == NULL)
 		return;
-#ifdef RCHECK
-	ASSERT(op->ov_rmagic == RMAGIC);
-	ASSERT(*(u_short *)((caddr_t)(op + 1) + op->ov_size) == RMAGIC);
-#endif
 	bucket = op->ov_index;
 	ASSERT(bucket < NBUCKETS);
 	op->ov_next = nextf[bucket];	/* also clobbers ov_magic */
@@ -320,21 +289,17 @@ realloc(void *cp, size_t nbytes)
 		return (NULL);
 	i = op->ov_index;
 	onb = 1 << (i + 3);
-	onb -= sizeof (*op) + RSLOP;
+	onb -= sizeof (*op);
 
 	/* avoid the copy if same size block */
 	if (i > 0) {
 		i = 1 << (i + 2);
 		if (i < pagesz)
-			i -= sizeof (*op) + RSLOP;
+			i -= sizeof (*op);
 		else
-			i += pagesz - sizeof (*op) - RSLOP;
+			i += pagesz - sizeof (*op);
 	}
 	if (nbytes <= onb && nbytes > (size_t)i) {
-#ifdef RCHECK
-		op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
-		*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
-#endif
 		return(cheri_csetbounds(cp, nbytes));
 	}
 
