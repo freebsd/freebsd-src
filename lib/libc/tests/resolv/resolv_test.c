@@ -289,21 +289,31 @@ do {									\
 	ATF_REQUIRE(run_tests(_hostlist_file, method) == 0);		\
 } while(0)
 
-ATF_TC_WITHOUT_HEAD(getaddrinfo_test);
+ATF_TC(getaddrinfo_test);
+ATF_TC_HEAD(getaddrinfo_test, tc) {
+	atf_tc_set_md_var(tc, "timeout", "450");
+}
 ATF_TC_BODY(getaddrinfo_test, tc)
 {
 
 	RUN_TESTS(tc, METHOD_GETADDRINFO);
 }
 
-ATF_TC_WITHOUT_HEAD(gethostby_test);
+ATF_TC(gethostby_test);
+ATF_TC_HEAD(gethostby_test, tc) {
+	atf_tc_set_md_var(tc, "timeout", "450");
+}
 ATF_TC_BODY(gethostby_test, tc)
 {
 
 	RUN_TESTS(tc, METHOD_GETHOSTBY);
 }
 
-ATF_TC_WITHOUT_HEAD(getipnodeby_test);
+ATF_TC(getipnodeby_test);
+ATF_TC_HEAD(getipnodeby_test, tc) {
+
+	atf_tc_set_md_var(tc, "timeout", "450");
+}
 ATF_TC_BODY(getipnodeby_test, tc)
 {
 
