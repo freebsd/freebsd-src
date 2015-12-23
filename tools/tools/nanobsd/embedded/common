@@ -508,6 +508,8 @@ product_custom ( ) (
 	echo "growfs_type=nanobsd-pingpong" >> $rc
 	echo "ntpdate_enable=YES" >> $rc
 	echo "ntpdate_hosts=0.freebsd.pool.ntp.org 1.freebsd.pool.ntp.org" >> $rc
+	# Make sure that firstboot scripts run so growfs works.
+	touch ${NANO_WORLDDIR}/firstboot
 )
 late_customize_cmd product_custom
 
