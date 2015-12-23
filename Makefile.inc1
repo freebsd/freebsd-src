@@ -1677,7 +1677,7 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-		MK_LLDB=no
+		MK_LLDB=no MK_DEBUG_FILES=no
 
 # native-xtools is the current target for qemu-user cross builds of ports
 # via poudriere and the imgact_binmisc kernel module.
