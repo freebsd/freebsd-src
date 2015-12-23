@@ -886,9 +886,9 @@ printhdr(int maxid, u_long cpumask)
 
 	num_shown = (num_selected < maxshowdevs) ? num_selected : maxshowdevs;
 	if (hflag) {
-		xo_emit("{T:procs}  {T:memory}       ${T:/page%*s}", 19, "");
+		xo_emit("{T:procs}  {T:memory}       {T:/page%*s}", 19, "");
 	} else {
-		xo_emit("{T:procs}     {T:memory}        ${T:/page%*s}", 19, "");
+		xo_emit("{T:procs}     {T:memory}        {T:/page%*s}", 19, "");
 	}
 	if (num_shown > 1)
 		xo_emit(" {T:/disks %*s}", num_shown * 4 - 7, ""); 
