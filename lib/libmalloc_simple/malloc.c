@@ -254,7 +254,7 @@ morecore(int bucket)
 		nblks = 1;
 	}
 	if (amt > pagepool_end - pagepool_start)
-		if (morepages(amt/pagesz + NPOOLPAGES) == 0)
+		if (morepages(amt/pagesz) == 0)
 			return;
 
 	buf = cheri_csetbounds(pagepool_start, amt);
@@ -429,6 +429,8 @@ morepages(int n)
 {
 	int	fd = -1;
 	char **new_pagepool_list;
+
+	n += NPOOLPAGES;	/* round up allocation. */
 
 	if (n_pagepools >= max_pagepools) {
 		if (max_pagepools == 0)

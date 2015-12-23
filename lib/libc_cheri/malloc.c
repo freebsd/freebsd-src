@@ -74,6 +74,7 @@ size_t		_sb_heaplen;
  * Pre-allocate mmap'ed pages
  */
 static caddr_t		pagepool_start, pagepool_end;
+static int		morepages(int n);
 
 static size_t n_pagepools, max_pagepools;
 static char **pagepool_list;
@@ -262,7 +263,8 @@ morecore(int bucket)
 		nblks = 1;
 	}
 	if (amt > pagepool_end - pagepool_start)
-		abort();	/* XXX: sandbox_panic */
+		if (morepages(amt/pagesz) == 0)
+			return;
 
 	buf = cheri_csetbounds(pagepool_start, amt);
 	pagepool_start += amt;
@@ -429,6 +431,13 @@ mstats(char *s)
 	    totused, totfree);
 }
 #endif
+
+static int
+morepages(int n __unused)
+{
+
+	abort();
+}
 
 static void
 init_pagebucket(void)
