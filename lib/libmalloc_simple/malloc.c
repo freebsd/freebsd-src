@@ -58,6 +58,7 @@ static char *rcsid = "$FreeBSD$";
 
 union overhead;
 static void morecore(int);
+static void init_heap(void);
 
 /*
  * Pre-allocate mmap'ed pages
@@ -112,7 +113,7 @@ union	overhead {
 #define	NBUCKETS 30
 static	union overhead *nextf[NBUCKETS];
 
-static	int pagesz;			/* page size */
+static	size_t pagesz;			/* page size */
 static	int pagebucket;			/* page size bucket */
 
 #ifdef MSTATS
@@ -150,18 +151,9 @@ malloc(size_t nbytes)
 	 * First time malloc is called, setup page size and
 	 * align break pointer so all data will be page aligned.
 	 */
-	if (pagesz == 0) {
-		pagesz = PAGE_SIZE;
-		if (morepages(NPOOLPAGES) == 0)
-			return NULL;
-		bucket = 0;
-		amt = 8;
-		while ((unsigned)pagesz > amt) {
-			amt <<= 1;
-			bucket++;
-		}
-		pagebucket = bucket;
-	}
+	if (pagesz == 0)
+		init_heap();
+	assert(pagesz != 0);
 	/*
 	 * Convert amount of memory requested into closest block size
 	 * stored in hash buckets which satisfies request.
@@ -239,7 +231,7 @@ morecore(int bucket)
 {
 	char *buf;
 	union overhead *op;
-	int sz;				/* size of desired block */
+	size_t sz;			/* size of desired block */
 	int amt;			/* amount to allocate */
 	int nblks;			/* how many blocks we get */
 
@@ -272,7 +264,7 @@ morecore(int bucket)
 	 * Add new memory allocated to that on
 	 * free list for this hash bucket.
 	 */
-	nextf[bucket] = op = cheri_csetbounds(buf, sz);;
+	nextf[bucket] = op = cheri_csetbounds(buf, sz);
 	while (--nblks > 0) {
 		op->ov_next = (union overhead *)cheri_csetbounds(buf + sz, sz);
 		buf += sz;
@@ -357,7 +349,7 @@ void *
 realloc(void *cp, size_t nbytes)
 {
 	u_int onb;
-	int i;
+	size_t i;
 	union overhead *op;
 	char *res;
 
@@ -406,6 +398,7 @@ realloc(void *cp, size_t nbytes)
  * for each size category, the second showing the number of mallocs -
  * frees for each size category.
  */
+void
 mstats(char *s)
 {
 	int i, j;
@@ -461,7 +454,7 @@ morepages(int n)
 		pagepool_list = new_pagepool_list;
 	}
 
-	if (pagepool_end - pagepool_start > pagesz) {
+	if (pagepool_end - pagepool_start > (ssize_t)pagesz) {
 		/*
 		 * XXX: CHERI128: Need to avoid rounding down to an imprecise
 		 * capability.
@@ -489,4 +482,27 @@ morepages(int n)
 	pagepool_list[n_pagepools++] = pagepool_start;
 
 	return n;
+}
+
+static void
+init_pagebucket(void)
+{
+	int bucket;
+	size_t amt;
+
+	bucket = 0;
+	amt = 8;
+	while ((unsigned)pagesz > amt) {
+		amt <<= 1;
+		bucket++;
+	}
+	pagebucket = bucket;
+}
+
+static void
+init_heap(void)
+{
+
+	pagesz = PAGE_SIZE;
+	init_pagebucket();
 }

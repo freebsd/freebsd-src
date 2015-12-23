@@ -107,6 +107,7 @@ SRCS+=		atoi.c			\
 		llabs.c			\
 		heapsort.c		\
 		qsort.c 		\
+		reallocf.c		\
 		strtol.c		\
 		strtol_c.c		\
 		strtoll.c		\

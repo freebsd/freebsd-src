@@ -57,7 +57,7 @@ static char *rcsid = "$FreeBSD$";
 
 union overhead;
 static void morecore(int);
-static int findbucket(union overhead *, int);
+static void init_heap(void);
 
 /*
  * Location and size of the static sandbox heap.
@@ -118,7 +118,7 @@ union	overhead {
 #define	NBUCKETS 30
 static	union overhead *nextf[NBUCKETS];
 
-static	int pagesz;			/* page size */
+static	size_t pagesz;			/* page size */
 static	int pagebucket;			/* page size bucket */
 
 #ifdef MSTATS
@@ -150,37 +150,15 @@ malloc(size_t nbytes)
 	union overhead *op;
 	int bucket;
 	long n;
-	unsigned amt;
-	void *sb_heap;
+	size_t amt;
 
 	/*
 	 * First time malloc is called, setup page size and
 	 * align break pointer so all data will be page aligned.
 	 */
-	if (pagesz == 0) {
-		pagesz = n = 0x1000;
-		/*
-		 * XXXBD: assumes DDC is page aligned.
-		 */
-		assert(_sb_heapbase == roundup2(_sb_heapbase, pagesz));
-
-		sb_heap = cheri_setoffset(cheri_getdefault(), _sb_heapbase);
-		sb_heap = cheri_csetbounds(sb_heap, _sb_heaplen);
-		assert(cheri_getoffset(sb_heap) == 0);
-		assert(cheri_getlen(sb_heap) == _sb_heaplen);
-
-		pagepool_start = sb_heap;
-		pagepool_end = pagepool_start + _sb_heaplen;
-		op = (union overhead *)(pagepool_start);
-
-		bucket = 0;
-		amt = 8;
-		while ((unsigned)pagesz > amt) {
-			amt <<= 1;
-			bucket++;
-		}
-		pagebucket = bucket;
-	}
+	if (pagesz == 0)
+		init_heap();
+	assert(pagesz != 0);
 	/*
 	 * Convert amount of memory requested into closest block size
 	 * stored in hash buckets which satisfies request.
@@ -258,7 +236,7 @@ morecore(int bucket)
 {
 	char *buf;
 	union overhead *op;
-	int sz;				/* size of desired block */
+	size_t sz;			/* size of desired block */
 	int amt;			/* amount to allocate */
 	int nblks;			/* how many blocks we get */
 
@@ -280,20 +258,9 @@ morecore(int bucket)
 		amt = sz + pagesz;
 		nblks = 1;
 	}
-	if (amt > pagepool_end - pagepool_start) {
-		/*
-		 * XXX-BD: Debugging output preserved to work around
-		 * compiler bug.
-		 */
-		printf("%s: amt (%d) > pagepool_end - pagepool_start\n",
-		    __func__, amt);
-		CHERI_PRINT_PTR(pagepool_start);
-		CHERI_PRINT_PTR(pagepool_end);
+	if (amt > pagepool_end - pagepool_start)
 		abort();	/* XXX: sandbox_panic */
-}
 
-	/* non-zero offsets cause trouble */
-	ASSERT(cheri_getoffset(pagepool_start) == 0);
 	buf = cheri_csetbounds(pagepool_start, amt);
 	pagepool_start += amt;
 
@@ -312,7 +279,7 @@ morecore(int bucket)
 void
 free(void *cp)
 {
-	int size;
+	int bucket;
 	union overhead *op;
 
 	if (cp == NULL)
@@ -330,123 +297,53 @@ free(void *cp)
 	ASSERT(op->ov_rmagic == RMAGIC);
 	ASSERT(*(u_short *)((caddr_t)(op + 1) + op->ov_size) == RMAGIC);
 #endif
-	size = op->ov_index;
-	ASSERT(size < NBUCKETS);
-	op->ov_next = nextf[size];	/* also clobbers ov_magic */
-	nextf[size] = op;
+	bucket = op->ov_index;
+	ASSERT(bucket < NBUCKETS);
+	op->ov_next = nextf[bucket];	/* also clobbers ov_magic */
+	nextf[bucket] = op;
 #ifdef MSTATS
-	nmalloc[size]--;
+	nmalloc[bucket]--;
 #endif
 }
-
-/*
- * When a program attempts "storage compaction" as mentioned in the
- * old malloc man page, it realloc's an already freed block.  Usually
- * this is the last block it freed; occasionally it might be farther
- * back.  We have to search all the free lists for the block in order
- * to determine its bucket: 1st we make one pass thru the lists
- * checking only the first block in each; if that fails we search
- * ``realloc_srchlen'' blocks in each list for a match (the variable
- * is extern so the caller can modify it).  If that fails we just copy
- * however many bytes was given to realloc() and hope it's not huge.
- */
-static int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
 realloc(void *cp, size_t nbytes)
 {
 	u_int onb;
-	int i;
+	size_t i;
 	union overhead *op;
 	char *res;
-	int was_alloced = 0;
 
 	if (cp == NULL)
 		return (malloc(nbytes));
 	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
-	if (op->ov_magic == MAGIC) {
-		was_alloced++;
-		i = op->ov_index;
-	} else {
-		/*
-		 * Already free, doing "compaction".
-		 *
-		 * Search for the old block of memory on the
-		 * free list.  First, check the most common
-		 * case (last element free'd), then (this failing)
-		 * the last ``realloc_srchlen'' items free'd.
-		 * If all lookups fail, then assume the size of
-		 * the memory block being realloc'd is the
-		 * largest possible (so that all "nbytes" of new
-		 * memory are copied into).  Note that this could cause
-		 * a memory fault if the old area was tiny, and the moon
-		 * is gibbous.  However, that is very unlikely.
-		 */
-		if ((i = findbucket(op, 1)) < 0 &&
-		    (i = findbucket(op, realloc_srchlen)) < 0)
-			i = NBUCKETS;
-	}
+	if (op->ov_magic != MAGIC)
+		return (NULL);
+	i = op->ov_index;
 	onb = 1 << (i + 3);
-	if (onb < (u_int)pagesz)
-		onb -= sizeof (*op) + RSLOP;
-	else
-		onb += pagesz - sizeof (*op) - RSLOP;
+	onb -= sizeof (*op) + RSLOP;
+
 	/* avoid the copy if same size block */
-	if (was_alloced) {
-		if (i) {
-			i = 1 << (i + 2);
-			if (i < pagesz)
-				i -= sizeof (*op) + RSLOP;
-			else
-				i += pagesz - sizeof (*op) - RSLOP;
-		}
-		if (nbytes <= onb && nbytes > (size_t)i) {
-#ifdef RCHECK
-			op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
-			*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
-#endif
-			return(cp);
-		} else
-			free(cp);
+	if (i > 0) {
+		i = 1 << (i + 2);
+		if (i < pagesz)
+			i -= sizeof (*op) + RSLOP;
+		else
+			i += pagesz - sizeof (*op) - RSLOP;
 	}
+	if (nbytes <= onb && nbytes > (size_t)i) {
+#ifdef RCHECK
+		op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+		*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
+#endif
+		return(cp);
+	}
+
 	if ((res = malloc(nbytes)) == NULL)
 		return (NULL);
-	if (cp != res)		/* common optimization if "compacting" */
-		bcopy(cp, res, (nbytes < onb) ? nbytes : onb);
+	memcpy(res, cp, (nbytes < onb) ? nbytes : onb);
+	free(cp);
 	return (res);
-}
-
-void *
-reallocf(void *ptr, size_t size)
-{
-	void *new;
-
-	if ((new = realloc(ptr, size)) == NULL)
-		free(ptr);
-
-	return (new);
-}
-
-/*
- * Search ``srchlen'' elements of each free list for a block whose
- * header starts at ``freep''.  If srchlen is -1 search the whole list.
- * Return bucket number, or -1 if not found.
- */
-static int
-findbucket(union overhead *freep, int srchlen)
-{
-	union overhead *p;
-	int i, j;
-
-	for (i = 0; i < NBUCKETS; i++) {
-		j = 0;
-		for (p = nextf[i]; p && j != srchlen; p = p->ov_next) {
-			if (p == freep)
-				return (i);
-			j++;
-		}
-	}
-	return (-1);
 }
 
 #ifdef MSTATS
@@ -481,3 +378,40 @@ mstats(char *s)
 	    totused, totfree);
 }
 #endif
+
+static void
+init_pagebucket(void)
+{
+	int bucket;
+	size_t amt;
+
+	bucket = 0;
+	amt = 8;
+	while ((unsigned)pagesz > amt) {
+		amt <<= 1;
+		bucket++;
+	}
+	pagebucket = bucket;
+}
+
+static void
+init_heap(void)
+{
+	void *sb_heap;
+
+	pagesz = 0x1000;
+	init_pagebucket();
+
+	/*
+	 * XXXBD: assumes DDC is page aligned.
+	 */
+	assert(_sb_heapbase == roundup2(_sb_heapbase, pagesz));
+
+	sb_heap = cheri_setoffset(cheri_getdefault(), _sb_heapbase);
+	sb_heap = cheri_csetbounds(sb_heap, _sb_heaplen);
+	assert(cheri_getoffset(sb_heap) == 0);
+	assert(cheri_getlen(sb_heap) == _sb_heaplen);
+
+	pagepool_start = sb_heap;
+	pagepool_end = pagepool_start + _sb_heaplen;
+}
