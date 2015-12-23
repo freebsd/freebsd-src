@@ -107,14 +107,6 @@ static	union overhead *nextf[NBUCKETS];
 static	size_t pagesz;			/* page size */
 static	int pagebucket;			/* page size bucket */
 
-#ifdef MSTATS
-/*
- * nmalloc[i] is the difference between the number of mallocs and frees
- * for a given block size.
- */
-static	u_int nmalloc[NBUCKETS];
-#include <stdio.h>
-#endif
 
 #if defined(MALLOC_DEBUG) || defined(RCHECK)
 #define	ASSERT(p)   if (!(p)) botch("p")
@@ -186,9 +178,6 @@ malloc(size_t nbytes)
 	nextf[bucket] = op->ov_next;
 	op->ov_magic = MAGIC;
 	op->ov_index = bucket;
-#ifdef MSTATS
-	nmalloc[bucket]++;
-#endif
 #ifdef RCHECK
 	/*
 	 * Record allocated size of block and
@@ -314,9 +303,6 @@ free(void *cp)
 	ASSERT(bucket < NBUCKETS);
 	op->ov_next = nextf[bucket];	/* also clobbers ov_magic */
 	nextf[bucket] = op;
-#ifdef MSTATS
-	nmalloc[bucket]--;
-#endif
 }
 
 void *
@@ -364,38 +350,6 @@ realloc(void *cp, size_t nbytes)
 	return (res);
 }
 
-#ifdef MSTATS
-/*
- * mstats - print out statistics about malloc
- *
- * Prints two lines of numbers, one showing the length of the free list
- * for each size category, the second showing the number of mallocs -
- * frees for each size category.
- */
-void
-mstats(char *s)
-{
-	int i, j;
-	union overhead *p;
-	int totfree = 0,
-	totused = 0;
-
-	fprintf(stderr, "Memory allocation statistics %s\nfree:\t", s);
-	for (i = 0; i < NBUCKETS; i++) {
-		for (j = 0, p = nextf[i]; p; p = p->ov_next, j++)
-			;
-		fprintf(stderr, " %d", j);
-		totfree += j * (1 << (i + 3));
-	}
-	fprintf(stderr, "\nused:\t");
-	for (i = 0; i < NBUCKETS; i++) {
-		fprintf(stderr, " %d", nmalloc[i]);
-		totused += nmalloc[i] * (1 << (i + 3));
-	}
-	fprintf(stderr, "\n\tTotal in use: %d, total free: %d\n",
-	    totused, totfree);
-}
-#endif
 
 static void
 init_pagebucket(void)
