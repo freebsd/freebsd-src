@@ -1363,7 +1363,8 @@ main(int argc, char *argv[])
 
 	/* Run the actual tests. */
 	cheritest_ccall_setup();
-	cheritest_libcheri_setup();
+	if (cheritest_libcheri_setup() < 0)
+		err(EX_SOFTWARE, "cheritest_libcheri_setup");
 	xo_open_container("testsuite");
 	xo_open_list("test");
 	if (run_all) {
