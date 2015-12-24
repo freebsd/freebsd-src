@@ -431,6 +431,24 @@ $var=$val"
 	fi
 done
 
+typical_embedded ( ) (
+	# Need to create rc.conf before we copy over /etc to /conf/base/etc
+	# so now's a good time.
+
+	local rc=${NANO_WORLDDIR}/etc/rc.conf
+
+	echo "hostname=nanobsd-${NANO_NAME}" > $rc
+	echo "growfs_enable=YES" >> $rc
+	echo "growfs_type=nanobsd-pingpong" >> $rc
+	echo "ntpdate_enable=YES" >> $rc
+	echo "ifconfig_DEFAULT=DHCP" >> $rc
+	echo "ntpdate_hosts=0.freebsd.pool.ntp.org 1.freebsd.pool.ntp.org" >> $rc
+	# Make sure that firstboot scripts run so growfs works.
+	# Note: still some issues remvoing this XXX
+	touch ${NANO_WORLDDIR}/firstboot
+)
+customize_cmd typical_embedded
+
 save_build ( ) (
 	VERSION_FILE=${NANO_WORLDDIR}/etc/version
 	if [ "${SVNREVISION}" = "${REVISION}" ]; then
@@ -502,14 +520,6 @@ product_custom ( ) (
 		chown root:wheel ${NANO_WORLDDIR}/
 		chown root:wheel ${NANO_WORLDDIR}/usr
 	fi
-	local rc=${NANO_WORLDDIR}/etc/rc.conf
-	echo "hostname=nanobsd-${NANO_NAME}" > $rc
-	echo "growfs_enable=YES" >> $rc
-	echo "growfs_type=nanobsd-pingpong" >> $rc
-	echo "ntpdate_enable=YES" >> $rc
-	echo "ntpdate_hosts=0.freebsd.pool.ntp.org 1.freebsd.pool.ntp.org" >> $rc
-	# Make sure that firstboot scripts run so growfs works.
-	touch ${NANO_WORLDDIR}/firstboot
 )
 late_customize_cmd product_custom
 
