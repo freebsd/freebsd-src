@@ -82,6 +82,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -405,6 +408,10 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	SOCK_UNLOCK(so);
 
+#ifdef TCP_RFC7413
+	if (tp->t_flags & TF_FASTOPEN)
+		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
+#endif
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
@@ -451,6 +458,10 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	SOCK_UNLOCK(so);
 
+#ifdef TCP_RFC7413
+	if (tp->t_flags & TF_FASTOPEN)
+		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
+#endif
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
@@ -805,6 +816,18 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+#ifdef TCP_RFC7413
+	/*
+	 * For passively-created TFO connections, don't attempt a window
+	 * update while still in SYN_RECEIVED as this may trigger an early
+	 * SYN|ACK.  It is preferable to have the SYN|ACK be sent along with
+	 * application response data, or failing that, when the DELACK timer
+	 * expires.
+	 */
+	if ((tp->t_flags & TF_FASTOPEN) &&
+	    (tp->t_state == TCPS_SYN_RECEIVED))
+		goto out;
+#endif
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_rcvd(tp);
@@ -1674,6 +1697,29 @@ unlock_and_done:
 			goto unlock_and_done;
 #endif
 
+#ifdef TCP_RFC7413
+		case TCP_FASTOPEN:
+			INP_WUNLOCK(inp);
+			if (!V_tcp_fastopen_enabled)
+				return (EPERM);
+
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				return (error);
+
+			INP_WLOCK_RECHECK(inp);
+			if (optval) {
+				tp->t_flags |= TF_FASTOPEN;
+				if ((tp->t_state == TCPS_LISTEN) &&
+				    (tp->t_tfo_pending == NULL))
+					tp->t_tfo_pending =
+					    tcp_fastopen_alloc_counter();
+			} else
+				tp->t_flags &= ~TF_FASTOPEN;
+			goto unlock_and_done;
+#endif
+
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
@@ -1749,6 +1795,14 @@ unlock_and_done:
 		case TCP_PCAP_IN:
 			optval = tcp_pcap_get_sock_max(TCP_PCAP_OUT ?
 					&(tp->t_outpkts) : &(tp->t_inpkts));
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
+#endif
+
+#ifdef TCP_RFC7413
+		case TCP_FASTOPEN:
+			optval = tp->t_flags & TF_FASTOPEN;
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
@@ -2074,6 +2128,10 @@ db_print_tflags(u_int t_flags)
 	}
 	if (t_flags & TF_ECN_PERMIT) {
 		db_printf("%sTF_ECN_PERMIT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_FASTOPEN) {
+		db_printf("%sTF_FASTOPEN", comma ? ", " : "");
 		comma = 1;
 	}
 }
