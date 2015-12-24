@@ -451,7 +451,7 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
     uint flags, struct sandbox_object **sbopp)
 {
 	struct sandbox_object *sbop;
-	int error;
+	int error, saved_errno;
 
 	if (sandbox_program_sanity_check() < 0)
 		errx(1, "%s: sandbox_program_sanity_check", __func__);
@@ -472,7 +472,9 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	sbop->sbo_stackmem = mmap(0, sbop->sbo_stacklen,
 	    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 	if (sbop->sbo_stackmem == NULL) {
+		saved_errno = errno;
 		free(sbop);
+		errno = saved_errno;
 		return (-1);
 	}
 
@@ -493,8 +495,10 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	 */
 	error = sandbox_object_load(sbcp, sbop);
 	if (error) {
+		saved_errno = errno;
 		(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
 		free(sbop);
+		errno = saved_errno;
 		return (-1);
 	}
 
@@ -512,6 +516,7 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	    cheri_zerocap(), cheri_zerocap()) != 0) {
 		sandbox_object_unload(sbop);
 		(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
+		errno = EPROT;
 		return (-1);
 	}
 
