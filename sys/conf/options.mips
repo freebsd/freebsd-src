@@ -31,6 +31,7 @@
 CPU_MIPS4KC	opt_global.h
 CPU_MIPS24KC	opt_global.h
 CPU_MIPS74KC	opt_global.h
+CPU_MIPS1004KC	opt_global.h
 CPU_MIPS32	opt_global.h
 CPU_MIPS64	opt_global.h
 CPU_SENTRY5	opt_global.h

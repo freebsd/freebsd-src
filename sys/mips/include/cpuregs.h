@@ -154,6 +154,11 @@
 #define	MIPS_CCA_CACHED		0x03
 #endif
 
+#if defined(CPU_MIPS1004KC)
+#define	MIPS_CCA_UNCACHED	0x02
+#define	MIPS_CCA_CACHED		0x05
+#endif
+
 #ifndef	MIPS_CCA_UNCACHED
 #define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
 #endif
@@ -209,7 +214,7 @@
 #define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
-#elif defined(CPU_MIPS74KC)
+#elif defined(CPU_MIPS74KC) || defined(CPU_MIPS1004KC)
 #define	COP0_SYNC	 .word 0xc0	/* ehb */
 #else
 /*
@@ -588,6 +593,7 @@
  * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.41)
  */
 #define	MIPS_CONFIG3_M		0x80000000	/* Flag: Config4 is present */
+#define MIPS_CONFIG3_CMGCR_MASK	0x20000000	/* Coherence manager present */
 #define	MIPS_CONFIG3_ULR	0x00002000	/* UserLocal reg implemented */
 
 #define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
@@ -677,5 +683,9 @@
 #define	MIPS_HWRENA_UL		(1<<29)	/* UserLocal Register */
 #define	MIPS_HWRENA_IMPL30	(1<<30)	/* Implementation-dependent 30 */
 #define	MIPS_HWRENA_IMPL31	(1<<31)	/* Implementation-dependent 31 */
+
+/* Coherence manager constants */
+#define	MIPS_CMGCRB_BASE	11
+#define	MIPS_CMGCRF_BASE	(~((1 << MIPS_CMGCRB_BASE) - 1))
 
 #endif /* _MIPS_CPUREGS_H_ */
