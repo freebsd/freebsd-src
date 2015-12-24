@@ -351,7 +351,7 @@ cpu_identify(void)
 
 	printf("  L2 cache: ");
 	if (cpuinfo.l2.dc_linesize == 0) {
-		printf("disabled");
+		printf("disabled\n");
 	} else {
 		printf("%d ways of %d sets, %d bytes per line, "
 		    "%d KiB total size\n",
