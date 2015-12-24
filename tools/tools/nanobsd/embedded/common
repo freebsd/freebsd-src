@@ -442,7 +442,7 @@ typical_embedded ( ) (
 	echo "growfs_type=nanobsd-pingpong" >> $rc
 	echo "ntpdate_enable=YES" >> $rc
 	echo "ifconfig_DEFAULT=DHCP" >> $rc
-	echo "ntpdate_hosts=0.freebsd.pool.ntp.org 1.freebsd.pool.ntp.org" >> $rc
+	echo "ntpdate_hosts='0.freebsd.pool.ntp.org 1.freebsd.pool.ntp.org'" >> $rc
 	# Make sure that firstboot scripts run so growfs works.
 	# Note: still some issues remvoing this XXX
 	touch ${NANO_WORLDDIR}/firstboot
