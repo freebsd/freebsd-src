@@ -440,6 +440,8 @@ TCPDEBUG
 TCPPCAP		opt_global.h
 SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
+TCP_RFC7413		opt_inet.h
+TCP_RFC7413_MAX_KEYS	opt_inet.h
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK

@@ -98,6 +98,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -999,7 +1002,8 @@ relocked:
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 #endif
 	if (!((tp->t_state == TCPS_ESTABLISHED && (thflags & TH_SYN) == 0) ||
-	    (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN)))) {
+	      (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN) &&
+	       !(tp->t_flags & TF_FASTOPEN)))) {
 		if (ti_locked == TI_UNLOCKED) {
 			if (INP_INFO_TRY_RLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
@@ -1091,6 +1095,9 @@ relocked:
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
+#ifdef TCP_RFC7413
+new_tfo_socket:
+#endif
 			if (so == NULL) {
 				/*
 				 * We completed the 3-way handshake
@@ -1353,7 +1360,12 @@ relocked:
 #endif
 		TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 		tcp_dooptions(&to, optp, optlen, TO_SYN);
+#ifdef TCP_RFC7413
+		if (syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL))
+			goto new_tfo_socket;
+#else
 		syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL);
+#endif
 		/*
 		 * Entry added to syncache and mbuf consumed.
 		 * Only the listen socket is unlocked by syncache_add().
@@ -1468,7 +1480,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct in_conninfo *inc;
 	struct mbuf *mfree;
 	struct tcpopt to;
-
+	int tfo_syn;
+	
 #ifdef TCPDEBUG
 	/*
 	 * The size of tcp_saveipgen must be the size of the max ip header,
@@ -1921,6 +1934,28 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 		}
+#ifdef TCP_RFC7413
+		if (tp->t_flags & TF_FASTOPEN) {
+			/*
+			 * When a TFO connection is in SYN_RECEIVED, the
+			 * only valid packets are the initial SYN, a
+			 * retransmit/copy of the initial SYN (possibly with
+			 * a subset of the original data), a valid ACK, a
+			 * FIN, or a RST.
+			 */
+			if ((thflags & (TH_SYN|TH_ACK)) == (TH_SYN|TH_ACK)) {
+				rstreason = BANDLIM_RST_OPENPORT;
+				goto dropwithreset;
+			} else if (thflags & TH_SYN) {
+				/* non-initial SYN is ignored */
+				if ((tcp_timer_active(tp, TT_DELACK) || 
+				     tcp_timer_active(tp, TT_REXMT)))
+					goto drop;
+			} else if (!(thflags & (TH_ACK|TH_FIN|TH_RST))) {
+				goto drop;
+			}
+		}
+#endif
 		break;
 
 	/*
@@ -2136,7 +2171,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * RFC5961 Section 4.2
 	 * Send challenge ACK for any SYN in synchronized state.
 	 */
-	if ((thflags & TH_SYN) && tp->t_state != TCPS_SYN_SENT) {
+	if ((thflags & TH_SYN) && tp->t_state != TCPS_SYN_SENT &&
+	    tp->t_state != TCPS_SYN_RECEIVED) {
 		KASSERT(ti_locked == TI_RLOCKED,
 		    ("tcp_do_segment: TH_SYN ti_locked %d", ti_locked));
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
@@ -2330,9 +2366,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_state == TCPS_SYN_RECEIVED ||
-		    (tp->t_flags & TF_NEEDSYN))
+		    (tp->t_flags & TF_NEEDSYN)) {
+#ifdef TCP_RFC7413
+			if (tp->t_state == TCPS_SYN_RECEIVED &&
+			    tp->t_flags & TF_FASTOPEN) {
+				tp->snd_wnd = tiwin;
+				cc_conn_init(tp);
+			}
+#endif
 			goto step6;
-		else if (tp->t_flags & TF_ACKNOW)
+		} else if (tp->t_flags & TF_ACKNOW)
 			goto dropafterack;
 		else
 			goto drop;
@@ -2371,7 +2414,27 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tcp_state_change(tp, TCPS_ESTABLISHED);
 			TCP_PROBE5(accept__established, NULL, tp,
 			    mtod(m, const char *), tp, th);
-			cc_conn_init(tp);
+#ifdef TCP_RFC7413
+			if (tp->t_tfo_pending) {
+				tcp_fastopen_decrement_counter(tp->t_tfo_pending);
+				tp->t_tfo_pending = NULL;
+
+				/*
+				 * Account for the ACK of our SYN prior to
+				 * regular ACK processing below.
+				 */ 
+				tp->snd_una++;
+			}
+			/*
+			 * TFO connections call cc_conn_init() during SYN
+			 * processing.  Calling it again here for such
+			 * connections is not harmless as it would undo the
+			 * snd_cwnd reduction that occurs when a TFO SYN|ACK
+			 * is retransmitted.
+			 */
+			if (!(tp->t_flags & TF_FASTOPEN))
+#endif
+				cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
 		/*
@@ -2919,7 +2982,9 @@ dodata:							/* XXX */
 	 * case PRU_RCVD).  If a FIN has already been received on this
 	 * connection then we just ignore the text.
 	 */
-	if ((tlen || (thflags & TH_FIN)) &&
+	tfo_syn = ((tp->t_state == TCPS_SYN_RECEIVED) &&
+		   (tp->t_flags & TF_FASTOPEN));
+	if ((tlen || (thflags & TH_FIN) || tfo_syn) &&
 	    TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 		tcp_seq save_start = th->th_seq;
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
@@ -2937,8 +3002,9 @@ dodata:							/* XXX */
 		 */
 		if (th->th_seq == tp->rcv_nxt &&
 		    LIST_EMPTY(&tp->t_segq) &&
-		    TCPS_HAVEESTABLISHED(tp->t_state)) {
-			if (DELAY_ACK(tp, tlen))
+		    (TCPS_HAVEESTABLISHED(tp->t_state) ||
+		     tfo_syn)) {
+			if (DELAY_ACK(tp, tlen) || tfo_syn)
 				tp->t_flags |= TF_DELACK;
 			else
 				tp->t_flags |= TF_ACKNOW;
@@ -3293,6 +3359,21 @@ tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 			to->to_sacks = cp + 2;
 			TCPSTAT_INC(tcps_sack_rcv_blocks);
 			break;
+#ifdef TCP_RFC7413
+		case TCPOPT_FAST_OPEN:
+			if ((optlen != TCPOLEN_FAST_OPEN_EMPTY) &&
+			    (optlen < TCPOLEN_FAST_OPEN_MIN) &&
+			    (optlen > TCPOLEN_FAST_OPEN_MAX))
+				continue;
+			if (!(flags & TO_SYN))
+				continue;
+			if (!V_tcp_fastopen_enabled)
+				continue;
+			to->to_flags |= TOF_FASTOPEN;
+			to->to_tfo_len = optlen - 2;
+			to->to_tfo_cookie = to->to_tfo_len ? cp + 2 : NULL;
+			break;
+#endif
 		default:
 			continue;
 		}
