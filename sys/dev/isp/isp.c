@@ -2446,7 +2446,8 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 	scp = fcp->isp_scratch;
 	isp_put_plogx(isp, plp, (isp_plogx_t *) scp);
 
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 500000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + ICB_LOGIN_TOV * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
@@ -3390,7 +3391,7 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 	pt->ctp_nphdl = fcp->isp_sns_hdl;
 	pt->ctp_cmd_cnt = 1;
 	pt->ctp_vpidx = ISP_GET_VPIDX(isp, chan);
-	pt->ctp_time = 30;
+	pt->ctp_time = 10;
 	pt->ctp_rsp_cnt = 1;
 	pt->ctp_rsp_bcnt = GIDLEN;
 	pt->ctp_cmd_bcnt = sizeof (*ct) + sizeof (uint32_t);
@@ -3426,7 +3427,8 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 		    sizeof (*ct) + sizeof (uint32_t), &scp[XTXOFF]);
 	}
 	ISP_MEMZERO(&scp[ZTXOFF], QENTRY_LEN);
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 500000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + pt->ctp_time * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
@@ -3861,7 +3863,7 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 	pt->ctp_nphdl = fcp->isp_sns_hdl;
 	pt->ctp_cmd_cnt = 1;
 	pt->ctp_vpidx = ISP_GET_VPIDX(isp, chan);
-	pt->ctp_time = 1;
+	pt->ctp_time = 4;
 	pt->ctp_rsp_cnt = 1;
 	pt->ctp_rsp_bcnt = sizeof (ct_hdr_t);
 	pt->ctp_cmd_bcnt = sizeof (rft_id_t);
@@ -3900,7 +3902,8 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 
 	ISP_MEMZERO(&scp[ZTXOFF], sizeof (ct_hdr_t));
 
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 1000000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + pt->ctp_time * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
@@ -3972,7 +3975,7 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 	pt->ctp_nphdl = fcp->isp_sns_hdl;
 	pt->ctp_cmd_cnt = 1;
 	pt->ctp_vpidx = ISP_GET_VPIDX(isp, chan);
-	pt->ctp_time = 1;
+	pt->ctp_time = 4;
 	pt->ctp_rsp_cnt = 1;
 	pt->ctp_rsp_bcnt = sizeof (ct_hdr_t);
 	pt->ctp_cmd_bcnt = sizeof (rff_id_t);
@@ -4016,7 +4019,8 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 
 	ISP_MEMZERO(&scp[ZTXOFF], sizeof (ct_hdr_t));
 
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 1000000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + pt->ctp_time * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
@@ -4403,10 +4407,7 @@ isp_start(XS_T *xs)
 	}
 	ISP_MEMCPY(cdbp, XS_CDBP(xs), cdblen);
 
-	*tptr = XS_TIME(xs) / 1000;
-	if (*tptr == 0 && XS_TIME(xs)) {
-		*tptr = 1;
-	}
+	*tptr = (XS_TIME(xs) + 999) / 1000;
 	if (IS_24XX(isp) && *tptr > 0x1999) {
 		*tptr = 0x1999;
 	}
@@ -4512,13 +4513,14 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			tmf->tmf_header.rqs_entry_count = 1;
 			tmf->tmf_nphdl = lp->handle;
 			tmf->tmf_delay = 2;
-			tmf->tmf_timeout = 2;
+			tmf->tmf_timeout = 4;
 			tmf->tmf_flags = ISP24XX_TMF_TARGET_RESET;
 			tmf->tmf_tidlo = lp->portid;
 			tmf->tmf_tidhi = lp->portid >> 16;
 			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
 			isp_prt(isp, ISP_LOGALL, "Chan %d Reset N-Port Handle 0x%04x @ Port 0x%06x", chan, lp->handle, lp->portid);
-			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 5000000);
+			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+			    MBCMD_DEFAULT_TIMEOUT + tmf->tmf_timeout * 1000000);
 			mbs.param[1] = QENTRY_LEN;
 			mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 			mbs.param[3] = DMA_WD0(fcp->isp_scdma);
@@ -6901,7 +6903,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
 	ISP_FC_OPMAP_HALF(0x2, 0x01, 0x7e, 0xcf),	/* 0x20: MBOX_GET_LOOP_ID */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x21: */
-	ISP_FC_OPMAP(0x01, 0x07),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
+	ISP_FC_OPMAP(0x03, 0x4b),	/* 0x22: MBOX_GET_TIMEOUT_PARAMS */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x23: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x24: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x25: */
@@ -6917,7 +6919,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2f: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x30: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x31: */
-	ISP_FC_OPMAP(0x07, 0x07),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
+	ISP_FC_OPMAP(0x4b, 0x4b),	/* 0x32: MBOX_SET_TIMEOUT_PARAMS */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x33: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x34: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x35: */
