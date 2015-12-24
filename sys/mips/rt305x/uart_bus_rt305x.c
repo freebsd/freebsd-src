@@ -75,21 +75,13 @@ static driver_t uart_rt305x_driver = {
 	sizeof(struct uart_softc),
 };
 
-extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
-
 static int
 uart_rt305x_probe(device_t dev)
 {
 	struct uart_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	sc->sc_class = &uart_rt305x_uart_class;
-	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
-	sc->sc_sysdev->bas.regshft = 2;
-	sc->sc_sysdev->bas.bst = mips_bus_space_generic;
-	sc->sc_sysdev->bas.bsh = 
-	    MIPS_PHYS_TO_KSEG1(device_get_unit(dev)?UARTLITE_BASE:UART_BASE);
 	sc->sc_bas.regshft = 2;
 	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = 
