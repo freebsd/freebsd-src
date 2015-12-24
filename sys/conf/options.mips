@@ -121,6 +121,18 @@ IF_RT_PHY_SUPPORT		opt_if_rt.h
 IF_RT_RING_DATA_COUNT		opt_if_rt.h
 
 #
+# Options that control the Ralink/Mediatek SoC type.
+#
+MT7620				opt_rt305x.h
+RT5350				opt_rt305x.h
+RT305XF				opt_rt305x.h
+RT3052F				opt_rt305x.h
+RT3050F				opt_rt305x.h
+RT305X				opt_rt305x.h
+RT305X_UBOOT			opt_rt305x.h
+RT305X_USE_UART			opt_rt305x.h
+
+#
 # Options that affect the pmap.
 #
 PV_STATS		opt_pmap.h
