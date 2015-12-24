@@ -632,7 +632,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			tmf->tmf_header.rqs_entry_count = 1;
 			tmf->tmf_nphdl = lp->handle;
 			tmf->tmf_delay = 2;
-			tmf->tmf_timeout = 2;
+			tmf->tmf_timeout = 4;
 			tmf->tmf_tidlo = lp->portid;
 			tmf->tmf_tidhi = lp->portid >> 16;
 			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
@@ -668,7 +668,8 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				ISP_UNLOCK(isp);
 				break;
 			}
-			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 5000000);
+			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+			    MBCMD_DEFAULT_TIMEOUT + tmf->tmf_timeout * 1000000);
 			mbs.param[1] = QENTRY_LEN;
 			mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 			mbs.param[3] = DMA_WD0(fcp->isp_scdma);
@@ -1403,7 +1404,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			cto->ct_iid_hi = atp->portid >> 16;
 			cto->ct_oxid = atp->oxid;
 			cto->ct_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(ccb));
-			cto->ct_timeout = 120;
+			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
 			cto->ct_flags = atp->tattr << CT7_TASK_ATTR_SHIFT;
 
 			/*
@@ -1555,7 +1556,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					cto->ct_lun = ccb->ccb_h.target_lun;
 				}
 			}
-			cto->ct_timeout = 10;
+			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
 			cto->ct_rxid = cso->tag_id;
 
 			/*
