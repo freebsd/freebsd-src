@@ -118,7 +118,7 @@ device		cfid
 device		nvram2env
 
 device		usb
-#device		dotg			# DWC like USB OTG Controller driver
+#device		dwcotg			# DWC like USB OTG Controller driver
 #device		u3g
 #device		umodem
 #device		uplcom
