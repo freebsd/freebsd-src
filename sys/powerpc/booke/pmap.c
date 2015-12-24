@@ -1024,12 +1024,13 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 static void
 mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 {
-	vm_offset_t phys_kernelend;
+	vm_paddr_t phys_kernelend;
 	struct mem_region *mp, *mp1;
 	int cnt, i, j;
-	u_int s, e, sz;
+	vm_paddr_t s, e, sz;
+	vm_paddr_t physsz, hwphyssz;
 	u_int phys_avail_count;
-	vm_size_t physsz, hwphyssz, kstack0_sz;
+	vm_size_t kstack0_sz;
 	vm_offset_t kernel_pdir, kstack0, va;
 	vm_paddr_t kstack0_phys;
 	void *dpcpu;
@@ -1163,7 +1164,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	for (mp = availmem_regions; mp->mr_size; mp++) {
 		s = mp->mr_start;
 		e = mp->mr_start + mp->mr_size;
-		debugf(" %08x-%08x -> ", s, e);
+		debugf(" %09jx-%09jx -> ", (uintmax_t)s, (uintmax_t)e);
 		/* Check whether this region holds all of the kernel. */
 		if (s < kernload && e > phys_kernelend) {
 			availmem_regions[cnt].mr_start = phys_kernelend;
@@ -1188,7 +1189,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		if (e < s)
 			e = s;
 		sz = e - s;
-		debugf("%08x-%08x = %x\n", s, e, sz);
+		debugf("%09jx-%09jx = %jx\n",
+		    (uintmax_t)s, (uintmax_t)e, (uintmax_t)sz);
 
 		/* Check whether some memory is left here. */
 		if (sz == 0) {
@@ -1237,10 +1239,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	for (i = 0, j = 0; i < availmem_regions_sz; i++, j += 2) {
 
 		debugf(" region: 0x%jx - 0x%jx (0x%jx)\n",
-		    availmem_regions[i].mr_start,
-		    availmem_regions[i].mr_start +
+		    (uintmax_t)availmem_regions[i].mr_start,
+		    (uintmax_t)availmem_regions[i].mr_start +
 		        availmem_regions[i].mr_size,
-		    availmem_regions[i].mr_size);
+		    (uintmax_t)availmem_regions[i].mr_size);
 
 		if (hwphyssz != 0 &&
 		    (physsz + availmem_regions[i].mr_size) >= hwphyssz) {
