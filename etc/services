@@ -1029,7 +1029,7 @@ nntps		563/udp	   snntp	#nntp protocol over TLS/SSL
 whoami		565/tcp
 whoami		565/udp
 streettalk	566/tcp
-streettalk      566/udp
+streettalk	566/udp
 banyan-rpc	567/tcp
 banyan-rpc	567/udp
 ms-shuttle	568/tcp	   #Microsoft shuttle
@@ -1099,16 +1099,16 @@ acp		599/tcp	   #Aeolon Core Protocol
 acp		599/udp	   #Aeolon Core Protocol
 ipcserver	600/tcp	   #Sun IPC server
 ipcserver	600/udp	   #Sun IPC server
-syslog-conn     601/tcp    #Reliable Syslog Service
-syslog-conn     601/udp    #Reliable Syslog Service
-xmlrpc-beep     602/tcp    #XML-RPC over BEEP
-xmlrpc-beep     602/udp    #XML-RPC over BEEP
-idxp            603/tcp
-idxp            603/udp
-tunnel          604/tcp
-tunnel          604/udp
-soap-beep       605/tcp    #SOAP over BEEP
-soap-beep       605/udp    #SOAP over BEEP
+syslog-conn	601/tcp    #Reliable Syslog Service
+syslog-conn	601/udp    #Reliable Syslog Service
+xmlrpc-beep	602/tcp    #XML-RPC over BEEP
+xmlrpc-beep	602/udp    #XML-RPC over BEEP
+idxp		603/tcp
+idxp		603/udp
+tunnel		604/tcp
+tunnel		604/udp
+soap-beep	605/tcp    #SOAP over BEEP
+soap-beep	605/udp    #SOAP over BEEP
 urm		606/tcp	   #Cray Unified Resource Manager
 urm		606/udp	   #Cray Unified Resource Manager
 nqs		607/tcp
@@ -1137,14 +1137,14 @@ dei-icda	618/tcp
 dei-icda	618/udp
 compaq-evm	619/tcp    #Compaq EVM
 compaq-evm	619/udp    #Compaq EVM
-sco-websrvrmgr  620/tcp    #SCO WebServer Manager
-sco-websrvrmgr  620/udp    #SCO WebServer Manager
+sco-websrvrmgr	620/tcp    #SCO WebServer Manager
+sco-websrvrmgr	620/udp    #SCO WebServer Manager
 escp-ip		621/tcp    #ESCP
 escp-ip		621/udp    #ESCP
 collaborator	622/tcp
 collaborator	622/udp
-asf-rmcp        623/tcp    #ASF Remote Management and Control Protocol
-asf-rmcp        623/udp    #ASF Remote Management and Control Protocol
+asf-rmcp	623/tcp    #ASF Remote Management and Control Protocol
+asf-rmcp	623/udp    #ASF Remote Management and Control Protocol
 cryptoadmin	624/tcp    #Crypto Admin
 cryptoadmin	624/udp    #Crypto Admin
 dec_dlm		625/tcp    #DEC DLM
@@ -1167,12 +1167,12 @@ servstat	633/tcp    #Service Status update (Sterling Software)
 servstat	633/udp    #Service Status update (Sterling Software)
 ginad		634/tcp
 ginad		634/udp
-rlzdbase        635/tcp    #RLZ DBase
-rlzdbase        635/udp    #RLZ DBase
+rlzdbase	635/tcp    #RLZ DBase
+rlzdbase	635/udp    #RLZ DBase
 ldaps		636/tcp	   sldap	#ldap protocol over TLS/SSL
 ldaps		636/udp	   sldap
-lanserver       637/tcp
-lanserver       637/udp
+lanserver	637/tcp
+lanserver	637/udp
 mcns-sec	638/tcp
 mcns-sec	638/udp
 msdp		639/tcp
@@ -1191,12 +1191,12 @@ pssc		645/tcp
 pssc		645/udp
 ldp		646/tcp
 ldp		646/udp
-dhcp-failover   647/tcp    #DHCP Failover
-dhcp-failover   647/udp    #DHCP Failover
-rrp             648/tcp    #Registry Registrar Protocol (RRP)
-rrp             648/udp    #Registry Registrar Protocol (RRP)
-cadview-3d      649/tcp    #Cadview-3d - streaming 3d models over the internet
-cadview-3d      649/udp    #Cadview-3d - streaming 3d models over the internet
+dhcp-failover	647/tcp    #DHCP Failover
+dhcp-failover	647/udp    #DHCP Failover
+rrp		648/tcp    #Registry Registrar Protocol (RRP)
+rrp		648/udp    #Registry Registrar Protocol (RRP)
+cadview-3d	649/tcp    #Cadview-3d - streaming 3d models over the internet
+cadview-3d	649/udp    #Cadview-3d - streaming 3d models over the internet
 obex		650/tcp
 obex		650/udp
 ieee-mms	651/tcp    #IEEE MMS
@@ -1215,38 +1215,38 @@ rmc		657/tcp
 rmc		657/udp
 tenfold		658/tcp
 tenfold		658/udp
-mac-srvr-admin  660/tcp    #MacOS Server Admin
-mac-srvr-admin  660/udp    #MacOS Server Admin
-hap             661/tcp
-hap             661/udp
-pftp            662/tcp
-pftp            662/udp
-purenoise       663/tcp    #PureNoise
-purenoise       663/udp    #PureNoise
-asf-secure-rmcp 664/tcp    #ASF Secure Remote Management and Control Protocol
-asf-secure-rmcp 664/udp    #ASF Secure Remote Management and Control Protocol
-sun-dr          665/tcp    #Sun DR
-sun-dr          665/udp    #Sun DR
+mac-srvr-admin	660/tcp    #MacOS Server Admin
+mac-srvr-admin	660/udp    #MacOS Server Admin
+hap		661/tcp
+hap		661/udp
+pftp		662/tcp
+pftp		662/udp
+purenoise	663/tcp    #PureNoise
+purenoise	663/udp    #PureNoise
+asf-secure-rmcp	664/tcp    #ASF Secure Remote Management and Control Protocol
+asf-secure-rmcp	664/udp    #ASF Secure Remote Management and Control Protocol
+sun-dr		665/tcp    #Sun DR
+sun-dr		665/udp    #Sun DR
 mdqs		666/tcp
 mdqs		666/udp
 #PROBLEMS!===============================================
 doom		666/tcp	   #doom Id Software
 doom		666/udp	   #doom Id Software
 #PROBLEMS!===============================================
-disclose        667/tcp    #campaign contribution disclosures - SDR Technologies
-disclose        667/udp    #campaign contribution disclosures - SDR Technologies
-mecomm          668/tcp
-mecomm          668/udp
-meregister      669/tcp
-meregister      669/udp
-vacdsm-sws      670/tcp
-vacdsm-sws      670/udp
-vacdsm-app      671/tcp
-vacdsm-app      671/udp
-vpps-qua        672/tcp
-vpps-qua        672/udp
-cimplex         673/tcp
-cimplex         673/udp
+disclose	667/tcp    #campaign contribution disclosures - SDR Technologies
+disclose	667/udp    #campaign contribution disclosures - SDR Technologies
+mecomm		668/tcp
+mecomm		668/udp
+meregister	669/tcp
+meregister	669/udp
+vacdsm-sws	670/tcp
+vacdsm-sws	670/udp
+vacdsm-app	671/tcp
+vacdsm-app	671/udp
+vpps-qua	672/tcp
+vpps-qua	672/udp
+cimplex		673/tcp
+cimplex		673/udp
 acap		674/tcp	   #Application Configuration Access Protocol
 acap		674/udp	   #Application Configuration Access Protocol
 dctp		675/tcp
@@ -1257,70 +1257,70 @@ vpp		677/tcp    #Virtual Presence Protocol
 vpp		677/udp    #Virtual Presence Protocol
 ggf-ncp		678/tcp    #GNU Generation Foundation NCP
 ggf-ncp		678/udp    #GNU Generation Foundation NCP
-mrm             679/tcp
-mrm             679/udp
+mrm		679/tcp
+mrm		679/udp
 entrust-aaas	680/tcp
 entrust-aaas	680/udp
 entrust-aams	681/tcp
 entrust-aams	681/udp
-xfr             682/tcp
-xfr             682/udp
-corba-iiop      683/tcp    #CORBA IIOP
-corba-iiop      683/udp    #CORBA IIOP
+xfr		682/tcp
+xfr		682/udp
+corba-iiop	683/tcp    #CORBA IIOP
+corba-iiop	683/udp    #CORBA IIOP
 corba-iiop-ssl	684/tcp    #CORBA IIOP SSL
 corba-iiop-ssl	684/udp    #CORBA IIOP SSL
 mdc-portmapper	685/tcp    #MDC Port Mapper
 mdc-portmapper	685/udp    #MDC Port Mapper
-hcp-wismar      686/tcp    #Hardware Control Protocol Wismar
-hcp-wismar      686/udp    #Hardware Control Protocol Wismar
+hcp-wismar	686/tcp    #Hardware Control Protocol Wismar
+hcp-wismar	686/udp    #Hardware Control Protocol Wismar
 asipregistry	687/tcp
 asipregistry	687/udp
-realm-rusd      688/tcp    #ApplianceWare management protocol
-realm-rusd      688/udp    #ApplianceWare management protocol
-nmap            689/tcp
-nmap            689/udp
-vatp            690/tcp    #Velazquez Application Transfer Protocol
-vatp            690/udp    #Velazquez Application Transfer Protocol
+realm-rusd	688/tcp    #ApplianceWare management protocol
+realm-rusd	688/udp    #ApplianceWare management protocol
+nmap		689/tcp
+nmap		689/udp
+vatp		690/tcp    #Velazquez Application Transfer Protocol
+vatp		690/udp    #Velazquez Application Transfer Protocol
 msexch-routing	691/tcp    #MS Exchange Routing
 msexch-routing	691/udp    #MS Exchange Routing
 hyperwave-isp	692/tcp    #Hyperwave-ISP
 hyperwave-isp	692/udp    #Hyperwave-ISP
-connendp        693/tcp
-connendp        693/udp
-ha-cluster      694/tcp
-ha-cluster      694/udp
-ieee-mms-ssl    695/tcp
-ieee-mms-ssl    695/udp
-rushd           696/tcp
-rushd           696/udp
-uuidgen         697/tcp
-uuidgen         697/udp
-olsr            698/tcp
-olsr            698/udp
-accessnetwork   699/tcp    #Access Network
-accessnetwork   699/udp    #Access Network
-epp             700/tcp    #Extensible Provisioning Protocol
-epp             700/udp    #Extensible Provisioning Protocol
-lmp             701/tcp    #Link Management Protocol (LMP)
-lmp             701/udp    #Link Management Protocol (LMP)
-iris-beep       702/tcp    #IRIS over BEEP
-iris-beep       702/udp    #IRIS over BEEP
+connendp	693/tcp
+connendp	693/udp
+ha-cluster	694/tcp
+ha-cluster	694/udp
+ieee-mms-ssl	695/tcp
+ieee-mms-ssl	695/udp
+rushd		696/tcp
+rushd		696/udp
+uuidgen		697/tcp
+uuidgen		697/udp
+olsr		698/tcp
+olsr		698/udp
+accessnetwork	699/tcp    #Access Network
+accessnetwork	699/udp    #Access Network
+epp		700/tcp    #Extensible Provisioning Protocol
+epp		700/udp    #Extensible Provisioning Protocol
+lmp		701/tcp    #Link Management Protocol (LMP)
+lmp		701/udp    #Link Management Protocol (LMP)
+iris-beep	702/tcp    #IRIS over BEEP
+iris-beep	702/udp    #IRIS over BEEP
 elcsd		704/tcp	   #errlog copy/server daemon
 elcsd		704/udp	   #errlog copy/server daemon
-agentx	        705/tcp    #AgentX
-agentx          705/udp    #AgentX
-silc            706/tcp
-silc            706/udp
-borland-dsj     707/tcp    #Borland DSJ
-borland-dsj     707/udp	   #Borland DSJ
+agentx		705/tcp    #AgentX
+agentx		705/udp    #AgentX
+silc		706/tcp
+silc		706/udp
+borland-dsj	707/tcp    #Borland DSJ
+borland-dsj	707/udp	   #Borland DSJ
 entrustmanager	709/tcp	   #EntrustManager
 entrustmanager	709/udp	   #EntrustManager
-entrust-ash     710/tcp    #Entrust Administration Service Handler
-entrust-ash     710/udp    #Entrust Administration Service Handler
-cisco-tdp       711/tcp    #Cisco TDP
-cisco-tdp       711/udp    #Cisco TDP
-tbrpf           712/tcp
-tbrpf           712/udp
+entrust-ash	710/tcp    #Entrust Administration Service Handler
+entrust-ash	710/udp    #Entrust Administration Service Handler
+cisco-tdp	711/tcp    #Cisco TDP
+cisco-tdp	711/udp    #Cisco TDP
+tbrpf		712/tcp
+tbrpf		712/udp
 iris-xpc	713/tcp    #IRIS over XPC
 iris-xpc	713/udp    #IRIS over XPC
 iris-xpcs	714/tcp    #IRIS over XPCS
@@ -1419,49 +1419,49 @@ fcp-udp		810/udp    #FCP Datagram
 itm-mcell-s	828/tcp
 itm-mcell-s	828/udp
 pkix-3-ca-ra	829/tcp    #PKIX-3 CA/RA
-pkix-3-ca-ra    829/udp    #PKIX-3 CA/RA
-netconf-ssh     830/tcp    #NETCONF over SSH
-netconf-ssh     830/udp    #NETCONF over SSH
-netconf-beep    831/tcp    #NETCONF over BEEP
-netconf-beep    831/udp    #NETCONF over BEEP
-netconfsoaphttp 832/tcp    #NETCONF for SOAP over HTTPS
-netconfsoaphttp 832/udp    #NETCONF for SOAP over HTTPS
-netconfsoapbeep 833/tcp    #NETCONF for SOAP over BEEP
-netconfsoapbeep 833/udp    #NETCONF for SOAP over BEEP
-dhcp-failover2  847/tcp    #dhcp-failover 2
-dhcp-failover2  847/udp    #dhcp-failover 2
-gdoi            848/tcp
-gdoi            848/udp
-iscsi           860/tcp
-iscsi           860/udp
-owamp-control   861/tcp
-owamp-control   861/udp
+pkix-3-ca-ra	829/udp    #PKIX-3 CA/RA
+netconf-ssh	830/tcp    #NETCONF over SSH
+netconf-ssh	830/udp    #NETCONF over SSH
+netconf-beep	831/tcp    #NETCONF over BEEP
+netconf-beep	831/udp    #NETCONF over BEEP
+netconfsoaphttp	832/tcp    #NETCONF for SOAP over HTTPS
+netconfsoaphttp	832/udp    #NETCONF for SOAP over HTTPS
+netconfsoapbeep	833/tcp    #NETCONF for SOAP over BEEP
+netconfsoapbeep	833/udp    #NETCONF for SOAP over BEEP
+dhcp-failover2	847/tcp    #dhcp-failover 2
+dhcp-failover2	847/udp    #dhcp-failover 2
+gdoi		848/tcp
+gdoi		848/udp
+iscsi		860/tcp
+iscsi		860/udp
+owamp-control	861/tcp
+owamp-control	861/udp
 supfilesrv	871/tcp	   # for SUP
 rsync		873/tcp
 rsync		873/udp
-iclcnet-locate  886/tcp    #ICL coNETion locate server
-iclcnet-locate  886/udp    #ICL coNETion locate server
-iclcnet_svinfo  887/tcp    #ICL coNETion server info
-iclcnet_svinfo  887/udp    #ICL coNETion server info
+iclcnet-locate	886/tcp    #ICL coNETion locate server
+iclcnet-locate	886/udp    #ICL coNETion locate server
+iclcnet_svinfo	887/tcp    #ICL coNETion server info
+iclcnet_svinfo	887/udp    #ICL coNETion server info
 accessbuilder	888/tcp
 accessbuilder	888/udp
-omginitialrefs  900/tcp    #OMG Initial Refs
-omginitialrefs  900/udp    #OMG Initial Refs
+omginitialrefs	900/tcp    #OMG Initial Refs
+omginitialrefs	900/udp    #OMG Initial Refs
 swat		901/tcp	   # samba web configuration tool
-smpnameres      901/tcp
-smpnameres      901/udp
-ideafarm-chat   902/tcp
-ideafarm-chat   902/udp
-ideafarm-catch  903/tcp
-ideafarm-catch  903/udp
-kink            910/tcp    #Kerberized Internet Negotiation of Keys (KINK)
-kink            910/udp    #Kerberized Internet Negotiation of Keys (KINK)
-xact-backup     911/tcp
-xact-backup     911/udp
-apex-mesh       912/tcp    #APEX relay-relay service
-apex-mesh       912/udp    #APEX relay-relay service
-apex-edge       913/tcp    #APEX endpoint-relay service
-apex-edge       913/udp    #APEX endpoint-relay service
+smpnameres	901/tcp
+smpnameres	901/udp
+ideafarm-chat	902/tcp
+ideafarm-chat	902/udp
+ideafarm-catch	903/tcp
+ideafarm-catch	903/udp
+kink		910/tcp    #Kerberized Internet Negotiation of Keys (KINK)
+kink		910/udp    #Kerberized Internet Negotiation of Keys (KINK)
+xact-backup	911/tcp
+xact-backup	911/udp
+apex-mesh	912/tcp    #APEX relay-relay service
+apex-mesh	912/udp    #APEX relay-relay service
+apex-edge	913/tcp    #APEX endpoint-relay service
+apex-edge	913/udp    #APEX endpoint-relay service
 rndc		953/tcp	   # named's rndc control socket
 ftps-data	989/tcp	   # ftp protocol, data, over TLS/SSL
 ftps-data	989/udp
@@ -1491,10 +1491,10 @@ cadlock2	1000/tcp
 cadlock2	1000/udp
 surf		1010/tcp
 surf		1010/udp
-exp1            1021/tcp   #RFC3692-style Experiment 1 (*)    [RFC4727]
-exp1            1021/udp   #RFC3692-style Experiment 1 (*)    [RFC4727]
-exp2            1022/tcp   #RFC3692-style Experiment 2 (*)    [RFC4727]
-exp2            1022/udp   #RFC3692-style Experiment 2 (*)    [RFC4727]
+exp1		1021/tcp   #RFC3692-style Experiment 1 (*)    [RFC4727]
+exp1		1021/udp   #RFC3692-style Experiment 1 (*)    [RFC4727]
+exp2		1022/tcp   #RFC3692-style Experiment 2 (*)    [RFC4727]
+exp2		1022/udp   #RFC3692-style Experiment 2 (*)    [RFC4727]
 #
 # REGISTERED PORT NUMBERS
 #
@@ -2399,6 +2399,7 @@ xdsxdm		6558/udp
 sane-port	6566/tcp   #Scanner Access Now Easy (SANE) Control Port
 sane-port	6566/udp   #Scanner Access Now Easy (SANE) Control Port
 ircd		6667/tcp   #Internet Relay Chat (unofficial)
+ircs-u		6697/tcp   #Internet Relay Chat over TLS/SSL
 frc-hp		6704/sctp  #ForCES HP (High Priority) channel
 frc-mp		6705/sctp  #ForCES MP (Medium Priority) channel
 frc-lp		6706/sctp  #ForCES LP (Low priority) channel
