@@ -4,6 +4,4 @@
 PROG=	nfsstat
 CFLAGS+=-DNFS
 
-LIBADD=	kvm
-
 .include <bsd.prog.mk>
