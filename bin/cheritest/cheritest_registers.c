@@ -220,12 +220,70 @@ test_initregs_default(const struct cheri_test *ctp __unused)
 	check_initreg_data(cheri_getdefault());
 }
 
+/*
+ * Outside of CheriABI, we expect the stack capability to be the same as the
+ * default data capability, since we need the stack pointer ($sp) to be usable
+ * relative to either capability.
+ *
+ * Inside CheriABI, the stack capability should contain only the specific
+ * address range used for the stack.  We could try to capture the same logic
+ * here as used in the kernel to select the stack -- but it seems more
+ * sensible to simply assert that the capability is not the same as the
+ * default capability for the MIPS ABI.
+ */
 void
 test_initregs_stack(const struct cheri_test *ctp __unused)
+#ifndef __CHERI_SANDBOX__
 {
 
 	check_initreg_data(cheri_getstack());
 }
+#else
+{
+	__capability void *c = cheri_getstack();
+	register_t v;
+
+	/* Base. */
+	v = cheri_getbase(c);
+	if (v == CHERI_CAP_USER_DATA_BASE)
+		cheritest_failure_errx("base %jx (did not expect %jx)", v,
+		    CHERI_CAP_USER_DATA_BASE);
+
+	/* Length. */
+	v = cheri_getlen(c);
+	if (v == CHERI_CAP_USER_DATA_LENGTH)
+		cheritest_failure_errx("length 0x%jx (did not expect 0x%jx)",
+		    v, CHERI_CAP_USER_DATA_LENGTH);
+
+	/* Offset. */
+	v = cheri_getoffset(c);
+	if (v != CHERI_CAP_USER_DATA_OFFSET)
+		cheritest_failure_errx("offset %jx (expected %jx)", v,
+		    CHERI_CAP_USER_DATA_OFFSET);
+	/* Type. */
+	v = cheri_gettype(c);
+	if (v != CHERI_CAP_USER_DATA_OTYPE)
+		cheritest_failure_errx("otype %jx (expected %jx)", v,
+		    CHERI_CAP_USER_DATA_OTYPE);
+
+	/* Permissions. */
+	v = cheri_getperm(c);
+	if (v != CHERI_CAP_USER_DATA_PERMS)
+		cheritest_failure_errx("perms %jx (expected %jx)", v,
+		    CHERI_CAP_USER_DATA_PERMS);
+
+	/* Sealed bit. */
+	v = cheri_getsealed(c);
+	if (v != 0)
+		cheritest_failure_errx("sealed %jx (expected 0)", v);
+
+	/* Tag bit. */
+	v = cheri_gettag(c);
+	if (v != 1)
+		cheritest_failure_errx("tag %jx (expected 1)", v);
+	cheritest_success();
+}
+#endif
 
 void
 test_initregs_idc(const struct cheri_test *ctp __unused)
