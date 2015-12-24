@@ -808,12 +808,14 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 				*olinfo_status |= IXGBE_TXD_POPTS_IXSM << 8;
 			}
 			break;
+#ifdef INET6
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(l3d);
 			ip_hlen = sizeof(struct ip6_hdr);
 			ipproto = ip6->ip6_nxt;
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV6;
 			break;
+#endif
 		default:
 			offload = FALSE;
 			break;
