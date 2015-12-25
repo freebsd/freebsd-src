@@ -247,28 +247,26 @@ copy_and_sync:
 	return (CMD_QUEUED);
 }
 
-int
-isp_allocate_xs(ispsoftc_t *isp, XS_T *xs, uint32_t *handlep)
+uint32_t
+isp_allocate_handle(ispsoftc_t *isp, void *xs, int type)
 {
 	isp_hdl_t *hdp;
 
 	hdp = isp->isp_xffree;
-	if (hdp == NULL) {
-		return (-1);
-	}
+	if (hdp == NULL)
+		return (ISP_HANDLE_FREE);
 	isp->isp_xffree = hdp->cmd;
 	hdp->cmd = xs;
 	hdp->handle = (hdp - isp->isp_xflist);
-	hdp->handle |= (ISP_HANDLE_INITIATOR << ISP_HANDLE_USAGE_SHIFT);
+	hdp->handle |= (type << ISP_HANDLE_USAGE_SHIFT);
 	hdp->handle |= (isp->isp_seqno++ << ISP_HANDLE_SEQ_SHIFT);
-	*handlep = hdp->handle;
-	return (0);
+	return (hdp->handle);
 }
 
-XS_T *
+void *
 isp_find_xs(ispsoftc_t *isp, uint32_t handle)
 {
-	if (!ISP_VALID_INI_HANDLE(isp, handle)) {
+	if (!ISP_VALID_HANDLE(isp, handle)) {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 		return (NULL);
 	}
@@ -276,7 +274,7 @@ isp_find_xs(ispsoftc_t *isp, uint32_t handle)
 }
 
 uint32_t
-isp_find_handle(ispsoftc_t *isp, XS_T *xs)
+isp_find_handle(ispsoftc_t *isp, void *xs)
 {
 	uint32_t i, foundhdl = ISP_HANDLE_FREE;
 
@@ -292,21 +290,10 @@ isp_find_handle(ispsoftc_t *isp, XS_T *xs)
 	return (foundhdl);
 }
 
-uint32_t
-isp_handle_index(ispsoftc_t *isp, uint32_t handle)
-{
-	if (!ISP_VALID_HANDLE(isp, handle)) {
-		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
-		return (ISP_BAD_HANDLE_INDEX);
-	} else {
-		return (handle & ISP_HANDLE_CMD_MASK);
-	}
-}
-
 void
 isp_destroy_handle(ispsoftc_t *isp, uint32_t handle)
 {
-	if (!ISP_VALID_INI_HANDLE(isp, handle)) {
+	if (!ISP_VALID_HANDLE(isp, handle)) {
 		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
 	} else {
 		isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)].handle = ISP_HANDLE_FREE;
@@ -583,46 +570,41 @@ isp_clear_commands(ispsoftc_t *isp)
 #endif
 
 	for (tmp = 0; isp->isp_xflist && tmp < isp->isp_maxcmds; tmp++) {
-		XS_T *xs;
 
 		hdp = &isp->isp_xflist[tmp];
-		if (hdp->handle == ISP_HANDLE_FREE) {
-			continue;
+		if (ISP_H2HT(hdp->handle) == ISP_HANDLE_INITIATOR) {
+			XS_T *xs = hdp->cmd;
+			if (XS_XFRLEN(xs)) {
+				ISP_DMAFREE(isp, xs, hdp->handle);
+				XS_SET_RESID(xs, XS_XFRLEN(xs));
+			} else {
+				XS_SET_RESID(xs, 0);
+			}
+			hdp->handle = 0;
+			hdp->cmd = NULL;
+			XS_SETERR(xs, HBA_BUSRESET);
+			isp_done(xs);
+#ifdef	ISP_TARGET_MODE
+		} else if (ISP_H2HT(hdp->handle) == ISP_HANDLE_TARGET) {
+			uint8_t local[QENTRY_LEN];
+			ISP_DMAFREE(isp, hdp->cmd, hdp->handle);
+			ISP_MEMZERO(local, QENTRY_LEN);
+			if (IS_24XX(isp)) {
+				ct7_entry_t *ctio = (ct7_entry_t *) local;
+				ctio->ct_syshandle = hdp->handle;
+				ctio->ct_nphdl = CT_HBA_RESET;
+				ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
+			} else {
+				ct2_entry_t *ctio = (ct2_entry_t *) local;
+				ctio->ct_syshandle = hdp->handle;
+				ctio->ct_status = CT_HBA_RESET;
+				ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
+			}
+			isp_async(isp, ISPASYNC_TARGET_ACTION, local);
+#endif
 		}
-		xs = hdp->cmd;
-		if (XS_XFRLEN(xs)) {
-			ISP_DMAFREE(isp, xs, hdp->handle);
-			XS_SET_RESID(xs, XS_XFRLEN(xs));
-		} else {
-			XS_SET_RESID(xs, 0);
-		}
-		hdp->handle = 0;
-		hdp->cmd = NULL;
-		XS_SETERR(xs, HBA_BUSRESET);
-		isp_done(xs);
 	}
 #ifdef	ISP_TARGET_MODE
-	for (tmp = 0; isp->isp_tgtlist && tmp < isp->isp_maxcmds; tmp++) {
-		uint8_t local[QENTRY_LEN];
-		hdp = &isp->isp_tgtlist[tmp];
-		if (hdp->handle == ISP_HANDLE_FREE) {
-			continue;
-		}
-		ISP_DMAFREE(isp, hdp->cmd, hdp->handle);
-		ISP_MEMZERO(local, QENTRY_LEN);
-		if (IS_24XX(isp)) {
-			ct7_entry_t *ctio = (ct7_entry_t *) local;
-			ctio->ct_syshandle = hdp->handle;
-			ctio->ct_nphdl = CT_HBA_RESET;
-			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
-		} else {
-			ct2_entry_t *ctio = (ct2_entry_t *) local;
-			ctio->ct_syshandle = hdp->handle;
-			ctio->ct_status = CT_HBA_RESET;
-			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
-		}
-		isp_async(isp, ISPASYNC_TARGET_ACTION, local);
-	}
 	for (tmp = 0; tmp < isp->isp_nchan; tmp++) {
 		ISP_MEMZERO(&notify, sizeof (isp_notify_t));
 		notify.nt_ncode = NT_HBA_RESET;
@@ -2221,69 +2203,6 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 	}
 	ISP_ADD_REQUEST(isp, nxt);
 	return (CMD_QUEUED);
-}
-
-int
-isp_allocate_xs_tgt(ispsoftc_t *isp, void *xs, uint32_t *handlep)
-{
-	isp_hdl_t *hdp;
-
-	hdp = isp->isp_tgtfree;
-	if (hdp == NULL) {
-		return (-1);
-	}
-	isp->isp_tgtfree = hdp->cmd;
-	hdp->cmd = xs;
-	hdp->handle = (hdp - isp->isp_tgtlist);
-	hdp->handle |= (ISP_HANDLE_TARGET << ISP_HANDLE_USAGE_SHIFT);
-	/*
-	 * Target handles for SCSI cards are only 16 bits, so
-	 * sequence number protection will be ommitted.
-	 */
-	if (IS_FC(isp)) {
-		hdp->handle |= (isp->isp_seqno++ << ISP_HANDLE_SEQ_SHIFT);
-	}
-	*handlep = hdp->handle;
-	return (0);
-}
-
-void *
-isp_find_xs_tgt(ispsoftc_t *isp, uint32_t handle)
-{
-	if (!ISP_VALID_TGT_HANDLE(isp, handle)) {
-		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
-		return (NULL);
-	}
-	return (isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].cmd);
-}
-
-uint32_t
-isp_find_tgt_handle(ispsoftc_t *isp, void *xs)
-{
-	uint32_t i, foundhdl = ISP_HANDLE_FREE;
-
-	if (xs != NULL) {
-		for (i = 0; i < isp->isp_maxcmds; i++) {
-			if (isp->isp_tgtlist[i].cmd != xs) {
-				continue;
-			}
-			foundhdl = isp->isp_tgtlist[i].handle;
-			break;
-		}
-	}
-	return (foundhdl);
-}
-
-void
-isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
-{
-	if (!ISP_VALID_TGT_HANDLE(isp, handle)) {
-		isp_prt(isp, ISP_LOGERR, "%s: bad handle 0x%x", __func__, handle);
-	} else {
-		isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].handle = ISP_HANDLE_FREE;
-		isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)].cmd = isp->isp_tgtfree;
-		isp->isp_tgtfree = &isp->isp_tgtlist[(handle & ISP_HANDLE_CMD_MASK)];
-	}
 }
 
 #endif
