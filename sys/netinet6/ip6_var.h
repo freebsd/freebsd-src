@@ -455,6 +455,7 @@ int	in6_selectroute_fib(struct sockaddr_in6 *, struct ip6_pktopts *,
 	    struct rtentry **, u_int);
 u_int32_t ip6_randomid(void);
 u_int32_t ip6_randomflowlabel(void);
+void in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IP6_VAR_H_ */
