@@ -599,7 +599,7 @@ arpintr(struct mbuf *m)
 		layer = "firewire";
 
 		/*
-		 * Restrict too long harware addresses.
+		 * Restrict too long hardware addresses.
 		 * Currently we are capable of handling 20-byte
 		 * addresses ( sizeof(lle->ll_addr) )
 		 */
@@ -608,8 +608,8 @@ arpintr(struct mbuf *m)
 		break;
 	default:
 		ARP_LOG(LOG_NOTICE,
-		    "packet with unknown harware format 0x%02d received on %s\n",
-		    ntohs(ar->ar_hrd), if_name(ifp));
+		    "packet with unknown hardware format 0x%02d received on "
+		    "%s\n", ntohs(ar->ar_hrd), if_name(ifp));
 		m_freem(m);
 		return;
 	}
