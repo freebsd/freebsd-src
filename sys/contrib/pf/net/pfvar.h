@@ -1909,6 +1909,8 @@ extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
 				    u_int8_t);
+extern u_int16_t		 pf_proto_cksum_fixup(struct mbuf *, u_int16_t,
+				    u_int16_t, u_int16_t, u_int8_t);
 
 #ifdef __FreeBSD__
 VNET_DECLARE(struct ifnet *,		 sync_ifp);
@@ -1954,6 +1956,9 @@ u_int32_t	pf_new_isn(struct pf_state *);
 void   *pf_pull_hdr(struct mbuf *, int, void *, int, u_short *, u_short *,
 	    sa_family_t);
 void	pf_change_a(void *, u_int16_t *, u_int32_t, u_int8_t);
+void	pf_change_proto_a(struct mbuf *, void *, u_int16_t *, u_int32_t,
+	    u_int8_t);
+void	pf_change_tcp_a(struct mbuf *, void *, u_int16_t *, u_int32_t);
 int	pflog_packet(struct pfi_kif *, struct mbuf *, sa_family_t, u_int8_t,
 	    u_int8_t, struct pf_rule *, struct pf_rule *, struct pf_ruleset *,
 	    struct pf_pdesc *);
