@@ -512,7 +512,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	cheri_is_sandboxed = cheri_signal_sandboxed(td);
 
 	/*
-	 * We provide the ability to drop into the sandbox in two different
+	 * We provide the ability to drop into the debugger in two different
 	 * circumstances: (1) if the code running is sandboxed; and (2) if the
 	 * fault is a CHERI protection fault.  Handle both here for the
 	 * non-unwind case.  Do this before we rewrite any general-purpose or
@@ -542,7 +542,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		oonstack = 0;
 
 	/* save user context */
-	bzero(&sf, sizeof(struct sigframe));
+	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
 #if 0
 	/*
