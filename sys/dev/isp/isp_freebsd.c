@@ -1694,7 +1694,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
 			break;
 		}
-		if (isp_allocate_xs_tgt(isp, ccb, &handle)) {
+		handle = isp_allocate_handle(isp, ccb, ISP_HANDLE_TARGET);
+		if (handle == 0) {
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path, "No XFLIST pointers for %s\n", __func__);
 			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
 			isp_free_pcmd(isp, ccb);
@@ -1723,7 +1724,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 
 		dmaresult = ISP_DMASETUP(isp, cso, (ispreq_t *) local);
 		if (dmaresult != CMD_QUEUED) {
-			isp_destroy_tgt_handle(isp, handle);
+			isp_destroy_handle(isp, handle);
 			isp_free_pcmd(isp, ccb);
 			if (dmaresult == CMD_EAGAIN) {
 				TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
@@ -2380,12 +2381,12 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	uint32_t handle, moved_data = 0, data_requested;
 
 	handle = ((ct2_entry_t *)arg)->ct_syshandle;
-	ccb = isp_find_xs_tgt(isp, handle);
+	ccb = isp_find_xs(isp, handle);
 	if (ccb == NULL) {
 		isp_print_bytes(isp, "null ccb in isp_handle_platform_ctio", QENTRY_LEN, arg);
 		return;
 	}
-	isp_destroy_tgt_handle(isp, handle);
+	isp_destroy_handle(isp, handle);
 	data_requested = PISP_PCMD(ccb)->datalen;
 	isp_free_pcmd(isp, ccb);
 	if (isp->isp_nactive) {
@@ -3321,7 +3322,7 @@ isp_loop_dead(ispsoftc_t *isp, int chan)
 		for (i = 0; i < isp->isp_maxcmds; i++) {
 			struct ccb_scsiio *xs;
 
-			if (!ISP_VALID_HANDLE(isp, isp->isp_xflist[i].handle)) {
+			if (ISP_H2HT(isp->isp_xflist[i].handle) != ISP_HANDLE_INITIATOR) {
 				continue;
 			}
 			if ((xs = isp->isp_xflist[i].cmd) == NULL) {
