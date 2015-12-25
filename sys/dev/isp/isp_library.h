@@ -72,9 +72,6 @@ const char *isp_fc_fw_statename(int);
 const char *isp_fc_loop_statename(int);
 const char *isp_fc_toponame(fcparam *);
 
-int isp_fc_change_role(ispsoftc_t *, int, int);
-
-
 /*
  * Cleanup
  */
