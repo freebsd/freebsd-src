@@ -53,7 +53,7 @@ static const char *cheri_exccode_isa_array[] = {
 	"underflow of trusted system stack",	/* CHERI_EXCCODE_UNDERFLOW */
 	"user-defined permission violation",	/* CHERI_EXCCODE_USER */
 	"TLB prohibits store capability",	/* CHERI_EXCCODE_TLBSTORE */
-	"reserved",				/* 0xa: TBD */
+    "Bounds cannot be represented precisely", /* 0xa: CHERI_EXCCODE_IMPRECISE */
 	"reserved",				/* 0xb: TBD */
 	"reserved",				/* 0xc: TBD */
 	"reserved",				/* 0xd: TBD */
@@ -64,10 +64,10 @@ static const char *cheri_exccode_isa_array[] = {
 	"permit load violation",		/* CHERI_EXCCODE_PERM_LOAD */
 	"permit store violation",		/* CHERI_EXCCODE_PERM_STORE */
 	"permit load capability violation",	/* CHERI_EXCCODE_PERM_LOADCAP */
-	"permit store capability violation",  /* CHERI_EXCCODE_PERM_STORECAP */
+	"permit store capability violation",   /* CHERI_EXCCODE_PERM_STORECAP */
      "permit store local capability violation", /* CHERI_EXCCODE_STORE_LOCAL */
 	"permit seal violation",		/* CHERI_EXCCODE_PERM_SEAL */
-	"permit set type violation",		/* CHERI_EXCCODE_PERM_SETTYPE */
+	"reserved",				/* 0x18 */
 	"reserved",				/* 0x19 */
 	"access EPCC violation",		/* CHERI_EXCCODE_ACCESS_EPCC */
 	"access KDC violation",			/* CHERI_EXCCODE_ACCESS_KDC */
