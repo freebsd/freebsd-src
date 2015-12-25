@@ -184,7 +184,7 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 	}\
     } while (/*CONSTCOND*/ 0)
 
-static void
+void
 in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 {
 	u_short csum;
