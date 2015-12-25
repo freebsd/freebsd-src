@@ -95,20 +95,20 @@ __cheri_ ## class ## _entry:						\
 	 * Normally in a CHERI sandbox, we would install $c26 ($idc)	\
 	 * into $c0 for MIPS load/store instructions.  For the system	\
 	 * class, a suitable capability is stored at the front of the	\
-	 * data structure referenced by $idc.  For now, also use as     \
-	 * stack capability.						\
+	 * data structure referenced by $idc.				\
 	 */								\
 	clc	$c12, zero, 0($c26);					\
 	csetdefault	$c12;						\
-	CHERI_ASM_CMOVE($c11, $c12);					\
 									\
 	/*								\
 	 * Install global invocation stack.  NB: this means we can't	\
 	 * support recursion or concurrency.  Further note: this is	\
 	 * shared by all classes outside of the sandbox.		\
 	 */								\
-	dla	$sp, __cheri_enter_stack_top;				\
-	ld	$sp, 0($sp);						\
+	dla	$sp, __cheri_enter_stack_cap;				\
+	clc	$c11, $sp, 0($c12);					\
+	dla	$sp, __cheri_enter_stack_sp;				\
+	cld	$sp, $sp, 0($c12);					\
 	move	$fp, $sp;						\
 									\
 	/*								\
@@ -123,12 +123,16 @@ __cheri_ ## class ## _entry:						\
 	 */								\
 	clc	$c12, zero, CHERICAP_SIZE($c26);			\
 	cld	$t9, $v0, 0($c12);					\
-	jalr	$t9;							\
+	dla	$ra, 0f;						\
+	cgetpcc	$c12;							\
+	csetoffset	$c12, $c12, $t9;				\
+	cjalr	$c17, $c12;						\
 	nop;			/* Branch-delay slot */			\
 									\
 	/*								\
 	 * Return to caller.						\
 	 */								\
+0:									\
 	creturn;							\
 	.end __cheri_## class ## _entry;
 

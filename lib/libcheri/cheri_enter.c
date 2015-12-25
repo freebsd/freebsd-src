@@ -60,8 +60,9 @@
  * Stack for use on entering from sandbox.
  */
 #define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 4)
-static void *__cheri_enter_stack;
-void *__cheri_enter_stack_top;
+static void		*__cheri_enter_stack;
+__capability void	*__cheri_enter_stack_cap;
+register_t		 __cheri_enter_stack_sp;
 
 __attribute__ ((constructor)) static void
 cheri_enter_init(void)
@@ -71,6 +72,17 @@ cheri_enter_init(void)
 	__cheri_enter_stack = mmap(NULL, CHERI_ENTER_STACK_SIZE,
 	    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 	assert(__cheri_enter_stack != MAP_FAILED);
-	__cheri_enter_stack_top = (char *)__cheri_enter_stack +
-	    CHERI_ENTER_STACK_SIZE;
+
+	/*
+	 * In CheriABI, we use the capability returned by mmap(2), which $sp
+	 * will be relative to.  Otherwise, use $c0 and assume a global $sp.
+	 */
+#ifdef __CHERI_SANDBOX__
+	__cheri_enter_stack_cap = __cheri_enter_stack;
+	__cheri_enter_stack_sp = CHERI_ENTER_STACK_SIZE;
+#else
+	__cheri_enter_stack_cap = cheri_getdefault();
+	__cheri_enter_stack_sp = (register_t)((char *)__cheri_enter_stack +
+	    CHERI_ENTER_STACK_SIZE);
+#endif
 }
