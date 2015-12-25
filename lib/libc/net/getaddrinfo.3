@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2015
+.Dd December 19, 2015
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -126,11 +126,13 @@ field to which the
 parameter points shall be set to zero
 or be the bitwise-inclusive OR of one or more of the values
 .Dv AI_ADDRCONFIG ,
+.Dv AI_ALL ,
 .Dv AI_CANONNAME ,
 .Dv AI_NUMERICHOST ,
-.Dv AI_NUMERICSERV
+.Dv AI_NUMERICSERV ,
+.Dv AI_PASSIVE
 and
-.Dv AI_PASSIVE .
+.Dv AI_V4MAPPED .
 .Bl -tag -width "AI_CANONNAMEXX"
 .It Dv AI_ADDRCONFIG
 If the
@@ -139,6 +141,25 @@ bit is set, IPv4 addresses shall be returned only if
 an IPv4 address is configured on the local system,
 and IPv6 addresses shall be returned only if
 an IPv6 address is configured on the local system.
+.It Dv AI_ALL
+If the
+.Dv AI_ALL
+flag is used with the
+.Dv AI_V4MAPPED
+flag, then
+.Fn getaddrinfo
+shall return all matching IPv6 and IPv4 addresses.
+.Pp
+For example, when using the DNS, queries are made for both AAAA records and A records, and
+.Fn getaddrinfo
+returns the combined results of both queries.
+Any IPv4 addresses found are returned as IPv4-mapped IPv6 addresses.
+.Pp
+The
+.Dv AI_ALL
+flag without the
+.Dv AI_V4MAPPED
+flag is ignored.
 .It Dv AI_CANONNAME
 If the
 .Dv AI_CANONNAME
@@ -203,6 +224,25 @@ loopback address if
 is the null pointer and
 .Dv AI_PASSIVE
 is not set.
+.It Dv AI_V4MAPPED
+If the
+.Dv AI_V4MAPPED
+flag is specified along with an ai_family of
+.Dv AF_INET6 ,
+then
+.Fn getaddrinfo
+shall return IPv4-mapped IPv6 addresses on finding no matching IPv6 addresses (
+.Fa ai_addrlen
+shall be 16).
+.Pp
+For example, when using the DNS, if no AAAA records are found then a query is made for A records and any found are returned as IPv4-mapped IPv6 addresses.
+.Pp
+The
+.Dv AI_V4MAPPED
+flag shall be ignored unless
+.Fa ai_family
+equals
+.Dv AF_INET6 .
 .El
 .El
 .Pp
