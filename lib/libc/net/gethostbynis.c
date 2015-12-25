@@ -198,61 +198,6 @@ _gethostbynisaddr_r(const void *addr, socklen_t len, int af,
 }
 #endif /* YP */
 
-/* XXX _gethostbynisname/_gethostbynisaddr only used by getipnodeby*() */
-struct hostent *
-_gethostbynisname(const char *name, int af)
-{
-#ifdef YP
-	struct hostent *he;
-	struct hostent_data *hed;
-	u_long oresopt;
-	int error;
-	res_state statp;
-
-	statp = __res_state();
-	if ((he = __hostent_init()) == NULL ||
-	    (hed = __hostent_data_init()) == NULL) {
-		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
-		return (NULL);
-	}
-
-	oresopt = statp->options;
-	statp->options &= ~RES_USE_INET6;
-	error = _gethostbynisname_r(name, af, he, hed);
-	statp->options = oresopt;
-	return (error == 0) ? he : NULL;
-#else
-	return (NULL);
-#endif
-}
-
-struct hostent *
-_gethostbynisaddr(const void *addr, socklen_t len, int af)
-{
-#ifdef YP
-	struct hostent *he;
-	struct hostent_data *hed;
-	u_long oresopt;
-	int error;
-	res_state statp;
-
-	statp = __res_state();
-	if ((he = __hostent_init()) == NULL ||
-	    (hed = __hostent_data_init()) == NULL) {
-		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
-		return (NULL);
-	}
-
-	oresopt = statp->options;
-	statp->options &= ~RES_USE_INET6;
-	error = _gethostbynisaddr_r(addr, len, af, he, hed);
-	statp->options = oresopt;
-	return (error == 0) ? he : NULL;
-#else
-	return (NULL);
-#endif
-}
-
 int
 _nis_gethostbyname(void *rval, void *cb_data, va_list ap)
 {
