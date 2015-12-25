@@ -4269,7 +4269,7 @@ int
 isp_start(XS_T *xs)
 {
 	ispsoftc_t *isp;
-	uint32_t handle, cdblen;
+	uint32_t cdblen;
 	uint8_t local[QENTRY_LEN];
 	ispreq_t *reqp;
 	void *cdbp, *qep;
@@ -4565,13 +4565,13 @@ isp_start(XS_T *xs)
 		*tptr = 0x1999;
 	}
 
-	if (isp_allocate_xs(isp, xs, &handle)) {
+	/* Whew. Thankfully the same for type 7 requests */
+	reqp->req_handle = isp_allocate_handle(isp, xs, ISP_HANDLE_INITIATOR);
+	if (reqp->req_handle == 0) {
 		isp_prt(isp, ISP_LOG_WARN1, "out of xflist pointers");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
 	}
-	/* Whew. Thankfully the same for type 7 requests */
-	reqp->req_handle = handle;
 
 	/*
 	 * Set up DMA and/or do any platform dependent swizzling of the request entry
@@ -4581,7 +4581,7 @@ isp_start(XS_T *xs)
 	 */
 	dmaresult = ISP_DMASETUP(isp, xs, reqp);
 	if (dmaresult != CMD_QUEUED) {
-		isp_destroy_handle(isp, handle);
+		isp_destroy_handle(isp, reqp->req_handle);
 		/*
 		 * dmasetup sets actual error in packet, and
 		 * return what we were given to return.
@@ -5310,12 +5310,6 @@ again:
 			}
 		}
 
-		if (!ISP_VALID_HANDLE(isp, sp->req_handle)) {
-			isp_prt(isp, ISP_LOGERR, "bad request handle 0x%x (iocb type 0x%x)", sp->req_handle, etype);
-			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			last_etype = etype;
-			continue;
-		}
 		xs = isp_find_xs(isp, sp->req_handle);
 		if (xs == NULL) {
 			uint8_t ts = completion_status & 0xff;
