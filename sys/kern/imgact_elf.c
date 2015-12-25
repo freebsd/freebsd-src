@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#ifdef __arm__
+#include <machine/acle-compat.h>
+#endif
 
 #define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
@@ -116,7 +119,8 @@ SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW,
     &elf_legacy_coredump, 0, "");
 
 int __elfN(nxstack) =
-#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */
+#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */ || \
+    (defined(__arm__) && __ARM_ARCH >= 7) || defined(__aarch64__)
 	1;
 #else
 	0;
@@ -144,7 +148,7 @@ static const char FREEBSD_ABI_VENDOR[] = "FreeBSD";
 Elf_Brandnote __elfN(freebsd_brandnote) = {
 	.hdr.n_namesz	= sizeof(FREEBSD_ABI_VENDOR),
 	.hdr.n_descsz	= sizeof(int32_t),
-	.hdr.n_type	= 1,
+	.hdr.n_type	= NT_FREEBSD_ABI_TAG,
 	.vendor		= FREEBSD_ABI_VENDOR,
 	.flags		= BN_TRANSLATE_OSREL,
 	.trans_osrel	= __elfN(freebsd_trans_osrel)
@@ -795,6 +799,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				error = ENOEXEC;
 				goto ret;
 			}
+			if (interp != NULL) {
+				uprintf("Multiple PT_INTERP headers\n");
+				error = ENOEXEC;
+				goto ret;
+			}
 			interp_name_len = phdr[i].p_filesz;
 			if (phdr[i].p_offset > PAGE_SIZE ||
 			    interp_name_len > PAGE_SIZE - phdr[i].p_offset) {
@@ -1005,7 +1014,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		}
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0) {
-			uprintf("ELF interpreter %s not found\n", interp);
+			uprintf("ELF interpreter %s not found, error %d\n",
+			    interp, error);
 			goto ret;
 		}
 	} else

@@ -66,6 +66,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/db_machdep.h>
 #endif
 
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
+
 extern char fusubailout[];
 extern char cachebailout[];
 
@@ -561,6 +565,13 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
 	const char *rw_mode;
 
 	usermode = TRAPF_USERMODE(tf);
+#ifdef KDTRACE_HOOKS
+	if (!usermode) {
+		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(tf, far))
+			return (0);
+	}
+#endif
+
 	mode = usermode ? "user" : "kernel";
 	rw_mode  = fsr & FSR_WNR ? "write" : "read";
 	disable_interrupts(PSR_I|PSR_F);

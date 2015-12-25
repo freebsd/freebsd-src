@@ -225,8 +225,6 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
-
 	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK) &&
 	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
 		return IXGBE_ERR_INVALID_MAC_ADDR;

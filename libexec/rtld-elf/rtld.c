@@ -257,7 +257,7 @@ bool ld_library_path_rpath = false;
 /*
  * Globals for path names, and such
  */
-char *ld_path_elf_hints = _PATH_ELF_HINTS;
+char *ld_elf_hints_default = _PATH_ELF_HINTS;
 char *ld_path_libmap_conf = _PATH_LIBMAP_CONF;
 char *ld_path_rtld = _PATH_RTLD;
 char *ld_standard_library_path = STANDARD_LIBRARY_PATH;
@@ -458,7 +458,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_utrace = getenv(LD_ "UTRACE");
 
     if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
-	ld_elf_hints_path = ld_path_elf_hints;
+	ld_elf_hints_path = ld_elf_hints_default;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -1126,7 +1126,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 #ifndef __mips__
 	case DT_DEBUG:
-	    /* XXX - not implemented yet */
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
@@ -1362,22 +1361,22 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 		if (note->n_namesz != sizeof(NOTE_FREEBSD_VENDOR) ||
 		    note->n_descsz != sizeof(int32_t))
 			continue;
-		if (note->n_type != ABI_NOTETYPE &&
-		    note->n_type != CRT_NOINIT_NOTETYPE)
+		if (note->n_type != NT_FREEBSD_ABI_TAG &&
+		    note->n_type != NT_FREEBSD_NOINIT_TAG)
 			continue;
 		note_name = (const char *)(note + 1);
 		if (strncmp(NOTE_FREEBSD_VENDOR, note_name,
 		    sizeof(NOTE_FREEBSD_VENDOR)) != 0)
 			continue;
 		switch (note->n_type) {
-		case ABI_NOTETYPE:
+		case NT_FREEBSD_ABI_TAG:
 			/* FreeBSD osrel note */
 			p = (uintptr_t)(note + 1);
 			p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
 			obj->osrel = *(const int32_t *)(p);
 			dbg("note osrel %d", obj->osrel);
 			break;
-		case CRT_NOINIT_NOTETYPE:
+		case NT_FREEBSD_NOINIT_TAG:
 			/* FreeBSD 'crt does not call init' note */
 			obj->crt_no_init = true;
 			dbg("note crt_no_init");
@@ -4396,7 +4395,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 }
 
 #if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
-    defined(__powerpc__)
+    defined(__powerpc__) || defined(__riscv__)
 
 /*
  * Allocate Static TLS using the Variant I method.

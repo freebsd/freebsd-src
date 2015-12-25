@@ -57,23 +57,6 @@ _MKDEPCC+=	${DEPFLAGS}
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
 DEPENDFILES=	${DEPENDFILE}
-.if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Unormal:Mmeta*} == ""
-DEPENDFILES+=	${DEPENDFILE}.*
-DEPEND_MP?=	-MP
-# Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
-# avoid collisions.
-DEPEND_FILTER=	C,/,_,g
-DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
-DEPEND_CFLAGS+=	-MT${.TARGET}
-CFLAGS+=	${DEPEND_CFLAGS}
-DEPENDOBJS+=	${OBJS} ${POBJS} ${SOBJS}
-.for __obj in ${DEPENDOBJS:O:u}
-.if ${.MAKEFLAGS:M-V} == ""
-.sinclude "${DEPENDFILE}.${__obj:${DEPEND_FILTER}}"
-.endif
-DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
-.endfor
-.endif	# ${MK_FAST_DEPEND} == "yes"
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
@@ -165,7 +148,36 @@ ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
 .endfor
 beforedepend: ${DHDRS}
 beforebuild: ${DHDRS}
+
+
+.if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Unormal:Mmeta*} == ""
+DEPENDFILES+=	${DEPENDFILE}.*
+DEPEND_MP?=	-MP
+# Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
+# avoid collisions.
+DEPEND_FILTER=	C,/,_,g
+DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
+DEPEND_CFLAGS+=	-MT${.TARGET}
+.if defined(.PARSEDIR)
+# Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
+# as those are the only ones we will include.
+DEPEND_CFLAGS_CONDITION= !empty(DEPENDOBJS:M${.TARGET:${DEPEND_FILTER}})
+CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
+.else
+CFLAGS+=	${DEPEND_CFLAGS}
 .endif
+DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
+.if !empty(DEPENDSRCS)
+DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
+.endif
+.for __obj in ${DEPENDOBJS:O:u}
+.if ${.MAKEFLAGS:M-V} == ""
+.sinclude "${DEPENDFILE}.${__obj:${DEPEND_FILTER}}"
+.endif
+DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
+.endfor
+.endif	# ${MK_FAST_DEPEND} == "yes"
+.endif	# defined(SRCS)
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .include <meta.autodep.mk>

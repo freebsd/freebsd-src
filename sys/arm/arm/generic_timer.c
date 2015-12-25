@@ -49,10 +49,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
+#include <sys/smp.h>
+#include <sys/vdso.h>
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/md_var.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -121,6 +124,9 @@ static struct timecounter arm_tmr_timecount = {
 #define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
 #endif
 
+static uint32_t arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+
 static int
 get_freq(void)
 {
@@ -181,16 +187,31 @@ get_ctrl(bool physical)
 }
 
 static void
-disable_user_access(void)
+setup_user_access(void *arg __unused)
 {
 	uint32_t cntkctl;
 
 	cntkctl = get_el1(cntkctl);
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
-	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
+	    GT_CNTKCTL_EVNTEN);
+	if (arm_tmr_sc->physical) {
+		cntkctl |= GT_CNTKCTL_PL0PCTEN;
+		cntkctl &= ~GT_CNTKCTL_PL0VCTEN;
+	} else {
+		cntkctl |= GT_CNTKCTL_PL0VCTEN;
+		cntkctl &= ~GT_CNTKCTL_PL0PCTEN;
+	}
 	set_el1(cntkctl, cntkctl);
 	isb();
 }
+
+static void
+tmr_setup_user_access(void *arg __unused)
+{
+
+	smp_rendezvous(NULL, setup_user_access, NULL, NULL);
+}
+SYSINIT(tmr_ua, SI_SUB_SMP, SI_ORDER_SECOND, tmr_setup_user_access, NULL);
 
 static unsigned
 arm_tmr_get_timecount(struct timecounter *tc)
@@ -381,7 +402,7 @@ arm_tmr_attach(device_t dev)
 		}
 	}
 
-	disable_user_access();
+	arm_cpu_fill_vdso_timehands = arm_tmr_fill_vdso_timehands;
 
 	arm_tmr_timecount.tc_frequency = sc->clkfreq;
 	tc_init(&arm_tmr_timecount);
@@ -484,4 +505,14 @@ DELAY(int usec)
 		counts -= (int32_t)(last - first);
 		first = last;
 	}
+}
+
+static uint32_t
+arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc)
+{
+
+	vdso_th->th_physical = arm_tmr_sc->physical;
+	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
+	return (tc == &arm_tmr_timecount);
 }

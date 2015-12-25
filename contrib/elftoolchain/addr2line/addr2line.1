@@ -22,9 +22,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: addr2line.1 3195 2015-05-12 17:22:19Z emaste $
+.\" $Id: addr2line.1 3263 2015-11-30 04:25:54Z kaiwang27 $
 .\"
-.Dd July 25, 2010
+.Dd November 30, 2015
 .Os
 .Dt ADDR2LINE 1
 .Sh NAME
@@ -32,10 +32,13 @@
 .Nd translate program addresses to source file names and line numbers
 .Sh SYNOPSIS
 .Nm
+.Op Fl a | Fl -addresses
 .Op Fl b Ar target | Fl -target Ns = Ns Ar target
 .Op Fl e Ar pathname | Fl -exe Ns = Ns Ar pathname
 .Op Fl f | Fl -functions
+.Op Fl i | Fl -inlines
 .Op Fl j Ar sectionname | Fl -section Ns = Ns Ar sectionname
+.Op Fl p | Fl -pretty-print
 .Op Fl s | Fl -basename
 .Op Fl C | Fl -demangle
 .Op Fl H | Fl -help
@@ -69,6 +72,8 @@ The
 .Nm
 utility recognizes the following options:
 .Bl -tag -width indent
+.It Fl a | Fl -addresses
+Display the address prior to the line number information.
 .It Fl b Ar target | Fl -target Ns = Ns Ar target
 This option is recognized by
 .Nm
@@ -84,11 +89,17 @@ will use the file
 .Dq Pa a.out .
 .It Fl f | Fl -functions
 Display function names in addition to file and line number information.
+.It Fl i | Fl -inlines
+If the address specified belongs to an inlined function, also display the line
+number information for its caller, recursively until the first non-inlined
+caller.
 .It Fl j Ar sectionname | Fl -section Ns = Ns Ar sectionname
 The values specified by arguments
 .Ar hexaddress
 are to be treated as offsets into the section named
 .Ar sectionname .
+.It Fl p | -pretty-print
+Display the line number information on one line, in human readable manner.
 .It Fl s | -basename
 Display only the base name for each file name.
 .It Fl C | Fl -demangle
@@ -114,6 +125,18 @@ will print a line containing the name of the function corresponding
 to program address
 .Ar hexaddress ,
 followed by a line with the file name and line number.
+.Pp
+If the
+.Fl p
+option was specified,
+.Nm
+will print line number information and function name on one line in
+human readable manner. If the
+.Fl i
+option was also specified,
+.Nm
+will print the caller function information prefixed with
+.Dq (inlined by) .
 .Pp
 The
 .Nm

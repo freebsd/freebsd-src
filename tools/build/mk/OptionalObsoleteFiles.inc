@@ -189,6 +189,7 @@ OLD_DIRS+=usr/share/examples/bhyve
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld
+OLD_FILES+=usr/bin/ld.bfd
 .if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/bin/objcopy
 .endif
@@ -4253,6 +4254,11 @@ OLD_DIRS+=usr/include/c++/v1
 #.if ${MK_LIBTHR} == no
 # to be filled in
 #.endif
+
+.if ${MK_LLDB} == no
+OLD_FILES+=usr/bin/lldb
+OLD_FILES+=usr/share/man/man1/lldb.1.gz
+.endif
 
 .if ${MK_LOCALES} == no
 OLD_FILES+=usr/share/locale/af_ZA.ISO8859-1/LC_COLLATE

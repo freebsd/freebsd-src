@@ -2033,7 +2033,7 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 		VM_OBJECT_WLOCK(obj);
 	} else {
 		if (vm_pager_has_page(obj, pindex, NULL, NULL)) {
-			rv = vm_pager_get_pages(obj, &m, 1, 0);
+			rv = vm_pager_get_pages(obj, &m, 1, NULL, NULL);
 			SFSTAT_INC(sf_iocnt);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(m);

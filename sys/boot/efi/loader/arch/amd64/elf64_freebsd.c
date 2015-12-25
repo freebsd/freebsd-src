@@ -174,13 +174,6 @@ elf64_exec(struct preloaded_file *fp)
 	if (err != 0)
 		return(err);
 
-	status = BS->ExitBootServices(IH, efi_mapkey);
-	if (EFI_ERROR(status)) {
-		printf("%s: ExitBootServices() returned 0x%lx\n", __func__,
-		    (long)status);
-		return (EINVAL);
-	}
-
 	dev_cleanup();
 
 	trampoline(trampstack, efi_copy_finish, kernend, modulep, PT4,

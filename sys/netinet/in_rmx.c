@@ -133,7 +133,7 @@ int
 in_detachhead(void **head, int off)
 {
 
-	return (1);
+	return (rn_detachhead(head));
 }
 #endif
 

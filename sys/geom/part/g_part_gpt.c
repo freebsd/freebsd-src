@@ -823,22 +823,23 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 		return (error);
 	res = le16dec(buf + DOSMAGICOFFSET);
 	pri = G_PART_PROBE_PRI_LOW;
-	for (index = 0; index < NDOSPART; index++) {
-		if (buf[DOSPARTOFF + DOSPARTSIZE * index + 4] == 0xee)
-			pri = G_PART_PROBE_PRI_HIGH;
-	}
-	g_free(buf);
-	if (res != DOSMAGIC) 
-		return (ENXIO);
+	if (res == DOSMAGIC) {
+		for (index = 0; index < NDOSPART; index++) {
+			if (buf[DOSPARTOFF + DOSPARTSIZE * index + 4] == 0xee)
+				pri = G_PART_PROBE_PRI_HIGH;
+		}
+		g_free(buf);
 
-	/* Check that there's a primary header. */
-	buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
-	if (buf == NULL)
-		return (error);
-	res = memcmp(buf, GPT_HDR_SIG, 8);
-	g_free(buf);
-	if (res == 0)
-		return (pri);
+		/* Check that there's a primary header. */
+		buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
+		if (buf == NULL)
+			return (error);
+		res = memcmp(buf, GPT_HDR_SIG, 8);
+		g_free(buf);
+		if (res == 0)
+			return (pri);
+	} else
+		g_free(buf);
 
 	/* No primary? Check that there's a secondary. */
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,

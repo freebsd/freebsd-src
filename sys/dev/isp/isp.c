@@ -658,8 +658,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	ISP_WRITE(isp, isp->isp_respinrp, 0);
 	ISP_WRITE(isp, isp->isp_respoutrp, 0);
 	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
-		ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		if (!IS_26XX(isp)) {
+			ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
+			ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		}
 		ISP_WRITE(isp, BIU2400_ATIO_RSPINP, 0);
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
 	}
@@ -2140,19 +2142,41 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RSPSZ_24;
 	}
-	icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_AUTO;
 	if (isp->isp_confopts & ISP_CFG_1GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_1GB;
 	} else if (isp->isp_confopts & ISP_CFG_2GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_2GB;
 	} else if (isp->isp_confopts & ISP_CFG_4GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_4GB;
 	} else if (isp->isp_confopts & ISP_CFG_8GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_8GB;
 	} else if (isp->isp_confopts & ISP_CFG_16GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_16GB;
 	} else {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
+		switch (icbp->icb_fwoptions3 & ICB2400_OPT3_RATE_MASK) {
+		case ICB2400_OPT3_RATE_4GB:
+		case ICB2400_OPT3_RATE_8GB:
+		case ICB2400_OPT3_RATE_16GB:
+		case ICB2400_OPT3_RATE_AUTO:
+			break;
+		case ICB2400_OPT3_RATE_2GB:
+			if (isp->isp_type <= ISP_HA_FC_2500)
+				break;
+			/*FALLTHROUGH*/
+		case ICB2400_OPT3_RATE_1GB:
+			if (isp->isp_type <= ISP_HA_FC_2400)
+				break;
+			/*FALLTHROUGH*/
+		default:
+			icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
+			icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
+			break;
+		}
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 
@@ -2422,7 +2446,8 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 	scp = fcp->isp_scratch;
 	isp_put_plogx(isp, plp, (isp_plogx_t *) scp);
 
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 500000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + ICB_LOGIN_TOV * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
@@ -3366,7 +3391,7 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 	pt->ctp_nphdl = fcp->isp_sns_hdl;
 	pt->ctp_cmd_cnt = 1;
 	pt->ctp_vpidx = ISP_GET_VPIDX(isp, chan);
-	pt->ctp_time = 30;
+	pt->ctp_time = 10;
 	pt->ctp_rsp_cnt = 1;
 	pt->ctp_rsp_bcnt = GIDLEN;
 	pt->ctp_cmd_bcnt = sizeof (*ct) + sizeof (uint32_t);
@@ -3402,7 +3427,8 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 		    sizeof (*ct) + sizeof (uint32_t), &scp[XTXOFF]);
 	}
 	ISP_MEMZERO(&scp[ZTXOFF], QENTRY_LEN);
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 500000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + pt->ctp_time * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
@@ -3837,7 +3863,7 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 	pt->ctp_nphdl = fcp->isp_sns_hdl;
 	pt->ctp_cmd_cnt = 1;
 	pt->ctp_vpidx = ISP_GET_VPIDX(isp, chan);
-	pt->ctp_time = 1;
+	pt->ctp_time = 4;
 	pt->ctp_rsp_cnt = 1;
 	pt->ctp_rsp_bcnt = sizeof (ct_hdr_t);
 	pt->ctp_cmd_bcnt = sizeof (rft_id_t);
@@ -3876,7 +3902,8 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 
 	ISP_MEMZERO(&scp[ZTXOFF], sizeof (ct_hdr_t));
 
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 1000000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + pt->ctp_time * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
@@ -3948,7 +3975,7 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 	pt->ctp_nphdl = fcp->isp_sns_hdl;
 	pt->ctp_cmd_cnt = 1;
 	pt->ctp_vpidx = ISP_GET_VPIDX(isp, chan);
-	pt->ctp_time = 1;
+	pt->ctp_time = 4;
 	pt->ctp_rsp_cnt = 1;
 	pt->ctp_rsp_bcnt = sizeof (ct_hdr_t);
 	pt->ctp_cmd_bcnt = sizeof (rff_id_t);
@@ -3992,7 +4019,8 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 
 	ISP_MEMZERO(&scp[ZTXOFF], sizeof (ct_hdr_t));
 
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 1000000);
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+	    MBCMD_DEFAULT_TIMEOUT + pt->ctp_time * 1000000);
 	mbs.param[1] = QENTRY_LEN;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
@@ -4379,10 +4407,7 @@ isp_start(XS_T *xs)
 	}
 	ISP_MEMCPY(cdbp, XS_CDBP(xs), cdblen);
 
-	*tptr = XS_TIME(xs) / 1000;
-	if (*tptr == 0 && XS_TIME(xs)) {
-		*tptr = 1;
-	}
+	*tptr = (XS_TIME(xs) + 999) / 1000;
 	if (IS_24XX(isp) && *tptr > 0x1999) {
 		*tptr = 0x1999;
 	}
@@ -4488,13 +4513,14 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			tmf->tmf_header.rqs_entry_count = 1;
 			tmf->tmf_nphdl = lp->handle;
 			tmf->tmf_delay = 2;
-			tmf->tmf_timeout = 2;
+			tmf->tmf_timeout = 4;
 			tmf->tmf_flags = ISP24XX_TMF_TARGET_RESET;
 			tmf->tmf_tidlo = lp->portid;
 			tmf->tmf_tidhi = lp->portid >> 16;
 			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
 			isp_prt(isp, ISP_LOGALL, "Chan %d Reset N-Port Handle 0x%04x @ Port 0x%06x", chan, lp->handle, lp->portid);
-			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 5000000);
+			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+			    MBCMD_DEFAULT_TIMEOUT + tmf->tmf_timeout * 1000000);
 			mbs.param[1] = QENTRY_LEN;
 			mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 			mbs.param[3] = DMA_WD0(fcp->isp_scdma);
@@ -6877,7 +6903,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x01, 0x07),	/* 0x1f: MBOX_GET_FIRMWARE_STATUS */
 	ISP_FC_OPMAP_HALF(0x2, 0x01, 0x7e, 0xcf),	/* 0x20: MBOX_GET_LOOP_ID */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x21: */
-	ISP_FC_OPMAP(0x01, 0x07),	/* 0x22: MBOX_GET_RETRY_COUNT	*/
+	ISP_FC_OPMAP(0x03, 0x4b),	/* 0x22: MBOX_GET_TIMEOUT_PARAMS */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x23: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x24: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x25: */
@@ -6893,7 +6919,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x2f: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x30: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x31: */
-	ISP_FC_OPMAP(0x07, 0x07),	/* 0x32: MBOX_SET_RETRY_COUNT	*/
+	ISP_FC_OPMAP(0x4b, 0x4b),	/* 0x32: MBOX_SET_TIMEOUT_PARAMS */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x33: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x34: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x35: */
@@ -7630,6 +7656,7 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 			fcp->isp_fwoptions |= ICB2400_OPT1_FULL_DUPLEX;
 		}
 		fcp->isp_fwoptions |= ICB2400_OPT1_BOTH_WWNS;
+		fcp->isp_zfwoptions |= ICB2400_OPT3_RATE_AUTO;
 	} else {
 		fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
 		fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
@@ -7642,6 +7669,7 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 		 * extended options from NVRAM
 		 */
 		fcp->isp_fwoptions &= ~ICBOPT_EXTENDED;
+		fcp->isp_zfwoptions |= ICBZOPT_RATE_AUTO;
 	}
 
 
@@ -7918,7 +7946,9 @@ isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 	uint32_t base = 0x7ffe0000;
 	uint32_t tmp = 0;
 
-	if (IS_25XX(isp)) {
+	if (IS_26XX(isp)) {
+		base = 0x7fe7c000;	/* XXX: Observation, may be wrong. */
+	} else if (IS_25XX(isp)) {
 		base = 0x7ff00000 | 0x48000;
 	}
 	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);

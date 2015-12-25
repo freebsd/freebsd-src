@@ -401,6 +401,7 @@ DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, NULL, 0);
 MODULE_DEPEND(ural, usb, 1, 1, 1);
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
 MODULE_VERSION(ural, 1);
+USB_PNP_HOST_INFO(ural_devs);
 
 static int
 ural_match(device_t self)
@@ -1770,7 +1771,7 @@ ural_update_slot(struct ural_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t slottime, sifs, eifs;
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	/*
 	 * These settings may sound a bit inconsistent but this is what the

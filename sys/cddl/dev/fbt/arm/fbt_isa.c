@@ -35,14 +35,15 @@
 #include <sys/param.h>
 
 #include <sys/dtrace.h>
+#include <machine/stack.h>
+#include <machine/trap.h>
 
 #include "fbt.h"
-
-#define	FBT_PATCHVAL		0xe7f000f0 /* Specified undefined instruction */
 
 #define	FBT_PUSHM		0xe92d0000
 #define	FBT_POPM		0xe8bd0000
 #define	FBT_JUMP		0xea000000
+#define	FBT_SUBSP		0xe24dd000
 
 #define	FBT_ENTRY	"entry"
 #define	FBT_RETURN	"return"
@@ -53,15 +54,20 @@ fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
 	struct trapframe *frame = (struct trapframe *)stack;
 	solaris_cpu_t *cpu = &solaris_cpu[curcpu];
 	fbt_probe_t *fbt = fbt_probetab[FBT_ADDR2NDX(addr)];
+	register_t fifthparam;
 
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
 		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
 			cpu->cpu_dtrace_caller = addr;
 
-			/* TODO: Need 5th parameter from stack */
+			/* Get 5th parameter from stack */
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
+			fifthparam = *(register_t *)frame->tf_usr_sp;
+			DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
+
 			dtrace_probe(fbt->fbtp_id, frame->tf_r0,
 			    frame->tf_r1, frame->tf_r2,
-			    frame->tf_r3, 0);
+			    frame->tf_r3, fifthparam);
 
 			cpu->cpu_dtrace_caller = 0;
 
@@ -77,7 +83,7 @@ fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 {
 
 	*fbt->fbtp_patchpoint = val;
-	cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, 4);
+	cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, sizeof(val));
 }
 
 int
@@ -104,33 +110,32 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	if (name[0] == '_' && name[1] == '_')
 		return (0);
 
-	/*
-	 * Architecture-specific exclusion list, largely to do with FBT trap
-	 * processing, to prevent reentrance.
-	 */
-	if (strcmp(name, "undefinedinstruction") == 0)
-		return (0);
-
 	instr = (uint32_t *)symval->value;
 	limit = (uint32_t *)(symval->value + symval->size);
 
-	for (; instr < limit; instr++)
-		if ((*instr & 0xffff0000) == FBT_PUSHM &&
-		    (*instr & 0x4000) != 0)
-			break;
+	/*
+	 * va_arg functions has first instruction of
+	 * sub sp, sp, #?
+	 */
+	if ((*instr & 0xfffff000) == FBT_SUBSP)
+		instr++;
 
-	if (instr >= limit)
+	/*
+	 * check if insn is a pushm with LR
+	 */
+	if ((*instr & 0xffff0000) != FBT_PUSHM ||
+	    (*instr & (1 << LR)) == 0)
 		return (0);
 
 	fbt = malloc(sizeof (fbt_probe_t), M_FBT, M_WAITOK | M_ZERO);
 	fbt->fbtp_name = name;
 	fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
-	    name, FBT_ENTRY, 3, fbt);
+	    name, FBT_ENTRY, 2, fbt);
 	fbt->fbtp_patchpoint = instr;
 	fbt->fbtp_ctl = lf;
 	fbt->fbtp_loadcnt = lf->loadcnt;
 	fbt->fbtp_savedval = *instr;
-	fbt->fbtp_patchval = FBT_PATCHVAL;
+	fbt->fbtp_patchval = FBT_BREAKPOINT;
 	fbt->fbtp_rval = DTRACE_INVOP_PUSHM;
 	fbt->fbtp_symindx = symindx;
 
@@ -157,7 +162,6 @@ again:
 			start = (uint32_t *)symval->value;
 			if (target >= limit || target < start)
 				break;
-			instr++; /* skip delay slot */
 		}
 	}
 
@@ -171,7 +175,7 @@ again:
 	fbt->fbtp_name = name;
 	if (retfbt == NULL) {
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
-		    name, FBT_RETURN, 3, fbt);
+		    name, FBT_RETURN, 2, fbt);
 	} else {
 		retfbt->fbtp_next = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;
@@ -187,7 +191,7 @@ again:
 	else
 		fbt->fbtp_rval = DTRACE_INVOP_POPM;
 	fbt->fbtp_savedval = *instr;
-	fbt->fbtp_patchval = FBT_PATCHVAL;
+	fbt->fbtp_patchval = FBT_BREAKPOINT;
 	fbt->fbtp_hashnext = fbt_probetab[FBT_ADDR2NDX(instr)];
 	fbt_probetab[FBT_ADDR2NDX(instr)] = fbt;
 

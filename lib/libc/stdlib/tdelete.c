@@ -1,72 +1,213 @@
-/*	$NetBSD: tdelete.c,v 1.2 1999/09/16 11:45:37 lukem Exp $	*/
-
-/*
- * Tree search generalized from Knuth (6.2.2) Algorithm T just like
- * the AT&T man page says.
+/*-
+ * Copyright (c) 2015 Nuxi, https://nuxi.nl/
  *
- * The node_t structure is for internal use only, lint doesn't grok it.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * Written by reading the System V Interface Definition, not the code.
- *
- * Totally public domain.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: tdelete.c,v 1.6 2012/06/25 22:32:45 abs Exp $");
-#endif /* LIBC_SCCS and not lint */
-#endif
 __FBSDID("$FreeBSD$");
 
-#define _SEARCH_PRIVATE
+#define	_SEARCH_PRIVATE
 #include <search.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
+#include "tsearch_path.h"
 
 /*
- * find a node with given key
- *
- * vkey:   key to be found
- * vrootp: address of the root of the tree
- * compar: function to carry out node comparisons
- */
+ * Makes a step to the left along the binary search tree. This step is
+ * also saved, so it can be replayed while rebalancing.
+*/
+#define	GO_LEFT() do {							\
+	if ((*leaf)->balance == 0 ||					\
+	    ((*leaf)->balance < 0 && (*leaf)->rlink->balance == 0)) {	\
+		/*							\
+		 * If we reach a node that is balanced, or has a child	\
+		 * in the opposite direction that is balanced, we know	\
+		 * that we won't need to perform any rotations above	\
+		 * this point. In this case rotations are always	\
+		 * capable of keeping the subtree in balance. Make	\
+		 * this the base node and reset the path.		\
+		 */							\
+		base = leaf;						\
+		path_init(&path);					\
+	}								\
+	path_taking_left(&path);					\
+	leaf = &(*leaf)->llink;						\
+} while (0)
+
+/* Makes a step to the right along the binary search tree. */
+#define	GO_RIGHT() do {							\
+	if ((*leaf)->balance == 0 ||					\
+	    ((*leaf)->balance > 0 && (*leaf)->llink->balance == 0)) {	\
+		base = leaf;						\
+		path_init(&path);					\
+	}								\
+	result = &(*leaf)->key;						\
+	path_taking_right(&path);					\
+	leaf = &(*leaf)->rlink;						\
+} while (0)
+
 void *
-tdelete(const void * __restrict vkey, void ** __restrict vrootp,
+tdelete(const void *restrict key, void **restrict rootp,
     int (*compar)(const void *, const void *))
 {
-	node_t **rootp = (node_t **)vrootp;
-	node_t *p, *q, *r;
+	struct path path;
+	node_t *root, **base, **leaf, *old, **n, *x, *y, *z;
+	void *result;
 	int cmp;
 
-	if (rootp == NULL || (p = *rootp) == NULL)
-		return NULL;
+	/* POSIX requires that tdelete() returns NULL if rootp is NULL. */
+	if (rootp == NULL)
+		return (NULL);
+	root = *rootp;
 
-	while ((cmp = (*compar)(vkey, (*rootp)->key)) != 0) {
-		p = *rootp;
-		rootp = (cmp < 0) ?
-		    &(*rootp)->llink :		/* follow llink branch */
-		    &(*rootp)->rlink;		/* follow rlink branch */
-		if (*rootp == NULL)
-			return NULL;		/* key not found */
-	}
-	r = (*rootp)->rlink;			/* D1: */
-	if ((q = (*rootp)->llink) == NULL)	/* Left NULL? */
-		q = r;
-	else if (r != NULL) {			/* Right link is NULL? */
-		if (r->llink == NULL) {		/* D2: Find successor */
-			r->llink = q;
-			q = r;
-		} else {			/* D3: Find NULL link */
-			for (q = r->llink; q->llink != NULL; q = r->llink)
-				r = q;
-			r->llink = q->rlink;
-			q->llink = (*rootp)->llink;
-			q->rlink = (*rootp)->rlink;
+	/*
+	 * Find the leaf that needs to be removed. Return if we cannot
+	 * find an existing entry. Keep track of the path that is taken
+	 * to get to the node, as we will need it to adjust the
+	 * balances.
+	 */
+	result = (void *)1;
+	path_init(&path);
+	base = &root;
+	leaf = &root;
+	for (;;) {
+		if (*leaf == NULL)
+			return (NULL);
+		cmp = compar(key, (*leaf)->key);
+		if (cmp < 0) {
+			result = &(*leaf)->key;
+			GO_LEFT();
+		} else if (cmp > 0) {
+			result = &(*leaf)->key;
+			GO_RIGHT();
+		} else {
+			break;
 		}
 	}
-	if (p != *rootp)
-		free(*rootp);			/* D4: Free node */
-	*rootp = q;				/* link parent to new node */
-	return p;
+
+	/* Found a matching key in the tree. Remove the node. */
+	if ((*leaf)->llink == NULL) {
+		/* Node has no left children. Replace by its right subtree. */
+		old = *leaf;
+		*leaf = old->rlink;
+		free(old);
+	} else {
+		/*
+		 * Node has left children. Replace this node's key by
+		 * its predecessor's and remove that node instead.
+		 */
+		void **keyp = &(*leaf)->key;
+		GO_LEFT();
+		while ((*leaf)->rlink != NULL)
+			GO_RIGHT();
+		old = *leaf;
+		*keyp = old->key;
+		*leaf = old->llink;
+		free(old);
+	}
+
+	/*
+	 * Walk along the same path a second time and adjust the
+	 * balances. Though this code looks similar to the rebalancing
+	 * performed in tsearch(), it is not identical. We now also need
+	 * to consider the case of outward imbalance in the right-right
+	 * and left-left case that only exists when deleting. Hence the
+	 * duplication of code.
+	 */
+	for (n = base; n != leaf;) {
+		if (path_took_left(&path)) {
+			x = *n;
+			if (x->balance < 0) {
+				y = x->rlink;
+				if (y->balance > 0) {
+					/* Right-left case. */
+					z = y->llink;
+					x->rlink = z->llink;
+					z->llink = x;
+					y->llink = z->rlink;
+					z->rlink = y;
+					*n = z;
+
+					x->balance = z->balance < 0 ? 1 : 0;
+					y->balance = z->balance > 0 ? -1 : 0;
+					z->balance = 0;
+				} else {
+					/* Right-right case. */
+					x->rlink = y->llink;
+					y->llink = x;
+					*n = y;
+
+					if (y->balance < 0) {
+						x->balance = 0;
+						y->balance = 0;
+					} else {
+						x->balance = -1;
+						y->balance = 1;
+					}
+				}
+			} else {
+				--x->balance;
+			}
+			n = &x->llink;
+		} else {
+			x = *n;
+			if (x->balance > 0) {
+				y = x->llink;
+				if (y->balance < 0) {
+					/* Left-right case. */
+					z = y->rlink;
+					y->rlink = z->llink;
+					z->llink = y;
+					x->llink = z->rlink;
+					z->rlink = x;
+					*n = z;
+
+					x->balance = z->balance > 0 ? -1 : 0;
+					y->balance = z->balance < 0 ? 1 : 0;
+					z->balance = 0;
+				} else {
+					/* Left-left case. */
+					x->llink = y->rlink;
+					y->rlink = x;
+					*n = y;
+
+					if (y->balance > 0) {
+						x->balance = 0;
+						y->balance = 0;
+					} else {
+						x->balance = 1;
+						y->balance = -1;
+					}
+				}
+			} else {
+				++x->balance;
+			}
+			n = &x->rlink;
+		}
+	}
+
+	/* Return the parent of the old entry. */
+	*rootp = root;
+	return (result);
 }

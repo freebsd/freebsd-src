@@ -353,8 +353,7 @@ aldap_parse_page_control(struct ber_element *control, size_t len)
 void
 aldap_freepage(struct aldap_page_control *page)
 {
-	if (page->cookie)
-		free(page->cookie);
+	free(page->cookie);
 	free(page);
 }
 

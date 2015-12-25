@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_subr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -171,8 +172,8 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	i = 0;
 	j = 0;
 	while (i < sz/sizeof(cell_t)) {
-	      #ifndef __powerpc64__
-		/* On 32-bit PPC, ignore regions starting above 4 GB */
+	      #if !defined(__powerpc64__) && !defined(BOOKE)
+		/* On 32-bit PPC (OEA), ignore regions starting above 4 GB */
 		if (address_cells > 1 && OFmem[i] > 0) {
 			i += address_cells + size_cells;
 			continue;
@@ -181,21 +182,18 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 
 		output[j].mr_start = OFmem[i++];
 		if (address_cells == 2) {
-			#ifdef __powerpc64__
 			output[j].mr_start <<= 32;
-			#endif
 			output[j].mr_start += OFmem[i++];
 		}
 			
 		output[j].mr_size = OFmem[i++];
 		if (size_cells == 2) {
-			#ifdef __powerpc64__
 			output[j].mr_size <<= 32;
-			#endif
 			output[j].mr_size += OFmem[i++];
 		}
 
-	      #ifndef __powerpc64__
+	      #if !defined(__powerpc64__) && !defined(BOOKE)
+		/* Book-E can support 36-bit addresses. */
 		/*
 		 * Check for memory regions extending above 32-bit
 		 * memory space, and restrict them to stay there.
@@ -565,135 +563,28 @@ OF_getetheraddr(device_t dev, u_char *addr)
  * register in the address space of its parent and recursively walk
  * the device tree upward this way.
  */
-static void
-OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
-{
-	char type[64];
-	uint32_t addr, size;
-	int pci, res;
-
-	res = OF_getencprop(node, "#address-cells", &addr, sizeof(addr));
-	if (res == -1)
-		addr = 2;
-	res = OF_getencprop(node, "#size-cells", &size, sizeof(size));
-	if (res == -1)
-		size = 1;
-	pci = 0;
-	if (addr == 3 && size == 2) {
-		res = OF_getprop(node, "device_type", type, sizeof(type));
-		if (res != -1) {
-			type[sizeof(type) - 1] = '\0';
-			pci = (strcmp(type, "pci") == 0) ? 1 : 0;
-		}
-	}
-	if (addrp != NULL)
-		*addrp = addr;
-	if (sizep != NULL)
-		*sizep = size;
-	if (pcip != NULL)
-		*pcip = pci;
-}
-
 int
 OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
     bus_space_handle_t *handle)
 {
-	uint32_t cell[32];
-	bus_addr_t addr, raddr, baddr;
-	bus_size_t size, rsize;
-	uint32_t c, nbridge, naddr, nsize;
-	phandle_t bridge, parent;
-	u_int spc, rspc, prefetch;
-	int pci, pcib, res;
+	bus_addr_t addr;
+	bus_size_t size;
+	pcell_t pci_hi;
+	int flags, res;
 
-	/* Sanity checking. */
-	if (dev == 0)
-		return (EINVAL);
-	bridge = OF_parent(dev);
-	if (bridge == 0)
-		return (EINVAL);
-	if (regno < 0)
-		return (EINVAL);
-	if (tag == NULL || handle == NULL)
-		return (EINVAL);
+	res = ofw_reg_to_paddr(dev, regno, &addr, &size, &pci_hi);
+	if (res < 0)
+		return (res);
 
-	/* Assume big-endian unless we find a PCI device */
-	*tag = &bs_be_tag;
-
-	/* Get the requested register. */
-	OF_get_addr_props(bridge, &naddr, &nsize, &pci);
-	if (pci)
+	if (pci_hi == OFW_PADDR_NOT_PCI) {
+		*tag = &bs_be_tag;
+		flags = 0;
+	} else {
 		*tag = &bs_le_tag;
-	res = OF_getencprop(dev, (pci) ? "assigned-addresses" : "reg",
-	    cell, sizeof(cell));
-	if (res == -1)
-		return (ENXIO);
-	if (res % sizeof(cell[0]))
-		return (ENXIO);
-	res /= sizeof(cell[0]);
-	regno *= naddr + nsize;
-	if (regno + naddr + nsize > res)
-		return (EINVAL);
-	spc = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK : ~0;
-	prefetch = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_PREFETCHABLE : 0;
-	addr = 0;
-	for (c = 0; c < naddr; c++)
-		addr = ((uint64_t)addr << 32) | cell[regno++];
-	size = 0;
-	for (c = 0; c < nsize; c++)
-		size = ((uint64_t)size << 32) | cell[regno++];
-
-	/*
-	 * Map the address range in the bridge's decoding window as given
-	 * by the "ranges" property. If a node doesn't have such property
-	 * then no mapping is done.
-	 */
-	parent = OF_parent(bridge);
-	while (parent != 0) {
-		OF_get_addr_props(parent, &nbridge, NULL, &pcib);
-		if (pcib)
-			*tag = &bs_le_tag;
-		res = OF_getencprop(bridge, "ranges", cell, sizeof(cell));
-		if (res == -1)
-			goto next;
-		if (res % sizeof(cell[0]))
-			return (ENXIO);
-		res /= sizeof(cell[0]);
-		regno = 0;
-		while (regno < res) {
-			rspc = (pci)
-			    ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK
-			    : ~0;
-			if (rspc != spc) {
-				regno += naddr + nbridge + nsize;
-				continue;
-			}
-			raddr = 0;
-			for (c = 0; c < naddr; c++)
-				raddr = ((uint64_t)raddr << 32) | cell[regno++];
-			rspc = (pcib)
-			    ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK
-			    : ~0;
-			baddr = 0;
-			for (c = 0; c < nbridge; c++)
-				baddr = ((uint64_t)baddr << 32) | cell[regno++];
-			rsize = 0;
-			for (c = 0; c < nsize; c++)
-				rsize = ((uint64_t)rsize << 32) | cell[regno++];
-			if (addr < raddr || addr >= raddr + rsize)
-				continue;
-			addr = addr - raddr + baddr;
-			if (rspc != ~0)
-				spc = rspc;
-		}
-
-	next:
-		bridge = parent;
-		parent = OF_parent(bridge);
-		OF_get_addr_props(bridge, &naddr, &nsize, &pci);
+		flags = (pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) ? 
+		    BUS_SPACE_MAP_PREFETCHABLE: 0;
 	}
 
-	return (bus_space_map(*tag, addr, size,
-	    prefetch ? BUS_SPACE_MAP_PREFETCHABLE : 0, handle));
+	return (bus_space_map(*tag, addr, size, flags, handle));
 }
 

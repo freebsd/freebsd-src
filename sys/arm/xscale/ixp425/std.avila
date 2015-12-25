@@ -13,7 +13,6 @@ files		"../xscale/ixp425/files.avila"
 # be remapped away from 0.
 #
 options		PHYSADDR=0x00000000
-options		KERNPHYSADDR=0x00200000
 makeoptions	KERNPHYSADDR=0x00200000
 options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 makeoptions	KERNVIRTADDR=0xc0200000

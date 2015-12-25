@@ -30,6 +30,7 @@ __<bsd.compiler.mk>__:
 # Handle ccache after CC is determined, but not if CC/CXX are already
 # overridden with a manual setup.
 .if ${MK_CCACHE_BUILD:Uno} == "yes" && \
+    !make(showconfig) && \
     (${CC:M*ccache/world/*} == "" || ${CXX:M*ccache/world/*} == "")
 # CC is always prepended with the ccache wrapper rather than modifying
 # PATH since it is more clear that ccache is used and avoids wasting time
@@ -63,8 +64,10 @@ CCACHE_COMPILERCHECK?=	mtime
 # Remove ccache from the PATH to prevent double calls and wasted CPP/LD time.
 PATH:=	${PATH:C,:?${CCACHE_WRAPPER_PATH}(/world)?(:$)?,,g}
 # Ensure no bogus CCACHE_PATH leaks in which might avoid the in-tree compiler.
+.if !empty(CCACHE_PATH)
 CCACHE_PATH=
 .export CCACHE_PATH
+.endif
 # Override various toolchain vars.
 .for var in CC CXX HOST_CC HOST_CXX
 .if defined(${var}) && ${${var}:M${CCACHE_BIN}} == ""
