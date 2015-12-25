@@ -80,7 +80,6 @@ struct icl_pdu {
 	uint32_t		ip_prv0;
 	uint32_t		ip_prv1;
 	uint32_t		ip_prv2;
-	uint32_t                ip_ofld_prv0;/* indicate iscsi-inititor that data is DDP'ed */
 };
 
 #define ICL_CONN_STATE_INVALID		0
@@ -123,7 +122,6 @@ struct icl_conn {
 	 * User (initiator or provider) private fields.
 	 */
 	void			*ic_prv0;
-	void			*ic_ofld_prv0;
 };
 
 struct icl_conn	*icl_new_conn(const char *offload, const char *name,
