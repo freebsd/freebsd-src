@@ -1002,7 +1002,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (error == 0)
 				have_interp = TRUE;
 		}
-		if (!have_interp && newinterp != NULL) {
+		if (!have_interp && newinterp != NULL &&
+		    (brand_info->interp_path == NULL ||
+		    strcmp(interp, brand_info->interp_path) == 0)) {
 			error = __elfN(load_file)(imgp->proc, newinterp, &addr,
 			    &imgp->entry_addr, sv->sv_pagesize);
 			if (error == 0)
