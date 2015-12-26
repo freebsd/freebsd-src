@@ -32,4 +32,6 @@
 extern driver_t mdio_driver;
 extern devclass_t mdio_devclass;
 
+#define	MDIO_DEVADDR_NONE	-1	/**< Use clause 22 register access */
+
 #endif	/* __DEV_MDIO_MDIO_H__ */
