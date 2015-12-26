@@ -1604,11 +1604,8 @@ imc1(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		imushp->error = error;
 		return;
 	}
-	if (nseg != 1) {
-		imushp->error = EINVAL;
-		return;
-	}
-	isp_prt(imushp->isp, ISP_LOGDEBUG0, "scdma @ 0x%jx/0x%jx", (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
+	isp_prt(imushp->isp, ISP_LOGDEBUG0, "scdma @ 0x%jx/0x%jx",
+	    (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
 	FCPARAM(imushp->isp, imushp->chan)->isp_scdma = segs->ds_addr;
 	FCPARAM(imushp->isp, imushp->chan)->isp_scratch = imushp->vbase;
 }
@@ -1735,23 +1732,27 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 
 	if (IS_FC(isp)) {
+		if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
+		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+		    ISP_FC_SCRLEN, 1, ISP_FC_SCRLEN, 0, &isp->isp_osinfo.scdmat)) {
+			goto bad;
+		}
 		for (cmap = 0; cmap < isp->isp_nchan; cmap++) {
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
-			if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, ISP_FC_SCRLEN, 1, slim, 0, &fc->tdmat)) {
-				goto bad;
-			}
-			if (bus_dmamem_alloc(fc->tdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &fc->tdmap) != 0) {
-				bus_dma_tag_destroy(fc->tdmat);
+			if (bus_dmamem_alloc(isp->isp_osinfo.scdmat,
+			    (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+			    &fc->scmap) != 0) {
 				goto bad;
 			}
 			im.isp = isp;
 			im.chan = cmap;
 			im.vbase = base;
 			im.error = 0;
-			bus_dmamap_load(fc->tdmat, fc->tdmap, base, ISP_FC_SCRLEN, imc1, &im, 0);
+			bus_dmamap_load(isp->isp_osinfo.scdmat, fc->scmap,
+			    base, ISP_FC_SCRLEN, imc1, &im, 0);
 			if (im.error) {
-				bus_dmamem_free(fc->tdmat, base, fc->tdmap);
-				bus_dma_tag_destroy(fc->tdmat);
+				bus_dmamem_free(isp->isp_osinfo.scdmat,
+				    base, fc->scmap);
 				goto bad;
 			}
 			if (!IS_2100(isp)) {
@@ -1794,16 +1795,18 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	return (0);
 
 bad:
-	while (--cmap >= 0) {
-		struct isp_fc *fc = ISP_FC_PC(isp, cmap);
-		bus_dmamap_unload(fc->tdmat, fc->tdmap);
-		bus_dmamem_free(fc->tdmat, base, fc->tdmap);
-		bus_dma_tag_destroy(fc->tdmat);
-		while (fc->nexus_free_list) {
-			struct isp_nexus *n = fc->nexus_free_list;
-			fc->nexus_free_list = n->next;
-			free(n, M_DEVBUF);
+	if (IS_FC(isp)) {
+		while (--cmap >= 0) {
+			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
+			bus_dmamap_unload(isp->isp_osinfo.scdmat, fc->scmap);
+			bus_dmamem_free(isp->isp_osinfo.scdmat, base, fc->scmap);
+			while (fc->nexus_free_list) {
+				struct isp_nexus *n = fc->nexus_free_list;
+				fc->nexus_free_list = n->next;
+				free(n, M_DEVBUF);
+			}
 		}
+		bus_dma_tag_destroy(isp->isp_osinfo.scdmat);
 	}
 	if (isp->isp_rquest_dma != 0)
 		bus_dmamap_unload(isp->isp_osinfo.cdmat, isp->isp_osinfo.cdmap);
