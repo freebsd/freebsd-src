@@ -465,6 +465,21 @@ cheriabi_swapcontext(struct thread *td, struct cheriabi_swapcontext_args *uap)
 	return (ENOSYS);
 }
 
+/*
+ * The CheriABI version of sendsig(9) largely borrows from the MIPS version,
+ * and it is important to keep them in sync.  It differs primarily in that it
+ * must also be aware of user stack-handling ABIs, so is also sensitive to our
+ * (fluctuating) design choices in how $c11 and $sp interact.  The current
+ * design uses ($c11 + $sp) for stack-relative references, so early on we have
+ * to calculate a 'relocated' version of $sp that we can then use for
+ * MIPS-style access.
+ *
+ * This code, as with the CHERI-aware MIPS code, makes a privilege
+ * determination in order to decide whether to trust the stack exposed by the
+ * user code for the purposes of signal handling.  We must use the alternative
+ * stack if there is any indication that using the user thread's stack state
+ * might violate the userspace compartmentalisation model.
+ */
 static void
 cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
@@ -474,7 +489,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct cheri_frame *capreg;
 	struct sigacts *psp;
 	struct sigframe_c sf, *sfp;
-	uintptr_t stackbase;
+	uintptr_t c11_stackbase;
 	vm_offset_t sp;
 	int cheri_is_sandboxed;
 	int sig;
@@ -489,7 +504,22 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	regs = td->td_frame;
 	capreg = &td->td_pcb->pcb_cheriframe;
-	oonstack = sigonstack(regs->sp);
+
+	/*
+	 * In CheriABI, $sp is $c11 relative, so calculate a relocation base
+	 * that must be combined with regs->sp from this point onwards.
+	 * Unfortunately, we won't retain bounds and permissions information
+	 * (as is the case elsewhere in CheriABI).  While 'c11_stackbase'
+	 * suggests that $c11's offset isn't included, in practice it will be,
+	 * although we may reasonably assume that it will be zero.
+	 *
+	 * If it turns out we will be delivering to the alternative signal
+	 * stack, we'll recalculate c11_stackbase later.
+	 */
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+	    &td->td_pcb->pcb_cheriframe.cf_c11, 0);
+	CHERI_CTOPTR(c11_stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	oonstack = sigonstack(regs->sp + c11_stackbase);
 
 	/*
 	 * CHERI affects signal delivery in the following ways:
@@ -578,12 +608,21 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    sizeof(struct cheri_frame));
 
 	/*
-	 * XXXRW: $sp is actually $c11 relative, so this logic is not
-	 * correct.
+	 * Allocate and validate space for the signal handler context.  For
+	 * CheriABI purposes, 'sp' from this point forward is relocated
+	 * relative to any pertinent stack capability.  For an alternartive
+	 * signal context, we need to recalculate c11_stackbase for later use
+	 * in calculating a new $sp for the signal-handling context.
+	 *
+	 * XXXRW: It seems like it would be nice to both the regular and
+	 * alternative stack calculations in the same place.  However, we need
+	 * oonstack sooner.  We should clean this up later.
 	 */
-	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+		    &td->td_pcb->pcb_cherisignal.csig_c11, 0);
+		CHERI_CTOPTR(c11_stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
 		sp = (vm_offset_t)(td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 	} else {
@@ -602,7 +641,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 			sigexit(td, SIGILL);
 			/* NOTREACHED */
 		}
-		sp = (vm_offset_t)regs->sp;
+		sp = (vm_offset_t)(regs->sp + c11_stackbase);
 	}
 	sp -= sizeof(struct sigframe_c);
 	/* For CHERI, keep the stack pointer capability aligned. */
@@ -626,10 +665,20 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sf.sf_si.si_code = ksi->ksi_code;
 		/*
 		 * Write out badvaddr, but don't create a valid capability
-		 * since that might allow privlege amplification.
+		 * since that might allow privilege amplification.
 		 *
 		 * XXX-BD: This probably isn't the right method.
 		 * XXX-BD: Do we want to set base or offset?
+		 *
+		 * XXXRW: I think there's some argument that anything
+		 * receiving this signal is fairly privileged.  But we could
+		 * generate a $c0-relative (or $pcc-relative) capability, if
+		 * possible.  (Using versions if $c0 and $pcc for the
+		 * signal-handling context rather than that which caused the
+		 * signal).  I'd be tempted to deliver badvaddr as the offset
+		 * of that capability.  If badvaddr is not in range, then we
+		 * should just deliver an untagged NULL-derived version
+		 * (perhaps)?
 		 */
 		*((uintptr_t *)&sf.sf_si.si_addr) =
 		    (uintptr_t)(void *)regs->badvaddr;
@@ -644,11 +693,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Copy the sigframe out to the user's stack.
 	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-	    &td->td_pcb->pcb_cherisignal.csig_c11, 0);
-	CHERI_CTOPTR(stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	if (copyoutcap(&sf, (void *)(stackbase + (uintptr_t)sfp),
-	    sizeof(sf)) != 0) {
+	if (copyoutcap(&sf, (void *)sfp, sizeof(sf)) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
@@ -668,8 +713,12 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* XXX-BD: this isn't quite right */
 	cheri_sendsig(td);
 
+	/*
+	 * Note that $sp must be installed relative to $c11, so re-subtract
+	 * the stack base here.
+	 */
 	regs->pc = (register_t)(intptr_t)catcher;
-	regs->sp = (register_t)(intptr_t)sfp;
+	regs->sp = (register_t)((intptr_t)sfp - c11_stackbase);
 
 	cheri_capability_copy(&capreg->cf_c12, &psp->ps_sigcap[_SIG_IDX(sig)]);
 	cheri_capability_copy(&capreg->cf_c17,
