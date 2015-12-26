@@ -315,12 +315,14 @@ typedef struct {
 #	define	ISP_HANDLE_NONE		0
 #	define	ISP_HANDLE_INITIATOR	1
 #	define	ISP_HANDLE_TARGET	2
+#	define	ISP_HANDLE_CTRL		3
 #define	ISP_HANDLE_SEQ_MASK	0xffff0000
 #define	ISP_HANDLE_SEQ_SHIFT	16
 #define	ISP_H2SEQ(hdl)	((hdl & ISP_HANDLE_SEQ_MASK) >> ISP_HANDLE_SEQ_SHIFT)
 #define	ISP_VALID_HANDLE(c, hdl)	\
 	((ISP_H2HT(hdl) == ISP_HANDLE_INITIATOR || \
-	  ISP_H2HT(hdl) == ISP_HANDLE_TARGET) && \
+	  ISP_H2HT(hdl) == ISP_HANDLE_TARGET || \
+	  ISP_H2HT(hdl) == ISP_HANDLE_CTRL) && \
 	 ((hdl) & ISP_HANDLE_CMD_MASK) < (c)->isp_maxcmds && \
 	 (hdl) == ((c)->isp_xflist[(hdl) & ISP_HANDLE_CMD_MASK].handle))
 #define	ISP_BAD_HANDLE_INDEX	0xffffffff
