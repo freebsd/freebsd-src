@@ -1099,6 +1099,8 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 			    ESRCH);
 			return (ESRCH);
 		}
+		if (SV_PROC_ABI(td2->td_proc) != SV_ABI_LINUX)
+			return (EPERM);
 
 		em = em_find(td2);
 		KASSERT(em != NULL, ("get_robust_list: emuldata notfound.\n"));
