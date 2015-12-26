@@ -51,7 +51,7 @@
 #include <machine/bus.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 
 #include <dev/etherswitch/etherswitch.h>
 #include <dev/etherswitch/ip17x/ip17x_phy.h>
