@@ -797,6 +797,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 		l3d = mtod(mp, caddr_t) + ehdrlen;
 
 	switch (etype) {
+#ifdef INET
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(l3d);
 			ip_hlen = ip->ip_hl << 2;
@@ -808,6 +809,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 				*olinfo_status |= IXGBE_TXD_POPTS_IXSM << 8;
 			}
 			break;
+#endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(l3d);
