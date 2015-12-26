@@ -225,8 +225,7 @@ struct isp_fc {
 	struct cam_path *path;
 	struct ispsoftc *isp;
 	struct proc *kproc;
-	bus_dma_tag_t tdmat;
-	bus_dmamap_t tdmap;
+	bus_dmamap_t scmap;
 	uint64_t def_wwpn;
 	uint64_t def_wwnn;
 	time_t loop_down_time;
@@ -285,13 +284,14 @@ struct isposinfo {
 	const struct firmware *	fw;
 
 	/*
-	 * DMA related sdtuff
+	 * DMA related stuff
 	 */
 	struct resource *	regs;
 	struct resource *	regs2;
 	bus_dma_tag_t		dmat;
 	bus_dma_tag_t		cdmat;
 	bus_dmamap_t		cdmap;
+	bus_dma_tag_t		scdmat;
 
 	/*
 	 * Command and transaction related related stuff
@@ -409,7 +409,7 @@ switch (type) {							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
 	break;							\
 }								\
@@ -421,7 +421,7 @@ case SYNC_REQUEST:						\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 }								\
@@ -443,7 +443,7 @@ switch (type) {							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_PREWRITE);				\
 	break;							\
 }								\
@@ -454,7 +454,7 @@ case SYNC_REQUEST:						\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_POSTWRITE);				\
 	break;							\
 }								\
