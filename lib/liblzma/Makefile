@@ -155,12 +155,13 @@ CFLAGS+=	-DSYMBOL_VERSIONING
 
 CLEANFILES+=	liblzma.pc
 
+.if !defined(LIBRARIES_ONLY)
 all: liblzma.pc
 liblzma.pc: liblzma.pc.in
 	@sed -e 's,@prefix@,/usr,g ; \
 		s,@exec_prefix@,/usr,g  ; \
-		s,@libdir@,${LIBDIR},g ; \
-		s,@includedir@,${INCLUDEDIR},g ; \
+		s,@libdir@,/usr/lib,g ; \
+		s,@includedir@,/usr/include,g ; \
 		s,@PACKAGE_URL@,http://tukaani.org/xz/,g ; \
 		s,@PACKAGE_VERSION@,${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH},g ; \
 		s,@PTHREAD_CFLAGS@,,g ; \
@@ -169,5 +170,6 @@ liblzma.pc: liblzma.pc.in
 beforeinstall:
 	@${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		liblzma.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+.endif
 
 .include <bsd.lib.mk>
