@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Chelsio Communications, Inc.
+ * Copyright (c) 2012, 2015 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
@@ -115,6 +115,10 @@ struct toepcb {
 	int rx_credits;		/* rx credits (in bytes) to be returned to hw */
 
 	u_int ulp_mode;	/* ULP mode */
+	void *ulpcb;
+	void *ulpcb2;
+	struct mbufq ulp_pduq;	/* PDUs waiting to be sent out. */
+	struct mbufq ulp_pdu_reclaimq;
 
 	u_int ddp_flags;
 	struct ddp_buffer *db[2];
@@ -220,6 +224,22 @@ td_adapter(struct tom_data *td)
 	return (td->tod.tod_softc);
 }
 
+static inline void
+set_mbuf_ulp_submode(struct mbuf *m, uint8_t ulp_submode)
+{
+
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_per.eight[0] = ulp_submode;
+}
+
+static inline uint8_t
+mbuf_ulp_submode(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_per.eight[0]);
+}
+
 /* t4_tom.c */
 struct toepcb *alloc_toepcb(struct vi_info *, int, int, int);
 void free_toepcb(struct toepcb *);
@@ -275,6 +295,7 @@ int t4_send_rst(struct toedev *, struct tcpcb *);
 void t4_set_tcb_field(struct adapter *, struct toepcb *, int, uint16_t,
     uint64_t, uint64_t);
 void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
+void t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop);
 
 /* t4_ddp.c */
 void t4_init_ddp(struct adapter *, struct tom_data *);
@@ -287,19 +308,4 @@ void handle_ddp_close(struct toepcb *, struct tcpcb *, struct sockbuf *,
     uint32_t);
 void insert_ddp_data(struct toepcb *, uint32_t);
 
-/* ULP related */
-#define CXGBE_ISCSI_MBUF_TAG          50
-int t4tom_cpl_handler_registered(struct adapter *, unsigned int);
-void t4tom_register_cpl_iscsi_callback(void (*fp)(struct tom_data *,
-    struct socket *, void *, unsigned int));
-void t4tom_register_queue_iscsi_callback(struct mbuf *(*fp)(struct socket *,
-    unsigned int, int *));
-void t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int);
-int t4_cpl_iscsi_callback(struct tom_data *, struct toepcb *, void *, uint32_t);
-struct mbuf *t4_queue_iscsi_callback(struct socket *, struct toepcb *, uint32_t,
-    int *);
-extern void (*tom_cpl_iscsi_callback)(struct tom_data *, struct socket *,
-    void *, unsigned int);
-extern struct mbuf *(*tom_queue_iscsi_callback)(struct socket*, unsigned int,
-    int *);
 #endif
