@@ -134,13 +134,17 @@ static Value* GEPToVectorIndex(GetElementPtrInst *GEP) {
 //
 // TODO: Check isTriviallyVectorizable for calls and handle other
 // instructions.
-static bool canVectorizeInst(Instruction *Inst) {
+static bool canVectorizeInst(Instruction *Inst, User *User) {
   switch (Inst->getOpcode()) {
   case Instruction::Load:
-  case Instruction::Store:
   case Instruction::BitCast:
   case Instruction::AddrSpaceCast:
     return true;
+  case Instruction::Store: {
+    // Must be the stored pointer operand, not a stored value.
+    StoreInst *SI = cast<StoreInst>(Inst);
+    return SI->getPointerOperand() == User;
+  }
   default:
     return false;
   }
@@ -166,7 +170,7 @@ static bool tryPromoteAllocaToVector(AllocaInst *Alloca) {
   for (User *AllocaUser : Alloca->users()) {
     GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(AllocaUser);
     if (!GEP) {
-      if (!canVectorizeInst(cast<Instruction>(AllocaUser)))
+      if (!canVectorizeInst(cast<Instruction>(AllocaUser), Alloca))
         return false;
 
       WorkList.push_back(AllocaUser);
@@ -184,7 +188,7 @@ static bool tryPromoteAllocaToVector(AllocaInst *Alloca) {
 
     GEPVectorIdx[GEP] = Index;
     for (User *GEPUser : AllocaUser->users()) {
-      if (!canVectorizeInst(cast<Instruction>(GEPUser)))
+      if (!canVectorizeInst(cast<Instruction>(GEPUser), AllocaUser))
         return false;
 
       WorkList.push_back(GEPUser);
@@ -240,7 +244,12 @@ static bool collectUsesWithPtrTypes(Value *Val, std::vector<Value*> &WorkList) {
   for (User *User : Val->users()) {
     if(std::find(WorkList.begin(), WorkList.end(), User) != WorkList.end())
       continue;
-    if (isa<CallInst>(User)) {
+    if (CallInst *CI = dyn_cast<CallInst>(User)) {
+      // TODO: We might be able to handle some cases where the callee is a
+      // constantexpr bitcast of a function.
+      if (!CI->getCalledFunction())
+        return false;
+
       WorkList.push_back(User);
       continue;
     }
@@ -249,6 +258,12 @@ static bool collectUsesWithPtrTypes(Value *Val, std::vector<Value*> &WorkList) {
     Instruction *UseInst = dyn_cast<Instruction>(User);
     if (UseInst && UseInst->getOpcode() == Instruction::PtrToInt)
       return false;
+
+    if (StoreInst *SI = dyn_cast_or_null<StoreInst>(UseInst)) {
+      // Reject if the stored value is not the pointer operand.
+      if (SI->getPointerOperand() != Val)
+        return false;
+    }
 
     if (!User->getType()->isPointerTy())
       continue;

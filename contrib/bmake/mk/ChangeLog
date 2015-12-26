@@ -1,3 +1,9 @@
+2015-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20151212
+	* auto.obj.mk: do not require MAKEOBJDIRPREFIX to exist.
+	  only apply :tA to __objdir when comparing to .OBJDIR
+
 2015-11-14  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20151111
