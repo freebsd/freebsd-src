@@ -1404,8 +1404,6 @@ dev/etherswitch/ip17x/ip175c.c		optional ip17x
 dev/etherswitch/ip17x/ip175d.c		optional ip17x
 dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
 dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
-dev/etherswitch/mdio_if.m		optional miiproxy | mdio
-dev/etherswitch/mdio.c			optional miiproxy | mdio
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
@@ -1908,6 +1906,8 @@ dev/mca/mca_bus.c		optional mca
 dev/mcd/mcd.c			optional mcd isa nowerror
 dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
+dev/mdio/mdio_if.m		optional miiproxy | mdio
+dev/mdio/mdio.c			optional miiproxy | mdio
 dev/mem/memdev.c		optional mem
 dev/mem/memutil.c		optional mem
 dev/mfi/mfi.c			optional mfi
