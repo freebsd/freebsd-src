@@ -577,6 +577,10 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    &td->td_pcb->pcb_cheriframe,
 	    sizeof(struct cheri_frame));
 
+	/*
+	 * XXXRW: $sp is actually $c11 relative, so this logic is not
+	 * correct.
+	 */
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
@@ -650,6 +654,8 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 * ...Kill the process.
 		 */
 		PROC_LOCK(p);
+		printf("pid %d, tid %d: could not copy out sigframe\n",
+		    td->td_proc->p_pid, td->td_tid);
 		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}

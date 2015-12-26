@@ -260,6 +260,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if (copyoutcap(&td->td_pcb->pcb_cheriframe,
 	    (void *)sf.sf_uc.uc_mcontext.mc_cp2state, cp2_len) != 0) {
 		PROC_LOCK(p);
+		printf("pid %d, tid %d: could not copy out cheriframe\n",
+		    td->td_proc->p_pid, td->td_tid);
 		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
@@ -270,6 +272,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 * ...Kill the process.
 		 */
 		PROC_LOCK(p);
+		printf("pid %d, tid %d: could not copy out sigframe\n",
+		    td->td_proc->p_pid, td->td_tid);
 		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
