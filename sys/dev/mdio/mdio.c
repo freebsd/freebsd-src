@@ -83,6 +83,21 @@ mdio_writereg(device_t dev, int phy, int reg, int val)
 	return (MDIO_WRITEREG(device_get_parent(dev), phy, reg, val));
 }
 
+static int
+mdio_readextreg(device_t dev, int phy, int devad, int reg)
+{
+
+	return (MDIO_READEXTREG(device_get_parent(dev), phy, devad, reg));
+}
+
+static int
+mdio_writeextreg(device_t dev, int phy, int devad, int reg,
+    int val)
+{
+
+	return (MDIO_WRITEEXTREG(device_get_parent(dev), phy, devad, reg, val));
+}
+
 static void
 mdio_hinted_child(device_t dev, const char *name, int unit)
 {
@@ -105,6 +120,8 @@ static device_method_t mdio_methods[] = {
 	/* MDIO access */
 	DEVMETHOD(mdio_readreg,		mdio_readreg),
 	DEVMETHOD(mdio_writereg,	mdio_writereg),
+	DEVMETHOD(mdio_readextreg,	mdio_readextreg),
+	DEVMETHOD(mdio_writeextreg,	mdio_writeextreg),
 
 	DEVMETHOD_END
 };
