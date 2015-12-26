@@ -825,8 +825,8 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	struct buf *pb;
 	bus_dma_segment_t *vlist;
 	struct thread *td;
-	off_t len, zerosize;
-	int ma_offs;
+	off_t iolen, len, zerosize;
+	int ma_offs, npages;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
@@ -847,6 +847,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	pb = NULL;
 	piov = NULL;
 	ma_offs = bp->bio_ma_offset;
+	len = bp->bio_length;
 
 	/*
 	 * VNODE I/O
@@ -879,7 +880,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		auio.uio_iovcnt = howmany(bp->bio_length, zerosize);
 		piov = malloc(sizeof(*piov) * auio.uio_iovcnt, M_MD, M_WAITOK);
 		auio.uio_iov = piov;
-		len = bp->bio_length;
 		while (len > 0) {
 			piov->iov_base = __DECONST(void *, zero_region);
 			piov->iov_len = len;
@@ -893,7 +893,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		piov = malloc(sizeof(*piov) * bp->bio_ma_n, M_MD, M_WAITOK);
 		auio.uio_iov = piov;
 		vlist = (bus_dma_segment_t *)bp->bio_data;
-		len = bp->bio_length;
 		while (len > 0) {
 			piov->iov_base = (void *)(uintptr_t)(vlist->ds_addr +
 			    ma_offs);
@@ -909,11 +908,20 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		piov = auio.uio_iov;
 	} else if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 		pb = getpbuf(&md_vnode_pbuf_freecnt);
-		pmap_qenter((vm_offset_t)pb->b_data, bp->bio_ma, bp->bio_ma_n);
-		aiov.iov_base = (void *)((vm_offset_t)pb->b_data + ma_offs);
-		aiov.iov_len = bp->bio_length;
+		bp->bio_resid = len;
+unmapped_step:
+		npages = atop(min(MAXPHYS, round_page(len + (ma_offs &
+		    PAGE_MASK))));
+		iolen = min(ptoa(npages) - (ma_offs & PAGE_MASK), len);
+		KASSERT(iolen > 0, ("zero iolen"));
+		pmap_qenter((vm_offset_t)pb->b_data,
+		    &bp->bio_ma[atop(ma_offs)], npages);
+		aiov.iov_base = (void *)((vm_offset_t)pb->b_data +
+		    (ma_offs & PAGE_MASK));
+		aiov.iov_len = iolen;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
+		auio.uio_resid = iolen;
 	} else {
 		aiov.iov_base = bp->bio_data;
 		aiov.iov_len = bp->bio_length;
@@ -937,15 +945,21 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		vn_finished_write(mp);
 	}
 
-	if (pb) {
-		pmap_qremove((vm_offset_t)pb->b_data, bp->bio_ma_n);
+	if (pb != NULL) {
+		pmap_qremove((vm_offset_t)pb->b_data, npages);
+		if (error == 0) {
+			len -= iolen;
+			bp->bio_resid -= iolen;
+			ma_offs += iolen;
+			if (len > 0)
+				goto unmapped_step;
+		}
 		relpbuf(pb, &md_vnode_pbuf_freecnt);
 	}
 
-	if (piov != NULL)
-		free(piov, M_MD);
-
-	bp->bio_resid = auio.uio_resid;
+	free(piov, M_MD);
+	if (pb == NULL)
+		bp->bio_resid = auio.uio_resid;
 	return (error);
 }
 
