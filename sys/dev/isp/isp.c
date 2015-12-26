@@ -2348,64 +2348,64 @@ static int
 isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
-	mbreg_t mbs;
-	vp_modify_t *vp;
-	uint8_t qe[QENTRY_LEN], *scp;
-
-	ISP_MEMZERO(qe, QENTRY_LEN);
-	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-		return (EBUSY);
-	}
-	scp = fcp->isp_scratch;
+	vp_modify_t vp;
+	void *reqp;
+	uint8_t resp[QENTRY_LEN];
 
 	/* Build a VP MODIFY command in memory */
-	vp = (vp_modify_t *) qe;
-	vp->vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
-	vp->vp_mod_hdr.rqs_entry_count = 1;
-	vp->vp_mod_cnt = 1;
-	vp->vp_mod_idx0 = chan;
-	vp->vp_mod_cmd = VP_MODIFY_ENA;
-	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED |
+	ISP_MEMZERO(&vp, sizeof(vp));
+	vp.vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
+	vp.vp_mod_hdr.rqs_entry_count = 1;
+	vp.vp_mod_cnt = 1;
+	vp.vp_mod_idx0 = chan;
+	vp.vp_mod_cmd = VP_MODIFY_ENA;
+	vp.vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED |
 	    ICB2400_VPOPT_ENA_SNSLOGIN;
-	if (fcp->role & ISP_ROLE_INITIATOR) {
-		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
-	}
-	if ((fcp->role & ISP_ROLE_TARGET) == 0) {
-		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
-	}
+	if (fcp->role & ISP_ROLE_INITIATOR)
+		vp.vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
+	if ((fcp->role & ISP_ROLE_TARGET) == 0)
+		vp.vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
 	if (fcp->isp_loopid < LOCAL_LOOP_LIM) {
-		vp->vp_mod_ports[0].loopid = fcp->isp_loopid;
+		vp.vp_mod_ports[0].loopid = fcp->isp_loopid;
 		if (isp->isp_confopts & ISP_CFG_OWNLOOPID)
-			vp->vp_mod_ports[0].options |=
-			    ICB2400_VPOPT_HARD_ADDRESS;
+			vp.vp_mod_ports[0].options |= ICB2400_VPOPT_HARD_ADDRESS;
 		else
-			vp->vp_mod_ports[0].options |=
-			    ICB2400_VPOPT_PREV_ADDRESS;
+			vp.vp_mod_ports[0].options |= ICB2400_VPOPT_PREV_ADDRESS;
 	}
-	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwpn, fcp->isp_wwpn);
-	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwnn, fcp->isp_wwnn);
-	isp_put_vp_modify(isp, vp, (vp_modify_t *) scp);
+	MAKE_NODE_NAME_FROM_WWN(vp.vp_mod_ports[0].wwpn, fcp->isp_wwpn);
+	MAKE_NODE_NAME_FROM_WWN(vp.vp_mod_ports[0].wwnn, fcp->isp_wwnn);
 
-	/* Build a EXEC IOCB A64 command that points to the VP MODIFY command */
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
-	mbs.param[1] = QENTRY_LEN;
-	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
-	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		FC_SCRATCH_RELEASE(isp, chan);
+	/* Prepare space for response in memory */
+	memset(resp, 0xff, sizeof(resp));
+	vp.vp_mod_hdl = isp_allocate_handle(isp, resp, ISP_HANDLE_CTRL);
+	if (vp.vp_mod_hdl == 0) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_MODIFY of Chan %d out of handles", __func__, chan);
 		return (EIO);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-	isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
 
-	FC_SCRATCH_RELEASE(isp, chan);
+	/* Send request and wait for response. */
+	reqp = isp_getrqentry(isp);
+	if (reqp == NULL) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_MODIFY of Chan %d out of rqent", __func__, chan);
+		isp_destroy_handle(isp, vp.vp_mod_hdl);
+		return (EIO);
+	}
+	isp_put_vp_modify(isp, &vp, (vp_modify_t *)reqp);
+	ISP_SYNC_REQUEST(isp);
+	if (msleep(resp, &isp->isp_lock, 0, "VP_MODIFY", 5*hz) == EWOULDBLOCK) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_MODIFY of Chan %d timed out", __func__, chan);
+		isp_destroy_handle(isp, vp.vp_mod_hdl);
+		return (EIO);
+	}
+	isp_get_vp_modify(isp, (vp_modify_t *)resp, &vp);
 
-	if (vp->vp_mod_status != VP_STS_OK) {
-		isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of Chan %d failed with status %d", __func__, chan, vp->vp_mod_status);
+	if (vp.vp_mod_hdr.rqs_flags != 0 || vp.vp_mod_status != VP_STS_OK) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_MODIFY of Chan %d failed with flags %x status %d",
+		    __func__, chan, vp.vp_mod_hdr.rqs_flags, vp.vp_mod_status);
 		return (EIO);
 	}
 	return (0);
@@ -2414,54 +2414,56 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 static int
 isp_fc_disable_vp(ispsoftc_t *isp, int chan)
 {
-	fcparam *fcp = FCPARAM(isp, chan);
-	mbreg_t mbs;
-	vp_ctrl_info_t *vp;
-	uint8_t qe[QENTRY_LEN], *scp;
-
-	ISP_MEMZERO(qe, QENTRY_LEN);
-	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-		return (EBUSY);
-	}
-	scp = fcp->isp_scratch;
+	vp_ctrl_info_t vp;
+	void *reqp;
+	uint8_t resp[QENTRY_LEN];
 
 	/* Build a VP CTRL command in memory */
-	vp = (vp_ctrl_info_t *) qe;
-	vp->vp_ctrl_hdr.rqs_entry_type = RQSTYPE_VP_CTRL;
-	vp->vp_ctrl_hdr.rqs_entry_count = 1;
+	ISP_MEMZERO(&vp, sizeof(vp));
+	vp.vp_ctrl_hdr.rqs_entry_type = RQSTYPE_VP_CTRL;
+	vp.vp_ctrl_hdr.rqs_entry_count = 1;
 	if (ISP_CAP_VP0(isp)) {
-		vp->vp_ctrl_status = 1;
+		vp.vp_ctrl_status = 1;
 	} else {
-		vp->vp_ctrl_status = 0;
+		vp.vp_ctrl_status = 0;
 		chan--;	/* VP0 can not be controlled in this case. */
 	}
-	vp->vp_ctrl_command = VP_CTRL_CMD_DISABLE_VP_LOGO_ALL;
-	vp->vp_ctrl_vp_count = 1;
-	vp->vp_ctrl_idmap[chan / 16] |= (1 << chan % 16);
-	isp_put_vp_ctrl_info(isp, vp, (vp_ctrl_info_t *) scp);
+	vp.vp_ctrl_command = VP_CTRL_CMD_DISABLE_VP_LOGO_ALL;
+	vp.vp_ctrl_vp_count = 1;
+	vp.vp_ctrl_idmap[chan / 16] |= (1 << chan % 16);
 
-	/* Build a EXEC IOCB A64 command that points to the VP CTRL command */
-	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
-	mbs.param[1] = QENTRY_LEN;
-	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
-	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		FC_SCRATCH_RELEASE(isp, chan);
+	/* Prepare space for response in memory */
+	memset(resp, 0xff, sizeof(resp));
+	vp.vp_ctrl_handle = isp_allocate_handle(isp, resp, ISP_HANDLE_CTRL);
+	if (vp.vp_ctrl_handle == 0) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_CTRL of Chan %d out of handles", __func__, chan);
 		return (EIO);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-	isp_get_vp_ctrl_info(isp, (vp_ctrl_info_t *)&scp[QENTRY_LEN], vp);
 
-	FC_SCRATCH_RELEASE(isp, chan);
-
-	if (vp->vp_ctrl_status != 0) {
+	/* Send request and wait for response. */
+	reqp = isp_getrqentry(isp);
+	if (reqp == NULL) {
 		isp_prt(isp, ISP_LOGERR,
-		    "%s: VP_CTRL of Chan %d failed with status %d %d",
-		    __func__, chan, vp->vp_ctrl_status, vp->vp_ctrl_index_fail);
+		    "%s: VP_CTRL of Chan %d out of rqent", __func__, chan);
+		isp_destroy_handle(isp, vp.vp_ctrl_handle);
+		return (EIO);
+	}
+	isp_put_vp_ctrl_info(isp, &vp, (vp_ctrl_info_t *)reqp);
+	ISP_SYNC_REQUEST(isp);
+	if (msleep(resp, &isp->isp_lock, 0, "VP_CTRL", 5*hz) == EWOULDBLOCK) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_CTRL of Chan %d timed out", __func__, chan);
+		isp_destroy_handle(isp, vp.vp_ctrl_handle);
+		return (EIO);
+	}
+	isp_get_vp_ctrl_info(isp, (vp_ctrl_info_t *)resp, &vp);
+
+	if (vp.vp_ctrl_hdr.rqs_flags != 0 || vp.vp_ctrl_status != 0) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_CTRL of Chan %d failed with flags %x status %d %d",
+		    __func__, chan, vp.vp_ctrl_hdr.rqs_flags,
+		    vp.vp_ctrl_status, vp.vp_ctrl_index_fail);
 		return (EIO);
 	}
 	return (0);
@@ -6123,6 +6125,8 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 {
 	isp_ridacq_t rid;
 	int chan, c;
+	uint32_t hdl;
+	void *ptr;
 
 	switch (type) {
 	case RQSTYPE_STATUS_CONT:
@@ -6162,6 +6166,16 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 				isp_async(isp, ISPASYNC_LOOP_DOWN,
 				    rid.ridacq_vp_index);
 			}
+		}
+		return (1);
+	case RQSTYPE_VP_MODIFY:
+	case RQSTYPE_VP_CTRL:
+		ISP_IOXGET_32(isp, (uint32_t *)(hp + 1), hdl);
+		ptr = isp_find_xs(isp, hdl);
+		if (ptr != NULL) {
+			isp_destroy_handle(isp, hdl);
+			memcpy(ptr, hp, QENTRY_LEN);
+			wakeup(ptr);
 		}
 		return (1);
 	case RQSTYPE_ATIO:
