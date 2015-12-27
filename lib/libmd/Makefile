@@ -7,8 +7,9 @@ SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 	rmd160c.c rmd160hl.c \
 	sha0c.c sha0hl.c sha1c.c sha1hl.c \
 	sha256c.c sha256hl.c \
+	sha384hl.c \
 	sha512c.c sha512hl.c
-INCS=	md4.h md5.h ripemd.h sha.h sha256.h sha512.h
+INCS=	md4.h md5.h ripemd.h sha.h sha256.h sha384.h sha512.h
 
 WARNS?=	0
 
@@ -33,6 +34,10 @@ MLINKS+=sha256.3 SHA256_Init.3  sha256.3 SHA256_Update.3
 MLINKS+=sha256.3 SHA256_Final.3 sha256.3 SHA256_End.3
 MLINKS+=sha256.3 SHA256_File.3  sha256.3 SHA256_FileChunk.3
 MLINKS+=sha256.3 SHA256_Data.3
+MLINKS+=sha512.3 SHA384_Init.3  sha512.3 SHA384_Update.3
+MLINKS+=sha512.3 SHA384_Final.3 sha512.3 SHA384_End.3
+MLINKS+=sha512.3 SHA384_File.3  sha512.3 SHA384_FileChunk.3
+MLINKS+=sha512.3 SHA384_Data.3  sha512.3 sha384.3
 MLINKS+=sha512.3 SHA512_Init.3  sha512.3 SHA512_Update.3
 MLINKS+=sha512.3 SHA512_Final.3 sha512.3 SHA512_End.3
 MLINKS+=sha512.3 SHA512_File.3  sha512.3 SHA512_FileChunk.3
@@ -40,7 +45,8 @@ MLINKS+=sha512.3 SHA512_Data.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 		rmd160.ref rmd160hl.c rmddriver \
 		sha0.ref sha0hl.c sha1.ref sha1hl.c shadriver \
-		sha256.ref sha256hl.c sha512.ref sha512hl.c
+		sha256.ref sha256hl.c sha384hl.c sha384.ref \
+		sha512.ref sha512hl.c
 
 # Define WEAK_REFS to provide weak aliases for libmd symbols
 #
@@ -86,6 +92,12 @@ sha256hl.c: mdXhl.c
 	(echo '#define LENGTH 32'; \
 		sed -e 's/mdX/sha256/g' -e 's/MDX/SHA256_/g'	\
 			-e  's/SHA256__/SHA256_/g' \
+		${.ALLSRC}) > ${.TARGET}
+
+sha384hl.c: mdXhl.c
+	(echo '#define LENGTH 48'; \
+		sed -e 's/mdX/sha384/g' -e 's/MDX/SHA384_/g'	\
+			-e  's/SHA384__/SHA384_/g' \
 		${.ALLSRC}) > ${.TARGET}
 
 sha512hl.c: mdXhl.c
@@ -168,6 +180,21 @@ sha256.ref:
 	@echo 'SHA-256 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'f371bc4a311f2b009eef952dd83ca80e2b60026c8e935592d0f9c308453c813e' >> ${.TARGET}
 
+sha384.ref:
+	echo 'SHA-384 test suite:' > ${.TARGET}
+	@echo 'SHA-384 ("") =' \
+		'38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b' >> ${.TARGET}
+	@echo 'SHA-384 ("abc") =' \
+		'cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7' >> ${.TARGET}
+	@echo 'SHA-384 ("message digest") =' \
+		'473ed35167ec1f5d8e550368a3db39be54639f828868e9454c239fc8b52e3c61dbd0d8b4de1390c256dcbb5d5fd99cd5' >> ${.TARGET}
+	@echo 'SHA-384 ("abcdefghijklmnopqrstuvwxyz") =' \
+		'feb67349df3db6f5924815d6c3dc133f091809213731fe5c7b5f4999e463479ff2877f5f2936fa63bb43784b12f3ebb4' >> ${.TARGET}
+	@echo 'SHA-384 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") =' \
+		'1761336e3f7cbfe51deb137f026f89e01a448e3b1fafa64039c1464ee8732f11a5341a6f41e0c202294736ed64db1a84' >> ${.TARGET}
+	@echo 'SHA-384 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
+		'b12932b0627d1c060942f5447764155655bd4da0c9afa6dd9b9ef53129af1b8fb0195996d2de9ca0df9d821ffee67026' >> ${.TARGET}
+
 sha512.ref:
 	echo 'SHA-512 test suite:' > ${.TARGET}
 	@echo 'SHA-512 ("") =' \
@@ -196,7 +223,8 @@ rmd160.ref:
 	@echo 'RIPEMD160 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'9b752e45573d4b39f4dbd3323cab82bf63326bfb' >> ${.TARGET}
 
-test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha512.ref
+test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha384.ref \
+		sha512.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
 	${CC} ${CFLAGS} ${LDFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c libmd.a
@@ -219,6 +247,9 @@ test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha512.ref
 	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=256 -o shadriver ${.CURDIR}/shadriver.c libmd.a
 	./shadriver | cmp sha256.ref -
 	@${ECHO} SHA-256 passed test
+	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=384 -o shadriver ${.CURDIR}/shadriver.c libmd.a
+	./shadriver | cmp sha384.ref -
+	@${ECHO} SHA-384 passed test
 	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=512 -o shadriver ${.CURDIR}/shadriver.c libmd.a
 	./shadriver | cmp sha512.ref -
 	@${ECHO} SHA-512 passed test
