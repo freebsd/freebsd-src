@@ -58,7 +58,7 @@
 #endif
 
 #include <crypto/rijndael/rijndael-api-fst.h>
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha512.h>
 
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>

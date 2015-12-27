@@ -26,65 +26,65 @@
  * $FreeBSD$
  */
 
-#ifndef _SHA256_H_
-#define _SHA256_H_
+#ifndef _SHA512_H_
+#define _SHA512_H_
 
 #ifndef _KERNEL
 #include <sys/types.h>
 #endif
 
-#define SHA256_BLOCK_LENGTH		64
-#define SHA256_DIGEST_LENGTH		32
-#define SHA256_DIGEST_STRING_LENGTH	(SHA256_DIGEST_LENGTH * 2 + 1)
+#define SHA512_BLOCK_LENGTH		128
+#define SHA512_DIGEST_LENGTH		64
+#define SHA512_DIGEST_STRING_LENGTH	(SHA512_DIGEST_LENGTH * 2 + 1)
 
-typedef struct SHA256Context {
-	uint32_t state[8];
-	uint64_t count;
-	uint8_t buf[SHA256_BLOCK_LENGTH];
-} SHA256_CTX;
+typedef struct SHA512Context {
+	uint64_t state[8];
+	uint64_t count[2];
+	uint8_t buf[SHA512_BLOCK_LENGTH];
+} SHA512_CTX;
 
 __BEGIN_DECLS
 
 /* Ensure libmd symbols do not clash with libcrypto */
-
-#ifndef SHA256_Init
-#define SHA256_Init		_libmd_SHA256_Init
+#ifndef SHA512_Init
+#define SHA512_Init		_libmd_SHA512_Init
 #endif
-#ifndef SHA256_Update
-#define SHA256_Update		_libmd_SHA256_Update
+#ifndef SHA512_Update
+#define SHA512_Update		_libmd_SHA512_Update
 #endif
-#ifndef SHA256_Final
-#define SHA256_Final		_libmd_SHA256_Final
+#ifndef SHA512_Final
+#define SHA512_Final		_libmd_SHA512_Final
 #endif
-#ifndef SHA256_End
-#define SHA256_End		_libmd_SHA256_End
+#ifndef SHA512_End
+#define SHA512_End		_libmd_SHA512_End
 #endif
-#ifndef SHA256_File
-#define SHA256_File		_libmd_SHA256_File
+#ifndef SHA512_File
+#define SHA512_File		_libmd_SHA512_File
 #endif
-#ifndef SHA256_FileChunk
-#define SHA256_FileChunk	_libmd_SHA256_FileChunk
+#ifndef SHA512_FileChunk
+#define SHA512_FileChunk	_libmd_SHA512_FileChunk
 #endif
-#ifndef SHA256_Data
-#define SHA256_Data		_libmd_SHA256_Data
-#endif
-
-#ifndef SHA256_Transform
-#define SHA256_Transform	_libmd_SHA256_Transform
-#endif
-#ifndef SHA256_version
-#define SHA256_version		_libmd_SHA256_version
+#ifndef SHA512_Data
+#define SHA512_Data		_libmd_SHA512_Data
 #endif
 
-void	SHA256_Init(SHA256_CTX *);
-void	SHA256_Update(SHA256_CTX *, const void *, size_t);
-void	SHA256_Final(unsigned char [SHA256_DIGEST_LENGTH], SHA256_CTX *);
+#ifndef SHA512_Transform
+#define SHA512_Transform	_libmd_SHA512_Transform
+#endif
+#ifndef SHA512_version
+#define SHA512_version		_libmd_SHA512_version
+#endif
+
+void	SHA512_Init(SHA512_CTX *);
+void	SHA512_Update(SHA512_CTX *, const void *, size_t);
+void	SHA512_Final(unsigned char [SHA512_DIGEST_LENGTH], SHA512_CTX *);
 #ifndef _KERNEL
-char   *SHA256_End(SHA256_CTX *, char *);
-char   *SHA256_Data(const void *, unsigned int, char *);
-char   *SHA256_File(const char *, char *);
-char   *SHA256_FileChunk(const char *, char *, off_t, off_t);
+char   *SHA512_End(SHA512_CTX *, char *);
+char   *SHA512_Data(const void *, unsigned int, char *);
+char   *SHA512_File(const char *, char *);
+char   *SHA512_FileChunk(const char *, char *, off_t, off_t);
 #endif
+
 __END_DECLS
 
-#endif /* !_SHA256_H_ */
+#endif /* !_SHA512_H_ */

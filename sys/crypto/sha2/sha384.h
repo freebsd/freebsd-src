@@ -26,57 +26,62 @@
  * $FreeBSD$
  */
 
-#ifndef _SHA512_H_
-#define _SHA512_H_
+#ifndef _SHA384_H_
+#define _SHA384_H_
 
+#ifndef _KERNEL
 #include <sys/types.h>
+#endif
 
-typedef struct SHA512Context {
+#define SHA384_BLOCK_LENGTH		128
+#define SHA384_DIGEST_LENGTH		48
+#define SHA384_DIGEST_STRING_LENGTH	(SHA384_DIGEST_LENGTH * 2 + 1)
+
+typedef struct SHA384Context {
 	uint64_t state[8];
 	uint64_t count[2];
-	unsigned char buf[128];
-} SHA512_CTX;
+	uint8_t buf[SHA384_BLOCK_LENGTH];
+} SHA384_CTX;
 
 __BEGIN_DECLS
 
 /* Ensure libmd symbols do not clash with libcrypto */
-
-#ifndef SHA512_Init
-#define SHA512_Init		_libmd_SHA512_Init
+#ifndef SHA384_Init
+#define SHA384_Init		_libmd_SHA384_Init
 #endif
-#ifndef SHA512_Update
-#define SHA512_Update		_libmd_SHA512_Update
+#ifndef SHA384_Update
+#define SHA384_Update		_libmd_SHA384_Update
 #endif
-#ifndef SHA512_Final
-#define SHA512_Final		_libmd_SHA512_Final
+#ifndef SHA384_Final
+#define SHA384_Final		_libmd_SHA384_Final
 #endif
-#ifndef SHA512_End
-#define SHA512_End		_libmd_SHA512_End
+#ifndef SHA384_End
+#define SHA384_End		_libmd_SHA384_End
 #endif
-#ifndef SHA512_File
-#define SHA512_File		_libmd_SHA512_File
+#ifndef SHA384_File
+#define SHA384_File		_libmd_SHA384_File
 #endif
-#ifndef SHA512_FileChunk
-#define SHA512_FileChunk	_libmd_SHA512_FileChunk
+#ifndef SHA384_FileChunk
+#define SHA384_FileChunk	_libmd_SHA384_FileChunk
 #endif
-#ifndef SHA512_Data
-#define SHA512_Data		_libmd_SHA512_Data
-#endif
-
-#ifndef SHA512_Transform
-#define SHA512_Transform	_libmd_SHA512_Transform
-#endif
-#ifndef SHA512_version
-#define SHA512_version		_libmd_SHA512_version
+#ifndef SHA384_Data
+#define SHA384_Data		_libmd_SHA384_Data
 #endif
 
-void	SHA512_Init(SHA512_CTX *);
-void	SHA512_Update(SHA512_CTX *, const void *, size_t);
-void	SHA512_Final(unsigned char [64], SHA512_CTX *);
-char   *SHA512_End(SHA512_CTX *, char *);
-char   *SHA512_File(const char *, char *);
-char   *SHA512_FileChunk(const char *, char *, off_t, off_t);
-char   *SHA512_Data(const void *, unsigned int, char *);
+#ifndef SHA384_version
+#define SHA384_version		_libmd_SHA384_version
+#endif
+
+void	SHA384_Init(SHA384_CTX *);
+void	SHA384_Update(SHA384_CTX *, const void *, size_t);
+void	SHA384_Final(unsigned char [SHA384_DIGEST_LENGTH], SHA384_CTX *);
+#ifndef _KERNEL
+char   *SHA384_End(SHA384_CTX *, char *);
+char   *SHA384_Data(const void *, unsigned int, char *);
+char   *SHA384_File(const char *, char *);
+char   *SHA384_FileChunk(const char *, char *, off_t, off_t);
+#endif
+
 __END_DECLS
 
-#endif /* !_SHA512_H_ */
+#endif /* !_SHA384_H_ */
