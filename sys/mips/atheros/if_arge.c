@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_arge.h"
 
 #if defined(ARGE_MDIO)
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 #include <dev/etherswitch/miiproxy.h>
 #include "mdio_if.h"
 #endif
