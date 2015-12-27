@@ -31,6 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <assert.h>
 #include <fenv.h>
 #include <float.h>
@@ -474,49 +475,58 @@ int
 main(int argc, char *argv[])
 {
 	int rmodes[] = { FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO };
-	int i;
+	int i, j;
 
 #if defined(__i386__)
 	printf("1..0 # SKIP all testcases fail on i386\n");
 	exit(0);
 #endif
 
+	j = 1;
+
 	printf("1..19\n");
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < nitems(rmodes); i++, j++) {
+		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_zeroes();
-		printf("ok %d - fma zeroes\n", i + 1);
+		printf("ok %d - fma zeroes\n", j);
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < nitems(rmodes); i++, j++) {
+		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_infinities();
-		printf("ok %d - fma infinities\n", i + 5);
+		printf("ok %d - fma infinities\n", j);
 	}
 
 	fesetround(FE_TONEAREST);
 	test_nans();
-	printf("ok 9 - fma NaNs\n");
+	printf("ok %d - fma NaNs\n", j);
+	j++;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < nitems(rmodes); i++, j++) {
+		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_small_z();
-		printf("ok %d - fma small z\n", i + 10);
+		printf("ok %d - fma small z\n", j);
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < nitems(rmodes); i++, j++) {
+		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_big_z();
-		printf("ok %d - fma big z\n", i + 14);
+		printf("ok %d - fma big z\n", j);
 	}
 
 	fesetround(FE_TONEAREST);
 	test_accuracy();
-	printf("ok 18 - fma accuracy\n");
+	printf("ok %d - fma accuracy\n", j);
+	j++;
 
 	test_double_rounding();
-	printf("ok 19 - fma double rounding\n");
+	printf("ok %d - fma double rounding\n", j);
+	j++;
 
 	/*
 	 * TODO:
