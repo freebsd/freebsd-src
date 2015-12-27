@@ -110,7 +110,7 @@ cpackl(long double x, long double y)
 
 /* Various finite non-zero numbers to test. */
 static const float finites[] =
-{ -42.0e20, -1.0 -1.0e-10, -0.0, 0.0, 1.0e-10, 1.0, 42.0e20 };
+{ -42.0e20, -1.0, -1.0e-10, -0.0, 0.0, 1.0e-10, 1.0, 42.0e20 };
 
 /*
  * Determine whether x and y are equal, with two special rules:
@@ -228,21 +228,35 @@ test_inf(void)
 	int i;
 
 	/* cexp(x + inf i) = NaN + NaNi and raises invalid */
-	/* cexp(inf + yi) = 0 + 0yi */
-	/* cexp(-inf + yi) = inf + inf yi (except y=0) */
 	for (i = 0; i < N(finites); i++) {
 		testall(cpackl(finites[i], INFINITY), cpackl(NAN, NAN),
 			ALL_STD_EXCEPT, FE_INVALID, 1);
-		/* XXX shouldn't raise an inexact exception */
-		testall(cpackl(-INFINITY, finites[i]),
-			cpackl(0.0, 0.0 * finites[i]),
-			ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
-		if (finites[i] == 0)
-			continue;
-		testall(cpackl(INFINITY, finites[i]),
-			cpackl(INFINITY, INFINITY * finites[i]),
-			ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
 	}
+	/* cexp(-inf + yi) = 0 * (cos(y) + sin(y)i) */
+	/* XXX shouldn't raise an inexact exception */
+	testall(cpackl(-INFINITY, M_PI_4), cpackl(0.0, 0.0),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	testall(cpackl(-INFINITY, 3 * M_PI_4), cpackl(-0.0, 0.0),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	testall(cpackl(-INFINITY, 5 * M_PI_4), cpackl(-0.0, -0.0),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	testall(cpackl(-INFINITY, 7 * M_PI_4), cpackl(0.0, -0.0),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	testall(cpackl(-INFINITY, 0.0), cpackl(0.0, 0.0),
+		ALL_STD_EXCEPT, 0, 1);
+	testall(cpackl(-INFINITY, -0.0), cpackl(0.0, -0.0),
+		ALL_STD_EXCEPT, 0, 1);
+	/* cexp(inf + yi) = inf * (cos(y) + sin(y)i) (except y=0) */
+	/* XXX shouldn't raise an inexact exception */
+	testall(cpackl(INFINITY, M_PI_4), cpackl(INFINITY, INFINITY),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	testall(cpackl(INFINITY, 3 * M_PI_4), cpackl(-INFINITY, INFINITY),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	testall(cpackl(INFINITY, 5 * M_PI_4), cpackl(-INFINITY, -INFINITY),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	testall(cpackl(INFINITY, 7 * M_PI_4), cpackl(INFINITY, -INFINITY),
+		ALL_STD_EXCEPT & ~FE_INEXACT, 0, 1);
+	/* cexp(inf + 0i) = inf + 0i */
 	testall(cpackl(INFINITY, 0.0), cpackl(INFINITY, 0.0),
 		ALL_STD_EXCEPT, 0, 1);
 	testall(cpackl(INFINITY, -0.0), cpackl(INFINITY, -0.0),
