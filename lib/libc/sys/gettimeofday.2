@@ -28,7 +28,7 @@
 .\"     @(#)gettimeofday.2	8.2 (Berkeley) 5/26/95
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2015
+.Dd December 27, 2015
 .Dt GETTIMEOFDAY 2
 .Os
 .Sh NAME
@@ -110,6 +110,10 @@ system call even when the system is secure.
 The following error codes may be set in
 .Va errno :
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The supplied
+.Fa timeval
+value is invalid.
 .It Bq Er EPERM
 A user other than the super-user attempted to set the time.
 .El
