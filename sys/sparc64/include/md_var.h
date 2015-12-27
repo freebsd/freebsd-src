@@ -47,9 +47,9 @@ extern	vm_paddr_t kstack0_phys;
 struct	pcpu;
 struct	md_utrap;
 
-const char *cpu_cpuid_prop(u_int cpu_impl);
 uint32_t cpu_get_mid(u_int cpu_impl);
 void	cpu_identify(u_long vers, u_int clock, u_int id);
+const char *cpu_portid_prop(u_int cpu_impl);
 void	cpu_setregs(struct pcpu *pc);
 int	is_physical_memory(vm_paddr_t addr);
 struct md_utrap *utrap_alloc(void);
