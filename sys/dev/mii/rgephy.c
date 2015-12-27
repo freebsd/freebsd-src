@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 #include <machine/bus.h>
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 static int rgephy_probe(device_t);
 static int rgephy_attach(device_t);
