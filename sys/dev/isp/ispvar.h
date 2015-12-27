@@ -77,7 +77,7 @@ struct ispmdvec {
  */
 #define	MAX_TARGETS		16
 #ifndef	MAX_FC_TARG
-#define	MAX_FC_TARG		256
+#define	MAX_FC_TARG		1024
 #endif
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
@@ -472,6 +472,8 @@ typedef struct {
 	 */
 	void *			isp_scratch;
 	XS_DMA_ADDR_T		isp_scdma;
+
+	uint8_t			isp_scanscratch[ISP_FC_SCRLEN];
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
