@@ -806,6 +806,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	 * than a page size, then use special small filesystem code.
 	 */
 	if (pagesperblock == 0) {
+		relpbuf(bp, freecnt);
 		for (i = 0; i < count; i++) {
 			PCPU_INC(cnt.v_vnodein);
 			PCPU_INC(cnt.v_vnodepgsin);
