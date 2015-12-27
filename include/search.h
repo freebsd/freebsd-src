@@ -47,11 +47,8 @@ struct que_elem {
 #endif
 
 #if __BSD_VISIBLE
-struct _ENTRY;
 struct hsearch_data {
-	struct _ENTRY *table;
-	size_t size;
-	size_t filled;
+	struct __hsearch *__hsearch;
 };
 #endif
 
