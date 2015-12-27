@@ -259,7 +259,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	}
 	if (find_marker(cp, value, &end) != 0) {
 		if (bootverbose) {
-			printf("MAP: \"%s\" can't parse/use start value\n",
+			printf("MAP: \"%s\" can't parse/use end value\n",
 			    name);
 		}
 		return (1);
