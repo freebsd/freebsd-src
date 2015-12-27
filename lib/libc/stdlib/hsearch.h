@@ -21,53 +21,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef HSEARCH_H
+#define HSEARCH_H
 
 #include <search.h>
-#include <stdbool.h>
-#include <stddef.h>
 
-/*
- * Thread unsafe interface: use a single process-wide hash table and
- * forward calls to *_r() functions.
- */
+struct __hsearch {
+	size_t offset_basis;	/* Initial value for FNV-1a hashing. */
+	size_t index_mask;	/* Bitmask for indexing the table. */
+	size_t entries_used;	/* Number of entries currently used. */
+	ENTRY *entries;		/* Hash table entries. */
+};
 
-static struct hsearch_data global_hashtable;
-static bool global_hashtable_initialized = false;
-
-int
-hcreate(size_t nel)
-{
-
-	return (1);
-}
-
-void
-hdestroy(void)
-{
-
-	/* Destroy global hash table if present. */
-	if (global_hashtable_initialized) {
-		hdestroy_r(&global_hashtable);
-		global_hashtable_initialized = false;
-	}
-}
-
-ENTRY *
-hsearch(ENTRY item, ACTION action)
-{
-	ENTRY *retval;
-
-	/* Create global hash table if needed. */
-	if (!global_hashtable_initialized) {
-		if (hcreate_r(0, &global_hashtable) == 0)
-			return (NULL);
-		global_hashtable_initialized = true;
-	}
-	if (hsearch_r(item, action, &retval, &global_hashtable) == 0)
-		return (NULL);
-	return (retval);
-}
+#endif

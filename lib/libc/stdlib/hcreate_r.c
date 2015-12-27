@@ -27,47 +27,37 @@
 __FBSDID("$FreeBSD$");
 
 #include <search.h>
-#include <stdbool.h>
-#include <stddef.h>
+#include <stdlib.h>
 
-/*
- * Thread unsafe interface: use a single process-wide hash table and
- * forward calls to *_r() functions.
- */
-
-static struct hsearch_data global_hashtable;
-static bool global_hashtable_initialized = false;
+#include "hsearch.h"
 
 int
-hcreate(size_t nel)
+hcreate_r(size_t nel, struct hsearch_data *htab)
 {
+	struct __hsearch *hsearch;
 
-	return (1);
-}
-
-void
-hdestroy(void)
-{
-
-	/* Destroy global hash table if present. */
-	if (global_hashtable_initialized) {
-		hdestroy_r(&global_hashtable);
-		global_hashtable_initialized = false;
+	/*
+	 * Allocate a hash table object. Ignore the provided hint and start
+	 * off with a table of sixteen entries. In most cases this hint is
+	 * just a wild guess. Resizing the table dynamically if the use
+	 * increases a threshold does not affect the worst-case running time.
+	 */
+	hsearch = malloc(sizeof(*hsearch));
+	if (hsearch == NULL)
+		return 0;
+	hsearch->entries = calloc(16, sizeof(ENTRY));
+	if (hsearch->entries == NULL) {
+		free(hsearch);
+		return 0;
 	}
-}
 
-ENTRY *
-hsearch(ENTRY item, ACTION action)
-{
-	ENTRY *retval;
-
-	/* Create global hash table if needed. */
-	if (!global_hashtable_initialized) {
-		if (hcreate_r(0, &global_hashtable) == 0)
-			return (NULL);
-		global_hashtable_initialized = true;
-	}
-	if (hsearch_r(item, action, &retval, &global_hashtable) == 0)
-		return (NULL);
-	return (retval);
+	/*
+	 * Pick a random initialization for the FNV-1a hashing. This makes it
+	 * hard to come up with a fixed set of keys to force hash collisions.
+	 */
+	arc4random_buf(&hsearch->offset_basis, sizeof(hsearch->offset_basis));
+	hsearch->index_mask = 0xf;
+	hsearch->entries_used = 0;
+	htab->__hsearch = hsearch;
+	return 1;
 }
