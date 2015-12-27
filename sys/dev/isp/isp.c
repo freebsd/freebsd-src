@@ -111,9 +111,9 @@ static void isp_mark_portdb(ispsoftc_t *, int);
 static int isp_plogx(ispsoftc_t *, int, uint16_t, uint32_t, int);
 static int isp_port_login(ispsoftc_t *, uint16_t, uint32_t);
 static int isp_port_logout(ispsoftc_t *, uint16_t, uint32_t);
-static int isp_getpdb(ispsoftc_t *, int, uint16_t, isp_pdb_t *, int);
-static int isp_gethandles(ispsoftc_t *, int, uint16_t *, int *, int, int);
-static void isp_dump_chip_portdb(ispsoftc_t *, int, int);
+static int isp_getpdb(ispsoftc_t *, int, uint16_t, isp_pdb_t *);
+static int isp_gethandles(ispsoftc_t *, int, uint16_t *, int *, int);
+static void isp_dump_chip_portdb(ispsoftc_t *, int);
 static uint64_t isp_get_wwn(ispsoftc_t *, int, int, int);
 static int isp_fclink_test(ispsoftc_t *, int, int);
 static int isp_pdb_sync(ispsoftc_t *, int);
@@ -2762,7 +2762,7 @@ isp_port_logout(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 }
 
 static int
-isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
+isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
 	mbreg_t mbs;
@@ -2786,18 +2786,14 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-	if (dolock) {
-		if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-			isp_prt(isp, ISP_LOGERR, sacq);
-			return (-1);
-		}
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (-1);
 	}
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (un), chan);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		if (dolock) {
-			FC_SCRATCH_RELEASE(isp, chan);
-		}
+		FC_SCRATCH_RELEASE(isp, chan);
 		return (mbs.param[0] | (mbs.param[1] << 16));
 	}
 	if (IS_24XX(isp)) {
@@ -2813,9 +2809,7 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 		    un.bill.pdb_curstate);
 		if (un.bill.pdb_curstate < PDB2400_STATE_PLOGI_DONE || un.bill.pdb_curstate > PDB2400_STATE_LOGGED_IN) {
 			mbs.param[0] = MBOX_NOT_LOGGED_IN;
-			if (dolock) {
-				FC_SCRATCH_RELEASE(isp, chan);
-			}
+			FC_SCRATCH_RELEASE(isp, chan);
 			return (mbs.param[0]);
 		}
 	} else {
@@ -2828,15 +2822,12 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 		isp_prt(isp, ISP_LOGDEBUG1,
 		    "Chan %d handle 0x%x Port 0x%06x", chan, id, pdb->portid);
 	}
-	if (dolock) {
-		FC_SCRATCH_RELEASE(isp, chan);
-	}
+	FC_SCRATCH_RELEASE(isp, chan);
 	return (0);
 }
 
 static int
-isp_gethandles(ispsoftc_t *isp, int chan, uint16_t *handles, int *num,
-    int dolock, int loop)
+isp_gethandles(ispsoftc_t *isp, int chan, uint16_t *handles, int *num, int loop)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
 	mbreg_t mbs;
@@ -2862,18 +2853,14 @@ isp_gethandles(ispsoftc_t *isp, int chan, uint16_t *handles, int *num,
 		mbs.param[3] = DMA_WD3(fcp->isp_scdma);
 		mbs.param[6] = DMA_WD2(fcp->isp_scdma);
 	}
-	if (dolock) {
-		if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-			isp_prt(isp, ISP_LOGERR, sacq);
-			return (-1);
-		}
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (-1);
 	}
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, ISP_FC_SCRLEN, chan);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		if (dolock) {
-			FC_SCRATCH_RELEASE(isp, chan);
-		}
+		FC_SCRATCH_RELEASE(isp, chan);
 		return (mbs.param[0] | (mbs.param[1] << 16));
 	}
 	elp1 = fcp->isp_scratch;
@@ -2901,13 +2888,12 @@ isp_gethandles(ispsoftc_t *isp, int chan, uint16_t *handles, int *num,
 		handles[j++] = h;
 	}
 	*num = j;
-	if (dolock)
-		FC_SCRATCH_RELEASE(isp, chan);
+	FC_SCRATCH_RELEASE(isp, chan);
 	return (0);
 }
 
 static void
-isp_dump_chip_portdb(ispsoftc_t *isp, int chan, int dolock)
+isp_dump_chip_portdb(ispsoftc_t *isp, int chan)
 {
 	isp_pdb_t pdb;
 	uint16_t lim, nphdl;
@@ -2919,7 +2905,7 @@ isp_dump_chip_portdb(ispsoftc_t *isp, int chan, int dolock)
 		lim = NPH_MAX;
 	}
 	for (nphdl = 0; nphdl != lim; nphdl++) {
-		if (isp_getpdb(isp, chan, nphdl, &pdb, dolock)) {
+		if (isp_getpdb(isp, chan, nphdl, &pdb)) {
 			continue;
 		}
 		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGINFO, "Chan %d Handle 0x%04x "
@@ -3069,7 +3055,7 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 
 	if (fcp->isp_topo == TOPO_F_PORT || fcp->isp_topo == TOPO_FL_PORT) {
 		nphdl = IS_24XX(isp) ? NPH_FL_ID : FL_ID;
-		r = isp_getpdb(isp, chan, nphdl, &pdb, 1);
+		r = isp_getpdb(isp, chan, nphdl, &pdb);
 		if (r != 0 || pdb.portid == 0) {
 			if (IS_2100(isp)) {
 				fcp->isp_topo = TOPO_NL_PORT;
@@ -3311,7 +3297,7 @@ isp_fix_portids(ispsoftc_t *isp, int chan)
 		if (VALID_PORT(lp->portid))
 			continue;
 
-		r = isp_getpdb(isp, chan, lp->handle, &pdb, 1);
+		r = isp_getpdb(isp, chan, lp->handle, &pdb);
 		if (fcp->isp_loopstate < LOOP_SCANNING_LOOP)
 			return;
 		if (r != 0) {
@@ -3340,7 +3326,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 	fcparam *fcp = FCPARAM(isp, chan);
 	int idx, lim, r;
 	isp_pdb_t pdb;
-	uint16_t handles[LOCAL_LOOP_LIM];
+	uint16_t *handles;
 	uint16_t handle;
 
 	if (fcp->isp_loopstate < LOOP_LTEST_DONE)
@@ -3362,8 +3348,9 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		return (0);
 	}
 
-	lim = LOCAL_LOOP_LIM;
-	r = isp_gethandles(isp, chan, handles, &lim, 1, 1);
+	handles = (uint16_t *)fcp->isp_scanscratch;
+	lim = ISP_FC_SCRLEN / 2;
+	r = isp_gethandles(isp, chan, handles, &lim, 1);
 	if (r != 0) {
 		isp_prt(isp, ISP_LOG_SANCFG,
 		    "Chan %d Getting list of handles failed with %x", chan, r);
@@ -3413,7 +3400,7 @@ abort:
 		/*
 		 * Get the port database entity for this index.
 		 */
-		r = isp_getpdb(isp, chan, handle, &pdb, 1);
+		r = isp_getpdb(isp, chan, handle, &pdb);
 		if (fcp->isp_loopstate < LOOP_SCANNING_LOOP)
 			goto abort;
 		if (r != 0) {
@@ -3442,20 +3429,10 @@ abort:
  *
  * For the 24XX card, we have to use CT-Pass through run via the Execute IOCB
  * mailbox command.
- *
- * The net result is to leave the list of Port IDs setting untranslated in
- * offset IGPOFF of the FC scratch area, whereupon we'll canonicalize it to
- * host order at OGPOFF.
  */
-
-/*
- * Take half of our scratch area to store Port IDs
- */
-#define	GIDLEN	(ISP_FC_SCRLEN >> 1)
+#define	GIDLEN	(ISP_FC_SCRLEN - (3 * QENTRY_LEN))
 #define	NGENT	((GIDLEN - 16) >> 2)
 
-#define	IGPOFF	(0)
-#define	OGPOFF	(ISP_FC_SCRLEN >> 1)
 #define	XTXOFF	(ISP_FC_SCRLEN - (3 * QENTRY_LEN))	/* CT request */
 #define	CTXOFF	(ISP_FC_SCRLEN - (2 * QENTRY_LEN))	/* Request IOCB */
 #define	ZTXOFF	(ISP_FC_SCRLEN - (1 * QENTRY_LEN))	/* Response IOCB */
@@ -3472,21 +3449,25 @@ isp_gid_ft_sns(ispsoftc_t *isp, int chan)
 	uint8_t *scp = fcp->isp_scratch;
 	mbreg_t mbs;
 
-	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d scanning fabric (GID_FT) via SNS", chan);
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d requesting GID_FT via SNS", chan);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (-1);
+	}
 
 	ISP_MEMZERO(rq, SNS_GID_FT_REQ_SIZE);
 	rq->snscb_rblen = GIDLEN >> 1;
-	rq->snscb_addr[RQRSP_ADDR0015] = DMA_WD0(fcp->isp_scdma + IGPOFF);
-	rq->snscb_addr[RQRSP_ADDR1631] = DMA_WD1(fcp->isp_scdma + IGPOFF);
-	rq->snscb_addr[RQRSP_ADDR3247] = DMA_WD2(fcp->isp_scdma + IGPOFF);
-	rq->snscb_addr[RQRSP_ADDR4863] = DMA_WD3(fcp->isp_scdma + IGPOFF);
+	rq->snscb_addr[RQRSP_ADDR0015] = DMA_WD0(fcp->isp_scdma);
+	rq->snscb_addr[RQRSP_ADDR1631] = DMA_WD1(fcp->isp_scdma);
+	rq->snscb_addr[RQRSP_ADDR3247] = DMA_WD2(fcp->isp_scdma);
+	rq->snscb_addr[RQRSP_ADDR4863] = DMA_WD3(fcp->isp_scdma);
 	rq->snscb_sblen = 6;
 	rq->snscb_cmd = SNS_GID_FT;
 	rq->snscb_mword_div_2 = NGENT;
 	rq->snscb_fc4_type = FC4_SCSI;
 
 	isp_put_gid_ft_request(isp, rq, (sns_gid_ft_req_t *)&scp[CTXOFF]);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GID_FT_REQ_SIZE, chan);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, CTXOFF, SNS_GID_FT_REQ_SIZE, chan);
 
 	MBSINIT(&mbs, MBOX_SEND_SNS, MBLOGALL, 10000000);
 	mbs.param[0] = MBOX_SEND_SNS;
@@ -3503,6 +3484,12 @@ isp_gid_ft_sns(ispsoftc_t *isp, int chan)
 			return (-1);
 		}
 	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, 0, GIDLEN, chan);
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "CT response", GIDLEN, scp);
+	isp_get_gid_ft_response(isp, (sns_gid_ft_rsp_t *)scp,
+	    (sns_gid_ft_rsp_t *)fcp->isp_scanscratch, NGENT);
+	FC_SCRATCH_RELEASE(isp, chan);
 	return (0);
 }
 
@@ -3521,7 +3508,11 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 	uint32_t *rp;
 	uint8_t *scp = fcp->isp_scratch;
 
-	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d scanning fabric (GID_FT) via CT", chan);
+	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d requesting GID_FT via CT", chan);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (-1);
+	}
 
 	/*
 	 * Build a Passthrough IOCB in memory.
@@ -3541,8 +3532,8 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 	pt->ctp_dataseg[0].ds_base = DMA_LO32(fcp->isp_scdma+XTXOFF);
 	pt->ctp_dataseg[0].ds_basehi = DMA_HI32(fcp->isp_scdma+XTXOFF);
 	pt->ctp_dataseg[0].ds_count = sizeof (*ct) + sizeof (uint32_t);
-	pt->ctp_dataseg[1].ds_base = DMA_LO32(fcp->isp_scdma+IGPOFF);
-	pt->ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma+IGPOFF);
+	pt->ctp_dataseg[1].ds_base = DMA_LO32(fcp->isp_scdma);
+	pt->ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma);
 	pt->ctp_dataseg[1].ds_count = GIDLEN;
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
 		isp_print_bytes(isp, "ct IOCB", QENTRY_LEN, pt);
@@ -3582,7 +3573,7 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return (-1);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, ZTXOFF, QENTRY_LEN, chan);
+	MEMORYBARRIER(isp, SYNC_SFORCPU, 0, ISP_FC_SCRLEN, chan);
 	pt = &un.plocal;
 	isp_get_ct_pt(isp, (isp_ct_pt_t *) &scp[ZTXOFF], pt);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
@@ -3591,14 +3582,15 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 
 	if (pt->ctp_status && pt->ctp_status != RQCS_DATA_UNDERRUN) {
 		isp_prt(isp, ISP_LOGWARN,
-		    "Chan %d ISP GID FT CT Passthrough returned 0x%x",
+		    "Chan %d GID_FT CT Passthrough returned 0x%x",
 		    chan, pt->ctp_status);
 		return (-1);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN, chan);
-	if (isp->isp_dblev & ISP_LOGDEBUG1) {
-		isp_print_bytes(isp, "CT response", GIDLEN, &scp[IGPOFF]);
-	}
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "CT response", GIDLEN, scp);
+	isp_get_gid_ft_response(isp, (sns_gid_ft_rsp_t *)scp,
+	    (sns_gid_ft_rsp_t *)fcp->isp_scanscratch, NGENT);
+	FC_SCRATCH_RELEASE(isp, chan);
 	return (0);
 }
 
@@ -3611,7 +3603,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 	uint16_t nphdl;
 	isp_pdb_t pdb;
 	int portidx, portlim, r;
-	sns_gid_ft_rsp_t *rs0, *rs1;
+	sns_gid_ft_rsp_t *rs;
 
 	if (fcp->isp_loopstate < LOOP_LSCAN_DONE)
 		return (-1);
@@ -3627,13 +3619,6 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		return (0);
 	}
 
-	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-		isp_prt(isp, ISP_LOGERR, sacq);
-fail:
-		isp_prt(isp, ISP_LOG_SANCFG,
-		    "Chan %d FC fabric scan done (bad)", chan);
-		return (-1);
-	}
 	if (fcp->isp_loopstate < LOOP_SCANNING_FABRIC) {
 abort:
 		FC_SCRATCH_RELEASE(isp, chan);
@@ -3646,14 +3631,16 @@ abort:
 	 * Make sure we still are logged into the fabric controller.
 	 */
 	nphdl = IS_24XX(isp) ? NPH_FL_ID : FL_ID;
-	r = isp_getpdb(isp, chan, nphdl, &pdb, 0);
+	r = isp_getpdb(isp, chan, nphdl, &pdb);
 	if ((r & 0xffff) == MBOX_NOT_LOGGED_IN) {
-		isp_dump_chip_portdb(isp, chan, 0);
+		isp_dump_chip_portdb(isp, chan);
 	}
 	if (r) {
 		fcp->isp_loopstate = LOOP_LTEST_DONE;
-		FC_SCRATCH_RELEASE(isp, chan);
-		goto fail;
+fail:
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d FC fabric scan done (bad)", chan);
+		return (-1);
 	}
 
 	/* Get list of port IDs from SNS. */
@@ -3665,42 +3652,36 @@ abort:
 		goto abort;
 	if (r > 0) {
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
-		FC_SCRATCH_RELEASE(isp, chan);
 		return (-1);
 	} else if (r < 0) {
 		fcp->isp_loopstate = LOOP_LTEST_DONE;	/* try again */
-		FC_SCRATCH_RELEASE(isp, chan);
 		return (-1);
 	}
 
-	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN, chan);
-	rs0 = (sns_gid_ft_rsp_t *) ((uint8_t *)fcp->isp_scratch+IGPOFF);
-	rs1 = (sns_gid_ft_rsp_t *) ((uint8_t *)fcp->isp_scratch+OGPOFF);
-	isp_get_gid_ft_response(isp, rs0, rs1, NGENT);
+	rs = (sns_gid_ft_rsp_t *) fcp->isp_scanscratch;
 	if (fcp->isp_loopstate < LOOP_SCANNING_FABRIC)
 		goto abort;
-	if (rs1->snscb_cthdr.ct_cmd_resp != LS_ACC) {
+	if (rs->snscb_cthdr.ct_cmd_resp != LS_ACC) {
 		int level;
-		if (rs1->snscb_cthdr.ct_reason == 9 && rs1->snscb_cthdr.ct_explanation == 7) {
+		if (rs->snscb_cthdr.ct_reason == 9 && rs->snscb_cthdr.ct_explanation == 7) {
 			level = ISP_LOG_SANCFG;
 		} else {
 			level = ISP_LOGWARN;
 		}
 		isp_prt(isp, level, "Chan %d Fabric Nameserver rejected GID_FT"
 		    " (Reason=0x%x Expl=0x%x)", chan,
-		    rs1->snscb_cthdr.ct_reason,
-		    rs1->snscb_cthdr.ct_explanation);
-		FC_SCRATCH_RELEASE(isp, chan);
+		    rs->snscb_cthdr.ct_reason,
+		    rs->snscb_cthdr.ct_explanation);
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
 		return (-1);
 	}
 
 	/* Check our buffer was big enough to get the full list. */
 	for (portidx = 0; portidx < NGENT-1; portidx++) {
-		if (rs1->snscb_ports[portidx].control & 0x80)
+		if (rs->snscb_ports[portidx].control & 0x80)
 			break;
 	}
-	if ((rs1->snscb_ports[portidx].control & 0x80) == 0) {
+	if ((rs->snscb_ports[portidx].control & 0x80) == 0) {
 		isp_prt(isp, ISP_LOGWARN,
 		    "fabric too big for scratch area: increase ISP_FC_SCRLEN");
 	}
@@ -3713,24 +3694,24 @@ abort:
 		int npidx;
 
 		portid =
-		    ((rs1->snscb_ports[portidx].portid[0]) << 16) |
-		    ((rs1->snscb_ports[portidx].portid[1]) << 8) |
-		    ((rs1->snscb_ports[portidx].portid[2]));
+		    ((rs->snscb_ports[portidx].portid[0]) << 16) |
+		    ((rs->snscb_ports[portidx].portid[1]) << 8) |
+		    ((rs->snscb_ports[portidx].portid[2]));
 
 		for (npidx = portidx + 1; npidx < portlim; npidx++) {
 			uint32_t new_portid =
-			    ((rs1->snscb_ports[npidx].portid[0]) << 16) |
-			    ((rs1->snscb_ports[npidx].portid[1]) << 8) |
-			    ((rs1->snscb_ports[npidx].portid[2]));
+			    ((rs->snscb_ports[npidx].portid[0]) << 16) |
+			    ((rs->snscb_ports[npidx].portid[1]) << 8) |
+			    ((rs->snscb_ports[npidx].portid[2]));
 			if (new_portid == portid) {
 				break;
 			}
 		}
 
 		if (npidx < portlim) {
-			rs1->snscb_ports[npidx].portid[0] = 0;
-			rs1->snscb_ports[npidx].portid[1] = 0;
-			rs1->snscb_ports[npidx].portid[2] = 0;
+			rs->snscb_ports[npidx].portid[0] = 0;
+			rs->snscb_ports[npidx].portid[1] = 0;
+			rs->snscb_ports[npidx].portid[2] = 0;
 			isp_prt(isp, ISP_LOG_SANCFG, "Chan %d removing duplicate PortID 0x%06x entry from list", chan, portid);
 		}
 	}
@@ -3751,9 +3732,9 @@ abort:
 	 */
 	isp_mark_portdb(isp, chan);
 	for (portidx = 0; portidx < portlim; portidx++) {
-		portid = ((rs1->snscb_ports[portidx].portid[0]) << 16) |
-			 ((rs1->snscb_ports[portidx].portid[1]) << 8) |
-			 ((rs1->snscb_ports[portidx].portid[2]));
+		portid = ((rs->snscb_ports[portidx].portid[0]) << 16) |
+			 ((rs->snscb_ports[portidx].portid[1]) << 8) |
+			 ((rs->snscb_ports[portidx].portid[2]));
 		isp_prt(isp, ISP_LOG_SANCFG,
 		    "Chan %d Checking fabric port 0x%06x", chan, portid);
 		if (portid == 0) {
@@ -3775,7 +3756,6 @@ abort:
 				    "Chan %d Port 0x%06x@0x%04x [%d] is not probational (0x%x)",
 				    chan, lp->portid, lp->handle,
 				    FC_PORTDB_TGT(isp, chan, lp), lp->state);
-				FC_SCRATCH_RELEASE(isp, chan);
 				isp_dump_portdb(isp, chan);
 				goto fail;
 			}
@@ -3795,7 +3775,7 @@ abort:
 			 * database entry for somebody further along to
 			 * decide what to do (policy choice).
 			 */
-			r = isp_getpdb(isp, chan, lp->handle, &pdb, 0);
+			r = isp_getpdb(isp, chan, lp->handle, &pdb);
 			if (fcp->isp_loopstate < LOOP_SCANNING_FABRIC)
 				goto abort;
 			if (r != 0) {
@@ -3829,7 +3809,6 @@ relogin:
 
 	if (fcp->isp_loopstate < LOOP_SCANNING_FABRIC)
 		goto abort;
-	FC_SCRATCH_RELEASE(isp, chan);
 	fcp->isp_loopstate = LOOP_FSCAN_DONE;
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC fabric scan done", chan);
 	return (0);
@@ -3856,7 +3835,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 			return (-1);
 
 		/* Check if this handle is free. */
-		r = isp_getpdb(isp, chan, handle, p, 0);
+		r = isp_getpdb(isp, chan, handle, p);
 		if (r == 0) {
 			if (p->portid != portid) {
 				/* This handle is busy, try next one. */
@@ -3909,7 +3888,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 	 * so we can crosscheck that it is still what we think it
 	 * is and that we also have the role it plays
 	 */
-	r = isp_getpdb(isp, chan, handle, p, 0);
+	r = isp_getpdb(isp, chan, handle, p);
 	if (r != 0) {
 		isp_prt(isp, ISP_LOGERR, "Chan %d new device 0x%06x@0x%x disappeared", chan, portid, handle);
 		return (-1);
@@ -4013,8 +3992,8 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 	pt->ctp_dataseg[0].ds_base = DMA_LO32(fcp->isp_scdma+XTXOFF);
 	pt->ctp_dataseg[0].ds_basehi = DMA_HI32(fcp->isp_scdma+XTXOFF);
 	pt->ctp_dataseg[0].ds_count = sizeof (rft_id_t);
-	pt->ctp_dataseg[1].ds_base = DMA_LO32(fcp->isp_scdma+IGPOFF);
-	pt->ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma+IGPOFF);
+	pt->ctp_dataseg[1].ds_base = DMA_LO32(fcp->isp_scdma);
+	pt->ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma);
 	pt->ctp_dataseg[1].ds_count = sizeof (ct_hdr_t);
 	isp_put_ct_pt(isp, pt, (isp_ct_pt_t *) &scp[CTXOFF]);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
@@ -4072,7 +4051,7 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 		return (1);
 	}
 
-	isp_get_ct_hdr(isp, (ct_hdr_t *) &scp[IGPOFF], ct);
+	isp_get_ct_hdr(isp, (ct_hdr_t *) scp, ct);
 	FC_SCRATCH_RELEASE(isp, chan);
 
 	if (ct->ct_cmd_resp == LS_RJT) {
@@ -4125,8 +4104,8 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 	pt->ctp_dataseg[0].ds_base = DMA_LO32(fcp->isp_scdma+XTXOFF);
 	pt->ctp_dataseg[0].ds_basehi = DMA_HI32(fcp->isp_scdma+XTXOFF);
 	pt->ctp_dataseg[0].ds_count = sizeof (rff_id_t);
-	pt->ctp_dataseg[1].ds_base = DMA_LO32(fcp->isp_scdma+IGPOFF);
-	pt->ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma+IGPOFF);
+	pt->ctp_dataseg[1].ds_base = DMA_LO32(fcp->isp_scdma);
+	pt->ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma);
 	pt->ctp_dataseg[1].ds_count = sizeof (ct_hdr_t);
 	isp_put_ct_pt(isp, pt, (isp_ct_pt_t *) &scp[CTXOFF]);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
@@ -4189,7 +4168,7 @@ isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
 		return (1);
 	}
 
-	isp_get_ct_hdr(isp, (ct_hdr_t *) &scp[IGPOFF], ct);
+	isp_get_ct_hdr(isp, (ct_hdr_t *) scp, ct);
 	FC_SCRATCH_RELEASE(isp, chan);
 
 	if (ct->ct_cmd_resp == LS_RJT) {
@@ -4877,7 +4856,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			tgt = va_arg(ap, int);
 			pdb = va_arg(ap, isp_pdb_t *);
 			va_end(ap);
-			return (isp_getpdb(isp, chan, tgt, pdb, 1));
+			return (isp_getpdb(isp, chan, tgt, pdb));
 		}
 		break;
 
