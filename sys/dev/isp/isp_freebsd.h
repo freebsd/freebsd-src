@@ -289,9 +289,13 @@ struct isposinfo {
 	struct resource *	regs;
 	struct resource *	regs2;
 	bus_dma_tag_t		dmat;
-	bus_dma_tag_t		cdmat;
-	bus_dmamap_t		cdmap;
+	bus_dma_tag_t		reqdmat;
+	bus_dma_tag_t		respdmat;
+	bus_dma_tag_t		atiodmat;
 	bus_dma_tag_t		scdmat;
+	bus_dmamap_t		reqmap;
+	bus_dmamap_t		respmap;
+	bus_dmamap_t		atiomap;
 
 	/*
 	 * Command and transaction related related stuff
@@ -406,6 +410,14 @@ struct isposinfo {
 
 #define	MEMORYBARRIER(isp, type, offset, size, chan)		\
 switch (type) {							\
+case SYNC_REQUEST:						\
+	bus_dmamap_sync(isp->isp_osinfo.reqdmat,		\
+	   isp->isp_osinfo.reqmap, BUS_DMASYNC_PREWRITE);	\
+	break;							\
+case SYNC_RESULT:						\
+	bus_dmamap_sync(isp->isp_osinfo.respdmat, 		\
+	   isp->isp_osinfo.respmap, BUS_DMASYNC_POSTREAD);	\
+	break;							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
@@ -413,11 +425,6 @@ case SYNC_SFORDEV:						\
 	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
 	break;							\
 }								\
-case SYNC_REQUEST:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
-	   isp->isp_osinfo.cdmap, 				\
-	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
-	break;							\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
@@ -425,14 +432,13 @@ case SYNC_SFORCPU:						\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 }								\
-case SYNC_RESULT:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
-	   isp->isp_osinfo.cdmap,				\
-	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
-	break;							\
 case SYNC_REG:							\
 	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
+	break;							\
+case SYNC_ATIOQ:						\
+	bus_dmamap_sync(isp->isp_osinfo.atiodmat, 		\
+	   isp->isp_osinfo.atiomap, BUS_DMASYNC_POSTREAD);	\
 	break;							\
 default:							\
 	break;							\
@@ -440,6 +446,10 @@ default:							\
 
 #define	MEMORYBARRIERW(isp, type, offset, size, chan)		\
 switch (type) {							\
+case SYNC_REQUEST:						\
+	bus_dmamap_sync(isp->isp_osinfo.reqdmat,		\
+	   isp->isp_osinfo.reqmap, BUS_DMASYNC_PREWRITE);	\
+	break;							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
@@ -447,10 +457,6 @@ case SYNC_SFORDEV:						\
 	   BUS_DMASYNC_PREWRITE);				\
 	break;							\
 }								\
-case SYNC_REQUEST:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
-	   isp->isp_osinfo.cdmap, BUS_DMASYNC_PREWRITE);	\
-	break;							\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
@@ -458,10 +464,6 @@ case SYNC_SFORCPU:						\
 	   BUS_DMASYNC_POSTWRITE);				\
 	break;							\
 }								\
-case SYNC_RESULT:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
-	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
-	break;							\
 case SYNC_REG:							\
 	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_WRITE);				\
