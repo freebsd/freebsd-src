@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2015
+.Dd December 21, 2015
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -78,7 +78,7 @@ as defined by
 .Bd -literal
 struct addrinfo {
 	int ai_flags;		/* input flags */
-	int ai_family;		/* protocol family for socket */
+	int ai_family;		/* address family for socket */
 	int ai_socktype;	/* socket type */
 	int ai_protocol;	/* protocol for socket */
 	socklen_t ai_addrlen;	/* length of socket-address */
@@ -94,12 +94,12 @@ The caller can supply the following structure elements in
 .Fa hints :
 .Bl -tag -width "ai_socktypeXX"
 .It Fa ai_family
-The protocol family that should be used.
+The address family that should be used.
 When
 .Fa ai_family
 is set to
-.Dv PF_UNSPEC ,
-it means the caller will accept any protocol family supported by the
+.Dv AF_UNSPEC ,
+it means the caller will accept any address family supported by the
 operating system.
 .It Fa ai_socktype
 Denotes the type of socket that is wanted:
@@ -261,7 +261,7 @@ behaves as if the caller provided a
 with
 .Fa ai_family
 set to
-.Dv PF_UNSPEC
+.Dv AF_UNSPEC
 and all other elements set to zero or
 .Dv NULL .
 .Pp
@@ -374,7 +374,7 @@ int s;
 const char *cause = NULL;
 
 memset(&hints, 0, sizeof(hints));
-hints.ai_family = PF_UNSPEC;
+hints.ai_family = AF_UNSPEC;
 hints.ai_socktype = SOCK_STREAM;
 error = getaddrinfo("www.kame.net", "http", &hints, &res0);
 if (error) {
@@ -417,7 +417,7 @@ int nsock;
 const char *cause = NULL;
 
 memset(&hints, 0, sizeof(hints));
-hints.ai_family = PF_UNSPEC;
+hints.ai_family = AF_UNSPEC;
 hints.ai_socktype = SOCK_STREAM;
 hints.ai_flags = AI_PASSIVE;
 error = getaddrinfo(NULL, "http", &hints, &res0);
