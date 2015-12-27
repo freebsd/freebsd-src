@@ -15,6 +15,7 @@ __FBSDID("$FreeBSD$");
 
 #include "debug.h"
 #include "rtld.h"
+#include "paths.h"
 
 void
 init_pltgot(Obj_Entry *obj)
