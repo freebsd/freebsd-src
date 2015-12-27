@@ -17,6 +17,8 @@ SUBDIR= ${_binutils} \
 	${_tests} \
 	${_texinfo}
 
+SUBDIR_DEPEND_gdb= ${_binutils}
+
 .if ${MK_CXX} != "no"
 _gperf=		gperf
 .if ${MK_GROFF} != "no"
