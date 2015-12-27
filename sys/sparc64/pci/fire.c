@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/openfirm.h>
 
 #include <vm/vm.h>
@@ -68,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus_common.h>
 #include <machine/bus_private.h>
-#include <machine/fsr.h>
 #include <machine/iommureg.h>
 #include <machine/iommuvar.h>
 #include <machine/pmap.h>
@@ -111,19 +109,14 @@ static driver_filter_t fire_xcb;
 /*
  * Methods
  */
-static bus_activate_resource_t fire_activate_resource;
-static bus_adjust_resource_t fire_adjust_resource;
 static pcib_alloc_msi_t fire_alloc_msi;
 static pcib_alloc_msix_t fire_alloc_msix;
 static bus_alloc_resource_t fire_alloc_resource;
 static device_attach_t fire_attach;
-static bus_get_dma_tag_t fire_get_dma_tag;
-static ofw_bus_get_node_t fire_get_node;
 static pcib_map_msi_t fire_map_msi;
 static pcib_maxslots_t fire_maxslots;
 static device_probe_t fire_probe;
 static pcib_read_config_t fire_read_config;
-static bus_read_ivar_t fire_read_ivar;
 static pcib_release_msi_t fire_release_msi;
 static pcib_release_msix_t fire_release_msix;
 static pcib_route_interrupt_t fire_route_interrupt;
@@ -140,15 +133,15 @@ static device_method_t fire_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	fire_read_ivar),
+	DEVMETHOD(bus_read_ivar,	ofw_pci_read_ivar),
 	DEVMETHOD(bus_setup_intr,	fire_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	fire_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	fire_alloc_resource),
-	DEVMETHOD(bus_activate_resource, fire_activate_resource),
+	DEVMETHOD(bus_activate_resource, ofw_pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_adjust_resource,	fire_adjust_resource),
+	DEVMETHOD(bus_adjust_resource,	ofw_pci_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_get_dma_tag,	fire_get_dma_tag),
+	DEVMETHOD(bus_get_dma_tag,	ofw_pci_get_dma_tag),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	fire_maxslots),
@@ -162,7 +155,7 @@ static device_method_t fire_methods[] = {
 	DEVMETHOD(pcib_map_msi,		fire_map_msi),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	fire_get_node),
+	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),
 
 	DEVMETHOD_END
 };
@@ -296,7 +289,7 @@ fire_attach(device_t dev)
 	struct ofw_pci_msi_eq_to_devino msi_eq_to_devino;
 	struct fire_msiqarg *fmqa;
 	struct timecounter *tc;
-	struct ofw_pci_ranges *range;
+	bus_dma_tag_t dmat;
 	uint64_t ino_bitmap, val;
 	phandle_t node;
 	uint32_t prop, prop_array[2];
@@ -310,7 +303,6 @@ fire_attach(device_t dev)
 	mode = desc->fd_mode;
 
 	sc->sc_dev = dev;
-	sc->sc_node = node;
 	sc->sc_mode = mode;
 	sc->sc_flags = 0;
 
@@ -715,81 +707,21 @@ fire_attach(device_t dev)
 	sc->sc_is.is_bushandle = rman_get_bushandle(sc->sc_mem_res[FIRE_PCI]);
 	sc->sc_is.is_iommu = FO_PCI_MMU;
 	val = FIRE_PCI_READ_8(sc, FO_PCI_MMU + IMR_CTL);
-	iommu_init(device_get_nameunit(sc->sc_dev), &sc->sc_is, 7, -1, 0);
+	iommu_init(device_get_nameunit(dev), &sc->sc_is, 7, -1, 0);
 #ifdef FIRE_DEBUG
 	device_printf(dev, "FO_PCI_MMU + IMR_CTL 0x%016llx -> 0x%016llx\n",
 	    (long long unsigned)val, (long long unsigned)sc->sc_is.is_cr);
 #endif
-
-	/* Initialize memory and I/O rmans. */
-	sc->sc_pci_io_rman.rm_type = RMAN_ARRAY;
-	sc->sc_pci_io_rman.rm_descr = "Fire PCI I/O Ports";
-	if (rman_init(&sc->sc_pci_io_rman) != 0 ||
-	    rman_manage_region(&sc->sc_pci_io_rman, 0, FO_IO_SIZE) != 0)
-		panic("%s: failed to set up I/O rman", __func__);
-	sc->sc_pci_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_pci_mem_rman.rm_descr = "Fire PCI Memory";
-	if (rman_init(&sc->sc_pci_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_pci_mem_rman, 0, FO_MEM_SIZE) != 0)
-		panic("%s: failed to set up memory rman", __func__);
-
-	i = OF_getprop_alloc(node, "ranges", sizeof(*range), (void **)&range);
-	/*
-	 * Make sure that the expected ranges are present.  The
-	 * OFW_PCI_CS_MEM64 one is not currently used though.
-	 */
-	if (i != FIRE_NRANGE)
-		panic("%s: unsupported number of ranges", __func__);
-	/*
-	 * Find the addresses of the various bus spaces.
-	 * There should not be multiple ones of one kind.
-	 * The physical start addresses of the ranges are the configuration,
-	 * memory and I/O handles.
-	 */
-	for (i = 0; i < FIRE_NRANGE; i++) {
-		j = OFW_PCI_RANGE_CS(&range[i]);
-		if (sc->sc_pci_bh[j] != 0)
-			panic("%s: duplicate range for space %d",
-			    __func__, j);
-		sc->sc_pci_bh[j] = OFW_PCI_RANGE_PHYS(&range[i]);
-	}
-	free(range, M_OFWPROP);
-
-	/* Allocate our tags. */
-	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res[FIRE_PCI]), PCI_IO_BUS_SPACE, NULL);
-	if (sc->sc_pci_iot == NULL)
-		panic("%s: could not allocate PCI I/O tag", __func__);
-	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res[FIRE_PCI]), PCI_CONFIG_BUS_SPACE, NULL);
-	if (sc->sc_pci_cfgt == NULL)
-		panic("%s: could not allocate PCI configuration space tag",
-		    __func__);
+	/* Create our DMA tag. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0x100000000,
 	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
-	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
+	    0xff, 0xffffffff, 0, NULL, NULL, &dmat) != 0)
 		panic("%s: could not create PCI DMA tag", __func__);
-	/* Customize the tag. */
-	sc->sc_pci_dmat->dt_cookie = &sc->sc_is;
-	sc->sc_pci_dmat->dt_mt = &sc->sc_dma_methods;
+	dmat->dt_cookie = &sc->sc_is;
+	dmat->dt_mt = &sc->sc_dma_methods;
 
-	/*
-	 * Get the bus range from the firmware.
-	 * NB: Neither Fire nor Oberon support PCI bus reenumeration.
-	 */
-	i = OF_getprop(node, "bus-range", (void *)prop_array,
-	    sizeof(prop_array));
-	if (i == -1)
-		panic("%s: could not get bus-range", __func__);
-	if (i != sizeof(prop_array))
-		panic("%s: broken bus-range (%d)", __func__, i);
-	sc->sc_pci_secbus = prop_array[0];
-	sc->sc_pci_subbus = prop_array[1];
-	if (bootverbose != 0)
-		device_printf(dev, "bus range %u to %u; PCI bus %d\n",
-		    sc->sc_pci_secbus, sc->sc_pci_subbus, sc->sc_pci_secbus);
-
-	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(ofw_pci_intr_t));
+	if (ofw_pci_attach_common(dev, dmat, FO_IO_SIZE, FO_MEM_SIZE) != 0)
+		panic("%s: ofw_pci_attach_common() failed", __func__);
 
 #define	FIRE_SYSCTL_ADD_UINT(name, arg, desc)				\
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),			\
@@ -1392,136 +1324,44 @@ static uint32_t
 fire_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     int width)
 {
-	struct fire_softc *sc;
-	bus_space_handle_t bh;
-	u_long offset = 0;
-	uint32_t r, wrd;
-	int i;
-	uint16_t shrt;
-	uint8_t byte;
 
-	sc = device_get_softc(dev);
-	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
-	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
-		return (-1);
-
-	offset = FO_CONF_OFF(bus, slot, func, reg);
-	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
-	switch (width) {
-	case 1:
-		i = bus_space_peek_1(sc->sc_pci_cfgt, bh, offset, &byte);
-		r = byte;
-		break;
-	case 2:
-		i = bus_space_peek_2(sc->sc_pci_cfgt, bh, offset, &shrt);
-		r = shrt;
-		break;
-	case 4:
-		i = bus_space_peek_4(sc->sc_pci_cfgt, bh, offset, &wrd);
-		r = wrd;
-		break;
-	default:
-		panic("%s: bad width", __func__);
-		/* NOTREACHED */
-	}
-
-	if (i) {
-#ifdef FIRE_DEBUG
-		printf("%s: read data error reading: %d.%d.%d: 0x%x\n",
-		    __func__, bus, slot, func, reg);
-#endif
-		r = -1;
-	}
-	return (r);
+	return (ofw_pci_read_config_common(dev, PCIE_REGMAX, FO_CONF_OFF(bus,
+	    slot, func, reg), bus, slot, func, reg, width));
 }
 
 static void
 fire_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     uint32_t val, int width)
 {
-	struct fire_softc *sc;
-	bus_space_handle_t bh;
-	u_long offset = 0;
 
-	sc = device_get_softc(dev);
-	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
-	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCIE_REGMAX)
-		return;
-
-	offset = FO_CONF_OFF(bus, slot, func, reg);
-	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
-	switch (width) {
-	case 1:
-		bus_space_write_1(sc->sc_pci_cfgt, bh, offset, val);
-		break;
-	case 2:
-		bus_space_write_2(sc->sc_pci_cfgt, bh, offset, val);
-		break;
-	case 4:
-		bus_space_write_4(sc->sc_pci_cfgt, bh, offset, val);
-		break;
-	default:
-		panic("%s: bad width", __func__);
-		/* NOTREACHED */
-	}
+	ofw_pci_write_config_common(dev, PCIE_REGMAX, FO_CONF_OFF(bus, slot,
+	    func, reg), bus, slot, func, reg, val, width);
 }
 
 static int
 fire_route_interrupt(device_t bridge, device_t dev, int pin)
 {
-	struct fire_softc *sc;
-	struct ofw_pci_register reg;
-	ofw_pci_intr_t pintr, mintr;
+	ofw_pci_intr_t mintr;
 
-	sc = device_get_softc(bridge);
-	pintr = pin;
-	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
-	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    NULL) != 0)
-		return (mintr);
-
-	device_printf(bridge, "could not route pin %d for device %d.%d\n",
-	    pin, pci_get_slot(dev), pci_get_function(dev));
-	return (PCI_INVALID_IRQ);
-}
-
-static int
-fire_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct fire_softc *sc;
-
-	sc = device_get_softc(dev);
-	switch (which) {
-	case PCIB_IVAR_DOMAIN:
-		*result = device_get_unit(dev);
-		return (0);
-	case PCIB_IVAR_BUS:
-		*result = sc->sc_pci_secbus;
-		return (0);
-	}
-	return (ENOENT);
+	mintr = ofw_pci_route_interrupt_common(bridge, dev, pin);
+	if (!PCI_INTERRUPT_VALID(mintr))
+		device_printf(bridge,
+		    "could not route pin %d for device %d.%d\n",
+		    pin, pci_get_slot(dev), pci_get_function(dev));
+	return (mintr);
 }
 
 static void
 fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
     bus_dmasync_op_t op)
 {
-	static u_char buf[VIS_BLOCKSIZE] __aligned(VIS_BLOCKSIZE);
-	register_t reg, s;
 
 	if ((map->dm_flags & DMF_LOADED) == 0)
 		return;
 
-	if ((op & BUS_DMASYNC_POSTREAD) != 0) {
-		s = intr_disable();
-		reg = rd(fprs);
-		wr(fprs, reg | FPRS_FEF, 0);
-		__asm __volatile("stda %%f0, [%0] %1"
-		    : : "r" (buf), "n" (ASI_BLK_COMMIT_S));
-		membar(Sync);
-		wr(fprs, reg, 0);
-		intr_restore(s);
-	} else if ((op & BUS_DMASYNC_PREWRITE) != 0)
+	if ((op & BUS_DMASYNC_POSTREAD) != 0)
+		ofw_pci_dmamap_sync_stst_order_common();
+	else if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
 }
 
@@ -2015,122 +1855,13 @@ fire_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct fire_softc *sc;
-	struct resource *rv;
-	struct rman *rm;
 
-	sc = device_get_softc(bus);
-	switch (type) {
-	case SYS_RES_IRQ:
-		/*
-		 * XXX: Don't accept blank ranges for now, only single
-		 * interrupts.  The other case should not happen with
-		 * the MI PCI code...
-		 * XXX: This may return a resource that is out of the
-		 * range that was specified.  Is this correct...?
-		 */
-		if (start != end)
-			panic("%s: XXX: interrupt range", __func__);
-		if (*rid == 0)
-			start = end = INTMAP_VEC(sc->sc_ign, end);
-		return (bus_generic_alloc_resource(bus, child, type, rid,
-		    start, end, count, flags));
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_pci_mem_rman;
-		break;
-	case SYS_RES_IOPORT:
-		rm = &sc->sc_pci_io_rman;
-		break;
-	default:
-		return (NULL);
+	if (type == SYS_RES_IRQ && *rid == 0) {
+		sc = device_get_softc(bus);
+		start = end = INTMAP_VEC(sc->sc_ign, end);
 	}
-
-	rv = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
-	    child);
-	if (rv == NULL)
-		return (NULL);
-	rman_set_rid(rv, *rid);
-
-	if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(child, type,
-	    *rid, rv) != 0) {
-		rman_release_resource(rv);
-		return (NULL);
-	}
-	return (rv);
-}
-
-static int
-fire_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-	struct fire_softc *sc;
-	struct bus_space_tag *tag;
-
-	sc = device_get_softc(bus);
-	switch (type) {
-	case SYS_RES_IRQ:
-		return (bus_generic_activate_resource(bus, child, type, rid,
-		    r));
-	case SYS_RES_MEMORY:
-		tag = sparc64_alloc_bus_tag(r, rman_get_bustag(
-		    sc->sc_mem_res[FIRE_PCI]), PCI_MEMORY_BUS_SPACE, NULL);
-		if (tag == NULL)
-			return (ENOMEM);
-		rman_set_bustag(r, tag);
-		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_MEM32] +
-		    rman_get_start(r));
-		break;
-	case SYS_RES_IOPORT:
-		rman_set_bustag(r, sc->sc_pci_iot);
-		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_IO] +
-		    rman_get_start(r));
-		break;
-	}
-	return (rman_activate_resource(r));
-}
-
-static int
-fire_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
-{
-	struct fire_softc *sc;
-	struct rman *rm;
-
-	sc = device_get_softc(bus);
-	switch (type) {
-	case SYS_RES_IRQ:
-		return (bus_generic_adjust_resource(bus, child, type, r,
-		    start, end));
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_pci_mem_rman;
-		break;
-	case SYS_RES_IOPORT:
-		rm = &sc->sc_pci_io_rman;
-		break;
-	default:
-		return (EINVAL);
-	}
-	if (rman_is_region_manager(r, rm) == 0)
-		return (EINVAL);
-	return (rman_adjust_resource(r, start, end));
-}
-
-static bus_dma_tag_t
-fire_get_dma_tag(device_t bus, device_t child __unused)
-{
-	struct fire_softc *sc;
-
-	sc = device_get_softc(bus);
-	return (sc->sc_pci_dmat);
-}
-
-static phandle_t
-fire_get_node(device_t bus, device_t child __unused)
-{
-	struct fire_softc *sc;
-
-	sc = device_get_softc(bus);
-	/* We only have one child, the PCI bus, which needs our own node. */
-	return (sc->sc_node);
+	return (ofw_pci_alloc_resource(bus, child, type, rid, start, end,
+	    count, flags));
 }
 
 static u_int

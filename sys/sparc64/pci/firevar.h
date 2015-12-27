@@ -32,6 +32,12 @@
 #define	_SPARC64_PCI_FIREVAR_H_
 
 struct fire_softc {
+	/*
+	 * This is here so that we can hook up the common bus interface
+	 * methods in ofw_pci.c directly.
+	 */
+	struct ofw_pci_softc		sc_ops;
+
 	struct iommu_state		sc_is;
 	struct bus_dma_methods		sc_dma_methods;
 
@@ -41,13 +47,6 @@ struct fire_softc {
 	struct resource			*sc_mem_res[FIRE_NREG];
 	struct resource			*sc_irq_res[FIRE_NINTR];
 	void				*sc_ihand[FIRE_NINTR];
-
-	struct rman			sc_pci_mem_rman;
-	struct rman			sc_pci_io_rman;
-	bus_space_handle_t		sc_pci_bh[FIRE_NRANGE];
-	bus_space_tag_t			sc_pci_cfgt;
-	bus_space_tag_t			sc_pci_iot;
-	bus_dma_tag_t			sc_pci_dmat;
 
 	device_t			sc_dev;
 
@@ -65,8 +64,6 @@ struct fire_softc {
 	uint32_t			sc_msiq_size;
 	uint32_t			sc_msiq_first;
 	uint32_t			sc_msiq_ino_first;
-
-	phandle_t			sc_node;
 
 	u_int				sc_mode;
 #define	FIRE_MODE_FIRE			0
@@ -87,11 +84,6 @@ struct fire_softc {
 	uint32_t			sc_stats_tlu_oe_rx_err;
 	uint32_t			sc_stats_tlu_oe_tx_err;
 	uint32_t			sc_stats_ubc_dmardue;
-
-	uint8_t				sc_pci_secbus;
-	uint8_t				sc_pci_subbus;
-
-	struct ofw_bus_iinfo		sc_pci_iinfo;
 };
 
 #endif /* !_SPARC64_PCI_FIREVAR_H_ */

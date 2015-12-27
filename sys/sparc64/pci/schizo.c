@@ -57,13 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
 #include <machine/bus_common.h>
 #include <machine/bus_private.h>
-#include <machine/fsr.h>
 #include <machine/iommureg.h>
 #include <machine/iommuvar.h>
 #include <machine/resource.h>
@@ -108,17 +106,12 @@ static void schizo_iommu_init(struct schizo_softc *, int, uint32_t);
  */
 static device_probe_t schizo_probe;
 static device_attach_t schizo_attach;
-static bus_read_ivar_t schizo_read_ivar;
 static bus_setup_intr_t schizo_setup_intr;
 static bus_alloc_resource_t schizo_alloc_resource;
-static bus_activate_resource_t schizo_activate_resource;
-static bus_adjust_resource_t schizo_adjust_resource;
-static bus_get_dma_tag_t schizo_get_dma_tag;
 static pcib_maxslots_t schizo_maxslots;
 static pcib_read_config_t schizo_read_config;
 static pcib_write_config_t schizo_write_config;
 static pcib_route_interrupt_t schizo_route_interrupt;
-static ofw_bus_get_node_t schizo_get_node;
 static ofw_pci_setup_device_t schizo_setup_device;
 
 static device_method_t schizo_methods[] = {
@@ -130,15 +123,15 @@ static device_method_t schizo_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	schizo_read_ivar),
+	DEVMETHOD(bus_read_ivar,	ofw_pci_read_ivar),
 	DEVMETHOD(bus_setup_intr,	schizo_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	schizo_alloc_resource),
-	DEVMETHOD(bus_activate_resource, schizo_activate_resource),
+	DEVMETHOD(bus_activate_resource, ofw_pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_adjust_resource,	schizo_adjust_resource),
+	DEVMETHOD(bus_adjust_resource,	ofw_pci_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_get_dma_tag,	schizo_get_dma_tag),
+	DEVMETHOD(bus_get_dma_tag,	ofw_pci_get_dma_tag),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	schizo_maxslots),
@@ -147,7 +140,7 @@ static device_method_t schizo_methods[] = {
 	DEVMETHOD(pcib_route_interrupt,	schizo_route_interrupt),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	schizo_get_node),
+	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_setup_device,	schizo_setup_device),
@@ -270,10 +263,10 @@ schizo_probe(device_t dev)
 static int
 schizo_attach(device_t dev)
 {
-	struct ofw_pci_ranges *range;
 	const struct schizo_desc *desc;
 	struct schizo_softc *asc, *sc, *osc;
 	struct timecounter *tc;
+	bus_dma_tag_t dmat;
 	uint64_t ino_bitmap, reg;
 	phandle_t node;
 	uint32_t prop, prop_array[2];
@@ -285,7 +278,6 @@ schizo_attach(device_t dev)
 	mode = desc->sd_mode;
 
 	sc->sc_dev = dev;
-	sc->sc_node = node;
 	sc->sc_mode = mode;
 	sc->sc_flags = 0;
 
@@ -347,6 +339,7 @@ schizo_attach(device_t dev)
 			panic("%s: mutex not initialized", __func__);
 		sc->sc_mtx = osc->sc_mtx;
 	}
+	SLIST_INSERT_HEAD(&schizo_softcs, sc, sc_link);
 
 	if (OF_getprop(node, "portid", &sc->sc_ign, sizeof(sc->sc_ign)) == -1)
 		panic("%s: could not determine IGN", __func__);
@@ -542,82 +535,23 @@ schizo_attach(device_t dev)
 
 #undef TSBCASE
 
-	/* Initialize memory and I/O rmans. */
-	sc->sc_pci_io_rman.rm_type = RMAN_ARRAY;
-	sc->sc_pci_io_rman.rm_descr = "Schizo PCI I/O Ports";
-	if (rman_init(&sc->sc_pci_io_rman) != 0 ||
-	    rman_manage_region(&sc->sc_pci_io_rman, 0, STX_IO_SIZE) != 0)
-		panic("%s: failed to set up I/O rman", __func__);
-	sc->sc_pci_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_pci_mem_rman.rm_descr = "Schizo PCI Memory";
-	if (rman_init(&sc->sc_pci_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_pci_mem_rman, 0, STX_MEM_SIZE) != 0)
-		panic("%s: failed to set up memory rman", __func__);
-
-	i = OF_getprop_alloc(node, "ranges", sizeof(*range), (void **)&range);
-	/*
-	 * Make sure that the expected ranges are present.  The
-	 * OFW_PCI_CS_MEM64 one is not currently used though.
-	 */
-	if (i != STX_NRANGE)
-		panic("%s: unsupported number of ranges", __func__);
-	/*
-	 * Find the addresses of the various bus spaces.
-	 * There should not be multiple ones of one kind.
-	 * The physical start addresses of the ranges are the configuration,
-	 * memory and I/O handles.
-	 */
-	for (i = 0; i < STX_NRANGE; i++) {
-		j = OFW_PCI_RANGE_CS(&range[i]);
-		if (sc->sc_pci_bh[j] != 0)
-			panic("%s: duplicate range for space %d",
-			    __func__, j);
-		sc->sc_pci_bh[j] = OFW_PCI_RANGE_PHYS(&range[i]);
-	}
-	free(range, M_OFWPROP);
-
-	/* Register the softc, this is needed for paired Schizos. */
-	SLIST_INSERT_HEAD(&schizo_softcs, sc, sc_link);
-
-	/* Allocate our tags. */
-	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res[STX_PCI]), PCI_IO_BUS_SPACE, NULL);
-	if (sc->sc_pci_iot == NULL)
-		panic("%s: could not allocate PCI I/O tag", __func__);
-	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res[STX_PCI]), PCI_CONFIG_BUS_SPACE, NULL);
-	if (sc->sc_pci_cfgt == NULL)
-		panic("%s: could not allocate PCI configuration space tag",
-		    __func__);
+	/* Create our DMA tag. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
 	    sc->sc_is.sis_is.is_pmaxaddr, ~0, NULL, NULL,
 	    sc->sc_is.sis_is.is_pmaxaddr, 0xff, 0xffffffff, 0, NULL, NULL,
-	    &sc->sc_pci_dmat) != 0)
+	    &dmat) != 0)
 		panic("%s: could not create PCI DMA tag", __func__);
-	/* Customize the tag. */
-	sc->sc_pci_dmat->dt_cookie = &sc->sc_is;
-	sc->sc_pci_dmat->dt_mt = &sc->sc_dma_methods;
+	dmat->dt_cookie = &sc->sc_is;
+	dmat->dt_mt = &sc->sc_dma_methods;
 
-	/*
-	 * Get the bus range from the firmware.
-	 * NB: Tomatillos don't support PCI bus reenumeration.
-	 */
-	i = OF_getprop(node, "bus-range", (void *)prop_array,
-	    sizeof(prop_array));
-	if (i == -1)
-		panic("%s: could not get bus-range", __func__);
-	if (i != sizeof(prop_array))
-		panic("%s: broken bus-range (%d)", __func__, i);
-	sc->sc_pci_secbus = prop_array[0];
-	sc->sc_pci_subbus = prop_array[1];
-	if (bootverbose)
-		device_printf(dev, "bus range %u to %u; PCI bus %d\n",
-		    sc->sc_pci_secbus, sc->sc_pci_subbus, sc->sc_pci_secbus);
+	if (ofw_pci_attach_common(dev, dmat, STX_IO_SIZE, STX_MEM_SIZE) != 0)
+		panic("%s: ofw_pci_attach_common() failed", __func__);
 
 	/* Clear any pending PCI error bits. */
-	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, STX_CS_DEVICE, STX_CS_FUNC,
-	    PCIR_STATUS, PCIB_READ_CONFIG(dev, sc->sc_pci_secbus,
-	    STX_CS_DEVICE, STX_CS_FUNC, PCIR_STATUS, 2), 2);
+	PCIB_WRITE_CONFIG(dev, sc->sc_ops.sc_pci_secbus, STX_CS_DEVICE,
+	    STX_CS_FUNC, PCIR_STATUS, PCIB_READ_CONFIG(dev,
+	    sc->sc_ops.sc_pci_secbus, STX_CS_DEVICE, STX_CS_FUNC, PCIR_STATUS,
+	    2), 2);
 	SCHIZO_PCI_SET(sc, STX_PCI_CTRL, SCHIZO_PCI_READ_8(sc, STX_PCI_CTRL));
 	SCHIZO_PCI_SET(sc, STX_PCI_AFSR, SCHIZO_PCI_READ_8(sc, STX_PCI_AFSR));
 
@@ -745,10 +679,8 @@ schizo_attach(device_t dev)
 	 * Set the latency timer register as this isn't always done by the
 	 * firmware.
 	 */
-	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, STX_CS_DEVICE, STX_CS_FUNC,
-	    PCIR_LATTIMER, OFW_PCI_LATENCY, 1);
-
-	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(ofw_pci_intr_t));
+	PCIB_WRITE_CONFIG(dev, sc->sc_ops.sc_pci_secbus, STX_CS_DEVICE,
+	    STX_CS_FUNC, PCIR_LATTIMER, OFW_PCI_LATENCY, 1);
 
 #define	SCHIZO_SYSCTL_ADD_UINT(name, arg, desc)				\
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),			\
@@ -872,7 +804,7 @@ schizo_pci_bus(void *arg)
 		xstat = SCHIZO_PCI_READ_8(sc, XMS_PCI_X_ERR_STAT);
 	else
 		xstat = 0;
-	status = PCIB_READ_CONFIG(sc->sc_dev, sc->sc_pci_secbus,
+	status = PCIB_READ_CONFIG(sc->sc_dev, sc->sc_ops.sc_pci_secbus,
 	    STX_CS_DEVICE, STX_CS_FUNC, PCIR_STATUS, 2);
 
 	/*
@@ -913,7 +845,7 @@ schizo_pci_bus(void *arg)
 	    (unsigned long long)iommu, (unsigned long long)xstat, status);
 
 	/* Clear the error bits that we caught. */
-	PCIB_WRITE_CONFIG(sc->sc_dev, sc->sc_pci_secbus, STX_CS_DEVICE,
+	PCIB_WRITE_CONFIG(sc->sc_dev, sc->sc_ops.sc_pci_secbus, STX_CS_DEVICE,
 	    STX_CS_FUNC, PCIR_STATUS, status, 2);
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_CTRL, csr);
 	SCHIZO_PCI_WRITE_8(sc, STX_PCI_AFSR, afsr);
@@ -1034,121 +966,40 @@ schizo_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     int width)
 {
 	struct schizo_softc *sc;
-	bus_space_handle_t bh;
-	u_long offset = 0;
-	uint32_t r, wrd;
-	int i;
-	uint16_t shrt;
-	uint8_t byte;
 
 	sc = device_get_softc(dev);
-	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
-	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCI_REGMAX)
-		return (-1);
-
 	/*
 	 * The Schizo bridges contain a dupe of their header at 0x80.
 	 */
-	if (sc->sc_mode == SCHIZO_MODE_SCZ && bus == sc->sc_pci_secbus &&
-	    slot == STX_CS_DEVICE && func == STX_CS_FUNC &&
-	    reg + width > 0x80)
+	if (sc->sc_mode == SCHIZO_MODE_SCZ &&
+	    bus == sc->sc_ops.sc_pci_secbus && slot == STX_CS_DEVICE &&
+	    func == STX_CS_FUNC && reg + width > 0x80)
 		return (0);
 
-	offset = STX_CONF_OFF(bus, slot, func, reg);
-	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
-	switch (width) {
-	case 1:
-		i = bus_space_peek_1(sc->sc_pci_cfgt, bh, offset, &byte);
-		r = byte;
-		break;
-	case 2:
-		i = bus_space_peek_2(sc->sc_pci_cfgt, bh, offset, &shrt);
-		r = shrt;
-		break;
-	case 4:
-		i = bus_space_peek_4(sc->sc_pci_cfgt, bh, offset, &wrd);
-		r = wrd;
-		break;
-	default:
-		panic("%s: bad width", __func__);
-		/* NOTREACHED */
-	}
-
-	if (i) {
-#ifdef SCHIZO_DEBUG
-		printf("%s: read data error reading: %d.%d.%d: 0x%x\n",
-		    __func__, bus, slot, func, reg);
-#endif
-		r = -1;
-	}
-	return (r);
+	return (ofw_pci_read_config_common(dev, PCI_REGMAX, STX_CONF_OFF(bus,
+	    slot, func, reg), bus, slot, func, reg, width));
 }
 
 static void
 schizo_write_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, uint32_t val, int width)
 {
-	struct schizo_softc *sc;
-	bus_space_handle_t bh;
-	u_long offset = 0;
 
-	sc = device_get_softc(dev);
-	if (bus < sc->sc_pci_secbus || bus > sc->sc_pci_subbus ||
-	    slot > PCI_SLOTMAX || func > PCI_FUNCMAX || reg > PCI_REGMAX)
-		return;
-
-	offset = STX_CONF_OFF(bus, slot, func, reg);
-	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
-	switch (width) {
-	case 1:
-		bus_space_write_1(sc->sc_pci_cfgt, bh, offset, val);
-		break;
-	case 2:
-		bus_space_write_2(sc->sc_pci_cfgt, bh, offset, val);
-		break;
-	case 4:
-		bus_space_write_4(sc->sc_pci_cfgt, bh, offset, val);
-		break;
-	default:
-		panic("%s: bad width", __func__);
-		/* NOTREACHED */
-	}
+	ofw_pci_write_config_common(dev, PCI_REGMAX, STX_CONF_OFF(bus, slot,
+	    func, reg), bus, slot, func, reg, val, width);
 }
 
 static int
 schizo_route_interrupt(device_t bridge, device_t dev, int pin)
 {
-	struct schizo_softc *sc;
-	struct ofw_pci_register reg;
-	ofw_pci_intr_t pintr, mintr;
+	ofw_pci_intr_t mintr;
 
-	sc = device_get_softc(bridge);
-	pintr = pin;
-	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
-	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    NULL))
-		return (mintr);
-
-	device_printf(bridge, "could not route pin %d for device %d.%d\n",
-	    pin, pci_get_slot(dev), pci_get_function(dev));
-	return (PCI_INVALID_IRQ);
-}
-
-static int
-schizo_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct schizo_softc *sc;
-
-	sc = device_get_softc(dev);
-	switch (which) {
-	case PCIB_IVAR_DOMAIN:
-		*result = device_get_unit(dev);
-		return (0);
-	case PCIB_IVAR_BUS:
-		*result = sc->sc_pci_secbus;
-		return (0);
-	}
-	return (ENOENT);
+	mintr = ofw_pci_route_interrupt_common(bridge, dev, pin);
+	if (!PCI_INTERRUPT_VALID(mintr))
+		device_printf(bridge,
+		    "could not route pin %d for device %d.%d\n",
+		    pin, pci_get_slot(dev), pci_get_function(dev));
+	return (mintr);
 }
 
 static void
@@ -1216,11 +1067,10 @@ schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 static void
 ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 {
-	static u_char buf[VIS_BLOCKSIZE] __aligned(VIS_BLOCKSIZE);
 	struct timeval cur, end;
 	struct schizo_iommu_state *sis = dt->dt_cookie;
 	struct schizo_softc *sc = sis->sis_sc;
-	register_t reg, s;
+	uint64_t reg;
 
 	if ((map->dm_flags & DMF_STREAMED) != 0) {
 		iommu_dma_methods.dm_dmamap_sync(dt, map, op);
@@ -1248,14 +1098,7 @@ ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 		if (sc->sc_mode == SCHIZO_MODE_XMS)
 			mtx_unlock_spin(&sc->sc_sync_mtx);
 		else if ((sc->sc_flags & SCHIZO_FLAGS_BSWAR) != 0) {
-			s = intr_disable();
-			reg = rd(fprs);
-			wr(fprs, reg | FPRS_FEF, 0);
-			__asm __volatile("stda %%f0, [%0] %1"
-			    : : "r" (buf), "n" (ASI_BLK_COMMIT_S));
-			membar(Sync);
-			wr(fprs, reg, 0);
-			intr_restore(s);
+			ofw_pci_dmamap_sync_stst_order_common();
 			return;
 		}
 	}
@@ -1356,121 +1199,13 @@ schizo_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct schizo_softc *sc;
-	struct resource *rv;
-	struct rman *rm;
 
-	sc = device_get_softc(bus);
-	switch (type) {
-	case SYS_RES_IRQ:
-		/*
-		 * XXX: Don't accept blank ranges for now, only single
-		 * interrupts.  The other case should not happen with
-		 * the MI PCI code...
-		 * XXX: This may return a resource that is out of the
-		 * range that was specified.  Is this correct...?
-		 */
-		if (start != end)
-			panic("%s: XXX: interrupt range", __func__);
+	if (type == SYS_RES_IRQ) {
+		sc = device_get_softc(bus);
 		start = end = INTMAP_VEC(sc->sc_ign, end);
-		return (bus_generic_alloc_resource(bus, child, type, rid,
-		    start, end, count, flags));
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_pci_mem_rman;
-		break;
-	case SYS_RES_IOPORT:
-		rm = &sc->sc_pci_io_rman;
-		break;
-	default:
-		return (NULL);
 	}
-
-	rv = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
-	    child);
-	if (rv == NULL)
-		return (NULL);
-	rman_set_rid(rv, *rid);
-
-	if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(child, type,
-	    *rid, rv) != 0) {
-		rman_release_resource(rv);
-		return (NULL);
-	}
-	return (rv);
-}
-
-static int
-schizo_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
-{
-	struct schizo_softc *sc;
-	struct bus_space_tag *tag;
-
-	sc = device_get_softc(bus);
-	switch (type) {
-	case SYS_RES_IRQ:
-		return (bus_generic_activate_resource(bus, child, type, rid,
-		    r));
-	case SYS_RES_MEMORY:
-		tag = sparc64_alloc_bus_tag(r, rman_get_bustag(
-		    sc->sc_mem_res[STX_PCI]), PCI_MEMORY_BUS_SPACE, NULL);
-		if (tag == NULL)
-			return (ENOMEM);
-		rman_set_bustag(r, tag);
-		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_MEM32] +
-		    rman_get_start(r));
-		break;
-	case SYS_RES_IOPORT:
-		rman_set_bustag(r, sc->sc_pci_iot);
-		rman_set_bushandle(r, sc->sc_pci_bh[OFW_PCI_CS_IO] +
-		    rman_get_start(r));
-		break;
-	}
-	return (rman_activate_resource(r));
-}
-
-static int
-schizo_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
-{
-	struct schizo_softc *sc;
-	struct rman *rm;
-
-	sc = device_get_softc(bus);
-	switch (type) {
-	case SYS_RES_IRQ:
-		return (bus_generic_adjust_resource(bus, child, type, r,
-		    start, end));
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_pci_mem_rman;
-		break;
-	case SYS_RES_IOPORT:
-		rm = &sc->sc_pci_io_rman;
-		break;
-	default:
-		return (EINVAL);
-	}
-	if (rman_is_region_manager(r, rm) == 0)
-		return (EINVAL);
-	return (rman_adjust_resource(r, start, end));
-}
-
-static bus_dma_tag_t
-schizo_get_dma_tag(device_t bus, device_t child __unused)
-{
-	struct schizo_softc *sc;
-
-	sc = device_get_softc(bus);
-	return (sc->sc_pci_dmat);
-}
-
-static phandle_t
-schizo_get_node(device_t bus, device_t child __unused)
-{
-	struct schizo_softc *sc;
-
-	sc = device_get_softc(bus);
-	/* We only have one child, the PCI bus, which needs our own node. */
-	return (sc->sc_node);
+	return (ofw_pci_alloc_resource(bus, child, type, rid, start, end,
+	    count, flags));
 }
 
 static void
