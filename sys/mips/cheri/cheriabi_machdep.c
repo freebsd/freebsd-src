@@ -489,7 +489,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct cheri_frame *capreg;
 	struct sigacts *psp;
 	struct sigframe_c sf, *sfp;
-	uintptr_t c11_stackbase;
+	uintptr_t stackbase;
 	vm_offset_t sp;
 	int cheri_is_sandboxed;
 	int sig;
@@ -509,17 +509,17 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * In CheriABI, $sp is $c11 relative, so calculate a relocation base
 	 * that must be combined with regs->sp from this point onwards.
 	 * Unfortunately, we won't retain bounds and permissions information
-	 * (as is the case elsewhere in CheriABI).  While 'c11_stackbase'
+	 * (as is the case elsewhere in CheriABI).  While 'stackbase'
 	 * suggests that $c11's offset isn't included, in practice it will be,
 	 * although we may reasonably assume that it will be zero.
 	 *
 	 * If it turns out we will be delivering to the alternative signal
-	 * stack, we'll recalculate c11_stackbase later.
+	 * stack, we'll recalculate stackbase later.
 	 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
 	    &td->td_pcb->pcb_cheriframe.cf_c11, 0);
-	CHERI_CTOPTR(c11_stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	oonstack = sigonstack(regs->sp + c11_stackbase);
+	CHERI_CTOPTR(stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	oonstack = sigonstack(stackbase + regs->sp);
 
 	/*
 	 * CHERI affects signal delivery in the following ways:
@@ -610,9 +610,9 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Allocate and validate space for the signal handler context.  For
 	 * CheriABI purposes, 'sp' from this point forward is relocated
-	 * relative to any pertinent stack capability.  For an alternartive
-	 * signal context, we need to recalculate c11_stackbase for later use
-	 * in calculating a new $sp for the signal-handling context.
+	 * relative to any pertinent stack capability.  For an alternative
+	 * signal context, we need to recalculate stackbase for later use in
+	 * calculating a new $sp for the signal-handling context.
 	 *
 	 * XXXRW: It seems like it would be nice to both the regular and
 	 * alternative stack calculations in the same place.  However, we need
@@ -620,11 +620,8 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-		    &td->td_pcb->pcb_cherisignal.csig_c11, 0);
-		CHERI_CTOPTR(c11_stackbase, CHERI_CR_CTEMP0, CHERI_CR_KDC);
-		sp = (vm_offset_t)(td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size);
+		stackbase = (vm_offset_t)td->td_sigstk.ss_sp;
+		sp = (vm_offset_t)(stackbase + td->td_sigstk.ss_size);
 	} else {
 		/*
 		 * Signals delivered when a CHERI sandbox is present must be
@@ -641,7 +638,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 			sigexit(td, SIGILL);
 			/* NOTREACHED */
 		}
-		sp = (vm_offset_t)(regs->sp + c11_stackbase);
+		sp = (vm_offset_t)(stackbase + regs->sp);
 	}
 	sp -= sizeof(struct sigframe_c);
 	/* For CHERI, keep the stack pointer capability aligned. */
@@ -651,7 +648,13 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
-		/* Signal handler installed with SA_SIGINFO. */
+		/*
+		 * Signal handler installed with SA_SIGINFO.
+		 *
+		 * XXXRW: We would ideally synthesise these from the
+		 * user-originated stack capability, rather than KDC, to be on
+		 * the safe side.
+		 */
 		cheri_capability_set(&capreg->cf_c3, CHERI_CAP_USER_DATA_PERMS,
 		    CHERI_CAP_USER_DATA_OTYPE, (void *)(intptr_t)&sfp->sf_si,
 		    sizeof(sfp->sf_si), 0);
@@ -706,6 +709,14 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	/*
+	 * Re-acquire process locks necessary to access suitable pcb fields.
+	 * However, arguably, these operations should be atomic with the
+	 * initial inspection of 'psp'.
+	 */
+	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
+
+	/*
 	 * Install CHERI signal-delivery register state for handler to run
 	 * in.  As we don't install this in the CHERI frame on the user stack,
 	 * it will be (generally) be removed automatically on sigreturn().
@@ -718,13 +729,11 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * the stack base here.
 	 */
 	regs->pc = (register_t)(intptr_t)catcher;
-	regs->sp = (register_t)((intptr_t)sfp - c11_stackbase);
+	regs->sp = (register_t)((intptr_t)sfp - stackbase);
 
 	cheri_capability_copy(&capreg->cf_c12, &psp->ps_sigcap[_SIG_IDX(sig)]);
 	cheri_capability_copy(&capreg->cf_c17,
 	    &td->td_pcb->pcb_cherisignal.csig_sigcode);
-	PROC_LOCK(p);
-	mtx_lock(&psp->ps_mtx);
 }
 
 static void
