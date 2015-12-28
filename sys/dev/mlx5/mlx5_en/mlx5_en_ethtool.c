@@ -204,6 +204,18 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		priv->params.hw_lro_en = false;
 	}
 
+	if (&priv->params_ethtool.arg[arg2] ==
+	    &priv->params_ethtool.cqe_zipping) {
+		if (priv->params_ethtool.cqe_zipping &&
+		    MLX5_CAP_GEN(priv->mdev, cqe_compression)) {
+			priv->params.cqe_zipping_en = true;
+			priv->params_ethtool.cqe_zipping = 1;
+		} else {
+			priv->params.cqe_zipping_en = false;
+			priv->params_ethtool.cqe_zipping = 0;
+		}
+	}
+
 	if (was_opened)
 		mlx5e_open_locked(priv->ifp);
 done:
@@ -472,6 +484,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	priv->params_ethtool.tx_coalesce_usecs = priv->params.tx_cq_moderation_usec;
 	priv->params_ethtool.tx_coalesce_pkts = priv->params.tx_cq_moderation_pkts;
 	priv->params_ethtool.hw_lro = priv->params.hw_lro_en;
+	priv->params_ethtool.cqe_zipping = priv->params.cqe_zipping_en;
 
 	/* create root node */
 	node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,
