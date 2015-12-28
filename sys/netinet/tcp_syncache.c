@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #endif
 #include <netinet/tcp.h>
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -1089,6 +1092,39 @@ failed:
 	return (0);
 }
 
+#ifdef TCP_RFC7413
+static void
+syncache_tfo_expand(struct syncache *sc, struct socket **lsop, struct mbuf *m,
+    uint64_t response_cookie)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	unsigned int *pending_counter;
+
+	/*
+	 * Global TCP locks are held because we manipulate the PCB lists
+	 * and create a new socket.
+	 */
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
+
+	pending_counter = intotcpcb(sotoinpcb(*lsop))->t_tfo_pending;
+	*lsop = syncache_socket(sc, *lsop, m);
+	if (*lsop == NULL) {
+		TCPSTAT_INC(tcps_sc_aborted);
+		atomic_subtract_int(pending_counter, 1);
+	} else {
+		inp = sotoinpcb(*lsop);
+		tp = intotcpcb(inp);
+		tp->t_flags |= TF_FASTOPEN;
+		tp->t_tfo_cookie = response_cookie;
+		tp->snd_max = tp->iss;
+		tp->snd_nxt = tp->iss;
+		tp->t_tfo_pending = pending_counter;
+		TCPSTAT_INC(tcps_sc_completed);
+	}
+}
+#endif /* TCP_RFC7413 */
+
 /*
  * Given a LISTEN socket and an inbound SYN request, add
  * this to the syn cache, and send back a segment:
@@ -1101,8 +1137,15 @@ failed:
  * DoS attack, an attacker could send data which would eventually
  * consume all available buffer space if it were ACKed.  By not ACKing
  * the data, we avoid this DoS scenario.
+ *
+ * The exception to the above is when a SYN with a valid TCP Fast Open (TFO)
+ * cookie is processed, V_tcp_fastopen_enabled set to true, and the
+ * TCP_FASTOPEN socket option is set.  In this case, a new socket is created
+ * and returned via lsop, the mbuf is not freed so that tcp_input() can
+ * queue its data to the socket, and 1 is returned to indicate the
+ * TFO-socket-creation path was taken.
  */
-void
+int
 syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
     struct inpcb *inp, struct socket **lsop, struct mbuf *m, void *tod,
     void *todctx)
@@ -1115,6 +1158,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	u_int ltflags;
 	int win, sb_hiwat, ip_ttl, ip_tos;
 	char *s;
+	int rv = 0;
 #ifdef INET6
 	int autoflowlabel = 0;
 #endif
@@ -1123,6 +1167,11 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #endif
 	struct syncache scs;
 	struct ucred *cred;
+#ifdef TCP_RFC7413
+	uint64_t tfo_response_cookie;
+	int tfo_cookie_valid = 0;
+	int tfo_response_cookie_valid = 0;
+#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);			/* listen socket */
@@ -1148,6 +1197,29 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sb_hiwat = so->so_rcv.sb_hiwat;
 	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
+#ifdef TCP_RFC7413
+	if (V_tcp_fastopen_enabled && (tp->t_flags & TF_FASTOPEN) &&
+	    (tp->t_tfo_pending != NULL) && (to->to_flags & TOF_FASTOPEN)) {
+		/*
+		 * Limit the number of pending TFO connections to
+		 * approximately half of the queue limit.  This prevents TFO
+		 * SYN floods from starving the service by filling the
+		 * listen queue with bogus TFO connections.
+		 */
+		if (atomic_fetchadd_int(tp->t_tfo_pending, 1) <=
+		    (so->so_qlimit / 2)) {
+			int result;
+
+			result = tcp_fastopen_check_cookie(inc,
+			    to->to_tfo_cookie, to->to_tfo_len,
+			    &tfo_response_cookie);
+			tfo_cookie_valid = (result > 0);
+			tfo_response_cookie_valid = (result >= 0);
+		} else
+			atomic_subtract_int(tp->t_tfo_pending, 1);
+	}
+#endif
+
 	/* By the time we drop the lock these should no longer be used. */
 	so = NULL;
 	tp = NULL;
@@ -1160,9 +1232,16 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	} else
 		mac_syncache_create(maclabel, inp);
 #endif
+#ifdef TCP_RFC7413
+	if (!tfo_cookie_valid) {
+		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+	}
+#else
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
-
+#endif
+	
 	/*
 	 * Remember the IP options, if any.
 	 */
@@ -1190,6 +1269,12 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sc = syncache_lookup(inc, &sch);	/* returns locked entry */
 	SCH_LOCK_ASSERT(sch);
 	if (sc != NULL) {
+#ifdef TCP_RFC7413
+		if (tfo_cookie_valid) {
+			INP_WUNLOCK(inp);
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+		}
+#endif
 		TCPSTAT_INC(tcps_sc_dupsyn);
 		if (ipopts) {
 			/*
@@ -1232,6 +1317,14 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		goto done;
 	}
 
+#ifdef TCP_RFC7413
+	if (tfo_cookie_valid) {
+		bzero(&scs, sizeof(scs));
+		sc = &scs;
+		goto skip_alloc;
+	}
+#endif
+
 	sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		/*
@@ -1255,7 +1348,13 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			}
 		}
 	}
-	
+
+#ifdef TCP_RFC7413
+skip_alloc:
+	if (!tfo_cookie_valid && tfo_response_cookie_valid)
+		sc->sc_tfo_cookie = &tfo_response_cookie;
+#endif
+
 	/*
 	 * Fill in the syncache values.
 	 */
@@ -1365,6 +1464,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #endif
 	SCH_UNLOCK(sch);
 
+#ifdef TCP_RFC7413
+	if (tfo_cookie_valid) {
+		syncache_tfo_expand(sc, lsop, m, tfo_response_cookie);
+		/* INP_WUNLOCK(inp) will be performed by the called */
+		rv = 1;
+		goto tfo_done;
+	}
+#endif
+
 	/*
 	 * Do a standard 3-way handshake.
 	 */
@@ -1382,17 +1490,20 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	}
 
 done:
+	if (m) {
+		*lsop = NULL;
+		m_freem(m);
+	}
+#ifdef TCP_RFC7413
+tfo_done:
+#endif
 	if (cred != NULL)
 		crfree(cred);
 #ifdef MAC
 	if (sc == &scs)
 		mac_syncache_destroy(&maclabel);
 #endif
-	if (m) {
-		
-		*lsop = NULL;
-		m_freem(m);
-	}
+	return (rv);
 }
 
 static int
@@ -1519,6 +1630,16 @@ syncache_respond(struct syncache *sc)
 #ifdef TCP_SIGNATURE
 		if (sc->sc_flags & SCF_SIGNATURE)
 			to.to_flags |= TOF_SIGNATURE;
+#endif
+
+#ifdef TCP_RFC7413
+		if (sc->sc_tfo_cookie) {
+			to.to_flags |= TOF_FASTOPEN;
+			to.to_tfo_len = TCP_FASTOPEN_COOKIE_LEN;
+			to.to_tfo_cookie = sc->sc_tfo_cookie;
+			/* don't send cookie again when retransmitting response */
+			sc->sc_tfo_cookie = NULL;
+		}
 #endif
 		optlen = tcp_addoptions(&to, (u_char *)(th + 1));
 

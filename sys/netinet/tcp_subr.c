@@ -83,6 +83,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -427,6 +430,10 @@ tcp_init(void)
 		SHUTDOWN_PRI_DEFAULT);
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
+
+#ifdef TCP_RFC7413
+	tcp_fastopen_init();
+#endif
 }
 
 #ifdef VIMAGE
@@ -434,6 +441,9 @@ void
 tcp_destroy(void)
 {
 
+#ifdef TCP_RFC7413
+	tcp_fastopen_destroy();
+#endif
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
@@ -1101,6 +1111,17 @@ tcp_close(struct tcpcb *tp)
 #ifdef TCP_OFFLOAD
 	if (tp->t_state == TCPS_LISTEN)
 		tcp_offload_listen_stop(tp);
+#endif
+#ifdef TCP_RFC7413
+	/*
+	 * This releases the TFO pending counter resource for TFO listen
+	 * sockets as well as passively-created TFO sockets that transition
+	 * from SYN_RECEIVED to CLOSED.
+	 */
+	if (tp->t_tfo_pending) {
+		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
+		tp->t_tfo_pending = NULL;
+	}
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
