@@ -94,7 +94,50 @@ panic_cmp(struct rb_node *one, struct rb_node *two)
 }
 
 RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
- 
+
+int
+kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
+{
+	va_list tmp_va;
+	int len;
+	char *old;
+	char *name;
+	char dummy;
+
+	old = kobj->name;
+
+	if (old && fmt == NULL)
+		return (0);
+
+	/* compute length of string */
+	va_copy(tmp_va, args);
+	len = vsnprintf(&dummy, 0, fmt, tmp_va);
+	va_end(tmp_va);
+
+	/* account for zero termination */
+	len++;
+
+	/* check for error */
+	if (len < 1)
+		return (-EINVAL);
+
+	/* allocate memory for string */
+	name = kzalloc(len, GFP_KERNEL);
+	if (name == NULL)
+		return (-ENOMEM);
+	vsnprintf(name, len, fmt, args);
+	kobj->name = name;
+
+	/* free old string */
+	kfree(old);
+
+	/* filter new string */
+	for (; *name != '\0'; name++)
+		if (*name == '/')
+			*name = '!';
+	return (0);
+}
+
 int
 kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 {
