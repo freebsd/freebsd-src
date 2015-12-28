@@ -58,13 +58,17 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 
 	PRIV_LOCK(priv);
 	value = priv->params_ethtool.arg[arg2];
-	error = sysctl_handle_64(oidp, &value, 0, req);
-	if (error || req->newptr == NULL ||
-	    value == priv->params_ethtool.arg[arg2])
-		goto done;
+	if (req != NULL) {
+		error = sysctl_handle_64(oidp, &value, 0, req);
+		if (error || req->newptr == NULL ||
+		    value == priv->params_ethtool.arg[arg2])
+			goto done;
 
-	/* assign new value */
-	priv->params_ethtool.arg[arg2] = value;
+		/* assign new value */
+		priv->params_ethtool.arg[arg2] = value;
+	} else {
+		error = 0;
+	}
 
 	/* check if device is gone */
 	if (priv->gone) {
@@ -483,10 +487,30 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 			    CTLFLAG_MPSAFE, priv, x, &mlx5e_ethtool_handler, "QU",
 			    mlx5e_params_desc[2 * x + 1]);
 		} else {
+#if (__FreeBSD_version < 1100000)
+			char path[64];
+#endif
+			/*
+			 * NOTE: In FreeBSD-11 and newer the
+			 * CTLFLAG_RWTUN flag will take care of
+			 * loading default sysctl value from the
+			 * kernel environment, if any:
+			 */
 			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 			    mlx5e_params_desc[2 * x], CTLTYPE_U64 | CTLFLAG_RWTUN |
 			    CTLFLAG_MPSAFE, priv, x, &mlx5e_ethtool_handler, "QU",
 			    mlx5e_params_desc[2 * x + 1]);
+
+#if (__FreeBSD_version < 1100000)
+			/* compute path for sysctl */
+			snprintf(path, sizeof(path), "dev.mce.%d.conf.%s",
+			    device_get_unit(priv->mdev->pdev->dev.bsddev),
+			    mlx5e_params_desc[2 * x]);
+
+			/* try to fetch tunable, if any */
+			if (TUNABLE_QUAD_FETCH(path, &priv->params_ethtool.arg[x]))
+				mlx5e_ethtool_handler(NULL, priv, x, NULL);
+#endif
 		}
 	}
 
