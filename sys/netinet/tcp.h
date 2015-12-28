@@ -97,6 +97,10 @@ struct tcphdr {
 #define    TCPOLEN_TSTAMP_APPA		(TCPOLEN_TIMESTAMP+2) /* appendix A */
 #define	TCPOPT_SIGNATURE	19		/* Keyed MD5: RFC 2385 */
 #define	   TCPOLEN_SIGNATURE		18
+#define	TCPOPT_FAST_OPEN	34
+#define	   TCPOLEN_FAST_OPEN_EMPTY	2
+#define	   TCPOLEN_FAST_OPEN_MIN	6
+#define	   TCPOLEN_FAST_OPEN_MAX	18
 
 /* Miscellaneous constants */
 #define	MAX_SACK_BLKS	6	/* Max # SACK blocks stored at receiver side */
@@ -165,6 +169,7 @@ struct tcphdr {
 #define	TCP_KEEPIDLE	256	/* L,N,X start keeplives after this period */
 #define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */
 #define	TCP_KEEPCNT	1024	/* L,N number of keepalives before close */
+#define	TCP_FASTOPEN	1025	/* enable TFO / was created via TFO */
 
 /* Start of reserved space for third-party user-settable options. */
 #define	TCP_VENDOR	SO_VENDOR
