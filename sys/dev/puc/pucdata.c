@@ -763,6 +763,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x10, 0, 8,
 	},
 
+	{   0x1415, 0x950a, 0x131f, 0x2061,
+	    "SIIG Cyber 2SP1 PCIe",
+	    DEFAULT_RCLK * 10,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
 	{   0x1415, 0x950a, 0xffff, 0,
 	    "Oxford Semiconductor OX16PCI954 UARTs",
 	    DEFAULT_RCLK,
@@ -840,9 +846,9 @@ const struct puc_cfg puc_pci_devices[] = {
 	 */
 
 	{   0x1415, 0xc11b, 0xffff, 0,
-            "Oxford Semiconductor OXPCIe952 1S1P",
-            DEFAULT_RCLK * 0x22,
-            PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    "Oxford Semiconductor OXPCIe952 1S1P",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
 	    .config_function = puc_config_oxford_pcie
 	},
 
@@ -1275,7 +1281,8 @@ puc_config_moxa(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 	if (cmd == PUC_CFG_GET_OFS) {
 		const struct puc_cfg *cfg = sc->sc_cfg;
 
-		if (port == 3 && (cfg->device == 0x1045 || cfg->device == 0x1144))
+		if (port == 3 && (cfg->device == 0x1045 ||
+		    cfg->device == 0x1144))
 			port = 7;
 		*res = port * 0x200;
 
