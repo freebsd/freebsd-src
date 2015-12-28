@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 {
 	int fd;
 	struct aiocb *iocb[MAX_IOCBS];
-	struct aiocb **lio[LIO_MAX], **lio_element, **kq_lio;
+	struct aiocb **lio[LIO_MAX], **kq_lio;
 	int i, result, run, error, j, k;
 	char buffer[32768];
 	int kq;
@@ -70,7 +70,7 @@ main(int argc, char *argv[])
 	struct timespec ts;
 	struct sigevent sig;
 	time_t time1, time2;
-	char *file, pathname[sizeof(PATH_TEMPLATE)-1];
+	char *file, pathname[sizeof(PATH_TEMPLATE)];
 	int tmp_file = 0, failed = 0;
 
 	PLAIN_REQUIRE_KERNEL_MODULE("aio", 0);
@@ -104,7 +104,6 @@ main(int argc, char *argv[])
 			    malloc(sizeof(struct aiocb *) * MAX_IOCBS/LIO_MAX);
 			for (i = 0; i < MAX_IOCBS / LIO_MAX; i++) {
 				k = (MAX_IOCBS / LIO_MAX * j) + i;
-				lio_element = lio[j];
 				lio[j][i] = iocb[k] =
 				    calloc(1, sizeof(struct aiocb));
 				iocb[k]->aio_nbytes = sizeof(buffer);
