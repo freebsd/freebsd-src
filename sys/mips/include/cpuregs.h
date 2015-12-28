@@ -154,6 +154,11 @@
 #define	MIPS_CCA_CACHED		0x03
 #endif
 
+#if defined(CPU_MIPS1004KC)
+#define	MIPS_CCA_UNCACHED	0x02
+#define	MIPS_CCA_CACHED		0x05
+#endif
+
 #ifndef	MIPS_CCA_UNCACHED
 #define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
 #endif
@@ -209,7 +214,7 @@
 #define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
-#elif defined(CPU_MIPS74KC)
+#elif defined(CPU_MIPS74KC) || defined(CPU_MIPS1004KC)
 #define	COP0_SYNC	 .word 0xc0	/* ehb */
 #else
 /*
@@ -557,6 +562,8 @@
 #define MIPS_CONFIG2_SS_SHIFT		8		/* Secondary cache sets per way */
 #define MIPS_CONFIG2_SS_MASK		0xf
 
+#define MIPS_CONFIG3_CMGCR_MASK		(1 << 29)	/* Coherence manager present */
+
 #define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
 #define MIPS_CONFIG4_MMUEXTDEF		0x0000C000	/* bits 15.14 MMU Extension Definition */
 #define MIPS_CONFIG4_MMUEXTDEF_MMUSIZEEXT	0x00004000 /* This values denotes CONFIG4 bits  */
@@ -633,5 +640,9 @@
  */
 #define	MIPS_OPCODE_SHIFT	26
 #define	MIPS_OPCODE_C1		0x11
+
+/* Coherence manager constants */
+#define	MIPS_CMGCRB_BASE	11
+#define	MIPS_CMGCRF_BASE	(~((1 << MIPS_CMGCRB_BASE) - 1))
 
 #endif /* _MIPS_CPUREGS_H_ */

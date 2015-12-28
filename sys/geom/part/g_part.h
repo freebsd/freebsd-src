@@ -37,12 +37,28 @@
 
 enum g_part_alias {
 	G_PART_ALIAS_APPLE_BOOT,	/* An Apple boot partition entry. */
+	G_PART_ALIAS_APPLE_CORE_STORAGE,/* An Apple Core Storage partition. */
 	G_PART_ALIAS_APPLE_HFS,		/* An HFS+ file system entry. */
 	G_PART_ALIAS_APPLE_LABEL,	/* An Apple label partition entry. */
 	G_PART_ALIAS_APPLE_RAID,	/* An Apple RAID partition entry. */
 	G_PART_ALIAS_APPLE_RAID_OFFLINE,/* An Apple RAID (offline) part entry.*/
 	G_PART_ALIAS_APPLE_TV_RECOVERY,	/* An Apple TV recovery part entry. */
 	G_PART_ALIAS_APPLE_UFS,		/* An Apple UFS partition entry. */
+	G_PART_ALIAS_BIOS_BOOT,		/* A GRUB 2 boot partition entry. */
+	G_PART_ALIAS_CHROMEOS_FIRMWARE,	/* A ChromeOS firmware part. entry. */
+	G_PART_ALIAS_CHROMEOS_KERNEL,	/* A ChromeOS Kernel part. entry. */
+	G_PART_ALIAS_CHROMEOS_RESERVED,	/* ChromeOS. Reserved for future use. */
+	G_PART_ALIAS_CHROMEOS_ROOT,	/* A ChromeOS root part. entry. */
+	G_PART_ALIAS_DFBSD,		/* A DfBSD label32 partition entry */
+	G_PART_ALIAS_DFBSD64,		/* A DfBSD label64 partition entry */
+	G_PART_ALIAS_DFBSD_CCD,		/* A DfBSD CCD partition entry */
+	G_PART_ALIAS_DFBSD_HAMMER,	/* A DfBSD HAMMER FS partition entry */
+	G_PART_ALIAS_DFBSD_HAMMER2,	/* A DfBSD HAMMER2 FS partition entry */
+	G_PART_ALIAS_DFBSD_LEGACY,	/* A DfBSD legacy partition entry */
+	G_PART_ALIAS_DFBSD_SWAP,	/* A DfBSD swap partition entry */
+	G_PART_ALIAS_DFBSD_UFS,		/* A DfBSD UFS partition entry */
+	G_PART_ALIAS_DFBSD_VINUM,	/* A DfBSD Vinum partition entry */
+	G_PART_ALIAS_EBR,		/* A EBR partition entry. */
 	G_PART_ALIAS_EFI,		/* A EFI system partition entry. */
 	G_PART_ALIAS_FREEBSD,		/* A BSD labeled partition entry. */
 	G_PART_ALIAS_FREEBSD_BOOT,	/* A FreeBSD boot partition entry. */
@@ -51,41 +67,32 @@ enum g_part_alias {
 	G_PART_ALIAS_FREEBSD_UFS,	/* A UFS/UFS2 file system entry. */
 	G_PART_ALIAS_FREEBSD_VINUM,	/* A Vinum partition entry. */
 	G_PART_ALIAS_FREEBSD_ZFS,	/* A ZFS file system entry. */
-	G_PART_ALIAS_MBR,		/* A MBR (extended) partition entry. */
 	G_PART_ALIAS_LINUX_DATA,	/* A Linux data partition entry. */
 	G_PART_ALIAS_LINUX_LVM,		/* A Linux LVM partition entry. */
 	G_PART_ALIAS_LINUX_RAID,	/* A Linux RAID partition entry. */
 	G_PART_ALIAS_LINUX_SWAP,	/* A Linux swap partition entry. */
+	G_PART_ALIAS_MBR,		/* A MBR (extended) partition entry. */
 	G_PART_ALIAS_MS_BASIC_DATA,	/* A Microsoft Data part. entry. */
+	G_PART_ALIAS_MS_FAT16,		/* A Microsoft FAT16 partition entry. */
+	G_PART_ALIAS_MS_FAT32,		/* A Microsoft FAT32 partition entry. */
 	G_PART_ALIAS_MS_LDM_DATA,	/* A Microsoft LDM Data part. entry. */
 	G_PART_ALIAS_MS_LDM_METADATA,	/* A Microsoft LDM Metadata entry. */
-	G_PART_ALIAS_MS_RESERVED,	/* A Microsoft Reserved part. entry. */
 	G_PART_ALIAS_MS_NTFS,		/* A Microsoft NTFS partition entry */
+	G_PART_ALIAS_MS_RECOVERY,	/* A Microsoft recovery part. entry. */
+	G_PART_ALIAS_MS_RESERVED,	/* A Microsoft Reserved part. entry. */
+	G_PART_ALIAS_MS_SPACES,		/* A Microsoft Spaces part. entry. */
 	G_PART_ALIAS_NETBSD_CCD,	/* A NetBSD CCD partition entry. */
 	G_PART_ALIAS_NETBSD_CGD,	/* A NetBSD CGD partition entry. */
 	G_PART_ALIAS_NETBSD_FFS,	/* A NetBSD FFS partition entry. */
+	G_PART_ALIAS_NETBSD_LFS,	/* A NetBSD LFS partition entry. */
 	G_PART_ALIAS_NETBSD_RAID,	/* A NetBSD RAID partition entry. */
 	G_PART_ALIAS_NETBSD_SWAP,	/* A NetBSD swap partition entry. */
-	G_PART_ALIAS_NETBSD_LFS,	/* A NetBSD LFS partition entry. */
-	G_PART_ALIAS_EBR,		/* A EBR partition entry. */
-	G_PART_ALIAS_MS_FAT16,		/* A Microsoft FAT16 partition entry. */
-	G_PART_ALIAS_MS_FAT32,		/* A Microsoft FAT32 partition entry. */
-	G_PART_ALIAS_BIOS_BOOT,		/* A GRUB 2 boot partition entry. */
+	G_PART_ALIAS_OPENBSD_DATA,	/* An OpenBSD data partition entry. */
+	G_PART_ALIAS_PREP_BOOT,		/* A PREP/CHRP boot partition entry. */
 	G_PART_ALIAS_VMFS,		/* A VMware VMFS partition entry */
 	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
 	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */
 	G_PART_ALIAS_VMVSANHDR,		/* A VMware vSAN header partition entry */
-	G_PART_ALIAS_DFBSD,		/* A DfBSD label32 partition entry */
-	G_PART_ALIAS_DFBSD64,		/* A DfBSD label64 partition entry */
-	G_PART_ALIAS_DFBSD_SWAP,	/* A DfBSD swap partition entry */
-	G_PART_ALIAS_DFBSD_UFS,		/* A DfBSD UFS partition entry */
-	G_PART_ALIAS_DFBSD_VINUM,	/* A DfBSD Vinum partition entry */
-	G_PART_ALIAS_DFBSD_CCD,		/* A DfBSD CCD partition entry */
-	G_PART_ALIAS_DFBSD_LEGACY,	/* A DfBSD legacy partition entry */
-	G_PART_ALIAS_DFBSD_HAMMER,	/* A DfBSD HAMMER FS partition entry */
-	G_PART_ALIAS_DFBSD_HAMMER2,	/* A DfBSD HAMMER2 FS partition entry */
-	G_PART_ALIAS_PREP_BOOT,		/* A PREP/CHRP boot partition entry. */
-	G_PART_ALIAS_APPLE_CORE_STORAGE,/* An Apple Core Storage partition. */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };

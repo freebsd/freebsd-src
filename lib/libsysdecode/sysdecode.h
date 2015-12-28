@@ -29,6 +29,7 @@
 #ifndef __SYSDECODE_H__
 #define	__SYSDECODE_H__
 
+const char *sysdecode_ioctlname(unsigned long _val);
 int	sysdecode_utrace(FILE *_fp, void *_buf, size_t _len);
 
 #endif /* !__SYSDECODE_H__ */

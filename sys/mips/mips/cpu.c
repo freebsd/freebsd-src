@@ -190,6 +190,14 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize 
 	    * cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_nways;
 
+	/*
+	 * Probe PageMask register to see what sizes of pages are supported
+	 * by writing all one's and then reading it back.
+	 */
+	mips_wr_pagemask(~0);
+	cpuinfo->tlb_pgmask = mips_rd_pagemask();
+	mips_wr_pagemask(MIPS3_PGMASK_4K);
+
 #ifndef CPU_CNMIPS
 	/* L2 cache */
 	if (!(cfg1 & MIPS_CONFIG_CM)) {
@@ -289,8 +297,31 @@ cpu_identify(void)
 		} else if (cpuinfo.tlb_type == MIPS_MMU_FIXED) {
 			printf("Fixed mapping");
 		}
-		printf(", %d entries\n", cpuinfo.tlb_nentries);
+		printf(", %d entries ", cpuinfo.tlb_nentries);
 	}
+
+	if (cpuinfo.tlb_pgmask) {
+		printf("(");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_MASKX)
+			printf("1K ");
+		printf("4K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16K)
+			printf("16K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64K)
+			printf("64K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256K)
+			printf("256K ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_1M)
+			printf("1M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_16M)
+			printf("16M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_64M)
+			printf("64M ");
+		if (cpuinfo.tlb_pgmask & MIPS3_PGMASK_256M)
+			printf("256M ");
+		printf("pg sizes)");
+	}
+	printf("\n");
 
 	printf("  L1 i-cache: ");
 	if (cpuinfo.l1.ic_linesize == 0) {
@@ -320,7 +351,7 @@ cpu_identify(void)
 
 	printf("  L2 cache: ");
 	if (cpuinfo.l2.dc_linesize == 0) {
-		printf("disabled");
+		printf("disabled\n");
 	} else {
 		printf("%d ways of %d sets, %d bytes per line, "
 		    "%d KiB total size\n",

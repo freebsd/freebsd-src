@@ -133,8 +133,6 @@ void _endhostdnsent(void);
 void _endhosthtent(struct hostent_data *);
 void _endnetdnsent(void);
 void _endnethtent(struct netent_data *);
-struct hostent *_gethostbynisaddr(const void *, socklen_t, int);
-struct hostent *_gethostbynisname(const char *, int);
 void _map_v4v6_address(const char *, char *);
 void _map_v4v6_hostent(struct hostent *, char **, char *);
 void _sethostdnsent(int);

@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <crypto/rijndael/rijndael-api-fst.h>
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha256.h>
 
 #include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
