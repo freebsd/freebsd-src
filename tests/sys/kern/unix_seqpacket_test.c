@@ -47,7 +47,7 @@ static void
 do_socketpair(int *sv)
 {
 	int s;
-	
+
 	s = socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sv);
 	ATF_REQUIRE_EQ(0, s);
 	ATF_REQUIRE(sv[0] >= 0);
@@ -59,7 +59,7 @@ static void
 do_socketpair_nonblocking(int *sv)
 {
 	int s;
-	
+
 	s = socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sv);
 	ATF_REQUIRE_EQ(0, s);
 	ATF_REQUIRE(sv[0] >= 0);
@@ -69,7 +69,7 @@ do_socketpair_nonblocking(int *sv)
 	ATF_REQUIRE(-1 != fcntl(sv[1], F_SETFL, O_NONBLOCK));
 }
 
-/* 
+/*
  * Returns a pair of sockets made the hard way: bind, listen, connect & accept
  * @return	const char* The path to the socket
  */
@@ -100,7 +100,7 @@ mk_pair_of_sockets(int *sv)
 		perror("connect");
 		atf_tc_fail("connect(2) failed");
 	}
-	
+
 	/* Accept it */
 	s1 = accept(s, NULL, NULL);
 	if (s1 == -1) {
@@ -239,7 +239,7 @@ test_pipe_simulator(size_t sndbufsize, size_t rcvbufsize)
 			memset(sndbuf, num_sent, pktsize);
 			ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
 			if (ssize < 0) {
-				/* 
+				/*
 				 * XXX: This is bug-compatible with the kernel.
 				 * The kernel returns EMSGSIZE when it should
 				 * return EAGAIN
@@ -275,7 +275,7 @@ test_pipe_simulator(size_t sndbufsize, size_t rcvbufsize)
 				    pktsize, rsize);
 				memset(comparebuf, num_received, pktsize);
 				ATF_CHECK_EQ_MSG(0, memcmp(comparebuf, rcvbuf,
-				    			   pktsize), 
+				    			   pktsize),
 				    "Received data miscompare");
 				num_received++;
 			}
@@ -333,7 +333,7 @@ test_pipe_reader(void* args)
 		    		 "expected %zd=send(...) but got %zd",
 				 td->pktsize, rsize);
 		d = memcmp(comparebuf, rcvbuf, td->pktsize);
-		ATF_CHECK_EQ_MSG(0, d, 
+		ATF_CHECK_EQ_MSG(0, d,
 		    		 "Received data miscompare on packet %d", i);
 	}
 	return (0);
@@ -369,7 +369,7 @@ test_pipe(size_t sndbufsize, size_t rcvbufsize)
 	reader_data.so = sv[1];
 	ATF_REQUIRE_EQ(0, pthread_create(&writer, NULL, test_pipe_writer,
 	    				 (void*)&writer_data));
-	/* 
+	/*
 	 * Give the writer time to start writing, and hopefully block, before
 	 * starting the reader.  This increases the likelihood of the test case
 	 * failing due to PR kern/185812
@@ -561,7 +561,7 @@ ATF_TC_BODY(resize_buffers, tc)
 	ATF_CHECK_EQ(0, getsockopt(s, SOL_SOCKET, SO_SNDBUF, &xs, &sl));
 	ATF_CHECK_EQ(0, getsockopt(s, SOL_SOCKET, SO_RCVBUF, &xr, &sl));
 	printf("After changing SNDBUF         | %7d | %7d |\n", xs, xr);
-	
+
 	if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) != 0){
 		perror("setsockopt");
 		atf_tc_fail("setsockopt(SO_RCVBUF) failed");
@@ -703,7 +703,7 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 	}
 	ATF_CHECK_EQ(datalen, rsize);
 
-	/* 
+	/*
 	 * FreeBSD does not currently provide the source address for SEQ_PACKET
 	 * AF_UNIX sockets, and POSIX does not require it, so these two checks
 	 * are disabled.  If FreeBSD gains that feature in the future, then
@@ -715,7 +715,7 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 	close(sv[1]);
 }
 
-/* 
+/*
  * send(2) and recv(2) a single short record with sockets created the
  * traditional way, involving bind, listen, connect, and accept
  */
@@ -861,7 +861,7 @@ ATF_TC_BODY(send_recv_nonblocking, tc)
 	close(sv[1]);
 }
 
-/* 
+/*
  * We should get EMSGSIZE if we try to send a message larger than the socket
  * buffer, with blocking sockets
  */
@@ -890,7 +890,7 @@ ATF_TC_BODY(emsgsize, tc)
 	close(sv[1]);
 }
 
-/* 
+/*
  * We should get EMSGSIZE if we try to send a message larger than the socket
  * buffer, with nonblocking sockets
  */
@@ -920,7 +920,7 @@ ATF_TC_BODY(emsgsize_nonblocking, tc)
 }
 
 
-/* 
+/*
  * We should get EAGAIN if we try to send a message larger than the socket
  * buffer, with nonblocking sockets.  Test with several different sockbuf sizes
  */
@@ -946,7 +946,7 @@ ATF_TC_BODY(eagain_128k_128k, tc)
 }
 
 
-/* 
+/*
  * nonblocking send(2) and recv(2) of several records, which should collectively
  * fill up the send buffer but not the receive buffer
  */
@@ -971,7 +971,7 @@ ATF_TC_BODY(rcvbuf_oversized, tc)
 	ATF_REQUIRE_EQ(0, setsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rcvbufsize,
 	    sizeof(rcvbufsize)));
 
-	/* 
+	/*
 	 * Send and receive packets that are collectively greater than the send
 	 * buffer, but less than the receive buffer
 	 */
@@ -999,7 +999,7 @@ ATF_TC_BODY(rcvbuf_oversized, tc)
 		    "expected %zd=send(...) but got %zd", pktsize, rsize);
 
 		/* Verify the contents */
-		ATF_CHECK_EQ_MSG(0, memcmp(sndbuf, recv_buf, pktsize), 
+		ATF_CHECK_EQ_MSG(0, memcmp(sndbuf, recv_buf, pktsize),
 		    "Received data miscompare");
 	}
 
@@ -1011,7 +1011,7 @@ ATF_TC_BODY(rcvbuf_oversized, tc)
 	close(sv[1]);
 }
 
-/* 
+/*
  * Simulate the behavior of a blocking pipe.  The sender will send until his
  * buffer fills up, then we'll simulate a scheduler switch that will allow the
  * receiver to read until his buffer empties.  Repeat the process until the
@@ -1042,7 +1042,7 @@ ATF_TC_BODY(pipe_simulator_128k_128k, tc)
 	test_pipe_simulator(131072, 131072);
 }
 
-/* 
+/*
  * Test blocking I/O by passing data between two threads.  The total amount of
  * data will be >> buffer size to force blocking.  Repeat the test with multiple
  * send and receive buffer sizes
