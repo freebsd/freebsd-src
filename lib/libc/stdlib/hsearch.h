@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2011-2012 Stefan Bethke.
- * All rights reserved.
+ * Copyright (c) 2015 Nuxi, https://nuxi.nl/
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,10 +25,16 @@
  * $FreeBSD$
  */
 
-#ifndef	__DEV_ETHERSWITCH_MDIO_H__
-#define	__DEV_ETHERSWITCH_MDIO_H__
+#ifndef HSEARCH_H
+#define HSEARCH_H
 
-extern driver_t mdio_driver;
-extern devclass_t mdio_devclass;
+#include <search.h>
 
-#endif	/* __DEV_ETHERSWITCH_MDIO_H__ */
+struct __hsearch {
+	size_t offset_basis;	/* Initial value for FNV-1a hashing. */
+	size_t index_mask;	/* Bitmask for indexing the table. */
+	size_t entries_used;	/* Number of entries currently used. */
+	ENTRY *entries;		/* Hash table entries. */
+};
+
+#endif

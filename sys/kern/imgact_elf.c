@@ -799,6 +799,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				error = ENOEXEC;
 				goto ret;
 			}
+			if (interp != NULL) {
+				uprintf("Multiple PT_INTERP headers\n");
+				error = ENOEXEC;
+				goto ret;
+			}
 			interp_name_len = phdr[i].p_filesz;
 			if (phdr[i].p_offset > PAGE_SIZE ||
 			    interp_name_len > PAGE_SIZE - phdr[i].p_offset) {
@@ -997,7 +1002,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (error == 0)
 				have_interp = TRUE;
 		}
-		if (!have_interp && newinterp != NULL) {
+		if (!have_interp && newinterp != NULL &&
+		    (brand_info->interp_path == NULL ||
+		    strcmp(interp, brand_info->interp_path) == 0)) {
 			error = __elfN(load_file)(imgp->proc, newinterp, &addr,
 			    &imgp->entry_addr, sv->sv_pagesize);
 			if (error == 0)
@@ -1009,7 +1016,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		}
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0) {
-			uprintf("ELF interpreter %s not found\n", interp);
+			uprintf("ELF interpreter %s not found, error %d\n",
+			    interp, error);
 			goto ret;
 		}
 	} else

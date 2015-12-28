@@ -208,16 +208,6 @@ main(void)
 		return (0);
 	}
 
-	printf("1..%lu\n", nitems(test_users) + nitems(test_groups) +
-	    3 * nitems(test_strings) + 2);
-
-	/*
-	 * We can test some parts of the library without the MAC Framework
-	 * and policy loaded, so run those tests before calling
-	 * mac_is_present().
-	 */
-	test_libugidfw_strings();
-
 	switch (mac_is_present("bsdextended")) {
 	case -1:
 		printf("1..0 # SKIP mac_is_present failed: %s\n",
@@ -230,6 +220,11 @@ main(void)
 		printf("1..0 # SKIP mac_bsdextended not loaded\n");
 		return (0);
 	}
+
+	printf("1..%lu\n", nitems(test_users) + nitems(test_groups) +
+	    3 * nitems(test_strings) + 2);
+
+	test_libugidfw_strings();
 
 	/*
 	 * Some simple up-front checks to see if we're able to query the

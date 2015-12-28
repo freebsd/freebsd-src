@@ -24,6 +24,15 @@ maintainer of a sub-system is to check recent logs for that directory or
 sub-system.
 ***
 
+***
+Maintainers are encouraged to visit:
+  https://reviews.freebsd.org/herald
+
+and configure notifications for parts of the tree which they maintain.
+Notifications can automatically be sent when someone proposes a revision or
+makes a commit to the specified subtree.
+***
+
 subsystem	login	notes
 -----------------------------
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
@@ -47,7 +56,9 @@ isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 kqueue		jmg	Pre-commit review requested.  Documentation Required.
+libdpv		dteske	Pre-commit review requested. Keep in sync with dpv(1).
 libfetch	des	Pre-commit review requested.
+libfigpar	dteske	Pre-commit review requested.
 libpam		des	Pre-commit review requested.
 linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
@@ -76,6 +87,7 @@ sh(1)		jilles		Pre-commit review requested. This also applies
 				compiled in as builtins.
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
 share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
+sys/boot/forth		dteske	Pre-commit review requested.
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
@@ -85,5 +97,8 @@ sys/dev/usb	hselasky	If in doubt, ask.
 sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 tests			freebsd-testing,ngie	Pre-commit review requested.
+usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
+usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
+usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
 vmm(4)		neel,grehan	Pre-commit review requested.
