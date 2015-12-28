@@ -1604,6 +1604,16 @@ mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 {
 	void *cqc = param->cqc;
 
+
+	/*
+	 * TODO The sysctl to control on/off is a bool value for now, which means
+	 * we only support CSUM, once HASH is implemnted we'll need to address that.
+	 */
+	if (priv->params.cqe_zipping_en) {
+		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_CSUM);
+		MLX5_SET(cqc, cqc, cqe_compression_en, 1);
+	}
+
 	MLX5_SET(cqc, cqc, log_cq_size, priv->params.log_rq_size);
 	MLX5_SET(cqc, cqc, cq_period, priv->params.rx_cq_moderation_usec);
 	MLX5_SET(cqc, cqc, cq_max_count, priv->params.rx_cq_moderation_pkts);
@@ -2570,6 +2580,8 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	 */
 	priv->params.hw_lro_en = false;
 	priv->params.lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
+
+	priv->params.cqe_zipping_en = !!MLX5_CAP_GEN(mdev, cqe_compression);
 
 	priv->mdev = mdev;
 	priv->params.num_channels = num_comp_vectors;
