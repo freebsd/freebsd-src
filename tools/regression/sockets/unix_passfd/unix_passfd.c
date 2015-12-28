@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2015 Mark Johnston
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -146,7 +147,7 @@ sendfd_payload(const char *test, int sockfd, int sendfd,
 static void
 sendfd(const char *test, int sockfd, int sendfd)
 {
-	char ch;
+	char ch = 0;
 
 	return (sendfd_payload(test, sockfd, sendfd, &ch, sizeof(ch)));
 }
@@ -199,7 +200,7 @@ recvfd_payload(const char *test, int sockfd, int *recvfd,
 static void
 recvfd(const char *test, int sockfd, int *recvfd)
 {
-	char ch;
+	char ch = 0;
 
 	return (recvfd_payload(test, sockfd, recvfd, &ch, sizeof(ch)));
 }
@@ -369,8 +370,8 @@ main(void)
 			err(-1, "%s: sysctlbyname(net.local.stream.sendspace)",
 			    test);
 
-		if ((buf = malloc(sendspace)) == NULL)
-			err(-1, "%s: malloc", test);
+		if ((buf = calloc(1, sendspace)) == NULL)
+			err(-1, "%s: calloc", test);
 
 		domainsocketpair(test, fd);
 		if (setsockopt(fd[1], 0, LOCAL_CREDS, &on, sizeof(on)) < 0)
@@ -384,6 +385,6 @@ main(void)
 	}
 
 	printf("%s passed\n", test);
-	
+
 	return (0);
 }
