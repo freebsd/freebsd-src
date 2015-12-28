@@ -352,7 +352,7 @@ main(int argc, char *argv[])
 		data.size = 1;
 		if ((dp->put)(dp, &key, &data, 0) == -1)
 			error("put");
-		if ((dp->put)(sdp, &key, &data, 0) == -1)
+		if ((sdp->put)(sdp, &key, &data, 0) == -1)
 			error("put");
 	}
 	ypcnt = 0;
