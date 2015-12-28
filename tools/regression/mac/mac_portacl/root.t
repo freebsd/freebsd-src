@@ -8,6 +8,8 @@ echo "1..48"
 
 # Verify if security.mac.portacl.suser_exempt=1 really exempts super-user.
 
+trap restore_settings EXIT INT TERM
+
 sysctl security.mac.portacl.suser_exempt=1 >/dev/null
 
 bind_test ok ok uid root tcp 77
@@ -47,5 +49,3 @@ bind_test fl ok gid root tcp 77
 bind_test fl ok gid root tcp 7777
 bind_test fl ok gid root udp 77
 bind_test fl ok gid root udp 7777
-
-restore_settings
