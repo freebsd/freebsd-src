@@ -131,7 +131,7 @@ enum {
 	SFF_8436_CONNECTOR	= 130,  /* Connector type (Table 32) */
 	SFF_8436_TRANS_START	= 131,  /* Electric or Optical Compatibility
 					 * (Table 33) */
-	SFF_8436_CODE_E1040G	= 131,	/* 10/40G Ethernet Compliance Code */
+	SFF_8436_CODE_E1040100G	= 131,	/* 10/40/100G Ethernet Compliance Code */
 	SFF_8436_CODE_SONET	= 132,	/* SONET Compliance codes */
 	SFF_8436_CODE_SATA	= 133,	/* SAS/SATA compliance codes */
 	SFF_8436_CODE_E1G	= 134,	/* Gigabit Ethernet Compliant codes */
