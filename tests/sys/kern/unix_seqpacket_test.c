@@ -671,7 +671,9 @@ ATF_TC_BODY(send_recv, tc)
 ATF_TC_WITHOUT_HEAD(sendto_recvfrom);
 ATF_TC_BODY(sendto_recvfrom, tc)
 {
+#ifdef TEST_SEQ_PACKET_SOURCE_ADDRESS
 	const char* path;
+#endif
 	struct sockaddr_storage from;
 	int sv[2];
 	const int bufsize = 64;
@@ -682,7 +684,10 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 	socklen_t fromlen;
 
 	/* setup the socket pair */
-	path = mk_pair_of_sockets(sv);
+#ifdef TEST_SEQ_PACKET_SOURCE_ADDRESS
+	path =
+#endif
+		mk_pair_of_sockets(sv);
 
 	/* send and receive a small packet */
 	datalen = strlen(data) + 1;	/* +1 for the null */
@@ -703,14 +708,16 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 	}
 	ATF_CHECK_EQ(datalen, rsize);
 
+#ifdef TEST_SEQ_PACKET_SOURCE_ADDRESS
 	/*
 	 * FreeBSD does not currently provide the source address for SEQ_PACKET
 	 * AF_UNIX sockets, and POSIX does not require it, so these two checks
 	 * are disabled.  If FreeBSD gains that feature in the future, then
 	 * these checks may be reenabled
 	 */
-	/* ATF_CHECK_EQ(PF_LOCAL, from.ss_family); */
-	/* ATF_CHECK_STREQ(path, ((struct sockaddr_un*)&from)->sun_path); */
+	ATF_CHECK_EQ(PF_LOCAL, from.ss_family);
+	ATF_CHECK_STREQ(path, ((struct sockaddr_un*)&from)->sun_path);
+#endif
 	close(sv[0]);
 	close(sv[1]);
 }
@@ -795,7 +802,6 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 	/* ATF's isolation mechanisms will guarantee uniqueness of this file */
 	const char *path = "sock";
 	const char *data = "data";
-	ssize_t ssize;
 	int s, err, s2;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
@@ -820,7 +826,7 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 
 	ATF_CHECK_EQ(0, shutdown(s2, SHUT_RDWR));
 	ATF_REQUIRE(SIG_ERR != signal(SIGPIPE, shutdown_send_sigpipe_handler));
-	ssize = send(s2, data, sizeof(data), MSG_EOR);
+	(void)send(s2, data, sizeof(data), MSG_EOR);
 	ATF_CHECK_EQ(1, got_sigpipe);
 	close(s);
 	close(s2);
