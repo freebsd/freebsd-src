@@ -1329,6 +1329,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
     struct iscsi_daemon_handoff *handoff)
 {
 	struct iscsi_session *is;
+	struct icl_conn *ic;
 	int error;
 
 	sx_slock(&sc->sc_lock);
@@ -1345,6 +1346,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		return (ESRCH);
 	}
 	ISCSI_SESSION_LOCK(is);
+	ic = is->is_conn;
 	if (is->is_conf.isc_discovery || is->is_terminating) {
 		ISCSI_SESSION_UNLOCK(is);
 		sx_sunlock(&sc->sc_lock);
@@ -1369,18 +1371,24 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 	is->is_statsn = handoff->idh_statsn;
 	is->is_initial_r2t = handoff->idh_initial_r2t;
 	is->is_immediate_data = handoff->idh_immediate_data;
-	is->is_max_data_segment_length = handoff->idh_max_data_segment_length;
+
+	/*
+	 * Cap MaxRecvDataSegmentLength obtained from the target to the maximum
+	 * size supported by our ICL module.
+	 */
+	is->is_max_data_segment_length = min(ic->ic_max_data_segment_length,
+	    handoff->idh_max_data_segment_length);
 	is->is_max_burst_length = handoff->idh_max_burst_length;
 	is->is_first_burst_length = handoff->idh_first_burst_length;
 
 	if (handoff->idh_header_digest == ISCSI_DIGEST_CRC32C)
-		is->is_conn->ic_header_crc32c = true;
+		ic->ic_header_crc32c = true;
 	else
-		is->is_conn->ic_header_crc32c = false;
+		ic->ic_header_crc32c = false;
 	if (handoff->idh_data_digest == ISCSI_DIGEST_CRC32C)
-		is->is_conn->ic_data_crc32c = true;
+		ic->ic_data_crc32c = true;
 	else
-		is->is_conn->ic_data_crc32c = false;
+		ic->ic_data_crc32c = false;
 
 	is->is_cmdsn = 0;
 	is->is_expcmdsn = 0;
@@ -1399,7 +1407,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		/*
 		 * Handoff without using ICL proxy.
 		 */
-		error = icl_conn_handoff(is->is_conn, handoff->idh_socket);
+		error = icl_conn_handoff(ic, handoff->idh_socket);
 		if (error != 0) {
 			sx_sunlock(&sc->sc_lock);
 			iscsi_session_terminate(is);

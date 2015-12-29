@@ -36,7 +36,7 @@ cc -g -O0 -pthread -DRANDOM_<alg> -I../.. -lstdthreads -Wall \
 	hash.c \
 	../../crypto/rijndael/rijndael-api-fst.c \
 	../../crypto/rijndael/rijndael-alg-fst.c \
-	../../crypto/sha2/sha2.c \
+	../../crypto/sha2/sha256c.c \
         -lz \
 	-o unit_test
 ./unit_test

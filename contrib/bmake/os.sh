@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.49 2015/10/25 00:05:40 sjg Exp $
+#	$Id: os.sh,v 1.50 2015/12/17 17:06:29 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -56,10 +56,10 @@ Which() {
 	case "$1" in
 	/*)	test $t $1 && echo $1;;
 	*)
-        	# some shells cannot correctly handle `IFS`
-        	# in conjunction with the for loop.
-        	_dirs=`IFS=:; echo ${2:-$PATH}`
-        	for d in $_dirs
+		# some shells cannot correctly handle `IFS`
+		# in conjunction with the for loop.
+		_dirs=`IFS=:; echo ${2:-$PATH}`
+		for d in $_dirs
 		do
 			test $t $d/$1 && { echo $d/$1; break; }
 		done
@@ -70,11 +70,11 @@ Which() {
 # tr is insanely non-portable wrt char classes, so we need to
 # spell out the alphabet. sed y/// would work too.
 toUpper() {
-        ${TR:-tr} abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+	${TR:-tr} abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
 }
 
 toLower() {
-        ${TR:-tr} ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz
+	${TR:-tr} ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz
 }
 
 K=
@@ -91,7 +91,7 @@ SunOS)
 	export CHOWN
 	
 	# Great! Solaris keeps moving arch(1)
-        # should just bite the bullet and use uname -p
+	# should just bite the bullet and use uname -p
 	arch=`Which arch /usr/bin:/usr/ucb`
 	
 	MAILER=/usr/ucb/Mail
@@ -105,8 +105,8 @@ SunOS)
 		MACHINE=$MACHINE_ARCH
 		;;
 	4*)
-                MACHINE_ARCH=`arch`
-                ;;
+		MACHINE_ARCH=`arch`
+		;;
 	5*)
 		K=-k
 		LOCAL_FS=ufs
@@ -116,8 +116,8 @@ SunOS)
 		# overwriting an existing file!!!!! We want one that works!
 		test -x /usr/xpg4/bin/ln && LN=${LN:-/usr/xpg4/bin/ln}
 		# wonderful, 5.8's tr again require's []'s
-                # but /usr/xpg4/bin/tr causes problems if LC_COLLATE is set!
-                # use toUpper/toLower instead.
+		# but /usr/xpg4/bin/tr causes problems if LC_COLLATE is set!
+		# use toUpper/toLower instead.
 		;;
 	esac
 	case "$OS/$MACHINE_ARCH" in
@@ -142,9 +142,9 @@ SunOS)
 		SHARE_ARCH=$OS/$HOST
 		;;
 	OpenBSD)
-	        arch=`Which arch /usr/bin:/usr/ucb:$PATH`
-                MACHINE_ARCH=`$arch -s`
-                ;;
+		arch=`Which arch /usr/bin:/usr/ucb:$PATH`
+		MACHINE_ARCH=`$arch -s`
+		;;
 	esac
 	NAWK=awk
 	export NAWK
@@ -218,17 +218,25 @@ export HOST_TARGET
 
 case `echo -n .` in -n*) N=; C="\c";; *) N=-n; C=;; esac
 
-export HOSTNAME HOST        
+Echo() {
+	case "$1" in
+	-n) _n=$N _c=$C; shift;;
+	*) _n= _c=;;
+	esac
+	echo $_n "$@" $_c
+}
+
+export HOSTNAME HOST	    
 export OS MACHINE MACHINE_ARCH OSREL OSMAJOR LOCAL_FS TMP_DIRS MAILER N C K PS_AXC
 export LN SHARE_ARCH TR
 
 case /$0 in
 */os.sh)
-        for v in $*
+	for v in $*
 	do
-                eval vv=\$$v
-                echo "$v='$vv'"
+		eval vv=\$$v
+		echo "$v='$vv'"
 	done
-        ;;
+	;;
 esac
 

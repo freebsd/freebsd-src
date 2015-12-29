@@ -586,7 +586,6 @@ struct proc {
 	int		p_osrel;	/* (x) osreldate for the
 					       binary (from ELF note, if any) */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
-	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
@@ -599,6 +598,7 @@ struct proc {
 	u_int		p_xsig;		/* (c) Stop/kill sig. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xsig
+	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct knlist	p_klist;	/* (c) Knotes attached to this proc. */
 	int		p_numthreads;	/* (c) Number of threads. */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */

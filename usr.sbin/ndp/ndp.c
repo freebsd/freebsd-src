@@ -686,31 +686,31 @@ again:;
 
 		switch (rtm->rtm_rmx.rmx_state) {
 		case ND6_LLINFO_NOSTATE:
-			 printf(" N");
-			 break;
+			printf(" N");
+			break;
 #ifdef ND6_LLINFO_WAITDELETE
 		case ND6_LLINFO_WAITDELETE:
-			 printf(" W");
-			 break;
+			printf(" W");
+			break;
 #endif
 		case ND6_LLINFO_INCOMPLETE:
-			 printf(" I");
-			 break;
+			printf(" I");
+			break;
 		case ND6_LLINFO_REACHABLE:
-			 printf(" R");
-			 break;
+			printf(" R");
+			break;
 		case ND6_LLINFO_STALE:
-			 printf(" S");
-			 break;
+			printf(" S");
+			break;
 		case ND6_LLINFO_DELAY:
-			 printf(" D");
-			 break;
+			printf(" D");
+			break;
 		case ND6_LLINFO_PROBE:
-			 printf(" P");
-			 break;
+			printf(" P");
+			break;
 		default:
-			 printf(" ?");
-			 break;
+			printf(" ?");
+			break;
 		}
 
 		isrouter = rtm->rtm_flags & RTF_GATEWAY;

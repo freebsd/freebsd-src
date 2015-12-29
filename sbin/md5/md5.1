@@ -1,9 +1,9 @@
 .\" $FreeBSD$
-.Dd May 17, 2014
+.Dd October 17, 2015
 .Dt MD5 1
 .Os
 .Sh NAME
-.Nm md5 , sha1 , sha256 , sha512, rmd160
+.Nm md5 , sha1 , sha256 , sha384 , sha512, rmd160
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
 .Nm md5
@@ -21,6 +21,11 @@
 .Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
+.Nm sha384
+.Op Fl pqrtx
+.Op Fl c Ar string
+.Op Fl s Ar string
+.Op Ar
 .Nm sha512
 .Op Fl pqrtx
 .Op Fl c Ar string
@@ -33,7 +38,7 @@
 .Op Ar
 .Sh DESCRIPTION
 The
-.Nm md5 , sha1 , sha256 , sha512
+.Nm md5 , sha1 , sha256 , sha384 , sha512
 and
 .Nm rmd160
 utilities take as input a message of arbitrary length and produce as
@@ -46,7 +51,7 @@ It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
 The
-.Tn MD5 , SHA-1 , SHA-256 , SHA-512
+.Tn MD5 , SHA-1 , SHA-256 , SHA-384 , SHA-512
 and
 .Tn RIPEMD-160
 algorithms are intended for digital signature applications, where a
@@ -123,6 +128,7 @@ option.
 .Xr ripemd 3 ,
 .Xr sha 3 ,
 .Xr sha256 3 ,
+.Xr sha384 3 ,
 .Xr sha512 3
 .Rs
 .%A R. Rivest

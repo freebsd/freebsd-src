@@ -557,10 +557,9 @@ crypto/rijndael/rijndael-api-fst.c optional geom_bde | random !random_loadable
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
-crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
-					 sctp | zfs
 crypto/sha2/sha256c.c		optional crypto | geom_bde | ipsec | random !random_loadable | \
 					 sctp | zfs
+crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | zfs
 crypto/siphash/siphash.c	optional inet | inet6
 crypto/siphash/siphash_test.c	optional inet | inet6
 ddb/db_access.c			optional ddb
@@ -1404,8 +1403,6 @@ dev/etherswitch/ip17x/ip175c.c		optional ip17x
 dev/etherswitch/ip17x/ip175d.c		optional ip17x
 dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
 dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
-dev/etherswitch/mdio_if.m		optional miiproxy | mdio
-dev/etherswitch/mdio.c			optional miiproxy | mdio
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
@@ -1861,6 +1858,8 @@ dev/ixgbe/if_ixv.c		optional ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/ix_txrx.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_osdep.c		optional ix inet | ixv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_api.c		optional ix inet | ixv inet \
@@ -1906,6 +1905,8 @@ dev/mca/mca_bus.c		optional mca
 dev/mcd/mcd.c			optional mcd isa nowerror
 dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
+dev/mdio/mdio_if.m		optional miiproxy | mdio
+dev/mdio/mdio.c			optional miiproxy | mdio
 dev/mem/memdev.c		optional mem
 dev/mem/memutil.c		optional mem
 dev/mfi/mfi.c			optional mfi
@@ -2094,6 +2095,7 @@ dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
 dev/ofw/ofw_if.m		optional fdt
 dev/ofw/ofw_iicbus.c		optional fdt iicbus
+dev/ofw/ofw_subr.c		optional fdt
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
@@ -3685,6 +3687,7 @@ netinet/sctp_usrreq.c		optional inet sctp | inet6 sctp
 netinet/sctputil.c		optional inet sctp | inet6 sctp
 netinet/siftr.c			optional inet siftr alq | inet6 siftr alq
 netinet/tcp_debug.c		optional tcpdebug
+netinet/tcp_fastopen.c		optional inet tcp_rfc7413 | inet6 tcp_rfc7413
 netinet/tcp_hostcache.c		optional inet | inet6
 netinet/tcp_input.c		optional inet | inet6
 netinet/tcp_lro.c		optional inet | inet6

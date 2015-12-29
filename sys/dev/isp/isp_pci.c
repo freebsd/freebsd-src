@@ -1539,78 +1539,17 @@ isp_pci_wr_reg_2600(ispsoftc_t *isp, int regoff, uint32_t val)
 
 
 struct imush {
-	ispsoftc_t *isp;
-	caddr_t vbase;
-	int chan;
+	bus_addr_t maddr;
 	int error;
 };
-
-static void imc(void *, bus_dma_segment_t *, int, int);
-static void imc1(void *, bus_dma_segment_t *, int, int);
 
 static void
 imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct imush *imushp = (struct imush *) arg;
-	isp_ecmd_t *ecmd;
 
-	if (error) {
-		imushp->error = error;
-		return;
-	}
-	if (nseg != 1) {
-		imushp->error = EINVAL;
-		return;
-	}
-	isp_prt(imushp->isp, ISP_LOGDEBUG0, "request/result area @ 0x%jx/0x%jx", (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
-
-	imushp->isp->isp_rquest = imushp->vbase;
-	imushp->isp->isp_rquest_dma = segs->ds_addr;
-	segs->ds_addr += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(imushp->isp));
-	imushp->vbase += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(imushp->isp));
-
-	imushp->isp->isp_result_dma = segs->ds_addr;
-	imushp->isp->isp_result = imushp->vbase;
-	segs->ds_addr += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
-	imushp->vbase += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
-
-	if (imushp->isp->isp_type >= ISP_HA_FC_2200) {
-        imushp->isp->isp_osinfo.ecmd_dma = segs->ds_addr;
-        imushp->isp->isp_osinfo.ecmd_free = (isp_ecmd_t *)imushp->vbase;
-        imushp->isp->isp_osinfo.ecmd_base = imushp->isp->isp_osinfo.ecmd_free;
-        for (ecmd = imushp->isp->isp_osinfo.ecmd_free; ecmd < &imushp->isp->isp_osinfo.ecmd_free[N_XCMDS]; ecmd++) {
-            if (ecmd == &imushp->isp->isp_osinfo.ecmd_free[N_XCMDS - 1]) {
-                ecmd->next = NULL;
-            } else {
-                ecmd->next = ecmd + 1;
-            }
-        }
-    }
-#ifdef	ISP_TARGET_MODE
-	segs->ds_addr += (N_XCMDS * XCMD_SIZE);
-	imushp->vbase += (N_XCMDS * XCMD_SIZE);
-	if (IS_24XX(imushp->isp)) {
-		imushp->isp->isp_atioq_dma = segs->ds_addr;
-		imushp->isp->isp_atioq = imushp->vbase;
-	}
-#endif
-}
-
-static void
-imc1(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct imush *imushp = (struct imush *) arg;
-	if (error) {
-		imushp->error = error;
-		return;
-	}
-	if (nseg != 1) {
-		imushp->error = EINVAL;
-		return;
-	}
-	isp_prt(imushp->isp, ISP_LOGDEBUG0, "scdma @ 0x%jx/0x%jx", (uintmax_t) segs->ds_addr, (uintmax_t) segs->ds_len);
-	FCPARAM(imushp->isp, imushp->chan)->isp_scdma = segs->ds_addr;
-	FCPARAM(imushp->isp, imushp->chan)->isp_scratch = imushp->vbase;
+	if (!(imushp->error = error))
+		imushp->maddr = segs[0].ds_addr;
 }
 
 static int
@@ -1623,6 +1562,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	bus_addr_t llim;	/* low limit of unavailable dma */
 	bus_addr_t hlim;	/* high limit of unavailable dma */
 	struct imush im;
+	isp_ecmd_t *ecmd;
 
 	/*
 	 * Already been here? If so, leave...
@@ -1684,97 +1624,129 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
 	}
 	isp->isp_xffree = isp->isp_xflist;
-#ifdef	ISP_TARGET_MODE
-	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
-	isp->isp_tgtlist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (isp->isp_tgtlist == NULL) {
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		free(isp->isp_xflist, M_DEVBUF);
-		ISP_LOCK(isp);
-		isp_prt(isp, ISP_LOGERR, "cannot alloc tgtlist array");
-		return (1);
-	}
-	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
-		isp->isp_tgtlist[len].cmd = &isp->isp_tgtlist[len+1];
-	}
-	isp->isp_tgtfree = isp->isp_tgtlist;
-#endif
 
 	/*
-	 * Allocate and map the request and result queues (and ATIO queue
-	 * if we're a 2400 supporting target mode), and a region for
-	 * external dma addressable command/status structures (23XX and
-	 * later).
+	 * Allocate and map the request queue and a region for external
+	 * DMA addressable command/status structures (22XX and later).
 	 */
 	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
-	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
-#ifdef	ISP_TARGET_MODE
-	if (IS_24XX(isp)) {
-		len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
-	}
-#endif
-	if (isp->isp_type >= ISP_HA_FC_2200) {
+	if (isp->isp_type >= ISP_HA_FC_2200)
 		len += (N_XCMDS * XCMD_SIZE);
+	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    len, 1, len, 0, &isp->isp_osinfo.reqdmat)) {
+		isp_prt(isp, ISP_LOGERR, "cannot create request DMA tag");
+		goto bad1;
+	}
+	if (bus_dmamem_alloc(isp->isp_osinfo.reqdmat, (void **)&base,
+	    BUS_DMA_COHERENT, &isp->isp_osinfo.reqmap) != 0) {
+		isp_prt(isp, ISP_LOGERR, "cannot allocate request DMA memory");
+		bus_dma_tag_destroy(isp->isp_osinfo.reqdmat);
+		goto bad1;
+	}
+	isp->isp_rquest = base;
+	im.error = 0;
+	if (bus_dmamap_load(isp->isp_osinfo.reqdmat, isp->isp_osinfo.reqmap,
+	    base, len, imc, &im, 0) || im.error) {
+		isp_prt(isp, ISP_LOGERR, "error loading request DMA map %d", im.error);
+		goto bad1;
+	}
+	isp_prt(isp, ISP_LOGDEBUG0, "request area @ 0x%jx/0x%jx",
+	    (uintmax_t)im.maddr, (uintmax_t)len);
+	isp->isp_rquest_dma = im.maddr;
+	base += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
+	im.maddr += ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
+	if (isp->isp_type >= ISP_HA_FC_2200) {
+		isp->isp_osinfo.ecmd_dma = im.maddr;
+		isp->isp_osinfo.ecmd_free = (isp_ecmd_t *)base;
+		isp->isp_osinfo.ecmd_base = isp->isp_osinfo.ecmd_free;
+		for (ecmd = isp->isp_osinfo.ecmd_free;
+		    ecmd < &isp->isp_osinfo.ecmd_free[N_XCMDS]; ecmd++) {
+			if (ecmd == &isp->isp_osinfo.ecmd_free[N_XCMDS - 1])
+				ecmd->next = NULL;
+			else
+				ecmd->next = ecmd + 1;
+		}
 	}
 
 	/*
-	 * Create a tag for the control spaces. We don't always need this
-	 * to be 32 bits, but we do this for simplicity and speed's sake.
+	 * Allocate and map the result queue.
 	 */
-	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, 1, slim, 0, &isp->isp_osinfo.cdmat)) {
-		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		free(isp->isp_xflist, M_DEVBUF);
-#ifdef	ISP_TARGET_MODE
-		free(isp->isp_tgtlist, M_DEVBUF);
-#endif
-		ISP_LOCK(isp);
-		return (1);
+	len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
+	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    len, 1, len, 0, &isp->isp_osinfo.respdmat)) {
+		isp_prt(isp, ISP_LOGERR, "cannot create response DMA tag");
+		goto bad1;
 	}
-
-	if (bus_dmamem_alloc(isp->isp_osinfo.cdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &isp->isp_osinfo.cdmap) != 0) {
-		isp_prt(isp, ISP_LOGERR, "cannot allocate %d bytes of CCB memory", len);
-		bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		free(isp->isp_xflist, M_DEVBUF);
-#ifdef	ISP_TARGET_MODE
-		free(isp->isp_tgtlist, M_DEVBUF);
-#endif
-		ISP_LOCK(isp);
-		return (1);
+	if (bus_dmamem_alloc(isp->isp_osinfo.respdmat, (void **)&base,
+	    BUS_DMA_COHERENT, &isp->isp_osinfo.respmap) != 0) {
+		isp_prt(isp, ISP_LOGERR, "cannot allocate response DMA memory");
+		bus_dma_tag_destroy(isp->isp_osinfo.respdmat);
+		goto bad1;
 	}
-
-	im.isp = isp;
-	im.chan = 0;
-	im.vbase = base;
+	isp->isp_result = base;
 	im.error = 0;
-
-	bus_dmamap_load(isp->isp_osinfo.cdmat, isp->isp_osinfo.cdmap, base, len, imc, &im, 0);
-	if (im.error) {
-		isp_prt(isp, ISP_LOGERR, "error %d loading dma map for control areas", im.error);
-		goto bad;
+	if (bus_dmamap_load(isp->isp_osinfo.respdmat, isp->isp_osinfo.respmap,
+	    base, len, imc, &im, 0) || im.error) {
+		isp_prt(isp, ISP_LOGERR, "error loading response DMA map %d", im.error);
+		goto bad1;
 	}
+	isp_prt(isp, ISP_LOGDEBUG0, "response area @ 0x%jx/0x%jx",
+	    (uintmax_t)im.maddr, (uintmax_t)len);
+	isp->isp_result_dma = im.maddr;
+
+#ifdef	ISP_TARGET_MODE
+	/*
+	 * Allocate and map ATIO queue on 24xx with target mode.
+	 */
+	if (IS_24XX(isp)) {
+		len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
+		if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
+		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+		    len, 1, len, 0, &isp->isp_osinfo.atiodmat)) {
+			isp_prt(isp, ISP_LOGERR, "cannot create ATIO DMA tag");
+			goto bad1;
+		}
+		if (bus_dmamem_alloc(isp->isp_osinfo.atiodmat, (void **)&base,
+		    BUS_DMA_COHERENT, &isp->isp_osinfo.atiomap) != 0) {
+			isp_prt(isp, ISP_LOGERR, "cannot allocate ATIO DMA memory");
+			bus_dma_tag_destroy(isp->isp_osinfo.atiodmat);
+			goto bad1;
+		}
+		isp->isp_atioq = base;
+		im.error = 0;
+		if (bus_dmamap_load(isp->isp_osinfo.atiodmat, isp->isp_osinfo.atiomap,
+		    base, len, imc, &im, 0) || im.error) {
+			isp_prt(isp, ISP_LOGERR, "error loading ATIO DMA map %d", im.error);
+			goto bad;
+		}
+		isp_prt(isp, ISP_LOGDEBUG0, "ATIO area @ 0x%jx/0x%jx",
+		    (uintmax_t)im.maddr, (uintmax_t)len);
+		isp->isp_atioq_dma = im.maddr;
+	}
+#endif
 
 	if (IS_FC(isp)) {
+		if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
+		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+		    ISP_FC_SCRLEN, 1, ISP_FC_SCRLEN, 0, &isp->isp_osinfo.scdmat)) {
+			goto bad;
+		}
 		for (cmap = 0; cmap < isp->isp_nchan; cmap++) {
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
-			if (isp_dma_tag_create(isp->isp_osinfo.dmat, 64, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, ISP_FC_SCRLEN, 1, slim, 0, &fc->tdmat)) {
+			if (bus_dmamem_alloc(isp->isp_osinfo.scdmat,
+			    (void **)&base, BUS_DMA_COHERENT, &fc->scmap) != 0)
 				goto bad;
-			}
-			if (bus_dmamem_alloc(fc->tdmat, (void **)&base, BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &fc->tdmap) != 0) {
-				bus_dma_tag_destroy(fc->tdmat);
-				goto bad;
-			}
-			im.isp = isp;
-			im.chan = cmap;
-			im.vbase = base;
+			FCPARAM(isp, cmap)->isp_scratch = base;
 			im.error = 0;
-			bus_dmamap_load(fc->tdmat, fc->tdmap, base, ISP_FC_SCRLEN, imc1, &im, 0);
-			if (im.error) {
-				bus_dmamem_free(fc->tdmat, base, fc->tdmap);
-				bus_dma_tag_destroy(fc->tdmat);
+			if (bus_dmamap_load(isp->isp_osinfo.scdmat, fc->scmap,
+			    base, ISP_FC_SCRLEN, imc, &im, 0) || im.error) {
+				bus_dmamem_free(isp->isp_osinfo.scdmat,
+				    base, fc->scmap);
 				goto bad;
 			}
+			FCPARAM(isp, cmap)->isp_scdma = im.maddr;
 			if (!IS_2100(isp)) {
 				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
 					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1815,25 +1787,52 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	return (0);
 
 bad:
-	while (--cmap >= 0) {
-		struct isp_fc *fc = ISP_FC_PC(isp, cmap);
-		bus_dmamap_unload(fc->tdmat, fc->tdmap);
-		bus_dmamem_free(fc->tdmat, base, fc->tdmap);
-		bus_dma_tag_destroy(fc->tdmat);
-		while (fc->nexus_free_list) {
-			struct isp_nexus *n = fc->nexus_free_list;
-			fc->nexus_free_list = n->next;
-			free(n, M_DEVBUF);
+	if (IS_FC(isp)) {
+		while (--cmap >= 0) {
+			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
+			bus_dmamap_unload(isp->isp_osinfo.scdmat, fc->scmap);
+			bus_dmamem_free(isp->isp_osinfo.scdmat, base, fc->scmap);
+			while (fc->nexus_free_list) {
+				struct isp_nexus *n = fc->nexus_free_list;
+				fc->nexus_free_list = n->next;
+				free(n, M_DEVBUF);
+			}
+		}
+		bus_dma_tag_destroy(isp->isp_osinfo.scdmat);
+	}
+bad1:
+	if (isp->isp_rquest_dma != 0) {
+		bus_dmamap_unload(isp->isp_osinfo.reqdmat,
+		    isp->isp_osinfo.reqmap);
+	}
+	if (isp->isp_rquest != NULL) {
+		bus_dmamem_free(isp->isp_osinfo.reqdmat, isp->isp_rquest,
+		    isp->isp_osinfo.reqmap);
+		bus_dma_tag_destroy(isp->isp_osinfo.reqdmat);
+	}
+	if (isp->isp_result_dma != 0) {
+		bus_dmamap_unload(isp->isp_osinfo.respdmat,
+		    isp->isp_osinfo.respmap);
+	}
+	if (isp->isp_result != NULL) {
+		bus_dmamem_free(isp->isp_osinfo.respdmat, isp->isp_result,
+		    isp->isp_osinfo.respmap);
+		bus_dma_tag_destroy(isp->isp_osinfo.respdmat);
+	}
+#ifdef	ISP_TARGET_MODE
+	if (IS_24XX(isp)) {
+		if (isp->isp_atioq_dma != 0) {
+			bus_dmamap_unload(isp->isp_osinfo.atiodmat,
+			    isp->isp_osinfo.atiomap);
+		}
+		if (isp->isp_atioq != NULL) {
+			bus_dmamem_free(isp->isp_osinfo.reqdmat, isp->isp_atioq,
+			    isp->isp_osinfo.atiomap);
+			bus_dma_tag_destroy(isp->isp_osinfo.atiodmat);
 		}
 	}
-	if (isp->isp_rquest_dma != 0)
-		bus_dmamap_unload(isp->isp_osinfo.cdmat, isp->isp_osinfo.cdmap);
-	bus_dmamem_free(isp->isp_osinfo.cdmat, base, isp->isp_osinfo.cdmap);
-	bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
-	free(isp->isp_xflist, M_DEVBUF);
-#ifdef	ISP_TARGET_MODE
-	free(isp->isp_tgtlist, M_DEVBUF);
 #endif
+	free(isp->isp_xflist, M_DEVBUF);
 	free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 	isp->isp_rquest = NULL;
 	ISP_LOCK(isp);
