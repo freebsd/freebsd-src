@@ -1533,11 +1533,15 @@ devfs_setattr(struct vop_setattr_args *ap)
 		return (EINVAL);
 	}
 
+	error = devfs_populate_vp(vp);
+	if (error != 0)
+		return (error);
+
 	de = vp->v_data;
 	if (vp->v_type == VDIR)
 		de = de->de_dir;
 
-	error = c = 0;
+	c = 0;
 	if (vap->va_uid == (uid_t)VNOVAL)
 		uid = de->de_uid;
 	else
@@ -1550,8 +1554,8 @@ devfs_setattr(struct vop_setattr_args *ap)
 		if ((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
 		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) {
 			error = priv_check(td, PRIV_VFS_CHOWN);
-			if (error)
-				return (error);
+			if (error != 0)
+				goto ret;
 		}
 		de->de_uid = uid;
 		de->de_gid = gid;
@@ -1561,8 +1565,8 @@ devfs_setattr(struct vop_setattr_args *ap)
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if (ap->a_cred->cr_uid != de->de_uid) {
 			error = priv_check(td, PRIV_VFS_ADMIN);
-			if (error)
-				return (error);
+			if (error != 0)
+				goto ret;
 		}
 		de->de_mode = vap->va_mode;
 		c = 1;
@@ -1571,7 +1575,7 @@ devfs_setattr(struct vop_setattr_args *ap)
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		error = vn_utimes_perm(vp, vap, ap->a_cred, td);
 		if (error != 0)
-			return (error);
+			goto ret;
 		if (vap->va_atime.tv_sec != VNOVAL) {
 			if (vp->v_type == VCHR)
 				vp->v_rdev->si_atime = vap->va_atime;
@@ -1593,7 +1597,10 @@ devfs_setattr(struct vop_setattr_args *ap)
 		else
 			vfs_timestamp(&de->de_mtime);
 	}
-	return (0);
+
+ret:
+	sx_xunlock(&VFSTODEVFS(vp->v_mount)->dm_lock);
+	return (error);
 }
 
 #ifdef MAC
