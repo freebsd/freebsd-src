@@ -101,7 +101,8 @@ static char *argstr(char *, int);
 static char *exptilde(char *, int);
 static char *expari(char *);
 static void expbackq(union node *, int, int);
-static int subevalvar(char *, char *, int, int, int, int, int);
+static int subevalvar_trim(char *, int, int, int, int);
+static int subevalvar_misc(char *, const char *, int, int, int);
 static char *evalvar(char *, int);
 static int varisset(const char *, int);
 static void strtodest(const char *, int, int, int);
@@ -521,42 +522,23 @@ recordleft(const char *str, const char *loc, char *startp)
 }
 
 static int
-subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
-  int varflags, int quotes)
+subevalvar_trim(char *p, int strloc, int subtype, int startloc, int quotes)
 {
 	char *startp;
 	char *loc = NULL;
 	char *q;
+	char *str;
 	int c = 0;
 	struct nodelist *saveargbackq = argbackq;
 	int amount;
 
-	argstr(p, (subtype == VSTRIMLEFT || subtype == VSTRIMLEFTMAX ||
-	    subtype == VSTRIMRIGHT || subtype == VSTRIMRIGHTMAX ?
-	    EXP_CASE : 0) | EXP_TILDE);
+	argstr(p, EXP_CASE | EXP_TILDE);
 	STACKSTRNUL(expdest);
 	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
-	if (str == NULL)
-	    str = stackblock() + strloc;
+	str = stackblock() + strloc;
 
 	switch (subtype) {
-	case VSASSIGN:
-		setvar(str, startp, 0);
-		amount = startp - expdest;
-		STADJUST(amount, expdest);
-		varflags &= ~VSNUL;
-		return 1;
-
-	case VSQUESTION:
-		if (*p != CTLENDVAR) {
-			outfmt(out2, "%s\n", startp);
-			error((char *)NULL);
-		}
-		error("%.*s: parameter %snot set", (int)(p - str - 1),
-		      str, (varflags & VSNUL) ? "null or " : "");
-		return 0;
-
 	case VSTRIMLEFT:
 		for (loc = startp; loc < str; loc++) {
 			c = *loc;
@@ -623,6 +605,41 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		}
 		return 0;
 
+
+	default:
+		abort();
+	}
+}
+
+
+static int
+subevalvar_misc(char *p, const char *var, int subtype, int startloc,
+  int varflags)
+{
+	char *startp;
+	struct nodelist *saveargbackq = argbackq;
+	int amount;
+
+	argstr(p, EXP_TILDE);
+	STACKSTRNUL(expdest);
+	argbackq = saveargbackq;
+	startp = stackblock() + startloc;
+
+	switch (subtype) {
+	case VSASSIGN:
+		setvar(var, startp, 0);
+		amount = startp - expdest;
+		STADJUST(amount, expdest);
+		return 1;
+
+	case VSQUESTION:
+		if (*p != CTLENDVAR) {
+			outfmt(out2, "%s\n", startp);
+			error((char *)NULL);
+		}
+		error("%.*s: parameter %snot set", (int)(p - var - 1),
+		      var, (varflags & VSNUL) ? "null or " : "");
+		return 0;
 
 	default:
 		abort();
@@ -760,8 +777,8 @@ again: /* jump here after setting a variable with ${var=text} */
 		 */
 		STPUTC('\0', expdest);
 		patloc = expdest - stackblock();
-		if (subevalvar(p, NULL, patloc, subtype,
-		    startloc, varflags, quotes) == 0) {
+		if (subevalvar_trim(p, patloc, subtype,
+		    startloc, quotes) == 0) {
 			int amount = (expdest - stackblock() - patloc) + 1;
 			STADJUST(-amount, expdest);
 		}
@@ -773,8 +790,8 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar(p, var, 0, subtype, startloc, varflags,
-			    quotes)) {
+			if (subevalvar_misc(p, var, subtype, startloc,
+			    varflags)) {
 				varflags &= ~VSNUL;
 				/*
 				 * Remove any recorded regions beyond
