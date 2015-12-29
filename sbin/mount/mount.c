@@ -485,10 +485,18 @@ ismounted(struct fstab *fs, struct statfs *mntbuf, int mntsize)
 		strlcpy(realfsfile, fs->fs_file, sizeof(realfsfile));
 	}
 
+	/* 
+	 * Consider the filesystem to be mounted if:
+	 * It has the same mountpoint as a mounted filesytem, and
+	 * It has the same type as that same mounted filesystem, and
+	 * It has the same device name as that same mounted filesystem, OR
+	 *     It is a nonremountable filesystem
+	 */
 	for (i = mntsize - 1; i >= 0; --i)
 		if (strcmp(realfsfile, mntbuf[i].f_mntonname) == 0 &&
+		    strcmp(fs->fs_vfstype, mntbuf[i].f_fstypename) == 0 && 
 		    (!isremountable(fs->fs_vfstype) ||
-		     strcmp(fs->fs_spec, mntbuf[i].f_mntfromname) == 0))
+		     (strcmp(fs->fs_spec, mntbuf[i].f_mntfromname) == 0)))
 			return (1);
 	return (0);
 }
@@ -533,7 +541,7 @@ append_arg(struct cpa *sa, char *arg)
 {
 	if (sa->c + 1 == sa->sz) {
 		sa->sz = sa->sz == 0 ? 8 : sa->sz * 2;
-		sa->a = realloc(sa->a, sizeof(sa->a) * sa->sz);
+		sa->a = realloc(sa->a, sizeof(*sa->a) * sa->sz);
 		if (sa->a == NULL)
 			errx(1, "realloc failed");
 	}

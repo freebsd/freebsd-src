@@ -160,7 +160,6 @@ CFLAGS.gcc+=	-mcall-aixdesc
 # For MIPS we also tell gcc to use floating point emulation
 #
 .if ${MACHINE_CPUARCH} == "mips"
-CFLAGS+=	-fno-pic -mno-abicalls -G0 
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
 .endif

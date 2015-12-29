@@ -66,9 +66,12 @@ typedef struct {
 } fstype_t;
 
 static fstype_t fstypes[] = {
-	{ "ffs", ffs_prep_opts,	ffs_parse_opts,	ffs_cleanup_opts, ffs_makefs },
-	{ "cd9660", cd9660_prep_opts, cd9660_parse_opts, cd9660_cleanup_opts,
-	  cd9660_makefs},
+#define ENTRY(name) { \
+	# name, name ## _prep_opts, name ## _parse_opts, \
+	name ## _cleanup_opts, name ## _makefs  \
+}
+	ENTRY(ffs),
+	ENTRY(cd9660),
 	{ .type = NULL	},
 };
 

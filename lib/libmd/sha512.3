@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2014
+.Dd October 17, 2015
 .Dt SHA512 3
 .Os
 .Sh NAME
@@ -19,8 +19,15 @@
 .Nm SHA512_End ,
 .Nm SHA512_File ,
 .Nm SHA512_FileChunk ,
-.Nm SHA512_Data
-.Nd calculate the FIPS 180-2 ``SHA-512'' message digest
+.Nm SHA512_Data ,
+.Nm SHA384_Init ,
+.Nm SHA384_Update ,
+.Nm SHA384_Final ,
+.Nm SHA384_End ,
+.Nm SHA384_File ,
+.Nm SHA384_FileChunk ,
+.Nm SHA384_Data
+.Nd calculate the FIPS 180-4 ``SHA-512'' family of message digests
 .Sh LIBRARY
 .Lb libmd
 .Sh SYNOPSIS
@@ -40,6 +47,20 @@
 .Fn SHA512_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn SHA512_Data "const unsigned char *data" "unsigned int len" "char *buf"
+.Ft void
+.Fn SHA384_Init "SHA384_CTX *context"
+.Ft void
+.Fn SHA384_Update "SHA384_CTX *context" "const unsigned char *data" "size_t len"
+.Ft void
+.Fn SHA384_Final "unsigned char digest[48]" "SHA384_CTX *context"
+.Ft "char *"
+.Fn SHA384_End "SHA384_CTX *context" "char *buf"
+.Ft "char *"
+.Fn SHA384_File "const char *filename" "char *buf"
+.Ft "char *"
+.Fn SHA384_FileChunk "const char *filename" "char *buf" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn SHA384_Data "const unsigned char *data" "unsigned int len" "char *buf"
 .Sh DESCRIPTION
 The
 .Li SHA512_
@@ -119,6 +140,21 @@ after use.
 If the
 .Fa buf
 argument is non-null it must point to at least 65 characters of buffer space.
+.Pp
+The
+.Li SHA384_
+functions are identical to the
+.Li SHA512_
+functions except they use a different initial hash value and the output is
+truncated to 384 bits.
+.Pp
+.Fn SHA384_End
+is a wrapper for
+.Fn SHA384_Final
+which converts the return value to a 49-character
+(including the terminating '\e0')
+.Tn ASCII
+string which represents the 384 bits in hexadecimal.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,

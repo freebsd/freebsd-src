@@ -86,7 +86,7 @@ NANO_CFG_BASE=$(pwd)
 NANO_CFG_BASE=$(realpath ${NANO_CFG_BASE}/..)
 NANO_SRC=$(realpath ${NANO_CFG_BASE}/../../..)
 #### XXX share obj 
-NANO_OBJ=$(realpath ${NANO_SRC}/../$NANO_NAME/obj)
+NANO_OBJ=${NANO_SRC}/../$NANO_NAME/obj
 # Where cust_pkg() finds packages to install
 #XXX: Is this the right place?
 #NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
@@ -100,21 +100,22 @@ unset MAKEOBJDIRPREFIX
 NANO_PORTS=${NANO_PORTS:-/usr/ports}
 
 mkdir -p ${NANO_OBJ}
+NANO_OBJ=$(realpath ${NANO_OBJ})
+
+NANO_FAT_DIR=${NANO_OBJ}/_.fat
 
 customize_cmd cust_allow_ssh_root
 
-add_etc_make_conf()
-{
+add_etc_make_conf ( ) (
 	touch ${NANO_WORLDDIR}/etc/make.conf
-}
+)
 customize_cmd add_etc_make_conf
 
-cust_install_machine_files()
-{
+cust_install_machine_files ( ) (
 	echo "cd ${NANO_CFG_BASE}/Files"
 	cd ${NANO_CFG_BASE}/Files
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -dumpv ${NANO_WORLDDIR}
-}
+)
 customize_cmd cust_install_files
 customize_cmd cust_install_machine_files 
 
@@ -178,8 +179,7 @@ WITHOUT_RCS=true
 NANO_PACKAGE_ONLY=1
 
 # install a package from a pre-built binary
-do_add_pkg ()
-{
+do_add_pkg ( ) (
 	# Need to create ${NANO_OBJ}/ports in this add_pkg_${port} function
 	set -x
 	mkdir -p ${NANO_OBJ}/ports/distfiles
@@ -197,11 +197,10 @@ do_add_pkg ()
 	rmdir ${NANO_WORLDDIR}/usr/ports/distfiles
 	rmdir ${NANO_WORLDDIR}/usr/ports
 	set +x
-}
+)
 
 # Build a port (with the side effect of creating a package)
-do_add_port ()
-{
+do_add_port ( ) (
 	local port_path
 	port_path=$1
 	shift
@@ -242,11 +241,12 @@ do_add_port ()
 	umount ${NANO_WORLDDIR}/usr/ports
 	umount ${NANO_WORLDDIR}/usr/src
 	set +x
-}
+)
 
 # Need to check if this function works with cross-compiling architecture!!!!
 # Recursive complex fonction: Generate one function for each ports
-add_port () {
+# writes shell functions called later, so don't do in subshell.
+add_port ( ) {
     local port_path=$1
     local port=`echo $1 | sed -e 's/\//_/'`
     shift
@@ -259,7 +259,7 @@ add_port () {
     if [ -f ${NANO_OBJ}/ports/packages/All/${PKG_NAME}.txz ]; then
 	# Pkg file found: Generate add_pkg_NAME function
 	eval "
-	    add_pkg_${port} () {
+	    add_pkg_${port} ( ) {
 	        do_add_pkg ${PKG_NAME}
 	    }
             customize_cmd add_pkg_${port}
@@ -267,7 +267,7 @@ add_port () {
     else
 	# No pkg file: Generate add_port_NAME function
         eval "
-            add_port_${port} () {
+            add_port_${port} ( ) {
 	        do_add_port ${port_path} $*
 	    }
 	    customize_cmd add_port_${port}
@@ -297,12 +297,15 @@ create_diskimage_mbr ( ) (
 	done
 
 	# Populate the FAT partition, if needed
-	if [-n "${NANO_SLICE_FAT}" ]; then
+	if [ -n "${NANO_SLICE_FAT}" ]; then
 		echo Creating MSDOS partition for kernel
 		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F 16 -L ${NANO_NAME} \
 			${NANO_OBJ}/_.${NANO_SLICE_FAT}
-		# Need to copy files from ${NANO_FATDIR} with mtools, or use
-		# makefs -t msdos once that's supported
+		if [ -d ${NANO_FAT_DIR} ]; then
+			# Need to copy files from ${NANO_FATDIR} with mtools, or use
+			# makefs -t msdos once that's supported
+			mcopy -i ${NANO_OBJ}/_.${NANO_SLICE_FAT} ${NANO_FAT_DIR}/* ::
+		fi
 	fi
 
 	# Populate the Powerpc boot image, if needed
@@ -323,7 +326,7 @@ create_diskimage_mbr ( ) (
 	if [ -z "${NANO_CFGDIR}" ]; then
 		echo "Faking cfg dir, it's empty"
 		NANO_CFGDIR=${NANO_OBJ}/_.empty
-		mkdir ${NANO_CFGDIR}
+		mkdir -p ${NANO_CFGDIR}
 	fi
 	# XXX -F cfg-mtree
 	eval "${NANO_MAKEFS_UFS}" -s ${NANO_SLICE_CFG_SIZE} \
@@ -371,8 +374,7 @@ create_diskimage_mbr ( ) (
 	) > ${NANO_OBJ}/_.di 2>&1
 )
 
-die()
-{
+die( ) {
 	echo "$*"
 	exit 1
 }
@@ -429,19 +431,35 @@ $var=$val"
 	fi
 done
 
-save_build ( )
-{
+typical_embedded ( ) (
+	# Need to create rc.conf before we copy over /etc to /conf/base/etc
+	# so now's a good time.
+
+	local rc=${NANO_WORLDDIR}/etc/rc.conf
+
+	echo "hostname=nanobsd-${NANO_NAME}" > $rc
+	echo "growfs_enable=YES" >> $rc
+	echo "growfs_type=nanobsd-pingpong" >> $rc
+	echo "ntpdate_enable=YES" >> $rc
+	echo "ifconfig_DEFAULT=DHCP" >> $rc
+	echo "ntpdate_hosts='0.freebsd.pool.ntp.org 1.freebsd.pool.ntp.org'" >> $rc
+	# Make sure that firstboot scripts run so growfs works.
+	# Note: still some issues remvoing this XXX
+	touch ${NANO_WORLDDIR}/firstboot
+)
+customize_cmd typical_embedded
+
+save_build ( ) (
 	VERSION_FILE=${NANO_WORLDDIR}/etc/version
 	if [ "${SVNREVISION}" = "${REVISION}" ]; then
 		echo "${NANO_NAME}" > "${VERSION_FILE}"
 	else
 		echo "${NANO_NAME} (${SVNREVISION})" > "${VERSION_FILE}"
 	fi
-}
+)
 customize_cmd save_build
 
-shrink_md_fbsize()
-{
+shrink_md_fbsize ( ) (
 	# We have a lot of little files on our memory disks. Let's decrease
 	# the block and frag size to fit more little files on them (this
 	# halves our space requirement by ~50% on /etc and /var on 8.x --
@@ -449,13 +467,48 @@ shrink_md_fbsize()
 	# are 4 times larger).
 	sed -i '' -e 's,-S -i 4096,-S -i 4096 -b 4096 -f 512,' \
 		${NANO_WORLDDIR}/etc/rc.initdiskless
-}
+)
 customize_cmd shrink_md_fbsize
 
 customize_cmd cust_comconsole
 
-product_custom()
-{
+dos_boot_part ( ) (
+	local d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
+	local f=${NANO_FAT_DIR}
+
+	# For now, just copy all the files. However, for iMX6 and Allwinner,
+	# we'll need to put a special boot block at a fixed location
+	# on the disk as well.
+	rm -rf $f
+	mkdir $f
+	chdir $f
+	cp ${d}/* .
+
+	# Also copy ubldr. u-boot will load it and it will load the kernel
+	# from the ufs partition
+	cp ${NANO_WORLDDIR}/boot/ubldr .
+	cp ${NANO_WORLDDIR}/boot/ubldr.bin .
+
+	# We have to touch the saveenv file
+	touch uEnv.txt
+
+	# Now we need to copy over dtb files from the build.
+	cp ${NANO_WORLDDIR}/boot/dtb/*.dtb .
+)
+
+if [ -n "$NANO_BOOT_PKG" ]; then
+	if [ ! -d ${d} ]; then
+		echo ${NANO_BOOT_PKG} not installed. Sadly, it must be.
+		exit 1
+	fi
+	if [ ! -x /usr/local/bin/mcopy ]; then
+		echo mtools not installed. Sadly, we gotta have it.
+		exit 1
+	fi
+	customize_cmd dos_boot_part
+fi
+
+product_custom ( ) (
 	# not quie ready to tweak these in nopriv build
 	if [ -z ${NANO_NOPRIV_BUILD} ]; then
 		# Last second tweaks -- generally not needed
@@ -467,7 +520,7 @@ product_custom()
 		chown root:wheel ${NANO_WORLDDIR}/
 		chown root:wheel ${NANO_WORLDDIR}/usr
 	fi
-}
+)
 late_customize_cmd product_custom
 
 #
@@ -478,7 +531,8 @@ late_customize_cmd product_custom
 # For each architecture, we have a standard set of settings to the extent
 # it makes sense. For architectures that don't have a standard environment
 # cfg files need to either define a lot of settings, provide their own disk
-# imaging, or set which of the variants we support.
+# imaging, or set which of the variants we support. No subshells, since we
+# set global variables
 #
 
 std_aarch64 ( ) {

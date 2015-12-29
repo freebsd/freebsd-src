@@ -130,7 +130,7 @@ CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
 .if ${MACHINE_CPUARCH} == mips
-CFLAGS+=	-mlong-calls
+CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
 .endif
 
 .if defined(DEBUG) || defined(DEBUG_FLAGS)

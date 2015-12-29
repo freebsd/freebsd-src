@@ -76,8 +76,12 @@ vmbus_msg_swintr(void *arg)
 {
 	int 			cpu;
 	void*			page_addr;
+	hv_vmbus_channel_msg_header	 *hdr;
+	hv_vmbus_channel_msg_table_entry *entry;
+	hv_vmbus_channel_msg_type msg_type;
 	hv_vmbus_message*	msg;
 	hv_vmbus_message*	copied;
+	static bool warned	= false;
 
 	cpu = (int)(long)arg;
 	KASSERT(cpu <= mp_maxid, ("VMBUS: vmbus_msg_swintr: "
@@ -87,9 +91,24 @@ vmbus_msg_swintr(void *arg)
 	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
 
 	for (;;) {
-		if (msg->header.message_type == HV_MESSAGE_TYPE_NONE) {
+		if (msg->header.message_type == HV_MESSAGE_TYPE_NONE)
 			break; /* no message */
-		} else {
+
+		hdr = (hv_vmbus_channel_msg_header *)msg->u.payload;
+		msg_type = hdr->message_type;
+
+		if (msg_type >= HV_CHANNEL_MESSAGE_COUNT && !warned) {
+			warned = true;
+			printf("VMBUS: unknown message type = %d\n", msg_type);
+			goto handled;
+		}
+
+		entry = &g_channel_message_table[msg_type];
+
+		if (entry->handler_no_sleep)
+			entry->messageHandler(hdr);
+		else {
+
 			copied = malloc(sizeof(hv_vmbus_message),
 					M_DEVBUF, M_NOWAIT);
 			KASSERT(copied != NULL,
@@ -97,11 +116,13 @@ vmbus_msg_swintr(void *arg)
 					" hv_vmbus_message!"));
 			if (copied == NULL)
 				continue;
+
 			memcpy(copied, msg, sizeof(hv_vmbus_message));
 			hv_queue_work_item(hv_vmbus_g_connection.work_queue,
-			hv_vmbus_on_channel_message, copied);
-	    }
-
+					   hv_vmbus_on_channel_message,
+					   copied);
+		}
+handled:
 	    msg->header.message_type = HV_MESSAGE_TYPE_NONE;
 
 	    /*

@@ -431,6 +431,13 @@ zone_log_warning(uma_zone_t zone)
 		printf("[zone: %s] %s\n", zone->uz_name, zone->uz_warning);
 }
 
+static inline void
+zone_maxaction(uma_zone_t zone)
+{
+	if (zone->uz_maxaction)
+		(*zone->uz_maxaction)(zone);
+}
+
 static void
 zone_foreach_keg(uma_zone_t zone, void (*kegfn)(uma_keg_t))
 {
@@ -1578,6 +1585,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_flags = 0;
 	zone->uz_warning = NULL;
 	timevalclear(&zone->uz_ratecheck);
+	zone->uz_maxaction = NULL;
 	keg = arg->keg;
 
 	ZONE_LOCK_INIT(zone, (arg->flags & UMA_ZONE_MTXCLASS));
@@ -2382,6 +2390,7 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int flags)
 			if ((zone->uz_flags & UMA_ZFLAG_MULTI) == 0) {
 				zone->uz_flags |= UMA_ZFLAG_FULL;
 				zone_log_warning(zone);
+				zone_maxaction(zone);
 			}
 			if (flags & M_NOWAIT)
 				break;
@@ -2501,6 +2510,7 @@ zone_fetch_slab_multi(uma_zone_t zone, uma_keg_t last, int rflags)
 			zone->uz_flags |= UMA_ZFLAG_FULL;
 			zone->uz_sleeps++;
 			zone_log_warning(zone);
+			zone_maxaction(zone);
 			msleep(zone, zone->uz_lockptr, PVM,
 			    "zonelimit", hz/100);
 			zone->uz_flags &= ~UMA_ZFLAG_FULL;
@@ -3003,6 +3013,16 @@ uma_zone_set_warning(uma_zone_t zone, const char *warning)
 
 	ZONE_LOCK(zone);
 	zone->uz_warning = warning;
+	ZONE_UNLOCK(zone);
+}
+
+/* See uma.h */
+void
+uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t maxaction)
+{
+
+	ZONE_LOCK(zone);
+	zone->uz_maxaction = maxaction;
 	ZONE_UNLOCK(zone);
 }
 

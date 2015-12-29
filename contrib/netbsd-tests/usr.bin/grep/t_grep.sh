@@ -43,7 +43,20 @@ binary_head()
 }
 binary_body()
 {
+	# Begin FreeBSD
+	#
+	# Generate stable output instead of depending on uname to match the
+	# branded OS name of /bin/sh
+	if true; then
+	dd if=/dev/zero count=1 of=test.file
+	echo -n "foobar" >> test.file
+	atf_check -o file:"$(atf_get_srcdir)/d_binary.out" grep foobar test.file
+	else
+	# End FreeBSD
 	atf_check -o file:"$(atf_get_srcdir)/d_binary.out" grep $(uname) /bin/sh
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 }
 
 atf_test_case recurse

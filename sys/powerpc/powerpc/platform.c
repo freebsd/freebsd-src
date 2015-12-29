@@ -86,8 +86,8 @@ static void
 memr_merge(struct mem_region *from, struct mem_region *to)
 {
 	vm_offset_t end;
-	end = ulmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
-	to->mr_start = ulmin(from->mr_start, to->mr_start);
+	end = uqmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
+	to->mr_start = uqmin(from->mr_start, to->mr_start);
 	to->mr_size = end - to->mr_start;
 }
 

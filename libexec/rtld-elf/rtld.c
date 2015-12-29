@@ -204,6 +204,8 @@ extern Elf_Dyn _DYNAMIC;
 #define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
 #endif
 
+#define _LD(x)	LD_ x
+
 int dlclose(void *) __exported;
 char *dlerror(void) __exported;
 void *dlopen(const char *, int) __exported;
@@ -417,7 +419,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     trust = !issetugid();
 
-    ld_bind_now = getenv(LD_ "BIND_NOW");
+    ld_bind_now = getenv(_LD("BIND_NOW"));
     /* 
      * If the process is tainted, then we un-set the dangerous environment
      * variables.  The process will be marked as tainted until setuid(2)
@@ -425,24 +427,24 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * future processes to honor the potentially un-safe variables.
      */
     if (!trust) {
-        if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "LIBMAP") ||
-	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBRARY_PATH_FDS") ||
-	    unsetenv(LD_ "LIBMAP_DISABLE") ||
-	    unsetenv(LD_ "DEBUG") || unsetenv(LD_ "ELF_HINTS_PATH") ||
-	    unsetenv(LD_ "LOADFLTR") || unsetenv(LD_ "LIBRARY_PATH_RPATH")) {
+	if (unsetenv(_LD("PRELOAD")) || unsetenv(_LD("LIBMAP")) ||
+	    unsetenv(_LD("LIBRARY_PATH")) || unsetenv(_LD("LIBRARY_PATH_FDS")) ||
+	    unsetenv(_LD("LIBMAP_DISABLE")) ||
+	    unsetenv(_LD("DEBUG")) || unsetenv(_LD("ELF_HINTS_PATH")) ||
+	    unsetenv(_LD("LOADFLTR")) || unsetenv(_LD("LIBRARY_PATH_RPATH"))) {
 		_rtld_error("environment corrupt; aborting");
 		rtld_die();
 	}
     }
-    ld_debug = getenv(LD_ "DEBUG");
-    libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
-    libmap_override = getenv(LD_ "LIBMAP");
-    ld_library_path = getenv(LD_ "LIBRARY_PATH");
-    ld_library_dirs = getenv(LD_ "LIBRARY_PATH_FDS");
-    ld_preload = getenv(LD_ "PRELOAD");
-    ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
-    ld_loadfltr = getenv(LD_ "LOADFLTR") != NULL;
-    library_path_rpath = getenv(LD_ "LIBRARY_PATH_RPATH");
+    ld_debug = getenv(_LD("DEBUG"));
+    libmap_disable = getenv(_LD("LIBMAP_DISABLE")) != NULL;
+    libmap_override = getenv(_LD("LIBMAP"));
+    ld_library_path = getenv(_LD("LIBRARY_PATH"));
+    ld_library_dirs = getenv(_LD("LIBRARY_PATH_FDS"));
+    ld_preload = getenv(_LD("PRELOAD"));
+    ld_elf_hints_path = getenv(_LD("ELF_HINTS_PATH"));
+    ld_loadfltr = getenv(_LD("LOADFLTR")) != NULL;
+    library_path_rpath = getenv(_LD("LIBRARY_PATH_RPATH"));
     if (library_path_rpath != NULL) {
 	    if (library_path_rpath[0] == 'y' ||
 		library_path_rpath[0] == 'Y' ||
@@ -454,8 +456,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
 	(ld_library_path != NULL) || (ld_preload != NULL) ||
 	(ld_elf_hints_path != NULL) || ld_loadfltr;
-    ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
-    ld_utrace = getenv(LD_ "UTRACE");
+    ld_tracing = getenv(_LD("TRACE_LOADED_OBJECTS"));
+    ld_utrace = getenv(_LD("UTRACE"));
 
     if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
 	ld_elf_hints_path = ld_elf_hints_default;
@@ -592,7 +594,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	exit(0);
     }
 
-    if (getenv(LD_ "DUMP_REL_PRE") != NULL) {
+    if (getenv(_LD("DUMP_REL_PRE")) != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -620,7 +622,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (do_copy_relocations(obj_main) == -1)
 	rtld_die();
 
-    if (getenv(LD_ "DUMP_REL_POST") != NULL) {
+    if (getenv(_LD("DUMP_REL_POST")) != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -1126,7 +1128,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 #ifndef __mips__
 	case DT_DEBUG:
-	    /* XXX - not implemented yet */
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
@@ -1362,22 +1363,22 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 		if (note->n_namesz != sizeof(NOTE_FREEBSD_VENDOR) ||
 		    note->n_descsz != sizeof(int32_t))
 			continue;
-		if (note->n_type != ABI_NOTETYPE &&
-		    note->n_type != CRT_NOINIT_NOTETYPE)
+		if (note->n_type != NT_FREEBSD_ABI_TAG &&
+		    note->n_type != NT_FREEBSD_NOINIT_TAG)
 			continue;
 		note_name = (const char *)(note + 1);
 		if (strncmp(NOTE_FREEBSD_VENDOR, note_name,
 		    sizeof(NOTE_FREEBSD_VENDOR)) != 0)
 			continue;
 		switch (note->n_type) {
-		case ABI_NOTETYPE:
+		case NT_FREEBSD_ABI_TAG:
 			/* FreeBSD osrel note */
 			p = (uintptr_t)(note + 1);
 			p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
 			obj->osrel = *(const int32_t *)(p);
 			dbg("note osrel %d", obj->osrel);
 			break;
-		case CRT_NOINIT_NOTETYPE:
+		case NT_FREEBSD_NOINIT_TAG:
 			/* FreeBSD 'crt does not call init' note */
 			obj->crt_no_init = true;
 			dbg("note crt_no_init");
@@ -4178,16 +4179,16 @@ trace_loaded_objects(Obj_Entry *obj)
     char	*fmt1, *fmt2, *fmt, *main_local, *list_containers;
     int		c;
 
-    if ((main_local = getenv(LD_ "TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
+    if ((main_local = getenv(_LD("TRACE_LOADED_OBJECTS_PROGNAME"))) == NULL)
 	main_local = "";
 
-    if ((fmt1 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT1")) == NULL)
+    if ((fmt1 = getenv(_LD("TRACE_LOADED_OBJECTS_FMT1"))) == NULL)
 	fmt1 = "\t%o => %p (%x)\n";
 
-    if ((fmt2 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT2")) == NULL)
+    if ((fmt2 = getenv(_LD("TRACE_LOADED_OBJECTS_FMT2"))) == NULL)
 	fmt2 = "\t%o (%x)\n";
 
-    list_containers = getenv(LD_ "TRACE_LOADED_OBJECTS_ALL");
+    list_containers = getenv(_LD("TRACE_LOADED_OBJECTS_ALL"));
 
     for (; obj; obj = obj->next) {
 	Needed_Entry		*needed;
@@ -4396,7 +4397,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 }
 
 #if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
-    defined(__powerpc__)
+    defined(__powerpc__) || defined(__riscv__)
 
 /*
  * Allocate Static TLS using the Variant I method.

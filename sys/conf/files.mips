@@ -30,6 +30,7 @@ mips/mips/minidump_machdep.c		standard
 mips/mips/mp_machdep.c			optional	smp
 mips/mips/mpboot.S			optional	smp
 mips/mips/nexus.c			standard
+mips/mips/ofw_machdep.c			optional	fdt
 mips/mips/pm_machdep.c			standard
 mips/mips/pmap.c			standard
 mips/mips/ptrace_machdep.c		standard

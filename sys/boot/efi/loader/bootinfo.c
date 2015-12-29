@@ -234,44 +234,6 @@ bi_copymodules(vm_offset_t addr)
 }
 
 static int
-bi_add_efi_data_and_exit(struct preloaded_file *kfp,
-    struct efi_map_header *efihdr, size_t efisz, EFI_MEMORY_DESCRIPTOR *mm,
-    UINTN sz)
-{
-	UINTN efi_mapkey;
-	UINTN mmsz;
-	UINT32 mmver;
-	EFI_STATUS status;
-	UINTN retry;
-
-	/*
-	 * It is possible that the first call to ExitBootServices may change
-	 * the map key. Fetch a new map key and retry ExitBootServices in that
-	 * case.
-	 */
-	for (retry = 2; retry > 0; retry--) {
-		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
-		if (EFI_ERROR(status)) {
-			printf("%s: GetMemoryMap error %lu\n", __func__,
-			    (unsigned long)(status & ~EFI_ERROR_MASK));
-			return (EINVAL);
-		}
-		status = BS->ExitBootServices(IH, efi_mapkey);
-		if (EFI_ERROR(status) == 0) {
-			efihdr->memory_size = sz;
-			efihdr->descriptor_size = mmsz;
-			efihdr->descriptor_version = mmver;
-			file_addmetadata(kfp, MODINFOMD_EFI_MAP, efisz + sz,
-			    efihdr);
-			return (0);
-		}
-	}
-	printf("ExitBootServices error %lu\n",
-	    (unsigned long)(status & ~EFI_ERROR_MASK));
-	return (EINVAL);
-}
-
-static int
 bi_load_efi_data(struct preloaded_file *kfp)
 {
 	EFI_MEMORY_DESCRIPTOR *mm;
@@ -279,7 +241,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	EFI_STATUS status;
 	size_t efisz;
 	UINTN efi_mapkey;
-	UINTN mmsz, pages, sz;
+	UINTN mmsz, pages, retry, sz;
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
 
@@ -304,37 +266,63 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
 
 	/*
-	 * Allocate enough pages to hold the bootinfo block and the memory
-	 * map EFI will return to us. The memory map has an unknown size,
-	 * so we have to determine that first. Note that the AllocatePages
-	 * call can itself modify the memory map, so we have to take that
-	 * into account as well. The changes to the memory map are caused
-	 * by splitting a range of free memory into two (AFAICT), so that
-	 * one is marked as being loader data.
+	 * It is possible that the first call to ExitBootServices may change
+	 * the map key. Fetch a new map key and retry ExitBootServices in that
+	 * case.
 	 */
-	sz = 0;
-	BS->GetMemoryMap(&sz, NULL, &efi_mapkey, &mmsz, &mmver);
-	sz += mmsz;
-	sz = (sz + 0xf) & ~0xf;
-	pages = EFI_SIZE_TO_PAGES(sz + efisz);
-	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, pages,
-	    &addr);
-	if (EFI_ERROR(status)) {
-		printf("%s: AllocatePages error %lu\n", __func__,
-		    (unsigned long)(status & ~EFI_ERROR_MASK));
-		return (ENOMEM);
+	for (retry = 2; retry > 0; retry--) {
+		/*
+		 * Allocate enough pages to hold the bootinfo block and the
+		 * memory map EFI will return to us. The memory map has an
+		 * unknown size, so we have to determine that first. Note that
+		 * the AllocatePages call can itself modify the memory map, so
+		 * we have to take that into account as well. The changes to
+		 * the memory map are caused by splitting a range of free
+		 * memory into two (AFAICT), so that one is marked as being
+		 * loader data.
+		 */
+		sz = 0;
+		BS->GetMemoryMap(&sz, NULL, &efi_mapkey, &mmsz, &mmver);
+		sz += mmsz;
+		sz = (sz + 0xf) & ~0xf;
+		pages = EFI_SIZE_TO_PAGES(sz + efisz);
+		status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
+		     pages, &addr);
+		if (EFI_ERROR(status)) {
+			printf("%s: AllocatePages error %lu\n", __func__,
+			    (unsigned long)(status & ~EFI_ERROR_MASK));
+			return (ENOMEM);
+		}
+
+		/*
+		 * Read the memory map and stash it after bootinfo. Align the
+		 * memory map on a 16-byte boundary (the bootinfo block is page
+		 * aligned).
+		 */
+		efihdr = (struct efi_map_header *)addr;
+		mm = (void *)((uint8_t *)efihdr + efisz);
+		sz = (EFI_PAGE_SIZE * pages) - efisz;
+
+		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
+		if (EFI_ERROR(status)) {
+			printf("%s: GetMemoryMap error %lu\n", __func__,
+			    (unsigned long)(status & ~EFI_ERROR_MASK));
+			return (EINVAL);
+		}
+		status = BS->ExitBootServices(IH, efi_mapkey);
+		if (EFI_ERROR(status) == 0) {
+			efihdr->memory_size = sz;
+			efihdr->descriptor_size = mmsz;
+			efihdr->descriptor_version = mmver;
+			file_addmetadata(kfp, MODINFOMD_EFI_MAP, efisz + sz,
+			    efihdr);
+			return (0);
+		}
+		BS->FreePages(addr, pages);
 	}
-
-	/*
-	 * Read the memory map and stash it after bootinfo. Align the
-	 * memory map on a 16-byte boundary (the bootinfo block is page
-	 * aligned).
-	 */
-	efihdr = (struct efi_map_header *)addr;
-	mm = (void *)((uint8_t *)efihdr + efisz);
-	sz = (EFI_PAGE_SIZE * pages) - efisz;
-
-	return (bi_add_efi_data_and_exit(kfp, efihdr, efisz, mm, sz));
+	printf("ExitBootServices error %lu\n",
+	    (unsigned long)(status & ~EFI_ERROR_MASK));
+	return (EINVAL);
 }
 
 /*
