@@ -2079,6 +2079,7 @@ struct sf_io {
 	int		npages;
 	struct file	*sock_fp;
 	struct mbuf	*m;
+	vm_pindex_t	last_wired;
 	vm_page_t	pa[];
 };
 
@@ -2088,12 +2089,15 @@ sf_iodone(void *arg, vm_page_t *pg, int count, int error)
 	struct sf_io *sfio = arg;
 	struct socket *so;
 
-	if (pg) {
-		for (int i = 0; i < count; i++)
+	for (int i = 0; i < count; i++) {
+		if (pg[i]->pindex <= sfio->last_wired)
 			vm_page_xunbusy(pg[i]);
-		if (error)
-			sfio->error = error;
+		else
+			vm_page_readahead_finish(pg[i]);
 	}
+
+	if (error)
+		sfio->error = error;
 
 	if (!refcount_release(&sfio->nios))
 		return;
@@ -2159,6 +2163,9 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 			break;
 		}
 	}
+
+	if (npages > 0)
+		sfio->last_wired = pa[npages - 1]->pindex;
 
 	for (int i = 0; i < npages;) {
 		int j, a, count, rv;
