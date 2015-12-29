@@ -5800,7 +5800,7 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 	if (globals->use_rel)
 	  {
 	    addend = ((insn >> 4) & 0xf000) | (insn & 0xfff);
-	    signed_addend = (addend ^ 0x10000) - 0x10000;
+	    signed_addend = (addend ^ 0x8000) - 0x8000;
 	  }
 
 	value += signed_addend;
