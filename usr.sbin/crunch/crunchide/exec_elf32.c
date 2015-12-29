@@ -183,6 +183,7 @@ ELFNAMEEND(check)(int fd, const char *fn)
 #endif
 	case EM_AARCH64: break;
 	case EM_ARM: break;
+	case EM_IA_64: break;
 	case EM_MIPS: break;
 	case /* EM_MIPS_RS3_LE */ EM_MIPS_RS4_BE: break;
 	case EM_PPC: break;
