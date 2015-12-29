@@ -453,6 +453,7 @@ set_nameservers(struct ctx *ctx, const char *respath, int ns, ...)
 			free(ctx->ns[i]);
 		}
 		free(ctx->ns);
+		ctx->ns = NULL;
 	}
 
 	fd = open(respath, O_RDWR | O_CREAT | O_NOFOLLOW, 0666);
