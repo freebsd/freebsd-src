@@ -541,7 +541,7 @@ append_arg(struct cpa *sa, char *arg)
 {
 	if (sa->c + 1 == sa->sz) {
 		sa->sz = sa->sz == 0 ? 8 : sa->sz * 2;
-		sa->a = realloc(sa->a, sizeof(sa->a) * sa->sz);
+		sa->a = realloc(sa->a, sizeof(*sa->a) * sa->sz);
 		if (sa->a == NULL)
 			errx(1, "realloc failed");
 	}
