@@ -48,10 +48,11 @@ for n in `seq 1 $last_testcase`; do
 		todomsg=" # TODO: racy testcase (doesn't handle EINTR properly)"
 	fi
 
-	$(dirname $0)/flock_helper . $n | grep -q SUCCEED
-	if [ $? -eq 0 ]; then
+	output=$($(dirname $0)/flock_helper . $n)
+	if echo "$output" | grep -q SUCCEED; then
 		echo "ok $n$todomsg"
 	else
 		echo "not ok $n$todomsg"
+		echo "$output" >&2
 	fi
 done
