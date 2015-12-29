@@ -919,9 +919,10 @@ findpcb:
 	 */
 	if (inp->inp_ip_minttl != 0) {
 #ifdef INET6
-		if (isipv6 && inp->inp_ip_minttl > ip6->ip6_hlim)
-			goto dropunlock;
-		else
+		if (isipv6) {
+			if (inp->inp_ip_minttl > ip6->ip6_hlim)
+				goto dropunlock;
+		} else
 #endif
 		if (inp->inp_ip_minttl > ip->ip_ttl)
 			goto dropunlock;
