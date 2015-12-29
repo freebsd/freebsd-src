@@ -86,7 +86,7 @@ class checker
 	 * Method for checking that a node is valid.  The root class version
 	 * does nothing, subclasses should override this.
 	 */
-	virtual bool check_node(device_tree *tree, const node_ptr &n)
+	virtual bool check_node(device_tree *, const node_ptr &)
 	{
 		return true;
 	}
@@ -94,7 +94,7 @@ class checker
 	 * Method for checking that a property is valid.  The root class
 	 * version does nothing, subclasses should override this.
 	 */
-	virtual bool check_property(device_tree *tree, const node_ptr &n, property_ptr p)
+	virtual bool check_property(device_tree *, const node_ptr &, property_ptr )
 	{
 		return true;
 	}
@@ -160,7 +160,7 @@ struct property_type_checker <property_value::EMPTY> : public property_checker
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, const node_ptr &n, property_ptr p)
+	virtual bool check(device_tree *, const node_ptr &, property_ptr p)
 	{
 		return p->begin() == p->end();
 	}
@@ -175,7 +175,7 @@ struct property_type_checker <property_value::STRING> : public property_checker
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, const node_ptr &n, property_ptr p)
+	virtual bool check(device_tree *, const node_ptr &, property_ptr p)
 	{
 		return (p->begin() + 1 == p->end()) && p->begin()->is_string();
 	}
@@ -190,7 +190,7 @@ struct property_type_checker <property_value::STRING_LIST> :
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, const node_ptr &n, property_ptr p)
+	virtual bool check(device_tree *, const node_ptr &, property_ptr p)
 	{
 		for (property::value_iterator i=p->begin(),e=p->end() ; i!=e ;
 		     ++i)
@@ -213,7 +213,7 @@ struct property_type_checker <property_value::PHANDLE> : public property_checker
 {
 	property_type_checker(const char* name, string property_name) : 
 		property_checker(name, property_name) {}
-	virtual bool check(device_tree *tree, const node_ptr &n, property_ptr p)
+	virtual bool check(device_tree *tree, const node_ptr &, property_ptr p)
 	{
 		return (p->begin() + 1 == p->end()) && 
 			(tree->referenced_node(*p->begin()) != 0);
