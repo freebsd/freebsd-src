@@ -64,7 +64,6 @@ static puc_config_f puc_config_timedia;
 static puc_config_f puc_config_titan;
 
 const struct puc_cfg puc_pci_devices[] = {
-
 	{   0x0009, 0x7168, 0xffff, 0,
 	    "Sunix SUN1889",
 	    DEFAULT_RCLK * 8,
@@ -177,6 +176,55 @@ const struct puc_cfg puc_pci_devices[] = {
 	    DEFAULT_RCLK,
 	    PUC_PORT_8S, 0x14, -1, -1,
 	    .config_function = puc_config_amc
+	},
+
+	/*
+	 * The following members of the Digi International Neo series are
+	 * based on Exar PCI chips, f. e. the 8 port variants on XR17V258IV.
+	 * Accordingly, the PCIe versions of these cards incorporate a PLX
+	 * PCIe-PCI-bridge.
+	 */
+
+	{   0x114f, 0x00b0, 0xffff, 0,
+	    "Digi Neo PCI 4 Port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
+	{   0x114f, 0x00b1, 0xffff, 0,
+	    "Digi Neo PCI 8 Port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
+	{   0x114f, 0x00f0, 0xffff, 0,
+	    "Digi Neo PCIe 8 Port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
+	{   0x114f, 0x00f1, 0xffff, 0,
+	    "Digi Neo PCIe 4 Port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
+	{   0x114f, 0x00f2, 0xffff, 0,
+	    "Digi Neo PCIe 4 Port RJ45",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
+	},
+
+	{   0x114f, 0x00f3, 0xffff, 0,
+	    "Digi Neo PCIe 8 Port RJ45",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
 	},
 
 	{   0x11fe, 0x8010, 0xffff, 0,
@@ -1208,9 +1256,10 @@ const struct puc_cfg puc_pci_devices[] = {
 };
 
 static int
-puc_config_amc(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
+puc_config_amc(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd, int port,
     intptr_t *res)
 {
+
 	switch (cmd) {
 	case PUC_CFG_GET_OFS:
 		*res = 8 * (port & 1);
@@ -1242,9 +1291,10 @@ puc_config_diva(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 }
 
 static int
-puc_config_exar(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
-    intptr_t *res)
+puc_config_exar(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd,
+    int port, intptr_t *res)
 {
+
 	if (cmd == PUC_CFG_GET_OFS) {
 		*res = port * 0x200;
 		return (0);
@@ -1253,9 +1303,10 @@ puc_config_exar(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 }
 
 static int
-puc_config_exar_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
-    intptr_t *res)
+puc_config_exar_pcie(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd,
+    int port, intptr_t *res)
 {
+
 	if (cmd == PUC_CFG_GET_OFS) {
 		*res = port * 0x400;
 		return (0);
@@ -1264,9 +1315,10 @@ puc_config_exar_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 }
 
 static int
-puc_config_icbook(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
-    intptr_t *res)
+puc_config_icbook(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd,
+    int port __unused, intptr_t *res)
 {
+
 	if (cmd == PUC_CFG_GET_ILR) {
 		*res = PUC_ILR_DIGI;
 		return (0);
@@ -1278,9 +1330,9 @@ static int
 puc_config_moxa(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
     intptr_t *res)
 {
-	if (cmd == PUC_CFG_GET_OFS) {
-		const struct puc_cfg *cfg = sc->sc_cfg;
+	const struct puc_cfg *cfg = sc->sc_cfg;
 
+	if (cmd == PUC_CFG_GET_OFS) {
 		if (port == 3 && (cfg->device == 0x1045 ||
 		    cfg->device == 0x1144))
 			port = 7;
@@ -1292,8 +1344,8 @@ puc_config_moxa(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 }
 
 static int
-puc_config_quatech(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
-    intptr_t *res)
+puc_config_quatech(struct puc_softc *sc, enum puc_cfg_cmd cmd,
+    int port __unused, intptr_t *res)
 {
 	const struct puc_cfg *cfg = sc->sc_cfg;
 	struct puc_bar *bar;
@@ -1381,8 +1433,8 @@ puc_config_quatech(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 	case PUC_CFG_GET_ILR:
 		v0 = (sc->sc_cfg_data >> 8) & 0xff;
 		v1 = sc->sc_cfg_data & 0xff;
-		*res = (v0 == 0 && v1 == 0x80 + -cfg->clock)
-		    ? PUC_ILR_NONE : PUC_ILR_QUATECH;
+		*res = (v0 == 0 && v1 == 0x80 + -cfg->clock) ?
+		    PUC_ILR_NONE : PUC_ILR_QUATECH;
 		return (0);
 	default:
 		break;
@@ -1694,9 +1746,10 @@ puc_config_sunix(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 }
 
 static int
-puc_config_titan(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
-    intptr_t *res)
+puc_config_titan(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd,
+    int port, intptr_t *res)
 {
+
 	switch (cmd) {
 	case PUC_CFG_GET_OFS:
 		*res = (port < 3) ? 0 : (port - 2) << 3;
