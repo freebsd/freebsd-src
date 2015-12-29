@@ -31,13 +31,6 @@
 
 #include "hv_vmbus_priv.h"
 
-typedef void (*hv_pfn_channel_msg_handler)(hv_vmbus_channel_msg_header* msg);
-
-typedef struct hv_vmbus_channel_msg_table_entry {
-	hv_vmbus_channel_msg_type    messageType;
-	hv_pfn_channel_msg_handler   messageHandler;
-} hv_vmbus_channel_msg_table_entry;
-
 /*
  * Internal functions
  */
@@ -55,29 +48,40 @@ static void vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr);
  */
 hv_vmbus_channel_msg_table_entry
     g_channel_message_table[HV_CHANNEL_MESSAGE_COUNT] = {
-	{ HV_CHANNEL_MESSAGE_INVALID, NULL },
-	{ HV_CHANNEL_MESSAGE_OFFER_CHANNEL, vmbus_channel_on_offer },
+	{ HV_CHANNEL_MESSAGE_INVALID,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGE_OFFER_CHANNEL,
+		0, vmbus_channel_on_offer },
 	{ HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER,
-		vmbus_channel_on_offer_rescind },
-	{ HV_CHANNEL_MESSAGE_REQUEST_OFFERS, NULL },
+		0, vmbus_channel_on_offer_rescind },
+	{ HV_CHANNEL_MESSAGE_REQUEST_OFFERS,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED,
-		vmbus_channel_on_offers_delivered },
-	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL, NULL },
+		1, vmbus_channel_on_offers_delivered },
+	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT,
-		vmbus_channel_on_open_result },
-	{ HV_CHANNEL_MESSAGE_CLOSE_CHANNEL, NULL },
-	{ HV_CHANNEL_MESSAGEL_GPADL_HEADER, NULL },
-	{ HV_CHANNEL_MESSAGE_GPADL_BODY, NULL },
+		1, vmbus_channel_on_open_result },
+	{ HV_CHANNEL_MESSAGE_CLOSE_CHANNEL,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGEL_GPADL_HEADER,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGE_GPADL_BODY,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_GPADL_CREATED,
-		vmbus_channel_on_gpadl_created },
-	{ HV_CHANNEL_MESSAGE_GPADL_TEARDOWN, NULL },
+		1, vmbus_channel_on_gpadl_created },
+	{ HV_CHANNEL_MESSAGE_GPADL_TEARDOWN,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_GPADL_TORNDOWN,
-		vmbus_channel_on_gpadl_torndown },
-	{ HV_CHANNEL_MESSAGE_REL_ID_RELEASED, NULL },
-	{ HV_CHANNEL_MESSAGE_INITIATED_CONTACT, NULL },
+		1, vmbus_channel_on_gpadl_torndown },
+	{ HV_CHANNEL_MESSAGE_REL_ID_RELEASED,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGE_INITIATED_CONTACT,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_VERSION_RESPONSE,
-		vmbus_channel_on_version_response },
-	{ HV_CHANNEL_MESSAGE_UNLOAD, NULL }
+		1, vmbus_channel_on_version_response },
+	{ HV_CHANNEL_MESSAGE_UNLOAD,
+		0, NULL }
 };
 
 
