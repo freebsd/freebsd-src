@@ -1,3 +1,7 @@
+// FIXME: This test currently fails on Windows because we use the MSVC linker,
+// which throws away DWARF debug info.
+// XFAIL: win32
+//
 // RUN: %clangxx -fsanitize=alignment -g %s -O3 -o %t
 // RUN: %run %t l0 && %run %t s0 && %run %t r0 && %run %t m0 && %run %t f0 && %run %t n0 && %run %t u0
 // RUN: %run %t l1 2>&1 | FileCheck %s --check-prefix=CHECK-LOAD --strict-whitespace
@@ -7,7 +11,7 @@
 // RUN: %run %t f1 2>&1 | FileCheck %s --check-prefix=CHECK-MEMFUN
 // RUN: %run %t n1 2>&1 | FileCheck %s --check-prefix=CHECK-NEW
 // RUN: %run %t u1 2>&1 | FileCheck %s --check-prefix=CHECK-UPCAST
-// RUN: env UBSAN_OPTIONS=print_stacktrace=1 %run %t l1 2>&1 | FileCheck %s --check-prefix=CHECK-LOAD --check-prefix=CHECK-%os-STACK-LOAD
+// RUN: %env_ubsan_opts=print_stacktrace=1 %run %t l1 2>&1 | FileCheck %s --check-prefix=CHECK-LOAD --check-prefix=CHECK-%os-STACK-LOAD
 
 // RUN: %clangxx -fsanitize=alignment -fno-sanitize-recover=alignment %s -O3 -o %t
 // RUN: not %run %t w1 2>&1 | FileCheck %s --check-prefix=CHECK-WILD

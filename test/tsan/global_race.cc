@@ -11,9 +11,7 @@ void *Thread(void *a) {
 
 int main() {
   barrier_init(&barrier, 2);
-  fprintf(stderr, "addr=");
-  print_address(GlobalData);
-  fprintf(stderr, "\n");
+  print_address("addr=", 1, GlobalData);
   pthread_t t;
   pthread_create(&t, 0, Thread, 0);
   GlobalData[2] = 43;
@@ -23,5 +21,5 @@ int main() {
 
 // CHECK: addr=[[ADDR:0x[0-9,a-f]+]]
 // CHECK: WARNING: ThreadSanitizer: data race
-// CHECK: Location is global 'GlobalData' of size 40 at [[ADDR]] (global_race.cc.exe+0x{{[0-9,a-f]+}})
+// CHECK: Location is global 'GlobalData' {{(of size 40 )?}}at [[ADDR]] (global_race.cc.exe+0x{{[0-9,a-f]+}})
 

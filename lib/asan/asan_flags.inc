@@ -44,9 +44,6 @@ ASAN_FLAG(
     "to find more errors.")
 ASAN_FLAG(bool, replace_intrin, true,
           "If set, uses custom wrappers for memset/memcpy/memmove intinsics.")
-ASAN_FLAG(bool, mac_ignore_invalid_free, false,
-          "Ignore invalid free() calls to work around some bugs. Used on OS X "
-          "only.")
 ASAN_FLAG(bool, detect_stack_use_after_return, false,
           "Enables stack-use-after-return checking at run-time.")
 ASAN_FLAG(int, min_uar_stack_size_log, 16, // We can't do smaller anyway.
@@ -62,8 +59,6 @@ ASAN_FLAG(
     "bytes that will be filled with malloc_fill_byte on malloc.")
 ASAN_FLAG(int, malloc_fill_byte, 0xbe,
           "Value used to fill the newly allocated memory.")
-ASAN_FLAG(int, exitcode, ASAN_DEFAULT_FAILURE_EXITCODE,
-          "Override the program exit status if the tool found an error.")
 ASAN_FLAG(bool, allow_user_poisoning, true,
           "If set, user may manually mark memory regions as poisoned or "
           "unpoisoned.")
@@ -77,10 +72,7 @@ ASAN_FLAG(bool, check_malloc_usable_size, true,
           "295.*.")
 ASAN_FLAG(bool, unmap_shadow_on_exit, false,
           "If set, explicitly unmaps the (huge) shadow at exit.")
-ASAN_FLAG(
-    bool, abort_on_error, false,
-    "If set, the tool calls abort() instead of _exit() after printing the "
-    "error report.")
+ASAN_FLAG(bool, protect_shadow_gap, true, "If set, mprotect the shadow gap")
 ASAN_FLAG(bool, print_stats, false,
           "Print various statistics after printing an error message or if "
           "atexit=1.")
@@ -104,8 +96,8 @@ ASAN_FLAG(bool, poison_array_cookie, true,
           "Poison (or not) the array cookie after operator new[].")
 
 // Turn off alloc/dealloc mismatch checker on Mac and Windows for now.
-// https://code.google.com/p/address-sanitizer/issues/detail?id=131
-// https://code.google.com/p/address-sanitizer/issues/detail?id=309
+// https://github.com/google/sanitizers/issues/131
+// https://github.com/google/sanitizers/issues/309
 // TODO(glider,timurrrr): Fix known issues and enable this back.
 ASAN_FLAG(bool, alloc_dealloc_mismatch,
           (SANITIZER_MAC == 0) && (SANITIZER_WINDOWS == 0),
@@ -113,9 +105,6 @@ ASAN_FLAG(bool, alloc_dealloc_mismatch,
 
 ASAN_FLAG(bool, new_delete_type_mismatch, true,
           "Report errors on mismatch betwen size of new and delete.")
-ASAN_FLAG(bool, strict_memcmp, true,
-          "If true, assume that memcmp(p1, p2, n) always reads n bytes before "
-          "comparing p1 and p2.")
 ASAN_FLAG(
     bool, strict_init_order, false,
     "If true, assume that dynamic initializers can never access globals from "
@@ -134,8 +123,8 @@ ASAN_FLAG(
     "The bigger the value the harder we try.")
 ASAN_FLAG(
     bool, detect_container_overflow, true,
-    "If true, honor the container overflow  annotations. "
-    "See https://code.google.com/p/address-sanitizer/wiki/ContainerOverflow")
+    "If true, honor the container overflow annotations. See "
+    "https://github.com/google/sanitizers/wiki/AddressSanitizerContainerOverflow")
 ASAN_FLAG(int, detect_odr_violation, 2,
           "If >=2, detect violation of One-Definition-Rule (ODR); "
           "If ==1, detect ODR-violation only if the two variables "
@@ -143,3 +132,6 @@ ASAN_FLAG(int, detect_odr_violation, 2,
 ASAN_FLAG(bool, dump_instruction_bytes, false,
           "If true, dump 16 bytes starting at the instruction that caused SEGV")
 ASAN_FLAG(const char *, suppressions, "", "Suppressions file name.")
+ASAN_FLAG(bool, halt_on_error, true,
+          "Crash the program after printing the first error report "
+          "(WARNING: USE AT YOUR OWN RISK!)")

@@ -1,8 +1,8 @@
 // Regression test for
 // https://code.google.com/p/address-sanitizer/issues/detail?id=180
 
-// RUN: %clangxx_asan -O0 %s -o %t && ASAN_OPTIONS=$ASAN_OPTIONS:allow_user_segv_handler=true not %run %t 2>&1 | FileCheck %s
-// RUN: %clangxx_asan -O2 %s -o %t && ASAN_OPTIONS=$ASAN_OPTIONS:allow_user_segv_handler=true not %run %t 2>&1 | FileCheck %s
+// RUN: %clangxx_asan -O0 %s -o %t && %env_asan_opts=allow_user_segv_handler=true not %run %t 2>&1 | FileCheck %s
+// RUN: %clangxx_asan -O2 %s -o %t && %env_asan_opts=allow_user_segv_handler=true not %run %t 2>&1 | FileCheck %s
 
 #include <signal.h>
 #include <stdio.h>
@@ -55,5 +55,5 @@ int main() {
 
 // CHECK: User sigaction installed
 // CHECK-NEXT: User sigaction called
-// CHECK-NEXT: ASAN:SIGSEGV
+// CHECK-NEXT: ASAN:DEADLYSIGNAL
 // CHECK: AddressSanitizer: SEGV on unknown address

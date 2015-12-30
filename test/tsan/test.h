@@ -4,43 +4,66 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <stddef.h>
+#include <sched.h>
+#include <stdarg.h>
+
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+#endif
 
 // TSan-invisible barrier.
 // Tests use it to establish necessary execution order in a way that does not
 // interfere with tsan (does not establish synchronization between threads).
-__typeof(pthread_barrier_wait) *barrier_wait;
+typedef unsigned long long invisible_barrier_t;
 
-void barrier_init(pthread_barrier_t *barrier, unsigned count) {
-#if defined(__FreeBSD__)
-  static const char libpthread_name[] = "libpthread.so";
-#else
-  static const char libpthread_name[] = "libpthread.so.0";
+#ifdef __cplusplus
+extern "C" {
+#endif
+void __tsan_testonly_barrier_init(invisible_barrier_t *barrier,
+    unsigned count);
+void __tsan_testonly_barrier_wait(invisible_barrier_t *barrier);
+#ifdef __cplusplus
+}
 #endif
 
-  if (barrier_wait == 0) {
-    void *h = dlopen(libpthread_name, RTLD_LAZY);
-    if (h == 0) {
-      fprintf(stderr, "failed to dlopen %s, exiting\n", libpthread_name);
-      exit(1);
-    }
-    barrier_wait = (__typeof(barrier_wait))dlsym(h, "pthread_barrier_wait");
-    if (barrier_wait == 0) {
-      fprintf(stderr, "failed to resolve pthread_barrier_wait, exiting\n");
-      exit(1);
-    }
-  }
-  pthread_barrier_init(barrier, 0, count);
+static inline void barrier_init(invisible_barrier_t *barrier, unsigned count) {
+  __tsan_testonly_barrier_init(barrier, count);
+}
+
+static inline void barrier_wait(invisible_barrier_t *barrier) {
+  __tsan_testonly_barrier_wait(barrier);
 }
 
 // Default instance of the barrier, but a test can declare more manually.
-pthread_barrier_t barrier;
+invisible_barrier_t barrier;
 
-void print_address(void *address) {
-// On FreeBSD, the %p conversion specifier works as 0x%x and thus does not match
-// to the format used in the diagnotic message.
-#ifdef __x86_64__
-  fprintf(stderr, "0x%012lx", (unsigned long) address);
+void print_address(const char *str, int n, ...) {
+  fprintf(stderr, "%s", str);
+  va_list ap;
+  va_start(ap, n);
+  while (n--) {
+    void *p = va_arg(ap, void *);
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__powerpc64__)
+    // On FreeBSD, the %p conversion specifier works as 0x%x and thus does not
+    // match to the format used in the diagnotic message.
+    fprintf(stderr, "0x%012lx ", (unsigned long) p);
 #elif defined(__mips64)
-  fprintf(stderr, "0x%010lx", (unsigned long) address);
+    fprintf(stderr, "0x%010lx ", (unsigned long) p);
 #endif
+  }
+  fprintf(stderr, "\n");
 }
+
+#ifdef __APPLE__
+unsigned long long monotonic_clock_ns() {
+  static mach_timebase_info_data_t timebase_info;
+  if (timebase_info.denom == 0) mach_timebase_info(&timebase_info);
+  return (mach_absolute_time() * timebase_info.numer) / timebase_info.denom;
+}
+#else
+unsigned long long monotonic_clock_ns() {
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return (unsigned long long)t.tv_sec * 1000000000ull + t.tv_nsec;
+}
+#endif

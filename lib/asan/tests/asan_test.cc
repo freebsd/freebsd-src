@@ -250,12 +250,12 @@ TEST(AddressSanitizer, BitFieldNegativeTest) {
 #if ASAN_NEEDS_SEGV
 namespace {
 
-const char kUnknownCrash[] = "AddressSanitizer: SEGV on unknown address";
+const char kSEGVCrash[] = "AddressSanitizer: SEGV on unknown address";
 const char kOverriddenHandler[] = "ASan signal handler has been overridden\n";
 
 TEST(AddressSanitizer, WildAddressTest) {
   char *c = (char*)0x123;
-  EXPECT_DEATH(*c = 0, kUnknownCrash);
+  EXPECT_DEATH(*c = 0, kSEGVCrash);
 }
 
 void my_sigaction_sighandler(int, siginfo_t*, void*) {
@@ -279,10 +279,10 @@ TEST(AddressSanitizer, SignalTest) {
   EXPECT_EQ(0, sigaction(SIGBUS, &sigact, 0));
 #endif
   char *c = (char*)0x123;
-  EXPECT_DEATH(*c = 0, kUnknownCrash);
+  EXPECT_DEATH(*c = 0, kSEGVCrash);
   // ... and signal().
   EXPECT_EQ(0, signal(SIGSEGV, my_signal_sighandler));
-  EXPECT_DEATH(*c = 0, kUnknownCrash);
+  EXPECT_DEATH(*c = 0, kSEGVCrash);
 }
 }  // namespace
 #endif
@@ -335,6 +335,8 @@ void *ManyThreadsWorker(void *a) {
   return 0;
 }
 
+#if !defined(__aarch64__)
+// FIXME: Infinite loop in AArch64 (PR24389).
 TEST(AddressSanitizer, ManyThreadsTest) {
   const size_t kNumThreads =
       (SANITIZER_WORDSIZE == 32 || ASAN_AVOID_EXPENSIVE_TESTS) ? 30 : 1000;
@@ -346,6 +348,7 @@ TEST(AddressSanitizer, ManyThreadsTest) {
     PTHREAD_JOIN(t[i], 0);
   }
 }
+#endif
 
 TEST(AddressSanitizer, ReallocTest) {
   const int kMinElem = 5;
@@ -607,7 +610,7 @@ NOINLINE void BuiltinLongJmpFunc1(jmp_buf buf) {
 }
 
 // Does not work on Power and ARM:
-// https://code.google.com/p/address-sanitizer/issues/detail?id=185
+// https://github.com/google/sanitizers/issues/185
 TEST(AddressSanitizer, BuiltinLongJmpTest) {
   static jmp_buf buf;
   if (!__builtin_setjmp((void**)buf)) {
@@ -1153,9 +1156,9 @@ TEST(AddressSanitizer, AttributeNoSanitizeAddressTest) {
 // The new/delete/etc mismatch checks don't work on Android,
 //   as calls to new/delete go through malloc/free.
 // OS X support is tracked here:
-//   https://code.google.com/p/address-sanitizer/issues/detail?id=131
+//   https://github.com/google/sanitizers/issues/131
 // Windows support is tracked here:
-//   https://code.google.com/p/address-sanitizer/issues/detail?id=309
+//   https://github.com/google/sanitizers/issues/309
 #if !defined(__ANDROID__) && \
     !defined(__APPLE__) && \
     !defined(_WIN32)
@@ -1252,7 +1255,7 @@ TEST(AddressSanitizer, DISABLED_DemoTooMuchMemoryTest) {
   }
 }
 
-// http://code.google.com/p/address-sanitizer/issues/detail?id=66
+// https://github.com/google/sanitizers/issues/66
 TEST(AddressSanitizer, BufferOverflowAfterManyFrees) {
   for (int i = 0; i < 1000000; i++) {
     delete [] (Ident(new char [8644]));

@@ -10,6 +10,7 @@
 // This file is shared between AddressSanitizer and ThreadSanitizer
 // run-time libraries. See sanitizer_libc.h for details.
 //===----------------------------------------------------------------------===//
+
 #include "sanitizer_allocator_internal.h"
 #include "sanitizer_common.h"
 #include "sanitizer_libc.h"
@@ -17,7 +18,7 @@
 namespace __sanitizer {
 
 s64 internal_atoll(const char *nptr) {
-  return internal_simple_strtoll(nptr, (char**)0, 10);
+  return internal_simple_strtoll(nptr, nullptr, 10);
 }
 
 void *internal_memchr(const void *s, int c, uptr n) {
@@ -25,7 +26,7 @@ void *internal_memchr(const void *s, int c, uptr n) {
   for (uptr i = 0; i < n; ++i, ++t)
     if (*t == c)
       return reinterpret_cast<void *>(const_cast<char *>(t));
-  return 0;
+  return nullptr;
 }
 
 void *internal_memrchr(const void *s, int c, uptr n) {
@@ -77,7 +78,8 @@ void internal_bzero_aligned16(void *s, uptr n) {
   CHECK_EQ((reinterpret_cast<uptr>(s) | n) & 15, 0);
   for (S16 *p = reinterpret_cast<S16*>(s), *end = p + n / 16; p < end; p++) {
     p->a = p->b = 0;
-    SanitizerBreakOptimization(0);  // Make sure this does not become memset.
+    // Make sure this does not become memset.
+    SanitizerBreakOptimization(nullptr);
   }
 }
 
@@ -96,7 +98,7 @@ void *internal_memset(void* s, int c, uptr n) {
 uptr internal_strcspn(const char *s, const char *reject) {
   uptr i;
   for (i = 0; s[i]; i++) {
-    if (internal_strchr(reject, s[i]) != 0)
+    if (internal_strchr(reject, s[i]))
       return i;
   }
   return i;
@@ -147,7 +149,7 @@ char* internal_strchr(const char *s, int c) {
     if (*s == (char)c)
       return const_cast<char *>(s);
     if (*s == 0)
-      return 0;
+      return nullptr;
     s++;
   }
 }
@@ -160,7 +162,7 @@ char *internal_strchrnul(const char *s, int c) {
 }
 
 char *internal_strrchr(const char *s, int c) {
-  const char *res = 0;
+  const char *res = nullptr;
   for (uptr i = 0; s[i]; i++) {
     if (s[i] == c) res = s + i;
   }
@@ -173,6 +175,19 @@ uptr internal_strlen(const char *s) {
   return i;
 }
 
+uptr internal_strlcat(char *dst, const char *src, uptr maxlen) {
+  const uptr srclen = internal_strlen(src);
+  const uptr dstlen = internal_strnlen(dst, maxlen);
+  if (dstlen == maxlen) return maxlen + srclen;
+  if (srclen < maxlen - dstlen) {
+    internal_memmove(dst + dstlen, src, srclen + 1);
+  } else {
+    internal_memmove(dst + dstlen, src, maxlen - dstlen - 1);
+    dst[maxlen - 1] = '\0';
+  }
+  return dstlen + srclen;
+}
+
 char *internal_strncat(char *dst, const char *src, uptr n) {
   uptr len = internal_strlen(dst);
   uptr i;
@@ -180,6 +195,17 @@ char *internal_strncat(char *dst, const char *src, uptr n) {
     dst[len + i] = src[i];
   dst[len + i] = 0;
   return dst;
+}
+
+uptr internal_strlcpy(char *dst, const char *src, uptr maxlen) {
+  const uptr srclen = internal_strlen(src);
+  if (srclen < maxlen) {
+    internal_memmove(dst, src, srclen + 1);
+  } else if (maxlen != 0) {
+    internal_memmove(dst, src, maxlen - 1);
+    dst[maxlen - 1] = '\0';
+  }
+  return srclen;
 }
 
 char *internal_strncpy(char *dst, const char *src, uptr n) {
@@ -200,12 +226,12 @@ char *internal_strstr(const char *haystack, const char *needle) {
   // This is O(N^2), but we are not using it in hot places.
   uptr len1 = internal_strlen(haystack);
   uptr len2 = internal_strlen(needle);
-  if (len1 < len2) return 0;
+  if (len1 < len2) return nullptr;
   for (uptr pos = 0; pos <= len1 - len2; pos++) {
     if (internal_memcmp(haystack + pos, needle, len2) == 0)
       return const_cast<char *>(haystack) + pos;
   }
-  return 0;
+  return nullptr;
 }
 
 s64 internal_simple_strtoll(const char *nptr, char **endptr, int base) {
@@ -229,7 +255,7 @@ s64 internal_simple_strtoll(const char *nptr, char **endptr, int base) {
     have_digits = true;
     nptr++;
   }
-  if (endptr != 0) {
+  if (endptr) {
     *endptr = (have_digits) ? const_cast<char *>(nptr) : old_nptr;
   }
   if (sgn > 0) {
@@ -258,4 +284,4 @@ bool mem_is_zero(const char *beg, uptr size) {
   return all == 0;
 }
 
-}  // namespace __sanitizer
+} // namespace __sanitizer

@@ -19,6 +19,7 @@ function(add_compiler_rt_object_libraries name)
       set(libname "${name}.${os}")
       set(libnames ${libnames} ${libname})
       set(extra_cflags_${libname} ${DARWIN_${os}_CFLAGS})
+      list_union(LIB_ARCHS_${libname} DARWIN_${os}_ARCHS LIB_ARCHS)
     endforeach()
   else()
     foreach(arch ${LIB_ARCHS})
@@ -26,7 +27,7 @@ function(add_compiler_rt_object_libraries name)
       set(libnames ${libnames} ${libname})
       set(extra_cflags_${libname} ${TARGET_${arch}_CFLAGS})
       if(NOT CAN_TARGET_${arch})
-        message(FATAL_ERROR "Archtecture ${arch} can't be targeted")
+        message(FATAL_ERROR "Architecture ${arch} can't be targeted")
         return()
       endif()
     endforeach()
@@ -39,91 +40,130 @@ function(add_compiler_rt_object_libraries name)
     set_property(TARGET ${libname} APPEND PROPERTY
       COMPILE_DEFINITIONS ${LIB_DEFS})
     if(APPLE)
-      set_target_properties(${libname} PROPERTIES OSX_ARCHITECTURES "${LIB_ARCHS}")
+      set_target_properties(${libname} PROPERTIES
+        OSX_ARCHITECTURES "${LIB_ARCHS_${libname}}")
     endif()
   endforeach()
 endfunction()
 
-# Adds static or shared runtime for a given architecture and puts it in the
-# proper directory in the build and install trees.
-# add_compiler_rt_runtime(<name> <arch> {STATIC,SHARED}
+# Takes a list of object library targets, and a suffix and appends the proper
+# TARGET_OBJECTS string to the output variable.
+# format_object_libs(<output> <suffix> ...)
+macro(format_object_libs output suffix)
+  foreach(lib ${ARGN})
+    list(APPEND ${output} $<TARGET_OBJECTS:${lib}.${suffix}>)
+  endforeach()
+endmacro()
+
+# Adds static or shared runtime for a list of architectures and operating
+# systems and puts it in the proper directory in the build and install trees.
+# add_compiler_rt_runtime(<name>
+#                         {STATIC|SHARED}
+#                         ARCHS <architectures>
+#                         OS <os list>
 #                         SOURCES <source files>
 #                         CFLAGS <compile flags>
+#                         LINKFLAGS <linker flags>
 #                         DEFS <compile definitions>
-#                         OUTPUT_NAME <output library name>)
-macro(add_compiler_rt_runtime name arch type)
-  if(CAN_TARGET_${arch})
-    cmake_parse_arguments(LIB "" "OUTPUT_NAME" "SOURCES;CFLAGS;LINKFLAGS;DEFS" ${ARGN})
-    add_library(${name} ${type} ${LIB_SOURCES})
-    # Setup compile flags and definitions.
-    set_target_compile_flags(${name}
-      ${TARGET_${arch}_CFLAGS} ${LIB_CFLAGS})
-    set_target_link_flags(${name}
-      ${TARGET_${arch}_CFLAGS} ${LIB_CFLAGS} ${LIB_LINKFLAGS})
-    set_property(TARGET ${name} APPEND PROPERTY
-      COMPILE_DEFINITIONS ${LIB_DEFS})
-    # Setup correct output directory in the build tree.
-    set_target_properties(${name} PROPERTIES
-      ARCHIVE_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR}
-      LIBRARY_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR}
-      RUNTIME_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR})
-    if ("${LIB_OUTPUT_NAME}" STREQUAL "")
-      set_target_properties(${name} PROPERTIES
-        OUTPUT_NAME ${name}${COMPILER_RT_OS_SUFFIX})
-    else()
-      set_target_properties(${name} PROPERTIES
-        OUTPUT_NAME ${LIB_OUTPUT_NAME})
-    endif()
-    # Add installation command.
-    install(TARGETS ${name}
-      ARCHIVE DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR}
-      LIBRARY DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR}
-      RUNTIME DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR})
-  else()
-    message(FATAL_ERROR "Archtecture ${arch} can't be targeted")
+#                         LINK_LIBS <linked libraries> (only for shared library)
+#                         OBJECT_LIBS <object libraries to use as sources>
+#                         PARENT_TARGET <convenience parent target>)
+function(add_compiler_rt_runtime name type)
+  if(NOT type MATCHES "^(STATIC|SHARED)$")
+    message(FATAL_ERROR "type argument must be STATIC or SHARED")
+    return()
   endif()
-endmacro()
+  cmake_parse_arguments(LIB
+    ""
+    "PARENT_TARGET"
+    "OS;ARCHS;SOURCES;CFLAGS;LINKFLAGS;DEFS;LINK_LIBS;OBJECT_LIBS"
+    ${ARGN})
+  set(libnames)
+  if(APPLE)
+    foreach(os ${LIB_OS})
+      if(type STREQUAL "STATIC")
+        set(libname "${name}_${os}")
+      else()
+        set(libname "${name}_${os}_dynamic")
+        set(extra_linkflags_${libname} ${DARWIN_${os}_LINKFLAGS} ${LIB_LINKFLAGS})
+      endif()
+      list_union(LIB_ARCHS_${libname} DARWIN_${os}_ARCHS LIB_ARCHS)
+      if(LIB_ARCHS_${libname})
+        list(APPEND libnames ${libname})
+        set(extra_cflags_${libname} ${DARWIN_${os}_CFLAGS} ${LIB_CFLAGS})
+        set(output_name_${libname} ${libname}${COMPILER_RT_OS_SUFFIX})
+        set(sources_${libname} ${LIB_SOURCES})
+        format_object_libs(sources_${libname} ${os} ${LIB_OBJECT_LIBS})
+      endif()
+    endforeach()
+  else()
+    foreach(arch ${LIB_ARCHS})
+      if(NOT CAN_TARGET_${arch})
+        message(FATAL_ERROR "Architecture ${arch} can't be targeted")
+        return()
+      endif()
+      if(type STREQUAL "STATIC")
+        set(libname "${name}-${arch}")
+        set(output_name_${libname} ${libname}${COMPILER_RT_OS_SUFFIX})
+      else()
+        set(libname "${name}-dynamic-${arch}")
+        set(extra_linkflags_${libname} ${TARGET_${arch}_CFLAGS} ${LIB_CFLAGS} ${LIB_LINKFLAGS})
+        if(WIN32)
+          set(output_name_${libname} ${name}_dynamic-${arch}${COMPILER_RT_OS_SUFFIX})
+        else()
+          set(output_name_${libname} ${name}-${arch}${COMPILER_RT_OS_SUFFIX})
+        endif()
+      endif()
+      set(sources_${libname} ${LIB_SOURCES})
+      format_object_libs(sources_${libname} ${arch} ${LIB_OBJECT_LIBS})
+      set(libnames ${libnames} ${libname})
+      set(extra_cflags_${libname} ${TARGET_${arch}_CFLAGS} ${LIB_CFLAGS})
+    endforeach()
+  endif()
 
-# Same as add_compiler_rt_runtime(... STATIC), but creates a universal library
-# for several architectures.
-# add_compiler_rt_osx_static_runtime(<name> ARCHS <architectures>
-#                                    SOURCES <source files>
-#                                    CFLAGS <compile flags>
-#                                    DEFS <compile definitions>)
-macro(add_compiler_rt_osx_static_runtime name)
-  cmake_parse_arguments(LIB "" "" "ARCHS;SOURCES;CFLAGS;DEFS" ${ARGN})
-  add_library(${name} STATIC ${LIB_SOURCES})
-  set_target_compile_flags(${name} ${LIB_CFLAGS})
-  set_property(TARGET ${name} APPEND PROPERTY
-    COMPILE_DEFINITIONS ${LIB_DEFS})
-  set_target_properties(${name} PROPERTIES
-    OSX_ARCHITECTURES "${LIB_ARCHS}"
-    ARCHIVE_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR})
-  install(TARGETS ${name}
-    ARCHIVE DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR})
-endmacro()
+  if(NOT libnames)
+    return()
+  endif()
 
-# Adds dynamic runtime library on osx/iossim, which supports multiple
-# architectures.
-# add_compiler_rt_darwin_dynamic_runtime(<name> <os>
-#                                        ARCHS <architectures>
-#                                        SOURCES <source files>
-#                                        CFLAGS <compile flags>
-#                                        DEFS <compile definitions>
-#                                        LINKFLAGS <link flags>)
-macro(add_compiler_rt_darwin_dynamic_runtime name os)
-  cmake_parse_arguments(LIB "" "" "ARCHS;SOURCES;CFLAGS;DEFS;LINKFLAGS" ${ARGN})
-  add_library(${name} SHARED ${LIB_SOURCES})
-  set_target_compile_flags(${name} ${LIB_CFLAGS} ${DARWIN_${os}_CFLAGS})
-  set_target_link_flags(${name} ${LIB_LINKFLAGS} ${DARWIN_${os}_LINKFLAGS})
-  set_property(TARGET ${name} APPEND PROPERTY
-    COMPILE_DEFINITIONS ${LIB_DEFS})
-  set_target_properties(${name} PROPERTIES
-    OSX_ARCHITECTURES "${LIB_ARCHS}"
-    LIBRARY_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR})
-  install(TARGETS ${name}
-    LIBRARY DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR})
-endmacro()
+  if(LIB_PARENT_TARGET)
+    set(COMPONENT_OPTION COMPONENT ${LIB_PARENT_TARGET})
+  endif()
+
+  foreach(libname ${libnames})
+    add_library(${libname} ${type} ${sources_${libname}})
+    set_target_compile_flags(${libname} ${extra_cflags_${libname}})
+    set_target_link_flags(${libname} ${extra_linkflags_${libname}})
+    set_property(TARGET ${libname} APPEND PROPERTY 
+                COMPILE_DEFINITIONS ${LIB_DEFS})
+    set_target_properties(${libname} PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR}
+        LIBRARY_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR}
+        RUNTIME_OUTPUT_DIRECTORY ${COMPILER_RT_LIBRARY_OUTPUT_DIR})
+    set_target_properties(${libname} PROPERTIES
+        OUTPUT_NAME ${output_name_${libname}})
+    if(LIB_LINK_LIBS AND ${type} STREQUAL "SHARED")
+      target_link_libraries(${libname} ${LIB_LINK_LIBS})
+    endif()
+    install(TARGETS ${libname}
+      ARCHIVE DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR}
+              ${COMPONENT_OPTION}
+      LIBRARY DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR}
+              ${COMPONENT_OPTION}
+      RUNTIME DESTINATION ${COMPILER_RT_LIBRARY_INSTALL_DIR}
+              ${COMPONENT_OPTION})
+    if(APPLE)
+      set_target_properties(${libname} PROPERTIES
+      OSX_ARCHITECTURES "${LIB_ARCHS_${libname}}")
+    endif()
+
+    if(type STREQUAL "SHARED")
+      rt_externalize_debuginfo(${libname})
+    endif()
+  endforeach()
+  if(LIB_PARENT_TARGET)
+    add_dependencies(${LIB_PARENT_TARGET} ${libnames})
+  endif()
+endfunction()
 
 set(COMPILER_RT_TEST_CFLAGS)
 
@@ -248,7 +288,8 @@ macro(add_custom_libcxx name prefix)
   ExternalProject_Add(${name}
     PREFIX ${prefix}
     SOURCE_DIR ${COMPILER_RT_LIBCXX_PATH}
-    CMAKE_ARGS -DCMAKE_C_COMPILER=${COMPILER_RT_TEST_COMPILER}
+    CMAKE_ARGS -DCMAKE_MAKE_PROGRAM:STRING=${CMAKE_MAKE_PROGRAM}
+               -DCMAKE_C_COMPILER=${COMPILER_RT_TEST_COMPILER}
                -DCMAKE_CXX_COMPILER=${COMPILER_RT_TEST_COMPILER}
                -DCMAKE_C_FLAGS=${LIBCXX_CFLAGS}
                -DCMAKE_CXX_FLAGS=${LIBCXX_CFLAGS}
@@ -273,3 +314,24 @@ macro(add_custom_libcxx name prefix)
     DEPENDS ${LIBCXX_DEPS}
     )
 endmacro()
+
+function(rt_externalize_debuginfo name)
+  if(NOT COMPILER_RT_EXTERNALIZE_DEBUGINFO)
+    return()
+  endif()
+
+  if(APPLE)
+    if(CMAKE_CXX_FLAGS MATCHES "-flto"
+      OR CMAKE_CXX_FLAGS_${uppercase_CMAKE_BUILD_TYPE} MATCHES "-flto")
+
+      set(lto_object ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${name}-lto.o)
+      set_property(TARGET ${name} APPEND_STRING PROPERTY
+        LINK_FLAGS " -Wl,-object_path_lto -Wl,${lto_object}")
+    endif()
+    add_custom_command(TARGET ${name} POST_BUILD
+      COMMAND xcrun dsymutil $<TARGET_FILE:${name}>
+      COMMAND xcrun strip -Sl $<TARGET_FILE:${name}>)
+  else()
+    message(FATAL_ERROR "COMPILER_RT_EXTERNALIZE_DEBUGINFO isn't implemented for non-darwin platforms!")
+  endif()
+endfunction()

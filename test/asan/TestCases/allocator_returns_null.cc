@@ -4,16 +4,16 @@
 //
 // RUN: %clangxx_asan -O0 %s -o %t
 // RUN: not %run %t malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mCRASH
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=0 not %run %t malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mCRASH
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=1     %run %t malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mNULL
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=0 not %run %t calloc 2>&1 | FileCheck %s --check-prefix=CHECK-cCRASH
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=1     %run %t calloc 2>&1 | FileCheck %s --check-prefix=CHECK-cNULL
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=0 not %run %t calloc-overflow 2>&1 | FileCheck %s --check-prefix=CHECK-coCRASH
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=1     %run %t calloc-overflow 2>&1 | FileCheck %s --check-prefix=CHECK-coNULL
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=0 not %run %t realloc 2>&1 | FileCheck %s --check-prefix=CHECK-rCRASH
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=1     %run %t realloc 2>&1 | FileCheck %s --check-prefix=CHECK-rNULL
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=0 not %run %t realloc-after-malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mrCRASH
-// RUN: env ASAN_OPTIONS=$ASAN_OPTIONS:allocator_may_return_null=1     %run %t realloc-after-malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mrNULL
+// RUN: %env_asan_opts=allocator_may_return_null=0 not %run %t malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mCRASH
+// RUN: %env_asan_opts=allocator_may_return_null=1     %run %t malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mNULL
+// RUN: %env_asan_opts=allocator_may_return_null=0 not %run %t calloc 2>&1 | FileCheck %s --check-prefix=CHECK-cCRASH
+// RUN: %env_asan_opts=allocator_may_return_null=1     %run %t calloc 2>&1 | FileCheck %s --check-prefix=CHECK-cNULL
+// RUN: %env_asan_opts=allocator_may_return_null=0 not %run %t calloc-overflow 2>&1 | FileCheck %s --check-prefix=CHECK-coCRASH
+// RUN: %env_asan_opts=allocator_may_return_null=1     %run %t calloc-overflow 2>&1 | FileCheck %s --check-prefix=CHECK-coNULL
+// RUN: %env_asan_opts=allocator_may_return_null=0 not %run %t realloc 2>&1 | FileCheck %s --check-prefix=CHECK-rCRASH
+// RUN: %env_asan_opts=allocator_may_return_null=1     %run %t realloc 2>&1 | FileCheck %s --check-prefix=CHECK-rNULL
+// RUN: %env_asan_opts=allocator_may_return_null=0 not %run %t realloc-after-malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mrCRASH
+// RUN: %env_asan_opts=allocator_may_return_null=1     %run %t realloc-after-malloc 2>&1 | FileCheck %s --check-prefix=CHECK-mrNULL
 
 #include <limits.h>
 #include <stdlib.h>
@@ -22,6 +22,9 @@
 #include <assert.h>
 #include <limits>
 int main(int argc, char **argv) {
+  // Disable stderr buffering. Needed on Windows.
+  setvbuf(stderr, NULL, _IONBF, 0);
+
   volatile size_t size = std::numeric_limits<size_t>::max() - 10000;
   assert(argc == 2);
   void *x = 0;

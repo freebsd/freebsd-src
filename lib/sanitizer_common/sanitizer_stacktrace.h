@@ -19,9 +19,7 @@ namespace __sanitizer {
 
 static const u32 kStackTraceMax = 256;
 
-#if SANITIZER_LINUX && (defined(__aarch64__) || defined(__powerpc__) || \
-                        defined(__powerpc64__) || defined(__sparc__) || \
-                        defined(__mips__))
+#if SANITIZER_LINUX &&  (defined(__sparc__) || defined(__mips__))
 # define SANITIZER_CAN_FAST_UNWIND 0
 #elif SANITIZER_WINDOWS
 # define SANITIZER_CAN_FAST_UNWIND 0
@@ -31,7 +29,7 @@ static const u32 kStackTraceMax = 256;
 
 // Fast unwind is the only option on Mac for now; we will need to
 // revisit this macro when slow unwind works on Mac, see
-// https://code.google.com/p/address-sanitizer/issues/detail?id=137
+// https://github.com/google/sanitizers/issues/137
 #if SANITIZER_MAC
 # define SANITIZER_CAN_SLOW_UNWIND 0
 #else

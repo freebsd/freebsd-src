@@ -3,7 +3,7 @@
 // RUN: not %run %t 2>&1 | FileCheck --check-prefix=CHECK-CRASH %s
 
 // RUN: echo "interceptor_name:strlen" > %t.supp
-// RUN: env ASAN_OPTIONS="$ASAN_OPTIONS:suppressions='%t.supp'" %run %t 2>&1 | FileCheck --check-prefix=CHECK-IGNORE %s
+// RUN: %env_asan_opts=suppressions='"%t.supp"' %run %t 2>&1 | FileCheck --check-prefix=CHECK-IGNORE %s
 
 // XFAIL: android
 

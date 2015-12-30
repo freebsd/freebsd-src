@@ -11,6 +11,8 @@ ModuleName := sanitizer_common
 SubDirs :=
 
 Sources := $(foreach file,$(wildcard $(Dir)/*.cc),$(notdir $(file)))
+NolibcSources := $(foreach file,$(wildcard $(Dir)/*_nolibc.cc),$(notdir $(file)))
+Sources := $(filter-out $(NolibcSources),$(Sources))
 ObjNames := $(Sources:%.cc=%.o)
 
 Implementation := Generic

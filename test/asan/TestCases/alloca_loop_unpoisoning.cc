@@ -6,9 +6,14 @@
 // This testcase checks that allocas and VLAs inside loop are correctly unpoisoned.
 
 #include <assert.h>
-#include <alloca.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "sanitizer/asan_interface.h"
+
+// MSVC provides _alloca instead of alloca.
+#if defined(_MSC_VER) && !defined(alloca)
+# define alloca _alloca
+#endif
 
 void *top, *bot;
 

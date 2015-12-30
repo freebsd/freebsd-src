@@ -18,13 +18,13 @@ set(MSAN_UNITTEST_HEADERS
   ../../../include/sanitizer/msan_interface.h
 )
 set(MSAN_UNITTEST_COMMON_CFLAGS
-  -I${COMPILER_RT_LIBCXX_PATH}/include
+  -nostdinc++
+  -isystem ${COMPILER_RT_LIBCXX_PATH}/include
   ${COMPILER_RT_TEST_CFLAGS}
   ${COMPILER_RT_GTEST_CFLAGS}
   -I${COMPILER_RT_SOURCE_DIR}/include
   -I${COMPILER_RT_SOURCE_DIR}/lib
   -I${COMPILER_RT_SOURCE_DIR}/lib/msan
-  -stdlib=libc++
   -g
   -O2
   -fno-exceptions
@@ -44,15 +44,13 @@ set(MSAN_UNITTEST_INSTRUMENTED_CFLAGS
 )
 set(MSAN_UNITTEST_LINK_FLAGS
   -fsanitize=memory
+  # Don't need -stdlib=libc++ because we explicitly list libc++.so in the linker
+  # inputs.
   # FIXME: we build libcxx without cxxabi and need libstdc++ to provide it.
   -lstdc++
 )
 
 append_list_if(COMPILER_RT_HAS_LIBDL -ldl MSAN_UNITTEST_LINK_FLAGS)
-set(MSAN_LOADABLE_LINK_FLAGS
-  -fsanitize=memory
-  -shared
-)
 
 # Compile source for the given architecture, using compiler
 # options in ${ARGN}, and add it to the object list.
@@ -90,12 +88,6 @@ set_target_properties(MsanUnitTests PROPERTIES FOLDER "MSan unit tests")
 
 # Adds MSan unit tests and benchmarks for architecture.
 macro(add_msan_tests_for_arch arch kind)
-  set(LIBCXX_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/../libcxx_msan${kind})
-  add_custom_libcxx(libcxx_msan${kind} ${LIBCXX_PREFIX}
-    DEPS ${MSAN_RUNTIME_LIBRARIES}
-    CFLAGS ${MSAN_LIBCXX_CFLAGS} ${ARGN})
-  set(MSAN_LIBCXX_SO ${LIBCXX_PREFIX}/lib/libc++.so)
-
   # Build gtest instrumented with MSan.
   set(MSAN_INST_GTEST)
   msan_compile(MSAN_INST_GTEST ${COMPILER_RT_GTEST_SOURCE} ${arch} "${kind}"
@@ -111,7 +103,7 @@ macro(add_msan_tests_for_arch arch kind)
   # Instrumented loadable module objects.
   set(MSAN_INST_LOADABLE_OBJECTS)
   msan_compile(MSAN_INST_LOADABLE_OBJECTS ${MSAN_LOADABLE_SOURCE} ${arch} "${kind}"
-               ${MSAN_UNITTEST_INSTRUMENTED_CFLAGS} ${ARGN})
+               ${MSAN_UNITTEST_INSTRUMENTED_CFLAGS} "-fPIC" ${ARGN})
 
   # Instrumented loadable library tests.
   set(MSAN_LOADABLE_SO)
@@ -120,24 +112,31 @@ macro(add_msan_tests_for_arch arch kind)
                    DEPS ${MSAN_INST_LOADABLE_OBJECTS})
 
   set(MSAN_TEST_OBJECTS ${MSAN_INST_TEST_OBJECTS} ${MSAN_INST_GTEST})
-  set(MSAN_TEST_DEPS ${MSAN_TEST_OBJECTS} libcxx_msan${kind}
+  set(MSAN_TEST_DEPS ${MSAN_TEST_OBJECTS} libcxx_msan_${arch}
                      ${MSAN_LOADABLE_SO})
   if(NOT COMPILER_RT_STANDALONE_BUILD)
     list(APPEND MSAN_TEST_DEPS msan)
   endif()
   get_target_flags_for_arch(${arch} TARGET_LINK_FLAGS)
   add_compiler_rt_test(MsanUnitTests "Msan-${arch}${kind}-Test" ${arch}
-	  OBJECTS ${MSAN_TEST_OBJECTS} ${MSAN_LIBCXX_SO}
-	  DEPS ${MSAN_TEST_DEPS}
-	  LINK_FLAGS ${MSAN_UNITTEST_LINK_FLAGS}
-                     ${TARGET_LINK_FLAGS}
-                     "-Wl,-rpath=${CMAKE_CURRENT_BINARY_DIR}"
-                     "-Wl,-rpath=${LIBCXX_PREFIX}/lib")
+    OBJECTS ${MSAN_TEST_OBJECTS} ${MSAN_LIBCXX_SO}
+    DEPS ${MSAN_TEST_DEPS}
+    LINK_FLAGS ${MSAN_UNITTEST_LINK_FLAGS}
+               ${TARGET_LINK_FLAGS}
+               "-Wl,-rpath=${CMAKE_CURRENT_BINARY_DIR}"
+               "-Wl,-rpath=${LIBCXX_PREFIX}/lib")
 endmacro()
 
 # We should only build MSan unit tests if we can build instrumented libcxx.
 if(COMPILER_RT_CAN_EXECUTE_TESTS AND COMPILER_RT_HAS_LIBCXX_SOURCES)
   foreach(arch ${MSAN_SUPPORTED_ARCH})
+    get_target_flags_for_arch(${arch} TARGET_CFLAGS)
+    set(LIBCXX_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/../libcxx_msan_${arch})
+    add_custom_libcxx(libcxx_msan_${arch} ${LIBCXX_PREFIX}
+      DEPS ${MSAN_RUNTIME_LIBRARIES}
+      CFLAGS ${MSAN_LIBCXX_CFLAGS} ${TARGET_CFLAGS})
+    set(MSAN_LIBCXX_SO ${LIBCXX_PREFIX}/lib/libc++.so)
+
     add_msan_tests_for_arch(${arch} "")
     add_msan_tests_for_arch(${arch} "-with-call"
                             -mllvm -msan-instrumentation-with-call-threshold=0)

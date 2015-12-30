@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <vector>
 #include <algorithm>
+#include <sys/time.h>
 
 const int kThreads = 4;
 const int kMutexes = 16 << 10;
@@ -59,7 +60,7 @@ void *Thread(void *seed) {
       for (;;) {
         int old = __atomic_load_n(&m->state, __ATOMIC_RELAXED);
         if (old == kStateLocked) {
-          pthread_yield();
+          sched_yield();
           continue;
         }
         int newv = old + 1;
@@ -165,9 +166,9 @@ void *Thread(void *seed) {
 }
 
 int main() {
-  timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  unsigned s = (unsigned)ts.tv_nsec;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  unsigned s = tv.tv_sec + tv.tv_usec;
   fprintf(stderr, "seed %d\n", s);
   srand(s);
   for (int i = 0; i < kMutexes; i++)
