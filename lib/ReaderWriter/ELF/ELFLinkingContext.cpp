@@ -25,6 +25,9 @@
 #include <cxxabi.h>
 #endif
 
+using llvm::sys::fs::exists;
+using llvm::sys::path::is_absolute;
+
 namespace lld {
 
 class CommandLineUndefinedAtom : public SimpleUndefinedAtom {
@@ -36,18 +39,6 @@ public:
     return CanBeNull::canBeNullAtBuildtime;
   }
 };
-
-ELFLinkingContext::ELFLinkingContext(
-    llvm::Triple triple, std::unique_ptr<TargetHandlerBase> targetHandler)
-    : _outputELFType(llvm::ELF::ET_EXEC), _triple(triple),
-      _targetHandler(std::move(targetHandler)), _baseAddress(0),
-      _isStaticExecutable(false), _noInhibitExec(false), _exportDynamic(false),
-      _mergeCommonStrings(false), _useShlibUndefines(true),
-      _dynamicLinkerArg(false), _noAllowDynamicLibraries(false),
-      _mergeRODataToTextSegment(true), _demangle(true),
-      _stripSymbols(false), _alignSegments(true), _collectStats(false),
-      _outputMagic(OutputMagic::DEFAULT), _initFunction("_init"),
-      _finiFunction("_fini"), _sysrootPath(""), _linkerScriptSema() {}
 
 void ELFLinkingContext::addPasses(PassManager &pm) {
   pm.add(llvm::make_unique<elf::OrderPass>());
@@ -61,13 +52,17 @@ uint16_t ELFLinkingContext::getOutputMachine() const {
     return llvm::ELF::EM_X86_64;
   case llvm::Triple::hexagon:
     return llvm::ELF::EM_HEXAGON;
+  case llvm::Triple::mips:
   case llvm::Triple::mipsel:
+  case llvm::Triple::mips64:
   case llvm::Triple::mips64el:
     return llvm::ELF::EM_MIPS;
   case llvm::Triple::aarch64:
     return llvm::ELF::EM_AARCH64;
   case llvm::Triple::arm:
     return llvm::ELF::EM_ARM;
+  case llvm::Triple::amdgcn:
+    return llvm::ELF::EM_AMDGPU;
   default:
     llvm_unreachable("Unhandled arch");
   }
@@ -84,11 +79,8 @@ bool ELFLinkingContext::validateImpl(raw_ostream &diagnostics) {
   case LinkingContext::OutputFileType::YAML:
     _writer = createWriterYAML(*this);
     break;
-  case LinkingContext::OutputFileType::Native:
-    llvm_unreachable("Unimplemented");
-    break;
   default:
-    _writer = createWriterELF(this->targetHandler());
+    _writer = createWriterELF(*this);
     break;
   }
 
@@ -116,11 +108,13 @@ Writer &ELFLinkingContext::writer() const { return *_writer; }
 
 static void buildSearchPath(SmallString<128> &path, StringRef dir,
                             StringRef sysRoot) {
-  if (!dir.startswith("=/"))
-    path.assign(dir);
-  else {
+  if (dir.startswith("=/")) {
+    // If a search directory begins with "=", "=" is replaced
+    // with the sysroot path.
     path.assign(sysRoot);
     path.append(dir.substr(1));
+  } else {
+    path.assign(dir);
   }
 }
 
@@ -134,18 +128,18 @@ ErrorOr<StringRef> ELFLinkingContext::searchLibrary(StringRef libName) const {
       llvm::sys::path::append(path, hasColonPrefix
                                         ? libName.drop_front()
                                         : Twine("lib", libName) + ".so");
-      if (llvm::sys::fs::exists(path.str()))
-        return StringRef(*new (_allocator) std::string(path.str()));
+      if (exists(path.str()))
+        return path.str().copy(_allocator);
     }
     // Search for static libraries too
     buildSearchPath(path, dir, _sysrootPath);
     llvm::sys::path::append(path, hasColonPrefix
                                       ? libName.drop_front()
                                       : Twine("lib", libName) + ".a");
-    if (llvm::sys::fs::exists(path.str()))
-      return StringRef(*new (_allocator) std::string(path.str()));
+    if (exists(path.str()))
+      return path.str().copy(_allocator);
   }
-  if (hasColonPrefix && llvm::sys::fs::exists(libName.drop_front()))
+  if (hasColonPrefix && exists(libName.drop_front()))
       return libName.drop_front();
 
   return make_error_code(llvm::errc::no_such_file_or_directory);
@@ -154,22 +148,23 @@ ErrorOr<StringRef> ELFLinkingContext::searchLibrary(StringRef libName) const {
 ErrorOr<StringRef> ELFLinkingContext::searchFile(StringRef fileName,
                                                  bool isSysRooted) const {
   SmallString<128> path;
-  if (llvm::sys::path::is_absolute(fileName) && isSysRooted) {
+  if (is_absolute(fileName) && isSysRooted) {
     path.assign(_sysrootPath);
     path.append(fileName);
-    if (llvm::sys::fs::exists(path.str()))
-      return StringRef(*new (_allocator) std::string(path.str()));
-  } else if (llvm::sys::fs::exists(fileName))
+    if (exists(path.str()))
+      return path.str().copy(_allocator);
+  } else if (exists(fileName)) {
     return fileName;
+  }
 
-  if (llvm::sys::path::is_absolute(fileName))
+  if (is_absolute(fileName))
     return make_error_code(llvm::errc::no_such_file_or_directory);
 
   for (StringRef dir : _inputSearchPaths) {
     buildSearchPath(path, dir, _sysrootPath);
     llvm::sys::path::append(path, fileName);
-    if (llvm::sys::fs::exists(path.str()))
-      return StringRef(*new (_allocator) std::string(path.str()));
+    if (exists(path.str()))
+      return path.str().copy(_allocator);
   }
   return make_error_code(llvm::errc::no_such_file_or_directory);
 }
@@ -227,6 +222,7 @@ void ELFLinkingContext::notifySymbolTableCoalesce(const Atom *existingAtom,
 }
 
 std::string ELFLinkingContext::demangle(StringRef symbolName) const {
+#if defined(HAVE_CXXABI_H)
   if (!demangleSymbols())
     return symbolName;
 
@@ -234,26 +230,36 @@ std::string ELFLinkingContext::demangle(StringRef symbolName) const {
   if (!symbolName.startswith("_Z"))
     return symbolName;
 
-#if defined(HAVE_CXXABI_H)
   SmallString<256> symBuff;
   StringRef nullTermSym = Twine(symbolName).toNullTerminatedStringRef(symBuff);
   const char *cstr = nullTermSym.data();
   int status;
   char *demangled = abi::__cxa_demangle(cstr, nullptr, nullptr, &status);
-  if (demangled != NULL) {
-    std::string result(demangled);
-    // __cxa_demangle() always uses a malloc'ed buffer to return the result.
-    free(demangled);
-    return result;
-  }
-#endif
-
+  if (!demangled)
+    return symbolName;
+  std::string result(demangled);
+  // __cxa_demangle() always uses a malloc'ed buffer to return the result.
+  free(demangled);
+  return result;
+#else
   return symbolName;
+#endif
 }
 
 void ELFLinkingContext::setUndefinesResolver(std::unique_ptr<File> resolver) {
   assert(isa<ArchiveLibraryFile>(resolver.get()) && "Wrong resolver type");
   _resolver = std::move(resolver);
+}
+
+void ELFLinkingContext::notifyInputSectionName(StringRef name) {
+  // Save sections names which can be represented as a C identifier.
+  if (name.find_first_not_of("0123456789"
+                             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                             "abcdefghijklmnopqrstuvwxyz"
+                             "_") == StringRef::npos) {
+    std::lock_guard<std::mutex> lock(_cidentMutex);
+    _cidentSections.insert(name);
+  }
 }
 
 } // end namespace lld

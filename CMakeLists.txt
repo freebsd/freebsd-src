@@ -89,10 +89,11 @@ endif()
 add_subdirectory(lib)
 add_subdirectory(tools)
 
-add_subdirectory(test)
-
 if (LLVM_INCLUDE_TESTS)
+  add_subdirectory(test)
   add_subdirectory(unittests)
 endif()
 
 add_subdirectory(docs)
+add_subdirectory(COFF)
+add_subdirectory(ELF)

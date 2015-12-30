@@ -58,7 +58,7 @@ struct SectionInfo {
   uint32_t                  attributes;
   uint64_t                  address;
   uint64_t                  size;
-  uint32_t                  alignment;
+  uint16_t                  alignment;
   std::vector<AtomInfo>     atomsAndOffsets;
   uint32_t                  normalizedSectionIndex;
   uint32_t                  finalSectionIndex;
@@ -67,9 +67,9 @@ struct SectionInfo {
 SectionInfo::SectionInfo(StringRef sg, StringRef sct, SectionType t,
                          const MachOLinkingContext &ctxt, uint32_t attrs)
  : segmentName(sg), sectionName(sct), type(t), attributes(attrs),
-                 address(0), size(0), alignment(0),
+                 address(0), size(0), alignment(1),
                  normalizedSectionIndex(0), finalSectionIndex(0) {
-  uint8_t align;
+  uint16_t align = 1;
   if (ctxt.sectionAligned(segmentName, sectionName, align)) {
     alignment = align;
   }
@@ -90,11 +90,11 @@ SegmentInfo::SegmentInfo(StringRef n)
  : name(n), address(0), size(0), access(0), normalizedSegmentIndex(0) {
 }
 
-
 class Util {
 public:
   Util(const MachOLinkingContext &ctxt)
-      : _context(ctxt), _archHandler(ctxt.archHandler()), _entryAtom(nullptr) {}
+      : _ctx(ctxt), _archHandler(ctxt.archHandler()), _entryAtom(nullptr),
+        _hasTLVDescriptors(false) {}
   ~Util();
 
   void      assignAtomsToSections(const lld::File &atomFile);
@@ -142,7 +142,6 @@ private:
   void         appendSection(SectionInfo *si, NormalizedFile &file);
   uint32_t     sectionIndexForAtom(const Atom *atom);
 
-  static uint64_t alignTo(uint64_t value, uint8_t align2);
   typedef llvm::DenseMap<const Atom*, uint32_t> AtomToIndex;
   struct AtomAndIndex { const Atom *atom; uint32_t index; SymbolScope scope; };
   struct AtomSorter {
@@ -157,7 +156,7 @@ private:
     static unsigned weight(const SectionInfo *);
   };
 
-  const MachOLinkingContext    &_context;
+  const MachOLinkingContext &_ctx;
   mach_o::ArchHandler          &_archHandler;
   llvm::BumpPtrAllocator        _allocator;
   std::vector<SectionInfo*>     _sectionInfos;
@@ -169,6 +168,7 @@ private:
   const DefinedAtom            *_entryAtom;
   AtomToIndex                   _atomToSymbolIndex;
   std::vector<const Atom *>     _machHeaderAliasAtoms;
+  bool                          _hasTLVDescriptors;
 };
 
 Util::~Util() {
@@ -206,9 +206,8 @@ SectionInfo *Util::getRelocatableSection(DefinedAtom::ContentType type) {
     }
   }
   // Otherwise allocate new SectionInfo object.
-  SectionInfo *sect = new (_allocator) SectionInfo(segmentName, sectionName,
-                                                   sectionType, _context,
-                                                   sectionAttrs);
+  auto *sect = new (_allocator)
+      SectionInfo(segmentName, sectionName, sectionType, _ctx, sectionAttrs);
   _sectionInfos.push_back(sect);
   _sectionMap[type] = sect;
   return sect;
@@ -248,11 +247,18 @@ const MachOFinalSectionFromAtomType sectsToAtomType[] = {
                                                           typeTerminatorPtr),
   ENTRY("__DATA", "__got",            S_NON_LAZY_SYMBOL_POINTERS,
                                                           typeGOT),
+  ENTRY("__DATA", "__thread_vars",    S_THREAD_LOCAL_VARIABLES,
+                                                          typeThunkTLV),
+  ENTRY("__DATA", "__thread_data",    S_THREAD_LOCAL_REGULAR,
+                                                          typeTLVInitialData),
+  ENTRY("__DATA", "__thread_ptrs",    S_THREAD_LOCAL_VARIABLE_POINTERS,
+                                                          typeTLVInitializerPtr),
+  ENTRY("__DATA", "__thread_bss",     S_THREAD_LOCAL_ZEROFILL,
+                                                         typeTLVInitialZeroFill),
   ENTRY("__DATA", "__bss",            S_ZEROFILL,         typeZeroFill),
   ENTRY("__DATA", "__interposing",    S_INTERPOSING,      typeInterposingTuples),
 };
 #undef ENTRY
-
 
 SectionInfo *Util::getFinalSection(DefinedAtom::ContentType atomType) {
   for (auto &p : sectsToAtomType) {
@@ -264,6 +270,9 @@ SectionInfo *Util::getFinalSection(DefinedAtom::ContentType atomType) {
     case DefinedAtom::typeStub:
     case DefinedAtom::typeStubHelper:
       sectionAttrs = S_ATTR_PURE_INSTRUCTIONS;
+      break;
+    case DefinedAtom::typeThunkTLV:
+      _hasTLVDescriptors = true;
       break;
     default:
       break;
@@ -277,19 +286,14 @@ SectionInfo *Util::getFinalSection(DefinedAtom::ContentType atomType) {
       }
     }
     // Otherwise allocate new SectionInfo object.
-    SectionInfo *sect = new (_allocator) SectionInfo(p.segmentName,
-                                                     p.sectionName,
-                                                     p.sectionType,
-                                                     _context,
-                                                     sectionAttrs);
+    auto *sect = new (_allocator) SectionInfo(
+        p.segmentName, p.sectionName, p.sectionType, _ctx, sectionAttrs);
     _sectionInfos.push_back(sect);
     _sectionMap[atomType] = sect;
     return sect;
   }
   llvm_unreachable("content type not yet supported");
 }
-
-
 
 SectionInfo *Util::sectionForAtom(const DefinedAtom *atom) {
   if (atom->sectionChoice() == DefinedAtom::sectionBasedOnContent) {
@@ -298,7 +302,7 @@ SectionInfo *Util::sectionForAtom(const DefinedAtom *atom) {
     auto pos = _sectionMap.find(type);
     if ( pos != _sectionMap.end() )
       return pos->second;
-    bool rMode = (_context.outputMachOType() == llvm::MachO::MH_OBJECT);
+    bool rMode = (_ctx.outputMachOType() == llvm::MachO::MH_OBJECT);
     return rMode ? getRelocatableSection(type) : getFinalSection(type);
   } else {
     // This atom needs to be in a custom section.
@@ -315,31 +319,30 @@ SectionInfo *Util::sectionForAtom(const DefinedAtom *atom) {
     assert(seperatorIndex != StringRef::npos);
     StringRef segName = customName.slice(0, seperatorIndex);
     StringRef sectName = customName.drop_front(seperatorIndex + 1);
-    SectionInfo *sect = new (_allocator) SectionInfo(segName, sectName,
-                                                    S_REGULAR, _context);
+    auto *sect =
+        new (_allocator) SectionInfo(segName, sectName, S_REGULAR, _ctx);
     _customSections.push_back(sect);
     _sectionInfos.push_back(sect);
     return sect;
   }
 }
 
-
 void Util::appendAtom(SectionInfo *sect, const DefinedAtom *atom) {
   // Figure out offset for atom in this section given alignment constraints.
   uint64_t offset = sect->size;
   DefinedAtom::Alignment atomAlign = atom->alignment();
-  uint64_t align2 = 1 << atomAlign.powerOf2;
+  uint64_t align = atomAlign.value;
   uint64_t requiredModulus = atomAlign.modulus;
-  uint64_t currentModulus = (offset % align2);
+  uint64_t currentModulus = (offset % align);
   if ( currentModulus != requiredModulus ) {
     if ( requiredModulus > currentModulus )
       offset += requiredModulus-currentModulus;
     else
-      offset += align2+requiredModulus-currentModulus;
+      offset += align+requiredModulus-currentModulus;
   }
   // Record max alignment of any atom in this section.
-  if ( atomAlign.powerOf2 > sect->alignment )
-    sect->alignment = atomAlign.powerOf2;
+  if (align > sect->alignment)
+    sect->alignment = atomAlign.value;
   // Assign atom to this section with this offset.
   AtomInfo ai = {atom, offset};
   sect->atomsAndOffsets.push_back(ai);
@@ -361,7 +364,7 @@ SegmentInfo *Util::segmentForName(StringRef segName) {
     if ( si->name.equals(segName) )
       return si;
   }
-  SegmentInfo *info = new (_allocator) SegmentInfo(segName);
+  auto *info = new (_allocator) SegmentInfo(segName);
   if (segName.equals("__TEXT"))
     info->access = VM_PROT_READ | VM_PROT_EXECUTE;
   else if (segName.equals("__DATA"))
@@ -402,16 +405,15 @@ bool Util::TextSectionSorter::operator()(const SectionInfo *left,
   return (weight(left) < weight(right));
 }
 
-
 void Util::organizeSections() {
-  if (_context.outputMachOType() == llvm::MachO::MH_OBJECT) {
+  if (_ctx.outputMachOType() == llvm::MachO::MH_OBJECT) {
     // Leave sections ordered as normalized file specified.
     uint32_t sectionIndex = 1;
     for (SectionInfo *si : _sectionInfos) {
       si->finalSectionIndex = sectionIndex++;
     }
   } else {
-    switch (_context.outputMachOType()){
+    switch (_ctx.outputMachOType()) {
     case llvm::MachO::MH_EXECUTE:
       // Main executables, need a zero-page segment
       segmentForName("__PAGEZERO");
@@ -450,23 +452,16 @@ void Util::organizeSections() {
       }
     }
   }
-
 }
-
-uint64_t Util::alignTo(uint64_t value, uint8_t align2) {
-  return llvm::RoundUpToAlignment(value, 1 << align2);
-}
-
 
 void Util::layoutSectionsInSegment(SegmentInfo *seg, uint64_t &addr) {
   seg->address = addr;
   for (SectionInfo *sect : seg->sections) {
-    sect->address = alignTo(addr, sect->alignment);
+    sect->address = llvm::RoundUpToAlignment(addr, sect->alignment);
     addr = sect->address + sect->size;
   }
-  seg->size = llvm::RoundUpToAlignment(addr - seg->address,_context.pageSize());
+  seg->size = llvm::RoundUpToAlignment(addr - seg->address, _ctx.pageSize());
 }
-
 
 // __TEXT segment lays out backwards so padding is at front after load commands.
 void Util::layoutSectionsInTextSegment(size_t hlcSize, SegmentInfo *seg,
@@ -477,39 +472,38 @@ void Util::layoutSectionsInTextSegment(size_t hlcSize, SegmentInfo *seg,
   for (auto it = seg->sections.rbegin(); it != seg->sections.rend(); ++it) {
     SectionInfo *sect = *it;
     taddr -= sect->size;
-    taddr = taddr & (0 - (1 << sect->alignment));
+    taddr = taddr & (0 - sect->alignment);
   }
   int64_t padding = taddr - hlcSize;
   while (padding < 0)
-    padding += _context.pageSize();
+    padding += _ctx.pageSize();
   // Start assigning section address starting at padded offset.
   addr += (padding + hlcSize);
   for (SectionInfo *sect : seg->sections) {
-    sect->address = alignTo(addr, sect->alignment);
+    sect->address = llvm::RoundUpToAlignment(addr, sect->alignment);
     addr = sect->address + sect->size;
   }
-  seg->size = llvm::RoundUpToAlignment(addr - seg->address,_context.pageSize());
+  seg->size = llvm::RoundUpToAlignment(addr - seg->address, _ctx.pageSize());
 }
-
 
 void Util::assignAddressesToSections(const NormalizedFile &file) {
   size_t hlcSize = headerAndLoadCommandsSize(file);
   uint64_t address = 0;
-  if (_context.outputMachOType() != llvm::MachO::MH_OBJECT) {
+  if (_ctx.outputMachOType() != llvm::MachO::MH_OBJECT) {
     for (SegmentInfo *seg : _segmentInfos) {
       if (seg->name.equals("__PAGEZERO")) {
-        seg->size = _context.pageZeroSize();
+        seg->size = _ctx.pageZeroSize();
         address += seg->size;
       }
       else if (seg->name.equals("__TEXT")) {
-        // _context.baseAddress()  == 0 implies it was either unspecified or
+        // _ctx.baseAddress()  == 0 implies it was either unspecified or
         // pageZeroSize is also 0. In either case resetting address is safe.
-        address = _context.baseAddress() ? _context.baseAddress() : address;
+        address = _ctx.baseAddress() ? _ctx.baseAddress() : address;
         layoutSectionsInTextSegment(hlcSize, seg, address);
       } else
         layoutSectionsInSegment(seg, address);
 
-      address = llvm::RoundUpToAlignment(address, _context.pageSize());
+      address = llvm::RoundUpToAlignment(address, _ctx.pageSize());
     }
     DEBUG_WITH_TYPE("WriterMachO-norm",
       llvm::dbgs() << "assignAddressesToSections()\n";
@@ -528,7 +522,7 @@ void Util::assignAddressesToSections(const NormalizedFile &file) {
     );
   } else {
     for (SectionInfo *sect : _sectionInfos) {
-      sect->address = alignTo(address, sect->alignment);
+      sect->address = llvm::RoundUpToAlignment(address, sect->alignment);
       address = sect->address + sect->size;
     }
     DEBUG_WITH_TYPE("WriterMachO-norm",
@@ -542,7 +536,6 @@ void Util::assignAddressesToSections(const NormalizedFile &file) {
     );
   }
 }
-
 
 void Util::copySegmentInfo(NormalizedFile &file) {
   for (SegmentInfo *sgi : _segmentInfos) {
@@ -572,7 +565,7 @@ void Util::appendSection(SectionInfo *si, NormalizedFile &file) {
 }
 
 void Util::copySectionContent(NormalizedFile &file) {
-  const bool r = (_context.outputMachOType() == llvm::MachO::MH_OBJECT);
+  const bool r = (_ctx.outputMachOType() == llvm::MachO::MH_OBJECT);
 
   // Utility function for ArchHandler to find address of atom in output file.
   auto addrForAtom = [&] (const Atom &atom) -> uint64_t {
@@ -591,7 +584,7 @@ void Util::copySectionContent(NormalizedFile &file) {
 
   for (SectionInfo *si : _sectionInfos) {
     Section *normSect = &file.sections[si->normalizedSectionIndex];
-    if (si->type == llvm::MachO::S_ZEROFILL) {
+    if (isZeroFillSection(si->type)) {
       const uint8_t *empty = nullptr;
       normSect->content = llvm::makeArrayRef(empty, si->size);
       continue;
@@ -603,17 +596,16 @@ void Util::copySectionContent(NormalizedFile &file) {
       uint8_t *atomContent = reinterpret_cast<uint8_t*>
                                           (&sectionContent[ai.offsetInSection]);
       _archHandler.generateAtomContent(*ai.atom, r, addrForAtom,
-                                       sectionAddrForAtom,
-                                       _context.baseAddress(), atomContent);
+                                       sectionAddrForAtom, _ctx.baseAddress(),
+                                       atomContent);
     }
   }
 }
 
-
 void Util::copySectionInfo(NormalizedFile &file) {
   file.sections.reserve(_sectionInfos.size());
   // For final linked images, write sections grouped by segment.
-  if (_context.outputMachOType() != llvm::MachO::MH_OBJECT) {
+  if (_ctx.outputMachOType() != llvm::MachO::MH_OBJECT) {
     for (SegmentInfo *sgi : _segmentInfos) {
       for (SectionInfo *si : sgi->sections) {
         appendSection(si, file);
@@ -629,7 +621,7 @@ void Util::copySectionInfo(NormalizedFile &file) {
 
 void Util::updateSectionInfo(NormalizedFile &file) {
   file.sections.reserve(_sectionInfos.size());
-  if (_context.outputMachOType() != llvm::MachO::MH_OBJECT) {
+  if (_ctx.outputMachOType() != llvm::MachO::MH_OBJECT) {
     // For final linked images, sections grouped by segment.
     for (SegmentInfo *sgi : _segmentInfos) {
       Segment *normSeg = &file.segments[sgi->normalizedSegmentIndex];
@@ -650,7 +642,7 @@ void Util::updateSectionInfo(NormalizedFile &file) {
 }
 
 void Util::copyEntryPointAddress(NormalizedFile &nFile) {
-  if (_context.outputTypeHasEntry()) {
+  if (_ctx.outputTypeHasEntry()) {
     if (_archHandler.isThumbFunction(*_entryAtom))
       nFile.entryAddress = (_atomToAddress[_entryAtom] | 1);
     else
@@ -661,13 +653,13 @@ void Util::copyEntryPointAddress(NormalizedFile &nFile) {
 void Util::buildAtomToAddressMap() {
   DEBUG_WITH_TYPE("WriterMachO-address", llvm::dbgs()
                    << "assign atom addresses:\n");
-  const bool lookForEntry = _context.outputTypeHasEntry();
+  const bool lookForEntry = _ctx.outputTypeHasEntry();
   for (SectionInfo *sect : _sectionInfos) {
     for (const AtomInfo &info : sect->atomsAndOffsets) {
       _atomToAddress[info.atom] = sect->address + info.offsetInSection;
       if (lookForEntry && (info.atom->contentType() == DefinedAtom::typeCode) &&
           (info.atom->size() != 0) &&
-          info.atom->name() == _context.entrySymbolName()) {
+          info.atom->name() == _ctx.entrySymbolName()) {
         _entryAtom = info.atom;
       }
       DEBUG_WITH_TYPE("WriterMachO-address", llvm::dbgs()
@@ -678,7 +670,7 @@ void Util::buildAtomToAddressMap() {
     }
   }
   for (const Atom *atom : _machHeaderAliasAtoms) {
-    _atomToAddress[atom] = _context.baseAddress();
+    _atomToAddress[atom] = _ctx.baseAddress();
     DEBUG_WITH_TYPE("WriterMachO-address", llvm::dbgs()
               << "   address="
               << llvm::format("0x%016X", _atomToAddress[atom])
@@ -715,30 +707,28 @@ uint16_t Util::descBits(const DefinedAtom* atom) {
   return desc;
 }
 
-
 bool Util::AtomSorter::operator()(const AtomAndIndex &left,
                                   const AtomAndIndex &right) {
   return (left.atom->name().compare(right.atom->name()) < 0);
 }
 
-
 std::error_code Util::getSymbolTableRegion(const DefinedAtom* atom,
                                            bool &inGlobalsRegion,
                                            SymbolScope &scope) {
-  bool rMode = (_context.outputMachOType() == llvm::MachO::MH_OBJECT);
+  bool rMode = (_ctx.outputMachOType() == llvm::MachO::MH_OBJECT);
   switch (atom->scope()) {
   case Atom::scopeTranslationUnit:
     scope = 0;
     inGlobalsRegion = false;
     return std::error_code();
   case Atom::scopeLinkageUnit:
-    if ((_context.exportMode() == MachOLinkingContext::ExportMode::whiteList)
-        && _context.exportSymbolNamed(atom->name())) {
+    if ((_ctx.exportMode() == MachOLinkingContext::ExportMode::whiteList) &&
+        _ctx.exportSymbolNamed(atom->name())) {
       return make_dynamic_error_code(Twine("cannot export hidden symbol ")
                                     + atom->name());
     }
     if (rMode) {
-      if (_context.keepPrivateExterns()) {
+      if (_ctx.keepPrivateExterns()) {
         // -keep_private_externs means keep in globals region as N_PEXT.
         scope = N_PEXT | N_EXT;
         inGlobalsRegion = true;
@@ -750,8 +740,8 @@ std::error_code Util::getSymbolTableRegion(const DefinedAtom* atom,
     inGlobalsRegion = false;
     return std::error_code();
   case Atom::scopeGlobal:
-    if (_context.exportRestrictMode()) {
-      if (_context.exportSymbolNamed(atom->name())) {
+    if (_ctx.exportRestrictMode()) {
+      if (_ctx.exportSymbolNamed(atom->name())) {
         scope = N_EXT;
         inGlobalsRegion = true;
         return std::error_code();
@@ -772,7 +762,7 @@ std::error_code Util::getSymbolTableRegion(const DefinedAtom* atom,
 
 std::error_code Util::addSymbols(const lld::File &atomFile,
                                  NormalizedFile &file) {
-  bool rMode = (_context.outputMachOType() == llvm::MachO::MH_OBJECT);
+  bool rMode = (_ctx.outputMachOType() == llvm::MachO::MH_OBJECT);
   // Mach-O symbol table has three regions: locals, globals, undefs.
 
   // Add all local (non-global) symbols in address order
@@ -835,7 +825,6 @@ std::error_code Util::addSymbols(const lld::File &atomFile,
     file.globalSymbols.push_back(sym);
   }
 
-
   // Sort undefined symbol alphabetically, then add to symbol table.
   std::vector<AtomAndIndex> undefs;
   undefs.reserve(128);
@@ -853,7 +842,9 @@ std::error_code Util::addSymbols(const lld::File &atomFile,
     Symbol sym;
     uint16_t desc = 0;
     if (!rMode) {
-      uint8_t ordinal = dylibOrdinal(dyn_cast<SharedLibraryAtom>(ai.atom));
+      uint8_t ordinal = 0;
+      if (!_ctx.useFlatNamespace())
+        ordinal = dylibOrdinal(dyn_cast<SharedLibraryAtom>(ai.atom));
       llvm::MachO::SET_LIBRARY_ORDINAL(desc, ordinal);
     }
     sym.name  = ai.atom->name();
@@ -890,7 +881,6 @@ const Atom *Util::targetOfStub(const DefinedAtom *stubAtom) {
   }
   return nullptr;
 }
-
 
 void Util::addIndirectSymbols(const lld::File &atomFile, NormalizedFile &file) {
   for (SectionInfo *si : _sectionInfos) {
@@ -940,7 +930,6 @@ void Util::addIndirectSymbols(const lld::File &atomFile, NormalizedFile &file) {
       break;
     }
   }
-
 }
 
 void Util::addDependentDylibs(const lld::File &atomFile,NormalizedFile &nFile) {
@@ -951,16 +940,28 @@ void Util::addDependentDylibs(const lld::File &atomFile,NormalizedFile &nFile) {
     DylibPathToInfo::iterator pos = _dylibInfo.find(loadPath);
     if (pos == _dylibInfo.end()) {
       DylibInfo info;
-      info.ordinal = ordinal++;
+      bool flatNamespaceAtom = &slAtom->file() == _ctx.flatNamespaceFile();
+
+      // If we're in -flat_namespace mode (or this atom came from the flat
+      // namespace file under -undefined dynamic_lookup) then use the flat
+      // lookup ordinal.
+      if (flatNamespaceAtom || _ctx.useFlatNamespace())
+        info.ordinal = BIND_SPECIAL_DYLIB_FLAT_LOOKUP;
+      else
+        info.ordinal = ordinal++;
       info.hasWeak = slAtom->canBeNullAtRuntime();
       info.hasNonWeak = !info.hasWeak;
       _dylibInfo[loadPath] = info;
-      DependentDylib depInfo;
-      depInfo.path = loadPath;
-      depInfo.kind = llvm::MachO::LC_LOAD_DYLIB;
-      depInfo.currentVersion = _context.dylibCurrentVersion(loadPath);
-      depInfo.compatVersion = _context.dylibCompatVersion(loadPath);
-      nFile.dependentDylibs.push_back(depInfo);
+
+      // Unless this was a flat_namespace atom, record the source dylib.
+      if (!flatNamespaceAtom) {
+        DependentDylib depInfo;
+        depInfo.path = loadPath;
+        depInfo.kind = llvm::MachO::LC_LOAD_DYLIB;
+        depInfo.currentVersion = _ctx.dylibCurrentVersion(loadPath);
+        depInfo.compatVersion = _ctx.dylibCompatVersion(loadPath);
+        nFile.dependentDylibs.push_back(depInfo);
+      }
     } else {
       if ( slAtom->canBeNullAtRuntime() )
         pos->second.hasWeak = true;
@@ -973,11 +974,10 @@ void Util::addDependentDylibs(const lld::File &atomFile,NormalizedFile &nFile) {
     DylibInfo &info = _dylibInfo[dep.path];
     if (info.hasWeak && !info.hasNonWeak)
       dep.kind = llvm::MachO::LC_LOAD_WEAK_DYLIB;
-    else if (_context.isUpwardDylib(dep.path))
+    else if (_ctx.isUpwardDylib(dep.path))
       dep.kind = llvm::MachO::LC_LOAD_UPWARD_DYLIB;
   }
 }
-
 
 int Util::dylibOrdinal(const SharedLibraryAtom *sa) {
   return _dylibInfo[sa->loadName()].ordinal;
@@ -997,7 +997,6 @@ void Util::segIndexForSection(const SectionInfo *sect, uint8_t &segmentIndex,
   llvm_unreachable("section not in any segment");
 }
 
-
 uint32_t Util::sectionIndexForAtom(const Atom *atom) {
   uint64_t address = _atomToAddress[atom];
   uint32_t index = 1;
@@ -1010,9 +1009,8 @@ uint32_t Util::sectionIndexForAtom(const Atom *atom) {
 }
 
 void Util::addSectionRelocs(const lld::File &, NormalizedFile &file) {
-  if (_context.outputMachOType() != llvm::MachO::MH_OBJECT)
+  if (_ctx.outputMachOType() != llvm::MachO::MH_OBJECT)
     return;
-
 
   // Utility function for ArchHandler to find symbol index for an atom.
   auto symIndexForAtom = [&] (const Atom &atom) -> uint32_t {
@@ -1090,7 +1088,7 @@ void Util::buildDataInCodeArray(const lld::File &, NormalizedFile &file) {
 
 void Util::addRebaseAndBindingInfo(const lld::File &atomFile,
                                                         NormalizedFile &nFile) {
-  if (_context.outputMachOType() == llvm::MachO::MH_OBJECT)
+  if (_ctx.outputMachOType() == llvm::MachO::MH_OBJECT)
     return;
 
   uint8_t segmentIndex;
@@ -1146,7 +1144,7 @@ void Util::addRebaseAndBindingInfo(const lld::File &atomFile,
 }
 
 void Util::addExportInfo(const lld::File &atomFile, NormalizedFile &nFile) {
-  if (_context.outputMachOType() == llvm::MachO::MH_OBJECT)
+  if (_ctx.outputMachOType() == llvm::MachO::MH_OBJECT)
     return;
 
   for (SectionInfo *sect : _sectionInfos) {
@@ -1154,13 +1152,13 @@ void Util::addExportInfo(const lld::File &atomFile, NormalizedFile &nFile) {
       const DefinedAtom *atom = info.atom;
       if (atom->scope() != Atom::scopeGlobal)
         continue;
-      if (_context.exportRestrictMode()) {
-        if (!_context.exportSymbolNamed(atom->name()))
+      if (_ctx.exportRestrictMode()) {
+        if (!_ctx.exportSymbolNamed(atom->name()))
           continue;
       }
       Export exprt;
       exprt.name = atom->name();
-      exprt.offset = _atomToAddress[atom];   // FIXME: subtract base address
+      exprt.offset = _atomToAddress[atom] - _ctx.baseAddress();
       exprt.kind = EXPORT_SYMBOL_FLAGS_KIND_REGULAR;
       if (atom->merge() == DefinedAtom::mergeAsWeak)
         exprt.flags = EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION;
@@ -1175,18 +1173,21 @@ void Util::addExportInfo(const lld::File &atomFile, NormalizedFile &nFile) {
 
 uint32_t Util::fileFlags() {
   // FIXME: these need to determined at runtime.
-  if (_context.outputMachOType() == MH_OBJECT) {
+  if (_ctx.outputMachOType() == MH_OBJECT) {
     return MH_SUBSECTIONS_VIA_SYMBOLS;
   } else {
-    if ((_context.outputMachOType() == MH_EXECUTE) && _context.PIE())
-      return MH_DYLDLINK | MH_NOUNDEFS | MH_TWOLEVEL | MH_PIE;
-    else
-      return MH_DYLDLINK | MH_NOUNDEFS | MH_TWOLEVEL;
+    uint32_t flags = MH_DYLDLINK;
+    if (!_ctx.useFlatNamespace())
+        flags |= MH_TWOLEVEL | MH_NOUNDEFS;
+    if ((_ctx.outputMachOType() == MH_EXECUTE) && _ctx.PIE())
+      flags |= MH_PIE;
+    if (_hasTLVDescriptors)
+      flags |= (MH_PIE | MH_HAS_TLV_DESCRIPTORS);
+    return flags;
   }
 }
 
 } // end anonymous namespace
-
 
 namespace lld {
 namespace mach_o {
@@ -1206,6 +1207,7 @@ normalizedFromAtoms(const lld::File &atomFile,
   normFile.arch = context.arch();
   normFile.fileType = context.outputMachOType();
   normFile.flags = util.fileFlags();
+  normFile.stackSize = context.stackSize();
   normFile.installName = context.installName();
   normFile.currentVersion = context.currentVersion();
   normFile.compatVersion = context.compatibilityVersion();
@@ -1231,8 +1233,6 @@ normalizedFromAtoms(const lld::File &atomFile,
   return std::move(f);
 }
 
-
 } // namespace normalized
 } // namespace mach_o
 } // namespace lld
-

@@ -10,90 +10,35 @@
 #ifndef LLD_READER_WRITER_ELF_READER_H
 #define LLD_READER_WRITER_ELF_READER_H
 
-#include "CreateELF.h"
 #include "DynamicFile.h"
 #include "ELFFile.h"
+#include "lld/Core/File.h"
 #include "lld/Core/Reader.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Object/ELF.h"
 
 namespace lld {
 namespace elf {
 
-template <typename ELFT, typename ELFTraitsT, typename ContextT>
-class ELFObjectReader : public Reader {
+template <typename FileT> class ELFReader : public Reader {
 public:
-  typedef llvm::object::Elf_Ehdr_Impl<ELFT> Elf_Ehdr;
+  ELFReader(ELFLinkingContext &ctx) : _ctx(ctx) {}
 
-  ELFObjectReader(ContextT &ctx, uint64_t machine)
-      : _ctx(ctx), _machine(machine) {}
-
-  bool canParse(file_magic magic, StringRef,
-                const MemoryBuffer &buf) const override {
-    return (magic == llvm::sys::fs::file_magic::elf_relocatable &&
-            elfHeader(buf)->e_machine == _machine);
+  bool canParse(file_magic magic, MemoryBufferRef mb) const override {
+    return FileT::canParse(magic);
   }
 
-  std::error_code
-  loadFile(std::unique_ptr<MemoryBuffer> mb, const class Registry &,
-           std::vector<std::unique_ptr<File>> &result) const override {
-    std::size_t maxAlignment =
-        1ULL << llvm::countTrailingZeros(uintptr_t(mb->getBufferStart()));
-    auto f =
-        createELF<ELFTraitsT>(llvm::object::getElfArchType(mb->getBuffer()),
-                              maxAlignment, std::move(mb), _ctx);
-    if (std::error_code ec = f.getError())
+  ErrorOr<std::unique_ptr<File>>
+  loadFile(std::unique_ptr<MemoryBuffer> mb,
+           const class Registry &) const override {
+    if (std::error_code ec = FileT::isCompatible(mb->getMemBufferRef(), _ctx))
       return ec;
-    result.push_back(std::move(*f));
-    return std::error_code();
+    std::unique_ptr<File> ret = llvm::make_unique<FileT>(std::move(mb), _ctx);
+    return std::move(ret);
   }
 
-  const Elf_Ehdr *elfHeader(const MemoryBuffer &buf) const {
-    const uint8_t *data =
-        reinterpret_cast<const uint8_t *>(buf.getBuffer().data());
-    return (reinterpret_cast<const Elf_Ehdr *>(data));
-  }
-
-protected:
-  ContextT &_ctx;
-  uint64_t _machine;
-};
-
-template <typename ELFT, typename ELFTraitsT, typename ContextT>
-class ELFDSOReader : public Reader {
-public:
-  typedef llvm::object::Elf_Ehdr_Impl<ELFT> Elf_Ehdr;
-
-  ELFDSOReader(ContextT &ctx, uint64_t machine)
-      : _ctx(ctx), _machine(machine) {}
-
-  bool canParse(file_magic magic, StringRef,
-                const MemoryBuffer &buf) const override {
-    return (magic == llvm::sys::fs::file_magic::elf_shared_object &&
-            elfHeader(buf)->e_machine == _machine);
-  }
-
-  std::error_code
-  loadFile(std::unique_ptr<MemoryBuffer> mb, const class Registry &,
-           std::vector<std::unique_ptr<File>> &result) const override {
-    std::size_t maxAlignment =
-        1ULL << llvm::countTrailingZeros(uintptr_t(mb->getBufferStart()));
-    auto f =
-        createELF<ELFTraitsT>(llvm::object::getElfArchType(mb->getBuffer()),
-                              maxAlignment, std::move(mb), _ctx);
-    if (std::error_code ec = f.getError())
-      return ec;
-    result.push_back(std::move(*f));
-    return std::error_code();
-  }
-
-  const Elf_Ehdr *elfHeader(const MemoryBuffer &buf) const {
-    const uint8_t *data =
-        reinterpret_cast<const uint8_t *>(buf.getBuffer().data());
-    return (reinterpret_cast<const Elf_Ehdr *>(data));
-  }
-
-protected:
-  ContextT &_ctx;
-  uint64_t _machine;
+private:
+  ELFLinkingContext &_ctx;
 };
 
 } // namespace elf

@@ -27,11 +27,16 @@
 #include "MachONormalizedFileBinaryUtils.h"
 #include "lld/Core/Error.h"
 #include "lld/Core/LLVM.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/MachO.h"
+#include "llvm/Support/LEB128.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm::MachO;
 using namespace lld::mach_o::normalized;
+
+#define DEBUG_TYPE "normalized-file-to-atoms"
 
 namespace lld {
 namespace mach_o {
@@ -78,6 +83,11 @@ const MachORelocatableSectionToAtomType sectsToAtomType[] = {
   ENTRY("",       "",                 S_NON_LAZY_SYMBOL_POINTERS,
                                                           typeGOT),
   ENTRY("__DATA", "__interposing",    S_INTERPOSING,      typeInterposingTuples),
+  ENTRY("__DATA", "__thread_vars",    S_THREAD_LOCAL_VARIABLES,
+                                                          typeThunkTLV),
+  ENTRY("__DATA", "__thread_data", S_THREAD_LOCAL_REGULAR, typeTLVInitialData),
+  ENTRY("__DATA", "__thread_bss",     S_THREAD_LOCAL_ZEROFILL,
+                                                        typeTLVInitialZeroFill),
   ENTRY("",       "",                 S_INTERPOSING,      typeInterposingTuples),
   ENTRY("__LD",   "__compact_unwind", S_REGULAR,
                                                          typeCompactUnwindInfo),
@@ -228,7 +238,7 @@ void atomFromSymbol(DefinedAtom::ContentType atomType, const Section &section,
   uint64_t size = nextSymbolAddr - symbolAddr;
   uint64_t offset = symbolAddr - section.address;
   bool noDeadStrip = (symbolDescFlags & N_NO_DEAD_STRIP) || !scatterable;
-  if (section.type == llvm::MachO::S_ZEROFILL) {
+  if (isZeroFillSection(section.type)) {
     file.addZeroFillDefinedAtom(symbolName, symbolScope, offset, size,
                                 noDeadStrip, copyRefs, &section);
   } else {
@@ -558,17 +568,17 @@ std::error_code convertRelocs(const Section &section,
         *result = target;
         return std::error_code();
       }
-      return make_dynamic_error_code(Twine("no atom found for defined symbol"));
+      return make_dynamic_error_code("no atom found for defined symbol");
     } else if ((sym->type & N_TYPE) == N_UNDF) {
       const lld::Atom *target = file.findUndefAtom(sym->name);
       if (target) {
         *result = target;
         return std::error_code();
       }
-      return make_dynamic_error_code(Twine("no undefined atom found for sym"));
+      return make_dynamic_error_code("no undefined atom found for sym");
     } else {
       // Search undefs
-      return make_dynamic_error_code(Twine("no atom found for symbol"));
+      return make_dynamic_error_code("no atom found for symbol");
     }
   };
 
@@ -594,10 +604,37 @@ std::error_code convertRelocs(const Section &section,
     Reference::KindValue kind;
     std::error_code relocErr;
     if (handler.isPairedReloc(reloc)) {
-     // Handle paired relocations together.
+      // Handle paired relocations together.
+      const Relocation &reloc2 = *++it;
       relocErr = handler.getPairReferenceInfo(
-          reloc, *++it, inAtom, offsetInAtom, fixupAddress, isBig, scatterable,
+          reloc, reloc2, inAtom, offsetInAtom, fixupAddress, isBig, scatterable,
           atomByAddr, atomBySymbol, &kind, &target, &addend);
+      if (relocErr) {
+        return make_dynamic_error_code(
+          Twine("bad relocation (") + relocErr.message()
+           + ") in section "
+           + section.segmentName + "/" + section.sectionName
+           + " (r1_address=" + Twine::utohexstr(reloc.offset)
+           + ", r1_type=" + Twine(reloc.type)
+           + ", r1_extern=" + Twine(reloc.isExtern)
+           + ", r1_length=" + Twine((int)reloc.length)
+           + ", r1_pcrel=" + Twine(reloc.pcRel)
+           + (!reloc.scattered ? (Twine(", r1_symbolnum=")
+                                  + Twine(reloc.symbol))
+                               : (Twine(", r1_scattered=1, r1_value=")
+                                  + Twine(reloc.value)))
+           + ")"
+           + ", (r2_address=" + Twine::utohexstr(reloc2.offset)
+           + ", r2_type=" + Twine(reloc2.type)
+           + ", r2_extern=" + Twine(reloc2.isExtern)
+           + ", r2_length=" + Twine((int)reloc2.length)
+           + ", r2_pcrel=" + Twine(reloc2.pcRel)
+           + (!reloc2.scattered ? (Twine(", r2_symbolnum=")
+                                   + Twine(reloc2.symbol))
+                                : (Twine(", r2_scattered=1, r2_value=")
+                                   + Twine(reloc2.value)))
+           + ")" );
+      }
     }
     else {
       // Use ArchHandler to convert relocation record into information
@@ -605,26 +642,25 @@ std::error_code convertRelocs(const Section &section,
       relocErr = handler.getReferenceInfo(
           reloc, inAtom, offsetInAtom, fixupAddress, isBig, atomByAddr,
           atomBySymbol, &kind, &target, &addend);
+      if (relocErr) {
+        return make_dynamic_error_code(
+          Twine("bad relocation (") + relocErr.message()
+           + ") in section "
+           + section.segmentName + "/" + section.sectionName
+           + " (r_address=" + Twine::utohexstr(reloc.offset)
+           + ", r_type=" + Twine(reloc.type)
+           + ", r_extern=" + Twine(reloc.isExtern)
+           + ", r_length=" + Twine((int)reloc.length)
+           + ", r_pcrel=" + Twine(reloc.pcRel)
+           + (!reloc.scattered ? (Twine(", r_symbolnum=") + Twine(reloc.symbol))
+                               : (Twine(", r_scattered=1, r_value=")
+                                  + Twine(reloc.value)))
+           + ")" );
+      }
     }
-    if (relocErr) {
-      return make_dynamic_error_code(
-        Twine("bad relocation (") + relocErr.message()
-         + ") in section "
-         + section.segmentName + "/" + section.sectionName
-         + " (r_address=" + Twine::utohexstr(reloc.offset)
-         + ", r_type=" + Twine(reloc.type)
-         + ", r_extern=" + Twine(reloc.isExtern)
-         + ", r_length=" + Twine((int)reloc.length)
-         + ", r_pcrel=" + Twine(reloc.pcRel)
-         + (!reloc.scattered ? (Twine(", r_symbolnum=") + Twine(reloc.symbol))
-                             : (Twine(", r_scattered=1, r_value=")
-                                + Twine(reloc.value)))
-         + ")" );
-    } else {
-      // Instantiate an lld::Reference object and add to its atom.
-      inAtom->addReference(offsetInAtom, kind, target, addend,
-                           handler.kindArch());
-    }
+    // Instantiate an lld::Reference object and add to its atom.
+    inAtom->addReference(offsetInAtom, kind, target, addend,
+                         handler.kindArch());
   }
 
   return std::error_code();
@@ -644,11 +680,158 @@ static int64_t readSPtr(bool is64, bool isBig, const uint8_t *addr) {
   return res;
 }
 
+/// --- Augmentation String Processing ---
+
+struct CIEInfo {
+  bool _augmentationDataPresent = false;
+  bool _mayHaveLSDA = false;
+};
+
+typedef llvm::DenseMap<const MachODefinedAtom*, CIEInfo> CIEInfoMap;
+
+static std::error_code processAugmentationString(const uint8_t *augStr,
+                                                 CIEInfo &cieInfo,
+                                                 unsigned *len = nullptr) {
+
+  if (augStr[0] == '\0') {
+    if (len)
+      *len = 1;
+    return std::error_code();
+  }
+
+  if (augStr[0] != 'z')
+    return make_dynamic_error_code("expected 'z' at start of augmentation "
+                                   "string");
+
+  cieInfo._augmentationDataPresent = true;
+  uint64_t idx = 1;
+
+  while (augStr[idx] != '\0') {
+    if (augStr[idx] == 'L') {
+      cieInfo._mayHaveLSDA = true;
+      ++idx;
+    } else
+      ++idx;
+  }
+
+  if (len)
+    *len = idx + 1;
+  return std::error_code();
+}
+
+static std::error_code processCIE(const NormalizedFile &normalizedFile,
+                                  MachODefinedAtom *atom,
+                                  CIEInfoMap &cieInfos) {
+  const bool isBig = MachOLinkingContext::isBigEndian(normalizedFile.arch);
+  const uint8_t *frameData = atom->rawContent().data();
+
+  CIEInfo cieInfo;
+
+  uint32_t size = read32(frameData, isBig);
+  uint64_t cieIDField = size == 0xffffffffU
+                          ? sizeof(uint32_t) + sizeof(uint64_t)
+                          : sizeof(uint32_t);
+  uint64_t versionField = cieIDField + sizeof(uint32_t);
+  uint64_t augmentationStringField = versionField + sizeof(uint8_t);
+
+  if (auto err = processAugmentationString(frameData + augmentationStringField,
+                                           cieInfo))
+    return err;
+
+  cieInfos[atom] = std::move(cieInfo);
+
+  return std::error_code();
+}
+
+static std::error_code processFDE(const NormalizedFile &normalizedFile,
+                                  MachOFile &file,
+                                  mach_o::ArchHandler &handler,
+                                  const Section *ehFrameSection,
+                                  MachODefinedAtom *atom,
+                                  uint64_t offset,
+                                  const CIEInfoMap &cieInfos) {
+
+  const bool isBig = MachOLinkingContext::isBigEndian(normalizedFile.arch);
+  const bool is64 = MachOLinkingContext::is64Bit(normalizedFile.arch);
+
+  // Compiler wasn't lazy and actually told us what it meant.
+  if (atom->begin() != atom->end())
+    return std::error_code();
+
+  const uint8_t *frameData = atom->rawContent().data();
+  uint32_t size = read32(frameData, isBig);
+  uint64_t cieFieldInFDE = size == 0xffffffffU
+    ? sizeof(uint32_t) + sizeof(uint64_t)
+    : sizeof(uint32_t);
+
+  // Linker needs to fixup a reference from the FDE to its parent CIE (a
+  // 32-bit byte offset backwards in the __eh_frame section).
+  uint32_t cieDelta = read32(frameData + cieFieldInFDE, isBig);
+  uint64_t cieAddress = ehFrameSection->address + offset + cieFieldInFDE;
+  cieAddress -= cieDelta;
+
+  Reference::Addend addend;
+  const MachODefinedAtom *cie =
+    findAtomCoveringAddress(normalizedFile, file, cieAddress, &addend);
+  atom->addReference(cieFieldInFDE, handler.unwindRefToCIEKind(), cie,
+                     addend, handler.kindArch());
+
+  assert(cie && cie->contentType() == DefinedAtom::typeCFI && !addend &&
+         "FDE's CIE field does not point at the start of a CIE.");
+
+  const CIEInfo &cieInfo = cieInfos.find(cie)->second;
+
+  // Linker needs to fixup reference from the FDE to the function it's
+  // describing. FIXME: there are actually different ways to do this, and the
+  // particular method used is specified in the CIE's augmentation fields
+  // (hopefully)
+  uint64_t rangeFieldInFDE = cieFieldInFDE + sizeof(uint32_t);
+
+  int64_t functionFromFDE = readSPtr(is64, isBig,
+                                     frameData + rangeFieldInFDE);
+  uint64_t rangeStart = ehFrameSection->address + offset + rangeFieldInFDE;
+  rangeStart += functionFromFDE;
+
+  const Atom *func =
+    findAtomCoveringAddress(normalizedFile, file, rangeStart, &addend);
+  atom->addReference(rangeFieldInFDE, handler.unwindRefToFunctionKind(),
+                     func, addend, handler.kindArch());
+
+  // Handle the augmentation data if there is any.
+  if (cieInfo._augmentationDataPresent) {
+    // First process the augmentation data length field.
+    uint64_t augmentationDataLengthFieldInFDE =
+      rangeFieldInFDE + 2 * (is64 ? sizeof(uint64_t) : sizeof(uint32_t));
+    unsigned lengthFieldSize = 0;
+    uint64_t augmentationDataLength =
+      llvm::decodeULEB128(frameData + augmentationDataLengthFieldInFDE,
+                          &lengthFieldSize);
+
+    if (cieInfo._mayHaveLSDA && augmentationDataLength > 0) {
+
+      // Look at the augmentation data field.
+      uint64_t augmentationDataFieldInFDE =
+        augmentationDataLengthFieldInFDE + lengthFieldSize;
+
+      int64_t lsdaFromFDE = readSPtr(is64, isBig,
+                                     frameData + augmentationDataFieldInFDE);
+      uint64_t lsdaStart =
+        ehFrameSection->address + offset + augmentationDataFieldInFDE +
+        lsdaFromFDE;
+      const Atom *lsda =
+        findAtomCoveringAddress(normalizedFile, file, lsdaStart, &addend);
+      atom->addReference(augmentationDataFieldInFDE,
+                         handler.unwindRefToFunctionKind(),
+                         lsda, addend, handler.kindArch());
+    }
+  }
+
+  return std::error_code();
+}
+
 std::error_code addEHFrameReferences(const NormalizedFile &normalizedFile,
                                      MachOFile &file,
                                      mach_o::ArchHandler &handler) {
-  const bool isBig = MachOLinkingContext::isBigEndian(normalizedFile.arch);
-  const bool is64 = MachOLinkingContext::is64Bit(normalizedFile.arch);
 
   const Section *ehFrameSection = nullptr;
   for (auto &section : normalizedFile.sections)
@@ -662,51 +845,26 @@ std::error_code addEHFrameReferences(const NormalizedFile &normalizedFile,
   if (!ehFrameSection)
     return std::error_code();
 
+  std::error_code ehFrameErr;
+  CIEInfoMap cieInfos;
+
   file.eachAtomInSection(*ehFrameSection,
                          [&](MachODefinedAtom *atom, uint64_t offset) -> void {
     assert(atom->contentType() == DefinedAtom::typeCFI);
 
+    // Bail out if we've encountered an error.
+    if (ehFrameErr)
+      return;
+
+    const bool isBig = MachOLinkingContext::isBigEndian(normalizedFile.arch);
     if (ArchHandler::isDwarfCIE(isBig, atom))
-      return;
-
-    // Compiler wasn't lazy and actually told us what it meant.
-    if (atom->begin() != atom->end())
-      return;
-
-    const uint8_t *frameData = atom->rawContent().data();
-    uint32_t size = read32(frameData, isBig);
-    uint64_t cieFieldInFDE = size == 0xffffffffU
-                                   ? sizeof(uint32_t) + sizeof(uint64_t)
-                                   : sizeof(uint32_t);
-
-    // Linker needs to fixup a reference from the FDE to its parent CIE (a
-    // 32-bit byte offset backwards in the __eh_frame section).
-    uint32_t cieDelta = read32(frameData + cieFieldInFDE, isBig);
-    uint64_t cieAddress = ehFrameSection->address + offset + cieFieldInFDE;
-    cieAddress -= cieDelta;
-
-    Reference::Addend addend;
-    const Atom *cie =
-        findAtomCoveringAddress(normalizedFile, file, cieAddress, &addend);
-    atom->addReference(cieFieldInFDE, handler.unwindRefToCIEKind(), cie,
-                       addend, handler.kindArch());
-
-    // Linker needs to fixup reference from the FDE to the function it's
-    // describing. FIXME: there are actually different ways to do this, and the
-    // particular method used is specified in the CIE's augmentation fields
-    // (hopefully)
-    uint64_t rangeFieldInFDE = cieFieldInFDE + sizeof(uint32_t);
-
-    int64_t functionFromFDE = readSPtr(is64, isBig, frameData + rangeFieldInFDE);
-    uint64_t rangeStart = ehFrameSection->address + offset + rangeFieldInFDE;
-    rangeStart += functionFromFDE;
-
-    const Atom *func =
-        findAtomCoveringAddress(normalizedFile, file, rangeStart, &addend);
-    atom->addReference(rangeFieldInFDE, handler.unwindRefToFunctionKind(), func,
-                       addend, handler.kindArch());
+      ehFrameErr = processCIE(normalizedFile, atom, cieInfos);
+    else
+      ehFrameErr = processFDE(normalizedFile, file, handler, ehFrameSection,
+                              atom, offset, cieInfos);
   });
-  return std::error_code();
+
+  return ehFrameErr;
 }
 
 
@@ -738,10 +896,13 @@ std::error_code
 normalizedObjectToAtoms(MachOFile *file,
                         const NormalizedFile &normalizedFile,
                         bool copyRefs) {
+  DEBUG(llvm::dbgs() << "******** Normalizing file to atoms: "
+                    << file->path() << "\n");
   bool scatterable = ((normalizedFile.flags & MH_SUBSECTIONS_VIA_SYMBOLS) != 0);
 
   // Create atoms from each section.
   for (auto &sect : normalizedFile.sections) {
+    DEBUG(llvm::dbgs() << "Creating atoms: "; sect.dump());
     if (isDebugInfoSection(sect))
       continue;
     bool customSectionName;
@@ -759,7 +920,8 @@ normalizedObjectToAtoms(MachOFile *file,
       file->addUndefinedAtom(sym.name, copyRefs);
     } else {
       file->addTentativeDefAtom(sym.name, atomScope(sym.scope), sym.value,
-                               DefinedAtom::Alignment(sym.desc >> 8), copyRefs);
+                                DefinedAtom::Alignment(1 << (sym.desc >> 8)),
+                                copyRefs);
     }
   }
 
@@ -905,6 +1067,14 @@ normalizedToAtoms(const NormalizedFile &normalizedFile, StringRef path,
     llvm_unreachable("unhandled MachO file type!");
   }
 }
+
+#ifndef NDEBUG
+void Section::dump(llvm::raw_ostream &OS) const {
+  OS << "Section (\"" << segmentName << ", " << sectionName << "\"";
+  OS << ", addr: " << llvm::format_hex(address, 16, true);
+  OS << ", size: " << llvm::format_hex(content.size(), 8, true) << ")\n";
+}
+#endif
 
 } // namespace normalized
 } // namespace mach_o

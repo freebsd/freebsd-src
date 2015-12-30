@@ -41,7 +41,6 @@ public:
   enum class OutputFileType : uint8_t {
     Default, // The default output type for this target
     YAML,    // The output type is set to YAML
-    Native   // The output file format is Native (Atoms)
   };
 
   virtual ~LinkingContext();
@@ -62,7 +61,7 @@ public:
   /// should be marked live (along with all Atoms they reference).  Usually
   /// this method returns false for main executables, but true for dynamic
   /// shared libraries.
-  bool globalsAreDeadStripRoots() const { return _globalsAreDeadStripRoots; };
+  bool globalsAreDeadStripRoots() const { return _globalsAreDeadStripRoots; }
 
   /// Only used if deadStrip() returns true.  This method returns the names
   /// of DefinedAtoms that should be marked live (along with all Atoms they
@@ -273,13 +272,11 @@ public:
   /// Set the various output file types that the linker would
   /// create
   bool setOutputFileType(StringRef outputFileType) {
-    if (outputFileType.equals_lower("yaml"))
+    if (outputFileType.equals_lower("yaml")) {
       _outputFileType = OutputFileType::YAML;
-    else if (outputFileType.equals_lower("native"))
-      _outputFileType = OutputFileType::YAML;
-    else
-      return false;
-    return true;
+      return true;
+    }
+    return false;
   }
 
   /// Returns the output file type that that the linker needs to create.
@@ -292,7 +289,7 @@ public:
   /// This method is called by core linking to give the Writer a chance
   /// to add file format specific "files" to set of files to be linked. This is
   /// how file format specific atoms can be added to the link.
-  virtual bool createImplicitFiles(std::vector<std::unique_ptr<File> > &);
+  virtual void createImplicitFiles(std::vector<std::unique_ptr<File>> &);
 
   /// This method is called by core linking to build the list of Passes to be
   /// run on the merged/linked graph of all input files.

@@ -10,49 +10,45 @@
 #define X86_64_EXECUTABLE_WRITER_H
 
 #include "ExecutableWriter.h"
-#include "X86_64ElfType.h"
 #include "X86_64LinkingContext.h"
 
 namespace lld {
 namespace elf {
 
-class X86_64ExecutableWriter : public ExecutableWriter<X86_64ELFType> {
+class X86_64ExecutableWriter : public ExecutableWriter<ELF64LE> {
 public:
-  X86_64ExecutableWriter(X86_64LinkingContext &context,
-                         X86_64TargetLayout &layout)
-      : ExecutableWriter(context, layout), _gotFile(new GOTFile(context)),
-        _context(context) {}
+  X86_64ExecutableWriter(X86_64LinkingContext &ctx, X86_64TargetLayout &layout)
+      : ExecutableWriter(ctx, layout), _targetLayout(layout) {}
 
 protected:
   // Add any runtime files and their atoms to the output
-  virtual bool
-  createImplicitFiles(std::vector<std::unique_ptr<File>> &result) {
+  void
+  createImplicitFiles(std::vector<std::unique_ptr<File>> &result) override {
     ExecutableWriter::createImplicitFiles(result);
-    _gotFile->addAtom(*new (_gotFile->_alloc)
-                      GLOBAL_OFFSET_TABLEAtom(*_gotFile));
-    if (_context.isDynamic())
-      _gotFile->addAtom(*new (_gotFile->_alloc) DYNAMICAtom(*_gotFile));
-    result.push_back(std::move(_gotFile));
-    return true;
+    auto gotFile = llvm::make_unique<SimpleFile>("GOTFile");
+    gotFile->addAtom(*new (gotFile->allocator())
+                         GlobalOffsetTableAtom(*gotFile));
+    if (this->_ctx.isDynamic())
+      gotFile->addAtom(*new (gotFile->allocator()) DynamicAtom(*gotFile));
+    result.push_back(std::move(gotFile));
   }
 
-  virtual void finalizeDefaultAtomValues() {
-    return ExecutableWriter::finalizeDefaultAtomValues();
+  void buildDynamicSymbolTable(const File &file) override {
+    for (auto sec : this->_layout.sections()) {
+      if (auto section = dyn_cast<AtomSection<ELF64LE>>(sec)) {
+        for (const auto &atom : section->atoms()) {
+          if (_targetLayout.getGOTSection().hasGlobalGOTEntry(atom->_atom)) {
+            this->_dynamicSymbolTable->addSymbol(atom->_atom, section->ordinal(),
+                                                 atom->_virtualAddr, atom);
+          }
+        }
+      }
+    }
+
+    ExecutableWriter<ELF64LE>::buildDynamicSymbolTable(file);
   }
 
-  virtual void addDefaultAtoms() {
-    return ExecutableWriter::addDefaultAtoms();
-  }
-
-private:
-  class GOTFile : public SimpleFile {
-  public:
-    GOTFile(const ELFLinkingContext &eti) : SimpleFile("GOTFile") {}
-    llvm::BumpPtrAllocator _alloc;
-  };
-
-  std::unique_ptr<GOTFile> _gotFile;
-  X86_64LinkingContext &_context;
+  X86_64TargetLayout &_targetLayout;
 };
 
 } // namespace elf

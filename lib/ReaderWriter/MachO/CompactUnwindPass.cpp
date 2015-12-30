@@ -1,4 +1,4 @@
-//===- lib/ReaderWriter/MachO/CompactUnwindPass.cpp -----------------------===//
+//===- lib/ReaderWriter/MachO/CompactUnwindPass.cpp -------------*- C++ -*-===//
 //
 //                             The LLVM Linker
 //
@@ -92,7 +92,7 @@ public:
     return DefinedAtom::typeProcessedUnwindInfo;
   }
 
-  Alignment alignment() const override { return Alignment(2); }
+  Alignment alignment() const override { return 4; }
 
   uint64_t size() const override { return _contents.size(); }
 
@@ -272,12 +272,12 @@ private:
 class CompactUnwindPass : public Pass {
 public:
   CompactUnwindPass(const MachOLinkingContext &context)
-      : _context(context), _archHandler(_context.archHandler()),
+      : _ctx(context), _archHandler(_ctx.archHandler()),
         _file("<mach-o Compact Unwind Pass>"),
-        _isBig(MachOLinkingContext::isBigEndian(_context.arch())) {}
+        _isBig(MachOLinkingContext::isBigEndian(_ctx.arch())) {}
 
 private:
-  void perform(std::unique_ptr<MutableFile> &mergedFile) override {
+  std::error_code perform(SimpleFile &mergedFile) override {
     DEBUG(llvm::dbgs() << "MachO Compact Unwind pass\n");
 
     std::map<const Atom *, CompactUnwindEntry> unwindLocs;
@@ -294,7 +294,7 @@ private:
 
     // Skip rest of pass if no unwind info.
     if (unwindLocs.empty() && dwarfFrames.empty())
-      return;
+      return std::error_code();
 
     // FIXME: if there are more than 4 personality functions then we need to
     // defer to DWARF info for the ones we don't put in the list. They should
@@ -309,6 +309,9 @@ private:
     // references where needed).
     std::vector<CompactUnwindEntry> unwindInfos = createUnwindInfoEntries(
         mergedFile, unwindLocs, personalities, dwarfFrames);
+
+    // Remove any unused eh-frame atoms.
+    pruneUnusedEHFrames(mergedFile, unwindInfos, unwindLocs, dwarfFrames);
 
     // Finally, we can start creating pages based on these entries.
 
@@ -339,24 +342,26 @@ private:
             << " has " << entriesInPage << " entries\n");
     } while (pageStart < unwindInfos.size());
 
-    UnwindInfoAtom *unwind = new (_file.allocator())
+    auto *unwind = new (_file.allocator())
         UnwindInfoAtom(_archHandler, _file, _isBig, personalities,
                        commonEncodings, pages, numLSDAs);
-    mergedFile->addAtom(*unwind);
+    mergedFile.addAtom(*unwind);
 
     // Finally, remove all __compact_unwind atoms now that we've processed them.
-    mergedFile->removeDefinedAtomsIf([](const DefinedAtom *atom) {
+    mergedFile.removeDefinedAtomsIf([](const DefinedAtom *atom) {
       return atom->contentType() == DefinedAtom::typeCompactUnwindInfo;
     });
+
+    return std::error_code();
   }
 
   void collectCompactUnwindEntries(
-      std::unique_ptr<MutableFile> &mergedFile,
+      const SimpleFile &mergedFile,
       std::map<const Atom *, CompactUnwindEntry> &unwindLocs,
       std::vector<const Atom *> &personalities, uint32_t &numLSDAs) {
     DEBUG(llvm::dbgs() << "  Collecting __compact_unwind entries\n");
 
-    for (const DefinedAtom *atom : mergedFile->defined()) {
+    for (const DefinedAtom *atom : mergedFile.defined()) {
       if (atom->contentType() != DefinedAtom::typeCompactUnwindInfo)
         continue;
 
@@ -422,9 +427,9 @@ private:
   }
 
   void
-  collectDwarfFrameEntries(std::unique_ptr<MutableFile> &mergedFile,
+  collectDwarfFrameEntries(const SimpleFile &mergedFile,
                            std::map<const Atom *, const Atom *> &dwarfFrames) {
-    for (const DefinedAtom *ehFrameAtom : mergedFile->defined()) {
+    for (const DefinedAtom *ehFrameAtom : mergedFile.defined()) {
       if (ehFrameAtom->contentType() != DefinedAtom::typeCFI)
         continue;
       if (ArchHandler::isDwarfCIE(_isBig, ehFrameAtom))
@@ -442,7 +447,7 @@ private:
   ///   + A synthesised reference to __eh_frame if there's no __compact_unwind
   ///     or too many personality functions to be accommodated.
   std::vector<CompactUnwindEntry> createUnwindInfoEntries(
-      const std::unique_ptr<MutableFile> &mergedFile,
+      const SimpleFile &mergedFile,
       const std::map<const Atom *, CompactUnwindEntry> &unwindLocs,
       const std::vector<const Atom *> &personalities,
       const std::map<const Atom *, const Atom *> &dwarfFrames) {
@@ -452,7 +457,7 @@ private:
     // The final order in the __unwind_info section must be derived from the
     // order of typeCode atoms, since that's how they'll be put into the object
     // file eventually (yuck!).
-    for (const DefinedAtom *atom : mergedFile->defined()) {
+    for (const DefinedAtom *atom : mergedFile.defined()) {
       if (atom->contentType() != DefinedAtom::typeCode)
         continue;
 
@@ -466,6 +471,53 @@ private:
     }
 
     return unwindInfos;
+  }
+
+  /// Remove unused EH frames.
+  ///
+  /// An EH frame is considered unused if there is a corresponding compact
+  /// unwind atom that doesn't require the EH frame.
+  void pruneUnusedEHFrames(
+                   SimpleFile &mergedFile,
+                   const std::vector<CompactUnwindEntry> &unwindInfos,
+                   const std::map<const Atom *, CompactUnwindEntry> &unwindLocs,
+                   const std::map<const Atom *, const Atom *> &dwarfFrames) {
+
+    // Worklist of all 'used' FDEs.
+    std::vector<const DefinedAtom *> usedDwarfWorklist;
+
+    // We have to check two conditions when building the worklist:
+    // (1) EH frames used by compact unwind entries.
+    for (auto &entry : unwindInfos)
+      if (entry.ehFrame)
+        usedDwarfWorklist.push_back(cast<DefinedAtom>(entry.ehFrame));
+
+    // (2) EH frames that reference functions with no corresponding compact
+    //     unwind info.
+    for (auto &entry : dwarfFrames)
+      if (!unwindLocs.count(entry.first))
+        usedDwarfWorklist.push_back(cast<DefinedAtom>(entry.second));
+
+    // Add all transitively referenced CFI atoms by processing the worklist.
+    std::set<const Atom *> usedDwarfFrames;
+    while (!usedDwarfWorklist.empty()) {
+      const DefinedAtom *cfiAtom = usedDwarfWorklist.back();
+      usedDwarfWorklist.pop_back();
+      usedDwarfFrames.insert(cfiAtom);
+      for (const auto *ref : *cfiAtom) {
+        const DefinedAtom *cfiTarget = dyn_cast<DefinedAtom>(ref->target());
+        if (cfiTarget->contentType() == DefinedAtom::typeCFI)
+          usedDwarfWorklist.push_back(cfiTarget);
+      }
+    }
+
+    // Finally, delete all unreferenced CFI atoms.
+    mergedFile.removeDefinedAtomsIf([&](const DefinedAtom *atom) {
+      if ((atom->contentType() == DefinedAtom::typeCFI) &&
+          !usedDwarfFrames.count(atom))
+        return true;
+      return false;
+    });
   }
 
   CompactUnwindEntry finalizeUnwindInfoEntryForAtom(
@@ -496,7 +548,6 @@ private:
       }
     }
 
-
     auto personality = std::find(personalities.begin(), personalities.end(),
                                  entry.personalityFunction);
     uint32_t personalityIdx = personality == personalities.end()
@@ -515,7 +566,7 @@ private:
     return entry;
   }
 
-  const MachOLinkingContext &_context;
+  const MachOLinkingContext &_ctx;
   mach_o::ArchHandler &_archHandler;
   MachOFile _file;
   bool _isBig;

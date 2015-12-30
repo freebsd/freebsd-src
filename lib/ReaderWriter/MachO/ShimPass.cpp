@@ -41,16 +41,12 @@ namespace mach_o {
 class ShimPass : public Pass {
 public:
   ShimPass(const MachOLinkingContext &context)
-    : _context(context)
-    , _archHandler(_context.archHandler())
-    , _stubInfo(_archHandler.stubInfo())
-    , _file("<mach-o shim pass>") {
-  }
+      : _ctx(context), _archHandler(_ctx.archHandler()),
+        _stubInfo(_archHandler.stubInfo()), _file("<mach-o shim pass>") {}
 
-
-  void perform(std::unique_ptr<MutableFile> &mergedFile) override {
+  std::error_code perform(SimpleFile &mergedFile) override {
     // Scan all references in all atoms.
-    for (const DefinedAtom *atom : mergedFile->defined()) {
+    for (const DefinedAtom *atom : mergedFile.defined()) {
       for (const Reference *ref : *atom) {
         // Look at non-call branches.
         if (!_archHandler.isNonCallBranch(*ref))
@@ -67,7 +63,7 @@ public:
     }
     // Exit early if no shims needed.
     if (_targetToShim.empty())
-      return;
+      return std::error_code();
 
     // Sort shim atoms so the layout order is stable.
     std::vector<const DefinedAtom *> shims;
@@ -81,9 +77,10 @@ public:
               });
 
     // Add all shims to master file.
-    for (const DefinedAtom *shim : shims) {
-      mergedFile->addAtom(*shim);
-    }
+    for (const DefinedAtom *shim : shims)
+      mergedFile.addAtom(*shim);
+
+    return std::error_code();
   }
 
 private:
@@ -112,7 +109,7 @@ private:
     }
   }
 
-  const MachOLinkingContext                      &_context;
+  const MachOLinkingContext &_ctx;
   mach_o::ArchHandler                            &_archHandler;
   const ArchHandler::StubInfo                    &_stubInfo;
   MachOFile                                       _file;

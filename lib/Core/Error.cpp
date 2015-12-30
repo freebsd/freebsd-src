@@ -16,39 +16,6 @@
 
 using namespace lld;
 
-class _NativeReaderErrorCategory : public std::error_category {
-public:
-  const char* name() const LLVM_NOEXCEPT override {
-    return "lld.native.reader";
-  }
-
-  std::string message(int ev) const override {
-    switch (static_cast<NativeReaderError>(ev)) {
-    case NativeReaderError::success:
-      return "Success";
-    case NativeReaderError::unknown_file_format:
-      return "Unknown file format";
-    case NativeReaderError::file_too_short:
-      return "file truncated";
-    case NativeReaderError::file_malformed:
-      return "file malformed";
-    case NativeReaderError::memory_error:
-      return "out of memory";
-    case NativeReaderError::unknown_chunk_type:
-      return "unknown chunk type";
-    case NativeReaderError::conflicting_target_machine:
-      return "conflicting target machine";
-    }
-    llvm_unreachable("An enumerator of NativeReaderError does not have a "
-                     "message defined.");
-  }
-};
-
-const std::error_category &lld::native_reader_category() {
-  static _NativeReaderErrorCategory o;
-  return o;
-}
-
 class _YamlReaderErrorCategory : public std::error_category {
 public:
   const char* name() const LLVM_NOEXCEPT override {
@@ -57,8 +24,6 @@ public:
 
   std::string message(int ev) const override {
     switch (static_cast<YamlReaderError>(ev)) {
-    case YamlReaderError::success:
-      return "Success";
     case YamlReaderError::unknown_keyword:
       return "Unknown keyword found in yaml file";
     case YamlReaderError::illegal_value:
@@ -91,6 +56,14 @@ public:
     case LinkerScriptReaderError::unrecognized_function_in_expr:
       return "Unrecognized function call when evaluating linker script "
              "expression";
+    case LinkerScriptReaderError::unknown_phdr_ids:
+      return "Unknown header identifiers (missing in PHDRS command) are used";
+    case LinkerScriptReaderError::extra_program_phdr:
+      return "Extra program header is found";
+    case LinkerScriptReaderError::misplaced_program_phdr:
+      return "Program header must precede load segments";
+    case LinkerScriptReaderError::program_phdr_wrong_phdrs:
+      return "Program header has invalid PHDRS attribute";
     }
     llvm_unreachable("An enumerator of LinkerScriptReaderError does not have a "
                      "message defined.");
@@ -102,7 +75,6 @@ const std::error_category &lld::LinkerScriptReaderCategory() {
   return o;
 }
 
-
 namespace lld {
 
 /// Temporary class to enable make_dynamic_error_code() until
@@ -110,7 +82,7 @@ namespace lld {
 /// other than error_code.
 class dynamic_error_category : public std::error_category {
 public:
-  ~dynamic_error_category() LLVM_NOEXCEPT {}
+  ~dynamic_error_category() override = default;
 
   const char *name() const LLVM_NOEXCEPT override {
     return "lld.dynamic_error";
@@ -140,6 +112,10 @@ private:
 
 static dynamic_error_category categorySingleton;
 
+std::error_code make_dynamic_error_code(const char *msg) {
+  return make_dynamic_error_code(StringRef(msg));
+}
+
 std::error_code make_dynamic_error_code(StringRef msg) {
   return std::error_code(categorySingleton.add(msg), categorySingleton);
 }
@@ -148,4 +124,4 @@ std::error_code make_dynamic_error_code(const Twine &msg) {
   return std::error_code(categorySingleton.add(msg.str()), categorySingleton);
 }
 
-}
+} // namespace lld

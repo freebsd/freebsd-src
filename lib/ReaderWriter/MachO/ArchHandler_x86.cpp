@@ -30,8 +30,8 @@ using llvm::support::little32_t;
 
 class ArchHandler_x86 : public ArchHandler {
 public:
-           ArchHandler_x86();
-  virtual ~ArchHandler_x86();
+  ArchHandler_x86() = default;
+  ~ArchHandler_x86() override = default;
 
   const Registry::KindStrings *kindStrings() override { return _sKindStrings; }
 
@@ -49,9 +49,11 @@ public:
   bool needsCompactUnwind() override {
     return false;
   }
+
   Reference::KindValue imageOffsetKind() override {
     return invalid;
   }
+
   Reference::KindValue imageOffsetKindIndirect() override {
     return invalid;
   }
@@ -67,7 +69,6 @@ public:
   Reference::KindValue unwindRefToEhFrameKind() override {
     return invalid;
   }
-
 
   uint32_t dwarfCompactUnwindType() override {
     return 0x04000000U;
@@ -168,10 +169,6 @@ private:
 //===----------------------------------------------------------------------===//
 //  ArchHandler_x86
 //===----------------------------------------------------------------------===//
-
-ArchHandler_x86::ArchHandler_x86() {}
-
-ArchHandler_x86::~ArchHandler_x86() { }
 
 const Registry::KindStrings ArchHandler_x86::_sKindStrings[] = {
   LLD_KIND_STRING_ENTRY(invalid),
@@ -334,7 +331,7 @@ ArchHandler_x86::getReferenceInfo(const Relocation &reloc,
     *addend = *(const ulittle32_t *)fixupContent - reloc.value;
     break;
   default:
-    return make_dynamic_error_code(Twine("unsupported i386 relocation type"));
+    return make_dynamic_error_code("unsupported i386 relocation type");
   }
   return std::error_code();
 }
@@ -376,8 +373,8 @@ ArchHandler_x86::getPairReferenceInfo(const normalized::Relocation &reloc1,
       return ec;
     if (fromTarget != inAtom) {
       if (*target != inAtom)
-        return make_dynamic_error_code(Twine("SECTDIFF relocation where "
-                                             "neither target is in atom"));
+        return make_dynamic_error_code(
+            "SECTDIFF relocation where neither target is in atom");
       *kind = negDelta32;
       *addend = toAddress - value - fromAddress;
       *target = fromTarget;
@@ -400,7 +397,7 @@ ArchHandler_x86::getPairReferenceInfo(const normalized::Relocation &reloc1,
     return std::error_code();
     break;
   default:
-    return make_dynamic_error_code(Twine("unsupported i386 relocation type"));
+    return make_dynamic_error_code("unsupported i386 relocation type");
   }
 }
 
@@ -545,7 +542,6 @@ bool ArchHandler_x86::useExternalRelocationTo(const Atom &target) {
   return false;
 }
 
-
 void ArchHandler_x86::appendSectionRelocations(
                                    const DefinedAtom &atom,
                                    uint64_t atomSectionOffset,
@@ -632,7 +628,6 @@ void ArchHandler_x86::appendSectionRelocations(
     break;
   }
 }
-
 
 std::unique_ptr<mach_o::ArchHandler> ArchHandler::create_x86() {
   return std::unique_ptr<mach_o::ArchHandler>(new ArchHandler_x86());

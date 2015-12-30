@@ -19,13 +19,11 @@ using namespace elf;
 using namespace llvm::ELF;
 
 std::unique_ptr<Writer> X86TargetHandler::getWriter() {
-  switch (_x86LinkingContext.getOutputELFType()) {
+  switch (_ctx.getOutputELFType()) {
   case llvm::ELF::ET_EXEC:
-    return std::unique_ptr<Writer>(new X86ExecutableWriter<X86ELFType>(
-        _x86LinkingContext, *_x86TargetLayout.get()));
+    return llvm::make_unique<X86ExecutableWriter>(_ctx, *_targetLayout);
   case llvm::ELF::ET_DYN:
-    return std::unique_ptr<Writer>(new X86DynamicLibraryWriter<X86ELFType>(
-        _x86LinkingContext, *_x86TargetLayout.get()));
+    return llvm::make_unique<X86DynamicLibraryWriter>(_ctx, *_targetLayout);
   case llvm::ELF::ET_REL:
     llvm_unreachable("TODO: support -r mode");
   default:
@@ -33,21 +31,6 @@ std::unique_ptr<Writer> X86TargetHandler::getWriter() {
   }
 }
 
-#define ELF_RELOC(name, value) LLD_KIND_STRING_ENTRY(name),
-
-const Registry::KindStrings X86TargetHandler::kindStrings[] = {
-#include "llvm/Support/ELFRelocs/i386.def"
-  LLD_KIND_STRING_END
-};
-
-#undef ELF_RELOC
-
-void X86TargetHandler::registerRelocationNames(Registry &registry) {
-  registry.addKindTable(Reference::KindNamespace::ELF, Reference::KindArch::x86,
-                        kindStrings);
-}
-
-X86TargetHandler::X86TargetHandler(X86LinkingContext &context)
-    : _x86LinkingContext(context),
-      _x86TargetLayout(new X86TargetLayout<X86ELFType>(context)),
-      _x86RelocationHandler(new X86TargetRelocationHandler()) {}
+X86TargetHandler::X86TargetHandler(X86LinkingContext &ctx)
+    : _ctx(ctx), _targetLayout(new TargetLayout<ELF32LE>(ctx)),
+      _relocationHandler(new X86TargetRelocationHandler()) {}

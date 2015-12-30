@@ -31,8 +31,8 @@ using llvm::support::little64_t;
 
 class ArchHandler_arm64 : public ArchHandler {
 public:
-  ArchHandler_arm64();
-  virtual ~ArchHandler_arm64();
+  ArchHandler_arm64() = default;
+  ~ArchHandler_arm64() override = default;
 
   const Registry::KindStrings *kindStrings() override { return _sKindStrings; }
 
@@ -49,6 +49,9 @@ public:
     case gotPage21:
     case gotOffset12:
       canBypassGOT = true;
+      return true;
+    case delta32ToGOT:
+      canBypassGOT = false;
       return true;
     case imageOffsetGot:
       canBypassGOT = false;
@@ -73,6 +76,9 @@ public:
     case gotOffset12:
       const_cast<Reference *>(ref)->setKindValue(targetNowGOT ?
                                                  offset12scale8 : addOffset12);
+      break;
+    case delta32ToGOT:
+      const_cast<Reference *>(ref)->setKindValue(delta32);
       break;
     case imageOffsetGot:
       const_cast<Reference *>(ref)->setKindValue(imageOffset);
@@ -212,10 +218,6 @@ private:
   static Arm64Kind offset12KindFromInstruction(uint32_t instr);
   static uint32_t setImm12(uint32_t instr, uint32_t offset);
 };
-
-ArchHandler_arm64::ArchHandler_arm64() {}
-
-ArchHandler_arm64::~ArchHandler_arm64() {}
 
 const Registry::KindStrings ArchHandler_arm64::_sKindStrings[] = {
   LLD_KIND_STRING_ENTRY(invalid),
@@ -437,7 +439,7 @@ std::error_code ArchHandler_arm64::getReferenceInfo(
     *addend = 0;
     return std::error_code();
   default:
-    return make_dynamic_error_code(Twine("unsupported arm64 relocation type"));
+    return make_dynamic_error_code("unsupported arm64 relocation type");
   }
 }
 
@@ -480,6 +482,9 @@ std::error_code ArchHandler_arm64::getPairReferenceInfo(
     *kind = delta64;
     if (auto ec = atomFromSymbolIndex(reloc2.symbol, target))
       return ec;
+    // The offsets of the 2 relocations must match
+    if (reloc1.offset != reloc2.offset)
+      return make_dynamic_error_code("paired relocs must have the same offset");
     *addend = (int64_t)*(const little64_t *)fixupContent + offsetInAtom;
     return std::error_code();
   case ((ARM64_RELOC_SUBTRACTOR                  | rExtern | rLength4) << 16 |
@@ -491,7 +496,7 @@ std::error_code ArchHandler_arm64::getPairReferenceInfo(
     *addend = (int32_t)*(const little32_t *)fixupContent + offsetInAtom;
     return std::error_code();
   default:
-    return make_dynamic_error_code(Twine("unsupported arm64 relocation pair"));
+    return make_dynamic_error_code("unsupported arm64 relocation pair");
   }
 }
 
@@ -669,7 +674,7 @@ void ArchHandler_arm64::applyFixupRelocatable(const Reference &ref,
     *loc32 = ref.addend() + inAtomAddress - fixupAddress;
     return;
   case negDelta32:
-    *loc32 = fixupAddress - inAtomAddress + ref.addend();
+    *loc32 = fixupAddress - targetAddress + ref.addend();
     return;
   case pointer64ToGOT:
     *loc64 = 0;

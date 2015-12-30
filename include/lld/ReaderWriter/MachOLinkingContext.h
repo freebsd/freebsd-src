@@ -27,12 +27,13 @@ namespace mach_o {
 class ArchHandler;
 class MachODylibFile;
 class MachOFile;
+class SectCreateFile;
 }
 
 class MachOLinkingContext : public LinkingContext {
 public:
   MachOLinkingContext();
-  ~MachOLinkingContext();
+  ~MachOLinkingContext() override;
 
   enum Arch {
     arch_unknown,
@@ -63,6 +64,13 @@ public:
     noDebugMap      // -S option
   };
 
+  enum class UndefinedMode {
+    error,
+    warning,
+    suppress,
+    dynamicLookup
+  };
+
   /// Initializes the context to sane default values given the specified output
   /// file type, arch, os, and minimum os version.  This should be called before
   /// other setXXX() methods.
@@ -72,7 +80,7 @@ public:
   bool validateImpl(raw_ostream &diagnostics) override;
   std::string demangle(StringRef symbolName) const override;
 
-  bool createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
+  void createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
 
   uint32_t getCPUType() const;
   uint32_t getCPUSubType() const;
@@ -128,6 +136,9 @@ public:
   const StringRefVector &sysLibRoots() const { return _syslibRoots; }
   bool PIE() const { return _pie; }
   void setPIE(bool pie) { _pie = pie; }
+
+  uint64_t stackSize() const { return _stackSize; }
+  void setStackSize(uint64_t stackSize) { _stackSize = stackSize; }
 
   uint64_t baseAddress() const { return _baseAddress; }
   void setBaseAddress(uint64_t baseAddress) { _baseAddress = baseAddress; }
@@ -201,6 +212,30 @@ public:
   /// when linking a binary that does not use any of its symbols.
   bool deadStrippableDylib() const { return _deadStrippableDylib; }
 
+  /// \brief Whether or not to use flat namespace.
+  ///
+  /// MachO usually uses a two-level namespace, where each external symbol
+  /// referenced by the target is associated with the dylib that will provide
+  /// the symbol's definition at runtime. Using flat namespace overrides this
+  /// behavior: the linker searches all dylibs on the command line and all
+  /// dylibs those original dylibs depend on, but does not record which dylib
+  /// an external symbol came from. At runtime dyld again searches all images
+  /// and uses the first definition it finds. In addition, any undefines in
+  /// loaded flat_namespace dylibs must be resolvable at build time.
+  bool useFlatNamespace() const { return _flatNamespace; }
+
+  /// \brief How to handle undefined symbols.
+  ///
+  /// Options are:
+  ///  * error: Report an error and terminate linking.
+  ///  * warning: Report a warning, but continue linking.
+  ///  * suppress: Ignore and continue linking.
+  ///  * dynamic_lookup: For use with -twolevel namespace: Records source dylibs
+  ///    for symbols that are defined in a linked dylib at static link time.
+  ///    Undefined symbols are handled by searching all loaded images at
+  ///    runtime.
+  UndefinedMode undefinedMode() const { return _undefinedMode; }
+
   /// \brief The path to the executable that will load the bundle at runtime.
   ///
   /// When building a Mach-O bundle, this executable will be examined if there
@@ -215,6 +250,14 @@ public:
   void setDeadStrippableDylib(bool deadStrippable) {
     _deadStrippableDylib = deadStrippable;
   }
+  void setUseFlatNamespace(bool flatNamespace) {
+    _flatNamespace = flatNamespace;
+  }
+
+  void setUndefinedMode(UndefinedMode undefinedMode) {
+    _undefinedMode = undefinedMode;
+  }
+
   void setBundleLoader(StringRef loader) { _bundleLoader = loader; }
   void setPrintAtoms(bool value=true) { _printAtoms = value; }
   void setTestingFileUsage(bool value = true) {
@@ -228,10 +271,14 @@ public:
   const StringRefVector &rpaths() const { return _rpaths; }
 
   /// Add section alignment constraint on final layout.
-  void addSectionAlignment(StringRef seg, StringRef sect, uint8_t align2);
+  void addSectionAlignment(StringRef seg, StringRef sect, uint16_t align);
+
+  /// \brief Add a section based on a command-line sectcreate option.
+  void addSectCreateSection(StringRef seg, StringRef sect,
+                            std::unique_ptr<MemoryBuffer> content);
 
   /// Returns true if specified section had alignment constraints.
-  bool sectionAligned(StringRef seg, StringRef sect, uint8_t &align2) const;
+  bool sectionAligned(StringRef seg, StringRef sect, uint16_t &align) const;
 
   StringRef dyldPath() const { return "/usr/lib/dyld"; }
 
@@ -240,6 +287,9 @@ public:
 
   // GOT creation Pass should be run.
   bool needsGOTPass() const;
+
+  /// Pass to add TLV sections.
+  bool needsTLVPass() const;
 
   /// Pass to transform __compact_unwind into __unwind_info should be run.
   bool needsCompactUnwindPass() const;
@@ -271,8 +321,7 @@ public:
 
   /// If the memoryBuffer is a fat file with a slice for the current arch,
   /// this method will return the offset and size of that slice.
-  bool sliceFromFatFile(const MemoryBuffer &mb, uint32_t &offset,
-                        uint32_t &size);
+  bool sliceFromFatFile(MemoryBufferRef mb, uint32_t &offset, uint32_t &size);
 
   /// Returns if a command line option specified dylib is an upward link.
   bool isUpwardDylib(StringRef installName) const;
@@ -296,6 +345,11 @@ public:
   bool customAtomOrderer(const DefinedAtom *left, const DefinedAtom *right,
                          bool &leftBeforeRight) const;
 
+  /// Return the 'flat namespace' file. This is the file that supplies
+  /// atoms for otherwise undefined symbols when the -flat_namespace or
+  /// -undefined dynamic_lookup options are used.
+  File* flatNamespaceFile() const { return _flatNamespaceFile; }
+
 private:
   Writer &writer() const override;
   mach_o::MachODylibFile* loadIndirectDylib(StringRef path);
@@ -312,7 +366,7 @@ private:
   struct SectionAlign {
     StringRef segmentName;
     StringRef sectionName;
-    uint8_t   align2;
+    uint16_t  align;
   };
 
   struct OrderFileNode {
@@ -339,10 +393,13 @@ private:
   uint64_t _pageZeroSize;
   uint64_t _pageSize;
   uint64_t _baseAddress;
+  uint64_t _stackSize;
   uint32_t _compatibilityVersion;
   uint32_t _currentVersion;
   StringRef _installName;
   StringRefVector _rpaths;
+  bool _flatNamespace;
+  UndefinedMode _undefinedMode;
   bool _deadStrippableDylib;
   bool _printAtoms;
   bool _testingFileUsage;
@@ -356,14 +413,17 @@ private:
   mutable std::set<mach_o::MachODylibFile*> _allDylibs;
   mutable std::set<mach_o::MachODylibFile*> _upwardDylibs;
   mutable std::vector<std::unique_ptr<File>> _indirectDylibs;
+  mutable std::mutex _dylibsMutex;
   ExportMode _exportMode;
   llvm::StringSet<> _exportedSymbols;
   DebugInfoMode _debugInfoMode;
   std::unique_ptr<llvm::raw_fd_ostream> _dependencyInfo;
   llvm::StringMap<std::vector<OrderFileNode>> _orderFiles;
   unsigned _orderFileEntries;
+  File *_flatNamespaceFile;
+  mach_o::SectCreateFile *_sectCreateFile = nullptr;
 };
 
 } // end namespace lld
 
-#endif
+#endif // LLD_READER_WRITER_MACHO_LINKING_CONTEXT_H

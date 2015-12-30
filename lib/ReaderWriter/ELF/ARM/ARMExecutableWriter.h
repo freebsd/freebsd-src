@@ -10,109 +10,56 @@
 #define LLD_READER_WRITER_ELF_ARM_ARM_EXECUTABLE_WRITER_H
 
 #include "ExecutableWriter.h"
+#include "ARMELFWriters.h"
 #include "ARMLinkingContext.h"
 #include "ARMTargetHandler.h"
-#include "ARMSymbolTable.h"
-
-namespace {
-const char *gotSymbol = "_GLOBAL_OFFSET_TABLE_";
-}
 
 namespace lld {
 namespace elf {
 
-template <class ELFT>
-class ARMExecutableWriter : public ExecutableWriter<ELFT> {
+class ARMExecutableWriter : public ARMELFWriter<ExecutableWriter<ELF32LE>> {
 public:
-  ARMExecutableWriter(ARMLinkingContext &context,
-                      ARMTargetLayout<ELFT> &layout);
+  ARMExecutableWriter(ARMLinkingContext &ctx, ARMTargetLayout &layout);
 
 protected:
   // Add any runtime files and their atoms to the output
-  bool createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
-
-  void finalizeDefaultAtomValues() override;
-
-  void addDefaultAtoms() override {
-    ExecutableWriter<ELFT>::addDefaultAtoms();
-  }
-
-  /// \brief Create symbol table.
-  unique_bump_ptr<SymbolTable<ELFT>> createSymbolTable() override;
+  void createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
 
   void processUndefinedSymbol(StringRef symName,
-                              RuntimeFile<ELFT> &file) const override;
-
-  // Setup the ELF header.
-  std::error_code setELFHeader() override;
+                              RuntimeFile<ELF32LE> &file) const override;
 
 private:
-  ARMLinkingContext &_context;
-  ARMTargetLayout<ELFT> &_armLayout;
+  ARMLinkingContext &_ctx;
 };
 
-template <class ELFT>
-ARMExecutableWriter<ELFT>::ARMExecutableWriter(ARMLinkingContext &context,
-                                               ARMTargetLayout<ELFT> &layout)
-    : ExecutableWriter<ELFT>(context, layout), _context(context),
-      _armLayout(layout) {}
+ARMExecutableWriter::ARMExecutableWriter(ARMLinkingContext &ctx,
+                                         ARMTargetLayout &layout)
+    : ARMELFWriter(ctx, layout), _ctx(ctx) {}
 
-template <class ELFT>
-bool ARMExecutableWriter<ELFT>::createImplicitFiles(
+void ARMExecutableWriter::createImplicitFiles(
     std::vector<std::unique_ptr<File>> &result) {
-  ExecutableWriter<ELFT>::createImplicitFiles(result);
-  return true;
-}
-
-template <class ELFT>
-void ARMExecutableWriter<ELFT>::finalizeDefaultAtomValues() {
-  // Finalize the atom values that are part of the parent.
-  ExecutableWriter<ELFT>::finalizeDefaultAtomValues();
-  auto gotAtomIter = _armLayout.findAbsoluteAtom(gotSymbol);
-  if (gotAtomIter != _armLayout.absoluteAtoms().end()) {
-    auto *gotAtom = *gotAtomIter;
-    if (auto gotpltSection = _armLayout.findOutputSection(".got.plt"))
-      gotAtom->_virtualAddr = gotpltSection->virtualAddr();
-    else if (auto gotSection = _armLayout.findOutputSection(".got"))
-      gotAtom->_virtualAddr = gotSection->virtualAddr();
-    else
-      gotAtom->_virtualAddr = 0;
+  ExecutableWriter::createImplicitFiles(result);
+  // Add default atoms for ARM.
+  if (_ctx.isDynamic()) {
+    auto file = llvm::make_unique<RuntimeFile<ELF32LE>>(_ctx, "ARM exec file");
+    file->addAbsoluteAtom(gotSymbol);
+    file->addAbsoluteAtom(dynamicSymbol);
+    result.push_back(std::move(file));
   }
-  // TODO: resolve addresses of __exidx_start/_end atoms
 }
 
-template <class ELFT>
-unique_bump_ptr<SymbolTable<ELFT>>
-    ARMExecutableWriter<ELFT>::createSymbolTable() {
-  return unique_bump_ptr<SymbolTable<ELFT>>(
-      new (this->_alloc) ARMSymbolTable<ELFT>(this->_context));
-}
-
-template <class ELFT>
-void ARMExecutableWriter<ELFT>::processUndefinedSymbol(
-    StringRef symName, RuntimeFile<ELFT> &file) const {
+void ARMExecutableWriter::processUndefinedSymbol(
+    StringRef symName, RuntimeFile<ELF32LE> &file) const {
+  ARMELFWriter<ExecutableWriter<ELF32LE>>::processUndefinedSymbol(symName,
+                                                                  file);
   if (symName == gotSymbol) {
     file.addAbsoluteAtom(gotSymbol);
   } else if (symName.startswith("__exidx")) {
     file.addAbsoluteAtom("__exidx_start");
     file.addAbsoluteAtom("__exidx_end");
+  } else if (symName == "__ehdr_start") {
+    file.addAbsoluteAtom("__ehdr_start");
   }
-}
-
-template <class ELFT>
-std::error_code ARMExecutableWriter<ELFT>::setELFHeader() {
-  if (std::error_code ec = ExecutableWriter<ELFT>::setELFHeader())
-    return ec;
-
-  // Fixup entry point for Thumb code.
-  StringRef entryName = _context.entrySymbolName();
-  if (const AtomLayout *al = _armLayout.findAtomLayoutByName(entryName)) {
-    const auto *ea = dyn_cast<DefinedAtom>(al->_atom);
-    if (ea && ea->codeModel() == DefinedAtom::codeARMThumb)
-      this->_elfHeader->e_entry(al->_virtualAddr | 0x1);
-  }
-
-  return std::error_code();
 }
 
 } // namespace elf

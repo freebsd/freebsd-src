@@ -55,6 +55,19 @@ def order_file : Separate<["-"], "order_file">,
      MetaVarName<"<file-path>">,
      HelpText<"re-order and move specified symbols to start of their section">,
      Group<grp_opts>;
+def flat_namespace : Flag<["-"], "flat_namespace">,
+     HelpText<"Resolves symbols in any (transitively) linked dynamic libraries. "
+              "Source libraries are not recorded: dyld will re-search all "
+              "images at runtime and use the first definition found.">,
+     Group<grp_opts>;
+def twolevel_namespace : Flag<["-"], "twolevel_namespace">,
+     HelpText<"Resolves symbols in listed libraries only. Source libraries are "
+              "recorded in the symbol table.">,
+     Group<grp_opts>;
+def undefined : Separate<["-"], "undefined">,
+                MetaVarName<"<undefined>">,
+                HelpText<"Determines how undefined symbols are handled.">,
+                Group<grp_opts>;
 
 // main executable options
 def grp_main : OptionGroup<"opts">, HelpText<"MAIN EXECUTABLE OPTIONS">;
@@ -66,6 +79,10 @@ def pie : Flag<["-"], "pie">,
      Group<grp_main>;
 def no_pie : Flag<["-"], "no_pie">,
      HelpText<"Do not create Position Independent Executable">,
+     Group<grp_main>;
+def stack_size : Separate<["-"], "stack_size">,
+     HelpText<"Specifies the maximum stack size for the main thread in a program. "
+              "Must be a page-size multiple. (default=8Mb)">,
      Group<grp_main>;
 
 // dylib executable options
@@ -160,7 +177,10 @@ def arch : Separate<["-"], "arch">,
      HelpText<"Architecture to link">;
 def sectalign : MultiArg<["-"], "sectalign", 3>,
      MetaVarName<"<segname> <sectname> <alignment>">,
-     HelpText<"alignment for segment/section">;
+     HelpText<"Alignment for segment/section">;
+def sectcreate : MultiArg<["-"], "sectcreate", 3>,
+     MetaVarName<"<segname> <sectname> <file>">,
+     HelpText<"Create section <segname>/<sectname> from contents of <file>">;
 def image_base : Separate<["-"], "image_base">;
 def seg1addr : Separate<["-"], "seg1addr">, Alias<image_base>;
 def demangle : Flag<["-"], "demangle">,

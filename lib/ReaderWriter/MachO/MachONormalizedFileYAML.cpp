@@ -276,9 +276,9 @@ struct MappingTraits<Section> {
     io.mapRequired("section",         sect.sectionName);
     io.mapRequired("type",            sect.type);
     io.mapOptional("attributes",      sect.attributes);
-    io.mapOptional("alignment",       sect.alignment, 0U);
+    io.mapOptional("alignment",       sect.alignment, (uint16_t)1);
     io.mapRequired("address",         sect.address);
-    if (sect.type == llvm::MachO::S_ZEROFILL) {
+    if (isZeroFillSection(sect.type)) {
       // S_ZEROFILL sections use "size:" instead of "content:"
       uint64_t size = sect.content.size();
       io.mapOptional("size",          size);
@@ -688,6 +688,7 @@ struct MappingTraits<NormalizedFile> {
     io.mapOptional("has-UUID",         file.hasUUID,        true);
     io.mapOptional("rpaths",           file.rpaths);
     io.mapOptional("entry-point",      file.entryAddress,   Hex64(0));
+    io.mapOptional("stack-size",       file.stackSize,      Hex64(0));
     io.mapOptional("source-version",   file.sourceVersion,  Hex64(0));
     io.mapOptional("OS",               file.os);
     io.mapOptional("min-os-version",   file.minOSverson,    PackedVersion(0));
@@ -799,4 +800,3 @@ std::error_code writeYaml(const NormalizedFile &file, raw_ostream &out) {
 } // namespace normalized
 } // namespace mach_o
 } // namespace lld
-

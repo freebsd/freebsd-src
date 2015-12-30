@@ -1,11 +1,21 @@
 add_llvm_library(lldELF
+  Atoms.cpp
+  DynamicFile.cpp
+  ELFFile.cpp
   ELFLinkingContext.cpp
+  FileCommon.cpp
+  HeaderChunks.cpp
+  OutputELFWriter.cpp
   Reader.cpp
+  SectionChunks.cpp
+  SegmentChunks.cpp
+  TargetLayout.cpp
   Writer.cpp
   LINK_LIBS
     lldReaderWriter
     lldCore
     lldYAML
+    LLVMObject
     LLVMSupport
   )
 
@@ -17,3 +27,4 @@ add_subdirectory(Mips)
 add_subdirectory(Hexagon)
 add_subdirectory(AArch64)
 add_subdirectory(ARM)
+add_subdirectory(AMDGPU)
