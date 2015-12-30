@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -38,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
+#include <machine/machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -175,6 +177,9 @@ mpc85xx_attach(platform_t plat)
 	}
 	ccsrbar_va = pmap_early_io_map(ccsrbar, ccsrsize);
 
+	mpc85xx_fix_errata(ccsrbar_va);
+	mpc85xx_enable_l3_cache();
+
 	/*
 	 * Clear local access windows. Skip DRAM entries, so we don't shoot
 	 * ourselves in the foot.
@@ -182,14 +187,14 @@ mpc85xx_attach(platform_t plat)
 	law_max = law_getmax();
 	for (i = 0; i < law_max; i++) {
 		sr = ccsr_read4(OCP85XX_LAWSR(i));
-		if ((sr & 0x80000000) == 0)
+		if ((sr & OCP85XX_ENA_MASK) == 0)
 			continue;
 		tgt = (sr & 0x01f00000) >> 20;
 		if (tgt == OCP85XX_TGTIF_RAM1 || tgt == OCP85XX_TGTIF_RAM2 ||
 		    tgt == OCP85XX_TGTIF_RAM_INTL)
 			continue;
 
-		ccsr_write4(OCP85XX_LAWSR(i), sr & 0x7fffffff);
+		ccsr_write4(OCP85XX_LAWSR(i), sr & OCP85XX_DIS_MASK);
 	}
 
 	return (0);
@@ -256,7 +261,11 @@ mpc85xx_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	 * HID0[SEL_TBCLK] = 0
 	 */
 	if (freq != 0)
+#ifdef QORIQ_DPAA
+		ticks = freq / 32;
+#else
 		ticks = freq / 8;
+#endif
 
 out:
 	if (ticks <= 0)
@@ -309,17 +318,37 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
 #ifdef SMP
 	uint32_t *tlb1;
-	uint32_t bptr, eebpcr;
+	vm_paddr_t bptr;
+	uint32_t reg;
 	int i, timeout;
+	uintptr_t brr;
+	int cpuid;
 
-	eebpcr = ccsr_read4(OCP85XX_EEBPCR);
-	if ((eebpcr & (1 << (pc->pc_cpuid + 24))) != 0) {
+#ifdef QORIQ_DPAA
+	uint32_t tgt;
+
+	reg = ccsr_read4(OCP85XX_COREDISR);
+	cpuid = pc->pc_cpuid;
+
+	if ((reg & cpuid) != 0) {
+		printf("%s: CPU %d is disabled!\n", __func__, pc->pc_cpuid);
+		return (-1);
+	}
+
+	brr = OCP85XX_BRR;
+#else /* QORIQ_DPAA */
+	brr = OCP85XX_EEBPCR;
+	cpuid = pc->pc_cpuid + 24;
+#endif
+	reg = ccsr_read4(brr);
+	if ((reg & (1 << cpuid)) != 0) {
 		printf("SMP: CPU %d already out of hold-off state!\n",
 		    pc->pc_cpuid);
 		return (ENXIO);
 	}
 
 	ap_pcpu = pc;
+	__asm __volatile("msync; isync");
 
 	i = 0;
 	tlb1 = bp_tlb1;
@@ -335,24 +364,67 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	if (i < bp_ntlb1s)
 		bp_ntlb1s = i;
 
+	/* Flush caches to have our changes hit DRAM. */
+	cpu_flush_dcache(__boot_page, 4096);
+
+	bptr = ((vm_paddr_t)(uintptr_t)__boot_page - KERNBASE) + kernload;
+	KASSERT((bptr & 0xfff) == 0,
+	    ("%s: boot page is not aligned (%#jx)", __func__, (uintmax_t)bptr));
+#ifdef QORIQ_DPAA
+
+	/*
+	 * Read DDR controller configuration to select proper BPTR target ID.
+	 *
+	 * On P5020 bit 29 of DDR1_CS0_CONFIG enables DDR controllers
+	 * interleaving. If this bit is set, we have to use
+	 * OCP85XX_TGTIF_RAM_INTL as BPTR target ID. On other QorIQ DPAA SoCs,
+	 * this bit is reserved and always 0.
+	 */
+
+	reg = ccsr_read4(OCP85XX_DDR1_CS0_CONFIG);
+	if (reg & (1 << 29))
+		tgt = OCP85XX_TGTIF_RAM_INTL;
+	else
+		tgt = OCP85XX_TGTIF_RAM1;
+
+	/*
+	 * Set BSTR to the physical address of the boot page
+	 */
+	ccsr_write4(OCP85XX_BSTRH, bptr >> 32);
+	ccsr_write4(OCP85XX_BSTRL, bptr);
+	ccsr_write4(OCP85XX_BSTAR, OCP85XX_ENA_MASK |
+	    (tgt << OCP85XX_TRGT_SHIFT) | (ffsl(PAGE_SIZE) - 2));
+
+	/* Read back OCP85XX_BSTAR to synchronize write */
+	ccsr_read4(OCP85XX_BSTAR);
+
+	/*
+	 * Enable and configure time base on new CPU.
+	 */
+
+	/* Set TB clock source to platform clock / 32 */
+	reg = ccsr_read4(CCSR_CTBCKSELR);
+	ccsr_write4(CCSR_CTBCKSELR, reg & ~(1 << pc->pc_cpuid));
+
+	/* Enable TB */
+	reg = ccsr_read4(CCSR_CTBENR);
+	ccsr_write4(CCSR_CTBENR, reg | (1 << pc->pc_cpuid));
+#else
+
 	/*
 	 * Set BPTR to the physical address of the boot page
 	 */
-	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload;
-	KASSERT((bptr & 0xfff) == 0,
-	    ("%s: boot page is not aligned (%#x)", __func__, bptr));
 	bptr = (bptr >> 12) | 0x80000000u;
 	ccsr_write4(OCP85XX_BPTR, bptr);
 	__asm __volatile("isync; msync");
 
-	/* Flush caches to have our changes hit DRAM. */
-	cpu_flush_dcache(__boot_page, 4096);
+#endif /* QORIQ_DPAA */
 
 	/*
 	 * Release AP from hold-off state
 	 */
-	eebpcr |= (1 << (pc->pc_cpuid + 24));
-	ccsr_write4(OCP85XX_EEBPCR, eebpcr);
+	reg = ccsr_read4(brr);
+	ccsr_write4(brr, reg | (1 << cpuid));
 	__asm __volatile("isync; msync");
 
 	timeout = 500;
@@ -364,7 +436,11 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	 * address (= 0xfffff000) isn't permanently remapped and thus not
 	 * usable otherwise.
 	 */
+#ifdef QORIQ_DPAA
+	ccsr_write4(OCP85XX_BSTAR, 0);
+#else
 	ccsr_write4(OCP85XX_BPTR, 0);
+#endif
 	__asm __volatile("isync; msync");
 
 	if (!pc->pc_awake)
