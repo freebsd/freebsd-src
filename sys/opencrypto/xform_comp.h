@@ -28,23 +28,25 @@
  * PURPOSE.
  */
 
-#ifndef _CRYPTO_XFORM_H_
-#define _CRYPTO_XFORM_H_
+#ifndef _CRYPTO_XFORM_COMP_H_
+#define _CRYPTO_XFORM_COMP_H_
 
-#include <sys/md5.h>
-#include <crypto/sha1.h>
-#include <crypto/sha2/sha256.h>
-#include <crypto/sha2/sha384.h>
-#include <crypto/sha2/sha512.h>
-#include <opencrypto/rmd160.h>
-#include <opencrypto/gmac.h>
-
-#include <opencrypto/xform_auth.h>
-#include <opencrypto/xform_comp.h>
-#include <opencrypto/xform_enc.h>
-
-#ifdef _KERNEL
 #include <sys/malloc.h>
-MALLOC_DECLARE(M_XDATA);
-#endif
-#endif /* _CRYPTO_XFORM_H_ */
+#include <sys/errno.h>
+
+#include <opencrypto/deflate.h>
+#include <opencrypto/cryptodev.h>
+#include <opencrypto/xform_userland.h>
+
+/* Declarations */
+struct comp_algo {
+	int type;
+	char *name;
+	size_t minlen;
+	u_int32_t (*compress) (u_int8_t *, u_int32_t, u_int8_t **);
+	u_int32_t (*decompress) (u_int8_t *, u_int32_t, u_int8_t **);
+};
+
+extern struct comp_algo comp_algo_deflate;
+
+#endif /* _CRYPTO_XFORM_COMP_H_ */

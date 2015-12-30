@@ -50,37 +50,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/errno.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <machine/cpu.h>
-
-#include <crypto/blowfish/blowfish.h>
-#include <crypto/des/des.h>
-#include <crypto/rijndael/rijndael.h>
-#include <crypto/camellia/camellia.h>
-#include <crypto/sha1.h>
-
-#include <opencrypto/cast.h>
-#include <opencrypto/deflate.h>
-#include <opencrypto/rmd160.h>
-#include <opencrypto/skipjack.h>
-
-#include <sys/md5.h>
-
-#include <opencrypto/cryptodev.h>
-#include <opencrypto/xform.h>
-
-MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
+#include <opencrypto/gmac.h>
+#include <opencrypto/xform_auth.h>
 
 /* Encryption instances */
-struct enc_xform enc_xform_arc4 = {
-	CRYPTO_ARC4, "ARC4",
-	ARC4_BLOCK_LEN, ARC4_IV_LEN, ARC4_MIN_KEY, ARC4_MAX_KEY,
+struct enc_xform enc_xform_aes_nist_gmac = {
+	CRYPTO_AES_NIST_GMAC, "AES-GMAC",
+	AES_ICM_BLOCK_LEN, AES_GCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
 	NULL,
 	NULL,
 	NULL,
@@ -88,26 +64,36 @@ struct enc_xform enc_xform_arc4 = {
 	NULL,
 };
 
+/* Authentication instances */
+struct auth_hash auth_hash_nist_gmac_aes_128 = {
+	CRYPTO_AES_128_NIST_GMAC, "GMAC-AES-128",
+	AES_128_GMAC_KEY_LEN, AES_GMAC_HASH_LEN, sizeof(struct aes_gmac_ctx),
+	GMAC_BLOCK_LEN,
+	(void (*)(void *)) AES_GMAC_Init,
+	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Setkey,
+	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Reinit,
+	(int  (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Update,
+	(void (*)(u_int8_t *, void *)) AES_GMAC_Final
+};
 
-/* Include the encryption algorithms */
-#include "xform_null.c"
-#include "xform_des1.c"
-#include "xform_des3.c"
-#include "xform_blf.c"
-#include "xform_cast5.c"
-#include "xform_skipjack.c"
-#include "xform_rijndael.c"
-#include "xform_aes_icm.c"
-#include "xform_aes_xts.c"
-#include "xform_cml.c"
+struct auth_hash auth_hash_nist_gmac_aes_192 = {
+	CRYPTO_AES_192_NIST_GMAC, "GMAC-AES-192",
+	AES_192_GMAC_KEY_LEN, AES_GMAC_HASH_LEN, sizeof(struct aes_gmac_ctx),
+	GMAC_BLOCK_LEN,
+	(void (*)(void *)) AES_GMAC_Init,
+	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Setkey,
+	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Reinit,
+	(int  (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Update,
+	(void (*)(u_int8_t *, void *)) AES_GMAC_Final
+};
 
-/* Include the authentication and hashing algorithms */
-#include "xform_gmac.c"
-#include "xform_md5.c"
-#include "xform_rmd160.c"
-#include "xform_sha1.c"
-#include "xform_sha2.c"
-
-/* Include the compression algorithms */
-#include "xform_deflate.c"
-
+struct auth_hash auth_hash_nist_gmac_aes_256 = {
+	CRYPTO_AES_256_NIST_GMAC, "GMAC-AES-256",
+	AES_256_GMAC_KEY_LEN, AES_GMAC_HASH_LEN, sizeof(struct aes_gmac_ctx),
+	GMAC_BLOCK_LEN,
+	(void (*)(void *)) AES_GMAC_Init,
+	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Setkey,
+	(void (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Reinit,
+	(int  (*)(void *, const u_int8_t *, u_int16_t)) AES_GMAC_Update,
+	(void (*)(u_int8_t *, void *)) AES_GMAC_Final
+};

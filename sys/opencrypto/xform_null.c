@@ -50,64 +50,87 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/errno.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <machine/cpu.h>
+#include <opencrypto/xform_auth.h>
+#include <opencrypto/xform_enc.h>
 
-#include <crypto/blowfish/blowfish.h>
-#include <crypto/des/des.h>
-#include <crypto/rijndael/rijndael.h>
-#include <crypto/camellia/camellia.h>
-#include <crypto/sha1.h>
+static	int null_setkey(u_int8_t **, u_int8_t *, int);
+static	void null_encrypt(caddr_t, u_int8_t *);
+static	void null_decrypt(caddr_t, u_int8_t *);
+static	void null_zerokey(u_int8_t **);
 
-#include <opencrypto/cast.h>
-#include <opencrypto/deflate.h>
-#include <opencrypto/rmd160.h>
-#include <opencrypto/skipjack.h>
-
-#include <sys/md5.h>
-
-#include <opencrypto/cryptodev.h>
-#include <opencrypto/xform.h>
-
-MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
+static	void null_init(void *);
+static	void null_reinit(void *ctx, const u_int8_t *buf, u_int16_t len);
+static	int null_update(void *, const u_int8_t *, u_int16_t);
+static	void null_final(u_int8_t *, void *);
 
 /* Encryption instances */
-struct enc_xform enc_xform_arc4 = {
-	CRYPTO_ARC4, "ARC4",
-	ARC4_BLOCK_LEN, ARC4_IV_LEN, ARC4_MIN_KEY, ARC4_MAX_KEY,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+struct enc_xform enc_xform_null = {
+	CRYPTO_NULL_CBC, "NULL",
+	/* NB: blocksize of 4 is to generate a properly aligned ESP header */
+	NULL_BLOCK_LEN, 0, NULL_MIN_KEY, NULL_MAX_KEY, 
+	null_encrypt,
+	null_decrypt,
+	null_setkey,
+	null_zerokey,
 	NULL,
 };
 
+/* Authentication instances */
+struct auth_hash auth_hash_null = {	/* NB: context isn't used */
+	CRYPTO_NULL_HMAC, "NULL-HMAC",
+	NULL_HMAC_KEY_LEN, NULL_HASH_LEN, sizeof(int), NULL_HMAC_BLOCK_LEN,
+	null_init, null_reinit, null_reinit, null_update, null_final
+};
 
-/* Include the encryption algorithms */
-#include "xform_null.c"
-#include "xform_des1.c"
-#include "xform_des3.c"
-#include "xform_blf.c"
-#include "xform_cast5.c"
-#include "xform_skipjack.c"
-#include "xform_rijndael.c"
-#include "xform_aes_icm.c"
-#include "xform_aes_xts.c"
-#include "xform_cml.c"
+/*
+ * Encryption wrapper routines.
+ */
+static void
+null_encrypt(caddr_t key, u_int8_t *blk)
+{
+}
 
-/* Include the authentication and hashing algorithms */
-#include "xform_gmac.c"
-#include "xform_md5.c"
-#include "xform_rmd160.c"
-#include "xform_sha1.c"
-#include "xform_sha2.c"
+static void
+null_decrypt(caddr_t key, u_int8_t *blk)
+{
+}
 
-/* Include the compression algorithms */
-#include "xform_deflate.c"
+static int
+null_setkey(u_int8_t **sched, u_int8_t *key, int len)
+{
+	*sched = NULL;
+	return 0;
+}
 
+static void
+null_zerokey(u_int8_t **sched)
+{
+	*sched = NULL;
+}
+
+/*
+ * And now for auth.
+ */
+
+static void
+null_init(void *ctx)
+{
+}
+
+static void
+null_reinit(void *ctx, const u_int8_t *buf, u_int16_t len)
+{
+}
+
+static int
+null_update(void *ctx, const u_int8_t *buf, u_int16_t len)
+{
+	return 0;
+}
+
+static void
+null_final(u_int8_t *buf, void *ctx)
+{
+	if (buf != (u_int8_t *) 0)
+		bzero(buf, 12);
+}

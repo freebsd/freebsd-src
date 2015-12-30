@@ -50,64 +50,78 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/errno.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <machine/cpu.h>
-
 #include <crypto/blowfish/blowfish.h>
-#include <crypto/des/des.h>
-#include <crypto/rijndael/rijndael.h>
-#include <crypto/camellia/camellia.h>
-#include <crypto/sha1.h>
+#include <opencrypto/xform_enc.h>
 
-#include <opencrypto/cast.h>
-#include <opencrypto/deflate.h>
-#include <opencrypto/rmd160.h>
-#include <opencrypto/skipjack.h>
-
-#include <sys/md5.h>
-
-#include <opencrypto/cryptodev.h>
-#include <opencrypto/xform.h>
-
-MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
+static	int blf_setkey(u_int8_t **, u_int8_t *, int);
+static	void blf_encrypt(caddr_t, u_int8_t *);
+static	void blf_decrypt(caddr_t, u_int8_t *);
+static	void blf_zerokey(u_int8_t **);
 
 /* Encryption instances */
-struct enc_xform enc_xform_arc4 = {
-	CRYPTO_ARC4, "ARC4",
-	ARC4_BLOCK_LEN, ARC4_IV_LEN, ARC4_MIN_KEY, ARC4_MAX_KEY,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+struct enc_xform enc_xform_blf = {
+	CRYPTO_BLF_CBC, "Blowfish",
+	BLOWFISH_BLOCK_LEN, BLOWFISH_BLOCK_LEN, BLOWFISH_MIN_KEY,
+	BLOWFISH_MAX_KEY,
+	blf_encrypt,
+	blf_decrypt,
+	blf_setkey,
+	blf_zerokey,
 	NULL,
 };
 
+/*
+ * Encryption wrapper routines.
+ */
+static void
+blf_encrypt(caddr_t key, u_int8_t *blk)
+{
+	BF_LONG t[2];
 
-/* Include the encryption algorithms */
-#include "xform_null.c"
-#include "xform_des1.c"
-#include "xform_des3.c"
-#include "xform_blf.c"
-#include "xform_cast5.c"
-#include "xform_skipjack.c"
-#include "xform_rijndael.c"
-#include "xform_aes_icm.c"
-#include "xform_aes_xts.c"
-#include "xform_cml.c"
+	memcpy(t, blk, sizeof (t));
+	t[0] = ntohl(t[0]);
+	t[1] = ntohl(t[1]);
+	/* NB: BF_encrypt expects the block in host order! */
+	BF_encrypt(t, (BF_KEY *) key);
+	t[0] = htonl(t[0]);
+	t[1] = htonl(t[1]);
+	memcpy(blk, t, sizeof (t));
+}
 
-/* Include the authentication and hashing algorithms */
-#include "xform_gmac.c"
-#include "xform_md5.c"
-#include "xform_rmd160.c"
-#include "xform_sha1.c"
-#include "xform_sha2.c"
+static void
+blf_decrypt(caddr_t key, u_int8_t *blk)
+{
+	BF_LONG t[2];
 
-/* Include the compression algorithms */
-#include "xform_deflate.c"
+	memcpy(t, blk, sizeof (t));
+	t[0] = ntohl(t[0]);
+	t[1] = ntohl(t[1]);
+	/* NB: BF_decrypt expects the block in host order! */
+	BF_decrypt(t, (BF_KEY *) key);
+	t[0] = htonl(t[0]);
+	t[1] = htonl(t[1]);
+	memcpy(blk, t, sizeof (t));
+}
 
+static int
+blf_setkey(u_int8_t **sched, u_int8_t *key, int len)
+{
+	int err;
+
+	*sched = KMALLOC(sizeof(BF_KEY),
+		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
+	if (*sched != NULL) {
+		BF_set_key((BF_KEY *) *sched, len, key);
+		err = 0;
+	} else
+		err = ENOMEM;
+	return err;
+}
+
+static void
+blf_zerokey(u_int8_t **sched)
+{
+	bzero(*sched, sizeof(BF_KEY));
+	KFREE(*sched, M_CRYPTO_DATA);
+	*sched = NULL;
+}
