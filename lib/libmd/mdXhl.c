@@ -59,14 +59,18 @@ MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 	f = open(filename, O_RDONLY);
 	if (f < 0)
 		return 0;
-	if (fstat(f, &stbuf) < 0)
-		return 0;
+	if (fstat(f, &stbuf) < 0) {
+		i = -1;
+		goto error;
+	}
 	if (ofs > stbuf.st_size)
 		ofs = stbuf.st_size;
 	if ((len == 0) || (len > stbuf.st_size - ofs))
 		len = stbuf.st_size - ofs;
-	if (lseek(f, ofs, SEEK_SET) < 0)
-		return 0;
+	if (lseek(f, ofs, SEEK_SET) < 0) {
+		i = -1;
+		goto error;
+	}
 	n = len;
 	i = 0;
 	while (n > 0) {
@@ -79,6 +83,7 @@ MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 		MDXUpdate(&ctx, buffer, i);
 		n -= i;
 	} 
+error:
 	e = errno;
 	close(f);
 	errno = e;
