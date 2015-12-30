@@ -1,4 +1,4 @@
-//===-- ValueObjectSyntheticFilter.cpp -----------------------------*- C++ -*-===//
+//===-- ValueObjectSyntheticFilter.cpp --------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,12 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/Core/ValueObjectSyntheticFilter.h"
-
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Core/ValueObjectSyntheticFilter.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
 
@@ -26,35 +25,34 @@ public:
     {}
 
     size_t
-    CalculateNumChildren()
+    CalculateNumChildren() override
     {
         return m_backend.GetNumChildren();
     }
     
     lldb::ValueObjectSP
-    GetChildAtIndex (size_t idx)
+    GetChildAtIndex(size_t idx) override
     {
         return m_backend.GetChildAtIndex(idx, true);
     }
-    
+
     size_t
-    GetIndexOfChildWithName (const ConstString &name)
+    GetIndexOfChildWithName(const ConstString &name) override
     {
         return m_backend.GetIndexOfChildWithName(name);
     }
     
     bool
-    MightHaveChildren ()
+    MightHaveChildren() override
     {
         return true;
     }
     
     bool
-    Update()
+    Update() override
     {
         return false;
     }
-
 };
 
 ValueObjectSynthetic::ValueObjectSynthetic (ValueObject &parent, lldb::SyntheticChildrenSP filter) :
@@ -78,14 +76,12 @@ ValueObjectSynthetic::ValueObjectSynthetic (ValueObject &parent, lldb::Synthetic
     CreateSynthFilter();
 }
 
-ValueObjectSynthetic::~ValueObjectSynthetic()
-{
-}
+ValueObjectSynthetic::~ValueObjectSynthetic() = default;
 
-ClangASTType
-ValueObjectSynthetic::GetClangTypeImpl ()
+CompilerType
+ValueObjectSynthetic::GetCompilerTypeImpl ()
 {
-    return m_parent->GetClangType();
+    return m_parent->GetCompilerType();
 }
 
 ConstString
@@ -107,12 +103,16 @@ ValueObjectSynthetic::GetDisplayTypeName()
 }
 
 size_t
-ValueObjectSynthetic::CalculateNumChildren()
+ValueObjectSynthetic::CalculateNumChildren(uint32_t max)
 {
     UpdateValueIfNeeded();
     if (m_synthetic_children_count < UINT32_MAX)
-        return m_synthetic_children_count;
-    return (m_synthetic_children_count = m_synth_filter_ap->CalculateNumChildren());
+        return m_synthetic_children_count <= max ? m_synthetic_children_count : max;
+
+    if (max < UINT32_MAX)
+        return m_synth_filter_ap->CalculateNumChildren(max);
+    else
+        return (m_synthetic_children_count = m_synth_filter_ap->CalculateNumChildren(max));
 }
 
 lldb::ValueObjectSP
@@ -217,12 +217,13 @@ ValueObjectSynthetic::GetChildAtIndex (size_t idx, bool can_create)
     ValueObject *valobj;
     if (m_children_byindex.GetValueForKey(idx, valobj) == false)
     {
-        if (can_create && m_synth_filter_ap.get() != NULL)
+        if (can_create && m_synth_filter_ap.get() != nullptr)
         {
             lldb::ValueObjectSP synth_guy = m_synth_filter_ap->GetChildAtIndex (idx);
             if (!synth_guy)
                 return synth_guy;
             m_children_byindex.SetValueForKey(idx, synth_guy.get());
+            synth_guy->SetPreferredDisplayLanguageIfNeeded(GetPreferredDisplayLanguage());
             return synth_guy;
         }
         else
@@ -253,7 +254,7 @@ ValueObjectSynthetic::GetIndexOfChildWithName (const ConstString &name)
     uint32_t found_index = UINT32_MAX;
     bool did_find = m_name_toindex.GetValueForKey(name.GetCString(), found_index);
     
-    if (!did_find && m_synth_filter_ap.get() != NULL)
+    if (!did_find && m_synth_filter_ap.get() != nullptr)
     {
         uint32_t index = m_synth_filter_ap->GetIndexOfChildWithName (name);
         if (index == UINT32_MAX)
@@ -261,7 +262,7 @@ ValueObjectSynthetic::GetIndexOfChildWithName (const ConstString &name)
         m_name_toindex.SetValueForKey(name.GetCString(), index);
         return index;
     }
-    else if (!did_find && m_synth_filter_ap.get() == NULL)
+    else if (!did_find && m_synth_filter_ap.get() == nullptr)
         return UINT32_MAX;
     else /*if (iter != m_name_toindex.end())*/
         return found_index;
@@ -313,4 +314,51 @@ ValueObjectSynthetic::SetFormat (lldb::Format format)
     }
     this->ValueObject::SetFormat(format);
     this->ClearUserVisibleData(eClearUserVisibleDataItemsAll);
+}
+
+void
+ValueObjectSynthetic::SetPreferredDisplayLanguage (lldb::LanguageType lang)
+{
+    this->ValueObject::SetPreferredDisplayLanguage(lang);
+    if (m_parent)
+        m_parent->SetPreferredDisplayLanguage(lang);
+}
+
+lldb::LanguageType
+ValueObjectSynthetic::GetPreferredDisplayLanguage ()
+{
+    if (m_preferred_display_language == lldb::eLanguageTypeUnknown)
+    {
+        if (m_parent)
+            return m_parent->GetPreferredDisplayLanguage();
+        return lldb::eLanguageTypeUnknown;
+    }
+    else
+        return m_preferred_display_language;
+}
+
+bool
+ValueObjectSynthetic::GetDeclaration (Declaration &decl)
+{
+    if (m_parent)
+        return m_parent->GetDeclaration(decl);
+
+    return ValueObject::GetDeclaration(decl);
+}
+
+uint64_t
+ValueObjectSynthetic::GetLanguageFlags ()
+{
+    if (m_parent)
+        return m_parent->GetLanguageFlags();
+    return this->ValueObject::GetLanguageFlags();
+}
+
+void
+ValueObjectSynthetic::SetLanguageFlags (uint64_t flags)
+{
+    if (m_parent)
+        m_parent->SetLanguageFlags(flags);
+    else
+        this->ValueObject::SetLanguageFlags(flags);
 }

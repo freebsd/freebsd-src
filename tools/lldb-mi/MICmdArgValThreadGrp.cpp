@@ -18,7 +18,7 @@
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValThreadGrp::CMICmdArgValThreadGrp(void)
+CMICmdArgValThreadGrp::CMICmdArgValThreadGrp()
     : m_nThreadGrp(0)
 {
 }
@@ -45,7 +45,7 @@ CMICmdArgValThreadGrp::CMICmdArgValThreadGrp(const CMIUtilString &vrArgName, con
 // Return:  None.
 // Throws:  None.
 //--
-CMICmdArgValThreadGrp::~CMICmdArgValThreadGrp(void)
+CMICmdArgValThreadGrp::~CMICmdArgValThreadGrp()
 {
 }
 
@@ -117,11 +117,11 @@ bool
 CMICmdArgValThreadGrp::IsArgThreadGrp(const CMIUtilString &vrTxt) const
 {
     // Look for i1 i2 i3....
-    const MIint nPos = vrTxt.find_first_of("i");
+    const MIint nPos = vrTxt.find('i');
     if (nPos != 0)
         return false;
 
-    const CMIUtilString strNum = vrTxt.substr(1).c_str();
+    const CMIUtilString strNum = vrTxt.substr(1);
     if (!strNum.IsNumber())
         return false;
 
@@ -139,7 +139,7 @@ CMICmdArgValThreadGrp::IsArgThreadGrp(const CMIUtilString &vrTxt) const
 bool
 CMICmdArgValThreadGrp::ExtractNumber(const CMIUtilString &vrTxt)
 {
-    const CMIUtilString strNum = vrTxt.substr(1).c_str();
+    const CMIUtilString strNum = vrTxt.substr(1);
     MIint64 nNumber = 0;
     bool bOk = strNum.ExtractNumber(nNumber);
     if (bOk)
@@ -158,7 +158,7 @@ CMICmdArgValThreadGrp::ExtractNumber(const CMIUtilString &vrTxt)
 // Throws:  None.
 //--
 MIuint
-CMICmdArgValThreadGrp::GetNumber(void) const
+CMICmdArgValThreadGrp::GetNumber() const
 {
     return m_nThreadGrp;
 }

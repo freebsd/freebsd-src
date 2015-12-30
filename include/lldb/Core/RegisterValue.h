@@ -1,4 +1,4 @@
-//===-- RegisterValue.h ------------------------------------------*- C++ -*-===//
+//===-- RegisterValue.h -----------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,12 +15,14 @@
 
 // C++ Includes
 // Other libraries and framework includes
+#include "llvm/ADT/APInt.h"
+
 // Project includes
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-private.h"
 #include "lldb/Host/Endian.h"
+#include "lldb/Core/Scalar.h"
 
-//#define ENABLE_128_BIT_SUPPORT 1
 namespace lldb_private {
 
     class RegisterValue
@@ -30,6 +32,7 @@ namespace lldb_private {
         {
             kMaxRegisterByteSize = 32u
         };
+
         enum Type
         {
             eTypeInvalid,
@@ -37,9 +40,7 @@ namespace lldb_private {
             eTypeUInt16,
             eTypeUInt32,
             eTypeUInt64,
-#if defined (ENABLE_128_BIT_SUPPORT)
             eTypeUInt128,
-#endif
             eTypeFloat,
             eTypeDouble,
             eTypeLongDouble,
@@ -47,7 +48,8 @@ namespace lldb_private {
         };
         
         RegisterValue () : 
-            m_type (eTypeInvalid)
+            m_type (eTypeInvalid),
+            m_scalar ((unsigned long)0)
         {
         }
 
@@ -55,57 +57,56 @@ namespace lldb_private {
         RegisterValue (uint8_t inst) : 
             m_type (eTypeUInt8)
         {
-            m_data.uint8 = inst;
+            m_scalar = inst;
         }
 
         explicit 
         RegisterValue (uint16_t inst) : 
             m_type (eTypeUInt16)
         {
-            m_data.uint16 = inst;
+            m_scalar = inst;
         }
 
         explicit 
         RegisterValue (uint32_t inst) : 
             m_type (eTypeUInt32)
         {
-            m_data.uint32 = inst;
+            m_scalar = inst;
         }
 
         explicit 
         RegisterValue (uint64_t inst) : 
             m_type (eTypeUInt64)
         {
-            m_data.uint64 = inst;
+            m_scalar = inst;
         }
 
-#if defined (ENABLE_128_BIT_SUPPORT)
         explicit 
-        RegisterValue (__uint128_t inst) : 
+        RegisterValue (llvm::APInt inst) :
             m_type (eTypeUInt128)
         {
-            m_data.uint128 = inst;
+            m_scalar = llvm::APInt(inst);
         }
-#endif        
+
         explicit 
         RegisterValue (float value) : 
             m_type (eTypeFloat)
         {
-            m_data.ieee_float = value;
+            m_scalar = value;
         }
 
         explicit 
         RegisterValue (double value) : 
             m_type (eTypeDouble)
         {
-            m_data.ieee_double = value;
+            m_scalar = value;
         }
 
         explicit 
         RegisterValue (long double value) : 
             m_type (eTypeLongDouble)
         {
-            m_data.ieee_long_double = value;
+            m_scalar = value;
         }
 
         explicit 
@@ -161,13 +162,13 @@ namespace lldb_private {
         GetScalarValue (Scalar &scalar) const;
 
         uint8_t
-        GetAsUInt8 (uint8_t fail_value = UINT8_MAX, bool *success_ptr = NULL) const
+        GetAsUInt8(uint8_t fail_value = UINT8_MAX, bool *success_ptr = nullptr) const
         {
             if (m_type == eTypeUInt8)
             {
                 if (success_ptr)
                     *success_ptr = true;                
-                return m_data.uint8;
+                return m_scalar.UChar(fail_value);
             }
             if (success_ptr)
                 *success_ptr = true;
@@ -175,27 +176,25 @@ namespace lldb_private {
         }
 
         uint16_t
-        GetAsUInt16 (uint16_t fail_value = UINT16_MAX, bool *success_ptr = NULL) const;
+        GetAsUInt16(uint16_t fail_value = UINT16_MAX, bool *success_ptr = nullptr) const;
 
         uint32_t
-        GetAsUInt32 (uint32_t fail_value = UINT32_MAX, bool *success_ptr = NULL) const;
+        GetAsUInt32(uint32_t fail_value = UINT32_MAX, bool *success_ptr = nullptr) const;
 
         uint64_t
-        GetAsUInt64 (uint64_t fail_value = UINT64_MAX, bool *success_ptr = NULL) const;
+        GetAsUInt64(uint64_t fail_value = UINT64_MAX, bool *success_ptr = nullptr) const;
 
-#if defined (ENABLE_128_BIT_SUPPORT)
-        __uint128_t
-        GetAsUInt128 (__uint128_t fail_value = ~((__uint128_t)0), bool *success_ptr = NULL) const;
-#endif
+        llvm::APInt
+        GetAsUInt128(const llvm::APInt& fail_value, bool *success_ptr = nullptr) const;
 
         float
-        GetAsFloat (float fail_value = 0.0f, bool *success_ptr = NULL) const;
+        GetAsFloat(float fail_value = 0.0f, bool *success_ptr = nullptr) const;
 
         double
-        GetAsDouble (double fail_value = 0.0, bool *success_ptr = NULL) const;
+        GetAsDouble(double fail_value = 0.0, bool *success_ptr = nullptr) const;
 
         long double
-        GetAsLongDouble (long double fail_value = 0.0, bool *success_ptr = NULL) const;
+        GetAsLongDouble(long double fail_value = 0.0, bool *success_ptr = nullptr) const;
 
         void
         SetValueToInvalid ()
@@ -219,95 +218,93 @@ namespace lldb_private {
         operator = (uint8_t uint)
         {
             m_type = eTypeUInt8;
-            m_data.uint8 = uint;
+            m_scalar = uint;
         }
 
         void
         operator = (uint16_t uint)
         {
             m_type = eTypeUInt16;
-            m_data.uint16 = uint;
+            m_scalar = uint;
         }
 
         void
         operator = (uint32_t uint)
         {
             m_type = eTypeUInt32;
-            m_data.uint32 = uint;
+            m_scalar = uint;
         }
 
         void
         operator = (uint64_t uint)
         {
             m_type = eTypeUInt64;
-            m_data.uint64 = uint;
+            m_scalar = uint;
         }
 
-#if defined (ENABLE_128_BIT_SUPPORT)
         void
-        operator = (__uint128_t uint)
+        operator = (llvm::APInt uint)
         {
             m_type = eTypeUInt128;
-            m_data.uint128 = uint;
+            m_scalar = llvm::APInt(uint);
         }
-#endif        
+
         void
         operator = (float f)
         {
             m_type = eTypeFloat;
-            m_data.ieee_float = f;
+            m_scalar = f;
         }
 
         void
         operator = (double f)
         {
             m_type = eTypeDouble;
-            m_data.ieee_double = f;
+            m_scalar = f;
         }
 
         void
         operator = (long double f)
         {
             m_type = eTypeLongDouble;
-            m_data.ieee_long_double = f;
+            m_scalar = f;
         }
 
         void
         SetUInt8 (uint8_t uint)
         {
             m_type = eTypeUInt8;
-            m_data.uint8 = uint;
+            m_scalar = uint;
         }
 
         void
         SetUInt16 (uint16_t uint)
         {
             m_type = eTypeUInt16;
-            m_data.uint16 = uint;
+            m_scalar = uint;
         }
 
         void
         SetUInt32 (uint32_t uint, Type t = eTypeUInt32)
         {
             m_type = t;
-            m_data.uint32 = uint;
+            m_scalar = uint;
         }
 
         void
         SetUInt64 (uint64_t uint, Type t = eTypeUInt64)
         {
             m_type = t;
-            m_data.uint64 = uint;
+            m_scalar = uint;
         }
 
-#if defined (ENABLE_128_BIT_SUPPORT)
         void
-        SetUInt128 (__uint128_t uint)
+        SetUInt128 (llvm::APInt uint)
         {
             m_type = eTypeUInt128;
-            m_data.uint128 = uint;
+            m_scalar = uint;
         }
-#endif
+
         bool
         SetUInt (uint64_t uint, uint32_t byte_size);
     
@@ -315,21 +312,21 @@ namespace lldb_private {
         SetFloat (float f)
         {
             m_type = eTypeFloat;
-            m_data.ieee_float = f;
+            m_scalar = f;
         }
 
         void
         SetDouble (double f)
         {
             m_type = eTypeDouble;
-            m_data.ieee_double = f;
+            m_scalar = f;
         }
 
         void
         SetLongDouble (long double f)
         {
             m_type = eTypeLongDouble;
-            m_data.ieee_long_double = f;
+            m_scalar = f;
         }
 
         void
@@ -367,8 +364,8 @@ namespace lldb_private {
         GetByteOrder () const
         {
             if (m_type == eTypeBytes)
-                return m_data.buffer.byte_order;
-            return lldb::endian::InlHostByteOrder();
+                return buffer.byte_order;
+            return endian::InlHostByteOrder();
         }
         
         uint32_t
@@ -384,29 +381,17 @@ namespace lldb_private {
         Clear();
 
     protected:
-
         RegisterValue::Type m_type;
-        union
+        Scalar m_scalar;
+
+        struct
         {
-            uint8_t  uint8;
-            uint16_t uint16;
-            uint32_t uint32;
-            uint64_t uint64;
-#if defined (ENABLE_128_BIT_SUPPORT)
-            __uint128_t uint128;
-#endif
-            float ieee_float;
-            double ieee_double;
-            long double ieee_long_double;
-            struct 
-            {
-                uint8_t bytes[kMaxRegisterByteSize]; // This must be big enough to hold any register for any supported target.
-                uint8_t length;
-                lldb::ByteOrder byte_order;
-            } buffer;
-        } m_data;
+            uint8_t bytes[kMaxRegisterByteSize]; // This must be big enough to hold any register for any supported target.
+            uint8_t length;
+            lldb::ByteOrder byte_order;
+        } buffer;
     };
 
 } // namespace lldb_private
 
-#endif	// lldb_RegisterValue_h
+#endif // lldb_RegisterValue_h

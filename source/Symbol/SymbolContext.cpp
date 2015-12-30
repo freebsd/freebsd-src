@@ -391,24 +391,24 @@ SymbolContext::GetResolvedMask () const
 void
 SymbolContext::Dump(Stream *s, Target *target) const
 {
-    *s << (void *)this << ": ";
+    *s << this << ": ";
     s->Indent();
     s->PutCString("SymbolContext");
     s->IndentMore();
     s->EOL();
     s->IndentMore();
     s->Indent();
-    *s << "Module       = " << (void *)module_sp.get() << ' ';
+    *s << "Module       = " << module_sp.get() << ' ';
     if (module_sp)
         module_sp->GetFileSpec().Dump(s);
     s->EOL();
     s->Indent();
-    *s << "CompileUnit  = " << (void *)comp_unit;
+    *s << "CompileUnit  = " << comp_unit;
     if (comp_unit != nullptr)
         *s << " {0x" << comp_unit->GetID() << "} " << *(static_cast<FileSpec*> (comp_unit));
     s->EOL();
     s->Indent();
-    *s << "Function     = " << (void *)function;
+    *s << "Function     = " << function;
     if (function != nullptr)
     {
         *s << " {0x" << function->GetID() << "} " << function->GetType()->GetName() << ", address-range = ";
@@ -424,7 +424,7 @@ SymbolContext::Dump(Stream *s, Target *target) const
     }
     s->EOL();
     s->Indent();
-    *s << "Block        = " << (void *)block;
+    *s << "Block        = " << block;
     if (block != nullptr)
         *s << " {0x" << block->GetID() << '}';
     // Dump the block and pass it a negative depth to we print all the parent blocks
@@ -436,11 +436,11 @@ SymbolContext::Dump(Stream *s, Target *target) const
     line_entry.Dump (s, target, true, Address::DumpStyleLoadAddress, Address::DumpStyleModuleWithFileAddress, true);
     s->EOL();
     s->Indent();
-    *s << "Symbol       = " << (void *)symbol;
+    *s << "Symbol       = " << symbol;
     if (symbol != nullptr && symbol->GetMangled())
         *s << ' ' << symbol->GetName().AsCString();
     s->EOL();
-    *s << "Variable     = " << (void *)variable;
+    *s << "Variable     = " << variable;
     if (variable != nullptr)
     {
         *s << " {0x" << variable->GetID() << "} " << variable->GetType()->GetName();
@@ -523,6 +523,38 @@ SymbolContext::GetAddressRange (uint32_t scope,
     }
     range.Clear();
     return false;
+}
+
+LanguageType
+SymbolContext::GetLanguage () const
+{
+    LanguageType lang;
+    if (function &&
+        (lang = function->GetLanguage()) != eLanguageTypeUnknown)
+    {
+        return lang;
+    }
+    else if (variable &&
+             (lang = variable->GetLanguage()) != eLanguageTypeUnknown)
+    {
+        return lang;
+    }
+    else if (symbol &&
+             (lang = symbol->GetLanguage()) != eLanguageTypeUnknown)
+    {
+        return lang;
+    }
+    else if (comp_unit &&
+             (lang = comp_unit->GetLanguage()) != eLanguageTypeUnknown)
+    {
+        return lang;
+    }
+    else if (symbol)
+    {
+        // If all else fails, try to guess the language from the name.
+        return symbol->GetMangled().GuessLanguage();
+    }
+    return eLanguageTypeUnknown;
 }
 
 bool
@@ -649,23 +681,124 @@ SymbolContext::GetFunctionMethodInfo (lldb::LanguageType &language,
 
 
 {
-    Block *function_block = GetFunctionBlock ();
+    Block *function_block = GetFunctionBlock();
     if (function_block)
     {
-        clang::DeclContext *decl_context = function_block->GetClangDeclContext();
-        
-        if (decl_context)
+        CompilerDeclContext decl_ctx = function_block->GetDeclContext();
+        if (decl_ctx)
+            return decl_ctx.IsClassMethod(&language, &is_instance_method, &language_object_name);
+    }
+    return false;
+}
+
+void
+SymbolContext::SortTypeList(TypeMap &type_map, TypeList &type_list) const
+{
+    Block * curr_block = block;
+    bool isInlinedblock = false;
+    if (curr_block != nullptr && curr_block->GetContainingInlinedBlock() != nullptr)
+        isInlinedblock = true;
+
+    //----------------------------------------------------------------------
+    // Find all types that match the current block if we have one and put
+    // them first in the list. Keep iterating up through all blocks.
+    //----------------------------------------------------------------------
+    while (curr_block != nullptr && !isInlinedblock)
+    {
+        type_map.ForEach([curr_block, &type_list](const lldb::TypeSP& type_sp) -> bool {
+            SymbolContextScope *scs = type_sp->GetSymbolContextScope();
+            if (scs && curr_block == scs->CalculateSymbolContextBlock())
+                type_list.Insert(type_sp);
+            return true; // Keep iterating
+        });
+
+        // Remove any entries that are now in "type_list" from "type_map"
+        // since we can't remove from type_map while iterating
+        type_list.ForEach([&type_map](const lldb::TypeSP& type_sp) -> bool {
+            type_map.Remove(type_sp);
+            return true; // Keep iterating
+        });
+        curr_block = curr_block->GetParent();
+    }
+    //----------------------------------------------------------------------
+    // Find all types that match the current function, if we have onem, and
+    // put them next in the list.
+    //----------------------------------------------------------------------
+    if (function != nullptr && !type_map.Empty())
+    {
+        const size_t old_type_list_size = type_list.GetSize();
+        type_map.ForEach([this, &type_list](const lldb::TypeSP& type_sp) -> bool {
+            SymbolContextScope *scs = type_sp->GetSymbolContextScope();
+            if (scs && function == scs->CalculateSymbolContextFunction())
+                type_list.Insert(type_sp);
+            return true; // Keep iterating
+        });
+
+        // Remove any entries that are now in "type_list" from "type_map"
+        // since we can't remove from type_map while iterating
+        const size_t new_type_list_size = type_list.GetSize();
+        if (new_type_list_size > old_type_list_size)
         {
-            return ClangASTContext::GetClassMethodInfoForDeclContext (decl_context,
-                                                                      language,
-                                                                      is_instance_method,
-                                                                      language_object_name);
+            for (size_t i=old_type_list_size; i<new_type_list_size; ++i)
+                type_map.Remove(type_list.GetTypeAtIndex(i));
         }
     }
-    language = eLanguageTypeUnknown;
-    is_instance_method = false;
-    language_object_name.Clear();
-    return false;
+    //----------------------------------------------------------------------
+    // Find all types that match the current compile unit, if we have one,
+    // and put them next in the list.
+    //----------------------------------------------------------------------
+    if (comp_unit != nullptr && !type_map.Empty())
+    {
+        const size_t old_type_list_size = type_list.GetSize();
+
+        type_map.ForEach([this, &type_list](const lldb::TypeSP& type_sp) -> bool {
+            SymbolContextScope *scs = type_sp->GetSymbolContextScope();
+            if (scs && comp_unit == scs->CalculateSymbolContextCompileUnit())
+                type_list.Insert(type_sp);
+            return true; // Keep iterating
+        });
+
+        // Remove any entries that are now in "type_list" from "type_map"
+        // since we can't remove from type_map while iterating
+        const size_t new_type_list_size = type_list.GetSize();
+        if (new_type_list_size > old_type_list_size)
+        {
+            for (size_t i=old_type_list_size; i<new_type_list_size; ++i)
+                type_map.Remove(type_list.GetTypeAtIndex(i));
+        }
+    }
+    //----------------------------------------------------------------------
+    // Find all types that match the current module, if we have one, and put
+    // them next in the list.
+    //----------------------------------------------------------------------
+    if (module_sp && !type_map.Empty())
+    {
+        const size_t old_type_list_size = type_list.GetSize();
+        type_map.ForEach([this, &type_list](const lldb::TypeSP& type_sp) -> bool {
+            SymbolContextScope *scs = type_sp->GetSymbolContextScope();
+            if (scs &&  module_sp == scs->CalculateSymbolContextModule())
+                type_list.Insert(type_sp);
+            return true; // Keep iterating
+        });
+        // Remove any entries that are now in "type_list" from "type_map"
+        // since we can't remove from type_map while iterating
+        const size_t new_type_list_size = type_list.GetSize();
+        if (new_type_list_size > old_type_list_size)
+        {
+            for (size_t i=old_type_list_size; i<new_type_list_size; ++i)
+                type_map.Remove(type_list.GetTypeAtIndex(i));
+        }
+    }
+    //----------------------------------------------------------------------
+    // Any types that are left get copied into the list an any order.
+    //----------------------------------------------------------------------
+    if (!type_map.Empty())
+    {
+        type_map.ForEach([&type_list](const lldb::TypeSP& type_sp) -> bool {
+            type_list.Insert(type_sp);
+            return true; // Keep iterating
+        });
+    }
 }
 
 ConstString
@@ -930,7 +1063,7 @@ SymbolContextSpecifier::SymbolContextMatches(SymbolContext &sc)
             }
             else if (sc.symbol != nullptr)
             {
-                if (!sc.symbol->GetMangled().NameMatches(func_name, sc.function->GetLanguage()))
+                if (!sc.symbol->GetMangled().NameMatches(func_name, sc.symbol->GetLanguage()))
                     return false;
             }
         }
@@ -1178,7 +1311,7 @@ void
 SymbolContextList::Dump(Stream *s, Target *target) const
 {
 
-    *s << (void *)this << ": ";
+    *s << this << ": ";
     s->Indent();
     s->PutCString("SymbolContextList");
     s->EOL();

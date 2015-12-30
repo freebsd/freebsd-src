@@ -60,53 +60,52 @@ public:
         return false;
     }
 
-    virtual lldb_private::ConstString
-    GetPluginName();
+    lldb_private::ConstString
+    GetPluginName() override;
 
-    virtual lldb_private::ConstString
-    GetShortPluginName()
-    {
-        return GetPluginNameStatic();
-    }
-
-    virtual uint32_t
-    GetPluginVersion()
+    uint32_t
+    GetPluginVersion() override
     {
         return 1;
     }
 
     bool
-    SetTargetTriple (const lldb_private::ArchSpec &arch);
+    SetTargetTriple (const lldb_private::ArchSpec &arch) override;
     
     EmulateInstructionMIPS (const lldb_private::ArchSpec &arch);
 
-    virtual bool
-    SupportsEmulatingInstructionsOfType (lldb_private::InstructionType inst_type)
+    bool
+    SupportsEmulatingInstructionsOfType (lldb_private::InstructionType inst_type) override
     {
         return SupportsEmulatingInstructionsOfTypeStatic (inst_type);
     }
 
-    virtual bool 
-    ReadInstruction ();
+    bool
+    ReadInstruction () override;
     
-    virtual bool
-    EvaluateInstruction (uint32_t evaluate_options);
-    
-    virtual bool
+    bool
+    EvaluateInstruction (uint32_t evaluate_options) override;
+
+    bool
+    SetInstruction (const lldb_private::Opcode &insn_opcode, 
+                    const lldb_private::Address &inst_addr, 
+                    lldb_private::Target *target) override;
+
+    bool
     TestEmulation (lldb_private::Stream *out_stream, 
                    lldb_private::ArchSpec &arch, 
-                   lldb_private::OptionValueDictionary *test_data)
+                   lldb_private::OptionValueDictionary *test_data) override
     {
         return false;
     }
 
-    virtual bool
+    bool
     GetRegisterInfo (lldb::RegisterKind reg_kind,
                      uint32_t reg_num, 
-                     lldb_private::RegisterInfo &reg_info);
+                     lldb_private::RegisterInfo &reg_info) override;
 
-    virtual bool
-    CreateFunctionEntryUnwind (lldb_private::UnwindPlan &unwind_plan);
+    bool
+    CreateFunctionEntryUnwind (lldb_private::UnwindPlan &unwind_plan) override;
 
 
 protected:
@@ -121,6 +120,9 @@ protected:
     static MipsOpcode*
     GetOpcodeForInstruction (const char *op_name);
 
+    uint32_t
+    GetSizeOfInstruction (lldb_private::DataExtractor& data, uint64_t inst_addr);
+
     bool
     Emulate_ADDiu (llvm::MCInst& insn);
 
@@ -129,6 +131,33 @@ protected:
 
     bool
     Emulate_LW (llvm::MCInst& insn);
+
+    bool
+    Emulate_ADDIUSP (llvm::MCInst& insn);
+
+    bool
+    Emulate_ADDIUS5 (llvm::MCInst& insn);
+
+    bool
+    Emulate_SWSP (llvm::MCInst& insn);
+
+    bool
+    Emulate_SWM16_32 (llvm::MCInst& insn);
+
+    bool
+    Emulate_LWSP (llvm::MCInst& insn);
+
+    bool
+    Emulate_LWM16_32 (llvm::MCInst& insn);
+
+    bool
+    Emulate_JRADDIUSP (llvm::MCInst& insn);
+
+    bool
+    Emulate_LDST_Imm (llvm::MCInst& insn);
+
+    bool
+    Emulate_LDST_Reg (llvm::MCInst& insn);
 
     bool
     Emulate_BEQ (llvm::MCInst& insn);
@@ -296,6 +325,57 @@ protected:
     Emulate_BC1ANY4T  (llvm::MCInst& insn);
 
     bool
+    Emulate_BNZB  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BNZH  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BNZW  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BNZD  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZB  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZH  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZW  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZD  (llvm::MCInst& insn);
+
+    bool
+    Emulate_MSA_Branch_DF (llvm::MCInst& insn, int element_byte_size, bool bnz);
+
+    bool
+    Emulate_BNZV  (llvm::MCInst& insn);
+
+    bool
+    Emulate_BZV  (llvm::MCInst& insn);
+
+    bool
+    Emulate_MSA_Branch_V (llvm::MCInst& insn, bool bnz);
+
+    bool
+    Emulate_B16_MM (llvm::MCInst& insn);
+
+    bool
+    Emulate_Branch_MM (llvm::MCInst& insn);
+
+    bool
+    Emulate_JALRx16_MM (llvm::MCInst& insn);
+
+    bool
+    Emulate_JALx (llvm::MCInst& insn);
+
+    bool
+    Emulate_JALRS (llvm::MCInst& insn);
+
+    bool
     nonvolatile_reg_p (uint32_t regnum);
 
     const char *
@@ -303,11 +383,15 @@ protected:
 
 private:
     std::unique_ptr<llvm::MCDisassembler>   m_disasm;
+    std::unique_ptr<llvm::MCDisassembler>   m_alt_disasm;
     std::unique_ptr<llvm::MCSubtargetInfo>  m_subtype_info;
+    std::unique_ptr<llvm::MCSubtargetInfo>  m_alt_subtype_info;
     std::unique_ptr<llvm::MCRegisterInfo>   m_reg_info;
     std::unique_ptr<llvm::MCAsmInfo>        m_asm_info;
     std::unique_ptr<llvm::MCContext>        m_context;
     std::unique_ptr<llvm::MCInstrInfo>      m_insn_info;
+    uint32_t                                m_next_inst_size;
+    bool                                    m_use_alt_disaasm;
 };
 
 #endif  // EmulateInstructionMIPS_h_
