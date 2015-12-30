@@ -213,6 +213,15 @@ STRIP?=		-s
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
+# Set XZ_THREADS to 1 to disable multi-threading.
+XZ_THREADS?=	0
+
+.if !empty(XZ_THREADS)
+XZ_CMD?=	xz -T ${XZ_THREADS}
+.else
+XZ_CMD?=	xz
+.endif
+
 .if !defined(_WITHOUT_SRCCONF)
 #
 # Define MK_* variables (which are either "yes" or "no") for users

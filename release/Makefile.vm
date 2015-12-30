@@ -137,7 +137,7 @@ vm-install:
 . if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
 .  for FORMAT in ${VMFORMATS}
 	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
-	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
 .  endfor
 . endif
 	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \

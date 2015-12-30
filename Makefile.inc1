@@ -913,13 +913,13 @@ packageworld:
 .for dist in base ${EXTRA_DISTRIBUTIONS}
 .if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
-	    --exclude usr/lib/debug \
-	    @${DESTDIR}/${DISTDIR}/${dist}.meta
+	    tar cvf - --exclude usr/lib/debug \
+	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
 .else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
-	    --exclude usr/lib/debug .
+	    tar cvf - --exclude usr/lib/debug . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
 .endif
 .endfor
 
@@ -927,12 +927,12 @@ packageworld:
 . for dist in base ${EXTRA_DISTRIBUTIONS}
 .  if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
-	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.debug.txz
 .  else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
-	    usr/lib/debug
+	    tar cvLf - usr/lib/debug | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}-debug.txz
 .  endif
 . endfor
 .endif
@@ -1141,19 +1141,21 @@ distributekernel distributekernel.debug:
 packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz \
-	    @${DESTDIR}/${DISTDIR}/kernel.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz \
-	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
+	    tar cvf - . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
 .for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
+	    tar cvf - . | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
 .endfor
 .endif
 
