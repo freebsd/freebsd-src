@@ -2142,19 +2142,41 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RSPSZ_24;
 	}
-	icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_AUTO;
 	if (isp->isp_confopts & ISP_CFG_1GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_1GB;
 	} else if (isp->isp_confopts & ISP_CFG_2GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_2GB;
 	} else if (isp->isp_confopts & ISP_CFG_4GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_4GB;
 	} else if (isp->isp_confopts & ISP_CFG_8GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_8GB;
 	} else if (isp->isp_confopts & ISP_CFG_16GB) {
+		icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_16GB;
 	} else {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
+		switch (icbp->icb_fwoptions3 & ICB2400_OPT3_RATE_MASK) {
+		case ICB2400_OPT3_RATE_4GB:
+		case ICB2400_OPT3_RATE_8GB:
+		case ICB2400_OPT3_RATE_16GB:
+		case ICB2400_OPT3_RATE_AUTO:
+			break;
+		case ICB2400_OPT3_RATE_2GB:
+			if (isp->isp_type <= ISP_HA_FC_2500)
+				break;
+			/*FALLTHROUGH*/
+		case ICB2400_OPT3_RATE_1GB:
+			if (isp->isp_type <= ISP_HA_FC_2400)
+				break;
+			/*FALLTHROUGH*/
+		default:
+			icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_MASK;
+			icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
+			break;
+		}
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 
@@ -7632,6 +7654,7 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 			fcp->isp_fwoptions |= ICB2400_OPT1_FULL_DUPLEX;
 		}
 		fcp->isp_fwoptions |= ICB2400_OPT1_BOTH_WWNS;
+		fcp->isp_zfwoptions |= ICB2400_OPT3_RATE_AUTO;
 	} else {
 		fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
 		fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
@@ -7644,6 +7667,7 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 		 * extended options from NVRAM
 		 */
 		fcp->isp_fwoptions &= ~ICBOPT_EXTENDED;
+		fcp->isp_zfwoptions |= ICBZOPT_RATE_AUTO;
 	}
 
 
