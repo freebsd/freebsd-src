@@ -2235,8 +2235,17 @@ mmu_booke_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 static void
 mmu_booke_zero_page(mmu_t mmu, vm_page_t m)
 {
+	vm_offset_t off, va;
 
-	mmu_booke_zero_page_area(mmu, m, 0, PAGE_SIZE);
+	mtx_lock(&zero_page_mutex);
+	va = zero_page_va;
+
+	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbzl 0,%0" :: "r"(va + off));
+	mmu_booke_kremove(mmu, va);
+
+	mtx_unlock(&zero_page_mutex);
 }
 
 /*
