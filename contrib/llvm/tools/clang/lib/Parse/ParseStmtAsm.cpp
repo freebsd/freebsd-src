@@ -215,12 +215,36 @@ ExprResult Parser::ParseMSAsmIdentifier(llvm::SmallVectorImpl<Token> &LineToks,
   // Require an identifier here.
   SourceLocation TemplateKWLoc;
   UnqualifiedId Id;
-  bool Invalid =
-      ParseUnqualifiedId(SS,
-                         /*EnteringContext=*/false,
-                         /*AllowDestructorName=*/false,
-                         /*AllowConstructorName=*/false,
-                         /*ObjectType=*/ParsedType(), TemplateKWLoc, Id);
+  bool Invalid = true;
+  ExprResult Result;
+  if (Tok.is(tok::kw_this)) {
+    Result = ParseCXXThis();
+    Invalid = false;
+  } else {
+    Invalid =
+        ParseUnqualifiedId(SS,
+                           /*EnteringContext=*/false,
+                           /*AllowDestructorName=*/false,
+                           /*AllowConstructorName=*/false,
+                           /*ObjectType=*/ParsedType(), TemplateKWLoc, Id);
+    // Perform the lookup.
+    Result = Actions.LookupInlineAsmIdentifier(SS, TemplateKWLoc, Id, Info,
+                                               IsUnevaluatedContext);
+  }
+  // While the next two tokens are 'period' 'identifier', repeatedly parse it as
+  // a field access. We have to avoid consuming assembler directives that look
+  // like '.' 'else'.
+  while (Result.isUsable() && Tok.is(tok::period)) {
+    Token IdTok = PP.LookAhead(0);
+    if (IdTok.isNot(tok::identifier))
+      break;
+    ConsumeToken(); // Consume the period.
+    IdentifierInfo *Id = Tok.getIdentifierInfo();
+    ConsumeToken(); // Consume the identifier.
+    unsigned OffsetUnused;
+    Result = Actions.LookupInlineAsmVarDeclField(
+        Result.get(), Id->getName(), OffsetUnused, Info, Tok.getLocation());
+  }
 
   // Figure out how many tokens we are into LineToks.
   unsigned LineIndex = 0;
@@ -254,9 +278,7 @@ ExprResult Parser::ParseMSAsmIdentifier(llvm::SmallVectorImpl<Token> &LineToks,
   LineToks.pop_back();
   LineToks.pop_back();
 
-  // Perform the lookup.
-  return Actions.LookupInlineAsmIdentifier(SS, TemplateKWLoc, Id, Info,
-                                           IsUnevaluatedContext);
+  return Result;
 }
 
 /// Turn a sequence of our tokens back into a string that we can hand

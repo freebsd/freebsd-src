@@ -82,7 +82,9 @@ public:
   }
     
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// ObjCBoxedExpr - used for generalized expression boxing.
@@ -341,6 +343,8 @@ public:
   child_range children() { 
     // Note: we're taking advantage of the layout of the KeyValuePair struct
     // here. If that struct changes, this code will need to change as well.
+    static_assert(sizeof(KeyValuePair) == sizeof(Stmt *) * 2,
+                  "KeyValuePair is expected size");
     return child_range(reinterpret_cast<Stmt **>(this + 1),
                        reinterpret_cast<Stmt **>(this + 1) + NumElements * 2);
   }
@@ -389,7 +393,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// ObjCSelectorExpr used for \@selector in Objective-C.
@@ -424,7 +430,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 };
 
 /// ObjCProtocolExpr used for protocol expression in Objective-C.
@@ -464,7 +472,9 @@ public:
   }
 
   // Iterators
-  child_range children() { return child_range(); }
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
 
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
@@ -713,7 +723,7 @@ public:
       Stmt **begin = reinterpret_cast<Stmt**>(&Receiver); // hack!
       return child_range(begin, begin+1);
     }
-    return child_range();
+    return child_range(child_iterator(), child_iterator());
   }
 
 private:
@@ -1350,6 +1360,14 @@ public:
   typedef ExprIterator arg_iterator;
   typedef ConstExprIterator const_arg_iterator;
 
+  llvm::iterator_range<arg_iterator> arguments() {
+    return llvm::make_range(arg_begin(), arg_end());
+  }
+
+  llvm::iterator_range<const_arg_iterator> arguments() const {
+    return llvm::make_range(arg_begin(), arg_end());
+  }
+
   arg_iterator arg_begin() { return reinterpret_cast<Stmt **>(getArgs()); }
   arg_iterator arg_end()   { 
     return reinterpret_cast<Stmt **>(getArgs() + NumArgs); 
@@ -1503,11 +1521,15 @@ public:
 /// \code
 /// NSString *str = (__bridge_transfer NSString *)CFCreateString();
 /// \endcode
-class ObjCBridgedCastExpr : public ExplicitCastExpr {
+class ObjCBridgedCastExpr final
+    : public ExplicitCastExpr,
+      private llvm::TrailingObjects<ObjCBridgedCastExpr, CXXBaseSpecifier *> {
   SourceLocation LParenLoc;
   SourceLocation BridgeKeywordLoc;
   unsigned Kind : 2;
-  
+
+  friend TrailingObjects;
+  friend class CastExpr;
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
   
