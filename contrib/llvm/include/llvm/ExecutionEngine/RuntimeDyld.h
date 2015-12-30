@@ -17,8 +17,10 @@
 #include "JITSymbolFlags.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Memory.h"
 #include "llvm/DebugInfo/DIContext.h"
+#include <map>
 #include <memory>
 
 namespace llvm {
@@ -59,26 +61,33 @@ public:
   class LoadedObjectInfo : public llvm::LoadedObjectInfo {
     friend class RuntimeDyldImpl;
   public:
-    LoadedObjectInfo(RuntimeDyldImpl &RTDyld, unsigned BeginIdx,
-                     unsigned EndIdx)
-      : RTDyld(RTDyld), BeginIdx(BeginIdx), EndIdx(EndIdx) { }
+    typedef std::map<object::SectionRef, unsigned> ObjSectionToIDMap;
+
+    LoadedObjectInfo(RuntimeDyldImpl &RTDyld, ObjSectionToIDMap ObjSecToIDMap)
+      : RTDyld(RTDyld), ObjSecToIDMap(ObjSecToIDMap) { }
 
     virtual object::OwningBinary<object::ObjectFile>
     getObjectForDebug(const object::ObjectFile &Obj) const = 0;
 
-    uint64_t getSectionLoadAddress(StringRef Name) const;
+    uint64_t
+    getSectionLoadAddress(const object::SectionRef &Sec) const override;
 
   protected:
     virtual void anchor();
 
     RuntimeDyldImpl &RTDyld;
-    unsigned BeginIdx, EndIdx;
+    ObjSectionToIDMap ObjSecToIDMap;
   };
 
   template <typename Derived> struct LoadedObjectInfoHelper : LoadedObjectInfo {
-    LoadedObjectInfoHelper(RuntimeDyldImpl &RTDyld, unsigned BeginIdx,
-                           unsigned EndIdx)
-        : LoadedObjectInfo(RTDyld, BeginIdx, EndIdx) {}
+  protected:
+    LoadedObjectInfoHelper(const LoadedObjectInfoHelper &) = default;
+    LoadedObjectInfoHelper() = default;
+
+  public:
+    LoadedObjectInfoHelper(RuntimeDyldImpl &RTDyld,
+                           LoadedObjectInfo::ObjSectionToIDMap ObjSecToIDMap)
+        : LoadedObjectInfo(RTDyld, std::move(ObjSecToIDMap)) {}
     std::unique_ptr<llvm::LoadedObjectInfo> clone() const override {
       return llvm::make_unique<Derived>(static_cast<const Derived &>(*this));
     }
@@ -87,7 +96,7 @@ public:
   /// \brief Memory Management.
   class MemoryManager {
   public:
-    virtual ~MemoryManager() {};
+    virtual ~MemoryManager() {}
 
     /// Allocate a memory block of (at least) the given size suitable for
     /// executable code. The SectionID is a unique identifier assigned by the
@@ -149,7 +158,7 @@ public:
   /// \brief Symbol resolution.
   class SymbolResolver {
   public:
-    virtual ~SymbolResolver() {};
+    virtual ~SymbolResolver() {}
 
     /// This method returns the address of the specified function or variable.
     /// It is used to resolve symbols during module linking.
@@ -244,4 +253,4 @@ private:
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_EXECUTIONENGINE_RUNTIMEDYLD_H

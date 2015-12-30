@@ -6,10 +6,11 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This is a target description file for the WebAssembly architecture, which is
-// also known as "wasm".
-//
+///
+/// \file
+/// \brief This is a target description file for the WebAssembly architecture,
+/// which is also known as "wasm".
+///
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
@@ -49,6 +50,9 @@ def WebAssemblyInstrInfo : InstrInfo;
 
 // Minimal Viable Product.
 def : ProcessorModel<"mvp", NoSchedModel, []>;
+
+// Generic processor: latest stable version.
+def : ProcessorModel<"generic", NoSchedModel, []>;
 
 // Latest and greatest experimental version of WebAssembly. Bugs included!
 def : ProcessorModel<"bleeding-edge", NoSchedModel, [FeatureSIMD128]>;

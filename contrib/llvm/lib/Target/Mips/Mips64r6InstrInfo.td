@@ -62,7 +62,7 @@ class DCLO_R6_DESC : CLO_R6_DESC_BASE<"dclo", GPR64Opnd>;
 class DCLZ_R6_DESC : CLZ_R6_DESC_BASE<"dclz", GPR64Opnd>;
 class DDIV_DESC    : DIVMOD_DESC_BASE<"ddiv", GPR64Opnd, sdiv>;
 class DDIVU_DESC   : DIVMOD_DESC_BASE<"ddivu", GPR64Opnd, udiv>;
-class DLSA_R6_DESC : LSA_R6_DESC_BASE<"dlsa", GPR64Opnd, uimm2>;
+class DLSA_R6_DESC : LSA_R6_DESC_BASE<"dlsa", GPR64Opnd, uimm2_plus1>;
 class DMOD_DESC    : DIVMOD_DESC_BASE<"dmod", GPR64Opnd, srem>;
 class DMODU_DESC   : DIVMOD_DESC_BASE<"dmodu", GPR64Opnd, urem>;
 class DMUH_DESC    : MUL_R6_DESC_BASE<"dmuh", GPR64Opnd, mulhs>;
@@ -81,10 +81,12 @@ class SELNEZ64_DESC : SELEQNE_Z_DESC_BASE<"selnez", GPR64Opnd>;
 //
 //===----------------------------------------------------------------------===//
 
-def DAHI : DAHI_ENC, DAHI_DESC, ISA_MIPS64R6;
-def DALIGN : DALIGN_ENC, DALIGN_DESC, ISA_MIPS64R6;
-def DATI : DATI_ENC, DATI_DESC, ISA_MIPS64R6;
-def DAUI : DAUI_ENC, DAUI_DESC, ISA_MIPS64R6;
+let AdditionalPredicates = [NotInMicroMips] in {
+  def DATI : DATI_ENC, DATI_DESC, ISA_MIPS64R6;
+  def DAHI : DAHI_ENC, DAHI_DESC, ISA_MIPS64R6;
+  def DAUI : DAUI_ENC, DAUI_DESC, ISA_MIPS64R6;
+  def DALIGN : DALIGN_ENC, DALIGN_DESC, ISA_MIPS64R6;
+}
 def DBITSWAP : DBITSWAP_ENC, DBITSWAP_DESC, ISA_MIPS64R6;
 def DCLO_R6 : DCLO_R6_ENC, DCLO_R6_DESC, ISA_MIPS64R6;
 def DCLZ_R6 : DCLZ_R6_ENC, DCLZ_R6_DESC, ISA_MIPS64R6;

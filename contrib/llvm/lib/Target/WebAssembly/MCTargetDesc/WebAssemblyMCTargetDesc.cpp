@@ -26,25 +26,40 @@ using namespace llvm;
 
 #define DEBUG_TYPE "wasm-mc-target-desc"
 
+#define GET_INSTRINFO_MC_DESC
+#include "WebAssemblyGenInstrInfo.inc"
+
 #define GET_SUBTARGETINFO_MC_DESC
 #include "WebAssemblyGenSubtargetInfo.inc"
 
 #define GET_REGINFO_MC_DESC
 #include "WebAssemblyGenRegisterInfo.inc"
 
-static MCAsmInfo *createWebAssemblyMCAsmInfo(const MCRegisterInfo &MRI,
+static MCAsmInfo *createWebAssemblyMCAsmInfo(const MCRegisterInfo & /*MRI*/,
                                              const Triple &TT) {
-  MCAsmInfo *MAI = new WebAssemblyMCAsmInfo(TT);
-  return MAI;
+  return new WebAssemblyMCAsmInfo(TT);
+}
+
+static MCInstrInfo *createWebAssemblyMCInstrInfo() {
+  MCInstrInfo *X = new MCInstrInfo();
+  InitWebAssemblyMCInstrInfo(X);
+  return X;
+}
+
+static MCStreamer *createWebAssemblyMCStreamer(const Triple &T, MCContext &Ctx,
+                                               MCAsmBackend &MAB,
+                                               raw_pwrite_stream &OS,
+                                               MCCodeEmitter *Emitter,
+                                               bool RelaxAll) {
+  return createELFStreamer(Ctx, MAB, OS, Emitter, RelaxAll);
 }
 
 static MCInstPrinter *
-createWebAssemblyMCInstPrinter(const Triple &T, unsigned SyntaxVariant,
+createWebAssemblyMCInstPrinter(const Triple & /*T*/, unsigned SyntaxVariant,
                                const MCAsmInfo &MAI, const MCInstrInfo &MII,
                                const MCRegisterInfo &MRI) {
-  if (SyntaxVariant == 0 || SyntaxVariant == 1)
-    return new WebAssemblyInstPrinter(MAI, MII, MRI);
-  return nullptr;
+  assert(SyntaxVariant == 0);
+  return new WebAssemblyInstPrinter(MAI, MII, MRI);
 }
 
 // Force static initialization.
@@ -53,7 +68,19 @@ extern "C" void LLVMInitializeWebAssemblyTargetMC() {
     // Register the MC asm info.
     RegisterMCAsmInfoFn X(*T, createWebAssemblyMCAsmInfo);
 
+    // Register the MC instruction info.
+    TargetRegistry::RegisterMCInstrInfo(*T, createWebAssemblyMCInstrInfo);
+
+    // Register the object streamer
+    TargetRegistry::RegisterELFStreamer(*T, createWebAssemblyMCStreamer);
+
     // Register the MCInstPrinter.
     TargetRegistry::RegisterMCInstPrinter(*T, createWebAssemblyMCInstPrinter);
+
+    // Register the MC code emitter
+    TargetRegistry::RegisterMCCodeEmitter(*T, createWebAssemblyMCCodeEmitter);
+
+    // Register the ASM Backend
+    TargetRegistry::RegisterMCAsmBackend(*T, createWebAssemblyAsmBackend);
   }
 }

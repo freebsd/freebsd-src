@@ -15,64 +15,54 @@
 #ifndef LLVM_TARGET_COSTTABLE_H_
 #define LLVM_TARGET_COSTTABLE_H_
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/CodeGen/MachineValueType.h"
+
 namespace llvm {
 
 /// Cost Table Entry
-template <class TypeTy>
 struct CostTblEntry {
   int ISD;
-  TypeTy Type;
+  MVT::SimpleValueType Type;
   unsigned Cost;
 };
 
 /// Find in cost table, TypeTy must be comparable to CompareTy by ==
-template <class TypeTy, class CompareTy>
-int CostTableLookup(const CostTblEntry<TypeTy> *Tbl, unsigned len, int ISD,
-                    CompareTy Ty) {
-  for (unsigned int i = 0; i < len; ++i)
-    if (ISD == Tbl[i].ISD && Ty == Tbl[i].Type)
-      return i;
+inline const CostTblEntry *CostTableLookup(ArrayRef<CostTblEntry> Tbl,
+                                           int ISD, MVT Ty) {
+  auto I = std::find_if(Tbl.begin(), Tbl.end(),
+                        [=](const CostTblEntry &Entry) {
+                          return ISD == Entry.ISD && Ty == Entry.Type; });
+  if (I != Tbl.end())
+    return I;
 
   // Could not find an entry.
-  return -1;
-}
-
-/// Find in cost table, TypeTy must be comparable to CompareTy by ==
-template <class TypeTy, class CompareTy, unsigned N>
-int CostTableLookup(const CostTblEntry<TypeTy>(&Tbl)[N], int ISD,
-                    CompareTy Ty) {
-  return CostTableLookup(Tbl, N, ISD, Ty);
+  return nullptr;
 }
 
 /// Type Conversion Cost Table
-template <class TypeTy>
 struct TypeConversionCostTblEntry {
   int ISD;
-  TypeTy Dst;
-  TypeTy Src;
+  MVT::SimpleValueType Dst;
+  MVT::SimpleValueType Src;
   unsigned Cost;
 };
 
 /// Find in type conversion cost table, TypeTy must be comparable to CompareTy
 /// by ==
-template <class TypeTy, class CompareTy>
-int ConvertCostTableLookup(const TypeConversionCostTblEntry<TypeTy> *Tbl,
-                           unsigned len, int ISD, CompareTy Dst,
-                           CompareTy Src) {
-  for (unsigned int i = 0; i < len; ++i)
-    if (ISD == Tbl[i].ISD && Src == Tbl[i].Src && Dst == Tbl[i].Dst)
-      return i;
+inline const TypeConversionCostTblEntry *
+ConvertCostTableLookup(ArrayRef<TypeConversionCostTblEntry> Tbl,
+                       int ISD, MVT Dst, MVT Src) {
+  auto I = std::find_if(Tbl.begin(), Tbl.end(),
+                        [=](const TypeConversionCostTblEntry &Entry) {
+                          return ISD == Entry.ISD && Src == Entry.Src &&
+                                 Dst == Entry.Dst;
+                        });
+  if (I != Tbl.end())
+    return I;
 
   // Could not find an entry.
-  return -1;
-}
-
-/// Find in type conversion cost table, TypeTy must be comparable to CompareTy
-/// by ==
-template <class TypeTy, class CompareTy, unsigned N>
-int ConvertCostTableLookup(const TypeConversionCostTblEntry<TypeTy>(&Tbl)[N],
-                           int ISD, CompareTy Dst, CompareTy Src) {
-  return ConvertCostTableLookup(Tbl, N, ISD, Dst, Src);
+  return nullptr;
 }
 
 } // namespace llvm

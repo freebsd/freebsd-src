@@ -16,20 +16,23 @@
 #define LLVM_ANALYSIS_VALUETRACKING_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
-  class Value;
-  class Instruction;
   class APInt;
-  class DataLayout;
-  class StringRef;
-  class MDNode;
+  class AddOperator;
   class AssumptionCache;
+  class DataLayout;
   class DominatorTree;
-  class TargetLibraryInfo;
+  class Instruction;
+  class Loop;
   class LoopInfo;
+  class MDNode;
+  class StringRef;
+  class TargetLibraryInfo;
+  class Value;
 
   /// Determine which bits of V are known to be either zero or one and return
   /// them in the KnownZero/KnownOne bit sets.
@@ -46,9 +49,10 @@ namespace llvm {
                         const DominatorTree *DT = nullptr);
   /// Compute known bits from the range metadata.
   /// \p KnownZero the set of bits that are known to be zero
+  /// \p KnownOne the set of bits that are known to be one
   void computeKnownBitsFromRangeMetadata(const MDNode &Ranges,
-                                         APInt &KnownZero);
-  /// Returns true if LHS and RHS have no common bits set.
+                                         APInt &KnownZero, APInt &KnownOne);
+  /// Return true if LHS and RHS have no common bits set.
   bool haveNoCommonBitsSet(Value *LHS, Value *RHS, const DataLayout &DL,
                            AssumptionCache *AC = nullptr,
                            const Instruction *CxtI = nullptr,
@@ -66,7 +70,7 @@ namespace llvm {
   /// exactly one bit set when defined. For vectors return true if every
   /// element is known to be a power of two when defined.  Supports values with
   /// integer or pointer type and vectors of integers.  If 'OrZero' is set then
-  /// returns true if the given value is either a power of two or zero.
+  /// return true if the given value is either a power of two or zero.
   bool isKnownToBeAPowerOfTwo(Value *V, const DataLayout &DL,
                               bool OrZero = false, unsigned Depth = 0,
                               AssumptionCache *AC = nullptr,
@@ -78,6 +82,19 @@ namespace llvm {
   /// non-zero when defined.  Supports values with integer or pointer type and
   /// vectors of integers.
   bool isKnownNonZero(Value *V, const DataLayout &DL, unsigned Depth = 0,
+                      AssumptionCache *AC = nullptr,
+                      const Instruction *CxtI = nullptr,
+                      const DominatorTree *DT = nullptr);
+
+  /// Returns true if the give value is known to be non-negative.
+  bool isKnownNonNegative(Value *V, const DataLayout &DL, unsigned Depth = 0,
+                          AssumptionCache *AC = nullptr,
+                          const Instruction *CxtI = nullptr,
+                          const DominatorTree *DT = nullptr);
+
+  /// isKnownNonEqual - Return true if the given values are known to be
+  /// non-equal when defined. Supports scalar integer types only.
+  bool isKnownNonEqual(Value *V1, Value *V2, const DataLayout &DL,
                       AssumptionCache *AC = nullptr,
                       const Instruction *CxtI = nullptr,
                       const DominatorTree *DT = nullptr);
@@ -118,12 +135,12 @@ namespace llvm {
                        bool LookThroughSExt = false,
                        unsigned Depth = 0);
 
-  /// CannotBeNegativeZero - Return true if we can prove that the specified FP 
+  /// CannotBeNegativeZero - Return true if we can prove that the specified FP
   /// value is never equal to -0.0.
   ///
   bool CannotBeNegativeZero(const Value *V, unsigned Depth = 0);
 
-  /// CannotBeOrderedLessThanZero - Return true if we can prove that the 
+  /// CannotBeOrderedLessThanZero - Return true if we can prove that the
   /// specified FP value is either a NaN or never less than 0.0.
   ///
   bool CannotBeOrderedLessThanZero(const Value *V, unsigned Depth = 0);
@@ -134,7 +151,7 @@ namespace llvm {
   /// i16 0xF0F0, double 0.0 etc.  If the value can't be handled with a repeated
   /// byte store (e.g. i16 0x1234), return null.
   Value *isBytewiseValue(Value *V);
-    
+
   /// FindInsertedValue - Given an aggregrate and an sequence of indices, see if
   /// the scalar value indexed is already around as a register, for example if
   /// it were inserted directly into the aggregrate.
@@ -156,7 +173,7 @@ namespace llvm {
     return GetPointerBaseWithConstantOffset(const_cast<Value *>(Ptr), Offset,
                                             DL);
   }
-  
+
   /// getConstantStringInfo - This function computes the length of a
   /// null-terminated C string pointed to by V.  If successful, it returns true
   /// and returns the string in Str.  If unsuccessful, it returns false.  This
@@ -227,7 +244,17 @@ namespace llvm {
                                 const Instruction *CtxI = nullptr,
                                 const DominatorTree *DT = nullptr,
                                 const TargetLibraryInfo *TLI = nullptr);
-  
+
+  /// Returns true if V is always a dereferenceable pointer with alignment
+  /// greater or equal than requested. If the context instruction is specified
+  /// performs context-sensitive analysis and returns true if the pointer is
+  /// dereferenceable at the specified instruction.
+  bool isDereferenceableAndAlignedPointer(const Value *V, unsigned Align,
+                                          const DataLayout &DL,
+                                          const Instruction *CtxI = nullptr,
+                                          const DominatorTree *DT = nullptr,
+                                          const TargetLibraryInfo *TLI = nullptr);
+
   /// isSafeToSpeculativelyExecute - Return true if the instruction does not
   /// have any effects besides calculating the result and does not have
   /// undefined behavior.
@@ -256,6 +283,16 @@ namespace llvm {
                                     const Instruction *CtxI = nullptr,
                                     const DominatorTree *DT = nullptr,
                                     const TargetLibraryInfo *TLI = nullptr);
+
+  /// Returns true if the result or effects of the given instructions \p I
+  /// depend on or influence global memory.
+  /// Memory dependence arises for example if the instruction reads from
+  /// memory or may produce effects or undefined behaviour. Memory dependent
+  /// instructions generally cannot be reorderd with respect to other memory
+  /// dependent instructions or moved into non-dominated basic blocks.
+  /// Instructions which just compute a value based on the values of their
+  /// operands are not memory dependent.
+  bool mayBeMemoryDependent(const Instruction &I);
 
   /// isKnownNonNull - Return true if this pointer couldn't possibly be null by
   /// its definition.  This returns true for allocas, non-extern-weak globals
@@ -288,16 +325,98 @@ namespace llvm {
                                                AssumptionCache *AC,
                                                const Instruction *CxtI,
                                                const DominatorTree *DT);
-  
+  OverflowResult computeOverflowForSignedAdd(Value *LHS, Value *RHS,
+                                             const DataLayout &DL,
+                                             AssumptionCache *AC = nullptr,
+                                             const Instruction *CxtI = nullptr,
+                                             const DominatorTree *DT = nullptr);
+  /// This version also leverages the sign bit of Add if known.
+  OverflowResult computeOverflowForSignedAdd(AddOperator *Add,
+                                             const DataLayout &DL,
+                                             AssumptionCache *AC = nullptr,
+                                             const Instruction *CxtI = nullptr,
+                                             const DominatorTree *DT = nullptr);
+
+  /// Return true if this function can prove that the instruction I will
+  /// always transfer execution to one of its successors (including the next
+  /// instruction that follows within a basic block). E.g. this is not
+  /// guaranteed for function calls that could loop infinitely.
+  ///
+  /// In other words, this function returns false for instructions that may
+  /// transfer execution or fail to transfer execution in a way that is not
+  /// captured in the CFG nor in the sequence of instructions within a basic
+  /// block.
+  ///
+  /// Undefined behavior is assumed not to happen, so e.g. division is
+  /// guaranteed to transfer execution to the following instruction even
+  /// though division by zero might cause undefined behavior.
+  bool isGuaranteedToTransferExecutionToSuccessor(const Instruction *I);
+
+  /// Return true if this function can prove that the instruction I
+  /// is executed for every iteration of the loop L.
+  ///
+  /// Note that this currently only considers the loop header.
+  bool isGuaranteedToExecuteForEveryIteration(const Instruction *I,
+                                              const Loop *L);
+
+  /// Return true if this function can prove that I is guaranteed to yield
+  /// full-poison (all bits poison) if at least one of its operands are
+  /// full-poison (all bits poison).
+  ///
+  /// The exact rules for how poison propagates through instructions have
+  /// not been settled as of 2015-07-10, so this function is conservative
+  /// and only considers poison to be propagated in uncontroversial
+  /// cases. There is no attempt to track values that may be only partially
+  /// poison.
+  bool propagatesFullPoison(const Instruction *I);
+
+  /// Return either nullptr or an operand of I such that I will trigger
+  /// undefined behavior if I is executed and that operand has a full-poison
+  /// value (all bits poison).
+  const Value *getGuaranteedNonFullPoisonOp(const Instruction *I);
+
+  /// Return true if this function can prove that if PoisonI is executed
+  /// and yields a full-poison value (all bits poison), then that will
+  /// trigger undefined behavior.
+  ///
+  /// Note that this currently only considers the basic block that is
+  /// the parent of I.
+  bool isKnownNotFullPoison(const Instruction *PoisonI);
+
   /// \brief Specific patterns of select instructions we can match.
   enum SelectPatternFlavor {
     SPF_UNKNOWN = 0,
-    SPF_SMIN,                   // Signed minimum
-    SPF_UMIN,                   // Unsigned minimum
-    SPF_SMAX,                   // Signed maximum
-    SPF_UMAX,                   // Unsigned maximum
-    SPF_ABS,                    // Absolute value
-    SPF_NABS                    // Negated absolute value
+    SPF_SMIN,                   /// Signed minimum
+    SPF_UMIN,                   /// Unsigned minimum
+    SPF_SMAX,                   /// Signed maximum
+    SPF_UMAX,                   /// Unsigned maximum
+    SPF_FMINNUM,                /// Floating point minnum
+    SPF_FMAXNUM,                /// Floating point maxnum
+    SPF_ABS,                    /// Absolute value
+    SPF_NABS                    /// Negated absolute value
+  };
+  /// \brief Behavior when a floating point min/max is given one NaN and one
+  /// non-NaN as input.
+  enum SelectPatternNaNBehavior {
+    SPNB_NA = 0,                /// NaN behavior not applicable.
+    SPNB_RETURNS_NAN,           /// Given one NaN input, returns the NaN.
+    SPNB_RETURNS_OTHER,         /// Given one NaN input, returns the non-NaN.
+    SPNB_RETURNS_ANY            /// Given one NaN input, can return either (or
+                                /// it has been determined that no operands can
+                                /// be NaN).
+  };
+  struct SelectPatternResult {
+    SelectPatternFlavor Flavor;
+    SelectPatternNaNBehavior NaNBehavior; /// Only applicable if Flavor is
+                                          /// SPF_FMINNUM or SPF_FMAXNUM.
+    bool Ordered;               /// When implementing this min/max pattern as
+                                /// fcmp; select, does the fcmp have to be
+                                /// ordered?
+
+    /// \brief Return true if \p SPF is a min or a max pattern.
+    static bool isMinOrMax(SelectPatternFlavor SPF) {
+      return !(SPF == SPF_UNKNOWN || SPF == SPF_ABS || SPF == SPF_NABS);
+    }
   };
   /// Pattern match integer [SU]MIN, [SU]MAX and ABS idioms, returning the kind
   /// and providing the out parameter results if we successfully match.
@@ -314,9 +433,26 @@ namespace llvm {
   ///
   /// -> LHS = %a, RHS = i32 4, *CastOp = Instruction::SExt
   ///
-  SelectPatternFlavor matchSelectPattern(Value *V, Value *&LHS, Value *&RHS,
+  SelectPatternResult matchSelectPattern(Value *V, Value *&LHS, Value *&RHS,
                                          Instruction::CastOps *CastOp = nullptr);
 
+  /// Parse out a conservative ConstantRange from !range metadata.
+  ///
+  /// E.g. if RangeMD is !{i32 0, i32 10, i32 15, i32 20} then return [0, 20).
+  ConstantRange getConstantRangeFromMetadata(MDNode &RangeMD);
+
+  /// Return true if RHS is known to be implied by LHS.  A & B must be i1
+  /// (boolean) values or a vector of such values. Note that the truth table for
+  /// implication is the same as <=u on i1 values (but not <=s!).  The truth
+  /// table for both is:
+  ///    | T | F (B)
+  ///  T | T | F
+  ///  F | T | T
+  /// (A)
+  bool isImpliedCondition(Value *LHS, Value *RHS, const DataLayout &DL,
+                          unsigned Depth = 0, AssumptionCache *AC = nullptr,
+                          const Instruction *CxtI = nullptr,
+                          const DominatorTree *DT = nullptr);
 } // end namespace llvm
 
 #endif

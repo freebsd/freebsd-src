@@ -138,6 +138,7 @@ public:
   bool storeOfVectorConstantIsCheap(EVT MemVT,
                                     unsigned NumElem,
                                     unsigned AS) const override;
+  bool aggressivelyPreferBuildVectorSources(EVT VecVT) const override;
   bool isCheapToSpeculateCttz() const override;
   bool isCheapToSpeculateCtlz() const override;
 
@@ -148,6 +149,9 @@ public:
                       SDLoc DL, SelectionDAG &DAG) const override;
   SDValue LowerCall(CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
+
+  SDValue LowerDYNAMIC_STACKALLOC(SDValue Op,
+                                  SelectionDAG &DAG) const;
 
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
@@ -165,14 +169,6 @@ public:
                                SDValue False,
                                SDValue CC,
                                DAGCombinerInfo &DCI) const;
-  SDValue CombineIMinMax(SDLoc DL,
-                         EVT VT,
-                         SDValue LHS,
-                         SDValue RHS,
-                         SDValue True,
-                         SDValue False,
-                         SDValue CC,
-                         SelectionDAG &DAG) const;
 
   const char* getTargetNodeName(unsigned Opcode) const override;
 
@@ -216,7 +212,7 @@ public:
 
   /// \brief Helper function that returns the byte offset of the given
   /// type of implicit parameter.
-  unsigned getImplicitParameterOffset(const AMDGPUMachineFunction *MFI,
+  uint32_t getImplicitParameterOffset(const AMDGPUMachineFunction *MFI,
                                       const ImplicitParameter Param) const;
 };
 
@@ -267,7 +263,6 @@ enum NodeType : unsigned {
   BFE_I32, // Extract range of bits with sign extension to 32-bits.
   BFI, // (src0 & src1) | (~src0 & src2)
   BFM, // Insert a range of bits into a 32-bit word.
-  BREV, // Reverse bits.
   MUL_U24,
   MUL_I24,
   MAD_U24,

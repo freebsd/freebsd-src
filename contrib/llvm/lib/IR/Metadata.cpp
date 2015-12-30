@@ -120,6 +120,38 @@ void MetadataAsValue::untrack() {
     MetadataTracking::untrack(MD);
 }
 
+bool MetadataTracking::track(void *Ref, Metadata &MD, OwnerTy Owner) {
+  assert(Ref && "Expected live reference");
+  assert((Owner || *static_cast<Metadata **>(Ref) == &MD) &&
+         "Reference without owner must be direct");
+  if (auto *R = ReplaceableMetadataImpl::get(MD)) {
+    R->addRef(Ref, Owner);
+    return true;
+  }
+  return false;
+}
+
+void MetadataTracking::untrack(void *Ref, Metadata &MD) {
+  assert(Ref && "Expected live reference");
+  if (auto *R = ReplaceableMetadataImpl::get(MD))
+    R->dropRef(Ref);
+}
+
+bool MetadataTracking::retrack(void *Ref, Metadata &MD, void *New) {
+  assert(Ref && "Expected live reference");
+  assert(New && "Expected live reference");
+  assert(Ref != New && "Expected change");
+  if (auto *R = ReplaceableMetadataImpl::get(MD)) {
+    R->moveRef(Ref, New, MD);
+    return true;
+  }
+  return false;
+}
+
+bool MetadataTracking::isReplaceable(const Metadata &MD) {
+  return ReplaceableMetadataImpl::get(const_cast<Metadata &>(MD));
+}
+
 void ReplaceableMetadataImpl::addRef(void *Ref, OwnerTy Owner) {
   bool WasInserted =
       UseMap.insert(std::make_pair(Ref, std::make_pair(Owner, NextIndex)))
@@ -237,6 +269,12 @@ void ReplaceableMetadataImpl::resolveAllUses(bool ResolveUsers) {
       continue;
     OwnerMD->decrementUnresolvedOperandCount();
   }
+}
+
+ReplaceableMetadataImpl *ReplaceableMetadataImpl::get(Metadata &MD) {
+  if (auto *N = dyn_cast<MDNode>(&MD))
+    return N->Context.getReplaceableUses();
+  return dyn_cast<ValueAsMetadata>(&MD);
 }
 
 static Function *getLocalFunction(Value *V) {
@@ -517,7 +555,7 @@ void MDNode::decrementUnresolvedOperandCount() {
     resolve();
 }
 
-void MDNode::resolveCycles() {
+void MDNode::resolveCycles(bool MDMaterialized) {
   if (isResolved())
     return;
 
@@ -530,6 +568,8 @@ void MDNode::resolveCycles() {
     if (!N)
       continue;
 
+    if (N->isTemporary() && !MDMaterialized)
+      continue;
     assert(!N->isTemporary() &&
            "Expected all forward declarations to be resolved");
     if (!N->isResolved())
@@ -545,6 +585,18 @@ static bool hasSelfReference(MDNode *N) {
 }
 
 MDNode *MDNode::replaceWithPermanentImpl() {
+  switch (getMetadataID()) {
+  default:
+    // If this type isn't uniquable, replace with a distinct node.
+    return replaceWithDistinctImpl();
+
+#define HANDLE_MDNODE_LEAF_UNIQUABLE(CLASS)                                    \
+  case CLASS##Kind:                                                            \
+    break;
+#include "llvm/IR/Metadata.def"
+  }
+
+  // Even if this type is uniquable, self-references have to be distinct.
   if (hasSelfReference(this))
     return replaceWithDistinctImpl();
   return replaceWithUniquedImpl();
@@ -671,8 +723,8 @@ MDNode *MDNode::uniquify() {
   // Try to insert into uniquing store.
   switch (getMetadataID()) {
   default:
-    llvm_unreachable("Invalid subclass of MDNode");
-#define HANDLE_MDNODE_LEAF(CLASS)                                              \
+    llvm_unreachable("Invalid or non-uniquable subclass of MDNode");
+#define HANDLE_MDNODE_LEAF_UNIQUABLE(CLASS)                                    \
   case CLASS##Kind: {                                                          \
     CLASS *SubclassThis = cast<CLASS>(this);                                   \
     std::integral_constant<bool, HasCachedHash<CLASS>::value>                  \
@@ -687,8 +739,8 @@ MDNode *MDNode::uniquify() {
 void MDNode::eraseFromStore() {
   switch (getMetadataID()) {
   default:
-    llvm_unreachable("Invalid subclass of MDNode");
-#define HANDLE_MDNODE_LEAF(CLASS)                                              \
+    llvm_unreachable("Invalid or non-uniquable subclass of MDNode");
+#define HANDLE_MDNODE_LEAF_UNIQUABLE(CLASS)                                    \
   case CLASS##Kind:                                                            \
     getContext().pImpl->CLASS##s.erase(cast<CLASS>(this));                     \
     break;
@@ -941,6 +993,17 @@ MDNode *MDNode::getMostGenericRange(MDNode *A, MDNode *B) {
   return MDNode::get(A->getContext(), MDs);
 }
 
+MDNode *MDNode::getMostGenericAlignmentOrDereferenceable(MDNode *A, MDNode *B) {
+  if (!A || !B)
+    return nullptr;
+
+  ConstantInt *AVal = mdconst::extract<ConstantInt>(A->getOperand(0));
+  ConstantInt *BVal = mdconst::extract<ConstantInt>(B->getOperand(0));
+  if (AVal->getZExtValue() < BVal->getZExtValue())
+    return A;
+  return B;
+}
+
 //===----------------------------------------------------------------------===//
 // NamedMDNode implementation.
 //
@@ -1045,13 +1108,9 @@ MDNode *Instruction::getMetadataImpl(StringRef Kind) const {
   return getMetadataImpl(getContext().getMDKindID(Kind));
 }
 
-void Instruction::dropUnknownMetadata(ArrayRef<unsigned> KnownIDs) {
+void Instruction::dropUnknownNonDebugMetadata(ArrayRef<unsigned> KnownIDs) {
   SmallSet<unsigned, 5> KnownSet;
   KnownSet.insert(KnownIDs.begin(), KnownIDs.end());
-
-  // Drop debug if needed
-  if (KnownSet.erase(LLVMContext::MD_dbg))
-    DbgLoc = DebugLoc();
 
   if (!hasMetadataHashEntry())
     return; // Nothing to remove!
@@ -1077,7 +1136,7 @@ void Instruction::dropUnknownMetadata(ArrayRef<unsigned> KnownIDs) {
   }
 }
 
-/// setMetadata - Set the metadata of of the specified kind to the specified
+/// setMetadata - Set the metadata of the specified kind to the specified
 /// node.  This updates/replaces metadata if already present, or removes it if
 /// Node is null.
 void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
@@ -1250,4 +1309,12 @@ void Function::clearMetadata() {
     return;
   getContext().pImpl->FunctionMetadata.erase(this);
   setHasMetadataHashEntry(false);
+}
+
+void Function::setSubprogram(DISubprogram *SP) {
+  setMetadata(LLVMContext::MD_dbg, SP);
+}
+
+DISubprogram *Function::getSubprogram() const {
+  return cast_or_null<DISubprogram>(getMetadata(LLVMContext::MD_dbg));
 }

@@ -87,6 +87,11 @@ public:
   const TargetRegisterClass *
   getCrossCopyRegClass(const TargetRegisterClass *RC) const override;
 
+  /// getGPRsForTailCall - Returns a register class with registers that can be
+  /// used in forming tail calls.
+  const TargetRegisterClass *
+  getGPRsForTailCall(const MachineFunction &MF) const;
+
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
 
@@ -96,7 +101,11 @@ public:
   getCalleeSavedRegs(const MachineFunction* MF) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
-  const uint32_t *getNoPreservedMask() const;
+  const uint32_t *getNoPreservedMask() const override;
+
+  // Calls involved in thread-local variable lookup save more registers than
+  // normal calls, so they need a different mask to represent this.
+  const uint32_t *getDarwinTLSCallPreservedMask() const;
 
   /// getReservedRegs - Returns a bitset indexed by physical register number
   /// indicating if a register is a special register that has particular uses and
@@ -108,9 +117,7 @@ public:
 
   bool hasBasePointer(const MachineFunction &MF) const;
 
-  bool canRealignStack(const MachineFunction &MF) const;
-
-  bool needsStackRealignment(const MachineFunction &MF) const override;
+  bool canRealignStack(const MachineFunction &MF) const override;
 
   bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
                             int &FrameIdx) const override;
@@ -127,16 +134,6 @@ public:
   // FIXME: Move to FrameInfok
   unsigned getSlotSize() const { return SlotSize; }
 };
-
-/// Returns the sub or super register of a specific X86 register.
-/// e.g. getX86SubSuperRegister(X86::EAX, MVT::i16) returns X86::AX.
-/// Aborts on error.
-unsigned getX86SubSuperRegister(unsigned, MVT::SimpleValueType, bool High=false);
-
-/// Returns the sub or super register of a specific X86 register.
-/// Like getX86SubSuperRegister() but returns 0 on error.
-unsigned getX86SubSuperRegisterOrZero(unsigned, MVT::SimpleValueType,
-                                      bool High = false);
 
 //get512BitRegister - X86 utility - returns 512-bit super register
 unsigned get512BitSuperRegister(unsigned Reg);

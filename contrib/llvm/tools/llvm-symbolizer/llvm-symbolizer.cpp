@@ -15,8 +15,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LLVMSymbolize.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/DebugInfo/Symbolize/DIPrinter.h"
+#include "llvm/DebugInfo/Symbolize/Symbolize.h"
 #include "llvm/Support/COM.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -73,6 +74,20 @@ static cl::list<std::string>
 ClDsymHint("dsym-hint", cl::ZeroOrMore,
            cl::desc("Path to .dSYM bundles to search for debug info for the "
                     "object files"));
+static cl::opt<bool>
+    ClPrintAddress("print-address", cl::init(false),
+                   cl::desc("Show address before line information"));
+
+static cl::opt<bool>
+    ClPrettyPrint("pretty-print", cl::init(false),
+                  cl::desc("Make the output more human friendly"));
+
+static bool error(std::error_code ec) {
+  if (!ec)
+    return false;
+  errs() << "LLVMSymbolizer: error reading file: " << ec.message() << ".\n";
+  return true;
+}
 
 static bool parseCommand(bool &IsData, std::string &ModuleName,
                          uint64_t &ModuleOffset) {
@@ -118,9 +133,7 @@ static bool parseCommand(bool &IsData, std::string &ModuleName,
   // Skip delimiters and parse module offset.
   pos += strspn(pos, kDelimiters);
   int offset_length = strcspn(pos, kDelimiters);
-  if (StringRef(pos, offset_length).getAsInteger(0, ModuleOffset))
-    return false;
-  return true;
+  return !StringRef(pos, offset_length).getAsInteger(0, ModuleOffset);
 }
 
 int main(int argc, char **argv) {
@@ -132,9 +145,9 @@ int main(int argc, char **argv) {
   llvm::sys::InitializeCOMRAII COM(llvm::sys::COMThreadingMode::MultiThreaded);
 
   cl::ParseCommandLineOptions(argc, argv, "llvm-symbolizer\n");
-  LLVMSymbolizer::Options Opts(ClPrintFunctions, ClUseSymbolTable,
-                               ClPrintInlining, ClDemangle,
+  LLVMSymbolizer::Options Opts(ClPrintFunctions, ClUseSymbolTable, ClDemangle,
                                ClUseRelativeAddress, ClDefaultArch);
+
   for (const auto &hint : ClDsymHint) {
     if (sys::path::extension(hint) == ".dSYM") {
       Opts.DsymHints.push_back(hint);
@@ -148,11 +161,28 @@ int main(int argc, char **argv) {
   bool IsData = false;
   std::string ModuleName;
   uint64_t ModuleOffset;
+  DIPrinter Printer(outs(), ClPrintFunctions != FunctionNameKind::None,
+                    ClPrettyPrint);
+
   while (parseCommand(IsData, ModuleName, ModuleOffset)) {
-    std::string Result =
-        IsData ? Symbolizer.symbolizeData(ModuleName, ModuleOffset)
-               : Symbolizer.symbolizeCode(ModuleName, ModuleOffset);
-    outs() << Result << "\n";
+    if (ClPrintAddress) {
+      outs() << "0x";
+      outs().write_hex(ModuleOffset);
+      StringRef Delimiter = (ClPrettyPrint == true) ? ": " : "\n";
+      outs() << Delimiter;
+    }
+    if (IsData) {
+      auto ResOrErr = Symbolizer.symbolizeData(ModuleName, ModuleOffset);
+      Printer << (error(ResOrErr.getError()) ? DIGlobal() : ResOrErr.get());
+    } else if (ClPrintInlining) {
+      auto ResOrErr = Symbolizer.symbolizeInlinedCode(ModuleName, ModuleOffset);
+      Printer << (error(ResOrErr.getError()) ? DIInliningInfo()
+                                             : ResOrErr.get());
+    } else {
+      auto ResOrErr = Symbolizer.symbolizeCode(ModuleName, ModuleOffset);
+      Printer << (error(ResOrErr.getError()) ? DILineInfo() : ResOrErr.get());
+    }
+    outs() << "\n";
     outs().flush();
   }
 

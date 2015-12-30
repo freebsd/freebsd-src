@@ -37,6 +37,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
 #include <algorithm>
 
@@ -71,6 +72,10 @@ class LoopBase {
   std::vector<BlockT*> Blocks;
 
   SmallPtrSet<const BlockT*, 8> DenseBlockSet;
+
+  /// Indicator that this loops has been "unlooped", so there's no loop here
+  /// anymore.
+  bool IsUnloop = false;
 
   LoopBase(const LoopBase<BlockT, LoopT> &) = delete;
   const LoopBase<BlockT, LoopT>&
@@ -140,11 +145,21 @@ public:
   typedef typename std::vector<BlockT*>::const_iterator block_iterator;
   block_iterator block_begin() const { return Blocks.begin(); }
   block_iterator block_end() const { return Blocks.end(); }
+  inline iterator_range<block_iterator> blocks() const {
+    return make_range(block_begin(), block_end());
+  }
 
   /// getNumBlocks - Get the number of blocks in this loop in constant time.
   unsigned getNumBlocks() const {
     return Blocks.size();
   }
+
+  /// Mark this loop as having been unlooped - the last backedge was removed and
+  /// we no longer have a loop.
+  void markUnlooped() { IsUnloop = true; }
+
+  /// Return true if this no longer represents a loop.
+  bool isUnloop() const { return IsUnloop; }
 
   /// isLoopExiting - True if terminator in the block can branch to another
   /// block that is outside of the current loop.
@@ -398,6 +413,9 @@ public:
   /// isLCSSAForm - Return true if the Loop is in LCSSA form
   bool isLCSSAForm(DominatorTree &DT) const;
 
+  /// \brief Return true if this Loop and all inner subloops are in LCSSA form.
+  bool isRecursivelyLCSSAForm(DominatorTree &DT) const;
+
   /// isLoopSimplifyForm - Return true if the Loop is in the form that
   /// the LoopSimplify form transforms loops to, which is sometimes called
   /// normal form.
@@ -622,7 +640,7 @@ public:
   }
 
   /// Create the loop forest using a stable algorithm.
-  void Analyze(DominatorTreeBase<BlockT> &DomTree);
+  void analyze(const DominatorTreeBase<BlockT> &DomTree);
 
   // Debugging
   void print(raw_ostream &OS) const;
@@ -642,6 +660,7 @@ class LoopInfo : public LoopInfoBase<BasicBlock, Loop> {
   LoopInfo(const LoopInfo &) = delete;
 public:
   LoopInfo() {}
+  explicit LoopInfo(const DominatorTreeBase<BasicBlock> &DomTree);
 
   LoopInfo(LoopInfo &&Arg) : BaseT(std::move(static_cast<BaseT &>(Arg))) {}
   LoopInfo &operator=(LoopInfo &&RHS) {
@@ -653,8 +672,9 @@ public:
 
   /// updateUnloop - Update LoopInfo after removing the last backedge from a
   /// loop--now the "unloop". This updates the loop forest and parent loops for
-  /// each block so that Unloop is no longer referenced, but the caller must
-  /// actually delete the Unloop object.
+  /// each block so that Unloop is no longer referenced, but does not actually
+  /// delete the Unloop object. Generally, the loop pass manager should manage
+  /// deleting the Unloop.
   void updateUnloop(Loop *Unloop);
 
   /// replacementPreservesLCSSAForm - Returns true if replacing From with To
@@ -676,6 +696,78 @@ public:
     // instruction, or in a loop that contains it as an inner loop, then using
     // it as a replacement will not break LCSSA form.
     return ToLoop->contains(getLoopFor(From->getParent()));
+  }
+
+  /// \brief Checks if moving a specific instruction can break LCSSA in any
+  /// loop.
+  ///
+  /// Return true if moving \p Inst to before \p NewLoc will break LCSSA,
+  /// assuming that the function containing \p Inst and \p NewLoc is currently
+  /// in LCSSA form.
+  bool movementPreservesLCSSAForm(Instruction *Inst, Instruction *NewLoc) {
+    assert(Inst->getFunction() == NewLoc->getFunction() &&
+           "Can't reason about IPO!");
+
+    auto *OldBB = Inst->getParent();
+    auto *NewBB = NewLoc->getParent();
+
+    // Movement within the same loop does not break LCSSA (the equality check is
+    // to avoid doing a hashtable lookup in case of intra-block movement).
+    if (OldBB == NewBB)
+      return true;
+
+    auto *OldLoop = getLoopFor(OldBB);
+    auto *NewLoop = getLoopFor(NewBB);
+
+    if (OldLoop == NewLoop)
+      return true;
+
+    // Check if Outer contains Inner; with the null loop counting as the
+    // "outermost" loop.
+    auto Contains = [](const Loop *Outer, const Loop *Inner) {
+      return !Outer || Outer->contains(Inner);
+    };
+
+    // To check that the movement of Inst to before NewLoc does not break LCSSA,
+    // we need to check two sets of uses for possible LCSSA violations at
+    // NewLoc: the users of NewInst, and the operands of NewInst.
+
+    // If we know we're hoisting Inst out of an inner loop to an outer loop,
+    // then the uses *of* Inst don't need to be checked.
+
+    if (!Contains(NewLoop, OldLoop)) {
+      for (Use &U : Inst->uses()) {
+        auto *UI = cast<Instruction>(U.getUser());
+        auto *UBB = isa<PHINode>(UI) ? cast<PHINode>(UI)->getIncomingBlock(U)
+                                     : UI->getParent();
+        if (UBB != NewBB && getLoopFor(UBB) != NewLoop)
+          return false;
+      }
+    }
+
+    // If we know we're sinking Inst from an outer loop into an inner loop, then
+    // the *operands* of Inst don't need to be checked.
+
+    if (!Contains(OldLoop, NewLoop)) {
+      // See below on why we can't handle phi nodes here.
+      if (isa<PHINode>(Inst))
+        return false;
+
+      for (Use &U : Inst->operands()) {
+        auto *DefI = dyn_cast<Instruction>(U.get());
+        if (!DefI)
+          return false;
+
+        // This would need adjustment if we allow Inst to be a phi node -- the
+        // new use block won't simply be NewBB.
+
+        auto *DefBlock = DefI->getParent();
+        if (DefBlock != NewBB && getLoopFor(DefBlock) != NewLoop)
+          return false;
+      }
+    }
+
+    return true;
   }
 };
 
@@ -757,6 +849,19 @@ public:
   void print(raw_ostream &O, const Module *M = nullptr) const override;
 
   void getAnalysisUsage(AnalysisUsage &AU) const override;
+};
+
+/// \brief Pass for printing a loop's contents as LLVM's text IR assembly.
+class PrintLoopPass {
+  raw_ostream &OS;
+  std::string Banner;
+
+public:
+  PrintLoopPass();
+  PrintLoopPass(raw_ostream &OS, const std::string &Banner = "");
+
+  PreservedAnalyses run(Loop &L);
+  static StringRef name() { return "PrintLoopPass"; }
 };
 
 } // End llvm namespace

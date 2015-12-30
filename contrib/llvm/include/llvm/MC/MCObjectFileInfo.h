@@ -35,15 +35,17 @@ protected:
   /// without an associated EH frame section.
   bool SupportsCompactUnwindWithoutEHFrame;
 
-  /// Some encoding values for EH.
+  /// OmitDwarfIfHaveCompactUnwind - True if the target object file
+  /// supports having some functions with compact unwind and other with
+  /// dwarf unwind.
+  bool OmitDwarfIfHaveCompactUnwind;
+
+  /// PersonalityEncoding, LSDAEncoding, TTypeEncoding - Some encoding values
+  /// for EH.
   unsigned PersonalityEncoding;
   unsigned LSDAEncoding;
   unsigned FDECFIEncoding;
   unsigned TTypeEncoding;
-
-  /// Section flags for eh_frame
-  unsigned EHSectionType;
-  unsigned EHSectionFlags;
 
   /// Compact unwind encoding indicating that we should emit only an EH frame.
   unsigned CompactUnwindDwarfEHFrameOnly;
@@ -114,6 +116,10 @@ protected:
   MCSection *DwarfStrOffDWOSection;
   MCSection *DwarfAddrSection;
 
+  // These are for Fission DWP files.
+  MCSection *DwarfCUIndexSection;
+  MCSection *DwarfTUIndexSection;
+
   /// Section for newer gnu pubnames.
   MCSection *DwarfGnuPubNamesSection;
   /// Section for newer gnu pubtypes.
@@ -147,10 +153,7 @@ protected:
   MCSection *EHFrameSection;
 
   // ELF specific sections.
-  MCSection *DataRelSection;
-  const MCSection *DataRelLocalSection;
   MCSection *DataRelROSection;
-  MCSection *DataRelROLocalSection;
   MCSection *MergeableConst4Section;
   MCSection *MergeableConst8Section;
   MCSection *MergeableConst16Section;
@@ -200,6 +203,10 @@ public:
   bool getSupportsCompactUnwindWithoutEHFrame() const {
     return SupportsCompactUnwindWithoutEHFrame;
   }
+  bool getOmitDwarfIfHaveCompactUnwind() const {
+    return OmitDwarfIfHaveCompactUnwind;
+  }
+
   bool getCommDirectiveSupportsAlignment() const {
     return CommDirectiveSupportsAlignment;
   }
@@ -216,6 +223,7 @@ public:
   MCSection *getTextSection() const { return TextSection; }
   MCSection *getDataSection() const { return DataSection; }
   MCSection *getBSSSection() const { return BSSSection; }
+  MCSection *getReadOnlySection() const { return ReadOnlySection; }
   MCSection *getLSDASection() const { return LSDASection; }
   MCSection *getCompactUnwindSection() const { return CompactUnwindSection; }
   MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
@@ -258,6 +266,8 @@ public:
   MCSection *getDwarfLocDWOSection() const { return DwarfLocDWOSection; }
   MCSection *getDwarfStrOffDWOSection() const { return DwarfStrOffDWOSection; }
   MCSection *getDwarfAddrSection() const { return DwarfAddrSection; }
+  MCSection *getDwarfCUIndexSection() const { return DwarfCUIndexSection; }
+  MCSection *getDwarfTUIndexSection() const { return DwarfTUIndexSection; }
 
   MCSection *getCOFFDebugSymbolsSection() const {
     return COFFDebugSymbolsSection;
@@ -271,12 +281,7 @@ public:
   MCSection *getFaultMapSection() const { return FaultMapSection; }
 
   // ELF specific sections.
-  MCSection *getDataRelSection() const { return DataRelSection; }
-  const MCSection *getDataRelLocalSection() const {
-    return DataRelLocalSection;
-  }
   MCSection *getDataRelROSection() const { return DataRelROSection; }
-  MCSection *getDataRelROLocalSection() const { return DataRelROLocalSection; }
   const MCSection *getMergeableConst4Section() const {
     return MergeableConst4Section;
   }
@@ -325,8 +330,6 @@ public:
   MCSection *getSXDataSection() const { return SXDataSection; }
 
   MCSection *getEHFrameSection() {
-    if (!EHFrameSection)
-      InitEHFrameSection();
     return EHFrameSection;
   }
 
@@ -345,9 +348,6 @@ private:
   void initMachOMCObjectFileInfo(Triple T);
   void initELFMCObjectFileInfo(Triple T);
   void initCOFFMCObjectFileInfo(Triple T);
-
-  /// Initialize EHFrameSection on demand.
-  void InitEHFrameSection();
 
 public:
   const Triple &getTargetTriple() const { return TT; }
