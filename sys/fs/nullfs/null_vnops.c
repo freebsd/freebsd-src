@@ -568,14 +568,16 @@ static int
 null_remove(struct vop_remove_args *ap)
 {
 	int retval, vreleit;
-	struct vnode *lvp;
+	struct vnode *lvp, *vp;
 
-	if (vrefcnt(ap->a_vp) > 1) {
-		lvp = NULLVPTOLOWERVP(ap->a_vp);
+	vp = ap->a_vp;
+	if (vrefcnt(vp) > 1) {
+		lvp = NULLVPTOLOWERVP(vp);
 		VREF(lvp);
 		vreleit = 1;
 	} else
 		vreleit = 0;
+	VTONULL(vp)->null_flags |= NULLV_DROP;
 	retval = null_bypass(&ap->a_gen);
 	if (vreleit != 0)
 		vrele(lvp);
