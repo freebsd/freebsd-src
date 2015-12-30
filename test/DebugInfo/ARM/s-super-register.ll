@@ -9,7 +9,7 @@ target triple = "thumbv7-apple-macosx10.6.7"
 ; 0x9d   DW_OP_bit_piece
 ; CHECK:            Location description: 90 {{.. .. ((93 ..)|(9d .. ..)) $}}
 
-define void @_Z3foov() optsize ssp {
+define void @_Z3foov() optsize ssp !dbg !1 {
 entry:
   %call = tail call float @_Z3barv() optsize, !dbg !11
   tail call void @llvm.dbg.value(metadata float %call, i64 0, metadata !5, metadata !DIExpression()), !dbg !11
@@ -40,15 +40,15 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!20}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.0 (trunk 130845)", isOptimized: true, emissionKind: 1, file: !18, enums: !19, retainedTypes: !19, subprograms: !16, imports:  null)
-!1 = !DISubprogram(name: "foo", linkageName: "_Z3foov", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 5, file: !18, scope: !2, type: !3, function: void ()* @_Z3foov, variables: !17)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.0 (trunk 130845)", isOptimized: true, emissionKind: 1, file: !18, enums: !19, retainedTypes: !19, subprograms: !16, imports:  null)
+!1 = distinct !DISubprogram(name: "foo", linkageName: "_Z3foov", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 5, file: !18, scope: !2, type: !3, variables: !17)
 !2 = !DIFile(filename: "k.cc", directory: "/private/tmp")
 !3 = !DISubroutineType(types: !4)
 !4 = !{null}
-!5 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "k", line: 6, scope: !6, file: !2, type: !7)
+!5 = !DILocalVariable(name: "k", line: 6, scope: !6, file: !2, type: !7)
 !6 = distinct !DILexicalBlock(line: 5, column: 12, file: !18, scope: !1)
 !7 = !DIBasicType(tag: DW_TAG_base_type, name: "float", size: 32, align: 32, encoding: DW_ATE_float)
-!8 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "y", line: 8, scope: !9, file: !2, type: !7)
+!8 = !DILocalVariable(name: "y", line: 8, scope: !9, file: !2, type: !7)
 !9 = distinct !DILexicalBlock(line: 7, column: 25, file: !18, scope: !10)
 !10 = distinct !DILexicalBlock(line: 7, column: 3, file: !18, scope: !6)
 !11 = !DILocation(line: 6, column: 18, scope: !6)

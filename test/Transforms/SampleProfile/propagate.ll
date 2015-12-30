@@ -40,7 +40,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @.str = private unnamed_addr constant [24 x i8] c"foo(%d, %d, %ld) = %ld\0A\00", align 1
 
 ; Function Attrs: nounwind uwtable
-define i64 @_Z3fooiil(i32 %x, i32 %y, i64 %N) #0 {
+define i64 @_Z3fooiil(i32 %x, i32 %y, i64 %N) #0 !dbg !4 {
 entry:
   %retval = alloca i64, align 8
   %x.addr = alloca i32, align 4
@@ -73,8 +73,8 @@ for.cond:                                         ; preds = %for.inc16, %if.else
   %5 = load i64, i64* %N.addr, align 8, !dbg !15
   %cmp1 = icmp slt i64 %4, %5, !dbg !15
   br i1 %cmp1, label %for.body, label %for.end18, !dbg !15
-; CHECK: edge for.cond -> for.body probability is 10 / 10 = 100% [HOT edge]
-; CHECK: edge for.cond -> for.end18 probability is 0 / 10 = 0%
+; CHECK: edge for.cond -> for.body probability is 0x745d1746 / 0x80000000 = 90.91% [HOT edge]
+; CHECK: edge for.cond -> for.end18 probability is 0x0ba2e8ba / 0x80000000 = 9.09%
 
 for.body:                                         ; preds = %for.cond
   %6 = load i64, i64* %i, align 8, !dbg !18
@@ -82,8 +82,8 @@ for.body:                                         ; preds = %for.cond
   %div = sdiv i64 %7, 3, !dbg !18
   %cmp2 = icmp sgt i64 %6, %div, !dbg !18
   br i1 %cmp2, label %if.then3, label %if.end, !dbg !18
-; CHECK: edge for.body -> if.then3 probability is 1 / 5 = 20%
-; CHECK: edge for.body -> if.end probability is 4 / 5 = 80%
+; CHECK: edge for.body -> if.then3 probability is 0x1999999a / 0x80000000 = 20.00%
+; CHECK: edge for.body -> if.end probability is 0x66666666 / 0x80000000 = 80.00%
 
 if.then3:                                         ; preds = %for.body
   %8 = load i32, i32* %x.addr, align 4, !dbg !21
@@ -97,8 +97,8 @@ if.end:                                           ; preds = %if.then3, %for.body
   %div4 = sdiv i64 %10, 4, !dbg !22
   %cmp5 = icmp sgt i64 %9, %div4, !dbg !22
   br i1 %cmp5, label %if.then6, label %if.else7, !dbg !22
-; CHECK: edge if.end -> if.then6 probability is 3 / 6342 = 0.0473037%
-; CHECK: edge if.end -> if.else7 probability is 6339 / 6342 = 99.9527% [HOT edge]
+; CHECK: edge if.end -> if.then6 probability is 0x000f801f / 0x80000000 = 0.05%
+; CHECK: edge if.end -> if.else7 probability is 0x7ff07fe1 / 0x80000000 = 99.95% [HOT edge]
 
 if.then6:                                         ; preds = %if.end
   %11 = load i32, i32* %y.addr, align 4, !dbg !24
@@ -119,8 +119,8 @@ for.cond8:                                        ; preds = %for.inc, %if.else7
   %14 = load i64, i64* %i, align 8, !dbg !28
   %cmp10 = icmp slt i64 %conv9, %14, !dbg !28
   br i1 %cmp10, label %for.body11, label %for.end, !dbg !28
-; CHECK: edge for.cond8 -> for.body11 probability is 16191 / 16191 = 100% [HOT edge]
-; CHECK: edge for.cond8 -> for.end probability is 0 / 16191 = 0%
+; CHECK: edge for.cond8 -> for.body11 probability is 0x5bfc7472 / 0x80000000 = 71.86%
+; CHECK: edge for.cond8 -> for.end probability is 0x24038b8e / 0x80000000 = 28.14%
 
 for.body11:                                       ; preds = %for.cond8
   %15 = load i32, i32* %j, align 4, !dbg !31
@@ -167,7 +167,7 @@ return:                                           ; preds = %if.end19, %if.then
 }
 
 ; Function Attrs: uwtable
-define i32 @main() #1 {
+define i32 @main() #1 !dbg !7 {
 entry:
   %retval = alloca i32, align 4
   %x = alloca i32, align 4
@@ -198,14 +198,14 @@ attributes #2 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !llvm.module.flags = !{!8, !9}
 !llvm.ident = !{!10}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "propagate.cc", directory: ".")
 !2 = !{}
 !3 = !{!4, !7}
-!4 = !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !5, type: !6, function: i64 (i32, i32, i64)* @_Z3fooiil, variables: !2)
+!4 = distinct !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "propagate.cc", directory: ".")
 !6 = !DISubroutineType(types: !{null})
-!7 = !DISubprogram(name: "main", line: 24, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 24, file: !1, scope: !5, type: !6, function: i32 ()* @main, variables: !2)
+!7 = distinct !DISubprogram(name: "main", line: 24, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 24, file: !1, scope: !5, type: !6, variables: !2)
 !8 = !{i32 2, !"Dwarf Version", i32 4}
 !9 = !{i32 1, !"Debug Info Version", i32 3}
 !10 = !{!"clang version 3.5 "}

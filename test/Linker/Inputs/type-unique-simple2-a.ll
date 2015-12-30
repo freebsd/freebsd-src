@@ -44,7 +44,7 @@
 %struct.Base = type { i32, %struct.Base* }
 
 ; Function Attrs: nounwind ssp uwtable
-define void @_Z1fi(i32 %a) #0 {
+define void @_Z1fi(i32 %a) #0 !dbg !12 {
 entry:
   %a.addr = alloca i32, align 4
   %t = alloca %struct.Base, align 8
@@ -63,7 +63,7 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!16, !22}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git 8a3f9e46cb988d2c664395b21910091e3730ae82) (http://llvm.org/git/llvm.git 4699e9549358bc77824a59114548eecc3f7c523c)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !11, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git 8a3f9e46cb988d2c664395b21910091e3730ae82) (http://llvm.org/git/llvm.git 4699e9549358bc77824a59114548eecc3f7c523c)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !11, globals: !2, imports: !2)
 !1 = !DIFile(filename: "foo.cpp", directory: ".")
 !2 = !{}
 !3 = !{!4}
@@ -75,14 +75,14 @@ attributes #1 = { nounwind readnone }
 !9 = !DIDerivedType(tag: DW_TAG_member, name: "b", line: 3, size: 64, align: 64, offset: 64, file: !5, scope: !"_ZTS4Base", baseType: !10)
 !10 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !"_ZTS4Base")
 !11 = !{!12}
-!12 = !DISubprogram(name: "f", linkageName: "_Z1fi", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !13, type: !14, function: void (i32)* @_Z1fi, variables: !2)
+!12 = distinct !DISubprogram(name: "f", linkageName: "_Z1fi", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !13, type: !14, variables: !2)
 !13 = !DIFile(filename: "foo.cpp", directory: ".")
 !14 = !DISubroutineType(types: !15)
 !15 = !{null, !8}
 !16 = !{i32 2, !"Dwarf Version", i32 2}
-!17 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 3, arg: 1, scope: !12, file: !13, type: !8)
+!17 = !DILocalVariable(name: "a", line: 3, arg: 1, scope: !12, file: !13, type: !8)
 !18 = !DILocation(line: 3, scope: !12)
-!19 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "t", line: 4, scope: !12, file: !13, type: !4)
+!19 = !DILocalVariable(name: "t", line: 4, scope: !12, file: !13, type: !4)
 !20 = !DILocation(line: 4, scope: !12)
 !21 = !DILocation(line: 5, scope: !12)
 !22 = !{i32 1, !"Debug Info Version", i32 3}

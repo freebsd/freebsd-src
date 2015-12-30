@@ -1,4 +1,4 @@
-; REQUIRES: object-emission
+; REQUIRES: default_triple, object-emission
 ;
 ; RUN: llvm-link %s %p/type-unique-type-array-b.ll -S -o - | %llc_dwarf -filetype=obj -O0 | llvm-dwarfdump -debug-dump=info - | FileCheck %s
 ;
@@ -23,7 +23,7 @@
 ; CHECK: DW_TAG_class_type
 ; CHECK-NEXT:   DW_AT_name {{.*}} "A"
 ; CHECK: DW_TAG_subprogram
-; CHECK: DW_AT_MIPS_linkage_name {{.*}} "_ZN1A5testAE2SA"
+; CHECK: DW_AT_name {{.*}} "testA"
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK-NEXT: DW_AT_type [DW_FORM_ref4] (cu + 0x{{.*}} => {0x[[STRUCT:.*]]})
@@ -34,7 +34,7 @@
 ; CHECK: DW_TAG_class_type
 ; CHECK-NEXT:   DW_AT_name {{.*}} "B"
 ; CHECK: DW_TAG_subprogram
-; CHECK:   DW_AT_MIPS_linkage_name {{.*}} "_ZN1B5testBE2SA"
+; CHECK:   DW_AT_name {{.*}} "testB"
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK: DW_TAG_formal_parameter
 ; CHECK-NEXT: DW_AT_type [DW_FORM_ref_addr] {{.*}}[[STRUCT]]
@@ -43,7 +43,7 @@
 %struct.SA = type { i32 }
 
 ; Function Attrs: ssp uwtable
-define void @_Z4topAP1A2SA(%class.A* %a, i32 %sa.coerce) #0 {
+define void @_Z4topAP1A2SA(%class.A* %a, i32 %sa.coerce) #0 !dbg !15 {
 entry:
   %sa = alloca %struct.SA, align 4
   %a.addr = alloca %class.A*, align 8
@@ -67,7 +67,7 @@ entry:
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: nounwind ssp uwtable
-define linkonce_odr void @_ZN1A5testAE2SA(%class.A* %this, i32 %a.coerce) #2 align 2 {
+define linkonce_odr void @_ZN1A5testAE2SA(%class.A* %this, i32 %a.coerce) #2 align 2 !dbg !20 {
 entry:
   %a = alloca %struct.SA, align 4
   %this.addr = alloca %class.A*, align 8
@@ -92,7 +92,7 @@ attributes #3 = { nounwind }
 !llvm.module.flags = !{!21, !22}
 !llvm.ident = !{!23}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 214102:214113M) (llvm/trunk 214102:214115M)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 214102:214113M) (llvm/trunk 214102:214115M)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
 !1 = !DIFile(filename: "a.cpp", directory: "/Users/manmanren/test-Nov/type_unique/rdar_di_array")
 !2 = !{}
 !3 = !{!4, !10}
@@ -107,23 +107,23 @@ attributes #3 = { nounwind }
 !12 = !DIDerivedType(tag: DW_TAG_member, name: "a", line: 2, size: 32, align: 32, file: !1, scope: !"_ZTS2SA", baseType: !13)
 !13 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !14 = !{!15, !20}
-!15 = !DISubprogram(name: "topA", linkageName: "_Z4topAP1A2SA", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 11, file: !1, scope: !16, type: !17, function: void (%class.A*, i32)* @_Z4topAP1A2SA, variables: !2)
+!15 = distinct !DISubprogram(name: "topA", linkageName: "_Z4topAP1A2SA", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 11, file: !1, scope: !16, type: !17, variables: !2)
 !16 = !DIFile(filename: "a.cpp", directory: "/Users/manmanren/test-Nov/type_unique/rdar_di_array")
 !17 = !DISubroutineType(types: !18)
 !18 = !{null, !19, !"_ZTS2SA"}
 !19 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !"_ZTS1A")
-!20 = !DISubprogram(name: "testA", linkageName: "_ZN1A5testAE2SA", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 7, file: !1, scope: !"_ZTS1A", type: !7, function: void (%class.A*, i32)* @_ZN1A5testAE2SA, declaration: !6, variables: !2)
+!20 = distinct !DISubprogram(name: "testA", linkageName: "_ZN1A5testAE2SA", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 7, file: !1, scope: !"_ZTS1A", type: !7, declaration: !6, variables: !2)
 !21 = !{i32 2, !"Dwarf Version", i32 2}
 !22 = !{i32 2, !"Debug Info Version", i32 3}
 !23 = !{!"clang version 3.5.0 (trunk 214102:214113M) (llvm/trunk 214102:214115M)"}
-!24 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 11, arg: 1, scope: !15, file: !16, type: !19)
+!24 = !DILocalVariable(name: "a", line: 11, arg: 1, scope: !15, file: !16, type: !19)
 !25 = !DILocation(line: 11, column: 14, scope: !15)
-!26 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "sa", line: 11, arg: 2, scope: !15, file: !16, type: !"_ZTS2SA")
+!26 = !DILocalVariable(name: "sa", line: 11, arg: 2, scope: !15, file: !16, type: !"_ZTS2SA")
 !27 = !DILocation(line: 11, column: 20, scope: !15)
 !28 = !DILocation(line: 12, column: 3, scope: !15)
 !29 = !DILocation(line: 13, column: 1, scope: !15)
-!30 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !20, type: !19)
+!30 = !DILocalVariable(name: "this", arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !20, type: !19)
 !31 = !DILocation(line: 0, scope: !20)
-!32 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 7, arg: 2, scope: !20, file: !16, type: !"_ZTS2SA")
+!32 = !DILocalVariable(name: "a", line: 7, arg: 2, scope: !20, file: !16, type: !"_ZTS2SA")
 !33 = !DILocation(line: 7, column: 17, scope: !20)
 !34 = !DILocation(line: 8, column: 3, scope: !20)

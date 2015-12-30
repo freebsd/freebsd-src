@@ -105,10 +105,10 @@ class ELFState {
   typedef typename object::ELFFile<ELFT>::Elf_Rela Elf_Rela;
 
   /// \brief The future ".strtab" section.
-  StringTableBuilder DotStrtab;
+  StringTableBuilder DotStrtab{StringTableBuilder::ELF};
 
   /// \brief The future ".shstrtab" section.
-  StringTableBuilder DotShStrtab;
+  StringTableBuilder DotShStrtab{StringTableBuilder::ELF};
 
   NameToIdxMap SN2I;
   NameToIdxMap SymN2I;
@@ -193,7 +193,7 @@ bool ELFState<ELFT>::initSectionHeaders(std::vector<Elf_Shdr> &SHeaders,
 
   for (const auto &Sec : Doc.Sections)
     DotShStrtab.add(Sec->Name);
-  DotShStrtab.finalize(StringTableBuilder::ELF);
+  DotShStrtab.finalize();
 
   for (const auto &Sec : Doc.Sections) {
     zero(SHeader);
@@ -222,9 +222,11 @@ bool ELFState<ELFT>::initSectionHeaders(std::vector<Elf_Shdr> &SHeaders,
 
       unsigned Index;
       if (SN2I.lookup(S->Info, Index)) {
-        errs() << "error: Unknown section referenced: '" << S->Info
-               << "' at YAML section '" << S->Name << "'.\n";
-        return false;
+        if (S->Info.getAsInteger(0, Index)) {
+          errs() << "error: Unknown section referenced: '" << S->Info
+                 << "' at YAML section '" << S->Name << "'.\n";
+          return false;
+        }
       }
       SHeader.sh_info = Index;
 
@@ -284,7 +286,7 @@ void ELFState<ELFT>::initSymtabSectionHeader(Elf_Shdr &SHeader,
     DotStrtab.add(Sym.Name);
   for (const auto &Sym : Doc.Symbols.Weak)
     DotStrtab.add(Sym.Name);
-  DotStrtab.finalize(StringTableBuilder::ELF);
+  DotStrtab.finalize();
 
   addSymbols(Doc.Symbols.Local, Syms, ELF::STB_LOCAL);
   addSymbols(Doc.Symbols.Global, Syms, ELF::STB_GLOBAL);

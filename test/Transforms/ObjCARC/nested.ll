@@ -819,5 +819,7 @@ entry:
   ret void
 }
 
-; CHECK: attributes [[NUW]] = { nounwind }
+
+; CHECK: attributes #0 = { argmemonly nounwind }
 ; CHECK: attributes #1 = { nonlazybind }
+; CHECK: attributes [[NUW]] = { nounwind }

@@ -31,7 +31,7 @@ target triple = "arm64-apple-ios3.0.0"
 %struct.five = type { i32, i32, i32, i32, i32 }
 
 ; Function Attrs: nounwind ssp
-define i32 @return_five_int(%struct.five* %f) #0 {
+define i32 @return_five_int(%struct.five* %f) #0 !dbg !4 {
 entry:
   call void @llvm.dbg.declare(metadata %struct.five* %f, metadata !17, metadata !DIExpression(DW_OP_deref)), !dbg !18
   %a = getelementptr inbounds %struct.five, %struct.five* %f, i32 0, i32 0, !dbg !19
@@ -48,11 +48,11 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!16, !20}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "LLVM version 3.4 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "LLVM version 3.4 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "struct_by_value.c", directory: "")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "return_five_int", line: 13, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 14, file: !1, scope: !5, type: !6, function: i32 (%struct.five*)* @return_five_int, variables: !2)
+!4 = distinct !DISubprogram(name: "return_five_int", line: 13, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 14, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "struct_by_value.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8, !9}
@@ -65,7 +65,7 @@ attributes #1 = { nounwind readnone }
 !14 = !DIDerivedType(tag: DW_TAG_member, name: "d", line: 6, size: 32, align: 32, offset: 96, file: !1, scope: !9, baseType: !8)
 !15 = !DIDerivedType(tag: DW_TAG_member, name: "e", line: 7, size: 32, align: 32, offset: 128, file: !1, scope: !9, baseType: !8)
 !16 = !{i32 2, !"Dwarf Version", i32 2}
-!17 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "f", line: 13, arg: 1, scope: !4, file: !5, type: !9)
+!17 = !DILocalVariable(name: "f", line: 13, arg: 1, scope: !4, file: !5, type: !9)
 !18 = !DILocation(line: 13, scope: !4)
 !19 = !DILocation(line: 16, scope: !4)
 !20 = !{i32 1, !"Debug Info Version", i32 3}

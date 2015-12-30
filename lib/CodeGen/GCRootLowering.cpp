@@ -158,7 +158,7 @@ static bool InsertRootInitializers(Function &F, AllocaInst **Roots,
 
   // Search for initializers in the initial BB.
   SmallPtrSet<AllocaInst *, 16> InitedRoots;
-  for (; !CouldBecomeSafePoint(IP); ++IP)
+  for (; !CouldBecomeSafePoint(&*IP); ++IP)
     if (StoreInst *SI = dyn_cast<StoreInst>(IP))
       if (AllocaInst *AI =
               dyn_cast<AllocaInst>(SI->getOperand(1)->stripPointerCasts()))
@@ -320,7 +320,9 @@ void GCMachineCodeAnalysis::FindStackOffsets(MachineFunction &MF) {
     if (MF.getFrameInfo()->isDeadObjectIndex(RI->Num)) {
       RI = FI->removeStackRoot(RI);
     } else {
-      RI->StackOffset = TFI->getFrameIndexOffset(MF, RI->Num);
+      unsigned FrameReg; // FIXME: surely GCRoot ought to store the
+                         // register that the offset is from?
+      RI->StackOffset = TFI->getFrameIndexReference(MF, RI->Num, FrameReg);
       ++RI;
     }
   }

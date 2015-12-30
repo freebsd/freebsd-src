@@ -4,7 +4,7 @@
 ; not partitioned into multiple allocas.
 ;
 ; CHECK: call void @llvm.dbg.value(metadata float %s.coerce, i64 0, metadata ![[VAR:[0-9]+]], metadata ![[EXPR:[0-9]+]])
-; CHECK: ![[VAR]] = !DILocalVariable(tag: DW_TAG_arg_variable, name: "s",{{.*}} line: 3,
+; CHECK: ![[VAR]] = !DILocalVariable(name: "s",{{.*}} line: 3,
 ; CHECK: ![[EXPR]] = !DIExpression(
 ; CHECK-NOT:                       DW_OP_bit_piece
 
@@ -20,7 +20,7 @@ target triple = "x86_64-apple-macosx10.10.0"
 %struct.S = type { float }
 
 ; Function Attrs: nounwind ssp uwtable
-define float @foo(float %s.coerce) #0 {
+define float @foo(float %s.coerce) #0 !dbg !4 {
 entry:
   %s = alloca %struct.S, align 4
   %coerce.dive = getelementptr %struct.S, %struct.S* %s, i32 0, i32 0
@@ -41,11 +41,11 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!12, !13, !14}
 !llvm.ident = !{!15}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "test.c", directory: "/Volumes/Data/llvm/_build.ninja.debug")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !5, type: !6, function: float (float)* @foo, variables: !2)
+!4 = distinct !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "test.c", directory: "/Volumes/Data/llvm/_build.ninja.debug")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8, !9}
@@ -57,7 +57,7 @@ attributes #1 = { nounwind readnone }
 !13 = !{i32 2, !"Debug Info Version", i32 3}
 !14 = !{i32 1, !"PIC Level", i32 2}
 !15 = !{!"clang version 3.6.0 "}
-!16 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "s", line: 3, arg: 1, scope: !4, file: !5, type: !9)
+!16 = !DILocalVariable(name: "s", line: 3, arg: 1, scope: !4, file: !5, type: !9)
 !17 = !DIExpression()
 !18 = !DILocation(line: 3, column: 20, scope: !4)
 !19 = !DILocation(line: 4, column: 2, scope: !4)

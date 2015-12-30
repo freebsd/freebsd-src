@@ -1,4 +1,5 @@
-; RUN: llc -mtriple=i686-pc-windows-msvc < %s | FileCheck %s
+; RUN: llc -mtriple=i686-pc-windows-msvc   < %s | FileCheck %s --check-prefix=X86
+; RUN: llc -mtriple=x86_64-pc-windows-msvc < %s | FileCheck %s --check-prefix=X64
 
 ; Based on this source:
 ; extern "C" void may_throw(int);
@@ -33,82 +34,174 @@ $"\01??_R0H@8" = comdat any
 define void @f() #0 personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*) {
 entry:
   invoke void @may_throw(i32 1)
-          to label %invoke.cont unwind label %lpad
+          to label %invoke.cont unwind label %lpad.1
 
 invoke.cont:                                      ; preds = %entry
   invoke void @may_throw(i32 2)
-          to label %try.cont.9 unwind label %lpad.1
+          to label %try.cont.9 unwind label %lpad
 
 try.cont.9:                                       ; preds = %invoke.cont.3, %invoke.cont, %catch.7
-  ; FIXME: Something about our CFG breaks TailDuplication. This empy asm blocks
-  ; it so we can focus on testing the state numbering.
-  call void asm sideeffect "", "~{dirflag},~{fpsr},~{flags}"()
   ret void
 
 lpad:                                             ; preds = %catch, %entry
-  %0 = landingpad { i8*, i32 }
-          catch %eh.CatchHandlerType* @llvm.eh.handlertype.H.0
-  %1 = extractvalue { i8*, i32 } %0, 0
-  %2 = extractvalue { i8*, i32 } %0, 1
-  br label %catch.dispatch.4
-
-lpad.1:                                           ; preds = %invoke.cont
-  %3 = landingpad { i8*, i32 }
-          catch i8* bitcast (%eh.CatchHandlerType* @llvm.eh.handlertype.H.0 to i8*)
-  %4 = extractvalue { i8*, i32 } %3, 0
-  %5 = extractvalue { i8*, i32 } %3, 1
-  %6 = tail call i32 @llvm.eh.typeid.for(i8* bitcast (%eh.CatchHandlerType* @llvm.eh.handlertype.H.0 to i8*)) #3
-  %matches = icmp eq i32 %5, %6
-  br i1 %matches, label %catch, label %catch.dispatch.4
-
-catch.dispatch.4:                                 ; preds = %lpad.1, %lpad
-  %exn.slot.0 = phi i8* [ %4, %lpad.1 ], [ %1, %lpad ]
-  %ehselector.slot.0 = phi i32 [ %5, %lpad.1 ], [ %2, %lpad ]
-  %.pre = tail call i32 @llvm.eh.typeid.for(i8* bitcast (%eh.CatchHandlerType* @llvm.eh.handlertype.H.0 to i8*)) #3
-  %matches6 = icmp eq i32 %ehselector.slot.0, %.pre
-  br i1 %matches6, label %catch.7, label %eh.resume
-
-catch.7:                                          ; preds = %catch.dispatch.4
-  tail call void @llvm.eh.begincatch(i8* %exn.slot.0, i8* null) #3
-  tail call void @may_throw(i32 4)
-  tail call void @llvm.eh.endcatch() #3
-  br label %try.cont.9
+  %cs1 = catchswitch within none [label %catch] unwind label %lpad.1
 
 catch:                                            ; preds = %lpad.1
-  tail call void @llvm.eh.begincatch(i8* %4, i8* null) #3
-  invoke void @may_throw(i32 3)
-          to label %invoke.cont.3 unwind label %lpad
+  %p1 = catchpad within %cs1 [%rtti.TypeDescriptor2* @"\01??_R0H@8", i32 0, i8* null]
+  invoke void @may_throw(i32 3) [ "funclet"(token %p1) ]
+          to label %invoke.cont.3 unwind label %lpad.1
 
 invoke.cont.3:                                    ; preds = %catch
-  tail call void @llvm.eh.endcatch() #3
-  br label %try.cont.9
+  catchret from %p1 to label %try.cont.9
 
-eh.resume:                                        ; preds = %catch.dispatch.4
-  %lpad.val = insertvalue { i8*, i32 } undef, i8* %exn.slot.0, 0
-  %lpad.val.12 = insertvalue { i8*, i32 } %lpad.val, i32 %ehselector.slot.0, 1
-  resume { i8*, i32 } %lpad.val.12
+lpad.1:                                           ; preds = %invoke.cont
+  %cs2 = catchswitch within none [label %catch.7] unwind to caller
+
+catch.7:
+  %p2 = catchpad within %cs2 [%rtti.TypeDescriptor2* @"\01??_R0H@8", i32 0, i8* null]
+  call void @may_throw(i32 4) [ "funclet"(token %p2) ]
+  catchret from %p2 to label %try.cont.9
 }
 
-; CHECK-LABEL: _f:
-; CHECK: movl $-1, [[state:[-0-9]+]](%ebp)
-; CHECK: movl $___ehhandler$f, {{.*}}
+; X86-LABEL: _f:
+; X86: movl $-1, [[state:[-0-9]+]](%ebp)
+; X86: movl $___ehhandler$f, {{.*}}
 ;
-; CHECK: movl $0, [[state]](%ebp)
-; CHECK: movl $1, (%esp)
-; CHECK: calll _may_throw
+; X86: movl $0, [[state]](%ebp)
+; X86: movl $1, (%esp)
+; X86: calll _may_throw
 ;
-; CHECK: movl $1, [[state]](%ebp)
-; CHECK: movl $2, (%esp)
-; CHECK: calll _may_throw
+; X86: movl $1, [[state]](%ebp)
+; X86: movl $2, (%esp)
+; X86: calll _may_throw
+;
+; X86: movl $2, [[state]](%ebp)
+; X86: movl $3, (%esp)
+; X86: calll _may_throw
+;
+; X86: movl $3, [[state]](%ebp)
+; X86: movl $4, (%esp)
+; X86: calll _may_throw
 
-; CHECK-LABEL: _f.catch:
-; CHECK: movl $4, Lf$frame_escape_{{[0-9]+.*}}
-; CHECK: movl $4, (%esp)
-; CHECK: calll _may_throw
 
-; CHECK-LABEL: _f.catch.1:
-; CHECK: movl $3, Lf$frame_escape_{{[0-9]+.*}}
-; CHECK: movl $3, (%esp)
-; CHECK: calll _may_throw
+; X64-LABEL: f:
+; X64-LABEL: $ip2state$f:
+; X64-NEXT:   .long .Lfunc_begin0@IMGREL
+; X64-NEXT:   .long -1
+; X64-NEXT:   .long .Ltmp{{.*}}@IMGREL+1
+; X64-NEXT:   .long 0
+; X64-NEXT:   .long .Ltmp{{.*}}@IMGREL+1
+; X64-NEXT:   .long 1
+; X64-NEXT:   .long .Ltmp{{.*}}@IMGREL+1
+; X64-NEXT:   .long -1
+; X64-NEXT:   .long "?catch${{.*}}@?0?f@4HA"@IMGREL
+; X64-NEXT:   .long 2
+; X64-NEXT:   .long "?catch${{.*}}@?0?f@4HA"@IMGREL
+; X64-NEXT:   .long 3
 
-; CHECK: .safeseh ___ehhandler$f
+; Based on this source:
+; extern "C" void may_throw(int);
+; struct S { ~S(); };
+; void g() {
+;   S x;
+;   try {
+;     may_throw(-1);
+;   } catch (...) {
+;     may_throw(0);
+;     {
+;       S y;
+;       may_throw(1);
+;     }
+;     may_throw(2);
+;   }
+; }
+
+%struct.S = type { i8 }
+declare void @"\01??1S@@QEAA@XZ"(%struct.S*)
+
+define void @g() personality i32 (...)* @__CxxFrameHandler3 {
+entry:
+  %x = alloca %struct.S, align 1
+  %y = alloca %struct.S, align 1
+  invoke void @may_throw(i32 -1)
+          to label %unreachable unwind label %catch.dispatch
+
+catch.dispatch:                                   ; preds = %entry
+  %0 = catchswitch within none [label %catch] unwind label %ehcleanup5
+
+catch:                                            ; preds = %catch.dispatch
+  %1 = catchpad within %0 [i8* null, i32 64, i8* null]
+  invoke void @may_throw(i32 0) [ "funclet"(token %1) ]
+          to label %invoke.cont unwind label %ehcleanup5
+
+invoke.cont:                                      ; preds = %catch
+  invoke void @may_throw(i32 1) [ "funclet"(token %1) ]
+          to label %invoke.cont2 unwind label %ehcleanup
+
+invoke.cont2:                                     ; preds = %invoke.cont
+  invoke void @"\01??1S@@QEAA@XZ"(%struct.S* nonnull %y) [ "funclet"(token %1) ]
+          to label %invoke.cont3 unwind label %ehcleanup5
+
+invoke.cont3:                                     ; preds = %invoke.cont2
+  invoke void @may_throw(i32 2) [ "funclet"(token %1) ]
+          to label %invoke.cont4 unwind label %ehcleanup5
+
+invoke.cont4:                                     ; preds = %invoke.cont3
+  catchret from %1 to label %try.cont
+
+try.cont:                                         ; preds = %invoke.cont4
+  call void @"\01??1S@@QEAA@XZ"(%struct.S* nonnull %x)
+  ret void
+
+ehcleanup:                                        ; preds = %invoke.cont
+  %2 = cleanuppad within %1 []
+  call void @"\01??1S@@QEAA@XZ"(%struct.S* nonnull %y) [ "funclet"(token %2) ]
+  cleanupret from %2 unwind label %ehcleanup5
+
+ehcleanup5:                                       ; preds = %invoke.cont2, %invoke.cont3, %ehcleanup, %catch, %catch.dispatch
+  %3 = cleanuppad within none []
+  call void @"\01??1S@@QEAA@XZ"(%struct.S* nonnull %x) [ "funclet"(token %3) ]
+  cleanupret from %3 unwind to caller
+
+unreachable:                                      ; preds = %entry
+  unreachable
+}
+
+; X86-LABEL: _g:
+; X86: movl $-1, [[state:[-0-9]+]](%ebp)
+; X86: movl $___ehhandler$g, {{.*}}
+;
+; X86: movl $1, [[state]](%ebp)
+; X86: movl $-1, (%esp)
+; X86: calll _may_throw
+;
+; X86: movl $2, [[state]](%ebp)
+; X86: movl $0, (%esp)
+; X86: calll _may_throw
+;
+; X86: movl $3, [[state]](%ebp)
+; X86: movl $1, (%esp)
+; X86: calll _may_throw
+;
+; X86: movl $2, [[state]](%ebp)
+; X86: movl $2, (%esp)
+; X86: calll _may_throw
+
+; X64-LABEL: g:
+; X64-LABEL: $ip2state$g:
+; X64-NEXT:   .long .Lfunc_begin1@IMGREL
+; X64-NEXT:   .long -1
+; X64-NEXT:   .long .Ltmp{{.*}}@IMGREL+1
+; X64-NEXT:   .long 1
+; X64-NEXT:   .long .Ltmp{{.*}}@IMGREL+1
+; X64-NEXT:   .long -1
+; X64-NEXT:   .long "?catch${{.*}}@?0?g@4HA"@IMGREL
+; X64-NEXT:   .long 2
+; X64-NEXT:   .long .Ltmp{{.*}}@IMGREL+1
+; X64-NEXT:   .long 3
+; X64-NEXT:   .long .Ltmp{{.*}}@IMGREL+1
+; X64-NEXT:   .long 2
+
+
+; X86: .safeseh ___ehhandler$f
+; X86: .safeseh ___ehhandler$g

@@ -138,3 +138,12 @@
         fdtox %f0, %f4
         fqtox %f0, %f4
 
+        ! CHECK: ld [%l0], %f29                  ! encoding: [0xfb,0x04,0x00,0x00]
+        ! CHECK: ldd [%l0], %f48                 ! encoding: [0xe3,0x1c,0x00,0x00]
+        ld [%l0], %f29
+        ldd [%l0], %f48
+
+        ! CHECK: st %f29, [%l0]                  ! encoding: [0xfb,0x24,0x00,0x00]
+        ! CHECK: std %f48, [%l0]                 ! encoding: [0xe3,0x3c,0x00,0x00]
+        st %f29, [%l0]
+        std %f48, [%l0]

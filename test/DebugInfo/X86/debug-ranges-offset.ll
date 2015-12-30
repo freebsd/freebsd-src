@@ -19,7 +19,7 @@
 @_end = external hidden global i32
 
 ; Function Attrs: sanitize_memory uwtable
-define void @_Z1fv() #0 {
+define void @_Z1fv() #0 !dbg !4 {
 entry:
   %p = alloca i32*, align 8
   %0 = ptrtoint i32** %p to i64, !dbg !19
@@ -82,7 +82,7 @@ if.end:                                           ; preds = %16, %if.then
 declare i8* @_Znwm(i64) #1
 
 ; Function Attrs: sanitize_memory uwtable
-define i32 @main() #0 {
+define i32 @main() #0 !dbg !13 {
 entry:
   %p.i = alloca i32*, align 8
   %0 = ptrtoint i32** %p.i to i64, !dbg !30
@@ -202,20 +202,20 @@ attributes #4 = { builtin }
 !llvm.module.flags = !{!16, !17}
 !llvm.ident = !{!18}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 207243) (llvm/trunk 207259)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 207243) (llvm/trunk 207259)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "foo.cpp", directory: "/usr/local/google/home/echristo/tmp")
 !2 = !{}
 !3 = !{!4, !13}
-!4 = !DISubprogram(name: "f", linkageName: "_Z1fv", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 3, file: !1, scope: !5, type: !6, function: void ()* @_Z1fv, variables: !8)
+!4 = distinct !DISubprogram(name: "f", linkageName: "_Z1fv", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 3, file: !1, scope: !5, type: !6, variables: !8)
 !5 = !DIFile(filename: "foo.cpp", directory: "/usr/local/google/home/echristo/tmp")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null}
 !8 = !{!9}
-!9 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "p", line: 4, scope: !4, file: !5, type: !10)
+!9 = !DILocalVariable(name: "p", line: 4, scope: !4, file: !5, type: !10)
 !10 = !DIDerivedType(tag: DW_TAG_volatile_type, baseType: !11)
 !11 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !12)
 !12 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!13 = !DISubprogram(name: "main", line: 9, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 9, file: !1, scope: !5, type: !14, function: i32 ()* @main, variables: !2)
+!13 = distinct !DISubprogram(name: "main", line: 9, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 9, file: !1, scope: !5, type: !14, variables: !2)
 !14 = !DISubroutineType(types: !15)
 !15 = !{!12}
 !16 = !{i32 2, !"Dwarf Version", i32 4}
@@ -234,7 +234,7 @@ attributes #4 = { builtin }
 !29 = !DILocation(line: 7, scope: !4)
 !30 = !DILocation(line: 4, scope: !4, inlinedAt: !31)
 !31 = !DILocation(line: 10, scope: !13)
-!32 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "p", line: 4, scope: !4, file: !5, type: !10)
+!32 = !DILocalVariable(name: "p", line: 4, scope: !4, file: !5, type: !10)
 !33 = !DILocation(line: 5, scope: !21, inlinedAt: !31)
 !34 = !DILocation(line: 6, scope: !21, inlinedAt: !31)
 !35 = !DILocation(line: 7, scope: !4, inlinedAt: !31)

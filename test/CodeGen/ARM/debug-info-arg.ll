@@ -6,12 +6,12 @@ target triple = "thumbv7-apple-ios"
 
 %struct.tag_s = type { i32, i32, i32 }
 
-define void @foo(%struct.tag_s* nocapture %this, %struct.tag_s* %c, i64 %x, i64 %y, %struct.tag_s* nocapture %ptr1, %struct.tag_s* nocapture %ptr2) nounwind ssp {
+define void @foo(%struct.tag_s* nocapture %this, %struct.tag_s* %c, i64 %x, i64 %y, %struct.tag_s* nocapture %ptr1, %struct.tag_s* nocapture %ptr2) nounwind ssp !dbg !1 {
   tail call void @llvm.dbg.value(metadata %struct.tag_s* %this, i64 0, metadata !5, metadata !DIExpression()), !dbg !20
   tail call void @llvm.dbg.value(metadata %struct.tag_s* %c, i64 0, metadata !13, metadata !DIExpression()), !dbg !21
   tail call void @llvm.dbg.value(metadata i64 %x, i64 0, metadata !14, metadata !DIExpression()), !dbg !22
   tail call void @llvm.dbg.value(metadata i64 %y, i64 0, metadata !17, metadata !DIExpression()), !dbg !23
-;CHECK:	@DEBUG_VALUE: foo:y <- [R7+8]
+;CHECK:	@DEBUG_VALUE: foo:y <- [%R7+8]
   tail call void @llvm.dbg.value(metadata %struct.tag_s* %ptr1, i64 0, metadata !18, metadata !DIExpression()), !dbg !24
   tail call void @llvm.dbg.value(metadata %struct.tag_s* %ptr2, i64 0, metadata !19, metadata !DIExpression()), !dbg !25
   %1 = icmp eq %struct.tag_s* %c, null, !dbg !26
@@ -32,12 +32,12 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!33}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "Apple clang version 3.0 (tags/Apple/clang-211.10.1) (based on LLVM 3.0svn)", isOptimized: true, emissionKind: 1, file: !32, enums: !{}, retainedTypes: !{}, subprograms: !30, imports:  null)
-!1 = !DISubprogram(name: "foo", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 11, file: !2, scope: !2, type: !3, function: void (%struct.tag_s*, %struct.tag_s*, i64, i64, %struct.tag_s*, %struct.tag_s*)* @foo, variables: !31)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "Apple clang version 3.0 (tags/Apple/clang-211.10.1) (based on LLVM 3.0svn)", isOptimized: true, emissionKind: 1, file: !32, enums: !{}, retainedTypes: !{}, subprograms: !30, imports:  null)
+!1 = distinct !DISubprogram(name: "foo", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 11, file: !2, scope: !2, type: !3, variables: !31)
 !2 = !DIFile(filename: "one.c", directory: "/Volumes/Athwagate/R10048772")
 !3 = !DISubroutineType(types: !4)
 !4 = !{null}
-!5 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 11, arg: 1, scope: !1, file: !2, type: !6)
+!5 = !DILocalVariable(name: "this", line: 11, arg: 1, scope: !1, file: !2, type: !6)
 !6 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, scope: !0, baseType: !7)
 !7 = !DICompositeType(tag: DW_TAG_structure_type, name: "tag_s", line: 5, size: 96, align: 32, file: !32, scope: !0, elements: !8)
 !8 = !{!9, !11, !12}
@@ -45,13 +45,13 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !10 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !11 = !DIDerivedType(tag: DW_TAG_member, name: "y", line: 7, size: 32, align: 32, offset: 32, file: !32, scope: !7, baseType: !10)
 !12 = !DIDerivedType(tag: DW_TAG_member, name: "z", line: 8, size: 32, align: 32, offset: 64, file: !32, scope: !7, baseType: !10)
-!13 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "c", line: 11, arg: 2, scope: !1, file: !2, type: !6)
-!14 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "x", line: 11, arg: 3, scope: !1, file: !2, type: !15)
+!13 = !DILocalVariable(name: "c", line: 11, arg: 2, scope: !1, file: !2, type: !6)
+!14 = !DILocalVariable(name: "x", line: 11, arg: 3, scope: !1, file: !2, type: !15)
 !15 = !DIDerivedType(tag: DW_TAG_typedef, name: "UInt64", line: 1, file: !32, scope: !0, baseType: !16)
 !16 = !DIBasicType(tag: DW_TAG_base_type, name: "long long unsigned int", size: 64, align: 32, encoding: DW_ATE_unsigned)
-!17 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "y", line: 11, arg: 4, scope: !1, file: !2, type: !15)
-!18 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "ptr1", line: 11, arg: 5, scope: !1, file: !2, type: !6)
-!19 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "ptr2", line: 11, arg: 6, scope: !1, file: !2, type: !6)
+!17 = !DILocalVariable(name: "y", line: 11, arg: 4, scope: !1, file: !2, type: !15)
+!18 = !DILocalVariable(name: "ptr1", line: 11, arg: 5, scope: !1, file: !2, type: !6)
+!19 = !DILocalVariable(name: "ptr2", line: 11, arg: 6, scope: !1, file: !2, type: !6)
 !20 = !DILocation(line: 11, column: 24, scope: !1)
 !21 = !DILocation(line: 11, column: 44, scope: !1)
 !22 = !DILocation(line: 11, column: 54, scope: !1)

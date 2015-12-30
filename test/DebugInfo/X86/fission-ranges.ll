@@ -29,16 +29,16 @@
 ; CHECK-NEXT:      Location description: 11 00
 ; CHECK-NEXT: {{^$}}
 ; CHECK-NEXT:   Beginning address index: 3
-; CHECK-NEXT:                    Length: 21
+; CHECK-NEXT:                    Length: 25
 ; CHECK-NEXT:      Location description: 50 93 04
 ; CHECK: [[E]]: Beginning address index: 4
-; CHECK-NEXT:                    Length: 19
+; CHECK-NEXT:                    Length: 23
 ; CHECK-NEXT:      Location description: 50 93 04
 ; CHECK: [[B]]: Beginning address index: 5
-; CHECK-NEXT:                    Length: 17
+; CHECK-NEXT:                    Length: 21
 ; CHECK-NEXT:      Location description: 50 93 04
 ; CHECK: [[D]]: Beginning address index: 6
-; CHECK-NEXT:                    Length: 17
+; CHECK-NEXT:                    Length: 21
 ; CHECK-NEXT:      Location description: 50 93 04
 
 ; Make sure we don't produce any relocations in any .dwo section (though in particular, debug_info.dwo)
@@ -82,14 +82,14 @@
 @c = external global i32
 
 ; Function Attrs: nounwind uwtable
-define void @bar() #0 {
+define void @bar() #0 !dbg !4 {
 entry:
   tail call fastcc void @foo(), !dbg !27
   ret void, !dbg !28
 }
 
 ; Function Attrs: nounwind uwtable
-define internal fastcc void @foo() #0 {
+define internal fastcc void @foo() #0 !dbg !8 {
 entry:
   tail call void @llvm.dbg.value(metadata i32 1, i64 0, metadata !13, metadata !DIExpression()), !dbg !30
   tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !14, metadata !DIExpression()), !dbg !31
@@ -153,26 +153,26 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!26, !43}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 (trunk 191700) (llvm/trunk 191710)", isOptimized: true, splitDebugFilename: "small.dwo", emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 (trunk 191700) (llvm/trunk 191710)", isOptimized: true, splitDebugFilename: "small.dwo", emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "small.c", directory: "/usr/local/google/home/echristo/tmp")
 !2 = !{}
 !3 = !{!4, !8}
-!4 = !DISubprogram(name: "bar", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 19, file: !1, scope: !5, type: !6, function: void ()* @bar, variables: !2)
+!4 = distinct !DISubprogram(name: "bar", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 19, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "small.c", directory: "/usr/local/google/home/echristo/tmp")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null}
-!8 = !DISubprogram(name: "foo", line: 2, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 3, file: !1, scope: !5, type: !9, function: void ()* @foo, variables: !12)
+!8 = distinct !DISubprogram(name: "foo", line: 2, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 3, file: !1, scope: !5, type: !9, variables: !12)
 !9 = !DISubroutineType(types: !10)
 !10 = !{null, !11}
 !11 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !12 = !{!13, !14, !15, !16, !18, !19}
-!13 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p", line: 2, arg: 1, scope: !8, file: !5, type: !11)
-!14 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 4, scope: !8, file: !5, type: !11)
-!15 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "b", line: 4, scope: !8, file: !5, type: !11)
-!16 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "d", line: 5, scope: !8, file: !5, type: !17)
+!13 = !DILocalVariable(name: "p", line: 2, arg: 1, scope: !8, file: !5, type: !11)
+!14 = !DILocalVariable(name: "a", line: 4, scope: !8, file: !5, type: !11)
+!15 = !DILocalVariable(name: "b", line: 4, scope: !8, file: !5, type: !11)
+!16 = !DILocalVariable(name: "d", line: 5, scope: !8, file: !5, type: !17)
 !17 = !DIBasicType(tag: DW_TAG_base_type, name: "unsigned int", size: 32, align: 32, encoding: DW_ATE_unsigned)
-!18 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "e", line: 5, scope: !8, file: !5, type: !17)
-!19 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "w", line: 12, scope: !20, file: !5, type: !25)
+!18 = !DILocalVariable(name: "e", line: 5, scope: !8, file: !5, type: !17)
+!19 = !DILocalVariable(name: "w", line: 12, scope: !20, file: !5, type: !25)
 !20 = distinct !DILexicalBlock(line: 11, column: 0, file: !1, scope: !21)
 !21 = distinct !DILexicalBlock(line: 10, column: 0, file: !1, scope: !22)
 !22 = distinct !DILexicalBlock(line: 9, column: 0, file: !1, scope: !23)

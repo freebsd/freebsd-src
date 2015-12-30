@@ -6,15 +6,15 @@ target triple = "thumbv7-apple-macosx10.6.7"
 ;CHECK-NEXT: Ltmp1
 ;CHECK-NEXT: LBB0_1
 
-;CHECK:@DEBUG_VALUE: x <- Q4{{$}}
-;CHECK-NEXT:@DEBUG_VALUE: y <- Q4{{$}}
+;CHECK:@DEBUG_VALUE: x <- %Q4{{$}}
+;CHECK-NEXT:@DEBUG_VALUE: y <- %Q4{{$}}
 
 
 @.str = external constant [13 x i8]
 
 declare <4 x float> @test0001(float) nounwind readnone ssp
 
-define i32 @main(i32 %argc, i8** nocapture %argv, i1 %cond) nounwind ssp {
+define i32 @main(i32 %argc, i8** nocapture %argv, i1 %cond) nounwind ssp !dbg !10 {
 entry:
   br label %for.body9
 
@@ -42,9 +42,9 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.module.flags = !{!56}
 !llvm.dbg.cu = !{!2}
 
-!0 = !DISubprogram(name: "test0001", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !54, scope: null, type: !3, function: <4 x float> (float)* @test0001, variables: !51)
+!0 = distinct !DISubprogram(name: "test0001", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !54, scope: null, type: !3, variables: !51)
 !1 = !DIFile(filename: "build2.c", directory: "/private/tmp")
-!2 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.0 (trunk 129915)", isOptimized: true, emissionKind: 1, file: !54, enums: !{}, retainedTypes: !{}, subprograms: !50, imports:  null)
+!2 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.0 (trunk 129915)", isOptimized: true, emissionKind: 1, file: !54, enums: !{}, retainedTypes: !{}, subprograms: !50, imports:  null)
 !3 = !DISubroutineType(types: !4)
 !4 = !{!5}
 !5 = !DIDerivedType(tag: DW_TAG_typedef, name: "v4f32", line: 14, file: !54, scope: !2, baseType: !6)
@@ -52,27 +52,27 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !7 = !DIBasicType(tag: DW_TAG_base_type, name: "float", size: 32, align: 32, encoding: DW_ATE_float)
 !8 = !{!9}
 !9 = !DISubrange(count: 4)
-!10 = !DISubprogram(name: "main", line: 59, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !54, scope: null, type: !11, function: i32 (i32, i8**, i1)* @main, variables: !52)
+!10 = distinct !DISubprogram(name: "main", line: 59, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !54, scope: null, type: !11, variables: !52)
 !11 = !DISubroutineType(types: !12)
 !12 = !{!13}
 !13 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!14 = !DISubprogram(name: "printFV", line: 41, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !55, scope: null, type: !16, variables: !53)
+!14 = distinct !DISubprogram(name: "printFV", line: 41, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !55, scope: null, type: !16, variables: !53)
 !15 = !DIFile(filename: "/Volumes/Lalgate/work/llvm/projects/llvm-test/SingleSource/UnitTests/Vector/helpers.h", directory: "/private/tmp")
 !16 = !DISubroutineType(types: !17)
 !17 = !{null}
-!18 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 3, arg: 1, scope: !0, file: !1, type: !7)
-!19 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "argc", line: 59, arg: 1, scope: !10, file: !1, type: !13)
-!20 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "argv", line: 59, arg: 2, scope: !10, file: !1, type: !21)
+!18 = !DILocalVariable(name: "a", line: 3, arg: 1, scope: !0, file: !1, type: !7)
+!19 = !DILocalVariable(name: "argc", line: 59, arg: 1, scope: !10, file: !1, type: !13)
+!20 = !DILocalVariable(name: "argv", line: 59, arg: 2, scope: !10, file: !1, type: !21)
 !21 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, scope: !2, baseType: !22)
 !22 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, scope: !2, baseType: !23)
 !23 = !DIBasicType(tag: DW_TAG_base_type, name: "char", size: 8, align: 8, encoding: DW_ATE_signed_char)
-!24 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "i", line: 60, scope: !25, file: !1, type: !13)
+!24 = !DILocalVariable(name: "i", line: 60, scope: !25, file: !1, type: !13)
 !25 = distinct !DILexicalBlock(line: 59, column: 33, file: !1, scope: !10)
-!26 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "j", line: 60, scope: !25, file: !1, type: !13)
-!27 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "x", line: 61, scope: !25, file: !1, type: !5)
-!28 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "y", line: 62, scope: !25, file: !1, type: !5)
-!29 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "z", line: 63, scope: !25, file: !1, type: !5)
-!30 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "F", line: 41, arg: 1, scope: !14, file: !15, type: !31)
+!26 = !DILocalVariable(name: "j", line: 60, scope: !25, file: !1, type: !13)
+!27 = !DILocalVariable(name: "x", line: 61, scope: !25, file: !1, type: !5)
+!28 = !DILocalVariable(name: "y", line: 62, scope: !25, file: !1, type: !5)
+!29 = !DILocalVariable(name: "z", line: 63, scope: !25, file: !1, type: !5)
+!30 = !DILocalVariable(name: "F", line: 41, arg: 1, scope: !14, file: !15, type: !31)
 !31 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, scope: !2, baseType: !32)
 !32 = !DIDerivedType(tag: DW_TAG_typedef, name: "FV", line: 25, file: !55, scope: !2, baseType: !33)
 !33 = !DICompositeType(tag: DW_TAG_union_type, line: 22, size: 128, align: 128, file: !55, scope: !2, elements: !34)

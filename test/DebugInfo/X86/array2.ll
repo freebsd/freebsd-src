@@ -17,7 +17,7 @@
 ;
 ; CHECK: define i32 @main
 ; CHECK: call void @llvm.dbg.value(metadata i32 42, i64 0, metadata ![[ARRAY:[0-9]+]], metadata ![[EXPR:[0-9]+]])
-; CHECK: ![[ARRAY]] = !DILocalVariable(tag: DW_TAG_auto_variable, name: "array",{{.*}} line: 6
+; CHECK: ![[ARRAY]] = !DILocalVariable(name: "array",{{.*}} line: 6
 ; CHECK: ![[EXPR]] = !DIExpression(DW_OP_bit_piece, 0, 32)
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.9.0"
@@ -25,7 +25,7 @@ target triple = "x86_64-apple-macosx10.9.0"
 @main.array = private unnamed_addr constant [4 x i32] [i32 0, i32 1, i32 2, i32 3], align 16
 
 ; Function Attrs: nounwind ssp uwtable
-define void @f(i32* %p) #0 {
+define void @f(i32* %p) #0 !dbg !4 {
 entry:
   %p.addr = alloca i32*, align 8
   store i32* %p, i32** %p.addr, align 8
@@ -40,7 +40,7 @@ entry:
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: nounwind ssp uwtable
-define i32 @main(i32 %argc, i8** %argv) #0 {
+define i32 @main(i32 %argc, i8** %argv) #0 !dbg !10 {
 entry:
   %retval = alloca i32, align 4
   %argc.addr = alloca i32, align 4
@@ -72,17 +72,17 @@ attributes #2 = { nounwind }
 !llvm.module.flags = !{!16, !17}
 !llvm.ident = !{!18}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "array.c", directory: "")
 !2 = !{}
 !3 = !{!4, !10}
-!4 = !DISubprogram(name: "f", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, function: void (i32*)* @f, variables: !2)
+!4 = distinct !DISubprogram(name: "f", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "array.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null, !8}
 !8 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !9)
 !9 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!10 = !DISubprogram(name: "main", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !5, type: !11, function: i32 (i32, i8**)* @main, variables: !2)
+!10 = distinct !DISubprogram(name: "main", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !5, type: !11, variables: !2)
 !11 = !DISubroutineType(types: !12)
 !12 = !{!9, !9, !13}
 !13 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !14)
@@ -91,14 +91,14 @@ attributes #2 = { nounwind }
 !16 = !{i32 2, !"Dwarf Version", i32 2}
 !17 = !{i32 1, !"Debug Info Version", i32 3}
 !18 = !{!"clang version 3.5.0 "}
-!19 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p", line: 1, arg: 1, scope: !4, file: !5, type: !8)
+!19 = !DILocalVariable(name: "p", line: 1, arg: 1, scope: !4, file: !5, type: !8)
 !20 = !DILocation(line: 1, scope: !4)
 !21 = !DILocation(line: 2, scope: !4)
 !22 = !DILocation(line: 3, scope: !4)
-!23 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "argc", line: 5, arg: 1, scope: !10, file: !5, type: !9)
+!23 = !DILocalVariable(name: "argc", line: 5, arg: 1, scope: !10, file: !5, type: !9)
 !24 = !DILocation(line: 5, scope: !10)
-!25 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "argv", line: 5, arg: 2, scope: !10, file: !5, type: !13)
-!26 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "array", line: 6, scope: !10, file: !5, type: !27)
+!25 = !DILocalVariable(name: "argv", line: 5, arg: 2, scope: !10, file: !5, type: !13)
+!26 = !DILocalVariable(name: "array", line: 6, scope: !10, file: !5, type: !27)
 !27 = !DICompositeType(tag: DW_TAG_array_type, size: 128, align: 32, baseType: !9, elements: !28)
 !28 = !{!29}
 !29 = !DISubrange(count: 4)

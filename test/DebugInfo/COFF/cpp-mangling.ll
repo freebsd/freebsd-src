@@ -29,15 +29,15 @@ attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"=
 !llvm.module.flags = !{!8, !9}
 !llvm.ident = !{!10}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 2, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 2, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "D:\5C")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "bar", line: 2, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !5, scope: !6, type: !7, function: i32 (i32)* @"\01?bar@foo@@YAHH@Z", variables: !2)
+!4 = distinct !DISubprogram(name: "bar", line: 2, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !5, scope: !6, type: !7, variables: !2)
 !5 = !DIFile(filename: "src.cpp", directory: "D:\5C")
 !6 = !DIFile(filename: "src.cpp", directory: "D:C")
 !7 = !DISubroutineType(types: !2)
-!8 = !{i32 2, !"Dwarf Version", i32 4}
+!8 = !{i32 2, !"CodeView", i32 1}
 !9 = !{i32 2, !"Debug Info Version", i32 3}
 !10 = !{!"clang version 3.6.0 "}
 !11 = !DILocation(line: 3, scope: !4)

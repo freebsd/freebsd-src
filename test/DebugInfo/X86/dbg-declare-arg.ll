@@ -7,7 +7,7 @@ target triple = "x86_64-apple-macosx10.6.7"
 
 %class.A = type { i32, i32, i32, i32 }
 
-define void @_Z3fooi(%class.A* sret %agg.result, i32 %i) ssp {
+define void @_Z3fooi(%class.A* sret %agg.result, i32 %i) ssp !dbg !19 {
 entry:
   %i.addr = alloca i32, align 4
   %j = alloca i32, align 4
@@ -48,7 +48,7 @@ nrvo.skipdtor:                                    ; preds = %nrvo.unused, %if.en
 
 declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 
-define linkonce_odr void @_ZN1AD1Ev(%class.A* %this) unnamed_addr ssp align 2 {
+define linkonce_odr void @_ZN1AD1Ev(%class.A* %this) unnamed_addr ssp align 2 !dbg !22 {
 entry:
   %this.addr = alloca %class.A*, align 8
   store %class.A* %this, %class.A** %this.addr, align 8
@@ -58,7 +58,7 @@ entry:
   ret void, !dbg !45
 }
 
-define linkonce_odr void @_ZN1AD2Ev(%class.A* %this) unnamed_addr nounwind ssp align 2 {
+define linkonce_odr void @_ZN1AD2Ev(%class.A* %this) unnamed_addr nounwind ssp align 2 !dbg !25 {
 entry:
   %this.addr = alloca %class.A*, align 8
   store %class.A* %this, %class.A** %this.addr, align 8
@@ -74,7 +74,7 @@ entry:
 
 !0 = !DISubprogram(name: "~A", line: 2, isLocal: false, isDefinition: false, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !51, scope: !1, type: !11)
 !1 = !DICompositeType(tag: DW_TAG_class_type, name: "A", line: 2, size: 128, align: 32, file: !51, scope: !2, elements: !4)
-!2 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.0 (trunk 130127)", isOptimized: false, emissionKind: 1, file: !51, enums: !{}, retainedTypes: !{}, subprograms: !50)
+!2 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.0 (trunk 130127)", isOptimized: false, emissionKind: 1, file: !51, enums: !{}, retainedTypes: !{}, subprograms: !50)
 !3 = !DIFile(filename: "a.cc", directory: "/private/tmp")
 !4 = !{!5, !7, !8, !9, !0, !10, !14}
 !5 = !DIDerivedType(tag: DW_TAG_member, name: "x", line: 2, size: 32, align: 32, file: !51, scope: !3, baseType: !6)
@@ -91,16 +91,16 @@ entry:
 !16 = !{null, !13, !17}
 !17 = !DIDerivedType(tag: DW_TAG_reference_type, scope: !2, baseType: !18)
 !18 = !DIDerivedType(tag: DW_TAG_const_type, file: !3, baseType: !1)
-!19 = !DISubprogram(name: "foo", linkageName: "_Z3fooi", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !51, scope: !3, type: !20, function: void (%class.A*, i32)* @_Z3fooi)
+!19 = distinct !DISubprogram(name: "foo", linkageName: "_Z3fooi", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !51, scope: !3, type: !20)
 !20 = !DISubroutineType(types: !21)
 !21 = !{!1}
-!22 = !DISubprogram(name: "~A", linkageName: "_ZN1AD1Ev", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !51, scope: !3, type: !23, function: void (%class.A*)* @_ZN1AD1Ev)
+!22 = distinct !DISubprogram(name: "~A", linkageName: "_ZN1AD1Ev", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !51, scope: !3, type: !23)
 !23 = !DISubroutineType(types: !24)
 !24 = !{null}
-!25 = !DISubprogram(name: "~A", linkageName: "_ZN1AD2Ev", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !51, scope: !3, type: !23, function: void (%class.A*)* @_ZN1AD2Ev)
-!26 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "i", line: 4, arg: 1, scope: !19, file: !3, type: !6)
+!25 = distinct !DISubprogram(name: "~A", linkageName: "_ZN1AD2Ev", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !51, scope: !3, type: !23)
+!26 = !DILocalVariable(name: "i", line: 4, arg: 1, scope: !19, file: !3, type: !6)
 !27 = !DILocation(line: 4, column: 11, scope: !19)
-!28 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "j", line: 5, scope: !29, file: !3, type: !6)
+!28 = !DILocalVariable(name: "j", line: 5, scope: !29, file: !3, type: !6)
 !29 = distinct !DILexicalBlock(line: 4, column: 14, file: !51, scope: !19)
 !30 = !DILocation(line: 5, column: 7, scope: !29)
 !31 = !DILocation(line: 5, column: 12, scope: !29)
@@ -109,16 +109,16 @@ entry:
 !34 = distinct !DILexicalBlock(line: 6, column: 16, file: !51, scope: !29)
 !35 = !DILocation(line: 8, column: 3, scope: !34)
 !36 = !DILocation(line: 9, column: 9, scope: !29)
-!37 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "my_a", line: 9, scope: !29, file: !3, type: !38)
+!37 = !DILocalVariable(name: "my_a", line: 9, scope: !29, file: !3, type: !38)
 !38 = !DIDerivedType(tag: DW_TAG_reference_type, file: !3, baseType: !1)
 !39 = !DILocation(line: 9, column: 5, scope: !29)
 !40 = !DILocation(line: 10, column: 3, scope: !29)
 !41 = !DILocation(line: 11, column: 3, scope: !29)
 !42 = !DILocation(line: 12, column: 1, scope: !29)
-!43 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 2, arg: 1, flags: DIFlagArtificial, scope: !22, file: !3, type: !13)
+!43 = !DILocalVariable(name: "this", line: 2, arg: 1, flags: DIFlagArtificial, scope: !22, file: !3, type: !13)
 !44 = !DILocation(line: 2, column: 47, scope: !22)
 !45 = !DILocation(line: 2, column: 61, scope: !22)
-!46 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 2, arg: 1, flags: DIFlagArtificial, scope: !25, file: !3, type: !13)
+!46 = !DILocalVariable(name: "this", line: 2, arg: 1, flags: DIFlagArtificial, scope: !25, file: !3, type: !13)
 !47 = !DILocation(line: 2, column: 47, scope: !25)
 !48 = !DILocation(line: 2, column: 54, scope: !49)
 !49 = distinct !DILexicalBlock(line: 2, column: 52, file: !51, scope: !25)

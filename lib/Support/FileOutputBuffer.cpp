@@ -15,6 +15,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Errc.h"
+#include "llvm/Support/Signals.h"
 #include <system_error>
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
@@ -34,10 +35,8 @@ FileOutputBuffer::~FileOutputBuffer() {
   sys::fs::remove(Twine(TempPath));
 }
 
-std::error_code
-FileOutputBuffer::create(StringRef FilePath, size_t Size,
-                         std::unique_ptr<FileOutputBuffer> &Result,
-                         unsigned Flags) {
+ErrorOr<std::unique_ptr<FileOutputBuffer>>
+FileOutputBuffer::create(StringRef FilePath, size_t Size, unsigned Flags) {
   // If file already exists, it must be a regular file (to be mappable).
   sys::fs::file_status Stat;
   std::error_code EC = sys::fs::status(FilePath, Stat);
@@ -76,6 +75,8 @@ FileOutputBuffer::create(StringRef FilePath, size_t Size,
   if (EC)
     return EC;
 
+  sys::RemoveFileOnSignal(TempFilePath);
+
 #ifndef LLVM_ON_WIN32
   // On Windows, CreateFileMapping (the mmap function on Windows)
   // automatically extends the underlying file. We don't need to
@@ -95,10 +96,9 @@ FileOutputBuffer::create(StringRef FilePath, size_t Size,
   if (Ret)
     return std::error_code(errno, std::generic_category());
 
-  Result.reset(
+  std::unique_ptr<FileOutputBuffer> Buf(
       new FileOutputBuffer(std::move(MappedFile), FilePath, TempFilePath));
-
-  return std::error_code();
+  return std::move(Buf);
 }
 
 std::error_code FileOutputBuffer::commit() {
@@ -107,6 +107,8 @@ std::error_code FileOutputBuffer::commit() {
 
 
   // Rename file to final name.
-  return sys::fs::rename(Twine(TempPath), Twine(FinalPath));
+  std::error_code EC = sys::fs::rename(Twine(TempPath), Twine(FinalPath));
+  sys::DontRemoveFileOnSignal(TempPath);
+  return EC;
 }
 } // namespace

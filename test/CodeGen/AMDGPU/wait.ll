@@ -1,11 +1,16 @@
-; RUN: llc -march=amdgcn -mcpu=SI -verify-machineinstrs < %s | FileCheck -strict-whitespace %s
-; RUN: llc -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -strict-whitespace %s
+; RUN: llc -march=amdgcn -mcpu=SI -verify-machineinstrs < %s | FileCheck -strict-whitespace %s --check-prefix=DEFAULT
+; RUN: llc -march=amdgcn -mcpu=tonga -verify-machineinstrs < %s | FileCheck -strict-whitespace %s --check-prefix=DEFAULT
+; RUN: llc -march=amdgcn --misched=ilpmax -mcpu=SI -verify-machineinstrs < %s | FileCheck -strict-whitespace %s --check-prefix=ILPMAX
+; RUN: llc -march=amdgcn --misched=ilpmax -mcpu=tonga -verify-machineinstrs < %s | FileCheck -strict-whitespace %s --check-prefix=ILPMAX
+; The ilpmax scheduler is used for the second test to get the ordering we want for the test.
 
-; CHECK-LABEL: {{^}}main:
-; CHECK: s_load_dwordx4
-; CHECK: s_load_dwordx4
-; CHECK: s_waitcnt vmcnt(0) lgkmcnt(0){{$}}
-; CHECK: s_endpgm
+; DEFAULT-LABEL: {{^}}main:
+; DEFAULT: s_load_dwordx4
+; DEFAULT: s_load_dwordx4
+; DEFAULT: s_waitcnt vmcnt(0)
+; DEFAULT: exp
+; DEFAULT: s_waitcnt lgkmcnt(0)
+; DEFAULT: s_endpgm
 define void @main(<16 x i8> addrspace(2)* inreg %arg, <16 x i8> addrspace(2)* inreg %arg1, <32 x i8> addrspace(2)* inreg %arg2, <16 x i8> addrspace(2)* inreg %arg3, <16 x i8> addrspace(2)* inreg %arg4, i32 inreg %arg5, i32 %arg6, i32 %arg7, i32 %arg8, i32 %arg9, float addrspace(2)* inreg %constptr) #0 {
 main_body:
   %tmp = getelementptr <16 x i8>, <16 x i8> addrspace(2)* %arg3, i32 0
@@ -29,7 +34,43 @@ main_body:
   ret void
 }
 
-; Function Attrs: noduplicate nounwind
+; ILPMAX-LABEL: {{^}}main2:
+; ILPMAX: s_load_dwordx4
+; ILPMAX: s_waitcnt lgkmcnt(0)
+; ILPMAX: buffer_load
+; ILPMAX: s_load_dwordx4
+; ILPMAX: s_waitcnt lgkmcnt(0)
+; ILPMAX: buffer_load
+; ILPMAX: s_waitcnt vmcnt(1)
+; ILPMAX: s_waitcnt vmcnt(0)
+; ILPMAX: s_endpgm
+
+define void @main2([6 x <16 x i8>] addrspace(2)* byval, [17 x <16 x i8>] addrspace(2)* byval, [17 x <4 x i32>] addrspace(2)* byval, [34 x <8 x i32>] addrspace(2)* byval, [16 x <16 x i8>] addrspace(2)*
+byval, i32 inreg, i32 inreg, i32, i32, i32, i32) #0 {
+main_body:
+  %11 = getelementptr [16 x <16 x i8>], [16 x <16 x i8>] addrspace(2)* %4, i64 0, i64 0
+  %12 = load <16 x i8>, <16 x i8> addrspace(2)* %11, align 16, !tbaa !0
+  %13 = add i32 %5, %7
+  %14 = call <4 x float> @llvm.SI.vs.load.input(<16 x i8> %12, i32 0, i32 %13)
+  %15 = extractelement <4 x float> %14, i32 0
+  %16 = extractelement <4 x float> %14, i32 1
+  %17 = extractelement <4 x float> %14, i32 2
+  %18 = extractelement <4 x float> %14, i32 3
+  %19 = getelementptr [16 x <16 x i8>], [16 x <16 x i8>] addrspace(2)* %4, i64 0, i64 1
+  %20 = load <16 x i8>, <16 x i8> addrspace(2)* %19, align 16, !tbaa !0
+  %21 = add i32 %5, %7
+  %22 = call <4 x float> @llvm.SI.vs.load.input(<16 x i8> %20, i32 0, i32 %21)
+  %23 = extractelement <4 x float> %22, i32 0
+  %24 = extractelement <4 x float> %22, i32 1
+  %25 = extractelement <4 x float> %22, i32 2
+  %26 = extractelement <4 x float> %22, i32 3
+  call void @llvm.SI.export(i32 15, i32 0, i32 1, i32 12, i32 0, float %15, float %16, float %17, float %18)
+  call void @llvm.SI.export(i32 15, i32 0, i32 0, i32 32, i32 0, float %23, float %24, float %25, float %26)
+  ret void
+}
+
+
+; Function Attrs: convergent nounwind
 declare void @llvm.AMDGPU.barrier.global() #1
 
 ; Function Attrs: nounwind readnone
@@ -38,7 +79,7 @@ declare <4 x float> @llvm.SI.vs.load.input(<16 x i8>, i32, i32) #2
 declare void @llvm.SI.export(i32, i32, i32, i32, i32, float, float, float, float)
 
 attributes #0 = { "ShaderType"="1" }
-attributes #1 = { noduplicate nounwind }
+attributes #1 = { convergent nounwind }
 attributes #2 = { nounwind readnone }
 
 !0 = !{!1, !1, i64 0, i32 1}

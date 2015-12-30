@@ -23,7 +23,7 @@
 ; ASM: testl
 
 ; Function Attrs: nounwind uwtable
-define void @func() #0 {
+define void @func() #0 !dbg !4 {
 entry:
   %y.addr.i = alloca i32, align 4
   %x = alloca i32, align 4
@@ -48,26 +48,26 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!12, !13}
 !llvm.ident = !{!14}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "inline-seldag-test.c", directory: "/tmp/dbginfo")
 !2 = !{}
 !3 = !{!4, !8}
-!4 = !DISubprogram(name: "func", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 4, file: !1, scope: !5, type: !6, function: void ()* @func, variables: !2)
+!4 = distinct !DISubprogram(name: "func", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 4, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "inline-seldag-test.c", directory: "/tmp/dbginfo")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null}
-!8 = !DISubprogram(name: "f", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !9, variables: !2)
+!8 = distinct !DISubprogram(name: "f", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !9, variables: !2)
 !9 = !DISubroutineType(types: !10)
 !10 = !{!11, !11}
 !11 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !12 = !{i32 2, !"Dwarf Version", i32 4}
 !13 = !{i32 1, !"Debug Info Version", i32 3}
 !14 = !{!"clang version 3.5.0 "}
-!15 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "x", line: 5, scope: !4, file: !5, type: !16)
+!15 = !DILocalVariable(name: "x", line: 5, scope: !4, file: !5, type: !16)
 !16 = !DIDerivedType(tag: DW_TAG_volatile_type, baseType: !11)
 !17 = !DILocation(line: 5, scope: !4)
 !18 = !DILocation(line: 6, column: 7, scope: !4)
-!19 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "y", line: 1, arg: 1, scope: !8, file: !5, type: !11)
+!19 = !DILocalVariable(name: "y", line: 1, arg: 1, scope: !8, file: !5, type: !11)
 !20 = !DILocation(line: 1, scope: !8, inlinedAt: !18)
 !21 = !DILocation(line: 2, scope: !8, inlinedAt: !18)
 !22 = !DILocation(line: 7, scope: !4)

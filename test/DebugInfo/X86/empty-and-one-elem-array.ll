@@ -5,7 +5,7 @@
 %struct.foo = type { i32, [1 x i32] }
 %struct.bar = type { i32, [0 x i32] }
 
-define i32 @func() nounwind uwtable ssp {
+define i32 @func() nounwind uwtable ssp !dbg !5 {
 entry:
   %my_foo = alloca %struct.foo, align 4
   %my_bar = alloca %struct.bar, align 4
@@ -63,15 +63,15 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!33}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.3 (trunk 169136)", isOptimized: false, emissionKind: 0, file: !32, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1, imports:  !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.3 (trunk 169136)", isOptimized: false, emissionKind: 0, file: !32, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1, imports:  !1)
 !1 = !{}
 !3 = !{!5}
-!5 = !DISubprogram(name: "func", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 11, file: !6, scope: !6, type: !7, function: i32 ()* @func, variables: !1)
+!5 = distinct !DISubprogram(name: "func", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 11, file: !6, scope: !6, type: !7, variables: !1)
 !6 = !DIFile(filename: "test.c", directory: "/Volumes/Sandbox/llvm")
 !7 = !DISubroutineType(types: !8)
 !8 = !{!9}
 !9 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!10 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "my_foo", line: 12, scope: !11, file: !6, type: !12)
+!10 = !DILocalVariable(name: "my_foo", line: 12, scope: !11, file: !6, type: !12)
 !11 = distinct !DILexicalBlock(line: 11, column: 0, file: !6, scope: !5)
 !12 = !DICompositeType(tag: DW_TAG_structure_type, name: "foo", line: 1, size: 64, align: 32, file: !32, elements: !13)
 !13 = !{!14, !15}
@@ -81,7 +81,7 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 !17 = !{!18}
 !18 = !DISubrange(count: 1)
 !19 = !DILocation(line: 12, scope: !11)
-!20 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "my_bar", line: 13, scope: !11, file: !6, type: !21)
+!20 = !DILocalVariable(name: "my_bar", line: 13, scope: !11, file: !6, type: !21)
 !21 = !DICompositeType(tag: DW_TAG_structure_type, name: "bar", line: 6, size: 32, align: 32, file: !32, elements: !22)
 !22 = !{!23, !24}
 !23 = !DIDerivedType(tag: DW_TAG_member, name: "a", line: 7, size: 32, align: 32, file: !32, scope: !21, baseType: !9)

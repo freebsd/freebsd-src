@@ -29,7 +29,7 @@ target triple = "x86_64-apple-macosx10.9.0"
 %struct.Inner = type { i32, i64 }
 
 ; Function Attrs: nounwind ssp uwtable
-define i32 @foo(%struct.Outer* byval align 8 %outer) #0 {
+define i32 @foo(%struct.Outer* byval align 8 %outer) #0 !dbg !4 {
 entry:
   call void @llvm.dbg.declare(metadata %struct.Outer* %outer, metadata !25, metadata !DIExpression()), !dbg !26
   %i1.sroa.0.0..sroa_idx = getelementptr inbounds %struct.Outer, %struct.Outer* %outer, i64 0, i32 0, i64 1, i32 0, !dbg !27
@@ -57,11 +57,11 @@ attributes #2 = { nounwind }
 !llvm.module.flags = !{!22, !23}
 !llvm.ident = !{!24}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "sroasplit-1.c", directory: "")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "foo", line: 10, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 10, file: !1, scope: !5, type: !6, function: i32 (%struct.Outer*)* @foo, variables: !2)
+!4 = distinct !DISubprogram(name: "foo", line: 10, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 10, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "sroasplit-1.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8, !9}
@@ -82,10 +82,10 @@ attributes #2 = { nounwind }
 !22 = !{i32 2, !"Dwarf Version", i32 2}
 !23 = !{i32 1, !"Debug Info Version", i32 3}
 !24 = !{!"clang version 3.5.0 "}
-!25 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "outer", line: 10, arg: 1, scope: !4, file: !5, type: !9)
+!25 = !DILocalVariable(name: "outer", line: 10, arg: 1, scope: !4, file: !5, type: !9)
 !26 = !DILocation(line: 10, scope: !4)
 !27 = !DILocation(line: 11, scope: !4)
-!28 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "i1", line: 11, scope: !4, file: !5, type: !14)
+!28 = !DILocalVariable(name: "i1", line: 11, scope: !4, file: !5, type: !14)
 !29 = !DIExpression(DW_OP_bit_piece, 0, 32)
 !31 = !{i32 3, i32 0, i32 12}
 !32 = !DILocation(line: 12, scope: !4)

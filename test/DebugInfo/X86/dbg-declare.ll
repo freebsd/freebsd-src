@@ -1,7 +1,7 @@
 ; RUN: llc < %s -O0 -mtriple x86_64-apple-darwin
 ; <rdar://problem/11134152>
 
-define i32 @foo(i32* %x) nounwind uwtable ssp {
+define i32 @foo(i32* %x) nounwind uwtable ssp !dbg !5 {
 entry:
   %x.addr = alloca i32*, align 8
   %saved_stack = alloca i8*
@@ -30,21 +30,21 @@ declare void @llvm.stackrestore(i8*) nounwind
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!27}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.1 (trunk 153698)", isOptimized: false, emissionKind: 0, file: !26, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.1 (trunk 153698)", isOptimized: false, emissionKind: 0, file: !26, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1)
 !1 = !{}
 !3 = !{!5}
-!5 = !DISubprogram(name: "foo", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !26, scope: !0, type: !7, function: i32 (i32*)* @foo)
+!5 = distinct !DISubprogram(name: "foo", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, file: !26, scope: !0, type: !7)
 !6 = !DIFile(filename: "20020104-2.c", directory: "/Volumes/Sandbox/llvm")
 !7 = !DISubroutineType(types: !8)
 !8 = !{!9, !10}
 !9 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !10 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !11)
 !11 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !9)
-!14 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "x", line: 5, arg: 1, scope: !5, file: !6, type: !10)
+!14 = !DILocalVariable(name: "x", line: 5, arg: 1, scope: !5, file: !6, type: !10)
 !15 = !DILocation(line: 5, column: 21, scope: !5)
 !16 = !DILocation(line: 7, column: 13, scope: !17)
 !17 = distinct !DILexicalBlock(line: 6, column: 1, file: !26, scope: !5)
-!18 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 7, scope: !17, file: !6, type: !19)
+!18 = !DILocalVariable(name: "a", line: 7, scope: !17, file: !6, type: !19)
 !19 = !DICompositeType(tag: DW_TAG_array_type, align: 8, baseType: !20, elements: !21)
 !20 = !DIBasicType(tag: DW_TAG_base_type, name: "char", size: 8, align: 8, encoding: DW_ATE_signed_char)
 !21 = !{!22}

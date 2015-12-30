@@ -27,22 +27,35 @@ namespace dsymutil {
 struct LinkOptions {
   bool Verbose;  ///< Verbosity
   bool NoOutput; ///< Skip emitting output
+  bool NoODR;    ///< Do not unique types according to ODR
+  std::string PrependPath; ///< -oso-prepend-path
 
   LinkOptions() : Verbose(false), NoOutput(false) {}
 };
 
-/// \brief Extract the DebugMap from the given file.
-/// The file has to be a MachO object file.
-llvm::ErrorOr<std::unique_ptr<DebugMap>> parseDebugMap(StringRef InputFile,
-                                                       StringRef PrependPath,
-                                                       bool Verbose,
-                                                       bool InputIsYAML);
+/// \brief Extract the DebugMaps from the given file.
+/// The file has to be a MachO object file. Multiple debug maps can be
+/// returned when the file is universal (aka fat) binary.
+llvm::ErrorOr<std::vector<std::unique_ptr<DebugMap>>>
+parseDebugMap(StringRef InputFile, ArrayRef<std::string> Archs,
+              StringRef PrependPath, bool Verbose, bool InputIsYAML);
+
+/// \brief Dump the symbol table
+bool dumpStab(StringRef InputFile, ArrayRef<std::string> Archs,
+              StringRef PrependPath = "");
 
 /// \brief Link the Dwarf debuginfo as directed by the passed DebugMap
 /// \p DM into a DwarfFile named \p OutputFilename.
 /// \returns false if the link failed.
 bool linkDwarf(StringRef OutputFilename, const DebugMap &DM,
                const LinkOptions &Options);
+
+/// \brief Exit the dsymutil process, cleaning up every temporary
+/// files that we created.
+LLVM_ATTRIBUTE_NORETURN void exitDsymutil(int ExitStatus);
+
+void warn(const Twine &Warning, const Twine &Context);
+bool error(const Twine &Error, const Twine &Context);
 }
 }
 #endif // LLVM_TOOLS_DSYMUTIL_DSYMUTIL_H

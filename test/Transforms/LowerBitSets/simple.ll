@@ -6,8 +6,8 @@ target datalayout = "e-p:32:32"
 
 ; CHECK: [[G:@[^ ]*]] = private constant { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] } { i32 1, [0 x i8] zeroinitializer, [63 x i32] zeroinitializer, [4 x i8] zeroinitializer, i32 3, [0 x i8] zeroinitializer, [2 x i32] [i32 4, i32 5] }
 @a = constant i32 1
-@b = constant [63 x i32] zeroinitializer
-@c = constant i32 3
+@b = hidden constant [63 x i32] zeroinitializer
+@c = protected constant i32 3
 @d = constant [2 x i32] [i32 4, i32 5]
 
 ; CHECK: [[BA:@[^ ]*]] = private constant [68 x i8] c"\03\01\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\02\00\01"
@@ -26,26 +26,26 @@ target datalayout = "e-p:32:32"
 !4 = !{!"bitset2", i32* @c, i32 0}
 ; CHECK-NODISCARD-DAG: !{!"bitset2", i32* @c, i32 0}
 
-; Offset 0, 4 byte alignment
-!5 = !{!"bitset3", i32* @a, i32 0}
-; CHECK-NODISCARD-DAG: !{!"bitset3", i32* @a, i32 0}
-!6 = !{!"bitset3", i32* @c, i32 0}
-; CHECK-NODISCARD-DAG: !{!"bitset3", i32* @c, i32 0}
-
 ; Entries whose second operand is null (the result of a global being DCE'd)
 ; should be ignored.
-!7 = !{!"bitset2", null, i32 0}
+!5 = !{!"bitset2", null, i32 0}
+
+; Offset 0, 4 byte alignment
+!6 = !{!"bitset3", i32* @a, i32 0}
+; CHECK-NODISCARD-DAG: !{!"bitset3", i32* @a, i32 0}
+!7 = !{!"bitset3", i32* @c, i32 0}
+; CHECK-NODISCARD-DAG: !{!"bitset3", i32* @c, i32 0}
 
 !llvm.bitsets = !{ !0, !1, !2, !3, !4, !5, !6, !7 }
 
-; CHECK: @bits_use{{[0-9]*}} = private alias i8* @bits{{[0-9]*}}
-; CHECK: @bits_use.{{[0-9]*}} = private alias i8* @bits{{[0-9]*}}
-; CHECK: @bits_use.{{[0-9]*}} = private alias i8* @bits{{[0-9]*}}
+; CHECK: @bits_use{{[0-9]*}} = private alias i8, i8* @bits{{[0-9]*}}
+; CHECK: @bits_use.{{[0-9]*}} = private alias i8, i8* @bits{{[0-9]*}}
+; CHECK: @bits_use.{{[0-9]*}} = private alias i8, i8* @bits{{[0-9]*}}
 
-; CHECK: @a = alias getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 0)
-; CHECK: @b = alias getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 2)
-; CHECK: @c = alias getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 4)
-; CHECK: @d = alias getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 6)
+; CHECK: @a = alias i32, getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 0)
+; CHECK: @b = hidden alias [63 x i32], getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 2)
+; CHECK: @c = protected alias i32, getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 4)
+; CHECK: @d = alias [2 x i32], getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G]], i32 0, i32 6)
 
 ; CHECK-DARWIN: @aptr = constant i32* getelementptr inbounds ({ i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }, { i32, [0 x i8], [63 x i32], [4 x i8], i32, [0 x i8], [2 x i32] }* [[G:@[^ ]*]], i32 0, i32 0)
 @aptr = constant i32* @a
@@ -61,8 +61,8 @@ target datalayout = "e-p:32:32"
 
 ; CHECK-DARWIN: [[G]] = private constant
 
-; CHECK: @bits{{[0-9]*}} = private alias getelementptr inbounds ([68 x i8], [68 x i8]* [[BA]], i32 0, i32 0)
-; CHECK: @bits.{{[0-9]*}} = private alias getelementptr inbounds ([68 x i8], [68 x i8]* [[BA]], i32 0, i32 0)
+; CHECK: @bits{{[0-9]*}} = private alias i8, getelementptr inbounds ([68 x i8], [68 x i8]* [[BA]], i32 0, i32 0)
+; CHECK: @bits.{{[0-9]*}} = private alias i8, getelementptr inbounds ([68 x i8], [68 x i8]* [[BA]], i32 0, i32 0)
 
 declare i1 @llvm.bitset.test(i8* %ptr, metadata %bitset) nounwind readnone
 

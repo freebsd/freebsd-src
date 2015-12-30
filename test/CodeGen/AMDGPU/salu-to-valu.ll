@@ -1,4 +1,8 @@
-; RUN: llc < %s -march=amdgcn -mcpu=SI -verify-machineinstrs | FileCheck %s
+; RUN: llc -march=amdgcn -mcpu=tahiti -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=SI %s
+; RUN: llc -march=amdgcn -mcpu=bonaire -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=CI %s
+
+declare i32 @llvm.r600.read.tidig.x() #0
+declare i32 @llvm.r600.read.tidig.y() #0
 
 ; In this test both the pointer and the offset operands to the
 ; BUFFER_LOAD instructions end up being stored in vgprs.  This
@@ -7,94 +11,267 @@
 ; sgpr register pair and use that for the pointer operand
 ; (low 64-bits of srsrc).
 
-; CHECK-LABEL: {{^}}mubuf:
+; GCN-LABEL: {{^}}mubuf:
 
 ; Make sure we aren't using VGPRs for the source operand of s_mov_b64
-; CHECK-NOT: s_mov_b64 s[{{[0-9]+:[0-9]+}}], v
+; GCN-NOT: s_mov_b64 s[{{[0-9]+:[0-9]+}}], v
 
 ; Make sure we aren't using VGPR's for the srsrc operand of BUFFER_LOAD_*
 ; instructions
-; CHECK: buffer_load_ubyte v{{[0-9]+}}, v[{{[0-9]+:[0-9]+}}], s[{{[0-9]+:[0-9]+}}], 0 addr64
-; CHECK: buffer_load_ubyte v{{[0-9]+}}, v[{{[0-9]+:[0-9]+}}], s[{{[0-9]+:[0-9]+}}], 0 addr64
-define void @mubuf(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
+; GCN: buffer_load_ubyte v{{[0-9]+}}, v[{{[0-9]+:[0-9]+}}], s[{{[0-9]+:[0-9]+}}], 0 addr64
+; GCN: buffer_load_ubyte v{{[0-9]+}}, v[{{[0-9]+:[0-9]+}}], s[{{[0-9]+:[0-9]+}}], 0 addr64
+
+define void @mubuf(i32 addrspace(1)* %out, i8 addrspace(1)* %in) #1 {
 entry:
-  %0 = call i32 @llvm.r600.read.tidig.x() #1
-  %1 = call i32 @llvm.r600.read.tidig.y() #1
-  %2 = sext i32 %0 to i64
-  %3 = sext i32 %1 to i64
+  %tmp = call i32 @llvm.r600.read.tidig.x()
+  %tmp1 = call i32 @llvm.r600.read.tidig.y()
+  %tmp2 = sext i32 %tmp to i64
+  %tmp3 = sext i32 %tmp1 to i64
   br label %loop
 
-loop:
-  %4 = phi i64 [0, %entry], [%5, %loop]
-  %5 = add i64 %2, %4
-  %6 = getelementptr i8, i8 addrspace(1)* %in, i64 %5
-  %7 = load i8, i8 addrspace(1)* %6, align 1
-  %8 = or i64 %5, 1
-  %9 = getelementptr i8, i8 addrspace(1)* %in, i64 %8
-  %10 = load i8, i8 addrspace(1)* %9, align 1
-  %11 = add i8 %7, %10
-  %12 = sext i8 %11 to i32
-  store i32 %12, i32 addrspace(1)* %out
-  %13 = icmp slt i64 %5, 10
-  br i1 %13, label %loop, label %done
+loop:                                             ; preds = %loop, %entry
+  %tmp4 = phi i64 [ 0, %entry ], [ %tmp5, %loop ]
+  %tmp5 = add i64 %tmp2, %tmp4
+  %tmp6 = getelementptr i8, i8 addrspace(1)* %in, i64 %tmp5
+  %tmp7 = load i8, i8 addrspace(1)* %tmp6, align 1
+  %tmp8 = or i64 %tmp5, 1
+  %tmp9 = getelementptr i8, i8 addrspace(1)* %in, i64 %tmp8
+  %tmp10 = load i8, i8 addrspace(1)* %tmp9, align 1
+  %tmp11 = add i8 %tmp7, %tmp10
+  %tmp12 = sext i8 %tmp11 to i32
+  store i32 %tmp12, i32 addrspace(1)* %out
+  %tmp13 = icmp slt i64 %tmp5, 10
+  br i1 %tmp13, label %loop, label %done
 
-done:
+done:                                             ; preds = %loop
   ret void
 }
-
-declare i32 @llvm.r600.read.tidig.x() #1
-declare i32 @llvm.r600.read.tidig.y() #1
-
-attributes #1 = { nounwind readnone }
 
 ; Test moving an SMRD instruction to the VALU
 
-; CHECK-LABEL: {{^}}smrd_valu:
-; CHECK: buffer_load_dword [[OUT:v[0-9]+]]
-; CHECK: buffer_store_dword [[OUT]]
-
-define void @smrd_valu(i32 addrspace(2)* addrspace(1)* %in, i32 %a, i32 addrspace(1)* %out) {
+; GCN-LABEL: {{^}}smrd_valu:
+; GCN: buffer_load_dword [[OUT:v[0-9]+]]
+; GCN: buffer_store_dword [[OUT]]
+define void @smrd_valu(i32 addrspace(2)* addrspace(1)* %in, i32 %a, i32 %b, i32 addrspace(1)* %out) #1 {
 entry:
-  %0 = icmp ne i32 %a, 0
-  br i1 %0, label %if, label %else
+  %tmp = icmp ne i32 %a, 0
+  br i1 %tmp, label %if, label %else
 
-if:
-  %1 = load i32 addrspace(2)*, i32 addrspace(2)* addrspace(1)* %in
+if:                                               ; preds = %entry
+  %tmp1 = load i32 addrspace(2)*, i32 addrspace(2)* addrspace(1)* %in
   br label %endif
 
-else:
-  %2 = getelementptr i32 addrspace(2)*, i32 addrspace(2)* addrspace(1)* %in
-  %3 = load i32 addrspace(2)*, i32 addrspace(2)* addrspace(1)* %2
+else:                                             ; preds = %entry
+  %tmp2 = getelementptr i32 addrspace(2)*, i32 addrspace(2)* addrspace(1)* %in
+  %tmp3 = load i32 addrspace(2)*, i32 addrspace(2)* addrspace(1)* %tmp2
   br label %endif
 
-endif:
-  %4 = phi i32 addrspace(2)*  [%1, %if], [%3, %else]
-  %5 = getelementptr i32, i32 addrspace(2)* %4, i32 3000
-  %6 = load i32, i32 addrspace(2)* %5
-  store i32 %6, i32 addrspace(1)* %out
+endif:                                            ; preds = %else, %if
+  %tmp4 = phi i32 addrspace(2)* [ %tmp1, %if ], [ %tmp3, %else ]
+  %tmp5 = getelementptr i32, i32 addrspace(2)* %tmp4, i32 3000
+  %tmp6 = load i32, i32 addrspace(2)* %tmp5
+  store i32 %tmp6, i32 addrspace(1)* %out
   ret void
 }
 
-; Test moving ann SMRD with an immediate offset to the VALU
+; Test moving an SMRD with an immediate offset to the VALU
 
-; CHECK-LABEL: {{^}}smrd_valu2:
-; CHECK: buffer_load_dword
-define void @smrd_valu2(i32 addrspace(1)* %out, [8 x i32] addrspace(2)* %in) {
+; GCN-LABEL: {{^}}smrd_valu2:
+; GCN-NOT: v_add
+; GCN: buffer_load_dword v{{[0-9]+}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], 0 addr64 offset:16{{$}}
+define void @smrd_valu2(i32 addrspace(1)* %out, [8 x i32] addrspace(2)* %in) #1 {
 entry:
-  %0 = call i32 @llvm.r600.read.tidig.x() nounwind readnone
-  %1 = add i32 %0, 4
-  %2 = getelementptr [8 x i32], [8 x i32] addrspace(2)* %in, i32 %0, i32 4
-  %3 = load i32, i32 addrspace(2)* %2
-  store i32 %3, i32 addrspace(1)* %out
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp1 = add i32 %tmp, 4
+  %tmp2 = getelementptr [8 x i32], [8 x i32] addrspace(2)* %in, i32 %tmp, i32 4
+  %tmp3 = load i32, i32 addrspace(2)* %tmp2
+  store i32 %tmp3, i32 addrspace(1)* %out
   ret void
 }
 
-; CHECK-LABEL: {{^}}s_load_imm_v8i32:
-; CHECK: buffer_load_dwordx4
-; CHECK: buffer_load_dwordx4
-define void @s_load_imm_v8i32(<8 x i32> addrspace(1)* %out, i32 addrspace(2)* nocapture readonly %in) {
+; Use a big offset that will use the SMRD literal offset on CI
+; GCN-LABEL: {{^}}smrd_valu_ci_offset:
+; GCN-NOT: v_add
+; GCN: s_movk_i32 [[OFFSET:s[0-9]+]], 0x4e20{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dword v{{[0-9]+}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET]] addr64{{$}}
+; GCN: v_add_i32_e32
+; GCN: buffer_store_dword
+define void @smrd_valu_ci_offset(i32 addrspace(1)* %out, i32 addrspace(2)* %in, i32 %c) #1 {
 entry:
-  %tmp0 = tail call i32 @llvm.r600.read.tidig.x() #1
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp2 = getelementptr i32, i32 addrspace(2)* %in, i32 %tmp
+  %tmp3 = getelementptr i32, i32 addrspace(2)* %tmp2, i32 5000
+  %tmp4 = load i32, i32 addrspace(2)* %tmp3
+  %tmp5 = add i32 %tmp4, %c
+  store i32 %tmp5, i32 addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}smrd_valu_ci_offset_x2:
+; GCN-NOT: v_add
+; GCN: s_mov_b32 [[OFFSET:s[0-9]+]], 0x9c40{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx2 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET]] addr64{{$}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: buffer_store_dwordx2
+define void @smrd_valu_ci_offset_x2(i64 addrspace(1)* %out, i64 addrspace(2)* %in, i64 %c) #1 {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp2 = getelementptr i64, i64 addrspace(2)* %in, i32 %tmp
+  %tmp3 = getelementptr i64, i64 addrspace(2)* %tmp2, i32 5000
+  %tmp4 = load i64, i64 addrspace(2)* %tmp3
+  %tmp5 = or i64 %tmp4, %c
+  store i64 %tmp5, i64 addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}smrd_valu_ci_offset_x4:
+; GCN-NOT: v_add
+; GCN: s_movk_i32 [[OFFSET:s[0-9]+]], 0x4d20{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET]] addr64{{$}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: buffer_store_dwordx4
+define void @smrd_valu_ci_offset_x4(<4 x i32> addrspace(1)* %out, <4 x i32> addrspace(2)* %in, <4 x i32> %c) #1 {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp2 = getelementptr <4 x i32>, <4 x i32> addrspace(2)* %in, i32 %tmp
+  %tmp3 = getelementptr <4 x i32>, <4 x i32> addrspace(2)* %tmp2, i32 1234
+  %tmp4 = load <4 x i32>, <4 x i32> addrspace(2)* %tmp3
+  %tmp5 = or <4 x i32> %tmp4, %c
+  store <4 x i32> %tmp5, <4 x i32> addrspace(1)* %out
+  ret void
+}
+
+; Original scalar load uses SGPR offset on SI and 32-bit literal on
+; CI.
+
+; GCN-LABEL: {{^}}smrd_valu_ci_offset_x8:
+; GCN-NOT: v_add
+; GCN: s_mov_b32 [[OFFSET0:s[0-9]+]], 0x9a40{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET0]] addr64{{$}}
+; GCN-NOT: v_add
+; GCN: s_mov_b32 [[OFFSET1:s[0-9]+]], 0x9a50{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET1]] addr64{{$}}
+
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: buffer_store_dwordx4
+; GCN: buffer_store_dwordx4
+define void @smrd_valu_ci_offset_x8(<8 x i32> addrspace(1)* %out, <8 x i32> addrspace(2)* %in, <8 x i32> %c) #1 {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp2 = getelementptr <8 x i32>, <8 x i32> addrspace(2)* %in, i32 %tmp
+  %tmp3 = getelementptr <8 x i32>, <8 x i32> addrspace(2)* %tmp2, i32 1234
+  %tmp4 = load <8 x i32>, <8 x i32> addrspace(2)* %tmp3
+  %tmp5 = or <8 x i32> %tmp4, %c
+  store <8 x i32> %tmp5, <8 x i32> addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}smrd_valu_ci_offset_x16:
+
+; GCN-NOT: v_add
+; GCN: s_mov_b32 [[OFFSET0:s[0-9]+]], 0x13480{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET0]] addr64{{$}}
+; GCN-NOT: v_add
+; GCN: s_mov_b32 [[OFFSET1:s[0-9]+]], 0x13490{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET1]] addr64{{$}}
+; GCN-NOT: v_add
+; GCN: s_mov_b32 [[OFFSET2:s[0-9]+]], 0x134a0{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET2]] addr64{{$}}
+; GCN-NOT: v_add
+; GCN: s_mov_b32 [[OFFSET3:s[0-9]+]], 0x134b0{{$}}
+; GCN-NOT: v_add
+; GCN: buffer_load_dwordx4 v{{\[[0-9]+:[0-9]+\]}}, v{{\[[0-9]+:[0-9]+\]}}, s[{{[0-9]+:[0-9]+}}], [[OFFSET3]] addr64{{$}}
+
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: v_or_b32_e32 {{v[0-9]+}}, {{s[0-9]+}}, {{v[0-9]+}}
+; GCN: buffer_store_dwordx4
+; GCN: buffer_store_dwordx4
+; GCN: buffer_store_dwordx4
+; GCN: buffer_store_dwordx4
+
+; GCN: s_endpgm
+define void @smrd_valu_ci_offset_x16(<16 x i32> addrspace(1)* %out, <16 x i32> addrspace(2)* %in, <16 x i32> %c) #1 {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp2 = getelementptr <16 x i32>, <16 x i32> addrspace(2)* %in, i32 %tmp
+  %tmp3 = getelementptr <16 x i32>, <16 x i32> addrspace(2)* %tmp2, i32 1234
+  %tmp4 = load <16 x i32>, <16 x i32> addrspace(2)* %tmp3
+  %tmp5 = or <16 x i32> %tmp4, %c
+  store <16 x i32> %tmp5, <16 x i32> addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}smrd_valu2_salu_user:
+; GCN: buffer_load_dword [[MOVED:v[0-9]+]], v{{\[[0-9]+:[0-9]+\]}}, s{{\[[0-9]+:[0-9]+\]}}, 0 addr64 offset:16{{$}}
+; GCN: v_add_i32_e32 [[ADD:v[0-9]+]], vcc, s{{[0-9]+}}, [[MOVED]]
+; GCN: buffer_store_dword [[ADD]]
+define void @smrd_valu2_salu_user(i32 addrspace(1)* %out, [8 x i32] addrspace(2)* %in, i32 %a) #1 {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp1 = add i32 %tmp, 4
+  %tmp2 = getelementptr [8 x i32], [8 x i32] addrspace(2)* %in, i32 %tmp, i32 4
+  %tmp3 = load i32, i32 addrspace(2)* %tmp2
+  %tmp4 = add i32 %tmp3, %a
+  store i32 %tmp4, i32 addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}smrd_valu2_max_smrd_offset:
+; GCN: buffer_load_dword v{{[0-9]+}}, v{{\[[0-9]+:[0-9]+\]}}, s{{\[[0-9]+:[0-9]+\]}}, 0 addr64 offset:1020{{$}}
+define void @smrd_valu2_max_smrd_offset(i32 addrspace(1)* %out, [1024 x i32] addrspace(2)* %in) #1 {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp1 = add i32 %tmp, 4
+  %tmp2 = getelementptr [1024 x i32], [1024 x i32] addrspace(2)* %in, i32 %tmp, i32 255
+  %tmp3 = load i32, i32 addrspace(2)* %tmp2
+  store i32 %tmp3, i32 addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}smrd_valu2_mubuf_offset:
+; GCN-NOT: v_add
+; GCN: buffer_load_dword v{{[0-9]+}}, v{{\[[0-9]+:[0-9]+\]}}, s{{\[[0-9]+:[0-9]+\]}}, 0 addr64 offset:1024{{$}}
+define void @smrd_valu2_mubuf_offset(i32 addrspace(1)* %out, [1024 x i32] addrspace(2)* %in) #1 {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x() #0
+  %tmp1 = add i32 %tmp, 4
+  %tmp2 = getelementptr [1024 x i32], [1024 x i32] addrspace(2)* %in, i32 %tmp, i32 256
+  %tmp3 = load i32, i32 addrspace(2)* %tmp2
+  store i32 %tmp3, i32 addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}s_load_imm_v8i32:
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+define void @s_load_imm_v8i32(<8 x i32> addrspace(1)* %out, i32 addrspace(2)* nocapture readonly %in) #1 {
+entry:
+  %tmp0 = tail call i32 @llvm.r600.read.tidig.x()
   %tmp1 = getelementptr inbounds i32, i32 addrspace(2)* %in, i32 %tmp0
   %tmp2 = bitcast i32 addrspace(2)* %tmp1 to <8 x i32> addrspace(2)*
   %tmp3 = load <8 x i32>, <8 x i32> addrspace(2)* %tmp2, align 4
@@ -102,12 +279,51 @@ entry:
   ret void
 }
 
-; CHECK-LABEL: {{^}}s_load_imm_v16i32:
-; CHECK: buffer_load_dwordx4
-; CHECK: buffer_load_dwordx4
-; CHECK: buffer_load_dwordx4
-; CHECK: buffer_load_dwordx4
-define void @s_load_imm_v16i32(<16 x i32> addrspace(1)* %out, i32 addrspace(2)* nocapture readonly %in) {
+; GCN-LABEL: {{^}}s_load_imm_v8i32_salu_user:
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: buffer_store_dword
+define void @s_load_imm_v8i32_salu_user(i32 addrspace(1)* %out, i32 addrspace(2)* nocapture readonly %in) #1 {
+entry:
+  %tmp0 = tail call i32 @llvm.r600.read.tidig.x()
+  %tmp1 = getelementptr inbounds i32, i32 addrspace(2)* %in, i32 %tmp0
+  %tmp2 = bitcast i32 addrspace(2)* %tmp1 to <8 x i32> addrspace(2)*
+  %tmp3 = load <8 x i32>, <8 x i32> addrspace(2)* %tmp2, align 4
+
+  %elt0 = extractelement <8 x i32> %tmp3, i32 0
+  %elt1 = extractelement <8 x i32> %tmp3, i32 1
+  %elt2 = extractelement <8 x i32> %tmp3, i32 2
+  %elt3 = extractelement <8 x i32> %tmp3, i32 3
+  %elt4 = extractelement <8 x i32> %tmp3, i32 4
+  %elt5 = extractelement <8 x i32> %tmp3, i32 5
+  %elt6 = extractelement <8 x i32> %tmp3, i32 6
+  %elt7 = extractelement <8 x i32> %tmp3, i32 7
+
+  %add0 = add i32 %elt0, %elt1
+  %add1 = add i32 %add0, %elt2
+  %add2 = add i32 %add1, %elt3
+  %add3 = add i32 %add2, %elt4
+  %add4 = add i32 %add3, %elt5
+  %add5 = add i32 %add4, %elt6
+  %add6 = add i32 %add5, %elt7
+
+  store i32 %add6, i32 addrspace(1)* %out
+  ret void
+}
+
+; GCN-LABEL: {{^}}s_load_imm_v16i32:
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+define void @s_load_imm_v16i32(<16 x i32> addrspace(1)* %out, i32 addrspace(2)* nocapture readonly %in) #1 {
 entry:
   %tmp0 = tail call i32 @llvm.r600.read.tidig.x() #1
   %tmp1 = getelementptr inbounds i32, i32 addrspace(2)* %in, i32 %tmp0
@@ -116,3 +332,71 @@ entry:
   store <16 x i32> %tmp3, <16 x i32> addrspace(1)* %out, align 32
   ret void
 }
+
+; GCN-LABEL: {{^}}s_load_imm_v16i32_salu_user:
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+; GCN: buffer_load_dwordx4
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: v_add_i32_e32
+; GCN: buffer_store_dword
+define void @s_load_imm_v16i32_salu_user(i32 addrspace(1)* %out, i32 addrspace(2)* nocapture readonly %in) #1 {
+entry:
+  %tmp0 = tail call i32 @llvm.r600.read.tidig.x() #1
+  %tmp1 = getelementptr inbounds i32, i32 addrspace(2)* %in, i32 %tmp0
+  %tmp2 = bitcast i32 addrspace(2)* %tmp1 to <16 x i32> addrspace(2)*
+  %tmp3 = load <16 x i32>, <16 x i32> addrspace(2)* %tmp2, align 4
+
+  %elt0 = extractelement <16 x i32> %tmp3, i32 0
+  %elt1 = extractelement <16 x i32> %tmp3, i32 1
+  %elt2 = extractelement <16 x i32> %tmp3, i32 2
+  %elt3 = extractelement <16 x i32> %tmp3, i32 3
+  %elt4 = extractelement <16 x i32> %tmp3, i32 4
+  %elt5 = extractelement <16 x i32> %tmp3, i32 5
+  %elt6 = extractelement <16 x i32> %tmp3, i32 6
+  %elt7 = extractelement <16 x i32> %tmp3, i32 7
+  %elt8 = extractelement <16 x i32> %tmp3, i32 8
+  %elt9 = extractelement <16 x i32> %tmp3, i32 9
+  %elt10 = extractelement <16 x i32> %tmp3, i32 10
+  %elt11 = extractelement <16 x i32> %tmp3, i32 11
+  %elt12 = extractelement <16 x i32> %tmp3, i32 12
+  %elt13 = extractelement <16 x i32> %tmp3, i32 13
+  %elt14 = extractelement <16 x i32> %tmp3, i32 14
+  %elt15 = extractelement <16 x i32> %tmp3, i32 15
+
+  %add0 = add i32 %elt0, %elt1
+  %add1 = add i32 %add0, %elt2
+  %add2 = add i32 %add1, %elt3
+  %add3 = add i32 %add2, %elt4
+  %add4 = add i32 %add3, %elt5
+  %add5 = add i32 %add4, %elt6
+  %add6 = add i32 %add5, %elt7
+  %add7 = add i32 %add6, %elt8
+  %add8 = add i32 %add7, %elt9
+  %add9 = add i32 %add8, %elt10
+  %add10 = add i32 %add9, %elt11
+  %add11 = add i32 %add10, %elt12
+  %add12 = add i32 %add11, %elt13
+  %add13 = add i32 %add12, %elt14
+  %add14 = add i32 %add13, %elt15
+
+  store i32 %add14, i32 addrspace(1)* %out
+  ret void
+}
+
+attributes #0 = { nounwind readnone }
+attributes #1 = { nounwind }

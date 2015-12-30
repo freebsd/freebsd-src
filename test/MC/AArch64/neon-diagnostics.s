@@ -341,7 +341,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fabd v0.2s, v1.4s, v2.2d
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fabd v0.4h, v1.4h, v2.4h
 // CHECK-ERROR:                 ^
 //----------------------------------------------------------------------
@@ -385,7 +385,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        frecps v0.4s, v1.2d, v2.4s
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        frecps v0.8h, v1.8h, v2.8h
 // CHECK-ERROR:                  ^
 
@@ -400,7 +400,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        frsqrts v0.2d, v1.2d, v2.2s
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        frsqrts v0.4h, v1.4h, v2.4h
 // CHECK-ERROR:                   ^
 
@@ -417,7 +417,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        facge v0.2d, v1.2s, v2.2d
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        facge v0.4h, v1.4h, v2.4h
 // CHECK-ERROR:                 ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -435,7 +435,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        facgt v0.2d, v1.2d, v2.4s
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        facgt v0.8h, v1.8h, v2.8h
 // CHECK-ERROR:                 ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -1092,7 +1092,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fmin v0.4s, v1.4s, v2.2d
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmin v0.8h, v1.8h, v2.8h
 // CHECK-ERROR:                ^
 
@@ -1177,7 +1177,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fminp v0.4s, v1.4s, v2.2d
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fminp v0.8h, v1.8h, v2.8h
 // CHECK-ERROR:                 ^
 
@@ -1283,7 +1283,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fmulx v21.2s, v5.2s, v13.2d
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fmulx v1.4h, v25.4h, v3.4h
 // CHECK-ERROR:                  ^
 
@@ -3023,10 +3023,10 @@
       fmla v0.2d, v1.2d, v2.d[2]
       fmla v0.2d, v1.2d, v22.d[2]
 
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmla v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmla v0.8h, v1.8h, v2.h[2]
 // CHECK-ERROR:                ^
 // CHECK-ERROR: vector lane must be an integer in range
@@ -3057,10 +3057,10 @@
       fmls v0.2d, v1.2d, v2.d[2]
       fmls v0.2d, v1.2d, v22.d[2]
 
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmls v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmls v0.8h, v1.8h, v2.h[2]
 // CHECK-ERROR:                ^
 // CHECK-ERROR: vector lane must be an integer in range
@@ -3428,7 +3428,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        mul v0.2d, v1.2d, v2.d[1]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmul v0.4h, v1.4h, v2.h[4]
 // CHECK-ERROR:                ^
 // CHECK-ERROR: vector lane must be an integer in range
@@ -3458,7 +3458,7 @@
       fmulx v0.2d, v1.2d, v2.d[2]
       fmulx v0.2d, v1.2d, v22.d[2]
 
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmulx v0.4h, v1.4h, v2.h[4]
 // CHECK-ERROR:                 ^
 // CHECK-ERROR: vector lane must be an integer in range
@@ -3837,16 +3837,16 @@
         fmaxv h0, v1.8h
         fminv h0, v1.8h
 
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmaxnmv h0, v1.8h
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fminnmv h0, v1.8h
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fmaxv h0, v1.8h
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:        fminv h0, v1.8h
 // CHECK-ERROR:              ^
 
@@ -4351,35 +4351,35 @@
          smov x20, v9.d[0]
 
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         smov w1, v0.b[16]
-// CHECK-ERROR                       ^
+// CHECK-ERROR:         smov w1, v0.b[16]
+// CHECK-ERROR:                       ^
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         smov w14, v6.h[8]
-// CHECK-ERROR                        ^
+// CHECK-ERROR:         smov w14, v6.h[8]
+// CHECK-ERROR:                        ^
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         smov x1, v0.b[16]
-// CHECK-ERROR                       ^
+// CHECK-ERROR:         smov x1, v0.b[16]
+// CHECK-ERROR:                       ^
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         smov x14, v6.h[8]
-// CHECK-ERROR                        ^
+// CHECK-ERROR:         smov x14, v6.h[8]
+// CHECK-ERROR:                        ^
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         smov x20, v9.s[5]
-// CHECK-ERROR                        ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         smov w1, v0.d[0]
-// CHECK-ERROR                     ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         smov w14, v6.d[1]
-// CHECK-ERROR                      ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         smov x1, v0.d[0]
-// CHECK-ERROR                     ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         smov x14, v6.d[1]
-// CHECK-ERROR                      ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         smov x20, v9.d[0]
-// CHECK-ERROR                      ^
+// CHECK-ERROR:         smov x20, v9.s[5]
+// CHECK-ERROR:                        ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         smov w1, v0.d[0]
+// CHECK-ERROR:                     ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         smov w14, v6.d[1]
+// CHECK-ERROR:                      ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         smov x1, v0.d[0]
+// CHECK-ERROR:                     ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         smov x14, v6.d[1]
+// CHECK-ERROR:                      ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         smov x20, v9.d[0]
+// CHECK-ERROR:                      ^
 
          umov w1, v0.b[16]
          umov w14, v6.h[8]
@@ -4390,44 +4390,44 @@
          umov d7, v18.d[1]
 
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         umov w1, v0.b[16]
-// CHECK-ERROR                       ^
+// CHECK-ERROR:         umov w1, v0.b[16]
+// CHECK-ERROR:                       ^
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         umov w14, v6.h[8]
-// CHECK-ERROR                        ^
+// CHECK-ERROR:         umov w14, v6.h[8]
+// CHECK-ERROR:                        ^
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         umov w20, v9.s[5]
-// CHECK-ERROR                        ^
+// CHECK-ERROR:         umov w20, v9.s[5]
+// CHECK-ERROR:                        ^
 // CHECK-ERROR: vector lane must be an integer in range
-// CHECK-ERROR         umov x7, v18.d[3]
-// CHECK-ERROR                        ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         umov w1, v0.d[0]
-// CHECK-ERROR                     ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         umov s20, v9.s[2]
-// CHECK-ERROR              ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         umov d7, v18.d[1]
-// CHECK-ERROR              ^
+// CHECK-ERROR:         umov x7, v18.d[3]
+// CHECK-ERROR:                        ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         umov w1, v0.d[0]
+// CHECK-ERROR:                     ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         umov s20, v9.s[2]
+// CHECK-ERROR:              ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         umov d7, v18.d[1]
+// CHECK-ERROR:              ^
 
          Ins v1.h[2], v3.b[6]
          Ins v6.h[7], v7.s[2]
          Ins v15.d[0], v22.s[2]
          Ins v0.d[0], v4.b[1]
 
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         Ins v1.h[2], v3.b[6]
-// CHECK-ERROR                         ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         Ins v6.h[7], v7.s[2]
-// CHECK-ERROR                         ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         Ins v15.d[0], v22.s[2]
-// CHECK-ERROR                           ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         Ins v0.d[0], v4.b[1]
-// CHECK-ERROR                         ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         Ins v1.h[2], v3.b[6]
+// CHECK-ERROR:                         ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         Ins v6.h[7], v7.s[2]
+// CHECK-ERROR:                         ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         Ins v15.d[0], v22.s[2]
+// CHECK-ERROR:                           ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         Ins v0.d[0], v4.b[1]
+// CHECK-ERROR:                         ^
 
          dup v1.8h, v2.b[2]
          dup v11.4s, v7.h[7]
@@ -4437,27 +4437,27 @@
          dup v17.4s, v20.d[0]
          dup v5.2d, v1.b[1]
 
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v1.8h, v2.b[2]
-// CHECK-ERROR                       ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v11.4s, v7.h[7]
-// CHECK-ERROR                        ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v17.2d, v20.s[0]
-// CHECK-ERROR                         ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v1.16b, v2.h[2]
-// CHECK-ERROR                        ^
-// CHECK-ERROR invalid operand for instruction
-// CHECK-ERROR         dup v11.8h, v7.s[3]
-// CHECK-ERROR                        ^
-// CHECK-ERROR invalid operand for instruction
-// CHECK-ERROR         dup v17.4s, v20.d[0]
-// CHECK-ERROR                         ^
-// CHECK-ERROR invalid operand for instruction
-// CHECK-ERROR         dup v5.2d, v1.b[1]
-// CHECK-ERROR                       ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v1.8h, v2.b[2]
+// CHECK-ERROR:                       ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v11.4s, v7.h[7]
+// CHECK-ERROR:                        ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v17.2d, v20.s[0]
+// CHECK-ERROR:                         ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v1.16b, v2.h[2]
+// CHECK-ERROR:                        ^
+// CHECK-ERROR: invalid operand for instruction
+// CHECK-ERROR:         dup v11.8h, v7.s[3]
+// CHECK-ERROR:                        ^
+// CHECK-ERROR: invalid operand for instruction
+// CHECK-ERROR:         dup v17.4s, v20.d[0]
+// CHECK-ERROR:                         ^
+// CHECK-ERROR: invalid operand for instruction
+// CHECK-ERROR:         dup v5.2d, v1.b[1]
+// CHECK-ERROR:                       ^
 
          dup v1.8b, b1
          dup v11.4h, h14
@@ -4467,27 +4467,27 @@
          dup v17.4d, w28
          dup v5.2d, w0
 
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v1.8b, b1
-// CHECK-ERROR                    ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v11.4h, h14
-// CHECK-ERROR                     ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v17.2s, s30
-// CHECK-ERROR                     ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v1.16b, d2
-// CHECK-ERROR                     ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v11.8s, w16
-// CHECK-ERROR             ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v17.4d, w28
-// CHECK-ERROR             ^
-// CHECK-ERROR error: invalid operand for instruction
-// CHECK-ERROR         dup v5.2d, w0
-// CHECK-ERROR                    ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v1.8b, b1
+// CHECK-ERROR:                    ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v11.4h, h14
+// CHECK-ERROR:                     ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v17.2s, s30
+// CHECK-ERROR:                     ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v1.16b, d2
+// CHECK-ERROR:                     ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v11.8s, w16
+// CHECK-ERROR:             ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v17.4d, w28
+// CHECK-ERROR:             ^
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:         dup v5.2d, w0
+// CHECK-ERROR:                    ^
 
 //----------------------------------------------------------------------
 // Scalar Compare Bitwise Equal
@@ -5594,13 +5594,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fabs v0.16b, v31.16b
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fabs v2.8h, v4.8h
 // CHECK-ERROR:                 ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fabs v1.8b, v9.8b
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fabs v13.4h, v21.4h
 // CHECK-ERROR:                  ^
 
@@ -5616,13 +5616,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fneg v0.16b, v31.16b
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fneg v2.8h, v4.8h
 // CHECK-ERROR:                 ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fneg v1.8b, v9.8b
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fneg v13.4h, v21.4h
 // CHECK-ERROR:                  ^
 
@@ -5978,205 +5978,205 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintn v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintn v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintn v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintn v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frinta v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frinta v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frinta v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frinta v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintp v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintp v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintp v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintp v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintm v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintm v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintm v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintm v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintx v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintx v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintx v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintx v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintz v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintz v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frintz v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frintz v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frinti v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frinti v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frinti v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frinti v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtns v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtns v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtns v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtns v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtnu v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtnu v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtnu v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtnu v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtps v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtps v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtps v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtps v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtpu v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtpu v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtpu v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtpu v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtms v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtms v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtms v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtms v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtmu v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtmu v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtmu v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtmu v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtzs v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtzs v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtzs v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtzs v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtzu v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtzu v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtzu v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtzu v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtas v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtas v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtas v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtas v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtau v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtau v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtau v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fcvtau v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -6212,61 +6212,61 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         scvtf v0.16b, v31.16b
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         scvtf v2.8h, v4.8h
 // CHECK-ERROR:                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         scvtf v1.8b, v9.8b
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         scvtf v13.4h, v21.4h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         ucvtf v0.16b, v31.16b
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         ucvtf v2.8h, v4.8h
 // CHECK-ERROR:                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         ucvtf v1.8b, v9.8b
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         ucvtf v13.4h, v21.4h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frecpe v0.16b, v31.16b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frecpe v2.8h, v4.8h
 // CHECK-ERROR:                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frecpe v1.8b, v9.8b
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frecpe v13.4h, v21.4h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frsqrte v0.16b, v31.16b
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frsqrte v2.8h, v4.8h
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         frsqrte v1.8b, v9.8b
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         frsqrte v13.4h, v21.4h
 // CHECK-ERROR:                     ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fsqrt v0.16b, v31.16b
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fsqrt v2.8h, v4.8h
 // CHECK-ERROR:                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fsqrt v1.8b, v9.8b
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR: error: instruction requires: fullfp16
 // CHECK-ERROR:         fsqrt v13.4h, v21.4h
 // CHECK-ERROR:                   ^
 
@@ -6466,30 +6466,30 @@
         uzp1 v0.2d, v1.1d, v2.1d
         uzp1 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4289:22: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4290:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4291:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4292:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4293:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4294:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4295:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4296:17: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         uzp2 v0.16b, v1.8b, v2.8b
         uzp2 v0.8b, v1.4b, v2.4b
@@ -6500,30 +6500,30 @@
         uzp2 v0.2d, v1.1d, v2.1d
         uzp2 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4298:22: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4299:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4300:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4301:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4302:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4303:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4304:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4305:17: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         zip1 v0.16b, v1.8b, v2.8b
         zip1 v0.8b, v1.4b, v2.4b
@@ -6534,30 +6534,30 @@
         zip1 v0.2d, v1.1d, v2.1d
         zip1 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4307:22: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4308:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4309:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4310:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4311:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4312:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4313:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4314:17: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         zip2 v0.16b, v1.8b, v2.8b
         zip2 v0.8b, v1.4b, v2.4b
@@ -6568,30 +6568,30 @@
         zip2 v0.2d, v1.1d, v2.1d
         zip2 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4316:22: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4317:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4318:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4319:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4320:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4321:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4322:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4323:17: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         trn1 v0.16b, v1.8b, v2.8b
         trn1 v0.8b, v1.4b, v2.4b
@@ -6602,30 +6602,30 @@
         trn1 v0.2d, v1.1d, v2.1d
         trn1 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4325:22: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4326:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4327:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4328:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4329:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4330:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4331:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4332:17: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         trn2 v0.16b, v1.8b, v2.8b
         trn2 v0.8b, v1.4b, v2.4b
@@ -6636,30 +6636,30 @@
         trn2 v0.2d, v1.1d, v2.1d
         trn2 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4334:22: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4335:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4336:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4337:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4338:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4339:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4340:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4341:17: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
 //----------------------------------------------------------------------
 // Permutation with 3 vectors
@@ -6674,30 +6674,30 @@
         uzp1 v0.2d, v1.1d, v2.1d
         uzp1 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4289:22: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4290:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4291:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4292:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4293:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4294:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4295:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4296:17: error: invalid operand for instruction
-// CHECK-ERROR         uzp1 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp1 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         uzp2 v0.16b, v1.8b, v2.8b
         uzp2 v0.8b, v1.4b, v2.4b
@@ -6708,30 +6708,30 @@
         uzp2 v0.2d, v1.1d, v2.1d
         uzp2 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4298:22: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4299:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4300:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4301:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4302:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4303:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4304:21: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4305:17: error: invalid operand for instruction
-// CHECK-ERROR         uzp2 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         uzp2 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         zip1 v0.16b, v1.8b, v2.8b
         zip1 v0.8b, v1.4b, v2.4b
@@ -6742,30 +6742,30 @@
         zip1 v0.2d, v1.1d, v2.1d
         zip1 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4307:22: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4308:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4309:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4310:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4311:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4312:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4313:21: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4314:17: error: invalid operand for instruction
-// CHECK-ERROR         zip1 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip1 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         zip2 v0.16b, v1.8b, v2.8b
         zip2 v0.8b, v1.4b, v2.4b
@@ -6776,30 +6776,30 @@
         zip2 v0.2d, v1.1d, v2.1d
         zip2 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4316:22: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4317:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4318:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4319:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4320:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4321:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4322:21: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4323:17: error: invalid operand for instruction
-// CHECK-ERROR         zip2 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         zip2 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         trn1 v0.16b, v1.8b, v2.8b
         trn1 v0.8b, v1.4b, v2.4b
@@ -6810,30 +6810,30 @@
         trn1 v0.2d, v1.1d, v2.1d
         trn1 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4325:22: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4326:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4327:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4328:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4329:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4330:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4331:21: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4332:17: error: invalid operand for instruction
-// CHECK-ERROR         trn1 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn1 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
         trn2 v0.16b, v1.8b, v2.8b
         trn2 v0.8b, v1.4b, v2.4b
@@ -6844,30 +6844,30 @@
         trn2 v0.2d, v1.1d, v2.1d
         trn2 v0.1d, v1.1d, v2.1d
 
-// CHECK-ERROR <stdin>:4334:22: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.16b, v1.8b, v2.8b
-// CHECK-ERROR                      ^
-// CHECK-ERROR <stdin>:4335:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.8b, v1.4b, v2.4b
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4336:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.8h, v1.4h, v2.4h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4337:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.4h, v1.2h, v2.2h
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4338:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.4s, v1.2s, v2.2s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4339:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.2s, v1.1s, v2.1s
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4340:21: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.2d, v1.1d, v2.1d
-// CHECK-ERROR                     ^
-// CHECK-ERROR <stdin>:4341:17: error: invalid operand for instruction
-// CHECK-ERROR         trn2 v0.1d, v1.1d, v2.1d
-// CHECK-ERROR                 ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.16b, v1.8b, v2.8b
+// CHECK-ERROR:                      ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.8b, v1.4b, v2.4b
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.8h, v1.4h, v2.4h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.4h, v1.2h, v2.2h
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.4s, v1.2s, v2.2s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.2s, v1.1s, v2.1s
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.2d, v1.1d, v2.1d
+// CHECK-ERROR:                     ^
+// CHECK-ERROR:  error: invalid operand for instruction
+// CHECK-ERROR:         trn2 v0.1d, v1.1d, v2.1d
+// CHECK-ERROR:                 ^
 
 //----------------------------------------------------------------------
 // Floating Point  multiply (scalar, by element)

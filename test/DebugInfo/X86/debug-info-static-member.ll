@@ -42,7 +42,7 @@
 @_ZN1C1bE = global i32 2, align 4
 @_ZN1C1cE = global i32 1, align 4
 
-define i32 @main() nounwind uwtable {
+define i32 @main() nounwind uwtable !dbg !5 {
 entry:
   %retval = alloca i32, align 4
   %instance_C = alloca %class.C, align 4
@@ -59,10 +59,10 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!34}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.3 (trunk 171914)", isOptimized: false, emissionKind: 0, file: !33, enums: !1, retainedTypes: !1, subprograms: !3, globals: !10, imports:  !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.3 (trunk 171914)", isOptimized: false, emissionKind: 0, file: !33, enums: !1, retainedTypes: !1, subprograms: !3, globals: !10, imports:  !1)
 !1 = !{}
 !3 = !{!5}
-!5 = !DISubprogram(name: "main", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 23, file: !33, scope: !6, type: !7, function: i32 ()* @main, variables: !1)
+!5 = distinct !DISubprogram(name: "main", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 23, file: !33, scope: !6, type: !7, variables: !1)
 !6 = !DIFile(filename: "/usr/local/google/home/blaikie/Development/llvm/src/tools/clang/test/CodeGenCXX/debug-info-static-member.cpp", directory: "/home/blaikie/local/Development/llvm/build/clang/x86-64/Debug/llvm")
 !7 = !DISubroutineType(types: !8)
 !8 = !{!9}
@@ -85,7 +85,7 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 !26 = !DIDerivedType(tag: DW_TAG_member, name: "d", line: 11, size: 32, align: 32, flags: DIFlagPublic, file: !33, scope: !13, baseType: !9)
 !27 = !DIGlobalVariable(name: "b", linkageName: "_ZN1C1bE", line: 15, isLocal: false, isDefinition: true, scope: null, file: !6, type: !9, variable: i32* @_ZN1C1bE, declaration: !19)
 !28 = !DIGlobalVariable(name: "c", linkageName: "_ZN1C1cE", line: 16, isLocal: false, isDefinition: true, scope: null, file: !6, type: !9, variable: i32* @_ZN1C1cE, declaration: !23)
-!29 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "instance_C", line: 20, scope: !5, file: !6, type: !13)
+!29 = !DILocalVariable(name: "instance_C", line: 20, scope: !5, file: !6, type: !13)
 !30 = !DILocation(line: 20, scope: !5)
 !31 = !DILocation(line: 21, scope: !5)
 !32 = !DILocation(line: 22, scope: !5)

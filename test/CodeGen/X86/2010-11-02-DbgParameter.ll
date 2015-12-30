@@ -6,7 +6,7 @@ target triple = "i386-apple-darwin11.0.0"
 
 %struct.bar = type { i32, i32 }
 
-define i32 @foo(%struct.bar* nocapture %i) nounwind readnone optsize noinline ssp {
+define i32 @foo(%struct.bar* nocapture %i) nounwind readnone optsize noinline ssp !dbg !0 {
 ; CHECK: TAG_formal_parameter
 entry:
   tail call void @llvm.dbg.value(metadata %struct.bar* %i, i64 0, metadata !6, metadata !DIExpression()), !dbg !12
@@ -18,13 +18,13 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!19}
 
-!0 = !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 3, file: !17, scope: !1, type: !3, function: i32 (%struct.bar*)* @foo, variables: !16)
+!0 = distinct !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 3, file: !17, scope: !1, type: !3, variables: !16)
 !1 = !DIFile(filename: "one.c", directory: "/private/tmp")
-!2 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 2.9 (trunk 117922)", isOptimized: true, emissionKind: 0, file: !17, enums: !18, retainedTypes: !18, subprograms: !15, imports:  null)
+!2 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 2.9 (trunk 117922)", isOptimized: true, emissionKind: 0, file: !17, enums: !18, retainedTypes: !18, subprograms: !15, imports:  null)
 !3 = !DISubroutineType(types: !4)
 !4 = !{!5}
 !5 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!6 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "i", line: 3, arg: 0, scope: !0, file: !1, type: !7)
+!6 = !DILocalVariable(name: "i", line: 3, arg: 1, scope: !0, file: !1, type: !7)
 !7 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, file: !17, scope: !1, baseType: !8)
 !8 = !DICompositeType(tag: DW_TAG_structure_type, name: "bar", line: 2, size: 64, align: 32, file: !17, scope: !1, elements: !9)
 !9 = !{!10, !11}

@@ -136,3 +136,20 @@ define <2 x double> @fix_i64_to_double(<2 x i64> %in) {
     ret <2 x double> %shift
 }
 
+; Don't combine with 8 lanes.  Just make sure things don't crash.
+; CHECK-LABEL: test7
+define <8 x float> @test7(<8 x i32> %in) nounwind {
+entry:
+  %vcvt.i = sitofp <8 x i32> %in to <8 x float>
+  %div.i = fdiv <8 x float> %vcvt.i, <float 8.0, float 8.0, float 8.0, float 8.0, float 8.0, float 8.0, float 8.0, float 8.0>
+  ret <8 x float> %div.i
+}
+
+; Can combine splat with an undef.
+; CHECK-LABEL: test8
+; CHECK: vcvt.f32.s32 q{{[0-9]+}}, q{{[0-9]+}}, #1
+define <4 x float> @test8(<4 x i32> %in) {
+  %vcvt.i = sitofp <4 x i32> %in to <4 x float>
+  %div.i = fdiv <4 x float> %vcvt.i, <float 2.0, float 2.0, float 2.0, float undef>
+  ret <4 x float> %div.i
+}

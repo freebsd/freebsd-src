@@ -38,7 +38,7 @@ target triple = "x86_64-apple-macosx10.9.0"
 @main.myBar = private unnamed_addr constant %struct.bar { i32 3, i32 4 }, align 4
 
 ; Function Attrs: noinline nounwind ssp uwtable
-define void @doSomething(%struct.bar* nocapture readonly %b) #0 {
+define void @doSomething(%struct.bar* nocapture readonly %b) #0 !dbg !4 {
 entry:
   tail call void @llvm.dbg.value(metadata %struct.bar* %b, i64 0, metadata !15, metadata !DIExpression()), !dbg !25
   %a1 = getelementptr inbounds %struct.bar, %struct.bar* %b, i64 0, i32 0, !dbg !26
@@ -55,7 +55,7 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 declare i32 @printf(i8* nocapture readonly, ...) #2
 
 ; Function Attrs: nounwind ssp uwtable
-define i32 @main() #3 {
+define i32 @main() #3 !dbg !17 {
 entry:
   %myBar = alloca i64, align 8, !dbg !34
   %tmpcast = bitcast i64* %myBar to %struct.bar*, !dbg !34
@@ -78,11 +78,11 @@ attributes #4 = { nounwind }
 !llvm.module.flags = !{!22, !23}
 !llvm.ident = !{!24}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "subregisters.c", directory: "")
 !2 = !{}
 !3 = !{!4, !17}
-!4 = !DISubprogram(name: "doSomething", line: 10, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 11, file: !1, scope: !5, type: !6, function: void (%struct.bar*)* @doSomething, variables: !14)
+!4 = distinct !DISubprogram(name: "doSomething", line: 10, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 11, file: !1, scope: !5, type: !6, variables: !14)
 !5 = !DIFile(filename: "subregisters.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null, !8}
@@ -93,13 +93,13 @@ attributes #4 = { nounwind }
 !12 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !13 = !DIDerivedType(tag: DW_TAG_member, name: "b", line: 5, size: 32, align: 32, offset: 32, file: !1, scope: !9, baseType: !12)
 !14 = !{!15, !16}
-!15 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "b", line: 10, arg: 1, scope: !4, file: !5, type: !8)
-!16 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 12, scope: !4, file: !5, type: !12)
-!17 = !DISubprogram(name: "main", line: 16, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 17, file: !1, scope: !5, type: !18, function: i32 ()* @main, variables: !20)
+!15 = !DILocalVariable(name: "b", line: 10, arg: 1, scope: !4, file: !5, type: !8)
+!16 = !DILocalVariable(name: "a", line: 12, scope: !4, file: !5, type: !12)
+!17 = distinct !DISubprogram(name: "main", line: 16, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 17, file: !1, scope: !5, type: !18, variables: !20)
 !18 = !DISubroutineType(types: !19)
 !19 = !{!12}
 !20 = !{!21}
-!21 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "myBar", line: 18, scope: !17, file: !5, type: !9)
+!21 = !DILocalVariable(name: "myBar", line: 18, scope: !17, file: !5, type: !9)
 !22 = !{i32 2, !"Dwarf Version", i32 2}
 !23 = !{i32 1, !"Debug Info Version", i32 3}
 !24 = !{!"clang version 3.5 "}

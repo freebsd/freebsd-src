@@ -2,7 +2,7 @@
 ; RUN: llvm-dis < %t.bc | FileCheck %s
 ; RUN: verify-uselistorder < %t.bc
 
-define i32 @main() {
+define i32 @main() !dbg !4 {
 entry:
   %retval = alloca i32, align 4
   store i32 0, i32* %retval
@@ -12,11 +12,11 @@ entry:
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!9}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 (trunk 195495) (llvm/trunk 195495:195504M)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 (trunk 195495) (llvm/trunk 195495:195504M)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "../llvm/tools/clang/test/CodeGen/debug-info-version.c", directory: "/Users/manmanren/llvm_gmail/release")
 !2 = !{i32 0}
 !3 = !{!4}
-!4 = !DISubprogram(name: "main", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !5, type: !6, function: i32 ()* @main, variables: !2)
+!4 = distinct !DISubprogram(name: "main", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "../llvm/tools/clang/test/CodeGen/debug-info-version.c", directory: "/Users/manmanren/llvm_gmail/release")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}

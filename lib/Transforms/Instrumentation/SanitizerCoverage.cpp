@@ -31,6 +31,7 @@
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/EHPersonalities.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
@@ -59,6 +60,7 @@ static const char *const kSanCovIndirCallName = "__sanitizer_cov_indir_call16";
 static const char *const kSanCovTraceEnter = "__sanitizer_cov_trace_func_enter";
 static const char *const kSanCovTraceBB = "__sanitizer_cov_trace_basic_block";
 static const char *const kSanCovTraceCmp = "__sanitizer_cov_trace_cmp";
+static const char *const kSanCovTraceSwitch = "__sanitizer_cov_trace_switch";
 static const char *const kSanCovModuleCtorName = "sancov.module_ctor";
 static const uint64_t    kSanCtorAndDtorPriority = 2;
 
@@ -148,19 +150,25 @@ class SanitizerCoverageModule : public ModulePass {
   void InjectCoverageForIndirectCalls(Function &F,
                                       ArrayRef<Instruction *> IndirCalls);
   void InjectTraceForCmp(Function &F, ArrayRef<Instruction *> CmpTraceTargets);
+  void InjectTraceForSwitch(Function &F,
+                            ArrayRef<Instruction *> SwitchTraceTargets);
   bool InjectCoverage(Function &F, ArrayRef<BasicBlock *> AllBlocks);
   void SetNoSanitizeMetadata(Instruction *I);
   void InjectCoverageAtBlock(Function &F, BasicBlock &BB, bool UseCalls);
   unsigned NumberOfInstrumentedBlocks() {
-    return SanCovFunction->getNumUses() + SanCovWithCheckFunction->getNumUses();
+    return SanCovFunction->getNumUses() +
+           SanCovWithCheckFunction->getNumUses() + SanCovTraceBB->getNumUses() +
+           SanCovTraceEnter->getNumUses();
   }
   Function *SanCovFunction;
   Function *SanCovWithCheckFunction;
   Function *SanCovIndirCallFunction;
   Function *SanCovTraceEnter, *SanCovTraceBB;
   Function *SanCovTraceCmpFunction;
+  Function *SanCovTraceSwitchFunction;
   InlineAsm *EmptyAsm;
-  Type *IntptrTy, *Int64Ty;
+  Type *IntptrTy, *Int64Ty, *Int64PtrTy;
+  Module *CurModule;
   LLVMContext *C;
   const DataLayout *DL;
 
@@ -177,11 +185,13 @@ bool SanitizerCoverageModule::runOnModule(Module &M) {
     return false;
   C = &(M.getContext());
   DL = &M.getDataLayout();
+  CurModule = &M;
   IntptrTy = Type::getIntNTy(*C, DL->getPointerSizeInBits());
   Type *VoidTy = Type::getVoidTy(*C);
   IRBuilder<> IRB(*C);
   Type *Int8PtrTy = PointerType::getUnqual(IRB.getInt8Ty());
   Type *Int32PtrTy = PointerType::getUnqual(IRB.getInt32Ty());
+  Int64PtrTy = PointerType::getUnqual(IRB.getInt64Ty());
   Int64Ty = IRB.getInt64Ty();
 
   SanCovFunction = checkSanitizerInterfaceFunction(
@@ -194,18 +204,19 @@ bool SanitizerCoverageModule::runOnModule(Module &M) {
   SanCovTraceCmpFunction =
       checkSanitizerInterfaceFunction(M.getOrInsertFunction(
           kSanCovTraceCmp, VoidTy, Int64Ty, Int64Ty, Int64Ty, nullptr));
+  SanCovTraceSwitchFunction =
+      checkSanitizerInterfaceFunction(M.getOrInsertFunction(
+          kSanCovTraceSwitch, VoidTy, Int64Ty, Int64PtrTy, nullptr));
 
   // We insert an empty inline asm after cov callbacks to avoid callback merge.
   EmptyAsm = InlineAsm::get(FunctionType::get(IRB.getVoidTy(), false),
                             StringRef(""), StringRef(""),
                             /*hasSideEffects=*/true);
 
-  if (Options.TraceBB) {
-    SanCovTraceEnter = checkSanitizerInterfaceFunction(
-        M.getOrInsertFunction(kSanCovTraceEnter, VoidTy, Int32PtrTy, nullptr));
-    SanCovTraceBB = checkSanitizerInterfaceFunction(
-        M.getOrInsertFunction(kSanCovTraceBB, VoidTy, Int32PtrTy, nullptr));
-  }
+  SanCovTraceEnter = checkSanitizerInterfaceFunction(
+      M.getOrInsertFunction(kSanCovTraceEnter, VoidTy, Int32PtrTy, nullptr));
+  SanCovTraceBB = checkSanitizerInterfaceFunction(
+      M.getOrInsertFunction(kSanCovTraceBB, VoidTy, Int32PtrTy, nullptr));
 
   // At this point we create a dummy array of guards because we don't
   // know how many elements we will need.
@@ -280,11 +291,18 @@ bool SanitizerCoverageModule::runOnFunction(Function &F) {
   if (F.empty()) return false;
   if (F.getName().find(".module_ctor") != std::string::npos)
     return false;  // Should not instrument sanitizer init functions.
+  // Don't instrument functions using SEH for now. Splitting basic blocks like
+  // we do for coverage breaks WinEHPrepare.
+  // FIXME: Remove this when SEH no longer uses landingpad pattern matching.
+  if (F.hasPersonalityFn() &&
+      isAsynchronousEHPersonality(classifyEHPersonality(F.getPersonalityFn())))
+    return false;
   if (Options.CoverageType >= SanitizerCoverageOptions::SCK_Edge)
     SplitAllCriticalEdges(F);
   SmallVector<Instruction*, 8> IndirCalls;
   SmallVector<BasicBlock*, 16> AllBlocks;
   SmallVector<Instruction*, 8> CmpTraceTargets;
+  SmallVector<Instruction*, 8> SwitchTraceTargets;
   for (auto &BB : F) {
     AllBlocks.push_back(&BB);
     for (auto &Inst : BB) {
@@ -293,13 +311,18 @@ bool SanitizerCoverageModule::runOnFunction(Function &F) {
         if (CS && !CS.getCalledFunction())
           IndirCalls.push_back(&Inst);
       }
-      if (Options.TraceCmp && isa<ICmpInst>(&Inst))
-        CmpTraceTargets.push_back(&Inst);
+      if (Options.TraceCmp) {
+        if (isa<ICmpInst>(&Inst))
+          CmpTraceTargets.push_back(&Inst);
+        if (isa<SwitchInst>(&Inst))
+          SwitchTraceTargets.push_back(&Inst);
+      }
     }
   }
   InjectCoverage(F, AllBlocks);
   InjectCoverageForIndirectCalls(F, IndirCalls);
   InjectTraceForCmp(F, CmpTraceTargets);
+  InjectTraceForSwitch(F, SwitchTraceTargets);
   return true;
 }
 
@@ -348,6 +371,45 @@ void SanitizerCoverageModule::InjectCoverageForIndirectCalls(
   }
 }
 
+// For every switch statement we insert a call:
+// __sanitizer_cov_trace_switch(CondValue,
+//      {NumCases, ValueSizeInBits, Case0Value, Case1Value, Case2Value, ... })
+
+void SanitizerCoverageModule::InjectTraceForSwitch(
+    Function &F, ArrayRef<Instruction *> SwitchTraceTargets) {
+  for (auto I : SwitchTraceTargets) {
+    if (SwitchInst *SI = dyn_cast<SwitchInst>(I)) {
+      IRBuilder<> IRB(I);
+      SmallVector<Constant *, 16> Initializers;
+      Value *Cond = SI->getCondition();
+      if (Cond->getType()->getScalarSizeInBits() >
+          Int64Ty->getScalarSizeInBits())
+        continue;
+      Initializers.push_back(ConstantInt::get(Int64Ty, SI->getNumCases()));
+      Initializers.push_back(
+          ConstantInt::get(Int64Ty, Cond->getType()->getScalarSizeInBits()));
+      if (Cond->getType()->getScalarSizeInBits() <
+          Int64Ty->getScalarSizeInBits())
+        Cond = IRB.CreateIntCast(Cond, Int64Ty, false);
+      for (auto It: SI->cases()) {
+        Constant *C = It.getCaseValue();
+        if (C->getType()->getScalarSizeInBits() <
+            Int64Ty->getScalarSizeInBits())
+          C = ConstantExpr::getCast(CastInst::ZExt, It.getCaseValue(), Int64Ty);
+        Initializers.push_back(C);
+      }
+      ArrayType *ArrayOfInt64Ty = ArrayType::get(Int64Ty, Initializers.size());
+      GlobalVariable *GV = new GlobalVariable(
+          *CurModule, ArrayOfInt64Ty, false, GlobalVariable::InternalLinkage,
+          ConstantArray::get(ArrayOfInt64Ty, Initializers),
+          "__sancov_gen_cov_switch_values");
+      IRB.CreateCall(SanCovTraceSwitchFunction,
+                     {Cond, IRB.CreatePointerCast(GV, Int64PtrTy)});
+    }
+  }
+}
+
+
 void SanitizerCoverageModule::InjectTraceForCmp(
     Function &F, ArrayRef<Instruction *> CmpTraceTargets) {
   for (auto I : CmpTraceTargets) {
@@ -369,8 +431,7 @@ void SanitizerCoverageModule::InjectTraceForCmp(
 
 void SanitizerCoverageModule::SetNoSanitizeMetadata(Instruction *I) {
   I->setMetadata(
-      I->getParent()->getParent()->getParent()->getMDKindID("nosanitize"),
-      MDNode::get(*C, None));
+      I->getModule()->getMDKindID("nosanitize"), MDNode::get(*C, None));
 }
 
 void SanitizerCoverageModule::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
@@ -382,34 +443,31 @@ void SanitizerCoverageModule::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
   // locations.
   if (isa<UnreachableInst>(BB.getTerminator()))
     return;
-  BasicBlock::iterator IP = BB.getFirstInsertionPt(), BE = BB.end();
-  // Skip static allocas at the top of the entry block so they don't become
-  // dynamic when we split the block.  If we used our optimized stack layout,
-  // then there will only be one alloca and it will come first.
-  for (; IP != BE; ++IP) {
-    AllocaInst *AI = dyn_cast<AllocaInst>(IP);
-    if (!AI || !AI->isStaticAlloca())
-      break;
-  }
+  BasicBlock::iterator IP = BB.getFirstInsertionPt();
 
   bool IsEntryBB = &BB == &F.getEntryBlock();
   DebugLoc EntryLoc;
   if (IsEntryBB) {
     if (auto SP = getDISubprogram(&F))
       EntryLoc = DebugLoc::get(SP->getScopeLine(), 0, SP);
+    // Keep static allocas and llvm.localescape calls in the entry block.  Even
+    // if we aren't splitting the block, it's nice for allocas to be before
+    // calls.
+    IP = PrepareToSplitEntryBlock(BB, IP);
   } else {
     EntryLoc = IP->getDebugLoc();
   }
 
-  IRBuilder<> IRB(IP);
+  IRBuilder<> IRB(&*IP);
   IRB.SetCurrentDebugLocation(EntryLoc);
-  SmallVector<Value *, 1> Indices;
   Value *GuardP = IRB.CreateAdd(
       IRB.CreatePointerCast(GuardArray, IntptrTy),
       ConstantInt::get(IntptrTy, (1 + NumberOfInstrumentedBlocks()) * 4));
   Type *Int32PtrTy = PointerType::getUnqual(IRB.getInt32Ty());
   GuardP = IRB.CreateIntToPtr(GuardP, Int32PtrTy);
-  if (UseCalls) {
+  if (Options.TraceBB) {
+    IRB.CreateCall(IsEntryBB ? SanCovTraceEnter : SanCovTraceBB, GuardP);
+  } else if (UseCalls) {
     IRB.CreateCall(SanCovWithCheckFunction, GuardP);
   } else {
     LoadInst *Load = IRB.CreateLoad(GuardP);
@@ -418,7 +476,7 @@ void SanitizerCoverageModule::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
     SetNoSanitizeMetadata(Load);
     Value *Cmp = IRB.CreateICmpSGE(Constant::getNullValue(Load->getType()), Load);
     Instruction *Ins = SplitBlockAndInsertIfThen(
-        Cmp, IP, false, MDBuilder(*C).createBranchWeights(1, 100000));
+        Cmp, &*IP, false, MDBuilder(*C).createBranchWeights(1, 100000));
     IRB.SetInsertPoint(Ins);
     IRB.SetCurrentDebugLocation(EntryLoc);
     // __sanitizer_cov gets the PC of the instruction using GET_CALLER_PC.
@@ -427,7 +485,7 @@ void SanitizerCoverageModule::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
   }
 
   if (Options.Use8bitCounters) {
-    IRB.SetInsertPoint(IP);
+    IRB.SetInsertPoint(&*IP);
     Value *P = IRB.CreateAdd(
         IRB.CreatePointerCast(EightBitCounterArray, IntptrTy),
         ConstantInt::get(IntptrTy, NumberOfInstrumentedBlocks() - 1));
@@ -437,13 +495,6 @@ void SanitizerCoverageModule::InjectCoverageAtBlock(Function &F, BasicBlock &BB,
     StoreInst *SI = IRB.CreateStore(Inc, P);
     SetNoSanitizeMetadata(LI);
     SetNoSanitizeMetadata(SI);
-  }
-
-  if (Options.TraceBB) {
-    // Experimental support for tracing.
-    // Insert a callback with the same guard variable as used for coverage.
-    IRB.SetInsertPoint(IP);
-    IRB.CreateCall(IsEntryBB ? SanCovTraceEnter : SanCovTraceBB, GuardP);
   }
 }
 

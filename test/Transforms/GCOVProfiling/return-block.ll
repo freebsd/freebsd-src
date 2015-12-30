@@ -16,7 +16,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @A = common global i32 0, align 4
 
 ; Function Attrs: nounwind uwtable
-define void @test() #0 {
+define void @test() #0 !dbg !4 {
 entry:
   tail call void (...) @f() #2, !dbg !14
   %0 = load i32, i32* @A, align 4, !dbg !15
@@ -44,11 +44,11 @@ attributes #2 = { nounwind }
 !llvm.module.flags = !{!11, !12}
 !llvm.ident = !{!13}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.6.0 (trunk 223182)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !8, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.6.0 (trunk 223182)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !8, imports: !2)
 !1 = !DIFile(filename: ".../llvm/test/Transforms/GCOVProfiling/return-block.ll", directory: "")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "test", line: 5, isLocal: false, isDefinition: true, isOptimized: true, scopeLine: 5, file: !1, scope: !5, type: !6, function: void ()* @test, variables: !2)
+!4 = distinct !DISubprogram(name: "test", line: 5, isLocal: false, isDefinition: true, isOptimized: true, scopeLine: 5, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: ".../llvm/test/Transforms/GCOVProfiling/return-block.ll", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null}

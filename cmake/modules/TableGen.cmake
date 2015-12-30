@@ -70,9 +70,31 @@ function(add_public_tablegen_target target)
   set(LLVM_COMMON_DEPENDS ${LLVM_COMMON_DEPENDS} ${target} PARENT_SCOPE)
 endfunction()
 
+if(LLVM_USE_HOST_TOOLS)
+  add_custom_command(OUTPUT LIB_LLVMSUPPORT
+      COMMAND ${CMAKE_COMMAND} --build . --target LLVMSupport --config Release
+      DEPENDS CONFIGURE_LLVM_NATIVE
+      WORKING_DIRECTORY ${LLVM_NATIVE_BUILD}
+      COMMENT "Building libLLVMSupport for native TableGen...")
+  add_custom_target(NATIVE_LIB_LLVMSUPPORT DEPENDS LIB_LLVMSUPPORT)
+
+  add_custom_command(OUTPUT LIB_LLVMTABLEGEN
+      COMMAND ${CMAKE_COMMAND} --build . --target LLVMTableGen --config Release
+      DEPENDS CONFIGURE_LLVM_NATIVE
+      WORKING_DIRECTORY ${LLVM_NATIVE_BUILD}
+      COMMENT "Building libLLVMTableGen for native TableGen...")
+  add_custom_target(NATIVE_LIB_LLVMTABLEGEN DEPENDS LIB_LLVMTABLEGEN)
+endif(LLVM_USE_HOST_TOOLS)
+
 macro(add_tablegen target project)
   set(${target}_OLD_LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS})
   set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} TableGen)
+
+  if(NOT XCODE)
+    # FIXME: It leaks to user, callee of add_tablegen.
+    set(LLVM_ENABLE_OBJLIB ON)
+  endif()
+
   add_llvm_utility(${target} ${ARGN})
   set(LLVM_LINK_COMPONENTS ${${target}_OLD_LLVM_LINK_COMPONENTS})
 
@@ -103,7 +125,7 @@ macro(add_tablegen target project)
 
       add_custom_command(OUTPUT ${${project}_TABLEGEN_EXE}
         COMMAND ${CMAKE_COMMAND} --build . --target ${target} --config Release
-        DEPENDS CONFIGURE_LLVM_NATIVE ${target}
+        DEPENDS ${target} NATIVE_LIB_LLVMSUPPORT NATIVE_LIB_LLVMTABLEGEN
         WORKING_DIRECTORY ${LLVM_NATIVE_BUILD}
         COMMENT "Building native TableGen...")
       add_custom_target(${project}-tablegen-host DEPENDS ${${project}_TABLEGEN_EXE})

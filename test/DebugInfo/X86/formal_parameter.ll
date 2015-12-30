@@ -24,7 +24,7 @@ target triple = "x86_64-apple-macosx10.9.0"
 ; CHECK-NOT: DW_AT_name {{.*}}map
 
 ; Function Attrs: nounwind ssp uwtable
-define void @foo(i32 %map) #0 {
+define void @foo(i32 %map) #0 !dbg !4 {
 entry:
   %map.addr = alloca i32, align 4
   store i32 %map, i32* %map.addr, align 4, !tbaa !15
@@ -59,17 +59,17 @@ attributes #3 = { nounwind }
 !llvm.module.flags = !{!11, !12}
 !llvm.ident = !{!13}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "formal_parameter.c", directory: "")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 2, file: !1, scope: !5, type: !6, function: void (i32)* @foo, variables: !9)
+!4 = distinct !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 2, file: !1, scope: !5, type: !6, variables: !9)
 !5 = !DIFile(filename: "formal_parameter.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null, !8}
 !8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{!10}
-!10 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "map", line: 1, arg: 1, scope: !4, file: !5, type: !8)
+!10 = !DILocalVariable(name: "map", line: 1, arg: 1, scope: !4, file: !5, type: !8)
 !11 = !{i32 2, !"Dwarf Version", i32 2}
 !12 = !{i32 1, !"Debug Info Version", i32 3}
 !13 = !{!"clang version 3.5.0 "}

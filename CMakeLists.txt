@@ -26,13 +26,41 @@ else()
   set(cmake_3_2_USES_TERMINAL USES_TERMINAL)
 endif()
 
-project(LLVM)
+if(NOT DEFINED LLVM_VERSION_MAJOR)
+  set(LLVM_VERSION_MAJOR 3)
+endif()
+if(NOT DEFINED LLVM_VERSION_MINOR)
+  set(LLVM_VERSION_MINOR 8)
+endif()
+if(NOT DEFINED LLVM_VERSION_PATCH)
+  set(LLVM_VERSION_PATCH 0)
+endif()
+if(NOT DEFINED LLVM_VERSION_SUFFIX)
+  set(LLVM_VERSION_SUFFIX svn)
+endif()
+
+if (POLICY CMP0048)
+  cmake_policy(SET CMP0048 NEW)
+  set(cmake_3_0_PROJ_VERSION
+    VERSION ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH})
+  set(cmake_3_0_LANGUAGES LANGUAGES)
+endif()
+
+if (NOT PACKAGE_VERSION)
+  set(PACKAGE_VERSION
+    "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
+endif()
+
+project(LLVM
+  ${cmake_3_0_PROJ_VERSION}
+  ${cmake_3_0_LANGUAGES}
+  C CXX ASM)
 
 # The following only works with the Ninja generator in CMake >= 3.0.
 set(LLVM_PARALLEL_COMPILE_JOBS "" CACHE STRING
   "Define the maximum number of concurrent compilation jobs.")
 if(LLVM_PARALLEL_COMPILE_JOBS)
-  if(CMAKE_VERSION VERSION_LESS 3.0 OR NOT CMAKE_MAKE_PROGRAM MATCHES "ninja$")
+  if(CMAKE_VERSION VERSION_LESS 3.0 OR NOT CMAKE_MAKE_PROGRAM MATCHES "ninja")
     message(WARNING "Job pooling is only available with Ninja generators and CMake 3.0 and later.")
   else()
     set_property(GLOBAL APPEND PROPERTY JOB_POOLS compile_job_pool=${LLVM_PARALLEL_COMPILE_JOBS})
@@ -43,7 +71,7 @@ endif()
 set(LLVM_PARALLEL_LINK_JOBS "" CACHE STRING
   "Define the maximum number of concurrent link jobs.")
 if(LLVM_PARALLEL_LINK_JOBS)
-  if(CMAKE_VERSION VERSION_LESS 3.0 OR NOT CMAKE_MAKE_PROGRAM MATCHES "ninja$")
+  if(CMAKE_VERSION VERSION_LESS 3.0 OR NOT CMAKE_MAKE_PROGRAM MATCHES "ninja")
     message(WARNING "Job pooling is only available with Ninja generators and CMake 3.0 and later.")
   else()
     set_property(GLOBAL APPEND PROPERTY JOB_POOLS link_job_pool=${LLVM_PARALLEL_LINK_JOBS})
@@ -58,15 +86,9 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules"
   )
 
-set(LLVM_VERSION_MAJOR 3)
-set(LLVM_VERSION_MINOR 7)
-set(LLVM_VERSION_PATCH 1)
-set(LLVM_VERSION_SUFFIX "")
-
-if (NOT PACKAGE_VERSION)
-  set(PACKAGE_VERSION
-    "${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}${LLVM_VERSION_SUFFIX}")
-endif()
+# Generate a CompilationDatabase (compile_commands.json file) for our build,
+# for use by clang_complete, YouCompleteMe, etc.
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 option(LLVM_INSTALL_UTILS "Include utility binaries in the 'install' target." OFF)
 
@@ -151,6 +173,11 @@ Please clean the source directory.")
 endif()
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" uppercase_CMAKE_BUILD_TYPE)
+
+if (CMAKE_BUILD_TYPE AND
+    NOT uppercase_CMAKE_BUILD_TYPE MATCHES "^(DEBUG|RELEASE|RELWITHDEBINFO|MINSIZEREL)$")
+  message(FATAL_ERROR "Invalid value for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+endif()
 
 set(LLVM_LIBDIR_SUFFIX "" CACHE STRING "Define suffix of library directory name (32/64)" )
 
@@ -278,6 +305,9 @@ endif( LLVM_USE_INTEL_JITEVENTS )
 option(LLVM_USE_OPROFILE
   "Use opagent JIT interface to inform OProfile about JIT code" OFF)
 
+option(LLVM_EXTERNALIZE_DEBUGINFO
+  "Generate dSYM files and strip executables and libraries (Darwin Only)" OFF)
+
 # If enabled, verify we are on a platform that supports oprofile.
 if( LLVM_USE_OPROFILE )
   if( NOT CMAKE_SYSTEM_NAME MATCHES "Linux" )
@@ -304,7 +334,7 @@ endif()
 # Define the default arguments to use with 'lit', and an option for the user to
 # override.
 set(LIT_ARGS_DEFAULT "-sv")
-if (MSVC OR XCODE)
+if (MSVC_IDE OR XCODE)
   set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")
 endif()
 set(LLVM_LIT_ARGS "${LIT_ARGS_DEFAULT}" CACHE STRING "Default options for lit")
@@ -333,6 +363,7 @@ option(LLVM_INCLUDE_EXAMPLES "Generate build targets for the LLVM examples" ON)
 option(LLVM_BUILD_TESTS
   "Build LLVM unit tests. If OFF, just generate build targets." OFF)
 option(LLVM_INCLUDE_TESTS "Generate build targets for the LLVM unit tests." ON)
+option(LLVM_INCLUDE_GO_TESTS "Include the Go bindings tests in test build targets." ON)
 
 option (LLVM_BUILD_DOCS "Build the llvm documentation." OFF)
 option (LLVM_INCLUDE_DOCS "Generate build targets for llvm documentation." ON)
@@ -342,9 +373,25 @@ option (LLVM_ENABLE_SPHINX "Use Sphinx to generate llvm documentation." OFF)
 option (LLVM_BUILD_EXTERNAL_COMPILER_RT
   "Build compiler-rt as an external project." OFF)
 
-option(LLVM_BUILD_LLVM_DYLIB "Build libllvm dynamic library" OFF)
-option(LLVM_DYLIB_EXPORT_ALL "Export all symbols from libLLVM.dylib (default is C API only" OFF)
-option(LLVM_DISABLE_LLVM_DYLIB_ATEXIT "Disable llvm-shlib's atexit destructors." ON)
+# You can configure which libraries from LLVM you want to include in the
+# shared library by setting LLVM_DYLIB_COMPONENTS to a semi-colon delimited
+# list of LLVM components. All component names handled by llvm-config are valid.
+if(NOT DEFINED LLVM_DYLIB_COMPONENTS)
+  set(LLVM_DYLIB_COMPONENTS "all" CACHE STRING
+    "Semicolon-separated list of components to include in libLLVM, or \"all\".")
+endif()
+option(LLVM_LINK_LLVM_DYLIB "Link tools against the libllvm dynamic library" OFF)
+option(LLVM_BUILD_LLVM_C_DYLIB "Build libllvm-c re-export library (Darwin Only)" OFF)
+set(LLVM_BUILD_LLVM_DYLIB_default OFF)
+if(LLVM_LINK_LLVM_DYLIB OR LLVM_BUILD_LLVM_C_DYLIB)
+  set(LLVM_BUILD_LLVM_DYLIB_default ON)
+endif()
+option(LLVM_BUILD_LLVM_DYLIB "Build libllvm dynamic library" ${LLVM_BUILD_LLVM_DYLIB_default})
+set(LLVM_DISABLE_LLVM_DYLIB_ATEXIT_DEFAULT ON)
+if (LLVM_LINK_LLVM_DYLIB)
+  set(LLVM_DISABLE_LLVM_DYLIB_ATEXIT_DEFAULT OFF)
+endif()
+option(LLVM_DISABLE_LLVM_DYLIB_ATEXIT "Disable llvm-shlib's atexit destructors." ${LLVM_DISABLE_LLVM_DYLIB_ATEXIT_DEFAULT})
 if(LLVM_DISABLE_LLVM_DYLIB_ATEXIT)
   set(DISABLE_LLVM_DYLIB_ATEXIT 1)
 endif()
@@ -525,6 +572,15 @@ else(UNIX)
   endif(NOT DEFINED CMAKE_INSTALL_RPATH)
 endif()
 
+if(APPLE AND DARWIN_LTO_LIBRARY)
+  set(CMAKE_EXE_LINKER_FLAGS
+    "${CMAKE_EXE_LINKER_FLAGS} -Wl,-lto_library -Wl,${DARWIN_LTO_LIBRARY}")
+  set(CMAKE_SHARED_LINKER_FLAGS
+    "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-lto_library -Wl,${DARWIN_LTO_LIBRARY}")
+  set(CMAKE_MODULE_LINKER_FLAGS
+    "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-lto_library -Wl,${DARWIN_LTO_LIBRARY}")
+endif()
+
 # Work around a broken bfd ld behavior. When linking a binary with a
 # foo.so library, it will try to find any library that foo.so uses and
 # check its symbols. This is wasteful (the check was done when foo.so
@@ -543,6 +599,10 @@ include_directories( ${LLVM_INCLUDE_DIR} ${LLVM_MAIN_INCLUDE_DIR})
 if(LLVM_USE_HOST_TOOLS)
   include(CrossCompile)
 endif(LLVM_USE_HOST_TOOLS)
+if(LLVM_TARGET_IS_CROSSCOMPILE_HOST)
+# Dummy use to avoid CMake Wraning: Manually-specified variables were not used
+# (this is a variable that CrossCompile sets on recursive invocations)
+endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "(FreeBSD|DragonFly)")
   # On FreeBSD, /usr/local/* is not used by default. In order to build LLVM
@@ -558,6 +618,17 @@ endif( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
 # Make sure we don't get -rdynamic in every binary. For those that need it,
 # use export_executable_symbols(target).
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+
+set(LLVM_PROFDATA_FILE "" CACHE FILEPATH
+  "Profiling data file to use when compiling in order to improve runtime performance.")
+
+if(LLVM_PROFDATA_FILE AND EXISTS ${LLVM_PROFDATA_FILE})
+  if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" )
+    add_definitions("-fprofile-instr-use=${LLVM_PROFDATA_FILE}")
+  else()
+    message(FATAL_ERROR "LLVM_PROFDATA_FILE can only be specified when compiling with clang")
+  endif()
+endif()
 
 include(AddLLVM)
 include(TableGen)
@@ -619,6 +690,13 @@ if( LLVM_INCLUDE_EXAMPLES )
 endif()
 
 if( LLVM_INCLUDE_TESTS )
+  if(EXISTS ${LLVM_MAIN_SRC_DIR}/projects/test-suite AND TARGET clang)
+    include(LLVMExternalProjectUtils)
+    llvm_ExternalProject_Add(test-suite ${LLVM_MAIN_SRC_DIR}/projects/test-suite
+      USE_TOOLCHAIN
+      EXCLUDE_FROM_ALL
+      NO_INSTALL)
+  endif()
   add_subdirectory(test)
   add_subdirectory(unittests)
   if (MSVC)

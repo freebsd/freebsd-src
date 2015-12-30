@@ -94,16 +94,16 @@ TEST(CommandLineTest, ModifyExisitingOption) {
     "Failed to modify option's option category.";
 
   Retrieved->setDescription(Description);
-  ASSERT_STREQ(Retrieved->HelpStr, Description) <<
-    "Changing option description failed.";
+  ASSERT_STREQ(Retrieved->HelpStr.data(), Description)
+      << "Changing option description failed.";
 
   Retrieved->setArgStr(ArgString);
-  ASSERT_STREQ(ArgString, Retrieved->ArgStr) <<
-    "Failed to modify option's Argument string.";
+  ASSERT_STREQ(ArgString, Retrieved->ArgStr.data())
+      << "Failed to modify option's Argument string.";
 
   Retrieved->setValueStr(ValueString);
-  ASSERT_STREQ(Retrieved->ValueStr, ValueString) <<
-    "Failed to modify option's Value string.";
+  ASSERT_STREQ(Retrieved->ValueStr.data(), ValueString)
+      << "Failed to modify option's Value string.";
 
   Retrieved->setHiddenFlag(cl::Hidden);
   ASSERT_EQ(cl::Hidden, TestOption.getOptionHiddenFlag()) <<
@@ -155,7 +155,7 @@ void testCommandLineTokenizer(ParserFunction *parse, const char *Input,
                               const char *const Output[], size_t OutputSize) {
   SmallVector<const char *, 0> Actual;
   BumpPtrAllocator A;
-  BumpPtrStringSaver Saver(A);
+  StringSaver Saver(A);
   parse(Input, Saver, Actual, /*MarkEOLs=*/false);
   EXPECT_EQ(OutputSize, Actual.size());
   for (unsigned I = 0, E = Actual.size(); I != E; ++I) {

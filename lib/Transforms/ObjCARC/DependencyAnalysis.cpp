@@ -49,7 +49,7 @@ bool llvm::objcarc::CanAlterRefCount(const Instruction *Inst, const Value *Ptr,
   assert(CS && "Only calls can alter reference counts!");
 
   // See if AliasAnalysis can help us with the call.
-  AliasAnalysis::ModRefBehavior MRB = PA.getAA()->getModRefBehavior(CS);
+  FunctionModRefBehavior MRB = PA.getAA()->getModRefBehavior(CS);
   if (AliasAnalysis::onlyReadsMemory(MRB))
     return false;
   if (AliasAnalysis::onlyAccessesArgPointees(MRB)) {
@@ -226,7 +226,7 @@ llvm::objcarc::FindDependencies(DependenceKind Flavor,
                                 SmallPtrSetImpl<Instruction *> &DependingInsts,
                                 SmallPtrSetImpl<const BasicBlock *> &Visited,
                                 ProvenanceAnalysis &PA) {
-  BasicBlock::iterator StartPos = StartInst;
+  BasicBlock::iterator StartPos = StartInst->getIterator();
 
   SmallVector<std::pair<BasicBlock *, BasicBlock::iterator>, 4> Worklist;
   Worklist.push_back(std::make_pair(StartBB, StartPos));
@@ -252,7 +252,7 @@ llvm::objcarc::FindDependencies(DependenceKind Flavor,
         break;
       }
 
-      Instruction *Inst = --LocalStartPos;
+      Instruction *Inst = &*--LocalStartPos;
       if (Depends(Flavor, Inst, Arg, PA)) {
         DependingInsts.insert(Inst);
         break;

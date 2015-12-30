@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=arm-eabi -mattr=+neon %s -o - | FileCheck %s
+; RUN: llc -mtriple=arm-eabi -mattr=+neon %s -o - -lower-interleaved-accesses=false | FileCheck %s
 
 define <8 x i8> @test_vextd(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 ;CHECK-LABEL: test_vextd:
@@ -195,4 +195,36 @@ define arm_aapcscc void @test_elem_mismatch(<2 x i64>* nocapture %src, <4 x i16>
   %tmp7 = insertelement <4 x i16> %tmp6, i16 %tmp5, i32 1
   store <4 x i16> %tmp7, <4 x i16>* %dest, align 4
   ret void
+}
+
+define <4 x i32> @test_reverse_and_extract(<2 x i32>* %A) {
+entry:
+  ; CHECK-LABEL: test_reverse_and_extract
+  ; CHECK-NOT: vtrn
+  ; CHECK: vrev
+  ; CHECK: vext
+	%tmp1 = load <2 x i32>, <2 x i32>* %A
+  %0 = shufflevector <2 x i32> %tmp1, <2 x i32> undef, <4 x i32> <i32 undef, i32 undef, i32 1, i32 0>
+  ret <4 x i32> %0
+}
+
+define <4 x i32> @test_dup_and_extract(<2 x i32>* %A) {
+entry:
+  ; CHECK-LABEL: test_dup_and_extract
+  ; CHECK-NOT: vtrn
+  ; CHECK: vdup
+  ; CHECK: vext
+	%tmp1 = load <2 x i32>, <2 x i32>* %A
+  %0 = shufflevector <2 x i32> %tmp1, <2 x i32> undef, <4 x i32> <i32 0, i32 0, i32 0, i32 1>
+  ret <4 x i32> %0
+}
+
+define <4 x i32> @test_zip_and_extract(<2 x i32>* %A) {
+entry:
+  ; CHECK-LABEL: test_zip_and_extract
+  ; CHECK: vzip
+  ; CHECK: vext
+	%tmp1 = load <2 x i32>, <2 x i32>* %A
+  %0 = shufflevector <2 x i32> %tmp1, <2 x i32> undef, <4 x i32> <i32 1, i32 1, i32 0, i32 1>
+  ret <4 x i32> %0
 }

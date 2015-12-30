@@ -60,7 +60,7 @@
 %struct.A = type { i32 (...)**, i32 }
 
 ; Function Attrs: nounwind
-define i32 @_Z3bari(i32 %b) #0 {
+define i32 @_Z3bari(i32 %b) #0 !dbg !4 {
 entry:
   %b.addr = alloca i32, align 4
   store i32 %b, i32* %b.addr, align 4
@@ -73,7 +73,7 @@ entry:
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-define void @_Z3baz1A(%struct.A* %a) #2 {
+define void @_Z3baz1A(%struct.A* %a) #2 !dbg !14 {
 entry:
   %z = alloca i32, align 4
   call void @llvm.dbg.declare(metadata %struct.A* %a, metadata !24, metadata !DIExpression(DW_OP_deref)), !dbg !25
@@ -116,33 +116,33 @@ attributes #2 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !llvm.module.flags = !{!18, !19}
 !llvm.ident = !{!20, !20}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (210479)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (210479)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "debug-loc-offset1.cc", directory: "/llvm_cmake_gcc")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "bar", linkageName: "_Z3bari", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, function: i32 (i32)* @_Z3bari, variables: !2)
+!4 = distinct !DISubprogram(name: "bar", linkageName: "_Z3bari", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "debug-loc-offset1.cc", directory: "/llvm_cmake_gcc")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8, !8}
 !8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!9 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (210479)", isOptimized: false, emissionKind: 1, file: !10, enums: !2, retainedTypes: !11, subprograms: !13, globals: !2, imports: !2)
+!9 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (210479)", isOptimized: false, emissionKind: 1, file: !10, enums: !2, retainedTypes: !11, subprograms: !13, globals: !2, imports: !2)
 !10 = !DIFile(filename: "debug-loc-offset2.cc", directory: "/llvm_cmake_gcc")
 !11 = !{!12}
 !12 = !DICompositeType(tag: DW_TAG_structure_type, name: "A", line: 1, flags: DIFlagFwdDecl, file: !10, identifier: "_ZTS1A")
 !13 = !{!14}
-!14 = !DISubprogram(name: "baz", linkageName: "_Z3baz1A", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 6, file: !10, scope: !15, type: !16, function: void (%struct.A*)* @_Z3baz1A, variables: !2)
+!14 = distinct !DISubprogram(name: "baz", linkageName: "_Z3baz1A", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 6, file: !10, scope: !15, type: !16, variables: !2)
 !15 = !DIFile(filename: "debug-loc-offset2.cc", directory: "/llvm_cmake_gcc")
 !16 = !DISubroutineType(types: !17)
 !17 = !{null, !12}
 !18 = !{i32 2, !"Dwarf Version", i32 4}
 !19 = !{i32 2, !"Debug Info Version", i32 3}
 !20 = !{!"clang version 3.5.0 (210479)"}
-!21 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "b", line: 1, arg: 1, scope: !4, file: !5, type: !8)
+!21 = !DILocalVariable(name: "b", line: 1, arg: 1, scope: !4, file: !5, type: !8)
 !22 = !DILocation(line: 1, scope: !4)
 !23 = !DILocation(line: 2, scope: !4)
-!24 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 6, arg: 1, scope: !14, file: !15, type: !"_ZTS1A")
+!24 = !DILocalVariable(name: "a", line: 6, arg: 1, scope: !14, file: !15, type: !"_ZTS1A")
 !25 = !DILocation(line: 6, scope: !14)
-!26 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "z", line: 7, scope: !14, file: !15, type: !8)
+!26 = !DILocalVariable(name: "z", line: 7, scope: !14, file: !15, type: !8)
 !27 = !DILocation(line: 7, scope: !14)
 !28 = !DILocation(line: 8, scope: !29)
 !29 = distinct !DILexicalBlock(line: 8, column: 0, file: !10, scope: !14)

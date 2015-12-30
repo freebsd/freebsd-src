@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:   llvm
 " Maintainer: The LLVM team, http://llvm.org/
-" Version:      $Revision: 235369 $
+" Version:      $Revision: 256512 $
 
 if version < 600
   syntax clear
@@ -16,7 +16,7 @@ syn case match
 " benefit as much from having dedicated highlighting rules.
 syn keyword llvmType void half float double x86_fp80 fp128 ppc_fp128
 syn keyword llvmType label metadata x86_mmx
-syn keyword llvmType type label opaque
+syn keyword llvmType type label opaque token
 syn match   llvmType /\<i\d\+\>/
 
 " Instructions.
@@ -42,10 +42,11 @@ syn keyword llvmKeyword arm_aapcscc arm_apcscc asm atomic available_externally
 syn keyword llvmKeyword blockaddress byval c catch cc ccc cleanup coldcc common
 syn keyword llvmKeyword constant datalayout declare default define deplibs
 syn keyword llvmKeyword distinct dllexport dllimport except extern_weak external
-syn keyword llvmKeyword externally_initialized fastcc filter gc global hidden
-syn keyword llvmKeyword initialexec inlinehint inreg intel_ocl_bicc inteldialect
-syn keyword llvmKeyword internal linkonce linkonce_odr localdynamic localexec
-syn keyword llvmKeyword minsize module monotonic msp430_intrcc naked nest
+syn keyword llvmKeyword externally_initialized fastcc filter gc global hhvmcc
+syn keyword llvmKeyword hhvm_ccc hidden initialexec inlinehint inreg
+syn keyword llvmKeyword intel_ocl_bicc inteldialect internal linkonce
+syn keyword llvmKeyword linkonce_odr localdynamic localexec minsize module
+syn keyword llvmKeyword monotonic msp430_intrcc musttail naked nest
 syn keyword llvmKeyword noalias nocapture noimplicitfloat noinline nonlazybind
 syn keyword llvmKeyword noredzone noreturn nounwind optnone optsize personality
 syn keyword llvmKeyword private protected ptx_device ptx_kernel readnone
@@ -56,7 +57,7 @@ syn keyword llvmKeyword sspstrong tail target thread_local to triple
 syn keyword llvmKeyword unnamed_addr unordered uwtable volatile weak weak_odr
 syn keyword llvmKeyword x86_fastcallcc x86_stdcallcc x86_thiscallcc
 syn keyword llvmKeyword x86_64_sysvcc x86_64_win64cc zeroext uselistorder
-syn keyword llvmKeyword uselistorder_bb
+syn keyword llvmKeyword uselistorder_bb musttail
 
 " Obsolete keywords.
 syn keyword llvmError  getresult begin end
@@ -84,10 +85,10 @@ syn match   llvmConstant /\<DW_LANG_[a-zA-Z0-9_]\+\>/
 syn match   llvmConstant /\<DW_VIRTUALITY_[a-z_]\+\>/
 syn match   llvmConstant /\<DIFlag[A-Za-z]\+\>/
 
-" Syntax-highlight dejagnu test commands.
-syn match  llvmSpecialComment /;\s*RUN:.*$/
+" Syntax-highlight lit test commands and bug numbers.
 syn match  llvmSpecialComment /;\s*PR\d*\s*$/
-syn match  llvmSpecialComment /;\s*END\.\s*$/
+syn match  llvmSpecialComment /;\s*REQUIRES:.*$/
+syn match  llvmSpecialComment /;\s*RUN:.*$/
 syn match  llvmSpecialComment /;\s*XFAIL:.*$/
 
 if version >= 508 || !exists("did_c_syn_inits")

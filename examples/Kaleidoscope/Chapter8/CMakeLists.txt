@@ -1,8 +1,7 @@
 set(LLVM_LINK_COMPONENTS
   Core
   ExecutionEngine
-  MCJIT
-  RuntimeDyld
+  Object
   Support
   native
   )
@@ -10,3 +9,5 @@ set(LLVM_LINK_COMPONENTS
 add_kaleidoscope_chapter(Kaleidoscope-Ch8
   toy.cpp
   )
+
+export_executable_symbols(Kaleidoscope-Ch8)

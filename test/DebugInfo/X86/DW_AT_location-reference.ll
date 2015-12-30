@@ -60,7 +60,7 @@ target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 
 @a = external global i32
 
-define void @f() nounwind {
+define void @f() nounwind !dbg !0 {
 entry:
   %call = tail call i32 @g(i32 0, i32 0) nounwind, !dbg !8
   store i32 %call, i32* @a, align 4, !dbg !8
@@ -102,12 +102,12 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!24}
 
-!0 = !DISubprogram(name: "f", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 4, file: !23, scope: !1, type: !3, function: void ()* @f, variables: !22)
+!0 = distinct !DISubprogram(name: "f", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 4, file: !23, scope: !1, type: !3, variables: !22)
 !1 = !DIFile(filename: "simple.c", directory: "/home/rengol01/temp/tests/dwarf/relocation")
-!2 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.0 (trunk)", isOptimized: true, emissionKind: 1, file: !23, enums: !{}, retainedTypes: !{}, subprograms: !21, imports:  null)
+!2 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.0 (trunk)", isOptimized: true, emissionKind: 1, file: !23, enums: !{}, retainedTypes: !{}, subprograms: !21, imports:  null)
 !3 = !DISubroutineType(types: !4)
 !4 = !{null}
-!5 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "x", line: 5, scope: !6, file: !1, type: !7)
+!5 = !DILocalVariable(name: "x", line: 5, scope: !6, file: !1, type: !7)
 !6 = distinct !DILexicalBlock(line: 4, column: 14, file: !23, scope: !0)
 !7 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !8 = !DILocation(line: 6, column: 3, scope: !6)

@@ -53,7 +53,7 @@ target triple = "x86_64-apple-macosx10.10.0"
 %struct.A = type { i32*, i32 }
 
 ; Function Attrs: alwaysinline ssp uwtable
-define void @_Z2f21A(i32* %p5.coerce0, i32 %p5.coerce1) #0 {
+define void @_Z2f21A(i32* %p5.coerce0, i32 %p5.coerce1) #0 !dbg !11 {
 entry:
   tail call void @llvm.dbg.value(metadata i32* %p5.coerce0, i64 0, metadata !16, metadata !33), !dbg !34
   tail call void @llvm.dbg.value(metadata i32 %p5.coerce1, i64 0, metadata !16, metadata !35), !dbg !34
@@ -68,7 +68,7 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 declare void @_Z2f1Pii(i32*, i32) #2
 
 ; Function Attrs: ssp uwtable
-define void @_Z1fv() #3 {
+define void @_Z1fv() #3 !dbg !17 {
 entry:
   %x = alloca i32, align 4
   %ref.tmp = alloca i32, align 4
@@ -136,7 +136,7 @@ attributes #3 = { ssp uwtable }
 !llvm.module.flags = !{!29, !30, !31}
 !llvm.ident = !{!32}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 (trunk 227088) (llvm/trunk 227091)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !10, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 (trunk 227088) (llvm/trunk 227091)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !10, globals: !2, imports: !2)
 !1 = !DIFile(filename: "test.cpp", directory: "")
 !2 = !{}
 !3 = !{!4}
@@ -147,24 +147,24 @@ attributes #3 = { ssp uwtable }
 !8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !DIDerivedType(tag: DW_TAG_member, name: "m2", line: 3, size: 32, align: 32, offset: 64, file: !1, scope: !"_ZTS1A", baseType: !8)
 !10 = !{!11, !17}
-!11 = !DISubprogram(name: "f2", linkageName: "_Z2f21A", line: 7, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 7, file: !1, scope: !12, type: !13, function: void (i32*, i32)* @_Z2f21A, variables: !15)
+!11 = distinct !DISubprogram(name: "f2", linkageName: "_Z2f21A", line: 7, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 7, file: !1, scope: !12, type: !13, variables: !15)
 !12 = !DIFile(filename: "test.cpp", directory: "")
 !13 = !DISubroutineType(types: !14)
 !14 = !{null, !"_ZTS1A"}
 !15 = !{!16}
-!16 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p5", line: 7, arg: 1, scope: !11, file: !12, type: !"_ZTS1A")
-!17 = !DISubprogram(name: "f", linkageName: "_Z1fv", line: 12, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 12, file: !1, scope: !12, type: !18, function: void ()* @_Z1fv, variables: !20)
+!16 = !DILocalVariable(name: "p5", line: 7, arg: 1, scope: !11, file: !12, type: !"_ZTS1A")
+!17 = distinct !DISubprogram(name: "f", linkageName: "_Z1fv", line: 12, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 12, file: !1, scope: !12, type: !18, variables: !20)
 !18 = !DISubroutineType(types: !19)
 !19 = !{null}
 !20 = !{!21, !23, !26, !27, !28}
-!21 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "x", line: 14, scope: !22, file: !12, type: !8)
+!21 = !DILocalVariable(name: "x", line: 14, scope: !22, file: !12, type: !8)
 !22 = distinct !DILexicalBlock(line: 13, column: 18, file: !1, scope: !17)
-!23 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "y", line: 17, scope: !24, file: !12, type: !25)
+!23 = !DILocalVariable(name: "y", line: 17, scope: !24, file: !12, type: !25)
 !24 = distinct !DILexicalBlock(line: 16, column: 20, file: !1, scope: !22)
 !25 = !DIBasicType(tag: DW_TAG_base_type, name: "char", size: 8, align: 8, encoding: DW_ATE_signed_char)
-!26 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "j", line: 19, scope: !24, file: !12, type: !25)
-!27 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "I", line: 21, scope: !24, file: !12, type: !25)
-!28 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "g", line: 24, scope: !24, file: !12, type: !"_ZTS1A")
+!26 = !DILocalVariable(name: "j", line: 19, scope: !24, file: !12, type: !25)
+!27 = !DILocalVariable(name: "I", line: 21, scope: !24, file: !12, type: !25)
+!28 = !DILocalVariable(name: "g", line: 24, scope: !24, file: !12, type: !"_ZTS1A")
 !29 = !{i32 2, !"Dwarf Version", i32 2}
 !30 = !{i32 2, !"Debug Info Version", i32 3}
 !31 = !{i32 1, !"PIC Level", i32 2}
@@ -196,7 +196,7 @@ attributes #3 = { ssp uwtable }
 !57 = !DILocation(line: 23, column: 15, scope: !24)
 !58 = !DILocation(line: 23, column: 7, scope: !24)
 !59 = !DILocation(line: 24, column: 9, scope: !24)
-!60 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p5", line: 7, arg: 1, scope: !11, file: !12, type: !"_ZTS1A")
+!60 = !DILocalVariable(name: "p5", line: 7, arg: 1, scope: !11, file: !12, type: !"_ZTS1A")
 !61 = distinct !DILocation(line: 26, column: 7, scope: !24)
 !62 = !DILocation(line: 7, column: 42, scope: !11, inlinedAt: !61)
 !63 = !DILocation(line: 7, column: 48, scope: !11, inlinedAt: !61)

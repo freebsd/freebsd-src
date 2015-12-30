@@ -33,12 +33,24 @@ cl::opt<bool> RelaxAll("mc-relax-all",
                        cl::desc("When used with filetype=obj, "
                                 "relax all fixups in the emitted object file"));
 
+cl::opt<bool> IncrementalLinkerCompatible(
+    "incremental-linker-compatible",
+    cl::desc(
+        "When used with filetype=obj, "
+        "emit an object file which can be used with an incremental linker"));
+
 cl::opt<int> DwarfVersion("dwarf-version", cl::desc("Dwarf version"),
                           cl::init(0));
 
 cl::opt<bool> ShowMCInst("asm-show-inst",
                          cl::desc("Emit internal instruction representation to "
                                   "assembly file"));
+
+cl::opt<bool> FatalWarnings("fatal-warnings",
+                            cl::desc("Treat warnings as errors"));
+
+cl::opt<bool> NoWarn("no-warn", cl::desc("Suppress all warnings"));
+cl::alias NoWarnW("W", cl::desc("Alias for --no-warn"), cl::aliasopt(NoWarn));
 
 cl::opt<std::string>
 ABIName("target-abi", cl::Hidden,
@@ -50,9 +62,12 @@ static inline MCTargetOptions InitMCTargetOptionsFromFlags() {
   Options.SanitizeAddress =
       (AsmInstrumentation == MCTargetOptions::AsmInstrumentationAddress);
   Options.MCRelaxAll = RelaxAll;
+  Options.MCIncrementalLinkerCompatible = IncrementalLinkerCompatible;
   Options.DwarfVersion = DwarfVersion;
   Options.ShowMCInst = ShowMCInst;
   Options.ABIName = ABIName;
+  Options.MCFatalWarnings = FatalWarnings;
+  Options.MCNoWarn = NoWarn;
   return Options;
 }
 

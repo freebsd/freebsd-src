@@ -29,6 +29,7 @@
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/TimeValue.h"
 #include "llvm/Support/YAMLTraits.h"
 #include <vector>
 
@@ -65,6 +66,7 @@ class DebugMapObject;
 /// }
 class DebugMap {
   Triple BinaryTriple;
+  std::string BinaryPath;
   typedef std::vector<std::unique_ptr<DebugMapObject>> ObjectContainer;
   ObjectContainer Objects;
 
@@ -75,7 +77,8 @@ class DebugMap {
   DebugMap() = default;
   ///@}
 public:
-  DebugMap(const Triple &BinaryTriple) : BinaryTriple(BinaryTriple) {}
+  DebugMap(const Triple &BinaryTriple, StringRef BinaryPath)
+      : BinaryTriple(BinaryTriple), BinaryPath(BinaryPath) {}
 
   typedef ObjectContainer::const_iterator const_iterator;
 
@@ -89,9 +92,12 @@ public:
 
   /// This function adds an DebugMapObject to the list owned by this
   /// debug map.
-  DebugMapObject &addDebugMapObject(StringRef ObjectFilePath);
+  DebugMapObject &addDebugMapObject(StringRef ObjectFilePath,
+                                    sys::TimeValue Timestamp);
 
   const Triple &getTriple() const { return BinaryTriple; }
+
+  StringRef getBinaryPath() const { return BinaryPath; }
 
   void print(raw_ostream &OS) const;
 
@@ -100,7 +106,7 @@ public:
 #endif
 
   /// Read a debug map for \a InputFile.
-  static ErrorOr<std::unique_ptr<DebugMap>>
+  static ErrorOr<std::vector<std::unique_ptr<DebugMap>>>
   parseYAMLDebugMap(StringRef InputFile, StringRef PrependPath, bool Verbose);
 };
 
@@ -139,6 +145,8 @@ public:
 
   llvm::StringRef getObjectFilename() const { return Filename; }
 
+  sys::TimeValue getTimestamp() const { return Timestamp; }
+
   iterator_range<StringMap<SymbolMapping>::const_iterator> symbols() const {
     return make_range(Symbols.begin(), Symbols.end());
   }
@@ -150,9 +158,10 @@ public:
 private:
   friend class DebugMap;
   /// DebugMapObjects can only be constructed by the owning DebugMap.
-  DebugMapObject(StringRef ObjectFilename);
+  DebugMapObject(StringRef ObjectFilename, sys::TimeValue Timestamp);
 
   std::string Filename;
+  sys::TimeValue Timestamp;
   StringMap<SymbolMapping> Symbols;
   DenseMap<uint64_t, DebugMapEntry *> AddressToMapping;
 
@@ -167,12 +176,14 @@ private:
 public:
   DebugMapObject &operator=(DebugMapObject RHS) {
     std::swap(Filename, RHS.Filename);
+    std::swap(Timestamp, RHS.Timestamp);
     std::swap(Symbols, RHS.Symbols);
     std::swap(AddressToMapping, RHS.AddressToMapping);
     return *this;
   }
   DebugMapObject(DebugMapObject &&RHS) {
     Filename = std::move(RHS.Filename);
+    Timestamp = std::move(RHS.Timestamp);
     Symbols = std::move(RHS.Symbols);
     AddressToMapping = std::move(RHS.AddressToMapping);
   }

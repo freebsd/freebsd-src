@@ -16,7 +16,7 @@ loop:
 ; CHECK-DAG: [ %obj.relocated.casted, %loop ]
 ; CHECK-DAG: [ %obj, %entry ]
   call void @use_obj(i64 addrspace(1)* %obj)
-  %safepoint_token = call i32 (i64, i32, void ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @do_safepoint, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
+  %safepoint_token = call token (i64, i32, void ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @do_safepoint, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
   br label %loop
 }
 
@@ -55,9 +55,9 @@ define i64 addrspace(1)* @test1(i32 %caller, i8 addrspace(1)* %a, i8 addrspace(1
 
  merge:
 ; CHECK: merge:
-; CHECK-NEXT: %base_phi = phi i64 addrspace(1)* [ [[CAST_L]], %left ], [ [[CAST_L]], %left ], [ [[CAST_L]], %left ], [ [[CAST_R]], %right ], !is_base_value !0
+; CHECK-NEXT: %value.base = phi i64 addrspace(1)* [ [[CAST_L]], %left ], [ [[CAST_L]], %left ], [ [[CAST_L]], %left ], [ [[CAST_R]], %right ], !is_base_value !0
   %value = phi i64 addrspace(1)* [ %a.cast, %left], [ %a.cast, %left], [ %a.cast, %left], [ %b.cast, %right]
-  %safepoint_token = call i32 (i64, i32, void (i64 addrspace(1)*)*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidp1i64f(i64 0, i32 0, void (i64 addrspace(1)*)* @parse_point, i32 1, i32 0, i64 addrspace(1)* %value, i32 0, i32 5, i32 0, i32 0, i32 0, i32 0, i32 0)
+  %safepoint_token = call token (i64, i32, void (i64 addrspace(1)*)*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidp1i64f(i64 0, i32 0, void (i64 addrspace(1)*)* @parse_point, i32 1, i32 0, i64 addrspace(1)* %value, i32 0, i32 5, i32 0, i32 0, i32 0, i32 0, i32 0)
 
   ret i64 addrspace(1)* %value
 }
@@ -74,16 +74,15 @@ entry:
 
 loop:                                             ; preds = %loop, %entry
 ; CHECK-LABEL: loop
-; CHECK:   %base_phi = phi i64 addrspace(1)*
+; CHECK:   %current.base = phi i64 addrspace(1)*
 ; CHECK-DAG: [ %base_obj, %entry ]
 ; Given the two selects are equivelent, so are their base phis - ideally,
 ; we'd have commoned these, but that's a missed optimization, not correctness.
-; CHECK-DAG: [ [[DISCARD:%base_select.*.relocated.casted]], %loop ]
-; CHECK-NOT: base_phi2
+; CHECK-DAG: [ [[DISCARD:%.*.base.relocated.casted]], %loop ]
+; CHECK-NOT: extra.base
 ; CHECK: next = select
-; CHECK: base_select
+; CHECK: extra2.base = select
 ; CHECK: extra2 = select
-; CHECK: base_select
 ; CHECK: statepoint
 ;; Both 'next' and 'extra2' are live across the backedge safepoint...
   %current = phi i64 addrspace(1)* [ %obj, %entry ], [ %next, %loop ]
@@ -91,10 +90,62 @@ loop:                                             ; preds = %loop, %entry
   %nexta = getelementptr i64, i64 addrspace(1)* %current, i32 1
   %next = select i1 %cnd, i64 addrspace(1)* %nexta, i64 addrspace(1)* %base_arg2
   %extra2 = select i1 %cnd, i64 addrspace(1)* %nexta, i64 addrspace(1)* %base_arg2
-  %safepoint_token = call i32 (i64, i32, void ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
+  %safepoint_token = call token (i64, i32, void ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
   br label %loop
 }
 
+define i64 addrspace(1)* @test3(i1 %cnd, i64 addrspace(1)* %obj, 
+                                i64 addrspace(1)* %obj2)
+    gc "statepoint-example" {
+; CHECK-LABEL: @test3
+entry:
+  br i1 %cnd, label %merge, label %taken
+taken:
+  br label %merge
+merge:
+; CHECK-LABEL: merge:
+; CHECK-NEXT: %bdv = phi
+; CHECK-NEXT: gc.statepoint
+  %bdv = phi i64 addrspace(1)* [ %obj, %entry ], [ %obj2, %taken ]
+  %safepoint_token = call token (i64, i32, void ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
+  ret i64 addrspace(1)* %bdv
+}
+
+define i64 addrspace(1)* @test4(i1 %cnd, i64 addrspace(1)* %obj, 
+                                i64 addrspace(1)* %obj2)
+    gc "statepoint-example" {
+; CHECK-LABEL: @test4
+entry:
+  br i1 %cnd, label %merge, label %taken
+taken:
+  br label %merge
+merge:
+; CHECK-LABEL: merge:
+; CHECK-NEXT: %bdv = phi
+; CHECK-NEXT: gc.statepoint
+  %bdv = phi i64 addrspace(1)* [ %obj, %entry ], [ %obj, %taken ]
+  %safepoint_token = call token (i64, i32, void ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
+  ret i64 addrspace(1)* %bdv
+}
+
+define i64 addrspace(1)* @test5(i1 %cnd, i64 addrspace(1)* %obj, 
+                                i64 addrspace(1)* %obj2)
+    gc "statepoint-example" {
+; CHECK-LABEL: @test5
+entry:
+  br label %merge
+merge:
+; CHECK-LABEL: merge:
+; CHECK-NEXT: %bdv = phi
+; CHECK-NEXT: br i1
+  %bdv = phi i64 addrspace(1)* [ %obj, %entry ], [ %obj2, %merge ]
+  br i1 %cnd, label %merge, label %next
+next:
+  %safepoint_token = call token (i64, i32, void ()*, i32, i32, ...) @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
+  ret i64 addrspace(1)* %bdv
+}
+
+
 declare void @foo()
-declare i32 @llvm.experimental.gc.statepoint.p0f_isVoidf(i64, i32, void ()*, i32, i32, ...)
-declare i32 @llvm.experimental.gc.statepoint.p0f_isVoidp1i64f(i64, i32, void (i64 addrspace(1)*)*, i32, i32, ...)
+declare token @llvm.experimental.gc.statepoint.p0f_isVoidf(i64, i32, void ()*, i32, i32, ...)
+declare token @llvm.experimental.gc.statepoint.p0f_isVoidp1i64f(i64, i32, void (i64 addrspace(1)*)*, i32, i32, ...)

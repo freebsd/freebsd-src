@@ -1,7 +1,8 @@
 set(system_libs)
 if( NOT MSVC )
   if( MINGW )
-    set(system_libs ${system_libs} psapi shell32 ole32)
+    # libuuid required for FOLDERID_Profile usage in lib/Support/Windows/Path.inc.
+    set(system_libs ${system_libs} psapi shell32 ole32 uuid)
   elseif( CMAKE_HOST_UNIX )
     if( HAVE_LIBRT )
       set(system_libs ${system_libs} rt)
@@ -59,6 +60,7 @@ add_llvm_library(LLVMSupport
   IntEqClasses.cpp
   IntervalMap.cpp
   IntrusiveRefCntPtr.cpp
+  JamCRC.cpp
   LEB128.cpp
   LineIterator.cpp
   Locale.cpp
@@ -87,6 +89,7 @@ add_llvm_library(LLVMSupport
   StringRef.cpp
   SystemUtils.cpp
   TargetParser.cpp
+  ThreadPool.cpp
   Timer.cpp
   ToolOutputFile.cpp
   Triple.cpp

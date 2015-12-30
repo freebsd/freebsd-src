@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple aarch64-unknown-unknown -aarch64-neon-syntax=apple -asm-verbose=false | FileCheck %s
+; RUN: llc < %s -mtriple aarch64-unknown-unknown -aarch64-neon-syntax=apple -asm-verbose=false -disable-post-ra | FileCheck %s
 
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
@@ -139,6 +139,33 @@ define half @test_select(half %a, half %b, i1 zeroext %c) #0 {
 ; CHECK-NEXT: ret
 define half @test_select_cc(half %a, half %b, half %c, half %d) #0 {
   %cc = fcmp une half %c, %d
+  %r = select i1 %cc, half %a, half %b
+  ret half %r
+}
+
+; CHECK-LABEL: test_select_cc_f32_f16:
+; CHECK-DAG:   fcvt s2, h2
+; CHECK-DAG:   fcvt s3, h3
+; CHECK-NEXT:  fcmp s2, s3
+; CHECK-NEXT:  fcsel s0, s0, s1, ne
+; CHECK-NEXT:  ret
+define float @test_select_cc_f32_f16(float %a, float %b, half %c, half %d) #0 {
+  %cc = fcmp une half %c, %d
+  %r = select i1 %cc, float %a, float %b
+  ret float %r
+}
+
+; CHECK-LABEL: test_select_cc_f16_f32:
+; CHECK-DAG:  fcvt s0, h0
+; CHECK-DAG:  fcvt s1, h1
+; CHECK-DAG:  fcmp s2, s3
+; CHECK-DAG:  cset w8, ne
+; CHECK-NEXT: cmp w8, #0
+; CHECK-NEXT: fcsel s0, s0, s1, ne
+; CHECK-NEXT: fcvt h0, s0
+; CHECK-NEXT: ret
+define half @test_select_cc_f16_f32(half %a, half %b, float %c, float %d) #0 {
+  %cc = fcmp une float %c, %d
   %r = select i1 %cc, half %a, half %b
   ret half %r
 }
@@ -644,13 +671,10 @@ define half @test_fabs(half %a) #0 {
 }
 
 ; CHECK-LABEL: test_minnum:
-; CHECK-NEXT: stp x29, x30, [sp, #-16]!
-; CHECK-NEXT: mov  x29, sp
-; CHECK-NEXT: fcvt s0, h0
 ; CHECK-NEXT: fcvt s1, h1
-; CHECK-NEXT: bl {{_?}}fminf
+; CHECK-NEXT: fcvt s0, h0
+; CHECK-NEXT: fminnm s0, s0, s1
 ; CHECK-NEXT: fcvt h0, s0
-; CHECK-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-NEXT: ret
 define half @test_minnum(half %a, half %b) #0 {
   %r = call half @llvm.minnum.f16(half %a, half %b)
@@ -658,13 +682,10 @@ define half @test_minnum(half %a, half %b) #0 {
 }
 
 ; CHECK-LABEL: test_maxnum:
-; CHECK-NEXT: stp x29, x30, [sp, #-16]!
-; CHECK-NEXT: mov  x29, sp
-; CHECK-NEXT: fcvt s0, h0
 ; CHECK-NEXT: fcvt s1, h1
-; CHECK-NEXT: bl {{_?}}fmaxf
+; CHECK-NEXT: fcvt s0, h0
+; CHECK-NEXT: fmaxnm s0, s0, s1
 ; CHECK-NEXT: fcvt h0, s0
-; CHECK-NEXT: ldp x29, x30, [sp], #16
 ; CHECK-NEXT: ret
 define half @test_maxnum(half %a, half %b) #0 {
   %r = call half @llvm.maxnum.f16(half %a, half %b)
@@ -683,11 +704,50 @@ define half @test_copysign(half %a, half %b) #0 {
   ret half %r
 }
 
-; CHECK-LABEL: test_floor:
-; CHECK-NEXT: fcvt s1, h0
-; CHECK-NEXT: frintm s0, s1
+; CHECK-LABEL: test_copysign_f32:
+; CHECK-NEXT: fcvt s0, h0
+; CHECK-NEXT: movi.4s v2, #0x80, lsl #24
+; CHECK-NEXT: bit.16b v0, v1, v2
 ; CHECK-NEXT: fcvt h0, s0
-; CHECK-NEXT: frintx s1, s1
+; CHECK-NEXT: ret
+define half @test_copysign_f32(half %a, float %b) #0 {
+  %tb = fptrunc float %b to half
+  %r = call half @llvm.copysign.f16(half %a, half %tb)
+  ret half %r
+}
+
+; CHECK-LABEL: test_copysign_f64:
+; CHECK-NEXT: fcvt s1, d1
+; CHECK-NEXT: fcvt s0, h0
+; CHECK-NEXT: movi.4s v2, #0x80, lsl #24
+; CHECK-NEXT: bit.16b v0, v1, v2
+; CHECK-NEXT: fcvt h0, s0
+; CHECK-NEXT: ret
+define half @test_copysign_f64(half %a, double %b) #0 {
+  %tb = fptrunc double %b to half
+  %r = call half @llvm.copysign.f16(half %a, half %tb)
+  ret half %r
+}
+
+; Check that the FP promotion will use a truncating FP_ROUND, so we can fold
+; away the (fpext (fp_round <result>)) here.
+
+; CHECK-LABEL: test_copysign_extended:
+; CHECK-NEXT: fcvt s1, h1
+; CHECK-NEXT: fcvt s0, h0
+; CHECK-NEXT: movi.4s v2, #0x80, lsl #24
+; CHECK-NEXT: bit.16b v0, v1, v2
+; CHECK-NEXT: ret
+define float @test_copysign_extended(half %a, half %b) #0 {
+  %r = call half @llvm.copysign.f16(half %a, half %b)
+  %xr = fpext half %r to float
+  ret float %xr
+}
+
+; CHECK-LABEL: test_floor:
+; CHECK-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; CHECK-NEXT: frintm [[INT32:s[0-9]+]], [[FLOAT32]]
+; CHECK-NEXT: fcvt h0, [[INT32]]
 ; CHECK-NEXT: ret
 define half @test_floor(half %a) #0 {
   %r = call half @llvm.floor.f16(half %a)
@@ -695,10 +755,9 @@ define half @test_floor(half %a) #0 {
 }
 
 ; CHECK-LABEL: test_ceil:
-; CHECK-NEXT: fcvt s1, h0
-; CHECK-NEXT: frintp s0, s1
-; CHECK-NEXT: fcvt h0, s0
-; CHECK-NEXT: frintx s1, s1
+; CHECK-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; CHECK-NEXT: frintp [[INT32:s[0-9]+]], [[FLOAT32]]
+; CHECK-NEXT: fcvt h0, [[INT32]]
 ; CHECK-NEXT: ret
 define half @test_ceil(half %a) #0 {
   %r = call half @llvm.ceil.f16(half %a)
@@ -706,10 +765,9 @@ define half @test_ceil(half %a) #0 {
 }
 
 ; CHECK-LABEL: test_trunc:
-; CHECK-NEXT: fcvt s1, h0
-; CHECK-NEXT: frintz s0, s1
-; CHECK-NEXT: fcvt h0, s0
-; CHECK-NEXT: frintx s1, s1
+; CHECK-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; CHECK-NEXT: frintz [[INT32:s[0-9]+]], [[FLOAT32]]
+; CHECK-NEXT: fcvt h0, [[INT32]]
 ; CHECK-NEXT: ret
 define half @test_trunc(half %a) #0 {
   %r = call half @llvm.trunc.f16(half %a)
@@ -737,10 +795,9 @@ define half @test_nearbyint(half %a) #0 {
 }
 
 ; CHECK-LABEL: test_round:
-; CHECK-NEXT: fcvt s1, h0
-; CHECK-NEXT: frinta s0, s1
-; CHECK-NEXT: fcvt h0, s0
-; CHECK-NEXT: frintx s1, s1
+; CHECK-NEXT: fcvt [[FLOAT32:s[0-9]+]], h0
+; CHECK-NEXT: frinta [[INT32:s[0-9]+]], [[FLOAT32]]
+; CHECK-NEXT: fcvt h0, [[INT32]]
 ; CHECK-NEXT: ret
 define half @test_round(half %a) #0 {
   %r = call half @llvm.round.f16(half %a)

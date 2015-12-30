@@ -20,13 +20,13 @@
 ; right now, so we check the asm output:
 ; RUN: llc -O0 -mtriple=x86_64-apple-darwin %s -o - -filetype=asm | FileCheck %s -check-prefix=ASM-CHECK
 ; vla should have a register-indirect address at one point.
-; ASM-CHECK: DEBUG_VALUE: vla <- RCX
+; ASM-CHECK: DEBUG_VALUE: vla <- [%RCX+0]
 ; ASM-CHECK: DW_OP_breg2
 
 ; RUN: llvm-as %s -o - | llvm-dis - | FileCheck %s --check-prefix=PRETTY-PRINT
-; PRETTY-PRINT: DIExpression(DW_OP_deref, DW_OP_deref)
+; PRETTY-PRINT: DIExpression(DW_OP_deref)
 
-define void @testVLAwithSize(i32 %s) nounwind uwtable ssp {
+define void @testVLAwithSize(i32 %s) nounwind uwtable ssp !dbg !5 {
 entry:
   %s.addr = alloca i32, align 4
   %saved_stack = alloca i8*
@@ -80,24 +80,24 @@ declare void @llvm.stackrestore(i8*) nounwind
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!29}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.2 (trunk 156005) (llvm/trunk 156000)", isOptimized: false, emissionKind: 1, file: !28, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1, imports:  !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.2 (trunk 156005) (llvm/trunk 156000)", isOptimized: false, emissionKind: 1, file: !28, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1, imports:  !1)
 !1 = !{}
 !3 = !{!5}
-!5 = !DISubprogram(name: "testVLAwithSize", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !28, scope: !6, type: !7, function: void (i32)* @testVLAwithSize, variables: !1)
+!5 = distinct !DISubprogram(name: "testVLAwithSize", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !28, scope: !6, type: !7, variables: !1)
 !6 = !DIFile(filename: "bar.c", directory: "/Users/echristo/tmp")
 !7 = !DISubroutineType(types: !8)
 !8 = !{null, !9}
 !9 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!10 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "s", line: 1, arg: 1, scope: !5, file: !6, type: !9)
+!10 = !DILocalVariable(name: "s", line: 1, arg: 1, scope: !5, file: !6, type: !9)
 !11 = !DILocation(line: 1, column: 26, scope: !5)
 !12 = !DILocation(line: 3, column: 13, scope: !13)
 !13 = distinct !DILexicalBlock(line: 2, column: 1, file: !28, scope: !5)
-!14 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "vla", line: 3, scope: !13, file: !6, type: !15)
+!14 = !DILocalVariable(name: "vla", line: 3, scope: !13, file: !6, type: !15)
 !15 = !DICompositeType(tag: DW_TAG_array_type, align: 32, baseType: !9, elements: !16)
 !16 = !{!17}
 !17 = !DISubrange(count: -1)
 !18 = !DILocation(line: 3, column: 7, scope: !13)
-!19 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "i", line: 4, scope: !13, file: !6, type: !9)
+!19 = !DILocalVariable(name: "i", line: 4, scope: !13, file: !6, type: !9)
 !20 = !DILocation(line: 4, column: 7, scope: !13)
 !21 = !DILocation(line: 5, column: 8, scope: !22)
 !22 = distinct !DILexicalBlock(line: 5, column: 3, file: !28, scope: !13)
@@ -108,4 +108,4 @@ declare void @llvm.stackrestore(i8*) nounwind
 !27 = !DILocation(line: 8, column: 1, scope: !13)
 !28 = !DIFile(filename: "bar.c", directory: "/Users/echristo/tmp")
 !29 = !{i32 1, !"Debug Info Version", i32 3}
-!30 = !DIExpression(DW_OP_deref, DW_OP_deref)
+!30 = !DIExpression(DW_OP_deref)

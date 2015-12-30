@@ -32,12 +32,12 @@ dnl===-----------------------------------------------------------------------===
 dnl Initialize autoconf and define the package name, version number and
 dnl address for reporting bugs.
 
-AC_INIT([LLVM],[3.7.1],[http://llvm.org/bugs/])
+AC_INIT([LLVM],[3.8.0svn],[http://llvm.org/bugs/])
 
 LLVM_VERSION_MAJOR=3
-LLVM_VERSION_MINOR=7
-LLVM_VERSION_PATCH=1
-LLVM_VERSION_SUFFIX=
+LLVM_VERSION_MINOR=8
+LLVM_VERSION_PATCH=0
+LLVM_VERSION_SUFFIX=svn
 
 AC_DEFINE_UNQUOTED([LLVM_VERSION_MAJOR], $LLVM_VERSION_MAJOR, [Major version of the LLVM API])
 AC_DEFINE_UNQUOTED([LLVM_VERSION_MINOR], $LLVM_VERSION_MINOR, [Minor version of the LLVM API])
@@ -74,7 +74,7 @@ if test ${srcdir} != "." ; then
 fi
 
 dnl Quit if it is an in-source build
-if test ${srcdir} == "." ; then
+if test ${srcdir} = "." ; then
   AC_MSG_ERROR([In-source builds are not allowed. Please configure from a separate build directory!])
 fi
 
@@ -133,6 +133,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[#if ! __clang__
                                      llvm_cv_cxx_compiler=gcc, [])])
 AC_LANG_POP([C++])
 AC_MSG_RESULT([${llvm_cv_cxx_compiler}])
+AC_SUBST(CXX_COMPILER,$llvm_cv_cxx_compiler)
 
 dnl Configure all of the projects present in our source tree. While we could
 dnl just AC_CONFIG_SUBDIRS on the set of directories in projects that have a
@@ -430,6 +431,7 @@ AC_CACHE_CHECK([target architecture],[llvm_cv_target_arch],
   arm64*-*)               llvm_cv_target_arch="AArch64" ;;
   arm*-*)                 llvm_cv_target_arch="ARM" ;;
   aarch64*-*)             llvm_cv_target_arch="AArch64" ;;
+  avr-*)                  llvm_cv_target_arch="AVR" ;;
   mips-* | mips64-*)      llvm_cv_target_arch="Mips" ;;
   mipsel-* | mips64el-*)  llvm_cv_target_arch="Mips" ;;
   xcore-*)                llvm_cv_target_arch="XCore" ;;
@@ -467,6 +469,7 @@ case $host in
   arm64*-*)               host_arch="AArch64" ;;
   arm*-*)                 host_arch="ARM" ;;
   aarch64*-*)             host_arch="AArch64" ;;
+  avr-*)                  host_arch="AVR" ;;
   mips-* | mips64-*)      host_arch="Mips" ;;
   mipsel-* | mips64el-*)  host_arch="Mips" ;;
   xcore-*)                host_arch="XCore" ;;
@@ -800,6 +803,7 @@ else
     PowerPC)     AC_SUBST(TARGET_HAS_JIT,1) ;;
     x86_64)      AC_SUBST(TARGET_HAS_JIT,1) ;;
     ARM)         AC_SUBST(TARGET_HAS_JIT,1) ;;
+    AVR)         AC_SUBST(TARGET_HAS_JIT,0) ;;
     Mips)        AC_SUBST(TARGET_HAS_JIT,1) ;;
     XCore)       AC_SUBST(TARGET_HAS_JIT,0) ;;
     MSP430)      AC_SUBST(TARGET_HAS_JIT,0) ;;
@@ -1339,7 +1343,7 @@ AC_DEFINE_UNQUOTED(DEFAULT_SYSROOT,"$withval",
 AC_ARG_WITH(clang-default-openmp-runtime,
   AS_HELP_STRING([--with-clang-default-openmp-runtime],
     [The default OpenMP runtime for Clang.]),,
-    withval="libgomp")
+    withval="libomp")
 AC_DEFINE_UNQUOTED(CLANG_DEFAULT_OPENMP_RUNTIME,"$withval",
                    [Default OpenMP runtime used by -fopenmp.])
 
@@ -1548,25 +1552,31 @@ AC_MSG_RESULT([ok])
 
 dnl Check optional compiler flags.
 AC_MSG_CHECKING([optional compiler flags])
-CXX_FLAG_CHECK(NO_VARIADIC_MACROS, [-Wno-variadic-macros])
-CXX_FLAG_CHECK(NO_MISSING_FIELD_INITIALIZERS, [-Wno-missing-field-initializers])
-CXX_FLAG_CHECK(COVERED_SWITCH_DEFAULT, [-Wcovered-switch-default])
-
-dnl GCC's potential uninitialized use analysis is weak and presents lots of
-dnl false positives, so disable it.
-NO_UNINITIALIZED=
-NO_MAYBE_UNINITIALIZED=
-if test "$GXX" = "yes"
-then
-  CXX_FLAG_CHECK(NO_MAYBE_UNINITIALIZED, [-Wno-maybe-uninitialized])
-  dnl gcc 4.7 introduced -Wmaybe-uninitialized to distinguish cases which are
-  dnl known to be uninitialized from cases which might be uninitialized.  We
-  dnl still want to catch the first kind of errors.
-  if test -z "$NO_MAYBE_UNINITIALIZED"
-  then
-    CXX_FLAG_CHECK(NO_UNINITIALIZED, [-Wno-uninitialized])
-  fi
-fi
+case "$llvm_cv_cxx_compiler" in
+  clang)
+    CXX_FLAG_CHECK(NO_VARIADIC_MACROS, [-Wno-variadic-macros])
+    CXX_FLAG_CHECK(MISSING_FIELD_INITIALIZERS, [-Wmissing-field-initializers])
+    CXX_FLAG_CHECK(COVERED_SWITCH_DEFAULT, [-Wcovered-switch-default])
+    ;;
+  gcc)
+    dnl If we're using gcc check for -Wno-missing-field-initializers as gcc will warn
+    dnl on plain open brace initializations. clang won't so use -Wmissing-field-initializers
+    dnl there.
+    CXX_FLAG_CHECK(MISSING_FIELD_INITIALIZERS, [-Wno-missing-field-initializers])
+    CXX_FLAG_CHECK(NO_VARIADIC_MACROS, [-Wno-variadic-macros])
+    CXX_FLAG_CHECK(COVERED_SWITCH_DEFAULT, [-Wcovered-switch-default])
+    CXX_FLAG_CHECK(NO_MAYBE_UNINITIALIZED, [-Wno-maybe-uninitialized])
+    dnl gcc 4.7 introduced -Wmaybe-uninitialized to distinguish cases which are
+    dnl known to be uninitialized from cases which might be uninitialized.  We
+    dnl still want to catch the first kind of errors.
+    if test -z "$NO_MAYBE_UNINITIALIZED"
+    then
+      CXX_FLAG_CHECK(NO_UNINITIALIZED, [-Wno-uninitialized])
+    fi
+    ;;
+  unknown)
+    ;;
+esac
 
 dnl Check for misbehaving -Wcomment (gcc-4.7 has this) and maybe add
 dnl -Wno-comment to the flags.
@@ -1587,7 +1597,7 @@ int main() { return 0; }
 AC_SUBST(NO_COMMENT, [$no_comment])
 CXXFLAGS="$llvm_cv_old_cxxflags"
 
-AC_MSG_RESULT([$NO_VARIADIC_MACROS $NO_MISSING_FIELD_INITIALIZERS $COVERED_SWITCH_DEFAULT $NO_UNINITIALIZED $NO_MAYBE_UNINITIALIZED $NO_COMMENT])
+AC_MSG_RESULT([$NO_VARIADIC_MACROS $MISSING_FIELD_INITIALIZERS $COVERED_SWITCH_DEFAULT $NO_UNINITIALIZED $NO_MAYBE_UNINITIALIZED $NO_COMMENT])
 
 AC_ARG_WITH([python],
             [AS_HELP_STRING([--with-python], [path to python])],
@@ -1628,9 +1638,12 @@ dnl===-----------------------------------------------------------------------===
 
 AC_CHECK_LIB(m,sin)
 if test "$llvm_cv_os_type" = "MingW" ; then
+  dnl mingw-gcc's driver doesn't imply -lole32 by default so we may need this
+  dnl when being built with gcc for bootstrapping purposes.
   AC_CHECK_LIB(ole32, main)
   AC_CHECK_LIB(psapi, main)
   AC_CHECK_LIB(shell32, main)
+  AC_CHECK_LIB(uuid,main)
 fi
 
 dnl dlopen() is required for plugin support.
@@ -1786,7 +1799,6 @@ dnl Generally we're looking for POSIX headers.
 AC_HEADER_DIRENT
 AC_HEADER_MMAP_ANONYMOUS
 AC_HEADER_STAT
-AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
 
 AC_LANG_PUSH([C++])
@@ -1798,7 +1810,6 @@ AC_LANG_POP([C++])
 
 AC_CHECK_HEADERS([dlfcn.h execinfo.h fcntl.h inttypes.h link.h])
 AC_CHECK_HEADERS([malloc.h setjmp.h signal.h stdint.h termios.h unistd.h])
-AC_CHECK_HEADERS([utime.h])
 AC_CHECK_HEADERS([sys/mman.h sys/param.h sys/resource.h sys/time.h sys/uio.h])
 AC_CHECK_HEADERS([sys/ioctl.h malloc/malloc.h mach/mach.h])
 AC_CHECK_HEADERS([valgrind/valgrind.h])
@@ -1876,10 +1887,9 @@ AC_CHECK_FUNCS([isatty mkdtemp mkstemp ])
 AC_CHECK_FUNCS([mktemp posix_spawn pread realpath sbrk setrlimit ])
 AC_CHECK_FUNCS([strerror strerror_r setenv ])
 AC_CHECK_FUNCS([strtoll strtoq sysconf malloc_zone_statistics ])
-AC_CHECK_FUNCS([setjmp longjmp sigsetjmp siglongjmp writev])
+AC_CHECK_FUNCS([setjmp longjmp writev])
 AC_CHECK_FUNCS([futimes futimens])
 AC_C_PRINTF_A
-AC_FUNC_RAND48
 
 dnl Check for arc4random accessible via AC_INCLUDES_DEFAULT.
 AC_CHECK_DECLS([arc4random])
@@ -2232,3 +2242,14 @@ AC_CONFIG_MAKEFILE(bindings/ocaml/Makefile.ocaml)
 
 dnl Finally, crank out the output
 AC_OUTPUT
+echo ""
+echo ""
+echo "################################################################################"
+echo "################################################################################"
+echo "The LLVM project has deprecated building with configure & make."
+echo "The autoconf-based makefile build system will be removed in the 3.9 release."
+echo ""
+echo "Please migrate to the CMake-based build system."
+echo "For more information see: http://llvm.org/docs/CMake.html"
+echo "################################################################################"
+echo "################################################################################"

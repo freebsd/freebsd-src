@@ -22,7 +22,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @x = common global i32 0, align 4
 @y = common global i32 0, align 4
 
-define i32 @main() {
+define i32 @main() !dbg !4 {
 ; CHECK: .loc 1 {{[89]}}
 ; CHECK-NOT: .loc
 ; CHECK: movl $1
@@ -49,15 +49,15 @@ select.end:                                       ; preds = %entry, %select.mid
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!13, !14}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "", isOptimized: true, runtimeVersion: 0, emissionKind: 1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !9, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "", isOptimized: true, runtimeVersion: 0, emissionKind: 1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !9, imports: !2)
 !1 = !DIFile(filename: "inline-break.c", directory: "/build/dir")
 !2 = !{}
 !3 = !{!4, !8}
-!4 = !DISubprogram(name: "main", scope: !1, file: !1, line: 7, type: !5, isLocal: false, isDefinition: true, scopeLine: 7, isOptimized: true, function: i32 ()* @main, variables: !2)
+!4 = distinct !DISubprogram(name: "main", scope: !1, file: !1, line: 7, type: !5, isLocal: false, isDefinition: true, scopeLine: 7, isOptimized: true, variables: !2)
 !5 = !DISubroutineType(types: !6)
 !6 = !{!7}
 !7 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!8 = !DISubprogram(name: "f1", scope: !1, file: !1, line: 3, type: !5, isLocal: true, isDefinition: true, scopeLine: 3, isOptimized: true, variables: !2)
+!8 = distinct !DISubprogram(name: "f1", scope: !1, file: !1, line: 3, type: !5, isLocal: true, isDefinition: true, scopeLine: 3, isOptimized: true, variables: !2)
 !9 = !{!10, !12}
 !10 = !DIGlobalVariable(name: "x", scope: !0, file: !1, line: 1, type: !11, isLocal: false, isDefinition: true, variable: i32* @x)
 !11 = !DIDerivedType(tag: DW_TAG_volatile_type, baseType: !7)

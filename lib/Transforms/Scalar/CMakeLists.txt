@@ -21,6 +21,7 @@ add_llvm_library(LLVMScalarOpts
   LoopIdiomRecognize.cpp
   LoopInstSimplify.cpp
   LoopInterchange.cpp
+  LoopLoadElimination.cpp
   LoopRerollPass.cpp
   LoopRotation.cpp
   LoopStrengthReduce.cpp
@@ -38,7 +39,6 @@ add_llvm_library(LLVMScalarOpts
   RewriteStatepointsForGC.cpp
   SCCP.cpp
   SROA.cpp
-  SampleProfile.cpp
   Scalar.cpp
   ScalarReplAggregates.cpp
   Scalarizer.cpp

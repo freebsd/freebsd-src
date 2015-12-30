@@ -1,18 +1,45 @@
-RUN: llvm-symbolizer -obj="%p/Inputs/test.exe" < "%p/Inputs/test.exe.input" | \
-RUN:    FileCheck %s --check-prefix=CHECK
-RUN: llvm-symbolizer -obj="%p/Inputs/test.exe" -demangle=false < \
-RUN:    "%p/Inputs/test.exe.input" | FileCheck %s --check-prefix=CHECK-NO-DEMANGLE
+RUN: grep '^ADDR:' %s | sed -s 's/ADDR: //' \
+RUN: 	| llvm-symbolizer -obj="%p/Inputs/test.exe" \
+RUN:    | FileCheck %s --check-prefix=CHECK
+RUN: grep '^ADDR:' %s | sed -s 's/ADDR: //' \
+RUN: 	| llvm-symbolizer -obj="%p/Inputs/test.exe" -demangle=false \
+RUN: 	| FileCheck %s --check-prefix=CHECK-NO-DEMANGLE
+
+Subtract ImageBase from all the offsets and run the test again with
+--relative-address.
+
+RUN: grep '^ADDR:' %s | sed -s 's/ADDR: //' \
+RUN: 	| %python -c 'import sys;print "\n".join([hex(int(x, 16) - 0x400000) for x in sys.stdin])' \
+RUN:	| llvm-symbolizer -obj="%p/Inputs/test.exe" -demangle=false --relative-address \
+RUN:    | FileCheck %s --check-prefix=CHECK-NO-DEMANGLE
+
+ADDR: 0x401000
+ADDR: 0x401010
+ADDR: 0x401070
+ADDR: 0x401030
+ADDR: 0x401040
+ADDR: 0x401050
+ADDR: 0x401060
+ADDR: 0x500000
 
 CHECK: foo(void)
 CHECK-NEXT: test.cpp:10
-CHECK: _main
+CHECK: main
 CHECK-NEXT: test.cpp:13:0
 CHECK: NS::Foo::bar(void)
 CHECK-NEXT: test.cpp:6:0
+CHECK: {{^foo_cdecl$}}
+CHECK: {{^foo_stdcall$}}
+CHECK: {{^foo_fastcall$}}
+CHECK: {{^foo_vectorcall$}}
 
-CHECK-NO-DEMANGLE: foo
+CHECK-NO-DEMANGLE: ?foo@@YAXXZ
 CHECK-NO-DEMANGLE-NEXT: test.cpp:10
 CHECK-NO-DEMANGLE: _main
-CHECK-LINKAGE-NAME-NEXT: test.cpp:13:0
-CHECK-NO-DEMANGLE: bar
-CHECK-LINKAGE-NAME-NEXT: test.cpp:6:0
+CHECK-NO-DEMANGLE-NEXT: test.cpp:13
+CHECK-NO-DEMANGLE: ?bar@Foo@NS@@QAEXXZ
+CHECK-NO-DEMANGLE-NEXT: test.cpp:6
+CHECK-NO-DEMANGLE: _foo_cdecl
+CHECK-NO-DEMANGLE: _foo_stdcall@0
+CHECK-NO-DEMANGLE: @foo_fastcall@0
+CHECK-NO-DEMANGLE: foo_vectorcall@@0

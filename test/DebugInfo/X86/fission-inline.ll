@@ -75,7 +75,7 @@
 ; RELOCS-NOT: RELOCATION RECORDS FOR [.rela.debug_ranges]
 
 ; Function Attrs: uwtable
-define void @_ZN3foo2f3Ez(...) #0 align 2 {
+define void @_ZN3foo2f3Ez(...) #0 align 2 !dbg !10 {
 entry:
   call void @_Z2f1v(), !dbg !26
   call void @_Z2f1v(), !dbg !25
@@ -92,7 +92,7 @@ attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !llvm.module.flags = !{!22, !23}
 !llvm.ident = !{!24}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, splitDebugFilename: "fission-inline.dwo", emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !9, globals: !2, imports: !18)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, splitDebugFilename: "fission-inline.dwo", emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !9, globals: !2, imports: !18)
 !1 = !DIFile(filename: "fission-inline.cpp", directory: "/tmp/dbginfo")
 !2 = !{}
 !3 = !{!4}
@@ -102,8 +102,8 @@ attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !7 = !DISubroutineType(types: !8)
 !8 = !{null, null}
 !9 = !{!10, !11}
-!10 = !DISubprogram(name: "f3", linkageName: "_ZN3foo2f3Ez", line: 15, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 15, file: !1, scope: !"_ZTS3foo", type: !7, function: void (...)* @_ZN3foo2f3Ez, declaration: !6, variables: !2)
-!11 = !DISubprogram(name: "f2<int>", linkageName: "_ZN3foo2f2IiEEvv", line: 10, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 10, file: !1, scope: !"_ZTS3foo", type: !12, templateParams: !14, declaration: !17, variables: !2)
+!10 = distinct !DISubprogram(name: "f3", linkageName: "_ZN3foo2f3Ez", line: 15, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 15, file: !1, scope: !"_ZTS3foo", type: !7, declaration: !6, variables: !2)
+!11 = distinct !DISubprogram(name: "f2<int>", linkageName: "_ZN3foo2f2IiEEvv", line: 10, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 10, file: !1, scope: !"_ZTS3foo", type: !12, templateParams: !14, declaration: !17, variables: !2)
 !12 = !DISubroutineType(types: !13)
 !13 = !{null}
 !14 = !{!15}

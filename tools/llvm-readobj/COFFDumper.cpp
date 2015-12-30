@@ -60,6 +60,7 @@ public:
   void printCOFFExports() override;
   void printCOFFDirectives() override;
   void printCOFFBaseReloc() override;
+  void printCodeViewDebugInfo() override;
   void printStackMap() const override;
 private:
   void printSymbol(const SymbolRef &Sym);
@@ -71,7 +72,7 @@ private:
   void printBaseOfDataField(const pe32_header *Hdr);
   void printBaseOfDataField(const pe32plus_header *Hdr);
 
-  void printCodeViewDebugInfo(const SectionRef &Section);
+  void printCodeViewSection(const SectionRef &Section);
 
   void printCodeViewSymbolsSubsection(StringRef Subsection,
                                       const SectionRef &Section,
@@ -219,6 +220,7 @@ static const EnumEntry<COFF::DLLCharacteristics> PEDLLCharacteristics[] = {
 
 static const EnumEntry<COFF::SectionCharacteristics>
 ImageSectionCharacteristics[] = {
+  LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_SCN_TYPE_NOLOAD           ),
   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_SCN_TYPE_NO_PAD           ),
   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_SCN_CNT_CODE              ),
   LLVM_READOBJ_ENUM_ENT(COFF, IMAGE_SCN_CNT_INITIALIZED_DATA  ),
@@ -385,14 +387,12 @@ void COFFDumper::printFileHeaders() {
   // Print PE header. This header does not exist if this is an object file and
   // not an executable.
   const pe32_header *PEHeader = nullptr;
-  if (error(Obj->getPE32Header(PEHeader)))
-    return;
+  error(Obj->getPE32Header(PEHeader));
   if (PEHeader)
     printPEHeader<pe32_header>(PEHeader);
 
   const pe32plus_header *PEPlusHeader = nullptr;
-  if (error(Obj->getPE32PlusHeader(PEPlusHeader)))
-    return;
+  error(Obj->getPE32PlusHeader(PEPlusHeader));
   if (PEPlusHeader)
     printPEHeader<pe32plus_header>(PEPlusHeader);
 
@@ -475,10 +475,18 @@ void COFFDumper::printBaseOfDataField(const pe32_header *Hdr) {
 
 void COFFDumper::printBaseOfDataField(const pe32plus_header *) {}
 
-void COFFDumper::printCodeViewDebugInfo(const SectionRef &Section) {
+void COFFDumper::printCodeViewDebugInfo() {
+  for (const SectionRef &S : Obj->sections()) {
+    StringRef SecName;
+    error(S.getName(SecName));
+    if (SecName == ".debug$S")
+      printCodeViewSection(S);
+  }
+}
+
+void COFFDumper::printCodeViewSection(const SectionRef &Section) {
   StringRef Data;
-  if (error(Section.getContents(Data)))
-    return;
+  error(Section.getContents(Data));
 
   SmallVector<StringRef, 10> FunctionNames;
   StringMap<StringRef> FunctionLineTables;
@@ -518,8 +526,7 @@ void COFFDumper::printCodeViewDebugInfo(const SectionRef &Section) {
 
       switch (SubSectionType) {
       case COFF::DEBUG_SYMBOL_SUBSECTION:
-        if (opts::SectionSymbols)
-          printCodeViewSymbolsSubsection(Contents, Section, Offset);
+        printCodeViewSymbolsSubsection(Contents, Section, Offset);
         break;
       case COFF::DEBUG_LINE_TABLE_SUBSECTION: {
         // Holds a PC to file:line table.  Some data to parse this subsection is
@@ -533,19 +540,18 @@ void COFFDumper::printCodeViewDebugInfo(const SectionRef &Section) {
           return;
         }
 
-        StringRef FunctionName;
-        if (error(resolveSymbolName(Obj->getCOFFSection(Section), Offset,
-                                    FunctionName)))
-          return;
-        W.printString("FunctionName", FunctionName);
-        if (FunctionLineTables.count(FunctionName) != 0) {
+        StringRef LinkageName;
+        error(resolveSymbolName(Obj->getCOFFSection(Section), Offset,
+                                LinkageName));
+        W.printString("LinkageName", LinkageName);
+        if (FunctionLineTables.count(LinkageName) != 0) {
           // Saw debug info for this function already?
           error(object_error::parse_failed);
           return;
         }
 
-        FunctionLineTables[FunctionName] = Contents;
-        FunctionNames.push_back(FunctionName);
+        FunctionLineTables[LinkageName] = Contents;
+        FunctionNames.push_back(LinkageName);
         break;
       }
       case COFF::DEBUG_STRING_TABLE_SUBSECTION:
@@ -582,7 +588,7 @@ void COFFDumper::printCodeViewDebugInfo(const SectionRef &Section) {
   for (unsigned I = 0, E = FunctionNames.size(); I != E; ++I) {
     StringRef Name = FunctionNames[I];
     ListScope S(W, "FunctionLineTable");
-    W.printString("FunctionName", Name);
+    W.printString("LinkageName", Name);
 
     DataExtractor DE(FunctionLineTables[Name], true, 4);
     uint32_t Offset = 6;  // Skip relocations.
@@ -695,9 +701,8 @@ void COFFDumper::printCodeViewSymbolsSubsection(StringRef Subsection,
       uint32_t CodeSize = DE.getU32(&Offset);
       DE.getU8(&Offset, Unused, 12);
       StringRef SectionName;
-      if (error(resolveSymbolName(Obj->getCOFFSection(Section),
-                                  OffsetInSection + Offset, SectionName)))
-        return;
+      error(resolveSymbolName(Obj->getCOFFSection(Section),
+                              OffsetInSection + Offset, SectionName));
       Offset += 4;
       DE.getU8(&Offset, Unused, 3);
       StringRef DisplayName = DE.getCStr(&Offset);
@@ -748,8 +753,7 @@ void COFFDumper::printSections() {
     const coff_section *Section = Obj->getCOFFSection(Sec);
 
     StringRef Name;
-    if (error(Sec.getName(Name)))
-      Name = "";
+    error(Sec.getName(Name));
 
     DictScope D(W, "Section");
     W.printNumber("Number", SectionNumber);
@@ -782,14 +786,10 @@ void COFFDumper::printSections() {
       }
     }
 
-    if (Name == ".debug$S" && opts::CodeView)
-      printCodeViewDebugInfo(Sec);
-
     if (opts::SectionData &&
         !(Section->Characteristics & COFF::IMAGE_SCN_CNT_UNINITIALIZED_DATA)) {
       StringRef Data;
-      if (error(Sec.getContents(Data)))
-        break;
+      error(Sec.getContents(Data));
 
       W.printBinaryBlock("SectionData", Data);
     }
@@ -803,8 +803,7 @@ void COFFDumper::printRelocations() {
   for (const SectionRef &Section : Obj->sections()) {
     ++SectionNumber;
     StringRef Name;
-    if (error(Section.getName(Name)))
-      continue;
+    error(Section.getName(Name));
 
     bool PrintedGroup = false;
     for (const RelocationRef &Reloc : Section.relocations()) {
@@ -834,8 +833,7 @@ void COFFDumper::printRelocation(const SectionRef &Section,
   symbol_iterator Symbol = Reloc.getSymbol();
   if (Symbol != Obj->symbol_end()) {
     ErrorOr<StringRef> SymbolNameOrErr = Symbol->getName();
-    if (error(SymbolNameOrErr.getError()))
-      return;
+    error(SymbolNameOrErr.getError());
     SymbolName = *SymbolNameOrErr;
   }
 
@@ -914,8 +912,7 @@ void COFFDumper::printSymbol(const SymbolRef &Sym) {
   for (uint8_t I = 0; I < Symbol.getNumberOfAuxSymbols(); ++I) {
     if (Symbol.isFunctionDefinition()) {
       const coff_aux_function_definition *Aux;
-      if (error(getSymbolAuxData(Obj, Symbol, I, Aux)))
-        break;
+      error(getSymbolAuxData(Obj, Symbol, I, Aux));
 
       DictScope AS(W, "AuxFunctionDef");
       W.printNumber("TagIndex", Aux->TagIndex);
@@ -925,8 +922,7 @@ void COFFDumper::printSymbol(const SymbolRef &Sym) {
 
     } else if (Symbol.isAnyUndefined()) {
       const coff_aux_weak_external *Aux;
-      if (error(getSymbolAuxData(Obj, Symbol, I, Aux)))
-        break;
+      error(getSymbolAuxData(Obj, Symbol, I, Aux));
 
       ErrorOr<COFFSymbolRef> Linked = Obj->getSymbol(Aux->TagIndex);
       StringRef LinkedName;
@@ -943,8 +939,7 @@ void COFFDumper::printSymbol(const SymbolRef &Sym) {
 
     } else if (Symbol.isFileRecord()) {
       const char *FileName;
-      if (error(getSymbolAuxData(Obj, Symbol, I, FileName)))
-        break;
+      error(getSymbolAuxData(Obj, Symbol, I, FileName));
 
       DictScope AS(W, "AuxFileRecord");
 
@@ -954,8 +949,7 @@ void COFFDumper::printSymbol(const SymbolRef &Sym) {
       break;
     } else if (Symbol.isSectionDefinition()) {
       const coff_aux_section_definition *Aux;
-      if (error(getSymbolAuxData(Obj, Symbol, I, Aux)))
-        break;
+      error(getSymbolAuxData(Obj, Symbol, I, Aux));
 
       int32_t AuxNumber = Aux->getNumber(Symbol.isBigObj());
 
@@ -986,8 +980,7 @@ void COFFDumper::printSymbol(const SymbolRef &Sym) {
       }
     } else if (Symbol.isCLRToken()) {
       const coff_aux_clr_token *Aux;
-      if (error(getSymbolAuxData(Obj, Symbol, I, Aux)))
-        break;
+      error(getSymbolAuxData(Obj, Symbol, I, Aux));
 
       ErrorOr<COFFSymbolRef> ReferredSym =
           Obj->getSymbol(Aux->SymbolTableIndex);
@@ -1040,9 +1033,9 @@ void COFFDumper::printImportedSymbols(
     iterator_range<imported_symbol_iterator> Range) {
   for (const ImportedSymbolRef &I : Range) {
     StringRef Sym;
-    if (error(I.getSymbolName(Sym))) return;
+    error(I.getSymbolName(Sym));
     uint16_t Ordinal;
-    if (error(I.getOrdinal(Ordinal))) return;
+    error(I.getOrdinal(Ordinal));
     W.printNumber("Symbol", Sym, Ordinal);
   }
 }
@@ -1054,12 +1047,12 @@ void COFFDumper::printDelayImportedSymbols(
   for (const ImportedSymbolRef &S : Range) {
     DictScope Import(W, "Import");
     StringRef Sym;
-    if (error(S.getSymbolName(Sym))) return;
+    error(S.getSymbolName(Sym));
     uint16_t Ordinal;
-    if (error(S.getOrdinal(Ordinal))) return;
+    error(S.getOrdinal(Ordinal));
     W.printNumber("Symbol", Sym, Ordinal);
     uint64_t Addr;
-    if (error(I.getImportAddress(Index++, Addr))) return;
+    error(I.getImportAddress(Index++, Addr));
     W.printHex("Address", Addr);
   }
 }
@@ -1069,12 +1062,12 @@ void COFFDumper::printCOFFImports() {
   for (const ImportDirectoryEntryRef &I : Obj->import_directories()) {
     DictScope Import(W, "Import");
     StringRef Name;
-    if (error(I.getName(Name))) return;
+    error(I.getName(Name));
     W.printString("Name", Name);
     uint32_t Addr;
-    if (error(I.getImportLookupTableRVA(Addr))) return;
+    error(I.getImportLookupTableRVA(Addr));
     W.printHex("ImportLookupTableRVA", Addr);
-    if (error(I.getImportAddressTableRVA(Addr))) return;
+    error(I.getImportAddressTableRVA(Addr));
     W.printHex("ImportAddressTableRVA", Addr);
     printImportedSymbols(I.imported_symbols());
   }
@@ -1083,10 +1076,10 @@ void COFFDumper::printCOFFImports() {
   for (const DelayImportDirectoryEntryRef &I : Obj->delay_import_directories()) {
     DictScope Import(W, "DelayImport");
     StringRef Name;
-    if (error(I.getName(Name))) return;
+    error(I.getName(Name));
     W.printString("Name", Name);
     const delay_import_directory_table_entry *Table;
-    if (error(I.getDelayImportTable(Table))) return;
+    error(I.getDelayImportTable(Table));
     W.printHex("Attributes", Table->Attributes);
     W.printHex("ModuleHandle", Table->ModuleHandle);
     W.printHex("ImportAddressTable", Table->DelayImportAddressTable);
@@ -1104,12 +1097,9 @@ void COFFDumper::printCOFFExports() {
     StringRef Name;
     uint32_t Ordinal, RVA;
 
-    if (error(E.getSymbolName(Name)))
-      continue;
-    if (error(E.getOrdinal(Ordinal)))
-      continue;
-    if (error(E.getExportRVA(RVA)))
-      continue;
+    error(E.getSymbolName(Name));
+    error(E.getOrdinal(Ordinal));
+    error(E.getExportRVA(RVA));
 
     W.printNumber("Ordinal", Ordinal);
     W.printString("Name", Name);
@@ -1122,13 +1112,11 @@ void COFFDumper::printCOFFDirectives() {
     StringRef Contents;
     StringRef Name;
 
-    if (error(Section.getName(Name)))
-      continue;
+    error(Section.getName(Name));
     if (Name != ".drectve")
       continue;
 
-    if (error(Section.getContents(Contents)))
-      return;
+    error(Section.getContents(Contents));
 
     W.printString("Directive(s)", Contents);
   }
@@ -1152,10 +1140,8 @@ void COFFDumper::printCOFFBaseReloc() {
   for (const BaseRelocRef &I : Obj->base_relocs()) {
     uint8_t Type;
     uint32_t RVA;
-    if (error(I.getRVA(RVA)))
-      continue;
-    if (error(I.getType(Type)))
-      continue;
+    error(I.getRVA(RVA));
+    error(I.getType(Type));
     DictScope Import(W, "Entry");
     W.printString("Type", getBaseRelocTypeName(Type));
     W.printHex("Address", RVA);

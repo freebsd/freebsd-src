@@ -15,6 +15,7 @@
 
 #include "AMDGPUISelLowering.h"
 #include "AMDGPU.h"
+#include "AMDGPUDiagnosticInfoUnsupported.h"
 #include "AMDGPUFrameLowering.h"
 #include "AMDGPUIntrinsicInfo.h"
 #include "AMDGPURegisterInfo.h"
@@ -27,49 +28,8 @@
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DiagnosticInfo.h"
-#include "llvm/IR/DiagnosticPrinter.h"
 
 using namespace llvm;
-
-namespace {
-
-/// Diagnostic information for unimplemented or unsupported feature reporting.
-class DiagnosticInfoUnsupported : public DiagnosticInfo {
-private:
-  const Twine &Description;
-  const Function &Fn;
-
-  static int KindID;
-
-  static int getKindID() {
-    if (KindID == 0)
-      KindID = llvm::getNextAvailablePluginDiagnosticKind();
-    return KindID;
-  }
-
-public:
-  DiagnosticInfoUnsupported(const Function &Fn, const Twine &Desc,
-                          DiagnosticSeverity Severity = DS_Error)
-    : DiagnosticInfo(getKindID(), Severity),
-      Description(Desc),
-      Fn(Fn) { }
-
-  const Function &getFunction() const { return Fn; }
-  const Twine &getDescription() const { return Description; }
-
-  void print(DiagnosticPrinter &DP) const override {
-    DP << "unsupported " << getDescription() << " in " << Fn.getName();
-  }
-
-  static bool classof(const DiagnosticInfo *DI) {
-    return DI->getKind() == getKindID();
-  }
-};
-
-int DiagnosticInfoUnsupported::KindID = 0;
-}
-
 
 static bool allocateStack(unsigned ValNo, MVT ValVT, MVT LocVT,
                       CCValAssign::LocInfo LocInfo,
@@ -112,6 +72,9 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(TargetMachine &TM,
 
   setOperationAction(ISD::BR_JT, MVT::Other, Expand);
   setOperationAction(ISD::BRIND, MVT::Other, Expand);
+
+  // This is totally unsupported, just custom lower to produce an error.
+  setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Custom);
 
   // We need to custom lower some of the intrinsics
   setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::Other, Custom);
@@ -352,7 +315,7 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(TargetMachine &TM,
     setOperationAction(ISD::SMUL_LOHI, VT, Expand);
     setOperationAction(ISD::UMUL_LOHI, VT, Expand);
     setOperationAction(ISD::SDIVREM, VT, Custom);
-    setOperationAction(ISD::UDIVREM, VT, Custom);
+    setOperationAction(ISD::UDIVREM, VT, Expand);
     setOperationAction(ISD::ADDC, VT, Expand);
     setOperationAction(ISD::SUBC, VT, Expand);
     setOperationAction(ISD::ADDE, VT, Expand);
@@ -429,11 +392,17 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(TargetMachine &TM,
   setSelectIsExpensive(false);
   PredictableSelectIsExpensive = false;
 
-  // There are no integer divide instructions, and these expand to a pretty
-  // large sequence of instructions.
-  setIntDivIsCheap(false);
-  setPow2SDivIsCheap(false);
   setFsqrtIsCheap(true);
+
+  // We want to find all load dependencies for long chains of stores to enable
+  // merging into very wide vectors. The problem is with vectors with > 4
+  // elements. MergeConsecutiveStores will attempt to merge these because x8/x16
+  // vectors are a legal type, even though we have to split the loads
+  // usually. When we can more precisely specify load legality per address
+  // space, we should be able to make FindBetterChain/MergeConsecutiveStores
+  // smarter so that they can figure out what to do in 2 iterations without all
+  // N > 4 stores on the same chain.
+  GatherAllAliasesMaxDepth = 16;
 
   // FIXME: Need to really handle these.
   MaxStoresPerMemcpy  = 4096;
@@ -534,6 +503,18 @@ bool AMDGPUTargetLowering:: storeOfVectorConstantIsCheap(EVT MemVT,
   return true;
 }
 
+bool AMDGPUTargetLowering::aggressivelyPreferBuildVectorSources(EVT VecVT) const {
+  // There are few operations which truly have vector input operands. Any vector
+  // operation is going to involve operations on each component, and a
+  // build_vector will be a copy per element, so it always makes sense to use a
+  // build_vector input in place of the extracted element to avoid a copy into a
+  // super register.
+  //
+  // We should probably only do this if all users are extracts only, but this
+  // should be the common case.
+  return true;
+}
+
 bool AMDGPUTargetLowering::isTruncateFree(EVT Source, EVT Dest) const {
   // Truncate is just accessing a subregister.
   return Dest.bitsLT(Source) && (Dest.getSizeInBits() % 32 == 0);
@@ -617,6 +598,15 @@ SDValue AMDGPUTargetLowering::LowerCall(CallLoweringInfo &CLI,
   return SDValue();
 }
 
+SDValue AMDGPUTargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
+                                                      SelectionDAG &DAG) const {
+  const Function &Fn = *DAG.getMachineFunction().getFunction();
+
+  DiagnosticInfoUnsupported NoDynamicAlloca(Fn, "dynamic alloca");
+  DAG.getContext()->diagnose(NoDynamicAlloca);
+  return SDValue();
+}
+
 SDValue AMDGPUTargetLowering::LowerOperation(SDValue Op,
                                              SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
@@ -643,6 +633,7 @@ SDValue AMDGPUTargetLowering::LowerOperation(SDValue Op,
   case ISD::UINT_TO_FP: return LowerUINT_TO_FP(Op, DAG);
   case ISD::FP_TO_SINT: return LowerFP_TO_SINT(Op, DAG);
   case ISD::FP_TO_UINT: return LowerFP_TO_UINT(Op, DAG);
+  case ISD::DYNAMIC_STACKALLOC: return LowerDYNAMIC_STACKALLOC(Op, DAG);
   }
   return Op;
 }
@@ -892,7 +883,9 @@ SDValue AMDGPUTargetLowering::LowerFrameIndex(SDValue Op,
   FrameIndexSDNode *FIN = cast<FrameIndexSDNode>(Op);
 
   unsigned FrameIndex = FIN->getIndex();
-  unsigned Offset = TFL->getFrameIndexOffset(MF, FrameIndex);
+  unsigned IgnoredFrameReg;
+  unsigned Offset =
+      TFL->getFrameIndexReference(MF, FrameIndex, IgnoredFrameReg);
   return DAG.getConstant(Offset * 4 * TFL->getStackWidth(MF), SDLoc(Op),
                          Op.getValueType());
 }
@@ -1043,9 +1036,6 @@ SDValue AMDGPUTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
                          Op.getOperand(1),
                          Op.getOperand(2));
 
-    case AMDGPUIntrinsic::AMDGPU_brev:
-      return DAG.getNode(AMDGPUISD::BREV, DL, VT, Op.getOperand(1));
-
   case Intrinsic::AMDGPU_class:
     return DAG.getNode(AMDGPUISD::FP_CLASS, DL, VT,
                        Op.getOperand(1), Op.getOperand(2));
@@ -1057,6 +1047,8 @@ SDValue AMDGPUTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
       return DAG.getNode(ISD::FRINT, DL, VT, Op.getOperand(1));
     case AMDGPUIntrinsic::AMDGPU_trunc: // Legacy name.
       return DAG.getNode(ISD::FTRUNC, DL, VT, Op.getOperand(1));
+    case AMDGPUIntrinsic::AMDGPU_brev: // Legacy name
+      return DAG.getNode(ISD::BITREVERSE, DL, VT, Op.getOperand(1));
   }
 }
 
@@ -1077,6 +1069,7 @@ SDValue AMDGPUTargetLowering::LowerIntrinsicLRP(SDValue Op,
                                                 SelectionDAG &DAG) const {
   SDLoc DL(Op);
   EVT VT = Op.getValueType();
+  // TODO: Should this propagate fast-math-flags?
   SDValue OneSubA = DAG.getNode(ISD::FSUB, DL, VT,
                                 DAG.getConstantFP(1.0f, DL, MVT::f32),
                                 Op.getOperand(1));
@@ -1167,45 +1160,6 @@ SDValue AMDGPUTargetLowering::CombineFMinMaxLegacy(SDLoc DL,
   return SDValue();
 }
 
-// FIXME: Remove this when combines added to DAGCombiner.
-SDValue AMDGPUTargetLowering::CombineIMinMax(SDLoc DL,
-                                             EVT VT,
-                                             SDValue LHS,
-                                             SDValue RHS,
-                                             SDValue True,
-                                             SDValue False,
-                                             SDValue CC,
-                                             SelectionDAG &DAG) const {
-  if (!(LHS == True && RHS == False) && !(LHS == False && RHS == True))
-    return SDValue();
-
-  ISD::CondCode CCOpcode = cast<CondCodeSDNode>(CC)->get();
-  switch (CCOpcode) {
-  case ISD::SETULE:
-  case ISD::SETULT: {
-    unsigned Opc = (LHS == True) ? ISD::UMIN : ISD::UMAX;
-    return DAG.getNode(Opc, DL, VT, LHS, RHS);
-  }
-  case ISD::SETLE:
-  case ISD::SETLT: {
-    unsigned Opc = (LHS == True) ? ISD::SMIN : ISD::SMAX;
-    return DAG.getNode(Opc, DL, VT, LHS, RHS);
-  }
-  case ISD::SETGT:
-  case ISD::SETGE: {
-    unsigned Opc = (LHS == True) ? ISD::SMAX : ISD::SMIN;
-    return DAG.getNode(Opc, DL, VT, LHS, RHS);
-  }
-  case ISD::SETUGE:
-  case ISD::SETUGT: {
-    unsigned Opc = (LHS == True) ? ISD::UMAX : ISD::UMIN;
-    return DAG.getNode(Opc, DL, VT, LHS, RHS);
-  }
-  default:
-    return SDValue();
-  }
-}
-
 SDValue AMDGPUTargetLowering::ScalarizeVectorLoad(const SDValue Op,
                                                   SelectionDAG &DAG) const {
   LoadSDNode *Load = cast<LoadSDNode>(Op);
@@ -1260,7 +1214,8 @@ SDValue AMDGPUTargetLowering::SplitVectorLoad(const SDValue Op,
   EVT PtrVT = BasePtr.getValueType();
   EVT MemVT = Load->getMemoryVT();
   SDLoc SL(Op);
-  MachinePointerInfo SrcValue(Load->getMemOperand()->getValue());
+
+  const MachinePointerInfo &SrcValue = Load->getMemOperand()->getPointerInfo();
 
   EVT LoVT, HiVT;
   EVT LoMemVT, HiMemVT;
@@ -1269,23 +1224,27 @@ SDValue AMDGPUTargetLowering::SplitVectorLoad(const SDValue Op,
   std::tie(LoVT, HiVT) = DAG.GetSplitDestVTs(VT);
   std::tie(LoMemVT, HiMemVT) = DAG.GetSplitDestVTs(MemVT);
   std::tie(Lo, Hi) = DAG.SplitVector(Op, SL, LoVT, HiVT);
+
+  unsigned Size = LoMemVT.getStoreSize();
+  unsigned BaseAlign = Load->getAlignment();
+  unsigned HiAlign = MinAlign(BaseAlign, Size);
+
   SDValue LoLoad
     = DAG.getExtLoad(Load->getExtensionType(), SL, LoVT,
                      Load->getChain(), BasePtr,
                      SrcValue,
                      LoMemVT, Load->isVolatile(), Load->isNonTemporal(),
-                     Load->isInvariant(), Load->getAlignment());
+                     Load->isInvariant(), BaseAlign);
 
   SDValue HiPtr = DAG.getNode(ISD::ADD, SL, PtrVT, BasePtr,
-                              DAG.getConstant(LoMemVT.getStoreSize(), SL,
-                                              PtrVT));
+                              DAG.getConstant(Size, SL, PtrVT));
 
   SDValue HiLoad
     = DAG.getExtLoad(Load->getExtensionType(), SL, HiVT,
                      Load->getChain(), HiPtr,
                      SrcValue.getWithOffset(LoMemVT.getStoreSize()),
                      HiMemVT, Load->isVolatile(), Load->isNonTemporal(),
-                     Load->isInvariant(), Load->getAlignment());
+                     Load->isInvariant(), HiAlign);
 
   SDValue Ops[] = {
     DAG.getNode(ISD::CONCAT_VECTORS, SL, VT, LoLoad, HiLoad),
@@ -1415,7 +1374,11 @@ SDValue AMDGPUTargetLowering::SplitVectorStore(SDValue Op,
                               DAG.getConstant(LoMemVT.getStoreSize(), SL,
                                               PtrVT));
 
-  MachinePointerInfo SrcValue(Store->getMemOperand()->getValue());
+  const MachinePointerInfo &SrcValue = Store->getMemOperand()->getPointerInfo();
+  unsigned BaseAlign = Store->getAlignment();
+  unsigned Size = LoMemVT.getStoreSize();
+  unsigned HiAlign = MinAlign(BaseAlign, Size);
+
   SDValue LoStore
     = DAG.getTruncStore(Chain, SL, Lo,
                         BasePtr,
@@ -1423,15 +1386,15 @@ SDValue AMDGPUTargetLowering::SplitVectorStore(SDValue Op,
                         LoMemVT,
                         Store->isNonTemporal(),
                         Store->isVolatile(),
-                        Store->getAlignment());
+                        BaseAlign);
   SDValue HiStore
     = DAG.getTruncStore(Chain, SL, Hi,
                         HiPtr,
-                        SrcValue.getWithOffset(LoMemVT.getStoreSize()),
+                        SrcValue.getWithOffset(Size),
                         HiMemVT,
                         Store->isNonTemporal(),
                         Store->isVolatile(),
-                        Store->getAlignment());
+                        HiAlign);
 
   return DAG.getNode(ISD::TokenFactor, SL, MVT::Other, LoStore, HiStore);
 }
@@ -1529,7 +1492,7 @@ SDValue AMDGPUTargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   if ((Store->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS ||
        Store->getAddressSpace() == AMDGPUAS::PRIVATE_ADDRESS) &&
       Store->getValue().getValueType().isVector()) {
-    return ScalarizeVectorStore(Op, DAG);
+    return SplitVectorStore(Op, DAG);
   }
 
   EVT MemVT = Store->getMemoryVT();
@@ -1630,6 +1593,7 @@ SDValue AMDGPUTargetLowering::LowerDIVREM24(SDValue Op, SelectionDAG &DAG, bool 
   // float fb = (float)ib;
   SDValue fb = DAG.getNode(ToFp, DL, FltVT, ib);
 
+  // TODO: Should this propagate fast-math-flags?
   // float fq = native_divide(fa, fb);
   SDValue fq = DAG.getNode(ISD::FMUL, DL, FltVT,
                            fa, DAG.getNode(AMDGPUISD::RCP, DL, FltVT, fb));
@@ -1940,6 +1904,8 @@ SDValue AMDGPUTargetLowering::LowerFREM(SDValue Op, SelectionDAG &DAG) const {
   SDValue X = Op.getOperand(0);
   SDValue Y = Op.getOperand(1);
 
+  // TODO: Should this propagate fast-math-flags?
+
   SDValue Div = DAG.getNode(ISD::FDIV, SL, VT, X, Y);
   SDValue Floor = DAG.getNode(ISD::FTRUNC, SL, VT, Div);
   SDValue Mul = DAG.getNode(ISD::FMUL, SL, VT, Floor, Y);
@@ -1968,6 +1934,7 @@ SDValue AMDGPUTargetLowering::LowerFCEIL(SDValue Op, SelectionDAG &DAG) const {
   SDValue And = DAG.getNode(ISD::AND, SL, SetCCVT, Lt0, NeTrunc);
 
   SDValue Add = DAG.getNode(ISD::SELECT, SL, MVT::f64, And, One, Zero);
+  // TODO: Should this propagate fast-math-flags?
   return DAG.getNode(ISD::FADD, SL, MVT::f64, Trunc, Add);
 }
 
@@ -2045,6 +2012,8 @@ SDValue AMDGPUTargetLowering::LowerFRINT(SDValue Op, SelectionDAG &DAG) const {
   SDValue C1 = DAG.getConstantFP(C1Val, SL, MVT::f64);
   SDValue CopySign = DAG.getNode(ISD::FCOPYSIGN, SL, MVT::f64, C1, Src);
 
+  // TODO: Should this propagate fast-math-flags?
+
   SDValue Tmp1 = DAG.getNode(ISD::FADD, SL, MVT::f64, Src, CopySign);
   SDValue Tmp2 = DAG.getNode(ISD::FSUB, SL, MVT::f64, Tmp1, CopySign);
 
@@ -2073,6 +2042,8 @@ SDValue AMDGPUTargetLowering::LowerFROUND32(SDValue Op, SelectionDAG &DAG) const
   SDValue X = Op.getOperand(0);
 
   SDValue T = DAG.getNode(ISD::FTRUNC, SL, MVT::f32, X);
+
+  // TODO: Should this propagate fast-math-flags?
 
   SDValue Diff = DAG.getNode(ISD::FSUB, SL, MVT::f32, X, T);
 
@@ -2184,6 +2155,7 @@ SDValue AMDGPUTargetLowering::LowerFFLOOR(SDValue Op, SelectionDAG &DAG) const {
   SDValue And = DAG.getNode(ISD::AND, SL, SetCCVT, Lt0, NeTrunc);
 
   SDValue Add = DAG.getNode(ISD::SELECT, SL, MVT::f64, And, NegOne, Zero);
+  // TODO: Should this propagate fast-math-flags?
   return DAG.getNode(ISD::FADD, SL, MVT::f64, Trunc, Add);
 }
 
@@ -2206,7 +2178,7 @@ SDValue AMDGPUTargetLowering::LowerINT_TO_FP64(SDValue Op, SelectionDAG &DAG,
 
   SDValue LdExp = DAG.getNode(AMDGPUISD::LDEXP, SL, MVT::f64, CvtHi,
                               DAG.getConstant(32, SL, MVT::i32));
-
+  // TODO: Should this propagate fast-math-flags?
   return DAG.getNode(ISD::FADD, SL, MVT::f64, LdExp, CvtLo);
 }
 
@@ -2231,6 +2203,7 @@ SDValue AMDGPUTargetLowering::LowerUINT_TO_FP(SDValue Op,
   SDValue Hi = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i32, S0,
                            DAG.getConstant(1, DL, MVT::i32));
   SDValue FloatHi = DAG.getNode(ISD::UINT_TO_FP, DL, MVT::f32, Hi);
+  // TODO: Should this propagate fast-math-flags?
   FloatHi = DAG.getNode(ISD::FMUL, DL, MVT::f32, FloatHi,
                         DAG.getConstantFP(4294967296.0f, DL, MVT::f32)); // 2^32
   return DAG.getNode(ISD::FADD, DL, MVT::f32, FloatLo, FloatHi);
@@ -2257,7 +2230,7 @@ SDValue AMDGPUTargetLowering::LowerFP64_TO_INT(SDValue Op, SelectionDAG &DAG,
                                  MVT::f64);
   SDValue K1 = DAG.getConstantFP(BitsToDouble(UINT64_C(0xc1f0000000000000)), SL,
                                  MVT::f64);
-
+  // TODO: Should this propagate fast-math-flags?
   SDValue Mul = DAG.getNode(ISD::FMUL, SL, MVT::f64, Trunc, K0);
 
   SDValue FloorMul = DAG.getNode(ISD::FFLOOR, SL, MVT::f64, Mul);
@@ -2511,12 +2484,6 @@ SDValue AMDGPUTargetLowering::PerformDAGCombine(SDNode *N,
 
       if (VT == MVT::f32)
         return CombineFMinMaxLegacy(DL, VT, LHS, RHS, True, False, CC, DCI);
-
-      // TODO: Implement min / max Evergreen instructions.
-      if (VT == MVT::i32 &&
-          Subtarget->getGeneration() >= AMDGPUSubtarget::SOUTHERN_ISLANDS) {
-        return CombineIMinMax(DL, VT, LHS, RHS, True, False, CC, DAG);
-      }
     }
 
     break;
@@ -2652,20 +2619,14 @@ bool AMDGPUTargetLowering::isHWTrueValue(SDValue Op) const {
   if (ConstantFPSDNode * CFP = dyn_cast<ConstantFPSDNode>(Op)) {
     return CFP->isExactlyValue(1.0);
   }
-  if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op)) {
-    return C->isAllOnesValue();
-  }
-  return false;
+  return isAllOnesConstant(Op);
 }
 
 bool AMDGPUTargetLowering::isHWFalseValue(SDValue Op) const {
   if (ConstantFPSDNode * CFP = dyn_cast<ConstantFPSDNode>(Op)) {
     return CFP->getValueAPF().isZero();
   }
-  if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op)) {
-    return C->isNullValue();
-  }
-  return false;
+  return isNullConstant(Op);
 }
 
 SDValue AMDGPUTargetLowering::CreateLiveInRegister(SelectionDAG &DAG,
@@ -2738,7 +2699,6 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(BFE_I32)
   NODE_NAME_CASE(BFI)
   NODE_NAME_CASE(BFM)
-  NODE_NAME_CASE(BREV)
   NODE_NAME_CASE(MUL_U24)
   NODE_NAME_CASE(MUL_I24)
   NODE_NAME_CASE(MAD_U24)
@@ -2893,8 +2853,7 @@ unsigned AMDGPUTargetLowering::ComputeNumSignBitsForTargetNode(
       return 1;
 
     unsigned SignBits = 32 - Width->getZExtValue() + 1;
-    ConstantSDNode *Offset = dyn_cast<ConstantSDNode>(Op.getOperand(1));
-    if (!Offset || !Offset->isNullValue())
+    if (!isNullConstant(Op.getOperand(1)))
       return SignBits;
 
     // TODO: Could probably figure something out with non-0 offsets.

@@ -109,7 +109,7 @@ public:
   /// \brief Simulates liveness when stepping forward over an
   /// instruction(bundle): Remove killed-uses, add defs. This is the not
   /// recommended way, because it depends on accurate kill flags. If possible
-  /// use stepBackwards() instead of this function.
+  /// use stepBackward() instead of this function.
   /// The clobbers set will be the list of registers either defined or clobbered
   /// by a regmask.  The operand will identify whether this is a regmask or
   /// register operand.
@@ -122,9 +122,9 @@ public:
   void addLiveIns(const MachineBasicBlock *MBB, bool AddPristines = false);
 
   /// \brief Adds all live-out registers of basic block @p MBB; After prologue/
-  /// epilogue insertion \p AddPristines should be set to true to insert the
-  /// pristine registers.
-  void addLiveOuts(const MachineBasicBlock *MBB, bool AddPristines = false);
+  /// epilogue insertion \p AddPristinesAndCSRs should be set to true.
+  void addLiveOuts(const MachineBasicBlock *MBB,
+                   bool AddPristinesAndCSRs = false);
 
   typedef SparseSet<unsigned>::const_iterator const_iterator;
   const_iterator begin() const { return LiveRegs.begin(); }

@@ -27,7 +27,7 @@ target triple = "x86_64-unknown-linux-gnu"
 %struct.prog_src_register = type { i32, i24 }
 
 ; Function Attrs: nounwind
-define i64 @src_reg_for_float() #0 {
+define i64 @src_reg_for_float() #0 !dbg !4 {
 entry:
   %retval = alloca %struct.prog_src_register, align 4
   %a = alloca %struct.prog_src_register, align 4
@@ -66,11 +66,11 @@ attributes #2 = { nounwind }
 !llvm.module.flags = !{!13, !14}
 !llvm.ident = !{!15}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.7.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.7.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "src_reg_for_float", line: 7, isLocal: false, isDefinition: true, isOptimized: false, scopeLine: 7, file: !5, scope: !6, type: !7, function: i64 ()* @src_reg_for_float, variables: !2)
+!4 = distinct !DISubprogram(name: "src_reg_for_float", line: 7, isLocal: false, isDefinition: true, isOptimized: false, scopeLine: 7, file: !5, scope: !6, type: !7, variables: !2)
 !5 = !DIFile(filename: "pr22495.c", directory: "")
 !6 = !DIFile(filename: "pr22495.c", directory: "")
 !7 = !DISubroutineType(types: !8)
@@ -82,10 +82,10 @@ attributes #2 = { nounwind }
 !13 = !{i32 2, !"Dwarf Version", i32 4}
 !14 = !{i32 2, !"Debug Info Version", i32 3}
 !15 = !{!"clang version 3.7.0 "}
-!16 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 8, scope: !4, file: !6, type: !9)
+!16 = !DILocalVariable(name: "a", line: 8, scope: !4, file: !6, type: !9)
 !17 = !DIExpression()
 !18 = !DILocation(line: 8, scope: !4)
 !19 = !DILocation(line: 9, scope: !4)
-!20 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "local", line: 10, scope: !4, file: !6, type: !12)
+!20 = !DILocalVariable(name: "local", line: 10, scope: !4, file: !6, type: !12)
 !21 = !DILocation(line: 10, scope: !4)
 !22 = !DILocation(line: 11, scope: !4)

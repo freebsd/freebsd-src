@@ -9,7 +9,7 @@ target triple = "x86_64-apple-macosx10.8.0"
 ; CHECK: __Z3foov:
 ; CHECK: retq
 
-define void @_Z3foov() {
+define void @_Z3foov() !dbg !12 {
 entry:
   br i1 undef, label %exit, label %bb
 
@@ -28,7 +28,7 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata)
 
 !0 = !{i32 2, !"Dwarf Version", i32 2}
 !1 = !{i32 2, !"Debug Info Version", i32 3}
-!2 = !DICompileUnit(language: DW_LANG_C_plus_plus, file: !3, isOptimized: true, runtimeVersion: 0, emissionKind: 1, enums: !4, retainedTypes: !5, subprograms: !11, globals: !4, imports: !4)
+!2 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, file: !3, isOptimized: true, runtimeVersion: 0, emissionKind: 1, enums: !4, retainedTypes: !5, subprograms: !11, globals: !4, imports: !4)
 !3 = !DIFile(filename: "foo.cpp", directory: "/path/to/dir")
 !4 = !{}
 !5 = !{!6}
@@ -38,9 +38,9 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata)
 !9 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !10 = !DIDerivedType(tag: DW_TAG_member, name: "b", scope: !"_ZT5Class", baseType: !9, size: 32, align: 32)
 !11 = !{!12}
-!12 = !DISubprogram(name: "foo", scope: null, file: !3, type: !13, isLocal: false, isDefinition: true, isOptimized: false, function: void ()* @_Z3foov)
+!12 = distinct !DISubprogram(name: "foo", scope: null, file: !3, type: !13, isLocal: false, isDefinition: true, isOptimized: false)
 !13 = !DISubroutineType(types: !14)
 !14 = !{null}
-!15 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "v", scope: !12, type: !"_ZT5Class")
+!15 = !DILocalVariable(name: "v", scope: !12, type: !"_ZT5Class")
 !16 = !DIExpression(DW_OP_bit_piece, 32, 32)
 !17 = !DILocation(line: 2755, column: 9, scope: !12)

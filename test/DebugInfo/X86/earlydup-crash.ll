@@ -6,7 +6,7 @@
 
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnone
 
-define internal i8* @framework_construct_pathname(i8* %fname, %struct.cpp_dir* %dir) nounwind ssp {
+define internal i8* @framework_construct_pathname(i8* %fname, %struct.cpp_dir* %dir) nounwind ssp !dbg !2 {
 entry:
   br i1 undef, label %bb33, label %bb
 
@@ -44,11 +44,11 @@ declare void @foobar(i32)
 
 !llvm.dbg.cu = !{!4}
 !llvm.module.flags = !{!47}
-!0 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "frname_len", line: 517, scope: !1, file: !3, type: !38)
+!0 = !DILocalVariable(name: "frname_len", line: 517, scope: !1, file: !3, type: !38)
 !1 = distinct !DILexicalBlock(line: 515, column: 0, file: !44, scope: !2)
-!2 = !DISubprogram(name: "framework_construct_pathname", line: 515, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !44, scope: null, type: !5, function: i8* (i8*, %struct.cpp_dir*)* @framework_construct_pathname)
+!2 = distinct !DISubprogram(name: "framework_construct_pathname", line: 515, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !44, scope: null, type: !5)
 !3 = !DIFile(filename: "darwin-c.c", directory: "/Users/espindola/llvm/build-llvm-gcc/gcc/../../llvm-gcc-4.2/gcc/config")
-!4 = !DICompileUnit(language: DW_LANG_C89, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: true, emissionKind: 0, file: !44, enums: !46, retainedTypes: !46, subprograms: !45)
+!4 = distinct !DICompileUnit(language: DW_LANG_C89, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: true, emissionKind: 0, file: !44, enums: !46, retainedTypes: !46, subprograms: !45)
 !5 = !DISubroutineType(types: !6)
 !6 = !{!7, !9, !11}
 !7 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, file: !44, scope: !3, baseType: !8)

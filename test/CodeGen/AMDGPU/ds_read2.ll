@@ -216,10 +216,8 @@ define void @read2_ptr_is_subreg_arg_offset_f32(float addrspace(1)* %out, <2 x f
   ret void
 }
 
-; We should be able to merge in this case, but probably not worth the effort.
-; SI-NOT: ds_read2_b32
-; SI: ds_read_b32
-; SI: ds_read_b32
+; SI-LABEL: {{^}}read2_ptr_is_subreg_f32:
+; SI: ds_read2_b32 {{v\[[0-9]+:[0-9]+\]}}, {{v[0-9]+}} offset1:8{{$}}
 ; SI: s_endpgm
 define void @read2_ptr_is_subreg_f32(float addrspace(1)* %out) #0 {
   %x.i = tail call i32 @llvm.r600.read.tidig.x() #1
@@ -507,9 +505,9 @@ declare i32 @llvm.r600.read.tidig.x() #1
 ; Function Attrs: nounwind readnone
 declare i32 @llvm.r600.read.tidig.y() #1
 
-; Function Attrs: noduplicate nounwind
+; Function Attrs: convergent nounwind
 declare void @llvm.AMDGPU.barrier.local() #2
 
 attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-realign-stack" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
-attributes #2 = { noduplicate nounwind }
+attributes #2 = { convergent nounwind }

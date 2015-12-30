@@ -278,7 +278,7 @@ MachOObjectFile::MachOObjectFile(MemoryBufferRef Object, bool IsLittleEndian,
         return;
       }
       LinkOptHintsLoadCmd = Load.Ptr;
-    } else if (Load.C.cmd == MachO::LC_DYLD_INFO || 
+    } else if (Load.C.cmd == MachO::LC_DYLD_INFO ||
                Load.C.cmd == MachO::LC_DYLD_INFO_ONLY) {
       // Multiple dyldinfo load commands
       if (DyldInfoLoadCmd) {
@@ -401,6 +401,9 @@ SymbolRef::Type MachOObjectFile::getSymbolType(DataRefImpl Symb) const {
     case MachO::N_UNDF :
       return SymbolRef::ST_Unknown;
     case MachO::N_SECT :
+      section_iterator Sec = *getSymbolSection(Symb);
+      if (Sec->isData() || Sec->isBSS())
+        return SymbolRef::ST_Data;
       return SymbolRef::ST_Function;
   }
   return SymbolRef::ST_Other;
@@ -445,22 +448,18 @@ uint32_t MachOObjectFile::getSymbolFlags(DataRefImpl DRI) const {
   return Result;
 }
 
-std::error_code MachOObjectFile::getSymbolSection(DataRefImpl Symb,
-                                                  section_iterator &Res) const {
+ErrorOr<section_iterator>
+MachOObjectFile::getSymbolSection(DataRefImpl Symb) const {
   MachO::nlist_base Entry = getSymbolTableEntryBase(this, Symb);
   uint8_t index = Entry.n_sect;
 
-  if (index == 0) {
-    Res = section_end();
-  } else {
-    DataRefImpl DRI;
-    DRI.d.a = index - 1;
-    if (DRI.d.a >= Sections.size())
-      report_fatal_error("getSymbolSection: Invalid section index.");
-    Res = section_iterator(SectionRef(DRI, this));
-  }
-
-  return std::error_code();
+  if (index == 0)
+    return section_end();
+  DataRefImpl DRI;
+  DRI.d.a = index - 1;
+  if (DRI.d.a >= Sections.size())
+    report_fatal_error("getSymbolSection: Invalid section index.");
+  return section_iterator(SectionRef(DRI, this));
 }
 
 unsigned MachOObjectFile::getSymbolSectionID(SymbolRef Sym) const {
@@ -487,9 +486,32 @@ uint64_t MachOObjectFile::getSectionAddress(DataRefImpl Sec) const {
 }
 
 uint64_t MachOObjectFile::getSectionSize(DataRefImpl Sec) const {
-  if (is64Bit())
-    return getSection64(Sec).size;
-  return getSection(Sec).size;
+  // In the case if a malformed Mach-O file where the section offset is past
+  // the end of the file or some part of the section size is past the end of
+  // the file return a size of zero or a size that covers the rest of the file
+  // but does not extend past the end of the file.
+  uint32_t SectOffset, SectType;
+  uint64_t SectSize;
+
+  if (is64Bit()) {
+    MachO::section_64 Sect = getSection64(Sec);
+    SectOffset = Sect.offset;
+    SectSize = Sect.size;
+    SectType = Sect.flags & MachO::SECTION_TYPE;
+  } else {
+    MachO::section Sect = getSection(Sec);
+    SectOffset = Sect.offset;
+    SectSize = Sect.size;
+    SectType = Sect.flags & MachO::SECTION_TYPE;
+  }
+  if (SectType == MachO::S_ZEROFILL || SectType == MachO::S_GB_ZEROFILL)
+    return SectSize;
+  uint64_t FileSize = getData().size();
+  if (SectOffset > FileSize)
+    return 0;
+  if (FileSize - SectOffset < SectSize)
+    return FileSize - SectOffset;
+  return SectSize;
 }
 
 std::error_code MachOObjectFile::getSectionContents(DataRefImpl Sec,
@@ -1136,8 +1158,7 @@ Triple MachOObjectFile::getThumbArch(uint32_t CPUType, uint32_t CPUSubType,
 }
 
 Triple MachOObjectFile::getArch(uint32_t CPUType, uint32_t CPUSubType,
-                                const char **McpuDefault,
-				Triple *ThumbTriple) {
+                                const char **McpuDefault, Triple *ThumbTriple) {
   Triple T = MachOObjectFile::getArch(CPUType, CPUSubType, McpuDefault);
   *ThumbTriple = MachOObjectFile::getThumbArch(CPUType, CPUSubType,
                                                McpuDefault);
@@ -1212,8 +1233,8 @@ dice_iterator MachOObjectFile::end_dices() const {
   return dice_iterator(DiceRef(DRI, this));
 }
 
-ExportEntry::ExportEntry(ArrayRef<uint8_t> T) 
-  : Trie(T), Malformed(false), Done(false) { }
+ExportEntry::ExportEntry(ArrayRef<uint8_t> T)
+    : Trie(T), Malformed(false), Done(false) {}
 
 void ExportEntry::moveToFirst() {
   pushNode(0);
@@ -1226,7 +1247,7 @@ void ExportEntry::moveToEnd() {
 }
 
 bool ExportEntry::operator==(const ExportEntry &Other) const {
-  // Common case, one at end, other iterating from begin. 
+  // Common case, one at end, other iterating from begin.
   if (Done || Other.Done)
     return (Done == Other.Done);
   // Not equal if different stack sizes.
@@ -1240,7 +1261,7 @@ bool ExportEntry::operator==(const ExportEntry &Other) const {
     if (Stack[i].Start != Other.Stack[i].Start)
       return false;
   }
-  return true;  
+  return true;
 }
 
 uint64_t ExportEntry::readULEB128(const uint8_t *&Ptr) {
@@ -1281,11 +1302,10 @@ uint32_t ExportEntry::nodeOffset() const {
   return Stack.back().Start - Trie.begin();
 }
 
-ExportEntry::NodeState::NodeState(const uint8_t *Ptr) 
-  : Start(Ptr), Current(Ptr), Flags(0), Address(0), Other(0), 
-    ImportName(nullptr), ChildCount(0), NextChildIndex(0),  
-    ParentStringLength(0), IsExportNode(false) {
-}
+ExportEntry::NodeState::NodeState(const uint8_t *Ptr)
+    : Start(Ptr), Current(Ptr), Flags(0), Address(0), Other(0),
+      ImportName(nullptr), ChildCount(0), NextChildIndex(0),
+      ParentStringLength(0), IsExportNode(false) {}
 
 void ExportEntry::pushNode(uint64_t offset) {
   const uint8_t *Ptr = Trie.begin() + offset;
@@ -1302,7 +1322,7 @@ void ExportEntry::pushNode(uint64_t offset) {
     } else {
       State.Address = readULEB128(State.Current);
       if (State.Flags & MachO::EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER)
-        State.Other = readULEB128(State.Current); 
+        State.Other = readULEB128(State.Current);
     }
   }
   State.ChildCount = *Children;
@@ -1339,7 +1359,7 @@ void ExportEntry::pushDownUntilBottom() {
 //
 // There is one "export" node for each exported symbol.  But because some
 // symbols may be a prefix of another symbol (e.g. _dup and _dup2), an export
-// node may have child nodes too.  
+// node may have child nodes too.
 //
 // The algorithm for moveNext() is to keep moving down the leftmost unvisited
 // child until hitting a node with no children (which is an export node or
@@ -1372,7 +1392,7 @@ void ExportEntry::moveNext() {
   Done = true;
 }
 
-iterator_range<export_iterator> 
+iterator_range<export_iterator>
 MachOObjectFile::exports(ArrayRef<uint8_t> Trie) {
   ExportEntry Start(Trie);
   if (Trie.size() == 0)
@@ -1383,14 +1403,12 @@ MachOObjectFile::exports(ArrayRef<uint8_t> Trie) {
   ExportEntry Finish(Trie);
   Finish.moveToEnd();
 
-  return iterator_range<export_iterator>(export_iterator(Start), 
-                                         export_iterator(Finish));
+  return make_range(export_iterator(Start), export_iterator(Finish));
 }
 
 iterator_range<export_iterator> MachOObjectFile::exports() const {
   return exports(getDyldInfoExportsTrie());
 }
-
 
 MachORebaseEntry::MachORebaseEntry(ArrayRef<uint8_t> Bytes, bool is64Bit)
     : Opcodes(Bytes), Ptr(Bytes.begin()), SegmentOffset(0), SegmentIndex(0),
@@ -1555,17 +1573,14 @@ MachOObjectFile::rebaseTable(ArrayRef<uint8_t> Opcodes, bool is64) {
   MachORebaseEntry Finish(Opcodes, is64);
   Finish.moveToEnd();
 
-  return iterator_range<rebase_iterator>(rebase_iterator(Start),
-                                         rebase_iterator(Finish));
+  return make_range(rebase_iterator(Start), rebase_iterator(Finish));
 }
 
 iterator_range<rebase_iterator> MachOObjectFile::rebaseTable() const {
   return rebaseTable(getDyldInfoRebaseOpcodes(), is64Bit());
 }
 
-
-MachOBindEntry::MachOBindEntry(ArrayRef<uint8_t> Bytes, bool is64Bit,
-                               Kind BK)
+MachOBindEntry::MachOBindEntry(ArrayRef<uint8_t> Bytes, bool is64Bit, Kind BK)
     : Opcodes(Bytes), Ptr(Bytes.begin()), SegmentOffset(0), SegmentIndex(0),
       Ordinal(0), Flags(0), Addend(0), RemainingLoopCount(0), AdvanceAmount(0),
       BindType(0), PointerSize(is64Bit ? 8 : 4),
@@ -1769,7 +1784,6 @@ int64_t MachOBindEntry::readSLEB128() {
   return Result;
 }
 
-
 uint32_t MachOBindEntry::segmentIndex() const { return SegmentIndex; }
 
 uint64_t MachOBindEntry::segmentOffset() const { return SegmentOffset; }
@@ -1810,8 +1824,7 @@ MachOObjectFile::bindTable(ArrayRef<uint8_t> Opcodes, bool is64,
   MachOBindEntry Finish(Opcodes, is64, BKind);
   Finish.moveToEnd();
 
-  return iterator_range<bind_iterator>(bind_iterator(Start),
-                                       bind_iterator(Finish));
+  return make_range(bind_iterator(Start), bind_iterator(Finish));
 }
 
 iterator_range<bind_iterator> MachOObjectFile::bindTable() const {
@@ -1841,8 +1854,7 @@ MachOObjectFile::end_load_commands() const {
 
 iterator_range<MachOObjectFile::load_command_iterator>
 MachOObjectFile::load_commands() const {
-  return iterator_range<load_command_iterator>(begin_load_commands(),
-                                               end_load_commands());
+  return make_range(begin_load_commands(), end_load_commands());
 }
 
 StringRef
@@ -2207,66 +2219,66 @@ MachOObjectFile::getLinkOptHintsLoadCommand() const {
 }
 
 ArrayRef<uint8_t> MachOObjectFile::getDyldInfoRebaseOpcodes() const {
-  if (!DyldInfoLoadCmd) 
-    return ArrayRef<uint8_t>();
+  if (!DyldInfoLoadCmd)
+    return None;
 
-  MachO::dyld_info_command DyldInfo 
-                   = getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
-  const uint8_t *Ptr = reinterpret_cast<const uint8_t*>(
-                                             getPtr(this, DyldInfo.rebase_off));
-  return ArrayRef<uint8_t>(Ptr, DyldInfo.rebase_size);
+  MachO::dyld_info_command DyldInfo =
+      getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
+  const uint8_t *Ptr =
+      reinterpret_cast<const uint8_t *>(getPtr(this, DyldInfo.rebase_off));
+  return makeArrayRef(Ptr, DyldInfo.rebase_size);
 }
 
 ArrayRef<uint8_t> MachOObjectFile::getDyldInfoBindOpcodes() const {
-  if (!DyldInfoLoadCmd) 
-    return ArrayRef<uint8_t>();
+  if (!DyldInfoLoadCmd)
+    return None;
 
-  MachO::dyld_info_command DyldInfo 
-                   = getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
-  const uint8_t *Ptr = reinterpret_cast<const uint8_t*>(
-                                               getPtr(this, DyldInfo.bind_off));
-  return ArrayRef<uint8_t>(Ptr, DyldInfo.bind_size);
+  MachO::dyld_info_command DyldInfo =
+      getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
+  const uint8_t *Ptr =
+      reinterpret_cast<const uint8_t *>(getPtr(this, DyldInfo.bind_off));
+  return makeArrayRef(Ptr, DyldInfo.bind_size);
 }
 
 ArrayRef<uint8_t> MachOObjectFile::getDyldInfoWeakBindOpcodes() const {
-  if (!DyldInfoLoadCmd) 
-    return ArrayRef<uint8_t>();
+  if (!DyldInfoLoadCmd)
+    return None;
 
-  MachO::dyld_info_command DyldInfo 
-                   = getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
-  const uint8_t *Ptr = reinterpret_cast<const uint8_t*>(
-                                          getPtr(this, DyldInfo.weak_bind_off));
-  return ArrayRef<uint8_t>(Ptr, DyldInfo.weak_bind_size);
+  MachO::dyld_info_command DyldInfo =
+      getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
+  const uint8_t *Ptr =
+      reinterpret_cast<const uint8_t *>(getPtr(this, DyldInfo.weak_bind_off));
+  return makeArrayRef(Ptr, DyldInfo.weak_bind_size);
 }
 
 ArrayRef<uint8_t> MachOObjectFile::getDyldInfoLazyBindOpcodes() const {
-  if (!DyldInfoLoadCmd) 
-    return ArrayRef<uint8_t>();
+  if (!DyldInfoLoadCmd)
+    return None;
 
-  MachO::dyld_info_command DyldInfo 
-                   = getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
-  const uint8_t *Ptr = reinterpret_cast<const uint8_t*>(
-                                          getPtr(this, DyldInfo.lazy_bind_off));
-  return ArrayRef<uint8_t>(Ptr, DyldInfo.lazy_bind_size);
+  MachO::dyld_info_command DyldInfo =
+      getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
+  const uint8_t *Ptr =
+      reinterpret_cast<const uint8_t *>(getPtr(this, DyldInfo.lazy_bind_off));
+  return makeArrayRef(Ptr, DyldInfo.lazy_bind_size);
 }
 
 ArrayRef<uint8_t> MachOObjectFile::getDyldInfoExportsTrie() const {
-  if (!DyldInfoLoadCmd) 
-    return ArrayRef<uint8_t>();
+  if (!DyldInfoLoadCmd)
+    return None;
 
-  MachO::dyld_info_command DyldInfo 
-                   = getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
-  const uint8_t *Ptr = reinterpret_cast<const uint8_t*>(
-                                             getPtr(this, DyldInfo.export_off));
-  return ArrayRef<uint8_t>(Ptr, DyldInfo.export_size);
+  MachO::dyld_info_command DyldInfo =
+      getStruct<MachO::dyld_info_command>(this, DyldInfoLoadCmd);
+  const uint8_t *Ptr =
+      reinterpret_cast<const uint8_t *>(getPtr(this, DyldInfo.export_off));
+  return makeArrayRef(Ptr, DyldInfo.export_size);
 }
 
 ArrayRef<uint8_t> MachOObjectFile::getUuid() const {
   if (!UuidLoadCmd)
-    return ArrayRef<uint8_t>();
+    return None;
   // Returning a pointer is fine as uuid doesn't need endian swapping.
   const char *Ptr = UuidLoadCmd + offsetof(MachO::uuid_command, uuid);
-  return ArrayRef<uint8_t>(reinterpret_cast<const uint8_t *>(Ptr), 16);
+  return makeArrayRef(reinterpret_cast<const uint8_t *>(Ptr), 16);
 }
 
 StringRef MachOObjectFile::getStringTableData() const {
@@ -2315,4 +2327,3 @@ ObjectFile::createMachOObjectFile(MemoryBufferRef Buffer) {
     return EC;
   return std::move(Ret);
 }
-

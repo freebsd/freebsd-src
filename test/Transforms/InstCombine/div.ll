@@ -163,7 +163,7 @@ define i32 @test19(i32 %x) {
 ; CHECK-LABEL: @test19(
 ; CHECK-NEXT: icmp eq i32 %x, 1
 ; CHECK-NEXT: zext i1 %{{.*}} to i32
-; CHECK-NEXT ret i32
+; CHECK-NEXT: ret i32
 }
 
 define i32 @test20(i32 %x) {
@@ -270,9 +270,7 @@ define <2 x i32> @test31(<2 x i32> %x) {
   %div = udiv <2 x i32> %shr, <i32 2147483647, i32 2147483647>
   ret <2 x i32> %div
 ; CHECK-LABEL: @test31(
-; CHECK-NEXT: %[[shr:.*]] = lshr <2 x i32> %x, <i32 31, i32 31>
-; CHECK-NEXT: udiv <2 x i32> %[[shr]], <i32 2147483647, i32 2147483647>
-; CHECK-NEXT: ret <2 x i32>
+; CHECK-NEXT: ret <2 x i32> zeroinitializer
 }
 
 define i32 @test32(i32 %a, i32 %b) {
@@ -324,4 +322,22 @@ define i32 @test36(i32 %A) {
 ; CHECK-NEXT: %[[and:.*]] = and i32 %A, 2147483647
 ; CHECK-NEXT: %[[shr:.*]] = lshr exact i32 %[[and]], %A
 ; CHECK-NEXT: ret i32 %[[shr]]
+}
+
+define i32 @test37(i32* %b) {
+entry:
+  store i32 0, i32* %b, align 4
+  %0 = load i32, i32* %b, align 4
+  br i1 undef, label %lor.rhs, label %lor.end
+
+lor.rhs:                                          ; preds = %entry
+  %mul = mul nsw i32 undef, %0
+  br label %lor.end
+
+lor.end:                                          ; preds = %lor.rhs, %entry
+  %t.0 = phi i32 [ %0, %entry ], [ %mul, %lor.rhs ]
+  %div = sdiv i32 %t.0, 2
+  ret i32 %div
+; CHECK-LABEL: @test37(
+; CHECK: ret i32 0
 }

@@ -28,7 +28,7 @@ target triple = "x86_64-apple-macosx10.9.0"
 %struct.i14 = type { i64 }
 
 ; Function Attrs: nounwind ssp uwtable
-define void @init() #0 {
+define void @init() #0 !dbg !4 {
   %p = alloca %struct.i14*, align 8
   call void @llvm.dbg.declare(metadata %struct.i14** %p, metadata !11, metadata !DIExpression()), !dbg !18
   store %struct.i14* null, %struct.i14** %p, align 8, !dbg !18
@@ -54,18 +54,18 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!8, !9}
 !llvm.ident = !{!10}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "instcombine_intrinsics.c", directory: "")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "init", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 7, file: !1, scope: !5, type: !6, function: void ()* @init, variables: !2)
+!4 = distinct !DISubprogram(name: "init", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 7, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "instcombine_intrinsics.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null}
 !8 = !{i32 2, !"Dwarf Version", i32 2}
 !9 = !{i32 1, !"Debug Info Version", i32 3}
 !10 = !{!"clang version 3.5.0 "}
-!11 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "p", line: 8, scope: !4, file: !5, type: !12)
+!11 = !DILocalVariable(name: "p", line: 8, scope: !4, file: !5, type: !12)
 !12 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !13)
 !13 = !DIDerivedType(tag: DW_TAG_typedef, name: "i14", line: 3, file: !1, baseType: !14)
 !14 = !DICompositeType(tag: DW_TAG_structure_type, line: 1, size: 64, align: 64, file: !1, elements: !15)

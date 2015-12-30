@@ -53,7 +53,7 @@ load barriers, store barriers, and safepoints.
    loads, merely loads of a particular type (in the original source
    language), or none at all.
 
-#. Analogously, a store barrier is a code fragement that runs
+#. Analogously, a store barrier is a code fragment that runs
    immediately before the machine store instruction, but after the
    computation of the value stored.  The most common use of a store
    barrier is to update a 'card table' in a generational garbage
@@ -142,8 +142,8 @@ resulting relocation sequence is:
 
   define i8 addrspace(1)* @test1(i8 addrspace(1)* %obj) 
          gc "statepoint-example" {
-    %0 = call i32 (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 0, i8 addrspace(1)* %obj)
-    %obj.relocated = call coldcc i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(i32 %0, i32 7, i32 7)
+    %0 = call token (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 0, i8 addrspace(1)* %obj)
+    %obj.relocated = call coldcc i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(token %0, i32 7, i32 7)
     ret i8 addrspace(1)* %obj.relocated
   }
 
@@ -160,7 +160,7 @@ of the call, we use the ``gc.result`` intrinsic.  To get the relocation
 of each pointer in turn, we use the ``gc.relocate`` intrinsic with the
 appropriate index.  Note that both the ``gc.relocate`` and ``gc.result`` are
 tied to the statepoint.  The combination forms a "statepoint relocation 
-sequence" and represents the entitety of a parseable call or 'statepoint'.
+sequence" and represents the entirety of a parseable call or 'statepoint'.
 
 When lowered, this example would generate the following x86 assembly:
 
@@ -206,6 +206,52 @@ This example was taken from the tests for the :ref:`RewriteStatepointsForGC` uti
 
   opt -rewrite-statepoints-for-gc test/Transforms/RewriteStatepointsForGC/basics.ll -S | llc -debug-only=stackmaps
 
+Base & Derived Pointers
+^^^^^^^^^^^^^^^^^^^^^^^
+
+A "base pointer" is one which points to the starting address of an allocation
+(object).  A "derived pointer" is one which is offset from a base pointer by
+some amount.  When relocating objects, a garbage collector needs to be able 
+to relocate each derived pointer associated with an allocation to the same 
+offset from the new address.
+
+"Interior derived pointers" remain within the bounds of the allocation 
+they're associated with.  As a result, the base object can be found at 
+runtime provided the bounds of allocations are known to the runtime system.
+
+"Exterior derived pointers" are outside the bounds of the associated object;
+they may even fall within *another* allocations address range.  As a result,
+there is no way for a garbage collector to determine which allocation they 
+are associated with at runtime and compiler support is needed.
+
+The ``gc.relocate`` intrinsic supports an explicit operand for describing the
+allocation associated with a derived pointer.  This operand is frequently 
+referred to as the base operand, but does not strictly speaking have to be
+a base pointer, but it does need to lie within the bounds of the associated
+allocation.  Some collectors may require that the operand be an actual base
+pointer rather than merely an internal derived pointer. Note that during 
+lowering both the base and derived pointer operands are required to be live 
+over the associated call safepoint even if the base is otherwise unused 
+afterwards.
+
+If we extend our previous example to include a pointless derived pointer, 
+we get:
+
+.. code-block:: llvm
+
+  define i8 addrspace(1)* @test1(i8 addrspace(1)* %obj) 
+         gc "statepoint-example" {
+    %gep = getelementptr i8, i8 addrspace(1)* %obj, i64 20000
+    %token = call token (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 0, i8 addrspace(1)* %obj, i8 addrspace(1)* %gep)
+    %obj.relocated = call i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(token %token, i32 7, i32 7)
+    %gep.relocated = call i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(token %token, i32 7, i32 8)
+    %p = getelementptr i8, i8 addrspace(1)* %gep, i64 -20000
+    ret i8 addrspace(1)* %p
+  }
+
+Note that in this example %p and %obj.relocate are the same address and we
+could replace one with the other, potentially removing the derived pointer
+from the live set at the safepoint entirely.  
 
 GC Transitions
 ^^^^^^^^^^^^^^^^^^
@@ -225,7 +271,7 @@ statepoint.
   transitions based on the function symbols involved (e.g. a call from a
   function with GC strategy "foo" to a function with GC strategy "bar"),
   indirect calls that are also GC transitions must also be supported. This
-  requirement is the driving force behing the decision to require that GC
+  requirement is the driving force behind the decision to require that GC
   transitions are explicitly marked.
 
 Let's revisit the sample given above, this time treating the call to ``@foo``
@@ -242,8 +288,8 @@ to unmanaged code. The resulting relocation sequence is:
   define i8 addrspace(1)* @test1(i8 addrspace(1) *%obj)
          gc "hypothetical-gc" {
 
-    %0 = call i32 (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 1, i32* @Flag, i32 0, i8 addrspace(1)* %obj)
-    %obj.relocated = call coldcc i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(i32 %0, i32 7, i32 7)
+    %0 = call token (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 0, i32 0, void ()* @foo, i32 0, i32 1, i32* @Flag, i32 0, i8 addrspace(1)* %obj)
+    %obj.relocated = call coldcc i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(token %0, i32 7, i32 7)
     ret i8 addrspace(1)* %obj.relocated
   }
 
@@ -296,7 +342,7 @@ Syntax:
 
 ::
 
-      declare i32
+      declare token
         @llvm.experimental.gc.statepoint(i64 <id>, i32 <num patch bytes>,
                        func_type <target>, 
                        i64 <#call args>, i64 <flags>,
@@ -331,14 +377,16 @@ the user will patch over the 'num patch bytes' bytes of nops with a
 calling sequence specific to their runtime before executing the
 generated machine code.  There are no guarantees with respect to the
 alignment of the nop sequence.  Unlike :doc:`StackMaps` statepoints do
-not have a concept of shadow bytes.
+not have a concept of shadow bytes.  Note that semantically the
+statepoint still represents a call or invoke to 'target', and the nop
+sequence after patching is expected to represent an operation
+equivalent to a call or invoke to 'target'.
 
 The 'target' operand is the function actually being called.  The
 target can be specified as either a symbolic LLVM function, or as an
 arbitrary Value of appropriate function type.  Note that the function
 type must match the signature of the callee and the types of the 'call
-parameters' arguments.  If 'num patch bytes' is non-zero then 'target'
-has to be the constant pointer null of the appropriate function type.
+parameters' arguments.
 
 The '#call args' operand is the number of arguments to the actual
 call.  It must exactly match the number of arguments passed in the
@@ -408,7 +456,7 @@ Syntax:
 ::
 
       declare type*
-        @llvm.experimental.gc.result(i32 %statepoint_token)
+        @llvm.experimental.gc.result(token %statepoint_token)
 
 Overview:
 """""""""
@@ -424,7 +472,7 @@ Operands:
 
 The first and only argument is the ``gc.statepoint`` which starts
 the safepoint sequence of which this ``gc.result`` is a part.
-Despite the typing of this as a generic i32, *only* the value defined
+Despite the typing of this as a generic token, *only* the value defined 
 by a ``gc.statepoint`` is legal here.
 
 Semantics:
@@ -448,7 +496,7 @@ Syntax:
 ::
 
       declare <pointer type>
-        @llvm.experimental.gc.relocate(i32 %statepoint_token, 
+        @llvm.experimental.gc.relocate(token %statepoint_token, 
                                        i32 %base_offset, 
                                        i32 %pointer_offset)
 
@@ -463,13 +511,18 @@ Operands:
 
 The first argument is the ``gc.statepoint`` which starts the
 safepoint sequence of which this ``gc.relocation`` is a part.
-Despite the typing of this as a generic i32, *only* the value defined
+Despite the typing of this as a generic token, *only* the value defined 
 by a ``gc.statepoint`` is legal here.
 
 The second argument is an index into the statepoints list of arguments
-which specifies the base pointer for the pointer being relocated.
+which specifies the allocation for the pointer being relocated.
 This index must land within the 'gc parameter' section of the
-statepoint's argument list.
+statepoint's argument list.  The associated value must be within the
+object with which the pointer being relocated is associated. The optimizer
+is free to change *which* interior derived pointer is reported, provided that
+it does not replace an actual base pointer with another interior derived 
+pointer.  Collectors are allowed to rely on the base pointer operand 
+remaining an actual base pointer if so constructed.
 
 The third argument is an index into the statepoint's list of arguments
 which specify the (potentially) derived pointer being relocated.  It
@@ -590,7 +643,7 @@ As an example, given this code:
 
   define i8 addrspace(1)* @test1(i8 addrspace(1)* %obj) 
          gc "statepoint-example" {
-    call i32 (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
+    call token (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0)
     ret i8 addrspace(1)* %obj
   }
 
@@ -600,8 +653,8 @@ The pass would produce this IR:
 
   define i8 addrspace(1)* @test1(i8 addrspace(1)* %obj) 
          gc "statepoint-example" {
-    %0 = call i32 (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0, i8 addrspace(1)* %obj)
-    %obj.relocated = call coldcc i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(i32 %0, i32 12, i32 12)
+    %0 = call token (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 5, i32 0, i32 -1, i32 0, i32 0, i32 0, i8 addrspace(1)* %obj)
+    %obj.relocated = call coldcc i8 addrspace(1)* @llvm.experimental.gc.relocate.p1i8(token %0, i32 12, i32 12)
     ret i8 addrspace(1)* %obj.relocated
   }
 
@@ -612,8 +665,18 @@ non references.  Address space 1 is not globally reserved for this purpose.
 This pass can be used an utility function by a language frontend that doesn't 
 want to manually reason about liveness, base pointers, or relocation when 
 constructing IR.  As currently implemented, RewriteStatepointsForGC must be 
-run after SSA construction (i.e. mem2ref).  
+run after SSA construction (i.e. mem2ref).
 
+RewriteStatepointsForGC will ensure that appropriate base pointers are listed
+for every relocation created.  It will do so by duplicating code as needed to
+propagate the base pointer associated with each pointer being relocated to
+the appropriate safepoints.  The implementation assumes that the following 
+IR constructs produce base pointers: loads from the heap, addresses of global 
+variables, function arguments, function return values. Constant pointers (such
+as null) are also assumed to be base pointers.  In practice, this constraint
+can be relaxed to producing interior derived pointers provided the target 
+collector can find the associated allocation from an arbitrary interior 
+derived pointer.
 
 In practice, RewriteStatepointsForGC can be run much later in the pass 
 pipeline, after most optimization is already done.  This helps to improve 
@@ -654,8 +717,8 @@ This pass would produce the following IR:
 .. code-block:: llvm
 
   define void @test() gc "statepoint-example" {
-    %safepoint_token = call i32 (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @do_safepoint, i32 0, i32 0, i32 0, i32 0)
-    %safepoint_token1 = call i32 (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 0)
+    %safepoint_token = call token (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @do_safepoint, i32 0, i32 0, i32 0, i32 0)
+    %safepoint_token1 = call token (i64, i32, void ()*, i32, i32, ...)* @llvm.experimental.gc.statepoint.p0f_isVoidf(i64 2882400000, i32 0, void ()* @foo, i32 0, i32 0, i32 0, i32 0)
     ret void
   }
 
@@ -698,6 +761,12 @@ would be if you need to preserve abstract frame information (e.g. for
 deoptimization or introspection) at safepoints.  In that case, ask on the 
 llvm-dev mailing list for suggestions.
 
+
+Supported Architectures
+=======================
+
+Support for statepoint generation requires some code for each backend.
+Today, only X86_64 is supported.  
 
 Bugs and Enhancements
 =====================

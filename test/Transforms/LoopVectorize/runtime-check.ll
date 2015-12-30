@@ -11,9 +11,9 @@ target triple = "x86_64-apple-macosx10.9.0"
 
 ;CHECK-LABEL: define i32 @foo
 ;CHECK: for.body.preheader:
-;CHECK: br i1 %cmp.zero, label %middle.block, label %vector.memcheck, !dbg [[BODY_LOC:![0-9]+]]
+;CHECK: br i1 %cmp.zero, label %scalar.ph, label %vector.memcheck, !dbg [[BODY_LOC:![0-9]+]]
 ;CHECK: vector.memcheck:
-;CHECK: br i1 %memcheck.conflict, label %middle.block, label %vector.ph, !dbg [[BODY_LOC]]
+;CHECK: br i1 %memcheck.conflict, label %scalar.ph, label %vector.ph, !dbg [[BODY_LOC]]
 ;CHECK: load <4 x float>
 define i32 @foo(float* nocapture %a, float* nocapture %b, i32 %n) nounwind uwtable ssp {
 entry:
@@ -73,7 +73,7 @@ loopexit:
 !2 = !{}
 !3 = !DISubroutineType(types: !2)
 !4 = !DIFile(filename: "test.cpp", directory: "/tmp")
-!5 = !DISubprogram(name: "foo", scope: !4, file: !4, line: 99, type: !3, isLocal: false, isDefinition: true, scopeLine: 100, flags: DIFlagPrototyped, isOptimized: false, variables: !2)
+!5 = distinct !DISubprogram(name: "foo", scope: !4, file: !4, line: 99, type: !3, isLocal: false, isDefinition: true, scopeLine: 100, flags: DIFlagPrototyped, isOptimized: false, variables: !2)
 !6 = !DILocation(line: 100, column: 1, scope: !5)
 !7 = !DILocation(line: 101, column: 1, scope: !5)
 !8 = !DILocation(line: 102, column: 1, scope: !5)

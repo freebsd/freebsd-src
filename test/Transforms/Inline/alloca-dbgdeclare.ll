@@ -34,7 +34,7 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 declare void @llvm.memcpy.p0i8.p0i8.i64(i8* nocapture, i8* nocapture readonly, i64, i32, i1) #2
 
 ; Function Attrs: nounwind
-define void @_Z3fn4v() #0 {
+define void @_Z3fn4v() #0 !dbg !21 {
 entry:
 ; Test that the dbg.declare is moved together with the alloca.
 ; CHECK: define void @_Z3fn5v()
@@ -61,7 +61,7 @@ _Z3fn31A.exit:                                    ; preds = %entry, %if.then.i
 }
 
 ; Function Attrs: noreturn nounwind
-define void @_Z3fn5v() #3 {
+define void @_Z3fn5v() #3 !dbg !24 {
 entry:
   br label %while.body, !dbg !55
 
@@ -82,7 +82,7 @@ attributes #3 = { noreturn nounwind }
 !llvm.module.flags = !{!28, !29}
 !llvm.ident = !{!30}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 (trunk 227480) (llvm/trunk 227517)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !25, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 (trunk 227480) (llvm/trunk 227517)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !25, imports: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "")
 !2 = !{}
 !3 = !{!4}
@@ -97,16 +97,16 @@ attributes #3 = { noreturn nounwind }
 !12 = !{!13}
 !13 = !DISubrange(count: 2)
 !14 = !{!15, !21, !24}
-!15 = !DISubprogram(name: "fn3", linkageName: "_Z3fn31A", line: 6, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 6, file: !5, scope: !16, type: !17, function: void (%struct.A*)* @_Z3fn31A, variables: !19)
+!15 = distinct !DISubprogram(name: "fn3", linkageName: "_Z3fn31A", line: 6, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 6, file: !5, scope: !16, type: !17, variables: !19)
 !16 = !DIFile(filename: "test.cpp", directory: "")
 !17 = !DISubroutineType(types: !18)
 !18 = !{null, !"_ZTS1A"}
 !19 = !{!20}
-!20 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p1", line: 6, arg: 1, scope: !15, file: !16, type: !"_ZTS1A")
-!21 = !DISubprogram(name: "fn4", linkageName: "_Z3fn4v", line: 11, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 11, file: !5, scope: !16, type: !22, function: void ()* @_Z3fn4v, variables: !2)
+!20 = !DILocalVariable(name: "p1", line: 6, arg: 1, scope: !15, file: !16, type: !"_ZTS1A")
+!21 = distinct !DISubprogram(name: "fn4", linkageName: "_Z3fn4v", line: 11, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 11, file: !5, scope: !16, type: !22, variables: !2)
 !22 = !DISubroutineType(types: !23)
 !23 = !{null}
-!24 = !DISubprogram(name: "fn5", linkageName: "_Z3fn5v", line: 13, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 13, file: !5, scope: !16, type: !22, function: void ()* @_Z3fn5v, variables: !2)
+!24 = distinct !DISubprogram(name: "fn5", linkageName: "_Z3fn5v", line: 13, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 13, file: !5, scope: !16, type: !22, variables: !2)
 !25 = !{!26, !27}
 !26 = !DIGlobalVariable(name: "a", line: 4, isLocal: false, isDefinition: true, scope: null, file: !16, type: !"_ZTS1A", variable: %struct.A* @a)
 !27 = !DIGlobalVariable(name: "b", line: 4, isLocal: false, isDefinition: true, scope: null, file: !16, type: !"_ZTS1A", variable: %struct.A* @b)
@@ -128,7 +128,7 @@ attributes #3 = { noreturn nounwind }
 !43 = !{!37, !37, i64 0}
 !44 = !{!38, !38, i64 0}
 !45 = !DILocation(line: 9, scope: !15)
-!46 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p1", line: 6, arg: 1, scope: !15, file: !16, type: !"_ZTS1A")
+!46 = !DILocalVariable(name: "p1", line: 6, arg: 1, scope: !15, file: !16, type: !"_ZTS1A")
 !47 = distinct !DILocation(line: 11, scope: !21)
 !48 = !DIExpression(DW_OP_bit_piece, 32, 160)
 !49 = !DILocation(line: 6, scope: !15, inlinedAt: !47)

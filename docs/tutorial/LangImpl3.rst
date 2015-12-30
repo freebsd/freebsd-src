@@ -15,8 +15,8 @@ LLVM IR. This will teach you a little bit about how LLVM does things, as
 well as demonstrate how easy it is to use. It's much more work to build
 a lexer and parser than it is to generate LLVM IR code. :)
 
-**Please note**: the code in this chapter and later require LLVM 2.2 or
-later. LLVM 2.1 and before will not work with it. Also note that you
+**Please note**: the code in this chapter and later require LLVM 3.7 or
+later. LLVM 3.6 and before will not work with it. Also note that you
 need to use a version of this tutorial that matches your LLVM release:
 If you are using an official LLVM release, use the version of the
 documentation included with your release or on the `llvm.org releases
@@ -35,19 +35,20 @@ class:
     class ExprAST {
     public:
       virtual ~ExprAST() {}
-      virtual Value *Codegen() = 0;
+      virtual Value *codegen() = 0;
     };
 
     /// NumberExprAST - Expression class for numeric literals like "1.0".
     class NumberExprAST : public ExprAST {
       double Val;
+
     public:
-      NumberExprAST(double val) : Val(val) {}
-      virtual Value *Codegen();
+      NumberExprAST(double Val) : Val(Val) {}
+      virtual Value *codegen();
     };
     ...
 
-The Codegen() method says to emit IR for that AST node along with all
+The codegen() method says to emit IR for that AST node along with all
 the things it depends on, and they all return an LLVM Value object.
 "Value" is the class used to represent a "`Static Single Assignment
 (SSA) <http://en.wikipedia.org/wiki/Static_single_assignment_form>`_
@@ -72,16 +73,20 @@ parser, which will be used to report errors found during code generation
 
 .. code-block:: c++
 
-    Value *ErrorV(const char *Str) { Error(Str); return 0; }
-
-    static Module *TheModule;
+    static std::unique_ptr<Module> *TheModule;
     static IRBuilder<> Builder(getGlobalContext());
     static std::map<std::string, Value*> NamedValues;
 
+    Value *ErrorV(const char *Str) {
+      Error(Str);
+      return nullptr;
+    }
+
 The static variables will be used during code generation. ``TheModule``
-is the LLVM construct that contains all of the functions and global
-variables in a chunk of code. In many ways, it is the top-level
-structure that the LLVM IR uses to contain code.
+is an LLVM construct that contains functions and global variables. In many
+ways, it is the top-level structure that the LLVM IR uses to contain code.
+It will own the memory for all of the IR that we generate, which is why
+the codegen() method returns a raw Value\*, rather than a unique_ptr<Value>.
 
 The ``Builder`` object is a helper object that makes it easy to generate
 LLVM instructions. Instances of the
@@ -110,7 +115,7 @@ First we'll do numeric literals:
 
 .. code-block:: c++
 
-    Value *NumberExprAST::Codegen() {
+    Value *NumberExprAST::codegen() {
       return ConstantFP::get(getGlobalContext(), APFloat(Val));
     }
 
@@ -124,10 +129,12 @@ are all uniqued together and shared. For this reason, the API uses the
 
 .. code-block:: c++
 
-    Value *VariableExprAST::Codegen() {
+    Value *VariableExprAST::codegen() {
       // Look this variable up in the function.
       Value *V = NamedValues[Name];
-      return V ? V : ErrorV("Unknown variable name");
+      if (!V)
+        ErrorV("Unknown variable name");
+      return V;
     }
 
 References to variables are also quite simple using LLVM. In the simple
@@ -137,26 +144,31 @@ values that can be in the ``NamedValues`` map are function arguments.
 This code simply checks to see that the specified name is in the map (if
 not, an unknown variable is being referenced) and returns the value for
 it. In future chapters, we'll add support for `loop induction
-variables <LangImpl5.html#for>`_ in the symbol table, and for `local
-variables <LangImpl7.html#localvars>`_.
+variables <LangImpl5.html#for-loop-expression>`_ in the symbol table, and for `local
+variables <LangImpl7.html#user-defined-local-variables>`_.
 
 .. code-block:: c++
 
-    Value *BinaryExprAST::Codegen() {
-      Value *L = LHS->Codegen();
-      Value *R = RHS->Codegen();
-      if (L == 0 || R == 0) return 0;
+    Value *BinaryExprAST::codegen() {
+      Value *L = LHS->codegen();
+      Value *R = RHS->codegen();
+      if (!L || !R)
+        return nullptr;
 
       switch (Op) {
-      case '+': return Builder.CreateFAdd(L, R, "addtmp");
-      case '-': return Builder.CreateFSub(L, R, "subtmp");
-      case '*': return Builder.CreateFMul(L, R, "multmp");
+      case '+':
+        return Builder.CreateFAdd(L, R, "addtmp");
+      case '-':
+        return Builder.CreateFSub(L, R, "subtmp");
+      case '*':
+        return Builder.CreateFMul(L, R, "multmp");
       case '<':
         L = Builder.CreateFCmpULT(L, R, "cmptmp");
         // Convert bool 0/1 to double 0.0 or 1.0
         return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()),
                                     "booltmp");
-      default: return ErrorV("invalid binary operator");
+      default:
+        return ErrorV("invalid binary operator");
       }
     }
 
@@ -178,55 +190,55 @@ automatically provide each one with an increasing, unique numeric
 suffix. Local value names for instructions are purely optional, but it
 makes it much easier to read the IR dumps.
 
-`LLVM instructions <../LangRef.html#instref>`_ are constrained by strict
+`LLVM instructions <../LangRef.html#instruction-reference>`_ are constrained by strict
 rules: for example, the Left and Right operators of an `add
-instruction <../LangRef.html#i_add>`_ must have the same type, and the
+instruction <../LangRef.html#add-instruction>`_ must have the same type, and the
 result type of the add must match the operand types. Because all values
 in Kaleidoscope are doubles, this makes for very simple code for add,
 sub and mul.
 
 On the other hand, LLVM specifies that the `fcmp
-instruction <../LangRef.html#i_fcmp>`_ always returns an 'i1' value (a
+instruction <../LangRef.html#fcmp-instruction>`_ always returns an 'i1' value (a
 one bit integer). The problem with this is that Kaleidoscope wants the
 value to be a 0.0 or 1.0 value. In order to get these semantics, we
 combine the fcmp instruction with a `uitofp
-instruction <../LangRef.html#i_uitofp>`_. This instruction converts its
+instruction <../LangRef.html#uitofp-to-instruction>`_. This instruction converts its
 input integer into a floating point value by treating the input as an
 unsigned value. In contrast, if we used the `sitofp
-instruction <../LangRef.html#i_sitofp>`_, the Kaleidoscope '<' operator
+instruction <../LangRef.html#sitofp-to-instruction>`_, the Kaleidoscope '<' operator
 would return 0.0 and -1.0, depending on the input value.
 
 .. code-block:: c++
 
-    Value *CallExprAST::Codegen() {
+    Value *CallExprAST::codegen() {
       // Look up the name in the global module table.
       Function *CalleeF = TheModule->getFunction(Callee);
-      if (CalleeF == 0)
+      if (!CalleeF)
         return ErrorV("Unknown function referenced");
 
       // If argument mismatch error.
       if (CalleeF->arg_size() != Args.size())
         return ErrorV("Incorrect # arguments passed");
 
-      std::vector<Value*> ArgsV;
+      std::vector<Value *> ArgsV;
       for (unsigned i = 0, e = Args.size(); i != e; ++i) {
-        ArgsV.push_back(Args[i]->Codegen());
-        if (ArgsV.back() == 0) return 0;
+        ArgsV.push_back(Args[i]->codegen());
+        if (!ArgsV.back())
+          return nullptr;
       }
 
       return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
     }
 
-Code generation for function calls is quite straightforward with LLVM.
-The code above initially does a function name lookup in the LLVM
-Module's symbol table. Recall that the LLVM Module is the container that
-holds all of the functions we are JIT'ing. By giving each function the
-same name as what the user specifies, we can use the LLVM symbol table
-to resolve function names for us.
+Code generation for function calls is quite straightforward with LLVM. The code
+above initially does a function name lookup in the LLVM Module's symbol table.
+Recall that the LLVM Module is the container that holds the functions we are
+JIT'ing. By giving each function the same name as what the user specifies, we
+can use the LLVM symbol table to resolve function names for us.
 
 Once we have the function to call, we recursively codegen each argument
 that is to be passed in, and create an LLVM `call
-instruction <../LangRef.html#i_call>`_. Note that LLVM uses the native C
+instruction <../LangRef.html#call-instruction>`_. Note that LLVM uses the native C
 calling conventions by default, allowing these calls to also call into
 standard library functions like "sin" and "cos", with no additional
 effort.
@@ -249,14 +261,15 @@ with:
 
 .. code-block:: c++
 
-    Function *PrototypeAST::Codegen() {
+    Function *PrototypeAST::codegen() {
       // Make the function type:  double(double,double) etc.
       std::vector<Type*> Doubles(Args.size(),
                                  Type::getDoubleTy(getGlobalContext()));
-      FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()),
-                                           Doubles, false);
+      FunctionType *FT =
+        FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
 
-      Function *F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
+      Function *F =
+        Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
 
 This code packs a lot of power into a few lines. Note first that this
 function returns a "Function\*" instead of a "Value\*". Because a
@@ -273,118 +286,67 @@ double as a result, and that is not vararg (the false parameter
 indicates this). Note that Types in LLVM are uniqued just like Constants
 are, so you don't "new" a type, you "get" it.
 
-The final line above actually creates the function that the prototype
-will correspond to. This indicates the type, linkage and name to use, as
+The final line above actually creates the IR Function corresponding to
+the Prototype. This indicates the type, linkage and name to use, as
 well as which module to insert into. "`external
 linkage <../LangRef.html#linkage>`_" means that the function may be
 defined outside the current module and/or that it is callable by
 functions outside the module. The Name passed in is the name the user
 specified: since "``TheModule``" is specified, this name is registered
-in "``TheModule``"s symbol table, which is used by the function call
-code above.
+in "``TheModule``"s symbol table.
 
 .. code-block:: c++
 
-      // If F conflicted, there was already something named 'Name'.  If it has a
-      // body, don't allow redefinition or reextern.
-      if (F->getName() != Name) {
-        // Delete the one we just made and get the existing one.
-        F->eraseFromParent();
-        F = TheModule->getFunction(Name);
+  // Set names for all arguments.
+  unsigned Idx = 0;
+  for (auto &Arg : F->args())
+    Arg.setName(Args[Idx++]);
 
-The Module symbol table works just like the Function symbol table when
-it comes to name conflicts: if a new function is created with a name
-that was previously added to the symbol table, the new function will get
-implicitly renamed when added to the Module. The code above exploits
-this fact to determine if there was a previous definition of this
-function.
+  return F;
 
-In Kaleidoscope, I choose to allow redefinitions of functions in two
-cases: first, we want to allow 'extern'ing a function more than once, as
-long as the prototypes for the externs match (since all arguments have
-the same type, we just have to check that the number of arguments
-match). Second, we want to allow 'extern'ing a function and then
-defining a body for it. This is useful when defining mutually recursive
-functions.
+Finally, we set the name of each of the function's arguments according to the
+names given in the Prototype. This step isn't strictly necessary, but keeping
+the names consistent makes the IR more readable, and allows subsequent code to
+refer directly to the arguments for their names, rather than having to look up
+them up in the Prototype AST.
 
-In order to implement this, the code above first checks to see if there
-is a collision on the name of the function. If so, it deletes the
-function we just created (by calling ``eraseFromParent``) and then
-calling ``getFunction`` to get the existing function with the specified
-name. Note that many APIs in LLVM have "erase" forms and "remove" forms.
-The "remove" form unlinks the object from its parent (e.g. a Function
-from a Module) and returns it. The "erase" form unlinks the object and
-then deletes it.
+At this point we have a function prototype with no body. This is how LLVM IR
+represents function declarations. For extern statements in Kaleidoscope, this
+is as far as we need to go. For function definitions however, we need to
+codegen and attach a function body.
 
 .. code-block:: c++
 
-        // If F already has a body, reject this.
-        if (!F->empty()) {
-          ErrorF("redefinition of function");
-          return 0;
-        }
+  Function *FunctionAST::codegen() {
+      // First, check for an existing function from a previous 'extern' declaration.
+    Function *TheFunction = TheModule->getFunction(Proto->getName());
 
-        // If F took a different number of args, reject.
-        if (F->arg_size() != Args.size()) {
-          ErrorF("redefinition of function with different # args");
-          return 0;
-        }
-      }
+    if (!TheFunction)
+      TheFunction = Proto->codegen();
 
-In order to verify the logic above, we first check to see if the
-pre-existing function is "empty". In this case, empty means that it has
-no basic blocks in it, which means it has no body. If it has no body, it
-is a forward declaration. Since we don't allow anything after a full
-definition of the function, the code rejects this case. If the previous
-reference to a function was an 'extern', we simply verify that the
-number of arguments for that definition and this one match up. If not,
-we emit an error.
+    if (!TheFunction)
+      return nullptr;
+
+    if (!TheFunction->empty())
+      return (Function*)ErrorV("Function cannot be redefined.");
+
+
+For function definitions, we start by searching TheModule's symbol table for an
+existing version of this function, in case one has already been created using an
+'extern' statement. If Module::getFunction returns null then no previous version
+exists, so we'll codegen one from the Prototype. In either case, we want to
+assert that the function is empty (i.e. has no body yet) before we start.
 
 .. code-block:: c++
 
-      // Set names for all arguments.
-      unsigned Idx = 0;
-      for (Function::arg_iterator AI = F->arg_begin(); Idx != Args.size();
-           ++AI, ++Idx) {
-        AI->setName(Args[Idx]);
+  // Create a new basic block to start insertion into.
+  BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);
+  Builder.SetInsertPoint(BB);
 
-        // Add arguments to variable symbol table.
-        NamedValues[Args[Idx]] = AI;
-      }
-      return F;
-    }
-
-The last bit of code for prototypes loops over all of the arguments in
-the function, setting the name of the LLVM Argument objects to match,
-and registering the arguments in the ``NamedValues`` map for future use
-by the ``VariableExprAST`` AST node. Once this is set up, it returns the
-Function object to the caller. Note that we don't check for conflicting
-argument names here (e.g. "extern foo(a b a)"). Doing so would be very
-straight-forward with the mechanics we have already used above.
-
-.. code-block:: c++
-
-    Function *FunctionAST::Codegen() {
-      NamedValues.clear();
-
-      Function *TheFunction = Proto->Codegen();
-      if (TheFunction == 0)
-        return 0;
-
-Code generation for function definitions starts out simply enough: we
-just codegen the prototype (Proto) and verify that it is ok. We then
-clear out the ``NamedValues`` map to make sure that there isn't anything
-in it from the last function we compiled. Code generation of the
-prototype ensures that there is an LLVM Function object that is ready to
-go for us.
-
-.. code-block:: c++
-
-      // Create a new basic block to start insertion into.
-      BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);
-      Builder.SetInsertPoint(BB);
-
-      if (Value *RetVal = Body->Codegen()) {
+  // Record the function arguments in the NamedValues map.
+  NamedValues.clear();
+  for (auto &Arg : TheFunction->args())
+    NamedValues[Arg.getName()] = &Arg;
 
 Now we get to the point where the ``Builder`` is set up. The first line
 creates a new `basic block <http://en.wikipedia.org/wiki/Basic_block>`_
@@ -396,9 +358,12 @@ Graph <http://en.wikipedia.org/wiki/Control_flow_graph>`_. Since we
 don't have any control flow, our functions will only contain one block
 at this point. We'll fix this in `Chapter 5 <LangImpl5.html>`_ :).
 
+Next we add the function arguments to the NamedValues map (after first clearing
+it out) so that they're accessible to ``VariableExprAST`` nodes.
+
 .. code-block:: c++
 
-      if (Value *RetVal = Body->Codegen()) {
+      if (Value *RetVal = Body->codegen()) {
         // Finish off the function.
         Builder.CreateRet(RetVal);
 
@@ -408,11 +373,11 @@ at this point. We'll fix this in `Chapter 5 <LangImpl5.html>`_ :).
         return TheFunction;
       }
 
-Once the insertion point is set up, we call the ``CodeGen()`` method for
-the root expression of the function. If no error happens, this emits
-code to compute the expression into the entry block and returns the
-value that was computed. Assuming no error, we then create an LLVM `ret
-instruction <../LangRef.html#i_ret>`_, which completes the function.
+Once the insertion point has been set up and the NamedValues map populated,
+we call the ``codegen()`` method for the root expression of the function. If no
+error happens, this emits code to compute the expression into the entry block
+and returns the value that was computed. Assuming no error, we then create an
+LLVM `ret instruction <../LangRef.html#ret-instruction>`_, which completes the function.
 Once the function is built, we call ``verifyFunction``, which is
 provided by LLVM. This function does a variety of consistency checks on
 the generated code, to determine if our compiler is doing everything
@@ -423,7 +388,7 @@ function is finished and validated, we return it.
 
       // Error reading body, remove function.
       TheFunction->eraseFromParent();
-      return 0;
+      return nullptr;
     }
 
 The only piece left here is handling of the error case. For simplicity,
@@ -432,23 +397,25 @@ we handle this by merely deleting the function we produced with the
 that they incorrectly typed in before: if we didn't delete it, it would
 live in the symbol table, with a body, preventing future redefinition.
 
-This code does have a bug, though. Since the ``PrototypeAST::Codegen``
-can return a previously defined forward declaration, our code can
-actually delete a forward declaration. There are a number of ways to fix
-this bug, see what you can come up with! Here is a testcase:
+This code does have a bug, though: If the ``FunctionAST::codegen()`` method
+finds an existing IR Function, it does not validate its signature against the
+definition's own prototype. This means that an earlier 'extern' declaration will
+take precedence over the function definition's signature, which can cause
+codegen to fail, for instance if the function arguments are named differently.
+There are a number of ways to fix this bug, see what you can come up with! Here
+is a testcase:
 
 ::
 
-    extern foo(a b);     # ok, defines foo.
-    def foo(a b) c;      # error, 'c' is invalid.
-    def bar() foo(1, 2); # error, unknown function "foo"
+    extern foo(a);     # ok, defines foo.
+    def foo(b) b;      # Error: Unknown variable name. (decl using 'a' takes precedence).
 
 Driver Changes and Closing Thoughts
 ===================================
 
 For now, code generation to LLVM doesn't really get us much, except that
 we can look at the pretty IR calls. The sample code inserts calls to
-Codegen into the "``HandleDefinition``", "``HandleExtern``" etc
+codegen into the "``HandleDefinition``", "``HandleExtern``" etc
 functions, and then dumps out the LLVM IR. This gives a nice way to look
 at the LLVM IR for simple functions. For example:
 
@@ -463,10 +430,10 @@ at the LLVM IR for simple functions. For example:
 
 Note how the parser turns the top-level expression into anonymous
 functions for us. This will be handy when we add `JIT
-support <LangImpl4.html#jit>`_ in the next chapter. Also note that the
+support <LangImpl4.html#adding-a-jit-compiler>`_ in the next chapter. Also note that the
 code is very literally transcribed, no optimizations are being performed
 except simple constant folding done by IRBuilder. We will `add
-optimizations <LangImpl4.html#trivialconstfold>`_ explicitly in the next
+optimizations <LangImpl4.html#trivial-constant-folding>`_ explicitly in the next
 chapter.
 
 ::

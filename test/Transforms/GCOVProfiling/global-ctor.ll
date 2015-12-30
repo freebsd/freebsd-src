@@ -8,7 +8,7 @@
 @llvm.global_ctors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @_GLOBAL__sub_I_global-ctor.ll, i8* null }]
 
 ; Function Attrs: nounwind
-define internal void @__cxx_global_var_init() #0 section ".text.startup" {
+define internal void @__cxx_global_var_init() #0 section ".text.startup" !dbg !4 {
 entry:
   br label %0
 
@@ -38,15 +38,15 @@ attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "
 !llvm.gcov = !{!16}
 !llvm.ident = !{!12}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 210217)", isOptimized: false, emissionKind: 2, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 210217)", isOptimized: false, emissionKind: 2, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "/home/nlewycky")
 !2 = !{}
 !3 = !{!4, !8}
-!4 = !DISubprogram(name: "__cxx_global_var_init", line: 2, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !5, scope: !6, type: !7, function: void ()* @__cxx_global_var_init, variables: !2)
+!4 = distinct !DISubprogram(name: "__cxx_global_var_init", line: 2, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !5, scope: !6, type: !7, variables: !2)
 !5 = !DIFile(filename: "global-ctor.ll", directory: "/home/nlewycky")
 !6 = !DIFile(filename: "global-ctor.ll", directory: "/home/nlewycky")
 !7 = !DISubroutineType(types: !2)
-!8 = !DISubprogram(name: "", linkageName: "_GLOBAL__sub_I_global-ctor.ll", isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagArtificial, isOptimized: false, file: !1, scope: !9, type: !7, function: void ()* @_GLOBAL__sub_I_global-ctor.ll, variables: !2)
+!8 = distinct !DISubprogram(name: "", linkageName: "_GLOBAL__sub_I_global-ctor.ll", isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagArtificial, isOptimized: false, file: !1, scope: !9, type: !7, variables: !2)
 !9 = !DIFile(filename: "<stdin>", directory: "/home/nlewycky")
 !10 = !{i32 2, !"Dwarf Version", i32 4}
 !11 = !{i32 2, !"Debug Info Version", i32 3}

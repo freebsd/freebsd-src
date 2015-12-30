@@ -31,7 +31,7 @@ D: Config, ADT, Support, inlining & related passes, SROA/mem2reg & related passe
 
 N: Evan Cheng
 E: evan.cheng@apple.com
-D: ARM target, parts of code generator not covered by someone else
+D: parts of code generator not covered by someone else
 
 N: Eric Christopher
 E: echristo@gmail.com
@@ -52,10 +52,6 @@ D: llgo
 N: Quentin Colombet
 E: qcolombet@apple.com
 D: Register allocators
-
-N: Anshuman Dasgupta
-E: adasgupt@codeaurora.org
-D: Hexagon Backend
 
 N: Duncan P. N. Exon Smith
 E: dexonsmith@apple.com
@@ -93,10 +89,6 @@ N: Lang Hames
 E: lhames@gmail.com
 D: MCJIT, RuntimeDyld and JIT event listeners
 
-N: David Majnemer
-E: david.majnemer@gmail.com
-D: IR Constant Folder
-
 N: Galina Kistanova
 E: gkistanova@gmail.com
 D: LLVM Buildbot
@@ -118,9 +110,17 @@ E: sabre@nondot.org
 W: http://nondot.org/~sabre/
 D: Everything not covered by someone else
 
+N: David Majnemer
+E: david.majnemer@gmail.com
+D: IR Constant Folder, InstCombine
+
+N: Dylan McKay
+E: dylanmckay34@gmail.com
+D: AVR Backend
+
 N: Tim Northover
 E: t.p.northover@gmail.com
-D: AArch64 backend
+D: AArch64 backend, misc ARM backend
 
 N: Diego Novillo
 E: dnovillo@google.com
@@ -134,13 +134,17 @@ N: Richard Osborne
 E: richard@xmos.com
 D: XCore Backend
 
+N: Krzysztof Parzyszek
+E: kparzysz@codeaurora.org
+D: Hexagon Backend
+
+N: Paul Robinson
+E: paul_robinson@playstation.sony.com
+D: Sony PlayStation®4 support
+
 N: Chad Rosier
 E: mcrosier@codeaurora.org
 D: Fast-Isel
-
-N: Alex Rosenberg
-E: alexr@leftfield.org
-D: Sony PlayStation®4 support
 
 N: Nadav Rotem
 E: nrotem@apple.com

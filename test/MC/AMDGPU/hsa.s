@@ -1,5 +1,15 @@
 // RUN: llvm-mc -triple amdgcn--amdhsa -mcpu=kaveri -show-encoding %s | FileCheck %s --check-prefix=ASM
-// RUN: llvm-mc -filetype=obj -triple amdgcn--amdhsa -mcpu=kaveri -show-encoding %s | llvm-readobj -s -sd | FileCheck %s --check-prefix=ELF
+// RUN: llvm-mc -filetype=obj -triple amdgcn--amdhsa -mcpu=kaveri -show-encoding %s | llvm-readobj -symbols -s -sd | FileCheck %s --check-prefix=ELF
+
+// ELF: Section {
+// ELF: Name: .hsatext
+// ELF: Type: SHT_PROGBITS (0x1)
+// ELF: Flags [ (0xC00007)
+// ELF: SHF_ALLOC (0x2)
+// ELF: SHF_AMDGPU_HSA_AGENT (0x800000)
+// ELF: SHF_AMDGPU_HSA_CODE (0x400000)
+// ELF: SHF_EXECINSTR (0x4)
+// ELF: SHF_WRITE (0x1)
 
 // ELF: SHT_NOTE
 // ELF: 0000: 04000000 08000000 01000000 414D4400
@@ -8,13 +18,30 @@
 // ELF: 0030: 00000000 00000000 414D4400 414D4447
 // ELF: 0040: 50550000
 
+// ELF: Symbol {
+// ELF: Name: amd_kernel_code_t_minimal
+// ELF: Type: AMDGPU_HSA_KERNEL (0xA)
+// ELF: Section: .hsatext
+// ELF: }
+// ELF: Symbol {
+// ELF: Name: amd_kernel_code_t_test_all
+// ELF: Type: AMDGPU_HSA_KERNEL (0xA)
+// ELF: Section: .hsatext
+// ELF: }
+
+
 .hsa_code_object_version 1,0
 // ASM: .hsa_code_object_version 1,0
 
 .hsa_code_object_isa 7,0,0,"AMD","AMDGPU"
 // ASM: .hsa_code_object_isa 7,0,0,"AMD","AMDGPU"
 
-.text
+.amdgpu_hsa_kernel amd_kernel_code_t_test_all
+.amdgpu_hsa_kernel amd_kernel_code_t_minimal
+
+.hsatext
+// ASM: .hsatext
+
 amd_kernel_code_t_test_all:
 ; Test all amd_kernel_code_t members with non-default values.
 .amd_kernel_code_t

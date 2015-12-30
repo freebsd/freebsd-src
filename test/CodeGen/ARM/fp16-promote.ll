@@ -1,19 +1,19 @@
-; RUN: llc -asm-verbose=false < %s -mattr=+vfp3,+fp16 | FileCheck %s -check-prefix=CHECK-FP16 -check-prefix=CHECK-ALL
-; RUN: llc -asm-verbose=false < %s | FileCheck %s -check-prefix=CHECK-LIBCALL -check-prefix=CHECK-ALL
+; RUN: llc -asm-verbose=false < %s -mattr=+vfp3,+fp16 | FileCheck %s -check-prefix=CHECK-FP16  --check-prefix=CHECK-VFP -check-prefix=CHECK-ALL
+; RUN: llc -asm-verbose=false < %s | FileCheck %s -check-prefix=CHECK-LIBCALL --check-prefix=CHECK-VFP -check-prefix=CHECK-ALL --check-prefix=CHECK-LIBCALL-VFP
+; RUN: llc -asm-verbose=false < %s -mattr=-vfp2 | FileCheck %s --check-prefix=CHECK-LIBCALL -check-prefix=CHECK-NOVFP -check-prefix=CHECK-ALL
 
 target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-n32"
-target triple = "armv7-eabihf"
+target triple = "armv7---eabihf"
 
-; CHECK-FP16-LABEL: test_fadd:
+; CHECK-ALL-LABEL: test_fadd:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vadd.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vadd.f32
+; CHECK-NOVFP: bl __aeabi_fadd
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_fadd:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vadd.f32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fadd(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -22,16 +22,15 @@ define void @test_fadd(half* %p, half* %q) #0 {
   ret void
 }
 
-; CHECK-FP16-LABEL: test_fsub:
+; CHECK-ALL-LABEL: test_fsub:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vsub.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vsub.f32
+; CHECK-NOVFP: bl __aeabi_fsub
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_fsub:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vsub.f32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fsub(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -40,16 +39,15 @@ define void @test_fsub(half* %p, half* %q) #0 {
   ret void
 }
 
-; CHECK-FP16-LABEL: test_fmul:
+; CHECK-ALL-LABEL: test_fmul:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vmul.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vmul.f32
+; CHECK-NOVFP: bl __aeabi_fmul
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_fmul
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vmul.f32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fmul(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -58,16 +56,15 @@ define void @test_fmul(half* %p, half* %q) #0 {
   ret void
 }
 
-; CHECK-FP16-LABEL: test_fdiv:
+; CHECK-ALL-LABEL: test_fdiv:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vdiv.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vdiv.f32
+; CHECK-NOVFP: bl __aeabi_fdiv
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_fdiv
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vdiv.f32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fdiv(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -76,16 +73,14 @@ define void @test_fdiv(half* %p, half* %q) #0 {
   ret void
 }
 
-; CHECK-FP16-LABEL: test_frem:
+; CHECK-ALL-LABEL: test_frem:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: bl fmodf
-; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_frem
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl fmodf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-FP16: vcvtb.f16.f32
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_frem(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -96,9 +91,8 @@ define void @test_frem(half* %p, half* %q) #0 {
 
 ; CHECK-ALL-LABEL: test_load_store:
 ; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: ldrh r0, [r0]
-; CHECK-ALL-NEXT: strh r0, [r1]
-; CHECK-ALL-NEXT: bx lr
+; CHECK-ALL: ldrh {{r[0-9]+}}, [{{r[0-9]+}}]
+; CHECK-ALL: strh {{r[0-9]+}}, [{{r[0-9]+}}]
 define void @test_load_store(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   store half %a, half* %q
@@ -112,6 +106,7 @@ declare half @test_callee(half %a, half %b) #0
 
 ; CHECK-ALL-LABEL: test_call:
 ; CHECK-ALL-NEXT: .fnstart
+; CHECK-ALL-NEXT: .save {r11, lr}
 ; CHECK-ALL-NEXT: push {r11, lr}
 ; CHECK-ALL-NEXT: bl test_callee
 ; CHECK-ALL-NEXT: pop {r11, pc}
@@ -122,10 +117,14 @@ define half @test_call(half %a, half %b) #0 {
 
 ; CHECK-ALL-LABEL: test_call_flipped:
 ; CHECK-ALL-NEXT: .fnstart
+; CHECK-ALL-NEXT: .save {r11, lr}
 ; CHECK-ALL-NEXT: push {r11, lr}
-; CHECK-ALL-NEXT: mov r2, r0
-; CHECK-ALL-NEXT: mov r0, r1
-; CHECK-ALL-NEXT: mov r1, r2
+; CHECK-VFP-NEXT: vmov.f32 s2, s0
+; CHECK-VFP-NEXT: vmov.f32 s0, s1
+; CHECK-VFP-NEXT: vmov.f32 s1, s2
+; CHECK-NOVFP-NEXT: mov r2, r0
+; CHECK-NOVFP-NEXT: mov r0, r1
+; CHECK-NOVFP-NEXT: mov r1, r2
 ; CHECK-ALL-NEXT: bl test_callee
 ; CHECK-ALL-NEXT: pop {r11, pc}
 define half @test_call_flipped(half %a, half %b) #0 {
@@ -135,9 +134,12 @@ define half @test_call_flipped(half %a, half %b) #0 {
 
 ; CHECK-ALL-LABEL: test_tailcall_flipped:
 ; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: mov r2, r0
-; CHECK-ALL-NEXT: mov r0, r1
-; CHECK-ALL-NEXT: mov r1, r2
+; CHECK-VFP-NEXT: vmov.f32 s2, s0
+; CHECK-VFP-NEXT: vmov.f32 s0, s1
+; CHECK-VFP-NEXT: vmov.f32 s1, s2
+; CHECK-NOVFP-NEXT: mov r2, r0
+; CHECK-NOVFP-NEXT: mov r0, r1
+; CHECK-NOVFP-NEXT: mov r1, r2
 ; CHECK-ALL-NEXT: b test_callee
 define half @test_tailcall_flipped(half %a, half %b) #0 {
   %r = tail call half @test_callee(half %b, half %a)
@@ -147,12 +149,10 @@ define half @test_tailcall_flipped(half %a, half %b) #0 {
 ; Optimizer picks %p or %q based on %c and only loads that value
 ; No conversion is needed
 ; CHECK-ALL-LABEL: test_select:
-; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: cmp r2, #0
-; CHECK-ALL-NEXT: movne r1, r0
-; CHECK-ALL-NEXT: ldrh r1, [r1]
-; CHECK-ALL-NEXT: strh r1, [r0]
-; CHECK-ALL-NEXT: bx lr
+; CHECK-ALL: cmp {{r[0-9]+}}, #0
+; CHECK-ALL: movne {{r[0-9]+}}, {{r[0-9]+}}
+; CHECK-ALL: ldrh {{r[0-9]+}}, [{{r[0-9]+}}]
+; CHECK-ALL: strh {{r[0-9]+}}, [{{r[0-9]+}}]
 define void @test_select(half* %p, half* %q, i1 zeroext %c) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -163,17 +163,15 @@ define void @test_select(half* %p, half* %q, i1 zeroext %c) #0 {
 
 ; Test only two variants of fcmp.  These get translated to f32 vcmpe
 ; instructions anyway.
-; CHECK-FP16-LABEL: test_fcmp_une:
+; CHECK-ALL-LABEL: test_fcmp_une:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vcmpe.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vcmpe.f32
+; CHECK-NOVFP: bl __aeabi_fcmpeq
 ; CHECK-FP16: vmrs APSR_nzcv, fpscr
-; CHECK-FP16: movwne
-; CHECK-LIBCALL-LABEL: test_fcmp_une:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vcmpe.f32
-; CHECK-LIBCALL: movwne
+; CHECK-ALL: movw{{ne|eq}}
 define i1 @test_fcmp_une(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -181,18 +179,15 @@ define i1 @test_fcmp_une(half* %p, half* %q) #0 {
   ret i1 %r
 }
 
-; CHECK-FP16-LABEL: test_fcmp_ueq:
+; CHECK-ALL-LABEL: test_fcmp_ueq:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vcmpe.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vcmpe.f32
+; CHECK-NOVFP: bl __aeabi_fcmpeq
 ; CHECK-FP16: vmrs APSR_nzcv, fpscr
-; CHECK-FP16: movweq
-; CHECK-FP16: movwvs
-; CHECK-LIBCALL-LABEL: test_fcmp_ueq:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vcmpe.f32
-; CHECK-LIBCALL: movweq
+; CHECK-LIBCALL: movw{{ne|eq}}
 define i1 @test_fcmp_ueq(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -200,19 +195,18 @@ define i1 @test_fcmp_ueq(half* %p, half* %q) #0 {
   ret i1 %r
 }
 
-; CHECK-FP16-LABEL: test_br_cc:
+; CHECK-ALL-LABEL: test_br_cc:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vcmpe.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vcmpe.f32
+; CHECK-NOVFP: bl __aeabi_fcmplt
 ; CHECK-FP16: vmrs APSR_nzcv, fpscr
-; CHECK-FP16: strmi
-; CHECK-FP16: strpl
-; CHECK-LIBCALL-LABEL: test_br_cc:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vcmpe.f32
-; CHECK-LIBCALL: strmi
-; CHECK-LIBCALL: strpl
+; CHECK-VFP: strmi
+; CHECK-VFP: strpl
+; CHECK-NOVFP: strne
+; CHECK-NOVFP: streq
 define void @test_br_cc(half* %p, half* %q, i32* %p1, i32* %p2) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -227,20 +221,19 @@ else:
 }
 
 declare i1 @test_dummy(half* %p) #0
-; CHECK-FP16-LABEL: test_phi:
+; CHECK-ALL-LABEL: test_phi:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: [[LOOP:.LBB[1-9_]+]]:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: bl      test_dummy
 ; CHECK-FP16: bne     [[LOOP]]
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_phi:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL-VFP: bl __aeabi_h2f
 ; CHECK-LIBCALL: [[LOOP:.LBB[1-9_]+]]:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL-VFP: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl test_dummy
 ; CHECK-LIBCALL: bne     [[LOOP]]
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL-VFP: bl __aeabi_f2h
 define void @test_phi(half* %p) #0 {
 entry:
   %a = load half, half* %p
@@ -255,96 +248,84 @@ return:
   ret void
 }
 
-; CHECK-FP16-LABEL: test_fptosi_i32:
+; CHECK-ALL-LABEL: test_fptosi_i32:
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vcvt.s32.f32
-; CHECK-LIBCALL-LABEL: test_fptosi_i32:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vcvt.s32.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vcvt.s32.f32
+; CHECK-NOVFP: bl __aeabi_f2iz
 define i32 @test_fptosi_i32(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = fptosi half %a to i32
   ret i32 %r
 }
 
-; CHECK-FP16-LABEL: test_fptosi_i64:
+; CHECK-ALL-LABEL: test_fptosi_i64:
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: bl __aeabi_f2lz
-; CHECK-LIBCALL-LABEL: test_fptosi_i64:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __aeabi_f2lz
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-ALL: bl __aeabi_f2lz
 define i64 @test_fptosi_i64(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = fptosi half %a to i64
   ret i64 %r
 }
 
-; CHECK-FP16-LABEL: test_fptoui_i32:
+; CHECK-ALL-LABEL: test_fptoui_i32:
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vcvt.u32.f32
-; CHECK-LIBCALL-LABEL: test_fptoui_i32:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vcvt.u32.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vcvt.u32.f32
+; CHECK-NOVFP: bl __aeabi_f2uiz
 define i32 @test_fptoui_i32(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = fptoui half %a to i32
   ret i32 %r
 }
 
-; CHECK-FP16-LABEL: test_fptoui_i64:
+; CHECK-ALL-LABEL: test_fptoui_i64:
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: bl __aeabi_f2ulz
-; CHECK-LIBCALL-LABEL: test_fptoui_i64:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __aeabi_f2ulz
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-ALL: bl __aeabi_f2ulz
 define i64 @test_fptoui_i64(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = fptoui half %a to i64
   ret i64 %r
 }
 
-; CHECK-FP16-LABEL: test_sitofp_i32:
-; CHECK-FP16: vcvt.f32.s32
+; CHECK-ALL-LABEL: test_sitofp_i32:
+; CHECK-VFP: vcvt.f32.s32
+; CHECK-NOVFP: bl __aeabi_i2f
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_sitofp_i32:
-; CHECK-LIBCALL: vcvt.f32.s32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_sitofp_i32(i32 %a, half* %p) #0 {
   %r = sitofp i32 %a to half
   store half %r, half* %p
   ret void
 }
 
-; CHECK-FP16-LABEL: test_uitofp_i32:
-; CHECK-FP16: vcvt.f32.u32
+; CHECK-ALL-LABEL: test_uitofp_i32:
+; CHECK-VFP: vcvt.f32.u32
+; CHECK-NOVFP: bl __aeabi_ui2f
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_uitofp_i32:
-; CHECK-LIBCALL: vcvt.f32.u32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_uitofp_i32(i32 %a, half* %p) #0 {
   %r = uitofp i32 %a to half
   store half %r, half* %p
   ret void
 }
 
-; CHECK-FP16-LABEL: test_sitofp_i64:
-; CHECK-FP16: bl __aeabi_l2f
+; CHECK-ALL-LABEL: test_sitofp_i64:
+; CHECK-ALL: bl __aeabi_l2f
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_sitofp_i64:
-; CHECK-LIBCALL: bl __aeabi_l2f
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_sitofp_i64(i64 %a, half* %p) #0 {
   %r = sitofp i64 %a to half
   store half %r, half* %p
   ret void
 }
 
-; CHECK-FP16-LABEL: test_uitofp_i64:
-; CHECK-FP16: bl __aeabi_ul2f
+; CHECK-ALL-LABEL: test_uitofp_i64:
+; CHECK-ALL: bl __aeabi_ul2f
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_uitofp_i64:
-; CHECK-LIBCALL: bl __aeabi_ul2f
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_uitofp_i64(i64 %a, half* %p) #0 {
   %r = uitofp i64 %a to half
   store half %r, half* %p
@@ -354,7 +335,7 @@ define void @test_uitofp_i64(i64 %a, half* %p) #0 {
 ; CHECK-FP16-LABEL: test_fptrunc_float:
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_fptrunc_float:
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fptrunc_float(float %f, half* %p) #0 {
   %a = fptrunc float %f to half
   store half %a, half* %p
@@ -374,7 +355,7 @@ define void @test_fptrunc_double(double %d, half* %p) #0 {
 ; CHECK-FP16-LABEL: test_fpextend_float:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-LIBCALL-LABEL: test_fpextend_float:
-; CHECK-LIBCALL: b __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 define float @test_fpextend_float(half* %p) {
   %a = load half, half* %p, align 2
   %r = fpext half %a to float
@@ -383,10 +364,10 @@ define float @test_fpextend_float(half* %p) {
 
 ; CHECK-FP16-LABEL: test_fpextend_double:
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-FP16: vcvt.f64.f32
 ; CHECK-LIBCALL-LABEL: test_fpextend_double:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vcvt.f64.f32
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP: vcvt.f64.f32
+; CHECK-NOVFP: bl __aeabi_f2d
 define double @test_fpextend_double(half* %p) {
   %a = load half, half* %p, align 2
   %r = fpext half %a to double
@@ -436,14 +417,14 @@ declare half @llvm.nearbyint.f16(half %a) #0
 declare half @llvm.round.f16(half %a) #0
 declare half @llvm.fmuladd.f16(half %a, half %b, half %c) #0
 
-; CHECK-FP16-LABEL: test_sqrt:
+; CHECK-ALL-LABEL: test_sqrt:
 ; CHECK-FP16: vcvtb.f32.f16
 ; CHECK-FP16: vsqrt.f32
 ; CHECK-FP16: vcvtb.f16.f32
-; CHECK-LIBCALL-LABEL: test_sqrt:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vsqrt.f32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP-LIBCALL: vsqrt.f32
+; CHECK-NOVFP: bl sqrtf
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_sqrt(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.sqrt.f16(half %a)
@@ -456,9 +437,9 @@ define void @test_sqrt(half* %p) #0 {
 ; CHECK-FP16: bl __powisf2
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_fpowi:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl __powisf2
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fpowi(half* %p, i32 %b) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.powi.f16(half %a, i32 %b)
@@ -471,9 +452,9 @@ define void @test_fpowi(half* %p, i32 %b) #0 {
 ; CHECK-FP16: bl sinf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_sin:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl sinf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_sin(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.sin.f16(half %a)
@@ -486,9 +467,9 @@ define void @test_sin(half* %p) #0 {
 ; CHECK-FP16: bl cosf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_cos:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl cosf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_cos(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.cos.f16(half %a)
@@ -502,10 +483,10 @@ define void @test_cos(half* %p) #0 {
 ; CHECK-FP16: bl powf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_pow:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl powf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_pow(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -519,9 +500,9 @@ define void @test_pow(half* %p, half* %q) #0 {
 ; CHECK-FP16: bl expf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_exp:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl expf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_exp(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.exp.f16(half %a)
@@ -534,9 +515,9 @@ define void @test_exp(half* %p) #0 {
 ; CHECK-FP16: bl exp2f
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_exp2:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl exp2f
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_exp2(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.exp2.f16(half %a)
@@ -549,9 +530,9 @@ define void @test_exp2(half* %p) #0 {
 ; CHECK-FP16: bl logf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_log:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl logf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_log(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.log.f16(half %a)
@@ -564,9 +545,9 @@ define void @test_log(half* %p) #0 {
 ; CHECK-FP16: bl log10f
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_log10:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl log10f
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_log10(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.log10.f16(half %a)
@@ -579,9 +560,9 @@ define void @test_log10(half* %p) #0 {
 ; CHECK-FP16: bl log2f
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_log2:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl log2f
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_log2(half* %p) #0 {
   %a = load half, half* %p, align 2
   %r = call half @llvm.log2.f16(half %a)
@@ -596,11 +577,11 @@ define void @test_log2(half* %p) #0 {
 ; CHECK-FP16: bl fmaf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_fma:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl fmaf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fma(half* %p, half* %q, half* %r) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -615,9 +596,9 @@ define void @test_fma(half* %p, half* %q, half* %r) #0 {
 ; CHECK-FP16: vabs.f32
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_fabs:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bfc
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fabs(half* %p) {
   %a = load half, half* %p, align 2
   %r = call half @llvm.fabs.f16(half %a)
@@ -631,10 +612,10 @@ define void @test_fabs(half* %p) {
 ; CHECK-FP16: bl fminf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_minnum:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl fminf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_minnum(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -649,10 +630,10 @@ define void @test_minnum(half* %p, half* %q) #0 {
 ; CHECK-FP16: bl fmaxf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_maxnum:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl fmaxf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_maxnum(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -667,10 +648,13 @@ define void @test_maxnum(half* %p, half* %q) #0 {
 ; CHECK-FP16: vbsl
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_copysign:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vbsl
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP-LIBCALL: vbsl
+; CHECK-NOVFP: bfc
+; CHECK-NOVFP: and
+; CHECK-NOVFP: orr
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_copysign(half* %p, half* %q) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -684,9 +668,9 @@ define void @test_copysign(half* %p, half* %q) #0 {
 ; CHECK-FP16: bl floorf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_floor:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl floorf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_floor(half* %p) {
   %a = load half, half* %p, align 2
   %r = call half @llvm.floor.f16(half %a)
@@ -699,9 +683,9 @@ define void @test_floor(half* %p) {
 ; CHECK-FP16: bl ceilf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_ceil:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl ceilf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_ceil(half* %p) {
   %a = load half, half* %p, align 2
   %r = call half @llvm.ceil.f16(half %a)
@@ -714,9 +698,9 @@ define void @test_ceil(half* %p) {
 ; CHECK-FP16: bl truncf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_trunc:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl truncf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_trunc(half* %p) {
   %a = load half, half* %p, align 2
   %r = call half @llvm.trunc.f16(half %a)
@@ -729,9 +713,9 @@ define void @test_trunc(half* %p) {
 ; CHECK-FP16: bl rintf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_rint:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl rintf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_rint(half* %p) {
   %a = load half, half* %p, align 2
   %r = call half @llvm.rint.f16(half %a)
@@ -744,9 +728,9 @@ define void @test_rint(half* %p) {
 ; CHECK-FP16: bl nearbyintf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_nearbyint:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl nearbyintf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_nearbyint(half* %p) {
   %a = load half, half* %p, align 2
   %r = call half @llvm.nearbyint.f16(half %a)
@@ -759,9 +743,9 @@ define void @test_nearbyint(half* %p) {
 ; CHECK-FP16: bl roundf
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_round:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
 ; CHECK-LIBCALL: bl roundf
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_round(half* %p) {
   %a = load half, half* %p, align 2
   %r = call half @llvm.round.f16(half %a)
@@ -776,11 +760,12 @@ define void @test_round(half* %p) {
 ; CHECK-FP16: vmla.f32
 ; CHECK-FP16: vcvtb.f16.f32
 ; CHECK-LIBCALL-LABEL: test_fmuladd:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
-; CHECK-LIBCALL: vmla.f32
-; CHECK-LIBCALL: bl __gnu_f2h_ieee
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-LIBCALL: bl __aeabi_h2f
+; CHECK-VFP-LIBCALL: vmla.f32
+; CHECK-NOVFP: bl __aeabi_fmul
+; CHECK-LIBCALL: bl __aeabi_f2h
 define void @test_fmuladd(half* %p, half* %q, half* %r) #0 {
   %a = load half, half* %p, align 2
   %b = load half, half* %q, align 2
@@ -795,30 +780,28 @@ define void @test_fmuladd(half* %p, half* %q, half* %r) #0 {
 ; and extractelement have these extra loads and stores.
 
 ; CHECK-ALL-LABEL: test_insertelement:
-; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: sub sp, sp, #8
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: mov
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: add
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: add sp, sp, #8
-; CHECK-ALL-NEXT: bx lr
+; CHECK-ALL: sub sp, sp, #8
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: mov
+; CHECK-ALL-DAG: ldrh
+; CHECK-ALL-DAG: add
+; CHECK-ALL: strh
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
+; CHECK-ALL: add sp, sp, #8
 define void @test_insertelement(half* %p, <4 x half>* %q, i32 %i) #0 {
   %a = load half, half* %p, align 2
   %b = load <4 x half>, <4 x half>* %q, align 8
@@ -828,22 +811,30 @@ define void @test_insertelement(half* %p, <4 x half>* %q, i32 %i) #0 {
 }
 
 ; CHECK-ALL-LABEL: test_extractelement:
-; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: sub sp, sp, #8
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: orr
-; CHECK-ALL-NEXT: str
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: orr
-; CHECK-ALL-NEXT: str
-; CHECK-ALL-NEXT: mov
-; CHECK-ALL-NEXT: add
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: add sp, sp, #8
-; CHECK-ALL-NEXT: bx lr
+; CHECK-VFP: sub sp, sp, #8
+; CHECK-VFP: ldrh
+; CHECK-VFP: ldrh
+; CHECK-VFP: orr
+; CHECK-VFP: str
+; CHECK-VFP: ldrh
+; CHECK-VFP: ldrh
+; CHECK-VFP: orr
+; CHECK-VFP: str
+; CHECK-VFP: mov
+; CHECK-VFP: add
+; CHECK-VFP: ldrh
+; CHECK-VFP: strh
+; CHECK-VFP: add sp, sp, #8
+; CHECK-VFP: bx lr
+; CHECK-NOVFP: ldrh
+; CHECK-NOVFP: strh
+; CHECK-NOVFP: ldrh
+; CHECK-NOVFP: strh
+; CHECK-NOVFP: ldrh
+; CHECK-NOVFP: strh
+; CHECK-NOVFP: ldrh
+; CHECK-NOVFP: strh
+; CHECK-NOVFP: ldrh
 define void @test_extractelement(half* %p, <4 x half>* %q, i32 %i) #0 {
   %a = load <4 x half>, <4 x half>* %q, align 8
   %b = extractelement <4 x half> %a, i32 %i
@@ -856,12 +847,10 @@ define void @test_extractelement(half* %p, <4 x half>* %q, i32 %i) #0 {
 %struct.dummy = type { i32, half }
 
 ; CHECK-ALL-LABEL: test_insertvalue:
-; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: ldr
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: str
-; CHECK-ALL-NEXT: bx lr
+; CHECK-ALL-DAG: ldr
+; CHECK-ALL-DAG: ldrh
+; CHECK-ALL-DAG: strh
+; CHECK-ALL-DAG: str
 define void @test_insertvalue(%struct.dummy* %p, half* %q) {
   %a = load %struct.dummy, %struct.dummy* %p
   %b = load half, half* %q
@@ -871,10 +860,9 @@ define void @test_insertvalue(%struct.dummy* %p, half* %q) {
 }
 
 ; CHECK-ALL-LABEL: test_extractvalue:
-; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: ldrh
-; CHECK-ALL-NEXT: strh
-; CHECK-ALL-NEXT: bx lr
+; CHECK-ALL: .fnstart
+; CHECK-ALL: ldrh
+; CHECK-ALL: strh
 define void @test_extractvalue(%struct.dummy* %p, half* %q) {
   %a = load %struct.dummy, %struct.dummy* %p
   %b = extractvalue %struct.dummy %a, 1
@@ -882,10 +870,11 @@ define void @test_extractvalue(%struct.dummy* %p, half* %q) {
   ret void
 }
 
-; CHECK-FP16-LABEL: test_struct_return:
+; CHECK-ALL-LABEL: test_struct_return:
 ; CHECK-FP16: vcvtb.f32.f16
-; CHECK-LIBCALL-LABEL: test_struct_return:
-; CHECK-LIBCALL: bl __gnu_h2f_ieee
+; CHECK-VFP-LIBCALL: bl __aeabi_h2f
+; CHECK-NOVFP-DAG: ldr
+; CHECK-NOVFP-DAG: ldrh
 define %struct.dummy @test_struct_return(%struct.dummy* %p) {
   %a = load %struct.dummy, %struct.dummy* %p
   ret %struct.dummy %a
@@ -893,7 +882,7 @@ define %struct.dummy @test_struct_return(%struct.dummy* %p) {
 
 ; CHECK-ALL-LABEL: test_struct_arg:
 ; CHECK-ALL-NEXT: .fnstart
-; CHECK-ALL-NEXT: mov r0, r1
+; CHECK-NOVFP-NEXT: mov r0, r1
 ; CHECK-ALL-NEXT: bx lr
 define half @test_struct_arg(%struct.dummy %p) {
   %a = extractvalue %struct.dummy %p, 1
