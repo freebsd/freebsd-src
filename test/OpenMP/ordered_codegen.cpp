@@ -92,7 +92,7 @@ void dynamic1(float *a, float *b, float *c, float *d) {
 // CHECK-NOT: !llvm.mem.parallel_loop_access
 // CHECK-NEXT: call void @__kmpc_end_ordered([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]])
 // ... end of ordered region ...
-    #pragma omp ordered
+    #pragma omp ordered threads
     a[i] = b[i] * c[i] * d[i];
 // CHECK: [[IV1_2:%.+]] = load i64, i64* [[OMP_IV]]{{.*}}
 // CHECK-NEXT: [[ADD1_2:%.+]] = add i64 [[IV1_2]], 1
@@ -197,7 +197,7 @@ void runtime(float *a, float *b, float *c, float *d) {
 // CHECK-NOT: !llvm.mem.parallel_loop_access
 // CHECK-NEXT: call void @__kmpc_end_ordered([[IDENT_T_TY]]* [[DEFAULT_LOC]], i32 [[GTID]])
 // ... end of ordered region ...
-    #pragma omp ordered
+    #pragma omp ordered threads
     a[i] = b[i] * c[i] * d[i];
 // CHECK: [[IV1_2:%.+]] = load i32, i32* [[OMP_IV]]{{.*}}
 // CHECK-NEXT: [[ADD1_2:%.+]] = add nsw i32 [[IV1_2]], 1
@@ -212,6 +212,23 @@ void runtime(float *a, float *b, float *c, float *d) {
 // CHECK: call {{.+}} @__kmpc_barrier([[IDENT_T_TY]]* [[IMPLICIT_BARRIER_LOC]], i32 [[GTID]])
 // CHECK: ret void
 }
+
+float f[10];
+// CHECK-LABEL: foo_simd
+void foo_simd(int low, int up) {
+  // CHECK: store float 0.000000e+00, float* %{{.+}}, align {{[0-9]+}}, !llvm.mem.parallel_loop_access !
+  // CHECK-NEXT: call void [[CAP_FUNC:@.+]](i32* %{{.+}}) #{{[0-9]+}}, !llvm.mem.parallel_loop_access !
+#pragma omp simd
+  for (int i = low; i < up; ++i) {
+    f[i] = 0.0;
+#pragma omp ordered simd
+    f[i] = 1.0;
+  }
+}
+
+// CHECK: define internal void [[CAP_FUNC]](i32* dereferenceable({{[0-9]+}}) %{{.+}}) #
+// CHECK: store float 1.000000e+00, float* %{{.+}}, align
+// CHECK-NEXT: ret void
 
 #endif // HEADER
 

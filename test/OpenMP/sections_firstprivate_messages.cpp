@@ -65,7 +65,7 @@ int foomain(int argc, char **argv) {
   I e(4);
   C g(5);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp sections firstprivate // expected-error {{expected '(' after 'firstprivate'}}
   {
@@ -135,7 +135,7 @@ int foomain(int argc, char **argv) {
   {
     int v = 0;
     int i;                           // expected-note {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp sections' directive into a parallel or another task region?}}
-#pragma omp sections firstprivate(i) // expected-error {{private variable cannot be firstprivate}}
+#pragma omp sections firstprivate(i) // expected-error {{firstprivate variable must be shared}}
     {
       foo();
     }
@@ -143,7 +143,7 @@ int foomain(int argc, char **argv) {
   }
 #pragma omp parallel shared(i)
 #pragma omp parallel private(i)
-#pragma omp sections firstprivate(j) // expected-error {{arguments of OpenMP clause 'firstprivate' cannot be of reference type}}
+#pragma omp sections firstprivate(j)
   {
     foo();
   }
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
   S3 m;
   S6 n(2);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp sections firstprivate // expected-error {{expected '(' after 'firstprivate'}}
   {
@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
     foo();
   }
 #pragma omp parallel
-#pragma omp sections firstprivate(j) // expected-error {{arguments of OpenMP clause 'firstprivate' cannot be of reference type}}
+#pragma omp sections firstprivate(j)
   {
     foo();
   }
@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
   {
     int v = 0;
     int i;                           // expected-note {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp sections' directive into a parallel or another task region?}}
-#pragma omp sections firstprivate(i) // expected-error {{private variable cannot be firstprivate}}
+#pragma omp sections firstprivate(i) // expected-error {{firstprivate variable must be shared}}
     {
       foo();
     }
@@ -335,6 +335,11 @@ int main(int argc, char **argv) {
   }
 #pragma omp parallel reduction(+ : i) // expected-note {{defined as reduction}}
 #pragma omp sections firstprivate(i)  // expected-error {{firstprivate variable must be shared}}
+  {
+    foo();
+  }
+  static int r;
+#pragma omp sections firstprivate(r) // OK
   {
     foo();
   }

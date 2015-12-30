@@ -234,7 +234,7 @@ namespace dr125 {
     friend dr125_A::dr125_B (::dr125_C)(); // ok
     friend dr125_A (::dr125_B::dr125_C)(); // ok
     friend dr125_A::dr125_B::dr125_C(); // expected-error {{did you mean the constructor name 'dr125_B'?}}
-    // expected-warning@-1 {{missing exception specification}}
+    // expected-error@-1 {{missing exception specification}}
 #if __cplusplus >= 201103L
     // expected-error@-3 {{follows constexpr declaration}} expected-note@-10 {{here}}
 #endif
@@ -524,8 +524,13 @@ namespace dr143 { // dr143: yes
 
 namespace dr145 { // dr145: yes
   void f(bool b) {
+#if __cplusplus <= 201402L
     ++b; // expected-warning {{deprecated}}
     b++; // expected-warning {{deprecated}}
+#else
+    ++b; // expected-error {{increment}}
+    b++; // expected-error {{increment}}
+#endif
   }
 }
 

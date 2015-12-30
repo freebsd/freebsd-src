@@ -2,8 +2,8 @@
 // RUN: %clang_cc1 -triple x86_64-windows-msvc -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s -DMSABI -w | FileCheck --check-prefix=MSC --check-prefix=M64 %s
 // RUN: %clang_cc1 -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU --check-prefix=G32 %s
 // RUN: %clang_cc1 -triple x86_64-windows-gnu  -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU --check-prefix=G64 %s
-// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=18.00 -emit-llvm -std=c++1y -O1 -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M18 %s
-// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=19.00 -emit-llvm -std=c++1y -O1 -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M19 %s
+// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=18.00 -emit-llvm -std=c++1y -O1 -disable-llvm-optzns -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M18 %s
+// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=19.00 -emit-llvm -std=c++1y -O1 -disable-llvm-optzns -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M19 %s
 // RUN: %clang_cc1 -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O1 -o - %s         -w | FileCheck --check-prefix=GO1 %s
 
 // CHECK-NOT doesn't play nice with CHECK-DAG, so use separate run lines.
@@ -86,7 +86,7 @@ USEVAR(GlobalRedecl3)
 namespace ns { __declspec(dllimport) int ExternalGlobal; }
 USEVAR(ns::ExternalGlobal)
 
-int f();
+int __declspec(dllimport) f();
 // MO1-DAG: @"\01?x@?1??inlineStaticLocalsFunc@@YAHXZ@4HA" = available_externally dllimport global i32 0
 // MO1-DAG: @"\01??_B?1??inlineStaticLocalsFunc@@YAHXZ@51" = available_externally dllimport global i32 0
 inline int __declspec(dllimport) inlineStaticLocalsFunc() {
@@ -314,6 +314,46 @@ void UNIQ(use)() { ::operator new(42); }
 namespace ns { __declspec(dllimport) void externalFunc(); }
 USE(ns::externalFunc)
 
+// A dllimport function referencing non-imported vars or functions must not be available_externally.
+__declspec(dllimport) int ImportedVar;
+int NonImportedVar;
+__declspec(dllimport) int ImportedFunc();
+int NonImportedFunc();
+__declspec(dllimport) inline int ReferencingImportedVar() { return ImportedVar; }
+// MO1-DAG: define available_externally dllimport i32 @"\01?ReferencingImportedVar@@YAHXZ"
+__declspec(dllimport) inline int ReferencingNonImportedVar() { return NonImportedVar; }
+// MO1-DAG: declare dllimport i32 @"\01?ReferencingNonImportedVar@@YAHXZ"()
+__declspec(dllimport) inline int ReferencingImportedFunc() { return ImportedFunc(); }
+// MO1-DAG: define available_externally dllimport i32 @"\01?ReferencingImportedFunc@@YAHXZ"
+__declspec(dllimport) inline int ReferencingNonImportedFunc() { return NonImportedFunc(); }
+// MO1-DAG: declare dllimport i32 @"\01?ReferencingNonImportedFunc@@YAHXZ"()
+USE(ReferencingImportedVar)
+USE(ReferencingNonImportedVar)
+USE(ReferencingImportedFunc)
+USE(ReferencingNonImportedFunc)
+// References to operator new and delete count too, despite not being DeclRefExprs.
+__declspec(dllimport) inline int *ReferencingNonImportedNew() { return new int[2]; }
+// MO1-DAG: declare dllimport i32* @"\01?ReferencingNonImportedNew@@YAPAHXZ"
+__declspec(dllimport) inline int *ReferencingNonImportedDelete() { delete (int*)nullptr; }
+// MO1-DAG: declare dllimport i32* @"\01?ReferencingNonImportedDelete@@YAPAHXZ"
+USE(ReferencingNonImportedNew)
+USE(ReferencingNonImportedDelete)
+__declspec(dllimport) void* operator new[](__SIZE_TYPE__);
+__declspec(dllimport) void operator delete(void*);
+__declspec(dllimport) inline int *ReferencingImportedNew() { return new int[2]; }
+// MO1-DAG: define available_externally dllimport i32* @"\01?ReferencingImportedNew@@YAPAHXZ"
+__declspec(dllimport) inline int *ReferencingImportedDelete() { delete (int*)nullptr; }
+// MO1-DAG: define available_externally dllimport i32* @"\01?ReferencingImportedDelete@@YAPAHXZ"
+USE(ReferencingImportedNew)
+USE(ReferencingImportedDelete)
+
+// A dllimport function with a TLS variable must not be available_externally.
+__declspec(dllimport) inline void FunctionWithTLSVar() { static __thread int x = 42; }
+// MO1-DAG: declare dllimport void @"\01?FunctionWithTLSVar@@YAXXZ"
+__declspec(dllimport) inline void FunctionWithNormalVar() { static int x = 42; }
+// MO1-DAG: define available_externally dllimport void @"\01?FunctionWithNormalVar@@YAXXZ"
+USE(FunctionWithTLSVar)
+USE(FunctionWithNormalVar)
 
 
 //===----------------------------------------------------------------------===//
@@ -581,7 +621,7 @@ struct __declspec(dllimport) KeyFuncClass {
   constexpr KeyFuncClass() {}
   virtual void foo();
 };
-constexpr KeyFuncClass keyFuncClassVar;
+extern constexpr KeyFuncClass keyFuncClassVar = {};
 // G32-DAG: @_ZTV12KeyFuncClass = external dllimport unnamed_addr constant [3 x i8*]
 
 struct __declspec(dllimport) X : public virtual W {};

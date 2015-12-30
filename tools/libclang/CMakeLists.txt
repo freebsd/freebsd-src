@@ -102,21 +102,16 @@ if(ENABLE_SHARED)
       PROPERTIES
       VERSION ${LIBCLANG_LIBRARY_VERSION}
       DEFINE_SYMBOL _CINDEX_LIB_)
+  elseif(APPLE)
+    set(LIBCLANG_LINK_FLAGS " -Wl,-compatibility_version -Wl,1")
+    set(LIBCLANG_LINK_FLAGS "${LIBCLANG_LINK_FLAGS} -Wl,-current_version -Wl,${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}")
+
+    set_property(TARGET libclang APPEND_STRING PROPERTY
+                 LINK_FLAGS ${LIBCLANG_LINK_FLAGS})
   else()
     set_target_properties(libclang
       PROPERTIES
       VERSION ${LIBCLANG_LIBRARY_VERSION}
       DEFINE_SYMBOL _CINDEX_LIB_)
-  endif()
-
-  if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(LIBCLANG_LINK_FLAGS " -Wl,-compatibility_version -Wl,1")
-    if (DEFINED ${LLVM_SUBMIT_VERSION})
-      set(LIBCLANG_LINK_FLAGS
-        "${LIBCLANG_LINK_FLAGS} -Wl,-current_version -Wl,${LLVM_SUBMIT_VERSION}.${LLVM_SUBMIT_SUBVERSION}")
-    endif()
-
-    set_property(TARGET libclang APPEND_STRING PROPERTY
-                 LINK_FLAGS ${LIBCLANG_LINK_FLAGS})
   endif()
 endif()

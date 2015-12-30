@@ -1,11 +1,8 @@
-// Don't attempt slash switches on msys bash.
-// REQUIRES: shell-preserves-root
-
 // Note: %s must be preceded by --, otherwise it may be interpreted as a
 // command-line option, e.g. on Mac where %s is commonly under /Users.
 
-// RUN: %clang_cl /fallback /Dfoo=bar /Ubaz /Ifoo /O0 /Ox /GR /GR- /Gy /Gy- \
-// RUN:   /Gw /Gw- /LD /LDd /EHs /EHs- /MD /MDd /MTd /MT /FImyheader.h /Zi \
+// RUN: %clang_cl --target=i686-pc-win32 /fallback /Dfoo=bar /Ubaz /Ifoo /O0 /Ox /GR /GR- /Gy /Gy- \
+// RUN:   /Gw /Gw- /LD /LDd /EHs /EHs- /Zl /MD /MDd /MTd /MT /FImyheader.h /Zi \
 // RUN:   -### -- %s 2>&1 \
 // RUN:   | FileCheck %s
 // CHECK: "-fdiagnostics-format" "msvc-fallback"
@@ -17,7 +14,12 @@
 // CHECK: "-D" "foo=bar"
 // CHECK: "-U" "baz"
 // CHECK: "-I" "foo"
-// CHECK: "/Ox"
+// CHECK: "/Oi"
+// CHECK: "/Og"
+// CHECK: "/Ot"
+// CHECK: "/Ob2"
+// CHECK: "/Oy"
+// CHECK: "/GF"
 // CHECK: "/GR-"
 // CHECK: "/Gy-"
 // CHECK: "/Gw-"
@@ -27,6 +29,7 @@
 // CHECK: "/LDd"
 // CHECK: "/EHs"
 // CHECK: "/EHs-"
+// CHECK: "/Zl"
 // CHECK: "/MT"
 // CHECK: "/Tc" "{{.*cl-fallback.c}}"
 // CHECK: "/Fo{{.*cl-fallback.*.obj}}"
@@ -38,18 +41,18 @@
 // RUN: %clang_cl /fallback /Od -### -- %s 2>&1 | FileCheck -check-prefix=O0 %s
 // O0: cl.exe
 // O0: "/Od"
-// RUN: %clang_cl /fallback /O1 -### -- %s 2>&1 | FileCheck -check-prefix=O1 %s
+// RUN: %clang_cl --target=i686-pc-win32 /fallback /O1 -### -- %s 2>&1 | FileCheck -check-prefix=O1 %s
 // O1: cl.exe
-// O1: "-O1"
-// RUN: %clang_cl /fallback /O2 -### -- %s 2>&1 | FileCheck -check-prefix=O2 %s
+// O1: "/Og" "/Os" "/Ob2" "/Oy" "/GF" "/Gy"
+// RUN: %clang_cl --target=i686-pc-win32 /fallback /O2 -### -- %s 2>&1 | FileCheck -check-prefix=O2 %s
 // O2: cl.exe
-// O2: "-O2"
-// RUN: %clang_cl /fallback /Os -### -- %s 2>&1 | FileCheck -check-prefix=Os %s
+// O2: "/Oi" "/Og" "/Ot" "/Ob2" "/Oy" "/GF" "/Gy"
+// RUN: %clang_cl --target=i686-pc-win32 /fallback /Os -### -- %s 2>&1 | FileCheck -check-prefix=Os %s
 // Os: cl.exe
-// Os: "-Os"
-// RUN: %clang_cl /fallback /Ox -### -- %s 2>&1 | FileCheck -check-prefix=Ox %s
+// Os: "/Os"
+// RUN: %clang_cl --target=i686-pc-win32 /fallback /Ox -### -- %s 2>&1 | FileCheck -check-prefix=Ox %s
 // Ox: cl.exe
-// Ox: "/Ox"
+// Ox: "/Oi" "/Og" "/Ot" "/Ob2" "/Oy" "/GF"
 
 // Only fall back when actually compiling, not for e.g. /P (preprocess).
 // RUN: %clang_cl /fallback /P -### -- %s 2>&1 | FileCheck -check-prefix=P %s

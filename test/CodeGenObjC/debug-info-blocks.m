@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm -fblocks -g  -triple x86_64-apple-darwin10 -fobjc-dispatch-method=mixed -x objective-c < %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -fblocks -debug-info-kind=limited  -triple x86_64-apple-darwin10 -fobjc-dispatch-method=mixed -x objective-c < %s -o - | FileCheck %s
 
 // rdar://problem/9279956
 // Test that we generate the proper debug location for a captured self.
@@ -24,9 +24,9 @@
 
 // CHECK-DAG: [[DBG_LINE]] = !DILocation(line: 0, scope: ![[COPY_SP:[0-9]+]])
 // CHECK-DAG: [[COPY_LINE]] = !DILocation(line: 0, scope: ![[COPY_SP:[0-9]+]])
-// CHECK-DAG: [[COPY_SP]] = !DISubprogram(name: "__copy_helper_block_"
+// CHECK-DAG: [[COPY_SP]] = distinct !DISubprogram(name: "__copy_helper_block_"
 // CHECK-DAG: [[DESTROY_LINE]] = !DILocation(line: 0, scope: ![[DESTROY_SP:[0-9]+]])
-// CHECK-DAG: [[DESTROY_SP]] = !DISubprogram(name: "__destroy_helper_block_"
+// CHECK-DAG: [[DESTROY_SP]] = distinct !DISubprogram(name: "__destroy_helper_block_"
 typedef unsigned int NSUInteger;
 
 @protocol NSObject
@@ -61,8 +61,8 @@ static void run(void (^block)(void))
 {
     if ((self = [super init])) {
       run(^{
-          // CHECK-DAG: ![[SELF]] = !DILocalVariable(tag: DW_TAG_auto_variable, name: "self"{{.*}}, line: [[@LINE+4]],
-          // CHECK-DAG: ![[D]] = !DILocalVariable(tag: DW_TAG_auto_variable, name: "d"{{.*}}, line: [[@LINE+1]],
+          // CHECK-DAG: ![[SELF]] = !DILocalVariable(name: "self", scope:{{.*}}, line: [[@LINE+4]],
+          // CHECK-DAG: ![[D]] = !DILocalVariable(name: "d", scope:{{.*}}, line: [[@LINE+1]],
           NSMutableDictionary *d = [[NSMutableDictionary alloc] init]; 
           ivar = 42 + (int)[d count];
         });

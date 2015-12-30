@@ -65,7 +65,7 @@ int foomain(int argc, char **argv) {
   I e(4);
   C g(5);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp single firstprivate // expected-error {{expected '(' after 'firstprivate'}}
   foo();
@@ -109,13 +109,13 @@ int foomain(int argc, char **argv) {
   {
     int v = 0;
     int i;                         // expected-note {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp single' directive into a parallel or another task region?}}
-#pragma omp single firstprivate(i) // expected-error {{private variable cannot be firstprivate}}
+#pragma omp single firstprivate(i) // expected-error {{firstprivate variable must be shared}}
     foo();
     v += i;
   }
 #pragma omp parallel shared(i)
 #pragma omp parallel private(i)
-#pragma omp single firstprivate(j) // expected-error {{arguments of OpenMP clause 'firstprivate' cannot be of reference type}}
+#pragma omp single firstprivate(j)
   foo();
 #pragma omp parallel
 #pragma omp single firstprivate(i)
@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
   S3 m;
   S6 n(2);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp single firstprivate // expected-error {{expected '(' after 'firstprivate'}}
   foo();
@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
 #pragma omp single firstprivate(xa) // OK: may be firstprivate
   foo();
 #pragma omp parallel
-#pragma omp single firstprivate(j) // expected-error {{arguments of OpenMP clause 'firstprivate' cannot be of reference type}}
+#pragma omp single firstprivate(j)
   foo();
 #pragma omp parallel
 #pragma omp single firstprivate(g) // expected-error {{calling a private constructor of class 'S5'}}
@@ -232,7 +232,7 @@ int main(int argc, char **argv) {
   {
     int v = 0;
     int i;                         // expected-note {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp single' directive into a parallel or another task region?}}
-#pragma omp single firstprivate(i) // expected-error {{private variable cannot be firstprivate}}
+#pragma omp single firstprivate(i) // expected-error {{firstprivate variable must be shared}}
     foo();
     v += i;
   }
@@ -241,6 +241,9 @@ int main(int argc, char **argv) {
   foo();
 #pragma omp parallel reduction(+ : i) // expected-note {{defined as reduction}}
 #pragma omp single firstprivate(i)    // expected-error {{firstprivate variable must be shared}}
+  foo();
+  static int t;
+#pragma omp single firstprivate(t)    // OK
   foo();
 
   return foomain<S4, S5>(argc, argv); // expected-note {{in instantiation of function template specialization 'foomain<S4, S5>' requested here}}

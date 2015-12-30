@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -gline-tables-only -S -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -debug-info-kind=line-tables-only -S -emit-llvm -o - | FileCheck %s
 // Checks that clang with "-gline-tables-only" doesn't emit debug info
 // for variables and types.
 
@@ -23,9 +23,8 @@ struct S {
 // CHECK-NOT: DW_TAG_enumeration_type
 enum E { ZERO = 0, ONE = 1 };
 
-// CHECK-NOT: DW_TAG_arg_variable
+// CHECK-NOT: DILocalVariable
 int sum(int p, int q) {
-  // CHECK-NOT: DW_TAG_auto_variable
   int r = p + q;
   struct S s;
   enum E e;

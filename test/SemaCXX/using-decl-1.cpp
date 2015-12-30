@@ -30,9 +30,7 @@ struct X0 {
 };
 
 struct X1 : X0 {
-  // FIXME: give this operator() a 'float' parameter to test overloading
-  // behavior. It currently fails.
-  void operator()();
+  void operator()(float&);
   using X0::operator();
   
   void test() {
@@ -326,4 +324,17 @@ namespace PR24033 {
     using PR24033::ft; // expected-error {{target of using declaration conflicts with declaration already in scope}}
     using PR24033::st; // expected-error {{target of using declaration conflicts with declaration already in scope}}
   }
+}
+
+namespace field_use {
+struct A { int field; };
+struct B : A {
+  // Previously Clang rejected this valid C++11 code because it didn't look
+  // through the UsingShadowDecl.
+  using A::field;
+#if __cplusplus < 201103L
+  // expected-error@+2 {{invalid use of non-static data member 'field'}}
+#endif
+  enum { X = sizeof(field) };
+};
 }

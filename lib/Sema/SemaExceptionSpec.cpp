@@ -68,7 +68,7 @@ bool Sema::isLibstdcxxEagerExceptionSpecHack(const Declarator &D) {
 ///
 /// \param[in,out] T  The exception type. This will be decayed to a pointer type
 ///                   when the input is an array or a function type.
-bool Sema::CheckSpecifiedExceptionType(QualType &T, const SourceRange &Range) {
+bool Sema::CheckSpecifiedExceptionType(QualType &T, SourceRange Range) {
   // C++11 [except.spec]p2:
   //   A type cv T, "array of T", or "function returning T" denoted
   //   in an exception-specification is adjusted to type T, "pointer to T", or
@@ -232,7 +232,7 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
         hasImplicitExceptionSpec(Old) != hasImplicitExceptionSpec(New)) {
       Diag(New->getLocation(), diag::ext_implicit_exception_spec_mismatch)
         << hasImplicitExceptionSpec(Old);
-      if (!Old->getLocation().isInvalid())
+      if (Old->getLocation().isValid())
         Diag(Old->getLocation(), diag::note_previous_declaration);
     }
     return false;
@@ -270,16 +270,35 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
   FunctionProtoType::ExceptionSpecInfo ESI = OldProto->getExceptionSpecType();
   if (ESI.Type == EST_Dynamic) {
     ESI.Exceptions = OldProto->exceptions();
-  } else if (ESI.Type == EST_ComputedNoexcept) {
-    // FIXME: We can't just take the expression from the old prototype. It
-    // likely contains references to the old prototype's parameters.
   }
 
-  // Update the type of the function with the appropriate exception
-  // specification.
-  New->setType(Context.getFunctionType(
-      NewProto->getReturnType(), NewProto->getParamTypes(),
-      NewProto->getExtProtoInfo().withExceptionSpec(ESI)));
+  if (ESI.Type == EST_ComputedNoexcept) {
+    // For computed noexcept, we can't just take the expression from the old
+    // prototype. It likely contains references to the old prototype's
+    // parameters.
+    New->setInvalidDecl();
+  } else {
+    // Update the type of the function with the appropriate exception
+    // specification.
+    New->setType(Context.getFunctionType(
+        NewProto->getReturnType(), NewProto->getParamTypes(),
+        NewProto->getExtProtoInfo().withExceptionSpec(ESI)));
+  }
+
+  if (getLangOpts().MicrosoftExt && ESI.Type != EST_ComputedNoexcept) {
+    // Allow missing exception specifications in redeclarations as an extension.
+    DiagID = diag::ext_ms_missing_exception_specification;
+    ReturnValueOnError = false;
+  } else if (New->isReplaceableGlobalAllocationFunction() &&
+             ESI.Type != EST_ComputedNoexcept) {
+    // Allow missing exception specifications in redeclarations as an extension,
+    // when declaring a replaceable global allocation function.
+    DiagID = diag::ext_missing_exception_specification;
+    ReturnValueOnError = false;
+  } else {
+    DiagID = diag::err_missing_exception_specification;
+    ReturnValueOnError = true;
+  }
 
   // Warn about the lack of exception specification.
   SmallString<128> ExceptionSpecString;
@@ -318,30 +337,30 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
   default:
     llvm_unreachable("This spec type is compatible with none.");
   }
-  OS.flush();
 
   SourceLocation FixItLoc;
   if (TypeSourceInfo *TSInfo = New->getTypeSourceInfo()) {
     TypeLoc TL = TSInfo->getTypeLoc().IgnoreParens();
-    if (FunctionTypeLoc FTLoc = TL.getAs<FunctionTypeLoc>())
-      FixItLoc = getLocForEndOfToken(FTLoc.getLocalRangeEnd());
+    // FIXME: Preserve enough information so that we can produce a correct fixit
+    // location when there is a trailing return type.
+    if (auto FTLoc = TL.getAs<FunctionProtoTypeLoc>())
+      if (!FTLoc.getTypePtr()->hasTrailingReturn())
+        FixItLoc = getLocForEndOfToken(FTLoc.getLocalRangeEnd());
   }
 
   if (FixItLoc.isInvalid())
-    Diag(New->getLocation(), diag::warn_missing_exception_specification)
+    Diag(New->getLocation(), DiagID)
       << New << OS.str();
   else {
-    // FIXME: This will get more complicated with C++0x
-    // late-specified return types.
-    Diag(New->getLocation(), diag::warn_missing_exception_specification)
+    Diag(New->getLocation(), DiagID)
       << New << OS.str()
       << FixItHint::CreateInsertion(FixItLoc, " " + OS.str().str());
   }
 
-  if (!Old->getLocation().isInvalid())
+  if (Old->getLocation().isValid())
     Diag(Old->getLocation(), diag::note_previous_declaration);
 
-  return false;
+  return ReturnValueOnError;
 }
 
 /// CheckEquivalentExceptionSpec - Check if the two types have equivalent
@@ -694,7 +713,7 @@ bool Sema::CheckExceptionSpecSubset(
         continue;
 
       Paths.clear();
-      if (!IsDerivedFrom(CanonicalSubT, CanonicalSuperT, Paths))
+      if (!IsDerivedFrom(SubLoc, CanonicalSubT, CanonicalSuperT, Paths))
         continue;
 
       if (Paths.isAmbiguous(Context.getCanonicalType(CanonicalSuperT)))
@@ -979,8 +998,9 @@ CanThrowResult Sema::canThrow(const Expr *E) {
   case Expr::LambdaExprClass: {
     const LambdaExpr *Lambda = cast<LambdaExpr>(E);
     CanThrowResult CT = CT_Cannot;
-    for (LambdaExpr::capture_init_iterator Cap = Lambda->capture_init_begin(),
-                                        CapEnd = Lambda->capture_init_end();
+    for (LambdaExpr::const_capture_init_iterator
+             Cap = Lambda->capture_init_begin(),
+             CapEnd = Lambda->capture_init_end();
          Cap != CapEnd; ++Cap)
       CT = mergeCanThrow(CT, canThrow(*Cap));
     return CT;
@@ -1043,8 +1063,10 @@ CanThrowResult Sema::canThrow(const Expr *E) {
 
     // Many other things have subexpressions, so we have to test those.
     // Some are simple:
+  case Expr::CoawaitExprClass:
   case Expr::ConditionalOperatorClass:
   case Expr::CompoundLiteralExprClass:
+  case Expr::CoyieldExprClass:
   case Expr::CXXConstCastExprClass:
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXStdInitializerListExprClass:
@@ -1065,6 +1087,7 @@ CanThrowResult Sema::canThrow(const Expr *E) {
 
     // Some might be dependent for other reasons.
   case Expr::ArraySubscriptExprClass:
+  case Expr::OMPArraySectionExprClass:
   case Expr::BinaryOperatorClass:
   case Expr::CompoundAssignOperatorClass:
   case Expr::CStyleCastExprClass:
@@ -1156,6 +1179,7 @@ CanThrowResult Sema::canThrow(const Expr *E) {
     return CT_Cannot;
 
   case Expr::MSPropertyRefExprClass:
+  case Expr::MSPropertySubscriptExprClass:
     llvm_unreachable("Invalid class for expression");
 
 #define STMT(CLASS, PARENT) case Expr::CLASS##Class:

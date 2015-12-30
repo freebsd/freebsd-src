@@ -3,7 +3,6 @@ set( LLVM_LINK_COMPONENTS
   Analysis
   CodeGen
   Core
-  IPA
   IPO
   InstCombine
   Instrumentation
@@ -52,38 +51,29 @@ endif()
 
 add_dependencies(clang clang-headers)
 
-if(UNIX)
-  set(CLANGXX_LINK_OR_COPY create_symlink)
-# Create a relative symlink
-  set(clang_binary "clang${CMAKE_EXECUTABLE_SUFFIX}")
-else()
-  set(CLANGXX_LINK_OR_COPY copy)
-  set(clang_binary "${LLVM_RUNTIME_OUTPUT_INTDIR}/clang${CMAKE_EXECUTABLE_SUFFIX}")
+install(TARGETS clang
+  RUNTIME DESTINATION bin
+  COMPONENT clang)
+
+if(NOT CMAKE_CONFIGURATION_TYPES)
+  add_custom_target(install-clang
+    DEPENDS clang
+    COMMAND "${CMAKE_COMMAND}"
+            -DCMAKE_INSTALL_COMPONENT=clang
+            -P "${CMAKE_BINARY_DIR}/cmake_install.cmake")
 endif()
 
-# Create the clang++ symlink in the build directory.
-set(clang_pp "${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++${CMAKE_EXECUTABLE_SUFFIX}")
-add_custom_command(TARGET clang POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E ${CLANGXX_LINK_OR_COPY} "${clang_binary}" "${clang_pp}"
-    WORKING_DIRECTORY "${LLVM_RUNTIME_OUTPUT_INTDIR}")
+if(NOT CLANG_LINKS_TO_CREATE)
+  set(CLANG_LINKS_TO_CREATE clang++ clang-cl)
 
-set_property(DIRECTORY APPEND
-  PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${clang_pp})
+  if (WIN32)
+    list(APPEND CLANG_LINKS_TO_CREATE ../msbuild-bin/cl)
+  endif()
+endif()
 
-# Create the clang-cl symlink in the build directory.
-set(clang_cl "${LLVM_RUNTIME_OUTPUT_INTDIR}/clang-cl${CMAKE_EXECUTABLE_SUFFIX}")
-add_custom_command(TARGET clang POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E ${CLANGXX_LINK_OR_COPY} "${clang_binary}" "${clang_cl}"
-    WORKING_DIRECTORY "${LLVM_RUNTIME_OUTPUT_INTDIR}")
-
-set_property(DIRECTORY APPEND
-  PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${clang_cl})
-
-install(TARGETS clang
-  RUNTIME DESTINATION bin)
-
-# Create the clang++ and clang-cl symlinks at installation time.
-install(SCRIPT clang_symlink.cmake -DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
+foreach(link ${CLANG_LINKS_TO_CREATE})
+  add_clang_symlink(${link} clang)
+endforeach()
 
 # Configure plist creation for OS X.
 set (TOOL_INFO_PLIST "Info.plist" CACHE STRING "Plist name")
@@ -96,10 +86,7 @@ if (APPLE)
 
   set(TOOL_INFO_UTI "${CLANG_VENDOR_UTI}")
   set(TOOL_INFO_VERSION "${CLANG_VERSION}")
-  if (LLVM_SUBMIT_VERSION)
-    set(TOOL_INFO_BUILD_VERSION
-      "${LLVM_SUBMIT_VERSION}.${LLVM_SUBMIT_SUBVERSION}")
-  endif()
+  set(TOOL_INFO_BUILD_VERSION "${LLVM_MAJOR_VERSION}.${LLVM_MINOR_VERSION}")
   
   set(TOOL_INFO_PLIST_OUT "${CMAKE_CURRENT_BINARY_DIR}/${TOOL_INFO_PLIST}")
   target_link_libraries(clang

@@ -1,11 +1,11 @@
 // REQUIRES: x86-registered-target
-// RUN: %clang_cc1 -triple i686-pc-linux-gnu -emit-pch %s -o %t_linux.ast
+// RUN: c-index-test -write-pch %t_linux.ast -target i686-pc-linux-gnu %s
 // RUN: c-index-test -test-print-mangle %t_linux.ast | FileCheck %s --check-prefix=ITANIUM
 
-// RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-pch %s -o %t_macho.ast
+// RUN: c-index-test -write-pch %t_macho.ast -target x86_64-apple-darwin %s
 // RUN: c-index-test -test-print-mangle %t_macho.ast | FileCheck %s --check-prefix=MACHO
 
-// RUN: %clang_cc1 -triple i686-pc-win32 -emit-pch %s -o %t_msft.ast
+// RUN: c-index-test -write-pch %t_msft.ast -target i686-pc-win32 %s
 // RUN: c-index-test -test-print-mangle %t_msft.ast | FileCheck %s --check-prefix=MICROSOFT
 
 int foo(int, int);
@@ -29,3 +29,8 @@ int foo(S, S&);
 // ITANIUM: mangled=_Z3foo1SRS_
 // MACHO: mangled=__Z3foo1SRS_
 // MICROSOFT: mangled=?foo@@YAHUS
+
+extern "C" int foo(int);
+// ITANIUM: mangled=foo
+// MACHO: mangled=_foo
+// MICROSOFT: mangled=_foo

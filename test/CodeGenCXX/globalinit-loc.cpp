@@ -1,10 +1,10 @@
-// RUN: %clang_cc1 -emit-llvm -g %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -debug-info-kind=limited %s -o - | FileCheck %s
 // rdar://problem/14985269.
 //
 // Verify that the global init helper function does not get associated
 // with any source location.
 //
-// CHECK: define internal {{.*}}void @_GLOBAL__sub_I_globalinit_loc.cpp
+// CHECK: define internal {{.*}}void @_GLOBAL__sub_I_globalinit_loc.cpp({{.*}} {
 // CHECK: !dbg ![[DBG:.*]]
 // CHECK: !DISubprogram(linkageName: "_GLOBAL__sub_I_globalinit_loc.cpp"
 // CHECK-NOT:           line:

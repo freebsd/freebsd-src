@@ -18,6 +18,8 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "gtest/gtest.h"
 #include <algorithm>
 #include <string>
@@ -147,8 +149,13 @@ TEST(newFrontendActionFactory, CreatesFrontendActionFactoryFromFactoryType) {
 }
 
 TEST(ToolInvocation, TestMapVirtualFile) {
-  IntrusiveRefCntPtr<clang::FileManager> Files(
-      new clang::FileManager(clang::FileSystemOptions()));
+  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> OverlayFileSystem(
+      new vfs::OverlayFileSystem(vfs::getRealFileSystem()));
+  llvm::IntrusiveRefCntPtr<vfs::InMemoryFileSystem> InMemoryFileSystem(
+      new vfs::InMemoryFileSystem);
+  OverlayFileSystem->pushOverlay(InMemoryFileSystem);
+  llvm::IntrusiveRefCntPtr<FileManager> Files(
+      new FileManager(FileSystemOptions(), OverlayFileSystem));
   std::vector<std::string> Args;
   Args.push_back("tool-executable");
   Args.push_back("-Idef");
@@ -156,8 +163,10 @@ TEST(ToolInvocation, TestMapVirtualFile) {
   Args.push_back("test.cpp");
   clang::tooling::ToolInvocation Invocation(Args, new SyntaxOnlyAction,
                                             Files.get());
-  Invocation.mapVirtualFile("test.cpp", "#include <abc>\n");
-  Invocation.mapVirtualFile("def/abc", "\n");
+  InMemoryFileSystem->addFile(
+      "test.cpp", 0, llvm::MemoryBuffer::getMemBuffer("#include <abc>\n"));
+  InMemoryFileSystem->addFile("def/abc", 0,
+                              llvm::MemoryBuffer::getMemBuffer("\n"));
   EXPECT_TRUE(Invocation.run());
 }
 
@@ -166,8 +175,13 @@ TEST(ToolInvocation, TestVirtualModulesCompilation) {
   // mapped module.map is found on the include path. In the future, expand this
   // test to run a full modules enabled compilation, so we make sure we can
   // rerun modules compilations with a virtual file system.
-  IntrusiveRefCntPtr<clang::FileManager> Files(
-      new clang::FileManager(clang::FileSystemOptions()));
+  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> OverlayFileSystem(
+      new vfs::OverlayFileSystem(vfs::getRealFileSystem()));
+  llvm::IntrusiveRefCntPtr<vfs::InMemoryFileSystem> InMemoryFileSystem(
+      new vfs::InMemoryFileSystem);
+  OverlayFileSystem->pushOverlay(InMemoryFileSystem);
+  llvm::IntrusiveRefCntPtr<FileManager> Files(
+      new FileManager(FileSystemOptions(), OverlayFileSystem));
   std::vector<std::string> Args;
   Args.push_back("tool-executable");
   Args.push_back("-Idef");
@@ -175,11 +189,14 @@ TEST(ToolInvocation, TestVirtualModulesCompilation) {
   Args.push_back("test.cpp");
   clang::tooling::ToolInvocation Invocation(Args, new SyntaxOnlyAction,
                                             Files.get());
-  Invocation.mapVirtualFile("test.cpp", "#include <abc>\n");
-  Invocation.mapVirtualFile("def/abc", "\n");
+  InMemoryFileSystem->addFile(
+      "test.cpp", 0, llvm::MemoryBuffer::getMemBuffer("#include <abc>\n"));
+  InMemoryFileSystem->addFile("def/abc", 0,
+                              llvm::MemoryBuffer::getMemBuffer("\n"));
   // Add a module.map file in the include directory of our header, so we trigger
   // the module.map header search logic.
-  Invocation.mapVirtualFile("def/module.map", "\n");
+  InMemoryFileSystem->addFile("def/module.map", 0,
+                              llvm::MemoryBuffer::getMemBuffer("\n"));
   EXPECT_TRUE(Invocation.run());
 }
 
@@ -271,7 +288,7 @@ TEST(ClangToolTest, ArgumentAdjusters) {
   bool Found = false;
   bool Ran = false;
   ArgumentsAdjuster CheckSyntaxOnlyAdjuster =
-      [&Found, &Ran](const CommandLineArguments &Args) {
+      [&Found, &Ran](const CommandLineArguments &Args, StringRef /*unused*/) {
     Ran = true;
     if (std::find(Args.begin(), Args.end(), "-fsyntax-only") != Args.end())
       Found = true;
@@ -289,6 +306,86 @@ TEST(ClangToolTest, ArgumentAdjusters) {
   Tool.run(Action.get());
   EXPECT_TRUE(Ran);
   EXPECT_FALSE(Found);
+}
+
+namespace {
+/// Find a target name such that looking for it in TargetRegistry by that name
+/// returns the same target. We expect that there is at least one target
+/// configured with this property.
+std::string getAnyTarget() {
+  llvm::InitializeAllTargets();
+  for (const auto &Target : llvm::TargetRegistry::targets()) {
+    std::string Error;
+    StringRef TargetName(Target.getName());
+    if (TargetName == "x86-64")
+      TargetName = "x86_64";
+    if (llvm::TargetRegistry::lookupTarget(TargetName, Error) == &Target) {
+      return TargetName;
+    }
+  }
+  return "";
+}
+}
+
+TEST(addTargetAndModeForProgramName, AddsTargetAndMode) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  std::vector<std::string> Args = {"clang", "-foo"};
+  addTargetAndModeForProgramName(Args, "");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-foo"}), Args);
+  addTargetAndModeForProgramName(Args, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target,
+                                      "--driver-mode=g++", "-foo"}),
+            Args);
+}
+
+TEST(addTargetAndModeForProgramName, PathIgnored) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  SmallString<32> ToolPath;
+  llvm::sys::path::append(ToolPath, "foo", "bar", Target + "-g++");
+
+  std::vector<std::string> Args = {"clang", "-foo"};
+  addTargetAndModeForProgramName(Args, ToolPath);
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target,
+                                      "--driver-mode=g++", "-foo"}),
+            Args);
+}
+
+TEST(addTargetAndModeForProgramName, IgnoresExistingTarget) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  std::vector<std::string> Args = {"clang", "-foo", "-target", "something"};
+  addTargetAndModeForProgramName(Args, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "--driver-mode=g++", "-foo",
+                                      "-target", "something"}),
+            Args);
+
+  std::vector<std::string> ArgsAlt = {"clang", "-foo", "-target=something"};
+  addTargetAndModeForProgramName(ArgsAlt, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "--driver-mode=g++", "-foo",
+                                      "-target=something"}),
+            ArgsAlt);
+}
+
+TEST(addTargetAndModeForProgramName, IgnoresExistingMode) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  std::vector<std::string> Args = {"clang", "-foo", "--driver-mode=abc"};
+  addTargetAndModeForProgramName(Args, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target, "-foo",
+                                      "--driver-mode=abc"}),
+            Args);
+
+  std::vector<std::string> ArgsAlt = {"clang", "-foo", "--driver-mode", "abc"};
+  addTargetAndModeForProgramName(ArgsAlt, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target, "-foo",
+                                      "--driver-mode", "abc"}),
+            ArgsAlt);
 }
 
 #ifndef LLVM_ON_WIN32

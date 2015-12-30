@@ -127,7 +127,17 @@ void test6(unsigned cond) {
   switch (cond) {
   case 0:
     ;
-    id x; // expected-note {{jump bypasses initialization of retaining variable}}
+    id x; // expected-note {{jump bypasses initialization of __strong variable}}
+
+  case 1: // expected-error {{cannot jump}}
+    break;
+  }
+}
+void test6a(unsigned cond) {
+  switch (cond) {
+  case 0:
+    ;
+    __weak id x; // expected-note {{jump bypasses initialization of __weak variable}}
 
   case 1: // expected-error {{cannot jump}}
     break;
@@ -290,7 +300,7 @@ void test11(id op, void *vp) {
 
 void test12(id collection) {
   for (id x in collection) {
-    x = 0; // expected-error {{fast enumeration variables can't be modified in ARC by default; declare the variable __strong to allow this}}
+    x = 0; // expected-error {{fast enumeration variables cannot be modified in ARC by default; declare the variable __strong to allow this}}
   }
 
   for (const id x in collection) { // expected-note {{variable 'x' declared const here}}

@@ -30,6 +30,7 @@ add_clang_library(clangAST
   ExprClassification.cpp
   ExprConstant.cpp
   ExprCXX.cpp
+  ExprObjC.cpp
   ExternalASTSource.cpp
   InheritViz.cpp
   ItaniumCXXABI.cpp
@@ -39,13 +40,17 @@ add_clang_library(clangAST
   MicrosoftMangle.cpp
   NestedNameSpecifier.cpp
   NSAPI.cpp
+  OpenMPClause.cpp
   ParentMap.cpp
   RawCommentList.cpp
   RecordLayout.cpp
   RecordLayoutBuilder.cpp
   SelectorLocationsKind.cpp
   Stmt.cpp
+  StmtCXX.cpp
   StmtIterator.cpp
+  StmtObjC.cpp
+  StmtOpenMP.cpp
   StmtPrinter.cpp
   StmtProfile.cpp
   StmtViz.cpp

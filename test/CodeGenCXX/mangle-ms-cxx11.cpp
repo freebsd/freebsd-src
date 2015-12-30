@@ -243,3 +243,46 @@ void f() {}
 template void f<AliasA>();
 // CHECK-DAG: @"\01??$f@$$YAliasA@PR20047@@@PR20047@@YAXXZ"
 }
+
+namespace UnnamedType {
+struct A {
+  struct {} *TD;
+};
+
+void f(decltype(*A::TD)) {}
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXAAU<unnamed-type-TD>@A@1@@Z"
+
+template <typename T>
+struct B {
+  enum {
+  } *e;
+};
+
+void f(decltype(B<int>::e)) {}
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXPAW4<unnamed-type-e>@?$B@H@1@@Z
+}
+
+namespace PR24651 {
+template <typename T>
+void f(T) {}
+
+void g() {
+  enum {} E;
+  f(E);
+  {
+    enum {} E;
+    f(E);
+  }
+}
+// CHECK-DAG: @"\01??$f@W4<unnamed-type-E>@?1??g@PR24651@@YAXXZ@@PR24651@@YAXW4<unnamed-type-E>@?1??g@0@YAXXZ@@Z"
+// CHECK-DAG: @"\01??$f@W4<unnamed-type-E>@?2??g@PR24651@@YAXXZ@@PR24651@@YAXW4<unnamed-type-E>@?2??g@0@YAXXZ@@Z"
+}
+
+namespace PR18204 {
+template <typename T>
+int f(T *);
+static union {
+  int n = f(this);
+};
+// CHECK-DAG: @"\01??$f@T<unnamed-type-$S1>@PR18204@@@PR18204@@YAHPAT<unnamed-type-$S1>@0@@Z"
+}

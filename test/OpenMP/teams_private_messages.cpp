@@ -13,7 +13,7 @@ class S2 {
   mutable int a;
 public:
   S2():a(0) { }
-  static float S2s;
+  static float S2s; // expected-note {{static data member is predetermined as shared}}
 };
 const S2 b;
 const S2 ba[5];
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
   S4 e(4);
   S5 g(5);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
   #pragma omp target
   #pragma omp teams private // expected-error {{expected '(' after 'private'}}
   foo();
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
   #pragma omp teams private(da) // expected-error {{shared variable cannot be private}}
   foo();
   #pragma omp target
-  #pragma omp teams private(S2::S2s)
+  #pragma omp teams private(S2::S2s) // expected-error {{shared variable cannot be private}}
   foo();
   #pragma omp target
   #pragma omp teams private(e, g) // expected-error {{calling a private constructor of class 'S4'}} expected-error {{calling a private constructor of class 'S5'}}
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
   #pragma omp teams private(i)
   foo();
   #pragma omp target
-  #pragma omp teams private(j) // expected-error {{arguments of OpenMP clause 'private' cannot be of reference type 'int &'}}
+  #pragma omp teams private(j)
   foo();
   #pragma omp target
   #pragma omp teams firstprivate(i)
@@ -122,6 +122,10 @@ int main(int argc, char **argv) {
     #pragma omp parallel private(i)
     foo();
   }
+  static int m;
+  #pragma omp target
+  #pragma omp teams private(m) // OK
+  foo();
 
   return 0;
 }

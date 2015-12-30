@@ -28,8 +28,8 @@ void g() {
   f<double>(1.0);
   f<int>();
   f(); // expected-error {{no matching function}}
-  // expected-note@Inputs/cxx-templates-b.h:3 {{couldn't infer template argument}}
-  // expected-note@Inputs/cxx-templates-b.h:4 {{requires single argument}}
+  // expected-note@Inputs/cxx-templates-a.h:3 {{couldn't infer template argument}}
+  // expected-note@Inputs/cxx-templates-a.h:4 {{requires 1 argument}}
 
   N::f(0);
   N::f<double>(1.0);
@@ -105,8 +105,8 @@ void g() {
 
   TemplateInstantiationVisibility<char[1]> tiv1;
   TemplateInstantiationVisibility<char[2]> tiv2;
-  TemplateInstantiationVisibility<char[3]> tiv3; // expected-error {{must be imported from module 'cxx_templates_b_impl'}}
-  // expected-note@cxx-templates-b-impl.h:10 {{previous definition is here}}
+  TemplateInstantiationVisibility<char[3]> tiv3; // expected-error 2{{must be imported from module 'cxx_templates_b_impl'}}
+  // expected-note@cxx-templates-b-impl.h:10 2{{previous definition is here}}
   TemplateInstantiationVisibility<char[4]> tiv4;
 
   int &p = WithPartialSpecializationUse().f();
@@ -179,18 +179,22 @@ namespace Std {
 
 // CHECK-GLOBAL:      DeclarationName 'f'
 // CHECK-GLOBAL-NEXT: |-FunctionTemplate {{.*}} 'f'
+// CHECK-GLOBAL-NEXT: |-FunctionTemplate {{.*}} 'f'
+// CHECK-GLOBAL-NEXT: |-FunctionTemplate {{.*}} 'f'
 // CHECK-GLOBAL-NEXT: `-FunctionTemplate {{.*}} 'f'
 
 // CHECK-NAMESPACE-N:      DeclarationName 'f'
+// CHECK-NAMESPACE-N-NEXT: |-FunctionTemplate {{.*}} 'f'
+// CHECK-NAMESPACE-N-NEXT: |-FunctionTemplate {{.*}} 'f'
 // CHECK-NAMESPACE-N-NEXT: |-FunctionTemplate {{.*}} 'f'
 // CHECK-NAMESPACE-N-NEXT: `-FunctionTemplate {{.*}} 'f'
 
 // CHECK-DUMP:      ClassTemplateDecl {{.*}} <{{.*[/\\]}}cxx-templates-common.h:1:1, {{.*}}>  col:{{.*}} in cxx_templates_common SomeTemplate
 // CHECK-DUMP:        ClassTemplateSpecializationDecl {{.*}} prev {{.*}} SomeTemplate
-// CHECK-DUMP-NEXT:     TemplateArgument type 'char [2]'
+// CHECK-DUMP-NEXT:     TemplateArgument type 'char [1]'
 // CHECK-DUMP:        ClassTemplateSpecializationDecl {{.*}} SomeTemplate definition
-// CHECK-DUMP-NEXT:     TemplateArgument type 'char [2]'
+// CHECK-DUMP-NEXT:     TemplateArgument type 'char [1]'
 // CHECK-DUMP:        ClassTemplateSpecializationDecl {{.*}} prev {{.*}} SomeTemplate
-// CHECK-DUMP-NEXT:     TemplateArgument type 'char [1]'
+// CHECK-DUMP-NEXT:     TemplateArgument type 'char [2]'
 // CHECK-DUMP:        ClassTemplateSpecializationDecl {{.*}} SomeTemplate definition
-// CHECK-DUMP-NEXT:     TemplateArgument type 'char [1]'
+// CHECK-DUMP-NEXT:     TemplateArgument type 'char [2]'

@@ -166,7 +166,7 @@ def act_on_decl(declaration, comment, allowed_types):
                        \s*AST_POLYMORPHIC_SUPPORTED_TYPES\(([^)]*)\)
                      \)\s*;\s*$""", declaration, flags=re.X)
     if m:
-      loc, name, n_results, results = m.groups()[0:4]
+      loc, name, results = m.groups()[0:3]
       result_types = [r.strip() for r in results.split(',')]
 
       comment_result_types = extract_result_types(comment)
@@ -191,8 +191,8 @@ def act_on_decl(declaration, comment, allowed_types):
                       \)\s*{\s*$""", declaration, flags=re.X)
 
     if m:
-      p, n, name, n_results, results = m.groups()[0:5]
-      args = m.groups()[5:]
+      p, n, name, results = m.groups()[0:4]
+      args = m.groups()[4:]
       result_types = [r.strip() for r in results.split(',')]
       if allowed_types and allowed_types != result_types:
         raise Exception('Inconsistent documentation for: %s' % name)
@@ -364,6 +364,6 @@ reference = re.sub(r'<!-- START_NARROWING_MATCHERS.*END_NARROWING_MATCHERS -->',
 reference = re.sub(r'<!-- START_TRAVERSAL_MATCHERS.*END_TRAVERSAL_MATCHERS -->',
                    '%s', reference, flags=re.S) % traversal_matcher_table
 
-with open('../LibASTMatchersReference.html', 'w') as output:
+with open('../LibASTMatchersReference.html', 'wb') as output:
   output.write(reference)
 

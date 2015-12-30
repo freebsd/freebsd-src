@@ -152,16 +152,113 @@ void test_safelen() {
 #pragma omp simd safelen(foo())
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'safelen' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'safelen' clause must be a strictly positive integer value}}
 #pragma omp simd safelen(-5)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'safelen' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'safelen' clause must be a strictly positive integer value}}
 #pragma omp simd safelen(0)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'safelen' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'safelen' clause must be a strictly positive integer value}}
 #pragma omp simd safelen(5 - 5)
+  for (i = 0; i < 16; ++i)
+    ;
+}
+
+void test_simdlen() {
+  int i;
+// expected-error@+1 {{expected '('}}
+#pragma omp simd simdlen
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{expected expression}} expected-error@+1 {{expected ')'}} expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{expected expression}}
+#pragma omp simd simdlen()
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{expected expression}} expected-error@+1 {{expected ')'}} expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(,
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{expected expression}}  expected-error@+1 {{expected ')'}} expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(, )
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-warning@+2 {{extra tokens at the end of '#pragma omp simd' are ignored}}
+// expected-error@+1 {{expected '('}}
+#pragma omp simd simdlen 4)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+2 {{expected ')'}}
+// expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(4
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+2 {{expected ')'}}
+// expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(4,
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+2 {{expected ')'}}
+// expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(4, )
+  for (i = 0; i < 16; ++i)
+    ;
+#pragma omp simd simdlen(4)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+2 {{expected ')'}}
+// expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(4 4)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+2 {{expected ')'}}
+// expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(4, , 4)
+  for (i = 0; i < 16; ++i)
+    ;
+#pragma omp simd simdlen(4)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+2 {{expected ')'}}
+// expected-note@+1 {{to match this '('}}
+#pragma omp simd simdlen(4, 8)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{expression is not an integer constant expression}}
+#pragma omp simd simdlen(2.5)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{expression is not an integer constant expression}}
+#pragma omp simd simdlen(foo())
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{argument to 'simdlen' clause must be a strictly positive integer value}}
+#pragma omp simd simdlen(-5)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{argument to 'simdlen' clause must be a strictly positive integer value}}
+#pragma omp simd simdlen(0)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{argument to 'simdlen' clause must be a strictly positive integer value}}
+#pragma omp simd simdlen(5 - 5)
+  for (i = 0; i < 16; ++i)
+    ;
+}
+
+void test_safelen_simdlen() {
+  int i;
+// expected-error@+1 {{the value of 'simdlen' parameter must be less than or equal to the value of the 'safelen' parameter}}
+#pragma omp simd simdlen(6) safelen(5)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+1 {{the value of 'simdlen' parameter must be less than or equal to the value of the 'safelen' parameter}}
+#pragma omp simd safelen(5) simdlen(6)
   for (i = 0; i < 16; ++i)
     ;
 }
@@ -241,15 +338,15 @@ void test_collapse() {
 #pragma omp simd collapse(foo())
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'collapse' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'collapse' clause must be a strictly positive integer value}}
 #pragma omp simd collapse(-5)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'collapse' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'collapse' clause must be a strictly positive integer value}}
 #pragma omp simd collapse(0)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'collapse' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'collapse' clause must be a strictly positive integer value}}
 #pragma omp simd collapse(5 - 5)
   for (i = 0; i < 16; ++i)
     ;
@@ -259,10 +356,16 @@ void test_collapse() {
   for (i = 0; i < 16; ++i)
     // expected-note@+1 {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp for' directive into a parallel or another task region?}}
     for (int j = 0; j < 16; ++j)
-// expected-error@+3 {{reduction variable must be shared}}
-// expected-error@+2 {{private variable cannot be reduction}}
+// expected-error@+2 2 {{reduction variable must be shared}}
 // expected-error@+1 {{OpenMP constructs may not be nested inside a simd region}}
 #pragma omp for reduction(+ : i, j)
+      for (int k = 0; k < 16; ++k)
+        i += j;
+#pragma omp parallel
+#pragma omp for
+  for (i = 0; i < 16; ++i)
+    for (int j = 0; j < 16; ++j)
+#pragma omp simd reduction(+ : i, j)
       for (int k = 0; k < 16; ++k)
         i += j;
 }
@@ -676,5 +779,19 @@ void test_loop_messages() {
   for (double fi = 0; fi < 10.0; fi++) {
     c[(int)fi] = a[(int)fi] + b[(int)fi];
   }
+}
+
+void linear_modifiers(int argc) {
+  int f;
+  #pragma omp simd linear(f)
+  for (int k = 0; k < argc; ++k) ++k;
+  #pragma omp simd linear(val(f))
+  for (int k = 0; k < argc; ++k) ++k;
+  #pragma omp simd linear(uval(f)) // expected-error {{expected 'val' modifier}}
+  for (int k = 0; k < argc; ++k) ++k;
+  #pragma omp simd linear(ref(f)) // expected-error {{expected 'val' modifier}}
+  for (int k = 0; k < argc; ++k) ++k;
+  #pragma omp simd linear(foo(f)) // expected-error {{expected 'val' modifier}}
+  for (int k = 0; k < argc; ++k) ++k;
 }
 

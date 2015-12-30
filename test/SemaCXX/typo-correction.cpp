@@ -307,12 +307,19 @@ struct A {
   void CreateBar(float, float);
 };
 struct B : A {
-  using A::CreateFoo;
+  using A::CreateFoo; // expected-note {{'CreateFoo' declared here}}
   void CreateFoo(int, int);  // expected-note {{'CreateFoo' declared here}}
 };
 void f(B &x) {
   x.Createfoo(0,0);  // expected-error {{no member named 'Createfoo' in 'PR13387::B'; did you mean 'CreateFoo'?}}
+  x.Createfoo(0.f,0.f);  // expected-error {{no member named 'Createfoo' in 'PR13387::B'; did you mean 'CreateFoo'?}}
 }
+}
+
+namespace using_decl {
+  namespace somewhere { int foobar; }
+  using somewhere::foobar; // expected-note {{declared here}}
+  int k = goobar; // expected-error {{did you mean 'foobar'?}}
 }
 
 struct DataStruct {void foo();};
@@ -639,4 +646,20 @@ namespace crash_has_include {
 int has_include(int); // expected-note {{'has_include' declared here}}
 // expected-error@+1 {{__has_include must be used within a preprocessing directive}}
 int foo = __has_include(42); // expected-error {{use of undeclared identifier '__has_include'; did you mean 'has_include'?}}
+}
+
+namespace PR24781_using_crash {
+namespace A {
+namespace B {
+class Foofoo {};  // expected-note {{'A::B::Foofoo' declared here}}
+}
+}
+
+namespace C {
+namespace D {
+class Bar : public A::B::Foofoo {};
+}
+}
+
+using C::D::Foofoo;  // expected-error {{no member named 'Foofoo' in namespace 'PR24781_using_crash::C::D'; did you mean 'A::B::Foofoo'?}}
 }

@@ -32,13 +32,9 @@ extern "C" void use_cxx() {
 // CXXEH: ret void
 //
 // CXXEH: [[lpad]]
-// CXXEH: landingpad { i8*, i32 }
-// CXXEH-NEXT: cleanup
+// CXXEH: cleanuppad
 // CXXEH: call void @"\01??1HasCleanup@@QEAA@XZ"(%struct.HasCleanup* %{{.*}})
-// CXXEH: br label %[[resume:[^ ]*]]
-//
-// CXXEH: [[resume]]
-// CXXEH: resume
+// CXXEH: cleanupret
 
 // NOCXX-LABEL: define void @use_cxx()
 // NOCXX-NOT: invoke
@@ -64,17 +60,21 @@ extern "C" void use_seh() {
 // CHECK: invoke void @might_throw() #[[NOINLINE:[0-9]+]]
 // CHECK:       to label %[[cont:[^ ]*]] unwind label %[[lpad:[^ ]*]]
 //
-// CHECK: [[cont]]
-// CHECK: br label %[[ret:[^ ]*]]
-//
 // CHECK: [[lpad]]
-// CHECK: landingpad { i8*, i32 }
-// CHECK-NEXT: catch i8*
+// CHECK-NEXT: %[[switch:.*]] = catchswitch within none [label %[[cpad:.*]]] unwind to caller
 //
-// CHECK: br label %[[ret]]
+// CHECK: [[cpad]]
+// CHECK-NEXT: catchpad within %[[switch]]
+// CHECK: catchret {{.*}} label %[[except:[^ ]*]]
+//
+// CHECK: [[except]]
+// CHECK: br label %[[ret:[^ ]*]]
 //
 // CHECK: [[ret]]
 // CHECK: ret void
+//
+// CHECK: [[cont]]
+// CHECK: br label %[[ret]]
 
 void use_seh_in_lambda() {
   ([]() {
@@ -89,7 +89,7 @@ void use_seh_in_lambda() {
 
 // CXXEH-LABEL: define void @"\01?use_seh_in_lambda@@YAXXZ"()
 // CXXEH-SAME:  personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*)
-// CXXEH: landingpad { i8*, i32 }
+// CXXEH: cleanuppad
 
 // NOCXX-LABEL: define void @"\01?use_seh_in_lambda@@YAXXZ"()
 // NOCXX-NOT: invoke
@@ -98,7 +98,7 @@ void use_seh_in_lambda() {
 // CHECK-LABEL: define internal void @"\01??R<lambda_0>@?use_seh_in_lambda@@YAXXZ@QEBAXXZ"(%class.anon* %this)
 // CXXEH-SAME:  personality i8* bitcast (i32 (...)* @__C_specific_handler to i8*)
 // CHECK: invoke void @might_throw() #[[NOINLINE]]
-// CHECK: landingpad { i8*, i32 }
+// CHECK: catchpad
 
 static int my_unique_global;
 
@@ -122,8 +122,7 @@ void use_inline() {
 // CHECK-SAME:  personality i8* bitcast (i32 (...)* @__C_specific_handler to i8*)
 // CHECK: invoke void @might_throw()
 //
-// CHECK: landingpad { i8*, i32 }
-// CHECK-NEXT: catch i8* bitcast (i32 (i8*, i8*)* @"\01?filt$0@0@use_seh_in_inline_func@@" to i8*)
+// CHECK: catchpad {{.*}} [i8* bitcast (i32 (i8*, i8*)* @"\01?filt$0@0@use_seh_in_inline_func@@" to i8*)]
 //
 // CHECK: invoke void @might_throw()
 //
@@ -131,8 +130,7 @@ void use_inline() {
 // CHECK: call void @"\01?fin$0@0@use_seh_in_inline_func@@"(i8 0, i8* %[[fp]])
 // CHECK: ret void
 //
-// CHECK: landingpad { i8*, i32 }
-// CHECK-NEXT: cleanup
+// CHECK: cleanuppad
 // CHECK: %[[fp:[^ ]*]] = call i8* @llvm.localaddress()
 // CHECK: call void @"\01?fin$0@0@use_seh_in_inline_func@@"(i8 1, i8* %[[fp]])
 

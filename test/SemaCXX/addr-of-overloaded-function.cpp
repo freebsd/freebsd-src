@@ -1,4 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++98 %s 
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s 
 int f(double); // expected-note{{candidate function}}
 int f(int); // expected-note{{candidate function}}
 
@@ -79,7 +81,10 @@ struct C {
   void q3(); // expected-note{{possible target for call}}
   template<typename T1, typename T2>
   void q4(); // expected-note{{possible target for call}}
-  template<typename T1 = int> // expected-warning{{default template arguments for a function template are a C++11 extension}}
+  template<typename T1 = int>
+#if __cplusplus <= 199711L // C++03 or earlier modes
+  // expected-warning@-2{{default template arguments for a function template are a C++11 extension}}
+#endif
   void q5(); // expected-note{{possible target for call}}
 
   void h() {
@@ -125,13 +130,9 @@ namespace PR7971 {
 }
 
 namespace PR8033 {
-  template <typename T1, typename T2> int f(T1 *, const T2 *); // expected-note {{candidate function [with T1 = const int, T2 = int]}} \
-  // expected-note{{candidate function}}
-  template <typename T1, typename T2> int f(const T1 *, T2 *); // expected-note {{candidate function [with T1 = int, T2 = const int]}} \
-  // expected-note{{candidate function}}
-  int (*p)(const int *, const int *) = f; // expected-error{{address of overloaded function 'f' is ambiguous}} \
-  // expected-error{{address of overloaded function 'f' is ambiguous}}
-
+  template <typename T1, typename T2> int f(T1 *, const T2 *); // expected-note {{candidate function [with T1 = const int, T2 = int]}}
+  template <typename T1, typename T2> int f(const T1 *, T2 *); // expected-note {{candidate function [with T1 = int, T2 = const int]}}
+  int (*p)(const int *, const int *) = f; // expected-error{{address of overloaded function 'f' is ambiguous}}
 }
 
 namespace PR8196 {

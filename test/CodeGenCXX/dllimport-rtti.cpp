@@ -19,7 +19,9 @@ struct U : S {
 struct __declspec(dllimport) V {
   virtual void f();
 } v;
-// GNU-DAG: @_ZTV1V = external dllimport
+// GNU-DAG: @_ZTV1V = available_externally dllimport
+// GNU-DAG: @_ZTS1V = linkonce_odr
+// GNU-DAG: @_ZTI1V = linkonce_odr
 
 struct W {
   __declspec(dllimport) virtual void f();

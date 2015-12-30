@@ -1,11 +1,12 @@
 // RUN: %clang_cc1 -verify -triple x86_64-apple-darwin10 -fopenmp -fexceptions -fcxx-exceptions -x c++ -emit-llvm %s -o - | FileCheck %s
-// RUN: %clang_cc1 -verify -triple x86_64-apple-darwin10 -fopenmp -fexceptions -fcxx-exceptions -gline-tables-only -x c++ -emit-llvm %s -o - | FileCheck %s --check-prefix=TERM_DEBUG
+// RUN: %clang_cc1 -verify -triple x86_64-apple-darwin10 -fopenmp -fexceptions -fcxx-exceptions -debug-info-kind=line-tables-only -x c++ -emit-llvm %s -o - | FileCheck %s --check-prefix=TERM_DEBUG
 // expected-no-diagnostics
 
 int a;
 int b;
 
 struct St {
+  unsigned long field;
   St() {}
   ~St() {}
   int &get() { return a; }
@@ -13,6 +14,7 @@ struct St {
 
 // CHECK-LABEL: parallel_atomic_ewc
 void parallel_atomic_ewc() {
+  St s;
 #pragma omp parallel
   {
       // CHECK: invoke void @_ZN2StC1Ev(%struct.St* [[TEMP_ST_ADDR:%.+]])
@@ -47,6 +49,8 @@ void parallel_atomic_ewc() {
       // CHECK: invoke void @_ZN2StD1Ev(%struct.St* [[TEMP_ST_ADDR]])
 #pragma omp atomic
       St().get() %= b;
+#pragma omp atomic
+      s.field++;
       // CHECK: invoke void @_ZN2StC1Ev(%struct.St* [[TEMP_ST_ADDR:%.+]])
       // CHECK: [[SCALAR_ADDR:%.+]] = invoke dereferenceable(4) i32* @_ZN2St3getEv(%struct.St* [[TEMP_ST_ADDR]])
       // CHECK: [[B_VAL:%.+]] = load i32, i32* @b
@@ -108,7 +112,7 @@ void parallel_atomic() {
   // TERM_DEBUG:     call void @__clang_call_terminate
   // TERM_DEBUG:     unreachable
 }
-// TERM_DEBUG-DAG: [[READ_LOC]] = !DILocation(line: [[@LINE-33]],
-// TERM_DEBUG-DAG: [[WRITE_LOC]] = !DILocation(line: [[@LINE-28]],
-// TERM_DEBUG-DAG: [[UPDATE_LOC]] = !DILocation(line: [[@LINE-22]],
-// TERM_DEBUG-DAG: [[CAPTURE_LOC]] = !DILocation(line: [[@LINE-16]],
+// TERM_DEBUG-DAG: [[READ_LOC]] = !DILocation(line: [[@LINE-28]],
+// TERM_DEBUG-DAG: [[WRITE_LOC]] = !DILocation(line: [[@LINE-22]],
+// TERM_DEBUG-DAG: [[UPDATE_LOC]] = !DILocation(line: [[@LINE-16]],
+// TERM_DEBUG-DAG: [[CAPTURE_LOC]] = !DILocation(line: [[@LINE-9]],
