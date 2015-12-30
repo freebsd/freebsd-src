@@ -128,10 +128,8 @@ std::string getClangToolFullVersion(StringRef ToolName) {
   OS << ToolName << " version " CLANG_VERSION_STRING " "
      << getClangFullRepositoryVersion();
 
-#ifdef CLANG_VENDOR_SUFFIX
-  OS << CLANG_VENDOR_SUFFIX;
-#elif defined(CLANG_VENDOR)
   // If vendor supplied, include the base LLVM version as well.
+#ifdef CLANG_VENDOR
   OS << " (based on " << BACKEND_PACKAGE_STRING << ")";
 #endif
 
