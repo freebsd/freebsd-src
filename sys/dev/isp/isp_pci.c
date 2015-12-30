@@ -1684,21 +1684,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
 	}
 	isp->isp_xffree = isp->isp_xflist;
-#ifdef	ISP_TARGET_MODE
-	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
-	isp->isp_tgtlist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (isp->isp_tgtlist == NULL) {
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		free(isp->isp_xflist, M_DEVBUF);
-		ISP_LOCK(isp);
-		isp_prt(isp, ISP_LOGERR, "cannot alloc tgtlist array");
-		return (1);
-	}
-	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
-		isp->isp_tgtlist[len].cmd = &isp->isp_tgtlist[len+1];
-	}
-	isp->isp_tgtfree = isp->isp_tgtlist;
-#endif
 
 	/*
 	 * Allocate and map the request and result queues (and ATIO queue
@@ -1725,9 +1710,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
-#ifdef	ISP_TARGET_MODE
-		free(isp->isp_tgtlist, M_DEVBUF);
-#endif
 		ISP_LOCK(isp);
 		return (1);
 	}
@@ -1737,9 +1719,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
-#ifdef	ISP_TARGET_MODE
-		free(isp->isp_tgtlist, M_DEVBUF);
-#endif
 		ISP_LOCK(isp);
 		return (1);
 	}
@@ -1828,9 +1807,6 @@ bad:
 	bus_dmamem_free(isp->isp_osinfo.cdmat, base, isp->isp_osinfo.cdmap);
 	bus_dma_tag_destroy(isp->isp_osinfo.cdmat);
 	free(isp->isp_xflist, M_DEVBUF);
-#ifdef	ISP_TARGET_MODE
-	free(isp->isp_tgtlist, M_DEVBUF);
-#endif
 	free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 	isp->isp_rquest = NULL;
 	ISP_LOCK(isp);
