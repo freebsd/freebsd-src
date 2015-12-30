@@ -1712,6 +1712,62 @@ mlx5e_close_channels(struct mlx5e_priv *priv)
 }
 
 static int
+mlx5e_refresh_sq_params(struct mlx5e_priv *priv, struct mlx5e_sq *sq)
+{
+	return (mlx5_core_modify_cq_moderation(priv->mdev, &sq->cq.mcq,
+	    priv->params.tx_cq_moderation_usec,
+	    priv->params.tx_cq_moderation_pkts));
+}
+
+static int
+mlx5e_refresh_rq_params(struct mlx5e_priv *priv, struct mlx5e_rq *rq)
+{
+	return (mlx5_core_modify_cq_moderation(priv->mdev, &rq->cq.mcq,
+	    priv->params.rx_cq_moderation_usec,
+	    priv->params.rx_cq_moderation_pkts));
+}
+
+static int
+mlx5e_refresh_channel_params_sub(struct mlx5e_priv *priv, struct mlx5e_channel *c)
+{
+	int err;
+	int i;
+
+	if (c == NULL)
+		return (EINVAL);
+
+	err = mlx5e_refresh_rq_params(priv, &c->rq);
+	if (err)
+		goto done;
+
+	for (i = 0; i != c->num_tc; i++) {
+		err = mlx5e_refresh_sq_params(priv, &c->sq[i]);
+		if (err)
+			goto done;
+	}
+done:
+	return (err);
+}
+
+int
+mlx5e_refresh_channel_params(struct mlx5e_priv *priv)
+{
+	int i;
+
+	if (priv->channel == NULL)
+		return (EINVAL);
+
+	for (i = 0; i < priv->params.num_channels; i++) {
+		int err;
+
+		err = mlx5e_refresh_channel_params_sub(priv, priv->channel[i]);
+		if (err)
+			return (err);
+	}
+	return (0);
+}
+
+static int
 mlx5e_open_tis(struct mlx5e_priv *priv, int tc)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
