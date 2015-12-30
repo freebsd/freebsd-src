@@ -74,9 +74,9 @@ l2:	add	r2, 1, r3 ; \
  * NB: this clobbers %y.
  */
 #define CATR(mask, desc, r1, r2, r3, l1, l2, l3) \
-	set	mask, r1 ; \
-	SET(ktr_mask, r3, r2) ; \
-	lduw	[r2], r2 ; \
+	setx	mask, r3, r1 ; \
+	setx	ktr_mask, r3, r2 ; \
+	ldx	[r2], r2 ; \
 	and	r2, r1, r1 ; \
 	brz	r1, l3 ## f ; \
 	 nop ; \
