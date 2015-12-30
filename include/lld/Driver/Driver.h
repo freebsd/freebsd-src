@@ -35,7 +35,7 @@ class ELFLinkingContext;
 typedef std::vector<std::unique_ptr<File>> FileVector;
 
 FileVector makeErrorFile(StringRef path, std::error_code ec);
-FileVector parseMemberFiles(FileVector &files);
+FileVector parseMemberFiles(std::unique_ptr<File> File);
 FileVector loadFile(LinkingContext &ctx, StringRef path, bool wholeArchive);
 
 /// Base class for all Drivers.
@@ -46,6 +46,9 @@ protected:
   static bool link(LinkingContext &context,
                    raw_ostream &diag = llvm::errs());
 
+  /// Parses the LLVM options from the context.
+  static void parseLLVMOptions(const LinkingContext &context);
+
 private:
   Driver() = delete;
 };
@@ -55,7 +58,7 @@ private:
 class UniversalDriver : public Driver {
 public:
   /// Determine flavor and pass control to Driver for that flavor.
-  static bool link(int argc, const char *argv[],
+  static bool link(llvm::MutableArrayRef<const char *> args,
                    raw_ostream &diag = llvm::errs());
 
 private:
@@ -67,12 +70,12 @@ class GnuLdDriver : public Driver {
 public:
   /// Parses command line arguments same as gnu/binutils ld and performs link.
   /// Returns true iff an error occurred.
-  static bool linkELF(int argc, const char *argv[],
+  static bool linkELF(llvm::ArrayRef<const char *> args,
                       raw_ostream &diag = llvm::errs());
 
   /// Uses gnu/binutils style ld command line options to fill in options struct.
   /// Returns true iff there was an error.
-  static bool parse(int argc, const char *argv[],
+  static bool parse(llvm::ArrayRef<const char *> args,
                     std::unique_ptr<ELFLinkingContext> &context,
                     raw_ostream &diag = llvm::errs());
 
@@ -103,12 +106,13 @@ class DarwinLdDriver : public Driver {
 public:
   /// Parses command line arguments same as darwin's ld and performs link.
   /// Returns true iff there was an error.
-  static bool linkMachO(int argc, const char *argv[],
+  static bool linkMachO(llvm::ArrayRef<const char *> args,
                         raw_ostream &diag = llvm::errs());
 
   /// Uses darwin style ld command line options to update LinkingContext object.
   /// Returns true iff there was an error.
-  static bool parse(int argc, const char *argv[], MachOLinkingContext &info,
+  static bool parse(llvm::ArrayRef<const char *> args,
+                    MachOLinkingContext &info,
                     raw_ostream &diag = llvm::errs());
 
 private:
@@ -116,41 +120,25 @@ private:
 };
 
 /// Driver for Windows 'link.exe' command line options
-class WinLinkDriver : public Driver {
-public:
-  /// Parses command line arguments same as Windows link.exe and performs link.
-  /// Returns true iff there was an error.
-  static bool linkPECOFF(int argc, const char *argv[],
-                         raw_ostream &diag = llvm::errs());
+namespace coff {
+void link(llvm::ArrayRef<const char *> args);
+}
 
-  /// Uses Windows style link command line options to fill in options struct.
-  /// Returns true iff there was an error.
-  static bool parse(int argc, const char *argv[], PECOFFLinkingContext &info,
-                    raw_ostream &diag = llvm::errs(),
-                    bool isDirective = false);
-
-  // Same as parse(), but restricted to the context of directives.
-  static bool parseDirectives(int argc, const char *argv[],
-                    PECOFFLinkingContext &info,
-                    raw_ostream &diag = llvm::errs()) {
-    return parse(argc, argv, info, diag, true);
-  }
-
-private:
-  WinLinkDriver() = delete;
-};
+namespace elf2 {
+void link(llvm::ArrayRef<const char *> args);
+}
 
 /// Driver for lld unit tests
 class CoreDriver : public Driver {
 public:
   /// Parses command line arguments same as lld-core and performs link.
   /// Returns true iff there was an error.
-  static bool link(int argc, const char *argv[],
+  static bool link(llvm::ArrayRef<const char *> args,
                    raw_ostream &diag = llvm::errs());
 
   /// Uses lld-core command line options to fill in options struct.
   /// Returns true iff there was an error.
-  static bool parse(int argc, const char *argv[], CoreLinkingContext &info,
+  static bool parse(llvm::ArrayRef<const char *> args, CoreLinkingContext &info,
                     raw_ostream &diag = llvm::errs());
 
 private:

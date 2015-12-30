@@ -26,24 +26,60 @@
 #include <memory>
 #include <set>
 
-namespace lld {
-class DefinedAtom;
-class Reference;
-class File;
-
-namespace elf {
-template <typename ELFT> class TargetHandler;
+namespace llvm {
+class FileOutputBuffer;
 }
 
-class TargetHandlerBase {
-public:
-  virtual ~TargetHandlerBase() {}
-  virtual void registerRelocationNames(Registry &) = 0;
+namespace lld {
+struct AtomLayout;
+class File;
+class Reference;
 
+namespace elf {
+using llvm::object::ELF32LE;
+using llvm::object::ELF32BE;
+using llvm::object::ELF64LE;
+using llvm::object::ELF64BE;
+
+class ELFWriter;
+
+std::unique_ptr<ELFLinkingContext> createAArch64LinkingContext(llvm::Triple);
+std::unique_ptr<ELFLinkingContext> createAMDGPULinkingContext(llvm::Triple);
+std::unique_ptr<ELFLinkingContext> createARMLinkingContext(llvm::Triple);
+std::unique_ptr<ELFLinkingContext> createExampleLinkingContext(llvm::Triple);
+std::unique_ptr<ELFLinkingContext> createHexagonLinkingContext(llvm::Triple);
+std::unique_ptr<ELFLinkingContext> createMipsLinkingContext(llvm::Triple);
+std::unique_ptr<ELFLinkingContext> createX86LinkingContext(llvm::Triple);
+std::unique_ptr<ELFLinkingContext> createX86_64LinkingContext(llvm::Triple);
+
+class TargetRelocationHandler {
+public:
+  virtual ~TargetRelocationHandler() {}
+
+  virtual std::error_code applyRelocation(ELFWriter &, llvm::FileOutputBuffer &,
+                                          const lld::AtomLayout &,
+                                          const Reference &) const = 0;
+};
+
+} // namespace elf
+
+/// \brief TargetHandler contains all the information responsible to handle a
+/// a particular target on ELF. A target might wish to override implementation
+/// of creating atoms and how the atoms are written to the output file.
+class TargetHandler {
+public:
+  virtual ~TargetHandler() {}
+
+  /// Determines how relocations need to be applied.
+  virtual const elf::TargetRelocationHandler &getRelocationHandler() const = 0;
+
+  /// Returns a reader for object files.
   virtual std::unique_ptr<Reader> getObjReader() = 0;
 
+  /// Returns a reader for .so files.
   virtual std::unique_ptr<Reader> getDSOReader() = 0;
 
+  /// Returns a writer to write an ELF file.
   virtual std::unique_ptr<Writer> getWriter() = 0;
 };
 
@@ -52,28 +88,32 @@ public:
   /// \brief The type of ELF executable that the linker
   /// creates.
   enum class OutputMagic : uint8_t {
-    DEFAULT, // The default mode, no specific magic set
-    NMAGIC,  // Disallow shared libraries and don't align sections
-             // PageAlign Data, Mark Text Segment/Data segment RW
-    OMAGIC   // Disallow shared libraries and don't align sections,
-             // Mark Text Segment/Data segment RW
+    // The default mode, no specific magic set
+    DEFAULT,
+    // Disallow shared libraries and don't align sections
+    // PageAlign Data, Mark Text Segment/Data segment RW
+    NMAGIC,
+    // Disallow shared libraries and don't align sections,
+    // Mark Text Segment/Data segment RW
+    OMAGIC,
+  };
+
+  /// \brief ELF DT_FLAGS.
+  enum DTFlag : uint32_t {
+    DT_NOW = 1 << 1,
+    DT_ORIGIN = 1 << 2,
   };
 
   llvm::Triple getTriple() const { return _triple; }
 
-  // Page size.
-  virtual uint64_t getPageSize() const {
-    if (_maxPageSize)
-      return *_maxPageSize;
-    return 0x1000;
-  }
-  virtual void setMaxPageSize(uint64_t pagesize) {
-    _maxPageSize = pagesize;
-  }
+  uint64_t getPageSize() const { return _maxPageSize; }
+  void setMaxPageSize(uint64_t v) { _maxPageSize = v; }
+
   OutputMagic getOutputMagic() const { return _outputMagic; }
   uint16_t getOutputELFType() const { return _outputELFType; }
   uint16_t getOutputMachine() const;
   bool mergeCommonStrings() const { return _mergeCommonStrings; }
+  virtual int getMachineType() const = 0;
   virtual uint64_t getBaseAddress() const { return _baseAddress; }
   virtual void setBaseAddress(uint64_t address) { _baseAddress = address; }
 
@@ -85,9 +125,9 @@ public:
   /// created for every undefined symbol that are present in the dynamic table
   /// in the shared library
   bool useShlibUndefines() const { return _useShlibUndefines; }
-  /// @}
 
-  /// \brief Does this relocation belong in the dynamic relocation table?
+  /// \brief Returns true if a given relocation should be added to the
+  /// dynamic relocation table.
   ///
   /// This table is evaluated at loadtime by the dynamic loader and is
   /// referenced by the DT_RELA{,ENT,SZ} entries in the dynamic table.
@@ -95,20 +135,20 @@ public:
   /// table.
   virtual bool isDynamicRelocation(const Reference &) const { return false; }
 
-  /// \brief Is this a copy relocation?
+  /// \brief Returns true if a given reference is a copy relocation.
   ///
   /// If this is a copy relocation, its target must be an ObjectAtom. We must
   /// include in DT_NEEDED the name of the library where this object came from.
-  virtual bool isCopyRelocation(const Reference &) const {
-    return false;
-  }
+  virtual bool isCopyRelocation(const Reference &) const { return false; }
 
   bool validateImpl(raw_ostream &diagnostics) override;
 
-  /// \brief Does the linker allow dynamic libraries to be linked with?
+  /// \brief Returns true if the linker allows dynamic libraries to be
+  /// linked with.
+  ///
   /// This is true when the output mode of the executable is set to be
   /// having NMAGIC/OMAGIC
-  virtual bool allowLinkWithDynamicLibraries() const {
+  bool allowLinkWithDynamicLibraries() const {
     if (_outputMagic == OutputMagic::NMAGIC ||
         _outputMagic == OutputMagic::OMAGIC || _noAllowDynamicLibraries)
       return false;
@@ -118,7 +158,7 @@ public:
   /// \brief Use Elf_Rela format to output relocation tables.
   virtual bool isRelaOutputFormat() const { return true; }
 
-  /// \brief Does this relocation belong in the dynamic plt relocation table?
+  /// \brief Returns true if a given relocation should be added to PLT.
   ///
   /// This table holds all of the relocations used for delayed symbol binding.
   /// It will be evaluated at load time if LD_BIND_NOW is set. It is referenced
@@ -133,30 +173,28 @@ public:
   }
 
   /// \brief The dynamic linker path set by the --dynamic-linker option
-  virtual StringRef getInterpreter() const {
-    if (_dynamicLinkerArg)
-      return _dynamicLinkerPath;
+  StringRef getInterpreter() const {
+    if (_dynamicLinkerPath.hasValue())
+      return _dynamicLinkerPath.getValue();
     return getDefaultInterpreter();
   }
 
-  /// \brief Does the output have dynamic sections.
-  virtual bool isDynamic() const;
+  /// \brief Returns true if the output have dynamic sections.
+  bool isDynamic() const;
 
-  /// \brief Are we creating a shared library?
-  virtual bool isDynamicLibrary() const {
-    return _outputELFType == llvm::ELF::ET_DYN;
-  }
+  /// \brief Returns true if we are creating a shared library.
+  bool isDynamicLibrary() const { return _outputELFType == llvm::ELF::ET_DYN; }
 
-  /// \brief Is the relocation a relative relocation
+  /// \brief Returns true if a given relocation is a relative relocation.
   virtual bool isRelativeReloc(const Reference &r) const;
 
-  template <typename ELFT>
-  lld::elf::TargetHandler<ELFT> &getTargetHandler() const {
+  TargetHandler &getTargetHandler() const {
     assert(_targetHandler && "Got null TargetHandler!");
-    return static_cast<lld::elf::TargetHandler<ELFT> &>(*_targetHandler.get());
+    return *_targetHandler;
   }
 
-  TargetHandlerBase *targetHandler() const { return _targetHandler.get(); }
+  virtual void registerRelocationNames(Registry &) = 0;
+
   void addPasses(PassManager &pm) override;
 
   void setTriple(llvm::Triple trip) { _triple = trip; }
@@ -174,19 +212,16 @@ public:
   void finalizeInputFiles() override;
 
   /// \brief Set the dynamic linker path
-  void setInterpreter(StringRef dynamicLinker) {
-    _dynamicLinkerArg = true;
-    _dynamicLinkerPath = dynamicLinker;
-  }
+  void setInterpreter(StringRef s) { _dynamicLinkerPath = s; }
 
   /// \brief Set NMAGIC output kind when the linker specifies --nmagic
   /// or -n in the command line
   /// Set OMAGIC output kind when the linker specifies --omagic
   /// or -N in the command line
-  virtual void setOutputMagic(OutputMagic magic) { _outputMagic = magic; }
+  void setOutputMagic(OutputMagic magic) { _outputMagic = magic; }
 
   /// \brief Disallow dynamic libraries during linking
-  virtual void setNoAllowDynamicLibraries() { _noAllowDynamicLibraries = true; }
+  void setNoAllowDynamicLibraries() { _noAllowDynamicLibraries = true; }
 
   /// Searches directories for a match on the input File
   ErrorOr<StringRef> searchLibrary(StringRef libName) const;
@@ -220,34 +255,17 @@ public:
     _absoluteSymbols[name] = addr;
   }
 
-  void setSharedObjectName(StringRef soname) {
-    _soname = soname;
-  }
-
   StringRef sharedObjectName() const { return _soname; }
+  void setSharedObjectName(StringRef soname) { _soname = soname; }
 
   StringRef getSysroot() const { return _sysrootPath; }
+  void setSysroot(StringRef path) { _sysrootPath = path; }
 
-  /// \brief Set path to the system root
-  void setSysroot(StringRef path) {
-    _sysrootPath = path;
-  }
+  void addRpath(StringRef path) { _rpathList.push_back(path); }
+  range<const StringRef *> getRpathList() const { return _rpathList; }
 
-  void addRpath(StringRef path) {
-   _rpathList.push_back(path);
-  }
-
-  range<const StringRef *> getRpathList() const {
-    return _rpathList;
-  }
-
-  void addRpathLink(StringRef path) {
-   _rpathLinkList.push_back(path);
-  }
-
-  range<const StringRef *> getRpathLinkList() const {
-    return _rpathLinkList;
-  }
+  void addRpathLink(StringRef path) { _rpathLinkList.push_back(path); }
+  range<const StringRef *> getRpathLinkList() const { return _rpathLinkList; }
 
   const std::map<std::string, uint64_t> &getAbsoluteSymbols() const {
     return _absoluteSymbols;
@@ -262,13 +280,10 @@ public:
   }
 
   // add search path to list.
-  virtual bool addSearchPath(StringRef ref) {
-    _inputSearchPaths.push_back(ref);
-    return true;
-  }
+  void addSearchPath(StringRef ref) { _inputSearchPaths.push_back(ref); }
 
   // Retrieve search path list.
-  StringRefVector getSearchPaths() { return _inputSearchPaths; };
+  StringRefVector getSearchPaths() { return _inputSearchPaths; }
 
   // By default, the linker would merge sections that are read only with
   // segments that have read and execute permissions. When the user specifies a
@@ -290,6 +305,26 @@ public:
   bool alignSegments() const { return _alignSegments; }
   void setAlignSegments(bool align) { _alignSegments = align; }
 
+  /// \brief Enable new dtags.
+  /// If this flag is set lld emits DT_RUNPATH instead of
+  /// DT_RPATH. They are functionally equivalent except for
+  /// the following two differences:
+  /// - DT_RUNPATH is searched after LD_LIBRARY_PATH, while
+  /// DT_RPATH is searched before.
+  /// - DT_RUNPATH is used only to search for direct dependencies
+  /// of the object it's contained in, while DT_RPATH is used
+  /// for indirect dependencies as well.
+  bool getEnableNewDtags() const { return _enableNewDtags; }
+  void setEnableNewDtags(bool e) { _enableNewDtags = e; }
+
+  /// \brief Discard local symbols.
+  bool discardLocals() const { return _discardLocals; }
+  void setDiscardLocals(bool d) { _discardLocals = d; }
+
+  /// \brief Discard temprorary local symbols.
+  bool discardTempLocals() const { return _discardTempLocals; }
+  void setDiscardTempLocals(bool d) { _discardTempLocals = d; }
+
   /// \brief Strip symbols.
   bool stripSymbols() const { return _stripSymbols; }
   void setStripSymbols(bool strip) { _stripSymbols = strip; }
@@ -301,6 +336,10 @@ public:
   // --wrap option.
   void addWrapForSymbol(StringRef sym) { _wrapCalls.insert(sym); }
 
+  // \brief Set DT_FLAGS flag.
+  void setDTFlag(DTFlag f) { _dtFlags |= f; }
+  bool getDTFlag(DTFlag f) { return (_dtFlags & f); }
+
   const llvm::StringSet<> &wrapCalls() const { return _wrapCalls; }
 
   void setUndefinesResolver(std::unique_ptr<File> resolver);
@@ -308,43 +347,61 @@ public:
   script::Sema &linkerScriptSema() { return _linkerScriptSema; }
   const script::Sema &linkerScriptSema() const { return _linkerScriptSema; }
 
-private:
-  ELFLinkingContext() = delete;
+  /// Notify the ELFLinkingContext when the new ELF section is read.
+  void notifyInputSectionName(StringRef name);
+  /// Encountered C-ident input section names.
+  const llvm::StringSet<> &cidentSectionNames() const {
+    return _cidentSections;
+  }
+
+  // Set R_ARM_TARGET1 relocation behaviour
+  bool armTarget1Rel() const { return _armTarget1Rel; }
+  void setArmTarget1Rel(bool value) { _armTarget1Rel = value; }
+
+  // Set R_MIPS_EH relocation behaviour.
+  bool mipsPcRelEhRel() const { return _mipsPcRelEhRel; }
+  void setMipsPcRelEhRel(bool value) { _mipsPcRelEhRel = value; }
 
 protected:
-  ELFLinkingContext(llvm::Triple, std::unique_ptr<TargetHandlerBase>);
+  ELFLinkingContext(llvm::Triple triple, std::unique_ptr<TargetHandler> handler)
+      : _triple(triple), _targetHandler(std::move(handler)) {}
 
   Writer &writer() const override;
 
   /// Method to create a internal file for an undefined symbol
   std::unique_ptr<File> createUndefinedSymbolFile() const override;
 
-  uint16_t _outputELFType; // e.g ET_EXEC
+  uint16_t _outputELFType = llvm::ELF::ET_EXEC;
   llvm::Triple _triple;
-  std::unique_ptr<TargetHandlerBase> _targetHandler;
-  uint64_t _baseAddress;
-  bool _isStaticExecutable;
-  bool _noInhibitExec;
-  bool _exportDynamic;
-  bool _mergeCommonStrings;
-  bool _useShlibUndefines;
-  bool _dynamicLinkerArg;
-  bool _noAllowDynamicLibraries;
-  bool _mergeRODataToTextSegment;
-  bool _demangle;
-  bool _stripSymbols;
-  bool _alignSegments;
-  bool _nostdlib;
-  bool _collectStats;
-  llvm::Optional<uint64_t> _maxPageSize;
+  std::unique_ptr<TargetHandler> _targetHandler;
+  uint64_t _baseAddress = 0;
+  bool _isStaticExecutable = false;
+  bool _noInhibitExec = false;
+  bool _exportDynamic = false;
+  bool _mergeCommonStrings = false;
+  bool _useShlibUndefines = true;
+  bool _dynamicLinkerArg = false;
+  bool _noAllowDynamicLibraries = false;
+  bool _mergeRODataToTextSegment = true;
+  bool _demangle = true;
+  bool _discardTempLocals = false;
+  bool _discardLocals = false;
+  bool _stripSymbols = false;
+  bool _alignSegments = true;
+  bool _enableNewDtags = false;
+  bool _collectStats = false;
+  bool _armTarget1Rel = false;
+  bool _mipsPcRelEhRel = false;
+  uint64_t _maxPageSize = 0x1000;
+  uint32_t _dtFlags = 0;
 
-  OutputMagic _outputMagic;
+  OutputMagic _outputMagic = OutputMagic::DEFAULT;
   StringRefVector _inputSearchPaths;
   std::unique_ptr<Writer> _writer;
-  StringRef _dynamicLinkerPath;
-  StringRef _initFunction;
-  StringRef _finiFunction;
-  StringRef _sysrootPath;
+  llvm::Optional<StringRef> _dynamicLinkerPath;
+  StringRef _initFunction = "_init";
+  StringRef _finiFunction = "_fini";
+  StringRef _sysrootPath = "";
   StringRef _soname;
   StringRefVector _rpathList;
   StringRefVector _rpathLinkList;
@@ -352,11 +409,14 @@ protected:
   std::map<std::string, uint64_t> _absoluteSymbols;
   llvm::StringSet<> _dynamicallyExportedSymbols;
   std::unique_ptr<File> _resolver;
+  std::mutex _cidentMutex;
+  llvm::StringSet<> _cidentSections;
 
   // The linker script semantic object, which owns all script ASTs, is stored
   // in the current linking context via _linkerScriptSema.
   script::Sema _linkerScriptSema;
 };
+
 } // end namespace lld
 
 #endif

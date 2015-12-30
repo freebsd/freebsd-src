@@ -28,8 +28,8 @@ using llvm::support::little32_t;
 
 class ArchHandler_arm : public ArchHandler {
 public:
-           ArchHandler_arm();
-  virtual ~ArchHandler_arm();
+  ArchHandler_arm() = default;
+  ~ArchHandler_arm() override = default;
 
   const Registry::KindStrings *kindStrings() override { return _sKindStrings; }
 
@@ -201,10 +201,6 @@ private:
 //===----------------------------------------------------------------------===//
 //  ArchHandler_arm
 //===----------------------------------------------------------------------===//
-
-ArchHandler_arm::ArchHandler_arm() { }
-
-ArchHandler_arm::~ArchHandler_arm() { }
 
 const Registry::KindStrings ArchHandler_arm::_sKindStrings[] = {
   LLD_KIND_STRING_ENTRY(invalid),
@@ -463,7 +459,6 @@ bool ArchHandler_arm::isArmMovt(uint32_t instruction) {
   return (instruction & 0x0FF00000) == 0x03400000;
 }
 
-
 uint16_t ArchHandler_arm::getWordFromThumbMov(uint32_t instruction) {
   assert(isThumbMovw(instruction) || isThumbMovt(instruction));
   uint32_t i = ((instruction & 0x00000400) >> 10);
@@ -480,7 +475,6 @@ uint16_t ArchHandler_arm::getWordFromArmMov(uint32_t instruction) {
   return (imm4 << 12) | imm12;
 }
 
-
 uint32_t ArchHandler_arm::setWordFromThumbMov(uint32_t instr, uint16_t word) {
   assert(isThumbMovw(instr) || isThumbMovt(instr));
   uint32_t imm4 = (word & 0xF000) >> 12;
@@ -496,7 +490,6 @@ uint32_t ArchHandler_arm::setWordFromArmMov(uint32_t instr, uint16_t word) {
   uint32_t imm12 = word & 0x0FFF;
   return (instr & 0xFFF0F000) | (imm4 << 16) | imm12;
 }
-
 
 uint32_t ArchHandler_arm::clearThumbBit(uint32_t value, const Atom *target) {
   // The assembler often adds one to the address of a thumb function.
@@ -619,7 +612,7 @@ std::error_code ArchHandler_arm::getReferenceInfo(
     *addend += (clearThumbBit(instruction, *target) - reloc.value);
     return std::error_code();
   default:
-    return make_dynamic_error_code(Twine("unsupported arm relocation type"));
+    return make_dynamic_error_code("unsupported arm relocation type");
   }
   return std::error_code();
 }
@@ -777,7 +770,7 @@ ArchHandler_arm::getPairReferenceInfo(const normalized::Relocation &reloc1,
     pointerDiff = true;
     break;
   default:
-    return make_dynamic_error_code(Twine("unsupported arm relocation pair"));
+    return make_dynamic_error_code("unsupported arm relocation pair");
   }
   const uint8_t *fixupContent = &inAtom->rawContent()[offsetInAtom];
   std::error_code ec;
@@ -800,8 +793,8 @@ ArchHandler_arm::getPairReferenceInfo(const normalized::Relocation &reloc1,
     if (ec)
       return ec;
     if (scatterable && (fromTarget != inAtom))
-      return make_dynamic_error_code(Twine("SECTDIFF relocation where "
-                                           "subtrahend label is not in atom"));
+      return make_dynamic_error_code(
+          "SECTDIFF relocation where subtrahend label is not in atom");
     *kind = delta32;
     value = clearThumbBit(instruction, *target);
     *addend = (int32_t)(value - (toAddress - fixupAddress));
@@ -815,29 +808,28 @@ ArchHandler_arm::getPairReferenceInfo(const normalized::Relocation &reloc1,
     if (ec)
       return ec;
     if (fromTarget != inAtom)
-      return make_dynamic_error_code(
-          Twine("ARM_RELOC_HALF_SECTDIFF relocation "
-                "where subtrahend label is not in atom"));
+      return make_dynamic_error_code("ARM_RELOC_HALF_SECTDIFF relocation "
+                                     "where subtrahend label is not in atom");
     other16 = (reloc2.offset & 0xFFFF);
     if (thumbReloc) {
       if (top) {
         if (!isThumbMovt(instruction))
-          return make_dynamic_error_code(Twine("expected movt instruction"));
+          return make_dynamic_error_code("expected movt instruction");
       }
       else {
         if (!isThumbMovw(instruction))
-          return make_dynamic_error_code(Twine("expected movw instruction"));
+          return make_dynamic_error_code("expected movw instruction");
       }
       instruction16 = getWordFromThumbMov(instruction);
     }
     else {
       if (top) {
         if (!isArmMovt(instruction))
-          return make_dynamic_error_code(Twine("expected movt instruction"));
+          return make_dynamic_error_code("expected movt instruction");
       }
       else {
         if (!isArmMovw(instruction))
-          return make_dynamic_error_code(Twine("expected movw instruction"));
+          return make_dynamic_error_code("expected movw instruction");
       }
       instruction16 = getWordFromArmMov(instruction);
     }
@@ -854,22 +846,22 @@ ArchHandler_arm::getPairReferenceInfo(const normalized::Relocation &reloc1,
     if (thumbReloc) {
       if (top) {
         if (!isThumbMovt(instruction))
-          return make_dynamic_error_code(Twine("expected movt instruction"));
+          return make_dynamic_error_code("expected movt instruction");
       }
       else {
         if (!isThumbMovw(instruction))
-          return make_dynamic_error_code(Twine("expected movw instruction"));
+          return make_dynamic_error_code("expected movw instruction");
       }
       instruction16 = getWordFromThumbMov(instruction);
     }
     else {
       if (top) {
         if (!isArmMovt(instruction))
-          return make_dynamic_error_code(Twine("expected movt instruction"));
+          return make_dynamic_error_code("expected movt instruction");
       }
       else {
         if (!isArmMovw(instruction))
-          return make_dynamic_error_code(Twine("expected movw instruction"));
+          return make_dynamic_error_code("expected movw instruction");
       }
       instruction16 = getWordFromArmMov(instruction);
     }
@@ -1040,7 +1032,6 @@ void ArchHandler_arm::generateAtomContent(const DefinedAtom &atom,
     }
   }
 }
-
 
 bool ArchHandler_arm::useExternalRelocationTo(const Atom &target) {
   // Undefined symbols are referenced via external relocations.
@@ -1410,7 +1401,6 @@ bool ArchHandler_arm::isThumbFunction(const DefinedAtom &atom) {
   return false;
 }
 
-
 class Thumb2ToArmShimAtom : public SimpleDefinedAtom {
 public:
   Thumb2ToArmShimAtom(MachOFile &file, StringRef targetName,
@@ -1433,9 +1423,7 @@ public:
     return DefinedAtom::typeCode;
   }
 
-  Alignment alignment() const override {
-    return Alignment(2);
-  }
+  Alignment alignment() const override { return 4; }
 
   uint64_t size() const override {
     return 12;
@@ -1458,7 +1446,6 @@ private:
   StringRef _name;
 };
 
-
 class ArmToThumbShimAtom : public SimpleDefinedAtom {
 public:
   ArmToThumbShimAtom(MachOFile &file, StringRef targetName,
@@ -1479,9 +1466,7 @@ public:
     return DefinedAtom::typeCode;
   }
 
-  Alignment alignment() const override {
-    return Alignment(2);
-  }
+  Alignment alignment() const override { return 4; }
 
   uint64_t size() const override {
     return 16;
@@ -1514,7 +1499,6 @@ const DefinedAtom *ArchHandler_arm::createShim(MachOFile &file,
   else
     return new (file.allocator()) ArmToThumbShimAtom(file, targetName, target);
 }
-
 
 std::unique_ptr<mach_o::ArchHandler> ArchHandler::create_arm() {
   return std::unique_ptr<mach_o::ArchHandler>(new ArchHandler_arm());

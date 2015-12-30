@@ -10,74 +10,61 @@
 #define HEXAGON_EXECUTABLE_WRITER_H
 
 #include "ExecutableWriter.h"
-#include "HexagonELFWriters.h"
-#include "HexagonExecutableAtoms.h"
 #include "HexagonLinkingContext.h"
+#include "HexagonTargetHandler.h"
 
 namespace lld {
 namespace elf {
 
-template <typename ELFT> class HexagonTargetLayout;
+class HexagonTargetLayout;
 
-template <class ELFT>
-class HexagonExecutableWriter : public ExecutableWriter<ELFT>,
-                                public HexagonELFWriter<ELFT> {
+class HexagonExecutableWriter : public ExecutableWriter<ELF32LE> {
 public:
-  HexagonExecutableWriter(HexagonLinkingContext &context,
-                          HexagonTargetLayout<ELFT> &layout);
+  HexagonExecutableWriter(HexagonLinkingContext &ctx,
+                          HexagonTargetLayout &layout);
 
 protected:
   // Add any runtime files and their atoms to the output
-  virtual bool createImplicitFiles(std::vector<std::unique_ptr<File>> &);
+  void createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
 
-  virtual void finalizeDefaultAtomValues();
+  void finalizeDefaultAtomValues() override;
 
-  virtual std::error_code setELFHeader() {
-    ExecutableWriter<ELFT>::setELFHeader();
-    HexagonELFWriter<ELFT>::setELFHeader(*this->_elfHeader);
+  std::error_code setELFHeader() override {
+    ExecutableWriter::setELFHeader();
+    setHexagonELFHeader(*_elfHeader);
     return std::error_code();
   }
 
 private:
-  void addDefaultAtoms() {
-    _hexagonRuntimeFile->addAbsoluteAtom("_SDA_BASE_");
-    if (this->_context.isDynamic()) {
-      _hexagonRuntimeFile->addAbsoluteAtom("_GLOBAL_OFFSET_TABLE_");
-      _hexagonRuntimeFile->addAbsoluteAtom("_DYNAMIC");
-    }
-  }
-
-  HexagonLinkingContext &_hexagonLinkingContext;
-  HexagonTargetLayout<ELFT> &_hexagonTargetLayout;
-  std::unique_ptr<HexagonRuntimeFile<ELFT>> _hexagonRuntimeFile;
+  HexagonLinkingContext &_ctx;
+  HexagonTargetLayout &_targetLayout;
 };
 
-template <class ELFT>
-HexagonExecutableWriter<ELFT>::HexagonExecutableWriter(
-    HexagonLinkingContext &context, HexagonTargetLayout<ELFT> &layout)
-    : ExecutableWriter<ELFT>(context, layout),
-      HexagonELFWriter<ELFT>(context, layout), _hexagonLinkingContext(context),
-      _hexagonTargetLayout(layout),
-      _hexagonRuntimeFile(new HexagonRuntimeFile<ELFT>(context)) {}
+HexagonExecutableWriter::HexagonExecutableWriter(HexagonLinkingContext &ctx,
+                                                 HexagonTargetLayout &layout)
+    : ExecutableWriter(ctx, layout), _ctx(ctx), _targetLayout(layout) {}
 
-template <class ELFT>
-bool HexagonExecutableWriter<ELFT>::createImplicitFiles(
+void HexagonExecutableWriter::createImplicitFiles(
     std::vector<std::unique_ptr<File>> &result) {
-  ExecutableWriter<ELFT>::createImplicitFiles(result);
+  ExecutableWriter::createImplicitFiles(result);
   // Add the default atoms as defined for hexagon
-  addDefaultAtoms();
-  result.push_back(std::move(_hexagonRuntimeFile));
-  return true;
+  auto file =
+      llvm::make_unique<RuntimeFile<ELF32LE>>(_ctx, "Hexagon runtime file");
+  file->addAbsoluteAtom("_SDA_BASE_");
+  if (_ctx.isDynamic()) {
+    file->addAbsoluteAtom("_GLOBAL_OFFSET_TABLE_");
+    file->addAbsoluteAtom("_DYNAMIC");
+  }
+  result.push_back(std::move(file));
 }
 
-template <class ELFT>
-void HexagonExecutableWriter<ELFT>::finalizeDefaultAtomValues() {
+void HexagonExecutableWriter::finalizeDefaultAtomValues() {
   // Finalize the atom values that are part of the parent.
-  ExecutableWriter<ELFT>::finalizeDefaultAtomValues();
-  auto sdabaseAtomIter = _hexagonTargetLayout.findAbsoluteAtom("_SDA_BASE_");
-  (*sdabaseAtomIter)->_virtualAddr =
-      _hexagonTargetLayout.getSDataSection()->virtualAddr();
-  HexagonELFWriter<ELFT>::finalizeHexagonRuntimeAtomValues();
+  ExecutableWriter::finalizeDefaultAtomValues();
+  AtomLayout *sdabaseAtom = _targetLayout.findAbsoluteAtom("_SDA_BASE_");
+  sdabaseAtom->_virtualAddr = _targetLayout.getSDataSection()->virtualAddr();
+  if (_ctx.isDynamic())
+    finalizeHexagonRuntimeAtomValues(_targetLayout);
 }
 
 } // namespace elf

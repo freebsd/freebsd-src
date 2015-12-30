@@ -20,6 +20,7 @@
 #include "lld/ReaderWriter/MachOLinkingContext.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/Option.h"
@@ -68,7 +69,7 @@ static const llvm::opt::OptTable::Info infoTable[] = {
 // Create OptTable class for parsing actual command line arguments
 class DarwinLdOptTable : public llvm::opt::OptTable {
 public:
-  DarwinLdOptTable() : OptTable(infoTable, llvm::array_lengthof(infoTable)){}
+  DarwinLdOptTable() : OptTable(infoTable) {}
 };
 
 std::vector<std::unique_ptr<File>>
@@ -80,20 +81,23 @@ loadFile(MachOLinkingContext &ctx, StringRef path,
   ErrorOr<std::unique_ptr<MemoryBuffer>> mbOrErr = ctx.getMemoryBuffer(path);
   if (std::error_code ec = mbOrErr.getError())
     return makeErrorFile(path, ec);
-  std::vector<std::unique_ptr<File>> files;
-  if (std::error_code ec = ctx.registry().loadFile(std::move(mbOrErr.get()), files))
+  ErrorOr<std::unique_ptr<File>> fileOrErr =
+      ctx.registry().loadFile(std::move(mbOrErr.get()));
+  if (std::error_code ec = fileOrErr.getError())
     return makeErrorFile(path, ec);
-  for (std::unique_ptr<File> &pf : files) {
-    // If file is a dylib, inform LinkingContext about it.
-    if (SharedLibraryFile *shl = dyn_cast<SharedLibraryFile>(pf.get())) {
-      if (std::error_code ec = shl->parse())
-        return makeErrorFile(path, ec);
-      ctx.registerDylib(reinterpret_cast<mach_o::MachODylibFile*>(shl),
-                        upwardDylib);
-    }
+  std::unique_ptr<File> &file = fileOrErr.get();
+
+  // If file is a dylib, inform LinkingContext about it.
+  if (SharedLibraryFile *shl = dyn_cast<SharedLibraryFile>(file.get())) {
+    if (std::error_code ec = shl->parse())
+      return makeErrorFile(path, ec);
+    ctx.registerDylib(reinterpret_cast<mach_o::MachODylibFile *>(shl),
+                      upwardDylib);
   }
   if (wholeArchive)
-    return parseMemberFiles(files);
+    return parseMemberFiles(std::move(file));
+  std::vector<std::unique_ptr<File>> files;
+  files.push_back(std::move(file));
   return files;
 }
 
@@ -263,42 +267,40 @@ static bool parseNumberBase16(StringRef numStr, uint64_t &baseAddress) {
 
 namespace lld {
 
-bool DarwinLdDriver::linkMachO(int argc, const char *argv[],
+bool DarwinLdDriver::linkMachO(llvm::ArrayRef<const char *> args,
                                raw_ostream &diagnostics) {
   MachOLinkingContext ctx;
-  if (!parse(argc, argv, ctx, diagnostics))
+  if (!parse(args, ctx, diagnostics))
     return false;
   if (ctx.doNothing())
     return true;
   return link(ctx, diagnostics);
 }
 
-bool DarwinLdDriver::parse(int argc, const char *argv[],
+bool DarwinLdDriver::parse(llvm::ArrayRef<const char *> args,
                            MachOLinkingContext &ctx, raw_ostream &diagnostics) {
   // Parse command line options using DarwinLdOptions.td
-  std::unique_ptr<llvm::opt::InputArgList> parsedArgs;
   DarwinLdOptTable table;
   unsigned missingIndex;
   unsigned missingCount;
-  bool globalWholeArchive = false;
-  parsedArgs.reset(
-      table.ParseArgs(&argv[1], &argv[argc], missingIndex, missingCount));
+  llvm::opt::InputArgList parsedArgs =
+      table.ParseArgs(args.slice(1), missingIndex, missingCount);
   if (missingCount) {
     diagnostics << "error: missing arg value for '"
-                << parsedArgs->getArgString(missingIndex) << "' expected "
+                << parsedArgs.getArgString(missingIndex) << "' expected "
                 << missingCount << " argument(s).\n";
     return false;
   }
 
-  for (auto unknownArg : parsedArgs->filtered(OPT_UNKNOWN)) {
-    diagnostics  << "warning: ignoring unknown argument: "
-                 << unknownArg->getAsString(*parsedArgs) << "\n";
+  for (auto unknownArg : parsedArgs.filtered(OPT_UNKNOWN)) {
+    diagnostics << "warning: ignoring unknown argument: "
+                << unknownArg->getAsString(parsedArgs) << "\n";
   }
 
   // Figure out output kind ( -dylib, -r, -bundle, -preload, or -static )
   llvm::MachO::HeaderFileType fileType = llvm::MachO::MH_EXECUTE;
-  if ( llvm::opt::Arg *kind = parsedArgs->getLastArg(OPT_dylib, OPT_relocatable,
-                                      OPT_bundle, OPT_static, OPT_preload)) {
+  if (llvm::opt::Arg *kind = parsedArgs.getLastArg(
+          OPT_dylib, OPT_relocatable, OPT_bundle, OPT_static, OPT_preload)) {
     switch (kind->getOption().getID()) {
     case OPT_dylib:
       fileType = llvm::MachO::MH_DYLIB;
@@ -320,7 +322,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
 
   // Handle -arch xxx
   MachOLinkingContext::Arch arch = MachOLinkingContext::arch_unknown;
-  if (llvm::opt::Arg *archStr = parsedArgs->getLastArg(OPT_arch)) {
+  if (llvm::opt::Arg *archStr = parsedArgs.getLastArg(OPT_arch)) {
     arch = MachOLinkingContext::archFromName(archStr->getValue());
     if (arch == MachOLinkingContext::arch_unknown) {
       diagnostics << "error: unknown arch named '" << archStr->getValue()
@@ -330,17 +332,17 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
   // If no -arch specified, scan input files to find first non-fat .o file.
   if (arch == MachOLinkingContext::arch_unknown) {
-    for (auto &inFile: parsedArgs->filtered(OPT_INPUT)) {
+    for (auto &inFile : parsedArgs.filtered(OPT_INPUT)) {
       // This is expensive because it opens and maps the file.  But that is
       // ok because no -arch is rare.
       if (MachOLinkingContext::isThinObjectFile(inFile->getValue(), arch))
         break;
     }
-    if (arch == MachOLinkingContext::arch_unknown
-        && !parsedArgs->getLastArg(OPT_test_file_usage)) {
+    if (arch == MachOLinkingContext::arch_unknown &&
+        !parsedArgs.getLastArg(OPT_test_file_usage)) {
       // If no -arch and no options at all, print usage message.
-      if (parsedArgs->size() == 0)
-        table.PrintHelp(llvm::outs(), argv[0], "LLVM Linker", false);
+      if (parsedArgs.size() == 0)
+        table.PrintHelp(llvm::outs(), args[0], "LLVM Linker", false);
       else
         diagnostics << "error: -arch not specified and could not be inferred\n";
       return false;
@@ -351,8 +353,8 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   MachOLinkingContext::OS os = MachOLinkingContext::OS::macOSX;
   uint32_t minOSVersion = 0;
   if (llvm::opt::Arg *minOS =
-          parsedArgs->getLastArg(OPT_macosx_version_min, OPT_ios_version_min,
-                                 OPT_ios_simulator_version_min)) {
+          parsedArgs.getLastArg(OPT_macosx_version_min, OPT_ios_version_min,
+                                OPT_ios_simulator_version_min)) {
     switch (minOS->getOption().getID()) {
     case OPT_macosx_version_min:
       os = MachOLinkingContext::OS::macOSX;
@@ -388,17 +390,17 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   ctx.configure(fileType, arch, os, minOSVersion);
 
   // Handle -e xxx
-  if (llvm::opt::Arg *entry = parsedArgs->getLastArg(OPT_entry))
+  if (llvm::opt::Arg *entry = parsedArgs.getLastArg(OPT_entry))
     ctx.setEntrySymbolName(entry->getValue());
 
   // Handle -o xxx
-  if (llvm::opt::Arg *outpath = parsedArgs->getLastArg(OPT_output))
+  if (llvm::opt::Arg *outpath = parsedArgs.getLastArg(OPT_output))
     ctx.setOutputPath(outpath->getValue());
   else
     ctx.setOutputPath("a.out");
 
   // Handle -image_base XXX and -seg1addr XXXX
-  if (llvm::opt::Arg *imageBase = parsedArgs->getLastArg(OPT_image_base)) {
+  if (llvm::opt::Arg *imageBase = parsedArgs.getLastArg(OPT_image_base)) {
     uint64_t baseAddress;
     if (parseNumberBase16(imageBase->getValue(), baseAddress)) {
       diagnostics << "error: image_base expects a hex number\n";
@@ -408,7 +410,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
       return false;
     } else if (baseAddress % ctx.pageSize()) {
       diagnostics << "error: image_base must be a multiple of page size ("
-                  << llvm::format("0x%" PRIx64, ctx.pageSize()) << ")\n";
+                  << "0x" << llvm::utohexstr(ctx.pageSize()) << ")\n";
       return false;
     }
 
@@ -416,26 +418,26 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle -dead_strip
-  if (parsedArgs->getLastArg(OPT_dead_strip))
+  if (parsedArgs.getLastArg(OPT_dead_strip))
     ctx.setDeadStripping(true);
 
+  bool globalWholeArchive = false;
   // Handle -all_load
-  if (parsedArgs->getLastArg(OPT_all_load))
+  if (parsedArgs.getLastArg(OPT_all_load))
     globalWholeArchive = true;
 
   // Handle -install_name
-  if (llvm::opt::Arg *installName = parsedArgs->getLastArg(OPT_install_name))
+  if (llvm::opt::Arg *installName = parsedArgs.getLastArg(OPT_install_name))
     ctx.setInstallName(installName->getValue());
   else
     ctx.setInstallName(ctx.outputPath());
 
   // Handle -mark_dead_strippable_dylib
-  if (parsedArgs->getLastArg(OPT_mark_dead_strippable_dylib))
+  if (parsedArgs.getLastArg(OPT_mark_dead_strippable_dylib))
     ctx.setDeadStrippableDylib(true);
 
   // Handle -compatibility_version and -current_version
-  if (llvm::opt::Arg *vers =
-          parsedArgs->getLastArg(OPT_compatibility_version)) {
+  if (llvm::opt::Arg *vers = parsedArgs.getLastArg(OPT_compatibility_version)) {
     if (ctx.outputMachOType() != llvm::MachO::MH_DYLIB) {
       diagnostics
           << "error: -compatibility_version can only be used with -dylib\n";
@@ -449,7 +451,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
     ctx.setCompatibilityVersion(parsedVers);
   }
 
-  if (llvm::opt::Arg *vers = parsedArgs->getLastArg(OPT_current_version)) {
+  if (llvm::opt::Arg *vers = parsedArgs.getLastArg(OPT_current_version)) {
     if (ctx.outputMachOType() != llvm::MachO::MH_DYLIB) {
       diagnostics << "-current_version can only be used with -dylib\n";
       return false;
@@ -463,11 +465,11 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle -bundle_loader
-  if (llvm::opt::Arg *loader = parsedArgs->getLastArg(OPT_bundle_loader))
+  if (llvm::opt::Arg *loader = parsedArgs.getLastArg(OPT_bundle_loader))
     ctx.setBundleLoader(loader->getValue());
 
   // Handle -sectalign segname sectname align
-  for (auto &alignArg : parsedArgs->filtered(OPT_sectalign)) {
+  for (auto &alignArg : parsedArgs.filtered(OPT_sectalign)) {
     const char* segName   = alignArg->getValue(0);
     const char* sectName  = alignArg->getValue(1);
     const char* alignStr  = alignArg->getValue(2);
@@ -479,43 +481,43 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
                   << alignStr << "' not a valid number\n";
       return false;
     }
-    uint8_t align2 = llvm::countTrailingZeros(alignValue);
-    if ( (unsigned long)(1 << align2) != alignValue ) {
+    uint16_t align = 1 << llvm::countTrailingZeros(alignValue);
+    if (!llvm::isPowerOf2_64(alignValue)) {
       diagnostics << "warning: alignment for '-sectalign "
                   << segName << " " << sectName
                   << llvm::format(" 0x%llX", alignValue)
                   << "' is not a power of two, using "
-                  << llvm::format("0x%08X", (1 << align2)) << "\n";
+                  << llvm::format("0x%08X", align) << "\n";
     }
-    ctx.addSectionAlignment(segName, sectName, align2);
+    ctx.addSectionAlignment(segName, sectName, align);
   }
 
   // Handle -mllvm
-  for (auto &llvmArg : parsedArgs->filtered(OPT_mllvm)) {
+  for (auto &llvmArg : parsedArgs.filtered(OPT_mllvm)) {
     ctx.appendLLVMOption(llvmArg->getValue());
   }
 
   // Handle -print_atoms
-  if (parsedArgs->getLastArg(OPT_print_atoms))
+  if (parsedArgs.getLastArg(OPT_print_atoms))
     ctx.setPrintAtoms();
 
   // Handle -t (trace) option.
-  if (parsedArgs->getLastArg(OPT_t))
+  if (parsedArgs.getLastArg(OPT_t))
     ctx.setLogInputFiles(true);
 
   // Handle -demangle option.
-  if (parsedArgs->getLastArg(OPT_demangle))
+  if (parsedArgs.getLastArg(OPT_demangle))
     ctx.setDemangleSymbols(true);
 
   // Handle -keep_private_externs
-  if (parsedArgs->getLastArg(OPT_keep_private_externs)) {
+  if (parsedArgs.getLastArg(OPT_keep_private_externs)) {
     ctx.setKeepPrivateExterns(true);
     if (ctx.outputMachOType() != llvm::MachO::MH_OBJECT)
       diagnostics << "warning: -keep_private_externs only used in -r mode\n";
   }
 
   // Handle -dependency_info <path> used by Xcode.
-  if (llvm::opt::Arg *depInfo = parsedArgs->getLastArg(OPT_dependency_info)) {
+  if (llvm::opt::Arg *depInfo = parsedArgs.getLastArg(OPT_dependency_info)) {
     if (std::error_code ec = ctx.createDependencyFile(depInfo->getValue())) {
       diagnostics << "warning: " << ec.message()
                   << ", processing '-dependency_info "
@@ -528,14 +530,14 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   // exist. We'll also be expected to print out information about how we located
   // libraries and so on that the user specified, but not to actually do any
   // linking.
-  if (parsedArgs->getLastArg(OPT_test_file_usage)) {
+  if (parsedArgs.getLastArg(OPT_test_file_usage)) {
     ctx.setTestingFileUsage();
 
     // With paths existing by fiat, linking is not going to end well.
     ctx.setDoNothing(true);
 
     // Only bother looking for an existence override if we're going to use it.
-    for (auto existingPath : parsedArgs->filtered(OPT_path_exists)) {
+    for (auto existingPath : parsedArgs.filtered(OPT_path_exists)) {
       ctx.addExistingPathForDebug(existingPath->getValue());
     }
   }
@@ -544,7 +546,6 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   if (!ctx.doNothing()) {
     ctx.registry().addSupportMachOObjects(ctx);
     ctx.registry().addSupportArchives(ctx.logInputFiles());
-    ctx.registry().addSupportNativeObjects();
     ctx.registry().addSupportYamlFiles();
   }
 
@@ -559,7 +560,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   //   3. If the last -syslibroot is "/", all of them are ignored entirely.
   //   4. If { syslibroots } x path ==  {}, the original path is kept.
   std::vector<StringRef> sysLibRoots;
-  for (auto syslibRoot : parsedArgs->filtered(OPT_syslibroot)) {
+  for (auto syslibRoot : parsedArgs.filtered(OPT_syslibroot)) {
     sysLibRoots.push_back(syslibRoot->getValue());
   }
   if (!sysLibRoots.empty()) {
@@ -570,17 +571,17 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
 
   // Paths specified with -L come first, and are not considered system paths for
   // the case where there is precisely 1 -syslibroot.
-  for (auto libPath : parsedArgs->filtered(OPT_L)) {
+  for (auto libPath : parsedArgs.filtered(OPT_L)) {
     ctx.addModifiedSearchDir(libPath->getValue());
   }
 
   // Process -F directories (where to look for frameworks).
-  for (auto fwPath : parsedArgs->filtered(OPT_F)) {
+  for (auto fwPath : parsedArgs.filtered(OPT_F)) {
     ctx.addFrameworkSearchDir(fwPath->getValue());
   }
 
   // -Z suppresses the standard search paths.
-  if (!parsedArgs->hasArg(OPT_Z)) {
+  if (!parsedArgs.hasArg(OPT_Z)) {
     ctx.addModifiedSearchDir("/usr/lib", true);
     ctx.addModifiedSearchDir("/usr/local/lib", true);
     ctx.addFrameworkSearchDir("/Library/Frameworks", true);
@@ -589,7 +590,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
 
   // Now that we've constructed the final set of search paths, print out those
   // search paths in verbose mode.
-  if (parsedArgs->getLastArg(OPT_v)) {
+  if (parsedArgs.getLastArg(OPT_v)) {
     diagnostics << "Library search paths:\n";
     for (auto path : ctx.searchDirs()) {
       diagnostics << "    " << path << '\n';
@@ -601,7 +602,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle -exported_symbols_list <file>
-  for (auto expFile : parsedArgs->filtered(OPT_exported_symbols_list)) {
+  for (auto expFile : parsedArgs.filtered(OPT_exported_symbols_list)) {
     if (ctx.exportMode() == MachOLinkingContext::ExportMode::blackList) {
       diagnostics << "error: -exported_symbols_list cannot be combined "
                   << "with -unexported_symbol[s_list]\n";
@@ -619,7 +620,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle -exported_symbol <symbol>
-  for (auto symbol : parsedArgs->filtered(OPT_exported_symbol)) {
+  for (auto symbol : parsedArgs.filtered(OPT_exported_symbol)) {
     if (ctx.exportMode() == MachOLinkingContext::ExportMode::blackList) {
       diagnostics << "error: -exported_symbol cannot be combined "
                   << "with -unexported_symbol[s_list]\n";
@@ -630,7 +631,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle -unexported_symbols_list <file>
-  for (auto expFile : parsedArgs->filtered(OPT_unexported_symbols_list)) {
+  for (auto expFile : parsedArgs.filtered(OPT_unexported_symbols_list)) {
     if (ctx.exportMode() == MachOLinkingContext::ExportMode::whiteList) {
       diagnostics << "error: -unexported_symbols_list cannot be combined "
                   << "with -exported_symbol[s_list]\n";
@@ -648,7 +649,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle -unexported_symbol <symbol>
-  for (auto symbol : parsedArgs->filtered(OPT_unexported_symbol)) {
+  for (auto symbol : parsedArgs.filtered(OPT_unexported_symbol)) {
     if (ctx.exportMode() == MachOLinkingContext::ExportMode::whiteList) {
       diagnostics << "error: -unexported_symbol cannot be combined "
                   << "with -exported_symbol[s_list]\n";
@@ -659,8 +660,8 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle obosolete -multi_module and -single_module
-  if (llvm::opt::Arg *mod = parsedArgs->getLastArg(OPT_multi_module,
-                                                   OPT_single_module)) {
+  if (llvm::opt::Arg *mod =
+          parsedArgs.getLastArg(OPT_multi_module, OPT_single_module)) {
     if (mod->getOption().getID() == OPT_multi_module) {
       diagnostics << "warning: -multi_module is obsolete and being ignored\n";
     }
@@ -673,7 +674,7 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
   }
 
   // Handle -pie or -no_pie
-  if (llvm::opt::Arg *pie = parsedArgs->getLastArg(OPT_pie, OPT_no_pie)) {
+  if (llvm::opt::Arg *pie = parsedArgs.getLastArg(OPT_pie, OPT_no_pie)) {
     switch (ctx.outputMachOType()) {
     case llvm::MachO::MH_EXECUTE:
       switch (ctx.os()) {
@@ -718,12 +719,28 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
     }
   }
 
+  // Handle stack_size
+  if (llvm::opt::Arg *stackSize = parsedArgs.getLastArg(OPT_stack_size)) {
+    uint64_t stackSizeVal;
+    if (parseNumberBase16(stackSize->getValue(), stackSizeVal)) {
+      diagnostics << "error: stack_size expects a hex number\n";
+      return false;
+    }
+    if ((stackSizeVal % ctx.pageSize()) != 0) {
+      diagnostics << "error: stack_size must be a multiple of page size ("
+                  << "0x" << llvm::utohexstr(ctx.pageSize()) << ")\n";
+      return false;
+    }
+
+    ctx.setStackSize(stackSizeVal);
+  }
+
   // Handle debug info handling options: -S
-  if (parsedArgs->hasArg(OPT_S))
+  if (parsedArgs.hasArg(OPT_S))
     ctx.setDebugInfoMode(MachOLinkingContext::DebugInfoMode::noDebugMap);
 
   // Handle -order_file <file>
-  for (auto orderFile : parsedArgs->filtered(OPT_order_file)) {
+  for (auto orderFile : parsedArgs.filtered(OPT_order_file)) {
     if (std::error_code ec = parseOrderFile(orderFile->getValue(), ctx,
                                               diagnostics)) {
       diagnostics << "error: " << ec.message()
@@ -734,8 +751,51 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
     }
   }
 
+  // Handle -flat_namespace.
+  if (llvm::opt::Arg *ns =
+          parsedArgs.getLastArg(OPT_flat_namespace, OPT_twolevel_namespace)) {
+    if (ns->getOption().getID() == OPT_flat_namespace)
+      ctx.setUseFlatNamespace(true);
+  }
+
+  // Handle -undefined
+  if (llvm::opt::Arg *undef = parsedArgs.getLastArg(OPT_undefined)) {
+    MachOLinkingContext::UndefinedMode UndefMode;
+    if (StringRef(undef->getValue()).equals("error"))
+      UndefMode = MachOLinkingContext::UndefinedMode::error;
+    else if (StringRef(undef->getValue()).equals("warning"))
+      UndefMode = MachOLinkingContext::UndefinedMode::warning;
+    else if (StringRef(undef->getValue()).equals("suppress"))
+      UndefMode = MachOLinkingContext::UndefinedMode::suppress;
+    else if (StringRef(undef->getValue()).equals("dynamic_lookup"))
+      UndefMode = MachOLinkingContext::UndefinedMode::dynamicLookup;
+    else {
+      diagnostics << "error: invalid option to -undefined "
+                     "[ warning | error | suppress | dynamic_lookup ]\n";
+      return false;
+    }
+
+    if (ctx.useFlatNamespace()) {
+      // If we're using -flat_namespace then 'warning', 'suppress' and
+      // 'dynamic_lookup' are all equivalent, so map them to 'suppress'.
+      if (UndefMode != MachOLinkingContext::UndefinedMode::error)
+        UndefMode = MachOLinkingContext::UndefinedMode::suppress;
+    } else {
+      // If we're using -twolevel_namespace then 'warning' and 'suppress' are
+      // illegal. Emit a diagnostic if they've been (mis)used.
+      if (UndefMode == MachOLinkingContext::UndefinedMode::warning ||
+          UndefMode == MachOLinkingContext::UndefinedMode::suppress) {
+        diagnostics << "error: can't use -undefined warning or suppress with "
+                       "-twolevel_namespace\n";
+        return false;
+      }
+    }
+
+    ctx.setUndefinedMode(UndefMode);
+  }
+
   // Handle -rpath <path>
-  if (parsedArgs->hasArg(OPT_rpath)) {
+  if (parsedArgs.hasArg(OPT_rpath)) {
     switch (ctx.outputMachOType()) {
       case llvm::MachO::MH_EXECUTE:
       case llvm::MachO::MH_DYLIB:
@@ -757,13 +817,17 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
         return false;
     }
 
-    for (auto rPath : parsedArgs->filtered(OPT_rpath)) {
+    for (auto rPath : parsedArgs.filtered(OPT_rpath)) {
       ctx.addRpath(rPath->getValue());
     }
   }
 
-  // Handle input files
-  for (auto &arg : *parsedArgs) {
+  // Parse the LLVM options before we process files in case the file handling
+  // makes use of things like DEBUG().
+  parseLLVMOptions(ctx);
+
+  // Handle input files and sectcreate.
+  for (auto &arg : parsedArgs) {
     bool upward;
     ErrorOr<StringRef> resolvedPath = StringRef();
     switch (arg->getOption().getID()) {
@@ -814,6 +878,22 @@ bool DarwinLdDriver::parse(int argc, const char *argv[],
                     << ", processing '-filelist " << arg->getValue()
                     << "'\n";
         return false;
+      }
+      break;
+    case OPT_sectcreate: {
+        const char* seg  = arg->getValue(0);
+        const char* sect = arg->getValue(1);
+        const char* fileName = arg->getValue(2);
+
+        ErrorOr<std::unique_ptr<MemoryBuffer>> contentOrErr =
+          MemoryBuffer::getFile(fileName);
+
+        if (!contentOrErr) {
+          diagnostics << "error: can't open -sectcreate file " << fileName << "\n";
+          return false;
+        }
+
+        ctx.addSectCreateSection(seg, sect, std::move(*contentOrErr));
       }
       break;
     }

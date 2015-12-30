@@ -10,52 +10,78 @@
 #ifndef LLD_READER_WRITER_ELF_AARCH64_AARCH64_TARGET_HANDLER_H
 #define LLD_READER_WRITER_ELF_AARCH64_AARCH64_TARGET_HANDLER_H
 
-#include "AArch64ELFFile.h"
-#include "AArch64ELFReader.h"
 #include "AArch64RelocationHandler.h"
-#include "DefaultTargetHandler.h"
+#include "ELFReader.h"
 #include "TargetLayout.h"
 #include "lld/Core/Simple.h"
 
 namespace lld {
 namespace elf {
+
 class AArch64LinkingContext;
+class AArch64GOTSection;
 
-template <class ELFT> class AArch64TargetLayout : public TargetLayout<ELFT> {
+class AArch64TargetLayout final : public TargetLayout<ELF64LE> {
+  typedef llvm::object::Elf_Shdr_Impl<ELF64LE> Elf_Shdr;
+
 public:
-  AArch64TargetLayout(AArch64LinkingContext &context)
-      : TargetLayout<ELFT>(context) {}
-};
+  AArch64TargetLayout(ELFLinkingContext &ctx);
 
-class AArch64TargetHandler final : public DefaultTargetHandler<AArch64ELFType> {
-public:
-  AArch64TargetHandler(AArch64LinkingContext &context);
+  AtomSection<ELF64LE> *
+  createSection(StringRef name, int32_t type,
+                DefinedAtom::ContentPermissions permissions,
+                TargetLayout<ELF64LE>::SectionOrder order) override;
 
-  AArch64TargetLayout<AArch64ELFType> &getTargetLayout() override {
-    return *(_AArch64TargetLayout.get());
+  const std::vector<AArch64GOTSection *> &getGOTSections() const {
+    return _gotSections;
   }
 
-  void registerRelocationNames(Registry &registry) override;
+  uint64_t getTPOffset() {
+    std::call_once(_tpOffOnce, [this]() {
+      for (const auto &phdr : *_programHeader) {
+        if (phdr->p_type == llvm::ELF::PT_TLS) {
+          _tpOff = llvm::RoundUpToAlignment(TCB_SIZE, phdr->p_align);
+          break;
+        }
+      }
+      assert(_tpOff != 0 && "TLS segment not found");
+    });
+    return _tpOff;
+  }
 
-  const AArch64TargetRelocationHandler &getRelocationHandler() const override {
-    return *(_AArch64RelocationHandler.get());
+private:
+  enum {
+    TCB_SIZE = 16,
+  };
+
+private:
+  std::vector<AArch64GOTSection *> _gotSections;
+  uint64_t _tpOff = 0;
+  std::once_flag _tpOffOnce;
+};
+
+class AArch64TargetHandler final : public TargetHandler {
+public:
+  AArch64TargetHandler(AArch64LinkingContext &ctx);
+
+  const TargetRelocationHandler &getRelocationHandler() const override {
+    return *_relocationHandler;
   }
 
   std::unique_ptr<Reader> getObjReader() override {
-    return std::unique_ptr<Reader>(new AArch64ELFObjectReader(_context));
+    return llvm::make_unique<ELFReader<ELFFile<ELF64LE>>>(_ctx);
   }
 
   std::unique_ptr<Reader> getDSOReader() override {
-    return std::unique_ptr<Reader>(new AArch64ELFDSOReader(_context));
+    return llvm::make_unique<ELFReader<DynamicFile<ELF64LE>>>(_ctx);
   }
 
   std::unique_ptr<Writer> getWriter() override;
 
 private:
-  static const Registry::KindStrings kindStrings[];
-  AArch64LinkingContext &_context;
-  std::unique_ptr<AArch64TargetLayout<AArch64ELFType>> _AArch64TargetLayout;
-  std::unique_ptr<AArch64TargetRelocationHandler> _AArch64RelocationHandler;
+  AArch64LinkingContext &_ctx;
+  std::unique_ptr<AArch64TargetLayout> _targetLayout;
+  std::unique_ptr<AArch64TargetRelocationHandler> _relocationHandler;
 };
 
 } // end namespace elf

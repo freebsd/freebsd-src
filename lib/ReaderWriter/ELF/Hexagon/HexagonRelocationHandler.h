@@ -9,26 +9,24 @@
 #ifndef LLD_READER_WRITER_ELF_HEXAGON_HEXAGON_RELOCATION_HANDLER_H
 #define LLD_READER_WRITER_ELF_HEXAGON_HEXAGON_RELOCATION_HANDLER_H
 
-#include "HexagonSectionChunks.h"
-#include "HexagonTargetHandler.h"
-#include "lld/ReaderWriter/RelocationHelperFunctions.h"
+#include "lld/ReaderWriter/ELFLinkingContext.h"
 
 namespace lld {
 namespace elf {
-
 class HexagonTargetHandler;
+class HexagonTargetLayout;
 
 class HexagonTargetRelocationHandler final : public TargetRelocationHandler {
 public:
-  HexagonTargetRelocationHandler(HexagonTargetLayout<HexagonELFType> &layout)
-      : _hexagonTargetLayout(layout) {}
+  HexagonTargetRelocationHandler(HexagonTargetLayout &layout)
+      : _targetLayout(layout) {}
 
   std::error_code applyRelocation(ELFWriter &, llvm::FileOutputBuffer &,
-                                  const lld::AtomLayout &,
+                                  const AtomLayout &,
                                   const Reference &) const override;
 
 private:
-  HexagonTargetLayout<HexagonELFType> &_hexagonTargetLayout;
+  HexagonTargetLayout &_targetLayout;
 };
 } // elf
 } // lld

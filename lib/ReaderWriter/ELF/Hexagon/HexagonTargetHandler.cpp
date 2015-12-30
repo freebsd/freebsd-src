@@ -12,29 +12,23 @@
 #include "HexagonLinkingContext.h"
 #include "HexagonTargetHandler.h"
 
-using namespace lld;
-using namespace elf;
 using namespace llvm::ELF;
 
 using llvm::makeArrayRef;
 
-HexagonTargetHandler::HexagonTargetHandler(HexagonLinkingContext &context)
-    : _hexagonLinkingContext(context),
-      _hexagonRuntimeFile(new HexagonRuntimeFile<HexagonELFType>(context)),
-      _hexagonTargetLayout(new HexagonTargetLayout<HexagonELFType>(context)),
-      _hexagonRelocationHandler(new HexagonTargetRelocationHandler(
-          *_hexagonTargetLayout.get())) {}
+namespace lld {
+namespace elf {
+
+HexagonTargetHandler::HexagonTargetHandler(HexagonLinkingContext &ctx)
+    : _ctx(ctx), _targetLayout(new HexagonTargetLayout(ctx)),
+      _relocationHandler(new HexagonTargetRelocationHandler(*_targetLayout)) {}
 
 std::unique_ptr<Writer> HexagonTargetHandler::getWriter() {
-  switch (_hexagonLinkingContext.getOutputELFType()) {
+  switch (_ctx.getOutputELFType()) {
   case llvm::ELF::ET_EXEC:
-    return std::unique_ptr<Writer>(
-        new elf::HexagonExecutableWriter<HexagonELFType>(
-            _hexagonLinkingContext, *_hexagonTargetLayout.get()));
+    return llvm::make_unique<HexagonExecutableWriter>(_ctx, *_targetLayout);
   case llvm::ELF::ET_DYN:
-    return std::unique_ptr<Writer>(
-        new elf::HexagonDynamicLibraryWriter<HexagonELFType>(
-            _hexagonLinkingContext, *_hexagonTargetLayout.get()));
+    return llvm::make_unique<HexagonDynamicLibraryWriter>(_ctx, *_targetLayout);
   case llvm::ELF::ET_REL:
     llvm_unreachable("TODO: support -r mode");
   default:
@@ -77,7 +71,7 @@ public:
     return makeArrayRef(hexagonGotAtomContent);
   }
 
-  Alignment alignment() const override { return Alignment(2); }
+  Alignment alignment() const override { return 4; }
 };
 
 class HexagonGOTPLTAtom : public GOTAtom {
@@ -88,7 +82,7 @@ public:
     return makeArrayRef(hexagonGotPltAtomContent);
   }
 
-  Alignment alignment() const override { return Alignment(2); }
+  Alignment alignment() const override { return 4; }
 };
 
 class HexagonGOTPLT0Atom : public GOTAtom {
@@ -99,7 +93,7 @@ public:
     return makeArrayRef(hexagonGotPlt0AtomContent);
   }
 
-  Alignment alignment() const override { return Alignment(3); }
+  Alignment alignment() const override { return 8; }
 };
 
 class HexagonPLT0Atom : public PLT0Atom {
@@ -165,8 +159,7 @@ protected:
   }
 
 public:
-  GOTPLTPass(const ELFLinkingContext &ctx)
-      : _file(ctx), _null(nullptr), _PLT0(nullptr), _got0(nullptr) {}
+  GOTPLTPass(const ELFLinkingContext &ctx) : _file(ctx) {}
 
   /// \brief Do the pass.
   ///
@@ -176,34 +169,36 @@ public:
   ///
   /// After all references are handled, the atoms created during that are all
   /// added to mf.
-  void perform(std::unique_ptr<MutableFile> &mf) override {
+  std::error_code perform(SimpleFile &mf) override {
     // Process all references.
-    for (const auto &atom : mf->defined())
+    for (const auto &atom : mf.defined())
       for (const auto &ref : *atom)
         handleReference(*atom, *ref);
 
     // Add all created atoms to the link.
     uint64_t ordinal = 0;
-    if (_PLT0) {
-      _PLT0->setOrdinal(ordinal++);
-      mf->addAtom(*_PLT0);
+    if (_plt0) {
+      _plt0->setOrdinal(ordinal++);
+      mf.addAtom(*_plt0);
     }
     for (auto &plt : _pltVector) {
       plt->setOrdinal(ordinal++);
-      mf->addAtom(*plt);
+      mf.addAtom(*plt);
     }
     if (_null) {
       _null->setOrdinal(ordinal++);
-      mf->addAtom(*_null);
+      mf.addAtom(*_null);
     }
     if (_got0) {
       _got0->setOrdinal(ordinal++);
-      mf->addAtom(*_got0);
+      mf.addAtom(*_got0);
     }
     for (auto &got : _gotVector) {
       got->setOrdinal(ordinal++);
-      mf->addAtom(*got);
+      mf.addAtom(*got);
     }
+
+    return std::error_code();
   }
 
 protected:
@@ -221,19 +216,19 @@ protected:
   std::vector<PLTAtom *> _pltVector;
 
   /// \brief GOT entry that is always 0. Used for undefined weaks.
-  GOTAtom *_null;
+  GOTAtom *_null = nullptr;
 
   /// \brief The got and plt entries for .PLT0. This is used to call into the
   /// dynamic linker for symbol resolution.
   /// @{
-  PLT0Atom *_PLT0;
-  GOTAtom *_got0;
+  PLT0Atom *_plt0 = nullptr;
+  GOTAtom *_got0 = nullptr;
   /// @}
 };
 
 class DynamicGOTPLTPass final : public GOTPLTPass<DynamicGOTPLTPass> {
 public:
-  DynamicGOTPLTPass(const elf::HexagonLinkingContext &ctx) : GOTPLTPass(ctx) {
+  DynamicGOTPLTPass(const HexagonLinkingContext &ctx) : GOTPLTPass(ctx) {
     _got0 = new (_file._alloc) HexagonGOTPLT0Atom(_file);
 #ifndef NDEBUG
     _got0->_name = "__got0";
@@ -241,14 +236,14 @@ public:
   }
 
   const PLT0Atom *getPLT0() {
-    if (_PLT0)
-      return _PLT0;
-    _PLT0 = new (_file._alloc) HexagonPLT0Atom(_file);
-    _PLT0->addReferenceELF_Hexagon(R_HEX_B32_PCREL_X, 0, _got0, 0);
-    _PLT0->addReferenceELF_Hexagon(R_HEX_6_PCREL_X, 4, _got0, 4);
+    if (_plt0)
+      return _plt0;
+    _plt0 = new (_file._alloc) HexagonPLT0Atom(_file);
+    _plt0->addReferenceELF_Hexagon(R_HEX_B32_PCREL_X, 0, _got0, 0);
+    _plt0->addReferenceELF_Hexagon(R_HEX_6_PCREL_X, 4, _got0, 4);
     DEBUG_WITH_TYPE("PLT", llvm::dbgs() << "[ PLT0/GOT0 ] "
                                         << "Adding plt0/got0 \n");
-    return _PLT0;
+    return _plt0;
   }
 
   const PLTAtom *getPLTEntry(const Atom *a) {
@@ -313,22 +308,75 @@ public:
   }
 };
 
-void elf::HexagonLinkingContext::addPasses(PassManager &pm) {
+void HexagonLinkingContext::addPasses(PassManager &pm) {
   if (isDynamic())
     pm.add(llvm::make_unique<DynamicGOTPLTPass>(*this));
   ELFLinkingContext::addPasses(pm);
 }
 
-void HexagonTargetHandler::registerRelocationNames(Registry &registry) {
-  registry.addKindTable(Reference::KindNamespace::ELF,
-                        Reference::KindArch::Hexagon, kindStrings);
+void SDataSection::doPreFlight() {
+  // sort the atoms on the alignments they have been set
+  std::stable_sort(_atoms.begin(), _atoms.end(), [](const AtomLayout *A,
+                                                    const AtomLayout *B) {
+    const DefinedAtom *definedAtomA = cast<DefinedAtom>(A->_atom);
+    const DefinedAtom *definedAtomB = cast<DefinedAtom>(B->_atom);
+    int64_t alignmentA = definedAtomA->alignment().value;
+    int64_t alignmentB = definedAtomB->alignment().value;
+    if (alignmentA == alignmentB) {
+      if (definedAtomA->merge() == DefinedAtom::mergeAsTentative)
+        return false;
+      if (definedAtomB->merge() == DefinedAtom::mergeAsTentative)
+        return true;
+    }
+    return alignmentA < alignmentB;
+  });
+
+  // Set the fileOffset, and the appropriate size of the section
+  for (auto &ai : _atoms) {
+    const DefinedAtom *definedAtom = cast<DefinedAtom>(ai->_atom);
+    DefinedAtom::Alignment atomAlign = definedAtom->alignment();
+    uint64_t fOffset = alignOffset(fileSize(), atomAlign);
+    uint64_t mOffset = alignOffset(memSize(), atomAlign);
+    ai->_fileOffset = fOffset;
+    _fsize = fOffset + definedAtom->size();
+    _msize = mOffset + definedAtom->size();
+  }
+} // finalize
+
+SDataSection::SDataSection(const HexagonLinkingContext &ctx)
+    : AtomSection(ctx, ".sdata", DefinedAtom::typeDataFast, 0,
+                  HexagonTargetLayout::ORDER_SDATA) {
+  _type = SHT_PROGBITS;
+  _flags = SHF_ALLOC | SHF_WRITE;
+  _alignment = 4096;
 }
 
-#define ELF_RELOC(name, value) LLD_KIND_STRING_ENTRY(name),
+const AtomLayout *SDataSection::appendAtom(const Atom *atom) {
+  const DefinedAtom *definedAtom = cast<DefinedAtom>(atom);
+  DefinedAtom::Alignment atomAlign = definedAtom->alignment();
+  uint64_t alignment = atomAlign.value;
+  _atoms.push_back(new (_alloc) AtomLayout(atom, 0, 0));
+  // Set the section alignment to the largest alignment
+  // std::max doesn't support uint64_t
+  if (_alignment < alignment)
+    _alignment = alignment;
+  return _atoms.back();
+}
 
-const Registry::KindStrings HexagonTargetHandler::kindStrings[] = {
-#include "llvm/Support/ELFRelocs/Hexagon.def"
-  LLD_KIND_STRING_END
-};
+void finalizeHexagonRuntimeAtomValues(HexagonTargetLayout &layout) {
+  AtomLayout *gotAtom = layout.findAbsoluteAtom("_GLOBAL_OFFSET_TABLE_");
+  OutputSection<ELF32LE> *gotpltSection = layout.findOutputSection(".got.plt");
+  if (gotpltSection)
+    gotAtom->_virtualAddr = gotpltSection->virtualAddr();
+  else
+    gotAtom->_virtualAddr = 0;
+  AtomLayout *dynamicAtom = layout.findAbsoluteAtom("_DYNAMIC");
+  OutputSection<ELF32LE> *dynamicSection = layout.findOutputSection(".dynamic");
+  if (dynamicSection)
+    dynamicAtom->_virtualAddr = dynamicSection->virtualAddr();
+  else
+    dynamicAtom->_virtualAddr = 0;
+}
 
-#undef ELF_RELOC
+} // namespace elf
+} // namespace lld

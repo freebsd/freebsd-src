@@ -1,4 +1,4 @@
-//===- lib/ReaderWriter/MachO/GOTPass.cpp ---------------------------------===//
+//===- lib/ReaderWriter/MachO/GOTPass.cpp -----------------------*- C++ -*-===//
 //
 //                             The LLVM Linker
 //
@@ -46,7 +46,6 @@
 namespace lld {
 namespace mach_o {
 
-
 //
 //  GOT Entry Atom created by the GOT pass.
 //
@@ -60,7 +59,7 @@ public:
   }
 
   Alignment alignment() const override {
-    return Alignment(_is64 ? 3 : 2);
+    return _is64 ? 8 : 4;
   }
 
   uint64_t size() const override {
@@ -86,20 +85,18 @@ private:
   StringRef _name;
 };
 
-
 /// Pass for instantiating and optimizing GOT slots.
 ///
 class GOTPass : public Pass {
 public:
   GOTPass(const MachOLinkingContext &context)
-    : _context(context), _archHandler(_context.archHandler()),
-      _file("<mach-o GOT Pass>") { }
+      : _ctx(context), _archHandler(_ctx.archHandler()),
+        _file("<mach-o GOT Pass>") {}
 
 private:
-
-  void perform(std::unique_ptr<MutableFile> &mergedFile) override {
+  std::error_code perform(SimpleFile &mergedFile) override {
     // Scan all references in all atoms.
-    for (const DefinedAtom *atom : mergedFile->defined()) {
+    for (const DefinedAtom *atom : mergedFile.defined()) {
       for (const Reference *ref : *atom) {
         // Look at instructions accessing the GOT.
         bool canBypassGOT;
@@ -131,7 +128,9 @@ private:
       return (left->slotName().compare(right->slotName()) < 0);
     });
     for (const GOTEntryAtom *slot : entries)
-      mergedFile->addAtom(*slot);
+      mergedFile.addAtom(*slot);
+
+    return std::error_code();
   }
 
   bool shouldReplaceTargetWithGOTAtom(const Atom *target, bool canBypassGOT) {
@@ -154,8 +153,8 @@ private:
   const DefinedAtom *makeGOTEntry(const Atom *target) {
     auto pos = _targetToGOT.find(target);
     if (pos == _targetToGOT.end()) {
-      GOTEntryAtom *gotEntry = new (_file.allocator())
-          GOTEntryAtom(_file, _context.is64Bit(), target->name());
+      auto *gotEntry = new (_file.allocator())
+          GOTEntryAtom(_file, _ctx.is64Bit(), target->name());
       _targetToGOT[target] = gotEntry;
       const ArchHandler::ReferenceInfo &nlInfo = _archHandler.stubInfo().
                                                 nonLazyPointerReferenceToBinder;
@@ -166,20 +165,16 @@ private:
     return pos->second;
   }
 
-
-  const MachOLinkingContext                       &_context;
+  const MachOLinkingContext &_ctx;
   mach_o::ArchHandler                             &_archHandler;
   MachOFile                                        _file;
   llvm::DenseMap<const Atom*, const GOTEntryAtom*> _targetToGOT;
 };
 
-
-
 void addGOTPass(PassManager &pm, const MachOLinkingContext &ctx) {
   assert(ctx.needsGOTPass());
   pm.add(llvm::make_unique<GOTPass>(ctx));
 }
-
 
 } // end namesapce mach_o
 } // end namesapce lld

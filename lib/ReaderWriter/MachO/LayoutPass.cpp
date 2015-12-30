@@ -133,7 +133,7 @@ static void checkReachabilityFromRoot(AtomToAtomT &followOnRoots,
   }
 }
 
-static void printDefinedAtoms(const MutableFile::DefinedAtomRange &atomRange) {
+static void printDefinedAtoms(const SimpleFile::DefinedAtomRange &atomRange) {
   for (const DefinedAtom *atom : atomRange) {
     llvm::dbgs() << "  file=" << atom->file().path()
                  << ", name=" << atom->name()
@@ -146,7 +146,7 @@ static void printDefinedAtoms(const MutableFile::DefinedAtomRange &atomRange) {
 
 /// Verify that the followon chain is sane. Should not be called in
 /// release binary.
-void LayoutPass::checkFollowonChain(MutableFile::DefinedAtomRange &range) {
+void LayoutPass::checkFollowonChain(SimpleFile::DefinedAtomRange &range) {
   ScopedTask task(getDefaultDomain(), "LayoutPass::checkFollowonChain");
 
   // Verify that there's no cycle in follow-on chain.
@@ -329,7 +329,7 @@ void LayoutPass::setChainRoot(const DefinedAtom *targetAtom,
 /// d) If the targetAtom is part of a different chain and the root of the
 ///    targetAtom until the targetAtom has all atoms of size 0, then chain the
 ///    targetAtoms and its tree to the current chain
-void LayoutPass::buildFollowOnTable(MutableFile::DefinedAtomRange &range) {
+void LayoutPass::buildFollowOnTable(SimpleFile::DefinedAtomRange &range) {
   ScopedTask task(getDefaultDomain(), "LayoutPass::buildFollowOnTable");
   // Set the initial size of the followon and the followonNext hash to the
   // number of atoms that we have.
@@ -397,7 +397,7 @@ void LayoutPass::buildFollowOnTable(MutableFile::DefinedAtomRange &range) {
 /// assigning ordinals to each atom, if the atoms have their ordinals
 /// already assigned skip the atom and move to the next. This is the
 /// main map thats used to sort the atoms while comparing two atoms together
-void LayoutPass::buildOrdinalOverrideMap(MutableFile::DefinedAtomRange &range) {
+void LayoutPass::buildOrdinalOverrideMap(SimpleFile::DefinedAtomRange &range) {
   ScopedTask task(getDefaultDomain(), "LayoutPass::buildOrdinalOverrideMap");
   uint64_t index = 0;
   for (const DefinedAtom *ai : range) {
@@ -407,7 +407,7 @@ void LayoutPass::buildOrdinalOverrideMap(MutableFile::DefinedAtomRange &range) {
     AtomToAtomT::iterator start = _followOnRoots.find(atom);
     if (start == _followOnRoots.end())
       continue;
-    for (const DefinedAtom *nextAtom = start->second; nextAtom != NULL;
+    for (const DefinedAtom *nextAtom = start->second; nextAtom;
          nextAtom = _followOnNexts[nextAtom]) {
       AtomToOrdinalT::iterator pos = _ordinalOverrideMap.find(nextAtom);
       if (pos == _ordinalOverrideMap.end())
@@ -417,7 +417,7 @@ void LayoutPass::buildOrdinalOverrideMap(MutableFile::DefinedAtomRange &range) {
 }
 
 std::vector<LayoutPass::SortKey>
-LayoutPass::decorate(MutableFile::DefinedAtomRange &atomRange) const {
+LayoutPass::decorate(SimpleFile::DefinedAtomRange &atomRange) const {
   std::vector<SortKey> ret;
   for (const DefinedAtom *atom : atomRange) {
     auto ri = _followOnRoots.find(atom);
@@ -429,7 +429,7 @@ LayoutPass::decorate(MutableFile::DefinedAtomRange &atomRange) const {
   return ret;
 }
 
-void LayoutPass::undecorate(MutableFile::DefinedAtomRange &atomRange,
+void LayoutPass::undecorate(SimpleFile::DefinedAtomRange &atomRange,
                             std::vector<SortKey> &keys) const {
   size_t i = 0;
   for (SortKey &k : keys)
@@ -437,10 +437,11 @@ void LayoutPass::undecorate(MutableFile::DefinedAtomRange &atomRange,
 }
 
 /// Perform the actual pass
-void LayoutPass::perform(std::unique_ptr<MutableFile> &mergedFile) {
+std::error_code LayoutPass::perform(SimpleFile &mergedFile) {
+  DEBUG(llvm::dbgs() << "******** Laying out atoms:\n");
   // sort the atoms
   ScopedTask task(getDefaultDomain(), "LayoutPass");
-  MutableFile::DefinedAtomRange atomRange = mergedFile->definedAtoms();
+  SimpleFile::DefinedAtomRange atomRange = mergedFile.definedAtoms();
 
   // Build follow on tables
   buildFollowOnTable(atomRange);
@@ -468,6 +469,9 @@ void LayoutPass::perform(std::unique_ptr<MutableFile> &mergedFile) {
     llvm::dbgs() << "sorted atoms:\n";
     printDefinedAtoms(atomRange);
   });
+
+  DEBUG(llvm::dbgs() << "******** Finished laying out atoms\n");
+  return std::error_code();
 }
 
 void addLayoutPass(PassManager &pm, const MachOLinkingContext &ctx) {

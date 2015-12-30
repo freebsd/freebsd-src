@@ -19,15 +19,12 @@ namespace elf {
 ///        various kinds of ELF files.
 class ELFWriter : public Writer {
 public:
-  ELFWriter() { }
-
-public:
   /// \brief builds the chunks that needs to be written to the output
   ///        ELF file
   virtual void buildChunks(const File &file) = 0;
 
   /// \brief Writes the chunks into the output file specified by path
-  virtual std::error_code writeFile(const File &file, StringRef path) = 0;
+  std::error_code writeFile(const File &file, StringRef path) override = 0;
 
   /// \brief Get the virtual address of \p atom after layout.
   virtual uint64_t addressOfAtom(const Atom *atom) = 0;
@@ -35,4 +32,4 @@ public:
 } // end namespace elf
 } // end namespace lld
 
-#endif
+#endif // LLD_READER_WRITER_ELF_WRITER_H

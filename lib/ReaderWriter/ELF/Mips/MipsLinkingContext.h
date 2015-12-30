@@ -9,7 +9,7 @@
 #ifndef LLD_READER_WRITER_ELF_MIPS_MIPS_LINKING_CONTEXT_H
 #define LLD_READER_WRITER_ELF_MIPS_MIPS_LINKING_CONTEXT_H
 
-#include "MipsELFFlagsMerger.h"
+#include "MipsAbiInfoHandler.h"
 #include "lld/ReaderWriter/ELFLinkingContext.h"
 
 namespace lld {
@@ -23,10 +23,6 @@ enum {
   LLD_R_MIPS_32_HI16 = 1025,
   /// \brief The same as R_MIPS_26 but for global symbols.
   LLD_R_MIPS_GLOBAL_26 = 1026,
-  /// \brief Setup hi 16 bits using the symbol this reference refers to.
-  LLD_R_MIPS_HI16 = 1027,
-  /// \brief Setup low 16 bits using the symbol this reference refers to.
-  LLD_R_MIPS_LO16 = 1028,
   /// \brief Represents a reference between PLT and dynamic symbol.
   LLD_R_MIPS_STO_PLT = 1029,
   /// \brief The same as R_MICROMIPS_26_S1 but for global symbols.
@@ -35,20 +31,12 @@ enum {
   LLD_R_MIPS_64_HI16 = 1031,
 };
 
-typedef llvm::object::ELFType<llvm::support::little, 2, false> Mips32ELType;
-typedef llvm::object::ELFType<llvm::support::little, 2, true> Mips64ELType;
-typedef llvm::object::ELFType<llvm::support::big, 2, false> Mips32BEType;
-typedef llvm::object::ELFType<llvm::support::big, 2, true> Mips64BEType;
-
 class MipsLinkingContext final : public ELFLinkingContext {
 public:
-  static std::unique_ptr<ELFLinkingContext> create(llvm::Triple);
   MipsLinkingContext(llvm::Triple triple);
 
-  uint32_t getMergedELFFlags() const;
-  MipsELFFlagsMerger &getELFFlagsMerger();
-
-  // ELFLinkingContext
+  void registerRelocationNames(Registry &r) override;
+  int getMachineType() const override { return llvm::ELF::EM_MIPS; }
   uint64_t getBaseAddress() const override;
   StringRef entrySymbolName() const override;
   StringRef getDefaultInterpreter() const override;
@@ -57,9 +45,9 @@ public:
   bool isDynamicRelocation(const Reference &r) const override;
   bool isCopyRelocation(const Reference &r) const override;
   bool isPLTRelocation(const Reference &r) const override;
+  bool isRelativeReloc(const Reference &r) const override;
 
-private:
-  MipsELFFlagsMerger _flagsMerger;
+  MipsAbi getAbi() const;
 };
 
 } // elf

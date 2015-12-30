@@ -25,6 +25,15 @@ multiclass dashEq<string opt1, string opt2, string help> {
       Alias<!cast<Option>(opt1)>;
 }
 
+// Support --<option>,--<option>=
+multiclass mDashEq<string opt1, string help> {
+  // Option
+  def "" : Separate<["--"], opt1>, HelpText<help>;
+  // Compatibility aliases
+  def opt2_eq : Joined<["--"], opt1#"=">,
+      Alias<!cast<Option>(opt1)>;
+}
+
 //===----------------------------------------------------------------------===//
 /// LLVM and Target options
 //===----------------------------------------------------------------------===//
@@ -62,7 +71,7 @@ def grp_general : OptionGroup<"opts">,
 def output : Separate<["-"], "o">, MetaVarName<"<path>">,
      HelpText<"Path to file to write output">,
      Group<grp_general>;
-def m : Separate<["-"], "m">, MetaVarName<"<emulation>">,
+def m : JoinedOrSeparate<["-"], "m">, MetaVarName<"<emulation>">,
      HelpText<"Select target emulation">,
      Group<grp_general>;
 def build_id : Flag<["--"], "build-id">,
@@ -142,7 +151,7 @@ def grp_dynlibexec : OptionGroup<"opts">,
 def dynamic_linker : Joined<["--"], "dynamic-linker=">,
     HelpText<"Set the path to the dynamic linker">, Group<grp_dynlibexec>;
 // Executable options - compatibility aliases
-def dynamic_linker_alias : Separate<["-"], "dynamic-linker">,
+def dynamic_linker_alias : Separate<["-", "--"], "dynamic-linker">,
     Alias<dynamic_linker>;
 defm rpath : dashEq<"rpath", "rpath",
      "Add a directory to the runtime library search path">,
@@ -211,15 +220,23 @@ def use_shlib_undefs: Flag<["--"], "use-shlib-undefines">,
 def allow_multiple_definition: Flag<["--"], "allow-multiple-definition">,
     HelpText<"Allow multiple definitions">,
     Group<grp_resolveropt>;
-def defsym : Joined<["--"], "defsym=">,
-     HelpText<"Create a defined symbol">,
-     Group<grp_resolveropt>;
+defm defsym : mDashEq<"defsym",
+           "Create a global symbol in the output file "
+           "containing the absolute address given by expression">,
+           MetaVarName<"symbol=<expression>">,
+           Group<grp_resolveropt>;
 
 //===----------------------------------------------------------------------===//
 /// Custom Options
 //===----------------------------------------------------------------------===//
 def grp_customopts : OptionGroup<"opts">,
      HelpText<"CUSTOM OPTIONS">;
+def disable_newdtags: Flag<["--"], "disable-new-dtags">,
+     HelpText<"Disable new dynamic tags">,
+     Group<grp_customopts>;
+def enable_newdtags: Flag<["--"], "enable-new-dtags">,
+     HelpText<"Enable new dynamic tags">,
+     Group<grp_customopts>;
 def rosegment: Flag<["--"], "rosegment">,
      HelpText<"Put read-only non-executable sections in their own segment">,
      Group<grp_customopts>;
@@ -238,6 +255,16 @@ def grp_symbolopts : OptionGroup<"opts">,
 def demangle : Flag<["--"], "demangle">,
      HelpText<"Demangle C++ symbols">,
      Group<grp_symbolopts>;
+def discard_loc : Flag<["--"], "discard-all">,
+     HelpText<"Discard all local symbols">,
+     Group<grp_symbolopts>;
+def alias_discard_loc: Flag<["-"], "x">,
+     Alias<discard_loc>;
+def discard_temp_loc : Flag<["--"], "discard-locals">,
+     HelpText<"Discard temporary local symbols">,
+     Group<grp_symbolopts>;
+def alias_discard_temp_loc : Flag<["-"], "X">,
+     Alias<discard_temp_loc>;
 def no_demangle : Flag<["--"], "no-demangle">,
      HelpText<"Dont demangle C++ symbols">,
      Group<grp_symbolopts>;
@@ -296,10 +323,35 @@ def stats : Flag<["--"], "stats">,
 def grp_extns : OptionGroup<"opts">,
      HelpText<"Extensions">;
 def output_filetype: Separate<["--"], "output-filetype">,
-      HelpText<"Specify what type of output file that lld creates, YAML/Native">,
+      HelpText<"Specify yaml to create an output in YAML format">,
       Group<grp_extns>;
 def alias_output_filetype: Joined<["--"], "output-filetype=">,
       Alias<output_filetype>;
+
+//===----------------------------------------------------------------------===//
+/// Target Specific Options
+//===----------------------------------------------------------------------===//
+def grp_targetopts : OptionGroup<"opts">,
+     HelpText<"ARCH SPECIFIC OPTIONS">;
+
+//===----------------------------------------------------------------------===//
+/// ARM Target Specific Options
+//===----------------------------------------------------------------------===//
+def grp_arm_targetopts : OptionGroup<"ARM SPECIFIC OPTIONS">,
+     Group<grp_targetopts>;
+def target1_rel : Flag<["--"], "target1-rel">,
+     Group<grp_arm_targetopts>, HelpText<"Interpret R_ARM_TARGET1 as R_ARM_REL32">;
+def target1_abs : Flag<["--"], "target1-abs">,
+     Group<grp_arm_targetopts>, HelpText<"Interpret R_ARM_TARGET1 as R_ARM_ABS32">;
+
+//===----------------------------------------------------------------------===//
+/// MIPS Target Specific Options
+//===----------------------------------------------------------------------===//
+def grp_mips_targetopts : OptionGroup<"MIPS SPECIFIC OPTIONS">,
+     Group<grp_targetopts>;
+def pcrel_eh_reloc : Flag<["-", "--"], "pcrel-eh-reloc">,
+     Group<grp_mips_targetopts>,
+     HelpText<"Interpret R_MIPS_EH as R_MIPS_PC32">;
 
 //===----------------------------------------------------------------------===//
 /// Ignored options
@@ -314,6 +366,9 @@ def Qy : Flag<["-"], "Qy">,
      Group<grp_ignored>;
 def qmagic : Flag<["-"], "qmagic">,
      HelpText<"Ignored for Linux Compatibility">,
+     Group<grp_ignored>;
+def G : Separate<["-"], "G">,
+     HelpText<"Ignored for MIPS GNU Linker Compatibility">,
      Group<grp_ignored>;
 
 //===----------------------------------------------------------------------===//

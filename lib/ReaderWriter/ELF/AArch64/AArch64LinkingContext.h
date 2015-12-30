@@ -24,10 +24,11 @@ enum {
 
 class AArch64LinkingContext final : public ELFLinkingContext {
 public:
-  static std::unique_ptr<ELFLinkingContext> create(llvm::Triple);
+  int getMachineType() const override { return llvm::ELF::EM_AARCH64; }
   AArch64LinkingContext(llvm::Triple);
 
   void addPasses(PassManager &) override;
+  void registerRelocationNames(Registry &r) override;
 
   uint64_t getBaseAddress() const override {
     if (_baseAddress == 0)
@@ -87,6 +88,11 @@ public:
     default:
       return false;
     }
+  }
+
+  /// \brief The path to the dynamic interpreter
+  StringRef getDefaultInterpreter() const override {
+    return "/lib/ld-linux-aarch64.so.1";
   }
 };
 } // end namespace elf

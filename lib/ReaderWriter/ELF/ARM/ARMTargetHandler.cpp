@@ -9,36 +9,24 @@
 
 #include "Atoms.h"
 #include "ARMExecutableWriter.h"
+#include "ARMDynamicLibraryWriter.h"
 #include "ARMTargetHandler.h"
 #include "ARMLinkingContext.h"
 
 using namespace lld;
 using namespace elf;
 
-ARMTargetHandler::ARMTargetHandler(ARMLinkingContext &context)
-    : _context(context), _armTargetLayout(
-          new ARMTargetLayout<ARMELFType>(context)),
-      _armRelocationHandler(new ARMTargetRelocationHandler(
-          *_armTargetLayout.get())) {}
-
-void ARMTargetHandler::registerRelocationNames(Registry &registry) {
-  registry.addKindTable(Reference::KindNamespace::ELF, Reference::KindArch::ARM,
-                        kindStrings);
-}
+ARMTargetHandler::ARMTargetHandler(ARMLinkingContext &ctx)
+    : _ctx(ctx), _targetLayout(new ARMTargetLayout(ctx)),
+      _relocationHandler(new ARMTargetRelocationHandler(*_targetLayout)) {}
 
 std::unique_ptr<Writer> ARMTargetHandler::getWriter() {
-  switch (this->_context.getOutputELFType()) {
+  switch (this->_ctx.getOutputELFType()) {
   case llvm::ELF::ET_EXEC:
-    return std::unique_ptr<Writer>(
-        new ARMExecutableWriter<ARMELFType>(_context, *_armTargetLayout.get()));
+    return llvm::make_unique<ARMExecutableWriter>(_ctx, *_targetLayout);
+  case llvm::ELF::ET_DYN:
+    return llvm::make_unique<ARMDynamicLibraryWriter>(_ctx, *_targetLayout);
   default:
     llvm_unreachable("unsupported output type");
   }
 }
-
-#define ELF_RELOC(name, value) LLD_KIND_STRING_ENTRY(name),
-
-const Registry::KindStrings ARMTargetHandler::kindStrings[] = {
-#include "llvm/Support/ELFRelocs/ARM.def"
-    LLD_KIND_STRING_END
-};

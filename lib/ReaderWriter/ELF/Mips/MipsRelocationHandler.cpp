@@ -7,9 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MipsTargetHandler.h"
 #include "MipsLinkingContext.h"
 #include "MipsRelocationHandler.h"
+#include "MipsTargetLayout.h"
+#include "llvm/Support/Format.h"
 
 using namespace lld;
 using namespace elf;
@@ -20,306 +21,265 @@ namespace {
 enum class CrossJumpMode {
   None,      // Not a jump or non-isa-cross jump
   ToRegular, // cross isa jump to regular symbol
-  ToMicro    // cross isa jump to microMips symbol
+  ToMicro,   // cross isa jump to microMips symbol
+  ToMicroJalr// cross isa jump to microMips symbol referenced by R_MIPS_JALR
 };
+
+typedef std::function<std::error_code(int64_t, bool)> OverflowChecker;
+
+static std::error_code dummyCheck(int64_t, bool) {
+  return std::error_code();
+}
+
+template <int BITS> static std::error_code signedCheck(int64_t res, bool) {
+  if (llvm::isInt<BITS>(res))
+    return std::error_code();
+  return make_out_of_range_reloc_error();
+}
+
+template <int BITS>
+static std::error_code gpDispCheck(int64_t res, bool isGpDisp) {
+  if (!isGpDisp || llvm::isInt<BITS>(res))
+    return std::error_code();
+  return make_out_of_range_reloc_error();
+}
 
 struct MipsRelocationParams {
   uint8_t _size;  // Relocations's size in bytes
   uint64_t _mask; // Read/write mask of relocation
   uint8_t _shift; // Relocation's addendum left shift size
   bool _shuffle;  // Relocation's addendum/result needs to be shuffled
+  OverflowChecker _overflow; // Check the relocation result
 };
 
-template <class ELFT> class RelocationHandler : public MipsRelocationHandler {
+template <class ELFT> class RelocationHandler : public TargetRelocationHandler {
 public:
-  RelocationHandler(MipsLinkingContext &ctx) : _ctx(ctx) {}
+  RelocationHandler(MipsLinkingContext &ctx, MipsTargetLayout<ELFT> &layout)
+      : _ctx(ctx), _targetLayout(layout) {}
 
   std::error_code applyRelocation(ELFWriter &writer,
                                   llvm::FileOutputBuffer &buf,
-                                  const lld::AtomLayout &atom,
+                                  const AtomLayout &atom,
                                   const Reference &ref) const override;
-
-  Reference::Addend readAddend(Reference::KindValue kind,
-                               const uint8_t *content) const override;
 
 private:
   MipsLinkingContext &_ctx;
+  MipsTargetLayout<ELFT> &_targetLayout;
 };
 }
 
 static MipsRelocationParams getRelocationParams(uint32_t rType) {
   switch (rType) {
   case R_MIPS_NONE:
-    return {4, 0x0, 0, false};
+    return {4, 0x0, 0, false, dummyCheck};
   case R_MIPS_64:
   case R_MIPS_SUB:
-    return {8, 0xffffffffffffffffull, 0, false};
+    return {8, 0xffffffffffffffffull, 0, false, dummyCheck};
+  case R_MICROMIPS_SUB:
+    return {8, 0xffffffffffffffffull, 0, true, dummyCheck};
   case R_MIPS_32:
   case R_MIPS_GPREL32:
+  case R_MIPS_REL32:
   case R_MIPS_PC32:
-    return {4, 0xffffffff, 0, false};
+  case R_MIPS_EH:
+    return {4, 0xffffffff, 0, false, dummyCheck};
   case LLD_R_MIPS_32_HI16:
-    return {4, 0xffff0000, 0, false};
+    return {4, 0xffff0000, 0, false, dummyCheck};
   case LLD_R_MIPS_64_HI16:
-    return {8, 0xffffffffffff0000ull, 0, false};
+    return {8, 0xffffffffffff0000ull, 0, false, dummyCheck};
   case R_MIPS_26:
   case LLD_R_MIPS_GLOBAL_26:
-    return {4, 0x3ffffff, 2, false};
+    return {4, 0x3ffffff, 2, false, dummyCheck};
+  case R_MIPS_PC16:
+    return {4, 0xffff, 2, false, signedCheck<18>};
   case R_MIPS_PC18_S3:
-    return {4, 0x3ffff, 3, false};
+    return {4, 0x3ffff, 3, false, signedCheck<21>};
   case R_MIPS_PC19_S2:
-    return {4, 0x7ffff, 2, false};
+    return {4, 0x7ffff, 2, false, signedCheck<21>};
   case R_MIPS_PC21_S2:
-    return {4, 0x1fffff, 2, false};
+    return {4, 0x1fffff, 2, false, signedCheck<23>};
   case R_MIPS_PC26_S2:
-    return {4, 0x3ffffff, 2, false};
+    return {4, 0x3ffffff, 2, false, signedCheck<28>};
   case R_MIPS_HI16:
+    return {4, 0xffff, 0, false, gpDispCheck<16>};
   case R_MIPS_LO16:
+  case R_MIPS_HIGHER:
+  case R_MIPS_HIGHEST:
+    return {4, 0xffff, 0, false, dummyCheck};
+  case R_MIPS_16:
   case R_MIPS_PCHI16:
   case R_MIPS_PCLO16:
-  case R_MIPS_GPREL16:
   case R_MIPS_GOT16:
+  case R_MIPS_CALL16:
   case R_MIPS_GOT_DISP:
   case R_MIPS_GOT_PAGE:
   case R_MIPS_GOT_OFST:
+  case R_MIPS_GPREL16:
+  case R_MIPS_TLS_GD:
+  case R_MIPS_TLS_LDM:
+  case R_MIPS_TLS_GOTTPREL:
+  case R_MIPS_LITERAL:
+    return {4, 0xffff, 0, false, signedCheck<16>};
+  case R_MIPS_GOT_HI16:
+  case R_MIPS_GOT_LO16:
+  case R_MIPS_CALL_HI16:
+  case R_MIPS_CALL_LO16:
   case R_MIPS_TLS_DTPREL_HI16:
   case R_MIPS_TLS_DTPREL_LO16:
   case R_MIPS_TLS_TPREL_HI16:
   case R_MIPS_TLS_TPREL_LO16:
-  case LLD_R_MIPS_HI16:
-  case LLD_R_MIPS_LO16:
-    return {4, 0xffff, 0, false};
+    return {4, 0xffff, 0, false, dummyCheck};
+  case R_MICROMIPS_GPREL16:
+  case R_MICROMIPS_LITERAL:
+    return {4, 0xffff, 0, true, signedCheck<16>};
+  case R_MICROMIPS_GPREL7_S2:
+    return {4, 0x7f, 2, false, signedCheck<9>};
+  case R_MICROMIPS_GOT_HI16:
+  case R_MICROMIPS_GOT_LO16:
+  case R_MICROMIPS_CALL_HI16:
+  case R_MICROMIPS_CALL_LO16:
   case R_MICROMIPS_TLS_DTPREL_HI16:
   case R_MICROMIPS_TLS_DTPREL_LO16:
   case R_MICROMIPS_TLS_TPREL_HI16:
   case R_MICROMIPS_TLS_TPREL_LO16:
-    return {4, 0xffff, 0, true};
+    return {4, 0xffff, 0, true, dummyCheck};
   case R_MICROMIPS_26_S1:
   case LLD_R_MICROMIPS_GLOBAL_26_S1:
-    return {4, 0x3ffffff, 1, true};
+    return {4, 0x3ffffff, 1, true, dummyCheck};
   case R_MICROMIPS_HI16:
+    return {4, 0xffff, 0, true, gpDispCheck<16>};
   case R_MICROMIPS_LO16:
-  case R_MICROMIPS_GOT16:
-    return {4, 0xffff, 0, true};
+  case R_MICROMIPS_HI0_LO16:
+  case R_MICROMIPS_HIGHER:
+  case R_MICROMIPS_HIGHEST:
+    return {4, 0xffff, 0, true, dummyCheck};
   case R_MICROMIPS_PC16_S1:
-    return {4, 0xffff, 1, true};
+    return {4, 0xffff, 1, true, signedCheck<17>};
   case R_MICROMIPS_PC7_S1:
-    return {4, 0x7f, 1, false};
+    return {4, 0x7f, 1, false, signedCheck<8>};
   case R_MICROMIPS_PC10_S1:
-    return {4, 0x3ff, 1, false};
+    return {4, 0x3ff, 1, false, signedCheck<11>};
   case R_MICROMIPS_PC23_S2:
-    return {4, 0x7fffff, 2, true};
-  case R_MIPS_CALL16:
-  case R_MIPS_TLS_GD:
-  case R_MIPS_TLS_LDM:
-  case R_MIPS_TLS_GOTTPREL:
-    return {4, 0xffff, 0, false};
+    return {4, 0x7fffff, 2, true, signedCheck<25>};
+  case R_MICROMIPS_PC18_S3:
+    return {4, 0x3ffff, 3, true, signedCheck<21>};
+  case R_MICROMIPS_PC19_S2:
+    return {4, 0x7ffff, 2, true, signedCheck<21>};
+  case R_MICROMIPS_PC21_S2:
+    return {4, 0x1fffff, 2, true, signedCheck<23>};
+  case R_MICROMIPS_PC26_S2:
+    return {4, 0x3ffffff, 2, true, signedCheck<28>};
+  case R_MICROMIPS_GOT16:
   case R_MICROMIPS_CALL16:
   case R_MICROMIPS_TLS_GD:
   case R_MICROMIPS_TLS_LDM:
   case R_MICROMIPS_TLS_GOTTPREL:
-    return {4, 0xffff, 0, true};
+  case R_MICROMIPS_GOT_DISP:
+  case R_MICROMIPS_GOT_PAGE:
+  case R_MICROMIPS_GOT_OFST:
+    return {4, 0xffff, 0, true, signedCheck<16>};
   case R_MIPS_JALR:
-    return {4, 0x0, 0, false};
+    return {4, 0xffffffff, 0, false, dummyCheck};
   case R_MICROMIPS_JALR:
-    return {4, 0x0, 0, true};
-  case R_MIPS_REL32:
+    return {4, 0x0, 0, true, dummyCheck};
   case R_MIPS_JUMP_SLOT:
   case R_MIPS_COPY:
   case R_MIPS_TLS_DTPMOD32:
   case R_MIPS_TLS_DTPREL32:
   case R_MIPS_TLS_TPREL32:
-    // Ignore runtime relocations.
-    return {4, 0x0, 0, false};
+    return {4, 0xffffffff, 0, false, dummyCheck};
   case R_MIPS_TLS_DTPMOD64:
   case R_MIPS_TLS_DTPREL64:
   case R_MIPS_TLS_TPREL64:
-    return {8, 0x0, 0, false};
+    return {8, 0xffffffffffffffffull, 0, false, dummyCheck};
   case LLD_R_MIPS_GLOBAL_GOT:
   case LLD_R_MIPS_STO_PLT:
     // Do nothing.
-    return {4, 0x0, 0, false};
+    return {4, 0x0, 0, false, dummyCheck};
   default:
     llvm_unreachable("Unknown relocation");
   }
 }
 
-/// \brief R_MIPS_32
-/// local/external: word32 S + A (truncate)
-static uint32_t reloc32(uint64_t S, int64_t A) { return S + A; }
+template <class ELFT>
+static uint64_t relocRead(const MipsRelocationParams &params,
+                          const uint8_t *loc);
 
-/// \brief R_MIPS_64
-/// local/external: word64 S + A (truncate)
-static uint64_t reloc64(uint64_t S, int64_t A) { return S + A; }
-
-/// \brief R_MIPS_SUB
-/// local/external: word64 S - A (truncate)
-static uint64_t relocSub(uint64_t S, int64_t A) { return S - A; }
-
-/// \brief R_MIPS_PC32
-/// local/external: word32 S + A i- P (truncate)
-static uint32_t relocpc32(uint64_t P, uint64_t S, int64_t A) {
-  return S + A - P;
+static int64_t getHi16(int64_t value) {
+  return ((value + 0x8000) >> 16) & 0xffff;
 }
 
-/// \brief R_MIPS_26, R_MICROMIPS_26_S1
-/// local   : ((A | ((P + 4) & 0x3F000000)) + S) >> 2
-static uint32_t reloc26loc(uint64_t P, uint64_t S, int32_t A, uint32_t shift) {
-  uint32_t result = (A | ((P + 4) & (0xfc000000 << shift))) + S;
-  return result >> shift;
+static int64_t getHigher16(int64_t value) {
+  return ((value + 0x80008000ull) >> 32) & 0xffff;
 }
 
-/// \brief LLD_R_MIPS_GLOBAL_26, LLD_R_MICROMIPS_GLOBAL_26_S1
-/// external: (sign-extend(A) + S) >> 2
-static uint32_t reloc26ext(uint64_t S, int32_t A, uint32_t shift) {
-  int32_t result =
-      shift == 1 ? llvm::SignExtend32<27>(A) : llvm::SignExtend32<28>(A);
-  return (result + S) >> shift;
+static int64_t getHighest16(int64_t value) {
+  return ((value + 0x800080008000ull) >> 48) & 0xffff;
 }
 
-/// \brief R_MIPS_HI16, R_MIPS_TLS_DTPREL_HI16, R_MIPS_TLS_TPREL_HI16,
-/// R_MICROMIPS_HI16, R_MICROMIPS_TLS_DTPREL_HI16, R_MICROMIPS_TLS_TPREL_HI16,
-/// LLD_R_MIPS_HI16
-/// local/external: hi16 (AHL + S) - (short)(AHL + S) (truncate)
-/// _gp_disp      : hi16 (AHL + GP - P) - (short)(AHL + GP - P) (verify)
-static uint32_t relocHi16(uint64_t P, uint64_t S, int64_t AHL, bool isGPDisp) {
-  int32_t result = isGPDisp ? AHL + S - P : AHL + S;
-  return (result + 0x8000) >> 16;
+static int64_t maskLow16(int64_t value) {
+  return (value + 0x8000) & ~0xffff;
 }
 
-/// \brief R_MIPS_PCHI16
-/// local/external: hi16 (S + AHL - P)
-static uint32_t relocPcHi16(uint64_t P, uint64_t S, int64_t AHL) {
-  int32_t result = S + AHL - P;
-  return (result + 0x8000) >> 16;
-}
-
-/// \brief R_MIPS_LO16, R_MIPS_TLS_DTPREL_LO16, R_MIPS_TLS_TPREL_LO16,
-/// R_MICROMIPS_LO16, R_MICROMIPS_TLS_DTPREL_LO16, R_MICROMIPS_TLS_TPREL_LO16,
-/// LLD_R_MIPS_LO16
-/// local/external: lo16 AHL + S (truncate)
-/// _gp_disp      : lo16 AHL + GP - P + 4 (verify)
-static uint32_t relocLo16(uint64_t P, uint64_t S, int64_t AHL, bool isGPDisp,
-                          bool micro) {
-  int32_t result = isGPDisp ? AHL + S - P + (micro ? 3 : 4) : AHL + S;
-  return result;
-}
-
-/// \brief R_MIPS_PCLO16
-/// local/external: lo16 (S + AHL - P)
-static uint32_t relocPcLo16(uint64_t P, uint64_t S, int64_t AHL) {
-  AHL = llvm::SignExtend32<16>(AHL);
-  int32_t result = S + AHL - P;
-  return result;
-}
-
-/// \brief R_MIPS_GOT16, R_MIPS_CALL16, R_MICROMIPS_GOT16, R_MICROMIPS_CALL16
-/// rel16 G (verify)
-static uint64_t relocGOT(uint64_t S, uint64_t GP) {
-  int64_t G = (int64_t)(S - GP);
-  return G;
-}
-
-/// R_MIPS_GOT_OFST
+/// R_MIPS_GOT_OFST, R_MICROMIPS_GOT_OFST
 /// rel16 offset of (S+A) from the page pointer (verify)
-static uint32_t relocGOTOfst(uint64_t S, int64_t A) {
-  uint64_t page = (S + A + 0x8000) & ~0xffff;
+static int32_t relocGOTOfst(uint64_t S, int64_t A) {
+  int64_t page = maskLow16(S + A);
   return S + A - page;
 }
 
-/// \brief R_MIPS_GPREL16
-/// local: sign-extend(A) + S + GP0 - GP
-/// external: sign-extend(A) + S - GP
-static uint64_t relocGPRel16(uint64_t S, int64_t A, uint64_t GP) {
-  // We added GP0 to addendum for a local symbol during a Relocation pass.
-  return llvm::SignExtend32<16>(A) + S - GP;
+/// \brief R_MIPS_PC16
+/// local/external: (S + A - P) >> 2
+static ErrorOr<int64_t> relocPc16(uint64_t P, uint64_t S, int64_t A) {
+  if ((S + A) & 3)
+    return make_unaligned_range_reloc_error();
+  return S + A - P;
 }
 
-/// \brief R_MIPS_GPREL32
-/// local: rel32 A + S + GP0 - GP (truncate)
-static uint64_t relocGPRel32(uint64_t S, int64_t A, uint64_t GP) {
-  // We added GP0 to addendum for a local symbol during a Relocation pass.
-  return A + S - GP;
-}
-
-/// \brief R_MIPS_PC18_S3
+/// \brief R_MIPS_PC18_S3, R_MICROMIPS_PC18_S3
 /// local/external: (S + A - P) >> 3 (P with cleared 3 less significant bits)
-static uint32_t relocPc18(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<21>(A);
-  // FIXME (simon): Check that S + A has 8-byte alignment
-  int32_t result = S + A - ((P | 7) ^ 7);
-  return result >> 3;
+static ErrorOr<int64_t> relocPc18(uint64_t P, uint64_t S, int64_t A) {
+  if ((S + A) & 6)
+    return make_unaligned_range_reloc_error();
+  return S + A - ((P | 7) ^ 7);
 }
 
-/// \brief R_MIPS_PC19_S2
+/// \brief R_MIPS_PC19_S2, R_MICROMIPS_PC19_S2, R_MIPS_PC21_S2,
+/// R_MICROMIPS_PC21_S2, R_MIPS_PC26_S2, R_MICROMIPS_PC26_S2
 /// local/external: (S + A - P) >> 2
-static uint32_t relocPc19(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<21>(A);
-  // FIXME (simon): Check that S + A has 4-byte alignment
-  int32_t result = S + A - P;
-  return result >> 2;
+static ErrorOr<int64_t> relocPcS2(uint64_t P, uint64_t S, int64_t A) {
+  if ((S + A) & 2)
+    return make_unaligned_range_reloc_error();
+  return S + A - P;
 }
 
-/// \brief R_MIPS_PC21_S2
-/// local/external: (S + A - P) >> 2
-static uint32_t relocPc21(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<23>(A);
-  // FIXME (simon): Check that S + A has 4-byte alignment
-  int32_t result = S + A - P;
-  return result >> 2;
+template <class ELFT>
+static ErrorOr<int64_t> relocJalr(uint64_t P, uint64_t S, bool isCrossJump,
+                                  uint8_t *location) {
+  uint64_t ins = relocRead<ELFT>(getRelocationParams(R_MIPS_JALR), location);
+  if (isCrossJump)
+    return ins;
+  int64_t off = S - P - 4;
+  if (!llvm::isInt<18>(off))
+    return ins;
+  if (ins == 0x0320f809) // jalr t9
+    return 0x04110000 | ((off >> 2) & 0xffff);
+  if (ins == 0x03200008) // jr t9
+    return 0x10000000 | ((off >> 2) & 0xffff);
+  return ins;
 }
 
-/// \brief R_MIPS_PC26_S2
-/// local/external: (S + A - P) >> 2
-static uint32_t relocPc26(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<28>(A);
-  // FIXME (simon): Check that S + A has 4-byte alignment
-  int32_t result = S + A - P;
-  return result >> 2;
-}
-
-/// \brief R_MICROMIPS_PC7_S1
-static uint32_t relocPc7(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<8>(A);
-  int32_t result = S + A - P;
-  return result >> 1;
-}
-
-/// \brief R_MICROMIPS_PC10_S1
-static uint32_t relocPc10(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<11>(A);
-  int32_t result = S + A - P;
-  return result >> 1;
-}
-
-/// \brief R_MICROMIPS_PC16_S1
-static uint32_t relocPc16(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<17>(A);
-  int32_t result = S + A - P;
-  return result >> 1;
-}
-
-/// \brief R_MICROMIPS_PC23_S2
-static uint32_t relocPc23(uint64_t P, uint64_t S, int64_t A) {
-  A = llvm::SignExtend32<25>(A);
-  int32_t result = S + A - P;
-
-  // Check addiupc 16MB range.
-  if (result + 0x1000000 >= 0x2000000)
-    llvm::errs() << "The addiupc instruction immediate "
-                 << llvm::format_hex(result, 10) << " is out of range.\n";
-
-  return result >> 2;
-}
-
-/// \brief LLD_R_MIPS_32_HI16, LLD_R_MIPS_64_HI16
-static uint64_t relocMaskLow16(uint64_t S, int64_t A) {
-  return S + A + 0x8000;
+static int64_t relocRel32(uint64_t S, int64_t A, bool isLocal) {
+  // If output relocation format is REL and the input one is RELA, the only
+  // method to transfer the relocation addend from the input relocation
+  // to the output dynamic relocation is to save this addend to the location
+  // modified by R_MIPS_REL32.
+  return isLocal ? S + A : A;
 }
 
 static std::error_code adjustJumpOpCode(uint64_t &ins, uint64_t tgt,
                                         CrossJumpMode mode) {
-  if (mode == CrossJumpMode::None)
+  if (mode == CrossJumpMode::None || mode == CrossJumpMode::ToMicroJalr)
     return std::error_code();
 
   bool toMicro = mode == CrossJumpMode::ToMicro;
@@ -327,8 +287,7 @@ static std::error_code adjustJumpOpCode(uint64_t &ins, uint64_t tgt,
   uint32_t opCross = toMicro ? 0x1d : 0x3c;
 
   if ((tgt & 1) != toMicro)
-    return make_dynamic_error_code(
-        Twine("Incorrect bit 0 for the jalx target"));
+    return make_dynamic_error_code("Incorrect bit 0 for the jalx target");
 
   if (tgt & 2)
     return make_dynamic_error_code(Twine("The jalx target 0x") +
@@ -356,6 +315,8 @@ static CrossJumpMode getCrossJumpMode(const Reference &ref) {
     return CrossJumpMode::None;
   bool isTgtMicro = isMicroMipsAtom(ref.target());
   switch (ref.kindValue()) {
+  case R_MIPS_JALR:
+    return isTgtMicro ? CrossJumpMode::ToMicroJalr : CrossJumpMode::None;
   case R_MIPS_26:
   case LLD_R_MIPS_GLOBAL_26:
     return isTgtMicro ? CrossJumpMode::ToMicro : CrossJumpMode::None;
@@ -367,44 +328,64 @@ static CrossJumpMode getCrossJumpMode(const Reference &ref) {
   }
 }
 
-static uint32_t microShuffle(uint32_t ins) {
-  return ((ins & 0xffff) << 16) | ((ins & 0xffff0000) >> 16);
-}
-
-static ErrorOr<uint64_t> calculateRelocation(Reference::KindValue kind,
-                                             Reference::Addend addend,
-                                             uint64_t tgtAddr, uint64_t relAddr,
-                                             uint64_t gpAddr, bool isGP,
-                                             CrossJumpMode jumpMode) {
-  bool isCrossJump = jumpMode !=  CrossJumpMode::None;
+template <class ELFT>
+static ErrorOr<int64_t>
+calculateRelocation(Reference::KindValue kind, Reference::Addend addend,
+                    uint64_t tgtAddr, uint64_t relAddr, uint64_t gpAddr,
+                    uint8_t *location, bool isGP, bool isCrossJump,
+                    bool isDynamic, bool isLocalSym) {
   switch (kind) {
   case R_MIPS_NONE:
     return 0;
+  case R_MIPS_16:
   case R_MIPS_32:
-    return reloc32(tgtAddr, addend);
   case R_MIPS_64:
-    return reloc64(tgtAddr, addend);
+  case R_MIPS_TLS_DTPREL_LO16:
+  case R_MIPS_TLS_TPREL_LO16:
+  case R_MICROMIPS_TLS_DTPREL_LO16:
+  case R_MICROMIPS_TLS_TPREL_LO16:
+  case LLD_R_MIPS_GLOBAL_26:
+  case LLD_R_MICROMIPS_GLOBAL_26_S1:
+    return tgtAddr + addend;
   case R_MIPS_SUB:
-    return relocSub(tgtAddr, addend);
+  case R_MICROMIPS_SUB:
+    return tgtAddr - addend;
   case R_MIPS_26:
-    return reloc26loc(relAddr, tgtAddr, addend, 2);
+    return tgtAddr + (addend | (relAddr & 0xf0000000));
   case R_MICROMIPS_26_S1:
-    return reloc26loc(relAddr, tgtAddr, addend, isCrossJump ? 2 : 1);
+    return tgtAddr + (addend | (relAddr & 0xf8000000));
   case R_MIPS_HI16:
   case R_MICROMIPS_HI16:
-    return relocHi16(relAddr, tgtAddr, addend, isGP);
+    return getHi16(tgtAddr + addend - (isGP ? relAddr : 0));
   case R_MIPS_PCHI16:
-    return relocPcHi16(relAddr, tgtAddr, addend);
+    return getHi16(tgtAddr + addend - relAddr);
   case R_MIPS_LO16:
-    return relocLo16(relAddr, tgtAddr, addend, isGP, false);
-  case R_MIPS_PCLO16:
-    return relocPcLo16(relAddr, tgtAddr, addend);
+    return tgtAddr + addend - (isGP ? relAddr - 4 : 0);
   case R_MICROMIPS_LO16:
-    return relocLo16(relAddr, tgtAddr, addend, isGP, true);
+  case R_MICROMIPS_HI0_LO16:
+    return tgtAddr + addend - (isGP ? relAddr - 3 : 0);
+  case R_MIPS_GOT_HI16:
+  case R_MIPS_CALL_HI16:
+  case R_MICROMIPS_GOT_HI16:
+  case R_MICROMIPS_CALL_HI16:
+    return getHi16(tgtAddr - gpAddr);
+  case R_MIPS_HIGHER:
+  case R_MICROMIPS_HIGHER:
+    return getHigher16(tgtAddr + addend);
+  case R_MIPS_HIGHEST:
+  case R_MICROMIPS_HIGHEST:
+    return getHighest16(tgtAddr + addend);
+  case R_MIPS_GOT_LO16:
+  case R_MIPS_CALL_LO16:
+  case R_MICROMIPS_GOT_LO16:
+  case R_MICROMIPS_CALL_LO16:
+  case R_MIPS_EH:
   case R_MIPS_GOT16:
   case R_MIPS_CALL16:
   case R_MIPS_GOT_DISP:
   case R_MIPS_GOT_PAGE:
+  case R_MICROMIPS_GOT_DISP:
+  case R_MICROMIPS_GOT_PAGE:
   case R_MICROMIPS_GOT16:
   case R_MICROMIPS_CALL16:
   case R_MIPS_TLS_GD:
@@ -413,71 +394,66 @@ static ErrorOr<uint64_t> calculateRelocation(Reference::KindValue kind,
   case R_MICROMIPS_TLS_GD:
   case R_MICROMIPS_TLS_LDM:
   case R_MICROMIPS_TLS_GOTTPREL:
-    return relocGOT(tgtAddr, gpAddr);
+    return tgtAddr - gpAddr;
+  case R_MIPS_GPREL16:
+  case R_MIPS_GPREL32:
+  case R_MIPS_LITERAL:
+  case R_MICROMIPS_GPREL16:
+  case R_MICROMIPS_GPREL7_S2:
+  case R_MICROMIPS_LITERAL:
+    return tgtAddr + addend - gpAddr;
   case R_MIPS_GOT_OFST:
+  case R_MICROMIPS_GOT_OFST:
     return relocGOTOfst(tgtAddr, addend);
+  case R_MIPS_PC16:
+    return relocPc16(relAddr, tgtAddr, addend);
   case R_MIPS_PC18_S3:
+  case R_MICROMIPS_PC18_S3:
     return relocPc18(relAddr, tgtAddr, addend);
   case R_MIPS_PC19_S2:
-    return relocPc19(relAddr, tgtAddr, addend);
+  case R_MICROMIPS_PC19_S2:
   case R_MIPS_PC21_S2:
-    return relocPc21(relAddr, tgtAddr, addend);
+  case R_MICROMIPS_PC21_S2:
   case R_MIPS_PC26_S2:
-    return relocPc26(relAddr, tgtAddr, addend);
+  case R_MICROMIPS_PC26_S2:
+    return relocPcS2(relAddr, tgtAddr, addend);
+  case R_MIPS_PC32:
+  case R_MIPS_PCLO16:
   case R_MICROMIPS_PC7_S1:
-    return relocPc7(relAddr, tgtAddr, addend);
   case R_MICROMIPS_PC10_S1:
-    return relocPc10(relAddr, tgtAddr, addend);
   case R_MICROMIPS_PC16_S1:
-    return relocPc16(relAddr, tgtAddr, addend);
   case R_MICROMIPS_PC23_S2:
-    return relocPc23(relAddr, tgtAddr, addend);
+    return tgtAddr + addend - relAddr;
   case R_MIPS_TLS_DTPREL_HI16:
   case R_MIPS_TLS_TPREL_HI16:
   case R_MICROMIPS_TLS_DTPREL_HI16:
   case R_MICROMIPS_TLS_TPREL_HI16:
-    return relocHi16(0, tgtAddr, addend, false);
-  case R_MIPS_TLS_DTPREL_LO16:
-  case R_MIPS_TLS_TPREL_LO16:
-    return relocLo16(0, tgtAddr, addend, false, false);
-  case R_MICROMIPS_TLS_DTPREL_LO16:
-  case R_MICROMIPS_TLS_TPREL_LO16:
-    return relocLo16(0, tgtAddr, addend, false, true);
-  case R_MIPS_GPREL16:
-    return relocGPRel16(tgtAddr, addend, gpAddr);
-  case R_MIPS_GPREL32:
-    return relocGPRel32(tgtAddr, addend, gpAddr);
+    return getHi16(tgtAddr + addend);
   case R_MIPS_JALR:
+    return relocJalr<ELFT>(relAddr, tgtAddr, isCrossJump, location);
   case R_MICROMIPS_JALR:
     // We do not do JALR optimization now.
     return 0;
   case R_MIPS_REL32:
+    return relocRel32(tgtAddr, addend, isLocalSym);
   case R_MIPS_JUMP_SLOT:
   case R_MIPS_COPY:
-  case R_MIPS_TLS_DTPMOD32:
-  case R_MIPS_TLS_DTPREL32:
-  case R_MIPS_TLS_TPREL32:
-  case R_MIPS_TLS_DTPMOD64:
-  case R_MIPS_TLS_DTPREL64:
-  case R_MIPS_TLS_TPREL64:
     // Ignore runtime relocations.
     return 0;
-  case R_MIPS_PC32:
-    return relocpc32(relAddr, tgtAddr, addend);
-  case LLD_R_MIPS_GLOBAL_GOT:
-    // Do nothing.
+  case R_MIPS_TLS_DTPMOD32:
+  case R_MIPS_TLS_DTPMOD64:
+    return isDynamic ? 0 : 1;
+  case R_MIPS_TLS_DTPREL32:
+  case R_MIPS_TLS_DTPREL64:
+    return isDynamic ? 0 : tgtAddr + addend - 0x8000;
+  case R_MIPS_TLS_TPREL32:
+  case R_MIPS_TLS_TPREL64:
+    return isDynamic ? 0 : tgtAddr + addend - 0x7000;
   case LLD_R_MIPS_32_HI16:
   case LLD_R_MIPS_64_HI16:
-    return relocMaskLow16(tgtAddr, addend);
-  case LLD_R_MIPS_GLOBAL_26:
-    return reloc26ext(tgtAddr, addend, 2);
-  case LLD_R_MICROMIPS_GLOBAL_26_S1:
-    return reloc26ext(tgtAddr, addend, isCrossJump ? 2 : 1);
-  case LLD_R_MIPS_HI16:
-    return relocHi16(0, tgtAddr, 0, false);
-  case LLD_R_MIPS_LO16:
-    return relocLo16(0, tgtAddr, 0, false, false);
+    return maskLow16(tgtAddr + addend);
   case LLD_R_MIPS_STO_PLT:
+  case LLD_R_MIPS_GLOBAL_GOT:
     // Do nothing.
     return 0;
   default:
@@ -488,27 +464,29 @@ static ErrorOr<uint64_t> calculateRelocation(Reference::KindValue kind,
 template <class ELFT>
 static uint64_t relocRead(const MipsRelocationParams &params,
                           const uint8_t *loc) {
-  uint64_t data;
+  assert((params._size == 4 || params._size == 8) && "Unexpected size");
+  uint64_t data = 0;
+  memcpy(&data, loc, params._size);
+  if (params._shuffle) {
+    using namespace endian;
+    auto p = reinterpret_cast<const uint8_t *>(&data);
+    uint32_t a = readNext<uint16_t, ELFT::TargetEndianness, unaligned>(p);
+    uint32_t b = read<uint16_t, ELFT::TargetEndianness, unaligned>(p);
+    write<uint32_t, ELFT::TargetEndianness, unaligned>(&data, a << 16 | b);
+  }
   switch (params._size) {
   case 4:
-    data = endian::read<uint32_t, ELFT::TargetEndianness, unaligned>(loc);
-    break;
+    return endian::read<uint32_t, ELFT::TargetEndianness, unaligned>(&data);
   case 8:
-    data = endian::read<uint64_t, ELFT::TargetEndianness, unaligned>(loc);
-    break;
+    return endian::read<uint64_t, ELFT::TargetEndianness, unaligned>(&data);
   default:
     llvm_unreachable("Unexpected size");
   }
-  if (params._shuffle)
-    data = microShuffle(data);
-  return data;
 }
 
 template <class ELFT>
 static void relocWrite(uint64_t data, const MipsRelocationParams &params,
                        uint8_t *loc) {
-  if (params._shuffle)
-    data = microShuffle(data);
   switch (params._size) {
   case 4:
     endian::write<uint32_t, ELFT::TargetEndianness, unaligned>(loc, data);
@@ -519,24 +497,50 @@ static void relocWrite(uint64_t data, const MipsRelocationParams &params,
   default:
     llvm_unreachable("Unexpected size");
   }
+  if (params._shuffle) {
+    uint32_t v = endian::read<uint32_t, ELFT::TargetEndianness, unaligned>(loc);
+    uint16_t a = v >> 16;
+    uint16_t b = v & 0xffff;
+    endian::write<uint16_t, ELFT::TargetEndianness, unaligned>(loc, a);
+    endian::write<uint16_t, ELFT::TargetEndianness, unaligned>(loc + 2, b);
+  }
+}
+
+static uint32_t getRelKind(const Reference &ref, size_t num) {
+  if (num == 0)
+    return ref.kindValue();
+  if (num > 2)
+    return R_MIPS_NONE;
+  return (ref.tag() >> (8 * (num - 1))) & 0xff;
+}
+
+static uint8_t getRelShift(Reference::KindValue kind,
+                           const MipsRelocationParams &params,
+                           bool isCrossJump) {
+  uint8_t shift = params._shift;
+  if (isCrossJump &&
+      (kind == R_MICROMIPS_26_S1 || kind == LLD_R_MICROMIPS_GLOBAL_26_S1))
+    return 2;
+  return shift;
+}
+
+static bool isLocalTarget(const Atom *a) {
+  if (auto *da = dyn_cast<DefinedAtom>(a))
+    return da->scope() == Atom::scopeTranslationUnit;
+  return false;
 }
 
 template <class ELFT>
 std::error_code RelocationHandler<ELFT>::applyRelocation(
-    ELFWriter &writer, llvm::FileOutputBuffer &buf, const lld::AtomLayout &atom,
+    ELFWriter &writer, llvm::FileOutputBuffer &buf, const AtomLayout &atom,
     const Reference &ref) const {
-  if (ref.kindNamespace() != lld::Reference::KindNamespace::ELF)
+  if (ref.kindNamespace() != Reference::KindNamespace::ELF)
     return std::error_code();
   assert(ref.kindArch() == Reference::KindArch::Mips);
 
-  auto &targetLayout = static_cast<MipsTargetLayout<ELFT> &>(
-      _ctx.getTargetHandler<ELFT>().getTargetLayout());
-
-  AtomLayout *gpAtom = targetLayout.getGP();
-  uint64_t gpAddr = gpAtom ? gpAtom->_virtualAddr : 0;
-
-  AtomLayout *gpDispAtom = targetLayout.getGPDisp();
-  bool isGpDisp = gpDispAtom && ref.target() == gpDispAtom->_atom;
+  uint64_t gpAddr = _targetLayout.getGPAddr();
+  bool isGpDisp = ref.target()->name() == "_gp_disp";
+  bool isLocalSym = isLocalTarget(ref.target());
 
   uint8_t *atomContent = buf.getBufferStart() + atom._fileOffset;
   uint8_t *location = atomContent + ref.offsetInAtom();
@@ -547,26 +551,37 @@ std::error_code RelocationHandler<ELFT>::applyRelocation(
     tgtAddr |= 1;
 
   CrossJumpMode jumpMode = getCrossJumpMode(ref);
+  bool isCrossJump = jumpMode != CrossJumpMode::None;
 
-  ErrorOr<uint64_t> res =
-      calculateRelocation(ref.kindValue(), ref.addend(), tgtAddr, relAddr,
-                          gpAddr, isGpDisp, jumpMode);
-  if (auto ec = res.getError())
-    return ec;
+  uint64_t sym = tgtAddr;
+  ErrorOr<int64_t> res = ref.addend();
+  Reference::KindValue lastRel = R_MIPS_NONE;
 
-  Reference::KindValue op = ref.kindValue();
-
-  // FIXME (simon): Handle r_ssym value.
-  for (auto tag = (ref.tag() & 0xffff); tag & 0xff; tag >>= 8) {
-    op = tag & 0xff;
-    res = calculateRelocation(op, *res, 0, relAddr, gpAddr, isGpDisp, jumpMode);
+  for (size_t relNum = 0; relNum < 3; ++relNum) {
+    Reference::KindValue kind = getRelKind(ref, relNum);
+    if (kind == R_MIPS_NONE)
+      break;
+    auto params = getRelocationParams(kind);
+    res = calculateRelocation<ELFT>(kind, *res, sym, relAddr, gpAddr, location,
+                                    isGpDisp, isCrossJump, _ctx.isDynamic(),
+                                    isLocalSym);
     if (auto ec = res.getError())
       return ec;
+    // Check result for the last relocation only.
+    if (getRelKind(ref, relNum + 1) == R_MIPS_NONE) {
+      if (auto ec = params._overflow(*res, isGpDisp))
+        return ec;
+    }
+    res = *res >> getRelShift(kind, params, isCrossJump);
+    // FIXME (simon): Handle r_ssym value.
+    sym = 0;
+    isGpDisp = false;
+    isCrossJump = false;
+    lastRel = kind;
   }
 
-  auto params = getRelocationParams(op);
+  auto params = getRelocationParams(lastRel);
   uint64_t ins = relocRead<ELFT>(params, location);
-
   if (auto ec = adjustJumpOpCode(ins, tgtAddr, jumpMode))
     return ec;
 
@@ -576,31 +591,97 @@ std::error_code RelocationHandler<ELFT>::applyRelocation(
   return std::error_code();
 }
 
-template <class ELFT>
-Reference::Addend
-RelocationHandler<ELFT>::readAddend(Reference::KindValue kind,
-                                    const uint8_t *content) const {
-  auto params = getRelocationParams(kind);
-  uint64_t ins = relocRead<ELFT>(params, content);
-  return (ins & params._mask) << params._shift;
-}
-
 namespace lld {
 namespace elf {
 
 template <>
 std::unique_ptr<TargetRelocationHandler>
-createMipsRelocationHandler<Mips32ELType>(MipsLinkingContext &ctx) {
-  return std::unique_ptr<TargetRelocationHandler>(
-      new RelocationHandler<Mips32ELType>(ctx));
+createMipsRelocationHandler<ELF32BE>(MipsLinkingContext &ctx,
+                                     MipsTargetLayout<ELF32BE> &layout) {
+  return llvm::make_unique<RelocationHandler<ELF32BE>>(ctx, layout);
 }
 
 template <>
 std::unique_ptr<TargetRelocationHandler>
-createMipsRelocationHandler<Mips64ELType>(MipsLinkingContext &ctx) {
-  return std::unique_ptr<TargetRelocationHandler>(
-      new RelocationHandler<Mips64ELType>(ctx));
+createMipsRelocationHandler<ELF32LE>(MipsLinkingContext &ctx,
+                                     MipsTargetLayout<ELF32LE> &layout) {
+  return llvm::make_unique<RelocationHandler<ELF32LE>>(ctx, layout);
 }
+
+template <>
+std::unique_ptr<TargetRelocationHandler>
+createMipsRelocationHandler<ELF64BE>(MipsLinkingContext &ctx,
+                                     MipsTargetLayout<ELF64BE> &layout) {
+  return llvm::make_unique<RelocationHandler<ELF64BE>>(ctx, layout);
+}
+
+template <>
+std::unique_ptr<TargetRelocationHandler>
+createMipsRelocationHandler<ELF64LE>(MipsLinkingContext &ctx,
+                                     MipsTargetLayout<ELF64LE> &layout) {
+  return llvm::make_unique<RelocationHandler<ELF64LE>>(ctx, layout);
+}
+
+template <class ELFT>
+Reference::Addend readMipsRelocAddend(Reference::KindValue kind,
+                                      const uint8_t *content) {
+  auto params = getRelocationParams(kind);
+  uint64_t ins = relocRead<ELFT>(params, content);
+  int64_t res = (ins & params._mask) << params._shift;
+  switch (kind) {
+  case R_MIPS_GPREL16:
+  case R_MICROMIPS_GPREL16:
+  case R_MIPS_PCLO16:
+  case R_MIPS_LITERAL:
+  case R_MICROMIPS_LITERAL:
+    return llvm::SignExtend32<16>(res);
+  case R_MIPS_PC16:
+    return llvm::SignExtend32<18>(res);
+  case R_MICROMIPS_GPREL7_S2:
+    return llvm::SignExtend32<9>(res);
+  case R_MICROMIPS_PC7_S1:
+    return llvm::SignExtend32<8>(res);
+  case R_MICROMIPS_PC10_S1:
+    return llvm::SignExtend32<11>(res);
+  case R_MIPS_16:
+    return llvm::SignExtend32<16>(res);
+  case R_MICROMIPS_PC16_S1:
+    return llvm::SignExtend32<17>(res);
+  case R_MIPS_PC18_S3:
+  case R_MIPS_PC19_S2:
+  case R_MICROMIPS_PC18_S3:
+  case R_MICROMIPS_PC19_S2:
+    return llvm::SignExtend32<21>(res);
+  case R_MIPS_PC21_S2:
+  case R_MICROMIPS_PC21_S2:
+    return llvm::SignExtend32<23>(res);
+  case R_MICROMIPS_PC23_S2:
+    return llvm::SignExtend32<25>(res);
+  case R_MICROMIPS_26_S1:
+    return llvm::SignExtend32<27>(res);
+  case R_MIPS_26:
+  case R_MIPS_PC26_S2:
+  case R_MICROMIPS_PC26_S2:
+    return llvm::SignExtend32<28>(res);
+  default:
+    // Nothing to do
+    break;
+  }
+  return res;
+}
+
+template
+Reference::Addend readMipsRelocAddend<ELF32BE>(Reference::KindValue kind,
+                                               const uint8_t *content);
+template
+Reference::Addend readMipsRelocAddend<ELF32LE>(Reference::KindValue kind,
+                                               const uint8_t *content);
+template
+Reference::Addend readMipsRelocAddend<ELF64BE>(Reference::KindValue kind,
+                                               const uint8_t *content);
+template
+Reference::Addend readMipsRelocAddend<ELF64LE>(Reference::KindValue kind,
+                                               const uint8_t *content);
 
 } // elf
 } // lld

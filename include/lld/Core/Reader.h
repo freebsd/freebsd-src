@@ -31,13 +31,12 @@ class ELFLinkingContext;
 class File;
 class LinkingContext;
 class PECOFFLinkingContext;
-class TargetHandlerBase;
 class MachOLinkingContext;
 
 /// \brief An abstract class for reading object files, library files, and
 /// executable files.
 ///
-/// Each file format (e.g. ELF, mach-o, PECOFF, native, etc) have a concrete
+/// Each file format (e.g. ELF, mach-o, PECOFF, etc) have a concrete
 /// subclass of Reader.
 class Reader {
 public:
@@ -46,17 +45,14 @@ public:
   /// Sniffs the file to determine if this Reader can parse it.
   /// The method is called with:
   /// 1) the file_magic enumeration returned by identify_magic()
-  /// 2) the file extension (e.g. ".obj")
-  /// 3) the whole file content buffer if the above is not enough.
-  virtual bool canParse(file_magic magic, StringRef fileExtension,
-                        const MemoryBuffer &mb) const = 0;
+  /// 2) the whole file content buffer if the above is not enough.
+  virtual bool canParse(file_magic magic, MemoryBufferRef mb) const = 0;
 
   /// \brief Parse a supplied buffer (already filled with the contents of a
   /// file) and create a File object.
   /// The resulting File object takes ownership of the MemoryBuffer.
-  virtual std::error_code
-  loadFile(std::unique_ptr<MemoryBuffer> mb, const class Registry &,
-           std::vector<std::unique_ptr<File>> &result) const = 0;
+  virtual ErrorOr<std::unique_ptr<File>>
+  loadFile(std::unique_ptr<MemoryBuffer> mb, const class Registry &) const = 0;
 };
 
 
@@ -93,8 +89,8 @@ public:
 
   /// Walk the list of registered Readers and find one that can parse the
   /// supplied file and parse it.
-  std::error_code loadFile(std::unique_ptr<MemoryBuffer> mb,
-                           std::vector<std::unique_ptr<File>> &result) const;
+  ErrorOr<std::unique_ptr<File>>
+  loadFile(std::unique_ptr<MemoryBuffer> mb) const;
 
   /// Walk the list of registered kind tables to convert a Reference Kind
   /// name to a value.
@@ -118,7 +114,6 @@ public:
   // as parameters to the addSupport*() method.
   void addSupportArchives(bool logLoading);
   void addSupportYamlFiles();
-  void addSupportNativeObjects();
   void addSupportCOFFObjects(PECOFFLinkingContext &);
   void addSupportCOFFImportLibraries(PECOFFLinkingContext &);
   void addSupportMachOObjects(MachOLinkingContext &);

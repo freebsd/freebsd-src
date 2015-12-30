@@ -23,7 +23,7 @@
 using namespace lld;
 
 
-/// Universal linker main().  This linker eumulates the gnu, darwin, or
+/// Universal linker main(). This linker emulates the gnu, darwin, or
 /// windows linker based on the tool name or if the first argument is
 /// -flavor.
 int main(int argc, const char *argv[]) {
@@ -32,5 +32,6 @@ int main(int argc, const char *argv[]) {
   llvm::PrettyStackTraceProgram stackPrinter(argc, argv);
   llvm::llvm_shutdown_obj shutdown;
 
-  return UniversalDriver::link(argc, argv) ? 0 : 1;
+  return !UniversalDriver::link(
+             llvm::MutableArrayRef<const char *>(argv, argc));
 }

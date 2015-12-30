@@ -16,7 +16,7 @@
 #include <vector>
 
 namespace lld {
-class MutableFile;
+class SimpleFile;
 class Pass;
 
 /// \brief Owns and runs a collection of passes.
@@ -31,9 +31,10 @@ public:
     _passes.push_back(std::move(pass));
   }
 
-  std::error_code runOnFile(std::unique_ptr<MutableFile> &file) {
+  std::error_code runOnFile(SimpleFile &file) {
     for (std::unique_ptr<Pass> &pass : _passes)
-      pass->perform(file);
+      if (std::error_code EC = pass->perform(file))
+        return EC;
     return std::error_code();
   }
 

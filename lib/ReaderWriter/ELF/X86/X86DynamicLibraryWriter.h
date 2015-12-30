@@ -15,50 +15,27 @@
 namespace lld {
 namespace elf {
 
-template <class ELFT>
-class X86DynamicLibraryWriter : public DynamicLibraryWriter<ELFT> {
+class X86DynamicLibraryWriter : public DynamicLibraryWriter<ELF32LE> {
 public:
-  X86DynamicLibraryWriter(X86LinkingContext &context,
-                          X86TargetLayout<ELFT> &layout);
+  X86DynamicLibraryWriter(X86LinkingContext &ctx,
+                          TargetLayout<ELF32LE> &layout);
 
 protected:
   // Add any runtime files and their atoms to the output
-  virtual bool createImplicitFiles(std::vector<std::unique_ptr<File>> &);
-
-  virtual void finalizeDefaultAtomValues() {
-    return DynamicLibraryWriter<ELFT>::finalizeDefaultAtomValues();
-  }
-
-  virtual void addDefaultAtoms() {
-    return DynamicLibraryWriter<ELFT>::addDefaultAtoms();
-  }
-
-private:
-  class GOTFile : public SimpleFile {
-  public:
-    GOTFile(const ELFLinkingContext &eti) : SimpleFile("GOTFile") {}
-    llvm::BumpPtrAllocator _alloc;
-  };
-
-  std::unique_ptr<GOTFile> _gotFile;
-  X86LinkingContext &_context;
-  X86TargetLayout<ELFT> &_x86Layout;
+  void createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
 };
 
-template <class ELFT>
-X86DynamicLibraryWriter<ELFT>::X86DynamicLibraryWriter(
-    X86LinkingContext &context, X86TargetLayout<ELFT> &layout)
-    : DynamicLibraryWriter<ELFT>(context, layout),
-      _gotFile(new GOTFile(context)), _context(context), _x86Layout(layout) {}
+X86DynamicLibraryWriter::X86DynamicLibraryWriter(X86LinkingContext &ctx,
+                                                 TargetLayout<ELF32LE> &layout)
+    : DynamicLibraryWriter(ctx, layout) {}
 
-template <class ELFT>
-bool X86DynamicLibraryWriter<ELFT>::createImplicitFiles(
+void X86DynamicLibraryWriter::createImplicitFiles(
     std::vector<std::unique_ptr<File>> &result) {
-  DynamicLibraryWriter<ELFT>::createImplicitFiles(result);
-  _gotFile->addAtom(*new (_gotFile->_alloc) GLOBAL_OFFSET_TABLEAtom(*_gotFile));
-  _gotFile->addAtom(*new (_gotFile->_alloc) DYNAMICAtom(*_gotFile));
-  result.push_back(std::move(_gotFile));
-  return true;
+  DynamicLibraryWriter::createImplicitFiles(result);
+  auto gotFile = llvm::make_unique<SimpleFile>("GOTFile");
+  gotFile->addAtom(*new (gotFile->allocator()) GlobalOffsetTableAtom(*gotFile));
+  gotFile->addAtom(*new (gotFile->allocator()) DynamicAtom(*gotFile));
+  result.push_back(std::move(gotFile));
 }
 
 } // namespace elf

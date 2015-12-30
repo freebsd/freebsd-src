@@ -86,90 +86,48 @@ public:
   /// Sets the command line order of the file.
   void setOrdinal(uint64_t ordinal) const { _ordinal = ordinal; }
 
-  template <typename T> class atom_iterator; // forward reference
+  /// Returns the ordinal for the next atom to be defined in this file.
+  uint64_t getNextAtomOrdinalAndIncrement() const {
+    return _nextAtomOrdinal++;
+  }
 
   /// For allocating any objects owned by this File.
   llvm::BumpPtrAllocator &allocator() const {
     return _allocator;
   }
 
-  /// \brief For use interating over DefinedAtoms in this File.
-  typedef atom_iterator<DefinedAtom>  defined_iterator;
+  /// The type of atom mutable container.
+  template <typename T> using AtomVector = std::vector<const T *>;
 
-  /// \brief For use interating over UndefinedAtoms in this File.
-  typedef atom_iterator<UndefinedAtom> undefined_iterator;
-
-  /// \brief For use interating over SharedLibraryAtoms in this File.
-  typedef atom_iterator<SharedLibraryAtom> shared_library_iterator;
-
-  /// \brief For use interating over AbsoluteAtoms in this File.
-  typedef atom_iterator<AbsoluteAtom> absolute_iterator;
-
-  /// \brief Different object file readers may instantiate and manage atoms with
-  /// different data structures.  This class is a collection abstraction.
-  /// Each concrete File instance must implement these atom_collection
-  /// methods to enable clients to interate the File's atoms.
-  template <typename T>
-  class atom_collection {
+  /// The range type for the atoms. It's backed by a std::vector, but hides
+  /// its member functions so that you can only call begin or end.
+  template <typename T> class AtomRange {
   public:
-    virtual ~atom_collection() { }
-    virtual atom_iterator<T> begin() const = 0;
-    virtual atom_iterator<T> end() const = 0;
-    virtual const T *deref(const void *it) const = 0;
-    virtual void next(const void *&it) const = 0;
-    virtual uint64_t size() const = 0;
-    bool empty() const { return size() == 0; }
-  };
+    AtomRange(AtomVector<T> v) : _v(v) {}
+    typename AtomVector<T>::const_iterator begin() const { return _v.begin(); }
+    typename AtomVector<T>::const_iterator end() const { return _v.end(); }
+    typename AtomVector<T>::iterator begin() { return _v.begin(); }
+    typename AtomVector<T>::iterator end() { return _v.end(); }
 
-  /// \brief The class is the iterator type used to iterate through a File's
-  /// Atoms. This iterator delegates the work to the associated atom_collection
-  /// object. There are four kinds of Atoms, so this iterator is templated on
-  /// the four base Atom kinds.
-  template <typename T>
-  class atom_iterator : public std::iterator<std::forward_iterator_tag, T> {
-  public:
-    atom_iterator(const atom_collection<T> &c, const void *it)
-              : _collection(&c), _it(it) { }
-
-    const T *operator*() const {
-      return _collection->deref(_it);
-    }
-    const T *operator->() const {
-      return _collection->deref(_it);
-    }
-
-    friend bool operator==(const atom_iterator<T> &lhs, const atom_iterator<T> &rhs)  {
-      return lhs._it == rhs._it;
-    }
-
-    friend bool operator!=(const atom_iterator<T> &lhs, const atom_iterator<T> &rhs)  {
-      return !(lhs == rhs);
-    }
-
-    atom_iterator<T> &operator++() {
-      _collection->next(_it);
-      return *this;
-    }
   private:
-    const atom_collection<T> *_collection;
-    const void               *_it;
+    AtomVector<T> &_v;
   };
 
-  /// \brief Must be implemented to return the atom_collection object for
+  /// \brief Must be implemented to return the AtomVector object for
   /// all DefinedAtoms in this File.
-  virtual const atom_collection<DefinedAtom> &defined() const = 0;
+  virtual const AtomVector<DefinedAtom> &defined() const = 0;
 
-  /// \brief Must be implemented to return the atom_collection object for
+  /// \brief Must be implemented to return the AtomVector object for
   /// all UndefinedAtomw in this File.
-  virtual const atom_collection<UndefinedAtom> &undefined() const = 0;
+  virtual const AtomVector<UndefinedAtom> &undefined() const = 0;
 
-  /// \brief Must be implemented to return the atom_collection object for
+  /// \brief Must be implemented to return the AtomVector object for
   /// all SharedLibraryAtoms in this File.
-  virtual const atom_collection<SharedLibraryAtom> &sharedLibrary() const = 0;
+  virtual const AtomVector<SharedLibraryAtom> &sharedLibrary() const = 0;
 
-  /// \brief Must be implemented to return the atom_collection object for
+  /// \brief Must be implemented to return the AtomVector object for
   /// all AbsoluteAtoms in this File.
-  virtual const atom_collection<AbsoluteAtom> &absolute() const = 0;
+  virtual const AtomVector<AbsoluteAtom> &absolute() const = 0;
 
   /// \brief If a file is parsed using a different method than doParse(),
   /// one must use this method to set the last error status, so that
@@ -199,67 +157,18 @@ public:
 protected:
   /// \brief only subclasses of File can be instantiated
   File(StringRef p, Kind kind)
-      : _path(p), _kind(kind), _ordinal(UINT64_MAX) {}
+    : _path(p), _kind(kind), _ordinal(UINT64_MAX),
+      _nextAtomOrdinal(0) {}
 
   /// \brief Subclasses should override this method to parse the
   /// memory buffer passed to this file's constructor.
   virtual std::error_code doParse() { return std::error_code(); }
 
-  /// \brief This is a convenience class for File subclasses which manage their
-  /// atoms as a simple std::vector<>.
-  template <typename T>
-  class atom_collection_vector : public atom_collection<T> {
-  public:
-    atom_iterator<T> begin() const override {
-      auto *it = _atoms.empty() ? nullptr
-                                : reinterpret_cast<const void *>(_atoms.data());
-      return atom_iterator<T>(*this, it);
-    }
-
-    atom_iterator<T> end() const override {
-      auto *it = _atoms.empty() ? nullptr : reinterpret_cast<const void *>(
-                                                _atoms.data() + _atoms.size());
-      return atom_iterator<T>(*this, it);
-    }
-
-    const T *deref(const void *it) const override {
-      return *reinterpret_cast<const T *const *>(it);
-    }
-
-    void next(const void *&it) const override {
-      const T *const *p = reinterpret_cast<const T *const *>(it);
-      ++p;
-      it = reinterpret_cast<const void*>(p);
-    }
-
-    uint64_t size() const override { return _atoms.size(); }
-
-    std::vector<const T *> _atoms;
-  };
-
-  /// \brief This is a convenience class for File subclasses which need to
-  /// return an empty collection.
-  template <typename T>
-  class atom_collection_empty : public atom_collection<T> {
-  public:
-    atom_iterator<T> begin() const override {
-      return atom_iterator<T>(*this, nullptr);
-    }
-    atom_iterator<T> end() const override {
-      return atom_iterator<T>(*this, nullptr);
-    }
-    const T *deref(const void *it) const override {
-      llvm_unreachable("empty collection should never be accessed");
-    }
-    void next(const void *&it) const override {}
-    uint64_t size() const override { return 0; }
-  };
-
-  static atom_collection_empty<DefinedAtom>       _noDefinedAtoms;
-  static atom_collection_empty<UndefinedAtom>     _noUndefinedAtoms;
-  static atom_collection_empty<SharedLibraryAtom> _noSharedLibraryAtoms;
-  static atom_collection_empty<AbsoluteAtom>      _noAbsoluteAtoms;
-  mutable llvm::BumpPtrAllocator                  _allocator;
+  static AtomVector<DefinedAtom> _noDefinedAtoms;
+  static AtomVector<UndefinedAtom> _noUndefinedAtoms;
+  static AtomVector<SharedLibraryAtom> _noSharedLibraryAtoms;
+  static AtomVector<AbsoluteAtom> _noAbsoluteAtoms;
+  mutable llvm::BumpPtrAllocator _allocator;
 
 private:
   StringRef _path;
@@ -267,27 +176,10 @@ private:
   mutable std::string _archiveMemberPath;
   Kind              _kind;
   mutable uint64_t  _ordinal;
+  mutable uint64_t _nextAtomOrdinal;
   std::shared_ptr<MemoryBuffer> _sharedMemoryBuffer;
   llvm::Optional<std::error_code> _lastError;
   std::mutex _parseMutex;
-};
-
-/// \brief A mutable File.
-class MutableFile : public File {
-public:
-  /// \brief Add an atom to the file. Invalidates iterators for all returned
-  /// containters.
-  virtual void addAtom(const Atom&) = 0;
-
-  typedef range<std::vector<const DefinedAtom *>::iterator> DefinedAtomRange;
-  virtual DefinedAtomRange definedAtoms() = 0;
-
-  virtual void
-  removeDefinedAtomsIf(std::function<bool(const DefinedAtom *)> pred) = 0;
-
-protected:
-  /// \brief only subclasses of MutableFile can be instantiated
-  MutableFile(StringRef p) : File(p, kindObject) {}
 };
 
 /// An ErrorFile represents a file that doesn't exist.
@@ -302,16 +194,16 @@ public:
 
   std::error_code doParse() override { return _ec; }
 
-  const atom_collection<DefinedAtom> &defined() const override {
+  const AtomVector<DefinedAtom> &defined() const override {
     llvm_unreachable("internal error");
   }
-  const atom_collection<UndefinedAtom> &undefined() const override {
+  const AtomVector<UndefinedAtom> &undefined() const override {
     llvm_unreachable("internal error");
   }
-  const atom_collection<SharedLibraryAtom> &sharedLibrary() const override {
+  const AtomVector<SharedLibraryAtom> &sharedLibrary() const override {
     llvm_unreachable("internal error");
   }
-  const atom_collection<AbsoluteAtom> &absolute() const override {
+  const AtomVector<AbsoluteAtom> &absolute() const override {
     llvm_unreachable("internal error");
   }
 

@@ -197,7 +197,7 @@ TEST(ObjectFileYAML, oneSection) {
     "    section:     __text\n"
     "    type:        S_REGULAR\n"
     "    attributes:  [ S_ATTR_PURE_INSTRUCTIONS ]\n"
-    "    alignment:   1\n"
+    "    alignment:   2\n"
     "    address:     0x12345678\n"
     "    content:     [ 0x90, 0x90 ]\n"
     "...\n");
@@ -213,7 +213,7 @@ TEST(ObjectFileYAML, oneSection) {
   EXPECT_EQ((uint32_t)(sect.type), (uint32_t)(llvm::MachO::S_REGULAR));
   EXPECT_EQ((uint32_t)(sect.attributes),
                             (uint32_t)(llvm::MachO::S_ATTR_PURE_INSTRUCTIONS));
-  EXPECT_EQ(sect.alignment, 1U);
+  EXPECT_EQ((uint16_t)sect.alignment, 2U);
   EXPECT_EQ((uint64_t)sect.address, 0x12345678ULL);
   EXPECT_EQ(sect.content.size(), 2UL);
   EXPECT_EQ((int)(sect.content[0]), 0x90);
@@ -232,7 +232,7 @@ TEST(ObjectFileYAML, hello_x86_64) {
     "    section:     __text\n"
     "    type:        S_REGULAR\n"
     "    attributes:  [ S_ATTR_PURE_INSTRUCTIONS, S_ATTR_SOME_INSTRUCTIONS]\n"
-    "    alignment:   0\n"
+    "    alignment:   1\n"
     "    address:     0x0000\n"
     "    content:     [ 0x55, 0x48, 0x89, 0xe5, 0x48, 0x8d, 0x3d, 0x00,\n"
     "                   0x00, 0x00, 0x00, 0x30, 0xc0, 0xe8, 0x00, 0x00,\n"
@@ -254,7 +254,7 @@ TEST(ObjectFileYAML, hello_x86_64) {
     "    section:     __cstring\n"
     "    type:        S_CSTRING_LITERALS\n"
     "    attributes:  [ ]\n"
-    "    alignment:   0\n"
+    "    alignment:   1\n"
     "    address:     0x0016\n"
     "    content:     [ 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a, 0x00 ]\n"
     "global-symbols:\n"
@@ -286,7 +286,7 @@ TEST(ObjectFileYAML, hello_x86_64) {
   EXPECT_EQ((uint32_t)(sect1.attributes),
                             (uint32_t)(llvm::MachO::S_ATTR_PURE_INSTRUCTIONS
                                      | llvm::MachO::S_ATTR_SOME_INSTRUCTIONS));
-  EXPECT_EQ(sect1.alignment, 0U);
+  EXPECT_EQ((uint16_t)sect1.alignment, 1U);
   EXPECT_EQ((uint64_t)sect1.address, 0x0ULL);
   EXPECT_EQ(sect1.content.size(), 22UL);
   EXPECT_EQ((int)(sect1.content[0]), 0x55);
@@ -316,7 +316,7 @@ TEST(ObjectFileYAML, hello_x86_64) {
   EXPECT_TRUE(sect2.sectionName.equals("__cstring"));
   EXPECT_EQ((uint32_t)(sect2.type), (uint32_t)(llvm::MachO::S_CSTRING_LITERALS));
   EXPECT_EQ((uint32_t)(sect2.attributes), 0U);
-  EXPECT_EQ(sect2.alignment, 0U);
+  EXPECT_EQ((uint16_t)sect2.alignment, 1U);
   EXPECT_EQ((uint64_t)sect2.address, 0x016ULL);
   EXPECT_EQ(sect2.content.size(), 7UL);
   EXPECT_EQ((int)(sect2.content[0]), 0x68);
@@ -361,7 +361,7 @@ TEST(ObjectFileYAML, hello_x86) {
     "    section:     __text\n"
     "    type:        S_REGULAR\n"
     "    attributes:  [ S_ATTR_PURE_INSTRUCTIONS, S_ATTR_SOME_INSTRUCTIONS]\n"
-    "    alignment:   0\n"
+    "    alignment:   1\n"
     "    address:     0x0000\n"
     "    content:     [ 0x55, 0x89, 0xe5, 0x83, 0xec, 0x08, 0xe8, 0x00,\n"
     "                   0x00, 0x00, 0x00, 0x58, 0x8d, 0x80, 0x16, 0x00,\n"
@@ -391,7 +391,7 @@ TEST(ObjectFileYAML, hello_x86) {
     "    section:     __cstring\n"
     "    type:        S_CSTRING_LITERALS\n"
     "    attributes:  [ ]\n"
-    "    alignment:   0\n"
+    "    alignment:   1\n"
     "    address:     0x0021\n"
     "    content:     [ 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a, 0x00 ]\n"
     "global-symbols:\n"
@@ -417,7 +417,7 @@ TEST(ObjectFileYAML, hello_x86) {
   EXPECT_EQ((uint32_t)(sect1.attributes),
                             (uint32_t)(llvm::MachO::S_ATTR_PURE_INSTRUCTIONS
                                      | llvm::MachO::S_ATTR_SOME_INSTRUCTIONS));
-  EXPECT_EQ(sect1.alignment, 0U);
+  EXPECT_EQ((uint16_t)sect1.alignment, 1U);
   EXPECT_EQ((uint64_t)sect1.address, 0x0ULL);
   EXPECT_EQ(sect1.content.size(), 33UL);
   EXPECT_EQ((int)(sect1.content[0]), 0x55);
@@ -454,7 +454,7 @@ TEST(ObjectFileYAML, hello_x86) {
   EXPECT_TRUE(sect2.sectionName.equals("__cstring"));
   EXPECT_EQ((uint32_t)(sect2.type), (uint32_t)(llvm::MachO::S_CSTRING_LITERALS));
   EXPECT_EQ((uint32_t)(sect2.attributes), 0U);
-  EXPECT_EQ(sect2.alignment, 0U);
+  EXPECT_EQ((uint16_t)sect2.alignment, 1U);
   EXPECT_EQ((uint64_t)sect2.address, 0x021ULL);
   EXPECT_EQ(sect2.content.size(), 7UL);
   EXPECT_EQ((int)(sect2.content[0]), 0x68);
@@ -490,7 +490,7 @@ TEST(ObjectFileYAML, hello_armv6) {
     "    section:     __text\n"
     "    type:        S_REGULAR\n"
     "    attributes:  [ S_ATTR_PURE_INSTRUCTIONS, S_ATTR_SOME_INSTRUCTIONS]\n"
-    "    alignment:   2\n"
+    "    alignment:   4\n"
     "    address:     0x0000\n"
     "    content:     [ 0x80, 0x40, 0x2d, 0xe9, 0x10, 0x00, 0x9f, 0xe5,\n"
     "                   0x0d, 0x70, 0xa0, 0xe1, 0x00, 0x00, 0x8f, 0xe0,\n"
@@ -519,7 +519,7 @@ TEST(ObjectFileYAML, hello_armv6) {
     "    section:     __cstring\n"
     "    type:        S_CSTRING_LITERALS\n"
     "    attributes:  [ ]\n"
-    "    alignment:   0\n"
+    "    alignment:   1\n"
     "    address:     0x0020\n"
     "    content:     [ 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a, 0x00 ]\n"
     "global-symbols:\n"
@@ -545,7 +545,7 @@ TEST(ObjectFileYAML, hello_armv6) {
   EXPECT_EQ((uint32_t)(sect1.attributes),
                             (uint32_t)(llvm::MachO::S_ATTR_PURE_INSTRUCTIONS
                                      | llvm::MachO::S_ATTR_SOME_INSTRUCTIONS));
-  EXPECT_EQ(sect1.alignment, 2U);
+  EXPECT_EQ((uint16_t)sect1.alignment, 4U);
   EXPECT_EQ((uint64_t)sect1.address, 0x0ULL);
   EXPECT_EQ(sect1.content.size(), 32UL);
   EXPECT_EQ((int)(sect1.content[0]), 0x80);
@@ -582,7 +582,7 @@ TEST(ObjectFileYAML, hello_armv6) {
   EXPECT_TRUE(sect2.sectionName.equals("__cstring"));
   EXPECT_EQ((uint32_t)(sect2.type), (uint32_t)(llvm::MachO::S_CSTRING_LITERALS));
   EXPECT_EQ((uint32_t)(sect2.attributes), 0U);
-  EXPECT_EQ(sect2.alignment, 0U);
+  EXPECT_EQ((uint16_t)sect2.alignment, 1U);
   EXPECT_EQ((uint64_t)sect2.address, 0x020ULL);
   EXPECT_EQ(sect2.content.size(), 7UL);
   EXPECT_EQ((int)(sect2.content[0]), 0x68);
@@ -620,7 +620,7 @@ TEST(ObjectFileYAML, hello_armv7) {
     "    section:     __text\n"
     "    type:        S_REGULAR\n"
     "    attributes:  [ S_ATTR_PURE_INSTRUCTIONS, S_ATTR_SOME_INSTRUCTIONS]\n"
-    "    alignment:   1\n"
+    "    alignment:   2\n"
     "    address:     0x0000\n"
     "    content:     [ 0x80, 0xb5, 0x40, 0xf2, 0x06, 0x00, 0x6f, 0x46,\n"
     "                   0xc0, 0xf2, 0x00, 0x00, 0x78, 0x44, 0xff, 0xf7,\n"
@@ -660,7 +660,7 @@ TEST(ObjectFileYAML, hello_armv7) {
     "    section:     __cstring\n"
     "    type:        S_CSTRING_LITERALS\n"
     "    attributes:  [ ]\n"
-    "    alignment:   0\n"
+    "    alignment:   1\n"
     "    address:     0x0016\n"
     "    content:     [ 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a, 0x00 ]\n"
     "global-symbols:\n"
@@ -687,7 +687,7 @@ TEST(ObjectFileYAML, hello_armv7) {
   EXPECT_EQ((uint32_t)(sect1.attributes),
                             (uint32_t)(llvm::MachO::S_ATTR_PURE_INSTRUCTIONS
                                      | llvm::MachO::S_ATTR_SOME_INSTRUCTIONS));
-  EXPECT_EQ(sect1.alignment, 1U);
+  EXPECT_EQ((uint16_t)sect1.alignment, 2U);
   EXPECT_EQ((uint64_t)sect1.address, 0x0ULL);
   EXPECT_EQ(sect1.content.size(), 22UL);
   EXPECT_EQ((int)(sect1.content[0]), 0x80);
@@ -740,7 +740,7 @@ TEST(ObjectFileYAML, hello_armv7) {
   EXPECT_TRUE(sect2.sectionName.equals("__cstring"));
   EXPECT_EQ((uint32_t)(sect2.type), (uint32_t)(llvm::MachO::S_CSTRING_LITERALS));
   EXPECT_EQ((uint32_t)(sect2.attributes), 0U);
-  EXPECT_EQ(sect2.alignment, 0U);
+  EXPECT_EQ((uint16_t)sect2.alignment, 1U);
   EXPECT_EQ((uint64_t)sect2.address, 0x016ULL);
   EXPECT_EQ(sect2.content.size(), 7UL);
   EXPECT_EQ((int)(sect2.content[0]), 0x68);

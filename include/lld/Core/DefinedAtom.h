@@ -151,6 +151,7 @@ public:
     typeNoAlloc,            // Identifies non allocatable sections [ELF]
     typeGroupComdat,        // Identifies a section group [ELF, COFF]
     typeGnuLinkOnce,        // Identifies a gnu.linkonce section [ELF]
+    typeSectCreate,         // Created via the -sectcreate option [Darwin]
   };
 
   // Permission bits for atoms and segments. The order of these values are
@@ -190,23 +191,26 @@ public:
   // Attributes describe a code model used by the atom.
   enum CodeModel {
     codeNA,           // no specific code model
+    // MIPS code models
     codeMipsPIC,      // PIC function in a PIC / non-PIC mixed file
     codeMipsMicro,    // microMIPS instruction encoding
     codeMipsMicroPIC, // microMIPS instruction encoding + PIC
     codeMips16,       // MIPS-16 instruction encoding
+    // ARM code models
     codeARMThumb,     // ARM Thumb instruction set
+    codeARM_a,        // $a-like mapping symbol (for ARM code)
+    codeARM_d,        // $d-like mapping symbol (for data)
+    codeARM_t,        // $t-like mapping symbol (for Thumb code)
   };
 
   struct Alignment {
-    Alignment(int p2, int m = 0)
-      : powerOf2(p2)
-      , modulus(m) {}
+    Alignment(int v, int m = 0) : value(v), modulus(m) {}
 
-    uint16_t powerOf2;
+    uint16_t value;
     uint16_t modulus;
 
     bool operator==(const Alignment &rhs) const {
-      return (powerOf2 == rhs.powerOf2) && (modulus == rhs.modulus);
+      return (value == rhs.value) && (modulus == rhs.modulus);
     }
   };
 

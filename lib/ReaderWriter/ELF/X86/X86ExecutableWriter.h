@@ -15,40 +15,22 @@
 namespace lld {
 namespace elf {
 
-template <class ELFT>
-class X86ExecutableWriter : public ExecutableWriter<ELFT> {
+class X86ExecutableWriter : public ExecutableWriter<ELF32LE> {
 public:
-  X86ExecutableWriter(X86LinkingContext &context,
-                      X86TargetLayout<ELFT> &layout);
+  X86ExecutableWriter(X86LinkingContext &ctx, TargetLayout<ELF32LE> &layout);
 
 protected:
   // Add any runtime files and their atoms to the output
-  virtual bool createImplicitFiles(std::vector<std::unique_ptr<File>> &);
-
-  virtual void finalizeDefaultAtomValues() {
-    return ExecutableWriter<ELFT>::finalizeDefaultAtomValues();
-  }
-
-  virtual void addDefaultAtoms() {
-    return ExecutableWriter<ELFT>::addDefaultAtoms();
-  }
-
-private:
-  X86LinkingContext &_context;
-  X86TargetLayout<ELFT> &_x86Layout;
+  void createImplicitFiles(std::vector<std::unique_ptr<File>> &) override;
 };
 
-template <class ELFT>
-X86ExecutableWriter<ELFT>::X86ExecutableWriter(X86LinkingContext &context,
-                                               X86TargetLayout<ELFT> &layout)
-    : ExecutableWriter<ELFT>(context, layout), _context(context),
-      _x86Layout(layout) {}
+X86ExecutableWriter::X86ExecutableWriter(X86LinkingContext &ctx,
+                                         TargetLayout<ELF32LE> &layout)
+    : ExecutableWriter(ctx, layout) {}
 
-template <class ELFT>
-bool X86ExecutableWriter<ELFT>::createImplicitFiles(
+void X86ExecutableWriter::createImplicitFiles(
     std::vector<std::unique_ptr<File>> &result) {
-  ExecutableWriter<ELFT>::createImplicitFiles(result);
-  return true;
+  ExecutableWriter::createImplicitFiles(result);
 }
 
 } // namespace elf

@@ -56,7 +56,7 @@ static const llvm::opt::OptTable::Info infoTable[] = {
 // Create OptTable class for parsing actual command line arguments
 class CoreOptTable : public llvm::opt::OptTable {
 public:
-  CoreOptTable() : OptTable(infoTable, llvm::array_lengthof(infoTable)){}
+  CoreOptTable() : OptTable(infoTable) {}
 };
 
 } // namespace anonymous
@@ -73,32 +73,31 @@ static const Registry::KindStrings coreKindStrings[] = {
   LLD_KIND_STRING_END
 };
 
-bool CoreDriver::link(int argc, const char *argv[], raw_ostream &diagnostics) {
+bool CoreDriver::link(llvm::ArrayRef<const char *> args,
+                      raw_ostream &diagnostics) {
   CoreLinkingContext ctx;
 
   // Register possible input file parsers.
-  ctx.registry().addSupportNativeObjects();
   ctx.registry().addSupportYamlFiles();
   ctx.registry().addKindTable(Reference::KindNamespace::testing,
                               Reference::KindArch::all, coreKindStrings);
 
-  if (!parse(argc, argv, ctx))
+  if (!parse(args, ctx))
     return false;
   return Driver::link(ctx);
 }
 
-bool CoreDriver::parse(int argc, const char *argv[], CoreLinkingContext &ctx,
-                       raw_ostream &diagnostics) {
+bool CoreDriver::parse(llvm::ArrayRef<const char *> args,
+                       CoreLinkingContext &ctx, raw_ostream &diagnostics) {
   // Parse command line options using CoreOptions.td
-  std::unique_ptr<llvm::opt::InputArgList> parsedArgs;
   CoreOptTable table;
   unsigned missingIndex;
   unsigned missingCount;
-  parsedArgs.reset(
-      table.ParseArgs(&argv[1], &argv[argc], missingIndex, missingCount));
+  llvm::opt::InputArgList parsedArgs =
+      table.ParseArgs(args.slice(1), missingIndex, missingCount);
   if (missingCount) {
     diagnostics << "error: missing arg value for '"
-                << parsedArgs->getArgString(missingIndex) << "' expected "
+                << parsedArgs.getArgString(missingIndex) << "' expected "
                 << missingCount << " argument(s).\n";
     return false;
   }
@@ -112,7 +111,7 @@ bool CoreDriver::parse(int argc, const char *argv[], CoreLinkingContext &ctx,
   ctx.setSearchArchivesToOverrideTentativeDefinitions(false);
 
   // Process all the arguments and create input files.
-  for (auto inputArg : *parsedArgs) {
+  for (auto inputArg : parsedArgs) {
     switch (inputArg->getOption().getID()) {
     case OPT_mllvm:
       ctx.appendLLVMOption(inputArg->getValue());
@@ -159,6 +158,8 @@ bool CoreDriver::parse(int argc, const char *argv[], CoreLinkingContext &ctx,
       break;
     }
   }
+
+  parseLLVMOptions(ctx);
 
   if (ctx.getNodes().empty()) {
     diagnostics << "No input files\n";
