@@ -301,7 +301,7 @@ bp_ntlb1s:
 
 	.globl	bp_tlb1
 bp_tlb1:
-	.space	4 * 3 * 16
+	.space	4 * 3 * 64
 
 	.globl	bp_tlb1_end
 bp_tlb1_end:
@@ -728,6 +728,113 @@ ENTRY(icache_enable)
 	isync
 	mtspr	SPR_L1CSR1, %r3
 	isync
+	blr
+
+/*
+ * L2 cache disable/enable/inval sequences for E500mc.
+ */
+
+ENTRY(l2cache_inval)
+	mfspr	%r3, SPR_L2CSR0
+	oris	%r3, %r3, (L2CSR0_L2FI | L2CSR0_L2LFC)@h
+	ori	%r3, %r3, (L2CSR0_L2FI | L2CSR0_L2LFC)@l
+	isync
+	mtspr	SPR_L2CSR0, %r3
+	isync
+1:	mfspr   %r3, SPR_L2CSR0
+	andis.	%r3, %r3, L2CSR0_L2FI@h
+	bne	1b
+	blr
+
+ENTRY(l2cache_enable)
+	mfspr	%r3, SPR_L2CSR0
+	oris	%r3, %r3, (L2CSR0_L2E | L2CSR0_L2PE)@h
+	isync
+	mtspr	SPR_L2CSR0, %r3
+	isync
+	blr
+
+/*
+ * Branch predictor setup.
+ */
+ENTRY(bpred_enable)
+	mfspr	%r3, SPR_BUCSR
+	ori	%r3, %r3, BUCSR_BBFI
+	isync
+	mtspr	SPR_BUCSR, %r3
+	isync
+	ori	%r3, %r3, BUCSR_BPEN
+	isync
+	mtspr	SPR_BUCSR, %r3
+	isync
+	blr
+
+ENTRY(dataloss_erratum_access)
+	/* Lock two cache lines into I-Cache */
+	sync
+	mfspr	%r11, SPR_L1CSR1
+	rlwinm	%r11, %r11, 0, ~L1CSR1_ICUL
+	sync
+	isync
+	mtspr	SPR_L1CSR1, %r11
+	isync
+
+	mflr	%r9
+	bl	1f
+	.long 2f-.
+1:
+	mflr	%r5
+	lwz	%r8, 0(%r5)
+	mtlr	%r9
+	add	%r8, %r8, %r5
+	icbtls	0, 0, %r8
+	addi	%r9, %r8, 64
+
+	sync
+	mfspr	%r11, SPR_L1CSR1
+3:	andi.	%r11, %r11, L1CSR1_ICUL
+	bne	3b
+
+	icbtls	0, 0, %r9
+
+	sync
+	mfspr	%r11, SPR_L1CSR1
+3:	andi.	%r11, %r11, L1CSR1_ICUL
+	bne	3b
+
+	b	2f
+	.align	6
+	/* Inside a locked cacheline, wait a while, write, then wait a while */
+2:	sync
+
+	mfspr	%r5, TBR_TBL
+4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
+	mfspr	%r5, TBR_TBL
+	subf.	%r5, %r5, %r11
+	bgt	4b
+
+	stw	%r4, 0(%r3)
+
+	mfspr	%r5, TBR_TBL
+4:	addis	%r11, %r5, 0x100000@h	/* wait around one million timebase ticks */
+	mfspr	%r5, TBR_TBL
+	subf.	%r5, %r5, %r11
+	bgt	4b
+
+	sync
+
+	/*
+	 * Fill out the rest of this cache line and the next with nops,
+	 * to ensure that nothing outside the locked area will be
+	 * fetched due to a branch.
+	 */
+	.rept 19
+	nop
+	.endr
+
+	icblc	0, 0, %r8
+	icblc	0, 0, %r9
+
 	blr
 
 /*

@@ -316,8 +316,20 @@ booke_init(uint32_t arg1, uint32_t arg2)
 
 	ret = powerpc_init(dtbp, 0, 0, mdp);
 
-	/* Enable L1 caches */
+	/* Default to 32 byte cache line size. */
+	switch ((mfpvr()) >> 16) {
+	case FSL_E500mc:
+	case FSL_E5500:
+	case FSL_E6500:
+		cacheline_size = 64;
+		break;
+	}
+
+	/* Enable caches */
 	booke_enable_l1_cache();
+	booke_enable_l2_cache();
+
+	booke_enable_bpred();
 
 	return (ret);
 }
