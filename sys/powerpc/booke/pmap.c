@@ -161,7 +161,6 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 #define PMAP_REMOVE_DONE(pmap) \
 	((pmap) != kernel_pmap && (pmap)->pm_stats.resident_count == 0)
 
-extern void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
 extern int elf32_nxstack;
 
 /**************************************************************************/
@@ -195,6 +194,7 @@ static unsigned int tlb1_idx;
 static vm_offset_t tlb1_map_base = VM_MAX_KERNEL_ADDRESS;
 
 static tlbtid_t tid_alloc(struct pmap *);
+static void tid_flush(tlbtid_t tid);
 
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
 
@@ -2915,7 +2915,7 @@ tid_alloc(pmap_t pmap)
 		tidbusy[thiscpu][tid]->pm_tid[thiscpu] = TID_NONE;
 
 		/* Flush all entries from TLB0 matching this TID. */
-		tid_flush(tid, tlb0_ways, tlb0_entries_per_way);
+		tid_flush(tid);
 	}
 
 	tidbusy[thiscpu][tid] = pmap;
@@ -3425,4 +3425,49 @@ tlb1_iomapped(int i, vm_paddr_t pa, vm_size_t size, vm_offset_t *va)
 	/* Return virtual address of this mapping. */
 	*va = (tlb1[i].mas2 & MAS2_EPN_MASK) + (pa - pa_start);
 	return (0);
+}
+
+/*
+ * Invalidate all TLB0 entries which match the given TID. Note this is
+ * dedicated for cases when invalidations should NOT be propagated to other
+ * CPUs.
+ */
+static void
+tid_flush(tlbtid_t tid)
+{
+	register_t msr;
+	uint32_t mas0, mas1, mas2;
+	int entry, way;
+
+
+	/* Don't evict kernel translations */
+	if (tid == TID_KERNEL)
+		return;
+
+	msr = mfmsr();
+	__asm __volatile("wrteei 0");
+
+	for (way = 0; way < TLB0_WAYS; way++)
+		for (entry = 0; entry < TLB0_ENTRIES_PER_WAY; entry++) {
+
+			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
+			mtspr(SPR_MAS0, mas0);
+			__asm __volatile("isync");
+
+			mas2 = entry << MAS2_TLB0_ENTRY_IDX_SHIFT;
+			mtspr(SPR_MAS2, mas2);
+
+			__asm __volatile("isync; tlbre");
+
+			mas1 = mfspr(SPR_MAS1);
+
+			if (!(mas1 & MAS1_VALID))
+				continue;
+			if (((mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT) != tid)
+				continue;
+			mas1 &= ~MAS1_VALID;
+			mtspr(SPR_MAS1, mas1);
+			__asm __volatile("isync; tlbwe; isync; msync");
+		}
+	mtmsr(msr);
 }
