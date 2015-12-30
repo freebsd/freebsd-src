@@ -50,64 +50,67 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/errno.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <machine/cpu.h>
-
-#include <crypto/blowfish/blowfish.h>
 #include <crypto/des/des.h>
-#include <crypto/rijndael/rijndael.h>
-#include <crypto/camellia/camellia.h>
-#include <crypto/sha1.h>
+#include <opencrypto/xform_enc.h>
 
-#include <opencrypto/cast.h>
-#include <opencrypto/deflate.h>
-#include <opencrypto/rmd160.h>
-#include <opencrypto/skipjack.h>
-
-#include <sys/md5.h>
-
-#include <opencrypto/cryptodev.h>
-#include <opencrypto/xform.h>
-
-MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
+static	int des1_setkey(u_int8_t **, u_int8_t *, int);
+static	void des1_encrypt(caddr_t, u_int8_t *);
+static	void des1_decrypt(caddr_t, u_int8_t *);
+static	void des1_zerokey(u_int8_t **);
 
 /* Encryption instances */
-struct enc_xform enc_xform_arc4 = {
-	CRYPTO_ARC4, "ARC4",
-	ARC4_BLOCK_LEN, ARC4_IV_LEN, ARC4_MIN_KEY, ARC4_MAX_KEY,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+struct enc_xform enc_xform_des = {
+	CRYPTO_DES_CBC, "DES",
+	DES_BLOCK_LEN, DES_BLOCK_LEN, DES_MIN_KEY, DES_MAX_KEY,
+	des1_encrypt,
+	des1_decrypt,
+	des1_setkey,
+	des1_zerokey,
 	NULL,
 };
 
+/*
+ * Encryption wrapper routines.
+ */
+static void
+des1_encrypt(caddr_t key, u_int8_t *blk)
+{
+	des_cblock *cb = (des_cblock *) blk;
+	des_key_schedule *p = (des_key_schedule *) key;
 
-/* Include the encryption algorithms */
-#include "xform_null.c"
-#include "xform_des1.c"
-#include "xform_des3.c"
-#include "xform_blf.c"
-#include "xform_cast5.c"
-#include "xform_skipjack.c"
-#include "xform_rijndael.c"
-#include "xform_aes_icm.c"
-#include "xform_aes_xts.c"
-#include "xform_cml.c"
+	des_ecb_encrypt(cb, cb, p[0], DES_ENCRYPT);
+}
 
-/* Include the authentication and hashing algorithms */
-#include "xform_gmac.c"
-#include "xform_md5.c"
-#include "xform_rmd160.c"
-#include "xform_sha1.c"
-#include "xform_sha2.c"
+static void
+des1_decrypt(caddr_t key, u_int8_t *blk)
+{
+	des_cblock *cb = (des_cblock *) blk;
+	des_key_schedule *p = (des_key_schedule *) key;
 
-/* Include the compression algorithms */
-#include "xform_deflate.c"
+	des_ecb_encrypt(cb, cb, p[0], DES_DECRYPT);
+}
 
+static int
+des1_setkey(u_int8_t **sched, u_int8_t *key, int len)
+{
+	des_key_schedule *p;
+	int err;
+
+	p = KMALLOC(sizeof (des_key_schedule),
+		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
+	if (p != NULL) {
+		des_set_key((des_cblock *) key, p[0]);
+		err = 0;
+	} else
+		err = ENOMEM;
+	*sched = (u_int8_t *) p;
+	return err;
+}
+
+static void
+des1_zerokey(u_int8_t **sched)
+{
+	bzero(*sched, sizeof (des_key_schedule));
+	KFREE(*sched, M_CRYPTO_DATA);
+	*sched = NULL;
+}
