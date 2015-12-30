@@ -80,6 +80,11 @@ __ledf2(fp_t a, fp_t b) {
     }
 }
 
+#if defined(__ELF__)
+// Alias for libgcc compatibility
+FNALIAS(__cmpdf2, __ledf2);
+#endif
+
 enum GE_RESULT {
     GE_LESS      = -1,
     GE_EQUAL     =  0,

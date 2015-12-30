@@ -1,12 +1,15 @@
 // RUN: %clangxx_tsan -O1 %s -o %t && %deflake %run %t | FileCheck %s
 #include "test.h"
 
+// OS X doesn't have pthread_setname_np(tid, name).
+// UNSUPPORTED: darwin
+
 #if defined(__FreeBSD__)
 #include <pthread_np.h>
 #define pthread_setname_np pthread_set_name_np
 #endif
 
-int Global;
+long long Global;
 
 void *Thread1(void *x) {
   barrier_wait(&barrier);

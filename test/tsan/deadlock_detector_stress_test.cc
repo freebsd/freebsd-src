@@ -1,12 +1,12 @@
 // RUN: %clangxx_tsan %s -o %t -DLockType=PthreadMutex
-// RUN: TSAN_OPTIONS=detect_deadlocks=1 %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-NOT-SECOND
-// RUN: TSAN_OPTIONS="detect_deadlocks=1 second_deadlock_stack=1" %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-SECOND
+// RUN: %env_tsan_opts=detect_deadlocks=1 %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-NOT-SECOND
+// RUN: %env_tsan_opts=detect_deadlocks=1:second_deadlock_stack=1 %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-SECOND
 // RUN: %clangxx_tsan %s -o %t -DLockType=PthreadSpinLock
-// RUN: TSAN_OPTIONS=detect_deadlocks=1 %deflake %run %t | FileCheck %s
+// RUN: %env_tsan_opts=detect_deadlocks=1 %deflake %run %t | FileCheck %s
 // RUN: %clangxx_tsan %s -o %t -DLockType=PthreadRWLock
-// RUN: TSAN_OPTIONS=detect_deadlocks=1 %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-RD
+// RUN: %env_tsan_opts=detect_deadlocks=1 %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-RD
 // RUN: %clangxx_tsan %s -o %t -DLockType=PthreadRecursiveMutex
-// RUN: TSAN_OPTIONS=detect_deadlocks=1 %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-REC
+// RUN: %env_tsan_opts=detect_deadlocks=1 %deflake %run %t | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-REC
 #include "test.h"
 #undef NDEBUG
 #include <assert.h>
@@ -56,6 +56,7 @@ class PthreadRecursiveMutex : public PthreadMutex {
   static bool supports_recursive_lock() { return true; }
 };
 
+#ifndef __APPLE__
 class PthreadSpinLock {
  public:
   PthreadSpinLock() { assert(0 == pthread_spin_init(&mu_, 0)); }
@@ -76,6 +77,9 @@ class PthreadSpinLock {
   pthread_spinlock_t mu_;
   char padding_[64 - sizeof(pthread_spinlock_t)];
 };
+#else
+class PthreadSpinLock : public PthreadMutex { };
+#endif
 
 class PthreadRWLock {
  public:
@@ -95,7 +99,7 @@ class PthreadRWLock {
 
  private:
   pthread_rwlock_t mu_;
-  char padding_[64 - sizeof(pthread_rwlock_t)];
+  char padding_[256 - sizeof(pthread_rwlock_t)];
 };
 
 class LockTest {
@@ -148,7 +152,7 @@ class LockTest {
     fprintf(stderr, "Starting Test1\n");
     // CHECK: Starting Test1
     Init(5);
-    fprintf(stderr, "Expecting lock inversion: %p %p\n", A(0), A(1));
+    print_address("Expecting lock inversion: ", 2, A(0), A(1));
     // CHECK: Expecting lock inversion: [[A1:0x[a-f0-9]*]] [[A2:0x[a-f0-9]*]]
     Lock_0_1();
     Lock_1_0();
@@ -174,7 +178,7 @@ class LockTest {
     fprintf(stderr, "Starting Test2\n");
     // CHECK: Starting Test2
     Init(5);
-    fprintf(stderr, "Expecting lock inversion: %p %p %p\n", A(0), A(1), A(2));
+    print_address("Expecting lock inversion: ", 3, A(0), A(1), A(2));
     // CHECK: Expecting lock inversion: [[A1:0x[a-f0-9]*]] [[A2:0x[a-f0-9]*]] [[A3:0x[a-f0-9]*]]
     Lock2(0, 1);
     Lock2(1, 2);
@@ -498,6 +502,19 @@ class LockTest {
     delete [] l;
   }
 
+  void Test19() {
+    if (test_number > 0 && test_number != 19) return;
+    fprintf(stderr, "Starting Test19: lots of lock inversions\n");
+    const int kNumLocks = 45;
+    Init(kNumLocks);
+    for (int i = 0; i < kNumLocks; i++) {
+      for (int j = 0; j < kNumLocks; j++)
+        L((i + j) % kNumLocks);
+      for (int j = 0; j < kNumLocks; j++)
+        U((i + j) % kNumLocks);
+    }
+  }
+
  private:
   void Lock2(size_t l1, size_t l2) { L(l1); L(l2); U(l2); U(l1); }
 
@@ -602,6 +619,7 @@ int main(int argc, char **argv) {
   LockTest().Test16();
   LockTest().Test17();
   LockTest().Test18();
+  LockTest().Test19();
   fprintf(stderr, "ALL-DONE\n");
   // CHECK: ALL-DONE
 }

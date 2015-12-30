@@ -13,7 +13,23 @@ macro(get_bits_for_arch arch bits)
   endif()
 endmacro()
 
-foreach(arch ${ASAN_SUPPORTED_ARCH})
+set(ASAN_TEST_DEPS ${SANITIZER_COMMON_LIT_TEST_DEPS})
+if(NOT COMPILER_RT_STANDALONE_BUILD)
+  list(APPEND ASAN_TEST_DEPS asan)
+  if(WIN32 AND COMPILER_RT_HAS_LLD_SOURCES)
+    list(APPEND ASAN_TEST_DEPS
+      lld
+    )
+  endif()
+endif()
+set(ASAN_DYNAMIC_TEST_DEPS ${ASAN_TEST_DEPS})
+
+set(ASAN_TEST_ARCH ${ASAN_SUPPORTED_ARCH})
+if(APPLE)
+  darwin_filter_host_archs(ASAN_SUPPORTED_ARCH ASAN_TEST_ARCH)
+endif()
+
+foreach(arch ${ASAN_TEST_ARCH})
   if(ANDROID)
     set(ASAN_TEST_TARGET_ARCH ${arch}-android)
   else()
@@ -54,12 +70,6 @@ foreach(arch ${ASAN_SUPPORTED_ARCH})
       ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME})
   endif()
 endforeach()
-
-set(ASAN_TEST_DEPS ${SANITIZER_COMMON_LIT_TEST_DEPS})
-if(NOT COMPILER_RT_STANDALONE_BUILD)
-  list(APPEND ASAN_TEST_DEPS asan)
-endif()
-set(ASAN_DYNAMIC_TEST_DEPS ${ASAN_TEST_DEPS})
 
 # Add unit tests.
 if(COMPILER_RT_INCLUDE_TESTS)

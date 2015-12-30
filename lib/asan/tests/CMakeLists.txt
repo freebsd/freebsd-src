@@ -106,7 +106,7 @@ append_list_if(COMPILER_RT_HAS_LIBPTHREAD -pthread
 
 # TODO(eugenis): move all -l flags above to _LIBS?
 set(ASAN_UNITTEST_NOINST_LIBS)
-append_list_if(ANDROID log ASAN_UNITTEST_NOINST_LIBS)
+append_list_if(COMPILER_RT_HAS_LIBLOG log ASAN_UNITTEST_NOINST_LIBS)
 # NDK r10 requires -latomic almost always.
 append_list_if(ANDROID atomic ASAN_UNITTEST_NOINST_LIBS)
 
@@ -217,9 +217,10 @@ macro(add_asan_tests_for_arch_and_kind arch kind)
   set(ASAN_TEST_RUNTIME RTAsanTest.${arch}${kind})
   if(APPLE)
     set(ASAN_TEST_RUNTIME_OBJECTS
-      $<TARGET_OBJECTS:RTAsan.osx>
+      $<TARGET_OBJECTS:RTAsan_dynamic.osx>
       $<TARGET_OBJECTS:RTInterception.osx>
       $<TARGET_OBJECTS:RTSanitizerCommon.osx>
+      $<TARGET_OBJECTS:RTSanitizerCommonLibc.osx>
       $<TARGET_OBJECTS:RTLSanCommon.osx>
       $<TARGET_OBJECTS:RTUbsan.osx>)
   else()
@@ -261,7 +262,11 @@ macro(add_asan_tests_for_arch_and_kind arch kind)
 endmacro()
 
 if(COMPILER_RT_CAN_EXECUTE_TESTS AND NOT ANDROID)
-  foreach(arch ${ASAN_SUPPORTED_ARCH})
+  set(ASAN_TEST_ARCH ${ASAN_SUPPORTED_ARCH})
+  if(APPLE)
+    darwin_filter_host_archs(ASAN_SUPPORTED_ARCH ASAN_TEST_ARCH)
+  endif()
+  foreach(arch ${ASAN_TEST_ARCH})
     add_asan_tests_for_arch_and_kind(${arch} "-inline")
     add_asan_tests_for_arch_and_kind(${arch} "-with-calls"
       -mllvm -asan-instrumentation-with-call-threshold=0)

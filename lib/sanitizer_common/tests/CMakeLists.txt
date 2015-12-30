@@ -4,6 +4,9 @@ clang_compiler_add_cxx_check()
 
 # FIXME: use SANITIZER_COMMON_SUPPORTED_ARCH here
 filter_available_targets(SANITIZER_UNITTEST_SUPPORTED_ARCH x86_64 i386 mips64 mips64el)
+if(APPLE)
+  darwin_filter_host_archs(SANITIZER_UNITTEST_SUPPORTED_ARCH SANITIZER_COMMON_SUPPORTED_ARCH)
+endif()
 
 set(SANITIZER_UNITTESTS
   sanitizer_allocator_test.cc
@@ -72,7 +75,7 @@ if(ANDROID)
 endif()
 
 set(SANITIZER_TEST_LINK_LIBS)
-append_list_if(ANDROID log SANITIZER_TEST_LINK_LIBS)
+append_list_if(COMPILER_RT_HAS_LIBLOG log SANITIZER_TEST_LINK_LIBS)
 # NDK r10 requires -latomic almost always.
 append_list_if(ANDROID atomic SANITIZER_TEST_LINK_LIBS)
 
@@ -168,11 +171,13 @@ if(COMPILER_RT_CAN_EXECUTE_TESTS AND NOT ANDROID)
   # be sure that produced binaries would work.
   if(APPLE)
     add_sanitizer_common_lib("RTSanitizerCommon.test.osx"
-                             $<TARGET_OBJECTS:RTSanitizerCommon.osx>)
+                             $<TARGET_OBJECTS:RTSanitizerCommon.osx>
+                             $<TARGET_OBJECTS:RTSanitizerCommonLibc.osx>)
   else()
     if(CAN_TARGET_x86_64)
       add_sanitizer_common_lib("RTSanitizerCommon.test.nolibc.x86_64"
-                               $<TARGET_OBJECTS:RTSanitizerCommon.x86_64>)
+                               $<TARGET_OBJECTS:RTSanitizerCommon.x86_64>
+                               $<TARGET_OBJECTS:RTSanitizerCommonNoLibc.x86_64>)
     endif()
     foreach(arch ${SANITIZER_UNITTEST_SUPPORTED_ARCH})
       add_sanitizer_common_lib("RTSanitizerCommon.test.${arch}"

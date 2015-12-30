@@ -1883,7 +1883,7 @@ TEST(MemorySanitizer, swprintf) {
   ASSERT_EQ(buff[1], '2');
   ASSERT_EQ(buff[2], '3');
   ASSERT_EQ(buff[6], '7');
-  ASSERT_EQ(buff[7], 0);
+  ASSERT_EQ(buff[7], L'\0');
   EXPECT_POISONED(buff[8]);
 }
 
@@ -1950,6 +1950,16 @@ TEST(MemorySanitizer, wcsnrtombs) {
   EXPECT_EQ(buff[0], 'a');
   EXPECT_EQ(buff[1], 'b');
   EXPECT_POISONED(buff[2]);
+}
+
+TEST(MemorySanitizer, wcrtomb) {
+  wchar_t x = L'a';
+  char buff[10];
+  mbstate_t mbs;
+  memset(&mbs, 0, sizeof(mbs));
+  size_t res = wcrtomb(buff, x, &mbs);
+  EXPECT_EQ(res, (size_t)1);
+  EXPECT_EQ(buff[0], 'a');
 }
 
 TEST(MemorySanitizer, wmemset) {
@@ -2876,6 +2886,8 @@ static void GetPathToLoadable(char *buf, size_t sz) {
   static const char basename[] = "libmsan_loadable.mips64.so";
 #elif defined(__mips64)
   static const char basename[] = "libmsan_loadable.mips64el.so";
+#elif defined(__aarch64__)
+  static const char basename[] = "libmsan_loadable.aarch64.so";
 #endif
   int res = snprintf(buf, sz, "%.*s/%s",
                      (int)dir_len, program_path, basename);
@@ -2982,6 +2994,14 @@ static void *SmallStackThread_threadfn(void* data) {
   return 0;
 }
 
+#ifdef PTHREAD_STACK_MIN
+# define SMALLSTACKSIZE    PTHREAD_STACK_MIN
+# define SMALLPRESTACKSIZE PTHREAD_STACK_MIN
+#else
+# define SMALLSTACKSIZE    64 * 1024
+# define SMALLPRESTACKSIZE 16 * 1024
+#endif
+
 TEST(MemorySanitizer, SmallStackThread) {
   pthread_attr_t attr;
   pthread_t t;
@@ -2989,7 +3009,7 @@ TEST(MemorySanitizer, SmallStackThread) {
   int res;
   res = pthread_attr_init(&attr);
   ASSERT_EQ(0, res);
-  res = pthread_attr_setstacksize(&attr, 64 * 1024);
+  res = pthread_attr_setstacksize(&attr, SMALLSTACKSIZE);
   ASSERT_EQ(0, res);
   res = pthread_create(&t, &attr, SmallStackThread_threadfn, NULL);
   ASSERT_EQ(0, res);
@@ -3006,7 +3026,7 @@ TEST(MemorySanitizer, SmallPreAllocatedStackThread) {
   res = pthread_attr_init(&attr);
   ASSERT_EQ(0, res);
   void *stack;
-  const size_t kStackSize = 16 * 1024;
+  const size_t kStackSize = SMALLPRESTACKSIZE;
   res = posix_memalign(&stack, 4096, kStackSize);
   ASSERT_EQ(0, res);
   res = pthread_attr_setstack(&attr, stack, kStackSize);

@@ -1,4 +1,8 @@
 // RUN: %clang_tsan -O1 %s -o %t && %deflake %run %t | FileCheck %s
+// This test fails on powerpc64 BE (VMA=44), it does not appear to be
+// a functional problem, but the Tsan report is missing some info.
+// XFAIL: powerpc64-unknown-linux-gnu
+
 #include "test.h"
 #include <signal.h>
 #include <sys/types.h>
@@ -24,7 +28,7 @@ static __attribute__((noinline)) void loop() {
     volatile char *p = (char*)malloc(1);
     p[0] = 0;
     free((void*)p);
-    pthread_yield();
+    sched_yield();
   }
 }
 

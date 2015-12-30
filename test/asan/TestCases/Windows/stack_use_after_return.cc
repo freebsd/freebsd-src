@@ -1,5 +1,5 @@
 // RUN: %clang_cl_asan -O0 %s -Fe%t
-// RUN: env ASAN_OPTIONS=detect_stack_use_after_return=1 not %run %t 2>&1 | FileCheck %s
+// RUN: %env_asan_opts=detect_stack_use_after_return=1 not %run %t 2>&1 | FileCheck %s
 
 char *x;
 
@@ -16,7 +16,7 @@ int main() {
 // CHECK-NEXT: {{#0 0x.* in main .*stack_use_after_return.cc}}:[[@LINE-3]]
 //
 // CHECK: is located in stack of thread T0 at offset [[OFFSET:.*]] in frame
-// CHECK-NEXT: {{#0 0x.* in foo .*stack_use_after_return.cc}}
+// CHECK-NEXT: {{#0 0x.* in foo.*stack_use_after_return.cc}}
 //
 // CHECK: 'stack_buffer' <== Memory access at offset [[OFFSET]] is inside this variable
 }
