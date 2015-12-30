@@ -106,8 +106,8 @@ static const struct {
 		.subtype = IFM_10G_SR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_ER] = {
-		.subtype = IFM_10G_ER,
+	[MLX5E_10GBASE_LR] = {
+		.subtype = IFM_10G_LR,
 		.baudrate = IF_Gbps(10ULL),
 	},
 	[MLX5E_40GBASE_SR4] = {
