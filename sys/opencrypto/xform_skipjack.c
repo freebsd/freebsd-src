@@ -50,64 +50,68 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/errno.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <machine/cpu.h>
-
-#include <crypto/blowfish/blowfish.h>
-#include <crypto/des/des.h>
-#include <crypto/rijndael/rijndael.h>
-#include <crypto/camellia/camellia.h>
-#include <crypto/sha1.h>
-
-#include <opencrypto/cast.h>
-#include <opencrypto/deflate.h>
-#include <opencrypto/rmd160.h>
 #include <opencrypto/skipjack.h>
+#include <opencrypto/xform_enc.h>
 
-#include <sys/md5.h>
-
-#include <opencrypto/cryptodev.h>
-#include <opencrypto/xform.h>
-
-MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
+static	int skipjack_setkey(u_int8_t **, u_int8_t *, int);
+static	void skipjack_encrypt(caddr_t, u_int8_t *);
+static	void skipjack_decrypt(caddr_t, u_int8_t *);
+static	void skipjack_zerokey(u_int8_t **);
 
 /* Encryption instances */
-struct enc_xform enc_xform_arc4 = {
-	CRYPTO_ARC4, "ARC4",
-	ARC4_BLOCK_LEN, ARC4_IV_LEN, ARC4_MIN_KEY, ARC4_MAX_KEY,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+struct enc_xform enc_xform_skipjack = {
+	CRYPTO_SKIPJACK_CBC, "Skipjack",
+	SKIPJACK_BLOCK_LEN, SKIPJACK_BLOCK_LEN, SKIPJACK_MIN_KEY,
+	SKIPJACK_MAX_KEY,
+	skipjack_encrypt,
+	skipjack_decrypt, skipjack_setkey,
+	skipjack_zerokey,
 	NULL,
 };
 
+/*
+ * Encryption wrapper routines.
+ */
+static void
+skipjack_encrypt(caddr_t key, u_int8_t *blk)
+{
+	skipjack_forwards(blk, blk, (u_int8_t **) key);
+}
 
-/* Include the encryption algorithms */
-#include "xform_null.c"
-#include "xform_des1.c"
-#include "xform_des3.c"
-#include "xform_blf.c"
-#include "xform_cast5.c"
-#include "xform_skipjack.c"
-#include "xform_rijndael.c"
-#include "xform_aes_icm.c"
-#include "xform_aes_xts.c"
-#include "xform_cml.c"
+static void
+skipjack_decrypt(caddr_t key, u_int8_t *blk)
+{
+	skipjack_backwards(blk, blk, (u_int8_t **) key);
+}
 
-/* Include the authentication and hashing algorithms */
-#include "xform_gmac.c"
-#include "xform_md5.c"
-#include "xform_rmd160.c"
-#include "xform_sha1.c"
-#include "xform_sha2.c"
+static int
+skipjack_setkey(u_int8_t **sched, u_int8_t *key, int len)
+{
+	int err;
 
-/* Include the compression algorithms */
-#include "xform_deflate.c"
+	/* NB: allocate all the memory that's needed at once */
+	*sched = KMALLOC(10 * (sizeof(u_int8_t *) + 0x100),
+		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
+	if (*sched != NULL) {
+		u_int8_t** key_tables = (u_int8_t**) *sched;
+		u_int8_t* table = (u_int8_t*) &key_tables[10];
+		int k;
 
+		for (k = 0; k < 10; k++) {
+			key_tables[k] = table;
+			table += 0x100;
+		}
+		subkey_table_gen(key, (u_int8_t **) *sched);
+		err = 0;
+	} else
+		err = ENOMEM;
+	return err;
+}
+
+static void
+skipjack_zerokey(u_int8_t **sched)
+{
+	bzero(*sched, 10 * (sizeof(u_int8_t *) + 0x100));
+	KFREE(*sched, M_CRYPTO_DATA);
+	*sched = NULL;
+}
