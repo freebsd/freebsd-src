@@ -65,13 +65,12 @@ CudaDeviceAction::CudaDeviceAction(std::unique_ptr<Action> Input,
 void CudaHostAction::anchor() {}
 
 CudaHostAction::CudaHostAction(std::unique_ptr<Action> Input,
-                               const ActionList &_DeviceActions)
-    : Action(CudaHostClass, std::move(Input)), DeviceActions(_DeviceActions) {}
+                               const ActionList &DeviceActions)
+    : Action(CudaHostClass, std::move(Input)), DeviceActions(DeviceActions) {}
 
 CudaHostAction::~CudaHostAction() {
-  for (iterator it = DeviceActions.begin(), ie = DeviceActions.end(); it != ie;
-       ++it)
-    delete *it;
+  for (auto &DA : DeviceActions)
+    delete DA;
 }
 
 void JobAction::anchor() {}
@@ -151,13 +150,6 @@ VerifyJobAction::VerifyJobAction(ActionClass Kind,
     : JobAction(Kind, std::move(Input), Type) {
   assert((Kind == VerifyDebugInfoJobClass || Kind == VerifyPCHJobClass) &&
          "ActionClass is not a valid VerifyJobAction");
-}
-
-VerifyJobAction::VerifyJobAction(ActionClass Kind, ActionList &Inputs,
-                                 types::ID Type)
-    : JobAction(Kind, Inputs, Type) {
-  assert((Kind == VerifyDebugInfoJobClass || Kind == VerifyPCHJobClass) &&
-           "ActionClass is not a valid VerifyJobAction");
 }
 
 void VerifyDebugInfoJobAction::anchor() {}

@@ -1,4 +1,4 @@
-//===--- ParseDecl.cpp - Declaration Parsing ------------------------------===//
+//===--- ParseDecl.cpp - Declaration Parsing --------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -24,9 +24,11 @@
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
+#include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
+
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -66,7 +68,6 @@ TypeResult Parser::ParseTypeName(SourceRange *Range,
 
   return Actions.ActOnTypeName(getCurScope(), DeclaratorInfo);
 }
-
 
 /// isAttributeLateParsed - Return true if the attribute has arguments that
 /// require late parsing.
@@ -387,7 +388,7 @@ bool Parser::ParseMicrosoftDeclSpecArgs(IdentifierInfo *AttrName,
   // If the attribute isn't known, we will not attempt to parse any
   // arguments.
   if (!hasAttribute(AttrSyntax::Declspec, nullptr, AttrName,
-                    getTargetInfo().getTriple(), getLangOpts())) {
+                    getTargetInfo(), getLangOpts())) {
     // Eat the left paren, then skip to the ending right paren.
     ConsumeParen();
     SkipUntil(tok::r_paren);
@@ -532,9 +533,7 @@ bool Parser::ParseMicrosoftDeclSpecArgs(IdentifierInfo *AttrName,
 ///             extended-decl-modifier extended-decl-modifier-seq
 void Parser::ParseMicrosoftDeclSpecs(ParsedAttributes &Attrs,
                                      SourceLocation *End) {
-  assert((getLangOpts().MicrosoftExt || getLangOpts().Borland ||
-          getLangOpts().CUDA) &&
-         "Incorrect language options for parsing __declspec");
+  assert(getLangOpts().DeclSpecKeyword && "__declspec keyword is not enabled");
   assert(Tok.is(tok::kw___declspec) && "Not a declspec!");
 
   while (Tok.is(tok::kw___declspec)) {
@@ -1155,7 +1154,6 @@ void Parser::ParseLexedAttributes(ParsingClass &Class) {
                                                  Class.TagOrTemplate);
 }
 
-
 /// \brief Parse all attributes in LAs, and attach them to Decl D.
 void Parser::ParseLexedAttributeList(LateParsedAttrList &LAs, Decl *D,
                                      bool EnterScope, bool OnDefinition) {
@@ -1169,7 +1167,6 @@ void Parser::ParseLexedAttributeList(LateParsedAttrList &LAs, Decl *D,
   }
   LAs.clear();
 }
-
 
 /// \brief Finish parsing an attribute for which parsing was delayed.
 /// This will be called at the end of parsing a class declaration
@@ -1468,15 +1465,13 @@ Parser::DeclGroupPtrTy Parser::ParseDeclaration(unsigned Context,
     if (getLangOpts().CPlusPlus && NextToken().is(tok::kw_namespace)) {
       ProhibitAttributes(attrs);
       SourceLocation InlineLoc = ConsumeToken();
-      SingleDecl = ParseNamespace(Context, DeclEnd, InlineLoc);
-      break;
+      return ParseNamespace(Context, DeclEnd, InlineLoc);
     }
     return ParseSimpleDeclaration(Context, DeclEnd, attrs,
                                   true);
   case tok::kw_namespace:
     ProhibitAttributes(attrs);
-    SingleDecl = ParseNamespace(Context, DeclEnd);
-    break;
+    return ParseNamespace(Context, DeclEnd);
   case tok::kw_using:
     SingleDecl = ParseUsingDirectiveOrDeclaration(Context, ParsedTemplateInfo(),
                                                   DeclEnd, attrs, &OwnedType);
@@ -1979,8 +1974,8 @@ Decl *Parser::ParseDeclarationAfterDeclaratorAndAttributes(
         // Recover as if it were an explicit specialization.
         TemplateParameterLists FakedParamLists;
         FakedParamLists.push_back(Actions.ActOnTemplateParameterList(
-            0, SourceLocation(), TemplateInfo.TemplateLoc, LAngleLoc, nullptr,
-            0, LAngleLoc));
+            0, SourceLocation(), TemplateInfo.TemplateLoc, LAngleLoc, None,
+            LAngleLoc));
 
         ThisDecl =
             Actions.ActOnTemplateDeclarator(getCurScope(), FakedParamLists, D);
@@ -2161,7 +2156,7 @@ void Parser::ParseSpecifierQualifierList(DeclSpec &DS, AccessSpecifier AS,
     DS.ClearStorageClassSpecs();
   }
 
-  // Issue diagnostic and remove function specfier if present.
+  // Issue diagnostic and remove function specifier if present.
   if (Specs & DeclSpec::PQ_FunctionSpecifier) {
     if (DS.isInlineSpecified())
       Diag(DS.getInlineSpecLoc(), diag::err_typename_invalid_functionspec);
@@ -2202,7 +2197,6 @@ static bool isValidAfterIdentifierInDeclarator(const Token &T) {
                    tok::comma, tok::equal, tok::kw_asm, tok::l_brace,
                    tok::colon);
 }
-
 
 /// ParseImplicitInt - This method is called when we have an non-typename
 /// identifier in a declspec (which normally terminates the decl spec) when
@@ -2621,8 +2615,6 @@ Parser::DiagnoseMissingSemiAfterTagDefinition(DeclSpec &DS, AccessSpecifier AS,
 /// [OpenCL] '__kernel'
 ///       'friend': [C++ dcl.friend]
 ///       'constexpr': [C++0x dcl.constexpr]
-
-///
 void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
                                         const ParsedTemplateInfo &TemplateInfo,
                                         AccessSpecifier AS,
@@ -2647,6 +2639,18 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
     const char *PrevSpec = nullptr;
     unsigned DiagID = 0;
 
+    // HACK: MSVC doesn't consider _Atomic to be a keyword and its STL
+    // implementation for VS2013 uses _Atomic as an identifier for one of the
+    // classes in <atomic>.
+    //
+    // A typedef declaration containing _Atomic<...> is among the places where
+    // the class is used.  If we are currently parsing such a declaration, treat
+    // the token as an identifier.
+    if (getLangOpts().MSVCCompat && Tok.is(tok::kw__Atomic) &&
+        DS.getStorageClassSpec() == clang::DeclSpec::SCS_typedef &&
+        !DS.hasTypeSpecifier() && GetLookAheadToken(1).is(tok::less))
+      Tok.setKind(tok::identifier);
+
     SourceLocation Loc = Tok.getLocation();
 
     switch (Tok.getKind()) {
@@ -2665,7 +2669,7 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
 
       // If this is not a declaration specifier token, we're done reading decl
       // specifiers.  First verify that DeclSpec's are consistent.
-      DS.Finish(Diags, PP, Policy);
+      DS.Finish(Actions, Policy);
       return;
 
     case tok::l_square:
@@ -2780,8 +2784,8 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
           // arguments. Complain, then parse it as a type as the user
           // intended.
           Diag(TemplateId->TemplateNameLoc,
-               diag::err_out_of_line_template_id_names_constructor)
-            << TemplateId->Name;
+               diag::err_out_of_line_template_id_type_names_constructor)
+            << TemplateId->Name << 0 /* template name */;
         }
 
         DS.getTypeSpecScope() = SS;
@@ -2826,8 +2830,9 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
         // looked at the declarator, and the user probably meant this
         // to be a type. Complain that it isn't supposed to be treated
         // as a type, then proceed to parse it as a type.
-        Diag(Next.getLocation(), diag::err_out_of_line_type_names_constructor)
-          << Next.getIdentifierInfo();
+        Diag(Next.getLocation(),
+             diag::err_out_of_line_template_id_type_names_constructor)
+          << Next.getIdentifierInfo() << 1 /* type */;
       }
 
       ParsedType TypeRep = Actions.getTypeName(*Next.getIdentifierInfo(),
@@ -3132,6 +3137,11 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
         isInvalid = DS.SetStorageClassSpec(Actions, DeclSpec::SCS_auto, Loc,
                                            PrevSpec, DiagID, Policy);
       isStorageClass = true;
+      break;
+    case tok::kw___auto_type:
+      Diag(Tok, diag::ext_auto_type);
+      isInvalid = DS.SetTypeSpecType(DeclSpec::TST_auto_type, Loc, PrevSpec,
+                                     DiagID, Policy);
       break;
     case tok::kw_register:
       isInvalid = DS.SetStorageClassSpec(Actions, DeclSpec::SCS_register, Loc,
@@ -3577,7 +3587,8 @@ void Parser::ParseStructUnionBody(SourceLocation RecordLoc,
   SmallVector<Decl *, 32> FieldDecls;
 
   // While we still have something to read, read the declarations in the struct.
-  while (Tok.isNot(tok::r_brace) && !isEofOrEom()) {
+  while (!tryParseMisplacedModuleImport() && Tok.isNot(tok::r_brace) &&
+         Tok.isNot(tok::eof)) {
     // Each iteration of this loop reads one struct-declaration.
 
     // Check for extraneous top-level semicolon.
@@ -4434,6 +4445,7 @@ bool Parser::isDeclarationSpecifier(bool DisambiguatingWithExpression) {
   case tok::kw___private_extern__:
   case tok::kw_static:
   case tok::kw_auto:
+  case tok::kw___auto_type:
   case tok::kw_register:
   case tok::kw___thread:
   case tok::kw_thread_local:
@@ -4807,7 +4819,7 @@ void Parser::ParseTypeQualifierListOpt(DeclSpec &DS, unsigned AttrReqs,
       DoneWithTypeQuals:
       // If this is not a type-qualifier token, we're done reading type
       // qualifiers.  First verify that DeclSpec's are consistent.
-      DS.Finish(Diags, PP, Actions.getASTContext().getPrintingPolicy());
+      DS.Finish(Actions, Actions.getASTContext().getPrintingPolicy());
       if (EndLoc.isValid())
         DS.SetRangeEnd(EndLoc);
       return;
@@ -4821,7 +4833,6 @@ void Parser::ParseTypeQualifierListOpt(DeclSpec &DS, unsigned AttrReqs,
     EndLoc = ConsumeToken();
   }
 }
-
 
 /// ParseDeclarator - Parse and verify a newly-initialized declarator.
 ///
@@ -5187,6 +5198,15 @@ void Parser::ParseDirectDeclarator(Declarator &D) {
       }
       goto PastIdentifier;
     }
+
+    if (D.getCXXScopeSpec().isNotEmpty()) {
+      // We have a scope specifier but no following unqualified-id.
+      Diag(PP.getLocForEndOfToken(D.getCXXScopeSpec().getEndLoc()),
+           diag::err_expected_unqualified_id)
+          << /*C++*/1;
+      D.SetIdentifier(nullptr, Tok.getLocation());
+      goto PastIdentifier;
+    }
   } else if (Tok.is(tok::identifier) && D.mayHaveIdentifier()) {
     assert(!getLangOpts().CPlusPlus &&
            "There's a C++-specific check for tok::identifier above");
@@ -5470,7 +5490,7 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
   SmallVector<ParsedType, 2> DynamicExceptions;
   SmallVector<SourceRange, 2> DynamicExceptionRanges;
   ExprResult NoexceptExpr;
-  CachedTokens *ExceptionSpecTokens = 0;
+  CachedTokens *ExceptionSpecTokens = nullptr;
   ParsedAttributes FnAttrs(AttrFactory);
   TypeResult TrailingReturnType;
 
@@ -5608,7 +5628,7 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
                                              VolatileQualifierLoc,
                                              RestrictQualifierLoc,
                                              /*MutableLoc=*/SourceLocation(),
-                                             ESpecType, ESpecRange.getBegin(),
+                                             ESpecType, ESpecRange,
                                              DynamicExceptions.data(),
                                              DynamicExceptionRanges.data(),
                                              DynamicExceptions.size(),
@@ -6226,7 +6246,6 @@ void Parser::ParseAtomicSpecifier(DeclSpec &DS) {
                          Actions.getASTContext().getPrintingPolicy()))
     Diag(StartLoc, DiagID) << PrevSpec;
 }
-
 
 /// TryAltiVecVectorTokenOutOfLine - Out of line body that should only be called
 /// from TryAltiVecVectorToken.

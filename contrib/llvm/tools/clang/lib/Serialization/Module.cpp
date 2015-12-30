@@ -40,19 +40,11 @@ ModuleFile::ModuleFile(ModuleKind Kind, unsigned Generation)
     LocalNumCXXBaseSpecifiers(0), CXXBaseSpecifiersOffsets(nullptr),
     LocalNumCXXCtorInitializers(0), CXXCtorInitializersOffsets(nullptr),
     FileSortedDecls(nullptr), NumFileSortedDecls(0),
-    RedeclarationsMap(nullptr), LocalNumRedeclarationsInMap(0),
     ObjCCategoriesMap(nullptr), LocalNumObjCCategoriesInMap(0),
     LocalNumTypes(0), TypeOffsets(nullptr), BaseTypeIndex(0)
 {}
 
 ModuleFile::~ModuleFile() {
-  for (DeclContextInfosMap::iterator I = DeclContextInfos.begin(),
-       E = DeclContextInfos.end();
-       I != E; ++I) {
-    if (I->second.NameLookupTableData)
-      delete I->second.NameLookupTableData;
-  }
-  
   delete static_cast<ASTIdentifierLookupTable *>(IdentifierLookupTable);
   delete static_cast<HeaderFileInfoLookupTable *>(HeaderFileInfoTable);
   delete static_cast<ASTSelectorLookupTable *>(SelectorLookupTable);
