@@ -59,7 +59,7 @@ l2:	add	r2, 1, r3 ; \
 	add	r1, r2, r1 ; \
 	rd	%tick, r2 ; \
 	stx	r2, [r1 + KTR_TIMESTAMP] ; \
-	lduw	[PCPU(MID)], r2 ; \
+	lduw	[PCPU(CPUID)], r2 ; \
 	stw	r2, [r1 + KTR_CPU] ; \
 	stw	%g0, [r1 + KTR_LINE] ; \
 	stx	%g0, [r1 + KTR_FILE] ; \
