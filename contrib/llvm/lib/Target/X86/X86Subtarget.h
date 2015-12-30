@@ -47,11 +47,11 @@ class X86Subtarget final : public X86GenSubtargetInfo {
 
 protected:
   enum X86SSEEnum {
-    NoMMXSSE, MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, AVX, AVX2, AVX512F
+    NoSSE, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, AVX, AVX2, AVX512F
   };
 
   enum X863DNowEnum {
-    NoThreeDNow, ThreeDNow, ThreeDNowA
+    NoThreeDNow, MMX, ThreeDNow, ThreeDNowA
   };
 
   enum X86ProcFamilyEnum {
@@ -64,10 +64,10 @@ protected:
   /// Which PIC style to use
   PICStyles::Style PICStyle;
 
-  /// MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, or none supported.
+  /// SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, or none supported.
   X86SSEEnum X86SSELevel;
 
-  /// 3DNow, 3DNow Athlon, or none supported.
+  /// MMX, 3DNow, 3DNow Athlon, or none supported.
   X863DNowEnum X863DNowLevel;
 
   /// True if this processor has conditional move instructions
@@ -85,6 +85,18 @@ protected:
 
   /// Target has AES instructions
   bool HasAES;
+
+  /// Target has FXSAVE/FXRESTOR instructions
+  bool HasFXSR;
+
+  /// Target has XSAVE instructions
+  bool HasXSAVE;
+  /// Target has XSAVEOPT instructions
+  bool HasXSAVEOPT;
+  /// Target has XSAVEC instructions
+  bool HasXSAVEC;
+  /// Target has XSAVES instructions
+  bool HasXSAVES;
 
   /// Target has carry-less multiplication
   bool HasPCLMUL;
@@ -140,16 +152,19 @@ protected:
   /// Processor has RDSEED instructions.
   bool HasRDSEED;
 
+  /// Processor has LAHF/SAHF instructions.
+  bool HasLAHFSAHF;
+
   /// True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
 
   /// True if SHLD instructions are slow.
   bool IsSHLDSlow;
 
-  /// True if unaligned memory access is fast.
-  bool IsUAMemFast;
+  /// True if unaligned memory accesses of 16-bytes are slow.
+  bool IsUAMem16Slow;
 
-  /// True if unaligned 32-byte memory accesses are slow.
+  /// True if unaligned memory accesses of 32-bytes are slow.
   bool IsUAMem32Slow;
 
   /// True if SSE operations can have unaligned memory operands.
@@ -207,6 +222,9 @@ protected:
 
   /// Processor has AVX-512 Vector Length eXtenstions
   bool HasVLX;
+
+  /// Processor has PKU extenstions
+  bool HasPKU;
 
   /// Processot supports MPX - Memory Protection Extensions
   bool HasMPX;
@@ -319,7 +337,6 @@ public:
   void setPICStyle(PICStyles::Style Style)  { PICStyle = Style; }
 
   bool hasCMov() const { return HasCMov; }
-  bool hasMMX() const { return X86SSELevel >= MMX; }
   bool hasSSE1() const { return X86SSELevel >= SSE1; }
   bool hasSSE2() const { return X86SSELevel >= SSE2; }
   bool hasSSE3() const { return X86SSELevel >= SSE3; }
@@ -332,14 +349,22 @@ public:
   bool hasFp256() const { return hasAVX(); }
   bool hasInt256() const { return hasAVX2(); }
   bool hasSSE4A() const { return HasSSE4A; }
+  bool hasMMX() const { return X863DNowLevel >= MMX; }
   bool has3DNow() const { return X863DNowLevel >= ThreeDNow; }
   bool has3DNowA() const { return X863DNowLevel >= ThreeDNowA; }
   bool hasPOPCNT() const { return HasPOPCNT; }
   bool hasAES() const { return HasAES; }
+  bool hasFXSR() const { return HasFXSR; }
+  bool hasXSAVE() const { return HasXSAVE; }
+  bool hasXSAVEOPT() const { return HasXSAVEOPT; }
+  bool hasXSAVEC() const { return HasXSAVEC; }
+  bool hasXSAVES() const { return HasXSAVES; }
   bool hasPCLMUL() const { return HasPCLMUL; }
-  bool hasFMA() const { return HasFMA; }
-  // FIXME: Favor FMA when both are enabled. Is this the right thing to do?
-  bool hasFMA4() const { return HasFMA4 && !HasFMA; }
+  // Prefer FMA4 to FMA - its better for commutation/memory folding and
+  // has equal or better performance on all supported targets.
+  bool hasFMA() const { return HasFMA && !HasFMA4; }
+  bool hasFMA4() const { return HasFMA4; }
+  bool hasAnyFMA() const { return hasFMA() || hasFMA4() || hasAVX512(); }
   bool hasXOP() const { return HasXOP; }
   bool hasTBM() const { return HasTBM; }
   bool hasMOVBE() const { return HasMOVBE; }
@@ -355,9 +380,10 @@ public:
   bool hasSHA() const { return HasSHA; }
   bool hasPRFCHW() const { return HasPRFCHW; }
   bool hasRDSEED() const { return HasRDSEED; }
+  bool hasLAHFSAHF() const { return HasLAHFSAHF; }
   bool isBTMemSlow() const { return IsBTMemSlow; }
   bool isSHLDSlow() const { return IsSHLDSlow; }
-  bool isUnalignedMemAccessFast() const { return IsUAMemFast; }
+  bool isUnalignedMem16Slow() const { return IsUAMem16Slow; }
   bool isUnalignedMem32Slow() const { return IsUAMem32Slow; }
   bool hasSSEUnalignedMem() const { return HasSSEUnalignedMem; }
   bool hasCmpxchg16b() const { return HasCmpxchg16b; }
@@ -375,6 +401,7 @@ public:
   bool hasDQI() const { return HasDQI; }
   bool hasBWI() const { return HasBWI; }
   bool hasVLX() const { return HasVLX; }
+  bool hasPKU() const { return HasPKU; }
   bool hasMPX() const { return HasMPX; }
 
   bool isAtom() const { return X86ProcFamily == IntelAtom; }
@@ -394,9 +421,11 @@ public:
   bool isTargetMachO() const { return TargetTriple.isOSBinFormatMachO(); }
 
   bool isTargetLinux() const { return TargetTriple.isOSLinux(); }
+  bool isTargetAndroid() const { return TargetTriple.isAndroid(); }
   bool isTargetNaCl() const { return TargetTriple.isOSNaCl(); }
   bool isTargetNaCl32() const { return isTargetNaCl() && !is64Bit(); }
   bool isTargetNaCl64() const { return isTargetNaCl() && is64Bit(); }
+  bool isTargetMCU() const { return TargetTriple.isOSIAMCU(); }
 
   bool isTargetWindowsMSVC() const {
     return TargetTriple.isWindowsMSVCEnvironment();
@@ -404,6 +433,10 @@ public:
 
   bool isTargetKnownWindowsMSVC() const {
     return TargetTriple.isKnownWindowsMSVCEnvironment();
+  }
+
+  bool isTargetWindowsCoreCLR() const {
+    return TargetTriple.isWindowsCoreCLREnvironment();
   }
 
   bool isTargetWindowsCygwin() const {

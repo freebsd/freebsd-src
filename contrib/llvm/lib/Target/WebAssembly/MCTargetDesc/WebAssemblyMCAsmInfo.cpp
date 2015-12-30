@@ -23,7 +23,7 @@ using namespace llvm;
 WebAssemblyMCAsmInfo::~WebAssemblyMCAsmInfo() {}
 
 WebAssemblyMCAsmInfo::WebAssemblyMCAsmInfo(const Triple &T) {
-  PointerSize = CalleeSaveStackSlotSize = T.isArch64Bit();
+  PointerSize = CalleeSaveStackSlotSize = T.isArch64Bit() ? 8 : 4;
 
   // TODO: What should MaxInstLength be?
 
@@ -40,9 +40,6 @@ WebAssemblyMCAsmInfo::WebAssemblyMCAsmInfo(const Triple &T) {
   AlignmentIsInBytes = false;
   COMMDirectiveAlignmentIsInBytes = false;
   LCOMMDirectiveAlignmentType = LCOMM::Log2Alignment;
-
-  HasDotTypeDotSizeDirective = false;
-  HasSingleParameterDotFile = false;
 
   SupportsDebugInformation = true;
 

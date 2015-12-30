@@ -225,7 +225,8 @@ ARMBaseRegisterInfo::getRegAllocationHints(unsigned VirtReg,
                                            ArrayRef<MCPhysReg> Order,
                                            SmallVectorImpl<MCPhysReg> &Hints,
                                            const MachineFunction &MF,
-                                           const VirtRegMap *VRM) const {
+                                           const VirtRegMap *VRM,
+                                           const LiveRegMatrix *Matrix) const {
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   std::pair<unsigned, unsigned> Hint = MRI.getRegAllocationHint(VirtReg);
 
@@ -338,7 +339,7 @@ bool ARMBaseRegisterInfo::canRealignStack(const MachineFunction &MF) const {
   // 1. Dynamic stack realignment is explicitly disabled,
   // 2. This is a Thumb1 function (it's not useful, so we don't bother), or
   // 3. There are VLAs in the function and the base pointer is disabled.
-  if (MF.getFunction()->hasFnAttribute("no-realign-stack"))
+  if (!TargetRegisterInfo::canRealignStack(MF))
     return false;
   if (AFI->isThumb1OnlyFunction())
     return false;
@@ -353,18 +354,6 @@ bool ARMBaseRegisterInfo::canRealignStack(const MachineFunction &MF) const {
   // A base pointer is required and allowed.  Check that it isn't too late to
   // reserve it.
   return MRI->canReserveReg(BasePtr);
-}
-
-bool ARMBaseRegisterInfo::
-needsStackRealignment(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  const ARMFrameLowering *TFI = getFrameLowering(MF);
-  const Function *F = MF.getFunction();
-  unsigned StackAlign = TFI->getStackAlignment();
-  bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
-                              F->hasFnAttribute(Attribute::StackAlignment));
-
-  return requiresRealignment && canRealignStack(MF);
 }
 
 bool ARMBaseRegisterInfo::

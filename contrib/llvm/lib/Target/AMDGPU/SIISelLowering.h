@@ -28,6 +28,9 @@ class SITargetLowering : public AMDGPUTargetLowering {
   SDValue LowerGlobalAddress(AMDGPUMachineFunction *MFI, SDValue Op,
                              SelectionDAG &DAG) const override;
 
+  SDValue lowerImplicitZextParam(SelectionDAG &DAG, SDValue Op,
+                                 MVT VT, unsigned Offset) const;
+
   SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_VOID(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFrameIndex(SDValue Op, SelectionDAG &DAG) const;
@@ -57,6 +60,7 @@ class SITargetLowering : public AMDGPUTargetLowering {
   SDValue performSetCCCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
   bool isLegalFlatAddressingMode(const AddrMode &AM) const;
+  bool isLegalMUBUFAddressingMode(const AddrMode &AM) const;
 public:
   SITargetLowering(TargetMachine &tm, const AMDGPUSubtarget &STI);
 
@@ -75,6 +79,9 @@ public:
                           bool ZeroMemset,
                           bool MemcpyStrSrc,
                           MachineFunction &MF) const override;
+
+  bool isMemOpUniform(const SDNode *N) const;
+  bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override;
 
   TargetLoweringBase::LegalizeTypeAction
   getPreferredVectorAction(EVT VT) const override;
@@ -112,13 +119,10 @@ public:
                            SDValue Ptr,
                            uint32_t RsrcDword1,
                            uint64_t RsrcDword2And3) const;
-  MachineSDNode *buildScratchRSRC(SelectionDAG &DAG,
-                                  SDLoc DL,
-                                  SDValue Ptr) const;
-
   std::pair<unsigned, const TargetRegisterClass *>
   getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
                                StringRef Constraint, MVT VT) const override;
+  ConstraintType getConstraintType(StringRef Constraint) const override;
   SDValue copyToM0(SelectionDAG &DAG, SDValue Chain, SDLoc DL, SDValue V) const;
 };
 

@@ -94,7 +94,7 @@ public:
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
-  const uint32_t *getNoPreservedMask() const;
+  const uint32_t *getNoPreservedMask() const override;
 
   /// getThisReturnPreservedMask - Returns a call preserved mask specific to the
   /// case that 'returned' is on an i32 first argument if the calling convention
@@ -126,15 +126,15 @@ public:
                              ArrayRef<MCPhysReg> Order,
                              SmallVectorImpl<MCPhysReg> &Hints,
                              const MachineFunction &MF,
-                             const VirtRegMap *VRM) const override;
+                             const VirtRegMap *VRM,
+                             const LiveRegMatrix *Matrix) const override;
 
   void updateRegAllocHint(unsigned Reg, unsigned NewReg,
                           MachineFunction &MF) const override;
 
   bool hasBasePointer(const MachineFunction &MF) const;
 
-  bool canRealignStack(const MachineFunction &MF) const;
-  bool needsStackRealignment(const MachineFunction &MF) const override;
+  bool canRealignStack(const MachineFunction &MF) const override;
   int64_t getFrameIndexInstrOffset(const MachineInstr *MI,
                                    int Idx) const override;
   bool needsFrameBaseReg(MachineInstr *MI, int64_t Offset) const override;

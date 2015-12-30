@@ -16,7 +16,6 @@
 #define LLVM_LIB_TARGET_WEBASSEMBLY_MCTARGETDESC_WEBASSEMBLYMCTARGETDESC_H
 
 #include "llvm/Support/DataTypes.h"
-#include <string>
 
 namespace llvm {
 
@@ -34,13 +33,21 @@ class StringRef;
 class Target;
 class Triple;
 class raw_ostream;
+class raw_pwrite_stream;
 
 extern Target TheWebAssemblyTarget32;
 extern Target TheWebAssemblyTarget64;
 
+MCCodeEmitter *createWebAssemblyMCCodeEmitter(const MCInstrInfo &MCII,
+                                              const MCRegisterInfo &MRI,
+                                              MCContext &Ctx);
+
 MCAsmBackend *createWebAssemblyAsmBackend(const Target &T,
                                           const MCRegisterInfo &MRI,
-                                          StringRef TT, StringRef CPU);
+                                          const Triple &TT, StringRef CPU);
+
+MCObjectWriter *createWebAssemblyELFObjectWriter(raw_pwrite_stream &OS,
+                                                 bool Is64Bit, uint8_t OSABI);
 
 } // end namespace llvm
 
@@ -49,6 +56,11 @@ MCAsmBackend *createWebAssemblyAsmBackend(const Target &T,
 //
 #define GET_REGINFO_ENUM
 #include "WebAssemblyGenRegisterInfo.inc"
+
+// Defines symbolic names for the WebAssembly instructions.
+//
+#define GET_INSTRINFO_ENUM
+#include "WebAssemblyGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_ENUM
 #include "WebAssemblyGenSubtargetInfo.inc"

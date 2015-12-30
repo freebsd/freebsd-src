@@ -16,8 +16,11 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-// Sentinel value for the absolute pseudo section.
-MCSection *MCSymbol::AbsolutePseudoSection = reinterpret_cast<MCSection *>(1);
+// Only the address of this fragment is ever actually used.
+static MCDummyFragment SentinelFragment(nullptr);
+
+// Sentinel value for the absolute pseudo fragment.
+MCFragment *MCSymbol::AbsolutePseudoFragment = &SentinelFragment;
 
 void *MCSymbol::operator new(size_t s, const StringMapEntry<bool> *Name,
                              MCContext &Ctx) {

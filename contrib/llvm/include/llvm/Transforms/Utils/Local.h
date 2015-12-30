@@ -15,6 +15,7 @@
 #ifndef LLVM_TRANSFORMS_UTILS_LOCAL_H
 #define LLVM_TRANSFORMS_UTILS_LOCAL_H
 
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
@@ -40,7 +41,6 @@ class DataLayout;
 class TargetLibraryInfo;
 class TargetTransformInfo;
 class DIBuilder;
-class AliasAnalysis;
 class DominatorTree;
 
 template<typename T> class SmallVectorImpl;
@@ -271,11 +271,34 @@ bool LowerDbgDeclare(Function &F);
 /// an alloca, if any.
 DbgDeclareInst *FindAllocaDbgDeclare(Value *V);
 
-/// \brief Replaces llvm.dbg.declare instruction when an alloca is replaced with
-/// a new value.  If Deref is true, tan additional DW_OP_deref is prepended to
-/// the expression.
+/// \brief Replaces llvm.dbg.declare instruction when the address it describes
+/// is replaced with a new value. If Deref is true, an additional DW_OP_deref is
+/// prepended to the expression. If Offset is non-zero, a constant displacement
+/// is added to the expression (after the optional Deref). Offset can be
+/// negative.
+bool replaceDbgDeclare(Value *Address, Value *NewAddress,
+                       Instruction *InsertBefore, DIBuilder &Builder,
+                       bool Deref, int Offset);
+
+/// \brief Replaces llvm.dbg.declare instruction when the alloca it describes
+/// is replaced with a new value. If Deref is true, an additional DW_OP_deref is
+/// prepended to the expression. If Offset is non-zero, a constant displacement
+/// is added to the expression (after the optional Deref). Offset can be
+/// negative. New llvm.dbg.declare is inserted immediately before AI.
 bool replaceDbgDeclareForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
-                                DIBuilder &Builder, bool Deref);
+                                DIBuilder &Builder, bool Deref, int Offset = 0);
+
+/// \brief Insert an unreachable instruction before the specified
+/// instruction, making it and the rest of the code in the block dead.
+void changeToUnreachable(Instruction *I, bool UseLLVMTrap);
+
+/// Replace 'BB's terminator with one that does not have an unwind successor
+/// block.  Rewrites `invoke` to `call`, etc.  Updates any PHIs in unwind
+/// successor.
+///
+/// \param BB  Block whose terminator will be replaced.  Its terminator must
+///            have an unwind successor.
+void removeUnwindEdge(BasicBlock *BB);
 
 /// \brief Remove all blocks that can not be reached from the function's entry.
 ///
@@ -291,6 +314,22 @@ void combineMetadata(Instruction *K, const Instruction *J, ArrayRef<unsigned> Kn
 /// the given edge.  Returns the number of replacements made.
 unsigned replaceDominatedUsesWith(Value *From, Value *To, DominatorTree &DT,
                                   const BasicBlockEdge &Edge);
+/// \brief Replace each use of 'From' with 'To' if that use is dominated by
+/// the given BasicBlock. Returns the number of replacements made.
+unsigned replaceDominatedUsesWith(Value *From, Value *To, DominatorTree &DT,
+                                  const BasicBlock *BB);
+
+
+/// \brief Return true if the CallSite CS calls a gc leaf function.
+///
+/// A leaf function is a function that does not safepoint the thread during its
+/// execution.  During a call or invoke to such a function, the callers stack
+/// does not have to be made parseable.
+///
+/// Most passes can and should ignore this information, and it is only used
+/// during lowering by the GC infrastructure.
+bool callsGCLeafFunction(ImmutableCallSite CS);
+
 } // End llvm namespace
 
 #endif

@@ -86,7 +86,7 @@ std::unique_ptr<Module>
 BugDriver::deleteInstructionFromProgram(const Instruction *I,
                                         unsigned Simplification) {
   // FIXME, use vmap?
-  Module *Clone = CloneModule(Program);
+  Module *Clone = CloneModule(Program).release();
 
   const BasicBlock *PBB = I->getParent();
   const Function *PF = PBB->getParent();
@@ -100,7 +100,7 @@ BugDriver::deleteInstructionFromProgram(const Instruction *I,
 
   BasicBlock::iterator RI = RBI->begin(); // Get iterator to corresponding inst
   std::advance(RI, std::distance(PBB->begin(), BasicBlock::const_iterator(I)));
-  Instruction *TheInst = RI;              // Got the corresponding instruction!
+  Instruction *TheInst = &*RI; // Got the corresponding instruction!
 
   // If this instruction produces a value, replace any users with null values
   if (!TheInst->getType()->isVoidTy())
@@ -179,11 +179,43 @@ std::unique_ptr<Module> BugDriver::extractLoop(Module *M) {
   return NewM;
 }
 
+static void eliminateAliases(GlobalValue *GV) {
+  // First, check whether a GlobalAlias references this definition.
+  // GlobalAlias MAY NOT reference declarations.
+  for (;;) {
+    // 1. Find aliases
+    SmallVector<GlobalAlias*,1> aliases;
+    Module *M = GV->getParent();
+    for (Module::alias_iterator I=M->alias_begin(), E=M->alias_end(); I!=E; ++I)
+      if (I->getAliasee()->stripPointerCasts() == GV)
+        aliases.push_back(&*I);
+    if (aliases.empty())
+      break;
+    // 2. Resolve aliases
+    for (unsigned i=0, e=aliases.size(); i<e; ++i) {
+      aliases[i]->replaceAllUsesWith(aliases[i]->getAliasee());
+      aliases[i]->eraseFromParent();
+    }
+    // 3. Repeat until no more aliases found; there might
+    // be an alias to an alias...
+  }
+}
+
+//
+// DeleteGlobalInitializer - "Remove" the global variable by deleting its initializer,
+// making it external.
+//
+void llvm::DeleteGlobalInitializer(GlobalVariable *GV) {
+  eliminateAliases(GV);
+  GV->setInitializer(nullptr);
+}
 
 // DeleteFunctionBody - "Remove" the function by deleting all of its basic
 // blocks, making it external.
 //
 void llvm::DeleteFunctionBody(Function *F) {
+  eliminateAliases(F);
+
   // delete the body of the function...
   F->deleteBody();
   assert(F->isDeclaration() && "This didn't make the function external!");
@@ -271,13 +303,8 @@ static void SplitStaticCtorDtor(const char *GlobalName, Module *M1, Module *M2,
   }
 }
 
-
-/// SplitFunctionsOutOfModule - Given a module and a list of functions in the
-/// module, split the functions OUT of the specified module, and place them in
-/// the new module.
-Module *
-llvm::SplitFunctionsOutOfModule(Module *M,
-                                const std::vector<Function*> &F,
+std::unique_ptr<Module>
+llvm::SplitFunctionsOutOfModule(Module *M, const std::vector<Function *> &F,
                                 ValueToValueMapTy &VMap) {
   // Make sure functions & globals are all external so that linkage
   // between the two modules will work.
@@ -291,7 +318,7 @@ llvm::SplitFunctionsOutOfModule(Module *M,
   }
 
   ValueToValueMapTy NewVMap;
-  Module *New = CloneModule(M, NewVMap);
+  std::unique_ptr<Module> New = CloneModule(M, NewVMap);
 
   // Remove the Test functions from the Safe module
   std::set<Function *> TestFunctions;
@@ -306,16 +333,14 @@ llvm::SplitFunctionsOutOfModule(Module *M,
 
   
   // Remove the Safe functions from the Test module
-  for (Module::iterator I = New->begin(), E = New->end(); I != E; ++I)
-    if (!TestFunctions.count(I))
-      DeleteFunctionBody(I);
-  
+  for (Function &I : *New)
+    if (!TestFunctions.count(&I))
+      DeleteFunctionBody(&I);
 
   // Try to split the global initializers evenly
-  for (Module::global_iterator I = M->global_begin(), E = M->global_end();
-       I != E; ++I) {
-    GlobalVariable *GV = cast<GlobalVariable>(NewVMap[I]);
-    if (Function *TestFn = globalInitUsesExternalBA(I)) {
+  for (GlobalVariable &I : M->globals()) {
+    GlobalVariable *GV = cast<GlobalVariable>(NewVMap[&I]);
+    if (Function *TestFn = globalInitUsesExternalBA(&I)) {
       if (Function *SafeFn = globalInitUsesExternalBA(GV)) {
         errs() << "*** Error: when reducing functions, encountered "
                   "the global '";
@@ -325,18 +350,18 @@ llvm::SplitFunctionsOutOfModule(Module *M,
                << "' and from test function '" << TestFn->getName() << "'.\n";
         exit(1);
       }
-      I->setInitializer(nullptr);  // Delete the initializer to make it external
+      DeleteGlobalInitializer(&I); // Delete the initializer to make it external
     } else {
       // If we keep it in the safe module, then delete it in the test module
-      GV->setInitializer(nullptr);
+      DeleteGlobalInitializer(GV);
     }
   }
 
   // Make sure that there is a global ctor/dtor array in both halves of the
   // module if they both have static ctor/dtor functions.
-  SplitStaticCtorDtor("llvm.global_ctors", M, New, NewVMap);
-  SplitStaticCtorDtor("llvm.global_dtors", M, New, NewVMap);
-  
+  SplitStaticCtorDtor("llvm.global_ctors", M, New.get(), NewVMap);
+  SplitStaticCtorDtor("llvm.global_dtors", M, New.get(), NewVMap);
+
   return New;
 }
 
