@@ -12,17 +12,24 @@
 // is_move_constructible
 
 #include <type_traits>
+#include "test_macros.h"
 
 template <class T>
 void test_is_move_constructible()
 {
     static_assert( std::is_move_constructible<T>::value, "");
+#if TEST_STD_VER > 14
+    static_assert( std::is_move_constructible_v<T>, "");
+#endif
 }
 
 template <class T>
 void test_is_not_move_constructible()
 {
     static_assert(!std::is_move_constructible<T>::value, "");
+#if TEST_STD_VER > 14
+    static_assert(!std::is_move_constructible_v<T>, "");
+#endif
 }
 
 class Empty

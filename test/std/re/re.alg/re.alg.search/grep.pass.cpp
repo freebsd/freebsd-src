@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: libcpp-no-exceptions
 // <regex>
 
 // template <class BidirectionalIterator, class Allocator, class charT, class traits>
@@ -19,7 +20,33 @@
 #include <regex>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_iterators.h"
+
+extern "C" void LLVMFuzzerTestOneInput(const char *data)
+{
+    size_t size = strlen(data);
+    if (size > 0)
+    {
+        try
+        {
+            std::regex::flag_type flag = std::regex_constants::grep;
+            std::string s((const char *)data, size);
+            std::regex re(s, flag);
+            std::regex_match(s, re);
+        } 
+        catch (std::regex_error &ex) {} 
+    } 
+}
+
+
+void fuzz_tests()  // patterns that the fuzzer has found
+{
+// Raw string literals are a C++11 feature.
+#if TEST_STD_VER >= 11
+    LLVMFuzzerTestOneInput(R"XX(Õ)_%()()((\8'_%()_%()_%()_%(()_%()_%()_%(.t;)()¥f()_%()(.)_%;)()!¥f(((()()XX");
+#endif
+}
 
 int main()
 {
@@ -55,4 +82,5 @@ int main()
         assert(m.position(0) == 0);
         assert(m.str(0) == "");
     }
+    fuzz_tests();
 }

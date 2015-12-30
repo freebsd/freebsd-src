@@ -7,7 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
+// XFAIL: libcpp-no-exceptions
 // UNSUPPORTED: libcpp-has-no-threads
+// UNSUPPORTED: c++98, c++03
 
 // <future>
 

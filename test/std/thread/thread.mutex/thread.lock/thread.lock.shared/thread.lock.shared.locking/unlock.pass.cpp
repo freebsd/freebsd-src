@@ -7,7 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
+// XFAIL: libcpp-no-exceptions
 // UNSUPPORTED: libcpp-has-no-threads
+// UNSUPPORTED: c++98, c++03, c++11
 
 // <shared_mutex>
 
@@ -17,8 +19,6 @@
 
 #include <shared_mutex>
 #include <cassert>
-
-#if _LIBCPP_STD_VER > 11
 
 bool unlock_called = false;
 
@@ -30,11 +30,8 @@ struct mutex
 
 mutex m;
 
-#endif  // _LIBCPP_STD_VER > 11
-
 int main()
 {
-#if _LIBCPP_STD_VER > 11
     std::shared_lock<mutex> lk(m);
     lk.unlock();
     assert(unlock_called == true);
@@ -58,5 +55,4 @@ int main()
     {
         assert(e.code().value() == EPERM);
     }
-#endif  // _LIBCPP_STD_VER > 11
 }

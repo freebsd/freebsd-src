@@ -13,10 +13,6 @@
 
 #include "new"
 
-#ifndef __has_include
-#define __has_include(inc) 0
-#endif
-
 #if defined(__APPLE__) && !defined(LIBCXXRT)
     #include <cxxabi.h>
 
@@ -27,9 +23,9 @@
         #define __new_handler __cxxabiapple::__cxa_new_handler
     #endif
 #else  // __APPLE__
-    #if defined(LIBCXXRT) || __has_include(<cxxabi.h>)
+    #if defined(LIBCXXRT) || defined(LIBCXX_BUILDING_LIBCXXABI)
         #include <cxxabi.h>
-    #endif  // __has_include(<cxxabi.h>)
+    #endif  // defined(LIBCXX_BUILDING_LIBCXXABI)
     #if !defined(_LIBCPPABI_VERSION) && !defined(__GLIBCXX__)
         static std::new_handler __new_handler;
     #endif  // _LIBCPPABI_VERSION
@@ -38,7 +34,7 @@
 #ifndef __GLIBCXX__
 
 // Implement all new and delete operators as weak definitions
-// in this shared library, so that they can be overriden by programs
+// in this shared library, so that they can be overridden by programs
 // that define non-weak copies of the functions.
 
 _LIBCPP_WEAK _LIBCPP_NEW_DELETE_VIS

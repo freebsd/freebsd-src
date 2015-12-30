@@ -1118,8 +1118,8 @@ __tree<_Tp, _Compare, _Allocator>::__tree(const value_compare& __comp)
 
 template <class _Tp, class _Compare, class _Allocator>
 __tree<_Tp, _Compare, _Allocator>::__tree(const allocator_type& __a)
-    : __pair1_(__node_allocator(__a)),
-      __begin_node_(__node_pointer()),
+    : __begin_node_(__node_pointer()),
+      __pair1_(__node_allocator(__a)),
       __pair3_(0)
 {
     __begin_node() = __end_node();
@@ -1128,8 +1128,8 @@ __tree<_Tp, _Compare, _Allocator>::__tree(const allocator_type& __a)
 template <class _Tp, class _Compare, class _Allocator>
 __tree<_Tp, _Compare, _Allocator>::__tree(const value_compare& __comp,
                                            const allocator_type& __a)
-    : __pair1_(__node_allocator(__a)),
-      __begin_node_(__node_pointer()),
+    : __begin_node_(__node_pointer()),
+      __pair1_(__node_allocator(__a)),
       __pair3_(0, __comp)
 {
     __begin_node() = __end_node();
@@ -1843,7 +1843,7 @@ __tree<_Tp, _Compare, _Allocator>::__construct_node(const value_type& __v)
     __node_holder __h(__node_traits::allocate(__na, 1), _Dp(__na));
     __node_traits::construct(__na, _VSTD::addressof(__h->__value_), __v);
     __h.get_deleter().__value_constructed = true;
-    return _VSTD::move(__h);  // explicitly moved for C++03
+    return _LIBCPP_EXPLICIT_MOVE(__h);  // explicitly moved for C++03
 }
 
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES

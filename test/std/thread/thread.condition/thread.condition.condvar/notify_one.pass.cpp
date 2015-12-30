@@ -16,16 +16,17 @@
 // void notify_one();
 
 #include <condition_variable>
+#include <atomic>
 #include <mutex>
 #include <thread>
 #include <cassert>
 
+
 std::condition_variable cv;
 std::mutex mut;
 
-int test0 = 0;
-int test1 = 0;
-int test2 = 0;
+std::atomic_int test1(0);
+std::atomic_int test2(0);
 
 void f1()
 {
@@ -64,11 +65,13 @@ int main()
     }
     if (test1 == 2)
     {
+        assert(test2 == 1);
         t1.join();
         test1 = 0;
     }
     else if (test2 == 2)
     {
+        assert(test1 == 1);
         t2.join();
         test2 = 0;
     }
@@ -81,11 +84,13 @@ int main()
     }
     if (test1 == 2)
     {
+        assert(test2 == 0);
         t1.join();
         test1 = 0;
     }
     else if (test2 == 2)
     {
+        assert(test1 == 0);
         t2.join();
         test2 = 0;
     }

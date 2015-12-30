@@ -12,6 +12,7 @@
 // is_trivially_default_constructible
 
 #include <type_traits>
+#include "test_macros.h"
 
 template <class T>
 void test_is_trivially_default_constructible()
@@ -20,6 +21,12 @@ void test_is_trivially_default_constructible()
     static_assert( std::is_trivially_default_constructible<const T>::value, "");
     static_assert( std::is_trivially_default_constructible<volatile T>::value, "");
     static_assert( std::is_trivially_default_constructible<const volatile T>::value, "");
+#if TEST_STD_VER > 14
+    static_assert( std::is_trivially_default_constructible_v<T>, "");
+    static_assert( std::is_trivially_default_constructible_v<const T>, "");
+    static_assert( std::is_trivially_default_constructible_v<volatile T>, "");
+    static_assert( std::is_trivially_default_constructible_v<const volatile T>, "");
+#endif
 }
 
 template <class T>
@@ -29,6 +36,12 @@ void test_has_not_trivial_default_constructor()
     static_assert(!std::is_trivially_default_constructible<const T>::value, "");
     static_assert(!std::is_trivially_default_constructible<volatile T>::value, "");
     static_assert(!std::is_trivially_default_constructible<const volatile T>::value, "");
+#if TEST_STD_VER > 14
+    static_assert(!std::is_trivially_default_constructible_v<T>, "");
+    static_assert(!std::is_trivially_default_constructible_v<const T>, "");
+    static_assert(!std::is_trivially_default_constructible_v<volatile T>, "");
+    static_assert(!std::is_trivially_default_constructible_v<const volatile T>, "");
+#endif
 }
 
 class Empty
