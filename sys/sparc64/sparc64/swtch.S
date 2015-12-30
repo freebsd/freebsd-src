@@ -173,8 +173,7 @@ ENTRY(cpu_switch)
 	 * active on this CPU.
 	 */
 	mov	_NCPUBITS, %l5
-	mov	%g0, %y
-	udiv	%l3, %l5, %l6
+	udivx	%l3, %l5, %l6
 	srl	%l6, 0, %l4
 	sllx	%l4, PTR_SHIFT, %l4
 	add	%l4, PM_ACTIVE, %l4
@@ -242,8 +241,7 @@ ENTRY(cpu_switch)
 	 * Mark the pmap as active on this CPU.
 	 */
 	mov	_NCPUBITS, %l5
-	mov	%g0, %y
-	udiv	%l3, %l5, %l6
+	udivx	%l3, %l5, %l6
 	srl	%l6, 0, %l4
 	sllx	%l4, PTR_SHIFT, %l4
 	add	%l4, PM_ACTIVE, %l4

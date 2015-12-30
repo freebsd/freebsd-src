@@ -105,17 +105,11 @@ const DriverSuffix *FindDriverSuffix(StringRef ProgName) {
       {"clang", nullptr},
       {"clang++", "--driver-mode=g++"},
       {"clang-c++", "--driver-mode=g++"},
-#ifdef __FreeBSD__
-      {"clang-CC", "--driver-mode=g++"},
-#endif
       {"clang-cc", nullptr},
       {"clang-cpp", "--driver-mode=cpp"},
       {"clang-g++", "--driver-mode=g++"},
       {"clang-gcc", nullptr},
       {"clang-cl", "--driver-mode=cl"},
-#ifdef __FreeBSD__
-      {"CC", "--driver-mode=g++"},
-#endif
       {"cc", nullptr},
       {"cpp", "--driver-mode=cpp"},
       {"cl", "--driver-mode=cl"},
