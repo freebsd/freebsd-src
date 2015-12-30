@@ -70,7 +70,6 @@ vnextpwent(char const *nam, uid_t uid, int doclose)
 	pw = NULL;
 	line = NULL;
 	linecap = 0;
-	linelen = 0;
 
 	if (pwd_fp != NULL || (pwd_fp = fopen(getpwpath(_MASTERPASSWD), "r")) != NULL) {
 		while ((linelen = getline(&line, &linecap, pwd_fp)) > 0) {
@@ -153,7 +152,6 @@ vnextgrent(char const *nam, gid_t gid, int doclose)
 	gr = NULL;
 	line = NULL;
 	linecap = 0;
-	linelen = 0;
 
 	if (grp_fp != NULL || (grp_fp = fopen(getgrpath(_GROUP), "r")) != NULL) {
 		while ((linelen = getline(&line, &linecap, grp_fp)) > 0) {
