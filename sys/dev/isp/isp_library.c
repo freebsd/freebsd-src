@@ -572,7 +572,8 @@ isp_clear_commands(ispsoftc_t *isp)
 	for (tmp = 0; isp->isp_xflist && tmp < isp->isp_maxcmds; tmp++) {
 
 		hdp = &isp->isp_xflist[tmp];
-		if (ISP_H2HT(hdp->handle) == ISP_HANDLE_INITIATOR) {
+		switch (ISP_H2HT(hdp->handle)) {
+		case ISP_HANDLE_INITIATOR: {
 			XS_T *xs = hdp->cmd;
 			if (XS_XFRLEN(xs)) {
 				ISP_DMAFREE(isp, xs, hdp->handle);
@@ -580,12 +581,13 @@ isp_clear_commands(ispsoftc_t *isp)
 			} else {
 				XS_SET_RESID(xs, 0);
 			}
-			hdp->handle = 0;
-			hdp->cmd = NULL;
+			isp_destroy_handle(isp, hdp->handle);
 			XS_SETERR(xs, HBA_BUSRESET);
 			isp_done(xs);
+			break;
+		}
 #ifdef	ISP_TARGET_MODE
-		} else if (ISP_H2HT(hdp->handle) == ISP_HANDLE_TARGET) {
+		case ISP_HANDLE_TARGET: {
 			uint8_t local[QENTRY_LEN];
 			ISP_DMAFREE(isp, hdp->cmd, hdp->handle);
 			ISP_MEMZERO(local, QENTRY_LEN);
@@ -601,7 +603,13 @@ isp_clear_commands(ispsoftc_t *isp)
 				ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 			}
 			isp_async(isp, ISPASYNC_TARGET_ACTION, local);
+			break;
+		}
 #endif
+		case ISP_HANDLE_CTRL:
+			wakeup(hdp->cmd);
+			isp_destroy_handle(isp, hdp->handle);
+			break;
 		}
 	}
 #ifdef	ISP_TARGET_MODE
