@@ -1,6 +1,7 @@
 ; RUN: opt < %s -dfsan -dfsan-abilist=%S/Inputs/debuglist.txt -S | FileCheck %s
 
-; CHECK: !DISubprogram(name: "main",{{.*}} function: i32 ()* @main{{[,)]}}
+; CHECK: define i32 @main() {{.*}} !dbg [[SP:![0-9]+]]
+; CHECK: [[SP]] = distinct !DISubprogram(name: "main"
 
 ; Generated from a simple source file compiled with clang -g:
 ; int main() {
@@ -10,7 +11,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 ; Function Attrs: nounwind uwtable
-define i32 @main() #0 {
+define i32 @main() #0 !dbg !4 {
 entry:
   ret i32 0, !dbg !12
 }
@@ -21,11 +22,11 @@ attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointe
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "debug.cpp", directory: "/tmp/dbginfo")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "main", line: 1, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, function: i32 ()* @main, variables: !2)
+!4 = distinct !DISubprogram(name: "main", line: 1, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "debug.cpp", directory: "/tmp/dbginfo")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}

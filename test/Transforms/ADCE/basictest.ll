@@ -1,4 +1,5 @@
 ; RUN: opt < %s -adce -simplifycfg | llvm-dis
+; RUN: opt < %s -passes=adce | llvm-dis
 
 define i32 @Test(i32 %A, i32 %B) {
 BB1:
@@ -15,5 +16,3 @@ BB4:            ; preds = %BB1
         %X = phi i32 [ %A, %BB1 ]               ; <i32> [#uses=1]
         br label %BB3
 }
-
-

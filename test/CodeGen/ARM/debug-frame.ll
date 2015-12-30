@@ -30,11 +30,11 @@
 ; RUN:     -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-V7-FP-ELIM
 
-; RUN: llc -mtriple thumb-unknown-linux-gnueabi \
+; RUN: llc -mtriple thumbv5-unknown-linux-gnueabi \
 ; RUN:     -disable-fp-elim -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-THUMB-FP
 
-; RUN: llc -mtriple thumb-unknown-linux-gnueabi \
+; RUN: llc -mtriple thumbv5-unknown-linux-gnueabi \
 ; RUN:     -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-THUMB-FP-ELIM
 
@@ -125,11 +125,11 @@ declare void @_ZSt9terminatev()
 !llvm.module.flags = !{!10, !11}
 !llvm.ident = !{!12}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "exp.cpp", directory: "/tmp")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "test", linkageName: "_Z4testiiiiiddddd", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !5, type: !6, function: void (i32, i32, i32, i32, i32, double, double, double, double, double)* @_Z4testiiiiiddddd, variables: !2)
+!4 = distinct !DISubprogram(name: "test", linkageName: "_Z4testiiiiiddddd", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "exp.cpp", directory: "/tmp")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null, !8, !8, !8, !8, !8, !9, !9, !9, !9, !9}
@@ -138,18 +138,18 @@ declare void @_ZSt9terminatev()
 !10 = !{i32 2, !"Dwarf Version", i32 4}
 !11 = !{i32 1, !"Debug Info Version", i32 3}
 !12 = !{!"clang version 3.5 "}
-!13 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 4, arg: 1, scope: !4, file: !5, type: !8)
+!13 = !DILocalVariable(name: "a", line: 4, arg: 1, scope: !4, file: !5, type: !8)
 !14 = !DILocation(line: 4, scope: !4)
-!15 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "b", line: 4, arg: 2, scope: !4, file: !5, type: !8)
-!16 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "c", line: 4, arg: 3, scope: !4, file: !5, type: !8)
-!17 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "d", line: 4, arg: 4, scope: !4, file: !5, type: !8)
-!18 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "e", line: 4, arg: 5, scope: !4, file: !5, type: !8)
-!19 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "m", line: 5, arg: 6, scope: !4, file: !5, type: !9)
+!15 = !DILocalVariable(name: "b", line: 4, arg: 2, scope: !4, file: !5, type: !8)
+!16 = !DILocalVariable(name: "c", line: 4, arg: 3, scope: !4, file: !5, type: !8)
+!17 = !DILocalVariable(name: "d", line: 4, arg: 4, scope: !4, file: !5, type: !8)
+!18 = !DILocalVariable(name: "e", line: 4, arg: 5, scope: !4, file: !5, type: !8)
+!19 = !DILocalVariable(name: "m", line: 5, arg: 6, scope: !4, file: !5, type: !9)
 !20 = !DILocation(line: 5, scope: !4)
-!21 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "n", line: 5, arg: 7, scope: !4, file: !5, type: !9)
-!22 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p", line: 5, arg: 8, scope: !4, file: !5, type: !9)
-!23 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "q", line: 5, arg: 9, scope: !4, file: !5, type: !9)
-!24 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "r", line: 5, arg: 10, scope: !4, file: !5, type: !9)
+!21 = !DILocalVariable(name: "n", line: 5, arg: 7, scope: !4, file: !5, type: !9)
+!22 = !DILocalVariable(name: "p", line: 5, arg: 8, scope: !4, file: !5, type: !9)
+!23 = !DILocalVariable(name: "q", line: 5, arg: 9, scope: !4, file: !5, type: !9)
+!24 = !DILocalVariable(name: "r", line: 5, arg: 10, scope: !4, file: !5, type: !9)
 !25 = !DILocation(line: 7, scope: !26)
 !26 = distinct !DILexicalBlock(line: 6, column: 0, file: !1, scope: !4)
 !27 = !DILocation(line: 8, scope: !26)

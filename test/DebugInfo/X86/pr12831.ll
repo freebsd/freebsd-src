@@ -9,10 +9,10 @@ target triple = "x86_64-unknown-linux-gnu"
 %class.anon = type { i8 }
 %class.anon.0 = type { i8 }
 
-@"_ZN8functionIFvvEEC1IZN17BPLFunctionWriter9writeExprEvE3$_1_0EET_" = internal alias void (%class.function*)* @"_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_1_0EET_"
-@"_ZN8functionIFvvEEC1IZN17BPLFunctionWriter9writeExprEvE3$_0EET_" = internal alias void (%class.function*)* @"_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_0EET_"
+@"_ZN8functionIFvvEEC1IZN17BPLFunctionWriter9writeExprEvE3$_1_0EET_" = internal alias void (%class.function*), void (%class.function*)* @"_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_1_0EET_"
+@"_ZN8functionIFvvEEC1IZN17BPLFunctionWriter9writeExprEvE3$_0EET_" = internal alias void (%class.function*), void (%class.function*)* @"_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_0EET_"
 
-define void @_ZN17BPLFunctionWriter9writeExprEv(%class.BPLFunctionWriter* %this) nounwind uwtable align 2 {
+define void @_ZN17BPLFunctionWriter9writeExprEv(%class.BPLFunctionWriter* %this) nounwind uwtable align 2 !dbg !5 {
 entry:
   %this.addr = alloca %class.BPLFunctionWriter*, align 8
   %agg.tmp = alloca %class.function, align 1
@@ -78,10 +78,10 @@ entry:
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!162}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.2 ", isOptimized: false, emissionKind: 0, file: !161, enums: !1, retainedTypes: !1, subprograms: !3, globals: !128)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.2 ", isOptimized: false, emissionKind: 0, file: !161, enums: !1, retainedTypes: !1, subprograms: !3, globals: !128)
 !1 = !{}
 !3 = !{!5, !106, !107, !126, !127}
-!5 = !DISubprogram(name: "writeExpr", linkageName: "_ZN17BPLFunctionWriter9writeExprEv", line: 19, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 19, file: !6, scope: null, type: !7, function: void (%class.BPLFunctionWriter*)* @_ZN17BPLFunctionWriter9writeExprEv, declaration: !103, variables: !1)
+!5 = distinct !DISubprogram(name: "writeExpr", linkageName: "_ZN17BPLFunctionWriter9writeExprEv", line: 19, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 19, file: !6, scope: null, type: !7, declaration: !103, variables: !1)
 !6 = !DIFile(filename: "BPLFunctionWriter2.ii", directory: "/home/peter/crashdelta")
 !7 = !DISubroutineType(types: !8)
 !8 = !{null, !9}
@@ -156,8 +156,8 @@ entry:
 !99 = !DISubroutineType(types: !100)
 !100 = !{null}
 !103 = !DISubprogram(name: "writeExpr", linkageName: "_ZN17BPLFunctionWriter9writeExprEv", line: 17, isLocal: false, isDefinition: false, virtualIndex: 6, flags: DIFlagPrivate | DIFlagPrototyped, isOptimized: false, scopeLine: 17, file: !6, scope: !10, type: !7)
-!106 = !DISubprogram(name: "function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:23:36> >", linkageName: "_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_1_0EET_", line: 8, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 8, file: !6, scope: null, type: !59, function: void (%class.function*)* @"_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_1_0EET_", templateParams: !82, declaration: !58, variables: !1)
-!107 = !DISubprogram(name: "_M_not_empty_function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:23:36> >", linkageName: "_ZN13_Base_manager21_M_not_empty_functionIZN17BPLFunctionWriter9writeExprEvE3$_1_0EEvRKT_", line: 3, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !6, scope: null, type: !108, function: void (%class.anon.0*)* @"_ZN13_Base_manager21_M_not_empty_functionIZN17BPLFunctionWriter9writeExprEvE3$_1_0EEvRKT_", templateParams: !111, declaration: !113, variables: !1)
+!106 = distinct !DISubprogram(name: "function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:23:36> >", linkageName: "_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_1_0EET_", line: 8, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 8, file: !6, scope: null, type: !59, templateParams: !82, declaration: !58, variables: !1)
+!107 = distinct !DISubprogram(name: "_M_not_empty_function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:23:36> >", linkageName: "_ZN13_Base_manager21_M_not_empty_functionIZN17BPLFunctionWriter9writeExprEvE3$_1_0EEvRKT_", line: 3, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !6, scope: null, type: !108, templateParams: !111, declaration: !113, variables: !1)
 !108 = !DISubroutineType(types: !109)
 !109 = !{null, !110}
 !110 = !DIDerivedType(tag: DW_TAG_reference_type, baseType: !61)
@@ -172,32 +172,32 @@ entry:
 !119 = !DIDerivedType(tag: DW_TAG_reference_type, baseType: !26)
 !120 = !{!121}
 !121 = !DITemplateTypeParameter(name: "_Tp", type: !26)
-!126 = !DISubprogram(name: "function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:20:36> >", linkageName: "_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_0EET_", line: 8, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 8, file: !6, scope: null, type: !23, function: void (%class.function*)* @"_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_0EET_", templateParams: !47, declaration: !22, variables: !1)
-!127 = !DISubprogram(name: "_M_not_empty_function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:20:36> >", linkageName: "_ZN13_Base_manager21_M_not_empty_functionIZN17BPLFunctionWriter9writeExprEvE3$_0EEvRKT_", line: 3, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !6, scope: null, type: !117, function: void (%class.anon*)* @"_ZN13_Base_manager21_M_not_empty_functionIZN17BPLFunctionWriter9writeExprEvE3$_0EEvRKT_", templateParams: !120, declaration: !116, variables: !1)
+!126 = distinct !DISubprogram(name: "function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:20:36> >", linkageName: "_ZN8functionIFvvEEC2IZN17BPLFunctionWriter9writeExprEvE3$_0EET_", line: 8, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 8, file: !6, scope: null, type: !23, templateParams: !47, declaration: !22, variables: !1)
+!127 = distinct !DISubprogram(name: "_M_not_empty_function<BPLFunctionWriter::<lambda at BPLFunctionWriter2.ii:20:36> >", linkageName: "_ZN13_Base_manager21_M_not_empty_functionIZN17BPLFunctionWriter9writeExprEvE3$_0EEvRKT_", line: 3, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !6, scope: null, type: !117, templateParams: !120, declaration: !116, variables: !1)
 !128 = !{!130}
 !130 = !DIGlobalVariable(name: "__stored_locally", linkageName: "__stored_locally", line: 2, isLocal: true, isDefinition: true, scope: !114, file: !6, type: !131, variable: i1 1)
 !131 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !132)
 !132 = !DIBasicType(tag: DW_TAG_base_type, name: "bool", size: 8, align: 8, encoding: DW_ATE_boolean)
-!133 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 19, arg: 1, flags: DIFlagArtificial, scope: !5, file: !6, type: !134)
+!133 = !DILocalVariable(name: "this", line: 19, arg: 1, flags: DIFlagArtificial, scope: !5, file: !6, type: !134)
 !134 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !10)
 !135 = !DILocation(line: 19, column: 39, scope: !5)
 !136 = !DILocation(line: 20, column: 17, scope: !137)
 !137 = distinct !DILexicalBlock(line: 19, column: 51, file: !6, scope: !5)
 !138 = !DILocation(line: 23, column: 17, scope: !137)
 !139 = !DILocation(line: 26, column: 15, scope: !137)
-!140 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 8, arg: 1, flags: DIFlagArtificial, scope: !106, file: !6, type: !141)
+!140 = !DILocalVariable(name: "this", line: 8, arg: 1, flags: DIFlagArtificial, scope: !106, file: !6, type: !141)
 !141 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !20)
 !142 = !DILocation(line: 8, column: 45, scope: !106)
-!143 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "__f", line: 8, arg: 2, scope: !106, file: !6, type: !61)
+!143 = !DILocalVariable(name: "__f", line: 8, arg: 2, scope: !106, file: !6, type: !61)
 !144 = !DILocation(line: 8, column: 63, scope: !106)
 !145 = !DILocation(line: 9, column: 9, scope: !146)
 !146 = distinct !DILexicalBlock(line: 8, column: 81, file: !6, scope: !106)
 !147 = !DILocation(line: 10, column: 13, scope: !146)
 !148 = !DILocation(line: 4, column: 5, scope: !149)
 !149 = distinct !DILexicalBlock(line: 3, column: 105, file: !6, scope: !107)
-!150 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 8, arg: 1, flags: DIFlagArtificial, scope: !126, file: !6, type: !141)
+!150 = !DILocalVariable(name: "this", line: 8, arg: 1, flags: DIFlagArtificial, scope: !126, file: !6, type: !141)
 !151 = !DILocation(line: 8, column: 45, scope: !126)
-!152 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "__f", line: 8, arg: 2, scope: !126, file: !6, type: !26)
+!152 = !DILocalVariable(name: "__f", line: 8, arg: 2, scope: !126, file: !6, type: !26)
 !153 = !DILocation(line: 8, column: 63, scope: !126)
 !154 = !DILocation(line: 9, column: 9, scope: !155)
 !155 = distinct !DILexicalBlock(line: 8, column: 81, file: !6, scope: !126)

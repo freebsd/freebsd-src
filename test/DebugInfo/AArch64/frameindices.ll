@@ -42,7 +42,7 @@ target triple = "aarch64-apple-ios"
 @a = global i64 0, align 8
 @b = global i32* null, align 8
 
-define void @_Z3f131A(%struct.A* nocapture readonly %p1) #0 {
+define void @_Z3f131A(%struct.A* nocapture readonly %p1) #0 !dbg !25 {
 entry:
   %agg.tmp = alloca %struct.A, align 8
   tail call void @llvm.dbg.declare(metadata %struct.A* %p1, metadata !30, metadata !46), !dbg !47
@@ -67,7 +67,7 @@ declare void @_Z2f91A(%struct.A*) #0
 ; Function Attrs: nounwind
 declare void @llvm.memcpy.p0i8.p0i8.i64(i8* nocapture, i8* nocapture readonly, i64, i32, i1) #3
 
-define void @_Z3f111A(%struct.A* nocapture readonly %p1) #0 {
+define void @_Z3f111A(%struct.A* nocapture readonly %p1) #0 !dbg !31 {
 entry:
   %agg.tmp.i = alloca %struct.A, align 8
   tail call void @llvm.dbg.declare(metadata %struct.A* %p1, metadata !33, metadata !46), !dbg !63
@@ -83,7 +83,7 @@ entry:
   ret void, !dbg !73
 }
 
-define void @_Z3f16v() #0 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+define void @_Z3f16v() #0 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) !dbg !34 {
 entry:
   %agg.tmp.i.i = alloca %struct.A, align 8
   %d = alloca %struct.B, align 1
@@ -160,7 +160,7 @@ attributes #5 = { builtin }
 !llvm.module.flags = !{!43, !44}
 !llvm.ident = !{!45}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !24, globals: !40, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !24, globals: !40, imports: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "")
 !2 = !{}
 !3 = !{!4, !12, !14}
@@ -185,21 +185,21 @@ attributes #5 = { builtin }
 !22 = !DISubroutineType(types: !23)
 !23 = !{null, !19}
 !24 = !{!25, !31, !34}
-!25 = !DISubprogram(name: "f13", linkageName: "_Z3f131A", line: 13, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 13, file: !5, scope: !26, type: !27, function: void (%struct.A*)* @_Z3f131A, variables: !29)
+!25 = distinct !DISubprogram(name: "f13", linkageName: "_Z3f131A", line: 13, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 13, file: !5, scope: !26, type: !27, variables: !29)
 !26 = !DIFile(filename: "test.cpp", directory: "")
 !27 = !DISubroutineType(types: !28)
 !28 = !{null, !"_ZTS1A"}
 !29 = !{!30}
-!30 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p1", line: 13, arg: 1, scope: !25, file: !26, type: !"_ZTS1A")
-!31 = !DISubprogram(name: "f11", linkageName: "_Z3f111A", line: 17, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 17, file: !5, scope: !26, type: !27, function: void (%struct.A*)* @_Z3f111A, variables: !32)
+!30 = !DILocalVariable(name: "p1", line: 13, arg: 1, scope: !25, file: !26, type: !"_ZTS1A")
+!31 = distinct !DISubprogram(name: "f11", linkageName: "_Z3f111A", line: 17, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 17, file: !5, scope: !26, type: !27, variables: !32)
 !32 = !{!33}
-!33 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p1", line: 17, arg: 1, scope: !31, file: !26, type: !"_ZTS1A")
-!34 = !DISubprogram(name: "f16", linkageName: "_Z3f16v", line: 18, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 18, file: !5, scope: !26, type: !35, function: void ()* @_Z3f16v, variables: !37)
+!33 = !DILocalVariable(name: "p1", line: 17, arg: 1, scope: !31, file: !26, type: !"_ZTS1A")
+!34 = distinct !DISubprogram(name: "f16", linkageName: "_Z3f16v", line: 18, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 18, file: !5, scope: !26, type: !35, variables: !37)
 !35 = !DISubroutineType(types: !36)
 !36 = !{null}
 !37 = !{!38, !39}
-!38 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "c", line: 19, scope: !34, file: !26, type: !"_ZTS1A")
-!39 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "d", line: 20, scope: !34, file: !26, type: !"_ZTS1B")
+!38 = !DILocalVariable(name: "c", line: 19, scope: !34, file: !26, type: !"_ZTS1A")
+!39 = !DILocalVariable(name: "d", line: 20, scope: !34, file: !26, type: !"_ZTS1B")
 !40 = !{!41, !42}
 !41 = !DIGlobalVariable(name: "a", line: 1, isLocal: false, isDefinition: true, scope: null, file: !26, type: !20, variable: i64* @a)
 !42 = !DIGlobalVariable(name: "b", line: 7, isLocal: false, isDefinition: true, scope: null, file: !26, type: !12, variable: i32** @b)
@@ -234,7 +234,7 @@ attributes #5 = { builtin }
 !71 = !DILocation(line: 15, column: 3, scope: !25, inlinedAt: !66)
 !72 = !DILocation(line: 16, column: 1, scope: !25, inlinedAt: !66)
 !73 = !DILocation(line: 17, column: 27, scope: !31)
-!74 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "p1", line: 17, arg: 1, scope: !31, file: !26, type: !"_ZTS1A")
+!74 = !DILocalVariable(name: "p1", line: 17, arg: 1, scope: !31, file: !26, type: !"_ZTS1A")
 !75 = distinct !DILocation(line: 22, column: 3, scope: !34)
 !76 = !DIExpression(DW_OP_bit_piece, 8, 120)
 !77 = !DILocation(line: 17, column: 12, scope: !31, inlinedAt: !75)

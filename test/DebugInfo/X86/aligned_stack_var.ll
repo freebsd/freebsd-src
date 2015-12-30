@@ -15,7 +15,7 @@
 ; CHECK-NOT: {{DW_AT_location.*DW_FORM_block1.*0x.*91}}
 ; CHECK: NULL
 
-define void @_Z3runv() nounwind uwtable {
+define void @_Z3runv() nounwind uwtable !dbg !5 {
 entry:
   %x = alloca i32, align 32
   call void @llvm.dbg.declare(metadata i32* %x, metadata !9, metadata !DIExpression()), !dbg !12
@@ -27,14 +27,14 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!15}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.2 (trunk 155696:155697) (llvm/trunk 155696)", isOptimized: false, emissionKind: 0, file: !14, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1, imports:  !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.2 (trunk 155696:155697) (llvm/trunk 155696)", isOptimized: false, emissionKind: 0, file: !14, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1, imports:  !1)
 !1 = !{}
 !3 = !{!5}
-!5 = !DISubprogram(name: "run", linkageName: "_Z3runv", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !14, scope: !6, type: !7, function: void ()* @_Z3runv, variables: !1)
+!5 = distinct !DISubprogram(name: "run", linkageName: "_Z3runv", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !14, scope: !6, type: !7, variables: !1)
 !6 = !DIFile(filename: "test.cc", directory: "/home/samsonov/debuginfo")
 !7 = !DISubroutineType(types: !8)
 !8 = !{null}
-!9 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "x", line: 2, scope: !10, file: !6, type: !11)
+!9 = !DILocalVariable(name: "x", line: 2, scope: !10, file: !6, type: !11)
 !10 = distinct !DILexicalBlock(line: 1, column: 12, file: !14, scope: !5)
 !11 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !12 = !DILocation(line: 2, column: 7, scope: !10)

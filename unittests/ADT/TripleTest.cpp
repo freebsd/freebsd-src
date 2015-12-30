@@ -81,6 +81,12 @@ TEST(TripleTest, ParsedIDs) {
   EXPECT_EQ(Triple::Darwin, T.getOS());
   EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
 
+  T = Triple("i386-pc-elfiamcu");
+  EXPECT_EQ(Triple::x86, T.getArch());
+  EXPECT_EQ(Triple::PC, T.getVendor());
+  EXPECT_EQ(Triple::ELFIAMCU, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
   T = Triple("x86_64-pc-linux-gnu");
   EXPECT_EQ(Triple::x86_64, T.getArch());
   EXPECT_EQ(Triple::PC, T.getVendor());
@@ -190,6 +196,18 @@ TEST(TripleTest, ParsedIDs) {
 
   T = Triple("wasm64-unknown-unknown");
   EXPECT_EQ(Triple::wasm64, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::UnknownOS, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("avr-unknown-unknown");
+  EXPECT_EQ(Triple::avr, T.getArch());
+  EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
+  EXPECT_EQ(Triple::UnknownOS, T.getOS());
+  EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
+
+  T = Triple("avr");
+  EXPECT_EQ(Triple::avr, T.getArch());
   EXPECT_EQ(Triple::UnknownVendor, T.getVendor());
   EXPECT_EQ(Triple::UnknownOS, T.getOS());
   EXPECT_EQ(Triple::UnknownEnvironment, T.getEnvironment());
@@ -354,6 +372,8 @@ TEST(TripleTest, MutateName) {
   EXPECT_EQ(Triple::Darwin, T.getOS());
   EXPECT_EQ("i386-pc-darwin", T.getTriple());
 
+  T.setEnvironmentName("amdopencl");
+  EXPECT_EQ(Triple::AMDOpenCL, T.getEnvironment());
 }
 
 TEST(TripleTest, BitWidthPredicates) {
@@ -461,6 +481,11 @@ TEST(TripleTest, BitWidthPredicates) {
   EXPECT_FALSE(T.isArch16Bit());
   EXPECT_FALSE(T.isArch32Bit());
   EXPECT_TRUE(T.isArch64Bit());
+
+  T.setArch(Triple::avr);
+  EXPECT_TRUE(T.isArch16Bit());
+  EXPECT_FALSE(T.isArch32Bit());
+  EXPECT_FALSE(T.isArch64Bit());
 }
 
 TEST(TripleTest, BitWidthArchVariants) {
@@ -799,181 +824,185 @@ TEST(TripleTest, getARMCPUForArch) {
   // Standard ARM Architectures.
   {
     llvm::Triple Triple("armv4-unknown-eabi");
-    EXPECT_STREQ("strongarm", Triple.getARMCPUForArch());
+    EXPECT_EQ("strongarm", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv4t-unknown-eabi");
-    EXPECT_STREQ("arm7tdmi", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm7tdmi", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv5-unknown-eabi");
-    EXPECT_STREQ("arm10tdmi", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm10tdmi", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv5t-unknown-eabi");
-    EXPECT_STREQ("arm10tdmi", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm10tdmi", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv5e-unknown-eabi");
-    EXPECT_STREQ("arm1022e", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1022e", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv5tej-unknown-eabi");
-    EXPECT_STREQ("arm926ej-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm926ej-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6-unknown-eabi");
-    EXPECT_STREQ("arm1136jf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6j-unknown-eabi");
-    EXPECT_STREQ("arm1136j-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6k-unknown-eabi");
-    EXPECT_STREQ("arm1176jzf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1176j-s", Triple.getARMCPUForArch());
+  }
+  {
+    llvm::Triple Triple("armv6kz-unknown-eabi");
+    EXPECT_EQ("arm1176jzf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6zk-unknown-eabi");
-    EXPECT_STREQ("arm1176jzf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1176jzf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6t2-unknown-eabi");
-    EXPECT_STREQ("arm1156t2-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1156t2-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6m-unknown-eabi");
-    EXPECT_STREQ("cortex-m0", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-m0", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7-unknown-eabi");
-    EXPECT_STREQ("cortex-a8", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7a-unknown-eabi");
-    EXPECT_STREQ("cortex-a8", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7m-unknown-eabi");
-    EXPECT_STREQ("cortex-m3", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-m3", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_STREQ("cortex-r4", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_STREQ("cortex-r4", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_STREQ("cortex-r4", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7r-unknown-eabi");
-    EXPECT_STREQ("cortex-r4", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-r4", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv8a-unknown-eabi");
-    EXPECT_STREQ("cortex-a53", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-a53", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv8.1a-unknown-eabi");
-    EXPECT_STREQ("generic", Triple.getARMCPUForArch());
+    EXPECT_EQ("generic", Triple.getARMCPUForArch());
   }
   // Non-synonym names, using -march style, not default arch.
   {
     llvm::Triple Triple("arm");
-    EXPECT_STREQ("cortex-a8", Triple.getARMCPUForArch("armv7-a"));
+    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch("armv7-a"));
   }
   {
     llvm::Triple Triple("arm");
-    EXPECT_STREQ("cortex-m3", Triple.getARMCPUForArch("armv7-m"));
+    EXPECT_EQ("cortex-m3", Triple.getARMCPUForArch("armv7-m"));
   }
   {
     llvm::Triple Triple("arm");
-    EXPECT_STREQ("cortex-a53", Triple.getARMCPUForArch("armv8"));
+    EXPECT_EQ("cortex-a53", Triple.getARMCPUForArch("armv8"));
   }
   {
     llvm::Triple Triple("arm");
-    EXPECT_STREQ("cortex-a53", Triple.getARMCPUForArch("armv8-a"));
+    EXPECT_EQ("cortex-a53", Triple.getARMCPUForArch("armv8-a"));
   }
   // Platform specific defaults.
   {
     llvm::Triple Triple("arm--nacl");
-    EXPECT_STREQ("cortex-a8", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6-unknown-freebsd");
-    EXPECT_STREQ("arm1176jzf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1176jzf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("thumbv6-unknown-freebsd");
-    EXPECT_STREQ("arm1176jzf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1176jzf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armebv6-unknown-freebsd");
-    EXPECT_STREQ("arm1176jzf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1176jzf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("arm--win32");
-    EXPECT_STREQ("cortex-a9", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-a9", Triple.getARMCPUForArch());
   }
   // Some alternative architectures
   {
     llvm::Triple Triple("xscale-unknown-eabi");
-    EXPECT_STREQ("xscale", Triple.getARMCPUForArch());
+    EXPECT_EQ("xscale", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("iwmmxt-unknown-eabi");
-    EXPECT_STREQ("iwmmxt", Triple.getARMCPUForArch());
+    EXPECT_EQ("iwmmxt", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7s-apple-ios7");
-    EXPECT_STREQ("swift", Triple.getARMCPUForArch());
+    EXPECT_EQ("swift", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7em-apple-ios7");
-    EXPECT_STREQ("cortex-m4", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-m4", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv7l-linux-gnueabihf");
-    EXPECT_STREQ("cortex-a8", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-a8", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6sm-apple-ios7");
-    EXPECT_STREQ("cortex-m0", Triple.getARMCPUForArch());
+    EXPECT_EQ("cortex-m0", Triple.getARMCPUForArch());
   }
   // armeb is permitted, but armebeb is not
   {
     llvm::Triple Triple("armeb-none-eabi");
-    EXPECT_STREQ("arm7tdmi", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm7tdmi", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armebeb-none-eabi");
-    EXPECT_EQ(nullptr, Triple.getARMCPUForArch());
+    EXPECT_EQ("", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armebv6eb-none-eabi");
-    EXPECT_EQ(nullptr, Triple.getARMCPUForArch());
+    EXPECT_EQ("", Triple.getARMCPUForArch());
   }
   // armebv6 and armv6eb are permitted, but armebv6eb is not
   {
     llvm::Triple Triple("armebv6-non-eabi");
-    EXPECT_STREQ("arm1136jf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armv6eb-none-eabi");
-    EXPECT_STREQ("arm1136jf-s", Triple.getARMCPUForArch());
+    EXPECT_EQ("arm1136jf-s", Triple.getARMCPUForArch());
   }
   // xscaleeb is permitted, but armebxscale is not
   {
     llvm::Triple Triple("xscaleeb-none-eabi");
-    EXPECT_STREQ("xscale", Triple.getARMCPUForArch());
+    EXPECT_EQ("xscale", Triple.getARMCPUForArch());
   }
   {
     llvm::Triple Triple("armebxscale-none-eabi");
-    EXPECT_EQ(nullptr, Triple.getARMCPUForArch());
+    EXPECT_EQ("", Triple.getARMCPUForArch());
   }
 }
 

@@ -44,9 +44,6 @@ DISubprogram *getDISubprogram(const MDNode *Scope);
 /// \returns a valid subprogram, if found. Otherwise, return \c nullptr.
 DISubprogram *getDISubprogram(const Function *F);
 
-/// \brief Find underlying composite type.
-DICompositeTypeBase *getDICompositeType(DIType *T);
-
 /// \brief Generate map by visiting all retained types.
 DITypeIdentifierMap generateDITypeIdentifierMap(const NamedMDNode *CU_Nodes);
 
@@ -108,23 +105,23 @@ public:
   typedef SmallVectorImpl<DIScope *>::const_iterator scope_iterator;
 
   iterator_range<compile_unit_iterator> compile_units() const {
-    return iterator_range<compile_unit_iterator>(CUs.begin(), CUs.end());
+    return make_range(CUs.begin(), CUs.end());
   }
 
   iterator_range<subprogram_iterator> subprograms() const {
-    return iterator_range<subprogram_iterator>(SPs.begin(), SPs.end());
+    return make_range(SPs.begin(), SPs.end());
   }
 
   iterator_range<global_variable_iterator> global_variables() const {
-    return iterator_range<global_variable_iterator>(GVs.begin(), GVs.end());
+    return make_range(GVs.begin(), GVs.end());
   }
 
   iterator_range<type_iterator> types() const {
-    return iterator_range<type_iterator>(TYs.begin(), TYs.end());
+    return make_range(TYs.begin(), TYs.end());
   }
 
   iterator_range<scope_iterator> scopes() const {
-    return iterator_range<scope_iterator>(Scopes.begin(), Scopes.end());
+    return make_range(Scopes.begin(), Scopes.end());
   }
 
   unsigned compile_unit_count() const { return CUs.size(); }
@@ -145,8 +142,6 @@ private:
   /// \brief Specify if TypeIdentifierMap is initialized.
   bool TypeMapInitialized;
 };
-
-DenseMap<const Function *, DISubprogram *> makeSubprogramMap(const Module &M);
 
 } // end namespace llvm
 

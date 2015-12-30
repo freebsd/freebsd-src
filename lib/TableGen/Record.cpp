@@ -673,6 +673,14 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) const {
         PrintFatalError(CurRec->getLoc(),
                         "Undefined reference:'" + Name + "'\n");
       }
+
+      if (isa<IntRecTy>(getType())) {
+        if (BitsInit *BI = dyn_cast<BitsInit>(LHS)) {
+          if (Init *NewInit = BI->convertInitializerTo(IntRecTy::get()))
+            return NewInit;
+          break;
+        }
+      }
     }
     break;
   }
@@ -1633,7 +1641,7 @@ void Record::dump() const { errs() << *this; }
 raw_ostream &llvm::operator<<(raw_ostream &OS, const Record &R) {
   OS << R.getNameInitAsString();
 
-  const std::vector<Init *> &TArgs = R.getTemplateArgs();
+  ArrayRef<Init *> TArgs = R.getTemplateArgs();
   if (!TArgs.empty()) {
     OS << "<";
     bool NeedComma = false;

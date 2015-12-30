@@ -47,7 +47,7 @@
 %class.Base = type { i32 }
 
 ; Function Attrs: nounwind ssp uwtable
-define void @_Z1fi(i32 %a) #0 {
+define void @_Z1fi(i32 %a) #0 !dbg !15 {
 entry:
   %a.addr = alloca i32, align 4
   %t = alloca %class.A, align 4
@@ -66,7 +66,7 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!19, !25}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git f54e02f969d02d640103db73efc30c45439fceab) (http://llvm.org/git/llvm.git 284353b55896cb1babfaa7add7c0a363245342d2)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git f54e02f969d02d640103db73efc30c45439fceab) (http://llvm.org/git/llvm.git 284353b55896cb1babfaa7add7c0a363245342d2)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
 !1 = !DIFile(filename: "foo.cpp", directory: "/Users/mren/c_testing/type_unique_air/inher")
 !2 = !{}
 !3 = !{!4, !8}
@@ -81,14 +81,14 @@ attributes #1 = { nounwind readnone }
 !12 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !13 = !DIDerivedType(tag: DW_TAG_member, name: "x", line: 4, size: 32, align: 32, offset: 32, flags: DIFlagPrivate, file: !5, scope: !"_ZTS1A", baseType: !12)
 !14 = !{!15}
-!15 = !DISubprogram(name: "f", linkageName: "_Z1fi", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !16, type: !17, function: void (i32)* @_Z1fi, variables: !2)
+!15 = distinct !DISubprogram(name: "f", linkageName: "_Z1fi", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !1, scope: !16, type: !17, variables: !2)
 !16 = !DIFile(filename: "foo.cpp", directory: "/Users/mren/c_testing/type_unique_air/inher")
 !17 = !DISubroutineType(types: !18)
 !18 = !{null, !12}
 !19 = !{i32 2, !"Dwarf Version", i32 2}
-!20 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 5, arg: 1, scope: !15, file: !16, type: !12)
+!20 = !DILocalVariable(name: "a", line: 5, arg: 1, scope: !15, file: !16, type: !12)
 !21 = !DILocation(line: 5, scope: !15)
-!22 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "t", line: 6, scope: !15, file: !16, type: !4)
+!22 = !DILocalVariable(name: "t", line: 6, scope: !15, file: !16, type: !4)
 !23 = !DILocation(line: 6, scope: !15)
 !24 = !DILocation(line: 7, scope: !15)
 !25 = !{i32 1, !"Debug Info Version", i32 3}

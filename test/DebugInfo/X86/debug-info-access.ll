@@ -96,7 +96,7 @@ target triple = "x86_64-apple-macosx10.10.0"
 @u = global %union.U zeroinitializer, align 4
 
 ; Function Attrs: nounwind ssp uwtable
-define void @_Z4freev() #0 {
+define void @_Z4freev() #0 !dbg !30 {
   ret void, !dbg !41
 }
 
@@ -106,7 +106,7 @@ attributes #0 = { nounwind ssp uwtable }
 !llvm.module.flags = !{!38, !39}
 !llvm.ident = !{!40}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !29, globals: !34, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !29, globals: !34, imports: !2)
 !1 = !DIFile(filename: "/llvm/tools/clang/test/CodeGenCXX/debug-info-access.cpp", directory: "")
 !2 = !{}
 !3 = !{!4, !12, !22}
@@ -136,7 +136,7 @@ attributes #0 = { nounwind ssp uwtable }
 !27 = !{null, !28}
 !28 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, flags: DIFlagArtificial | DIFlagObjectPointer, baseType: !"_ZTS1U")
 !29 = !{!30}
-!30 = !DISubprogram(name: "free", linkageName: "_Z4freev", line: 35, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 35, file: !1, scope: !31, type: !32, function: void ()* @_Z4freev, variables: !2)
+!30 = distinct !DISubprogram(name: "free", linkageName: "_Z4freev", line: 35, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 35, file: !1, scope: !31, type: !32, variables: !2)
 !31 = !DIFile(filename: "/llvm/tools/clang/test/CodeGenCXX/debug-info-access.cpp", directory: "")
 !32 = !DISubroutineType(types: !33)
 !33 = !{null}

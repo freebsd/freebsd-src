@@ -15,12 +15,17 @@ add_public_tablegen_target(AMDGPUCommonTableGen)
 add_llvm_target(AMDGPUCodeGen
   AMDILCFGStructurizer.cpp
   AMDGPUAlwaysInlinePass.cpp
+  AMDGPUAnnotateKernelFeatures.cpp
+  AMDGPUAnnotateUniformValues.cpp
   AMDGPUAsmPrinter.cpp
+  AMDGPUDiagnosticInfoUnsupported.cpp
   AMDGPUFrameLowering.cpp
+  AMDGPUTargetObjectFile.cpp
   AMDGPUIntrinsicInfo.cpp
   AMDGPUISelDAGToDAG.cpp
   AMDGPUMCInstLower.cpp
   AMDGPUMachineFunction.cpp
+  AMDGPUOpenCLImageTypeLoweringPass.cpp
   AMDGPUSubtarget.cpp
   AMDGPUTargetMachine.cpp
   AMDGPUTargetTransformInfo.cpp
@@ -45,6 +50,7 @@ add_llvm_target(AMDGPUCodeGen
   SIFixSGPRCopies.cpp
   SIFixSGPRLiveRanges.cpp
   SIFoldOperands.cpp
+  SIFrameLowering.cpp
   SIInsertWaits.cpp
   SIInstrInfo.cpp
   SIISelLowering.cpp
@@ -52,7 +58,6 @@ add_llvm_target(AMDGPUCodeGen
   SILowerControlFlow.cpp
   SILowerI1Copies.cpp
   SIMachineFunctionInfo.cpp
-  SIPrepareScratchRegs.cpp
   SIRegisterInfo.cpp
   SIShrinkInstructions.cpp
   SITypeRewriter.cpp

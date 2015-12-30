@@ -24,7 +24,7 @@ is good or bad. In this tutorial we'll assume that it is okay to use
 this as a way to show some interesting parsing techniques.
 
 At the end of this tutorial, we'll run through an example Kaleidoscope
-application that `renders the Mandelbrot set <#example>`_. This gives an
+application that `renders the Mandelbrot set <#kicking-the-tires>`_. This gives an
 example of what you can build with Kaleidoscope and its feature set.
 
 User-defined Operators: the Idea
@@ -96,19 +96,24 @@ keywords:
     enum Token {
       ...
       // operators
-      tok_binary = -11, tok_unary = -12
+      tok_binary = -11,
+      tok_unary = -12
     };
     ...
     static int gettok() {
     ...
-        if (IdentifierStr == "for") return tok_for;
-        if (IdentifierStr == "in") return tok_in;
-        if (IdentifierStr == "binary") return tok_binary;
-        if (IdentifierStr == "unary") return tok_unary;
+        if (IdentifierStr == "for")
+          return tok_for;
+        if (IdentifierStr == "in")
+          return tok_in;
+        if (IdentifierStr == "binary")
+          return tok_binary;
+        if (IdentifierStr == "unary")
+          return tok_unary;
         return tok_identifier;
 
 This just adds lexer support for the unary and binary keywords, like we
-did in `previous chapters <LangImpl5.html#iflexer>`_. One nice thing
+did in `previous chapters <LangImpl5.html#lexer-extensions-for-if-then-else>`_. One nice thing
 about our current AST, is that we represent binary operators with full
 generalisation by using their ASCII code as the opcode. For our extended
 operators, we'll use this same representation, so we don't need any new
@@ -129,15 +134,17 @@ this:
     class PrototypeAST {
       std::string Name;
       std::vector<std::string> Args;
-      bool isOperator;
+      bool IsOperator;
       unsigned Precedence;  // Precedence if a binary op.
-    public:
-      PrototypeAST(const std::string &name, const std::vector<std::string> &args,
-                   bool isoperator = false, unsigned prec = 0)
-      : Name(name), Args(args), isOperator(isoperator), Precedence(prec) {}
 
-      bool isUnaryOp() const { return isOperator && Args.size() == 1; }
-      bool isBinaryOp() const { return isOperator && Args.size() == 2; }
+    public:
+      PrototypeAST(const std::string &name, std::vector<std::string> Args,
+                   bool IsOperator = false, unsigned Prec = 0)
+      : Name(name), Args(std::move(Args)), IsOperator(IsOperator),
+        Precedence(Prec) {}
+
+      bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
+      bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
 
       char getOperatorName() const {
         assert(isUnaryOp() || isBinaryOp());
@@ -146,7 +153,7 @@ this:
 
       unsigned getBinaryPrecedence() const { return Precedence; }
 
-      Function *Codegen();
+      Function *codegen();
     };
 
 Basically, in addition to knowing a name for the prototype, we now keep
@@ -161,7 +168,7 @@ user-defined operator, we need to parse it:
     /// prototype
     ///   ::= id '(' id* ')'
     ///   ::= binary LETTER number? (id, id)
-    static PrototypeAST *ParsePrototype() {
+    static std::unique_ptr<PrototypeAST> ParsePrototype() {
       std::string FnName;
 
       unsigned Kind = 0;  // 0 = identifier, 1 = unary, 2 = binary.
@@ -210,7 +217,8 @@ user-defined operator, we need to parse it:
       if (Kind && ArgNames.size() != Kind)
         return ErrorP("Invalid number of operands for operator");
 
-      return new PrototypeAST(FnName, ArgNames, Kind != 0, BinaryPrecedence);
+      return llvm::make_unique<PrototypeAST>(FnName, std::move(ArgNames), Kind != 0,
+                                             BinaryPrecedence);
     }
 
 This is all fairly straightforward parsing code, and we have already
@@ -227,26 +235,31 @@ default case for our existing binary operator node:
 
 .. code-block:: c++
 
-    Value *BinaryExprAST::Codegen() {
-      Value *L = LHS->Codegen();
-      Value *R = RHS->Codegen();
-      if (L == 0 || R == 0) return 0;
+    Value *BinaryExprAST::codegen() {
+      Value *L = LHS->codegen();
+      Value *R = RHS->codegen();
+      if (!L || !R)
+        return nullptr;
 
       switch (Op) {
-      case '+': return Builder.CreateFAdd(L, R, "addtmp");
-      case '-': return Builder.CreateFSub(L, R, "subtmp");
-      case '*': return Builder.CreateFMul(L, R, "multmp");
+      case '+':
+        return Builder.CreateFAdd(L, R, "addtmp");
+      case '-':
+        return Builder.CreateFSub(L, R, "subtmp");
+      case '*':
+        return Builder.CreateFMul(L, R, "multmp");
       case '<':
         L = Builder.CreateFCmpULT(L, R, "cmptmp");
         // Convert bool 0/1 to double 0.0 or 1.0
         return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()),
                                     "booltmp");
-      default: break;
+      default:
+        break;
       }
 
       // If it wasn't a builtin binary operator, it must be a user defined one. Emit
       // a call to it.
-      Function *F = TheModule->getFunction(std::string("binary")+Op);
+      Function *F = TheModule->getFunction(std::string("binary") + Op);
       assert(F && "binary operator not found!");
 
       Value *Ops[2] = { L, R };
@@ -263,12 +276,12 @@ The final piece of code we are missing, is a bit of top-level magic:
 
 .. code-block:: c++
 
-    Function *FunctionAST::Codegen() {
+    Function *FunctionAST::codegen() {
       NamedValues.clear();
 
-      Function *TheFunction = Proto->Codegen();
-      if (TheFunction == 0)
-        return 0;
+      Function *TheFunction = Proto->codegen();
+      if (!TheFunction)
+        return nullptr;
 
       // If this is an operator, install it.
       if (Proto->isBinaryOp())
@@ -278,7 +291,7 @@ The final piece of code we are missing, is a bit of top-level magic:
       BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);
       Builder.SetInsertPoint(BB);
 
-      if (Value *RetVal = Body->Codegen()) {
+      if (Value *RetVal = Body->codegen()) {
         ...
 
 Basically, before codegening a function, if it is a user-defined
@@ -305,11 +318,12 @@ that, we need an AST node:
     /// UnaryExprAST - Expression class for a unary operator.
     class UnaryExprAST : public ExprAST {
       char Opcode;
-      ExprAST *Operand;
+      std::unique_ptr<ExprAST> Operand;
+
     public:
-      UnaryExprAST(char opcode, ExprAST *operand)
-        : Opcode(opcode), Operand(operand) {}
-      virtual Value *Codegen();
+      UnaryExprAST(char Opcode, std::unique_ptr<ExprAST> Operand)
+        : Opcode(Opcode), Operand(std::move(Operand)) {}
+      virtual Value *codegen();
     };
 
 This AST node is very simple and obvious by now. It directly mirrors the
@@ -322,7 +336,7 @@ simple: we'll add a new function to do it:
     /// unary
     ///   ::= primary
     ///   ::= '!' unary
-    static ExprAST *ParseUnary() {
+    static std::unique_ptr<ExprAST> ParseUnary() {
       // If the current token is not an operator, it must be a primary expr.
       if (!isascii(CurTok) || CurTok == '(' || CurTok == ',')
         return ParsePrimary();
@@ -330,9 +344,9 @@ simple: we'll add a new function to do it:
       // If this is a unary operator, read it.
       int Opc = CurTok;
       getNextToken();
-      if (ExprAST *Operand = ParseUnary())
-        return new UnaryExprAST(Opc, Operand);
-      return 0;
+      if (auto Operand = ParseUnary())
+        return llvm::unique_ptr<UnaryExprAST>(Opc, std::move(Operand));
+      return nullptr;
     }
 
 The grammar we add is pretty straightforward here. If we see a unary
@@ -350,21 +364,24 @@ call ParseUnary instead:
 
     /// binoprhs
     ///   ::= ('+' unary)*
-    static ExprAST *ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
+    static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
+                                                  std::unique_ptr<ExprAST> LHS) {
       ...
         // Parse the unary expression after the binary operator.
-        ExprAST *RHS = ParseUnary();
-        if (!RHS) return 0;
+        auto RHS = ParseUnary();
+        if (!RHS)
+          return nullptr;
       ...
     }
     /// expression
     ///   ::= unary binoprhs
     ///
-    static ExprAST *ParseExpression() {
-      ExprAST *LHS = ParseUnary();
-      if (!LHS) return 0;
+    static std::unique_ptr<ExprAST> ParseExpression() {
+      auto LHS = ParseUnary();
+      if (!LHS)
+        return nullptr;
 
-      return ParseBinOpRHS(0, LHS);
+      return ParseBinOpRHS(0, std::move(LHS));
     }
 
 With these two simple changes, we are now able to parse unary operators
@@ -378,7 +395,7 @@ operator code above with:
     ///   ::= id '(' id* ')'
     ///   ::= binary LETTER number? (id, id)
     ///   ::= unary LETTER (id)
-    static PrototypeAST *ParsePrototype() {
+    static std::unique_ptr<PrototypeAST> ParsePrototype() {
       std::string FnName;
 
       unsigned Kind = 0;  // 0 = identifier, 1 = unary, 2 = binary.
@@ -411,12 +428,13 @@ unary operators. It looks like this:
 
 .. code-block:: c++
 
-    Value *UnaryExprAST::Codegen() {
-      Value *OperandV = Operand->Codegen();
-      if (OperandV == 0) return 0;
+    Value *UnaryExprAST::codegen() {
+      Value *OperandV = Operand->codegen();
+      if (!OperandV)
+        return nullptr;
 
       Function *F = TheModule->getFunction(std::string("unary")+Opcode);
-      if (F == 0)
+      if (!F)
         return ErrorV("Unknown unary operator");
 
       return Builder.CreateCall(F, OperandV, "unop");

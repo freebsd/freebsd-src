@@ -77,6 +77,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <inttypes.h>
 
 #ifndef USE_GLOBAL_STR_CONSTS
 #define USE_GLOBAL_STR_CONSTS true
@@ -319,7 +320,7 @@ void printStr(char *toPrint) {
 }
 
 
-/// Deletes the true previosly allocated exception whose address
+/// Deletes the true previously allocated exception whose address
 /// is calculated from the supplied OurBaseException_t::unwindException
 /// member address. Handles (ignores), NULL pointers.
 /// @param expToDelete exception to delete
@@ -569,8 +570,8 @@ static bool handleActionValue(int64_t *resultAction,
   fprintf(stderr,
           "handleActionValue(...): exceptionObject = <%p>, "
           "excp = <%p>.\n",
-          exceptionObject,
-          excp);
+          (void*)exceptionObject,
+          (void*)excp);
 #endif
 
   const uint8_t *actionPos = (uint8_t*) actionEntry,
@@ -588,8 +589,8 @@ static bool handleActionValue(int64_t *resultAction,
 
 #ifdef DEBUG
     fprintf(stderr,
-            "handleActionValue(...):typeOffset: <%lld>, "
-            "actionOffset: <%lld>.\n",
+            "handleActionValue(...):typeOffset: <%" PRIi64 ">, "
+            "actionOffset: <%" PRIi64 ">.\n",
             typeOffset,
             actionOffset);
 #endif
@@ -848,7 +849,7 @@ _Unwind_Reason_Code ourPersonality(int version,
 #ifdef DEBUG
   fprintf(stderr,
           "ourPersonality(...):lsda = <%p>.\n",
-          lsda);
+          (void*)lsda);
 #endif
 
   // The real work of the personality function is captured here
@@ -971,7 +972,7 @@ void generateIntegerPrint(llvm::LLVMContext &context,
 
   llvm::Value *cast = builder.CreateBitCast(stringVar,
                                             builder.getInt8PtrTy());
-  builder.CreateCall2(&printFunct, &toPrint, cast);
+  builder.CreateCall(&printFunct, {&toPrint, cast});
 }
 
 
@@ -1264,10 +1265,10 @@ static llvm::Function *createCatchWrappedInvokeFunction(
   builder.SetInsertPoint(exceptionBlock);
 
   llvm::Function *personality = module.getFunction("ourPersonality");
+  ret->setPersonalityFn(personality);
 
   llvm::LandingPadInst *caughtResult =
     builder.CreateLandingPad(ourCaughtResultType,
-                             personality,
                              numExceptionsToCatch,
                              "landingPad");
 
@@ -1694,7 +1695,7 @@ static void createStandardUtilityFunctions(unsigned numTypeInfos,
 #ifdef DEBUG
   fprintf(stderr,
           "createStandardUtilityFunctions(...):ourBaseFromUnwindOffset "
-          "= %lld, sizeof(struct OurBaseException_t) - "
+          "= %" PRIi64 ", sizeof(struct OurBaseException_t) - "
           "sizeof(struct _Unwind_Exception) = %lu.\n",
           ourBaseFromUnwindOffset,
           sizeof(struct OurBaseException_t) -
@@ -1973,7 +1974,7 @@ int main(int argc, char *argv[]) {
     // Set up the optimizer pipeline.
     // Start with registering info about how the
     // target lays out data structures.
-    module->setDataLayout(*executionEngine->getDataLayout());
+    module->setDataLayout(executionEngine->getDataLayout());
 
     // Optimizations turned on
 #ifdef ADD_OPT_PASSES

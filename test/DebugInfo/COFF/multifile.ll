@@ -26,7 +26,6 @@
 ; X86:      calll   _g
 ; X86-NEXT: [[RETURN_STMT:.*]]:
 ; X86:      ret
-; X86-NEXT: L{{.*}}:
 ; X86-NEXT: [[END_OF_F:.*]]:
 ;
 ; X86-LABEL: .section        .debug$S,"dr"
@@ -158,7 +157,6 @@
 ; OBJ32-NEXT:     ColEnd: 0
 ; OBJ32-NEXT:   ]
 ; OBJ32-NEXT: ]
-; OBJ32:    }
 
 ; X64-LABEL: f:
 ; X64-NEXT: .L{{.*}}:{{$}}
@@ -174,7 +172,6 @@
 ; X64-NEXT: [[EPILOG_AND_RET:.*]]:
 ; X64:      addq    $40, %rsp
 ; X64-NEXT: ret
-; X64-NEXT: .L{{.*}}:
 ; X64-NEXT: [[END_OF_F:.*]]:
 ;
 ; X64-LABEL: .section        .debug$S,"dr"
@@ -326,10 +323,9 @@
 ; OBJ64-NEXT:     ColEnd: 0
 ; OBJ64-NEXT:   ]
 ; OBJ64-NEXT: ]
-; OBJ64:    }
 
 ; Function Attrs: nounwind
-define void @f() #0 {
+define void @f() #0 !dbg !4 {
 entry:
   call void @g(), !dbg !12
   call void @g(), !dbg !15
@@ -346,16 +342,16 @@ attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "<unknown>", directory: "D:\5C")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "f", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !5, scope: !6, type: !7, function: void ()* @f, variables: !2)
+!4 = distinct !DISubprogram(name: "f", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 3, file: !5, scope: !6, type: !7, variables: !2)
 !5 = !DIFile(filename: "input.c", directory: "D:\5C")
 !6 = !DIFile(filename: "input.c", directory: "D:C")
 !7 = !DISubroutineType(types: !8)
 !8 = !{null}
-!9 = !{i32 2, !"Dwarf Version", i32 4}
+!9 = !{i32 2, !"CodeView", i32 1}
 !10 = !{i32 1, !"Debug Info Version", i32 3}
 !11 = !{!"clang version 3.5 "}
 !12 = !DILocation(line: 1, scope: !13)

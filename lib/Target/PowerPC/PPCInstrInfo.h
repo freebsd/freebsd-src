@@ -79,6 +79,23 @@ class PPCInstrInfo : public PPCGenInstrInfo {
                             SmallVectorImpl<MachineInstr*> &NewMIs,
                             bool &NonRI, bool &SpillsVRS) const;
   virtual void anchor();
+
+protected:
+  /// Commutes the operands in the given instruction.
+  /// The commutable operands are specified by their indices OpIdx1 and OpIdx2.
+  ///
+  /// Do not call this method for a non-commutable instruction or for
+  /// non-commutable pair of operand indices OpIdx1 and OpIdx2.
+  /// Even though the instruction is commutable, the method may still
+  /// fail to commute the operands, null pointer is returned in such cases.
+  ///
+  /// For example, we can commute rlwimi instructions, but only if the
+  /// rotate amt is zero.  We also have to munge the immediates a bit.
+  MachineInstr *commuteInstructionImpl(MachineInstr *MI,
+                                       bool NewMI,
+                                       unsigned OpIdx1,
+                                       unsigned OpIdx2) const override;
+
 public:
   explicit PPCInstrInfo(PPCSubtarget &STI);
 
@@ -119,6 +136,19 @@ public:
     return false;
   }
 
+  bool useMachineCombiner() const override {
+    return true;
+  }
+
+  /// Return true when there is potentially a faster code sequence
+  /// for an instruction chain ending in <Root>. All potential patterns are
+  /// output in the <Pattern> array.
+  bool getMachineCombinerPatterns(
+      MachineInstr &Root,
+      SmallVectorImpl<MachineCombinerPattern> &P) const override;
+
+  bool isAssociativeAndCommutative(const MachineInstr &Inst) const override;
+
   bool isCoalescableExtInstr(const MachineInstr &MI,
                              unsigned &SrcReg, unsigned &DstReg,
                              unsigned &SubIdx) const override;
@@ -126,10 +156,6 @@ public:
                                int &FrameIndex) const override;
   unsigned isStoreToStackSlot(const MachineInstr *MI,
                               int &FrameIndex) const override;
-
-  // commuteInstruction - We can commute rlwimi instructions, but only if the
-  // rotate amt is zero.  We also have to munge the immediates a bit.
-  MachineInstr *commuteInstruction(MachineInstr *MI, bool NewMI) const override;
 
   bool findCommutedOpIndices(MachineInstr *MI, unsigned &SrcOpIdx1,
                              unsigned &SrcOpIdx2) const override;
@@ -183,7 +209,7 @@ public:
   // profitable to use the predicated branches.
   bool isProfitableToIfCvt(MachineBasicBlock &MBB,
                           unsigned NumCycles, unsigned ExtraPredCycles,
-                          const BranchProbability &Probability) const override {
+                          BranchProbability Probability) const override {
     return true;
   }
 
@@ -191,12 +217,10 @@ public:
                            unsigned NumT, unsigned ExtraT,
                            MachineBasicBlock &FMBB,
                            unsigned NumF, unsigned ExtraF,
-                           const BranchProbability &Probability) const override;
+                           BranchProbability Probability) const override;
 
-  bool isProfitableToDupForIfCvt(MachineBasicBlock &MBB,
-                                 unsigned NumCycles,
-                                 const BranchProbability
-                                 &Probability) const override {
+  bool isProfitableToDupForIfCvt(MachineBasicBlock &MBB, unsigned NumCycles,
+                                 BranchProbability Probability) const override {
     return true;
   }
 
@@ -239,6 +263,15 @@ public:
   unsigned GetInstSizeInBytes(const MachineInstr *MI) const;
 
   void getNoopForMachoTarget(MCInst &NopInst) const override;
+
+  std::pair<unsigned, unsigned>
+  decomposeMachineOperandsTargetFlags(unsigned TF) const override;
+
+  ArrayRef<std::pair<unsigned, const char *>>
+  getSerializableDirectMachineOperandTargetFlags() const override;
+
+  ArrayRef<std::pair<unsigned, const char *>>
+  getSerializableBitmaskMachineOperandTargetFlags() const override;
 };
 
 }

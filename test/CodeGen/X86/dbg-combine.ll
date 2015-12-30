@@ -24,7 +24,7 @@
 
 ; ModuleID = 'dbg-combine.c'
 ; Function Attrs: nounwind uwtable
-define i32 @foo() #0 {
+define i32 @foo() #0 !dbg !4 {
 entry:
   %elems = alloca i32, align 4
   %saved_stack = alloca i8*
@@ -74,11 +74,11 @@ attributes #2 = { nounwind }
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.7.0 (trunk 227074)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.7.0 (trunk 227074)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "dbg-combine.c", directory: "/home/probinson/projects/scratch")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, isOptimized: false, scopeLine: 2, file: !1, scope: !5, type: !6, function: i32 ()* @foo, variables: !2)
+!4 = distinct !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, isOptimized: false, scopeLine: 2, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "dbg-combine.c", directory: "/home/probinson/projects/scratch")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}
@@ -86,12 +86,12 @@ attributes #2 = { nounwind }
 !9 = !{i32 2, !"Dwarf Version", i32 4}
 !10 = !{i32 2, !"Debug Info Version", i32 3}
 !11 = !{!"clang version 3.7.0 (trunk 227074)"}
-!12 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "elems", line: 3, scope: !4, file: !5, type: !8)
+!12 = !DILocalVariable(name: "elems", line: 3, scope: !4, file: !5, type: !8)
 !13 = !DIExpression()
 !14 = !DILocation(line: 3, column: 8, scope: !4)
 !15 = !DILocation(line: 4, column: 15, scope: !4)
 !16 = !DILocation(line: 4, column: 4, scope: !4)
-!17 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "array1", line: 4, scope: !4, file: !5, type: !18)
+!17 = !DILocalVariable(name: "array1", line: 4, scope: !4, file: !5, type: !18)
 !18 = !DICompositeType(tag: DW_TAG_array_type, align: 32, baseType: !8, elements: !19)
 !19 = !{!20}
 !20 = !DISubrange(count: -1)
@@ -105,7 +105,7 @@ attributes #2 = { nounwind }
 !28 = !DILocation(line: 7, column: 13, scope: !4)
 !29 = !DILocation(line: 8, column: 15, scope: !4)
 !30 = !DILocation(line: 8, column: 4, scope: !4)
-!31 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "array2", line: 8, scope: !4, file: !5, type: !18)
+!31 = !DILocalVariable(name: "array2", line: 8, scope: !4, file: !5, type: !18)
 !32 = !DILocation(line: 8, column: 8, scope: !4)
 !33 = !DILocation(line: 9, column: 4, scope: !4)
 !34 = !DILocation(line: 9, column: 13, scope: !4)

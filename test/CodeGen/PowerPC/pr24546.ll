@@ -6,7 +6,7 @@
 @php_intpow10.powers = external unnamed_addr constant [23 x double], align 8
 
 ; Function Attrs: nounwind
-define double @_php_math_round(double %value, i32 signext %places, i32 signext %mode) #0 {
+define double @_php_math_round(double %value, i32 signext %places, i32 signext %mode) #0 !dbg !6 {
 entry:
   br i1 undef, label %if.then, label %if.else, !dbg !32
 
@@ -62,23 +62,23 @@ attributes #3 = { nounwind }
 !3 = !{!4}
 !4 = !DIBasicType(name: "double", size: 64, align: 64, encoding: DW_ATE_float)
 !5 = !{!6, !18}
-!6 = !DISubprogram(name: "_php_math_round", scope: !1, file: !1, line: 15, type: !7, isLocal: false, isDefinition: true, scopeLine: 16, flags: DIFlagPrototyped, isOptimized: true, function: double (double, i32, i32)* @_php_math_round, variables: !10)
+!6 = distinct !DISubprogram(name: "_php_math_round", scope: !1, file: !1, line: 15, type: !7, isLocal: false, isDefinition: true, scopeLine: 16, flags: DIFlagPrototyped, isOptimized: true, variables: !10)
 !7 = !DISubroutineType(types: !8)
 !8 = !{!4, !4, !9, !9}
 !9 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !10 = !{!11, !12, !13, !14, !15, !16, !17}
-!11 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "value", arg: 1, scope: !6, file: !1, line: 15, type: !4)
-!12 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "places", arg: 2, scope: !6, file: !1, line: 15, type: !9)
-!13 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "mode", arg: 3, scope: !6, file: !1, line: 15, type: !9)
-!14 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "f1", scope: !6, file: !1, line: 17, type: !4)
-!15 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "f2", scope: !6, file: !1, line: 17, type: !4)
-!16 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "tmp_value", scope: !6, file: !1, line: 18, type: !4)
-!17 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "precision_places", scope: !6, file: !1, line: 19, type: !9)
-!18 = !DISubprogram(name: "php_intpow10", scope: !1, file: !1, line: 1, type: !19, isLocal: true, isDefinition: true, scopeLine: 2, flags: DIFlagPrototyped, isOptimized: true, variables: !21)
+!11 = !DILocalVariable(name: "value", arg: 1, scope: !6, file: !1, line: 15, type: !4)
+!12 = !DILocalVariable(name: "places", arg: 2, scope: !6, file: !1, line: 15, type: !9)
+!13 = !DILocalVariable(name: "mode", arg: 3, scope: !6, file: !1, line: 15, type: !9)
+!14 = !DILocalVariable(name: "f1", scope: !6, file: !1, line: 17, type: !4)
+!15 = !DILocalVariable(name: "f2", scope: !6, file: !1, line: 17, type: !4)
+!16 = !DILocalVariable(name: "tmp_value", scope: !6, file: !1, line: 18, type: !4)
+!17 = !DILocalVariable(name: "precision_places", scope: !6, file: !1, line: 19, type: !9)
+!18 = distinct !DISubprogram(name: "php_intpow10", scope: !1, file: !1, line: 1, type: !19, isLocal: true, isDefinition: true, scopeLine: 2, flags: DIFlagPrototyped, isOptimized: true, variables: !21)
 !19 = !DISubroutineType(types: !20)
 !20 = !{!4, !9}
 !21 = !{!22}
-!22 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "power", arg: 1, scope: !18, file: !1, line: 1, type: !9)
+!22 = !DILocalVariable(name: "power", arg: 1, scope: !18, file: !1, line: 1, type: !9)
 !23 = !{!24}
 !24 = !DIGlobalVariable(name: "powers", scope: !18, file: !1, line: 3, type: !25, isLocal: true, isDefinition: true, variable: [23 x double]* @php_intpow10.powers)
 !25 = !DICompositeType(tag: DW_TAG_array_type, baseType: !26, size: 1472, align: 64, elements: !27)

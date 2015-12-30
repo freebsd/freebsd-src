@@ -9,7 +9,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 @x = global i32 0, align 4
 
 ; Function Attrs: nounwind
-define i32 @test_within_limit() {
+define i32 @test_within_limit() !dbg !4 {
 entry:
   ; The first store; later there is a second store to the same location,
   ; so this store should be optimized away by DSE.
@@ -245,17 +245,17 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata)
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!11, !13}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4", isOptimized: true, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4", isOptimized: true, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "test.c", directory: "/home/tmp")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "test_within_limit", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 4, file: !1, scope: !5, type: !6, function: i32 ()* @test_within_limit, variables: !2)
+!4 = distinct !DISubprogram(name: "test_within_limit", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 4, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "test.c", directory: "/home/tmp")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}
 !8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{!10}
-!10 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "x", scope: !4, type: !8)
+!10 = !DILocalVariable(name: "x", scope: !4, type: !8)
 !11 = !{i32 2, !"Dwarf Version", i32 4}
 !12 = !{i32* undef}
 

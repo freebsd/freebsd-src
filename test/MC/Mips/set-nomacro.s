@@ -60,12 +60,18 @@
   bgtu $0, $8, local_label
   bgtu $0, $0, local_label
 
+  ulh $5, 0
   ulhu $5, 0
 
   ulw $8, 2
   ulw $8, 0x8000
   ulw $8, 2($9)
   ulw $8, 0x8000($9)
+
+  jal foo
+  .option pic2
+  jal foo
+  .option pic0
 
   add $4, $5, $6
 
@@ -175,6 +181,8 @@
   bgtu $0, $0, local_label
 # CHECK-NOT: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions
 
+  ulh $5, 0
+# CHECK: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions
   ulhu $5, 0
 # CHECK: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions
 
@@ -186,6 +194,13 @@
 # CHECK-NOT: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions
   ulw $8, 0x8000($9)
 # CHECK: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions
+
+  jal foo
+# CHECK-NOT: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions
+  .option pic2
+  jal foo
+# CHECK: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions
+  .option pic0
 
   add $4, $5, $6
 # CHECK-NOT: [[@LINE-1]]:3: warning: macro instruction expanded into multiple instructions

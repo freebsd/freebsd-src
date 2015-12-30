@@ -3,7 +3,7 @@
 %struct.Base = type { i32, %struct.Base* }
 
 ; Function Attrs: nounwind ssp uwtable
-define void @_Z1gi(i32 %a) #0 {
+define void @_Z1gi(i32 %a) #0 !dbg !12 {
 entry:
   %a.addr = alloca i32, align 4
   %t = alloca %struct.Base, align 8
@@ -17,7 +17,7 @@ entry:
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: ssp uwtable
-define i32 @main() #2 {
+define i32 @main() #2 !dbg !16 {
 entry:
   %retval = alloca i32, align 4
   store i32 0, i32* %retval
@@ -36,7 +36,7 @@ attributes #3 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!19, !28}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git 8a3f9e46cb988d2c664395b21910091e3730ae82) (http://llvm.org/git/llvm.git 4699e9549358bc77824a59114548eecc3f7c523c)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !11, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git 8a3f9e46cb988d2c664395b21910091e3730ae82) (http://llvm.org/git/llvm.git 4699e9549358bc77824a59114548eecc3f7c523c)", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !11, globals: !2, imports: !2)
 !1 = !DIFile(filename: "bar.cpp", directory: ".")
 !2 = !{}
 !3 = !{!4}
@@ -48,17 +48,17 @@ attributes #3 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !9 = !DIDerivedType(tag: DW_TAG_member, name: "b", line: 3, size: 64, align: 64, offset: 64, file: !5, scope: !"_ZTS4Base", baseType: !10)
 !10 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !"_ZTS4Base")
 !11 = !{!12, !16}
-!12 = !DISubprogram(name: "g", linkageName: "_Z1gi", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 4, file: !1, scope: !13, type: !14, function: void (i32)* @_Z1gi, variables: !2)
+!12 = distinct !DISubprogram(name: "g", linkageName: "_Z1gi", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 4, file: !1, scope: !13, type: !14, variables: !2)
 !13 = !DIFile(filename: "bar.cpp", directory: ".")
 !14 = !DISubroutineType(types: !15)
 !15 = !{null, !8}
-!16 = !DISubprogram(name: "main", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 7, file: !1, scope: !13, type: !17, function: i32 ()* @main, variables: !2)
+!16 = distinct !DISubprogram(name: "main", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 7, file: !1, scope: !13, type: !17, variables: !2)
 !17 = !DISubroutineType(types: !18)
 !18 = !{!8}
 !19 = !{i32 2, !"Dwarf Version", i32 2}
-!20 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "a", line: 4, arg: 1, scope: !12, file: !13, type: !8)
+!20 = !DILocalVariable(name: "a", line: 4, arg: 1, scope: !12, file: !13, type: !8)
 !21 = !DILocation(line: 4, scope: !12)
-!22 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "t", line: 5, scope: !12, file: !13, type: !4)
+!22 = !DILocalVariable(name: "t", line: 5, scope: !12, file: !13, type: !4)
 !23 = !DILocation(line: 5, scope: !12)
 !24 = !DILocation(line: 6, scope: !12)
 !25 = !DILocation(line: 8, scope: !16)

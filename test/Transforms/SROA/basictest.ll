@@ -1,5 +1,5 @@
 ; RUN: opt < %s -sroa -S | FileCheck %s
-; RUN: opt < %s -sroa -force-ssa-updater -S | FileCheck %s
+; RUN: opt < %s -passes=sroa -S | FileCheck %s
 
 target datalayout = "e-p:64:64:64-p1:16:16:16-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-n8:16:32:64"
 
@@ -1609,4 +1609,27 @@ entry:
   store atomic volatile i64 0, i64* %ptr seq_cst, align 8
   %load = load atomic volatile i64, i64* %ptr seq_cst, align 8
   ret void
+}
+
+define i16 @PR24463() {
+; Ensure we can handle a very interesting case where there is an integer-based
+; rewrite of the uses of the alloca, but where one of the integers in that is
+; a sub-integer that requires extraction *and* extends past the end of the
+; alloca. In this case, we should extract the i8 and then zext it to i16.
+;
+; CHECK-LABEL: @PR24463(
+; CHECK-NOT: alloca
+; CHECK: %[[SHIFT:.*]] = lshr i16 0, 8
+; CHECK: %[[TRUNC:.*]] = trunc i16 %[[SHIFT]] to i8
+; CHECK: %[[ZEXT:.*]] = zext i8 %[[TRUNC]] to i16
+; CHECK: ret i16 %[[ZEXT]]
+entry:
+  %alloca = alloca [3 x i8]
+  %gep1 = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 1
+  %bc1 = bitcast i8* %gep1 to i16*
+  store i16 0, i16* %bc1
+  %gep2 = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 2
+  %bc2 = bitcast i8* %gep2 to i16*
+  %load = load i16, i16* %bc2
+  ret i16 %load
 }

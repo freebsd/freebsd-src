@@ -20,11 +20,11 @@ define <8 x i8> @vzipi8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 define <16 x i8> @vzipi8_Qres(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 ; CHECK-LABEL: vzipi8_Qres:
 ; CHECK:       @ BB#0:
-; CHECK-NEXT:    vldr d17, [r1]
-; CHECK-NEXT:    vldr d16, [r0]
-; CHECK-NEXT:    vzip.8 d16, d17
-; CHECK-NEXT:    vmov r0, r1, d16
-; CHECK-NEXT:    vmov r2, r3, d17
+; CHECK-NEXT:    vldr [[LDR1:d[0-9]+]], [r1]
+; CHECK-NEXT:    vldr [[LDR0:d[0-9]+]], [r0]
+; CHECK-NEXT:    vzip.8 [[LDR0]], [[LDR1]]
+; CHECK-NEXT:    vmov r0, r1, [[LDR0]]
+; CHECK-NEXT:    vmov r2, r3, [[LDR1]]
 ; CHECK-NEXT:    mov pc, lr
 	%tmp1 = load <8 x i8>, <8 x i8>* %A
 	%tmp2 = load <8 x i8>, <8 x i8>* %B
@@ -52,11 +52,11 @@ define <4 x i16> @vzipi16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 define <8 x i16> @vzipi16_Qres(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 ; CHECK-LABEL: vzipi16_Qres:
 ; CHECK:       @ BB#0:
-; CHECK-NEXT:    vldr d17, [r1]
-; CHECK-NEXT:    vldr d16, [r0]
-; CHECK-NEXT:    vzip.16 d16, d17
-; CHECK-NEXT:    vmov r0, r1, d16
-; CHECK-NEXT:    vmov r2, r3, d17
+; CHECK-NEXT:    vldr [[LDR1:d[0-9]+]], [r1]
+; CHECK-NEXT:    vldr [[LDR0:d[0-9]+]], [r0]
+; CHECK-NEXT:    vzip.16 [[LDR0]], [[LDR1]]
+; CHECK-NEXT:    vmov r0, r1, [[LDR0]]
+; CHECK-NEXT:    vmov r2, r3, [[LDR1]]
 ; CHECK-NEXT:    mov pc, lr
 	%tmp1 = load <4 x i16>, <4 x i16>* %A
 	%tmp2 = load <4 x i16>, <4 x i16>* %B
@@ -220,11 +220,11 @@ define <8 x i8> @vzipi8_undef(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 define <16 x i8> @vzipi8_undef_Qres(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 ; CHECK-LABEL: vzipi8_undef_Qres:
 ; CHECK:       @ BB#0:
-; CHECK-NEXT:    vldr d17, [r1]
-; CHECK-NEXT:    vldr d16, [r0]
-; CHECK-NEXT:    vzip.8 d16, d17
-; CHECK-NEXT:    vmov r0, r1, d16
-; CHECK-NEXT:    vmov r2, r3, d17
+; CHECK-NEXT:    vldr [[LDR1:d[0-9]+]], [r1]
+; CHECK-NEXT:    vldr [[LDR0:d[0-9]+]], [r0]
+; CHECK-NEXT:    vzip.8 [[LDR0]], [[LDR1]]
+; CHECK-NEXT:    vmov r0, r1, [[LDR0]]
+; CHECK-NEXT:    vmov r2, r3, [[LDR1]]
 ; CHECK-NEXT:    mov pc, lr
 	%tmp1 = load <8 x i8>, <8 x i8>* %A
 	%tmp2 = load <8 x i8>, <8 x i8>* %B
@@ -263,4 +263,56 @@ define <32 x i8> @vzipQi8_undef_QQres(<16 x i8>* %A, <16 x i8>* %B) nounwind {
 	%tmp2 = load <16 x i8>, <16 x i8>* %B
 	%tmp3 = shufflevector <16 x i8> %tmp1, <16 x i8> %tmp2, <32 x i32> <i32 0, i32 16, i32 1, i32 undef, i32 undef, i32 undef, i32 3, i32 19, i32 4, i32 20, i32 5, i32 21, i32 6, i32 22, i32 7, i32 23, i32 8, i32 24, i32 9, i32 undef, i32 10, i32 26, i32 11, i32 27, i32 12, i32 28, i32 13, i32 undef, i32 14, i32 30, i32 undef, i32 31>
 	ret <32 x i8> %tmp3
+}
+
+define <8 x i16> @vzip_lower_shufflemask_undef(<4 x i16>* %A, <4 x i16>* %B) {
+entry:
+  ; CHECK-LABEL: vzip_lower_shufflemask_undef
+  ; CHECK: vzip
+	%tmp1 = load <4 x i16>, <4 x i16>* %A
+	%tmp2 = load <4 x i16>, <4 x i16>* %B
+  %0 = shufflevector <4 x i16> %tmp1, <4 x i16> %tmp2, <8 x i32> <i32 undef, i32 undef, i32 undef, i32 undef, i32 2, i32 6, i32 3, i32 7>
+  ret <8 x i16> %0
+}
+
+define <4 x i32> @vzip_lower_shufflemask_zeroed(<2 x i32>* %A) {
+entry:
+  ; CHECK-LABEL: vzip_lower_shufflemask_zeroed
+  ; CHECK-NOT: vtrn
+  ; CHECK: vzip
+  %tmp1 = load <2 x i32>, <2 x i32>* %A
+  %0 = shufflevector <2 x i32> %tmp1, <2 x i32> %tmp1, <4 x i32> <i32 0, i32 0, i32 1, i32 0>
+  ret <4 x i32> %0
+}
+
+define <4 x i32> @vzip_lower_shufflemask_vuzp(<2 x i32>* %A) {
+entry:
+  ; CHECK-LABEL: vzip_lower_shufflemask_vuzp
+  ; CHECK-NOT: vuzp
+  ; CHECK: vzip
+  %tmp1 = load <2 x i32>, <2 x i32>* %A
+  %0 = shufflevector <2 x i32> %tmp1, <2 x i32> %tmp1, <4 x i32> <i32 0, i32 2, i32 1, i32 0>
+  ret <4 x i32> %0
+}
+
+define void @vzip_undef_rev_shufflemask_vtrn(<2 x i32>* %A, <4 x i32>* %B) {
+entry:
+  ; CHECK-LABEL: vzip_undef_rev_shufflemask_vtrn
+  ; CHECK-NOT: vtrn
+  ; CHECK: vzip
+  %tmp1 = load <2 x i32>, <2 x i32>* %A
+  %0 = shufflevector <2 x i32> %tmp1, <2 x i32> undef, <4 x i32> <i32 1, i32 1, i32 0, i32 0>
+  store <4 x i32> %0, <4 x i32>* %B
+  ret void
+}
+
+define void @vzip_vext_factor(<8 x i16>* %A, <4 x i16>* %B) {
+entry:
+  ; CHECK-LABEL: vzip_vext_factor
+  ; CHECK: vext.16 d16, d16, d17, #3
+  ; CHECK: vzip
+  %tmp1 = load <8 x i16>, <8 x i16>* %A
+  %0 = shufflevector <8 x i16> %tmp1, <8 x i16> undef, <4 x i32> <i32 4, i32 4, i32 5, i32 3>
+  store <4 x i16> %0, <4 x i16>* %B
+  ret void
 }

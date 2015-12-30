@@ -34,7 +34,7 @@ target triple = "x86_64-apple-macosx10.9.0"
 @"\01L_OBJC_SELECTOR_REFERENCES_5" = internal global i8* getelementptr inbounds ([14 x i8], [14 x i8]* @"\01L_OBJC_METH_VAR_NAME_4", i64 0, i64 0), section "__DATA, __objc_selrefs, literal_pointers, no_dead_strip"
 @llvm.used = appending global [6 x i8*] [i8* bitcast (%struct._class_t** @"\01L_OBJC_CLASSLIST_REFERENCES_$_" to i8*), i8* getelementptr inbounds ([4 x i8], [4 x i8]* @"\01L_OBJC_METH_VAR_NAME_", i32 0, i32 0), i8* bitcast (i8** @"\01L_OBJC_SELECTOR_REFERENCES_" to i8*), i8* bitcast (%struct._class_t** @"\01L_OBJC_CLASSLIST_REFERENCES_$_1" to i8*), i8* getelementptr inbounds ([14 x i8], [14 x i8]* @"\01L_OBJC_METH_VAR_NAME_4", i32 0, i32 0), i8* bitcast (i8** @"\01L_OBJC_SELECTOR_REFERENCES_5" to i8*)], section "llvm.metadata"
 
-define i32 @main() uwtable ssp personality i8* bitcast (i32 (...)* @__objc_personality_v0 to i8*) {
+define i32 @main() uwtable ssp personality i8* bitcast (i32 (...)* @__objc_personality_v0 to i8*) !dbg !5 {
 entry:
   %tmp = load %struct._class_t*, %struct._class_t** @"\01L_OBJC_CLASSLIST_REFERENCES_$_", align 8, !dbg !37
   %tmp1 = load i8*, i8** @"\01L_OBJC_SELECTOR_REFERENCES_", align 8, !dbg !37, !invariant.load !38
@@ -84,7 +84,7 @@ declare void @objc_end_catch()
 
 declare void @objc_exception_rethrow()
 
-define internal fastcc void @ThrowFunc(i8* %obj) uwtable noinline ssp {
+define internal fastcc void @ThrowFunc(i8* %obj) uwtable noinline ssp !dbg !27 {
 entry:
   %tmp = call i8* @objc_retain(i8* %obj) nounwind
   call void @llvm.dbg.value(metadata i8* %obj, i64 0, metadata !32, metadata !DIExpression()), !dbg !55
@@ -113,16 +113,16 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!33, !34, !35, !36, !61}
 
-!0 = !DICompileUnit(language: DW_LANG_ObjC, producer: "clang version 3.3 ", isOptimized: true, runtimeVersion: 2, emissionKind: 0, file: !60, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_ObjC, producer: "clang version 3.3 ", isOptimized: true, runtimeVersion: 2, emissionKind: 0, file: !60, enums: !1, retainedTypes: !1, subprograms: !3, globals: !1)
 !1 = !{}
 !3 = !{!5, !27}
-!5 = !DISubprogram(name: "main", line: 9, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 10, file: !60, scope: !6, type: !7, function: i32 ()* @main, variables: !11)
+!5 = distinct !DISubprogram(name: "main", line: 9, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 10, file: !60, scope: !6, type: !7, variables: !11)
 !6 = !DIFile(filename: "test.m", directory: "/Volumes/Files/gottesmmcab/Radar/12906997")
 !7 = !DISubroutineType(types: !8)
 !8 = !{!9}
 !9 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !11 = !{!12, !21, !25}
-!12 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "obj", line: 11, scope: !13, file: !6, type: !14)
+!12 = !DILocalVariable(name: "obj", line: 11, scope: !13, file: !6, type: !14)
 !13 = distinct !DILexicalBlock(line: 10, column: 0, file: !60, scope: !5)
 !14 = !DIDerivedType(tag: DW_TAG_typedef, name: "id", line: 11, file: !60, baseType: !15)
 !15 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, file: !60, baseType: !16)
@@ -131,17 +131,17 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !18 = !DIDerivedType(tag: DW_TAG_member, name: "isa", size: 64, file: !60, scope: !16, baseType: !19)
 !19 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, baseType: !20)
 !20 = !DICompositeType(tag: DW_TAG_structure_type, name: "objc_class", flags: DIFlagFwdDecl, file: !60)
-!21 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "ok", line: 13, scope: !22, file: !6, type: !23)
+!21 = !DILocalVariable(name: "ok", line: 13, scope: !22, file: !6, type: !23)
 !22 = distinct !DILexicalBlock(line: 12, column: 0, file: !60, scope: !13)
 !23 = !DIDerivedType(tag: DW_TAG_typedef, name: "BOOL", line: 62, file: !60, baseType: !24)
 !24 = !DIBasicType(tag: DW_TAG_base_type, name: "signed char", size: 8, align: 8, encoding: DW_ATE_signed_char)
-!25 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "obj2", line: 15, scope: !26, file: !6, type: !14)
+!25 = !DILocalVariable(name: "obj2", line: 15, scope: !26, file: !6, type: !14)
 !26 = distinct !DILexicalBlock(line: 14, column: 0, file: !60, scope: !22)
-!27 = !DISubprogram(name: "ThrowFunc", line: 4, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 5, file: !60, scope: !6, type: !28, function: void (i8*)* @ThrowFunc, variables: !31)
+!27 = distinct !DISubprogram(name: "ThrowFunc", line: 4, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 5, file: !60, scope: !6, type: !28, variables: !31)
 !28 = !DISubroutineType(types: !29)
 !29 = !{null, !14}
 !31 = !{!32}
-!32 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "obj", line: 4, arg: 1, scope: !27, file: !6, type: !14)
+!32 = !DILocalVariable(name: "obj", line: 4, arg: 1, scope: !27, file: !6, type: !14)
 !33 = !{i32 1, !"Objective-C Version", i32 2}
 !34 = !{i32 1, !"Objective-C Image Info Version", i32 0}
 !35 = !{i32 1, !"Objective-C Image Info Section", !"__DATA, __objc_imageinfo, regular, no_dead_strip"}

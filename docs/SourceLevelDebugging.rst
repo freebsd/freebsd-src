@@ -231,7 +231,7 @@ Compiled to LLVM, this function would be represented like this:
 .. code-block:: llvm
 
   ; Function Attrs: nounwind ssp uwtable
-  define void @foo() #0 {
+  define void @foo() #0 !dbg !4 {
   entry:
     %X = alloca i32, align 4
     %Y = alloca i32, align 4
@@ -263,20 +263,20 @@ Compiled to LLVM, this function would be represented like this:
   !1 = !DIFile(filename: "/dev/stdin", directory: "/Users/dexonsmith/data/llvm/debug-info")
   !2 = !{}
   !3 = !{!4}
-  !4 = !DISubprogram(name: "foo", scope: !1, file: !1, line: 1, type: !5, isLocal: false, isDefinition: true, scopeLine: 1, isOptimized: false, function: void ()* @foo, variables: !2)
+  !4 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 1, type: !5, isLocal: false, isDefinition: true, scopeLine: 1, isOptimized: false, variables: !2)
   !5 = !DISubroutineType(types: !6)
   !6 = !{null}
   !7 = !{i32 2, !"Dwarf Version", i32 2}
   !8 = !{i32 2, !"Debug Info Version", i32 3}
   !9 = !{i32 1, !"PIC Level", i32 2}
   !10 = !{!"clang version 3.7.0 (trunk 231150) (llvm/trunk 231154)"}
-  !11 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "X", scope: !4, file: !1, line: 2, type: !12)
+  !11 = !DILocalVariable(name: "X", scope: !4, file: !1, line: 2, type: !12)
   !12 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
   !13 = !DIExpression()
   !14 = !DILocation(line: 2, column: 9, scope: !4)
-  !15 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "Y", scope: !4, file: !1, line: 3, type: !12)
+  !15 = !DILocalVariable(name: "Y", scope: !4, file: !1, line: 3, type: !12)
   !16 = !DILocation(line: 3, column: 9, scope: !4)
-  !17 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "Z", scope: !18, file: !1, line: 5, type: !12)
+  !17 = !DILocalVariable(name: "Z", scope: !18, file: !1, line: 5, type: !12)
   !18 = distinct !DILexicalBlock(scope: !4, file: !1, line: 4, column: 5)
   !19 = !DILocation(line: 5, column: 11, scope: !18)
   !20 = !DILocation(line: 6, column: 11, scope: !18)
@@ -304,10 +304,9 @@ scope information for the variable ``X``.
 .. code-block:: llvm
 
   !14 = !DILocation(line: 2, column: 9, scope: !4)
-  !4 = !DISubprogram(name: "foo", scope: !1, file: !1, line: 1, type: !5,
-                     isLocal: false, isDefinition: true, scopeLine: 1,
-                     isOptimized: false, function: void ()* @foo,
-                     variables: !2)
+  !4 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 1, type: !5,
+                              isLocal: false, isDefinition: true, scopeLine: 1,
+                              isOptimized: false, variables: !2)
 
 Here ``!14`` is metadata providing `location information
 <LangRef.html#dilocation>`_.  In this example, scope is encoded by ``!4``, a
@@ -368,15 +367,14 @@ C/C++ source file information
 
 ``llvm::Instruction`` provides easy access to metadata attached with an
 instruction.  One can extract line number information encoded in LLVM IR using
-``Instruction::getMetadata()`` and ``DILocation::getLineNumber()``.
+``Instruction::getDebugLoc()`` and ``DILocation::getLine()``.
 
 .. code-block:: c++
 
-  if (MDNode *N = I->getMetadata("dbg")) {  // Here I is an LLVM instruction
-    DILocation Loc(N);                      // DILocation is in DebugInfo.h
-    unsigned Line = Loc.getLineNumber();
-    StringRef File = Loc.getFilename();
-    StringRef Dir = Loc.getDirectory();
+  if (DILocation *Loc = I->getDebugLoc()) { // Here I is an LLVM instruction
+    unsigned Line = Loc->getLine();
+    StringRef File = Loc->getFilename();
+    StringRef Dir = Loc->getDirectory();
   }
 
 C/C++ global variable information
@@ -464,12 +462,12 @@ a C/C++ front-end would generate the following descriptors:
   !4 = !DISubprogram(name: "main", scope: !1, file: !1, line: 1, type: !5,
                      isLocal: false, isDefinition: true, scopeLine: 1,
                      flags: DIFlagPrototyped, isOptimized: false,
-                     function: i32 (i32, i8**)* @main, variables: !2)
+                     variables: !2)
 
   ;;
   ;; Define the subprogram itself.
   ;;
-  define i32 @main(i32 %argc, i8** %argv) {
+  define i32 @main(i32 %argc, i8** %argv) !dbg !4 {
   ...
   }
 
@@ -709,7 +707,7 @@ qualified name.  Debugger users tend not to enter their search strings as
 "``a::b::c``".  So the name entered in the name table must be demangled in
 order to chop it up appropriately and additional names must be manually entered
 into the table to make it effective as a name lookup table for debuggers to
-se.
+use.
 
 All debuggers currently ignore the "``.debug_pubnames``" table as a result of
 its inconsistent and useless public-only name content making it a waste of

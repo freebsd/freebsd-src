@@ -1,0 +1,16 @@
+RUN: grep '^ADDR:' %s | sed -s 's/ADDR: //' \
+RUN:     | llvm-symbolizer --inlining --relative-address -obj="%p/Inputs/coff-dwarf.exe" \
+RUN:     | FileCheck %s
+
+This test relies on UnDecorateSymbolName, which is Windows-only.
+REQUIRES: system-windows
+
+ADDR: 0x5009
+ADDR: 0x5038
+
+CHECK: foo(void)
+CHECK: coff-dwarf.cpp:7
+CHECK: bar(void)
+CHECK: coff-dwarf.cpp:13
+CHECK: main
+CHECK: coff-dwarf.cpp:17

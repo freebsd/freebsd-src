@@ -505,8 +505,15 @@ for llvm users and not imposing a big burden on llvm developers:
 * The textual format is not backwards compatible. We don't change it too often,
   but there are no specific promises.
 
-* The bitcode format produced by a X.Y release will be readable by all following
-  X.Z releases and the (X+1).0 release.
+* Additions and changes to the IR should be reflected in
+  ``test/Bitcode/compatibility.ll``.
+
+* The bitcode format produced by a X.Y release will be readable by all
+  following X.Z releases and the (X+1).0 release.
+
+* After each X.Y release, ``compatibility.ll`` must be copied to
+  ``compatibility-X.Y.ll``. The corresponding bitcode file should be assembled
+  using the X.Y build and committed as ``compatibility-X.Y.ll.bc``.
 
 * Newer releases can ignore features from older releases, but they cannot
   miscompile them. For example, if nsw is ever replaced with something else,
@@ -517,6 +524,33 @@ for llvm users and not imposing a big burden on llvm developers:
 * Non-debug metadata is defined to be safe to drop, so a valid way to upgrade
   it is to drop it. That is not very user friendly and a bit more effort is
   expected, but no promises are made.
+
+C API Changes
+----------------
+
+* Stability Guarantees: The C API is, in general, a "best effort" for stability.
+  This means that we make every attempt to keep the C API stable, but that
+  stability will be limited by the abstractness of the interface and the
+  stability of the C++ API that it wraps. In practice, this means that things
+  like "create debug info" or "create this type of instruction" are likely to be
+  less stable than "take this IR file and JIT it for my current machine".
+
+* Release stability: We won't break the C API on the release branch with patches
+  that go on that branch, with the exception that we will fix an unintentional
+  C API break that will keep the release consistent with both the previous and
+  next release.
+
+* Testing: Patches to the C API are expected to come with tests just like any
+  other patch.
+
+* Including new things into the API: If an LLVM subcomponent has a C API already
+  included, then expanding that C API is acceptable. Adding C API for
+  subcomponents that don't currently have one needs to be discussed on the
+  mailing list for design and maintainability feedback prior to implementation.
+
+* Documentation: Any changes to the C API are required to be documented in the
+  release notes so that it's clear to external users who do not follow the
+  project how the C API is changing and evolving.
 
 .. _copyright-license-patents:
 
@@ -624,5 +658,5 @@ patent-related trouble with their changes (including from third parties).  If
 you or your employer own the rights to a patent and would like to contribute
 code to LLVM that relies on it, we require that the copyright owner sign an
 agreement that allows any other user of LLVM to freely use your patent.  Please
-contact the `oversight group <mailto:llvm-oversight@cs.uiuc.edu>`_ for more
+contact the `LLVM Foundation Board of Directors <mailto:board@llvm.org>`_ for more
 details.

@@ -104,6 +104,53 @@ struct ilist_sentinel_traits {
   }
 };
 
+template <typename NodeTy> class ilist_half_node;
+template <typename NodeTy> class ilist_node;
+
+/// Traits with an embedded ilist_node as a sentinel.
+///
+/// FIXME: The downcast in createSentinel() is UB.
+template <typename NodeTy> struct ilist_embedded_sentinel_traits {
+  /// Get hold of the node that marks the end of the list.
+  NodeTy *createSentinel() const {
+    // Since i(p)lists always publicly derive from their corresponding traits,
+    // placing a data member in this class will augment the i(p)list.  But since
+    // the NodeTy is expected to be publicly derive from ilist_node<NodeTy>,
+    // there is a legal viable downcast from it to NodeTy. We use this trick to
+    // superimpose an i(p)list with a "ghostly" NodeTy, which becomes the
+    // sentinel. Dereferencing the sentinel is forbidden (save the
+    // ilist_node<NodeTy>), so no one will ever notice the superposition.
+    return static_cast<NodeTy *>(&Sentinel);
+  }
+  static void destroySentinel(NodeTy *) {}
+
+  NodeTy *provideInitialHead() const { return createSentinel(); }
+  NodeTy *ensureHead(NodeTy *) const { return createSentinel(); }
+  static void noteHead(NodeTy *, NodeTy *) {}
+
+private:
+  mutable ilist_node<NodeTy> Sentinel;
+};
+
+/// Trait with an embedded ilist_half_node as a sentinel.
+///
+/// FIXME: The downcast in createSentinel() is UB.
+template <typename NodeTy> struct ilist_half_embedded_sentinel_traits {
+  /// Get hold of the node that marks the end of the list.
+  NodeTy *createSentinel() const {
+    // See comment in ilist_embedded_sentinel_traits::createSentinel().
+    return static_cast<NodeTy *>(&Sentinel);
+  }
+  static void destroySentinel(NodeTy *) {}
+
+  NodeTy *provideInitialHead() const { return createSentinel(); }
+  NodeTy *ensureHead(NodeTy *) const { return createSentinel(); }
+  static void noteHead(NodeTy *, NodeTy *) {}
+
+private:
+  mutable ilist_half_node<NodeTy> Sentinel;
+};
+
 /// ilist_node_traits - A fragment for template traits for intrusive list
 /// that provides default node related operations.
 ///
@@ -173,8 +220,8 @@ private:
   template<class T> void operator-(T) const;
 public:
 
-  ilist_iterator(pointer NP) : NodePtr(NP) {}
-  ilist_iterator(reference NR) : NodePtr(&NR) {}
+  explicit ilist_iterator(pointer NP) : NodePtr(NP) {}
+  explicit ilist_iterator(reference NR) : NodePtr(&NR) {}
   ilist_iterator() : NodePtr(nullptr) {}
 
   // This is templated so that we can allow constructing a const iterator from
@@ -191,8 +238,10 @@ public:
     return *this;
   }
 
+  void reset(pointer NP) { NodePtr = NP; }
+
   // Accessors...
-  operator pointer() const {
+  explicit operator pointer() const {
     return NodePtr;
   }
 
@@ -202,11 +251,11 @@ public:
   pointer operator->() const { return &operator*(); }
 
   // Comparison operators
-  bool operator==(const ilist_iterator &RHS) const {
-    return NodePtr == RHS.NodePtr;
+  template <class Y> bool operator==(const ilist_iterator<Y> &RHS) const {
+    return NodePtr == RHS.getNodePtrUnchecked();
   }
-  bool operator!=(const ilist_iterator &RHS) const {
-    return NodePtr != RHS.NodePtr;
+  template <class Y> bool operator!=(const ilist_iterator<Y> &RHS) const {
+    return NodePtr != RHS.getNodePtrUnchecked();
   }
 
   // Increment and decrement operators...
@@ -422,7 +471,7 @@ public:
     this->setPrev(CurNode, New);
 
     this->addNodeToList(New);  // Notify traits that we added a node...
-    return New;
+    return iterator(New);
   }
 
   iterator insertAfter(iterator where, NodeTy *New) {
@@ -443,7 +492,7 @@ public:
     else
       Head = NextNode;
     this->setPrev(NextNode, PrevNode);
-    IT = NextNode;
+    IT.reset(NextNode);
     this->removeNodeFromList(Node);  // Notify traits that we removed a node...
 
     // Set the next/prev pointers of the current node to null.  This isn't
@@ -461,11 +510,17 @@ public:
     return remove(MutIt);
   }
 
+  NodeTy *remove(NodeTy *IT) { return remove(iterator(IT)); }
+  NodeTy *remove(NodeTy &IT) { return remove(iterator(IT)); }
+
   // erase - remove a node from the controlled sequence... and delete it.
   iterator erase(iterator where) {
     this->deleteNode(remove(where));
     return where;
   }
+
+  iterator erase(NodeTy *IT) { return erase(iterator(IT)); }
+  iterator erase(NodeTy &IT) { return erase(iterator(IT)); }
 
   /// Remove all nodes from the list like clear(), but do not call
   /// removeNodeFromList() or deleteNode().
@@ -522,7 +577,7 @@ private:
       this->setNext(Last, PosNext);
       this->setPrev(PosNext, Last);
 
-      this->transferNodesFromList(L2, First, PosNext);
+      this->transferNodesFromList(L2, iterator(First), iterator(PosNext));
 
       // Now that everything is set, restore the pointers to the list sentinels.
       L2.setTail(L2Sentinel);
@@ -578,6 +633,83 @@ public:
   }
   void splice(iterator where, iplist &L2, iterator first, iterator last) {
     if (first != last) transfer(where, L2, first, last);
+  }
+  void splice(iterator where, iplist &L2, NodeTy &N) {
+    splice(where, L2, iterator(N));
+  }
+  void splice(iterator where, iplist &L2, NodeTy *N) {
+    splice(where, L2, iterator(N));
+  }
+
+  template <class Compare>
+  void merge(iplist &Right, Compare comp) {
+    if (this == &Right)
+      return;
+    iterator First1 = begin(), Last1 = end();
+    iterator First2 = Right.begin(), Last2 = Right.end();
+    while (First1 != Last1 && First2 != Last2) {
+      if (comp(*First2, *First1)) {
+        iterator Next = First2;
+        transfer(First1, Right, First2, ++Next);
+        First2 = Next;
+      } else {
+        ++First1;
+      }
+    }
+    if (First2 != Last2)
+      transfer(Last1, Right, First2, Last2);
+  }
+  void merge(iplist &Right) { return merge(Right, op_less); }
+
+  template <class Compare>
+  void sort(Compare comp) {
+    // The list is empty, vacuously sorted.
+    if (empty())
+      return;
+    // The list has a single element, vacuously sorted.
+    if (std::next(begin()) == end())
+      return;
+    // Find the split point for the list.
+    iterator Center = begin(), End = begin();
+    while (End != end() && std::next(End) != end()) {
+      Center = std::next(Center);
+      End = std::next(std::next(End));
+    }
+    // Split the list into two.
+    iplist RightHalf;
+    RightHalf.splice(RightHalf.begin(), *this, Center, end());
+
+    // Sort the two sublists.
+    sort(comp);
+    RightHalf.sort(comp);
+
+    // Merge the two sublists back together.
+    merge(RightHalf, comp);
+  }
+  void sort() { sort(op_less); }
+
+  /// \brief Get the previous node, or \c nullptr for the list head.
+  NodeTy *getPrevNode(NodeTy &N) const {
+    auto I = N.getIterator();
+    if (I == begin())
+      return nullptr;
+    return &*std::prev(I);
+  }
+  /// \brief Get the previous node, or \c nullptr for the list head.
+  const NodeTy *getPrevNode(const NodeTy &N) const {
+    return getPrevNode(const_cast<NodeTy &>(N));
+  }
+
+  /// \brief Get the next node, or \c nullptr for the list tail.
+  NodeTy *getNextNode(NodeTy &N) const {
+    auto Next = std::next(N.getIterator());
+    if (Next == end())
+      return nullptr;
+    return &*Next;
+  }
+  /// \brief Get the next node, or \c nullptr for the list tail.
+  const NodeTy *getNextNode(const NodeTy &N) const {
+    return getNextNode(const_cast<NodeTy &>(N));
   }
 };
 

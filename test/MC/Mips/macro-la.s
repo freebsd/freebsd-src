@@ -2,10 +2,12 @@
 # RUN:   FileCheck %s
 # RUN: llvm-mc %s -triple=mips-unknown-linux -show-encoding -mcpu=mips32r6 | \
 # RUN:   FileCheck %s
-# RUN: llvm-mc %s -triple=mips64-unknown-linux -show-encoding -mcpu=mips64r2 | \
+# RUN: llvm-mc %s -triple=mips64-unknown-linux -show-encoding -mcpu=mips64r2 -target-abi=n32 | \
 # RUN:   FileCheck %s
-# RUN: llvm-mc %s -triple=mips64-unknown-linux -show-encoding -mcpu=mips64r6 | \
+# RUN: llvm-mc %s -triple=mips64-unknown-linux -show-encoding -mcpu=mips64r6 -target-abi=n32 | \
 # RUN:   FileCheck %s
+
+# N64 should be acceptable too but we cannot convert la to dla yet.
 
 la $5, 0x00000001 # CHECK: addiu $5, $zero, 1      # encoding: [0x24,0x05,0x00,0x01]
 la $5, 0x00000002 # CHECK: addiu $5, $zero, 2      # encoding: [0x24,0x05,0x00,0x02]
@@ -243,21 +245,35 @@ la $6, 0x80008000($6) # CHECK: lui $1, 32768     # encoding: [0x3c,0x01,0x80,0x0
                       # CHECK: addu $6, $1, $6   # encoding: [0x00,0x26,0x30,0x21]
 
 la $5, symbol         # CHECK: lui $5, %hi(symbol)       # encoding: [0x3c,0x05,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: symbol@ABS_HI, kind: fixup_Mips_HI16
+                      # CHECK:                           #   fixup A - offset: 0, value: %hi(symbol), kind: fixup_Mips_HI16
                       # CHECK: addiu $5, $5, %lo(symbol) # encoding: [0x24,0xa5,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: symbol@ABS_LO, kind: fixup_Mips_LO16
+                      # CHECK:                           #   fixup A - offset: 0, value: %lo(symbol), kind: fixup_Mips_LO16
 la $5, symbol($6)     # CHECK: lui $5, %hi(symbol)       # encoding: [0x3c,0x05,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: symbol@ABS_HI, kind: fixup_Mips_HI16
+                      # CHECK:                           #   fixup A - offset: 0, value: %hi(symbol), kind: fixup_Mips_HI16
                       # CHECK: addiu $5, $5, %lo(symbol) # encoding: [0x24,0xa5,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: symbol@ABS_LO, kind: fixup_Mips_LO16
+                      # CHECK:                           #   fixup A - offset: 0, value: %lo(symbol), kind: fixup_Mips_LO16
                       # CHECK: addu $5, $5, $6           # encoding: [0x00,0xa6,0x28,0x21]
 la $6, symbol($6)     # CHECK: lui $1, %hi(symbol)       # encoding: [0x3c,0x01,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: symbol@ABS_HI, kind: fixup_Mips_HI16
+                      # CHECK:                           #   fixup A - offset: 0, value: %hi(symbol), kind: fixup_Mips_HI16
                       # CHECK: addiu $1, $1, %lo(symbol) # encoding: [0x24,0x21,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: symbol@ABS_LO, kind: fixup_Mips_LO16
+                      # CHECK:                           #   fixup A - offset: 0, value: %lo(symbol), kind: fixup_Mips_LO16
                       # CHECK: addu $6, $1, $6           # encoding: [0x00,0x26,0x30,0x21]
-la $5, 1f             # CHECK: lui $5, %hi($tmp0)        # encoding: [0x3c,0x05,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: ($tmp0)@ABS_HI, kind: fixup_Mips_HI16
-                      # CHECK: addiu $5, $5, %lo($tmp0)  # encoding: [0x24,0xa5,A,A]
-                      # CHECK:                           #   fixup A - offset: 0, value: ($tmp0)@ABS_LO, kind: fixup_Mips_LO16
+la $5, symbol+8       # CHECK: lui $5, %hi(symbol+8)       # encoding: [0x3c,0x05,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %hi(symbol+8), kind: fixup_Mips_HI16
+                      # CHECK: addiu $5, $5, %lo(symbol+8) # encoding: [0x24,0xa5,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %lo(symbol+8), kind: fixup_Mips_LO16
+la $5, symbol+8($6)   # CHECK: lui $5, %hi(symbol+8)       # encoding: [0x3c,0x05,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %hi(symbol+8), kind: fixup_Mips_HI16
+                      # CHECK: addiu $5, $5, %lo(symbol+8) # encoding: [0x24,0xa5,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %lo(symbol+8), kind: fixup_Mips_LO16
+                      # CHECK: addu $5, $5, $6             # encoding: [0x00,0xa6,0x28,0x21]
+la $6, symbol+8($6)   # CHECK: lui $1, %hi(symbol+8)       # encoding: [0x3c,0x01,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %hi(symbol+8), kind: fixup_Mips_HI16
+                      # CHECK: addiu $1, $1, %lo(symbol+8) # encoding: [0x24,0x21,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %lo(symbol+8), kind: fixup_Mips_LO16
+                      # CHECK: addu $6, $1, $6             # encoding: [0x00,0x26,0x30,0x21]
+la $5, 1f             # CHECK: lui $5, %hi(($tmp0))        # encoding: [0x3c,0x05,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %hi(($tmp0)), kind: fixup_Mips_HI16
+                      # CHECK: addiu $5, $5, %lo(($tmp0))  # encoding: [0x24,0xa5,A,A]
+                      # CHECK:                             #   fixup A - offset: 0, value: %lo(($tmp0)), kind: fixup_Mips_LO16
 1:

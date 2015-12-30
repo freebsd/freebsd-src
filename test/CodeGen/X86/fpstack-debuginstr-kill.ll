@@ -3,7 +3,7 @@
 @g1 = global double 0.000000e+00, align 8
 @g2 = global i32 0, align 4
 
-define void @_Z16fpuop_arithmeticjj(i32, i32) {
+define void @_Z16fpuop_arithmeticjj(i32, i32) !dbg !4 {
 entry:
   switch i32 undef, label %sw.bb.i1921 [
   ]
@@ -43,27 +43,27 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata)
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!24, !25}
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 (http://llvm.org/git/clang 8444ae7cfeaefae031f8fedf0d1435ca3b14d90b) (http://llvm.org/git/llvm 886f0101a7d176543b831f5efb74c03427244a55)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !21, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.6.0 (http://llvm.org/git/clang 8444ae7cfeaefae031f8fedf0d1435ca3b14d90b) (http://llvm.org/git/llvm 886f0101a7d176543b831f5efb74c03427244a55)", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !21, imports: !2)
 !1 = !DIFile(filename: "fpu_ieee.cpp", directory: "x87stackifier")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "fpuop_arithmetic", linkageName: "_Z16fpuop_arithmeticjj", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 13, file: !5, scope: !6, type: !7, function: void (i32, i32)* @_Z16fpuop_arithmeticjj, variables: !10)
+!4 = distinct !DISubprogram(name: "fpuop_arithmetic", linkageName: "_Z16fpuop_arithmeticjj", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 13, file: !5, scope: !6, type: !7, variables: !10)
 !5 = !DIFile(filename: "f1.cpp", directory: "x87stackifier")
 !6 = !DIFile(filename: "f1.cpp", directory: "x87stackifier")
 !7 = !DISubroutineType(types: !8)
 !8 = !{null, !9, !9}
 !9 = !DIBasicType(tag: DW_TAG_base_type, name: "unsigned int", size: 32, align: 32, encoding: DW_ATE_unsigned)
 !10 = !{!11, !12, !13, !18, !20}
-!11 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "", line: 11, arg: 1, scope: !4, file: !6, type: !9)
-!12 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "", line: 11, arg: 2, scope: !4, file: !6, type: !9)
-!13 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "x", line: 14, scope: !4, file: !6, type: !14)
+!11 = !DILocalVariable(name: "", line: 11, arg: 1, scope: !4, file: !6, type: !9)
+!12 = !DILocalVariable(name: "", line: 11, arg: 2, scope: !4, file: !6, type: !9)
+!13 = !DILocalVariable(name: "x", line: 14, scope: !4, file: !6, type: !14)
 !14 = !DIDerivedType(tag: DW_TAG_typedef, name: "fpu_extended", line: 3, file: !5, baseType: !15)
 !15 = !DIDerivedType(tag: DW_TAG_typedef, name: "fpu_register", line: 2, file: !5, baseType: !16)
 !16 = !DIDerivedType(tag: DW_TAG_typedef, name: "uae_f64", line: 1, file: !5, baseType: !17)
 !17 = !DIBasicType(tag: DW_TAG_base_type, name: "double", size: 64, align: 64, encoding: DW_ATE_float)
-!18 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 15, scope: !4, file: !6, type: !19)
+!18 = !DILocalVariable(name: "a", line: 15, scope: !4, file: !6, type: !19)
 !19 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!20 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "value", line: 16, scope: !4, file: !6, type: !14)
+!20 = !DILocalVariable(name: "value", line: 16, scope: !4, file: !6, type: !14)
 !21 = !{!22, !23}
 !22 = !DIGlobalVariable(name: "g1", line: 5, isLocal: false, isDefinition: true, scope: null, file: !6, type: !14, variable: double* @g1)
 !23 = !DIGlobalVariable(name: "g2", line: 6, isLocal: false, isDefinition: true, scope: null, file: !6, type: !19, variable: i32* @g2)

@@ -3,7 +3,7 @@
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64"
 target triple = "x86_64-apple-macosx10.7.0"
 
-define i32 @foo(i32 %i, i32* nocapture %c) nounwind uwtable readonly ssp {
+define i32 @foo(i32 %i, i32* nocapture %c) nounwind uwtable readonly ssp !dbg !1 {
   tail call void @llvm.dbg.value(metadata i32 %i, i64 0, metadata !6, metadata !DIExpression()), !dbg !12
   %ab = load i32, i32* %c, align 1, !dbg !14
   tail call void @llvm.dbg.value(metadata i32* %c, i64 0, metadata !7, metadata !DIExpression()), !dbg !13
@@ -28,17 +28,17 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!22}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "Apple clang version 3.0 (tags/Apple/clang-211.10.1) (based on LLVM 3.0svn)", isOptimized: true, emissionKind: 1, file: !20, enums: !21, retainedTypes: !21, subprograms: !18, imports:  null)
-!1 = !DISubprogram(name: "foo", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !20, scope: !2, type: !3, function: i32 (i32, i32*)* @foo, variables: !19)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "Apple clang version 3.0 (tags/Apple/clang-211.10.1) (based on LLVM 3.0svn)", isOptimized: true, emissionKind: 1, file: !20, enums: !21, retainedTypes: !21, subprograms: !18, imports:  null)
+!1 = distinct !DISubprogram(name: "foo", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, file: !20, scope: !2, type: !3, variables: !19)
 !2 = !DIFile(filename: "a.c", directory: "/private/tmp")
 !3 = !DISubroutineType(types: !4)
 !4 = !{!5}
 !5 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!6 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "i", line: 2, arg: 1, scope: !1, file: !2, type: !5)
-!7 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "c", line: 2, arg: 2, scope: !1, file: !2, type: !8)
+!6 = !DILocalVariable(name: "i", line: 2, arg: 1, scope: !1, file: !2, type: !5)
+!7 = !DILocalVariable(name: "c", line: 2, arg: 2, scope: !1, file: !2, type: !8)
 !8 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, scope: !0, baseType: !9)
 !9 = !DIBasicType(tag: DW_TAG_base_type, name: "char", size: 8, align: 8, encoding: DW_ATE_signed_char)
-!10 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 3, scope: !11, file: !2, type: !9)
+!10 = !DILocalVariable(name: "a", line: 3, scope: !11, file: !2, type: !9)
 !11 = distinct !DILexicalBlock(line: 2, column: 25, file: !20, scope: !1)
 !12 = !DILocation(line: 2, column: 13, scope: !1)
 !13 = !DILocation(line: 2, column: 22, scope: !1)

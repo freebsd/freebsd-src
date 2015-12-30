@@ -1,4 +1,5 @@
-; RUN: opt -S -simplifycfg -phi-node-folding-threshold=2 < %s | FileCheck %s
+; RUN: opt -S -simplifycfg < %s | FileCheck %s --check-prefix=EXPENSIVE --check-prefix=ALL
+; RUN: opt -S -simplifycfg -speculate-one-expensive-inst=false < %s | FileCheck %s --check-prefix=CHEAP --check-prefix=ALL
 
 declare float @llvm.sqrt.f32(float) nounwind readonly
 declare float @llvm.fma.f32(float, float, float) nounwind readonly
@@ -7,8 +8,26 @@ declare float @llvm.fabs.f32(float) nounwind readonly
 declare float @llvm.minnum.f32(float, float) nounwind readonly
 declare float @llvm.maxnum.f32(float, float) nounwind readonly
 
-; CHECK-LABEL: @sqrt_test(
-; CHECK: select
+; ALL-LABEL: @fdiv_test(
+; EXPENSIVE: select i1 %cmp, double %div, double 0.0
+; CHEAP-NOT: select
+
+define double @fdiv_test(double %a, double %b) {
+entry:
+  %cmp = fcmp ogt double %a, 0.0
+  br i1 %cmp, label %cond.true, label %cond.end
+
+cond.true:
+  %div = fdiv double %b, %a
+  br label %cond.end
+
+cond.end:
+  %cond = phi double [ %div, %cond.true ], [ 0.0, %entry ]
+  ret double %cond
+}
+
+; ALL-LABEL: @sqrt_test(
+; ALL: select
 define void @sqrt_test(float addrspace(1)* noalias nocapture %out, float %a) nounwind {
 entry:
   %cmp.i = fcmp olt float %a, 0.000000e+00
@@ -24,8 +43,8 @@ test_sqrt.exit:                                   ; preds = %cond.else.i, %entry
   ret void
 }
 
-; CHECK-LABEL: @fabs_test(
-; CHECK: select
+; ALL-LABEL: @fabs_test(
+; ALL: select
 define void @fabs_test(float addrspace(1)* noalias nocapture %out, float %a) nounwind {
 entry:
   %cmp.i = fcmp olt float %a, 0.000000e+00
@@ -41,8 +60,8 @@ test_fabs.exit:                                   ; preds = %cond.else.i, %entry
   ret void
 }
 
-; CHECK-LABEL: @fma_test(
-; CHECK: select
+; ALL-LABEL: @fma_test(
+; ALL: select
 define void @fma_test(float addrspace(1)* noalias nocapture %out, float %a, float %b, float %c) nounwind {
 entry:
   %cmp.i = fcmp olt float %a, 0.000000e+00
@@ -58,8 +77,8 @@ test_fma.exit:                                   ; preds = %cond.else.i, %entry
   ret void
 }
 
-; CHECK-LABEL: @fmuladd_test(
-; CHECK: select
+; ALL-LABEL: @fmuladd_test(
+; ALL: select
 define void @fmuladd_test(float addrspace(1)* noalias nocapture %out, float %a, float %b, float %c) nounwind {
 entry:
   %cmp.i = fcmp olt float %a, 0.000000e+00
@@ -75,8 +94,8 @@ test_fmuladd.exit:                                   ; preds = %cond.else.i, %en
   ret void
 }
 
-; CHECK-LABEL: @minnum_test(
-; CHECK: select
+; ALL-LABEL: @minnum_test(
+; ALL: select
 define void @minnum_test(float addrspace(1)* noalias nocapture %out, float %a, float %b) nounwind {
 entry:
   %cmp.i = fcmp olt float %a, 0.000000e+00
@@ -92,8 +111,8 @@ test_minnum.exit:                                   ; preds = %cond.else.i, %ent
   ret void
 }
 
-; CHECK-LABEL: @maxnum_test(
-; CHECK: select
+; ALL-LABEL: @maxnum_test(
+; ALL: select
 define void @maxnum_test(float addrspace(1)* noalias nocapture %out, float %a, float %b) nounwind {
 entry:
   %cmp.i = fcmp olt float %a, 0.000000e+00

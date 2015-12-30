@@ -18,12 +18,14 @@
 ; CHECK:     DW_AT_name {{.*}} "~nsAutoRefCnt"
 
 ; CHECK: DW_TAG_subprogram
+; CHECK-NEXT:     DW_AT_decl_line {{.*}}18
 ; CHECK-NEXT:     DW_AT_{{.*}}linkage_name {{.*}}D2
 ; CHECK-NEXT:     DW_AT_specification {{.*}} "~nsAutoRefCnt"
 ; CHECK-NEXT:     DW_AT_inline
 ; CHECK-NOT:      DW_AT
 ; CHECK: DW_TAG
 ; CHECK: DW_TAG_subprogram
+; CHECK-NEXT:     DW_AT_decl_line {{.*}}18
 ; CHECK-NEXT:     DW_AT_{{.*}}linkage_name {{.*}}D1
 ; CHECK-NEXT:     DW_AT_specification {{.*}} "~nsAutoRefCnt"
 ; CHECK-NEXT:     DW_AT_inline
@@ -58,14 +60,14 @@
 ; CHECK-NEXT: DW_AT_abstract_origin {{.*}} "_ZN17nsAutoRefCntD2Ev"
 
 
-define i32 @_ZN17nsAutoRefCnt7ReleaseEv() {
+define i32 @_ZN17nsAutoRefCnt7ReleaseEv() !dbg !5 {
 entry:
   store i32 1, i32* null, align 4, !dbg !50
   tail call void @_Z8moz_freePv(i8* null) nounwind, !dbg !54
   ret i32 0
 }
 
-define void @_ZN17nsAutoRefCntD1Ev() {
+define void @_ZN17nsAutoRefCntD1Ev() !dbg !23 {
 entry:
   tail call void @_Z8moz_freePv(i8* null) nounwind, !dbg !57
   ret void
@@ -76,10 +78,10 @@ declare void @_Z8moz_freePv(i8*)
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!60}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.1 ()", isOptimized: true, emissionKind: 0, file: !59, enums: !1, retainedTypes: !1, subprograms: !3, globals: !47, imports:  !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.1 ()", isOptimized: true, emissionKind: 0, file: !59, enums: !1, retainedTypes: !1, subprograms: !3, globals: !47, imports:  !1)
 !1 = !{}
 !3 = !{!5, !23, !27, !31}
-!5 = !DISubprogram(name: "Release", linkageName: "_ZN17nsAutoRefCnt7ReleaseEv", line: 14, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 14, file: !6, scope: null, type: !7, function: i32 ()* @_ZN17nsAutoRefCnt7ReleaseEv , declaration: !12, variables: !20)
+!5 = distinct !DISubprogram(name: "Release", linkageName: "_ZN17nsAutoRefCnt7ReleaseEv", line: 14, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 14, file: !6, scope: null, type: !7 , declaration: !12, variables: !20)
 !6 = !DIFile(filename: "nsAutoRefCnt.ii", directory: "/Users/espindola/mozilla-central/obj-x86_64-apple-darwin11.2.0/netwerk/base/src")
 !7 = !DISubroutineType(types: !8)
 !8 = !{!9, !10}
@@ -94,14 +96,14 @@ declare void @_Z8moz_freePv(i8*)
 !17 = !{null, !10}
 !18 = !{}
 !20 = !{!22}
-!22 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 14, arg: 1, flags: DIFlagArtificial, scope: !5, file: !6, type: !10)
-!23 = !DISubprogram(name: "~nsAutoRefCnt", linkageName: "_ZN17nsAutoRefCntD1Ev", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 18, file: !6, scope: null, type: !16, function: void ()* @_ZN17nsAutoRefCntD1Ev, declaration: !15, variables: !24)
+!22 = !DILocalVariable(name: "this", line: 14, arg: 1, flags: DIFlagArtificial, scope: !5, file: !6, type: !10)
+!23 = distinct !DISubprogram(name: "~nsAutoRefCnt", linkageName: "_ZN17nsAutoRefCntD1Ev", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 18, file: !6, scope: null, type: !16, declaration: !15, variables: !24)
 !24 = !{!26}
-!26 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 18, arg: 1, flags: DIFlagArtificial, scope: !23, file: !6, type: !10)
-!27 = !DISubprogram(name: "~nsAutoRefCnt", linkageName: "_ZN17nsAutoRefCntD2Ev", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 18, file: !6, scope: null, type: !16, function: i32 ()* null, declaration: !15, variables: !28)
+!26 = !DILocalVariable(name: "this", line: 18, arg: 1, flags: DIFlagArtificial, scope: !23, file: !6, type: !10)
+!27 = distinct !DISubprogram(name: "~nsAutoRefCnt", linkageName: "_ZN17nsAutoRefCntD2Ev", line: 18, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 18, file: !6, scope: null, type: !16, declaration: !15, variables: !28)
 !28 = !{!30}
-!30 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 18, arg: 1, flags: DIFlagArtificial, scope: !27, file: !6, type: !10)
-!31 = !DISubprogram(name: "operator=", linkageName: "_ZN12nsAutoRefCntaSEi", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 4, file: !6, scope: null, type: !32, declaration: !36, variables: !43)
+!30 = !DILocalVariable(name: "this", line: 18, arg: 1, flags: DIFlagArtificial, scope: !27, file: !6, type: !10)
+!31 = distinct !DISubprogram(name: "operator=", linkageName: "_ZN12nsAutoRefCntaSEi", line: 4, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 4, file: !6, scope: null, type: !32, declaration: !36, variables: !43)
 !32 = !DISubroutineType(types: !33)
 !33 = !{!9, !34, !9}
 !34 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, flags: DIFlagArtificial, baseType: !35)
@@ -114,8 +116,8 @@ declare void @_Z8moz_freePv(i8*)
 !41 = !DISubroutineType(types: !42)
 !42 = !{null, !34}
 !43 = !{!45, !46}
-!45 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 4, arg: 1, flags: DIFlagArtificial, scope: !31, file: !6, type: !34)
-!46 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "aValue", line: 4, arg: 2, scope: !31, file: !6, type: !9)
+!45 = !DILocalVariable(name: "this", line: 4, arg: 1, flags: DIFlagArtificial, scope: !31, file: !6, type: !34)
+!46 = !DILocalVariable(name: "aValue", line: 4, arg: 2, scope: !31, file: !6, type: !9)
 !47 = !{!49}
 !49 = !DIGlobalVariable(name: "mRefCnt", line: 9, isLocal: false, isDefinition: true, scope: null, file: !6, type: !37, variable: i32* null)
 !50 = !DILocation(line: 5, column: 5, scope: !51, inlinedAt: !52)

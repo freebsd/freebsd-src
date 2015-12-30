@@ -21,7 +21,8 @@ This library is intended primarily for in-process coverage-guided fuzz testing
   optimizations options (e.g. -O0, -O1, -O2) to diversify testing.
 * Build a test driver using the same options as the library.
   The test driver is a C/C++ file containing interesting calls to the library
-  inside a single function  ``extern "C" void LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);``
+  inside a single function  ``extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);``.
+  Currently, the only expected return value is 0, others are reserved for future.
 * Link the Fuzzer, the library and the driver together into an executable
   using the same sanitizer options as for the library.
 * Collect the initial corpus of inputs for the
@@ -60,14 +61,18 @@ The most important flags are::
   cross_over                         	1	If 1, cross over inputs.
   mutate_depth                       	5	Apply this number of consecutive mutations to each input.
   timeout                            	1200	Timeout in seconds (if positive). If one unit runs more than this number of seconds the process will abort.
+  max_total_time                        0       If positive, indicates the maximal total time in seconds to run the fuzzer.
   help                               	0	Print help.
-  save_minimized_corpus              	0	If 1, the minimized corpus is saved into the first input directory
+  merge                                 0       If 1, the 2-nd, 3-rd, etc corpora will be merged into the 1-st corpus. Only interesting units will be taken.
   jobs                               	0	Number of jobs to run. If jobs >= 1 we spawn this number of jobs in separate worker processes with stdout/stderr redirected to fuzz-JOB.log.
   workers                            	0	Number of simultaneous worker processes to run the jobs. If zero, "min(jobs,NumberOfCpuCores()/2)" is used.
-  tokens                             	0	Use the file with tokens (one token per line) to fuzz a token based input language.
-  apply_tokens                       	0	Read the given input file, substitute bytes  with tokens and write the result to stdout.
   sync_command                       	0	Execute an external command "<sync_command> <test_corpus>" to synchronize the test corpus.
   sync_timeout                       	600	Minimum timeout between syncs.
+  use_traces                            0       Experimental: use instruction traces
+  only_ascii                            0       If 1, generate only ASCII (isprint+isspace) inputs.
+  test_single_input                     ""      Use specified file content as test input. Test will be run only once. Useful for debugging a particular case.
+  artifact_prefix                       ""      Write fuzzing artifacts (crash, timeout, or slow inputs) as $(artifact_prefix)file
+  exact_artifact_path                   ""      Write the single artifact on failure (crash, timeout) as $(exact_artifact_path). This overrides -artifact_prefix and will not use checksum in the file name. Do not use the same path for several parallel processes.
 
 For the full list of flags run the fuzzer binary with ``-help=1``.
 
@@ -80,11 +85,14 @@ Toy example
 A simple function that does something interesting if it receives the input "HI!"::
 
   cat << EOF >> test_fuzzer.cc
-  extern "C" void LLVMFuzzerTestOneInput(const unsigned char *data, unsigned long size) {
+  #include <stdint.h>
+  #include <stddef.h>
+  extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size > 0 && data[0] == 'H')
       if (size > 1 && data[1] == 'I')
          if (size > 2 && data[2] == '!')
          __builtin_trap();
+    return 0;
   }
   EOF
   # Get lib/Fuzzer. Assuming that you already have fresh clang in PATH.
@@ -115,9 +123,10 @@ Here we show how to use lib/Fuzzer on something real, yet simple: pcre2_::
   # Build the actual function that does something interesting with PCRE2.
   cat << EOF > pcre_fuzzer.cc
   #include <string.h>
+  #include <stdint.h>
   #include "pcre2posix.h"
-  extern "C" void LLVMFuzzerTestOneInput(const unsigned char *data, size_t size) {
-    if (size < 1) return;
+  extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    if (size < 1) return 0;
     char *str = new char[size+1];
     memcpy(str, data, size);
     str[size] = 0;
@@ -127,6 +136,7 @@ Here we show how to use lib/Fuzzer on something real, yet simple: pcre2_::
       regfree(&preg);
     }
     delete [] str;
+    return 0;
   }
   EOF
   clang++ -g -fsanitize=address $COV_FLAGS -c -std=c++11  -I inst/include/ pcre_fuzzer.cc
@@ -213,6 +223,9 @@ to find Heartbleed with LibFuzzer::
   #include <openssl/ssl.h>
   #include <openssl/err.h>
   #include <assert.h>
+  #include <stdint.h>
+  #include <stddef.h>
+
   SSL_CTX *sctx;
   int Init() {
     SSL_library_init();
@@ -224,7 +237,7 @@ to find Heartbleed with LibFuzzer::
     assert (SSL_CTX_use_PrivateKey_file(sctx, "server.key", SSL_FILETYPE_PEM));
     return 0;
   }
-  extern "C" void LLVMFuzzerTestOneInput(unsigned char *Data, size_t Size) {
+  extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
     static int unused = Init();
     SSL *server = SSL_new(sctx);
     BIO *sinbio = BIO_new(BIO_s_mem());
@@ -234,9 +247,10 @@ to find Heartbleed with LibFuzzer::
     BIO_write(sinbio, Data, Size);
     SSL_do_handshake(server);
     SSL_free(server);
+    return 0;
   }
   EOF
-  # Build the fuzzer. 
+  # Build the fuzzer.
   clang++ -g handshake-fuzz.cc  -fsanitize=address \
     openssl-1.0.1f/libssl.a openssl-1.0.1f/libcrypto.a Fuzzer*.o
   # Run 20 independent fuzzer jobs.
@@ -252,26 +266,43 @@ Voila::
       #1 0x4db504 in tls1_process_heartbeat openssl-1.0.1f/ssl/t1_lib.c:2586:3
       #2 0x580be3 in ssl3_read_bytes openssl-1.0.1f/ssl/s3_pkt.c:1092:4
 
+Note: a `similar fuzzer <https://boringssl.googlesource.com/boringssl/+/HEAD/FUZZING.md>`_
+is now a part of the boringssl source tree.
+
 Advanced features
 =================
 
-Tokens
-------
+Dictionaries
+------------
+*EXPERIMENTAL*.
+LibFuzzer supports user-supplied dictionaries with input language keywords
+or other interesting byte sequences (e.g. multi-byte magic values).
+Use ``-dict=DICTIONARY_FILE``. For some input languages using a dictionary
+may significantly improve the search speed.
+The dictionary syntax is similar to that used by AFL_ for its ``-x`` option::
 
-By default, the fuzzer is not aware of complexities of the input language
-and when fuzzing e.g. a C++ parser it will mostly stress the lexer.
-It is very hard for the fuzzer to come up with something like ``reinterpret_cast<int>``
-from a test corpus that doesn't have it.
-See a detailed discussion of this topic at
-http://lcamtuf.blogspot.com/2015/01/afl-fuzz-making-up-grammar-with.html.
+  # Lines starting with '#' and empty lines are ignored.
 
-lib/Fuzzer implements a simple technique that allows to fuzz input languages with
-long tokens. All you need is to prepare a text file containing up to 253 tokens, one token per line,
-and pass it to the fuzzer as ``-tokens=TOKENS_FILE.txt``.
-Three implicit tokens are added: ``" "``, ``"\t"``, and ``"\n"``.
-The fuzzer itself will still be mutating a string of bytes
-but before passing this input to the target library it will replace every byte ``b`` with the ``b``-th token.
-If there are less than ``b`` tokens, a space will be added instead.
+  # Adds "blah" (w/o quotes) to the dictionary.
+  kw1="blah"
+  # Use \\ for backslash and \" for quotes.
+  kw2="\"ac\\dc\""
+  # Use \xAB for hex values
+  kw3="\xF7\xF8"
+  # the name of the keyword followed by '=' may be omitted:
+  "foo\x0Abar"
+
+Data-flow-guided fuzzing
+------------------------
+
+*EXPERIMENTAL*.
+With an additional compiler flag ``-fsanitize-coverage=trace-cmp`` (see SanitizerCoverageTraceDataFlow_)
+and extra run-time flag ``-use_traces=1`` the fuzzer will try to apply *data-flow-guided fuzzing*.
+That is, the fuzzer will record the inputs to comparison instructions, switch statements,
+and several libc functions (``memcmp``, ``strcmp``, ``strncmp``, etc).
+It will later use those recorded inputs during mutations.
+
+This mode can be combined with DataFlowSanitizer_ to achieve better sensitivity.
 
 AFL compatibility
 -----------------
@@ -321,17 +352,37 @@ Build (make sure to use fresh clang as the host compiler)::
 
 Optionally build other kinds of binaries (asan+Debug, msan, ubsan, etc).
 
-TODO: commit the pre-fuzzed corpus to svn (?).
-
 Tracking bug: https://llvm.org/bugs/show_bug.cgi?id=23052
 
 clang-fuzzer
 ------------
 
-The default behavior is very similar to ``clang-format-fuzzer``.
-Clang can also be fuzzed with Tokens_ using ``-tokens=$LLVM/lib/Fuzzer/cxx_fuzzer_tokens.txt`` option.
+The behavior is very similar to ``clang-format-fuzzer``.
 
 Tracking bug: https://llvm.org/bugs/show_bug.cgi?id=23057
+
+llvm-as-fuzzer
+--------------
+
+Tracking bug: https://llvm.org/bugs/show_bug.cgi?id=24639
+
+llvm-mc-fuzzer
+--------------
+
+This tool fuzzes the MC layer. Currently it is only able to fuzz the
+disassembler but it is hoped that assembly, and round-trip verification will be
+added in future.
+
+When run in dissassembly mode, the inputs are opcodes to be disassembled. The
+fuzzer will consume as many instructions as possible and will stop when it
+finds an invalid instruction or runs out of data.
+
+Please note that the command line interface differs slightly from that of other
+fuzzers. The fuzzer arguments should follow ``--fuzzer-args`` and should have
+a single dash, while other arguments control the operation mode and target in a
+similar manner to ``llvm-mc`` and should have two dashes. For example::
+
+  llvm-mc-fuzzer --triple=aarch64-linux-gnu --disassemble --fuzzer-args -max_len=4 -jobs=10
 
 Buildbot
 --------
@@ -348,7 +399,7 @@ The corpuses are stored in git on github and can be used like this::
   git clone https://github.com/kcc/fuzzing-with-sanitizers.git
   bin/clang-format-fuzzer fuzzing-with-sanitizers/llvm/clang-format/C1
   bin/clang-fuzzer        fuzzing-with-sanitizers/llvm/clang/C1/
-  bin/clang-fuzzer        fuzzing-with-sanitizers/llvm/clang/TOK1  -tokens=$LLVM/llvm/lib/Fuzzer/cxx_fuzzer_tokens.txt
+  bin/llvm-as-fuzzer      fuzzing-with-sanitizers/llvm/llvm-as/C1  -only_ascii=1
 
 
 FAQ
@@ -407,11 +458,46 @@ small inputs, each input takes < 1ms to run, and the library code is not expecte
 to crash on invalid inputs.
 Examples: regular expression matchers, text or binary format parsers.
 
+Trophies
+========
+* GLIBC: https://sourceware.org/glibc/wiki/FuzzingLibc
+
+* MUSL LIBC:
+
+  * http://git.musl-libc.org/cgit/musl/commit/?id=39dfd58417ef642307d90306e1c7e50aaec5a35c
+  * http://www.openwall.com/lists/oss-security/2015/03/30/3
+
+* `pugixml <https://github.com/zeux/pugixml/issues/39>`_
+
+* PCRE: Search for "LLVM fuzzer" in http://vcs.pcre.org/pcre2/code/trunk/ChangeLog?view=markup;
+  also in `bugzilla <https://bugs.exim.org/buglist.cgi?bug_status=__all__&content=libfuzzer&no_redirect=1&order=Importance&product=PCRE&query_format=specific>`_
+
+* `ICU <http://bugs.icu-project.org/trac/ticket/11838>`_
+
+* `Freetype <https://savannah.nongnu.org/search/?words=LibFuzzer&type_of_search=bugs&Search=Search&exact=1#options>`_
+
+* `Harfbuzz <https://github.com/behdad/harfbuzz/issues/139>`_
+
+* `SQLite <http://www3.sqlite.org/cgi/src/info/088009efdd56160b>`_
+
+* `Python <http://bugs.python.org/issue25388>`_
+
+* OpenSSL/BoringSSL: `[1] <https://boringssl.googlesource.com/boringssl/+/cb852981cd61733a7a1ae4fd8755b7ff950e857d>`_
+
+* `Libxml2
+  <https://bugzilla.gnome.org/buglist.cgi?bug_status=__all__&content=libFuzzer&list_id=68957&order=Importance&product=libxml2&query_format=specific>`_
+
+* `Linux Kernel's BPF verifier <https://github.com/iovisor/bpf-fuzzer>`_
+
+* LLVM: `Clang <https://llvm.org/bugs/show_bug.cgi?id=23057>`_, `Clang-format <https://llvm.org/bugs/show_bug.cgi?id=23052>`_, `libc++ <https://llvm.org/bugs/show_bug.cgi?id=24411>`_, `llvm-as <https://llvm.org/bugs/show_bug.cgi?id=24639>`_, Disassembler: http://reviews.llvm.org/rL247405, http://reviews.llvm.org/rL247414, http://reviews.llvm.org/rL247416, http://reviews.llvm.org/rL247417, http://reviews.llvm.org/rL247420, http://reviews.llvm.org/rL247422.
+
 .. _pcre2: http://www.pcre.org/
 
 .. _AFL: http://lcamtuf.coredump.cx/afl/
 
 .. _SanitizerCoverage: http://clang.llvm.org/docs/SanitizerCoverage.html
+.. _SanitizerCoverageTraceDataFlow: http://clang.llvm.org/docs/SanitizerCoverage.html#tracing-data-flow
+.. _DataFlowSanitizer: http://clang.llvm.org/docs/DataFlowSanitizer.html
 
 .. _Heartbleed: http://en.wikipedia.org/wiki/Heartbleed
 

@@ -14,9 +14,11 @@ static const uint64_t kMagic = 8860221463604ULL;
 
 class MyFuzzer : public fuzzer::UserSuppliedFuzzer {
  public:
-  void TargetFunction(const uint8_t *Data, size_t Size) {
-    if (Size <= 10) return;
-    if (memcmp(Data, &kMagic, sizeof(kMagic))) return;
+  MyFuzzer(fuzzer::FuzzerRandomBase *Rand)
+      : fuzzer::UserSuppliedFuzzer(Rand) {}
+  int TargetFunction(const uint8_t *Data, size_t Size) {
+    if (Size <= 10) return 0;
+    if (memcmp(Data, &kMagic, sizeof(kMagic))) return 0;
     // It's hard to get here w/o advanced fuzzing techniques (e.g. cmp tracing).
     // So, we simply 'fix' the data in the custom mutator.
     if (Data[8] == 'H') {
@@ -27,6 +29,7 @@ class MyFuzzer : public fuzzer::UserSuppliedFuzzer {
         }
       }
     }
+    return 0;
   }
   // Custom mutator.
   virtual size_t Mutate(uint8_t *Data, size_t Size, size_t MaxSize) {
@@ -35,13 +38,14 @@ class MyFuzzer : public fuzzer::UserSuppliedFuzzer {
       Size = sizeof(kMagic);
     // "Fix" the data, then mutate.
     memcpy(Data, &kMagic, std::min(MaxSize, sizeof(kMagic)));
-    return BasicMutate(Data + sizeof(kMagic), Size - sizeof(kMagic),
-                       MaxSize - sizeof(kMagic));
+    return fuzzer::UserSuppliedFuzzer::Mutate(
+        Data + sizeof(kMagic), Size - sizeof(kMagic), MaxSize - sizeof(kMagic));
   }
   // No need to redefine CrossOver() here.
 };
 
 int main(int argc, char **argv) {
-  MyFuzzer F;
+  fuzzer::FuzzerRandomLibc Rand(0);
+  MyFuzzer F(&Rand);
   fuzzer::FuzzerDriver(argc, argv, F);
 }

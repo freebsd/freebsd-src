@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm-c/Core.h"
+#include "llvm-c/ErrorHandling.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/config.h"     // Get autoconf configuration settings
 #include "llvm/Support/Compiler.h"
@@ -151,6 +151,20 @@ void llvm::EnablePrettyStackTrace() {
   // The first time this is called, we register the crash printer.
   static bool HandlerRegistered = RegisterCrashPrinter();
   (void)HandlerRegistered;
+#endif
+}
+
+const void* llvm::SavePrettyStackState() {
+#if defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES)
+  return PrettyStackTraceHead;
+#else
+  return nullptr;
+#endif
+}
+
+void llvm::RestorePrettyStackState(const void* Top) {
+#if defined(HAVE_BACKTRACE) && defined(ENABLE_BACKTRACES)
+  PrettyStackTraceHead = (const PrettyStackTraceEntry*)Top;
 #endif
 }
 

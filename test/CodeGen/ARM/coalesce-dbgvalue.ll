@@ -15,7 +15,7 @@ target triple = "thumbv7-apple-ios3.0.0"
 @d = common global i32 0, align 4
 
 ; Function Attrs: nounwind ssp
-define i32 @pr16110() #0 {
+define i32 @pr16110() #0 !dbg !4 {
 for.cond1.preheader:
   store i32 0, i32* @c, align 4, !dbg !21
   br label %for.cond1.outer, !dbg !26
@@ -79,18 +79,18 @@ attributes #3 = { nounwind }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!33}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 (trunk 182024) (llvm/trunk 182023)", isOptimized: true, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !15, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 (trunk 182024) (llvm/trunk 182023)", isOptimized: true, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !15, imports: !2)
 !1 = !DIFile(filename: "pr16110.c", directory: "/d/b")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "pr16110", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 7, file: !1, scope: !5, type: !6, function: i32 ()* @pr16110, variables: !9)
+!4 = distinct !DISubprogram(name: "pr16110", line: 7, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 7, file: !1, scope: !5, type: !6, variables: !9)
 !5 = !DIFile(filename: "pr16110.c", directory: "/d/b")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}
 !8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{!10, !11}
-!10 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "e", line: 8, scope: !4, file: !5, type: !8)
-!11 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "f", line: 13, scope: !12, file: !5, type: !14)
+!10 = !DILocalVariable(name: "e", line: 8, scope: !4, file: !5, type: !8)
+!11 = !DILocalVariable(name: "f", line: 13, scope: !12, file: !5, type: !14)
 !12 = distinct !DILexicalBlock(line: 12, column: 0, file: !1, scope: !13)
 !13 = distinct !DILexicalBlock(line: 12, column: 0, file: !1, scope: !4)
 !14 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, baseType: !8)

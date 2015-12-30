@@ -27,7 +27,7 @@ target triple = "x86_64-apple-darwin"
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: ssp uwtable
-define internal void @__foo_block_invoke(i8* %.block_descriptor) #2 {
+define internal void @__foo_block_invoke(i8* %.block_descriptor) #2 !dbg !8 {
 entry:
   %.block_descriptor.addr = alloca i8*, align 8
   %block.addr = alloca <{ i8*, i32, i32, i8*, %struct.__block_descriptor*, void (...)* }>*, align 8
@@ -62,14 +62,14 @@ attributes #3 = { nounwind }
 !llvm.module.flags = !{!16, !17, !18, !19, !20, !21, !22}
 !llvm.ident = !{!23}
 
-!0 = !DICompileUnit(language: DW_LANG_ObjC, producer: "clang version 3.6.0 (trunk 223471)", isOptimized: false, runtimeVersion: 2, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_ObjC, producer: "clang version 3.6.0 (trunk 223471)", isOptimized: false, runtimeVersion: 2, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "foo.m", directory: "")
 !2 = !{}
 !3 = !{!8}
 !5 = !DIFile(filename: "foo.m", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{null}
-!8 = !DISubprogram(name: "__foo_block_invoke", line: 2, isLocal: true, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !1, scope: !5, type: !9, function: void (i8*)* @__foo_block_invoke, variables: !2)
+!8 = distinct !DISubprogram(name: "__foo_block_invoke", line: 2, isLocal: true, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 2, file: !1, scope: !5, type: !9, variables: !2)
 !9 = !DISubroutineType(types: !10)
 !10 = !{null, !11}
 !11 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: null)
@@ -102,7 +102,7 @@ attributes #3 = { nounwind }
 !41 = !DIBasicType(tag: DW_TAG_base_type, name: "long unsigned int", size: 64, align: 64, encoding: DW_ATE_unsigned)
 !42 = !DIDerivedType(tag: DW_TAG_member, name: "Size", size: 64, align: 64, offset: 64, file: !1, scope: !5, baseType: !41)
 !43 = !DIExpression()
-!47 = !DILocalVariable(tag: DW_TAG_arg_variable, name: ".block_descriptor", line: 2, arg: 1, flags: DIFlagArtificial, scope: !8, file: !5, type: !48)
+!47 = !DILocalVariable(name: ".block_descriptor", line: 2, arg: 1, flags: DIFlagArtificial, scope: !8, file: !5, type: !48)
 !48 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, baseType: !49)
 !49 = !DICompositeType(tag: DW_TAG_structure_type, name: "__block_literal_1", line: 2, size: 320, align: 64, file: !1, scope: !5, elements: !50)
 !50 = !{!51, !52, !53, !54, !56, !65}
@@ -123,7 +123,7 @@ attributes #3 = { nounwind }
 !65 = !DIDerivedType(tag: DW_TAG_member, name: "block", line: 2, size: 64, align: 64, offset: 256, flags: DIFlagPublic, file: !1, scope: !5, baseType: !25)
 !66 = !DILocation(line: 2, column: 20, scope: !8)
 !67 = !DILocation(line: 2, column: 21, scope: !8)
-!68 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "block", line: 2, scope: !8, file: !5, type: !25)
+!68 = !DILocalVariable(name: "block", line: 2, scope: !8, file: !5, type: !25)
 !69 = !DIExpression(DW_OP_deref, DW_OP_plus, 32)
 !70 = !DILocation(line: 2, column: 9, scope: !8)
 !71 = !DILocation(line: 2, column: 23, scope: !72)

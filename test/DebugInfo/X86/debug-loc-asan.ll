@@ -7,15 +7,14 @@
 ; int bar(int y) {
 ;   return y + 2;
 ; }
-; with "clang++ -S -emit-llvm -fsanitize=address -O0 -g test.cc"
+; with "clang++ -S -emit-llvm -mllvm -asan-skip-promotable-allocas=0 -fsanitize=address -O0 -g test.cc"
 
-; First, argument variable "y" resides in %rdi:
-; CHECK: DEBUG_VALUE: bar:y <- RDI
-
-; Then its address is stored in a location on a stack:
+; The address of the (potentially now malloc'ed) alloca ends up
+; in RDI, after which it is spilled to the stack. We record the
+; spill OFFSET on the stack for checking the debug info below.
+; CHECK: #DEBUG_VALUE: bar:y <- [%RDI+0]
 ; CHECK: movq %rdi, [[OFFSET:[0-9]+]](%rsp)
 ; CHECK-NEXT: [[START_LABEL:.Ltmp[0-9]+]]
-; CHECK-NEXT: DEBUG_VALUE: bar:y <- [RSP+[[OFFSET]]]
 ; This location should be valid until the end of the function.
 
 ; CHECK: .Ldebug_loc{{[0-9]+}}:
@@ -42,7 +41,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @__asan_gen_ = private unnamed_addr constant [16 x i8] c"1 32 4 6 y.addr\00", align 1
 
 ; Function Attrs: nounwind sanitize_address uwtable
-define i32 @_Z3bari(i32 %y) #0 {
+define i32 @_Z3bari(i32 %y) #0 !dbg !4 {
 entry:
   %MyAlloca = alloca [64 x i8], align 32
   %0 = ptrtoint [64 x i8]* %MyAlloca to i64
@@ -165,11 +164,11 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (209308)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (209308)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "test.cc", directory: "/llvm_cmake_gcc")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "bar", linkageName: "_Z3bari", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, function: i32 (i32)* @_Z3bari, variables: !2)
+!4 = distinct !DISubprogram(name: "bar", linkageName: "_Z3bari", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "test.cc", directory: "/llvm_cmake_gcc")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8, !8}
@@ -177,6 +176,6 @@ attributes #1 = { nounwind readnone }
 !9 = !{i32 2, !"Dwarf Version", i32 4}
 !10 = !{i32 2, !"Debug Info Version", i32 3}
 !11 = !{!"clang version 3.5.0 (209308)"}
-!12 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "y", line: 1, arg: 1, scope: !4, file: !5, type: !8)
+!12 = !DILocalVariable(name: "y", line: 1, arg: 1, scope: !4, file: !5, type: !8)
 !13 = !DILocation(line: 2, scope: !4)
 !14 = !DIExpression(DW_OP_deref)

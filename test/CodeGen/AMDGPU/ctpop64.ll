@@ -36,6 +36,24 @@ define void @v_ctpop_i64(i32 addrspace(1)* noalias %out, i64 addrspace(1)* noali
   ret void
 }
 
+; FIXME: or 0 should be replaxed with copy
+; FUNC-LABEL: {{^}}v_ctpop_i64_user:
+; GCN: buffer_load_dwordx2 v{{\[}}[[LOVAL:[0-9]+]]:[[HIVAL:[0-9]+]]{{\]}},
+; GCN: v_bcnt_u32_b32_e64 [[MIDRESULT:v[0-9]+]], v[[LOVAL]], 0
+; SI-NEXT: v_bcnt_u32_b32_e32 [[RESULT:v[0-9]+]], v[[HIVAL]], [[MIDRESULT]]
+; VI-NEXT: v_bcnt_u32_b32_e64 [[RESULT:v[0-9]+]], v[[HIVAL]], [[MIDRESULT]]
+; GCN-DAG: v_or_b32_e32 v[[RESULT_LO:[0-9]+]], s{{[0-9]+}}, [[RESULT]]
+; GCN-DAG: v_or_b32_e64 v[[RESULT_HI:[0-9]+]], 0, s{{[0-9]+}}
+; GCN: buffer_store_dwordx2 v{{\[}}[[RESULT_LO]]:[[RESULT_HI]]{{\]}}
+; GCN: s_endpgm
+define void @v_ctpop_i64_user(i64 addrspace(1)* noalias %out, i64 addrspace(1)* noalias %in, i64 %s.val) nounwind {
+  %val = load i64, i64 addrspace(1)* %in, align 8
+  %ctpop = call i64 @llvm.ctpop.i64(i64 %val) nounwind readnone
+  %or = or i64 %ctpop, %s.val
+  store i64 %or, i64 addrspace(1)* %out
+  ret void
+}
+
 ; FUNC-LABEL: {{^}}s_ctpop_v2i64:
 ; GCN: s_bcnt1_i32_b64
 ; GCN: s_bcnt1_i32_b64
@@ -99,8 +117,8 @@ define void @v_ctpop_v4i64(<4 x i32> addrspace(1)* noalias %out, <4 x i64> addrs
 ; SI: s_load_dwordx2 s{{\[}}[[LOVAL:[0-9]+]]:[[HIVAL:[0-9]+]]{{\]}}, s[{{[0-9]+:[0-9]+}}], 0xd
 ; VI: s_load_dwordx2 s{{\[}}[[LOVAL:[0-9]+]]:[[HIVAL:[0-9]+]]{{\]}}, s[{{[0-9]+:[0-9]+}}], 0x34
 ; GCN: s_bcnt1_i32_b64 [[RESULT:s[0-9]+]], {{s\[}}[[LOVAL]]:[[HIVAL]]{{\]}}
-; GCN: v_mov_b32_e32 v[[VLO:[0-9]+]], [[RESULT]]
-; GCN: v_mov_b32_e32 v[[VHI:[0-9]+]], s[[HIVAL]]
+; GCN-DAG: v_mov_b32_e32 v[[VLO:[0-9]+]], [[RESULT]]
+; GCN-DAG: v_mov_b32_e32 v[[VHI:[0-9]+]], s[[HIVAL]]
 ; GCN: buffer_store_dwordx2 {{v\[}}[[VLO]]:[[VHI]]{{\]}}
 ; GCN: s_endpgm
 define void @ctpop_i64_in_br(i64 addrspace(1)* %out, i64 addrspace(1)* %in, i64 %ctpop_arg, i32 %cond) {

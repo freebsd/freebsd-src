@@ -34,7 +34,7 @@ target triple = "x86_64-apple-macosx10.9.0"
 %struct.A = type { i8 }
 
 ; Function Attrs: nounwind ssp uwtable
-define void @_ZN1AD2Ev(%struct.A* %this) unnamed_addr #0 align 2 {
+define void @_ZN1AD2Ev(%struct.A* %this) unnamed_addr #0 align 2 !dbg !17 {
 entry:
   %this.addr = alloca %struct.A*, align 8
   store %struct.A* %this, %struct.A** %this.addr, align 8
@@ -47,7 +47,7 @@ entry:
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: nounwind ssp uwtable
-define void @_ZN1AD1Ev(%struct.A* %this) unnamed_addr #0 align 2 {
+define void @_ZN1AD1Ev(%struct.A* %this) unnamed_addr #0 align 2 !dbg !18 {
 entry:
   %this.addr = alloca %struct.A*, align 8
   store %struct.A* %this, %struct.A** %this.addr, align 8
@@ -58,7 +58,7 @@ entry:
 }
 
 ; Function Attrs: ssp uwtable
-define void @_Z3foov() #2 {
+define void @_Z3foov() #2 !dbg !19 {
 entry:
   %a = alloca %struct.A, align 1
   call void @llvm.dbg.declare(metadata %struct.A* %a, metadata !34, metadata !DIExpression()), !dbg !35
@@ -77,7 +77,7 @@ attributes #2 = { ssp uwtable }
 !llvm.module.flags = !{!23, !24}
 !llvm.ident = !{!25}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !16, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !16, globals: !2, imports: !2)
 !1 = !DIFile(filename: "linkage-name.cpp", directory: "")
 !2 = !{}
 !3 = !{!4}
@@ -92,23 +92,23 @@ attributes #2 = { ssp uwtable }
 !13 = !DISubroutineType(types: !14)
 !14 = !{null, !9}
 !16 = !{!17, !18, !19}
-!17 = !DISubprogram(name: "~A", linkageName: "_ZN1AD2Ev", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 6, file: !1, scope: !"_ZTS1A", type: !13, function: void (%struct.A*)* @_ZN1AD2Ev, declaration: !12, variables: !2)
-!18 = !DISubprogram(name: "~A", linkageName: "_ZN1AD1Ev", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 6, file: !1, scope: !"_ZTS1A", type: !13, function: void (%struct.A*)* @_ZN1AD1Ev, declaration: !12, variables: !2)
-!19 = !DISubprogram(name: "foo", linkageName: "_Z3foov", line: 10, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 10, file: !1, scope: !20, type: !21, function: void ()* @_Z3foov, variables: !2)
+!17 = distinct !DISubprogram(name: "~A", linkageName: "_ZN1AD2Ev", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 6, file: !1, scope: !"_ZTS1A", type: !13, declaration: !12, variables: !2)
+!18 = distinct !DISubprogram(name: "~A", linkageName: "_ZN1AD1Ev", line: 6, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 6, file: !1, scope: !"_ZTS1A", type: !13, declaration: !12, variables: !2)
+!19 = distinct !DISubprogram(name: "foo", linkageName: "_Z3foov", line: 10, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 10, file: !1, scope: !20, type: !21, variables: !2)
 !20 = !DIFile(filename: "linkage-name.cpp", directory: "")
 !21 = !DISubroutineType(types: !22)
 !22 = !{null}
 !23 = !{i32 2, !"Dwarf Version", i32 2}
 !24 = !{i32 1, !"Debug Info Version", i32 3}
 !25 = !{!"clang version 3.5.0 "}
-!26 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !17, type: !27)
+!26 = !DILocalVariable(name: "this", arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !17, type: !27)
 !27 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !"_ZTS1A")
 !28 = !DILocation(line: 0, scope: !17)
 !29 = !DILocation(line: 8, scope: !17)
-!30 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !18, type: !27)
+!30 = !DILocalVariable(name: "this", arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !18, type: !27)
 !31 = !DILocation(line: 0, scope: !18)
 !32 = !DILocation(line: 6, scope: !18)
 !33 = !DILocation(line: 8, scope: !18)
-!34 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 11, scope: !19, file: !20, type: !"_ZTS1A")
+!34 = !DILocalVariable(name: "a", line: 11, scope: !19, file: !20, type: !"_ZTS1A")
 !35 = !DILocation(line: 11, scope: !19)
 !36 = !DILocation(line: 12, scope: !19)

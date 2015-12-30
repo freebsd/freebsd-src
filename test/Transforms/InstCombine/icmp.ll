@@ -819,8 +819,8 @@ define i1 @test68(i32 %x) nounwind uwtable {
 
 ; PR14708
 ; CHECK-LABEL: @test69(
-; CHECK: %1 = and i32 %c, -33
-; CHECK: %2 = icmp eq i32 %1, 65
+; CHECK: %1 = or i32 %c, 32
+; CHECK: %2 = icmp eq i32 %1, 97
 ; CHECK: ret i1 %2
 define i1 @test69(i32 %c) nounwind uwtable {
   %1 = icmp eq i32 %c, 97
@@ -1602,4 +1602,73 @@ define i32 @f7(i32 %a, i32 %b) {
   %cmp = icmp ne i32 %sext, %sext6
   %s = select i1 %cmp, i32 10000, i32 0
   ret i32 %s
+}
+
+; CHECK: @f8(
+; CHECK-NEXT: [[RESULT:%[a-z0-9]+]] = icmp ne i32 %lim, 0
+; CHECK-NEXT: ret i1 [[RESULT]]
+define i1 @f8(i32 %val, i32 %lim) {
+  %lim.sub = add i32 %lim, -1
+  %val.and = and i32 %val, %lim.sub
+  %r = icmp ult i32 %val.and, %lim
+  ret i1 %r
+}
+
+; CHECK: @f9(
+; CHECK-NEXT: [[RESULT:%[a-z0-9]+]] = icmp ne i32 %lim, 0
+; CHECK-NEXT: ret i1 [[RESULT]]
+define i1 @f9(i32 %val, i32 %lim) {
+  %lim.sub = sub i32 %lim, 1
+  %val.and = and i32 %val, %lim.sub
+  %r = icmp ult i32 %val.and, %lim
+  ret i1 %r
+}
+
+; CHECK: @f10(
+; CHECK: [[CMP:%.*]] = icmp uge i16 %p, mul (i16 zext (i8 ptrtoint (i1 (i16)* @f10 to i8) to i16), i16 zext (i8 ptrtoint (i1 (i16)* @f10 to i8) to i16))
+; CHECK-NEXT: ret i1 [[CMP]]
+define i1 @f10(i16 %p) {
+entry:
+  %cmp580 = icmp ule i16 mul (i16 zext (i8 ptrtoint (i1 (i16)* @f10 to i8) to i16), i16 zext (i8 ptrtoint (i1 (i16)* @f10 to i8) to i16)), %p
+  ret i1 %cmp580
+}
+
+; CHECK-LABEL: @cmp_sgt_rhs_dec
+; CHECK-NOT: sub
+; CHECK: icmp sge i32 %conv, %i
+define i1 @cmp_sgt_rhs_dec(float %x, i32 %i) {
+  %conv = fptosi float %x to i32
+  %dec = sub nsw i32 %i, 1
+  %cmp = icmp sgt i32 %conv, %dec
+  ret i1 %cmp
+}
+
+; CHECK-LABEL: @cmp_sle_rhs_dec
+; CHECK-NOT: sub
+; CHECK: icmp slt i32 %conv, %i
+define i1 @cmp_sle_rhs_dec(float %x, i32 %i) {
+  %conv = fptosi float %x to i32
+  %dec = sub nsw i32 %i, 1
+  %cmp = icmp sle i32 %conv, %dec
+  ret i1 %cmp
+}
+
+; CHECK-LABEL: @cmp_sge_rhs_inc
+; CHECK-NOT: add
+; CHECK: icmp sgt i32 %conv, %i
+define i1 @cmp_sge_rhs_inc(float %x, i32 %i) {
+  %conv = fptosi float %x to i32
+  %inc = add nsw i32 %i, 1
+  %cmp = icmp sge i32 %conv, %inc
+  ret i1 %cmp
+}
+
+; CHECK-LABEL: @cmp_slt_rhs_inc
+; CHECK-NOT: add
+; CHECK: icmp sle i32 %conv, %i
+define i1 @cmp_slt_rhs_inc(float %x, i32 %i) {
+  %conv = fptosi float %x to i32
+  %inc = add nsw i32 %i, 1
+  %cmp = icmp slt i32 %conv, %inc
+  ret i1 %cmp
 }

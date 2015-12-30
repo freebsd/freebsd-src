@@ -45,7 +45,7 @@ target triple = "x86_64-apple-darwin"
 @t = external global i64
 
 ; Function Attrs: nounwind
-define i32 @_Z4testv() #0 {
+define i32 @_Z4testv() #0 !dbg !17 {
 entry:
   %retval = alloca i32, align 4
   %y = alloca %struct.p, align 8
@@ -109,7 +109,7 @@ attributes #3 = { nounwind }
 !llvm.module.flags = !{!21, !22}
 !llvm.ident = !{!23}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !16, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.7.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !16, globals: !2, imports: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "")
 !2 = !{}
 !3 = !{!4, !10}
@@ -126,7 +126,7 @@ attributes #3 = { nounwind }
 !14 = !DIDerivedType(tag: DW_TAG_member, name: "x", line: 10, size: 128, align: 64, offset: 64, file: !5, scope: !"_ZTS1r", baseType: !"_ZTS1p")
 !15 = !DIDerivedType(tag: DW_TAG_member, name: "y", line: 11, size: 128, align: 64, offset: 192, file: !5, scope: !"_ZTS1r", baseType: !"_ZTS1p")
 !16 = !{!17}
-!17 = !DISubprogram(name: "test", linkageName: "_Z4testv", line: 18, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 18, file: !5, scope: !18, type: !19, function: i32 ()* @_Z4testv, variables: !2)
+!17 = distinct !DISubprogram(name: "test", linkageName: "_Z4testv", line: 18, isLocal: false, isDefinition: true, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 18, file: !5, scope: !18, type: !19, variables: !2)
 !18 = !DIFile(filename: "pr22393.cc", directory: "")
 !19 = !DISubroutineType(types: !20)
 !20 = !{!13}
@@ -137,10 +137,10 @@ attributes #3 = { nounwind }
 !25 = distinct !DILexicalBlock(line: 19, column: 0, file: !5, scope: !17)
 !26 = !DILocation(line: 19, scope: !17)
 !27 = !DILocation(line: 20, scope: !25)
-!28 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "y", line: 21, scope: !17, file: !18, type: !"_ZTS1p")
+!28 = !DILocalVariable(name: "y", line: 21, scope: !17, file: !18, type: !"_ZTS1p")
 !29 = !DIExpression()
 !30 = !DILocation(line: 21, scope: !17)
-!31 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "r", line: 22, scope: !17, file: !18, type: !"_ZTS1r")
+!31 = !DILocalVariable(name: "r", line: 22, scope: !17, file: !18, type: !"_ZTS1r")
 !32 = !DILocation(line: 22, scope: !17)
 !33 = !DILocation(line: 23, scope: !17)
 !34 = !DILocation(line: 24, scope: !17)

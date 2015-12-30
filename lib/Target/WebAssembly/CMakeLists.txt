@@ -1,20 +1,39 @@
 set(LLVM_TARGET_DEFINITIONS WebAssembly.td)
 
+tablegen(LLVM WebAssemblyGenAsmWriter.inc -gen-asm-writer)
+tablegen(LLVM WebAssemblyGenDAGISel.inc -gen-dag-isel)
+tablegen(LLVM WebAssemblyGenFastISel.inc -gen-fast-isel)
+tablegen(LLVM WebAssemblyGenInstrInfo.inc -gen-instr-info)
 tablegen(LLVM WebAssemblyGenMCCodeEmitter.inc -gen-emitter)
 tablegen(LLVM WebAssemblyGenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM WebAssemblyGenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(WebAssemblyCommonTableGen)
 
 add_llvm_target(WebAssemblyCodeGen
+  Relooper.cpp
+  WebAssemblyArgumentMove.cpp
+  WebAssemblyAsmPrinter.cpp
+  WebAssemblyCFGStackify.cpp
+  WebAssemblyFastISel.cpp
   WebAssemblyFrameLowering.cpp
-  WebAssemblyInstrInfo.cpp
   WebAssemblyISelDAGToDAG.cpp
   WebAssemblyISelLowering.cpp
+  WebAssemblyInstrInfo.cpp
+  WebAssemblyLowerBrUnless.cpp
   WebAssemblyMachineFunctionInfo.cpp
+  WebAssemblyMCInstLower.cpp
+  WebAssemblyOptimizeReturned.cpp
+  WebAssemblyPeephole.cpp
+  WebAssemblyPEI.cpp
   WebAssemblyRegisterInfo.cpp
+  WebAssemblyRegColoring.cpp
+  WebAssemblyRegNumbering.cpp
+  WebAssemblyRegStackify.cpp
   WebAssemblySelectionDAGInfo.cpp
+  WebAssemblyStoreResults.cpp
   WebAssemblySubtarget.cpp
   WebAssemblyTargetMachine.cpp
+  WebAssemblyTargetObjectFile.cpp
   WebAssemblyTargetTransformInfo.cpp
 )
 

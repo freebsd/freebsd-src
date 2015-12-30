@@ -1,11 +1,11 @@
-; RUN: llc -O0 -march=amdgcn -mtriple=amdgcn-unknown-amdhsa -verify-machineinstrs < %s | FileCheck %s
+; RUN: llc -O0 -march=amdgcn -mtriple=amdgcn-unknown-amdhsa -verify-machineinstrs -mattr=-flat-for-global < %s | FileCheck %s
 
 ; CHECK-LABEL: {{^}}test_debug_value:
-; CHECK: s_load_dwordx2
-; CHECK: DEBUG_VALUE: test_debug_value:globalptr_arg <- SGPR0_SGPR1
+; CHECK: s_load_dwordx2 s[4:5]
+; CHECK: DEBUG_VALUE: test_debug_value:globalptr_arg <- %SGPR4_SGPR5
 ; CHECK: buffer_store_dword
 ; CHECK: s_endpgm
-define void @test_debug_value(i32 addrspace(1)* nocapture %globalptr_arg) #0 {
+define void @test_debug_value(i32 addrspace(1)* nocapture %globalptr_arg) #0 !dbg !4 {
 entry:
   tail call void @llvm.dbg.value(metadata i32 addrspace(1)* %globalptr_arg, i64 0, metadata !10, metadata !13), !dbg !14
   store i32 123, i32 addrspace(1)* %globalptr_arg, align 4
@@ -24,13 +24,13 @@ attributes #1 = { nounwind readnone }
 !1 = !DIFile(filename: "/tmp/test_debug_value.cl", directory: "/Users/matt/src/llvm/build_debug")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "test_debug_value", scope: !1, file: !1, line: 1, type: !5, isLocal: false, isDefinition: true, scopeLine: 2, flags: DIFlagPrototyped, isOptimized: true, function: void (i32 addrspace(1)*)* @test_debug_value, variables: !9)
+!4 = distinct !DISubprogram(name: "test_debug_value", scope: !1, file: !1, line: 1, type: !5, isLocal: false, isDefinition: true, scopeLine: 2, flags: DIFlagPrototyped, isOptimized: true, variables: !9)
 !5 = !DISubroutineType(types: !6)
 !6 = !{null, !7}
 !7 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !8, size: 64, align: 32)
 !8 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{!10}
-!10 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "globalptr_arg", arg: 1, scope: !4, file: !1, line: 1, type: !7)
+!10 = !DILocalVariable(name: "globalptr_arg", arg: 1, scope: !4, file: !1, line: 1, type: !7)
 !11 = !{i32 2, !"Dwarf Version", i32 4}
 !12 = !{i32 2, !"Debug Info Version", i32 3}
 !13 = !DIExpression()

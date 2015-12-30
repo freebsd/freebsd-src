@@ -44,8 +44,9 @@ We'll start with expressions first:
     /// NumberExprAST - Expression class for numeric literals like "1.0".
     class NumberExprAST : public ExprAST {
       double Val;
+
     public:
-      NumberExprAST(double val) : Val(val) {}
+      NumberExprAST(double Val) : Val(Val) {}
     };
 
 The code above shows the definition of the base ExprAST class and one
@@ -65,26 +66,31 @@ language:
     /// VariableExprAST - Expression class for referencing a variable, like "a".
     class VariableExprAST : public ExprAST {
       std::string Name;
+
     public:
-      VariableExprAST(const std::string &name) : Name(name) {}
+      VariableExprAST(const std::string &Name) : Name(Name) {}
     };
 
     /// BinaryExprAST - Expression class for a binary operator.
     class BinaryExprAST : public ExprAST {
       char Op;
-      ExprAST *LHS, *RHS;
+      std::unique_ptr<ExprAST> LHS, RHS;
+
     public:
-      BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs)
-        : Op(op), LHS(lhs), RHS(rhs) {}
+      BinaryExprAST(char op, std::unique_ptr<ExprAST> LHS,
+                    std::unique_ptr<ExprAST> RHS)
+        : Op(op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
     };
 
     /// CallExprAST - Expression class for function calls.
     class CallExprAST : public ExprAST {
       std::string Callee;
-      std::vector<ExprAST*> Args;
+      std::vector<std::unique_ptr<ExprAST>> Args;
+
     public:
-      CallExprAST(const std::string &callee, std::vector<ExprAST*> &args)
-        : Callee(callee), Args(args) {}
+      CallExprAST(const std::string &Callee,
+                  std::vector<std::unique_ptr<ExprAST>> Args)
+        : Callee(Callee), Args(std::move(Args)) {}
     };
 
 This is all (intentionally) rather straight-forward: variables capture
@@ -109,18 +115,21 @@ way to talk about functions themselves:
     class PrototypeAST {
       std::string Name;
       std::vector<std::string> Args;
+
     public:
-      PrototypeAST(const std::string &name, const std::vector<std::string> &args)
-        : Name(name), Args(args) {}
+      PrototypeAST(const std::string &name, std::vector<std::string> Args)
+        : Name(name), Args(std::move(Args)) {}
     };
 
     /// FunctionAST - This class represents a function definition itself.
     class FunctionAST {
-      PrototypeAST *Proto;
-      ExprAST *Body;
+      std::unique_ptr<PrototypeAST> Proto;
+      std::unique_ptr<ExprAST> Body;
+
     public:
-      FunctionAST(PrototypeAST *proto, ExprAST *body)
-        : Proto(proto), Body(body) {}
+      FunctionAST(std::unique_ptr<PrototypeAST> Proto,
+                  std::unique_ptr<ExprAST> Body)
+        : Proto(std::move(Proto)), Body(std::move(Body)) {}
     };
 
 In Kaleidoscope, functions are typed with just a count of their
@@ -142,9 +151,10 @@ be generated with calls like this:
 
 .. code-block:: c++
 
-      ExprAST *X = new VariableExprAST("x");
-      ExprAST *Y = new VariableExprAST("y");
-      ExprAST *Result = new BinaryExprAST('+', X, Y);
+      auto LHS = llvm::make_unique<VariableExprAST>("x");
+      auto RHS = llvm::make_unique<VariableExprAST>("y");
+      auto Result = std::make_unique<BinaryExprAST>('+', std::move(LHS),
+                                                    std::move(RHS));
 
 In order to do this, we'll start by defining some basic helper routines:
 
@@ -167,9 +177,14 @@ be parsed.
 
 
     /// Error* - These are little helper functions for error handling.
-    ExprAST *Error(const char *Str) { fprintf(stderr, "Error: %s\n", Str);return 0;}
-    PrototypeAST *ErrorP(const char *Str) { Error(Str); return 0; }
-    FunctionAST *ErrorF(const char *Str) { Error(Str); return 0; }
+    std::unique_ptr<ExprAST> Error(const char *Str) {
+      fprintf(stderr, "Error: %s\n", Str);
+      return nullptr;
+    }
+    std::unique_ptr<PrototypeAST> ErrorP(const char *Str) {
+      Error(Str);
+      return nullptr;
+    }
 
 The ``Error`` routines are simple helper routines that our parser will
 use to handle errors. The error recovery in our parser will not be the
@@ -190,10 +205,10 @@ which parses that production. For numeric literals, we have:
 .. code-block:: c++
 
     /// numberexpr ::= number
-    static ExprAST *ParseNumberExpr() {
-      ExprAST *Result = new NumberExprAST(NumVal);
+    static std::unique_ptr<ExprAST> ParseNumberExpr() {
+      auto Result = llvm::make_unique<NumberExprAST>(NumVal);
       getNextToken(); // consume the number
-      return Result;
+      return std::move(Result);
     }
 
 This routine is very simple: it expects to be called when the current
@@ -211,14 +226,15 @@ the parenthesis operator is defined like this:
 .. code-block:: c++
 
     /// parenexpr ::= '(' expression ')'
-    static ExprAST *ParseParenExpr() {
-      getNextToken();  // eat (.
-      ExprAST *V = ParseExpression();
-      if (!V) return 0;
+    static std::unique_ptr<ExprAST> ParseParenExpr() {
+      getNextToken(); // eat (.
+      auto V = ParseExpression();
+      if (!V)
+        return nullptr;
 
       if (CurTok != ')')
         return Error("expected ')'");
-      getNextToken();  // eat ).
+      getNextToken(); // eat ).
       return V;
     }
 
@@ -250,24 +266,26 @@ function calls:
     /// identifierexpr
     ///   ::= identifier
     ///   ::= identifier '(' expression* ')'
-    static ExprAST *ParseIdentifierExpr() {
+    static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
       std::string IdName = IdentifierStr;
 
       getNextToken();  // eat identifier.
 
       if (CurTok != '(') // Simple variable ref.
-        return new VariableExprAST(IdName);
+        return llvm::make_unique<VariableExprAST>(IdName);
 
       // Call.
       getNextToken();  // eat (
-      std::vector<ExprAST*> Args;
+      std::vector<std::unique_ptr<ExprAST>> Args;
       if (CurTok != ')') {
         while (1) {
-          ExprAST *Arg = ParseExpression();
-          if (!Arg) return 0;
-          Args.push_back(Arg);
+          if (auto Arg = ParseExpression())
+            Args.push_back(std::move(Arg));
+          else
+            return nullptr;
 
-          if (CurTok == ')') break;
+          if (CurTok == ')')
+            break;
 
           if (CurTok != ',')
             return Error("Expected ')' or ',' in argument list");
@@ -278,7 +296,7 @@ function calls:
       // Eat the ')'.
       getNextToken();
 
-      return new CallExprAST(IdName, Args);
+      return llvm::make_unique<CallExprAST>(IdName, std::move(Args));
     }
 
 This routine follows the same style as the other routines. (It expects
@@ -294,7 +312,7 @@ Now that we have all of our simple expression-parsing logic in place, we
 can define a helper function to wrap it together into one entry point.
 We call this class of expressions "primary" expressions, for reasons
 that will become more clear `later in the
-tutorial <LangImpl6.html#unary>`_. In order to parse an arbitrary
+tutorial <LangImpl6.html#user-defined-unary-operators>`_. In order to parse an arbitrary
 primary expression, we need to determine what sort of expression it is:
 
 .. code-block:: c++
@@ -303,12 +321,16 @@ primary expression, we need to determine what sort of expression it is:
     ///   ::= identifierexpr
     ///   ::= numberexpr
     ///   ::= parenexpr
-    static ExprAST *ParsePrimary() {
+    static std::unique_ptr<ExprAST> ParsePrimary() {
       switch (CurTok) {
-      default: return Error("unknown token when expecting an expression");
-      case tok_identifier: return ParseIdentifierExpr();
-      case tok_number:     return ParseNumberExpr();
-      case '(':            return ParseParenExpr();
+      default:
+        return Error("unknown token when expecting an expression");
+      case tok_identifier:
+        return ParseIdentifierExpr();
+      case tok_number:
+        return ParseNumberExpr();
+      case '(':
+        return ParseParenExpr();
       }
     }
 
@@ -374,7 +396,7 @@ would be easy enough to eliminate the map and do the comparisons in the
 With the helper above defined, we can now start parsing binary
 expressions. The basic idea of operator precedence parsing is to break
 down an expression with potentially ambiguous binary operators into
-pieces. Consider ,for example, the expression "a+b+(c+d)\*e\*f+g".
+pieces. Consider, for example, the expression "a+b+(c+d)\*e\*f+g".
 Operator precedence parsing considers this as a stream of primary
 expressions separated by binary operators. As such, it will first parse
 the leading primary expression "a", then it will see the pairs [+, b]
@@ -390,11 +412,12 @@ a sequence of [binop,primaryexpr] pairs:
     /// expression
     ///   ::= primary binoprhs
     ///
-    static ExprAST *ParseExpression() {
-      ExprAST *LHS = ParsePrimary();
-      if (!LHS) return 0;
+    static std::unique_ptr<ExprAST> ParseExpression() {
+      auto LHS = ParsePrimary();
+      if (!LHS)
+        return nullptr;
 
-      return ParseBinOpRHS(0, LHS);
+      return ParseBinOpRHS(0, std::move(LHS));
     }
 
 ``ParseBinOpRHS`` is the function that parses the sequence of pairs for
@@ -416,7 +439,8 @@ starts with:
 
     /// binoprhs
     ///   ::= ('+' primary)*
-    static ExprAST *ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
+    static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
+                                                  std::unique_ptr<ExprAST> LHS) {
       // If this is a binop, find its precedence.
       while (1) {
         int TokPrec = GetTokPrecedence();
@@ -440,8 +464,9 @@ expression:
         getNextToken();  // eat binop
 
         // Parse the primary expression after the binary operator.
-        ExprAST *RHS = ParsePrimary();
-        if (!RHS) return 0;
+        auto RHS = ParsePrimary();
+        if (!RHS)
+          return nullptr;
 
 As such, this code eats (and remembers) the binary operator and then
 parses the primary expression that follows. This builds up the whole
@@ -474,7 +499,8 @@ then continue parsing:
         }
 
         // Merge LHS/RHS.
-        LHS = new BinaryExprAST(BinOp, LHS, RHS);
+        LHS = llvm::make_unique<BinaryExprAST>(BinOp, std::move(LHS),
+                                               std::move(RHS));
       }  // loop around to the top of the while loop.
     }
 
@@ -498,11 +524,13 @@ above two blocks duplicated for context):
         // the pending operator take RHS as its LHS.
         int NextPrec = GetTokPrecedence();
         if (TokPrec < NextPrec) {
-          RHS = ParseBinOpRHS(TokPrec+1, RHS);
-          if (RHS == 0) return 0;
+          RHS = ParseBinOpRHS(TokPrec+1, std::move(RHS));
+          if (!RHS)
+            return nullptr;
         }
         // Merge LHS/RHS.
-        LHS = new BinaryExprAST(BinOp, LHS, RHS);
+        LHS = llvm::make_unique<BinaryExprAST>(BinOp, std::move(LHS),
+                                               std::move(RHS));
       }  // loop around to the top of the while loop.
     }
 
@@ -541,7 +569,7 @@ expressions):
 
     /// prototype
     ///   ::= id '(' id* ')'
-    static PrototypeAST *ParsePrototype() {
+    static std::unique_ptr<PrototypeAST> ParsePrototype() {
       if (CurTok != tok_identifier)
         return ErrorP("Expected function name in prototype");
 
@@ -561,7 +589,7 @@ expressions):
       // success.
       getNextToken();  // eat ')'.
 
-      return new PrototypeAST(FnName, ArgNames);
+      return llvm::make_unique<PrototypeAST>(FnName, std::move(ArgNames));
     }
 
 Given this, a function definition is very simple, just a prototype plus
@@ -570,14 +598,14 @@ an expression to implement the body:
 .. code-block:: c++
 
     /// definition ::= 'def' prototype expression
-    static FunctionAST *ParseDefinition() {
+    static std::unique_ptr<FunctionAST> ParseDefinition() {
       getNextToken();  // eat def.
-      PrototypeAST *Proto = ParsePrototype();
-      if (Proto == 0) return 0;
+      auto Proto = ParsePrototype();
+      if (!Proto) return nullptr;
 
-      if (ExprAST *E = ParseExpression())
-        return new FunctionAST(Proto, E);
-      return 0;
+      if (auto E = ParseExpression())
+        return llvm::make_unique<FunctionAST>(std::move(Proto), std::move(E));
+      return nullptr;
     }
 
 In addition, we support 'extern' to declare functions like 'sin' and
@@ -587,7 +615,7 @@ In addition, we support 'extern' to declare functions like 'sin' and
 .. code-block:: c++
 
     /// external ::= 'extern' prototype
-    static PrototypeAST *ParseExtern() {
+    static std::unique_ptr<PrototypeAST> ParseExtern() {
       getNextToken();  // eat extern.
       return ParsePrototype();
     }
@@ -599,13 +627,13 @@ nullary (zero argument) functions for them:
 .. code-block:: c++
 
     /// toplevelexpr ::= expression
-    static FunctionAST *ParseTopLevelExpr() {
-      if (ExprAST *E = ParseExpression()) {
+    static std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
+      if (auto E = ParseExpression()) {
         // Make an anonymous proto.
-        PrototypeAST *Proto = new PrototypeAST("", std::vector<std::string>());
-        return new FunctionAST(Proto, E);
+        auto Proto = llvm::make_unique<PrototypeAST>("", std::vector<std::string>());
+        return llvm::make_unique<FunctionAST>(std::move(Proto), std::move(E));
       }
-      return 0;
+      return nullptr;
     }
 
 Now that we have all the pieces, let's build a little driver that will
@@ -616,7 +644,7 @@ The Driver
 
 The driver for this simply invokes all of the parsing pieces with a
 top-level dispatch loop. There isn't much interesting here, so I'll just
-include the top-level loop. See `below <#code>`_ for full code in the
+include the top-level loop. See `below <#full-code-listing>`_ for full code in the
 "Top-Level Parsing" section.
 
 .. code-block:: c++
@@ -626,11 +654,20 @@ include the top-level loop. See `below <#code>`_ for full code in the
       while (1) {
         fprintf(stderr, "ready> ");
         switch (CurTok) {
-        case tok_eof:    return;
-        case ';':        getNextToken(); break;  // ignore top-level semicolons.
-        case tok_def:    HandleDefinition(); break;
-        case tok_extern: HandleExtern(); break;
-        default:         HandleTopLevelExpression(); break;
+        case tok_eof:
+          return;
+        case ';': // ignore top-level semicolons.
+          getNextToken();
+          break;
+        case tok_def:
+          HandleDefinition();
+          break;
+        case tok_extern:
+          HandleExtern();
+          break;
+        default:
+          HandleTopLevelExpression();
+          break;
         }
       }
     }

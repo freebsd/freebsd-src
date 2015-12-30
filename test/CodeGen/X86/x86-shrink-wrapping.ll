@@ -445,9 +445,9 @@ if.end:                                           ; preds = %for.body, %if.else
 ; CHECK-NEXT: xorl %eax, %eax
 ; CHECK-NEXT: %esi, %edi
 ; CHECK-NEXT: %esi, %edx
+; CHECK-NEXT: %esi, %ecx
 ; CHECK-NEXT: %esi, %r8d
 ; CHECK-NEXT: %esi, %r9d
-; CHECK-NEXT: %esi, %ecx
 ; CHECK-NEXT: callq _someVariadicFunc
 ; CHECK-NEXT: movl %eax, %esi
 ; CHECK-NEXT: shll $3, %esi
@@ -532,7 +532,11 @@ declare hidden fastcc %struct.temp_slot* @find_temp_slot_from_address(%struct.rt
 ;
 ; CHECK: movl $24599, [[TMP2:%e[a-z]+]]
 ; CHECK-NEXT: btl [[TMP]], [[TMP2]]
-; CHECK-NEXT: jb [[CLEANUP]]
+; CHECK-NEXT: jae [[LOR_LHS_FALSE:LBB[0-9_]+]]
+;
+; CHECK: [[CLEANUP]]: ## %cleanup
+; DISABLE: popq
+; CHECK-NEXT: retq
 ;
 ; CHECK: [[LOR_LHS_FALSE]]: ## %lor.lhs.false
 ; CHECK: cmpl $134, %e[[BF_LOAD2]]
@@ -551,10 +555,6 @@ declare hidden fastcc %struct.temp_slot* @find_temp_slot_from_address(%struct.rt
 ; CHECK-NEXT: je [[CLEANUP]]
 ;
 ; CHECK: movb $1, 57(%rax)
-;
-; CHECK: [[CLEANUP]]: ## %cleanup
-; DISABLE: popq
-; CHECK-NEXT: retq
 define void @useLEA(%struct.rtx_def* readonly %x) {
 entry:
   %cmp = icmp eq %struct.rtx_def* %x, null
@@ -637,3 +637,245 @@ if.end:
 declare void @abort() #0
 
 attributes #0 = { noreturn nounwind }
+
+
+; Make sure that we handle infinite loops properly When checking that the Save
+; and Restore blocks are control flow equivalent, the loop searches for the
+; immediate (post) dominator for the (restore) save blocks. When either the Save
+; or Restore block is located in an infinite loop the only immediate (post)
+; dominator is itself. In this case, we cannot perform shrink wrapping, but we
+; should return gracefully and continue compilation.
+; The only condition for this test is the compilation finishes correctly.
+;
+; CHECK-LABEL: infiniteloop
+; CHECK: retq
+define void @infiniteloop() {
+entry:
+  br i1 undef, label %if.then, label %if.end
+
+if.then:
+  %ptr = alloca i32, i32 4
+  br label %for.body
+
+for.body:                                         ; preds = %for.body, %entry
+  %sum.03 = phi i32 [ 0, %if.then ], [ %add, %for.body ]
+  %call = tail call i32 asm "movl $$1, $0", "=r,~{ebx}"()
+  %add = add nsw i32 %call, %sum.03
+  store i32 %add, i32* %ptr
+  br label %for.body
+
+if.end:
+  ret void
+}
+
+; Another infinite loop test this time with a body bigger than just one block.
+; CHECK-LABEL: infiniteloop2
+; CHECK: retq
+define void @infiniteloop2() {
+entry:
+  br i1 undef, label %if.then, label %if.end
+
+if.then:
+  %ptr = alloca i32, i32 4
+  br label %for.body
+
+for.body:                                         ; preds = %for.body, %entry
+  %sum.03 = phi i32 [ 0, %if.then ], [ %add, %body1 ], [ 1, %body2]
+  %call = tail call i32 asm "movl $$1, $0", "=r,~{ebx}"()
+  %add = add nsw i32 %call, %sum.03
+  store i32 %add, i32* %ptr
+  br i1 undef, label %body1, label %body2
+
+body1:
+  tail call void asm sideeffect "nop", "~{ebx}"()
+  br label %for.body
+
+body2:
+  tail call void asm sideeffect "nop", "~{ebx}"()
+  br label %for.body
+
+if.end:
+  ret void
+}
+
+; Another infinite loop test this time with two nested infinite loop.
+; CHECK-LABEL: infiniteloop3
+; CHECK: retq
+define void @infiniteloop3() {
+entry:
+  br i1 undef, label %loop2a, label %body
+
+body:                                             ; preds = %entry
+  br i1 undef, label %loop2a, label %end
+
+loop1:                                            ; preds = %loop2a, %loop2b
+  %var.phi = phi i32* [ %next.phi, %loop2b ], [ %var, %loop2a ]
+  %next.phi = phi i32* [ %next.load, %loop2b ], [ %next.var, %loop2a ]
+  %0 = icmp eq i32* %var, null
+  %next.load = load i32*, i32** undef
+  br i1 %0, label %loop2a, label %loop2b
+
+loop2a:                                           ; preds = %loop1, %body, %entry
+  %var = phi i32* [ null, %body ], [ null, %entry ], [ %next.phi, %loop1 ]
+  %next.var = phi i32* [ undef, %body ], [ null, %entry ], [ %next.load, %loop1 ]
+  br label %loop1
+
+loop2b:                                           ; preds = %loop1
+  %gep1 = bitcast i32* %var.phi to i32*
+  %next.ptr = bitcast i32* %gep1 to i32**
+  store i32* %next.phi, i32** %next.ptr
+  br label %loop1
+
+end:
+  ret void
+}
+
+; Check that we just don't bail out on RegMask.
+; In this case, the RegMask does not touch a CSR so we are good to go!
+; CHECK-LABEL: regmask:
+;
+; Compare the arguments and jump to exit.
+; No prologue needed.
+; ENABLE: cmpl %esi, %edi
+; ENABLE-NEXT: jge [[EXIT_LABEL:LBB[0-9_]+]]
+;
+; Prologue code.
+; (What we push does not matter. It should be some random sratch register.)
+; CHECK: pushq
+;
+; Compare the arguments and jump to exit.
+; After the prologue is set.
+; DISABLE: cmpl %esi, %edi
+; DISABLE-NEXT: jge [[EXIT_LABEL:LBB[0-9_]+]]
+;
+; CHECK: nop
+; Set the first argument to zero.
+; CHECK: xorl %edi, %edi
+; Set the second argument to addr.
+; CHECK-NEXT: movq %rdx, %rsi
+; CHECK-NEXT: callq _doSomething
+; CHECK-NEXT: popq
+; CHECK-NEXT: retq
+;
+; CHECK: [[EXIT_LABEL]]:
+; Set the first argument to 6.
+; CHECK-NEXT: movl $6, %edi
+; Set the second argument to addr.
+; CHECK-NEXT: movq %rdx, %rsi
+;
+; Without shrink-wrapping, we need to restore the stack before
+; making the tail call.
+; Epilogue code.
+; DISABLE-NEXT: popq
+;
+; CHECK-NEXT: jmp _doSomething
+define i32 @regmask(i32 %a, i32 %b, i32* %addr) {
+  %tmp2 = icmp slt i32 %a, %b
+  br i1 %tmp2, label %true, label %false
+
+true:
+  ; Clobber a CSR so that we check something on the regmask
+  ; of the tail call.
+  tail call void asm sideeffect "nop", "~{ebx}"()
+  %tmp4 = call i32 @doSomething(i32 0, i32* %addr)
+  br label %end
+
+false:
+  %tmp5 = tail call i32 @doSomething(i32 6, i32* %addr)
+  br label %end
+
+end:
+  %tmp.0 = phi i32 [ %tmp4, %true ], [ %tmp5, %false ]
+  ret i32 %tmp.0
+}
+
+@b = internal unnamed_addr global i1 false
+@c = internal unnamed_addr global i8 0, align 1
+@a = common global i32 0, align 4
+
+; Make sure the prologue does not clobber the EFLAGS when
+; it is live accross.
+; PR25629.
+; Note: The registers may change in the following patterns, but
+; because they imply register hierarchy (e.g., eax, al) this is
+; tricky to write robust patterns.
+;
+; CHECK-LABEL: useLEAForPrologue:
+;
+; Prologue is at the beginning of the function when shrink-wrapping
+; is disabled.
+; DISABLE: pushq
+; The stack adjustment can use SUB instr because we do not need to
+; preserve the EFLAGS at this point.
+; DISABLE-NEXT: subq $16, %rsp
+;
+; Load the value of b.
+; CHECK: movb _b(%rip), [[BOOL:%cl]]
+; Extract i1 from the loaded value.
+; CHECK-NEXT: andb $1, [[BOOL]]
+; Create the zero value for the select assignment.
+; CHECK-NEXT: xorl [[CMOVE_VAL:%eax]], [[CMOVE_VAL]]
+; CHECK-NEXT: testb [[BOOL]], [[BOOL]]
+; CHECK-NEXT: jne [[STOREC_LABEL:LBB[0-9_]+]]
+;
+; CHECK: movb $48, [[CMOVE_VAL:%al]]
+;
+; CHECK: [[STOREC_LABEL]]:
+;
+; ENABLE-NEXT: pushq
+; For the stack adjustment, we need to preserve the EFLAGS.
+; ENABLE-NEXT: leaq -16(%rsp), %rsp
+;
+; Technically, we should use CMOVE_VAL here or its subregister.
+; CHECK-NEXT: movb %al, _c(%rip)
+; testb set the EFLAGS read here.
+; CHECK-NEXT: je [[VARFUNC_CALL:LBB[0-9_]+]]
+;
+; The code of the loop is not interesting.
+; [...]
+;
+; CHECK: [[VARFUNC_CALL]]:
+; Set the null parameter.
+; CHECK-NEXT: xorl %edi, %edi
+; CHECK-NEXT: callq _varfunc
+;
+; Set the return value.
+; CHECK-NEXT: xorl %eax, %eax
+;
+; Epilogue code.
+; CHECK-NEXT: addq $16, %rsp
+; CHECK-NEXT: popq
+; CHECK-NEXT: retq
+define i32 @useLEAForPrologue(i32 %d, i32 %a, i8 %c) #3 {
+entry:
+  %tmp = alloca i3
+  %.b = load i1, i1* @b, align 1
+  %bool = select i1 %.b, i8 0, i8 48
+  store i8 %bool, i8* @c, align 1
+  br i1 %.b, label %for.body.lr.ph, label %for.end
+
+for.body.lr.ph:                                   ; preds = %entry
+  tail call void asm sideeffect "nop", "~{ebx}"()
+  br label %for.body
+
+for.body:                                         ; preds = %for.body.lr.ph, %for.body
+  %inc6 = phi i8 [ %c, %for.body.lr.ph ], [ %inc, %for.body ]
+  %cond5 = phi i32 [ %a, %for.body.lr.ph ], [ %conv3, %for.body ]
+  %cmp2 = icmp slt i32 %d, %cond5
+  %conv3 = zext i1 %cmp2 to i32
+  %inc = add i8 %inc6, 1
+  %cmp = icmp slt i8 %inc, 45
+  br i1 %cmp, label %for.body, label %for.cond.for.end_crit_edge
+
+for.cond.for.end_crit_edge:                       ; preds = %for.body
+  store i32 %conv3, i32* @a, align 4
+  br label %for.end
+
+for.end:                                          ; preds = %for.cond.for.end_crit_edge, %entry
+  %call = tail call i32 (i8*) @varfunc(i8* null)
+  ret i32 0
+}
+
+declare i32 @varfunc(i8* nocapture readonly)
+
+attributes #3 = { nounwind }

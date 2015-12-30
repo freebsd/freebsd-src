@@ -9,7 +9,7 @@
 
 @a = global %class.A zeroinitializer, align 1
 
-define i32 @_ZN1A1aEi(%class.A* %this, i32 %b) nounwind uwtable ssp align 2 {
+define i32 @_ZN1A1aEi(%class.A* %this, i32 %b) nounwind uwtable ssp align 2 !dbg !5 {
 entry:
   %this.addr = alloca %class.A*, align 8
   %b.addr = alloca i32, align 4
@@ -27,10 +27,10 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!29}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.1 (trunk 152691) (llvm/trunk 152692)", isOptimized: false, emissionKind: 0, file: !28, enums: !1, retainedTypes: !1, subprograms: !3, globals: !18, imports:  !1)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.1 (trunk 152691) (llvm/trunk 152692)", isOptimized: false, emissionKind: 0, file: !28, enums: !1, retainedTypes: !1, subprograms: !3, globals: !18, imports:  !1)
 !1 = !{}
 !3 = !{!5}
-!5 = !DISubprogram(name: "a", linkageName: "_ZN1A1aEi", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !6, scope: null, type: !7, function: i32 (%class.A*, i32)* @_ZN1A1aEi, declaration: !13)
+!5 = distinct !DISubprogram(name: "a", linkageName: "_ZN1A1aEi", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 5, file: !6, scope: null, type: !7, declaration: !13)
 !6 = !DIFile(filename: "foo.cpp", directory: "/Users/echristo")
 !7 = !DISubroutineType(types: !8)
 !8 = !{!9, !10, !9}
@@ -41,10 +41,10 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 !13 = !DISubprogram(name: "a", linkageName: "_ZN1A1aEi", line: 2, isLocal: false, isDefinition: false, virtualIndex: 6, flags: DIFlagPrivate | DIFlagPrototyped, isOptimized: false, file: !6, scope: !11, type: !7)
 !18 = !{!20}
 !20 = !DIGlobalVariable(name: "a", line: 9, isLocal: false, isDefinition: true, scope: null, file: !6, type: !11, variable: %class.A* @a)
-!21 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "this", line: 5, arg: 1, flags: DIFlagArtificial, scope: !5, file: !6, type: !22)
+!21 = !DILocalVariable(name: "this", line: 5, arg: 1, flags: DIFlagArtificial, scope: !5, file: !6, type: !22)
 !22 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !11)
 !23 = !DILocation(line: 5, column: 8, scope: !5)
-!24 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "b", line: 5, arg: 2, scope: !5, file: !6, type: !9)
+!24 = !DILocalVariable(name: "b", line: 5, arg: 2, scope: !5, file: !6, type: !9)
 !25 = !DILocation(line: 5, column: 14, scope: !5)
 !26 = !DILocation(line: 6, column: 4, scope: !27)
 !27 = distinct !DILexicalBlock(line: 5, column: 17, file: !6, scope: !5)

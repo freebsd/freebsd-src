@@ -81,28 +81,28 @@ for.end:                                          ; preds = %for.body
 
 ; CHECK: Run-time memory checks:
 ; CHECK-NEXT:   Check 0:
-; CHECK-NEXT:     Comparing group 0:
+; CHECK-NEXT:     Comparing group ([[ZERO:.+]]):
 ; CHECK-NEXT:       %arrayidxC1 = getelementptr inbounds i16, i16* %c, i64 %store_ind_inc
 ; CHECK-NEXT:       %arrayidxC = getelementptr inbounds i16, i16* %c, i64 %store_ind
-; CHECK-NEXT:     Against group 1:
+; CHECK-NEXT:     Against group ([[ONE:.+]]):
 ; CHECK-NEXT:       %arrayidxA1 = getelementptr inbounds i16, i16* %a, i64 %add
 ; CHECK-NEXT:       %arrayidxA = getelementptr inbounds i16, i16* %a, i64 %ind
 ; CHECK-NEXT:   Check 1:
-; CHECK-NEXT:     Comparing group 0:
+; CHECK-NEXT:     Comparing group ({{.*}}[[ZERO]]):
 ; CHECK-NEXT:       %arrayidxC1 = getelementptr inbounds i16, i16* %c, i64 %store_ind_inc
 ; CHECK-NEXT:       %arrayidxC = getelementptr inbounds i16, i16* %c, i64 %store_ind
-; CHECK-NEXT:     Against group 2:
+; CHECK-NEXT:     Against group ([[TWO:.+]]):
 ; CHECK-NEXT:       %arrayidxB = getelementptr inbounds i16, i16* %b, i64 %ind
 ; CHECK-NEXT:   Grouped accesses:
-; CHECK-NEXT:    Group 0:
+; CHECK-NEXT:    Group {{.*}}[[ZERO]]:
 ; CHECK-NEXT:       (Low: %c High: (78 + %c))
 ; CHECK-NEXT:         Member: {(2 + %c),+,4}
 ; CHECK-NEXT:         Member: {%c,+,4}
-; CHECK-NEXT:     Group 1:
+; CHECK-NEXT:     Group {{.*}}[[ONE]]:
 ; CHECK-NEXT:       (Low: %a High: (40 + %a))
 ; CHECK-NEXT:         Member: {(2 + %a),+,2}
 ; CHECK-NEXT:         Member: {%a,+,2}
-; CHECK-NEXT:     Group 2:
+; CHECK-NEXT:     Group {{.*}}[[TWO]]:
 ; CHECK-NEXT:       (Low: %b High: (38 + %b))
 ; CHECK-NEXT:         Member: {%b,+,2}
 
@@ -153,28 +153,28 @@ for.end:                                          ; preds = %for.body
 ; CHECK: function 'testh':
 ; CHECK: Run-time memory checks:
 ; CHECK-NEXT:   Check 0:
-; CHECK-NEXT:     Comparing group 0:
+; CHECK-NEXT:     Comparing group ([[ZERO:.+]]):
 ; CHECK-NEXT:         %arrayidxC1 = getelementptr inbounds i16, i16* %c, i64 %store_ind_inc
 ; CHECK-NEXT:         %arrayidxC = getelementptr inbounds i16, i16* %c, i64 %store_ind
-; CHECK-NEXT:     Against group 1:
+; CHECK-NEXT:     Against group ([[ONE:.+]]):
 ; CHECK-NEXT:         %arrayidxA1 = getelementptr i16, i16* %a, i64 %add
 ; CHECK-NEXT:         %arrayidxA = getelementptr i16, i16* %a, i64 %ind
 ; CHECK-NEXT:   Check 1:
-; CHECK-NEXT:     Comparing group 0:
+; CHECK-NEXT:     Comparing group ({{.*}}[[ZERO]]):
 ; CHECK-NEXT:         %arrayidxC1 = getelementptr inbounds i16, i16* %c, i64 %store_ind_inc
 ; CHECK-NEXT:         %arrayidxC = getelementptr inbounds i16, i16* %c, i64 %store_ind
-; CHECK-NEXT:     Against group 2:
+; CHECK-NEXT:     Against group ([[TWO:.+]]):
 ; CHECK-NEXT:         %arrayidxB = getelementptr i16, i16* %b, i64 %ind
 ; CHECK-NEXT:   Grouped accesses:
-; CHECK-NEXT:     Group 0:
+; CHECK-NEXT:     Group {{.*}}[[ZERO]]:
 ; CHECK-NEXT:       (Low: %c High: (78 + %c))
 ; CHECK-NEXT:         Member: {(2 + %c),+,4}
 ; CHECK-NEXT:         Member: {%c,+,4}
-; CHECK-NEXT:     Group 1:
+; CHECK-NEXT:     Group {{.*}}[[ONE]]:
 ; CHECK-NEXT:       (Low: %a High: (40 + %a))
 ; CHECK-NEXT:         Member: {(2 + %a),+,2}
 ; CHECK-NEXT:         Member: {%a,+,2}
-; CHECK-NEXT:     Group 2:
+; CHECK-NEXT:     Group {{.*}}[[TWO]]:
 ; CHECK-NEXT:       (Low: %b High: (38 + %b))
 ; CHECK-NEXT:         Member: {%b,+,2}
 
@@ -217,8 +217,9 @@ for.end:                                          ; preds = %for.body
   ret void
 }
 
-; Don't merge pointers if there is some other check which could be falsely
-; invalidated. For example, in the following loop:
+; Don't merge pointers if we need to perform a check against a pointer
+; to the same underlying object (doing so would emit a check that could be
+; falsely invalidated) For example, in the following loop:
 ;
 ; for (i = 0; i < 5000; ++i)
 ;   a[i + offset] = a[i] + a[i + 10000]
@@ -226,27 +227,31 @@ for.end:                                          ; preds = %for.body
 ; we should not merge the intervals associated with the reads (0,5000) and
 ; (10000, 15000) into (0, 15000) as this will pottentially fail the check
 ; against the interval associated with the write.
+;
+; We cannot have this check unless ShouldRetryWithRuntimeCheck is set,
+; and therefore the grouping algorithm would create a separate group for
+; each pointer.
 
 ; CHECK: function 'testi':
 ; CHECK: Run-time memory checks:
 ; CHECK-NEXT:   Check 0:
-; CHECK-NEXT:     Comparing group 0:
+; CHECK-NEXT:     Comparing group ([[ZERO:.+]]):
 ; CHECK-NEXT:       %storeidx = getelementptr inbounds i16, i16* %a, i64 %store_ind
-; CHECK-NEXT:     Against group 1:
+; CHECK-NEXT:     Against group ([[ONE:.+]]):
 ; CHECK-NEXT:       %arrayidxA1 = getelementptr i16, i16* %a, i64 %ind
 ; CHECK-NEXT:   Check 1:
-; CHECK-NEXT:     Comparing group 0:
+; CHECK-NEXT:     Comparing group ({{.*}}[[ZERO]]):
 ; CHECK-NEXT:       %storeidx = getelementptr inbounds i16, i16* %a, i64 %store_ind
-; CHECK-NEXT:     Against group 2:
+; CHECK-NEXT:     Against group ([[TWO:.+]]):
 ; CHECK-NEXT:       %arrayidxA2 = getelementptr i16, i16* %a, i64 %ind2
 ; CHECK-NEXT:   Grouped accesses:
-; CHECK-NEXT:     Group 0:
+; CHECK-NEXT:     Group {{.*}}[[ZERO]]:
 ; CHECK-NEXT:       (Low: ((2 * %offset) + %a) High: (9998 + (2 * %offset) + %a))
 ; CHECK-NEXT:         Member: {((2 * %offset) + %a),+,2}<nsw><%for.body>
-; CHECK-NEXT:     Group 1:
+; CHECK-NEXT:     Group {{.*}}[[ONE]]:
 ; CHECK-NEXT:       (Low: %a High: (9998 + %a))
 ; CHECK-NEXT:         Member: {%a,+,2}<%for.body>
-; CHECK-NEXT:     Group 2:
+; CHECK-NEXT:     Group {{.*}}[[TWO]]:
 ; CHECK-NEXT:       (Low: (20000 + %a) High: (29998 + %a))
 ; CHECK-NEXT:         Member: {(20000 + %a),+,2}<%for.body>
 

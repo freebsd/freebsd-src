@@ -5,7 +5,9 @@
 ; CHECK:    .section  .apple_names
 ; CHECK:    .section  .apple_types
 
-; RUN: llc -mtriple=i686-pc-win32 -filetype=asm -O0 < %s | FileCheck -check-prefix=WIN32 %s
+; RUN: sed -e 's/"Dwarf Version"/"CodeView"/' %s \
+; RUN:     | llc -mtriple=i686-pc-win32 -filetype=asm -O0 \
+; RUN:     | FileCheck -check-prefix=WIN32 %s
 ; WIN32:    .section .debug$S,"dr"
 
 ; RUN: llc -mtriple=i686-pc-win32 -filetype=null -O0 < %s
@@ -17,7 +19,7 @@
 ; 	return 0;
 ; }
 
-define i32 @main() #0 {
+define i32 @main() #0 !dbg !4 {
 entry:
   %retval = alloca i32, align 4
   store i32 0, i32* %retval
@@ -29,11 +31,11 @@ attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"=
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!9, !11}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 ", isOptimized: false, emissionKind: 0, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "test.c", directory: "C:\5CProjects")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "main", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 2, file: !1, scope: !5, type: !6, function: i32 ()* @main, variables: !2)
+!4 = distinct !DISubprogram(name: "main", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, scopeLine: 2, file: !1, scope: !5, type: !6, variables: !2)
 !5 = !DIFile(filename: "test.c", directory: "C:CProjects")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}

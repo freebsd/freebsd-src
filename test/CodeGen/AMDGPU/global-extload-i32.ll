@@ -49,8 +49,7 @@ define void @sextload_global_v1i32_to_v1i64(<1 x i64> addrspace(1)* %out, <1 x i
 
 ; FUNC-LABEL: {{^}}zextload_global_v2i32_to_v2i64:
 ; SI: buffer_load_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
+; SI: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @zextload_global_v2i32_to_v2i64(<2 x i64> addrspace(1)* %out, <2 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <2 x i32>, <2 x i32> addrspace(1)* %in
@@ -63,8 +62,7 @@ define void @zextload_global_v2i32_to_v2i64(<2 x i64> addrspace(1)* %out, <2 x i
 ; SI: buffer_load_dwordx2
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @sextload_global_v2i32_to_v2i64(<2 x i64> addrspace(1)* %out, <2 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <2 x i32>, <2 x i32> addrspace(1)* %in
@@ -75,10 +73,8 @@ define void @sextload_global_v2i32_to_v2i64(<2 x i64> addrspace(1)* %out, <2 x i
 
 ; FUNC-LABEL: {{^}}zextload_global_v4i32_to_v4i64:
 ; SI: buffer_load_dwordx4
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @zextload_global_v4i32_to_v4i64(<4 x i64> addrspace(1)* %out, <4 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <4 x i32>, <4 x i32> addrspace(1)* %in
@@ -93,10 +89,8 @@ define void @zextload_global_v4i32_to_v4i64(<4 x i64> addrspace(1)* %out, <4 x i
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @sextload_global_v4i32_to_v4i64(<4 x i64> addrspace(1)* %out, <4 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <4 x i32>, <4 x i32> addrspace(1)* %in
@@ -106,22 +100,12 @@ define void @sextload_global_v4i32_to_v4i64(<4 x i64> addrspace(1)* %out, <4 x i
 }
 
 ; FUNC-LABEL: {{^}}zextload_global_v8i32_to_v8i64:
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @zextload_global_v8i32_to_v8i64(<8 x i64> addrspace(1)* %out, <8 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <8 x i32>, <8 x i32> addrspace(1)* %in
@@ -131,14 +115,8 @@ define void @zextload_global_v8i32_to_v8i64(<8 x i64> addrspace(1)* %out, <8 x i
 }
 
 ; FUNC-LABEL: {{^}}sextload_global_v8i32_to_v8i64:
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
 
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
@@ -148,15 +126,10 @@ define void @zextload_global_v8i32_to_v8i64(<8 x i64> addrspace(1)* %out, <8 x i
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @sextload_global_v8i32_to_v8i64(<8 x i64> addrspace(1)* %out, <8 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <8 x i32>, <8 x i32> addrspace(1)* %in
@@ -166,50 +139,34 @@ define void @sextload_global_v8i32_to_v8i64(<8 x i64> addrspace(1)* %out, <8 x i
 }
 
 ; FUNC-LABEL: {{^}}sextload_global_v16i32_to_v16i64:
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
 
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
 
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
 
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
 
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @sextload_global_v16i32_to_v16i64(<16 x i64> addrspace(1)* %out, <16 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <16 x i32>, <16 x i32> addrspace(1)* %in
@@ -219,40 +176,19 @@ define void @sextload_global_v16i32_to_v16i64(<16 x i64> addrspace(1)* %out, <16
 }
 
 ; FUNC-LABEL: {{^}}zextload_global_v16i32_to_v16i64
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
 
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-; SI: buffer_store_dwordx2
-
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
+; SI: buffer_store_dwordx4
 ; SI: s_endpgm
 define void @zextload_global_v16i32_to_v16i64(<16 x i64> addrspace(1)* %out, <16 x i32> addrspace(1)* nocapture %in) nounwind {
   %load = load <16 x i32>, <16 x i32> addrspace(1)* %in
@@ -262,41 +198,15 @@ define void @zextload_global_v16i32_to_v16i64(<16 x i64> addrspace(1)* %out, <16
 }
 
 ; FUNC-LABEL: {{^}}sextload_global_v32i32_to_v32i64:
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
 
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
 
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
@@ -331,41 +241,25 @@ define void @zextload_global_v16i32_to_v16i64(<16 x i64> addrspace(1)* %out, <16
 ; SI-DAG: v_ashrrev_i32
 ; SI-DAG: v_ashrrev_i32
 
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
 ; SI: s_endpgm
 define void @sextload_global_v32i32_to_v32i64(<32 x i64> addrspace(1)* %out, <32 x i32> addrspace(1)* nocapture %in) nounwind {
@@ -376,77 +270,34 @@ define void @sextload_global_v32i32_to_v32i64(<32 x i64> addrspace(1)* %out, <32
 }
 
 ; FUNC-LABEL: {{^}}zextload_global_v32i32_to_v32i64:
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
+; SI: buffer_load_dwordx4
 
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
-; SI: buffer_load_dword
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
-; SI-DAG: buffer_store_dwordx2
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
+; SI-DAG: buffer_store_dwordx4
 
 ; SI: s_endpgm
 define void @zextload_global_v32i32_to_v32i64(<32 x i64> addrspace(1)* %out, <32 x i32> addrspace(1)* nocapture %in) nounwind {

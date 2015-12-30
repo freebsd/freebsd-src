@@ -15,6 +15,8 @@
 #ifndef LLVM_BITCODE_BITSTREAMWRITER_H
 #define LLVM_BITCODE_BITSTREAMWRITER_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Bitcode/BitCodes.h"
@@ -45,9 +47,9 @@ class BitstreamWriter {
 
   struct Block {
     unsigned PrevCodeSize;
-    unsigned StartSizeWord;
+    size_t StartSizeWord;
     std::vector<IntrusiveRefCntPtr<BitCodeAbbrev>> PrevAbbrevs;
-    Block(unsigned PCS, unsigned SSW) : PrevCodeSize(PCS), StartSizeWord(SSW) {}
+    Block(unsigned PCS, size_t SSW) : PrevCodeSize(PCS), StartSizeWord(SSW) {}
   };
 
   /// BlockScope - This tracks the current blocks that we have entered.
@@ -61,12 +63,6 @@ class BitstreamWriter {
   };
   std::vector<BlockInfo> BlockInfoRecords;
 
-  // BackpatchWord - Backpatch a 32-bit word in the output with the specified
-  // value.
-  void BackpatchWord(unsigned ByteNo, unsigned NewWord) {
-    support::endian::write32le(&Out[ByteNo], NewWord);
-  }
-
   void WriteByte(unsigned char Value) {
     Out.push_back(Value);
   }
@@ -77,12 +73,10 @@ class BitstreamWriter {
                reinterpret_cast<const char *>(&Value + 1));
   }
 
-  unsigned GetBufferOffset() const {
-    return Out.size();
-  }
+  size_t GetBufferOffset() const { return Out.size(); }
 
-  unsigned GetWordIndex() const {
-    unsigned Offset = GetBufferOffset();
+  size_t GetWordIndex() const {
+    size_t Offset = GetBufferOffset();
     assert((Offset & 3) == 0 && "Not 32-bit aligned");
     return Offset / 4;
   }
@@ -99,9 +93,24 @@ public:
   /// \brief Retrieve the current position in the stream, in bits.
   uint64_t GetCurrentBitNo() const { return GetBufferOffset() * 8 + CurBit; }
 
+  /// \brief Retrieve the number of bits currently used to encode an abbrev ID.
+  unsigned GetAbbrevIDWidth() const { return CurCodeSize; }
+
   //===--------------------------------------------------------------------===//
   // Basic Primitives for emitting bits to the stream.
   //===--------------------------------------------------------------------===//
+
+  /// Backpatch a 32-bit word in the output at the given bit offset
+  /// with the specified value.
+  void BackpatchWord(uint64_t BitNo, unsigned NewWord) {
+    using namespace llvm::support;
+    unsigned ByteNo = BitNo / 8;
+    assert((!endian::readAtBitAlignment<uint32_t, little, unaligned>(
+               &Out[ByteNo], BitNo & 7)) &&
+           "Expected to be patching over 0-value placeholders");
+    endian::writeAtBitAlignment<uint32_t, little, unaligned>(
+        &Out[ByteNo], NewWord, BitNo & 7);
+  }
 
   void Emit(uint32_t Val, unsigned NumBits) {
     assert(NumBits && NumBits <= 32 && "Invalid value size!");
@@ -200,7 +209,7 @@ public:
     EmitVBR(CodeLen, bitc::CodeLenWidth);
     FlushToWord();
 
-    unsigned BlockSizeWordIndex = GetWordIndex();
+    size_t BlockSizeWordIndex = GetWordIndex();
     unsigned OldCodeSize = CurCodeSize;
 
     // Emit a placeholder, which will be replaced when the block is popped.
@@ -231,11 +240,11 @@ public:
     FlushToWord();
 
     // Compute the size of the block, in words, not counting the size field.
-    unsigned SizeInWords = GetWordIndex() - B.StartSizeWord - 1;
-    unsigned ByteNo = B.StartSizeWord*4;
+    size_t SizeInWords = GetWordIndex() - B.StartSizeWord - 1;
+    uint64_t BitNo = uint64_t(B.StartSizeWord) * 32;
 
     // Update the block size field in the header of this sub-block.
-    BackpatchWord(ByteNo, SizeInWords);
+    BackpatchWord(BitNo, SizeInWords);
 
     // Restore the inner block's code size and abbrev table.
     CurCodeSize = B.PrevCodeSize;
@@ -285,10 +294,12 @@ private:
   /// EmitRecordWithAbbrevImpl - This is the core implementation of the record
   /// emission code.  If BlobData is non-null, then it specifies an array of
   /// data that should be emitted as part of the Blob or Array operand that is
-  /// known to exist at the end of the record.
-  template<typename uintty>
-  void EmitRecordWithAbbrevImpl(unsigned Abbrev, SmallVectorImpl<uintty> &Vals,
-                                StringRef Blob) {
+  /// known to exist at the end of the record. If Code is specified, then
+  /// it is the record code to emit before the Vals, which must not contain
+  /// the code.
+  template <typename uintty>
+  void EmitRecordWithAbbrevImpl(unsigned Abbrev, ArrayRef<uintty> Vals,
+                                StringRef Blob, Optional<unsigned> Code) {
     const char *BlobData = Blob.data();
     unsigned BlobLen = (unsigned) Blob.size();
     unsigned AbbrevNo = Abbrev-bitc::FIRST_APPLICATION_ABBREV;
@@ -297,9 +308,23 @@ private:
 
     EmitCode(Abbrev);
 
+    unsigned i = 0, e = static_cast<unsigned>(Abbv->getNumOperandInfos());
+    if (Code) {
+      assert(e && "Expected non-empty abbreviation");
+      const BitCodeAbbrevOp &Op = Abbv->getOperandInfo(i++);
+
+      if (Op.isLiteral())
+        EmitAbbreviatedLiteral(Op, Code.getValue());
+      else {
+        assert(Op.getEncoding() != BitCodeAbbrevOp::Array &&
+               Op.getEncoding() != BitCodeAbbrevOp::Blob &&
+               "Expected literal or scalar");
+        EmitAbbreviatedField(Op, Code.getValue());
+      }
+    }
+
     unsigned RecordIdx = 0;
-    for (unsigned i = 0, e = static_cast<unsigned>(Abbv->getNumOperandInfos());
-         i != e; ++i) {
+    for (; i != e; ++i) {
       const BitCodeAbbrevOp &Op = Abbv->getOperandInfo(i);
       if (Op.isLiteral()) {
         assert(RecordIdx < Vals.size() && "Invalid abbrev/record");
@@ -307,7 +332,7 @@ private:
         ++RecordIdx;
       } else if (Op.getEncoding() == BitCodeAbbrevOp::Array) {
         // Array case.
-        assert(i+2 == e && "array op not second to last?");
+        assert(i + 2 == e && "array op not second to last?");
         const BitCodeAbbrevOp &EltEnc = Abbv->getOperandInfo(++i);
 
         // If this record has blob data, emit it, otherwise we must have record
@@ -381,32 +406,29 @@ public:
 
   /// EmitRecord - Emit the specified record to the stream, using an abbrev if
   /// we have one to compress the output.
-  template<typename uintty>
-  void EmitRecord(unsigned Code, SmallVectorImpl<uintty> &Vals,
-                  unsigned Abbrev = 0) {
+  template <typename Container>
+  void EmitRecord(unsigned Code, const Container &Vals, unsigned Abbrev = 0) {
     if (!Abbrev) {
       // If we don't have an abbrev to use, emit this in its fully unabbreviated
       // form.
+      auto Count = static_cast<uint32_t>(makeArrayRef(Vals).size());
       EmitCode(bitc::UNABBREV_RECORD);
       EmitVBR(Code, 6);
-      EmitVBR(static_cast<uint32_t>(Vals.size()), 6);
-      for (unsigned i = 0, e = static_cast<unsigned>(Vals.size()); i != e; ++i)
+      EmitVBR(Count, 6);
+      for (unsigned i = 0, e = Count; i != e; ++i)
         EmitVBR64(Vals[i], 6);
       return;
     }
 
-    // Insert the code into Vals to treat it uniformly.
-    Vals.insert(Vals.begin(), Code);
-
-    EmitRecordWithAbbrev(Abbrev, Vals);
+    EmitRecordWithAbbrevImpl(Abbrev, makeArrayRef(Vals), StringRef(), Code);
   }
 
   /// EmitRecordWithAbbrev - Emit a record with the specified abbreviation.
   /// Unlike EmitRecord, the code for the record should be included in Vals as
   /// the first entry.
-  template<typename uintty>
-  void EmitRecordWithAbbrev(unsigned Abbrev, SmallVectorImpl<uintty> &Vals) {
-    EmitRecordWithAbbrevImpl(Abbrev, Vals, StringRef());
+  template <typename Container>
+  void EmitRecordWithAbbrev(unsigned Abbrev, const Container &Vals) {
+    EmitRecordWithAbbrevImpl(Abbrev, makeArrayRef(Vals), StringRef(), None);
   }
 
   /// EmitRecordWithBlob - Emit the specified record to the stream, using an
@@ -414,29 +436,30 @@ public:
   /// specified by the pointer and length specified at the end.  In contrast to
   /// EmitRecord, this routine expects that the first entry in Vals is the code
   /// of the record.
-  template<typename uintty>
-  void EmitRecordWithBlob(unsigned Abbrev, SmallVectorImpl<uintty> &Vals,
+  template <typename Container>
+  void EmitRecordWithBlob(unsigned Abbrev, const Container &Vals,
                           StringRef Blob) {
-    EmitRecordWithAbbrevImpl(Abbrev, Vals, Blob);
+    EmitRecordWithAbbrevImpl(Abbrev, makeArrayRef(Vals), Blob, None);
   }
-  template<typename uintty>
-  void EmitRecordWithBlob(unsigned Abbrev, SmallVectorImpl<uintty> &Vals,
+  template <typename Container>
+  void EmitRecordWithBlob(unsigned Abbrev, const Container &Vals,
                           const char *BlobData, unsigned BlobLen) {
-    return EmitRecordWithAbbrevImpl(Abbrev, Vals, StringRef(BlobData, BlobLen));
+    return EmitRecordWithAbbrevImpl(Abbrev, makeArrayRef(Vals),
+                                    StringRef(BlobData, BlobLen), None);
   }
 
   /// EmitRecordWithArray - Just like EmitRecordWithBlob, works with records
   /// that end with an array.
-  template<typename uintty>
-  void EmitRecordWithArray(unsigned Abbrev, SmallVectorImpl<uintty> &Vals,
-                          StringRef Array) {
-    EmitRecordWithAbbrevImpl(Abbrev, Vals, Array);
+  template <typename Container>
+  void EmitRecordWithArray(unsigned Abbrev, const Container &Vals,
+                           StringRef Array) {
+    EmitRecordWithAbbrevImpl(Abbrev, makeArrayRef(Vals), Array, None);
   }
-  template<typename uintty>
-  void EmitRecordWithArray(unsigned Abbrev, SmallVectorImpl<uintty> &Vals,
-                          const char *ArrayData, unsigned ArrayLen) {
-    return EmitRecordWithAbbrevImpl(Abbrev, Vals, StringRef(ArrayData,
-                                                            ArrayLen));
+  template <typename Container>
+  void EmitRecordWithArray(unsigned Abbrev, const Container &Vals,
+                           const char *ArrayData, unsigned ArrayLen) {
+    return EmitRecordWithAbbrevImpl(Abbrev, makeArrayRef(Vals),
+                                    StringRef(ArrayData, ArrayLen), None);
   }
 
   //===--------------------------------------------------------------------===//

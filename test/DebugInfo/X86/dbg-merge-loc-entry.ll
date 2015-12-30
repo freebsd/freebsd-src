@@ -12,7 +12,7 @@ target triple = "x86_64-apple-darwin8"
 
 @__clz_tab = external constant [256 x i8]
 
-define hidden i128 @__divti3(i128 %u, i128 %v) nounwind readnone {
+define hidden i128 @__divti3(i128 %u, i128 %v) nounwind readnone !dbg !9 {
 entry:
   tail call void @llvm.dbg.value(metadata i128 %u, i64 0, metadata !14, metadata !DIExpression()), !dbg !15
   tail call void @llvm.dbg.value(metadata i64 0, i64 0, metadata !17, metadata !DIExpression()), !dbg !21
@@ -40,24 +40,24 @@ declare %0 @llvm.uadd.with.overflow.i64(i64, i64) nounwind readnone
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!32}
 
-!0 = !DISubprogram(name: "__udivmodti4", line: 879, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 879, file: !29, scope: !1, type: !3)
+!0 = distinct !DISubprogram(name: "__udivmodti4", line: 879, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 879, file: !29, scope: !1, type: !3)
 !1 = !DIFile(filename: "foobar.c", directory: "/tmp")
-!2 = !DICompileUnit(language: DW_LANG_C89, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: true, emissionKind: 0, file: !29, enums: !31, retainedTypes: !31, subprograms: !28, imports:  null)
+!2 = distinct !DICompileUnit(language: DW_LANG_C89, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: true, emissionKind: 0, file: !29, enums: !31, retainedTypes: !31, subprograms: !28, imports:  null)
 !3 = !DISubroutineType(types: !4)
 !4 = !{!5, !5, !5, !8}
 !5 = !DIDerivedType(tag: DW_TAG_typedef, name: "UTItype", line: 166, file: !30, scope: !6, baseType: !7)
 !6 = !DIFile(filename: "foobar.h", directory: "/tmp")
 !7 = !DIBasicType(tag: DW_TAG_base_type, size: 128, align: 128, encoding: DW_ATE_unsigned)
 !8 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, file: !29, scope: !1, baseType: !5)
-!9 = !DISubprogram(name: "__divti3", linkageName: "__divti3", line: 1094, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 1094, file: !29, scope: !1, type: !10, function: i128 (i128, i128)* @__divti3)
+!9 = distinct !DISubprogram(name: "__divti3", linkageName: "__divti3", line: 1094, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, scopeLine: 1094, file: !29, scope: !1, type: !10)
 !10 = !DISubroutineType(types: !11)
 !11 = !{!12, !12, !12}
 !12 = !DIDerivedType(tag: DW_TAG_typedef, name: "TItype", line: 160, file: !30, scope: !6, baseType: !13)
 !13 = !DIBasicType(tag: DW_TAG_base_type, size: 128, align: 128, encoding: DW_ATE_signed)
-!14 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "u", line: 1093, arg: 0, scope: !9, file: !1, type: !12)
+!14 = !DILocalVariable(name: "u", line: 1093, arg: 1, scope: !9, file: !1, type: !12)
 !15 = !DILocation(line: 1093, scope: !9)
 !16 = !{i64 0}
-!17 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "c", line: 1095, scope: !18, file: !1, type: !19)
+!17 = !DILocalVariable(name: "c", line: 1095, scope: !18, file: !1, type: !19)
 !18 = distinct !DILexicalBlock(line: 1094, column: 0, file: !29, scope: !9)
 !19 = !DIDerivedType(tag: DW_TAG_typedef, name: "word_type", line: 424, file: !30, scope: !6, baseType: !20)
 !20 = !DIBasicType(tag: DW_TAG_base_type, name: "long int", size: 64, align: 64, encoding: DW_ATE_signed)

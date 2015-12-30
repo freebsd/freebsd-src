@@ -46,7 +46,7 @@
 @PtrGlb = common global %struct.Record* null, align 8
 @PtrGlbNext = common global %struct.Record* null, align 8
 
-define void @Proc8(i32* nocapture %Array1Par, [51 x i32]* nocapture %Array2Par, i32 %IntParI1, i32 %IntParI2) nounwind optsize {
+define void @Proc8(i32* nocapture %Array1Par, [51 x i32]* nocapture %Array2Par, i32 %IntParI1, i32 %IntParI2) nounwind optsize !dbg !12 {
 entry:
   tail call void @llvm.dbg.value(metadata i32* %Array1Par, i64 0, metadata !23, metadata !DIExpression()), !dbg !64
   tail call void @llvm.dbg.value(metadata [51 x i32]* %Array2Par, i64 0, metadata !24, metadata !DIExpression()), !dbg !65
@@ -103,7 +103,7 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!83}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.3 (trunk 175015)", isOptimized: true, emissionKind: 1, file: !82, enums: !1, retainedTypes: !10, subprograms: !11, globals: !29, imports:  !10)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.3 (trunk 175015)", isOptimized: true, emissionKind: 1, file: !82, enums: !1, retainedTypes: !10, subprograms: !11, globals: !29, imports:  !10)
 !1 = !{!2}
 !2 = !DICompositeType(tag: DW_TAG_enumeration_type, line: 128, size: 32, align: 32, file: !82, elements: !4)
 !3 = !DIFile(filename: "dry.c", directory: "/Users/manmanren/test-Nov/rdar_13183203/test2")
@@ -115,7 +115,7 @@ attributes #1 = { nounwind readnone }
 !9 = !DIEnumerator(name: "Ident5", value: 10003) ; [ DW_TAG_enumerator ] [Ident5 :: 10003]
 !10 = !{}
 !11 = !{!12}
-!12 = !DISubprogram(name: "Proc8", line: 180, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 185, file: !82, scope: !3, type: !13, function: void (i32*, [51 x i32]*, i32, i32)* @Proc8, variables: !22)
+!12 = distinct !DISubprogram(name: "Proc8", line: 180, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 185, file: !82, scope: !3, type: !13, variables: !22)
 !13 = !DISubroutineType(types: !14)
 !14 = !{null, !15, !17, !21, !21}
 !15 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !16)
@@ -126,12 +126,12 @@ attributes #1 = { nounwind readnone }
 !20 = !DISubrange(count: 51)
 !21 = !DIDerivedType(tag: DW_TAG_typedef, name: "OneToFifty", line: 132, file: !82, baseType: !16)
 !22 = !{!23, !24, !25, !26, !27, !28}
-!23 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "Array1Par", line: 181, arg: 1, scope: !12, file: !3, type: !15)
-!24 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "Array2Par", line: 182, arg: 2, scope: !12, file: !3, type: !17)
-!25 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "IntParI1", line: 183, arg: 3, scope: !12, file: !3, type: !21)
-!26 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "IntParI2", line: 184, arg: 4, scope: !12, file: !3, type: !21)
-!27 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "IntLoc", line: 186, scope: !12, file: !3, type: !21)
-!28 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "IntIndex", line: 187, scope: !12, file: !3, type: !21)
+!23 = !DILocalVariable(name: "Array1Par", line: 181, arg: 1, scope: !12, file: !3, type: !15)
+!24 = !DILocalVariable(name: "Array2Par", line: 182, arg: 2, scope: !12, file: !3, type: !17)
+!25 = !DILocalVariable(name: "IntParI1", line: 183, arg: 3, scope: !12, file: !3, type: !21)
+!26 = !DILocalVariable(name: "IntParI2", line: 184, arg: 4, scope: !12, file: !3, type: !21)
+!27 = !DILocalVariable(name: "IntLoc", line: 186, scope: !12, file: !3, type: !21)
+!28 = !DILocalVariable(name: "IntIndex", line: 187, scope: !12, file: !3, type: !21)
 !29 = !{!30, !35, !36, !38, !39, !40, !42, !46, !63}
 !30 = !DIGlobalVariable(name: "Version", line: 111, isLocal: false, isDefinition: true, scope: null, file: !3, type: !31, variable: [4 x i8]* @Version)
 !31 = !DICompositeType(tag: DW_TAG_array_type, size: 32, align: 8, baseType: !32, elements: !33)

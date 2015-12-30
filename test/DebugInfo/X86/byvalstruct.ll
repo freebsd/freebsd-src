@@ -58,7 +58,7 @@ target triple = "x86_64-apple-macosx10.8.0"
 @llvm.used = appending global [5 x i8*] [i8* getelementptr inbounds ([7 x i8], [7 x i8]* @"\01L_OBJC_CLASS_NAME_", i32 0, i32 0), i8* getelementptr inbounds ([32 x i8], [32 x i8]* @"\01L_OBJC_METH_VAR_NAME_", i32 0, i32 0), i8* getelementptr inbounds ([23 x i8], [23 x i8]* @"\01L_OBJC_METH_VAR_TYPE_", i32 0, i32 0), i8* bitcast ({ i32, i32, [1 x %struct._objc_method] }* @"\01l_OBJC_$_INSTANCE_METHODS_Bitmap" to i8*), i8* bitcast ([1 x i8*]* @"\01L_OBJC_LABEL_CLASS_$" to i8*)], section "llvm.metadata"
 
 ; Function Attrs: ssp uwtable
-define internal i8* @"\01-[Bitmap initWithCopy:andInfo:andLength:]"(%0* %self, i8* %_cmd, %0* %otherBitmap, %struct.ImageInfo* byval align 8 %info, i64 %length) #0 {
+define internal i8* @"\01-[Bitmap initWithCopy:andInfo:andLength:]"(%0* %self, i8* %_cmd, %0* %otherBitmap, %struct.ImageInfo* byval align 8 %info, i64 %length) #0 !dbg !7 {
 entry:
   %retval = alloca i8*, align 8
   %self.addr = alloca %0*, align 8
@@ -87,14 +87,14 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!24, !25, !26, !27, !38}
 
-!0 = !DICompileUnit(language: DW_LANG_ObjC_plus_plus, producer: "clang version 3.4 ", isOptimized: false, runtimeVersion: 2, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !6, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_ObjC_plus_plus, producer: "clang version 3.4 ", isOptimized: false, runtimeVersion: 2, emissionKind: 0, file: !1, enums: !2, retainedTypes: !3, subprograms: !6, globals: !2, imports: !2)
 !1 = !DIFile(filename: "t.mm", directory: "")
 !2 = !{}
 !3 = !{!4}
 !4 = !DICompositeType(tag: DW_TAG_structure_type, name: "Bitmap", line: 8, size: 8, align: 8, flags: DIFlagObjcClassComplete, runtimeLang: DW_LANG_ObjC_plus_plus, file: !1, scope: !5, elements: !2)
 !5 = !DIFile(filename: "t.mm", directory: "")
 !6 = !{!7}
-!7 = !DISubprogram(name: "-[Bitmap initWithCopy:andInfo:andLength:]", line: 9, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 9, file: !1, scope: !5, type: !8, function: i8* (%0*, i8*, %0*, %struct.ImageInfo*, i64)* @"\01-[Bitmap initWithCopy:andInfo:andLength:]", variables: !2)
+!7 = distinct !DISubprogram(name: "-[Bitmap initWithCopy:andInfo:andLength:]", line: 9, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 9, file: !1, scope: !5, type: !8, variables: !2)
 !8 = !DISubroutineType(types: !9)
 !9 = !{!4, !10, !11, !14, !15, !19}
 !10 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, flags: DIFlagArtificial | DIFlagObjectPointer, baseType: !4)
@@ -115,14 +115,14 @@ attributes #1 = { nounwind readnone }
 !25 = !{i32 1, !"Objective-C Image Info Version", i32 0}
 !26 = !{i32 1, !"Objective-C Image Info Section", !"__DATA, __objc_imageinfo, regular, no_dead_strip"}
 !27 = !{i32 4, !"Objective-C Garbage Collection", i32 0}
-!28 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "self", line: 9, arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !7, file: !5, type: !14)
+!28 = !DILocalVariable(name: "self", line: 9, arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !7, file: !5, type: !14)
 !29 = !DILocation(line: 9, scope: !7)
-!30 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "_cmd", line: 9, arg: 2, flags: DIFlagArtificial, scope: !7, file: !5, type: !31)
+!30 = !DILocalVariable(name: "_cmd", line: 9, arg: 2, flags: DIFlagArtificial, scope: !7, file: !5, type: !31)
 !31 = !DIDerivedType(tag: DW_TAG_typedef, name: "SEL", line: 9, file: !1, baseType: !12)
-!32 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "otherBitmap", line: 9, arg: 3, scope: !7, file: !5, type: !14)
-!33 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "info", line: 10, arg: 4, scope: !7, file: !5, type: !15)
+!32 = !DILocalVariable(name: "otherBitmap", line: 9, arg: 3, scope: !7, file: !5, type: !14)
+!33 = !DILocalVariable(name: "info", line: 10, arg: 4, scope: !7, file: !5, type: !15)
 !34 = !DILocation(line: 10, scope: !7)
-!35 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "length", line: 11, arg: 5, scope: !7, file: !5, type: !19)
+!35 = !DILocalVariable(name: "length", line: 11, arg: 5, scope: !7, file: !5, type: !19)
 !36 = !DILocation(line: 11, scope: !7)
 !37 = !DILocation(line: 13, scope: !7)
 !38 = !{i32 1, !"Debug Info Version", i32 3}

@@ -12,14 +12,24 @@ define <16 x float> @test1(<16 x float> %x, float* %br, float %y) nounwind {
   ret <16 x float> %rrr3
 }
 
-;CHECK-LABEL: test2:
-;KNL: vinsertf32x4 $0
-;SKX: vinsertf64x2 $0
-;CHECK: vextractf32x4 $3
-;KNL: vinsertf32x4 $3
-;SKX: vinsertf64x2 $3
-;CHECK: ret
 define <8 x double> @test2(<8 x double> %x, double* %br, double %y) nounwind {
+; KNL-LABEL: test2:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vmovhpd (%rdi), %xmm0, %xmm2
+; KNL-NEXT:    vinsertf32x4 $0, %xmm2, %zmm0, %zmm0
+; KNL-NEXT:    vextractf32x4 $3, %zmm0, %xmm2
+; KNL-NEXT:    vmovsd %xmm1, %xmm2, %xmm1
+; KNL-NEXT:    vinsertf32x4 $3, %xmm1, %zmm0, %zmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test2:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vmovhpd (%rdi), %xmm0, %xmm2
+; SKX-NEXT:    vinsertf64x2 $0, %xmm2, %zmm0, %zmm0
+; SKX-NEXT:    vextractf64x2 $3, %zmm0, %xmm2
+; SKX-NEXT:    vmovsd %xmm1, %xmm2, %xmm1
+; SKX-NEXT:    vinsertf64x2 $3, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
   %rrr = load double, double* %br
   %rrr2 = insertelement <8 x double> %x, double %rrr, i32 1
   %rrr3 = insertelement <8 x double> %rrr2, double %y, i32 6
@@ -36,12 +46,22 @@ define <16 x float> @test3(<16 x float> %x) nounwind {
   ret <16 x float> %rrr2
 }
 
-;CHECK-LABEL: test4:
-;CHECK: vextracti32x4 $2
-;KNL: vinserti32x4 $0
-;SKX: vinserti64x2 $0
-;CHECK: ret
 define <8 x i64> @test4(<8 x i64> %x) nounwind {
+; KNL-LABEL: test4:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vextracti32x4 $2, %zmm0, %xmm1
+; KNL-NEXT:    vmovq %xmm1, %rax
+; KNL-NEXT:    vpinsrq $1, %rax, %xmm0, %xmm1
+; KNL-NEXT:    vinserti32x4 $0, %xmm1, %zmm0, %zmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test4:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vextracti64x2 $2, %zmm0, %xmm1
+; SKX-NEXT:    vmovq %xmm1, %rax
+; SKX-NEXT:    vpinsrq $1, %rax, %xmm0, %xmm1
+; SKX-NEXT:    vinserti64x2 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
   %eee = extractelement <8 x i64> %x, i32 4
   %rrr2 = insertelement <8 x i64> %x, i64 %eee, i32 1
   ret <8 x i64> %rrr2
@@ -142,7 +162,7 @@ define i64 @test12(<16 x i64>%a, <16 x i64>%b, i64 %a1, i64 %b1) {
 ;CHECK: andl    $1, %eax
 ;CHECK: kmovw   %eax, %k0
 ;CHECK: movw    $-4
-;CHECK: korw    
+;CHECK: korw
 define i16 @test13(i32 %a, i32 %b) {
   %cmp_res = icmp ult i32 %a, %b
   %maskv = insertelement <16 x i1> <i1 true, i1 false, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true>, i1 %cmp_res, i32 0
@@ -211,3 +231,476 @@ define i8 @test17(i1 *%addr, i8 %a) {
   ret i8 %x2
 }
 
+define i64 @extract_v8i64(<8 x i64> %x, i64* %dst) {
+; SKX-LABEL: extract_v8i64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrq $1, %xmm0, %rax
+; SKX-NEXT:    vextracti64x2 $1, %zmm0, %xmm0
+; SKX-NEXT:    vpextrq $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <8 x i64> %x, i32 1
+  %r2 = extractelement <8 x i64> %x, i32 3
+  store i64 %r2, i64* %dst, align 1
+  ret i64 %r1
+}
+
+define i64 @extract_v4i64(<4 x i64> %x, i64* %dst) {
+; SKX-LABEL: extract_v4i64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrq $1, %xmm0, %rax
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm0
+; SKX-NEXT:    vpextrq $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <4 x i64> %x, i32 1
+  %r2 = extractelement <4 x i64> %x, i32 3
+  store i64 %r2, i64* %dst, align 1
+  ret i64 %r1
+}
+
+define i64 @extract_v2i64(<2 x i64> %x, i64* %dst) {
+; SKX-LABEL: extract_v2i64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vmovq %xmm0, %rax
+; SKX-NEXT:    vpextrq $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <2 x i64> %x, i32 0
+  %r2 = extractelement <2 x i64> %x, i32 1
+  store i64 %r2, i64* %dst, align 1
+  ret i64 %r1
+}
+
+define i32 @extract_v16i32(<16 x i32> %x, i32* %dst) {
+; SKX-LABEL: extract_v16i32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrd $1, %xmm0, %eax
+; SKX-NEXT:    vextracti32x4 $1, %zmm0, %xmm0
+; SKX-NEXT:    vpextrd $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <16 x i32> %x, i32 1
+  %r2 = extractelement <16 x i32> %x, i32 5
+  store i32 %r2, i32* %dst, align 1
+  ret i32 %r1
+}
+
+define i32 @extract_v8i32(<8 x i32> %x, i32* %dst) {
+; SKX-LABEL: extract_v8i32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrd $1, %xmm0, %eax
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm0
+; SKX-NEXT:    vpextrd $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <8 x i32> %x, i32 1
+  %r2 = extractelement <8 x i32> %x, i32 5
+  store i32 %r2, i32* %dst, align 1
+  ret i32 %r1
+}
+
+define i32 @extract_v4i32(<4 x i32> %x, i32* %dst) {
+; SKX-LABEL: extract_v4i32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrd $1, %xmm0, %eax
+; SKX-NEXT:    vpextrd $3, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <4 x i32> %x, i32 1
+  %r2 = extractelement <4 x i32> %x, i32 3
+  store i32 %r2, i32* %dst, align 1
+  ret i32 %r1
+}
+
+define i16 @extract_v32i16(<32 x i16> %x, i16* %dst) {
+; SKX-LABEL: extract_v32i16:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrw $1, %xmm0, %eax
+; SKX-NEXT:    vextracti32x4 $1, %zmm0, %xmm0
+; SKX-NEXT:    vpextrw $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <32 x i16> %x, i32 1
+  %r2 = extractelement <32 x i16> %x, i32 9
+  store i16 %r2, i16* %dst, align 1
+  ret i16 %r1
+}
+
+define i16 @extract_v16i16(<16 x i16> %x, i16* %dst) {
+; SKX-LABEL: extract_v16i16:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrw $1, %xmm0, %eax
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm0
+; SKX-NEXT:    vpextrw $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <16 x i16> %x, i32 1
+  %r2 = extractelement <16 x i16> %x, i32 9
+  store i16 %r2, i16* %dst, align 1
+  ret i16 %r1
+}
+
+define i16 @extract_v8i16(<8 x i16> %x, i16* %dst) {
+; SKX-LABEL: extract_v8i16:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrw $1, %xmm0, %eax
+; SKX-NEXT:    vpextrw $3, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <8 x i16> %x, i32 1
+  %r2 = extractelement <8 x i16> %x, i32 3
+  store i16 %r2, i16* %dst, align 1
+  ret i16 %r1
+}
+
+define i8 @extract_v64i8(<64 x i8> %x, i8* %dst) {
+; SKX-LABEL: extract_v64i8:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrb $1, %xmm0, %eax
+; SKX-NEXT:    vextracti32x4 $1, %zmm0, %xmm0
+; SKX-NEXT:    vpextrb $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <64 x i8> %x, i32 1
+  %r2 = extractelement <64 x i8> %x, i32 17
+  store i8 %r2, i8* %dst, align 1
+  ret i8 %r1
+}
+
+define i8 @extract_v32i8(<32 x i8> %x, i8* %dst) {
+; SKX-LABEL: extract_v32i8:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrb $1, %xmm0, %eax
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm0
+; SKX-NEXT:    vpextrb $1, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <32 x i8> %x, i32 1
+  %r2 = extractelement <32 x i8> %x, i32 17
+  store i8 %r2, i8* %dst, align 1
+  ret i8 %r1
+}
+
+define i8 @extract_v16i8(<16 x i8> %x, i8* %dst) {
+; SKX-LABEL: extract_v16i8:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpextrb $1, %xmm0, %eax
+; SKX-NEXT:    vpextrb $3, %xmm0, (%rdi)
+; SKX-NEXT:    retq
+  %r1 = extractelement <16 x i8> %x, i32 1
+  %r2 = extractelement <16 x i8> %x, i32 3
+  store i8 %r2, i8* %dst, align 1
+  ret i8 %r1
+}
+
+define <8 x i64> @insert_v8i64(<8 x i64> %x, i64 %y , i64* %ptr) {
+; SKX-LABEL: insert_v8i64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrq $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vinserti64x2 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    vextracti64x2 $1, %zmm0, %xmm1
+; SKX-NEXT:    vpinsrq $1, %rdi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti64x2 $1, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %val = load i64, i64* %ptr
+  %r1 = insertelement <8 x i64> %x, i64 %val, i32 1
+  %r2 = insertelement <8 x i64> %r1, i64 %y, i32 3
+  ret <8 x i64> %r2
+}
+
+define <4 x i64> @insert_v4i64(<4 x i64> %x, i64 %y , i64* %ptr) {
+; SKX-LABEL: insert_v4i64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrq $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vpblendd {{.*#+}} ymm0 = ymm1[0,1,2,3],ymm0[4,5,6,7]
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; SKX-NEXT:    vpinsrq $1, %rdi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti64x2 $1, %xmm1, %ymm0, %ymm0
+; SKX-NEXT:    retq
+  %val = load i64, i64* %ptr
+  %r1 = insertelement <4 x i64> %x, i64 %val, i32 1
+  %r2 = insertelement <4 x i64> %r1, i64 %y, i32 3
+  ret <4 x i64> %r2
+}
+
+define <2 x i64> @insert_v2i64(<2 x i64> %x, i64 %y , i64* %ptr) {
+; SKX-LABEL: insert_v2i64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrq $1, (%rsi), %xmm0, %xmm0
+; SKX-NEXT:    vpinsrq $3, %rdi, %xmm0, %xmm0
+; SKX-NEXT:    retq
+  %val = load i64, i64* %ptr
+  %r1 = insertelement <2 x i64> %x, i64 %val, i32 1
+  %r2 = insertelement <2 x i64> %r1, i64 %y, i32 3
+  ret <2 x i64> %r2
+}
+
+define <16 x i32> @insert_v16i32(<16 x i32> %x, i32 %y, i32* %ptr) {
+; SKX-LABEL: insert_v16i32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrd $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vinserti32x4 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    vextracti32x4 $1, %zmm0, %xmm1
+; SKX-NEXT:    vpinsrd $1, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $1, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %val = load i32, i32* %ptr
+  %r1 = insertelement <16 x i32> %x, i32 %val, i32 1
+  %r2 = insertelement <16 x i32> %r1, i32 %y, i32 5
+  ret <16 x i32> %r2
+}
+
+define <8 x i32> @insert_v8i32(<8 x i32> %x, i32 %y, i32* %ptr) {
+; KNL-LABEL: insert_v8i32:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrd $1, (%rsi), %xmm0, %xmm1
+; KNL-NEXT:    vpblendd {{.*#+}} ymm0 = ymm1[0,1,2,3],ymm0[4,5,6,7]
+; KNL-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; KNL-NEXT:    vpinsrd $1, %edi, %xmm1, %xmm1
+; KNL-NEXT:    vinserti128 $1, %xmm1, %ymm0, %ymm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: insert_v8i32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrd $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vpblendd {{.*#+}} ymm0 = ymm1[0,1,2,3],ymm0[4,5,6,7]
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; SKX-NEXT:    vpinsrd $1, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $1, %xmm1, %ymm0, %ymm0
+; SKX-NEXT:    retq
+  %val = load i32, i32* %ptr
+  %r1 = insertelement <8 x i32> %x, i32 %val, i32 1
+  %r2 = insertelement <8 x i32> %r1, i32 %y, i32 5
+  ret <8 x i32> %r2
+}
+
+define <4 x i32> @insert_v4i32(<4 x i32> %x, i32 %y, i32* %ptr) {
+; KNL-LABEL: insert_v4i32:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrd $1, (%rsi), %xmm0, %xmm0
+; KNL-NEXT:    vpinsrd $3, %edi, %xmm0, %xmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: insert_v4i32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrd $1, (%rsi), %xmm0, %xmm0
+; SKX-NEXT:    vpinsrd $3, %edi, %xmm0, %xmm0
+; SKX-NEXT:    retq
+  %val = load i32, i32* %ptr
+  %r1 = insertelement <4 x i32> %x, i32 %val, i32 1
+  %r2 = insertelement <4 x i32> %r1, i32 %y, i32 3
+  ret <4 x i32> %r2
+}
+
+define <32 x i16> @insert_v32i16(<32 x i16> %x, i16 %y, i16* %ptr) {
+; KNL-LABEL: insert_v32i16:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrw $1, (%rsi), %xmm0, %xmm2
+; KNL-NEXT:    vpblendd {{.*#+}} ymm0 = ymm2[0,1,2,3],ymm0[4,5,6,7]
+; KNL-NEXT:    vextracti128 $1, %ymm0, %xmm2
+; KNL-NEXT:    vpinsrw $1, %edi, %xmm2, %xmm2
+; KNL-NEXT:    vinserti128 $1, %xmm2, %ymm0, %ymm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: insert_v32i16:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrw $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vinserti32x4 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    vextracti32x4 $1, %zmm0, %xmm1
+; SKX-NEXT:    vpinsrw $1, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $1, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %val = load i16, i16* %ptr
+  %r1 = insertelement <32 x i16> %x, i16 %val, i32 1
+  %r2 = insertelement <32 x i16> %r1, i16 %y, i32 9
+  ret <32 x i16> %r2
+}
+
+define <16 x i16> @insert_v16i16(<16 x i16> %x, i16 %y, i16* %ptr) {
+; KNL-LABEL: insert_v16i16:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrw $1, (%rsi), %xmm0, %xmm1
+; KNL-NEXT:    vpblendd {{.*#+}} ymm0 = ymm1[0,1,2,3],ymm0[4,5,6,7]
+; KNL-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; KNL-NEXT:    vpinsrw $1, %edi, %xmm1, %xmm1
+; KNL-NEXT:    vinserti128 $1, %xmm1, %ymm0, %ymm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: insert_v16i16:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrw $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vpblendd {{.*#+}} ymm0 = ymm1[0,1,2,3],ymm0[4,5,6,7]
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; SKX-NEXT:    vpinsrw $1, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $1, %xmm1, %ymm0, %ymm0
+; SKX-NEXT:    retq
+  %val = load i16, i16* %ptr
+  %r1 = insertelement <16 x i16> %x, i16 %val, i32 1
+  %r2 = insertelement <16 x i16> %r1, i16 %y, i32 9
+  ret <16 x i16> %r2
+}
+
+define <8 x i16> @insert_v8i16(<8 x i16> %x, i16 %y, i16* %ptr) {
+; KNL-LABEL: insert_v8i16:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrw $1, (%rsi), %xmm0, %xmm0
+; KNL-NEXT:    vpinsrw $5, %edi, %xmm0, %xmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: insert_v8i16:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrw $1, (%rsi), %xmm0, %xmm0
+; SKX-NEXT:    vpinsrw $5, %edi, %xmm0, %xmm0
+; SKX-NEXT:    retq
+  %val = load i16, i16* %ptr
+  %r1 = insertelement <8 x i16> %x, i16 %val, i32 1
+  %r2 = insertelement <8 x i16> %r1, i16 %y, i32 5
+  ret <8 x i16> %r2
+}
+
+define <64 x i8> @insert_v64i8(<64 x i8> %x, i8 %y, i8* %ptr) {
+; KNL-LABEL: insert_v64i8:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrb $1, (%rsi), %xmm0, %xmm2
+; KNL-NEXT:    vpblendd {{.*#+}} ymm0 = ymm2[0,1,2,3],ymm0[4,5,6,7]
+; KNL-NEXT:    vextracti128 $1, %ymm1, %xmm2
+; KNL-NEXT:    vpinsrb $2, %edi, %xmm2, %xmm2
+; KNL-NEXT:    vinserti128 $1, %xmm2, %ymm1, %ymm1
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: insert_v64i8:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrb $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vinserti32x4 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    vextracti32x4 $3, %zmm0, %xmm1
+; SKX-NEXT:    vpinsrb $2, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $3, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %val = load i8, i8* %ptr
+  %r1 = insertelement <64 x i8> %x, i8 %val, i32 1
+  %r2 = insertelement <64 x i8> %r1, i8 %y, i32 50
+  ret <64 x i8> %r2
+}
+
+define <32 x i8> @insert_v32i8(<32 x i8> %x, i8 %y, i8* %ptr) {
+; SKX-LABEL: insert_v32i8:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrb $1, (%rsi), %xmm0, %xmm1
+; SKX-NEXT:    vpblendd {{.*#+}} ymm0 = ymm1[0,1,2,3],ymm0[4,5,6,7]
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; SKX-NEXT:    vpinsrb $1, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $1, %xmm1, %ymm0, %ymm0
+; SKX-NEXT:    retq
+  %val = load i8, i8* %ptr
+  %r1 = insertelement <32 x i8> %x, i8 %val, i32 1
+  %r2 = insertelement <32 x i8> %r1, i8 %y, i32 17
+  ret <32 x i8> %r2
+}
+
+define <16 x i8> @insert_v16i8(<16 x i8> %x, i8 %y, i8* %ptr) {
+; KNL-LABEL: insert_v16i8:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrb $3, (%rsi), %xmm0, %xmm0
+; KNL-NEXT:    vpinsrb $10, %edi, %xmm0, %xmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: insert_v16i8:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrb $3, (%rsi), %xmm0, %xmm0
+; SKX-NEXT:    vpinsrb $10, %edi, %xmm0, %xmm0
+; SKX-NEXT:    retq
+  %val = load i8, i8* %ptr
+  %r1 = insertelement <16 x i8> %x, i8 %val, i32 3
+  %r2 = insertelement <16 x i8> %r1, i8 %y, i32 10
+  ret <16 x i8> %r2
+}
+
+define <8 x i64> @test_insert_128_v8i64(<8 x i64> %x, i64 %y) {
+; KNL-LABEL: test_insert_128_v8i64:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrq $1, %rdi, %xmm0, %xmm1
+; KNL-NEXT:    vinserti32x4 $0, %xmm1, %zmm0, %zmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test_insert_128_v8i64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrq $1, %rdi, %xmm0, %xmm1
+; SKX-NEXT:    vinserti64x2 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %r = insertelement <8 x i64> %x, i64 %y, i32 1
+  ret <8 x i64> %r
+}
+
+define <16 x i32> @test_insert_128_v16i32(<16 x i32> %x, i32 %y) {
+; KNL-LABEL: test_insert_128_v16i32:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vpinsrd $1, %edi, %xmm0, %xmm1
+; KNL-NEXT:    vinserti32x4 $0, %xmm1, %zmm0, %zmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test_insert_128_v16i32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vpinsrd $1, %edi, %xmm0, %xmm1
+; SKX-NEXT:    vinserti32x4 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %r = insertelement <16 x i32> %x, i32 %y, i32 1
+  ret <16 x i32> %r
+}
+
+define <8 x double> @test_insert_128_v8f64(<8 x double> %x, double %y) {
+; KNL-LABEL: test_insert_128_v8f64:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vunpcklpd {{.*#+}} xmm1 = xmm0[0],xmm1[0]
+; KNL-NEXT:    vinsertf32x4 $0, %xmm1, %zmm0, %zmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test_insert_128_v8f64:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vunpcklpd %xmm1, %xmm0, %xmm1
+; SKX-NEXT:    vinsertf64x2 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %r = insertelement <8 x double> %x, double %y, i32 1
+  ret <8 x double> %r
+}
+
+define <16 x float> @test_insert_128_v16f32(<16 x float> %x, float %y) {
+; KNL-LABEL: test_insert_128_v16f32:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vinsertps $16, %xmm1, %xmm0, %xmm1
+; KNL-NEXT:    vinsertf32x4 $0, %xmm1, %zmm0, %zmm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test_insert_128_v16f32:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vinsertps $16, %xmm1, %xmm0, %xmm1
+; SKX-NEXT:    vinsertf32x4 $0, %xmm1, %zmm0, %zmm0
+; SKX-NEXT:    retq
+  %r = insertelement <16 x float> %x, float %y, i32 1
+  ret <16 x float> %r
+}
+
+define <16 x i16> @test_insert_128_v16i16(<16 x i16> %x, i16 %y) {
+; KNL-LABEL: test_insert_128_v16i16:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; KNL-NEXT:    vpinsrw $2, %edi, %xmm1, %xmm1
+; KNL-NEXT:    vinserti128 $1, %xmm1, %ymm0, %ymm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test_insert_128_v16i16:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; SKX-NEXT:    vpinsrw $2, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $1, %xmm1, %ymm0, %ymm0
+; SKX-NEXT:    retq
+  %r = insertelement <16 x i16> %x, i16 %y, i32 10
+  ret <16 x i16> %r
+}
+
+define <32 x i8> @test_insert_128_v32i8(<32 x i8> %x, i8 %y) {
+; KNL-LABEL: test_insert_128_v32i8:
+; KNL:       ## BB#0:
+; KNL-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; KNL-NEXT:    vpinsrb $4, %edi, %xmm1, %xmm1
+; KNL-NEXT:    vinserti128 $1, %xmm1, %ymm0, %ymm0
+; KNL-NEXT:    retq
+;
+; SKX-LABEL: test_insert_128_v32i8:
+; SKX:       ## BB#0:
+; SKX-NEXT:    vextracti128 $1, %ymm0, %xmm1
+; SKX-NEXT:    vpinsrb $4, %edi, %xmm1, %xmm1
+; SKX-NEXT:    vinserti32x4 $1, %xmm1, %ymm0, %ymm0
+; SKX-NEXT:    retq
+  %r = insertelement <32 x i8> %x, i8 %y, i32 20
+  ret <32 x i8> %r
+}

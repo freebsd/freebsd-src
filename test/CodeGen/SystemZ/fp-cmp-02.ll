@@ -3,7 +3,7 @@
 ;
 ; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 \
 ; RUN:   | FileCheck -check-prefix=CHECK -check-prefix=CHECK-SCALAR %s
-; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z13 \
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z13 -verify-machineinstrs\
 ; RUN:   | FileCheck -check-prefix=CHECK -check-prefix=CHECK-VECTOR %s
 
 declare double @foo()
@@ -164,8 +164,7 @@ define i64 @f8(i64 %a, i64 %b, double %f) {
 ; CHECK-SCALAR: ltdbr %f0, %f0
 ; CHECK-SCALAR-NEXT: je
 ; CHECK-SCALAR: lgr %r2, %r3
-; CHECK-VECTOR: lzdr %f1
-; CHECK-VECTOR-NEXT: cdbr %f0, %f1
+; CHECK-VECTOR: ltdbr %f0, %f0
 ; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
   %cond = fcmp oeq double %f, 0.0

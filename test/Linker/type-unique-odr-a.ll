@@ -1,6 +1,6 @@
-; REQUIRES: object-emission
+; REQUIRES: default_triple, object-emission
 ;
-; RUN: llvm-link %s %p/type-unique-odr-b.ll -S -o - | %llc_dwarf -filetype=obj -O0 | llvm-dwarfdump -debug-dump=info - | FileCheck %s
+; RUN: llvm-link %s %p/type-unique-odr-b.ll -S -o - | %llc_dwarf -dwarf-linkage-names=Enable -filetype=obj -O0 | llvm-dwarfdump -debug-dump=info - | FileCheck %s
 ;
 ; Test ODR-based type uniquing for C++ class members.
 ; rdar://problem/15851313.
@@ -49,14 +49,14 @@
 %class.A = type { i32 }
 
 ; Function Attrs: nounwind
-define void @_Z3bazv() #0 {
+define void @_Z3bazv() #0 !dbg !15 {
 entry:
   call void @_ZL3barv(), !dbg !23
   ret void, !dbg !23
 }
 
 ; Function Attrs: nounwind
-define internal void @_ZL3barv() #0 {
+define internal void @_ZL3barv() #0 !dbg !19 {
 entry:
   %a = alloca %class.A, align 4
   call void @llvm.dbg.declare(metadata %class.A* %a, metadata !24, metadata !DIExpression()), !dbg !25
@@ -73,7 +73,7 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!20, !21}
 !llvm.ident = !{!22}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
 !1 = !DIFile(filename: "<unknown>", directory: "")
 !2 = !{}
 !3 = !{!4}
@@ -87,15 +87,15 @@ attributes #1 = { nounwind readnone }
 !11 = !{null, !12}
 !12 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, flags: DIFlagArtificial | DIFlagObjectPointer, baseType: !"_ZTS1A")
 !14 = !{!15, !19}
-!15 = !DISubprogram(name: "baz", linkageName: "_Z3bazv", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 11, file: !5, scope: !16, type: !17, function: void ()* @_Z3bazv, variables: !2)
+!15 = distinct !DISubprogram(name: "baz", linkageName: "_Z3bazv", line: 11, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 11, file: !5, scope: !16, type: !17, variables: !2)
 !16 = !DIFile(filename: "type-unique-odr-a.cpp", directory: "")
 !17 = !DISubroutineType(types: !18)
 !18 = !{null}
-!19 = !DISubprogram(name: "bar", linkageName: "_ZL3barv", line: 7, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 7, file: !5, scope: !16, type: !17, function: void ()* @_ZL3barv, variables: !2)
+!19 = distinct !DISubprogram(name: "bar", linkageName: "_ZL3barv", line: 7, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 7, file: !5, scope: !16, type: !17, variables: !2)
 !20 = !{i32 2, !"Dwarf Version", i32 4}
 !21 = !{i32 1, !"Debug Info Version", i32 3}
 !22 = !{!"clang version 3.5.0 "}
 !23 = !DILocation(line: 11, scope: !15)
-!24 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "a", line: 8, scope: !19, file: !16, type: !"_ZTS1A")
+!24 = !DILocalVariable(name: "a", line: 8, scope: !19, file: !16, type: !"_ZTS1A")
 !25 = !DILocation(line: 8, scope: !19)
 !26 = !DILocation(line: 9, scope: !19)

@@ -28,35 +28,25 @@ entry:
   %r = alloca i32, align 4
   store i32 42, i32* %r
   invoke void @try_body(i32* %r, i32* %n, i32* %d)
-          to label %__try.cont unwind label %lpad
+          to label %__try.cont unwind label %lpad0
 
-lpad:
-  %vals = landingpad { i8*, i32 }
-          catch i8* bitcast (i32 ()* @safe_div_filt0 to i8*)
-          catch i8* bitcast (i32 ()* @safe_div_filt1 to i8*)
-  %ehptr = extractvalue { i8*, i32 } %vals, 0
-  %sel = extractvalue { i8*, i32 } %vals, 1
-  %filt0_val = call i32 @llvm.eh.typeid.for(i8* bitcast (i32 ()* @safe_div_filt0 to i8*))
-  %is_filt0 = icmp eq i32 %sel, %filt0_val
-  br i1 %is_filt0, label %handler0, label %eh.dispatch1
-
-eh.dispatch1:
-  %filt1_val = call i32 @llvm.eh.typeid.for(i8* bitcast (i32 ()* @safe_div_filt1 to i8*))
-  %is_filt1 = icmp eq i32 %sel, %filt1_val
-  br i1 %is_filt1, label %handler1, label %eh.resume
+lpad0:
+  %cs0 = catchswitch within none [label %handler0] unwind label %lpad1
 
 handler0:
-  call void @puts(i8* getelementptr ([27 x i8], [27 x i8]* @str1, i32 0, i32 0))
+  %p0 = catchpad within %cs0 [i8* bitcast (i32 ()* @safe_div_filt0 to i8*)]
+  call void @puts(i8* getelementptr ([27 x i8], [27 x i8]* @str1, i32 0, i32 0)) [ "funclet"(token %p0) ]
   store i32 -1, i32* %r, align 4
-  br label %__try.cont
+  catchret from %p0 to label %__try.cont
+
+lpad1:
+  %cs1 = catchswitch within none [label %handler1] unwind to caller
 
 handler1:
-  call void @puts(i8* getelementptr ([29 x i8], [29 x i8]* @str2, i32 0, i32 0))
+  %p1 = catchpad within %cs1 [i8* bitcast (i32 ()* @safe_div_filt1 to i8*)]
+  call void @puts(i8* getelementptr ([29 x i8], [29 x i8]* @str2, i32 0, i32 0)) [ "funclet"(token %p1) ]
   store i32 -2, i32* %r, align 4
-  br label %__try.cont
-
-eh.resume:
-  resume { i8*, i32 } %vals
+  catchret from %p1 to label %__try.cont
 
 __try.cont:
   %safe_ret = load i32, i32* %r, align 4
@@ -75,15 +65,13 @@ __try.cont:
 
 ; Landing pad code
 
-; CHECK: [[handler0:Ltmp[0-9]+]]: # Block address taken
-; CHECK: # %handler0
+; CHECK: [[handler0:LBB0_[0-9]+]]: # %handler0
 ; 	Restore SP
 ; CHECK: movl {{.*}}(%ebp), %esp
 ; CHECK: calll _puts
 ; CHECK: jmp [[cont_bb]]
 
-; CHECK: [[handler1:Ltmp[0-9]+]]: # Block address taken
-; CHECK: # %handler1
+; CHECK: [[handler1:LBB0_[0-9]+]]: # %handler1
 ; 	Restore SP
 ; CHECK: movl {{.*}}(%ebp), %esp
 ; CHECK: calll _puts

@@ -31,7 +31,7 @@ static_assert(
     !std::is_convertible<ArrayRef<volatile int *>, ArrayRef<int *>>::value,
     "Removing volatile");
 
-namespace llvm {
+namespace {
 
 TEST(ArrayRefTest, AllocatorCopy) {
   BumpPtrAllocator Alloc;
@@ -45,6 +45,19 @@ TEST(ArrayRefTest, AllocatorCopy) {
   EXPECT_NE(Array1.data(), Array1c.data());
   EXPECT_TRUE(Array2.equals(Array2c));
   EXPECT_NE(Array2.data(), Array2c.data());
+
+  // Check that copy can cope with uninitialized memory.
+  struct NonAssignable {
+    const char *Ptr;
+
+    NonAssignable(const char *Ptr) : Ptr(Ptr) {}
+    NonAssignable(const NonAssignable &RHS) = default;
+    void operator=(const NonAssignable &RHS) { assert(RHS.Ptr != nullptr); }
+    bool operator==(const NonAssignable &RHS) const { return Ptr == RHS.Ptr; }
+  } Array3Src[] = {"hello", "world"};
+  ArrayRef<NonAssignable> Array3Copy = makeArrayRef(Array3Src).copy(Alloc);
+  EXPECT_EQ(makeArrayRef(Array3Src), Array3Copy);
+  EXPECT_NE(makeArrayRef(Array3Src).data(), Array3Copy.data());
 }
 
 TEST(ArrayRefTest, DropBack) {
@@ -109,6 +122,22 @@ TEST(ArrayRefTest, InitializerList) {
   EXPECT_EQ(2, A[1]);
 
   ArgTest12({1, 2});
+}
+
+// Test that makeArrayRef works on ArrayRef (no-op)
+TEST(ArrayRefTest, makeArrayRef) {
+  static const int A1[] = {1, 2, 3, 4, 5, 6, 7, 8};
+
+  // No copy expected for non-const ArrayRef (true no-op)
+  ArrayRef<int> AR1(A1);
+  ArrayRef<int> &AR1Ref = makeArrayRef(AR1);
+  EXPECT_EQ(&AR1, &AR1Ref);
+
+  // A copy is expected for non-const ArrayRef (thin copy)
+  const ArrayRef<int> AR2(A1);
+  const ArrayRef<int> &AR2Ref = makeArrayRef(AR2);
+  EXPECT_NE(&AR2Ref, &AR2);
+  EXPECT_TRUE(AR2.equals(AR2Ref));
 }
 
 } // end anonymous namespace

@@ -11,7 +11,7 @@ target triple = "x86_64-apple-darwin10.0.0"
 @lvgv = internal constant [0 x i8*] zeroinitializer
 @llvm.global.annotations = appending global [1 x %0] [%0 { i8* bitcast (void (i32 addrspace(1)*)* @__OpenCL_nbt02_kernel to i8*), i8* addrspacecast ([1 x i8] addrspace(2)* @sgv to i8*), i8* addrspacecast ([1 x i8] addrspace(2)* @fgv to i8*), i8* bitcast ([0 x i8*]* @lvgv to i8*), i32 0 }], section "llvm.metadata"
 
-define void @__OpenCL_nbt02_kernel(i32 addrspace(1)* %ip) nounwind {
+define void @__OpenCL_nbt02_kernel(i32 addrspace(1)* %ip) nounwind !dbg !0 {
 entry:
   call void @llvm.dbg.value(metadata i32 addrspace(1)* %ip, i64 0, metadata !8, metadata !DIExpression()), !dbg !9
   %0 = call <4 x i32> @__amdil_get_local_id_int() nounwind
@@ -81,22 +81,22 @@ declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnon
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!22}
 
-!0 = !DISubprogram(name: "__OpenCL_nbt02_kernel", linkageName: "__OpenCL_nbt02_kernel", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !20, scope: !1, type: !3, function: void (i32 addrspace(1)*)* @__OpenCL_nbt02_kernel)
+!0 = distinct !DISubprogram(name: "__OpenCL_nbt02_kernel", linkageName: "__OpenCL_nbt02_kernel", line: 2, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, file: !20, scope: !1, type: !3)
 !1 = !DIFile(filename: "OCLlLwTXZ.cl", directory: "/tmp")
-!2 = !DICompileUnit(language: DW_LANG_C89, producer: "clc", isOptimized: false, emissionKind: 1, file: !20, enums: !21, retainedTypes: !21, subprograms: !19, imports:  null)
+!2 = distinct !DICompileUnit(language: DW_LANG_C89, producer: "clc", isOptimized: false, emissionKind: 1, file: !20, enums: !21, retainedTypes: !21, subprograms: !19, imports:  null)
 !3 = !DISubroutineType(types: !4)
 !4 = !{null, !5}
 !5 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 32, align: 32, scope: !2, baseType: !6)
 !6 = !DIDerivedType(tag: DW_TAG_typedef, name: "uint", file: !20, scope: !2, baseType: !7)
 !7 = !DIBasicType(tag: DW_TAG_base_type, name: "unsigned int", size: 32, align: 32, encoding: DW_ATE_unsigned)
-!8 = !DILocalVariable(tag: DW_TAG_arg_variable, name: "ip", line: 1, arg: 0, scope: !0, file: !1, type: !5)
+!8 = !DILocalVariable(name: "ip", line: 1, arg: 1, scope: !0, file: !1, type: !5)
 !9 = !DILocation(line: 1, column: 32, scope: !0)
-!10 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "tid", line: 3, scope: !11, file: !1, type: !6)
+!10 = !DILocalVariable(name: "tid", line: 3, scope: !11, file: !1, type: !6)
 !11 = distinct !DILexicalBlock(line: 2, column: 1, file: !1, scope: !0)
 !12 = !DILocation(line: 5, column: 24, scope: !11)
-!13 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "gid", line: 3, scope: !11, file: !1, type: !6)
+!13 = !DILocalVariable(name: "gid", line: 3, scope: !11, file: !1, type: !6)
 !14 = !DILocation(line: 6, column: 25, scope: !11)
-!15 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "lsz", line: 3, scope: !11, file: !1, type: !6)
+!15 = !DILocalVariable(name: "lsz", line: 3, scope: !11, file: !1, type: !6)
 !16 = !DILocation(line: 7, column: 26, scope: !11)
 !17 = !DILocation(line: 9, column: 24, scope: !11)
 !18 = !DILocation(line: 10, column: 1, scope: !0)

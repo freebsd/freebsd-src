@@ -134,6 +134,7 @@ lit.site.cfg: FORCE
 	@$(ECHOPATH) s!@OCAMLFLAGS@!$(addprefix -cclib ,$(LDFLAGS))!g >> lit.tmp
 	@$(ECHOPATH) s=@HAVE_OCAMLOPT@=$(HAVE_OCAMLOPT)=g >> lit.tmp
 	@$(ECHOPATH) s=@HAVE_OCAML_OUNIT@=$(HAVE_OCAML_OUNIT)=g >> lit.tmp
+	@$(ECHOPATH) s=@LLVM_INCLUDE_GO_TESTS@=ON=g >> lit.tmp
 	@$(ECHOPATH) s=@GO_EXECUTABLE@=$(GO)=g >> lit.tmp
 	@$(ECHOPATH) s!@HOST_CC@!$(CC)!g >> lit.tmp
 	@$(ECHOPATH) s!@HOST_CXX@!$(CXX)!g >> lit.tmp
@@ -146,6 +147,8 @@ lit.site.cfg: FORCE
 	@$(ECHOPATH) s=@HOST_ARCH@=$(HOST_ARCH)=g >> lit.tmp
 	@$(ECHOPATH) s=@HAVE_LIBZ@=$(HAVE_LIBZ)=g >> lit.tmp
 	@$(ECHOPATH) s=@HAVE_DIA_SDK@=0=g >> lit.tmp
+	@$(ECHOPATH) s=@ENABLE_EXAMPLES@=$(BUILD_EXAMPLES)=g >> lit.tmp
+	@$(ECHOPATH) s=@ENABLE_TIMESTAMPS@=$(ENABLE_TIMESTAMPS)=g >> lit.tmp
 	@sed -f lit.tmp $(PROJ_SRC_DIR)/lit.site.cfg.in > $@
 	@-rm -f lit.tmp
 

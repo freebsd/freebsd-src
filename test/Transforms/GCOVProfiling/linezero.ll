@@ -9,7 +9,7 @@ target triple = "x86_64-unknown-linux-gnu"
 %struct.vector = type { i8 }
 
 ; Function Attrs: nounwind
-define i32 @_Z4testv() #0 {
+define i32 @_Z4testv() #0 !dbg !15 {
 entry:
   %retval = alloca i32, align 4
   %__range = alloca %struct.vector*, align 8
@@ -75,7 +75,7 @@ declare i8* @_ZN6vector3endEv(%struct.vector*) #2
 declare void @llvm.trap() #3
 
 ; Function Attrs: nounwind
-define void @_Z2f1v() #0 {
+define void @_Z2f1v() #0 !dbg !20 {
 entry:
   br label %0
 
@@ -93,7 +93,7 @@ attributes #3 = { noreturn nounwind }
 !llvm.gcov = !{!25}
 !llvm.ident = !{!26}
 
-!0 = !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 209871)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 209871)", isOptimized: false, emissionKind: 1, file: !1, enums: !2, retainedTypes: !3, subprograms: !14, globals: !2, imports: !2)
 !1 = !DIFile(filename: "<stdin>", directory: "PATTERN")
 !2 = !{}
 !3 = !{!4}
@@ -108,29 +108,29 @@ attributes #3 = { noreturn nounwind }
 !12 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, flags: DIFlagArtificial | DIFlagObjectPointer, baseType: !"_ZTS6vector")
 !13 = !DISubprogram(name: "end", linkageName: "_ZN6vector3endEv", line: 26, isLocal: false, isDefinition: false, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 26, file: !5, scope: !"_ZTS6vector", type: !8)
 !14 = !{!15, !20}
-!15 = !DISubprogram(name: "test", linkageName: "_Z4testv", line: 50, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 50, file: !5, scope: !16, type: !17, function: i32 ()* @_Z4testv, variables: !2)
+!15 = distinct !DISubprogram(name: "test", linkageName: "_Z4testv", line: 50, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 50, file: !5, scope: !16, type: !17, variables: !2)
 !16 = !DIFile(filename: "linezero.cc", directory: "PATTERN")
 !17 = !DISubroutineType(types: !18)
 !18 = !{!19}
 !19 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
-!20 = !DISubprogram(name: "f1", linkageName: "_Z2f1v", line: 54, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 54, file: !5, scope: !16, type: !21, function: void ()* @_Z2f1v, variables: !2)
+!20 = distinct !DISubprogram(name: "f1", linkageName: "_Z2f1v", line: 54, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, scopeLine: 54, file: !5, scope: !16, type: !21, variables: !2)
 !21 = !DISubroutineType(types: !22)
 !22 = !{null}
 !23 = !{i32 2, !"Dwarf Version", i32 4}
 !24 = !{i32 2, !"Debug Info Version", i32 3}
 !25 = !{!"PATTERN/linezero.o", !0}
 !26 = !{!"clang version 3.5.0 (trunk 209871)"}
-!27 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "__range", flags: DIFlagArtificial, scope: !28, type: !29)
+!27 = !DILocalVariable(name: "__range", flags: DIFlagArtificial, scope: !28, type: !29)
 !28 = distinct !DILexicalBlock(line: 51, column: 0, file: !5, scope: !15)
 !29 = !DIDerivedType(tag: DW_TAG_rvalue_reference_type, baseType: !"_ZTS6vector")
 !30 = !DILocation(line: 0, scope: !28)
 !31 = !DILocation(line: 51, scope: !28)
-!32 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "__begin", flags: DIFlagArtificial, scope: !28, type: !10)
-!33 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "__end", flags: DIFlagArtificial, scope: !28, type: !10)
+!32 = !DILocalVariable(name: "__begin", flags: DIFlagArtificial, scope: !28, type: !10)
+!33 = !DILocalVariable(name: "__end", flags: DIFlagArtificial, scope: !28, type: !10)
 !34 = !DILocation(line: 51, scope: !35)
 !35 = distinct !DILexicalBlock(line: 51, column: 0, file: !5, scope: !36)
 !36 = distinct !DILexicalBlock(line: 51, column: 0, file: !5, scope: !28)
-!37 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "spec", line: 51, scope: !28, file: !16, type: !11)
+!37 = !DILocalVariable(name: "spec", line: 51, scope: !28, file: !16, type: !11)
 !38 = !DILocation(line: 51, scope: !39)
 !39 = distinct !DILexicalBlock(line: 51, column: 0, file: !5, scope: !28)
 !40 = !DILocation(line: 51, scope: !41)

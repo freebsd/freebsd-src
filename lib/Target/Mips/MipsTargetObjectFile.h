@@ -36,10 +36,10 @@ class MipsTargetMachine;
                                       const TargetMachine &TM) const override;
 
     /// Return true if this constant should be placed into small data section.
-    bool IsConstantInSmallSection(const Constant *CN,
+    bool IsConstantInSmallSection(const DataLayout &DL, const Constant *CN,
                                   const TargetMachine &TM) const;
 
-    MCSection *getSectionForConstant(SectionKind Kind,
+    MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
                                      const Constant *C) const override;
   };
 } // end namespace llvm

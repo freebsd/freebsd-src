@@ -118,7 +118,9 @@ CHECK-NEXT: main
 CHECK-NEXT: /tmp{{[/\\]}}cross-cu-inlining.c:11:0
 
 RUN: echo "unexisting-file 0x1234" > %t.input2
-RUN: llvm-symbolizer < %t.input2
+RUN: llvm-symbolizer < %t.input2 2>&1 | FileCheck %s --check-prefix=MISSING-FILE
+
+MISSING-FILE: LLVMSymbolizer: error reading file: {{[Nn]}}o such file or directory
 
 RUN: echo "%p/Inputs/macho-universal 0x1f84" > %t.input3
 RUN: llvm-symbolizer < %t.input3 | FileCheck %s --check-prefix=UNKNOWN-ARCH
@@ -154,7 +156,7 @@ RUN:   | FileCheck %s --check-prefix=STRIPPED
 STRIPPED:  global_func
 
 RUN: echo "%p/Inputs/dwarfdump-test4.elf-x86-64 0x62c" > %t.input7
-RUN: llvm-symbolizer --functions=short --use-symbol-table=false --demangle=false < %t.input7 \
+RUN: llvm-symbolizer --functions=short --demangle=false < %t.input7 \
 RUN:    | FileCheck %s --check-prefix=SHORT_FUNCTION_NAME
 
 SHORT_FUNCTION_NAME-NOT: _Z1cv

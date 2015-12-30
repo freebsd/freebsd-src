@@ -1,4 +1,4 @@
-; RUN: llc  -march=mipsel -mcpu=mips16 -relocation-model=pic -O3 < %s | FileCheck %s -check-prefix=16hf
+; RUN: llc  -march=mipsel -mattr=mips16 -relocation-model=pic -O3 < %s | FileCheck %s -check-prefix=16hf
 
 @x = global float 5.000000e+00, align 4
 @y = global float 1.500000e+01, align 4
@@ -297,7 +297,7 @@ entry:
   %and2 = and i1 %lnot, %cmp1
   %and = zext i1 %and2 to i32
   store i32 %and, i32* @ltsf2_result, align 4
-;16hf:  lw	${{[0-9]+}}, %call16(__mips16_unordsf2)(${{[0-9]+}})
+;16hf:  lw	${{[0-9]+}}, %call16(__mips16_ltsf2)(${{[0-9]+}})
 ;16hf:  lw	${{[0-9]+}}, %call16(__mips16_ltsf2)(${{[0-9]+}})
   ret void
 }
@@ -313,7 +313,7 @@ entry:
   %and2 = and i1 %lnot, %cmp1
   %and = zext i1 %and2 to i32
   store i32 %and, i32* @ltdf2_result, align 4
-;16hf:  lw	${{[0-9]+}}, %call16(__mips16_unorddf2)(${{[0-9]+}})
+;16hf:  lw	${{[0-9]+}}, %call16(__mips16_ltdf2)(${{[0-9]+}})
 ;16hf:  lw	${{[0-9]+}}, %call16(__mips16_ltdf2)(${{[0-9]+}})
   ret void
 }

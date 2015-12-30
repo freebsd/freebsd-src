@@ -47,7 +47,7 @@ target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.9.0"
 
 ; Function Attrs: nounwind ssp uwtable
-define i32 @foo() #0 {
+define i32 @foo() #0 !dbg !4 {
 entry:
   %i = alloca i32, align 4
   call void @llvm.dbg.value(metadata i32 3, i64 0, metadata !10, metadata !DIExpression()), !dbg !15
@@ -56,7 +56,7 @@ entry:
   %call1 = call i32 (...) @f1() #3, !dbg !19
   call void @llvm.dbg.value(metadata i32 %call1, i64 0, metadata !10, metadata !DIExpression()), !dbg !19
   store i32 %call1, i32* %i, align 4, !dbg !19, !tbaa !20
-  call void @llvm.dbg.value(metadata i32* %i, i64 0, metadata !10, metadata !DIExpression()), !dbg !24
+  call void @llvm.dbg.value(metadata i32* %i, i64 0, metadata !10, metadata !DIExpression(DW_OP_deref)), !dbg !24
   call void @f2(i32* %i) #3, !dbg !24
   ret i32 0, !dbg !25
 }
@@ -78,17 +78,17 @@ attributes #3 = { nounwind }
 !llvm.module.flags = !{!11, !12}
 !llvm.ident = !{!13}
 
-!0 = !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: true, emissionKind: 1, file: !1, enums: !2, retainedTypes: !2, subprograms: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "dbg-value-const-byref.c", directory: "")
 !2 = !{}
 !3 = !{!4}
-!4 = !DISubprogram(name: "foo", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 5, file: !1, scope: !5, type: !6, function: i32 ()* @foo, variables: !9)
+!4 = distinct !DISubprogram(name: "foo", line: 5, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, scopeLine: 5, file: !1, scope: !5, type: !6, variables: !9)
 !5 = !DIFile(filename: "dbg-value-const-byref.c", directory: "")
 !6 = !DISubroutineType(types: !7)
 !7 = !{!8}
 !8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
 !9 = !{!10}
-!10 = !DILocalVariable(tag: DW_TAG_auto_variable, name: "i", line: 6, scope: !4, file: !5, type: !8)
+!10 = !DILocalVariable(name: "i", line: 6, scope: !4, file: !5, type: !8)
 !11 = !{i32 2, !"Dwarf Version", i32 2}
 !12 = !{i32 1, !"Debug Info Version", i32 3}
 !13 = !{!"clang version 3.5.0 "}
