@@ -66,6 +66,8 @@ MALLOC_DECLARE(M_NEWNFSREQ);
 
 uma_zone_t newnfsnode_zone;
 
+const char nfs_vnode_tag[] = "newnfs";
+
 static void	nfs_freesillyrename(void *arg, __unused int pending);
 
 void
@@ -124,7 +126,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 	}
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
-	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
+	error = getnewvnode(nfs_vnode_tag, mntp, &newnfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
@@ -332,4 +334,3 @@ ncl_invalcaches(struct vnode *vp)
 	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 	mtx_unlock(&np->n_mtx);
 }
-
