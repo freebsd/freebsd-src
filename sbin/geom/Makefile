@@ -20,7 +20,13 @@ LIBADD=	geom util
 
 .else
 
+.include <src.opts.mk>
+
 SUBDIR=	core class
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.subdir.mk>
 
