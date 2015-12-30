@@ -6,6 +6,9 @@
 // Source Licenses. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+//
+// UNSUPPORTED: c++98, c++03, c++11
+// XFAIL: libcpp-no-exceptions
 
 // <optional>
 
@@ -16,7 +19,6 @@
 #include <type_traits>
 #include <cassert>
 
-#if _LIBCPP_STD_VER > 11
 
 using std::experimental::optional;
 using std::experimental::in_place_t;
@@ -52,17 +54,13 @@ public:
 
 class Z
 {
-    int i_;
 public:
-    Z(int i) : i_(i) {throw 6;}
+    Z(int i) {throw 6;}
 };
 
 
-#endif  // _LIBCPP_STD_VER > 11
-
 int main()
 {
-#if _LIBCPP_STD_VER > 11
     {
         constexpr optional<int> opt(in_place, 5);
         static_assert(static_cast<bool>(opt) == true, "");
@@ -141,5 +139,4 @@ int main()
             assert(i == 6);
         }
     }
-#endif  // _LIBCPP_STD_VER > 11
 }

@@ -12,6 +12,36 @@
 #include <stdlib.h>
 #include <type_traits>
 
+// As of 1/10/2015 clang emits a -Wnonnull warnings even if the warning occurs
+// in an unevaluated context. For this reason we manually suppress the warning.
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wnonnull"
+#endif
+
+#ifdef abs
+#error abs is defined
+#endif
+
+#ifdef labs
+#error labs is defined
+#endif
+
+#ifdef llabs
+#error llabs is defined
+#endif
+
+#ifdef div
+#error div is defined
+#endif
+
+#ifdef ldiv
+#error ldiv is defined
+#endif
+
+#ifdef lldiv
+#error lldiv is defined
+#endif
+
 #ifndef EXIT_FAILURE
 #error EXIT_FAILURE not defined
 #endif
@@ -34,10 +64,10 @@
 
 int main()
 {
-    size_t s = 0;
-    div_t d;
-    ldiv_t ld;
-    lldiv_t lld;
+    size_t s = 0; ((void)s);
+    div_t d; ((void)d);
+    ldiv_t ld; ((void)ld);
+    lldiv_t lld; ((void)lld);
     char** endptr = 0;
     static_assert((std::is_same<decltype(atof("")), double>::value), "");
     static_assert((std::is_same<decltype(atoi("")), int>::value), "");

@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: libcpp-no-exceptions
 // <regex>
 
 // template <class charT, class traits = regex_traits<charT>> class basic_regex;
@@ -22,7 +23,7 @@ static bool error_escape_thrown(const char *pat)
     bool result = false;
     try {
         std::regex re(pat);
-    } catch (std::regex_error &ex) {
+    } catch (const std::regex_error &ex) {
         result = (ex.code() == std::regex_constants::error_escape);
     }
     return result;

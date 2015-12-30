@@ -9,6 +9,10 @@
 //
 // UNSUPPORTED: libcpp-has-no-threads
 
+// notify_all_at_thread_exit(...) requires move semantics to transfer the
+// unique_lock.
+// UNSUPPORTED: c++98, c++03
+
 // <condition_variable>
 
 // void
@@ -36,9 +40,10 @@ void func()
 int main()
 {
     std::unique_lock<std::mutex> lk(mut);
-    std::thread(func).detach();
+    std::thread t(func);
     Clock::time_point t0 = Clock::now();
     cv.wait(lk);
     Clock::time_point t1 = Clock::now();
     assert(t1-t0 > ms(250));
+    t.join();
 }

@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: libcpp-no-exceptions
 // <exception>
 
 // class nested_exception;
@@ -34,6 +35,13 @@ class B
 public:
     explicit B(int data) : A(data) {}
     B(const B& b) : A(b) {}
+};
+
+class C
+{
+public:
+	virtual ~C() {}
+	C * operator&() const { assert(false); } // should not be called
 };
 
 int main()
@@ -78,7 +86,7 @@ int main()
     {
         try
         {
-            std::rethrow_if_nested(1);
+            std::rethrow_if_nested(C());
             assert(true);
         }
         catch (...)
@@ -86,4 +94,5 @@ int main()
             assert(false);
         }
     }
+
 }
