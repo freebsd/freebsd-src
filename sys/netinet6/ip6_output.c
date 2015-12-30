@@ -1830,6 +1830,7 @@ do { \
 			case IPV6_RSSBUCKETID:
 			case IPV6_RECVRSSBUCKETID:
 #endif
+			case IPV6_BINDMULTI:
 				switch (optname) {
 
 				case IPV6_RECVHOPOPTS:
