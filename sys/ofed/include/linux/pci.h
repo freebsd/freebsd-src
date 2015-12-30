@@ -566,7 +566,11 @@ struct msix_entry {
 /*
  * Enable msix, positive errors indicate actual number of available
  * vectors.  Negative errors are failures.
+ *
+ * NB: define added to prevent this definition of pci_enable_msix from
+ * clashing with the native FreeBSD version.
  */
+#define	pci_enable_msix		linux_pci_enable_msix
 static inline int
 pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 {
