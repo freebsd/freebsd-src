@@ -5,6 +5,7 @@
 // RUN: FileCheck --check-prefix DTORS %s < %t
 // RUN: FileCheck --check-prefix DTORS2 %s < %t
 // RUN: FileCheck --check-prefix DTORS3 %s < %t
+// RUN: FileCheck --check-prefix DTORS4 %s < %t
 //
 // RUN: %clang_cc1 -emit-llvm %s -o - -mconstructor-aliases -triple=x86_64-pc-win32 -fno-rtti | FileCheck --check-prefix DTORS-X64 %s
 
@@ -161,7 +162,7 @@ C::~C() {
 // CHECK:   load %"struct.dtor_in_second_nvbase::C"*, %"struct.dtor_in_second_nvbase::C"** %{{.*}}
 //      Now we this-adjust before calling ~B.
 // CHECK:   bitcast %"struct.dtor_in_second_nvbase::C"* %{{.*}} to i8*
-// CHECK:   getelementptr inbounds i8, i8* %{{.*}}, i64 4
+// CHECK:   getelementptr inbounds i8, i8* %{{.*}}, i32 4
 // CHECK:   bitcast i8* %{{.*}} to %"struct.dtor_in_second_nvbase::B"*
 // CHECK:   call x86_thiscallcc void @"\01??1B@dtor_in_second_nvbase@@UAE@XZ"
 // CHECK:       (%"struct.dtor_in_second_nvbase::B"* %{{.*}})
@@ -176,7 +177,7 @@ void foo() {
 //      Do an adjustment from B* to C*.
 // DTORS2:   getelementptr i8, i8* %{{.*}}, i32 -4
 // DTORS2:   bitcast i8* %{{.*}} to %"struct.dtor_in_second_nvbase::C"*
-// DTORS2:   %[[CALL:.*]] = call x86_thiscallcc i8* @"\01??_GC@dtor_in_second_nvbase@@UAEPAXI@Z"
+// DTORS2:   %[[CALL:.*]] = tail call x86_thiscallcc i8* @"\01??_GC@dtor_in_second_nvbase@@UAEPAXI@Z"
 // DTORS2:   ret i8* %[[CALL]]
 
 }
@@ -246,11 +247,11 @@ C::C() {
   //
   // CHECK: [[INIT_VBASES]]
   // CHECK-NEXT: %[[this_i8:.*]] = bitcast %"struct.constructors::C"* %{{.*}} to i8*
-  // CHECK-NEXT: %[[vbptr_off:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i64 0
+  // CHECK-NEXT: %[[vbptr_off:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i32 0
   // CHECK-NEXT: %[[vbptr:.*]] = bitcast i8* %[[vbptr_off]] to i32**
   // CHECK-NEXT: store i32* getelementptr inbounds ([2 x i32], [2 x i32]* @"\01??_8C@constructors@@7B@", i32 0, i32 0), i32** %[[vbptr]]
   // CHECK-NEXT: bitcast %"struct.constructors::C"* %{{.*}} to i8*
-  // CHECK-NEXT: getelementptr inbounds i8, i8* %{{.*}}, i64 4
+  // CHECK-NEXT: getelementptr inbounds i8, i8* %{{.*}}, i32 4
   // CHECK-NEXT: bitcast i8* %{{.*}} to %"struct.constructors::A"*
   // CHECK-NEXT: call x86_thiscallcc %"struct.constructors::A"* @"\01??0A@constructors@@QAE@XZ"(%"struct.constructors::A"* %{{.*}})
   // CHECK-NEXT: br label %[[SKIP_VBASES]]
@@ -281,11 +282,11 @@ D::D() {
   //
   // CHECK: [[INIT_VBASES]]
   // CHECK-NEXT: %[[this_i8:.*]] = bitcast %"struct.constructors::D"* %{{.*}} to i8*
-  // CHECK-NEXT: %[[vbptr_off:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i64 0
+  // CHECK-NEXT: %[[vbptr_off:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i32 0
   // CHECK-NEXT: %[[vbptr:.*]] = bitcast i8* %[[vbptr_off]] to i32**
   // CHECK-NEXT: store i32* getelementptr inbounds ([2 x i32], [2 x i32]* @"\01??_8D@constructors@@7B@", i32 0, i32 0), i32** %[[vbptr]]
   // CHECK-NEXT: bitcast %"struct.constructors::D"* %{{.*}} to i8*
-  // CHECK-NEXT: getelementptr inbounds i8, i8* %{{.*}}, i64 4
+  // CHECK-NEXT: getelementptr inbounds i8, i8* %{{.*}}, i32 4
   // CHECK-NEXT: bitcast i8* %{{.*}} to %"struct.constructors::A"*
   // CHECK-NEXT: call x86_thiscallcc %"struct.constructors::A"* @"\01??0A@constructors@@QAE@XZ"(%"struct.constructors::A"* %{{.*}})
   // CHECK-NEXT: br label %[[SKIP_VBASES]]
@@ -308,14 +309,14 @@ E::E() {
   //
   // CHECK: [[INIT_VBASES]]
   // CHECK-NEXT: %[[this_i8:.*]] = bitcast %"struct.constructors::E"* %{{.*}} to i8*
-  // CHECK-NEXT: %[[offs:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i64 0
+  // CHECK-NEXT: %[[offs:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i32 0
   // CHECK-NEXT: %[[vbptr_E:.*]] = bitcast i8* %[[offs]] to i32**
   // CHECK-NEXT: store i32* getelementptr inbounds ([3 x i32], [3 x i32]* @"\01??_8E@constructors@@7B01@@", i32 0, i32 0), i32** %[[vbptr_E]]
-  // CHECK-NEXT: %[[offs:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i64 4
+  // CHECK-NEXT: %[[offs:.*]] = getelementptr inbounds i8, i8* %[[this_i8]], i32 4
   // CHECK-NEXT: %[[vbptr_C:.*]] = bitcast i8* %[[offs]] to i32**
   // CHECK-NEXT: store i32* getelementptr inbounds ([2 x i32], [2 x i32]* @"\01??_8E@constructors@@7BC@1@@", i32 0, i32 0), i32** %[[vbptr_C]]
   // CHECK-NEXT: bitcast %"struct.constructors::E"* %{{.*}} to i8*
-  // CHECK-NEXT: getelementptr inbounds i8, i8* %{{.*}}, i64 4
+  // CHECK-NEXT: getelementptr inbounds i8, i8* %{{.*}}, i32 4
   // CHECK-NEXT: bitcast i8* %{{.*}} to %"struct.constructors::A"*
   // CHECK-NEXT: call x86_thiscallcc %"struct.constructors::A"* @"\01??0A@constructors@@QAE@XZ"(%"struct.constructors::A"* %{{.*}})
   // CHECK: call x86_thiscallcc %"struct.constructors::C"* @"\01??0C@constructors@@QAE@XZ"(%"struct.constructors::C"* %{{.*}}, i32 0)
@@ -407,9 +408,7 @@ B::B(short *a) {}
 // CHECK:               (%"struct.test1::B"* returned %this, i32* %a, i32 %is_most_derived)
 // CHECK: define %"struct.test1::B"* @"\01??0B@test1@@QAA@PBDZZ"
 // CHECK:               (%"struct.test1::B"* returned %this, i32 %is_most_derived, i8* %a, ...)
-
-// FIXME: This should be x86_thiscallcc.  MSVC ignores explicit CCs on structors.
-// CHECK: define %"struct.test1::B"* @"\01??0B@test1@@QAA@PAF@Z"
+// CHECK: define x86_thiscallcc %"struct.test1::B"* @"\01??0B@test1@@QAE@PAF@Z"
 // CHECK:               (%"struct.test1::B"* returned %this, i16* %a, i32 %is_most_derived)
 
 void construct_b() {
@@ -458,3 +457,18 @@ void *getA() {
 // CHECK:               (%"struct.(anonymous namespace)::A"* %this, i32 %should_call_delete)
 // CHECK: define internal x86_thiscallcc void @"\01??1A@?A@@UAE@XZ"
 // CHECK:               (%"struct.(anonymous namespace)::A"* %this)
+
+// Check that we correctly transform __stdcall to __thiscall for ctors and
+// dtors.
+class G {
+ public:
+  __stdcall G() {};
+// DTORS4: define linkonce_odr x86_thiscallcc %class.G* @"\01??0G@@QAE@XZ"
+  __stdcall ~G() {};
+// DTORS4: define linkonce_odr x86_thiscallcc void @"\01??1G@@QAE@XZ"
+};
+
+extern void testG() {
+  G g;
+}
+

@@ -20,7 +20,9 @@
 // RUN:   -target-cpu i386 \
 // RUN:   -fsyntax-only merge-target-features.cpp 2>&1 \
 // RUN:   | FileCheck --check-prefix=SUBSET %s
-// SUBSET: AST file was compiled with the target feature'+sse2' but the current translation unit is not
+// SUBSET-NOT: error:
+// SUBSET: error: {{.*}} configuration mismatch
+// SUBSET-NOT: error:
 //
 // RUN: %clang_cc1 -fmodules -x c++ -fmodules-cache-path=%t \
 // RUN:   -iquote Inputs/merge-target-features \
@@ -56,8 +58,9 @@
 // RUN:   -target-cpu i386 -target-feature +cx16 \
 // RUN:   -fsyntax-only merge-target-features.cpp 2>&1 \
 // RUN:   | FileCheck --check-prefix=MISMATCH %s
-// MISMATCH: AST file was compiled with the target feature'+sse2' but the current translation unit is not
-// MISMATCH: current translation unit was compiled with the target feature'+cx16' but the AST file was not
+// MISMATCH-NOT: error:
+// MISMATCH: error: {{.*}} configuration mismatch
+// MISMATCH-NOT: error:
 
 #include "foo.h"
 

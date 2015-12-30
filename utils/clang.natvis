@@ -6,6 +6,14 @@ Put this file into "%USERPROFILE%\Documents\Visual Studio 2012\Visualizers"
 or create a symbolic link so it updates automatically.
 -->
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="clang::Type">
+    <DisplayString Condition="(clang::Type::TypeClass)TypeBits.TC == clang::Type::Builtin">Builtin Type={(clang::BuiltinType::Kind)BuiltinTypeBits.Kind}</DisplayString>
+    <DisplayString Condition="(clang::Type::TypeClass)TypeBits.TC == clang::Type::Attributed">Modified Type={((clang::AttributedType*)this)->ModifiedType} Attribute={(clang::AttributedType::Kind)AttributedTypeBits.AttrKind}</DisplayString>
+    <DisplayString>Type Class={(clang::Type::TypeClass)TypeBits.TC}</DisplayString>
+  </Type>
+  <Type Name="clang::QualType">
+    <DisplayString>{((clang::ExtQualsTypeCommonBase *)(((uintptr_t)Value.Value) &amp; ~(uintptr_t)((1 &lt;&lt; clang::TypeAlignmentInBits) - 1)))-&gt;BaseType}</DisplayString>
+  </Type>
   <Type Name="clang::IdentifierInfo">
     <DisplayString Condition="Entry != 0">({((llvm::StringMapEntry&lt;clang::IdentifierInfo *&gt;*)Entry)+1,s})</DisplayString>
     <Expand>
@@ -27,7 +35,8 @@ or create a symbolic link so it updates automatically.
     </Expand>
   </Type>
   <Type Name="clang::Token">
-    <DisplayString>{(clang::tok::TokenKind)Kind}</DisplayString>
+    <DisplayString Condition="Kind != clang::tok::identifier">{(clang::tok::TokenKind)Kind}</DisplayString>
+    <DisplayString Condition="Kind == clang::tok::identifier">{{Identifier ({*(clang::IdentifierInfo *)(PtrData)})}}</DisplayString>
   </Type>
   <Type Name="clang::DeclSpec">
     <DisplayString>[{(clang::DeclSpec::SCS)StorageClassSpec}], [{(clang::TypeSpecifierType)TypeSpecType}]</DisplayString>

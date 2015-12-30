@@ -13,7 +13,7 @@ class S2 {
   mutable int a;
 public:
   S2():a(0) { }
-  static float S2s;
+  static float S2s; // expected-note {{static data member is predetermined as shared}}
 };
 const S2 b;
 const S2 ba[5];
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
   S4 e(4);
   S5 g[] = {5, 6};
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
   #pragma omp parallel private // expected-error {{expected '(' after 'private'}}
   #pragma omp parallel private ( // expected-error {{expected expression}} expected-error {{expected ')'}} expected-note {{to match this '('}}
   #pragma omp parallel private () // expected-error {{expected expression}}
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   #pragma omp parallel private(ba)
   #pragma omp parallel private(ca) // expected-error {{shared variable cannot be private}}
   #pragma omp parallel private(da) // expected-error {{shared variable cannot be private}}
-  #pragma omp parallel private(S2::S2s)
+  #pragma omp parallel private(S2::S2s) // expected-error {{shared variable cannot be private}}
   #pragma omp parallel private(e, g) // expected-error {{calling a private constructor of class 'S4'}} expected-error {{calling a private constructor of class 'S5'}}
   #pragma omp parallel private(threadvar, B::x) // expected-error 2 {{threadprivate or thread local variable cannot be private}}
   #pragma omp parallel shared(i), private(i) // expected-error {{shared variable cannot be private}} expected-note {{defined as shared}}
@@ -77,13 +77,16 @@ int main(int argc, char **argv) {
   #pragma omp parallel firstprivate(i) private(i) // expected-error {{firstprivate variable cannot be private}} expected-note {{defined as firstprivate}}
   foo();
   #pragma omp parallel private(i)
-  #pragma omp parallel private(j) // expected-error {{arguments of OpenMP clause 'private' cannot be of reference type 'int &'}}
+  #pragma omp parallel private(j)
   foo();
   #pragma omp parallel firstprivate(i)
   for (int k = 0; k < 10; ++k) {
     #pragma omp parallel private(i)
     foo();
   }
+  static int m;
+  #pragma omp parallel private(m) // OK
+  foo();
 
   return 0;
 }

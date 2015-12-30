@@ -7,6 +7,7 @@
 // RUN: %clang_cc1 -x c++ -std=c++11 -emit-pch -o %t/out.pch %s
 // RUN: %clang_cc1 -x c++ -std=c++11 -include-pch %t/out.pch -fsyntax-only %s
 
+// RUN: c-index-test -write-pch %t/out.pch -x c++ -std=c++11 %s
 // RUN: c-index-test -test-load-source all -comments-xml-schema=%S/../../bindings/xml/comment-xml-schema.rng %s -std=c++11 > %t/out.c-index-direct
 // RUN: c-index-test -test-load-tu %t/out.pch all > %t/out.c-index-pch
 
@@ -799,7 +800,7 @@ class comment_to_xml_conversion_01 {
   template<typename T>
   using comment_to_xml_conversion_09 = comment_to_xml_conversion_08<T, int>;
 
-// CHECK: comment-to-html-xml-conversion.cpp:[[@LINE-2]]:3: UnexposedDecl=comment_to_xml_conversion_09:{{.*}} FullCommentAsXML=[<Typedef file="{{[^"]+}}comment-to-html-xml-conversion.cpp" line="[[@LINE-2]]" column="3"><Name>comment_to_xml_conversion_09</Name><USR>c:@S@comment_to_xml_conversion_01@comment_to_xml_conversion_09</USR><Declaration>template &lt;typename T&gt;\nusing comment_to_xml_conversion_09 = comment_to_xml_conversion_08&lt;T, int&gt;</Declaration><Abstract><Para> Aaa.</Para></Abstract></Typedef>]
+// CHECK: comment-to-html-xml-conversion.cpp:[[@LINE-2]]:3: TypeAliasTemplateDecl=comment_to_xml_conversion_09:{{.*}} FullCommentAsXML=[<Typedef file="{{[^"]+}}comment-to-html-xml-conversion.cpp" line="[[@LINE-2]]" column="3"><Name>comment_to_xml_conversion_09</Name><USR>c:@S@comment_to_xml_conversion_01@comment_to_xml_conversion_09</USR><Declaration>template &lt;typename T&gt;\nusing comment_to_xml_conversion_09 = comment_to_xml_conversion_08&lt;T, int&gt;</Declaration><Abstract><Para> Aaa.</Para></Abstract></Typedef>]
 };
 
 /// Aaa.

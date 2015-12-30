@@ -131,6 +131,21 @@ public:
   }
 };
 
+class ObjCMessageNil {
+  template <typename CHECKER>
+  static void _checkObjCMessage(void *checker, const ObjCMethodCall &msg,
+                                CheckerContext &C) {
+    ((const CHECKER *)checker)->checkObjCMessageNil(msg, C);
+  }
+
+public:
+  template <typename CHECKER>
+  static void _register(CHECKER *checker, CheckerManager &mgr) {
+    mgr._registerForObjCMessageNil(
+     CheckerManager::CheckObjCMessageFunc(checker, _checkObjCMessage<CHECKER>));
+  }
+};
+
 class PostObjCMessage {
   template <typename CHECKER>
   static void _checkObjCMessage(void *checker, const ObjCMethodCall &msg,
@@ -514,6 +529,10 @@ struct ImplicitNullDerefEvent {
   bool IsLoad;
   ExplodedNode *SinkNode;
   BugReporter *BR;
+  // When true, the dereference is in the source code directly. When false, the
+  // dereference might happen later (for example pointer passed to a parameter
+  // that is marked with nonnull attribute.)
+  bool IsDirectDereference;
 };
 
 /// \brief A helper class which wraps a boolean value set to false by default.

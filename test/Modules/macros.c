@@ -1,8 +1,15 @@
 // RUN: rm -rf %t
 // RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c -verify -fmodules-cache-path=%t -I %S/Inputs %s
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c -verify -fmodules-cache-path=%t -I %S/Inputs %s -DALT
 // RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c -verify -fmodules-cache-path=%t -I %S/Inputs %s -detailed-preprocessing-record
-// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -DLOCAL_VISIBILITY -fmodules-local-submodule-visibility -x objective-c++ -verify -fmodules-cache-path=%t -I %S/Inputs %s
 // RUN: not %clang_cc1 -E -fmodules -fimplicit-module-maps -x objective-c -fmodules-cache-path=%t -I %S/Inputs %s | FileCheck -check-prefix CHECK-PREPROCESSED %s
+// 
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c++ -verify -fmodules-cache-path=%t -I %S/Inputs %s
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c++ -verify -fmodules-cache-path=%t -I %S/Inputs %s -DALT
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -x objective-c++ -verify -fmodules-cache-path=%t -I %S/Inputs %s -detailed-preprocessing-record
+// RUN: not %clang_cc1 -E -fmodules -fimplicit-module-maps -x objective-c++ -fmodules-cache-path=%t -I %S/Inputs %s | FileCheck -check-prefix CHECK-PREPROCESSED %s
+//
+// RUN: %clang_cc1 -fmodules -fimplicit-module-maps -DLOCAL_VISIBILITY -fmodules-local-submodule-visibility -x objective-c++ -verify -fmodules-cache-path=%t -I %S/Inputs %s
 // FIXME: When we have a syntax for modules in C, use that.
 // These notes come from headers in modules, and are bogus.
 
@@ -11,7 +18,6 @@
 // expected-note@Inputs/macros_right.h:12{{expanding this definition of 'LEFT_RIGHT_DIFFERENT'}}
 // expected-note@Inputs/macros_right.h:13{{expanding this definition of 'LEFT_RIGHT_DIFFERENT2'}}
 // expected-note@Inputs/macros_left.h:14{{other definition of 'LEFT_RIGHT_DIFFERENT'}}
-// expected-note@Inputs/macros_left.h:11{{other definition of 'LEFT_RIGHT_DIFFERENT2'}}
 
 @import macros;
 
@@ -65,8 +71,13 @@ void f() {
 #  error TOP should not be visible
 #endif
 
+#undef INTEGER
+#define INTEGER int
+
 // Import left module (which also imports top)
 @import macros_left;
+
+INTEGER my_integer = 0;
 
 #ifndef LEFT
 #  error LEFT should be visible
@@ -157,6 +168,10 @@ int TOP_DEF_RIGHT_UNDEF; // ok, no longer defined
 # endif
 #endif
 
+#ifdef ALT
+int tmp = TOP_OTHER_REDEF1;
+#endif
+
 @import macros_other;
 
 #ifndef TOP_OTHER_UNDEF1
@@ -166,13 +181,13 @@ int TOP_DEF_RIGHT_UNDEF; // ok, no longer defined
 #ifndef TOP_OTHER_UNDEF2
 # error TOP_OTHER_UNDEF2 should still be defined
 #endif
-
+#pragma clang __debug macro TOP_OTHER_REDEF1
 #ifndef TOP_OTHER_REDEF1
 # error TOP_OTHER_REDEF1 should still be defined
 #endif
 int n1 = TOP_OTHER_REDEF1; // expected-warning{{ambiguous expansion of macro 'TOP_OTHER_REDEF1'}}
-// expected-note@macros_top.h:19 {{expanding this definition}}
-// expected-note@macros_other.h:4 {{other definition}}
+// expected-note@macros_other.h:4 {{expanding this definition}}
+// expected-note@macros_top.h:19 {{other definition}}
 
 #ifndef TOP_OTHER_REDEF2
 # error TOP_OTHER_REDEF2 should still be defined

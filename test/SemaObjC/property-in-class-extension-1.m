@@ -1,5 +1,5 @@
-// RUN: %clang_cc1  -fsyntax-only -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -verify -Weverything %s
-// RUN: %clang_cc1 -x objective-c++ -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -fsyntax-only -verify -Weverything %s
+// RUN: %clang_cc1  -fsyntax-only -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -fobjc-weak -verify -Weverything %s
+// RUN: %clang_cc1 -x objective-c++ -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -fobjc-weak -fsyntax-only -verify -Weverything %s
 // rdar://12103400
 
 @class NSString;
@@ -10,7 +10,7 @@
 
 @property (nonatomic, copy, readonly) NSString* matchingMemoryModel;
 
-@property (nonatomic, retain, readonly) NSString* addingNoNewMemoryModel;
+@property (atomic, retain, readonly) NSString* addingNoNewMemoryModel;
 
 @property (readonly) NSString* none;
 @property (readonly) NSString* none1;
@@ -50,10 +50,14 @@
 // rdar://12214070
 @interface radar12214070
 @property (nonatomic, atomic, readonly) float propertyName; // expected-error {{property attributes 'atomic' and 'nonatomic' are mutually exclusive}}
+							    
+@property (nonatomic, readonly) float propertyName2; // expected-note {{property declared here}}
 @end
 
 @interface radar12214070 ()
 @property (atomic, nonatomic, readonly, readwrite) float propertyName; // expected-error {{property attributes 'readonly' and 'readwrite' are mutually exclusive}} \
 		// expected-error {{property attributes 'atomic' and 'nonatomic' are mutually exclusive}}
+
+@property (atomic, readwrite) float propertyName2; // expected-warning {{'atomic' attribute on property 'propertyName2' does not match the property inherited from 'radar12214070'}}
 @end
 

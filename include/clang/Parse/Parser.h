@@ -163,6 +163,7 @@ class Parser : public CodeCompletionHandler {
   std::unique_ptr<PragmaHandler> MSConstSeg;
   std::unique_ptr<PragmaHandler> MSCodeSeg;
   std::unique_ptr<PragmaHandler> MSSection;
+  std::unique_ptr<PragmaHandler> MSRuntimeChecks;
   std::unique_ptr<PragmaHandler> OptimizeHandler;
   std::unique_ptr<PragmaHandler> LoopHintHandler;
   std::unique_ptr<PragmaHandler> UnrollHintHandler;
@@ -1236,6 +1237,7 @@ private:
                                                 ParsingDeclSpec &DS,
                                                 AccessSpecifier AS);
 
+  void SkipFunctionBody();
   Decl *ParseFunctionDefinition(ParsingDeclarator &D,
                  const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
                  LateParsedAttrList *LateParsedAttrs = nullptr);
@@ -1251,12 +1253,12 @@ private:
   DeclGroupPtrTy ParseObjCAtClassDeclaration(SourceLocation atLoc);
   Decl *ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
                                         ParsedAttributes &prefixAttrs);
+  class ObjCTypeParamListScope;
   ObjCTypeParamList *parseObjCTypeParamList();
   ObjCTypeParamList *parseObjCTypeParamListOrProtocolRefs(
-                           SourceLocation &lAngleLoc,
-                           SmallVectorImpl<IdentifierLocPair> &protocolIdents,
-                           SourceLocation &rAngleLoc,
-                           bool mayBeProtocolList = true);
+      ObjCTypeParamListScope &Scope, SourceLocation &lAngleLoc,
+      SmallVectorImpl<IdentifierLocPair> &protocolIdents,
+      SourceLocation &rAngleLoc, bool mayBeProtocolList = true);
 
   void HelperActionsForIvarDeclarations(Decl *interfaceDecl, SourceLocation atLoc,
                                         BalancedDelimiterTracker &T,
@@ -1578,7 +1580,9 @@ private:
                          SourceLocation Loc, bool ConvertToBoolean);
 
   //===--------------------------------------------------------------------===//
-  // C++ types
+  // C++ Coroutines
+
+  ExprResult ParseCoyieldExpression();
 
   //===--------------------------------------------------------------------===//
   // C99 6.7.8: Initialization.
@@ -2164,8 +2168,7 @@ private:
   void MaybeParseMicrosoftDeclSpecs(ParsedAttributes &Attrs,
                                     SourceLocation *End = nullptr) {
     const auto &LO = getLangOpts();
-    if ((LO.MicrosoftExt || LO.Borland || LO.CUDA) &&
-        Tok.is(tok::kw___declspec))
+    if (LO.DeclSpecKeyword && Tok.is(tok::kw___declspec))
       ParseMicrosoftDeclSpecs(Attrs, End);
   }
   void ParseMicrosoftDeclSpecs(ParsedAttributes &Attrs,
@@ -2334,8 +2337,8 @@ private:
 
   void DiagnoseUnexpectedNamespace(NamedDecl *Context);
 
-  Decl *ParseNamespace(unsigned Context, SourceLocation &DeclEnd,
-                       SourceLocation InlineLoc = SourceLocation());
+  DeclGroupPtrTy ParseNamespace(unsigned Context, SourceLocation &DeclEnd,
+                                SourceLocation InlineLoc = SourceLocation());
   void ParseInnerNamespace(std::vector<SourceLocation>& IdentLoc,
                            std::vector<IdentifierInfo*>& Ident,
                            std::vector<SourceLocation>& NamespaceLoc,
@@ -2388,9 +2391,13 @@ private:
                                                  LateParsedAttrList &LateAttrs);
   void MaybeParseAndDiagnoseDeclSpecAfterCXX11VirtSpecifierSeq(Declarator &D,
                                                                VirtSpecifiers &VS);
-  void ParseCXXClassMemberDeclaration(AccessSpecifier AS, AttributeList *Attr,
-                  const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
-                  ParsingDeclRAIIObject *DiagsFromTParams = nullptr);
+  DeclGroupPtrTy ParseCXXClassMemberDeclaration(
+      AccessSpecifier AS, AttributeList *Attr,
+      const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
+      ParsingDeclRAIIObject *DiagsFromTParams = nullptr);
+  DeclGroupPtrTy ParseCXXClassMemberDeclarationWithPragmas(
+      AccessSpecifier &AS, ParsedAttributesWithRange &AccessAttrs,
+      DeclSpec::TST TagType, Decl *TagDecl);
   void ParseConstructorInitializer(Decl *ConstructorDecl);
   MemInitResult ParseMemInitializer(Decl *ConstructorDecl);
   void HandleMemberFunctionDeclDelays(Declarator& DeclaratorInfo,
@@ -2471,7 +2478,9 @@ private:
   ///
   /// \param Kind Kind of current clause.
   ///
-  OMPClause *ParseOpenMPVarListClause(OpenMPClauseKind Kind);
+  OMPClause *ParseOpenMPVarListClause(OpenMPDirectiveKind DKind,
+                                      OpenMPClauseKind Kind);
+
 public:
   bool ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
                           bool AllowDestructorName,
@@ -2550,6 +2559,14 @@ private:
   //===--------------------------------------------------------------------===//
   // Modules
   DeclGroupPtrTy ParseModuleImport(SourceLocation AtLoc);
+  bool parseMisplacedModuleImport();
+  bool tryParseMisplacedModuleImport() {
+    tok::TokenKind Kind = Tok.getKind();
+    if (Kind == tok::annot_module_begin || Kind == tok::annot_module_end ||
+        Kind == tok::annot_module_include)
+      return parseMisplacedModuleImport();
+    return false;
+  }
 
   //===--------------------------------------------------------------------===//
   // C++11/G++: Type Traits [Type-Traits.html in the GCC manual]

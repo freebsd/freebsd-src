@@ -44,9 +44,9 @@ struct UnsafeS {
 };
 
 @interface A : NSObject
-- (id)retain; // expected-note {{'retain' has been explicitly marked unavailable here}}
-- (id)retainCount; // expected-note {{'retainCount' has been explicitly marked unavailable here}}
-- (id)autorelease; // expected-note 2 {{'autorelease' has been explicitly marked unavailable here}}
+- (id)retain __attribute__((unavailable)); // expected-note {{'retain' has been explicitly marked unavailable here}}
+- (id)retainCount __attribute__((unavailable)); // expected-note {{'retainCount' has been explicitly marked unavailable here}}
+- (id)autorelease __attribute__((unavailable)); // expected-note 2 {{'autorelease' has been explicitly marked unavailable here}}
 - (id)init;
 - (oneway void)release;
 - (void)dealloc;
@@ -180,7 +180,7 @@ void test6(unsigned cond) {
   switch (cond) {
   case 0:
     ;
-    id x; // expected-note {{jump bypasses initialization of retaining variable}}
+    id x; // expected-note {{jump bypasses initialization of __strong variable}}
 
   case 1: // expected-error {{cannot jump}}
     x = 0;

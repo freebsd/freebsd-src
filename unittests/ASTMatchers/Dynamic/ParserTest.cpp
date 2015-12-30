@@ -50,7 +50,7 @@ public:
   }
 
   VariantMatcher actOnMatcherExpression(MatcherCtor Ctor,
-                                        const SourceRange &NameRange,
+                                        SourceRange NameRange,
                                         StringRef BindID,
                                         ArrayRef<ParserValue> Args,
                                         Diagnostics *Error) override {
@@ -102,7 +102,7 @@ TEST(ParserTest, ParseString) {
   EXPECT_EQ("1:1: Error parsing string token: <\"Baz>", Sema.Errors[2]);
 }
 
-bool matchesRange(const SourceRange &Range, unsigned StartLine,
+bool matchesRange(SourceRange Range, unsigned StartLine,
                   unsigned EndLine, unsigned StartColumn, unsigned EndColumn) {
   EXPECT_EQ(StartLine, Range.Start.Line);
   EXPECT_EQ(EndLine, Range.End.Line);
@@ -301,12 +301,12 @@ TEST(ParserTest, CompletionNamedValues) {
   EXPECT_EQ("String nameX", Comps[0].MatcherDecl);
 
   // Can complete if there are names in the expression.
-  Code = "methodDecl(hasName(nameX), ";
+  Code = "cxxMethodDecl(hasName(nameX), ";
   Comps = Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
   EXPECT_LT(0u, Comps.size());
 
   // Can complete names and registry together.
-  Code = "methodDecl(hasP";
+  Code = "cxxMethodDecl(hasP";
   Comps = Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
   ASSERT_EQ(3u, Comps.size());
   EXPECT_EQ("aramA", Comps[0].TypedText);
@@ -318,8 +318,10 @@ TEST(ParserTest, CompletionNamedValues) {
       Comps[1].MatcherDecl);
 
   EXPECT_EQ("arent(", Comps[2].TypedText);
-  EXPECT_EQ("Matcher<Decl> hasParent(Matcher<Decl|Stmt>)",
-            Comps[2].MatcherDecl);
+  EXPECT_EQ(
+      "Matcher<Decl> "
+      "hasParent(Matcher<TemplateArgument|NestedNameSpecifierLoc|Decl|...>)",
+      Comps[2].MatcherDecl);
 }
 
 }  // end anonymous namespace

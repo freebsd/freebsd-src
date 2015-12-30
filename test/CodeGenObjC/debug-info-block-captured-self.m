@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fblocks -g -emit-llvm -triple x86_64-apple-darwin -o - %s | FileCheck %s
+// RUN: %clang_cc1 -fblocks -debug-info-kind=limited -emit-llvm -triple x86_64-apple-darwin -o - %s | FileCheck %s
 //
 // Test that debug location is generated for a captured "self" inside
 // a block.
@@ -53,19 +53,20 @@ typedef enum {
 // CHECK: define internal void {{.*}}_block_invoke{{.*}}
 // CHECK:        %[[MEM1:.*]] = alloca i8*, align 8
 // CHECK-NEXT:   %[[MEM2:.*]] = alloca i8*, align 8
+// CHECK-NEXT:   [[DBGADDR:%.*]] = alloca [[BLOCK_T:<{.*}>]]*, align 8
 // CHECK:        store i8* [[BLOCK_DESC:%.*]], i8** %[[MEM1]], align 8
 // CHECK:        %[[TMP0:.*]] = load i8*, i8** %[[MEM1]]
 // CHECK:        call void @llvm.dbg.value(metadata i8* %[[TMP0]], i64 0, metadata ![[BDMD:[0-9]+]], metadata !{{.*}})
 // CHECK:        call void @llvm.dbg.declare(metadata i8* [[BLOCK_DESC]], metadata ![[BDMD:[0-9]+]], metadata !{{.*}})
-// CHECK:        %[[TMP1:.*]] = bitcast
-// CHECK-NEXT:   store
-// CHECK:        call void @llvm.dbg.declare(metadata <{ i8*, i32, i32, i8*, %struct.__block_descriptor*, %0* }>** {{[^,]*}}, metadata ![[SELF:.*]], metadata !{{.*}})
+// CHECK:        store [[BLOCK_T]]* {{%.*}}, [[BLOCK_T]]** [[DBGADDR]], align 8
+// CHECK:        call void @llvm.dbg.declare(metadata [[BLOCK_T]]** [[DBGADDR]], metadata ![[SELF:.*]], metadata !{{.*}})
 // make sure we are still in the same function
 // CHECK: define {{.*}}__copy_helper_block_
 // Metadata
 // CHECK: ![[MAIN:.*]] = !DICompositeType(tag: DW_TAG_structure_type, name: "Main"
 // CHECK-SAME:                            line: 23,
 // CHECK: ![[PMAIN:.*]] = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: ![[MAIN]],
-// CHECK: ![[BDMD]] = !DILocalVariable(tag: DW_TAG_arg_variable, name: ".block_descriptor"
-// CHECK: ![[SELF]] = !DILocalVariable(tag: DW_TAG_auto_variable, name: "self"
+// CHECK: ![[BDMD]] = !DILocalVariable(name: ".block_descriptor", arg:
+// CHECK: ![[SELF]] = !DILocalVariable(name: "self"
+// CHECK-NOT:                          arg:
 // CHECK-SAME:                         line: 40,

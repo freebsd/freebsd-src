@@ -65,7 +65,7 @@ int foomain(int argc, char **argv) {
   I e(4);
   C g(5);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp for simd firstprivate // expected-error {{expected '(' after 'firstprivate'}}
   for (int k = 0; k < argc; ++k)
@@ -122,7 +122,7 @@ int foomain(int argc, char **argv) {
   {
     int v = 0;
     int i;                      // expected-note {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp for simd' directive into a parallel or another task region?}}
-#pragma omp for simd firstprivate(i) // expected-error {{private variable cannot be firstprivate}}
+#pragma omp for simd firstprivate(i) // expected-error {{firstprivate variable must be shared}}
     for (int k = 0; k < argc; ++k) {
       i = k;
       v += i;
@@ -130,7 +130,7 @@ int foomain(int argc, char **argv) {
   }
 #pragma omp parallel shared(i)
 #pragma omp parallel private(i)
-#pragma omp for simd firstprivate(j) // expected-error {{arguments of OpenMP clause 'firstprivate' cannot be of reference type}}
+#pragma omp for simd firstprivate(j)
   for (int k = 0; k < argc; ++k)
     ++k;
 #pragma omp parallel
@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
   S3 m;
   S6 n(2);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp for simd firstprivate // expected-error {{expected '(' after 'firstprivate'}}
   for (i = 0; i < argc; ++i)
@@ -271,7 +271,7 @@ int main(int argc, char **argv) {
   for (i = 0; i < argc; ++i)
     foo();
 #pragma omp parallel
-#pragma omp for simd firstprivate(j) // expected-error {{arguments of OpenMP clause 'firstprivate' cannot be of reference type}}
+#pragma omp for simd firstprivate(j)
   for (i = 0; i < argc; ++i)
     foo();
 #pragma omp parallel
@@ -286,7 +286,7 @@ int main(int argc, char **argv) {
   {
     int v = 0;
     int i;                      // expected-note {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp for simd' directive into a parallel or another task region?}}
-#pragma omp for simd firstprivate(i) // expected-error {{private variable cannot be firstprivate}}
+#pragma omp for simd firstprivate(i) // expected-error {{firstprivate variable must be shared}}
     for (int k = 0; k < argc; ++k) {
       i = k;
       v += i;
@@ -300,6 +300,10 @@ int main(int argc, char **argv) {
 #pragma omp for simd firstprivate(i)       // expected-error {{firstprivate variable must be shared}}
   for (i = 0; i < argc; ++i)
     foo();
+  static int si;
+#pragma omp for simd firstprivate(si)
+  for (i = 0; i < argc; ++i)
+    si = i + 1;
 
   return foomain<S4, S5>(argc, argv); // expected-note {{in instantiation of function template specialization 'foomain<S4, S5>' requested here}}
 }

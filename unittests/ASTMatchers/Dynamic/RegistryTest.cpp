@@ -129,7 +129,7 @@ TEST_F(RegistryTest, CanConstructNoArgs) {
   Matcher<Stmt> IsArrowValue = constructMatcher(
       "memberExpr", constructMatcher("isArrow")).getTypedMatcher<Stmt>();
   Matcher<Stmt> BoolValue =
-      constructMatcher("boolLiteral").getTypedMatcher<Stmt>();
+      constructMatcher("cxxBoolLiteral").getTypedMatcher<Stmt>();
 
   const std::string ClassSnippet = "struct Foo { int x; };\n"
                                    "Foo *foo = new Foo;\n"
@@ -195,7 +195,7 @@ TEST_F(RegistryTest, OverloadedMatchers) {
       "callExpr",
       constructMatcher(
           "callee",
-          constructMatcher("methodDecl",
+          constructMatcher("cxxMethodDecl",
                            constructMatcher("hasName", StringRef("x")))))
       .getTypedMatcher<Stmt>();
 
@@ -255,11 +255,11 @@ TEST_F(RegistryTest, PolymorphicMatchers) {
   EXPECT_FALSE(matches("void Foo(){};", RecordDecl));
 
   Matcher<Stmt> ConstructExpr = constructMatcher(
-      "constructExpr",
+      "cxxConstructExpr",
       constructMatcher(
           "hasDeclaration",
           constructMatcher(
-              "methodDecl",
+              "cxxMethodDecl",
               constructMatcher(
                   "ofClass", constructMatcher("hasName", StringRef("Foo"))))))
                                     .getTypedMatcher<Stmt>();
@@ -300,7 +300,7 @@ TEST_F(RegistryTest, TypeTraversal) {
 
 TEST_F(RegistryTest, CXXCtorInitializer) {
   Matcher<Decl> CtorDecl = constructMatcher(
-      "constructorDecl",
+      "cxxConstructorDecl",
       constructMatcher(
           "hasAnyConstructorInitializer",
           constructMatcher("forField",
@@ -416,9 +416,10 @@ TEST_F(RegistryTest, Errors) {
             "(Actual = String)",
             Error->toString());
   Error.reset(new Diagnostics());
-  EXPECT_TRUE(constructMatcher("recordDecl", constructMatcher("recordDecl"),
-                               constructMatcher("parameterCountIs", 3),
-                               Error.get()).isNull());
+  EXPECT_TRUE(
+      constructMatcher("cxxRecordDecl", constructMatcher("cxxRecordDecl"),
+                       constructMatcher("parameterCountIs", 3), Error.get())
+          .isNull());
   EXPECT_EQ("Incorrect type for arg 2. (Expected = Matcher<CXXRecordDecl>) != "
             "(Actual = Matcher<FunctionDecl>)",
             Error->toString());
@@ -432,7 +433,7 @@ TEST_F(RegistryTest, Errors) {
       Error->toString());
   Error.reset(new Diagnostics());
   EXPECT_TRUE(constructMatcher(
-      "recordDecl",
+      "cxxRecordDecl",
       constructMatcher("allOf",
                        constructMatcher("isDerivedFrom", StringRef("FOO")),
                        constructMatcher("isArrow")),
@@ -447,15 +448,17 @@ TEST_F(RegistryTest, Completion) {
   CompVector Comps = getCompletions();
   // Overloaded
   EXPECT_TRUE(hasCompletion(
-      Comps, "hasParent(", "Matcher<Decl|Stmt> hasParent(Matcher<Decl|Stmt>)"));
+      Comps, "hasParent(",
+      "Matcher<TemplateArgument|NestedNameSpecifierLoc|Decl|...> "
+      "hasParent(Matcher<TemplateArgument|NestedNameSpecifierLoc|Decl|...>)"));
   // Variadic.
   EXPECT_TRUE(hasCompletion(Comps, "whileStmt(",
                             "Matcher<Stmt> whileStmt(Matcher<WhileStmt>...)"));
   // Polymorphic.
   EXPECT_TRUE(hasCompletion(
       Comps, "hasDescendant(",
-      "Matcher<NestedNameSpecifier|NestedNameSpecifierLoc|QualType|...> "
-      "hasDescendant(Matcher<CXXCtorInitializer|NestedNameSpecifier|"
+      "Matcher<TemplateArgument|NestedNameSpecifier|NestedNameSpecifierLoc|...>"
+      " hasDescendant(Matcher<TemplateArgument|NestedNameSpecifier|"
       "NestedNameSpecifierLoc|...>)"));
 
   CompVector WhileComps = getCompletions("whileStmt", 0);
@@ -463,7 +466,9 @@ TEST_F(RegistryTest, Completion) {
   EXPECT_TRUE(hasCompletion(WhileComps, "hasBody(",
                             "Matcher<WhileStmt> hasBody(Matcher<Stmt>)"));
   EXPECT_TRUE(hasCompletion(WhileComps, "hasParent(",
-                            "Matcher<Stmt> hasParent(Matcher<Decl|Stmt>)"));
+                            "Matcher<Stmt> "
+                            "hasParent(Matcher<TemplateArgument|"
+                            "NestedNameSpecifierLoc|Decl|...>)"));
   EXPECT_TRUE(
       hasCompletion(WhileComps, "allOf(", "Matcher<T> allOf(Matcher<T>...)"));
 

@@ -67,7 +67,7 @@ int foomain(int argc, char **argv) {
   I e(4);
   I g(5);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp for simd lastprivate // expected-error {{expected '(' after 'lastprivate'}}
   for (int k = 0; k < argc; ++k)
@@ -132,7 +132,7 @@ int foomain(int argc, char **argv) {
   }
 #pragma omp parallel shared(i)
 #pragma omp parallel private(i)
-#pragma omp for simd lastprivate(j) // expected-error {{arguments of OpenMP clause 'lastprivate' cannot be of reference type}}
+#pragma omp for simd lastprivate(j)
   for (int k = 0; k < argc; ++k)
     ++k;
 #pragma omp parallel
@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
   S3 m;
   S6 n(2);
   int i;
-  int &j = i; // expected-note {{'j' defined here}}
+  int &j = i;
 #pragma omp parallel
 #pragma omp for simd lastprivate // expected-error {{expected '(' after 'lastprivate'}}
   for (i = 0; i < argc; ++i)
@@ -261,7 +261,7 @@ int main(int argc, char **argv) {
   for (i = 0; i < argc; ++i)
     foo();
 #pragma omp parallel
-#pragma omp for simd lastprivate(j) // expected-error {{arguments of OpenMP clause 'lastprivate' cannot be of reference type}}
+#pragma omp for simd lastprivate(j)
   for (i = 0; i < argc; ++i)
     foo();
 #pragma omp parallel
@@ -272,5 +272,9 @@ int main(int argc, char **argv) {
 #pragma omp for simd lastprivate(n) firstprivate(n) // OK
   for (i = 0; i < argc; ++i)
     foo();
+  static int si;
+#pragma omp for simd lastprivate(si) // OK
+  for (i = 0; i < argc; ++i)
+    si = i + 1;
   return foomain<S4, S5>(argc, argv); // expected-note {{in instantiation of function template specialization 'foomain<S4, S5>' requested here}}
 }

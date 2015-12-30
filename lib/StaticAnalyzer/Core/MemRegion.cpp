@@ -756,7 +756,7 @@ getStackOrCaptureRegionForDeclContext(const LocationContext *LC,
             return cast<VarRegion>(I.getCapturedRegion());
       }
     }
-    
+
     LC = LC->getParent();
   }
   return (const StackFrameContext *)nullptr;
@@ -788,18 +788,18 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
       else
         sReg = getGlobalsRegion();
     }
-  
-  // Finally handle static locals.  
+
+  // Finally handle static locals.
   } else {
     // FIXME: Once we implement scope handling, we will need to properly lookup
     // 'D' to the proper LocationContext.
     const DeclContext *DC = D->getDeclContext();
     llvm::PointerUnion<const StackFrameContext *, const VarRegion *> V =
       getStackOrCaptureRegionForDeclContext(LC, DC, D);
-    
+
     if (V.is<const VarRegion*>())
       return V.get<const VarRegion*>();
-    
+
     const StackFrameContext *STC = V.get<const StackFrameContext*>();
 
     if (!STC)
@@ -1013,10 +1013,22 @@ MemRegionManager::getCXXBaseObjectRegion(const CXXRecordDecl *RD,
 const CXXThisRegion*
 MemRegionManager::getCXXThisRegion(QualType thisPointerTy,
                                    const LocationContext *LC) {
-  const StackFrameContext *STC = LC->getCurrentStackFrame();
-  assert(STC);
   const PointerType *PT = thisPointerTy->getAs<PointerType>();
   assert(PT);
+  // Inside the body of the operator() of a lambda a this expr might refer to an
+  // object in one of the parent location contexts.
+  const auto *D = dyn_cast<CXXMethodDecl>(LC->getDecl());
+  // FIXME: when operator() of lambda is analyzed as a top level function and
+  // 'this' refers to a this to the enclosing scope, there is no right region to
+  // return.
+  while (!LC->inTopFrame() &&
+         (!D || D->isStatic() ||
+          PT != D->getThisType(getContext())->getAs<PointerType>())) {
+    LC = LC->getParent();
+    D = dyn_cast<CXXMethodDecl>(LC->getDecl());
+  }
+  const StackFrameContext *STC = LC->getCurrentStackFrame();
+  assert(STC);
   return getSubRegion<CXXThisRegion>(PT, getStackArgumentsRegion(STC));
 }
 
@@ -1165,6 +1177,7 @@ RegionRawOffset ElementRegion::getAsArrayOffset() const {
 /// Returns true if \p Base is an immediate base class of \p Child
 static bool isImmediateBase(const CXXRecordDecl *Child,
                             const CXXRecordDecl *Base) {
+  assert(Child && "Child must not be null");
   // Note that we do NOT canonicalize the base class here, because
   // ASTRecordLayout doesn't either. If that leads us down the wrong path,
   // so be it; at least we won't crash.
@@ -1239,23 +1252,23 @@ RegionOffset MemRegion::getAsOffset() const {
         Ty = SR->getSymbol()->getType()->getPointeeType();
         RootIsSymbolic = true;
       }
-      
+
       const CXXRecordDecl *Child = Ty->getAsCXXRecordDecl();
       if (!Child) {
         // We cannot compute the offset of the base class.
         SymbolicOffsetBase = R;
-      }
-
-      if (RootIsSymbolic) {
-        // Base layers on symbolic regions may not be type-correct.
-        // Double-check the inheritance here, and revert to a symbolic offset
-        // if it's invalid (e.g. due to a reinterpret_cast).
-        if (BOR->isVirtual()) {
-          if (!Child->isVirtuallyDerivedFrom(BOR->getDecl()))
-            SymbolicOffsetBase = R;
-        } else {
-          if (!isImmediateBase(Child, BOR->getDecl()))
-            SymbolicOffsetBase = R;
+      } else {
+        if (RootIsSymbolic) {
+          // Base layers on symbolic regions may not be type-correct.
+          // Double-check the inheritance here, and revert to a symbolic offset
+          // if it's invalid (e.g. due to a reinterpret_cast).
+          if (BOR->isVirtual()) {
+            if (!Child->isVirtuallyDerivedFrom(BOR->getDecl()))
+              SymbolicOffsetBase = R;
+          } else {
+            if (!isImmediateBase(Child, BOR->getDecl()))
+              SymbolicOffsetBase = R;
+          }
         }
       }
 
@@ -1290,7 +1303,7 @@ RegionOffset MemRegion::getAsOffset() const {
       if (Optional<nonloc::ConcreteInt> CI =
               Index.getAs<nonloc::ConcreteInt>()) {
         // Don't bother calculating precise offsets if we already have a
-        // symbolic offset somewhere in the chain. 
+        // symbolic offset somewhere in the chain.
         if (SymbolicOffsetBase)
           continue;
 
@@ -1324,7 +1337,7 @@ RegionOffset MemRegion::getAsOffset() const {
 
       // Get the field number.
       unsigned idx = 0;
-      for (RecordDecl::field_iterator FI = RD->field_begin(), 
+      for (RecordDecl::field_iterator FI = RD->field_begin(),
              FE = RD->field_end(); FI != FE; ++FI, ++idx)
         if (FR->getDecl() == *FI)
           break;
@@ -1420,7 +1433,7 @@ BlockDataRegion::referenced_vars_begin() const {
 
   BumpVector<const MemRegion*> *VecOriginal =
     static_cast<BumpVector<const MemRegion*>*>(OriginalVars);
-  
+
   return BlockDataRegion::referenced_vars_iterator(Vec->begin(),
                                                    VecOriginal->begin());
 }
@@ -1456,12 +1469,12 @@ const VarRegion *BlockDataRegion::getOriginalRegion(const VarRegion *R) const {
 // RegionAndSymbolInvalidationTraits
 //===----------------------------------------------------------------------===//
 
-void RegionAndSymbolInvalidationTraits::setTrait(SymbolRef Sym, 
+void RegionAndSymbolInvalidationTraits::setTrait(SymbolRef Sym,
                                                  InvalidationKinds IK) {
   SymTraitsMap[Sym] |= IK;
 }
 
-void RegionAndSymbolInvalidationTraits::setTrait(const MemRegion *MR, 
+void RegionAndSymbolInvalidationTraits::setTrait(const MemRegion *MR,
                                                  InvalidationKinds IK) {
   assert(MR);
   if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(MR))
@@ -1470,13 +1483,13 @@ void RegionAndSymbolInvalidationTraits::setTrait(const MemRegion *MR,
     MRTraitsMap[MR] |= IK;
 }
 
-bool RegionAndSymbolInvalidationTraits::hasTrait(SymbolRef Sym, 
+bool RegionAndSymbolInvalidationTraits::hasTrait(SymbolRef Sym,
                                                  InvalidationKinds IK) {
   const_symbol_iterator I = SymTraitsMap.find(Sym);
   if (I != SymTraitsMap.end())
     return I->second & IK;
 
-  return false;    
+  return false;
 }
 
 bool RegionAndSymbolInvalidationTraits::hasTrait(const MemRegion *MR,

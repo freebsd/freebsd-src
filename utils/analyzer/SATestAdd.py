@@ -1,20 +1,44 @@
 #!/usr/bin/env python
 
 """
-Static Analyzer qualification infrastructure: adding a new project to 
+Static Analyzer qualification infrastructure: adding a new project to
 the Repository Directory.
 
  Add a new project for testing: build it and add to the Project Map file.
    Assumes it's being run from the Repository Directory.
-   The project directory should be added inside the Repository Directory and 
+   The project directory should be added inside the Repository Directory and
    have the same name as the project ID
-   
+
  The project should use the following files for set up:
-      - pre_run_static_analyzer.sh - prepare the build environment.
+      - cleanup_run_static_analyzer.sh - prepare the build environment.
                                      Ex: make clean can be a part of it.
       - run_static_analyzer.cmd - a list of commands to run through scan-build.
                                      Each command should be on a separate line.
-                                     Choose from: configure, make, xcodebuild 
+                                     Choose from: configure, make, xcodebuild
+      - download_project.sh - download the project into the CachedSource/
+                                     directory. For example, download a zip of
+                                     the project source from GitHub, unzip it,
+                                     and rename the unzipped directory to
+                                     'CachedSource'. This script is not called
+                                     when 'CachedSource' is already present,
+                                     so an alternative is to check the
+                                     'CachedSource' directory into the
+                                     repository directly.
+      - CachedSource/ - An optional directory containing the source of the
+                                     project being analyzed. If present,
+                                     download_project.sh will not be called.
+      - changes_for_analyzer.patch - An optional patch file for any local changes
+                                     (e.g., to adapt to newer version of clang)
+                                     that should be applied to CachedSource
+                                     before analysis. To construct this patch,
+                                     run the the download script to download
+                                     the project to CachedSource, copy the
+                                     CachedSource to another directory (for
+                                     example, PatchedSource) and make any needed
+                                     modifications to the the copied source.
+                                     Then run:
+                                          diff -ur CachedSource PatchedSource \
+                                              > changes_for_analyzer.patch
 """
 import SATestBuild
 
@@ -27,7 +51,7 @@ def isExistingProject(PMapFile, projectID) :
     for I in PMapReader:
         if projectID == I[0]:
             return True
-    return False    
+    return False
 
 # Add a new project for testing: build it and add to the Project Map file.
 # Params:
@@ -39,7 +63,7 @@ def addNewProject(ID, BuildMode) :
     if not os.path.exists(Dir):
         print "Error: Project directory is missing: %s" % Dir
         sys.exit(-1)
-        
+
     # Build the project.
     SATestBuild.testProject(ID, BuildMode, IsReferenceBuild=True, Dir=Dir)
 
@@ -51,19 +75,19 @@ def addNewProject(ID, BuildMode) :
         print "Warning: Creating the Project Map file!!"
         PMapFile = open(ProjectMapPath, "w+b")
     try:
-        if (isExistingProject(PMapFile, ID)) :        
+        if (isExistingProject(PMapFile, ID)) :
             print >> sys.stdout, 'Warning: Project with ID \'', ID, \
                                  '\' already exists.'
             print >> sys.stdout, "Reference output has been regenerated."
-        else:                     
+        else:
             PMapWriter = csv.writer(PMapFile)
             PMapWriter.writerow( (ID, int(BuildMode)) );
             print "The project map is updated: ", ProjectMapPath
     finally:
         PMapFile.close()
-            
 
-# TODO: Add an option not to build. 
+
+# TODO: Add an option not to build.
 # TODO: Set the path to the Repository directory.
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -73,10 +97,10 @@ if __name__ == '__main__':
                              '1 for scan_build; ' \
                              '2 for single file c++11 project'
         sys.exit(-1)
-    
-    BuildMode = 1    
+
+    BuildMode = 1
     if (len(sys.argv) >= 3):
-        BuildMode = int(sys.argv[2])  
+        BuildMode = int(sys.argv[2])
     assert((BuildMode == 0) | (BuildMode == 1) | (BuildMode == 2))
-        
+
     addNewProject(sys.argv[1], BuildMode)

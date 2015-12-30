@@ -729,3 +729,53 @@ typedef void (D::*DMemPtrTy)();
 // CHECK: @"\01??_9C@pr23878@@$BA@AE" to i8*), i32 0, i32 4
 DMemPtrTy get_memptr() { return &D::f; }
 }
+
+class C {};
+
+typedef void (C::*f)();
+
+class CA : public C {
+public:
+  void OnHelp(void);
+  int OnHelp(int);
+};
+
+// CHECK-LABEL: foo_fun
+void foo_fun() {
+  // CHECK: store i8* bitcast (void (%class.CA*)* @"\01?OnHelp@CA@@QAEXXZ" to i8*), i8**
+  f func = (f)&CA::OnHelp;
+}
+namespace PR24703 {
+struct S;
+
+void f(int S::*&p) {}
+// CHECK-LABEL: define void @"\01?f@PR24703@@YAXAAPQS@1@H@Z"(
+}
+
+namespace ReferenceToMPTWithIncompleteClass {
+struct S;
+struct J;
+struct K;
+extern K *k;
+
+// CHECK-LABEL: @"\01?f@ReferenceToMPTWithIncompleteClass@@YAIAAPQS@1@H@Z"(
+// CHECK: ret i32 12
+unsigned f(int S::*&p) { return sizeof p; }
+
+// CHECK-LABEL: @"\01?g@ReferenceToMPTWithIncompleteClass@@YA_NAAPQJ@1@H0@Z"(
+bool g(int J::*&p, int J::*&q) { return p == q; }
+
+// CHECK-LABEL: @"\01?h@ReferenceToMPTWithIncompleteClass@@YAHAAPQK@1@H@Z"(
+int h(int K::*&p) { return k->*p; }
+}
+
+namespace PMFInTemplateArgument {
+template <class C, int (C::*M)(int)>
+void JSMethod();
+class A {
+  int printd(int);
+  void printd();
+};
+void A::printd() { JSMethod<A, &A::printd>(); }
+// CHECK-LABEL: @"\01??$JSMethod@VA@PMFInTemplateArgument@@$1?printd@12@AAEHH@Z@PMFInTemplateArgument@@YAXXZ"(
+}

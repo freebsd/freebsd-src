@@ -371,12 +371,9 @@ namespace builtins {
 // CHECK-DAG: attributes [[ATTR_NOBUILTIN]] = {{[{].*}} nobuiltin {{.*[}]}}
 // CHECK-DAG: attributes [[ATTR_NOBUILTIN_NOUNWIND]] = {{[{].*}} nobuiltin nounwind {{.*[}]}}
 
-// CHECK: attributes [[ATTR_NOUNWIND]] =
-// CHECK-NOT: builtin
-// CHECK-NOT: attributes
-// CHECK: nounwind
-// CHECK-NOT: builtin
-// CHECK: attributes
-
 // CHECK-DAG: attributes [[ATTR_BUILTIN_NEW]] = {{[{].*}} builtin {{.*[}]}}
 // CHECK-DAG: attributes [[ATTR_BUILTIN_DELETE]] = {{[{].*}} builtin {{.*[}]}}
+
+// The ([^b}|...) monstrosity is matching a character that's not the start of 'builtin'.
+// Add more letters if this matches some other attribute.
+// CHECK-DAG: attributes [[ATTR_NOUNWIND]] = {{([^b]|b[^u]|bu[^i]|bui[^l])*}} nounwind {{([^b]|b[^u]|bu[^i]|bui[^l])*$}}

@@ -6,6 +6,7 @@ add_clang_library(clangStaticAnalyzerCore
   AnalyzerOptions.cpp
   BasicValueFactory.cpp
   BlockCounter.cpp
+  IssueHash.cpp
   BugReporter.cpp
   BugReporterVisitors.cpp
   CallEvent.cpp
@@ -17,6 +18,7 @@ add_clang_library(clangStaticAnalyzerCore
   CommonBugCategories.cpp
   ConstraintManager.cpp
   CoreEngine.cpp
+  DynamicTypeMap.cpp
   Environment.cpp
   ExplodedGraph.cpp
   ExprEngine.cpp
@@ -26,6 +28,7 @@ add_clang_library(clangStaticAnalyzerCore
   ExprEngineObjC.cpp
   FunctionSummary.cpp
   HTMLDiagnostics.cpp
+  LoopWidening.cpp
   MemRegion.cpp
   PathDiagnostic.cpp
   PlistDiagnostics.cpp

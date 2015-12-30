@@ -276,6 +276,10 @@ TEST_F(FormatTestJava, Annotations) {
   verifyFormat("void SomeFunction(@org.llvm.Nullable String something) {}");
 
   verifyFormat("@Partial @Mock DataLoader loader;");
+  verifyFormat("@Partial\n"
+               "@Mock\n"
+               "DataLoader loader;",
+               getChromiumStyle(FormatStyle::LK_Java));
   verifyFormat("@SuppressWarnings(value = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")\n"
                "public static int iiiiiiiiiiiiiiiiiiiiiiii;");
 
@@ -393,6 +397,10 @@ TEST_F(FormatTestJava, SynchronizedKeyword) {
                "}");
 }
 
+TEST_F(FormatTestJava, AssertKeyword) {
+  verifyFormat("assert a && b;");
+}
+
 TEST_F(FormatTestJava, PackageDeclarations) {
   verifyFormat("package some.really.loooooooooooooooooooooong.package;",
                getStyleWithColumns(50));
@@ -418,6 +426,7 @@ TEST_F(FormatTestJava, CppKeywords) {
   verifyFormat("public void union(Type a, Type b);");
   verifyFormat("public void struct(Object o);");
   verifyFormat("public void delete(Object o);");
+  verifyFormat("return operator && (aa);");
 }
 
 TEST_F(FormatTestJava, NeverAlignAfterReturn) {

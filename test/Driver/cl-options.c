@@ -1,6 +1,3 @@
-// Don't attempt slash switches on msys bash.
-// REQUIRES: shell-preserves-root
-
 // Note: %s must be preceded by --, otherwise it may be interpreted as a
 // command-line option, e.g. on Mac where %s is commonly under /Users.
 
@@ -84,7 +81,7 @@
 // J: -fno-signed-char
 
 // RUN: %clang_cl /Ofoo -### -- %s 2>&1 | FileCheck -check-prefix=O %s
-// O: -Ofoo
+// O: /Ofoo
 
 // RUN: %clang_cl /Ob0 -### -- %s 2>&1 | FileCheck -check-prefix=Ob0 %s
 // Ob0: -fno-inline
@@ -98,18 +95,32 @@
 // RUN: %clang_cl /Oi- -### -- %s 2>&1 | FileCheck -check-prefix=Oi_ %s
 // Oi_: -fno-builtin
 
-// RUN: %clang_cl /Os -### -- %s 2>&1 | FileCheck -check-prefix=Os %s
+// RUN: %clang_cl /Os --target=i686-pc-windows-msvc -### -- %s 2>&1 | FileCheck -check-prefix=Os %s
+// RUN: %clang_cl /Os --target=x86_64-pc-windows-msvc -### -- %s 2>&1 | FileCheck -check-prefix=Os %s
+// Os-NOT: -mdisable-fp-elim
+// Os: -momit-leaf-frame-pointer
 // Os: -Os
 
-// RUN: %clang_cl /Ot -### -- %s 2>&1 | FileCheck -check-prefix=Ot %s
+// RUN: %clang_cl /Ot --target=i686-pc-windows-msvc -### -- %s 2>&1 | FileCheck -check-prefix=Ot %s
+// RUN: %clang_cl /Ot --target=x86_64-pc-windows-msvc -### -- %s 2>&1 | FileCheck -check-prefix=Ot %s
+// Ot-NOT: -mdisable-fp-elim
+// Ot: -momit-leaf-frame-pointer
 // Ot: -O2
 
-// RUN: %clang_cl /Ox -### -- %s 2>&1 | FileCheck -check-prefix=Ox %s
-// Ox: -O3
+// RUN: %clang_cl /Ox --target=i686-pc-windows-msvc -### -- %s 2>&1 | FileCheck -check-prefix=Ox %s
+// RUN: %clang_cl /Ox --target=x86_64-pc-windows-msvc -### -- %s 2>&1 | FileCheck -check-prefix=Ox %s
+// Ox-NOT: -mdisable-fp-elim
+// Ox: -momit-leaf-frame-pointer
+// Ox: -O2
+
+// RUN: %clang_cl --target=i686-pc-win32 /O2sy- -### -- %s 2>&1 | FileCheck -check-prefix=PR24003 %s
+// PR24003: -mdisable-fp-elim
+// PR24003: -momit-leaf-frame-pointer
+// PR24003: -Os
 
 // RUN: %clang_cl /Zs /Oy -- %s 2>&1
 
-// RUN: %clang_cl /Oy- -### -- %s 2>&1 | FileCheck -check-prefix=Oy_ %s
+// RUN: %clang_cl --target=i686-pc-win32 /Oy- -### -- %s 2>&1 | FileCheck -check-prefix=Oy_ %s
 // Oy_: -mdisable-fp-elim
 
 // RUN: %clang_cl /Qvec -### -- %s 2>&1 | FileCheck -check-prefix=Qvec %s
@@ -162,9 +173,10 @@
 // RUN: %clang_cl /W1 -### -- %s 2>&1 | FileCheck -check-prefix=W1 %s
 // RUN: %clang_cl /W2 -### -- %s 2>&1 | FileCheck -check-prefix=W1 %s
 // RUN: %clang_cl /W3 -### -- %s 2>&1 | FileCheck -check-prefix=W1 %s
-// RUN: %clang_cl /W4 -### -- %s 2>&1 | FileCheck -check-prefix=W1 %s
-// RUN: %clang_cl /Wall -### -- %s 2>&1 | FileCheck -check-prefix=W1 %s
+// RUN: %clang_cl /W4 -### -- %s 2>&1 | FileCheck -check-prefix=W4 %s
+// RUN: %clang_cl /Wall -### -- %s 2>&1 | FileCheck -check-prefix=W4 %s
 // W1: -Wall
+// W4: -WCL4
 
 // RUN: %clang_cl /WX -### -- %s 2>&1 | FileCheck -check-prefix=WX %s
 // WX: -Werror
@@ -204,15 +216,17 @@
 // NOSTRICT: "-relaxed-aliasing"
 
 // For some warning ids, we can map from MSVC warning to Clang warning.
-// RUN: %clang_cl -wd4005 -wd4996 -wd4910 -### -- %s 2>&1 | FileCheck -check-prefix=Wno %s
+// RUN: %clang_cl -wd4005 -wd4100 -wd4910 -wd4996 -### -- %s 2>&1 | FileCheck -check-prefix=Wno %s
 // Wno: "-cc1"
 // Wno: "-Wno-macro-redefined"
-// Wno: "-Wno-deprecated-declarations"
+// Wno: "-Wno-unused-parameter"
 // Wno: "-Wno-dllexport-explicit-instantiation-decl"
+// Wno: "-Wno-deprecated-declarations"
 
 // Ignored options. Check that we don't get "unused during compilation" errors.
 // RUN: %clang_cl /c \
 // RUN:    /analyze- \
+// RUN:    /bigobj \
 // RUN:    /cgthreads4 \
 // RUN:    /cgthreads8 \
 // RUN:    /d2Zi+ \
@@ -289,6 +303,8 @@
 // RUN:     /Gr \
 // RUN:     /GS \
 // RUN:     /GT \
+// RUN:     /guard:cf \
+// RUN:     /guard:cf- \
 // RUN:     /GX \
 // RUN:     /Gv \
 // RUN:     /Gz \
@@ -352,11 +368,47 @@
 // RUN: %clang_cl /Zc:threadSafeInit /c -### -- %s 2>&1 | FileCheck -check-prefix=ThreadSafeStatics %s
 // ThreadSafeStatics-NOT: "-fno-threadsafe-statics"
 
+// RUN: %clang_cl /Zi /c -### -- %s 2>&1 | FileCheck -check-prefix=Zi %s
+// Zi: "-gcodeview"
+// Zi: "-debug-info-kind=line-tables-only"
+
+// RUN: %clang_cl /Z7 /c -### -- %s 2>&1 | FileCheck -check-prefix=Z7 %s
+// Z7: "-gcodeview"
+// Z7: "-debug-info-kind=line-tables-only"
+
+// RUN: %clang_cl /c -### -- %s 2>&1 | FileCheck -check-prefix=BreproDefault %s
+// BreproDefault: "-mincremental-linker-compatible"
+
+// RUN: %clang_cl /Brepro- /Brepro /c '-###' -- %s 2>&1 | FileCheck -check-prefix=Brepro %s
+// Brepro: "-mincremental-linker-compatible"
+
+// RUN: %clang_cl /Brepro /Brepro- /c '-###' -- %s 2>&1 | FileCheck -check-prefix=Brepro_ %s
+// Brepro_-NOT: "-mincremental-linker-compatible"
+
+// This test was super sneaky: "/Z7" means "line-tables", but "-gdwarf" occurs
+// later on the command line, so it should win. Interestingly the cc1 arguments
+// came out right, but had wrong semantics, because an invariant assumed by
+// CompilerInvocation was violated: it expects that at most one of {gdwarfN,
+// line-tables-only} appear. If you assume that, then you can safely use
+// Args.hasArg to test whether a boolean flag is present without caring
+// where it appeared. And for this test, it appeared to the left of -gdwarf
+// which made it "win". This test could not detect that bug.
+// RUN: %clang_cl /Z7 -gdwarf /c -### -- %s 2>&1 | FileCheck -check-prefix=Z7_gdwarf %s
+// Z7_gdwarf: "-gcodeview"
+// Z7_gdwarf: "-debug-info-kind=limited"
+// Z7_gdwarf: "-dwarf-version=4"
+
 // RUN: %clang_cl -fmsc-version=1800 -TP -### -- %s 2>&1 | FileCheck -check-prefix=CXX11 %s
 // CXX11: -std=c++11
 
 // RUN: %clang_cl -fmsc-version=1900 -TP -### -- %s 2>&1 | FileCheck -check-prefix=CXX14 %s
 // CXX14: -std=c++14
+
+// RUN: env CL="/Gy" %clang_cl -### -- %s 2>&1 | FileCheck -check-prefix=ENV-CL %s
+// ENV-CL: "-ffunction-sections"
+
+// RUN: env CL="/Gy" _CL_="/Gy- -- %s" %clang_cl -### 2>&1 | FileCheck -check-prefix=ENV-_CL_ %s
+// ENV-_CL_-NOT: "-ffunction-sections"
 
 // Accept "core" clang options.
 // (/Zs is for syntax-only, -Werror makes it fail hard on unknown options)
@@ -372,6 +424,10 @@
 // RUN:     -fno-strict-aliasing \
 // RUN:     -fstrict-aliasing \
 // RUN:     -fsyntax-only \
+// RUN:     -fms-compatibility \
+// RUN:     -fno-ms-compatibility \
+// RUN:     -fms-extensions \
+// RUN:     -fno-ms-extensions \
 // RUN:     -mllvm -disable-llvm-optzns \
 // RUN:     -Wunused-variable \
 // RUN:     -fmacro-backtrace-limit=0 \

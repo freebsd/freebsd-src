@@ -1746,7 +1746,7 @@ QualType ASTNodeImporter::VisitAutoType(const AutoType *T) {
       return QualType();
   }
   
-  return Importer.getToContext().getAutoType(ToDeduced, T->isDecltypeAuto(), 
+  return Importer.getToContext().getAutoType(ToDeduced, T->getKeyword(),
                                              /*IsDependent*/false);
 }
 
@@ -2144,7 +2144,7 @@ TemplateParameterList *ASTNodeImporter::ImportTemplateParameterList(
   return TemplateParameterList::Create(Importer.getToContext(),
                                        Importer.Import(Params->getTemplateLoc()),
                                        Importer.Import(Params->getLAngleLoc()),
-                                       ToParams.data(), ToParams.size(),
+                                       ToParams,
                                        Importer.Import(Params->getRAngleLoc()));
 }
 
@@ -2210,11 +2210,9 @@ ASTNodeImporter::ImportTemplateArgument(const TemplateArgument &From) {
     ToPack.reserve(From.pack_size());
     if (ImportTemplateArguments(From.pack_begin(), From.pack_size(), ToPack))
       return TemplateArgument();
-    
-    TemplateArgument *ToArgs 
-      = new (Importer.getToContext()) TemplateArgument[ToPack.size()];
-    std::copy(ToPack.begin(), ToPack.end(), ToArgs);
-    return TemplateArgument(ToArgs, ToPack.size());
+
+    return TemplateArgument(
+        llvm::makeArrayRef(ToPack).copy(Importer.getToContext()));
   }
   }
   
@@ -4917,13 +4915,14 @@ Stmt *ASTNodeImporter::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
   if (!ToBody && S->getBody())
     return nullptr;
   SourceLocation ToForLoc = Importer.Import(S->getForLoc());
+  SourceLocation ToCoawaitLoc = Importer.Import(S->getCoawaitLoc());
   SourceLocation ToColonLoc = Importer.Import(S->getColonLoc());
   SourceLocation ToRParenLoc = Importer.Import(S->getRParenLoc());
   return new (Importer.getToContext()) CXXForRangeStmt(ToRange, ToBeginEnd,
                                                        ToCond, ToInc,
                                                        ToLoopVar, ToBody,
-                                                       ToForLoc, ToColonLoc,
-                                                       ToRParenLoc);
+                                                       ToForLoc, ToCoawaitLoc,
+                                                       ToColonLoc, ToRParenLoc);
 }
 
 Stmt *ASTNodeImporter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
@@ -5331,7 +5330,7 @@ Expr *ASTNodeImporter::VisitCallExpr(CallExpr *E) {
 
   return new (Importer.getToContext())
     CallExpr(Importer.getToContext(), ToCallee, 
-             ArrayRef<Expr*>(ToArgs_Copied, NumArgs), T, E->getValueKind(),
+             llvm::makeArrayRef(ToArgs_Copied, NumArgs), T, E->getValueKind(),
              Importer.Import(E->getRParenLoc()));
 }
 

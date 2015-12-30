@@ -153,16 +153,6 @@ static void static_func() // expected-warning {{redeclaring non-static 'static_f
 extern const int static_var; // expected-note {{previous declaration is here}}
 static const int static_var = 3; // expected-warning {{redeclaring non-static 'static_var' as static is a Microsoft extension}}
 
-long function_prototype(int a);
-long (*function_ptr)(int a);
-
-void function_to_voidptr_conv() {
-   void *a1 = function_prototype;
-   void *a2 = &function_prototype;
-   void *a3 = function_ptr;
-}
-
-
 void pointer_to_integral_type_conv(char* ptr) {
    char ch = (char)ptr;
    short sh = (short)ptr;
@@ -411,4 +401,22 @@ void AfterClassBody() {
   _Static_assert(__alignof(S) == 4, "");
   _Static_assert(__alignof(s1) == 8, "");
   _Static_assert(__alignof(s2) == 4, "");
+}
+
+namespace PR24246 {
+template <typename TX> struct A {
+  template <bool> struct largest_type_select;
+  // expected-warning@+1 {{explicit specialization of 'largest_type_select' within class scope is a Microsoft extension}}
+  template <> struct largest_type_select<false> {
+    blah x;  // expected-error {{unknown type name 'blah'}}
+  };
+};
+}
+
+namespace PR25265 {
+struct S {
+  int fn() throw(); // expected-note {{previous declaration is here}}
+};
+
+int S::fn() { return 0; } // expected-warning {{is missing exception specification}}
 }

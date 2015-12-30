@@ -19,18 +19,18 @@
 using namespace clang;
 using namespace ento;
 
-void ExprEngine::VisitLvalObjCIvarRefExpr(const ObjCIvarRefExpr *Ex, 
+void ExprEngine::VisitLvalObjCIvarRefExpr(const ObjCIvarRefExpr *Ex,
                                           ExplodedNode *Pred,
                                           ExplodedNodeSet &Dst) {
   ProgramStateRef state = Pred->getState();
   const LocationContext *LCtx = Pred->getLocationContext();
   SVal baseVal = state->getSVal(Ex->getBase(), LCtx);
   SVal location = state->getLValue(Ex->getDecl(), baseVal);
-  
+
   ExplodedNodeSet dstIvar;
   StmtNodeBuilder Bldr(Pred, dstIvar, *currBldrCtx);
   Bldr.generateNode(Ex, Pred, state->BindExpr(Ex, LCtx, location));
-  
+
   // Perform the post-condition check of the ObjCIvarRefExpr and store
   // the created nodes in 'Dst'.
   getCheckerManager().runCheckersForPostStmt(Dst, dstIvar, Ex, *this);
@@ -45,7 +45,7 @@ void ExprEngine::VisitObjCAtSynchronizedStmt(const ObjCAtSynchronizedStmt *S,
 void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
                                             ExplodedNode *Pred,
                                             ExplodedNodeSet &Dst) {
-  
+
   // ObjCForCollectionStmts are processed in two places.  This method
   // handles the case where an ObjCForCollectionStmt* occurs as one of the
   // statements within a basic block.  This transfer function does two things:
@@ -74,7 +74,7 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   const Stmt *elem = S->getElement();
   ProgramStateRef state = Pred->getState();
   SVal elementV;
-  
+
   if (const DeclStmt *DS = dyn_cast<DeclStmt>(elem)) {
     const VarDecl *elemD = cast<VarDecl>(DS->getSingleDecl());
     assert(elemD->getInit() == nullptr);
@@ -83,7 +83,7 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
   else {
     elementV = state->getSVal(elem, Pred->getLocationContext());
   }
-  
+
   ExplodedNodeSet dstLocation;
   evalLocation(dstLocation, S, elem, Pred, state, elementV, nullptr, false);
 
@@ -95,17 +95,17 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
     Pred = *NI;
     ProgramStateRef state = Pred->getState();
     const LocationContext *LCtx = Pred->getLocationContext();
-    
+
     // Handle the case where the container still has elements.
     SVal TrueV = svalBuilder.makeTruthVal(1);
     ProgramStateRef hasElems = state->BindExpr(S, LCtx, TrueV);
-    
+
     // Handle the case where the container has no elements.
     SVal FalseV = svalBuilder.makeTruthVal(0);
     ProgramStateRef noElems = state->BindExpr(S, LCtx, FalseV);
 
     if (Optional<loc::MemRegionVal> MV = elementV.getAs<loc::MemRegionVal>())
-      if (const TypedValueRegion *R = 
+      if (const TypedValueRegion *R =
           dyn_cast<TypedValueRegion>(MV->getRegion())) {
         // FIXME: The proper thing to do is to really iterate over the
         //  container.  We will do this with dispatch logic to the store.
@@ -116,12 +116,12 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
                                              currBldrCtx->blockCount());
         SVal V = svalBuilder.makeLoc(Sym);
         hasElems = hasElems->bindLoc(elementV, V);
-        
+
         // Bind the location to 'nil' on the false branch.
         SVal nilV = svalBuilder.makeIntVal(0, T);
         noElems = noElems->bindLoc(elementV, nilV);
       }
-    
+
     // Create the new nodes.
     Bldr.generateNode(S, Pred, hasElems);
     Bldr.generateNode(S, Pred, noElems);
@@ -138,6 +138,76 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
   CallEventManager &CEMgr = getStateManager().getCallEventManager();
   CallEventRef<ObjCMethodCall> Msg =
     CEMgr.getObjCMethodCall(ME, Pred->getState(), Pred->getLocationContext());
+
+  // There are three cases for the receiver:
+  //   (1) it is definitely nil,
+  //   (2) it is definitely non-nil, and
+  //   (3) we don't know.
+  //
+  // If the receiver is definitely nil, we skip the pre/post callbacks and
+  // instead call the ObjCMessageNil callbacks and return.
+  //
+  // If the receiver is definitely non-nil, we call the pre- callbacks,
+  // evaluate the call, and call the post- callbacks.
+  //
+  // If we don't know, we drop the potential nil flow and instead
+  // continue from the assumed non-nil state as in (2). This approach
+  // intentionally drops coverage in order to prevent false alarms
+  // in the following scenario:
+  //
+  // id result = [o someMethod]
+  // if (result) {
+  //   if (!o) {
+  //     // <-- This program point should be unreachable because if o is nil
+  //     // it must the case that result is nil as well.
+  //   }
+  // }
+  //
+  // We could avoid dropping coverage by performing an explicit case split
+  // on each method call -- but this would get very expensive. An alternative
+  // would be to introduce lazy constraints.
+  // FIXME: This ignores many potential bugs (<rdar://problem/11733396>).
+  // Revisit once we have lazier constraints.
+  if (Msg->isInstanceMessage()) {
+    SVal recVal = Msg->getReceiverSVal();
+    if (!recVal.isUndef()) {
+      // Bifurcate the state into nil and non-nil ones.
+      DefinedOrUnknownSVal receiverVal =
+          recVal.castAs<DefinedOrUnknownSVal>();
+      ProgramStateRef State = Pred->getState();
+
+      ProgramStateRef notNilState, nilState;
+      std::tie(notNilState, nilState) = State->assume(receiverVal);
+
+      // Receiver is definitely nil, so run ObjCMessageNil callbacks and return.
+      if (nilState && !notNilState) {
+        StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
+        bool HasTag = Pred->getLocation().getTag();
+        Pred = Bldr.generateNode(ME, Pred, nilState, nullptr,
+                                 ProgramPoint::PreStmtKind);
+        assert((Pred || HasTag) && "Should have cached out already!");
+        (void)HasTag;
+        if (!Pred)
+          return;
+        getCheckerManager().runCheckersForObjCMessageNil(Dst, Pred,
+                                                         *Msg, *this);
+        return;
+      }
+
+      ExplodedNodeSet dstNonNil;
+      StmtNodeBuilder Bldr(Pred, dstNonNil, *currBldrCtx);
+      // Generate a transition to the non-nil state, dropping any potential
+      // nil flow.
+      if (notNilState != State) {
+        bool HasTag = Pred->getLocation().getTag();
+        Pred = Bldr.generateNode(ME, Pred, notNilState);
+        assert((Pred || HasTag) && "Should have cached out already!");
+        (void)HasTag;
+        if (!Pred)
+          return;
+      }
+    }
+  }
 
   // Handle the previsits checks.
   ExplodedNodeSet dstPrevisit;
@@ -156,38 +226,15 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
     ExplodedNode *Pred = *DI;
     ProgramStateRef State = Pred->getState();
     CallEventRef<ObjCMethodCall> UpdatedMsg = Msg.cloneWithState(State);
-    
+
     if (UpdatedMsg->isInstanceMessage()) {
       SVal recVal = UpdatedMsg->getReceiverSVal();
       if (!recVal.isUndef()) {
-        // Bifurcate the state into nil and non-nil ones.
-        DefinedOrUnknownSVal receiverVal =
-            recVal.castAs<DefinedOrUnknownSVal>();
-
-        ProgramStateRef notNilState, nilState;
-        std::tie(notNilState, nilState) = State->assume(receiverVal);
-        
-        // There are three cases: can be nil or non-nil, must be nil, must be
-        // non-nil. We ignore must be nil, and merge the rest two into non-nil.
-        // FIXME: This ignores many potential bugs (<rdar://problem/11733396>).
-        // Revisit once we have lazier constraints.
-        if (nilState && !notNilState) {
-          continue;
-        }
-        
-        // Check if the "raise" message was sent.
-        assert(notNilState);
         if (ObjCNoRet.isImplicitNoReturn(ME)) {
           // If we raise an exception, for now treat it as a sink.
           // Eventually we will want to handle exceptions properly.
           Bldr.generateSink(ME, Pred, State);
           continue;
-        }
-        
-        // Generate a transition to non-Nil state.
-        if (notNilState != State) {
-          Pred = Bldr.generateNode(ME, Pred, notNilState);
-          assert(Pred && "Should have cached out already!");
         }
       }
     } else {
@@ -203,7 +250,7 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
 
     defaultEvalCall(Bldr, Pred, *UpdatedMsg);
   }
-  
+
   ExplodedNodeSet dstPostvisit;
   getCheckerManager().runCheckersForPostCall(dstPostvisit, dstEval,
                                              *Msg, *this);

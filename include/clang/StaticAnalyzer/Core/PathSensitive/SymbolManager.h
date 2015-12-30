@@ -639,6 +639,7 @@ public:
   }
   
   void markLive(const MemRegion *region);
+  void markElementIndicesLive(const MemRegion *region);
   
   /// \brief Set to the value of the symbolic store after
   /// StoreManager::removeDeadBindings has been called.
@@ -650,14 +651,20 @@ private:
 };
 
 class SymbolVisitor {
+protected:
+  ~SymbolVisitor() = default;
+
 public:
+  SymbolVisitor() = default;
+  SymbolVisitor(const SymbolVisitor &) = default;
+  SymbolVisitor(SymbolVisitor &&) {}
+
   /// \brief A visitor method invoked by ProgramStateManager::scanReachableSymbols.
   ///
   /// The method returns \c true if symbols should continue be scanned and \c
   /// false otherwise.
   virtual bool VisitSymbol(SymbolRef sym) = 0;
   virtual bool VisitMemRegion(const MemRegion *region) { return true; }
-  virtual ~SymbolVisitor();
 };
 
 } // end GR namespace

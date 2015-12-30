@@ -35,6 +35,22 @@ class DiagnosticConsumer;
 class DiagnosticsEngine;
 class HeaderSearch;
 class ModuleMapParser;
+
+/// \brief A mechanism to observe the actions of the module map parser as it
+/// reads module map files.
+class ModuleMapCallbacks {
+public:
+  virtual ~ModuleMapCallbacks() {}
+
+  /// \brief Called when a module map file has been read.
+  ///
+  /// \param FileStart A SourceLocation referring to the start of the file's
+  /// contents.
+  /// \param File The file itself.
+  /// \param IsSystem Whether this is a module map from a system include path.
+  virtual void moduleMapFileRead(SourceLocation FileStart,
+                                 const FileEntry &File, bool IsSystem) {}
+};
   
 class ModuleMap {
   SourceManager &SourceMgr;
@@ -42,6 +58,8 @@ class ModuleMap {
   const LangOptions &LangOpts;
   const TargetInfo *Target;
   HeaderSearch &HeaderInfo;
+
+  llvm::SmallVector<std::unique_ptr<ModuleMapCallbacks>, 1> Callbacks;
   
   /// \brief The directory used for Clang-supplied, builtin include headers,
   /// such as "stdint.h".
@@ -93,6 +111,13 @@ public:
   public:
     KnownHeader() : Storage(nullptr, NormalHeader) { }
     KnownHeader(Module *M, ModuleHeaderRole Role) : Storage(M, Role) { }
+
+    friend bool operator==(const KnownHeader &A, const KnownHeader &B) {
+      return A.Storage == B.Storage;
+    }
+    friend bool operator!=(const KnownHeader &A, const KnownHeader &B) {
+      return A.Storage != B.Storage;
+    }
 
     /// \brief Retrieve the module the header is stored in.
     Module *getModule() const { return Storage.getPointer(); }
@@ -224,6 +249,10 @@ private:
   KnownHeader findHeaderInUmbrellaDirs(const FileEntry *File,
                     SmallVectorImpl<const DirectoryEntry *> &IntermediateDirs);
 
+  /// \brief Given that \p File is not in the Headers map, look it up within
+  /// umbrella directories and find or create a module for it.
+  KnownHeader findOrCreateModuleForHeaderInUmbrellaDir(const FileEntry *File);
+
   /// \brief A convenience method to determine if \p File is (possibly nested)
   /// in an umbrella directory.
   bool isHeaderInUmbrellaDirs(const FileEntry *File) {
@@ -263,6 +292,11 @@ public:
     BuiltinIncludeDir = Dir;
   }
 
+  /// \brief Add a module map callback.
+  void addModuleMapCallbacks(std::unique_ptr<ModuleMapCallbacks> Callback) {
+    Callbacks.push_back(std::move(Callback));
+  }
+
   /// \brief Retrieve the module that owns the given header file, if any.
   ///
   /// \param File The header file that is likely to be included.
@@ -271,6 +305,14 @@ public:
   /// given header file.  The KnownHeader is default constructed to indicate
   /// that no module owns this header file.
   KnownHeader findModuleForHeader(const FileEntry *File);
+
+  /// \brief Retrieve all the modules that contain the given header file. This
+  /// may not include umbrella modules, nor information from external sources,
+  /// if they have not yet been inferred / loaded.
+  ///
+  /// Typically, \ref findModuleForHeader should be used instead, as it picks
+  /// the preferred module for the header.
+  ArrayRef<KnownHeader> findAllModulesForHeader(const FileEntry *File) const;
 
   /// \brief Reports errors if a module must not include a specific file.
   ///
@@ -436,7 +478,7 @@ public:
   /// \brief Adds this header to the given module.
   /// \param Role The role of the header wrt the module.
   void addHeader(Module *Mod, Module::Header Header,
-                 ModuleHeaderRole Role);
+                 ModuleHeaderRole Role, bool Imported = false);
 
   /// \brief Marks this header as being excluded from the given module.
   void excludeHeader(Module *Mod, Module::Header Header);

@@ -36,8 +36,14 @@ TEST(JSONCompilationDatabase, ErrsOnInvalidFormat) {
   expectFailure("[{[]:\"\"}]", "Incorrectly typed entry");
   expectFailure("[{}]", "Empty entry");
   expectFailure("[{\"directory\":\"\",\"command\":\"\"}]", "Missing file");
-  expectFailure("[{\"directory\":\"\",\"file\":\"\"}]", "Missing command");
+  expectFailure("[{\"directory\":\"\",\"file\":\"\"}]", "Missing command or arguments");
   expectFailure("[{\"command\":\"\",\"file\":\"\"}]", "Missing directory");
+  expectFailure("[{\"directory\":\"\",\"arguments\":[]}]", "Missing file");
+  expectFailure("[{\"arguments\":\"\",\"file\":\"\"}]", "Missing directory");
+  expectFailure("[{\"directory\":\"\",\"arguments\":\"\",\"file\":\"\"}]", "Arguments not array");
+  expectFailure("[{\"directory\":\"\",\"command\":[],\"file\":\"\"}]", "Command not string");
+  expectFailure("[{\"directory\":\"\",\"arguments\":[[]],\"file\":\"\"}]",
+                "Arguments contain non-string");
 }
 
 static std::vector<std::string> getAllFiles(StringRef JSONDatabase,
@@ -92,8 +98,8 @@ TEST(JSONCompilationDatabase, GetAllCompileCommands) {
   StringRef FileName1("file1");
   StringRef Command1("command1");
   StringRef Directory2("//net/dir2");
-  StringRef FileName2("file1");
-  StringRef Command2("command1");
+  StringRef FileName2("file2");
+  StringRef Command2("command2");
 
   std::vector<CompileCommand> Commands = getAllCompileCommands(
       ("[{\"directory\":\"" + Directory1 + "\"," +
@@ -105,11 +111,32 @@ TEST(JSONCompilationDatabase, GetAllCompileCommands) {
       ErrorMessage);
   EXPECT_EQ(2U, Commands.size()) << ErrorMessage;
   EXPECT_EQ(Directory1, Commands[0].Directory) << ErrorMessage;
+  EXPECT_EQ(FileName1, Commands[0].Filename) << ErrorMessage;
   ASSERT_EQ(1u, Commands[0].CommandLine.size());
   EXPECT_EQ(Command1, Commands[0].CommandLine[0]) << ErrorMessage;
   EXPECT_EQ(Directory2, Commands[1].Directory) << ErrorMessage;
+  EXPECT_EQ(FileName2, Commands[1].Filename) << ErrorMessage;
   ASSERT_EQ(1u, Commands[1].CommandLine.size());
   EXPECT_EQ(Command2, Commands[1].CommandLine[0]) << ErrorMessage;
+
+  // Check that order is preserved.
+  Commands = getAllCompileCommands(
+      ("[{\"directory\":\"" + Directory2 + "\"," +
+             "\"command\":\"" + Command2 + "\","
+             "\"file\":\"" + FileName2 + "\"},"
+       " {\"directory\":\"" + Directory1 + "\"," +
+             "\"command\":\"" + Command1 + "\","
+             "\"file\":\"" + FileName1 + "\"}]").str(),
+      ErrorMessage);
+  EXPECT_EQ(2U, Commands.size()) << ErrorMessage;
+  EXPECT_EQ(Directory2, Commands[0].Directory) << ErrorMessage;
+  EXPECT_EQ(FileName2, Commands[0].Filename) << ErrorMessage;
+  ASSERT_EQ(1u, Commands[0].CommandLine.size());
+  EXPECT_EQ(Command2, Commands[0].CommandLine[0]) << ErrorMessage;
+  EXPECT_EQ(Directory1, Commands[1].Directory) << ErrorMessage;
+  EXPECT_EQ(FileName1, Commands[1].Filename) << ErrorMessage;
+  ASSERT_EQ(1u, Commands[1].CommandLine.size());
+  EXPECT_EQ(Command1, Commands[1].CommandLine[0]) << ErrorMessage;
 }
 
 static CompileCommand findCompileArgsInJsonDatabase(StringRef FileName,
@@ -124,6 +151,25 @@ static CompileCommand findCompileArgsInJsonDatabase(StringRef FileName,
   if (Commands.empty())
     return CompileCommand();
   return Commands[0];
+}
+
+TEST(JSONCompilationDatabase, ArgumentsPreferredOverCommand) {
+   StringRef Directory("//net/dir");
+   StringRef FileName("//net/dir/filename");
+   StringRef Command("command");
+   StringRef Arguments = "arguments";
+   Twine ArgumentsAccumulate;
+   std::string ErrorMessage;
+   CompileCommand FoundCommand = findCompileArgsInJsonDatabase(
+      FileName,
+      ("[{\"directory\":\"" + Directory + "\","
+         "\"arguments\":[\"" + Arguments + "\"],"
+         "\"command\":\"" + Command + "\","
+         "\"file\":\"" + FileName + "\"}]").str(),
+      ErrorMessage);
+   EXPECT_EQ(Directory, FoundCommand.Directory) << ErrorMessage;
+   EXPECT_EQ(1u, FoundCommand.CommandLine.size()) << ErrorMessage;
+   EXPECT_EQ(Arguments, FoundCommand.CommandLine[0]) << ErrorMessage;
 }
 
 struct FakeComparator : public PathComparator {
@@ -402,14 +448,16 @@ TEST(FixedCompilationDatabase, ReturnsFixedCommandLine) {
   CommandLine.push_back("one");
   CommandLine.push_back("two");
   FixedCompilationDatabase Database(".", CommandLine);
+  StringRef FileName("source");
   std::vector<CompileCommand> Result =
-    Database.getCompileCommands("source");
+    Database.getCompileCommands(FileName);
   ASSERT_EQ(1ul, Result.size());
   std::vector<std::string> ExpectedCommandLine(1, "clang-tool");
   ExpectedCommandLine.insert(ExpectedCommandLine.end(),
                              CommandLine.begin(), CommandLine.end());
   ExpectedCommandLine.push_back("source");
   EXPECT_EQ(".", Result[0].Directory);
+  EXPECT_EQ(FileName, Result[0].Filename);
   EXPECT_EQ(ExpectedCommandLine, Result[0].CommandLine);
 }
 

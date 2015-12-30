@@ -86,10 +86,25 @@
 // RUN: %clang -### -S -fprofile-generate=dir -fprofile-use=dir %s 2>&1 | FileCheck -check-prefix=CHECK-NO-MIX-GEN-USE %s
 // RUN: %clang -### -S -fprofile-generate=dir -fprofile-instr-use %s 2>&1 | FileCheck -check-prefix=CHECK-NO-MIX-GEN-USE %s
 // RUN: %clang -### -S -fprofile-generate=dir -fprofile-instr-use=file %s 2>&1 | FileCheck -check-prefix=CHECK-NO-MIX-GEN-USE %s
+// RUN: %clang -### -S -fprofile-instr-generate=file -fno-profile-instr-generate %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-GEN %s
+// RUN: %clang -### -S -fprofile-instr-generate=file -fno-profile-generate %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-GEN %s
+// RUN: %clang -### -S -fprofile-generate=dir -fno-profile-generate %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-GEN %s
+// RUN: %clang -### -S -fprofile-generate=dir -fno-profile-instr-generate %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-GEN %s
+// RUN: %clang -### -S -fprofile-instr-use=file -fno-profile-instr-use %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-USE %s
+// RUN: %clang -### -S -fprofile-instr-use=file -fno-profile-use %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-USE %s
+// RUN: %clang -### -S -fprofile-use=file -fno-profile-use %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-USE %s
+// RUN: %clang -### -S -fprofile-use=file -fno-profile-instr-use %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-USE %s
+// RUN: %clang -### -S -fcoverage-mapping %s 2>&1 | FileCheck -check-prefix=CHECK-COVERAGE-AND-GEN %s
+// RUN: %clang -### -S -fcoverage-mapping -fno-coverage-mapping %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-COVERAGE %s
+// RUN: %clang -### -S -fprofile-instr-generate -fcoverage-mapping -fno-coverage-mapping %s 2>&1 | FileCheck -check-prefix=CHECK-DISABLE-COVERAGE %s
 // CHECK-PROFILE-GENERATE: "-fprofile-instr-generate"
 // CHECK-PROFILE-GENERATE-DIR: "-fprofile-instr-generate=/some/dir{{/|\\\\}}default.profraw"
 // CHECK-PROFILE-GENERATE-FILE: "-fprofile-instr-generate=/tmp/somefile.profraw"
 // CHECK-NO-MIX-GEN-USE: '{{[a-z=-]*}}' not allowed with '{{[a-z=-]*}}'
+// CHECK-DISABLE-GEN-NOT: "-fprofile-instr-generate"
+// CHECK-DISABLE-USE-NOT: "-fprofile-instr-use"
+// CHECK-COVERAGE-AND-GEN: '-fcoverage-mapping' only allowed with '-fprofile-instr-generate'
+// CHECK-DISABLE-COVERAGE-NOT: "-fcoverage-mapping"
 
 // RUN: %clang -### -S -fprofile-use %s 2>&1 | FileCheck -check-prefix=CHECK-PROFILE-USE %s
 // RUN: %clang -### -S -fprofile-instr-use %s 2>&1 | FileCheck -check-prefix=CHECK-PROFILE-USE %s
@@ -358,7 +373,7 @@
 // CHECK-WARNING-DAG: optimization flag '-ftracer' is not supported
 // CHECK-WARNING-DAG: optimization flag '-funroll-all-loops' is not supported
 // CHECK-WARNING-DAG: optimization flag '-funswitch-loops' is not supported
-// CHECK-WARNING-DAG: optimization flag '-flto=1' is not supported
+// CHECK-WARNING-DAG: unsupported argument '1' to option 'flto='
 // CHECK-WARNING-DAG: optimization flag '-falign-labels' is not supported
 // CHECK-WARNING-DAG: optimization flag '-falign-labels=100' is not supported
 // CHECK-WARNING-DAG: optimization flag '-falign-loops' is not supported
@@ -411,6 +426,19 @@
 // RUN:     %s 2>&1 | FileCheck --check-prefix=CHECK-NO-WARNING2 %s
 // CHECK-NO-WARNING1-NOT: optimization flag '-finline-limit=1000' is not supported
 // CHECK-NO-WARNING2-NOT: optimization flag '-finline-limit' is not supported
+
+// Test that an ignored optimization argument only prints 1 warning,
+// not both a warning about not claiming the arg, *and* about not supporting
+// the arg; and that adding -Wno-ignored-optimization silences the warning.
+//
+// RUN: %clang -### -fprofile-correction %s 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-NO-WARNING3 %s
+// CHECK-NO-WARNING3: optimization flag '-fprofile-correction' is not supported
+// CHECK-NO-WARNING3-NOT: argument unused
+// RUN: %clang -### -fprofile-correction -Wno-ignored-optimization-argument %s 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-NO-WARNING4 %s
+// CHECK-NO-WARNING4-NOT: not supported
+// CHECK-NO-WARNING4-NOT: argument unused
 
 // RUN: %clang -### -S -fsigned-char %s 2>&1 | FileCheck -check-prefix=CHAR-SIGN1 %s
 // CHAR-SIGN1-NOT: -fno-signed-char

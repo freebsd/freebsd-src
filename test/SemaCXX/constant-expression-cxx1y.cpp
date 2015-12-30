@@ -462,7 +462,7 @@ namespace loops {
       if ((c % 7) == 0) break;
     } while (c != 21);
 
-    return a == 10 && b == 12 & c == 14;
+    return a == 10 && b == 12 && c == 14;
   }
   static_assert(breaks_work(), "");
 
@@ -872,7 +872,7 @@ namespace Lifetime {
 
 namespace Bitfields {
   struct A {
-    bool b : 3;
+    bool b : 1;
     int n : 4;
     unsigned u : 5;
   };

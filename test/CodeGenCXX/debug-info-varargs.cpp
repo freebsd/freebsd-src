@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple %itanium_abi_triple -emit-llvm -g %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -emit-llvm -debug-info-kind=limited %s -o - | FileCheck %s
 
 struct A
 {
@@ -20,7 +20,7 @@ void b(int c, ...) {
 
   A a;
 
-  // CHECK: !DILocalVariable(tag: DW_TAG_auto_variable, name: "fptr"
+  // CHECK: !DILocalVariable(name: "fptr"
   // CHECK-SAME:             line: [[@LINE+2]]
   // CHECK-SAME:             type: ![[PST:[0-9]+]]
   void (*fptr)(int, ...) = b;

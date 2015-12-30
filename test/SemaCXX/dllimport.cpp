@@ -93,6 +93,12 @@ __declspec(dllimport) auto InternalAutoTypeGlobal = Internal(); // expected-erro
 
 // Thread local variables are invalid.
 __declspec(dllimport) __thread int ThreadLocalGlobal; // expected-error{{'ThreadLocalGlobal' cannot be thread local when declared 'dllimport'}}
+// This doesn't work on MinGW, because there, dllimport on the inline function is ignored.
+#ifndef GNU
+inline void __declspec(dllimport) ImportedInlineWithThreadLocal() {
+  static __thread int OK; // no-error
+}
+#endif
 
 // Import in local scope.
 __declspec(dllimport) float LocalRedecl1; // expected-note{{previous declaration is here}}
@@ -1333,3 +1339,14 @@ struct __declspec(dllimport) DerivedFromExplicitlyImportInstantiatedTemplate : p
 template <typename T> struct ExplicitInstantiationDeclTemplateBase { void func() {} };
 extern template struct ExplicitInstantiationDeclTemplateBase<int>;
 struct __declspec(dllimport) DerivedFromExplicitInstantiationDeclTemplateBase : public ExplicitInstantiationDeclTemplateBase<int> {};
+
+//===----------------------------------------------------------------------===//
+// Lambdas
+//===----------------------------------------------------------------------===//
+// The MS ABI doesn't provide a stable mangling for lambdas, so they can't be imported or exported.
+#ifdef MS
+// expected-error@+4{{lambda cannot be declared 'dllimport'}}
+#else
+// expected-warning@+2{{'dllimport' attribute ignored on inline function}}
+#endif
+auto Lambda = []() __declspec(dllimport) -> bool { return true; };

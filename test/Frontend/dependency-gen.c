@@ -20,7 +20,10 @@
 // RUN: cd a/b
 // RUN: %clang -MD -MF - %s -fsyntax-only -I ./ | FileCheck -check-prefix=CHECK-SIX %s
 // CHECK-SIX: {{ }}x.h
-
+// RUN: echo "fun:foo" > %t.blacklist
+// RUN: %clang -MD -MF - %s -fsyntax-only -fsanitize=cfi-vcall -flto -fsanitize-blacklist=%t.blacklist -I ./ | FileCheck -check-prefix=CHECK-SEVEN %s
+// CHECK-SEVEN: .blacklist
+// CHECK-SEVEN: {{ }}x.h
 #ifndef INCLUDE_FLAG_TEST
 #include <x.h>
 #endif

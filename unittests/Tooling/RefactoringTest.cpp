@@ -176,8 +176,8 @@ TEST(ShiftedCodePositionTest, FindsNewCodePosition) {
   EXPECT_EQ(1u, shiftedCodePosition(Replaces, 2)); //  i|t   i;
   EXPECT_EQ(2u, shiftedCodePosition(Replaces, 3)); //  in|   i;
   EXPECT_EQ(3u, shiftedCodePosition(Replaces, 4)); //  int|  i;
-  EXPECT_EQ(4u, shiftedCodePosition(Replaces, 5)); //  int | i;
-  EXPECT_EQ(4u, shiftedCodePosition(Replaces, 6)); //  int  |i;
+  EXPECT_EQ(3u, shiftedCodePosition(Replaces, 5)); //  int | i;
+  EXPECT_EQ(3u, shiftedCodePosition(Replaces, 6)); //  int  |i;
   EXPECT_EQ(4u, shiftedCodePosition(Replaces, 7)); //  int   |;
   EXPECT_EQ(5u, shiftedCodePosition(Replaces, 8)); //  int   i|
 }
@@ -195,8 +195,8 @@ TEST(ShiftedCodePositionTest, VectorFindsNewCodePositionWithInserts) {
   EXPECT_EQ(1u, shiftedCodePosition(Replaces, 2)); //  i|t   i;
   EXPECT_EQ(2u, shiftedCodePosition(Replaces, 3)); //  in|   i;
   EXPECT_EQ(3u, shiftedCodePosition(Replaces, 4)); //  int|  i;
-  EXPECT_EQ(4u, shiftedCodePosition(Replaces, 5)); //  int | i;
-  EXPECT_EQ(4u, shiftedCodePosition(Replaces, 6)); //  int  |i;
+  EXPECT_EQ(3u, shiftedCodePosition(Replaces, 5)); //  int | i;
+  EXPECT_EQ(3u, shiftedCodePosition(Replaces, 6)); //  int  |i;
   EXPECT_EQ(4u, shiftedCodePosition(Replaces, 7)); //  int   |;
   EXPECT_EQ(5u, shiftedCodePosition(Replaces, 8)); //  int   i|
 }
@@ -205,8 +205,17 @@ TEST(ShiftedCodePositionTest, FindsNewCodePositionWithInserts) {
   Replacements Replaces;
   Replaces.insert(Replacement("", 4, 0, "\"\n\""));
   // Assume '"12345678"' is turned into '"1234"\n"5678"'.
-  EXPECT_EQ(4u, shiftedCodePosition(Replaces, 4)); // "123|5678"
-  EXPECT_EQ(8u, shiftedCodePosition(Replaces, 5)); // "1234|678"
+  EXPECT_EQ(3u, shiftedCodePosition(Replaces, 3)); // "123|5678"
+  EXPECT_EQ(7u, shiftedCodePosition(Replaces, 4)); // "1234|678"
+  EXPECT_EQ(8u, shiftedCodePosition(Replaces, 5)); // "12345|78"
+}
+
+TEST(ShiftedCodePositionTest, FindsNewCodePositionInReplacedText) {
+  Replacements Replaces;
+  // Replace the first four characters with "abcd".
+  Replaces.insert(Replacement("", 0, 4, "abcd"));
+  for (unsigned i = 0; i < 3; ++i)
+    EXPECT_EQ(i, shiftedCodePosition(Replaces, i));
 }
 
 class FlushRewrittenFilesTest : public ::testing::Test {
@@ -487,6 +496,99 @@ TEST(DeduplicateTest, detectsConflicts) {
     ASSERT_EQ(6u, Conflicts[1].getOffset());
     ASSERT_EQ(2u, Conflicts[1].getLength());
   }
+}
+
+class MergeReplacementsTest : public ::testing::Test {
+protected:
+  void mergeAndTestRewrite(StringRef Code, StringRef Intermediate,
+                           StringRef Result, const Replacements &First,
+                           const Replacements &Second) {
+    // These are mainly to verify the test itself and make it easier to read.
+    std::string AfterFirst = applyAllReplacements(Code, First);
+    std::string InSequenceRewrite = applyAllReplacements(AfterFirst, Second);
+    EXPECT_EQ(Intermediate, AfterFirst);
+    EXPECT_EQ(Result, InSequenceRewrite);
+
+    tooling::Replacements Merged = mergeReplacements(First, Second);
+    std::string MergedRewrite = applyAllReplacements(Code, Merged);
+    EXPECT_EQ(InSequenceRewrite, MergedRewrite);
+    if (InSequenceRewrite != MergedRewrite)
+      for (tooling::Replacement M : Merged)
+        llvm::errs() << M.getOffset() << " " << M.getLength() << " "
+                     << M.getReplacementText() << "\n";
+  }
+  void mergeAndTestRewrite(StringRef Code, const Replacements &First,
+                           const Replacements &Second) {
+    std::string InSequenceRewrite =
+        applyAllReplacements(applyAllReplacements(Code, First), Second);
+    tooling::Replacements Merged = mergeReplacements(First, Second);
+    std::string MergedRewrite = applyAllReplacements(Code, Merged);
+    EXPECT_EQ(InSequenceRewrite, MergedRewrite);
+    if (InSequenceRewrite != MergedRewrite)
+      for (tooling::Replacement M : Merged)
+        llvm::errs() << M.getOffset() << " " << M.getLength() << " "
+                     << M.getReplacementText() << "\n";
+  }
+};
+
+TEST_F(MergeReplacementsTest, Offsets) {
+  mergeAndTestRewrite("aaa", "aabab", "cacabab",
+                      {{"", 2, 0, "b"}, {"", 3, 0, "b"}},
+                      {{"", 0, 0, "c"}, {"", 1, 0, "c"}});
+  mergeAndTestRewrite("aaa", "babaa", "babacac",
+                      {{"", 0, 0, "b"}, {"", 1, 0, "b"}},
+                      {{"", 4, 0, "c"}, {"", 5, 0, "c"}});
+  mergeAndTestRewrite("aaaa", "aaa", "aac", {{"", 1, 1, ""}},
+                      {{"", 2, 1, "c"}});
+
+  mergeAndTestRewrite("aa", "bbabba", "bbabcba",
+                      {{"", 0, 0, "bb"}, {"", 1, 0, "bb"}}, {{"", 4, 0, "c"}});
+}
+
+TEST_F(MergeReplacementsTest, Concatenations) {
+  // Basic concatenations. It is important to merge these into a single
+  // replacement to ensure the correct order.
+  EXPECT_EQ((Replacements{{"", 0, 0, "ab"}}),
+            mergeReplacements({{"", 0, 0, "a"}}, {{"", 1, 0, "b"}}));
+  EXPECT_EQ((Replacements{{"", 0, 0, "ba"}}),
+            mergeReplacements({{"", 0, 0, "a"}}, {{"", 0, 0, "b"}}));
+  mergeAndTestRewrite("", "a", "ab", {{"", 0, 0, "a"}}, {{"", 1, 0, "b"}});
+  mergeAndTestRewrite("", "a", "ba", {{"", 0, 0, "a"}}, {{"", 0, 0, "b"}});
+}
+
+TEST_F(MergeReplacementsTest, NotChangingLengths) {
+  mergeAndTestRewrite("aaaa", "abba", "acca", {{"", 1, 2, "bb"}},
+                      {{"", 1, 2, "cc"}});
+  mergeAndTestRewrite("aaaa", "abba", "abcc", {{"", 1, 2, "bb"}},
+                      {{"", 2, 2, "cc"}});
+  mergeAndTestRewrite("aaaa", "abba", "ccba", {{"", 1, 2, "bb"}},
+                      {{"", 0, 2, "cc"}});
+  mergeAndTestRewrite("aaaaaa", "abbdda", "abccda",
+                      {{"", 1, 2, "bb"}, {"", 3, 2, "dd"}}, {{"", 2, 2, "cc"}});
+}
+
+TEST_F(MergeReplacementsTest, OverlappingRanges) {
+  mergeAndTestRewrite("aaa", "bbd", "bcbcd",
+                      {{"", 0, 1, "bb"}, {"", 1, 2, "d"}},
+                      {{"", 1, 0, "c"}, {"", 2, 0, "c"}});
+
+  mergeAndTestRewrite("aaaa", "aabbaa", "acccca", {{"", 2, 0, "bb"}},
+                      {{"", 1, 4, "cccc"}});
+  mergeAndTestRewrite("aaaa", "aababa", "acccca",
+                      {{"", 2, 0, "b"}, {"", 3, 0, "b"}}, {{"", 1, 4, "cccc"}});
+  mergeAndTestRewrite("aaaaaa", "abbbba", "abba", {{"", 1, 4, "bbbb"}},
+                      {{"", 2, 2, ""}});
+  mergeAndTestRewrite("aaaa", "aa", "cc", {{"", 1, 1, ""}, {"", 2, 1, ""}},
+                      {{"", 0, 2, "cc"}});
+  mergeAndTestRewrite("aa", "abbba", "abcbcba", {{"", 1, 0, "bbb"}},
+                      {{"", 2, 0, "c"}, {"", 3, 0, "c"}});
+
+  mergeAndTestRewrite("aaa", "abbab", "ccdd",
+                      {{"", 0, 1, ""}, {"", 2, 0, "bb"}, {"", 3, 0, "b"}},
+                      {{"", 0, 2, "cc"}, {"", 2, 3, "dd"}});
+  mergeAndTestRewrite("aa", "babbab", "ccdd",
+                      {{"", 0, 0, "b"}, {"", 1, 0, "bb"}, {"", 2, 0, "b"}},
+                      {{"", 0, 3, "cc"}, {"", 3, 3, "dd"}});
 }
 
 } // end namespace tooling
