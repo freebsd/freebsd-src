@@ -18,9 +18,11 @@ LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 MLINKS=	clang.1 clang++.1 \
 	clang.1 clang-cpp.1
 .if ${MK_CLANG_IS_CC} != "no"
+SCRIPTS=CC.sh
+SCRIPTSNAME=CC
+
 LINKS+=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/c++ \
-	${BINDIR}/clang ${BINDIR}/CC \
 	${BINDIR}/clang ${BINDIR}/cpp
 MLINKS+= clang.1 cc.1 \
 	clang.1 c++.1 \
