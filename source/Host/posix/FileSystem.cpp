@@ -20,6 +20,9 @@
 #include <sys/mount.h>
 #include <linux/magic.h>
 #endif
+#if defined(__NetBSD__)
+#include <sys/statvfs.h>
+#endif
 
 // lldb Includes
 #include "lldb/Core/Error.h"
@@ -28,6 +31,9 @@
 
 using namespace lldb;
 using namespace lldb_private;
+
+const char *
+FileSystem::DEV_NULL = "/dev/null";
 
 FileSpec::PathSyntax
 FileSystem::GetNativePathSyntax()
@@ -179,6 +185,16 @@ FileSystem::Hardlink(const FileSpec &src, const FileSpec &dst)
     return error;
 }
 
+int
+FileSystem::GetHardlinkCount(const FileSpec &file_spec)
+{
+    struct stat file_stat;
+    if (::stat(file_spec.GetCString(), &file_stat) == 0)
+        return file_stat.st_nlink;
+
+    return -1;
+}
+
 Error
 FileSystem::Symlink(const FileSpec &src, const FileSpec &dst)
 {
@@ -213,6 +229,34 @@ FileSystem::Readlink(const FileSpec &src, FileSpec &dst)
     return error;
 }
 
+Error
+FileSystem::ResolveSymbolicLink(const FileSpec &src, FileSpec &dst)
+{
+    char resolved_path[PATH_MAX];
+    if (!src.GetPath (resolved_path, sizeof (resolved_path)))
+    {
+        return Error("Couldn't get the canonical path for %s", src.GetCString());
+    }
+    
+    char real_path[PATH_MAX + 1];
+    if (realpath(resolved_path, real_path) == nullptr)
+    {
+        Error err;
+        err.SetErrorToErrno();
+        return err;
+    }
+    
+    dst = FileSpec(real_path, false);
+    
+    return Error();
+}
+
+#if defined(__NetBSD__)
+static bool IsLocal(const struct statvfs& info)
+{
+    return (info.f_flag & MNT_LOCAL) != 0;
+}
+#else
 static bool IsLocal(const struct statfs& info)
 {
 #ifdef __linux__
@@ -230,7 +274,19 @@ static bool IsLocal(const struct statfs& info)
     return (info.f_flags & MNT_LOCAL) != 0;
 #endif
 }
+#endif
 
+#if defined(__NetBSD__)
+bool
+FileSystem::IsLocal(const FileSpec &spec)
+{
+    struct statvfs statfs_info;
+    std::string path (spec.GetPath());
+    if (statvfs(path.c_str(), &statfs_info) == 0)
+        return ::IsLocal(statfs_info);
+    return false;
+}
+#else
 bool
 FileSystem::IsLocal(const FileSpec &spec)
 {
@@ -240,3 +296,4 @@ FileSystem::IsLocal(const FileSpec &spec)
         return ::IsLocal(statfs_info);
     return false;
 }
+#endif

@@ -31,35 +31,31 @@
 //          This command does not follow the MI documentation exactly.
 // Gotchas: This command has additional flags that were not available in GDB MI.
 //          See MIextensions.txt for details.
-// Authors: Illya Rudkin 25/02/2014.
-// Changes: None.
 //--
 class CMICmdCmdFileExecAndSymbols : public CMICmdBase
 {
     // Statics:
   public:
     // Required by the CMICmdFactory when registering *this command
-    static CMICmdBase *CreateSelf(void);
+    static CMICmdBase *CreateSelf();
 
     // Methods:
   public:
-    /* ctor */ CMICmdCmdFileExecAndSymbols(void);
+    /* ctor */ CMICmdCmdFileExecAndSymbols();
 
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    bool Execute(void) override;
-    bool Acknowledge(void) override;
-    bool ParseArgs(void) override;
+    bool Execute() override;
+    bool Acknowledge() override;
+    bool ParseArgs() override;
     // From CMICmnBase
-    /* dtor */ ~CMICmdCmdFileExecAndSymbols(void) override;
-    bool GetExitAppOnCommandFailure(void) const override;
+    /* dtor */ ~CMICmdCmdFileExecAndSymbols() override;
+    bool GetExitAppOnCommandFailure() const override;
 
     // Attributes:
   private:
     const CMIUtilString m_constStrArgNameFile;
-    const CMIUtilString
-        m_constStrArgThreadGrp; // Not handled by *this command. Not specified in MI spec but Eclipse gives this option sometimes
     const CMIUtilString m_constStrArgNamedPlatformName; // Added to support iOS platform selection
     const CMIUtilString m_constStrArgNamedRemotePath; // Added to support iOS device remote file location
 };

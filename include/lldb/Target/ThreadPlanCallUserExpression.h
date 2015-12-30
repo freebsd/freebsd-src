@@ -30,22 +30,21 @@ public:
                                   Address &function,
                                   llvm::ArrayRef<lldb::addr_t> args,
                                   const EvaluateExpressionOptions &options,
-                                  lldb::ClangUserExpressionSP &user_expression_sp);
+                                  lldb::UserExpressionSP &user_expression_sp);
     
-    virtual
-    ~ThreadPlanCallUserExpression ();
+    ~ThreadPlanCallUserExpression() override;
 
-    virtual void
-    GetDescription (Stream *s, lldb::DescriptionLevel level);
+    void
+    GetDescription(Stream *s, lldb::DescriptionLevel level) override;
     
-    virtual void
-    WillPop ();
+    void
+    WillPop() override;
 
-    virtual lldb::StopInfoSP
-    GetRealStopInfo();
+    lldb::StopInfoSP
+    GetRealStopInfo() override;
     
-    virtual bool
-    MischiefManaged ();
+    bool
+    MischiefManaged() override;
     
     void
     TransferExpressionOwnership ()
@@ -53,19 +52,19 @@ public:
         m_manage_materialization = true;
     }
     
-    virtual lldb::ClangExpressionVariableSP
-    GetExpressionVariable ()
+    lldb::ExpressionVariableSP
+    GetExpressionVariable() override
     {
         return m_result_var_sp;
     }
     
 protected:
 private:
-    lldb::ClangUserExpressionSP m_user_expression_sp;    // This is currently just used to ensure the
+    lldb::UserExpressionSP m_user_expression_sp;    // This is currently just used to ensure the
                                                          // User expression the initiated this ThreadPlan
                                                          // lives as long as the thread plan does.
     bool m_manage_materialization = false;
-    lldb::ClangExpressionVariableSP m_result_var_sp;     // If we are left to manage the materialization,
+    lldb::ExpressionVariableSP m_result_var_sp;     // If we are left to manage the materialization,
                                                          // then stuff the result expression variable here.
 
     DISALLOW_COPY_AND_ASSIGN (ThreadPlanCallUserExpression);
@@ -73,4 +72,4 @@ private:
 
 } // namespace lldb_private
 
-#endif  // liblldb_ThreadPlanCallUserExpression_h_
+#endif // liblldb_ThreadPlanCallUserExpression_h_

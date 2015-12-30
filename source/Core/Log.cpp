@@ -143,6 +143,7 @@ Log::VAPrintf(const char *format, va_list args)
             std::string back_trace;
             llvm::raw_string_ostream stream(back_trace);
             llvm::sys::PrintStackTrace(stream);
+            stream.flush();
             header.PutCString(back_trace.c_str());
         }
 
@@ -449,7 +450,7 @@ Log::DisableAllLogChannels (Stream *feedback_strm)
 {
     CallbackMap &callback_map = GetCallbackMap ();
     CallbackMapIter pos, end = callback_map.end();
-    const char *categories[1] = {NULL};
+    const char *categories[] = {"all", nullptr};
 
     for (pos = callback_map.begin(); pos != end; ++pos)
         pos->second.disable (categories, feedback_strm);

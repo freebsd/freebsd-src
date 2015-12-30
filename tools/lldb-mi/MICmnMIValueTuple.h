@@ -30,33 +30,30 @@
 //          list ==>  "[]" | "[" value ( "," value )* "]" | "[" result ( "," result )* "]"
 //          More information see:
 //          http://ftp.gnu.org/old-gnu/Manuals/gdb-5.1.1/html_chapter/gdb_22.html
-// Gotchas: None.
-// Authors: Illya Rudkin 24/02/2014.
-// Changes: None.
 //--
 class CMICmnMIValueTuple : public CMICmnMIValue
 {
     // Methods:
   public:
-    /* ctor */ CMICmnMIValueTuple(void);
+    /* ctor */ CMICmnMIValueTuple();
     /* ctor */ CMICmnMIValueTuple(const CMICmnMIValueResult &vResult);
     /* ctor */ CMICmnMIValueTuple(const CMICmnMIValueResult &vResult, const bool vbUseSpacing);
     //
-    bool Add(const CMICmnMIValueResult &vResult);
-    bool Add(const CMICmnMIValueResult &vResult, const bool vbUseSpacing);
-    bool Add(const CMICmnMIValueConst &vValue, const bool vbUseSpacing);
-    CMIUtilString ExtractContentNoBrackets(void) const;
+    void Add(const CMICmnMIValueResult &vResult);
+    void Add(const CMICmnMIValueResult &vResult, const bool vbUseSpacing);
+    void Add(const CMICmnMIValueConst &vValue, const bool vbUseSpacing);
+    CMIUtilString ExtractContentNoBrackets() const;
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CMICmnMIValueTuple(void) override;
+    /* dtor */ ~CMICmnMIValueTuple() override;
 
     // Methods:
   private:
-    bool BuildTuple(void);
-    bool BuildTuple(const CMICmnMIValueResult &vResult);
-    bool BuildTuple(const CMIUtilString &vValue);
+    void BuildTuple();
+    void BuildTuple(const CMICmnMIValueResult &vResult);
+    void BuildTuple(const CMIUtilString &vValue);
 
     // Attributes:
   private:

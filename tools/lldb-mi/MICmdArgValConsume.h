@@ -1,4 +1,4 @@
-//===-- MICmdArgValConsume.h ---------------------------------------*- C++ -*-===//
+//===-- MICmdArgValConsume.h ------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -29,23 +29,20 @@ class CMICmdArgContext;
 //          a value for the argument but is not the case for *this argument type
 //          object.
 //          Based on the Interpreter pattern.
-// Gotchas: None.
-// Authors: Illya Rudkin 20/05/2014.
-// Changes: None.
 //--
 class CMICmdArgValConsume : public CMICmdArgValBaseTemplate<CMIUtilString>
 {
     // Methods:
   public:
-    /* ctor */ CMICmdArgValConsume(void);
+    /* ctor */ CMICmdArgValConsume();
     /* ctor */ CMICmdArgValConsume(const CMIUtilString &vrArgName, const bool vbMandatory);
     //
-    bool IsOk(void) const;
+    bool IsOk() const;
 
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ ~CMICmdArgValConsume(void) override;
+    /* dtor */ ~CMICmdArgValConsume() override;
     // From CMICmdArgSet::IArg
     bool Validate(CMICmdArgContext &vwArgContext) override;
 };

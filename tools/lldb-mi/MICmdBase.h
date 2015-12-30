@@ -9,7 +9,10 @@
 
 #pragma once
 
-// In-house headers:
+// C Includes
+// C++ Includes
+// Other libraries and framework includes
+// Project includes
 #include "MIUtilString.h"
 #include "MICmnBase.h"
 #include "MICmnResources.h"
@@ -42,46 +45,41 @@ class CMICmnLLDBDebugSessionInfo;
 //          to factor handling and parsing of different types of arguments
 //          presented to a command. A command will produce an error should it
 //          be presented with arguments or options it does not understand.
-// Gotchas: None.
-// Authors: Illya Rudkin 18/02/2014.
-// Changes: None.
 //--
 class CMICmdBase : public CMICmnBase, public CMICmdInvoker::ICmd, public CMICmdFactory::ICmd
 {
     // Methods:
   public:
-    /* ctor */ CMICmdBase(void);
+    CMICmdBase();
 
     // Overridden:
-  public:
     // From CMICmdInvoker::ICmd
-    virtual const SMICmdData &GetCmdData(void) const;
-    virtual const CMIUtilString &GetErrorDescription(void) const;
-    virtual bool SetCmdData(const SMICmdData &vCmdData);
-    virtual void CmdFinishedTellInvoker(void) const;
-    virtual const CMIUtilString &GetMIResultRecord(void) const;
-    virtual const CMIUtilString &GetMIResultRecordExtra(void) const;
-    virtual bool HasMIResultRecordExtra(void) const;
-    virtual bool ParseArgs(void);
+    const SMICmdData &GetCmdData() const override;
+    const CMIUtilString &GetErrorDescription() const override;
+    void SetCmdData(const SMICmdData &vCmdData) override;
+    void CmdFinishedTellInvoker() const override;
+    const CMIUtilString &GetMIResultRecord() const override;
+    const CMIUtilString &GetMIResultRecordExtra() const override;
+    bool HasMIResultRecordExtra() const override;
+    bool ParseArgs() override;
     // From CMICmdFactory::ICmd
-    virtual const CMIUtilString &GetMiCmd(void) const;
-    virtual CMICmdFactory::CmdCreatorFnPtr GetCmdCreatorFn(void) const;
+    const CMIUtilString &GetMiCmd() const override;
+    CMICmdFactory::CmdCreatorFnPtr GetCmdCreatorFn() const override;
 
-    virtual MIuint GetGUID(void);
+    virtual MIuint GetGUID();
+    void AddCommonArgs();
 
     // Overrideable:
-  public:
-    /* dtor */ virtual ~CMICmdBase(void);
-    virtual bool GetExitAppOnCommandFailure(void) const;
+    ~CMICmdBase() override;
+    virtual bool GetExitAppOnCommandFailure() const;
 
     // Methods:
   protected:
     void SetError(const CMIUtilString &rErrMsg);
     template <class T> T *GetOption(const CMIUtilString &vStrOptionName);
-    bool ParseValidateCmdOptions(void);
+    bool ParseValidateCmdOptions();
 
     // Attributes:
-  protected:
     CMICmdFactory::CmdCreatorFnPtr m_pSelfCreatorFn;
     CMIUtilString m_strCurrentErrDescription; // Reason for Execute or Acknowledge function failure
     SMICmdData m_cmdData; // Holds information/status of *this command. Used by other MI code to report or determine state of a command.
@@ -97,6 +95,16 @@ class CMICmdBase : public CMICmnBase, public CMICmdInvoker::ICmd, public CMICmdF
     bool m_bHasResultRecordExtra; // True = Yes command produced additional MI output to its 1 line response, false = no extra MI output
                                   // formed.
     CMICmdArgSet m_setCmdArgs;    // The list of arguments *this command needs to parse from the options string to carry out work.
+    const CMIUtilString m_constStrArgThreadGroup;
+    const CMIUtilString m_constStrArgThread;
+    const CMIUtilString m_constStrArgFrame;
+    const CMIUtilString m_constStrArgConsume;
+
+    // These 3 members can be used by the derived classes to make any of
+    // "thread", "frame" or "thread-group" mandatory.
+    bool m_ThreadGrpArgMandatory;
+    bool m_ThreadArgMandatory;
+    bool m_FrameArgMandatory;
 };
 
 //++ ------------------------------------------------------------------------------------
@@ -109,7 +117,7 @@ class CMICmdBase : public CMICmnBase, public CMICmdInvoker::ICmd, public CMICmdF
 // Args:    vStrOptionName  - (R)   The text name of the argument or option to search for in
 //                                  the list of the command's possible arguments or options.
 // Return:  T * - CMICmdArgValBase derived object.
-//              - NULL = function has failed, unable to retrieve the option/arg object.
+//              - nullptr = function has failed, unable to retrieve the option/arg object.
 // Throws:  None.
 //--
 template <class T>
@@ -136,7 +144,7 @@ CMICmdBase::GetOption(const CMIUtilString &vStrOptionName)
 //          c   - (R) The text name of the argument or option to search for in the list of
 //                    the command's possible arguments or options.
 // Return:  T * - CMICmdArgValBase derived object.
-//              - NULL = function has failed, unable to retrieve the option/arg object.
+//              - nullptr = function has failed, unable to retrieve the option/arg object.
 // Throws:  None.
 //--
 #define CMICMDBASE_GETOPTION(a, b, c)                                                                                                      \

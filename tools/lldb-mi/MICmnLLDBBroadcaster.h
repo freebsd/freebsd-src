@@ -21,9 +21,6 @@
 //          *** not
 //
 //          A singleton class.
-// Gotchas: None.
-// Authors: Illya Rudkin 28/02/2014.
-// Changes: None.
 //--
 class CMICmnLLDBBroadcaster : public CMICmnBase, public lldb::SBBroadcaster, public MI::ISingleton<CMICmnLLDBBroadcaster>
 {
@@ -31,16 +28,16 @@ class CMICmnLLDBBroadcaster : public CMICmnBase, public lldb::SBBroadcaster, pub
 
     // Methods:
   public:
-    bool Initialize(void) override;
-    bool Shutdown(void) override;
+    bool Initialize() override;
+    bool Shutdown() override;
     // Methods:
   private:
-    /* ctor */ CMICmnLLDBBroadcaster(void);
+    /* ctor */ CMICmnLLDBBroadcaster();
     /* ctor */ CMICmnLLDBBroadcaster(const CMICmnLLDBBroadcaster &);
     void operator=(const CMICmnLLDBBroadcaster &);
 
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ ~CMICmnLLDBBroadcaster(void) override;
+    /* dtor */ ~CMICmnLLDBBroadcaster() override;
 };

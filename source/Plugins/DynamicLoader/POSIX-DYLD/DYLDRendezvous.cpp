@@ -17,6 +17,7 @@
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 
@@ -290,19 +291,13 @@ DYLDRendezvous::SOEntryIsMainExecutable(const SOEntry &entry)
     // FreeBSD and on Android it is the full path to the executable.
 
     auto triple = m_process->GetTarget().GetArchitecture().GetTriple();
-    auto os_type = triple.getOS();
-    auto env_type = triple.getEnvironment();
-
-    switch (os_type) {
+    switch (triple.getOS()) {
         case llvm::Triple::FreeBSD:
             return entry.file_spec == m_exe_file_spec;
         case llvm::Triple::Linux:
-            switch (env_type) {
-                case llvm::Triple::Android:
-                    return entry.file_spec == m_exe_file_spec;
-                default:
-                    return !entry.file_spec;
-            }
+            if (triple.isAndroid())
+                return entry.file_spec == m_exe_file_spec;
+            return !entry.file_spec;
         default:
             return false;
     }
@@ -372,6 +367,25 @@ DYLDRendezvous::ReadStringFromMemory(addr_t addr)
     return str;
 }
 
+// Returns true if the load bias reported by the linker is incorrect for the given entry. This
+// function is used to handle cases where we want to work around a bug in the system linker.
+static bool
+isLoadBiasIncorrect(Target& target, const std::string& file_path)
+{
+    // On Android L (API 21, 22) the load address of the "/system/bin/linker" isn't filled in
+    // correctly.
+    uint32_t os_major = 0, os_minor = 0, os_update = 0;
+    if (target.GetArchitecture().GetTriple().isAndroid() &&
+        target.GetPlatform()->GetOSVersion(os_major, os_minor, os_update) &&
+        (os_major == 21 || os_major == 22) &&
+        (file_path == "/system/bin/linker" || file_path == "/system/bin/linker64"))
+    {
+        return true;
+    }
+
+    return false;
+}
+
 bool
 DYLDRendezvous::ReadSOEntryFromMemory(lldb::addr_t addr, SOEntry &entry)
 {
@@ -413,11 +427,9 @@ DYLDRendezvous::ReadSOEntryFromMemory(lldb::addr_t addr, SOEntry &entry)
     std::string file_path = ReadStringFromMemory(entry.path_addr);
     entry.file_spec.SetFile(file_path, false);
 
-    // On Android L (5.0, 5.1) the load address of the "/system/bin/linker" isn't filled in
-    // correctly. To get the correct load address we fetch the load address of the file from the
-    // proc file system.
-    if (arch.GetTriple().getEnvironment() == llvm::Triple::Android && entry.base_addr == 0 &&
-        (file_path == "/system/bin/linker" || file_path == "/system/bin/linker64"))
+    // If the load bias reported by the linker is incorrect then fetch the load address of the file
+    // from the proc file system.
+    if (isLoadBiasIncorrect(m_process->GetTarget(), file_path))
     {
         lldb::addr_t load_addr = LLDB_INVALID_ADDRESS;
         bool is_loaded = false;
