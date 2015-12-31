@@ -575,7 +575,7 @@ parse_dynamic(elf_file_t ef)
 
 static int
 parse_dpcpu(elf_file_t ef)
-{ 
+{
 	int count;
 	int error;
 
@@ -606,7 +606,7 @@ parse_dpcpu(elf_file_t ef)
 #ifdef VIMAGE
 static int
 parse_vnet(elf_file_t ef)
-{ 
+{
 	int count;
 	int error;
 
@@ -884,7 +884,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	 */
 	base_offset = trunc_page(segs[0]->p_offset);
 	base_vaddr = trunc_page(segs[0]->p_vaddr);
-	base_vlimit = round_page(segs[nsegs - 1]->p_vaddr + 
+	base_vlimit = round_page(segs[nsegs - 1]->p_vaddr +
 	    segs[nsegs - 1]->p_memsz);
 	mapsize = base_vlimit - base_vaddr;
 
@@ -1439,7 +1439,7 @@ link_elf_each_function_name(linker_file_t file,
 	elf_file_t ef = (elf_file_t)file;
 	const Elf_Sym *symp;
 	int i, error;
-	
+
 	/* Exhaustive search */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
@@ -1613,7 +1613,7 @@ link_elf_symtab_get(linker_file_t lf, const Elf_Sym **symtab)
 
 	return (ef->ddbsymcnt);
 }
-    
+
 static long
 link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 {
