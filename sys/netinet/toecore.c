@@ -428,7 +428,7 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		KASSERT(lle->la_flags & LLE_VALID,
 		    ("%s: %p resolved but not valid?", __func__, lle));
 
-		lladdr = (uint8_t *)&lle->ll_addr;
+		lladdr = (uint8_t *)lle->ll_addr;
 #ifdef VLAN_TAG
 		VLAN_TAG(ifp, &vtag);
 #endif

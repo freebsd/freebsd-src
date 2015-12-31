@@ -111,7 +111,7 @@ VNET_DEFINE(int, nd6_debug) = 1;
 VNET_DEFINE(int, nd6_debug) = 0;
 #endif
 
-static eventhandler_tag lle_event_eh;
+static eventhandler_tag lle_event_eh, iflladdr_event_eh;
 
 /* for debugging? */
 #if 0
@@ -137,7 +137,7 @@ static void nd6_llinfo_timer(void *);
 static void nd6_llinfo_settimer_locked(struct llentry *, long);
 static void clear_llinfo_pqueue(struct llentry *);
 static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
-static int nd6_resolve_slow(struct ifnet *, struct mbuf *,
+static int nd6_resolve_slow(struct ifnet *, int, struct mbuf *,
     const struct sockaddr_in6 *, u_char *, uint32_t *);
 static int nd6_need_cache(struct ifnet *);
  
@@ -188,12 +188,22 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	gw.sdl_index = ifp->if_index;
 	gw.sdl_type = ifp->if_type;
 	if (evt == LLENTRY_RESOLVED)
-		bcopy(&lle->ll_addr, gw.sdl_data, ifp->if_addrlen);
+		bcopy(lle->ll_addr, gw.sdl_data, ifp->if_addrlen);
 	rtinfo.rti_info[RTAX_DST] = (struct sockaddr *)&dst;
 	rtinfo.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&gw;
 	rtinfo.rti_addrs = RTA_DST | RTA_GATEWAY;
 	rt_missmsg_fib(type, &rtinfo, RTF_HOST | RTF_LLDATA | (
 	    type == RTM_ADD ? RTF_UP: 0), 0, RT_DEFAULT_FIB);
+}
+
+/*
+ * A handler for interface link layer address change event.
+ */
+static void
+nd6_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+
+	lltable_update_ifaddr(LLTABLE6(ifp));
 }
 
 void
@@ -211,9 +221,12 @@ nd6_init(void)
 	    nd6_slowtimo, curvnet);
 
 	nd6_dad_init();
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		lle_event_eh = EVENTHANDLER_REGISTER(lle_event, nd6_lle_event,
 		    NULL, EVENTHANDLER_PRI_ANY);
+		iflladdr_event_eh = EVENTHANDLER_REGISTER(iflladdr_event,
+		    nd6_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
+	}
 }
 
 #ifdef VIMAGE
@@ -223,8 +236,10 @@ nd6_destroy()
 
 	callout_drain(&V_nd6_slowtimo_ch);
 	callout_drain(&V_nd6_timer_ch);
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
+		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_event_eh);
+	}
 }
 #endif
 
@@ -1844,6 +1859,9 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
+	u_char linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	int lladdr_off;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 
@@ -1878,8 +1896,15 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Since we already know all the data for the new entry,
 		 * fill it before insertion.
 		 */
-		if (lladdr != NULL)
-			lltable_set_entry_addr(ifp, ln, lladdr);
+		if (lladdr != NULL) {
+			linkhdrsize = sizeof(linkhdr);
+			if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
+			    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+				return;
+			lltable_set_entry_addr(ifp, ln, linkhdr, linkhdrsize,
+			    lladdr_off);
+		}
+
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
 		/* Prefer any existing lle over newly-created one */
@@ -1911,7 +1936,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 
 	olladdr = (ln->la_flags & LLE_VALID) ? 1 : 0;
 	if (olladdr && lladdr) {
-		llchange = bcmp(lladdr, &ln->ll_addr,
+		llchange = bcmp(lladdr, ln->ll_addr,
 		    ifp->if_addrlen);
 	} else if (!olladdr && lladdr)
 		llchange = 1;
@@ -1937,7 +1962,13 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Record source link-layer address
 		 * XXX is it dependent to ifp->if_type?
 		 */
-		if (lltable_try_set_entry_addr(ifp, ln, lladdr) == 0) {
+		linkhdrsize = sizeof(linkhdr);
+		if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+			return;
+
+		if (lltable_try_set_entry_addr(ifp, ln, linkhdr, linkhdrsize,
+		    lladdr_off) == 0) {
 			/* Entry was deleted */
 			return;
 		}
@@ -2093,8 +2124,8 @@ nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 }
 
 /*
- * Do L2 address resolution for @sa_dst address. Stores found
- * address in @desten buffer. Copy of lle ln_flags can be also
+ * Lookup link headerfor @sa_dst address. Stores found
+ * data in @desten buffer. Copy of lle ln_flags can be also
  * saved in @pflags if @pflags is non-NULL.
  *
  * If destination LLE does not exists or lle state modification
@@ -2144,7 +2175,7 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	ln = nd6_lookup(&dst6->sin6_addr, LLE_UNLOCKED, ifp);
 	if (ln != NULL && (ln->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
-		bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
+		bcopy(ln->r_linkdata, desten, ln->r_hdrlen);
 		if (pflags != NULL)
 			*pflags = LLE_VALID | (ln->r_flags & RLLE_IFADDR);
 		/* Check if we have feedback request from nd6 timer */
@@ -2159,7 +2190,7 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	}
 	IF_AFDATA_RUNLOCK(ifp);
 
-	return (nd6_resolve_slow(ifp, m, dst6, desten, pflags));
+	return (nd6_resolve_slow(ifp, 0, m, dst6, desten, pflags));
 }
 
 
@@ -2175,12 +2206,13 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
  * Set noinline to be dtrace-friendly
  */
 static __noinline int
-nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
+nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
     const struct sockaddr_in6 *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *lle = NULL, *lle_tmp;
 	struct in6_addr *psrc, src;
-	int send_ns;
+	int send_ns, ll_len;
+	char *lladdr;
 
 	/*
 	 * Address resolution or Neighbor Unreachability Detection
@@ -2252,7 +2284,14 @@ nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
 	 * send the packet.
 	 */
 	if (lle->ln_state > ND6_LLINFO_INCOMPLETE) {
-		bcopy(&lle->ll_addr, desten, ifp->if_addrlen);
+		if (flags & LLE_ADDRONLY) {
+			lladdr = lle->ll_addr;
+			ll_len = ifp->if_addrlen;
+		} else {
+			lladdr = lle->r_linkdata;
+			ll_len = lle->r_hdrlen;
+		}
+		bcopy(lladdr, desten, ll_len);
 		if (pflags != NULL)
 			*pflags = lle->la_flags;
 		LLE_WUNLOCK(lle);
@@ -2312,6 +2351,27 @@ nd6_resolve_slow(struct ifnet *ifp, struct mbuf *m,
 	return (EWOULDBLOCK);
 }
 
+/*
+ * Do L2 address resolution for @sa_dst address. Stores found
+ * address in @desten buffer. Copy of lle ln_flags can be also
+ * saved in @pflags if @pflags is non-NULL.
+ *
+ * Return values:
+ * - 0 on success (address copied to buffer).
+ * - EWOULDBLOCK (no local error, but address is still unresolved)
+ * - other errors (alloc failure, etc)
+ */
+int
+nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
+    char *desten, uint32_t *pflags)
+{
+	int error;
+
+	flags |= LLE_ADDRONLY;
+	error = nd6_resolve_slow(ifp, flags, NULL,
+	    (const struct sockaddr_in6 *)dst, desten, pflags);
+	return (error);
+}
 
 int
 nd6_flush_holdchain(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,

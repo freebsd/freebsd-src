@@ -161,6 +161,7 @@ static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_input_default(struct ifnet *, struct mbuf *);
+static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
@@ -672,6 +673,9 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 	}
 	if (ifp->if_input == NULL)
 		ifp->if_input = if_input_default;
+
+	if (ifp->if_requestencap == NULL)
+		ifp->if_requestencap = if_requestencap_default;
 
 	if (!vmove) {
 #ifdef MAC
@@ -3394,6 +3398,43 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		}
 	}
 	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+	return (0);
+}
+
+/*
+ * Compat function for handling basic encapsulation requests.
+ * Not converted stacks (FDDI, IB, ..) supports traditional
+ * output model: ARP (and other similar L2 protocols) are handled
+ * inside output routine, arpresolve/nd6_resolve() returns MAC
+ * address instead of full prepend.
+ *
+ * This function creates calculated header==MAC for IPv4/IPv6 and
+ * returns EAFNOSUPPORT (which is then handled in ARP code) for other
+ * address families.
+ */
+static int
+if_requestencap_default(struct ifnet *ifp, struct if_encap_req *req)
+{
+
+	if (req->rtype != IFENCAP_LL)
+		return (EOPNOTSUPP);
+
+	if (req->bufsize < req->lladdr_len)
+		return (ENOMEM);
+
+	switch (req->family) {
+	case AF_INET:
+	case AF_INET6:
+		break;
+	default:
+		return (EAFNOSUPPORT);
+	}
+
+	/* Copy lladdr to storage as is */
+	memmove(req->buf, req->lladdr, req->lladdr_len);
+	req->bufsize = req->lladdr_len;
+	req->lladdr_off = 0;
+
 	return (0);
 }
 
