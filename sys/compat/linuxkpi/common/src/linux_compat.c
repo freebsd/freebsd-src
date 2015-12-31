@@ -157,7 +157,7 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 	struct kobj_type *t;
 	int error;
 
-	kobj->parent = kobject_get(parent);
+	kobj->parent = parent;
 	error = sysfs_create_dir(kobj);
 	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
 		struct attribute **attr;
@@ -198,9 +198,6 @@ kobject_release(struct kref *kref)
 
 	kobj = container_of(kref, struct kobject, kref);
 	sysfs_remove_dir(kobj);
-	if (kobj->parent)
-		kobject_put(kobj->parent);
-	kobj->parent = NULL;
 	name = kobj->name;
 	if (kobj->ktype && kobj->ktype->release)
 		kobj->ktype->release(kobj);
