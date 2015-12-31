@@ -34,6 +34,7 @@ SRCS=	APFloat.cpp \
 	IntEqClasses.cpp \
 	IntervalMap.cpp \
 	IntrusiveRefCntPtr.cpp \
+	JamCRC.cpp \
 	LEB128.cpp \
 	LineIterator.cpp \
 	Locale.cpp \
@@ -77,7 +78,6 @@ SRCS=	APFloat.cpp \
 	Triple.cpp \
 	Twine.cpp \
 	Unicode.cpp \
-	Valgrind.cpp \
 	YAMLParser.cpp \
 	YAMLTraits.cpp \
 	circular_raw_ostream.cpp \
@@ -96,6 +96,8 @@ SRCS+=	ARMWinEH.cpp \
 	FileOutputBuffer.cpp \
 	FileUtilities.cpp \
 	SystemUtils.cpp \
+	ThreadPool.cpp \
+	Valgrind.cpp \
 	Watchdog.cpp
 .endif
 

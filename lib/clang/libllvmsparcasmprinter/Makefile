@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmsparcinstprinter
+LIB=	llvmsparcasmprinter
 
 SRCDIR=	lib/Target/Sparc/InstPrinter
 INCDIR=	lib/Target/Sparc

@@ -16,10 +16,12 @@ SRCS=	DWARFAbbreviationDeclaration.cpp \
 	DWARFDebugInfoEntry.cpp \
 	DWARFDebugLine.cpp \
 	DWARFDebugLoc.cpp \
+	DWARFDebugMacro.cpp \
 	DWARFDebugRangeList.cpp \
 	DWARFFormValue.cpp \
 	DWARFTypeUnit.cpp \
 	DWARFUnit.cpp \
+	DWARFUnitIndex.cpp \
 	SyntaxHighlighting.cpp
 
 .include "../clang.lib.mk"
