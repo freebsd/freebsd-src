@@ -310,14 +310,13 @@ static int
 vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
 	int error;
-	int bytes, port, in, out, string;
+	int bytes, port, in, out;
 	int vcpu;
 
 	vcpu = *pvcpu;
 
 	port = vme->u.inout.port;
 	bytes = vme->u.inout.bytes;
-	string = vme->u.inout.string;
 	in = vme->u.inout.in;
 	out = !in;
 
@@ -620,8 +619,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 		if (error != 0)
 			break;
 
-		prevcpu = vcpu;
-
 		exitcode = vmexit[vcpu].exitcode;
 		if (exitcode >= VM_EXITCODE_MAX || handler[exitcode] == NULL) {
 			fprintf(stderr, "vm_loop: unexpected exitcode 0x%x\n",
@@ -629,7 +626,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 			exit(1);
 		}
 
-                rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
+		rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
 
 		switch (rc) {
 		case VMEXIT_CONTINUE:
