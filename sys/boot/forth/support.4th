@@ -930,6 +930,30 @@ only forth definitions also support-functions
   repeat
 ;
 
+: free-one-module { addr -- addr }
+  addr module.name strfree
+  addr module.loadname strfree
+  addr module.type strfree
+  addr module.args strfree
+  addr module.beforeload strfree
+  addr module.afterload strfree
+  addr module.loaderror strfree
+  addr
+;
+
+: free-module-options
+  module_options @
+  begin
+    ?dup
+  while
+    free-one-module
+    dup module.next @
+    swap free-memory
+  repeat
+  0 module_options !
+  0 last_module_option !
+;
+
 only forth also support-functions definitions
 
 \ Variables used for processing multiple conf files

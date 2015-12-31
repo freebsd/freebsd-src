@@ -69,6 +69,7 @@ static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
 void			exit(int code);
 #ifdef LOADER_ZFS_SUPPORT
+static void		init_zfs_bootenv(char *currdev);
 static void		i386_zfs_probe(void);
 #endif
 
@@ -294,11 +295,39 @@ extract_currdev(void)
 	new_currdev.d_unit = 0;
     }
 
+#ifdef LOADER_ZFS_SUPPORT
+    init_zfs_bootenv(zfs_fmtdev(&new_currdev));
+#endif
+
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
 	       env_nounset);
 }
+
+#ifdef LOADER_ZFS_SUPPORT
+static void
+init_zfs_bootenv(char *currdev)
+{
+	char *beroot;
+
+	/* Remove the trailing : */
+	currdev[strlen(currdev) - 1] = '\0';
+	setenv("zfs_be_active", currdev, 1);
+	/* Do not overwrite if already set */
+	setenv("vfs.root.mountfrom", currdev, 0);
+	/* Forward past zfs: */
+	currdev = strchr(currdev, ':');
+	currdev++;
+	/* Remove the last element (current bootenv) */
+	beroot = strrchr(currdev, '/');
+	beroot[0] = '\0';
+
+	beroot = currdev;
+	
+	setenv("zfs_be_root", beroot, 1);
+}
+#endif
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 
@@ -353,6 +382,34 @@ command_lszfs(int argc, char *argv[])
 	command_errmsg = strerror(err);
 	return (CMD_ERROR);
     }
+
+    return (CMD_OK);
+}
+
+COMMAND_SET(reloadbe, "reloadbe", "refresh the list of ZFS Boot Environments",
+    command_reloadbe);
+
+static int
+command_reloadbe(int argc, char *argv[])
+{
+    int err;
+
+    if (argc > 2) {
+	command_errmsg = "wrong number of arguments";
+	return (CMD_ERROR);
+    }
+
+    if (argc == 2) {
+	err = zfs_bootenv(argv[1]);
+    } else {
+	err = zfs_bootenv(getenv("zfs_be_root"));
+    }
+
+    if (err != 0) {
+	command_errmsg = strerror(err);
+	return (CMD_ERROR);
+    }
+
     return (CMD_OK);
 }
 #endif
