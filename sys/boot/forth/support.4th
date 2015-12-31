@@ -684,7 +684,7 @@ only forth also support-functions also file-processing definitions
   s" loader_conf_files" getenv conf_files string=
 ;
 
-: set_nextboot_conf \ XXX maybe do as set_conf_files ?
+: set_nextboot_conf
   value_buffer strget unquote nextboot_conf_file string=
 ;
 
