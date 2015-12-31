@@ -1018,7 +1018,7 @@ static char expdir[PATH_MAX];
 
 /*
  * Perform pathname generation and remove control characters.
- * At this point, the only control characters should be CTLESC and CTLQUOTEMARK.
+ * At this point, the only control characters should be CTLESC.
  * The results are stored in the list dstlist.
  */
 static void
@@ -1083,8 +1083,6 @@ expmeta(char *enddir, char *name, struct arglist *arglist)
 			if (*q == '!' || *q == '^')
 				q++;
 			for (;;) {
-				while (*q == CTLQUOTEMARK)
-					q++;
 				if (*q == CTLESC)
 					q++;
 				if (*q == '/' || *q == '\0')
@@ -1096,8 +1094,6 @@ expmeta(char *enddir, char *name, struct arglist *arglist)
 			}
 		} else if (*p == '\0')
 			break;
-		else if (*p == CTLQUOTEMARK)
-			continue;
 		else {
 			if (*p == CTLESC)
 				esc++;
@@ -1112,8 +1108,6 @@ expmeta(char *enddir, char *name, struct arglist *arglist)
 		if (enddir != expdir)
 			metaflag++;
 		for (p = name ; ; p++) {
-			if (*p == CTLQUOTEMARK)
-				continue;
 			if (*p == CTLESC)
 				p++;
 			*enddir++ = *p;
@@ -1130,8 +1124,6 @@ expmeta(char *enddir, char *name, struct arglist *arglist)
 	if (start != name) {
 		p = name;
 		while (p < start) {
-			while (*p == CTLQUOTEMARK)
-				p++;
 			if (*p == CTLESC)
 				p++;
 			*enddir++ = *p++;
@@ -1160,8 +1152,6 @@ expmeta(char *enddir, char *name, struct arglist *arglist)
 	}
 	matchdot = 0;
 	p = start;
-	while (*p == CTLQUOTEMARK)
-		p++;
 	if (*p == CTLESC)
 		p++;
 	if (*p == '.')
@@ -1280,8 +1270,6 @@ patmatch(const char *pattern, const char *string)
 			if (*q++ != *p++)
 				goto backtrack;
 			break;
-		case CTLQUOTEMARK:
-			continue;
 		case '?':
 			if (*q == '\0')
 				return 0;
@@ -1298,7 +1286,7 @@ patmatch(const char *pattern, const char *string)
 			break;
 		case '*':
 			c = *p;
-			while (c == CTLQUOTEMARK || c == '*')
+			while (c == '*')
 				c = *++p;
 			/*
 			 * If the pattern ends here, we know the string
@@ -1342,8 +1330,6 @@ patmatch(const char *pattern, const char *string)
 					c = '[';
 					goto dft;
 				}
-				if (c == CTLQUOTEMARK)
-					continue;
 				if (c == '[' && *p == ':') {
 					found |= match_charclass(p, chr, &end);
 					if (end != NULL)
@@ -1360,8 +1346,6 @@ patmatch(const char *pattern, const char *string)
 					wc = (unsigned char)c;
 				if (*p == '-' && p[1] != ']') {
 					p++;
-					while (*p == CTLQUOTEMARK)
-						p++;
 					if (*p == CTLESC)
 						p++;
 					if (localeisutf8) {
