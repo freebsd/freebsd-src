@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 enum wordstate { WORD_IDLE, WORD_WS_DELIMITED, WORD_QUOTEMARK };
 
 struct worddest {
-	struct arglist list;
+	struct arglist *list;
 	enum wordstate state;
 };
 
@@ -102,7 +102,7 @@ static int varisset(const char *, int);
 static void strtodest(const char *, int, int, int, struct worddest *);
 static void reprocess(int, int, int, int, struct worddest *);
 static void varvalue(const char *, int, int, int, struct worddest *);
-static void expandmeta(struct arglist *, struct arglist *);
+static void expandmeta(char *, struct arglist *);
 static void expmeta(char *, char *, struct arglist *);
 static int expsortcmp(const void *, const void *);
 static int patmatch(const char *, const char *);
@@ -162,7 +162,7 @@ stputs_quotes(const char *data, const char *syntax, char *p)
 #define STPUTS_QUOTES(data, syntax, p) p = stputs_quotes((data), syntax, p)
 
 static char *
-nextword(char c, char *p, struct worddest *dst)
+nextword(char c, int flag, char *p, struct worddest *dst)
 {
 	int is_ws;
 
@@ -170,20 +170,23 @@ nextword(char c, char *p, struct worddest *dst)
 	if (p != stackblock() || (is_ws ? dst->state == WORD_QUOTEMARK :
 	    dst->state != WORD_WS_DELIMITED) || c == '\0') {
 		STPUTC('\0', p);
-		appendarglist(&dst->list, grabstackstr(p));
+		if (flag & EXP_GLOB)
+			expandmeta(grabstackstr(p), dst->list);
+		else
+			appendarglist(dst->list, grabstackstr(p));
 		dst->state = is_ws ? WORD_WS_DELIMITED : WORD_IDLE;
 	} else if (!is_ws && dst->state == WORD_WS_DELIMITED)
 		dst->state = WORD_IDLE;
 	/* Reserve space while the stack string is empty. */
-	appendarglist(&dst->list, NULL);
-	dst->list.count--;
+	appendarglist(dst->list, NULL);
+	dst->list->count--;
 	STARTSTACKSTR(p);
 	return p;
 }
-#define NEXTWORD(c, p, dstlist) p = nextword(c, p, dstlist)
+#define NEXTWORD(c, flag, p, dstlist) p = nextword(c, flag, p, dstlist)
 
 static char *
-stputs_split(const char *data, const char *syntax, char *p,
+stputs_split(const char *data, const char *syntax, int flag, char *p,
     struct worddest *dst)
 {
 	const char *ifs;
@@ -194,16 +197,16 @@ stputs_split(const char *data, const char *syntax, char *p,
 		CHECKSTRSPACE(2, p);
 		c = *data++;
 		if (strchr(ifs, c) != NULL) {
-			NEXTWORD(c, p, dst);
+			NEXTWORD(c, flag, p, dst);
 			continue;
 		}
-		if (syntax[(int)c] == CCTL)
+		if (flag & EXP_GLOB && syntax[(int)c] == CCTL)
 			USTPUTC(CTLESC, p);
 		USTPUTC(c, p);
 	}
 	return (p);
 }
-#define STPUTS_SPLIT(data, syntax, p, dst) p = stputs_split((data), syntax, p, dst)
+#define STPUTS_SPLIT(data, syntax, flag, p, dst) p = stputs_split((data), syntax, flag, p, dst)
 
 /*
  * Perform expansions on an argument, placing the resulting list of arguments
@@ -222,8 +225,10 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 {
 	struct worddest exparg;
 
+	if (fflag)
+		flag &= ~EXP_GLOB;
 	argbackq = arg->narg.backquote;
-	emptyarglist(&exparg.list);
+	exparg.list = arglist;
 	exparg.state = WORD_IDLE;
 	STARTSTACKSTR(expdest);
 	argstr(arg->narg.text, flag, &exparg);
@@ -231,15 +236,17 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 		STACKSTRNUL(expdest);
 		return;			/* here document expanded */
 	}
-	if ((flag & EXP_FULL) == 0 || expdest != stackblock() ||
+	if ((flag & EXP_SPLIT) == 0 || expdest != stackblock() ||
 	    exparg.state == WORD_QUOTEMARK) {
 		STPUTC('\0', expdest);
-		if (flag & EXP_FULL)
-			appendarglist(&exparg.list, grabstackstr(expdest));
+		if (flag & EXP_SPLIT) {
+			if (flag & EXP_GLOB)
+				expandmeta(grabstackstr(expdest), exparg.list);
+			else
+				appendarglist(exparg.list, grabstackstr(expdest));
+		}
 	}
-	if (flag & EXP_FULL)
-		expandmeta(&exparg.list, arglist);
-	else
+	if ((flag & EXP_SPLIT) == 0)
 		appendarglist(arglist, grabstackstr(expdest));
 }
 
@@ -250,16 +257,16 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  * expansion, and tilde expansion if requested via EXP_TILDE/EXP_VARTILDE.
  * Processing ends at a CTLENDVAR or CTLENDARI character as well as '\0'.
  * This is used to expand word in ${var+word} etc.
- * If EXP_FULL or EXP_CASE are set, keep and/or generate CTLESC
+ * If EXP_GLOB or EXP_CASE are set, keep and/or generate CTLESC
  * characters to allow for further processing.
  *
- * If EXP_FULL is set, dst receives any complete words produced.
+ * If EXP_SPLIT is set, dst receives any complete words produced.
  */
 static char *
 argstr(char *p, int flag, struct worddest *dst)
 {
 	char c;
-	int quotes = flag & (EXP_FULL | EXP_CASE);	/* do CTLESC */
+	int quotes = flag & (EXP_GLOB | EXP_CASE);	/* do CTLESC */
 	int firsteq = 1;
 	int split_lit;
 	int lit_quoted;
@@ -283,7 +290,7 @@ argstr(char *p, int flag, struct worddest *dst)
 			if (p[0] == CTLVAR && (p[1] & VSQUOTE) != 0 &&
 			    p[2] == '@' && p[3] == '=')
 				break;
-			if ((flag & EXP_FULL) != 0 && expdest == stackblock())
+			if ((flag & EXP_SPLIT) != 0 && expdest == stackblock())
 				dst->state = WORD_QUOTEMARK;
 			break;
 		case CTLQUOTEEND:
@@ -293,7 +300,7 @@ argstr(char *p, int flag, struct worddest *dst)
 			c = *p++;
 			if (split_lit && !lit_quoted &&
 			    strchr(ifsset() ? ifsval() : " \t\n", c) != NULL) {
-				NEXTWORD(c, expdest, dst);
+				NEXTWORD(c, flag, expdest, dst);
 				break;
 			}
 			if (quotes)
@@ -319,7 +326,7 @@ argstr(char *p, int flag, struct worddest *dst)
 			 */
 			if (split_lit && !lit_quoted &&
 			    strchr(ifsset() ? ifsval() : " \t\n", c) != NULL) {
-				NEXTWORD(c, expdest, dst);
+				NEXTWORD(c, flag, expdest, dst);
 				break;
 			}
 			USTPUTC(c, expdest);
@@ -333,7 +340,7 @@ argstr(char *p, int flag, struct worddest *dst)
 		default:
 			if (split_lit && !lit_quoted &&
 			    strchr(ifsset() ? ifsval() : " \t\n", c) != NULL) {
-				NEXTWORD(c, expdest, dst);
+				NEXTWORD(c, flag, expdest, dst);
 				break;
 			}
 			USTPUTC(c, expdest);
@@ -438,7 +445,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	struct nodelist *saveargbackq;
 	char lastc;
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
-	int quotes = flag & (EXP_FULL | EXP_CASE);
+	int quotes = flag & (EXP_GLOB | EXP_CASE);
 	size_t nnl;
 	const char *ifs;
 
@@ -452,7 +459,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	p = in.buf;
 	lastc = '\0';
 	nnl = 0;
-	if (!quoted && flag & EXP_FULL)
+	if (!quoted && flag & EXP_SPLIT)
 		ifs = ifsset() ? ifsval() : " \t\n";
 	else
 		ifs = "";
@@ -476,7 +483,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		} else {
 			if (nnl > 0) {
 				if (strchr(ifs, '\n') != NULL) {
-					NEXTWORD('\n', dest, dst);
+					NEXTWORD('\n', flag, dest, dst);
 					nnl = 0;
 				} else {
 					CHECKSTRSPACE(nnl + 2, dest);
@@ -487,7 +494,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 				}
 			}
 			if (strchr(ifs, lastc) != NULL)
-				NEXTWORD(lastc, dest, dst);
+				NEXTWORD(lastc, flag, dest, dst);
 			else {
 				CHECKSTRSPACE(2, dest);
 				if (quotes && syntax[(int)lastc] == CCTL)
@@ -743,7 +750,7 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSPLUS:
 	case VSMINUS:
 		if (!set) {
-			argstr(p, flag | (flag & EXP_FULL ? EXP_SPLIT_LIT : 0) |
+			argstr(p, flag | (flag & EXP_SPLIT ? EXP_SPLIT_LIT : 0) |
 			    (varflags & VSQUOTE ? EXP_LIT_QUOTED : 0), dst);
 			break;
 		}
@@ -763,7 +770,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		patloc = expdest - stackblock();
 		subevalvar_trim(p, patloc, subtype, startloc);
 		reprocess(startloc, flag, VSNORMAL, varflags & VSQUOTE, dst);
-		if (flag & EXP_FULL && *var == '@' && varflags & VSQUOTE)
+		if (flag & EXP_SPLIT && *var == '@' && varflags & VSQUOTE)
 			dst->state = WORD_QUOTEMARK;
 		break;
 
@@ -860,9 +867,9 @@ strtodest(const char *p, int flag, int subtype, int quoted,
 	    subtype == VSTRIMLEFTMAX || subtype == VSTRIMRIGHT ||
 	    subtype == VSTRIMRIGHTMAX)
 		STPUTS(p, expdest);
-	else if (flag & EXP_FULL && !quoted && dst != NULL)
-		STPUTS_SPLIT(p, BASESYNTAX, expdest, dst);
-	else if (flag & (EXP_FULL | EXP_CASE))
+	else if (flag & EXP_SPLIT && !quoted && dst != NULL)
+		STPUTS_SPLIT(p, BASESYNTAX, flag, expdest, dst);
+	else if (flag & (EXP_GLOB | EXP_CASE))
 		STPUTS_QUOTES(p, quoted ? DQSYNTAX : BASESYNTAX, expdest);
 	else
 		STPUTS(p, expdest);
@@ -902,8 +909,8 @@ reprocess(int startloc, int flag, int subtype, int quoted,
 		zpos += zlen + 1;
 		if (zpos == len + 1)
 			break;
-		if (flag & EXP_FULL && (quoted || (zlen > 0 && zpos < len)))
-			NEXTWORD('\0', expdest, dst);
+		if (flag & EXP_SPLIT && (quoted || (zlen > 0 && zpos < len)))
+			NEXTWORD('\0', flag, expdest, dst);
 	}
 }
 
@@ -951,14 +958,15 @@ varvalue(const char *name, int quoted, int subtype, int flag,
 		strtodest(buf, flag, subtype, quoted, dst);
 		return;
 	case '@':
-		if (flag & EXP_FULL && quoted) {
+		if (flag & EXP_SPLIT && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
 				strtodest(p, flag, subtype, quoted, dst);
 				if (*ap) {
 					if (splitlater)
 						STPUTC('\0', expdest);
 					else
-						NEXTWORD('\0', expdest, dst);
+						NEXTWORD('\0', flag, expdest,
+						    dst);
 				}
 			}
 			if (shellparam.nparam > 0)
@@ -978,11 +986,11 @@ varvalue(const char *name, int quoted, int subtype, int flag,
 				break;
 			if (sep[0])
 				strtodest(sep, flag, subtype, quoted, dst);
-			else if (flag & EXP_FULL && !quoted && **ap != '\0') {
+			else if (flag & EXP_SPLIT && !quoted && **ap != '\0') {
 				if (splitlater)
 					STPUTC('\0', expdest);
 				else
-					NEXTWORD('\0', expdest, dst);
+					NEXTWORD('\0', flag, expdest, dst);
 			}
 		}
 		return;
@@ -1014,40 +1022,34 @@ static char expdir[PATH_MAX];
  * The results are stored in the list dstlist.
  */
 static void
-expandmeta(struct arglist *srclist, struct arglist *dstlist)
+expandmeta(char *pattern, struct arglist *dstlist)
 {
 	char *p;
 	int firstmatch;
-	int i;
 	char c;
 
-	for (i = 0; i < srclist->count; i++) {
 		firstmatch = dstlist->count;
-		if (!fflag) {
-			p = srclist->args[i];
+			p = pattern;
 			for (; (c = *p) != '\0'; p++) {
 				/* fast check for meta chars */
 				if (c == '*' || c == '?' || c == '[') {
 					INTOFF;
-					expmeta(expdir, srclist->args[i],
-					    dstlist);
+					expmeta(expdir, pattern, dstlist);
 					INTON;
 					break;
 				}
 			}
-		}
 		if (dstlist->count == firstmatch) {
 			/*
 			 * no matches
 			 */
-			rmescapes(srclist->args[i]);
-			appendarglist(dstlist, srclist->args[i]);
+			rmescapes(pattern);
+			appendarglist(dstlist, pattern);
 		} else {
 			qsort(&dstlist->args[firstmatch],
 			    dstlist->count - firstmatch,
 			    sizeof(dstlist->args[0]), expsortcmp);
 		}
-	}
 }
 
 
