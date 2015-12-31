@@ -119,16 +119,16 @@ linux_pci_attach(device_t dev)
 
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
-	pdev->dev.parent = &linux_rootdev;
+	pdev->dev.parent = &linux_root_device;
 	pdev->dev.bsddev = dev;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
 	pdev->dev.dma_mask = &pdev->dma_mask;
 	pdev->pdrv = pdrv;
-	kobject_init(&pdev->dev.kobj, &dev_ktype);
+	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
-	kobject_add(&pdev->dev.kobj, &linux_rootdev.kobj,
+	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
 	    kobject_name(&pdev->dev.kobj));
 	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 0);
 	if (rle)

@@ -109,7 +109,7 @@ samefile(struct stat *sb1, struct stat *sb2)
 }
 
 static void
-sendfd_payload(int sockfd, int sendfd, void *payload, size_t paylen)
+sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 {
 	struct iovec iovec;
 	char message[CMSG_SPACE(sizeof(int))];
@@ -133,7 +133,7 @@ sendfd_payload(int sockfd, int sendfd, void *payload, size_t paylen)
 	cmsghdr->cmsg_len = CMSG_LEN(sizeof(int));
 	cmsghdr->cmsg_level = SOL_SOCKET;
 	cmsghdr->cmsg_type = SCM_RIGHTS;
-	memcpy(CMSG_DATA(cmsghdr), &sendfd, sizeof(int));
+	memcpy(CMSG_DATA(cmsghdr), &send_fd, sizeof(int));
 
 	len = sendmsg(sockfd, &msghdr, 0);
 	ATF_REQUIRE_MSG(len != -1, "sendmsg failed: %s", strerror(errno));
@@ -143,15 +143,15 @@ sendfd_payload(int sockfd, int sendfd, void *payload, size_t paylen)
 }
 
 static void
-sendfd(int sockfd, int sendfd)
+sendfd(int sockfd, int send_fd)
 {
 	char ch = 0;
 
-	return (sendfd_payload(sockfd, sendfd, &ch, sizeof(ch)));
+	return (sendfd_payload(sockfd, send_fd, &ch, sizeof(ch)));
 }
 
 static void
-recvfd_payload(int sockfd, int *recvfd, void *buf, size_t buflen)
+recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen)
 {
 	struct cmsghdr *cmsghdr;
 	char message[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + sizeof(int)];
@@ -178,25 +178,25 @@ recvfd_payload(int sockfd, int *recvfd, void *buf, size_t buflen)
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
 	ATF_REQUIRE_MSG(cmsghdr != NULL,
 	    "recvmsg: did not receive control message");
-	*recvfd = -1;
+	*recv_fd = -1;
 	for (; cmsghdr != NULL; cmsghdr = CMSG_NXTHDR(&msghdr, cmsghdr)) {
 		if (cmsghdr->cmsg_level == SOL_SOCKET &&
 		    cmsghdr->cmsg_type == SCM_RIGHTS &&
 		    cmsghdr->cmsg_len == CMSG_LEN(sizeof(int))) {
-			memcpy(recvfd, CMSG_DATA(cmsghdr), sizeof(int));
-			ATF_REQUIRE(*recvfd != -1);
+			memcpy(recv_fd, CMSG_DATA(cmsghdr), sizeof(int));
+			ATF_REQUIRE(*recv_fd != -1);
 		}
 	}
-	ATF_REQUIRE_MSG(*recvfd != -1,
+	ATF_REQUIRE_MSG(*recv_fd != -1,
 	    "recvmsg: did not receive single-fd message");
 }
 
 static void
-recvfd(int sockfd, int *recvfd)
+recvfd(int sockfd, int *recv_fd)
 {
 	char ch = 0;
 
-	return (recvfd_payload(sockfd, recvfd, &ch, sizeof(ch)));
+	return (recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch)));
 }
 
 /*
