@@ -1028,28 +1028,28 @@ expandmeta(char *pattern, struct arglist *dstlist)
 	int firstmatch;
 	char c;
 
-		firstmatch = dstlist->count;
-			p = pattern;
-			for (; (c = *p) != '\0'; p++) {
-				/* fast check for meta chars */
-				if (c == '*' || c == '?' || c == '[') {
-					INTOFF;
-					expmeta(expdir, pattern, dstlist);
-					INTON;
-					break;
-				}
-			}
-		if (dstlist->count == firstmatch) {
-			/*
-			 * no matches
-			 */
-			rmescapes(pattern);
-			appendarglist(dstlist, pattern);
-		} else {
-			qsort(&dstlist->args[firstmatch],
-			    dstlist->count - firstmatch,
-			    sizeof(dstlist->args[0]), expsortcmp);
+	firstmatch = dstlist->count;
+	p = pattern;
+	for (; (c = *p) != '\0'; p++) {
+		/* fast check for meta chars */
+		if (c == '*' || c == '?' || c == '[') {
+			INTOFF;
+			expmeta(expdir, pattern, dstlist);
+			INTON;
+			break;
 		}
+	}
+	if (dstlist->count == firstmatch) {
+		/*
+		 * no matches
+		 */
+		rmescapes(pattern);
+		appendarglist(dstlist, pattern);
+	} else {
+		qsort(&dstlist->args[firstmatch],
+		    dstlist->count - firstmatch,
+		    sizeof(dstlist->args[0]), expsortcmp);
+	}
 }
 
 
