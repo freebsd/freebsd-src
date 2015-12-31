@@ -1328,7 +1328,7 @@ ithread_loop(void *arg)
 	ie->ie_count = 0;
 	wake = 0;
 
-#if defined(CPU_BERI) || defined(CPU_CHERI)
+#if defined(CPU_BERI)
 	/*
 	 * XXXRW: Temporary hack due to omission in the BERI PIC driver: bind
 	 * all ithreads to CPU 0 so that the pre-ithread and post-ithread

@@ -4,8 +4,5 @@
 #
 # $FreeBSD$
 #
-
-nocpu		CPU_BERI
-cpu		CPU_CHERI
-
+options 	CPU_CHERI
 options 	COMPAT_CHERIABI

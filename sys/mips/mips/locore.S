@@ -159,7 +159,7 @@ VECTOR(_locore, unknown)
 	/* cgetdefault	CHERI_REG_KDC	# Preserve $kdc */
 #endif
 
-#if defined(CPU_CHERI) || defined(CPU_BERI)
+#if defined(CPU_BERI)
 	/*
 	 * Enable userspace cycle-count, cycle-count resolution, and CPU
 	 * number registers available via rdhwr.

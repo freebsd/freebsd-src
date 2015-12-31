@@ -40,7 +40,6 @@ CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
 CPU_NLM		opt_global.h
 CPU_BERI	opt_global.h
-CPU_CHERI	opt_global.h
 
 # which MACHINE_ARCH architecture
 MIPS
@@ -99,6 +98,11 @@ OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 BERI_LARGE_TLB			opt_global.h
 PLATFORM_INIT_SECONDARY		opt_global.h
 FDT_DTB_STATIC_ONLY		opt_platform.h
+
+#
+# Enable CHERI MIPS support.
+#
+CPU_CHERI	opt_global.h
 
 #
 # Experimental support for 128-bit capabilities.
