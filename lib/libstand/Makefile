@@ -44,6 +44,12 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${LIBC_SRC}/arm/gen
 
+# Do not generate movt/movw, because the relocation fixup for them does not
+# translate to the -Bsymbolic -pie format required by self_reloc() in loader(8).
+# Also, the fpu is not available in a standalone environment.
+CFLAGS.clang+=	-mllvm -arm-use-movt=0
+CFLAGS.clang+=	-mfpu=none
+
 # Compiler support functions
 .PATH: ${LIBSTAND_SRC}/../../contrib/compiler-rt/lib/builtins/
 # __clzsi2 and ctzsi2 for various builtin functions
