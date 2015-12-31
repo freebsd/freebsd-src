@@ -1052,7 +1052,7 @@ OLD_FILES+=usr/bin/clang
 OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
-OLD_FILES+=usr/bin/tblgen
+OLD_FILES+=usr/bin/llvm-tblgen
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/common_interface_defs.h
@@ -1143,7 +1143,7 @@ OLD_DIRS+=usr/share/doc/llvm
 OLD_FILES+=usr/share/man/man1/clang.1.gz
 OLD_FILES+=usr/share/man/man1/clang++.1.gz
 OLD_FILES+=usr/share/man/man1/clang-cpp.1.gz
-OLD_FILES+=usr/share/man/man1/tblgen.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 .endif
 
 .if ${MK_CLANG_EXTRAS} == no

@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmpowerpcinstprinter
+LIB=	llvmpowerpcasmprinter
 
 SRCDIR=	lib/Target/PowerPC/InstPrinter
 INCDIR=	lib/Target/PowerPC

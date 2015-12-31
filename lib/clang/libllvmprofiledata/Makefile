@@ -18,4 +18,6 @@ SRCS=	CoverageMapping.cpp \
 SRCS+=	SampleProfWriter.cpp
 .endif
 
+TGHDRS=	Attributes
+
 .include "../clang.lib.mk"

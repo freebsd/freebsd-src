@@ -12,7 +12,9 @@ SRCS=	AArch64Disassembler.cpp
 SRCS+=	AArch64ExternalSymbolizer.cpp
 .endif
 
-TGHDRS=	AArch64GenDisassemblerTables \
+TGHDRS=	Attributes \
+	Intrinsics \
+	AArch64GenDisassemblerTables \
 	AArch64GenInstrInfo \
 	AArch64GenRegisterInfo \
 	AArch64GenSubtargetInfo

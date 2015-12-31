@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmx86instprinter
+LIB=	llvmx86asmprinter
 
 SRCDIR=	lib/Target/X86/InstPrinter
 INCDIR=	lib/Target/X86

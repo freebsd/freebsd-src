@@ -23,6 +23,7 @@ SRCS=	AsmWriter.cpp \
 	DiagnosticPrinter.cpp \
 	Dominators.cpp \
 	Function.cpp \
+	FunctionInfo.cpp \
 	GCOV.cpp \
 	GVMaterializer.cpp \
 	Globals.cpp \
@@ -38,7 +39,6 @@ SRCS=	AsmWriter.cpp \
 	MDBuilder.cpp \
 	Mangler.cpp \
 	Metadata.cpp \
-	MetadataTracking.cpp \
 	Module.cpp \
 	Operator.cpp \
 	Pass.cpp \
@@ -57,6 +57,8 @@ SRCS=	AsmWriter.cpp \
 SRCS+=	PassManager.cpp
 .endif
 
-TGHDRS=	Intrinsics
+TGHDRS=	Attributes \
+	AttributesCompatFunc \
+	Intrinsics
 
 .include "../clang.lib.mk"

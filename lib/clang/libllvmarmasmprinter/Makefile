@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmarminstprinter
+LIB=	llvmarmasmprinter
 
 SRCDIR=	lib/Target/ARM/InstPrinter
 INCDIR=	lib/Target/ARM
