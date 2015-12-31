@@ -598,7 +598,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 static void
 vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 {
-	int error, rc, prevcpu;
+	int error, rc;
 	enum vm_exitcode exitcode;
 	cpuset_t active_cpus;
 
