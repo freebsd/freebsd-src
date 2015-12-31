@@ -51,14 +51,21 @@
  */
 struct route {
 	struct	rtentry *ro_rt;
-	struct	llentry *ro_lle;
-	struct	in_ifaddr *ro_ia;
-	int		ro_flags;
+	char		*ro_prepend;
+	uint16_t	ro_plen;
+	uint16_t	ro_flags;
 	struct	sockaddr ro_dst;
 };
 
+#define	RT_L2_ME_BIT		2	/* dst L2 addr is our address */
+#define	RT_MAY_LOOP_BIT		3	/* dst may require loop copy */
+#define	RT_HAS_HEADER_BIT	4	/* mbuf already have its header prepended */
+
 #define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
 #define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
+#define	RT_L2_ME		(1 << RT_L2_ME_BIT)
+#define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)
+#define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */

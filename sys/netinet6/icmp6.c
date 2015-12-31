@@ -2632,7 +2632,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 			nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 			nd_opt->nd_opt_len = len >> 3;
 			lladdr = (char *)(nd_opt + 1);
-			bcopy(&ln->ll_addr, lladdr, ifp->if_addrlen);
+			bcopy(ln->ll_addr, lladdr, ifp->if_addrlen);
 			p += len;
 		}
 	}

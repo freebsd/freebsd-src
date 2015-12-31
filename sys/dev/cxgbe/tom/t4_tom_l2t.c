@@ -233,7 +233,7 @@ resolve_entry(struct adapter *sc, struct l2t_entry *e)
 	struct sockaddr_in sin = {0};
 	struct sockaddr_in6 sin6 = {0};
 	struct sockaddr *sa;
-	uint8_t dmac[ETHER_ADDR_LEN];
+	uint8_t dmac[ETHER_HDR_LEN];
 	uint16_t vtag = VLAN_NONE;
 	int rc;
 
