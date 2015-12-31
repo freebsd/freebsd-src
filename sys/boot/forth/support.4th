@@ -684,7 +684,7 @@ only forth also support-functions also file-processing definitions
   s" loader_conf_files" getenv conf_files string=
 ;
 
-: set_nextboot_conf \ XXX maybe do as set_conf_files ?
+: set_nextboot_conf
   value_buffer strget unquote nextboot_conf_file string=
 ;
 
@@ -852,7 +852,6 @@ only forth also support-functions definitions
 \ Interface to loading conf files
 
 : load_conf  ( addr len -- )
-  \ ." ----- Trying conf " 2dup type cr \ debugging
   0 to end_of_file?
   reset_line_reading
   O_RDONLY fopen fd !
@@ -931,6 +930,30 @@ only forth definitions also support-functions
   repeat
 ;
 
+: free-one-module { addr -- addr }
+  addr module.name strfree
+  addr module.loadname strfree
+  addr module.type strfree
+  addr module.args strfree
+  addr module.beforeload strfree
+  addr module.afterload strfree
+  addr module.loaderror strfree
+  addr
+;
+
+: free-module-options
+  module_options @
+  begin
+    ?dup
+  while
+    free-one-module
+    dup module.next @
+    swap free-memory
+  repeat
+  0 module_options !
+  0 last_module_option !
+;
+
 only forth also support-functions definitions
 
 \ Variables used for processing multiple conf files
@@ -944,7 +967,6 @@ string current_file_name_ref	\ used to print the file name
 \ loader_conf_files processing support functions
 
 : get_conf_files ( -- addr len )  \ put addr/len on stack, reset var
-  \ ." -- starting on <" conf_files strtype ." >" cr \ debugging
   conf_files strget 0 0 conf_files strset
 ;
 
@@ -971,7 +993,6 @@ string current_file_name_ref	\ used to print the file name
     pos char+ to pos
   repeat
   addr len pos addr r@ + pos r> -
-  \ 2dup ." get_file_name has " type cr \ debugging
 ;
 
 : get_next_file  ( addr len ptr -- addr len ptr' addr' len' | 0 )
@@ -1022,7 +1043,7 @@ string current_file_name_ref	\ used to print the file name
 ;
 
 : get_nextboot_conf_file ( -- addr len )
-  nextboot_conf_file strget strdup
+  nextboot_conf_file strget
 ;
 
 : rewrite_nextboot_file ( -- )
