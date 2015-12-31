@@ -10,3 +10,16 @@ mips/malta/malta_machdep.c		standard
 mips/malta/yamon.c			standard
 mips/mips/intr_machdep.c		standard
 mips/mips/tick.c			standard
+
+# Additions for MALTA CHERI support
+mips/cheri/ccall.S			optional cpu_cheri
+mips/cheri/ccall_ktrace.S		optional cpu_cheri ktrace
+mips/cheri/cheri.c			optional cpu_cheri
+mips/cheri/cheri_bcopy.S		optional cpu_cheri
+mips/cheri/cheri_debug.c		optional cpu_cheri
+mips/cheri/cheri_exception.c		optional cpu_cheri
+mips/cheri/cheri_signal.c		optional cpu_cheri
+mips/cheri/cheri_stack.c		optional cpu_cheri
+mips/cheri/cheri_syscall.c		optional cpu_cheri
+mips/cheri/cheri_typecap.c		optional cpu_cheri
+mips/cheri/cheriabi_machdep.c		optional cpu_cheri compat_cheriabi
