@@ -311,6 +311,8 @@ SUBDIR=	\
 	re \
 	reiserfs \
 	rl \
+	rtwn \
+	rtwnfw \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
