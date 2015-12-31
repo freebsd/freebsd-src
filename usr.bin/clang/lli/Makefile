@@ -11,6 +11,9 @@ SRCS=	OrcLazyJIT.cpp \
 	RemoteTargetExternal.cpp \
 	lli.cpp
 
+TGHDRS=	Attributes \
+	Intrinsics
+
 LIBDEPS=llvmx86disassembler \
 	llvmx86asmparser \
 	llvmirreader \
@@ -19,19 +22,19 @@ LIBDEPS=llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmmcdisassembler \
-	llvmx86instprinter \
+	llvmx86asmprinter \
 	llvmx86utils \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvminterpreter \
 	llvmcodegen \
 	llvmscalaropts \
-	llvmprofiledata \
 	llvminstcombine \
+	llvmbitwriter \
 	llvminstrumentation \
+	llvmprofiledata \
 	llvmorcjit \
 	llvmtransformutils \
-	llvmipa \
 	llvmmcjit \
 	llvmexecutionengine \
 	llvmtarget \

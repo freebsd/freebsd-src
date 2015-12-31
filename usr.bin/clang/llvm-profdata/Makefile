@@ -7,6 +7,8 @@ PROG_CXX=llvm-profdata
 SRCDIR=	tools/llvm-profdata
 SRCS=	llvm-profdata.cpp
 
+TGHDRS=	Attributes
+
 LIBDEPS=llvmprofiledata \
 	llvmobject \
 	llvmmcparser \
