@@ -66,7 +66,6 @@ SUBDIR=	libclanganalysis \
 	libllvmarmasmprinter \
 	libllvmarmcodegen \
 	libllvmarmdesc \
-	libllvmarmdisassembler \
 	libllvmarminfo \
 	libllvmmipsasmparser \
 	libllvmmipsasmprinter \
@@ -77,7 +76,6 @@ SUBDIR=	libclanganalysis \
 	libllvmpowerpcasmprinter \
 	libllvmpowerpccodegen \
 	libllvmpowerpcdesc \
-	libllvmpowerpcdisassembler \
 	libllvmpowerpcinfo \
 	libllvmsparcasmparser \
 	libllvmsparcasmprinter \
@@ -105,9 +103,11 @@ SUBDIR+=libllvmdebuginfodwarf \
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=libllvmexecutionengine \
 	libllvmaarch64disassembler \
+	libllvmarmdisassembler \
 	libllvminterpreter \
 	libllvmmcjit \
 	libllvmmipsdisassembler \
+	libllvmpowerpcdisassembler \
 	libllvmruntimedyld \
 	libllvmsparcdisassembler \
 	libllvmx86disassembler

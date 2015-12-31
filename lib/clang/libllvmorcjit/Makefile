@@ -13,4 +13,7 @@ SRCS=	ExecutionUtils.cpp \
 	OrcMCJITReplacement.cpp \
 	OrcTargetSupport.cpp
 
+TGHDRS=	Attributes \
+	Intrinsics
+
 .include "../clang.lib.mk"

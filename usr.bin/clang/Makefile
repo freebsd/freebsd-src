@@ -27,7 +27,6 @@ SUBDIR+=bugpoint \
 	llvm-profdata \
 	llvm-rtdyld \
 	llvm-symbolizer \
-	macho-dump \
 	opt
 .endif
 

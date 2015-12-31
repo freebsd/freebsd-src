@@ -1,16 +1,13 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.own.mk>
 
 LIB=	llvmaarch64disassembler
 
 SRCDIR=	lib/Target/AArch64/Disassembler
 INCDIR=	lib/Target/AArch64
-SRCS=	AArch64Disassembler.cpp
-
-.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	AArch64ExternalSymbolizer.cpp
-.endif
+SRCS=	AArch64Disassembler.cpp \
+	AArch64ExternalSymbolizer.cpp
 
 TGHDRS=	Attributes \
 	Intrinsics \

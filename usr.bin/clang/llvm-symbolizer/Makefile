@@ -5,10 +5,10 @@
 PROG_CXX=llvm-symbolizer
 
 SRCDIR=	tools/llvm-symbolizer
-SRCS=	llvm-symbolizer.cpp \
-	LLVMSymbolize.cpp
+SRCS=	llvm-symbolizer.cpp
 
-LIBDEPS=llvmdebuginfopdb \
+LIBDEPS=llvmsymbolize \
+	llvmdebuginfopdb \
 	llvmdebuginfodwarf \
 	llvmobject \
 	llvmmcparser \

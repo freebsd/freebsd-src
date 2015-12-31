@@ -77,7 +77,6 @@ LIBDEPS=clangfrontendtool \
 	llvmaarch64info \
 	llvmaarch64asmprinter \
 	llvmaarch64utils \
-	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
 	llvmarmdesc \
@@ -88,7 +87,6 @@ LIBDEPS=clangfrontendtool \
 	llvmmipsdesc \
 	llvmmipsinfo \
 	llvmmipsasmprinter \
-	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \

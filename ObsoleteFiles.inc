@@ -39,6 +39,7 @@
 # done
 
 # yyyymmdd: new clang import which bumps version from 3.7.1 to 3.8.0.
+OLD_FILES+=usr/bin/macho-dump
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/common_interface_defs.h
