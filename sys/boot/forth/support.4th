@@ -1019,7 +1019,7 @@ string current_file_name_ref	\ used to print the file name
 ;
 
 : get_nextboot_conf_file ( -- addr len )
-  nextboot_conf_file strget strdup
+  nextboot_conf_file strget
 ;
 
 : rewrite_nextboot_file ( -- )
