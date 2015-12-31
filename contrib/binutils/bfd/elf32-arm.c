@@ -7720,12 +7720,26 @@ elf32_arm_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		   refers to is in a different object.  We can't tell for
 		   sure yet, because something later might force the
 		   symbol local.  */
-		if (r_type != R_ARM_ABS32
-                    && r_type != R_ARM_REL32
-                    && r_type != R_ARM_ABS32_NOI
-                    && r_type != R_ARM_REL32_NOI
-                    && r_type != R_ARM_ABS12)
-		  h->needs_plt = 1;
+		switch (r_type)
+		  {
+		    case R_ARM_ABS12:
+		    case R_ARM_ABS32:
+		    case R_ARM_ABS32_NOI:
+		    case R_ARM_REL32:
+		    case R_ARM_REL32_NOI:
+		    case R_ARM_MOVW_ABS_NC:
+		    case R_ARM_MOVT_ABS:
+		    case R_ARM_MOVW_PREL_NC:
+		    case R_ARM_MOVT_PREL:
+		    case R_ARM_THM_MOVW_ABS_NC:
+		    case R_ARM_THM_MOVT_ABS:
+		    case R_ARM_THM_MOVW_PREL_NC:
+		    case R_ARM_THM_MOVT_PREL:
+		      break;
+		    default:
+		      h->needs_plt = 1;
+		      break;
+		  }
 
 		/* If we create a PLT entry, this relocation will reference
 		   it, even if it's an ABS32 relocation.  */

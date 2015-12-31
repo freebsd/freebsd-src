@@ -278,10 +278,12 @@ lltable_drop_entry_queue(struct llentry *lle)
 
 void
 lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
-    const char *lladdr)
+    const char *linkhdr, size_t linkhdrsize, int lladdr_off)
 {
 
-	bcopy(lladdr, &lle->ll_addr, ifp->if_addrlen);
+	memcpy(lle->r_linkdata, linkhdr, linkhdrsize);
+	lle->r_hdrlen = linkhdrsize;
+	lle->ll_addr = &lle->r_linkdata[lladdr_off];
 	lle->la_flags |= LLE_VALID;
 	lle->r_flags |= RLLE_VALID;
 }
@@ -296,7 +298,7 @@ lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
  */
 int
 lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
-    const char *lladdr)
+    const char *linkhdr, size_t linkhdrsize, int lladdr_off)
 {
 
 	/* Perform real LLE update */
@@ -318,13 +320,91 @@ lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
 	}
 
 	/* Update data */
-	lltable_set_entry_addr(ifp, lle, lladdr);
+	lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize, lladdr_off);
 
 	IF_AFDATA_WUNLOCK(ifp);
 
 	LLE_REMREF(lle);
 
 	return (1);
+}
+
+ /*
+ * Helper function used to pre-compute full/partial link-layer
+ * header data suitable for feeding into if_output().
+ */
+int
+lltable_calc_llheader(struct ifnet *ifp, int family, char *lladdr,
+    char *buf, size_t *bufsize, int *lladdr_off)
+{
+	struct if_encap_req ereq;
+	int error;
+
+	bzero(buf, *bufsize);
+	bzero(&ereq, sizeof(ereq));
+	ereq.buf = buf;
+	ereq.bufsize = *bufsize;
+	ereq.rtype = IFENCAP_LL;
+	ereq.family = family;
+	ereq.lladdr = lladdr;
+	ereq.lladdr_len = ifp->if_addrlen;
+	error = ifp->if_requestencap(ifp, &ereq);
+	if (error == 0) {
+		*bufsize = ereq.bufsize;
+		*lladdr_off = ereq.lladdr_off;
+	}
+
+	return (error);
+}
+
+/*
+ * Update link-layer header for given @lle after
+ * interface lladdr was changed.
+ */
+static int
+llentry_update_ifaddr(struct lltable *llt, struct llentry *lle, void *farg)
+{
+	struct ifnet *ifp;
+	u_char linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	u_char *lladdr;
+	int lladdr_off;
+
+	ifp = (struct ifnet *)farg;
+
+	lladdr = lle->ll_addr;
+
+	LLE_WLOCK(lle);
+	if ((lle->la_flags & LLE_VALID) == 0) {
+		LLE_WUNLOCK(lle);
+		return (0);
+	}
+
+	if ((lle->la_flags & LLE_IFADDR) != 0)
+		lladdr = IF_LLADDR(ifp);
+
+	linkhdrsize = sizeof(linkhdr);
+	lltable_calc_llheader(ifp, llt->llt_af, lladdr, linkhdr, &linkhdrsize,
+	    &lladdr_off);
+	memcpy(lle->r_linkdata, linkhdr, linkhdrsize);
+	LLE_WUNLOCK(lle);
+
+	return (0);
+}
+
+/*
+ * Update all calculated headers for given @llt
+ */
+void
+lltable_update_ifaddr(struct lltable *llt)
+{
+
+	if (llt->llt_ifp->if_flags & IFF_LOOPBACK)
+		return;
+
+	IF_AFDATA_WLOCK(llt->llt_ifp);
+	lltable_foreach_lle(llt, llentry_update_ifaddr, llt->llt_ifp);
+	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 }
 
 /*
@@ -642,6 +722,9 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	struct ifnet *ifp;
 	struct lltable *llt;
 	struct llentry *lle, *lle_tmp;
+	uint8_t linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	int lladdr_off;
 	u_int laflags = 0;
 	int error;
 
@@ -677,11 +760,14 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		if (lle == NULL)
 			return (ENOMEM);
 
-		bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
+		linkhdrsize = sizeof(linkhdr);
+		if (lltable_calc_llheader(ifp, dst->sa_family, LLADDR(dl),
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+			return (EINVAL);
+		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
+		    lladdr_off);
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
 			lle->la_flags |= LLE_PUB;
-		lle->la_flags |= LLE_VALID;
-		lle->r_flags |= RLLE_VALID;
 		lle->la_expire = rtm->rtm_rmx.rmx_expire;
 
 		laflags = lle->la_flags;
@@ -767,7 +853,7 @@ llatbl_lle_show(struct llentry_sa *la)
 	db_printf(" ln_router=%u\n", lle->ln_router);
 	db_printf(" ln_ntick=%ju\n", (uintmax_t)lle->ln_ntick);
 	db_printf(" lle_refcnt=%d\n", lle->lle_refcnt);
-	bcopy(&lle->ll_addr.mac16, octet, sizeof(octet));
+	bcopy(lle->ll_addr, octet, sizeof(octet));
 	db_printf(" ll_addr=%02x:%02x:%02x:%02x:%02x:%02x\n",
 	    octet[0], octet[1], octet[2], octet[3], octet[4], octet[5]);
 	db_printf(" lle_timer=%p\n", &lle->lle_timer);

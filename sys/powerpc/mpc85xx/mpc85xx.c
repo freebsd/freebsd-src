@@ -32,17 +32,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
 #include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/machdep.h>
 #include <machine/pio.h>
 #include <machine/spr.h>
 
 #include <dev/fdt/fdt_common.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
@@ -249,3 +257,166 @@ law_pci_target(struct resource *res, int *trgt_mem, int *trgt_io)
 	return (rv);
 }
 
+static void
+l3cache_inval(void)
+{
+
+	/* Flash invalidate the CPC and clear all the locks */
+	ccsr_write4(OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_FI |
+	    OCP85XX_CPC_CSR0_LFC);
+	while (ccsr_read4(OCP85XX_CPC_CSR0) & (OCP85XX_CPC_CSR0_FI |
+	    OCP85XX_CPC_CSR0_LFC))
+		;
+}
+
+static void
+l3cache_enable(void)
+{
+
+	ccsr_write4(OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_CE |
+	    OCP85XX_CPC_CSR0_PE);
+	/* Read back to sync write */
+	ccsr_read4(OCP85XX_CPC_CSR0);
+}
+
+void
+mpc85xx_enable_l3_cache(void)
+{
+	uint32_t csr, size, ver;
+
+	/* Enable L3 CoreNet Platform Cache (CPC) */
+	ver = SVR_VER(mfspr(SPR_SVR));
+	if (ver == SVR_P2041 || ver == SVR_P2041E || ver == SVR_P3041 ||
+	    ver == SVR_P3041E || ver == SVR_P5020 || ver == SVR_P5020E) {
+		csr = ccsr_read4(OCP85XX_CPC_CSR0);
+		if ((csr & OCP85XX_CPC_CSR0_CE) == 0) {
+			l3cache_inval();
+			l3cache_enable();
+		}
+
+		csr = ccsr_read4(OCP85XX_CPC_CSR0);
+		if ((boothowto & RB_VERBOSE) != 0 ||
+		    (csr & OCP85XX_CPC_CSR0_CE) == 0) {
+			size = OCP85XX_CPC_CFG0_SZ_K(ccsr_read4(OCP85XX_CPC_CFG0));
+			printf("L3 Corenet Platform Cache: %d KB %sabled\n",
+			    size, (csr & OCP85XX_CPC_CSR0_CE) == 0 ?
+			    "dis" : "en");
+		}
+	}
+}
+
+static void
+mpc85xx_dataloss_erratum_spr976(void)
+{
+	uint32_t svr = SVR_VER(mfspr(SPR_SVR));
+
+	/* Ignore whether it's the E variant */
+	svr &= ~0x8;
+
+	if (svr != SVR_P3041 && svr != SVR_P4040 &&
+	    svr != SVR_P4080 && svr != SVR_P5020)
+		return;
+
+	mb();
+	isync();
+	mtspr(976, (mfspr(976) & ~0x1f8) | 0x48);
+	isync();
+}
+
+static vm_offset_t
+mpc85xx_map_dcsr(void)
+{
+	phandle_t node;
+	u_long b, s;
+	int err;
+
+	/*
+	 * Try to access the dcsr node directly i.e. through /aliases/.
+	 */
+	if ((node = OF_finddevice("dcsr")) != -1)
+		if (fdt_is_compatible_strict(node, "fsl,dcsr"))
+			goto moveon;
+	/*
+	 * Find the node the long way.
+	 */
+	if ((node = OF_finddevice("/")) == -1)
+		return (ENXIO);
+
+	if ((node = ofw_bus_find_compatible(node, "fsl,dcsr")) == 0)
+		return (ENXIO);
+
+moveon:
+	err = fdt_get_range(node, 0, &b, &s);
+
+	if (err != 0)
+		return (err);
+
+#ifdef QORIQ_DPAA
+	law_enable(OCP85XX_TGTIF_DCSR, b, 0x400000);
+#endif
+	return pmap_early_io_map(b, 0x400000);
+}
+
+
+
+void
+mpc85xx_fix_errata(vm_offset_t va_ccsr)
+{
+	uint32_t svr = SVR_VER(mfspr(SPR_SVR));
+	vm_offset_t va_dcsr;
+
+	/* Ignore whether it's the E variant */
+	svr &= ~0x8;
+
+	if (svr != SVR_P3041 && svr != SVR_P4040 &&
+	    svr != SVR_P4080 && svr != SVR_P5020)
+		return;
+
+	if (mfmsr() & PSL_EE)
+		return;
+
+	/*
+	 * dcsr region need to be mapped thus patch can refer to.
+	 * Align dcsr right after ccsbar.
+	 */
+	va_dcsr = mpc85xx_map_dcsr();
+	if (va_dcsr == 0)
+		goto err;
+
+	/*
+	 * As A004510 errata specify, special purpose register 976
+	 * SPR976[56:60] = 6'b001001 must be set. e500mc core reference manual
+	 * does not document SPR976 register.
+	 */
+	mpc85xx_dataloss_erratum_spr976();
+
+	/*
+	 * Specific settings in the CCF and core platform cache (CPC)
+	 * are required to reconfigure the CoreNet coherency fabric.
+	 * The register settings that should be updated are described
+	 * in errata and relay on base address, offset and updated value.
+	 * Special conditions must be used to update these registers correctly.
+	 */
+	dataloss_erratum_access(va_dcsr + 0xb0e08, 0xe0201800);
+	dataloss_erratum_access(va_dcsr + 0xb0e18, 0xe0201800);
+	dataloss_erratum_access(va_dcsr + 0xb0e38, 0xe0400000);
+	dataloss_erratum_access(va_dcsr + 0xb0008, 0x00900000);
+	dataloss_erratum_access(va_dcsr + 0xb0e40, 0xe00a0000);
+
+	switch (svr) {
+	case SVR_P5020:
+		dataloss_erratum_access(va_ccsr + 0x18600, 0xc0000000);
+		break;
+	case SVR_P4040:
+	case SVR_P4080:
+		dataloss_erratum_access(va_ccsr + 0x18600, 0xff000000);
+		break;
+	case SVR_P3041:
+		dataloss_erratum_access(va_ccsr + 0x18600, 0xf0000000);
+	}
+	dataloss_erratum_access(va_ccsr + 0x10f00, 0x415e5000);
+	dataloss_erratum_access(va_ccsr + 0x11f00, 0x415e5000);
+
+err:
+	return;
+}

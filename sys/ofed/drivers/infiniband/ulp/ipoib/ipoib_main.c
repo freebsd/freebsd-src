@@ -1257,15 +1257,15 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
 	u_char edst[INFINIBAND_ALEN];
+#if defined(INET) || defined(INET6)
 	struct llentry *lle = NULL;
+#endif
 	struct rtentry *rt0 = NULL;
 	struct ipoib_header *eh;
 	int error = 0, is_gw = 0;
 	short type;
 
 	if (ro != NULL) {
-		if (!(m->m_flags & (M_BCAST | M_MCAST)))
-			lle = ro->ro_lle;
 		rt0 = ro->ro_rt;
 		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
 			is_gw = 1;
@@ -1291,7 +1291,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET
 	case AF_INET:
 		if (lle != NULL && (lle->la_flags & LLE_VALID))
-			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+			memcpy(edst, lle->ll_addr, sizeof(edst));
 		else if (m->m_flags & M_MCAST)
 			ip_ib_mc_map(((struct sockaddr_in *)dst)->sin_addr.s_addr, ifp->if_broadcastaddr, edst);
 		else
@@ -1329,7 +1329,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET6
 	case AF_INET6:
 		if (lle != NULL && (lle->la_flags & LLE_VALID))
-			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+			memcpy(edst, lle->ll_addr, sizeof(edst));
 		else if (m->m_flags & M_MCAST)
 			ipv6_ib_mc_map(&((struct sockaddr_in6 *)dst)->sin6_addr, ifp->if_broadcastaddr, edst);
 		else

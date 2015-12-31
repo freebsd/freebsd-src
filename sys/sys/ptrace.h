@@ -64,6 +64,7 @@
 #define	PT_SYSCALL	22
 
 #define	PT_FOLLOW_FORK	23
+#define	PT_LWP_EVENTS	24	/* report LWP birth and exit */
 
 #define PT_GETREGS      33	/* get general-purpose registers */
 #define PT_SETREGS      34	/* set general-purpose registers */
@@ -108,6 +109,8 @@ struct ptrace_lwpinfo {
 #define	PL_FLAG_SI	0x20	/* siginfo is valid */
 #define	PL_FLAG_FORKED	0x40	/* new child */
 #define	PL_FLAG_CHILD	0x80	/* I am from child */
+#define	PL_FLAG_BORN	0x100	/* new LWP */
+#define	PL_FLAG_EXITED	0x200	/* exiting LWP */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct __siginfo pl_siginfo;	/* siginfo for signal */
