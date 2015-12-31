@@ -144,6 +144,8 @@
         ..
         libmp
         ..
+        libnv
+        ..
         librt
         ..
         libthr
@@ -208,7 +210,6 @@
             execve
             ..
             pipe
-            ..
         ..
         kqueue
         ..

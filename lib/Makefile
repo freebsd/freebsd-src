@@ -70,6 +70,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libnetbsd \
 	${_libnetgraph} \
 	${_libngatm} \
+	libnv \
 	libopie \
 	libpam \
 	libpcap \
