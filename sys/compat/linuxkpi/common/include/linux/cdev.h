@@ -54,21 +54,27 @@ static inline void
 cdev_release(struct kobject *kobj)
 {
 	struct linux_cdev *cdev;
+	struct kobject *parent;
 
 	cdev = container_of(kobj, struct linux_cdev, kobj);
+	parent = kobj->parent;
 	if (cdev->cdev)
 		destroy_dev(cdev->cdev);
 	kfree(cdev);
+	kobject_put(parent);
 }
 
 static inline void
 cdev_static_release(struct kobject *kobj)
 {
 	struct linux_cdev *cdev;
+	struct kobject *parent;
 
 	cdev = container_of(kobj, struct linux_cdev, kobj);
+	parent = kobj->parent;
 	if (cdev->cdev)
 		destroy_dev(cdev->cdev);
+	kobject_put(parent);
 }
 
 static struct kobj_type cdev_ktype = {
@@ -114,6 +120,7 @@ cdev_add(struct linux_cdev *cdev, dev_t dev, unsigned count)
 	cdev->dev = dev;
 	cdev->cdev->si_drv1 = cdev;
 
+	kobject_get(cdev->kobj.parent);
 	return (0);
 }
 
