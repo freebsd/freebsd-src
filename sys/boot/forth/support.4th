@@ -852,7 +852,6 @@ only forth also support-functions definitions
 \ Interface to loading conf files
 
 : load_conf  ( addr len -- )
-  \ ." ----- Trying conf " 2dup type cr \ debugging
   0 to end_of_file?
   reset_line_reading
   O_RDONLY fopen fd !
@@ -944,7 +943,6 @@ string current_file_name_ref	\ used to print the file name
 \ loader_conf_files processing support functions
 
 : get_conf_files ( -- addr len )  \ put addr/len on stack, reset var
-  \ ." -- starting on <" conf_files strtype ." >" cr \ debugging
   conf_files strget 0 0 conf_files strset
 ;
 
@@ -971,7 +969,6 @@ string current_file_name_ref	\ used to print the file name
     pos char+ to pos
   repeat
   addr len pos addr r@ + pos r> -
-  \ 2dup ." get_file_name has " type cr \ debugging
 ;
 
 : get_next_file  ( addr len ptr -- addr len ptr' addr' len' | 0 )
