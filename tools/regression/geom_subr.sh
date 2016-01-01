@@ -1,7 +1,12 @@
 #!/bin/sh
 # $FreeBSD$
 
-kldstat -q -m g_${class} || g${class} load || exit 1
+if [ $(id -u) -ne 0 ]; then
+	echo 'Tests must be run as root'
+	echo 'Bail out!'
+	exit 1
+fi
+kldstat -q -m g_${class} || geom ${class} load || exit 1
 
 devwait()
 {
