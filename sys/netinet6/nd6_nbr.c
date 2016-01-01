@@ -877,6 +877,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 */
 			struct nd_defrouter *dr;
 			struct in6_addr *in6;
+			struct ifnet *nd6_ifp;
 
 			in6 = &ln->r_l3addr.addr6;
 
@@ -886,10 +887,11 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * is only called under the network software interrupt
 			 * context.  However, we keep it just for safety.
 			 */
-			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
+			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
+			dr = defrouter_lookup(in6, nd6_ifp);
 			if (dr)
 				defrtrlist_del(dr);
-			else if (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags &
+			else if (ND_IFINFO(nd6_ifp)->flags &
 			    ND6_IFF_ACCEPT_RTADV) {
 				/*
 				 * Even if the neighbor is not in the default
