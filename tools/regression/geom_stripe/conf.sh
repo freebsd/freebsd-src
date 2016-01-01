@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
+name="$(mktemp -u stripe.XXXXXX)"
 class="stripe"
 base=`basename $0`
 

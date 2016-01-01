@@ -80,6 +80,8 @@ static int mpc85xx_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_start_cpu(platform_t, struct pcpu *cpu);
+static void mpc85xx_idle(platform_t, int cpu);
+static int mpc85xx_idle_wakeup(platform_t plat, int cpu);
 
 static void mpc85xx_reset(platform_t);
 
@@ -95,6 +97,8 @@ static platform_method_t mpc85xx_methods[] = {
 	PLATFORMMETHOD(platform_smp_start_cpu,	mpc85xx_smp_start_cpu),
 
 	PLATFORMMETHOD(platform_reset,		mpc85xx_reset),
+	PLATFORMMETHOD(platform_idle,		mpc85xx_idle),
+	PLATFORMMETHOD(platform_idle_wakeup,	mpc85xx_idle_wakeup),
 
 	PLATFORMMETHOD_END
 };
@@ -478,3 +482,36 @@ mpc85xx_reset(platform_t plat)
 		;
 }
 
+static void
+mpc85xx_idle(platform_t plat, int cpu)
+{
+#ifdef QORIQ_DPAA
+	uint32_t reg;
+
+	reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
+	ccsr_write4(OCP85XX_RCPM_CDOZCR, reg | (1 << cpu));
+	ccsr_read4(OCP85XX_RCPM_CDOZCR);
+#else
+	register_t msr;
+
+	msr = mfmsr();
+	/* Freescale E500 core RM section 6.4.1. */
+	__asm __volatile("msync; mtmsr %0; isync" ::
+	    "r" (msr | PSL_WE));
+#endif
+}
+
+static int
+mpc85xx_idle_wakeup(platform_t plat, int cpu)
+{
+#ifdef QORIQ_DPAA
+	uint32_t reg;
+
+	reg = ccsr_read4(OCP85XX_RCPM_CDOZCR);
+	ccsr_write4(OCP85XX_RCPM_CDOZCR, reg & ~(1 << cpu));
+	ccsr_read4(OCP85XX_RCPM_CDOZCR);
+
+	return (1);
+#endif
+	return (0);
+}
