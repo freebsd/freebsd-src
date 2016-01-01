@@ -6,8 +6,10 @@ base=`basename $0`
 
 uzip_test_cleanup()
 {
-	umount $mntpoint
-	rmdir $mntpoint
+	if [ -n "$mntpoint" ]; then
+		umount $mntpoint
+		rmdir $mntpoint
+	fi
 	geom_test_cleanup
 }
 trap uzip_test_cleanup ABRT EXIT INT TERM
