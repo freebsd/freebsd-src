@@ -641,7 +641,7 @@ scan_task(void *arg, int pending)
 			 * XXX Should use M_TXCB mechanism to eliminate this.
 			 */
 			cv_timedwait(&SCAN_PRIVATE(ss)->ss_scan_cv,
-			    IEEE80211_LOCK_OBJ(ic), hz / 1000);
+			    IEEE80211_LOCK_OBJ(ic), msecs_to_ticks(1));
 			if (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT)
 				goto done;
 		}
