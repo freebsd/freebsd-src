@@ -11,13 +11,14 @@ MK_SSP=		no
 
 .include <src.opts.mk>
 
-LIBSTAND_SRC=	${.CURDIR}
+LIBSTAND_SRC?=	${.CURDIR}
+LIBSTAND_CPUARCH?=${MACHINE_CPUARCH}
 LIBC_SRC=	${LIBSTAND_SRC}/../libc
 
 LIB=		stand
 NO_PIC=
 INCS=		stand.h
-MAN=		libstand.3
+MAN?=		libstand.3
 
 WARNS?=		0
 
@@ -78,7 +79,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_create_nil.c uuid_equal.c uuid_from_string.c uuid_is_nil.c uuid_to_string.c
 
 # _setjmp/_longjmp
-.PATH: ${LIBSTAND_SRC}/${MACHINE_CPUARCH}
+.PATH: ${LIBSTAND_SRC}/${LIBSTAND_CPUARCH}
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
