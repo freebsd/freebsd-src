@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 Robert N. M. Watson
+ * Copyright (c) 2014-2016 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -53,67 +53,131 @@
 
 #include "cheri_stack.h"
 
+/*
+ * Return the number of frames on the trusted stack.
+ */
 int
-cheri_stack_unwind(ucontext_t *uap, register_t ret, int flags __unused)
+cheri_stack_numframes(int *numframesp)
+{
+	struct cheri_stack cs;
+
+	/*
+	 * Retrieve trusted stack and validate before returning a frame count.
+	 */
+	if (sysarch(CHERI_GET_STACK, &cs) != 0)
+		return (-1);
+	if ((cs.cs_tsize % CHERI_FRAME_SIZE) != 0 ||
+	    (cs.cs_tsp > cs.cs_tsize) ||
+	    (cs.cs_tsp % CHERI_FRAME_SIZE) != 0) {
+		errno = ERANGE;
+		return (-1);
+	}
+	*numframesp = (cs.cs_tsize - cs.cs_tsp) / CHERI_FRAME_SIZE;
+	return (0);
+}
+
+/*
+ * Unwind the trusted stack by the specified number of frames (or all).
+ */
+int
+cheri_stack_unwind(ucontext_t *uap, register_t ret, u_int op,
+    u_int num_frames)
 {
 	struct cheri_frame *cfp;
 	struct cheri_stack cs;
 	struct cheri_stack_frame *csfp;
-	u_int stack_depth, stack_frames;
+	u_int stack_size, stack_frames;
+	register_t saved_mcreg0;
 
-	/* Validate stack as retrieved. */
-	if (sysarch(CHERI_GET_STACK, &cs) != 0)
+	if (op != CHERI_STACK_UNWIND_OP_N &&
+	    op != CHERI_STACK_UNWIND_OP_ALL) {
+		errno = EINVAL;
 		return (-1);
+	}
 
-	/* Does stack layout look sensible enough to continue? */
-	if ((cs.cs_tsize % CHERI_FRAME_SIZE) != 0)
-		return (-1);
-	stack_depth = cs.cs_tsize / CHERI_FRAME_SIZE;
-	if (cs.cs_tsp > cs.cs_tsize)
-		return (-1);
-
-	if ((cs.cs_tsp % CHERI_FRAME_SIZE) != 0)
-		return (-1);
-
-	stack_frames = (cs.cs_tsize - cs.cs_tsp) / CHERI_FRAME_SIZE;
-	/* If there are no frames we don't need to unwind. */
-	if (stack_frames < 1)
+	/*
+	 * Request to unwind zero frames is a no-op: no state transformation
+	 * is needed.
+	 */
+	if ((op == CHERI_STACK_UNWIND_OP_N) && (num_frames == 0))
 		return (0);
 
 	/*
-	 * XXXBD: use flags to select different amounts of unwinding.
-	 * One frame, nearest ambient, first ambient after sandbox, all
-	 * frames.
+	 * Retrieve trusted stack and validate before attempting to unwind.
 	 */
-	/* Unwind the whole way */
-	csfp = &cs.cs_frames[stack_depth - 1];
+	if (sysarch(CHERI_GET_STACK, &cs) != 0)
+		return (-1);
+	if ((cs.cs_tsize % CHERI_FRAME_SIZE) != 0 ||
+	    (cs.cs_tsp > cs.cs_tsize) ||
+	    (cs.cs_tsp % CHERI_FRAME_SIZE) != 0) {
+		errno = ERANGE;
+		return (-1);
+	}
+
+	/*
+	 * See if there is room on the stack for that much unwinding.
+	 */
+	stack_size = cs.cs_tsize / CHERI_FRAME_SIZE;
+	stack_frames = (cs.cs_tsize - cs.cs_tsp) / CHERI_FRAME_SIZE;
+	if (op == CHERI_STACK_UNWIND_OP_ALL)
+		num_frames = stack_frames;
+	if ((num_frames < 0) || (stack_frames < num_frames)) {
+		errno = ERANGE;
+		return (-1);
+	}
+
+	/*
+	 * Restore state from the last frame being unwound.
+	 */
+	csfp = &cs.cs_frames[stack_size - (stack_frames - num_frames) - 1];
+#if 0
 	/* Make sure we will be returning to ambient authority. */
 	if (cheri_getbase(csfp->csf_pcc) != cheri_getbase(cheri_getpcc()) ||
 	    cheri_getlen(csfp->csf_pcc) != cheri_getlen(cheri_getpcc()))
 		return (-1);
+#endif
 
-	cs.cs_tsp += stack_frames * CHERI_FRAME_SIZE;
-	assert(cs.cs_tsp == cs.cs_tsize);
+	/*
+	 * Pop stack desired number of frames.
+	 */
+	cs.cs_tsp += num_frames * CHERI_FRAME_SIZE;
+	assert(cs.cs_tsp <= cs.cs_tsize);
 
 #ifdef __CHERI_SANDBOX__
 	cfp = &uap->uc_mcontext.mc_cheriframe;
-	if (cfp == NULL)
 #else
 	cfp = (struct cheri_frame *)uap->uc_mcontext.mc_cp2state;
-	if (cfp == NULL || uap->uc_mcontext.mc_cp2state_len != sizeof(*cfp))
-#endif
+	if (cfp == NULL || uap->uc_mcontext.mc_cp2state_len != sizeof(*cfp)) {
+		errno = ERANGE;
 		return (-1);
+	}
+#endif
 
+	/*
+	 * Zero the capability register file, explicitly restoring $pcc and
+	 * $idc from the last trusted-stack frame.
+	 */
 	memset(cfp, 0, sizeof(*cfp));
-	memset(uap->uc_mcontext.mc_regs, 0, sizeof(uap->uc_mcontext.mc_regs));
 	cfp->cf_idc =  csfp->csf_idc;
 	cfp->cf_pcc = csfp->csf_pcc;
+
+	/*
+	 * Zero the general-purpose register file.  restore not only $pc, but
+	 * also the slot for $zero, which will hold a magic number across
+	 * sigcode and sigreturn().  Also set a return value.
+	 *
+	 * XXXRW: The kernel unwinder sets V1 to the signal number?
+	 */
+	saved_mcreg0 = uap->uc_mcontext.mc_regs[0];
+	memset(uap->uc_mcontext.mc_regs, 0, sizeof(uap->uc_mcontext.mc_regs));
+	uap->uc_mcontext.mc_regs[0] = saved_mcreg0;
 	uap->uc_mcontext.mc_pc = cheri_getoffset(cfp->cf_pcc);
 	uap->uc_mcontext.mc_regs[V0] = ret;
 
-	/* Update kernel view of trusted stack. */
+	/*
+	 * Update kernel view of trusted stack.
+	 */
 	if (sysarch(CHERI_SET_STACK, &cs) != 0)
 		return (-1);
-
-	return (stack_frames);
+	return (0);
 }

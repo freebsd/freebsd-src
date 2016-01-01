@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -940,11 +940,17 @@ list_tests(void)
 static void
 signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 {
-	int ret;
 	struct cheri_frame *cfp;
 	ucontext_t *uap;
+	u_int numframes;
+	int ret;
 
 	uap = (ucontext_t *)vuap;
+	if (uap->uc_mcontext.mc_regs[0] != /* UCONTEXT_MAGIC */ 0xACEDBADE) {
+		ccsp->ccs_signum = -1;
+		fprintf(stderr, "%s: missing UCONTEXT_MAGIC\n", __func__);
+		_exit(EX_OSERR);
+	}
 #ifdef __CHERI_SANDBOX__
 	cfp = &uap->uc_mcontext.mc_cheriframe;
 	if (cfp == NULL) {
@@ -952,20 +958,51 @@ signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 	cfp = (struct cheri_frame *)uap->uc_mcontext.mc_cp2state;
 	if (cfp == NULL || uap->uc_mcontext.mc_cp2state_len != sizeof(*cfp)) {
 #endif
+		fprintf(stderr, "%s: NULL cfp or mc_cp2state", __func__);
 		ccsp->ccs_signum = -1;
-		_exit(EX_SOFTWARE);
+		_exit(EX_OSERR);
 	}
 	ccsp->ccs_signum = signum;
 	ccsp->ccs_mips_cause = uap->uc_mcontext.cause;
 	ccsp->ccs_cp2_cause = cfp->cf_capcause;
 
-	/* Unwind the sandbox stack or exit. */
-	ret = cheri_stack_unwind(uap, CHERITEST_SANDBOX_UNWOUND, 0);
+	/*
+	 * The cheritest signal handler must decide between two courses of
+	 * action: if we're executing in a sandbox, perform an unwind and
+	 * return CHERITEST_SANDBOX_UNWOUND from the preempted
+	 * CHERITEST_SANDBOX_UNWOUND, or if we are not executing in a sandbox,
+	 * terminate the test, returning signal information to the parent.
+	 */
+	ret = cheri_stack_numframes(&numframes);
 	if (ret < 0) {
-		printf("%s: cheri_stack_unwind failed\n", __func__);
+		ccsp->ccs_signum = -1;
+		fprintf(stderr, "%s: cheri_stack_numframes failed\n",
+		    __func__);
 		_exit(EX_SOFTWARE);
-	} else if (ret == 0)
+	}
+
+	if (numframes) {
+		/*
+		 * Sandboxed code is executing, even if we're not in a
+		 * sandbox.
+		 */
+		ret = cheri_stack_unwind(uap, CHERITEST_SANDBOX_UNWOUND,
+		    CHERI_STACK_UNWIND_OP_ALL, 0);
+		if (ret < 0) {
+			ccsp->ccs_signum = -1;
+			fprintf(stderr, "%s: cheri_stack_unwind failed\n",
+			    __func__);
+			_exit(EX_SOFTWARE);
+		}
+		return;
+	} else {
+		/*
+		 * Signal delivered outside of a sandbox; catch but terminate
+		 * test.  Use EX_SOFTWARE as the parent handler will recognise
+		 * this as an appropriate exit code when a signal is handled.
+		 */
 		_exit(EX_SOFTWARE);
+	}
 }
 
 /* Maximum size of stdout data we will check if called for by a test. */

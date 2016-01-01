@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 Robert N. M. Watson
+ * Copyright (c) 2014-2016 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -32,6 +32,14 @@
 #ifndef _CHERI_STACK_H_
 #define	_CHERI_STACK_H_
 
-int	cheri_stack_unwind(ucontext_t *uap, register_t ret, int flags);
+/*
+ * Unwind operations.
+ */
+#define	CHERI_STACK_UNWIND_OP_N		1	/* Unwind (n) frames. */
+#define	CHERI_STACK_UNWIND_OP_ALL	2	/* Unwind all frames. */
+
+int	cheri_stack_numframes(int *numframesp);
+int	cheri_stack_unwind(ucontext_t *uap, register_t ret, u_int op,
+	    u_int num_frames);
 
 #endif /* !_CHERI_STACK_H_ */
