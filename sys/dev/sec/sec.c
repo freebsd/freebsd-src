@@ -236,7 +236,7 @@ sec_probe(device_t dev)
 		sc->sc_version = 3;
 		break;
 	default:
-		device_printf(dev, "unknown SEC ID 0x%16"PRIx64"!\n", id);
+		device_printf(dev, "unknown SEC ID 0x%016"PRIx64"!\n", id);
 		return (ENXIO);
 	}
 
