@@ -324,6 +324,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	/*
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
+	 *
+	 * Note that we do prepend regardless of RT_HAS_HEADER flag.
+	 * This is done because BPF code shifts m_data pointer
+	 * to the end of ethernet header prior to calling if_output().
 	 */
 	M_PREPEND(m, hlen, M_NOWAIT);
 	if (m == NULL)

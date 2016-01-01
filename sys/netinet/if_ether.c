@@ -1334,8 +1334,5 @@ arp_init(void)
 	if (IS_DEFAULT_VNET(curvnet))
 		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
 		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
-	if (IS_DEFAULT_VNET(curvnet))
-		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
-		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);
