@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+TESTSDIR=	${TESTSBASE}/sys/geom/class
+
 TESTS_SUBDIRS+=	concat
 TESTS_SUBDIRS+=	eli
 TESTS_SUBDIRS+=	gate
@@ -12,7 +14,7 @@ TESTS_SUBDIRS+=	shsec
 TESTS_SUBDIRS+=	stripe
 TESTS_SUBDIRS+=	uzip
 
-BINDIR=		${TESTSBASE}/sbin/geom/class
+BINDIR=		${TESTSDIR}
 
 FILES+=		geom_subr.sh
 
