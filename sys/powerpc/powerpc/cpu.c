@@ -607,12 +607,6 @@ cpu_idle(int busy)
 	    busy, curcpu);
 }
 
-int
-cpu_idle_wakeup(int cpu)
-{
-	return (0);
-}
-
 static void
 cpu_idle_60x(sbintime_t sbt)
 {
@@ -651,14 +645,9 @@ cpu_idle_60x(sbintime_t sbt)
 static void
 cpu_idle_booke(sbintime_t sbt)
 {
-	register_t msr;
-
-	msr = mfmsr();
 
 #ifdef E500
-	/* Freescale E500 core RM section 6.4.1. */
-	__asm __volatile("msync; mtmsr %0; isync" ::
-	    "r" (msr | PSL_WE));
+	platform_cpu_idle(PCPU_GET(cpuid));
 #endif
 }
 
