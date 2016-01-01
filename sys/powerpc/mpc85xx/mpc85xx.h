@@ -132,6 +132,12 @@ extern vm_offset_t		ccsrbar_va;
 #define	OCP85XX_RSTCR		(CCSRBAR_VA + 0xe00b0)
 
 /*
+ * Run Control/Power Management Registers.
+ */
+#define	OCP85XX_RCPM_CDOZSR	(CCSRBAR_VA + 0xe2004)
+#define	OCP85XX_RCPM_CDOZCR	(CCSRBAR_VA + 0xe200c)
+
+/*
  * Prototypes.
  */
 uint32_t ccsr_read4(uintptr_t addr);
