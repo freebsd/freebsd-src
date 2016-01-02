@@ -104,7 +104,7 @@ plasma_update(video_adapter_t *adp)
 				sqd = ItoFP16(dx * dx + dy * dy);
 				d = fp16_sqrt(sqd);
 				/* divide by 4 to stretch out the pattern */
-				m = fp16_add(m, fp16_cos(d / 4));
+				m = fp16_sub(m, fp16_cos(d / 4));
 			}
 			/*
 			 * m is now in the range +/- FOCI, but we need a
