@@ -361,10 +361,11 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	paddrsz = 0;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
-#ifdef OFW_EPAPR
+#ifndef OFW_IMAP_NO_IPARENT_ADDR_CELLS
 		/*
-		 * Find if we need to read the parent address data. Sparc64
-		 * uses a different encoding that doesn't include this data.
+		 * Find if we need to read the parent address data.
+		 * CHRP-derived OF bindings, including ePAPR-compliant FDTs,
+		 * use this as an optional part of the specifier.
 		 */
 		if (OF_getencprop(OF_node_from_xref(parent),
 		    "#address-cells", &paddrsz, sizeof(paddrsz)) == -1)
