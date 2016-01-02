@@ -265,13 +265,12 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	}
 
 	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp != NULL) {
-		/*
-		 * Configure boot-time parameters passed in by loader.
-		 */
-		boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-		kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-	}
+	/*
+	 * Configure more boot-time parameters passed in by loader.
+	 */
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *), 0);
+
 
 #ifdef FDT
 #ifndef FDT_DTB_STATIC_ONLY
