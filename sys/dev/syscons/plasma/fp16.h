@@ -78,7 +78,8 @@ fp16_t fp16_sqrt(fp16_t);
 #define FP16_PI_2	 102943
 #define FP16_PI_4	  51471
 
-/* cosine */
+/* sine and cosine */
+fp16_t fp16_sin(fp16_t);
 fp16_t fp16_cos(fp16_t);
 
 #endif
