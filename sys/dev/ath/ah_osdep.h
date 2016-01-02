@@ -143,18 +143,13 @@ struct ath_hal;
 extern	void ath_hal_reg_write(struct ath_hal *ah, u_int reg, u_int32_t val);
 extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
 #else
+/* XXX TODO: enforce barriers */
 #define	OS_REG_WRITE(_ah, _reg, _val)					\
-	do {								\
 	bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,		\
-	    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val));		\
-	OS_BUS_BARRIER_REG((_ah), (_reg), OS_BUS_BARRIER_WRITE);	\
-	} while (0)
+	    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val))
 #define	OS_REG_READ(_ah, _reg)						\
-	do {								\
-	OS_BUS_BARRIER_REG((_ah), (_reg), OS_BUS_BARRIER_READ);		\
 	bus_space_read_4((bus_space_tag_t)(_ah)->ah_st,			\
-	    (bus_space_handle_t)(_ah)->ah_sh, (_reg));			\
-	} while (0)
+	    (bus_space_handle_t)(_ah)->ah_sh, (_reg))
 #endif
 
 #ifdef AH_DEBUG_ALQ
