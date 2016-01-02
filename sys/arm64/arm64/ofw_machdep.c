@@ -49,6 +49,6 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (err != 0)
 		return (err);
 
-	*tag = memmap_bus;
+	*tag = &memmap_bus;
 	return (bus_space_map(*tag, addr, size, 0, handle));
 }
