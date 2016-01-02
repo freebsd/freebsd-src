@@ -291,6 +291,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
 	bus_space_write_4(tag, h, reg, val);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_WRITE);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -311,6 +312,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_READ);
 	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
@@ -371,6 +373,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
 	bus_space_write_4(tag, h, reg, val);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_WRITE);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -391,6 +394,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
+	OS_BUS_BARRIER_REG(ah, reg, OS_BUS_BARRIER_READ);
 	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
