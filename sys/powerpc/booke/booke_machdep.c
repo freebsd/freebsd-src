@@ -211,6 +211,8 @@ void
 booke_cpu_init(void)
 {
 
+	cpu_features |= PPC_FEATURE_BOOKE;
+
 	pmap_mmu_install(MMU_TYPE_BOOKE, BUS_PROBE_GENERIC);
 }
 
