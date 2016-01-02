@@ -157,13 +157,6 @@ ASENTRY_NOPROF(__start)
 	ld	%r5,64(%r1)
 	ld	%r6,72(%r1)
 
-	/* Switch to 64-bit mode */
-	mfmsr	%r9
-	li	%r8,1
-	insrdi	%r9,%r8,1,0
-	mtmsrd	%r9
-	isync
-	
 	/* Begin CPU init */
 	mr	%r4,%r2 /* Replace ignored r4 with tocbase for trap handlers */
 	bl	powerpc_init
