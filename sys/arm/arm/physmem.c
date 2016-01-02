@@ -161,7 +161,7 @@ static size_t
 regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 {
 	size_t acnt, exi, hwi;
-	vm_paddr_t end, start, xend, xstart;
+	uint64_t end, start, xend, xstart;
 	long availmem;
 	const struct region *exp, *hwp;
 
@@ -171,7 +171,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 	for (hwi = 0, hwp = hwregions; hwi < hwcnt; ++hwi, ++hwp) {
 		start = hwp->addr;
 		end   = hwp->size + start;
-		realmem += arm32_btop(end - start);
+		realmem += arm32_btop((vm_offset_t)(end - start));
 		for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
 			/*
 			 * If the excluded region does not match given flags,
@@ -212,9 +212,10 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 			 * could affect the remainder of this hw region.
 			 */
 			if ((xstart > start) && (xend < end)) {
-				avail[acnt++] = start;
-				avail[acnt++] = xstart;
-				availmem += arm32_btop(xstart - start);
+				avail[acnt++] = (vm_paddr_t)start;
+				avail[acnt++] = (vm_paddr_t)xstart;
+				availmem += 
+				    arm32_btop((vm_offset_t)(xstart - start));
 				start = xend;
 				continue;
 			}
@@ -233,9 +234,9 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 		 * available entry for it.
 		 */
 		if (end > start) {
-			avail[acnt++] = start;
-			avail[acnt++] = end;
-			availmem += arm32_btop(end - start);
+			avail[acnt++] = (vm_paddr_t)start;
+			avail[acnt++] = (vm_paddr_t)end;
+			availmem += arm32_btop((vm_offset_t)(end - start));
 		}
 		if (acnt >= MAX_AVAIL_ENTRIES)
 			panic("Not enough space in the dump/phys_avail arrays");
