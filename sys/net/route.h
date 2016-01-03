@@ -44,16 +44,17 @@
  */
 
 /*
- * A route consists of a destination address, a reference
- * to a routing entry, and a reference to an llentry.  
- * These are often held by protocols in their control
- * blocks, e.g. inpcb.
+ * Struct route consiste of a destination address,
+ * a route entry pointer, link-layer prepend data pointer along
+ * with its length.
  */
 struct route {
 	struct	rtentry *ro_rt;
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
+	uint16_t	ro_mtu;	/* saved ro_rt mtu */
+	uint16_t	spare;
 	struct	sockaddr ro_dst;
 };
 
