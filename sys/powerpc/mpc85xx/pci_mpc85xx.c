@@ -94,6 +94,29 @@ __FBSDID("$FreeBSD$");
 #define	REG_PEX_ERR_DR	0x0e00
 #define	REG_PEX_ERR_EN	0x0e08
 
+#define	REG_PEX_ERR_DR		0x0e00
+#define	REG_PEX_ERR_DR_ME	0x80000000
+#define	REG_PEX_ERR_DR_PCT	0x800000
+#define	REG_PEX_ERR_DR_PAT	0x400000
+#define	REG_PEX_ERR_DR_PCAC	0x200000
+#define	REG_PEX_ERR_DR_PNM	0x100000
+#define	REG_PEX_ERR_DR_CDNSC	0x80000
+#define	REG_PEX_ERR_DR_CRSNC	0x40000
+#define	REG_PEX_ERR_DR_ICCA	0x20000
+#define	REG_PEX_ERR_DR_IACA	0x10000
+#define	REG_PEX_ERR_DR_CRST	0x8000
+#define	REG_PEX_ERR_DR_MIS	0x4000
+#define	REG_PEX_ERR_DR_IOIS	0x2000
+#define	REG_PEX_ERR_DR_CIS	0x1000
+#define	REG_PEX_ERR_DR_CIEP	0x800
+#define	REG_PEX_ERR_DR_IOIEP	0x400
+#define	REG_PEX_ERR_DR_OAC	0x200
+#define	REG_PEX_ERR_DR_IOIA	0x100
+#define	REG_PEX_ERR_DR_IMBA	0x80
+#define	REG_PEX_ERR_DR_IIOBA	0x40
+#define	REG_PEX_ERR_DR_LDDE	0x20
+#define	REG_PEX_ERR_EN		0x0e08
+
 #define PCIR_LTSSM	0x404
 #define LTSSM_STAT_L0	0x16
 
@@ -113,6 +136,9 @@ struct fsl_pcib_softc {
 	bus_space_tag_t	sc_bst;
 	int		sc_rid;
 
+	struct resource	*sc_irq_res;
+	void		*sc_ih;
+
 	int		sc_busnr;
 	int		sc_pcie;
 	uint8_t		sc_pcie_capreg;		/* PCI-E Capability Reg Set */
@@ -120,6 +146,34 @@ struct fsl_pcib_softc {
 	/* Devices that need special attention. */
 	int		sc_devfn_tundra;
 	int		sc_devfn_via_ide;
+};
+
+struct fsl_pcib_err_dr {
+	const char	*msg;
+	uint32_t	err_dr_mask;
+};
+
+static const struct fsl_pcib_err_dr pci_err[] = {
+	{"ME",		REG_PEX_ERR_DR_ME},
+	{"PCT",		REG_PEX_ERR_DR_PCT},
+	{"PAT",		REG_PEX_ERR_DR_PAT},
+	{"PCAC",	REG_PEX_ERR_DR_PCAC},
+	{"PNM",		REG_PEX_ERR_DR_PNM},
+	{"CDNSC",	REG_PEX_ERR_DR_CDNSC},
+	{"CRSNC",	REG_PEX_ERR_DR_CRSNC},
+	{"ICCA",	REG_PEX_ERR_DR_ICCA},
+	{"IACA",	REG_PEX_ERR_DR_IACA},
+	{"CRST",	REG_PEX_ERR_DR_CRST},
+	{"MIS",		REG_PEX_ERR_DR_MIS},
+	{"IOIS",	REG_PEX_ERR_DR_IOIS},
+	{"CIS",		REG_PEX_ERR_DR_CIS},
+	{"CIEP",	REG_PEX_ERR_DR_CIEP},
+	{"IOIEP",	REG_PEX_ERR_DR_IOIEP},
+	{"OAC",		REG_PEX_ERR_DR_OAC},
+	{"IOIA",	REG_PEX_ERR_DR_IOIA},
+	{"IMBA",	REG_PEX_ERR_DR_IMBA},
+	{"IIOBA",	REG_PEX_ERR_DR_IIOBA},
+	{"LDDE",	REG_PEX_ERR_DR_LDDE}
 };
 
 /* Local forward declerations. */
@@ -173,6 +227,35 @@ DEFINE_CLASS_1(pcib, fsl_pcib_driver, fsl_pcib_methods,
 DRIVER_MODULE(pcib, ofwbus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0);
 
 static int
+fsl_pcib_err_intr(void *v)
+{
+	struct fsl_pcib_softc *sc;
+	device_t dev;
+	uint32_t err_reg, clear_reg;
+	uint8_t i;
+
+	dev = (device_t)v;
+	sc = device_get_softc(dev);
+
+	clear_reg = 0;
+	err_reg = bus_space_read_4(sc->sc_bst, sc->sc_bsh, REG_PEX_ERR_DR);
+
+	/* Check which one error occurred */
+	for (i = 0; i < sizeof(pci_err)/sizeof(struct fsl_pcib_err_dr); i++) {
+		if (err_reg & pci_err[i].err_dr_mask) {
+			device_printf(dev, "PCI %d: report %s error\n",
+			    device_get_unit(dev), pci_err[i].msg);
+			clear_reg |= pci_err[i].err_dr_mask;
+		}
+	}
+
+	/* Clear pending errors */
+	bus_space_write_4(sc->sc_bst, sc->sc_bsh, REG_PEX_ERR_DR, clear_reg);
+
+	return (0);
+}
+
+static int
 fsl_pcib_probe(device_t dev)
 {
 
@@ -198,7 +281,7 @@ fsl_pcib_attach(device_t dev)
 	struct fsl_pcib_softc *sc;
 	phandle_t node;
 	uint32_t cfgreg;
-	int maxslot, error;
+	int error, maxslot, rid;
 	uint8_t ltssm, capptr;
 
 	sc = device_get_softc(dev);
@@ -277,6 +360,34 @@ fsl_pcib_attach(device_t dev)
 				    device_get_unit(dev));
 			return (0);
 		}
+	}
+
+	/* Allocate irq */
+	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->sc_irq_res == NULL) {
+		error = fsl_pcib_detach(dev);
+		if (error != 0) {
+			device_printf(dev,
+			    "Detach of the driver failed with error %d\n",
+			    error);
+		}
+		return (ENXIO);
+	}
+
+	/* Setup interrupt handler */
+	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
+	    NULL, (driver_intr_t *)fsl_pcib_err_intr, dev, &sc->sc_ih);
+	if (error != 0) {
+		device_printf(dev, "Could not setup irq, %d\n", error);
+		sc->sc_ih = NULL;
+		error = fsl_pcib_detach(dev);
+		if (error != 0) {
+			device_printf(dev,
+			    "Detach of the driver failed with error %d\n",
+			    error);
+		}
+		return (ENXIO);
 	}
 
 	fsl_pcib_err_init(dev);
