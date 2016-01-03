@@ -419,6 +419,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     trust = !issetugid();
 
+    md_abi_variant_hook(aux_info);
+
     ld_bind_now = getenv(_LD("BIND_NOW"));
     /* 
      * If the process is tainted, then we un-set the dangerous environment
