@@ -184,6 +184,7 @@ __DEFAULT_NO_OPTIONS = \
     EISA \
     HESIOD \
     LIBCHERI_BROKEN \
+    LIBSOFT \
     NAND \
     OFED \
     OPENLDAP \
@@ -251,6 +252,10 @@ __DEFAULT_NO_OPTIONS+=LLDB
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
 .if ${__T} == "arm" || ${__T} == "armeb"
 BROKEN_OPTIONS+=LLDB
+.endif
+# Only doing soft float API stuff on armv6
+.if ${__T} != "armv6"
+BROKEN_OPTIONS+=LIBSOFT
 .endif
 
 .include <bsd.mkopt.mk>
