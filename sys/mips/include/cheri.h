@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2015 Robert N. M. Watson
+ * Copyright (c) 2011-2016 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -227,47 +227,84 @@ struct cheri_stack {
  * CHERI capability register manipulation macros.
  */
 #define	CHERI_CGETBASE(v, cb) do {					\
-	__asm__ __volatile__ ("cgetbase %0, $c%1" : "=r" (v) :		\
-	    "i" (cb));							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgetbase %0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) : "i" (cb));					\
 } while (0)
 
 #define	CHERI_CGETLEN(v, cb) do {					\
-	__asm__ __volatile__ ("cgetlen %0, $c%1" : "=r" (v) :		\
-	    "i" (cb));							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgetlen %0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) :"i" (cb));					\
 } while (0)
 
 #define	CHERI_CGETOFFSET(v, cb) do {					\
-	__asm__ __volatile__ ("cgetoffset %0, $c%1" : "=r" (v) :	\
-	    "i" (cb));							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgetoffset %0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) : "i" (cb));					\
 } while (0)
 
 #define	CHERI_CGETTAG(v, cb) do {					\
-	__asm__ __volatile__ ("cgettag %0, $c%1" : "=r" (v) :		\
-	    "i" (cb));							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgettag %0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) : "i" (cb));					\
 } while (0)
 
 #define	CHERI_CGETSEALED(v, cb) do {					\
-	__asm__ __volatile__ ("cgetsealed %0, $c%1" :	"=r" (v) :	\
-	    "i" (cb));							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgetsealed %0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) : "i" (cb));					\
 } while (0)
 
 #define	CHERI_CGETPERM(v, cb) do {					\
-	__asm__ __volatile__ ("cgetperm %0, $c%1" : "=r" (v) :		\
-	    "i" (cb));							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgetperm %0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) : "i" (cb));					\
 } while (0)
 
 #define	CHERI_CGETTYPE(v, cb) do {					\
-	__asm__ __volatile__ ("cgettype %0, $c%1" : "=r" (v) :		\
-	    "i" (cb));							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgettype %0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) : "i" (cb));					\
 } while (0)
 
 #define	CHERI_CGETCAUSE(v) do {						\
-	__asm__ __volatile__ ("cgetcause %0" : "=r" (v));		\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgetcause %0\n"						\
+	    ".set pop\n"						\
+	    : "=r" (v));						\
 } while (0)
 
 #define	CHERI_CTOPTR(v, cb, ct) do {					\
-	__asm__ __volatile__ ("ctoptr %0, $c%1, $c%2" : "=r" (v) :	\
-	    "i" (cb), "i" (ct));					\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "ctoptr %0, $c%1, $c%2\n"					\
+	    ".set pop\n"						\
+	    : "=r" (v) : "i" (cb), "i" (ct));				\
 } while (0)
 
 /*
@@ -296,7 +333,12 @@ struct cheri_stack {
  * writing to $c0 so no clobber is needed.
  */
 #define	CHERI_CGETDEFAULT(cd) do {					\
-	__asm__ __volatile__ ("cgetdefault $c%0" : : "i" (cd));		\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cgetdefault $c%0\n"					\
+	    ".set pop\n"						\
+	    : : "i" (cd));						\
 } while (0)
 
 /*
@@ -304,13 +346,21 @@ struct cheri_stack {
  * capability-register value changes, so no clobbers required.
  */
 #define	CHERI_CCHECKPERM(cs, v) do {					\
-	__asm__ __volatile__ ("ccheckperm $c%0, %1" : :			\
-	    "i" (cd), "r" (v));						\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "ccheckperm $c%0, %1\n" 					\
+	    ".set pop\n"						\
+	    : : "i" (cd), "r" (v));					\
 } while (0)
 
 #define	CHERI_CCHECKTYPE(cs, cb) do {					\
-	__asm__ __volatile__ ("cchecktype $c%0, $c%1" : :		\
-	    "i" (cs), "i" (cb));					\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cchecktype $c%0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : : "i" (cs), "i" (cb));					\
 } while (0)
 
 /*
@@ -331,29 +381,54 @@ struct cheri_stack {
  */
 #define	CHERI_CSEAL(cd, cs, ct) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cseal $c%0, $c%1, $c%2" : :	\
-		    "i" (cd), "i" (cs), "i" (ct) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cseal $c%0, $c%1, $c%2\n"				\
+		    ".set pop\n"					\
+		    : : "i" (cd), "i" (cs), "i" (ct) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("cseal $c%0, $c%1, $c%2" : :	\
-		    "i" (cd), "i" (cs), "i" (ct));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cseal $c%0, $c%1, $c%2\n"				\
+		    ".set pop\n"					\
+		    : : "i" (cd), "i" (cs), "i" (ct));			\
 } while (0)
 
 #define CHERI_CUNSEAL(cd, cb, ct) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cunseal $c%0, $c%1, $c%2" : :	\
-		    "i" (cd), "i" (cb), "i" (ct) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cunseal $c%0, $c%1, $c%2\n"			\
+		    ".set pop\n"					\
+		    : : "i" (cd), "i" (cb), "i" (ct) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("cunseal $c%0, $c%1, $c%2" : :	\
-		    "i" (cd), "i" (cb), "i" (ct));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cunseal $c%0, $c%1, $c%2\n"			\
+		    ".set pop\n"					\
+		    : : "i" (cd), "i" (cb), "i" (ct));			\
 } while (0)
 
 #define	CHERI_CCALL(cs, cb) do {					\
-	__asm__ __volatile__ ("ccall $c%0, $c%1" : :			\
-	    "i" (cs), "i" (cb) : "memory");				\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "ccall $c%0, $c%1\n"					\
+	    ".set pop\n"						\
+	    : :	"i" (cs), "i" (cb) : "memory");				\
 } while (0)
 
 #define	CHERI_CRETURN() do {						\
-	__asm__ __volatile__ ("creturn" : : : "memory");		\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "creturn\n"							\
+	    ".set pop\n"						\
+	    : : : "memory");						\
 } while (0)
 
 /*
@@ -361,8 +436,12 @@ struct cheri_stack {
  * clobber.
  */
 #define	CHERI_CSC(cs, cb, regbase, offset) do {				\
-	__asm__ __volatile__ ("csc $c%0, %1, %2($c%3)" : :		\
-	    "i" (cs), "r" (regbase), "i" (offset), "i" (cb) :		\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "csc $c%0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : : "i" (cs), "r" (regbase), "i" (offset), "i" (cb) :	\
 	    "memory");							\
 } while (0)
 
@@ -371,23 +450,39 @@ struct cheri_stack {
  * clobbers.
  */
 #define	CHERI_CSB(rs, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("csb %0, %1, %2($c%3)" : :		\
-	    "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "csb %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : : "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CSH(rs, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("csh %0, %1, %2($c%3)" : :		\
-	    "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "csh %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : : "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CSW(rs, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("csw %0, %1, %2($c%3)" : :		\
-	    "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "csw %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : : "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CSD(rs, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("csd %0, %1, %2($c%3)" : :		\
-	    "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "csd %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : : "r" (rs), "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 /*
@@ -395,38 +490,66 @@ struct cheri_stack {
  * clobbers.
  */
 #define	CHERI_CLB(rd, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("clb %0, %1, %2($c%3)" :			\
-	    "=r" (rd) : "r" (rt), "i" (offset),"i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "clb %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	     : "=r" (rd) : "r" (rt), "i" (offset),"i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CLH(rd, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("clh %0, %1, %2($c%3)" :			\
-	    "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "clh %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CLW(rd, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("clw %0, %1, %2($c%3)" :			\
-	    "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "clw %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CLD(rd, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("cld %0, %1, %2($c%3)" :			\
-	    "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "cld %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CLBU(rd, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("clbu %0, %1, %2($c%3)" :			\
-	    "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "clbu %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CLHU(rd, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("clhu %0, %1, %2($c%3)" :			\
-	    "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "clhu %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 #define	CHERI_CLWU(rd, rt, offset, cb) do {				\
-	__asm__ __volatile__ ("clwu %0, %1, %2($c%3)" :			\
-	    "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "clwu %0, %1, %2($c%3)\n"					\
+	    ".set pop\n"						\
+	    : "=r" (rd) : "r" (rt), "i" (offset), "i" (cb) : "memory");	\
 } while (0)
 
 /*
@@ -439,111 +562,204 @@ struct cheri_stack {
  */
 #define	CHERI_CGETPCC(v, cd) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cgetpcc %0, $c%1" : "=r" (v) :	\
-		    "i" (cd) : "memory");				\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cgetpcc %0, $c%1\n"				\
+		    ".set pop\n"					\
+		    : "=r" (v) : "i" (cd) : "memory");			\
 	else								\
-		__asm__ __volatile__ ("cgetpcc %0, $c%1" : "=r" (v) :	\
-		    "i" (cd));						\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cgetpcc %0, $c%1\n"				\
+		    ".set pop\n"					\
+		    : "=r" (v) : "i" (cd));				\
 } while (0)
 
 #define	CHERI_CINCBASE(cd, cb, v) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cincbase $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cincbase $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("cincbase $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cincbase $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
 #define	CHERI_CINCOFFSET(cd, cb, v) do {				\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cincoffset $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cincoffset $c%0, $c%1, %2\n"			\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("cincoffset $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cincoffset $c%0, $c%1, %2\n"			\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
 #if (defined(CPU_CHERI) && !defined(CPU_CHERI128)) || (defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 256))
 #define	CHERI_CMOVE(cd, cb) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cmove $c%0, $c%1" : :		\
-		    "i" (cd), "i" (cb) : "memory");			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cmove $c%0, $c%1\n"				\
+		    ".set pop\n"					\
+		    : : "i" (cd), "i" (cb) : "memory");			\
 	else								\
-		__asm__ __volatile__ ("cmove $c%0, $c%1" : :		\
-		    "i" (cd), "i" (cb));				\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cmove $c%0, $c%1\n"				\
+		    ".set pop\n"					\
+		    : : "i" (cd), "i" (cb));				\
 } while (0)
 #else /* 128-bit CHERI */
 #define	CHERI_CMOVE(cd, cb)	CHERI_CINCOFFSET(cd, cb, 0)
 #endif /* 128-bit CHERI */
 
 #define	CHERI_CSETDEFAULT(cb) do {					\
-	__asm__ __volatile__ ("csetdefault %c%0" : : "i" (cb) :		\
-	    "memory");							\
+	__asm__ __volatile__ (						\
+	    ".set push\n"						\
+	    ".set noreorder\n"						\
+	    "csetdefault %c%0\n"					\
+	    ".set pop\n"						\
+	    : : "i" (cb) : "memory");					\
 } while (0)
 
 #define	CHERI_CSETLEN(cd, cb, v) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("csetlen $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "csetlen $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("csetlen $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "csetlen $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
 #define	CHERI_CSETOFFSET(cd, cb, v) do {				\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("csetoffset $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "csetoffset $c%0, $c%1, %2\n"			\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("csetoffset $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "csetoffset $c%0, $c%1, %2\n"			\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
 #define	CHERI_CCLEARTAG(cd, cb) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("ccleartag $c%0, $c%1" : :	\
-		    "i" (cd), "i" (cb) : "memory");			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "ccleartag $c%0, $c%1\n"				\
+		    ".set pop\n"					\
+		    : : "i" (cd), "i" (cb) : "memory");			\
 	else								\
-		__asm__ __volatile__ ("ccleartag $c%0, $c%1" : :	\
-		    "i" (cd), "i" (cb));				\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "ccleartag $c%0, $c%1\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb));				\
 } while (0)
 
 #define	CHERI_CANDPERM(cd, cb, v) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("candperm $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "candperm $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("candperm $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "candperm $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
 #define	CHERI_CSETBOUNDS(cd, cb, v) do {				\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("csetbounds $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "csetbounds $c%0, $c%1, %2\n"			\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("csetbounds $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "csetbounds $c%0, $c%1, %2\n"			\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
 #define	CHERI_CFROMPTR(cd, cb, v) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cfromptr $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cfromptr $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v) : "memory");	\
 	else								\
-		__asm__ __volatile__ ("cfromptr $c%0, $c%1, %2" : :	\
-		    "i" (cd), "i" (cb), "r" (v));			\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "cfromptr $c%0, $c%1, %2\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
 #define	CHERI_CLC(cd, cb, regbase, offset) do {				\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("clc $c%0, %1, %2($c%3)" : :	\
-		    "i" (cd), "r" (regbase), "i" (offset), "i" (cb) :	\
-		    "memory");						\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "clc $c%0, %1, %2($c%3)\n"				\
+		    ".set pop\n"					\
+		    : :	"i" (cd), "r" (regbase), "i" (offset), "i" (cb)	\
+		    : "memory");					\
 	else								\
-		__asm__ __volatile__ ("clc $c%0, %1, %2($c%3)" : :	\
-		    "i" (cd), "r" (regbase), "i" (offset), "i" (cb));	\
+		__asm__ __volatile__ (					\
+		    ".set push\n"					\
+		    ".set noreorder\n"					\
+		    "clc $c%0, %1, %2($c%3)\n"				\
+		    ".set pop\n"					\
+		    : : "i" (cd), "r" (regbase), "i" (offset),		\
+		    "i" (cb));						\
 } while (0)
 
 static inline void
@@ -581,7 +797,13 @@ static __inline uint32_t
 cheri_get_cyclecount(void)
 {
 	uint64_t _time;
-	__asm __volatile("rdhwr %0, $2" : "=r" (_time));
+
+	__asm__ __volatile__ (
+	    ".set push\n"
+	    ".set noreorder\n"
+	    "rdhwr %0, $2\n"
+	   ".set pop\n"
+	    : "=r" (_time));
 	return (_time & 0xffffffff);
 }
 
