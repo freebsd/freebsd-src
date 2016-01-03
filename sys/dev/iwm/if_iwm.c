@@ -270,7 +270,7 @@ static void	iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *,
 static int	iwm_get_noise(const struct iwm_mvm_statistics_rx_non_phy *);
 static void	iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct iwm_rx_packet *,
                                    struct iwm_rx_data *);
-static void	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
+static int	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
                                          struct iwm_rx_packet *,
 				         struct iwm_node *);
 static void	iwm_mvm_rx_tx_cmd(struct iwm_softc *, struct iwm_rx_packet *,
@@ -2400,12 +2400,13 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	IWM_LOCK(sc);
 }
 
-static void
+static int
 iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	struct iwm_node *in)
 {
 	struct iwm_mvm_tx_resp *tx_resp = (void *)pkt->data;
-	struct ieee80211vap *vap = in->in_ni.ni_vap;
+	struct ieee80211_node *ni = &in->in_ni;
+	struct ieee80211vap *vap = ni->ni_vap;
 	int status = le16toh(tx_resp->status.status) & IWM_TX_STATUS_MSK;
 	int failack = tx_resp->failure_frame;
 
@@ -2414,14 +2415,13 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	/* Update rate control statistics. */
 	if (status != IWM_TX_STATUS_SUCCESS &&
 	    status != IWM_TX_STATUS_DIRECT_DONE) {
-		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-		ieee80211_ratectl_tx_complete(vap, &in->in_ni,
+		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_FAILURE, &failack, NULL);
+		return (1);
 	} else {
-		if_inc_counter(vap->iv_ifp, IFCOUNTER_OPACKETS, 1);
-		ieee80211_ratectl_tx_complete(vap, &in->in_ni,
+		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_SUCCESS, &failack, NULL);
-
+		return (0);
 	}
 }
 
@@ -2435,33 +2435,30 @@ iwm_mvm_rx_tx_cmd(struct iwm_softc *sc,
 	struct iwm_tx_ring *ring = &sc->txq[qid];
 	struct iwm_tx_data *txd = &ring->data[idx];
 	struct iwm_node *in = txd->in;
+	struct mbuf *m = txd->m;
+	int status;
 
-	if (txd->done) {
-		device_printf(sc->sc_dev,
-		    "%s: got tx interrupt that's already been handled!\n",
-		    __func__);
-		return;
-	}
+	KASSERT(txd->done == 0, ("txd not done"));
+	KASSERT(txd->in != NULL, ("txd without node"));
+	KASSERT(txd->m != NULL, ("txd without mbuf"));
+
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	sc->sc_tx_timer = 0;
 
-	iwm_mvm_rx_tx_cmd_single(sc, pkt, in);
+	status = iwm_mvm_rx_tx_cmd_single(sc, pkt, in);
 
 	/* Unmap and free mbuf. */
 	bus_dmamap_sync(ring->data_dmat, txd->map, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(ring->data_dmat, txd->map);
-	m_freem(txd->m);
 
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
 	    "free txd %p, in %p\n", txd, txd->in);
-	KASSERT(txd->done == 0, ("txd not done"));
 	txd->done = 1;
-	KASSERT(txd->in, ("txd without node"));
-
 	txd->m = NULL;
 	txd->in = NULL;
-	ieee80211_free_node((struct ieee80211_node *)in);
+
+	ieee80211_tx_complete(&in->in_ni, m, status);
 
 	if (--ring->queued < IWM_TX_RING_LOMARK) {
 		sc->qfullmsk &= ~(1 << ring->qid);
