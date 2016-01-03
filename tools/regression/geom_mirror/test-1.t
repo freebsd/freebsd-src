@@ -5,15 +5,11 @@
 
 echo "1..1"
 
-us0=45
-us1=`expr $us0 + 1`
-us2=`expr $us0 + 2`
+us0=$(attach_md -t malloc -s 1M) || exit 1
+us1=$(attach_md -t malloc -s 2M) || exit 1
+us2=$(attach_md -t malloc -s 3M) || exit 1
 
-mdconfig -a -t malloc -s 1M -u $us0 || exit 1
-mdconfig -a -t malloc -s 2M -u $us1 || exit 1
-mdconfig -a -t malloc -s 3M -u $us2 || exit 1
-
-gmirror label $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
+gmirror label $name /dev/$us0 /dev/$us1 /dev/$us2 || exit 1
 devwait
 
 # Size of created device should be 1MB - 512b.
@@ -25,10 +21,3 @@ if [ $size -eq 1048064 ]; then
 else
 	echo "not ok 1"
 fi
-
-gmirror remove $name md${us0}
-gmirror remove $name md${us1}
-gmirror remove $name md${us2}
-mdconfig -d -u $us0
-mdconfig -d -u $us1
-mdconfig -d -u $us2
