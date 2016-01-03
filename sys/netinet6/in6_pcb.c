@@ -359,7 +359,7 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 		return (error);
 
 	error = in6_selectsrc(sin6, inp->in6p_outputopts,
-	    inp, NULL, inp->inp_cred, &ifp, &in6a);
+	    inp, inp->inp_cred, &ifp, &in6a);
 	if (error)
 		return (error);
 

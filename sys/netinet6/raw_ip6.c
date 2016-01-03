@@ -460,7 +460,7 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	/*
 	 * Source address selection.
 	 */
-	error = in6_selectsrc(dstsock, optp, in6p, NULL, so->so_cred,
+	error = in6_selectsrc(dstsock, optp, in6p, so->so_cred,
 	    &oifp, &in6a);
 	if (error)
 		goto bad;
@@ -814,7 +814,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INP_WLOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
 	error = in6_selectsrc(addr, inp->in6p_outputopts,
-	    inp, NULL, so->so_cred, &ifp, &in6a);
+	    inp, so->so_cred, &ifp, &in6a);
 	if (error) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_ripcbinfo);
