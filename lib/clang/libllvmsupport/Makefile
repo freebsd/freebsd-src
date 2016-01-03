@@ -97,12 +97,12 @@ SRCS+=	ARMWinEH.cpp \
 	FileUtilities.cpp \
 	SystemUtils.cpp \
 	ThreadPool.cpp \
-	Valgrind.cpp \
 	Watchdog.cpp
 .endif
 
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	Memory.cpp
+SRCS+=	Memory.cpp \
+	Valgrind.cpp
 .endif
 
 .include "../clang.lib.mk"
