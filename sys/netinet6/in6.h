@@ -378,6 +378,8 @@ struct route_in6 {
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
+	uint16_t	ro_mtu;	/* saved ro_rt mtu */
+	uint16_t	spare;
 	struct	sockaddr_in6 ro_dst;
 };
 #endif
