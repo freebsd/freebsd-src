@@ -154,6 +154,9 @@ MTREE=	BSD.debug.dist BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 .if ${MK_LIB32} != "no"
 MTREE+=	BSD.lib32.dist
 .endif
+.if ${MK_LIBSOFT} != "no"
+MTREE+=	BSD.libsoft.dist
+.endif
 .if ${MK_TESTS} != "no"
 MTREE+=	BSD.tests.dist
 .endif
@@ -353,6 +356,10 @@ MTREES+=	mtree/BSD.groff.dist		/usr
 .if ${MK_LIB32} != "no"
 MTREES+=	mtree/BSD.lib32.dist		/usr
 MTREES+=	mtree/BSD.lib32.dist		/usr/lib/debug/usr
+.endif
+.if ${MK_LIBSOFT} != "no"
+MTREES+=	mtree/BSD.libsoft.dist		/usr
+MTREES+=	mtree/BSD.libsoft.dist		/usr/lib/debug/usr
 .endif
 .if ${MK_TESTS} != "no"
 MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
