@@ -204,8 +204,6 @@ extern Elf_Dyn _DYNAMIC;
 #define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
 #endif
 
-#define _LD(x)	LD_ x
-
 int dlclose(void *) __exported;
 char *dlerror(void) __exported;
 void *dlopen(const char *, int) __exported;
@@ -324,6 +322,24 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 		strlcpy(ut.name, name, sizeof(ut.name));
 	utrace(&ut, sizeof(ut));
 }
+
+#ifdef RTLD_VARIANT_ENV_NAMES
+/*
+ * construct the env variable based on the type of binary that's
+ * running.
+ */
+static inline const char *
+_LD(const char *var)
+{
+	static char buffer[128];
+
+	strlcpy(buffer, ld_env_prefix, sizeof(buffer));
+	strlcat(buffer, var, sizeof(buffer));
+	return (buffer);
+}
+#else
+#define _LD(x)	LD_ x
+#endif
 
 /*
  * Main entry point for dynamic linking.  The first argument is the
