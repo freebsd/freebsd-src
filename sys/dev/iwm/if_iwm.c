@@ -2649,7 +2649,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct iwm_node *in = (struct iwm_node *)ni;
+	struct iwm_node *in = IWM_NODE(ni);
 	struct iwm_tx_ring *ring;
 	struct iwm_tx_data *data;
 	struct iwm_tfd *desc;
@@ -2706,7 +2706,6 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		tap->wt_chan_freq = htole16(ni->ni_chan->ic_freq);
 		tap->wt_chan_flags = htole16(ni->ni_chan->ic_flags);
 		tap->wt_rate = rinfo->rate;
-		tap->wt_hwqueue = ac;
 		if (k != NULL)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		ieee80211_radiotap_tx(vap, m);
@@ -3182,7 +3181,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	 * freed from underneath us. Grr.
 	 */
 	ni = ieee80211_ref_node(vap->iv_bss);
-	in = (struct iwm_node *) ni;
+	in = IWM_NODE(ni);
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_STATE,
 	    "%s: called; vap=%p, bss ni=%p\n",
 	    __func__,
@@ -3289,7 +3288,7 @@ out:
 static int
 iwm_assoc(struct ieee80211vap *vap, struct iwm_softc *sc)
 {
-	struct iwm_node *in = (struct iwm_node *)vap->iv_bss;
+	struct iwm_node *in = IWM_NODE(vap->iv_bss);
 	int error;
 
 	if ((error = iwm_mvm_update_sta(sc, in)) != 0) {
@@ -3515,7 +3514,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (vap->iv_state == IEEE80211_S_RUN && nstate != vap->iv_state) {
 		iwm_mvm_disable_beacon_filter(sc);
 
-		if (((in = (void *)vap->iv_bss) != NULL))
+		if (((in = IWM_NODE(vap->iv_bss)) != NULL))
 			in->in_assoc = 0;
 
 		iwm_release(sc, NULL);
@@ -3591,7 +3590,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			break;
 		}
 
-		in = (struct iwm_node *)vap->iv_bss;
+		in = IWM_NODE(vap->iv_bss);
 		iwm_mvm_power_mac_update_mode(sc, in);
 		iwm_mvm_enable_beacon_filter(sc, in);
 		iwm_mvm_update_quotas(sc, in);
@@ -4596,7 +4595,7 @@ iwm_attach(device_t dev)
 	int txq_i, i;
 
 	sc->sc_dev = dev;
-	mtx_init(&sc->sc_mtx, "iwm_mtx", MTX_DEF, 0);
+	IWM_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
@@ -4985,7 +4984,7 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	iwm_pci_detach(dev);
 
 	mbufq_drain(&sc->sc_snd);
-	mtx_destroy(&sc->sc_mtx);
+	IWM_LOCK_DESTROY(sc);
 
 	return (0);
 }
