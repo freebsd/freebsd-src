@@ -131,26 +131,14 @@ struct ath_hal;
 	OS_BUS_BARRIER((_ah), (_reg), 4, (_t))
 
 /*
- * Register read/write operations are either handled through
- * platform-dependent routines (or when debugging is enabled
- * with AH_DEBUG); or they are inline expanded using the macros
- * defined below.
+ * Register read/write operations are handled through
+ * platform-dependent routines.
  */
-#if defined(AH_DEBUG) || defined(AH_REGOPS_FUNC) || defined(AH_DEBUG_ALQ)
 #define	OS_REG_WRITE(_ah, _reg, _val)	ath_hal_reg_write(_ah, _reg, _val)
 #define	OS_REG_READ(_ah, _reg)		ath_hal_reg_read(_ah, _reg)
 
 extern	void ath_hal_reg_write(struct ath_hal *ah, u_int reg, u_int32_t val);
 extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
-#else
-/* XXX TODO: enforce barriers */
-#define	OS_REG_WRITE(_ah, _reg, _val)					\
-	bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,		\
-	    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val))
-#define	OS_REG_READ(_ah, _reg)						\
-	bus_space_read_4((bus_space_tag_t)(_ah)->ah_st,			\
-	    (bus_space_handle_t)(_ah)->ah_sh, (_reg))
-#endif
 
 #ifdef AH_DEBUG_ALQ
 extern	void OS_MARK(struct ath_hal *, u_int id, u_int32_t value);
