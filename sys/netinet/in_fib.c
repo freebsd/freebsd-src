@@ -175,8 +175,8 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
  * - howewer mtu from "transmit" interface will be returned.
  */
 int
-fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    uint32_t flags, struct nhop4_extended *pnh4)
+fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
+    uint32_t flowid, struct nhop4_extended *pnh4)
 {
 	struct radix_node_head *rh;
 	struct radix_node *rn;
