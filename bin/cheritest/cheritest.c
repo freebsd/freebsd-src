@@ -233,7 +233,12 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
 
 	/*
-	 * Test bounds on static stack allocations.
+	 * Test bounds on static stack allocations.  All will succeed on the
+	 * MIPS ABI, but the larger allocations will fail in CheriABI due to
+	 * bounds checks.
+	 *
+	 * XXXRW: We should likely add memory accesses so that they also fail
+	 * (albeit differently) on the MIPS ABI.
 	 */
 	{ .ct_name = "test_bounds_stack_static_uint8",
 	  .ct_desc = "Check bounds on 8-bit static stack allocation",
@@ -315,13 +320,34 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Check bounds on a 262,144-byte static stack allocation",
 	  .ct_func = test_bounds_stack_static_262144, },
 
+	/*
+	 * XXXRW: There isn't really a good way to tell which will fail on
+	 * CheriABI dynamically, so we just hard code.  We should do something
+	 * better here.
+	 */
 	{ .ct_name = "test_bounds_stack_static_524288",
 	  .ct_desc = "Check bounds on a 524,288-byte static stack allocation",
-	  .ct_func = test_bounds_stack_static_524288, },
+	  .ct_func = test_bounds_stack_static_524288,
+#ifdef __CHERI_SANDBOX__
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH,
+#endif
+	},
 
 	{ .ct_name = "test_bounds_stack_static_1048576",
 	  .ct_desc = "Check bounds on a 1,048,576-byte static stack allocation",
-	  .ct_func = test_bounds_stack_static_1048576, },
+	  .ct_func = test_bounds_stack_static_1048576,
+#ifdef __CHERI_SANDBOX__
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH,
+#endif
+	},
 
 	/*
 	 * Test bounds on dynamic stack allocations.
@@ -408,11 +434,27 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "test_bounds_stack_dynamic_524288",
 	  .ct_desc = "Check bounds on a 524,288-byte dynamic stack allocation",
-	  .ct_func = test_bounds_stack_dynamic_524288, },
+	  .ct_func = test_bounds_stack_dynamic_524288,
+#ifdef __CHERI_SANDBOX__
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH,
+#endif
+	},
 
 	{ .ct_name = "test_bounds_stack_dynamic_1048576",
 	  .ct_desc = "Check bounds on a 1,048,576-byte dynamic stack allocation",
-	  .ct_func = test_bounds_stack_dynamic_1048576, },
+	  .ct_func = test_bounds_stack_dynamic_1048576,
+#ifdef __CHERI_SANDBOX__
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH,
+#endif
+	},
 
 	/*
 	 * Unsandboxed virtual-memory tests.
