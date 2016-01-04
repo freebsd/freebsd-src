@@ -318,6 +318,7 @@ static int	iwn_read_firmware_leg(struct iwn_softc *,
 static int	iwn_read_firmware_tlv(struct iwn_softc *,
 		    struct iwn_fw_info *, uint16_t);
 static int	iwn_read_firmware(struct iwn_softc *);
+static void	iwn_unload_firmware(struct iwn_softc *);
 static int	iwn_clock_wait(struct iwn_softc *);
 static int	iwn_apm_init(struct iwn_softc *);
 static void	iwn_apm_stop_master(struct iwn_softc *);
@@ -8200,9 +8201,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 	if (fw->size < sizeof (uint32_t)) {
 		device_printf(sc->sc_dev, "%s: firmware too short: %zu bytes\n",
 		    __func__, fw->size);
-		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-		sc->fw_fp = NULL;
-		return EINVAL;
+		error = EINVAL;
+		goto fail;
 	}
 
 	/* Retrieve text and data sections. */
@@ -8214,9 +8214,7 @@ iwn_read_firmware(struct iwn_softc *sc)
 		device_printf(sc->sc_dev,
 		    "%s: could not read firmware sections, error %d\n",
 		    __func__, error);
-		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-		sc->fw_fp = NULL;
-		return error;
+		goto fail;
 	}
 
 	device_printf(sc->sc_dev, "%s: ucode rev=0x%08x\n", __func__, sc->ucode_rev);
@@ -8230,13 +8228,22 @@ iwn_read_firmware(struct iwn_softc *sc)
 	    (fw->boot.textsz & 3) != 0) {
 		device_printf(sc->sc_dev, "%s: firmware sections too large\n",
 		    __func__);
-		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-		sc->fw_fp = NULL;
-		return EINVAL;
+		error = EINVAL;
+		goto fail;
 	}
 
 	/* We can proceed with loading the firmware. */
 	return 0;
+
+fail:	iwn_unload_firmware(sc);
+	return error;
+}
+
+static void
+iwn_unload_firmware(struct iwn_softc *sc)
+{
+	firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
+	sc->fw_fp = NULL;
 }
 
 static int
@@ -8724,8 +8731,7 @@ iwn_init_locked(struct iwn_softc *sc)
 
 	/* Initialize hardware and upload firmware. */
 	error = iwn_hw_init(sc);
-	firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
-	sc->fw_fp = NULL;
+	iwn_unload_firmware(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not initialize hardware, error %d\n", __func__,
