@@ -14,25 +14,29 @@ SRC = \
 	help.c ifile.c input.c jump.c line.c linenum.c \
 	lsystem.c mark.c optfunc.c option.c opttbl.c os.c \
 	output.c pattern.c position.c prompt.c search.c signal.c \
-	tags.c ttyin.c version.c  
+	tags.c ttyin.c version.c
 DISTFILES_W = \
 	defines.ds  Makefile.dsb Makefile.dsg Makefile.dsu \
 	defines.o2  Makefile.o2e \
 	defines.o9  Makefile.o9c Makefile.o9u \
-	defines.wn  Makefile.wnm Makefile.wnb
+	defines.wn  Makefile.wnm Makefile.wnb \
+	configure 
+UNICODE_FILES = \
+	compose.uni ubin.uni wide.uni
 DISTFILES = \
 	${SRC} regexp.c regexp.h \
 	COPYING INSTALL LICENSE Makefile.in Makefile.aut NEWS README \
-	configure configure.ac lesskey.c lessecho.c scrsize.c \
+	configure.ac lesskey.c lessecho.c scrsize.c \
 	charset.h cmd.h funcs.h lglob.h less.h lesskey.h option.h \
 	pckeys.h pattern.h position.h \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
 	less.hlp \
 	mkfuncs.awk mkhelp.c \
+	mkutable $(UNICODE_FILES) \
 	${DISTFILES_W}
 
-all: help.c funcs.h ${srcdir}/configure 
+all: help.c funcs.h $(UNICODE_FILES) ${srcdir}/configure 
 
 release: .FORCE
 	${MAKE} -f Makefile.aut tagall 
@@ -46,7 +50,7 @@ help.c: less.hlp mkhelp
 	-mv -f ${srcdir}/help.c ${srcdir}/help.c.old
 	rm -rf help.c
 	./mkhelp < less.hlp > help.c
-	if cmp -s help.c help.c.old; then mv help.c.old help.c; fi
+	if cmp -s help.c help.c.old; then mv -f help.c.old help.c; fi
 
 mkhelp: mkhelp.c
 	${CC} -o mkhelp mkhelp.c
@@ -58,7 +62,7 @@ ${srcdir}/configure: ${srcdir}/configure.ac \
 funcs.h: ${SRC:%=${srcdir}/%}
 	-mv -f ${srcdir}/funcs.h ${srcdir}/funcs.h.old
 	awk -f ${srcdir}/mkfuncs.awk ${SRC:%=${srcdir}/%} >${srcdir}/funcs.h
-	if cmp -s funcs.h funcs.h.old; then mv funcs.h.old funcs.h; fi
+	if cmp -s funcs.h funcs.h.old; then mv -f funcs.h.old funcs.h; fi
 
 lint:
 	lint -I. ${CPPFLAGS} ${SRC}
@@ -75,6 +79,7 @@ REPLACE_VERSION = \
 	@REL=`sed -e '/char version/!d' -e 's/[^0-9.]*\([0-9.]*\).*/\1/' -e q ${srcdir}/version.c`; \
 	DT=`date '+%d %h %Y'`; \
 	echo "Stuffing version number $$REL into $@"; \
+	rm -f $@; \
 	sed \
 		-e "s;@@VERSION@@;$$REL;" \
 		-e "s;@@DATE@@;$$DT;" \
@@ -101,6 +106,12 @@ ${srcdir}/lesskey.man: ${srcdir}/lesskey.nro
 ${srcdir}/lessecho.man: ${srcdir}/lessecho.nro
 	${NROFF} ${srcdir}/lessecho.nro >${srcdir}/lessecho.man
 
+compose.uni: unicode/UnicodeData.txt
+	./mkutable -f2 Mn Me -- unicode/UnicodeData.txt > $@
+ubin.uni: unicode/UnicodeData.txt
+	./mkutable -f2 Cc Cf Cs Co Zl Zp -- unicode/UnicodeData.txt > $@
+wide.uni: unicode/EastAsianWidth.txt
+	./mkutable -f1 W -- unicode/EastAsianWidth.txt > $@
 
 distfiles: ${DISTFILES}
 
@@ -114,7 +125,7 @@ dist: ${DISTFILES}
 	for file in ${DISTFILES}; do \
 	  ./add_copyright $$file $$REL; \
 	done; \
-	cd $$REL; chmod +w ${DISTFILES_W}; cd ..; \
+	cd $$REL; chmod -w *; chmod +w ${DISTFILES_W}; chmod +x configure; cd ..; \
 	echo "Creating release/$$REL/$$REL.tar.gz"; \
 	tar -cf - $$REL | gzip -c >release/$$REL/$$REL.tar.gz; \
 	echo "Signing release/$$REL/$$REL.tar.gz"; \

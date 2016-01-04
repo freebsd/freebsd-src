@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -345,6 +345,8 @@
 
 #define	popen	_popen
 #define	pclose	_pclose
+#if !defined(_MSC_VER) || (_MSC_VER < 1900) 
 #define snprintf	_snprintf
+#endif
 
 #pragma warning(disable:4996)

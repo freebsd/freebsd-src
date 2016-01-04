@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -20,10 +20,11 @@ extern int caseless;
  * Compile a search pattern, for future use by match_pattern.
  */
 	static int
-compile_pattern2(pattern, search_type, comp_pattern)
+compile_pattern2(pattern, search_type, comp_pattern, show_error)
 	char *pattern;
 	int search_type;
 	void **comp_pattern;
+	int show_error;
 {
 	if (search_type & SRCH_NO_REGEX)
 		return (0);
@@ -37,7 +38,8 @@ compile_pattern2(pattern, search_type, comp_pattern)
 	if (re_compile_pattern(pattern, strlen(pattern), comp))
 	{
 		free(comp);
-		error("Invalid pattern", NULL_PARG);
+		if (show_error)
+			error("Invalid pattern", NULL_PARG);
 		return (-1);
 	}
 	if (*pcomp != NULL)
@@ -50,7 +52,8 @@ compile_pattern2(pattern, search_type, comp_pattern)
 	if (regcomp(comp, pattern, REGCOMP_FLAG))
 	{
 		free(comp);
-		error("Invalid pattern", NULL_PARG);
+		if (show_error)
+			error("Invalid pattern", NULL_PARG);
 		return (-1);
 	}
 	if (*pcomp != NULL)
@@ -68,7 +71,8 @@ compile_pattern2(pattern, search_type, comp_pattern)
 	if (comp == NULL)
 	{
 		parg.p_string = (char *) errstring;
-		error("%s", &parg);
+		if (show_error)
+			error("%s", &parg);
 		return (-1);
 	}
 	*pcomp = comp;
@@ -78,7 +82,8 @@ compile_pattern2(pattern, search_type, comp_pattern)
 	int *pcomp = (int *) comp_pattern;
 	if ((parg.p_string = re_comp(pattern)) != NULL)
 	{
-		error("%s", &parg);
+		if (show_error)
+			error("%s", &parg);
 		return (-1);
 	}
 	*pcomp = 1;
@@ -88,7 +93,8 @@ compile_pattern2(pattern, search_type, comp_pattern)
 	char **pcomp = (char **) comp_pattern;
 	if ((comp = regcmp(pattern, 0)) == NULL)
 	{
-		error("Invalid pattern", NULL_PARG);
+		if (show_error)
+			error("Invalid pattern", NULL_PARG);
 		return (-1);
 	}
 	if (pcomp != NULL)
@@ -98,7 +104,10 @@ compile_pattern2(pattern, search_type, comp_pattern)
 #if HAVE_V8_REGCOMP
 	struct regexp *comp;
 	struct regexp **pcomp = (struct regexp **) comp_pattern;
-	if ((comp = regcomp(pattern)) == NULL)
+	reg_show_error = show_error;
+	comp = regcomp(pattern);
+	reg_show_error = 1;
+	if (comp == NULL)
 	{
 		/*
 		 * regcomp has already printed an error message 
@@ -133,7 +142,7 @@ compile_pattern(pattern, search_type, comp_pattern)
 		cvt_pattern = (char*) ecalloc(1, cvt_length(strlen(pattern), CVT_TO_LC));
 		cvt_text(cvt_pattern, pattern, (int *)NULL, (int *)NULL, CVT_TO_LC);
 	}
-	result = compile_pattern2(cvt_pattern, search_type, comp_pattern);
+	result = compile_pattern2(cvt_pattern, search_type, comp_pattern, 1);
 	if (cvt_pattern != pattern)
 		free(cvt_pattern);
 	return (result);
@@ -183,6 +192,24 @@ uncompile_pattern(pattern)
 }
 
 /*
+ * Can a pattern be successfully compiled?
+ */
+	public int
+valid_pattern(pattern)
+	char *pattern;
+{
+	void *comp_pattern;
+	int result;
+
+	CLEAR_PATTERN(comp_pattern);
+	result = compile_pattern2(pattern, 0, &comp_pattern, 0);
+	if (result != 0)
+		return (0);
+	uncompile_pattern(&comp_pattern);
+	return (1);
+}
+
+/*
  * Is a compiled pattern null?
  */
 	public int
@@ -207,6 +234,9 @@ is_null_pattern(pattern)
 #if HAVE_V8_REGCOMP
 	return (pattern == NULL);
 #endif
+#if NO_REGEX
+	return (pattern == NULL);
+#endif
 }
 
 /*
@@ -227,9 +257,17 @@ match(pattern, pattern_len, buf, buf_len, pfound, pend)
 
 	for ( ;  buf < buf_end;  buf++)
 	{
-		for (pp = pattern, lp = buf;  *pp == *lp;  pp++, lp++)
+		for (pp = pattern, lp = buf;  ;  pp++, lp++)
+		{
+			char cp = *pp;
+			char cl = *lp;
+			if (caseless == OPT_ONPLUS && ASCII_IS_UPPER(cp))
+				cp = ASCII_TO_LOWER(cp);
+			if (cp != cl)
+				break;
 			if (pp == pattern_end || lp == buf_end)
 				break;
+		}
 		if (pp == pattern_end)
 		{
 			if (pfound != NULL)
@@ -277,6 +315,7 @@ match_pattern(pattern, tpattern, line, line_len, sp, ep, notbol, search_type)
 	struct regexp *spattern = (struct regexp *) pattern;
 #endif
 
+	*sp = *ep = NULL;
 #if NO_REGEX
 	search_type |= SRCH_NO_REGEX;
 #endif
@@ -287,24 +326,25 @@ match_pattern(pattern, tpattern, line, line_len, sp, ep, notbol, search_type)
 #if HAVE_GNU_REGEX
 	{
 		struct re_registers search_regs;
-		regoff_t *starts = (regoff_t *) ecalloc(1, sizeof (regoff_t));
-		regoff_t *ends = (regoff_t *) ecalloc(1, sizeof (regoff_t));
 		spattern->not_bol = notbol;
-		re_set_registers(spattern, &search_regs, 1, starts, ends);
+		spattern->regs_allocated = REGS_UNALLOCATED;
 		matched = re_search(spattern, line, line_len, 0, line_len, &search_regs) >= 0;
 		if (matched)
 		{
 			*sp = line + search_regs.start[0];
 			*ep = line + search_regs.end[0];
 		}
-		free(starts);
-		free(ends);
 	}
 #endif
 #if HAVE_POSIX_REGCOMP
 	{
 		regmatch_t rm;
 		int flags = (notbol) ? REG_NOTBOL : 0;
+#ifdef REG_STARTEND
+		flags |= REG_STARTEND;
+		rm.rm_so = 0;
+		rm.rm_eo = line_len;
+#endif
 		matched = !regexec(spattern, line, 1, &rm, flags);
 		if (matched)
 		{
