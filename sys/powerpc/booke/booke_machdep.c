@@ -173,7 +173,7 @@ uint32_t *bootinfo;
 
 void print_kernel_section_addr(void);
 void print_kenv(void);
-uintptr_t booke_init(uint32_t, uint32_t);
+uintptr_t booke_init(u_long, u_long);
 void ivor_setup(void);
 
 extern void *interrupt_vector_base;
@@ -268,7 +268,7 @@ booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
 }
 
 uintptr_t
-booke_init(uint32_t arg1, uint32_t arg2)
+booke_init(u_long arg1, u_long arg2)
 {
 	uintptr_t ret;
 	void *mdp;
