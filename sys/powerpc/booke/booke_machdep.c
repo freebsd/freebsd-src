@@ -316,8 +316,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	else					/* U-Boot */
 		mdp = NULL;
 
-	ret = powerpc_init(dtbp, 0, 0, mdp);
-
 	/* Default to 32 byte cache line size. */
 	switch ((mfpvr()) >> 16) {
 	case FSL_E500mc:
@@ -326,6 +324,8 @@ booke_init(uint32_t arg1, uint32_t arg2)
 		cacheline_size = 64;
 		break;
 	}
+
+	ret = powerpc_init(dtbp, 0, 0, mdp);
 
 	/* Enable caches */
 	booke_enable_l1_cache();
