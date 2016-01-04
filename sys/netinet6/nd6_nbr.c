@@ -248,37 +248,35 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/* (2) check. */
 	if (ifa == NULL) {
-		struct route_in6 ro;
-		int need_proxy;
+		struct sockaddr_dl rt_gateway;
+		struct rt_addrinfo info;
+		struct sockaddr_in6 dst6;
 
-		bzero(&ro, sizeof(ro));
-		ro.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		ro.ro_dst.sin6_family = AF_INET6;
-		ro.ro_dst.sin6_addr = taddr6;
+		bzero(&dst6, sizeof(dst6));
+		dst6.sin6_len = sizeof(struct sockaddr_in6);
+		dst6.sin6_family = AF_INET6;
+		dst6.sin6_addr = taddr6;
+
+		bzero(&rt_gateway, sizeof(rt_gateway));
+		rt_gateway.sdl_len = sizeof(rt_gateway);
+		bzero(&info, sizeof(info));
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
 
 		/* Always use the default FIB. */
-#ifdef RADIX_MPATH
-		rtalloc_mpath_fib((struct route *)&ro, ntohl(taddr6.s6_addr32[3]),
-		    RT_DEFAULT_FIB);
-#else
-		in6_rtalloc(&ro, RT_DEFAULT_FIB);
-#endif
-		need_proxy = (ro.ro_rt &&
-		    (ro.ro_rt->rt_flags & RTF_ANNOUNCE) != 0 &&
-		    ro.ro_rt->rt_gateway->sa_family == AF_LINK);
-		if (ro.ro_rt != NULL) {
-			if (need_proxy)
-				proxydl = *SDL(ro.ro_rt->rt_gateway);
-			RTFREE(ro.ro_rt);
-		}
-		if (need_proxy) {
-			/*
-			 * proxy NDP for single entry
-			 */
-			ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
-				IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
-			if (ifa)
-				proxy = 1;
+		if (rib_lookup_info(RT_DEFAULT_FIB, (struct sockaddr *)&dst6,
+		    0, 0, &info) == 0) {
+			if ((info.rti_flags & RTF_ANNOUNCE) != 0 &&
+			    rt_gateway.sdl_family == AF_LINK) {
+
+				/*
+				 * proxy NDP for single entry
+				 */
+				proxydl = *SDL(&rt_gateway);
+				ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(
+				    ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
+				if (ifa)
+					proxy = 1;
+			}
 		}
 	}
 	if (ifa == NULL) {
