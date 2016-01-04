@@ -69,12 +69,49 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 	} else {
 		error = 0;
 	}
-
 	/* check if device is gone */
 	if (priv->gone) {
 		error = ENXIO;
 		goto done;
 	}
+	/* import RX coal time */
+	if (priv->params_ethtool.rx_coalesce_usecs < 1)
+		priv->params_ethtool.rx_coalesce_usecs = 0;
+	else if (priv->params_ethtool.rx_coalesce_usecs >
+	    MLX5E_FLD_MAX(cqc, cq_period)) {
+		priv->params_ethtool.rx_coalesce_usecs =
+		    MLX5E_FLD_MAX(cqc, cq_period);
+	}
+	priv->params.rx_cq_moderation_usec = priv->params_ethtool.rx_coalesce_usecs;
+
+	/* import RX coal pkts */
+	if (priv->params_ethtool.rx_coalesce_pkts < 1)
+		priv->params_ethtool.rx_coalesce_pkts = 0;
+	else if (priv->params_ethtool.rx_coalesce_pkts >
+	    MLX5E_FLD_MAX(cqc, cq_max_count)) {
+		priv->params_ethtool.rx_coalesce_pkts =
+		    MLX5E_FLD_MAX(cqc, cq_max_count);
+	}
+	priv->params.rx_cq_moderation_pkts = priv->params_ethtool.rx_coalesce_pkts;
+
+	/* import TX coal time */
+	if (priv->params_ethtool.tx_coalesce_usecs < 1)
+		priv->params_ethtool.tx_coalesce_usecs = 0;
+	else if (priv->params_ethtool.tx_coalesce_usecs >
+	    MLX5E_FLD_MAX(cqc, cq_period)) {
+		priv->params_ethtool.tx_coalesce_usecs =
+		    MLX5E_FLD_MAX(cqc, cq_period);
+	}
+	priv->params.tx_cq_moderation_usec = priv->params_ethtool.tx_coalesce_usecs;
+
+	/* import TX coal pkts */
+	if (priv->params_ethtool.tx_coalesce_pkts < 1)
+		priv->params_ethtool.tx_coalesce_pkts = 0;
+	else if (priv->params_ethtool.tx_coalesce_pkts >
+	    MLX5E_FLD_MAX(cqc, cq_max_count)) {
+		priv->params_ethtool.tx_coalesce_pkts = MLX5E_FLD_MAX(cqc, cq_max_count);
+	}
+	priv->params.tx_cq_moderation_pkts = priv->params_ethtool.tx_coalesce_pkts;
 
 	if (&priv->params_ethtool.arg[arg2] == &priv->params_ethtool.rx_pauseframe_control ||
 	    &priv->params_ethtool.arg[arg2] == &priv->params_ethtool.tx_pauseframe_control) {
@@ -92,9 +129,19 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 	}
 
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (was_opened)
-		mlx5e_close_locked(priv->ifp);
+	if (was_opened) {
+		u64 *xarg = priv->params_ethtool.arg + arg2;
 
+		if (xarg == &priv->params_ethtool.tx_coalesce_pkts ||
+		    xarg == &priv->params_ethtool.rx_coalesce_pkts ||
+		    xarg == &priv->params_ethtool.tx_coalesce_usecs ||
+		    xarg == &priv->params_ethtool.rx_coalesce_usecs) {
+			/* avoid downing and upping the network interface */
+			error = mlx5e_refresh_channel_params(priv);
+			goto done;
+		}
+		mlx5e_close_locked(priv->ifp);
+	}
 	/* import TX queue size */
 	if (priv->params_ethtool.tx_queue_size <
 	    (1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)) {
@@ -144,45 +191,6 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 	if (priv->params_ethtool.tx_coalesce_mode != 0)
 		priv->params_ethtool.tx_coalesce_mode = 1;
 	priv->params.tx_cq_moderation_mode = priv->params_ethtool.tx_coalesce_mode;
-
-	/* import RX coal time */
-	if (priv->params_ethtool.rx_coalesce_usecs < 1)
-		priv->params_ethtool.rx_coalesce_usecs = 0;
-	else if (priv->params_ethtool.rx_coalesce_usecs >
-	    MLX5E_FLD_MAX(cqc, cq_period)) {
-		priv->params_ethtool.rx_coalesce_usecs =
-		    MLX5E_FLD_MAX(cqc, cq_period);
-	}
-	priv->params.rx_cq_moderation_usec = priv->params_ethtool.rx_coalesce_usecs;
-
-	/* import RX coal pkts */
-	if (priv->params_ethtool.rx_coalesce_pkts < 1)
-		priv->params_ethtool.rx_coalesce_pkts = 0;
-	else if (priv->params_ethtool.rx_coalesce_pkts >
-	    MLX5E_FLD_MAX(cqc, cq_max_count)) {
-		priv->params_ethtool.rx_coalesce_pkts =
-		    MLX5E_FLD_MAX(cqc, cq_max_count);
-	}
-	priv->params.rx_cq_moderation_pkts = priv->params_ethtool.rx_coalesce_pkts;
-
-	/* import TX coal time */
-	if (priv->params_ethtool.tx_coalesce_usecs < 1)
-		priv->params_ethtool.tx_coalesce_usecs = 0;
-	else if (priv->params_ethtool.tx_coalesce_usecs >
-	    MLX5E_FLD_MAX(cqc, cq_period)) {
-		priv->params_ethtool.tx_coalesce_usecs =
-		    MLX5E_FLD_MAX(cqc, cq_period);
-	}
-	priv->params.tx_cq_moderation_usec = priv->params_ethtool.tx_coalesce_usecs;
-
-	/* import TX coal pkts */
-	if (priv->params_ethtool.tx_coalesce_pkts < 1)
-		priv->params_ethtool.tx_coalesce_pkts = 0;
-	else if (priv->params_ethtool.tx_coalesce_pkts >
-	    MLX5E_FLD_MAX(cqc, cq_max_count)) {
-		priv->params_ethtool.tx_coalesce_pkts = MLX5E_FLD_MAX(cqc, cq_max_count);
-	}
-	priv->params.tx_cq_moderation_pkts = priv->params_ethtool.tx_coalesce_pkts;
 
 	/* we always agree to turn off HW LRO - but not always to turn on */
 	if (priv->params_ethtool.hw_lro) {
