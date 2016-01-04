@@ -13,7 +13,6 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
-
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -88,9 +87,15 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = tests$(EXEEXT)
-TESTS = $(am__EXEEXT_1)
-@NTP_CROSSCOMPILE_FALSE@am__append_1 = tests
+check_PROGRAMS = test-leapsec$(EXEEXT) test-ntp_prio_q$(EXEEXT) \
+	$(am__EXEEXT_1) $(am__EXEEXT_2) $(am__EXEEXT_3) \
+	$(am__EXEEXT_4) test-rc_cmdlength$(EXEEXT) $(am__EXEEXT_1)
+@BUILD_TEST_NTP_RESTRICT_TRUE@am__append_1 = test-ntp_restrict
+@BUILD_TEST_NTP_SCANNER_TRUE@am__append_2 = test-ntp_scanner
+@BUILD_TEST_NTP_SIGND_TRUE@am__append_3 = test-ntp_signd
+EXTRA_PROGRAMS = test-ntp_restrict$(EXEEXT) test-ntp_scanner$(EXEEXT) \
+	test-ntp_signd$(EXEEXT) $(am__EXEEXT_1)
+@NTP_CROSSCOMPILE_FALSE@am__append_4 = $(check_PROGRAMS)
 subdir = tests/ntpd
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
@@ -119,6 +124,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ntp_locinfo.m4 \
 	$(top_srcdir)/sntp/m4/ntp_openssl.m4 \
 	$(top_srcdir)/sntp/m4/ntp_pkg_config.m4 \
+	$(top_srcdir)/sntp/m4/ntp_problemtests.m4 \
 	$(top_srcdir)/sntp/m4/ntp_prog_cc.m4 \
 	$(top_srcdir)/sntp/m4/ntp_rlimit.m4 \
 	$(top_srcdir)/sntp/m4/ntp_sntp.m4 \
@@ -132,26 +138,89 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/version.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-DIST_COMMON = $(srcdir)/Makefile.am $(noinst_HEADERS) \
-	$(am__DIST_COMMON)
+DIST_COMMON = $(srcdir)/Makefile.am $(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+am__EXEEXT_1 =
+@BUILD_TEST_NTP_RESTRICT_TRUE@am__EXEEXT_2 =  \
+@BUILD_TEST_NTP_RESTRICT_TRUE@	test-ntp_restrict$(EXEEXT)
+@BUILD_TEST_NTP_SCANNER_TRUE@am__EXEEXT_3 = test-ntp_scanner$(EXEEXT)
+@BUILD_TEST_NTP_SIGND_TRUE@am__EXEEXT_4 = test-ntp_signd$(EXEEXT)
 am__objects_1 =
-am_tests_OBJECTS = tests_main.$(OBJEXT) ntpdtest.$(OBJEXT) \
-	ntp_leapsec.$(OBJEXT) leapsec.$(OBJEXT) $(am__objects_1)
-tests_OBJECTS = $(am_tests_OBJECTS)
-tests_LDADD = $(LDADD)
+am_test_leapsec_OBJECTS = test_leapsec-leapsec.$(OBJEXT) \
+	test_leapsec-run-leapsec.$(OBJEXT) \
+	test_leapsec-test-libntp.$(OBJEXT) $(am__objects_1)
+test_leapsec_OBJECTS = $(am_test_leapsec_OBJECTS)
 am__DEPENDENCIES_1 =
-tests_DEPENDENCIES = $(top_builddir)/libntp/libntp.a \
+am__DEPENDENCIES_2 = $(top_builddir)/ntpd/libntpd.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1)
+am__DEPENDENCIES_3 = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/sntp/unity/libunity.a $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
+test_leapsec_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+test_leapsec_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_leapsec_CFLAGS) \
+	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+am_test_ntp_prio_q_OBJECTS = test_ntp_prio_q-ntp_prio_q.$(OBJEXT) \
+	test_ntp_prio_q-run-ntp_prio_q.$(OBJEXT) \
+	test_ntp_prio_q-test-libntp.$(OBJEXT) $(am__objects_1)
+test_ntp_prio_q_OBJECTS = $(am_test_ntp_prio_q_OBJECTS)
+test_ntp_prio_q_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	../../ntpd/ntpdsim-ntp_prio_q.o $(am__DEPENDENCIES_1)
+test_ntp_prio_q_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(test_ntp_prio_q_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
+	-o $@
+am_test_ntp_restrict_OBJECTS =  \
+	test_ntp_restrict-ntp_restrict.$(OBJEXT) \
+	test_ntp_restrict-run-ntp_restrict.$(OBJEXT) \
+	test_ntp_restrict-test-libntp.$(OBJEXT) $(am__objects_1)
+test_ntp_restrict_OBJECTS = $(am_test_ntp_restrict_OBJECTS)
+test_ntp_restrict_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(am__DEPENDENCIES_1)
+test_ntp_restrict_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(test_ntp_restrict_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
+	-o $@
+am_test_ntp_scanner_OBJECTS =  \
+	test_ntp_scanner-t-ntp_scanner.$(OBJEXT) \
+	test_ntp_scanner-run-t-ntp_scanner.$(OBJEXT) \
+	test_ntp_scanner-test-libntp.$(OBJEXT) $(am__objects_1)
+test_ntp_scanner_OBJECTS = $(am_test_ntp_scanner_OBJECTS)
+test_ntp_scanner_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(top_builddir)/ntpd/ntp_config.o \
+	$(top_builddir)/ntpd/ntp_parser.o $(am__DEPENDENCIES_1)
+test_ntp_scanner_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(test_ntp_scanner_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
+	-o $@
+am_test_ntp_signd_OBJECTS = t-ntp_signd.$(OBJEXT) \
+	run-t-ntp_signd.$(OBJEXT) test-libntp.$(OBJEXT) \
+	ntp_signd.$(OBJEXT) $(am__objects_1)
+test_ntp_signd_OBJECTS = $(am_test_ntp_signd_OBJECTS)
+test_ntp_signd_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(top_builddir)/ntpd/ntp_config.o \
+	$(top_builddir)/ntpd/ntp_io.o $(am__DEPENDENCIES_1)
+am_test_rc_cmdlength_OBJECTS =  \
+	test_rc_cmdlength-rc_cmdlength.$(OBJEXT) \
+	test_rc_cmdlength-run-rc_cmdlength.$(OBJEXT) \
+	test_rc_cmdlength-test-libntp.$(OBJEXT) $(am__objects_1)
+test_rc_cmdlength_OBJECTS = $(am_test_rc_cmdlength_OBJECTS)
+test_rc_cmdlength_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(am__DEPENDENCIES_1)
+test_rc_cmdlength_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(test_rc_cmdlength_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
+	-o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -186,32 +255,17 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
-	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
-	$(AM_CXXFLAGS) $(CXXFLAGS)
-AM_V_CXX = $(am__v_CXX_@AM_V@)
-am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
-am__v_CXX_0 = @echo "  CXX     " $@;
-am__v_CXX_1 = 
-CXXLD = $(CXX)
-CXXLINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
-	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
-am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
-am__v_CXXLD_0 = @echo "  CXXLD   " $@;
-am__v_CXXLD_1 = 
-SOURCES = $(tests_SOURCES)
-DIST_SOURCES = $(tests_SOURCES)
+SOURCES = $(test_leapsec_SOURCES) $(test_ntp_prio_q_SOURCES) \
+	$(test_ntp_restrict_SOURCES) $(test_ntp_scanner_SOURCES) \
+	$(test_ntp_signd_SOURCES) $(test_rc_cmdlength_SOURCES)
+DIST_SOURCES = $(test_leapsec_SOURCES) $(test_ntp_prio_q_SOURCES) \
+	$(test_ntp_restrict_SOURCES) $(test_ntp_scanner_SOURCES) \
+	$(test_ntp_signd_SOURCES) $(test_rc_cmdlength_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-HEADERS = $(noinst_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -415,7 +469,6 @@ am__set_TESTS_bases = \
   bases=`echo $$bases`
 RECHECK_LOGS = $(TEST_LOGS)
 AM_RECURSIVE_TARGETS = check recheck
-@NTP_CROSSCOMPILE_FALSE@am__EXEEXT_1 = tests$(EXEEXT)
 TEST_SUITE_LOG = test-suite.log
 TEST_EXTENSIONS = @EXEEXT@ .test
 LOG_DRIVER = $(SHELL) \
@@ -452,6 +505,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BUILD_THREAD = @BUILD_THREAD@
 CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
 CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
 CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
@@ -460,6 +514,7 @@ CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_LIBEVENT = @CFLAGS_LIBEVENT@
 CFLAGS_NTP = @CFLAGS_NTP@
 CHUTEST = @CHUTEST@
 CONFIG_SHELL = @CONFIG_SHELL@
@@ -521,6 +576,7 @@ LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LSCF = @LSCF@
+LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MAKE_ADJTIMED = @MAKE_ADJTIMED@
@@ -707,31 +763,136 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 NULL = 
-BUILT_SOURCES = check-libntp .deps-ver
-CLEANFILES = check-libntp .deps-ver
+BUILT_SOURCES = $(srcdir)/run-leapsec.c $(srcdir)/run-ntp_prio_q.c \
+	$(srcdir)/run-ntp_restrict.c $(srcdir)/run-rc_cmdlength.c \
+	$(srcdir)/run-t-ntp_signd.c $(NULL) check-libntpd check-libntp \
+	check-libunity .deps-ver
+CLEANFILES = check-libntpd check-libntp check-libunity .deps-ver
+std_unity_list = \
+	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(NULL)
+
+run_unity = cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
 LDADD = \
+	$(top_builddir)/ntpd/libntpd.a	\
 	$(top_builddir)/libntp/libntp.a	\
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
-	$(GTEST_LDFLAGS)		\
-	$(GTEST_LIBS)			\
+	$(NULL)
+
+unity_tests_LDADD = \
+	$(LDADD)				\
+	$(top_builddir)/sntp/unity/libunity.a	\
+	$(LIBM)					\
 	$(NULL)
 
 AM_CFLAGS = $(CFLAGS_NTP)
-AM_CXXFLAGS = $(GTEST_CXXFLAGS)
 AM_CPPFLAGS = $(NTP_INCS) -I$(top_srcdir)/sntp -I$(top_srcdir)/ntpd \
-	$(GTEST_CPPFLAGS) $(CPPFLAGS_NTP)
+	-I$(top_srcdir)/tests/libntp $(CPPFLAGS_NTP) \
+	-DUNITY_INCLUDE_CONFIG_H -I$(top_srcdir)/sntp/unity
 AM_LDFLAGS = $(LDFLAGS_NTP)
-tests_SOURCES = $(top_srcdir)/sntp/tests_main.cpp	\
-		ntpdtest.cpp		\
-		$(top_srcdir)/ntpd/ntp_leapsec.c	\
-		leapsec.cpp	\
-		$(NULL)
 
-noinst_HEADERS = ntpdtest.h	\
-			$(NULL)
+###
+test_leapsec_CFLAGS = \
+	-I$(top_srcdir)/sntp/unity	\
+	$(NULL)
 
+
+# Might need pthread support
+test_leapsec_LDADD = \
+	$(unity_tests_LDADD)		\
+	$(NULL)
+
+test_leapsec_SOURCES = \
+	leapsec.c			\
+	run-leapsec.c			\
+	$(srcdir)/../libntp/test-libntp.c		\
+	$(NULL)
+
+
+###
+test_ntp_prio_q_CFLAGS = \
+	-I$(top_srcdir)/sntp/unity	\
+	$(NULL)
+
+test_ntp_prio_q_LDADD = \
+	$(unity_tests_LDADD)		\
+	../../ntpd/ntpdsim-ntp_prio_q.o	\
+	$(NULL)
+
+test_ntp_prio_q_SOURCES = \
+	ntp_prio_q.c				\
+	run-ntp_prio_q.c			\
+	$(srcdir)/../libntp/test-libntp.c	\
+	$(NULL)
+
+
+###
+test_ntp_restrict_CFLAGS = \
+	-I$(top_srcdir)/sntp/unity	\
+	$(NULL)
+
+test_ntp_restrict_LDADD = \
+	$(unity_tests_LDADD)		\
+	$(NULL)
+
+test_ntp_restrict_SOURCES = \
+	ntp_restrict.c			\
+	run-ntp_restrict.c		\
+	$(srcdir)/../libntp/test-libntp.c	\
+	$(NULL)
+
+
+###
+test_rc_cmdlength_CFLAGS = \
+	-I$(top_srcdir)/sntp/unity	\
+	$(NULL)
+
+test_rc_cmdlength_LDADD = \
+	$(unity_tests_LDADD)		\
+	$(NULL)
+
+test_rc_cmdlength_SOURCES = \
+	rc_cmdlength.c			\
+	run-rc_cmdlength.c		\
+	$(srcdir)/../libntp/test-libntp.c	\
+	$(NULL)
+
+
+###
+test_ntp_signd_LDADD = \
+	$(unity_tests_LDADD)		\
+	$(top_builddir)/ntpd/ntp_config.o	\
+	$(top_builddir)/ntpd/ntp_io.o	\
+	$(NULL)
+
+test_ntp_signd_SOURCES = \
+	t-ntp_signd.c				\
+	run-t-ntp_signd.c			\
+	$(srcdir)/../libntp/test-libntp.c	\
+	$(srcdir)/../../ntpd/ntp_signd.c	\
+	$(NULL)
+
+
+###
+test_ntp_scanner_CFLAGS = \
+	-I$(top_srcdir)/sntp/unity	\
+	$(NULL)
+
+test_ntp_scanner_LDADD = \
+	$(unity_tests_LDADD)		\
+	$(top_builddir)/ntpd/ntp_config.o	\
+	$(top_builddir)/ntpd/ntp_parser.o	\
+	$(NULL)
+
+test_ntp_scanner_SOURCES = \
+	t-ntp_scanner.c				\
+	run-t-ntp_scanner.c			\
+	$(srcdir)/../libntp/test-libntp.c	\
+	$(NULL)
+
+TESTS = $(am__append_4)
 NTP_INCS = -I$(top_srcdir)/include -I$(top_srcdir)/lib/isc/include \
 	-I$(top_srcdir)/lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/include \
 	-I$(top_srcdir)/lib/isc/unix/include
@@ -739,7 +900,7 @@ all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
-.SUFFIXES: .c .cpp .lo .log .o .obj .test .test$(EXEEXT) .trs
+.SUFFIXES: .c .lo .log .o .obj .test .test$(EXEEXT) .trs
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(top_srcdir)/depsver.mf $(top_srcdir)/includes.mf $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -780,9 +941,29 @@ clean-checkPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
-tests$(EXEEXT): $(tests_OBJECTS) $(tests_DEPENDENCIES) $(EXTRA_tests_DEPENDENCIES) 
-	@rm -f tests$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(tests_OBJECTS) $(tests_LDADD) $(LIBS)
+test-leapsec$(EXEEXT): $(test_leapsec_OBJECTS) $(test_leapsec_DEPENDENCIES) $(EXTRA_test_leapsec_DEPENDENCIES) 
+	@rm -f test-leapsec$(EXEEXT)
+	$(AM_V_CCLD)$(test_leapsec_LINK) $(test_leapsec_OBJECTS) $(test_leapsec_LDADD) $(LIBS)
+
+test-ntp_prio_q$(EXEEXT): $(test_ntp_prio_q_OBJECTS) $(test_ntp_prio_q_DEPENDENCIES) $(EXTRA_test_ntp_prio_q_DEPENDENCIES) 
+	@rm -f test-ntp_prio_q$(EXEEXT)
+	$(AM_V_CCLD)$(test_ntp_prio_q_LINK) $(test_ntp_prio_q_OBJECTS) $(test_ntp_prio_q_LDADD) $(LIBS)
+
+test-ntp_restrict$(EXEEXT): $(test_ntp_restrict_OBJECTS) $(test_ntp_restrict_DEPENDENCIES) $(EXTRA_test_ntp_restrict_DEPENDENCIES) 
+	@rm -f test-ntp_restrict$(EXEEXT)
+	$(AM_V_CCLD)$(test_ntp_restrict_LINK) $(test_ntp_restrict_OBJECTS) $(test_ntp_restrict_LDADD) $(LIBS)
+
+test-ntp_scanner$(EXEEXT): $(test_ntp_scanner_OBJECTS) $(test_ntp_scanner_DEPENDENCIES) $(EXTRA_test_ntp_scanner_DEPENDENCIES) 
+	@rm -f test-ntp_scanner$(EXEEXT)
+	$(AM_V_CCLD)$(test_ntp_scanner_LINK) $(test_ntp_scanner_OBJECTS) $(test_ntp_scanner_LDADD) $(LIBS)
+
+test-ntp_signd$(EXEEXT): $(test_ntp_signd_OBJECTS) $(test_ntp_signd_DEPENDENCIES) $(EXTRA_test_ntp_signd_DEPENDENCIES) 
+	@rm -f test-ntp_signd$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_ntp_signd_OBJECTS) $(test_ntp_signd_LDADD) $(LIBS)
+
+test-rc_cmdlength$(EXEEXT): $(test_rc_cmdlength_OBJECTS) $(test_rc_cmdlength_DEPENDENCIES) $(EXTRA_test_rc_cmdlength_DEPENDENCIES) 
+	@rm -f test-rc_cmdlength$(EXEEXT)
+	$(AM_V_CCLD)$(test_rc_cmdlength_LINK) $(test_rc_cmdlength_OBJECTS) $(test_rc_cmdlength_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -790,10 +971,25 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/leapsec.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_leapsec.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntpdtest.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tests_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ntp_signd.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-t-ntp_signd.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t-ntp_signd.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-libntp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_leapsec-leapsec.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_leapsec-run-leapsec.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_leapsec-test-libntp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_prio_q-ntp_prio_q.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_prio_q-run-ntp_prio_q.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_prio_q-test-libntp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_restrict-ntp_restrict.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_restrict-run-ntp_restrict.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_restrict-test-libntp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_scanner-run-t-ntp_scanner.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_scanner-t-ntp_scanner.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_ntp_scanner-test-libntp.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_rc_cmdlength-run-rc_cmdlength.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_rc_cmdlength-test-libntp.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -816,54 +1012,243 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
-ntp_leapsec.o: $(top_srcdir)/ntpd/ntp_leapsec.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ntp_leapsec.o -MD -MP -MF $(DEPDIR)/ntp_leapsec.Tpo -c -o ntp_leapsec.o `test -f '$(top_srcdir)/ntpd/ntp_leapsec.c' || echo '$(srcdir)/'`$(top_srcdir)/ntpd/ntp_leapsec.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ntp_leapsec.Tpo $(DEPDIR)/ntp_leapsec.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_srcdir)/ntpd/ntp_leapsec.c' object='ntp_leapsec.o' libtool=no @AMDEPBACKSLASH@
+test_leapsec-leapsec.o: leapsec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -MT test_leapsec-leapsec.o -MD -MP -MF $(DEPDIR)/test_leapsec-leapsec.Tpo -c -o test_leapsec-leapsec.o `test -f 'leapsec.c' || echo '$(srcdir)/'`leapsec.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_leapsec-leapsec.Tpo $(DEPDIR)/test_leapsec-leapsec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='leapsec.c' object='test_leapsec-leapsec.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ntp_leapsec.o `test -f '$(top_srcdir)/ntpd/ntp_leapsec.c' || echo '$(srcdir)/'`$(top_srcdir)/ntpd/ntp_leapsec.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -c -o test_leapsec-leapsec.o `test -f 'leapsec.c' || echo '$(srcdir)/'`leapsec.c
 
-ntp_leapsec.obj: $(top_srcdir)/ntpd/ntp_leapsec.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ntp_leapsec.obj -MD -MP -MF $(DEPDIR)/ntp_leapsec.Tpo -c -o ntp_leapsec.obj `if test -f '$(top_srcdir)/ntpd/ntp_leapsec.c'; then $(CYGPATH_W) '$(top_srcdir)/ntpd/ntp_leapsec.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/ntpd/ntp_leapsec.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ntp_leapsec.Tpo $(DEPDIR)/ntp_leapsec.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_srcdir)/ntpd/ntp_leapsec.c' object='ntp_leapsec.obj' libtool=no @AMDEPBACKSLASH@
+test_leapsec-leapsec.obj: leapsec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -MT test_leapsec-leapsec.obj -MD -MP -MF $(DEPDIR)/test_leapsec-leapsec.Tpo -c -o test_leapsec-leapsec.obj `if test -f 'leapsec.c'; then $(CYGPATH_W) 'leapsec.c'; else $(CYGPATH_W) '$(srcdir)/leapsec.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_leapsec-leapsec.Tpo $(DEPDIR)/test_leapsec-leapsec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='leapsec.c' object='test_leapsec-leapsec.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ntp_leapsec.obj `if test -f '$(top_srcdir)/ntpd/ntp_leapsec.c'; then $(CYGPATH_W) '$(top_srcdir)/ntpd/ntp_leapsec.c'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/ntpd/ntp_leapsec.c'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -c -o test_leapsec-leapsec.obj `if test -f 'leapsec.c'; then $(CYGPATH_W) 'leapsec.c'; else $(CYGPATH_W) '$(srcdir)/leapsec.c'; fi`
 
-.cpp.o:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
+test_leapsec-run-leapsec.o: run-leapsec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -MT test_leapsec-run-leapsec.o -MD -MP -MF $(DEPDIR)/test_leapsec-run-leapsec.Tpo -c -o test_leapsec-run-leapsec.o `test -f 'run-leapsec.c' || echo '$(srcdir)/'`run-leapsec.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_leapsec-run-leapsec.Tpo $(DEPDIR)/test_leapsec-run-leapsec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-leapsec.c' object='test_leapsec-run-leapsec.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -c -o test_leapsec-run-leapsec.o `test -f 'run-leapsec.c' || echo '$(srcdir)/'`run-leapsec.c
 
-.cpp.obj:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+test_leapsec-run-leapsec.obj: run-leapsec.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -MT test_leapsec-run-leapsec.obj -MD -MP -MF $(DEPDIR)/test_leapsec-run-leapsec.Tpo -c -o test_leapsec-run-leapsec.obj `if test -f 'run-leapsec.c'; then $(CYGPATH_W) 'run-leapsec.c'; else $(CYGPATH_W) '$(srcdir)/run-leapsec.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_leapsec-run-leapsec.Tpo $(DEPDIR)/test_leapsec-run-leapsec.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-leapsec.c' object='test_leapsec-run-leapsec.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -c -o test_leapsec-run-leapsec.obj `if test -f 'run-leapsec.c'; then $(CYGPATH_W) 'run-leapsec.c'; else $(CYGPATH_W) '$(srcdir)/run-leapsec.c'; fi`
 
-.cpp.lo:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
+test_leapsec-test-libntp.o: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -MT test_leapsec-test-libntp.o -MD -MP -MF $(DEPDIR)/test_leapsec-test-libntp.Tpo -c -o test_leapsec-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_leapsec-test-libntp.Tpo $(DEPDIR)/test_leapsec-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_leapsec-test-libntp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -c -o test_leapsec-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
 
-tests_main.o: $(top_srcdir)/sntp/tests_main.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT tests_main.o -MD -MP -MF $(DEPDIR)/tests_main.Tpo -c -o tests_main.o `test -f '$(top_srcdir)/sntp/tests_main.cpp' || echo '$(srcdir)/'`$(top_srcdir)/sntp/tests_main.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/tests_main.Tpo $(DEPDIR)/tests_main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$(top_srcdir)/sntp/tests_main.cpp' object='tests_main.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o tests_main.o `test -f '$(top_srcdir)/sntp/tests_main.cpp' || echo '$(srcdir)/'`$(top_srcdir)/sntp/tests_main.cpp
+test_leapsec-test-libntp.obj: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -MT test_leapsec-test-libntp.obj -MD -MP -MF $(DEPDIR)/test_leapsec-test-libntp.Tpo -c -o test_leapsec-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_leapsec-test-libntp.Tpo $(DEPDIR)/test_leapsec-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_leapsec-test-libntp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_leapsec_CFLAGS) $(CFLAGS) -c -o test_leapsec-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
 
-tests_main.obj: $(top_srcdir)/sntp/tests_main.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT tests_main.obj -MD -MP -MF $(DEPDIR)/tests_main.Tpo -c -o tests_main.obj `if test -f '$(top_srcdir)/sntp/tests_main.cpp'; then $(CYGPATH_W) '$(top_srcdir)/sntp/tests_main.cpp'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/sntp/tests_main.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/tests_main.Tpo $(DEPDIR)/tests_main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$(top_srcdir)/sntp/tests_main.cpp' object='tests_main.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o tests_main.obj `if test -f '$(top_srcdir)/sntp/tests_main.cpp'; then $(CYGPATH_W) '$(top_srcdir)/sntp/tests_main.cpp'; else $(CYGPATH_W) '$(srcdir)/$(top_srcdir)/sntp/tests_main.cpp'; fi`
+test_ntp_prio_q-ntp_prio_q.o: ntp_prio_q.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -MT test_ntp_prio_q-ntp_prio_q.o -MD -MP -MF $(DEPDIR)/test_ntp_prio_q-ntp_prio_q.Tpo -c -o test_ntp_prio_q-ntp_prio_q.o `test -f 'ntp_prio_q.c' || echo '$(srcdir)/'`ntp_prio_q.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_prio_q-ntp_prio_q.Tpo $(DEPDIR)/test_ntp_prio_q-ntp_prio_q.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ntp_prio_q.c' object='test_ntp_prio_q-ntp_prio_q.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -c -o test_ntp_prio_q-ntp_prio_q.o `test -f 'ntp_prio_q.c' || echo '$(srcdir)/'`ntp_prio_q.c
+
+test_ntp_prio_q-ntp_prio_q.obj: ntp_prio_q.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -MT test_ntp_prio_q-ntp_prio_q.obj -MD -MP -MF $(DEPDIR)/test_ntp_prio_q-ntp_prio_q.Tpo -c -o test_ntp_prio_q-ntp_prio_q.obj `if test -f 'ntp_prio_q.c'; then $(CYGPATH_W) 'ntp_prio_q.c'; else $(CYGPATH_W) '$(srcdir)/ntp_prio_q.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_prio_q-ntp_prio_q.Tpo $(DEPDIR)/test_ntp_prio_q-ntp_prio_q.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ntp_prio_q.c' object='test_ntp_prio_q-ntp_prio_q.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -c -o test_ntp_prio_q-ntp_prio_q.obj `if test -f 'ntp_prio_q.c'; then $(CYGPATH_W) 'ntp_prio_q.c'; else $(CYGPATH_W) '$(srcdir)/ntp_prio_q.c'; fi`
+
+test_ntp_prio_q-run-ntp_prio_q.o: run-ntp_prio_q.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -MT test_ntp_prio_q-run-ntp_prio_q.o -MD -MP -MF $(DEPDIR)/test_ntp_prio_q-run-ntp_prio_q.Tpo -c -o test_ntp_prio_q-run-ntp_prio_q.o `test -f 'run-ntp_prio_q.c' || echo '$(srcdir)/'`run-ntp_prio_q.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_prio_q-run-ntp_prio_q.Tpo $(DEPDIR)/test_ntp_prio_q-run-ntp_prio_q.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-ntp_prio_q.c' object='test_ntp_prio_q-run-ntp_prio_q.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -c -o test_ntp_prio_q-run-ntp_prio_q.o `test -f 'run-ntp_prio_q.c' || echo '$(srcdir)/'`run-ntp_prio_q.c
+
+test_ntp_prio_q-run-ntp_prio_q.obj: run-ntp_prio_q.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -MT test_ntp_prio_q-run-ntp_prio_q.obj -MD -MP -MF $(DEPDIR)/test_ntp_prio_q-run-ntp_prio_q.Tpo -c -o test_ntp_prio_q-run-ntp_prio_q.obj `if test -f 'run-ntp_prio_q.c'; then $(CYGPATH_W) 'run-ntp_prio_q.c'; else $(CYGPATH_W) '$(srcdir)/run-ntp_prio_q.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_prio_q-run-ntp_prio_q.Tpo $(DEPDIR)/test_ntp_prio_q-run-ntp_prio_q.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-ntp_prio_q.c' object='test_ntp_prio_q-run-ntp_prio_q.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -c -o test_ntp_prio_q-run-ntp_prio_q.obj `if test -f 'run-ntp_prio_q.c'; then $(CYGPATH_W) 'run-ntp_prio_q.c'; else $(CYGPATH_W) '$(srcdir)/run-ntp_prio_q.c'; fi`
+
+test_ntp_prio_q-test-libntp.o: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -MT test_ntp_prio_q-test-libntp.o -MD -MP -MF $(DEPDIR)/test_ntp_prio_q-test-libntp.Tpo -c -o test_ntp_prio_q-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_prio_q-test-libntp.Tpo $(DEPDIR)/test_ntp_prio_q-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_ntp_prio_q-test-libntp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -c -o test_ntp_prio_q-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+
+test_ntp_prio_q-test-libntp.obj: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -MT test_ntp_prio_q-test-libntp.obj -MD -MP -MF $(DEPDIR)/test_ntp_prio_q-test-libntp.Tpo -c -o test_ntp_prio_q-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_prio_q-test-libntp.Tpo $(DEPDIR)/test_ntp_prio_q-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_ntp_prio_q-test-libntp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_prio_q_CFLAGS) $(CFLAGS) -c -o test_ntp_prio_q-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+
+test_ntp_restrict-ntp_restrict.o: ntp_restrict.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -MT test_ntp_restrict-ntp_restrict.o -MD -MP -MF $(DEPDIR)/test_ntp_restrict-ntp_restrict.Tpo -c -o test_ntp_restrict-ntp_restrict.o `test -f 'ntp_restrict.c' || echo '$(srcdir)/'`ntp_restrict.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_restrict-ntp_restrict.Tpo $(DEPDIR)/test_ntp_restrict-ntp_restrict.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ntp_restrict.c' object='test_ntp_restrict-ntp_restrict.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -c -o test_ntp_restrict-ntp_restrict.o `test -f 'ntp_restrict.c' || echo '$(srcdir)/'`ntp_restrict.c
+
+test_ntp_restrict-ntp_restrict.obj: ntp_restrict.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -MT test_ntp_restrict-ntp_restrict.obj -MD -MP -MF $(DEPDIR)/test_ntp_restrict-ntp_restrict.Tpo -c -o test_ntp_restrict-ntp_restrict.obj `if test -f 'ntp_restrict.c'; then $(CYGPATH_W) 'ntp_restrict.c'; else $(CYGPATH_W) '$(srcdir)/ntp_restrict.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_restrict-ntp_restrict.Tpo $(DEPDIR)/test_ntp_restrict-ntp_restrict.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ntp_restrict.c' object='test_ntp_restrict-ntp_restrict.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -c -o test_ntp_restrict-ntp_restrict.obj `if test -f 'ntp_restrict.c'; then $(CYGPATH_W) 'ntp_restrict.c'; else $(CYGPATH_W) '$(srcdir)/ntp_restrict.c'; fi`
+
+test_ntp_restrict-run-ntp_restrict.o: run-ntp_restrict.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -MT test_ntp_restrict-run-ntp_restrict.o -MD -MP -MF $(DEPDIR)/test_ntp_restrict-run-ntp_restrict.Tpo -c -o test_ntp_restrict-run-ntp_restrict.o `test -f 'run-ntp_restrict.c' || echo '$(srcdir)/'`run-ntp_restrict.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_restrict-run-ntp_restrict.Tpo $(DEPDIR)/test_ntp_restrict-run-ntp_restrict.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-ntp_restrict.c' object='test_ntp_restrict-run-ntp_restrict.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -c -o test_ntp_restrict-run-ntp_restrict.o `test -f 'run-ntp_restrict.c' || echo '$(srcdir)/'`run-ntp_restrict.c
+
+test_ntp_restrict-run-ntp_restrict.obj: run-ntp_restrict.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -MT test_ntp_restrict-run-ntp_restrict.obj -MD -MP -MF $(DEPDIR)/test_ntp_restrict-run-ntp_restrict.Tpo -c -o test_ntp_restrict-run-ntp_restrict.obj `if test -f 'run-ntp_restrict.c'; then $(CYGPATH_W) 'run-ntp_restrict.c'; else $(CYGPATH_W) '$(srcdir)/run-ntp_restrict.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_restrict-run-ntp_restrict.Tpo $(DEPDIR)/test_ntp_restrict-run-ntp_restrict.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-ntp_restrict.c' object='test_ntp_restrict-run-ntp_restrict.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -c -o test_ntp_restrict-run-ntp_restrict.obj `if test -f 'run-ntp_restrict.c'; then $(CYGPATH_W) 'run-ntp_restrict.c'; else $(CYGPATH_W) '$(srcdir)/run-ntp_restrict.c'; fi`
+
+test_ntp_restrict-test-libntp.o: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -MT test_ntp_restrict-test-libntp.o -MD -MP -MF $(DEPDIR)/test_ntp_restrict-test-libntp.Tpo -c -o test_ntp_restrict-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_restrict-test-libntp.Tpo $(DEPDIR)/test_ntp_restrict-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_ntp_restrict-test-libntp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -c -o test_ntp_restrict-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+
+test_ntp_restrict-test-libntp.obj: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -MT test_ntp_restrict-test-libntp.obj -MD -MP -MF $(DEPDIR)/test_ntp_restrict-test-libntp.Tpo -c -o test_ntp_restrict-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_restrict-test-libntp.Tpo $(DEPDIR)/test_ntp_restrict-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_ntp_restrict-test-libntp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_restrict_CFLAGS) $(CFLAGS) -c -o test_ntp_restrict-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+
+test_ntp_scanner-t-ntp_scanner.o: t-ntp_scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -MT test_ntp_scanner-t-ntp_scanner.o -MD -MP -MF $(DEPDIR)/test_ntp_scanner-t-ntp_scanner.Tpo -c -o test_ntp_scanner-t-ntp_scanner.o `test -f 't-ntp_scanner.c' || echo '$(srcdir)/'`t-ntp_scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_scanner-t-ntp_scanner.Tpo $(DEPDIR)/test_ntp_scanner-t-ntp_scanner.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-ntp_scanner.c' object='test_ntp_scanner-t-ntp_scanner.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -c -o test_ntp_scanner-t-ntp_scanner.o `test -f 't-ntp_scanner.c' || echo '$(srcdir)/'`t-ntp_scanner.c
+
+test_ntp_scanner-t-ntp_scanner.obj: t-ntp_scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -MT test_ntp_scanner-t-ntp_scanner.obj -MD -MP -MF $(DEPDIR)/test_ntp_scanner-t-ntp_scanner.Tpo -c -o test_ntp_scanner-t-ntp_scanner.obj `if test -f 't-ntp_scanner.c'; then $(CYGPATH_W) 't-ntp_scanner.c'; else $(CYGPATH_W) '$(srcdir)/t-ntp_scanner.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_scanner-t-ntp_scanner.Tpo $(DEPDIR)/test_ntp_scanner-t-ntp_scanner.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='t-ntp_scanner.c' object='test_ntp_scanner-t-ntp_scanner.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -c -o test_ntp_scanner-t-ntp_scanner.obj `if test -f 't-ntp_scanner.c'; then $(CYGPATH_W) 't-ntp_scanner.c'; else $(CYGPATH_W) '$(srcdir)/t-ntp_scanner.c'; fi`
+
+test_ntp_scanner-run-t-ntp_scanner.o: run-t-ntp_scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -MT test_ntp_scanner-run-t-ntp_scanner.o -MD -MP -MF $(DEPDIR)/test_ntp_scanner-run-t-ntp_scanner.Tpo -c -o test_ntp_scanner-run-t-ntp_scanner.o `test -f 'run-t-ntp_scanner.c' || echo '$(srcdir)/'`run-t-ntp_scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_scanner-run-t-ntp_scanner.Tpo $(DEPDIR)/test_ntp_scanner-run-t-ntp_scanner.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-t-ntp_scanner.c' object='test_ntp_scanner-run-t-ntp_scanner.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -c -o test_ntp_scanner-run-t-ntp_scanner.o `test -f 'run-t-ntp_scanner.c' || echo '$(srcdir)/'`run-t-ntp_scanner.c
+
+test_ntp_scanner-run-t-ntp_scanner.obj: run-t-ntp_scanner.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -MT test_ntp_scanner-run-t-ntp_scanner.obj -MD -MP -MF $(DEPDIR)/test_ntp_scanner-run-t-ntp_scanner.Tpo -c -o test_ntp_scanner-run-t-ntp_scanner.obj `if test -f 'run-t-ntp_scanner.c'; then $(CYGPATH_W) 'run-t-ntp_scanner.c'; else $(CYGPATH_W) '$(srcdir)/run-t-ntp_scanner.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_scanner-run-t-ntp_scanner.Tpo $(DEPDIR)/test_ntp_scanner-run-t-ntp_scanner.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-t-ntp_scanner.c' object='test_ntp_scanner-run-t-ntp_scanner.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -c -o test_ntp_scanner-run-t-ntp_scanner.obj `if test -f 'run-t-ntp_scanner.c'; then $(CYGPATH_W) 'run-t-ntp_scanner.c'; else $(CYGPATH_W) '$(srcdir)/run-t-ntp_scanner.c'; fi`
+
+test_ntp_scanner-test-libntp.o: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -MT test_ntp_scanner-test-libntp.o -MD -MP -MF $(DEPDIR)/test_ntp_scanner-test-libntp.Tpo -c -o test_ntp_scanner-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_scanner-test-libntp.Tpo $(DEPDIR)/test_ntp_scanner-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_ntp_scanner-test-libntp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -c -o test_ntp_scanner-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+
+test_ntp_scanner-test-libntp.obj: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -MT test_ntp_scanner-test-libntp.obj -MD -MP -MF $(DEPDIR)/test_ntp_scanner-test-libntp.Tpo -c -o test_ntp_scanner-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_ntp_scanner-test-libntp.Tpo $(DEPDIR)/test_ntp_scanner-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_ntp_scanner-test-libntp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_ntp_scanner_CFLAGS) $(CFLAGS) -c -o test_ntp_scanner-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+
+test-libntp.o: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT test-libntp.o -MD -MP -MF $(DEPDIR)/test-libntp.Tpo -c -o test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test-libntp.Tpo $(DEPDIR)/test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test-libntp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+
+test-libntp.obj: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT test-libntp.obj -MD -MP -MF $(DEPDIR)/test-libntp.Tpo -c -o test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test-libntp.Tpo $(DEPDIR)/test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test-libntp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+
+ntp_signd.o: $(srcdir)/../../ntpd/ntp_signd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ntp_signd.o -MD -MP -MF $(DEPDIR)/ntp_signd.Tpo -c -o ntp_signd.o `test -f '$(srcdir)/../../ntpd/ntp_signd.c' || echo '$(srcdir)/'`$(srcdir)/../../ntpd/ntp_signd.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ntp_signd.Tpo $(DEPDIR)/ntp_signd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../../ntpd/ntp_signd.c' object='ntp_signd.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ntp_signd.o `test -f '$(srcdir)/../../ntpd/ntp_signd.c' || echo '$(srcdir)/'`$(srcdir)/../../ntpd/ntp_signd.c
+
+ntp_signd.obj: $(srcdir)/../../ntpd/ntp_signd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ntp_signd.obj -MD -MP -MF $(DEPDIR)/ntp_signd.Tpo -c -o ntp_signd.obj `if test -f '$(srcdir)/../../ntpd/ntp_signd.c'; then $(CYGPATH_W) '$(srcdir)/../../ntpd/ntp_signd.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../../ntpd/ntp_signd.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/ntp_signd.Tpo $(DEPDIR)/ntp_signd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../../ntpd/ntp_signd.c' object='ntp_signd.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ntp_signd.obj `if test -f '$(srcdir)/../../ntpd/ntp_signd.c'; then $(CYGPATH_W) '$(srcdir)/../../ntpd/ntp_signd.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../../ntpd/ntp_signd.c'; fi`
+
+test_rc_cmdlength-rc_cmdlength.o: rc_cmdlength.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -MT test_rc_cmdlength-rc_cmdlength.o -MD -MP -MF $(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Tpo -c -o test_rc_cmdlength-rc_cmdlength.o `test -f 'rc_cmdlength.c' || echo '$(srcdir)/'`rc_cmdlength.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Tpo $(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='rc_cmdlength.c' object='test_rc_cmdlength-rc_cmdlength.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -c -o test_rc_cmdlength-rc_cmdlength.o `test -f 'rc_cmdlength.c' || echo '$(srcdir)/'`rc_cmdlength.c
+
+test_rc_cmdlength-rc_cmdlength.obj: rc_cmdlength.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -MT test_rc_cmdlength-rc_cmdlength.obj -MD -MP -MF $(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Tpo -c -o test_rc_cmdlength-rc_cmdlength.obj `if test -f 'rc_cmdlength.c'; then $(CYGPATH_W) 'rc_cmdlength.c'; else $(CYGPATH_W) '$(srcdir)/rc_cmdlength.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Tpo $(DEPDIR)/test_rc_cmdlength-rc_cmdlength.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='rc_cmdlength.c' object='test_rc_cmdlength-rc_cmdlength.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -c -o test_rc_cmdlength-rc_cmdlength.obj `if test -f 'rc_cmdlength.c'; then $(CYGPATH_W) 'rc_cmdlength.c'; else $(CYGPATH_W) '$(srcdir)/rc_cmdlength.c'; fi`
+
+test_rc_cmdlength-run-rc_cmdlength.o: run-rc_cmdlength.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -MT test_rc_cmdlength-run-rc_cmdlength.o -MD -MP -MF $(DEPDIR)/test_rc_cmdlength-run-rc_cmdlength.Tpo -c -o test_rc_cmdlength-run-rc_cmdlength.o `test -f 'run-rc_cmdlength.c' || echo '$(srcdir)/'`run-rc_cmdlength.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_rc_cmdlength-run-rc_cmdlength.Tpo $(DEPDIR)/test_rc_cmdlength-run-rc_cmdlength.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-rc_cmdlength.c' object='test_rc_cmdlength-run-rc_cmdlength.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -c -o test_rc_cmdlength-run-rc_cmdlength.o `test -f 'run-rc_cmdlength.c' || echo '$(srcdir)/'`run-rc_cmdlength.c
+
+test_rc_cmdlength-run-rc_cmdlength.obj: run-rc_cmdlength.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -MT test_rc_cmdlength-run-rc_cmdlength.obj -MD -MP -MF $(DEPDIR)/test_rc_cmdlength-run-rc_cmdlength.Tpo -c -o test_rc_cmdlength-run-rc_cmdlength.obj `if test -f 'run-rc_cmdlength.c'; then $(CYGPATH_W) 'run-rc_cmdlength.c'; else $(CYGPATH_W) '$(srcdir)/run-rc_cmdlength.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_rc_cmdlength-run-rc_cmdlength.Tpo $(DEPDIR)/test_rc_cmdlength-run-rc_cmdlength.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-rc_cmdlength.c' object='test_rc_cmdlength-run-rc_cmdlength.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -c -o test_rc_cmdlength-run-rc_cmdlength.obj `if test -f 'run-rc_cmdlength.c'; then $(CYGPATH_W) 'run-rc_cmdlength.c'; else $(CYGPATH_W) '$(srcdir)/run-rc_cmdlength.c'; fi`
+
+test_rc_cmdlength-test-libntp.o: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -MT test_rc_cmdlength-test-libntp.o -MD -MP -MF $(DEPDIR)/test_rc_cmdlength-test-libntp.Tpo -c -o test_rc_cmdlength-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_rc_cmdlength-test-libntp.Tpo $(DEPDIR)/test_rc_cmdlength-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_rc_cmdlength-test-libntp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -c -o test_rc_cmdlength-test-libntp.o `test -f '$(srcdir)/../libntp/test-libntp.c' || echo '$(srcdir)/'`$(srcdir)/../libntp/test-libntp.c
+
+test_rc_cmdlength-test-libntp.obj: $(srcdir)/../libntp/test-libntp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -MT test_rc_cmdlength-test-libntp.obj -MD -MP -MF $(DEPDIR)/test_rc_cmdlength-test-libntp.Tpo -c -o test_rc_cmdlength-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_rc_cmdlength-test-libntp.Tpo $(DEPDIR)/test_rc_cmdlength-test-libntp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(srcdir)/../libntp/test-libntp.c' object='test_rc_cmdlength-test-libntp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_rc_cmdlength_CFLAGS) $(CFLAGS) -c -o test_rc_cmdlength-test-libntp.obj `if test -f '$(srcdir)/../libntp/test-libntp.c'; then $(CYGPATH_W) '$(srcdir)/../libntp/test-libntp.c'; else $(CYGPATH_W) '$(srcdir)/$(srcdir)/../libntp/test-libntp.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1064,9 +1449,44 @@ recheck: all $(check_PROGRAMS)
 	        am__force_recheck=am--force-recheck \
 	        TEST_LOGS="$$log_list"; \
 	exit $$?
-tests.log: tests$(EXEEXT)
-	@p='tests$(EXEEXT)'; \
-	b='tests'; \
+test-leapsec.log: test-leapsec$(EXEEXT)
+	@p='test-leapsec$(EXEEXT)'; \
+	b='test-leapsec'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-ntp_prio_q.log: test-ntp_prio_q$(EXEEXT)
+	@p='test-ntp_prio_q$(EXEEXT)'; \
+	b='test-ntp_prio_q'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-ntp_restrict.log: test-ntp_restrict$(EXEEXT)
+	@p='test-ntp_restrict$(EXEEXT)'; \
+	b='test-ntp_restrict'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-ntp_scanner.log: test-ntp_scanner$(EXEEXT)
+	@p='test-ntp_scanner$(EXEEXT)'; \
+	b='test-ntp_scanner'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-ntp_signd.log: test-ntp_signd$(EXEEXT)
+	@p='test-ntp_signd$(EXEEXT)'; \
+	b='test-ntp_signd'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-rc_cmdlength.log: test-rc_cmdlength$(EXEEXT)
+	@p='test-rc_cmdlength$(EXEEXT)'; \
+	b='test-rc_cmdlength'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -1121,7 +1541,7 @@ check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-am
-all-am: Makefile $(HEADERS)
+all-am: Makefile
 installdirs:
 install: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) install-am
@@ -1249,11 +1669,44 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
+$(srcdir)/run-leapsec.c: $(srcdir)/leapsec.c $(std_unity_list)
+	$(run_unity) leapsec.c run-leapsec.c
+
+$(srcdir)/run-ntp_prio_q.c: $(srcdir)/ntp_prio_q.c $(std_unity_list)
+	$(run_unity) ntp_prio_q.c run-ntp_prio_q.c
+
+$(srcdir)/run-ntp_restrict.c: $(srcdir)/ntp_restrict.c $(std_unity_list)
+	$(run_unity) ntp_restrict.c run-ntp_restrict.c
+
+$(srcdir)/run-rc_cmdlength.c: $(srcdir)/rc_cmdlength.c $(std_unity_list)
+	$(run_unity) rc_cmdlength.c run-rc_cmdlength.c
+
+$(srcdir)/run-t-ntp_signd.c: $(srcdir)/t-ntp_signd.c $(std_unity_list)
+	$(run_unity) t-ntp_signd.c run-t-ntp_signd.c
+
+$(srcdir)/run-t-ntp_scanner.c: $(srcdir)/t-ntp_scanner.c $(std_unity_list)
+	$(run_unity) t-ntp_scanner.c run-t-ntp_scanner.c
+
+check-libntpd: ../../ntpd/libntpd.a
+	@echo stamp > $@
+
+../../ntpd/libntpd.a:
+	cd ../../ntpd && $(MAKE) $(AM_MAKEFLAGS) libntpd.a
+
 check-libntp: ../../libntp/libntp.a
 	@echo stamp > $@
 
 ../../libntp/libntp.a:
 	cd ../../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+
+check-libunity: ../../sntp/unity/libunity.a
+	@echo stamp > $@
+
+../../sntp/unity/libunity.a:
+	cd ../../sntp/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
+
+$(top_builddir)/ntpd/ntpdsim-ntp_prio_q.o:
+	cd ../../ntpd/ && $(MAKE) $(AM_MAKEFLAGS) ntpdsim-ntp_prio_q.o
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@

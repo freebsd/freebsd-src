@@ -652,7 +652,9 @@
 
 #elif defined(BOOKE)
 
+#define	SPR_MCARU		0x239	/* ..8 Machine Check Address register upper bits */
 #define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
+#define	SPR_MCAR		0x23d	/* ..8 Machine Check Address register */
 
 #define	SPR_ESR			0x003e	/* ..8 Exception Syndrome Register */
 #define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */

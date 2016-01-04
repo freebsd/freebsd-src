@@ -75,7 +75,9 @@ static void ar5416SetIFSTiming(struct ath_hal *ah,
 HAL_BOOL
 ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	struct ieee80211_channel *chan,
-	HAL_BOOL bChannelChange, HAL_STATUS *status)
+	HAL_BOOL bChannelChange,
+	HAL_RESET_TYPE resetType,
+	HAL_STATUS *status)
 {
 #define	N(a)	(sizeof (a) / sizeof (a[0]))
 #define	FAIL(_code)	do { ecode = _code; goto bad; } while (0)

@@ -151,7 +151,7 @@ by the kernel:
 
 dtrace:::BEGIN
 {
-        printf(" %10s %36s    %-36s %6s\n", "DELTA(us)", "SOURCE",
+        printf(" %10s %36s    %-36s %6s\\n", "DELTA(us)", "SOURCE",
             "DEST", "BYTES");
         last = timestamp;
 }
@@ -161,7 +161,7 @@ udp:::send
         this->elapsed = (timestamp - last) / 1000;
         self->dest = strjoin(strjoin(args[2]->ip_daddr, ":"),
              lltostr(args[4]->udp_dport));
-        printf(" %10d %30s:%-5d -> %-36s %6d\n", this->elapsed,
+        printf(" %10d %30s:%-5d -> %-36s %6d\\n", this->elapsed,
             args[2]->ip_saddr, args[4]->udp_sport,
             self->dest, args[4]->udp_length);
         last = timestamp;
@@ -172,7 +172,7 @@ udp:::receive
         this->elapsed = (timestamp - last) / 1000;
         self->dest = strjoin(strjoin(args[2]->ip_saddr, ":"),
              lltostr(args[4]->udp_sport));
-        printf(" %10d %30s:%-5d <- %-36s %6d\n", this->elapsed,
+        printf(" %10d %30s:%-5d <- %-36s %6d\\n", this->elapsed,
             args[2]->ip_daddr, args[4]->udp_dport,
             self->dest, args[4]->udp_length);
         last = timestamp;

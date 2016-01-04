@@ -1,5 +1,4 @@
 /* $OpenBSD: session.c,v 1.270 2014/01/31 16:39:19 tedu Exp $ */
-/* $FreeBSD$ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved

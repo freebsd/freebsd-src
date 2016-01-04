@@ -67,7 +67,7 @@ static void usage(const char* argv0)
 			"[-O output_format]\n"
 		"\t\t[-o output_file] [-R entries] [-S bytes] [-p bytes]"
 			"[-V blob_version]\n"
-		"\t\t-W [no-]checker_name] input_file\n", basename(argv0));
+		"\t\t-W [no-]checker_name] input_file\n", basename((char*)argv0));
 }
 
 /**

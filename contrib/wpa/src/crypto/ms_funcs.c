@@ -78,9 +78,8 @@ static int utf8_to_ucs2(const u8 *utf8_string, size_t utf8_string_len,
  * @challenge: 8-octet Challenge (OUT)
  * Returns: 0 on success, -1 on failure
  */
-static int challenge_hash(const u8 *peer_challenge, const u8 *auth_challenge,
-			  const u8 *username, size_t username_len,
-			  u8 *challenge)
+int challenge_hash(const u8 *peer_challenge, const u8 *auth_challenge,
+		   const u8 *username, size_t username_len, u8 *challenge)
 {
 	u8 hash[SHA1_MAC_LEN];
 	const unsigned char *addr[3];
@@ -175,9 +174,8 @@ int generate_nt_response(const u8 *auth_challenge, const u8 *peer_challenge,
 	u8 password_hash[16];
 
 	if (challenge_hash(peer_challenge, auth_challenge, username,
-			   username_len, challenge))
-		return -1;
-	if (nt_password_hash(password, password_len, password_hash))
+			   username_len, challenge) ||
+	    nt_password_hash(password, password_len, password_hash))
 		return -1;
 	challenge_response(challenge, password_hash, response);
 	return 0;
@@ -257,12 +255,9 @@ int generate_authenticator_response_pwhash(
 	addr2[1] = challenge;
 	addr2[2] = magic2;
 
-	if (hash_nt_password_hash(password_hash, password_hash_hash))
-		return -1;
-	if (sha1_vector(3, addr1, len1, response))
-		return -1;
-
-	if (challenge_hash(peer_challenge, auth_challenge, username,
+	if (hash_nt_password_hash(password_hash, password_hash_hash) ||
+	    sha1_vector(3, addr1, len1, response) ||
+	    challenge_hash(peer_challenge, auth_challenge, username,
 			   username_len, challenge))
 		return -1;
 	return sha1_vector(3, addr2, len2, response);
@@ -417,6 +412,8 @@ int get_asymetric_start_key(const u8 *master_key, u8 *session_key,
 }
 
 
+#ifndef CONFIG_NO_RC4
+
 #define PWBLOCK_LEN 516
 
 /**
@@ -436,10 +433,8 @@ int encrypt_pw_block_with_password_hash(
 
 	os_memset(pw_block, 0, PWBLOCK_LEN);
 
-	if (utf8_to_ucs2(password, password_len, pw_block, 512, &ucs2_len) < 0)
-		return -1;
-
-	if (ucs2_len > 256)
+	if (utf8_to_ucs2(password, password_len, pw_block, 512, &ucs2_len) < 0
+	    || ucs2_len > 256)
 		return -1;
 
 	offset = (256 - ucs2_len) * 2;
@@ -483,6 +478,8 @@ int new_password_encrypted_with_old_nt_password_hash(
 		return -1;
 	return 0;
 }
+
+#endif /* CONFIG_NO_RC4 */
 
 
 /**

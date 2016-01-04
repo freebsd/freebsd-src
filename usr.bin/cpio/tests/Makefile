@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
@@ -12,20 +12,20 @@ CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
 CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
 
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I${LIBARCHIVEDIR}/cpio -I${LIBARCHIVEDIR}/libarchive_fe
-CFLAGS+=	-I${LIBARCHIVEDIR}/test_utils
+CFLAGS+=	-I${_LIBARCHIVEDIR}/cpio -I${_LIBARCHIVEDIR}/libarchive_fe
+CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 
-.PATH:	${LIBARCHIVEDIR}/cpio
+.PATH:	${_LIBARCHIVEDIR}/cpio
 CPIO_SRCS= cmdline.c
 
-.PATH:	${LIBARCHIVEDIR}/libarchive_fe
+.PATH:	${_LIBARCHIVEDIR}/libarchive_fe
 CPIO_SRCS+= err.c
 
-.PATH:	${LIBARCHIVEDIR}/cpio/test
+.PATH:	${_LIBARCHIVEDIR}/cpio/test
 TESTS_SRCS=	\
 	test_0.c				\
 	test_basic.c				\
@@ -75,16 +75,13 @@ SRCS.bsdcpio_test= list.h			\
 	${TESTS_SRCS}				\
 	main.c
 
-DPSRCS.bsdcpio_test= \
-	list.h
-
-.PATH:	${LIBARCHIVEDIR}/test_utils
+.PATH:	${_LIBARCHIVEDIR}/test_utils
 SRCS.bsdcpio_test+=	test_utils.c
 
 LIBADD.bsdcpio_test=	archive
 
 list.h: ${TESTS_SRCS} Makefile
-	@(cd ${LIBARCHIVEDIR}/tar/test && \
+	@(cd ${_LIBARCHIVEDIR}/tar/test && \
 	grep -h DEFINE_TEST ${.ALLSRC:N*Makefile}) > ${.TARGET}.tmp
 	@mv ${.TARGET}.tmp ${.TARGET}
 

@@ -563,8 +563,8 @@ dump(struct sockaddr_in6 *addr, int cflag)
 	struct sockaddr_in6 *sin;
 	struct sockaddr_dl *sdl;
 	extern int h_errno;
-	struct in6_nbrinfo *nbi;
 	struct timeval now;
+	u_long expire;
 	int addrwidth;
 	int llwidth;
 	int ifwidth;
@@ -675,52 +675,46 @@ again:;
 		printf("%-*.*s %-*.*s %*.*s", addrwidth, addrwidth, host_buf,
 		    llwidth, llwidth, ether_str(sdl), ifwidth, ifwidth, ifname);
 
-		/* Print neighbor discovery specific informations */
-		nbi = getnbrinfo(&sin->sin6_addr, sdl->sdl_index, 1);
-		if (nbi) {
-			if (nbi->expire > now.tv_sec) {
-				printf(" %-9.9s",
-				    sec2str(nbi->expire - now.tv_sec));
-			} else if (nbi->expire == 0)
-				printf(" %-9.9s", "permanent");
-			else
-				printf(" %-9.9s", "expired");
+		/* Print neighbor discovery specific information */
+		expire = rtm->rtm_rmx.rmx_expire;
+		if (expire > now.tv_sec)
+			printf(" %-9.9s", sec2str(expire - now.tv_sec));
+		else if (expire == 0)
+			printf(" %-9.9s", "permanent");
+		else
+			printf(" %-9.9s", "expired");
 
-			switch (nbi->state) {
-			case ND6_LLINFO_NOSTATE:
-				 printf(" N");
-				 break;
+		switch (rtm->rtm_rmx.rmx_state) {
+		case ND6_LLINFO_NOSTATE:
+			printf(" N");
+			break;
 #ifdef ND6_LLINFO_WAITDELETE
-			case ND6_LLINFO_WAITDELETE:
-				 printf(" W");
-				 break;
+		case ND6_LLINFO_WAITDELETE:
+			printf(" W");
+			break;
 #endif
-			case ND6_LLINFO_INCOMPLETE:
-				 printf(" I");
-				 break;
-			case ND6_LLINFO_REACHABLE:
-				 printf(" R");
-				 break;
-			case ND6_LLINFO_STALE:
-				 printf(" S");
-				 break;
-			case ND6_LLINFO_DELAY:
-				 printf(" D");
-				 break;
-			case ND6_LLINFO_PROBE:
-				 printf(" P");
-				 break;
-			default:
-				 printf(" ?");
-				 break;
-			}
-
-			isrouter = nbi->isrouter;
-			prbs = nbi->asked;
-		} else {
-			warnx("failed to get neighbor information");
-			printf("  ");
+		case ND6_LLINFO_INCOMPLETE:
+			printf(" I");
+			break;
+		case ND6_LLINFO_REACHABLE:
+			printf(" R");
+			break;
+		case ND6_LLINFO_STALE:
+			printf(" S");
+			break;
+		case ND6_LLINFO_DELAY:
+			printf(" D");
+			break;
+		case ND6_LLINFO_PROBE:
+			printf(" P");
+			break;
+		default:
+			printf(" ?");
+			break;
 		}
+
+		isrouter = rtm->rtm_flags & RTF_GATEWAY;
+		prbs = rtm->rtm_rmx.rmx_pksent;
 
 		/*
 		 * other flags. R: router, P: proxy, W: ??

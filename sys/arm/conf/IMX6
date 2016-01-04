@@ -22,6 +22,8 @@ ident		IMX6
 include 	"std.armv6"
 include 	"../freescale/imx/std.imx6"
 
+options 	ARM_INTRNG
+
 options 	SOC_IMX6
 
 options 	HZ=500			# Scheduling quantum is 2 milliseconds.
@@ -60,6 +62,10 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
 # Interrupt controller
 device		gic
+# Cache controller
+device		pl310			# PL310 L2 cache controller
+# ARM MPCore timer
+device		mpcore_timer
 
 # Pseudo devices.
 device		loop			# Network loopback
@@ -126,6 +132,12 @@ device		u3g			# USB modems
 #device		kbdmux
 #options 	SC_DFLT_FONT		# compile font in
 #makeoptions	SC_DFLT_FONT=cp437
+
+device		vt
+device		kbdmux
+device		ukbd
+device		videomode
+device		hdmi
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

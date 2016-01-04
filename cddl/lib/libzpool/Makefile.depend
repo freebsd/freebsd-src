@@ -16,7 +16,6 @@ DIRDEPS = \
 	lib/libthr \
 	lib/libz \
 	lib/msun \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

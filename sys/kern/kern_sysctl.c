@@ -147,7 +147,7 @@ sysctl_wunlock(void)
 }
 
 static int
-sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intptr_t arg2,
+sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
     struct sysctl_req *req, struct rm_priotracker *tracker)
 {
 	int error;
@@ -189,6 +189,9 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 	char path[64];
 	ssize_t rem = sizeof(path);
 	ssize_t len;
+	uint8_t val_8;
+	uint16_t val_16;
+	uint32_t val_32;
 	int val_int;
 	long val_long;
 	int64_t val_64;
@@ -243,12 +246,54 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 		req.newlen = sizeof(val_long);
 		req.newptr = &val_long;
 		break;
+	case CTLTYPE_S8:
+		if (getenv_int(path + rem, &val_int) == 0)
+			return;
+		val_8 = val_int;
+		req.newlen = sizeof(val_8);
+		req.newptr = &val_8;
+		break;
+	case CTLTYPE_S16:
+		if (getenv_int(path + rem, &val_int) == 0)
+			return;
+		val_16 = val_int;
+		req.newlen = sizeof(val_16);
+		req.newptr = &val_16;
+		break;
+	case CTLTYPE_S32:
+		if (getenv_long(path + rem, &val_long) == 0)
+			return;
+		val_32 = val_long;
+		req.newlen = sizeof(val_32);
+		req.newptr = &val_32;
+		break;
 	case CTLTYPE_S64:
 		if (getenv_quad(path + rem, &val_quad) == 0)
 			return;
 		val_64 = val_quad;
 		req.newlen = sizeof(val_64);
 		req.newptr = &val_64;
+		break;
+	case CTLTYPE_U8:
+		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+			return;
+		val_8 = val_int;
+		req.newlen = sizeof(val_8);
+		req.newptr = &val_8;
+		break;
+	case CTLTYPE_U16:
+		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+			return;
+		val_16 = val_int;
+		req.newlen = sizeof(val_16);
+		req.newptr = &val_16;
+		break;
+	case CTLTYPE_U32:
+		if (getenv_ulong(path + rem, (unsigned long *)&val_long) == 0)
+			return;
+		val_32 = val_long;
+		req.newlen = sizeof(val_32);
+		req.newptr = &val_32;
 		break;
 	case CTLTYPE_U64:
 		/* XXX there is no getenv_uquad() */
@@ -643,7 +688,7 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
  */
 struct sysctl_oid *
 sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
-	int number, const char *name, int kind, void *arg1, intptr_t arg2,
+	int number, const char *name, int kind, void *arg1, intmax_t arg2,
 	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr)
 {
 	struct sysctl_oid *oidp;
@@ -806,8 +851,14 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 			case CTLTYPE_LONG:   printf(" Long\n"); break;
 			case CTLTYPE_ULONG:  printf(" u_long\n"); break;
 			case CTLTYPE_STRING: printf(" String\n"); break;
-			case CTLTYPE_U64:    printf(" uint64_t\n"); break;
+			case CTLTYPE_S8:     printf(" int8_t\n"); break;
+			case CTLTYPE_S16:    printf(" int16_t\n"); break;
+			case CTLTYPE_S32:    printf(" int32_t\n"); break;
 			case CTLTYPE_S64:    printf(" int64_t\n"); break;
+			case CTLTYPE_U8:     printf(" uint8_t\n"); break;
+			case CTLTYPE_U16:    printf(" uint16_t\n"); break;
+			case CTLTYPE_U32:    printf(" uint32_t\n"); break;
+			case CTLTYPE_U64:    printf(" uint64_t\n"); break;
 			case CTLTYPE_OPAQUE: printf(" Opaque/struct\n"); break;
 			default:	     printf("\n");
 		}
@@ -1126,6 +1177,102 @@ static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD
 /*
  * Default "handler" functions.
  */
+
+/*
+ * Handle an int8_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_8(SYSCTL_HANDLER_ARGS)
+{
+	int8_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int8_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
+
+/*
+ * Handle an int16_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_16(SYSCTL_HANDLER_ARGS)
+{
+	int16_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int16_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
+
+/*
+ * Handle an int32_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_32(SYSCTL_HANDLER_ARGS)
+{
+	int32_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int32_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
 
 /*
  * Handle an int, signed or unsigned.

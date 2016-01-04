@@ -26,34 +26,59 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _CALL_ELF
+.abiversion _CALL_ELF
+#endif
+
 	.section .init,"ax",@progbits
-	.align	2
+	.p2align	2
 	.globl	_init
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 	.section ".opd","aw"
-	.align	3
+	.p2align	3
 _init:
 	.quad	.L._init,.TOC.@tocbase,0
 	.previous
 	.type	_init,@function
 
-	.align 4
+	.p2align 4
 .L._init:
+#else
+	.p2align 4
+	.globl	_init
+	.type	_init,@function
+_init:
+	addis	%r2, %r12, (.TOC.-_init)@ha
+	addi	%r2, %r2, (.TOC.-_init)@l
+	.localentry _init, .-_init
+#endif
 	stdu 1,-48(1)
 	mflr 0
 	std 0,64(1)
 
+/* Fini */
 	.section .fini,"ax",@progbits
-	.align	2
+	.p2align	2
 	.globl	_fini
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 	.section ".opd","aw"
-	.align	3
+	.p2align	3
 _fini:
 	.quad	.L._fini,.TOC.@tocbase,0
 	.previous
 	.type	_fini,@function
 
-	.align 4
+	.p2align 4
 .L._fini:
+#else
+	.p2align 4
+	.globl	_fini
+	.type	_fini,@function
+_fini:
+	addis	%r2, %r12, (.TOC.-_fini)@ha
+	addi	%r2, %r2, (.TOC.-_fini)@l
+	.localentry _fini, .-_fini
+#endif
 	stdu 1,-48(1)
 	mflr 0
 	std 0,64(1)

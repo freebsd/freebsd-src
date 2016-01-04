@@ -521,7 +521,6 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	/* calculate the RTO */
 	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy,
 	    SCTP_RTT_FROM_NON_DATA);
-
 	retval = sctp_send_cookie_echo(m, offset, stcb, net);
 	if (retval < 0) {
 		/*
@@ -2104,6 +2103,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	 */
 	stcb = sctp_aloc_assoc(inp, init_src, &error,
 	    ntohl(initack_cp->init.initiate_tag), vrf_id,
+	    ntohs(initack_cp->init.num_outbound_streams),
 	    (struct thread *)NULL
 	    );
 	if (stcb == NULL) {
@@ -2347,12 +2347,17 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		sctp_timer_start(SCTP_TIMER_TYPE_AUTOCLOSE, inp, stcb, NULL);
 	}
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
-	if ((netp) && (*netp)) {
+	if ((netp != NULL) && (*netp != NULL)) {
 		/* calculate the RTT and set the encaps port */
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
 		    &cookie->time_entered, sctp_align_unsafe_makecopy,
 		    SCTP_RTT_FROM_NON_DATA);
+#if defined(INET) || defined(INET6)
+		if (((*netp)->port == 0) && (port != 0)) {
+			sctp_pathmtu_adjustment(stcb, (*netp)->mtu - sizeof(struct udphdr));
+		}
 		(*netp)->port = port;
+#endif
 	}
 	/* respond with a COOKIE-ACK */
 	sctp_send_cookie_ack(stcb);
@@ -2435,8 +2440,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	cookie_offset = offset + sizeof(struct sctp_chunkhdr);
 	cookie_len = ntohs(cp->ch.chunk_length);
 
-	if ((cookie->peerport != sh->src_port) &&
-	    (cookie->myport != sh->dest_port) &&
+	if ((cookie->peerport != sh->src_port) ||
+	    (cookie->myport != sh->dest_port) ||
 	    (cookie->my_vtag != sh->v_tag)) {
 		/*
 		 * invalid ports or bad tag.  Note that we always leave the
@@ -3647,6 +3652,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					 * Set it up so we don't stop
 					 * retransmitting
 					 */
+					asoc->stream_reset_outstanding++;
 					stcb->asoc.str_reset_seq_out--;
 					asoc->stream_reset_out_is_outstanding = 1;
 					no_clear = 1;
@@ -4625,7 +4631,7 @@ __attribute__((noinline))
 			}
 		}
 		if (stcb == NULL) {
-			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 			/* no association, so it's out of the blue... */
@@ -4669,7 +4675,7 @@ __attribute__((noinline))
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
 				}
-				snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+				snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
 				op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 				    msg);
 				sctp_handle_ootb(m, iphlen, *offset, src, dst,
@@ -5635,30 +5641,6 @@ next_chunk:
 }
 
 
-#ifdef INVARIANTS
-#ifdef __GNUC__
-__attribute__((noinline))
-#endif
-	void
-	     sctp_validate_no_locks(struct sctp_inpcb *inp)
-{
-	struct sctp_tcb *lstcb;
-
-	LIST_FOREACH(lstcb, &inp->sctp_asoc_list, sctp_tcblist) {
-		if (mtx_owned(&lstcb->tcb_mtx)) {
-			panic("Own lock on stcb at return from input");
-		}
-	}
-	if (mtx_owned(&inp->inp_create_mtx)) {
-		panic("Own create lock on inp");
-	}
-	if (mtx_owned(&inp->inp_mtx)) {
-		panic("Own inp lock on inp");
-	}
-}
-
-#endif
-
 /*
  * common input chunk processing (v4 and v6)
  */
@@ -5821,7 +5803,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			 */
 			SCTP_TCB_UNLOCK(stcb);
 			stcb = NULL;
-			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 			sctp_handle_ootb(m, iphlen, offset, src, dst, sh, inp, op_err,
@@ -5845,7 +5827,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			 */
 			inp = stcb->sctp_ep;
 #if defined(INET) || defined(INET6)
-			if ((net) && (port)) {
+			if ((net != NULL) && (port != 0)) {
 				if (net->port == 0) {
 					sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 				}
@@ -5873,7 +5855,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		}
 		if (stcb == NULL) {
 			/* out of the blue DATA chunk */
-			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 			sctp_handle_ootb(m, iphlen, offset, src, dst, sh, inp, op_err,
@@ -5945,7 +5927,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			/*
 			 * We consider OOTB any data sent during asoc setup.
 			 */
-			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+			snprintf(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 			sctp_handle_ootb(m, iphlen, offset, src, dst, sh, inp, op_err,
@@ -6020,7 +6002,7 @@ trigger_send:
 	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
 		cnt_ctrl_ready = stcb->asoc.ctrl_queue_cnt - stcb->asoc.ecn_echo_cnt_onq;
 	}
-	if (cnt_ctrl_ready ||
+	if (cnt_ctrl_ready || stcb->asoc.trigger_reset ||
 	    ((un_sent) &&
 	    (stcb->asoc.peers_rwnd > 0 ||
 	    (stcb->asoc.peers_rwnd <= 0 && stcb->asoc.total_flight == 0)))) {
@@ -6042,11 +6024,6 @@ out:
 		SCTP_INP_DECR_REF(inp_decr);
 		SCTP_INP_WUNLOCK(inp_decr);
 	}
-#ifdef INVARIANTS
-	if (inp != NULL) {
-		sctp_validate_no_locks(inp);
-	}
-#endif
 	return;
 }
 

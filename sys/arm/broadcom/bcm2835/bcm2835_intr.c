@@ -163,7 +163,9 @@ arm_get_next_irq(int last_irq)
 		irq = 0;
 
 #ifdef SOC_BCM2836
-	if ((ret = bcm2836_get_next_irq(irq)) >= 0)
+	if ((ret = bcm2836_get_next_irq(irq)) < 0)
+		return (-1);
+	if (ret != BCM2836_GPU_IRQ)
 		return (ret + BANK3_START);
 #endif
 

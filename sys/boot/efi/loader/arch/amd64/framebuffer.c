@@ -303,7 +303,7 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 	 * offset within the frame buffer of the visible region, nor
 	 * the stride. Our only option is to look at the system and
 	 * fill in the blanks based on that. Luckily, UGA was mostly
-	 * only used on Apple hardware. 
+	 * only used on Apple hardware.
 	 */
 	offset = -1;
 	ev = getenv("smbios.system.maker");

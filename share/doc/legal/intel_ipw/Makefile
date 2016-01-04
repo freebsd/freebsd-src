@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 FILES=		${.CURDIR}/../../../../sys/contrib/dev/ipw/LICENSE
-FILESDIR=	${SHAREDIR}/doc/legal/intel_ipw
+FILESDIR=	${SHAREDIR}/doc/legal
+FILESNAME=	intel_ipw.LICENSE
 
 .include <bsd.prog.mk>

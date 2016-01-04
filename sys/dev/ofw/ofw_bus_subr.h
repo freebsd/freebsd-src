@@ -52,6 +52,10 @@ struct ofw_compat_data {
 	uintptr_t	 ocd_data;
 };
 
+#define SIMPLEBUS_PNP_DESCR "Z:compat;P:private;"
+#define SIMPLEBUS_PNP_INFO(t) \
+	MODULE_PNP_INFO(SIMPLEBUS_PNP_DESCR, simplebus, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0]));
+
 /* Generic implementation of ofw_bus_if.m methods and helper routines */
 int	ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *, phandle_t);
 void	ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *);
@@ -82,7 +86,7 @@ const char *ofw_bus_get_status(device_t dev);
 int ofw_bus_status_okay(device_t dev);
 
 /* Helper to get node's interrupt parent */
-void	ofw_bus_find_iparent(phandle_t);
+phandle_t ofw_bus_find_iparent(phandle_t);
 
 /* Helper routine for checking compat prop */
 int ofw_bus_is_compatible(device_t, const char *);
@@ -109,5 +113,14 @@ phandle_t ofw_bus_find_child(phandle_t, const char *);
 
 /* Helper routine to find a device_t child matchig a given phandle_t */
 device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
+
+/* Helper routines for parsing lists  */
+int ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
+    const char *cells_name, int idx, phandle_t *producer, int *ncells,
+    pcell_t **cells);
+int ofw_bus_find_string_index(phandle_t node, const char *list_name,
+    const char *name, int *idx);
+int ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
+    const char ***array);
 
 #endif /* !_DEV_OFW_OFW_BUS_SUBR_H_ */

@@ -86,7 +86,9 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
     u_int8_t clk_25mhz = AH9300(ah)->clk_25mhz;
     CHAN_CENTERS centers;
     int load_synth_channel;
+#ifdef	AH_DEBUG_ALQ
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+#endif
 
     /*
      * Put this behind AH_DEBUG_ALQ for now until the Hornet
@@ -98,7 +100,6 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
 
     ar9300_get_channel_centers(ah, chan, &centers);
     freq = centers.synth_center;
-
 
     if (freq < 4800) {     /* 2 GHz, fractional mode */
         b_mode = 1; /* 2 GHz */
@@ -116,7 +117,19 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
 #endif
             uint32_t i;
 
-            i = ath_hal_mhz2ieee_2ghz(ah, ichan);
+            /*
+             * Pay close attention to this bit!
+             *
+             * We need to map the actual desired synth frequency to
+             * one of the channel select array entries.
+             *
+             * For HT20, it'll align with the channel we select.
+             *
+             * For HT40 though it won't - the centre frequency
+             * will not be the frequency of chan->ic_freq or ichan->freq;
+             * it needs to be whatever frequency maps to 'freq'.
+             */
+            i = ath_hal_mhz2ieee_2ghz(ah, freq);
             HALASSERT(i > 0 && i <= 14);
             if (clk_25mhz) {
                 channel_sel = ar9300_chansel_xtal_25M[i - 1];
@@ -134,7 +147,7 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
             channel_sel = (freq * 4) / 120;
             channel_frac = (((freq * 4) % 120) * 0x20000) / 120;
             channel_sel = (channel_sel << 17) | (channel_frac);
-        } else if (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
+        } else if (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
             u_int32_t channel_frac;
             if (clk_25mhz) {
                 /* 
@@ -143,7 +156,7 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
                  * ndiv = ((chan_mhz * 4) / 3) / freq_ref;
                  * chansel = int(ndiv),  chanfrac = (ndiv - chansel) * 0x20000
                  */
-                if (AR_SREV_SCORPION(ah)) {
+                if (AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
                     /* Doubler is off for Scorpion */
                     channel_sel = (freq * 4) / 75;
                     channel_frac = (((freq * 4) % 75) * 0x20000) / 75;

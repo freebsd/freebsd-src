@@ -34,12 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <sys/mman.h>
 
-#include <vm/vm.h>
-
-#include <db.h>
 #include <elf.h>
-#include <limits.h>
 #include <kvm.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -100,7 +97,7 @@ powerpc_maphdrs(kvm_t *kd)
 
 	vm = kd->vmst;
 
-	vm->mapsz = PAGE_SIZE;
+	vm->mapsz = sizeof(*vm->eh) + sizeof(struct kerneldumpheader);
 	vm->map = mmap(NULL, vm->mapsz, PROT_READ, MAP_PRIVATE, kd->pmfd, 0);
 	if (vm->map == MAP_FAILED) {
 		_kvm_err(kd, kd->program, "cannot map corefile");
@@ -130,7 +127,7 @@ powerpc_maphdrs(kvm_t *kd)
 	vm->mapsz = vm->dmphdrsz + mapsz;
 	vm->map = mmap(NULL, vm->mapsz, PROT_READ, MAP_PRIVATE, kd->pmfd, 0);
 	if (vm->map == MAP_FAILED) {
-		_kvm_err(kd, kd->program, "cannot map corefle headers");
+		_kvm_err(kd, kd->program, "cannot map corefile headers");
 		return (-1);
 	}
 	vm->eh = (void *)((uintptr_t)vm->map + vm->dmphdrsz);
@@ -138,8 +135,6 @@ powerpc_maphdrs(kvm_t *kd)
 	return (0);
 
  inval:
-	munmap(vm->map, vm->mapsz);
-	vm->map = MAP_FAILED;
 	_kvm_err(kd, kd->program, "invalid corefile");
 	return (-1);
 }
@@ -150,7 +145,7 @@ powerpc_maphdrs(kvm_t *kd)
  * 0 when the virtual address is invalid.
  */
 static size_t
-powerpc_va2off(kvm_t *kd, u_long va, off_t *ofs)
+powerpc_va2off(kvm_t *kd, kvaddr_t va, off_t *ofs)
 {
 	struct vmstate *vm = kd->vmst;
 	Elf32_Phdr *ph;
@@ -172,48 +167,69 @@ powerpc_va2off(kvm_t *kd, u_long va, off_t *ofs)
 	return (be32toh(ph->p_memsz) - (va - be32toh(ph->p_vaddr)));
 }
 
-void
-_kvm_freevtop(kvm_t *kd)
+static void
+_powerpc_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	if (vm == NULL)
-		return;
-
-	if (vm->eh != MAP_FAILED) {
+	if (vm->eh != MAP_FAILED)
 		munmap(vm->eh, vm->mapsz);
-		vm->eh = MAP_FAILED;
-	}
 	free(vm);
 	kd->vmst = NULL;
 }
 
-int
-_kvm_initvtop(kvm_t *kd)
+static int
+_powerpc_probe(kvm_t *kd)
+{
+
+	return (_kvm_probe_elf_kernel(kd, ELFCLASS32, EM_PPC) &&
+	    kd->nlehdr.e_ident[EI_DATA] == ELFDATA2MSB);
+}
+
+static int
+_powerpc_initvtop(kvm_t *kd)
 {
 
 	kd->vmst = (struct vmstate *)_kvm_malloc(kd, sizeof(*kd->vmst));
-	if (kd->vmst == NULL) {
-		_kvm_err(kd, kd->program, "out of virtual memory");
+	if (kd->vmst == NULL)
 		return (-1);
-	}
-	if (powerpc_maphdrs(kd) == -1) {
-		free(kd->vmst);
-		kd->vmst = NULL;
+
+	if (powerpc_maphdrs(kd) == -1)
 		return (-1);
-	}
+
 	return (0);
 }
 
-int
-_kvm_kvatop(kvm_t *kd, u_long va, off_t *ofs)
+static int
+_powerpc_kvatop(kvm_t *kd, kvaddr_t va, off_t *ofs)
 {
 	struct vmstate *vm;
 
 	vm = kd->vmst;
-	if (vm->ph->p_paddr == ~0U)
+	if (be32toh(vm->ph->p_paddr) == 0xffffffff)
 		return ((int)powerpc_va2off(kd, va, ofs));
 
 	_kvm_err(kd, kd->program, "Raw corefile not supported");
 	return (0);
 }
+
+static int
+_powerpc_native(kvm_t *kd)
+{
+
+#if defined(__powerpc__) && !defined(__powerpc64__)
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+struct kvm_arch kvm_powerpc = {
+	.ka_probe = _powerpc_probe,
+	.ka_initvtop = _powerpc_initvtop,
+	.ka_freevtop = _powerpc_freevtop,
+	.ka_kvatop = _powerpc_kvatop,
+	.ka_native = _powerpc_native,
+};
+
+KVM_ARCH(kvm_powerpc);

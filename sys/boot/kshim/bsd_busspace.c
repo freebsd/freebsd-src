@@ -37,6 +37,15 @@ struct burst {
 	uint32_t dw7;
 };
 
+int
+bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, bus_size_t size, bus_space_handle_t *nbshp)
+{
+
+	*nbshp = bsh + offset;
+	return (0);
+}
+
 void
 bus_space_read_multi_1(bus_space_tag_t t, bus_space_handle_t h,
     bus_size_t offset, uint8_t *datap, bus_size_t count)

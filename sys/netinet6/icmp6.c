@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/tcp_var.h>
 
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6protosw.h>
@@ -2183,7 +2184,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	if (srcp == NULL) {
 		int e;
 		struct sockaddr_in6 sin6;
-		struct route_in6 ro;
 
 		/*
 		 * This case matches to multicasts, our anycast, or unicasts
@@ -2195,10 +2195,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		sin6.sin6_len = sizeof(sin6);
 		sin6.sin6_addr = ip6->ip6_dst; /* zone ID should be embedded */
 
-		bzero(&ro, sizeof(ro));
-		e = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &src);
-		if (ro.ro_rt)
-			RTFREE(ro.ro_rt); /* XXX: we could use this */
+		e = in6_selectsrc(&sin6, NULL, NULL, NULL, &outif, &src);
 		if (e) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			nd6log((LOG_DEBUG,
@@ -2289,7 +2286,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	int icmp6len = ntohs(ip6->ip6_plen);
 	char *lladdr = NULL;
 	int lladdrlen = 0;
-	struct rtentry *rt = NULL;
 	int is_router;
 	int is_onlink;
 	struct in6_addr src6 = ip6->ip6_src;
@@ -2344,18 +2340,13 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	}
     {
 	/* ip6->ip6_src must be equal to gw for icmp6->icmp6_reddst */
-	struct sockaddr_in6 sin6;
-	struct in6_addr *gw6;
+	struct nhop6_basic nh6;
+	struct in6_addr kdst;
+	uint32_t scopeid;
 
-	bzero(&sin6, sizeof(sin6));
-	sin6.sin6_family = AF_INET6;
-	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	bcopy(&reddst6, &sin6.sin6_addr, sizeof(reddst6));
-	rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL, RT_DEFAULT_FIB);
-	if (rt) {
-		if (rt->rt_gateway == NULL ||
-		    rt->rt_gateway->sa_family != AF_INET6) {
-			RTFREE_LOCKED(rt);
+	in6_splitscope(&reddst6, &kdst, &scopeid);
+	if (fib6_lookup_nh_basic(RT_DEFAULT_FIB, &kdst, scopeid, 0, 0,&nh6)==0){
+		if ((nh6.nh_flags & NHF_GATEWAY) == 0) {
 			nd6log((LOG_ERR,
 			    "ICMP6 redirect rejected; no route "
 			    "with inet6 gateway found for redirect dst: %s\n",
@@ -2363,14 +2354,12 @@ icmp6_redirect_input(struct mbuf *m, int off)
 			goto bad;
 		}
 
-		gw6 = &(((struct sockaddr_in6 *)rt->rt_gateway)->sin6_addr);
-		if (bcmp(&src6, gw6, sizeof(struct in6_addr)) != 0) {
-			RTFREE_LOCKED(rt);
+		if (IN6_ARE_ADDR_EQUAL(&src6, &nh6.nh_addr) == 0) {
 			nd6log((LOG_ERR,
 			    "ICMP6 redirect rejected; "
 			    "not equal to gw-for-src=%s (must be same): "
 			    "%s\n",
-			    ip6_sprintf(ip6buf, gw6),
+			    ip6_sprintf(ip6buf, &nh6.nh_addr),
 			    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 			goto bad;
 		}
@@ -2381,8 +2370,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 		goto bad;
 	}
-	RTFREE_LOCKED(rt);
-	rt = NULL;
     }
 	if (IN6_IS_ADDR_MULTICAST(&reddst6)) {
 		nd6log((LOG_ERR,
@@ -2641,7 +2628,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 			nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 			nd_opt->nd_opt_len = len >> 3;
 			lladdr = (char *)(nd_opt + 1);
-			bcopy(&ln->ll_addr, lladdr, ifp->if_addrlen);
+			bcopy(ln->ll_addr, lladdr, ifp->if_addrlen);
 			p += len;
 		}
 	}

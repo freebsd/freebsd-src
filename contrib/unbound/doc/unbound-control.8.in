@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Oct  6, 2015" "NLnet Labs" "unbound 1.5.5"
+.TH "unbound-control" "8" "Dec 10, 2015" "NLnet Labs" "unbound 1.5.7"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -169,7 +169,7 @@ therefore not flushed.  The option must end with a ':' and whitespace
 must be between the option and the value.  Some values may not have an
 effect if set this way, the new values are not written to the config file,
 not all options are supported.  This is different from the set_option call
-in libunbound, where all values work because unbound has not been inited.
+in libunbound, where all values work because unbound has not been initialized.
 .IP
 The values that work are: statistics\-interval, statistics\-cumulative,
 do\-not\-query\-localhost, harden\-short\-bufsize, harden\-large\-queries,

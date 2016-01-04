@@ -187,6 +187,8 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_release_msi,	pci_release_msi_method),
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
+	DEVMETHOD(pci_msix_pba_bar,	pci_msix_pba_bar_method),
+	DEVMETHOD(pci_msix_table_bar,	pci_msix_table_bar_method),
 	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
 	DEVMETHOD(pci_child_added,	pci_child_added_method),
 #ifdef PCI_IOV
@@ -535,7 +537,7 @@ pci_romsize(uint64_t testval)
 	}
 	return (ln2size);
 }
-	
+
 /* return log2 of address range supported by map register */
 
 static int
@@ -1706,7 +1708,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 		free(used, M_DEVBUF);
 		return (EINVAL);
 	}
-	
+
 	/* Make sure none of the resources are allocated. */
 	for (i = 0; i < msix->msix_table_len; i++) {
 		if (msix->msix_table[i].mte_vector == 0)
@@ -1851,6 +1853,28 @@ pci_msix_count_method(device_t dev, device_t child)
 	return (0);
 }
 
+int
+pci_msix_pba_bar_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
+
+	if (pci_do_msix && msix->msix_location != 0)
+		return (msix->msix_pba_bar);
+	return (-1);
+}
+
+int
+pci_msix_table_bar_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	struct pcicfg_msix *msix = &dinfo->cfg.msix;
+
+	if (pci_do_msix && msix->msix_location != 0)
+		return (msix->msix_table_bar);
+	return (-1);
+}
+
 /*
  * HyperTransport MSI mapping control
  */
@@ -1915,6 +1939,63 @@ pci_set_max_read_req(device_t dev, int size)
 	val |= (fls(size) - 8) << 12;
 	pci_write_config(dev, cap + PCIER_DEVICE_CTL, val, 2);
 	return (size);
+}
+
+uint32_t
+pcie_read_config(device_t dev, int reg, int width)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	int cap;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0) {
+		if (width == 2)
+			return (0xffff);
+		return (0xffffffff);
+	}
+
+	return (pci_read_config(dev, cap + reg, width));
+}
+
+void
+pcie_write_config(device_t dev, int reg, uint32_t value, int width)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	int cap;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
+		return;
+	pci_write_config(dev, cap + reg, value, width);
+}
+
+/*
+ * Adjusts a PCI-e capability register by clearing the bits in mask
+ * and setting the bits in (value & mask).  Bits not set in mask are
+ * not adjusted.
+ *
+ * Returns the old value on success or all ones on failure.
+ */
+uint32_t
+pcie_adjust_config(device_t dev, int reg, uint32_t mask, uint32_t value,
+    int width)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	uint32_t old, new;
+	int cap;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0) {
+		if (width == 2)
+			return (0xffff);
+		return (0xffffffff);
+	}
+
+	old = pci_read_config(dev, cap + reg, width);
+	new = old & ~mask;
+	new |= (value & mask);
+	pci_write_config(dev, cap + reg, new, width);
+	return (old);
 }
 
 /*
@@ -2003,7 +2084,7 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 	struct msix_table_entry *mte;
 	struct msix_vector *mv;
 	uint64_t addr;
-	uint32_t data;	
+	uint32_t data;
 	int error, i, j;
 
 	/*
@@ -4830,7 +4911,7 @@ pci_deactivate_resource(device_t dev, device_t child, int type,
 	if (error)
 		return (error);
 
-	/* Disable decoding for device ROMs. */	
+	/* Disable decoding for device ROMs. */
 	if (device_get_parent(child) == dev) {
 		dinfo = device_get_ivars(child);
 		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
@@ -5373,4 +5454,45 @@ pci_get_rid_method(device_t dev, device_t child)
 {
 
 	return (PCIB_GET_RID(device_get_parent(dev), child));
+}
+
+/* Find the upstream port of a given PCI device in a root complex. */
+device_t
+pci_find_pcie_root_port(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+	devclass_t pci_class;
+	device_t pcib, bus;
+
+	pci_class = devclass_find("pci");
+	KASSERT(device_get_devclass(device_get_parent(dev)) == pci_class,
+	    ("%s: non-pci device %s", __func__, device_get_nameunit(dev)));
+
+	/*
+	 * Walk the bridge hierarchy until we find a PCI-e root
+	 * port or a non-PCI device.
+	 */
+	for (;;) {
+		bus = device_get_parent(dev);
+		KASSERT(bus != NULL, ("%s: null parent of %s", __func__,
+		    device_get_nameunit(dev)));
+
+		pcib = device_get_parent(bus);
+		KASSERT(pcib != NULL, ("%s: null bridge of %s", __func__,
+		    device_get_nameunit(bus)));
+
+		/*
+		 * pcib's parent must be a PCI bus for this to be a
+		 * PCI-PCI bridge.
+		 */
+		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+			return (NULL);
+
+		dinfo = device_get_ivars(pcib);
+		if (dinfo->cfg.pcie.pcie_location != 0 &&
+		    dinfo->cfg.pcie.pcie_type == PCIEM_TYPE_ROOT_PORT)
+			return (pcib);
+
+		dev = pcib;
+	}
 }

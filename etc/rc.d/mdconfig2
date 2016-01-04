@@ -216,6 +216,8 @@ if [ -z "${_mdconfig2_list}" ]; then
 		sort_lite -nk1.12`
 	do
 		_mdconfig2_unit=${_mdconfig2_config#mdconfig_md}
+		[ "${_mdconfig2_unit#*[!0-9]}" = "$_mdconfig2_unit" ] ||
+			continue
 		_mdconfig2_list="$_mdconfig2_list md$_mdconfig2_unit"
 	done
 	_mdconfig2_list="${_mdconfig2_list# }"

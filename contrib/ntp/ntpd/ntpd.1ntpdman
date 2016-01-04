@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpd 1ntpdman "29 Jun 2015" "4.2.8p3" "User Commands"
+.TH ntpd 1ntpdman "21 Oct 2015" "4.2.8p4" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-LZaapD/ag-XZa4nD)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-dUaOfK/ag-qUaGeK)
 .\"
-.\" It has been AutoGen-ed June 29, 2015 at 04:30:24 PM by AutoGen 5.18.5
+.\" It has been AutoGen-ed October 21, 2015 at 12:38:11 PM by AutoGen 5.18.5
 .\" From the definitions ntpd-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -602,6 +602,8 @@ when you have permission to do so from the owner of the target host.
 Finally,
 in the past many startup scripts would run
 \fCntpdate\f[]\fR(1ntpdatemdoc)\f[]
+or
+\fCsntp\f[]\fR(1sntpmdoc)\f[]
 to get the system clock close to correct before starting
 \fCntpd\f[]\fR(1ntpdmdoc)\f[],
 but this was never more than a mediocre hack and is no longer needed.
@@ -611,7 +613,9 @@ and you still need to set the system time before starting
 \f\*[B-Font]ntpd\fP,
 please open a bug report and document what is going on,
 and then look at using
-\fCsntp\f[]\fR(1sntpmdoc)\f[].
+\fCsntp\f[]\fR(1sntpmdoc)\f[]
+if you really need to set the clock before starting
+\f\*[B-Font]ntpd\fP.
 .sp \n(Ppu
 .ne 2
 

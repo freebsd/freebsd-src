@@ -33,6 +33,7 @@ int wpas_wps_start_pbc(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		       int p2p_group);
 int wpas_wps_start_pin(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		       const char *pin, int p2p_group, u16 dev_pw_id);
+void wpas_wps_pbc_overlap(struct wpa_supplicant *wpa_s);
 int wpas_wps_cancel(struct wpa_supplicant *wpa_s);
 int wpas_wps_start_reg(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		       const char *pin, struct wps_new_ap_settings *settings);

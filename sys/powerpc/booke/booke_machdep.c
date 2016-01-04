@@ -142,7 +142,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
-#ifdef MPC85XX
+#if defined(MPC85XX) || defined(QORIQ_DPAA)
 #include <powerpc/mpc85xx/mpc85xx.h>
 #endif
 
@@ -173,7 +173,7 @@ uint32_t *bootinfo;
 
 void print_kernel_section_addr(void);
 void print_kenv(void);
-uintptr_t booke_init(uint32_t, uint32_t);
+uintptr_t booke_init(u_long, u_long);
 void ivor_setup(void);
 
 extern void *interrupt_vector_base;
@@ -183,6 +183,7 @@ extern void *int_data_storage;
 extern void *int_instr_storage;
 extern void *int_external_input;
 extern void *int_alignment;
+extern void *int_fpu;
 extern void *int_program;
 extern void *int_syscall;
 extern void *int_decrementer;
@@ -191,6 +192,8 @@ extern void *int_watchdog;
 extern void *int_data_tlb_error;
 extern void *int_inst_tlb_error;
 extern void *int_debug;
+extern void *int_vec;
+extern void *int_vecast;
 #ifdef HWPMC_HOOKS
 extern void *int_performance_counter;
 #endif
@@ -207,6 +210,8 @@ void booke_cpu_init(void);
 void
 booke_cpu_init(void)
 {
+
+	cpu_features |= PPC_FEATURE_BOOKE;
 
 	pmap_mmu_install(MMU_TYPE_BOOKE, BUS_PROBE_GENERIC);
 }
@@ -234,6 +239,15 @@ ivor_setup(void)
 #ifdef HWPMC_HOOKS
 	SET_TRAP(SPR_IVOR35, int_performance_counter);
 #endif
+	switch ((mfpvr() >> 16) & 0xffff) {
+	case FSL_E6500:
+		SET_TRAP(SPR_IVOR32, int_vec);
+		SET_TRAP(SPR_IVOR33, int_vecast);
+		/* FALLTHROUGH */
+	case FSL_E500mc:
+	case FSL_E5500:
+		SET_TRAP(SPR_IVOR7, int_fpu);
+	}
 }
 
 static int
@@ -254,7 +268,7 @@ booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
 }
 
 uintptr_t
-booke_init(uint32_t arg1, uint32_t arg2)
+booke_init(u_long arg1, u_long arg2)
 {
 	uintptr_t ret;
 	void *mdp;
@@ -284,7 +298,7 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	 *	relatively small number, such as 64K. arg2 is the
 	 *	physical address of the argv vector.
 	 *  -   ePAPR loaders pass an FDT blob in r3 (arg1) and the magic hex
-	 *      string 0x45504150 ('ePAP') in r6 (which has been lost by now).
+	 *      string 0x45504150 ('EPAP') in r6 (which has been lost by now).
 	 *      r4 (arg2) is supposed to be set to zero, but is not always.
 	 */
 	
@@ -302,13 +316,22 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	else					/* U-Boot */
 		mdp = NULL;
 
-	/* Reset TLB1 to get rid of temporary mappings */
-	tlb1_init();
+	/* Default to 32 byte cache line size. */
+	switch ((mfpvr()) >> 16) {
+	case FSL_E500mc:
+	case FSL_E5500:
+	case FSL_E6500:
+		cacheline_size = 64;
+		break;
+	}
 
 	ret = powerpc_init(dtbp, 0, 0, mdp);
 
-	/* Enable L1 caches */
+	/* Enable caches */
 	booke_enable_l1_cache();
+	booke_enable_l2_cache();
+
+	booke_enable_bpred();
 
 	return (ret);
 }

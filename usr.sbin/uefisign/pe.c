@@ -304,7 +304,7 @@ parse_directory(struct executable *x, off_t off,
  * Note that most software does not care about the checksum at all; perhaps
  * we could just set it to 0 instead.
  *
- * XXX: Endianess?
+ * XXX: Endianness?
  */
 static uint32_t
 compute_checksum(const struct executable *x)

@@ -727,6 +727,11 @@ typedef struct {
 #define	LL_DELAY_LOAD		0x10
 #define	LL_DELTA		0x20
 
+/* Values for n_type used in executables. */
+#define	NT_FREEBSD_ABI_TAG	1
+#define	NT_FREEBSD_NOINIT_TAG	2
+#define	NT_FREEBSD_ARCH_TAG	3
+
 /* Values for n_type.  Used in core files. */
 #define	NT_PRSTATUS	1	/* Process status. */
 #define	NT_FPREGSET	2	/* Floating point registers. */

@@ -101,7 +101,8 @@ hhook_run_hooks(struct hhook_head *hhh, void *ctx_data, struct osd *hosd)
 
 	HHH_RLOCK(hhh, &rmpt);
 	STAILQ_FOREACH(hhk, &hhh->hhh_hooks, hhk_next) {
-		if (hhk->hhk_helper->h_flags & HELPER_NEEDS_OSD) {
+		if (hhk->hhk_helper != NULL &&
+		    hhk->hhk_helper->h_flags & HELPER_NEEDS_OSD) {
 			hdata = osd_get(OSD_KHELP, hosd, hhk->hhk_helper->h_id);
 			if (hdata == NULL)
 				continue;

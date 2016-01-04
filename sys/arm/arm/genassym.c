@@ -118,6 +118,7 @@ ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
 ASSYM(MD_RAS_START, offsetof(struct mdthread, md_ras_start));
 ASSYM(MD_RAS_END, offsetof(struct mdthread, md_ras_end));
 
+ASSYM(TF_SPSR, offsetof(struct trapframe, tf_spsr));
 ASSYM(TF_R0, offsetof(struct trapframe, tf_r0));
 ASSYM(TF_R1, offsetof(struct trapframe, tf_r1));
 ASSYM(TF_PC, offsetof(struct trapframe, tf_pc));

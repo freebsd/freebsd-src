@@ -234,12 +234,17 @@ sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 
 void
 loginclass_racct_foreach(void (*callback)(struct racct *racct,
-    void *arg2, void *arg3), void *arg2, void *arg3)
+    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
+    void *arg2, void *arg3)
 {
 	struct loginclass *lc;
 
 	rw_rlock(&loginclasses_lock);
+	if (pre != NULL)
+		(pre)();
 	LIST_FOREACH(lc, &loginclasses, lc_next)
 		(callback)(lc->lc_racct, arg2, arg3);
+	if (post != NULL)
+		(post)();
 	rw_runlock(&loginclasses_lock);
 }

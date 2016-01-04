@@ -166,7 +166,7 @@ DBusMessage * wpas_dbus_global_add_interface(DBusMessage *message,
 		iface.bridge_ifname = bridge_ifname;
 		/* Otherwise, have wpa_supplicant attach to it. */
 		wpa_s = wpa_supplicant_add_iface(global, &iface, NULL);
-		if (wpa_s) {
+		if (wpa_s && wpa_s->dbus_path) {
 			const char *path = wpa_s->dbus_path;
 
 			reply = dbus_message_new_method_return(message);
@@ -262,7 +262,7 @@ DBusMessage * wpas_dbus_global_get_interface(DBusMessage *message,
 	}
 
 	wpa_s = wpa_supplicant_get_iface(global, ifname);
-	if (wpa_s == NULL) {
+	if (wpa_s == NULL || !wpa_s->dbus_path) {
 		reply = wpas_dbus_new_invalid_iface_error(message);
 		goto out;
 	}
@@ -353,6 +353,11 @@ DBusMessage * wpas_dbus_iface_scan_results(DBusMessage *message,
 	DBusMessageIter iter;
 	DBusMessageIter sub_iter;
 	struct wpa_bss *bss;
+
+	if (!wpa_s->dbus_path)
+		return dbus_message_new_error(message,
+					      WPAS_ERROR_INTERNAL_ERROR,
+					      "no D-Bus interface available");
 
 	/* Create and initialize the return message */
 	reply = dbus_message_new_method_return(message);
@@ -495,7 +500,7 @@ DBusMessage * wpas_dbus_iface_capabilities(DBusMessage *message,
 	/* EAP methods */
 	eap_methods = eap_get_names_as_string_array(&num_items);
 	if (eap_methods) {
-		dbus_bool_t success = FALSE;
+		dbus_bool_t success;
 		size_t i = 0;
 
 		success = wpa_dbus_dict_append_string_array(
@@ -708,10 +713,11 @@ DBusMessage * wpas_dbus_iface_add_network(DBusMessage *message,
 					  struct wpa_supplicant *wpa_s)
 {
 	DBusMessage *reply = NULL;
-	struct wpa_ssid *ssid;
+	struct wpa_ssid *ssid = NULL;
 	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *path = path_buf;
 
-	ssid = wpa_config_add_network(wpa_s->conf);
+	if (wpa_s->dbus_path)
+		ssid = wpa_config_add_network(wpa_s->conf);
 	if (ssid == NULL) {
 		reply = dbus_message_new_error(
 			message, WPAS_ERROR_ADD_NETWORK_ERROR,
@@ -769,7 +775,7 @@ DBusMessage * wpas_dbus_iface_remove_network(DBusMessage *message,
 	}
 
 	/* Ensure the network is actually a child of this interface */
-	if (os_strcmp(iface, wpa_s->dbus_path) != 0) {
+	if (!wpa_s->dbus_path || os_strcmp(iface, wpa_s->dbus_path) != 0) {
 		reply = wpas_dbus_new_invalid_network_error(message);
 		goto out;
 	}
@@ -803,10 +809,10 @@ out:
 }
 
 
-static const char  const *dont_quote[] = {
+static const char * const dont_quote[] = {
 	"key_mgmt", "proto", "pairwise", "auth_alg", "group", "eap",
 	"opensc_engine_path", "pkcs11_engine_path", "pkcs11_module_path",
-	"bssid", NULL
+	"bssid", "scan_freq", "freq_list", NULL
 };
 
 
@@ -878,7 +884,7 @@ DBusMessage * wpas_dbus_iface_set_network(DBusMessage *message,
 			if (should_quote_opt(entry.key)) {
 				size = os_strlen(entry.str_value);
 				/* Zero-length option check */
-				if (size <= 0)
+				if (size == 0)
 					goto error;
 				size += 3;  /* For quotes and terminator */
 				value = os_zalloc(size);
@@ -1020,7 +1026,7 @@ DBusMessage * wpas_dbus_iface_select_network(DBusMessage *message,
 			goto out;
 		}
 		/* Ensure the object path really points to this interface */
-		if (network == NULL ||
+		if (network == NULL || !wpa_s->dbus_path ||
 		    os_strcmp(iface_obj_path, wpa_s->dbus_path) != 0) {
 			reply = wpas_dbus_new_invalid_network_error(message);
 			goto out;

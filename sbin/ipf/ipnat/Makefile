@@ -7,8 +7,6 @@ MLINKS=		ipnat.5 ipnat.conf.5
 CFLAGS+=	-I.
 
 GENHDRS=	ipnat_l.h ipnat_y.h
-DPSRCS+=	${GENHDRS}
-
 CLEANFILES+=	${GENHDRS} ipnat_y.c ipnat_l.c
 
 ipnat_y.c: ipnat_y.y

@@ -196,6 +196,11 @@ SYSCTL_NODE(_net_link_lagg, OID_AUTO, lacp, CTLFLAG_RD, 0, "ieee802.3ad");
 SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(lacp_debug), 0, "Enable LACP debug logging (1=debug, 2=trace)");
 
+static VNET_DEFINE(int, lacp_default_strict_mode) = 1;
+SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, default_strict_mode, CTLFLAG_RWTUN,
+    &VNET_NAME(lacp_default_strict_mode), 0,
+    "LACP strict protocol compliance default");
+
 #define LACP_DPRINTF(a) if (V_lacp_debug & 0x01) { lacp_dprintf a ; }
 #define LACP_TRACE(a) if (V_lacp_debug & 0x02) { lacp_dprintf(a,"%s\n",__func__); }
 #define LACP_TPRINTF(a) if (V_lacp_debug & 0x04) { lacp_dprintf a ; }
@@ -765,7 +770,7 @@ lacp_attach(struct lagg_softc *sc)
 
 	lsc->lsc_hashkey = m_ether_tcpip_hash_init();
 	lsc->lsc_active_aggregator = NULL;
-	lsc->lsc_strict_mode = 1;
+	lsc->lsc_strict_mode = VNET(lacp_default_strict_mode);
 	LACP_LOCK_INIT(lsc);
 	TAILQ_INIT(&lsc->lsc_aggregators);
 	LIST_INIT(&lsc->lsc_ports);
@@ -1702,7 +1707,7 @@ lacp_sm_rx_record_default(struct lacp_port *lp)
 	if (lp->lp_lsc->lsc_strict_mode)
 		lp->lp_partner = lacp_partner_admin_strict;
 	else
-		lp->lp_partner = lacp_partner_admin_optimistic;;
+		lp->lp_partner = lacp_partner_admin_optimistic;
 	lp->lp_state |= LACP_STATE_DEFAULTED;
 	lacp_sm_ptx_update_timeout(lp, oldpstate);
 }

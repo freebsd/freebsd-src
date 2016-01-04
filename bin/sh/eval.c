@@ -750,7 +750,7 @@ isdeclarationcmd(struct narg *arg)
 }
 
 static void
-xtracecommand(struct arglist *varlist, struct arglist *arglist)
+xtracecommand(struct arglist *varlist, int argc, char **argv)
 {
 	char sep = 0;
 	const char *text, *p, *ps4;
@@ -771,8 +771,8 @@ xtracecommand(struct arglist *varlist, struct arglist *arglist)
 			out2qstr(text);
 		sep = ' ';
 	}
-	for (i = 0; i < arglist->count; i++) {
-		text = arglist->args[i];
+	for (i = 0; i < argc; i++) {
+		text = argv[i];
 		if (sep != 0)
 			out2c(' ');
 		out2qstr(text);
@@ -849,6 +849,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	do_clearcmdentry = 0;
 	oexitstatus = exitstatus;
 	exitstatus = 0;
+	/* Add one slot at the beginning for tryexec(). */
+	appendarglist(&arglist, nullstr);
 	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
 		if (varflag && isassignment(argp->narg.text)) {
 			expandarg(argp, varflag == 1 ? &varlist : &arglist,
@@ -858,13 +860,11 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			varflag = isdeclarationcmd(&argp->narg) ? 2 : 0;
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
 	}
+	appendarglist(&arglist, nullstr);
 	expredir(cmd->ncmd.redirect);
-	argc = arglist.count;
-	/* Add one slot at the beginning for tryexec(). */
-	argv = stalloc(sizeof (char *) * (argc + 2));
-	argv++;
+	argc = arglist.count - 2;
+	argv = &arglist.args[1];
 
-	memcpy(argv, arglist.args, sizeof(*argv) * argc);
 	argv[argc] = NULL;
 	lastarg = NULL;
 	if (iflag && funcnest == 0 && argc > 0)
@@ -872,7 +872,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* Print the command if xflag is set. */
 	if (xflag)
-		xtracecommand(&varlist, &arglist);
+		xtracecommand(&varlist, argc, argv);
 
 	/* Now locate the command. */
 	if (argc == 0) {

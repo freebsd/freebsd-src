@@ -167,11 +167,9 @@ static int
 iicsmb_detach(device_t dev)
 {
 	struct iicsmb_softc *sc = (struct iicsmb_softc *)device_get_softc(dev);
-	
+
 	bus_generic_detach(dev);
-	if (sc->smbus) {
-		device_delete_child(dev, sc->smbus);
-	}
+	device_delete_children(dev);
 	mtx_destroy(&sc->lock);
 
 	return (0);

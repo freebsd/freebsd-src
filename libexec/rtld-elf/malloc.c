@@ -45,7 +45,6 @@ static char *rcsid = "$FreeBSD$";
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <paths.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>

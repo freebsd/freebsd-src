@@ -137,6 +137,7 @@ arm64_cpu_probe(device_t dev)
 	if (cpuid >= MAXCPU || cpuid > mp_maxid)
 		return (EINVAL);
 
+	device_quiet(dev);
 	return (0);
 }
 
@@ -158,10 +159,12 @@ arm64_cpu_attach(device_t dev)
 	if (reg == NULL)
 		return (EINVAL);
 
-	device_printf(dev, "Found register:");
-	for (i = 0; i < reg_size; i++)
-		printf(" %x", reg[i]);
-	printf("\n");
+	if (bootverbose) {
+		device_printf(dev, "register <");
+		for (i = 0; i < reg_size; i++)
+			printf("%s%x", (i == 0) ? "" : " ", reg[i]);
+		printf(">\n");
+	}
 
 	/* Set the device to start it later */
 	cpu_list[cpuid] = dev;
@@ -172,7 +175,7 @@ arm64_cpu_attach(device_t dev)
 static void
 release_aps(void *dummy __unused)
 {
-	int i;
+	int cpu, i;
 
 	/* Setup the IPI handler */
 	for (i = 0; i < COUNT_IPI; i++)
@@ -185,8 +188,14 @@ release_aps(void *dummy __unused)
 	printf("Release APs\n");
 
 	for (i = 0; i < 2000; i++) {
-		if (smp_started)
+		if (smp_started) {
+			for (cpu = 0; cpu <= mp_maxid; cpu++) {
+				if (CPU_ABSENT(cpu))
+					continue;
+				print_cpu_features(cpu);
+			}
 			return;
+		}
 		DELAY(1000);
 	}
 

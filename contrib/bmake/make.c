@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.91 2014/10/18 08:33:30 snj Exp $	*/
+/*	$NetBSD: make.c,v 1.92 2015/10/11 04:51:24 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: make.c,v 1.91 2014/10/18 08:33:30 snj Exp $";
+static char rcsid[] = "$NetBSD: make.c,v 1.92 2015/10/11 04:51:24 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: make.c,v 1.91 2014/10/18 08:33:30 snj Exp $");
+__RCSID("$NetBSD: make.c,v 1.92 2015/10/11 04:51:24 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -485,7 +485,7 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
 		if (gn->name)
 		    free(gn->name);
 	    }
-	    gn->name = Var_Subst(NULL, gn->uname, pgn, FALSE);
+	    gn->name = Var_Subst(NULL, gn->uname, pgn, FALSE, TRUE);
 	    if (gn->name && gn->uname && strcmp(gn->name, gn->uname) != 0) {
 		/* See if we have a target for this node. */
 		tgn = Targ_FindNode(gn->name, TARG_NOCREATE);

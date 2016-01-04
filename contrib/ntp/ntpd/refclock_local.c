@@ -55,15 +55,7 @@
  *
  * Fudge Factors
  *
- * If fudge flag1 is lit, the leap second bit is set in the peer
- * status word. It should be set early in the day of a leap second
- * event and set dark on the day after the event.
- *
- * Note the fudge time1 and time2 have been deprecated. The fudge time1
- * was intended to apply a bias offset. This can be done using the Unix
- * date command. The fudge time2 was intended to apply a bias frequency.
- * This can be done using the frequency file and/or the freq
- * configuration command.
+ * None currently supported.
  */
 /*
  * Local interface definitions
@@ -179,9 +171,7 @@ local_poll(
 	/*
 	 * Ramble through the usual filtering and grooming code, which
 	 * is essentially a no-op and included mostly for pretty
-	 * billboards. We allow a one-time time adjustment using fudge
-	 * time1 (s) and a continuous frequency adjustment using fudge
-	 * time 2 (ppm).
+	 * billboards.
 	 */
 	poll_time = current_time;
 	refclock_process_offset(pp, pp->lastrec, pp->lastrec, 0);
@@ -215,10 +205,6 @@ local_poll(
 	pp->disp = 0;
 	pp->jitter = 0;
 #else /* KERNEL_PLL LOCKCLOCK */
-	if (pp->sloppyclockflag & CLK_FLAG1)
-		pp->leap = LEAP_ADDSECOND;
-	else
-		pp->leap = LEAP_NOWARNING;
 	pp->disp = DISPERSION;
 	pp->jitter = 0;
 #endif /* KERNEL_PLL LOCKCLOCK */

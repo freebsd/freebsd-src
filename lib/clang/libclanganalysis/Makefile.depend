@@ -169,12 +169,6 @@ ThreadSafetyCommon.po: Attrs.inc.h
 ThreadSafetyCommon.po: DeclNodes.inc.h
 ThreadSafetyCommon.po: DiagnosticCommonKinds.inc.h
 ThreadSafetyCommon.po: StmtNodes.inc.h
-ThreadSafetyLogical.o: DeclNodes.inc.h
-ThreadSafetyLogical.o: DiagnosticCommonKinds.inc.h
-ThreadSafetyLogical.o: StmtNodes.inc.h
-ThreadSafetyLogical.po: DeclNodes.inc.h
-ThreadSafetyLogical.po: DiagnosticCommonKinds.inc.h
-ThreadSafetyLogical.po: StmtNodes.inc.h
 ThreadSafetyTIL.o: DeclNodes.inc.h
 ThreadSafetyTIL.o: DiagnosticCommonKinds.inc.h
 ThreadSafetyTIL.o: StmtNodes.inc.h

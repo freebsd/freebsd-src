@@ -233,7 +233,7 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 	pc->ismultiseg = (align == 1);
 
 	/* compute physical address */
- 	usb_pc_common_mem_cb(pc, ptr, size);
+ 	usb_pc_common_mem_cb(pc, pc->buffer, size);
 
 	usb_pc_cpu_flush(pc);
  	return (0);

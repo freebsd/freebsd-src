@@ -35,6 +35,7 @@
 .Sh NAME
 .Nm callout_active ,
 .Nm callout_deactivate ,
+.Nm callout_async_drain ,
 .Nm callout_drain ,
 .Nm callout_handle_init ,
 .Nm callout_init ,
@@ -68,6 +69,8 @@ typedef void timeout_t (void *);
 .Fn callout_active "struct callout *c"
 .Ft void
 .Fn callout_deactivate "struct callout *c"
+.Ft int
+.Fn callout_async_drain "struct callout *c" "timeout_t *drain"
 .Ft int
 .Fn callout_drain "struct callout *c"
 .Ft void
@@ -236,15 +239,40 @@ The function
 cancels a callout
 .Fa c
 if it is currently pending.
-If the callout is pending, then
+If the callout is pending and successfuly stopped, then
 .Fn callout_stop
-returns a non-zero value.
-If the callout is not set,
-has already been serviced,
-or is currently being serviced,
+returns a value of one.
+If the callout is not set, or
+has already been serviced, then
+negative one is returned.
+If the callout is currently being serviced and cannot be stopped,
 then zero will be returned.
 If the callout has an associated lock,
 then that lock must be held when this function is called.
+.Pp
+The function
+.Fn callout_async_drain
+is identical to
+.Fn callout_stop
+with one difference.
+When
+.Fn callout_async_drain
+returns zero it will arrange for the function
+.Fa drain
+to be called using the same argument given to the
+.Fn callout_reset
+function. 
+.Fn callout_async_drain
+If the callout has an associated lock,
+then that lock must be held when this function is called.
+Note that when stopping multiple callouts that use the same lock it is possible
+to get multiple return's of zero and multiple calls to the
+.Fa drain
+function, depending upon which CPU's the callouts are running. The
+.Fa drain
+function itself is called from the context of the completing callout
+i.e. softclock or hardclock, just like a callout itself.
+p
 .Pp
 The function
 .Fn callout_drain
@@ -274,7 +302,7 @@ If
 .Fa c
 already has a pending callout,
 it is cancelled before the new invocation is scheduled.
-These functions return a non-zero value if a pending callout was cancelled
+These functions return a value of one if a pending callout was cancelled
 and zero if there was no pending callout.
 If the callout has an associated lock,
 then that lock must be held when any of these functions are called.
@@ -776,16 +804,16 @@ The
 .Fn callout_reset
 and
 .Fn callout_schedule
-function families return non-zero if the callout was pending before the new
+function families return a value of one if the callout was pending before the new
 function invocation was scheduled.
 .Pp
 The
 .Fn callout_stop
 and
 .Fn callout_drain
-functions return non-zero if the callout was still pending when it was
-called or zero otherwise.
-The
+functions return a value of one if the callout was still pending when it was
+called, a zero if the callout could not be stopped and a negative one is it
+was either not running or haas already completed. The
 .Fn timeout
 function returns a
 .Ft struct callout_handle

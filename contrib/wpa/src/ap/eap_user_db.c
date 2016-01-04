@@ -138,8 +138,12 @@ eap_user_sqlite_get(struct hostapd_data *hapd, const u8 *identity,
 	char id_str[256], cmd[300];
 	size_t i;
 
-	if (identity_len >= sizeof(id_str))
+	if (identity_len >= sizeof(id_str)) {
+		wpa_printf(MSG_DEBUG, "%s: identity len too big: %d >= %d",
+			   __func__, (int) identity_len,
+			   (int) (sizeof(id_str)));
 		return NULL;
+	}
 	os_memcpy(id_str, identity, identity_len);
 	id_str[identity_len] = '\0';
 	for (i = 0; i < identity_len; i++) {
@@ -182,7 +186,9 @@ eap_user_sqlite_get(struct hostapd_data *hapd, const u8 *identity,
 	wpa_printf(MSG_DEBUG, "DB: %s", cmd);
 	if (sqlite3_exec(db, cmd, get_user_cb, &hapd->tmp_eap_user, NULL) !=
 	    SQLITE_OK) {
-		wpa_printf(MSG_DEBUG, "DB: Failed to complete SQL operation");
+		wpa_printf(MSG_DEBUG,
+			   "DB: Failed to complete SQL operation: %s  db: %s",
+			   sqlite3_errmsg(db), hapd->conf->eap_user_sqlite);
 	} else if (hapd->tmp_eap_user.next)
 		user = &hapd->tmp_eap_user;
 
@@ -192,8 +198,10 @@ eap_user_sqlite_get(struct hostapd_data *hapd, const u8 *identity,
 		wpa_printf(MSG_DEBUG, "DB: %s", cmd);
 		if (sqlite3_exec(db, cmd, get_wildcard_cb, &hapd->tmp_eap_user,
 				 NULL) != SQLITE_OK) {
-			wpa_printf(MSG_DEBUG, "DB: Failed to complete SQL "
-				   "operation");
+			wpa_printf(MSG_DEBUG,
+				   "DB: Failed to complete SQL operation: %s  db: %s",
+				   sqlite3_errmsg(db),
+				   hapd->conf->eap_user_sqlite);
 		} else if (hapd->tmp_eap_user.next) {
 			user = &hapd->tmp_eap_user;
 			os_free(user->identity);

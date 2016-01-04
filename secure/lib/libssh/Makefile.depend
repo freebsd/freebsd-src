@@ -17,7 +17,6 @@ DIRDEPS = \
 	lib/libz \
 	secure/lib/libcrypto \
 	secure/lib/libssl \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

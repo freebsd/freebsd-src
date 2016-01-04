@@ -260,8 +260,14 @@ static int ieee80211n_check_40mhz_5g(struct hostapd_iface *iface,
 
 	res = check_40mhz_5g(iface->current_mode, scan_res, pri_chan, sec_chan);
 
-	if (res == 2)
-		ieee80211n_switch_pri_sec(iface);
+	if (res == 2) {
+		if (iface->conf->no_pri_sec_switch) {
+			wpa_printf(MSG_DEBUG,
+				   "Cannot switch PRI/SEC channels due to local constraint");
+		} else {
+			ieee80211n_switch_pri_sec(iface);
+		}
+	}
 
 	return !!res;
 }
@@ -347,8 +353,13 @@ static void ieee80211n_scan_channels_2g4(struct hostapd_iface *iface,
 		sec_freq = pri_freq + 20;
 	else
 		sec_freq = pri_freq - 20;
-	affected_start = (pri_freq + sec_freq) / 2 - 25;
-	affected_end = (pri_freq + sec_freq) / 2 + 25;
+	/*
+	 * Note: Need to find the PRI channel also in cases where the affected
+	 * channel is the SEC channel of a 40 MHz BSS, so need to include the
+	 * scanning coverage here to be 40 MHz from the center frequency.
+	 */
+	affected_start = (pri_freq + sec_freq) / 2 - 40;
+	affected_end = (pri_freq + sec_freq) / 2 + 40;
 	wpa_printf(MSG_DEBUG, "40 MHz affected channel range: [%d,%d] MHz",
 		   affected_start, affected_end);
 
@@ -510,7 +521,11 @@ static int ieee80211n_supported_ht_capab(struct hostapd_iface *iface)
 		return 0;
 	}
 
-	if ((conf & HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET) &&
+	/*
+	 * Driver ACS chosen channel may not be HT40 due to internal driver
+	 * restrictions.
+	 */
+	if (!iface->conf->acs && (conf & HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET) &&
 	    !(hw & HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET)) {
 		wpa_printf(MSG_ERROR, "Driver does not support configured "
 			   "HT capability [HT40*]");
@@ -717,6 +732,15 @@ int hostapd_check_ht_capab(struct hostapd_iface *iface)
 	int ret;
 	if (!iface->conf->ieee80211n)
 		return 0;
+
+	if (iface->current_mode->mode != HOSTAPD_MODE_IEEE80211B &&
+	    iface->current_mode->mode != HOSTAPD_MODE_IEEE80211G &&
+	    (iface->conf->ht_capab & HT_CAP_INFO_DSSS_CCK40MHZ)) {
+		wpa_printf(MSG_DEBUG,
+			   "Disable HT capability [DSSS_CCK-40] on 5 GHz band");
+		iface->conf->ht_capab &= ~HT_CAP_INFO_DSSS_CCK40MHZ;
+	}
+
 	if (!ieee80211n_supported_ht_capab(iface))
 		return -1;
 #ifdef CONFIG_IEEE80211AC
@@ -739,6 +763,9 @@ static int hostapd_is_usable_chan(struct hostapd_iface *iface,
 {
 	int i;
 	struct hostapd_channel_data *chan;
+
+	if (!iface->current_mode)
+		return 0;
 
 	for (i = 0; i < iface->current_mode->num_channels; i++) {
 		chan = &iface->current_mode->channels[i];
@@ -801,6 +828,12 @@ hostapd_check_chans(struct hostapd_iface *iface)
 
 static void hostapd_notify_bad_chans(struct hostapd_iface *iface)
 {
+	if (!iface->current_mode) {
+		hostapd_logger(iface->bss[0], NULL, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_WARNING,
+			       "Hardware does not support configured mode");
+		return;
+	}
 	hostapd_logger(iface->bss[0], NULL,
 		       HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_WARNING,
@@ -891,14 +924,18 @@ int hostapd_select_hw_mode(struct hostapd_iface *iface)
 	}
 
 	if (iface->current_mode == NULL) {
-		wpa_printf(MSG_ERROR, "Hardware does not support configured "
-			   "mode");
-		hostapd_logger(iface->bss[0], NULL, HOSTAPD_MODULE_IEEE80211,
-			       HOSTAPD_LEVEL_WARNING,
-			       "Hardware does not support configured mode "
-			       "(%d) (hw_mode in hostapd.conf)",
-			       (int) iface->conf->hw_mode);
-		return -2;
+		if (!(iface->drv_flags & WPA_DRIVER_FLAGS_ACS_OFFLOAD) ||
+		    !(iface->drv_flags & WPA_DRIVER_FLAGS_SUPPORT_HW_MODE_ANY))
+		{
+			wpa_printf(MSG_ERROR,
+				   "Hardware does not support configured mode");
+			hostapd_logger(iface->bss[0], NULL,
+				       HOSTAPD_MODULE_IEEE80211,
+				       HOSTAPD_LEVEL_WARNING,
+				       "Hardware does not support configured mode (%d) (hw_mode in hostapd.conf)",
+				       (int) iface->conf->hw_mode);
+			return -2;
+		}
 	}
 
 	switch (hostapd_check_chans(iface)) {

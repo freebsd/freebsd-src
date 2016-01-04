@@ -292,7 +292,7 @@ tcp_timer_delack(void *xtp)
 
 	tp->t_flags |= TF_ACKNOW;
 	TCPSTAT_INC(tcps_delack);
-	(void) tcp_output(tp);
+	(void) tp->t_fb->tfb_tcp_output(tp);
 	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
 }
@@ -543,7 +543,7 @@ tcp_timer_persist(void *xtp)
 	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
-	(void) tcp_output(tp);
+	(void) tp->t_fb->tfb_tcp_output(tp);
 	tp->t_flags &= ~TF_FORCEDATA;
 
 out:
@@ -643,7 +643,8 @@ tcp_timer_rexmt(void * xtp)
 	} else
 		tp->t_flags &= ~TF_PREVVALID;
 	TCPSTAT_INC(tcps_rexmttimeo);
-	if (tp->t_state == TCPS_SYN_SENT)
+	if ((tp->t_state == TCPS_SYN_SENT) ||
+	    (tp->t_state == TCPS_SYN_RECEIVED))
 		rexmt = TCPTV_RTOBASE * tcp_syn_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
@@ -798,7 +799,7 @@ tcp_timer_rexmt(void * xtp)
 
 	cc_cong_signal(tp, NULL, CC_RTO);
 
-	(void) tcp_output(tp);
+	(void) tp->t_fb->tfb_tcp_output(tp);
 
 out:
 #ifdef TCPDEBUG
@@ -858,11 +859,15 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 			f_reset = TT_2MSL_RST;
 			break;
 		default:
+			if (tp->t_fb->tfb_tcp_timer_activate) {
+				tp->t_fb->tfb_tcp_timer_activate(tp, timer_type, delta);
+				return;
+			}
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	if (delta == 0) {
 		if ((tp->t_timers->tt_flags & timer_type) &&
-		    callout_stop(t_callout) &&
+		    (callout_stop(t_callout) > 0) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		}
@@ -904,6 +909,9 @@ tcp_timer_active(struct tcpcb *tp, uint32_t timer_type)
 			t_callout = &tp->t_timers->tt_2msl;
 			break;
 		default:
+			if (tp->t_fb->tfb_tcp_timer_active) {
+				return(tp->t_fb->tfb_tcp_timer_active(tp, timer_type));
+			}
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	return callout_active(t_callout);
@@ -945,11 +953,19 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 			f_reset = TT_2MSL_RST;
 			break;
 		default:
+			if (tp->t_fb->tfb_tcp_timer_stop) {
+				/* 
+				 * XXXrrs we need to look at this with the
+				 * stop case below (flags).
+				 */
+				tp->t_fb->tfb_tcp_timer_stop(tp, timer_type);
+				return;
+			}
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if (callout_stop(t_callout) &&
+		if ((callout_stop(t_callout) > 0) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		} else {

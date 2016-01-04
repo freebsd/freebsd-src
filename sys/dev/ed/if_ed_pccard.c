@@ -1248,3 +1248,4 @@ DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_devclass, 0, NULL);
 DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, NULL);
 MODULE_DEPEND(ed, miibus, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
+PCCARD_PNP_INFO(ed_pccard_products);

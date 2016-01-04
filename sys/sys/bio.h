@@ -61,6 +61,7 @@
 #define BIO_ORDERED	0x08
 #define	BIO_UNMAPPED	0x10
 #define	BIO_TRANSIENT_MAPPING	0x20
+#define	BIO_VLIST	0x40
 
 #ifdef _KERNEL
 struct disk;

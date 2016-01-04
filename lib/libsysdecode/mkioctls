@@ -1,0 +1,97 @@
+#!/bin/sh
+#
+# $FreeBSD$
+
+set -e
+
+if [ $# -ne 1 ]; then
+	echo "usage: sh $0 include-dir"
+	exit 1
+fi
+
+includedir="$1"
+
+LC_ALL=C; export LC_ALL
+
+# Build a list of headers that have ioctls in them.
+# XXX should we use an ANSI cpp?
+ioctl_includes=$(
+	cd $includedir
+	find -H -s * -name '*.h' | \
+	egrep -v '(.*disk.*|net/pfvar|net/if_pfsync)\.h' | \
+		xargs egrep -l \
+'^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
+		awk '{printf("#include <%s>\\n", $1)}'
+)
+
+: ${MACHINE=$(uname -m)}
+case "${MACHINE}" in
+*pc98*)
+	ioctl_includes="$ioctl_includes#include <sys/diskpc98.h>\\n"
+	;;
+*)
+	ioctl_includes="$ioctl_includes#include <sys/diskmbr.h>\\n"
+	;;
+esac
+
+awk -v x="$ioctl_includes" 'BEGIN {print x}' |
+	$CPP -nostdinc -I$includedir -dM -DCOMPAT_43TTY - |
+	awk -v ioctl_includes="$ioctl_includes" '
+BEGIN {
+	print "/* XXX obnoxious prerequisites. */"
+	print "#define COMPAT_43"
+	print "#define COMPAT_43TTY"
+	print "#include <sys/param.h>"
+	print "#include <sys/devicestat.h>"
+	print "#include <sys/disklabel.h>"
+	print "#include <sys/socket.h>"
+	print "#include <sys/time.h>"
+	print "#include <sys/tty.h>"
+	print "#include <bsm/audit.h>"
+	print "#include <net/ethernet.h>"
+	print "#include <net/if.h>"
+	print "#ifdef PF"
+	print "#include <net/pfvar.h>"
+	print "#include <net/if_pfsync.h>"
+	print "#endif"
+	print "#include <net/route.h>"
+	print "#include <netinet/in.h>"
+	print "#include <netinet/ip_mroute.h>"
+	print "#include <netinet6/in6_var.h>"
+	print "#include <netinet6/nd6.h>"
+	print "#include <netinet6/ip6_mroute.h>"
+	print "#include <stdio.h>"
+	print "#include <cam/cam.h>"
+	print "#include <stddef.h>"
+	print "#include <stdint.h>"
+	print "#include <sysdecode.h>"
+	print ""
+	print ioctl_includes
+	print ""
+	print "const char *"
+	print "sysdecode_ioctlname(unsigned long val)"
+	print "{"
+	print "\tconst char *str = NULL;"
+	print ""
+}
+
+/^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO/ {
+
+	# find where the name starts
+	for (i = 1; i <= NF; i++)
+		if ($i ~ /define/)
+			break;
+	++i;
+	#
+	printf("\t");
+	if (n++ > 0)
+		printf("else ");
+	printf("if (val == %s)\n", $i);
+	printf("\t\tstr = \"%s\";\n", $i);
+}
+END {
+	print ""
+	print "\treturn (str);"
+	print "}"
+}
+'

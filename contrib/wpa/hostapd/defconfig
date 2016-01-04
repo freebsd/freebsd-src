@@ -240,6 +240,12 @@ CONFIG_IPV6=y
 # requirements described above.
 #CONFIG_NO_RANDOM_POOL=y
 
+# Should we use poll instead of select? Select is used by default.
+#CONFIG_ELOOP_POLL=y
+
+# Should we use epoll instead of select? Select is used by default.
+#CONFIG_ELOOP_EPOLL=y
+
 # Select TLS implementation
 # openssl = OpenSSL (default)
 # gnutls = GnuTLS
@@ -282,6 +288,12 @@ CONFIG_IPV6=y
 
 # Enable SQLite database support in hlr_auc_gw, EAP-SIM DB, and eap_user_file
 #CONFIG_SQLITE=y
+
+# Enable Fast Session Transfer (FST)
+#CONFIG_FST=y
+
+# Enable CLI commands for FST testing
+#CONFIG_FST_TEST=y
 
 # Testing options
 # This can be used to enable some testing options (see also the example

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2015
+.Dd November 18, 2015
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Op Fl a Ar pathname
 .Op Fl c Ar cpu-spec
 .Op Fl d
+.Op Fl e
 .Op Fl f Ar pluginopt
 .Op Fl g
 .Op Fl k Ar kerneldir
@@ -260,6 +261,12 @@ The default is to measure events for the target process alone.
 .Fl P ,
 or
 .Fl S ) .
+.It Fl e
+Specify that the gprof profile files will use a wide history counter.
+These files are produced in a format compatible with
+.Xr gprof 1 .
+However, other tools that cannot fully parse a BSD-style
+gmon header might be unable to correctly parse these files.
 .It Fl f Ar pluginopt
 Pass option string to the active plugin.
 .br

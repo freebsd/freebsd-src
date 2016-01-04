@@ -43,4 +43,7 @@ void arm_generic_initclocks(void);
 void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
 
+int arm_predict_branch(void *, u_int, register_t, register_t *,
+    u_int (*)(void*, int), u_int (*)(void*, vm_offset_t, u_int*));
+
 #endif /* !_MACHINE_MACHDEP_H_ */

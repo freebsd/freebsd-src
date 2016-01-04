@@ -9,6 +9,6 @@ MAN=
 CFLAGS+=-I${.CURDIR}/../lint1
 LINTFLAGS=-abehrz
 
-BINDIR=	/usr/libexec
+BINDIR=	${LIBEXECDIR}
 
 .include <bsd.prog.mk>

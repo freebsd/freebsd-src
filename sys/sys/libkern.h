@@ -61,6 +61,8 @@ static __inline u_int max(u_int a, u_int b) { return (a > b ? a : b); }
 static __inline u_int min(u_int a, u_int b) { return (a < b ? a : b); }
 static __inline quad_t qmax(quad_t a, quad_t b) { return (a > b ? a : b); }
 static __inline quad_t qmin(quad_t a, quad_t b) { return (a < b ? a : b); }
+static __inline u_quad_t uqmax(u_quad_t a, u_quad_t b) { return (a > b ? a : b); }
+static __inline u_quad_t uqmin(u_quad_t a, u_quad_t b) { return (a < b ? a : b); }
 static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
 static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 static __inline off_t omax(off_t a, off_t b) { return (a > b ? a : b); }
@@ -88,6 +90,9 @@ int	 ffs(int);
 #endif
 #ifndef	HAVE_INLINE_FFSL
 int	 ffsl(long);
+#endif
+#ifndef	HAVE_INLINE_FFSLL
+int	 ffsll(long long);
 #endif
 #ifndef	HAVE_INLINE_FLS
 int	 fls(int);

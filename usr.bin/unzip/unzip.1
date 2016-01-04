@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2012
+.Dd December 12, 2015
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd extract files from a ZIP archive
 .Sh SYNOPSIS
 .Nm
-.Op Fl aCcfjLlnopqtuv
+.Op Fl aCcfjLlnopqtuvy
 .Op Fl d Ar dir
 .Ar zipfile
 .Sh DESCRIPTION
@@ -102,6 +102,8 @@ content of the archive.
 .It Fl x Ar pattern
 Exclude files matching the pattern
 .Ar pattern .
+.It Fl y
+Print four digit years in listings instead of two.
 .It Fl Z Ar mode
 Emulate
 .Xr zipinfo 1L

@@ -13,36 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-POSIXStopInfo.o: DiagnosticCommonKinds.inc.h
-POSIXStopInfo.po: DiagnosticCommonKinds.inc.h
-POSIXThread.o: AttrList.inc.h
-POSIXThread.o: Attrs.inc.h
-POSIXThread.o: CommentCommandList.inc.h
-POSIXThread.o: DeclNodes.inc.h
-POSIXThread.o: DiagnosticCommonKinds.inc.h
-POSIXThread.o: StmtNodes.inc.h
-POSIXThread.po: AttrList.inc.h
-POSIXThread.po: Attrs.inc.h
-POSIXThread.po: CommentCommandList.inc.h
-POSIXThread.po: DeclNodes.inc.h
-POSIXThread.po: DiagnosticCommonKinds.inc.h
-POSIXThread.po: StmtNodes.inc.h
-ProcessPOSIX.o: CommentCommandList.inc.h
-ProcessPOSIX.o: DeclNodes.inc.h
-ProcessPOSIX.o: DiagnosticCommonKinds.inc.h
-ProcessPOSIX.o: StmtNodes.inc.h
-ProcessPOSIX.po: CommentCommandList.inc.h
-ProcessPOSIX.po: DeclNodes.inc.h
-ProcessPOSIX.po: DiagnosticCommonKinds.inc.h
-ProcessPOSIX.po: StmtNodes.inc.h
-ProcessPOSIXLog.o: DiagnosticCommonKinds.inc.h
-ProcessPOSIXLog.po: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_arm64.o: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_arm64.po: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_mips64.o: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_mips64.po: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_powerpc.o: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_powerpc.po: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_x86.o: DiagnosticCommonKinds.inc.h
-RegisterContextPOSIXProcessMonitor_x86.po: DiagnosticCommonKinds.inc.h
 .endif

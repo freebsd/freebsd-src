@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Oleksandr Tymoshenko 
+ * Copyright (c) 2010 Oleksandr Tymoshenko
  * Copyright (c) 2008 Semihalf, Grzegorz Bernacki
  * Copyright (c) 2006 Peter Wemm
  *
@@ -35,112 +35,57 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/user.h>
-#include <sys/proc.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/fnv_hash.h>
+#include <kvm.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <nlist.h>
-#include <kvm.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-
-#include <machine/elf.h>
-#include <machine/cpufunc.h>
-#include <machine/minidump.h>
-
-#include <limits.h>
+#include "../../sys/mips/include/cpuregs.h"
+#include "../../sys/mips/include/minidump.h"
 
 #include "kvm_private.h"
+#include "kvm_mips.h"
 
-struct hpte {
-	struct hpte	*next;
-	uint64_t	pa;
-	int64_t		off;
-};
+#define	mips_round_page(x)	roundup2((kvaddr_t)(x), MIPS_PAGE_SIZE)
 
-#define HPT_SIZE 1024
-
-/* minidump must be the first field */
 struct vmstate {
-	int		minidump;		/* 1 = minidump mode */
 	struct		minidumphdr hdr;
-	void		*hpt_head[HPT_SIZE];
-	uint32_t	*bitmap;
+	struct		hpt hpt;
 	void		*ptemap;
+	int		pte_size;
 };
-
-static void
-hpt_insert(kvm_t *kd, uint64_t pa, int64_t off)
-{
-	struct hpte *hpte;
-	uint32_t fnv = FNV1_32_INIT;
-
-	fnv = fnv_32_buf(&pa, sizeof(pa), fnv);
-	fnv &= (HPT_SIZE - 1);
-	hpte = malloc(sizeof(*hpte));
-	hpte->pa = pa;
-	hpte->off = off;
-	hpte->next = kd->vmst->hpt_head[fnv];
-	kd->vmst->hpt_head[fnv] = hpte;
-}
-
-static int64_t
-hpt_find(kvm_t *kd, uint64_t pa)
-{
-	struct hpte *hpte;
-	uint32_t fnv = FNV1_32_INIT;
-
-	fnv = fnv_32_buf(&pa, sizeof(pa), fnv);
-	fnv &= (HPT_SIZE - 1);
-	for (hpte = kd->vmst->hpt_head[fnv]; hpte != NULL; hpte = hpte->next)
-		if (pa == hpte->pa)
-			return (hpte->off);
-
-	return (-1);
-}
 
 static int
-inithash(kvm_t *kd, uint32_t *base, int len, off_t off)
+_mips_minidump_probe(kvm_t *kd)
 {
-	uint64_t idx, pa;
-	uint32_t bit, bits;
 
-	for (idx = 0; idx < len / sizeof(*base); idx++) {
-		bits = base[idx];
-		while (bits) {
-			bit = ffs(bits) - 1;
-			bits &= ~(1ul << bit);
-			pa = (idx * sizeof(*base) * NBBY + bit) * PAGE_SIZE;
-			hpt_insert(kd, pa, off);
-			off += PAGE_SIZE;
-		}
-	}
-
-	return (off);
+	if (kd->nlehdr.e_ident[EI_CLASS] != ELFCLASS32 &&
+	    kd->nlehdr.e_ident[EI_CLASS] != ELFCLASS64)
+		return (0);
+	if (kd->nlehdr.e_machine != EM_MIPS)
+		return (0);
+	return (_kvm_is_minidump(kd));
 }
 
-void
-_kvm_minidump_freevtop(kvm_t *kd)
+static void
+_mips_minidump_freevtop(kvm_t *kd)
 {
 	struct vmstate *vm = kd->vmst;
 
-	if (vm->bitmap)
-		free(vm->bitmap);
+	_kvm_hpt_free(&vm->hpt);
 	if (vm->ptemap)
 		free(vm->ptemap);
 	free(vm);
 	kd->vmst = NULL;
 }
 
-int
-_kvm_minidump_initvtop(kvm_t *kd)
+static int
+_mips_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
+	uint32_t *bitmap;
 	off_t off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
@@ -150,9 +95,13 @@ _kvm_minidump_initvtop(kvm_t *kd)
 	}
 
 	kd->vmst = vmst;
-	vmst->minidump = 1;
 
-	off = lseek(kd->pmfd, 0, SEEK_CUR);
+	if (kd->nlehdr.e_ident[EI_CLASS] == ELFCLASS64 ||
+	    kd->nlehdr.e_flags & EF_MIPS_ABI2)
+		vmst->pte_size = 64;
+	else
+		vmst->pte_size = 32;
+
 	if (pread(kd->pmfd, &vmst->hdr,
 	    sizeof(vmst->hdr), 0) != sizeof(vmst->hdr)) {
 		_kvm_err(kd, kd->program, "cannot read dump header");
@@ -164,34 +113,43 @@ _kvm_minidump_initvtop(kvm_t *kd)
 		_kvm_err(kd, kd->program, "not a minidump for this platform");
 		return (-1);
 	}
+	vmst->hdr.version = _kvm32toh(kd, vmst->hdr.version);
 	if (vmst->hdr.version != MINIDUMP_VERSION) {
 		_kvm_err(kd, kd->program, "wrong minidump version. "
 		    "Expected %d got %d", MINIDUMP_VERSION, vmst->hdr.version);
 		return (-1);
 	}
+	vmst->hdr.msgbufsize = _kvm32toh(kd, vmst->hdr.msgbufsize);
+	vmst->hdr.bitmapsize = _kvm32toh(kd, vmst->hdr.bitmapsize);
+	vmst->hdr.ptesize = _kvm32toh(kd, vmst->hdr.ptesize);
+	vmst->hdr.kernbase = _kvm64toh(kd, vmst->hdr.kernbase);
+	vmst->hdr.dmapbase = _kvm64toh(kd, vmst->hdr.dmapbase);
+	vmst->hdr.dmapend = _kvm64toh(kd, vmst->hdr.dmapend);
 
 	/* Skip header and msgbuf */
-	off = PAGE_SIZE + round_page(vmst->hdr.msgbufsize);
+	off = MIPS_PAGE_SIZE + mips_round_page(vmst->hdr.msgbufsize);
 
-	vmst->bitmap = _kvm_malloc(kd, vmst->hdr.bitmapsize);
-	if (vmst->bitmap == NULL) {
+	bitmap = _kvm_malloc(kd, vmst->hdr.bitmapsize);
+	if (bitmap == NULL) {
 		_kvm_err(kd, kd->program, "cannot allocate %d bytes for "
 		    "bitmap", vmst->hdr.bitmapsize);
 		return (-1);
 	}
 
-	if (pread(kd->pmfd, vmst->bitmap, vmst->hdr.bitmapsize, off) !=
+	if (pread(kd->pmfd, bitmap, vmst->hdr.bitmapsize, off) !=
 	    (ssize_t)vmst->hdr.bitmapsize) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes for page bitmap",
 		    vmst->hdr.bitmapsize);
+		free(bitmap);
 		return (-1);
 	}
-	off += round_page(vmst->hdr.bitmapsize);
+	off += mips_round_page(vmst->hdr.bitmapsize);
 
 	vmst->ptemap = _kvm_malloc(kd, vmst->hdr.ptesize);
 	if (vmst->ptemap == NULL) {
 		_kvm_err(kd, kd->program, "cannot allocate %d bytes for "
 		    "ptemap", vmst->hdr.ptesize);
+		free(bitmap);
 		return (-1);
 	}
 
@@ -199,75 +157,139 @@ _kvm_minidump_initvtop(kvm_t *kd)
 	    (ssize_t)vmst->hdr.ptesize) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes for ptemap",
 		    vmst->hdr.ptesize);
+		free(bitmap);
 		return (-1);
 	}
 
 	off += vmst->hdr.ptesize;
 
 	/* Build physical address hash table for sparse pages */
-	inithash(kd, vmst->bitmap, vmst->hdr.bitmapsize, off);
+	_kvm_hpt_init(kd, &vmst->hpt, bitmap, vmst->hdr.bitmapsize, off,
+	    MIPS_PAGE_SIZE, sizeof(*bitmap));
+	free(bitmap);
 
 	return (0);
 }
 
-int
-_kvm_minidump_kvatop(kvm_t *kd, u_long va, off_t *pa)
+static int
+_mips_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 {
 	struct vmstate *vm;
-	pt_entry_t pte;
-	u_long offset, pteindex, a;
+	uint64_t pte;
+	mips_physaddr_t offset, a;
+	kvaddr_t pteindex;
 	off_t ofs;
-	pt_entry_t *ptemap;
+	uint32_t *ptemap32;
+	uint64_t *ptemap64;
 
 	if (ISALIVE(kd)) {
-		_kvm_err(kd, 0, "kvm_kvatop called in live kernel!");
+		_kvm_err(kd, 0, "_mips_minidump_kvatop called in live kernel!");
 		return (0);
 	}
 
- 	offset = va & PAGE_MASK;
+	offset = va & MIPS_PAGE_MASK;
 	/* Operate with page-aligned address */
-	va &= ~PAGE_MASK;
+	va &= ~MIPS_PAGE_MASK;
 
 	vm = kd->vmst;
-	ptemap = vm->ptemap;
+	ptemap32 = vm->ptemap;
+	ptemap64 = vm->ptemap;
 
-#if defined(__mips_n64)
-	if (va >= MIPS_XKPHYS_START && va < MIPS_XKPHYS_END)
-		a = (MIPS_XKPHYS_TO_PHYS(va));
-	else
-#endif
-	if (va >= (u_long)MIPS_KSEG0_START && va < (u_long)MIPS_KSEG0_END)
-		a = (MIPS_KSEG0_TO_PHYS(va));
-	else if (va >= (u_long)MIPS_KSEG1_START && va < (u_long)MIPS_KSEG1_END)
-		a = (MIPS_KSEG1_TO_PHYS(va));
-	else if (va >= vm->hdr.kernbase) {
-		pteindex = (va - vm->hdr.kernbase) >> PAGE_SHIFT;
-		pte = ptemap[pteindex];
+	if (kd->nlehdr.e_ident[EI_CLASS] == ELFCLASS64) {
+		if (va >= MIPS_XKPHYS_START && va < MIPS_XKPHYS_END) {
+			a = va & MIPS_XKPHYS_PHYS_MASK;
+			goto found;
+		}
+		if (va >= MIPS64_KSEG0_START && va < MIPS64_KSEG0_END) {
+			a = va & MIPS_KSEG0_PHYS_MASK;
+			goto found;
+		}
+		if (va >= MIPS64_KSEG1_START && va < MIPS64_KSEG1_END) {
+			a = va & MIPS_KSEG0_PHYS_MASK;
+			goto found;
+		}
+	} else {
+		if (va >= MIPS32_KSEG0_START && va < MIPS32_KSEG0_END) {
+			a = va & MIPS_KSEG0_PHYS_MASK;
+			goto found;
+		}
+		if (va >= MIPS32_KSEG1_START && va < MIPS32_KSEG1_END) {
+			a = va & MIPS_KSEG0_PHYS_MASK;
+			goto found;
+		}
+	}
+	if (va >= vm->hdr.kernbase) {
+		pteindex = (va - vm->hdr.kernbase) >> MIPS_PAGE_SHIFT;
+		if (vm->pte_size == 64) {
+			pte = _kvm64toh(kd, ptemap64[pteindex]);
+			a = MIPS64_PTE_TO_PA(pte);
+		} else {
+			pte = _kvm32toh(kd, ptemap32[pteindex]);
+			a = MIPS32_PTE_TO_PA(pte);
+		}
 		if (!pte) {
-			_kvm_err(kd, kd->program, "_kvm_vatop: pte not valid");
+			_kvm_err(kd, kd->program, "_mips_minidump_kvatop: pte "
+			    "not valid");
 			goto invalid;
 		}
-
-		a = TLBLO_PTE_TO_PA(pte);
-
 	} else {
-		_kvm_err(kd, kd->program, "_kvm_vatop: virtual address 0x%lx "
-		    "not minidumped", va);
+		_kvm_err(kd, kd->program, "_mips_minidump_kvatop: virtual "
+		    "address 0x%jx not minidumped", (uintmax_t)va);
 		return (0);
 	}
 
-	ofs = hpt_find(kd, a);
+found:
+	ofs = _kvm_hpt_find(&vm->hpt, a);
 	if (ofs == -1) {
-		_kvm_err(kd, kd->program, "_kvm_vatop: physical "
-		    "address 0x%lx not in minidump", a);
+		_kvm_err(kd, kd->program, "_mips_minidump_kvatop: physical "
+		    "address 0x%jx not in minidump", (uintmax_t)a);
 		goto invalid;
 	}
 
 	*pa = ofs + offset;
-	return (PAGE_SIZE - offset);
+	return (MIPS_PAGE_SIZE - offset);
 
 
 invalid:
-	_kvm_err(kd, 0, "invalid address (0x%lx)", va);
+	_kvm_err(kd, 0, "invalid address (0x%jx)", (uintmax_t)va);
 	return (0);
 }
+
+static int
+_mips_native(kvm_t *kd)
+{
+
+#ifdef __mips__
+#ifdef __mips_n64
+	if (kd->nlehdr.e_ident[EI_CLASS] != ELFCLASS64)
+		return (0);
+#else
+	if (kd->nlehdr.e_ident[EI_CLASS] != ELFCLASS32)
+		return (0);
+#ifdef __mips_n32
+	if (!(kd->nlehdr.e_flags & EF_MIPS_ABI2))
+		return (0);
+#else
+	if (kd->nlehdr.e_flags & EF_MIPS_ABI2)
+		return (0);
+#endif
+#endif
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+	return (kd->nlehdr.e_ident[EI_DATA] == ELFDATA2LSB);
+#else
+	return (kd->nlehdr.e_ident[EI_DATA] == ELFDATA2MSB);
+#endif
+#else
+	return (0);
+#endif
+}
+
+struct kvm_arch kvm_mips_minidump = {
+	.ka_probe = _mips_minidump_probe,
+	.ka_initvtop = _mips_minidump_initvtop,
+	.ka_freevtop = _mips_minidump_freevtop,
+	.ka_kvatop = _mips_minidump_kvatop,
+	.ka_native = _mips_native,
+};
+
+KVM_ARCH(kvm_mips_minidump);

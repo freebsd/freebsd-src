@@ -3,6 +3,7 @@
 
 DIRDEPS = \
 	include \
+	include/arpa \
 	include/xlocale \
 	lib/libexpat \
 	lib/libmagic \

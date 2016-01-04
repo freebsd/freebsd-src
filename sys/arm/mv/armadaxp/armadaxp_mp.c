@@ -82,14 +82,13 @@ void
 platform_mp_setmaxid(void)
 {
 
-	mp_maxid = 3;
+	mp_ncpus = platform_get_ncpus();
+	mp_maxid = mp_ncpus - 1;
 }
 
 int
 platform_mp_probe(void)
 {
-
-	mp_ncpus = platform_get_ncpus();
 
 	return (mp_ncpus > 1);
 }

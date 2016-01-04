@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_mroute.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 
 VNET_DECLARE(int, icmp6_nodeinfo_oldmcprefix);
@@ -1551,7 +1552,7 @@ in6ifa_llaonifp(struct ifnet *ifp)
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
 		return (NULL);
-	if_addr_rlock(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1561,7 +1562,7 @@ in6ifa_llaonifp(struct ifnet *ifp)
 		    IN6_IS_ADDR_MC_NODELOCAL(&sin6->sin6_addr))
 			break;
 	}
-	if_addr_runlock(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
@@ -2007,6 +2008,7 @@ in6_if2idlen(struct ifnet *ifp)
 	case IFT_PROPVIRTUAL:	/* XXX: no RFC. treat it as ether */
 	case IFT_L2VLAN:	/* ditto */
 	case IFT_IEEE80211:	/* ditto */
+	case IFT_BRIDGE:	/* bridge(4) only does Ethernet-like links */
 	case IFT_INFINIBAND:
 		return (64);
 	case IFT_FDDI:		/* RFC2467 */
@@ -2063,6 +2065,7 @@ in6_lltable_destroy_lle(struct llentry *lle)
 
 	LLE_WUNLOCK(lle);
 	LLE_LOCK_DESTROY(lle);
+	LLE_REQ_DESTROY(lle);
 	free(lle, M_LLTABLE);
 }
 
@@ -2079,6 +2082,7 @@ in6_lltable_new(const struct in6_addr *addr6, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in6_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
+	LLE_REQ_INIT(&lle->base);
 	callout_init(&lle->base.lle_timer, 1);
 
 	return (&lle->base);
@@ -2133,7 +2137,7 @@ in6_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 		lltable_unlink_entry(llt, lle);
 	}
 
-	if (callout_stop(&lle->lle_timer))
+	if (callout_stop(&lle->lle_timer) > 0)
 		LLE_REMREF(lle);
 
 	llentry_free(lle);
@@ -2144,17 +2148,22 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		    u_int flags,
 		    const struct sockaddr *l3addr)
 {
-	struct rtentry *rt;
+	const struct sockaddr_in6 *sin6;
+	struct nhop6_basic nh6;
+	struct in6_addr dst;
+	uint32_t scopeid;
+	int error;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
 	/* Our local addresses are always only installed on the default FIB. */
-	/* XXX rtalloc1 should take a const param */
-	rt = in6_rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0,
-	    RT_DEFAULT_FIB);
-	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
+
+	sin6 = (const struct sockaddr_in6 *)l3addr;
+	in6_splitscope(&sin6->sin6_addr, &dst, &scopeid);
+	error = fib6_lookup_nh_basic(RT_DEFAULT_FIB, &dst, scopeid, 0, 0, &nh6);
+	if (error != 0 || (nh6.nh_flags & NHF_GATEWAY) || nh6.nh_ifp != ifp) {
 		struct ifaddr *ifa;
 		/*
 		 * Create an ND6 cache for an IPv6 neighbor
@@ -2163,17 +2172,12 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		ifa = ifaof_ifpforaddr(l3addr, ifp);
 		if (ifa != NULL) {
 			ifa_free(ifa);
-			if (rt != NULL)
-				RTFREE_LOCKED(rt);
 			return 0;
 		}
 		log(LOG_INFO, "IPv6 address: \"%s\" is not on the network\n",
-		    ip6_sprintf(ip6buf, &((const struct sockaddr_in6 *)l3addr)->sin6_addr));
-		if (rt != NULL)
-			RTFREE_LOCKED(rt);
+		    ip6_sprintf(ip6buf, &sin6->sin6_addr));
 		return EINVAL;
 	}
-	RTFREE_LOCKED(rt);
 	return 0;
 }
 
@@ -2241,6 +2245,9 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
+	char linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	int lladdr_off;
 
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
@@ -2261,8 +2268,13 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 	}
 	lle->la_flags = flags;
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
-		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-		lle->la_flags |= (LLE_VALID | LLE_STATIC);
+		linkhdrsize = LLE_MAX_LINKHDR;
+		if (lltable_calc_llheader(ifp, AF_INET6, IF_LLADDR(ifp),
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+			return (NULL);
+		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
+		    lladdr_off);
+		lle->la_flags |= LLE_STATIC;
 	}
 
 	if ((lle->la_flags & LLE_STATIC) != 0)
@@ -2286,6 +2298,13 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 
 	if (lle == NULL)
 		return (NULL);
+
+	KASSERT((flags & (LLE_UNLOCKED|LLE_EXCLUSIVE)) !=
+	    (LLE_UNLOCKED|LLE_EXCLUSIVE),("wrong lle request flags: 0x%X",
+	    flags));
+
+	if (flags & LLE_UNLOCKED)
+		return (lle);
 
 	if (flags & LLE_EXCLUSIVE)
 		LLE_WLOCK(lle);
@@ -2349,13 +2368,20 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			sdl->sdl_index = ifp->if_index;
 			sdl->sdl_type = ifp->if_type;
 			bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
-			ndpc.rtm.rtm_rmx.rmx_expire =
-			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;
+			if (lle->la_expire != 0)
+				ndpc.rtm.rtm_rmx.rmx_expire = lle->la_expire +
+				    lle->lle_remtime / hz +
+				    time_second - time_uptime;
 			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				ndpc.rtm.rtm_flags |= RTF_STATIC;
 			if (lle->la_flags & LLE_IFADDR)
 				ndpc.rtm.rtm_flags |= RTF_PINNED;
+			if (lle->ln_router != 0)
+				ndpc.rtm.rtm_flags |= RTF_GATEWAY;
+			ndpc.rtm.rtm_rmx.rmx_pksent = lle->la_asked;
+			/* Store state in rmx_weight value */
+			ndpc.rtm.rtm_rmx.rmx_state = lle->ln_state;
 			ndpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
 
@@ -2422,6 +2448,8 @@ in6_domifattach(struct ifnet *ifp)
 int
 in6_domifmtu(struct ifnet *ifp)
 {
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return ifp->if_mtu;
 
 	return (IN6_LINKMTU(ifp));
 }

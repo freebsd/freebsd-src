@@ -1,6 +1,6 @@
 /*
  * SSL/TLS interface functions for OpenSSL
- * Copyright (c) 2004-2013, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -23,14 +23,18 @@
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif /* OPENSSL_NO_ENGINE */
+#ifndef OPENSSL_NO_DSA
+#include <openssl/dsa.h>
+#endif
+#ifndef OPENSSL_NO_DH
+#include <openssl/dh.h>
+#endif
 
 #include "common.h"
 #include "crypto.h"
+#include "sha1.h"
+#include "sha256.h"
 #include "tls.h"
-
-#if defined(SSL_CTX_get_app_data) && defined(SSL_CTX_set_app_data)
-#define OPENSSL_SUPPORTS_CTX_APP_DATA
-#endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
 /* ERR_remove_thread_state replaces ERR_remove_state and the latter is
@@ -70,6 +74,7 @@ static BIO * BIO_from_keystore(const char *key)
 #endif /* ANDROID */
 
 static int tls_openssl_ref_count = 0;
+static int tls_ex_idx_session = -1;
 
 struct tls_context {
 	void (*event_cb)(void *ctx, enum tls_event ev,
@@ -81,6 +86,11 @@ struct tls_context {
 
 static struct tls_context *tls_global = NULL;
 
+
+struct tls_data {
+	SSL_CTX *ssl;
+	unsigned int tls_session_lifetime;
+};
 
 struct tls_connection {
 	struct tls_context *context;
@@ -105,6 +115,7 @@ struct tls_connection {
 	unsigned int cert_probe:1;
 	unsigned int server_cert_only:1;
 	unsigned int invalid_hb_used:1;
+	unsigned int success_data:1;
 
 	u8 srv_cert_hash[32];
 
@@ -113,6 +124,11 @@ struct tls_connection {
 	X509 *peer_cert;
 	X509 *peer_issuer;
 	X509 *peer_issuer_issuer;
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	unsigned char client_random[SSL3_RANDOM_SIZE];
+	unsigned char server_random[SSL3_RANDOM_SIZE];
+#endif
 };
 
 
@@ -735,8 +751,27 @@ static int tls_engine_load_dynamic_opensc(const char *opensc_so_path)
 #endif /* OPENSSL_NO_ENGINE */
 
 
+static void remove_session_cb(SSL_CTX *ctx, SSL_SESSION *sess)
+{
+	struct wpabuf *buf;
+
+	if (tls_ex_idx_session < 0)
+		return;
+	buf = SSL_SESSION_get_ex_data(sess, tls_ex_idx_session);
+	if (!buf)
+		return;
+	wpa_printf(MSG_DEBUG,
+		   "OpenSSL: Free application session data %p (sess %p)",
+		   buf, sess);
+	wpabuf_free(buf);
+
+	SSL_SESSION_set_ex_data(sess, tls_ex_idx_session, NULL);
+}
+
+
 void * tls_init(const struct tls_config *conf)
 {
+	struct tls_data *data;
 	SSL_CTX *ssl;
 	struct tls_context *context;
 	const char *ciphers;
@@ -748,7 +783,9 @@ void * tls_init(const struct tls_config *conf)
 #ifdef CONFIG_FIPS
 #ifdef OPENSSL_FIPS
 		if (conf && conf->fips_mode) {
-			if (!FIPS_mode_set(1)) {
+			static int fips_enabled = 0;
+
+			if (!fips_enabled && !FIPS_mode_set(1)) {
 				wpa_printf(MSG_ERROR, "Failed to enable FIPS "
 					   "mode");
 				ERR_load_crypto_strings();
@@ -756,8 +793,10 @@ void * tls_init(const struct tls_config *conf)
 				os_free(tls_global);
 				tls_global = NULL;
 				return NULL;
-			} else
+			} else {
 				wpa_printf(MSG_INFO, "Running in FIPS mode");
+				fips_enabled = 1;
+			}
 		}
 #else /* OPENSSL_FIPS */
 		if (conf && conf->fips_mode) {
@@ -791,38 +830,58 @@ void * tls_init(const struct tls_config *conf)
 		PKCS12_PBE_add();
 #endif  /* PKCS12_FUNCS */
 	} else {
-#ifdef OPENSSL_SUPPORTS_CTX_APP_DATA
-		/* Newer OpenSSL can store app-data per-SSL */
 		context = tls_context_new(conf);
 		if (context == NULL)
 			return NULL;
-#else /* OPENSSL_SUPPORTS_CTX_APP_DATA */
-		context = tls_global;
-#endif /* OPENSSL_SUPPORTS_CTX_APP_DATA */
 	}
 	tls_openssl_ref_count++;
 
-	ssl = SSL_CTX_new(SSLv23_method());
+	data = os_zalloc(sizeof(*data));
+	if (data)
+		ssl = SSL_CTX_new(SSLv23_method());
+	else
+		ssl = NULL;
 	if (ssl == NULL) {
 		tls_openssl_ref_count--;
-#ifdef OPENSSL_SUPPORTS_CTX_APP_DATA
 		if (context != tls_global)
 			os_free(context);
-#endif /* OPENSSL_SUPPORTS_CTX_APP_DATA */
 		if (tls_openssl_ref_count == 0) {
 			os_free(tls_global);
 			tls_global = NULL;
 		}
 		return NULL;
 	}
+	data->ssl = ssl;
+	if (conf)
+		data->tls_session_lifetime = conf->tls_session_lifetime;
 
 	SSL_CTX_set_options(ssl, SSL_OP_NO_SSLv2);
 	SSL_CTX_set_options(ssl, SSL_OP_NO_SSLv3);
 
 	SSL_CTX_set_info_callback(ssl, ssl_info_cb);
-#ifdef OPENSSL_SUPPORTS_CTX_APP_DATA
 	SSL_CTX_set_app_data(ssl, context);
-#endif /* OPENSSL_SUPPORTS_CTX_APP_DATA */
+	if (data->tls_session_lifetime > 0) {
+		SSL_CTX_set_quiet_shutdown(ssl, 1);
+		/*
+		 * Set default context here. In practice, this will be replaced
+		 * by the per-EAP method context in tls_connection_set_verify().
+		 */
+		SSL_CTX_set_session_id_context(ssl, (u8 *) "hostapd", 7);
+		SSL_CTX_set_session_cache_mode(ssl, SSL_SESS_CACHE_SERVER);
+		SSL_CTX_set_timeout(ssl, data->tls_session_lifetime);
+		SSL_CTX_sess_set_remove_cb(ssl, remove_session_cb);
+	} else {
+		SSL_CTX_set_session_cache_mode(ssl, SSL_SESS_CACHE_OFF);
+	}
+
+	if (tls_ex_idx_session < 0) {
+		tls_ex_idx_session = SSL_SESSION_get_ex_new_index(
+			0, NULL, NULL, NULL, NULL);
+		if (tls_ex_idx_session < 0) {
+			tls_deinit(data);
+			return NULL;
+		}
+	}
 
 #ifndef OPENSSL_NO_ENGINE
 	wpa_printf(MSG_DEBUG, "ENGINE: Loading dynamic engine");
@@ -835,7 +894,7 @@ void * tls_init(const struct tls_config *conf)
 		if (tls_engine_load_dynamic_opensc(conf->opensc_engine_path) ||
 		    tls_engine_load_dynamic_pkcs11(conf->pkcs11_engine_path,
 						   conf->pkcs11_module_path)) {
-			tls_deinit(ssl);
+			tls_deinit(data);
 			return NULL;
 		}
 	}
@@ -849,22 +908,23 @@ void * tls_init(const struct tls_config *conf)
 		wpa_printf(MSG_ERROR,
 			   "OpenSSL: Failed to set cipher string '%s'",
 			   ciphers);
-		tls_deinit(ssl);
+		tls_deinit(data);
 		return NULL;
 	}
 
-	return ssl;
+	return data;
 }
 
 
 void tls_deinit(void *ssl_ctx)
 {
-	SSL_CTX *ssl = ssl_ctx;
-#ifdef OPENSSL_SUPPORTS_CTX_APP_DATA
+	struct tls_data *data = ssl_ctx;
+	SSL_CTX *ssl = data->ssl;
 	struct tls_context *context = SSL_CTX_get_app_data(ssl);
 	if (context != tls_global)
 		os_free(context);
-#endif /* OPENSSL_SUPPORTS_CTX_APP_DATA */
+	if (data->tls_session_lifetime > 0)
+		SSL_CTX_flush_sessions(ssl, 0);
 	SSL_CTX_free(ssl);
 
 	tls_openssl_ref_count--;
@@ -881,7 +941,30 @@ void tls_deinit(void *ssl_ctx)
 		os_free(tls_global);
 		tls_global = NULL;
 	}
+
+	os_free(data);
 }
+
+
+#ifndef OPENSSL_NO_ENGINE
+
+/* Cryptoki return values */
+#define CKR_PIN_INCORRECT 0x000000a0
+#define CKR_PIN_INVALID 0x000000a1
+#define CKR_PIN_LEN_RANGE 0x000000a2
+
+/* libp11 */
+#define ERR_LIB_PKCS11	ERR_LIB_USER
+
+static int tls_is_pin_error(unsigned int err)
+{
+	return ERR_GET_LIB(err) == ERR_LIB_PKCS11 &&
+		(ERR_GET_REASON(err) == CKR_PIN_INCORRECT ||
+		 ERR_GET_REASON(err) == CKR_PIN_INVALID ||
+		 ERR_GET_REASON(err) == CKR_PIN_LEN_RANGE);
+}
+
+#endif /* OPENSSL_NO_ENGINE */
 
 
 static int tls_engine_init(struct tls_connection *conn, const char *engine_id,
@@ -935,11 +1018,16 @@ static int tls_engine_init(struct tls_connection *conn, const char *engine_id,
 							    key_id, NULL,
 							    &key_cb);
 		if (!conn->private_key) {
+			unsigned long err = ERR_get_error();
+
 			wpa_printf(MSG_ERROR,
 				   "ENGINE: cannot load private key with id '%s' [%s]",
 				   key_id,
-				   ERR_error_string(ERR_get_error(), NULL));
-			ret = TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED;
+				   ERR_error_string(err, NULL));
+			if (tls_is_pin_error(err))
+				ret = TLS_SET_PARAMS_ENGINE_PRV_BAD_PIN;
+			else
+				ret = TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED;
 			goto err;
 		}
 	}
@@ -1030,19 +1118,16 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 
 struct tls_connection * tls_connection_init(void *ssl_ctx)
 {
-	SSL_CTX *ssl = ssl_ctx;
+	struct tls_data *data = ssl_ctx;
+	SSL_CTX *ssl = data->ssl;
 	struct tls_connection *conn;
 	long options;
-#ifdef OPENSSL_SUPPORTS_CTX_APP_DATA
 	struct tls_context *context = SSL_CTX_get_app_data(ssl);
-#else /* OPENSSL_SUPPORTS_CTX_APP_DATA */
-	struct tls_context *context = tls_global;
-#endif /* OPENSSL_SUPPORTS_CTX_APP_DATA */
 
 	conn = os_zalloc(sizeof(*conn));
 	if (conn == NULL)
 		return NULL;
-	conn->ssl_ctx = ssl_ctx;
+	conn->ssl_ctx = ssl;
 	conn->ssl = SSL_new(ssl);
 	if (conn->ssl == NULL) {
 		tls_show_errors(MSG_INFO, __func__,
@@ -1091,6 +1176,14 @@ void tls_connection_deinit(void *ssl_ctx, struct tls_connection *conn)
 {
 	if (conn == NULL)
 		return;
+	if (conn->success_data) {
+		/*
+		 * Make sure ssl_clear_bad_session() does not remove this
+		 * session.
+		 */
+		SSL_set_quiet_shutdown(conn->ssl, 1);
+		SSL_shutdown(conn->ssl);
+	}
 	SSL_free(conn->ssl);
 	tls_engine_deinit(conn);
 	os_free(conn->subject_match);
@@ -1118,7 +1211,7 @@ int tls_connection_shutdown(void *ssl_ctx, struct tls_connection *conn)
 	 * and "close notify" shutdown alert would confuse AS. */
 	SSL_set_quiet_shutdown(conn->ssl, 1);
 	SSL_shutdown(conn->ssl);
-	return 0;
+	return SSL_clear(conn->ssl) == 1 ? 0 : -1;
 }
 
 
@@ -1617,9 +1710,9 @@ static int tls_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
 
 
 #ifndef OPENSSL_NO_STDIO
-static int tls_load_ca_der(void *_ssl_ctx, const char *ca_cert)
+static int tls_load_ca_der(struct tls_data *data, const char *ca_cert)
 {
-	SSL_CTX *ssl_ctx = _ssl_ctx;
+	SSL_CTX *ssl_ctx = data->ssl;
 	X509_LOOKUP *lookup;
 	int ret = 0;
 
@@ -1649,11 +1742,12 @@ static int tls_load_ca_der(void *_ssl_ctx, const char *ca_cert)
 #endif /* OPENSSL_NO_STDIO */
 
 
-static int tls_connection_ca_cert(void *_ssl_ctx, struct tls_connection *conn,
+static int tls_connection_ca_cert(struct tls_data *data,
+				  struct tls_connection *conn,
 				  const char *ca_cert, const u8 *ca_cert_blob,
 				  size_t ca_cert_blob_len, const char *ca_path)
 {
-	SSL_CTX *ssl_ctx = _ssl_ctx;
+	SSL_CTX *ssl_ctx = data->ssl;
 	X509_STORE *store;
 
 	/*
@@ -1788,7 +1882,7 @@ static int tls_connection_ca_cert(void *_ssl_ctx, struct tls_connection *conn,
 			tls_show_errors(MSG_WARNING, __func__,
 					"Failed to load root certificates");
 			if (ca_cert &&
-			    tls_load_ca_der(ssl_ctx, ca_cert) == 0) {
+			    tls_load_ca_der(data, ca_cert) == 0) {
 				wpa_printf(MSG_DEBUG, "OpenSSL: %s - loaded "
 					   "DER format CA certificate",
 					   __func__);
@@ -1797,7 +1891,7 @@ static int tls_connection_ca_cert(void *_ssl_ctx, struct tls_connection *conn,
 		} else {
 			wpa_printf(MSG_DEBUG, "TLS: Trusted root "
 				   "certificate(s) loaded");
-			tls_get_errors(ssl_ctx);
+			tls_get_errors(data);
 		}
 #else /* OPENSSL_NO_STDIO */
 		wpa_printf(MSG_DEBUG, "OpenSSL: %s - OPENSSL_NO_STDIO",
@@ -1814,8 +1908,10 @@ static int tls_connection_ca_cert(void *_ssl_ctx, struct tls_connection *conn,
 }
 
 
-static int tls_global_ca_cert(SSL_CTX *ssl_ctx, const char *ca_cert)
+static int tls_global_ca_cert(struct tls_data *data, const char *ca_cert)
 {
+	SSL_CTX *ssl_ctx = data->ssl;
+
 	if (ca_cert) {
 		if (SSL_CTX_load_verify_locations(ssl_ctx, ca_cert, NULL) != 1)
 		{
@@ -1843,7 +1939,8 @@ int tls_global_set_verify(void *ssl_ctx, int check_crl)
 	int flags;
 
 	if (check_crl) {
-		X509_STORE *cs = SSL_CTX_get_cert_store(ssl_ctx);
+		struct tls_data *data = ssl_ctx;
+		X509_STORE *cs = SSL_CTX_get_cert_store(data->ssl);
 		if (cs == NULL) {
 			tls_show_errors(MSG_INFO, __func__, "Failed to get "
 					"certificate store when enabling "
@@ -1901,10 +1998,44 @@ static int tls_connection_set_subject_match(struct tls_connection *conn,
 }
 
 
+static void tls_set_conn_flags(SSL *ssl, unsigned int flags)
+{
+#ifdef SSL_OP_NO_TICKET
+	if (flags & TLS_CONN_DISABLE_SESSION_TICKET)
+		SSL_set_options(ssl, SSL_OP_NO_TICKET);
+#ifdef SSL_clear_options
+	else
+		SSL_clear_options(ssl, SSL_OP_NO_TICKET);
+#endif /* SSL_clear_options */
+#endif /* SSL_OP_NO_TICKET */
+
+#ifdef SSL_OP_NO_TLSv1
+	if (flags & TLS_CONN_DISABLE_TLSv1_0)
+		SSL_set_options(ssl, SSL_OP_NO_TLSv1);
+	else
+		SSL_clear_options(ssl, SSL_OP_NO_TLSv1);
+#endif /* SSL_OP_NO_TLSv1 */
+#ifdef SSL_OP_NO_TLSv1_1
+	if (flags & TLS_CONN_DISABLE_TLSv1_1)
+		SSL_set_options(ssl, SSL_OP_NO_TLSv1_1);
+	else
+		SSL_clear_options(ssl, SSL_OP_NO_TLSv1_1);
+#endif /* SSL_OP_NO_TLSv1_1 */
+#ifdef SSL_OP_NO_TLSv1_2
+	if (flags & TLS_CONN_DISABLE_TLSv1_2)
+		SSL_set_options(ssl, SSL_OP_NO_TLSv1_2);
+	else
+		SSL_clear_options(ssl, SSL_OP_NO_TLSv1_2);
+#endif /* SSL_OP_NO_TLSv1_2 */
+}
+
+
 int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
-			      int verify_peer)
+			      int verify_peer, unsigned int flags,
+			      const u8 *session_ctx, size_t session_ctx_len)
 {
 	static int counter = 0;
+	struct tls_data *data = ssl_ctx;
 
 	if (conn == NULL)
 		return -1;
@@ -1919,20 +2050,25 @@ int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
 		SSL_set_verify(conn->ssl, SSL_VERIFY_NONE, NULL);
 	}
 
+	tls_set_conn_flags(conn->ssl, flags);
+	conn->flags = flags;
+
 	SSL_set_accept_state(conn->ssl);
 
-	/*
-	 * Set session id context in order to avoid fatal errors when client
-	 * tries to resume a session. However, set the context to a unique
-	 * value in order to effectively disable session resumption for now
-	 * since not all areas of the server code are ready for it (e.g.,
-	 * EAP-TTLS needs special handling for Phase 2 after abbreviated TLS
-	 * handshake).
-	 */
-	counter++;
-	SSL_set_session_id_context(conn->ssl,
-				   (const unsigned char *) &counter,
-				   sizeof(counter));
+	if (data->tls_session_lifetime == 0) {
+		/*
+		 * Set session id context to a unique value to make sure
+		 * session resumption cannot be used either through session
+		 * caching or TLS ticket extension.
+		 */
+		counter++;
+		SSL_set_session_id_context(conn->ssl,
+					   (const unsigned char *) &counter,
+					   sizeof(counter));
+	} else if (session_ctx) {
+		SSL_set_session_id_context(conn->ssl, session_ctx,
+					   session_ctx_len);
+	}
 
 	return 0;
 }
@@ -2004,9 +2140,12 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 }
 
 
-static int tls_global_client_cert(SSL_CTX *ssl_ctx, const char *client_cert)
+static int tls_global_client_cert(struct tls_data *data,
+				  const char *client_cert)
 {
 #ifndef OPENSSL_NO_STDIO
+	SSL_CTX *ssl_ctx = data->ssl;
+
 	if (client_cert == NULL)
 		return 0;
 
@@ -2040,7 +2179,7 @@ static int tls_passwd_cb(char *buf, int size, int rwflag, void *password)
 
 
 #ifdef PKCS12_FUNCS
-static int tls_parse_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, PKCS12 *p12,
+static int tls_parse_pkcs12(struct tls_data *data, SSL *ssl, PKCS12 *p12,
 			    const char *passwd)
 {
 	EVP_PKEY *pkey;
@@ -2052,6 +2191,8 @@ static int tls_parse_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, PKCS12 *p12,
 	pkey = NULL;
 	cert = NULL;
 	certs = NULL;
+	if (!passwd)
+		passwd = "";
 	if (!PKCS12_parse(p12, passwd, &pkey, &cert, &certs)) {
 		tls_show_errors(MSG_DEBUG, __func__,
 				"Failed to parse PKCS12 file");
@@ -2069,7 +2210,7 @@ static int tls_parse_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, PKCS12 *p12,
 			if (SSL_use_certificate(ssl, cert) != 1)
 				res = -1;
 		} else {
-			if (SSL_CTX_use_certificate(ssl_ctx, cert) != 1)
+			if (SSL_CTX_use_certificate(data->ssl, cert) != 1)
 				res = -1;
 		}
 		X509_free(cert);
@@ -2081,13 +2222,52 @@ static int tls_parse_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, PKCS12 *p12,
 			if (SSL_use_PrivateKey(ssl, pkey) != 1)
 				res = -1;
 		} else {
-			if (SSL_CTX_use_PrivateKey(ssl_ctx, pkey) != 1)
+			if (SSL_CTX_use_PrivateKey(data->ssl, pkey) != 1)
 				res = -1;
 		}
 		EVP_PKEY_free(pkey);
 	}
 
 	if (certs) {
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+		SSL_clear_chain_certs(ssl);
+		while ((cert = sk_X509_pop(certs)) != NULL) {
+			X509_NAME_oneline(X509_get_subject_name(cert), buf,
+					  sizeof(buf));
+			wpa_printf(MSG_DEBUG, "TLS: additional certificate"
+				   " from PKCS12: subject='%s'", buf);
+			if (SSL_add1_chain_cert(ssl, cert) != 1) {
+				tls_show_errors(MSG_DEBUG, __func__,
+						"Failed to add additional certificate");
+				res = -1;
+				break;
+			}
+		}
+		if (!res) {
+			/* Try to continue anyway */
+		}
+		sk_X509_free(certs);
+#ifndef OPENSSL_IS_BORINGSSL
+		res = SSL_build_cert_chain(ssl,
+					   SSL_BUILD_CHAIN_FLAG_CHECK |
+					   SSL_BUILD_CHAIN_FLAG_IGNORE_ERROR);
+		if (!res) {
+			tls_show_errors(MSG_DEBUG, __func__,
+					"Failed to build certificate chain");
+		} else if (res == 2) {
+			wpa_printf(MSG_DEBUG,
+				   "TLS: Ignore certificate chain verification error when building chain with PKCS#12 extra certificates");
+		}
+#endif /* OPENSSL_IS_BORINGSSL */
+		/*
+		 * Try to continue regardless of result since it is possible for
+		 * the extra certificates not to be required.
+		 */
+		res = 0;
+#else /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
+#if OPENSSL_VERSION_NUMBER >= 0x10001000L
+		SSL_CTX_clear_extra_chain_certs(data->ssl);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10001000L */
 		while ((cert = sk_X509_pop(certs)) != NULL) {
 			X509_NAME_oneline(X509_get_subject_name(cert), buf,
 					  sizeof(buf));
@@ -2097,26 +2277,28 @@ static int tls_parse_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, PKCS12 *p12,
 			 * There is no SSL equivalent for the chain cert - so
 			 * always add it to the context...
 			 */
-			if (SSL_CTX_add_extra_chain_cert(ssl_ctx, cert) != 1) {
+			if (SSL_CTX_add_extra_chain_cert(data->ssl, cert) != 1)
+			{
 				res = -1;
 				break;
 			}
 		}
 		sk_X509_free(certs);
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 	}
 
 	PKCS12_free(p12);
 
 	if (res < 0)
-		tls_get_errors(ssl_ctx);
+		tls_get_errors(data);
 
 	return res;
 }
 #endif  /* PKCS12_FUNCS */
 
 
-static int tls_read_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, const char *private_key,
-			   const char *passwd)
+static int tls_read_pkcs12(struct tls_data *data, SSL *ssl,
+			   const char *private_key, const char *passwd)
 {
 #ifdef PKCS12_FUNCS
 	FILE *f;
@@ -2135,7 +2317,7 @@ static int tls_read_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, const char *private_key,
 		return -1;
 	}
 
-	return tls_parse_pkcs12(ssl_ctx, ssl, p12, passwd);
+	return tls_parse_pkcs12(data, ssl, p12, passwd);
 
 #else /* PKCS12_FUNCS */
 	wpa_printf(MSG_INFO, "TLS: PKCS12 support disabled - cannot read "
@@ -2145,7 +2327,7 @@ static int tls_read_pkcs12(SSL_CTX *ssl_ctx, SSL *ssl, const char *private_key,
 }
 
 
-static int tls_read_pkcs12_blob(SSL_CTX *ssl_ctx, SSL *ssl,
+static int tls_read_pkcs12_blob(struct tls_data *data, SSL *ssl,
 				const u8 *blob, size_t len, const char *passwd)
 {
 #ifdef PKCS12_FUNCS
@@ -2158,7 +2340,7 @@ static int tls_read_pkcs12_blob(SSL_CTX *ssl_ctx, SSL *ssl,
 		return -1;
 	}
 
-	return tls_parse_pkcs12(ssl_ctx, ssl, p12, passwd);
+	return tls_parse_pkcs12(data, ssl, p12, passwd);
 
 #else /* PKCS12_FUNCS */
 	wpa_printf(MSG_INFO, "TLS: PKCS12 support disabled - cannot parse "
@@ -2183,9 +2365,13 @@ static int tls_engine_get_cert(struct tls_connection *conn,
 
 	if (!ENGINE_ctrl_cmd(conn->engine, "LOAD_CERT_CTRL",
 			     0, &params, NULL, 1)) {
+		unsigned long err = ERR_get_error();
+
 		wpa_printf(MSG_ERROR, "ENGINE: cannot load client cert with id"
 			   " '%s' [%s]", cert_id,
-			   ERR_error_string(ERR_get_error(), NULL));
+			   ERR_error_string(err, NULL));
+		if (tls_is_pin_error(err))
+			return TLS_SET_PARAMS_ENGINE_PRV_BAD_PIN;
 		return TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED;
 	}
 	if (!params.cert) {
@@ -2225,13 +2411,13 @@ static int tls_connection_engine_client_cert(struct tls_connection *conn,
 }
 
 
-static int tls_connection_engine_ca_cert(void *_ssl_ctx,
+static int tls_connection_engine_ca_cert(struct tls_data *data,
 					 struct tls_connection *conn,
 					 const char *ca_cert_id)
 {
 #ifndef OPENSSL_NO_ENGINE
 	X509 *cert;
-	SSL_CTX *ssl_ctx = _ssl_ctx;
+	SSL_CTX *ssl_ctx = data->ssl;
 	X509_STORE *store;
 
 	if (tls_engine_get_cert(conn, ca_cert_id, &cert))
@@ -2297,14 +2483,14 @@ static int tls_connection_engine_private_key(struct tls_connection *conn)
 }
 
 
-static int tls_connection_private_key(void *_ssl_ctx,
+static int tls_connection_private_key(struct tls_data *data,
 				      struct tls_connection *conn,
 				      const char *private_key,
 				      const char *private_key_passwd,
 				      const u8 *private_key_blob,
 				      size_t private_key_blob_len)
 {
-	SSL_CTX *ssl_ctx = _ssl_ctx;
+	SSL_CTX *ssl_ctx = data->ssl;
 	char *passwd;
 	int ok;
 
@@ -2350,7 +2536,7 @@ static int tls_connection_private_key(void *_ssl_ctx,
 			break;
 		}
 
-		if (tls_read_pkcs12_blob(ssl_ctx, conn->ssl, private_key_blob,
+		if (tls_read_pkcs12_blob(data, conn->ssl, private_key_blob,
 					 private_key_blob_len, passwd) == 0) {
 			wpa_printf(MSG_DEBUG, "OpenSSL: PKCS#12 as blob --> "
 				   "OK");
@@ -2383,7 +2569,7 @@ static int tls_connection_private_key(void *_ssl_ctx,
 			   __func__);
 #endif /* OPENSSL_NO_STDIO */
 
-		if (tls_read_pkcs12(ssl_ctx, conn->ssl, private_key, passwd)
+		if (tls_read_pkcs12(data, conn->ssl, private_key, passwd)
 		    == 0) {
 			wpa_printf(MSG_DEBUG, "OpenSSL: Reading PKCS#12 file "
 				   "--> OK");
@@ -2422,9 +2608,11 @@ static int tls_connection_private_key(void *_ssl_ctx,
 }
 
 
-static int tls_global_private_key(SSL_CTX *ssl_ctx, const char *private_key,
+static int tls_global_private_key(struct tls_data *data,
+				  const char *private_key,
 				  const char *private_key_passwd)
 {
+	SSL_CTX *ssl_ctx = data->ssl;
 	char *passwd;
 
 	if (private_key == NULL)
@@ -2446,7 +2634,7 @@ static int tls_global_private_key(SSL_CTX *ssl_ctx, const char *private_key,
 	    SSL_CTX_use_PrivateKey_file(ssl_ctx, private_key,
 					SSL_FILETYPE_PEM) != 1 &&
 #endif /* OPENSSL_NO_STDIO */
-	    tls_read_pkcs12(ssl_ctx, NULL, private_key, passwd)) {
+	    tls_read_pkcs12(data, NULL, private_key, passwd)) {
 		tls_show_errors(MSG_INFO, __func__,
 				"Failed to load private key");
 		os_free(passwd);
@@ -2541,7 +2729,7 @@ static int tls_connection_dh(struct tls_connection *conn, const char *dh_file)
 }
 
 
-static int tls_global_dh(SSL_CTX *ssl_ctx, const char *dh_file)
+static int tls_global_dh(struct tls_data *data, const char *dh_file)
 {
 #ifdef OPENSSL_NO_DH
 	if (dh_file == NULL)
@@ -2550,6 +2738,7 @@ static int tls_global_dh(SSL_CTX *ssl_ctx, const char *dh_file)
 		   "dh_file specified");
 	return -1;
 #else /* OPENSSL_NO_DH */
+	SSL_CTX *ssl_ctx = data->ssl;
 	DH *dh;
 	BIO *bio;
 
@@ -2615,45 +2804,275 @@ static int tls_global_dh(SSL_CTX *ssl_ctx, const char *dh_file)
 }
 
 
-int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
-			    struct tls_keys *keys)
+int tls_connection_get_random(void *ssl_ctx, struct tls_connection *conn,
+			      struct tls_random *keys)
+{
+	SSL *ssl;
+
+	if (conn == NULL || keys == NULL)
+		return -1;
+	ssl = conn->ssl;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	if (ssl == NULL || ssl->s3 == NULL || ssl->session == NULL)
+		return -1;
+
+	os_memset(keys, 0, sizeof(*keys));
+	keys->client_random = ssl->s3->client_random;
+	keys->client_random_len = SSL3_RANDOM_SIZE;
+	keys->server_random = ssl->s3->server_random;
+	keys->server_random_len = SSL3_RANDOM_SIZE;
+#else
+	if (ssl == NULL)
+		return -1;
+
+	os_memset(keys, 0, sizeof(*keys));
+	keys->client_random = conn->client_random;
+	keys->client_random_len = SSL_get_client_random(
+		ssl, conn->client_random, sizeof(conn->client_random));
+	keys->server_random = conn->server_random;
+	keys->server_random_len = SSL_get_server_random(
+		ssl, conn->server_random, sizeof(conn->server_random));
+#endif
+
+	return 0;
+}
+
+
+#ifndef CONFIG_FIPS
+static int openssl_get_keyblock_size(SSL *ssl)
+{
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	const EVP_CIPHER *c;
+	const EVP_MD *h;
+	int md_size;
+
+	if (ssl->enc_read_ctx == NULL || ssl->enc_read_ctx->cipher == NULL ||
+	    ssl->read_hash == NULL)
+		return -1;
+
+	c = ssl->enc_read_ctx->cipher;
+#if OPENSSL_VERSION_NUMBER >= 0x00909000L
+	h = EVP_MD_CTX_md(ssl->read_hash);
+#else
+	h = ssl->read_hash;
+#endif
+	if (h)
+		md_size = EVP_MD_size(h);
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+	else if (ssl->s3)
+		md_size = ssl->s3->tmp.new_mac_secret_size;
+#endif
+	else
+		return -1;
+
+	wpa_printf(MSG_DEBUG, "OpenSSL: keyblock size: key_len=%d MD_size=%d "
+		   "IV_len=%d", EVP_CIPHER_key_length(c), md_size,
+		   EVP_CIPHER_iv_length(c));
+	return 2 * (EVP_CIPHER_key_length(c) +
+		    md_size +
+		    EVP_CIPHER_iv_length(c));
+#else
+	const SSL_CIPHER *ssl_cipher;
+	int cipher, digest;
+	const EVP_CIPHER *c;
+	const EVP_MD *h;
+
+	ssl_cipher = SSL_get_current_cipher(ssl);
+	if (!ssl_cipher)
+		return -1;
+	cipher = SSL_CIPHER_get_cipher_nid(ssl_cipher);
+	digest = SSL_CIPHER_get_digest_nid(ssl_cipher);
+	wpa_printf(MSG_DEBUG, "OpenSSL: cipher nid %d digest nid %d",
+		   cipher, digest);
+	if (cipher < 0 || digest < 0)
+		return -1;
+	c = EVP_get_cipherbynid(cipher);
+	h = EVP_get_digestbynid(digest);
+	if (!c || !h)
+		return -1;
+
+	wpa_printf(MSG_DEBUG,
+		   "OpenSSL: keyblock size: key_len=%d MD_size=%d IV_len=%d",
+		   EVP_CIPHER_key_length(c), EVP_MD_size(h),
+		   EVP_CIPHER_iv_length(c));
+	return 2 * (EVP_CIPHER_key_length(c) + EVP_MD_size(h) +
+		    EVP_CIPHER_iv_length(c));
+#endif
+}
+#endif /* CONFIG_FIPS */
+
+
+static int openssl_tls_prf(struct tls_connection *conn,
+			   const char *label, int server_random_first,
+			   int skip_keyblock, u8 *out, size_t out_len)
 {
 #ifdef CONFIG_FIPS
 	wpa_printf(MSG_ERROR, "OpenSSL: TLS keys cannot be exported in FIPS "
 		   "mode");
 	return -1;
 #else /* CONFIG_FIPS */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL *ssl;
+	u8 *rnd;
+	int ret = -1;
+	int skip = 0;
+	u8 *tmp_out = NULL;
+	u8 *_out = out;
+	const char *ver;
 
-	if (conn == NULL || keys == NULL)
+	/*
+	 * TLS library did not support key generation, so get the needed TLS
+	 * session parameters and use an internal implementation of TLS PRF to
+	 * derive the key.
+	 */
+
+	if (conn == NULL)
 		return -1;
 	ssl = conn->ssl;
-	if (ssl == NULL || ssl->s3 == NULL || ssl->session == NULL)
+	if (ssl == NULL || ssl->s3 == NULL || ssl->session == NULL ||
+	    ssl->session->master_key_length <= 0)
+		return -1;
+	ver = SSL_get_version(ssl);
+
+	if (skip_keyblock) {
+		skip = openssl_get_keyblock_size(ssl);
+		if (skip < 0)
+			return -1;
+		tmp_out = os_malloc(skip + out_len);
+		if (!tmp_out)
+			return -1;
+		_out = tmp_out;
+	}
+
+	rnd = os_malloc(2 * SSL3_RANDOM_SIZE);
+	if (!rnd) {
+		os_free(tmp_out);
+		return -1;
+	}
+
+	if (server_random_first) {
+		os_memcpy(rnd, ssl->s3->server_random, SSL3_RANDOM_SIZE);
+		os_memcpy(rnd + SSL3_RANDOM_SIZE, ssl->s3->client_random,
+			SSL3_RANDOM_SIZE);
+	} else {
+		os_memcpy(rnd, ssl->s3->client_random, SSL3_RANDOM_SIZE);
+		os_memcpy(rnd + SSL3_RANDOM_SIZE, ssl->s3->server_random,
+			SSL3_RANDOM_SIZE);
+	}
+
+	if (os_strcmp(ver, "TLSv1.2") == 0) {
+		tls_prf_sha256(ssl->session->master_key,
+			       ssl->session->master_key_length,
+			       label, rnd, 2 * SSL3_RANDOM_SIZE,
+			       _out, skip + out_len);
+		ret = 0;
+	} else if (tls_prf_sha1_md5(ssl->session->master_key,
+				    ssl->session->master_key_length,
+				    label, rnd, 2 * SSL3_RANDOM_SIZE,
+				    _out, skip + out_len) == 0) {
+		ret = 0;
+	}
+	os_free(rnd);
+	if (ret == 0 && skip_keyblock)
+		os_memcpy(out, _out + skip, out_len);
+	bin_clear_free(tmp_out, skip);
+
+	return ret;
+#else
+	SSL *ssl;
+	SSL_SESSION *sess;
+	u8 *rnd;
+	int ret = -1;
+	int skip = 0;
+	u8 *tmp_out = NULL;
+	u8 *_out = out;
+	unsigned char client_random[SSL3_RANDOM_SIZE];
+	unsigned char server_random[SSL3_RANDOM_SIZE];
+	unsigned char master_key[64];
+	size_t master_key_len;
+	const char *ver;
+
+	/*
+	 * TLS library did not support key generation, so get the needed TLS
+	 * session parameters and use an internal implementation of TLS PRF to
+	 * derive the key.
+	 */
+
+	if (conn == NULL)
+		return -1;
+	ssl = conn->ssl;
+	if (ssl == NULL)
+		return -1;
+	ver = SSL_get_version(ssl);
+	sess = SSL_get_session(ssl);
+	if (!ver || !sess)
 		return -1;
 
-	os_memset(keys, 0, sizeof(*keys));
-	keys->master_key = ssl->session->master_key;
-	keys->master_key_len = ssl->session->master_key_length;
-	keys->client_random = ssl->s3->client_random;
-	keys->client_random_len = SSL3_RANDOM_SIZE;
-	keys->server_random = ssl->s3->server_random;
-	keys->server_random_len = SSL3_RANDOM_SIZE;
+	if (skip_keyblock) {
+		skip = openssl_get_keyblock_size(ssl);
+		if (skip < 0)
+			return -1;
+		tmp_out = os_malloc(skip + out_len);
+		if (!tmp_out)
+			return -1;
+		_out = tmp_out;
+	}
 
-	return 0;
+	rnd = os_malloc(2 * SSL3_RANDOM_SIZE);
+	if (!rnd) {
+		os_free(tmp_out);
+		return -1;
+	}
+
+	SSL_get_client_random(ssl, client_random, sizeof(client_random));
+	SSL_get_server_random(ssl, server_random, sizeof(server_random));
+	master_key_len = SSL_SESSION_get_master_key(sess, master_key,
+						    sizeof(master_key));
+
+	if (server_random_first) {
+		os_memcpy(rnd, server_random, SSL3_RANDOM_SIZE);
+		os_memcpy(rnd + SSL3_RANDOM_SIZE, client_random,
+			  SSL3_RANDOM_SIZE);
+	} else {
+		os_memcpy(rnd, client_random, SSL3_RANDOM_SIZE);
+		os_memcpy(rnd + SSL3_RANDOM_SIZE, server_random,
+			  SSL3_RANDOM_SIZE);
+	}
+
+	if (os_strcmp(ver, "TLSv1.2") == 0) {
+		tls_prf_sha256(master_key, master_key_len,
+			       label, rnd, 2 * SSL3_RANDOM_SIZE,
+			       _out, skip + out_len);
+		ret = 0;
+	} else if (tls_prf_sha1_md5(master_key, master_key_len,
+				    label, rnd, 2 * SSL3_RANDOM_SIZE,
+				    _out, skip + out_len) == 0) {
+		ret = 0;
+	}
+	os_memset(master_key, 0, sizeof(master_key));
+	os_free(rnd);
+	if (ret == 0 && skip_keyblock)
+		os_memcpy(out, _out + skip, out_len);
+	bin_clear_free(tmp_out, skip);
+
+	return ret;
+#endif
 #endif /* CONFIG_FIPS */
 }
 
 
 int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
 		       const char *label, int server_random_first,
-		       u8 *out, size_t out_len)
+		       int skip_keyblock, u8 *out, size_t out_len)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x10001000L
 	SSL *ssl;
 	if (conn == NULL)
 		return -1;
-	if (server_random_first)
-		return -1;
+	if (server_random_first || skip_keyblock)
+		return openssl_tls_prf(conn, label,
+				       server_random_first, skip_keyblock,
+				       out, out_len);
 	ssl = conn->ssl;
 	if (SSL_export_keying_material(ssl, out, out_len, label,
 				       os_strlen(label), NULL, 0, 0) == 1) {
@@ -2661,7 +3080,8 @@ int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
 		return 0;
 	}
 #endif
-	return -1;
+	return openssl_tls_prf(conn, label, server_random_first,
+			       skip_keyblock, out, out_len);
 }
 
 
@@ -2676,7 +3096,7 @@ openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data,
 	 * Give TLS handshake data from the server (if available) to OpenSSL
 	 * for processing.
 	 */
-	if (in_data &&
+	if (in_data && wpabuf_len(in_data) > 0 &&
 	    BIO_write(conn->ssl_in, wpabuf_head(in_data), wpabuf_len(in_data))
 	    < 0) {
 		tls_show_errors(MSG_INFO, __func__,
@@ -2788,8 +3208,14 @@ openssl_connection_handshake(struct tls_connection *conn,
 		return NULL;
 	}
 
-	if (SSL_is_init_finished(conn->ssl) && appl_data && in_data)
-		*appl_data = openssl_get_appl_data(conn, wpabuf_len(in_data));
+	if (SSL_is_init_finished(conn->ssl)) {
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Handshake finished - resumed=%d",
+			   tls_connection_resumed(conn->ssl_ctx, conn));
+		if (appl_data && in_data)
+			*appl_data = openssl_get_appl_data(conn,
+							   wpabuf_len(in_data));
+	}
 
 	if (conn->invalid_hb_used) {
 		wpa_printf(MSG_INFO, "TLS: Heartbeat attack detected - do not send response");
@@ -2968,12 +3394,43 @@ int tls_connection_set_cipher_list(void *tls_ctx, struct tls_connection *conn,
 
 	wpa_printf(MSG_DEBUG, "OpenSSL: cipher suites: %s", buf + 1);
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if defined(EAP_FAST) || defined(EAP_FAST_DYNAMIC) || defined(EAP_SERVER_FAST)
+	if (os_strstr(buf, ":ADH-")) {
+		/*
+		 * Need to drop to security level 0 to allow anonymous
+		 * cipher suites for EAP-FAST.
+		 */
+		SSL_set_security_level(conn->ssl, 0);
+	} else if (SSL_get_security_level(conn->ssl) == 0) {
+		/* Force at least security level 1 */
+		SSL_set_security_level(conn->ssl, 1);
+	}
+#endif /* EAP_FAST || EAP_FAST_DYNAMIC || EAP_SERVER_FAST */
+#endif
+
 	if (SSL_set_cipher_list(conn->ssl, buf + 1) != 1) {
 		tls_show_errors(MSG_INFO, __func__,
 				"Cipher suite configuration failed");
 		return -1;
 	}
 
+	return 0;
+}
+
+
+int tls_get_version(void *ssl_ctx, struct tls_connection *conn,
+		    char *buf, size_t buflen)
+{
+	const char *name;
+	if (conn == NULL || conn->ssl == NULL)
+		return -1;
+
+	name = SSL_get_version(conn->ssl);
+	if (name == NULL)
+		return -1;
+
+	os_strlcpy(buf, name, buflen);
 	return 0;
 }
 
@@ -3300,6 +3757,7 @@ static int ocsp_status_cb(SSL *s, void *arg)
 int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 			      const struct tls_connection_params *params)
 {
+	struct tls_data *data = tls_ctx;
 	int ret;
 	unsigned long err;
 	int can_pkcs11 = 0;
@@ -3341,6 +3799,8 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 	if (can_pkcs11 == 2 && !engine_id)
 		engine_id = "pkcs11";
 
+#if defined(EAP_FAST) || defined(EAP_FAST_DYNAMIC) || defined(EAP_SERVER_FAST)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	if (params->flags & TLS_CONN_EAP_FAST) {
 		wpa_printf(MSG_DEBUG,
 			   "OpenSSL: Use TLSv1_method() for EAP-FAST");
@@ -3350,6 +3810,8 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 			return -1;
 		}
 	}
+#endif
+#endif /* EAP_FAST || EAP_FAST_DYNAMIC || EAP_SERVER_FAST */
 
 	while ((err = ERR_get_error())) {
 		wpa_printf(MSG_INFO, "%s: Clearing pending SSL error: %s",
@@ -3371,10 +3833,9 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 
 	if (engine_id && ca_cert_id) {
-		if (tls_connection_engine_ca_cert(tls_ctx, conn,
-						  ca_cert_id))
+		if (tls_connection_engine_ca_cert(data, conn, ca_cert_id))
 			return TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED;
-	} else if (tls_connection_ca_cert(tls_ctx, conn, params->ca_cert,
+	} else if (tls_connection_ca_cert(data, conn, params->ca_cert,
 					  params->ca_cert_blob,
 					  params->ca_cert_blob_len,
 					  params->ca_path))
@@ -3392,7 +3853,7 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		wpa_printf(MSG_DEBUG, "TLS: Using private key from engine");
 		if (tls_connection_engine_private_key(conn))
 			return TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED;
-	} else if (tls_connection_private_key(tls_ctx, conn,
+	} else if (tls_connection_private_key(data, conn,
 					      params->private_key,
 					      params->private_key_passwd,
 					      params->private_key_blob,
@@ -3416,40 +3877,30 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 	}
 
-#ifdef SSL_OP_NO_TICKET
-	if (params->flags & TLS_CONN_DISABLE_SESSION_TICKET)
-		SSL_set_options(conn->ssl, SSL_OP_NO_TICKET);
-#ifdef SSL_clear_options
-	else
-		SSL_clear_options(conn->ssl, SSL_OP_NO_TICKET);
-#endif /* SSL_clear_options */
-#endif /*  SSL_OP_NO_TICKET */
-
-#ifdef SSL_OP_NO_TLSv1_1
-	if (params->flags & TLS_CONN_DISABLE_TLSv1_1)
-		SSL_set_options(conn->ssl, SSL_OP_NO_TLSv1_1);
-	else
-		SSL_clear_options(conn->ssl, SSL_OP_NO_TLSv1_1);
-#endif /* SSL_OP_NO_TLSv1_1 */
-#ifdef SSL_OP_NO_TLSv1_2
-	if (params->flags & TLS_CONN_DISABLE_TLSv1_2)
-		SSL_set_options(conn->ssl, SSL_OP_NO_TLSv1_2);
-	else
-		SSL_clear_options(conn->ssl, SSL_OP_NO_TLSv1_2);
-#endif /* SSL_OP_NO_TLSv1_2 */
+	tls_set_conn_flags(conn->ssl, params->flags);
 
 #ifdef HAVE_OCSP
 	if (params->flags & TLS_CONN_REQUEST_OCSP) {
-		SSL_CTX *ssl_ctx = tls_ctx;
+		SSL_CTX *ssl_ctx = data->ssl;
 		SSL_set_tlsext_status_type(conn->ssl, TLSEXT_STATUSTYPE_ocsp);
 		SSL_CTX_set_tlsext_status_cb(ssl_ctx, ocsp_resp_cb);
 		SSL_CTX_set_tlsext_status_arg(ssl_ctx, conn);
+	}
+#else /* HAVE_OCSP */
+	if (params->flags & TLS_CONN_REQUIRE_OCSP) {
+		wpa_printf(MSG_INFO,
+			   "OpenSSL: No OCSP support included - reject configuration");
+		return -1;
+	}
+	if (params->flags & TLS_CONN_REQUEST_OCSP) {
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: No OCSP support included - allow optional OCSP case to continue");
 	}
 #endif /* HAVE_OCSP */
 
 	conn->flags = params->flags;
 
-	tls_get_errors(tls_ctx);
+	tls_get_errors(data);
 
 	return 0;
 }
@@ -3458,7 +3909,8 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 int tls_global_set_params(void *tls_ctx,
 			  const struct tls_connection_params *params)
 {
-	SSL_CTX *ssl_ctx = tls_ctx;
+	struct tls_data *data = tls_ctx;
+	SSL_CTX *ssl_ctx = data->ssl;
 	unsigned long err;
 
 	while ((err = ERR_get_error())) {
@@ -3466,19 +3918,12 @@ int tls_global_set_params(void *tls_ctx,
 			   __func__, ERR_error_string(err, NULL));
 	}
 
-	if (tls_global_ca_cert(ssl_ctx, params->ca_cert))
-		return -1;
-
-	if (tls_global_client_cert(ssl_ctx, params->client_cert))
-		return -1;
-
-	if (tls_global_private_key(ssl_ctx, params->private_key,
-				   params->private_key_passwd))
-		return -1;
-
-	if (tls_global_dh(ssl_ctx, params->dh_file)) {
-		wpa_printf(MSG_INFO, "TLS: Failed to load DH file '%s'",
-			   params->dh_file);
+	if (tls_global_ca_cert(data, params->ca_cert) ||
+	    tls_global_client_cert(data, params->client_cert) ||
+	    tls_global_private_key(data, params->private_key,
+				   params->private_key_passwd) ||
+	    tls_global_dh(data, params->dh_file)) {
+		wpa_printf(MSG_INFO, "TLS: Failed to set global parameters");
 		return -1;
 	}
 
@@ -3514,49 +3959,6 @@ int tls_global_set_params(void *tls_ctx,
 }
 
 
-int tls_connection_get_keyblock_size(void *tls_ctx,
-				     struct tls_connection *conn)
-{
-	const EVP_CIPHER *c;
-	const EVP_MD *h;
-	int md_size;
-
-	if (conn == NULL || conn->ssl == NULL ||
-	    conn->ssl->enc_read_ctx == NULL ||
-	    conn->ssl->enc_read_ctx->cipher == NULL ||
-	    conn->ssl->read_hash == NULL)
-		return -1;
-
-	c = conn->ssl->enc_read_ctx->cipher;
-#if OPENSSL_VERSION_NUMBER >= 0x00909000L
-	h = EVP_MD_CTX_md(conn->ssl->read_hash);
-#else
-	h = conn->ssl->read_hash;
-#endif
-	if (h)
-		md_size = EVP_MD_size(h);
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-	else if (conn->ssl->s3)
-		md_size = conn->ssl->s3->tmp.new_mac_secret_size;
-#endif
-	else
-		return -1;
-
-	wpa_printf(MSG_DEBUG, "OpenSSL: keyblock size: key_len=%d MD_size=%d "
-		   "IV_len=%d", EVP_CIPHER_key_length(c), md_size,
-		   EVP_CIPHER_iv_length(c));
-	return 2 * (EVP_CIPHER_key_length(c) +
-		    md_size +
-		    EVP_CIPHER_iv_length(c));
-}
-
-
-unsigned int tls_capabilities(void *tls_ctx)
-{
-	return 0;
-}
-
-
 #if defined(EAP_FAST) || defined(EAP_FAST_DYNAMIC) || defined(EAP_SERVER_FAST)
 /* Pre-shared secred requires a patch to openssl, so this function is
  * commented out unless explicitly needed for EAP-FAST in order to be able to
@@ -3575,6 +3977,7 @@ static int tls_sess_sec_cb(SSL *s, void *secret, int *secret_len,
 	struct tls_connection *conn = arg;
 	int ret;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	if (conn == NULL || conn->session_ticket_cb == NULL)
 		return 0;
 
@@ -3583,6 +3986,23 @@ static int tls_sess_sec_cb(SSL *s, void *secret, int *secret_len,
 				      conn->session_ticket_len,
 				      s->s3->client_random,
 				      s->s3->server_random, secret);
+#else
+	unsigned char client_random[SSL3_RANDOM_SIZE];
+	unsigned char server_random[SSL3_RANDOM_SIZE];
+
+	if (conn == NULL || conn->session_ticket_cb == NULL)
+		return 0;
+
+	SSL_get_client_random(s, client_random, sizeof(client_random));
+	SSL_get_server_random(s, server_random, sizeof(server_random));
+
+	ret = conn->session_ticket_cb(conn->session_ticket_cb_ctx,
+				      conn->session_ticket,
+				      conn->session_ticket_len,
+				      client_random,
+				      server_random, secret);
+#endif
+
 	os_free(conn->session_ticket);
 	conn->session_ticket = NULL;
 
@@ -3655,4 +4075,71 @@ int tls_get_library_version(char *buf, size_t buf_len)
 	return os_snprintf(buf, buf_len, "OpenSSL build=%s run=%s",
 			   OPENSSL_VERSION_TEXT,
 			   SSLeay_version(SSLEAY_VERSION));
+}
+
+
+void tls_connection_set_success_data(struct tls_connection *conn,
+				     struct wpabuf *data)
+{
+	SSL_SESSION *sess;
+	struct wpabuf *old;
+
+	if (tls_ex_idx_session < 0)
+		goto fail;
+	sess = SSL_get_session(conn->ssl);
+	if (!sess)
+		goto fail;
+	old = SSL_SESSION_get_ex_data(sess, tls_ex_idx_session);
+	if (old) {
+		wpa_printf(MSG_DEBUG, "OpenSSL: Replacing old success data %p",
+			   old);
+		wpabuf_free(old);
+	}
+	if (SSL_SESSION_set_ex_data(sess, tls_ex_idx_session, data) != 1)
+		goto fail;
+
+	wpa_printf(MSG_DEBUG, "OpenSSL: Stored success data %p", data);
+	conn->success_data = 1;
+	return;
+
+fail:
+	wpa_printf(MSG_INFO, "OpenSSL: Failed to store success data");
+	wpabuf_free(data);
+}
+
+
+void tls_connection_set_success_data_resumed(struct tls_connection *conn)
+{
+	wpa_printf(MSG_DEBUG,
+		   "OpenSSL: Success data accepted for resumed session");
+	conn->success_data = 1;
+}
+
+
+const struct wpabuf *
+tls_connection_get_success_data(struct tls_connection *conn)
+{
+	SSL_SESSION *sess;
+
+	if (tls_ex_idx_session < 0 ||
+	    !(sess = SSL_get_session(conn->ssl)))
+		return NULL;
+	return SSL_SESSION_get_ex_data(sess, tls_ex_idx_session);
+}
+
+
+void tls_connection_remove_session(struct tls_connection *conn)
+{
+	SSL_SESSION *sess;
+
+	sess = SSL_get_session(conn->ssl);
+	if (!sess)
+		return;
+
+	if (SSL_CTX_remove_session(conn->ssl_ctx, sess) != 1)
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Session was not cached");
+	else
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Removed cached session to disable session resumption");
 }

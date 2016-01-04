@@ -61,6 +61,12 @@
 /* Define to 1 if you have the `killpg' function. */
 #define HAVE_KILLPG 1
 
+/* Define to 1 if you have the <libgen.h> header file. */
+#define HAVE_LIBGEN_H 1
+
+/* Define to 1 if you have the <limits.h> header file. */
+#define HAVE_LIMITS_H 1
+
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
@@ -160,6 +166,9 @@
    */
 /* #undef HAVE_SYS_NDIR_H */
 
+/* Define to 1 if you have the <sys/param.h> header file. */
+#define HAVE_SYS_PARAM_H 1
+
 /* Define to 1 if you have the <sys/select.h> header file. */
 #define HAVE_SYS_SELECT_H 1
 
@@ -236,7 +245,7 @@
 #define PACKAGE_NAME "bmake"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "bmake 20140214"
+#define PACKAGE_STRING "bmake 20151022"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "bmake"
@@ -245,7 +254,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "20140214"
+#define PACKAGE_VERSION "20151022"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -306,6 +315,11 @@
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 /* #undef _POSIX_SOURCE */
 
+/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+/* #undef _UINT32_T */
+
 /* C99 function name */
 /* #undef __func__ */
 
@@ -320,6 +334,10 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */
+
+/* Define to the type of an unsigned integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+/* #undef uint32_t */
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */

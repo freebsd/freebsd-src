@@ -96,7 +96,7 @@ int hs20_web_browser(const char *url)
 
 	if (pid == 0) {
 		/* run the external command in the child process */
-		char *argv[12];
+		char *argv[14];
 
 		argv[0] = "browser-wpadebug";
 		argv[1] = "start";
@@ -109,7 +109,9 @@ int hs20_web_browser(const char *url)
 		argv[8] = "-e";
 		argv[9] = "w1.fi.wpadebug.URL";
 		argv[10] = (void *) url;
-		argv[11] = NULL;
+		argv[11] = "--user";
+		argv[12] = "-3"; /* USER_CURRENT_OR_SELF */
+		argv[13] = NULL;
 
 		execv("/system/bin/am", argv);
 		wpa_printf(MSG_ERROR, "execv: %s", strerror(errno));

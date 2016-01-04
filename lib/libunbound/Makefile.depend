@@ -13,7 +13,7 @@ DIRDEPS = \
 	lib/libthr \
 	secure/lib/libcrypto \
 	secure/lib/libssl \
-	usr.bin/xinstall.host \
+	usr.bin/yacc.host \
 
 
 .include <dirdeps.mk>

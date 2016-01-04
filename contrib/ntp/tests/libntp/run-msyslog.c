@@ -22,11 +22,12 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-void resetTest(void);
 extern void test_msnprintf(void);
 extern void test_msnprintfLiteralPercentm(void);
 extern void test_msnprintfBackslashLiteralPercentm(void);
@@ -38,29 +39,29 @@ extern void test_msnprintfTruncate(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "msyslog.c";
   UnityBegin("msyslog.c");
-  RUN_TEST(test_msnprintf, 14);
-  RUN_TEST(test_msnprintfLiteralPercentm, 30);
-  RUN_TEST(test_msnprintfBackslashLiteralPercentm, 45);
-  RUN_TEST(test_msnprintfBackslashPercent, 59);
-  RUN_TEST(test_msnprintfHangingPercent, 74);
-  RUN_TEST(test_format_errmsgHangingPercent, 91);
-  RUN_TEST(test_msnprintfNullTarget, 106);
-  RUN_TEST(test_msnprintfTruncate, 117);
+  RUN_TEST(test_msnprintf, 13);
+  RUN_TEST(test_msnprintfLiteralPercentm, 14);
+  RUN_TEST(test_msnprintfBackslashLiteralPercentm, 15);
+  RUN_TEST(test_msnprintfBackslashPercent, 16);
+  RUN_TEST(test_msnprintfHangingPercent, 17);
+  RUN_TEST(test_format_errmsgHangingPercent, 18);
+  RUN_TEST(test_msnprintfNullTarget, 19);
+  RUN_TEST(test_msnprintfTruncate, 20);
 
   return (UnityEnd());
 }

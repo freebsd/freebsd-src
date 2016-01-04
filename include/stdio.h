@@ -144,6 +144,7 @@ struct __sFILE {
 	int	_fl_count;	/* recursive lock count */
 	int	_orientation;	/* orientation for fwide() */
 	__mbstate_t _mbstate;	/* multibyte conversion state */
+	int	_flags2;	/* additional flags */
 };
 #ifndef _STDFILE_DECLARED
 #define _STDFILE_DECLARED
@@ -175,6 +176,8 @@ __END_DECLS
 #define	__SMOD	0x2000		/* true => fgetln modified _p text */
 #define	__SALC	0x4000		/* allocate string space dynamically */
 #define	__SIGN	0x8000		/* ignore this file in _fwalk */
+
+#define	__S2OAP	0x0001		/* O_APPEND mode is set */
 
 /*
  * The following three definitions are for ANSI C, which took them

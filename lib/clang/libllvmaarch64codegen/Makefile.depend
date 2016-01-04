@@ -184,9 +184,11 @@ AArch64Subtarget.po: AArch64GenSubtargetInfo.inc.h
 AArch64TargetMachine.o: AArch64GenInstrInfo.inc.h
 AArch64TargetMachine.o: AArch64GenRegisterInfo.inc.h
 AArch64TargetMachine.o: AArch64GenSubtargetInfo.inc.h
+AArch64TargetMachine.o: Intrinsics.inc.h
 AArch64TargetMachine.po: AArch64GenInstrInfo.inc.h
 AArch64TargetMachine.po: AArch64GenRegisterInfo.inc.h
 AArch64TargetMachine.po: AArch64GenSubtargetInfo.inc.h
+AArch64TargetMachine.po: Intrinsics.inc.h
 AArch64TargetObjectFile.o: AArch64GenInstrInfo.inc.h
 AArch64TargetObjectFile.o: AArch64GenRegisterInfo.inc.h
 AArch64TargetObjectFile.o: AArch64GenSubtargetInfo.inc.h

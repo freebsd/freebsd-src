@@ -428,7 +428,7 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		KASSERT(lle->la_flags & LLE_VALID,
 		    ("%s: %p resolved but not valid?", __func__, lle));
 
-		lladdr = (uint8_t *)&lle->ll_addr;
+		lladdr = (uint8_t *)lle->ll_addr;
 #ifdef VLAN_TAG
 		VLAN_TAG(ifp, &vtag);
 #endif
@@ -509,7 +509,7 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			KASSERT(!(tp->t_flags & TF_TOE),
 			    ("%s: tp %p still offloaded.", __func__, tp));
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-			(void) tcp_output(tp);
+			(void) tp->t_fb->tfb_tcp_output(tp);
 		} else {
 
 			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);

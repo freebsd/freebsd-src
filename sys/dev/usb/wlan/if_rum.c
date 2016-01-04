@@ -4,6 +4,7 @@
  * Copyright (c) 2005-2007 Damien Bergamini <damien.bergamini@free.fr>
  * Copyright (c) 2006 Niall O'Higgins <niallo@openbsd.org>
  * Copyright (c) 2007-2008 Hans Petter Selasky <hselasky@FreeBSD.org>
+ * Copyright (c) 2015 Andriy Voskoboinyk <avos@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -216,8 +217,6 @@ static void		rum_get_tsf(struct rum_softc *, uint64_t *);
 static void		rum_update_slot_cb(struct rum_softc *,
 			    union sec_param *, uint8_t);
 static void		rum_update_slot(struct ieee80211com *);
-static void		rum_wme_update_cb(struct rum_softc *,
-			    union sec_param *, uint8_t);
 static int		rum_wme_update(struct ieee80211com *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
@@ -2070,7 +2069,7 @@ rum_update_slot_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t slottime;
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	rum_modbits(sc, RT2573_MAC_CSR9, slottime, 0xff);
 
@@ -2083,14 +2082,15 @@ rum_update_slot(struct ieee80211com *ic)
 	rum_cmd_sleepable(ic->ic_softc, NULL, 0, 0, rum_update_slot_cb);
 }
 
-static void
-rum_wme_update_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
+static int
+rum_wme_update(struct ieee80211com *ic)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	const struct wmeParams *chanp =
 	    ic->ic_wme.wme_chanParams.cap_wmeParams;
+	struct rum_softc *sc = ic->ic_softc;
 	int error = 0;
 
+	RUM_LOCK(sc);
 	error = rum_write(sc, RT2573_AIFSN_CSR,
 	    chanp[WME_AC_VO].wmep_aifsn  << 12 |
 	    chanp[WME_AC_VI].wmep_aifsn  <<  8 |
@@ -2125,21 +2125,14 @@ rum_wme_update_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
 
 	memcpy(sc->wme_params, chanp, sizeof(*chanp) * WME_NUM_AC);
 
-	return;
-
 print_err:
-	device_printf(sc->sc_dev, "%s: WME update failed, error %d\n",
-	    __func__, error);
-}
+	RUM_UNLOCK(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "%s: WME update failed, error %d\n",
+		    __func__, error);
+	}
 
-static int
-rum_wme_update(struct ieee80211com *ic)
-{
-	struct rum_softc *sc = ic->ic_softc;
-
-	rum_cmd_sleepable(sc, NULL, 0, 0, rum_wme_update_cb);
-
-	return (0);
+	return (error);
 }
 
 static void
@@ -3024,3 +3017,4 @@ DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
 MODULE_DEPEND(rum, wlan, 1, 1, 1);
 MODULE_DEPEND(rum, usb, 1, 1, 1);
 MODULE_VERSION(rum, 1);
+USB_PNP_HOST_INFO(rum_devs);

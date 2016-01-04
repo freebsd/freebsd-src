@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #ifndef DOSPTYP_FAT32
 #define	DOSPTYP_FAT32	0x0b
 #endif
+#ifndef DOSPTYP_PPCBOOT
+#define	DOSPTYP_PPCBOOT	0x41
+#endif
 #ifndef DOSPTYP_EFI
 #define	DOSPTYP_EFI	0xef
 #endif
@@ -56,6 +59,7 @@ static struct mkimg_alias mbr_aliases[] = {
     {	ALIAS_FAT32, ALIAS_INT2TYPE(DOSPTYP_FAT32) },
     {	ALIAS_FREEBSD, ALIAS_INT2TYPE(DOSPTYP_386BSD) },
     {	ALIAS_NTFS, ALIAS_INT2TYPE(DOSPTYP_NTFS) },
+    {	ALIAS_PPCBOOT, ALIAS_INT2TYPE(DOSPTYP_PPCBOOT) },
     {	ALIAS_NONE, 0 }		/* Keep last! */
 };
 

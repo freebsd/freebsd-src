@@ -2945,6 +2945,7 @@ enum {
 #define AR_SREV_VERSION_WASP   0x300 /* XXX: Check Wasp version number */
 #define AR_SREV_VERSION_SCORPION 0x400
 #define AR_SREV_VERSION_POSEIDON 0x240
+#define AR_SREV_VERSION_HONEYBEE 0x500
 #define AR_SREV_VERSION_APHRODITE 0x2C0
 
 #define AR_SREV_REVISION_OSPREY_10            0      /* Osprey 1.0 */
@@ -2970,6 +2971,11 @@ enum {
 
 #define AR_SREV_REVISION_JUPITER_10           0      /* Jupiter 1.0 */
 #define AR_SREV_REVISION_JUPITER_20           2      /* Jupiter 2.0 */
+#define AR_SREV_REVISION_JUPITER_21           3      /* Jupiter 2.1 */
+
+#define AR_SREV_REVISION_HONEYBEE_10          0      /* Honeybee 1.0 */
+#define AR_SREV_REVISION_HONEYBEE_11          1      /* Honeybee 1.1 */
+#define AR_SREV_REVISION_HONEYBEE_MASK        0xf    /* Honeybee revision mask */
 
 #define AR_SREV_REVISION_APHRODITE_10         0      /* Aphrodite 1.0 */
 
@@ -2999,7 +3005,7 @@ enum {
 
 /* NOTE: When adding chips newer than Peacock, add chip check here.  */
 #define AR_SREV_AR9580_10_OR_LATER(_ah) \
-    (AR_SREV_AR9580(_ah))
+    (AR_SREV_AR9580(_ah) || AR_SREV_SCORPION(_ah) || AR_SREV_HONEYBEE(_ah))
 
 #define AR_SREV_JUPITER(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER))
@@ -3012,9 +3018,17 @@ enum {
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
      (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_JUPITER_20))
 
+#define AR_SREV_JUPITER_21(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
+     (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_JUPITER_21))
+
 #define AR_SREV_JUPITER_20_OR_LATER(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
      (AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_JUPITER_20))
+
+#define AR_SREV_JUPITER_21_OR_LATER(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
+     (AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_JUPITER_21))
 
 #define AR_SREV_APHRODITE(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_APHRODITE))
@@ -3051,6 +3065,21 @@ enum {
 #else
 #define AR_SREV_WASP(_ah)                                         0
 #endif /* #if defined(AH_SUPPORT_WASP) */
+
+#if defined(AH_SUPPORT_HONEYBEE)
+#define AR_SREV_HONEYBEE(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_HONEYBEE))
+#define AR_SREV_HONEYBEE_10(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_HONEYBEE) && \
+     (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_HONEYBEE_10))
+#define AR_SREV_HONEYBEE_11(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_HONEYBEE) && \
+     (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_HONEYBEE_11))
+#else
+#define AR_SREV_HONEYBEE(_ah)                                         0
+#define AR_SREV_HONEYBEE_10(_ah) 0
+#define AR_SREV_HONEYBEE_11(_ah) 0
+#endif /* #if defined(AH_SUPPORT_HONEYBEE) */
 
 #define AR_SREV_WASP_10(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_WASP) && \
@@ -3094,7 +3123,7 @@ enum {
 
 #define AR_SREV_POSEIDON_OR_LATER(_ah) \
     (AH_PRIVATE((_ah))->ah_macVersion >= AR_SREV_VERSION_POSEIDON)
-#define AR_SREV_SOC(_ah) (AR_SREV_HORNET(_ah) || AR_SREV_POSEIDON(_ah) || AR_SREV_WASP(_ah))
+#define AR_SREV_SOC(_ah) (AR_SREV_HORNET(_ah) || AR_SREV_POSEIDON(_ah) || AR_SREV_WASP(_ah) || AR_SREV_HONEYBEE(_ah))
 /*
 * Mask used to construct AAD for CCMP-AES
 * Cisco spec defined bits 0-3 as mask 

@@ -31,7 +31,7 @@ UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 # They may have asked us to build just one
 .for t in ${PROGS}
 .if make($t)
-.if ${PROGS_CXX:M${t}}
+.if ${PROGS_CXX:U:M${t}}
 PROG_CXX ?= $t
 .endif
 PROG ?= $t
@@ -41,8 +41,8 @@ PROG ?= $t
 
 .if defined(PROG)
 # just one of many
-PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN PROGNAME \
-			SRCS
+PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN NO_WERROR \
+			PROGNAME SRCS WARNS
 PROG_VARS +=	CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD LIBADD LINKS \
 		LDFLAGS MLINKS ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
@@ -102,7 +102,10 @@ _PROGS_ALL_SRCS+=	${s}
 .endfor
 .endfor
 .if !empty(_PROGS_COMMON_SRCS)
-_PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:N*.h:R:S/$/.o/g}
+_PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:M*.[dhly]}
+.if !empty(_PROGS_COMMON_SRCS:N*.[dhly])
+_PROGS_COMMON_OBJS+=	${_PROGS_COMMON_SRCS:N*.[dhly]:R:S/$/.o/g}
+.endif
 ${PROGS}: ${_PROGS_COMMON_OBJS}
 .endif
 
@@ -116,16 +119,16 @@ x.$p= PROG_CXX=$p
 $p ${p}_p: .PHONY .MAKE
 	(cd ${.CURDIR} && \
 	    DEPENDFILE=.depend.$p \
-	    ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p})
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    PROG=$p ${x.$p})
 
 # Pseudo targets for PROG, such as 'install'.
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && \
 	    DEPENDFILE=.depend.$p \
-	    ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p} ${@:E})
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    PROG=$p ${x.$p} ${@:E})
 .endfor
 .endfor
 

@@ -327,16 +327,14 @@ void UnityConcludeTest(void)
 			}
 
 			printf("| ");
-			printf(Unity.XFAILMessage);
+			printf("%s", Unity.XFAILMessage);
 			Unity.XFAILMessage = NULL;
 		}
 		else
 		{
 			printf(" - EXPECTED FAIL!");
 		}
-
 	}
-
 	else
 
     if (Unity.CurrentTestIgnored)

@@ -695,6 +695,7 @@ struct subscription * subscription_start(struct upnp_wps_device_sm *sm,
 	struct subscription *s;
 	time_t now = time(NULL);
 	time_t expire = now + UPNP_SUBSCRIBE_SEC;
+	char str[80];
 
 	/* Get rid of expired subscriptions so we have room */
 	subscription_list_age(sm, now);
@@ -743,8 +744,10 @@ struct subscription * subscription_start(struct upnp_wps_device_sm *sm,
 		subscription_destroy(s);
 		return NULL;
 	}
-	wpa_printf(MSG_DEBUG, "WPS UPnP: Subscription %p started with %s",
-		   s, callback_urls);
+	uuid_bin2str(s->uuid, str, sizeof(str));
+	wpa_printf(MSG_DEBUG,
+		   "WPS UPnP: Subscription %p (SID %s) started with %s",
+		   s, str, callback_urls);
 	/* Schedule sending this */
 	event_send_all_later(sm);
 	return s;

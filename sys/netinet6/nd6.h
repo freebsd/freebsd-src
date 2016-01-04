@@ -410,6 +410,8 @@ void nd6_setmtu(struct ifnet *);
 void nd6_llinfo_setstate(struct llentry *lle, int newstate);
 void nd6_timer(void *);
 void nd6_purge(struct ifnet *);
+int nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
+    char *desten, uint32_t *pflags);
 int nd6_resolve(struct ifnet *, int, struct mbuf *,
     const struct sockaddr *, u_char *, uint32_t *);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
@@ -422,7 +424,7 @@ int nd6_flush_holdchain(struct ifnet *, struct ifnet *, struct mbuf *,
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
 int nd6_output_ifp(struct ifnet *, struct ifnet *, struct mbuf *,
-    struct sockaddr_in6 *);
+    struct sockaddr_in6 *, struct route *);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);

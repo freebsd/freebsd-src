@@ -12,6 +12,8 @@
         ..
         date
         ..
+        dd
+        ..
         expr
         ..
         ls
@@ -269,9 +271,15 @@
                     ..
                 ..
             ..
+            nss
+            ..
             regex
                 data
                 ..
+            ..
+            resolv
+            ..
+            rpc
             ..
             ssp
             ..
@@ -360,6 +368,8 @@
         ..
     ..
     sys
+        acl
+        ..
         aio
         ..
         fifo
@@ -367,10 +377,20 @@
         file
         ..
         kern
+            acct
+            ..
             execve
+            ..
+            pipe
             ..
         ..
         kqueue
+        ..
+        mac
+            bsdextended
+            ..
+            portacl
+            ..
         ..
         mqueue
         ..
@@ -409,6 +429,8 @@
             ..
             unlink
             ..
+        ..
+        posixshm
         ..
         vfs
         ..
@@ -546,6 +568,8 @@
         ..
         lastcomm
         ..
+        limits
+        ..
         m4
         ..
         mkimg
@@ -589,6 +613,8 @@
         etcupdate
         ..
         fstyp
+        ..
+        makefs
         ..
         newsyslog
         ..

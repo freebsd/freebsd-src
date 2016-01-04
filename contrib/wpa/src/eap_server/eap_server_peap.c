@@ -95,6 +95,37 @@ static void eap_peap_state(struct eap_peap_data *data, int state)
 		   eap_peap_state_txt(data->state),
 		   eap_peap_state_txt(state));
 	data->state = state;
+	if (state == FAILURE || state == FAILURE_REQ)
+		tls_connection_remove_session(data->ssl.conn);
+}
+
+
+static void eap_peap_valid_session(struct eap_sm *sm,
+				   struct eap_peap_data *data)
+{
+	struct wpabuf *buf;
+
+	if (!sm->tls_session_lifetime ||
+	    tls_connection_resumed(sm->ssl_ctx, data->ssl.conn))
+		return;
+
+	buf = wpabuf_alloc(1 + 1 + sm->identity_len);
+	if (!buf)
+		return;
+	wpabuf_put_u8(buf, EAP_TYPE_PEAP);
+	if (sm->identity) {
+		u8 id_len;
+
+		if (sm->identity_len <= 255)
+			id_len = sm->identity_len;
+		else
+			id_len = 255;
+		wpabuf_put_u8(buf, id_len);
+		wpabuf_put_data(buf, sm->identity, id_len);
+	} else {
+		wpabuf_put_u8(buf, 0);
+	}
+	tls_connection_set_success_data(data->ssl.conn, buf);
 }
 
 
@@ -151,7 +182,7 @@ static void * eap_peap_init(struct eap_sm *sm)
 	data->state = START;
 	data->crypto_binding = OPTIONAL_BINDING;
 
-	if (eap_server_tls_ssl_init(sm, &data->ssl, 0)) {
+	if (eap_server_tls_ssl_init(sm, &data->ssl, 0, EAP_TYPE_PEAP)) {
 		wpa_printf(MSG_INFO, "EAP-PEAP: Failed to initialize SSL.");
 		eap_peap_reset(sm, data);
 		return NULL;
@@ -539,15 +570,14 @@ static Boolean eap_peap_check(struct eap_sm *sm, void *priv,
 
 
 static int eap_peap_phase2_init(struct eap_sm *sm, struct eap_peap_data *data,
-				EapType eap_type)
+				int vendor, EapType eap_type)
 {
 	if (data->phase2_priv && data->phase2_method) {
 		data->phase2_method->reset(sm, data->phase2_priv);
 		data->phase2_method = NULL;
 		data->phase2_priv = NULL;
 	}
-	data->phase2_method = eap_server_get_eap_method(EAP_VENDOR_IETF,
-							eap_type);
+	data->phase2_method = eap_server_get_eap_method(vendor, eap_type);
 	if (!data->phase2_method)
 		return -1;
 
@@ -709,10 +739,12 @@ static void eap_peap_process_phase2_tlv(struct eap_sm *sm,
 		if (status == EAP_TLV_RESULT_SUCCESS) {
 			wpa_printf(MSG_INFO, "EAP-PEAP: TLV Result - Success "
 				   "- requested %s", requested);
-			if (data->tlv_request == TLV_REQ_SUCCESS)
+			if (data->tlv_request == TLV_REQ_SUCCESS) {
 				eap_peap_state(data, SUCCESS);
-			else
+				eap_peap_valid_session(sm, data);
+			} else {
 				eap_peap_state(data, FAILURE);
+			}
 			
 		} else if (status == EAP_TLV_RESULT_FAILURE) {
 			wpa_printf(MSG_INFO, "EAP-PEAP: TLV Result - Failure "
@@ -737,7 +769,7 @@ static void eap_peap_process_phase2_soh(struct eap_sm *sm,
 	const u8 *soh_tlv = NULL;
 	size_t soh_tlv_len = 0;
 	int tlv_type, mandatory, tlv_len, vtlv_len;
-	u8 next_type;
+	u32 next_type;
 	u32 vendor_id;
 
 	pos = eap_hdr_validate(EAP_VENDOR_MICROSOFT, 0x21, in_data, &left);
@@ -852,8 +884,9 @@ auth_method:
 	eap_peap_state(data, PHASE2_METHOD);
 	next_type = sm->user->methods[0].method;
 	sm->user_eap_method_index = 1;
-	wpa_printf(MSG_DEBUG, "EAP-PEAP: try EAP type %d", next_type);
-	eap_peap_phase2_init(sm, data, next_type);
+	wpa_printf(MSG_DEBUG, "EAP-PEAP: try EAP vendor %d type %d",
+		   sm->user->methods[0].vendor, next_type);
+	eap_peap_phase2_init(sm, data, sm->user->methods[0].vendor, next_type);
 }
 #endif /* EAP_SERVER_TNC */
 
@@ -862,7 +895,8 @@ static void eap_peap_process_phase2_response(struct eap_sm *sm,
 					     struct eap_peap_data *data,
 					     struct wpabuf *in_data)
 {
-	u8 next_type = EAP_TYPE_NONE;
+	int next_vendor = EAP_VENDOR_IETF;
+	u32 next_type = EAP_TYPE_NONE;
 	const struct eap_hdr *hdr;
 	const u8 *pos;
 	size_t left;
@@ -894,17 +928,23 @@ static void eap_peap_process_phase2_response(struct eap_sm *sm,
 			    "allowed types", pos + 1, left - 1);
 		eap_sm_process_nak(sm, pos + 1, left - 1);
 		if (sm->user && sm->user_eap_method_index < EAP_MAX_METHODS &&
-		    sm->user->methods[sm->user_eap_method_index].method !=
-		    EAP_TYPE_NONE) {
+		    (sm->user->methods[sm->user_eap_method_index].vendor !=
+		     EAP_VENDOR_IETF ||
+		     sm->user->methods[sm->user_eap_method_index].method !=
+		     EAP_TYPE_NONE)) {
+			next_vendor = sm->user->methods[
+				sm->user_eap_method_index].vendor;
 			next_type = sm->user->methods[
 				sm->user_eap_method_index++].method;
-			wpa_printf(MSG_DEBUG, "EAP-PEAP: try EAP type %d",
-				   next_type);
+			wpa_printf(MSG_DEBUG,
+				   "EAP-PEAP: try EAP vendor %d type 0x%x",
+				   next_vendor, next_type);
 		} else {
 			eap_peap_req_failure(sm, data);
+			next_vendor = EAP_VENDOR_IETF;
 			next_type = EAP_TYPE_NONE;
 		}
-		eap_peap_phase2_init(sm, data, next_type);
+		eap_peap_phase2_init(sm, data, next_vendor, next_type);
 		return;
 	}
 
@@ -929,8 +969,9 @@ static void eap_peap_process_phase2_response(struct eap_sm *sm,
 	if (!data->phase2_method->isSuccess(sm, data->phase2_priv)) {
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase2 method failed");
 		eap_peap_req_failure(sm, data);
+		next_vendor = EAP_VENDOR_IETF;
 		next_type = EAP_TYPE_NONE;
-		eap_peap_phase2_init(sm, data, next_type);
+		eap_peap_phase2_init(sm, data, next_vendor, next_type);
 		return;
 	}
 
@@ -942,7 +983,8 @@ static void eap_peap_process_phase2_response(struct eap_sm *sm,
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase2 getKey "
 				   "failed");
 			eap_peap_req_failure(sm, data);
-			eap_peap_phase2_init(sm, data, EAP_TYPE_NONE);
+			eap_peap_phase2_init(sm, data, EAP_VENDOR_IETF,
+					     EAP_TYPE_NONE);
 			return;
 		}
 	}
@@ -957,6 +999,7 @@ static void eap_peap_process_phase2_response(struct eap_sm *sm,
 					  "database",
 					  sm->identity, sm->identity_len);
 			eap_peap_req_failure(sm, data);
+			next_vendor = EAP_VENDOR_IETF;
 			next_type = EAP_TYPE_NONE;
 			break;
 		}
@@ -967,18 +1010,22 @@ static void eap_peap_process_phase2_response(struct eap_sm *sm,
 			eap_peap_state(data, PHASE2_SOH);
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: Try to initialize "
 				   "TNC (NAP SOH)");
+			next_vendor = EAP_VENDOR_IETF;
 			next_type = EAP_TYPE_NONE;
 			break;
 		}
 #endif /* EAP_SERVER_TNC */
 
 		eap_peap_state(data, PHASE2_METHOD);
+		next_vendor = sm->user->methods[0].vendor;
 		next_type = sm->user->methods[0].method;
 		sm->user_eap_method_index = 1;
-		wpa_printf(MSG_DEBUG, "EAP-PEAP: try EAP type %d", next_type);
+		wpa_printf(MSG_DEBUG, "EAP-PEAP: try EAP vendor %d type 0x%x",
+			   next_vendor, next_type);
 		break;
 	case PHASE2_METHOD:
 		eap_peap_req_success(sm, data);
+		next_vendor = EAP_VENDOR_IETF;
 		next_type = EAP_TYPE_NONE;
 		break;
 	case FAILURE:
@@ -989,7 +1036,7 @@ static void eap_peap_process_phase2_response(struct eap_sm *sm,
 		break;
 	}
 
-	eap_peap_phase2_init(sm, data, next_type);
+	eap_peap_phase2_init(sm, data, next_vendor, next_type);
 }
 
 
@@ -1080,6 +1127,7 @@ static void eap_peap_process_phase2(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Success");
 		if (data->state == SUCCESS_REQ) {
 			eap_peap_state(data, SUCCESS);
+			eap_peap_valid_session(sm, data);
 		}
 		break;
 	case EAP_CODE_FAILURE:
@@ -1133,7 +1181,8 @@ static void eap_peap_process_msg(struct eap_sm *sm, void *priv,
 		break;
 	case PHASE2_START:
 		eap_peap_state(data, PHASE2_ID);
-		eap_peap_phase2_init(sm, data, EAP_TYPE_IDENTITY);
+		eap_peap_phase2_init(sm, data, EAP_VENDOR_IETF,
+				     EAP_TYPE_IDENTITY);
 		break;
 	case PHASE1_ID2:
 	case PHASE2_ID:
@@ -1144,6 +1193,7 @@ static void eap_peap_process_msg(struct eap_sm *sm, void *priv,
 		break;
 	case SUCCESS_REQ:
 		eap_peap_state(data, SUCCESS);
+		eap_peap_valid_session(sm, data);
 		break;
 	case FAILURE_REQ:
 		eap_peap_state(data, FAILURE);
@@ -1160,10 +1210,65 @@ static void eap_peap_process(struct eap_sm *sm, void *priv,
 			     struct wpabuf *respData)
 {
 	struct eap_peap_data *data = priv;
+	const struct wpabuf *buf;
+	const u8 *pos;
+	u8 id_len;
+
 	if (eap_server_tls_process(sm, &data->ssl, respData, data,
 				   EAP_TYPE_PEAP, eap_peap_process_version,
-				   eap_peap_process_msg) < 0)
+				   eap_peap_process_msg) < 0) {
 		eap_peap_state(data, FAILURE);
+		return;
+	}
+
+	if (data->state == SUCCESS ||
+	    !tls_connection_established(sm->ssl_ctx, data->ssl.conn) ||
+	    !tls_connection_resumed(sm->ssl_ctx, data->ssl.conn))
+		return;
+
+	buf = tls_connection_get_success_data(data->ssl.conn);
+	if (!buf || wpabuf_len(buf) < 2) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-PEAP: No success data in resumed session - reject attempt");
+		eap_peap_state(data, FAILURE);
+		return;
+	}
+
+	pos = wpabuf_head(buf);
+	if (*pos != EAP_TYPE_PEAP) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-PEAP: Resumed session for another EAP type (%u) - reject attempt",
+			   *pos);
+		eap_peap_state(data, FAILURE);
+		return;
+	}
+
+	pos++;
+	id_len = *pos++;
+	wpa_hexdump_ascii(MSG_DEBUG, "EAP-PEAP: Identity from cached session",
+			  pos, id_len);
+	os_free(sm->identity);
+	sm->identity = os_malloc(id_len ? id_len : 1);
+	if (!sm->identity) {
+		sm->identity_len = 0;
+		eap_peap_state(data, FAILURE);
+		return;
+	}
+
+	os_memcpy(sm->identity, pos, id_len);
+	sm->identity_len = id_len;
+
+	if (eap_user_get(sm, sm->identity, sm->identity_len, 1) != 0) {
+		wpa_hexdump_ascii(MSG_DEBUG, "EAP-PEAP: Phase2 Identity not found in the user database",
+				  sm->identity, sm->identity_len);
+		eap_peap_state(data, FAILURE);
+		return;
+	}
+
+	wpa_printf(MSG_DEBUG,
+		   "EAP-PEAP: Resuming previous session - skip Phase2");
+	eap_peap_state(data, SUCCESS_REQ);
+	tls_connection_set_success_data_resumed(data->ssl.conn);
 }
 
 

@@ -15,7 +15,7 @@
 #define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
 /* Default OpenMP runtime used by -fopenmp. */
-#define CLANG_DEFAULT_OPENMP_RUNTIME "libgomp"
+#define CLANG_DEFAULT_OPENMP_RUNTIME "libomp"
 
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
@@ -505,10 +505,10 @@
 #define LLVM_VERSION_MINOR 7
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 0
+#define LLVM_VERSION_PATCH 1
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "3.7.0"
+#define LLVM_VERSION_STRING "3.7.1"
 
 /* The shared library extension */
 #define LTDL_SHLIB_EXT ".so"
@@ -524,13 +524,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.7.0"
+#define PACKAGE_STRING "LLVM 3.7.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.7.0"
+#define PACKAGE_VERSION "3.7.1"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

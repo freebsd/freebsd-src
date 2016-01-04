@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BINDIR= /usr/libexec/bsdinstall
+BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distextract
 LIBADD=	archive dpv figpar ncursesw dialog m
 

@@ -13,6 +13,8 @@
 
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"AR71XX_BASE"
 ident		"AP96"
 hints		"AP96.hints"

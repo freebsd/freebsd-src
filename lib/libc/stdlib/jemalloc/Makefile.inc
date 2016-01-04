@@ -14,14 +14,14 @@ CFLAGS+=-I${LIBC_SRCTOP}/../../contrib/jemalloc/include
 .for src in ${JEMALLOCSRCS}
 MISRCS+=jemalloc_${src}
 CLEANFILES+=jemalloc_${src}
-jemalloc_${src}:
-	ln -sf ${LIBC_SRCTOP}/../../contrib/jemalloc/src/${src} ${.TARGET}
+jemalloc_${src}: ${LIBC_SRCTOP}/../../contrib/jemalloc/src/${src} .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
 MAN+=jemalloc.3
 CLEANFILES+=jemalloc.3
-jemalloc.3:
-	ln -sf ${LIBC_SRCTOP}/../../contrib/jemalloc/doc/jemalloc.3 ${.TARGET}
+jemalloc.3: ${LIBC_SRCTOP}/../../contrib/jemalloc/doc/jemalloc.3
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 MLINKS+= \
 	jemalloc.3 malloc.3 \

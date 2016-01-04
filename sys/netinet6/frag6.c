@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -46,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -159,6 +162,11 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	int fragoff, frgpartlen;	/* must be larger than u_int16_t */
 	struct ifnet *dstifp;
 	u_int8_t ecn, ecn0;
+#ifdef RSS
+	struct m_tag *mtag;
+	struct ip6_direct_ctx *ip6dc;
+#endif
+
 #if 0
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
@@ -523,8 +531,8 @@ insert:
 		frag6_deq(af6);
 		while (t->m_next)
 			t = t->m_next;
-		t->m_next = IP6_REASS_MBUF(af6);
-		m_adj(t->m_next, af6->ip6af_offset);
+		m_adj(IP6_REASS_MBUF(af6), af6->ip6af_offset);
+		m_cat(t, IP6_REASS_MBUF(af6));
 		free(af6, M_FTABLE);
 		af6 = af6dwn;
 	}
@@ -577,8 +585,30 @@ insert:
 		m->m_pkthdr.len = plen;
 	}
 
+#ifdef RSS
+	mtag = m_tag_alloc(MTAG_ABI_IPV6, IPV6_TAG_DIRECT, sizeof(*ip6dc),
+	    M_NOWAIT);
+	if (mtag == NULL)
+		goto dropfrag;
+
+	ip6dc = (struct ip6_direct_ctx *)(mtag + 1);
+	ip6dc->ip6dc_nxt = nxt;
+	ip6dc->ip6dc_off = offset;
+
+	m_tag_prepend(m, mtag);
+#endif
+
+	IP6Q_UNLOCK();
 	IP6STAT_INC(ip6s_reassembled);
 	in6_ifstat_inc(dstifp, ifs6_reass_ok);
+
+#ifdef RSS
+	/*
+	 * Queue/dispatch for reprocessing.
+	 */
+	netisr_dispatch(NETISR_IPV6_DIRECT, m);
+	return IPPROTO_DONE;
+#endif
 
 	/*
 	 * Tell launch routine the next header
@@ -587,7 +617,6 @@ insert:
 	*mp = m;
 	*offp = offset;
 
-	IP6Q_UNLOCK();
 	return nxt;
 
  dropfrag:

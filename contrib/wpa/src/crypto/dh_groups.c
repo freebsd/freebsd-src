@@ -1153,7 +1153,7 @@ dh_group ## id ## _prime, sizeof(dh_group ## id ## _prime), \
 dh_group ## id ## _order, sizeof(dh_group ## id ## _order), safe }
 		
 
-static struct dh_group dh_groups[] = {
+static const struct dh_group dh_groups[] = {
 	DH_GROUP(5, 1),
 #ifdef ALL_DH_GROUPS
 	DH_GROUP(1, 1),

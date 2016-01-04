@@ -2450,7 +2450,8 @@ void
 xpt_action(union ccb *start_ccb)
 {
 
-	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_action\n"));
+	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE,
+	    ("xpt_action: func=%#x\n", start_ccb->ccb_h.func_code));
 
 	start_ccb->ccb_h.status = CAM_REQ_INPROG;
 	(*(start_ccb->ccb_h.path->bus->xport->action))(start_ccb);
@@ -2464,7 +2465,8 @@ xpt_action_default(union ccb *start_ccb)
 	int lock;
 
 	path = start_ccb->ccb_h.path;
-	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_action_default\n"));
+	CAM_DEBUG(path, CAM_DEBUG_TRACE,
+	    ("xpt_action_default: func=%#x\n", start_ccb->ccb_h.func_code));
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
@@ -2618,7 +2620,11 @@ call_sim:
 		lock = (mtx_owned(sim->mtx) == 0);
 		if (lock)
 			CAM_SIM_LOCK(sim);
+		CAM_DEBUG(path, CAM_DEBUG_TRACE,
+		    ("sim->sim_action: func=%#x\n", start_ccb->ccb_h.func_code));
 		(*(sim->sim_action))(sim, start_ccb);
+		CAM_DEBUG(path, CAM_DEBUG_TRACE,
+		    ("sim->sim_action: status=%#x\n", start_ccb->ccb_h.status));
 		if (lock)
 			CAM_SIM_UNLOCK(sim);
 		break;
@@ -3333,7 +3339,8 @@ xpt_merge_ccb(union ccb *master_ccb, union ccb *slave_ccb)
 }
 
 void
-xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
+xpt_setup_ccb_flags(struct ccb_hdr *ccb_h, struct cam_path *path,
+		    u_int32_t priority, u_int32_t flags)
 {
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_setup_ccb\n"));
@@ -3351,8 +3358,14 @@ xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
 		ccb_h->target_lun = CAM_TARGET_WILDCARD;
 	}
 	ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
-	ccb_h->flags = 0;
+	ccb_h->flags = flags;
 	ccb_h->xflags = 0;
+}
+
+void
+xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
+{
+	xpt_setup_ccb_flags(ccb_h, path, priority, /*flags*/ 0);
 }
 
 /* Path manipulation functions */

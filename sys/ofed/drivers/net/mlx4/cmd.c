@@ -1784,6 +1784,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 				mlx4_warn((&priv->dev),
 					  "No vlan resources slave %d, port %d\n",
 					  slave, port);
+				kfree(work);
 				return err;
 			}
 		} else {

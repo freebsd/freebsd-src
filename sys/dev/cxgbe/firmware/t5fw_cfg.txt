@@ -42,6 +42,9 @@
 	tp_pmrx_pagesize = 64K
 	tp_pmtx_pagesize = 64K
 
+	# cluster, lan, or wan.
+	tp_tcptuning = lan
+
 	# TP OFLD MTUs
 	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
 
@@ -173,7 +176,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x4f45e608
+	checksum = 0x6b54f66d
 #
 # $FreeBSD$
 #

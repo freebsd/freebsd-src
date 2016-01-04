@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Joerg Sonnenberger <joerg@NetBSD.org>
+ * Copyright (c) 2009, 2010 Joerg Sonnenberger <joerg@NetBSD.org>
  * Copyright (c) 2007-2008 Dag-Erling Smørgrav
  * All rights reserved.
  *
@@ -65,6 +65,7 @@ static int		 q_opt;		/* quiet */
 static int		 t_opt;		/* test */
 static int		 u_opt;		/* update */
 static int		 v_opt;		/* verbose/list */
+static const char	*y_str = "";	/* 4 digit year */
 static int		 Z1_opt;	/* zipinfo mode list files only */
 
 /* debug flag */
@@ -126,7 +127,6 @@ errorx(const char *fmt, ...)
 	exit(1);
 }
 
-#if 0
 /* non-fatal error message + errno */
 static void
 warning(const char *fmt, ...)
@@ -142,7 +142,6 @@ warning(const char *fmt, ...)
 	va_end(ap);
 	fprintf(stderr, ": %s\n", strerror(errno));
 }
-#endif
 
 /* non-fatal error message, no errno */
 static void
@@ -439,7 +438,7 @@ handle_existing_file(char **path)
 			(void)unlink(*path);
 			return 1;
 		case 'N':
-			n_opt = 1;			
+			n_opt = 1;
 			/* FALLTHROUGH */
 		case 'n':
 			return -1;
@@ -461,6 +460,34 @@ handle_existing_file(char **path)
 }
 
 /*
+ * Detect binary files by a combination of character white list and
+ * black list. NUL bytes and other control codes without use in text files
+ * result directly in switching the file to binary mode. Otherwise, at least
+ * one white-listed byte has to be found.
+ *
+ * Black-listed: 0..6, 14..25, 28..31
+ * White-listed: 9..10, 13, >= 32
+ *
+ * See the proginfo/txtvsbin.txt in the zip sources for a detailed discussion.
+ */
+#define BYTE_IS_BINARY(x)	((x) < 32 && (0xf3ffc07fU & (1U << (x))))
+#define	BYTE_IS_TEXT(x)		((x) >= 32 || (0x00002600U & (1U << (x))))
+
+static int
+check_binary(const unsigned char *buf, size_t len)
+{
+	int rv;
+	for (rv = 1; len--; ++buf) {
+		if (BYTE_IS_BINARY(*buf))
+			return 1;
+		if (BYTE_IS_TEXT(*buf))
+			rv = 0;
+	}
+
+	return rv;
+}
+
+/*
  * Extract a regular file.
  */
 static void
@@ -472,6 +499,7 @@ extract_file(struct archive *a, struct archive_entry *e, char **path)
 	struct timespec ts[2];
 	int cr, fd, text, warn, check;
 	ssize_t len;
+	const char *linkname;
 	unsigned char *p, *q, *end;
 
 	mode = archive_entry_mode(e) & 0777;
@@ -485,7 +513,7 @@ recheck:
 	if (lstat(*path, &sb) == 0) {
 		if (u_opt || f_opt) {
 			/* check if up-to-date */
-			if (S_ISREG(sb.st_mode) &&
+			if ((S_ISREG(sb.st_mode) || S_ISLNK(sb.st_mode)) &&
 			    (sb.st_mtim.tv_sec > mtime.tv_sec ||
 			    (sb.st_mtim.tv_sec == mtime.tv_sec &&
 			    sb.st_mtim.tv_nsec >= mtime.tv_nsec)))
@@ -507,6 +535,24 @@ recheck:
 	} else {
 		if (f_opt)
 			return;
+	}
+
+	ts[0].tv_sec = 0;
+	ts[0].tv_nsec = UTIME_NOW;
+	ts[1] = mtime;
+
+	/* process symlinks */
+	linkname = archive_entry_symlink(e);
+	if (linkname != NULL) {
+		if (symlink(linkname, *path) != 0)
+			error("symlink('%s')", *path);
+		info(" extracting: %s -> %s\n", *path, linkname);
+		if (lchmod(*path, mode) != 0)
+			warning("Cannot set mode for '%s'", *path);
+		/* set access and modification time */
+		if (utimensat(AT_FDCWD, *path, ts, AT_SYMLINK_NOFOLLOW) != 0)
+			warning("utimensat('%s')", *path);
+		return;
 	}
 
 	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
@@ -550,12 +596,8 @@ recheck:
 		 * guess wrong, we print a warning message later.
 		 */
 		if (a_opt && n == 0) {
-			for (p = buffer; p < end; ++p) {
-				if (!isascii((unsigned char)*p)) {
-					text = 0;
-					break;
-				}
-			}
+			if (check_binary(buffer, len))
+				text = 0;
 		}
 
 		/* simple case */
@@ -568,7 +610,7 @@ recheck:
 		/* hard case: convert \r\n to \n (sigh...) */
 		for (p = buffer; p < end; p = q + 1) {
 			for (q = p; q < end; q++) {
-				if (!warn && !isascii(*q)) {
+				if (!warn && BYTE_IS_BINARY(*q)) {
 					warningx("%s may be corrupted due"
 					    " to weak text file detection"
 					    " heuristic", *path);
@@ -594,9 +636,6 @@ recheck:
 	info("\n");
 
 	/* set access and modification time */
-	ts[0].tv_sec = 0;
-	ts[0].tv_nsec = UTIME_NOW;
-	ts[1] = mtime;
 	if (futimens(fd, ts) != 0)
 		error("futimens('%s')", *path);
 	if (close(fd) != 0)
@@ -639,7 +678,7 @@ extract(struct archive *a, struct archive_entry *e)
 	}
 
 	/* I don't think this can happen in a zipfile.. */
-	if (!S_ISDIR(filetype) && !S_ISREG(filetype)) {
+	if (!S_ISDIR(filetype) && !S_ISREG(filetype) && !S_ISLNK(filetype)) {
 		warningx("skipping non-regular entry '%s'", pathname);
 		ac(archive_read_data_skip(a));
 		free(pathname);
@@ -695,7 +734,7 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 	filetype = archive_entry_filetype(e);
 
 	/* I don't think this can happen in a zipfile.. */
-	if (!S_ISDIR(filetype) && !S_ISREG(filetype)) {
+	if (!S_ISDIR(filetype) && !S_ISREG(filetype) && !S_ISLNK(filetype)) {
 		warningx("skipping non-regular entry '%s'", pathname);
 		ac(archive_read_data_skip(a));
 		free(pathname);
@@ -753,12 +792,8 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 		 * guess wrong, we print a warning message later.
 		 */
 		if (a_opt && n == 0) {
-			for (p = buffer; p < end; ++p) {
-				if (!isascii((unsigned char)*p)) {
-					text = 0;
-					break;
-				}
-			}
+			if (check_binary(buffer, len))
+				text = 0;
 		}
 
 		/* simple case */
@@ -771,7 +806,7 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 		/* hard case: convert \r\n to \n (sigh...) */
 		for (p = buffer; p < end; p = q + 1) {
 			for (q = p; q < end; q++) {
-				if (!warn && !isascii(*q)) {
+				if (!warn && BYTE_IS_BINARY(*q)) {
 					warningx("%s may be corrupted due"
 					    " to weak text file detection"
 					    " heuristic", pathname);
@@ -802,9 +837,14 @@ list(struct archive *a, struct archive_entry *e)
 {
 	char buf[20];
 	time_t mtime;
+	struct tm *tm;
 
 	mtime = archive_entry_mtime(e);
-	strftime(buf, sizeof(buf), "%m-%d-%g %R", localtime(&mtime));
+	tm = localtime(&mtime);
+	if (*y_str)
+		strftime(buf, sizeof(buf), "%m-%d-%G %R", tm);
+	else
+		strftime(buf, sizeof(buf), "%m-%d-%g %R", tm);
 
 	if (!zipinfo_mode) {
 		if (v_opt == 1) {
@@ -855,7 +895,6 @@ test(struct archive *a, struct archive_entry *e)
 	return error_count;
 }
 
-
 /*
  * Main loop: open the zipfile, iterate over its contents and decide what
  * to do with each entry.
@@ -878,11 +917,11 @@ unzip(const char *fn)
 		if (!p_opt && !q_opt)
 			printf("Archive:  %s\n", fn);
 		if (v_opt == 1) {
-			printf("  Length     Date   Time    Name\n");
-			printf(" --------    ----   ----    ----\n");
+			printf("  Length     %sDate   Time    Name\n", y_str);
+			printf(" --------    %s----   ----    ----\n", y_str);
 		} else if (v_opt == 2) {
-			printf(" Length   Method    Size  Ratio   Date   Time   CRC-32    Name\n");
-			printf("--------  ------  ------- -----   ----   ----   ------    ----\n");
+			printf(" Length   Method    Size  Ratio   %sDate   Time   CRC-32    Name\n", y_str);
+			printf("--------  ------  ------- -----   %s----   ----   ------    ----\n", y_str);
 		}
 	}
 
@@ -914,13 +953,13 @@ unzip(const char *fn)
 
 	if (zipinfo_mode) {
 		if (v_opt == 1) {
-			printf(" --------                   -------\n");
-			printf(" %8ju                   %ju file%s\n",
-			    total_size, file_count, file_count != 1 ? "s" : "");
+			printf(" --------                   %s-------\n", y_str);
+			printf(" %8ju                   %s%ju file%s\n",
+			    total_size, y_str, file_count, file_count != 1 ? "s" : "");
 		} else if (v_opt == 2) {
-			printf("--------          -------  ---                            -------\n");
-			printf("%8ju          %7ju   0%%                            %ju file%s\n",
-			    total_size, total_size, file_count,
+			printf("--------          -------  ---                            %s-------\n", y_str);
+			printf("%8ju          %7ju   0%%                            %s%ju file%s\n",
+			    total_size, total_size, y_str, file_count,
 			    file_count != 1 ? "s" : "");
 		}
 	}
@@ -930,7 +969,7 @@ unzip(const char *fn)
 
 	if (t_opt) {
 		if (error_count > 0) {
-			errorx("%d checksum error(s) found.", error_count);
+			errorx("%ju checksum error(s) found.", error_count);
 		}
 		else {
 			printf("No errors detected in compressed data of %s.\n",
@@ -943,7 +982,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: unzip [-aCcfjLlnopqtuvZ1] [-d dir] [-x pattern] zipfile\n");
+	fprintf(stderr, "Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] [-x pattern] zipfile\n");
 	exit(1);
 }
 
@@ -953,7 +992,7 @@ getopts(int argc, char *argv[])
 	int opt;
 
 	optreset = optind = 1;
-	while ((opt = getopt(argc, argv, "aCcd:fjLlnopqtuvx:Z1")) != -1)
+	while ((opt = getopt(argc, argv, "aCcd:fjLlnopqtuvx:yZ1")) != -1)
 		switch (opt) {
 		case '1':
 			Z1_opt = 1;
@@ -1008,6 +1047,9 @@ getopts(int argc, char *argv[])
 		case 'x':
 			add_pattern(&exclude, optarg);
 			break;
+		case 'y':
+			y_str = "  ";
+			break;
 		case 'Z':
 			zipinfo_mode = 1;
 			break;
@@ -1040,7 +1082,7 @@ main(int argc, char *argv[])
 	 */
 	nopts = getopts(argc, argv);
 
-	/* 
+	/*
 	 * When more of the zipinfo mode options are implemented, this
 	 * will need to change.
 	 */

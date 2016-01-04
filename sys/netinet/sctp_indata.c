@@ -223,9 +223,9 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 	}
 	seinfo = (struct sctp_extrcvinfo *)sinfo;
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO) &&
-	    (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_AVAIL)) {
+	    (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_AVAIL)) {
 		provide_nxt = 1;
-		len += CMSG_SPACE(sizeof(struct sctp_rcvinfo));
+		len += CMSG_SPACE(sizeof(struct sctp_nxtinfo));
 	} else {
 		provide_nxt = 0;
 	}
@@ -276,20 +276,20 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 		cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_nxtinfo));
 		cmh->cmsg_type = SCTP_NXTINFO;
 		nxtinfo = (struct sctp_nxtinfo *)CMSG_DATA(cmh);
-		nxtinfo->nxt_sid = seinfo->sreinfo_next_stream;
+		nxtinfo->nxt_sid = seinfo->serinfo_next_stream;
 		nxtinfo->nxt_flags = 0;
-		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_IS_UNORDERED) {
+		if (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_IS_UNORDERED) {
 			nxtinfo->nxt_flags |= SCTP_UNORDERED;
 		}
-		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_IS_NOTIFICATION) {
+		if (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_IS_NOTIFICATION) {
 			nxtinfo->nxt_flags |= SCTP_NOTIFICATION;
 		}
-		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_ISCOMPLETE) {
+		if (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_ISCOMPLETE) {
 			nxtinfo->nxt_flags |= SCTP_COMPLETE;
 		}
-		nxtinfo->nxt_ppid = seinfo->sreinfo_next_ppid;
-		nxtinfo->nxt_length = seinfo->sreinfo_next_length;
-		nxtinfo->nxt_assoc_id = seinfo->sreinfo_next_aid;
+		nxtinfo->nxt_ppid = seinfo->serinfo_next_ppid;
+		nxtinfo->nxt_length = seinfo->serinfo_next_length;
+		nxtinfo->nxt_assoc_id = seinfo->serinfo_next_aid;
 		cmh = (struct cmsghdr *)((caddr_t)cmh + CMSG_SPACE(sizeof(struct sctp_nxtinfo)));
 		SCTP_BUF_LEN(ret) += CMSG_SPACE(sizeof(struct sctp_nxtinfo));
 	}
@@ -2763,6 +2763,11 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 							panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
 #endif
 						}
+						if ((stcb->asoc.strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+						    (stcb->asoc.strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+						    TAILQ_EMPTY(&stcb->asoc.strmout[tp1->rec.data.stream_number].outqueue)) {
+							stcb->asoc.trigger_reset = 1;
+						}
 						tp1->sent = SCTP_DATAGRAM_NR_ACKED;
 						if (tp1->data) {
 							/*
@@ -3736,6 +3741,11 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 #endif
 					}
 				}
+				if ((asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+				    (asoc->strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+				    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.stream_number].outqueue)) {
+					asoc->trigger_reset = 1;
+				}
 				TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 				if (tp1->data) {
 					/* sa_ignore NO_NULL_CHK */
@@ -3984,6 +3994,7 @@ again:
 				op_err = sctp_generate_cause(SCTP_CAUSE_USER_INITIATED_ABT, "");
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_26;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+				return;
 			} else {
 				struct sctp_nets *netp;
 
@@ -4460,6 +4471,11 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 				panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
 #endif
 			}
+		}
+		if ((asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+		    (asoc->strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+		    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.stream_number].outqueue)) {
+			asoc->trigger_reset = 1;
 		}
 		TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 		if (PR_SCTP_ENABLED(tp1->flags)) {

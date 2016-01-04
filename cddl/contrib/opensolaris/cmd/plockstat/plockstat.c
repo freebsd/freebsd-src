@@ -515,7 +515,7 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 
 	if (P == NULL || Pxlookup_by_addr(P, addr, name, sizeof (name),
 	    &sym, &info) != 0) {
-		(void) snprintf(buf, size, "%#lx", addr);
+		(void) snprintf(buf, size, "%#lx", (unsigned long)addr);
 		return (0);
 	}
 #ifdef illumos
@@ -537,7 +537,7 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 	size -= len;
 
 	if (sym.st_value != addr)
-		len = snprintf(buf, size, "+%#lx", addr - sym.st_value);
+		len = snprintf(buf, size, "+%#lx", (unsigned long)(addr - sym.st_value));
 
 	if (nolocks && strcmp("libc.so.1", map->pr_mapname) == 0 &&
 	    (strstr("mutex", name) == 0 ||

@@ -256,8 +256,8 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
     dest->tlsext_ecpointformatlist = NULL;
     dest->tlsext_ellipticcurvelist = NULL;
 # endif
-#endif
     dest->tlsext_tick = NULL;
+#endif
 #ifndef OPENSSL_NO_SRP
     dest->srp_username = NULL;
 #endif
@@ -324,7 +324,6 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
             goto err;
     }
 # endif
-#endif
 
     if (ticket != 0) {
         dest->tlsext_tick = BUF_memdup(src->tlsext_tick, src->tlsext_ticklen);
@@ -334,6 +333,7 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
         dest->tlsext_tick_lifetime_hint = 0;
         dest->tlsext_ticklen = 0;
     }
+#endif
 
 #ifndef OPENSSL_NO_SRP
     if (src->srp_username) {
@@ -444,6 +444,9 @@ int ssl_get_new_session(SSL *s, int session)
         } else if (s->version == DTLS1_VERSION) {
             ss->ssl_version = DTLS1_VERSION;
             ss->session_id_length = SSL3_SSL_SESSION_ID_LENGTH;
+        } else if (s->version == DTLS1_2_VERSION) {
+            ss->ssl_version = DTLS1_2_VERSION;
+            ss->session_id_length = SSL3_SSL_SESSION_ID_LENGTH;
         } else {
             SSLerr(SSL_F_SSL_GET_NEW_SESSION, SSL_R_UNSUPPORTED_SSL_VERSION);
             SSL_SESSION_free(ss);
@@ -519,38 +522,6 @@ int ssl_get_new_session(SSL *s, int session)
                 return 0;
             }
         }
-# ifndef OPENSSL_NO_EC
-        if (s->tlsext_ecpointformatlist) {
-            if (ss->tlsext_ecpointformatlist != NULL)
-                OPENSSL_free(ss->tlsext_ecpointformatlist);
-            if ((ss->tlsext_ecpointformatlist =
-                 OPENSSL_malloc(s->tlsext_ecpointformatlist_length)) ==
-                NULL) {
-                SSLerr(SSL_F_SSL_GET_NEW_SESSION, ERR_R_MALLOC_FAILURE);
-                SSL_SESSION_free(ss);
-                return 0;
-            }
-            ss->tlsext_ecpointformatlist_length =
-                s->tlsext_ecpointformatlist_length;
-            memcpy(ss->tlsext_ecpointformatlist, s->tlsext_ecpointformatlist,
-                   s->tlsext_ecpointformatlist_length);
-        }
-        if (s->tlsext_ellipticcurvelist) {
-            if (ss->tlsext_ellipticcurvelist != NULL)
-                OPENSSL_free(ss->tlsext_ellipticcurvelist);
-            if ((ss->tlsext_ellipticcurvelist =
-                 OPENSSL_malloc(s->tlsext_ellipticcurvelist_length)) ==
-                NULL) {
-                SSLerr(SSL_F_SSL_GET_NEW_SESSION, ERR_R_MALLOC_FAILURE);
-                SSL_SESSION_free(ss);
-                return 0;
-            }
-            ss->tlsext_ellipticcurvelist_length =
-                s->tlsext_ellipticcurvelist_length;
-            memcpy(ss->tlsext_ellipticcurvelist, s->tlsext_ellipticcurvelist,
-                   s->tlsext_ellipticcurvelist_length);
-        }
-# endif
 #endif
     } else {
         ss->session_id_length = 0;

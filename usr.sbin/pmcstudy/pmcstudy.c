@@ -38,6 +38,9 @@
 #include "eval_expr.h"
 __FBSDID("$FreeBSD$");
 
+static int max_pmc_counters = 1;
+static int run_all = 0;
+
 #define MAX_COUNTER_SLOTS 1024
 #define MAX_NLEN 64
 #define MAX_CPU 64
@@ -191,8 +194,8 @@ struct cpu_entry {
 	const char *thresh;
 	const char *command;
 	int (*func)(struct counters *, int);
+	int counters_required;
 };
-
 
 struct cpu_type {
 	char cputype[32];
@@ -217,10 +220,10 @@ explain_name_sb(const char *name)
 		printf("Examine (20 * BR_MISP_RETIRED.ALL_BRANCHES)/CPU_CLK_UNHALTED.THREAD_P\n");
 		mythresh = "thresh >= .2";
 	} else if (strcmp(name, "splitload") == 0) {
-		printf("Examine MEM_UOP_RETIRED.SPLIT_LOADS * 5) / CPU_CLK_UNHALTED.THREAD_P\n");
+		printf("Examine MEM_UOPS_RETIRED.SPLIT_LOADS * 5) / CPU_CLK_UNHALTED.THREAD_P\n");
 		mythresh = "thresh >= .1";
 	} else if (strcmp(name, "splitstore") == 0) {
-		printf("Examine MEM_UOP_RETIRED.SPLIT_STORES / MEM_UOP_RETIRED.ALL_STORES\n");
+		printf("Examine MEM_UOPS_RETIRED.SPLIT_STORES / MEM_UOPS_RETIRED.ALL_STORES\n");
 		mythresh = "thresh >= .01";
 	} else if (strcmp(name, "contested") == 0) {
 		printf("Examine (MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM * 60) / CPU_CLK_UNHALTED.THREAD_P\n");
@@ -323,7 +326,7 @@ explain_name_ib(const char *name)
 		printf("         LD_BLOCKS.NO_SR)/CPU_CLK_UNHALTED.THREAD_P\n");
 		mythresh = "thresh >= .1";
 	} else if (strcmp(name, "splitstore") == 0) {
-		printf("Examine MEM_UOP_RETIRED.SPLIT_STORES / MEM_UOP_RETIRED.ALL_STORES\n");
+		printf("Examine MEM_UOPS_RETIRED.SPLIT_STORES / MEM_UOPS_RETIRED.ALL_STORES\n");
 		mythresh = "thresh >= .01";
 	} else if (strcmp(name, "aliasing_4k") == 0) {
 		printf("Examine (LD_BLOCKS_PARTIAL.ADDRESS_ALIAS * 5) / CPU_CLK_UNHALTED.THREAD_P\n");
@@ -403,10 +406,10 @@ explain_name_has(const char *name)
 		printf("Examine (LD_BLOCKS_STORE_FORWARD * 13) / CPU_CLK_UNHALTED.THREAD_P\n");
 		mythresh = "thresh >= .05";
 	} else if (strcmp(name, "splitload") == 0) {
-		printf("Examine  (MEM_UOP_RETIRED.SPLIT_LOADS * 5) / CPU_CLK_UNHALTED.THREAD_P\n");
+		printf("Examine  (MEM_UOPS_RETIRED.SPLIT_LOADS * 5) / CPU_CLK_UNHALTED.THREAD_P\n");
 		mythresh = "thresh >= .1";
 	} else if (strcmp(name, "splitstore") == 0) {
-		printf("Examine MEM_UOP_RETIRED.SPLIT_STORES / MEM_UOP_RETIRED.ALL_STORES\n");
+		printf("Examine MEM_UOPS_RETIRED.SPLIT_STORES / MEM_UOPS_RETIRED.ALL_STORES\n");
 		mythresh = "thresh >= .01";
 	} else if (strcmp(name, "aliasing_4k") == 0) {
 		printf("Examine (LD_BLOCKS_PARTIAL.ADDRESS_ALIAS * 5) / CPU_CLK_UNHALTED.THREAD_P\n");
@@ -442,6 +445,7 @@ explain_name_has(const char *name)
         }
 	printf("If the value printed is %s we may have the ability to improve performance\n", mythresh);
 }
+
 
 
 static struct counters *
@@ -589,6 +593,48 @@ br_mispredictib(struct counters *cpu, int pos)
 	return(ret);
 }
 
+
+static int
+br_mispredict_broad(struct counters *cpu, int pos)
+{
+	struct counters *brctr;
+	struct counters *unhalt;
+	struct counters *clear;
+	struct counters *uops;
+	struct counters *uops_ret;
+	struct counters *recv;
+	int ret;
+	double br, cl, uo, uo_r, re, con, un, res;
+
+	con = 4.0;
+	
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+        brctr = find_counter(cpu, "BR_MISP_RETIRED.ALL_BRANCHES");
+	clear = find_counter(cpu, "MACHINE_CLEARS.CYCLES");
+	uops = find_counter(cpu, "UOPS_ISSUED.ANY");
+	uops_ret = find_counter(cpu, "UOPS_RETIRED.RETIRE_SLOTS");
+	recv = find_counter(cpu, "INT_MISC.RECOVERY_CYCLES");
+
+	if (pos != -1) {
+		un = unhalt->vals[pos] * 1.0;
+		br = brctr->vals[pos] * 1.0;
+		cl = clear->vals[pos] * 1.0;
+		uo = uops->vals[pos] * 1.0;
+		uo_r = uops_ret->vals[pos] * 1.0;
+		re = recv->vals[pos] * 1.0;
+	} else {
+		un = unhalt->sum * 1.0;
+		br = brctr->sum * 1.0;
+		cl = clear->sum * 1.0;
+		uo = uops->sum * 1.0;
+		uo_r = uops_ret->sum * 1.0;
+		re = recv->sum * 1.0;
+	}
+	res = br / (br + cl) * (uo - uo_r + con * re) / (un * con);
+ 	ret = printf("%1.3f", res);
+	return(ret);
+}
+
 static int
 splitloadib(struct counters *cpu, int pos)
 {
@@ -622,8 +668,34 @@ splitloadib(struct counters *cpu, int pos)
 	return(ret);
 }
 
+
 static int
 splitload(struct counters *cpu, int pos)
+{
+	int ret;
+	struct counters *mem;
+	struct counters *unhalt;
+	double con, un, memd, res;
+/*  4  - (MEM_UOPS_RETIRED.SPLIT_LOADS * 5) / CPU_CLK_UNHALTED.THREAD_P (thresh >= .1)*/
+
+	con = 5.0;
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	mem = find_counter(cpu, "MEM_UOPS_RETIRED.SPLIT_LOADS");
+	if (pos != -1) {
+		memd = mem->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+	} else {
+		memd = mem->sum * 1.0;
+		un = unhalt->sum * 1.0;
+	}
+	res = (memd * con)/un;
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
+
+static int
+splitload_sb(struct counters *cpu, int pos)
 {
 	int ret;
 	struct counters *mem;
@@ -646,8 +718,9 @@ splitload(struct counters *cpu, int pos)
 	return(ret);
 }
 
+
 static int
-splitstore(struct counters *cpu, int pos)
+splitstore_sb(struct counters *cpu, int pos)
 {
         /*  5  - MEM_UOP_RETIRED.SPLIT_STORES / MEM_UOP_RETIRED.ALL_STORES (thresh > 0.01) */
 	int ret;
@@ -656,6 +729,30 @@ splitstore(struct counters *cpu, int pos)
 	double memsplit, memstore, res;
 	mem_split = find_counter(cpu, "MEM_UOP_RETIRED.SPLIT_STORES");
 	mem_stores = find_counter(cpu, "MEM_UOP_RETIRED.ALL_STORES");
+	if (pos != -1) {
+		memsplit = mem_split->vals[pos] * 1.0;
+		memstore = mem_stores->vals[pos] * 1.0;
+	} else {
+		memsplit = mem_split->sum * 1.0;
+		memstore = mem_stores->sum * 1.0;
+	}
+	res = memsplit/memstore;
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
+
+
+static int
+splitstore(struct counters *cpu, int pos)
+{
+        /*  5  - MEM_UOPS_RETIRED.SPLIT_STORES / MEM_UOPS_RETIRED.ALL_STORES (thresh > 0.01) */
+	int ret;
+	struct counters *mem_split;
+	struct counters *mem_stores;
+	double memsplit, memstore, res;
+	mem_split = find_counter(cpu, "MEM_UOPS_RETIRED.SPLIT_STORES");
+	mem_stores = find_counter(cpu, "MEM_UOPS_RETIRED.ALL_STORES");
 	if (pos != -1) {
 		memsplit = mem_split->vals[pos] * 1.0;
 		memstore = mem_stores->vals[pos] * 1.0;
@@ -713,6 +810,35 @@ contested_has(struct counters *cpu, int pos)
 		un = unhalt->sum * 1.0;
 	}
 	res = (memd * con)/un;
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
+static int
+contestedbroad(struct counters *cpu, int pos)
+{
+        /*  6  - (MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM * 84) / CPU_CLK_UNHALTED.THREAD_P (thresh >.05) */
+	int ret;
+	struct counters *mem;
+	struct counters *mem2;
+	struct counters *unhalt;
+	double con, un, memd, memtoo, res;
+
+	con = 84.0;
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	mem = find_counter(cpu, "MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM");
+	mem2 = find_counter(cpu,"MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_MISS");
+
+	if (pos != -1) {
+		memd = mem->vals[pos] * 1.0;
+		memtoo = mem2->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+	} else {
+		memd = mem->sum * 1.0;
+		memtoo = mem2->sum * 1.0;
+		un = unhalt->sum * 1.0;
+	}
+	res = ((memd * con) + memtoo)/un;
 	ret = printf("%1.3f", res);
 	return(ret);
 }
@@ -897,6 +1023,34 @@ cache2has(struct counters *cpu, int pos)
 	return(ret);
 }
 
+
+static int
+cache2broad(struct counters *cpu, int pos)
+{
+        /*
+	 *  (29 * MEM_LOAD_UOPS_RETIRED.LLC_HIT / CPU_CLK_UNHALTED.THREAD_P (thresh >.2)
+	 */
+	int ret;
+	struct counters *mem;
+	struct counters *unhalt;
+	double con, un, me, res;
+
+	con = 36.0;
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	mem = find_counter(cpu, "MEM_LOAD_UOPS_RETIRED.L3_HIT");
+	if (pos != -1) {
+		me = mem->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+	} else {
+		me = mem->sum * 1.0;
+		un = unhalt->sum * 1.0;
+	}
+	res = (con * me)/un; 
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
+
 static int
 cache1(struct counters *cpu, int pos)
 {
@@ -933,6 +1087,31 @@ cache1ib(struct counters *cpu, int pos)
 	con = 180.0;
 	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
 	mem = find_counter(cpu, "MEM_LOAD_UOPS_LLC_MISS_RETIRED.LOCAL_DRAM");
+	if (pos != -1) {
+		me = mem->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+	} else {
+		me = mem->sum * 1.0;
+		un = unhalt->sum * 1.0;
+	}
+	res = (me * con)/un;
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
+
+static int
+cache1broad(struct counters *cpu, int pos)
+{
+	/*  9  - (MEM_LOAD_UOPS_L3_MISS_RETIRED.LCOAL_DRAM * 180) / CPU_CLK_UNHALTED.THREAD_P (thresh >= .2) */
+	int ret;
+	struct counters *mem;
+	struct counters *unhalt;
+	double con, un, me, res;
+
+	con = 180.0;
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	mem = find_counter(cpu, "MEM_LOAD_UOPS_RETIRED.L3_MISS");
 	if (pos != -1) {
 		me = mem->vals[pos] * 1.0;
 		un = unhalt->vals[pos] * 1.0;
@@ -1025,6 +1204,35 @@ itlb_miss(struct counters *cpu, int pos)
 	ret = printf("%1.3f", res);
 	return(ret);
 }
+
+
+static int
+itlb_miss_broad(struct counters *cpu, int pos)
+{
+	/* (7 * ITLB_MISSES.STLB_HIT_4K + ITLB_MISSES.WALK_DURATION) / CPU_CLK_UNTHREAD_P   */
+	int ret;
+	struct counters *itlb;
+	struct counters *unhalt;
+	struct counters *four_k;
+	double un, d1, res, k;
+
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	itlb = find_counter(cpu, "ITLB_MISSES.WALK_DURATION");
+	four_k = find_counter(cpu, "ITLB_MISSES.STLB_HIT_4K");
+	if (pos != -1) {
+		d1 = itlb->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+		k = four_k->vals[pos] * 1.0;
+	} else {
+		d1 = itlb->sum * 1.0;
+		un = unhalt->sum * 1.0;
+		k = four_k->sum * 1.0;
+	}
+	res = (7.0 * k + d1)/un;
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
 
 static int
 icache_miss(struct counters *cpu, int pos)
@@ -1162,6 +1370,45 @@ clears(struct counters *cpu, int pos)
 	return(ret);
 }
 
+
+
+static int
+clears_broad(struct counters *cpu, int pos)
+{
+	int ret;
+	struct counters *clr1, *clr2, *clr3, *cyc;
+	struct counters *unhalt;
+	double con, un, cl1, cl2, cl3, cy, res;
+
+	con = 100.0;
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	clr1 = find_counter(cpu, "MACHINE_CLEARS.MEMORY_ORDERING");
+	clr2 = find_counter(cpu, "MACHINE_CLEARS.SMC");
+	clr3 = find_counter(cpu, "MACHINE_CLEARS.MASKMOV");
+	cyc = find_counter(cpu, "MACHINE_CLEARS.CYCLES");
+	if (pos != -1) {
+		cl1 = clr1->vals[pos] * 1.0;
+		cl2 = clr2->vals[pos] * 1.0;
+		cl3 = clr3->vals[pos] * 1.0;
+		cy = cyc->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+	} else {
+		cl1 = clr1->sum * 1.0;
+		cl2 = clr2->sum * 1.0;
+		cl3 = clr3->sum * 1.0;
+		cy = cyc->sum * 1.0;
+		un = unhalt->sum * 1.0;
+	}
+	/* Formula not listed but extrapulated to add the cy ?? */
+	res = ((cl1 + cl2 + cl3 + cy) * con)/un;
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
+
+
+
+
 static int
 microassist(struct counters *cpu, int pos)
 {
@@ -1182,6 +1429,38 @@ microassist(struct counters *cpu, int pos)
 		un = unhalt->sum * 1.0;
 	}
 	res = id/(un * con);
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
+
+static int
+microassist_broad(struct counters *cpu, int pos)
+{
+	int ret;
+	struct counters *idq;
+	struct counters *unhalt;
+	struct counters *uopiss;
+	struct counters *uopret;
+	double un, id, res, con, uoi, uor;
+
+	con = 4.0;
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	idq = find_counter(cpu, "IDQ.MS_UOPS");
+	uopiss = find_counter(cpu, "UOPS_ISSUED.ANY");
+	uopret = find_counter(cpu, "UOPS_RETIRED.RETIRE_SLOTS");
+	if (pos != -1) {
+		id = idq->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+		uoi = uopiss->vals[pos] * 1.0;
+		uor = uopret->vals[pos] * 1.0;
+	} else {
+		id = idq->sum * 1.0;
+		un = unhalt->sum * 1.0;
+		uoi = uopiss->sum * 1.0;
+		uor = uopret->sum * 1.0;
+	}
+	res = (uor/uoi) * (id/(un * con));
 	ret = printf("%1.3f", res);
 	return(ret);
 }
@@ -1210,6 +1489,31 @@ aliasing(struct counters *cpu, int pos)
 	ret = printf("%1.3f", res);
 	return(ret);
 }
+
+static int
+aliasing_broad(struct counters *cpu, int pos)
+{
+	/* 15  - (LD_BLOCKS_PARTIAL.ADDRESS_ALIAS * 5) / CPU_CLK_UNHALTED.THREAD_P (thresh > .1) */
+	int ret;	
+	struct counters *ld;
+	struct counters *unhalt;
+	double un, lds, con, res;
+
+	con = 7.0;
+	unhalt = find_counter(cpu, "CPU_CLK_UNHALTED.THREAD_P");
+	ld = find_counter(cpu, "LD_BLOCKS_PARTIAL.ADDRESS_ALIAS");
+	if (pos != -1) {
+		lds = ld->vals[pos] * 1.0;
+		un = unhalt->vals[pos] * 1.0;
+	} else {
+		lds = ld->sum * 1.0;
+		un = unhalt->sum * 1.0;
+	}
+	res = (lds * con)/un;
+	ret = printf("%1.3f", res);
+	return(ret);
+}
+
 
 static int
 fpassists(struct counters *cpu, int pos)
@@ -1336,64 +1640,65 @@ efficiency2(struct counters *cpu, int pos)
 static struct cpu_entry sandy_bridge[SANDY_BRIDGE_COUNT] = {
 /*01*/	{ "allocstall1", "thresh > .05", 
 	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s PARTIAL_RAT_STALLS.SLOW_LEA_WINDOW -w 1",
-	  allocstall1 },
-/*02*/	{ "allocstall2", "thresh > .05", 
-	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s PARTIAL_RAT_STALLS.FLAGS_MERGE_UOP_CYCLES -w 1",
-	  allocstall2 },
+	  allocstall1, 2 },
+/* -- not defined for SB right (partial-rat_stalls) 02*/
+        { "allocstall2", "thresh > .05", 
+	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s PARTIAL_RAT_STALLS.FLAGS_MERGE_UOP -w 1",
+	  allocstall2, 2 },
 /*03*/	{ "br_miss", "thresh >= .2", 
 	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s BR_MISP_RETIRED.ALL_BRANCHES -w 1",
-	  br_mispredict },
+	  br_mispredict, 2 },
 /*04*/	{ "splitload", "thresh >= .1", 
 	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s MEM_UOP_RETIRED.SPLIT_LOADS -w 1",
-	  splitload },
-/*05*/	{ "splitstore", "thresh >= .01", 
+	  splitload_sb, 2 },
+/* 05*/	{ "splitstore", "thresh >= .01", 
 	  "pmcstat -s MEM_UOP_RETIRED.SPLIT_STORES -s MEM_UOP_RETIRED.ALL_STORES -w 1",
-	  splitstore },
+	  splitstore_sb, 2 },
 /*06*/	{ "contested", "thresh >= .05", 
 	  "pmcstat -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM  -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  contested },
+	  contested, 2 },
 /*07*/	{ "blockstorefwd", "thresh >= .05", 
 	  "pmcstat -s LD_BLOCKS_STORE_FORWARD -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  blockstoreforward },
+	  blockstoreforward, 2 },
 /*08*/	{ "cache2", "thresh >= .2", 
 	  "pmcstat -s MEM_LOAD_UOPS_RETIRED.LLC_HIT -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HIT -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  cache2 },
+	  cache2, 4 },
 /*09*/	{ "cache1", "thresh >= .2", 
 	  "pmcstat -s MEM_LOAD_UOPS_MISC_RETIRED.LLC_MISS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  cache1 },
+	  cache1, 2 },
 /*10*/	{ "dtlbmissload", "thresh >= .1", 
 	  "pmcstat -s DTLB_LOAD_MISSES.STLB_HIT -s DTLB_LOAD_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  dtlb_missload },
+	  dtlb_missload, 3 },
 /*11*/	{ "dtlbmissstore", "thresh >= .05", 
 	  "pmcstat -s DTLB_STORE_MISSES.STLB_HIT -s DTLB_STORE_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  dtlb_missstore },
+	  dtlb_missstore, 3 },
 /*12*/	{ "frontendstall", "thresh >= .15", 
 	  "pmcstat -s IDQ_UOPS_NOT_DELIVERED.CORE -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  frontendstall },
+	  frontendstall, 2 },
 /*13*/	{ "clears", "thresh >= .02", 
 	  "pmcstat -s MACHINE_CLEARS.MEMORY_ORDERING -s MACHINE_CLEARS.SMC -s MACHINE_CLEARS.MASKMOV -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  clears },
+	  clears, 4 },
 /*14*/	{ "microassist", "thresh >= .05", 
 	  "pmcstat -s IDQ.MS_UOPS,cmask=1 -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  microassist },
+	  microassist, 2 },
 /*15*/	{ "aliasing_4k", "thresh >= .1", 
 	  "pmcstat -s LD_BLOCKS_PARTIAL.ADDRESS_ALIAS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  aliasing },
+	  aliasing, 2 },
 /*16*/	{ "fpassist", "look for a excessive value", 
 	  "pmcstat -s FP_ASSIST.ANY -s INST_RETIRED.ANY_P -w 1",
-	  fpassists },
+	  fpassists, 2 },
 /*17*/	{ "otherassistavx", "look for a excessive value", 
 	  "pmcstat -s OTHER_ASSISTS.AVX_TO_SSE -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  otherassistavx },
+	  otherassistavx, 2},
 /*18*/	{ "otherassistsse", "look for a excessive value", 
 	  "pmcstat -s OTHER_ASSISTS.SSE_TO_AVX -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  otherassistsse },
+	  otherassistsse, 2 },
 /*19*/	{ "eff1", "thresh < .9", 
 	  "pmcstat -s UOPS_RETIRED.RETIRE_SLOTS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  efficiency1 },
+	  efficiency1, 2 },
 /*20*/	{ "eff2", "thresh > 1.0", 
 	  "pmcstat -s INST_RETIRED.ANY_P -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  efficiency2 },
+	  efficiency2, 2 },
 };
 
 
@@ -1401,131 +1706,257 @@ static struct cpu_entry sandy_bridge[SANDY_BRIDGE_COUNT] = {
 static struct cpu_entry ivy_bridge[IVY_BRIDGE_COUNT] = {
 /*1*/	{ "eff1", "thresh < .75", 
 	  "pmcstat -s UOPS_RETIRED.RETIRE_SLOTS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  efficiency1 },
+	  efficiency1, 2 },
 /*2*/	{ "eff2", "thresh > 1.0", 
 	  "pmcstat -s INST_RETIRED.ANY_P -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  efficiency2 },
+	  efficiency2, 2 },
 /*3*/	{ "itlbmiss", "thresh > .05", 
 	  "pmcstat -s ITLB_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  itlb_miss },
+	  itlb_miss, 2 },
 /*4*/	{ "icachemiss", "thresh > .05", 
 	  "pmcstat -s ICACHE.IFETCH_STALL -s ITLB_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  icache_miss },
+	  icache_miss, 3 },
 /*5*/	{ "lcpstall", "thresh > .05", 
 	  "pmcstat -s ILD_STALL.LCP -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  lcp_stall },
+	  lcp_stall, 2 },
 /*6*/	{ "cache1", "thresh >= .2", 
 	  "pmcstat -s MEM_LOAD_UOPS_LLC_MISS_RETIRED.LOCAL_DRAM -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  cache1ib },
+	  cache1ib, 2 },
 /*7*/	{ "cache2", "thresh >= .2", 
 	  "pmcstat -s MEM_LOAD_UOPS_RETIRED.LLC_HIT -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  cache2ib },
+	  cache2ib, 2 },
 /*8*/	{ "contested", "thresh >= .05", 
 	  "pmcstat -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM  -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  contested },
+	  contested, 2 },
 /*9*/	{ "datashare", "thresh >= .05",
 	  "pmcstat -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HIT -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  datasharing },
+	  datasharing, 2 },
 /*10*/	{ "blockstorefwd", "thresh >= .05", 
 	  "pmcstat -s LD_BLOCKS_STORE_FORWARD -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  blockstoreforward },
+	  blockstoreforward, 2 },
 /*11*/	{ "splitload", "thresh >= .1", 
 	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s L1D_PEND_MISS.PENDING -s MEM_LOAD_UOPS_RETIRED.L1_MISS -s LD_BLOCKS.NO_SR -w 1",
-	  splitloadib },
+	  splitloadib, 4 },
 /*12*/	{ "splitstore", "thresh >= .01", 
-	  "pmcstat -s MEM_UOP_RETIRED.SPLIT_STORES -s MEM_UOP_RETIRED.ALL_STORES -w 1",
-	  splitstore },
+	  "pmcstat -s MEM_UOPS_RETIRED.SPLIT_STORES -s MEM_UOPS_RETIRED.ALL_STORES -w 1",
+	  splitstore, 2 },
 /*13*/	{ "aliasing_4k", "thresh >= .1", 
 	  "pmcstat -s LD_BLOCKS_PARTIAL.ADDRESS_ALIAS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  aliasing },
+	  aliasing, 2 },
 /*14*/	{ "dtlbmissload", "thresh >= .1", 
 	  "pmcstat -s DTLB_LOAD_MISSES.STLB_HIT -s DTLB_LOAD_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  dtlb_missload },
+	  dtlb_missload , 3},
 /*15*/	{ "dtlbmissstore", "thresh >= .05", 
 	  "pmcstat -s DTLB_STORE_MISSES.STLB_HIT -s DTLB_STORE_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  dtlb_missstore },
+	  dtlb_missstore, 3 },
 /*16*/	{ "br_miss", "thresh >= .2", 
 	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s BR_MISP_RETIRED.ALL_BRANCHES -s MACHINE_CLEARS.MEMORY_ORDERING -s MACHINE_CLEARS.SMC -s MACHINE_CLEARS.MASKMOV -s UOPS_ISSUED.ANY -s UOPS_RETIRED.RETIRE_SLOTS -s INT_MISC.RECOVERY_CYCLES -w 1",
-	  br_mispredictib },
+	  br_mispredictib, 8 },
 /*17*/	{ "clears", "thresh >= .02", 
 	  "pmcstat -s MACHINE_CLEARS.MEMORY_ORDERING -s MACHINE_CLEARS.SMC -s MACHINE_CLEARS.MASKMOV -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  clears },
+	  clears, 4 },
 /*18*/	{ "microassist", "thresh >= .05", 
 	  "pmcstat -s IDQ.MS_UOPS,cmask=1 -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  microassist },
+	  microassist, 2 },
 /*19*/	{ "fpassist", "look for a excessive value", 
 	  "pmcstat -s FP_ASSIST.ANY -s INST_RETIRED.ANY_P -w 1",
-	  fpassists },
+	  fpassists, 2 },
 /*20*/	{ "otherassistavx", "look for a excessive value", 
 	  "pmcstat -s OTHER_ASSISTS.AVX_TO_SSE -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  otherassistavx },
+	  otherassistavx , 2},
 /*21*/	{ "otherassistsse", "look for a excessive value", 
 	  "pmcstat -s OTHER_ASSISTS.SSE_TO_AVX -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  otherassistsse },
+	  otherassistsse, 2 },
 };
 
 #define HASWELL_COUNT 20
 static struct cpu_entry haswell[HASWELL_COUNT] = {
 /*1*/	{ "eff1", "thresh < .75", 
 	  "pmcstat -s UOPS_RETIRED.RETIRE_SLOTS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  efficiency1 },
+	  efficiency1, 2 },
 /*2*/	{ "eff2", "thresh > 1.0", 
 	  "pmcstat -s INST_RETIRED.ANY_P -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  efficiency2 },
+	  efficiency2, 2 },
 /*3*/	{ "itlbmiss", "thresh > .05", 
 	  "pmcstat -s ITLB_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  itlb_miss },
+	  itlb_miss, 2 },
 /*4*/	{ "icachemiss", "thresh > .05", 
-	  "pmcstat -s ICACHE.MISSES --s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  icache_miss_has },
+	  "pmcstat -s ICACHE.MISSES -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  icache_miss_has, 2 },
 /*5*/	{ "lcpstall", "thresh > .05", 
 	  "pmcstat -s ILD_STALL.LCP -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  lcp_stall },
+	  lcp_stall, 2 },
 /*6*/	{ "cache1", "thresh >= .2", 
 	  "pmcstat -s MEM_LOAD_UOPS_LLC_MISS_RETIRED.LOCAL_DRAM -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  cache1ib },
+	  cache1ib, 2 },
 /*7*/	{ "cache2", "thresh >= .2", 
 	  "pmcstat -s MEM_LOAD_UOPS_RETIRED.LLC_HIT  -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HIT -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  cache2has },
+	  cache2has, 4 },
 /*8*/	{ "contested", "thresh >= .05", 
 	  "pmcstat -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM  -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  contested_has },
+	  contested_has, 2 },
 /*9*/	{ "datashare", "thresh >= .05",
 	  "pmcstat -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HIT -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  datasharing_has },
+	  datasharing_has, 2 },
 /*10*/	{ "blockstorefwd", "thresh >= .05", 
 	  "pmcstat -s LD_BLOCKS_STORE_FORWARD -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  blockstoreforward },
+	  blockstoreforward, 2 },
 /*11*/	{ "splitload", "thresh >= .1", 
-	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s MEM_UOP_RETIRED.SPLIT_LOADS -w 1",
-	  splitload },
+	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s MEM_UOPS_RETIRED.SPLIT_LOADS -w 1",
+	  splitload , 2},
 /*12*/	{ "splitstore", "thresh >= .01", 
-	  "pmcstat -s MEM_UOP_RETIRED.SPLIT_STORES -s MEM_UOP_RETIRED.ALL_STORES -w 1",
-	  splitstore },
+	  "pmcstat -s MEM_UOPS_RETIRED.SPLIT_STORES -s MEM_UOPS_RETIRED.ALL_STORES -w 1",
+	  splitstore, 2 },
 /*13*/	{ "aliasing_4k", "thresh >= .1", 
 	  "pmcstat -s LD_BLOCKS_PARTIAL.ADDRESS_ALIAS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  aliasing },
+	  aliasing, 2 },
 /*14*/	{ "dtlbmissload", "thresh >= .1", 
 	  "pmcstat -s DTLB_LOAD_MISSES.STLB_HIT -s DTLB_LOAD_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  dtlb_missload },
+	  dtlb_missload, 3 },
 /*15*/	{ "br_miss", "thresh >= .2", 
 	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s BR_MISP_RETIRED.ALL_BRANCHES -w 1",
-	  br_mispredict },
+	  br_mispredict, 2 },
 /*16*/	{ "clears", "thresh >= .02", 
 	  "pmcstat -s MACHINE_CLEARS.MEMORY_ORDERING -s MACHINE_CLEARS.SMC -s MACHINE_CLEARS.MASKMOV -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  clears },
+	  clears, 4 },
 /*17*/	{ "microassist", "thresh >= .05", 
 	  "pmcstat -s IDQ.MS_UOPS,cmask=1 -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  microassist },
+	  microassist, 2 },
 /*18*/	{ "fpassist", "look for a excessive value", 
 	  "pmcstat -s FP_ASSIST.ANY -s INST_RETIRED.ANY_P -w 1",
-	  fpassists },
+	  fpassists, 2 },
 /*19*/	{ "otherassistavx", "look for a excessive value", 
 	  "pmcstat -s OTHER_ASSISTS.AVX_TO_SSE -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  otherassistavx },
+	  otherassistavx, 2 },
 /*20*/	{ "otherassistsse", "look for a excessive value", 
 	  "pmcstat -s OTHER_ASSISTS.SSE_TO_AVX -s CPU_CLK_UNHALTED.THREAD_P -w 1",
-	  otherassistsse },
+	  otherassistsse, 2 },
+};
+
+
+static void
+explain_name_broad(const char *name)
+{
+	const char *mythresh;
+	if (strcmp(name, "eff1") == 0) {
+		printf("Examine (UOPS_RETIRED.RETIRE_SLOTS)/(4 *CPU_CLK_UNHALTED.THREAD_P)\n");
+		mythresh = "thresh < .75";
+	} else if (strcmp(name, "eff2") == 0) {
+		printf("Examine CPU_CLK_UNHALTED.THREAD_P/INST_RETIRED.ANY_P\n");
+		mythresh = "thresh > 1.0";
+	} else if (strcmp(name, "itlbmiss") == 0) {
+		printf("Examine (7 * ITLB_MISSES_STLB_HIT_4K + ITLB_MISSES.WALK_DURATION)/ CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh > .05"; 
+	} else if (strcmp(name, "icachemiss") == 0) {
+		printf("Examine ( 36.0 * ICACHE.MISSES)/ CPU_CLK_UNHALTED.THREAD_P ??? may not be right \n");
+		mythresh = "thresh > .05";
+	} else if (strcmp(name, "lcpstall") == 0) {
+		printf("Examine ILD_STALL.LCP/CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh > .05";
+	} else if (strcmp(name, "cache1") == 0) {
+		printf("Examine (MEM_LOAD_UOPS_LLC_MISS_RETIRED.LOCAL_DRAM * 180) / CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh >= .1";
+	} else if (strcmp(name, "cache2") == 0) {
+		printf("Examine (36.0 * MEM_LOAD_UOPS_RETIRED.L3_HIT / CPU_CLK_UNHALTED.THREAD_P)\n");
+		mythresh = "thresh >= .2";
+	} else if (strcmp(name, "contested") == 0) {
+		printf("Examine ((MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM * 84) +  MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_MISS)/ CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh >= .05";
+	} else if (strcmp(name, "datashare") == 0) {
+		printf("Examine (MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HIT * 72)/CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh > .05";
+	} else if (strcmp(name, "blockstorefwd") == 0) {
+		printf("Examine (LD_BLOCKS_STORE_FORWARD * 13) / CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh >= .05";
+	} else if (strcmp(name, "aliasing_4k") == 0) {
+		printf("Examine (LD_BLOCKS_PARTIAL.ADDRESS_ALIAS * 7) / CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh >= .1";
+	} else if (strcmp(name, "dtlbmissload") == 0) {
+		printf("Examine (((DTLB_LOAD_MISSES.STLB_HIT * 7) + DTLB_LOAD_MISSES.WALK_DURATION)\n");
+		printf("         / CPU_CLK_UNHALTED.THREAD_P)\n");
+		mythresh = "thresh >= .1";
+
+	} else if (strcmp(name, "br_miss") == 0) {
+		printf("Examine BR_MISP_RETIRED.ALL_BRANCHS_PS / (BR_MISP_RETIED.ALL_BRANCHES_PS + MACHINE_CLEARS.COUNT) *\n");
+		printf(" (UOPS_ISSUEDF.ANY - UOPS_RETIRED.RETIRE_SLOTS + 4 * INT_MISC.RECOVERY_CYCLES) /\n");
+		printf("CPU_CLK_UNHALTED.THREAD * 4)\n");
+		mythresh = "thresh >= .2";
+	} else if (strcmp(name, "clears") == 0) {
+		printf("Examine ((MACHINE_CLEARS.MEMORY_ORDERING + \n");
+		printf("          MACHINE_CLEARS.SMC + \n");
+		printf("          MACHINE_CLEARS.MASKMOV ) * 100 ) / CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "thresh >= .02";
+	} else if (strcmp(name, "fpassist") == 0) {
+		printf("Examine FP_ASSIST.ANY/INST_RETIRED.ANY_P\n");
+		mythresh = "look for a excessive value";
+	} else if (strcmp(name, "otherassistavx") == 0) {
+		printf("Examine (OTHER_ASSISTS.AVX_TO_SSE * 75)/CPU_CLK_UNHALTED.THREAD_P\n");
+		mythresh = "look for a excessive value";
+	} else if (strcmp(name, "microassist") == 0) {
+		printf("Examine (UOPS_RETIRED.RETIRE_SLOTS/UOPS_ISSUED.ANY) * (IDQ.MS_CYCLES / (4 * CPU_CLK_UNHALTED.THREAD_P)\n");
+		printf("***We use IDQ.MS_UOPS,cmask=1 to get cycles\n");
+		mythresh = "thresh >= .05";
+	} else {
+		printf("Unknown name:%s\n", name);
+		mythresh = "unknown entry";
+        }
+	printf("If the value printed is %s we may have the ability to improve performance\n", mythresh);
+}
+
+
+#define BROADWELL_COUNT 17
+static struct cpu_entry broadwell[BROADWELL_COUNT] = {
+/*1*/	{ "eff1", "thresh < .75", 
+	  "pmcstat -s UOPS_RETIRED.RETIRE_SLOTS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  efficiency1, 2 }, 
+/*2*/	{ "eff2", "thresh > 1.0", 
+	  "pmcstat -s INST_RETIRED.ANY_P -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  efficiency2, 2 },
+/*3*/	{ "itlbmiss", "thresh > .05", 
+	  "pmcstat -s ITLB_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -s ITLB_MISSES.STLB_HIT_4K -w 1",
+	  itlb_miss_broad, 3 },
+/*4*/	{ "icachemiss", "thresh > .05", 
+	  "pmcstat -s ICACHE.MISSES -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  icache_miss_has, 2 },
+/*5*/	{ "lcpstall", "thresh > .05", 
+	  "pmcstat -s ILD_STALL.LCP -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  lcp_stall, 2 },
+/*6*/	{ "cache1", "thresh >= .1", 
+	  "pmcstat -s MEM_LOAD_UOPS_RETIRED.L3_MISS  -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  cache1broad, 2 },
+/*7*/	{ "cache2", "thresh >= .2", 
+	  "pmcstat -s MEM_LOAD_UOPS_RETIRED.L3_HIT  -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  cache2broad, 2 },
+/*8*/	{ "contested", "thresh >= .05", 
+	  "pmcstat -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HITM  -s CPU_CLK_UNHALTED.THREAD_P  -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_MISS -w 1",
+	  contestedbroad, 2 },
+/*9*/	{ "datashare", "thresh >= .05",
+	  "pmcstat -s MEM_LOAD_UOPS_LLC_HIT_RETIRED.XSNP_HIT -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  datasharing_has, 2 },
+/*10*/	{ "blockstorefwd", "thresh >= .05", 
+	  "pmcstat -s LD_BLOCKS_STORE_FORWARD -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  blockstoreforward, 2 },
+/*11*/	{ "aliasing_4k", "thresh >= .1", 
+	  "pmcstat -s LD_BLOCKS_PARTIAL.ADDRESS_ALIAS -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  aliasing_broad, 2 }, 
+/*12*/	{ "dtlbmissload", "thresh >= .1", 
+	  "pmcstat -s DTLB_LOAD_MISSES.STLB_HIT_4K -s DTLB_LOAD_MISSES.WALK_DURATION -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  dtlb_missload, 3 },
+/*13*/	{ "br_miss", "thresh >= .2", 
+	  "pmcstat -s CPU_CLK_UNHALTED.THREAD_P -s BR_MISP_RETIRED.ALL_BRANCHES -s MACHINE_CLEARS.CYCLES -s UOPS_ISSUED.ANY -s UOPS_RETIRED.RETIRE_SLOTS -s INT_MISC.RECOVERY_CYCLES -w 1",
+	  br_mispredict_broad, 7 },
+/*14*/	{ "clears", "thresh >= .02", 
+	  "pmcstat -s MACHINE_CLEARS.CYCLES -s MACHINE_CLEARS.MEMORY_ORDERING -s MACHINE_CLEARS.SMC -s MACHINE_CLEARS.MASKMOV -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  clears_broad, 5 },
+/*15*/	{ "fpassist", "look for a excessive value", 
+	  "pmcstat -s FP_ASSIST.ANY -s INST_RETIRED.ANY_P -w 1",
+	  fpassists, 2 },
+/*16*/	{ "otherassistavx", "look for a excessive value", 
+	  "pmcstat -s OTHER_ASSISTS.AVX_TO_SSE -s CPU_CLK_UNHALTED.THREAD_P -w 1",
+	  otherassistavx, 2 },
+/*17*/	{ "microassist", "thresh >= .2", 
+	  "pmcstat -s IDQ.MS_UOPS,cmask=1 -s CPU_CLK_UNHALTED.THREAD_P -s UOPS_ISSUED.ANY -s UOPS_RETIRED.RETIRE_SLOTS  -w 1",
+	  microassist_broad, 4 },
 };
 
 
@@ -1557,8 +1988,19 @@ set_haswell(void)
 	the_cpu.explain = explain_name_has;
 }
 
+
 static void
-set_expression(char *name)
+set_broadwell(void)
+{
+	strcpy(the_cpu.cputype, "HASWELL PMC");
+	the_cpu.number = BROADWELL_COUNT;
+	the_cpu.ents = broadwell;
+	the_cpu.explain = explain_name_broad;
+}
+
+
+static int
+set_expression(const char *name)
 {
 	int found = 0, i;
 	for(i=0 ; i< the_cpu.number; i++) {
@@ -1567,6 +2009,17 @@ set_expression(char *name)
 			expression = the_cpu.ents[i].func;
 			command = the_cpu.ents[i].command;
 			threshold = the_cpu.ents[i].thresh;
+			if  (the_cpu.ents[i].counters_required > max_pmc_counters) {
+				printf("Test %s requires that the CPU have %d counters and this CPU has only %d\n",
+				       the_cpu.ents[i].name,
+				       the_cpu.ents[i].counters_required, max_pmc_counters);
+				printf("Sorry this test can not be run\n");
+				if (run_all == 0) {
+					exit(-1);
+				} else {
+					return(-1);
+				}
+			}
 			break;
 		}
 	}
@@ -1575,6 +2028,7 @@ set_expression(char *name)
 		       the_cpu.cputype, name);
 		exit(-1);
 	}
+	return(0);
 }
 
 
@@ -1796,10 +2250,6 @@ process_file(char *filename)
 
 	if (filename ==  NULL) {
 		io = my_popen(command, "r", &pid_of_command);
-		if (io == NULL) {
-			printf("Can't popen the command %s\n", command);
-			return;
-		}
 	} else {
 		io = fopen(filename, "r");
 		if (io == NULL) {
@@ -1812,10 +2262,8 @@ process_file(char *filename)
 	if (cnts == NULL) {
 		/* Nothing we can do */
 		printf("Nothing to do -- no counters built\n");
-		if (filename) {
-			fclose(io); 
-		} else {
-			my_pclose(io, pid_of_command);
+		if (io) {
+			fclose(io);
 		}
 		return;
 	}
@@ -1863,8 +2311,22 @@ process_file(char *filename)
 #if defined(__amd64__)
 #define cpuid(in,a,b,c,d)\
   asm("cpuid": "=a" (a), "=b" (b), "=c" (c), "=d" (d) : "a" (in));
+
+static __inline void
+do_cpuid(u_int ax, u_int cx, u_int *p)
+{
+	__asm __volatile("cpuid"
+			 : "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
+			 :  "0" (ax), "c" (cx) );
+}
+
 #else
 #define cpuid(in, a, b, c, d) 
+static __inline void
+do_cpuid(u_int ax, u_int cx, u_int *p)
+{
+}
+
 #endif
 
 static void
@@ -1876,6 +2338,7 @@ get_cpuid_set(void)
 	size_t sz, len;
 	FILE *io;
 	char linebuf[1024], *str;
+	u_int reg[4];
 
 	eax = ebx = ecx = edx = 0;
 
@@ -1992,6 +2455,23 @@ get_cpuid_set(void)
 			printf("Intel HASWELL\n");
 			set_haswell();
 			break;
+
+		case 0x4e:
+		case 0x5e:
+			printf("Intel SKY-LAKE\n");
+			goto not_supported;
+			break;
+		case 0x3D:
+		case 0x47:
+			printf("Intel BROADWELL\n");
+			set_broadwell();
+			break;
+		case 0x4f:
+		case 0x56:
+			printf("Intel BROADWEL (Xeon)\n");
+			set_broadwell();
+			break;
+
 		case 0x4D:
 			/* Per Intel document 330061-001 01/2014. */
 			printf("Intel ATOM_SILVERMONT\n");
@@ -2009,6 +2489,9 @@ get_cpuid_set(void)
 		goto not_supported;
 		break;
 	}
+	do_cpuid(0xa, 0, reg);
+	max_pmc_counters = (reg[3] & 0x0000000f) + 1;
+	printf("We have %d PMC counters to work with\n", max_pmc_counters);
 	/* Ok lets load the list of all known PMC's */
 	io = my_popen("/usr/sbin/pmccontrol -L", "r", &pid_of_command);
 	if (valid_pmcs == NULL) {
@@ -2320,14 +2803,18 @@ main(int argc, char **argv)
 {
 	int i, j, cnt;
 	char *filename=NULL;
-	char *name=NULL;
+	const char *name=NULL;
 	int help_only = 0;
 	int test_mode = 0;
+	int test_at = 0;
 
 	get_cpuid_set();
 	memset(glob_cpu, 0, sizeof(glob_cpu));
-	while ((i = getopt(argc, argv, "LHhvm:i:?e:TE:")) != -1) {
+	while ((i = getopt(argc, argv, "ALHhvm:i:?e:TE:")) != -1) {
 		switch (i) {
+		case 'A':
+			run_all = 1;
+			break;
 		case 'L':
 			list_all();
 			return(0);
@@ -2383,29 +2870,47 @@ main(int argc, char **argv)
 			printf("-h -- Don't do the expression I put in -e xxx just explain what it does and exit\n");
 			printf("-H -- Don't run anything, just explain all canned expressions\n");
 			printf("-T -- Test all PMC's defined by this processor\n");
+			printf("-A -- Run all canned tests\n");
 			return(0);
 			break;
 		};
 	}
-	if ((name == NULL) && (filename == NULL) && (test_mode == 0) && (master_exp == NULL)) {
+	if ((run_all == 0) && (name == NULL) && (filename == NULL) &&
+	    (test_mode == 0) && (master_exp == NULL)) {
 		printf("Without setting an expression we cannot dynamically gather information\n");
 		printf("you must supply a filename (and you probably want verbosity)\n");
 		goto use;
+	}
+	if (run_all && max_to_collect > 10) {
+		max_to_collect = 3;
 	}
 	if (test_mode) {
 		run_tests();
 		return(0);
 	}
 	printf("*********************************\n");
-	if (master_exp == NULL) {
+	if ((master_exp == NULL) && name) {
 		(*the_cpu.explain)(name);
-	} else {
+	} else if (master_exp) {
 		printf("Examine your expression ");
 		print_exp(master_exp);
 		printf("User defined threshold\n");
 	}
 	if (help_only) {
 		return(0);
+	}
+	if (run_all) {
+	more:
+		name = the_cpu.ents[test_at].name;
+		printf("***Test %s (threshold %s)****\n", name, the_cpu.ents[test_at].thresh);
+		test_at++;
+		if (set_expression(name) == -1) {
+			if (test_at >= the_cpu.number) {
+				goto done;
+			} else
+				goto more;
+		}
+
 	}
 	process_file(filename);
 	if (verbose >= 2) {
@@ -2422,17 +2927,28 @@ main(int argc, char **argv)
 	if (expression == NULL) {
 		return(0);
 	}
-	for(i=0, cnt=0; i<MAX_CPU; i++) {
-		if (glob_cpu[i]) {
-			do_expression(glob_cpu[i], -1);
-			cnt++;
-			if (cnt == cpu_count_out) {
-				printf("\n");
-				break;
-			} else {
-				printf("\t");
+	if (max_to_collect > 1) {
+		for(i=0, cnt=0; i<MAX_CPU; i++) {
+			if (glob_cpu[i]) {
+				do_expression(glob_cpu[i], -1);
+				cnt++;
+				if (cnt == cpu_count_out) {
+					printf("\n");
+					break;
+				} else {
+					printf("\t");
+				}
 			}
 		}
+	}
+	if (run_all && (test_at < the_cpu.number)) {
+		memset(glob_cpu, 0, sizeof(glob_cpu));
+		ncnts = 0;
+		printf("*********************************\n");
+		goto more;
+	} else if (run_all) {
+	done:
+		printf("*********************************\n");
 	}
 	return(0);	
 }

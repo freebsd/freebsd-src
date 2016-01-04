@@ -84,7 +84,8 @@ __FBSDID("$FreeBSD$");
 #include "netstat.h"
 
 char	*inetname(struct in_addr *);
-void	inetprint(const char *, struct in_addr *, int, const char *, int);
+void	inetprint(const char *, struct in_addr *, int, const char *, int,
+    const int);
 #ifdef INET6
 static int udp_done, tcp_done, sdp_done;
 #endif /* INET6 */
@@ -417,18 +418,24 @@ protopr(u_long off, const char *name, int af1, int proto)
 			if (Lflag)
 				xo_emit((Aflag && !Wflag) ?
 				    "{T:/%-5.5s} {T:/%-14.14s} {T:/%-18.18s}" :
-				    "{T:/%-5.5s} {T:/%-14.14s} {T:/%-22.22s}",
+				    ((!Wflag || af1 == AF_INET) ?
+				    "{T:/%-5.5s} {T:/%-14.14s} {T:/%-22.22s}" :
+				    "{T:/%-5.5s} {T:/%-14.14s} {T:/%-45.45s}"),
 				    "Proto", "Listen", "Local Address");
 			else if (Tflag)
 				xo_emit((Aflag && !Wflag) ?
     "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-18.18s} {T:/%s}" :
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%s}",
+				    ((!Wflag || af1 == AF_INET) ?
+    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%s}" :
+    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-45.45s} {T:/%s}"),
 				    "Proto", "Rexmit", "OOORcv", "0-win",
 				    "Local Address", "Foreign Address");
 			else {
 				xo_emit((Aflag && !Wflag) ?
     "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-18.18s} {T:/%-18.18s}" :
-    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%-22.22s}",
+				    ((!Wflag || af1 == AF_INET) ?
+    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-22.22s} {T:/%-22.22s}" :
+    "{T:/%-5.5s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-45.45s} {T:/%-45.45s}"),
 				    "Proto", "Recv-Q", "Send-Q",
 				    "Local Address", "Foreign Address");
 				if (!xflag && !Rflag)
@@ -491,6 +498,8 @@ protopr(u_long off, const char *name, int af1, int proto)
 				    "{:sent-zero-window/%6u} ",
 				    tp->t_sndrexmitpack, tp->t_rcvoopack,
 				    tp->t_sndzerowin);
+			else
+				xo_emit("{P:/%21s}", "");
 		} else {
 			xo_emit("{:receive-bytes-waiting/%6u} "
 			    "{:send-bytes-waiting/%6u} ",
@@ -499,10 +508,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 		if (numeric_port) {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint("local", &inp->inp_laddr,
-				    (int)inp->inp_lport, name, 1);
+				    (int)inp->inp_lport, name, 1, af1);
 				if (!Lflag)
 					inetprint("remote", &inp->inp_faddr,
-					    (int)inp->inp_fport, name, 1);
+					    (int)inp->inp_fport, name, 1, af1);
 			}
 #ifdef INET6
 			else if (inp->inp_vflag & INP_IPV6) {
@@ -516,10 +525,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 		} else if (inp->inp_flags & INP_ANONPORT) {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint("local", &inp->inp_laddr,
-				    (int)inp->inp_lport, name, 1);
+				    (int)inp->inp_lport, name, 1, af1);
 				if (!Lflag)
 					inetprint("remote", &inp->inp_faddr,
-					    (int)inp->inp_fport, name, 0);
+					    (int)inp->inp_fport, name, 0, af1);
 			}
 #ifdef INET6
 			else if (inp->inp_vflag & INP_IPV6) {
@@ -533,11 +542,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 		} else {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint("local", &inp->inp_laddr,
-				    (int)inp->inp_lport, name, 0);
+				    (int)inp->inp_lport, name, 0, af1);
 				if (!Lflag)
 					inetprint("remote", &inp->inp_faddr,
 					    (int)inp->inp_fport, name,
-					    inp->inp_lport != inp->inp_fport);
+					    inp->inp_lport != inp->inp_fport,
+					    af1);
 			}
 #ifdef INET6
 			else if (inp->inp_vflag & INP_IPV6) {
@@ -1364,7 +1374,7 @@ pim_stats(u_long off __unused, const char *name, int af1 __unused,
  */
 void
 inetprint(const char *container, struct in_addr *in, int port,
-    const char *proto, int num_port)
+    const char *proto, int num_port, const int af1)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -1384,7 +1394,8 @@ inetprint(const char *container, struct in_addr *in, int port,
 		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
 	else
 		sprintf(cp, "%d ", ntohs((u_short)port));
-	width = (Aflag && !Wflag) ? 18 : 22;
+	width = (Aflag && !Wflag) ? 18 :
+		((!Wflag || af1 == AF_INET) ? 22 : 45);
 	if (Wflag)
 		xo_emit("{d:target/%-*s} ", width, line);
 	else

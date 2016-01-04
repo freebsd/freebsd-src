@@ -5,7 +5,6 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
-	lib/libutil \
 
 
 .include <dirdeps.mk>

@@ -209,7 +209,7 @@ __thr_fork(void)
 		/* reinitalize library. */
 		_libpthread_init(curthread);
 
-		/* atfork is reinitializeded by _libpthread_init()! */
+		/* atfork is reinitialized by _libpthread_init()! */
 		_thr_rwl_rdlock(&_thr_atfork_lock);
 
 		if (was_threaded) {

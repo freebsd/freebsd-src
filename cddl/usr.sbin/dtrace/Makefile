@@ -22,7 +22,7 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 #CFLAGS+=	-DNEED_ERRLOC
 #YFLAGS+=	-d
 
-LIBADD=	dtrace
+LIBADD=	dtrace ctf elf proc
 
 .if ${MK_DTRACE_TESTS} != "no"
 SUBDIR+=	tests

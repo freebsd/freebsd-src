@@ -135,6 +135,7 @@ int nfsrv_checksequence(struct nfsrv_descript *, uint32_t, uint32_t *,
     uint32_t *, int, uint32_t *, NFSPROC_T *);
 int nfsrv_checkreclaimcomplete(struct nfsrv_descript *);
 void nfsrv_cache_session(uint8_t *, uint32_t, int, struct mbuf **);
+void nfsrv_freeallbackchannel_xprts(void);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
@@ -282,6 +283,7 @@ void nfsv4_getref(struct nfsv4lock *, int *, void *, struct mount *);
 int nfsv4_getref_nonblock(struct nfsv4lock *);
 int nfsv4_testlock(struct nfsv4lock *);
 int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
+void nfsrv_cleanusergroup(void);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
 void newnfs_sndunlock(int *);
@@ -295,6 +297,7 @@ void nfsv4_setsequence(struct nfsmount *, struct nfsrv_descript *,
 int nfsv4_sequencelookup(struct nfsmount *, struct nfsclsession *, int *,
     int *, uint32_t *, uint8_t *);
 void nfsv4_freeslot(struct nfsclsession *, int);
+struct ucred *nfsrv_getgrpscred(struct ucred *);
 
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);

@@ -207,6 +207,7 @@ int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
 void	log(int, const char *, ...) __printflike(2, 3);
 void	log_console(struct uio *);
+void	vlog(int, const char *, __va_list) __printflike(2, 0);
 int	asprintf(char **ret, struct malloc_type *mtp, const char *format, 
 	    ...) __printflike(3, 4);
 int	printf(const char *, ...) __printflike(1, 2);
