@@ -1,8 +1,5 @@
 /*-
- * Copyright (c) 2010 Isilon Systems, Inc.
- * Copyright (c) 2010 iX Systems, Inc.
- * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +22,51 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-#ifndef	_LINUX_TYPES_H_
-#define	_LINUX_TYPES_H_
+#ifndef	_LINUX_SRCU_H_
+#define	_LINUX_SRCU_H_
 
-#include <sys/cdefs.h>
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <linux/compiler.h>
-#include <asm/types.h>
+#include <sys/lock.h>
+#include <sys/sx.h>
 
-#ifndef __bitwise__
-#ifdef __CHECKER__
-#define __bitwise__ __attribute__((bitwise))
-#else
-#define __bitwise__
-#endif
-#endif
+struct srcu_struct {
+	struct sx sx;
+};
 
-typedef uint16_t __le16;
-typedef uint16_t __be16;
-typedef uint32_t __le32;
-typedef uint32_t __be32;
-typedef uint64_t __le64;
-typedef uint64_t __be64;
+static inline int
+init_srcu_struct(struct srcu_struct *srcu)
+{
+	sx_init(&srcu->sx, "SleepableRCU");
+	return (0);
+}
 
-typedef unsigned int    uint;
-typedef unsigned gfp_t;
-typedef uint64_t loff_t;
-typedef vm_paddr_t resource_size_t;
+static inline void
+cleanup_srcu_struct(struct srcu_struct *srcu)
+{
+	sx_destroy(&srcu->sx);
+}
 
-typedef u64 phys_addr_t;
+static inline int
+srcu_read_lock(struct srcu_struct *srcu)
+{
+	sx_slock(&srcu->sx);
+	return (0);
+}
 
-#define	DECLARE_BITMAP(n, bits)						\
-	unsigned long n[howmany(bits, sizeof(long) * 8)]
+static inline void
+srcu_read_unlock(struct srcu_struct *srcu, int key)
+{
+	sx_sunlock(&srcu->sx);
+}
 
-#endif	/* _LINUX_TYPES_H_ */
+static inline void
+synchronize_srcu(struct srcu_struct *srcu)
+{
+	sx_xlock(&srcu->sx);
+	sx_xunlock(&srcu->sx);
+}
+
+#endif					/* _LINUX_SRCU_H_ */
