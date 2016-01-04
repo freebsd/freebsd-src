@@ -1,8 +1,6 @@
 /*-
  * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
- * Copyright 2009-2012 Konstantin Belousov <kib@FreeBSD.ORG>.
- * Copyright 2012 John Marino <draco@marino.st>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,7 +59,13 @@
 #define	LD_			"LD_"
 #endif
 
-extern char *ld_path_elf_hints;
+#define	_PATH_SOFT_ELF_HINTS	"/var/run/ld-elf-soft.so.hints"
+#define	_PATH_SOFT_LIBMAP_CONF	"/etc/libmap-soft.conf"
+#define	_PATH_SOFT_RTLD		"/libexec/ld-elf.so.1"
+#define	SOFT_STANDARD_LIBRARY_PATH "/libsoft:/usr/libsoft:/lib:/usr/lib"
+#define	LD_SOFT_		"LD_SOFT_"
+
+extern char *ld_elf_hints_default;
 extern char *ld_path_libmap_conf;
 extern char *ld_path_rtld;
 extern char *ld_standard_library_path;

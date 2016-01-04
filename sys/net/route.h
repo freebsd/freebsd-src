@@ -44,16 +44,17 @@
  */
 
 /*
- * A route consists of a destination address, a reference
- * to a routing entry, and a reference to an llentry.  
- * These are often held by protocols in their control
- * blocks, e.g. inpcb.
+ * Struct route consiste of a destination address,
+ * a route entry pointer, link-layer prepend data pointer along
+ * with its length.
  */
 struct route {
 	struct	rtentry *ro_rt;
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
+	uint16_t	ro_mtu;	/* saved ro_rt mtu */
+	uint16_t	spare;
 	struct	sockaddr ro_dst;
 };
 
@@ -195,6 +196,9 @@ struct rtentry {
 /* Nexthop request flags */
 #define	NHR_IFAIF		0x01	/* Return ifa_ifp interface */
 #define	NHR_REF			0x02	/* For future use */
+
+/* Control plane route request flags */
+#define	NHR_COPY		0x100	/* Copy rte data */
 
 /* rte<>nhop translation */
 static inline uint16_t
@@ -459,6 +463,9 @@ void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
+int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
+	    struct rt_addrinfo *);
+void	rib_free_info(struct rt_addrinfo *info);
 
 #include <sys/eventhandler.h>
 typedef void (*rtevent_redirect_fn)(void *, struct rtentry *, struct rtentry *, struct sockaddr *);

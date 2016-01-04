@@ -97,7 +97,10 @@ fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
 	struct sockaddr_in *gw;
 	struct in_ifaddr *ia;
 
-	pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+	if ((flags & NHR_IFAIF) != 0)
+		pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+	else
+		pnh4->nh_ifp = rte->rt_ifp;
 	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
 	if (rte->rt_flags & RTF_GATEWAY) {
 		gw = (struct sockaddr_in *)rte->rt_gateway;
@@ -175,8 +178,8 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
  * - howewer mtu from "transmit" interface will be returned.
  */
 int
-fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    uint32_t flags, struct nhop4_extended *pnh4)
+fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
+    uint32_t flowid, struct nhop4_extended *pnh4)
 {
 	struct radix_node_head *rh;
 	struct radix_node *rn;

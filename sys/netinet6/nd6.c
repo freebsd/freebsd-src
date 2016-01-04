@@ -1210,6 +1210,10 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
 	struct nd_prefix *pr;
 	struct ifaddr *dstaddr;
+	struct rt_addrinfo info;
+	struct sockaddr_in6 rt_key;
+	struct sockaddr *dst6;
+	int fibnum;
 
 	/*
 	 * A link-local address is always a neighbor.
@@ -1234,6 +1238,13 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 			return (0);
 	}
 
+	bzero(&rt_key, sizeof(rt_key));
+	bzero(&info, sizeof(info));
+	info.rti_info[RTAX_DST] = (struct sockaddr *)&rt_key;
+
+	/* Always use the default FIB here. XXME - why? */
+	fibnum = RT_DEFAULT_FIB;
+
 	/*
 	 * If the address matches one of our addresses,
 	 * it should be a neighbor.
@@ -1245,12 +1256,13 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 			continue;
 
 		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
-			struct rtentry *rt;
 
 			/* Always use the default FIB here. */
-			rt = in6_rtalloc1((struct sockaddr *)&pr->ndpr_prefix,
-			    0, 0, RT_DEFAULT_FIB);
-			if (rt == NULL)
+			dst6 = (struct sockaddr *)&pr->ndpr_prefix;
+
+			/* Restore length field before retrying lookup */
+			rt_key.sin6_len = sizeof(rt_key);
+			if (rib_lookup_info(fibnum, dst6, 0, 0, &info) != 0)
 				continue;
 			/*
 			 * This is the case where multiple interfaces
@@ -1263,11 +1275,8 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 			 * differ.
 			 */
 			if (!IN6_ARE_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
-			       &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr)) {
-				RTFREE_LOCKED(rt);
+			       &rt_key.sin6_addr))
 				continue;
-			}
-			RTFREE_LOCKED(rt);
 		}
 
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
