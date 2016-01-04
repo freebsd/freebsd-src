@@ -423,9 +423,8 @@ iwm_set_default_calib(struct iwm_softc *sc, const void *data)
 static void
 iwm_fw_info_free(struct iwm_fw_info *fw)
 {
-	firmware_put(fw->fw_rawdata, FIRMWARE_UNLOAD);
-	fw->fw_rawdata = NULL;
-	fw->fw_rawsize = 0;
+	firmware_put(fw->fw_fp, FIRMWARE_UNLOAD);
+	fw->fw_fp = NULL;
 	/* don't touch fw->fw_status */
 	memset(fw->fw_sects, 0, sizeof(fw->fw_sects));
 }
@@ -450,32 +449,30 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfwp", 0);
 	fw->fw_status = IWM_FW_STATUS_INPROGRESS;
 
-	if (fw->fw_rawdata != NULL)
+	if (fw->fw_fp != NULL)
 		iwm_fw_info_free(fw);
 
 	/*
 	 * Load firmware into driver memory.
-	 * fw_rawdata and fw_rawsize will be set.
+	 * fw_fp will be set.
 	 */
 	IWM_UNLOCK(sc);
 	fwp = firmware_get(sc->sc_fwname);
+	IWM_LOCK(sc);
 	if (fwp == NULL) {
 		device_printf(sc->sc_dev,
 		    "could not read firmware %s (error %d)\n",
 		    sc->sc_fwname, error);
-		IWM_LOCK(sc);
 		goto out;
 	}
-	IWM_LOCK(sc);
-	fw->fw_rawdata = fwp->data;
-	fw->fw_rawsize = fwp->datasize;
+	fw->fw_fp = fwp;
 
 	/*
 	 * Parse firmware contents
 	 */
 
-	uhdr = (const void *)fw->fw_rawdata;
-	if (*(const uint32_t *)fw->fw_rawdata != 0
+	uhdr = (const void *)fw->fw_fp->data;
+	if (*(const uint32_t *)fw->fw_fp->data != 0
 	    || le32toh(uhdr->magic) != IWM_TLV_UCODE_MAGIC) {
 		device_printf(sc->sc_dev, "invalid firmware %s\n",
 		    sc->sc_fwname);
@@ -485,7 +482,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 
 	sc->sc_fwver = le32toh(uhdr->ver);
 	data = uhdr->data;
-	len = fw->fw_rawsize - sizeof(*uhdr);
+	len = fw->fw_fp->datasize - sizeof(*uhdr);
 
 	while (len >= sizeof(tlv)) {
 		size_t tlv_len;
@@ -684,7 +681,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
  out:
 	if (error) {
 		fw->fw_status = IWM_FW_STATUS_NONE;
-		if (fw->fw_rawdata != NULL)
+		if (fw->fw_fp != NULL)
 			iwm_fw_info_free(fw);
 	} else
 		fw->fw_status = IWM_FW_STATUS_DONE;
@@ -4957,7 +4954,7 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		iwm_free_tx_ring(sc, &sc->txq[i]);
 
 	/* Free firmware */
-	if (fw->fw_rawdata != NULL)
+	if (fw->fw_fp != NULL)
 		iwm_fw_info_free(fw);
 
 	/* free scheduler */
