@@ -1106,17 +1106,30 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 static int
 in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
 {
-	struct rtentry *rt;
+	struct rt_addrinfo info;
+	struct sockaddr_in rt_key, rt_mask;
+	struct sockaddr rt_gateway;
+	int rt_flags;
 
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
-	/* XXX rtalloc1_fib should take a const param */
-	rt = rtalloc1_fib(__DECONST(struct sockaddr *, l3addr), 0, 0,
-	    ifp->if_fib);
+	bzero(&rt_key, sizeof(rt_key));
+	rt_key.sin_len = sizeof(rt_key);
+	bzero(&rt_mask, sizeof(rt_mask));
+	rt_mask.sin_len = sizeof(rt_mask);
+	bzero(&rt_gateway, sizeof(rt_gateway));
+	rt_gateway.sa_len = sizeof(rt_gateway);
 
-	if (rt == NULL)
+	bzero(&info, sizeof(info));
+	info.rti_info[RTAX_DST] = (struct sockaddr *)&rt_key;
+	info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&rt_mask;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
+
+	if (rib_lookup_info(ifp->if_fib, l3addr, NHR_REF, 0, &info) != 0)
 		return (EINVAL);
+
+	rt_flags = info.rti_flags;
 
 	/*
 	 * If the gateway for an existing host route matches the target L3
@@ -1124,16 +1137,17 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 * such as MANET, and the interface is of the correct type, then
 	 * allow for ARP to proceed.
 	 */
-	if (rt->rt_flags & RTF_GATEWAY) {
-		if (!(rt->rt_flags & RTF_HOST) || !rt->rt_ifp ||
-		    rt->rt_ifp->if_type != IFT_ETHER ||
-		    (rt->rt_ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0 ||
-		    memcmp(rt->rt_gateway->sa_data, l3addr->sa_data,
+	if (rt_flags & RTF_GATEWAY) {
+		if (!(rt_flags & RTF_HOST) || !info.rti_ifp ||
+		    info.rti_ifp->if_type != IFT_ETHER ||
+		    (info.rti_ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0 ||
+		    memcmp(rt_gateway.sa_data, l3addr->sa_data,
 		    sizeof(in_addr_t)) != 0) {
-			RTFREE_LOCKED(rt);
+			rib_free_info(&info);
 			return (EINVAL);
 		}
 	}
+	rib_free_info(&info);
 
 	/*
 	 * Make sure that at least the destination address is covered
@@ -1142,21 +1156,19 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 * on one interface and the corresponding outgoing packet leaves
 	 * another interface.
 	 */
-	if (!(rt->rt_flags & RTF_HOST) && rt->rt_ifp != ifp) {
+	if (!(rt_flags & RTF_HOST) && info.rti_ifp != ifp) {
 		const char *sa, *mask, *addr, *lim;
 		int len;
 
-		mask = (const char *)rt_mask(rt);
+		mask = (const char *)&rt_mask;
 		/*
 		 * Just being extra cautious to avoid some custom
 		 * code getting into trouble.
 		 */
-		if (mask == NULL) {
-			RTFREE_LOCKED(rt);
+		if ((info.rti_addrs & RTA_NETMASK) == 0)
 			return (EINVAL);
-		}
 
-		sa = (const char *)rt_key(rt);
+		sa = (const char *)&rt_key;
 		addr = (const char *)l3addr;
 		len = ((const struct sockaddr_in *)l3addr)->sin_len;
 		lim = addr + len;
@@ -1167,13 +1179,11 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 				log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 				    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
 #endif
-				RTFREE_LOCKED(rt);
 				return (EINVAL);
 			}
 		}
 	}
 
-	RTFREE_LOCKED(rt);
 	return (0);
 }
 

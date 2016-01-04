@@ -197,6 +197,9 @@ struct rtentry {
 #define	NHR_IFAIF		0x01	/* Return ifa_ifp interface */
 #define	NHR_REF			0x02	/* For future use */
 
+/* Control plane route request flags */
+#define	NHR_COPY		0x100	/* Copy rte data */
+
 /* rte<>nhop translation */
 static inline uint16_t
 fib_rte_to_nh_flags(int rt_flags)
@@ -460,6 +463,9 @@ void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
+int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
+	    struct rt_addrinfo *);
+void	rib_free_info(struct rt_addrinfo *info);
 
 #include <sys/eventhandler.h>
 typedef void (*rtevent_redirect_fn)(void *, struct rtentry *, struct rtentry *, struct sockaddr *);

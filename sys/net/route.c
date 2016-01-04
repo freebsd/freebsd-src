@@ -147,6 +147,8 @@ static void rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info);
 static struct radix_node *rt_mpath_unlink(struct radix_node_head *rnh,
     struct rt_addrinfo *info, struct rtentry *rto, int *perror);
 #endif
+static int rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info,
+    int flags);
 
 struct if_mtuinfo
 {
@@ -830,6 +832,147 @@ rtrequest_fib(int req,
 	return rtrequest1_fib(req, &info, ret_nrt, fibnum);
 }
 
+
+/*
+ * Copy most of @rt data into @info.
+ *
+ * If @flags contains NHR_COPY, copies dst,netmask and gw to the
+ * pointers specified by @info structure. Assume such pointers
+ * are zeroed sockaddr-like structures with sa_len field initialized
+ * to reflect size of the provided buffer. if no NHR_COPY is specified,
+ * point dst,netmask and gw @info fields to appropriate @rt values.
+ *
+ * if @flags contains NHR_REF, do refcouting on rt_ifp.
+ *
+ * Returns 0 on success.
+ */
+int
+rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
+{
+	struct rt_metrics *rmx;
+	struct sockaddr *src, *dst;
+	int sa_len;
+
+	if (flags & NHR_COPY) {
+		/* Copy destination if dst is non-zero */
+		src = rt_key(rt);
+		dst = info->rti_info[RTAX_DST];
+		sa_len = src->sa_len;
+		if (src != NULL && dst != NULL) {
+			if (src->sa_len > dst->sa_len)
+				return (ENOMEM);
+			memcpy(dst, src, src->sa_len);
+			info->rti_addrs |= RTA_DST;
+		}
+
+		/* Copy mask if set && dst is non-zero */
+		src = rt_mask(rt);
+		dst = info->rti_info[RTAX_NETMASK];
+		if (src != NULL && dst != NULL) {
+
+			/*
+			 * Radix stores different value in sa_len,
+			 * assume rt_mask() to have the same length
+			 * as rt_key()
+			 */
+			if (sa_len > dst->sa_len)
+				return (ENOMEM);
+			memcpy(dst, src, src->sa_len);
+			info->rti_addrs |= RTA_NETMASK;
+		}
+
+		/* Copy gateway is set && dst is non-zero */
+		src = rt->rt_gateway;
+		dst = info->rti_info[RTAX_GATEWAY];
+		if ((rt->rt_flags & RTF_GATEWAY) && src != NULL && dst != NULL){
+			if (src->sa_len > dst->sa_len)
+				return (ENOMEM);
+			memcpy(dst, src, src->sa_len);
+			info->rti_addrs |= RTA_GATEWAY;
+		}
+	} else {
+		info->rti_info[RTAX_DST] = rt_key(rt);
+		info->rti_addrs |= RTA_DST;
+		if (rt_mask(rt) != NULL) {
+			info->rti_info[RTAX_NETMASK] = rt_mask(rt);
+			info->rti_addrs |= RTA_NETMASK;
+		}
+		if (rt->rt_flags & RTF_GATEWAY) {
+			info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+			info->rti_addrs |= RTA_GATEWAY;
+		}
+	}
+
+	rmx = info->rti_rmx;
+	if (rmx != NULL) {
+		info->rti_mflags |= RTV_MTU;
+		rmx->rmx_mtu = rt->rt_mtu;
+	}
+
+	info->rti_flags = rt->rt_flags;
+	info->rti_ifp = rt->rt_ifp;
+	info->rti_ifa = rt->rt_ifa;
+
+	if (flags & NHR_REF) {
+		/* Do 'traditional' refcouting */
+		if_ref(info->rti_ifp);
+	}
+
+	return (0);
+}
+
+/*
+ * Lookups up route entry for @dst in RIB database for fib @fibnum.
+ * Exports entry data to @info using rt_exportinfo().
+ *
+ * if @flags contains NHR_REF, refcouting is performed on rt_ifp.
+ *   All references can be released later by calling rib_free_info()
+ *
+ * Returns 0 on success.
+ * Returns ENOENT for lookup failure, ENOMEM for export failure.
+ */
+int
+rib_lookup_info(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
+    uint32_t flowid, struct rt_addrinfo *info)
+{
+	struct radix_node_head *rh;
+	struct radix_node *rn;
+	struct rtentry *rt;
+	int error;
+
+	KASSERT((fibnum < rt_numfibs), ("rib_lookup_rte: bad fibnum"));
+	rh = rt_tables_get_rnh(fibnum, dst->sa_family);
+	if (rh == NULL)
+		return (ENOENT);
+
+	RADIX_NODE_HEAD_RLOCK(rh);
+	rn = rh->rnh_matchaddr(__DECONST(void *, dst), rh);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rt = RNTORT(rn);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(rt->rt_ifp)) {
+			flags = (flags & NHR_REF) | NHR_COPY;
+			error = rt_exportinfo(rt, info, flags);
+			RADIX_NODE_HEAD_RUNLOCK(rh);
+
+			return (error);
+		}
+	}
+	RADIX_NODE_HEAD_RUNLOCK(rh);
+
+	return (ENOENT);
+}
+
+/*
+ * Releases all references acquired by rib_lookup_info() when
+ * called with NHR_REF flags.
+ */
+void
+rib_free_info(struct rt_addrinfo *info)
+{
+
+	if_rele(info->rti_ifp);
+}
 
 /*
  * Iterates over all existing fibs in system calling
