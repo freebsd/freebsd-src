@@ -1057,7 +1057,7 @@ ATF_TEST_CASE_BODY(nvlist_string_array__pack)
 	void *packed;
 	unsigned int i;
 	const char * const *const_result;
-	const char *string[8] = { "a", "b", "kot", "foo",
+	const char *string_arr[8] = { "a", "b", "kot", "foo",
 	    "tests", "nice test", "", "abcdef" };
 
 	key = "nvl/string";
@@ -1066,7 +1066,7 @@ ATF_TEST_CASE_BODY(nvlist_string_array__pack)
 	ATF_REQUIRE(nvlist_empty(nvl));
 	ATF_REQUIRE(!nvlist_exists_string_array(nvl, key));
 
-	nvlist_add_string_array(nvl, key, string, 8);
+	nvlist_add_string_array(nvl, key, string_arr, 8);
 	ATF_REQUIRE_EQ(nvlist_error(nvl), 0);
 	ATF_REQUIRE(!nvlist_empty(nvl));
 	ATF_REQUIRE(nvlist_exists_string_array(nvl, key));
@@ -1082,7 +1082,7 @@ ATF_TEST_CASE_BODY(nvlist_string_array__pack)
 	const_result = nvlist_get_string_array(unpacked, key, &count);
 	ATF_REQUIRE_EQ(count, 8);
 	for (i = 0; i < count; i++) {
-		ATF_REQUIRE_EQ(strcmp(string[i], const_result[i]), 0);
+		ATF_REQUIRE_EQ(strcmp(string_arr[i], const_result[i]), 0);
 	}
 
 	nvlist_destroy(nvl);
