@@ -319,34 +319,33 @@ mlx5e_get_eeprom(struct mlx5e_priv *priv, struct mlx5e_eeprom *ee)
 static void
 mlx5e_print_eeprom(struct mlx5e_eeprom *eeprom)
 {
-	int i, j = 0;
-	int row = 0;
+	int row;
+	int index_in_row;
+	int byte_to_write = 0;
+	int line_length = 16;
 
 	printf("\nOffset\t\tValues\n");
-	printf("------\t\t------\n");
-	while (row < eeprom->len) {
-		printf("0x%04x\t\t", row);
-		for (i = 0; i < 16; i++) {
-			printf("%02x ", ((u8 *)eeprom->data)[j]);
-			j++;
-			row++;
+	printf("------\t\t------");
+	while (byte_to_write < eeprom->len) {
+		printf("\n0x%04X\t\t", byte_to_write);
+		for (index_in_row = 0; index_in_row < line_length; index_in_row++) {
+			printf("%02X ", ((u8 *)eeprom->data)[byte_to_write]);
+			byte_to_write++;
 		}
-		printf("\n");
 	}
 
 	if (eeprom->page_valid) {
 		row = MLX5E_EEPROM_HIGH_PAGE_OFFSET;
-		printf("\nUpper Page 0x03\n");
+		printf("\n\nUpper Page 0x03\n");
 		printf("\nOffset\t\tValues\n");
-		printf("------\t\t------\n");
+		printf("------\t\t------");
 		while (row < MLX5E_EEPROM_PAGE_LENGTH) {
-			printf("0x%04x\t\t", row);
-			for (i = 0; i < 16; i++) {
-				printf("%02x ", ((u8 *)eeprom->data)[j]);
-				j++;
+			printf("\n0x%04X\t\t", row);
+			for (index_in_row = 0; index_in_row < line_length; index_in_row++) {
+				printf("%02X ", ((u8 *)eeprom->data)[byte_to_write]);
+				byte_to_write++;
 				row++;
 			}
-			printf("\n");
 		}
 	}
 }
