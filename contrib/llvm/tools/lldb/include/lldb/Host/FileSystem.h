@@ -22,6 +22,8 @@ namespace lldb_private
 class FileSystem
 {
   public:
+    static const char *DEV_NULL;
+
     static FileSpec::PathSyntax GetNativePathSyntax();
 
     static Error MakeDirectory(const FileSpec &file_spec, uint32_t mode);
@@ -35,9 +37,12 @@ class FileSystem
     static bool GetFileExists(const FileSpec &file_spec);
 
     static Error Hardlink(const FileSpec &src, const FileSpec &dst);
+    static int GetHardlinkCount(const FileSpec &file_spec);
     static Error Symlink(const FileSpec &src, const FileSpec &dst);
     static Error Readlink(const FileSpec &src, FileSpec &dst);
     static Error Unlink(const FileSpec &file_spec);
+    
+    static Error ResolveSymbolicLink(const FileSpec &src, FileSpec &dst);
 
     static bool CalculateMD5(const FileSpec &file_spec, uint64_t &low, uint64_t &high);
     static bool CalculateMD5(const FileSpec &file_spec,

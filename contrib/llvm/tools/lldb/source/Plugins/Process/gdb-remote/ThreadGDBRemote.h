@@ -10,8 +10,12 @@
 #ifndef liblldb_ThreadGDBRemote_h_
 #define liblldb_ThreadGDBRemote_h_
 
+// C Includes
+// C++ Includes
 #include <string>
 
+// Other libraries and framework includes
+// Project includes
 #include "lldb/Core/StructuredData.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
@@ -28,8 +32,7 @@ class ThreadGDBRemote : public Thread
 public:
     ThreadGDBRemote (Process &process, lldb::tid_t tid);
 
-    virtual
-    ~ThreadGDBRemote ();
+    ~ThreadGDBRemote() override;
 
     void
     WillResume (lldb::StateType resume_state) override;
@@ -101,30 +104,27 @@ public:
     FetchThreadExtendedInfo () override;
 
 protected:
-    
     friend class ProcessGDBRemote;
+
+    std::string m_thread_name;
+    std::string m_dispatch_queue_name;
+    lldb::addr_t m_thread_dispatch_qaddr;
+    lldb::QueueKind m_queue_kind;     // Queue info from stop reply/stop info for thread
+    uint64_t m_queue_serial;    // Queue info from stop reply/stop info for thread
 
     bool
     PrivateSetRegisterValue (uint32_t reg, 
                              StringExtractor &response);
 
     bool
+    PrivateSetRegisterValue (uint32_t reg, 
+                             uint64_t regval);
+
+    bool
     CachedQueueInfoIsValid() const
     {
         return m_queue_kind != lldb::eQueueKindUnknown;
     }
-    //------------------------------------------------------------------
-    // Member variables.
-    //------------------------------------------------------------------
-    std::string m_thread_name;
-    std::string m_dispatch_queue_name;
-    lldb::addr_t m_thread_dispatch_qaddr;
-    lldb::QueueKind m_queue_kind;     // Queue info from stop reply/stop info for thread
-    uint64_t m_queue_serial;    // Queue info from stop reply/stop info for thread
-    //------------------------------------------------------------------
-    // Member variables.
-    //------------------------------------------------------------------
-
     void
     SetStopInfoFromPacket (StringExtractor &stop_packet, uint32_t stop_id);
 
@@ -135,4 +135,4 @@ protected:
 } // namespace process_gdb_remote
 } // namespace lldb_private
 
-#endif  // liblldb_ThreadGDBRemote_h_
+#endif // liblldb_ThreadGDBRemote_h_

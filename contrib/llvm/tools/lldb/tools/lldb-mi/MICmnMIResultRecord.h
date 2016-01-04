@@ -9,9 +9,6 @@
 
 #pragma once
 
-// Third party headers:
-#include <map>
-
 // In-house headers:
 #include "MICmnBase.h"
 #include "MIUtilString.h"
@@ -39,9 +36,6 @@
 //          be returned.
 //          More information see:
 //          http://ftp.gnu.org/old-gnu/Manuals/gdb-5.1.1/html_chapter/gdb_22.html
-// Gotchas: None.
-// Authors: Illya Rudkin 24/02/2014.
-// Changes: None.
 //--
 class CMICmnMIResultRecord : public CMICmnBase
 {
@@ -56,39 +50,24 @@ class CMICmnMIResultRecord : public CMICmnBase
         eResultClass_Running,
         eResultClass_Connected,
         eResultClass_Error,
-        eResultClass_Exit,
-        eResultClass_count // Always the last one
+        eResultClass_Exit
     };
-
-    // Typedefs:
-  public:
-    typedef std::map<ResultClass_e, CMIUtilString> MapResultClassToResultClassText_t;
 
     // Methods:
   public:
-    /* ctor */ CMICmnMIResultRecord(void);
-    /* ctor */ CMICmnMIResultRecord(const CMIUtilString &vrToken, const ResultClass_e veType);
-    /* ctor */ CMICmnMIResultRecord(const CMIUtilString &vrToken, const ResultClass_e veType, const CMICmnMIValueResult &vValue);
+    /* ctor */ CMICmnMIResultRecord();
+    /* ctor */ CMICmnMIResultRecord(const CMIUtilString &vrToken, ResultClass_e veType);
+    /* ctor */ CMICmnMIResultRecord(const CMIUtilString &vrToken, ResultClass_e veType, const CMICmnMIValueResult &vValue);
     //
-    const CMIUtilString &GetString(void) const;
-    bool Add(const CMICmnMIValue &vMIValue);
+    const CMIUtilString &GetString() const;
+    void Add(const CMICmnMIValue &vMIValue);
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CMICmnMIResultRecord(void) override;
-
-    // Methods:
-  private:
-    bool BuildResultRecord(void);
+    /* dtor */ ~CMICmnMIResultRecord() override;
 
     // Attributes:
   private:
-    static const CMIUtilString ms_constStrResultRecordHat;
-    static MapResultClassToResultClassText_t ms_constMapResultClassToResultClassText;
-    //
-    CMIUtilString m_strResultRecordToken;
-    ResultClass_e m_eResultRecordResultClass;
     CMIUtilString m_strResultRecord; // Holds the text version of the result record to date
-    CMICmnMIValueResult m_partResult;
 };
