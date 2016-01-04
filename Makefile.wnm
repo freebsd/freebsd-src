@@ -6,7 +6,7 @@
 CC = cl
 
 # Normal flags
-CFLAGS = /nologo /ML /W3 /GX /O2 /I "." /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /c
+CFLAGS = /nologo /MD /W3 /EHsc /O2 /I "." /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /c 
 LDFLAGS = /nologo /subsystem:console /incremental:no /machine:I386
 
 # Debugging flags

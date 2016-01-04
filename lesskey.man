@@ -1,4 +1,4 @@
-LESSKEY(1)                                                          LESSKEY(1)
+LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
 
 
@@ -161,6 +161,8 @@ LESSKEY(1)                                                          LESSKEY(1)
             \e]       right-scroll
             \e(       left-scroll
             \e)       right-scroll
+            \kl       left-scroll
+            \kr       right-scroll
             {         forw-bracket {}
             }         back-bracket {}
             (         forw-bracket ()
@@ -173,6 +175,7 @@ LESSKEY(1)                                                          LESSKEY(1)
             \e>       goto-end
             >         goto-end
             \ke  goto-end
+            \eG       goto-end-buffered
             =         status
             ^G        status
             :f        status
@@ -330,27 +333,28 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 2000-2012  Mark Nudelman
+       Copyright (C) 1984-2015  Mark Nudelman
 
-       lesskey is part of the GNU project and is free software; you can redis-
-       tribute it and/or modify it under the terms of the GNU  General  Public
-       License as published by the Free Software Foundation; either version 2,
-       or (at your option) any later version.
+       less  is  part of the GNU project and is free software.  You can redis-
+       tribute it and/or modify it under the terms of either (1) the GNU  Gen-
+       eral  Public  License  as published by the Free Software Foundation; or
+       (2) the Less License.  See the file README in the less distribution for
+       more details regarding redistribution.  You should have received a copy
+       of the GNU General Public License along with the source for  less;  see
+       the  file  COPYING.   If not, write to the Free Software Foundation, 59
+       Temple Place, Suite 330, Boston, MA  02111-1307, USA.  You should  also
+       have received a copy of the Less License; see the file LICENSE.
 
-       lesskey is distributed in the hope that it will be useful, but  WITHOUT
-       ANY  WARRANTY;  without even the implied warranty of MERCHANTABILITY or
-       FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General  Public  License
-       for more details.
-
-       You should have received a copy of the GNU General Public License along
-       with lesskey; see the file COPYING.  If not, write to the Free Software
-       Foundation, 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
+       less is distributed in the hope that it will be useful, but WITHOUT ANY
+       WARRANTY; without even the implied warranty of MERCHANTABILITY or  FIT-
+       NESS  FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+       more details.
 
 
 [1mAUTHOR[0m
-       Mark Nudelman <bug-less@gnu.org>
-       Send bug reports or comments to bug-less@gnu.org.
+       Mark Nudelman
+       Send bug reports or comments to <bug-less@gnu.org>.
 
 
 
-                           Version 458: 04 Apr 2013                 LESSKEY(1)
+                           Version 481: 31 Aug 2015                 LESSKEY(1)
