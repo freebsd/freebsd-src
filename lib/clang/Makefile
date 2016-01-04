@@ -143,12 +143,16 @@ SUBDIR+=liblldb \
 	liblldbPluginDisassemblerLLVM \
 	liblldbPluginDynamicLoaderStatic \
 	liblldbPluginDynamicLoaderPosixDYLD \
+	liblldbPluginExpressionParserClang \
+	liblldbPluginExpressionParserGo \
 	liblldbPluginInstructionARM \
 	liblldbPluginInstructionARM64 \
 	liblldbPluginInstructionMIPS \
 	liblldbPluginInstructionMIPS64 \
 	liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	liblldbPluginJITLoaderGDB \
+	liblldbPluginLanguageCPlusPlus \
+	liblldbPluginLanguageObjC \
 	liblldbPluginMemoryHistoryASan \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
@@ -160,6 +164,7 @@ SUBDIR+=liblldb \
 	liblldbPluginProcessGDBRemote \
 	liblldbPluginProcessPOSIX \
 	liblldbPluginProcessUtility \
+	liblldbPluginScriptInterpreterNone \
 	liblldbPluginSymbolFileDWARF \
 	liblldbPluginSymbolFileSymtab \
 	liblldbPluginSymbolVendorELF \

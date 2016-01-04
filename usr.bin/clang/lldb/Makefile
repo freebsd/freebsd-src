@@ -46,12 +46,16 @@ LLDB_LIBS=\
 	lldbPluginABISysV_x86_64 \
 	lldbPluginCXXItaniumABI \
 	lldbPluginDisassemblerLLVM \
+	lldbPluginExpressionParserClang \
+	lldbPluginExpressionParserGo \
 	lldbPluginInstructionARM \
 	lldbPluginInstructionARM64 \
 	lldbPluginInstructionMIPS \
 	lldbPluginInstructionMIPS64 \
 	lldbPluginInstrumentationRuntimeAddressSanitizer \
 	lldbPluginJITLoaderGDB \
+	lldbPluginLanguageCPlusPlus \
+	lldbPluginLanguageObjC \
 	lldbPluginSymbolFileDWARF \
 	lldbPluginSymbolFileSymtab \
 	lldbPluginDynamicLoaderStatic \
@@ -60,6 +64,7 @@ LLDB_LIBS=\
 	lldbPluginObjectContainerBSDArchive \
 	lldbPluginObjectFileELF \
 	lldbPluginObjectFileJIT \
+	lldbPluginScriptInterpreterNone \
 	lldbPluginSymbolVendorELF \
 	lldbPluginPlatformFreeBSD \
 	lldbPluginPlatformGDB \
@@ -146,7 +151,6 @@ LIBDEPS=\
 	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
-	llvmipa \
 	llvmanalysis \
 	llvminstrumentation \
 	llvmx86desc \
