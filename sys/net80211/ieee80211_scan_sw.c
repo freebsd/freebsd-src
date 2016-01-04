@@ -359,7 +359,7 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 		duration = IEEE80211_SCAN_OFFCHANNEL;
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: %s scan, ticks %u duration %lu\n", __func__,
+		    "%s: %s scan, ticks %u duration %u\n", __func__,
 		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ? "active" : "passive",
 		    ticks, duration);
 
