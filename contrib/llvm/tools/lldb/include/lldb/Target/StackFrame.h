@@ -12,6 +12,8 @@
 
 // C Includes
 // C++ Includes
+#include <memory>
+
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/Error.h"
@@ -45,11 +47,12 @@ class StackFrame :
 public:
     enum ExpressionPathOption
     {
-        eExpressionPathOptionCheckPtrVsMember       = (1u << 0),
-        eExpressionPathOptionsNoFragileObjcIvar     = (1u << 1),
-        eExpressionPathOptionsNoSyntheticChildren   = (1u << 2),
-        eExpressionPathOptionsNoSyntheticArrayRange = (1u << 3),
-        eExpressionPathOptionsAllowDirectIVarAccess = (1u << 4)
+        eExpressionPathOptionCheckPtrVsMember        = (1u << 0),
+        eExpressionPathOptionsNoFragileObjcIvar      = (1u << 1),
+        eExpressionPathOptionsNoSyntheticChildren    = (1u << 2),
+        eExpressionPathOptionsNoSyntheticArrayRange  = (1u << 3),
+        eExpressionPathOptionsAllowDirectIVarAccess  = (1u << 4),
+        eExpressionPathOptionsInspectAnonymousUnions = (1u << 5)
     };
 
     //------------------------------------------------------------------
@@ -135,7 +138,7 @@ public:
                 const Address& pc, 
                 const SymbolContext *sc_ptr);
 
-    virtual ~StackFrame ();
+    ~StackFrame() override;
 
     lldb::ThreadSP
     GetThread () const
@@ -223,7 +226,7 @@ public:
     /// executing.
     ///
     /// @return
-    ///   A pointer to the current Block.  NULL is returned if this can
+    ///   A pointer to the current Block.  nullptr is returned if this can
     ///   not be provided.
     //------------------------------------------------------------------
     Block *
@@ -351,7 +354,7 @@ public:
     ///   Optional string that will be prepended to the frame output description.
     //------------------------------------------------------------------
     void
-    DumpUsingSettingsFormat (Stream *strm, const char *frame_marker = NULL);
+    DumpUsingSettingsFormat(Stream *strm, const char *frame_marker = nullptr);
 
     //------------------------------------------------------------------
     /// Print a description for this frame using a default format.
@@ -388,10 +391,10 @@ public:
     ///   Returns true if successful.
     //------------------------------------------------------------------
     bool
-    GetStatus (Stream &strm,
-               bool show_frame_info,
-               bool show_source,
-               const char *frame_marker = NULL);
+    GetStatus(Stream &strm,
+              bool show_frame_info,
+              bool show_source,
+              const char *frame_marker = nullptr);
 
     //------------------------------------------------------------------
     /// Query whether this frame is a concrete frame on the call stack,
@@ -466,22 +469,32 @@ public:
     TrackGlobalVariable (const lldb::VariableSP &variable_sp, lldb::DynamicValueType use_dynamic);
 
     //------------------------------------------------------------------
+    /// Query this frame to determine what the default language should be
+    /// when parsing expressions given the execution context.
+    ///
+    /// @return
+    ///   The language of the frame if known, else lldb::eLanguageTypeUnknown.
+    //------------------------------------------------------------------
+    lldb::LanguageType
+    GetLanguage ();
+
+    //------------------------------------------------------------------
     // lldb::ExecutionContextScope pure virtual functions
     //------------------------------------------------------------------
-    virtual lldb::TargetSP
-    CalculateTarget ();
+    lldb::TargetSP
+    CalculateTarget() override;
 
-    virtual lldb::ProcessSP
-    CalculateProcess ();
+    lldb::ProcessSP
+    CalculateProcess() override;
 
-    virtual lldb::ThreadSP
-    CalculateThread ();
+    lldb::ThreadSP
+    CalculateThread() override;
 
-    virtual lldb::StackFrameSP
-    CalculateStackFrame ();
+    lldb::StackFrameSP
+    CalculateStackFrame() override;
 
     void
-    CalculateExecutionContext (ExecutionContext &exe_ctx);
+    CalculateExecutionContext(ExecutionContext &exe_ctx) override;
 
 protected:
     friend class StackFrameList;
@@ -520,9 +533,10 @@ private:
     ValueObjectList m_variable_list_value_objects;  // Value objects for each variable in m_variable_list_sp
     StreamString m_disassembly;
     Mutex m_mutex;
+
     DISALLOW_COPY_AND_ASSIGN (StackFrame);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_StackFrame_h_
+#endif // liblldb_StackFrame_h_

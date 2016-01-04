@@ -22,27 +22,24 @@
 // Details: MI common code utility class. Map type container that hold general
 //          object types (by being a variant wrapper)
 //          objects by ID.
-// Gotchas: None.
-// Authors: Illya Rudkin 19/06/2014.
-// Changes: None.
 //--
 class CMIUtilMapIdToVariant : public CMICmnBase
 {
     // Methods:
   public:
-    /* ctor */ CMIUtilMapIdToVariant(void);
+    /* ctor */ CMIUtilMapIdToVariant();
 
     template <typename T> bool Add(const CMIUtilString &vId, const T &vData);
-    void Clear(void);
+    void Clear();
     template <typename T> bool Get(const CMIUtilString &vId, T &vrwData, bool &vrwbFound) const;
     bool HaveAlready(const CMIUtilString &vId) const;
-    bool IsEmpty(void) const;
+    bool IsEmpty() const;
     bool Remove(const CMIUtilString &vId);
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ ~CMIUtilMapIdToVariant(void) override;
+    /* dtor */ ~CMIUtilMapIdToVariant() override;
 
     // Typedefs:
   private:

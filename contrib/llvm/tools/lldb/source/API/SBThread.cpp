@@ -747,7 +747,7 @@ SBThread::StepOver (lldb::RunMode stop_other_threads)
                 const LazyBool avoid_no_debug = eLazyBoolCalculate;
                 SymbolContext sc(frame_sp->GetSymbolContext(eSymbolContextEverything));
                 new_plan_sp = thread->QueueThreadPlanForStepOverRange (abort_other_plans,
-                                                                    sc.line_entry.range,
+                                                                    sc.line_entry,
                                                                     sc,
                                                                     stop_other_threads,
                                                                     avoid_no_debug);
@@ -799,7 +799,7 @@ SBThread::StepInto (const char *target_name, lldb::RunMode stop_other_threads)
             const LazyBool step_in_avoids_code_without_debug_info = eLazyBoolCalculate;
             SymbolContext sc(frame_sp->GetSymbolContext(eSymbolContextEverything));
             new_plan_sp = thread->QueueThreadPlanForStepInRange (abort_other_plans,
-                                                              sc.line_entry.range,
+                                                              sc.line_entry,
                                                               sc,
                                                               target_name,
                                                               stop_other_threads,
@@ -825,7 +825,6 @@ SBThread::StepOut ()
 
     Mutex::Locker api_locker;
     ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
-
 
     if (log)
         log->Printf ("SBThread(%p)::StepOut ()",
@@ -861,6 +860,14 @@ SBThread::StepOutOfFrame (lldb::SBFrame &sb_frame)
     Mutex::Locker api_locker;
     ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
 
+    if (!sb_frame.IsValid())
+    {
+        if (log)
+            log->Printf("SBThread(%p)::StepOutOfFrame passed an invalid frame, returning.",
+                        static_cast<void*>(exe_ctx.GetThreadPtr()));
+        return;
+    }
+    
     StackFrameSP frame_sp (sb_frame.GetFrameSP());
     if (log)
     {
@@ -877,6 +884,13 @@ SBThread::StepOutOfFrame (lldb::SBFrame &sb_frame)
         bool abort_other_plans = false;
         bool stop_other_threads = false;
         Thread *thread = exe_ctx.GetThreadPtr();
+        if (sb_frame.GetThread().GetThreadID() != thread->GetID())
+        {
+            log->Printf("SBThread(%p)::StepOutOfFrame passed a frame from another thread (0x%" PRIx64 " vrs. 0x%" PRIx64 ", returning.",
+                        static_cast<void*>(exe_ctx.GetThreadPtr()),
+                        sb_frame.GetThread().GetThreadID(),
+                        thread->GetID());
+        }
 
         ThreadPlanSP new_plan_sp(thread->QueueThreadPlanForStepOut (abort_other_plans,
                                                                     NULL,

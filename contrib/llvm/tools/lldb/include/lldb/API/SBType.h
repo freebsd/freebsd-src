@@ -85,7 +85,13 @@ public:
     
     const char *
     GetName ();
-    
+
+    const char *
+    GetDemangledName ();
+
+    const char *
+    GetMangledName ();
+
     lldb::SBType
     GetType ();
     
@@ -157,6 +163,9 @@ public:
     
     bool
     IsTypedefType ();
+    
+    bool
+    IsAnonymousType ();
     
     lldb::SBType
     GetPointerType();
@@ -290,7 +299,7 @@ protected:
     friend class SBTypeList;
     friend class SBValue;
         
-    SBType (const lldb_private::ClangASTType &);
+    SBType (const lldb_private::CompilerType &);
     SBType (const lldb::TypeSP &);
     SBType (const lldb::TypeImplSP &);
     
