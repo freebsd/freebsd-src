@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
@@ -1225,27 +1226,24 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 static int
 ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
 {
-	struct route_in6 ro_pmtu;
+	struct nhop6_extended nh6;
+	struct in6_addr kdst;
+	uint32_t scopeid;
 	struct ifnet *ifp;
-	struct sockaddr_in6 *sa6_dst;
 	u_long mtu;
+	int error;
 
-	sa6_dst = (struct sockaddr_in6 *)&ro_pmtu.ro_dst;
-	bzero(sa6_dst, sizeof(*sa6_dst));
-	sa6_dst->sin6_family = AF_INET6;
-	sa6_dst->sin6_len = sizeof(struct sockaddr_in6);
-	sa6_dst->sin6_addr = *dst;
-
-	in6_rtalloc(&ro_pmtu, fibnum);
-
-	if (ro_pmtu.ro_rt == NULL)
+	in6_splitscope(dst, &kdst, &scopeid);
+	if (fib6_lookup_nh_ext(fibnum, &kdst, scopeid, NHR_REF, 0, &nh6) != 0)
 		return (EHOSTUNREACH);
 
-	ifp = ro_pmtu.ro_rt->rt_ifp;
-	mtu = ro_pmtu.ro_rt->rt_mtu;
-	RO_RTFREE(&ro_pmtu);
+	ifp = nh6.nh_ifp;
+	mtu = nh6.nh_mtu;
 
-	return (ip6_calcmtu(ifp, dst, mtu, mtup, NULL));
+	error = ip6_calcmtu(ifp, dst, mtu, mtup, NULL);
+	fib6_free_nh_ext(fibnum, &nh6);
+
+	return (error);
 }
 
 /*
@@ -1263,6 +1261,9 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
     struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
     int *alwaysfragp, u_int fibnum)
 {
+	struct nhop6_basic nh6;
+	struct in6_addr kdst;
+	uint32_t scopeid;
 	struct sockaddr_in6 *sa6_dst;
 	u_long mtu;
 
@@ -1284,12 +1285,13 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
 			sa6_dst->sin6_len = sizeof(struct sockaddr_in6);
 			sa6_dst->sin6_addr = *dst;
 
-			in6_rtalloc(ro_pmtu, fibnum);
-			if (ro_pmtu->ro_rt) {
-				mtu = ro_pmtu->ro_rt->rt_mtu;
-				RO_RTFREE(ro_pmtu);
-			}
+			in6_splitscope(dst, &kdst, &scopeid);
+			if (fib6_lookup_nh_basic(fibnum, &kdst, scopeid, 0, 0,
+			    &nh6) == 0)
+				ro_pmtu->ro_mtu = nh6.nh_mtu;
 		}
+
+		mtu = ro_pmtu->ro_mtu;
 	}
 
 	if (ro_pmtu->ro_rt)
