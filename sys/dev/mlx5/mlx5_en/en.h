@@ -789,5 +789,6 @@ void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
 void	mlx5e_send_nop(struct mlx5e_sq *, u32, bool);
+int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
 
 #endif					/* _MLX5_EN_H_ */
