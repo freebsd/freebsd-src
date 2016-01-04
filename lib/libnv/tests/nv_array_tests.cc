@@ -1101,7 +1101,6 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__pack)
 {
 	nvlist_t *testnvl[8], *unpacked;
 	const nvlist_t * const *const_result;
-	nvlist_t **result;
 	nvlist_t *nvl;
 	size_t num_items, packed_size;
 	unsigned int i;
@@ -1159,7 +1158,6 @@ ATF_TEST_CASE_BODY(nvlist_nvlist_array__pack)
 
 	for (i = 0; i < nitems(testnvl); i++)
 		nvlist_destroy(testnvl[i]);
-	free(result);
 	nvlist_destroy(nvl);
 	nvlist_destroy(unpacked);
 	free(packed);
