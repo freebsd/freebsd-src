@@ -84,6 +84,7 @@
 
 #define	IEEE80211_MS_TO_TU(x)	(((x) * 1000) / 1024)
 #define	IEEE80211_TU_TO_MS(x)	(((x) * 1024) / 1000)
+/* XXX TODO: cap this at 1, in case hz is not 1000 */
 #define	IEEE80211_TU_TO_TICKS(x)(((x) * 1024 * hz) / (1000 * 1000))
 
 /*
@@ -134,6 +135,7 @@ struct ieee80211com {
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 	struct task		ic_chw_task;	/* deferred HT CHW update */
 	struct task		ic_wme_task;	/* deferred WME update */
+	struct task		ic_restart_task; /* deferred device restart */
 
 	counter_u64_t		ic_ierrors;	/* input errors */
 	counter_u64_t		ic_oerrors;	/* output errors */

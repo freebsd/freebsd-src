@@ -84,6 +84,12 @@ fi
 COPYRIGHT="$COPYRIGHT
 "
 
+# VARS_ONLY means no files should be generated, this is just being
+# included.
+if [ -n "$VARS_ONLY" ]; then
+	return 0
+fi
+
 LC_ALL=C; export LC_ALL
 if [ ! -r version ]
 then
@@ -91,7 +97,18 @@ then
 fi
 
 touch version
-v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
+v=`cat version`
+u=${USER:-root}
+d=`pwd`
+h=${HOSTNAME:-`hostname`}
+if [ -n "$SOURCE_DATE_EPOCH" ]; then
+	if ! t=`date -r $SOURCE_DATE_EPOCH 2>/dev/null`; then
+		echo "Invalid SOURCE_DATE_EPOCH" >&2
+		exit 1
+	fi
+else
+	t=`date`
+fi
 i=`${MAKE:-make} -V KERN_IDENT`
 compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep -w 'version')
 

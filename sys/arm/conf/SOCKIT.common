@@ -53,6 +53,8 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 
 # Interrupt controller
 device		gic
+# ARM MPCore timer
+device		mpcore_timer
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus

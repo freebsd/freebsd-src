@@ -5,8 +5,8 @@
 
 PROG=   ibroute
 SRCS=   ibroute.c ibdiag_common.c
-LDADD=	-libumad -libcommon -libmad -losmcomp
-CFLAGS+= -pthread -I${DIAGPATH}/include
+LIBADD= ibumad ibcommon ibmad osmcomp pthread
+CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibroute.8
 
 WARNS?= 1

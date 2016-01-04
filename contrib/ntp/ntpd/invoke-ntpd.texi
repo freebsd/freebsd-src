@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpd.texi)
 #
-# It has been AutoGen-ed  June 29, 2015 at 04:30:33 PM by AutoGen 5.18.5
+# It has been AutoGen-ed  October 21, 2015 at 12:38:21 PM by AutoGen 5.18.5
 # From the definitions    ntpd-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -142,7 +142,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpd - NTP daemon program - Ver. 4.2.8p3
+ntpd - NTP daemon program - Ver. 4.2.8p4
 Usage:  ntpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
                 [ <server1> ... <serverN> ]
   Flg Arg Option-Name    Description

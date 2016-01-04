@@ -8,10 +8,8 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libc_nonshared \
 	lib/libcompiler_rt \
 	lib/libelf \
-	lib/libthr \
 	lib/libz \
 
 

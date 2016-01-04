@@ -69,6 +69,9 @@ struct	cmdtab cmdtab[] = {
 	  initip6,	openip6,	closeip6,	cmdmode,
 	  resetip6,	CF_LOADAV },
 #endif
+	{ "sctp",	showsctp,	fetchsctp,	labelsctp,
+	  initsctp,	opensctp,	closesctp,	cmdmode,
+	  resetsctp,	CF_LOADAV },
 	{ "tcp",	showtcp,	fetchtcp,	labeltcp,
 	  inittcp,	opentcp,	closetcp,	cmdmode,
 	  resettcp,	CF_LOADAV },

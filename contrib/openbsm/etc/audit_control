@@ -1,5 +1,4 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_control#9 $
 # $FreeBSD$
 #
 dir:/var/audit

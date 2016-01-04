@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2014
+.Dd October 21, 2015
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -463,7 +463,19 @@ for more details.
 .It Va SUBDIR_OVERRIDE
 Override the default list of sub-directories and only build the
 sub-directory named in this variable.
-This variable is useful when debugging failed builds.
+If combined with
+.Cm buildworld
+then all libraries and includes, and some of the build tools will still build
+as well.
+When combined with
+.Cm buildworld
+it is necesarry to override
+.Va LOCAL_LIB_DIRS
+with any custom directories containing libraries.
+This allows building a subset of the system in the same way as
+.Cm buildworld
+does using its sysroot handling.
+This variable can also be useful when debugging failed builds.
 .Bd -literal -offset indent
 make some-target SUBDIR_OVERRIDE=foo/bar
 .Ed

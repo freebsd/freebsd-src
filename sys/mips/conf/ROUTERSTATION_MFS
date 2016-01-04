@@ -4,6 +4,8 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 include		"AR71XX_BASE"
 ident		"ROUTERSTATION_MFS"
 hints		"ROUTERSTATION.hints"

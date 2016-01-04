@@ -63,7 +63,7 @@
 #define CVMX_ENABLE_PKO_FUNCTIONS
 
 /* Define to enable the use of simple executive helper functions. These
-** include many harware setup functions.  See cvmx-helper.[ch] for
+** include many hardware setup functions.  See cvmx-helper.[ch] for
 ** details.
 */
 #define CVMX_ENABLE_HELPER_FUNCTIONS

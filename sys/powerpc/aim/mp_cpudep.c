@@ -77,10 +77,10 @@ cpudep_ap_early_bootstrap(void)
 #else
 		__asm __volatile("ld %0, 16(%2); sync; isync;	\
 		    mtspr %1, %0; sync; isync;"
-		    : "=r"(reg) : "K"(SPR_HID4), "r"(bsp_state));
+		    : "=r"(reg) : "K"(SPR_HID4), "b"(bsp_state));
 		__asm __volatile("ld %0, 24(%2); sync; isync;	\
 		    mtspr %1, %0; sync; isync;"
-		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
+		    : "=r"(reg) : "K"(SPR_HID5), "b"(bsp_state));
 #endif
 		powerpc_sync();
 		break;
@@ -324,10 +324,10 @@ cpudep_ap_setup()
 			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1;	\
 			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1; \
 			sync; isync" 
-		    : "=r"(reg) : "K"(SPR_HID0), "r"(bsp_state));
+		    : "=r"(reg) : "K"(SPR_HID0), "b"(bsp_state));
 		__asm __volatile("ld %0, 8(%2); sync; isync;	\
 		    mtspr %1, %0; mtspr %1, %0; sync; isync"
-		    : "=r"(reg) : "K"(SPR_HID1), "r"(bsp_state));
+		    : "=r"(reg) : "K"(SPR_HID1), "b"(bsp_state));
 	#endif
 
 		powerpc_sync();

@@ -450,7 +450,7 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 		}
 	}
 
-	/* Set some defaults to preserve compability */
+	/* Set some defaults to preserve compatibility. */
 	if (xi.algoname[0] == '\0' && xi.type == 0)
 		xi.type = IPFW_TABLE_ADDR;
 	if (xi.vmask == 0)
@@ -918,7 +918,7 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 		tentry_fill_key(oh, ptent, *av, add, &type, &vmask, &xi);
 
 		/*
-		 * compability layer: auto-create table if not exists
+		 * Compatibility layer: auto-create table if not exists.
 		 */
 		if (xi.tablename[0] == '\0') {
 			xi.type = type;
@@ -1387,8 +1387,8 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 			vmask = xi->vmask;
 		} else {
 			/*
-			 * we're running `ipfw -n`
-			 * Compability layer: try to guess key type
+			 * We're running `ipfw -n`
+			 * Compatibility layer: try to guess key type
 			 * before failing.
 			 */
 			if (guess_key_type(key, &type) != 0) {
@@ -1407,7 +1407,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 			    oh->ntlv.name);
 		/*
 		 * Table does not exist
-		 * Compability layer: try to guess key type before failing.
+		 * Compatibility layer: try to guess key type before failing.
 		 */
 		if (guess_key_type(key, &type) != 0) {
 			/* Inknown key */

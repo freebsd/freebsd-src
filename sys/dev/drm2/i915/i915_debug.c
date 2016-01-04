@@ -294,14 +294,11 @@ static int i915_gem_gtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 static int i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	struct intel_crtc *crtc;
-	struct drm_i915_gem_object *obj;
-	struct intel_unpin_work *work;
-	char pipe;
-	char plane;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
-		pipe = pipe_name(crtc->pipe);
-		plane = plane_name(crtc->plane);
+		const char pipe = pipe_name(crtc->pipe);
+		const char plane = plane_name(crtc->plane);
+		struct intel_unpin_work *work;
 
 		mtx_lock(&dev->event_lock);
 		work = crtc->unpin_work;
@@ -323,12 +320,12 @@ static int i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *
 			sbuf_printf(m, "%d prepares\n", work->pending);
 
 			if (work->old_fb_obj) {
-				obj = work->old_fb_obj;
+				struct drm_i915_gem_object *obj = work->old_fb_obj;
 				if (obj)
 					sbuf_printf(m, "Old framebuffer gtt_offset 0x%08x\n", obj->gtt_offset);
 			}
 			if (work->pending_flip_obj) {
-				obj = work->pending_flip_obj;
+				struct drm_i915_gem_object *obj = work->pending_flip_obj;
 				if (obj)
 					sbuf_printf(m, "New framebuffer gtt_offset 0x%08x\n", obj->gtt_offset);
 			}
@@ -390,7 +387,8 @@ static int i915_gem_request_info(struct drm_device *dev, struct sbuf *m, void *d
 	return 0;
 }
 
-static void i915_ring_seqno_info(struct sbuf *m, struct intel_ring_buffer *ring)
+static void i915_ring_seqno_info(struct sbuf *m,
+				 struct intel_ring_buffer *ring)
 {
 	if (ring->get_seqno) {
 		sbuf_printf(m, "Current sequence (%s): %d\n",
@@ -496,9 +494,9 @@ static int i915_interrupt_info(struct drm_device *dev, struct sbuf *m, void *dat
 		   atomic_read(&dev_priv->irq_received));
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		if (IS_GEN6(dev) || IS_GEN7(dev)) {
-			sbuf_printf(m, "Graphics Interrupt mask (%s):	%08x\n",
-				   dev_priv->rings[i].name,
-				   I915_READ_IMR(&dev_priv->rings[i]));
+			sbuf_printf(m,
+				   "Graphics Interrupt mask (%s):	%08x\n",
+				   dev_priv->rings[i].name, I915_READ_IMR(&dev_priv->rings[i]));
 		}
 		i915_ring_seqno_info(m, &dev_priv->rings[i]);
 	}
@@ -678,8 +676,6 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 		return 0;
 	}
 
-	error = dev_priv->first_error;
-
 	sbuf_printf(m, "Time: %jd s %jd us\n", (intmax_t)error->time.tv_sec,
 	    (intmax_t)error->time.tv_usec);
 	sbuf_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
@@ -767,7 +763,7 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 }
 
 static int
-i915_error_state_w(struct drm_device *dev, const char *str, void *unused)
+i915_error_state_write(struct drm_device *dev, const char *str, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
@@ -782,8 +778,7 @@ i915_error_state_w(struct drm_device *dev, const char *str, void *unused)
 	return (0);
 }
 
-static int
-i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unused)
+static int i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u16 crstanddelay;
@@ -795,8 +790,7 @@ i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unused)
 
 	DRM_UNLOCK(dev);
 
-	sbuf_printf(m, "w/ctx: %d, w/o ctx: %d\n",
-	    (crstanddelay >> 8) & 0x3f, (crstanddelay & 0x3f));
+	sbuf_printf(m, "w/ctx: %d, w/o ctx: %d\n", (crstanddelay >> 8) & 0x3f, (crstanddelay & 0x3f));
 
 	return 0;
 }
@@ -928,8 +922,7 @@ static int i915_inttoext_table(struct drm_device *dev, struct sbuf *m, void *unu
 static int ironlake_drpc_info(struct drm_device *dev, struct sbuf *m)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 rgvmodectl;
-	u32 rstdbyctl;
+	u32 rgvmodectl, rstdbyctl;
 	u16 crstandvid;
 
 	if (sx_xlock_sig(&dev->dev_struct_lock))
@@ -1309,10 +1302,9 @@ static int i915_context_status(struct drm_device *dev, struct sbuf *m, void *dat
 static int i915_gen6_forcewake_count_info(struct drm_device *dev, struct sbuf *m,
     void *data)
 {
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned forcewake_count;
 
-	dev_priv = dev->dev_private;
 	mtx_lock(&dev_priv->gt_lock);
 	forcewake_count = dev_priv->forcewake_count;
 	mtx_unlock(&dev_priv->gt_lock);
@@ -1349,12 +1341,11 @@ static const char *swizzle_string(unsigned swizzle)
 
 static int i915_swizzle_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	dev_priv = dev->dev_private;
 	ret = sx_xlock_sig(&dev->dev_struct_lock);
-	if (ret != 0)
+	if (ret)
 		return -EINTR;
 
 	sbuf_printf(m, "bit6 swizzle for X-tiling = %s\n",
@@ -1390,14 +1381,13 @@ static int i915_swizzle_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 static int i915_ppgtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
 	int i, ret;
 
-	dev_priv = dev->dev_private;
 
 	ret = sx_xlock_sig(&dev->dev_struct_lock);
-	if (ret != 0)
+	if (ret)
 		return -EINTR;
 	if (INTEL_INFO(dev)->gen == 6)
 		sbuf_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
@@ -1426,18 +1416,17 @@ static int i915_ppgtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 static int i915_dpio_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
+
 
 	if (!IS_VALLEYVIEW(dev)) {
 		sbuf_printf(m, "unsupported\n");
 		return 0;
 	}
 
-	dev_priv = dev->dev_private;
-
 	ret = sx_xlock_sig(&dev->mode_config.mutex);
-	if (ret != 0)
+	if (ret)
 		return -EINTR;
 
 	sbuf_printf(m, "DPIO_CTL: 0x%08x\n", I915_READ(DPIO_CTL));
@@ -1473,12 +1462,10 @@ static int i915_dpio_info(struct drm_device *dev, struct sbuf *m, void *data)
 static int
 i915_debug_set_wedged(SYSCTL_HANDLER_ARGS)
 {
-	struct drm_device *dev;
-	drm_i915_private_t *dev_priv;
+	struct drm_device *dev = arg1;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int error, wedged;
 
-	dev = arg1;
-	dev_priv = dev->dev_private;
 	if (dev_priv == NULL)
 		return (EBUSY);
 	wedged = dev_priv->mm.wedged;
@@ -1493,12 +1480,10 @@ i915_debug_set_wedged(SYSCTL_HANDLER_ARGS)
 static int
 i915_max_freq(SYSCTL_HANDLER_ARGS)
 {
-	struct drm_device *dev;
-	drm_i915_private_t *dev_priv;
+	struct drm_device *dev = arg1;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int error, max_freq;
 
-	dev = arg1;
-	dev_priv = dev->dev_private;
 	if (dev_priv == NULL)
 		return (EBUSY);
 	max_freq = dev_priv->max_delay * 50;
@@ -1517,12 +1502,10 @@ i915_max_freq(SYSCTL_HANDLER_ARGS)
 static int
 i915_cache_sharing(SYSCTL_HANDLER_ARGS)
 {
-	struct drm_device *dev;
-	drm_i915_private_t *dev_priv;
+	struct drm_device *dev = arg1;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int error, snpcr, cache_sharing;
 
-	dev = arg1;
-	dev_priv = dev->dev_private;
 	if (dev_priv == NULL)
 		return (EBUSY);
 	DRM_LOCK(dev);
@@ -1549,12 +1532,10 @@ i915_cache_sharing(SYSCTL_HANDLER_ARGS)
 static int
 i915_stop_rings(SYSCTL_HANDLER_ARGS)
 {
-	struct drm_device *dev;
-	drm_i915_private_t *dev_priv;
+	struct drm_device *dev = arg1;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int error, val;
 
-	dev = arg1;
-	dev_priv = dev->dev_private;
 	if (dev_priv == NULL)
 		return (EBUSY);
 	DRM_LOCK(dev);
@@ -1582,12 +1563,9 @@ static struct i915_info_sysctl_list {
 	{"i915_gem_objects", i915_gem_object_info, NULL, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, NULL, 0},
 	{"i915_gem_pinned", i915_gem_gtt_info, NULL, 0, (void *)PINNED_LIST},
-	{"i915_gem_active", i915_gem_object_list_info, NULL, 0,
-	    (void *)ACTIVE_LIST},
-	{"i915_gem_flushing", i915_gem_object_list_info, NULL, 0,
-	    (void *)FLUSHING_LIST},
-	{"i915_gem_inactive", i915_gem_object_list_info, NULL, 0,
-	    (void *)INACTIVE_LIST},
+	{"i915_gem_active", i915_gem_object_list_info, NULL, 0, (void *)ACTIVE_LIST},
+	{"i915_gem_flushing", i915_gem_object_list_info, NULL, 0, (void *)FLUSHING_LIST},
+	{"i915_gem_inactive", i915_gem_object_list_info, NULL, 0, (void *)INACTIVE_LIST},
 	{"i915_gem_pageflip", i915_gem_pageflip_info, NULL, 0},
 	{"i915_gem_request", i915_gem_request_info, NULL, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, NULL, 0},
@@ -1596,7 +1574,7 @@ static struct i915_info_sysctl_list {
 	{"i915_gem_hws", i915_hws_info, NULL, 0, (void *)RCS},
 	{"i915_gem_hws_blt", i915_hws_info, NULL, 0, (void *)BCS},
 	{"i915_gem_hws_bsd", i915_hws_info, NULL, 0, (void *)VCS},
-	{"i915_error_state", i915_error_state, i915_error_state_w, 0},
+	{"i915_error_state", i915_error_state, i915_error_state_write, 0},
 	{"i915_rstdby_delays", i915_rstdby_delays, NULL, 0},
 	{"i915_cur_delayinfo", i915_cur_delayinfo, NULL, 0},
 	{"i915_delayfreq_table", i915_delayfreq_table, NULL, 0},

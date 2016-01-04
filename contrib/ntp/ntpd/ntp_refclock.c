@@ -1049,7 +1049,7 @@ refclock_control(
 	if (NULL == peer)
 		return;
 
-	NTP_INSIST(peer->procptr != NULL);
+	INSIST(peer->procptr != NULL);
 	pp = peer->procptr;
 
 	/*

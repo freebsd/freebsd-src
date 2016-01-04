@@ -35,6 +35,10 @@ static device_t usb_pci_root;
  *------------------------------------------------------------------------*/
 
 struct mtx Giant;
+int (*bus_alloc_resource_any_cb)(struct resource *res, device_t dev,
+    int type, int *rid, unsigned int flags);
+int (*ofw_bus_status_ok_cb)(device_t dev);
+int (*ofw_bus_is_compatible_cb)(device_t dev, char *name);
 
 static void
 mtx_system_init(void *arg)
@@ -42,6 +46,146 @@ mtx_system_init(void *arg)
 	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
 }
 SYSINIT(mtx_system_init, SI_SUB_LOCK, SI_ORDER_MIDDLE, mtx_system_init, NULL);
+
+struct resource *
+bus_alloc_resource_any(device_t dev, int type, int *rid, unsigned int flags)
+{
+	struct resource *res;
+	int ret = EINVAL;
+
+	res = malloc(sizeof(*res), XXX, XXX);
+	if (res == NULL)
+		return (NULL);
+
+	res->__r_i = malloc(sizeof(struct resource_i), XXX, XXX);
+	if (res->__r_i == NULL) {
+		free(res, XXX);
+		return (NULL);
+	}
+
+	if (bus_alloc_resource_any_cb != NULL)
+		ret = (*bus_alloc_resource_any_cb)(res, dev, type, rid, flags);
+	if (ret == 0)
+		return (res);
+
+	free(res->__r_i, XXX);
+	free(res, XXX);
+	return (NULL);
+}
+
+int
+bus_alloc_resources(device_t dev, struct resource_spec *rs,
+    struct resource **res)
+{
+	int i;
+
+	for (i = 0; rs[i].type != -1; i++)
+		res[i] = NULL;
+	for (i = 0; rs[i].type != -1; i++) {
+		res[i] = bus_alloc_resource_any(dev,
+		    rs[i].type, &rs[i].rid, rs[i].flags);
+		if (res[i] == NULL && !(rs[i].flags & RF_OPTIONAL)) {
+			bus_release_resources(dev, rs, res);
+			return (ENXIO);
+		}
+	}
+	return (0);
+}
+
+void
+bus_release_resources(device_t dev, const struct resource_spec *rs,
+    struct resource **res)
+{
+	int i;
+
+	for (i = 0; rs[i].type != -1; i++)
+		if (res[i] != NULL) {
+			bus_release_resource(
+			    dev, rs[i].type, rs[i].rid, res[i]);
+			res[i] = NULL;
+		}
+}
+
+int
+bus_setup_intr(device_t dev, struct resource *r, int flags,
+    driver_filter_t filter, driver_intr_t handler, void *arg, void **cookiep)
+{
+
+	dev->dev_irq_filter = filter;
+	dev->dev_irq_fn = handler;
+	dev->dev_irq_arg = arg;
+
+	return (0);
+}
+
+int
+bus_teardown_intr(device_t dev, struct resource *r, void *cookie)
+{
+
+	dev->dev_irq_filter = NULL;
+	dev->dev_irq_fn = NULL;
+	dev->dev_irq_arg = NULL;
+
+	return (0);
+}
+
+int
+bus_release_resource(device_t dev, int type, int rid, struct resource *r)
+{
+	/* Resource releasing is not supported */
+	return (EINVAL);
+}
+
+int
+bus_generic_attach(device_t dev)
+{
+	device_t child;
+
+	TAILQ_FOREACH(child, &dev->dev_children, dev_link) {
+		device_probe_and_attach(child);
+	}
+
+	return (0);
+}
+
+bus_space_tag_t
+rman_get_bustag(struct resource *r)
+{
+
+	return (r->r_bustag);
+}
+
+bus_space_handle_t
+rman_get_bushandle(struct resource *r)
+{
+
+	return (r->r_bushandle);
+}
+
+u_long
+rman_get_size(struct resource *r)
+{
+
+	return (r->__r_i->r_end - r->__r_i->r_start + 1);
+}
+
+int
+ofw_bus_status_okay(device_t dev)
+{
+	if (ofw_bus_status_ok_cb == NULL)
+		return (0);
+
+	return ((*ofw_bus_status_ok_cb)(dev));
+}
+
+int
+ofw_bus_is_compatible(device_t dev, char *name)
+{
+	if (ofw_bus_is_compatible_cb == NULL)
+		return (0);
+
+	return ((*ofw_bus_is_compatible_cb)(dev, name));
+}
 
 void
 mtx_init(struct mtx *mtx, const char *name, const char *type, int opt)
@@ -138,6 +282,7 @@ cv_timedwait(struct cv *cv, struct mtx *mtx, int timo)
 {
 	int start = ticks;
 	int delta;
+	int time = 0;
 
 	if (cv->sleeping)
 		return (EWOULDBLOCK);	/* not allowed */
@@ -153,6 +298,14 @@ cv_timedwait(struct cv *cv, struct mtx *mtx, int timo)
 		mtx_unlock(mtx);
 
 		usb_idle();
+
+		if (++time >= (1000000 / hz)) {
+			time = 0;
+			callout_process(1);
+		}
+
+		/* Sleep for 1 us */
+		delay(1);
 
 		mtx_lock(mtx);
 	}
@@ -864,7 +1017,7 @@ devclass_find(const char *classname)
 	const struct module_data *mod;
 
 	TAILQ_FOREACH(mod, &module_head, entry) {
-		if (devclass_equal(mod->mod_name, classname))
+		if (devclass_equal(mod->driver->name, classname))
 			return (mod->devclass_pp[0]);
 	}
 	return (NULL);

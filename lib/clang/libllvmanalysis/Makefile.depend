@@ -29,8 +29,8 @@ ConstantFolding.o: Intrinsics.inc.h
 ConstantFolding.po: Intrinsics.inc.h
 CostModel.o: Intrinsics.inc.h
 CostModel.po: Intrinsics.inc.h
-FunctionTargetTransformInfo.o: Intrinsics.inc.h
-FunctionTargetTransformInfo.po: Intrinsics.inc.h
+DivergenceAnalysis.o: Intrinsics.inc.h
+DivergenceAnalysis.po: Intrinsics.inc.h
 InstCount.o: Intrinsics.inc.h
 InstCount.po: Intrinsics.inc.h
 InstructionSimplify.o: Intrinsics.inc.h
@@ -43,10 +43,14 @@ Lint.o: Intrinsics.inc.h
 Lint.po: Intrinsics.inc.h
 Loads.o: Intrinsics.inc.h
 Loads.po: Intrinsics.inc.h
+LoopAccessAnalysis.o: Intrinsics.inc.h
+LoopAccessAnalysis.po: Intrinsics.inc.h
 MemoryBuiltins.o: Intrinsics.inc.h
 MemoryBuiltins.po: Intrinsics.inc.h
 MemoryDependenceAnalysis.o: Intrinsics.inc.h
 MemoryDependenceAnalysis.po: Intrinsics.inc.h
+MemoryLocation.o: Intrinsics.inc.h
+MemoryLocation.po: Intrinsics.inc.h
 PtrUseVisitor.o: Intrinsics.inc.h
 PtrUseVisitor.po: Intrinsics.inc.h
 ScalarEvolutionExpander.o: Intrinsics.inc.h
@@ -55,4 +59,6 @@ TargetTransformInfo.o: Intrinsics.inc.h
 TargetTransformInfo.po: Intrinsics.inc.h
 ValueTracking.o: Intrinsics.inc.h
 ValueTracking.po: Intrinsics.inc.h
+VectorUtils.o: Intrinsics.inc.h
+VectorUtils.po: Intrinsics.inc.h
 .endif

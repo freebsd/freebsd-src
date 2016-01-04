@@ -143,11 +143,11 @@ realinstall:
 .if ${PRINTERDEVICE:Mhtml}
 	cd ${SRCDIR}; \
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},docs} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
+	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}/
 .endif
 .for _dev in ${PRINTERDEVICE:Nhtml}
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},docs} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}
+	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}/
 .endfor
 
 spell: ${SRCS}

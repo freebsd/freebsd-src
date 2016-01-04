@@ -2090,7 +2090,7 @@ rt2661_update_slot(struct ieee80211com *ic)
 	uint8_t slottime;
 	uint32_t tmp;
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	tmp = RAL_READ(sc, RT2661_MAC_CSR9);
 	tmp = (tmp & ~0xff) | slottime;

@@ -129,6 +129,8 @@ extern int iicbus_block_read(device_t, u_char, char *, int, int *);
 
 /* vectors of iic operations to pass to bridge */
 int iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs);
+int iicbus_transfer_excl(device_t bus, struct iic_msg *msgs, uint32_t nmsgs,
+    int how);
 int iicbus_transfer_gen(device_t bus, struct iic_msg *msgs, uint32_t nmsgs);
 
 #define IICBUS_MODVER	1

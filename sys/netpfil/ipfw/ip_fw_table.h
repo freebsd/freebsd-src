@@ -187,7 +187,6 @@ void ipfw_unref_rule_tables(struct ip_fw_chain *chain, struct ip_fw *rule);
 struct namedobj_instance *ipfw_get_table_objhash(struct ip_fw_chain *ch);
 
 /* utility functions  */
-int ipfw_check_table_name(char *name);
 int ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
     uint32_t new_set);
 void ipfw_swap_tables_sets(struct ip_fw_chain *ch, uint32_t old_set,

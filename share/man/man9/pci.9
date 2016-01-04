@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2015
+.Dd December 23, 2015
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Nm pci_find_device ,
 .Nm pci_find_extcap ,
 .Nm pci_find_htcap ,
+.Nm pci_find_pcie_root_port ,
 .Nm pci_get_max_read_req ,
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
@@ -50,6 +51,8 @@
 .Nm pci_iov_detach ,
 .Nm pci_msi_count ,
 .Nm pci_msix_count ,
+.Nm pci_msix_pba_bar ,
+.Nm pci_msix_table_bar ,
 .Nm pci_pending_msix ,
 .Nm pci_read_config ,
 .Nm pci_release_msi ,
@@ -58,7 +61,10 @@
 .Nm pci_save_state ,
 .Nm pci_set_max_read_req ,
 .Nm pci_set_powerstate ,
-.Nm pci_write_config
+.Nm pci_write_config ,
+.Nm pcie_adjust_config ,
+.Nm pcie_read_config ,
+.Nm pcie_write_config
 .Nd PCI bus interface
 .Sh SYNOPSIS
 .In sys/bus.h
@@ -88,6 +94,8 @@
 .Fn pci_find_extcap "device_t dev" "int capability" "int *capreg"
 .Ft int
 .Fn pci_find_htcap "device_t dev" "int capability" "int *capreg"
+.Ft device_t
+.Fn pci_find_pcie_root_port "device_t dev"
 .Ft int
 .Fn pci_get_max_read_req "device_t dev"
 .Ft int
@@ -100,6 +108,10 @@
 .Fn pci_msi_count "device_t dev"
 .Ft int
 .Fn pci_msix_count "device_t dev"
+.Ft int
+.Fn pci_msix_pba_bar "device_t dev"
+.Ft int
+.Fn pci_msix_table_bar "device_t dev"
 .Ft int
 .Fn pci_pending_msix "device_t dev" "u_int index"
 .Ft uint32_t
@@ -118,6 +130,18 @@
 .Fn pci_set_powerstate "device_t dev" "int state"
 .Ft void
 .Fn pci_write_config "device_t dev" "int reg" "uint32_t val" "int width"
+.Ft uint32_t
+.Fo pcie_adjust_config
+.Fa "device_t dev"
+.Fa "int reg"
+.Fa "uint32_t mask"
+.Fa "uint32_t val"
+.Fa "int width"
+.Fc
+.Ft uint32_t
+.Fn pcie_read_config "device_t dev" "int reg" "int width"
+.Ft void
+.Fn pcie_write_config "device_t dev" "int reg" "uint32_t val" "int width"
 .In dev/pci/pci_iov.h
 .Ft int
 .Fn pci_iov_attach "device_t dev" "nvlist_t *pf_schema" "nvlist_t *vf_schema"
@@ -156,6 +180,48 @@ space of the device
 at offset
 .Fa reg ,
 with
+.Fa width
+specifying the size of the access.
+.Pp
+The
+.Fn pcie_adjust_config
+function is used to modify the value of a register in the PCI-express
+capability register set of device
+.Fa dev .
+The offset
+.Fa reg
+specifies a relative offset in the register set with
+.Fa width
+specifying the size of the access.
+The new value of the register is computed by modifying bits set in
+.Fa mask
+to the value in
+.Fa val .
+Any bits not specified in
+.Fa mask
+are preserved.
+The previous value of the register is returned.
+.Pp
+The
+.Fn pcie_read_config
+function is used to read the value of a register in the PCI-express
+capability register set of device
+.Fa dev .
+The offset
+.Fa reg
+specifies a relative offset in the register set with
+.Fa width
+specifying the size of the access.
+.Pp
+The
+.Fn pcie_write_config
+function is used to write the value
+.Fa val
+to a register in the PCI-express capability register set of device
+.Fa dev .
+The offset
+.Fa reg
+specifies a relative offset in the register set with
 .Fa width
 specifying the size of the access.
 .Pp
@@ -279,6 +345,16 @@ returns zero.
 If the capability is not found or the device is not a HyperTransport device,
 .Fn pci_find_htcap
 returns an error.
+.Pp
+The
+.Fn pci_find_pcie_root_port
+function walks up the PCI device hierarchy to locate the PCI-express root
+port upstream of
+.Fa dev .
+If a root port is not found,
+.Fn pci_find_pcie_root_port
+returns
+.Dv NULL .
 .Pp
 The
 .Fn pci_get_vpd_ident
@@ -624,6 +700,37 @@ then
 returns zero.
 .Pp
 The
+.Fn pci_msix_pba_bar
+function returns the offset in configuration space of the Base Address Register
+.Pq BAR
+containing the MSI-X Pending Bit Array (PBA) for device
+.Fa dev .
+The returned value can be used as the resource ID with
+.Xr bus_alloc_resource 9
+and
+.Xr bus_release_resource 9
+to allocate the BAR.
+If the device does not support MSI-X,
+then
+.Fn pci_msix_pba_bar
+returns -1.
+.Pp
+The
+.Fn pci_msix_table_bar
+function returns the offset in configuration space of the BAR
+containing the MSI-X vector table for device
+.Fa dev .
+The returned value can be used as the resource ID with
+.Xr bus_alloc_resource 9
+and
+.Xr bus_release_resource 9
+to allocate the BAR.
+If the device does not support MSI-X,
+then
+.Fn pci_msix_table_bar
+returns -1.
+.Pp
+The
 .Fn pci_alloc_msix
 function attempts to allocate
 .Fa *count
@@ -662,12 +769,21 @@ it returns an error.
 Unlike MSI,
 MSI-X does not require message counts that are powers of two.
 .Pp
+The BARs containing the MSI-X vector table and PBA must be
+allocated via
+.Xr bus_alloc_resource 9
+before calling
+.Fn pci_alloc_msix
+and must not be released until after calling
+.Fn pci_release_msi .
+Note that the vector table and PBA may be stored in the same BAR or in
+different BARs.
+.Pp
 The
 .Fn pci_pending_msix
 function examines the
 .Fa dev
-device's Pending Bit Array
-.Pq PBA
+device's PBA
 to determine the pending status of the MSI-X message at table index
 .Fa index .
 If the indicated message is pending,
@@ -783,3 +899,6 @@ These do not refer to the geographic location of PCI devices,
 but to the device number assigned by the combination of the PCI IDSEL
 mechanism and the platform firmware.
 This should be taken note of when working with the kernel PCI code.
+.Pp
+The PCI bus driver should allocate the MSI-X vector table and PBA internally
+as necessary rather than requiring the caller to do so.

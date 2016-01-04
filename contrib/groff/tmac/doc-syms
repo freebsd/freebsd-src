@@ -780,7 +780,6 @@
 .ds doc-str-Lb-libfetch    File Transfer Library for URLs (libfetch, \-lfetch)
 .ds doc-str-Lb-libform     Curses Form Library (libform, \-lform)
 .ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
-.ds doc-str-Lb-libgpib     General-Purpose Instrument Bus (GPIB) library (libgpib, \-lgpib)
 .ds doc-str-Lb-libi386     i386 Architecture Library (libi386, \-li386)
 .ds doc-str-Lb-libintl     Internationalized Message Handling Library (libintl, \-lintl)
 .ds doc-str-Lb-libipsec    IPsec Policy Control Library (libipsec, \-lipsec)

@@ -1,6 +1,5 @@
 #$FreeBSD$
 
-arm/arm/mpcore_timer.c				standard
 arm/ti/ti_smc.S					standard
 
 arm/ti/usb/omap_ehci.c				optional	usb ehci

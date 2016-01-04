@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-SUBDIR_PARALLEL=
-
 SUBDIR=									\
 	ARUBA_me							\
 	ARUBA_pfp							\

@@ -48,6 +48,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
+#include <sys/hhook.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
@@ -55,6 +56,7 @@
 #include <sys/proc.h>
 
 #include <net/if.h>
+#include <net/if_enc.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
 
@@ -806,6 +808,34 @@ ipsec6_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 }
 #endif
 
+int
+ipsec_run_hhooks(struct ipsec_ctx_data *ctx, int type)
+{
+	int idx;
+
+	switch (ctx->af) {
+#ifdef INET
+	case AF_INET:
+		idx = HHOOK_IPSEC_INET;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		idx = HHOOK_IPSEC_INET6;
+		break;
+#endif
+	default:
+		return (EPFNOSUPPORT);
+	}
+	if (type == HHOOK_TYPE_IPSEC_IN)
+		HHOOKS_RUN_IF(V_ipsec_hhh_in[idx], ctx, NULL);
+	else
+		HHOOKS_RUN_IF(V_ipsec_hhh_out[idx], ctx, NULL);
+	if (*ctx->mp == NULL)
+		return (EACCES);
+	return (0);
+}
+
 static void
 ipsec_delpcbpolicy(struct inpcbpolicy *p)
 {
@@ -1276,6 +1306,9 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 	int error;
 	int result;
 
+	if (!key_havesp(IPSEC_DIR_INBOUND))
+		return 0;
+
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 
 	/* Get SP for this packet. */
@@ -1402,6 +1435,9 @@ ipsec_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
 	struct secpolicy *sp;
 	int error;
 	size_t size;
+
+	if (!key_havesp(dir))
+		return 0;
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 

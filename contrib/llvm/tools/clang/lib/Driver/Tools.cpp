@@ -2460,6 +2460,28 @@ static OpenMPRuntimeKind getOpenMPRuntime(const ToolChain &TC,
   return RT;
 }
 
+static void addOpenMPRuntime(ArgStringList &CmdArgs, const ToolChain &TC,
+                              const ArgList &Args) {
+  if (!Args.hasFlag(options::OPT_fopenmp, options::OPT_fopenmp_EQ,
+                    options::OPT_fno_openmp, false))
+    return;
+
+  switch (getOpenMPRuntime(TC, Args)) {
+  case OMPRT_OMP:
+    CmdArgs.push_back("-lomp");
+    break;
+  case OMPRT_GOMP:
+    CmdArgs.push_back("-lgomp");
+    break;
+  case OMPRT_IOMP5:
+    CmdArgs.push_back("-liomp5");
+    break;
+  case OMPRT_Unknown:
+    // Already diagnosed.
+    break;
+  }
+}
+
 static void addSanitizerRuntime(const ToolChain &TC, const ArgList &Args,
                                 ArgStringList &CmdArgs, StringRef Sanitizer,
                                 bool IsShared) {
@@ -6527,24 +6549,6 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddAllArgs(CmdArgs, options::OPT_L);
 
-  if (Args.hasFlag(options::OPT_fopenmp, options::OPT_fopenmp_EQ,
-                   options::OPT_fno_openmp, false)) {
-    switch (getOpenMPRuntime(getToolChain(), Args)) {
-    case OMPRT_OMP:
-      CmdArgs.push_back("-lomp");
-      break;
-    case OMPRT_GOMP:
-      CmdArgs.push_back("-lgomp");
-      break;
-    case OMPRT_IOMP5:
-      CmdArgs.push_back("-liomp5");
-      break;
-    case OMPRT_Unknown:
-      // Already diagnosed.
-      break;
-    }
-  }
-
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs);
   // Build the input file for -filelist (list of linker input files) in case we
   // need it later
@@ -6562,6 +6566,10 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
     InputFileList.push_back(II.getFilename());
   }
+
+  if (!Args.hasArg(options::OPT_nostdlib) &&
+      !Args.hasArg(options::OPT_nodefaultlibs))
+    addOpenMPRuntime(CmdArgs, getToolChain(), Args);
 
   if (isObjCRuntimeLinked(Args) && !Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nodefaultlibs)) {
@@ -7358,6 +7366,7 @@ void freebsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nodefaultlibs)) {
+    addOpenMPRuntime(CmdArgs, ToolChain, Args);
     if (D.CCCIsCXX()) {
       ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
       if (Args.hasArg(options::OPT_pg))
@@ -7673,6 +7682,7 @@ void netbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nodefaultlibs)) {
+    addOpenMPRuntime(CmdArgs, getToolChain(), Args);
     if (D.CCCIsCXX()) {
       getToolChain().AddCXXStdlibLibArgs(Args, CmdArgs);
       CmdArgs.push_back("-lm");

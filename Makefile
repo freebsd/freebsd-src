@@ -57,8 +57,8 @@
 # Makefile.inc1.  The exceptions are universe, tinderbox and targets.
 #
 # If you want to build your system from source be sure that /usr/obj has
-# at least 1GB of diskspace available.  A complete 'universe' build requires
-# about 15GB of space.
+# at least 6GB of diskspace available.  A complete 'universe' build requires
+# about 100GB of space.
 #
 # For individuals wanting to build from the sources currently on their
 # system, the simple instructions are:
@@ -100,16 +100,20 @@
 # For more information, see the build(7) manual page.
 #
 
+# This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
+# can be cached for sub-makes.
+.include <bsd.compiler.mk>
+
 # Note: we use this awkward construct to be compatible with FreeBSD's
 # old make used in 10.0 and 9.2 and earlier.
-.if defined(MK_META_MODE) && ${MK_META_MODE} == "yes" && !make(showconfig)
+.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && !make(showconfig)
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
 .else
 
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check-old check-old-dirs check-old-files check-old-libs \
-	checkdpadd clean cleandepend cleandir \
+	checkdpadd clean cleandepend cleandir cleanworld \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
 	distributeworld distrib-dirs distribution doxygen \
@@ -177,7 +181,7 @@ _MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=$
 _TARGET_ARCH=	${TARGET:S/pc98/i386/:S/arm64/aarch64/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/}
+_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/aarch64/arm64/:C/powerpc64/powerpc/:C/riscv64/riscv/}
 .endif
 .if defined(TARGET) && !defined(_TARGET)
 _TARGET=${TARGET}
@@ -209,49 +213,11 @@ buildworld: upgrade_checks
 .endif
 
 #
-# This 'cleanworld' target is not included in TGTS, because it is not a
-# recursive target.  All of the work for it is done right here.   It is
-# expected that BW_CANONICALOBJDIR == the CANONICALOBJDIR as would be
-# created by bsd.obj.mk, except that we don't want to .include that file
-# in this makefile.  
-#
-# In the following, the first 'rm' in a series will usually remove all
-# files and directories.  If it does not, then there are probably some
-# files with file flags set, so this unsets them and tries the 'rm' a
-# second time.  There are situations where this target will be cleaning
-# some directories via more than one method, but that duplication is
-# needed to correctly handle all the possible situations.  Removing all
-# files without file flags set in the first 'rm' instance saves time,
-# because 'chflags' will need to operate on fewer files afterwards.
-#
-BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
-cleanworld:
-.if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
-.if exists(${BW_CANONICALOBJDIR}/)
-	-rm -rf ${BW_CANONICALOBJDIR}/*
-	-chflags -R 0 ${BW_CANONICALOBJDIR}
-	rm -rf ${BW_CANONICALOBJDIR}/*
-.endif
-	#   To be safe in this case, fall back to a 'make cleandir'
-	${_+_}@cd ${.CURDIR}; ${_MAKE} cleandir
-.else
-	-rm -rf ${.OBJDIR}/*
-	-chflags -R 0 ${.OBJDIR}
-	rm -rf ${.OBJDIR}/*
-.endif
-
-#
 # Handle the user-driven targets, using the source relative mk files.
 #
 
-.if !(!empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n")
-# skip this for -n to avoid changing previous behavior of 
-# 'make -n buildworld' etc.  Using -n -n will run it.
-${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
-.endif
-
-${TGTS}: .PHONY
+${TGTS}: .PHONY .MAKE
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # The historic default "all" target creates files which may cause stale
@@ -260,9 +226,9 @@ ${TGTS}: .PHONY
 # if they want the historic behavior.
 .MAIN:	_guard
 
-_guard:
+_guard: .PHONY
 	@echo
-	@echo "Explicit target required (use \"all\" for historic behavior)"
+	@echo "Explicit target required.  Likely \"${SUBDIR_OVERRIDE:Dall:Ubuildworld}\" is wanted.  See build(7)."
 	@echo
 	@false
 
@@ -358,21 +324,21 @@ bmake: .PHONY
 	@echo ">>> Building an up-to-date ${.TARGET}(1)"
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
-		${MMAKE} obj && \
-		${MMAKE} depend && \
-		${MMAKE} all && \
+		${MMAKE} obj; \
+		${MMAKE} depend; \
+		${MMAKE} all; \
 		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
 
 tinderbox toolchains kernel-toolchains: upgrade_checks
 
 tinderbox:
-	@cd ${.CURDIR} && ${SUB_MAKE} DOING_TINDERBOX=YES universe
+	@cd ${.CURDIR}; ${SUB_MAKE} DOING_TINDERBOX=YES universe
 
 toolchains:
-	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=toolchain universe
+	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=toolchain universe
 
 kernel-toolchains:
-	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
+	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
 
 #
 # universe
@@ -470,7 +436,7 @@ universe_${target}_kernels: universe_${target}_prologue .MAKE
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
 .endif
-	@cd ${.CURDIR} && ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
+	@cd ${.CURDIR}; ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
 .endif # !MAKE_JUST_WORLDS
 
@@ -533,15 +499,15 @@ buildLINT:
 # This makefile does not run in meta mode
 .MAKE.MODE= normal
 # Normally the things we run from here don't either.
-# Using -DWITH_META_FILES
+# Using -DWITH_META_MODE
 # we can buildworld with meta files created which are useful 
 # for debugging, but without any of the rest of a meta mode build.
-MK_META_MODE= no
+MK_DIRDEPS_BUILD= no
 MK_STAGING= no
 # tell meta.autodep.mk to not even think about updating anything.
 UPDATE_DEPENDFILE= NO
 .if !make(showconfig)
-.export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
+.export MK_DIRDEPS_BUILD MK_STAGING UPDATE_DEPENDFILE
 .endif
 
 .if make(universe)
@@ -551,4 +517,4 @@ MAKE_JOB_ERROR_TOKEN= no
 .endif
 .endif # bmake
 
-.endif				# META_MODE
+.endif				# DIRDEPS_BUILD

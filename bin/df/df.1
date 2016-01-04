@@ -29,7 +29,7 @@
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2014
+.Dd December 1, 2015
 .Dt DF 1
 .Os
 .Sh NAME
@@ -62,6 +62,13 @@ option below).
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl a
 Show all mount points, including those that were mounted with the
 .Dv MNT_IGNORE

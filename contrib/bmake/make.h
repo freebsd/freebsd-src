@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.95 2014/09/07 20:55:34 joerg Exp $	*/
+/*	$NetBSD: make.h,v 1.96 2015/09/21 21:50:16 pooka Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -519,8 +519,15 @@ int str2Lst_Append(Lst, char *, const char *);
 #define MAX(a, b) ((a > b) ? a : b)
 #endif
 
+/* At least GNU/Hurd systems lack hardcoded MAXPATHLEN/PATH_MAX */
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifndef MAXPATHLEN
-#define MAXPATHLEN BMAKE_PATH_MAX
+#define MAXPATHLEN	BMAKE_PATH_MAX
+#endif
+#ifndef PATH_MAX
+#define PATH_MAX	MAXPATHLEN
 #endif
 
 #endif /* _MAKE_H_ */

@@ -42,6 +42,10 @@ MSVCToolChain.o: Options.inc.h
 MSVCToolChain.po: DiagnosticCommonKinds.inc.h
 MSVCToolChain.po: DiagnosticDriverKinds.inc.h
 MSVCToolChain.po: Options.inc.h
+MinGWToolChain.o: DiagnosticCommonKinds.inc.h
+MinGWToolChain.o: Options.inc.h
+MinGWToolChain.po: DiagnosticCommonKinds.inc.h
+MinGWToolChain.po: Options.inc.h
 Multilib.o: Options.inc.h
 Multilib.po: Options.inc.h
 SanitizerArgs.o: DiagnosticCommonKinds.inc.h

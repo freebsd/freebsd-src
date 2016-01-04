@@ -94,11 +94,11 @@ __FBSDID("$FreeBSD$");
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE3(proc, kernel, , signal__send, "struct thread *",
-    "struct proc *", "int");
-SDT_PROBE_DEFINE2(proc, kernel, , signal__clear, "int",
-    "ksiginfo_t *");
-SDT_PROBE_DEFINE3(proc, kernel, , signal__discard,
+SDT_PROBE_DEFINE3(proc, , , signal__send,
+    "struct thread *", "struct proc *", "int");
+SDT_PROBE_DEFINE2(proc, , , signal__clear,
+    "int", "ksiginfo_t *");
+SDT_PROBE_DEFINE3(proc, , , signal__discard,
     "struct thread *", "struct proc *", "int");
 
 static int	coredump(struct thread *);
@@ -1308,7 +1308,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		reschedule_signals(p, new_block, 0);
 
 	if (error == 0) {
-		SDT_PROBE2(proc, kernel, , signal__clear, sig, ksi);
+		SDT_PROBE2(proc, , , signal__clear, sig, ksi);
 
 		if (ksi->ksi_code == SI_TIMER)
 			itimer_accept(p, ksi->ksi_timerid, ksi);
@@ -2121,7 +2121,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	} else
 		sigqueue = &td->td_sigqueue;
 
-	SDT_PROBE3(proc, kernel, , signal__send, td, p, sig);
+	SDT_PROBE3(proc, , , signal__send, td, p, sig);
 
 	/*
 	 * If the signal is being ignored,
@@ -2132,7 +2132,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 */
 	mtx_lock(&ps->ps_mtx);
 	if (SIGISMEMBER(ps->ps_sigignore, sig)) {
-		SDT_PROBE3(proc, kernel, , signal__discard, td, p, sig);
+		SDT_PROBE3(proc, , , signal__discard, td, p, sig);
 
 		mtx_unlock(&ps->ps_mtx);
 		if (ksi && (ksi->ksi_flags & KSI_INS))
@@ -2501,7 +2501,12 @@ ptracestop(struct thread *td, int sig)
 	    td->td_tid, p->p_pid, td->td_dbgflags, sig);
 	PROC_SLOCK(p);
 	while ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_XSIG)) {
-		if (p->p_flag & P_SINGLE_EXIT) {
+		if (p->p_flag & P_SINGLE_EXIT &&
+		    !(td->td_dbgflags & TDB_EXIT)) {
+			/*
+			 * Ignore ptrace stops except for thread exit
+			 * events when the process exits.
+			 */
 			td->td_dbgflags &= ~TDB_XSIG;
 			PROC_SUNLOCK(p);
 			return (sig);

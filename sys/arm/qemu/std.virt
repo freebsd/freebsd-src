@@ -2,7 +2,6 @@
 machine		arm	armv6
 cpu 		CPU_CORTEXA
 makeoptions	CONF_CFLAGS="-march=armv7a"
-makeoptions	ARM_LITTLE_ENDIAN
 options		ARM_L2_PIPT
 
 options 	KERNVIRTADDR		= 0xc1000000

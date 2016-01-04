@@ -117,11 +117,11 @@ hunt_filter_set_entry_not_auto_old(
 	EFSYS_ASSERT(hunt_filter_entry_spec(hftp, index) != NULL);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_init(
 	__in		efx_nic_t *enp)
 {
-	int rc;
+	efx_rc_t rc;
 	hunt_filter_table_t *hftp;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
@@ -161,7 +161,7 @@ hunt_filter_init(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -178,7 +178,7 @@ hunt_filter_fini(
 	}
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_filter_op_add(
 	__in		efx_nic_t *enp,
 	__in		efx_filter_spec_t *spec,
@@ -189,7 +189,7 @@ efx_mcdi_filter_op_add(
 	uint8_t payload[MAX(MC_CMD_FILTER_OP_IN_LEN,
 			    MC_CMD_FILTER_OP_OUT_LEN)];
 	uint32_t match_fields = 0;
-	int rc;
+	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
@@ -312,13 +312,13 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_filter_op_delete(
 	__in		efx_nic_t *enp,
 	__in		unsigned int filter_op,
@@ -327,7 +327,7 @@ efx_mcdi_filter_op_delete(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FILTER_OP_IN_LEN,
 			    MC_CMD_FILTER_OP_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
@@ -374,7 +374,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -477,7 +477,7 @@ hunt_filter_is_exclusive(
 	return (B_FALSE);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_restore(
 	__in		efx_nic_t *enp)
 {
@@ -486,7 +486,7 @@ hunt_filter_restore(
 	hunt_filter_table_t *hftp = enp->en_filter.ef_hunt_filter_table;
 	boolean_t restoring;
 	int state;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -533,7 +533,7 @@ hunt_filter_restore(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -544,14 +544,14 @@ fail1:
  */
 #define	EFX_HUNT_FILTER_SEARCH_LIMIT 200
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 hunt_filter_add_internal(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec,
 	__in		boolean_t may_replace,
 	__out_opt	uint32_t *filter_id)
 {
-	int rc;
+	efx_rc_t rc;
 	hunt_filter_table_t *hftp = enp->en_filter.ef_hunt_filter_table;
 	efx_filter_spec_t *saved_spec;
 	uint32_t hash;
@@ -723,7 +723,7 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	if (locked)
 		EFSYS_UNLOCK(enp->en_eslp, state);
@@ -731,13 +731,13 @@ fail1:
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_add(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec,
 	__in		boolean_t may_replace)
 {
-	int rc;
+	efx_rc_t rc;
 
 	rc = hunt_filter_add_internal(enp, spec, may_replace, NULL);
 	if (rc != 0)
@@ -746,18 +746,18 @@ hunt_filter_add(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 hunt_filter_delete_internal(
 	__in		efx_nic_t *enp,
 	__in		uint32_t filter_id)
 {
-	int rc;
+	efx_rc_t rc;
 	hunt_filter_table_t *table = enp->en_filter.ef_hunt_filter_table;
 	efx_filter_spec_t *spec;
 	int state;
@@ -818,17 +818,17 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_delete(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec)
 {
-	int rc;
+	efx_rc_t rc;
 	hunt_filter_table_t *table = enp->en_filter.ef_hunt_filter_table;
 	efx_filter_spec_t *saved_spec;
 	unsigned int hash;
@@ -872,7 +872,7 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	if (locked)
 		EFSYS_UNLOCK(enp->en_eslp, state);
@@ -880,7 +880,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_get_parser_disp_info(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *list,
@@ -889,7 +889,7 @@ efx_mcdi_get_parser_disp_info(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PARSER_DISP_INFO_IN_LEN,
 			    MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX)];
-	int rc;
+	efx_rc_t rc;
 	uint32_t i;
 	boolean_t support_unknown_ucast = B_FALSE;
 	boolean_t support_unknown_mcast = B_FALSE;
@@ -955,18 +955,18 @@ efx_mcdi_get_parser_disp_info(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_supported_filters(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *list,
 	__out		size_t *length)
 {
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_get_parser_disp_info(enp, list, length) != 0))
 		goto fail1;
@@ -974,12 +974,12 @@ hunt_filter_supported_filters(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 hunt_filter_unicast_refresh(
 	__in				efx_nic_t *enp,
 	__in_ecount(6)			uint8_t const *addr,
@@ -988,7 +988,7 @@ hunt_filter_unicast_refresh(
 {
 	hunt_filter_table_t *hftp = enp->en_filter.ef_hunt_filter_table;
 	efx_filter_spec_t spec;
-	int rc;
+	efx_rc_t rc;
 
 	if (all_unicst == B_TRUE)
 		goto use_uc_def;
@@ -1028,7 +1028,7 @@ use_uc_def:
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	if (hftp->hft_unicst_filter_set != B_FALSE) {
 		(void) hunt_filter_delete_internal(enp,
@@ -1040,7 +1040,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 hunt_filter_multicast_refresh(
 	__in				efx_nic_t *enp,
 	__in				boolean_t mulcst,
@@ -1054,7 +1054,7 @@ hunt_filter_multicast_refresh(
 	efx_filter_spec_t spec;
 	uint8_t addr[6];
 	unsigned i;
-	int rc;
+	efx_rc_t rc;
 
 	if (all_mulcst == B_TRUE)
 		goto use_mc_def;
@@ -1142,21 +1142,21 @@ use_mc_def:
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 hunt_filter_get_workarounds(
 	__in				efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	uint32_t implemented = 0;
 	uint32_t enabled = 0;
-	int rc;
+	efx_rc_t rc;
 
 	rc = efx_mcdi_get_workarounds(enp, &implemented, &enabled);
 	if (rc == 0) {
@@ -1178,7 +1178,7 @@ hunt_filter_get_workarounds(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 
@@ -1191,7 +1191,7 @@ fail1:
  * return ENOTSUP (Note the filters for the specified addresses are
  * still applied in this case).
  */
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_reconfigure(
 	__in				efx_nic_t *enp,
 	__in_ecount(6)			uint8_t const *mac_addr,
@@ -1207,7 +1207,7 @@ hunt_filter_reconfigure(
 	unsigned i;
 	int all_unicst_rc;
 	int all_mulcst_rc;
-	int rc;
+	efx_rc_t rc;
 
 	if (table->hft_default_rxq == NULL) {
 		/*
@@ -1316,7 +1316,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	/* Clear auto old flags */
 	for (i = 0; i < EFX_ARRAY_SIZE(table->hft_entry); i++) {

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2015
+.Dd November 18, 2015
 .Dt WITNESS 4
 .Os
 .Sh NAME
@@ -47,7 +47,8 @@ Each time a lock is acquired,
 uses these two lists to verify that a lock is not being acquired in the
 wrong order.
 If a lock order violation is detected, then a message is output to the
-kernel console detailing the locks involved and the locations in question.
+kernel console or log detailing the locks involved and the locations in
+question.
 Witness can also be configured to drop into the kernel debugger when an order
 violation occurs.
 .Pp
@@ -123,6 +124,21 @@ cannot be enabled again.
 The sysctl
 .Va debug.witness.watch
 can be set via
+.Xr loader 8 .
+.Pp
+The sysctl
+.Va debug.witness.output_channel
+specifies the output channel used to display warnings emitted by
+.Nm .
+The possible values are
+.Ql console ,
+indicating that warnings are to be printed to the system console,
+.Ql log ,
+indicating that warnings are to be logged via
+.Xr log 9 ,
+and
+.Ql none .
+This sysctl can be set via
 .Xr loader 8 .
 .Pp
 The

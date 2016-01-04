@@ -3,7 +3,6 @@
 PROG=	juggle
 MAN=
 WARNS?=	3
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 
 .include <bsd.prog.mk>

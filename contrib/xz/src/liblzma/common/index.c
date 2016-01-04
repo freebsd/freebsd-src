@@ -339,7 +339,7 @@ index_tree_locate(const index_tree *tree, lzma_vli target)
 /// Allocate and initialize a new Stream using the given base offsets.
 static index_stream *
 index_stream_init(lzma_vli compressed_base, lzma_vli uncompressed_base,
-		lzma_vli stream_number, lzma_vli block_number_base,
+		uint32_t stream_number, lzma_vli block_number_base,
 		const lzma_allocator *allocator)
 {
 	index_stream *s = lzma_alloc(sizeof(index_stream), allocator);
@@ -1008,6 +1008,8 @@ iter_set_info(lzma_index_iter *iter)
 		iter->internal[ITER_GROUP].p = NULL;
 	}
 
+	// NOTE: lzma_index_iter.stream.number is lzma_vli but we use uint32_t
+	// internally.
 	iter->stream.number = stream->number;
 	iter->stream.block_count = stream->record_count;
 	iter->stream.compressed_offset = stream->node.compressed_base;

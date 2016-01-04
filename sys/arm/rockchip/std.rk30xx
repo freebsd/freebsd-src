@@ -4,16 +4,6 @@
 cpu		CPU_CORTEXA
 machine		arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
-makeoption	ARM_LITTLE_ENDIAN
-
-# Physical memory starts at 0x60400000.  We assume images are loaded at
-# 0x60400000.
-#
-#
-options		PHYSADDR=0x60000000
-
-makeoptions	KERNPHYSADDR=0x60400000
-options		KERNPHYSADDR=0x60400000
 
 makeoptions	KERNVIRTADDR=0xc0400000
 options		KERNVIRTADDR=0xc0400000

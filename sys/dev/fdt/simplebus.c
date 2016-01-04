@@ -304,6 +304,8 @@ simplebus_get_devinfo(device_t bus __unused, device_t child)
         struct simplebus_devinfo *ndi;
         
         ndi = device_get_ivars(child);
+	if (ndi == NULL)
+		return (NULL);
         return (&ndi->obdinfo);
 }
 
@@ -313,6 +315,8 @@ simplebus_get_resource_list(device_t bus __unused, device_t child)
 	struct simplebus_devinfo *ndi;
 
 	ndi = device_get_ivars(child);
+	if (ndi == NULL)
+		return (NULL);
 	return (&ndi->rl);
 }
 
@@ -380,6 +384,8 @@ simplebus_print_res(struct simplebus_devinfo *di)
 {
 	int rv;
 
+	if (di == NULL)
+		return (0);
 	rv = 0;
 	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
 	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");

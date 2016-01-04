@@ -75,9 +75,10 @@ typedef __ptrdiff_t	fptrdiff_t;
  * to be restored to what it was on entry to the profiled routine.
  */
 
-#ifdef __powerpc64__
-#define	MCOUNT					\
-__asm(	"	.text				\n" \
+#if defined(__powerpc64__)
+
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
+#define MCOUNT_PREAMBLE \
 	"	.align	2			\n" \
 	"	.globl	_mcount			\n" \
 	"	.section \".opd\",\"aw\"	\n" \
@@ -88,7 +89,17 @@ __asm(	"	.text				\n" \
 	"	.size   _mcount,24		\n" \
 	"	.type	_mcount,@function	\n" \
 	"	.align	4			\n" \
-	".L._mcount:				\n" \
+	".L._mcount:				\n" 
+#else
+#define MCOUNT_PREAMBLE \
+	"	.globl	_mcount			\n" \
+	"	.type	_mcount,@function	\n" \
+	"	.align	4			\n" \
+	"_mcount:				\n"
+#endif
+
+#define	MCOUNT					\
+__asm(	MCOUNT_PREAMBLE \
 	"	stdu	%r1,-(288+128)(%r1)	\n" \
 	"	std	%r3,48(%r1)		\n" \
 	"	std	%r4,56(%r1)		\n" \

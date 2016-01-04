@@ -1,5 +1,4 @@
 /* $OpenBSD: packet.c,v 1.192 2014/02/02 03:44:31 djm Exp $ */
-/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -203,9 +202,6 @@ struct session_state {
 };
 
 static struct session_state *active_state, *backup_state;
-#ifdef	NONE_CIPHER_ENABLED
-static int rekey_requested = 0;
-#endif
 
 static struct session_state *
 alloc_session_state(void)
@@ -1317,7 +1313,6 @@ packet_read_poll2(u_int32_t *seqnr_p)
 		    buffer_ptr(&active_state->input), block_size, 0, 0) != 0)
 			fatal("Decryption integrity check failed");
 		cp = buffer_ptr(&active_state->incoming_packet);
-
 		active_state->packlen = get_u32(cp);
 		if (active_state->packlen < 1 + 4 ||
 		    active_state->packlen > PACKET_MAX_SIZE) {
@@ -1944,26 +1939,12 @@ packet_send_ignore(int nbytes)
 	}
 }
 
-#ifdef	NONE_CIPHER_ENABLED
-void
-packet_request_rekeying(void)
-{
-	rekey_requested = 1;
-}
-#endif
-
 #define MAX_PACKETS	(1U<<31)
 int
 packet_need_rekeying(void)
 {
 	if (datafellows & SSH_BUG_NOREKEY)
 		return 0;
-#ifdef	NONE_CIPHER_ENABLED
-	if (rekey_requested == 1) {
-		rekey_requested = 0;
-		return 1;
-	}
-#endif
 	return
 	    (active_state->p_send.packets > MAX_PACKETS) ||
 	    (active_state->p_read.packets > MAX_PACKETS) ||
@@ -2075,11 +2056,3 @@ packet_restore_state(void)
 		add_recv_bytes(len);
 	}
 }
-
-#ifdef	NONE_CIPHER_ENABLED
-int
-packet_get_authentication_state(void)
-{
-	return (active_state->after_authentication);
-}
-#endif

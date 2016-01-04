@@ -370,6 +370,9 @@ int MAIN(int argc, char **argv)
         } else
             nid = OBJ_sn2nid(curve_name);
 
+        if (nid == 0)
+            nid = EC_curve_nist2nid(curve_name);
+
         if (nid == 0) {
             BIO_printf(bio_err, "unknown curve name (%s)\n", curve_name);
             goto end;
@@ -413,14 +416,13 @@ int MAIN(int argc, char **argv)
     }
 
     if (check) {
-        if (group == NULL)
-            BIO_printf(bio_err, "no elliptic curve parameters\n");
         BIO_printf(bio_err, "checking elliptic curve parameters: ");
         if (!EC_GROUP_check(group, NULL)) {
             BIO_printf(bio_err, "failed\n");
             ERR_print_errors(bio_err);
-        } else
-            BIO_printf(bio_err, "ok\n");
+            goto end;
+        }
+        BIO_printf(bio_err, "ok\n");
 
     }
 

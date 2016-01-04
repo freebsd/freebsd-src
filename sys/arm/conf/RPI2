@@ -53,6 +53,9 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
+# ARM Generic Timer
+device		generic_timer
+
 device		bpf
 device		loop
 device		ether

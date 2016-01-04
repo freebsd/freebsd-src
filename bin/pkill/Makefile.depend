@@ -9,6 +9,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libelf \
 	lib/libjail \
 	lib/libkvm \
 

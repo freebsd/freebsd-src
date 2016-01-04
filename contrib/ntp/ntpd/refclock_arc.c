@@ -657,7 +657,7 @@ arc_start(
 		return 0;
 	}
 	close(temp_fd);
-	temp_fd = -1;
+	temp_fd = -1;		/* not used after this, at *this* time. */
 
 #ifndef SYS_WINNT
 	if (-1 == fcntl(fd, F_SETFL, 0)) /* clear the descriptor flags */

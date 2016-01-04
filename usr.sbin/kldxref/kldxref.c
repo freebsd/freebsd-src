@@ -34,6 +34,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/exec.h>
 #include <sys/queue.h>
 #include <sys/kernel.h>
@@ -53,7 +54,7 @@
 
 #include "ef.h"
 
-#define	MAXRECSIZE	8192
+#define	MAXRECSIZE	(64 << 10)	/* 64k */
 #define check(val)	if ((error = (val)) != 0) break
 
 static int dflag;	/* do not create a hint file, only write on stdout */
@@ -134,14 +135,244 @@ record_string(const char *str)
 	return record_buf(str, len);
 }
 
+/* From sys/isa/pnp.c */
+static char *
+pnp_eisaformat(uint32_t id)
+{
+	uint8_t *data;
+	static char idbuf[8];
+	const char  hextoascii[] = "0123456789abcdef";
+
+	id = htole32(id);
+	data = (uint8_t *)&id;
+	idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
+	idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
+	idbuf[2] = '@' + (data[1] & 0x1f);
+	idbuf[3] = hextoascii[(data[2] >> 4)];
+	idbuf[4] = hextoascii[(data[2] & 0xf)];
+	idbuf[5] = hextoascii[(data[3] >> 4)];
+	idbuf[6] = hextoascii[(data[3] & 0xf)];
+	idbuf[7] = 0;
+	return(idbuf);
+}
+
+struct pnp_elt
+{
+	int	pe_kind;	/* What kind of entry */
+#define TYPE_SZ_MASK	0x0f
+#define TYPE_FLAGGED	0x10	/* all f's is a wildcard */
+#define	TYPE_INT	0x20	/* Is a number */
+#define TYPE_PAIRED	0x40
+#define TYPE_LE		0x80	/* Matches <= this value */
+#define TYPE_GE		0x100	/* Matches >= this value */
+#define TYPE_MASK	0x200	/* Specifies a mask to follow */
+#define TYPE_U8		(1 | TYPE_INT)
+#define TYPE_V8		(1 | TYPE_INT | TYPE_FLAGGED)
+#define TYPE_G16	(2 | TYPE_INT | TYPE_GE)
+#define TYPE_L16	(2 | TYPE_INT | TYPE_LE)
+#define TYPE_M16	(2 | TYPE_INT | TYPE_MASK)
+#define TYPE_U16	(2 | TYPE_INT)
+#define TYPE_V16	(2 | TYPE_INT | TYPE_FLAGGED)
+#define TYPE_U32	(4 | TYPE_INT)
+#define TYPE_V32	(4 | TYPE_INT | TYPE_FLAGGED)
+#define TYPE_W32	(4 | TYPE_INT | TYPE_PAIRED)
+#define TYPE_D		7
+#define TYPE_Z		8
+#define TYPE_P		9
+#define TYPE_E		10
+#define TYPE_T		11
+	int	pe_offset;	/* Offset within the element */
+	char *	pe_key;		/* pnp key name */
+	TAILQ_ENTRY(pnp_elt) next; /* Link */
+};
+typedef TAILQ_HEAD(pnp_head, pnp_elt) pnp_list;
+
+/*
+ * this function finds the data from the pnp table, as described by the
+ * the description and creates a new output (new_desc). This output table
+ * is a form that's easier for the agent that's automatically loading the
+ * modules.
+ *
+ * The format output is the simplified string from this routine in the
+ * same basic format as the pnp string, as documented in sys/module.h.
+ * First a string describing the format is output, the a count of the
+ * number of records, then each record. The format string also describes
+ * the length of each entry (though it isn't a fixed length when strings
+ * are present).
+ *
+ *	type	Output		Meaning
+ *	I	uint32_t	Integer equality comparison
+ *	J	uint32_t	Pair of uint16_t fields converted to native
+				byte order. The two fields both must match.
+ *	G	uint32_t	Greater than or equal to
+ *	L	uint32_t	Less than or equal to
+ *	M	uint32_t	Mask of which fields to test. Fields that
+				take up space increment the count. This
+				field must be first, and resets the count.
+ *	D	string		Description of the device this pnp info is for
+ *	Z	string		pnp string must match this
+ *	T	nothing		T fields set pnp values that must be true for
+ *				the entire table.
+ * Values are packed the same way that other values are packed in this file.
+ * Strings and int32_t's start on a 32-bit boundary and are padded with 0
+ * bytes. Objects that are smaller than uint32_t are converted, without
+ * sign extension to uint32_t to simplify parsing downstream.
+ */
+static int
+parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
+{
+	const char *walker = desc, *ep = desc + strlen(desc);
+	const char *colon, *semi;
+	struct pnp_elt *elt;
+	char *nd;
+	char type[8], key[32];
+	int off;
+
+	off = 0;
+	nd = *new_desc = malloc(strlen(desc) + 1);
+	if (verbose > 1)
+		printf("Converting %s into a list\n", desc);
+	while (walker < ep) {
+		colon = strchr(walker, ':');
+		semi = strchr(walker, ';');
+		if (semi != NULL && semi < colon)
+			goto err;
+		if (colon - walker > sizeof(type))
+			goto err;
+		strncpy(type, walker, colon - walker);
+		type[colon - walker] = '\0';
+		if (semi) {
+			if (semi - colon >= sizeof(key))
+				goto err;
+			strncpy(key, colon + 1, semi - colon - 1);
+			key[semi - colon - 1] = '\0';
+			walker = semi + 1;
+		} else {
+			if (strlen(colon + 1) >= sizeof(key))
+				goto err;
+			strcpy(key, colon + 1);
+			walker = ep;
+		}
+		if (verbose > 1)
+			printf("Found type %s for name %s\n", type, key);
+		/* Skip pointer place holders */
+		if (strcmp(type, "P") == 0) {
+			off += sizeof(void *);
+			continue;
+		}
+
+		/*
+		 * Add a node of the appropriate type
+		 */
+		elt = malloc(sizeof(struct pnp_elt) + strlen(key) + 1);
+		TAILQ_INSERT_TAIL(list, elt, next);
+		elt->pe_key = (char *)(elt + 1);
+		elt->pe_offset = off;
+		if (strcmp(type, "U8") == 0)
+			elt->pe_kind = TYPE_U8;
+		else if (strcmp(type, "V8") == 0)
+			elt->pe_kind = TYPE_V8;
+		else if (strcmp(type, "G16") == 0)
+			elt->pe_kind = TYPE_G16;
+		else if (strcmp(type, "L16") == 0)
+			elt->pe_kind = TYPE_L16;
+		else if (strcmp(type, "M16") == 0)
+			elt->pe_kind = TYPE_M16;
+		else if (strcmp(type, "U16") == 0)
+			elt->pe_kind = TYPE_U16;
+		else if (strcmp(type, "V16") == 0)
+			elt->pe_kind = TYPE_V16;
+		else if (strcmp(type, "U32") == 0)
+			elt->pe_kind = TYPE_U32;
+		else if (strcmp(type, "V32") == 0)
+			elt->pe_kind = TYPE_V32;
+		else if (strcmp(type, "W32") == 0)
+			elt->pe_kind = TYPE_W32;
+		else if (strcmp(type, "D") == 0)	/* description char * */
+			elt->pe_kind = TYPE_D;
+		else if (strcmp(type, "Z") == 0)	/* char * to match */
+			elt->pe_kind = TYPE_Z;
+		else if (strcmp(type, "P") == 0)	/* Pointer -- ignored */
+			elt->pe_kind = TYPE_P;
+		else if (strcmp(type, "E") == 0)	/* EISA PNP ID, as uint32_t */
+			elt->pe_kind = TYPE_E;
+		else if (strcmp(type, "T") == 0)
+			elt->pe_kind = TYPE_T;
+		else
+			goto err;
+		/*
+		 * Maybe the rounding here needs to be more nuanced and/or somehow
+		 * architecture specific. Fortunately, most tables in the system
+		 * have sane ordering of types.
+		 */
+		if (elt->pe_kind & TYPE_INT) {
+			elt->pe_offset = roundup2(elt->pe_offset, elt->pe_kind & TYPE_SZ_MASK);
+			off = elt->pe_offset + (elt->pe_kind & TYPE_SZ_MASK);
+		} else if (elt->pe_kind == TYPE_E) {
+			/* Type E stored as Int, displays as string */
+			elt->pe_offset = roundup2(elt->pe_offset, sizeof(uint32_t));
+			off = elt->pe_offset + sizeof(uint32_t);
+		} else if (elt->pe_kind == TYPE_T) {
+			/* doesn't actually consume space in the table */
+			off = elt->pe_offset;
+		} else {
+			elt->pe_offset = roundup2(elt->pe_offset, sizeof(void *));
+			off = elt->pe_offset + sizeof(void *);
+		}
+		if (elt->pe_kind & TYPE_PAIRED) {
+			char *word, *ctx;
+
+			for (word = strtok_r(key, "/", &ctx);
+			     word; word = strtok_r(NULL, "/", &ctx)) {
+				sprintf(nd, "%c:%s;", elt->pe_kind & TYPE_FLAGGED ? 'J' : 'I',
+				    word);
+				nd += strlen(nd);
+			}
+			
+		}
+		else {
+			if (elt->pe_kind & TYPE_FLAGGED)
+				*nd++ = 'J';
+			else if (elt->pe_kind & TYPE_GE)
+				*nd++ = 'G';
+			else if (elt->pe_kind & TYPE_LE)
+				*nd++ = 'L';
+			else if (elt->pe_kind & TYPE_MASK)
+				*nd++ = 'M';
+			else if (elt->pe_kind & TYPE_INT)
+				*nd++ = 'I';
+			else if (elt->pe_kind == TYPE_D)
+				*nd++ = 'D';
+			else if (elt->pe_kind == TYPE_Z || elt->pe_kind == TYPE_E)
+				*nd++ = 'Z';
+			else if (elt->pe_kind == TYPE_T)
+				*nd++ = 'T';
+			else
+				errx(1, "Impossible type %x\n", elt->pe_kind);
+			*nd++ = ':';
+			strcpy(nd, key);
+			nd += strlen(nd);
+			*nd++ = ';';
+		}
+	}
+	*nd++ = '\0';
+	return 0;
+err:
+	errx(1, "Parse error of description string %s", desc);
+}
+
 static int
 parse_entry(struct mod_metadata *md, const char *cval,
     struct elf_file *ef, const char *kldname)
 {
 	struct mod_depend mdp;
 	struct mod_version mdv;
+	struct mod_pnp_match_info pnp;
+	char descr[1024];
 	Elf_Off data = (Elf_Off)md->md_data;
-	int error = 0;
+	int error = 0, i, len;
+	char *walker;
+	void *table;
 
 	record_start();
 	switch (md->md_type) {
@@ -173,9 +404,119 @@ parse_entry(struct mod_metadata *md, const char *cval,
 		}
 		break;
 	case MDT_PNP_INFO:
+		check(EF_SEG_READ_REL(ef, data, sizeof(pnp), &pnp));
+		check(EF_SEG_READ(ef, (Elf_Off)pnp.descr, sizeof(descr), descr));
+		descr[sizeof(descr) - 1] = '\0';
 		if (dflag) {
-			printf("  pnp info for bus %s\n", cval);
+			printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
+			    cval, descr, pnp.num_entry, pnp.entry_len);
+		} else {
+			pnp_list list;
+			struct pnp_elt *elt, *elt_tmp;
+			char *new_descr;
+
+			if (verbose > 1)
+				printf("  pnp info for bus %s format %s %d entries of %d bytes\n",
+				    cval, descr, pnp.num_entry, pnp.entry_len);
+			/*
+			 * Parse descr to weed out the chaff and to create a list
+			 * of offsets to output.
+			 */
+			TAILQ_INIT(&list);
+			parse_pnp_list(descr, &new_descr, &list);
+			record_int(MDT_PNP_INFO);
+			record_string(cval);
+			record_string(new_descr);
+			record_int(pnp.num_entry);
+			len = pnp.num_entry * pnp.entry_len;
+			walker = table = malloc(len);
+			check(EF_SEG_READ_REL(ef, (Elf_Off)pnp.table, len, table));
+
+			/*
+			 * Walk the list and output things. We've collapsed all the
+			 * variant forms of the table down to just ints and strings.
+			 */
+			for (i = 0; i < pnp.num_entry; i++) {
+				TAILQ_FOREACH(elt, &list, next) {
+					uint8_t v1;
+					uint16_t v2;
+					uint32_t v4;
+					int	value;
+					char buffer[1024];
+
+					if (elt->pe_kind == TYPE_W32) {
+						memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
+						value = v4 & 0xffff;
+						record_int(value);
+						if (verbose > 1)
+							printf("W32:%#x", value);
+						value = (v4 >> 16) & 0xffff;
+						record_int(value);
+						if (verbose > 1)
+							printf(":%#x;", value);
+					} else if (elt->pe_kind & TYPE_INT) {
+						switch (elt->pe_kind & TYPE_SZ_MASK) {
+						case 1:
+							memcpy(&v1, walker + elt->pe_offset, sizeof(v1));
+							if ((elt->pe_kind & TYPE_FLAGGED) && v1 == 0xff)
+								value = -1;
+							else
+								value = v1;
+							break;
+						case 2:
+							memcpy(&v2, walker + elt->pe_offset, sizeof(v2));
+							if ((elt->pe_kind & TYPE_FLAGGED) && v2 == 0xffff)
+								value = -1;
+							else
+								value = v2;
+							break;
+						case 4:
+							memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
+							if ((elt->pe_kind & TYPE_FLAGGED) && v4 == 0xffffffff)
+								value = -1;
+							else
+								value = v4;
+							break;
+						default:
+							errx(1, "Invalid size somehow %#x", elt->pe_kind);
+						}
+						if (verbose > 1)
+							printf("I:%#x;", value);
+						record_int(value);
+					} else if (elt->pe_kind == TYPE_T) {
+						/* Do nothing */
+					} else { /* E, Z or D -- P already filtered */
+						if (elt->pe_kind == TYPE_E) {
+							memcpy(&v4, walker + elt->pe_offset, sizeof(v4));
+							strcpy(buffer, pnp_eisaformat(v4));
+						} else {
+							char *ptr;
+
+							ptr = *(char **)(walker + elt->pe_offset);
+							buffer[0] = '\0';
+							if (ptr != 0) {
+								EF_SEG_READ(ef, (Elf_Off)ptr,
+								    sizeof(buffer), buffer);
+								buffer[sizeof(buffer) - 1] = '\0';
+							}
+						}
+						if (verbose > 1)
+							printf("%c:%s;", elt->pe_kind == TYPE_E ? 'E' : (elt->pe_kind == TYPE_Z ? 'Z' : 'D'), buffer);
+						record_string(buffer);
+					}
+				}
+				if (verbose > 1)
+					printf("\n");
+				walker += pnp.entry_len;
+			}
+			/* Now free it */
+			TAILQ_FOREACH_SAFE(elt, &list, next, elt_tmp) {
+				TAILQ_REMOVE(&list, elt, next);
+				free(elt);
+			}
+			free(table);
 		}
+		break;
 	default:
 		warnx("unknown metadata record %d in file %s", md->md_type, kldname);
 	}

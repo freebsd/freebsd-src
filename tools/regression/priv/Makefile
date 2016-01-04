@@ -48,8 +48,7 @@ SRCS=	main.c				\
 MAN=
 WARNS?=	3
 
-DPADD+= ${LIBIPSEC}
-LDADD+= -lipsec
+LIBADD+=	ipsec
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

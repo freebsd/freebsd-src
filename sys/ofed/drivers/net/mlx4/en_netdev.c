@@ -264,11 +264,10 @@ static inline struct mlx4_en_filter *
 mlx4_en_filter_find(struct mlx4_en_priv *priv, __be32 src_ip, __be32 dst_ip,
 		    u8 ip_proto, __be16 src_port, __be16 dst_port)
 {
-	struct hlist_node *elem;
 	struct mlx4_en_filter *filter;
 	struct mlx4_en_filter *ret = NULL;
 
-	hlist_for_each_entry(filter, elem,
+	hlist_for_each_entry(filter,
 			     filter_hash_bucket(priv, src_ip, dst_ip,
 						src_port, dst_port),
 			     filter_chain) {
@@ -659,8 +658,10 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
                         continue;
                 /* Make sure the list didn't grow. */
 		tmp = kzalloc(sizeof(struct mlx4_en_mc_list), GFP_ATOMIC);
-		if (tmp == NULL)
+		if (tmp == NULL) {
+			en_err(priv, "Failed to allocate multicast list\n");
 			break;
+		}
 		memcpy(tmp->addr,
 			LLADDR((struct sockaddr_dl *)ifma->ifma_addr), ETH_ALEN);
 		list_add_tail(&tmp->list, &priv->mc_list);
@@ -971,12 +972,12 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 	if (!mlx4_en_QUERY_PORT(mdev, priv->port)) {
 		if (priv->port_state.link_state) {
 			priv->last_link_state = MLX4_DEV_EVENT_PORT_UP;
-			/* Important note: the following call for if_link_state_change
-			 * is needed for interface up scenario (start port, link state
-			 * change) */
 			/* update netif baudrate */
 			priv->dev->if_baudrate =
 			    IF_Mbps(priv->port_state.link_speed);
+			/* Important note: the following call for if_link_state_change
+			 * is needed for interface up scenario (start port, link state
+			 * change) */
 			if_link_state_change(priv->dev, LINK_STATE_UP);
 			en_dbg(HW, priv, "Link Up\n");
 		}
@@ -1196,8 +1197,8 @@ static void mlx4_en_linkstate(struct work_struct *work)
 			/* update netif baudrate */
 			priv->dev->if_baudrate = 0;
 
-		/* make sure the port is up before notifying the OS. 
-		 * This is tricky since we get here on INIT_PORT and 
+		/* make sure the port is up before notifying the OS.
+		 * This is tricky since we get here on INIT_PORT and
 		 * in such case we can't tell the OS the port is up.
 		 * To solve this there is a call to if_link_state_change
 		 * in set_rx_mode.
@@ -1246,7 +1247,6 @@ int mlx4_en_start_port(struct net_device *dev)
 				    PAGE_SIZE);
 	priv->rx_alloc_order = get_order(priv->rx_alloc_size);
 	priv->rx_buf_size = roundup_pow_of_two(priv->rx_mb_size);
-	priv->log_rx_info = ROUNDUP_LOG2(sizeof(struct mlx4_en_rx_buf));
 	en_dbg(DRV, priv, "Rx buf size:%d\n", priv->rx_mb_size);
 
 	/* Configure rx cq's and rings */
@@ -1575,6 +1575,7 @@ static void mlx4_en_clear_stats(struct net_device *dev)
 		priv->tx_ring[i]->bytes = 0;
 		priv->tx_ring[i]->packets = 0;
 		priv->tx_ring[i]->tx_csum = 0;
+		priv->tx_ring[i]->oversized_packets = 0;
 	}
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		priv->rx_ring[i]->bytes = 0;
@@ -1644,8 +1645,6 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 
 	if (priv->sysctl)
 		sysctl_ctx_free(&priv->stat_ctx);
-
-
 }
 
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
@@ -1730,8 +1729,11 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
                 EVENTHANDLER_DEREGISTER(vlan_unconfig, priv->vlan_detach);
 
 	/* Unregister device - this will close the port if it was up */
-	if (priv->registered)
+	if (priv->registered) {
+		mutex_lock(&mdev->state_lock);
 		ether_ifdetach(dev);
+		mutex_unlock(&mdev->state_lock);
+	}
 
 	if (priv->allocated)
 		mlx4_free_hwq_res(mdev->dev, &priv->res, MLX4_EN_PAGE_SIZE);
@@ -1809,13 +1811,6 @@ static int mlx4_en_calc_media(struct mlx4_en_priv *priv)
 	active = IFM_ETHER;
 	if (priv->last_link_state == MLX4_DEV_EVENT_PORT_DOWN)
 		return (active);
-	/*
-	 * [ShaharK] mlx4_en_QUERY_PORT sleeps and cannot be called under a
-	 * non-sleepable lock.
-	 * I moved it to the periodic mlx4_en_do_get_stats.
- 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
- 		return (active);
-	*/
 	active |= IFM_FDX;
 	trans_type = priv->port_state.transciver;
 	/* XXX I don't know all of the transceiver values. */
@@ -1948,12 +1943,55 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		mutex_lock(&mdev->state_lock);
 		mask = ifr->ifr_reqcap ^ dev->if_capenable;
-		if (mask & IFCAP_HWCSUM)
-			dev->if_capenable ^= IFCAP_HWCSUM;
-		if (mask & IFCAP_TSO4)
+		if (mask & IFCAP_TXCSUM) {
+			dev->if_capenable ^= IFCAP_TXCSUM;
+			dev->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+
+			if (IFCAP_TSO4 & dev->if_capenable &&
+			    !(IFCAP_TXCSUM & dev->if_capenable)) {
+				dev->if_capenable &= ~IFCAP_TSO4;
+				dev->if_hwassist &= ~CSUM_IP_TSO;
+				if_printf(dev,
+				    "tso4 disabled due to -txcsum.\n");
+			}
+		}
+		if (mask & IFCAP_TXCSUM_IPV6) {
+			dev->if_capenable ^= IFCAP_TXCSUM_IPV6;
+			dev->if_hwassist ^= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+
+			if (IFCAP_TSO6 & dev->if_capenable &&
+			    !(IFCAP_TXCSUM_IPV6 & dev->if_capenable)) {
+				dev->if_capenable &= ~IFCAP_TSO6;
+				dev->if_hwassist &= ~CSUM_IP6_TSO;
+				if_printf(dev,
+				    "tso6 disabled due to -txcsum6.\n");
+			}
+		}
+		if (mask & IFCAP_RXCSUM)
+			dev->if_capenable ^= IFCAP_RXCSUM;
+		if (mask & IFCAP_RXCSUM_IPV6)
+			dev->if_capenable ^= IFCAP_RXCSUM_IPV6;
+
+		if (mask & IFCAP_TSO4) {
+			if (!(IFCAP_TSO4 & dev->if_capenable) &&
+			    !(IFCAP_TXCSUM & dev->if_capenable)) {
+				if_printf(dev, "enable txcsum first.\n");
+				error = EAGAIN;
+				goto out;
+			}
 			dev->if_capenable ^= IFCAP_TSO4;
-		if (mask & IFCAP_TSO6)
+			dev->if_hwassist ^= CSUM_IP_TSO;
+		}
+		if (mask & IFCAP_TSO6) {
+			if (!(IFCAP_TSO6 & dev->if_capenable) &&
+			    !(IFCAP_TXCSUM_IPV6 & dev->if_capenable)) {
+				if_printf(dev, "enable txcsum6 first.\n");
+				error = EAGAIN;
+				goto out;
+			}
 			dev->if_capenable ^= IFCAP_TSO6;
+			dev->if_hwassist ^= CSUM_IP6_TSO;
+		}
 		if (mask & IFCAP_LRO)
 			dev->if_capenable ^= IFCAP_LRO;
 		if (mask & IFCAP_VLAN_HWTAGGING)
@@ -1964,9 +2002,11 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 			dev->if_capenable ^= IFCAP_WOL_MAGIC;
 		if (dev->if_drv_flags & IFF_DRV_RUNNING)
 			mlx4_en_start_port(dev);
+out:
 		mutex_unlock(&mdev->state_lock);
 		VLAN_CAPABILITIES(dev);
 		break;
+#if __FreeBSD_version >= 1100036
 	case SIOCGI2C: {
 		struct ifi2creq i2c;
 
@@ -1990,6 +2030,7 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
 		break;
 	}
+#endif
 	default:
 		error = ether_ioctl(dev, command, data);
 		break;
@@ -2049,8 +2090,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->port = port;
 	priv->port_up = false;
 	priv->flags = prof->flags;
-        priv->ctrl_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
-                        MLX4_WQE_CTRL_SOLICITED);
 
 	priv->num_tx_rings_p_up = mdev->profile.num_tx_rings_p_up;
 	priv->tx_ring_num = prof->tx_ring_num;
@@ -2066,7 +2105,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		err = -ENOMEM;
 		goto out;
 	}
-        
+
 	priv->rx_ring_num = prof->rx_ring_num;
 	priv->cqe_factor = (mdev->dev->caps.cqe_size == 64) ? 1 : 0;
 	priv->mac_index = -1;
@@ -2089,7 +2128,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i)
 		INIT_HLIST_HEAD(&priv->mac_hash[i]);
 
-
 	/* Query for default mac and max mtu */
 	priv->max_mtu = mdev->dev->caps.eth_mtu_cap[priv->port];
         priv->mac = mdev->dev->caps.def_mac[priv->port];
@@ -2104,8 +2142,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
                 err = -EINVAL;
                 goto out;
         }
-
-
 
 	priv->stride = roundup_pow_of_two(sizeof(struct mlx4_en_rx_desc) +
 					  DS_SIZE);
@@ -2128,7 +2164,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Set driver features
 	 */
-	dev->if_capabilities |= IFCAP_RXCSUM | IFCAP_TXCSUM;
+	dev->if_capabilities |= IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6;
 	dev->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
 	dev->if_capabilities |= IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER;
 	dev->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
@@ -2137,10 +2173,12 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	if (mdev->LSO_support)
 		dev->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTSO;
 
+#if __FreeBSD_version >= 1100000
 	/* set TSO limits so that we don't have to drop TX packets */
-	dev->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
-	dev->if_hw_tsomaxsegcount = 16;
-	dev->if_hw_tsomaxsegsize = 65536;       /* XXX can do up to 4GByte */
+	dev->if_hw_tsomax = MLX4_EN_TX_MAX_PAYLOAD_SIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN) /* hdr */;
+	dev->if_hw_tsomaxsegcount = MLX4_EN_TX_MAX_MBUF_FRAGS - 1 /* hdr */;
+	dev->if_hw_tsomaxsegsize = MLX4_EN_TX_MAX_MBUF_SIZE;
+#endif
 
 	dev->if_capenable = dev->if_capabilities;
 
@@ -2149,6 +2187,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		dev->if_hwassist |= CSUM_TSO;
 	if (dev->if_capenable & IFCAP_TXCSUM)
 		dev->if_hwassist |= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+	if (dev->if_capenable & IFCAP_TXCSUM_IPV6)
+		dev->if_hwassist |= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
 
 
         /* Register for VLAN events */
@@ -2210,8 +2250,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
         if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
                 queue_delayed_work(mdev->workqueue, &priv->service_task, SERVICE_TASK_DELAY);
-
-        
 
 	return 0;
 
@@ -2292,6 +2330,162 @@ static int mlx4_en_set_tx_ring_size(SYSCTL_HANDLER_ARGS)
             size);
 
         return (error);
+}
+
+static int mlx4_en_get_module_info(struct net_device *dev,
+				   struct ethtool_modinfo *modinfo)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int ret;
+	u8 data[4];
+
+	/* Read first 2 bytes to get Module & REV ID */
+	ret = mlx4_get_module_info(mdev->dev, priv->port,
+				   0/*offset*/, 2/*size*/, data);
+
+	if (ret < 2) {
+		en_err(priv, "Failed to read eeprom module first two bytes, error: 0x%x\n", -ret);
+		return -EIO;
+	}
+
+	switch (data[0] /* identifier */) {
+	case MLX4_MODULE_ID_QSFP:
+		modinfo->type = ETH_MODULE_SFF_8436;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		break;
+	case MLX4_MODULE_ID_QSFP_PLUS:
+		if (data[1] >= 0x3) { /* revision id */
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		}
+		break;
+	case MLX4_MODULE_ID_QSFP28:
+		modinfo->type = ETH_MODULE_SFF_8636;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		break;
+	case MLX4_MODULE_ID_SFP:
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		break;
+	default:
+		en_err(priv, "mlx4_en_get_module_info :  Not recognized cable type\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int mlx4_en_get_module_eeprom(struct net_device *dev,
+				     struct ethtool_eeprom *ee,
+				     u8 *data)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int offset = ee->offset;
+	int i = 0, ret;
+
+	if (ee->len == 0)
+		return -EINVAL;
+
+	memset(data, 0, ee->len);
+
+	while (i < ee->len) {
+		en_dbg(DRV, priv,
+		       "mlx4_get_module_info i(%d) offset(%d) len(%d)\n",
+		       i, offset, ee->len - i);
+
+		ret = mlx4_get_module_info(mdev->dev, priv->port,
+					   offset, ee->len - i, data + i);
+
+		if (!ret) /* Done reading */
+			return 0;
+
+		if (ret < 0) {
+			en_err(priv,
+			       "mlx4_get_module_info i(%d) offset(%d) bytes_to_read(%d) - FAILED (0x%x)\n",
+			       i, offset, ee->len - i, ret);
+			return -1;
+		}
+
+		i += ret;
+		offset += ret;
+	}
+	return 0;
+}
+
+static void mlx4_en_print_eeprom(u8 *data, __u32 len)
+{
+	int		i;
+	int		j = 0;
+	int		row = 0;
+	const int	NUM_OF_BYTES = 16;
+
+	printf("\nOffset\t\tValues\n");
+	printf("------\t\t------\n");
+	while(row < len){
+		printf("0x%04x\t\t",row);
+		for(i=0; i < NUM_OF_BYTES; i++){
+			printf("%02x ", data[j]);
+			row++;
+			j++;
+		}
+		printf("\n");
+	}
+}
+
+/* Read cable EEPROM module information by first inspecting the first
+ * two bytes to get the length and then read the rest of the information.
+ * The information is printed to dmesg. */
+static int mlx4_en_read_eeprom(SYSCTL_HANDLER_ARGS)
+{
+
+	u8*		data;
+	int		error;
+	int		result = 0;
+	struct		mlx4_en_priv *priv;
+	struct		net_device *dev;
+	struct		ethtool_modinfo modinfo;
+	struct		ethtool_eeprom ee;
+
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (result == 1) {
+		priv = arg1;
+		dev = priv->dev;
+		data = kmalloc(PAGE_SIZE, GFP_KERNEL);
+
+		error = mlx4_en_get_module_info(dev, &modinfo);
+		if (error) {
+			en_err(priv,
+			       "mlx4_en_get_module_info returned with error - FAILED (0x%x)\n",
+			       -error);
+			goto out;
+		}
+
+		ee.len = modinfo.eeprom_len;
+		ee.offset = 0;
+
+		error = mlx4_en_get_module_eeprom(dev, &ee, data);
+		if (error) {
+			en_err(priv,
+			       "mlx4_en_get_module_eeprom returned with error - FAILED (0x%x)\n",
+			       -error);
+			/* Continue printing partial information in case of an error */
+		}
+
+		/* EEPROM information will be printed in dmesg */
+		mlx4_en_print_eeprom(data, ee.len);
+out:
+		kfree(data);
+	}
+	/* Return zero to prevent sysctl failure. */
+	return (0);
 }
 
 static int mlx4_en_set_tx_ppp(SYSCTL_HANDLER_ARGS)
@@ -2419,7 +2613,7 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
         /* Add coalescer configuration. */
         coal = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO,
             "coalesce", CTLFLAG_RD, NULL, "Interrupt coalesce configuration");
-        coal_list = SYSCTL_CHILDREN(node);
+        coal_list = SYSCTL_CHILDREN(coal);
         SYSCTL_ADD_UINT(ctx, coal_list, OID_AUTO, "pkt_rate_low",
             CTLFLAG_RW, &priv->pkt_rate_low, 0,
             "Packets per-second for minimum delay");
@@ -2438,11 +2632,14 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
         SYSCTL_ADD_UINT(ctx, coal_list, OID_AUTO, "adaptive_rx_coal",
             CTLFLAG_RW, &priv->adaptive_rx_coal, 0,
             "Enable adaptive rx coalescing");
+	/* EEPROM support */
+	SYSCTL_ADD_PROC(ctx, node_list, OID_AUTO, "eeprom_info",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    mlx4_en_read_eeprom, "I", "EEPROM information");
 }
 
 static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 {
-	struct net_device *dev;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *node;
 	struct sysctl_oid_list *node_list;
@@ -2452,8 +2649,6 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 	struct mlx4_en_rx_ring *rx_ring;
 	char namebuf[128];
 	int i;
-
-	dev = priv->dev;
 
 	ctx = &priv->stat_ctx;
 	sysctl_ctx_init(ctx);
@@ -2482,6 +2677,8 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 	    &priv->port_stats.wake_queue, "Queue resumed after full");
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_timeout", CTLFLAG_RD,
 	    &priv->port_stats.tx_timeout, "Transmit timeouts");
+	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_oversized_packets", CTLFLAG_RD,
+	    &priv->port_stats.oversized_packets, "TX oversized packets, m_defrag failed");
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_alloc_failed", CTLFLAG_RD,
 	    &priv->port_stats.rx_alloc_failed, "RX failed to allocate mbuf");
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "rx_chksum_good", CTLFLAG_RD,
@@ -2565,7 +2762,7 @@ struct mlx4_en_pkt_stats {
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_packets", CTLFLAG_RD,
 	    &priv->pkstats.tx_packets, "TX packets");
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
-	    &priv->pkstats.tx_packets, "TX Bytes");
+	    &priv->pkstats.tx_bytes, "TX Bytes");
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_multicast_packets", CTLFLAG_RD,
 	    &priv->pkstats.tx_multicast_packets, "TX Multicast Packets");
 	SYSCTL_ADD_ULONG(ctx, node_list, OID_AUTO, "tx_broadcast_packets", CTLFLAG_RD,
@@ -2606,8 +2803,8 @@ struct mlx4_en_pkt_stats {
 		    CTLFLAG_RD, &tx_ring->packets, "TX packets");
 		SYSCTL_ADD_ULONG(ctx, ring_list, OID_AUTO, "bytes",
 		    CTLFLAG_RD, &tx_ring->bytes, "TX bytes");
-
 	}
+
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		rx_ring = priv->rx_ring[i];
 		snprintf(namebuf, sizeof(namebuf), "rx_ring%d", i);

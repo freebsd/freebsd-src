@@ -26,6 +26,7 @@
 #
 # $FreeBSD$
 
+from __future__ import print_function
 import os
 import sys
 import re
@@ -78,7 +79,7 @@ class App(object):
 
 def warn(cond, msg):
     if cond:
-        print >> sys.stderr, "WARN: " + msg
+        print("WARN: " + msg, file=sys.stderr)
 
 # {{{ misc
 
@@ -130,7 +131,7 @@ class Cache(object):
             self.stats = stats
 
     def get(self, id):
-        if self.enabled and self.items.has_key(id):
+        if self.enabled and id in self.items:
             self.stats.hit += 1
             return self.items[id]
         else:
@@ -139,7 +140,7 @@ class Cache(object):
 
     def put(self, id, obj):
         if self.enabled:
-            if self.items.has_key(id) and obj is not self.items[id]:
+            if id in self.items and obj is not self.items[id]:
                 #raise ValueError("Item is already cached: %d (%s, %s)" %
                 #        (id, self.items[id], obj))
                 warn(Config.w_cached, "Item is already cached: %d (%s, %s)" % \
@@ -148,7 +149,7 @@ class Cache(object):
 
     def replace(self, id, obj):
         if self.enabled:
-            assert self.items.has_key(id)
+            assert id in self.items
             self.items[id] = obj
 
 class ListDiff(object):
@@ -226,7 +227,7 @@ class VersionMap(object):
         self.symbols = {}
 
     def append(self, symbol):
-        if (self.symbols.has_key(symbol.name)):
+        if (symbol.name in self.symbols):
             raise ValueError("Symbol is already defined %s@%s" %
                     (symbol.name, self.name))
         self.symbols[symbol.name] = symbol
@@ -250,7 +251,7 @@ class Def(object):
         self.attrs = kwargs
 
     def __getattr__(self, attr):
-        if not self.attrs.has_key(attr):
+        if attr not in self.attrs:
             raise AttributeError('%s in %s' % (attr, str(self)))
         return self.attrs[attr]
 
@@ -645,7 +646,7 @@ class Shlib(object):
             if not Config.symbol_filter.match(p['symbol']):
                 continue
             sym = Symbol(p['symbol'], p['offset'], vername, self)
-            if not self.versions.has_key(vername):
+            if vername not in self.versions:
                 self.versions[vername] = VersionMap(vername)
             self.versions[vername].append(sym)
         if Config.alias_prefixes:
@@ -655,7 +656,7 @@ class Shlib(object):
                     if not p['symbol'].startswith(prefix):
                         continue
                     alias = SymbolAlias(p['symbol'], prefix, p['offset'])
-                    if self.alias_syms.has_key(alias.name):
+                    if alias.name in self.alias_syms:
                         prevalias = self.alias_syms[alias.name]
                         if alias.name != prevalias.name or \
                                 alias.offset != prevalias.offset:
@@ -676,7 +677,7 @@ class Shlib(object):
                     localnames = self.local_offsetmap[sym.offset]
                     localnames.sort(key=lambda x: -len(x))
                     for localname in localnames:
-                        if not self.alias_syms.has_key(localname):
+                        if localname not in self.alias_syms:
                             continue
                         alias = self.alias_syms[localname]
                         raw = dwarfdump.offsetmap[alias.offset]
@@ -694,12 +695,12 @@ class Shlib(object):
                             (sym.name_ver, self.libfile, sym.offset))
                     continue
                 if Config.verbose >= 3:
-                    print "Parsing symbol %s (%s)" % (sym.name_ver, self.libfile)
+                    print("Parsing symbol %s (%s)" % (sym.name_ver, self.libfile))
                 sym.definition = dwarf.build(raw)
 
     def parse(self):
         if not os.path.isfile(self.libfile):
-            print >> sys.stderr, ("No such file: %s" % self.libfile)
+            print("No such file: %s" % self.libfile, file=sys.stderr)
             sys.exit(1)
         self.parse_objdump()
         self.parse_dwarfdump()
@@ -722,7 +723,7 @@ class Parser(object):
                 self.parser(line)
         err = fd.close()
         if err:
-            print >> sys.stderr, ("Execution failed: %s" % self.proc)
+            print("Execution failed: %s" % self.proc, file=sys.stderr)
             sys.exit(2)
 
     def parse_begin(self, line):
@@ -753,7 +754,7 @@ class ObjdumpParser(Parser):
             return
         table.append(symbol)
         if offsetmap != None:
-            if not offsetmap.has_key(offset):
+            if offset not in offsetmap:
                 offsetmap[offset] = [symbol['symbol']]
             else:
                 offsetmap[offset].append(symbol['symbol'])
@@ -921,9 +922,9 @@ class DwarfdumpParser(Parser):
             args = self.parse_arg(tag, args)
         tag.unit.tags[tag.id] = tag
         def parse_offset(tag):
-            if tag.args.has_key('DW_AT_low_pc'):
+            if 'DW_AT_low_pc' in tag.args:
                 return int(tag.args['DW_AT_low_pc'], 16)
-            elif tag.args.has_key('DW_AT_location'):
+            elif 'DW_AT_location' in tag.args:
                 location = tag.args['DW_AT_location']
                 if location.startswith('DW_OP_addr'):
                     return int(location.replace('DW_OP_addr', ''), 16)
@@ -931,9 +932,9 @@ class DwarfdumpParser(Parser):
         offset = parse_offset(tag)
         if offset is not None and \
                 (tag.tag not in DwarfdumpParser.skip_tags or \
-                (tag.args.has_key('DW_AT_external') and \
+                ('DW_AT_external' in tag.args and \
                 tag.tag in DwarfdumpParser.external_tags)):
-            if self.offsetmap.has_key(offset):
+            if offset in self.offsetmap:
                 raise ValueError("Dwarf dump parse error: " +
                         "symbol is aleady defined at offset 0x%x" % offset)
             self.offsetmap[offset] = tag
@@ -964,16 +965,16 @@ def common_symbols(origlib, newlib):
     result = []
     verdiff = ListDiff(origlib.versions.keys(), newlib.versions.keys())
     if Config.verbose >= 1:
-        print 'Original versions:   ', list_str(verdiff.orig)
-        print 'New versions:        ', list_str(verdiff.new)
+        print('Original versions:   ', list_str(verdiff.orig))
+        print('New versions:        ', list_str(verdiff.new))
     for vername in verdiff.added:
-        print 'Added version:       ', vername
-        print '    Added symbols:   ', \
-                names_ver_str(vername, newlib.versions[vername].names())
+        print('Added version:       ', vername)
+        print('    Added symbols:   ', \
+                names_ver_str(vername, newlib.versions[vername].names()))
     for vername in verdiff.removed:
-        print 'Removed version:     ', vername
-        print '    Removed symbols: ', \
-                names_ver_str(vername, origlib.versions[vername].names())
+        print('Removed version:     ', vername)
+        print('    Removed symbols: ', \
+                names_ver_str(vername, origlib.versions[vername].names()))
     added = []
     removed = []
     for vername in verdiff.common:
@@ -990,13 +991,13 @@ def common_symbols(origlib, newlib):
             sym = CommonSymbol(origver.symbols[n], newver.symbols[n])
             commonver.append(sym)
     if added:
-        print 'Added symbols:'
+        print('Added symbols:')
         for i in added:
-            print '    ', i
+            print('    ', i)
     if removed:
-        print 'Removed symbols:'
+        print('Removed symbols:')
         for i in removed:
-            print '    ', i
+            print('    ', i)
     return result
 
 def cmp_symbols(commonver):
@@ -1011,27 +1012,27 @@ def cmp_symbols(commonver):
                 App.result_code = 1
             if Config.verbose >= 1 or not match:
                 if missing:
-                    print '%s: missing definition' % \
-                            (sym.origsym.name_ver,)
+                    print('%s: missing definition' % \
+                            (sym.origsym.name_ver,))
                     continue
-                print '%s: definitions %smatch' % \
-                        (sym.origsym.name_ver, "" if match else "mis")
+                print('%s: definitions %smatch' % \
+                        (sym.origsym.name_ver, "" if match else "mis"))
                 if Config.dump or (not match and not Config.no_dump):
                     for x in [(sym.origsym, Config.origfile),
                             (sym.newsym, Config.newfile)]:
                         xsym = x[0]
                         xout = x[1].out
                         if not xsym.definition:
-                            print >> xout, '\n// Definition not found: %s %s' % \
-                                    (xsym.name_ver, xsym.lib.libfile)
+                            print('\n// Definition not found: %s %s' % \
+                                    (xsym.name_ver, xsym.lib.libfile), file=xout)
                             continue
-                        print >> xout, '\n// Definitions mismatch: %s %s' % \
-                                (xsym.name_ver, xsym.lib.libfile)
+                        print('\n// Definitions mismatch: %s %s' % \
+                                (xsym.name_ver, xsym.lib.libfile), file=xout)
                         pp = PrettyPrinter()
                         pp.run(xsym.definition)
                         for i in pp.nested():
-                            print >> xout, i
-                        print >> xout, pp.result()
+                            print(i, file=xout)
+                        print(pp.result(), file=xout)
 
 def dump_symbols(commonver):
     class SymbolDump(object):
@@ -1043,13 +1044,13 @@ def dump_symbols(commonver):
             r = self.pp.run(sym.definition)
             self.res.append('/* %s@%s */ %s' % (sym.name, sym.version, r))
         def finish(self):
-            print >> self.io_conf.out, '\n// Symbol dump: version %s, library %s' % \
-                    (ver.name, self.io_conf.filename)
+            print('\n// Symbol dump: version %s, library %s' % \
+                    (ver.name, self.io_conf.filename), file=self.io_conf.out)
             for i in self.pp.nested():
-                print >> self.io_conf.out, i
-            print >> self.io_conf.out, ''
+                print(i, file=self.io_conf.out)
+            print('', file=self.io_conf.out)
             for i in self.res:
-                print >> self.io_conf.out, i
+                print(i, file=self.io_conf.out)
     for ver in commonver:
         names = sorted(ver.names());
         d_orig = SymbolDump(Config.origfile)
@@ -1150,7 +1151,7 @@ if __name__ == '__main__':
         dump_symbols(commonver)
     cmp_symbols(commonver)
     if Config.verbose >= 4:
-        print Dwarf.cmpcache.stats.show('Cmp')
-        print DwarfdumpParser.tagcache_stats.show('Dwarf tag')
+        print(Dwarf.cmpcache.stats.show('Cmp'))
+        print(DwarfdumpParser.tagcache_stats.show('Dwarf tag'))
 
     sys.exit(App.result_code)

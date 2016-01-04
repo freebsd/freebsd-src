@@ -8,7 +8,7 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
 
-INCSDIR=${LIBDIR}/clang/3.7.0/include
+INCSDIR=${LIBDIR}/clang/3.7.1/include
 
 INCS=	__stddef_max_align_t.h \
 	__wmmintrin_aes.h \
@@ -66,8 +66,5 @@ INCS=	__stddef_max_align_t.h \
 	${GENINCS}
 GENINCS= arm_neon.h
 CLEANFILES= ${GENINCS} ${GENINCS:C/\.h$/.d/}
-
-# avoid a circular dependency
-GENDIRDEPS_FILTER+= Nusr.bin/clang/clang-tblgen.host
 
 .include <bsd.prog.mk>

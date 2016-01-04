@@ -188,6 +188,12 @@ extern char kernphys[];
 
 struct msgbuf *msgbufp;
 
+/*
+ * Physical address of the EFI System Table. Stashed from the metadata hints
+ * passed into the kernel and used by the EFI code to call runtime services.
+ */
+vm_paddr_t efi_systbl;
+
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
@@ -798,12 +804,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 };
 
 void
-setidt(idx, func, typ, dpl, ist)
-	int idx;
-	inthand_t *func;
-	int typ;
-	int dpl;
-	int ist;
+setidt(int idx, inthand_t *func, int typ, int dpl, int ist)
 {
 	struct gate_descriptor *ip;
 
@@ -1483,6 +1484,7 @@ static caddr_t
 native_parse_preload_data(u_int64_t modulep)
 {
 	caddr_t kmdp;
+	char *envp;
 #ifdef DDB
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
@@ -1494,12 +1496,16 @@ native_parse_preload_data(u_int64_t modulep)
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
+	envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	if (envp != NULL)
+		envp += KERNBASE;
+	init_static_kenv(envp, 0);
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
+	efi_systbl = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	return (kmdp);
 }
@@ -1620,6 +1626,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/*
 	 * Use vt(4) by default for UEFI boot (during the sc(4)/vt(4)
 	 * transition).
+	 * Once bootblocks have updated, we can test directly for
+	 * efi_systbl != NULL here...
 	 */
 	if (preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP)
 	    != NULL)

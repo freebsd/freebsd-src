@@ -115,6 +115,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Lynx Point USB 3.0 controller");
 	case 0x8cb18086:
 		return ("Intel Wildcat Point USB 3.0 controller");
+	case 0x9cb18086:
+		return ("Broadwell Integrated PCH-LP chipset USB 3.0 controller");
 
 	case 0xa01b177d:
 		return ("Cavium ThunderX USB 3.0 controller");
@@ -146,6 +148,8 @@ xhci_pci_probe(device_t self)
 
 static int xhci_use_msi = 1;
 TUNABLE_INT("hw.usb.xhci.msi", &xhci_use_msi);
+static int xhci_use_msix = 1;
+TUNABLE_INT("hw.usb.xhci.msix", &xhci_use_msix);
 
 static void
 xhci_interrupt_poll(void *_sc)
@@ -186,7 +190,7 @@ static int
 xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
-	int count, err, rid;
+	int count, err, msix_table, rid;
 	uint8_t usemsi = 1;
 	uint8_t usedma32 = 0;
 
@@ -216,6 +220,7 @@ xhci_pci_attach(device_t self)
 	case 0x1e318086:	/* Panther Point */
 	case 0x8c318086:	/* Lynx Point */
 	case 0x8cb18086:	/* Wildcat Point */
+	case 0x9cb18086:	/* Broadwell Mobile Integrated */
 		/*
 		 * On Intel chipsets, reroute ports from EHCI to XHCI
 		 * controller and use a different IMOD value.
@@ -237,7 +242,27 @@ xhci_pci_attach(device_t self)
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
 	rid = 0;
-	if (xhci_use_msi && usemsi) {
+	if (xhci_use_msix && (msix_table = pci_msix_table_bar(self)) >= 0) {
+		sc->sc_msix_res = bus_alloc_resource_any(self, SYS_RES_MEMORY,
+		    &msix_table, RF_ACTIVE);
+		if (sc->sc_msix_res == NULL) {
+			/* May not be enabled */
+			device_printf(self,
+			    "Unable to map MSI-X table \n");
+		} else {
+			count = 1;
+			if (pci_alloc_msix(self, &count) == 0) {
+				if (bootverbose)
+					device_printf(self, "MSI-X enabled\n");
+				rid = 1;
+			} else {
+				bus_release_resource(self, SYS_RES_MEMORY,
+				    msix_table, sc->sc_msix_res);
+				sc->sc_msix_res = NULL;
+			}
+		}
+	}
+	if (rid == 0 && xhci_use_msi && usemsi) {
 		count = 1;
 		if (pci_alloc_msi(self, &count) == 0) {
 			if (bootverbose)
@@ -337,6 +362,11 @@ xhci_pci_detach(device_t self)
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
+	}
+	if (sc->sc_msix_res) {
+		bus_release_resource(self, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_msix_res), sc->sc_msix_res);
+		sc->sc_msix_res = NULL;
 	}
 
 	xhci_uninit(sc);

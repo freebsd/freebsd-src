@@ -31,6 +31,60 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151216:
+	The tftp loader (pxeboot) now uses the option root-path directive. As a
+	consequence it no longer looks for a pxeboot.4th file on the tftp
+	server. Instead it uses the regular /boot infrastructure as with the
+	other loaders.
+
+20151211:
+	The code to start recording plug and play data into the modules has
+	been committed. While the old tools will properly build a new kernel,
+	a number of warnings about "unknown metadata record 4" will be produced
+	for an older kldxref. To avoid such warnings, make sure to rebuild
+	the kernel toolchain (or world). Make sure that you have r292078 or
+	later when trying to build 292077 or later before rebuilding.
+
+20151207:
+	Debug data files are now built by default with 'make buildworld' and
+	installed with 'make installworld'. This facilitates debugging but
+	requires more disk space both during the build and for the installed
+	world. Debug files may be disabled by setting WITHOUT_DEBUG_FILES=yes
+	in src.conf(5).
+
+20151130:
+	r291527 changed the internal interface between the nfsd.ko and
+	nfscommon.ko modules. As such, they must both be upgraded to-gether.
+	__FreeBSD_version has been bumped because of this.
+
+20151108:
+	Add support for unicode collation strings leads to a change of
+	order of files listed by ls(1) for example. To get back to the old
+	behaviour, set LC_COLLATE environment variable to "C".
+
+	Databases administrators will need to reindex their databases given
+	collation results will be different.
+
+	Due to a bug in install(1) it is recommended to remove the ancient
+	locales before running make installworld.
+
+	rm -rf /usr/share/locale/*
+
+20151030:
+	The OpenSSL has been upgraded to 1.0.2d.  Any binaries requiring
+	libcrypto.so.7 or libssl.so.7 must be recompiled.
+
+20151020:
+	Qlogic 24xx/25xx firmware images were updated from 5.5.0 to 7.3.0.
+	Kernel modules isp_2400_multi and isp_2500_multi were removed and
+	should be replaced with isp_2400 and isp_2500 modules respectively.
+
+20151017:
+	The build previously allowed using 'make -n' to not recurse into
+	sub-directories while showing what commands would be executed, and
+	'make -n -n' to recursively show commands.  Now 'make -n' will recurse
+	and 'make -N' will not.
+
 20151012:
 	If you specify SENDMAIL_MC or SENDMAIL_CF in make.conf, mergemaster
 	and etcupdate will now use this file. A custom sendmail.cf is now
@@ -168,12 +222,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	like it always used to, and the difference will be irrelevant.
 
 	If you remove 'device random', you get *NO* kernel-processed
-	entopy at all. This may be acceptable to folks building
+	entropy at all. This may be acceptable to folks building
 	embedded systems, but has complications. Carry on reading,
 	and it is assumed you know what you need.
 
 	*PLEASE* read random(4) and random(9) if you are in the
-	habit of tweeking kernel configs, and/or if you are a member
+	habit of tweaking kernel configs, and/or if you are a member
 	of the embedded community, wanting specific and not-usual
 	behaviour from your security subsystems.
 
@@ -815,14 +869,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	Most of network statistics structures were changed to be able
 	keep 64-bits counters. Thus all tools, that work with networking
 	statistics, must be rebuilt (netstat(1), bsnmpd(1), etc.)
-
-20130629:
-	Fix targets that run multiple make's to use && rather than ;
-	so that subsequent steps depend on success of previous.
-
-	NOTE: if building 'universe' with -j* on stable/8 or stable/9
-	it would be better to start the build using bmake, to avoid
-	overloading the machine.
 
 20130618:
 	Fix a bug that allowed a tracing process (e.g. gdb) to write

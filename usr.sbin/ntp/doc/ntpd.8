@@ -1,11 +1,11 @@
-.Dd February 4 2015
+.Dd October 21 2015
 .Dt NTPD 8 User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntpd-opts.mdoc)
 .\"
 .\" $FreeBSD$
 .\"
-.\"  It has been AutoGen-ed  February  4, 2015 at 02:42:12 AM by AutoGen 5.18.5pre4
+.\"  It has been AutoGen-ed  October 21, 2015 at 12:38:30 PM by AutoGen 5.18.5
 .\"  From the definitions    ntpd-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -146,7 +146,7 @@ The name and path of the frequency file,
 by default.
 This is the same operation as the
 \fBdriftfile\fP \fIdriftfile\fP
-configuration specification in the 
+configuration specification in the
 \fI/etc/ntp.conf\fP
 file.
 .It  Fl g , Fl \-panicgate 
@@ -165,6 +165,19 @@ options.
 See the
 \fBtinker\fP
 configuration file directive for other options.
+.It  Fl G , Fl \-force\-step\-once 
+Step any initial offset correction..
+.sp
+Normally,
+\fBntpd\fP
+steps the time if the time offset exceeds the step threshold,
+which is 128 ms by default, and otherwise slews the time.
+This option forces the initial offset correction to be stepped,
+so the highest time accuracy can be achieved quickly.
+However, this may also cause the time to be stepped back
+so this option must not be used if
+applications requiring monotonic time are running.
+See the \fBtinker\fP configuration file directive for other options.
 .It  Fl i Ar string , Fl \-jaildir Ns = Ns Ar string 
 Jail directory.
 .sp
@@ -188,7 +201,7 @@ Open the network address given, or all the addresses associated with the
 given interface name.  This option may appear multiple times.  This option
 also implies not opening other addresses, except wildcard and localhost.
 This option is deprecated. Please consider using the configuration file
-\fBinterface\fP command, which is more versatile. 
+\fBinterface\fP command, which is more versatile.
 .It  Fl k Ar string , Fl \-keyfile Ns = Ns Ar string 
 path to symmetric keys.
 .sp
@@ -521,6 +534,8 @@ when you have permission to do so from the owner of the target host.
 Finally,
 in the past many startup scripts would run
 .Xr ntpdate 8
+or
+.Xr sntp 8
 to get the system clock close to correct before starting
 .Xr ntpd 8 ,
 but this was never more than a mediocre hack and is no longer needed.
@@ -530,7 +545,9 @@ and you still need to set the system time before starting
 .Nm ,
 please open a bug report and document what is going on,
 and then look at using
-.Xr sntp 8 .
+.Xr sntp 8
+if you really need to set the clock before starting
+.Nm .
 .Pp
 There is a way to start
 .Xr ntpd 8

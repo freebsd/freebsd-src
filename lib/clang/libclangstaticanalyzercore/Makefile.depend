@@ -21,6 +21,14 @@ AnalysisManager.po: CommentCommandList.inc.h
 AnalysisManager.po: DeclNodes.inc.h
 AnalysisManager.po: DiagnosticCommonKinds.inc.h
 AnalysisManager.po: StmtNodes.inc.h
+AnalyzerOptions.o: CommentCommandList.inc.h
+AnalyzerOptions.o: DeclNodes.inc.h
+AnalyzerOptions.o: DiagnosticCommonKinds.inc.h
+AnalyzerOptions.o: StmtNodes.inc.h
+AnalyzerOptions.po: CommentCommandList.inc.h
+AnalyzerOptions.po: DeclNodes.inc.h
+AnalyzerOptions.po: DiagnosticCommonKinds.inc.h
+AnalyzerOptions.po: StmtNodes.inc.h
 BasicValueFactory.o: CommentCommandList.inc.h
 BasicValueFactory.o: DeclNodes.inc.h
 BasicValueFactory.o: DiagnosticCommonKinds.inc.h
@@ -98,10 +106,12 @@ CheckerManager.po: StmtNodes.inc.h
 CheckerRegistry.o: CommentCommandList.inc.h
 CheckerRegistry.o: DeclNodes.inc.h
 CheckerRegistry.o: DiagnosticCommonKinds.inc.h
+CheckerRegistry.o: DiagnosticFrontendKinds.inc.h
 CheckerRegistry.o: StmtNodes.inc.h
 CheckerRegistry.po: CommentCommandList.inc.h
 CheckerRegistry.po: DeclNodes.inc.h
 CheckerRegistry.po: DiagnosticCommonKinds.inc.h
+CheckerRegistry.po: DiagnosticFrontendKinds.inc.h
 CheckerRegistry.po: StmtNodes.inc.h
 ConstraintManager.o: CommentCommandList.inc.h
 ConstraintManager.o: DeclNodes.inc.h

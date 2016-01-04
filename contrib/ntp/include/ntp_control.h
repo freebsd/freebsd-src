@@ -104,7 +104,7 @@ struct ntp_control {
 #define	CTL_PST_SEL_REJECT	0	/*   reject */
 #define	CTL_PST_SEL_SANE	1	/* x falsetick */
 #define	CTL_PST_SEL_CORRECT	2	/* . excess */
-#define	CTL_PST_SEL_SELCAND	3	/* - outlyer */
+#define	CTL_PST_SEL_SELCAND	3	/* - outlier */
 #define	CTL_PST_SEL_SYNCCAND	4	/* + candidate */
 #define	CTL_PST_SEL_EXCESS	5	/* # backup */
 #define	CTL_PST_SEL_SYSPEER	6	/* * sys.peer */

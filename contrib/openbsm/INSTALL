@@ -3,7 +3,7 @@ OpenBSM Build and Installation Instructions
 OpenBSM is currently built using autoconf and automake, which should allow
 for building on a range of operating systems, including FreeBSD, Mac OS X,
 and Linux.  Some components are built only if appropriate kernel audit
-suppport is found.  Typical builds will be performed using:
+support is found.  Typical builds will be performed using:
 
     ./configure
     make
@@ -31,7 +31,7 @@ not configurable.
 You may wish to specify that the OpenBSM components not be installed in the
 base system, rather in a specific directory.  This may be done using the
 --prefix argument to configure.  If installing to a specific directory,
-remember to update your library path so that running tools from that
+remember to update your library path so that when running tools from that
 directory the correct libbsm is used:
 
     ./configure --prefix=/home/rwatson/openbsm

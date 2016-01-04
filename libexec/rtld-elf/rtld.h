@@ -41,22 +41,6 @@
 #include "rtld_lock.h"
 #include "rtld_machdep.h"
 
-#ifdef COMPAT_32BIT
-#undef STANDARD_LIBRARY_PATH
-#undef _PATH_ELF_HINTS
-#define	_PATH_ELF_HINTS		"/var/run/ld-elf32.so.hints"
-/* For running 32 bit binaries  */
-#define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
-#define LD_ "LD_32_"
-#endif
-
-#ifndef STANDARD_LIBRARY_PATH
-#define STANDARD_LIBRARY_PATH	"/lib:/usr/lib"
-#endif
-#ifndef LD_
-#define LD_ "LD_"
-#endif
-
 #define NEW(type)	((type *) xmalloc(sizeof(type)))
 #define CNEW(type)	((type *) xcalloc(1, sizeof(type)))
 
@@ -202,6 +186,9 @@ typedef struct Struct_Obj_Entry {
     Elf_Word local_gotno;	/* Number of local GOT entries */
     Elf_Word symtabno;		/* Number of dynamic symbols */
     Elf_Word gotsym;		/* First dynamic symbol in GOT */
+#endif
+#ifdef __powerpc64__
+    Elf_Addr glink;		/* GLINK PLT call stub section */
 #endif
 
     const Elf_Verneed *verneed; /* Required versions. */

@@ -406,8 +406,7 @@ svc_dg_destroy(SVCXPRT *xprt)
 		(void) mem_free(xprt->xp_rtaddr.buf, xprt->xp_rtaddr.maxlen);
 	if (xprt->xp_ltaddr.buf)
 		(void) mem_free(xprt->xp_ltaddr.buf, xprt->xp_ltaddr.maxlen);
-	if (xprt->xp_tp)
-		(void) free(xprt->xp_tp);
+	free(xprt->xp_tp);
 	svc_xprt_free(xprt);
 }
 

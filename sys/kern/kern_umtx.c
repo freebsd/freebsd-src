@@ -813,7 +813,7 @@ umtx_key_get(const void *addr, int type, int share, struct umtx_key *key)
 		if (vm_map_lookup(&map, (vm_offset_t)addr, VM_PROT_WRITE,
 		    &entry, &key->info.shared.object, &pindex, &prot,
 		    &wired) != KERN_SUCCESS) {
-			return EFAULT;
+			return (EFAULT);
 		}
 
 		if ((share == PROCESS_SHARE) ||
@@ -1163,7 +1163,7 @@ do_wake2_umutex(struct thread *td, struct umutex *m, uint32_t flags)
 	int error;
 	int count;
 
-	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
+	switch (flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
 	case 0:
 		type = TYPE_NORMAL_UMUTEX;
 		break;
@@ -3402,14 +3402,16 @@ __umtx_op_sem_wait(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_sem_wake(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_sem_wake(td, uap->obj);
+
+	return (do_sem_wake(td, uap->obj));
 }
 #endif
 
 static int
 __umtx_op_wake2_umutex(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_wake2_umutex(td, uap->obj, uap->val);
+
+	return (do_wake2_umutex(td, uap->obj, uap->val));
 }
 
 static int
@@ -3434,48 +3436,50 @@ __umtx_op_sem2_wait(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_sem2_wake(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_sem2_wake(td, uap->obj);
+
+	return (do_sem2_wake(td, uap->obj));
 }
 
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
 
-static _umtx_op_func op_table[] = {
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED0 */
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED1 */
-	__umtx_op_wait,			/* UMTX_OP_WAIT */
-	__umtx_op_wake,			/* UMTX_OP_WAKE */
-	__umtx_op_trylock_umutex,	/* UMTX_OP_MUTEX_TRYLOCK */
-	__umtx_op_lock_umutex,		/* UMTX_OP_MUTEX_LOCK */
-	__umtx_op_unlock_umutex,	/* UMTX_OP_MUTEX_UNLOCK */
-	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
-	__umtx_op_cv_wait,		/* UMTX_OP_CV_WAIT*/
-	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
-	__umtx_op_cv_broadcast,		/* UMTX_OP_CV_BROADCAST */
-	__umtx_op_wait_uint,		/* UMTX_OP_WAIT_UINT */
-	__umtx_op_rw_rdlock,		/* UMTX_OP_RW_RDLOCK */
-	__umtx_op_rw_wrlock,		/* UMTX_OP_RW_WRLOCK */
-	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
-	__umtx_op_wait_uint_private,	/* UMTX_OP_WAIT_UINT_PRIVATE */
-	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
-	__umtx_op_wait_umutex,		/* UMTX_OP_MUTEX_WAIT */
-	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
+static const _umtx_op_func op_table[] = {
+	[UMTX_OP_RESERVED0]	= __umtx_op_unimpl,
+	[UMTX_OP_RESERVED1]	= __umtx_op_unimpl,
+	[UMTX_OP_WAIT]		= __umtx_op_wait,
+	[UMTX_OP_WAKE]		= __umtx_op_wake,
+	[UMTX_OP_MUTEX_TRYLOCK]	= __umtx_op_trylock_umutex,
+	[UMTX_OP_MUTEX_LOCK]	= __umtx_op_lock_umutex,
+	[UMTX_OP_MUTEX_UNLOCK]	= __umtx_op_unlock_umutex,
+	[UMTX_OP_SET_CEILING]	= __umtx_op_set_ceiling,
+	[UMTX_OP_CV_WAIT]	= __umtx_op_cv_wait,
+	[UMTX_OP_CV_SIGNAL]	= __umtx_op_cv_signal,
+	[UMTX_OP_CV_BROADCAST]	= __umtx_op_cv_broadcast,
+	[UMTX_OP_WAIT_UINT]	= __umtx_op_wait_uint,
+	[UMTX_OP_RW_RDLOCK]	= __umtx_op_rw_rdlock,
+	[UMTX_OP_RW_WRLOCK]	= __umtx_op_rw_wrlock,
+	[UMTX_OP_RW_UNLOCK]	= __umtx_op_rw_unlock,
+	[UMTX_OP_WAIT_UINT_PRIVATE] = __umtx_op_wait_uint_private,
+	[UMTX_OP_WAKE_PRIVATE]	= __umtx_op_wake_private,
+	[UMTX_OP_MUTEX_WAIT]	= __umtx_op_wait_umutex,
+	[UMTX_OP_MUTEX_WAKE]	= __umtx_op_wake_umutex,
 #if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
-	__umtx_op_sem_wait,		/* UMTX_OP_SEM_WAIT */
-	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_sem_wait,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_sem_wake,
 #else
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAIT */
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_unimpl,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_unimpl,
 #endif
-	__umtx_op_nwake_private,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex,		/* UMTX_OP_MUTEX_WAKE2 */
-	__umtx_op_sem2_wait,		/* UMTX_OP_SEM2_WAIT */
-	__umtx_op_sem2_wake,		/* UMTX_OP_SEM2_WAKE */
+	[UMTX_OP_NWAKE_PRIVATE]	= __umtx_op_nwake_private,
+	[UMTX_OP_MUTEX_WAKE2]	= __umtx_op_wake2_umutex,
+	[UMTX_OP_SEM2_WAIT]	= __umtx_op_sem2_wait,
+	[UMTX_OP_SEM2_WAKE]	= __umtx_op_sem2_wake,
 };
 
 int
 sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 {
-	if ((unsigned)uap->op < UMTX_OP_MAX)
+
+	if ((unsigned)uap->op < nitems(op_table))
 		return (*op_table[uap->op])(td, uap);
 	return (EINVAL);
 }
@@ -3733,45 +3737,47 @@ __umtx_op_nwake_private32(struct thread *td, struct _umtx_op_args *uap)
 	return (error);
 }
 
-static _umtx_op_func op_table_compat32[] = {
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED0 */
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED1 */
-	__umtx_op_wait_compat32,	/* UMTX_OP_WAIT */
-	__umtx_op_wake,			/* UMTX_OP_WAKE */
-	__umtx_op_trylock_umutex,	/* UMTX_OP_MUTEX_LOCK */
-	__umtx_op_lock_umutex_compat32,	/* UMTX_OP_MUTEX_TRYLOCK */
-	__umtx_op_unlock_umutex,	/* UMTX_OP_MUTEX_UNLOCK	*/
-	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
-	__umtx_op_cv_wait_compat32,	/* UMTX_OP_CV_WAIT*/
-	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
-	__umtx_op_cv_broadcast,		/* UMTX_OP_CV_BROADCAST */
-	__umtx_op_wait_compat32,	/* UMTX_OP_WAIT_UINT */
-	__umtx_op_rw_rdlock_compat32,	/* UMTX_OP_RW_RDLOCK */
-	__umtx_op_rw_wrlock_compat32,	/* UMTX_OP_RW_WRLOCK */
-	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
-	__umtx_op_wait_uint_private_compat32,	/* UMTX_OP_WAIT_UINT_PRIVATE */
-	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
-	__umtx_op_wait_umutex_compat32, /* UMTX_OP_MUTEX_WAIT */
-	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
+static const _umtx_op_func op_table_compat32[] = {
+	[UMTX_OP_RESERVED0]	= __umtx_op_unimpl,
+	[UMTX_OP_RESERVED1]	= __umtx_op_unimpl,
+	[UMTX_OP_WAIT]	= __umtx_op_wait_compat32,
+	[UMTX_OP_WAKE]	= __umtx_op_wake,
+	[UMTX_OP_MUTEX_LOCK]	= __umtx_op_trylock_umutex,
+	[UMTX_OP_MUTEX_TRYLOCK]	= __umtx_op_lock_umutex_compat32,
+	[UMTX_OP_MUTEX_UNLOCK]	= __umtx_op_unlock_umutex,
+	[UMTX_OP_SET_CEILING]	= __umtx_op_set_ceiling,
+	[UMTX_OP_CV_WAIT]	= __umtx_op_cv_wait_compat32,
+	[UMTX_OP_CV_SIGNAL]	= __umtx_op_cv_signal,
+	[UMTX_OP_CV_BROADCAST]	= __umtx_op_cv_broadcast,
+	[UMTX_OP_WAIT_UINT]	= __umtx_op_wait_compat32,
+	[UMTX_OP_RW_RDLOCK]	= __umtx_op_rw_rdlock_compat32,
+	[UMTX_OP_RW_WRLOCK]	= __umtx_op_rw_wrlock_compat32,
+	[UMTX_OP_RW_UNLOCK]	= __umtx_op_rw_unlock,
+	[UMTX_OP_WAIT_UINT_PRIVATE] = __umtx_op_wait_uint_private_compat32,
+	[UMTX_OP_WAKE_PRIVATE]	= __umtx_op_wake_private,
+	[UMTX_OP_MUTEX_WAIT]	= __umtx_op_wait_umutex_compat32,
+	[UMTX_OP_MUTEX_WAKE]	= __umtx_op_wake_umutex,
 #if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
-	__umtx_op_sem_wait_compat32,	/* UMTX_OP_SEM_WAIT */
-	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_sem_wait_compat32,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_sem_wake,
 #else
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAIT */
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_unimpl,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_unimpl,
 #endif
-	__umtx_op_nwake_private32,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex,		/* UMTX_OP_MUTEX_WAKE2 */
-	__umtx_op_sem2_wait_compat32,	/* UMTX_OP_SEM2_WAIT */
-	__umtx_op_sem2_wake,		/* UMTX_OP_SEM2_WAKE */
+	[UMTX_OP_NWAKE_PRIVATE]	= __umtx_op_nwake_private32,
+	[UMTX_OP_MUTEX_WAKE2]	= __umtx_op_wake2_umutex,
+	[UMTX_OP_SEM2_WAIT]	= __umtx_op_sem2_wait_compat32,
+	[UMTX_OP_SEM2_WAKE]	= __umtx_op_sem2_wake,
 };
 
 int
 freebsd32_umtx_op(struct thread *td, struct freebsd32_umtx_op_args *uap)
 {
-	if ((unsigned)uap->op < UMTX_OP_MAX)
+
+	if ((unsigned)uap->op < nitems(op_table_compat32)) {
 		return (*op_table_compat32[uap->op])(td,
-			(struct _umtx_op_args *)uap);
+		    (struct _umtx_op_args *)uap);
+	}
 	return (EINVAL);
 }
 #endif

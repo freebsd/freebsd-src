@@ -10,6 +10,9 @@
 
 __<bsd.test.mk>__:
 
+# Third-party software (kyua, etc) prefix.
+LOCALBASE?=	/usr/local
+
 # Tests install directory
 TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
 PACKAGE=	tests

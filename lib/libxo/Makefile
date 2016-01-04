@@ -19,6 +19,8 @@ CFLAGS+=-DXO_ENCODERDIR=\"/usr/lib/libxo/encoder\"
 INCS=	xo.h xo_encoder.h
 INCSDIR=${INCLUDEDIR}/libxo
 
+LIBADD=	util
+
 WARNS?= 5
 
 MAN+=	libxo.3

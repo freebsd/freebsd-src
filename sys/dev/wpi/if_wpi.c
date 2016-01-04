@@ -2,6 +2,7 @@
  * Copyright (c) 2006,2007
  *	Damien Bergamini <damien.bergamini@free.fr>
  *	Benjamin Close <Benjamin.Close@clearchain.com>
+ * Copyright (c) 2015 Andriy Voskoboinyk <avos@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -918,7 +919,7 @@ wpi_dma_contig_alloc(struct wpi_softc *sc, struct wpi_dma_info *dma,
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), alignment,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, size, BUS_DMA_NOWAIT, NULL, NULL, &dma->tag);
+	    1, size, 0, NULL, NULL, &dma->tag);
 	if (error != 0)
 		goto fail;
 
@@ -1019,8 +1020,7 @@ wpi_alloc_rx_ring(struct wpi_softc *sc)
 	/* Create RX buffer DMA tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MJUMPAGESIZE, 1, MJUMPAGESIZE, BUS_DMA_NOWAIT, NULL, NULL,
-	    &ring->data_dmat);
+	    MJUMPAGESIZE, 1, MJUMPAGESIZE, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not create RX buf DMA tag, error %d\n",
@@ -1203,8 +1203,7 @@ wpi_alloc_tx_ring(struct wpi_softc *sc, struct wpi_tx_ring *ring, uint8_t qid)
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    WPI_MAX_SCATTER - 1, MCLBYTES, BUS_DMA_NOWAIT, NULL, NULL,
-	    &ring->data_dmat);
+	    WPI_MAX_SCATTER - 1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not create TX buf DMA tag, error %d\n",
@@ -3558,6 +3557,13 @@ wpi_update_promisc(struct ieee80211com *ic)
 {
 	struct wpi_softc *sc = ic->ic_softc;
 
+	WPI_LOCK(sc);
+	if (sc->sc_running == 0) {
+		WPI_UNLOCK(sc);
+		return;
+	}
+	WPI_UNLOCK(sc);
+
 	WPI_RXON_LOCK(sc);
 	wpi_set_promisc(sc);
 
@@ -3793,8 +3799,8 @@ wpi_set_pslevel(struct wpi_softc *sc, uint8_t dtim, int level, int async)
 	if (level != 0)	/* not CAM */
 		cmd.flags |= htole16(WPI_PS_ALLOW_SLEEP);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
-	if (!(reg & 0x1))	/* L0s Entry disabled. */
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 1);
+	if (!(reg & PCIEM_LINK_CTL_ASPMC_L0S))	/* L0s Entry disabled. */
 		cmd.flags |= htole16(WPI_PS_PCI_PMGT);
 
 	cmd.rxtimeout = htole32(pmgt->rxtimeout * IEEE80211_DUR_TU);
@@ -5128,9 +5134,9 @@ wpi_apm_init(struct wpi_softc *sc)
 	WPI_SETBITS(sc, WPI_DBG_HPET_MEM, 0xffff0000);
 
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 1);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
-	if (reg & 0x02)	/* L1 Entry enabled. */
+	if (reg & PCIEM_LINK_CTL_ASPMC_L1)	/* L1 Entry enabled. */
 		WPI_SETBITS(sc, WPI_GIO, WPI_GIO_L0S_ENA);
 	else
 		WPI_CLRBITS(sc, WPI_GIO, WPI_GIO_L0S_ENA);

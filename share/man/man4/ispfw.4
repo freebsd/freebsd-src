@@ -22,12 +22,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2000
+.Dd November 30, 2015
 .Dt ISPFW 4
 .Os
 .Sh NAME
 .Nm ispfw
-.Nd "Firmware Module for Qlogic based SCSI and FibreChannel SCSI Host Adapters"
+.Nd "Firmware for Qlogic based SPI and FibreChannel SCSI Host Adapters"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -44,7 +44,7 @@ ispfw_load="YES"
 .Ed
 .Sh DESCRIPTION
 This trivial driver provides access to firmware sets for the Qlogic
-based SCSI and FibreChannel SCSI Host Adapters.
+based SPI and FibreChannel SCSI Host Adapters.
 It may either be
 statically linked into the kernel, or loaded as a module.
 In either

@@ -25,8 +25,6 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/libauditd/auditd_lib.c#18 $
  */
 
 #include <sys/param.h>
@@ -402,12 +400,13 @@ trailname_to_tstamp(char *fn, time_t *tstamp)
  *	ADE_NOERR	on success or there is nothing to do.
  *	ADE_PARSE	if error parsing audit_control(5).
  *	ADE_NOMEM	if could not allocate memory.
- *	ADE_EXPIRE	if there was an unespected error.
+ *	ADE_READLINK	if could not read link file.
+ *	ADE_EXPIRE	if there was an unexpected error.
  */
 int
 auditd_expire_trails(int (*warn_expired)(char *))
 {
-	int andflg, ret = ADE_NOERR;
+	int andflg, len, ret = ADE_NOERR;
 	size_t expire_size, total_size = 0L;
 	time_t expire_age, oldest_time, current_time = time(NULL);
 	struct dir_ent *traildir;
@@ -431,7 +430,9 @@ auditd_expire_trails(int (*warn_expired)(char *))
 	 * Read the 'current' trail file name.  Trim off directory path.
 	 */
 	activefn[0] = '\0';
-	readlink(AUDIT_CURRENT_LINK, activefn, MAXPATHLEN - 1);
+	len = readlink(AUDIT_CURRENT_LINK, activefn, MAXPATHLEN - 1);
+	if (len < 0)
+		return (ADE_READLINK);
 	if ((afnp = strrchr(activefn, '/')) != NULL)
 		afnp++;
 

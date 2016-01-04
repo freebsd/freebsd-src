@@ -1,5 +1,4 @@
 /* $OpenBSD: sshd.c,v 1.420 2014/02/26 21:53:37 markus Exp $ */
-/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -2502,12 +2501,6 @@ do_ssh2_kex(void)
 	if (options.ciphers != NULL) {
 		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
 		myproposal[PROPOSAL_ENC_ALGS_STOC] = options.ciphers;
-#ifdef	NONE_CIPHER_ENABLED
-	} else if (options.none_enabled == 1) {
-		debug ("WARNING: None cipher enabled");
-		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
-		myproposal[PROPOSAL_ENC_ALGS_STOC] = KEX_ENCRYPT_INCLUDE_NONE;
-#endif
 	}
 	myproposal[PROPOSAL_ENC_ALGS_CTOS] =
 	    compat_cipher_proposal(myproposal[PROPOSAL_ENC_ALGS_CTOS]);

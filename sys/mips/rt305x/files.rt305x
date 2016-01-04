@@ -9,6 +9,11 @@ mips/rt305x/rt305x_gpio.c	optional gpio
 mips/rt305x/uart_bus_rt305x.c	optional uart
 mips/rt305x/uart_cpu_rt305x.c	optional uart
 mips/rt305x/uart_dev_rt305x.c	optional uart
+mips/rt305x/rt305x_dotg.c	optional dwcotg
+mips/rt305x/rt305x_ehci.c	optional ehci
+mips/rt305x/rt305x_ohci.c	optional ohci
+mips/rt305x/rt305x_spi.c	optional spibus
+mips/rt305x/rt305x_pci.c	optional pci
 mips/mips/intr_machdep.c        standard
 mips/mips/tick.c		standard
 dev/rt/if_rt.c			optional rt

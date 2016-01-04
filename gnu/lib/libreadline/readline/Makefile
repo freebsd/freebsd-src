@@ -16,12 +16,11 @@ INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 CFLAGS+=	-I${.OBJDIR}/..
 SRCDIR=	${.CURDIR}/../../../../contrib/libreadline
 
-beforebuild: ${INSTALLED_HEADERS}
 CLEANFILES+= ${INSTALLED_HEADERS}
-DPSRCS+= ${INSTALLED_HEADERS}
+SRCS+= ${INSTALLED_HEADERS}
 
 .for _h in ${INSTALLED_HEADERS}
-${_h}:	${SRCDIR}/${_h}
+${_h}:	${SRCDIR}/${_h} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 

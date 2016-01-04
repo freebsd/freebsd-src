@@ -59,11 +59,128 @@ __FBSDID("$FreeBSD$");
 #define	FB_DEPTH		24
 
 struct bcmsc_softc {
-	struct fb_info 		*info;
+	struct fb_info 			info;
+	int				fbswap;
+	struct bcm2835_fb_config	fb;
+	device_t			dev;
 };
 
 static int bcm_fb_probe(device_t);
 static int bcm_fb_attach(device_t);
+
+static int
+bcm_fb_init(struct bcmsc_softc *sc, struct bcm2835_fb_config *fb)
+{
+	int err;
+
+	err = 0;
+
+	memset(fb, 0, sizeof(*fb));
+	if (bcm2835_mbox_fb_get_w_h(fb) != 0)
+		return (ENXIO);
+	fb->bpp = FB_DEPTH;
+
+	if ((err = bcm2835_mbox_fb_init(fb)) != 0) {
+		device_printf(sc->dev, "bcm2835_mbox_fb_init failed, err=%d\n", err);
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+bcm_fb_setup_fbd(struct bcmsc_softc *sc)
+{
+	struct bcm2835_fb_config fb;
+	device_t fbd;
+	int err;
+
+	err = bcm_fb_init(sc, &fb);
+	if (err)
+		return (err);
+
+	memset(&sc->info, 0, sizeof(sc->info));
+	sc->info.fb_name = device_get_nameunit(sc->dev);
+
+	sc->info.fb_vbase = (intptr_t)pmap_mapdev(fb.base, fb.size);
+	sc->info.fb_pbase = fb.base;
+	sc->info.fb_size = fb.size;
+	sc->info.fb_bpp = sc->info.fb_depth = fb.bpp;
+	sc->info.fb_stride = fb.pitch;
+	sc->info.fb_width = fb.xres;
+	sc->info.fb_height = fb.yres;
+
+	if (sc->fbswap) {
+		switch (sc->info.fb_bpp) {
+		case 24:
+			vt_generate_cons_palette(sc->info.fb_cmap,
+			    COLOR_FORMAT_RGB, 0xff, 0, 0xff, 8, 0xff, 16);
+			sc->info.fb_cmsize = 16;
+			break;
+		case 32:
+			vt_generate_cons_palette(sc->info.fb_cmap,
+			    COLOR_FORMAT_RGB, 0xff, 16, 0xff, 8, 0xff, 0);
+			sc->info.fb_cmsize = 16;
+			break;
+		}
+	}
+
+	fbd = device_add_child(sc->dev, "fbd", device_get_unit(sc->dev));
+	if (fbd == NULL) {
+		device_printf(sc->dev, "Failed to add fbd child\n");
+		pmap_unmapdev(sc->info.fb_vbase, sc->info.fb_size);
+		return (ENXIO);
+	} else if (device_probe_and_attach(fbd) != 0) {
+		device_printf(sc->dev, "Failed to attach fbd device\n");
+		device_delete_child(sc->dev, fbd);
+		pmap_unmapdev(sc->info.fb_vbase, sc->info.fb_size);
+		return (ENXIO);
+	}
+
+	device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", fb.xres, fb.yres,
+	    fb.vxres, fb.vyres, fb.xoffset, fb.yoffset, fb.bpp);
+	device_printf(sc->dev,
+	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n",
+	    sc->fbswap, fb.pitch, fb.base, fb.size);
+
+	return (0);
+}
+
+static int
+bcm_fb_resync_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct bcmsc_softc *sc = arg1;
+	struct bcm2835_fb_config fb;
+	int val;
+	int err;
+
+	val = 0;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err || !req->newptr) /* error || read request */
+		return (err);
+
+	bcm_fb_init(sc, &fb);
+
+	return (0);
+}
+
+static void
+bcm_fb_sysctl_init(struct bcmsc_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree_node;
+	struct sysctl_oid_list *tree;
+
+	/*
+	 * Add system sysctl tree/handlers.
+	 */
+	ctx = device_get_sysctl_ctx(sc->dev);
+	tree_node = device_get_sysctl_tree(sc->dev);
+	tree = SYSCTL_CHILDREN(tree_node);
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "resync",
+	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
+	    bcm_fb_resync_sysctl, "IU", "Set to resync framebuffer with VC");
+}
 
 static int
 bcm_fb_probe(device_t dev)
@@ -80,34 +197,15 @@ static int
 bcm_fb_attach(device_t dev)
 {
 	char bootargs[2048], *n, *p, *v;
-	device_t fbd;
-	int fbswap;
+	int err;
 	phandle_t chosen;
-	struct bcm2835_fb_config fb;
 	struct bcmsc_softc *sc;
-	struct fb_info *info;
 
 	sc = device_get_softc(dev);
-	memset(&fb, 0, sizeof(fb));
-	if (bcm2835_mbox_fb_get_w_h(dev, &fb) != 0)
-		return (ENXIO);
-	fb.bpp = FB_DEPTH;
-	if (bcm2835_mbox_fb_init(dev, &fb) != 0)
-		return (ENXIO);
-
-	info = malloc(sizeof(struct fb_info), M_DEVBUF, M_WAITOK | M_ZERO);
-	info->fb_name = device_get_nameunit(dev);
-	info->fb_vbase = (intptr_t)pmap_mapdev(fb.base, fb.size);
-	info->fb_pbase = fb.base;
-	info->fb_size = fb.size;
-	info->fb_bpp = info->fb_depth = fb.bpp;
-	info->fb_stride = fb.pitch;
-	info->fb_width = fb.xres;
-	info->fb_height = fb.yres;
-	sc->info = info;
+	sc->dev = dev;
 
 	/* Newer firmware versions needs an inverted color palette. */
-	fbswap = 0;
+	sc->fbswap = 0;
 	chosen = OF_finddevice("/chosen");
 	if (chosen != 0 &&
 	    OF_getprop(chosen, "bootargs", &bootargs, sizeof(bootargs)) > 0) {
@@ -118,41 +216,15 @@ bcm_fb_attach(device_t dev)
 			n = strsep(&v, "=");
 			if (strcmp(n, "bcm2708_fb.fbswap") == 0 && v != NULL)
 				if (*v == '1')
-					fbswap = 1;
+					sc->fbswap = 1;
                 }
         }
-	if (fbswap) {
-		switch (info->fb_bpp) {
-		case 24:
-			vt_generate_cons_palette(info->fb_cmap,
-			    COLOR_FORMAT_RGB, 0xff, 0, 0xff, 8, 0xff, 16);
-			info->fb_cmsize = 16;
-			break;
-		case 32:
-			vt_generate_cons_palette(info->fb_cmap,
-			    COLOR_FORMAT_RGB, 0xff, 16, 0xff, 8, 0xff, 0);
-			info->fb_cmsize = 16;
-			break;
-		}
-	}
 
-	fbd = device_add_child(dev, "fbd", device_get_unit(dev));
-	if (fbd == NULL) {
-		device_printf(dev, "Failed to add fbd child\n");
-		free(info, M_DEVBUF);
-		return (ENXIO);
-	} else if (device_probe_and_attach(fbd) != 0) {
-		device_printf(dev, "Failed to attach fbd device\n");
-		device_delete_child(dev, fbd);
-		free(info, M_DEVBUF);
-		return (ENXIO);
-	}
+	bcm_fb_sysctl_init(sc);
 
-	device_printf(dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", fb.xres, fb.yres,
-	    fb.vxres, fb.vyres, fb.xoffset, fb.yoffset, fb.bpp);
-	device_printf(dev,
-	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n",
-	    fbswap, fb.pitch, fb.base, fb.size);
+	err = bcm_fb_setup_fbd(sc);
+	if (err)
+		return (err);
 
 	return (0);
 }
@@ -164,7 +236,7 @@ bcm_fb_helper_getinfo(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	return (sc->info);
+	return (&sc->info);
 }
 
 static device_method_t bcm_fb_methods[] = {

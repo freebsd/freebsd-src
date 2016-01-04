@@ -13,22 +13,6 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AuxVector.o: DiagnosticCommonKinds.inc.h
-AuxVector.po: DiagnosticCommonKinds.inc.h
-DYLDRendezvous.o: CommentCommandList.inc.h
-DYLDRendezvous.o: DeclNodes.inc.h
-DYLDRendezvous.o: DiagnosticCommonKinds.inc.h
-DYLDRendezvous.o: StmtNodes.inc.h
-DYLDRendezvous.po: CommentCommandList.inc.h
-DYLDRendezvous.po: DeclNodes.inc.h
-DYLDRendezvous.po: DiagnosticCommonKinds.inc.h
-DYLDRendezvous.po: StmtNodes.inc.h
-DynamicLoaderPOSIXDYLD.o: CommentCommandList.inc.h
-DynamicLoaderPOSIXDYLD.o: DeclNodes.inc.h
 DynamicLoaderPOSIXDYLD.o: DiagnosticCommonKinds.inc.h
-DynamicLoaderPOSIXDYLD.o: StmtNodes.inc.h
-DynamicLoaderPOSIXDYLD.po: CommentCommandList.inc.h
-DynamicLoaderPOSIXDYLD.po: DeclNodes.inc.h
 DynamicLoaderPOSIXDYLD.po: DiagnosticCommonKinds.inc.h
-DynamicLoaderPOSIXDYLD.po: StmtNodes.inc.h
 .endif

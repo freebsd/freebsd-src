@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#ifdef __arm__
+#include <machine/acle-compat.h>
+#endif
 
 #define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
@@ -116,7 +119,8 @@ SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW,
     &elf_legacy_coredump, 0, "");
 
 int __elfN(nxstack) =
-#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */
+#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */ || \
+    (defined(__arm__) && __ARM_ARCH >= 7) || defined(__aarch64__)
 	1;
 #else
 	0;
@@ -144,7 +148,7 @@ static const char FREEBSD_ABI_VENDOR[] = "FreeBSD";
 Elf_Brandnote __elfN(freebsd_brandnote) = {
 	.hdr.n_namesz	= sizeof(FREEBSD_ABI_VENDOR),
 	.hdr.n_descsz	= sizeof(int32_t),
-	.hdr.n_type	= 1,
+	.hdr.n_type	= NT_FREEBSD_ABI_TAG,
 	.vendor		= FREEBSD_ABI_VENDOR,
 	.flags		= BN_TRANSLATE_OSREL,
 	.trans_osrel	= __elfN(freebsd_trans_osrel)
@@ -273,6 +277,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 		if (hdr->e_machine == bi->machine && (bi->flags &
 		    (BI_BRAND_NOTE|BI_BRAND_NOTE_MANDATORY)) != 0) {
 			ret = __elfN(check_note)(imgp, bi->brand_note, osrel);
+			/* Give brand a chance to veto check_note's guess */
+			if (ret && bi->header_supported)
+				ret = bi->header_supported(imgp);
 			if (ret)
 				return (bi);
 		}
@@ -286,8 +293,11 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 		if (hdr->e_machine == bi->machine &&
 		    (hdr->e_ident[EI_OSABI] == bi->brand ||
 		    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
-		    bi->compat_3_brand, strlen(bi->compat_3_brand)) == 0))
-			return (bi);
+		    bi->compat_3_brand, strlen(bi->compat_3_brand)) == 0)) {
+			/* Looks good, but give brand a chance to veto */
+			if (!bi->header_supported || bi->header_supported(imgp))
+				return (bi);
+		}
 	}
 
 	/* No known brand, see if the header is recognized by any brand */
@@ -789,6 +799,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				error = ENOEXEC;
 				goto ret;
 			}
+			if (interp != NULL) {
+				uprintf("Multiple PT_INTERP headers\n");
+				error = ENOEXEC;
+				goto ret;
+			}
 			interp_name_len = phdr[i].p_filesz;
 			if (phdr[i].p_offset > PAGE_SIZE ||
 			    interp_name_len > PAGE_SIZE - phdr[i].p_offset) {
@@ -987,7 +1002,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (error == 0)
 				have_interp = TRUE;
 		}
-		if (!have_interp && newinterp != NULL) {
+		if (!have_interp && newinterp != NULL &&
+		    (brand_info->interp_path == NULL ||
+		    strcmp(interp, brand_info->interp_path) == 0)) {
 			error = __elfN(load_file)(imgp->proc, newinterp, &addr,
 			    &imgp->entry_addr, sv->sv_pagesize);
 			if (error == 0)
@@ -999,7 +1016,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		}
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0) {
-			uprintf("ELF interpreter %s not found\n", interp);
+			uprintf("ELF interpreter %s not found, error %d\n",
+			    interp, error);
 			goto ret;
 		}
 	} else
@@ -1270,9 +1288,11 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	struct note_info *ninfo;
 	void *hdr, *tmpbuf;
 	size_t hdrsize, notesz, coresize;
+#ifdef GZIO
 	boolean_t compress;
 
 	compress = (flags & IMGACT_CORE_COMPRESS) != 0;
+#endif
 	hdr = NULL;
 	tmpbuf = NULL;
 	TAILQ_INIT(&notelst);

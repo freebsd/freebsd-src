@@ -12,7 +12,7 @@ SRCS=		boot1.c ashldi3.c syncicache.c
 
 MAN=
 
-CFLAGS= -ffreestanding -msoft-float -Os \
+CFLAGS= -ffreestanding -msoft-float \
 	-I${.CURDIR}/../../common -I${.CURDIR}/../../../ \
 	-D_STANDALONE
 LDFLAGS=-nostdlib -static -Wl,-N

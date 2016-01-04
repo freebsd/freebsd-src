@@ -89,8 +89,7 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE3(proc, kernel, , create, "struct proc *",
-    "struct proc *", "int");
+SDT_PROBE_DEFINE3(proc, , , create, "struct proc *", "struct proc *", "int");
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -586,7 +585,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * been preserved.
 	 */
 	p2->p_flag |= p1->p_flag & P_SUGID;
-	td2->td_pflags |= td->td_pflags & TDP_ALTSTACK;
+	td2->td_pflags |= (td->td_pflags & TDP_ALTSTACK) | TDP_FORKING;
 	SESS_LOCK(p1->p_session);
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
@@ -748,7 +747,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Tell any interested parties about the new process.
 	 */
 	knote_fork(&p1->p_klist, p2->p_pid);
-	SDT_PROBE3(proc, kernel, , create, p2, p1, flags);
+	SDT_PROBE3(proc, , , create, p2, p1, flags);
 
 	/*
 	 * Wait until debugger is attached to child.
@@ -848,7 +847,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if (flags & RFPROCDESC) {
 		error = falloc_caps(td, &fp_procdesc, procdescp, 0, fcaps);
 		if (error != 0)
-			return (error);
+			goto fail2;
 	}
 
 	mem_charged = 0;
@@ -1023,6 +1022,7 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 
 	if (p->p_sysent->sv_schedtail != NULL)
 		(p->p_sysent->sv_schedtail)(td);
+	td->td_pflags &= ~TDP_FORKING;
 }
 
 /*
@@ -1066,7 +1066,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 			cv_broadcast(&p->p_dbgwait);
 		}
 		PROC_UNLOCK(p);
-	} else if (p->p_flag & P_TRACED) {
+	} else if (p->p_flag & P_TRACED || td->td_dbgflags & TDB_BORN) {
  		/*
 		 * This is the start of a new thread in a traced
 		 * process.  Report a system call exit event.
@@ -1074,9 +1074,10 @@ fork_return(struct thread *td, struct trapframe *frame)
 		PROC_LOCK(p);
 		td->td_dbgflags |= TDB_SCX;
 		_STOPEVENT(p, S_SCX, td->td_dbg_sc_code);
-		if ((p->p_stops & S_PT_SCX) != 0)
+		if ((p->p_stops & S_PT_SCX) != 0 ||
+		    (td->td_dbgflags & TDB_BORN) != 0)
 			ptracestop(td, SIGTRAP);
-		td->td_dbgflags &= ~TDB_SCX;
+		td->td_dbgflags &= ~(TDB_SCX | TDB_BORN);
 		PROC_UNLOCK(p);
 	}
 

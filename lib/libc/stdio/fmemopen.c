@@ -149,6 +149,9 @@ fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 		return (NULL);
 	}
 
+	if (mode[0] == 'a')
+		f->_flags |= __SAPP;
+
 	/*
 	 * Turn off buffering, so a write past the end of the buffer
 	 * correctly returns a short object count.

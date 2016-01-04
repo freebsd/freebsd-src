@@ -22,6 +22,9 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
+#include "ntp_calendar.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -35,27 +38,27 @@ extern void test_IllegalCharacter(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "atoint.c";
   UnityBegin("atoint.c");
   RUN_TEST(test_RegularPositive, 7);
-  RUN_TEST(test_RegularNegative, 15);
-  RUN_TEST(test_PositiveOverflowBoundary, 23);
-  RUN_TEST(test_NegativeOverflowBoundary, 30);
-  RUN_TEST(test_PositiveOverflowBig, 37);
-  RUN_TEST(test_IllegalCharacter, 44);
+  RUN_TEST(test_RegularNegative, 8);
+  RUN_TEST(test_PositiveOverflowBoundary, 9);
+  RUN_TEST(test_NegativeOverflowBoundary, 10);
+  RUN_TEST(test_PositiveOverflowBig, 11);
+  RUN_TEST(test_IllegalCharacter, 12);
 
   return (UnityEnd());
 }

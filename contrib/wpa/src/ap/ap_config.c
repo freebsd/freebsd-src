@@ -172,6 +172,7 @@ struct hostapd_config * hostapd_config_defaults(void)
 
 	conf->ap_table_max_size = 255;
 	conf->ap_table_expiration_time = 60;
+	conf->track_sta_max_age = 180;
 
 #ifdef CONFIG_TESTING_OPTIONS
 	conf->ignore_probe_probability = 0.0;
@@ -181,6 +182,8 @@ struct hostapd_config * hostapd_config_defaults(void)
 	conf->corrupt_gtk_rekey_mic_probability = 0.0;
 #endif /* CONFIG_TESTING_OPTIONS */
 
+	conf->acs = 0;
+	conf->acs_ch_list.num = 0;
 #ifdef CONFIG_ACS
 	conf->acs_num_scans = 5;
 #endif /* CONFIG_ACS */
@@ -559,6 +562,13 @@ void hostapd_config_free_bss(struct hostapd_bss_config *conf)
 
 	os_free(conf->server_id);
 
+#ifdef CONFIG_TESTING_OPTIONS
+	wpabuf_free(conf->own_ie_override);
+#endif /* CONFIG_TESTING_OPTIONS */
+
+	os_free(conf->no_probe_resp_if_seen_on);
+	os_free(conf->no_auth_if_seen_on);
+
 	os_free(conf);
 }
 
@@ -579,7 +589,7 @@ void hostapd_config_free(struct hostapd_config *conf)
 	os_free(conf->bss);
 	os_free(conf->supported_rates);
 	os_free(conf->basic_rates);
-	os_free(conf->chanlist);
+	os_free(conf->acs_ch_list.range);
 	os_free(conf->driver_params);
 #ifdef CONFIG_ACS
 	os_free(conf->acs_chan_bias);
@@ -817,9 +827,9 @@ static int hostapd_config_check_bss(struct hostapd_bss_config *bss,
 
 	if (full_config && bss->wps_state && bss->wpa &&
 	    (!(bss->wpa & 2) ||
-	     !(bss->rsn_pairwise & WPA_CIPHER_CCMP))) {
+	     !(bss->rsn_pairwise & (WPA_CIPHER_CCMP | WPA_CIPHER_GCMP)))) {
 		wpa_printf(MSG_INFO, "WPS: WPA/TKIP configuration without "
-			   "WPA2/CCMP forced WPS to be disabled");
+			   "WPA2/CCMP/GCMP forced WPS to be disabled");
 		bss->wps_state = 0;
 	}
 #endif /* CONFIG_WPS */
@@ -837,6 +847,29 @@ static int hostapd_config_check_bss(struct hostapd_bss_config *bss,
 	}
 #endif /* CONFIG_HS20 */
 
+	return 0;
+}
+
+
+static int hostapd_config_check_cw(struct hostapd_config *conf, int queue)
+{
+	int tx_cwmin = conf->tx_queue[queue].cwmin;
+	int tx_cwmax = conf->tx_queue[queue].cwmax;
+	int ac_cwmin = conf->wmm_ac_params[queue].cwmin;
+	int ac_cwmax = conf->wmm_ac_params[queue].cwmax;
+
+	if (tx_cwmin > tx_cwmax) {
+		wpa_printf(MSG_ERROR,
+			   "Invalid TX queue cwMin/cwMax values. cwMin(%d) greater than cwMax(%d)",
+			   tx_cwmin, tx_cwmax);
+		return -1;
+	}
+	if (ac_cwmin > ac_cwmax) {
+		wpa_printf(MSG_ERROR,
+			   "Invalid WMM AC cwMin/cwMax values. cwMin(%d) greater than cwMax(%d)",
+			   ac_cwmin, ac_cwmax);
+		return -1;
+	}
 	return 0;
 }
 
@@ -868,6 +901,11 @@ int hostapd_config_check(struct hostapd_config *conf, int full_config)
 	    conf->local_pwr_constraint == -1) {
 		wpa_printf(MSG_ERROR, "Cannot set Spectrum Management bit without Country and Power Constraint elements");
 		return -1;
+	}
+
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		if (hostapd_config_check_cw(conf, i))
+			return -1;
 	}
 
 	for (i = 0; i < conf->num_bss; i++) {
@@ -937,10 +975,11 @@ void hostapd_set_security_params(struct hostapd_bss_config *bss,
 		bss->rsn_pairwise = WPA_CIPHER_CCMP;
 	} else {
 		bss->ssid.security_policy = SECURITY_PLAINTEXT;
-		bss->wpa_group = WPA_CIPHER_NONE;
-		bss->wpa_pairwise = WPA_CIPHER_NONE;
-		bss->rsn_pairwise = WPA_CIPHER_NONE;
-		if (full_config)
+		if (full_config) {
+			bss->wpa_group = WPA_CIPHER_NONE;
+			bss->wpa_pairwise = WPA_CIPHER_NONE;
+			bss->rsn_pairwise = WPA_CIPHER_NONE;
 			bss->wpa_key_mgmt = WPA_KEY_MGMT_NONE;
+		}
 	}
 }

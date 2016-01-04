@@ -170,8 +170,15 @@ static driver_t		ubtbcmfw_driver =
 	.size =		sizeof(struct ubtbcmfw_softc),
 };
 
+static const STRUCT_USB_HOST_ID ubtbcmfw_devs[] = {
+/* Broadcom BCM2033 devices only */
+	{ USB_VPI(USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033, 0) },
+};
+
+
 DRIVER_MODULE(ubtbcmfw, uhub, ubtbcmfw_driver, ubtbcmfw_devclass, NULL, 0);
 MODULE_DEPEND(ubtbcmfw, usb, 1, 1, 1);
+USB_PNP_HOST_INFO(ubtbcmfw_devs);
 
 /*
  * Probe for a USB Bluetooth device
@@ -180,11 +187,6 @@ MODULE_DEPEND(ubtbcmfw, usb, 1, 1, 1);
 static int
 ubtbcmfw_probe(device_t dev)
 {
-	static const STRUCT_USB_HOST_ID devs[] = {
-	/* Broadcom BCM2033 devices only */
-	{ USB_VPI(USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033, 0) },
-	};
-
 	struct usb_attach_arg	*uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
@@ -193,7 +195,7 @@ ubtbcmfw_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(devs, sizeof(devs), uaa));
+	return (usbd_lookup_id_by_uaa(ubtbcmfw_devs, sizeof(ubtbcmfw_devs), uaa));
 } /* ubtbcmfw_probe */
 
 /*

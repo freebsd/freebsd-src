@@ -159,8 +159,8 @@ CANCELPOINTS_SRCS=sem.c sem_new.c
 .for src in ${CANCELPOINTS_SRCS}
 SRCS+=cancelpoints_${src}
 CLEANFILES+=cancelpoints_${src}
-cancelpoints_${src}:
-	ln -sf ${LIBC_SRCTOP}/gen/${src} ${.TARGET}
+cancelpoints_${src}: ${LIBC_SRCTOP}/gen/${src} .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
 SYM_MAPS+=${LIBC_SRCTOP}/gen/Symbol.map

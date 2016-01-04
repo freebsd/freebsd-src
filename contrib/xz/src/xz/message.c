@@ -381,7 +381,7 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 }
 
 
-/// Make a string indicating elapsed or remaining time. The format is either
+/// Make a string indicating elapsed time. The format is either
 /// M:SS or H:MM:SS depending on if the time is an hour or more.
 static const char *
 progress_time(uint64_t mseconds)
@@ -389,7 +389,8 @@ progress_time(uint64_t mseconds)
 	// 9999 hours = 416 days
 	static char buf[sizeof("9999:59:59")];
 
-	uint32_t seconds = mseconds / 1000;
+	// 32-bit variable is enough for elapsed time (136 years).
+	uint32_t seconds = (uint32_t)(mseconds / 1000);
 
 	// Don't show anything if the time is zero or ridiculously big.
 	if (seconds == 0 || seconds > ((9999 * 60) + 59) * 60 + 59)

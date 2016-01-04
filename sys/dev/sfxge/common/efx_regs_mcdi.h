@@ -4451,8 +4451,12 @@
 
 /* MC_CMD_DRV_ATTACH_IN msgrequest */
 #define	MC_CMD_DRV_ATTACH_IN_LEN 12
-/* new state (0=detached, 1=attached) to set if UPDATE=1 */
+/* new state to set if UPDATE=1 */
 #define	MC_CMD_DRV_ATTACH_IN_NEW_STATE_OFST 0
+#define	MC_CMD_DRV_ATTACH_LBN 0
+#define	MC_CMD_DRV_ATTACH_WIDTH 1
+#define	MC_CMD_DRV_PREBOOT_LBN 1
+#define	MC_CMD_DRV_PREBOOT_WIDTH 1
 /* 1 to set new state, or 0 to just report the existing state */
 #define	MC_CMD_DRV_ATTACH_IN_UPDATE_OFST 4
 /* preferred datapath firmware (for Huntington; ignored for Siena) */
@@ -4474,12 +4478,12 @@
 
 /* MC_CMD_DRV_ATTACH_OUT msgresponse */
 #define	MC_CMD_DRV_ATTACH_OUT_LEN 4
-/* previous or existing state (0=detached, 1=attached) */
+/* previous or existing state, see the bitmask at NEW_STATE */
 #define	MC_CMD_DRV_ATTACH_OUT_OLD_STATE_OFST 0
 
 /* MC_CMD_DRV_ATTACH_EXT_OUT msgresponse */
 #define	MC_CMD_DRV_ATTACH_EXT_OUT_LEN 8
-/* previous or existing state (0=detached, 1=attached) */
+/* previous or existing state, see the bitmask at NEW_STATE */
 #define	MC_CMD_DRV_ATTACH_EXT_OUT_OLD_STATE_OFST 0
 /* Flags associated with this function */
 #define	MC_CMD_DRV_ATTACH_EXT_OUT_FUNC_FLAGS_OFST 4
@@ -4491,6 +4495,10 @@
 #define	MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL 0x1
 /* enum: The function can perform privileged operations */
 #define	MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TRUSTED 0x2
+/* enum: The function does not have an active port associated with it. The port
+ * refers to the Sorrento external FPGA port.
+ */
+#define	MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_NO_ACTIVE_PORT 0x3
 
 
 /***********************************/
@@ -5230,6 +5238,55 @@
 #define	MC_CMD_SET_MAC_IN_FLAG_INCLUDE_FCS_LBN 0
 #define	MC_CMD_SET_MAC_IN_FLAG_INCLUDE_FCS_WIDTH 1
 
+/* MC_CMD_SET_MAC_EXT_IN msgrequest */
+#define	MC_CMD_SET_MAC_EXT_IN_LEN 32
+/* The MTU is the MTU programmed directly into the XMAC/GMAC (inclusive of
+ * EtherII, VLAN, bug16011 padding).
+ */
+#define	MC_CMD_SET_MAC_EXT_IN_MTU_OFST 0
+#define	MC_CMD_SET_MAC_EXT_IN_DRAIN_OFST 4
+#define	MC_CMD_SET_MAC_EXT_IN_ADDR_OFST 8
+#define	MC_CMD_SET_MAC_EXT_IN_ADDR_LEN 8
+#define	MC_CMD_SET_MAC_EXT_IN_ADDR_LO_OFST 8
+#define	MC_CMD_SET_MAC_EXT_IN_ADDR_HI_OFST 12
+#define	MC_CMD_SET_MAC_EXT_IN_REJECT_OFST 16
+#define	MC_CMD_SET_MAC_EXT_IN_REJECT_UNCST_LBN 0
+#define	MC_CMD_SET_MAC_EXT_IN_REJECT_UNCST_WIDTH 1
+#define	MC_CMD_SET_MAC_EXT_IN_REJECT_BRDCST_LBN 1
+#define	MC_CMD_SET_MAC_EXT_IN_REJECT_BRDCST_WIDTH 1
+#define	MC_CMD_SET_MAC_EXT_IN_FCNTL_OFST 20
+/* enum: Flow control is off. */
+/*               MC_CMD_FCNTL_OFF 0x0 */
+/* enum: Respond to flow control. */
+/*               MC_CMD_FCNTL_RESPOND 0x1 */
+/* enum: Respond to and Issue flow control. */
+/*               MC_CMD_FCNTL_BIDIR 0x2 */
+/* enum: Auto neg flow control. */
+/*               MC_CMD_FCNTL_AUTO 0x3 */
+/* enum: Priority flow control (eftest builds only). */
+/*               MC_CMD_FCNTL_QBB 0x4 */
+/* enum: Issue flow control. */
+/*               MC_CMD_FCNTL_GENERATE 0x5 */
+#define	MC_CMD_SET_MAC_EXT_IN_FLAGS_OFST 24
+#define	MC_CMD_SET_MAC_EXT_IN_FLAG_INCLUDE_FCS_LBN 0
+#define	MC_CMD_SET_MAC_EXT_IN_FLAG_INCLUDE_FCS_WIDTH 1
+/* Select which parameters to configure. A parameter will only be modified if
+ * the corresponding control flag is set. If SET_MAC_ENHANCED is not set in
+ * capabilities then this field is ignored (and all flags are assumed to be
+ * set).
+ */
+#define	MC_CMD_SET_MAC_EXT_IN_CONTROL_OFST 28
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_MTU_LBN 0
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_MTU_WIDTH 1
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_DRAIN_LBN 1
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_DRAIN_WIDTH 1
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_REJECT_LBN 2
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_REJECT_WIDTH 1
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_FCNTL_LBN 3
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_FCNTL_WIDTH 1
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_FCS_LBN 4
+#define	MC_CMD_SET_MAC_EXT_IN_CFG_FCS_WIDTH 1
+
 /* MC_CMD_SET_MAC_OUT msgresponse */
 #define	MC_CMD_SET_MAC_OUT_LEN 0
 
@@ -5831,6 +5888,26 @@
 #define	MC_CMD_NVRAM_INFO_OUT_PHYSDEV_OFST 16
 #define	MC_CMD_NVRAM_INFO_OUT_PHYSADDR_OFST 20
 
+/* MC_CMD_NVRAM_INFO_V2_OUT msgresponse */
+#define	MC_CMD_NVRAM_INFO_V2_OUT_LEN 28
+#define	MC_CMD_NVRAM_INFO_V2_OUT_TYPE_OFST 0
+/*            Enum values, see field(s): */
+/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+#define	MC_CMD_NVRAM_INFO_V2_OUT_SIZE_OFST 4
+#define	MC_CMD_NVRAM_INFO_V2_OUT_ERASESIZE_OFST 8
+#define	MC_CMD_NVRAM_INFO_V2_OUT_FLAGS_OFST 12
+#define	MC_CMD_NVRAM_INFO_V2_OUT_PROTECTED_LBN 0
+#define	MC_CMD_NVRAM_INFO_V2_OUT_PROTECTED_WIDTH 1
+#define	MC_CMD_NVRAM_INFO_V2_OUT_TLV_LBN 1
+#define	MC_CMD_NVRAM_INFO_V2_OUT_TLV_WIDTH 1
+#define	MC_CMD_NVRAM_INFO_V2_OUT_A_B_LBN 7
+#define	MC_CMD_NVRAM_INFO_V2_OUT_A_B_WIDTH 1
+#define	MC_CMD_NVRAM_INFO_V2_OUT_PHYSDEV_OFST 16
+#define	MC_CMD_NVRAM_INFO_V2_OUT_PHYSADDR_OFST 20
+/* Writes must be multiples of this size. Added to support the MUM on Sorrento.
+ */
+#define	MC_CMD_NVRAM_INFO_V2_OUT_WRITESIZE_OFST 24
+
 
 /***********************************/
 /* MC_CMD_NVRAM_UPDATE_START
@@ -6214,6 +6291,8 @@
 #define	MC_CMD_SENSOR_CCOM_AVREG_1V8_SUPPLY  0x39
 /* enum: CCOM AVREG 1v8 supply (external ADC): mV */
 #define	MC_CMD_SENSOR_CCOM_AVREG_1V8_SUPPLY_EXTADC  0x3a
+/* enum: CCOM RTS temperature: degC */
+#define	MC_CMD_SENSOR_CONTROLLER_RTS  0x3b
 /* enum: Not a sensor: reserved for the next page flag */
 #define	MC_CMD_SENSOR_PAGE1_NEXT  0x3f
 /* enum: controller internal temperature sensor voltage on master core
@@ -6942,6 +7021,10 @@
  * operations
  */
 #define	MC_CMD_MUM_OP_QSFP 0xc
+/* enum: Request discrete and SODIMM DDR info (type, size, speed grade, voltage
+ * level) from MUM
+ */
+#define	MC_CMD_MUM_OP_READ_DDR_INFO 0xd
 
 /* MC_CMD_MUM_IN_NULL msgrequest */
 #define	MC_CMD_MUM_IN_NULL_LEN 4
@@ -7127,6 +7210,10 @@
 #define	MC_CMD_MUM_IN_PROGRAM_CLOCKS_FLAGS_OFST 8
 #define	MC_CMD_MUM_IN_PROGRAM_CLOCKS_OVERCLOCK_110_LBN 0
 #define	MC_CMD_MUM_IN_PROGRAM_CLOCKS_OVERCLOCK_110_WIDTH 1
+#define	MC_CMD_MUM_IN_PROGRAM_CLOCKS_CLOCK_NIC_FROM_FPGA_LBN 1
+#define	MC_CMD_MUM_IN_PROGRAM_CLOCKS_CLOCK_NIC_FROM_FPGA_WIDTH 1
+#define	MC_CMD_MUM_IN_PROGRAM_CLOCKS_CLOCK_REF_FROM_XO_LBN 2
+#define	MC_CMD_MUM_IN_PROGRAM_CLOCKS_CLOCK_REF_FROM_XO_WIDTH 1
 
 /* MC_CMD_MUM_IN_FPGA_LOAD msgrequest */
 #define	MC_CMD_MUM_IN_FPGA_LOAD_LEN 8
@@ -7195,6 +7282,11 @@
 /*            MC_CMD_MUM_IN_CMD_OFST 0 */
 #define	MC_CMD_MUM_IN_QSFP_POLL_BIST_HDR_OFST 4
 #define	MC_CMD_MUM_IN_QSFP_POLL_BIST_IDX_OFST 8
+
+/* MC_CMD_MUM_IN_READ_DDR_INFO msgrequest */
+#define	MC_CMD_MUM_IN_READ_DDR_INFO_LEN 4
+/* MUM cmd header */
+/*            MC_CMD_MUM_IN_CMD_OFST 0 */
 
 /* MC_CMD_MUM_OUT msgresponse */
 #define	MC_CMD_MUM_OUT_LEN 0
@@ -7338,6 +7430,69 @@
 #define	MC_CMD_MUM_OUT_QSFP_POLL_BIST_LEN 4
 #define	MC_CMD_MUM_OUT_QSFP_POLL_BIST_TEST_OFST 0
 
+/* MC_CMD_MUM_OUT_READ_DDR_INFO msgresponse */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_LENMIN 24
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_LENMAX 248
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_LEN(num) (8+8*(num))
+/* Discrete (soldered) DDR resistor strap info */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_DISCRETE_DDR_INFO_OFST 0
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_VRATIO_LBN 0
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_VRATIO_WIDTH 16
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_RESERVED1_LBN 16
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_RESERVED1_WIDTH 16
+/* Number of SODIMM info records */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_NUM_RECORDS_OFST 4
+/* Array of SODIMM info records */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_OFST 8
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_LEN 8
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_LO_OFST 8
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_HI_OFST 12
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_MINNUM 2
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_MAXNUM 30
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_BANK_ID_LBN 0
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_BANK_ID_WIDTH 8
+/* enum: SODIMM bank 1 (Top SODIMM for Sorrento) */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_BANK1 0x0
+/* enum: SODIMM bank 2 (Bottom SODDIMM for Sorrento) */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_BANK2 0x1
+/* enum: Total number of SODIMM banks */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_NUM_BANKS 0x2
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_TYPE_LBN 8
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_TYPE_WIDTH 8
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_RANK_LBN 16
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_RANK_WIDTH 4
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_VOLTAGE_LBN 20
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_VOLTAGE_WIDTH 4
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_NOT_POWERED 0x0 /* enum */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_1V25 0x1 /* enum */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_1V35 0x2 /* enum */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_1V5 0x3 /* enum */
+/* enum: Values 5-15 are reserved for future usage */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_1V8 0x4
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SIZE_LBN 24
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SIZE_WIDTH 8
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SPEED_LBN 32
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_SPEED_WIDTH 16
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_STATE_LBN 48
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_STATE_WIDTH 4
+/* enum: No module present */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_ABSENT 0x0
+/* enum: Module present supported and powered on */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_POWERED 0x1
+/* enum: Module present but bad type */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_TYPE 0x2
+/* enum: Module present but incompatible voltage */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_VOLTAGE 0x3
+/* enum: Module present but unknown SPD */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_SPD 0x4
+/* enum: Module present but slot cannot support it */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_PRESENT_BAD_SLOT 0x5
+/* enum: Modules may or may not be present, but cannot establish contact by I2C
+ */
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_NOT_REACHABLE 0x6
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_RESERVED2_LBN 52
+#define	MC_CMD_MUM_OUT_READ_DDR_INFO_RESERVED2_WIDTH 12
+
 /* MC_CMD_RESOURCE_SPECIFIER enum */
 /* enum: Any */
 #define	MC_CMD_RESOURCE_INSTANCE_ANY 0xffffffff
@@ -7410,6 +7565,8 @@
 #define	NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG       0x500
 /* enum: Expansion ROM configuration data for port 0 */
 #define	NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0  0x600
+/* enum: Synonym for EXPROM_CONFIG_PORT0 as used in pmap files */
+#define	NVRAM_PARTITION_TYPE_EXPROM_CONFIG        0x600
 /* enum: Expansion ROM configuration data for port 1 */
 #define	NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT1  0x601
 /* enum: Expansion ROM configuration data for port 2 */
@@ -7418,6 +7575,8 @@
 #define	NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT3  0x603
 /* enum: Non-volatile log output partition */
 #define	NVRAM_PARTITION_TYPE_LOG                  0x700
+/* enum: Non-volatile log output of second core on dual-core device */
+#define	NVRAM_PARTITION_TYPE_LOG_SLAVE            0x701
 /* enum: Device state dump output partition */
 #define	NVRAM_PARTITION_TYPE_DUMP                 0x800
 /* enum: Application license key storage partition */
@@ -7450,6 +7609,20 @@
 #define	NVRAM_PARTITION_TYPE_MUM_USER_ROM         0xc05
 /* enum: MUM fuses and lockbits partition. */
 #define	NVRAM_PARTITION_TYPE_MUM_FUSELOCK         0xc06
+/* enum: UEFI expansion ROM if separate from PXE */
+#define	NVRAM_PARTITION_TYPE_EXPANSION_UEFI       0xd00
+/* enum: Spare partition 0 */
+#define	NVRAM_PARTITION_TYPE_SPARE_0              0x1000
+/* enum: Spare partition 1 */
+#define	NVRAM_PARTITION_TYPE_SPARE_1              0x1100
+/* enum: Spare partition 2 */
+#define	NVRAM_PARTITION_TYPE_SPARE_2              0x1200
+/* enum: Spare partition 3 */
+#define	NVRAM_PARTITION_TYPE_SPARE_3              0x1300
+/* enum: Spare partition 4 */
+#define	NVRAM_PARTITION_TYPE_SPARE_4              0x1400
+/* enum: Spare partition 5 */
+#define	NVRAM_PARTITION_TYPE_SPARE_5              0x1500
 /* enum: Start of reserved value range (firmware may use for any purpose) */
 #define	NVRAM_PARTITION_TYPE_RESERVED_VALUES_MIN  0xff00
 /* enum: End of reserved value range (firmware may use for any purpose) */
@@ -7699,6 +7872,8 @@
 #define	MC_CMD_INIT_RXQ_IN_FLAG_PREFIX_WIDTH 1
 #define	MC_CMD_INIT_RXQ_IN_FLAG_DISABLE_SCATTER_LBN 9
 #define	MC_CMD_INIT_RXQ_IN_FLAG_DISABLE_SCATTER_WIDTH 1
+#define	MC_CMD_INIT_RXQ_IN_FLAG_FORCE_EV_MERGING_LBN 10
+#define	MC_CMD_INIT_RXQ_IN_FLAG_FORCE_EV_MERGING_WIDTH 1
 /* Owner ID to use if in buffer mode (zero if physical) */
 #define	MC_CMD_INIT_RXQ_IN_OWNER_ID_OFST 20
 /* The port ID associated with the v-adaptor which should contain this DMAQ. */
@@ -7759,6 +7934,8 @@
 #define	MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_64K  0x4 /* enum */
 #define	MC_CMD_INIT_RXQ_EXT_IN_FLAG_WANT_OUTER_CLASSES_LBN 18
 #define	MC_CMD_INIT_RXQ_EXT_IN_FLAG_WANT_OUTER_CLASSES_WIDTH 1
+#define	MC_CMD_INIT_RXQ_EXT_IN_FLAG_FORCE_EV_MERGING_LBN 19
+#define	MC_CMD_INIT_RXQ_EXT_IN_FLAG_FORCE_EV_MERGING_WIDTH 1
 /* Owner ID to use if in buffer mode (zero if physical) */
 #define	MC_CMD_INIT_RXQ_EXT_IN_OWNER_ID_OFST 20
 /* The port ID associated with the v-adaptor which should contain this DMAQ. */
@@ -8090,6 +8267,46 @@
 /* A bit mask defining which MCDI operations may be proxied */
 #define	MC_CMD_PROXY_CONFIGURE_IN_ALLOWED_MCDI_MASK_OFST 44
 #define	MC_CMD_PROXY_CONFIGURE_IN_ALLOWED_MCDI_MASK_LEN 64
+
+/* MC_CMD_PROXY_CONFIGURE_EXT_IN msgrequest */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_LEN 112
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_FLAGS_OFST 0
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_ENABLE_LBN 0
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_ENABLE_WIDTH 1
+/* Host provides a contiguous memory buffer that contains at least NUM_BLOCKS
+ * of blocks, each of the size REQUEST_BLOCK_SIZE.
+ */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_STATUS_BUFF_ADDR_OFST 4
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_STATUS_BUFF_ADDR_LEN 8
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_STATUS_BUFF_ADDR_LO_OFST 4
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_STATUS_BUFF_ADDR_HI_OFST 8
+/* Must be a power of 2 */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_STATUS_BLOCK_SIZE_OFST 12
+/* Host provides a contiguous memory buffer that contains at least NUM_BLOCKS
+ * of blocks, each of the size REPLY_BLOCK_SIZE.
+ */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REQUEST_BUFF_ADDR_OFST 16
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REQUEST_BUFF_ADDR_LEN 8
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REQUEST_BUFF_ADDR_LO_OFST 16
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REQUEST_BUFF_ADDR_HI_OFST 20
+/* Must be a power of 2 */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REQUEST_BLOCK_SIZE_OFST 24
+/* Host provides a contiguous memory buffer that contains at least NUM_BLOCKS
+ * of blocks, each of the size STATUS_BLOCK_SIZE. This buffer is only needed if
+ * host intends to complete proxied operations by using MC_CMD_PROXY_CMD.
+ */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BUFF_ADDR_OFST 28
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BUFF_ADDR_LEN 8
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BUFF_ADDR_LO_OFST 28
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BUFF_ADDR_HI_OFST 32
+/* Must be a power of 2, or zero if this buffer is not provided */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_REPLY_BLOCK_SIZE_OFST 36
+/* Applies to all three buffers */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_NUM_BLOCKS_OFST 40
+/* A bit mask defining which MCDI operations may be proxied */
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_ALLOWED_MCDI_MASK_OFST 44
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_ALLOWED_MCDI_MASK_LEN 64
+#define	MC_CMD_PROXY_CONFIGURE_EXT_IN_RESERVED_OFST 108
 
 /* MC_CMD_PROXY_CONFIGURE_OUT msgresponse */
 #define	MC_CMD_PROXY_CONFIGURE_OUT_LEN 0
@@ -9439,6 +9656,16 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_LEN 20
 /* First word of flags. */
 #define	MC_CMD_GET_CAPABILITIES_OUT_FLAGS1_OFST 0
+#define	MC_CMD_GET_CAPABILITIES_OUT_DRV_ATTACH_PREBOOT_LBN 7
+#define	MC_CMD_GET_CAPABILITIES_OUT_DRV_ATTACH_PREBOOT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_OUT_RX_FORCE_EVENT_MERGING_LBN 8
+#define	MC_CMD_GET_CAPABILITIES_OUT_RX_FORCE_EVENT_MERGING_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_OUT_SET_MAC_ENHANCED_LBN 9
+#define	MC_CMD_GET_CAPABILITIES_OUT_SET_MAC_ENHANCED_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
+#define	MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
+#define	MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define	MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_OUT_ADDITIONAL_RSS_MODES_LBN 13
@@ -9506,6 +9733,8 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_RX_HDR_SPLIT  0x107
 /* enum: RXDP Test firmware image 8 */
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_DISABLE_DL  0x108
+/* enum: RXDP Test firmware image 9 */
+#define	MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_DOORBELL_DELAY  0x10b
 /* TxDPCPU firmware id. */
 #define	MC_CMD_GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID_OFST 6
 #define	MC_CMD_GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID_LEN 2
@@ -9851,6 +10080,26 @@
 
 
 /***********************************/
+/* MC_CMD_VSWITCH_QUERY
+ * read some config of v-switch. For now this command is an empty placeholder.
+ * It may be used to check if a v-switch is connected to a given EVB port (if
+ * not, then the command returns ENOENT).
+ */
+#define	MC_CMD_VSWITCH_QUERY 0x63
+#undef	MC_CMD_0x63_PRIVILEGE_CTG
+
+#define	MC_CMD_0x63_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_VSWITCH_QUERY_IN msgrequest */
+#define	MC_CMD_VSWITCH_QUERY_IN_LEN 4
+/* The port to which the v-switch is connected. */
+#define	MC_CMD_VSWITCH_QUERY_IN_UPSTREAM_PORT_ID_OFST 0
+
+/* MC_CMD_VSWITCH_QUERY_OUT msgresponse */
+#define	MC_CMD_VSWITCH_QUERY_OUT_LEN 0
+
+
+/***********************************/
 /* MC_CMD_VPORT_ALLOC
  * allocate a v-port.
  */
@@ -9887,6 +10136,8 @@
 #define	MC_CMD_VPORT_ALLOC_IN_FLAGS_OFST 8
 #define	MC_CMD_VPORT_ALLOC_IN_FLAG_AUTO_PORT_LBN 0
 #define	MC_CMD_VPORT_ALLOC_IN_FLAG_AUTO_PORT_WIDTH 1
+#define	MC_CMD_VPORT_ALLOC_IN_FLAG_VLAN_RESTRICT_LBN 1
+#define	MC_CMD_VPORT_ALLOC_IN_FLAG_VLAN_RESTRICT_WIDTH 1
 /* The number of VLAN tags to insert/remove. An error will be returned if
  * incompatible with the number of VLAN tags specified for the upstream
  * v-switch.
@@ -9940,6 +10191,8 @@
 #define	MC_CMD_VADAPTOR_ALLOC_IN_FLAGS_OFST 8
 #define	MC_CMD_VADAPTOR_ALLOC_IN_FLAG_AUTO_VADAPTOR_LBN 0
 #define	MC_CMD_VADAPTOR_ALLOC_IN_FLAG_AUTO_VADAPTOR_WIDTH 1
+#define	MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 1
+#define	MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
 /* The number of VLAN tags to strip on receive */
 #define	MC_CMD_VADAPTOR_ALLOC_IN_NUM_VLANS_OFST 12
 /* The number of VLAN tags to transparently insert/remove. */
@@ -10018,6 +10271,30 @@
 /* The MAC address assigned to this v-adaptor */
 #define	MC_CMD_VADAPTOR_GET_MAC_OUT_MACADDR_OFST 0
 #define	MC_CMD_VADAPTOR_GET_MAC_OUT_MACADDR_LEN 6
+
+
+/***********************************/
+/* MC_CMD_VADAPTOR_QUERY
+ * read some config of v-adaptor.
+ */
+#define	MC_CMD_VADAPTOR_QUERY 0x61
+#undef	MC_CMD_0x61_PRIVILEGE_CTG
+
+#define	MC_CMD_0x61_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_VADAPTOR_QUERY_IN msgrequest */
+#define	MC_CMD_VADAPTOR_QUERY_IN_LEN 4
+/* The port to which the v-adaptor is connected. */
+#define	MC_CMD_VADAPTOR_QUERY_IN_UPSTREAM_PORT_ID_OFST 0
+
+/* MC_CMD_VADAPTOR_QUERY_OUT msgresponse */
+#define	MC_CMD_VADAPTOR_QUERY_OUT_LEN 12
+/* The EVB port flags as defined at MC_CMD_VPORT_ALLOC. */
+#define	MC_CMD_VADAPTOR_QUERY_OUT_PORT_FLAGS_OFST 0
+/* The v-adaptor flags as defined at MC_CMD_VADAPTOR_ALLOC. */
+#define	MC_CMD_VADAPTOR_QUERY_OUT_VADAPTOR_FLAGS_OFST 4
+/* The number of VLAN tags that may still be added */
+#define	MC_CMD_VADAPTOR_QUERY_OUT_NUM_AVAILABLE_VLAN_TAGS_OFST 8
 
 
 /***********************************/
@@ -10558,6 +10835,76 @@
 
 
 /***********************************/
+/* MC_CMD_VPORT_RECONFIGURE
+ * Replace VLAN tags and/or MAC addresses of an existing v-port. If the v-port
+ * has already been passed to another function (v-port's user), then that
+ * function will be reset before applying the changes.
+ */
+#define	MC_CMD_VPORT_RECONFIGURE 0xeb
+#undef	MC_CMD_0xeb_PRIVILEGE_CTG
+
+#define	MC_CMD_0xeb_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_VPORT_RECONFIGURE_IN msgrequest */
+#define	MC_CMD_VPORT_RECONFIGURE_IN_LEN 44
+/* The handle of the v-port */
+#define	MC_CMD_VPORT_RECONFIGURE_IN_VPORT_ID_OFST 0
+/* Flags requesting what should be changed. */
+#define	MC_CMD_VPORT_RECONFIGURE_IN_FLAGS_OFST 4
+#define	MC_CMD_VPORT_RECONFIGURE_IN_REPLACE_VLAN_TAGS_LBN 0
+#define	MC_CMD_VPORT_RECONFIGURE_IN_REPLACE_VLAN_TAGS_WIDTH 1
+#define	MC_CMD_VPORT_RECONFIGURE_IN_REPLACE_MACADDRS_LBN 1
+#define	MC_CMD_VPORT_RECONFIGURE_IN_REPLACE_MACADDRS_WIDTH 1
+/* The number of VLAN tags to insert/remove. An error will be returned if
+ * incompatible with the number of VLAN tags specified for the upstream
+ * v-switch.
+ */
+#define	MC_CMD_VPORT_RECONFIGURE_IN_NUM_VLAN_TAGS_OFST 8
+/* The actual VLAN tags to insert/remove */
+#define	MC_CMD_VPORT_RECONFIGURE_IN_VLAN_TAGS_OFST 12
+#define	MC_CMD_VPORT_RECONFIGURE_IN_VLAN_TAG_0_LBN 0
+#define	MC_CMD_VPORT_RECONFIGURE_IN_VLAN_TAG_0_WIDTH 16
+#define	MC_CMD_VPORT_RECONFIGURE_IN_VLAN_TAG_1_LBN 16
+#define	MC_CMD_VPORT_RECONFIGURE_IN_VLAN_TAG_1_WIDTH 16
+/* The number of MAC addresses to add */
+#define	MC_CMD_VPORT_RECONFIGURE_IN_NUM_MACADDRS_OFST 16
+/* MAC addresses to add */
+#define	MC_CMD_VPORT_RECONFIGURE_IN_MACADDRS_OFST 20
+#define	MC_CMD_VPORT_RECONFIGURE_IN_MACADDRS_LEN 6
+#define	MC_CMD_VPORT_RECONFIGURE_IN_MACADDRS_NUM 4
+
+/* MC_CMD_VPORT_RECONFIGURE_OUT msgresponse */
+#define	MC_CMD_VPORT_RECONFIGURE_OUT_LEN 4
+#define	MC_CMD_VPORT_RECONFIGURE_OUT_FLAGS_OFST 0
+#define	MC_CMD_VPORT_RECONFIGURE_OUT_RESET_DONE_LBN 0
+#define	MC_CMD_VPORT_RECONFIGURE_OUT_RESET_DONE_WIDTH 1
+
+
+/***********************************/
+/* MC_CMD_EVB_PORT_QUERY
+ * read some config of v-port.
+ */
+#define	MC_CMD_EVB_PORT_QUERY 0x62
+#undef	MC_CMD_0x62_PRIVILEGE_CTG
+
+#define	MC_CMD_0x62_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_EVB_PORT_QUERY_IN msgrequest */
+#define	MC_CMD_EVB_PORT_QUERY_IN_LEN 4
+/* The handle of the v-port */
+#define	MC_CMD_EVB_PORT_QUERY_IN_PORT_ID_OFST 0
+
+/* MC_CMD_EVB_PORT_QUERY_OUT msgresponse */
+#define	MC_CMD_EVB_PORT_QUERY_OUT_LEN 8
+/* The EVB port flags as defined at MC_CMD_VPORT_ALLOC. */
+#define	MC_CMD_EVB_PORT_QUERY_OUT_PORT_FLAGS_OFST 0
+/* The number of VLAN tags that may be used on a v-adaptor connected to this
+ * EVB port.
+ */
+#define	MC_CMD_EVB_PORT_QUERY_OUT_NUM_AVAILABLE_VLAN_TAGS_OFST 4
+
+
+/***********************************/
 /* MC_CMD_DUMP_BUFTBL_ENTRIES
  * Dump buffer table entries, mainly for command client debug use. Dumps
  * absolute entries, and does not use chunk handles. All entries must be in
@@ -10601,6 +10948,14 @@
 #define	MC_CMD_SET_RXDP_CONFIG_IN_DATA_OFST 0
 #define	MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_DMA_LBN 0
 #define	MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_DMA_WIDTH 1
+#define	MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_LEN_LBN 1
+#define	MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_LEN_WIDTH 2
+/* enum: pad to 64 bytes */
+#define	MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_64  0x0
+/* enum: pad to 128 bytes (Medford only) */
+#define	MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_128  0x1
+/* enum: pad to 256 bytes (Medford only) */
+#define	MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_256   0x2
 
 /* MC_CMD_SET_RXDP_CONFIG_OUT msgresponse */
 #define	MC_CMD_SET_RXDP_CONFIG_OUT_LEN 0
@@ -10623,6 +10978,10 @@
 #define	MC_CMD_GET_RXDP_CONFIG_OUT_DATA_OFST 0
 #define	MC_CMD_GET_RXDP_CONFIG_OUT_PAD_HOST_DMA_LBN 0
 #define	MC_CMD_GET_RXDP_CONFIG_OUT_PAD_HOST_DMA_WIDTH 1
+#define	MC_CMD_GET_RXDP_CONFIG_OUT_PAD_HOST_LEN_LBN 1
+#define	MC_CMD_GET_RXDP_CONFIG_OUT_PAD_HOST_LEN_WIDTH 2
+/*             Enum values, see field(s): */
+/*                MC_CMD_SET_RXDP_CONFIG/MC_CMD_SET_RXDP_CONFIG_IN/PAD_HOST_LEN */
 
 
 /***********************************/
@@ -11508,6 +11867,10 @@
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_DFE_TAP4  0x5
 /* enum: DFE Tap5 (0 - max negative, 32 - zero, 63 - max positive) */
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_DFE_TAP5  0x6
+/* enum: DFE DLev */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_DFE_DLEV  0x7
+/* enum: Figure of Merit */
+#define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_FOM  0x8
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_LANE_LBN 8
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_PARAM_LANE_WIDTH 4
 #define	MC_CMD_PCIE_TUNE_RXEQ_GET_OUT_LANE_0  0x0 /* enum */
@@ -12133,12 +12496,27 @@
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_ONLOAD            0x4 /* enum */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_PTP               0x8 /* enum */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_INSECURE_FILTERS  0x10 /* enum */
-#define	MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING      0x20 /* enum */
+/* enum: Deprecated. Equivalent to MAC_SPOOFING_TX combined with CHANGE_MAC. */
+#define	MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING      0x20
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_UNICAST           0x40 /* enum */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_MULTICAST         0x80 /* enum */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_BROADCAST         0x100 /* enum */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_ALL_MULTICAST     0x200 /* enum */
 #define	MC_CMD_PRIVILEGE_MASK_IN_GRP_PROMISCUOUS       0x400 /* enum */
+/* enum: Allows to set the TX packets' source MAC address to any arbitrary MAC
+ * adress.
+ */
+#define	MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX   0x800
+/* enum: Privilege that allows a Function to change the MAC address configured
+ * in its associated vAdapter/vPort.
+ */
+#define	MC_CMD_PRIVILEGE_MASK_IN_GRP_CHANGE_MAC        0x1000
+/* enum: Privilege that allows a Function to install filters that specify VLANs
+ * that are not in the permit list for the associated vPort. This privilege is
+ * primarily to support ESX where vPorts are created that restrict traffic to
+ * only a set of permitted VLANs. See the vPort flag FLAG_VLAN_RESTRICT.
+ */
+#define	MC_CMD_PRIVILEGE_MASK_IN_GRP_UNRESTRICTED_VLAN  0x2000
 /* enum: Set this bit to indicate that a new privilege mask is to be set,
  * otherwise the command will only read the existing mask.
  */
@@ -12396,7 +12774,7 @@
 /* Sector type */
 #define	MC_CMD_XPM_WRITE_SECTOR_IN_TYPE_OFST 4
 /*            Enum values, see field(s): */
-/*               MC_CMD_XPM_READ_SECTOR_OUT/TYPE */
+/*               MC_CMD_XPM_READ_SECTOR/MC_CMD_XPM_READ_SECTOR_OUT/TYPE */
 /* Sector size */
 #define	MC_CMD_XPM_WRITE_SECTOR_IN_SIZE_OFST 8
 /* Sector data */
@@ -12515,5 +12893,55 @@
 
 /* MC_CMD_XPM_WRITE_TEST_OUT msgresponse */
 #define	MC_CMD_XPM_WRITE_TEST_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_EXEC_SIGNED
+ * Check the CMAC of the contents of IMEM and DMEM against the value supplied
+ * and if correct begin execution from the start of IMEM. The caller supplies a
+ * key ID, the length of IMEM and DMEM to validate and the expected CMAC. CMAC
+ * computation runs from the start of IMEM, and from the start of DMEM + 16k,
+ * to match flash booting. The command will respond with EINVAL if the CMAC
+ * does match, otherwise it will respond with success before it jumps to IMEM.
+ */
+#define	MC_CMD_EXEC_SIGNED 0x10c
+#undef	MC_CMD_0x10c_PRIVILEGE_CTG
+
+#define	MC_CMD_0x10c_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_EXEC_SIGNED_IN msgrequest */
+#define	MC_CMD_EXEC_SIGNED_IN_LEN 28
+/* the length of code to include in the CMAC */
+#define	MC_CMD_EXEC_SIGNED_IN_CODELEN_OFST 0
+/* the length of date to include in the CMAC */
+#define	MC_CMD_EXEC_SIGNED_IN_DATALEN_OFST 4
+/* the XPM sector containing the key to use */
+#define	MC_CMD_EXEC_SIGNED_IN_KEYSECTOR_OFST 8
+/* the expected CMAC value */
+#define	MC_CMD_EXEC_SIGNED_IN_CMAC_OFST 12
+#define	MC_CMD_EXEC_SIGNED_IN_CMAC_LEN 16
+
+/* MC_CMD_EXEC_SIGNED_OUT msgresponse */
+#define	MC_CMD_EXEC_SIGNED_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_PREPARE_SIGNED
+ * Prepare to upload a signed image. This will scrub the specified length of
+ * the data region, which must be at least as large as the DATALEN supplied to
+ * MC_CMD_EXEC_SIGNED.
+ */
+#define	MC_CMD_PREPARE_SIGNED 0x10d
+#undef	MC_CMD_0x10d_PRIVILEGE_CTG
+
+#define	MC_CMD_0x10d_PRIVILEGE_CTG SRIOV_CTG_ADMIN
+
+/* MC_CMD_PREPARE_SIGNED_IN msgrequest */
+#define	MC_CMD_PREPARE_SIGNED_IN_LEN 4
+/* the length of data area to clear */
+#define	MC_CMD_PREPARE_SIGNED_IN_DATALEN_OFST 0
+
+/* MC_CMD_PREPARE_SIGNED_OUT msgresponse */
+#define	MC_CMD_PREPARE_SIGNED_OUT_LEN 0
 
 #endif /* _SIENA_MC_DRIVER_PCOL_H */

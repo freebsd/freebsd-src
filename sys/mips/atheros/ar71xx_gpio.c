@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 #include <mips/atheros/ar933xreg.h>
 #include <mips/atheros/ar934xreg.h>
+#include <mips/atheros/qca953xreg.h>
 #include <mips/atheros/qca955xreg.h>
 
 #include "gpio_if.h"
@@ -102,9 +103,15 @@ static int ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin);
 static void
 ar71xx_gpio_function_enable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
+
+	/*
+	 * XXX TODO: refactor this out into a per-chipset method.
+	 */
 	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
 	    ar71xx_soc == AR71XX_SOC_AR9342 ||
 	    ar71xx_soc == AR71XX_SOC_AR9344 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9533 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9533_V2 ||
 	    ar71xx_soc == AR71XX_SOC_QCA9556 ||
 	    ar71xx_soc == AR71XX_SOC_QCA9558)
 		GPIO_SET_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
@@ -115,9 +122,15 @@ ar71xx_gpio_function_enable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 static void
 ar71xx_gpio_function_disable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
+
+	/*
+	 * XXX TODO: refactor this out into a per-chipset method.
+	 */
 	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
 	    ar71xx_soc == AR71XX_SOC_AR9342 ||
 	    ar71xx_soc == AR71XX_SOC_AR9344 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9533 ||
+	    ar71xx_soc == AR71XX_SOC_QCA9533_V2 ||
 	    ar71xx_soc == AR71XX_SOC_QCA9556 ||
 	    ar71xx_soc == AR71XX_SOC_QCA9558)
 		GPIO_CLEAR_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
@@ -181,6 +194,10 @@ ar71xx_gpio_pin_max(device_t dev, int *maxpin)
 		case AR71XX_SOC_AR9342:
 		case AR71XX_SOC_AR9344:
 			*maxpin = AR934X_GPIO_COUNT - 1;
+			break;
+		case AR71XX_SOC_QCA9533:
+		case AR71XX_SOC_QCA9533_V2:
+			*maxpin = QCA953X_GPIO_COUNT - 1;
 			break;
 		case AR71XX_SOC_QCA9556:
 		case AR71XX_SOC_QCA9558:

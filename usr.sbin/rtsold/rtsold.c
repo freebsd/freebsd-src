@@ -779,15 +779,15 @@ static void
 usage(void)
 {
 #ifndef SMALL
-	fprintf(stderr, "usage: rtsold [-adDfFm1] [-O script-name] "
-	    "[-P pidfile] [-R script-name] interfaces...\n");
 	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
-	    "[-P pidfile] [-R script-name] -a\n");
+	    "[-p pidfile] [-R script-name] interface ...\n");
+	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
+	    "[-p pidfile] [-R script-name] -a\n");
 #else
 	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
-	    "[-P pidfile] [-R script-name] interfaces...\n");
+	    "[-p pidfile] [-R script-name] interface ...\n");
 	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
-	    "[-P pidfile] [-R script-name] -a\n");
+	    "[-p pidfile] [-R script-name] -a\n");
 #endif
 }
 
@@ -888,7 +888,7 @@ autoifprobe(void)
 			warnmsg(LOG_WARNING, __func__,
 				"multiple interfaces found");
 
-		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
+		a = realloc(argv, (n + 1) * sizeof(char *));
 		if (a == NULL) {
 			warnmsg(LOG_ERR, __func__, "realloc");
 			exit(1);
@@ -903,7 +903,7 @@ autoifprobe(void)
 	}
 
 	if (n) {
-		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
+		a = realloc(argv, (n + 1) * sizeof(char *));
 		if (a == NULL) {
 			warnmsg(LOG_ERR, __func__, "realloc");
 			exit(1);

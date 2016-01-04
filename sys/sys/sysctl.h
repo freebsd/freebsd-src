@@ -73,6 +73,12 @@ struct ctlname {
 #define	CTLTYPE_LONG	7	/* name describes a long */
 #define	CTLTYPE_ULONG	8	/* name describes an unsigned long */
 #define	CTLTYPE_U64	9	/* name describes an unsigned 64-bit number */
+#define	CTLTYPE_U8	0xa	/* name describes an unsigned 8-bit number */
+#define	CTLTYPE_U16	0xb	/* name describes an unsigned 16-bit number */
+#define	CTLTYPE_S8	0xc	/* name describes a signed 8-bit number */
+#define	CTLTYPE_S16	0xd	/* name describes a signed 16-bit number */
+#define	CTLTYPE_S32	0xe	/* name describes a signed 32-bit number */
+#define	CTLTYPE_U32	0xf	/* name describes an unsigned 32-bit number */
 
 #define	CTLFLAG_RD	0x80000000	/* Allow reads of variable */
 #define	CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
@@ -131,7 +137,7 @@ struct ctlname {
 #endif
 
 #define	SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1,	\
-	intptr_t arg2, struct sysctl_req *req
+	intmax_t arg2, struct sysctl_req *req
 
 /* definitions for sysctl_req 'lock' member */
 #define	REQ_UNWIRED	1
@@ -175,7 +181,7 @@ struct sysctl_oid {
 	int		 oid_number;
 	u_int		 oid_kind;
 	void		*oid_arg1;
-	intptr_t	 oid_arg2;
+	intmax_t	 oid_arg2;
 	const char	*oid_name;
 	int		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
@@ -188,10 +194,13 @@ struct sysctl_oid {
 #define	SYSCTL_OUT(r, p, l)	(r->oldfunc)(r, p, l)
 #define	SYSCTL_OUT_STR(r, p)	(r->oldfunc)(r, p, strlen(p) + 1)
 
+int sysctl_handle_8(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_16(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_32(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_64(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_int(SYSCTL_HANDLER_ARGS);
 int sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_long(SYSCTL_HANDLER_ARGS);
-int sysctl_handle_64(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS);
@@ -317,6 +326,166 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_STRING);	\
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_STRING|(access),	\
 	    __arg, len, sysctl_handle_string, "A", __DESCR(descr));	\
+})
+
+/* Oid for a signed 8-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_S8_PTR ((int8_t *)NULL)
+#define	SYSCTL_S8(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_S8 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_8, "C", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S8) && \
+	    sizeof(int8_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_S8(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	int8_t *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S8);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_S8 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_8, "C", __DESCR(descr));	\
+})
+
+/* Oid for an unsigned 8-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_U8_PTR ((uint8_t *)NULL)
+#define	SYSCTL_U8(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_U8 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_8, "CU", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U8) && \
+	    sizeof(uint8_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_U8(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	uint8_t *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U8);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U8 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_8, "CU", __DESCR(descr));	\
+})
+
+/* Oid for a signed 16-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_S16_PTR ((int16_t *)NULL)
+#define	SYSCTL_S16(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_S16 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_16, "S", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S16) && \
+	    sizeof(int16_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_S16(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	int16_t *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S16);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_S16 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_16, "S", __DESCR(descr));	\
+})
+
+/* Oid for an unsigned 16-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_U16_PTR ((uint16_t *)NULL)
+#define	SYSCTL_U16(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_U16 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_16, "SU", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U16) && \
+	    sizeof(uint16_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_U16(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	uint16_t *__ptr = (ptr);					\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U16);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U16 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_16, "SU", __DESCR(descr));	\
+})
+
+/* Oid for a signed 32-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_S32_PTR ((int32_t *)NULL)
+#define	SYSCTL_S32(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_S32 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_32, "I", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S32) && \
+	    sizeof(int32_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_S32(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	int32_t *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S32);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_S32 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_32, "I", __DESCR(descr));	\
+})
+
+/* Oid for an unsigned 32-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_U32_PTR ((uint32_t *)NULL)
+#define	SYSCTL_U32(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_U32 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_32, "IU", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U32) && \
+	    sizeof(uint32_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_U32(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	uint32_t *__ptr = (ptr);					\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U32);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U32 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_32, "IU", __DESCR(descr));	\
+})
+
+/* Oid for a signed 64-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_S64_PTR ((int64_t *)NULL)
+#define	SYSCTL_S64(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_S64 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_64, "Q", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64) && \
+	    sizeof(int64_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_S64(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	int64_t *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_S64 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_64, "Q", __DESCR(descr));	\
+})
+
+/* Oid for an unsigned 64-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_U64_PTR ((uint64_t *)NULL)
+#define	SYSCTL_U64(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_64, "QU", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U64) && \
+	    sizeof(uint64_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_U64(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	uint64_t *__ptr = (ptr);					\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U64);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_64, "QU", __DESCR(descr));	\
 })
 
 /* Oid for an int.  If ptr is SYSCTL_NULL_INT_PTR, val is returned. */
@@ -659,6 +828,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_OSREL		40	/* osreldate for process binary */
 #define	KERN_PROC_SIGTRAMP	41	/* signal trampoline location */
 #define	KERN_PROC_CWD		42	/* process current working directory */
+#define	KERN_PROC_NFDS		43	/* number of open file descriptors */
 
 /*
  * KERN_IPC identifiers
@@ -779,7 +949,7 @@ extern char	kern_ident[];
 /* Dynamic oid handling */
 struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
 	    struct sysctl_oid_list *parent, int nbr, const char *name, int kind,
-	    void *arg1, intptr_t arg2, int (*handler)(SYSCTL_HANDLER_ARGS),
+	    void *arg1, intmax_t arg2, int (*handler)(SYSCTL_HANDLER_ARGS),
 	    const char *fmt, const char *descr);
 int	sysctl_remove_name(struct sysctl_oid *parent, const char *name, int del,
 	    int recurse);

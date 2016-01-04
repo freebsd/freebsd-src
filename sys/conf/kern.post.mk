@@ -195,21 +195,43 @@ SFILES_CDDL=	${SFILES:M*/cddl/*}
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
+_MKDEPCC:= ${CC:N${CCACHE_BIN}}
 SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
+DEPENDFILES=	.depend
+.if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Unormal:Mmeta*} == ""
+DEPENDFILES+=	.depend.*
+DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
+DEPEND_CFLAGS+=	-MT${.TARGET}
+CFLAGS+=	${DEPEND_CFLAGS}
+DEPENDOBJS+=	${SYSTEM_OBJS}
+.for __obj in ${DEPENDOBJS:O:u}
+.if ${.MAKEFLAGS:M-V} == ""
+.sinclude ".depend.${__obj}"
+.endif
+DEPENDFILES_OBJS+=	.depend.${__obj}
+.endfor
+.endif	# ${MK_FAST_DEPEND} == "yes"
+
+.NOPATH: .depend ${DEPENDFILES_OBJS}
+
 .depend: .PRECIOUS ${SRCS}
-	rm -f .newdep
+.if ${MK_FAST_DEPEND} == "no"
+	rm -f ${.TARGET}.tmp
 	${MAKE} -V CFILES_NOCDDL -V SYSTEM_CFILES -V GEN_CFILES | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
+	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${CFLAGS}
 	${MAKE} -V CFILES_CDDL | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS} ${FBT_CFLAGS} ${DTRACE_CFLAGS}
+	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_CFLAGS} \
+	    ${FBT_CFLAGS} ${DTRACE_CFLAGS}
 	${MAKE} -V SFILES_NOCDDL | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
+	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ASM_CFLAGS}
 	${MAKE} -V SFILES_CDDL | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
-	rm -f .depend
-	mv .newdep .depend
+	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_ASM_CFLAGS}
+	mv ${.TARGET}.tmp ${.TARGET}
+.else
+	: > ${.TARGET}
+.endif
 
 _ILINKS= machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
@@ -237,8 +259,8 @@ ${_ILINKS}:
 	ln -s $$path ${.TARGET}
 
 # .depend needs include links so we remove them only together.
-kernel-cleandepend:
-	rm -f .depend ${_ILINKS}
+kernel-cleandepend: .PHONY
+	rm -f ${DEPENDFILES} ${_ILINKS}
 
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
@@ -270,22 +292,22 @@ kernel-install:
 	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	mkdir -p ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 .endif
 .if defined(KERNEL_EXTRA_INSTALL)
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}/
 .endif
 
 
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 .endif
 
 config.o env.o hints.o vers.o vnode_if.o:

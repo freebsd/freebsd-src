@@ -34,6 +34,7 @@
 #error Only include this file in the kernel
 #else
 
+#include <machine/acle-compat.h>
 #include "machine/atomic.h"
 #include "machine/cpufunc.h"
 #include "machine/cpuinfo.h"
@@ -155,8 +156,9 @@ _RF0(cp15_l2ctlr_get, CP15_L2CTLR(%0))
 _RF0(cp15_actlr_get, CP15_ACTLR(%0))
 _WF1(cp15_actlr_set, CP15_ACTLR(%0))
 #if __ARM_ARCH >= 6
-_WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0));
-_RF0(cp15_par_get, CP15_PAR);
+_WF1(cp15_ats1cpr_set, CP15_ATS1CPR(%0))
+_WF1(cp15_ats1cpw_set, CP15_ATS1CPW(%0))
+_RF0(cp15_par_get, CP15_PAR(%0))
 _RF0(cp15_sctlr_get, CP15_SCTLR(%0))
 #endif
 
@@ -262,6 +264,12 @@ _W64F1(cp15_cnthp_cval_set, CP15_CNTHP_CVAL(%Q0, %R0))
 #undef	_RF0
 #undef	_WF0
 #undef	_WF1
+
+#if __ARM_ARCH >= 6
+/*
+ * Cache and TLB maintenance operations for armv6+ code.  The #else block
+ * provides armv4/v5 implementations for a few of these used in common code.
+ */
 
 /*
  * TLB maintenance operations.
@@ -471,6 +479,33 @@ dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 }
 
 /*
+ * Discard D-cache lines to PoC, prior to overwrite by DMA engine.
+ *
+ * Normal invalidation does L2 then L1 to ensure that stale data from L2 doesn't
+ * flow into L1 while invalidating.  This routine is intended to be used only
+ * when invalidating a buffer before a DMA operation loads new data into memory.
+ * The concern in this case is that dirty lines are not evicted to main memory,
+ * overwriting the DMA data.  For that reason, the L1 is done first to ensure
+ * that an evicted L1 line doesn't flow to L2 after the L2 has been cleaned.
+ */
+static __inline void
+dcache_inv_poc_dma(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+{
+	vm_offset_t eva = va + size;
+
+	/* invalidate L1 first */
+	dsb();
+	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
+		_CP15_DCIMVAC(va);
+	}
+	dsb();
+
+	/* then L2 */
+	cpu_l2cache_inv_range(pa, size);
+}
+
+/*
  * Write back D-cache to PoC
  *
  * Caches are written back from innermost to outermost as dirty cachelines
@@ -530,6 +565,47 @@ cp15_ttbr_set(uint32_t reg)
 	isb();
 	tlb_flush_all_ng_local();
 }
+
+#else /* ! __ARM_ARCH >= 6 */
+
+/*
+ * armv4/5 compatibility shims.
+ *
+ * These functions provide armv4 cache maintenance using the new armv6 names.
+ * Included here are just the functions actually used now in common code; it may
+ * be necessary to add things here over time.
+ *
+ * The callers of the dcache functions expect these routines to handle address
+ * and size values which are not aligned to cacheline boundaries; the armv4 and
+ * armv5 asm code handles that.
+ */
+
+static __inline void
+dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+{
+
+	cpu_dcache_inv_range(va, size);
+	cpu_l2cache_inv_range(va, size);
+}
+
+static __inline void
+dcache_inv_poc_dma(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+{
+
+	/* See armv6 code, above, for why we do L2 before L1 in this case. */
+	cpu_l2cache_inv_range(va, size);
+	cpu_dcache_inv_range(va, size);
+}
+
+static __inline void
+dcache_wb_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+{
+
+	cpu_dcache_wb_range(va, size);
+	cpu_l2cache_wb_range(va, size);
+}
+
+#endif /* __ARM_ARCH >= 6 */
 
 #endif /* _KERNEL */
 

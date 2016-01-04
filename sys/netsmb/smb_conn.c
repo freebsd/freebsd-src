@@ -683,7 +683,9 @@ int
 smb_vc_disconnect(struct smb_vc *vcp)
 {
 
-	smb_iod_request(vcp->vc_iod, SMBIOD_EV_DISCONNECT | SMBIOD_EV_SYNC, NULL);
+	if (vcp->vc_iod != NULL)
+		smb_iod_request(vcp->vc_iod, SMBIOD_EV_DISCONNECT |
+		    SMBIOD_EV_SYNC, NULL);
 	return 0;
 }
 

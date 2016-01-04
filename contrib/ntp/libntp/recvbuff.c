@@ -216,7 +216,7 @@ get_free_recv_buffer_alloc(void)
 		create_buffers(RECV_INC);
 		buffer = get_free_recv_buffer();
 	}
-	NTP_ENSURE(buffer != NULL);
+	ENSURE(buffer != NULL);
 	return (buffer);
 }
 #endif

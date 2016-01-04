@@ -706,19 +706,20 @@ static driver_t umass_driver = {
 	.size = sizeof(struct umass_softc),
 };
 
-DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, NULL, 0);
-MODULE_DEPEND(umass, usb, 1, 1, 1);
-MODULE_DEPEND(umass, cam, 1, 1, 1);
-MODULE_VERSION(umass, 1);
-
-/*
- * USB device probe/attach/detach
- */
-
 static const STRUCT_USB_HOST_ID __used umass_devs[] = {
 	/* generic mass storage class */
 	{USB_IFACE_CLASS(UICLASS_MASS),},
 };
+
+DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, NULL, 0);
+MODULE_DEPEND(umass, usb, 1, 1, 1);
+MODULE_DEPEND(umass, cam, 1, 1, 1);
+MODULE_VERSION(umass, 1);
+USB_PNP_HOST_INFO(umass_devs);
+
+/*
+ * USB device probe/attach/detach
+ */
 
 static uint16_t
 umass_get_proto(struct usb_interface *iface)

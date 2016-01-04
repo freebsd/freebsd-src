@@ -25,6 +25,8 @@
 #include "crypto/sha256.h"
 #include "osu_client.h"
 
+const char *spp_xsd_fname = "spp.xsd";
+
 
 void write_result(struct hs20_osu_client *ctx, const char *fmt, ...)
 {
@@ -540,6 +542,7 @@ int hs20_add_pps_mo(struct hs20_osu_client *ctx, const char *uri,
 				   uri);
 			write_result(ctx, "Unsupported location for addMO to "
 				     "add PPS MO (extra directory): '%s'", uri);
+			free(fqdn);
 			return -1;
 		}
 		*pos = '\0'; /* remove trailing slash and PPS node name */
@@ -547,8 +550,9 @@ int hs20_add_pps_mo(struct hs20_osu_client *ctx, const char *uri,
 	wpa_printf(MSG_INFO, "SP FQDN: %s", fqdn);
 
 	if (!server_dnsname_suffix_match(ctx, fqdn)) {
-		wpa_printf(MSG_INFO, "FQDN '%s' for new PPS MO did not have suffix match with server's dNSName values",
-			   fqdn);
+		wpa_printf(MSG_INFO,
+			   "FQDN '%s' for new PPS MO did not have suffix match with server's dNSName values, count: %d",
+			   fqdn, (int) ctx->server_dnsname_count);
 		write_result(ctx, "FQDN '%s' for new PPS MO did not have suffix match with server's dNSName values",
 			     fqdn);
 		free(fqdn);
@@ -2094,10 +2098,14 @@ static int osu_connect(struct hs20_osu_client *ctx, const char *bssid,
 	}
 
 	ctx->no_reconnect = 1;
-	if (methods & 0x02)
+	if (methods & 0x02) {
+		wpa_printf(MSG_DEBUG, "Calling cmd_prov from osu_connect");
 		res = cmd_prov(ctx, url);
-	else if (methods & 0x01)
+	} else if (methods & 0x01) {
+		wpa_printf(MSG_DEBUG,
+			   "Calling cmd_oma_dm_prov from osu_connect");
 		res = cmd_oma_dm_prov(ctx, url);
+	}
 
 	wpa_printf(MSG_INFO, "Remove OSU network connection");
 	write_summary(ctx, "Remove OSU network connection");
@@ -2139,7 +2147,7 @@ static int cmd_osu_select(struct hs20_osu_client *ctx, const char *dir,
 	snprintf(fname, sizeof(fname), "%s/osu-providers.txt", dir);
 	osu = parse_osu_providers(fname, &osu_count);
 	if (osu == NULL) {
-		wpa_printf(MSG_INFO, "Could not any OSU providers from %s",
+		wpa_printf(MSG_INFO, "Could not find any OSU providers from %s",
 			   fname);
 		write_result(ctx, "No OSU providers available");
 		return -1;
@@ -2290,12 +2298,19 @@ selected:
 		}
 
 		if (connect == 2) {
-			if (last->methods & 0x02)
+			if (last->methods & 0x02) {
+				wpa_printf(MSG_DEBUG,
+					   "Calling cmd_prov from cmd_osu_select");
 				ret = cmd_prov(ctx, last->url);
-			else if (last->methods & 0x01)
+			} else if (last->methods & 0x01) {
+				wpa_printf(MSG_DEBUG,
+					   "Calling cmd_oma_dm_prov from cmd_osu_select");
 				ret = cmd_oma_dm_prov(ctx, last->url);
-			else
+			} else {
+				wpa_printf(MSG_DEBUG,
+					   "No supported OSU provisioning method");
 				ret = -1;
+			}
 		} else if (connect)
 			ret = osu_connect(ctx, last->bssid, last->osu_ssid,
 					  last->url, last->methods,
@@ -2690,7 +2705,7 @@ static char * get_hostname(const char *url)
 
 	end = os_strchr(pos, '/');
 	end2 = os_strchr(pos, ':');
-	if (end && end2 && end2 < end)
+	if ((end && end2 && end2 < end) || (!end && end2))
 		end = end2;
 	if (end)
 		end--;
@@ -2720,8 +2735,8 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 	int found;
 	char *host = NULL;
 
-	wpa_printf(MSG_INFO, "osu_cert_cb(osu_cert_validation=%d)",
-		   !ctx->no_osu_cert_validation);
+	wpa_printf(MSG_INFO, "osu_cert_cb(osu_cert_validation=%d, url=%s)",
+		   !ctx->no_osu_cert_validation, ctx->server_url);
 
 	host = get_hostname(ctx->server_url);
 
@@ -2810,17 +2825,21 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 		char *name = ctx->icon_filename[j];
 		size_t name_len = os_strlen(name);
 
-		wpa_printf(MSG_INFO, "Looking for icon file name '%s' match",
-			   name);
+		wpa_printf(MSG_INFO,
+			   "[%i] Looking for icon file name '%s' match",
+			   j, name);
 		for (i = 0; i < cert->num_logo; i++) {
 			struct http_logo *logo = &cert->logo[i];
 			size_t uri_len = os_strlen(logo->uri);
 			char *pos;
 
-			wpa_printf(MSG_INFO, "Comparing to '%s' uri_len=%d name_len=%d",
-				   logo->uri, (int) uri_len, (int) name_len);
-			if (uri_len < 1 + name_len)
+			wpa_printf(MSG_INFO,
+				   "[%i] Comparing to '%s' uri_len=%d name_len=%d",
+				   i, logo->uri, (int) uri_len, (int) name_len);
+			if (uri_len < 1 + name_len) {
+				wpa_printf(MSG_INFO, "URI Length is too short");
 				continue;
+			}
 			pos = &logo->uri[uri_len - name_len - 1];
 			if (*pos != '/')
 				continue;
@@ -2847,17 +2866,30 @@ static int osu_cert_cb(void *_ctx, struct http_cert *cert)
 		for (i = 0; i < cert->num_logo; i++) {
 			struct http_logo *logo = &cert->logo[i];
 
-			if (logo->hash_len != 32)
+			if (logo->hash_len != 32) {
+				wpa_printf(MSG_INFO,
+					   "[%i][%i] Icon hash length invalid (should be 32): %d",
+					   j, i, (int) logo->hash_len);
 				continue;
+			}
 			if (os_memcmp(logo->hash, ctx->icon_hash[j], 32) == 0) {
 				found = 1;
 				break;
 			}
+
+			wpa_printf(MSG_DEBUG,
+				   "[%u][%u] Icon hash did not match", j, i);
+			wpa_hexdump_ascii(MSG_DEBUG, "logo->hash",
+					  logo->hash, 32);
+			wpa_hexdump_ascii(MSG_DEBUG, "ctx->icon_hash[j]",
+					  ctx->icon_hash[j], 32);
 		}
 
 		if (!found) {
-			wpa_printf(MSG_INFO, "No icon hash match found");
-			write_result(ctx, "No icon hash match found");
+			wpa_printf(MSG_INFO,
+				   "No icon hash match (by hash) found");
+			write_result(ctx,
+				     "No icon hash match (by hash) found");
 			return -1;
 		}
 	}
@@ -2955,6 +2987,7 @@ static void usage(void)
 	       "    [-w<wpa_supplicant ctrl_iface dir>] "
 	       "[-r<result file>] [-f<debug file>] \\\n"
 	       "    [-s<summary file>] \\\n"
+	       "    [-x<spp.xsd file name>] \\\n"
 	       "    <command> [arguments..]\n"
 	       "commands:\n"
 	       "- to_tnds <XML MO> <XML MO in TNDS format> [URN]\n"
@@ -2996,7 +3029,7 @@ int main(int argc, char *argv[])
 		return -1;
 
 	for (;;) {
-		c = getopt(argc, argv, "df:hi:KNO:qr:s:S:tw:");
+		c = getopt(argc, argv, "df:hKNO:qr:s:S:tw:x:");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -3033,6 +3066,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'w':
 			wpas_ctrl_path = optarg;
+			break;
+		case 'x':
+			spp_xsd_fname = optarg;
 			break;
 		case 'h':
 		default:
@@ -3108,6 +3144,7 @@ int main(int argc, char *argv[])
 			exit(0);
 		}
 		ctx.ca_fname = argv[optind + 2];
+		wpa_printf(MSG_DEBUG, "Calling cmd_prov from main");
 		cmd_prov(&ctx, argv[optind + 1]);
 	} else if (strcmp(argv[optind], "sim_prov") == 0) {
 		if (argc - optind < 2) {

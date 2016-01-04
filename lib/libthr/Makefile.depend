@@ -8,7 +8,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

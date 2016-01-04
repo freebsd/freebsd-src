@@ -358,8 +358,7 @@ update_persist_ifinfo(struct ifilist_head_t *ifi_head, const char *ifname)
 
 		ELM_MALLOC(ifi, exit(1));
 		ifi->ifi_ifindex = 0;
-		strncpy(ifi->ifi_ifname, ifname, sizeof(ifi->ifi_ifname)-1);
-		ifi->ifi_ifname[sizeof(ifi->ifi_ifname)-1] = '\0';
+		strlcpy(ifi->ifi_ifname, ifname, sizeof(ifi->ifi_ifname));
 		ifi->ifi_rainfo = NULL;
 		ifi->ifi_state = IFI_STATE_UNCONFIGURED;
 		TAILQ_INSERT_TAIL(ifi_head, ifi, ifi_next);

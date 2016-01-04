@@ -501,7 +501,12 @@ static void write_bssid(FILE *f, struct wpa_ssid *ssid)
 
 static void write_psk(FILE *f, struct wpa_ssid *ssid)
 {
-	char *value = wpa_config_get(ssid, "psk");
+	char *value;
+
+	if (ssid->mem_only_psk)
+		return;
+
+	value = wpa_config_get(ssid, "psk");
 	if (value == NULL)
 		return;
 	fprintf(f, "\tpsk=%s\n", value);
@@ -673,6 +678,7 @@ static void wpa_config_write_network(FILE *f, struct wpa_ssid *ssid)
 	write_str(f, "bssid_blacklist", ssid);
 	write_str(f, "bssid_whitelist", ssid);
 	write_psk(f, ssid);
+	INT(mem_only_psk);
 	write_proto(f, ssid);
 	write_key_mgmt(f, ssid);
 	INT_DEF(bg_scan_period, DEFAULT_BG_SCAN_PERIOD);
@@ -1010,13 +1016,13 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	if (config->driver_param)
 		fprintf(f, "driver_param=%s\n", config->driver_param);
 	if (config->dot11RSNAConfigPMKLifetime)
-		fprintf(f, "dot11RSNAConfigPMKLifetime=%d\n",
+		fprintf(f, "dot11RSNAConfigPMKLifetime=%u\n",
 			config->dot11RSNAConfigPMKLifetime);
 	if (config->dot11RSNAConfigPMKReauthThreshold)
-		fprintf(f, "dot11RSNAConfigPMKReauthThreshold=%d\n",
+		fprintf(f, "dot11RSNAConfigPMKReauthThreshold=%u\n",
 			config->dot11RSNAConfigPMKReauthThreshold);
 	if (config->dot11RSNAConfigSATimeout)
-		fprintf(f, "dot11RSNAConfigSATimeout=%d\n",
+		fprintf(f, "dot11RSNAConfigSATimeout=%u\n",
 			config->dot11RSNAConfigSATimeout);
 	if (config->update_config)
 		fprintf(f, "update_config=%d\n", config->update_config);
@@ -1064,27 +1070,27 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 #endif /* CONFIG_WPS */
 #ifdef CONFIG_P2P
 	if (config->p2p_listen_reg_class)
-		fprintf(f, "p2p_listen_reg_class=%u\n",
+		fprintf(f, "p2p_listen_reg_class=%d\n",
 			config->p2p_listen_reg_class);
 	if (config->p2p_listen_channel)
-		fprintf(f, "p2p_listen_channel=%u\n",
+		fprintf(f, "p2p_listen_channel=%d\n",
 			config->p2p_listen_channel);
 	if (config->p2p_oper_reg_class)
-		fprintf(f, "p2p_oper_reg_class=%u\n",
+		fprintf(f, "p2p_oper_reg_class=%d\n",
 			config->p2p_oper_reg_class);
 	if (config->p2p_oper_channel)
-		fprintf(f, "p2p_oper_channel=%u\n", config->p2p_oper_channel);
+		fprintf(f, "p2p_oper_channel=%d\n", config->p2p_oper_channel);
 	if (config->p2p_go_intent != DEFAULT_P2P_GO_INTENT)
-		fprintf(f, "p2p_go_intent=%u\n", config->p2p_go_intent);
+		fprintf(f, "p2p_go_intent=%d\n", config->p2p_go_intent);
 	if (config->p2p_ssid_postfix)
 		fprintf(f, "p2p_ssid_postfix=%s\n", config->p2p_ssid_postfix);
 	if (config->persistent_reconnect)
-		fprintf(f, "persistent_reconnect=%u\n",
+		fprintf(f, "persistent_reconnect=%d\n",
 			config->persistent_reconnect);
 	if (config->p2p_intra_bss != DEFAULT_P2P_INTRA_BSS)
-		fprintf(f, "p2p_intra_bss=%u\n", config->p2p_intra_bss);
+		fprintf(f, "p2p_intra_bss=%d\n", config->p2p_intra_bss);
 	if (config->p2p_group_idle)
-		fprintf(f, "p2p_group_idle=%u\n", config->p2p_group_idle);
+		fprintf(f, "p2p_group_idle=%d\n", config->p2p_group_idle);
 	if (config->p2p_passphrase_len)
 		fprintf(f, "p2p_passphrase_len=%u\n",
 			config->p2p_passphrase_len);
@@ -1112,19 +1118,24 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		fprintf(f, "p2p_optimize_listen_chan=%d\n",
 			config->p2p_optimize_listen_chan);
 	if (config->p2p_go_ht40)
-		fprintf(f, "p2p_go_ht40=%u\n", config->p2p_go_ht40);
+		fprintf(f, "p2p_go_ht40=%d\n", config->p2p_go_ht40);
 	if (config->p2p_go_vht)
-		fprintf(f, "p2p_go_vht=%u\n", config->p2p_go_vht);
+		fprintf(f, "p2p_go_vht=%d\n", config->p2p_go_vht);
 	if (config->p2p_go_ctwindow != DEFAULT_P2P_GO_CTWINDOW)
-		fprintf(f, "p2p_go_ctwindow=%u\n", config->p2p_go_ctwindow);
+		fprintf(f, "p2p_go_ctwindow=%d\n", config->p2p_go_ctwindow);
 	if (config->p2p_disabled)
-		fprintf(f, "p2p_disabled=%u\n", config->p2p_disabled);
+		fprintf(f, "p2p_disabled=%d\n", config->p2p_disabled);
 	if (config->p2p_no_group_iface)
-		fprintf(f, "p2p_no_group_iface=%u\n",
+		fprintf(f, "p2p_no_group_iface=%d\n",
 			config->p2p_no_group_iface);
 	if (config->p2p_ignore_shared_freq)
-		fprintf(f, "p2p_ignore_shared_freq=%u\n",
+		fprintf(f, "p2p_ignore_shared_freq=%d\n",
 			config->p2p_ignore_shared_freq);
+	if (config->p2p_cli_probe)
+		fprintf(f, "p2p_cli_probe=%d\n", config->p2p_cli_probe);
+	if (config->p2p_go_freq_change_policy != DEFAULT_P2P_GO_FREQ_MOVE)
+		fprintf(f, "p2p_go_freq_change_policy=%u\n",
+			config->p2p_go_freq_change_policy);
 #endif /* CONFIG_P2P */
 	if (config->country[0] && config->country[1]) {
 		fprintf(f, "country=%c%c\n",
@@ -1144,14 +1155,14 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	if (config->max_num_sta != DEFAULT_MAX_NUM_STA)
 		fprintf(f, "max_num_sta=%u\n", config->max_num_sta);
 	if (config->disassoc_low_ack)
-		fprintf(f, "disassoc_low_ack=%u\n", config->disassoc_low_ack);
+		fprintf(f, "disassoc_low_ack=%d\n", config->disassoc_low_ack);
 #ifdef CONFIG_HS20
 	if (config->hs20)
 		fprintf(f, "hs20=1\n");
 #endif /* CONFIG_HS20 */
 #ifdef CONFIG_INTERWORKING
 	if (config->interworking)
-		fprintf(f, "interworking=%u\n", config->interworking);
+		fprintf(f, "interworking=%d\n", config->interworking);
 	if (!is_zero_ether_addr(config->hessid))
 		fprintf(f, "hessid=" MACSTR "\n", MAC2STR(config->hessid));
 	if (config->access_network_type != DEFAULT_ACCESS_NETWORK_TYPE)
@@ -1159,7 +1170,7 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 			config->access_network_type);
 #endif /* CONFIG_INTERWORKING */
 	if (config->pbc_in_m1)
-		fprintf(f, "pbc_in_m1=%u\n", config->pbc_in_m1);
+		fprintf(f, "pbc_in_m1=%d\n", config->pbc_in_m1);
 	if (config->wps_nfc_pw_from_config) {
 		if (config->wps_nfc_dev_pw_id)
 			fprintf(f, "wps_nfc_dev_pw_id=%d\n",
@@ -1218,7 +1229,7 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		int i;
 		fprintf(f, "freq_list=");
 		for (i = 0; config->freq_list[i]; i++) {
-			fprintf(f, "%s%u", i > 0 ? " " : "",
+			fprintf(f, "%s%d", i > 0 ? " " : "",
 				config->freq_list[i]);
 		}
 		fprintf(f, "\n");
@@ -1259,7 +1270,7 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		fprintf(f, "preassoc_mac_addr=%d\n", config->preassoc_mac_addr);
 
 	if (config->key_mgmt_offload != DEFAULT_KEY_MGMT_OFFLOAD)
-		fprintf(f, "key_mgmt_offload=%u\n", config->key_mgmt_offload);
+		fprintf(f, "key_mgmt_offload=%d\n", config->key_mgmt_offload);
 
 	if (config->user_mpm != DEFAULT_USER_MPM)
 		fprintf(f, "user_mpm=%d\n", config->user_mpm);
@@ -1274,12 +1285,20 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 		fprintf(f, "mesh_max_inactivity=%d\n",
 			config->mesh_max_inactivity);
 
+	if (config->dot11RSNASAERetransPeriod !=
+	    DEFAULT_DOT11_RSNA_SAE_RETRANS_PERIOD)
+		fprintf(f, "dot11RSNASAERetransPeriod=%d\n",
+			config->dot11RSNASAERetransPeriod);
+
 	if (config->passive_scan)
 		fprintf(f, "passive_scan=%d\n", config->passive_scan);
 
 	if (config->reassoc_same_bss_optim)
 		fprintf(f, "reassoc_same_bss_optim=%d\n",
 			config->reassoc_same_bss_optim);
+
+	if (config->wps_priority)
+		fprintf(f, "wps_priority=%d\n", config->wps_priority);
 }
 
 #endif /* CONFIG_NO_CONFIG_WRITE */
@@ -1341,6 +1360,8 @@ int wpa_config_write(const char *name, struct wpa_config *config)
 			break;
 	}
 #endif /* CONFIG_NO_CONFIG_BLOBS */
+
+	os_fdatasync(f);
 
 	fclose(f);
 

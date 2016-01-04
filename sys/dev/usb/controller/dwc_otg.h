@@ -173,8 +173,7 @@ struct dwc_otg_softc {
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
 
-	uint32_t sc_rx_bounce_buffer[1024 / 4];
-	uint32_t sc_tx_bounce_buffer[MAX(512 * DWC_OTG_MAX_TXP, 1024) / 4];
+	uint32_t sc_bounce_buffer[MAX(512 * DWC_OTG_MAX_TXP, 1024) / 4];
 
 	uint32_t sc_fifo_size;
 	uint32_t sc_irq_mask;
@@ -185,6 +184,9 @@ struct dwc_otg_softc {
 	uint32_t sc_tmr_val;
 	uint32_t sc_hprt_val;
 	uint32_t sc_xfer_complete;
+
+	uint16_t sc_current_rx_bytes;
+	uint16_t sc_current_rx_fifo;
 
 	uint16_t sc_active_rx_ep;
 	uint16_t sc_last_frame_num;

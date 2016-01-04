@@ -9,13 +9,6 @@ makeoptions	CONF_CFLAGS="-march=armv7a"
 
 files		"../xilinx/files.zynq7"
 
-# Physical memory starts at 0x00000000.  We assume images are loaded at
-# 0x00100000, e.g. from u-boot with 'fatload mmc 0 0x100000 kernel.bin'
-#
-#
-options		PHYSADDR=0x00000000
-options		KERNPHYSADDR=0x00100000
-makeoptions	KERNPHYSADDR=0x00100000
 options		KERNVIRTADDR=0xc0100000		# Used in ldscript.arm
 makeoptions	KERNVIRTADDR=0xc0100000
 

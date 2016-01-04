@@ -28,7 +28,7 @@ caljulian(
 	ntpcal_split	split;
 	
 	
-	NTP_INSIST(NULL != jt);
+	INSIST(NULL != jt);
 
 	/*
 	 * Unfold ntp time around current time into NTP domain. Split

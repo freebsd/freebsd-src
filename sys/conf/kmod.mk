@@ -28,6 +28,9 @@
 #
 # KMODUNLOAD	Command to unload a kernel module [/sbin/kldunload]
 #
+# KMODISLOADED	Command to check whether a kernel module is
+#		loaded [/sbin/kldstat -q -n]
+#
 # PROG		The name of the kernel module to build.
 #		If not supplied, ${KMOD}.ko is used.
 #
@@ -56,10 +59,14 @@
 # 	unload:
 #		Unload a module.
 #
+#	reload:
+#		Unload if loaded, then load.
+#
 
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
+KMODISLOADED?=	/sbin/kldstat -q -n
 OBJCOPY?=	objcopy
 
 .include <bsd.init.mk>
@@ -225,7 +232,7 @@ ${FULLPROG}: ${OBJS}
 .else
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
-	awk -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
+	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
@@ -296,10 +303,10 @@ realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
 _kmodinstall:
 	${INSTALL} -T release -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(DEBUG_FLAGS) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	${INSTALL} -T debug -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG}.debug ${DESTDIR}${KERN_DEBUGDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG}.debug ${DESTDIR}${KERN_DEBUGDIR}${KMODDIR}/
 .endif
 
 .include <bsd.links.mk>
@@ -325,7 +332,11 @@ load: ${PROG}
 
 .if !target(unload)
 unload:
-	${KMODUNLOAD} -v ${PROG}
+	if ${KMODISLOADED} ${PROG} ; then ${KMODUNLOAD} -v ${PROG} ; fi
+.endif
+
+.if !target(reload)
+reload: unload load
 .endif
 
 .if defined(KERNBUILDDIR)
@@ -370,14 +381,20 @@ vnode_if_typedef.h:
 .endif
 
 # Build _if.[ch] from _if.m, and clean them when we're done.
-.if !defined(_MPATH)
+# This is duplicated in sys/modules/Makefile.
+.if !defined(__MPATH)
 __MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
-_MPATH=${__MPATH:H:O:u}
+.export __MPATH
 .endif
+_MFILES=${__MPATH:T:O}
+_MPATH=${__MPATH:H:O:u}
 .PATH.m: ${_MPATH}
 .for _i in ${SRCS:M*_if.[ch]}
-#removes too much, comment out until it's more constrained.
-#CLEANFILES+=	${_i}
+_MATCH=M${_i:R:S/$/.m/}
+_MATCHES=${_MFILES:${_MATCH}}
+.if !empty(_MATCHES)
+CLEANFILES+=	${_i}
+.endif
 .endfor # _i
 .m.c:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c

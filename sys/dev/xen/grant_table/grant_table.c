@@ -13,8 +13,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_pmap.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -27,6 +25,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <machine/cpu.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
@@ -39,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
-
-#define cmpxchg(a, b, c) atomic_cmpset_int((volatile u_int *)(a),(b),(c))
 
 /* External tools reserve first few grant table entries. */
 #define NR_RESERVED_ENTRIES 8
@@ -291,13 +288,13 @@ gnttab_end_foreign_transfer_ref(grant_ref_t ref)
 	while (!((flags = shared[ref].flags) & GTF_transfer_committed)) {
 		if ( synch_cmpxchg(&shared[ref].flags, flags, 0) == flags )
 			return (0);
-		cpu_relax();
+		cpu_spinwait();
 	}
 
 	/* If a transfer is in progress then wait until it is completed. */
 	while (!(flags & GTF_transfer_completed)) {
 		flags = shared[ref].flags;
-		cpu_relax();
+		cpu_spinwait();
 	}
 
 	/* Read the frame number /after/ reading completion status. */

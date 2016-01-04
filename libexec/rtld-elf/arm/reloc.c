@@ -15,6 +15,42 @@ __FBSDID("$FreeBSD$");
 
 #include "debug.h"
 #include "rtld.h"
+#include "paths.h"
+
+void
+arm_abi_variant_hook(Elf_Auxinfo **aux_info)
+{
+	Elf_Word ehdr;
+
+	/*
+	 * If we're running an old kernel that doesn't provide any data fail
+	 * safe by doing nothing.
+	 */
+	if (aux_info[AT_EHDRFLAGS] == NULL)
+		return;
+	ehdr = aux_info[AT_EHDRFLAGS]->a_un.a_val;
+
+	/*
+	 * Hard float ABI binaries are the default, and use the default paths
+	 * and such.
+	 */
+	if ((ehdr & EF_ARM_VFP_FLOAT) != 0)
+		return;
+
+	/*
+	 * This is a soft float ABI binary. We need to use the soft float
+	 * settings. For the moment, the standard library path includes the hard
+	 * float paths as well. When upgrading, we need to execute the wrong
+	 * kind of binary until we've installed the new binaries. We could go
+	 * off whether or not /libsoft exists, but the simplicity of having it
+	 * in the path wins.
+	 */
+	ld_elf_hints_default = _PATH_SOFT_ELF_HINTS;
+	ld_path_libmap_conf = _PATH_SOFT_LIBMAP_CONF;
+	ld_path_rtld = _PATH_SOFT_RTLD;
+	ld_standard_library_path = SOFT_STANDARD_LIBRARY_PATH;
+	ld_env_prefix = LD_SOFT_;
+}
 
 void
 init_pltgot(Obj_Entry *obj)

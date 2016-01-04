@@ -41,62 +41,63 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <sys/fnv_hash.h>
 
 #define	_WANT_VNET
 
 #include <sys/user.h>
-#include <sys/proc.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <sys/linker.h>
 #include <sys/pcpu.h>
+#include <sys/stat.h>
 
 #include <net/vnet.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-
-#include <machine/vmparam.h>
-
-#include <ctype.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
-#include <nlist.h>
 #include <paths.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
 #include "kvm_private.h"
 
-#ifndef CROSS_LIBKVM
+SET_DECLARE(kvm_arch, struct kvm_arch);
 
 /* from src/lib/libc/gen/nlist.c */
 int __fdnlist(int, struct nlist *);
 
-#define	kvm_fdnlist	__fdnlist
-
-#else
-
-#include <proc_service.h>
-
 static int
-kvm_fdnlist(int fd, struct nlist *list)
+kvm_fdnlist(kvm_t *kd, struct kvm_nlist *list)
 {
-	psaddr_t addr;
-	ps_err_e pserr;
-	int nfail;
+	kvaddr_t addr;
+	int error, nfail;
 
-	nfail = 0; 
+	if (kd->resolve_symbol == NULL) {
+		struct nlist *nl;
+		int count, i;
+
+		for (count = 0; list[count].n_name != NULL &&
+		     list[count].n_name[0] != '\0'; count++)
+			;
+		nl = calloc(count + 1, sizeof(*nl));
+		for (i = 0; i < count; i++)
+			nl[i].n_name = list[i].n_name;
+		nfail = __fdnlist(kd->nlfd, nl);
+		for (i = 0; i < count; i++) {
+			list[i].n_type = nl[i].n_type;
+			list[i].n_value = nl[i].n_value;
+		}
+		free(nl);
+		return (nfail);
+	}
+
+	nfail = 0;
 	while (list->n_name != NULL && list->n_name[0] != '\0') {
-		list->n_other = 0;
-		list->n_desc = 0;
-		pserr = ps_pglobal_lookup(NULL, NULL, list->n_name, &addr);
-		if (pserr != PS_OK) {
+		error = kd->resolve_symbol(list->n_name, &addr);
+		if (error != 0) {
 			nfail++;
 			list->n_value = 0;
 			list->n_type = 0;
@@ -108,8 +109,6 @@ kvm_fdnlist(int fd, struct nlist *list)
 	}
 	return (nfail);
 }
-
-#endif /* CROSS_LIBKVM */
 
 char *
 kvm_geterr(kvm_t *kd)
@@ -175,9 +174,206 @@ _kvm_malloc(kvm_t *kd, size_t n)
 	return (p);
 }
 
+static int
+_kvm_read_kernel_ehdr(kvm_t *kd)
+{
+	Elf *elf;
+
+	if (elf_version(EV_CURRENT) == EV_NONE) {
+		_kvm_err(kd, kd->program, "Unsupported libelf");
+		return (-1);
+	}
+	elf = elf_begin(kd->nlfd, ELF_C_READ, NULL);
+	if (elf == NULL) {
+		_kvm_err(kd, kd->program, "%s", elf_errmsg(0));
+		return (-1);
+	}
+	if (elf_kind(elf) != ELF_K_ELF) {
+		_kvm_err(kd, kd->program, "kernel is not an ELF file");
+		return (-1);
+	}
+	if (gelf_getehdr(elf, &kd->nlehdr) == NULL) {
+		_kvm_err(kd, kd->program, "%s", elf_errmsg(0));
+		elf_end(elf);
+		return (-1);
+	}
+	elf_end(elf);
+
+	switch (kd->nlehdr.e_ident[EI_DATA]) {
+	case ELFDATA2LSB:
+	case ELFDATA2MSB:
+		return (0);
+	default:
+		_kvm_err(kd, kd->program,
+		    "unsupported ELF data encoding for kernel");
+		return (-1);
+	}
+}
+
+int
+_kvm_probe_elf_kernel(kvm_t *kd, int class, int machine)
+{
+
+	return (kd->nlehdr.e_ident[EI_CLASS] == class &&
+	    kd->nlehdr.e_type == ET_EXEC &&
+	    kd->nlehdr.e_machine == machine);
+}
+
+int
+_kvm_is_minidump(kvm_t *kd)
+{
+	char minihdr[8];
+
+	if (kd->rawdump)
+		return (0);
+	if (pread(kd->pmfd, &minihdr, 8, 0) == 8 &&
+	    memcmp(&minihdr, "minidump", 8) == 0)
+		return (1);
+	return (0);
+}
+
+/*
+ * The powerpc backend has a hack to strip a leading kerneldump
+ * header from the core before treating it as an ELF header.
+ *
+ * We can add that here if we can get a change to libelf to support
+ * an inital offset into the file.  Alternatively we could patch
+ * savecore to extract cores from a regular file instead.
+ */
+int
+_kvm_read_core_phdrs(kvm_t *kd, size_t *phnump, GElf_Phdr **phdrp)
+{
+	GElf_Ehdr ehdr;
+	GElf_Phdr *phdr;
+	Elf *elf;
+	size_t i, phnum;
+
+	elf = elf_begin(kd->pmfd, ELF_C_READ, NULL);
+	if (elf == NULL) {
+		_kvm_err(kd, kd->program, "%s", elf_errmsg(0));
+		return (-1);
+	}
+	if (elf_kind(elf) != ELF_K_ELF) {
+		_kvm_err(kd, kd->program, "invalid core");
+		goto bad;
+	}
+	if (gelf_getclass(elf) != kd->nlehdr.e_ident[EI_CLASS]) {
+		_kvm_err(kd, kd->program, "invalid core");
+		goto bad;
+	}
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		_kvm_err(kd, kd->program, "%s", elf_errmsg(0));
+		goto bad;
+	}
+	if (ehdr.e_type != ET_CORE) {
+		_kvm_err(kd, kd->program, "invalid core");
+		goto bad;
+	}
+	if (ehdr.e_machine != kd->nlehdr.e_machine) {
+		_kvm_err(kd, kd->program, "invalid core");
+		goto bad;
+	}
+
+	if (elf_getphdrnum(elf, &phnum) == -1) {
+		_kvm_err(kd, kd->program, "%s", elf_errmsg(0));
+		goto bad;
+	}
+
+	phdr = calloc(phnum, sizeof(*phdr));
+	if (phdr == NULL) {
+		_kvm_err(kd, kd->program, "failed to allocate phdrs");
+		goto bad;
+	}
+
+	for (i = 0; i < phnum; i++) {
+		if (gelf_getphdr(elf, i, &phdr[i]) == NULL) {
+			_kvm_err(kd, kd->program, "%s", elf_errmsg(0));
+			goto bad;
+		}
+	}
+	elf_end(elf);
+	*phnump = phnum;
+	*phdrp = phdr;
+	return (0);
+
+bad:
+	elf_end(elf);
+	return (-1);
+}
+
+static void
+_kvm_hpt_insert(struct hpt *hpt, uint64_t pa, off_t off)
+{
+	struct hpte *hpte;
+	uint32_t fnv = FNV1_32_INIT;
+
+	fnv = fnv_32_buf(&pa, sizeof(pa), fnv);
+	fnv &= (HPT_SIZE - 1);
+	hpte = malloc(sizeof(*hpte));
+	hpte->pa = pa;
+	hpte->off = off;
+	hpte->next = hpt->hpt_head[fnv];
+	hpt->hpt_head[fnv] = hpte;
+}
+
+void
+_kvm_hpt_init(kvm_t *kd, struct hpt *hpt, void *base, size_t len, off_t off,
+    int page_size, int word_size)
+{
+	uint64_t bits, idx, pa;
+	uint64_t *base64;
+	uint32_t *base32;
+
+	base64 = base;
+	base32 = base;
+	for (idx = 0; idx < len / word_size; idx++) {
+		if (word_size == sizeof(uint64_t))
+			bits = _kvm64toh(kd, base64[idx]);
+		else
+			bits = _kvm32toh(kd, base32[idx]);
+		pa = idx * word_size * NBBY * page_size;
+		for (; bits != 0; bits >>= 1, pa += page_size) {
+			if ((bits & 1) == 0)
+				continue;
+			_kvm_hpt_insert(hpt, pa, off);
+			off += page_size;
+		}
+	}
+}
+
+off_t
+_kvm_hpt_find(struct hpt *hpt, uint64_t pa)
+{
+	struct hpte *hpte;
+	uint32_t fnv = FNV1_32_INIT;
+
+	fnv = fnv_32_buf(&pa, sizeof(pa), fnv);
+	fnv &= (HPT_SIZE - 1);
+	for (hpte = hpt->hpt_head[fnv]; hpte != NULL; hpte = hpte->next) {
+		if (pa == hpte->pa)
+			return (hpte->off);
+	}
+	return (-1);
+}
+
+void
+_kvm_hpt_free(struct hpt *hpt)
+{
+	struct hpte *hpte, *next;
+	int i;
+
+	for (i = 0; i < HPT_SIZE; i++) {
+		for (hpte = hpt->hpt_head[i]; hpte != NULL; hpte = next) {
+			next = hpte->next;
+			free(hpte);
+		}
+	}
+}
+
 static kvm_t *
 _kvm_open(kvm_t *kd, const char *uf, const char *mf, int flag, char *errout)
 {
+	struct kvm_arch **parch;
 	struct stat st;
 
 	kd->vmfd = -1;
@@ -235,16 +431,40 @@ _kvm_open(kvm_t *kd, const char *uf, const char *mf, int flag, char *errout)
 	}
 	/*
 	 * This is a crash dump.
-	 * Initialize the virtual address translation machinery,
-	 * but first setup the namelist fd.
+	 * Open the namelist fd and determine the architecture.
 	 */
 	if ((kd->nlfd = open(uf, O_RDONLY | O_CLOEXEC, 0)) < 0) {
 		_kvm_syserr(kd, kd->program, "%s", uf);
 		goto failed;
 	}
+	if (_kvm_read_kernel_ehdr(kd) < 0)
+		goto failed;
 	if (strncmp(mf, _PATH_FWMEM, strlen(_PATH_FWMEM)) == 0)
 		kd->rawdump = 1;
-	if (_kvm_initvtop(kd) < 0)
+	SET_FOREACH(parch, kvm_arch) {
+		if ((*parch)->ka_probe(kd)) {
+			kd->arch = *parch;
+			break;
+		}
+	}
+	if (kd->arch == NULL) {
+		_kvm_err(kd, kd->program, "unsupported architecture");
+		goto failed;
+	}
+
+	/*
+	 * Non-native kernels require a symbol resolver.
+	 */
+	if (!kd->arch->ka_native(kd) && kd->resolve_symbol == NULL) {
+		_kvm_err(kd, kd->program,
+		    "non-native kernel requires a symbol resolver");
+		goto failed;
+	}
+
+	/*
+	 * Initialize the virtual address translation machinery.
+	 */
+	if (kd->arch->ka_initvtop(kd) < 0)
 		goto failed;
 	return (kd);
 failed:
@@ -267,7 +487,6 @@ kvm_openfiles(const char *uf, const char *mf, const char *sf __unused, int flag,
 		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
 		return (0);
 	}
-	kd->program = 0;
 	return (_kvm_open(kd, uf, mf, flag, errout));
 }
 
@@ -287,19 +506,33 @@ kvm_open(const char *uf, const char *mf, const char *sf __unused, int flag,
 	return (_kvm_open(kd, uf, mf, flag, NULL));
 }
 
+kvm_t *
+kvm_open2(const char *uf, const char *mf, int flag, char *errout,
+    int (*resolver)(const char *, kvaddr_t *))
+{
+	kvm_t *kd;
+
+	if ((kd = calloc(1, sizeof(*kd))) == NULL) {
+		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
+		return (0);
+	}
+	kd->resolve_symbol = resolver;
+	return (_kvm_open(kd, uf, mf, flag, errout));
+}
+
 int
 kvm_close(kvm_t *kd)
 {
 	int error = 0;
 
+	if (kd->vmst != NULL)
+		kd->arch->ka_freevtop(kd);
 	if (kd->pmfd >= 0)
 		error |= close(kd->pmfd);
 	if (kd->vmfd >= 0)
 		error |= close(kd->vmfd);
 	if (kd->nlfd >= 0)
 		error |= close(kd->nlfd);
-	if (kd->vmst)
-		_kvm_freevtop(kd);
 	if (kd->procbase != 0)
 		free((void *)kd->procbase);
 	if (kd->argbuf != 0)
@@ -318,10 +551,10 @@ kvm_close(kvm_t *kd)
  * symbol names, try again, and merge back what we could resolve.
  */
 static int
-kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
-    uintptr_t (*validate_fn)(kvm_t *, uintptr_t))
+kvm_fdnlist_prefix(kvm_t *kd, struct kvm_nlist *nl, int missing,
+    const char *prefix, kvaddr_t (*validate_fn)(kvm_t *, kvaddr_t))
 {
-	struct nlist *n, *np, *p;
+	struct kvm_nlist *n, *np, *p;
 	char *cp, *ce;
 	const char *ccp;
 	size_t len;
@@ -337,14 +570,14 @@ kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
 	for (p = nl; p->n_name && p->n_name[0]; ++p) {
 		if (p->n_type != N_UNDF)
 			continue;
-		len += sizeof(struct nlist) + strlen(prefix) +
+		len += sizeof(struct kvm_nlist) + strlen(prefix) +
 		    2 * (strlen(p->n_name) + 1);
 		unresolved++;
 	}
 	if (unresolved == 0)
 		return (unresolved);
 	/* Add space for the terminating nlist entry. */
-	len += sizeof(struct nlist);
+	len += sizeof(struct kvm_nlist);
 	unresolved++;
 
 	/* Alloc one chunk for (nlist, [names]) and setup pointers. */
@@ -353,7 +586,7 @@ kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
 	if (n == NULL)
 		return (missing);
 	cp = ce = (char *)np;
-	cp += unresolved * sizeof(struct nlist);
+	cp += unresolved * sizeof(struct kvm_nlist);
 	ce += len;
 
 	/* Generate shortened nlist with special prefix. */
@@ -361,7 +594,7 @@ kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
 	for (p = nl; p->n_name && p->n_name[0]; ++p) {
 		if (p->n_type != N_UNDF)
 			continue;
-		bcopy(p, np, sizeof(struct nlist));
+		*np = *p;
 		/* Save the new\0orig. name so we can later match it again. */
 		slen = snprintf(cp, ce - cp, "%s%s%c%s", prefix,
 		    (prefix[0] != '\0' && p->n_name[0] == '_') ?
@@ -376,7 +609,7 @@ kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
 
 	/* Do lookup on the reduced list. */
 	np = n;
-	unresolved = kvm_fdnlist(kd->nlfd, np);
+	unresolved = kvm_fdnlist(kd, np);
 
 	/* Check if we could resolve further symbols and update the list. */
 	if (unresolved >= 0 && unresolved < missing) {
@@ -398,8 +631,6 @@ kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
 				continue;
 			/* Update nlist with new, translated results. */
 			p->n_type = np->n_type;
-			p->n_other = np->n_other;
-			p->n_desc = np->n_desc;
 			if (validate_fn)
 				p->n_value = (*validate_fn)(kd, np->n_value);
 			else
@@ -418,9 +649,9 @@ kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
 }
 
 int
-_kvm_nlist(kvm_t *kd, struct nlist *nl, int initialize)
+_kvm_nlist(kvm_t *kd, struct kvm_nlist *nl, int initialize)
 {
-	struct nlist *p;
+	struct kvm_nlist *p;
 	int nvalid;
 	struct kld_sym_lookup lookup;
 	int error;
@@ -433,7 +664,7 @@ _kvm_nlist(kvm_t *kd, struct nlist *nl, int initialize)
 	 * slow library call.
 	 */
 	if (!ISALIVE(kd)) {
-		error = kvm_fdnlist(kd->nlfd, nl);
+		error = kvm_fdnlist(kd, nl);
 		if (error <= 0)			/* Hard error or success. */
 			return (error);
 
@@ -475,8 +706,6 @@ again:
 
 		if (kldsym(0, KLDSYM_LOOKUP, &lookup) != -1) {
 			p->n_type = N_TEXT;
-			p->n_other = 0;
-			p->n_desc = 0;
 			if (_kvm_vnet_initialized(kd, initialize) &&
 			    strcmp(prefix, VNET_SYMPREFIX) == 0)
 				p->n_value =
@@ -519,7 +748,7 @@ again:
 }
 
 int
-kvm_nlist(kvm_t *kd, struct nlist *nl)
+kvm_nlist2(kvm_t *kd, struct kvm_nlist *nl)
 {
 
 	/*
@@ -529,8 +758,48 @@ kvm_nlist(kvm_t *kd, struct nlist *nl)
 	return (_kvm_nlist(kd, nl, 1));
 }
 
+int
+kvm_nlist(kvm_t *kd, struct nlist *nl)
+{
+	struct kvm_nlist *kl;
+	int count, i, nfail;
+
+	/*
+	 * Avoid reporting truncated addresses by failing for non-native
+	 * cores.
+	 */
+	if (!kvm_native(kd)) {
+		_kvm_err(kd, kd->program, "kvm_nlist of non-native vmcore");
+		return (-1);
+	}
+
+	for (count = 0; nl[count].n_name != NULL && nl[count].n_name[0] != '\0';
+	     count++)
+		;
+	if (count == 0)
+		return (0);
+	kl = calloc(count + 1, sizeof(*kl));
+	for (i = 0; i < count; i++)
+		kl[i].n_name = nl[i].n_name;
+	nfail = kvm_nlist2(kd, kl);
+	for (i = 0; i < count; i++) {
+		nl[i].n_type = kl[i].n_type;
+		nl[i].n_other = 0;
+		nl[i].n_desc = 0;
+		nl[i].n_value = kl[i].n_value;
+	}
+	return (nfail);
+}
+
 ssize_t
 kvm_read(kvm_t *kd, u_long kva, void *buf, size_t len)
+{
+
+	return (kvm_read2(kd, kva, buf, len));
+}
+
+ssize_t
+kvm_read2(kvm_t *kd, kvaddr_t kva, void *buf, size_t len)
 {
 	int cc;
 	ssize_t cr;
@@ -544,7 +813,8 @@ kvm_read(kvm_t *kd, u_long kva, void *buf, size_t len)
 		 */
 		errno = 0;
 		if (lseek(kd->vmfd, (off_t)kva, 0) == -1 && errno != 0) {
-			_kvm_err(kd, 0, "invalid address (%lx)", kva);
+			_kvm_err(kd, 0, "invalid address (0x%jx)",
+			    (uintmax_t)kva);
 			return (-1);
 		}
 		cr = read(kd->vmfd, buf, len);
@@ -558,7 +828,7 @@ kvm_read(kvm_t *kd, u_long kva, void *buf, size_t len)
 
 	cp = buf;
 	while (len > 0) {
-		cc = _kvm_kvatop(kd, kva, &pa);
+		cc = kd->arch->ka_kvatop(kd, kva, &pa);
 		if (cc == 0)
 			return (-1);
 		if (cc > (ssize_t)len)
@@ -574,7 +844,7 @@ kvm_read(kvm_t *kd, u_long kva, void *buf, size_t len)
 			break;
 		}
 		/*
-		 * If kvm_kvatop returns a bogus value or our core file is
+		 * If ka_kvatop returns a bogus value or our core file is
 		 * truncated, we might wind up seeking beyond the end of the
 		 * core file in which case the read will return 0 (EOF).
 		 */
@@ -615,4 +885,13 @@ kvm_write(kvm_t *kd, u_long kva, const void *buf, size_t len)
 		return (-1);
 	}
 	/* NOTREACHED */
+}
+
+int
+kvm_native(kvm_t *kd)
+{
+
+	if (ISALIVE(kd))
+		return (1);
+	return (kd->arch->ka_native(kd));
 }

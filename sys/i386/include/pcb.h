@@ -44,13 +44,17 @@
 #endif
 #include <machine/npx.h>
 
+/*
+ * NB: The fields marked with (*) are used by kernel debuggers.  Their
+ * ABI should be preserved.
+ */
 struct pcb {
-	int	pcb_edi;
-	int	pcb_esi;
-	int	pcb_ebp;
-	int	pcb_esp;
-	int	pcb_ebx;
-	int	pcb_eip;
+	int	pcb_edi;	/* (*) */
+	int	pcb_esi;	/* (*) */
+	int	pcb_ebp;	/* (*) */
+	int	pcb_esp;	/* (*) */
+	int	pcb_ebx;	/* (*) */
+	int	pcb_eip;	/* (*) */
 	struct segment_descriptor pcb_fsd;
 	struct segment_descriptor pcb_gsd;
 	int	pcb_ds;

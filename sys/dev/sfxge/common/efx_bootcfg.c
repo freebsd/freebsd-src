@@ -64,7 +64,7 @@ efx_bootcfg_csum(
 	return (checksum);
 }
 
-static	__checkReturn		int
+static	__checkReturn		efx_rc_t
 efx_bootcfg_verify(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -73,7 +73,7 @@ efx_bootcfg_verify(
 {
 	size_t offset = 0;
 	size_t used = 0;
-	int rc;
+	efx_rc_t rc;
 
 	/* Start parsing tags immediatly after the checksum */
 	for (offset = 1; offset < size; ) {
@@ -125,12 +125,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-				int
+				efx_rc_t
 efx_bootcfg_read(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
@@ -139,7 +139,7 @@ efx_bootcfg_read(
 	uint8_t *payload = NULL;
 	size_t used_bytes;
 	size_t sector_length;
-	int rc;
+	efx_rc_t rc;
 
 	rc = efx_nvram_size(enp, EFX_NVRAM_BOOTROM_CFG, &sector_length);
 	if (rc != 0)
@@ -238,12 +238,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-				int
+				efx_rc_t
 efx_bootcfg_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -256,7 +256,7 @@ efx_bootcfg_write(
 	size_t used_bytes;
 	size_t offset;
 	size_t remaining;
-	int rc;
+	efx_rc_t rc;
 
 	rc = efx_nvram_size(enp, EFX_NVRAM_BOOTROM_CFG, &sector_length);
 	if (rc != 0)
@@ -342,7 +342,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

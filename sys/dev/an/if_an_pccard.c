@@ -108,6 +108,7 @@ static const struct pccard_product an_pccard_products[] = {
 	PCMCIA_CARD(XIRCOM, CWE1130), 
 	{ NULL }
 };
+PCCARD_PNP_INFO(an_pccard_products);
 
 static int
 an_pccard_probe(device_t dev)

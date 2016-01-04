@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2013
+.Dd October 24, 2015
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -96,6 +96,7 @@ to be one of:
 .Ic ip6 ,
 .Ic netstat ,
 .Ic pigs ,
+.Ic sctp ,
 .Ic swap ,
 .Ic tcp ,
 .Ic vmstat ,
@@ -242,6 +243,12 @@ except that it displays
 statistics.
 It does not display
 .Tn UDP statistics.
+.It Ic sctp
+Like
+.Ic icmp ,
+but with
+.Tn SCTP
+statistics.
 .It Ic tcp
 Like
 .Ic icmp ,
