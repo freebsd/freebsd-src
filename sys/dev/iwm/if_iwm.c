@@ -2041,6 +2041,7 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 
 	sc->sc_uc_current = ucode_type;
 	error = iwm_start_fw(sc, ucode_type);
+	iwm_fw_info_free(&sc->sc_fw);
 	if (error) {
 		sc->sc_uc_current = old_type;
 		return error;
@@ -4936,7 +4937,6 @@ iwm_suspend(device_t dev)
 static int
 iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 {
-	struct iwm_fw_info *fw = &sc->sc_fw;
 	device_t dev = sc->sc_dev;
 	int i;
 
@@ -4953,11 +4953,7 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	for (i = 0; i < nitems(sc->txq); i++)
 		iwm_free_tx_ring(sc, &sc->txq[i]);
 
-	/* Free firmware */
-	if (fw->fw_fp != NULL)
-		iwm_fw_info_free(fw);
-
-	/* free scheduler */
+	/* Free scheduler */
 	iwm_free_sched(sc);
 	if (sc->ict_dma.vaddr != NULL)
 		iwm_free_ict(sc);
