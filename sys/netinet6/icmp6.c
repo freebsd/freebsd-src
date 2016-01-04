@@ -2184,7 +2184,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	if (srcp == NULL) {
 		int e;
 		struct sockaddr_in6 sin6;
-		struct route_in6 ro;
 
 		/*
 		 * This case matches to multicasts, our anycast, or unicasts
@@ -2196,10 +2195,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		sin6.sin6_len = sizeof(sin6);
 		sin6.sin6_addr = ip6->ip6_dst; /* zone ID should be embedded */
 
-		bzero(&ro, sizeof(ro));
-		e = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &src);
-		if (ro.ro_rt)
-			RTFREE(ro.ro_rt); /* XXX: we could use this */
+		e = in6_selectsrc(&sin6, NULL, NULL, NULL, &outif, &src);
 		if (e) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			nd6log((LOG_DEBUG,

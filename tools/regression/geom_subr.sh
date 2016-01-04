@@ -23,7 +23,7 @@ devwait()
 # a large number of md(4) devices lingering around
 : ${TMPDIR=/tmp}
 export TMPDIR
-TEST_MDS_FILE=${TMPDIR}/test_mds
+TEST_MDS_FILE=$(mktemp ${TMPDIR}/test_mds.XXXXXX) || exit 1
 
 attach_md()
 {
@@ -45,4 +45,5 @@ geom_test_cleanup()
 			mdconfig -d -u $test_md
 		done < $TEST_MDS_FILE
 	fi
+	rm -f $TEST_MDS_FILE
 }

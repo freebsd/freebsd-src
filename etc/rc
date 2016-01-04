@@ -131,11 +131,14 @@ done
 
 # Remove the firstboot sentinel, and reboot if it was requested.
 if [ -e ${firstboot_sentinel} ]; then
-	rm ${firstboot_sentinel}
+	[ ${root_rw_mount} = "yes" ] || mount -uw /
+	/bin/rm ${firstboot_sentinel}
 	if [ -e ${firstboot_sentinel}-reboot ]; then
-		rm ${firstboot_sentinel}-reboot
+		/bin/rm ${firstboot_sentinel}-reboot
+		[ ${root_rw_mount} = "yes" ] || mount -ur /
 		kill -INT 1
 	fi
+	[ ${root_rw_mount} = "yes" ] || mount -ur /
 fi
 
 echo ''
