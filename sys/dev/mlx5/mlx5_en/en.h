@@ -372,6 +372,7 @@ struct mlx5e_params {
 	u16	tx_cq_moderation_pkts;
 	u16	min_rx_wqes;
 	bool	hw_lro_en;
+	bool	cqe_zipping_en;
 	u32	lro_wqe_sz;
 	u16	rx_hash_log_tbl_sz;
 };
@@ -392,7 +393,8 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
-  m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro")
+  m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
+  m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled")
 
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))
 
