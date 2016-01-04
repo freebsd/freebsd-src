@@ -159,8 +159,7 @@ enum iwm_ucode_type {
 };
 
 struct iwm_fw_info {
-	const void *fw_rawdata;
-	size_t fw_rawsize;
+	const struct firmware *fw_fp;
 	int fw_status;
 
 	struct iwm_fw_sects {
