@@ -451,7 +451,7 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 		}
 	}
 
-	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
+	if ((flags & NG_NETFLOW_CONF_NOSRCLOOKUP) == 0) {
 		/* Do route lookup on source address, to fill in src_mask. */
 		bzero(&rin6, sizeof(struct route_in6));
 		src = (struct sockaddr_in6 *)&rin6.ro_dst;
