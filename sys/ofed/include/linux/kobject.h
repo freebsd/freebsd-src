@@ -87,29 +87,7 @@ kobject_get(struct kobject *kobj)
 	return kobj;
 }
 
-static inline int
-kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
-{
-	char *old;
-	char *name;
-
-	old = kobj->name;
-
-	if (old && !fmt)
-		return 0;
-
-	name = kzalloc(MAXPATHLEN, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
-	vsnprintf(name, MAXPATHLEN, fmt, args);
-	kobj->name = name;
-	kfree(old);
-	for (; *name != '\0'; name++)
-		if (*name == '/')
-			*name = '!';
-	return (0);
-}
-
+int	kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list);
 int	kobject_add(struct kobject *kobj, struct kobject *parent,
 	    const char *fmt, ...);
 

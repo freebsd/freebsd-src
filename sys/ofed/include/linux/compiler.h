@@ -2,7 +2,8 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2015 François Tigeot
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,5 +63,28 @@
 #define typeof(x)			__typeof(x)
 
 #define	uninitialized_var(x)		x = x
+#define	__read_mostly __attribute__((__section__(".data.read_mostly")))
+#define	__always_unused			__unused
+#define	__must_check			__result_use_check
+
+#define	__printf(a,b)			__printflike(a,b)
+
+#define	barrier()			__asm__ __volatile__("": : :"memory")
+
+#define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
+  
+#define	WRITE_ONCE(x,v) do {		\
+	barrier();			\
+	ACCESS_ONCE(x) = (v);		\
+	barrier();			\
+} while (0)
+
+#define	READ_ONCE(x) ({			\
+	__typeof(x) __var;		\
+	barrier();			\
+	__var = ACCESS_ONCE(x);		\
+	barrier();			\
+	__var;				\
+})
 
 #endif	/* _LINUX_COMPILER_H_ */
