@@ -20,6 +20,7 @@ SRCS=	ARM64_DWARF_Registers.cpp \
 	StringExtractor.cpp \
 	StringExtractorGDBRemote.cpp \
 	StringLexer.cpp \
+	TaskPool.cpp \
 	TimeSpecTimeout.cpp \
 	UriParser.cpp
 

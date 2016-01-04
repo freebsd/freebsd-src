@@ -9,11 +9,9 @@ SRCS=	SystemInitializer.cpp \
 	SystemInitializerCommon.cpp \
 	SystemLifetimeManager.cpp
 	
-#TGHDRS=	AttrList \
-#	Attrs \
-#	DiagnosticCommonKinds \
-#	DeclNodes \
-#	StmtNodes \
-#	CommentCommandList
+TGHDRS=	CommentCommandList \
+	DeclNodes \
+	DiagnosticCommonKinds \
+	StmtNodes
 
 .include "../lldb.lib.mk"
