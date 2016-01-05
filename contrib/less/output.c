@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -98,7 +98,7 @@ flush()
 	register int n;
 	register int fd;
 
-	n = ob - obuf;
+	n = (int) (ob - obuf);
 	if (n == 0)
 		return;
 
@@ -197,7 +197,7 @@ flush()
 							 * Leave it unprocessed
 							 * in the buffer.
 							 */
-							int slop = q - anchor;
+							int slop = (int) (q - anchor);
 							/* {{ strcpy args overlap! }} */
 							strcpy(obuf, anchor);
 							ob = &obuf[slop];
@@ -423,7 +423,7 @@ iprint_int(num)
 
 	inttoa(num, buf);
 	putstr(buf);
-	return (strlen(buf));
+	return ((int) strlen(buf));
 }
 
 /*
@@ -437,7 +437,7 @@ iprint_linenum(num)
 
 	linenumtoa(num, buf);
 	putstr(buf);
-	return (strlen(buf));
+	return ((int) strlen(buf));
 }
 
 /*
