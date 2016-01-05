@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/rcupdate.h>
 
 #include <vm/vm_pager.h>
 
@@ -84,6 +85,7 @@ struct list_head pci_drivers;
 struct list_head pci_devices;
 struct net init_net;
 spinlock_t pci_lock;
+struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
 
@@ -1142,6 +1144,8 @@ linux_compat_init(void *arg)
 	struct sysctl_oid *rootoid;
 	int i;
 
+	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
+
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
 	kobject_init(&linux_class_root, &linux_class_ktype);
@@ -1171,6 +1175,9 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_root);
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
+
+	synchronize_rcu();
+	sx_destroy(&linux_global_rcu_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 
