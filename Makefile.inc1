@@ -1384,10 +1384,6 @@ packages:
 		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
 
 create-kernel-packages:
-.if !defined(NO_ROOT)
-	@echo "ERROR: create-kernel-packages can only be done with -DNO_ROOT"; \
-	false
-.endif
 	@cd ${DESTDIR}/${DISTDIR} ; \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		${DESTDIR}/${DISTDIR}/kernel.meta
