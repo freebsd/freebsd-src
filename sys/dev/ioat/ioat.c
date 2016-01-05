@@ -744,6 +744,15 @@ ioat_get_hwversion(bus_dmaengine_t dmaengine)
 	return (ioat->version);
 }
 
+size_t
+ioat_get_max_io_size(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->max_xfer_size);
+}
+
 int
 ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay)
 {

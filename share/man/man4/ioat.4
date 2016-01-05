@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2015
+.Dd January 5, 2016
 .Dt IOAT 4
 .Os
 .Sh NAME
@@ -65,6 +65,8 @@ In
 .Fn ioat_put_dmaengine "bus_dmaengine_t dmaengine"
 .Ft int
 .Fn ioat_get_hwversion "bus_dmaengine_t dmaengine"
+.Ft size_t
+.Fn ioat_get_max_io_size "bus_dmaengine_t dmaengine"
 .Ft int
 .Fn ioat_set_interrupt_coalesce "bus_dmaengine_t dmaengine" "uint16_t delay"
 .Ft uint16_t
