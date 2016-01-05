@@ -1,0 +1,13 @@
+name = "FreeBSD-%PKGNAME%"
+origin = "base"
+version = "%VERSION%"
+comment = "GNU gdb (debugging symbols)"
+categories = [ base ]
+maintainer = "re@FreeBSD.org"
+www = "https://www.FreeBSD.org"
+prefix = "/"
+licenselogic = "single"
+licenses = [ GPLv2 ]
+desc = <<EOD
+%DESC%
+EOD
