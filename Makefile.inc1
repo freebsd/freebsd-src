@@ -1319,7 +1319,7 @@ packagekernel:
 	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - --include '*/*/*.debug' $$(eval find .) \
+	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endfor
 .endif
