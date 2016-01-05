@@ -53,6 +53,11 @@
 #define _COMPONENT          ACPI_CA_DISASSEMBLER
         ACPI_MODULE_NAME    ("dmtable")
 
+const AH_TABLE *
+AcpiAhGetTableInfo (
+    char                    *Signature);
+
+
 /* Local Prototypes */
 
 static void
@@ -78,7 +83,7 @@ static const char           *AcpiDmAsfSubnames[] =
     "ASF Remote Control",
     "ASF RMCP Boot Options",
     "ASF Address",
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 static const char           *AcpiDmDmarSubnames[] =
@@ -88,7 +93,7 @@ static const char           *AcpiDmDmarSubnames[] =
     "Root Port ATS Capability",
     "Remapping Hardware Static Affinity",
     "ACPI Namespace Device Declaration",
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 static const char           *AcpiDmDmarScope[] =
@@ -176,7 +181,7 @@ static const char           *AcpiDmGtdtSubnames[] =
 {
     "Generic Timer Block",
     "Generic Watchdog Timer",
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 static const char           *AcpiDmHestSubnames[] =
@@ -191,7 +196,7 @@ static const char           *AcpiDmHestSubnames[] =
     "PCI Express AER (AER Endpoint)",
     "PCI Express/PCI-X Bridge AER",
     "Generic Hardware Error Source",
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 static const char           *AcpiDmHestNotifySubnames[] =
@@ -223,14 +228,27 @@ static const char           *AcpiDmMadtSubnames[] =
     "Generic Interrupt Distributor",    /* ACPI_MADT_GENERIC_DISTRIBUTOR */
     "Generic MSI Frame",                /* ACPI_MADT_GENERIC_MSI_FRAME */
     "Generic Interrupt Redistributor",  /* ACPI_MADT_GENERIC_REDISTRIBUTOR */
-    "Unknown SubTable Type"             /* Reserved */
+    "Generic Interrupt Translator",     /* ACPI_MADT_GENERIC_TRANSLATOR */
+    "Unknown Subtable Type"             /* Reserved */
+};
+
+static const char           *AcpiDmNfitSubnames[] =
+{
+    "System Physical Address Range",    /* ACPI_NFIT_TYPE_SYSTEM_ADDRESS */
+    "Memory Range Map",                 /* ACPI_NFIT_TYPE_MEMORY_MAP */
+    "Interleave Info",                  /* ACPI_NFIT_TYPE_INTERLEAVE */
+    "SMBIOS Information",               /* ACPI_NFIT_TYPE_SMBIOS */
+    "NVDIMM Control Region",            /* ACPI_NFIT_TYPE_CONTROL_REGION */
+    "NVDIMM Block Data Window Region",  /* ACPI_NFIT_TYPE_DATA_REGION */
+    "Flush Hint Address",               /* ACPI_NFIT_TYPE_FLUSH_ADDRESS */
+    "Unknown Subtable Type"             /* Reserved */
 };
 
 static const char           *AcpiDmPcctSubnames[] =
 {
     "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
-    "HW-Reduced Communications Subspace",
-    "Unknown SubTable Type"             /* Reserved */
+    "HW-Reduced Comm Subspace",         /* ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE */
+    "Unknown Subtable Type"             /* Reserved */
 };
 
 static const char           *AcpiDmPmttSubnames[] =
@@ -238,7 +256,7 @@ static const char           *AcpiDmPmttSubnames[] =
     "Socket",                       /* ACPI_PMTT_TYPE_SOCKET */
     "Memory Controller",            /* ACPI_PMTT_TYPE_CONTROLLER */
     "Physical Component (DIMM)",    /* ACPI_PMTT_TYPE_DIMM  */
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 static const char           *AcpiDmSratSubnames[] =
@@ -247,21 +265,20 @@ static const char           *AcpiDmSratSubnames[] =
     "Memory Affinity",
     "Processor Local x2APIC Affinity",
     "GICC Affinity",
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 static const char           *AcpiDmIvrsSubnames[] =
 {
     "Hardware Definition Block",
     "Memory Definition Block",
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 static const char           *AcpiDmLpitSubnames[] =
 {
     "Native C-state Idle Structure",
-    "Simple I/O Idle Structure",
-    "Unknown SubTable Type"         /* Reserved */
+    "Unknown Subtable Type"         /* Reserved */
 };
 
 #define ACPI_FADT_PM_RESERVED       9
@@ -304,56 +321,65 @@ static const char           *AcpiDmGasAccessWidth[] =
  * handler. This table must be NULL terminated. RSDP and FACS are
  * special-cased elsewhere.
  *
+ * Note: Any tables added here should be duplicated within AcpiSupportedTables
+ * in the file common/ahtable.c
+ *
  ******************************************************************************/
 
-ACPI_DMTABLE_DATA    AcpiDmTableData[] =
+const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
 {
-    {ACPI_SIG_ASF,  NULL,                   AcpiDmDumpAsf,  DtCompileAsf,   TemplateAsf,    "Alert Standard Format table"},
-    {ACPI_SIG_BERT, AcpiDmTableInfoBert,    NULL,           NULL,           TemplateBert,   "Boot Error Record Table"},
-    {ACPI_SIG_BGRT, AcpiDmTableInfoBgrt,    NULL,           NULL,           TemplateBgrt,   "Boot Graphics Resource Table"},
-    {ACPI_SIG_BOOT, AcpiDmTableInfoBoot,    NULL,           NULL,           TemplateBoot,   "Simple Boot Flag Table"},
-    {ACPI_SIG_CPEP, NULL,                   AcpiDmDumpCpep, DtCompileCpep,  TemplateCpep,   "Corrected Platform Error Polling table"},
-    {ACPI_SIG_CSRT, NULL,                   AcpiDmDumpCsrt, DtCompileCsrt,  TemplateCsrt,   "Core System Resource Table"},
-    {ACPI_SIG_DBG2, AcpiDmTableInfoDbg2,    AcpiDmDumpDbg2, DtCompileDbg2,  TemplateDbg2,   "Debug Port table type 2"},
-    {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           NULL,           TemplateDbgp,   "Debug Port table"},
-    {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, DtCompileDmar,  TemplateDmar,   "DMA Remapping table"},
-    {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           NULL,           TemplateEcdt,   "Embedded Controller Boot Resources Table"},
-    {ACPI_SIG_EINJ, NULL,                   AcpiDmDumpEinj, DtCompileEinj,  TemplateEinj,   "Error Injection table"},
-    {ACPI_SIG_ERST, NULL,                   AcpiDmDumpErst, DtCompileErst,  TemplateErst,   "Error Record Serialization Table"},
-    {ACPI_SIG_FADT, NULL,                   AcpiDmDumpFadt, DtCompileFadt,  TemplateFadt,   "Fixed ACPI Description Table (FADT)"},
-    {ACPI_SIG_FPDT, NULL,                   AcpiDmDumpFpdt, DtCompileFpdt,  TemplateFpdt,   "Firmware Performance Data Table"},
-    {ACPI_SIG_GTDT, NULL,                   AcpiDmDumpGtdt, DtCompileGtdt,  TemplateGtdt,   "Generic Timer Description Table"},
-    {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, DtCompileHest,  TemplateHest,   "Hardware Error Source Table"},
-    {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           TemplateHpet,   "High Precision Event Timer table"},
-    {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  TemplateIvrs,   "I/O Virtualization Reporting Structure"},
-    {ACPI_SIG_LPIT, NULL,                   AcpiDmDumpLpit, DtCompileLpit,  TemplateLpit,   "Low Power Idle Table"},
-    {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, DtCompileMadt,  TemplateMadt,   "Multiple APIC Description Table (MADT)"},
-    {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, DtCompileMcfg,  TemplateMcfg,   "Memory Mapped Configuration table"},
-    {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           NULL,           TemplateMchi,   "Management Controller Host Interface table"},
-    {ACPI_SIG_MPST, AcpiDmTableInfoMpst,    AcpiDmDumpMpst, DtCompileMpst,  TemplateMpst,   "Memory Power State Table"},
-    {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  TemplateMsct,   "Maximum System Characteristics Table"},
-    {ACPI_SIG_MSDM, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateMsdm,   "Microsoft Data Management table"},
-    {ACPI_SIG_MTMR, NULL,                   AcpiDmDumpMtmr, DtCompileMtmr,  TemplateMtmr,   "MID Timer Table"},
-    {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct,   "Platform Communications Channel Table"},
-    {ACPI_SIG_PMTT, NULL,                   AcpiDmDumpPmtt, DtCompilePmtt,  TemplatePmtt,   "Platform Memory Topology Table"},
-    {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt,   "Root System Description Table"},
-    {ACPI_SIG_S3PT, NULL,                   NULL,           NULL,           TemplateS3pt,   "S3 Performance Table"},
-    {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           NULL,           TemplateSbst,   "Smart Battery Specification Table"},
-    {ACPI_SIG_SLIC, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateSlic,   "Software Licensing Description Table"},
-    {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, DtCompileSlit,  TemplateSlit,   "System Locality Information Table"},
-    {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           NULL,           TemplateSpcr,   "Serial Port Console Redirection table"},
-    {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           NULL,           TemplateSpmi,   "Server Platform Management Interface table"},
-    {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  TemplateSrat,   "System Resource Affinity Table"},
-    {ACPI_SIG_TCPA, AcpiDmTableInfoTcpa,    NULL,           NULL,           TemplateTcpa,   "Trusted Computing Platform Alliance table"},
-    {ACPI_SIG_TPM2, AcpiDmTableInfoTpm2,    NULL,           NULL,           TemplateTpm2,   "Trusted Platform Module hardware interface table"},
-    {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           DtCompileUefi,  TemplateUefi,   "UEFI Boot Optimization Table"},
-    {ACPI_SIG_VRTC, AcpiDmTableInfoVrtc,    AcpiDmDumpVrtc, DtCompileVrtc,  TemplateVrtc,   "Virtual Real-Time Clock Table"},
-    {ACPI_SIG_WAET, AcpiDmTableInfoWaet,    NULL,           NULL,           TemplateWaet,   "Windows ACPI Emulated Devices Table"},
-    {ACPI_SIG_WDAT, NULL,                   AcpiDmDumpWdat, DtCompileWdat,  TemplateWdat,   "Watchdog Action Table"},
-    {ACPI_SIG_WDDT, AcpiDmTableInfoWddt,    NULL,           NULL,           TemplateWddt,   "Watchdog Description Table"},
-    {ACPI_SIG_WDRT, AcpiDmTableInfoWdrt,    NULL,           NULL,           TemplateWdrt,   "Watchdog Resource Table"},
-    {ACPI_SIG_XSDT, NULL,                   AcpiDmDumpXsdt, DtCompileXsdt,  TemplateXsdt,   "Extended System Description Table"},
-    {NULL,          NULL,                   NULL,           NULL,           NULL,           NULL}
+    {ACPI_SIG_ASF,  NULL,                   AcpiDmDumpAsf,  DtCompileAsf,   TemplateAsf},
+    {ACPI_SIG_BERT, AcpiDmTableInfoBert,    NULL,           NULL,           TemplateBert},
+    {ACPI_SIG_BGRT, AcpiDmTableInfoBgrt,    NULL,           NULL,           TemplateBgrt},
+    {ACPI_SIG_BOOT, AcpiDmTableInfoBoot,    NULL,           NULL,           TemplateBoot},
+    {ACPI_SIG_CPEP, NULL,                   AcpiDmDumpCpep, DtCompileCpep,  TemplateCpep},
+    {ACPI_SIG_CSRT, NULL,                   AcpiDmDumpCsrt, DtCompileCsrt,  TemplateCsrt},
+    {ACPI_SIG_DBG2, AcpiDmTableInfoDbg2,    AcpiDmDumpDbg2, DtCompileDbg2,  TemplateDbg2},
+    {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           NULL,           TemplateDbgp},
+    {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, DtCompileDmar,  TemplateDmar},
+    {ACPI_SIG_DRTM, NULL,                   AcpiDmDumpDrtm, DtCompileDrtm,  TemplateDrtm},
+    {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           NULL,           TemplateEcdt},
+    {ACPI_SIG_EINJ, NULL,                   AcpiDmDumpEinj, DtCompileEinj,  TemplateEinj},
+    {ACPI_SIG_ERST, NULL,                   AcpiDmDumpErst, DtCompileErst,  TemplateErst},
+    {ACPI_SIG_FADT, NULL,                   AcpiDmDumpFadt, DtCompileFadt,  TemplateFadt},
+    {ACPI_SIG_FPDT, NULL,                   AcpiDmDumpFpdt, DtCompileFpdt,  TemplateFpdt},
+    {ACPI_SIG_GTDT, NULL,                   AcpiDmDumpGtdt, DtCompileGtdt,  TemplateGtdt},
+    {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, DtCompileHest,  TemplateHest},
+    {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           TemplateHpet},
+    {ACPI_SIG_IORT, NULL,                   AcpiDmDumpIort, DtCompileIort,  TemplateIort},
+    {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  TemplateIvrs},
+    {ACPI_SIG_LPIT, NULL,                   AcpiDmDumpLpit, DtCompileLpit,  TemplateLpit},
+    {ACPI_SIG_MADT, NULL,                   AcpiDmDumpMadt, DtCompileMadt,  TemplateMadt},
+    {ACPI_SIG_MCFG, NULL,                   AcpiDmDumpMcfg, DtCompileMcfg,  TemplateMcfg},
+    {ACPI_SIG_MCHI, AcpiDmTableInfoMchi,    NULL,           NULL,           TemplateMchi},
+    {ACPI_SIG_MPST, AcpiDmTableInfoMpst,    AcpiDmDumpMpst, DtCompileMpst,  TemplateMpst},
+    {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  TemplateMsct},
+    {ACPI_SIG_MSDM, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateMsdm},
+    {ACPI_SIG_MTMR, NULL,                   AcpiDmDumpMtmr, DtCompileMtmr,  TemplateMtmr},
+    {ACPI_SIG_NFIT, AcpiDmTableInfoNfit,    AcpiDmDumpNfit, DtCompileNfit,  TemplateNfit},
+    {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct},
+    {ACPI_SIG_PMTT, NULL,                   AcpiDmDumpPmtt, DtCompilePmtt,  TemplatePmtt},
+    {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt},
+    {ACPI_SIG_S3PT, NULL,                   NULL,           NULL,           TemplateS3pt},
+    {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           NULL,           TemplateSbst},
+    {ACPI_SIG_SLIC, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateSlic},
+    {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, DtCompileSlit,  TemplateSlit},
+    {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           NULL,           TemplateSpcr},
+    {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           NULL,           TemplateSpmi},
+    {ACPI_SIG_SRAT, NULL,                   AcpiDmDumpSrat, DtCompileSrat,  TemplateSrat},
+    {ACPI_SIG_STAO, NULL,                   AcpiDmDumpStao, DtCompileStao,  TemplateStao},
+    {ACPI_SIG_TCPA, NULL,                   AcpiDmDumpTcpa, DtCompileTcpa,  TemplateTcpa},
+    {ACPI_SIG_TPM2, AcpiDmTableInfoTpm2,    NULL,           NULL,           TemplateTpm2},
+    {ACPI_SIG_UEFI, AcpiDmTableInfoUefi,    NULL,           DtCompileUefi,  TemplateUefi},
+    {ACPI_SIG_VRTC, AcpiDmTableInfoVrtc,    AcpiDmDumpVrtc, DtCompileVrtc,  TemplateVrtc},
+    {ACPI_SIG_WAET, AcpiDmTableInfoWaet,    NULL,           NULL,           TemplateWaet},
+    {ACPI_SIG_WDAT, NULL,                   AcpiDmDumpWdat, DtCompileWdat,  TemplateWdat},
+    {ACPI_SIG_WDDT, AcpiDmTableInfoWddt,    NULL,           NULL,           TemplateWddt},
+    {ACPI_SIG_WDRT, AcpiDmTableInfoWdrt,    NULL,           NULL,           TemplateWdrt},
+    {ACPI_SIG_WPBT, NULL,                   AcpiDmDumpWpbt, DtCompileWpbt,  TemplateWpbt},
+    {ACPI_SIG_XENV, AcpiDmTableInfoXenv,    NULL,           NULL,           TemplateXenv},
+    {ACPI_SIG_XSDT, NULL,                   AcpiDmDumpXsdt, DtCompileXsdt,  TemplateXsdt},
+    {NULL,          NULL,                   NULL,           NULL,           NULL}
 };
 
 
@@ -407,18 +433,18 @@ AcpiDmGenerateChecksum (
  *
  ******************************************************************************/
 
-ACPI_DMTABLE_DATA *
+const ACPI_DMTABLE_DATA *
 AcpiDmGetTableData (
     char                    *Signature)
 {
-    ACPI_DMTABLE_DATA       *TableData;
+    const ACPI_DMTABLE_DATA *Info;
 
 
-    for (TableData = AcpiDmTableData; TableData->Signature; TableData++)
+    for (Info = AcpiDmTableData; Info->Signature; Info++)
     {
-        if (ACPI_COMPARE_NAME (Signature, TableData->Signature))
+        if (ACPI_COMPARE_NAME (Signature, Info->Signature))
         {
-            return (TableData);
+            return (Info);
         }
     }
 
@@ -444,7 +470,7 @@ AcpiDmDumpDataTable (
     ACPI_TABLE_HEADER       *Table)
 {
     ACPI_STATUS             Status;
-    ACPI_DMTABLE_DATA       *TableData;
+    const ACPI_DMTABLE_DATA *TableData;
     UINT32                  Length;
 
 
@@ -474,7 +500,11 @@ AcpiDmDumpDataTable (
     if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FACS))
     {
         Length = Table->Length;
-        AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
+        Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
     }
     else if (ACPI_VALIDATE_RSDP_SIG (Table->Signature))
     {
@@ -502,7 +532,7 @@ AcpiDmDumpDataTable (
         TableData = AcpiDmGetTableData (Table->Signature);
         if (!TableData)
         {
-            if (!ACPI_STRNCMP (Table->Signature, "OEM", 3))
+            if (!strncmp (Table->Signature, "OEM", 3))
             {
                 AcpiOsPrintf ("\n**** OEM-defined ACPI table [%4.4s], unknown contents\n\n",
                     Table->Signature);
@@ -535,7 +565,11 @@ AcpiDmDumpDataTable (
         {
             /* Simple table, just walk the info table */
 
-            AcpiDmDumpTable (Length, 0, Table, 0, TableData->TableInfo);
+            Status = AcpiDmDumpTable (Length, 0, Table, 0, TableData->TableInfo);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
         }
     }
 
@@ -558,7 +592,6 @@ AcpiDmDumpDataTable (
  * PARAMETERS:  Offset              - Current byte offset, from table start
  *              ByteLength          - Length of the field in bytes, 0 for flags
  *              Name                - Name of this field
- *              Value               - Optional value, displayed on left of ':'
  *
  * RETURN:      None
  *
@@ -669,7 +702,7 @@ AcpiDmLineHeader2 (
  *              SubtableLength      - Length of this sub-descriptor
  *              Info                - Info table for this ACPI table
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Display ACPI table contents by walking the Info table.
  *
@@ -692,9 +725,10 @@ AcpiDmDumpTable (
     UINT16                  Temp16;
     UINT32                  Temp32;
     UINT64                  Value;
-    ACPI_DMTABLE_DATA       *TableData;
+    const AH_TABLE          *TableData;
     const char              *Name;
     BOOLEAN                 LastOutputBlankLine = FALSE;
+    ACPI_STATUS             Status;
     char                    RepairedName[8];
 
 
@@ -715,13 +749,24 @@ AcpiDmDumpTable (
         Target = ACPI_ADD_PTR (UINT8, Table, Info->Offset);
         CurrentOffset = TableOffset + Info->Offset;
 
-        /* Check for beyond EOT or beyond subtable end */
+        /* Check for beyond subtable end or (worse) beyond EOT */
 
-        if ((CurrentOffset >= TableLength) ||
-            (SubtableLength && (Info->Offset >= SubtableLength)))
+        if (SubtableLength && (Info->Offset >= SubtableLength))
         {
             AcpiOsPrintf (
-                "**** ACPI table terminates in the middle of a data structure! (dump table)\n");
+                "/**** ACPI subtable terminates early - "
+                "may be older version (dump table) */\n");
+
+            /* Move on to next subtable */
+
+            return (AE_OK);
+        }
+
+        if (CurrentOffset >= TableLength)
+        {
+            AcpiOsPrintf (
+                "/**** ACPI table terminates "
+                "in the middle of a data structure! (dump table) */\n");
             return (AE_BAD_DATA);
         }
 
@@ -754,6 +799,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_UINT16:
         case ACPI_DMT_DMAR:
         case ACPI_DMT_HEST:
+        case ACPI_DMT_NFIT:
 
             ByteLength = 2;
             break;
@@ -810,6 +856,7 @@ AcpiDmDumpTable (
             ByteLength = 128;
             break;
 
+        case ACPI_DMT_UNICODE:
         case ACPI_DMT_BUFFER:
         case ACPI_DMT_RAW_BUFFER:
 
@@ -818,7 +865,7 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_STRING:
 
-            ByteLength = ACPI_STRLEN (ACPI_CAST_PTR (char, Target)) + 1;
+            ByteLength = strlen (ACPI_CAST_PTR (char, Target)) + 1;
             break;
 
         case ACPI_DMT_GAS:
@@ -841,16 +888,39 @@ AcpiDmDumpTable (
             ByteLength = sizeof (ACPI_HEST_NOTIFY);
             break;
 
+        case ACPI_DMT_IORTMEM:
+
+            if (!LastOutputBlankLine)
+            {
+                LastOutputBlankLine = FALSE;
+            }
+            ByteLength = sizeof (ACPI_IORT_MEMORY_ACCESS);
+            break;
+
         default:
 
             ByteLength = 0;
             break;
         }
 
+        /* Check if we are beyond a subtable, or (worse) beyond EOT */
+
         if (CurrentOffset + ByteLength > TableLength)
         {
+            if (SubtableLength)
+            {
+                AcpiOsPrintf (
+                    "/**** ACPI subtable terminates early - "
+                    "may be older version (dump table) */\n");
+
+                /* Move on to next subtable */
+
+                return (AE_OK);
+            }
+
             AcpiOsPrintf (
-                "**** ACPI table terminates in the middle of a data structure!\n");
+                "/**** ACPI table terminates "
+                "in the middle of a data structure! */\n");
             return (AE_BAD_DATA);
         }
 
@@ -980,10 +1050,10 @@ AcpiDmDumpTable (
 
             AcpiDmCheckAscii (Target, RepairedName, 4);
             AcpiOsPrintf ("\"%.4s\"    ", RepairedName);
-            TableData = AcpiDmGetTableData (ACPI_CAST_PTR (char, Target));
+            TableData = AcpiAhGetTableInfo (ACPI_CAST_PTR (char, Target));
             if (TableData)
             {
-                AcpiOsPrintf (STRING_FORMAT, TableData->Name);
+                AcpiOsPrintf (STRING_FORMAT, TableData->Description);
             }
             else
             {
@@ -1053,8 +1123,13 @@ AcpiDmDumpTable (
             /* Generic Address Structure */
 
             AcpiOsPrintf (STRING_FORMAT, "Generic Address Structure");
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_GENERIC_ADDRESS), AcpiDmTableInfoGas);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             AcpiOsPrintf ("\n");
             LastOutputBlankLine = TRUE;
             break;
@@ -1189,8 +1264,13 @@ AcpiDmDumpTable (
             AcpiOsPrintf (STRING_FORMAT,
                 "Hardware Error Notification Structure");
 
-            AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
                 sizeof (ACPI_HEST_NOTIFY), AcpiDmTableInfoHestNotify);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
             AcpiOsPrintf ("\n");
             LastOutputBlankLine = TRUE;
             break;
@@ -1209,6 +1289,21 @@ AcpiDmDumpTable (
                 AcpiDmHestNotifySubnames[Temp8]);
             break;
 
+        case ACPI_DMT_IORTMEM:
+
+            AcpiOsPrintf (STRING_FORMAT,
+                "IORT Memory Access Properties");
+
+            Status = AcpiDmDumpTable (TableLength, CurrentOffset, Target,
+                sizeof (ACPI_IORT_MEMORY_ACCESS), AcpiDmTableInfoIortAcc);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            LastOutputBlankLine = TRUE;
+            break;
+
         case ACPI_DMT_MADT:
 
             /* MADT subtable types */
@@ -1221,6 +1316,20 @@ AcpiDmDumpTable (
 
             AcpiOsPrintf (UINT8_FORMAT, *Target,
                 AcpiDmMadtSubnames[Temp8]);
+            break;
+
+        case ACPI_DMT_NFIT:
+
+            /* NFIT subtable types */
+
+            Temp16 = ACPI_GET16 (Target);
+            if (Temp16 > ACPI_NFIT_TYPE_RESERVED)
+            {
+                Temp16 = ACPI_NFIT_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT16_FORMAT, ACPI_GET16 (Target),
+                AcpiDmNfitSubnames[Temp16]);
             break;
 
         case ACPI_DMT_PCCT:
@@ -1251,16 +1360,27 @@ AcpiDmDumpTable (
                 AcpiDmPmttSubnames[Temp8]);
             break;
 
-        case ACPI_DMT_RAW_BUFFER:
-            /*
-             * Currently only used for SLIC table
-             */
-            AcpiOsPrintf ("/* Proprietary data structure */ ");
+        case ACPI_DMT_UNICODE:
 
-            AcpiDmDumpBuffer (Table, sizeof (ACPI_TABLE_HEADER),
-                ByteLength, sizeof (ACPI_TABLE_HEADER),
-                "Licensing Data", TRUE);
-            AcpiOsPrintf ("\n");
+            if (ByteLength == 0)
+            {
+                AcpiOsPrintf ("/* Zero-length Data */\n");
+                break;
+            }
+
+            AcpiDmDumpUnicode (Table, CurrentOffset, ByteLength);
+            break;
+
+        case ACPI_DMT_RAW_BUFFER:
+
+            if (ByteLength == 0)
+            {
+                AcpiOsPrintf ("/* Zero-length Data */\n");
+                break;
+            }
+
+            AcpiDmDumpBuffer (Table, CurrentOffset, ByteLength,
+                CurrentOffset, NULL);
             break;
 
         case ACPI_DMT_SRAT:

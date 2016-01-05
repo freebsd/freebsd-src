@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfcopy.h 3173 2015-03-27 16:46:13Z emaste $
+ * $Id: elfcopy.h 3221 2015-05-24 23:42:43Z kaiwang27 $
  */
 
 #include <sys/queue.h>
@@ -237,6 +237,7 @@ struct elfcopy {
 	uint64_t	*secndx;	/* section index map. */
 	uint64_t	*symndx;	/* symbol index map. */
 	unsigned char	*v_rel;		/* symbols needed by relocation. */
+	unsigned char	*v_grp;		/* symbols refered by section group. */
 	unsigned char	*v_secsym;	/* sections with section symbol. */
 	STAILQ_HEAD(, segment) v_seg;	/* list of segments. */
 	STAILQ_HEAD(, sec_action) v_sac;/* list of section operations. */

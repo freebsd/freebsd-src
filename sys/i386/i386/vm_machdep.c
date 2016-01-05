@@ -89,9 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#ifdef XEN
-#include <xen/hypervisor.h>
-#endif
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
@@ -114,6 +111,8 @@ _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
     "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
 _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
     "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
+_Static_assert(__OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
+    "__OFFSETOF_MONINORBUF does not correspond with offset of pc_monitorbuf.");
 
 static void	cpu_reset_real(void);
 #ifdef SMP
@@ -304,10 +303,8 @@ cpu_fork(td1, p2, td2, flags)
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	/*
-	 * XXX XEN need to check on PSL_USER is handled
-	 */
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+
 	/*
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
@@ -698,12 +695,6 @@ cpu_reset_real()
 #endif
 
 	disable_intr();
-#ifdef XEN
-	if (smp_processor_id() == 0)
-		HYPERVISOR_shutdown(SHUTDOWN_reboot);
-	else
-		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
-#endif 
 #ifdef CPU_ELAN
 	if (elan_mmcr != NULL)
 		elan_mmcr->RESCFG = 1;
@@ -797,13 +788,8 @@ sf_buf_map(struct sf_buf *sf, int flags)
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
-#ifdef XEN
-       PT_SET_MA(sf->kva, xpmap_ptom(VM_PAGE_TO_PHYS(sf->m)) | pgeflag
-	   | PG_RW | PG_V | pmap_cache_bits(sf->m->md.pat_mode, 0));
-#else
 	*ptep = VM_PAGE_TO_PHYS(sf->m) | pgeflag | PG_RW | PG_V |
 	    pmap_cache_bits(sf->m->md.pat_mode, 0);
-#endif
 
 	/*
 	 * Avoid unnecessary TLB invalidations: If the sf_buf's old
@@ -854,15 +840,8 @@ sf_buf_shootdown(struct sf_buf *sf, int flags)
 int
 sf_buf_unmap(struct sf_buf *sf)
 {
-#ifdef XEN
-	/*
-	 * Xen doesn't like having dangling R/W mappings
-	 */
-	pmap_qremove(sf->kva, 1);
-	return (1);
-#else
+
 	return (0);
-#endif
 }
 
 static void

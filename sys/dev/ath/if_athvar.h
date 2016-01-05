@@ -481,7 +481,8 @@ struct ath_vap {
 	struct ath_txq	av_mcastq;	/* buffered mcast s/w queue */
 
 	void		(*av_recv_mgmt)(struct ieee80211_node *,
-				struct mbuf *, int, int, int);
+				struct mbuf *, int,
+				const struct ieee80211_rx_stats *, int, int);
 	int		(*av_newstate)(struct ieee80211vap *,
 				enum ieee80211_state, int);
 	void		(*av_bmiss)(struct ieee80211vap *);
@@ -554,8 +555,8 @@ struct ath_tx_methods {
 };
 
 struct ath_softc {
-	struct ifnet		*sc_ifp;	/* interface common */
-	struct ath_stats	sc_stats;	/* interface statistics */
+	struct ieee80211com	sc_ic;
+	struct ath_stats	sc_stats;	/* device statistics */
 	struct ath_tx_aggr_stats	sc_aggr_stats;
 	struct ath_intr_stats	sc_intr_stats;
 	uint64_t		sc_debug;
@@ -649,7 +650,8 @@ struct ath_softc {
 	/*
 	 * Second set of flags.
 	 */
-	u_int32_t		sc_use_ent  : 1,
+	u_int32_t		sc_running  : 1,	/* initialized */
+				sc_use_ent  : 1,
 				sc_rx_stbc  : 1,
 				sc_tx_stbc  : 1,
 				sc_hasenforcetxop : 1, /* support enforce TxOP */

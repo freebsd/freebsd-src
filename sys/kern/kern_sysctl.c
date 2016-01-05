@@ -1784,7 +1784,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		ktrsysctl(name, namelen);
 #endif
 
-	if (req.oldlen > PAGE_SIZE) {
+	if (req.oldptr && req.oldlen > PAGE_SIZE) {
 		memlocked = 1;
 		sx_xlock(&sysctlmemlock);
 	} else

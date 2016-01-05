@@ -24,7 +24,7 @@
 
 /* Include sqlite3 inline, making all symbols private. */
 #ifdef SVN_SQLITE_INLINE
-#  define SQLITE_OMIT_DEPRECATED
+#  define SQLITE_OMIT_DEPRECATED 1
 #  define SQLITE_API static
 #  if __GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ >= 6 || __APPLE_CC__))
 #    if !__APPLE_CC__ || __GNUC_MINOR__ >= 6

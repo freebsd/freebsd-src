@@ -391,8 +391,7 @@ void
 kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 {
 	vm_page_t m;
-	vm_offset_t offset;
-	int i;
+	vm_offset_t i, offset;
 
 	KASSERT(object == kmem_object || object == kernel_object,
 	    ("kmem_unback: only supports kernel objects."));

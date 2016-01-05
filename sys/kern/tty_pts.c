@@ -741,7 +741,7 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 		PROC_UNLOCK(p);
 		return (EAGAIN);
 	}
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_NPTS));
 	if (!ok) {
 		racct_sub(p, RACCT_NPTS, 1);
 		PROC_UNLOCK(p);
@@ -795,7 +795,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 		PROC_UNLOCK(p);
 		return (EAGAIN);
 	}
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_NPTS));
 	if (!ok) {
 		racct_sub(p, RACCT_NPTS, 1);
 		PROC_UNLOCK(p);

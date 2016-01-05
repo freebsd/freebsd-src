@@ -132,7 +132,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	int error;
+	int error, len, mcast;
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -142,7 +142,8 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		 * the frame back when the time is right.
 		 * XXX lose WDS vap linkage?
 		 */
-		(void) ieee80211_pwrsave(ni, m);
+		if (ieee80211_pwrsave(ni, m) != 0)
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ieee80211_free_node(ni);
 
 		/*
@@ -171,6 +172,8 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * interface it (might have been) received on.
 	 */
 	m->m_pkthdr.rcvif = (void *)ni;
+	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1: 0;
+	len = m->m_pkthdr.len;
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
 
@@ -236,7 +239,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 			/* NB: stat+msg handled in ieee80211_encap */
 			IEEE80211_TX_UNLOCK(ic);
 			ieee80211_free_node(ni);
-			/* XXX better status? */
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOBUFS);
 		}
 	}
@@ -250,8 +253,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	if (error != 0) {
 		/* NB: IFQ_HANDOFF reclaims mbuf */
 		ieee80211_free_node(ni);
-	} else {
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 	ic->ic_lastdata = ticks;
 
@@ -315,6 +317,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 			    eh->ether_dhost, "mcast", "%s", "on DWDS");
 			vap->iv_stats.is_dwds_mcast++;
 			m_freem(m);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* XXX better status? */
 			return (ENOBUFS);
 		}
@@ -397,7 +400,8 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 		 * for transmit.
 		 */
 		ic->ic_lastdata = ticks;
-		(void) ieee80211_pwrsave(ni, m);
+		if (ieee80211_pwrsave(ni, m) != 0)
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ieee80211_free_node(ni);
 		ieee80211_new_state(vap, IEEE80211_S_RUN, 0);
 		return (0);
@@ -422,17 +426,6 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *parent = ic->ic_ifp;
-
-	/* NB: parent must be up and running */
-	if (!IFNET_IS_UP_RUNNING(parent)) {
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
-		    "%s: ignore queue, parent %s not up+running\n",
-		    __func__, parent->if_xname);
-		/* XXX stat */
-		m_freem(m);
-		return (EINVAL);
-	}
 
 	/*
 	 * No data frames go out unless we're running.
@@ -453,7 +446,8 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 			IEEE80211_UNLOCK(ic);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			m_freem(m);
-			return (EINVAL);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			return (ENETDOWN);
 		}
 		IEEE80211_UNLOCK(ic);
 	}
@@ -498,8 +492,32 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
     struct mbuf *m, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+	int error;
 
-	return (ic->ic_raw_xmit(ni, m, params));
+	/*
+	 * Set node - the caller has taken a reference, so ensure
+	 * that the mbuf has the same node value that
+	 * it would if it were going via the normal path.
+	 */
+	m->m_pkthdr.rcvif = (void *)ni;
+
+	/*
+	 * Attempt to add bpf transmit parameters.
+	 *
+	 * For now it's ok to fail; the raw_xmit api still takes
+	 * them as an option.
+	 *
+	 * Later on when ic_raw_xmit() has params removed,
+	 * they'll have to be added - so fail the transmit if
+	 * they can't be.
+	 */
+	if (params)
+		(void) ieee80211_add_xmit_params(m, params);
+
+	error = ic->ic_raw_xmit(ni, m, params);
+	if (error)
+		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+	return (error);
 }
 
 /*
@@ -507,15 +525,9 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
  * connect bpf write calls to the 802.11 layer for injecting
  * raw 802.11 frames.
  */
-#if __FreeBSD_version >= 1000031
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
-#else
-int
-ieee80211_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
-#endif
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
 	struct ieee80211_node *ni = NULL;
@@ -730,7 +742,12 @@ ieee80211_send_setup(
 	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap))
 		m->m_flags |= M_AMPDU_MPDU;
 	else {
-		seqno = ni->ni_txseqs[tid]++;
+		if (IEEE80211_HAS_SEQ(type & IEEE80211_FC0_TYPE_MASK,
+				      type & IEEE80211_FC0_SUBTYPE_MASK))
+			seqno = ni->ni_txseqs[tid]++;
+		else
+			seqno = 0;
+
 		*(uint16_t *)&wh->i_seq[0] =
 		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 		M_SEQNO_SET(m, seqno);
@@ -1936,7 +1953,7 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic)
 		 * re-calculation.
 		 */
 		if (ic->ic_countryie != NULL)
-			free(ic->ic_countryie, M_80211_NODE_IE);
+			IEEE80211_FREE(ic->ic_countryie, M_80211_NODE_IE);
 		ic->ic_countryie = ieee80211_alloc_countryie(ic);
 		if (ic->ic_countryie == NULL)
 			return frm;
@@ -3429,6 +3446,15 @@ ieee80211_tx_complete(struct ieee80211_node *ni, struct mbuf *m, int status)
 {
 
 	if (ni != NULL) {
+		struct ifnet *ifp = ni->ni_vap->iv_ifp;
+
+		if (status == 0) {
+			if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+			if (m->m_flags & M_MCAST)
+				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
+		} else
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		if (m->m_flags & M_TXCB)
 			ieee80211_process_callback(ni, m, status);
 		ieee80211_free_node(ni);

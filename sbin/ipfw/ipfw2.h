@@ -344,8 +344,6 @@ int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
 
 /* tables.c */
 struct _ipfw_obj_ctlv;
-char *table_search_ctlv(struct _ipfw_obj_ctlv *ctlv, uint16_t idx);
-void table_sort_ctlv(struct _ipfw_obj_ctlv *ctlv);
 int table_check_name(char *tablename);
 void ipfw_list_ta(int ac, char *av[]);
 void ipfw_list_values(int ac, char *av[]);

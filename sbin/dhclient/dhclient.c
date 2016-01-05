@@ -1845,11 +1845,15 @@ rewrite_client_leases(void)
 		leaseFile = fopen(path_dhclient_db, "w");
 		if (!leaseFile)
 			error("can't create %s: %m", path_dhclient_db);
-		cap_rights_init(&rights, CAP_FSTAT, CAP_FSYNC, CAP_FTRUNCATE,
-		    CAP_SEEK, CAP_WRITE);
+		cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_FSYNC,
+		    CAP_FTRUNCATE, CAP_SEEK, CAP_WRITE);
 		if (cap_rights_limit(fileno(leaseFile), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("can't limit lease descriptor: %m");
+		}
+		if (cap_fcntls_limit(fileno(leaseFile), CAP_FCNTL_GETFL) < 0 &&
+		    errno != ENOSYS) {
+			error("can't limit lease descriptor fcntls: %m");
 		}
 	} else {
 		fflush(leaseFile);

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2015
+.Dd May 18, 2015
 .Dt GMOUNTVER 8
 .Os
 .Sh NAME
@@ -35,11 +35,11 @@
 .Nm
 .Cm create
 .Op Fl v
-.Ar dev ...
+.Ar prov ...
 .Nm
 .Cm destroy
 .Op Fl fv
-.Ar prov ...
+.Ar name
 .Nm
 .Cm list
 .Nm
@@ -66,8 +66,11 @@ The first argument to
 indicates an action to be performed:
 .Bl -tag -width ".Cm destroy"
 .It Cm create
-Cache the given devices with specified
-.Ar name .
+Enable mount verification for the given provider.
+If the operation succeeds, a new GEOM provider will be created using the
+given provider's name with a
+.Ql .mountver
+suffix.
 The kernel module
 .Pa geom_mountver.ko
 will be loaded if it is not loaded already.

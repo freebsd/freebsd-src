@@ -31,6 +31,209 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150827:
+	The wireless drivers had undergone changes that remove the 'parent
+	interface' from the ifconfig -l output. The rc.d network scripts
+	used to check presence of a parent interface in the list, so old
+	scripts would fail to start wireless networking. Thus, etcupdate(3)
+	or mergemaster(8) run is required after kernel update, to update your
+	rc.d scripts in /etc.
+
+20150827:
+	pf no longer supports 'scrub fragment crop' or 'scrub fragment drop-ovl'
+	These configurations are now automatically interpreted as
+	'scrub fragment reassemble'.
+
+20150817:
+	Kernel-loadable modules for the random(4) device are back. To use
+	them, the kernel must have
+
+	device	random
+	options	RANDOM_LOADABLE
+
+	kldload(8) can then be used to load random_fortuna.ko
+	or random_yarrow.ko. Please note that due to the indirect
+	function calls that the loadable modules need to provide,
+	the build-in variants will be slightly more efficient.
+
+	The random(4) kernel option RANDOM_DUMMY has been retired due to
+	unpopularity. It was not all that useful anyway.
+
+20150813:
+	The WITHOUT_ELFTOOLCHAIN_TOOLS src.conf(5) knob has been retired.
+	Control over building the ELF Tool Chain tools is now provided by
+	the WITHOUT_TOOLCHAIN knob.
+
+20150810:
+	The polarity of Pulse Per Second (PPS) capture events with the
+	uart(4) driver has been corrected.  Prior to this change the PPS
+	"assert" event corresponded to the trailing edge of a positive PPS
+	pulse and the "clear" event was the leading edge of the next pulse.
+
+	As the width of a PPS pulse in a typical GPS receiver is on the
+	order of 1 millisecond, most users will not notice any significant
+	difference with this change.
+
+	Anyone who has compensated for the historical polarity reversal by
+	configuring a negative offset equal to the pulse width will need to
+	remove that workaround.
+
+20150809:
+	The default group assigned to /dev/dri entries has been changed
+	from 'wheel' to 'video' with the id of '44'. If you want to have
+	access to the dri devices please add yourself to the video group
+	with:
+
+	# pw groupmod video -m $USER
+
+20150806:
+	The menu.rc and loader.rc files will now be replaced during 
+	upgrades. Please migrate local changes to menu.rc.local and
+	loader.rc.local instead.
+
+20150805:
+	GNU Binutils versions of addr2line, c++filt, nm, readelf, size,
+	strings and strip have been removed. The src.conf(5) knob
+	WITHOUT_ELFTOOLCHAIN_TOOLS no longer provides the binutils tools.
+
+20150728:
+	As ZFS requires more kernel stack pages than is the default on some
+	architectures e.g. i386, it now warns if KSTACK_PAGES is less than
+	ZFS_MIN_KSTACK_PAGES (which is 4 at the time of writing).
+
+	Please consider using 'options KSTACK_PAGES=X' where X is greater
+	than or equal to ZFS_MIN_KSTACK_PAGES i.e. 4 in such configurations.
+
+20150706:
+	sendmail has been updated to 8.15.2.  Starting with FreeBSD 11.0
+	and sendmail 8.15, sendmail uses uncompressed IPv6 addresses by
+	default, i.e., they will not contain "::".  For example, instead
+	of ::1, it will be 0:0:0:0:0:0:0:1.  This permits a zero subnet
+	to have a more specific match, such as different map entries for
+	IPv6:0:0 vs IPv6:0.  This change requires that configuration
+	data (including maps, files, classes, custom ruleset, etc.) must
+	use the same format, so make certain such configuration data is
+	upgrading.  As a very simple check search for patterns like
+	'IPv6:[0-9a-fA-F:]*::' and 'IPv6::'.  To return to the old
+	behavior, set the m4 option confUSE_COMPRESSED_IPV6_ADDRESSES or
+	the cf option UseCompressedIPv6Addresses.
+
+20150630:
+	The default kernel entropy-processing algorithm is now
+	Fortuna, replacing Yarrow.
+
+	Assuming you have 'device random' in your kernel config
+	file, the configurations allow a kernel option to override
+	this default. You may choose *ONE* of:
+
+	options	RANDOM_YARROW	# Legacy /dev/random algorithm.
+	options	RANDOM_DUMMY	# Blocking-only driver.
+
+	If you have neither, you get Fortuna.  For most people,
+	read no further, Fortuna will give a /dev/random that works
+	like it always used to, and the difference will be irrelevant.
+
+	If you remove 'device random', you get *NO* kernel-processed
+	entopy at all. This may be acceptable to folks building
+	embedded systems, but has complications. Carry on reading,
+	and it is assumed you know what you need.
+
+	*PLEASE* read random(4) and random(9) if you are in the
+	habit of tweeking kernel configs, and/or if you are a member
+	of the embedded community, wanting specific and not-usual
+	behaviour from your security subsystems.
+
+	NOTE!! If you use RANDOM_DUMMY and/or have no 'device
+	random', you will NOT have a functioning /dev/random, and
+	many cryptographic features will not work, including SSH.
+	You may also find strange behaviour from the random(3) set
+	of library functions, in particular sranddev(3), srandomdev(3)
+	and arc4random(3). The reason for this is that the KERN_ARND
+	sysctl only returns entropy if it thinks it has some to
+	share, and with RANDOM_DUMMY or no 'device random' this
+	will never happen.
+
+20150623:
+	An additional fix for the issue described in the 20150614 sendmail
+	entry below has been been committed in revision 284717.
+
+20150616:
+	FreeBSD's old make (fmake) has been removed from the system. It is
+	available as the devel/fmake port or via pkg install fmake.
+
+20150615:
+	The fix for the issue described in the 20150614 sendmail entry
+	below has been been committed in revision 284436.  The work
+	around described in that entry is no longer needed unless the
+	default setting is overridden by a confDH_PARAMETERS configuration
+	setting of '5' or pointing to a 512 bit DH parameter file.
+
+20150614:
+	ALLOW_DEPRECATED_ATF_TOOLS/ATFFILE support has been removed from
+	atf.test.mk (included from bsd.test.mk). Please upgrade devel/atf
+	and devel/kyua to version 0.20+ and adjust any calling code to work
+	with Kyuafile and kyua.
+
+20150614:
+	The import of openssl to address the FreeBSD-SA-15:10.openssl
+	security advisory includes a change which rejects handshakes
+	with DH parameters below 768 bits.  sendmail releases prior
+	to 8.15.2 (not yet released), defaulted to a 512 bit
+	DH parameter setting for client connections.  To work around
+	this interoperability, sendmail can be configured to use a
+	2048 bit DH parameter by:
+
+	1. Edit /etc/mail/`hostname`.mc
+	2. If a setting for confDH_PARAMETERS does not exist or
+	   exists and is set to a string beginning with '5',
+	   replace it with '2'.
+	3. If a setting for confDH_PARAMETERS exists and is set to
+	   a file path, create a new file with:
+		openssl dhparam -out /path/to/file 2048
+	4. Rebuild the .cf file:
+		cd /etc/mail/; make; make install
+	5. Restart sendmail:
+		cd /etc/mail/; make restart
+
+	A sendmail patch is coming, at which time this file will be
+	updated.
+
+20150604:
+	Generation of legacy formatted entries have been disabled by default
+	in pwd_mkdb(8), as all base system consumers of the legacy formatted
+	entries were converted to use the new format by default when the new,
+	machine independent format have been added and supported since FreeBSD
+	5.x.
+
+	Please see the pwd_mkdb(8) manual page for further details.
+
+20150525:
+	Clang and llvm have been upgraded to 3.6.1 release.  Please see the
+	20141231 entry below for information about prerequisites and upgrading,
+	if you are not already using 3.5.0 or higher.
+
+20150521:
+	TI platform code switched to using vendor DTS files and this update
+	may break existing systems running on Beaglebone, Beaglebone Black,
+	and Pandaboard:
+
+	- dtb files should be regenerated/reinstalled. Filenames are the
+	  same but content is different now
+	- GPIO addressing was changed, now each GPIO bank (32 pins per bank)
+	  has its own /dev/gpiocX device, e.g. pin 121 on /dev/gpioc0 in old
+	  addressing scheme is now pin 25 on /dev/gpioc3.
+	- Pandaboard: /etc/ttys should be updated, serial console device is
+	  now /dev/ttyu2, not /dev/ttyu0
+
+20150501:
+	soelim(1) from gnu/usr.bin/groff has been replaced by usr.bin/soelim.
+	If you need the GNU extension from groff soelim(1), install groff
+	from package: pkg install groff, or via ports: textproc/groff.
+
+20150423:
+	chmod, chflags, chown and chgrp now affect symlinks in -R mode as
+	defined in symlink(7); previously symlinks were silently ignored.
+
 20150415:
 	The const qualifier has been removed from iconv(3) to comply with
 	POSIX.  The ports tree is aware of this from r384038 onwards.
@@ -86,14 +289,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	taken from the ELF Tool Chain project rather than GNU binutils. They
 	should be drop-in replacements, with the addition of arm64 support.
 	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
-	binutils tools, if necessary.
+	binutils tools, if necessary. See 20150805 for updated information.
 
 20150105:
 	The default Unbound configuration now enables remote control
 	using a local socket.  Users who have already enabled the
 	local_unbound service should regenerate their configuration
 	by running "service local_unbound setup" as root.
-	
+
 20150102:
 	The GNU texinfo and GNU info pages have been removed.
 	To be able to view GNU info pages please install texinfo from ports.
@@ -440,6 +643,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
 
 20131010:
+	The stable/10 branch has been created in subversion from head
+	revision r256279.
+
+20131010:
 	The rc.d/jail script has been updated to support jail(8)
 	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
 	for per-jail configuration are automatically converted to
@@ -484,7 +691,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The GNU Compiler Collection and C++ standard library (libstdc++)
 	are no longer built by default on platforms where clang is the system
 	compiler.  You can enable them with the WITH_GCC and WITH_GNUCXX
-	options in src.conf.  
+	options in src.conf.
 
 20130905:
 	The PROCDESC kernel option is now part of the GENERIC kernel
@@ -838,7 +1045,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 20120727:
 	The sparc64 ZFS loader has been changed to no longer try to auto-
 	detect ZFS providers based on diskN aliases but now requires these
-	to be explicitly listed in the OFW boot-device environment variable. 
+	to be explicitly listed in the OFW boot-device environment variable.
 
 20120712:
 	The OpenSSL has been upgraded to 1.0.1c.  Any binaries requiring
@@ -981,6 +1188,13 @@ COMMON ITEMS:
 	installing anything can help undo problems. Not having a root shell
 	around can lead to problems if pam has changed too much from your
 	starting point to allow continued authentication after the upgrade.
+
+	This file should be read as a log of events. When a later event changes
+	information of a prior event, the prior event should not be deleted.
+	Instead, a pointer to the entry with the new information should be
+	placed in the old entry. Readers of this file should also sanity check
+	older entries before relying on them blindly. Authors of new entries
+	should write them with this in mind.
 
 	ZFS notes
 	---------
@@ -1152,7 +1366,7 @@ FORMAT:
 
 This file contains a list, in reverse chronological order, of major
 breakages in tracking -current.  It is not guaranteed to be a complete
-list of such breakages, and only contains entries since October 10, 2007.
+list of such breakages, and only contains entries since September 23, 2011.
 If you need to see UPDATING entries from before that date, you will need
 to fetch an UPDATING file from an older FreeBSD release.
 

@@ -61,17 +61,18 @@ __FBSDID("$FreeBSD$");
 	add	x1, x1, x2		/* Add these to the size */
 	bic	x0, x0, x4		/* Clear the low bit of the address */
 1:
+	dc	\dcop, x0
+	dsb	ish
 .if \ic != 0
 	ic	\icop, x0
+	dsb	ish
 .endif
-	dc	\dcop, x0
 	add	x0, x0, x3		/* Move to the next line */
 	subs	x1, x1, x3		/* Reduce the size */
 	b.hi	1b			/* Check if we are done */
 .if \ic != 0
 	isb
 .endif
-	dsb	ish
 	ret
 .endm
 

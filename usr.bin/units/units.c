@@ -802,21 +802,10 @@ main(int argc, char **argv)
 	if (!readfile)
 		readunits(NULL);
 
-	inhistory = history_init();
-	el = el_init(argv[0], stdin, stdout, stderr);
-	el_set(el, EL_PROMPT, &prompt);
-	el_set(el, EL_EDITOR, "emacs");
-	el_set(el, EL_SIGNAL, 1);
-	el_set(el, EL_HIST, history, inhistory);
-	el_source(el, NULL);
-	history(inhistory, &ev, H_SETSIZE, 800);
-	if (inhistory == 0)
-		err(1, "Could not initialize history");
-
-	if (cap_enter() < 0 && errno != ENOSYS)
-		err(1, "unable to enter capability mode");
-
 	if (optind == argc - 2) {
+		if (cap_enter() < 0 && errno != ENOSYS)
+			err(1, "unable to enter capability mode");
+
 		havestr = argv[optind];
 		wantstr = argv[optind + 1];
 		initializeunit(&have);
@@ -826,8 +815,21 @@ main(int argc, char **argv)
 		addunit(&want, wantstr, 0, 1);
 		completereduce(&want);
 		showanswer(&have, &want);
-	}
-	else {
+	} else {
+		inhistory = history_init();
+		el = el_init(argv[0], stdin, stdout, stderr);
+		el_set(el, EL_PROMPT, &prompt);
+		el_set(el, EL_EDITOR, "emacs");
+		el_set(el, EL_SIGNAL, 1);
+		el_set(el, EL_HIST, history, inhistory);
+		el_source(el, NULL);
+		history(inhistory, &ev, H_SETSIZE, 800);
+		if (inhistory == 0)
+			err(1, "Could not initialize history");
+
+		if (cap_enter() < 0 && errno != ENOSYS)
+			err(1, "unable to enter capability mode");
+
 		if (!quiet)
 			printf("%d units, %d prefixes\n", unitcount,
 			    prefixcount);
@@ -858,9 +860,10 @@ main(int argc, char **argv)
 			    completereduce(&want));
 			showanswer(&have, &want);
 		}
+
+		history_end(inhistory);
+		el_end(el);
 	}
 
-	history_end(inhistory);
-	el_end(el);
 	return (0);
 }

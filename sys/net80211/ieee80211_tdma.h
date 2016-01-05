@@ -81,7 +81,8 @@ struct ieee80211_tdma_state {
 	int	(*tdma_newstate)(struct ieee80211vap *, enum ieee80211_state,
 		    int arg);
 	void	(*tdma_recv_mgmt)(struct ieee80211_node *,
-		    struct mbuf *, int, int, int);
+		    struct mbuf *, int,
+		    const struct ieee80211_rx_stats *rxs, int, int);
 	void	(*tdma_opdetach)(struct ieee80211vap *);
 };
  

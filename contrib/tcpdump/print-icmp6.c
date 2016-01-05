@@ -660,7 +660,7 @@ rpl_format_dagid(char dagid_str[65], const u_char *dagid)
                 if(isprint(dagid[i])) {
                         *d++ = dagid[i];
                 } else {
-                        snprintf(d,4,"0x%02x", dagid[i]);
+                        snprintf(d,5,"0x%02x", dagid[i]); /* 4 + null char */
                         d += 4;
                 }
         }

@@ -91,12 +91,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
+#include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -141,6 +143,12 @@ SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 static int pa_tryrelock_restart;
 SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
     &pa_tryrelock_restart, 0, "Number of tryrelock restarts");
+
+static TAILQ_HEAD(, vm_page) blacklist_head;
+static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_page_blacklist, "A", "Blacklist pages");
+
 
 static uma_zone_t fakepg_zone;
 
@@ -216,33 +224,151 @@ vm_set_page_size(void)
 }
 
 /*
- *	vm_page_blacklist_lookup:
+ *	vm_page_blacklist_next:
  *
- *	See if a physical address in this page has been listed
- *	in the blacklist tunable.  Entries in the tunable are
- *	separated by spaces or commas.  If an invalid integer is
- *	encountered then the rest of the string is skipped.
+ *	Find the next entry in the provided string of blacklist
+ *	addresses.  Entries are separated by space, comma, or newline.
+ *	If an invalid integer is encountered then the rest of the
+ *	string is skipped.  Updates the list pointer to the next
+ *	character, or NULL if the string is exhausted or invalid.
  */
-static int
-vm_page_blacklist_lookup(char *list, vm_paddr_t pa)
+static vm_paddr_t
+vm_page_blacklist_next(char **list, char *end)
 {
 	vm_paddr_t bad;
 	char *cp, *pos;
 
-	for (pos = list; *pos != '\0'; pos = cp) {
-		bad = strtoq(pos, &cp, 0);
-		if (*cp != '\0') {
-			if (*cp == ' ' || *cp == ',') {
-				cp++;
-				if (cp == pos)
-					continue;
-			} else
-				break;
-		}
-		if (pa == trunc_page(bad))
-			return (1);
+	if (list == NULL || *list == NULL)
+		return (0);
+	if (**list =='\0') {
+		*list = NULL;
+		return (0);
 	}
+
+	/*
+	 * If there's no end pointer then the buffer is coming from
+	 * the kenv and we know it's null-terminated.
+	 */
+	if (end == NULL)
+		end = *list + strlen(*list);
+
+	/* Ensure that strtoq() won't walk off the end */
+	if (*end != '\0') {
+		if (*end == '\n' || *end == ' ' || *end  == ',')
+			*end = '\0';
+		else {
+			printf("Blacklist not terminated, skipping\n");
+			*list = NULL;
+			return (0);
+		}
+	}
+
+	for (pos = *list; *pos != '\0'; pos = cp) {
+		bad = strtoq(pos, &cp, 0);
+		if (*cp == '\0' || *cp == ' ' || *cp == ',' || *cp == '\n') {
+			if (bad == 0) {
+				if (++cp < end)
+					continue;
+				else
+					break;
+			}
+		} else
+			break;
+		if (*cp == '\0' || ++cp >= end)
+			*list = NULL;
+		else
+			*list = cp;
+		return (trunc_page(bad));
+	}
+	printf("Garbage in RAM blacklist, skipping\n");
+	*list = NULL;
 	return (0);
+}
+
+/*
+ *	vm_page_blacklist_check:
+ *
+ *	Iterate through the provided string of blacklist addresses, pulling
+ *	each entry out of the physical allocator free list and putting it
+ *	onto a list for reporting via the vm.page_blacklist sysctl.
+ */
+static void
+vm_page_blacklist_check(char *list, char *end)
+{
+	vm_paddr_t pa;
+	vm_page_t m;
+	char *next;
+	int ret;
+
+	next = list;
+	while (next != NULL) {
+		if ((pa = vm_page_blacklist_next(&next, end)) == 0)
+			continue;
+		m = vm_phys_paddr_to_vm_page(pa);
+		if (m == NULL)
+			continue;
+		mtx_lock(&vm_page_queue_free_mtx);
+		ret = vm_phys_unfree_page(m);
+		mtx_unlock(&vm_page_queue_free_mtx);
+		if (ret == TRUE) {
+			TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
+			if (bootverbose)
+				printf("Skipping page with pa 0x%jx\n",
+				    (uintmax_t)pa);
+		}
+	}
+}
+
+/*
+ *	vm_page_blacklist_load:
+ *
+ *	Search for a special module named "ram_blacklist".  It'll be a
+ *	plain text file provided by the user via the loader directive
+ *	of the same name.
+ */
+static void
+vm_page_blacklist_load(char **list, char **end)
+{
+	void *mod;
+	u_char *ptr;
+	u_int len;
+
+	mod = NULL;
+	ptr = NULL;
+
+	mod = preload_search_by_type("ram_blacklist");
+	if (mod != NULL) {
+		ptr = preload_fetch_addr(mod);
+		len = preload_fetch_size(mod);
+        }
+	*list = ptr;
+	if (ptr != NULL)
+		*end = ptr + len;
+	else
+		*end = NULL;
+	return;
+}
+
+static int
+sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
+{
+	vm_page_t m;
+	struct sbuf sbuf;
+	int error, first;
+
+	first = 1;
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	TAILQ_FOREACH(m, &blacklist_head, listq) {
+		sbuf_printf(&sbuf, "%s%#jx", first ? "" : ",",
+		    (uintmax_t)m->phys_addr);
+		first = 0;
+	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
 }
 
 static void
@@ -290,7 +416,7 @@ vm_page_startup(vm_offset_t vaddr)
 	int i;
 	vm_paddr_t pa;
 	vm_paddr_t last_pa;
-	char *list;
+	char *list, *listend;
 	vm_paddr_t end;
 	vm_paddr_t biggestsize;
 	vm_paddr_t low_water, high_water;
@@ -304,14 +430,6 @@ vm_page_startup(vm_offset_t vaddr)
 		phys_avail[i] = round_page(phys_avail[i]);
 		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
 	}
-
-#ifdef XEN
-	/*
-	 * There is no obvious reason why i386 PV Xen needs vm_page structs
-	 * created for these pseudo-physical addresses.  XXX
-	 */
-	vm_phys_add_seg(0, phys_avail[0]);
-#endif
 
 	low_water = phys_avail[0];
 	high_water = phys_avail[1];
@@ -361,8 +479,8 @@ vm_page_startup(vm_offset_t vaddr)
 	bzero((void *)mapped, end - new_end);
 	uma_startup((void *)mapped, boot_pages);
 
-#if defined(__amd64__) || defined(__i386__) || defined(__arm__) || \
-    defined(__mips__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
+    defined(__i386__) || defined(__mips__)
 	/*
 	 * Allocate a bitmap to indicate that a random physical page
 	 * needs to be included in a minidump.
@@ -439,12 +557,12 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	new_end = vm_reserv_startup(&vaddr, new_end, high_water);
 #endif
-#if defined(__amd64__) || defined(__mips__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__mips__)
 	/*
-	 * pmap_map on amd64 and mips can come out of the direct-map, not kvm
-	 * like i386, so the pages must be tracked for a crashdump to include
-	 * this data.  This includes the vm_page_array and the early UMA
-	 * bootstrap pages.
+	 * pmap_map on arm64, amd64, and mips can come out of the direct-map,
+	 * not kvm like i386, so the pages must be tracked for a crashdump to
+	 * include this data.  This includes the vm_page_array and the early
+	 * UMA bootstrap pages.
 	 */
 	for (pa = new_end; pa < phys_avail[biggestone + 1]; pa += PAGE_SIZE)
 		dump_add_page(pa);
@@ -477,20 +595,22 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_cnt.v_page_count = 0;
 	vm_cnt.v_free_count = 0;
-	list = kern_getenv("vm.blacklist");
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		pa = phys_avail[i];
 		last_pa = phys_avail[i + 1];
 		while (pa < last_pa) {
-			if (list != NULL &&
-			    vm_page_blacklist_lookup(list, pa))
-				printf("Skipping page with pa 0x%jx\n",
-				    (uintmax_t)pa);
-			else
-				vm_phys_add_page(pa);
+			vm_phys_add_page(pa);
 			pa += PAGE_SIZE;
 		}
 	}
+
+	TAILQ_INIT(&blacklist_head);
+	vm_page_blacklist_load(&list, &listend);
+	vm_page_blacklist_check(list, listend);
+
+	list = kern_getenv("vm.blacklist");
+	vm_page_blacklist_check(list, NULL);
+
 	freeenv(list);
 #if VM_NRESERVLEVEL > 0
 	/*
@@ -1636,6 +1756,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 				m->wire_count = 0;
 			}
 			m->object = NULL;
+			m->oflags = VPO_UNMANAGED;
 			vm_page_free(m);
 			return (NULL);
 		}
@@ -1706,6 +1827,7 @@ vm_page_alloc_contig_vdrop(struct spglist *lst)
  *
  *	optional allocation flags:
  *	VM_ALLOC_NOBUSY		do not exclusive busy the page
+ *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
  *				should not be exclusive busy
  *	VM_ALLOC_SBUSY		shared busy the allocated page
@@ -2420,19 +2542,26 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	struct vm_pagequeue *pq;
 	int queue;
 
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 
 	/*
-	 * Ignore if already inactive.
+	 * Ignore if the page is already inactive, unless it is unlikely to be
+	 * reactivated.
 	 */
-	if ((queue = m->queue) == PQ_INACTIVE)
+	if ((queue = m->queue) == PQ_INACTIVE && !athead)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
-		if (queue != PQ_NONE)
-			vm_page_dequeue(m);
-		m->flags &= ~PG_WINATCFLS;
 		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
-		vm_pagequeue_lock(pq);
+		/* Avoid multiple acquisitions of the inactive queue lock. */
+		if (queue == PQ_INACTIVE) {
+			vm_pagequeue_lock(pq);
+			vm_page_dequeue_locked(m);
+		} else {
+			if (queue != PQ_NONE)
+				vm_page_dequeue(m);
+			m->flags &= ~PG_WINATCFLS;
+			vm_pagequeue_lock(pq);
+		}
 		m->queue = PQ_INACTIVE;
 		if (athead)
 			TAILQ_INSERT_HEAD(&pq->pq_pl, m, plinks.q);
@@ -2586,7 +2715,6 @@ vm_page_cache(vm_page_t m)
 #else
 	if (TRUE) {
 #endif
-		vm_phys_set_pool(VM_FREEPOOL_CACHE, m, 0);
 		vm_phys_free_pages(m, 0);
 	}
 	vm_page_free_wakeup();
@@ -2608,34 +2736,18 @@ vm_page_cache(vm_page_t m)
 /*
  * vm_page_advise
  *
- *	Cache, deactivate, or do nothing as appropriate.  This routine
- *	is used by madvise().
- *
- *	Generally speaking we want to move the page into the cache so
- *	it gets reused quickly.  However, this can result in a silly syndrome
- *	due to the page recycling too quickly.  Small objects will not be
- *	fully cached.  On the other hand, if we move the page to the inactive
- *	queue we wind up with a problem whereby very large objects
- *	unnecessarily blow away our inactive and cache queues.
- *
- *	The solution is to move the pages based on a fixed weighting.  We
- *	either leave them alone, deactivate them, or move them to the cache,
- *	where moving them to the cache has the highest weighting.
- *	By forcing some pages into other queues we eventually force the
- *	system to balance the queues, potentially recovering other unrelated
- *	space from active.  The idea is to not force this to happen too
- *	often.
+ * 	Deactivate or do nothing, as appropriate.  This routine is used
+ * 	by madvise() and vop_stdadvise().
  *
  *	The object and page must be locked.
  */
 void
 vm_page_advise(vm_page_t m, int advice)
 {
-	int dnw, head;
 
 	vm_page_assert_locked(m);
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if (advice == MADV_FREE) {
+	if (advice == MADV_FREE)
 		/*
 		 * Mark the page clean.  This will allow the page to be freed
 		 * up by the system.  However, such pages are often reused
@@ -2646,24 +2758,12 @@ vm_page_advise(vm_page_t m, int advice)
 		 * nor do we try to put it in the cache (which would cause a
 		 * page fault on reuse).
 		 *
-		 * But we do make the page is freeable as we can without
+		 * But we do make the page as freeable as we can without
 		 * actually taking the step of unmapping it.
 		 */
 		m->dirty = 0;
-		m->act_count = 0;
-	} else if (advice != MADV_DONTNEED)
+	else if (advice != MADV_DONTNEED)
 		return;
-	dnw = PCPU_GET(dnweight);
-	PCPU_INC(dnweight);
-
-	/*
-	 * Occasionally leave the page alone.
-	 */
-	if ((dnw & 0x01F0) == 0 || m->queue == PQ_INACTIVE) {
-		if (m->act_count >= ACT_INIT)
-			--m->act_count;
-		return;
-	}
 
 	/*
 	 * Clear any references to the page.  Otherwise, the page daemon will
@@ -2674,20 +2774,12 @@ vm_page_advise(vm_page_t m, int advice)
 	if (advice != MADV_FREE && m->dirty == 0 && pmap_is_modified(m))
 		vm_page_dirty(m);
 
-	if (m->dirty || (dnw & 0x0070) == 0) {
-		/*
-		 * Deactivate the page 3 times out of 32.
-		 */
-		head = 0;
-	} else {
-		/*
-		 * Cache the page 28 times out of every 32.  Note that
-		 * the page is deactivated instead of cached, but placed
-		 * at the head of the queue instead of the tail.
-		 */
-		head = 1;
-	}
-	_vm_page_deactivate(m, head);
+	/*
+	 * Place clean pages at the head of the inactive queue rather than the
+	 * tail, thus defeating the queue's LRU operation and ensuring that the
+	 * page will be reused quickly.
+	 */
+	_vm_page_deactivate(m, m->dirty == 0);
 }
 
 /*
@@ -3033,8 +3125,8 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	/*
 	 * Scan the valid bits looking for invalid sections that
-	 * must be zerod.  Invalid sub-DEV_BSIZE'd areas ( where the
-	 * valid bit may be set ) have already been zerod by
+	 * must be zeroed.  Invalid sub-DEV_BSIZE'd areas ( where the
+	 * valid bit may be set ) have already been zeroed by
 	 * vm_page_set_validclean().
 	 */
 	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {

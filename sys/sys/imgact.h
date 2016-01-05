@@ -49,6 +49,7 @@ struct image_args {
 	int argc;		/* count of argument strings */
 	int envc;		/* count of environment strings */
 	int fd;			/* file descriptor of the executable */
+	struct filedesc *fdp;	/* new file descriptor table */
 };
 
 struct image_params {
@@ -86,6 +87,7 @@ struct image_params {
 #ifdef _KERNEL
 struct sysentvec;
 struct thread;
+struct vmspace;
 
 #define IMGACT_CORE_COMPRESS	0x01
 
@@ -98,6 +100,10 @@ void	exec_setregs(struct thread *, struct image_params *, u_long);
 int	exec_shell_imgact(struct image_params *);
 int	exec_copyin_args(struct image_args *, char *, enum uio_seg,
 	char **, char **);
+int	exec_copyin_data_fds(struct thread *, struct image_args *, const void *,
+	size_t, const int *, size_t);
+int	pre_execve(struct thread *td, struct vmspace **oldvmspace);
+void	post_execve(struct thread *td, int error, struct vmspace *oldvmspace);
 #endif
 
 #endif /* !_SYS_IMGACT_H_ */

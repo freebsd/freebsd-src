@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/conf.h>
+#define	_WANT_KW_EXITCODE
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -389,7 +391,7 @@ nopgrp:
 		kp->ki_siglist = proc.p_siglist;
 		SIGSETOR(kp->ki_siglist, mtd.td_siglist);
 		kp->ki_sigmask = mtd.td_sigmask;
-		kp->ki_xstat = proc.p_xstat;
+		kp->ki_xstat = KW_EXITCODE(proc.p_xexit, proc.p_xsig);
 		kp->ki_acflag = proc.p_acflag;
 		kp->ki_lock = proc.p_lock;
 		if (proc.p_state != PRS_ZOMBIE) {

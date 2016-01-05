@@ -43,16 +43,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_config.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/sbuf.h>
-#include <sys/systm.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/jail.h>
+#include <sys/proc.h>
+#include <sys/random.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 #include <sys/unistd.h>
 
 SYSCTL_ROOT_NODE(0,	  sysctl, CTLFLAG_RW, 0,
@@ -152,10 +153,15 @@ sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
 	char buf[256];
 	size_t len;
 
-	len = req->oldlen;
-	if (len > sizeof(buf))
-		len = sizeof(buf);
-	arc4rand(buf, len, 0);
+	/*-
+	 * This is one of the very few legitimate uses of read_random(9).
+	 * Use of arc4random(9) is not recommended as that will ignore
+	 * an unsafe (i.e. unseeded) random(4).
+	 *
+	 * If random(4) is not seeded, then this returns 0, so the
+	 * sysctl will return a zero-length buffer.
+	 */
+	len = read_random(buf, MIN(req->oldlen, sizeof(buf)));
 	return (SYSCTL_OUT(req, buf, len));
 }
 

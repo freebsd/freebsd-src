@@ -53,16 +53,6 @@ struct table_info {
 	u_long		data;		/* Hints for given func */
 };
 
-/* Internal structures for handling sockopt data */
-struct tid_info {
-	uint32_t	set;	/* table set */
-	uint16_t	uidx;	/* table index */
-	uint8_t		type;	/* table type */
-	uint8_t		atype;
-	void		*tlvs;	/* Pointer to first TLV */
-	int		tlen;	/* Total TLV size block */
-};
-
 struct table_value;
 struct tentry_info {
 	void		*paddr;
@@ -189,13 +179,12 @@ void rollback_table_values(struct tableop_state *ts);
 
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
-int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain,
-    struct ip_fw_rule0 *rule);
 int ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
     uint32_t *bmask);
 int ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
     struct sockopt_data *sd);
 void ipfw_unref_rule_tables(struct ip_fw_chain *chain, struct ip_fw *rule);
+struct namedobj_instance *ipfw_get_table_objhash(struct ip_fw_chain *ch);
 
 /* utility functions  */
 int ipfw_check_table_name(char *name);

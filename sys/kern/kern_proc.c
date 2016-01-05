@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/elf.h>
+#include <sys/eventhandler.h>
 #include <sys/exec.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -68,9 +70,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/user.h>
-#include <sys/jail.h>
 #include <sys/vnode.h>
-#include <sys/eventhandler.h>
+#include <sys/wait.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -920,7 +921,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	    p->p_sysent->sv_name[0] != '\0')
 		strlcpy(kp->ki_emul, p->p_sysent->sv_name, sizeof(kp->ki_emul));
 	kp->ki_siglist = p->p_siglist;
-	kp->ki_xstat = p->p_xstat;
+	kp->ki_xstat = KW_EXITCODE(p->p_xexit, p->p_xsig);
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_lock = p->p_lock;
 	if (p->p_pptr) {
@@ -2113,7 +2114,15 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				vref(vp);
 				break;
 			case OBJT_SWAP:
-				kve->kve_type = KVME_TYPE_SWAP;
+				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
+					kve->kve_type = KVME_TYPE_VNODE;
+					if ((lobj->flags & OBJ_TMPFS) != 0) {
+						vp = lobj->un_pager.swp.swp_tmpfs;
+						vref(vp);
+					}
+				} else {
+					kve->kve_type = KVME_TYPE_SWAP;
+				}
 				break;
 			case OBJT_DEVICE:
 				kve->kve_type = KVME_TYPE_DEVICE;
@@ -2339,7 +2348,15 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 				vref(vp);
 				break;
 			case OBJT_SWAP:
-				kve->kve_type = KVME_TYPE_SWAP;
+				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
+					kve->kve_type = KVME_TYPE_VNODE;
+					if ((lobj->flags & OBJ_TMPFS) != 0) {
+						vp = lobj->un_pager.swp.swp_tmpfs;
+						vref(vp);
+					}
+				} else {
+					kve->kve_type = KVME_TYPE_SWAP;
+				}
 				break;
 			case OBJT_DEVICE:
 				kve->kve_type = KVME_TYPE_DEVICE;
@@ -2599,7 +2616,7 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr != NULL) {
 		PROC_LOCK(p);
-		lim_rlimit(p, which, &rlim);
+		lim_rlimit_proc(p, which, &rlim);
 		PROC_UNLOCK(p);
 	}
 	error = SYSCTL_OUT(req, &rlim, sizeof(rlim));
@@ -2822,7 +2839,7 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD | CTLFLAG_MPSAFE
 	sysctl_kern_proc, "Return process table, no threads");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+	CTLFLAG_RW | CTLFLAG_CAPWR | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_args, "Process argument list");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_ENV, env, CTLFLAG_RD | CTLFLAG_MPSAFE,

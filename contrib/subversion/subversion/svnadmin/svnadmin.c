@@ -1084,7 +1084,7 @@ subcommand_freeze(apr_getopt_t *os, void *baton, apr_pool_t *pool)
     }
 
   b.command = APR_ARRAY_IDX(args, 0, const char *);
-  b.args = apr_palloc(pool, sizeof(char *) * args->nelts + 1);
+  b.args = apr_palloc(pool, sizeof(char *) * (args->nelts + 1));
   for (i = 0; i < args->nelts; ++i)
     b.args[i] = APR_ARRAY_IDX(args, i, const char *);
   b.args[args->nelts] = NULL;

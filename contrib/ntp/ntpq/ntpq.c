@@ -21,6 +21,7 @@
 #include <isc/result.h>
 
 #include "ntpq.h"
+#include "ntp_assert.h"
 #include "ntp_stdlib.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
@@ -32,12 +33,12 @@
 #ifdef OPENSSL
 #include "openssl/evp.h"
 #include "openssl/objects.h"
+#include "openssl/err.h"
 #endif
 #include <ssl_applink.c>
 
 #include "ntp_libopts.h"
 #include "ntpq-opts.h"
-
 
 #ifdef SYS_VXWORKS		/* vxWorks needs mode flag -casey*/
 # define open(name, flags)   open(name, flags, 0777)
@@ -218,6 +219,13 @@ static	int	assoccmp	(const void *, const void *);
 
 void	ntpq_custom_opt_handler	(tOptions *, tOptDesc *);
 
+#ifdef OPENSSL
+# ifdef HAVE_EVP_MD_DO_ALL_SORTED
+static void list_md_fn(const EVP_MD *m, const char *from,
+		       const char *to, void *arg );
+# endif
+#endif
+static char *list_digest_names(void);
 
 /*
  * Built-in commands we understand
@@ -275,8 +283,8 @@ struct xcmd builtins[] = {
 	  { "version number", "", "", "" },
 	  "set the NTP version number to use for requests" },
 	{ "keytype",	keytype,	{ OPT|NTP_STR, NO, NO, NO },
-	  { "key type (md5|des)", "", "", "" },
-	  "set key type to use for authenticated requests (des|md5)" },
+	  { "key type %s", "", "", "" },
+	  NULL },
 	{ 0,		0,		{ NO, NO, NO, NO },
 	  { "", "", "", "" }, "" }
 };
@@ -457,6 +465,35 @@ ntpqmain(
 	/* Check to see if we have IPv6. Otherwise default to IPv4 */
 	if (!ipv6_works)
 		ai_fam_default = AF_INET;
+
+	/* Fixup keytype's help based on available digest names */
+
+	{
+	    char *list;
+	    char *msg, *fmt;
+
+	    list = list_digest_names();
+	    for (icmd = 0; icmd < sizeof(builtins)/sizeof(builtins[0]); icmd++) {
+		if (strcmp("keytype", builtins[icmd].keyword) == 0)
+		    break;
+	    }
+
+	    /* CID: 1295478 */
+	    /* This should only "trip" if "keytype" is removed from builtins */
+	    INSIST(icmd < sizeof(builtins)/sizeof(builtins[0]));
+
+#ifdef OPENSSL
+	    builtins[icmd].desc[0] = "digest-name";
+	    fmt = "set key type to use for authenticated requests, one of:%s";
+#else
+	    builtins[icmd].desc[0] = "md5";
+	    fmt = "set key type to use for authenticated requests (%s)";
+#endif
+	    msg = malloc(strlen(fmt) + strlen(list) - strlen("%s") +1);
+	    sprintf(msg, fmt, list);
+	    builtins[icmd].comment = msg;
+	    free(list);
+	}
 
 	progname = argv[0];
 
@@ -2408,11 +2445,11 @@ keytype(
 	key_type = keytype_from_text(digest_name, &digest_len);
 
 	if (!key_type) {
-		fprintf(fp, "keytype must be 'md5'%s\n",
+		fprintf(fp, "keytype is not valid. "
 #ifdef OPENSSL
-			" or a digest type provided by OpenSSL");
+			"Type \"help keytype\" for the available digest types.\n");
 #else
-			"");
+			"Only \"md5\" is available.\n");
 #endif
 		return;
 	}
@@ -3423,4 +3460,105 @@ ntpq_custom_opt_handler(
 		ADDCMD("peers");
 		break;
 	}
+}
+/*
+ * Obtain list of digest names
+ */
+
+#ifdef OPENSSL
+# ifdef HAVE_EVP_MD_DO_ALL_SORTED
+struct hstate {
+   char *list;
+   const char **seen;
+   int idx;
+};
+#define K_PER_LINE 8
+#define K_NL_PFX_STR "\n    "
+#define K_DELIM_STR ", "
+static void list_md_fn(const EVP_MD *m, const char *from, const char *to, void *arg )
+{
+    size_t len, n;
+    const char *name, *cp, **seen;
+    struct hstate *hstate = arg;
+    EVP_MD_CTX ctx;
+    u_int digest_len;
+    u_char digest[EVP_MAX_MD_SIZE];
+
+    if (!m)
+        return; /* Ignore aliases */
+
+    name = EVP_MD_name(m);
+
+    /* Lowercase names aren't accepted by keytype_from_text in ssl_init.c */
+
+    for( cp = name; *cp; cp++ ) {
+	if( islower(*cp) )
+	    return;
+    }
+    len = (cp - name) + 1;
+
+    /* There are duplicates.  Discard if name has been seen. */
+
+    for (seen = hstate->seen; *seen; seen++)
+        if (!strcmp(*seen, name))
+	    return;
+    n = (seen - hstate->seen) + 2;
+    hstate->seen = realloc(hstate->seen, n * sizeof(*seen));
+    hstate->seen[n-2] = name;
+    hstate->seen[n-1] = NULL;
+
+    /* Discard MACs that NTP won't accept.
+     * Keep this consistent with keytype_from_text() in ssl_init.c.
+     */
+
+    EVP_DigestInit(&ctx, EVP_get_digestbyname(name));
+    EVP_DigestFinal(&ctx, digest, &digest_len);
+    if (digest_len > (MAX_MAC_LEN - sizeof(keyid_t)))
+        return;
+
+    if (hstate->list != NULL)
+	len += strlen(hstate->list);
+    len += (hstate->idx >= K_PER_LINE)? strlen(K_NL_PFX_STR): strlen(K_DELIM_STR);
+
+    if (hstate->list == NULL) {
+	hstate->list = (char *)malloc(len);
+	hstate->list[0] = '\0';
+    } else
+	hstate->list = (char *)realloc(hstate->list, len);
+
+    sprintf(hstate->list + strlen(hstate->list), "%s%s",
+	    ((hstate->idx >= K_PER_LINE)? K_NL_PFX_STR : K_DELIM_STR),
+	    name);
+    if (hstate->idx >= K_PER_LINE)
+	hstate->idx = 1;
+    else
+	hstate->idx++;
+}
+# endif
+#endif
+
+static char *list_digest_names(void)
+{
+    char *list = NULL;
+
+#ifdef OPENSSL
+# ifdef HAVE_EVP_MD_DO_ALL_SORTED
+    struct hstate hstate = { NULL, NULL, K_PER_LINE+1 };
+
+    hstate.seen = (const char **)calloc(1, sizeof( const char * ));
+
+    INIT_SSL();
+    EVP_MD_do_all_sorted(list_md_fn, &hstate);
+    list = hstate.list;
+    free(hstate.seen);
+# else
+    list = (char *)malloc(sizeof("md5, others (upgrade to OpenSSL-1.0 for full list)"));
+    strcpy(list, "md5, others (upgrade to OpenSSL-1.0 for full list)");
+# endif
+#else
+    list = (char *)malloc(sizeof("md5"));
+    strcpy(list, "md5");
+#endif
+
+    return list;
 }

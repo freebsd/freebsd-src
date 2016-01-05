@@ -67,69 +67,13 @@ can_be_cleaned(int *wc_format,
   return SVN_NO_ERROR;
 }
 
-/* Do a modifed check for LOCAL_ABSPATH, and all working children, to force
-   timestamp repair. */
+/* Dummy svn_wc_status_func4_t implementation */
 static svn_error_t *
-repair_timestamps(svn_wc__db_t *db,
-                  const char *local_abspath,
-                  svn_cancel_func_t cancel_func,
-                  void *cancel_baton,
-                  apr_pool_t *scratch_pool)
+status_dummy_callback(void *baton,
+                      const char *local_abspath,
+                      const svn_wc_status3_t *status,
+                      apr_pool_t *scratch_pool)
 {
-  svn_node_kind_t kind;
-  svn_wc__db_status_t status;
-
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
-
-  SVN_ERR(svn_wc__db_read_info(&status, &kind,
-                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                               NULL, NULL, NULL, NULL, NULL, NULL,
-                               NULL, NULL, NULL,
-                               db, local_abspath, scratch_pool, scratch_pool));
-
-  if (status == svn_wc__db_status_server_excluded
-      || status == svn_wc__db_status_deleted
-      || status == svn_wc__db_status_excluded
-      || status == svn_wc__db_status_not_present)
-    return SVN_NO_ERROR;
-
-  if (kind == svn_node_file
-      || kind == svn_node_symlink)
-    {
-      svn_boolean_t modified;
-      SVN_ERR(svn_wc__internal_file_modified_p(&modified,
-                                               db, local_abspath, FALSE,
-                                               scratch_pool));
-    }
-  else if (kind == svn_node_dir)
-    {
-      apr_pool_t *iterpool = svn_pool_create(scratch_pool);
-      const apr_array_header_t *children;
-      int i;
-
-      SVN_ERR(svn_wc__db_read_children_of_working_node(&children, db,
-                                                       local_abspath,
-                                                       scratch_pool,
-                                                       iterpool));
-      for (i = 0; i < children->nelts; ++i)
-        {
-          const char *child_abspath;
-
-          svn_pool_clear(iterpool);
-
-          child_abspath = svn_dirent_join(local_abspath,
-                                          APR_ARRAY_IDX(children, i,
-                                                        const char *),
-                                          iterpool);
-
-          SVN_ERR(repair_timestamps(db, child_abspath,
-                                    cancel_func, cancel_baton, iterpool));
-        }
-      svn_pool_destroy(iterpool);
-    }
-
   return SVN_NO_ERROR;
 }
 
@@ -184,8 +128,17 @@ cleanup_internal(svn_wc__db_t *db,
       SVN_ERR(svn_wc__db_pristine_cleanup(db, dir_abspath, scratch_pool));
     }
 
-  SVN_ERR(repair_timestamps(db, dir_abspath, cancel_func, cancel_baton,
-                            scratch_pool));
+  /* Instead of implementing a separate repair step here, use the standard
+     status walker's optimized implementation, which performs repairs when
+     there is a lock. */
+  SVN_ERR(svn_wc__internal_walk_status(db, dir_abspath, svn_depth_infinity,
+                                       FALSE /* get_all */,
+                                       FALSE /* no_ignore */,
+                                       FALSE /* ignore_text_mods */,
+                                       NULL /* ignore patterns */,
+                                       status_dummy_callback, NULL,
+                                       cancel_func, cancel_baton,
+                                       scratch_pool));
 
   /* All done, toss the lock */
   SVN_ERR(svn_wc__db_wclock_release(db, dir_abspath, scratch_pool));

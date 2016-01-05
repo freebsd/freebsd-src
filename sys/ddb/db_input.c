@@ -97,7 +97,7 @@ db_delete(n, bwd)
 	int	n;
 	int	bwd;
 {
-	register char *p;
+	char *p;
 
 	if (bwd) {
 	    db_lc -= n;
@@ -112,7 +112,7 @@ db_delete(n, bwd)
 	db_le -= n;
 }
 
-/* returns TRUE at end-of-line */
+/* returns true at end-of-line */
 static int
 db_inputchar(c)
 	int	c;
@@ -276,7 +276,7 @@ db_inputchar(c)
 		    cnputc('\007');
 		}
 		else if (c >= ' ' && c <= '~') {
-		    register char *p;
+		    char *p;
 
 		    for (p = db_le; p > db_lc; p--)
 			*p = *(p-1);
@@ -348,7 +348,7 @@ db_readline(lstart, lsize)
 void
 db_check_interrupt(void)
 {
-	register int	c;
+	int	c;
 
 	c = cnmaygetc();
 	switch (c) {

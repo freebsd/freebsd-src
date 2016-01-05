@@ -300,11 +300,11 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	return (vm);
 }
 
+#ifdef RACCT
 static void
 vmspace_container_reset(struct proc *p)
 {
 
-#ifdef RACCT
 	PROC_LOCK(p);
 	racct_set(p, RACCT_DATA, 0);
 	racct_set(p, RACCT_STACK, 0);
@@ -312,8 +312,8 @@ vmspace_container_reset(struct proc *p)
 	racct_set(p, RACCT_MEMLOCK, 0);
 	racct_set(p, RACCT_VMEM, 0);
 	PROC_UNLOCK(p);
-#endif
 }
+#endif
 
 static inline void
 vmspace_dofree(struct vmspace *vm)
@@ -415,7 +415,10 @@ vmspace_exit(struct thread *td)
 		pmap_activate(td);
 		vmspace_dofree(vm);
 	}
-	vmspace_container_reset(p);
+#ifdef RACCT
+	if (racct_enable)
+		vmspace_container_reset(p);
+#endif
 }
 
 /* Acquire reference to vmspace owned by another process. */
@@ -2588,7 +2591,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 * it into the physical map.
 				 */
 				if ((rv = vm_fault(map, faddr, VM_PROT_NONE,
-				    VM_FAULT_CHANGE_WIRING)) != KERN_SUCCESS)
+				    VM_FAULT_WIRE)) != KERN_SUCCESS)
 					break;
 			} while ((faddr += PAGE_SIZE) < saved_end);
 			vm_map_lock(map);
@@ -3421,10 +3424,8 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	growsize = sgrowsiz;
 	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
 	vm_map_lock(map);
-	PROC_LOCK(curproc);
-	lmemlim = lim_cur(curproc, RLIMIT_MEMLOCK);
-	vmemlim = lim_cur(curproc, RLIMIT_VMEM);
-	PROC_UNLOCK(curproc);
+	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
+	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
 	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 		if (ptoa(pmap_wired_count(map->pmap)) + init_ssize > lmemlim) {
 			rv = KERN_NO_SPACE;
@@ -3553,12 +3554,10 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	int error;
 #endif
 
+	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
+	stacklim = lim_cur(curthread, RLIMIT_STACK);
+	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
 Retry:
-	PROC_LOCK(p);
-	lmemlim = lim_cur(p, RLIMIT_MEMLOCK);
-	stacklim = lim_cur(p, RLIMIT_STACK);
-	vmemlim = lim_cur(p, RLIMIT_VMEM);
-	PROC_UNLOCK(p);
 
 	vm_map_lock_read(map);
 
@@ -3641,7 +3640,8 @@ Retry:
 		return (KERN_NO_SPACE);
 	}
 
-	is_procstack = (addr >= (vm_offset_t)vm->vm_maxsaddr) ? 1 : 0;
+	is_procstack = (addr >= (vm_offset_t)vm->vm_maxsaddr &&
+	    addr < (vm_offset_t)p->p_sysent->sv_usrstack) ? 1 : 0;
 
 	/*
 	 * If this is the main process stack, see if we're over the stack
@@ -3652,14 +3652,16 @@ Retry:
 		return (KERN_NO_SPACE);
 	}
 #ifdef RACCT
-	PROC_LOCK(p);
-	if (is_procstack &&
-	    racct_set(p, RACCT_STACK, ctob(vm->vm_ssize) + grow_amount)) {
+	if (racct_enable) {
+		PROC_LOCK(p);
+		if (is_procstack && racct_set(p, RACCT_STACK,
+		    ctob(vm->vm_ssize) + grow_amount)) {
+			PROC_UNLOCK(p);
+			vm_map_unlock_read(map);
+			return (KERN_NO_SPACE);
+		}
 		PROC_UNLOCK(p);
-		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
 	}
-	PROC_UNLOCK(p);
 #endif
 
 	/* Round up the grow amount modulo sgrowsiz */
@@ -3685,15 +3687,17 @@ Retry:
 			goto out;
 		}
 #ifdef RACCT
-		PROC_LOCK(p);
-		if (racct_set(p, RACCT_MEMLOCK,
-		    ptoa(pmap_wired_count(map->pmap)) + grow_amount)) {
+		if (racct_enable) {
+			PROC_LOCK(p);
+			if (racct_set(p, RACCT_MEMLOCK,
+			    ptoa(pmap_wired_count(map->pmap)) + grow_amount)) {
+				PROC_UNLOCK(p);
+				vm_map_unlock_read(map);
+				rv = KERN_NO_SPACE;
+				goto out;
+			}
 			PROC_UNLOCK(p);
-			vm_map_unlock_read(map);
-			rv = KERN_NO_SPACE;
-			goto out;
 		}
-		PROC_UNLOCK(p);
 #endif
 	}
 	/* If we would blow our VMEM resource limit, no go */
@@ -3703,14 +3707,16 @@ Retry:
 		goto out;
 	}
 #ifdef RACCT
-	PROC_LOCK(p);
-	if (racct_set(p, RACCT_VMEM, map->size + grow_amount)) {
+	if (racct_enable) {
+		PROC_LOCK(p);
+		if (racct_set(p, RACCT_VMEM, map->size + grow_amount)) {
+			PROC_UNLOCK(p);
+			vm_map_unlock_read(map);
+			rv = KERN_NO_SPACE;
+			goto out;
+		}
 		PROC_UNLOCK(p);
-		vm_map_unlock_read(map);
-		rv = KERN_NO_SPACE;
-		goto out;
 	}
-	PROC_UNLOCK(p);
 #endif
 
 	if (vm_map_lock_upgrade(map))
@@ -3809,7 +3815,7 @@ Retry:
 
 out:
 #ifdef RACCT
-	if (rv != KERN_SUCCESS) {
+	if (racct_enable && rv != KERN_SUCCESS) {
 		PROC_LOCK(p);
 		error = racct_set(p, RACCT_VMEM, map->size);
 		KASSERT(error == 0, ("decreasing RACCT_VMEM failed"));
@@ -3963,12 +3969,10 @@ RetryLookup:;
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
-	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
-	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE)) {
-		vm_map_unlock_read(map);
-		return (KERN_PROTECTION_FAILURE);
-	}
+	KASSERT((prot & VM_PROT_WRITE) == 0 || (entry->eflags &
+	    (MAP_ENTRY_USER_WIRED | MAP_ENTRY_NEEDS_COPY)) !=
+	    (MAP_ENTRY_USER_WIRED | MAP_ENTRY_NEEDS_COPY),
+	    ("entry %p flags %x", entry, entry->eflags));
 	if ((fault_typea & VM_PROT_COPY) != 0 &&
 	    (entry->max_protection & VM_PROT_WRITE) == 0 &&
 	    (entry->eflags & MAP_ENTRY_COW) == 0) {
@@ -4121,10 +4125,6 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	prot = entry->protection;
 	fault_type &= VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
 	if ((fault_type & prot) != fault_type)
-		return (KERN_PROTECTION_FAILURE);
-	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
-	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE))
 		return (KERN_PROTECTION_FAILURE);
 
 	/*

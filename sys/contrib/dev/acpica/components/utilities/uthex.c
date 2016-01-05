@@ -82,9 +82,9 @@ AcpiUtHexToAsciiChar (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtHexCharToValue
+ * FUNCTION:    AcpiUtAsciiCharToHex
  *
- * PARAMETERS:  AsciiChar             - Hex character in Ascii
+ * PARAMETERS:  HexChar                 - Hex character in Ascii
  *
  * RETURN:      The binary value of the ascii/hex character
  *

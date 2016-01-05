@@ -262,7 +262,7 @@ svn_wc__db_pdh_create_wcroot(svn_wc__db_wcroot_t **wcroot,
                              apr_pool_t *result_pool,
                              apr_pool_t *scratch_pool)
 {
-  if (sdb != NULL)
+  if (sdb && format == FORMAT_FROM_SDB)
     SVN_ERR(svn_sqlite__read_schema_version(&format, sdb, scratch_pool));
 
   /* If we construct a wcroot, then we better have a format.  */
@@ -413,6 +413,56 @@ read_link_target(const char **link_target_abspath,
 
   return SVN_NO_ERROR;
 }
+
+/* Verify if the sqlite_stat1 table exists and if not tries to add
+   this table (but ignores errors on adding the schema) */
+static svn_error_t *
+verify_stats_table(svn_sqlite__db_t *sdb,
+                   int format,
+                   apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row;
+
+  if (format != SVN_WC__ENSURE_STAT1_TABLE)
+    return SVN_NO_ERROR;
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
+                                    STMT_HAVE_STAT1_TABLE));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  if (!have_row)
+    {
+      svn_error_clear(
+          svn_wc__db_install_schema_statistics(sdb, scratch_pool));
+    }
+
+  return SVN_NO_ERROR;
+}
+
+/* Sqlite transaction helper for opening the db in
+   svn_wc__db_wcroot_parse_local_abspath() to avoid multiple
+   db operations that each obtain and release a lock */
+static svn_error_t *
+fetch_sdb_info(apr_int64_t *wc_id,
+               int *format,
+               svn_sqlite__db_t *sdb,
+               apr_pool_t *scratch_pool)
+{
+  *wc_id = -1;
+  *format = -1;
+
+  SVN_SQLITE__WITH_LOCK4(
+        svn_wc__db_util_fetch_wc_id(wc_id, sdb, scratch_pool),
+        svn_sqlite__read_schema_version(format, sdb, scratch_pool),
+        verify_stats_table(sdb, *format, scratch_pool),
+        SVN_NO_ERROR,
+        sdb);
+
+  return SVN_NO_ERROR;
+}
+
 
 svn_error_t *
 svn_wc__db_wcroot_parse_local_abspath(svn_wc__db_wcroot_t **wcroot,
@@ -654,9 +704,10 @@ try_symlink_as_dir:
       /* We finally found the database. Construct a wcroot_t for it.  */
 
       apr_int64_t wc_id;
+      int format;
       svn_error_t *err;
 
-      err = svn_wc__db_util_fetch_wc_id(&wc_id, sdb, scratch_pool);
+      err = fetch_sdb_info(&wc_id, &format, sdb, scratch_pool);
       if (err)
         {
           if (err->apr_err == SVN_ERR_WC_CORRUPT)
@@ -677,7 +728,7 @@ try_symlink_as_dir:
                                         symlink_wcroot_abspath
                                           ? symlink_wcroot_abspath
                                           : local_abspath),
-                            sdb, wc_id, FORMAT_FROM_SDB,
+                            sdb, wc_id, format,
                             db->verify_format, db->enforce_empty_wq,
                             db->state_pool, scratch_pool);
       if (err && (err->apr_err == SVN_ERR_WC_UNSUPPORTED_FORMAT ||

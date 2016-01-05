@@ -936,7 +936,7 @@ dis_ppc(const struct opcode *opcodeset, instr_t instr, vm_offset_t loc)
 }
 
 db_addr_t
-db_disasm(db_addr_t loc, boolean_t extended)
+db_disasm(db_addr_t loc, bool extended)
 {
 	int class;
 	instr_t opcode;

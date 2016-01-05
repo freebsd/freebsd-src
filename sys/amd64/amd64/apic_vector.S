@@ -174,13 +174,27 @@ IDTVEC(xen_intr_upcall)
 	jmp	doreti
 #endif
 
+#ifdef HYPERV
+/*
+ * This is the Hyper-V vmbus channel direct callback interrupt.
+ * Only used when it is running on Hyper-V.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(hv_vmbus_callback)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	movq	%rsp, %rdi
+	call	hv_vector_handler
+	MEXITCOUNT
+	jmp	doreti
+#endif
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
  */
 	.text
-
-#define	NAKE_INTR_CS	24
 
 	SUPERALIGN_TEXT
 invltlb_ret:
@@ -189,30 +203,28 @@ invltlb_ret:
 	jmp	doreti_iret
 
 	SUPERALIGN_TEXT
-IDTVEC(invltlb_pcid)
-	PUSH_FRAME
-
-	call	invltlb_pcid_handler
-	jmp	invltlb_ret
-
-
-	SUPERALIGN_TEXT
 IDTVEC(invltlb)
 	PUSH_FRAME
 
 	call	invltlb_handler
 	jmp	invltlb_ret
 
+IDTVEC(invltlb_pcid)
+	PUSH_FRAME
+
+	call	invltlb_pcid_handler
+	jmp	invltlb_ret
+
+IDTVEC(invltlb_invpcid)
+	PUSH_FRAME
+
+	call	invltlb_invpcid_handler
+	jmp	invltlb_ret
+
 /*
  * Single page TLB shootdown
  */
 	.text
-	SUPERALIGN_TEXT
-IDTVEC(invlpg_pcid)
-	PUSH_FRAME
-
-	call	invlpg_pcid_handler
-	jmp	invltlb_ret
 
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)

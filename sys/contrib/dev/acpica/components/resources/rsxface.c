@@ -447,7 +447,7 @@ AcpiResourceToAddress64 (
 
         /* Simple copy for 64 bit source */
 
-        ACPI_MEMCPY (Out, &Resource->Data, sizeof (ACPI_RESOURCE_ADDRESS64));
+        memcpy (Out, &Resource->Data, sizeof (ACPI_RESOURCE_ADDRESS64));
         break;
 
     default:
@@ -558,7 +558,7 @@ AcpiRsMatchVendorResource (
      */
     if ((Vendor->ByteLength < (ACPI_UUID_LENGTH + 1)) ||
         (Vendor->UuidSubtype != Info->Uuid->Subtype)  ||
-        (ACPI_MEMCMP (Vendor->Uuid, Info->Uuid->Data, ACPI_UUID_LENGTH)))
+        (memcmp (Vendor->Uuid, Info->Uuid->Data, ACPI_UUID_LENGTH)))
     {
         return (AE_OK);
     }
@@ -574,7 +574,7 @@ AcpiRsMatchVendorResource (
 
     /* Found the correct resource, copy and return it */
 
-    ACPI_MEMCPY (Buffer->Pointer, Resource, Resource->Length);
+    memcpy (Buffer->Pointer, Resource, Resource->Length);
     Buffer->Length = Resource->Length;
 
     /* Found the desired descriptor, terminate resource walk */

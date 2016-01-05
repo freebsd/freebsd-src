@@ -153,6 +153,7 @@ struct selfd {
 	struct mtx		*sf_mtx;	/* Pointer to selinfo mtx. */
 	struct seltd		*sf_td;		/* (k) owning seltd. */
 	void			*sf_cookie;	/* (k) fd or pollfd. */
+	u_int			sf_refs;
 };
 
 static uma_zone_t selfd_zone;
@@ -1685,11 +1686,14 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 	STAILQ_REMOVE(&stp->st_selq, sfp, selfd, sf_link);
 	if (sfp->sf_si != NULL) {
 		mtx_lock(sfp->sf_mtx);
-		if (sfp->sf_si != NULL)
+		if (sfp->sf_si != NULL) {
 			TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
+			refcount_release(&sfp->sf_refs);
+		}
 		mtx_unlock(sfp->sf_mtx);
 	}
-	uma_zfree(selfd_zone, sfp);
+	if (refcount_release(&sfp->sf_refs))
+		uma_zfree(selfd_zone, sfp);
 }
 
 /* Drain the waiters tied to all the selfd belonging the specified selinfo. */
@@ -1745,6 +1749,7 @@ selrecord(selector, sip)
 	 */
 	sfp->sf_si = sip;
 	sfp->sf_mtx = mtxp;
+	refcount_init(&sfp->sf_refs, 2);
 	STAILQ_INSERT_TAIL(&stp->st_selq, sfp, sf_link);
 	/*
 	 * Now that we've locked the sip, check for initialization.
@@ -1809,6 +1814,8 @@ doselwakeup(sip, pri)
 		stp->st_flags |= SELTD_PENDING;
 		cv_broadcastpri(&stp->st_wait, pri);
 		mtx_unlock(&stp->st_mtx);
+		if (refcount_release(&sfp->sf_refs))
+			uma_zfree(selfd_zone, sfp);
 	}
 	mtx_unlock(sip->si_mtx);
 }

@@ -161,7 +161,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 #ifdef FS_DEBUG
 	{
 		struct csum *dbg_csp;
-		int dbg_csc;
+		u_int32_t dbg_csc;
 		char dbg_line[80];
 
 		dbg_csp = fscs;
@@ -242,7 +242,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 #ifdef FS_DEBUG
 	{
 		struct csum	*dbg_csp;
-		int	dbg_csc;
+		u_int32_t	dbg_csc;
 		char	dbg_line[80];
 
 		dbg_csp = fscs;

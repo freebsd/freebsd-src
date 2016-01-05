@@ -44,6 +44,10 @@ extern void dt_module_destroy(dtrace_hdl_t *, dt_module_t *);
 extern dt_module_t *dt_module_lookup_by_name(dtrace_hdl_t *, const char *);
 extern dt_module_t *dt_module_lookup_by_ctf(dtrace_hdl_t *, ctf_file_t *);
 
+#ifdef __FreeBSD__
+extern dt_kmodule_t *dt_kmodule_lookup(dtrace_hdl_t *, const char *);
+#endif
+
 extern int dt_module_hasctf(dtrace_hdl_t *, dt_module_t *);
 extern ctf_file_t *dt_module_getctf(dtrace_hdl_t *, dt_module_t *);
 extern dt_ident_t *dt_module_extern(dtrace_hdl_t *, dt_module_t *,

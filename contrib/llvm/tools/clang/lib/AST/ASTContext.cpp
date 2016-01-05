@@ -682,6 +682,7 @@ CXXABI *ASTContext::createCXXABI(const TargetInfo &T) {
   case TargetCXXABI::iOS:
   case TargetCXXABI::iOS64:
   case TargetCXXABI::GenericAArch64:
+  case TargetCXXABI::GenericMIPS:
   case TargetCXXABI::GenericItanium:
     return CreateItaniumCXXABI(*this);
   case TargetCXXABI::Microsoft:
@@ -7873,7 +7874,7 @@ static GVALinkage basicGVALinkageForFunction(const ASTContext &Context,
   // Functions specified with extern and inline in -fms-compatibility mode
   // forcibly get emitted.  While the body of the function cannot be later
   // replaced, the function definition cannot be discarded.
-  if (FD->getMostRecentDecl()->isMSExternInline())
+  if (FD->isMSExternInline())
     return GVA_StrongODR;
 
   return GVA_DiscardableODR;
@@ -8064,6 +8065,7 @@ MangleContext *ASTContext::createMangleContext() {
   case TargetCXXABI::GenericAArch64:
   case TargetCXXABI::GenericItanium:
   case TargetCXXABI::GenericARM:
+  case TargetCXXABI::GenericMIPS:
   case TargetCXXABI::iOS:
   case TargetCXXABI::iOS64:
     return ItaniumMangleContext::create(*this, getDiagnostics());

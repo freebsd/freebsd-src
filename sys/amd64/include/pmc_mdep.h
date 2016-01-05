@@ -113,9 +113,7 @@ union pmc_md_pmc {
 
 #define	PMC_IN_KERNEL_STACK(S,START,END)		\
 	((S) >= (START) && (S) < (END))
-#define	PMC_IN_KERNEL(va) (((va) >= DMAP_MIN_ADDRESS &&			\
-	(va) < DMAP_MAX_ADDRESS) || ((va) >= VM_MIN_KERNEL_ADDRESS &&	\
-	(va) < VM_MAX_KERNEL_ADDRESS))
+#define	PMC_IN_KERNEL(va) INKERNEL(va)
 
 #define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
 

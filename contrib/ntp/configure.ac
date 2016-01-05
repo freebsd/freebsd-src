@@ -65,9 +65,11 @@ ntp_jupiter_ok=${ntp_jupiter_ok=no}
 
 NTP_PROG_CC
 AC_PROG_CPP
+# Do we need CXX for anything besides google test?
 AC_PROG_CXX
 AC_PROG_YACC
 AC_PROG_CC_C_O
+AX_C99_STRUCT_INIT
 
 NTP_VPATH_HACK		dnl used only by ntpd/Makefile.am
 
@@ -178,6 +180,15 @@ case "$PROG_NET_SNMP_CONFIG" in
 ;;
 esac
 AC_MSG_RESULT([$PATH_NET_SNMP_CONFIG])
+
+case "$PATH_NET_SNMP_CONFIG" in
+ /*)	AC_CACHE_CHECK(
+	    [for net-snmp version],
+	    [ntp_cv_net_snmp_version],
+	    [ntp_cv_net_snmp_version=`$PATH_NET_SNMP_CONFIG --version`]
+	)
+	;;
+esac
 
 case "$host" in
  *-*-vxworks*)
@@ -290,7 +301,7 @@ AC_CHECK_HEADER(
 AC_CHECK_HEADERS([fcntl.h fnmatch.h ieeefp.h inttypes.h kvm.h math.h])
 
 AC_CHECK_HEADERS([memory.h netdb.h poll.h])
-AC_CHECK_HEADERS([sgtty.h stdlib.h string.h termio.h])
+AC_CHECK_HEADERS([sgtty.h stdatomic.h stdlib.h string.h termio.h])
 AC_CHECK_HEADERS([termios.h timepps.h timex.h unistd.h])
 
 case "$host" in
@@ -371,6 +382,28 @@ case "$host" in
     ;;
 *-*-bsdi*)
     AC_CHECK_HEADERS([machine/inline.h sys/pcl720.h sys/i8253.h])
+    ;;
+esac
+
+case "$ac_cv_header_stdatomic_h" in
+ yes)
+	AC_CHECK_FUNCS([atomic_thread_fence])
+	AC_CACHE_CHECK(
+	    [for atomic_thread_fence()],
+	    [ntp_cv_func_atomic_thread_fence],
+	    [AC_COMPILE_IFELSE(
+		[AC_LANG_PROGRAM(
+		    [[
+			#include <stdatomic.h>
+		    ]],
+		    [[
+			atomic_thread_fence(memory_order_seq_cst);
+		    ]]
+		)]
+		[ntp_cv_func_atomic_thread_fence=yes],
+		[ntp_cv_func_atomic_thread_fence=no]
+	    )]
+	)
     ;;
 esac
 
@@ -1499,12 +1532,13 @@ AC_CACHE_CHECK(
 	    ;;
 	 *)
 	    AC_PREPROC_IFELSE(
-		[
-		    #include <sys/syscall.h>
-		    #if !defined(SYS_ntp_gettime) || !defined(SYS_ntp_adjtime)
-		    # error
-		    #endif
-		],
+		[AC_LANG_SOURCE(
+		    [
+			#include <sys/syscall.h>
+			#if !defined(SYS_ntp_gettime) || !defined(SYS_ntp_adjtime)
+			# error
+			#endif
+		    ])],
 		[ntp_cv_var_ntp_syscalls=kernel]
 	    )
 	    ;;
@@ -1526,12 +1560,13 @@ AC_CACHE_CHECK(
     [if sys/timex.h has STA_FLL],
     [ntp_cv_var_sta_fll],
     [AC_PREPROC_IFELSE(
-	[
-	    #include <sys/timex.h>
-	    #ifndef STA_FLL
-	    # error
-	    #endif
-	],
+	[AC_LANG_SOURCE(
+	    [
+		#include <sys/timex.h>
+		#ifndef STA_FLL
+		# error
+		#endif
+	    ])],
 	[ntp_cv_var_sta_fll=yes],
 	[ntp_cv_var_sta_fll=no]
     )]
@@ -1586,12 +1621,12 @@ AC_MSG_CHECKING([for TTY PPS ioctl TIOCGPPSEV])
 case "$ac_cv_header_termios_h" in
  yes)
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <termios.h>
 	    #ifndef TIOCGPPSEV
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_ok=yes],
 	[ntp_ok=no]
     )
@@ -1612,12 +1647,12 @@ AC_MSG_CHECKING([for TTY PPS ioctl TIOCSPPS])
 case "$ac_cv_header_termios_h" in
  yes)
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <termios.h>
 	    #ifndef TIOCSPPS
 	    # error
 	    #endif
-	 ],
+	 ])],
 	 [ntp_ok=yes],
 	 [ntp_ok=no]
     )
@@ -1638,12 +1673,12 @@ AC_MSG_CHECKING([for TTY PPS ioctl CIOGETEV])
 case "$ac_cv_header_sys_ppsclock_h" in
  yes)
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <sys/ppsclock.h>
 	    #ifndef CIOGETEV
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_ok=yes],
 	[ntp_ok=no]
     )
@@ -1689,7 +1724,7 @@ case "$ac_cv_header_sys_ppsclock_h$ac_cv_header_linux_serial_h" in
   yesyes)
     AC_MSG_CHECKING([ioctl TIOCGSERIAL, TIOCSSERIAL, ASYNC_PPS_CD_POS, ASYNC_PPS_CD_NEG])
     AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <sys/time.h>
 	    typedef int u_int;
 	    #include <sys/ppsclock.h>
@@ -1710,7 +1745,7 @@ case "$ac_cv_header_sys_ppsclock_h$ac_cv_header_linux_serial_h" in
 	    #ifndef CIOGETEV
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_ok=yes],
 	[ntp_ok=no]
     )
@@ -3423,6 +3458,9 @@ AC_CACHE_CHECK(
 	 *-sni-sysv*)
 	    ans=dosynctodr
 	    ;;
+	 *-stratus-vos)
+	    ans=no
+	    ;;
 	 *-*-aix*)
 	    ans=dosynctodr
 	    ;;
@@ -3476,6 +3514,9 @@ AC_CACHE_CHECK(
 	    ;;
 	 *-sni-sysv*)
 	    ans=noprintf
+	    ;;
+	 *-stratus-vos)
+	    ans=no
 	    ;;
 	 *-*-aix*)
 	    ans=noprintf
@@ -3870,6 +3911,11 @@ case "$ans" in
     case "$PATH_NET_SNMP_CONFIG" in
      /*)
 	SNMP_LIBS=`$PATH_NET_SNMP_CONFIG --agent-libs`
+	# Bug 2815.  This is a bit of a hack, but it works...
+	case "$ntp_cv_net_snmp_version" in
+	 5.3*)	SNMP_LIBS=`echo $SNMP_LIBS | $SED -e 's/-lnetsnmpagent/-lnetsnmpagent -lnetsnmpmibs/'`
+		;;
+	esac
 	AC_SUBST([SNMP_LIBS])
 	# HMS: we really want to separate CPPFLAGS and CFLAGS
 	foo=`$PATH_NET_SNMP_CONFIG --cflags`
@@ -3982,6 +4028,9 @@ AC_MSG_CHECKING([if we should step and slew the time])
 case "$host" in
  *-sni-sysv*)
     ans=yes
+    ;;
+ *-stratus-vos)
+    ans=no
     ;;
  *-univel-sysv*)
     ans=no
@@ -4193,7 +4242,6 @@ case "$ans" in
 esac
 
 AC_MSG_CHECKING([if we should enable NIST lockclock scheme])
-
 AC_ARG_ENABLE(
 	[nist],
 	[AS_HELP_STRING(
@@ -4213,7 +4261,6 @@ case "$ans" in
 esac
 
 AC_MSG_CHECKING([if we want support for Samba's signing daemon])
-
 AC_ARG_ENABLE(
     [ntp-signd],
     [AS_HELP_STRING(
@@ -4266,14 +4313,14 @@ AC_CACHE_CHECK(
     [for interface list sysctl],
     [ntp_cv_iflist_sysctl],
     [AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <sys/param.h>
 	    #include <sys/sysctl.h>
 	    #include <sys/socket.h>
 	    #ifndef NET_RT_IFLIST
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_cv_iflist_sysctl=yes],
 	[ntp_cv_iflist_sysctl=no]
     )]
@@ -4305,6 +4352,31 @@ esac
 AM_CONDITIONAL([SAVECONFIG_ENABLED], [test x$ntp_saveconfig_enabled = x1])
 AC_MSG_RESULT([$ntp_ok])
 
+###
+
+AC_MSG_CHECKING([if we want the experimental leap smear code])
+AC_ARG_ENABLE(
+    [leap-smear],
+    [AS_HELP_STRING(
+	[--enable-leap-smear],
+	[- experimental leap smear code]
+    )],
+    [ntp_ok=$enableval],
+    [ntp_ok=no]
+)
+ntp_leap_smear_enabled=0
+case "$ntp_ok" in
+ yes)
+    ntp_leap_smear_enabled=1
+    AC_DEFINE([LEAP_SMEAR], [1], [leap smear mechanism])
+    AC_SUBST([HAVE_LEAPSMEARINTERVAL])
+    HAVE_LEAPSMEARINTERVAL="leapsmearinterval 0"
+    ;;
+esac
+AC_MSG_RESULT([$ntp_ok])
+
+NTP_UNITYBUILD
+
 dnl  gtest is needed for our tests subdirs. It would be nice if we could
 dnl  require a C++ compiler only if we will use gtest, but AC_PROG_CXX
 dnl  can't be conditionalized.
@@ -4325,7 +4397,7 @@ AC_CONFIG_FILES([kernel/sys/Makefile])
 AC_CONFIG_FILES([libntp/Makefile])
 AC_CONFIG_FILES([libparse/Makefile])
 AC_CONFIG_FILES([ntpd/Makefile])
-AC_CONFIG_FILES([ntpd/complete.conf],	[sed -e '/^rlimit$/d' < ntpd/complete.conf > ntpd/complete.conf.new && mv ntpd/complete.conf.new ntpd/complete.conf])
+AC_CONFIG_FILES([ntpd/complete.conf],	[sed -e '/^rlimit$/d' -e '/^$/d' < ntpd/complete.conf > ntpd/complete.conf.new && mv ntpd/complete.conf.new ntpd/complete.conf])
 AC_CONFIG_FILES([ntpdate/Makefile])
 AC_CONFIG_FILES([ntpdc/Makefile])
 AC_CONFIG_FILES([ntpdc/nl.pl],		[chmod +x ntpdc/nl.pl])
@@ -4333,23 +4405,28 @@ AC_CONFIG_FILES([ntpq/Makefile])
 AC_CONFIG_FILES([ntpsnmpd/Makefile])
 AC_CONFIG_FILES([parseutil/Makefile])
 AC_CONFIG_FILES([scripts/Makefile])
-AC_CONFIG_FILES([scripts/lib/Makefile])
-AC_CONFIG_FILES([scripts/calc_tickadj/calc_tickadj], [chmod +x scripts/calc_tickadj/calc_tickadj])
-AC_CONFIG_FILES([scripts/calc_tickadj/Makefile])
+AC_CONFIG_FILES([scripts/build/Makefile])
 AC_CONFIG_FILES([scripts/build/mkver],	[chmod +x scripts/build/mkver])
-AC_CONFIG_FILES([scripts/ntp-wait/ntp-wait],	[chmod +x scripts/ntp-wait/ntp-wait])
+AC_CONFIG_FILES([scripts/calc_tickadj/Makefile])
+AC_CONFIG_FILES([scripts/calc_tickadj/calc_tickadj], [chmod +x scripts/calc_tickadj/calc_tickadj])
+AC_CONFIG_FILES([scripts/lib/Makefile])
 AC_CONFIG_FILES([scripts/ntp-wait/Makefile])
-AC_CONFIG_FILES([scripts/ntpsweep/ntpsweep],	[chmod +x scripts/ntpsweep/ntpsweep])
+AC_CONFIG_FILES([scripts/ntp-wait/ntp-wait],	[chmod +x scripts/ntp-wait/ntp-wait])
 AC_CONFIG_FILES([scripts/ntpsweep/Makefile])
-AC_CONFIG_FILES([scripts/ntptrace/ntptrace],	[chmod +x scripts/ntptrace/ntptrace])
+AC_CONFIG_FILES([scripts/ntpsweep/ntpsweep],	[chmod +x scripts/ntpsweep/ntpsweep])
 AC_CONFIG_FILES([scripts/ntptrace/Makefile])
+AC_CONFIG_FILES([scripts/ntptrace/ntptrace],	[chmod +x scripts/ntptrace/ntptrace])
 AC_CONFIG_FILES([scripts/ntpver],	[chmod +x scripts/ntpver])
 AC_CONFIG_FILES([scripts/plot_summary],	[chmod +x scripts/plot_summary])
 AC_CONFIG_FILES([scripts/summary],	[chmod +x scripts/summary])
-AC_CONFIG_FILES([scripts/build/Makefile])
+AC_CONFIG_FILES([scripts/update-leap/Makefile])
+AC_CONFIG_FILES([scripts/update-leap/update-leap], [chmod +x scripts/update-leap/update-leap])
 AC_CONFIG_FILES([tests/Makefile])
+AC_CONFIG_FILES([tests/bug-2803/Makefile])
 AC_CONFIG_FILES([tests/libntp/Makefile])
 AC_CONFIG_FILES([tests/ntpd/Makefile])
+AC_CONFIG_FILES([tests/sandbox/Makefile])
+AC_CONFIG_FILES([tests/sec-2853/Makefile])
 AC_CONFIG_FILES([util/Makefile])
 
 perllibdir="${datadir}/ntp/lib"

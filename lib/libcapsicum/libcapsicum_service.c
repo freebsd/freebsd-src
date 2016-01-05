@@ -30,12 +30,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/nv.h>
+
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <nv.h>
 #include "msgio.h"
 
 #include "libcapsicum.h"
@@ -56,7 +57,7 @@ cap_service_open(const cap_channel_t *chan, const char *name)
 	nvlist_add_string(nvl, "service", name);
 	if (fd_is_valid(STDERR_FILENO))
 		nvlist_add_descriptor(nvl, "stderrfd", STDERR_FILENO);
-	nvl = cap_xfer_nvlist(chan, nvl);
+	nvl = cap_xfer_nvlist(chan, nvl, 0);
 	if (nvl == NULL)
 		return (NULL);
 	error = (int)nvlist_get_number(nvl, "error");

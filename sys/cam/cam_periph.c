@@ -855,11 +855,11 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 */
 		mapinfo->bp[i] = getpbuf(NULL);
 
-		/* save the buffer's data address */
-		mapinfo->bp[i]->b_saveaddr = mapinfo->bp[i]->b_data;
-
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
+
+		/* save the user's data address */
+		mapinfo->bp[i]->b_caller1 = *data_ptrs[i];
 
 		/* set the transfer length, we know it's < MAXPHYS */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
@@ -877,7 +877,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 */
 		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
 			for (j = 0; j < i; ++j) {
-				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
+				*data_ptrs[j] = mapinfo->bp[j]->b_caller1;
 				vunmapbuf(mapinfo->bp[j]);
 				relpbuf(mapinfo->bp[j], NULL);
 			}
@@ -958,7 +958,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	for (i = 0; i < numbufs; i++) {
 		/* Set the user's pointer back to the original value */
-		*data_ptrs[i] = mapinfo->bp[i]->b_saveaddr;
+		*data_ptrs[i] = mapinfo->bp[i]->b_caller1;
 
 		/* unmap the buffer */
 		vunmapbuf(mapinfo->bp[i]);

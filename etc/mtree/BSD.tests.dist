@@ -354,7 +354,19 @@
         ..
     ..
     sys
+        aio
+        ..
+        fifo
+        ..
+        file
+        ..
         kern
+            execve
+            ..
+        ..
+        kqueue
+        ..
+        mqueue
         ..
         netinet
         ..
@@ -391,6 +403,8 @@
             ..
             unlink
             ..
+        ..
+        vm
         ..
     ..
     usr.bin
@@ -500,6 +514,8 @@
         ..
         cmp
         ..
+        col
+        ..
         comm
         ..
         cut
@@ -511,6 +527,8 @@
         grep
         ..
         gzip
+        ..
+        ident
         ..
         join
         ..
@@ -531,6 +549,8 @@
         sed
             regress.multitest.out
             ..
+        ..
+        soelim
         ..
         timeout
         ..
@@ -553,6 +573,8 @@
     ..
     usr.sbin
         etcupdate
+        ..
+        fstyp
         ..
         newsyslog
         ..

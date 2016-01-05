@@ -66,12 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
-#ifdef XEN
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
 #define	KTDSTATE(td)							\
 	(((td)->td_inhibitors & TDI_SLEEPING) != 0 ? "sleep"  :		\
 	((td)->td_inhibitors & TDI_SUSPENDED) != 0 ? "suspended" :	\
@@ -420,11 +414,9 @@ mi_switch(int flags, struct thread *newtd)
 {
 	uint64_t runtime, new_switchtime;
 	struct thread *td;
-	struct proc *p;
 
 	td = curthread;			/* XXX */
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
-	p = td->td_proc;		/* XXX */
 	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
 	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
@@ -464,7 +456,7 @@ mi_switch(int flags, struct thread *newtd)
 	PCPU_INC(cnt.v_swtch);
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (td_sched %p, pid %ld, %s)",
-	    td->td_tid, td->td_sched, p->p_pid, td->td_name);
+	    td->td_tid, td->td_sched, td->td_proc->p_pid, td->td_name);
 #if (KTR_COMPILE & KTR_SCHED) != 0
 	if (TD_IS_IDLETHREAD(td))
 		KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "idle",
@@ -475,15 +467,12 @@ mi_switch(int flags, struct thread *newtd)
 		    "lockname:\"%s\"", td->td_lockname);
 #endif
 	SDT_PROBE0(sched, , , preempt);
-#ifdef XEN
-	PT_UPDATES_FLUSH();
-#endif
 	sched_switch(td, newtd, flags);
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running",
 	    "prio:%d", td->td_priority);
 
 	CTR4(KTR_PROC, "mi_switch: new thread %ld (td_sched %p, pid %ld, %s)",
-	    td->td_tid, td->td_sched, p->p_pid, td->td_name);
+	    td->td_tid, td->td_sched, td->td_proc->p_pid, td->td_name);
 
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.
@@ -565,7 +554,7 @@ loadav(void *arg)
 static void
 synch_setup(void *dummy)
 {
-	callout_init(&loadav_callout, CALLOUT_MPSAFE);
+	callout_init(&loadav_callout, 1);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);

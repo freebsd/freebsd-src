@@ -360,7 +360,7 @@ hse:
 				macdefine(&e->e_macro, A_PERM,
 					macid("{addr_type}"), "h");
 			(void) rscheck(rs, fvalue, NULL, e, rscheckflags, 3,
-				       NULL, e->e_id, NULL);
+				       NULL, e->e_id, NULL, NULL);
 		}
 	}
 
@@ -415,7 +415,7 @@ hse:
 				**  the RCPT mailer.
 				*/
 
-		    		if (bitnset(M_NOMHHACK,
+				if (bitnset(M_NOMHHACK,
 					    e->e_from.q_mailer->m_flags))
 				{
 					h->h_flags &= ~H_CHECK;
@@ -1194,6 +1194,22 @@ logsender(e, msgid)
 				", daemon=%.20s", p);
 		sbp += strlen(sbp);
 	}
+# if _FFR_LOG_MORE1
+#  if STARTTLS
+	p = macvalue(macid("{verify}"), e);
+	if (p == NULL || *p == '\0')
+		p = "NONE";
+	(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp), ", tls_verify=%.20s", p);
+	sbp += strlen(sbp);
+#  endif /* STARTTLS */
+#  if SASL
+	p = macvalue(macid("{auth_type}"), e);
+	if (p == NULL || *p == '\0')
+		p = "NONE";
+	(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp), ", auth=%.20s", p);
+	sbp += strlen(sbp);
+#  endif /* SASL */
+# endif /* _FFR_LOG_MORE1 */
 	sm_syslog(LOG_INFO, e->e_id, "%.850s, relay=%s", sbuf, name);
 
 #else /* (SYSLOG_BUFSIZE) >= 256 */
@@ -1892,8 +1908,10 @@ putheader(mci, hdr, e, flags)
 
 			if (bitset(H_FROM, h->h_flags))
 				oldstyle = false;
-			commaize(h, p, oldstyle, mci, e,
-				 PXLF_HEADER | PXLF_STRIPMQUOTE);
+			if (!commaize(h, p, oldstyle, mci, e,
+				      PXLF_HEADER | PXLF_STRIPMQUOTE)
+			    && bitnset(M_xSMTP, mci->mci_mailer->m_flags))
+				goto writeerr;
 		}
 		else
 		{
@@ -2169,6 +2187,12 @@ commaize(h, p, oldstyle, mci, e, putflags)
 #endif /* USERDB */
 		status = EX_OK;
 		name = remotename(name, mci->mci_mailer, flags, &status, e);
+		if (status != EX_OK && bitnset(M_xSMTP, mci->mci_mailer->m_flags))
+		{
+			if (status == EX_TEMPFAIL)
+				mci->mci_flags |= MCIF_NOTSTICKY;
+			goto writeerr;
+		}
 		if (*name == '\0')
 		{
 			*p = savechar;

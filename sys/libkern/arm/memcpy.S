@@ -28,11 +28,10 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef __ARM_EABI__
-
 ENTRY_NP(__aeabi_memcpy)
+EENTRY_NP(__aeabi_memcpy4)
+EENTRY_NP(__aeabi_memcpy8)
 	b	memcpy
+EEND(__aeabi_memcpy8)
+EEND(__aeabi_memcpy4)
 END(__aeabi_memcpy)
-
-#endif
-

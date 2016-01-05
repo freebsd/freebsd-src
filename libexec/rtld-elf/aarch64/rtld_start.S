@@ -34,10 +34,14 @@ ENTRY(.rtld_start)
 	mov	x19, x0		/* Put ps_strings in a callee-saved register */
 	mov	x20, sp		/* And the stack pointer */
 
-	sub	x8, x20, #16	/* Make room for obj_main & exit proc */
-	mov	sp, x8		/* Update the stack pointer */
+	/* Handle the old style stack */
+	/* TODO: Remove this when the kernel correctly aligns the stack */
+	cbnz	x0, 1f
+	mov	x0, sp		/* sp points to the args */
+	and	sp, x0, #~0xf	/* Align the stack as needed */
 
-	mov	x0, x20		/* Pass the stack we were given to _rtld */
+1:	sub	sp, sp, #16	/* Make room for obj_main & exit proc */
+
 	mov	x1, sp		/* exit_proc */
 	add	x2, x1, #8	/* obj_main */
 	bl	_rtld		/* Call the loader */
@@ -64,6 +68,13 @@ ENTRY(_rtld_bind_start)
 	stp	x2, x3, [sp, #-16]!
 	stp	x4, x5, [sp, #-16]!
 	stp	x6, x7, [sp, #-16]!
+	stp	x8, xzr, [sp, #-16]!
+
+	/* Save any floating-point arguments */
+	stp	q0, q1, [sp, #-32]!
+	stp	q2, q3, [sp, #-32]!
+	stp	q4, q5, [sp, #-32]!
+	stp	q6, q7, [sp, #-32]!
 
 	/* Calculate reloff */
 	ldr	x2, [x17, #0]	/* Get the address of the entry */
@@ -80,12 +91,17 @@ ENTRY(_rtld_bind_start)
 	bl	_rtld_bind
 
 	/* Restore the registers saved by the plt code */
-	ldp	xzr, x30, [sp, #(4 * 16)]
+	ldp	xzr, x30, [sp, #(5 * 16 + 4 * 32)]
 
 	/* Backup the address to branch to */
 	mov	x16, x0
 
 	/* restore the arguments */
+	ldp	q6, q7, [sp], #32
+	ldp	q4, q5, [sp], #32
+	ldp	q2, q3, [sp], #32
+	ldp	q0, q1, [sp], #32
+	ldp	x8, xzr, [sp], #16
 	ldp	x6, x7, [sp], #16
 	ldp	x4, x5, [sp], #16
 	ldp	x2, x3, [sp], #16

@@ -1,26 +1,31 @@
 /*-
- * Copyright 2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -192,15 +197,16 @@ siena_phy_get_link(
 	__out		siena_link_state_t *slsp)
 {
 	efx_mcdi_req_t req;
-	uint8_t outbuf[MC_CMD_GET_LINK_OUT_LEN];
+	uint8_t payload[MAX(MC_CMD_GET_LINK_IN_LEN,
+			    MC_CMD_GET_LINK_OUT_LEN)];
 	int rc;
 
+	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_LINK;
-	EFX_STATIC_ASSERT(MC_CMD_GET_LINK_IN_LEN == 0);
-	req.emr_in_buf = NULL;
-	req.emr_in_length = 0;
-	req.emr_out_buf = outbuf;
-	req.emr_out_length = sizeof (outbuf);
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_LINK_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_LINK_OUT_LEN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -266,19 +272,21 @@ siena_phy_reconfigure(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_ID_LED_IN_LEN,
-			    MC_CMD_SET_LINK_IN_LEN)];
+	uint8_t payload[MAX(MAX(MC_CMD_SET_ID_LED_IN_LEN,
+				MC_CMD_SET_ID_LED_OUT_LEN),
+			    MAX(MC_CMD_SET_LINK_IN_LEN,
+				MC_CMD_SET_LINK_OUT_LEN))];
 	uint32_t cap_mask;
 	unsigned int led_mode;
 	unsigned int speed;
 	int rc;
 
+	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_LINK;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_LINK_IN_LEN;
-	EFX_STATIC_ASSERT(MC_CMD_SET_LINK_OUT_LEN == 0);
-	req.emr_out_buf = NULL;
-	req.emr_out_length = 0;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_SET_LINK_OUT_LEN;
 
 	cap_mask = epp->ep_adv_cap_mask;
 	MCDI_IN_POPULATE_DWORD_10(req, SET_LINK_IN_CAP,
@@ -329,12 +337,12 @@ siena_phy_reconfigure(
 	}
 
 	/* And set the blink mode */
+	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_ID_LED;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_ID_LED_IN_LEN;
-	EFX_STATIC_ASSERT(MC_CMD_SET_ID_LED_OUT_LEN == 0);
-	req.emr_out_buf = NULL;
-	req.emr_out_length = 0;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_SET_ID_LED_OUT_LEN;
 
 #if EFSYS_OPT_PHY_LED_CONTROL
 	switch (epp->ep_phy_led_mode) {
@@ -379,16 +387,17 @@ siena_phy_verify(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
-	uint8_t outbuf[MC_CMD_GET_PHY_STATE_OUT_LEN];
+	uint8_t payload[MAX(MC_CMD_GET_PHY_STATE_IN_LEN,
+			    MC_CMD_GET_PHY_STATE_OUT_LEN)];
 	uint32_t state;
 	int rc;
 
+	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PHY_STATE;
-	EFX_STATIC_ASSERT(MC_CMD_GET_PHY_STATE_IN_LEN == 0);
-	req.emr_in_buf = NULL;
-	req.emr_in_length = 0;
-	req.emr_out_buf = outbuf;
-	req.emr_out_length = sizeof (outbuf);
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_PHY_STATE_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_PHY_STATE_OUT_LEN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -544,18 +553,19 @@ siena_phy_stats_update(
 	__out_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint32_t vmask = encp->enc_siena_phy_stat_mask;
-	uint8_t payload[MC_CMD_PHY_STATS_IN_LEN];
+	uint32_t vmask = encp->enc_mcdi_phy_stat_mask;
 	uint64_t smask;
 	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_PHY_STATS_IN_LEN,
+			    MC_CMD_PHY_STATS_OUT_DMA_LEN)];
 	int rc;
 
+	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_PHY_STATS;
 	req.emr_in_buf = payload;
-	req.emr_in_length = sizeof (payload);
-	EFX_STATIC_ASSERT(MC_CMD_PHY_STATS_OUT_DMA_LEN == 0);
-	req.emr_out_buf = NULL;
-	req.emr_out_length = 0;
+	req.emr_in_length = MC_CMD_PHY_STATS_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_PHY_STATS_OUT_DMA_LEN;
 
 	MCDI_IN_SET_DWORD(req, PHY_STATS_IN_DMA_ADDR_LO,
 			    EFSYS_MEM_ADDR(esmp) & 0xffffffff);
@@ -587,7 +597,7 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-extern		const char __cs *
+extern		const char *
 siena_phy_prop_name(
 	__in	efx_nic_t *enp,
 	__in	unsigned int id)
@@ -624,46 +634,17 @@ siena_phy_prop_set(
 
 #endif	/* EFSYS_OPT_PHY_PROPS */
 
-#if EFSYS_OPT_PHY_BIST
+#if EFSYS_OPT_BIST
 
 	__checkReturn		int
 siena_phy_bist_start(
 	__in			efx_nic_t *enp,
-	__in			efx_phy_bist_type_t type)
+	__in			efx_bist_type_t type)
 {
-	uint8_t payload[MC_CMD_START_BIST_IN_LEN];
-	efx_mcdi_req_t req;
 	int rc;
 
-	req.emr_cmd = MC_CMD_START_BIST;
-	req.emr_in_buf = payload;
-	req.emr_in_length = sizeof (payload);
-	EFX_STATIC_ASSERT(MC_CMD_START_BIST_OUT_LEN == 0);
-	req.emr_out_buf = NULL;
-	req.emr_out_length = 0;
-
-	switch (type) {
-	case EFX_PHY_BIST_TYPE_NORMAL:
-		MCDI_IN_SET_DWORD(req, START_BIST_IN_TYPE, MC_CMD_PHY_BIST);
-		break;
-	case EFX_PHY_BIST_TYPE_CABLE_SHORT:
-		MCDI_IN_SET_DWORD(req, START_BIST_IN_TYPE,
-		    MC_CMD_PHY_BIST_CABLE_SHORT);
-		break;
-	case EFX_PHY_BIST_TYPE_CABLE_LONG:
-		MCDI_IN_SET_DWORD(req, START_BIST_IN_TYPE,
-		    MC_CMD_PHY_BIST_CABLE_LONG);
-		break;
-	default:
-		EFSYS_ASSERT(0);
-	}
-
-	efx_mcdi_execute(enp, &req);
-
-	if (req.emr_rc != 0) {
-		rc = req.emr_rc;
+	if ((rc = efx_mcdi_bist_start(enp, type)) != 0)
 		goto fail1;
-	}
 
 	return (0);
 
@@ -696,8 +677,8 @@ siena_phy_sft9001_bist_status(
 	__checkReturn		int
 siena_phy_bist_poll(
 	__in			efx_nic_t *enp,
-	__in			efx_phy_bist_type_t type,
-	__out			efx_phy_bist_result_t *resultp,
+	__in			efx_bist_type_t type,
+	__out			efx_bist_result_t *resultp,
 	__out_opt __drv_when(count > 0, __notnull)
 	uint32_t *value_maskp,
 	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
@@ -705,19 +686,19 @@ siena_phy_bist_poll(
 	__in			size_t count)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint8_t payload[MCDI_CTL_SDU_LEN_MAX];
+	uint8_t payload[MAX(MC_CMD_POLL_BIST_IN_LEN,
+			    MCDI_CTL_SDU_LEN_MAX)];
 	uint32_t value_mask = 0;
 	efx_mcdi_req_t req;
 	uint32_t result;
 	int rc;
 
+	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_POLL_BIST;
-	_NOTE(CONSTANTCONDITION)
-	EFSYS_ASSERT(MC_CMD_POLL_BIST_IN_LEN == 0);
-	req.emr_in_buf = NULL;
-	req.emr_in_length = 0;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_POLL_BIST_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = sizeof (payload);
+	req.emr_out_length = MCDI_CTL_SDU_LEN_MAX;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -740,90 +721,90 @@ siena_phy_bist_poll(
 	if (result == MC_CMD_POLL_BIST_PASSED &&
 	    encp->enc_phy_type == EFX_PHY_SFT9001B &&
 	    req.emr_out_length_used >= MC_CMD_POLL_BIST_OUT_SFT9001_LEN &&
-	    (type == EFX_PHY_BIST_TYPE_CABLE_SHORT ||
-	    type == EFX_PHY_BIST_TYPE_CABLE_LONG)) {
+	    (type == EFX_BIST_TYPE_PHY_CABLE_SHORT ||
+	    type == EFX_BIST_TYPE_PHY_CABLE_LONG)) {
 		uint16_t word;
 
-		if (count > EFX_PHY_BIST_CABLE_LENGTH_A) {
+		if (count > EFX_BIST_PHY_CABLE_LENGTH_A) {
 			if (valuesp != NULL)
-				valuesp[EFX_PHY_BIST_CABLE_LENGTH_A] =
+				valuesp[EFX_BIST_PHY_CABLE_LENGTH_A] =
 				    MCDI_OUT_DWORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_LENGTH_A);
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_LENGTH_A);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_LENGTH_A);
 		}
 
-		if (count > EFX_PHY_BIST_CABLE_LENGTH_B) {
+		if (count > EFX_BIST_PHY_CABLE_LENGTH_B) {
 			if (valuesp != NULL)
-				valuesp[EFX_PHY_BIST_CABLE_LENGTH_B] =
+				valuesp[EFX_BIST_PHY_CABLE_LENGTH_B] =
 				    MCDI_OUT_DWORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_LENGTH_B);
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_LENGTH_B);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_LENGTH_B);
 		}
 
-		if (count > EFX_PHY_BIST_CABLE_LENGTH_C) {
+		if (count > EFX_BIST_PHY_CABLE_LENGTH_C) {
 			if (valuesp != NULL)
-				valuesp[EFX_PHY_BIST_CABLE_LENGTH_C] =
+				valuesp[EFX_BIST_PHY_CABLE_LENGTH_C] =
 				    MCDI_OUT_DWORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_LENGTH_C);
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_LENGTH_C);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_LENGTH_C);
 		}
 
-		if (count > EFX_PHY_BIST_CABLE_LENGTH_D) {
+		if (count > EFX_BIST_PHY_CABLE_LENGTH_D) {
 			if (valuesp != NULL)
-				valuesp[EFX_PHY_BIST_CABLE_LENGTH_D] =
+				valuesp[EFX_BIST_PHY_CABLE_LENGTH_D] =
 				    MCDI_OUT_DWORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_LENGTH_D);
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_LENGTH_D);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_LENGTH_D);
 		}
 
-		if (count > EFX_PHY_BIST_CABLE_STATUS_A) {
+		if (count > EFX_BIST_PHY_CABLE_STATUS_A) {
 			if (valuesp != NULL) {
 				word = MCDI_OUT_WORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_STATUS_A);
-				valuesp[EFX_PHY_BIST_CABLE_STATUS_A] =
+				valuesp[EFX_BIST_PHY_CABLE_STATUS_A] =
 				    siena_phy_sft9001_bist_status(word);
 			}
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_STATUS_A);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_STATUS_A);
 		}
 
-		if (count > EFX_PHY_BIST_CABLE_STATUS_B) {
+		if (count > EFX_BIST_PHY_CABLE_STATUS_B) {
 			if (valuesp != NULL) {
 				word = MCDI_OUT_WORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_STATUS_B);
-				valuesp[EFX_PHY_BIST_CABLE_STATUS_B] =
+				valuesp[EFX_BIST_PHY_CABLE_STATUS_B] =
 				    siena_phy_sft9001_bist_status(word);
 			}
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_STATUS_B);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_STATUS_B);
 		}
 
-		if (count > EFX_PHY_BIST_CABLE_STATUS_C) {
+		if (count > EFX_BIST_PHY_CABLE_STATUS_C) {
 			if (valuesp != NULL) {
 				word = MCDI_OUT_WORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_STATUS_C);
-				valuesp[EFX_PHY_BIST_CABLE_STATUS_C] =
+				valuesp[EFX_BIST_PHY_CABLE_STATUS_C] =
 				    siena_phy_sft9001_bist_status(word);
 			}
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_STATUS_C);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_STATUS_C);
 		}
 
-		if (count > EFX_PHY_BIST_CABLE_STATUS_D) {
+		if (count > EFX_BIST_PHY_CABLE_STATUS_D) {
 			if (valuesp != NULL) {
 				word = MCDI_OUT_WORD(req,
 				    POLL_BIST_OUT_SFT9001_CABLE_STATUS_D);
-				valuesp[EFX_PHY_BIST_CABLE_STATUS_D] =
+				valuesp[EFX_BIST_PHY_CABLE_STATUS_D] =
 				    siena_phy_sft9001_bist_status(word);
 			}
-			value_mask |= (1 << EFX_PHY_BIST_CABLE_STATUS_D);
+			value_mask |= (1 << EFX_BIST_PHY_CABLE_STATUS_D);
 		}
 
 	} else if (result == MC_CMD_POLL_BIST_FAILED &&
 		    encp->enc_phy_type == EFX_PHY_QLX111V &&
 		    req.emr_out_length >= MC_CMD_POLL_BIST_OUT_MRSFP_LEN &&
-		    count > EFX_PHY_BIST_FAULT_CODE) {
+		    count > EFX_BIST_FAULT_CODE) {
 		if (valuesp != NULL)
-			valuesp[EFX_PHY_BIST_FAULT_CODE] =
+			valuesp[EFX_BIST_FAULT_CODE] =
 			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MRSFP_TEST);
-		value_mask |= 1 << EFX_PHY_BIST_FAULT_CODE;
+		value_mask |= 1 << EFX_BIST_FAULT_CODE;
 	}
 
 	if (value_maskp != NULL)
@@ -831,11 +812,11 @@ siena_phy_bist_poll(
 
 	EFSYS_ASSERT(resultp != NULL);
 	if (result == MC_CMD_POLL_BIST_RUNNING)
-		*resultp = EFX_PHY_BIST_RESULT_RUNNING;
+		*resultp = EFX_BIST_RESULT_RUNNING;
 	else if (result == MC_CMD_POLL_BIST_PASSED)
-		*resultp = EFX_PHY_BIST_RESULT_PASSED;
+		*resultp = EFX_BIST_RESULT_PASSED;
 	else
-		*resultp = EFX_PHY_BIST_RESULT_FAILED;
+		*resultp = EFX_BIST_RESULT_FAILED;
 
 	return (0);
 
@@ -850,12 +831,12 @@ fail1:
 			void
 siena_phy_bist_stop(
 	__in		efx_nic_t *enp,
-	__in		efx_phy_bist_type_t type)
+	__in		efx_bist_type_t type)
 {
 	/* There is no way to stop BIST on Siena */
 	_NOTE(ARGUNUSED(enp, type))
 }
 
-#endif	/* EFSYS_OPT_PHY_BIST */
+#endif	/* EFSYS_OPT_BIST */
 
 #endif	/* EFSYS_OPT_SIENA */

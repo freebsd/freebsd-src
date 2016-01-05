@@ -91,8 +91,7 @@ static __inline int
 map_signum(int signum)
 {
 
-	if (signum > 0 && signum <= LINUX_SIGTBLSZ)
-		signum = linux_to_bsd_signal[_SIG_IDX(signum)];
+	signum = linux_to_bsd_signal(signum);
 	return ((signum == SIGSTOP)? 0 : signum);
 }
 

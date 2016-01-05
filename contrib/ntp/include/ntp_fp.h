@@ -264,10 +264,13 @@ typedef u_int32 u_fp;
  * headers.  So far the problem has only been seen with gcc, but it
  * may also affect Sun compilers, in which case the defined(__GNUC__)
  * term should be removed.
+ * XSCALE also generates bad code for these, at least with GCC 3.3.5.
+ * This is unrelated to math.h, but the same solution applies.
  */
 #if defined(HAVE_U_INT64) && \
     !(defined(__SVR4) && defined(__sun) && \
-      defined(sparc) && defined(__GNUC__))
+      defined(sparc) && defined(__GNUC__) || \
+      defined(__arm__) && defined(__XSCALE__) && defined(__GNUC__)) 
 
 #include <math.h>	/* ldexp() */
 

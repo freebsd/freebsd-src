@@ -22,7 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -472,6 +472,19 @@ zfs_register_callbacks(vfs_t *vfsp)
 	}
 
 	/*
+	 * We need to enter pool configuration here, so that we can use
+	 * dsl_prop_get_int_ds() to handle the special nbmand property below.
+	 * dsl_prop_get_integer() can not be used, because it has to acquire
+	 * spa_namespace_lock and we can not do that because we already hold
+	 * z_teardown_lock.  The problem is that spa_config_sync() is called
+	 * with spa_namespace_lock held and the function calls ZFS vnode
+	 * operations to write the cache file and thus z_teardown_lock is
+	 * acquired after spa_namespace_lock.
+	 */
+	ds = dmu_objset_ds(os);
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+
+	/*
 	 * nbmand is a special property.  It can only be changed at
 	 * mount time.
 	 *
@@ -482,14 +495,9 @@ zfs_register_callbacks(vfs_t *vfsp)
 		nbmand = B_FALSE;
 	} else if (vfs_optionisset(vfsp, MNTOPT_NBMAND, NULL)) {
 		nbmand = B_TRUE;
-	} else {
-		char osname[MAXNAMELEN];
-
-		dmu_objset_name(os, osname);
-		if (error = dsl_prop_get_integer(osname, "nbmand", &nbmand,
-		    NULL)) {
-			return (error);
-		}
+	} else if (error = dsl_prop_get_int_ds(ds, "nbmand", &nbmand) != 0) {
+		dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
+		return (error);
 	}
 
 	/*
@@ -499,8 +507,6 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 * the first prop_register(), but I guess I like to go
 	 * overboard...
 	 */
-	ds = dmu_objset_ds(os);
-	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
 	error = dsl_prop_register(ds,
 	    zfs_prop_to_name(ZFS_PROP_ATIME), atime_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
@@ -950,7 +956,7 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 		error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_SA_ATTRS, 8, 1,
 		    &sa_obj);
 		if (error)
-			return (error);
+			goto out;
 	} else {
 		/*
 		 * Pre SA versions file systems should never touch
@@ -1239,9 +1245,6 @@ zfs_domount(vfs_t *vfsp, char *osname)
 	}
 
 	vfs_mountedfrom(vfsp, osname);
-	/* Grab extra reference. */
-	VERIFY(VFS_ROOT(vfsp, LK_EXCLUSIVE, &vp) == 0);
-	VOP_UNLOCK(vp, 0);
 
 	if (!zfsvfs->z_issnap)
 		zfsctl_create(zfsvfs);
@@ -1720,9 +1723,19 @@ zfs_mount(vfs_t *vfsp)
 	 * according to those options set in the current VFS options.
 	 */
 	if (vfsp->vfs_flag & MS_REMOUNT) {
-		/* refresh mount options */
-		zfs_unregister_callbacks(vfsp->vfs_data);
+		zfsvfs_t *zfsvfs = vfsp->vfs_data;
+
+		/*
+		 * Refresh mount options with z_teardown_lock blocking I/O while
+		 * the filesystem is in an inconsistent state.
+		 * The lock also serializes this code with filesystem
+		 * manipulations between entry to zfs_suspend_fs() and return
+		 * from zfs_resume_fs().
+		 */
+		rrm_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+		zfs_unregister_callbacks(zfsvfs);
 		error = zfs_register_callbacks(vfsp);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 		goto out;
 	}
 
@@ -1819,7 +1832,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER_NOERROR(zfsvfs);
+	ZFS_ENTER(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0)
@@ -1994,7 +2007,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	/*
 	 * Flush all the files.
 	 */
-	ret = vflush(vfsp, 1, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
+	ret = vflush(vfsp, 0, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
 	if (ret != 0) {
 		if (!zfsvfs->z_issnap) {
 			zfsctl_create(zfsvfs);
@@ -2317,8 +2330,10 @@ bail:
 		 * Since we couldn't setup the sa framework, try to force
 		 * unmount this file system.
 		 */
-		if (vn_vfswlock(zfsvfs->z_vfs->vfs_vnodecovered) == 0)
+		if (vn_vfswlock(zfsvfs->z_vfs->vfs_vnodecovered) == 0) {
+			vfs_ref(zfsvfs->z_vfs);
 			(void) dounmount(zfsvfs->z_vfs, MS_FORCE, curthread);
+		}
 	}
 	return (err);
 }

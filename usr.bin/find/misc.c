@@ -57,23 +57,33 @@ __FBSDID("$FreeBSD$");
  *	Replace occurrences of {} in s1 with s2 and return the result string.
  */
 void
-brace_subst(char *orig, char **store, char *path, int len)
+brace_subst(char *orig, char **store, char *path, size_t len)
 {
-	int plen;
-	char ch, *p;
+	const char *pastorigend, *p, *q;
+	char *dst;
+	size_t newlen, plen;
 
 	plen = strlen(path);
-	for (p = *store; (ch = *orig) != '\0'; ++orig)
-		if (ch == '{' && orig[1] == '}') {
-			while ((p - *store) + plen > len)
-				if (!(*store = realloc(*store, len *= 2)))
-					err(1, NULL);
-			memmove(p, path, plen);
-			p += plen;
-			++orig;
-		} else
-			*p++ = ch;
-	*p = '\0';
+	newlen = strlen(orig) + 1;
+	pastorigend = orig + newlen;
+	for (p = orig; (q = strstr(p, "{}")) != NULL; p = q + 2) {
+		if (plen > 2 && newlen + plen - 2 < newlen)
+			errx(2, "brace_subst overflow");
+		newlen += plen - 2;
+	}
+	if (newlen > len) {
+		*store = reallocf(*store, newlen);
+		if (*store == NULL)
+			err(2, NULL);
+	}
+	dst = *store;
+	for (p = orig; (q = strstr(p, "{}")) != NULL; p = q + 2) {
+		memcpy(dst, p, q - p);
+		dst += q - p;
+		memcpy(dst, path, plen);
+		dst += plen;
+	}
+	memcpy(dst, p, pastorigend - p);
 }
 
 /*

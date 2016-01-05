@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2014 Intel Corporation
+ * Copyright (C) 2012-2015 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -207,7 +207,7 @@ nvme_ctrlr_fail_req_task(void *arg, int pending)
 }
 
 static int
-nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr)
+nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 {
 	int ms_waited;
 	union cc_register cc;
@@ -216,18 +216,19 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr)
 	cc.raw = nvme_mmio_read_4(ctrlr, cc);
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
-	if (!cc.bits.en) {
-		nvme_printf(ctrlr, "%s called with cc.en = 0\n", __func__);
+	if (cc.bits.en != desired_val) {
+		nvme_printf(ctrlr, "%s called with desired_val = %d "
+		    "but cc.en = %d\n", __func__, desired_val, cc.bits.en);
 		return (ENXIO);
 	}
 
 	ms_waited = 0;
 
-	while (!csts.bits.rdy) {
+	while (csts.bits.rdy != desired_val) {
 		DELAY(1000);
 		if (ms_waited++ > ctrlr->ready_timeout_in_ms) {
-			nvme_printf(ctrlr, "controller did not become ready "
-			    "within %d ms\n", ctrlr->ready_timeout_in_ms);
+			nvme_printf(ctrlr, "controller ready did not become %d "
+			    "within %d ms\n", desired_val, ctrlr->ready_timeout_in_ms);
 			return (ENXIO);
 		}
 		csts.raw = nvme_mmio_read_4(ctrlr, csts);
@@ -246,11 +247,12 @@ nvme_ctrlr_disable(struct nvme_controller *ctrlr)
 	csts.raw = nvme_mmio_read_4(ctrlr, csts);
 
 	if (cc.bits.en == 1 && csts.bits.rdy == 0)
-		nvme_ctrlr_wait_for_ready(ctrlr);
+		nvme_ctrlr_wait_for_ready(ctrlr, 1);
 
 	cc.bits.en = 0;
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
 	DELAY(5000);
+	nvme_ctrlr_wait_for_ready(ctrlr, 0);
 }
 
 static int
@@ -267,7 +269,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 		if (csts.bits.rdy == 1)
 			return (0);
 		else
-			return (nvme_ctrlr_wait_for_ready(ctrlr));
+			return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 	}
 
 	nvme_mmio_write_8(ctrlr, asq, ctrlr->adminq.cmd_bus_addr);
@@ -295,7 +297,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	nvme_mmio_write_4(ctrlr, cc, cc.raw);
 	DELAY(5000);
 
-	return (nvme_ctrlr_wait_for_ready(ctrlr));
+	return (nvme_ctrlr_wait_for_ready(ctrlr, 1));
 }
 
 int
@@ -838,7 +840,6 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 			 */
 			PHOLD(curproc);
 			buf = getpbuf(NULL);
-			buf->b_saveaddr = buf->b_data;
 			buf->b_data = pt->buf;
 			buf->b_bufsize = pt->len;
 			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
@@ -930,7 +931,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
-	int			i, num_vectors, per_cpu_io_queues, rid;
+	int			i, per_cpu_io_queues, rid;
+	int			num_vectors_requested, num_vectors_allocated;
 	int			status, timeout_period;
 
 	ctrlr->dev = dev;
@@ -988,7 +990,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	}
 
 	/* One vector per IO queue, plus one vector for admin queue. */
-	num_vectors = ctrlr->num_io_queues + 1;
+	num_vectors_requested = ctrlr->num_io_queues + 1;
 
 	/*
 	 * If we cannot even allocate 2 vectors (one for admin, one for
@@ -997,15 +999,36 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	if (pci_msix_count(dev) < 2) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
-	} else if (pci_msix_count(dev) < num_vectors) {
+	} else if (pci_msix_count(dev) < num_vectors_requested) {
 		ctrlr->per_cpu_io_queues = FALSE;
 		ctrlr->num_io_queues = 1;
-		num_vectors = 2; /* one for admin, one for I/O */
+		num_vectors_requested = 2; /* one for admin, one for I/O */
 	}
 
-	if (pci_alloc_msix(dev, &num_vectors) != 0) {
+	num_vectors_allocated = num_vectors_requested;
+	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
+	} else if (num_vectors_allocated < num_vectors_requested) {
+		if (num_vectors_allocated < 2) {
+			pci_release_msi(dev);
+			ctrlr->msix_enabled = 0;
+			goto intx;
+		} else {
+			ctrlr->per_cpu_io_queues = FALSE;
+			ctrlr->num_io_queues = 1;
+			/*
+			 * Release whatever vectors were allocated, and just
+			 *  reallocate the two needed for the admin and single
+			 *  I/O qpair.
+			 */
+			num_vectors_allocated = 2;
+			pci_release_msi(dev);
+			if (pci_alloc_msix(dev, &num_vectors_allocated) != 0)
+				panic("could not reallocate any vectors\n");
+			if (num_vectors_allocated != 2)
+				panic("could not reallocate 2 vectors\n");
+		}
 	}
 
 	/*
@@ -1022,7 +1045,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	 *  vendors wishing to import this driver into kernels based on
 	 *  older versions of FreeBSD.
 	 */
-	for (i = 0; i < num_vectors; i++) {
+	for (i = 0; i < num_vectors_allocated; i++) {
 		rid = i + 1;
 		ctrlr->msi_res[i] = bus_alloc_resource_any(ctrlr->dev,
 		    SYS_RES_IRQ, &rid, RF_ACTIVE);

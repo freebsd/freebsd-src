@@ -42,6 +42,8 @@ new_dwarf_expr_context (void)
   retval->stack_len = 0;
   retval->stack_allocated = 10;
   retval->stack = xmalloc (retval->stack_allocated * sizeof (CORE_ADDR));
+  retval->num_pieces = 0;
+  retval->pieces = 0;
   return retval;
 }
 
@@ -51,6 +53,7 @@ void
 free_dwarf_expr_context (struct dwarf_expr_context *ctx)
 {
   xfree (ctx->stack);
+  xfree (ctx->pieces);
   xfree (ctx);
 }
 
@@ -98,6 +101,29 @@ dwarf_expr_fetch (struct dwarf_expr_context *ctx, int n)
 	    n, ctx->stack_len);
   return ctx->stack[ctx->stack_len - (1 + n)];
 
+}
+
+/* Add a new piece to CTX's piece list.  */
+static void
+add_piece (struct dwarf_expr_context *ctx,
+           int in_reg, CORE_ADDR value, ULONGEST size)
+{
+  struct dwarf_expr_piece *p;
+
+  ctx->num_pieces++;
+
+  if (ctx->pieces)
+    ctx->pieces = xrealloc (ctx->pieces,
+                            (ctx->num_pieces
+                             * sizeof (struct dwarf_expr_piece)));
+  else
+    ctx->pieces = xmalloc (ctx->num_pieces
+                           * sizeof (struct dwarf_expr_piece));
+
+  p = &ctx->pieces[ctx->num_pieces - 1];
+  p->in_reg = in_reg;
+  p->value = value;
+  p->size = size;
 }
 
 /* Evaluate the expression at ADDR (LEN bytes long) using the context
@@ -230,6 +256,7 @@ execute_stack_op (struct dwarf_expr_context *ctx, unsigned char *op_ptr,
 		  unsigned char *op_end)
 {
   ctx->in_reg = 0;
+  ctx->initialized = 1;  /* Default is initialized.  */
 
   while (op_ptr < op_end)
     {
@@ -356,9 +383,12 @@ execute_stack_op (struct dwarf_expr_context *ctx, unsigned char *op_ptr,
 	case DW_OP_reg29:
 	case DW_OP_reg30:
 	case DW_OP_reg31:
-	  if (op_ptr != op_end && *op_ptr != DW_OP_piece)
-	    error ("DWARF-2 expression error: DW_OP_reg operations must be "
-		   "used either alone or in conjuction with DW_OP_piece.");
+ 	  if (op_ptr != op_end 
+ 	      && *op_ptr != DW_OP_piece
+	      && *op_ptr != DW_OP_bit_piece
+ 	      && *op_ptr != DW_OP_GNU_uninit)
+            error (_("DWARF-2 expression error: DW_OP_reg operations must be "
+                   "used either alone or in conjuction with DW_OP_piece."));
 
 	  result = op - DW_OP_reg0;
 	  ctx->in_reg = 1;
@@ -660,6 +690,30 @@ execute_stack_op (struct dwarf_expr_context *ctx, unsigned char *op_ptr,
 
 	case DW_OP_nop:
 	  goto no_push;
+
+	case DW_OP_piece:
+	{
+	  ULONGEST size;
+	  CORE_ADDR addr_or_regnum;
+
+	  /* Record the piece.  */
+	  op_ptr = read_uleb128 (op_ptr, op_end, &size);
+          addr_or_regnum = dwarf_expr_fetch (ctx, 0);
+          add_piece (ctx, ctx->in_reg, addr_or_regnum, size);
+
+	  /* Pop off the address/regnum, and clear the in_reg flag.  */
+	  dwarf_expr_pop (ctx);
+	  ctx->in_reg = 0;
+	}
+	  goto no_push;
+
+       case DW_OP_GNU_uninit:
+         if (op_ptr != op_end)
+           error (_("DWARF-2 expression error: DW_OP_GNU_unint must always "
+                  "be the very last op."));
+
+         ctx->initialized = 0;
+         goto no_push;
 
 	default:
 	  error ("Unhandled dwarf expression opcode 0x%x", op);

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: pdf,v 1.7 2013/08/22 07:47:26 christos Exp $
+# $File: pdf,v 1.8 2015/01/11 18:19:18 christos Exp $
 # pdf:  file(1) magic for Portable Document Format
 #
 
@@ -8,6 +8,11 @@
 !:mime	application/pdf
 >5	byte		x		\b, version %c
 >7	byte		x		\b.%c
+
+0	string		\012%PDF-	PDF document
+!:mime	application/pdf
+>6	byte		x		\b, version %c
+>8	byte		x		\b.%c
 
 # From: Nick Schmalenberger <nick@schmalenberger.us>
 # Forms Data Format

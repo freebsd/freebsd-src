@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __HV_RNDIS_H__
@@ -36,6 +38,9 @@
 #define NDIS_VERSION_5_0                        0x00050000
 #define NDIS_VERSION_5_1                        0x00050001
 #define NDIS_VERSION_6_0                        0x00060000
+#define NDIS_VERSION_6_1                        0x00060001
+#define NDIS_VERSION_6_30                       0x0006001e
+
 #define NDIS_VERSION                            (NDIS_VERSION_5_1)
 
 /*
@@ -347,6 +352,36 @@
 #define RNDIS_MAJOR_VERSION                             0x00000001
 #define RNDIS_MINOR_VERSION                             0x00000000
 
+
+/*
+ * Remote NDIS offload parameters
+ */
+#define RNDIS_OBJECT_TYPE_DEFAULT			0x80
+ 
+#define RNDIS_OFFLOAD_PARAMETERS_REVISION_3		3
+#define RNDIS_OFFLOAD_PARAMETERS_NO_CHANGE		0
+#define RNDIS_OFFLOAD_PARAMETERS_LSOV2_DISABLED		1
+#define RNDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED 		2
+#define RNDIS_OFFLOAD_PARAMETERS_LSOV1_ENABLED		2
+#define RNDIS_OFFLOAD_PARAMETERS_RSC_DISABLED		1
+#define RNDIS_OFFLOAD_PARAMETERS_RSC_ENABLED		2
+#define RNDIS_OFFLOAD_PARAMETERS_TX_RX_DISABLED		1
+#define RNDIS_OFFLOAD_PARAMETERS_TX_ENABLED_RX_DISABLED	2
+#define RNDIS_OFFLOAD_PARAMETERS_RX_ENABLED_TX_DISABLED	3
+#define RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED		4
+
+#define RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE		1
+#define RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4		0
+#define RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6		1
+
+
+#define RNDIS_OID_TCP_OFFLOAD_CURRENT_CONFIG		0xFC01020B /* query only */
+#define RNDIS_OID_TCP_OFFLOAD_PARAMETERS		0xFC01020C /* set only */
+#define RNDIS_OID_TCP_OFFLOAD_HARDWARE_CAPABILITIES	0xFC01020D/* query only */
+#define RNDIS_OID_TCP_CONNECTION_OFFLOAD_CURRENT_CONFIG	0xFC01020E /* query only */
+#define RNDIS_OID_TCP_CONNECTION_OFFLOAD_HARDWARE_CAPABILITIES	0xFC01020F /* query */
+#define RNDIS_OID_OFFLOAD_ENCAPSULATION			0x0101010A /* set/query */
+
 /*
  * NdisInitialize message
  */
@@ -584,6 +619,108 @@ typedef struct ndis_8021q_info_ {
 		uint32_t    value;
 	} u1;
 } ndis_8021q_info;
+
+struct rndis_object_header {
+	uint8_t type;
+	uint8_t revision;
+	uint16_t size;
+};
+
+typedef struct rndis_offload_params_ {
+	struct rndis_object_header header;
+	uint8_t ipv4_csum;
+	uint8_t tcp_ipv4_csum;
+	uint8_t udp_ipv4_csum;
+	uint8_t tcp_ipv6_csum;
+	uint8_t udp_ipv6_csum;
+	uint8_t lso_v1;
+	uint8_t ip_sec_v1;
+	uint8_t lso_v2_ipv4;
+	uint8_t lso_v2_ipv6;
+	uint8_t tcp_connection_ipv4;
+	uint8_t tcp_connection_ipv6;
+	uint32_t flags;
+	uint8_t ip_sec_v2;
+	uint8_t ip_sec_v2_ipv4;
+	struct {
+		uint8_t rsc_ipv4;
+		uint8_t rsc_ipv6;
+	};
+	struct {
+		uint8_t encapsulated_packet_task_offload;
+		uint8_t encapsulation_types;
+	};
+
+} rndis_offload_params;
+
+
+typedef struct rndis_tcp_ip_csum_info_ {
+	union {
+		struct {
+			uint32_t is_ipv4:1;
+			uint32_t is_ipv6:1;
+			uint32_t tcp_csum:1;
+			uint32_t udp_csum:1;
+			uint32_t ip_header_csum:1;
+			uint32_t reserved:11;
+			uint32_t tcp_header_offset:10;
+		} xmit;
+		struct {
+			uint32_t tcp_csum_failed:1;
+			uint32_t udp_csum_failed:1;
+			uint32_t ip_csum_failed:1;
+			uint32_t tcp_csum_succeeded:1;
+			uint32_t udp_csum_succeeded:1;
+			uint32_t ip_csum_succeeded:1;
+			uint32_t loopback:1;
+			uint32_t tcp_csum_value_invalid:1;
+			uint32_t ip_csum_value_invalid:1;
+		} receive;
+		uint32_t  value;
+	};
+} rndis_tcp_ip_csum_info;
+
+typedef struct rndis_tcp_tso_info_ {
+	union {
+		struct {
+			uint32_t unused:30;
+			uint32_t type:1;
+			uint32_t reserved2:1;
+		} xmit;
+		struct {
+			uint32_t mss:20;
+			uint32_t tcp_header_offset:10;
+			uint32_t type:1;
+			uint32_t reserved2:1;
+		} lso_v1_xmit;
+		struct {
+			uint32_t tcp_payload:30;
+			uint32_t type:1;
+			uint32_t reserved2:1;
+		} lso_v1_xmit_complete;
+		struct {
+			uint32_t mss:20;
+			uint32_t tcp_header_offset:10;
+			uint32_t type:1;
+			uint32_t ip_version:1;
+		} lso_v2_xmit;
+		struct {
+			uint32_t reserved:30;
+			uint32_t type:1;
+			uint32_t reserved2:1;
+		} lso_v2_xmit_complete;
+		uint32_t  value;
+	};
+} rndis_tcp_tso_info;
+
+#define RNDIS_VLAN_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
+				sizeof(ndis_8021q_info))
+
+#define RNDIS_CSUM_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
+				sizeof(rndis_tcp_ip_csum_info))
+
+#define RNDIS_TSO_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
+				sizeof(rndis_tcp_tso_info))
 
 /*
  * Format of Information buffer passed in a SetRequest for the OID
@@ -906,6 +1043,18 @@ typedef struct rndismp_rx_bufs_info_ {
 #define NDIS_PACKET_TYPE_FUNCTIONAL	0x00000400
 #define NDIS_PACKET_TYPE_MAC_FRAME	0x00000800
 
+/*
+ * Externs
+ */
+int netvsc_recv(struct hv_device *device_ctx, 
+    netvsc_packet *packet, 
+    rndis_tcp_ip_csum_info *csum_info);
+
+void* hv_set_rppi_data(rndis_msg *rndis_mesg,
+    uint32_t rppi_size,
+    int pkt_type);
+
+void* hv_get_ppi_data(rndis_packet *rpkt, uint32_t type);
 
 #endif  /* __HV_RNDIS_H__ */
 

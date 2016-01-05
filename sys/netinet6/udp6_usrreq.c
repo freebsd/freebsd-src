@@ -136,7 +136,7 @@ __FBSDID("$FreeBSD$");
 extern struct protosw	inetsw[];
 static void		udp6_detach(struct socket *so);
 
-static void
+static int
 udp6_append(struct inpcb *inp, struct mbuf *n, int off,
     struct sockaddr_in6 *fromsa)
 {
@@ -151,21 +151,24 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	 */
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
+		in_pcbref(inp);
+		INP_RUNLOCK(inp);
 		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)fromsa,
 		    up->u_tun_ctx);
-		return;
+		INP_RLOCK(inp);
+		return (in_pcbrele_rlocked(inp));
 	}
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
 	if (ipsec6_in_reject(n, inp)) {
 		m_freem(n);
-		return;
+		return (0);
 	}
 #endif /* IPSEC */
 #ifdef MAC
 	if (mac_inpcb_check_deliver(inp, n) != 0) {
 		m_freem(n);
-		return;
+		return (0);
 	}
 #endif
 	opts = NULL;
@@ -185,6 +188,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 		UDPSTAT_INC(udps_fullsock);
 	} else
 		sorwakeup_locked(so);
+	return (0);
 }
 
 int
@@ -278,7 +282,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	init_sin6(&fromsa, m);
 	fromsa.sin6_port = uh->uh_sport;
 
-	pcbinfo = get_inpcbinfo(nxt);
+	pcbinfo = udp_get_inpcbinfo(nxt);
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		struct inpcb *last;
 		struct inpcbhead *pcblist;
@@ -300,7 +304,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		 * here.  We need udphdr for IPsec processing so we do that
 		 * later.
 		 */
-		pcblist = get_pcblist(nxt);
+		pcblist = udp_get_pcblist(nxt);
 		last = NULL;
 		LIST_FOREACH(inp, pcblist, inp_list) {
 			if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -367,7 +371,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 					INP_RLOCK(last);
 					UDP_PROBE(receive, NULL, last, ip6,
 					    last, uh);
-					udp6_append(last, n, off, &fromsa);
+					if (udp6_append(last, n, off, &fromsa))
+						goto inp_lost;
 					INP_RUNLOCK(last);
 				}
 			}
@@ -398,8 +403,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
 		UDP_PROBE(receive, NULL, last, ip6, last, uh);
-		udp6_append(last, m, off, &fromsa);
-		INP_RUNLOCK(last);
+		if (udp6_append(last, m, off, &fromsa) == 0) 
+			INP_RUNLOCK(last);
+	inp_lost:
 		return (IPPROTO_DONE);
 	}
 	/*
@@ -477,8 +483,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 	UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
-	udp6_append(inp, m, off, &fromsa);
-	INP_RUNLOCK(inp);
+	if (udp6_append(inp, m, off, &fromsa) == 0)
+		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
 badheadlocked:
@@ -834,19 +840,36 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 		}
 
-		/*
-		 * XXX for now assume UDP is 2-tuple.
-		 * Later on this may become configurable as 4-tuple;
-		 * we should support that.
-		 *
-		 * XXX .. and we should likely cache this in the inpcb.
-		 */
 #ifdef	RSS
-		m->m_pkthdr.flowid = rss_hash_ip6_2tuple(faddr, laddr);
-		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV6);
+		{
+			uint32_t hash_val, hash_type;
+			uint8_t pr;
+
+			pr = inp->inp_socket->so_proto->pr_protocol;
+			/*
+			 * Calculate an appropriate RSS hash for UDP and
+			 * UDP Lite.
+			 *
+			 * The called function will take care of figuring out
+			 * whether a 2-tuple or 4-tuple hash is required based
+			 * on the currently configured scheme.
+			 *
+			 * Later later on connected socket values should be
+			 * cached in the inpcb and reused, rather than constantly
+			 * re-calculating it.
+			 *
+			 * UDP Lite is a different protocol number and will
+			 * likely end up being hashed as a 2-tuple until
+			 * RSS / NICs grow UDP Lite protocol awareness.
+			 */
+			if (rss_proto_software_hash_v6(faddr, laddr, fport,
+			    inp->inp_lport, pr, &hash_val, &hash_type) == 0) {
+				m->m_pkthdr.flowid = hash_val;
+				M_HASHTYPE_SET(m, hash_type);
+			}
+		}
 #endif
 		flags = 0;
-
 #ifdef	RSS
 		/*
 		 * Don't override with the inp cached flowid.
@@ -885,7 +908,7 @@ udp6_abort(struct socket *so)
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_abort: inp == NULL"));
 
@@ -917,7 +940,7 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("udp6_attach: inp != NULL"));
 
@@ -965,7 +988,7 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_bind: inp == NULL"));
 
@@ -1009,7 +1032,7 @@ udp6_close(struct socket *so)
 	struct inpcb *inp;
 	struct inpcbinfo *pcbinfo;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_close: inp == NULL"));
 
@@ -1041,7 +1064,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in6 *sin6;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	sin6 = (struct sockaddr_in6 *)nam;
 	KASSERT(inp != NULL, ("udp6_connect: inp == NULL"));
@@ -1103,7 +1126,7 @@ udp6_detach(struct socket *so)
 	struct inpcbinfo *pcbinfo;
 	struct udpcb *up;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_detach: inp == NULL"));
 
@@ -1124,7 +1147,7 @@ udp6_disconnect(struct socket *so)
 	struct inpcbinfo *pcbinfo;
 	int error;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_disconnect: inp == NULL"));
 
@@ -1165,7 +1188,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 	struct inpcbinfo *pcbinfo;
 	int error = 0;
 
-	pcbinfo = get_inpcbinfo(so->so_proto->pr_protocol);
+	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_send: inp == NULL"));
 
@@ -1220,8 +1243,6 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 	INP_HASH_WLOCK(pcbinfo);
 	error = udp6_output(inp, m, addr, control, td);
 	INP_HASH_WUNLOCK(pcbinfo);
-#ifdef INET
-#endif	
 	INP_WUNLOCK(inp);
 	return (error);
 

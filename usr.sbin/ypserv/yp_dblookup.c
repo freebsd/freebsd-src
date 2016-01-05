@@ -405,7 +405,7 @@ yp_open_db(const char *domain, const char *map)
 #ifdef DB_CACHE
 again:
 #endif
-	dbp = dbopen(buf,O_RDONLY, PERM_SECURE, DB_HASH, NULL);
+	dbp = dbopen(buf, O_RDONLY, PERM_SECURE, DB_HASH, NULL);
 
 	if (dbp == NULL) {
 		switch (errno) {

@@ -98,40 +98,30 @@ ibcs2_ulimit(td, uap)
 	struct ibcs2_ulimit_args *uap;
 {
 	struct rlimit rl;
-	struct proc *p;
 	int error;
 #define IBCS2_GETFSIZE		1
 #define IBCS2_SETFSIZE		2
 #define IBCS2_GETPSIZE		3
 #define IBCS2_GETDTABLESIZE	4
 
-	p = td->td_proc;
 	switch (uap->cmd) {
 	case IBCS2_GETFSIZE:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(p, RLIMIT_FSIZE);
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_FSIZE);
 		if (td->td_retval[0] == -1)
 			td->td_retval[0] = 0x7fffffff;
 		return 0;
 	case IBCS2_SETFSIZE:
-		PROC_LOCK(p);
-		rl.rlim_max = lim_max(p, RLIMIT_FSIZE);
-		PROC_UNLOCK(p);
+		rl.rlim_max = lim_max(td, RLIMIT_FSIZE);
 		rl.rlim_cur = uap->newlimit;
 		error = kern_setrlimit(td, RLIMIT_FSIZE, &rl);
 		if (!error) {
-			PROC_LOCK(p);
-			td->td_retval[0] = lim_cur(p, RLIMIT_FSIZE);
-			PROC_UNLOCK(p);
+			td->td_retval[0] = lim_cur(td, RLIMIT_FSIZE);
 		} else {
 			DPRINTF(("failed "));
 		}
 		return error;
 	case IBCS2_GETPSIZE:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(p, RLIMIT_RSS); /* XXX */
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_RSS); /* XXX */
 		return 0;
 	case IBCS2_GETDTABLESIZE:
 		uap->cmd = IBCS2_SC_OPEN_MAX;
@@ -200,15 +190,22 @@ ibcs2_execv(td, uap)
 	struct ibcs2_execv_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
         CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp, NULL);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -218,16 +215,23 @@ ibcs2_execve(td, uap)
         struct ibcs2_execve_args *uap;
 {
 	struct image_args eargs;
+	struct vmspace *oldvmspace;
 	char *path;
 	int error;
 
         CHECKALTEXIST(td, uap->path, &path);
 
+	error = pre_execve(td, &oldvmspace);
+	if (error != 0) {
+		free(path, M_TEMP);
+		return (error);
+	}
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
 	    uap->envp);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
+	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
@@ -338,8 +342,7 @@ ibcs2_getdents(td, uap)
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
 #define	IBCS2_RECLEN(reclen)	(reclen + sizeof(u_short))
 
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
@@ -494,8 +497,7 @@ ibcs2_read(td, uap)
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
+	error = getvnode(td, uap->fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error != 0) {
 		if (error == EINVAL)
 			return sys_read(td, (struct read_args *)uap);
@@ -787,18 +789,14 @@ ibcs2_sysconf(td, uap)
 	struct ibcs2_sysconf_args *uap;
 {
 	int mib[2], value, len, error;
-	struct proc *p;
 
-	p = td->td_proc;
 	switch(uap->name) {
 	case IBCS2_SC_ARG_MAX:
 		mib[1] = KERN_ARGMAX;
 		break;
 
 	case IBCS2_SC_CHILD_MAX:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(td->td_proc, RLIMIT_NPROC);
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_NPROC);
 		return 0;
 
 	case IBCS2_SC_CLK_TCK:
@@ -810,9 +808,7 @@ ibcs2_sysconf(td, uap)
 		break;
 
 	case IBCS2_SC_OPEN_MAX:
-		PROC_LOCK(p);
-		td->td_retval[0] = lim_cur(td->td_proc, RLIMIT_NOFILE);
-		PROC_UNLOCK(p);
+		td->td_retval[0] = lim_cur(td, RLIMIT_NOFILE);
 		return 0;
 		
 	case IBCS2_SC_JOB_CONTROL:

@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
+#include <sys/cpuset.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,14 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <libgen.h>
 #include <libutil.h>
 #include <fcntl.h>
-#include <string.h>
 #include <getopt.h>
 #include <time.h>
 #include <assert.h>
+#include <libutil.h>
 
 #include <machine/cpufunc.h>
-#include <machine/vmm.h>
 #include <machine/specialreg.h>
+#include <machine/vmm.h>
+#include <machine/vmm_dev.h>
 #include <vmmapi.h>
 
 #include "amd/vmcb.h"
@@ -236,7 +238,7 @@ static int get_stats, getcap, setcap, capval, get_gpa_pmap;
 static int inject_nmi, assert_lapic_lvt;
 static int force_reset, force_poweroff;
 static const char *capname;
-static int create, destroy, get_lowmem, get_highmem;
+static int create, destroy, get_memmap, get_memseg;
 static int get_intinfo;
 static int get_active_cpus, get_suspended_cpus;
 static uint64_t memsize;
@@ -293,6 +295,7 @@ static int get_guest_pat, get_host_pat;
 static int get_guest_sysenter, get_vmcs_link;
 static int get_exit_reason, get_vmcs_exit_qualification;
 static int get_vmcs_exit_interruption_info, get_vmcs_exit_interruption_error;
+static int get_vmcs_exit_inst_length;
 
 static uint64_t desc_base;
 static uint32_t desc_limit, desc_access;
@@ -1145,7 +1148,15 @@ get_misc_vmcs(struct vmctx *ctx, int vcpu)
 				vcpu, u64);
 		}
 	}
-	
+
+	if (!error && (get_vmcs_exit_inst_length || get_all)) {
+		error = vm_get_vmcs_field(ctx, vcpu,
+		    VMCS_EXIT_INSTRUCTION_LENGTH, &u64);
+		if (error == 0)
+			printf("vmcs_exit_inst_length[%d]\t0x%08x\n", vcpu,
+			    (uint32_t)u64);
+	}
+
 	if (!error && (get_vmcs_exit_qualification || get_all)) {
 		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_QUALIFICATION,
 					  &u64);
@@ -1311,8 +1322,8 @@ setup_options(bool cpu_intel)
 		{ "get-desc-gdtr", NO_ARG,	&get_desc_gdtr, 1 },
 		{ "set-desc-idtr", NO_ARG,	&set_desc_idtr, 1 },
 		{ "get-desc-idtr", NO_ARG,	&get_desc_idtr, 1 },
-		{ "get-lowmem", NO_ARG,		&get_lowmem,	1 },
-		{ "get-highmem",NO_ARG,		&get_highmem,	1 },
+		{ "get-memmap",	NO_ARG,		&get_memmap,	1 },
+		{ "get-memseg", NO_ARG,		&get_memseg,	1 },
 		{ "get-efer",	NO_ARG,		&get_efer,	1 },
 		{ "get-cr0",	NO_ARG,		&get_cr0,	1 },
 		{ "get-cr3",	NO_ARG,		&get_cr3,	1 },
@@ -1405,6 +1416,8 @@ setup_options(bool cpu_intel)
 				REQ_ARG, 0, SET_VMCS_ENTRY_INTERRUPTION_INFO },
 		{ "get-vmcs-exit-qualification",
 				NO_ARG,	&get_vmcs_exit_qualification, 1 },
+		{ "get-vmcs-exit-inst-length",
+				NO_ARG,	&get_vmcs_exit_inst_length, 1 },
 		{ "get-vmcs-interruptibility",
 				NO_ARG, &get_vmcs_interruptibility, 1 },
 		{ "get-vmcs-exit-interruption-error",
@@ -1509,18 +1522,92 @@ mon_str(int idx)
 		return ("UNK");
 }
 
+static int
+show_memmap(struct vmctx *ctx)
+{
+	char name[SPECNAMELEN + 1], numbuf[8];
+	vm_ooffset_t segoff;
+	vm_paddr_t gpa;
+	size_t maplen, seglen;
+	int error, flags, prot, segid, delim;
+
+	printf("Address     Length      Segment     Offset      ");
+	printf("Prot  Flags\n");
+
+	gpa = 0;
+	while (1) {
+		error = vm_mmap_getnext(ctx, &gpa, &segid, &segoff, &maplen,
+		    &prot, &flags);
+		if (error)
+			return (errno == ENOENT ? 0 : error);
+
+		error = vm_get_memseg(ctx, segid, &seglen, name, sizeof(name));
+		if (error)
+			return (error);
+
+		printf("%-12lX", gpa);
+		humanize_number(numbuf, sizeof(numbuf), maplen, "B",
+		    HN_AUTOSCALE, HN_NOSPACE);
+		printf("%-12s", numbuf);
+
+		printf("%-12s", name[0] ? name : "sysmem");
+		printf("%-12lX", segoff);
+		printf("%c%c%c   ", prot & PROT_READ ? 'R' : '-',
+		    prot & PROT_WRITE ? 'W' : '-',
+		    prot & PROT_EXEC ? 'X' : '-');
+
+		delim = '\0';
+		if (flags & VM_MEMMAP_F_WIRED) {
+			printf("%cwired", delim);
+			delim = '/';
+		}
+		if (flags & VM_MEMMAP_F_IOMMU) {
+			printf("%ciommu", delim);
+			delim = '/';
+		}
+		printf("\n");
+
+		gpa += maplen;
+	}
+}
+
+static int
+show_memseg(struct vmctx *ctx)
+{
+	char name[SPECNAMELEN + 1], numbuf[8];
+	size_t seglen;
+	int error, segid;
+
+	printf("ID  Length      Name\n");
+
+	segid = 0;
+	while (1) {
+		error = vm_get_memseg(ctx, segid, &seglen, name, sizeof(name));
+		if (error)
+			return (errno == EINVAL ? 0 : error);
+
+		if (seglen) {
+			printf("%-4d", segid);
+			humanize_number(numbuf, sizeof(numbuf), seglen, "B",
+			    HN_AUTOSCALE, HN_NOSPACE);
+			printf("%-12s", numbuf);
+			printf("%s", name[0] ? name : "sysmem");
+			printf("\n");
+		}
+		segid++;
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
 	char *vmname;
 	int error, ch, vcpu, ptenum;
-	vm_paddr_t gpa, gpa_pmap;
-	size_t len;
+	vm_paddr_t gpa_pmap;
 	struct vm_exit vmexit;
 	uint64_t rax, cr0, cr3, cr4, dr7, rsp, rip, rflags, efer, pat;
 	uint64_t eptp, bm, addr, u64, pteval[4], *pte, info[2];
 	struct vmctx *ctx;
-	int wired;
 	cpuset_t cpus;
 	bool cpu_intel;
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
@@ -1692,7 +1779,7 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && memsize)
-		error = vm_setup_memory(ctx, memsize, VM_MMAP_NONE);
+		error = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 
 	if (!error && set_efer)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_EFER, efer);
@@ -1827,21 +1914,11 @@ main(int argc, char *argv[])
 		error = vm_lapic_local_irq(ctx, vcpu, assert_lapic_lvt);
 	}
 
-	if (!error && (get_lowmem || get_all)) {
-		gpa = 0;
-		error = vm_get_memory_seg(ctx, gpa, &len, &wired);
-		if (error == 0)
-			printf("lowmem\t\t0x%016lx/%ld%s\n", gpa, len,
-			    wired ? " wired" : "");
-	}
+	if (!error && (get_memseg || get_all))
+		error = show_memseg(ctx);
 
-	if (!error && (get_highmem || get_all)) {
-		gpa = 4 * GB;
-		error = vm_get_memory_seg(ctx, gpa, &len, &wired);
-		if (error == 0)
-			printf("highmem\t\t0x%016lx/%ld%s\n", gpa, len,
-			    wired ? " wired" : "");
-	}
+	if (!error && (get_memmap || get_all))
+		error = show_memmap(ctx);
 
 	if (!error)
 		error = get_all_registers(ctx, vcpu);

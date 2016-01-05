@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/select.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
+#include <machine/atomic.h>
 #include <net/ethernet.h>
 
 #include <errno.h>
@@ -453,7 +454,7 @@ pci_vtnet_tx_thread(void *param)
 {
 	struct pci_vtnet_softc *sc = param;
 	struct vqueue_info *vq;
-	int have_work, error;
+	int error;
 
 	vq = &sc->vsc_queues[VTNET_TXQ];
 
@@ -467,20 +468,16 @@ pci_vtnet_tx_thread(void *param)
 
 	for (;;) {
 		/* note - tx mutex is locked here */
-		do {
+		while (sc->resetting || !vq_has_descs(vq)) {
 			vq->vq_used->vu_flags &= ~VRING_USED_F_NO_NOTIFY;
-			if (sc->resetting)
-				have_work = 0;
-			else
-				have_work = vq_has_descs(vq);
+			mb();
+			if (!sc->resetting && vq_has_descs(vq))
+				break;
 
-			if (!have_work) {
-				sc->tx_in_progress = 0;
-				error = pthread_cond_wait(&sc->tx_cond,
-							  &sc->tx_mtx);
-				assert(error == 0);
-			}
-		} while (!have_work);
+			sc->tx_in_progress = 0;
+			error = pthread_cond_wait(&sc->tx_cond, &sc->tx_mtx);
+			assert(error == 0);
+		}
 		vq->vq_used->vu_flags |= VRING_USED_F_NO_NOTIFY;
 		sc->tx_in_progress = 1;
 		pthread_mutex_unlock(&sc->tx_mtx);
@@ -643,6 +640,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
+	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, VIRTIO_VENDOR);
 
 	/* Link is up if we managed to open tap device. */
 	sc->vsc_config.status = (opts == NULL || sc->vsc_tapfd >= 0);

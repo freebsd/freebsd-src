@@ -67,9 +67,64 @@ static int  hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter);
 static int  hv_rf_init_device(rndis_device *device);
 static int  hv_rf_open_device(rndis_device *device);
 static int  hv_rf_close_device(rndis_device *device);
-static void hv_rf_on_send_completion(void *context);
 static void hv_rf_on_send_request_completion(void *context);
 static void hv_rf_on_send_request_halt_completion(void *context);
+int
+hv_rf_send_offload_request(struct hv_device *device,
+    rndis_offload_params *offloads);
+/*
+ * Set the Per-Packet-Info with the specified type
+ */
+void *
+hv_set_rppi_data(rndis_msg *rndis_mesg, uint32_t rppi_size,
+	int pkt_type)
+{
+	rndis_packet *rndis_pkt;
+	rndis_per_packet_info *rppi;
+
+	rndis_pkt = &rndis_mesg->msg.packet;
+	rndis_pkt->data_offset += rppi_size;
+
+	rppi = (rndis_per_packet_info *)((char *)rndis_pkt +
+	    rndis_pkt->per_pkt_info_offset + rndis_pkt->per_pkt_info_length);
+
+	rppi->size = rppi_size;
+	rppi->type = pkt_type;
+	rppi->per_packet_info_offset = sizeof(rndis_per_packet_info);
+
+	rndis_pkt->per_pkt_info_length += rppi_size;
+
+	return (rppi);
+}
+
+/*
+ * Get the Per-Packet-Info with the specified type
+ * return NULL if not found.
+ */
+void *
+hv_get_ppi_data(rndis_packet *rpkt, uint32_t type)
+{
+	rndis_per_packet_info *ppi;
+	int len;
+
+	if (rpkt->per_pkt_info_offset == 0)
+		return (NULL);
+
+	ppi = (rndis_per_packet_info *)((unsigned long)rpkt +
+	    rpkt->per_pkt_info_offset);
+	len = rpkt->per_pkt_info_length;
+
+	while (len > 0) {
+		if (ppi->type == type)
+			return (void *)((unsigned long)ppi +
+			    ppi->per_packet_info_offset);
+
+		len -= ppi->size;
+		ppi = (rndis_per_packet_info *)((unsigned long)ppi + ppi->size);
+	}
+
+	return (NULL);
+}
 
 
 /*
@@ -80,7 +135,7 @@ hv_get_rndis_device(void)
 {
 	rndis_device *device;
 
-	device = malloc(sizeof(rndis_device), M_DEVBUF, M_NOWAIT | M_ZERO);
+	device = malloc(sizeof(rndis_device), M_NETVSC, M_NOWAIT | M_ZERO);
 	if (device == NULL) {
 		return (NULL);
 	}
@@ -102,7 +157,7 @@ static inline void
 hv_put_rndis_device(rndis_device *device)
 {
 	mtx_destroy(&device->req_lock);
-	free(device, M_DEVBUF);
+	free(device, M_NETVSC);
 }
 
 /*
@@ -116,7 +171,7 @@ hv_rndis_request(rndis_device *device, uint32_t message_type,
 	rndis_msg *rndis_mesg;
 	rndis_set_request *set;
 
-	request = malloc(sizeof(rndis_request), M_DEVBUF, M_NOWAIT | M_ZERO);
+	request = malloc(sizeof(rndis_request), M_NETVSC, M_NOWAIT | M_ZERO);
 	if (request == NULL) {
 		return (NULL);
 	}
@@ -161,7 +216,7 @@ hv_put_rndis_request(rndis_device *device, rndis_request *request)
 	mtx_unlock_spin(&device->req_lock);
 
 	sema_destroy(&request->wait_sema);
-	free(request, M_DEVBUF);
+	free(request, M_NETVSC);
 }
 
 /*
@@ -169,7 +224,7 @@ hv_put_rndis_request(rndis_device *device, rndis_request *request)
  */
 static int
 hv_rf_send_request(rndis_device *device, rndis_request *request,
-		   uint32_t message_type)
+    uint32_t message_type)
 {
 	int ret;
 	netvsc_packet *packet;
@@ -196,6 +251,9 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 		    hv_rf_on_send_request_halt_completion;
 	}
 	packet->compl.send.send_completion_tid = (unsigned long)device;
+	packet->send_buf_section_idx =
+	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	packet->send_buf_section_size = 0;
 
 	ret = hv_nv_on_send(device->net_dev->dev, packet);
 
@@ -248,6 +306,84 @@ hv_rf_receive_response(rndis_device *device, rndis_msg *response)
 	}
 }
 
+int
+hv_rf_send_offload_request(struct hv_device *device,
+    rndis_offload_params *offloads)
+{
+	rndis_request *request;
+	rndis_set_request *set;
+	rndis_offload_params *offload_req;
+	rndis_set_complete *set_complete;	
+	rndis_device *rndis_dev;
+	hn_softc_t *sc = device_get_softc(device->device);
+	device_t dev = device->device;
+	netvsc_dev *net_dev = sc->net_dev;
+	uint32_t vsp_version = net_dev->nvsp_version;
+	uint32_t extlen = sizeof(rndis_offload_params);
+	int ret;
+
+	if (vsp_version <= NVSP_PROTOCOL_VERSION_4) {
+		extlen = VERSION_4_OFFLOAD_SIZE;
+		/* On NVSP_PROTOCOL_VERSION_4 and below, we do not support
+		 * UDP checksum offload.
+		 */
+		offloads->udp_ipv4_csum = 0;
+		offloads->udp_ipv6_csum = 0;
+	}
+
+	rndis_dev = net_dev->extension;
+
+	request = hv_rndis_request(rndis_dev, REMOTE_NDIS_SET_MSG,
+	    RNDIS_MESSAGE_SIZE(rndis_set_request) + extlen);
+	if (!request)
+		return (ENOMEM);
+
+	set = &request->request_msg.msg.set_request;
+	set->oid = RNDIS_OID_TCP_OFFLOAD_PARAMETERS;
+	set->info_buffer_length = extlen;
+	set->info_buffer_offset = sizeof(rndis_set_request);
+	set->device_vc_handle = 0;
+
+	offload_req = (rndis_offload_params *)((unsigned long)set +
+	    set->info_buffer_offset);
+	*offload_req = *offloads;
+	offload_req->header.type = RNDIS_OBJECT_TYPE_DEFAULT;
+	offload_req->header.revision = RNDIS_OFFLOAD_PARAMETERS_REVISION_3;
+	offload_req->header.size = extlen;
+
+	ret = hv_rf_send_request(rndis_dev, request, REMOTE_NDIS_SET_MSG);
+	if (ret != 0) {
+		device_printf(dev, "hv send offload request failed, ret=%d!\n",
+		    ret);
+		goto cleanup;
+	}
+
+	ret = sema_timedwait(&request->wait_sema, 500);
+	if (ret != 0) {
+		device_printf(dev, "hv send offload request timeout\n");
+		goto cleanup;
+	}
+
+	set_complete = &request->response_msg.msg.set_complete;
+	if (set_complete->status == RNDIS_STATUS_SUCCESS) {
+		device_printf(dev, "hv send offload request succeeded\n");
+		ret = 0;
+	} else {
+		if (set_complete->status == STATUS_NOT_SUPPORTED) {
+			device_printf(dev, "HV Not support offload\n");
+			ret = 0;
+		} else {
+			ret = set_complete->status;
+		}
+	}
+
+cleanup:
+	if (request)
+		hv_put_rndis_request(rndis_dev, request);
+
+	return (ret);
+}
+
 /*
  * RNDIS filter receive indicate status
  */
@@ -256,12 +392,18 @@ hv_rf_receive_indicate_status(rndis_device *device, rndis_msg *response)
 {
 	rndis_indicate_status *indicate = &response->msg.indicate_status;
 		
-	if (indicate->status == RNDIS_STATUS_MEDIA_CONNECT) {
+	switch(indicate->status) {
+	case RNDIS_STATUS_MEDIA_CONNECT:
 		netvsc_linkstatus_callback(device->net_dev->dev, 1);
-	} else if (indicate->status == RNDIS_STATUS_MEDIA_DISCONNECT) {
+		break;
+	case RNDIS_STATUS_MEDIA_DISCONNECT:
 		netvsc_linkstatus_callback(device->net_dev->dev, 0);
-	} else {
+		break;
+	default:
 		/* TODO: */
+		device_printf(device->net_dev->dev->device,
+		    "unknown status %d received\n", indicate->status);
+		break;
 	}
 }
 
@@ -272,9 +414,10 @@ static void
 hv_rf_receive_data(rndis_device *device, rndis_msg *message, netvsc_packet *pkt)
 {
 	rndis_packet *rndis_pkt;
-	rndis_per_packet_info *rppi;
-	ndis_8021q_info       *rppi_vlan_info;
+	ndis_8021q_info *rppi_vlan_info;
 	uint32_t data_offset;
+	rndis_tcp_ip_csum_info *csum_info = NULL;
+	device_t dev = device->net_dev->dev->device;
 
 	rndis_pkt = &message->msg.packet;
 
@@ -286,88 +429,57 @@ hv_rf_receive_data(rndis_device *device, rndis_msg *message, netvsc_packet *pkt)
 	/* Remove rndis header, then pass data packet up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
-	/* L2 frame length, with L2 header, not including CRC */
-	pkt->tot_data_buf_len        = rndis_pkt->data_length;
-	pkt->page_buffers[0].offset += data_offset;
-	/* Buffer length now L2 frame length plus trailing junk */
-	pkt->page_buffers[0].length -= data_offset;
-
-	pkt->is_data_pkt = TRUE;
-
-	pkt->vlan_tci = 0;
-
-	/*
-	 * Read the VLAN ID if supplied by the Hyper-V infrastructure.
-	 * Let higher-level driver code decide if it wants to use it.
-	 * Ignore CFI, priority for now as FreeBSD does not support these.
-	 */
-	if (rndis_pkt->per_pkt_info_offset != 0) {
-		/* rppi struct exists; compute its address */
-		rppi = (rndis_per_packet_info *)((uint8_t *)rndis_pkt +
-		    rndis_pkt->per_pkt_info_offset);
-		/* if VLAN ppi struct, get the VLAN ID */
-		if (rppi->type == ieee_8021q_info) {
-			rppi_vlan_info = (ndis_8021q_info *)((uint8_t *)rppi
-				+  rppi->per_packet_info_offset);
-			pkt->vlan_tci = rppi_vlan_info->u1.s1.vlan_id;
-		}
+	pkt->tot_data_buf_len -= data_offset;
+	if (pkt->tot_data_buf_len < rndis_pkt->data_length) {
+		pkt->status = nvsp_status_failure;
+		device_printf(dev,
+		    "total length %u is less than data length %u\n",
+		    pkt->tot_data_buf_len, rndis_pkt->data_length);
+		return;
 	}
 
-	netvsc_recv(device->net_dev->dev, pkt);
+	pkt->tot_data_buf_len = rndis_pkt->data_length;
+	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
+
+	rppi_vlan_info = hv_get_ppi_data(rndis_pkt, ieee_8021q_info);
+	if (rppi_vlan_info) {
+		pkt->vlan_tci = rppi_vlan_info->u1.s1.vlan_id;
+	} else {
+		pkt->vlan_tci = 0;
+	}
+
+	csum_info = hv_get_ppi_data(rndis_pkt, tcpip_chksum_info);
+	netvsc_recv(device->net_dev->dev, pkt, csum_info);
 }
 
 /*
  * RNDIS filter on receive
  */
 int
-hv_rf_on_receive(struct hv_device *device, netvsc_packet *pkt)
+hv_rf_on_receive(netvsc_dev *net_dev, struct hv_device *device, netvsc_packet *pkt)
 {
-	hn_softc_t *sc = device_get_softc(device->device);
-	netvsc_dev *net_dev = sc->net_dev;
 	rndis_device *rndis_dev;
-	rndis_msg rndis_mesg;
 	rndis_msg *rndis_hdr;
 
 	/* Make sure the rndis device state is initialized */
-	if (net_dev->extension == NULL)
+	if (net_dev->extension == NULL) {
+		pkt->status = nvsp_status_failure;
 		return (ENODEV);
+	}
 
 	rndis_dev = (rndis_device *)net_dev->extension;
-	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED)
+	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
+		pkt->status = nvsp_status_failure;
 		return (EINVAL);
-
-	/* Shift virtual page number to form virtual page address */
-	rndis_hdr = (rndis_msg *)(uintptr_t)(pkt->page_buffers[0].pfn << PAGE_SHIFT);
-
-	rndis_hdr = (void *)((unsigned long)rndis_hdr
-			+ pkt->page_buffers[0].offset);
-	
-	/*
-	 * Make sure we got a valid rndis message
-	 * Fixme:  There seems to be a bug in set completion msg where
-	 * its msg_len is 16 bytes but the byte_count field in the
-	 * xfer page range shows 52 bytes
-	 */
-#if 0
-	if (pkt->tot_data_buf_len != rndis_hdr->msg_len) {
-		DPRINT_ERR(NETVSC, "invalid rndis message? (expected %u "
-		    "bytes got %u)... dropping this message!",
-		    rndis_hdr->msg_len, pkt->tot_data_buf_len);
-		DPRINT_EXIT(NETVSC);
-
-		return (-1);
 	}
-#endif
 
-	memcpy(&rndis_mesg, rndis_hdr,
-	    (rndis_hdr->msg_len > sizeof(rndis_msg)) ?
-	    sizeof(rndis_msg) : rndis_hdr->msg_len);
+	rndis_hdr = pkt->data;
 
-	switch (rndis_mesg.ndis_msg_type) {
+	switch (rndis_hdr->ndis_msg_type) {
 
 	/* data message */
 	case REMOTE_NDIS_PACKET_MSG:
-		hv_rf_receive_data(rndis_dev, &rndis_mesg, pkt);
+		hv_rf_receive_data(rndis_dev, rndis_hdr, pkt);
 		break;
 	/* completion messages */
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
@@ -375,15 +487,15 @@ hv_rf_on_receive(struct hv_device *device, netvsc_packet *pkt)
 	case REMOTE_NDIS_SET_CMPLT:
 	case REMOTE_NDIS_RESET_CMPLT:
 	case REMOTE_NDIS_KEEPALIVE_CMPLT:
-		hv_rf_receive_response(rndis_dev, &rndis_mesg);
+		hv_rf_receive_response(rndis_dev, rndis_hdr);
 		break;
 	/* notification message */
 	case REMOTE_NDIS_INDICATE_STATUS_MSG:
-		hv_rf_receive_indicate_status(rndis_dev, &rndis_mesg);
+		hv_rf_receive_indicate_status(rndis_dev, rndis_hdr);
 		break;
 	default:
 		printf("hv_rf_on_receive():  Unknown msg_type 0x%x\n",
-		    rndis_mesg.ndis_msg_type);
+			rndis_hdr->ndis_msg_type);
 		break;
 	}
 
@@ -711,7 +823,9 @@ hv_rf_on_device_add(struct hv_device *device, void *additl_info)
 	int ret;
 	netvsc_dev *net_dev;
 	rndis_device *rndis_dev;
+	rndis_offload_params offloads;
 	netvsc_device_info *dev_info = (netvsc_device_info *)additl_info;
+	device_t dev = device->device;
 
 	rndis_dev = hv_get_rndis_device();
 	if (rndis_dev == NULL) {
@@ -751,6 +865,22 @@ hv_rf_on_device_add(struct hv_device *device, void *additl_info)
 	ret = hv_rf_query_device_mac(rndis_dev);
 	if (ret != 0) {
 		/* TODO: shut down rndis device and the channel */
+	}
+
+	/* config csum offload and send request to host */
+	memset(&offloads, 0, sizeof(offloads));
+	offloads.ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.tcp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.udp_ipv4_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.tcp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.udp_ipv6_csum = RNDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
+	offloads.lso_v2_ipv4 = RNDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
+
+	ret = hv_rf_send_offload_request(device, &offloads);
+	if (ret != 0) {
+		/* TODO: shut down rndis device and the channel */
+		device_printf(dev,
+		    "hv_rf_send_offload_request failed, ret=%d\n", ret);
 	}
 	
 	memcpy(dev_info->mac_addr, rndis_dev->hw_mac_addr, HW_MACADDR_LEN);
@@ -807,103 +937,6 @@ hv_rf_on_close(struct hv_device *device)
 	netvsc_dev *net_dev = sc->net_dev;
 
 	return (hv_rf_close_device((rndis_device *)net_dev->extension));
-}
-
-/*
- * RNDIS filter on send
- */
-int
-hv_rf_on_send(struct hv_device *device, netvsc_packet *pkt)
-{
-	rndis_filter_packet *filter_pkt;
-	rndis_msg *rndis_mesg;
-	rndis_packet *rndis_pkt;
-	rndis_per_packet_info *rppi;
-	ndis_8021q_info       *rppi_vlan_info;
-	uint32_t rndis_msg_size;
-	int ret = 0;
-
-	/* Add the rndis header */
-	filter_pkt = (rndis_filter_packet *)pkt->extension;
-
-	memset(filter_pkt, 0, sizeof(rndis_filter_packet));
-
-	rndis_mesg = &filter_pkt->message;
-	rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
-
-	if (pkt->vlan_tci != 0) {
-		rndis_msg_size += sizeof(rndis_per_packet_info) +
-		    sizeof(ndis_8021q_info);
-	}
-
-	rndis_mesg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
-	rndis_mesg->msg_len = pkt->tot_data_buf_len + rndis_msg_size;
-
-	rndis_pkt = &rndis_mesg->msg.packet;
-	rndis_pkt->data_offset = sizeof(rndis_packet);
-	rndis_pkt->data_length = pkt->tot_data_buf_len;
-
-	pkt->is_data_pkt = TRUE;
-	pkt->page_buffers[0].pfn = hv_get_phys_addr(rndis_mesg) >> PAGE_SHIFT;
-	pkt->page_buffers[0].offset =
-	    (unsigned long)rndis_mesg & (PAGE_SIZE - 1);
-	pkt->page_buffers[0].length = rndis_msg_size;
-
-	/* Save the packet context */
-	filter_pkt->completion_context =
-	    pkt->compl.send.send_completion_context;
-
-	/* Use ours */
-	pkt->compl.send.on_send_completion = hv_rf_on_send_completion;
-	pkt->compl.send.send_completion_context = filter_pkt;
-
-	/*
-	 * If there is a VLAN tag, we need to set up some additional
-	 * fields so the Hyper-V infrastructure will stuff the VLAN tag
-	 * into the frame.
-	 */
-	if (pkt->vlan_tci != 0) {
-		/* Move data offset past end of rppi + VLAN structs */
-		rndis_pkt->data_offset += sizeof(rndis_per_packet_info) +
-		    sizeof(ndis_8021q_info);
-
-		/* must be set when we have rppi, VLAN info */
-		rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
-		rndis_pkt->per_pkt_info_length = sizeof(rndis_per_packet_info) +
-		    sizeof(ndis_8021q_info);
-
-		/* rppi immediately follows rndis_pkt */
-		rppi = (rndis_per_packet_info *)(rndis_pkt + 1);
-		rppi->size = sizeof(rndis_per_packet_info) +
-		    sizeof(ndis_8021q_info);
-		rppi->type = ieee_8021q_info;
-		rppi->per_packet_info_offset = sizeof(rndis_per_packet_info);
-
-		/* VLAN info immediately follows rppi struct */
-		rppi_vlan_info = (ndis_8021q_info *)(rppi + 1);
-		/* FreeBSD does not support CFI or priority */
-		rppi_vlan_info->u1.s1.vlan_id = pkt->vlan_tci & 0xfff;
-	}
-
-	/*
-	 * Invoke netvsc send.  If return status is bad, the caller now
-	 * resets the context pointers before retrying.
-	 */
-	ret = hv_nv_on_send(device, pkt);
-
-	return (ret);
-}
-
-/*
- * RNDIS filter on send completion callback
- */
-static void 
-hv_rf_on_send_completion(void *context)
-{
-	rndis_filter_packet *filter_pkt = (rndis_filter_packet *)context;
-
-	/* Pass it back to the original handler */
-	netvsc_xmit_completion(filter_pkt->completion_context);
 }
 
 /*

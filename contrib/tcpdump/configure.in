@@ -197,16 +197,26 @@ else
        AC_MSG_RESULT(no)
 fi
 
-AC_ARG_WITH(sandbox-capsicum, [ --with-sandbox-capsicum ])
+AC_ARG_WITH(sandbox-capsicum,
+	AS_HELP_STRING([--with-sandbox-capsicum],
+		       [use Capsicum security functions @<:@default=yes, if available@:>@]))
 #
 # Check whether various functions are available.  If any are, set
 # ac_lbl_capsicum_function_seen to yes; if any are not, set
 # ac_lbl_capsicum_function_not_seen to yes.
 #
-# All of them must be available in order to enable capsicum sandboxing.
+# We don't check cap_rights_init(), as it's a macro, wrapping another
+# function, in at least some versions of FreeBSD, and AC_CHECK_FUNCS()
+# doesn't handle that.
+#
+# All of the ones we check for must be available in order to enable
+# capsicum sandboxing.
+#
+# XXX - do we need to check for all of them, or are there some that, if
+# present, imply others are present?
 #
 if test ! -z "$with_sandbox-capsicum" && test "$with_sandbox-capsicum" != "no" ; then
-	AC_CHECK_FUNCS(cap_enter cap_rights_init cap_rights_limit cap_ioctls_limit openat,
+	AC_CHECK_FUNCS(cap_enter cap_rights_limit cap_ioctls_limit openat,
 	    ac_lbl_capsicum_function_seen=yes,
 	    ac_lbl_capsicum_function_not_seen=yes)
 fi
@@ -231,7 +241,7 @@ AC_ARG_ENABLE(ipv6,
   --disable-ipv6          disable ipv6 support],
 [ case "$enableval" in
 yes)   AC_MSG_RESULT(yes)
-       LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
+       LOCALSRC="print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
        AC_DEFINE(INET6, 1, [Define if you enable IPv6 support])
        ipv6=yes
        ;;
@@ -260,7 +270,7 @@ foo(struct in6_addr *addr)
         ]])
     ],
 [ AC_MSG_RESULT(yes)
-  LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
+  LOCALSRC="print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
   AC_DEFINE(INET6, 1, [Define if you enable IPv6 support])
   ipv6=yes],
 [ AC_MSG_RESULT(no)
@@ -495,9 +505,11 @@ main()
 ],
 	td_cv_buggygetaddrinfo=no,
 	td_cv_buggygetaddrinfo=yes,
-	td_cv_buggygetaddrinfo=yes)])
+	td_cv_buggygetaddrinfo=unknown)])
 	if test "$td_cv_buggygetaddrinfo" = no; then
 		AC_MSG_RESULT(good)
+	elif test "$td_cv_buggygetaddrinfo" = unknown; then
+		AC_MSG_RESULT([unknown (cross-compiling)])
 	else
 		AC_MSG_RESULT(buggy)
 	fi
@@ -749,6 +761,54 @@ if test "$ac_cv_sockaddr_has_sa_len" = no; then
 	missing_includes=yes
 fi
 
+dnl
+dnl Check for "pcap_list_datalinks()", "pcap_set_datalink()",
+dnl and "pcap_datalink_name_to_val()", and use substitute versions
+dnl if they're not present.
+dnl
+AC_CHECK_FUNC(pcap_list_datalinks,
+	[
+	    AC_DEFINE(HAVE_PCAP_LIST_DATALINKS, 1,
+		[define if libpcap has pcap_list_datalinks()])
+	    AC_CHECK_FUNCS(pcap_free_datalinks)
+	],
+	[
+	    AC_LIBOBJ(datalinks)
+	])
+AC_CHECK_FUNCS(pcap_set_datalink)
+AC_CHECK_FUNC(pcap_datalink_name_to_val,
+	[
+	    AC_DEFINE(HAVE_PCAP_DATALINK_NAME_TO_VAL, 1,
+		[define if libpcap has pcap_datalink_name_to_val()])
+	    AC_CHECK_FUNC(pcap_datalink_val_to_description,
+		AC_DEFINE(HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION, 1,
+		    [define if libpcap has pcap_datalink_val_to_description()]),
+		[
+		    AC_LIBOBJ(dlnames)
+		])
+	],
+	[
+	    AC_LIBOBJ(dlnames)
+	])
+
+dnl
+dnl Check for "pcap_breakloop()"; you can't substitute for it if
+dnl it's absent (it has hooks into the live capture routines),
+dnl so just define the HAVE_ value if it's there.
+dnl
+AC_CHECK_FUNCS(pcap_breakloop)
+
+dnl
+dnl Check for "pcap_dump_ftell()" and use a substitute version
+dnl if it's not present.
+dnl
+AC_CHECK_FUNC(pcap_dump_ftell,
+	AC_DEFINE(HAVE_PCAP_DUMP_FTELL, 1,
+	    [define if libpcap has pcap_dump_ftell()]),
+	[
+	    AC_LIBOBJ(pcap_dump_ftell)
+	])
+
 #
 # Do we have the new open API?  Check for pcap_create, and assume that,
 # if we do, we also have pcap_activate() and the other new routines
@@ -768,7 +828,11 @@ if test $ac_cv_func_pcap_create = "yes" ; then
 	AC_CHECK_FUNCS(pcap_set_tstamp_precision)
 fi
 
-AC_CHECK_FUNCS(pcap_findalldevs pcap_dump_flush pcap_lib_version pcap_setdirection)
+#
+# Check for a miscellaneous collection of functions which we use
+# if we have them.
+#
+AC_CHECK_FUNCS(pcap_findalldevs pcap_dump_flush pcap_lib_version pcap_setdirection pcap_set_immediate_mode)
 if test $ac_cv_func_pcap_findalldevs = "yes" ; then
 dnl Check for Mac OS X, which may ship pcap.h from 0.6 but libpcap may
 dnl be 0.8; this means that lib has pcap_findalldevs but header doesn't
@@ -790,7 +854,7 @@ if test $ac_cv_func_pcap_lib_version = "no" ; then
        ac_lbl_cv_pcap_version_defined=yes,
        ac_lbl_cv_pcap_version_defined=no)
     if test "$ac_lbl_cv_pcap_version_defined" = yes ; then
-    	AC_MSG_RESULT(yes)
+	AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_PCAP_VERSION, 1, [define if libpcap has pcap_version])
     else
 	AC_MSG_RESULT(no)
@@ -903,6 +967,12 @@ AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
+
+#
+# Make sure we have a definition for C99's uintptr_t (regardless of
+# whether the environment is a C99 environment or not).
+#
+AC_TYPE_UINTPTR_T
 
 #
 # Define the old BSD specified-width types in terms of the C99 types;
@@ -1044,6 +1114,35 @@ AC_ARG_WITH(crypto,
 if test "$want_libcrypto" != "no"; then
 	AC_CHECK_LIB(crypto, DES_cbc_encrypt)
 	AC_CHECK_HEADERS(openssl/evp.h)
+fi
+
+# Check for libcap-ng
+AC_MSG_CHECKING(whether to use libcap-ng)
+# Specify location for both includes and libraries.
+want_libcap_ng=ifavailable
+AC_ARG_WITH(cap_ng,
+    AS_HELP_STRING([--with-cap-ng],
+		   [use libcap-ng @<:@default=yes, if available@:>@]),
+[
+	if test $withval = no
+	then
+		want_libcap_ng=no
+		AC_MSG_RESULT(no)
+	elif test $withval = yes
+	then
+		want_libcap_ng=yes
+		AC_MSG_RESULT(yes)
+	fi
+],[
+	#
+	# Use libcap-ng if it's present, otherwise don't.
+	#
+	want_libcap_ng=ifavailable
+	AC_MSG_RESULT([yes, if available])
+])
+if test "$want_libcap_ng" != "no"; then
+	AC_CHECK_LIB(cap-ng, capng_change_id)
+	AC_CHECK_HEADERS(cap-ng.h)
 fi
 
 dnl

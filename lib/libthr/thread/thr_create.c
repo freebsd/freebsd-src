@@ -165,7 +165,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		param.flags |= THR_SYSTEM_SCOPE;
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
 		param.rtp = NULL;
-	else { 	 
+	else {
 		sched_param.sched_priority = new_thread->attr.prio;
 		_schedparam_to_rtp(new_thread->attr.sched_policy,
 			&sched_param, &rtp);

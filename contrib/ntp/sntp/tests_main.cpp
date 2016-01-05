@@ -1,5 +1,9 @@
 #include "tests_main.h"
 
+extern "C" {
+const char * Version = "stub unit test Version string";
+};
+
 int main(int argc, char **argv) {
 	::testing::InitGoogleTest(&argc, argv);
 

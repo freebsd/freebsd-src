@@ -161,6 +161,7 @@ struct uftdi_softc {
 	uint8_t	sc_hdrlen;
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;
+	uint8_t sc_bitmode;
 };
 
 struct uftdi_param_config {
@@ -196,7 +197,7 @@ static void	uftdi_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 static int	uftdi_reset(struct ucom_softc *, int);
 static int	uftdi_set_bitmode(struct ucom_softc *, uint8_t, uint8_t);
-static int	uftdi_get_bitmode(struct ucom_softc *, uint8_t *);
+static int	uftdi_get_bitmode(struct ucom_softc *, uint8_t *, uint8_t *);
 static int	uftdi_set_latency(struct ucom_softc *, int);
 static int	uftdi_get_latency(struct ucom_softc *, int *);
 static int	uftdi_set_event_char(struct ucom_softc *, int);
@@ -497,6 +498,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, SCS_DEVICE_5, 0),
 	UFTDI_DEV(FTDI, SCS_DEVICE_6, 0),
 	UFTDI_DEV(FTDI, SCS_DEVICE_7, 0),
+	UFTDI_DEV(FTDI, SCX8_USB_PHOENIX, 0),
 	UFTDI_DEV(FTDI, SDMUSBQSS, 0),
 	UFTDI_DEV(FTDI, SEMC_DSS20, 0),
 	UFTDI_DEV(FTDI, SERIAL_2232C, UFTDI_JTAG_CHECK_STRING),
@@ -1089,6 +1091,7 @@ uftdi_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = dev;
 	sc->sc_unit = device_get_unit(dev);
+	sc->sc_bitmode = UFTDI_BITMODE_NONE;
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
@@ -1680,6 +1683,7 @@ uftdi_set_bitmode(struct ucom_softc *ucom, uint8_t bitmode, uint8_t iomask)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	usb_device_request_t req;
+	int rv;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = FTDI_SIO_SET_BITMODE;
@@ -1692,11 +1696,15 @@ uftdi_set_bitmode(struct ucom_softc *ucom, uint8_t bitmode, uint8_t iomask)
 	else
 	    USETW2(req.wValue, (1 << bitmode), iomask);
 
-	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL));
+	rv = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL);
+	if (rv == USB_ERR_NORMAL_COMPLETION)
+		sc->sc_bitmode = bitmode;
+
+	return (rv);
 }
 
 static int
-uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *iomask)
+uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *bitmode, uint8_t *iomask)
 {
 	struct uftdi_softc *sc = ucom->sc_parent;
 	usb_device_request_t req;
@@ -1708,6 +1716,7 @@ uftdi_get_bitmode(struct ucom_softc *ucom, uint8_t *iomask)
 	USETW(req.wLength, 1);
 	USETW(req.wValue,  0);
 
+	*bitmode = sc->sc_bitmode;
 	return (usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, iomask));
 }
 
@@ -1790,6 +1799,82 @@ uftdi_set_error_char(struct ucom_softc *ucom, int echar)
 }
 
 static int
+uftdi_read_eeprom(struct ucom_softc *ucom, struct uftdi_eeio *eeio)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	usb_error_t err;
+	uint16_t widx, wlength, woffset;
+
+	/* Offset and length must both be evenly divisible by two. */
+	if ((eeio->offset | eeio->length) & 0x01)
+		return (EINVAL);
+
+	woffset = eeio->offset / 2U;
+	wlength = eeio->length / 2U;
+	for (widx = 0; widx < wlength; widx++) {
+		req.bmRequestType = UT_READ_VENDOR_DEVICE;
+		req.bRequest = FTDI_SIO_READ_EEPROM;
+		USETW(req.wIndex, widx + woffset);
+		USETW(req.wLength, 2);
+		USETW(req.wValue, 0);
+		err = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req,
+		    &eeio->data[widx]);
+		if (err != USB_ERR_NORMAL_COMPLETION)
+			return (err);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
+}
+
+static int
+uftdi_write_eeprom(struct ucom_softc *ucom, struct uftdi_eeio *eeio)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	usb_error_t err;
+	uint16_t widx, wlength, woffset;
+
+	/* Offset and length must both be evenly divisible by two. */
+	if ((eeio->offset | eeio->length) & 0x01)
+		return (EINVAL);
+
+	woffset = eeio->offset / 2U;
+	wlength = eeio->length / 2U;
+	for (widx = 0; widx < wlength; widx++) {
+		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+		req.bRequest = FTDI_SIO_WRITE_EEPROM;
+		USETW(req.wIndex, widx + woffset);
+		USETW(req.wLength, 0);
+		USETW(req.wValue, eeio->data[widx]);
+		err = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL);
+		if (err != USB_ERR_NORMAL_COMPLETION)
+			return (err);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
+}
+
+static int
+uftdi_erase_eeprom(struct ucom_softc *ucom, int confirmation)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usb_device_request_t req;
+	usb_error_t err;
+
+	/* Small effort to prevent accidental erasure. */
+	if (confirmation != UFTDI_CONFIRM_ERASE)
+		return (EINVAL);
+
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = FTDI_SIO_ERASE_EEPROM;
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	USETW(req.wValue, 0);
+	err = usbd_do_request(sc->sc_udev, &sc->sc_mtx, &req, NULL);
+
+	return (err);
+}
+
+static int
 uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
     int flag, struct thread *td)
 {
@@ -1814,7 +1899,7 @@ uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 		break;
 	case UFTDIIOC_GET_BITMODE:
 		mode = (struct uftdi_bitmode *)data;
-		err = uftdi_get_bitmode(ucom, &mode->iomask);
+		err = uftdi_get_bitmode(ucom, &mode->mode, &mode->iomask);
 		break;
 	case UFTDIIOC_SET_LATENCY:
 		err = uftdi_set_latency(ucom, *((int *)data));
@@ -1831,6 +1916,15 @@ uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 	case UFTDIIOC_GET_HWREV:
 		*(int *)data = sc->sc_bcdDevice;
 		err = 0;
+		break;
+	case UFTDIIOC_READ_EEPROM:
+		err = uftdi_read_eeprom(ucom, (struct uftdi_eeio *)data);
+		break;
+	case UFTDIIOC_WRITE_EEPROM:
+		err = uftdi_write_eeprom(ucom, (struct uftdi_eeio *)data);
+		break;
+	case UFTDIIOC_ERASE_EEPROM:
+		err = uftdi_erase_eeprom(ucom, *(int *)data);
 		break;
 	default:
 		return (ENOIOCTL);

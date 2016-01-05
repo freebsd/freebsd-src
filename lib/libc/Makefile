@@ -95,6 +95,7 @@ NOASM=
 .include "${LIBC_SRCTOP}/stdtime/Makefile.inc"
 .include "${LIBC_SRCTOP}/string/Makefile.inc"
 .include "${LIBC_SRCTOP}/sys/Makefile.inc"
+.include "${LIBC_SRCTOP}/secure/Makefile.inc"
 .include "${LIBC_SRCTOP}/rpc/Makefile.inc"
 .include "${LIBC_SRCTOP}/uuid/Makefile.inc"
 .include "${LIBC_SRCTOP}/xdr/Makefile.inc"
@@ -157,9 +158,29 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 	${CP} ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
 
-.include <bsd.arch.inc.mk>
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>
+
+.if !defined(_SKIP_BUILD)
+# We need libutil.h, get it directly to avoid
+# recording a build dependency
+CFLAGS+= -I${.CURDIR:H}/libutil
+# Same issue with libm
+MSUN_ARCH_SUBDIR != ${MAKE} -B -C ${.CURDIR:H}/msun -V ARCH_SUBDIR
+# unfortunately msun/src contains both private and public headers
+CFLAGS+= -I${.CURDIR:H}/msun/${MSUN_ARCH_SUBDIR} 
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+= -I${.CURDIR:H}/msun/x86
+.endif
+CFLAGS+= -I${.CURDIR:H}/msun/src
+# and we do not want to record a dependency on msun
+.if ${.MAKE.LEVEL} > 0
+GENDIRDEPS_FILTER+= N${RELDIR:H}/msun
+.endif
+.endif
 
 # Disable warnings in contributed sources.
 CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/:C/^$/-w/}

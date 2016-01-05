@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/umtx.h>
 #include <sys/limits.h>
 
+#include <vm/vm_domain.h>
+
 #include <machine/frame.h>
 
 #include <security/audit/audit.h>
@@ -87,29 +89,39 @@ suword_lwpid(void *addr, lwpid_t lwpid)
 #define suword_lwpid	suword
 #endif
 
-static int create_thread(struct thread *td, mcontext_t *ctx,
-			 void (*start_func)(void *), void *arg,
-			 char *stack_base, size_t stack_size,
-			 char *tls_base,
-			 long *child_tid, long *parent_tid,
-			 int flags, struct rtprio *rtp);
-
 /*
  * System call interface.
  */
+
+struct thr_create_initthr_args {
+	ucontext_t ctx;
+	long *tid;
+};
+
+static int
+thr_create_initthr(struct thread *td, void *thunk)
+{
+	struct thr_create_initthr_args *args;
+
+	/* Copy out the child tid. */
+	args = thunk;
+	if (args->tid != NULL && suword_lwpid(args->tid, td->td_tid))
+		return (EFAULT);
+
+	return (set_mcontext(td, &args->ctx.uc_mcontext));
+}
+
 int
 sys_thr_create(struct thread *td, struct thr_create_args *uap)
     /* ucontext_t *ctx, long *id, int flags */
 {
-	ucontext_t ctx;
+	struct thr_create_initthr_args args;
 	int error;
 
-	if ((error = copyin(uap->ctx, &ctx, sizeof(ctx))))
+	if ((error = copyin(uap->ctx, &args.ctx, sizeof(args.ctx))))
 		return (error);
-
-	error = create_thread(td, &ctx.uc_mcontext, NULL, NULL,
-		NULL, 0, NULL, uap->id, NULL, uap->flags, NULL);
-	return (error);
+	args.tid = uap->id;
+	return (thread_create(td, NULL, thr_create_initthr, &args));
 }
 
 int
@@ -127,6 +139,35 @@ sys_thr_new(struct thread *td, struct thr_new_args *uap)
 	return (kern_thr_new(td, &param));
 }
 
+static int
+thr_new_initthr(struct thread *td, void *thunk)
+{
+	stack_t stack;
+	struct thr_param *param;
+
+	/*
+	 * Here we copy out tid to two places, one for child and one
+	 * for parent, because pthread can create a detached thread,
+	 * if parent wants to safely access child tid, it has to provide
+	 * its storage, because child thread may exit quickly and
+	 * memory is freed before parent thread can access it.
+	 */
+	param = thunk;
+	if ((param->child_tid != NULL &&
+	    suword_lwpid(param->child_tid, td->td_tid)) ||
+	    (param->parent_tid != NULL &&
+	    suword_lwpid(param->parent_tid, td->td_tid)))
+		return (EFAULT);
+
+	/* Set up our machine context. */
+	stack.ss_sp = param->stack_base;
+	stack.ss_size = param->stack_size;
+	/* Set upcall address to user thread entry function. */
+	cpu_set_upcall_kse(td, param->start_func, param->arg, &stack);
+	/* Setup user TLS address and TLS pointer register. */
+	return (cpu_set_user_tls(td, param->tls_base));
+}
+
 int
 kern_thr_new(struct thread *td, struct thr_param *param)
 {
@@ -140,33 +181,18 @@ kern_thr_new(struct thread *td, struct thr_param *param)
 			return (error);
 		rtpp = &rtp;
 	}
-	error = create_thread(td, NULL, param->start_func, param->arg,
-		param->stack_base, param->stack_size, param->tls_base,
-		param->child_tid, param->parent_tid, param->flags,
-		rtpp);
-	return (error);
+	return (thread_create(td, rtpp, thr_new_initthr, param));
 }
 
-static int
-create_thread(struct thread *td, mcontext_t *ctx,
-	    void (*start_func)(void *), void *arg,
-	    char *stack_base, size_t stack_size,
-	    char *tls_base,
-	    long *child_tid, long *parent_tid,
-	    int flags, struct rtprio *rtp)
+int
+thread_create(struct thread *td, struct rtprio *rtp,
+    int (*initialize_thread)(struct thread *, void *), void *thunk)
 {
-	stack_t stack;
 	struct thread *newtd;
 	struct proc *p;
 	int error;
 
 	p = td->td_proc;
-
-	/* Have race condition but it is cheap. */
-	if (p->p_numthreads >= max_threads_per_proc) {
-		++max_threads_hits;
-		return (EPROCLIM);
-	}
 
 	if (rtp != NULL) {
 		switch(rtp->type) {
@@ -187,72 +213,39 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_add(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0)
-		return (EPROCLIM);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		error = racct_add(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			return (EPROCLIM);
+	}
 #endif
 
 	/* Initialize our td */
-	newtd = thread_alloc(0);
-	if (newtd == NULL) {
-		error = ENOMEM;
+	error = kern_thr_alloc(p, 0, &newtd);
+	if (error)
 		goto fail;
-	}
 
 	cpu_set_upcall(newtd, td);
-
-	/*
-	 * Try the copyout as soon as we allocate the td so we don't
-	 * have to tear things down in a failure case below.
-	 * Here we copy out tid to two places, one for child and one
-	 * for parent, because pthread can create a detached thread,
-	 * if parent wants to safely access child tid, it has to provide 
-	 * its storage, because child thread may exit quickly and
-	 * memory is freed before parent thread can access it.
-	 */
-	if ((child_tid != NULL &&
-	    suword_lwpid(child_tid, newtd->td_tid)) ||
-	    (parent_tid != NULL &&
-	    suword_lwpid(parent_tid, newtd->td_tid))) {
-		thread_free(newtd);
-		error = EFAULT;
-		goto fail;
-	}
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
-	newtd->td_ucred = crhold(td->td_ucred);
+	thread_cow_get(newtd, td);
 
-	if (ctx != NULL) { /* old way to set user context */
-		error = set_mcontext(newtd, ctx);
-		if (error != 0) {
-			thread_free(newtd);
-			crfree(td->td_ucred);
-			goto fail;
-		}
-	} else {
-		/* Set up our machine context. */
-		stack.ss_sp = stack_base;
-		stack.ss_size = stack_size;
-		/* Set upcall address to user thread entry function. */
-		cpu_set_upcall_kse(newtd, start_func, arg, &stack);
-		/* Setup user TLS address and TLS pointer register. */
-		error = cpu_set_user_tls(newtd, tls_base);
-		if (error != 0) {
-			thread_free(newtd);
-			crfree(td->td_ucred);
-			goto fail;
-		}
+	error = initialize_thread(newtd, thunk);
+	if (error != 0) {
+		thread_cow_free(newtd);
+		thread_free(newtd);
+		goto fail;
 	}
 
-	PROC_LOCK(td->td_proc);
-	td->td_proc->p_flag |= P_HADTHREADS;
-	thread_link(newtd, p); 
+	PROC_LOCK(p);
+	p->p_flag |= P_HADTHREADS;
+	thread_link(newtd, p);
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 	thread_lock(td);
 	/* let the scheduler know about these things. */
@@ -260,6 +253,13 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	thread_unlock(td);
 	if (P_SHOULDSTOP(p))
 		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
+
+	/*
+	 * Copy the existing thread VM policy into the new thread.
+	 */
+	vm_domain_policy_localcopy(&newtd->td_vm_dom_policy,
+	    &td->td_vm_dom_policy);
+
 	PROC_UNLOCK(p);
 
 	tidhash_add(newtd);
@@ -280,9 +280,11 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 fail:
 #ifdef RACCT
-	PROC_LOCK(p);
-	racct_sub(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(p);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		racct_sub(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+	}
 #endif
 	return (error);
 }
@@ -303,9 +305,6 @@ int
 sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
     /* long *state */
 {
-	struct proc *p;
-
-	p = td->td_proc;
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
@@ -313,8 +312,17 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 		kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
-	rw_wlock(&tidhash_lock);
+	return (kern_thr_exit(td));
+}
 
+int
+kern_thr_exit(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+
+	rw_wlock(&tidhash_lock);
 	PROC_LOCK(p);
 
 	if (p->p_numthreads != 1) {
@@ -555,4 +563,21 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 #endif
 	PROC_UNLOCK(p);
 	return (error);
+}
+
+int
+kern_thr_alloc(struct proc *p, int pages, struct thread **ntd)
+{
+
+	/* Have race condition but it is cheap. */
+	if (p->p_numthreads >= max_threads_per_proc) {
+		++max_threads_hits;
+		return (EPROCLIM);
+	}
+
+	*ntd = thread_alloc(pages);
+	if (*ntd == NULL)
+		return (ENOMEM);
+
+	return (0);
 }

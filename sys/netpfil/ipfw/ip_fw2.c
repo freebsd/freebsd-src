@@ -503,31 +503,35 @@ flow6id_match( int curr_flow, ipfw_insn_u32 *cmd )
 }
 
 /* support for IP6_*_ME opcodes */
-static int
-search_ip6_addr_net (struct in6_addr * ip6_addr)
-{
-	struct ifnet *mdc;
-	struct ifaddr *mdc2;
-	struct in6_ifaddr *fdm;
-	struct in6_addr copia;
+static const struct in6_addr lla_mask = {{{
+	0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+}}};
 
-	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
-		if_addr_rlock(mdc);
-		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_link) {
-			if (mdc2->ifa_addr->sa_family == AF_INET6) {
-				fdm = (struct in6_ifaddr *)mdc2;
-				copia = fdm->ia_addr.sin6_addr;
-				/* need for leaving scope_id in the sock_addr */
-				in6_clearscope(&copia);
-				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia)) {
-					if_addr_runlock(mdc);
-					return 1;
-				}
-			}
+static int
+ipfw_localip6(struct in6_addr *in6)
+{
+	struct rm_priotracker in6_ifa_tracker;
+	struct in6_ifaddr *ia;
+
+	if (IN6_IS_ADDR_MULTICAST(in6))
+		return (0);
+
+	if (!IN6_IS_ADDR_LINKLOCAL(in6))
+		return (in6_localip(in6));
+
+	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		if (!IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr))
+			continue;
+		if (IN6_ARE_MASKED_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
+		    in6, &lla_mask)) {
+			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
+			return (1);
 		}
-		if_addr_runlock(mdc);
 	}
-	return 0;
+	IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
+	return (0);
 }
 
 static int
@@ -1532,8 +1536,9 @@ do {								\
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache.xid;
 #endif /* !__FreeBSD__ */
-					} else
+					}
 #endif /* !USERSPACE */
+					else
 					    break;
 				    }
 				    match = ipfw_lookup_table(chain,
@@ -1596,7 +1601,7 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_SRC_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
+				match= is_ipv6 && ipfw_localip6(&args->f_id.src_ip6);
 #endif
 				break;
 
@@ -1635,7 +1640,7 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_DST_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
+				match= is_ipv6 && ipfw_localip6(&args->f_id.dst_ip6);
 #endif
 				break;
 
@@ -2486,12 +2491,13 @@ do {								\
 				code = TARG(cmd->arg1, dscp) & 0x3F;
 				l = 0;		/* exit inner loop */
 				if (is_ipv4) {
-					uint16_t a;
+					uint16_t old;
 
-					a = ip->ip_tos;
-					ip->ip_tos = (code << 2) | (ip->ip_tos & 0x03);
-					a += ntohs(ip->ip_sum) - ip->ip_tos;
-					ip->ip_sum = htons(a);
+					old = *(uint16_t *)ip;
+					ip->ip_tos = (code << 2) |
+					    (ip->ip_tos & 0x03);
+					ip->ip_sum = cksum_adjust(ip->ip_sum,
+					    old, *(uint16_t *)ip);
 				} else if (is_ipv6) {
 					uint8_t *v;
 
@@ -2762,6 +2768,10 @@ vnet_ipfw_init(const void *unused)
 	LIST_INIT(&chain->nat);
 #endif
 
+	/* Init shared services hash table */
+	ipfw_init_srv(chain);
+
+	ipfw_init_obj_rewriter();
 	ipfw_init_counters();
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
@@ -2860,9 +2870,11 @@ vnet_ipfw_uninit(const void *unused)
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	vnet_ipfw_iface_destroy(chain);
+	ipfw_destroy_srv(chain);
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	ipfw_destroy_counters();
+	ipfw_destroy_obj_rewriter();
 	return (0);
 }
 

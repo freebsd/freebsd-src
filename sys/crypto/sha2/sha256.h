@@ -40,6 +40,38 @@ typedef struct SHA256Context {
 } SHA256_CTX;
 
 __BEGIN_DECLS
+
+/* Ensure libmd symbols do not clash with libcrypto */
+
+#ifndef SHA256_Init
+#define SHA256_Init		_libmd_SHA256_Init
+#endif
+#ifndef SHA256_Update
+#define SHA256_Update		_libmd_SHA256_Update
+#endif
+#ifndef SHA256_Final
+#define SHA256_Final		_libmd_SHA256_Final
+#endif
+#ifndef SHA256_End
+#define SHA256_End		_libmd_SHA256_End
+#endif
+#ifndef SHA256_File
+#define SHA256_File		_libmd_SHA256_File
+#endif
+#ifndef SHA256_FileChunk
+#define SHA256_FileChunk	_libmd_SHA256_FileChunk
+#endif
+#ifndef SHA256_Data
+#define SHA256_Data		_libmd_SHA256_Data
+#endif
+
+#ifndef SHA256_Transform
+#define SHA256_Transform	_libmd_SHA256_Transform
+#endif
+#ifndef SHA256_version
+#define SHA256_version		_libmd_SHA256_version
+#endif
+
 void	SHA256_Init(SHA256_CTX *);
 void	SHA256_Update(SHA256_CTX *, const void *, size_t);
 void	SHA256_Final(unsigned char [32], SHA256_CTX *);

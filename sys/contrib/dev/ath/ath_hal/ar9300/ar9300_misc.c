@@ -940,6 +940,13 @@ ar9300_get_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
                     return HAL_OK;
             }
             return HAL_EINVAL;
+    case HAL_CAP_ENFORCE_TXOP:
+        if (capability == 0)
+            return (HAL_OK);
+        if (capability != 1)
+            return (HAL_ENOTSUPP);
+        (*result) = !! (ahp->ah_misc_mode & AR_PCU_TXOP_TBTT_LIMIT_ENA);
+        return (HAL_OK);
     default:
         return ath_hal_getcapability(ah, type, capability, result);
     }
@@ -1039,6 +1046,18 @@ ar9300_set_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
     case HAL_CAP_RXBUFSIZE:         /* set MAC receive buffer size */
         ahp->rx_buf_size = setting & AR_DATABUF_MASK;
         OS_REG_WRITE(ah, AR_DATABUF, ahp->rx_buf_size);
+        return AH_TRUE;
+
+    case HAL_CAP_ENFORCE_TXOP:
+        if (capability != 1)
+            return AH_FALSE;
+        if (setting) {
+            ahp->ah_misc_mode |= AR_PCU_TXOP_TBTT_LIMIT_ENA;
+            OS_REG_SET_BIT(ah, AR_PCU_MISC, AR_PCU_TXOP_TBTT_LIMIT_ENA);
+        } else {
+            ahp->ah_misc_mode &= ~AR_PCU_TXOP_TBTT_LIMIT_ENA;
+            OS_REG_CLR_BIT(ah, AR_PCU_MISC, AR_PCU_TXOP_TBTT_LIMIT_ENA);
+        }
         return AH_TRUE;
 
         /* fall thru... */

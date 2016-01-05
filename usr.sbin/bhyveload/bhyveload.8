@@ -35,6 +35,7 @@
 guest inside a bhyve virtual machine
 .Sh SYNOPSIS
 .Nm
+.Op Fl S
 .Op Fl c Ar cons-dev
 .Op Fl d Ar disk-path
 .Op Fl e Ar name=value
@@ -111,6 +112,8 @@ respectively.
 The default value of
 .Ar mem-size
 is 256M.
+.It Fl S
+Wire guest memory.
 .El
 .Sh EXAMPLES
 To create a virtual machine named

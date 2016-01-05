@@ -4,6 +4,7 @@
 .include <src.opts.mk>
 
 FILES=	\
+	auto.obj.mk \
 	bsd.README \
 	bsd.arch.inc.mk \
 	bsd.compiler.mk \
@@ -39,7 +40,16 @@ FILES=	\
 	bsd.symver.mk \
 	bsd.sys.mk \
 	bsd.test.mk \
+	dirdeps.mk \
+	gendirdeps.mk \
+	install-new.mk \
+	meta.autodep.mk \
+	meta.stage.mk \
+	meta.subdir.mk \
+	meta.sys.mk \
+	stage-install.sh \
 	sys.mk \
+	sys.dependfile.mk \
 	version_gen.awk
 
 NO_OBJ=

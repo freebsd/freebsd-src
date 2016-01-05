@@ -1066,15 +1066,9 @@ int drm_mapbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 
 	vaddr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
-#if __FreeBSD_version >= 600023
-	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
+	retcode = vm_mmap(&vms->vm_map, &vaddr, size, VM_PROT_READ |
+	    VM_PROT_WRITE, VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
 	    dev->devnode, foff);
-#else
-	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC,
-	    SLIST_FIRST(&dev->devnode->si_hlist), foff);
-#endif
 	if (retcode)
 		goto done;
 

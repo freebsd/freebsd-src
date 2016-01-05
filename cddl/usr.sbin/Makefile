@@ -30,7 +30,7 @@ _plockstat=	plockstat
 .endif
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 _dtrace=	dtrace
 _dtruss=	dtruss
 _lockstat=	lockstat
@@ -45,5 +45,7 @@ _dtrace=	dtrace
 _dtruss=	dtruss
 _lockstat=	lockstat
 .endif
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

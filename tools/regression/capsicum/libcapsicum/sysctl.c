@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/capsicum.h>
 #include <sys/sysctl.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <err.h>
@@ -46,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <libcapsicum.h>
 #include <libcapsicum_service.h>
 #include <libcapsicum_sysctl.h>
-#include <nv.h>
 
 /*
  * We need some sysctls to perform the tests on.

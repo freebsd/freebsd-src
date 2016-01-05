@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_domain.h>
 #include <sys/copyright.h>
 
 #include <ddb/ddb.h>
@@ -115,6 +116,10 @@ SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0,
 int	bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
+
+#ifdef INVARIANTS
+FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
+#endif
 
 /*
  * This ensures that there is at least one entry so that the sysinit_set
@@ -411,6 +416,7 @@ struct sysentvec null_sysvec = {
 	.sv_fetch_syscall_args = null_fetch_syscall_args,
 	.sv_syscallnames = NULL,
 	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
 };
 
 /*
@@ -495,6 +501,10 @@ proc0_init(void *dummy __unused)
 	td->td_flags = TDF_INMEM;
 	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
+	vm_domain_policy_init(&td->td_vm_dom_policy);
+	vm_domain_policy_set(&td->td_vm_dom_policy, VM_POLICY_NONE, -1);
+	vm_domain_policy_init(&p->p_vm_dom_policy);
+	vm_domain_policy_set(&p->p_vm_dom_policy, VM_POLICY_NONE, -1);
 	prison0_init();
 	p->p_peers = 0;
 	p->p_leader = p;
@@ -506,7 +516,7 @@ proc0_init(void *dummy __unused)
 
 	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
-	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
+	callout_init(&td->td_slpcallout, 1);
 
 	/* Create credentials. */
 	newcred = crget();
@@ -522,8 +532,6 @@ proc0_init(void *dummy __unused)
 #ifdef MAC
 	mac_cred_create_swapper(newcred);
 #endif
-	td->td_ucred = crhold(newcred);
-
 	/* Create sigacts. */
 	p->p_sigacts = sigacts_alloc();
 
@@ -555,15 +563,19 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = pageablemem;
 	p->p_cpulimit = RLIM_INFINITY;
 
+	PROC_LOCK(p);
+	thread_cow_get_proc(td, p);
+	PROC_UNLOCK(p);
+
 	/* Initialize resource accounting structures. */
 	racct_create(&p->p_racct);
 
 	p->p_stats = pstats_alloc();
 
 	/* Allocate a prototype map so we have something to fork. */
-	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
+	pmap_pinit0(vmspace_pmap(&vmspace0));
 
 	/*
 	 * proc0 is not expected to enter usermode, so there is no special
@@ -819,10 +831,11 @@ static void
 create_init(const void *udata __unused)
 {
 	struct ucred *newcred, *oldcred;
+	struct thread *td;
 	int error;
 
 	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc,
-	    NULL, 0);
+	    NULL, 0, NULL);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
@@ -842,10 +855,12 @@ create_init(const void *udata __unused)
 	audit_cred_proc1(newcred);
 #endif
 	proc_set_cred(initproc, newcred);
+	td = FIRST_THREAD_IN_PROC(initproc);
+	crfree(td->td_ucred);
+	td->td_ucred = crhold(initproc->p_ucred);
 	PROC_UNLOCK(initproc);
 	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
-	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
 	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL);

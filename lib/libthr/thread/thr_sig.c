@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
+#include <sys/syscall.h>
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -257,7 +258,7 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	/* reschedule cancellation */
 	check_cancel(curthread, &uc2);
 	errno = err;
-	__sys_sigreturn(&uc2);
+	syscall(SYS_sigreturn, &uc2);
 }
 
 void
@@ -293,8 +294,8 @@ check_cancel(struct pthread *curthread, ucontext_t *ucp)
 	 * 2) because _thr_ast() may be called by
 	 *    THR_CRITICAL_LEAVE() which is used by rtld rwlock
 	 *    and any libthr internal locks, when rtld rwlock
-	 *    is used, it is mostly caused my an unresolved PLT.
-	 *    those routines may clear the TDP_WAKEUP flag by
+	 *    is used, it is mostly caused by an unresolved PLT.
+	 *    Those routines may clear the TDP_WAKEUP flag by
 	 *    invoking some system calls, in those cases, we
 	 *    also should reenable the flag.
 	 * 3) thread is in sigsuspend(), and the syscall insists

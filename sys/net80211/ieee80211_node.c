@@ -93,6 +93,8 @@ static void node_getmimoinfo(const struct ieee80211_node *,
 
 static void _ieee80211_free_node(struct ieee80211_node *);
 
+static void node_reclaim(struct ieee80211_node_table *nt,
+	struct ieee80211_node *ni);
 static void ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt, const char *name,
 	int inact, int keymaxix);
@@ -112,7 +114,7 @@ ieee80211_node_attach(struct ieee80211com *ic)
 	    "802.11 staging q");
 	ieee80211_node_table_init(ic, &ic->ic_sta, "station",
 		IEEE80211_INACT_INIT, ic->ic_max_keyix);
-	callout_init(&ic->ic_inact, CALLOUT_MPSAFE);
+	callout_init(&ic->ic_inact, 1);
 	callout_reset(&ic->ic_inact, IEEE80211_INACT_WAIT*hz,
 		ieee80211_node_timeout, ic);
 
@@ -170,9 +172,10 @@ ieee80211_node_latevattach(struct ieee80211vap *vap)
 			    "WARNING: max aid too small, changed to %d\n",
 			    vap->iv_max_aid);
 		}
-		vap->iv_aid_bitmap = (uint32_t *) malloc(
+		vap->iv_aid_bitmap = (uint32_t *) IEEE80211_MALLOC(
 			howmany(vap->iv_max_aid, 32) * sizeof(uint32_t),
-			M_80211_NODE, M_NOWAIT | M_ZERO);
+			M_80211_NODE,
+			IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (vap->iv_aid_bitmap == NULL) {
 			/* XXX no way to recover */
 			printf("%s: no memory for AID bitmap, max aid %d!\n",
@@ -197,7 +200,7 @@ ieee80211_node_vdetach(struct ieee80211vap *vap)
 		vap->iv_bss = NULL;
 	}
 	if (vap->iv_aid_bitmap != NULL) {
-		free(vap->iv_aid_bitmap, M_80211_NODE);
+		IEEE80211_FREE(vap->iv_aid_bitmap, M_80211_NODE);
 		vap->iv_aid_bitmap = NULL;
 	}
 }
@@ -719,9 +722,15 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 		IEEE80211_ADDR_EQ(obss->ni_macaddr, selbs->ni_macaddr));
 	vap->iv_bss = selbs;		/* NB: caller assumed to bump refcnt */
 	if (obss != NULL) {
+		struct ieee80211_node_table *nt = obss->ni_table;
+
 		copy_bss(selbs, obss);
 		ieee80211_node_decref(obss);	/* iv_bss reference */
-		ieee80211_free_node(obss);	/* station table reference */
+
+		IEEE80211_NODE_LOCK(nt);
+		node_reclaim(nt, obss);		/* station table reference */
+		IEEE80211_NODE_UNLOCK(nt);
+
 		obss = NULL;		/* NB: guard against later use */
 	}
 
@@ -871,7 +880,7 @@ ieee80211_sta_leave(struct ieee80211_node *ni)
 void
 ieee80211_node_deauth(struct ieee80211_node *ni, int reason)
 {
-	/* NB: bump the refcnt to be sure temporay nodes are not reclaimed */
+	/* NB: bump the refcnt to be sure temporary nodes are not reclaimed */
 	ieee80211_ref_node(ni);
 	if (ni->ni_associd != 0)
 		IEEE80211_SEND_MGMT(ni, IEEE80211_FC0_SUBTYPE_DEAUTH, reason);
@@ -884,8 +893,8 @@ node_alloc(struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211_node *ni;
 
-	ni = (struct ieee80211_node *) malloc(sizeof(struct ieee80211_node),
-		M_80211_NODE, M_NOWAIT | M_ZERO);
+	ni = (struct ieee80211_node *) IEEE80211_MALLOC(sizeof(struct ieee80211_node),
+		M_80211_NODE, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	return ni;
 }
 
@@ -902,11 +911,12 @@ ieee80211_ies_init(struct ieee80211_ies *ies, const uint8_t *data, int len)
 	memset(ies, 0, offsetof(struct ieee80211_ies, data));
 	if (ies->data != NULL && ies->len != len) {
 		/* data size changed */
-		free(ies->data, M_80211_NODE_IE);
+		IEEE80211_FREE(ies->data, M_80211_NODE_IE);
 		ies->data = NULL;
 	}
 	if (ies->data == NULL) {
-		ies->data = (uint8_t *) malloc(len, M_80211_NODE_IE, M_NOWAIT);
+		ies->data = (uint8_t *) IEEE80211_MALLOC(len, M_80211_NODE_IE,
+		    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (ies->data == NULL) {
 			ies->len = 0;
 			/* NB: pointers have already been zero'd above */
@@ -925,7 +935,7 @@ void
 ieee80211_ies_cleanup(struct ieee80211_ies *ies)
 {
 	if (ies->data != NULL)
-		free(ies->data, M_80211_NODE_IE);
+		IEEE80211_FREE(ies->data, M_80211_NODE_IE);
 }
 
 /*
@@ -1037,7 +1047,7 @@ node_cleanup(struct ieee80211_node *ni)
 
 	ni->ni_associd = 0;
 	if (ni->ni_challenge != NULL) {
-		free(ni->ni_challenge, M_80211_NODE);
+		IEEE80211_FREE(ni->ni_challenge, M_80211_NODE);
 		ni->ni_challenge = NULL;
 	}
 	/*
@@ -1072,7 +1082,7 @@ node_free(struct ieee80211_node *ni)
 	ic->ic_node_cleanup(ni);
 	ieee80211_ies_cleanup(&ni->ni_ies);
 	ieee80211_psq_cleanup(&ni->ni_psq);
-	free(ni, M_80211_NODE);
+	IEEE80211_FREE(ni, M_80211_NODE);
 }
 
 static void
@@ -1749,6 +1759,28 @@ _ieee80211_free_node(struct ieee80211_node *ni)
 	ni->ni_ic->ic_node_free(ni);
 }
 
+/*
+ * Clear any entry in the unicast key mapping table.
+ */
+static int
+node_clear_keyixmap(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
+{
+	ieee80211_keyix keyix;
+
+	keyix = ni->ni_ucastkey.wk_rxkeyix;
+	if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax &&
+	    nt->nt_keyixmap[keyix] == ni) {
+		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
+			"%s: %p<%s> clear key map entry %u\n",
+			__func__, ni, ether_sprintf(ni->ni_macaddr), keyix);
+		nt->nt_keyixmap[keyix] = NULL;
+		ieee80211_node_decref(ni);
+		return 1;
+	}
+
+	return 0;
+}
+
 void
 #ifdef IEEE80211_DEBUG_REFCNT
 ieee80211_free_node_debug(struct ieee80211_node *ni, const char *func, int line)
@@ -1770,24 +1802,9 @@ ieee80211_free_node(struct ieee80211_node *ni)
 			 * Last reference, reclaim state.
 			 */
 			_ieee80211_free_node(ni);
-		} else if (ieee80211_node_refcnt(ni) == 1 &&
-		    nt->nt_keyixmap != NULL) {
-			ieee80211_keyix keyix;
-			/*
-			 * Check for a last reference in the key mapping table.
-			 */
-			keyix = ni->ni_ucastkey.wk_rxkeyix;
-			if (keyix < nt->nt_keyixmax &&
-			    nt->nt_keyixmap[keyix] == ni) {
-				IEEE80211_DPRINTF(ni->ni_vap,
-				    IEEE80211_MSG_NODE,
-				    "%s: %p<%s> clear key map entry", __func__,
-				    ni, ether_sprintf(ni->ni_macaddr));
-				nt->nt_keyixmap[keyix] = NULL;
-				ieee80211_node_decref(ni); /* XXX needed? */
+		} else if (ieee80211_node_refcnt(ni) == 1)
+			if (node_clear_keyixmap(nt, ni))
 				_ieee80211_free_node(ni);
-			}
-		}
 		IEEE80211_NODE_UNLOCK(nt);
 	} else {
 		if (ieee80211_node_dectestref(ni))
@@ -1855,7 +1872,6 @@ ieee80211_node_delucastkey(struct ieee80211_node *ni)
 static void
 node_reclaim(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 {
-	ieee80211_keyix keyix;
 
 	IEEE80211_NODE_LOCK_ASSERT(nt);
 
@@ -1870,15 +1886,7 @@ node_reclaim(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 	 * table.  We cannot depend on the mapping table entry
 	 * being cleared because the node may not be free'd.
 	 */
-	keyix = ni->ni_ucastkey.wk_rxkeyix;
-	if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax &&
-	    nt->nt_keyixmap[keyix] == ni) {
-		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_NODE,
-			"%s: %p<%s> clear key map entry %u\n",
-			__func__, ni, ether_sprintf(ni->ni_macaddr), keyix);
-		nt->nt_keyixmap[keyix] = NULL;
-		ieee80211_node_decref(ni);	/* NB: don't need free */
-	}
+	(void)node_clear_keyixmap(nt, ni);
 	if (!ieee80211_node_dectestref(ni)) {
 		/*
 		 * Other references are present, just remove the
@@ -1902,22 +1910,22 @@ ieee80211_node_table_init(struct ieee80211com *ic,
 	struct ieee80211_node_table *nt,
 	const char *name, int inact, int keyixmax)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 
 	nt->nt_ic = ic;
-	IEEE80211_NODE_LOCK_INIT(nt, ifp->if_xname);
-	IEEE80211_NODE_ITERATE_LOCK_INIT(nt, ifp->if_xname);
+	IEEE80211_NODE_LOCK_INIT(nt, ic->ic_name);
+	IEEE80211_NODE_ITERATE_LOCK_INIT(nt, ic->ic_name);
 	TAILQ_INIT(&nt->nt_node);
 	nt->nt_name = name;
 	nt->nt_scangen = 1;
 	nt->nt_inact_init = inact;
 	nt->nt_keyixmax = keyixmax;
 	if (nt->nt_keyixmax > 0) {
-		nt->nt_keyixmap = (struct ieee80211_node **) malloc(
+		nt->nt_keyixmap = (struct ieee80211_node **) IEEE80211_MALLOC(
 			keyixmax * sizeof(struct ieee80211_node *),
-			M_80211_NODE, M_NOWAIT | M_ZERO);
+			M_80211_NODE,
+			IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (nt->nt_keyixmap == NULL)
-			if_printf(ic->ic_ifp,
+			ic_printf(ic,
 			    "Cannot allocate key index map with %u entries\n",
 			    keyixmax);
 	} else
@@ -1974,7 +1982,7 @@ ieee80211_node_table_cleanup(struct ieee80211_node_table *nt)
 				printf("%s: %s[%u] still active\n", __func__,
 					nt->nt_name, i);
 #endif
-		free(nt->nt_keyixmap, M_80211_NODE);
+		IEEE80211_FREE(nt->nt_keyixmap, M_80211_NODE);
 		nt->nt_keyixmap = NULL;
 	}
 	IEEE80211_NODE_ITERATE_LOCK_DESTROY(nt);
@@ -2250,8 +2258,8 @@ ieee80211_iterate_nt(struct ieee80211_node_table *nt,
 	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 		if (i >= max_aid) {
 			ret = E2BIG;
-			if_printf(nt->nt_ic->ic_ifp,
-			    "Node array overflow: max=%u", max_aid);
+			ic_printf(nt->nt_ic, "Node array overflow: max=%u",
+			    max_aid);
 			break;
 		}
 		ni_arr[i] = ieee80211_ref_node(ni);
@@ -2313,8 +2321,8 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 		max_aid = vap->iv_max_aid;
 
 	size = max_aid * sizeof(struct ieee80211_node *);
-	ni_arr = (struct ieee80211_node **) malloc(size, M_80211_NODE,
-	    M_NOWAIT | M_ZERO);
+	ni_arr = (struct ieee80211_node **) IEEE80211_MALLOC(size, M_80211_NODE,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ni_arr == NULL)
 		return;
 
@@ -2337,7 +2345,7 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 	}
 
 done:
-	free(ni_arr, M_80211_NODE);
+	IEEE80211_FREE(ni_arr, M_80211_NODE);
 }
 
 void

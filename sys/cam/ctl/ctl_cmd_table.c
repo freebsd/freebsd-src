@@ -52,7 +52,6 @@
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
 #include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_ha.h>
 #include <cam/ctl/ctl_private.h>
@@ -70,8 +69,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5e[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_IN |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -82,8 +80,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5e[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_IN |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -94,8 +91,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5e[32] =
 					    CTL_CMD_FLAG_OK_ON_BOTH |
 					    CTL_CMD_FLAG_OK_ON_STOPPED |
 					    CTL_CMD_FLAG_OK_ON_INOPERABLE |
-					    CTL_CMD_FLAG_OK_ON_OFFLINE |
-					    CTL_CMD_FLAG_OK_ON_SECONDARY |
+					    CTL_CMD_FLAG_OK_ON_STANDBY |
 					    CTL_FLAG_DATA_IN |
 					    CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -106,8 +102,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5e[32] =
 					    CTL_CMD_FLAG_OK_ON_BOTH |
 					    CTL_CMD_FLAG_OK_ON_STOPPED |
 					    CTL_CMD_FLAG_OK_ON_INOPERABLE |
-					    CTL_CMD_FLAG_OK_ON_OFFLINE |
-					    CTL_CMD_FLAG_OK_ON_SECONDARY |
+					    CTL_CMD_FLAG_OK_ON_STANDBY |
 					    CTL_FLAG_DATA_IN |
 					    CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -124,8 +119,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -136,8 +130,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -148,8 +141,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -160,8 +152,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -172,8 +163,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -184,8 +174,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -196,8 +185,7 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
 						CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
 						CTL_FLAG_DATA_OUT |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -340,7 +328,7 @@ const struct ctl_cmd_entry ctl_cmd_table_84[32] =
  CTL_CMD_FLAG_OK_ON_BOTH |
  CTL_CMD_FLAG_OK_ON_STOPPED |
  CTL_CMD_FLAG_OK_ON_INOPERABLE |
- CTL_CMD_FLAG_OK_ON_SECONDARY |
+ CTL_CMD_FLAG_OK_ON_STANDBY |
  CTL_FLAG_DATA_IN |
  CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -437,7 +425,6 @@ const struct ctl_cmd_entry ctl_cmd_table_9e[32] =
 {ctl_read_capacity_16, CTL_SERIDX_RD_CAP, CTL_CMD_FLAG_OK_ON_SLUN |
 					  CTL_CMD_FLAG_OK_ON_STOPPED |
 					  CTL_CMD_FLAG_OK_ON_INOPERABLE |
-					  CTL_CMD_FLAG_OK_ON_SECONDARY |
 					  CTL_FLAG_DATA_IN |
 					  CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_READCAP,
@@ -494,8 +481,8 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 {ctl_report_tagret_port_groups, CTL_SERIDX_INQ, CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
+						CTL_CMD_FLAG_OK_ON_UNAVAIL |
 						CTL_FLAG_DATA_IN |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -508,8 +495,8 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 {ctl_report_supported_opcodes, CTL_SERIDX_INQ, CTL_CMD_FLAG_OK_ON_BOTH |
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
-						CTL_CMD_FLAG_OK_ON_OFFLINE |
-						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_CMD_FLAG_OK_ON_STANDBY |
+						CTL_CMD_FLAG_OK_ON_UNAVAIL |
 						CTL_FLAG_DATA_IN |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -519,8 +506,8 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 {ctl_report_supported_tmf, CTL_SERIDX_INQ, CTL_CMD_FLAG_OK_ON_BOTH |
 					   CTL_CMD_FLAG_OK_ON_STOPPED |
 					   CTL_CMD_FLAG_OK_ON_INOPERABLE |
-					   CTL_CMD_FLAG_OK_ON_OFFLINE |
-					   CTL_CMD_FLAG_OK_ON_SECONDARY |
+					   CTL_CMD_FLAG_OK_ON_STANDBY |
+					   CTL_CMD_FLAG_OK_ON_UNAVAIL |
 					   CTL_FLAG_DATA_IN |
 					   CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -533,8 +520,8 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 {ctl_report_timestamp, CTL_SERIDX_INQ, CTL_CMD_FLAG_OK_ON_BOTH |
 					CTL_CMD_FLAG_OK_ON_STOPPED |
 					CTL_CMD_FLAG_OK_ON_INOPERABLE |
-					CTL_CMD_FLAG_OK_ON_OFFLINE |
-					CTL_CMD_FLAG_OK_ON_SECONDARY |
+					CTL_CMD_FLAG_OK_ON_STANDBY |
+					CTL_CMD_FLAG_OK_ON_UNAVAIL |
 					CTL_FLAG_DATA_IN |
 					CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -564,8 +551,8 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				       CTL_CMD_FLAG_NO_SENSE |
 				       CTL_CMD_FLAG_OK_ON_STOPPED |
 				       CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				       CTL_CMD_FLAG_OK_ON_OFFLINE |
-				       CTL_CMD_FLAG_OK_ON_SECONDARY |
+				       CTL_CMD_FLAG_OK_ON_STANDBY |
+				       CTL_CMD_FLAG_OK_ON_UNAVAIL |
 				       CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE, 6, {0x01, 0, 0, 0xff, 0x07}},
 
@@ -625,8 +612,8 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 			      CTL_CMD_FLAG_NO_SENSE |
 			      CTL_CMD_FLAG_OK_ON_STOPPED |
 			      CTL_CMD_FLAG_OK_ON_INOPERABLE |
-			      CTL_CMD_FLAG_OK_ON_OFFLINE |
-			      CTL_CMD_FLAG_OK_ON_SECONDARY |
+			      CTL_CMD_FLAG_OK_ON_STANDBY |
+			      CTL_CMD_FLAG_OK_ON_UNAVAIL |
 			      CTL_FLAG_DATA_IN |
 			      CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE, 6, {0xe1, 0xff, 0xff, 0xff, 0x07}},
@@ -641,8 +628,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_mode_select, CTL_SERIDX_MD_SEL, CTL_CMD_FLAG_OK_ON_BOTH |
 				     CTL_CMD_FLAG_OK_ON_STOPPED |
 				     CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				     CTL_CMD_FLAG_OK_ON_OFFLINE |
-				     CTL_CMD_FLAG_OK_ON_SECONDARY |
+				     CTL_CMD_FLAG_OK_ON_STANDBY |
 				     CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_NONE, 6, {0x11, 0, 0, 0xff, 0x07}},
 
@@ -651,8 +637,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				    CTL_CMD_FLAG_OK_ON_BOTH |
 				    CTL_CMD_FLAG_OK_ON_STOPPED |
 				    CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				    CTL_CMD_FLAG_OK_ON_OFFLINE |
-				    CTL_CMD_FLAG_OK_ON_SECONDARY |
+				    CTL_CMD_FLAG_OK_ON_STANDBY |
 				    CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_NONE, 6, {0, 0, 0, 0, 0x07}},
 
@@ -661,8 +646,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				   CTL_CMD_FLAG_OK_ON_BOTH |
 				   CTL_CMD_FLAG_OK_ON_STOPPED |
 				   CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				   CTL_CMD_FLAG_OK_ON_OFFLINE |
-				   CTL_CMD_FLAG_OK_ON_SECONDARY |
+				   CTL_CMD_FLAG_OK_ON_STANDBY |
 				   CTL_FLAG_DATA_NONE,
  CTL_LUN_PAT_NONE, 6, {0, 0, 0, 0, 0x07}},
 
@@ -676,8 +660,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_mode_sense, CTL_SERIDX_MD_SNS, CTL_CMD_FLAG_OK_ON_BOTH |
 				    CTL_CMD_FLAG_OK_ON_STOPPED |
 				    CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				    CTL_CMD_FLAG_OK_ON_OFFLINE |
-				    CTL_CMD_FLAG_OK_ON_SECONDARY |
+				    CTL_CMD_FLAG_OK_ON_STANDBY |
 				    CTL_FLAG_DATA_IN |
 				    CTL_CMD_FLAG_ALLOW_ON_PR_WRESV,
  CTL_LUN_PAT_NONE, 6, {0x08, 0xff, 0xff, 0xff, 0x07}},
@@ -686,7 +669,6 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_start_stop, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_SLUN |
 				   CTL_CMD_FLAG_OK_ON_STOPPED |
 				   CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				   CTL_CMD_FLAG_OK_ON_OFFLINE |
 				   CTL_FLAG_DATA_NONE |
 				   CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE, 6, {0x01, 0, 0, 0x03, 0x07}},
@@ -722,7 +704,6 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_read_capacity, CTL_SERIDX_RD_CAP, CTL_CMD_FLAG_OK_ON_SLUN|
 				       CTL_CMD_FLAG_OK_ON_STOPPED |
 				       CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				       CTL_CMD_FLAG_OK_ON_SECONDARY |
 				       CTL_FLAG_DATA_IN |
 				       CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_READCAP, 10, {0, 0, 0, 0, 0, 0, 0, 0, 0x07}},
@@ -785,10 +766,10 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 35 SYNCHRONIZE CACHE(10) */
-{ctl_sync_cache, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_SLUN |
-				   CTL_FLAG_DATA_NONE,
+{ctl_sync_cache, CTL_SERIDX_SYNC, CTL_CMD_FLAG_OK_ON_SLUN |
+				  CTL_FLAG_DATA_NONE,
  CTL_LUN_PAT_NONE,
- 10, {0, 0xff, 0xff, 0xff, 0xff, 0, 0xff, 0xff, 0x07}},
+ 10, {0x02, 0xff, 0xff, 0xff, 0xff, 0, 0xff, 0xff, 0x07}},
 
 /* 36 LOCK UNLOCK CACHE(10) */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
@@ -813,7 +794,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_write_buffer, CTL_SERIDX_MD_SEL, CTL_CMD_FLAG_OK_ON_BOTH |
 				      CTL_CMD_FLAG_OK_ON_STOPPED |
 				      CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				      CTL_CMD_FLAG_OK_ON_OFFLINE |
+				      CTL_CMD_FLAG_OK_ON_STANDBY |
 				      CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_NONE,
  10, {0x1f, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x07}},
@@ -822,7 +803,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_read_buffer, CTL_SERIDX_MD_SNS, CTL_CMD_FLAG_OK_ON_BOTH |
 				     CTL_CMD_FLAG_OK_ON_STOPPED |
 				     CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				     CTL_CMD_FLAG_OK_ON_OFFLINE |
+				     CTL_CMD_FLAG_OK_ON_STANDBY |
 				     CTL_FLAG_DATA_IN |
 				     CTL_CMD_FLAG_ALLOW_ON_PR_WRESV,
  CTL_LUN_PAT_NONE,
@@ -912,8 +893,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_mode_select, CTL_SERIDX_MD_SEL, CTL_CMD_FLAG_OK_ON_BOTH |
 				     CTL_CMD_FLAG_OK_ON_STOPPED |
 				     CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				     CTL_CMD_FLAG_OK_ON_OFFLINE |
-				     CTL_CMD_FLAG_OK_ON_SECONDARY |
+				     CTL_CMD_FLAG_OK_ON_STANDBY |
 				     CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_NONE, 10, {0x11, 0, 0, 0, 0, 0, 0xff, 0xff, 0x07} },
 
@@ -922,8 +902,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				    CTL_CMD_FLAG_OK_ON_BOTH |
 				    CTL_CMD_FLAG_OK_ON_STOPPED |
 				    CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				    CTL_CMD_FLAG_OK_ON_OFFLINE |
-				    CTL_CMD_FLAG_OK_ON_SECONDARY |
+				    CTL_CMD_FLAG_OK_ON_STANDBY |
 				    CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_NONE, 10, {0x02, 0, 0xff, 0, 0, 0, 0xff, 0xff, 0x07} },
 
@@ -932,8 +911,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				   CTL_CMD_FLAG_OK_ON_BOTH |
 				   CTL_CMD_FLAG_OK_ON_STOPPED |
 				   CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				   CTL_CMD_FLAG_OK_ON_OFFLINE |
-				   CTL_CMD_FLAG_OK_ON_SECONDARY |
+				   CTL_CMD_FLAG_OK_ON_STANDBY |
 				   CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_NONE, 10, {0x02, 0, 0xff, 0, 0, 0, 0xff, 0xff, 0x07} },
 
@@ -947,8 +925,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_mode_sense, CTL_SERIDX_MD_SNS, CTL_CMD_FLAG_OK_ON_BOTH |
 				    CTL_CMD_FLAG_OK_ON_STOPPED |
 				    CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				    CTL_CMD_FLAG_OK_ON_OFFLINE |
-				    CTL_CMD_FLAG_OK_ON_SECONDARY |
+				    CTL_CMD_FLAG_OK_ON_STANDBY |
 				    CTL_FLAG_DATA_IN |
 				    CTL_CMD_FLAG_ALLOW_ON_PR_WRESV,
  CTL_LUN_PAT_NONE, 10, {0x18, 0xff, 0xff, 0, 0, 0, 0xff, 0xff, 0x07} },
@@ -1138,10 +1115,10 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 91 SYNCHRONIZE CACHE(16) */
-{ctl_sync_cache, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_SLUN |
-				   CTL_FLAG_DATA_NONE,
+{ctl_sync_cache, CTL_SERIDX_SYNC, CTL_CMD_FLAG_OK_ON_SLUN |
+				  CTL_FLAG_DATA_NONE,
  CTL_LUN_PAT_NONE,
- 16, {0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+ 16, {0x02, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 92 LOCK UNLOCK CACHE(16) */
@@ -1200,8 +1177,8 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				  CTL_CMD_FLAG_NO_SENSE |
 				  CTL_CMD_FLAG_OK_ON_STOPPED |
 				  CTL_CMD_FLAG_OK_ON_INOPERABLE |
-				  CTL_CMD_FLAG_OK_ON_OFFLINE |
-				  CTL_CMD_FLAG_OK_ON_SECONDARY |
+				  CTL_CMD_FLAG_OK_ON_STANDBY |
+				  CTL_CMD_FLAG_OK_ON_UNAVAIL |
 				  CTL_FLAG_DATA_IN |
 				  CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
@@ -1316,33 +1293,17 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 /* BF VOLUME SET OUT */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* C0 - ISC_SEND_MSG_SHORT */
-//{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE},
-{ctl_isc, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_PROC | CTL_FLAG_DATA_NONE,
- CTL_LUN_PAT_NONE,
- 16, {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+/* C0 */
+{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* C1 - ISC_SEND_MSG */
-//{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE},
-{ctl_isc, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_PROC | CTL_FLAG_DATA_OUT,
- CTL_LUN_PAT_NONE,
- 16, {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+/* C1 */
+{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* C2 - ISC_WRITE */
-//{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE},
-{ctl_isc, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_PROC | CTL_FLAG_DATA_OUT,
- CTL_LUN_PAT_NONE,
- 16, {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+/* C2 */
+{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* C3 - ISC_READ */
-//{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE},
-{ctl_isc, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_PROC | CTL_FLAG_DATA_IN,
- CTL_LUN_PAT_NONE,
- 16, {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+/* C3 */
+{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* C4 */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},

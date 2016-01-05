@@ -36,7 +36,7 @@
  * API version for out-of-tree consumers like grub-bhyve for making compile
  * time decisions.
  */
-#define	VMMAPI_VERSION	0101	/* 2 digit major followed by 2 digit minor */
+#define	VMMAPI_VERSION	0102	/* 2 digit major followed by 2 digit minor */
 
 struct iovec;
 struct vmctx;
@@ -52,22 +52,68 @@ enum vm_mmap_style {
 	VM_MMAP_SPARSE,		/* mappings created on-demand */
 };
 
+/*
+ * 'flags' value passed to 'vm_set_memflags()'.
+ */
 #define	VM_MEM_F_INCORE	0x01	/* include guest memory in core file */
+#define	VM_MEM_F_WIRED	0x02	/* guest memory is wired */
+
+/*
+ * Identifiers for memory segments:
+ * - vm_setup_memory() uses VM_SYSMEM for the system memory segment.
+ * - the remaining identifiers can be used to create devmem segments.
+ */
+enum {
+	VM_SYSMEM,
+	VM_BOOTROM,
+	VM_FRAMEBUFFER,
+};
+
+/*
+ * Get the length and name of the memory segment identified by 'segid'.
+ * Note that system memory segments are identified with a nul name.
+ *
+ * Returns 0 on success and non-zero otherwise.
+ */
+int	vm_get_memseg(struct vmctx *ctx, int ident, size_t *lenp, char *name,
+	    size_t namesiz);
+
+/*
+ * Iterate over the guest address space. This function finds an address range
+ * that starts at an address >= *gpa.
+ *
+ * Returns 0 if the next address range was found and non-zero otherwise.
+ */
+int	vm_mmap_getnext(struct vmctx *ctx, vm_paddr_t *gpa, int *segid,
+	    vm_ooffset_t *segoff, size_t *len, int *prot, int *flags);
+/*
+ * Create a device memory segment identified by 'segid'.
+ *
+ * Returns a pointer to the memory segment on success and MAP_FAILED otherwise.
+ */
+void	*vm_create_devmem(struct vmctx *ctx, int segid, const char *name,
+	    size_t len);
+
+/*
+ * Map the memory segment identified by 'segid' into the guest address space
+ * at [gpa,gpa+len) with protection 'prot'.
+ */
+int	vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid,
+	    vm_ooffset_t segoff, size_t len, int prot);
 
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
 void	vm_destroy(struct vmctx *ctx);
 int	vm_parse_memsize(const char *optarg, size_t *memsize);
-int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len,
-			  int *wired);
 int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 int	vm_gla2gpa(struct vmctx *, int vcpuid, struct vm_guest_paging *paging,
-		   uint64_t gla, int prot, uint64_t *gpa);
+		   uint64_t gla, int prot, uint64_t *gpa, int *fault);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
+int	vm_get_memflags(struct vmctx *ctx);
 size_t	vm_get_lowmem_size(struct vmctx *ctx);
 size_t	vm_get_highmem_size(struct vmctx *ctx);
 int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
@@ -131,10 +177,15 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 /*
  * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
  * The 'iovcnt' should be big enough to accomodate all GPA segments.
- * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
+ *
+ * retval	fault		Interpretation
+ *   0		  0		Success
+ *   0		  1		An exception was injected into the guest
+ * EFAULT	 N/A		Error
  */
 int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
-	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
+	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
+	    int *fault);
 void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 	    void *host_dst, size_t len);
 void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,

@@ -51,6 +51,7 @@ extern struct hnamemem *newhnamemem(void);
 #ifdef INET6
 extern struct h6namemem *newh6namemem(void);
 #endif
+extern const char * ieee8021q_tci_string(const uint16_t);
 
 #define ipaddr_string(ndo, p) getname(ndo, (const u_char *)(p))
 #ifdef INET6

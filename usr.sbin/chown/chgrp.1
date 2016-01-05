@@ -31,7 +31,7 @@
 .\"     @(#)chgrp.1	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2010
+.Dd April 20, 2015
 .Dt CHGRP 1
 .Os
 .Sh NAME
@@ -60,8 +60,9 @@ The following options are available:
 .It Fl H
 If the
 .Fl R
-option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during traversal are not followed.)
 .It Fl L
 If the
 .Fl R
@@ -72,8 +73,12 @@ If the
 option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
-Change the group ID for the file hierarchies rooted
-in the files instead of just the files themselves.
+Change the group ID of the file hierarchies rooted in the files,
+instead of just the files themselves.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
 .It Fl f
 The force option ignores errors, except for usage errors and does not
 query about strange modes (unless the user does not have proper permissions).

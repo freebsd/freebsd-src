@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/nv.h>
 
 #include <errno.h>
 #include <stdlib.h>
@@ -40,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <libcapsicum.h>
 #include <libcapsicum_sysctl.h>
 #include <libcasper.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 static int

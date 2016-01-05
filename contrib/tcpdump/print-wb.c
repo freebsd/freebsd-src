@@ -186,7 +186,7 @@ wb_id(netdissect_options *ndo,
 	int nid;
 
 	ND_PRINT((ndo, " wb-id:"));
-	if (len < sizeof(*id) || (u_char *)(id + 1) > ndo->ndo_snapend)
+	if (len < sizeof(*id) || !ND_TTEST(*id))
 		return (-1);
 	len -= sizeof(*id);
 
@@ -202,14 +202,14 @@ wb_id(netdissect_options *ndo,
 	len -= sizeof(*io) * nid;
 	io = (struct id_off *)(id + 1);
 	cp = (char *)(io + nid);
-	if ((u_char *)cp + len <= ndo->ndo_snapend) {
+	if (ND_TTEST2(cp, len)) {
 		ND_PRINT((ndo, "\""));
 		fn_print(ndo, (u_char *)cp, (u_char *)cp + len);
 		ND_PRINT((ndo, "\""));
 	}
 
 	c = '<';
-	for (i = 0; i < nid && (u_char *)(io + 1) <= ndo->ndo_snapend; ++io, ++i) {
+	for (i = 0; i < nid && ND_TTEST(*io); ++io, ++i) {
 		ND_PRINT((ndo, "%c%s:%u",
 		    c, ipaddr_string(ndo, &io->id), EXTRACT_32BITS(&io->off)));
 		c = ',';
@@ -226,7 +226,7 @@ wb_rreq(netdissect_options *ndo,
         const struct pkt_rreq *rreq, u_int len)
 {
 	ND_PRINT((ndo, " wb-rreq:"));
-	if (len < sizeof(*rreq) || (u_char *)(rreq + 1) > ndo->ndo_snapend)
+	if (len < sizeof(*rreq) || !ND_TTEST(*rreq))
 		return (-1);
 
 	ND_PRINT((ndo, " please repair %s %s:%u<%u:%u>",
@@ -243,7 +243,7 @@ wb_preq(netdissect_options *ndo,
         const struct pkt_preq *preq, u_int len)
 {
 	ND_PRINT((ndo, " wb-preq:"));
-	if (len < sizeof(*preq) || (u_char *)(preq + 1) > ndo->ndo_snapend)
+	if (len < sizeof(*preq) || !ND_TTEST(*preq))
 		return (-1);
 
 	ND_PRINT((ndo, " need %u/%s:%u",
@@ -267,7 +267,7 @@ wb_prep(netdissect_options *ndo,
 	}
 	n = EXTRACT_32BITS(&prep->pp_n);
 	ps = (const struct pgstate *)(prep + 1);
-	while (--n >= 0 && (u_char *)(ps + 1) <= ep) {
+	while (--n >= 0 && ND_TTEST(*ps)) {
 		const struct id_off *io, *ie;
 		char c = '<';
 
@@ -276,7 +276,7 @@ wb_prep(netdissect_options *ndo,
 		    ipaddr_string(ndo, &ps->page.p_sid),
 		    EXTRACT_32BITS(&ps->page.p_uid)));
 		io = (struct id_off *)(ps + 1);
-		for (ie = io + ps->nid; io < ie && (u_char *)(io + 1) <= ep; ++io) {
+		for (ie = io + ps->nid; io < ie && ND_TTEST(*io); ++io) {
 			ND_PRINT((ndo, "%c%s:%u", c, ipaddr_string(ndo, &io->id),
 			    EXTRACT_32BITS(&io->off)));
 			c = ',';
@@ -308,12 +308,20 @@ static const char *dopstr[] = {
 };
 
 static int
-wb_dops(netdissect_options *ndo,
-        const struct dophdr *dh, uint32_t ss, uint32_t es)
+wb_dops(netdissect_options *ndo, const struct pkt_dop *dop,
+        uint32_t ss, uint32_t es)
 {
+	const struct dophdr *dh = (const struct dophdr *)((const u_char *)dop + sizeof(*dop));
+
 	ND_PRINT((ndo, " <"));
 	for ( ; ss <= es; ++ss) {
-		register int t = dh->dh_type;
+		int t;
+
+		if (!ND_TTEST(*dh)) {
+			ND_PRINT((ndo, "%s", tstr));
+			break;
+		}
+		t = dh->dh_type;
 
 		if (t > DT_MAXTYPE)
 			ND_PRINT((ndo, " dop-%d!", t));
@@ -331,10 +339,6 @@ wb_dops(netdissect_options *ndo,
 			}
 		}
 		dh = DOP_NEXT(dh);
-		if ((u_char *)dh > ndo->ndo_snapend) {
-			ND_PRINT((ndo, "%s", tstr));
-			break;
-		}
 	}
 	ND_PRINT((ndo, " >"));
 	return (0);
@@ -347,7 +351,7 @@ wb_rrep(netdissect_options *ndo,
 	const struct pkt_dop *dop = &rrep->pr_dop;
 
 	ND_PRINT((ndo, " wb-rrep:"));
-	if (len < sizeof(*rrep) || (u_char *)(rrep + 1) > ndo->ndo_snapend)
+	if (len < sizeof(*rrep) || !ND_TTEST(*rrep))
 		return (-1);
 	len -= sizeof(*rrep);
 
@@ -359,7 +363,7 @@ wb_rrep(netdissect_options *ndo,
 	    EXTRACT_32BITS(&dop->pd_eseq)));
 
 	if (ndo->ndo_vflag)
-		return (wb_dops(ndo, (const struct dophdr *)(dop + 1),
+		return (wb_dops(ndo, dop,
 		    EXTRACT_32BITS(&dop->pd_sseq),
 		    EXTRACT_32BITS(&dop->pd_eseq)));
 	return (0);
@@ -370,7 +374,7 @@ wb_drawop(netdissect_options *ndo,
           const struct pkt_dop *dop, u_int len)
 {
 	ND_PRINT((ndo, " wb-dop:"));
-	if (len < sizeof(*dop) || (u_char *)(dop + 1) > ndo->ndo_snapend)
+	if (len < sizeof(*dop) || !ND_TTEST(*dop))
 		return (-1);
 	len -= sizeof(*dop);
 
@@ -381,7 +385,7 @@ wb_drawop(netdissect_options *ndo,
 	    EXTRACT_32BITS(&dop->pd_eseq)));
 
 	if (ndo->ndo_vflag)
-		return (wb_dops(ndo, (const struct dophdr *)(dop + 1),
+		return (wb_dops(ndo, dop,
 				EXTRACT_32BITS(&dop->pd_sseq),
 				EXTRACT_32BITS(&dop->pd_eseq)));
 	return (0);
@@ -397,7 +401,7 @@ wb_print(netdissect_options *ndo,
 	register const struct pkt_hdr *ph;
 
 	ph = (const struct pkt_hdr *)hdr;
-	if (len < sizeof(*ph) || (u_char *)(ph + 1) > ndo->ndo_snapend) {
+	if (len < sizeof(*ph) || !ND_TTEST(*ph)) {
 		ND_PRINT((ndo, "%s", tstr));
 		return;
 	}

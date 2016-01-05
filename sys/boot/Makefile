@@ -8,6 +8,8 @@ SUBDIR+=		ficl
 SUBDIR+=		forth
 .endif
 
+SUBDIR+=		common
+
 .include <bsd.arch.inc.mk>
 
 # Pick the machine-dependent subdir based on the target architecture.

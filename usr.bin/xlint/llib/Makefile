@@ -15,3 +15,7 @@ llib-lstdc.ln: llib-lstdc
 	${LINT} ${LINTFLAGS} -Cstdc ${.ALLSRC}
 
 .include <bsd.prog.mk>
+
+.if ${MK_META_MODE} == "yes"
+LINTFLAGS+= -I${STAGE_INCLUDEDIR}
+.endif

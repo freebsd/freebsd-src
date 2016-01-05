@@ -28,15 +28,13 @@
 #define SVN_VERSION_H
 
 /* Hack to prevent the resource compiler from including
-   apr_general.h.  It doesn't resolve the include paths
-   correctly and blows up without this.
- */
-#ifndef APR_STRINGIFY
+   apr and other headers. */
+#ifndef SVN_WIN32_RESOURCE_COMPILATION
 #include <apr_general.h>
-#endif
 #include <apr_tables.h>
 
 #include "svn_types.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,7 +70,7 @@ extern "C" {
  *
  * @since New in 1.1.
  */
-#define SVN_VER_PATCH      10
+#define SVN_VER_PATCH      14
 
 
 /** @deprecated Provided for backward compatibility with the 1.0 API. */
@@ -95,7 +93,7 @@ extern "C" {
  *
  * Always change this at the same time as SVN_VER_NUMTAG.
  */
-#define SVN_VER_TAG        " (r1615264)"
+#define SVN_VER_TAG        " (r1692801)"
 
 
 /** Number tag: a string describing the version.
@@ -121,7 +119,7 @@ extern "C" {
  * When rolling a tarball, we automatically replace it with what we
  * guess to be the correct revision number.
  */
-#define SVN_VER_REVISION   1615264
+#define SVN_VER_REVISION   1692801
 
 
 /* Version strings composed from the above definitions. */

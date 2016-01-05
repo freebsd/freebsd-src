@@ -36,7 +36,6 @@ SRCS+=	rpcsec_gss.c \
 	svc_rpcsec_gss.c
 
 SRCS+=		kgss_if.h kgss_if.c
-MFILES=		kgssapi/kgss_if.m
 
 SRCS+=		gssd.h gssd_xdr.c gssd_clnt.c
 CLEANFILES=	gssd.h gssd_xdr.c gssd_clnt.c

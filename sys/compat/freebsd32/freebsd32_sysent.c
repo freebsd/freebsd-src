@@ -618,4 +618,6 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(freebsd32_ppoll_args), (sy_call_t *)freebsd32_ppoll, AUE_POLL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 545 = freebsd32_ppoll */
 	{ AS(freebsd32_futimens_args), (sy_call_t *)freebsd32_futimens, AUE_FUTIMES, NULL, 0, 0, 0, SY_THR_STATIC },	/* 546 = freebsd32_futimens */
 	{ AS(freebsd32_utimensat_args), (sy_call_t *)freebsd32_utimensat, AUE_FUTIMESAT, NULL, 0, 0, 0, SY_THR_STATIC },	/* 547 = freebsd32_utimensat */
+	{ AS(numa_getaffinity_args), (sy_call_t *)sys_numa_getaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 548 = numa_getaffinity */
+	{ AS(numa_setaffinity_args), (sy_call_t *)sys_numa_setaffinity, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 549 = numa_setaffinity */
 };

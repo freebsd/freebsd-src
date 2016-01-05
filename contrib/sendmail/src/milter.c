@@ -204,7 +204,7 @@ static size_t MilterMaxDataSize = MILTER_MAX_DATA_SIZE;
 	fd_set fds; \
 	struct timeval tv; \
  \
-	if (SM_FD_SETSIZE > 0 && m->mf_sock >= SM_FD_SETSIZE) \
+	if (!SM_FD_OK_SELECT(m->mf_sock)) \
 	{ \
 		if (tTd(64, 5)) \
 			sm_dprintf("milter_%s(%s): socket %d is larger than FD_SETSIZE %d\n", \
@@ -1642,8 +1642,8 @@ milter_set_option(name, val, sticky)
 		    MilterMaxDataSize != MILTER_MDS_1M)
 		{
 			sm_syslog(LOG_WARNING, NOQID,
-				"WARNING: Milter.%s=%d, allowed are only %d, %d, and %d",
-				name, MilterMaxDataSize,
+				"WARNING: Milter.%s=%lu, allowed are only %d, %d, and %d",
+				name, (unsigned long) MilterMaxDataSize,
 				MILTER_MDS_64K, MILTER_MDS_256K,
 				MILTER_MDS_1M);
 			if (MilterMaxDataSize < MILTER_MDS_64K)
@@ -2317,6 +2317,8 @@ milter_getsymlist(m, buf, rlen, offset)
 		offset += MILTER_LEN_BYTES;
 		macros = NULL;
 
+#define SM_M_MACRO_NAME(i) (((i) < SM_ARRAY_SIZE(MilterOptTab) && (i) >= 0) \
+				?  MilterOptTab[i].mo_name : "?")
 		switch (i)
 		{
 		  case SMFIM_CONNECT:
@@ -2330,23 +2332,23 @@ milter_getsymlist(m, buf, rlen, offset)
 			macros = MilterMacros[i][m->mf_idx];
 			m->mf_lflags |= MI_LFLAGS_SYM(i);
 			len = strlen(buf + offset);
-			if (len > 0)
+			if (len >= 0)
 			{
 				r = milter_set_macros(m->mf_name, macros,
 						buf + offset, nummac);
 				if (r >= 0)
 					nummac = r;
 				if (tTd(64, 5))
-					sm_dprintf("milter_getsymlist(%s, %s)=%d\n",
-						m->mf_name, buf + offset, r);
+					sm_dprintf("milter_getsymlist(%s, %s, \"%s\")=%d\n",
+						m->mf_name,
+						SM_M_MACRO_NAME(i),
+						buf + offset, r);
 			}
 			break;
 
 		  default:
 			return -1;
 		}
-		if (len == 0)
-			return -1;
 		offset += len + 1;
 	}
 
@@ -2421,7 +2423,9 @@ milter_negotiate(m, e, milters)
 
 	if (tTd(64, 5))
 		sm_dprintf("milter_negotiate(%s): send: version %lu, fflags 0x%lx, pflags 0x%lx\n",
-			m->mf_name, ntohl(fvers), ntohl(fflags), ntohl(pflags));
+			m->mf_name, (unsigned long) ntohl(fvers),
+			(unsigned long) ntohl(fflags),
+			(unsigned long) ntohl(pflags));
 
 	response = milter_read(m, &rcmd, &rlen, m->mf_timeout[SMFTO_READ], e,
 				"negotiate");
@@ -2526,8 +2530,9 @@ milter_negotiate(m, e, milters)
 		{
 			/* this should not happen... */
 			sm_syslog(LOG_WARNING, NOQID,
-				  "WARNING: Milter.maxdatasize: configured=%d, set by libmilter=%d",
-		    		  MilterMaxDataSize, MILTER_MDS_1M);
+				  "WARNING: Milter.maxdatasize: configured=%lu, set by libmilter=%d",
+				  (unsigned long) MilterMaxDataSize,
+				  MILTER_MDS_1M);
 			MilterMaxDataSize = MILTER_MDS_1M;
 		}
 	}
@@ -2536,16 +2541,18 @@ milter_negotiate(m, e, milters)
 		if (MilterMaxDataSize != MILTER_MDS_256K)
 		{
 			sm_syslog(LOG_WARNING, NOQID,
-				  "WARNING: Milter.maxdatasize: configured=%d, set by libmilter=%d",
-		    		  MilterMaxDataSize, MILTER_MDS_256K);
+				  "WARNING: Milter.maxdatasize: configured=%lu, set by libmilter=%d",
+				  (unsigned long) MilterMaxDataSize,
+				  MILTER_MDS_256K);
 			MilterMaxDataSize = MILTER_MDS_256K;
 		}
 	}
 	else if (MilterMaxDataSize != MILTER_MDS_64K)
 	{
 		sm_syslog(LOG_WARNING, NOQID,
-			  "WARNING: Milter.maxdatasize: configured=%d, set by libmilter=%d",
-	    		  MilterMaxDataSize, MILTER_MDS_64K);
+			  "WARNING: Milter.maxdatasize: configured=%lu, set by libmilter=%d",
+			  (unsigned long) MilterMaxDataSize,
+			  MILTER_MDS_64K);
 		MilterMaxDataSize = MILTER_MDS_64K;
 	}
 	m->mf_pflags &= ~SMFI_INTERNAL;
@@ -3976,6 +3983,7 @@ milter_connect(hostname, addr, e, state)
 	else
 		milter_per_connection_check(e);
 
+#if !_FFR_MILTER_CONNECT_REPLYCODE
 	/*
 	**  SMFIR_REPLYCODE can't work with connect due to
 	**  the requirements of SMTP.  Therefore, ignore the
@@ -4000,6 +4008,7 @@ milter_connect(hostname, addr, e, state)
 			response = NULL;
 		}
 	}
+#endif /* !_FFR_MILTER_CONNECT_REPLYCODE */
 	return response;
 }
 

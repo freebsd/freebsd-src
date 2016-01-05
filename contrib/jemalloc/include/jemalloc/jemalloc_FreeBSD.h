@@ -12,7 +12,6 @@
  * The following are architecture-dependent, so conditionally define them for
  * each supported architecture.
  */
-#undef CPU_SPINWAIT
 #undef JEMALLOC_TLS_MODEL
 #undef STATIC_PAGE_SHIFT
 #undef LG_SIZEOF_PTR
@@ -22,7 +21,6 @@
 
 #ifdef __i386__
 #  define LG_SIZEOF_PTR		2
-#  define CPU_SPINWAIT		__asm__ volatile("pause")
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __ia64__
@@ -34,7 +32,6 @@
 #endif
 #ifdef __amd64__
 #  define LG_SIZEOF_PTR		3
-#  define CPU_SPINWAIT		__asm__ volatile("pause")
 #  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __arm__
@@ -65,6 +62,11 @@
 #define	LG_SIZEOF_LONG		LG_SIZEOF_PTR
 #define	LG_SIZEOF_INTMAX_T	3
 
+#undef CPU_SPINWAIT
+#include <machine/cpu.h>
+#include <machine/cpufunc.h>
+#define	CPU_SPINWAIT		cpu_spinwait()
+
 /* Disable lazy-lock machinery, mangle isthreaded, and adjust its type. */
 #undef JEMALLOC_LAZY_LOCK
 extern int __isthreaded;
@@ -76,6 +78,7 @@ extern int __isthreaded;
 #undef je_realloc
 #undef je_free
 #undef je_posix_memalign
+#undef je_aligned_alloc
 #undef je_malloc_usable_size
 #undef je_mallocx
 #undef je_rallocx
@@ -93,6 +96,7 @@ extern int __isthreaded;
 #define	je_realloc		__realloc
 #define	je_free			__free
 #define	je_posix_memalign	__posix_memalign
+#define	je_aligned_alloc	__aligned_alloc
 #define	je_malloc_usable_size	__malloc_usable_size
 #define	je_mallocx		__mallocx
 #define	je_rallocx		__rallocx
@@ -122,6 +126,7 @@ __weak_reference(__calloc, calloc);
 __weak_reference(__realloc, realloc);
 __weak_reference(__free, free);
 __weak_reference(__posix_memalign, posix_memalign);
+__weak_reference(__aligned_alloc, aligned_alloc);
 __weak_reference(__malloc_usable_size, malloc_usable_size);
 __weak_reference(__mallocx, mallocx);
 __weak_reference(__rallocx, rallocx);

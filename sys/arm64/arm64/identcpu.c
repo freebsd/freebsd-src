@@ -48,7 +48,7 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0,
 /*
  * Per-CPU affinity as provided in MPIDR_EL1
  * Indexed by CPU number in logical order selected by the system.
- * Relevant fields can be extracetd using CPU_AFFn macros,
+ * Relevant fields can be extracted using CPU_AFFn macros,
  * Aff3.Aff2.Aff1.Aff0 construct a unique CPU address in the system.
  *
  * Fields used by us:
@@ -56,28 +56,6 @@ SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0,
  * Aff0 - CPU number in Aff1 cluster
  */
 uint64_t __cpu_affinity[MAXCPU];
-
-#define	CPU_IMPL_ARM		0x41
-#define	CPU_IMPL_BROADCOM	0x42
-#define	CPU_IMPL_CAVIUM		0x43
-#define	CPU_IMPL_DEC		0x44
-#define	CPU_IMPL_INFINEON	0x49
-#define	CPU_IMPL_FREESCALE	0x4D
-#define	CPU_IMPL_NVIDIA		0x4E
-#define	CPU_IMPL_APM		0x50
-#define	CPU_IMPL_QUALCOMM	0x51
-#define	CPU_IMPL_MARVELL	0x56
-#define	CPU_IMPL_INTEL		0x69
-
-#define	CPU_PART_THUNDER	0x0A1
-#define	CPU_PART_FOUNDATION	0xD00
-#define	CPU_PART_CORTEX_A53	0xD03
-#define	CPU_PART_CORTEX_A57	0xD07
-
-#define	CPU_IMPL(midr)	(((midr) >> 24) & 0xff)
-#define	CPU_PART(midr)	(((midr) >> 4) & 0xfff)
-#define	CPU_VAR(midr)	(((midr) >> 20) & 0xf)
-#define	CPU_REV(midr)	(((midr) >> 0) & 0xf)
 
 struct cpu_desc {
 	u_int		cpu_impl;
@@ -112,14 +90,14 @@ struct cpu_implementers {
  */
 /* ARM Ltd. */
 static const struct cpu_parts cpu_parts_arm[] = {
-	{ 0xD00, "Foundation-Model" },
-	{ 0xD03, "Cortex-A53" },
-	{ 0xD07, "Cortex-A57" },
+	{ CPU_PART_FOUNDATION, "Foundation-Model" },
+	{ CPU_PART_CORTEX_A53, "Cortex-A53" },
+	{ CPU_PART_CORTEX_A57, "Cortex-A57" },
 	CPU_PART_NONE,
 };
 /* Cavium */
 static const struct cpu_parts cpu_parts_cavium[] = {
-	{ 0x0A1, "Thunder" },
+	{ CPU_PART_THUNDER, "Thunder" },
 	CPU_PART_NONE,
 };
 
@@ -162,6 +140,12 @@ identify_cpu(void)
 	cpu = PCPU_GET(cpuid);
 	midr = get_midr();
 
+	/*
+	 * Store midr to pcpu to allow fast reading
+	 * from EL0, EL1 and assembly code.
+	 */
+	PCPU_SET(midr, midr);
+
 	impl_id = CPU_IMPL(midr);
 	for (i = 0; i < nitems(cpu_implementers); i++) {
 		if (impl_id == cpu_implementers[i].impl_id ||
@@ -183,15 +167,21 @@ identify_cpu(void)
 		}
 	}
 
-	printf("CPU: %s %s r%dp%d\n", cpu_desc[cpu].cpu_impl_name,
-	    cpu_desc[cpu].cpu_part_name, CPU_VAR(midr), CPU_REV(midr));
+	cpu_desc[cpu].cpu_revision = CPU_REV(midr);
+	cpu_desc[cpu].cpu_variant = CPU_VAR(midr);
 
-	/*
-	 * Save affinity for the boot CPU.
-	 * (CPU0 in the internal system enumeration.
-	 */
+	/* Save affinity for current CPU */
 	mpidr = get_mpidr();
-	CPU_AFFINITY(0) = mpidr & CPU_AFF_MASK;
+	CPU_AFFINITY(cpu) = mpidr & CPU_AFF_MASK;
+
+	/* Print details for boot CPU or if we want verbose output */
+	if (cpu == 0 || bootverbose) {
+		printf("CPU(%d): %s %s r%dp%d\n", cpu,
+		    cpu_desc[cpu].cpu_impl_name,
+		    cpu_desc[cpu].cpu_part_name,
+		    cpu_desc[cpu].cpu_variant,
+		    cpu_desc[cpu].cpu_revision);
+	}
 
 	if (bootverbose)
 		printf("CPU%u affinity: %u.%u.%u.%u\n", 0, CPU_AFF0(mpidr),

@@ -26,11 +26,16 @@ _libzpool=	libzpool
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
-	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc" || \
-	${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} != "sparc64"
 _drti=		drti
 _libdtrace=	libdtrace
 .endif
+
+SUBDIR_DEPEND_libdtrace=	libctf
+SUBDIR_DEPEND_libzfs_core=	libnvpair
+SUBDIR_DEPEND_libzfs=	libavl libnvpair libumem libuutil libzfs_core
+SUBDIR_DEPEND_libzpool=	libavl libnvpair libumem
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

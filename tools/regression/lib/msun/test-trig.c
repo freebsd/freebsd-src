@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 #include <assert.h>
 #include <fenv.h>
 #include <float.h>
@@ -43,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 #include "test-utils.h"
-
-#define	LEN(a)		(sizeof(a) / sizeof((a)[0]))
 
 #pragma STDC FENV_ACCESS ON
 
@@ -155,7 +155,7 @@ run_reduction_tests(void)
 
 	int i;
 
-	for (i = 0; i < LEN(f_pi_odd); i++) {
+	for (i = 0; i < nitems(f_pi_odd); i++) {
 		assert(fabs(sinf(f_pi_odd[i])) < FLT_EPSILON);
 		assert(cosf(f_pi_odd[i]) == -1.0);
 		assert(fabs(tan(f_pi_odd[i])) < FLT_EPSILON);
@@ -173,7 +173,7 @@ run_reduction_tests(void)
 		assert(fabs(tanf(-f_pi_odd[i] * 2)) < FLT_EPSILON);
 	}
 
-	for (i = 0; i < LEN(d_pi_odd); i++) {
+	for (i = 0; i < nitems(d_pi_odd); i++) {
 		assert(fabs(sin(d_pi_odd[i])) < 2 * DBL_EPSILON);
 		assert(cos(d_pi_odd[i]) == -1.0);
 		assert(fabs(tan(d_pi_odd[i])) < 2 * DBL_EPSILON);
@@ -192,7 +192,7 @@ run_reduction_tests(void)
 	}
 
 #if LDBL_MANT_DIG > 53
-	for (i = 0; i < LEN(ld_pi_odd); i++) {
+	for (i = 0; i < nitems(ld_pi_odd); i++) {
 		assert(fabsl(sinl(ld_pi_odd[i])) < LDBL_EPSILON);
 		assert(cosl(ld_pi_odd[i]) == -1.0);
 		assert(fabsl(tanl(ld_pi_odd[i])) < LDBL_EPSILON);

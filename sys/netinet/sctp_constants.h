@@ -458,7 +458,7 @@ __FBSDID("$FreeBSD$");
 
 
 /*
- * SCTP states for internal state machine XXX (should match "user" values)
+ * SCTP states for internal state machine
  */
 #define SCTP_STATE_EMPTY		0x0000
 #define SCTP_STATE_INUSE		0x0001
@@ -612,10 +612,6 @@ __FBSDID("$FreeBSD$");
 /* 30 seconds + RTO (in ms) */
 #define SCTP_HB_DEFAULT_MSEC	30000
 
-/* Max time I will wait for Shutdown to complete */
-#define SCTP_DEF_MAX_SHUTDOWN_SEC 180
-
-
 /*
  * This is how long a secret lives, NOT how long a cookie lives how many
  * ticks the current secret will live.
@@ -765,18 +761,19 @@ __FBSDID("$FreeBSD$");
  */
 
 /* File defines */
-#define SCTP_FROM_SCTP_INPUT   0x10000000
-#define SCTP_FROM_SCTP_PCB     0x20000000
-#define SCTP_FROM_SCTP_INDATA  0x30000000
-#define SCTP_FROM_SCTP_TIMER   0x40000000
-#define SCTP_FROM_SCTP_USRREQ  0x50000000
-#define SCTP_FROM_SCTPUTIL     0x60000000
-#define SCTP_FROM_SCTP6_USRREQ 0x70000000
-#define SCTP_FROM_SCTP_ASCONF  0x80000000
-#define SCTP_FROM_SCTP_OUTPUT  0x90000000
-#define SCTP_FROM_SCTP_PEELOFF 0xa0000000
-#define SCTP_FROM_SCTP_PANDA   0xb0000000
-#define SCTP_FROM_SCTP_SYSCTL  0xc0000000
+#define SCTP_FROM_SCTP_INPUT        0x10000000
+#define SCTP_FROM_SCTP_PCB          0x20000000
+#define SCTP_FROM_SCTP_INDATA       0x30000000
+#define SCTP_FROM_SCTP_TIMER        0x40000000
+#define SCTP_FROM_SCTP_USRREQ       0x50000000
+#define SCTP_FROM_SCTPUTIL          0x60000000
+#define SCTP_FROM_SCTP6_USRREQ      0x70000000
+#define SCTP_FROM_SCTP_ASCONF       0x80000000
+#define SCTP_FROM_SCTP_OUTPUT       0x90000000
+#define SCTP_FROM_SCTP_PEELOFF      0xa0000000
+#define SCTP_FROM_SCTP_PANDA        0xb0000000
+#define SCTP_FROM_SCTP_SYSCTL       0xc0000000
+#define SCTP_FROM_SCTP_CC_FUNCTIONS 0xd0000000
 
 /* Location ID's */
 #define SCTP_LOC_1  0x00000001
@@ -812,6 +809,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_LOC_31 0x0000001f
 #define SCTP_LOC_32 0x00000020
 #define SCTP_LOC_33 0x00000021
+#define SCTP_LOC_34 0x00000022
+#define SCTP_LOC_35 0x00000023
 
 
 /* Free assoc codes */

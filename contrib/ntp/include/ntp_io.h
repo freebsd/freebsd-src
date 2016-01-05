@@ -80,6 +80,7 @@ typedef enum {
 } nic_rule_action;
 
 
+extern int	qos;
 SOCKET		move_fd(SOCKET fd);
 isc_boolean_t	get_broadcastclient_flag(void);
 extern int	is_ip_address(const char *, u_short, sockaddr_u *);

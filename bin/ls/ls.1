@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2014
+.Dd June 8, 2015
 .Dt LS 1
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,
 .Op Fl D Ar format
 .Op Ar
@@ -797,9 +798,11 @@ specification.
 .Xr getfacl 1 ,
 .Xr sort 1 ,
 .Xr xterm 1 ,
+.Xr libxo 3 ,
 .Xr localeconv 3 ,
 .Xr strftime 3 ,
 .Xr strmode 3 ,
+.Xr xo_parse_args 3 ,
 .Xr termcap 5 ,
 .Xr maclabel 7 ,
 .Xr sticky 7 ,

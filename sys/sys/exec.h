@@ -83,6 +83,8 @@ void exec_unmap_first_page(struct image_params *);
 int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);
 
+extern int coredump_pack_fileinfo;
+
 /*
  * note: name##_mod cannot be const storage because the
  * linker_file_sysinit() function modifies _file in the

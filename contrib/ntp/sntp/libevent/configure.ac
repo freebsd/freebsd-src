@@ -5,18 +5,17 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_INIT(libevent,2.1.3-alpha-dev)
+AC_INIT(libevent,2.1.5-beta)
 AC_PREREQ(2.59)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
-
 AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02010301, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02010500, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
@@ -113,6 +112,9 @@ AC_ARG_ENABLE([libevent-install],
 AC_ARG_ENABLE([libevent-regress],
      AS_HELP_STRING([--disable-libevent-regress, skip regress in make check]),
 	[], [enable_libevent_regress=yes])
+AC_ARG_ENABLE([samples],
+     AS_HELP_STRING([--disable-samples, skip building of sample programs]),
+	[], [enable_samples=yes])
 AC_ARG_ENABLE([function-sections],
      AS_HELP_STRING([--enable-function-sections, make static library allow smaller binaries with --gc-sections]),
 	[], [enable_function_sections=no])
@@ -129,6 +131,7 @@ dnl   the command line with --enable-shared and --disable-shared.
 dnl AC_DISABLE_SHARED
 AC_SUBST(LIBTOOL_DEPS)
 
+AM_CONDITIONAL([BUILD_SAMPLES], [test "$enable_samples" = "yes"])
 AM_CONDITIONAL([BUILD_REGRESS], [test "$enable_libevent_regress" = "yes"])
 
 dnl Checks for libraries.
@@ -724,22 +727,16 @@ AC_TRY_COMPILE([],
 # check if we can compile with pthreads
 have_pthreads=no
 if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
-    OL_THREAD_CHECK([
-	have_pthreads=yes
-	PTHREAD_LIBS="$LTHREAD_LIBS"
-	CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-	AC_CHECK_SIZEOF(
-	    [pthread_t],
-	    [],
-	    [
-		AC_INCLUDES_DEFAULT()
-		#include <pthread.h>
-	    ]
-	)
-    ])
+  ACX_PTHREAD([
+	AC_DEFINE(HAVE_PTHREADS, 1,
+		[Define if we have pthreads on this system])
+	have_pthreads=yes])
+  CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+  AC_CHECK_SIZEOF(pthread_t, ,
+     [AC_INCLUDES_DEFAULT()
+      #include <pthread.h> ]
+  )
 fi
-AC_SUBST([PTHREAD_LIBS])
-AC_SUBST([PTHREAD_CFLAGS])
 AM_CONDITIONAL([PTHREADS], [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
 # check if we should compile locking into the library

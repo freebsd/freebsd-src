@@ -25,15 +25,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
 #include <dev/vt/colors/vt_termcolors.h>
 
-static struct {
+static const struct {
 	unsigned char r;	/* Red percentage value. */
 	unsigned char g;	/* Green percentage value. */
 	unsigned char b;	/* Blue percentage value. */
@@ -68,8 +69,8 @@ static const int cons_to_vga_colors[16] = {
 };
 
 int
-vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax, int roffset,
-    uint32_t gmax, int goffset, uint32_t bmax, int boffset)
+vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
+    int roffset, uint32_t gmax, int goffset, uint32_t bmax, int boffset)
 {
 	int i;
 

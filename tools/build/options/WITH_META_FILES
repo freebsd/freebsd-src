@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Create meta files during non META_MODE build.
+The meta files can be useful for debugging.

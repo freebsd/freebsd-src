@@ -793,7 +793,7 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg, struct abs_timeout *abstime)
  * Convert userspace address into unique logical address.
  */
 int
-umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
+umtx_key_get(const void *addr, int type, int share, struct umtx_key *key)
 {
 	struct thread *td = curthread;
 	vm_map_t map;
@@ -820,8 +820,8 @@ umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
 		    (share == AUTO_SHARE &&
 		     VM_INHERIT_SHARE == entry->inheritance)) {
 			key->shared = 1;
-			key->info.shared.offset = entry->offset + entry->start -
-				(vm_offset_t)addr;
+			key->info.shared.offset = (vm_offset_t)addr -
+			    entry->start + entry->offset;
 			vm_object_reference(key->info.shared.object);
 		} else {
 			key->shared = 0;

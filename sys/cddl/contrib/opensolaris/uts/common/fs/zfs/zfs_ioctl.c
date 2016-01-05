@@ -25,12 +25,11 @@
  * All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright 2014 Xin Li <delphij@FreeBSD.org>. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
- * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
  */
 
 /*
@@ -133,6 +132,9 @@
  *         distinguish between the operation failing, and
  *         deserialization failing.
  */
+#ifdef __FreeBSD__
+#include "opt_kstack_pages.h"
+#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -3481,9 +3483,8 @@ zfs_unmount_snap(const char *snapname)
 #ifdef illumos
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
-	mtx_lock(&Giant);	/* dounmount() */
+	vfs_ref(vfsp);
 	(void) dounmount(vfsp, MS_FORCE, curthread);
-	mtx_unlock(&Giant);	/* dounmount() */
 #endif
 	return (0);
 }
@@ -4196,7 +4197,11 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		return (error);
 
 	fd = zc->zc_cookie;
-	fp = getf(fd, cap_rights_init(&rights, CAP_PREAD));
+#ifdef illumos
+	fp = getf(fd);
+#else
+	fget_read(curthread, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
+#endif
 	if (fp == NULL) {
 		nvlist_free(props);
 		return (SET_ERROR(EBADF));
@@ -4442,8 +4447,12 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		file_t *fp;
 		cap_rights_t rights;
 
-		fp = getf(zc->zc_cookie,
-		    cap_rights_init(&rights, CAP_WRITE));
+#ifdef illumos
+		fp = getf(zc->zc_cookie);
+#else
+		fget_write(curthread, zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
 
@@ -5039,7 +5048,12 @@ zfs_ioc_diff(zfs_cmd_t *zc)
 	offset_t off;
 	int error;
 
-	fp = getf(zc->zc_cookie, cap_rights_init(&rights, CAP_WRITE));
+#ifdef illumos
+	fp = getf(zc->zc_cookie);
+#else
+	fget_write(curthread, zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5176,6 +5190,7 @@ zfs_ioc_smb_acl(zfs_cmd_t *zc)
 		if ((error = get_nvlist(zc->zc_nvlist_src,
 		    zc->zc_nvlist_src_size, zc->zc_iflags, &nvlist)) != 0) {
 			VN_RELE(vp);
+			VN_RELE(ZTOV(sharedir));
 			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
@@ -5228,6 +5243,7 @@ zfs_ioc_smb_acl(zfs_cmd_t *zc)
 static int
 zfs_ioc_hold(const char *pool, nvlist_t *args, nvlist_t *errlist)
 {
+	nvpair_t *pair;
 	nvlist_t *holds;
 	int cleanup_fd = -1;
 	int error;
@@ -5236,6 +5252,19 @@ zfs_ioc_hold(const char *pool, nvlist_t *args, nvlist_t *errlist)
 	error = nvlist_lookup_nvlist(args, "holds", &holds);
 	if (error != 0)
 		return (SET_ERROR(EINVAL));
+
+	/* make sure the user didn't pass us any invalid (empty) tags */
+	for (pair = nvlist_next_nvpair(holds, NULL); pair != NULL;
+	    pair = nvlist_next_nvpair(holds, pair)) {
+		char *htag;
+
+		error = nvpair_value_string(pair, &htag);
+		if (error != 0)
+			return (SET_ERROR(error));
+
+		if (strlen(htag) == 0)
+			return (SET_ERROR(EINVAL));
+	}
 
 	if (nvlist_lookup_int32(args, "cleanup_fd", &cleanup_fd) == 0) {
 		error = zfs_onexit_fd_hold(cleanup_fd, &minor);
@@ -5350,11 +5379,19 @@ zfs_ioc_space_snaps(const char *lastsnap, nvlist_t *innvl, nvlist_t *outnvl)
 		return (error);
 
 	error = dsl_dataset_hold(dp, lastsnap, FTAG, &new);
+	if (error == 0 && !new->ds_is_snapshot) {
+		dsl_dataset_rele(new, FTAG);
+		error = SET_ERROR(EINVAL);
+	}
 	if (error != 0) {
 		dsl_pool_rele(dp, FTAG);
 		return (error);
 	}
 	error = dsl_dataset_hold(dp, firstsnap, FTAG, &old);
+	if (error == 0 && !old->ds_is_snapshot) {
+		dsl_dataset_rele(old, FTAG);
+		error = SET_ERROR(EINVAL);
+	}
 	if (error != 0) {
 		dsl_dataset_rele(new, FTAG);
 		dsl_pool_rele(dp, FTAG);
@@ -5404,6 +5441,7 @@ static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
 	cap_rights_t rights;
+	file_t *fp;
 	int error;
 	offset_t off;
 	char *fromname = NULL;
@@ -5420,7 +5458,11 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 	largeblockok = nvlist_exists(innvl, "largeblockok");
 	embedok = nvlist_exists(innvl, "embedok");
 
-	file_t *fp = getf(fd, cap_rights_init(&rights, CAP_READ));
+#ifdef illumos
+	file_t *fp = getf(fd);
+#else
+	fget_write(curthread, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
+#endif
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5448,7 +5490,8 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
  * of bytes that will be written to the fd supplied to zfs_ioc_send_new().
  *
  * innvl: {
- *     (optional) "fromsnap" -> full snap name to send an incremental from
+ *     (optional) "from" -> full snap or bookmark name to send an incremental
+ *                          from
  * }
  *
  * outnvl: {
@@ -5459,7 +5502,6 @@ static int
 zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
 	dsl_pool_t *dp;
-	dsl_dataset_t *fromsnap = NULL;
 	dsl_dataset_t *tosnap;
 	int error;
 	char *fromname;
@@ -5475,26 +5517,54 @@ zfs_ioc_send_space(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 		return (error);
 	}
 
-	error = nvlist_lookup_string(innvl, "fromsnap", &fromname);
+	error = nvlist_lookup_string(innvl, "from", &fromname);
 	if (error == 0) {
-		error = dsl_dataset_hold(dp, fromname, FTAG, &fromsnap);
-		if (error != 0) {
-			dsl_dataset_rele(tosnap, FTAG);
-			dsl_pool_rele(dp, FTAG);
-			return (error);
+		if (strchr(fromname, '@') != NULL) {
+			/*
+			 * If from is a snapshot, hold it and use the more
+			 * efficient dmu_send_estimate to estimate send space
+			 * size using deadlists.
+			 */
+			dsl_dataset_t *fromsnap;
+			error = dsl_dataset_hold(dp, fromname, FTAG, &fromsnap);
+			if (error != 0)
+				goto out;
+			error = dmu_send_estimate(tosnap, fromsnap, &space);
+			dsl_dataset_rele(fromsnap, FTAG);
+		} else if (strchr(fromname, '#') != NULL) {
+			/*
+			 * If from is a bookmark, fetch the creation TXG of the
+			 * snapshot it was created from and use that to find
+			 * blocks that were born after it.
+			 */
+			zfs_bookmark_phys_t frombm;
+
+			error = dsl_bookmark_lookup(dp, fromname, tosnap,
+			    &frombm);
+			if (error != 0)
+				goto out;
+			error = dmu_send_estimate_from_txg(tosnap,
+			    frombm.zbm_creation_txg, &space);
+		} else {
+			/*
+			 * from is not properly formatted as a snapshot or
+			 * bookmark
+			 */
+			error = SET_ERROR(EINVAL);
+			goto out;
 		}
+	} else {
+		// If estimating the size of a full send, use dmu_send_estimate
+		error = dmu_send_estimate(tosnap, NULL, &space);
 	}
 
-	error = dmu_send_estimate(tosnap, fromsnap, &space);
 	fnvlist_add_uint64(outnvl, "space", space);
 
-	if (fromsnap != NULL)
-		dsl_dataset_rele(fromsnap, FTAG);
+out:
 	dsl_dataset_rele(tosnap, FTAG);
 	dsl_pool_rele(dp, FTAG);
 	return (error);
 }
-
 
 static zfs_ioc_vec_t zfs_ioc_vec[ZFS_IOC_LAST - ZFS_IOC_FIRST];
 
@@ -6453,10 +6523,22 @@ static void zfs_shutdown(void *, int);
 
 static eventhandler_tag zfs_shutdown_event_tag;
 
+#ifdef __FreeBSD__
+#define ZFS_MIN_KSTACK_PAGES 4
+#endif
+
 int
 zfs__init(void)
 {
 
+#ifdef __FreeBSD__
+#if KSTACK_PAGES < ZFS_MIN_KSTACK_PAGES
+	printf("ZFS NOTICE: KSTACK_PAGES is %d which could result in stack "
+	    "overflow panic!\nPlease consider adding "
+	    "'options KSTACK_PAGES=%d' to your kernel config\n", KSTACK_PAGES,
+	    ZFS_MIN_KSTACK_PAGES);
+#endif
+#endif
 	zfs_root_token = root_mount_hold("ZFS");
 
 	mutex_init(&zfs_share_lock, NULL, MUTEX_DEFAULT, NULL);

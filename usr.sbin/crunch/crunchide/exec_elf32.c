@@ -35,7 +35,7 @@ __RCSID("$NetBSD: exec_elf32.c,v 1.6 1999/09/20 04:12:16 christos Exp $");
 #endif
 #endif
 __FBSDID("$FreeBSD$");
- 
+
 #ifndef ELFSIZE
 #define ELFSIZE         32
 #endif
@@ -142,7 +142,7 @@ static void *
 xrealloc(void *ptr, size_t size, const char *fn, const char *use)
 {
 	void *rv;
-		
+
 	rv = realloc(ptr, size);
 	if (rv == NULL) {
 		free(ptr);
@@ -150,7 +150,7 @@ xrealloc(void *ptr, size_t size, const char *fn, const char *use)
 		    fn, use);
 	}
 	return (rv);
-} 
+}
 
 int
 ELFNAMEEND(check)(int fd, const char *fn)
@@ -178,6 +178,9 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	switch (xe16toh(eh.e_machine)) {
 	case EM_386: break;
 	case EM_ALPHA: break;
+#ifndef EM_AARCH64
+#define	EM_AARCH64	183
+#endif
 	case EM_AARCH64: break;
 	case EM_ARM: break;
 	case EM_MIPS: break;
@@ -321,11 +324,14 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	 */
 
 	/* load section string table for debug use */
-	if ((shstrtabp = xmalloc(xewtoh(shstrtabshdr->sh_size), fn,
-	    "section string table")) == NULL)
+	if ((size = xewtoh(shstrtabshdr->sh_size)) == 0)
+		goto bad;
+	if ((shstrtabp = xmalloc(size, fn, "section string table")) == NULL)
 		goto bad;
 	if ((size_t)xreadatoff(fd, shstrtabp, xewtoh(shstrtabshdr->sh_offset),
-	    xewtoh(shstrtabshdr->sh_size), fn) != xewtoh(shstrtabshdr->sh_size))
+	    size, fn) != size)
+		goto bad;
+	if (shstrtabp[size - 1] != '\0')
 		goto bad;
 
 	/* we need symtab, strtab, and everything behind strtab */
@@ -346,7 +352,8 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 			strtabidx = i;
 		if (layoutp[i].shdr == symtabshdr || i >= strtabidx) {
 			off = xewtoh(layoutp[i].shdr->sh_offset);
-			size = xewtoh(layoutp[i].shdr->sh_size);
+			if ((size = xewtoh(layoutp[i].shdr->sh_size)) == 0)
+				goto bad;
 			layoutp[i].bufp = xmalloc(size, fn,
 			    shstrtabp + xewtoh(layoutp[i].shdr->sh_name));
 			if (layoutp[i].bufp == NULL)
@@ -356,10 +363,13 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 				goto bad;
 
 			/* set symbol table and string table */
-			if (layoutp[i].shdr == symtabshdr)
+			if (layoutp[i].shdr == symtabshdr) {
 				symtabp = layoutp[i].bufp;
-			else if (layoutp[i].shdr == strtabshdr)
+			} else if (layoutp[i].shdr == strtabshdr) {
 				strtabp = layoutp[i].bufp;
+				if (strtabp[size - 1] != '\0')
+					goto bad;
+			}
 		}
 	}
 

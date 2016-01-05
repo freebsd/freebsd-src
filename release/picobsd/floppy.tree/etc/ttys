@@ -33,3 +33,4 @@ ttyp7	none			network secure
 ttyp8	none			network secure
 ttyp9	none			network secure
 ttyu0   "/usr/libexec/getty 3wire"   dialup  on secure
+ttyu1   "/usr/libexec/getty 3wire"   dialup  on secure

@@ -188,6 +188,7 @@ extern	void	unpeer		(struct peer *);
 extern	void	clear_all	(void);
 extern	int	score_all	(struct peer *);
 extern	struct peer *findmanycastpeer(struct recvbuf *);
+extern	void	peer_cleanup	(void);
 
 /* ntp_crypto.c */
 #ifdef AUTOKEY
@@ -200,6 +201,7 @@ extern	keyid_t	session_key	(sockaddr_u *, sockaddr_u *, keyid_t,
 extern	int	make_keylist	(struct peer *, struct interface *);
 extern	void	key_expire	(struct peer *);
 extern	void	crypto_update	(void);
+extern	void	crypto_update_taichange(void);
 extern	void	crypto_config	(int, char *);
 extern	void	crypto_setup	(void);
 extern	u_int	crypto_ident	(struct peer *);
@@ -221,6 +223,7 @@ extern	void	receive 	(struct recvbuf *);
 extern	void	peer_clear	(struct peer *, const char *);
 extern	void 	process_packet	(struct peer *, struct pkt *, u_int);
 extern	void	clock_select	(void);
+extern	void	set_sys_leap	(u_char);
 
 extern	u_long	leapsec;	/* seconds to next leap (proximity class) */
 extern  int     leapdif;        /* TAI difference step at next leap second*/
@@ -385,7 +388,8 @@ extern endpt *	ep_list;		/* linked list */
 /* ntp_loopfilter.c */
 extern double	drift_comp;		/* clock frequency (s/s) */
 extern double	clock_stability;	/* clock stability (s/s) */
-extern double	clock_max;		/* max offset before step (s) */
+extern double	clock_max_back;		/* max backward offset before step (s) */
+extern double	clock_max_fwd;		/* max forward offset before step (s) */
 extern double	clock_panic;		/* max offset before panic (s) */
 extern double	clock_phi;		/* dispersion rate (s/s) */
 extern double	clock_minstep;		/* step timeout (s) */
@@ -403,8 +407,9 @@ extern int	kern_enable;		/* kernel support enabled */
 extern int	hardpps_enable;		/* kernel PPS discipline enabled */
 extern int	ext_enable;		/* external clock enabled */
 extern int	cal_enable;		/* refclock calibrate enable */
-extern int	allow_panic;		/* allow panic correction */
-extern int	mode_ntpdate;		/* exit on first clock set */
+extern int	allow_panic;		/* allow panic correction (-g) */
+extern int	force_step_once;	/* always step time once at startup (-G) */
+extern int	mode_ntpdate;		/* exit on first clock set (-q) */
 extern int	peer_ntpdate;		/* count of ntpdate peers */
 
 /*
@@ -518,7 +523,7 @@ extern u_int32		conf_file_sum;	/* Simple sum of characters */
 
 /* ntp_signd.c */
 #ifdef HAVE_NTP_SIGND
-extern void send_via_ntp_signd(struct recvbuf *, int, keyid_t, int, 
+extern void send_via_ntp_signd(struct recvbuf *, int, keyid_t, int,
 			       struct pkt *);
 #endif
 
@@ -529,6 +534,11 @@ extern u_long	current_time;		/* seconds since startup */
 extern u_long	timer_timereset;
 extern u_long	timer_overflows;
 extern u_long	timer_xmtcalls;
+extern int	leap_sec_in_progress;
+#ifdef LEAP_SMEAR
+extern struct leap_smear_info leap_smear;
+extern int	leap_smear_intv;
+#endif
 #ifdef SYS_WINNT
 HANDLE WaitableTimerHandle;
 #endif

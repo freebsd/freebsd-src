@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/zlib.h>
 
 #include <geom/geom.h>
 
-#include <net/zlib.h>
 #include <contrib/xz-embedded/linux/include/linux/xz.h>
 
 #ifdef GEOM_UNCOMPRESS_DEBUG
@@ -111,8 +111,8 @@ g_uncompress_softc_free(struct g_uncompress_softc *sc, struct g_geom *gp)
 {
 
 	if (gp != NULL) {
-		printf("%s: %d requests, %d cached\n",
-		    gp->name, sc->req_total, sc->req_cached);
+		DPRINTF(("%s: %d requests, %d cached\n",
+		    gp->name, sc->req_total, sc->req_cached));
 	}
 	if (sc->offsets != NULL) {
 		free(sc->offsets, M_GEOM_UNCOMPRESS);
@@ -464,7 +464,8 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_provider *pp2;
 	struct g_consumer *cp;
 	struct g_geom *gp;
-	uint32_t i, total_offsets, type;
+	uint64_t *offsets;
+	uint32_t i, r, total, total_offsets, type;
 	uint8_t *buf;
 	int error;
 
@@ -499,8 +500,8 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 */
 	DPRINTF(("%s: media sectorsize %u, mediasize %jd\n",
 	    gp->name, pp->sectorsize, (intmax_t)pp->mediasize));
-	i = roundup(sizeof(struct cloop_header), pp->sectorsize);
-	buf = g_read_data(cp, 0, i, NULL);
+	total = roundup(sizeof(struct cloop_header), pp->sectorsize);
+	buf = g_read_data(cp, 0, total, NULL);
 	if (buf == NULL)
 		goto err;
 	header = (struct cloop_header *) buf;
@@ -517,7 +518,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			DPRINTF(("%s: image version too old\n", gp->name));
 			goto err;
 		}
-		printf("%s: GEOM_ULZMA image found\n", gp->name);
+		DPRINTF(("%s: GEOM_ULZMA image found\n", gp->name));
 		break;
 	case 'V':
 		type = GEOM_UZIP;
@@ -525,7 +526,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			DPRINTF(("%s: image version too old\n", gp->name));
 			goto err;
 		}
-		printf("%s: GEOM_UZIP image found\n", gp->name);
+		DPRINTF(("%s: GEOM_UZIP image found\n", gp->name));
 		break;
 	default:
 		DPRINTF(("%s: unsupported image type\n", gp->name));
@@ -557,20 +558,29 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		    gp->name, sc->nblocks);
 		goto err;
 	}
-	free(buf, M_GEOM);
+	g_free(buf);
 
-	i = roundup((sizeof(struct cloop_header) +
-	    total_offsets * sizeof(uint64_t)), pp->sectorsize);
-	buf = g_read_data(cp, 0, i, NULL);
-	if (buf == NULL)
-		goto err;
 	sc->offsets = malloc(total_offsets * sizeof(uint64_t),
-	    M_GEOM_UNCOMPRESS, M_WAITOK);
-	for (i = 0; i <= total_offsets; i++) {
-		sc->offsets[i] = be64toh(((uint64_t *)
-		    (buf+sizeof(struct cloop_header)))[i]);
+	    M_GEOM_UNCOMPRESS, M_WAITOK | M_ZERO);
+	total = roundup((sizeof(struct cloop_header) +
+	    total_offsets * sizeof(uint64_t)), pp->sectorsize);
+#define	RSZ	((total - r) > MAXPHYS ? MAXPHYS: (total - r))
+	for (r = 0, i = 0; r < total; r += MAXPHYS) {
+		buf = g_read_data(cp, r, RSZ, &error);
+		if (buf == NULL) {
+			free(sc->offsets, M_GEOM_UNCOMPRESS);
+			goto err;
+		}
+		offsets = (uint64_t *)buf;
+		if (r == 0)
+			offsets +=
+			    sizeof(struct cloop_header) / sizeof(uint64_t);
+		for (; i < total_offsets && offsets < (uint64_t *)(buf + RSZ);
+		    i++, offsets++)
+			sc->offsets[i] = be64toh(*offsets);
+		g_free(buf);
 	}
-	free(buf, M_GEOM);
+#undef RSZ
 	buf = NULL;
 	DPRINTF(("%s: done reading offsets\n", gp->name));
 	mtx_init(&sc->last_mtx, "geom_uncompress cache", NULL, MTX_DEF);
@@ -612,14 +622,14 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	    gp->name,
 	    pp2->sectorsize, (intmax_t)pp2->mediasize,
 	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
-	printf("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz);
+	DPRINTF(("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz));
 	return (gp);
 
 err:
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf != NULL)
-		free(buf, M_GEOM);
+		g_free(buf);
 	if (gp->softc != NULL) {
 		g_uncompress_softc_free(gp->softc, NULL);
 		gp->softc = NULL;
@@ -641,7 +651,7 @@ g_uncompress_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	g_topology_assert();
 
 	if (gp->softc == NULL) {
-		printf("%s(%s): gp->softc == NULL\n", __func__, gp->name);
+		DPRINTF(("%s(%s): gp->softc == NULL\n", __func__, gp->name));
 		return (ENXIO);
 	}
 

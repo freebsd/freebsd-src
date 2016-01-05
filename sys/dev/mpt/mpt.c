@@ -1423,7 +1423,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 
 	/* Send the command */
 	for (i = 0; i < len; i++) {
-		mpt_write(mpt, MPT_OFFSET_DOORBELL, htole32(*data32++));
+		mpt_write_stream(mpt, MPT_OFFSET_DOORBELL, *data32++);
 		if (mpt_wait_db_ack(mpt) != MPT_OK) {
 			mpt_prt(mpt,
 			    "mpt_send_handshake_cmd: timeout @ index %d\n", i);
@@ -1457,7 +1457,7 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	*data16++ = le16toh(data & MPT_DB_DATA_MASK);
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
-	/* Get Second Word */
+	/* Get second word */
 	if (mpt_wait_db_int(mpt) != MPT_OK) {
 		mpt_prt(mpt, "mpt_recv_handshake_cmd timeout2\n");
 		return ETIMEDOUT;
@@ -1481,18 +1481,13 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	left = (hdr->MsgLength << 1) - 2;
 	reply_left =  reply_len - 2;
 	while (left--) {
-		u_int16_t datum;
-
 		if (mpt_wait_db_int(mpt) != MPT_OK) {
 			mpt_prt(mpt, "mpt_recv_handshake_cmd timeout3\n");
 			return ETIMEDOUT;
 		}
 		data = mpt_read(mpt, MPT_OFFSET_DOORBELL);
-		datum = le16toh(data & MPT_DB_DATA_MASK);
-
 		if (reply_left-- > 0)
-			*data16++ = datum;
-
+			*data16++ = le16toh(data & MPT_DB_DATA_MASK);
 		mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 	}
 

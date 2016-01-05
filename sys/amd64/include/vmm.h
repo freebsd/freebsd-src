@@ -108,7 +108,6 @@ enum x2apic_state {
 
 struct vm;
 struct vm_exception;
-struct vm_memory_segment;
 struct seg_desc;
 struct vm_exit;
 struct vm_run;
@@ -120,13 +119,18 @@ struct vm_object;
 struct vm_guest_paging;
 struct pmap;
 
+struct vm_eventinfo {
+	void	*rptr;		/* rendezvous cookie */
+	int	*sptr;		/* suspend cookie */
+	int	*iptr;		/* reqidle cookie */
+};
+
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct pmap *pmap, void *rendezvous_cookie,
-				  void *suspend_cookie);
+		    struct pmap *pmap, struct vm_eventinfo *info);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -170,17 +174,33 @@ int vm_create(const char *name, struct vm **retvm);
 void vm_destroy(struct vm *vm);
 int vm_reinit(struct vm *vm);
 const char *vm_name(struct vm *vm);
-int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
+
+/*
+ * APIs that modify the guest memory map require all vcpus to be frozen.
+ */
+int vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t off,
+    size_t len, int prot, int flags);
+int vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem);
+void vm_free_memseg(struct vm *vm, int ident);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
-void *vm_gpa_hold(struct vm *, vm_paddr_t gpa, size_t len, int prot,
-		  void **cookie);
+int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
+int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
+
+/*
+ * APIs that inspect the guest memory map require only a *single* vcpu to
+ * be frozen. This acts like a read lock on the guest memory map since any
+ * modification requires *all* vcpus to be frozen.
+ */
+int vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
+    vm_ooffset_t *segoff, size_t *len, int *prot, int *flags);
+int vm_get_memseg(struct vm *vm, int ident, size_t *len, bool *sysmem,
+    struct vm_object **objptr);
+void *vm_gpa_hold(struct vm *, int vcpuid, vm_paddr_t gpa, size_t len,
+    int prot, void **cookie);
 void vm_gpa_release(void *cookie);
-int vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
-	      struct vm_memory_segment *seg);
-int vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
-		  vm_offset_t *offset, struct vm_object **object);
-boolean_t vm_mem_allocated(struct vm *vm, vm_paddr_t gpa);
+bool vm_mem_allocated(struct vm *vm, int vcpuid, vm_paddr_t gpa);
+
 int vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vm *vm, int vcpu, int reg, uint64_t val);
 int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
@@ -204,13 +224,13 @@ int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
 int vm_activate_cpu(struct vm *vm, int vcpu);
-cpuset_t vm_active_cpus(struct vm *vm);
-cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
 
+#ifdef _SYS__CPUSET_H_
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
  * The rendezvous 'func(arg)' is not allowed to do anything that will
@@ -228,19 +248,29 @@ void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
 void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
     vm_rendezvous_func_t func, void *arg);
+cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
+#endif	/* _SYS__CPUSET_H_ */
 
 static __inline int
-vcpu_rendezvous_pending(void *rendezvous_cookie)
+vcpu_rendezvous_pending(struct vm_eventinfo *info)
 {
 
-	return (*(uintptr_t *)rendezvous_cookie != 0);
+	return (*((uintptr_t *)(info->rptr)) != 0);
 }
 
 static __inline int
-vcpu_suspended(void *suspend_cookie)
+vcpu_suspended(struct vm_eventinfo *info)
 {
 
-	return (*(int *)suspend_cookie);
+	return (*info->sptr);
+}
+
+static __inline int
+vcpu_reqidle(struct vm_eventinfo *info)
+{
+
+	return (*info->iptr);
 }
 
 /*
@@ -274,15 +304,19 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 static int __inline
 vcpu_should_yield(struct vm *vm, int vcpu)
 {
-	return (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED));
+
+	if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED))
+		return (1);
+	else if (curthread->td_owepreempt)
+		return (1);
+	else
+		return (0);
 }
 #endif
 
 void *vcpu_stats(struct vm *vm, int vcpu);
 void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
-int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
-int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
 struct vpmtmr *vm_pmtmr(struct vm *vm);
@@ -343,9 +377,10 @@ struct vm_copyinfo {
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
  * a copyin or PROT_WRITE for a copyout. 
  *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
+ * retval	is_fault	Intepretation
+ *   0		   0		Success
+ *   0		   1		An exception was injected into the guest
+ * EFAULT	  N/A		Unrecoverable error
  *
  * The 'copyinfo[]' can be passed to 'vm_copyin()' or 'vm_copyout()' only if
  * the return value is 0. The 'copyinfo[]' resources should be freed by calling
@@ -353,7 +388,7 @@ struct vm_copyinfo {
  */
 int vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
-    int num_copyinfo);
+    int num_copyinfo, int *is_fault);
 void vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     int num_copyinfo);
 void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
@@ -497,6 +532,7 @@ enum vm_exitcode {
 	VM_EXITCODE_MONITOR,
 	VM_EXITCODE_MWAIT,
 	VM_EXITCODE_SVM,
+	VM_EXITCODE_REQIDLE,
 	VM_EXITCODE_MAX
 };
 

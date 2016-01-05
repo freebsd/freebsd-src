@@ -151,6 +151,7 @@ static VNET_DEFINE(struct pf_send_head, pf_sendqueue);
 #define	V_pf_sendqueue	VNET(pf_sendqueue)
 
 static struct mtx pf_sendqueue_mtx;
+MTX_SYSINIT(pf_sendqueue_mtx, &pf_sendqueue_mtx, "pf send queue", MTX_DEF);
 #define	PF_SENDQ_LOCK()		mtx_lock(&pf_sendqueue_mtx)
 #define	PF_SENDQ_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
 
@@ -172,11 +173,15 @@ static VNET_DEFINE(struct task, pf_overloadtask);
 #define	V_pf_overloadtask	VNET(pf_overloadtask)
 
 static struct mtx pf_overloadqueue_mtx;
+MTX_SYSINIT(pf_overloadqueue_mtx, &pf_overloadqueue_mtx,
+    "pf overload/flush queue", MTX_DEF);
 #define	PF_OVERLOADQ_LOCK()	mtx_lock(&pf_overloadqueue_mtx)
 #define	PF_OVERLOADQ_UNLOCK()	mtx_unlock(&pf_overloadqueue_mtx)
 
 VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
 struct mtx pf_unlnkdrules_mtx;
+MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
+    MTX_DEF);
 
 static VNET_DEFINE(uma_zone_t,	pf_sources_z);
 #define	V_pf_sources_z	VNET(pf_sources_z)
@@ -433,6 +438,20 @@ pf_hashsrc(struct pf_addr *addr, sa_family_t af)
 
 	return (h & pf_srchashmask);
 }
+
+#ifdef ALTQ
+static int
+pf_state_hash(struct pf_state *s)
+{
+	u_int32_t hv = (intptr_t)s / sizeof(*s);
+
+	hv ^= crc32(&s->src, sizeof(s->src));
+	hv ^= crc32(&s->dst, sizeof(s->dst));
+	if (hv == 0)
+		hv = 1;
+	return (hv);
+}
+#endif
 
 #ifdef INET6
 void
@@ -804,18 +823,13 @@ pf_initialize()
 	V_pf_altqs_active = &V_pf_altqs[0];
 	V_pf_altqs_inactive = &V_pf_altqs[1];
 
-
 	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
 	SLIST_INIT(&V_pf_overloadqueue);
 	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, curvnet);
-	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
-	mtx_init(&pf_overloadqueue_mtx, "pf overload/flush queue", NULL,
-	    MTX_DEF);
 
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
-	mtx_init(&pf_unlnkdrules_mtx, "pf unlinked rules", NULL, MTX_DEF);
 }
 
 void
@@ -857,10 +871,6 @@ pf_cleanup()
 		m_freem(pfse->pfse_m);
 		free(pfse, M_PFTEMP);
 	}
-
-	mtx_destroy(&pf_sendqueue_mtx);
-	mtx_destroy(&pf_overloadqueue_mtx);
-	mtx_destroy(&pf_unlnkdrules_mtx);
 
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
@@ -3671,7 +3681,7 @@ csfailed:
 
 		sh = &V_pf_srchash[pf_hashsrc(&nsn->addr, nsn->af)];
 		PF_HASHROW_LOCK(sh);
-		if (--nsn->states == 1 && nsn->expire == 0) {
+		if (--nsn->states == 0 && nsn->expire == 0) {
 			pf_unlink_src_node(nsn);
 			uma_zfree(V_pf_sources_z, nsn);
 			counter_u64_add(
@@ -5885,7 +5895,7 @@ done:
 	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_IPOPTIONS);
-		log = 1;
+		log = r->log;
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: dropping packet with ip options\n"));
 	}
@@ -5903,13 +5913,16 @@ done:
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
+		} else {
+			if (s != NULL)
+				pd.pf_mtag->qid_hash = pf_state_hash(s);
+			if (pqid || (pd.tos & IPTOS_LOWDELAY))
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
+			pd.pf_mtag->hdr = h;
 		}
-		if (pqid || (pd.tos & IPTOS_LOWDELAY))
-			pd.pf_mtag->qid = r->pqid;
-		else
-			pd.pf_mtag->qid = r->qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
 
 	}
 #endif /* ALTQ */
@@ -5948,9 +5961,11 @@ done:
 					log = 1;
 					DPFPRINTF(PF_DEBUG_MISC,
 					    ("pf: failed to allocate tag\n"));
+				} else {
+					pd.pf_mtag->flags |=
+					    PF_FASTFWD_OURS_PRESENT;
+					m->m_flags &= ~M_FASTFWD_OURS;
 				}
-				pd.pf_mtag->flags |= PF_FASTFWD_OURS_PRESENT;
-				m->m_flags &= ~M_FASTFWD_OURS;
 			}
 			ip_divert_ptr(*m0, dir ==  PF_IN ? DIR_IN : DIR_OUT);
 			*m0 = NULL;
@@ -6070,7 +6085,17 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 
 	M_ASSERTPKTHDR(m);
 
-	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif)
+	/* Detect packet forwarding.
+	 * If the input interface is different from the output interface we're
+	 * forwarding.
+	 * We do need to be careful about bridges. If the
+	 * net.link.bridge.pfil_bridge sysctl is set we can be filtering on a
+	 * bridge, so if the input interface is a bridge member and the output
+	 * interface is its bridge we're not actually forwarding but bridging.
+	 */
+	if (dir == PF_OUT && m->m_pkthdr.rcvif && ifp != m->m_pkthdr.rcvif
+	    && (m->m_pkthdr.rcvif->if_bridge == NULL
+	        || m->m_pkthdr.rcvif->if_bridge != ifp->if_softc))
 		fwdir = PF_FWD;
 
 	if (!V_pf_status.running)
@@ -6314,7 +6339,7 @@ done:
 	    !((s && s->state_flags & PFSTATE_ALLOWOPTS) || r->allow_opts)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_IPOPTIONS);
-		log = 1;
+		log = r->log;
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: dropping packet with dangerous v6 headers\n"));
 	}
@@ -6332,13 +6357,16 @@ done:
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
+		} else {
+			if (s != NULL)
+				pd.pf_mtag->qid_hash = pf_state_hash(s);
+			if (pd.tos & IPTOS_LOWDELAY)
+				pd.pf_mtag->qid = r->pqid;
+			else
+				pd.pf_mtag->qid = r->qid;
+			/* Add hints for ecn. */
+			pd.pf_mtag->hdr = h;
 		}
-		if (pd.tos & IPTOS_LOWDELAY)
-			pd.pf_mtag->qid = r->pqid;
-		else
-			pd.pf_mtag->qid = r->qid;
-		/* add hints for ecn */
-		pd.pf_mtag->hdr = h;
 	}
 #endif /* ALTQ */
 

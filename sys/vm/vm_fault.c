@@ -193,7 +193,7 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 	VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	need_dirty = ((fault_type & VM_PROT_WRITE) != 0 &&
-	    (fault_flags & VM_FAULT_CHANGE_WIRING) == 0) ||
+	    (fault_flags & VM_FAULT_WIRE) == 0) ||
 	    (fault_flags & VM_FAULT_DIRTY) != 0;
 
 	if (set_wd)
@@ -242,15 +242,6 @@ vm_fault_dirty(vm_map_entry_t entry, vm_page_t m, vm_prot_t prot,
 	if (need_dirty)
 		vm_pager_page_unswapped(m);
 }
-
-/*
- * TRYPAGER - used by vm_fault to calculate whether the pager for the
- *	      current object *might* contain the page.
- *
- *	      default objects are zero-fill, there is no real pager.
- */
-#define TRYPAGER	(fs.object->type != OBJT_DEFAULT && \
-			((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 || wired))
 
 /*
  *	vm_fault:
@@ -348,6 +339,10 @@ RetryFault:;
 		vm_map_lock(fs.map);
 		if (vm_map_lookup_entry(fs.map, vaddr, &fs.entry) &&
 		    (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION)) {
+			if (fs.vp != NULL) {
+				vput(fs.vp);
+				fs.vp = NULL;
+			}
 			fs.entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
 			vm_map_unlock_and_wait(fs.map, 0);
 		} else
@@ -357,9 +352,12 @@ RetryFault:;
 
 	if (wired)
 		fault_type = prot | (fault_type & VM_PROT_COPY);
+	else
+		KASSERT((fault_flags & VM_FAULT_WIRE) == 0,
+		    ("!wired && VM_FAULT_WIRE"));
 
 	if (fs.vp == NULL /* avoid locked vnode leak */ &&
-	    (fault_flags & (VM_FAULT_CHANGE_WIRING | VM_FAULT_DIRTY)) == 0 &&
+	    (fault_flags & (VM_FAULT_WIRE | VM_FAULT_DIRTY)) == 0 &&
 	    /* avoid calling vm_object_set_writeable_dirty() */
 	    ((prot & VM_PROT_WRITE) == 0 ||
 	    (fs.first_object->type != OBJT_VNODE &&
@@ -505,10 +503,12 @@ fast_failed:
 		}
 
 		/*
-		 * Page is not resident, If this is the search termination
+		 * Page is not resident.  If this is the search termination
 		 * or the pager might contain the page, allocate a new page.
+		 * Default objects are zero-fill, there is no real pager.
 		 */
-		if (TRYPAGER || fs.object == fs.first_object) {
+		if (fs.object->type != OBJT_DEFAULT ||
+		    fs.object == fs.first_object) {
 			if (fs.pindex >= fs.object->size) {
 				unlock_and_deallocate(&fs);
 				return (KERN_PROTECTION_FAILURE);
@@ -552,9 +552,10 @@ readrest:
 		 *
 		 * Attempt to fault-in the page if there is a chance that the
 		 * pager has it, and potentially fault in additional pages
-		 * at the same time.
+		 * at the same time.  For default objects simply provide
+		 * zero-filled pages.
 		 */
-		if (TRYPAGER) {
+		if (fs.object->type != OBJT_DEFAULT) {
 			int rv;
 			u_char behavior = vm_map_entry_behavior(fs.entry);
 
@@ -675,19 +676,12 @@ vnode_locked:
 				/*
 				 * Found the page. Leave it busy while we play
 				 * with it.
-				 */
-
-				/*
-				 * Relookup in case pager changed page. Pager
+				 *
+				 * Pager could have changed the page.  Pager
 				 * is responsible for disposition of old page
 				 * if moved.
 				 */
-				fs.m = vm_page_lookup(fs.object, fs.pindex);
-				if (!fs.m) {
-					unlock_and_deallocate(&fs);
-					goto RetryFault;
-				}
-
+				fs.m = marray[reqpage];
 				hardfault++;
 				break; /* break to PAGE HAS BEEN FOUND */
 			}
@@ -876,7 +870,7 @@ vnode_locked:
 				pmap_copy_page(fs.m, fs.first_m);
 				fs.first_m->valid = VM_PAGE_BITS_ALL;
 				if (wired && (fault_flags &
-				    VM_FAULT_CHANGE_WIRING) == 0) {
+				    VM_FAULT_WIRE) == 0) {
 					vm_page_lock(fs.first_m);
 					vm_page_wire(fs.first_m);
 					vm_page_unlock(fs.first_m);
@@ -997,7 +991,7 @@ vnode_locked:
 	 */
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot,
 	    fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
-	if (faultcount != 1 && (fault_flags & VM_FAULT_CHANGE_WIRING) == 0 &&
+	if (faultcount != 1 && (fault_flags & VM_FAULT_WIRE) == 0 &&
 	    wired == 0)
 		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
 	VM_OBJECT_WLOCK(fs.object);
@@ -1007,11 +1001,9 @@ vnode_locked:
 	 * If the page is not wired down, then put it where the pageout daemon
 	 * can find it.
 	 */
-	if (fault_flags & VM_FAULT_CHANGE_WIRING) {
-		if (wired)
-			vm_page_wire(fs.m);
-		else
-			vm_page_unwire(fs.m, PQ_ACTIVE);
+	if ((fault_flags & VM_FAULT_WIRE) != 0) {
+		KASSERT(wired, ("VM_FAULT_WIRE && !wired"));
+		vm_page_wire(fs.m);
 	} else
 		vm_page_activate(fs.m);
 	if (m_hold != NULL) {
@@ -1089,9 +1081,19 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 				if (m->valid != VM_PAGE_BITS_ALL ||
 				    vm_page_busied(m))
 					continue;
+
+				/*
+				 * Don't clear PGA_REFERENCED, since it would
+				 * likely represent a reference by a different
+				 * process.
+				 *
+				 * Typically, at this point, prefetched pages
+				 * are still in the inactive queue.  Only
+				 * pages that triggered page faults are in the
+				 * active queue.
+				 */
 				vm_page_lock(m);
-				if (m->hold_count == 0 && m->wire_count == 0)
-					vm_page_advise(m, MADV_DONTNEED);
+				vm_page_deactivate(m);
 				vm_page_unlock(m);
 			}
 		}

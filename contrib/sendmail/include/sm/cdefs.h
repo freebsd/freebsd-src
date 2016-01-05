@@ -121,11 +121,11 @@
 */
 
 # ifndef SM_CONF_FORMAT_TEST
-#  if __GNUC__ == 2 && __GNUC_MINOR__ >= 7
+#  if (__GNUC__ == 2 && __GNUC_MINOR__ >= 7) || __GNUC__ > 2
 #   define SM_CONF_FORMAT_TEST	1
-#  else /* __GNUC__ == 2 && __GNUC_MINOR__ >= 7 */
+#  else
 #   define SM_CONF_FORMAT_TEST	0
-#  endif /* __GNUC__ == 2 && __GNUC_MINOR__ >= 7 */
+#  endif
 # endif /* SM_CONF_FORMAT_TEST */
 
 # ifndef PRINTFLIKE

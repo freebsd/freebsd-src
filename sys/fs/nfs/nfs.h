@@ -138,11 +138,11 @@
 
 /*
  * This macro defines the high water mark for issuing V4 delegations.
- * (It is currently set at a conservative 20% of NFSRV_V4STATELIMIT. This
+ * (It is currently set at a conservative 20% of nfsrv_v4statelimit. This
  *  may want to increase when clients can make more effective use of
  *  delegations.)
  */
-#define	NFSRV_V4DELEGLIMIT(c) (((c) * 5) > NFSRV_V4STATELIMIT)
+#define	NFSRV_V4DELEGLIMIT(c) (((c) * 5) > nfsrv_v4statelimit)
 
 #define	NFS_READDIRBLKSIZ	DIRBLKSIZ	/* Minimal nm_readdirsize */
 

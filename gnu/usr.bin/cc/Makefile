@@ -12,7 +12,7 @@ SUBDIR+= cpp
 .endif
 
 .if ${MK_CXX} != "no"
-SUBDIR+= cc1plus c++ c++filt
+SUBDIR+= cc1plus c++
 .endif
 
 .if ${MK_GCOV} != "no"

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -724,6 +725,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 void
 rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 	struct ifnet *ifp;
 	int err;
@@ -731,12 +733,12 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 
 	switch (cmd) {
 	case PRC_IFDOWN:
-		IN_IFADDR_RLOCK();
+		IN_IFADDR_RLOCK(&in_ifa_tracker);
 		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa
 			    && (ia->ia_flags & IFA_ROUTE)) {
 				ifa_ref(&ia->ia_ifa);
-				IN_IFADDR_RUNLOCK();
+				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 				/*
 				 * in_scrubprefix() kills the interface route.
 				 */
@@ -753,21 +755,21 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 			}
 		}
 		if (ia == NULL)		/* If ia matched, already unlocked. */
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		break;
 
 	case PRC_IFUP:
-		IN_IFADDR_RLOCK();
+		IN_IFADDR_RLOCK(&in_ifa_tracker);
 		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa)
 				break;
 		}
 		if (ia == NULL || (ia->ia_flags & IFA_ROUTE)) {
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			return;
 		}
 		ifa_ref(&ia->ia_ifa);
-		IN_IFADDR_RUNLOCK();
+		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		flags = RTF_UP;
 		ifp = ia->ia_ifa.ifa_ifp;
 

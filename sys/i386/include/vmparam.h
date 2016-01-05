@@ -83,13 +83,12 @@
 #define	VM_PHYSSEG_MAX		17
 
 /*
- * Create two free page pools.  Since the i386 kernel virtual address
+ * Create one free page pool.  Since the i386 kernel virtual address
  * space does not include a mapping onto the machine's entire physical
  * memory, VM_FREEPOOL_DIRECT is defined as an alias for the default
  * pool, VM_FREEPOOL_DEFAULT.
  */
-#define	VM_NFREEPOOL		2
-#define	VM_FREEPOOL_CACHE	1
+#define	VM_NFREEPOOL		1
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	0
 
@@ -135,11 +134,7 @@
  * Kernel physical load address.
  */
 #ifndef KERNLOAD
-#if defined(XEN) && !defined(XEN_PRIVILEGED_GUEST)
-#define	KERNLOAD		0
-#else
 #define	KERNLOAD		(1 << PDRSHIFT)
-#endif
 #endif /* !defined(KERNLOAD) */
 
 /*
@@ -149,11 +144,7 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#ifdef XEN
-#define VM_MAX_KERNEL_ADDRESS	HYPERVISOR_VIRT_START
-#else
 #define VM_MAX_KERNEL_ADDRESS	VADDR(KPTDI+NKPDE-1, NPTEPG-1)
-#endif
 
 #define VM_MIN_KERNEL_ADDRESS	VADDR(PTDPTDI, PTDPTDI)
 

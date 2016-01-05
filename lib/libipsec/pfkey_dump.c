@@ -187,6 +187,9 @@ static struct val2str str_alg_enc[] = {
 #ifdef SADB_X_EALG_AESCTR
 	{ SADB_X_EALG_AESCTR, "aes-ctr", },
 #endif
+#ifdef SADB_X_EALG_AESGCM16
+	{ SADB_X_EALG_AESGCM16, "aes-gcm-16", },
+#endif
 #ifdef SADB_X_EALG_CAMELLIACBC
 	{ SADB_X_EALG_CAMELLIACBC, "camellia-cbc", },
 #endif

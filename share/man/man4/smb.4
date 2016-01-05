@@ -1,5 +1,6 @@
 .\" Copyright (c) 1998, Nicolas Souchu
 .\" Copyright (c) 2004, Joerg Wunsch
+.\" Copyright (c) 2015, Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2009
+.Dd April 25, 2015
 .Dt SMB 4
 .Os
 .Sh NAME
@@ -36,10 +37,10 @@
 .Sh DESCRIPTION
 The
 .Em smb
-character device driver provides generic i/o to any
+character device driver provides generic I/O to any
 .Xr smbus 4
 instance.
-In order to control SMB devices, use
+To control SMB devices, use
 .Pa /dev/smb?
 with the ioctls described below.
 Any of these ioctl commands takes a pointer to
@@ -49,124 +50,145 @@ as its argument.
 #include <sys/types.h>
 
 struct smbcmd {
-	char cmd;
-	int count;
-	u_char slave;
+	u_char cmd;
+	u_char reserved;
+	u_short op;
 	union {
-		char byte;
-		short word;
-
-		char *byte_ptr;
-		short *word_ptr;
-
-		struct {
-			short sdata;
-			short *rdata;
-		} process;
-	} data;
+		char    byte;
+		char    buf[2];
+		short   word;
+	} wdata;
+	union {
+		char    byte;
+		char    buf[2];
+		short   word;
+	} rdata;
+	int  slave;
+	char *wbuf;     /* use wdata if NULL */
+	int  wcount;
+	char *rbuf;     /* use rdata if NULL */
+	int  rcount;
 };
 .Ed
 .Pp
 The
 .Fa slave
 field is always used, and provides the address of the
-SMBus slave device to talk to.
+SMBus slave device.
 The slave address is specified in the seven most significant bits
-.Pq i.e. Dq "left-justified" .
+.Pq i.e., Dq "left-justified" .
 The least significant bit of the slave address must be zero.
 .Pp
 .Bl -column ".Dv SMB_QUICK_WRITE" -compact
 .It Em Ioctl Ta Em Description
 .Pp
 .It Dv SMB_QUICK_WRITE Ta
-The
 .Em QuickWrite
-command just issues the device address with write intent
-to the bus, without transferring any data.
+does not transfer any data.
+It just issues the device address with write intent to the bus.
 .It Dv SMB_QUICK_READ Ta
-The
 .Em QuickRead
-command just issues the device address with read intent
-to the bus, without transferring any data.
+does not transfer any data.
+It just issues the device address with read intent to the bus.
 .It Dv SMB_SENDB Ta
-The
 .Em SendByte
-command sends the byte provided in the
+sends the byte provided in
 .Fa cmd
-field to the device.
+to the device.
 .It Dv SMB_RECVB Ta
-The
 .Em ReceiveByte
-command reads a single byte from the device which will
-be returned in the
-.Fa cmd
-field.
+reads a single byte from the device which is returned in
+.Fa cmd .
 .It Dv SMB_WRITEB Ta
-The
 .Em WriteByte
-command first sends the byte from the
+first sends the byte from
 .Fa cmd
-field to the device, followed by the byte given in
-.Fa data.byte .
+to the device, followed by the byte given in
+.Fa wdata.byte .
 .It Dv SMB_WRITEW Ta
-The
 .Em WriteWord
-command first sends the byte from the
+first sends the byte from
 .Fa cmd
-field to the device, followed by the word given in
-.Fa data.word .
+to the device, followed by the word given in
+.Fa wdata.word .
 Note that the SMBus byte-order is little-endian by definition.
 .It Dv SMB_READB Ta
-The
 .Em ReadByte
-command first sends the byte from the
+first sends the byte from
 .Fa cmd
-field to the device, and then reads one byte of data from
+to the device, then reads one byte of data from
 the device.
-The returned data will be stored in the location pointed to by
-.Fa data.byte_ptr .
+Returned data is stored in
+.Fa rdata.byte .
 .It Dv SMB_READW Ta
-The
 .Em ReadWord
-command first sends the byte from the
+first sends the byte from
 .Fa cmd
-field to the device, and then reads one word of data from
+to the device, then reads one word of data from
 the device.
-The returned data will be stored in the location pointed to by
-.Fa data.word_ptr .
+Returned data is stored in
+.Fa rdata.word .
 .It Dv SMB_PCALL Ta
-The
 .Em ProcedureCall
-command first sends the byte from the
+first sends the byte from
 .Fa cmd
-field to the device, followed by the word provided in
-.Fa data.process.sdata .
-It then reads one word of data from the device, and returns it
-in the location pointed to by
-.Fa data.process.rdata .
+to the device, followed by the word provided in
+.Fa wdata.word .
+It then reads one word of data from the device and returns it
+in
+.Fa rdata.word .
 .It Dv SMB_BWRITE Ta
-The
 .Em BlockWrite
-command first sends the byte from the
+first sends the byte from
 .Fa cmd
-field to the device, followed by
-.Fa count
+to the device, followed by
+.Fa wcount
 bytes of data that are taken from the buffer pointed to by
-.Fa data.byte_ptr .
+.Fa wbuf .
 The SMBus specification mandates that no more than 32 bytes of
-data can be transferred in a single block read or write command.
-This value is available in the constant
+data can be transferred in a single block read or write command,
+but since
+.Xr smbus 4
+is also used to access I2C devices, the limit has been increased
+to 1024.
+This value can be read from the constant
 .Dv SMB_MAXBLOCKSIZE .
 .It Dv SMB_BREAD Ta
-The
 .Em BlockRead
-command first sends the byte from the
+first sends the byte from
 .Fa cmd
-field to the device, and then reads
-.Fa count
+to the device, then reads
+.Fa rcount
 bytes of data that from the device.
-These data will be returned in the buffer pointed to by
-.Fa data.byte_ptr .
+This data is returned in the buffer pointed to by
+.Fa rbuf .
+.It Dv SMB_TRANS Ta
+.Em Trans
+sends an SMB roll-up transaction with flags that also allow it to
+be used for (mostly) I2C pass-through and with 10-bit addresses.
+This function can be utilized to roll up all of the above functions.
+It first sends the byte from
+.Fa cmd
+to the device, followed by
+.Fa wcount
+bytes of data that are taken from the buffer pointed to by
+.Fa wbuf ,
+then reads
+.Fa rcount
+bytes of data that from the device.
+This data is returned in the buffer pointed to by
+.Fa rbuf .
+.Pp
+The following flags are allowed in
+.Fa op :
+.Pp
+.Bd -literal -compact
+SMB_TRANS_NOSTOP  Do not send STOP at end
+SMB_TRANS_NOCMD   Ignore cmd field (do not tx)
+SMB_TRANS_NOCNT   Do not tx or rx count field
+SMB_TRANS_7BIT    Change address mode to 7-bit
+SMB_TRANS_10BIT   Change address mode to 10-bit
+.Ed
 .El
 .Pp
 The
@@ -201,4 +223,6 @@ manual page first appeared in
 .Sh AUTHORS
 This
 manual page was written by
-.An Nicolas Souchu .
+.An Nicolas Souchu
+and extended by
+.An Michael Gmelin Aq freebsd@grem.de .

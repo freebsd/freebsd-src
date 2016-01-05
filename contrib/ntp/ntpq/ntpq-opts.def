@@ -325,7 +325,9 @@ switch.
 This command allows the specification of a key number to be
 used to authenticate configuration requests.
 This must correspond
-to a key number the server has been configured to use for this
+to the
+.Cm controlkey
+key number the server has been configured to use for this
 purpose.
 .It Ic keytype Xo Oo
 .Cm md5 |
@@ -606,6 +608,14 @@ offset of server relative to this host
 .It Ic jitter
 jitter
 .El
+.It Ic apeers
+Display a list of peers in the form:
+.Dl [tally]remote refid assid st t when pool reach delay offset jitter
+where the output is just like the
+.Ic peers
+command except that the
+.Ic refid
+is displayed in hex format and the association number is also displayed.
 .It Ic pstats Ar assocID
 Show the statistics for the peer with the given
 .Ar assocID .

@@ -56,7 +56,8 @@
 .Nm sbuf_done ,
 .Nm sbuf_delete ,
 .Nm sbuf_start_section ,
-.Nm sbuf_end_section
+.Nm sbuf_end_section ,
+.Nm sbuf_hexdump
 .Nd safe string composition
 .Sh SYNOPSIS
 .In sys/types.h
@@ -115,6 +116,14 @@
 .Fn sbuf_start_section "struct sbuf *s" "ssize_t *old_lenp"
 .Ft ssize_t
 .Fn sbuf_end_section "struct sbuf *s" "ssize_t old_len" "size_t pad" "int c"
+.Ft void
+.Fo sbuf_hexdump
+.Fa "struct sbuf *sb"
+.Fa "void *ptr"
+.Fa "int length"
+.Fa "const char *hdr"
+.Fa "int flags"
+.Fc
 .In sys/sysctl.h
 .Ft struct sbuf *
 .Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
@@ -455,6 +464,14 @@ and \-1 can be specified for
 and
 .Fa old_len
 respectively.
+.Pp
+The
+.Fn sbuf_hexdump
+function prints an array of bytes to the supplied sbuf, along with an ASCII
+representation of the bytes if possible.
+See the
+.Xr hexdump 3
+man page for more details on the interface.
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
@@ -558,6 +575,7 @@ transmit_msg(sbuf_data(sb), sbuf_len(sb));
 sbuf_delete(sb);
 .Ed
 .Sh SEE ALSO
+.Xr hexdump 3 ,
 .Xr printf 3 ,
 .Xr strcat 3 ,
 .Xr strcpy 3 ,

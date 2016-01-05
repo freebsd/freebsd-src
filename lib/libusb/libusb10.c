@@ -1008,7 +1008,6 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 	uint16_t iso_packets;
 	uint16_t i;
 	uint8_t status;
-	uint8_t flags;
 
 	status = libusb20_tr_get_status(pxfer);
 	sxfer = libusb20_tr_get_priv_sc1(pxfer);
@@ -1016,7 +1015,7 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 	iso_packets = libusb20_tr_get_max_frames(pxfer);
 
 	if (sxfer == NULL)
-		return;			/* cancelled - nothing to do */
+		return; /* cancelled - nothing to do */
 
 	uxfer = (struct libusb_transfer *)(
 	    ((uint8_t *)sxfer) + sizeof(*sxfer));
@@ -1025,16 +1024,13 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 		iso_packets = uxfer->num_iso_packets;
 
 	if (iso_packets == 0)
-		return;			/* nothing to do */
+		return; /* nothing to do */
 
 	/* make sure that the number of ISOCHRONOUS packets is valid */
 	uxfer->num_iso_packets = iso_packets;
 
-	flags = uxfer->flags;
-
 	switch (status) {
 	case LIBUSB20_TRANSFER_COMPLETED:
-
 		/* update actual length */
 		uxfer->actual_length = actlen;
 		for (i = 0; i != iso_packets; i++) {
@@ -1043,9 +1039,7 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 		}
 		libusb10_complete_transfer(pxfer, sxfer, LIBUSB_TRANSFER_COMPLETED);
 		break;
-
 	case LIBUSB20_TRANSFER_START:
-
 		/* setup length(s) */
 		actlen = 0;
 		for (i = 0; i != iso_packets; i++) {
@@ -1064,7 +1058,6 @@ libusb10_isoc_proxy(struct libusb20_transfer *pxfer)
 		/* fork another USB transfer, if any */
 		libusb10_submit_transfer_sub(libusb20_tr_get_priv_sc0(pxfer), uxfer->endpoint);
 		break;
-
 	default:
 		libusb10_complete_transfer(pxfer, sxfer, libusb10_convert_error(status));
 		break;

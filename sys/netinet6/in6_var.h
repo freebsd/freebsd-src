@@ -442,11 +442,6 @@ struct	in6_rrenumreq {
 
 #define SIOCGIFAFLAG_IN6	_IOWR('i', 73, struct in6_ifreq)
 
-#define SIOCGDRLST_IN6		_IOWR('i', 74, struct in6_drlist)
-#ifdef _KERNEL
-/* XXX: SIOCGPRLST_IN6 is exposed in KAME but in6_oprlist is not. */
-#define SIOCGPRLST_IN6		_IOWR('i', 75, struct in6_oprlist)
-#endif
 #ifdef _KERNEL
 #define OSIOCGIFINFO_IN6	_IOWR('i', 76, struct in6_ondireq)
 #endif
@@ -494,14 +489,11 @@ struct	in6_rrenumreq {
 #define IN6_IFF_DETACHED	0x08	/* may be detached from the link */
 #define IN6_IFF_DEPRECATED	0x10	/* deprecated address */
 #define IN6_IFF_NODAD		0x20	/* don't perform DAD on this address
-					 * (used only at first SIOC* call)
+					 * (obsolete)
 					 */
 #define IN6_IFF_AUTOCONF	0x40	/* autoconfigurable address. */
 #define IN6_IFF_TEMPORARY	0x80	/* temporary (anonymous) address. */
 #define	IN6_IFF_PREFER_SOURCE	0x0100	/* preferred address for SAS */
-#define IN6_IFF_NOPFX		0x8000	/* skip kernel prefix management.
-					 * XXX: this should be temporary.
-					 */
 
 /* do not input/output */
 #define IN6_IFF_NOTREADY (IN6_IFF_TENTATIVE|IN6_IFF_DUPLICATED)
@@ -535,14 +527,14 @@ in6_addrhash(const struct in6_addr *in6)
 	return (fnv_32_buf(&x, sizeof(x), FNV1_32_INIT));
 }
 
-extern struct rwlock in6_ifaddr_lock;
-#define	IN6_IFADDR_LOCK_ASSERT(	)	rw_assert(&in6_ifaddr_lock, RA_LOCKED)
-#define	IN6_IFADDR_RLOCK()		rw_rlock(&in6_ifaddr_lock)
-#define	IN6_IFADDR_RLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_RLOCKED)
-#define	IN6_IFADDR_RUNLOCK()		rw_runlock(&in6_ifaddr_lock)
-#define	IN6_IFADDR_WLOCK()		rw_wlock(&in6_ifaddr_lock)
-#define	IN6_IFADDR_WLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_WLOCKED)
-#define	IN6_IFADDR_WUNLOCK()		rw_wunlock(&in6_ifaddr_lock)
+extern struct rmlock in6_ifaddr_lock;
+#define	IN6_IFADDR_LOCK_ASSERT()	rm_assert(&in6_ifaddr_lock, RA_LOCKED)
+#define	IN6_IFADDR_RLOCK(t)		rm_rlock(&in6_ifaddr_lock, (t))
+#define	IN6_IFADDR_RLOCK_ASSERT()	rm_assert(&in6_ifaddr_lock, RA_RLOCKED)
+#define	IN6_IFADDR_RUNLOCK(t)		rm_runlock(&in6_ifaddr_lock, (t))
+#define	IN6_IFADDR_WLOCK()		rm_wlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_WLOCK_ASSERT()	rm_assert(&in6_ifaddr_lock, RA_WLOCKED)
+#define	IN6_IFADDR_WUNLOCK()		rm_wunlock(&in6_ifaddr_lock)
 
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
@@ -808,7 +800,7 @@ int	in6_domifmtu(struct ifnet *);
 void	in6_setmaxmtu(void);
 int	in6_if2idlen(struct ifnet *);
 struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);
-struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, struct in6_addr *);
+struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, const struct in6_addr *);
 struct in6_ifaddr *in6ifa_ifwithaddr(const struct in6_addr *, uint32_t);
 struct in6_ifaddr *in6ifa_llaonifp(struct ifnet *);
 int	in6_addr2zoneid(struct ifnet *, struct in6_addr *, u_int32_t *);

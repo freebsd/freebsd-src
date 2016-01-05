@@ -30,7 +30,7 @@
 #	I suggest the use of _Summer time_ instead of the more cumbersome
 #	_daylight-saving time_.  _Summer time_ seems to be in general use
 #	in Europe and South America.
-#	-- E O Cutler, _New York Times_ (1937-02-14), quoted in
+#	-- E O Cutler, _New York Times_ (1937-02-14), quoted in
 #	H L Mencken, _The American Language: Supplement I_ (1960), p 466
 #
 # Earlier editions of these tables also used the North American style
@@ -131,7 +131,7 @@ Rule	Arg	2000	only	-	Mar	3	0:00	0	-
 # Timezone Law (which never was effectively applied) will (would?) be
 # in effect.... The article is at
 # http://ar.clarin.com/diario/2001-06-06/e-01701.htm
-# ... The Law itself is "Ley No 25155", sanctioned on 1999-08-25, enacted
+# ... The Law itself is "Ley No. 25155", sanctioned on 1999-08-25, enacted
 # 1999-09-17, and published 1999-09-21.  The official publication is at:
 # http://www.boletin.jus.gov.ar/BON/Primera/1999/09-Septiembre/21/PDF/BO21-09-99LEG.PDF
 # Regretfully, you have to subscribe (and pay) for the on-line version....
@@ -175,15 +175,11 @@ Rule	Arg	2000	only	-	Mar	3	0:00	0	-
 # http://www.worldtimezone.com/dst_news/dst_news_argentina03.html
 # http://www.impulsobaires.com.ar/nota.php?id=57832 (in spanish)
 
-# From Rodrigo Severo (2008-10-06):
-# Here is some info available at a Gentoo bug related to TZ on Argentina's DST:
-# ...
-# ------- Comment #1 from [jmdocile]  2008-10-06 16:28 0000 -------
-# Hi, there is a problem with timezone-data-2008e and maybe with
-# timezone-data-2008f
-# Argentinian law [Number] 25.155 is no longer valid.
+# From Juan Manuel Docile in https://bugs.gentoo.org/240339 (2008-10-07)
+# via Rodrigo Severo:
+# Argentinian law No. 25.155 is no longer valid.
 # http://www.infoleg.gov.ar/infolegInternet/anexos/60000-64999/60036/norma.htm
-# The new one is law [Number] 26.350
+# The new one is law No. 26.350
 # http://www.infoleg.gov.ar/infolegInternet/anexos/135000-139999/136191/norma.htm
 # So there is no summer time in Argentina for now.
 
@@ -771,7 +767,7 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 #	 [ and in a second message (same day): ]
 # I found the decree.
 #
-# DECRETO No- 7.584, DE 13 DE OUTUBRO DE 2011
+# DECRETO No. 7.584, DE 13 DE OUTUBRO DE 2011
 # Link :
 # http://www.in.gov.br/visualiza/index.jsp?data=13/10/2011&jornal=1000&pagina=6&totalArquivos=6
 
@@ -1098,6 +1094,60 @@ Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 
 # Chile
 
+# From Paul Eggert (2015-04-03):
+# Shanks & Pottenger says America/Santiago introduced standard time in
+# 1890 and rounds its UTC offset to 70W40; guess that in practice this
+# was the same offset as in 1916-1919.  It also says Pacific/Easter
+# standardized on 109W22 in 1890; assume this didn't change the clocks.
+#
+# Dates for America/Santiago from 1910 to 2004 are primarily from
+# the following source, cited by Oscar van Vlijmen (2006-10-08):
+# [1] Chile Law
+# http://www.webexhibits.org/daylightsaving/chile.html
+# This contains a copy of a this official table:
+# Cambios en la hora oficial de Chile desde 1900 (retrieved 2008-03-30)
+# http://web.archive.org/web/20080330200901/http://www.horaoficial.cl/cambio.htm
+# [1] needs several corrections, though.
+#
+# The first set of corrections is from:
+# [2] History of the Official Time of Chile
+# http://www.horaoficial.cl/ing/horaof_ing.html (retrieved 2012-03-06).  See:
+# http://web.archive.org/web/20120306042032/http://www.horaoficial.cl/ing/horaof_ing.html
+# This is an English translation of:
+# Historia de la hora oficial de Chile (retrieved 2012-10-24).  See:
+# http://web.archive.org/web/20121024234627/http://www.horaoficial.cl/horaof.htm
+# A fancier Spanish version (requiring mouse-clicking) is at:
+# http://www.horaoficial.cl/historia_hora.html
+# Conflicts between [1] and [2] were resolved as follows:
+#
+#  - [1] says the 1910 transition was Jan 1, [2] says Jan 10 and cites
+#    Boletín No. 1, Aviso No. 1 (1910).  Go with [2].
+#
+#  - [1] says SMT was -4:42:45, [2] says Chile's official time from
+#    1916 to 1919 was -4:42:46.3, the meridian of Chile's National
+#    Astronomical Observatory (OAN), then located in what is now
+#    Quinta Normal in Santiago.  Go with [2], rounding it to -4:42:46.
+#
+#  - [1] says the 1918 transition was Sep 1, [2] says Sep 10 and cites
+#    Boletín No. 22, Aviso No. 129/1918 (1918-08-23).  Go with [2].
+#
+#  - [1] does not give times for transitions; assume they occur
+#    at midnight mainland time, the current common practice.  However,
+#    go with [2]'s specification of 23:00 for the 1947-05-21 transition.
+#
+# Another correction to [1] is from Jesper Nørgaard Welen, who
+# wrote (2006-10-08), "I think that there are some obvious mistakes in
+# the suggested link from Oscar van Vlijmen,... for instance entry 66
+# says that GMT-4 ended 1990-09-12 while entry 67 only begins GMT-3 at
+# 1990-09-15 (they should have been 1990-09-15 and 1990-09-16
+# respectively), but anyhow it clears up some doubts too."
+#
+# Data for Pacific/Easter from 1910 through 1967 come from Shanks &
+# Pottenger.  After that, for lack of better info assume
+# Pacific/Easter is always two hours behind America/Santiago;
+# this is known to work for DST transitions starting in 2008 and
+# may well be true for earlier transitions.
+
 # From Eduardo Krell (1995-10-19):
 # The law says to switch to DST at midnight [24:00] on the second SATURDAY
 # of October....  The law is the same for March and October.
@@ -1110,78 +1160,35 @@ Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 # Because of the same drought, the government decided to end DST later,
 # on April 3, (one-time change).
 
-# From Oscar van Vlijmen (2006-10-08):
-# http://www.horaoficial.cl/cambio.htm
-
-# From Jesper Nørgaard Welen (2006-10-08):
-# I think that there are some obvious mistakes in the suggested link
-# from Oscar van Vlijmen,... for instance entry 66 says that GMT-4
-# ended 1990-09-12 while entry 67 only begins GMT-3 at 1990-09-15
-# (they should have been 1990-09-15 and 1990-09-16 respectively), but
-# anyhow it clears up some doubts too.
-
-# From Paul Eggert (2014-08-12):
-# The following data entries for Chile and America/Santiago are from
-# <http://www.horaoficial.cl/horaof.htm> (2006-09-20), transcribed by
-# Jesper Nørgaard Welen.  The data entries for Pacific/Easter are from Shanks
-# & Pottenger, except with DST transitions after 1932 cloned from
-# America/Santiago.  The pre-1980 Pacific/Easter data entries are dubious,
-# but we have no other source.
-
 # From Germán Poo-Caamaño (2008-03-03):
 # Due to drought, Chile extends Daylight Time in three weeks.  This
 # is one-time change (Saturday 3/29 at 24:00 for America/Santiago
 # and Saturday 3/29 at 22:00 for Pacific/Easter)
 # The Supreme Decree is located at
 # http://www.shoa.cl/servicios/supremo316.pdf
-# and the instructions for 2008 are located in:
-# http://www.horaoficial.cl/cambio.htm
-
+#
 # From José Miguel Garrido (2008-03-05):
-# ...
-# You could see the announces of the change on
 # http://www.shoa.cl/noticias/2008/04hora/hora.htm
 
 # From Angel Chiang (2010-03-04):
 # Subject: DST in Chile exceptionally extended to 3 April due to earthquake
 # http://www.gobiernodechile.cl/viewNoticia.aspx?idArticulo=30098
-# (in Spanish, last paragraph).
 #
-# This is breaking news. There should be more information available later.
-
 # From Arthur David Olson (2010-03-06):
 # Angel Chiang's message confirmed by Julio Pacheco; Julio provided a patch.
 
-# From Glenn Eychaner (2011-03-02):
-# It appears that the Chilean government has decided to postpone the
-# change from summer time to winter time again, by three weeks to April
-# 2nd:
-# http://www.emol.com/noticias/nacional/detalle/detallenoticias.asp?idnoticia=467651
-#
-# This is not yet reflected in the official "cambio de hora" site, but
-# probably will be soon:
-# http://www.horaoficial.cl/cambio.htm
-
-# From Arthur David Olson (2011-03-02):
-# The emol.com article mentions a water shortage as the cause of the
-# postponement, which may mean that it's not a permanent change.
-
 # From Glenn Eychaner (2011-03-28):
-# The article:
 # http://diario.elmercurio.com/2011/03/28/_portada/_portada/noticias/7565897A-CA86-49E6-9E03-660B21A4883E.htm?id=3D{7565897A-CA86-49E6-9E03-660B21A4883E}
-#
 # In English:
 # Chile's clocks will go back an hour this year on the 7th of May instead
 # of this Saturday. They will go forward again the 3rd Saturday in
-# August, not in October as they have since 1968. This is a pilot plan
-# which will be reevaluated in 2012.
+# August, not in October as they have since 1968.
 
 # From Mauricio Parada (2012-02-22), translated by Glenn Eychaner (2012-02-23):
 # As stated in the website of the Chilean Energy Ministry
 # http://www.minenergia.cl/ministerio/noticias/generales/gobierno-anuncia-fechas-de-cambio-de.html
 # The Chilean Government has decided to postpone the entrance into winter time
-# (to leave DST) from March 11 2012 to April 28th 2012. The decision has not
-# been yet formalized but it will within the next days.
+# (to leave DST) from March 11 2012 to April 28th 2012....
 # Quote from the website communication:
 #
 # 6. For the year 2012, the dates of entry into winter time will be as follows:
@@ -1214,17 +1221,9 @@ Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 # From Paul Eggert (2015-03-03):
 # For now, assume that the extension will persist indefinitely.
 
-# NOTE: ChileAQ rules for Antarctic bases are stored separately in the
-# 'antarctica' file.
-
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Chile	1927	1932	-	Sep	 1	0:00	1:00	S
+Rule	Chile	1927	1931	-	Sep	 1	0:00	1:00	S
 Rule	Chile	1928	1932	-	Apr	 1	0:00	0	-
-Rule	Chile	1942	only	-	Jun	 1	4:00u	0	-
-Rule	Chile	1942	only	-	Aug	 1	5:00u	1:00	S
-Rule	Chile	1946	only	-	Jul	15	4:00u	1:00	S
-Rule	Chile	1946	only	-	Sep	 1	3:00u	0:00	-
-Rule	Chile	1947	only	-	Apr	 1	4:00u	0	-
 Rule	Chile	1968	only	-	Nov	 3	4:00u	1:00	S
 Rule	Chile	1969	only	-	Mar	30	3:00u	0	-
 Rule	Chile	1969	only	-	Nov	23	4:00u	1:00	S
@@ -1235,10 +1234,8 @@ Rule	Chile	1972	1986	-	Mar	Sun>=9	3:00u	0	-
 Rule	Chile	1973	only	-	Sep	30	4:00u	1:00	S
 Rule	Chile	1974	1987	-	Oct	Sun>=9	4:00u	1:00	S
 Rule	Chile	1987	only	-	Apr	12	3:00u	0	-
-Rule	Chile	1988	1989	-	Mar	Sun>=9	3:00u	0	-
-Rule	Chile	1988	only	-	Oct	Sun>=1	4:00u	1:00	S
-Rule	Chile	1989	only	-	Oct	Sun>=9	4:00u	1:00	S
-Rule	Chile	1990	only	-	Mar	18	3:00u	0	-
+Rule	Chile	1988	1990	-	Mar	Sun>=9	3:00u	0	-
+Rule	Chile	1988	1989	-	Oct	Sun>=9	4:00u	1:00	S
 Rule	Chile	1990	only	-	Sep	16	4:00u	1:00	S
 Rule	Chile	1991	1996	-	Mar	Sun>=9	3:00u	0	-
 Rule	Chile	1991	1997	-	Oct	Sun>=9	4:00u	1:00	S
@@ -1261,15 +1258,21 @@ Rule	Chile	2012	2014	-	Sep	Sun>=2	4:00u	1:00	S
 # (1996-09) says 1998-03-08.  Ignore these.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Santiago	-4:42:46 -	LMT	1890
-			-4:42:46 -	SMT	1910        # Santiago Mean Time
+			-4:42:46 -	SMT	1910 Jan 10 # Santiago Mean Time
 			-5:00	-	CLT	1916 Jul  1 # Chile Time
-			-4:42:46 -	SMT	1918 Sep  1 # Santiago Mean Time
-			-4:00	-	CLT	1919 Jul  1 # Chile Time
-			-4:42:46 -	SMT	1927 Sep  1 # Santiago Mean Time
-			-5:00	Chile	CL%sT	1947 May 22 # Chile Time
+			-4:42:46 -	SMT	1918 Sep 10
+			-4:00	-	CLT	1919 Jul  1
+			-4:42:46 -	SMT	1927 Sep  1
+			-5:00	Chile	CL%sT	1932 Sep  1
+			-4:00	-	CLT	1942 Jun  1
+			-5:00	-	CLT	1942 Aug  1
+			-4:00	-	CLT	1946 Jul 15
+			-4:00	1:00	CLST	1946 Sep  1 # central Chile
+			-4:00	-	CLT	1947 Apr  1
+			-5:00	-	CLT	1947 May 21 23:00
 			-4:00	Chile	CL%sT	2015 Apr 26  3:00u
 			-3:00	-	CLT
-Zone Pacific/Easter	-7:17:44 -	LMT	1890
+Zone Pacific/Easter	-7:17:28 -	LMT	1890
 			-7:17:28 -	EMT	1932 Sep    # Easter Mean Time
 			-7:00	Chile	EAS%sT	1982 Mar 14 3:00u # Easter Time
 			-6:00	Chile	EAS%sT	2015 Apr 26 3:00u
@@ -1278,6 +1281,25 @@ Zone Pacific/Easter	-7:17:44 -	LMT	1890
 # Salas y Gómez Island is uninhabited.
 # Other Chilean locations, including Juan Fernández Is, Desventuradas Is,
 # and Antarctic bases, are like America/Santiago.
+
+# Antarctic base using South American rules
+# (See the file 'antarctica' for more.)
+#
+# Palmer, Anvers Island, since 1965 (moved 2 miles in 1968)
+#
+# From Ethan Dicks (1996-10-06):
+# It keeps the same time as Punta Arenas, Chile, because, just like us
+# and the South Pole, that's the other end of their supply line....
+# I verified with someone who was there that since 1980,
+# Palmer has followed Chile.  Prior to that, before the Falklands War,
+# Palmer used to be supplied from Argentina.
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Palmer	0	-	zzz	1965
+			-4:00	Arg	AR%sT	1969 Oct  5
+			-3:00	Arg	AR%sT	1982 May
+			-4:00	Chile	CL%sT	2015 Apr 26 3:00u
+			-3:00	-	CLT
 
 # Colombia
 
@@ -1507,7 +1529,7 @@ Rule	Para	1997	only	-	Feb	lastSun	0:00	0	-
 # (1999-09) reports no date; go with above sources and Gerd Knops (2001-02-27).
 Rule	Para	1998	2001	-	Mar	Sun>=1	0:00	0	-
 # From Rives McDow (2002-02-28):
-# A decree was issued in Paraguay (no. 16350) on 2002-02-26 that changed the
+# A decree was issued in Paraguay (No. 16350) on 2002-02-26 that changed the
 # dst method to be from the first Sunday in September to the first Sunday in
 # April.
 Rule	Para	2002	2004	-	Apr	Sun>=1	0:00	0	-
@@ -1687,8 +1709,19 @@ Rule	Uruguay	2005	only	-	Oct	 9	 2:00	1:00	S
 Rule	Uruguay	2006	only	-	Mar	12	 2:00	0	-
 # From Jesper Nørgaard Welen (2006-09-06):
 # http://www.presidencia.gub.uy/_web/decretos/2006/09/CM%20210_08%2006%202006_00001.PDF
-Rule	Uruguay	2006	max	-	Oct	Sun>=1	 2:00	1:00	S
-Rule	Uruguay	2007	max	-	Mar	Sun>=8	 2:00	0	-
+#
+# From Steffen Thorsen (2015-06-30):
+# ... it looks like they will not be using DST the coming summer:
+# http://www.elobservador.com.uy/gobierno-resolvio-que-no-habra-cambio-horario-verano-n656787
+# http://www.republica.com.uy/este-ano-no-se-modificara-el-huso-horario-en-uruguay/523760/
+# From Paul Eggert (2015-06-30):
+# Apparently restaurateurs complained that DST caused people to go to the beach
+# instead of out to dinner.
+# From Pablo Camargo (2015-07-13):
+# http://archivo.presidencia.gub.uy/sci/decretos/2015/06/cons_min_201.pdf
+# [dated 2015-06-29; repeals Decree 311/006 dated 2006-09-04]
+Rule	Uruguay	2006	2014	-	Oct	Sun>=1	 2:00	1:00	S
+Rule	Uruguay	2007	2015	-	Mar	Sun>=8	 2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 			-3:44:44 -	MMT	1920 May  1 # Montevideo MT
@@ -1696,6 +1729,10 @@ Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 			-3:00	Uruguay	UY%sT
 
 # Venezuela
+#
+# From Paul Eggert (2015-07-28):
+# For the 1965 transition see Gaceta Oficial No. 27.619 (1964-12-15), p 205.533
+# http://www.pgr.gob.ve/dmdocuments/1964/27619.pdf
 #
 # From John Stainforth (2007-11-28):
 # ... the change for Venezuela originally expected for 2007-12-31 has
@@ -1708,6 +1745,6 @@ Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Caracas	-4:27:44 -	LMT	1890
 			-4:27:40 -	CMT	1912 Feb 12 # Caracas Mean Time?
-			-4:30	-	VET	1965        # Venezuela Time
+			-4:30	-	VET	1965 Jan  1  0:00 # Venezuela T.
 			-4:00	-	VET	2007 Dec  9  3:00
 			-4:30	-	VET

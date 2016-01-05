@@ -110,7 +110,9 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				net->dest_state |= SCTP_ADDR_PF;
 				net->last_active = sctp_get_tick_count();
 				sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
-				sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_TIMER + SCTP_LOC_3);
+				sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT,
+				    stcb->sctp_ep, stcb, net,
+				    SCTP_FROM_SCTP_TIMER + SCTP_LOC_1);
 				sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net);
 			}
 		}
@@ -151,9 +153,9 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		/* Abort notification sends a ULP notify */
 		struct mbuf *op_err;
 
-		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
+		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 		    "Association error counter exceeded");
-		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_1;
+		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_2;
 		sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
@@ -1044,9 +1046,9 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 			/* FOOBAR! */
 			struct mbuf *op_err;
 
-			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
+			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    "Cookie timer expired, but no cookie");
-			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_4;
+			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_3;
 			sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		} else {
 #ifdef INVARIANTS
@@ -1490,6 +1492,8 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 #endif
 			if (mtu > next_mtu) {
 				net->mtu = next_mtu;
+			} else {
+				net->mtu = mtu;
 			}
 		}
 	}

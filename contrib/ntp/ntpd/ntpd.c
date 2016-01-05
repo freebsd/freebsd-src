@@ -1262,6 +1262,7 @@ finish(
 	if (mdns != NULL)
 		DNSServiceRefDeallocate(mdns);
 # endif
+	peer_cleanup();
 	exit(0);
 }
 #endif	/* !SIM && SIGDIE1 */

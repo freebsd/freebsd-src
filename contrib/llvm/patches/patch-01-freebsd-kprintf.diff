@@ -44,7 +44,7 @@ Index: tools/clang/include/clang/Sema/Sema.h
 ===================================================================
 --- tools/clang/include/clang/Sema/Sema.h
 +++ tools/clang/include/clang/Sema/Sema.h
-@@ -8566,6 +8566,7 @@ class Sema {
+@@ -8567,6 +8567,7 @@ class Sema {
      FST_Strftime,
      FST_Strfmon,
      FST_Kprintf,
@@ -230,7 +230,7 @@ Index: tools/clang/lib/Sema/SemaChecking.cpp
 ===================================================================
 --- tools/clang/lib/Sema/SemaChecking.cpp
 +++ tools/clang/lib/Sema/SemaChecking.cpp
-@@ -2584,6 +2584,7 @@ Sema::FormatStringType Sema::GetFormatStringType(c
+@@ -2603,6 +2603,7 @@ Sema::FormatStringType Sema::GetFormatStringType(c
    .Case("strftime", FST_Strftime)
    .Case("strfmon", FST_Strfmon)
    .Cases("kprintf", "cmn_err", "vcmn_err", "zcmn_err", FST_Kprintf)
@@ -238,7 +238,7 @@ Index: tools/clang/lib/Sema/SemaChecking.cpp
    .Default(FST_Unknown);
  }
  
-@@ -3365,6 +3366,43 @@ CheckPrintfHandler::HandlePrintfSpecifier(const an
+@@ -3384,6 +3385,43 @@ CheckPrintfHandler::HandlePrintfSpecifier(const an
      CoveredArgs.set(argIndex);
    }
  
@@ -282,7 +282,7 @@ Index: tools/clang/lib/Sema/SemaChecking.cpp
    // Check for using an Objective-C specific conversion specifier
    // in a non-ObjC literal.
    if (!ObjCContext && CS.isObjCArg()) {
-@@ -3988,7 +4026,8 @@ void Sema::CheckFormatString(const StringLiteral *
+@@ -4007,7 +4045,8 @@ void Sema::CheckFormatString(const StringLiteral *
      return;
    }
    
@@ -292,7 +292,7 @@ Index: tools/clang/lib/Sema/SemaChecking.cpp
      CheckPrintfHandler H(*this, FExpr, OrigFormatExpr, firstDataArg,
                           numDataArgs, (Type == FST_NSString),
                           Str, HasVAListArg, Args, format_idx,
-@@ -3996,7 +4035,8 @@ void Sema::CheckFormatString(const StringLiteral *
+@@ -4015,7 +4054,8 @@ void Sema::CheckFormatString(const StringLiteral *
    
      if (!analyze_format_string::ParsePrintfString(H, Str, Str + StrLen,
                                                    getLangOpts(),

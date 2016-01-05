@@ -184,9 +184,10 @@ OLD_DIRS+=usr/share/examples/bhyve
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld
+.if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/bin/objcopy
+.endif
 OLD_FILES+=usr/bin/objdump
-OLD_FILES+=usr/bin/readelf
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xbn
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xc
@@ -202,9 +203,10 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
 OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/ld.1.gz
+.if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/share/man/man1/objcopy.1.gz
+.endif
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
-OLD_FILES+=usr/share/man/man1/readelf.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
 OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
@@ -408,6 +410,21 @@ OLD_FILES+=usr/bin/bsdcpio
 OLD_FILES+=usr/bin/cpio
 OLD_FILES+=usr/share/man/man1/bsdcpio.1.gz
 OLD_FILES+=usr/share/man/man1/cpio.1.gz
+.endif
+
+.if ${MK_BSD_GREP} == no
+OLD_FILES+=usr/bin/lzegrep
+OLD_FILES+=usr/bin/lzfgrep
+OLD_FILES+=usr/bin/lzgrep
+OLD_FILES+=usr/bin/xzegrep
+OLD_FILES+=usr/bin/xzfgrep
+OLD_FILES+=usr/bin/xzgrep
+OLD_FILES+=usr/share/man/man1/lzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/lzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/lzgrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzegrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzfgrep.1.gz
+OLD_FILES+=usr/share/man/man1/xzgrep.1.gz
 .endif
 
 .if ${MK_BSDINSTALL} == no
@@ -781,6 +798,10 @@ OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
 OLD_FILES+=usr/share/dtrace/toolkit/hotuser
 OLD_FILES+=usr/share/dtrace/toolkit/opensnoop
 OLD_FILES+=usr/share/dtrace/toolkit/procsystime
+OLD_FILES+=usr/share/dtrace/tcpconn
+OLD_FILES+=usr/share/dtrace/tcpstate
+OLD_FILES+=usr/share/dtrace/tcptrack
+OLD_FILES+=usr/share/dtrace/udptrack
 OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 OLD_DIRS+=usr/lib/dtrace
 OLD_DIRS+=usr/lib32/dtrace
@@ -837,66 +858,66 @@ OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/tblgen
-OLD_FILES+=usr/lib/clang/3.6.0/include/__stddef_max_align_t.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_aes.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_pclmul.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/adxintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/altivec.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/ammintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/arm_acle.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/arm_neon.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/avx2intrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/avx512bwintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/avx512erintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/avx512fintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/avx512vlbwintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/avx512vlintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/avxintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/bmi2intrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/bmiintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/cpuid.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/emmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/f16cintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/fma4intrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/fmaintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/ia32intrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/immintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/lzcntintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/mm3dnow.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/mm_malloc.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/mmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/module.modulemap
-OLD_FILES+=usr/lib/clang/3.6.0/include/nmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/pmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/popcntintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/prfchwintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/rdseedintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/rtmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/shaintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/smmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/tbmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/tmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/wmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/x86intrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/xmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.0/include/xopintrin.h
-OLD_DIRS+=usr/lib/clang/3.6.0/include
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan-i386.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-arm.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-i386.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.profile-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.san-i386.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.san-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan-i386.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
-OLD_FILES+=usr/lib/clang/3.6.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
-OLD_DIRS+=usr/lib/clang/3.6.0/lib/freebsd
-OLD_DIRS+=usr/lib/clang/3.6.0/lib
-OLD_DIRS+=usr/lib/clang/3.6.0
+OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.6.1/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.6.1/include/xopintrin.h
+OLD_DIRS+=usr/lib/clang/3.6.1/include
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.6.1/lib
+OLD_DIRS+=usr/lib/clang/3.6.1
 OLD_DIRS+=usr/lib/clang
 OLD_FILES+=usr/share/doc/llvm/clang/LICENSE.TXT
 OLD_DIRS+=usr/share/doc/llvm/clang
@@ -1004,15 +1025,8 @@ OLD_DIRS+=usr/include/fs/cuse
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
-OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
-.if ${MK_GCC} == no
-OLD_FILES+=usr/bin/gperf
-OLD_FILES+=usr/share/info/gperf.info.gz
-OLD_FILES+=usr/share/man/man1/gperf.1.gz
-OLD_FILES+=usr/share/man/man1/gperf.7.gz
-.endif
 .endif
 
 .if ${MK_FMTREE} == no
@@ -1633,11 +1647,6 @@ OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/ee.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .endif
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no
-OLD_FILES+=usr/bin/elfcopy
-OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
-.endif
-
 #.if ${MK_EXAMPLES} == no
 # to be filled in
 #.endif
@@ -1720,11 +1729,11 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
-OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/bin/gcpp
+OLD_FILES+=usr/bin/gperf
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_aes.h
 OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_pclmul.h
@@ -1744,16 +1753,30 @@ OLD_FILES+=usr/include/gcc/4.2/altivec.h
 OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
 OLD_FILES+=usr/include/gcc/4.2/spe.h
 .endif
+OLD_FILES+=usr/include/omp.h
+OLD_FILES+=usr/lib/libgcov.a
+OLD_FILES+=usr/lib/libgomp.a
+OLD_FILES+=usr/lib/libgomp.so
+OLD_LIBS+=usr/lib/libgomp.so.1
+OLD_FILES+=usr/lib/libgomp_p.a
+OLD_FILES+=usr/lib32/libgcov.a
+OLD_FILES+=usr/lib32/libgomp.a
+OLD_FILES+=usr/lib32/libgomp.so
+OLD_LIBS+=usr/lib32/libgomp.so.1
+OLD_FILES+=usr/lib32/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/info/cpp.info.gz
 OLD_FILES+=usr/share/info/cppinternals.info.gz
 OLD_FILES+=usr/share/info/gcc.info.gz
 OLD_FILES+=usr/share/info/gccint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
 OLD_FILES+=usr/share/man/man1/g++.1.gz
 OLD_FILES+=usr/share/man/man1/gcc.1.gz
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.1.gz
+OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 
 .if ${MK_GCOV} == no
@@ -1835,7 +1858,6 @@ OLD_FILES+=usr/bin/post-grohtml
 OLD_FILES+=usr/bin/pre-grohtml
 OLD_FILES+=usr/bin/psroff
 OLD_FILES+=usr/bin/refer
-OLD_FILES+=usr/bin/soelim
 OLD_FILES+=usr/bin/tbl
 OLD_FILES+=usr/bin/tfmtodit
 OLD_FILES+=usr/bin/troff
@@ -2242,7 +2264,6 @@ OLD_FILES+=usr/share/man/man1/pfbtops.1.gz
 OLD_FILES+=usr/share/man/man1/pic.1.gz
 OLD_FILES+=usr/share/man/man1/psroff.1.gz
 OLD_FILES+=usr/share/man/man1/refer.1.gz
-OLD_FILES+=usr/share/man/man1/soelim.1.gz
 OLD_FILES+=usr/share/man/man1/tbl.1.gz
 OLD_FILES+=usr/share/man/man1/tfmtodit.1.gz
 OLD_FILES+=usr/share/man/man1/troff.1.gz
@@ -3973,6 +3994,7 @@ OLD_FILES+=usr/lib32/libcxxrt.a
 OLD_FILES+=usr/lib32/libcxxrt.so
 OLD_LIBS+=usr/lib32/libcxxrt.so.1
 OLD_FILES+=usr/lib32/libcxxrt_p.a
+OLD_DIRS+=usr/include/c++/v1/tr1
 OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
@@ -5092,9 +5114,10 @@ OLD_FILES+=usr/share/misc/mail.tildehelp
 
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=etc/mail/mailer.conf
-.if ${MK_SENDMAIL} == no
-OLD_FILES+=usr/sbin/mailwrapper
-.endif
+# Don't remove, for no mailwrapper case:
+# /usr/sbin/sendmail -> /usr/sbin/mailwrapper
+# /usr/sbin/mailwrapper -> /usr/libexec/sendmail/sendmail
+#OLD_FILES+=usr/sbin/mailwrapper
 OLD_FILES+=usr/share/man/man8/mailwrapper.8.gz
 .endif
 
@@ -6285,7 +6308,6 @@ OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 .if ${MK_RCS} == no
 OLD_FILES+=usr/bin/ci
 OLD_FILES+=usr/bin/co
-OLD_FILES+=usr/bin/ident
 OLD_FILES+=usr/bin/merge
 OLD_FILES+=usr/bin/rcs
 OLD_FILES+=usr/bin/rcsclean
@@ -6296,7 +6318,6 @@ OLD_FILES+=usr/bin/rlog
 OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
-OLD_FILES+=usr/share/man/man1/ident.1.gz
 OLD_FILES+=usr/share/man/man1/merge.1.gz
 OLD_FILES+=usr/share/man/man1/rcs.1.gz
 OLD_FILES+=usr/share/man/man1/rcsclean.1.gz
@@ -6325,9 +6346,7 @@ OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
-.if ${MK_MAILWRAPPER} == no
 OLD_FILES+=bin/rmail
-.endif
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
 OLD_FILES+=usr/include/libmilter/mfdef.h
@@ -6417,6 +6436,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/allmasquerade.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/always_add_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/authinfo.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/badmx.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/bcc.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/bestmx_is_local.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/bitdomain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/blacklist_recipients.m4
@@ -6444,9 +6464,11 @@ OLD_FILES+=usr/share/sendmail/cf/feature/msp.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/mtamark.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/no_default_msa.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nocanonify.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/nopercenthack.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/notsticky.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nouucp.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nullclient.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/prefixmod.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/preserve_local_plus_detail.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/preserve_luser_host.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/promiscuous_relay.m4
@@ -6461,6 +6483,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/relay_mail_from.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/require_rdns.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/smrsh.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/stickyhost.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/tls_session_features.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_client_ptr.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_ct_file.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_cw_file.m4
@@ -6469,6 +6492,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/virtuser_entire_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/virtusertable.m4
 OLD_DIRS+=usr/share/sendmail/cf/feature
 OLD_FILES+=usr/share/sendmail/cf/hack/cssubdomain.m4
+OLD_FILES+=usr/share/sendmail/cf/hack/xconnect.m4
 OLD_DIRS+=usr/share/sendmail/cf/hack
 OLD_FILES+=usr/share/sendmail/cf/m4/cf.m4
 OLD_FILES+=usr/share/sendmail/cf/m4/cfhead.m4
@@ -7482,9 +7506,26 @@ OLD_FILES+=usr/share/man/man1/colcrt.1.gz
 OLD_FILES+=usr/share/man/man1/ul.1.gz
 .endif
 
-#.if ${MK_TOOLCHAIN} == no
-# to be filled in
-#.endif
+.if ${MK_TOOLCHAIN} == no
+OLD_FILES+=usr/bin/addr2line
+OLD_FILES+=usr/bin/c++filt
+OLD_FILES+=usr/bin/nm
+OLD_FILES+=usr/bin/readelf
+OLD_FILES+=usr/bin/size
+OLD_FILES+=usr/bin/strings
+OLD_FILES+=usr/bin/strip
+OLD_FILES+=usr/share/man/man1/addr2line.1.gz
+OLD_FILES+=usr/share/man/man1/c++filt.1.gz
+OLD_FILES+=usr/share/man/man1/nm.1.gz
+OLD_FILES+=usr/share/man/man1/readelf.1.gz
+OLD_FILES+=usr/share/man/man1/size.1.gz
+OLD_FILES+=usr/share/man/man1/strings.1.gz
+OLD_FILES+=usr/share/man/man1/strip.1.gz
+.endif
+.if ${MK_TOOLCHAIN} == no || ${MK_ELFCOPY_AS_OBJCOPY} != no
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
 
 .if ${MK_UNBOUND} == no
 OLD_FILES+=etc/rc.d/local_unbound

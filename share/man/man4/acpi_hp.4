@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2010
+.Dd June 19, 2015
 .Dt ACPI_HP 4
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ acpi_hp_load="YES"
 The
 .Nm
 driver provides support for ACPI-controlled features found on HP laptops
-that use a WMI enabled BIOS (e.g. HP Compaq 8510p and 6510p).
+that use a WMI enabled BIOS (e.g., HP Compaq 8510p and 6510p).
 .Pp
 The main purpose of this driver is to provide an interface,
 accessible via
@@ -58,7 +58,7 @@ accessible via
 through which applications can determine and change the status of
 various laptop components and BIOS settings.
 .Pp
-.Ss Xr devd 8 Ss Events
+.Ss Xr devd 8 Events
 Devd events received by
 .Xr devd 8
 provide the following information:
@@ -91,7 +91,7 @@ WWAN on air status changed to 0 (not on air)
 .It Li 0xe1
 WWAN on air status changed to 1 (on air)
 .El
-.Ss Xr devfs 8 Ss Device
+.Ss Xr devfs 8 Device
 You can read /dev/hpcmi to see your current BIOS settings.
 The detail level can be adjusted by setting the sysctl
 .Va cmi_detail
@@ -197,8 +197,7 @@ Interface to read BIOS settings
 .Sh EXAMPLES
 The following can be added to
 .Xr devd.conf 5
-in order disable the LAN interface when WLAN on air and reenable if it's
-not:
+in order disable the LAN interface when WLAN on air and reenable if it is not:
 .Bd -literal -offset indent
 notify 0 {
 	match "system"          "ACPI";
@@ -281,7 +280,10 @@ This driver is experimental and has only been tested on i386 on an
 HP Compaq 8510p which featured all supported wireless devices (WWAN/BT/WLAN).
 Expect undefined results when operating on different hardware.
 .Pp
-Loading the driver is slow. Reading from /dev/hpcmi is even slower.
+Loading the driver is slow.
+Reading from
+.Pa /dev/hpcmi
+is even slower.
 .Pp
 Additional features like HP specific sensor readings or writing BIOS
 settings are not supported.

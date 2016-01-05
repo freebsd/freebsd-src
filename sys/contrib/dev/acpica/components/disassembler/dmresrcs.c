@@ -46,8 +46,6 @@
 #include <contrib/dev/acpica/include/acdisasm.h>
 
 
-#ifdef ACPI_DISASSEMBLER
-
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbresrcs")
 
@@ -368,5 +366,3 @@ AcpiDmVendorSmallDescriptor (
         ACPI_ADD_PTR (UINT8, Resource, sizeof (AML_RESOURCE_SMALL_HEADER)),
         Length, Level);
 }
-
-#endif

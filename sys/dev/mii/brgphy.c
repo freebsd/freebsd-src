@@ -118,7 +118,10 @@ static void	brgphy_jumbo_settings(struct mii_softc *, u_long);
 static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(BROADCOM, BCM5400),
 	MII_PHY_DESC(BROADCOM, BCM5401),
+	MII_PHY_DESC(BROADCOM, BCM5402),
 	MII_PHY_DESC(BROADCOM, BCM5411),
+	MII_PHY_DESC(BROADCOM, BCM5404),
+	MII_PHY_DESC(BROADCOM, BCM5424),
 	MII_PHY_DESC(BROADCOM, BCM54K2),
 	MII_PHY_DESC(BROADCOM, BCM5701),
 	MII_PHY_DESC(BROADCOM, BCM5703),
@@ -131,6 +134,9 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(BROADCOM, BCM5752),
 	MII_PHY_DESC(BROADCOM, BCM5780),
 	MII_PHY_DESC(BROADCOM, BCM5708C),
+	MII_PHY_DESC(BROADCOM, BCM5466),
+	MII_PHY_DESC(BROADCOM2, BCM5478),
+	MII_PHY_DESC(BROADCOM2, BCM5488),
 	MII_PHY_DESC(BROADCOM2, BCM5482),
 	MII_PHY_DESC(BROADCOM2, BCM5708S),
 	MII_PHY_DESC(BROADCOM2, BCM5709C),
@@ -160,25 +166,33 @@ static const struct mii_phy_funcs brgphy_funcs = {
 	brgphy_reset
 };
 
-#define HS21_PRODUCT_ID	"IBM eServer BladeCenter HS21"
-#define HS21_BCM_CHIPID	0x57081021
+static const struct hs21_type {
+	const uint32_t id;
+	const char *prod;
+} hs21_type_lists[] = {
+	{ 0x57081021, "IBM eServer BladeCenter HS21" },
+	{ 0x57081011, "IBM eServer BladeCenter HS21 -[8853PAU]-" },
+};
 
 static int
 detect_hs21(struct bce_softc *bce_sc)
 {
 	char *sysenv;
-	int found;
+	int found, i;
 
 	found = 0;
-	if (bce_sc->bce_chipid == HS21_BCM_CHIPID) {
-		sysenv = kern_getenv("smbios.system.product");
-		if (sysenv != NULL) {
-			if (strncmp(sysenv, HS21_PRODUCT_ID,
-			    strlen(HS21_PRODUCT_ID)) == 0)
-				found = 1;
-			freeenv(sysenv);
+	sysenv = kern_getenv("smbios.system.product");
+	if (sysenv == NULL)
+		return (found);
+	for (i = 0; i < nitems(hs21_type_lists); i++) {
+		if (bce_sc->bce_chipid == hs21_type_lists[i].id &&
+		    strncmp(sysenv, hs21_type_lists[i].prod,
+		    strlen(hs21_type_lists[i].prod)) == 0) {
+			found++;
+			break;
 		}
 	}
+	freeenv(sysenv);
 	return (found);
 }
 

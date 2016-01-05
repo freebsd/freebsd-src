@@ -54,7 +54,7 @@ x86_init_fdt(void)
 	mdp = preload_search_by_type("elf kernel");
 	if (mdp == NULL)
 		mdp = preload_search_by_type("elf32 kernel");
-	dtbp = (mdp != NULL) ? MD_FETCH(mdp, MODINFOMD_DTBP, void *) : NULL;
+	dtbp = MD_FETCH(mdp, MODINFOMD_DTBP, void *);
 
 #if defined(FDT_DTB_STATIC)
 	/*

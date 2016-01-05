@@ -1,9 +1,10 @@
 # $FreeBSD$
 
 LIB=	hdb
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}
 VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map
-LIBADD=	asn1 com_err krb5 roken heimsqlite
+LIBADD=	asn1 com_err krb5 roken sqlite3
+LDADD=	${LDAPLDADD}
 DPADD=	${LDAPDPADD}
 
 MAN=	HDB.3 hdb_entry_ex.3
@@ -56,7 +57,7 @@ SRCS=	common.c \
 	${GEN:S/.x$/.c/:S/.hx$/.h/}
 
 CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 \
-	-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sqlite \
+	-I${KRB5DIR}/lib/roken -I${.CURDIR}/../../../contrib/sqlite3/ \
 	-I${KRB5DIR}/lib/krb5 \
 	-I. ${LDAPCFLAGS}
 CFLAGS+=-DHDB_DB_DIR="\"/var/heimdal\""
@@ -95,6 +96,11 @@ ${GEN}: hdb.asn1
 
 .hx.h:
 	${CP} ${.IMPSRC} ${.TARGET}
+
+# This makefile generates a lot of its headers
+# so tell bsd.sys.mk not to try and stage them before they are built.
+# Note: this is rare
+NO_BEFOREBUILD_INCLUDES=
 
 .include <bsd.lib.mk>
 

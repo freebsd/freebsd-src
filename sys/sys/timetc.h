@@ -49,7 +49,7 @@ struct timecounter {
 		/* This mask should mask off any unimplemented bits. */
 	uint64_t		tc_frequency;
 		/* Frequency of the counter in Hz. */
-	char			*tc_name;
+	const char		*tc_name;
 		/* Name of the timecounter. */
 	int			tc_quality;
 		/*

@@ -36,8 +36,8 @@
  */
 
 linuxulator*:dummy::not_implemented,
-linuxulator*:emul:proc_exit:child_clear_tid_error,
-linuxulator*:emul:proc_exit:futex_failed,
+linuxulator*:emul:linux_thread_detach:child_clear_tid_error,
+linuxulator*:emul:linux_thread_detach:futex_failed,
 linuxulator*:emul:linux_schedtail:copyout_error,
 linuxulator*:futex:futex_get:error,
 linuxulator*:futex:futex_sleep:requeue_error,

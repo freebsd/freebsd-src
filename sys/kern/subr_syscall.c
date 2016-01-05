@@ -61,8 +61,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	p = td->td_proc;
 
 	td->td_pticks = 0;
-	if (td->td_ucred != p->p_ucred)
-		cred_update_thread(td);
+	if (td->td_cowgen != p->p_cowgen)
+		thread_cow_update(td);
 	if (p->p_flag & P_TRACED) {
 		traced = 1;
 		PROC_LOCK(p);
@@ -85,6 +85,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		STOPEVENT(p, S_SCE, sa->narg);
 		if (p->p_flag & P_TRACED && p->p_stops & S_PT_SCE) {
 			PROC_LOCK(p);
+			td->td_dbg_sc_code = sa->code;
+			td->td_dbg_sc_narg = sa->narg;
 			ptracestop((td), SIGTRAP);
 			PROC_UNLOCK(p);
 		}
@@ -94,6 +96,10 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			 * debugger modified registers or memory.
 			 */
 			error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
+			PROC_LOCK(p);
+			td->td_dbg_sc_code = sa->code;
+			td->td_dbg_sc_narg = sa->narg;
+			PROC_UNLOCK(p);
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_SYSCALL))
 				ktrsyscall(sa->code, sa->narg, sa->args);
@@ -164,7 +170,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 }
 
 static inline void
-syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
+syscallret(struct thread *td, int error, struct syscall_args *sa)
 {
 	struct proc *p, *p2;
 	int traced;

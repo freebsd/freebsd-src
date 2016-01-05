@@ -186,7 +186,7 @@ OpcParsePrintf (
         if (StringToProcess)
         {
             NewString = UtStringCacheCalloc (StringLength + 1);
-            ACPI_STRNCPY (NewString, StartPosition, StringLength);
+            strncpy (NewString, StartPosition, StringLength);
 
             NewOp = TrAllocateNode (PARSEOP_STRING_LITERAL);
             NewOp->Asl.Value.String = NewString;
@@ -275,7 +275,7 @@ OpcParsePrintf (
     if (StringToProcess)
     {
         NewString = UtStringCacheCalloc (StringLength + 1);
-        ACPI_STRNCPY (NewString, StartPosition, StringLength);
+        strncpy (NewString, StartPosition, StringLength);
 
         NewOp = TrAllocateNode (PARSEOP_STRING_LITERAL);
         NewOp->Asl.Value.String = NewString;

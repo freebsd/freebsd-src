@@ -147,7 +147,7 @@ rss_proto_software_hash_v4(struct in_addr s, struct in_addr d,
 	}
 
 	/* No configured available hashtypes! */
-	printf("%s: no available hashtypes!\n", __func__);
+	RSS_DEBUG("no available hashtypes!\n");
 	return (-1);
 }
 
@@ -183,7 +183,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	 * XXX For now this only handles hashing on incoming mbufs.
 	 */
 	if (dir != RSS_HASH_PKT_INGRESS) {
-		printf("%s: called on EGRESS packet!\n", __func__);
+		RSS_DEBUG("called on EGRESS packet!\n");
 		return (-1);
 	}
 
@@ -192,11 +192,11 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	 * to have an IPv4 header in it.
 	 */
 	if (m->m_pkthdr.len < (sizeof(struct ip))) {
-		printf("%s: short mbuf pkthdr\n", __func__);
+		RSS_DEBUG("short mbuf pkthdr\n");
 		return (-1);
 	}
 	if (m->m_len < (sizeof(struct ip))) {
-		printf("%s: short mbuf len\n", __func__);
+		RSS_DEBUG("short mbuf len\n");
 		return (-1);
 	}
 
@@ -280,7 +280,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	    (proto == IPPROTO_TCP) &&
 	    (is_frag == 0)) {
 		if (m->m_len < iphlen + sizeof(struct tcphdr)) {
-			printf("%s: short TCP frame?\n", __func__);
+			RSS_DEBUG("short TCP frame?\n");
 			return (-1);
 		}
 		th = (const struct tcphdr *)((c_caddr_t)ip + iphlen);
@@ -295,7 +295,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	    (is_frag == 0)) {
 		uh = (const struct udphdr *)((c_caddr_t)ip + iphlen);
 		if (m->m_len < iphlen + sizeof(struct udphdr)) {
-			printf("%s: short UDP frame?\n", __func__);
+			RSS_DEBUG("short UDP frame?\n");
 			return (-1);
 		}
 		return rss_proto_software_hash_v4(ip->ip_src, ip->ip_dst,
@@ -313,7 +313,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 		    hashval,
 		    hashtype);
 	} else {
-		printf("%s: no available hashtypes!\n", __func__);
+		RSS_DEBUG("no available hashtypes!\n");
 		return (-1);
 	}
 }
@@ -332,7 +332,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
  * XXX TODO: definitely want statistics here!
  */
 struct mbuf *
-rss_soft_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
+rss_soft_m2cpuid_v4(struct mbuf *m, uintptr_t source, u_int *cpuid)
 {
 	uint32_t hash_val, hash_type;
 	int ret;

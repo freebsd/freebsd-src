@@ -571,7 +571,7 @@ menu_read(void)
 	char *p;
 	int mark, num_keymaps, items, i;
 	char buffer[256], filename[PATH_MAX];
-	char keym[64], lng[64], desc[64];
+	char keym[64], lng[64], desc[256];
 	char dialect[64], lang_abk[64];
 	struct keymap *km;
 	struct keymap **km_sorted;
@@ -616,7 +616,7 @@ menu_read(void)
 				continue;
 
 			/* Parse input, removing newline */
-			matches = sscanf(p, "%64[^:]:%64[^:]:%64[^:\n]", 
+			matches = sscanf(p, "%64[^:]:%64[^:]:%256[^:\n]", 
 			    keym, lng, desc);
 			if (matches == 3) {
 				if (strcmp(keym, "FONT")

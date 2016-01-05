@@ -9,12 +9,17 @@
 
 .include <src.opts.mk>
 
-ROOTSRCDIR=	${.MAKE.MAKEFILES:M*/src.libnames.mk:H:H:H}
-ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${ROOTSRCDIR}
+.if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
+ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+.elif defined(OBJTOP) && ${.OBJDIR:M${OBJTOP}*} != ""
+ROOTOBJDIR=	${OBJTOP}
+.endif
+
 _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
 		bsdstat \
+		event \
 		heimipcc \
 		heimipcs \
 		ldns \
@@ -23,16 +28,14 @@ _PRIVATELIBS=	\
 		ucl \
 		unbound
 
-_INTERNALIBS=	\
+_INTERNALLIBS=	\
 		amu \
 		bsnmptools \
 		cron \
 		elftc \
-		event \
 		fifolog \
 		ipf \
 		lpr \
-		mandoc \
 		netbsd \
 		ntp \
 		ntpevent \
@@ -49,7 +52,7 @@ _INTERNALIBS=	\
 
 _LIBRARIES=	\
 		${_PRIVATELIBS} \
-		${_INTERNALIBS} \
+		${_INTERNALLIBS} \
 		alias \
 		archive \
 		asn1 \
@@ -78,6 +81,7 @@ _LIBRARIES=	\
 		devstat \
 		dialog \
 		dpv \
+		dtrace \
 		dwarf \
 		edit \
 		elf \
@@ -107,7 +111,6 @@ _LIBRARIES=	\
 		lzma \
 		m \
 		magic \
-		mandoc \
 		md \
 		memstat \
 		mp \
@@ -120,6 +123,8 @@ _LIBRARIES=	\
 		nv \
 		opie \
 		pam \
+		panel \
+		panelw \
 		pcap \
 		pcsclite \
 		pjdlog \
@@ -133,6 +138,7 @@ _LIBRARIES=	\
 		rpcsec_gss \
 		rpcsvc \
 		rt \
+		rtld_db \
 		sbuf \
 		sdp \
 		sm \
@@ -230,22 +236,32 @@ _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 _DP_lzma=	pthread
 _DP_ucl=	m
 _DP_vmmapi=	util
+_DP_ctf=	z
+_DP_proc=	rtld_db util
+_DP_dtrace=	rtld_db pthread
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
-LDADD_atf_c=	-L${LIBATF_CDIR} -latf-c
-LDADD_atf_cxx=	-L${LIBATF_CXXDIR} -latf-c++
+LIBATF_C=	${DESTDIR}${LIBDIR}/libprivateatf-c.a
+LIBATF_CXX=	${DESTDIR}${LIBDIR}/libprivateatf-c++.a
+LDADD_atf_c=	-lprivateatf-c
+LDADD_atf_cxx=	-lprivateatf-c++
+
+.for _l in ${_PRIVATELIBS}
+LIB${_l:tu}?=	${DESTDIR}${LIBDIR}/libprivate${_l}.a
+.endfor
 
 .for _l in ${_LIBRARIES}
-.if ${_PRIVATELIBS:M${_l}}
-LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
-.endif
-.if ${_INTERNALIBS:M${_l}}
+.if ${_INTERNALLIBS:M${_l}}
 LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
 .endif
 DPADD_${_l}?=	${LIB${_l:tu}}
+.if ${_PRIVATELIBS:M${_l}}
+LDADD_${_l}?=	-lprivate${_l}
+.else
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
-.if defined(_DP_${_l}) && defined(NO_SHARED)
+.endif
+.if defined(_DP_${_l}) && defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
 LDADD_${_l}+=	${LDADD_${_d}}
@@ -253,11 +269,11 @@ LDADD_${_l}+=	${LDADD_${_d}}
 .endif
 .endfor
 
-DPADD_sqlite3+=	${DPADD_pthread}
-LDADD_sqlite3+=	${LDADD_pthread}
-
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
+
+DPADD_sqlite3+=	${DPADD_pthread}
+LDADD_sqlite3+=	${LDADD_pthread}
 
 DPADD_fifolog+=	${DPADD_z}
 LDADD_fifolog+=	${LDADD_z}
@@ -267,6 +283,9 @@ LDADD_ipf+=	${LDADD_kvm}
 
 DPADD_mt+=	${DPADD_sbuf}
 LDADD_mt+=	${LDADD_sbuf}
+
+DPADD_dtrace+=	${DPADD_ctf} ${DPADD_elf} ${DPADD_proc}
+LDADD_dtrace+=	${LDADD_ctf} ${LDADD_elf} ${LDADD_proc}
 
 # The following depends on libraries which are using pthread
 DPADD_hdb+=	${DPADD_pthread}
@@ -279,9 +298,6 @@ DPADD_gssapi_krb5+=	${DPADD_pthread}
 LDADD_gssapi_krb5+=	${LDADD_pthread}
 
 .for _l in ${LIBADD}
-.if ${_PRIVATELIBS:M${_l}}
-USEPRIVATELIB+=	${_l}
-.endif
 DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
@@ -290,57 +306,14 @@ LDADD+=		${LDADD_${_l}}
 .error Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
 .endif
 
-.if defined(USEPRIVATELIB)
-LDFLAGS+=	-rpath ${LIBPRIVATEDIR}
-.endif
-
-LIBATF_CDIR=	${ROOTOBJDIR}/lib/atf/libatf-c
-LDATF_C?=	${LIBATF_CDIR}/libatf-c.so
-LIBATF_C?=	${LIBATF_CDIR}/libatf-c.a
-
-LIBATF_CXXDIR=	${ROOTOBJDIR}/lib/atf/libatf-c++
-LDATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.so
-LIBATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.a
-
-LIBBSDSTATDIR=	${ROOTOBJDIR}/lib/libbsdstat
-LIBBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.a
-
 LIBELFTCDIR=	${ROOTOBJDIR}/lib/libelftc
-LDELFTC?=	${LIBELFTCDIR}/libelftc.a
 LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
-
-LIBEVENTDIR=	${ROOTOBJDIR}/lib/libevent
-LIBEVENT?=	${LIBEVENTDIR}/libevent.a
-
-LIBHEIMIPCCDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcc
-LIBHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.a
-
-LIBHEIMIPCSDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcs
-LIBHEIMIPCS?=	${LIBHEIMIPCSDIR}/libheimipcs.a
-
-LIBLDNSDIR=	${ROOTOBJDIR}/lib/libldns
-LIBLDNS?=	${LIBLDNSDIR}/libldns.a
-
-LIBSSHDIR=	${ROOTOBJDIR}/secure/lib/libssh
-LIBSSH?=	${LIBSSHDIR}/libssh.a
-
-LIBUNBOUNDDIR=	${ROOTOBJDIR}/lib/libunbound
-LIBUNBOUND?=	${LIBUNBOUNDDIR}/libunbound.a
-
-LIBUCLDIR=	${ROOTOBJDIR}/lib/libucl
-LIBUCL?=	${LIBUCLDIR}/libucl.a
 
 LIBREADLINEDIR=	${ROOTOBJDIR}/gnu/lib/libreadline/readline
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
 LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
 LIBOHASH?=	${LIBOHASHDIR}/libohash.a
-
-LIBSQLITE3DIR=	${ROOTOBJDIR}/lib/libsqlite3
-LIBSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.a
-
-LIBMANDOCDIR=	${ROOTOBJDIR}/lib/libmandoc
-LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
 LIBSM?=		${LIBSMDIR}/libsm.a
@@ -364,7 +337,7 @@ LIBIPFDIR=	${ROOTOBJDIR}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf.a
 
 LIBTELNETDIR=	${ROOTOBJDIR}/lib/libtelnet
-LIBTELNET?=	${LIBIPFDIR}/libtelnet.a
+LIBTELNET?=	${LIBTELNETDIR}/libtelnet.a
 
 LIBCRONDIR=	${ROOTOBJDIR}/usr.sbin/cron/lib
 LIBCRON?=	${LIBCRONDIR}/libcron.a
@@ -373,7 +346,7 @@ LIBNTPDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp.a
 
 LIBNTPEVENTDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntpevent
-LIBNTPEVENT?=	${LIBNTPDIR}/libntpevent.a
+LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent.a
 
 LIBOPTSDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libopts
 LIBOTPS?=	${LIBOPTSDIR}/libopts.a

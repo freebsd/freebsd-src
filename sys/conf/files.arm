@@ -37,6 +37,7 @@ arm/arm/fiq.c			standard
 arm/arm/fiq_subr.S		standard
 arm/arm/fusu.S			standard
 arm/arm/gdb_machdep.c		optional	gdb
+arm/arm/gic.c			optional	gic
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
@@ -77,7 +78,10 @@ board_id.h			standard				   \
 	compile-with	"${AWK} -f $S/arm/conf/genboardid.awk $S/arm/conf/mach-types > board_id.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"board_id.h"
-cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/dev/dtrace/arm/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
+cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
+cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
@@ -104,6 +108,7 @@ libkern/arm/divsi3.S		standard
 libkern/arm/ffs.S		standard
 libkern/arm/ldivmod.S		standard
 libkern/arm/ldivmod_helper.c	standard
+libkern/arm/memclr.S		standard
 libkern/arm/memcpy.S		standard
 libkern/arm/memset.S		standard
 libkern/arm/muldi3.c		standard

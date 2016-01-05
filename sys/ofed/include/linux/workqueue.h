@@ -78,7 +78,7 @@ do {									\
 #define	INIT_DELAYED_WORK(_work, func)					\
 do {									\
 	INIT_WORK(&(_work)->work, func);				\
-	callout_init(&(_work)->timer, CALLOUT_MPSAFE);			\
+	callout_init(&(_work)->timer, 1);				\
 } while (0)
 
 #define	INIT_DEFERRABLE_WORK	INIT_DELAYED_WORK

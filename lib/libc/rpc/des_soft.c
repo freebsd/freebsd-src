@@ -58,8 +58,7 @@ static char partab[128] = {
  * Add odd parity to low bit of 8 byte key
  */
 void
-des_setparity(p)
-	char *p;
+des_setparity(char *p)
 {
 	int i;
 

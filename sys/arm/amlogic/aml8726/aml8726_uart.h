@@ -94,4 +94,14 @@
 #define	AML_UART_MISC_RECV_IRQ_CNT_MASK		0xff
 #define	AML_UART_MISC_RECV_IRQ_CNT_SHIFT	0
 
+/*
+ * The new baud rate register is available on the
+ * aml8726-m6 and later.
+ */
+#define	AML_UART_NEW_BAUD_REG			20
+#define	AML_UART_NEW_BAUD_USE_XTAL_CLK		(1 << 24)
+#define	AML_UART_NEW_BAUD_RATE_EN		(1 << 23)
+#define	AML_UART_NEW_BAUD_RATE_MASK		(0x7fffff << 0)
+#define	AML_UART_NEW_BAUD_RATE_SHIFT		0
+
 #endif /* _ARM_AMLOGIC_AML8726_UART_H */

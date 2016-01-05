@@ -85,8 +85,7 @@ struct pcb {
 	/* copyin/out fault recovery */
 	caddr_t		pcb_onfault;
 
-	/* 32-bit segment descriptor */
-	struct user_segment_descriptor pcb_gs32sd;
+	uint64_t	pcb_pad0;
 
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;

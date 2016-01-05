@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -167,6 +166,7 @@ tpc_timeout(void *arg)
 	}
 
 	/* Free inactive ROD tokens with expired timeout. */
+	mtx_lock(&softc->tpc_lock);
 	TAILQ_FOREACH_SAFE(token, &softc->tpc_tokens, links, ttoken) {
 		if (token->active ||
 		    time_uptime < token->last_active + token->timeout + 1)
@@ -175,6 +175,7 @@ tpc_timeout(void *arg)
 		free(token->params, M_CTL);
 		free(token, M_CTL);
 	}
+	mtx_unlock(&softc->tpc_lock);
 	callout_schedule(&softc->tpc_timeout, hz);
 }
 
@@ -182,6 +183,7 @@ void
 ctl_tpc_init(struct ctl_softc *softc)
 {
 
+	mtx_init(&softc->tpc_lock, "CTL TPC mutex", NULL, MTX_DEF);
 	TAILQ_INIT(&softc->tpc_tokens);
 	callout_init_mtx(&softc->tpc_timeout, &softc->ctl_lock, 0);
 	callout_reset(&softc->tpc_timeout, hz, tpc_timeout, softc);
@@ -195,13 +197,14 @@ ctl_tpc_shutdown(struct ctl_softc *softc)
 	callout_drain(&softc->tpc_timeout);
 
 	/* Free ROD tokens. */
-	mtx_lock(&softc->ctl_lock);
+	mtx_lock(&softc->tpc_lock);
 	while ((token = TAILQ_FIRST(&softc->tpc_tokens)) != NULL) {
 		TAILQ_REMOVE(&softc->tpc_tokens, token, links);
 		free(token->params, M_CTL);
 		free(token, M_CTL);
 	}
-	mtx_unlock(&softc->ctl_lock);
+	mtx_unlock(&softc->tpc_lock);
+	mtx_destroy(&softc->tpc_lock);
 }
 
 void
@@ -227,7 +230,7 @@ ctl_tpc_lun_shutdown(struct ctl_lun *lun)
 	}
 
 	/* Free ROD tokens for this LUN. */
-	mtx_assert(&softc->ctl_lock, MA_OWNED);
+	mtx_lock(&softc->tpc_lock);
 	TAILQ_FOREACH_SAFE(token, &softc->tpc_tokens, links, ttoken) {
 		if (token->lun != lun->lun || token->active)
 			continue;
@@ -235,6 +238,7 @@ ctl_tpc_lun_shutdown(struct ctl_lun *lun)
 		free(token->params, M_CTL);
 		free(token, M_CTL);
 	}
+	mtx_unlock(&softc->tpc_lock);
 }
 
 int
@@ -530,7 +534,7 @@ ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -612,7 +616,7 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL || !list->completed) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -684,7 +688,7 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -767,7 +771,7 @@ ctl_copy_operation_abort(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -812,7 +816,7 @@ tpc_process_b2b(struct tpc_list *list)
 	struct scsi_ec_segment_b2b *seg;
 	struct scsi_ec_cscd_dtsp *sdstp, *ddstp;
 	struct tpc_io *tior, *tiow;
-	struct runl run, *prun;
+	struct runl run;
 	uint64_t sl, dl;
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
 	int numlba;
@@ -884,8 +888,7 @@ tpc_process_b2b(struct tpc_list *list)
 	list->segsectors = numbytes / dstblock;
 	donebytes = 0;
 	TAILQ_INIT(&run);
-	prun = &run;
-	list->tbdio = 1;
+	list->tbdio = 0;
 	while (donebytes < numbytes) {
 		roundbytes = numbytes - donebytes;
 		if (roundbytes > TPC_MAX_IO_SIZE) {
@@ -937,8 +940,8 @@ tpc_process_b2b(struct tpc_list *list)
 		tiow->io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = tiow;
 
 		TAILQ_INSERT_TAIL(&tior->run, tiow, rlinks);
-		TAILQ_INSERT_TAIL(prun, tior, rlinks);
-		prun = &tior->run;
+		TAILQ_INSERT_TAIL(&run, tior, rlinks);
+		list->tbdio++;
 		donebytes += roundbytes;
 		srclba += roundbytes / srcblock;
 		dstlba += roundbytes / dstblock;
@@ -1394,10 +1397,10 @@ done:
 	free(list->params, M_CTL);
 	list->params = NULL;
 	if (list->token) {
-		mtx_lock(&softc->ctl_lock);
+		mtx_lock(&softc->tpc_lock);
 		if (--list->token->active == 0)
 			list->token->last_active = time_uptime;
-		mtx_unlock(&softc->ctl_lock);
+		mtx_unlock(&softc->tpc_lock);
 		list->token = NULL;
 	}
 	mtx_lock(&lun->lun_lock);
@@ -1642,7 +1645,7 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 		list->init_port = -1;
 	else
 		list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = data->list_identifier;
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -1769,7 +1772,7 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 		list->init_port = -1;
 	else
 		list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(data->list_identifier);
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -1887,7 +1890,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	softc = lun->ctl_softc;
-	port = softc->ctl_ports[ctl_port_idx(ctsio->io_hdr.nexus.targ_port)];
+	port = softc->ctl_ports[ctsio->io_hdr.nexus.targ_port];
 	cdb = (struct scsi_populate_token *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
@@ -1941,7 +1944,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(cdb->list_identifier);
 	list->flags = data->flags;
 	list->ctsio = ctsio;
@@ -1991,9 +1994,9 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	list->curseg = 0;
 	list->completed = 1;
 	list->last_active = time_uptime;
-	mtx_lock(&softc->ctl_lock);
+	mtx_lock(&softc->tpc_lock);
 	TAILQ_INSERT_TAIL(&softc->tpc_tokens, token, links);
-	mtx_unlock(&softc->ctl_lock);
+	mtx_unlock(&softc->tpc_lock);
 	ctl_set_success(ctsio);
 	ctl_done((union ctl_io *)ctsio);
 	return (CTL_RETVAL_COMPLETE);
@@ -2067,7 +2070,7 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(cdb->list_identifier);
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -2100,7 +2103,7 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	mtx_lock(&softc->ctl_lock);
+	mtx_lock(&softc->tpc_lock);
 	TAILQ_FOREACH(token, &softc->tpc_tokens, links) {
 		if (memcmp(token->token, data->rod_token,
 		    sizeof(data->rod_token)) == 0)
@@ -2112,7 +2115,7 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 		if (data->flags & EC_WUT_DEL_TKN)
 			token->timeout = 0;
 	}
-	mtx_unlock(&softc->ctl_lock);
+	mtx_unlock(&softc->tpc_lock);
 	if (token == NULL) {
 		mtx_lock(&lun->lun_lock);
 		TAILQ_REMOVE(&lun->tpc_lists, list, links);
@@ -2159,7 +2162,7 @@ ctl_receive_rod_token_information(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -2254,10 +2257,10 @@ ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio)
 	retval = CTL_RETVAL_COMPLETE;
 
 	tokens = 0;
-	mtx_lock(&softc->ctl_lock);
+	mtx_lock(&softc->tpc_lock);
 	TAILQ_FOREACH(token, &softc->tpc_tokens, links)
 		tokens++;
-	mtx_unlock(&softc->ctl_lock);
+	mtx_unlock(&softc->tpc_lock);
 	if (tokens > 512)
 		tokens = 512;
 
@@ -2282,7 +2285,7 @@ ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio)
 
 	data = (struct scsi_report_all_rod_tokens_data *)ctsio->kern_data_ptr;
 	i = 0;
-	mtx_lock(&softc->ctl_lock);
+	mtx_lock(&softc->tpc_lock);
 	TAILQ_FOREACH(token, &softc->tpc_tokens, links) {
 		if (i >= tokens)
 			break;
@@ -2290,7 +2293,7 @@ ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio)
 		    token->token, 96);
 		i++;
 	}
-	mtx_unlock(&softc->ctl_lock);
+	mtx_unlock(&softc->tpc_lock);
 	scsi_ulto4b(sizeof(*data) - 4 + i * 96, data->available_data);
 /*
 	printf("RART tokens=%d\n", i);

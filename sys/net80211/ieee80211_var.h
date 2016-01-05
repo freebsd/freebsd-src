@@ -116,14 +116,15 @@ struct ieee80211_superg;
 struct ieee80211_frame;
 
 struct ieee80211com {
-	struct ifnet		*ic_ifp;	/* associated device */
+	void			*ic_softc;	/* driver softc */
+	const char		*ic_name;	/* usually device name */
 	ieee80211_com_lock_t	ic_comlock;	/* state update lock */
 	ieee80211_tx_lock_t	ic_txlock;	/* ic/vap TX lock */
+	LIST_ENTRY(ieee80211com)   ic_next;	/* on global list */
 	TAILQ_HEAD(, ieee80211vap) ic_vaps;	/* list of vap instances */
 	int			ic_headroom;	/* driver tx headroom needs */
 	enum ieee80211_phytype	ic_phytype;	/* XXX wrong for multi-mode */
 	enum ieee80211_opmode	ic_opmode;	/* operation mode */
-	struct ifmedia		ic_media;	/* interface media config */
 	struct callout		ic_inact;	/* inactivity processing */
 	struct taskqueue	*ic_tq;		/* deferred state thread */
 	struct task		ic_parent_task;	/* deferred parent processing */
@@ -132,6 +133,9 @@ struct ieee80211com {
 	struct task		ic_chan_task;	/* deferred channel change */
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 	struct task		ic_chw_task;	/* deferred HT CHW update */
+
+	counter_u64_t		ic_ierrors;	/* input errors */
+	counter_u64_t		ic_oerrors;	/* output errors */
 
 	uint32_t		ic_flags;	/* state flags */
 	uint32_t		ic_flags_ext;	/* extended state flags */
@@ -146,6 +150,7 @@ struct ieee80211com {
 	uint8_t			ic_allmulti;	/* vap's needing all multicast*/
 	uint8_t			ic_nrunning;	/* vap's marked running */
 	uint8_t			ic_curmode;	/* current mode */
+	uint8_t			ic_macaddr[IEEE80211_ADDR_LEN];
 	uint16_t		ic_bintval;	/* beacon interval */
 	uint16_t		ic_lintval;	/* listen interval */
 	uint16_t		ic_holdover;	/* PM hold over duration */
@@ -192,6 +197,7 @@ struct ieee80211com {
 	struct ieee80211_dfs_state ic_dfs;	/* DFS state */
 
 	struct ieee80211_scan_state *ic_scan;	/* scan state */
+	struct ieee80211_scan_methods *ic_scan_methods;	/* scan methods */
 	int			ic_lastdata;	/* time of last data frame */
 	int			ic_lastscan;	/* time last scan completed */
 
@@ -235,6 +241,11 @@ struct ieee80211com {
 				    const uint8_t [IEEE80211_ADDR_LEN],
 				    const uint8_t [IEEE80211_ADDR_LEN]);
 	void			(*ic_vap_delete)(struct ieee80211vap *);
+	/* device specific ioctls */
+	int			(*ic_ioctl)(struct ieee80211com *,
+				    u_long, void *);
+	/* start/stop device */
+	void			(*ic_parent)(struct ieee80211com *);
 	/* operating mode attachment */
 	ieee80211vap_attach	ic_vattach[IEEE80211_OPMODE_MAX];
 	/* return hardware/radio capabilities */
@@ -248,6 +259,9 @@ struct ieee80211com {
 	int			(*ic_set_quiet)(struct ieee80211_node *,
 				    u_int8_t *quiet_elm);
 
+	/* regular transmit */
+	int			(*ic_transmit)(struct ieee80211com *,
+				    struct mbuf *);
 	/* send/recv 802.11 management frame */
 	int			(*ic_send_mgmt)(struct ieee80211_node *,
 				     int, int);
@@ -256,11 +270,11 @@ struct ieee80211com {
 				    struct mbuf *,
 				    const struct ieee80211_bpf_params *);
 	/* update device state for 802.11 slot time change */
-	void			(*ic_updateslot)(struct ifnet *);
+	void			(*ic_updateslot)(struct ieee80211com *);
 	/* handle multicast state changes */
-	void			(*ic_update_mcast)(struct ifnet *);
+	void			(*ic_update_mcast)(struct ieee80211com *);
 	/* handle promiscuous mode changes */
-	void			(*ic_update_promisc)(struct ifnet *);
+	void			(*ic_update_promisc)(struct ieee80211com *);
 	/* new station association callback/notification */
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
 	/* TDMA update notification */
@@ -345,14 +359,15 @@ struct ieee80211vap {
 
 	TAILQ_ENTRY(ieee80211vap) iv_next;	/* list of vap instances */
 	struct ieee80211com	*iv_ic;		/* back ptr to common state */
+	const uint8_t		*iv_myaddr;	/* MAC address: ifp or ic */
 	uint32_t		iv_debug;	/* debug msg flags */
 	struct ieee80211_stats	iv_stats;	/* statistics */
 
-	uint8_t			iv_myaddr[IEEE80211_ADDR_LEN];
 	uint32_t		iv_flags;	/* state flags */
 	uint32_t		iv_flags_ext;	/* extended state flags */
 	uint32_t		iv_flags_ht;	/* HT state flags */
 	uint32_t		iv_flags_ven;	/* vendor state flags */
+	uint32_t		iv_ifflags;	/* ifnet flags */
 	uint32_t		iv_caps;	/* capabilities */
 	uint32_t		iv_htcaps;	/* HT capabilities */
 	uint32_t		iv_htextcaps;	/* HT extended capabilities */
@@ -466,9 +481,13 @@ struct ieee80211vap {
 	void			(*iv_opdetach)(struct ieee80211vap *);
 	/* receive processing */
 	int			(*iv_input)(struct ieee80211_node *,
-				    struct mbuf *, int, int);
+				    struct mbuf *,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
 	void			(*iv_recv_mgmt)(struct ieee80211_node *,
-				    struct mbuf *, int, int, int);
+				    struct mbuf *, int,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
 	void			(*iv_recv_ctl)(struct ieee80211_node *,
 				    struct mbuf *, int);
 	void			(*iv_deliver_data)(struct ieee80211vap *,
@@ -496,13 +515,8 @@ struct ieee80211vap {
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 	/* 802.3 output method for raw frame xmit */
-#if __FreeBSD_version >= 1000031
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    const struct sockaddr *, struct route *);
-#else
-	int			(*iv_output)(struct ifnet *, struct mbuf *,
-				    struct sockaddr *, struct route *);
-#endif
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
@@ -675,24 +689,25 @@ MALLOC_DECLARE(M_80211_VAP);
 	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
 	"\21AMPDU\22AMSDU\23HT\24SMPS\25RIFS"
 
-void	ieee80211_ifattach(struct ieee80211com *,
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
+int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
+void	ieee80211_ifattach(struct ieee80211com *);
 void	ieee80211_ifdetach(struct ieee80211com *);
 int	ieee80211_vap_setup(struct ieee80211com *, struct ieee80211vap *,
 		const char name[IFNAMSIZ], int unit,
 		enum ieee80211_opmode opmode, int flags,
-		const uint8_t bssid[IEEE80211_ADDR_LEN],
-		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
+		const uint8_t bssid[IEEE80211_ADDR_LEN]);
 int	ieee80211_vap_attach(struct ieee80211vap *,
-		ifm_change_cb_t, ifm_stat_cb_t);
+		ifm_change_cb_t, ifm_stat_cb_t,
+		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 void	ieee80211_vap_detach(struct ieee80211vap *);
 const struct ieee80211_rateset *ieee80211_get_suprates(struct ieee80211com *ic,
 		const struct ieee80211_channel *);
 void	ieee80211_announce(struct ieee80211com *);
 void	ieee80211_announce_channels(struct ieee80211com *);
 void	ieee80211_drain(struct ieee80211com *);
-void	ieee80211_media_init(struct ieee80211com *);
+void	ieee80211_chan_init(struct ieee80211com *);
 struct ieee80211com *ieee80211_find_vap(const uint8_t mac[IEEE80211_ADDR_LEN]);
+struct ieee80211com *ieee80211_find_com(const char *name);
 int	ieee80211_media_change(struct ifnet *);
 void	ieee80211_media_status(struct ifnet *, struct ifmediareq *);
 int	ieee80211_ioctl(struct ifnet *, u_long, caddr_t);
@@ -707,6 +722,8 @@ struct ieee80211_channel *ieee80211_find_channel(struct ieee80211com *,
 		int freq, int flags);
 struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,
 		int ieee, int flags);
+struct ieee80211_channel *ieee80211_lookup_channel_rxstatus(struct ieee80211vap *,
+		const struct ieee80211_rx_stats *);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
 uint32_t ieee80211_mac_hash(const struct ieee80211com *,

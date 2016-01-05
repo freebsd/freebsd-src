@@ -730,4 +730,45 @@ atomic_swap_64(volatile u_long *p, u_long v)
 #undef __ATOMIC_REL
 #undef __ATOMIC_ACQ
 
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	/* See above comment about lwsync being broken on Book-E. */
+#ifdef __powerpc64__
+	__asm __volatile("lwsync" : : : "memory");
+#else
+	__asm __volatile("sync" : : : "memory");
+#endif
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+#ifdef __powerpc64__
+	__asm __volatile("lwsync" : : : "memory");
+#else
+	__asm __volatile("sync" : : : "memory");
+#endif
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+#ifdef __powerpc64__
+	__asm __volatile("lwsync" : : : "memory");
+#else
+	__asm __volatile("sync" : : : "memory");
+#endif
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	__asm __volatile("sync" : : : "memory");
+}
+
 #endif /* ! _MACHINE_ATOMIC_H_ */

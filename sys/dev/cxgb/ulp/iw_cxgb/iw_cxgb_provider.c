@@ -303,7 +303,7 @@ iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	else
 		cq_op = CQ_ARM_AN;
 	if (chp->user_rptr_addr) {
-		if (copyin(&rptr, chp->user_rptr_addr, 4))
+		if (copyin(chp->user_rptr_addr, &rptr, sizeof(rptr)))
 			return (-EFAULT);
 		mtx_lock(&chp->lock);
 		chp->cq.rptr = rptr;
@@ -906,7 +906,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		insert_mmap(ucontext, mm2);
 	}
 	qhp->ibqp.qp_num = qhp->wq.qpid;
-	callout_init(&(qhp->timer), TRUE);
+	callout_init(&(qhp->timer), 1);
 	CTR6(KTR_IW_CXGB, "sq_num_entries %d, rq_num_entries %d "
 	     "qpid 0x%0x qhp %p dma_addr 0x%llx size %d",
 	     qhp->attr.sq_num_entries, qhp->attr.rq_num_entries,

@@ -384,7 +384,7 @@ mpc7xxx_read_pmc(int cpu, int ri, pmc_value_t *v)
 		ri));
 
 	tmp = mpc7xxx_pmcn_read(ri);
-	PMCDBG(MDP,REA,2,"ppc-read id=%d -> %jd", ri, tmp);
+	PMCDBG2(MDP,REA,2,"ppc-read id=%d -> %jd", ri, tmp);
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = POWERPC_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
 	else
@@ -408,7 +408,7 @@ mpc7xxx_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = POWERPC_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
 	
-	PMCDBG(MDP,WRI,1,"powerpc-write cpu=%d ri=%d v=%jx", cpu, ri, v);
+	PMCDBG3(MDP,WRI,1,"powerpc-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	mpc7xxx_pmcn_write(ri, v);
 
@@ -420,7 +420,7 @@ mpc7xxx_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -559,7 +559,7 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] wrong cpu number %d", __LINE__, cpu));
-	PMCDBG(MDP,INI,1,"powerpc-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"powerpc-init cpu=%d", cpu);
 
 	powerpc_pcpu[cpu] = pac = malloc(sizeof(struct powerpc_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
@@ -638,7 +638,7 @@ mpc7xxx_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_powerpc.pm_powerpc_evsel = config;
 
-	PMCDBG(MDP,ALL,2,"powerpc-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP,ALL,2,"powerpc-allocate ri=%d -> config=0x%x", ri, config);
 
 	return 0;
 }
@@ -671,7 +671,7 @@ mpc7xxx_intr(int cpu, struct trapframe *tf)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
+	PMCDBG3(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	retval = 0;

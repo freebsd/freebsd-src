@@ -52,8 +52,9 @@
 #define AML_DISASSEMBLER_NAME       "AML/ASL+ Disassembler"
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
+#define ASL_DEFINE                  "__IASL__"
 
-#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 5.1"
+#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 6.0"
 
 
 /* Configuration constants */
@@ -105,7 +106,8 @@
 
 /* filename suffixes for output files */
 
-#define FILE_SUFFIX_PREPROCESSOR    "i"
+#define FILE_SUFFIX_PREPROC_USER    "i  "
+#define FILE_SUFFIX_PREPROCESSOR    "pre"
 #define FILE_SUFFIX_AML_CODE        "aml"
 #define FILE_SUFFIX_MAP             "map"
 #define FILE_SUFFIX_LISTING         "lst"
@@ -136,6 +138,8 @@
 #define ASL_ABORT                   TRUE
 #define ASL_NO_ABORT                FALSE
 #define ASL_EOF                     ACPI_UINT32_MAX
+#define ASL_WITHIN_COMMENT          (ACPI_UINT32_MAX -1)
+#define ASL_BLANK_LINE              (ACPI_UINT32_MAX -1)
 
 
 /* Listings */
@@ -150,12 +154,6 @@
 #define ACPI_PREDEFINED_NAME            (ACPI_UINT32_MAX - 1)
 #define ACPI_EVENT_RESERVED_NAME        (ACPI_UINT32_MAX - 2)
 #define ACPI_COMPILER_RESERVED_NAME     (ACPI_UINT32_MAX - 3)
-
-
-/* String to Integer conversion */
-
-#define NEGATIVE                    1
-#define POSITIVE                    0
 
 
 /* Helper macros for resource tag creation */

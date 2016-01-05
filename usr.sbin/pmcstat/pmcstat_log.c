@@ -716,7 +716,8 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 				        ph.p_offset);
 				break;
 			case PT_LOAD:
-				if ((ph.p_offset & (-ph.p_align)) == 0)
+				if ((ph.p_flags & PF_X) != 0 &&
+				    (ph.p_offset & (-ph.p_align)) == 0)
 					image->pi_vaddr = ph.p_vaddr & (-ph.p_align);
 				break;
 			}
@@ -1531,7 +1532,9 @@ pmcstat_analyze_log(void)
 				free(ppm);
 			}
 
-			/* associate this process  image */
+			/*
+			 * Associate this process image.
+			 */
 			image_path = pmcstat_string_intern(
 				ev.pl_u.pl_x.pl_pathname);
 			assert(image_path != NULL);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 HighPoint Technologies, Inc.
+ * Copyright (c) 2005-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,7 @@ typedef unsigned short HPT_U16;
 typedef unsigned char HPT_U8;
 typedef unsigned long HPT_TIME;
 typedef unsigned long long HPT_U64;
+typedef long long HPT_64;
 
 #define CPU_TO_LE64(x) (x)
 #define CPU_TO_LE32(x) (x)
@@ -223,7 +224,20 @@ int  os_printk(char *fmt, ...);
 
 #if DBG
 extern int hpt_dbg_level;
-#define KdPrint(x)  do { if (hpt_dbg_level) os_printk x; } while (0)
+#define dbg_printk(fmt, args...) \
+	do {\
+		char *__p = fmt;\
+		int __level;\
+		if (__p[0]=='<' && __p[2]=='>') {\
+			__level = __p[1] - '0';\
+			__p += 3;\
+		} else\
+			__level = 7;\
+		if (hpt_dbg_level >= __level)\
+			os_printk(__p, ##args);\
+	} while (0)
+
+#define KdPrint(x)  do { dbg_printk x; } while (0)
 void __os_dbgbreak(const char *file, int line);
 #define os_dbgbreak() __os_dbgbreak(__FILE__, __LINE__)
 #define HPT_ASSERT(x) do { if (!(x)) os_dbgbreak(); } while (0)

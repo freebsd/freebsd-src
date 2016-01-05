@@ -732,7 +732,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long addr, baddr, et_dyn_addr, entry = 0, proghdr = 0;
 	int32_t osrel = 0;
 	int error = 0, i, n, interp_name_len = 0;
-	const char *interp = NULL, *newinterp = NULL;
+	const char *err_str = NULL, *interp = NULL, *newinterp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
 	struct sysentvec *sv;
@@ -755,11 +755,14 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if ((hdr->e_phoff > PAGE_SIZE) ||
 	    (u_int)hdr->e_phentsize * hdr->e_phnum > PAGE_SIZE - hdr->e_phoff) {
 		/* Only support headers in first page for now */
+		uprintf("Program headers not in the first page\n");
 		return (ENOEXEC);
 	}
-	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
-	if (!aligned(phdr, Elf_Addr))
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff); 
+	if (!aligned(phdr, Elf_Addr)) {
+		uprintf("Unaligned program headers\n");
 		return (ENOEXEC);
+	}
 	n = 0;
 	baddr = 0;
 	for (i = 0; i < hdr->e_phnum; i++) {
@@ -773,8 +776,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
 			    phdr[i].p_offset > PAGE_SIZE ||
-			    phdr[i].p_filesz > PAGE_SIZE - phdr[i].p_offset)
+			    phdr[i].p_filesz > PAGE_SIZE - phdr[i].p_offset) {
+				uprintf("Invalid PT_INTERP\n");
 				return (ENOEXEC);
+			}
 			interp = imgp->image_header + phdr[i].p_offset;
 			interp_name_len = phdr[i].p_filesz;
 			break;
@@ -795,8 +800,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		return (ENOEXEC);
 	}
 	if (hdr->e_type == ET_DYN) {
-		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0)
+		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
+			uprintf("Cannot execute shared object\n");
 			return (ENOEXEC);
+		}
 		/*
 		 * Honour the base load address from the dso if it is
 		 * non-zero for some reason.
@@ -901,12 +908,19 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * not actually fault in all the segments pages.
 	 */
 	PROC_LOCK(imgp->proc);
-	if (data_size > lim_cur(imgp->proc, RLIMIT_DATA) ||
-	    text_size > maxtsiz ||
-	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM) ||
-	    racct_set(imgp->proc, RACCT_DATA, data_size) != 0 ||
-	    racct_set(imgp->proc, RACCT_VMEM, total_size) != 0) {
+	if (data_size > lim_cur_proc(imgp->proc, RLIMIT_DATA))
+		err_str = "Data segment size exceeds process limit";
+	else if (text_size > maxtsiz)
+		err_str = "Text segment size exceeds system limit";
+	else if (total_size > lim_cur_proc(imgp->proc, RLIMIT_VMEM))
+		err_str = "Total segment size exceeds process limit";
+	else if (racct_set(imgp->proc, RACCT_DATA, data_size) != 0)
+		err_str = "Data segment size exceeds resource limit";
+	else if (racct_set(imgp->proc, RACCT_VMEM, total_size) != 0)
+		err_str = "Total segment size exceeds resource limit";
+	if (err_str != NULL) {
 		PROC_UNLOCK(imgp->proc);
+		uprintf("%s\n", err_str);
 		return (ENOMEM);
 	}
 
@@ -922,7 +936,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * calculation is that it leaves room for the heap to grow to
 	 * its maximum allowed size.
 	 */
-	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(imgp->proc,
+	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(curthread,
 	    RLIMIT_DATA));
 	PROC_UNLOCK(imgp->proc);
 
@@ -972,6 +986,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	elf_auxargs->base = addr;
 	elf_auxargs->flags = 0;
 	elf_auxargs->entry = entry;
+	elf_auxargs->hdr_eflags = hdr->e_flags;
 
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
@@ -1002,6 +1017,9 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+#ifdef AT_EHDRFLAGS
+	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
+#endif
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, AT_EXECPATH, imgp->execpathp);
 	AUXARGS_ENTRY(pos, AT_OSRELDATE,
@@ -1223,6 +1241,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 
 	compress = (flags & IMGACT_CORE_COMPRESS) != 0;
 	hdr = NULL;
+	tmpbuf = NULL;
 	TAILQ_INIT(&notelst);
 
 	/* Size the program segments. */
@@ -1237,20 +1256,6 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	__elfN(prepare_notes)(td, &notelst, &notesz);
 	coresize = round_page(hdrsize + notesz) + seginfo.size;
 
-#ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_add(td->td_proc, RACCT_CORE, coresize);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0) {
-		error = EFAULT;
-		goto done;
-	}
-#endif
-	if (coresize >= limit) {
-		error = EFAULT;
-		goto done;
-	}
-
 	/* Set up core dump parameters. */
 	params.offset = 0;
 	params.active_cred = cred;
@@ -1259,7 +1264,22 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	params.vp = vp;
 	params.gzs = NULL;
 
-	tmpbuf = NULL;
+#ifdef RACCT
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_CORE, coresize);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = EFAULT;
+			goto done;
+		}
+	}
+#endif
+	if (coresize >= limit) {
+		error = EFAULT;
+		goto done;
+	}
+
 #ifdef GZIO
 	/* Create a compression stream if necessary. */
 	if (compress) {
@@ -1316,7 +1336,8 @@ done:
 #ifdef GZIO
 	if (compress) {
 		free(tmpbuf, M_TEMP);
-		gzio_fini(params.gzs);
+		if (params.gzs != NULL)
+			gzio_fini(params.gzs);
 	}
 #endif
 	while ((ninfo = TAILQ_FIRST(&notelst)) != NULL) {
@@ -1656,7 +1677,8 @@ static void
 __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 {
 	Elf_Note note;
-	ssize_t old_len;
+	ssize_t old_len, sect_len;
+	size_t new_len, descsz, i;
 
 	if (ninfo->type == -1) {
 		ninfo->outfunc(ninfo->outarg, sb, &ninfo->outsize);
@@ -1675,7 +1697,33 @@ __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 		return;
 	sbuf_start_section(sb, &old_len);
 	ninfo->outfunc(ninfo->outarg, sb, &ninfo->outsize);
-	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
+	sect_len = sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
+	if (sect_len < 0)
+		return;
+
+	new_len = (size_t)sect_len;
+	descsz = roundup(note.n_descsz, ELF_NOTE_ROUNDSIZE);
+	if (new_len < descsz) {
+		/*
+		 * It is expected that individual note emitters will correctly
+		 * predict their expected output size and fill up to that size
+		 * themselves, padding in a format-specific way if needed.
+		 * However, in case they don't, just do it here with zeros.
+		 */
+		for (i = 0; i < descsz - new_len; i++)
+			sbuf_putc(sb, 0);
+	} else if (new_len > descsz) {
+		/*
+		 * We can't always truncate sb -- we may have drained some
+		 * of it already.
+		 */
+		KASSERT(new_len == descsz, ("%s: Note type %u changed as we "
+		    "read it (%zu > %zu).  Since it is longer than "
+		    "expected, this coredump's notes are corrupt.  THIS "
+		    "IS A BUG in the note_procstat routine for type %u.\n",
+		    __func__, (unsigned)note.n_type, new_len, descsz,
+		    (unsigned)note.n_type));
+	}
 }
 
 /*
@@ -1858,25 +1906,47 @@ static void
 note_procstat_files(void *arg, struct sbuf *sb, size_t *sizep)
 {
 	struct proc *p;
-	size_t size;
-	int structsize;
+	size_t size, sect_sz, i;
+	ssize_t start_len, sect_len;
+	int structsize, filedesc_flags;
+
+	if (coredump_pack_fileinfo)
+		filedesc_flags = KERN_FILEDESC_PACK_KINFO;
+	else
+		filedesc_flags = 0;
 
 	p = (struct proc *)arg;
+	structsize = sizeof(struct kinfo_file);
 	if (sb == NULL) {
 		size = 0;
 		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
 		sbuf_set_drain(sb, sbuf_drain_count, &size);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
-		kern_proc_filedesc_out(p, sb, -1);
+		kern_proc_filedesc_out(p, sb, -1, filedesc_flags);
 		sbuf_finish(sb);
 		sbuf_delete(sb);
 		*sizep = size;
 	} else {
-		structsize = sizeof(struct kinfo_file);
+		sbuf_start_section(sb, &start_len);
+
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
-		kern_proc_filedesc_out(p, sb, -1);
+		kern_proc_filedesc_out(p, sb, *sizep - sizeof(structsize),
+		    filedesc_flags);
+
+		sect_len = sbuf_end_section(sb, start_len, 0, 0);
+		if (sect_len < 0)
+			return;
+		sect_sz = sect_len;
+
+		KASSERT(sect_sz <= *sizep,
+		    ("kern_proc_filedesc_out did not respect maxlen; "
+		     "requested %zu, got %zu", *sizep - sizeof(structsize),
+		     sect_sz - sizeof(structsize)));
+
+		for (i = 0; i < *sizep - sect_sz && sb->s_error == 0; i++)
+			sbuf_putc(sb, 0);
 	}
 }
 
@@ -1963,7 +2033,7 @@ note_procstat_rlimit(void *arg, struct sbuf *sb, size_t *sizep)
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PROC_LOCK(p);
 		for (i = 0; i < RLIM_NLIMITS; i++)
-			lim_rlimit(p, i, &rlim[i]);
+			lim_rlimit_proc(p, i, &rlim[i]);
 		PROC_UNLOCK(p);
 		sbuf_bcat(sb, rlim, sizeof(rlim));
 	}

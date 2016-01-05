@@ -80,7 +80,7 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 	if ((error = md_load(fp->f_args, &mdp)) != 0)
 		return (error);
 
-	entry = uboot_vm_translate(e->e_entry);
+	entry = (void *)e->e_entry;
 	printf("Kernel entry at 0x%x...\n", (unsigned)entry);
 
 	dev_cleanup();

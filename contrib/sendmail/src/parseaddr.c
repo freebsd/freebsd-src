@@ -2204,8 +2204,9 @@ badaddr:
 **			use entire pvp.
 **		buf -- buffer to build the string into.
 **		sz -- size of buf.
-**		spacesub -- the space separator character; if '\0',
-**			use SpaceSub.
+**		spacesub -- the space separator character;
+**			'\0': SpaceSub.
+**			NOSPACESEP: no separator
 **		external -- convert to external form?
 **			(no metacharacters; METAQUOTEs removed, see below)
 **
@@ -2268,7 +2269,7 @@ cataddr(pvp, evp, buf, sz, spacesub, external)
 		char *q;
 
 		natomtok = (IntTokenTab[**pvp & 0xff] == ATM);
-		if (oatomtok && natomtok)
+		if (oatomtok && natomtok && spacesub != NOSPACESEP)
 		{
 			*p++ = spacesub;
 			if (--sz <= 0)
@@ -2362,6 +2363,10 @@ sameaddr(a, b)
 	if (strcmp(a->q_user, b->q_user) != 0)
 		return false;
 
+	/* do the required flags match? */
+	if (!ADDR_FLAGS_MATCH(a, b))
+		return false;
+
 	/* if we have good uids for both but they differ, these are different */
 	if (a->q_mailer == ProgMailer)
 	{
@@ -2409,6 +2414,7 @@ struct qflags
 	unsigned long	qf_bit;
 };
 
+/* :'a,.s;^#define \(Q[A-Z]*\)	.*;	{ "\1",	\1	},; */
 static struct qflags	AddressFlags[] =
 {
 	{ "QGOODUID",		QGOODUID	},
@@ -2426,6 +2432,12 @@ static struct qflags	AddressFlags[] =
 	{ "QDELIVERED",		QDELIVERED	},
 	{ "QDELAYED",		QDELAYED	},
 	{ "QTHISPASS",		QTHISPASS	},
+	{ "QALIAS",		QALIAS		},
+	{ "QBYTRACE",		QBYTRACE	},
+	{ "QBYNDELAY",		QBYNDELAY	},
+	{ "QBYNRELAY",		QBYNRELAY	},
+	{ "QINTBCC",		QINTBCC		},
+	{ "QDYNMAILER",		QDYNMAILER	},
 	{ "QRCPTOK",		QRCPTOK		},
 	{ NULL,			0		}
 };
@@ -2789,7 +2801,7 @@ remotename(name, m, flags, pstat, e)
 	{
 		sm_dprintf("remotename => `");
 		xputs(sm_debug_file(), buf);
-		sm_dprintf("'\n");
+		sm_dprintf("', stat=%d\n", *pstat);
 	}
 	return buf;
 }
@@ -3060,6 +3072,8 @@ dequote_map(map, name, av, statp)
 **		logid -- id for sm_syslog.
 **		addr -- if not NULL and ruleset returns $#error:
 **				store mailer triple here.
+**		addrstr -- if not NULL and ruleset does not return $#:
+**				address string
 **
 **	Returns:
 **		EX_OK -- if the rwset doesn't resolve to $#error
@@ -3067,7 +3081,7 @@ dequote_map(map, name, av, statp)
 */
 
 int
-rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr)
+rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr, addrstr)
 	char *rwset;
 	char *p1;
 	char *p2;
@@ -3077,6 +3091,7 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr)
 	char *host;
 	char *logid;
 	ADDRESS *addr;
+	char **addrstr;
 {
 	char *volatile buf;
 	size_t bufsize;
@@ -3150,6 +3165,17 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr)
 		(void) REWRITE(pvp, rsno, e);
 		if (bitset(RSF_UNSTRUCTURED, flags))
 			SuprErrs = saveSuprErrs;
+
+		if (pvp[0] != NULL && (pvp[0][0] & 0377) != CANONNET &&
+		    bitset(RSF_ADDR, flags) && addrstr != NULL)
+		{
+			cataddr(&(pvp[0]), NULL, ubuf, sizeof(ubuf),
+				bitset(RSF_STRING, flags) ? NOSPACESEP : ' ',
+				true);
+			*addrstr = sm_rpool_strdup_x(e->e_rpool, ubuf);
+			goto finis;
+		}
+
 		if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
 		    pvp[1] == NULL || (strcmp(pvp[1], "error") != 0 &&
 				       strcmp(pvp[1], "discard") != 0))

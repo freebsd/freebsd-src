@@ -10,6 +10,9 @@ __<bsd.files.mk>__:
 FILESGROUPS?=	FILES
 
 .for group in ${FILESGROUPS}
+# Add in foo.yes and remove duplicates from all the groups
+${${group}}:= ${${group}} ${${group}.yes}
+${${group}}:= ${${group}:O:u}
 buildfiles: ${${group}}
 .endfor
 
@@ -23,6 +26,11 @@ ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
 ${group}MODE?=	${SHAREMODE}
 ${group}DIR?=	${BINDIR}
+.if !make(buildincludes)
+STAGE_SETS+=	${group}
+.endif
+STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
+STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
 
 _${group}FILES=
 .for file in ${${group}}
@@ -38,6 +46,12 @@ ${group}NAME_${file:T}?=	${${group}NAME}
 .else
 ${group}NAME_${file:T}?=	${file:T}
 .endif
+.if !make(buildincludes)
+STAGE_AS_SETS+=	${group}
+.endif
+STAGE_AS_${file:T}= ${${group}NAME_${file:T}}
+stage_as.${group}: ${file}
+
 installfiles-${group}: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
 	${INSTALL} -o ${${group}OWN_${.ALLSRC:T}} \
@@ -49,6 +63,8 @@ _${group}FILES+= ${file}
 .endif
 .endfor
 .if !empty(_${group}FILES)
+stage_files.${group}: ${_${group}FILES}
+
 installfiles-${group}: _${group}INS
 _${group}INS: ${_${group}FILES}
 .if defined(${group}NAME)
@@ -66,5 +82,14 @@ _${group}INS: ${_${group}FILES}
 
 realinstall: installfiles
 .ORDER: beforeinstall installfiles
+
+.if ${MK_STAGING} != "no"
+.if !empty(STAGE_SETS)
+buildfiles: stage_files
+.if !empty(STAGE_AS_SETS)
+buildfiles: stage_as
+.endif
+.endif
+.endif
 
 .endif # !target(__<bsd.files.mk>__)

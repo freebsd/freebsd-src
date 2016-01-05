@@ -128,7 +128,7 @@ pfkey_stats(u_long off, const char *name, int family __unused,
 	xo_emit(m, (uintmax_t)pfkeystat.f, plural(pfkeystat.f))
 
 	/* userland -> kernel */
-	p(out_total, "\t{:sent-requests//%ju} "
+	p(out_total, "\t{:sent-requests/%ju} "
 	    "{N:/request%s sent from userland}\n");
 	p(out_bytes, "\t{:sent-bytes/%ju} "
 	    "{N:/byte%s sent from userland}\n");
@@ -165,7 +165,7 @@ pfkey_stats(u_long off, const char *name, int family __unused,
 	    "{N:/message%s with duplicate extension}\n");
 	p(out_invexttype, "\t{:dropped-bad-extension/%ju} "
 	    "{N:/message%s with invalid extension type}\n");
-	p(out_invsatype, "\t:dropped-bad-sa-type/%ju} "
+	p(out_invsatype, "\t{:dropped-bad-sa-type/%ju} "
 	    "{N:/message%s with invalid sa type}\n");
 	p(out_invaddr, "\t{:dropped-bad-address-extension/%ju} "
 	    "{N:/message%s with invalid address extension}\n");

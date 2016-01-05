@@ -12,7 +12,7 @@
 .Os
 .Sh NAME
 .Nm xo_error
-.Nd generate error messages
+.Nd generate simple error messages in multiple output styles
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -28,37 +28,14 @@ The
 argument is a string containing printf-style formatting
 instructions that describe the remaining arguments.
 .Pp
-When converting an application to libxo, one can replace
+When converting an application to
+.Nm libxo ,
+one can replace
 .Em "fprintf(stderr,...)"
 calls with
 .Fn xo_error
 calls.
-.Pp
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr printf 3
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr printf 3 ,
+.Xr xo_emit 3 ,
+.Xr libxo 3

@@ -52,9 +52,11 @@ static MALLOC_DEFINE(M_PFSNODES, "pfs_nodes", "pseudofs nodes");
 SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW, 0,
     "pseudofs");
 
+#ifdef PSEUDOFS_TRACE
 int pfs_trace;
 SYSCTL_INT(_vfs_pfs, OID_AUTO, trace, CTLFLAG_RW, &pfs_trace, 0,
     "enable tracing of pseudofs vnode operations");
+#endif
 
 #if PFS_FSNAMELEN != MFSNAMELEN
 #error "PFS_FSNAMELEN is not equal to MFSNAMELEN"

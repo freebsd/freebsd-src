@@ -194,11 +194,6 @@
 			compatible = "amlogic,aml8726-rtc";
 			reg = <0xc8100740 20>;	/* aobus 0x1d0 */
 			interrupts = <0 72 1>;
-			interrupt-parent = <&gic>;
-
-			init-always = "false";
-			xo-init = <0x180a>;
-			gpo-init = <0x500000>;
 		};
 
 		clkmsr: clkmsr@c1108758 {
@@ -246,7 +241,6 @@
 			compatible = "amlogic,aml8726-mmc";
 			reg = <0xc1108c20 32>;	/* cbus 0x2308 */
 			interrupts = <0 28 1>;
-			interrupt-parent = <&gic>;
 
 			clocks = <&clk81>;
 
@@ -274,7 +268,6 @@
 			clock-frequency = <1275000000>;
 			reg = <0xc1108e00 60>;	/* cbus 0x2380 */
 			interrupts = <0 78 1>;
-			interrupt-parent = <&gic>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&pins_sdxc_c>;
@@ -311,7 +304,6 @@
 			compatible = "synopsys,designware-hs-otg2";
 			reg = <0xc9040000 0x40000>;	/* ahbbus 0x40000*/
 			interrupts = <0 30 4>;
-			interrupt-parent = <&gic>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -323,7 +315,6 @@
 			compatible = "synopsys,designware-hs-otg2";
 			reg = <0xc90c0000 0x40000>;	/* ahbbus 0xc0000 */
 			interrupts = <0 31 4>;
-			interrupt-parent = <&gic>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -335,7 +326,6 @@
 			compatible = "snps,dwmac";
 			reg = <0xc9410000 0x2000>;	/* ahbbus 0x410000 */
 			interrupts = <0 8 1>;
-			interrupt-parent = <&gic>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -352,7 +342,6 @@
 				     <0 3 1>,
 				     <0 12 1>,
 				     <0 13 1>;
-			interrupt-parent = <&gic>;
 
 			address = <0x7900000>;	/* match memreserve */
 			width = <720>;

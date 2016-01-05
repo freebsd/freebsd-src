@@ -1,6 +1,6 @@
 $FreeBSD$
-.git
-.gitignore
+.autom4te.cfg
+.git*
 FREEBSD-*
 INSTALL
 Makefile*
@@ -40,7 +40,10 @@ include/jemalloc/jemalloc_protos.h
 include/jemalloc/jemalloc_protos.h.in
 include/jemalloc/jemalloc_rename.h
 include/jemalloc/jemalloc_rename.sh
+include/jemalloc/jemalloc_typedefs.h.in
 include/msvc_compat/
 install-sh
+jemalloc.pc*
+src/valgrind.c
 src/zone.c
 test/

@@ -51,9 +51,21 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
     const void *newp, size_t newlen)
 {
 	int retval;
+	size_t orig_oldlen;
 
+	orig_oldlen = oldlenp ? *oldlenp : 0;
 	retval = __sysctl(name, namelen, oldp, oldlenp, newp, newlen);
-	if (retval != -1 || errno != ENOENT || name[0] != CTL_USER)
+	/*
+	 * All valid names under CTL_USER have a dummy entry in the sysctl
+	 * tree (to support name lookups and enumerations) with an
+	 * empty/zero value, and the true value is supplied by this routine.
+	 * For all such names, __sysctl() is used solely to validate the
+	 * name.
+	 *
+	 * Return here unless there was a successful lookup for a CTL_USER
+	 * name.
+	 */
+	if (retval || name[0] != CTL_USER)
 		return (retval);
 
 	if (newp != NULL) {
@@ -67,7 +79,7 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 
 	switch (name[1]) {
 	case USER_CS_PATH:
-		if (oldp && *oldlenp < sizeof(_PATH_STDPATH)) {
+		if (oldp && orig_oldlen < sizeof(_PATH_STDPATH)) {
 			errno = ENOMEM;
 			return -1;
 		}

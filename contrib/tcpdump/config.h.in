@@ -18,8 +18,8 @@
 /* Define to 1 if you have the `cap_ioctls_limit' function. */
 #undef HAVE_CAP_IOCTLS_LIMIT
 
-/* Define to 1 if you have the `cap_rights_init' function. */
-#undef HAVE_CAP_RIGHTS_INIT
+/* Define to 1 if you have the <cap-ng.h> header file. */
+#undef HAVE_CAP_NG_H
 
 /* Define to 1 if you have the `cap_rights_limit' function. */
 #undef HAVE_CAP_RIGHTS_LIMIT
@@ -54,6 +54,9 @@
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `cap-ng' library (-lcap-ng). */
+#undef HAVE_LIBCAP_NG
 
 /* Define to 1 if you have the `crypto' library (-lcrypto). */
 #undef HAVE_LIBCRYPTO
@@ -136,6 +139,9 @@
 /* Define to 1 if you have the `pcap_set_datalink' function. */
 #undef HAVE_PCAP_SET_DATALINK
 
+/* Define to 1 if you have the `pcap_set_immediate_mode' function. */
+#undef HAVE_PCAP_SET_IMMEDIATE_MODE
+
 /* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
 #undef HAVE_PCAP_SET_TSTAMP_PRECISION
 
@@ -210,6 +216,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if the system has the type `uintptr_t'. */
+#undef HAVE_UINTPTR_T
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
@@ -382,3 +391,7 @@
 /* Define to the type of an unsigned integer type of width exactly 8 bits if
    such a type exists and the standard includes do not define it. */
 #undef uint8_t
+
+/* Define to the type of an unsigned integer type wide enough to hold a
+   pointer, if such a type exists, and if the system does not define it. */
+#undef uintptr_t

@@ -281,7 +281,8 @@ Otherwise, only the
 is displayed.
 Finally, the
 .Em stratum
-of the host is reported.
+of the host is reported
+and the leap indicator is decoded and displayed.
 	_END_PROG_MDOC_DESCRIP;
 };
 

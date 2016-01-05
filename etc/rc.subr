@@ -1266,8 +1266,11 @@ _run_rc_killcmd()
 # run_rc_script file arg
 #	Start the script `file' with `arg', and correctly handle the
 #	return value from the script.
-#	If `file' ends with `.sh', it's sourced into the current environment
-#	when $rc_fast_and_loose is set, otherwise it is run as a child process.
+#	If `file' ends with `.sh' and lives in /etc/rc.d, ignore it as it's
+#	an old-style startup file.
+#	If `file' ends with `.sh' and does not live in /etc/rc.d, it's sourced
+#	into the current environment if $rc_fast_and_loose is set; otherwise
+#	it is run as a child process.
 #	If `file' appears to be a backup or scratch file, ignore it.
 #	Otherwise if it is executable run as a child process.
 #
@@ -1333,7 +1336,8 @@ load_rc_config()
 	# If a service name was specified, attempt to load
 	# service-specific configuration
 	if [ -n "$_name" ] ; then
-		for _d in /etc ${local_startup%*/rc.d}; do
+		for _d in /etc ${local_startup}; do
+			_d=${_d%/rc.d}
 			if [ -f ${_d}/rc.conf.d/"$_name" ]; then
 				debug "Sourcing ${_d}/rc.conf.d/$_name"
 				. ${_d}/rc.conf.d/"$_name"

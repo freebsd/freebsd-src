@@ -231,9 +231,9 @@ f_user_add()
 	#
 	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as UID
 	# instead of name. Work-around is to also pass `-u UID' at the same
-	# time (any UID will do; but `-1' is appropriate for this context).
+	# time (the UID is ignored in this case, so any UID will do).
 	#
-	if [ "$input" ] && f_quietly pw usershow -n "$input" -u -1; then
+	if [ "$input" ] && f_quietly pw usershow -n "$input" -u 1337; then
 		f_show_err "$msg_login_already_used" "$input"
 		return $FAILURE
 	fi
@@ -414,7 +414,7 @@ f_user_add()
 			1) # Login (prompt for new login name)
 			   f_dialog_input_name input "$user_name" ||
 			   	continue
-			   if f_quietly pw usershow -n "$input" -u -1; then
+			   if f_quietly pw usershow -n "$input" -u 1337; then
 			   	f_show_err "$msg_login_already_used" "$input"
 			   	continue
 			   fi
@@ -920,9 +920,9 @@ f_user_edit()
 	#
 	# NB: pw(8) has a ``feature'' wherein `-n name' can be taken as UID
 	# instead of name. Work-around is to also pass `-u UID' at the same
-	# time (any UID will do; but `-1' is appropriate for this context).
+	# time (the UID is ignored in this case, so any UID will do).
 	#
-	if [ "$input" ] && ! f_quietly pw usershow -n "$input" -u -1; then
+	if [ "$input" ] && ! f_quietly pw usershow -n "$input" -u 1337; then
 		f_show_err "$msg_login_not_found" "$input"
 		return $FAILURE
 	fi

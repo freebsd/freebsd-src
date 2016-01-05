@@ -53,7 +53,7 @@ _start:
 	popq %rdx
 	pushq %rcx
 	pushq %rdx
-	call _reloc
+	call self_reloc
 
 	popq %rdi
 	popq %rsi

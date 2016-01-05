@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_socket.h>
 #include <netgraph/ng_socketvar.h>
 
-#include <nlist.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>

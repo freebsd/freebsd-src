@@ -102,26 +102,35 @@ extern	u_int32	addr2refid	(sockaddr_u *);
 /* emalloc.c */
 #ifndef EREALLOC_CALLSITE	/* ntp_malloc.h defines */
 extern	void *	ereallocz	(void *, size_t, size_t, int);
-#define	erealloczsite(p, n, o, z, f, l) ereallocz(p, n, o, (z))
-#define	emalloc(n)		ereallocz(NULL, n, 0, FALSE)
+extern	void *	oreallocarray	(void *optr, size_t nmemb, size_t size);
+#define	erealloczsite(p, n, o, z, f, l) ereallocz((p), (n), (o), (z))
+#define	emalloc(n)		ereallocz(NULL, (n), 0, FALSE)
 #define	emalloc_zero(c)		ereallocz(NULL, (c), 0, TRUE)
-#define	erealloc(p, c)		ereallocz(p, (c), 0, FALSE)
-#define erealloc_zero(p, n, o)	ereallocz(p, n, (o), TRUE)
-extern	char *	estrdup_impl	(const char *);
+#define	erealloc(p, c)		ereallocz((p), (c), 0, FALSE)
+#define erealloc_zero(p, n, o)	ereallocz((p), (n), (o), TRUE)
+#define ereallocarray(p, n, s)	oreallocarray((p), (n), (s))
+#define eallocarray(n, s)	oreallocarray(NULL, (n), (s))
+extern	char *	estrdup_impl(const char *);
 #define	estrdup(s)		estrdup_impl(s)
 #else
 extern	void *	ereallocz	(void *, size_t, size_t, int,
+				 const char *, int);
+extern	void *	oreallocarray	(void *optr, size_t nmemb, size_t size,
 				 const char *, int);
 #define erealloczsite		ereallocz
 #define	emalloc(c)		ereallocz(NULL, (c), 0, FALSE, \
 					  __FILE__, __LINE__)
 #define	emalloc_zero(c)		ereallocz(NULL, (c), 0, TRUE, \
 					  __FILE__, __LINE__)
-#define	erealloc(p, c)		ereallocz(p, (c), 0, FALSE, \
+#define	erealloc(p, c)		ereallocz((p), (c), 0, FALSE, \
 					  __FILE__, __LINE__)
-#define	erealloc_zero(p, n, o)	ereallocz(p, n, (o), TRUE, \
+#define	erealloc_zero(p, n, o)	ereallocz((p), (n), (o), TRUE, \
 					  __FILE__, __LINE__)
-extern	char *	estrdup_impl	(const char *, const char *, int);
+#define ereallocarray(p, n, s)	oreallocarray((p), (n), (s), \
+					  __FILE__, __LINE__)
+#define eallocarray(n, s)	oreallocarray(NULL, (n), (s), \
+					  __FILE__, __LINE__)
+extern	char *	estrdup_impl(const char *, const char *, int);
 #define	estrdup(s) estrdup_impl((s), __FILE__, __LINE__)
 #endif
 

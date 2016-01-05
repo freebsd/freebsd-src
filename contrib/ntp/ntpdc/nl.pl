@@ -1,4 +1,4 @@
-#! /usr/local/perl-5.8.8/bin/perl -w
+#! /usr/local/bin/perl -w
 
 $found = 0;
 $last = 0;

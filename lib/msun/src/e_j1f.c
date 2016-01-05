@@ -23,7 +23,7 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-static float ponef(float), qonef(float);
+static __inline float ponef(float), qonef(float);
 
 static const volatile float vone = 1, vzero = 0;
 

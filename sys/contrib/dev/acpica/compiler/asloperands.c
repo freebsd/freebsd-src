@@ -932,13 +932,13 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         Gbl_TableSignature = Child->Asl.Value.String;
-        if (ACPI_STRLEN (Gbl_TableSignature) != 4)
+        if (strlen (Gbl_TableSignature) != ACPI_NAME_SIZE)
         {
             AslError (ASL_ERROR, ASL_MSG_TABLE_SIGNATURE, Child,
-                "Length not exactly 4");
+                "Length is not exactly 4");
         }
 
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < ACPI_NAME_SIZE; i++)
         {
             if (!isalnum ((int) Gbl_TableSignature[i]))
             {
@@ -967,9 +967,9 @@ OpnDoDefinitionBlock (
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
     if (Child->Asl.Value.String)
     {
-        Length = ACPI_STRLEN (Child->Asl.Value.String);
+        Length = strlen (Child->Asl.Value.String);
         Gbl_TableId = UtStringCacheCalloc (Length + 1);
-        ACPI_STRCPY (Gbl_TableId, Child->Asl.Value.String);
+        strcpy (Gbl_TableId, Child->Asl.Value.String);
 
         /*
          * Convert anything non-alphanumeric to an underscore. This

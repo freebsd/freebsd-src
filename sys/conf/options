@@ -85,6 +85,7 @@ COMPAT_FREEBSD6	opt_compat.h
 COMPAT_FREEBSD7	opt_compat.h
 COMPAT_FREEBSD9	opt_compat.h
 COMPAT_FREEBSD10	opt_compat.h
+COMPAT_CLOUDABI64	opt_dontuse.h
 COMPAT_LINUXAPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
@@ -108,6 +109,7 @@ GEOM_JOURNAL	opt_geom.h
 GEOM_LABEL	opt_geom.h
 GEOM_LABEL_GPT	opt_geom.h
 GEOM_LINUX_LVM	opt_geom.h
+GEOM_MAP	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
 GEOM_MULTIPATH	opt_geom.h
@@ -386,8 +388,10 @@ ACCEPT_FILTER_HTTP
 ALTQ			opt_global.h
 ALTQ_CBQ		opt_altq.h
 ALTQ_CDNR		opt_altq.h
+ALTQ_CODEL		opt_altq.h
 ALTQ_DEBUG		opt_altq.h
 ALTQ_HFSC		opt_altq.h
+ALTQ_FAIRQ		opt_altq.h
 ALTQ_NOPCC		opt_altq.h
 ALTQ_PRIQ		opt_altq.h
 ALTQ_RED		opt_altq.h
@@ -432,6 +436,7 @@ ROUTETABLES		opt_route.h
 RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
@@ -691,6 +696,7 @@ ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
 ACPI_DMAR		opt_acpi.h
+DEV_ACPI		opt_acpi.h
 
 # ISA support
 DEV_ISA			opt_isa.h
@@ -706,6 +712,7 @@ DEV_PCI			opt_pci.h
 DEV_PF			opt_pf.h
 DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
+DEV_RANDOM		opt_global.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
 
@@ -846,6 +853,9 @@ MWL_DIAGAPI		opt_mwl.h
 MWL_AGGR_SIZE		opt_mwl.h
 MWL_TX_NODROP		opt_mwl.h
 
+# Options for the Intel 802.11ac wireless driver
+IWM_DEBUG		opt_iwm.h
+
 # Options for the Intel 802.11n wireless driver
 IWN_DEBUG		opt_iwn.h
 
@@ -859,6 +869,7 @@ DCONS_FORCE_CONSOLE	opt_dcons.h
 DCONS_FORCE_GDB		opt_dcons.h
 
 # HWPMC options
+HWPMC_DEBUG		opt_global.h
 HWPMC_HOOKS
 HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
@@ -928,11 +939,22 @@ IPOIB_CM	opt_ofed.h
 
 # Resource Accounting
 RACCT		opt_global.h
+RACCT_DEFAULT_TO_DISABLED	opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
 
 # Random number generator(s)
-RANDOM_YARROW	opt_random.h
-RANDOM_FORTUNA	opt_random.h
-RANDOM_DEBUG	opt_random.h
+# Which CSPRNG hash we get.
+# If Yarrow is not chosen, Fortuna is selected.
+RANDOM_YARROW	opt_global.h
+# With this, no entropy processor is loaded, but the entropy
+# harvesting infrastructure is present. This means an entropy
+# processor may be loaded as a module.
+RANDOM_LOADABLE	opt_global.h
+# This turns on high-rate and potentially expensive harvesting in
+# the uma slab allocator.
+RANDOM_ENABLE_UMA	opt_global.h
+
+# Intel em(4) driver
+EM_MULTIQUEUE	opt_em.h

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2013 by Joyent, Inc. All rights reserved.
  */
@@ -51,7 +51,7 @@ typedef struct dmu_snapshots_destroy_arg {
 int
 dsl_destroy_snapshot_check_impl(dsl_dataset_t *ds, boolean_t defer)
 {
-	if (!dsl_dataset_is_snapshot(ds))
+	if (!ds->ds_is_snapshot)
 		return (SET_ERROR(EINVAL));
 
 	if (dsl_dataset_long_held(ds))
@@ -267,9 +267,11 @@ dsl_destroy_snapshot_sync_impl(dsl_dataset_t *ds, boolean_t defer, dmu_tx_t *tx)
 
 	obj = ds->ds_object;
 
-	if (ds->ds_large_blocks) {
-		ASSERT0(zap_contains(mos, obj, DS_FIELD_LARGE_BLOCKS));
-		spa_feature_decr(dp->dp_spa, SPA_FEATURE_LARGE_BLOCKS, tx);
+	for (spa_feature_t f = 0; f < SPA_FEATURES; f++) {
+		if (ds->ds_feature_inuse[f]) {
+			dsl_dataset_deactivate_feature(obj, f, tx);
+			ds->ds_feature_inuse[f] = B_FALSE;
+		}
 	}
 	if (dsl_dataset_phys(ds)->ds_prev_snap_obj != 0) {
 		ASSERT3P(ds->ds_prev, ==, NULL);
@@ -354,7 +356,7 @@ dsl_destroy_snapshot_sync_impl(dsl_dataset_t *ds, boolean_t defer, dmu_tx_t *tx)
 	dsl_dataset_remove_clones_key(ds,
 	    dsl_dataset_phys(ds)->ds_creation_txg, tx);
 
-	if (dsl_dataset_is_snapshot(ds_next)) {
+	if (ds_next->ds_is_snapshot) {
 		dsl_dataset_t *ds_nextnext;
 
 		/*
@@ -552,7 +554,7 @@ kill_blkptr(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	struct killarg *ka = arg;
 	dmu_tx_t *tx = ka->tx;
 
-	if (BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp))
+	if (bp == NULL || BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp))
 		return (0);
 
 	if (zb->zb_level == ZB_ZIL_LEVEL) {
@@ -604,8 +606,8 @@ dsl_destroy_head_check_impl(dsl_dataset_t *ds, int expected_holds)
 	uint64_t count;
 	objset_t *mos;
 
-	ASSERT(!dsl_dataset_is_snapshot(ds));
-	if (dsl_dataset_is_snapshot(ds))
+	ASSERT(!ds->ds_is_snapshot);
+	if (ds->ds_is_snapshot)
 		return (SET_ERROR(EINVAL));
 
 	if (refcount_count(&ds->ds_longholds) != expected_holds)
@@ -736,12 +738,16 @@ dsl_destroy_head_sync_impl(dsl_dataset_t *ds, dmu_tx_t *tx)
 		ASSERT0(ds->ds_reserved);
 	}
 
-	if (ds->ds_large_blocks)
-		spa_feature_decr(dp->dp_spa, SPA_FEATURE_LARGE_BLOCKS, tx);
+	obj = ds->ds_object;
+
+	for (spa_feature_t f = 0; f < SPA_FEATURES; f++) {
+		if (ds->ds_feature_inuse[f]) {
+			dsl_dataset_deactivate_feature(obj, f, tx);
+			ds->ds_feature_inuse[f] = B_FALSE;
+		}
+	}
 
 	dsl_scan_ds_destroyed(ds, tx);
-
-	obj = ds->ds_object;
 
 	if (dsl_dataset_phys(ds)->ds_prev_snap_obj != 0) {
 		/* This is a clone */

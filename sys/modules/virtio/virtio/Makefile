@@ -32,7 +32,4 @@ SRCS+=	virtio_bus_if.c virtio_bus_if.h
 SRCS+=	virtio_if.c virtio_if.h
 SRCS+=	bus_if.h device_if.h 
 
-MFILES=	kern/bus_if.m kern/device_if.m \
-	dev/virtio/virtio_bus_if.m dev/virtio/virtio_if.m
-
 .include <bsd.kmod.mk>

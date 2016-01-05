@@ -1,8 +1,7 @@
 # $FreeBSD$
 
-ARCH= ${MACHINE_ARCH:S/i386/i386-elf/}
-.if exists(${.CURDIR}/${ARCH})
-SUBDIR+= ${ARCH}
+.if exists(${.CURDIR}/${MACHINE_ARCH})
+SUBDIR+= ${MACHINE_ARCH}
 .else
 SUBDIR+= ${MACHINE_CPUARCH}
 .endif

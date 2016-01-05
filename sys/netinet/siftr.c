@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -86,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfil.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -811,6 +813,8 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	 * maximum pps throughput processing when SIFTR is loaded and enabled.
 	 */
 	microtime(&pn->tval);
+	TCP_PROBE1(siftr, &pn);
+
 }
 
 

@@ -93,6 +93,8 @@ _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
     "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
 _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
     "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
+_Static_assert(OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
+    "OFFSETOF_MONINORBUF does not correspond with offset of pc_monitorbuf.");
 
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
@@ -155,7 +157,6 @@ cpu_fork(td1, p2, td2, flags)
 	struct pcb *pcb2;
 	struct mdproc *mdp1, *mdp2;
 	struct proc_ldt *pldt;
-	pmap_t pmap2;
 
 	p1 = td1->td_proc;
 	if ((flags & RFPROC) == 0) {
@@ -218,8 +219,6 @@ cpu_fork(td1, p2, td2, flags)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-	pmap2 = vmspace_pmap(p2->p_vmspace);
-	pcb2->pcb_cr3 = pmap2->pm_cr3;
 	pcb2->pcb_r12 = (register_t)fork_return;	/* fork_trampoline argument */
 	pcb2->pcb_rbp = 0;
 	pcb2->pcb_rsp = (register_t)td2->td_frame - sizeof(void *);
@@ -477,7 +476,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_rip = (register_t)fork_trampoline;
 	/*
 	 * If we didn't copy the pcb, we'd need to do the following registers:
-	 * pcb2->pcb_cr3:	cloned above.
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).

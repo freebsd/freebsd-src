@@ -6,7 +6,6 @@ SUBDIR=	beyond4.3 \
 	devfs \
 	diskperf \
 	fsinterface \
-	hwpmc \
 	jail \
 	kernmalloc \
 	kerntune \

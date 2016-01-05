@@ -28,7 +28,6 @@
 
 #define _ASM
 #define _LOCORE
-#define LOCORE
 
 #include <sys/cpuvar_defs.h>
 #include <sys/dtrace.h>
@@ -168,24 +167,6 @@ ENTRY(dtrace_copystr)
 2:	ldmfd	sp!, {r4-r5}			/* stack is 8 byte aligned */
 	RET
 END(dtrace_copystr)
-
-/*
-void
-vpanic(const char *format, va_list alist)
-*/
-ENTRY(vpanic)				/* Initial stack layout: */
-vpanic_common:
-	RET
-END(vpanic)
-	
-/*
-void
-dtrace_vpanic(const char *format, va_list alist)
-*/
-ENTRY(dtrace_vpanic)			/* Initial stack layout: */
-	b	vpanic	
-	RET
-END(dtrace_vpanic)			/* Initial stack layout: */
 
 /*
 uintptr_t

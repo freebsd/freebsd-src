@@ -95,7 +95,7 @@ octeon_rnd_attach(device_t dev)
 	struct octeon_rnd_softc *sc;
 
 	sc = device_get_softc(dev);
-	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_callout, 1);
 	callout_reset(&sc->sc_callout, hz * 5, octeon_rnd_harvest, sc);
 
 	cvmx_rng_enable();
@@ -125,7 +125,8 @@ octeon_rnd_harvest(void *arg)
 
 	for (i = 0; i < OCTEON_RND_WORDS; i++)
 		sc->sc_entropy[i] = cvmx_rng_get_random64();
-	random_harvest(sc->sc_entropy, sizeof sc->sc_entropy,
+	/* MarkM: FIX!! Check that this does not swamp the harvester! */
+	random_harvest_queue(sc->sc_entropy, sizeof sc->sc_entropy,
 		       (sizeof(sc->sc_entropy)*8)/2, RANDOM_PURE_OCTEON);
 
 	callout_reset(&sc->sc_callout, hz * 5, octeon_rnd_harvest, sc);

@@ -11,7 +11,7 @@
 <img src="pic/beaver.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
 <p>For putting out compiler fires.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->31-Mar-2014  05:39<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->1-Apr-2015  02:57<!-- #EndDate -->
 </p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -27,7 +27,7 @@
 </ul>
 <hr>
 <h4 id="build">Building and Installing the Distribution</h4>
-<p>It is not possible in a software distribution such as this to support every individual computer and operating system with a common executable, even with the same system but different versions and options. Therefore, it is necessary to configure, build and install for each system and version. In almost all cases, these procedures are completely automatic, The user types <tt>./configure</tt>, <tt>make</tt> and <tt>install</tt> in that order and the autoconfigure system does the rest. There are some exceptions, as noted below and on the <a href="hints.html">Hints and Kinks</a> pages.</p>
+<p>It is not possible in a software distribution such as this to support every individual computer and operating system with a common executable, even with the same system but different versions and options. Therefore, it is necessary to configure, build and install for each system and version. In almost all cases, these procedures are completely automatic, The user types <tt>./configure</tt>, and <tt>make install</tt> in that order and the autoconfigure system does the rest. There are some exceptions, as noted below and on the <a href="hints.html">Hints and Kinks</a> pages.</p>
 <p>If available, the OpenSSL library from <a href="http://www.openssl.org">http://www.openssl.org</a> is used to support public key cryptography. The library must be built and installed prior to building NTP. The procedures for doing that are included in the OpenSSL documentation. The library is found during the normal NTP configure phase and the interface routines compiled automatically. Only the <tt>libcrypto.a</tt> library file and <tt>openssl</tt> header files are needed. If the library is not available or disabled, this step is not required.</p>
 <p>The <a href="config.html">Build Options</a> page describes a number of options that determine whether debug support is included, whether and which reference clock drivers are included and the locations of the executables and library files, if not the default. By default debugging options and all reference clock drivers are included.</p>
 <h4 id="unix">Building and Installing for Unix</h4>

@@ -128,7 +128,7 @@ db_write_variable(struct db_variable *vp, db_expr_t value)
 }
 
 void
-db_set_cmd(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_set_cmd(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	struct db_variable *vp;
 	db_expr_t value;

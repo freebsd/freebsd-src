@@ -1343,6 +1343,12 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 	 */
 	if (iface_index == USB_IFACE_INDEX_ANY) {
 
+		if (usb_test_quirk(&uaa, UQ_MSC_DYMO_EJECT) != 0 &&
+		    usb_dymo_eject(udev, 0) == 0) {
+			/* success, mark the udev as disappearing */
+			uaa.dev_state = UAA_DEV_EJECTING;
+		}
+
 		EVENTHANDLER_INVOKE(usb_dev_configured, udev, &uaa);
 
 		if (uaa.dev_state != UAA_DEV_READY) {
@@ -2175,7 +2181,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	 * anywhere:
 	 */
 	USB_BUS_LOCK(udev->bus);
-	usb_proc_mwait(USB_BUS_NON_GIANT_PROC(udev->bus),
+	usb_proc_mwait(USB_BUS_CS_PROC(udev->bus),
 	    &udev->cs_msg[0], &udev->cs_msg[1]);
 	USB_BUS_UNLOCK(udev->bus);
 

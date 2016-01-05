@@ -46,6 +46,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <fs/nfs/nfsport.h>
+#include <sys/sysctl.h>
+
+SYSCTL_DECL(_vfs_nfs);
+
+static int	nfsignore_eexist = 0;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, ignore_eexist, CTLFLAG_RW,
+    &nfsignore_eexist, 0, "NFS ignore EEXIST replies for mkdir/symlink");
 
 /*
  * Global variables
@@ -2530,8 +2537,12 @@ nfsrpc_symlink(vnode_t dvp, char *name, int namelen, char *target,
 	mbuf_freem(nd->nd_mrep);
 	/*
 	 * Kludge: Map EEXIST => 0 assuming that it is a reply to a retry.
+	 * Only do this if vfs.nfs.ignore_eexist is set.
+	 * Never do this for NFSv4.1 or later minor versions, since sessions
+	 * should guarantee "exactly once" RPC semantics.
 	 */
-	if (error == EEXIST)
+	if (error == EEXIST && nfsignore_eexist != 0 && (!NFSHASNFSV4(nmp) ||
+	    nmp->nm_minorvers == 0))
 		error = 0;
 	return (error);
 }
@@ -2550,10 +2561,12 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	nfsattrbit_t attrbits;
 	int error = 0;
 	struct nfsfh *fhp;
+	struct nfsmount *nmp;
 
 	*nfhpp = NULL;
 	*attrflagp = 0;
 	*dattrflagp = 0;
+	nmp = VFSTONFS(vnode_mount(dvp));
 	fhp = VTONFS(dvp)->n_fhp;
 	if (namelen > NFS_MAXNAMLEN)
 		return (ENAMETOOLONG);
@@ -2605,9 +2618,13 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
 	/*
-	 * Kludge: Map EEXIST => 0 assuming that you have a reply to a retry.
+	 * Kludge: Map EEXIST => 0 assuming that it is a reply to a retry.
+	 * Only do this if vfs.nfs.ignore_eexist is set.
+	 * Never do this for NFSv4.1 or later minor versions, since sessions
+	 * should guarantee "exactly once" RPC semantics.
 	 */
-	if (error == EEXIST)
+	if (error == EEXIST && nfsignore_eexist != 0 && (!NFSHASNFSV4(nmp) ||
+	    nmp->nm_minorvers == 0))
 		error = 0;
 	return (error);
 }
@@ -3070,25 +3087,6 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			*eofp = 0;
 		else
 			*eofp = eof;
-	}
-
-	/*
-	 * Add extra empty records to any remaining DIRBLKSIZ chunks.
-	 */
-	while (uio_uio_resid(uiop) > 0 && ((size_t)(uio_uio_resid(uiop))) != tresid) {
-		dp = (struct dirent *) CAST_DOWN(caddr_t, uio_iov_base(uiop));
-		dp->d_type = DT_UNKNOWN;
-		dp->d_fileno = 0;
-		dp->d_namlen = 0;
-		dp->d_name[0] = '\0';
-		tl = (u_int32_t *)&dp->d_name[4];
-		*tl++ = cookie.lval[0];
-		*tl = cookie.lval[1];
-		dp->d_reclen = DIRBLKSIZ;
-		uio_iov_base_add(uiop, DIRBLKSIZ);
-		uio_iov_len_add(uiop, -(DIRBLKSIZ));
-		uio_uio_resid_add(uiop, -(DIRBLKSIZ));
-		uiop->uio_offset += DIRBLKSIZ;
 	}
 
 nfsmout:
@@ -3563,25 +3561,6 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 			*eofp = 0;
 		else
 			*eofp = eof;
-	}
-
-	/*
-	 * Add extra empty records to any remaining DIRBLKSIZ chunks.
-	 */
-	while (uio_uio_resid(uiop) > 0 && uio_uio_resid(uiop) != tresid) {
-		dp = (struct dirent *)uio_iov_base(uiop);
-		dp->d_type = DT_UNKNOWN;
-		dp->d_fileno = 0;
-		dp->d_namlen = 0;
-		dp->d_name[0] = '\0';
-		tl = (u_int32_t *)&dp->d_name[4];
-		*tl++ = cookie.lval[0];
-		*tl = cookie.lval[1];
-		dp->d_reclen = DIRBLKSIZ;
-		uio_iov_base_add(uiop, DIRBLKSIZ);
-		uio_iov_len_add(uiop, -(DIRBLKSIZ));
-		uio_uio_resid_add(uiop, -(DIRBLKSIZ));
-		uiop->uio_offset += DIRBLKSIZ;
 	}
 
 nfsmout:

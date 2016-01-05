@@ -602,7 +602,7 @@ g_rr_init(struct g_geom *geom)
 	sc = malloc(sizeof *sc, M_GEOM_SCHED, M_NOWAIT | M_ZERO);
 	sc->sc_geom = geom;
 	TAILQ_INIT(&sc->sc_rr_tailq);
-	callout_init(&sc->sc_wait, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_wait, 1);
 	LIST_INSERT_HEAD(&me.sc_head, sc, sc_next);
 	me.units++;
 

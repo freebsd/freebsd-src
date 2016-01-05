@@ -13,6 +13,7 @@ SM_RCSID("@(#)$Id: sfsasl.c,v 8.121 2013-11-22 20:51:56 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <sm/time.h>
+#include <sm/fdset.h>
 #include <errno.h>
 
 /* allow to disable error handling code just in case... */
@@ -415,7 +416,7 @@ sfdcsasl(fin, fout, conn, tmo)
 
 #if STARTTLS
 # include "sfsasl.h"
-#  include <openssl/err.h>
+# include <openssl/err.h>
 
 /* Structure used by the "tls" file type */
 struct tls_obj
@@ -618,17 +619,16 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 			  where, rfd, wfd, err);
 	}
 
-	if (FD_SETSIZE > 0 &&
-	    ((err == SSL_ERROR_WANT_READ && rfd >= FD_SETSIZE) ||
-	     (err == SSL_ERROR_WANT_WRITE && wfd >= FD_SETSIZE)))
+	if ((err == SSL_ERROR_WANT_READ && !SM_FD_OK_SELECT(rfd)) ||
+	    (err == SSL_ERROR_WANT_WRITE && !SM_FD_OK_SELECT(wfd)))
 	{
 		if (LogLevel > 5)
 		{
 			sm_syslog(LOG_ERR, NOQID,
 				  "STARTTLS=%s, error: fd %d/%d too large",
 				  where, rfd, wfd);
-		if (LogLevel > 8)
-			tlslogerr(LOG_WARNING, where);
+			if (LogLevel > 8)
+				tlslogerr(LOG_WARNING, where);
 		}
 		errno = EINVAL;
 	}
@@ -685,17 +685,21 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 **		rd_tmo -- read timeout
 **
 **	Results:
-**		none
+**		previous read timeout
 **	This is a hack: there is no way to pass it in
 */
 
 static int tls_rd_tmo = -1;
 
-void
+int
 set_tls_rd_tmo(rd_tmo)
 	int rd_tmo;
 {
+	int old_rd_tmo;
+
+	old_rd_tmo = tls_rd_tmo;
 	tls_rd_tmo = rd_tmo;
+	return old_rd_tmo;
 }
 
 /*
@@ -820,7 +824,7 @@ tls_read(fp, buf, size)
 		}
 		else if (LogLevel > 7)
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS: read error=%s (%d), retry=%d, ssl_err=%d",
+				  "STARTTLS: read error=%s (%d), errno=%d, retry=%d, ssl_err=%d",
 				  err, r, errno, try, ssl_err);
 		errno = save_errno;
 	}

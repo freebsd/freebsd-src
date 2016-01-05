@@ -415,6 +415,7 @@ ipmi_smic_attach(struct ipmi_softc *sc)
 	sc->ipmi_startup = smic_startup;
 	sc->ipmi_enqueue_request = ipmi_polled_enqueue_request;
 	sc->ipmi_driver_request = smic_driver_request;
+	sc->ipmi_driver_requests_polled = 1;
 
 	/* See if we can talk to the controller. */
 	flags = INB(sc, SMIC_FLAGS);

@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include		"EXYNOS5420"
+include 	"EXYNOS5420"
 ident		ARNDALE-OCTA
 
 #FDT

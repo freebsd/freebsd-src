@@ -175,7 +175,7 @@ get_printer_status(const struct printer *pp)
 		goto LABEL_DONE;
 	}
 
-	memset(&fline[0], '\0', sizeof(line));
+	memset(&fline[0], '\0', sizeof(fline));
 	if (fgets(fline, sizeof(fline) -1, f) == NULL) {
 		ps = PS_UNKNOWN;
 		goto LABEL_DONE;

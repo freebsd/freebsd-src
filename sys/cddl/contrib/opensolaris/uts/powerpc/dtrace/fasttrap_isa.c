@@ -244,8 +244,8 @@ fasttrap_anarg(struct reg *rp, int argno)
 		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
 	} else {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
-		value = dtrace_fuword64((void *)(rp->fixreg[1] + 16 +
-		    ((argno - 8) * sizeof(uint32_t))));
+		value = dtrace_fuword64((void *)(rp->fixreg[1] + 48 +
+		    ((argno - 8) * sizeof(uint64_t))));
 		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
 	}
 	return value;
@@ -289,7 +289,7 @@ fasttrap_usdt_args(fasttrap_probe_t *probe, struct reg *rp, int argc,
 				argv[i] = fuword32((void *)(rp->fixreg[1] + 8 +
 				    (x * sizeof(uint32_t))));
 			else
-				argv[i] = fuword32((void *)(rp->fixreg[1] + 16 +
+				argv[i] = fuword64((void *)(rp->fixreg[1] + 48 +
 				    (x * sizeof(uint64_t))));
 	}
 

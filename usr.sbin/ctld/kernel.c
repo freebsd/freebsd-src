@@ -60,10 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_io.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_backend_block.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_scsi_all.h>
 
@@ -122,6 +120,8 @@ struct cctl_lun {
 struct cctl_port {
 	uint32_t port_id;
 	char *port_name;
+	int pp;
+	int vp;
 	int cfiscsi_state;
 	char *cfiscsi_target;
 	uint16_t cfiscsi_portal_group_tag;
@@ -334,6 +334,10 @@ cctl_end_pelement(void *user_data, const char *name)
 	if (strcmp(name, "port_name") == 0) {
 		cur_port->port_name = str;
 		str = NULL;
+	} else if (strcmp(name, "physical_port") == 0) {
+		cur_port->pp = strtoul(str, NULL, 0);
+	} else if (strcmp(name, "virtual_port") == 0) {
+		cur_port->vp = strtoul(str, NULL, 0);
 	} else if (strcmp(name, "cfiscsi_target") == 0) {
 		cur_port->cfiscsi_target = str;
 		str = NULL;
@@ -391,7 +395,7 @@ conf_new_from_kernel(void)
 	struct cctl_lun *lun;
 	struct cctl_port *port;
 	XML_Parser parser;
-	char *str;
+	char *str, *name;
 	int len, retval;
 
 	bzero(&devlist, sizeof(devlist));
@@ -500,18 +504,28 @@ retry_port:
 
 	conf = conf_new();
 
+	name = NULL;
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
+		if (name)
+			free(name);
+		if (port->pp == 0 && port->vp == 0)
+			name = checked_strdup(port->port_name);
+		else if (port->vp == 0)
+			asprintf(&name, "%s/%d", port->port_name, port->pp);
+		else
+			asprintf(&name, "%s/%d/%d", port->port_name, port->pp,
+			    port->vp);
 
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
-			    port->port_id, port->port_name);
-			pp = pport_find(conf, port->port_name);
+			    port->port_id, name);
+			pp = pport_find(conf, name);
 			if (pp == NULL) {
 #if 0
 				log_debugx("found new kernel port %u \"%s\"",
-				    port->port_id, port->port_name);
+				    port->port_id, name);
 #endif
-				pp = pport_new(conf, port->port_name, port->port_id);
+				pp = pport_new(conf, name, port->port_id);
 				if (pp == NULL) {
 					log_warnx("pport_new failed");
 					continue;
@@ -560,6 +574,8 @@ retry_port:
 		}
 		cp->p_ctl_port = port->port_id;
 	}
+	if (name)
+		free(name);
 
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
 		struct cctl_lun_nv *nv;
@@ -727,9 +743,11 @@ kernel_lun_add(struct lun *lun)
 }
 
 int
-kernel_lun_resize(struct lun *lun)
+kernel_lun_modify(struct lun *lun)
 {
+	struct lun_option *lo;
 	struct ctl_lun_req req;
+	int error, i, num_options;
 
 	bzero(&req, sizeof(req));
 
@@ -739,7 +757,30 @@ kernel_lun_resize(struct lun *lun)
 	req.reqdata.modify.lun_id = lun->l_ctl_lun;
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
-	if (ioctl(ctl_fd, CTL_LUN_REQ, &req) == -1) {
+	num_options = 0;
+	TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+		num_options++;
+
+	req.num_be_args = num_options;
+	if (num_options > 0) {
+		req.be_args = malloc(num_options * sizeof(*req.be_args));
+		if (req.be_args == NULL) {
+			log_warn("error allocating %zd bytes",
+			    num_options * sizeof(*req.be_args));
+			return (1);
+		}
+
+		i = 0;
+		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
+			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
+			i++;
+		}
+		assert(i == num_options);
+	}
+
+	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
+	free(req.be_args);
+	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
 		return (1);
 	}

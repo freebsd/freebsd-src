@@ -2084,7 +2084,7 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
 
-	error = mps_request_polled(sc, cm);
+	error = mps_wait_command(sc, cm, 60, 0);
 	reply = (MPI2_EVENT_NOTIFICATION_REPLY *)cm->cm_reply;
 	if ((reply == NULL) ||
 	    (reply->IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
@@ -2508,18 +2508,21 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 		return  EBUSY;
 
 	cm->cm_complete = NULL;
-	cm->cm_flags |= (MPS_CM_FLAGS_WAKEUP + MPS_CM_FLAGS_POLLED);
+	cm->cm_flags |= MPS_CM_FLAGS_POLLED;
 	error = mps_map_command(sc, cm);
 	if ((error != 0) && (error != EINPROGRESS))
 		return (error);
 
-	// Check for context and wait for 50 mSec at a time until time has
-	// expired or the command has finished.  If msleep can't be used, need
-	// to poll.
+	/*
+	 * Check for context and wait for 50 mSec at a time until time has
+	 * expired or the command has finished.  If msleep can't be used, need
+	 * to poll.
+	 */
 	if (curthread->td_no_sleeping != 0)
 		sleep_flag = NO_SLEEP;
 	getmicrotime(&start_time);
 	if (mtx_owned(&sc->mps_mtx) && sleep_flag == CAN_SLEEP) {
+		cm->cm_flags |= MPS_CM_FLAGS_WAKEUP;
 		error = msleep(cm, &sc->mps_mtx, 0, "mpswait", timeout*hz);
 	} else {
 		while ((cm->cm_flags & MPS_CM_FLAGS_COMPLETE) == 0) {
@@ -2544,54 +2547,6 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
 		    "failed");
 		error = ETIMEDOUT;
 	}
-	return (error);
-}
-
-/*
- * This is the routine to enqueue a command synchonously and poll for
- * completion.  Its use should be rare.
- */
-int
-mps_request_polled(struct mps_softc *sc, struct mps_command *cm)
-{
-	int error, timeout = 0, rc;
-	struct timeval cur_time, start_time;
-
-	error = 0;
-
-	cm->cm_flags |= MPS_CM_FLAGS_POLLED;
-	cm->cm_complete = NULL;
-	mps_map_command(sc, cm);
-
-	getmicrotime(&start_time);
-	while ((cm->cm_flags & MPS_CM_FLAGS_COMPLETE) == 0) {
-		mps_intr_locked(sc);
-
-		if (mtx_owned(&sc->mps_mtx))
-			msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0,
-			    "mpspoll", hz/20);
-		else
-			pause("mpsdiag", hz/20);
-
-		/*
-		 * Check for real-time timeout and fail if more than 60 seconds.
-		 */
-		getmicrotime(&cur_time);
-		timeout = cur_time.tv_sec - start_time.tv_sec;
-		if (timeout > 60) {
-			mps_dprint(sc, MPS_FAULT, "polling failed\n");
-			error = ETIMEDOUT;
-			break;
-		}
-	}
-
-	if (error) {
-		mps_dprint(sc, MPS_FAULT, "Calling Reinit from %s\n", __func__);
-		rc = mps_reinit(sc);
-		mps_dprint(sc, MPS_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
-		    "failed");
-	}
-
 	return (error);
 }
 

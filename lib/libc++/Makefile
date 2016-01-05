@@ -208,4 +208,8 @@ afterinstall:
 		${.OBJDIR}/libstdc++.a
 .endif
 
+# avoid cyclic dependency
+CFLAGS+= -I${LIBCXXRTDIR}
+GENDIRDEPS_FILTER= N*/libcxxrt
+
 .include <bsd.lib.mk>

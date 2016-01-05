@@ -93,6 +93,9 @@ struct tcphdr {
 #ifndef TELNET_PORT
 #define TELNET_PORT             23
 #endif
+#ifndef SMTP_PORT
+#define SMTP_PORT		25
+#endif
 #ifndef BGP_PORT
 #define BGP_PORT                179
 #endif
@@ -115,4 +118,19 @@ struct tcphdr {
 #define LDP_PORT                646
 #ifndef SMB_PORT
 #define SMB_PORT                445
+#endif
+#ifndef HTTP_PORT
+#define HTTP_PORT		80
+#endif
+#ifndef HTTP_PORT_ALT
+#define HTTP_PORT_ALT		8080
+#endif
+#ifndef RTSP_PORT
+#define RTSP_PORT		554
+#endif
+#ifndef RTSP_PORT_ALT
+#define RTSP_PORT_ALT		8554
+#endif
+#ifndef FTP_PORT
+#define FTP_PORT		21
 #endif

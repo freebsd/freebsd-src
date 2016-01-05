@@ -9,8 +9,7 @@
 # Moved to secure: bdes
 #
 
-SUBDIR=	${_addr2line} \
-	alias \
+SUBDIR=	alias \
 	apply \
 	asa \
 	awk \
@@ -24,7 +23,6 @@ SUBDIR=	${_addr2line} \
 	chat \
 	chpass \
 	cksum \
-	${_clang} \
 	cmp \
 	col \
 	colldef \
@@ -36,12 +34,10 @@ SUBDIR=	${_addr2line} \
 	csplit \
 	ctlstat \
 	cut \
-	demandoc \
 	dirname \
 	dpv \
 	du \
 	elf2aout \
-	${_elfcopy} \
 	elfdump \
 	enigma \
 	env \
@@ -62,13 +58,12 @@ SUBDIR=	${_addr2line} \
 	gzip \
 	head \
 	hexdump \
-	${_iconv} \
 	id \
+	ident \
 	ipcrm \
 	ipcs \
 	join \
 	jot \
-	${_kdump} \
 	keylogin \
 	keylogout \
 	killall \
@@ -94,15 +89,11 @@ SUBDIR=	${_addr2line} \
 	lsvfs \
 	lzmainfo \
 	m4 \
-	${_makewhatis} \
-	${_man} \
 	mandoc \
 	mesg \
 	minigzip \
 	ministat \
-	${_mkcsmapper} \
 	mkdep \
-	${_mkesdb} \
 	mkfifo \
 	mkimg \
 	mklocale \
@@ -116,7 +107,7 @@ SUBDIR=	${_addr2line} \
 	nfsstat \
 	nice \
 	nl \
-	${_nm} \
+	numactl \
 	nohup \
 	opieinfo \
 	opiekey \
@@ -133,7 +124,6 @@ SUBDIR=	${_addr2line} \
 	procstat \
 	protect \
 	rctl \
-	${_readelf} \
 	renice \
 	rev \
 	revoke \
@@ -148,14 +138,12 @@ SUBDIR=	${_addr2line} \
 	seq \
 	shar \
 	showmount \
-	${_size} \
 	sockstat \
-	soeliminate \
+	soelim \
 	sort \
 	split \
 	stat \
 	stdbuf \
-	${_strings} \
 	su \
 	systat \
 	tabs \
@@ -163,7 +151,6 @@ SUBDIR=	${_addr2line} \
 	tar \
 	tcopy \
 	tee \
-	${_tests} \
 	time \
 	timeout \
 	tip \
@@ -173,7 +160,6 @@ SUBDIR=	${_addr2line} \
 	tr \
 	true \
 	truncate \
-	${_truss} \
 	tset \
 	tsort \
 	tty \
@@ -200,10 +186,7 @@ SUBDIR=	${_addr2line} \
 	xo \
 	xz \
 	xzdec \
-	yes \
-	${_ypcat} \
-	${_ypmatch} \
-	${_ypwhich}
+	yes
 
 # NB: keep these sorted by MK_* knobs
 
@@ -228,20 +211,11 @@ SUBDIR+=	calendar
 .endif
 
 .if ${MK_CLANG} != "no"
-_clang=		clang
+SUBDIR+=	clang
 .endif
 
 .if ${MK_EE} != "no"
 SUBDIR+=	ee
-.endif
-
-.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
-_addr2line=	addr2line
-_elfcopy=	elfcopy
-_nm=		nm
-_readelf=	readelf
-_size=		size
-_strings=	strings
 .endif
 
 .if ${MK_FILE} != "no"
@@ -250,10 +224,6 @@ SUBDIR+=	file
 
 .if ${MK_FINGER} != "no"
 SUBDIR+=	finger
-.endif
-
-.if ${MK_FMAKE} != "no"
-SUBDIR+=	make
 .endif
 
 .if ${MK_FTP} != "no"
@@ -273,9 +243,9 @@ SUBDIR+=	hesinfo
 .endif
 
 .if ${MK_ICONV} != "no"
-_iconv=		iconv
-_mkcsmapper=	mkcsmapper
-_mkesdb=	mkesdb
+SUBDIR+=	iconv
+SUBDIR+=	mkcsmapper
+SUBDIR+=	mkesdb
 .endif
 
 .if ${MK_ISCSI} != "no"
@@ -316,8 +286,10 @@ SUBDIR+=	bmake
 
 .if ${MK_MAN_UTILS} != "no"
 SUBDIR+=	catman
-_makewhatis=	makewhatis
-_man=		man
+.if ${MK_MANDOCDB} == "no"
+SUBDIR+=	makewhatis
+.endif
+SUBDIR+=	man
 .endif
 
 .if ${MK_NETCAT} != "no"
@@ -365,7 +337,7 @@ SUBDIR+=	telnet
 .endif
 
 .if ${MK_TESTS} != "no"
-_tests=		tests
+SUBDIR+=	tests
 .endif
 
 .if ${MK_TEXTPROC} != "no"
@@ -379,10 +351,13 @@ SUBDIR+=	tftp
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
+SUBDIR+=	addr2line
 SUBDIR+=	ar
 SUBDIR+=	c89
 SUBDIR+=	c99
 SUBDIR+=	ctags
+SUBDIR+=	cxxfilt
+SUBDIR+=	elfcopy
 SUBDIR+=	file2c
 .if ${MACHINE_ARCH} != "aarch64" # ARM64TODO gprof does not build
 SUBDIR+=	gprof
@@ -390,8 +365,12 @@ SUBDIR+=	gprof
 SUBDIR+=	indent
 SUBDIR+=	lex
 SUBDIR+=	mkstr
+SUBDIR+=	nm
+SUBDIR+=	readelf
 SUBDIR+=	rpcgen
 SUBDIR+=	unifdef
+SUBDIR+=	size
+SUBDIR+=	strings
 .if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
 SUBDIR+=	xlint
 .endif

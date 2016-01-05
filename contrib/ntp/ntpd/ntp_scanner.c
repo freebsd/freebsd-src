@@ -38,6 +38,7 @@
 char yytext[MAX_LEXEME];	/* Buffer for storing the input text/lexeme */
 u_int32 conf_file_sum;		/* Simple sum of characters read */
 
+static struct FILE_INFO * lex_stack = NULL;
 
 
 
@@ -86,153 +87,342 @@ keyword(
 }
 
 
-/* FILE INTERFACE
- * --------------
- * We define a couple of wrapper functions around the standard C fgetc
- * and ungetc functions in order to include positional bookkeeping
+/* FILE & STRING BUFFER INTERFACE
+ * ------------------------------
+ *
+ * This set out as a couple of wrapper functions around the standard C
+ * fgetc and ungetc functions in order to include positional
+ * bookkeeping. Alas, this is no longer a good solution with nested
+ * input files and the possibility to send configuration commands via
+ * 'ntpdc' and 'ntpq'.
+ *
+ * Now there are a few functions to maintain a stack of nested input
+ * sources (though nesting is only allowd for disk files) and from the
+ * scanner / parser point of view there's no difference between both
+ * types of sources.
+ *
+ * The 'fgetc()' / 'ungetc()' replacements now operate on a FILE_INFO
+ * structure. Instead of trying different 'ungetc()' strategies for file
+ * and buffer based parsing, we keep the backup char in our own
+ * FILE_INFO structure. This is sufficient, as the parser does *not*
+ * jump around via 'seek' or the like, and there's no need to
+ * check/clear the backup store in other places than 'lex_getch()'.
  */
 
-struct FILE_INFO *
-F_OPEN(
+/*
+ * Allocate an info structure and attach it to a file.
+ *
+ * Note: When 'mode' is NULL, then the INFO block will be set up to
+ * contain a NULL file pointer, as suited for remote config command
+ * parsing. Otherwise having a NULL file pointer is considered an error,
+ * and a NULL info block pointer is returned to indicate failure!
+ *
+ * Note: We use a variable-sized structure to hold a copy of the file
+ * name (or, more proper, the input source description). This is more
+ * secure than keeping a reference to some other storage that might go
+ * out of scope.
+ */
+static struct FILE_INFO *
+lex_open(
 	const char *path,
 	const char *mode
 	)
 {
-	struct FILE_INFO *my_info;
+	struct FILE_INFO *stream;
+	size_t            nnambuf;
 
-	my_info = emalloc(sizeof *my_info);
+	nnambuf = strlen(path);
+	stream = emalloc_zero(sizeof(*stream) + nnambuf);
+	stream->curpos.nline = 1;
+	stream->backch = EOF;
+	/* copy name with memcpy -- trailing NUL already there! */
+	memcpy(stream->fname, path, nnambuf);
 
-	my_info->line_no = 1;
-	my_info->col_no = 0;
-	my_info->prev_line_col_no = 0;
-	my_info->prev_token_col_no = 0;
-	my_info->fname = path;
-
-	my_info->fd = fopen(path, mode);
-	if (NULL == my_info->fd) {
-		free(my_info);
-		return NULL;
+	if (NULL != mode) {
+		stream->fpi = fopen(path, mode);
+		if (NULL == stream->fpi) {
+			free(stream);
+			stream = NULL;
+		}
 	}
-	return my_info;
+	return stream;
 }
 
-int
-FGETC(
+/* get next character from buffer or file. This will return any putback
+ * character first; it will also make sure the last line is at least
+ * virtually terminated with a '\n'.
+ */
+static int
+lex_getch(
 	struct FILE_INFO *stream
 	)
 {
 	int ch;
-	
-	do 
-		ch = fgetc(stream->fd);
-	while (EOF != ch && (CHAR_MIN > ch || ch > CHAR_MAX));
 
-	if (EOF != ch) {
-		if (input_from_file)
-			conf_file_sum += (u_char)ch;
-		++stream->col_no;
-		if (ch == '\n') {
-			stream->prev_line_col_no = stream->col_no;
-			++stream->line_no;
-			stream->col_no = 1;
+	if (NULL == stream || stream->force_eof)
+		return EOF;
+
+	if (EOF != stream->backch) {
+		ch = stream->backch;
+		stream->backch = EOF;
+		if (stream->fpi)
+			conf_file_sum += ch;
+	} else if (stream->fpi) {
+		/* fetch next 7-bit ASCII char (or EOF) from file */
+		while ((ch = fgetc(stream->fpi)) != EOF && ch > SCHAR_MAX)
+			stream->curpos.ncol++;
+		if (EOF != ch) {
+			conf_file_sum += ch;
+			stream->curpos.ncol++;
 		}
+	} else {
+		/* fetch next 7-bit ASCII char from buffer */
+		const char * scan;
+		scan = &remote_config.buffer[remote_config.pos];
+		while ((ch = (u_char)*scan) > SCHAR_MAX) {
+			scan++;
+			stream->curpos.ncol++;
+		}
+		if ('\0' != ch) {
+			scan++;
+			stream->curpos.ncol++;
+		} else {
+			ch = EOF;
+		}
+		remote_config.pos = (int)(scan - remote_config.buffer);
+	}
+
+	/* If the last line ends without '\n', generate one. This
+	 * happens most likely on Windows, where editors often have a
+	 * sloppy concept of a line.
+	 */
+	if (EOF == ch && stream->curpos.ncol != 0)
+		ch = '\n';
+
+	/* update scan position tallies */
+	if (ch == '\n') {
+		stream->bakpos = stream->curpos;
+		stream->curpos.nline++;
+		stream->curpos.ncol = 0;
 	}
 
 	return ch;
 }
 
-/* BUGS: 1. Function will fail on more than one line of pushback
- *       2. No error checking is done to see if ungetc fails
- * SK: I don't think its worth fixing these bugs for our purposes ;-)
+/* Note: lex_ungetch will fail to track more than one line of push
+ * back. But since it guarantees only one char of back storage anyway,
+ * this should not be a problem.
  */
-int
-UNGETC(
+static int
+lex_ungetch(
 	int ch,
 	struct FILE_INFO *stream
 	)
 {
-	if (input_from_file)
-		conf_file_sum -= (u_char)ch;
-	if (ch == '\n') {
-		stream->col_no = stream->prev_line_col_no;
-		stream->prev_line_col_no = -1;
-		--stream->line_no;
+	/* check preconditions */
+	if (NULL == stream || stream->force_eof)
+		return EOF;
+	if (EOF != stream->backch || EOF == ch)
+		return EOF;
+
+	/* keep for later reference and update checksum */
+	stream->backch = (u_char)ch;
+	if (stream->fpi)
+		conf_file_sum -= stream->backch;
+
+	/* update position */
+	if (stream->backch == '\n') {
+	    stream->curpos = stream->bakpos;
+	    stream->bakpos.ncol = -1;
 	}
-	--stream->col_no;
-	return ungetc(ch, stream->fd);
+	stream->curpos.ncol--;
+	return stream->backch;
 }
 
-int
-FCLOSE(
+/* dispose of an input structure. If the file pointer is not NULL, close
+ * the file. This function does not check the result of 'fclose()'.
+ */
+static void
+lex_close(
 	struct FILE_INFO *stream
 	)
 {
-	int ret_val = fclose(stream->fd);
-
-	if (!ret_val)
+	if (NULL != stream) {
+		if (NULL != stream->fpi)
+			fclose(stream->fpi);		
 		free(stream);
-	return ret_val;
+	}
 }
 
-/* STREAM INTERFACE 
- * ----------------
- * Provide a wrapper for the stream functions so that the
- * stream can either read from a file or from a character
- * array. 
- * NOTE: This is not very efficient for reading from character
- * arrays, but needed to allow remote configuration where the
- * configuration command is provided through ntpq.
- * 
- * The behavior of there two functions is determined by the 
- * input_from_file flag.
+/* INPUT STACK
+ * -----------
+ *
+ * Nested input sources are a bit tricky at first glance. We deal with
+ * this problem using a stack of input sources, that is, a forward
+ * linked list of FILE_INFO structs.
+ *
+ * This stack is never empty during parsing; while an encounter with EOF
+ * can and will remove nested input sources, removing the last element
+ * in the stack will not work during parsing, and the EOF condition of
+ * the outermost input file remains until the parser folds up.
  */
 
-static int
-get_next_char(
-	struct FILE_INFO *ip_file
+static struct FILE_INFO *
+_drop_stack_do(
+	struct FILE_INFO * head
 	)
 {
-	char ch;
-
-	if (input_from_file)
-		return FGETC(ip_file);
-	else {
-		if (remote_config.buffer[remote_config.pos] == '\0') 
-			return EOF;
-		else {
-			ip_file->col_no++;
-			ch = remote_config.buffer[remote_config.pos++];
-			if (ch == '\n') {
-				ip_file->prev_line_col_no = ip_file->col_no;
-				++ip_file->line_no;
-				ip_file->col_no = 1;
-			}
-			return ch;
-		}
+	struct FILE_INFO * tail;
+	while (NULL != head) {
+		tail = head->st_next;
+		lex_close(head);
+		head = tail;
 	}
+	return head;
 }
 
-static void
-push_back_char(
-	struct FILE_INFO *ip_file,
-	int ch
+
+
+/* Create a singleton input source on an empty lexer stack. This will
+ * fail if there is already an input source, or if the underlying disk
+ * file cannot be opened.
+ *
+ * Returns TRUE if a new input object was successfully created.
+ */
+int/*BOOL*/
+lex_init_stack(
+	const char * path,
+	const char * mode
 	)
 {
-	if (input_from_file)
-		UNGETC(ch, ip_file);
-	else {
-		if (ch == '\n') {
-			ip_file->col_no = ip_file->prev_line_col_no;
-			ip_file->prev_line_col_no = -1;
-			--ip_file->line_no;
-		}
-		--ip_file->col_no;
+	if (NULL != lex_stack || NULL == path)
+		return FALSE;
 
-		remote_config.pos--;
-	}
+	lex_stack = lex_open(path, mode);
+	return (NULL != lex_stack);
 }
 
- 
+/* This removes *all* input sources from the stack, leaving the head
+ * pointer as NULL. Any attempt to parse in that state is likely to bomb
+ * with segmentation faults or the like.
+ *
+ * In other words: Use this to clean up after parsing, and do not parse
+ * anything until the next 'lex_init_stack()' succeeded.
+ */
+void
+lex_drop_stack()
+{
+	lex_stack = _drop_stack_do(lex_stack);
+}
+
+/* Flush the lexer input stack: This will nip all input objects on the
+ * stack (but keeps the current top-of-stack) and marks the top-of-stack
+ * as inactive. Any further calls to lex_getch yield only EOF, and it's
+ * no longer possible to push something back.
+ *
+ * Returns TRUE if there is a head element (top-of-stack) that was not
+ * in the force-eof mode before this call.
+ */
+int/*BOOL*/
+lex_flush_stack()
+{
+	int retv = FALSE;
+
+	if (NULL != lex_stack) {
+		retv = !lex_stack->force_eof;
+		lex_stack->force_eof = TRUE;
+		lex_stack->st_next = _drop_stack_do(
+					lex_stack->st_next);
+	}
+	return retv;
+}
+
+/* Push another file on the parsing stack. If the mode is NULL, create a
+ * FILE_INFO suitable for in-memory parsing; otherwise, create a
+ * FILE_INFO that is bound to a local/disc file. Note that 'path' must
+ * not be NULL, or the function will fail.
+ *
+ * Returns TRUE if a new info record was pushed onto the stack.
+ */
+int/*BOOL*/ lex_push_file(
+	const char * path,
+	const char * mode
+	)
+{
+	struct FILE_INFO * next = NULL;
+
+	if (NULL != path) {
+		next = lex_open(path, mode);
+		if (NULL != next) {
+			next->st_next = lex_stack;
+			lex_stack = next;
+		}
+	}
+	return (NULL != next);
+}
+
+/* Pop, close & free the top of the include stack, unless the stack
+ * contains only a singleton input object. In that case the function
+ * fails, because the parser does not expect the input stack to be
+ * empty.
+ *
+ * Returns TRUE if an object was successfuly popped from the stack.
+ */
+int/*BOOL*/
+lex_pop_file(void)
+{
+	struct FILE_INFO * head = lex_stack;
+	struct FILE_INFO * tail = NULL; 
+	
+	if (NULL != head) {
+		tail = head->st_next;
+		if (NULL != tail) {
+			lex_stack = tail;
+			lex_close(head);
+		}
+	}
+	return (NULL != tail);
+}
+
+/* Get include nesting level. This currently loops over the stack and
+ * counts elements; but since this is of concern only with an include
+ * statement and the nesting depth has a small limit, there's no
+ * bottleneck expected here.
+ *
+ * Returns the nesting level of includes, that is, the current depth of
+ * the lexer input stack.
+ *
+ * Note: 
+ */
+size_t
+lex_level(void)
+{
+	size_t            cnt = 0;
+	struct FILE_INFO *ipf = lex_stack;
+
+	while (NULL != ipf) {
+		cnt++;
+		ipf = ipf->st_next;
+	}
+	return cnt;
+}
+
+/* check if the current input is from a file */	
+int/*BOOL*/
+lex_from_file(void)
+{
+	return (NULL != lex_stack) && (NULL != lex_stack->fpi);
+}
+
+struct FILE_INFO *
+lex_current()
+{
+	/* this became so simple, it could be a macro. But then,
+	 * lex_stack needed to be global...
+	 */
+	return lex_stack;
+}
+
 
 /* STATE MACHINES 
  * --------------
@@ -297,7 +487,7 @@ is_integer(
 
 	/* Check that all the remaining characters are digits */
 	for (; lexeme[i] != '\0'; i++) {
-		if (!isdigit((unsigned char)lexeme[i]))
+		if (!isdigit((u_char)lexeme[i]))
 			return FALSE;
 	}
 
@@ -322,7 +512,7 @@ is_u_int(
 	int	is_hex;
 	
 	i = 0;
-	if ('0' == lexeme[i] && 'x' == tolower((unsigned char)lexeme[i + 1])) {
+	if ('0' == lexeme[i] && 'x' == tolower((u_char)lexeme[i + 1])) {
 		i += 2;
 		is_hex = TRUE;
 	} else {
@@ -331,9 +521,9 @@ is_u_int(
 
 	/* Check that all the remaining characters are digits */
 	for (; lexeme[i] != '\0'; i++) {
-		if (is_hex && !isxdigit((unsigned char)lexeme[i]))
+		if (is_hex && !isxdigit((u_char)lexeme[i]))
 			return FALSE;
-		if (!is_hex && !isdigit((unsigned char)lexeme[i]))
+		if (!is_hex && !isdigit((u_char)lexeme[i]))
 			return FALSE;
 	}
 
@@ -357,14 +547,14 @@ is_double(
 		i++;
 
 	/* Read the integer part */
-	for (; lexeme[i] && isdigit((unsigned char)lexeme[i]); i++)
+	for (; lexeme[i] && isdigit((u_char)lexeme[i]); i++)
 		num_digits++;
 
 	/* Check for the optional decimal point */
 	if ('.' == lexeme[i]) {
 		i++;
 		/* Check for any digits after the decimal point */
-		for (; lexeme[i] && isdigit((unsigned char)lexeme[i]); i++)
+		for (; lexeme[i] && isdigit((u_char)lexeme[i]); i++)
 			num_digits++;
 	}
 
@@ -380,7 +570,7 @@ is_double(
 		return 1;
 
 	/* There is still more input, read the exponent */
-	if ('e' == tolower((unsigned char)lexeme[i]))
+	if ('e' == tolower((u_char)lexeme[i]))
 		i++;
 	else
 		return 0;
@@ -390,7 +580,7 @@ is_double(
 		i++;
 
 	/* Now read the exponent part */
-	while (lexeme[i] && isdigit((unsigned char)lexeme[i]))
+	while (lexeme[i] && isdigit((u_char)lexeme[i]))
 		i++;
 
 	/* Check if we are done */
@@ -455,7 +645,7 @@ create_string_token(
 	 * ignore end of line whitespace
 	 */
 	pch = lexeme;
-	while (*pch && isspace((unsigned char)*pch))
+	while (*pch && isspace((u_char)*pch))
 		pch++;
 
 	if (!*pch) {
@@ -476,37 +666,31 @@ create_string_token(
  * value representing the token or type.
  */
 int
-yylex(
-	struct FILE_INFO *ip_file
-	)
+yylex(void)
 {
 	static follby	followedby = FOLLBY_TOKEN;
-	size_t		i;
+	int		i;
 	int		instring;
 	int		yylval_was_set;
 	int		converted;
 	int		token;		/* The return value */
 	int		ch;
 
-	if (input_from_file)
-		ip_file = fp[curr_include_level];
 	instring = FALSE;
 	yylval_was_set = FALSE;
 
 	do {
 		/* Ignore whitespace at the beginning */
-		while (EOF != (ch = get_next_char(ip_file)) &&
+		while (EOF != (ch = lex_getch(lex_stack)) &&
 		       isspace(ch) &&
 		       !is_EOC(ch))
+
 			; /* Null Statement */
 
 		if (EOF == ch) {
 
-			if (!input_from_file || curr_include_level <= 0) 
+			if ( ! lex_pop_file())
 				return 0;
-
-			FCLOSE(fp[curr_include_level]);
-			ip_file = fp[--curr_include_level];
 			token = T_EOC;
 			goto normal_return;
 
@@ -531,15 +715,14 @@ yylex(
 			yytext[1] = '\0';
 			goto normal_return;
 		} else
-			push_back_char(ip_file, ch);
+			lex_ungetch(ch, lex_stack);
 
 		/* save the position of start of the token */
-		ip_file->prev_token_line_no = ip_file->line_no;
-		ip_file->prev_token_col_no = ip_file->col_no;
+		lex_stack->tokpos = lex_stack->curpos;
 
 		/* Read in the lexeme */
 		i = 0;
-		while (EOF != (ch = get_next_char(ip_file))) {
+		while (EOF != (ch = lex_getch(lex_stack))) {
 
 			yytext[i] = (char)ch;
 
@@ -553,7 +736,7 @@ yylex(
 			/* Read the rest of the line on reading a start
 			   of comment character */
 			if ('#' == ch) {
-				while (EOF != (ch = get_next_char(ip_file))
+				while (EOF != (ch = lex_getch(lex_stack))
 				       && '\n' != ch)
 					; /* Null Statement */
 				break;
@@ -571,7 +754,7 @@ yylex(
 		 */
 		if ('"' == ch) {
 			instring = TRUE;
-			while (EOF != (ch = get_next_char(ip_file)) &&
+			while (EOF != (ch = lex_getch(lex_stack)) &&
 			       ch != '"' && ch != '\n') {
 				yytext[i++] = (char)ch;
 				if (i >= COUNTOF(yytext))
@@ -583,18 +766,15 @@ yylex(
 			 * not be pushed back, so we read another char.
 			 */
 			if ('"' == ch)
-				ch = get_next_char(ip_file);
+				ch = lex_getch(lex_stack);
 		}
 		/* Pushback the last character read that is not a part
-		 * of this lexeme.
-		 * If the last character read was an EOF, pushback a
-		 * newline character. This is to prevent a parse error
-		 * when there is no newline at the end of a file.
+		 * of this lexeme. This fails silently if ch is EOF,
+		 * but then the EOF condition persists and is handled on
+		 * the next turn by the include stack mechanism.
 		 */
-		if (EOF == ch)
-			push_back_char(ip_file, '\n');
-		else
-			push_back_char(ip_file, ch); 
+		lex_ungetch(ch, lex_stack);
+
 		yytext[i] = '\0';
 	} while (i == 0);
 
@@ -627,7 +807,7 @@ yylex(
 				msyslog(LOG_ERR, 
 					"Integer cannot be represented: %s",
 					yytext);
-				if (input_from_file) {
+				if (lex_from_file()) {
 					exit(1);
 				} else {
 					/* force end of parsing */
@@ -640,7 +820,7 @@ yylex(
 		} else if (is_u_int(yytext)) {
 			yylval_was_set = TRUE;
 			if ('0' == yytext[0] &&
-			    'x' == tolower((unsigned char)yytext[1]))
+			    'x' == tolower((unsigned long)yytext[1]))
 				converted = sscanf(&yytext[2], "%x",
 						   &yylval.U_int);
 			else
@@ -650,7 +830,7 @@ yylex(
 				msyslog(LOG_ERR, 
 					"U_int cannot be represented: %s",
 					yytext);
-				if (input_from_file) {
+				if (lex_from_file()) {
 					exit(1);
 				} else {
 					/* force end of parsing */
@@ -735,14 +915,14 @@ lex_too_long:
 	yytext[min(sizeof(yytext) - 1, 50)] = 0;
 	msyslog(LOG_ERR, 
 		"configuration item on line %d longer than limit of %lu, began with '%s'",
-		ip_file->line_no, (u_long)min(sizeof(yytext) - 1, 50),
+		lex_stack->curpos.nline, (u_long)min(sizeof(yytext) - 1, 50),
 		yytext);
 
 	/*
 	 * If we hit the length limit reading the startup configuration
 	 * file, abort.
 	 */
-	if (input_from_file)
+	if (lex_from_file())
 		exit(sizeof(yytext) - 1);
 
 	/*

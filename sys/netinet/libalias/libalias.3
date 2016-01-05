@@ -173,10 +173,12 @@ Mainly useful for debugging when the log file is viewed continuously with
 .It Dv PKT_ALIAS_DENY_INCOMING
 If this mode bit is set, all incoming packets associated with new TCP
 connections or new UDP transactions will be marked for being ignored
-.Fn ( LibAliasIn
+.Po
+.Fn LibAliasIn
 returns
 .Dv PKT_ALIAS_IGNORED
-code)
+code
+.Pc
 by the calling program.
 Response packets to connections or transactions initiated from the packet
 aliasing host or local network will be unaffected.
@@ -1001,7 +1003,7 @@ If this results in a conflict, then port numbers are randomly chosen until
 a unique aliasing link can be established.
 In an alternate operating mode, the first choice of an aliasing port is also
 random and unrelated to the local port number.
-.Sh MODULAR ARCHITECTURE (AND Xr ipfw 4 Sh SUPPORT)
+.Sh MODULAR ARCHITECTURE Po AND Xr ipfw 4 SUPPORT Pc
 One of the latest improvements to
 .Nm
 was to make its support

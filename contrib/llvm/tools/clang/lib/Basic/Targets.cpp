@@ -419,6 +419,7 @@ protected:
 public:
   NetBSDTargetInfo(const llvm::Triple &Triple) : OSTargetInfo<Target>(Triple) {
     this->UserLabelPrefix = "";
+    this->MCountName = "_mcount";
   }
 };
 
@@ -918,6 +919,10 @@ public:
     if (RegNo == 0) return 3;
     if (RegNo == 1) return 4;
     return -1;
+  }
+
+  bool hasSjLjLowering() const override {
+    return true;
   }
 };
 
@@ -2181,6 +2186,10 @@ public:
   CallingConv getDefaultCallingConv(CallingConvMethodType MT) const override {
     return MT == CCMT_Member ? CC_X86ThisCall : CC_C;
   }
+
+  bool hasSjLjLowering() const override {
+    return true;
+  }
 };
 
 bool X86TargetInfo::setFPMath(StringRef Name) {
@@ -3354,7 +3363,10 @@ public:
       : WindowsTargetInfo<X86_32TargetInfo>(Triple) {
     WCharType = UnsignedShort;
     DoubleAlign = LongLongAlign = 64;
-    DescriptionString = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32";
+    bool IsWinCOFF =
+        getTriple().isOSWindows() && getTriple().isOSBinFormatCOFF();
+    DescriptionString = IsWinCOFF ? "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
+                                  : "e-m:e-p:32:32-i64:64-f80:32-n8:16:32-S32";
   }
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override {
@@ -5628,7 +5640,9 @@ public:
                      const std::string &CPUStr)
       : TargetInfo(Triple), CPU(CPUStr), IsMips16(false), IsMicromips(false),
         IsNan2008(false), IsSingleFloat(false), FloatABI(HardFloat),
-        DspRev(NoDSP), HasMSA(false), HasFP64(false), ABI(ABIStr) {}
+        DspRev(NoDSP), HasMSA(false), HasFP64(false), ABI(ABIStr) {
+    TheCXXABI.set(TargetCXXABI::GenericMIPS);
+  }
 
   bool isNaN2008Default() const {
     return CPU == "mips32r6" || CPU == "mips64r6";
@@ -6662,6 +6676,8 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple) {
     switch (os) {
     case llvm::Triple::Linux:
       return new LinuxTargetInfo<PPC64TargetInfo>(Triple);
+    case llvm::Triple::NetBSD:
+      return new NetBSDTargetInfo<PPC64TargetInfo>(Triple);
     default:
       return new PPC64TargetInfo(Triple);
     }

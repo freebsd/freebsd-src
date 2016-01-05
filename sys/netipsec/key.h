@@ -105,7 +105,6 @@ extern void key_init(void);
 extern void key_destroy(void);
 #endif
 extern void key_sa_recordxfer(struct secasvar *, struct mbuf *);
-extern void key_sa_stir_iv(struct secasvar *);
 #ifdef IPSEC_NAT_T
 u_int16_t key_portfromsaddr(struct sockaddr *);
 #define	KEY_PORTFROMSADDR(saddr)				\

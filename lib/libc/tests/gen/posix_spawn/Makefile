@@ -10,9 +10,9 @@ TESTSDIR=	${TESTSBASE}/lib/libc/gen/posix_spawn
 
 BINDIR=		${TESTSDIR}
 
-# TODO: t_spawnattr (fix from pho@ needs additional review)
 NETBSD_ATF_TESTS_C=	fileactions_test
 NETBSD_ATF_TESTS_C+=	spawn_test
+NETBSD_ATF_TESTS_C+=	spawnattr_test
 
 PROGS=		h_fileactions
 PROGS+=		h_spawn

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.29 2014/04/30 21:41:02 christos Exp $
+# $File: apple,v 1.30 2015/04/13 13:09:06 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -300,3 +300,12 @@
 #http://wiki.mozilla.org/DS_Store_File_Format`
 #http://en.wikipedia.org/wiki/.DS_Store
 0	string	\0\0\0\1Bud1\0		Apple Desktop Services Store
+
+# HFS/HFS+ Resource fork files (andrew.roazen@nau.edu Apr 13 2015)
+# Usually not in separate files, but have either filename rsrc with
+# no extension, or a filename corresponding to another file, with
+# extensions rsr/rsrc
+0	string  \000\000\001\000
+>4	leshort 0
+>>16    lelong  0			Apple HFS/HFS+ resource fork
+

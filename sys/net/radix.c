@@ -533,7 +533,7 @@ rn_addmask(void *n_arg, struct radix_node_head *maskhead, int search, int skip)
 	x = rn_insert(cp, maskhead, &maskduplicated, x);
 	if (maskduplicated) {
 		log(LOG_ERR, "rn_addmask: mask impossibly already in tree");
-		Free(saved_x);
+		R_Free(saved_x);
 		return (x);
 	}
 	/*
@@ -829,7 +829,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 	for (mp = &x->rn_mklist; (m = *mp); mp = &m->rm_mklist)
 		if (m == saved_m) {
 			*mp = m->rm_mklist;
-			Free(m);
+			R_Free(m);
 			break;
 		}
 	if (m == 0) {
@@ -920,7 +920,7 @@ on1:
 					struct radix_mask *mm = m->rm_mklist;
 					x->rn_mklist = 0;
 					if (--(m->rm_refs) < 0)
-						Free(m);
+						R_Free(m);
 					m = mm;
 				}
 			if (m)
@@ -1152,7 +1152,7 @@ rn_detachhead_internal(void **head)
 	rnh = *head;
 	
 	/* Free <left,root,right> nodes. */
-	Free(rnh);
+	R_Free(rnh);
 
 	*head = NULL;
 }
@@ -1186,7 +1186,7 @@ rn_freeentry(struct radix_node *rn, void *arg)
 
 	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);
 	if (x != NULL)
-		Free(x);
+		R_Free(x);
 	return (0);
 }
 

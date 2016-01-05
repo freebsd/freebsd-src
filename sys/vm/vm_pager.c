@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 
 int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
+struct buf *swbuf;
+
 static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static vm_object_t dead_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
@@ -250,8 +252,78 @@ vm_pager_deallocate(object)
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 
+static void
+vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
+{
+#ifdef INVARIANTS
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(count > 0, ("%s: 0 count", __func__));
+	/*
+	 * All pages must be busied, not mapped, not fully valid,
+	 * not dirty and belong to the proper object.
+	 */
+	for (int i = 0 ; i < count; i++) {
+		vm_page_assert_xbusied(m[i]);
+		KASSERT(!pmap_page_is_mapped(m[i]),
+		    ("%s: page %p is mapped", __func__, m[i]));
+		KASSERT(m[i]->valid != VM_PAGE_BITS_ALL,
+		    ("%s: request for a valid page %p", __func__, m[i]));
+		KASSERT(m[i]->dirty == 0,
+		    ("%s: page %p is dirty", __func__, m[i]));
+		KASSERT(m[i]->object == object,
+		    ("%s: wrong object %p/%p", __func__, object, m[i]->object));
+	}
+#endif
+}
+
 /*
- * vm_pager_get_pages() - inline, see vm/vm_pager.h
+ * Page in the pages for the object using its associated pager.
+ * The requested page must be fully valid on successful return.
+ */
+int
+vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int reqpage)
+{
+	int r;
+
+	vm_pager_assert_in(object, m, count);
+
+	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage);
+	if (r != VM_PAGER_OK)
+		return (r);
+
+	/*
+	 * If pager has replaced the page, assert that it had
+	 * updated the array.  Also assert that page is still
+	 * busied.
+	 */
+	KASSERT(m[reqpage] == vm_page_lookup(object, m[reqpage]->pindex),
+	    ("%s: mismatch page %p pindex %ju", __func__,
+	    m[reqpage], (uintmax_t )m[reqpage]->pindex));
+	vm_page_assert_xbusied(m[reqpage]);
+
+	/*
+	 * Pager didn't fill up entire page.  Zero out
+	 * partially filled data.
+	 */
+	if (m[reqpage]->valid != VM_PAGE_BITS_ALL)
+		vm_page_zero_invalid(m[reqpage], TRUE);
+
+	return (VM_PAGER_OK);
+}
+
+int
+vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
+    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
+{
+
+	vm_pager_assert_in(object, m, count);
+
+	return ((*pagertab[object->type]->pgo_getpages_async)(object, m,
+	    count, reqpage, iodone, arg));
+}
+
+/*
  * vm_pager_put_pages() - inline, see vm/vm_pager.h
  * vm_pager_has_page() - inline, see vm/vm_pager.h
  */
@@ -330,12 +402,11 @@ initpbuf(struct buf *bp)
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
 	bp->b_qindex = 0;	/* On no queue (QUEUE_NONE) */
-	bp->b_saveaddr = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
-	bp->b_data = bp->b_saveaddr;
-	bp->b_kvabase = bp->b_saveaddr;
+	bp->b_kvabase = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
+	bp->b_data = bp->b_kvabase;
 	bp->b_kvasize = MAXPHYS;
-	bp->b_xflags = 0;
 	bp->b_flags = 0;
+	bp->b_xflags = 0;
 	bp->b_ioflags = 0;
 	bp->b_iodone = NULL;
 	bp->b_error = 0;

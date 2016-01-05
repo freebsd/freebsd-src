@@ -226,7 +226,8 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 				}
 
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND,
-				    stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_32);
+				    stcb->sctp_ep, stcb, net,
+				    SCTP_FROM_SCTP_CC_FUNCTIONS + SCTP_LOC_1);
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND,
 				    stcb->sctp_ep, stcb, net);
 			}
@@ -1732,7 +1733,8 @@ sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
 				}
 
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND,
-				    stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_32);
+				    stcb->sctp_ep, stcb, net,
+				    SCTP_FROM_SCTP_CC_FUNCTIONS + SCTP_LOC_2);
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND,
 				    stcb->sctp_ep, stcb, net);
 			}
@@ -2264,7 +2266,8 @@ sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 				}
 
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND,
-				    stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_32);
+				    stcb->sctp_ep, stcb, net,
+				    SCTP_FROM_SCTP_CC_FUNCTIONS + SCTP_LOC_3);
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND,
 				    stcb->sctp_ep, stcb, net);
 			}

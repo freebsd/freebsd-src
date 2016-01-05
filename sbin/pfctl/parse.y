@@ -46,8 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <net/altq/altq.h>
 #include <net/altq/altq_cbq.h>
+#include <net/altq/altq_codel.h>
 #include <net/altq/altq_priq.h>
 #include <net/altq/altq_hfsc.h>
+#include <net/altq/altq_fairq.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -298,8 +300,9 @@ struct pool_opts {
 
 } pool_opts;
 
-
+struct codel_opts	 codel_opts;
 struct node_hfsc_opts	 hfsc_opts;
+struct node_fairq_opts	 fairq_opts;
 struct node_state_opt	*keep_state_defaults = NULL;
 
 int		 disallow_table(struct node_host *, const char *);
@@ -422,6 +425,8 @@ typedef struct {
 		struct table_opts	 table_opts;
 		struct pool_opts	 pool_opts;
 		struct node_hfsc_opts	 hfsc_opts;
+		struct node_fairq_opts	 fairq_opts;
+		struct codel_opts	 codel_opts;
 	} v;
 	int lineno;
 } YYSTYPE;
@@ -446,8 +451,8 @@ int	parseport(char *, struct range *r, int);
 %token	REQUIREORDER SYNPROXY FINGERPRINTS NOSYNC DEBUG SKIP HOSTID
 %token	ANTISPOOF FOR INCLUDE
 %token	BITMASK RANDOM SOURCEHASH ROUNDROBIN STATICPORT PROBABILITY
-%token	ALTQ CBQ PRIQ HFSC BANDWIDTH TBRSIZE LINKSHARE REALTIME UPPERLIMIT
-%token	QUEUE PRIORITY QLIMIT RTABLE
+%token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
+%token	UPPERLIMIT QUEUE PRIORITY QLIMIT HOGS BUCKETS RTABLE TARGET INTERVAL
 %token	LOAD RULESET_OPTIMIZATION
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
@@ -495,6 +500,8 @@ int	parseport(char *, struct range *r, int);
 %type	<v.number>		cbqflags_list cbqflags_item
 %type	<v.number>		priqflags_list priqflags_item
 %type	<v.hfsc_opts>		hfscopts_list hfscopts_item hfsc_opts
+%type	<v.fairq_opts>		fairqopts_list fairqopts_item fairq_opts
+%type	<v.codel_opts>		codelopts_list codelopts_item codel_opts
 %type	<v.queue_bwspec>	bandwidth
 %type	<v.filter_opts>		filter_opts filter_opt filter_opts_l
 %type	<v.antispoof_opts>	antispoof_opts antispoof_opt antispoof_opts_l
@@ -1190,8 +1197,8 @@ scrub_opt	: NODF	{
 		;
 
 fragcache	: FRAGMENT REASSEMBLE	{ $$ = 0; /* default */ }
-		| FRAGMENT FRAGCROP	{ $$ = PFRULE_FRAGCROP; }
-		| FRAGMENT FRAGDROP	{ $$ = PFRULE_FRAGDROP; }
+		| FRAGMENT FRAGCROP	{ $$ = 0; }
+		| FRAGMENT FRAGDROP	{ $$ = 0; }
 		;
 
 antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
@@ -1466,7 +1473,7 @@ altqif		: ALTQ interface queue_opts QUEUE qassign {
 			a.scheduler = $3.scheduler.qtype;
 			a.qlimit = $3.qlimit;
 			a.tbrsize = $3.tbrsize;
-			if ($5 == NULL) {
+			if ($5 == NULL && $3.scheduler.qtype != ALTQT_CODEL) {
 				yyerror("no child queues specified");
 				YYERROR;
 			}
@@ -1659,6 +1666,24 @@ scheduler	: CBQ				{
 			$$.qtype = ALTQT_HFSC;
 			$$.data.hfsc_opts = $3;
 		}
+		| FAIRQ				{
+			$$.qtype = ALTQT_FAIRQ;
+			bzero(&$$.data.fairq_opts,
+				sizeof(struct node_fairq_opts));
+		}
+		| FAIRQ '(' fairq_opts ')'      {
+			$$.qtype = ALTQT_FAIRQ;
+			$$.data.fairq_opts = $3;
+		}
+		| CODEL				{
+			$$.qtype = ALTQT_CODEL;
+			bzero(&$$.data.codel_opts,
+				sizeof(struct codel_opts));
+		}
+		| CODEL '(' codel_opts ')'	{
+			$$.qtype = ALTQT_CODEL;
+			$$.data.codel_opts = $3;
+		}
 		;
 
 cbqflags_list	: cbqflags_item				{ $$ |= $1; }
@@ -1676,6 +1701,8 @@ cbqflags_item	: STRING	{
 				$$ = CBQCLF_RED|CBQCLF_ECN;
 			else if (!strcmp($1, "rio"))
 				$$ = CBQCLF_RIO;
+			else if (!strcmp($1, "codel"))
+				$$ = CBQCLF_CODEL;
 			else {
 				yyerror("unknown cbq flag \"%s\"", $1);
 				free($1);
@@ -1698,6 +1725,8 @@ priqflags_item	: STRING	{
 				$$ = PRCF_RED|PRCF_ECN;
 			else if (!strcmp($1, "rio"))
 				$$ = PRCF_RIO;
+			else if (!strcmp($1, "codel"))
+				$$ = PRCF_CODEL;
 			else {
 				yyerror("unknown priq flag \"%s\"", $1);
 				free($1);
@@ -1798,8 +1827,106 @@ hfscopts_item	: LINKSHARE bandwidth				{
 				hfsc_opts.flags |= HFCF_RED|HFCF_ECN;
 			else if (!strcmp($1, "rio"))
 				hfsc_opts.flags |= HFCF_RIO;
+			else if (!strcmp($1, "codel"))
+				hfsc_opts.flags |= HFCF_CODEL;
 			else {
 				yyerror("unknown hfsc flag \"%s\"", $1);
+				free($1);
+				YYERROR;
+			}
+			free($1);
+		}
+		;
+
+fairq_opts	:	{
+				bzero(&fairq_opts,
+				    sizeof(struct node_fairq_opts));
+			}
+		    fairqopts_list				{
+			$$ = fairq_opts;
+		}
+		;
+
+fairqopts_list	: fairqopts_item
+		| fairqopts_list comma fairqopts_item
+		;
+
+fairqopts_item	: LINKSHARE bandwidth				{
+			if (fairq_opts.linkshare.used) {
+				yyerror("linkshare already specified");
+				YYERROR;
+			}
+			fairq_opts.linkshare.m2 = $2;
+			fairq_opts.linkshare.used = 1;
+		}
+		| LINKSHARE '(' bandwidth number bandwidth ')'	{
+			if (fairq_opts.linkshare.used) {
+				yyerror("linkshare already specified");
+				YYERROR;
+			}
+			fairq_opts.linkshare.m1 = $3;
+			fairq_opts.linkshare.d = $4;
+			fairq_opts.linkshare.m2 = $5;
+			fairq_opts.linkshare.used = 1;
+		}
+		| HOGS bandwidth {
+			fairq_opts.hogs_bw = $2;
+		}
+		| BUCKETS number {
+			fairq_opts.nbuckets = $2;
+		}
+		| STRING	{
+			if (!strcmp($1, "default"))
+				fairq_opts.flags |= FARF_DEFAULTCLASS;
+			else if (!strcmp($1, "red"))
+				fairq_opts.flags |= FARF_RED;
+			else if (!strcmp($1, "ecn"))
+				fairq_opts.flags |= FARF_RED|FARF_ECN;
+			else if (!strcmp($1, "rio"))
+				fairq_opts.flags |= FARF_RIO;
+			else if (!strcmp($1, "codel"))
+				fairq_opts.flags |= FARF_CODEL;
+			else {
+				yyerror("unknown fairq flag \"%s\"", $1);
+				free($1);
+				YYERROR;
+			}
+			free($1);
+		}
+		;
+
+codel_opts	:	{
+				bzero(&codel_opts,
+				    sizeof(struct codel_opts));
+			}
+		    codelopts_list				{
+			$$ = codel_opts;
+		}
+		;
+
+codelopts_list	: codelopts_item
+		| codelopts_list comma codelopts_item
+		;
+
+codelopts_item	: INTERVAL number				{
+			if (codel_opts.interval) {
+				yyerror("interval already specified");
+				YYERROR;
+			}
+			codel_opts.interval = $2;
+		}
+		| TARGET number					{
+			if (codel_opts.target) {
+				yyerror("target already specified");
+				YYERROR;
+			}
+			codel_opts.target = $2;
+		}
+		| STRING					{
+			if (!strcmp($1, "ecn"))
+				codel_opts.ecn = 1;
+			else {
+				yyerror("unknown codel option \"%s\"", $1);
 				free($1);
 				YYERROR;
 			}
@@ -4732,7 +4859,8 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 
 	if ((pf->loadopt & PFCTL_FLAG_ALTQ) == 0) {
 		FREE_LIST(struct node_if, interfaces);
-		FREE_LIST(struct node_queue, nqueues);
+		if (nqueues)
+			FREE_LIST(struct node_queue, nqueues);
 		return (0);
 	}
 
@@ -4823,7 +4951,8 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 		}
 	);
 	FREE_LIST(struct node_if, interfaces);
-	FREE_LIST(struct node_queue, nqueues);
+	if (nqueues)
+		FREE_LIST(struct node_queue, nqueues);
 
 	return (errs);
 }
@@ -5226,8 +5355,10 @@ lookup(char *s)
 		{ "bitmask",		BITMASK},
 		{ "block",		BLOCK},
 		{ "block-policy",	BLOCKPOLICY},
+		{ "buckets",		BUCKETS},
 		{ "cbq",		CBQ},
 		{ "code",		CODE},
+		{ "codelq",		CODEL},
 		{ "crop",		FRAGCROP},
 		{ "debug",		DEBUG},
 		{ "divert-reply",	DIVERTREPLY},
@@ -5235,6 +5366,7 @@ lookup(char *s)
 		{ "drop",		DROP},
 		{ "drop-ovl",		FRAGDROP},
 		{ "dup-to",		DUPTO},
+		{ "fairq",		FAIRQ},
 		{ "fastroute",		FASTROUTE},
 		{ "file",		FILENAME},
 		{ "fingerprints",	FINGERPRINTS},
@@ -5247,6 +5379,7 @@ lookup(char *s)
 		{ "global",		GLOBAL},
 		{ "group",		GROUP},
 		{ "hfsc",		HFSC},
+		{ "hogs",		HOGS},
 		{ "hostid",		HOSTID},
 		{ "icmp-type",		ICMPTYPE},
 		{ "icmp6-type",		ICMP6TYPE},
@@ -5255,6 +5388,7 @@ lookup(char *s)
 		{ "include",		INCLUDE},
 		{ "inet",		INET},
 		{ "inet6",		INET6},
+		{ "interval",		INTERVAL},
 		{ "keep",		KEEP},
 		{ "label",		LABEL},
 		{ "limit",		LIMIT},
@@ -5324,6 +5458,7 @@ lookup(char *s)
 		{ "table",		TABLE},
 		{ "tag",		TAG},
 		{ "tagged",		TAGGED},
+		{ "target",		TARGET},
 		{ "tbrsize",		TBRSIZE},
 		{ "timeout",		TIMEOUT},
 		{ "to",			TO},

@@ -615,10 +615,16 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		    (slot->opt & SDHCI_HAVE_DMA) ? "DMA" : "PIO");
 		sdhci_dumpregs(slot);
 	}
-	
+
+	slot->timeout = 10;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(slot->bus),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(slot->bus)), OID_AUTO,
+	    "timeout", CTLFLAG_RW, &slot->timeout, 0,
+	    "Maximum timeout for SDHCI transfers (in secs)");
 	TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
 	callout_init(&slot->card_callout, 1);
 	callout_init_mtx(&slot->timeout_callout, &slot->mtx, 0);
+
 	return (0);
 }
 
@@ -872,7 +878,8 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	/* Start command. */
 	WR2(slot, SDHCI_COMMAND_FLAGS, (cmd->opcode << 8) | (flags & 0xff));
 	/* Start timeout callout. */
-	callout_reset(&slot->timeout_callout, 2*hz, sdhci_timeout, slot);
+	callout_reset(&slot->timeout_callout, slot->timeout * hz,
+	    sdhci_timeout, slot);
 }
 
 static void

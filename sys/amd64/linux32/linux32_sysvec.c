@@ -83,10 +83,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <compat/linux/linux_vdso.h>
 
 MODULE_VERSION(linux, 1);
-
-MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
 #define	AUXARGS_ENTRY_32(pos, id, val)	\
 	do {				\
@@ -109,15 +108,16 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define	LINUX_SYS_linux_rt_sendsig	0
 #define	LINUX_SYS_linux_sendsig		0
 
-const char *linux_platform = "i686";
-static int linux_szplatform;
-extern char linux_sigcode[];
-extern int linux_szsigcode;
+const char *linux_kplatform;
+static int linux_szsigcode;
+static vm_object_t linux_shared_page_obj;
+static char *linux_shared_page_mapping;
+extern char _binary_linux32_locore_o_start;
+extern char _binary_linux32_locore_o_end;
 
 extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
-SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
 
 static int	elf_linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
@@ -127,9 +127,8 @@ static void	exec_linux_setregs(struct thread *td,
 				   struct image_params *imgp, u_long stack);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
 static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
-
-static eventhandler_tag linux_exit_tag;
-static eventhandler_tag linux_exec_tag;
+static void	linux_vdso_install(void *param);
+static void	linux_vdso_deinstall(void *param);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -149,28 +148,6 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
 	  -6,  -6, -43, -42, -75,-125, -84, -95, -16, -74,
 	 -72, -67, -71
-};
-
-int bsd_to_linux_signal[LINUX_SIGTBLSZ] = {
-	LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT, LINUX_SIGILL,
-	LINUX_SIGTRAP, LINUX_SIGABRT, 0, LINUX_SIGFPE,
-	LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, LINUX_SIGSYS,
-	LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM, LINUX_SIGURG,
-	LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT, LINUX_SIGCHLD,
-	LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, LINUX_SIGXCPU,
-	LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, LINUX_SIGWINCH,
-	0, LINUX_SIGUSR1, LINUX_SIGUSR2
-};
-
-int linux_to_bsd_signal[LINUX_SIGTBLSZ] = {
-	SIGHUP, SIGINT, SIGQUIT, SIGILL,
-	SIGTRAP, SIGABRT, SIGBUS, SIGFPE,
-	SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2,
-	SIGPIPE, SIGALRM, SIGTERM, SIGBUS,
-	SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP,
-	SIGTTIN, SIGTTOU, SIGURG, SIGXCPU,
-	SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH,
-	SIGIO, SIGURG, SIGSYS
 };
 
 #define LINUX_T_UNKNOWN  255
@@ -219,6 +196,11 @@ struct linux32_ps_strings {
 	u_int ps_nenvstr;	/* the number of environment strings */
 };
 
+LINUX_VDSO_SYM_INTPTR(linux32_sigcode);
+LINUX_VDSO_SYM_INTPTR(linux32_rt_sigcode);
+LINUX_VDSO_SYM_INTPTR(linux32_vsyscall);
+LINUX_VDSO_SYM_CHAR(linux_platform);
+
 /*
  * If FreeBSD & Linux have a difference of opinion about what a trap
  * means, deal with it here.
@@ -246,11 +228,10 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args;
 	Elf32_Addr *base;
-	Elf32_Addr *pos, *uplatform;
+	Elf32_Addr *pos;
 	struct linux32_ps_strings *arginfo;
 
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
@@ -258,6 +239,9 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
+	AUXARGS_ENTRY_32(pos, LINUX_AT_SYSINFO_EHDR,
+	    imgp->proc->p_sysent->sv_shared_page_base);
+	AUXARGS_ENTRY_32(pos, LINUX_AT_SYSINFO, linux32_vsyscall);
 	AUXARGS_ENTRY_32(pos, LINUX_AT_HWCAP, cpu_feature);
 
 	/*
@@ -282,7 +266,10 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY_32(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
 	AUXARGS_ENTRY_32(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY_32(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_PLATFORM, PTROUT(uplatform));
+	AUXARGS_ENTRY_32(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
+	AUXARGS_ENTRY(pos, LINUX_AT_RANDOM, PTROUT(imgp->canary));
+	if (imgp->execpathp != 0)
+		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, PTROUT(imgp->execpathp));
 	if (args->execfd != -1)
 		AUXARGS_ENTRY_32(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY_32(pos, AT_NULL, 0);
@@ -293,10 +280,8 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	base--;
 	suword32(base, (uint32_t)imgp->args->argc);
 	*stack_base = (register_t *)base;
-	return 0;
+	return (0);
 }
-
-extern unsigned long linux_sznonrtsigcode;
 
 static void
 linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
@@ -337,9 +322,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the argument list for the signal handler.
 	 */
-	if (p->p_sysent->sv_sigtbl)
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+	sig = bsd_to_linux_signal(sig);
 
 	bzero(&frame, sizeof(frame));
 
@@ -352,7 +335,8 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	ksiginfo_to_lsiginfo(ksi, &frame.sf_si, sig);
 
 	/*
-	 * Build the signal context to be used by sigreturn.
+	 * Build the signal context to be used by sigreturn
+	 * and libgcc unwind.
 	 */
 	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
 	frame.sf_sc.uc_link = 0;		/* XXX ??? */
@@ -365,11 +349,12 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
-	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__bits[0];
+	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__mask;
 	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.uc_mcontext.sc_ebp    = regs->tf_rbp;
 	frame.sf_sc.uc_mcontext.sc_ebx    = regs->tf_rbx;
+	frame.sf_sc.uc_mcontext.sc_esp    = regs->tf_rsp;
 	frame.sf_sc.uc_mcontext.sc_edx    = regs->tf_rdx;
 	frame.sf_sc.uc_mcontext.sc_ecx    = regs->tf_rcx;
 	frame.sf_sc.uc_mcontext.sc_eax    = regs->tf_rax;
@@ -411,7 +396,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = p->p_sysent->sv_sigcode_base + linux_sznonrtsigcode;
+	regs->tf_rip = linux32_rt_sigcode;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -445,7 +430,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct trapframe *regs;
 	struct l_sigframe *fp, frame;
 	l_sigset_t lmask;
-	int oonstack, i;
+	int oonstack;
 	int sig, code;
 
 	sig = ksi->ksi_signo;
@@ -483,9 +468,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the argument list for the signal handler.
 	 */
-	if (p->p_sysent->sv_sigtbl)
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+	sig = bsd_to_linux_signal(sig);
 
 	bzero(&frame, sizeof(frame));
 
@@ -497,7 +480,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	frame.sf_sc.sc_mask   = lmask.__bits[0];
+	frame.sf_sc.sc_mask   = lmask.__mask;
 	frame.sf_sc.sc_gs     = regs->tf_gs;
 	frame.sf_sc.sc_fs     = regs->tf_fs;
 	frame.sf_sc.sc_es     = regs->tf_es;
@@ -506,6 +489,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.sc_ebp    = regs->tf_rbp;
 	frame.sf_sc.sc_ebx    = regs->tf_rbx;
+	frame.sf_sc.sc_esp    = regs->tf_rsp;
 	frame.sf_sc.sc_edx    = regs->tf_rdx;
 	frame.sf_sc.sc_ecx    = regs->tf_rcx;
 	frame.sf_sc.sc_eax    = regs->tf_rax;
@@ -518,8 +502,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.sc_cr2    = (u_int32_t)(uintptr_t)ksi->ksi_addr;
 	frame.sf_sc.sc_trapno = bsd_to_linux_trapcode(code);
 
-	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
-		frame.sf_extramask[i] = lmask.__bits[i+1];
+	frame.sf_extramask[0] = lmask.__mask;
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
@@ -534,7 +517,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = p->p_sysent->sv_sigcode_base;
+	regs->tf_rip = linux32_sigcode;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -565,7 +548,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	struct trapframe *regs;
 	sigset_t bmask;
 	l_sigset_t lmask;
-	int eflags, i;
+	int eflags;
 	ksiginfo_t ksi;
 
 	regs = td->td_frame;
@@ -606,9 +589,8 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 		return(EINVAL);
 	}
 
-	lmask.__bits[0] = frame.sf_sc.sc_mask;
-	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
-		lmask.__bits[i+1] = frame.sf_extramask[i];
+	lmask.__mask = frame.sf_sc.sc_mask;
+	lmask.__mask = frame.sf_extramask[0];
 	linux_to_bsd_sigset(&lmask, &bmask);
 	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
@@ -758,7 +740,8 @@ linux32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	sa->code = frame->tf_rax;
 
 	if (sa->code >= p->p_sysent->sv_size)
-		sa->callp = &p->p_sysent->sv_table[0];
+		/* nosys */
+		sa->callp = &p->p_sysent->sv_table[LINUX_SYS_MAXSYSCALL];
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 	sa->narg = sa->callp->sy_narg;
@@ -862,21 +845,36 @@ linux_copyout_strings(struct image_params *imgp)
 	char *stringp, *destp;
 	u_int32_t *stack_base;
 	struct linux32_ps_strings *arginfo;
+	char canary[LINUX_AT_RANDOM_LEN];
+	size_t execpath_len;
 
 	/*
 	 * Calculate string base and vector table pointers.
-	 * Also deal with signal trampoline code for this exec type.
 	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+		execpath_len = strlen(imgp->execpath) + 1;
+	else
+		execpath_len = 0;
+
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	destp =	(caddr_t)arginfo - SPARE_USRSPACE - linux_szplatform -
-	    roundup((ARG_MAX - imgp->args->stringspace),
-	    sizeof(char *));
+	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
+	    roundup(sizeof(canary), sizeof(char *)) -
+	    roundup(execpath_len, sizeof(char *)) -
+	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+
+	if (execpath_len != 0) {
+		imgp->execpathp = (uintptr_t)arginfo - execpath_len;
+		copyout(imgp->execpath, (void *)imgp->execpathp, execpath_len);
+	}
 
 	/*
-	 * Install LINUX_PLATFORM
+	 * Prepare the canary for SSP.
 	 */
-	copyout(linux_platform, ((caddr_t)arginfo - linux_szplatform),
-	    linux_szplatform);
+	arc4rand(canary, sizeof(canary), 0);
+	imgp->canary = (uintptr_t)arginfo -
+	    roundup(execpath_len, sizeof(char *)) -
+	    roundup(sizeof(canary), sizeof(char *));
+	copyout(canary, (void *)imgp->canary, sizeof(canary));
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -970,6 +968,13 @@ static u_long	linux32_maxvmem = LINUX32_MAXVMEM;
 SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxvmem, CTLFLAG_RW,
     &linux32_maxvmem, 0, "");
 
+#if defined(DEBUG)
+SYSCTL_PROC(_compat_linux32, OID_AUTO, debug,
+            CTLTYPE_STRING | CTLFLAG_RW,
+            0, 0, linux_sysctl_debug, "A",
+            "Linux debugging control");
+#endif
+
 static void
 linux32_fixlimit(struct rlimit *rl, int which)
 {
@@ -1006,14 +1011,14 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= LINUX_SIGTBLSZ,
-	.sv_sigtbl	= bsd_to_linux_signal,
+	.sv_sigsize	= 0,
+	.sv_sigtbl	= NULL,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= bsd_to_linux_errno,
 	.sv_transtrap	= translate_traps,
 	.sv_fixup	= elf_linux_fixup,
 	.sv_sendsig	= linux_sendsig,
-	.sv_sigcode	= linux_sigcode,
+	.sv_sigcode	= &_binary_linux32_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
 	.sv_prepsyscall	= NULL,
 	.sv_name	= "Linux ELF32",
@@ -1037,8 +1042,44 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_shared_page_base = LINUX32_SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
+	.sv_thread_detach = linux_thread_detach,
 };
-INIT_SYSENTVEC(elf_sysvec, &elf_linux_sysvec);
+
+static void
+linux_vdso_install(void *param)
+{
+
+	linux_szsigcode = (&_binary_linux32_locore_o_end - 
+	    &_binary_linux32_locore_o_start);
+
+	if (linux_szsigcode > elf_linux_sysvec.sv_shared_page_len)
+		panic("Linux invalid vdso size\n");
+
+	__elfN(linux_vdso_fixup)(&elf_linux_sysvec);
+
+	linux_shared_page_obj = __elfN(linux_shared_page_init)
+	    (&linux_shared_page_mapping);
+
+	__elfN(linux_vdso_reloc)(&elf_linux_sysvec, LINUX32_SHAREDPAGE);
+
+	bcopy(elf_linux_sysvec.sv_sigcode, linux_shared_page_mapping,
+	    linux_szsigcode);
+	elf_linux_sysvec.sv_shared_page_obj = linux_shared_page_obj;
+
+	linux_kplatform = linux_shared_page_mapping +
+	    (linux_platform - (caddr_t)LINUX32_SHAREDPAGE);
+}
+SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
+    (sysinit_cfunc_t)linux_vdso_install, NULL);
+
+static void
+linux_vdso_deinstall(void *param)
+{
+
+	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
+};
+SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
+    (sysinit_cfunc_t)linux_vdso_deinstall, NULL);
 
 static char GNU_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;
@@ -1110,7 +1151,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	Elf32_Brandinfo **brandinfo;
 	int error;
 	struct linux_ioctl_handler **lihp;
-	struct linux_device_handler **ldhp;
 
 	error = 0;
 
@@ -1123,19 +1163,8 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux_ioctl_register_handler(*lihp);
-			SET_FOREACH(ldhp, linux_device_handler_set)
-				linux_device_register_handler(*ldhp);
-			mtx_init(&emul_lock, "emuldata lock", NULL, MTX_DEF);
-			sx_init(&emul_shared_lock, "emuldata->shared lock");
 			LIST_INIT(&futex_list);
 			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
-			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
-			    linux_proc_exit, NULL, 1000);
-			linux_exec_tag = EVENTHANDLER_REGISTER(process_exec,
-			    linux_proc_exec, NULL, 1000);
-			linux_szplatform = roundup(strlen(linux_platform) + 1,
-			    sizeof(char *));
-			linux_osd_jail_register();
 			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
@@ -1156,23 +1185,16 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux_ioctl_unregister_handler(*lihp);
-			SET_FOREACH(ldhp, linux_device_handler_set)
-				linux_device_unregister_handler(*ldhp);
-			mtx_destroy(&emul_lock);
-			sx_destroy(&emul_shared_lock);
 			mtx_destroy(&futex_mtx);
-			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
-			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
-			linux_osd_jail_deregister();
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else
 			printf("Could not deinstall ELF interpreter entry\n");
 		break;
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
-	return error;
+	return (error);
 }
 
 static moduledata_t linux_elf_mod = {
@@ -1182,3 +1204,4 @@ static moduledata_t linux_elf_mod = {
 };
 
 DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+MODULE_DEPEND(linuxelf, linux_common, 1, 1, 1);

@@ -40,7 +40,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="6.3 Mar-4,2015"
+SYSRC_VERSION="6.5 Sep-1,2015"
 
 #
 # Options
@@ -57,11 +57,11 @@ SHOW_EQUALS=
 SHOW_FILE=
 SHOW_NAME=1
 SHOW_VALUE=1
-SYSRC_VERBOSE=
+VERBOSE=
 
 ############################################################ FUNCTIONS
 
-# die [ $fmt [ $opts ... ]]
+# die [$fmt [$opts ...]]
 #
 # Optionally print a message to stderr before exiting with failure status.
 #
@@ -195,59 +195,81 @@ jail_depend()
 	cat $BSDCFG_SHARE/sysrc.subr
 }
 
+# escape $string [$var_to_set]
+#
+# Escape $string contents so that the contents can be properly encapsulated in
+# single-quotes (making for safe evaluation).
+#
+# NB: See `bsdconfig includes -dF escape' for relevant information/discussion.
+# NB: Abridged version of `f_shell_escape()' from bsdconfig(8) `strings.subr'.
+#
+escape()
+{
+	local __start="$1" __var_to_set="$2" __string=
+	while [ "$__start" ]; do
+		case "$__start" in *\'*)
+			__string="$__string${__start%%\'*}'\\''"
+			__start="${__start#*\'}" continue
+		esac
+		break
+	done
+	__string="$__string$__start"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__string"
+	else
+		echo "$__string"
+	fi
+}
+
 ############################################################ MAIN SOURCE
 
 #
 # Perform sanity checks
 #
-[ $# -gt 0 ] || usage
+[ $# -gt 0 ] || usage # NOTREACHED
 
 #
 # Check for `--help' and `--version' command-line option
 #
-( # Operate in sub-shell to protect $@ in parent
-	while [ $# -gt 0 ]; do
-		case "$1" in
-		--help) help ;;
-		--version) # see GLOBALS
-			echo "$SYSRC_VERSION"
-			exit 1 ;;
-		-[fRj]) # These flags take an argument
-			shift 1 ;;
-		esac
-		shift 1
-	done
-	exit 0
-) || die
+for arg in "$@"; do
+	case "$arg" in
+	--) break ;;
+	--help) help ;; # NOTREACHED
+	--version) # see GLOBALS
+		echo "$SYSRC_VERSION"
+		exit $FAILURE ;;
+	esac
+done
+unset arg
 
 #
 # Process command-line flags
 #
 while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	case "$flag" in
-	a) SHOW_ALL=${SHOW_ALL:-1};;
-	A) SHOW_ALL=2;;
-	c) CHECK_ONLY=1;;
-	d) DESCRIBE=1;;
-	D) RC_CONFS=;;
-	e) SHOW_EQUALS=1;;
-	f) RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG";;
-	F) SHOW_FILE=1;;
-	h) usage;;
-	i) IGNORE_UNKNOWNS=1;;
-	j) [ "$OPTARG" ] || die \
-	   	"%s: Missing or null argument to \`-j' flag" "$pgm"
-	   JAIL="$OPTARG";;
-	n) SHOW_NAME=;;
-	N) SHOW_VALUE=;;
-	q) QUIET=1 SYSRC_VERBOSE=;;
-	R) [ "$OPTARG" ] || die \
-	   	"%s: Missing or null argument to \`-R' flag" "$pgm"
-	   ROOTDIR="$OPTARG";;
-	v) SYSRC_VERBOSE=1 QUIET=;;
-	x) DELETE=${DELETE:-1};;
-	X) DELETE=2;;
-	\?) usage;;
+	a) SHOW_ALL=${SHOW_ALL:-1} ;;
+	A) SHOW_ALL=2 ;;
+	c) CHECK_ONLY=1 ;;
+	d) DESCRIBE=1 ;;
+	D) RC_CONFS= ;;
+	e) SHOW_EQUALS=1 ;;
+	f) RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG" ;;
+	F) SHOW_FILE=1 ;;
+	h) usage ;; # NOTREACHED
+	i) IGNORE_UNKNOWNS=1 ;;
+	j) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-j' flag" "$pgm"
+	   JAIL="$OPTARG" ;;
+	n) SHOW_NAME= ;;
+	N) SHOW_VALUE= ;;
+	q) QUIET=1 VERBOSE= ;;
+	R) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-R' flag" "$pgm"
+	   ROOTDIR="$OPTARG" ;;
+	v) VERBOSE=1 QUIET= ;;
+	x) DELETE=${DELETE:-1} ;;
+	X) DELETE=2 ;;
+	\?) usage ;; # NOTREACHED
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -255,7 +277,7 @@ shift $(( $OPTIND - 1 ))
 #
 # [More] Sanity checks (e.g., "sysrc --")
 #
-[ $# -eq 0 -a ! "$SHOW_ALL" ] && usage
+[ $# -eq 0 -a ! "$SHOW_ALL" ] && usage # NOTREACHED
 
 #
 # Taint-check all rc.conf(5) files
@@ -300,7 +322,7 @@ fi
 SEP=': '
 [ "$SHOW_FILE" ] && SHOW_EQUALS=
 [ "$SHOW_NAME" ] || SHOW_EQUALS=
-[ "$SYSRC_VERBOSE" = "0" ] && SYSRC_VERBOSE=
+[ "$VERBOSE" = "0" ] && VERBOSE=
 if [ ! "$SHOW_VALUE" ]; then
 	SHOW_NAME=1
 	SHOW_EQUALS=
@@ -315,7 +337,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 	# Reconstruct the arguments that we want to carry-over
 	#
 	args="
-		${SYSRC_VERBOSE:+-v}
+		${VERBOSE:+-v}
 		${QUIET:+-q}
 		$( [ "$DELETE" = "1" ] && echo \ -x )
 		$( [ "$DELETE" = "2" ] && echo \ -X )
@@ -330,9 +352,12 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$SHOW_FILE"  ] && echo \ -F )
 	"
 	if [ "${RC_CONFS+set}" ]; then
-		args="$args -f '$RC_CONFS'"
+		escape "$RC_CONFS" _RC_CONFS
+		args="$args -f '$_RC_CONFS'"
+		unset _RC_CONFS
 	fi
 	for arg in "$@"; do
+		escape "$arg" arg
 		args="$args '$arg'"
 	done
 
@@ -359,13 +384,12 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		# jls(1) or jexec(8) utilities are missing.
 		#
 		if f_have jexec && f_have jls; then
-			jid="`jls jid path | \
-			(
+			jid=$( jls jid path |
 				while read JID JROOT; do
 					[ "$JROOT" = "$ROOTDIR" ] || continue
 					echo $JID
 				done
-			)`"
+			)
 
 			#
 			# If multiple running jails match the specified root
@@ -431,7 +455,7 @@ if [ "$SHOW_ALL" ]; then
 		IFS="$IFS|"
 		EXCEPT="IFS|EXCEPT|PATH|RC_DEFAULTS|OPTIND|DESCRIBE|SEP"
 		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME"
-		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|SYSRC_VERBOSE|RC_CONFS"
+		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|VERBOSE|RC_CONFS"
 		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY"
 		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
 
@@ -447,8 +471,8 @@ if [ "$SHOW_ALL" ]; then
 			# If passed `-a' (rather than `-A'), re-purge the
 			# environment, removing the rc.conf(5) defaults.
 			#
-			[ "$SHOW_ALL" = "1" ] \
-				&& f_clean_env --except rc_conf_files $EXCEPT
+			[ "$SHOW_ALL" = "1" ] &&
+				f_clean_env --except rc_conf_files $EXCEPT
 
 			#
 			# If `-f file' was passed, set $rc_conf_files to an
@@ -466,8 +490,7 @@ if [ "$SHOW_ALL" ]; then
 			#
 			[ "$SHOW_ALL" = "1" -a \
 			  "$( f_sysrc_find rc_conf_files )" = "$RC_DEFAULTS" \
-			] \
-			&& unset rc_conf_files
+			] && unset rc_conf_files
 		fi
 
 		for NAME in $( set |
@@ -499,7 +522,7 @@ if [ "$SHOW_ALL" ]; then
 				continue
 			fi
 
-			[ "$SYSRC_VERBOSE" ] && \
+			[ "$VERBOSE" ] &&
 				echo -n "$( f_sysrc_find "$NAME" ): "
 
 			#
@@ -535,7 +558,7 @@ while [ $# -gt 0 ]; do
 	 *) mode=ASSIGN
 	esac
 
-	[ "$DESCRIBE" ] && \
+	[ "$DESCRIBE" ] &&
 		echo "$NAME: $( f_sysrc_desc "$NAME" )"
 
 	case "$1" in
@@ -546,9 +569,9 @@ while [ $# -gt 0 ]; do
 		#
 
 		# If verbose, prefix line with where the directive lives
-		if [ "$SYSRC_VERBOSE" -a ! "$CHECK_ONLY" ]; then
+		if [ "$VERBOSE" -a ! "$CHECK_ONLY" ]; then
 			file=$( f_sysrc_find "$NAME" )
-			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] && \
+			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] &&
 				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
 			if [ "$SHOW_EQUALS" ]; then
 				echo -n ": $file; "
@@ -573,7 +596,7 @@ while [ $# -gt 0 ]; do
 		if [ "$CHECK_ONLY" ]; then
 			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
 				status=$FAILURE
-				[ "$SYSRC_VERBOSE" ] &&
+				[ "$VERBOSE" ] &&
 					echo "$NAME: not currently set"
 				shift 1
 				continue
@@ -581,12 +604,12 @@ while [ $# -gt 0 ]; do
 			value=$( f_sysrc_get "$NAME" )
 			if [ "$value" != "${1#*=}" ]; then
 				status=$FAILURE
-				if [ "$SYSRC_VERBOSE" ]; then
+				if [ "$VERBOSE" ]; then
 					echo -n "$( f_sysrc_find "$NAME" ): "
 					echo -n "$NAME: would change from "
 					echo "\`$value' to \`${1#*=}'"
 				fi
-			elif [ "$SYSRC_VERBOSE" ]; then
+			elif [ "$VERBOSE" ]; then
 				echo -n "$( f_sysrc_find "$NAME" ): "
 				echo "$NAME: already set to \`$value'"
 			fi
@@ -642,7 +665,7 @@ while [ $# -gt 0 ]; do
 			unset remove delim oldIFS b add r
 			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
 			;;
-		*)
+		*) # ASSIGN
 			if [ "$SHOW_FILE" ]; then
 				before=$( f_sysrc_find "$NAME" )
 			else
@@ -715,7 +738,7 @@ while [ $# -gt 0 ]; do
 			continue
 		fi
 
-		if [ "$SYSRC_VERBOSE" ]; then
+		if [ "$VERBOSE" ]; then
 			if [ "$SHOW_EQUALS" ]; then
 				echo -n ": $( f_sysrc_find "$NAME" ); "
 			else

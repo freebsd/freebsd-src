@@ -621,7 +621,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		PassthroughCmd *passthru;	
 		
 		if (mIsArray(vd->type)) {
-			ccb->ccb_h.status = CAM_PATH_INVALID;
+			ccb->ccb_h.status = CAM_REQ_INVALID;
 			break;
 		}
 		
@@ -757,7 +757,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		return;
 error:
 		ldm_free_cmds(pCmd);
-		ccb->ccb_h.status = CAM_PATH_INVALID;
+		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
 	}
 
@@ -916,6 +916,14 @@ error:
 		break;
 	}
 	
+	case REPORT_LUNS:
+	{
+		HPT_U8 *rbuf = ccb->csio.data_ptr;
+		memset(rbuf, 0, 16);
+		rbuf[3] = 8;
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		break;				
+	}
 	case SERVICE_ACTION_IN: 
 	{
 		HPT_U8 *rbuf = ccb->csio.data_ptr;
@@ -953,6 +961,12 @@ error:
 		rbuf[9] = 0;
 		rbuf[10] = 2 << sector_size_shift;
 		rbuf[11] = 0;
+		
+		if(!mIsArray(vd->type)){
+			rbuf[13] = vd->u.raw.logicalsectors_per_physicalsector;
+			rbuf[14] = (HPT_U8)((vd->u.raw.lowest_aligned >> 8) & 0x3f);
+			rbuf[15] = (HPT_U8)(vd->u.raw.lowest_aligned);
+		}
 		
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;	
@@ -1067,7 +1081,7 @@ error:
 	}
 
 	default:
-		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
 	}
 

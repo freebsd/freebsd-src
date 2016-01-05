@@ -234,7 +234,7 @@ To erase a line you've written at the command prompt, use "Ctrl-U".
 To find the hostname associated with an IP address, use
 
 	drill -x IP_address
-		-- Allan Jude <allanjude@freebsd.org>
+		-- Allan Jude <allanjude@FreeBSD.org>
 %
 To obtain a neat PostScript rendering of a manual page, use ``-t'' switch
 of the man(1) utility: ``man -t <topic>''.  For example:

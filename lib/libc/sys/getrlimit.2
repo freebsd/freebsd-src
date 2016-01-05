@@ -28,7 +28,7 @@
 .\"     @(#)getrlimit.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2008
+.Dd August 19, 2015
 .Dt GETRLIMIT 2
 .Os
 .Sh NAME
@@ -74,6 +74,8 @@ this defines how far a program may extend its break with the
 function.
 .It Dv RLIMIT_FSIZE
 The largest size (in bytes) file that may be created.
+.It Dv RLIMIT_KQUEUES
+The maximum number of kqueues this user id is allowed to create.
 .It Dv RLIMIT_MEMLOCK
 The maximum size (in bytes) which a process may lock into memory
 using the
@@ -83,12 +85,25 @@ system call.
 The maximum number of open files for this process.
 .It Dv RLIMIT_NPROC
 The maximum number of simultaneous processes for this user id.
+.It Dv RLIMIT_NPTS
+The maximum number of pseudo-terminals this user id is allowed to create.
 .It Dv RLIMIT_RSS
-The maximum size (in bytes) to which a process's resident set size may
-grow.
-This imposes a limit on the amount of physical memory to be given to
-a process; if memory is tight, the system will prefer to take memory
-from processes that are exceeding their declared resident set size.
+When there is memory pressure and swap is available, prioritize eviction of
+a process' resident pages beyond this amount (in bytes).
+When memory is not under pressure, this rlimit is effectively ignored.
+Even when there is memory pressure, the amount of available swap space and some
+sysctl settings like
+.Xr vm.swap_enabled
+and
+.Xr vm.swap_idle_enabled
+can affect what happens to processes that have exceeded this size.
+.Pp
+Processes that exceed their set
+.Dv RLIMIT_RSS
+are not signalled or halted.
+The limit is merely a hint to the VM daemon to prefer to deactivate pages from
+processes that have exceeded their set
+.Dv RLIMIT_RSS .
 .It Dv RLIMIT_SBSIZE
 The maximum size (in bytes) of socket buffer usage for this user.
 This limits the amount of network memory, and hence the amount of
@@ -106,18 +121,20 @@ sysctl is set.
 Please see
 .Xr tuning 7
 for a complete description of this sysctl.
-.It Dv RLIMIT_NPTS
-The maximum number of pseudo-terminals created by this user id.
-.It Dv RLIMIT_KQUEUES
-The maximum number of kqueues created by this user id.
+.It Dv RLIMIT_VMEM
+An alias for
+.Dv RLIMIT_AS .
 .El
 .Pp
 A resource limit is specified as a soft limit and a hard limit.
-When a
-soft limit is exceeded a process may receive a signal (for example, if
-the cpu time or file size is exceeded), but it will be allowed to
-continue execution until it reaches the hard limit (or modifies
-its resource limit).
+When a soft limit is exceeded, a process might or might not receive a signal.
+For example, signals are generated when the cpu time or file size is exceeded,
+but not if the address space or RSS limit is exceeded.
+A program that exceeds the soft limit is allowed to continue execution until it
+reaches the hard limit, or modifies its own resource limit.
+Even reaching the hard limit does not necessarily halt a process.
+For example, if the RSS hard limit is exceeded, nothing happens.
+.Pp
 The
 .Vt rlimit
 structure is used to specify the hard and soft limits on a resource,
@@ -170,6 +187,20 @@ the soft cpu time limit is exceeded, a signal
 .Dv SIGXCPU
 is sent to the
 offending process.
+.Pp
+When most operations would allocate more virtual memory than allowed by the
+soft limit of
+.Dv RLIMIT_AS ,
+the operation fails with
+.Dv ENOMEM
+and no signal is raised.
+A notable exception is stack extension, described above.
+If stack extension would allocate more virtual memory than allowed by the soft
+limit of
+.Dv RLIMIT_AS ,
+the signal SIGSEGV will be delivered.
+The caller is free to raise the soft address space limit up to the hard limit
+and retry the allocation.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS

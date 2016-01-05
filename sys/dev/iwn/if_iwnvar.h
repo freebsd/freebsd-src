@@ -228,18 +228,16 @@ struct iwn_vap {
 				    enum ieee80211_state, int);
 	int			ctx;
 	int			beacon_int;
-	uint8_t		macaddr[IEEE80211_ADDR_LEN];
 
 };
 #define	IWN_VAP(_vap)	((struct iwn_vap *)(_vap))
 
 struct iwn_softc {
 	device_t		sc_dev;
-
-	struct ifnet		*sc_ifp;
 	int			sc_debug;
-
+	struct cdev		*sc_cdev;
 	struct mtx		sc_mtx;
+	struct ieee80211com	sc_ic;
 
 	u_int			sc_flags;
 #define IWN_FLAG_HAS_OTPROM	(1 << 1)
@@ -251,6 +249,7 @@ struct iwn_softc {
 #define IWN_FLAG_ADV_BTCOEX	(1 << 8)
 #define IWN_FLAG_PAN_SUPPORT	(1 << 9)
 #define IWN_FLAG_BTCOEX		(1 << 10)
+#define	IWN_FLAG_RUNNING	(1 << 11)
 
 	uint8_t 		hw_type;
 	/* subdevice_id used to adjust configuration */
@@ -309,6 +308,7 @@ struct iwn_softc {
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 	struct task		sc_panic_task;
+	struct task		sc_xmit_task;
 
 	/* Taskqueue */
 	struct taskqueue	*sc_tq;
@@ -319,7 +319,6 @@ struct iwn_softc {
 	struct iwn_calib_state	calib;
 	int			last_calib_ticks;
 	struct callout		watchdog_to;
-	struct callout		ct_kill_exit_to;
 	struct iwn_fw_info	fw;
 	struct iwn_calib_info	calibcmd[IWN5000_PHY_CALIB_MAX_RESULT];
 	uint32_t		errptr;
@@ -385,6 +384,9 @@ struct iwn_softc {
 	/* Are we doing a scan? */
 	int			sc_is_scanning;
 
+	/* Are we waiting for a beacon before xmit? */
+	int			sc_beacon_wait;
+
 	struct ieee80211_tx_ampdu *qid2tap[IWN5000_NTXQUEUES];
 
 	int			(*sc_ampdu_rx_start)(struct ieee80211_node *,
@@ -417,6 +419,13 @@ struct iwn_softc {
 
 #define	IWN_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
 	uint32_t		ucode_rev;
+
+	/*
+	 * Global queue for queuing xmit frames
+	 * when we can't yet transmit (eg raw
+	 * frames whilst waiting for beacons.)
+	 */
+	struct mbufq		sc_xmit_queue;
 };
 
 #define IWN_LOCK_INIT(_sc) \

@@ -317,7 +317,7 @@ sm_stdsetinfo(fp, what, valp)
 }
 
 /*
-**  SM_GETINFO -- get information about the open file
+**  SM_STDGETINFO -- get information about the open file
 **
 **	Parameters:
 **		fp -- file to get info for

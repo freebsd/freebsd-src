@@ -55,6 +55,7 @@
 #include "util/regional.h"
 #include "util/fptr_wlist.h"
 #include "util/data/dname.h"
+#include "util/rtt.h"
 #include "ldns/wire2str.h"
 #include "ldns/parseutil.h"
 #ifdef HAVE_GLOB_H
@@ -63,6 +64,11 @@
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
+
+/** from cfg username, after daemonise setup performed */
+uid_t cfg_uid = (uid_t)-1;
+/** from cfg username, after daemonise setup performed */
+gid_t cfg_gid = (gid_t)-1;
 
 /** global config during parsing */
 struct config_parser_state* cfg_parser = 0;
@@ -129,13 +135,12 @@ config_create(void)
 	cfg->prefetch_key = 0;
 	cfg->infra_cache_slabs = 4;
 	cfg->infra_cache_numhosts = 10000;
+	cfg->infra_cache_min_rtt = 50;
 	cfg->delay_close = 0;
 	if(!(cfg->outgoing_avail_ports = (int*)calloc(65536, sizeof(int))))
 		goto error_exit;
 	init_outgoing_availports(cfg->outgoing_avail_ports, 65536);
 	if(!(cfg->username = strdup(UB_USERNAME))) goto error_exit;
-	cfg->uid = (uid_t)-1;
-	cfg->gid = (gid_t)-1;
 #ifdef HAVE_CHROOT
 	if(!(cfg->chrootdir = strdup(CHROOT_DIR))) goto error_exit;
 #endif
@@ -375,6 +380,10 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	{ IS_NUMBER_OR_ZERO; cfg->max_ttl = atoi(val); MAX_TTL=(time_t)cfg->max_ttl;}
 	else if(strcmp(opt, "cache-min-ttl:") == 0)
 	{ IS_NUMBER_OR_ZERO; cfg->min_ttl = atoi(val); MIN_TTL=(time_t)cfg->min_ttl;}
+	else if(strcmp(opt, "infra-cache-min-rtt:") == 0) {
+	    IS_NUMBER_OR_ZERO; cfg->infra_cache_min_rtt = atoi(val);
+	    RTT_MIN_TIMEOUT=cfg->infra_cache_min_rtt;
+	}
 	else S_NUMBER_OR_ZERO("infra-host-ttl:", host_ttl)
 	else S_POW2("infra-cache-slabs:", infra_cache_slabs)
 	else S_SIZET_NONZERO("infra-cache-numhosts:", infra_cache_numhosts)
@@ -623,6 +632,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "cache-min-ttl", min_ttl)
 	else O_DEC(opt, "infra-host-ttl", host_ttl)
 	else O_DEC(opt, "infra-cache-slabs", infra_cache_slabs)
+	else O_DEC(opt, "infra-cache-min-rtt", infra_cache_min_rtt)
 	else O_MEM(opt, "infra-cache-numhosts", infra_cache_numhosts)
 	else O_UNS(opt, "delay-close", delay_close)
 	else O_YNO(opt, "do-ip4", do_ip4)
@@ -1188,6 +1198,7 @@ config_apply(struct config_file* config)
 {
 	MAX_TTL = (time_t)config->max_ttl;
 	MIN_TTL = (time_t)config->min_ttl;
+	RTT_MIN_TIMEOUT = config->infra_cache_min_rtt;
 	EDNS_ADVERTISED_SIZE = (uint16_t)config->edns_buffer_size;
 	MINIMAL_RESPONSES = config->minimal_responses;
 	RRSET_ROUNDROBIN = config->rrset_roundrobin;
@@ -1200,11 +1211,13 @@ void config_lookup_uid(struct config_file* cfg)
 	/* translate username into uid and gid */
 	if(cfg->username && cfg->username[0]) {
 		struct passwd *pwd;
-		if((pwd = getpwnam(cfg->username)) == NULL)
-			log_err("user '%s' does not exist.", cfg->username);
-		cfg->uid = pwd->pw_uid;
-		cfg->gid = pwd->pw_gid;
+		if((pwd = getpwnam(cfg->username)) != NULL) {
+			cfg_uid = pwd->pw_uid;
+			cfg_gid = pwd->pw_gid;
+		}
 	}
+#else
+	(void)cfg;
 #endif
 }
 

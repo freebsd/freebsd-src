@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -72,7 +72,7 @@ enum i40e_status_code i40e_init_nvm(struct i40e_hw *hw)
 	sr_size = ((gens & I40E_GLNVM_GENS_SR_SIZE_MASK) >>
 			   I40E_GLNVM_GENS_SR_SIZE_SHIFT);
 	/* Switching to words (sr_size contains power of 2KB) */
-	nvm->sr_size = (1 << sr_size) * I40E_SR_WORDS_IN_1KB;
+	nvm->sr_size = BIT(sr_size) * I40E_SR_WORDS_IN_1KB;
 
 	/* Check if we are in the normal or blank NVM programming mode */
 	fla = rd32(hw, I40E_GLNVM_FLA);
@@ -158,10 +158,26 @@ i40e_i40e_acquire_nvm_exit:
  **/
 void i40e_release_nvm(struct i40e_hw *hw)
 {
+	enum i40e_status_code ret_code = I40E_SUCCESS;
+	u32 total_delay = 0;
+
 	DEBUGFUNC("i40e_release_nvm");
 
-	if (!hw->nvm.blank_nvm_mode)
-		i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
+	if (hw->nvm.blank_nvm_mode)
+		return;
+
+	ret_code = i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
+
+	/* there are some rare cases when trying to release the resource
+	 * results in an admin Q timeout, so handle them correctly
+	 */
+	while ((ret_code == I40E_ERR_ADMIN_QUEUE_TIMEOUT) &&
+	       (total_delay < hw->aq.asq_cmd_timeout)) {
+			i40e_msec_delay(1);
+			ret_code = i40e_aq_release_resource(hw,
+						I40E_NVM_RESOURCE_ID, 0, NULL);
+			total_delay++;
+	}
 }
 
 /**
@@ -202,6 +218,10 @@ static enum i40e_status_code i40e_poll_sr_srctl_done_bit(struct i40e_hw *hw)
 enum i40e_status_code i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 					 u16 *data)
 {
+#ifdef X722_SUPPORT
+	if (hw->mac.type == I40E_MAC_X722)
+		return i40e_read_nvm_word_aq(hw, offset, data);
+#endif
 	return i40e_read_nvm_word_srctl(hw, offset, data);
 }
 
@@ -233,8 +253,8 @@ enum i40e_status_code i40e_read_nvm_word_srctl(struct i40e_hw *hw, u16 offset,
 	ret_code = i40e_poll_sr_srctl_done_bit(hw);
 	if (ret_code == I40E_SUCCESS) {
 		/* Write the address and start reading */
-		sr_reg = (u32)(offset << I40E_GLNVM_SRCTL_ADDR_SHIFT) |
-			 (1 << I40E_GLNVM_SRCTL_START_SHIFT);
+		sr_reg = ((u32)offset << I40E_GLNVM_SRCTL_ADDR_SHIFT) |
+			 BIT(I40E_GLNVM_SRCTL_START_SHIFT);
 		wr32(hw, I40E_GLNVM_SRCTL, sr_reg);
 
 		/* Poll I40E_GLNVM_SRCTL until the done bit is set */
@@ -290,6 +310,10 @@ enum i40e_status_code i40e_read_nvm_word_aq(struct i40e_hw *hw, u16 offset,
 enum i40e_status_code i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
 					   u16 *words, u16 *data)
 {
+#ifdef X722_SUPPORT
+	if (hw->mac.type == I40E_MAC_X722)
+		return i40e_read_nvm_buffer_aq(hw, offset, words, data);
+#endif
 	return i40e_read_nvm_buffer_srctl(hw, offset, words, data);
 }
 
@@ -401,8 +425,12 @@ enum i40e_status_code i40e_read_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 				       bool last_command)
 {
 	enum i40e_status_code ret_code = I40E_ERR_NVM;
+	struct i40e_asq_cmd_details cmd_details;
 
 	DEBUGFUNC("i40e_read_nvm_aq");
+
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
 
 	/* Here we are checking the SR limit only for the flat memory model.
 	 * We cannot do it for the module-based model, as we did not acquire
@@ -428,7 +456,7 @@ enum i40e_status_code i40e_read_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 		ret_code = i40e_aq_read_nvm(hw, module_pointer,
 					    2 * offset,  /*bytes*/
 					    2 * words,   /*bytes*/
-					    data, last_command, NULL);
+					    data, last_command, &cmd_details);
 
 	return ret_code;
 }
@@ -449,8 +477,12 @@ enum i40e_status_code i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 					bool last_command)
 {
 	enum i40e_status_code ret_code = I40E_ERR_NVM;
+	struct i40e_asq_cmd_details cmd_details;
 
 	DEBUGFUNC("i40e_write_nvm_aq");
+
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
 
 	/* Here we are checking the SR limit only for the flat memory model.
 	 * We cannot do it for the module-based model, as we did not acquire
@@ -470,7 +502,7 @@ enum i40e_status_code i40e_write_nvm_aq(struct i40e_hw *hw, u8 module_pointer,
 		ret_code = i40e_aq_update_nvm(hw, module_pointer,
 					      2 * offset,  /*bytes*/
 					      2 * words,   /*bytes*/
-					      data, last_command, NULL);
+					      data, last_command, &cmd_details);
 
 	return ret_code;
 }
@@ -580,6 +612,7 @@ enum i40e_status_code i40e_calc_nvm_checksum(struct i40e_hw *hw, u16 *checksum)
 		/* Read SR page */
 		if ((i % I40E_SR_SECTOR_SIZE_IN_WORDS) == 0) {
 			u16 words = I40E_SR_SECTOR_SIZE_IN_WORDS;
+
 			ret_code = i40e_read_nvm_buffer(hw, i, &words, data);
 			if (ret_code != I40E_SUCCESS) {
 				ret_code = I40E_ERR_NVM_CHECKSUM;
@@ -625,13 +658,15 @@ enum i40e_status_code i40e_update_nvm_checksum(struct i40e_hw *hw)
 {
 	enum i40e_status_code ret_code = I40E_SUCCESS;
 	u16 checksum;
+	__le16 le_sum;
 
 	DEBUGFUNC("i40e_update_nvm_checksum");
 
 	ret_code = i40e_calc_nvm_checksum(hw, &checksum);
+	le_sum = CPU_TO_LE16(checksum);
 	if (ret_code == I40E_SUCCESS)
 		ret_code = i40e_write_nvm_aq(hw, 0x00, I40E_SR_SW_CHECKSUM_WORD,
-					     1, &checksum, TRUE);
+					     1, &le_sum, TRUE);
 
 	return ret_code;
 }

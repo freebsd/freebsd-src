@@ -560,15 +560,11 @@ ogetrlimit(struct thread *td, register struct ogetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit rl;
-	struct proc *p;
 	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
-	p = td->td_proc;
-	PROC_LOCK(p);
-	lim_rlimit(p, uap->which, &rl);
-	PROC_UNLOCK(p);
+	lim_rlimit(td, uap->which, &rl);
 
 	/*
 	 * XXX would be more correct to convert only RLIM_INFINITY to the
@@ -625,7 +621,7 @@ lim_cb(void *arg)
 	}
 	PROC_STATUNLOCK(p);
 	if (p->p_rux.rux_runtime > p->p_cpulimit * cpu_tickrate()) {
-		lim_rlimit(p, RLIMIT_CPU, &rlim);
+		lim_rlimit_proc(p, RLIMIT_CPU, &rlim);
 		if (p->p_rux.rux_runtime >= rlim.rlim_max * cpu_tickrate()) {
 			killproc(p, "exceeded maximum CPU limit");
 		} else {
@@ -667,29 +663,21 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz.rlim_cur = 0;
-	newlim = NULL;
+	newlim = lim_alloc();
 	PROC_LOCK(p);
-	if (lim_shared(p->p_limit)) {
-		PROC_UNLOCK(p);
-		newlim = lim_alloc();
-		PROC_LOCK(p);
-	}
 	oldlim = p->p_limit;
 	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
 		if ((error = priv_check(td, PRIV_PROC_SETRLIMIT))) {
 			PROC_UNLOCK(p);
-			if (newlim != NULL)
-				lim_free(newlim);
+			lim_free(newlim);
 			return (error);
 		}
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
-	if (newlim != NULL) {
-		lim_copy(newlim, oldlim);
-		alimp = &newlim->pl_rlimit[which];
-	}
+	lim_copy(newlim, oldlim);
+	alimp = &newlim->pl_rlimit[which];
 
 	switch (which) {
 
@@ -739,11 +727,10 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	if (p->p_sysent->sv_fixlimit != NULL)
 		p->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
-	if (newlim != NULL)
-		p->p_limit = newlim;
+	p->p_limit = newlim;
+	PROC_UPDATE_COW(p);
 	PROC_UNLOCK(p);
-	if (newlim != NULL)
-		lim_free(oldlim);
+	lim_free(oldlim);
 
 	if (which == RLIMIT_STACK &&
 	    /*
@@ -793,15 +780,11 @@ int
 sys_getrlimit(struct thread *td, register struct __getrlimit_args *uap)
 {
 	struct rlimit rlim;
-	struct proc *p;
 	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
-	p = td->td_proc;
-	PROC_LOCK(p);
-	lim_rlimit(p, uap->which, &rlim);
-	PROC_UNLOCK(p);
+	lim_rlimit(td, uap->which, &rlim);
 	error = copyout(&rlim, uap->rlp, sizeof(struct rlimit));
 	return (error);
 }
@@ -1172,11 +1155,20 @@ lim_copy(struct plimit *dst, struct plimit *src)
  * which parameter specifies the index into the rlimit array.
  */
 rlim_t
-lim_max(struct proc *p, int which)
+lim_max(struct thread *td, int which)
 {
 	struct rlimit rl;
 
-	lim_rlimit(p, which, &rl);
+	lim_rlimit(td, which, &rl);
+	return (rl.rlim_max);
+}
+
+rlim_t
+lim_max_proc(struct proc *p, int which)
+{
+	struct rlimit rl;
+
+	lim_rlimit_proc(p, which, &rl);
 	return (rl.rlim_max);
 }
 
@@ -1185,11 +1177,20 @@ lim_max(struct proc *p, int which)
  * The which parameter which specifies the index into the rlimit array
  */
 rlim_t
-lim_cur(struct proc *p, int which)
+lim_cur(struct thread *td, int which)
 {
 	struct rlimit rl;
 
-	lim_rlimit(p, which, &rl);
+	lim_rlimit(td, which, &rl);
+	return (rl.rlim_cur);
+}
+
+rlim_t
+lim_cur_proc(struct proc *p, int which)
+{
+	struct rlimit rl;
+
+	lim_rlimit_proc(p, which, &rl);
 	return (rl.rlim_cur);
 }
 
@@ -1198,7 +1199,20 @@ lim_cur(struct proc *p, int which)
  * specified by 'which' in the rlimit structure pointed to by 'rlp'.
  */
 void
-lim_rlimit(struct proc *p, int which, struct rlimit *rlp)
+lim_rlimit(struct thread *td, int which, struct rlimit *rlp)
+{
+	struct proc *p = td->td_proc;
+
+	MPASS(td == curthread);
+	KASSERT(which >= 0 && which < RLIM_NLIMITS,
+	    ("request for invalid resource limit"));
+	*rlp = td->td_limit->pl_rlimit[which];
+	if (p->p_sysent->sv_fixlimit != NULL)
+		p->p_sysent->sv_fixlimit(rlp, which);
+}
+
+void
+lim_rlimit_proc(struct proc *p, int which, struct rlimit *rlp)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -1357,6 +1371,24 @@ ui_racct_foreach(void (*callback)(struct racct *racct,
 }
 #endif
 
+static inline int
+chglimit(struct uidinfo *uip, long *limit, int diff, rlim_t max, const char *name)
+{
+
+	/* Don't allow them to exceed max, but allow subtraction. */
+	if (diff > 0 && max != 0) {
+		if (atomic_fetchadd_long(limit, (long)diff) + diff > max) {
+			atomic_subtract_long(limit, (long)diff);
+			return (0);
+		}
+	} else {
+		atomic_add_long(limit, (long)diff);
+		if (*limit < 0)
+			printf("negative %s for uid = %d\n", name, uip->ui_uid);
+	}
+	return (1);
+}
+
 /*
  * Change the count associated with number of processes
  * a given user is using.  When 'max' is 0, don't enforce a limit
@@ -1365,18 +1397,7 @@ int
 chgproccnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
-	/* Don't allow them to exceed max, but allow subtraction. */
-	if (diff > 0 && max != 0) {
-		if (atomic_fetchadd_long(&uip->ui_proccnt, (long)diff) + diff > max) {
-			atomic_subtract_long(&uip->ui_proccnt, (long)diff);
-			return (0);
-		}
-	} else {
-		atomic_add_long(&uip->ui_proccnt, (long)diff);
-		if (uip->ui_proccnt < 0)
-			printf("negative proccnt for uid = %d\n", uip->ui_uid);
-	}
-	return (1);
+	return (chglimit(uip, &uip->ui_proccnt, diff, max, "proccnt"));
 }
 
 /*
@@ -1385,21 +1406,17 @@ chgproccnt(struct uidinfo *uip, int diff, rlim_t max)
 int
 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to, rlim_t max)
 {
-	int diff;
+	int diff, rv;
 
 	diff = to - *hiwat;
-	if (diff > 0) {
-		if (atomic_fetchadd_long(&uip->ui_sbsize, (long)diff) + diff > max) {
-			atomic_subtract_long(&uip->ui_sbsize, (long)diff);
-			return (0);
-		}
+	if (diff > 0 && max == 0) {
+		rv = 0;
 	} else {
-		atomic_add_long(&uip->ui_sbsize, (long)diff);
-		if (uip->ui_sbsize < 0)
-			printf("negative sbsize for uid = %d\n", uip->ui_uid);
+		rv = chglimit(uip, &uip->ui_sbsize, diff, max, "sbsize");
+		if (rv != 0)
+			*hiwat = to;
 	}
-	*hiwat = to;
-	return (1);
+	return (rv);
 }
 
 /*
@@ -1410,34 +1427,12 @@ int
 chgptscnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
-	/* Don't allow them to exceed max, but allow subtraction. */
-	if (diff > 0 && max != 0) {
-		if (atomic_fetchadd_long(&uip->ui_ptscnt, (long)diff) + diff > max) {
-			atomic_subtract_long(&uip->ui_ptscnt, (long)diff);
-			return (0);
-		}
-	} else {
-		atomic_add_long(&uip->ui_ptscnt, (long)diff);
-		if (uip->ui_ptscnt < 0)
-			printf("negative ptscnt for uid = %d\n", uip->ui_uid);
-	}
-	return (1);
+	return (chglimit(uip, &uip->ui_ptscnt, diff, max, "ptscnt"));
 }
 
 int
 chgkqcnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
-	if (diff > 0 && max != 0) {
-		if (atomic_fetchadd_long(&uip->ui_kqcnt, (long)diff) +
-		    diff > max) {
-			atomic_subtract_long(&uip->ui_kqcnt, (long)diff);
-			return (0);
-		}
-	} else {
-		atomic_add_long(&uip->ui_kqcnt, (long)diff);
-		if (uip->ui_kqcnt < 0)
-			printf("negative kqcnt for uid = %d\n", uip->ui_uid);
-	}
-	return (1);
+	return (chglimit(uip, &uip->ui_kqcnt, diff, max, "kqcnt"));
 }

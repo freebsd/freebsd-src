@@ -175,15 +175,9 @@ int drm_irq_install(struct drm_device *dev)
 	DRM_UNLOCK();
 
 	/* Install handler */
-#if __FreeBSD_version >= 700031
 	retcode = bus_setup_intr(dev->device, dev->irqr,
 				 INTR_TYPE_TTY | INTR_MPSAFE,
 				 NULL, drm_irq_handler_wrap, dev, &dev->irqh);
-#else
-	retcode = bus_setup_intr(dev->device, dev->irqr,
-				 INTR_TYPE_TTY | INTR_MPSAFE,
-				 drm_irq_handler_wrap, dev, &dev->irqh);
-#endif
 	if (retcode != 0)
 		goto err;
 

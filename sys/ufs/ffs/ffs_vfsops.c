@@ -1055,8 +1055,7 @@ ffs_mountfs(devvp, mp, td)
 	 */
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_SUSPENDABLE |
-	    MNTK_USES_BCACHE;
+	    MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS | MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1410,6 +1409,14 @@ ffs_statfs(mp, sbp)
 	return (0);
 }
 
+static bool
+sync_doupdate(struct inode *ip)
+{
+
+	return ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
+	    IN_UPDATE)) != 0);
+}
+
 /*
  * For a lazy sync, we only care about access times, quotas and the
  * superblock.  Other filesystem changes are already converted to
@@ -1443,15 +1450,15 @@ ffs_sync_lazy(mp)
 		 * Test also all the other timestamp flags too, to pick up
 		 * any other cases that could be missed.
 		 */
-		if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
-		    IN_UPDATE)) == 0) {
+		if (!sync_doupdate(ip) && (vp->v_iflag & VI_OWEINACT) == 0) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		if ((error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
 		    td)) != 0)
 			continue;
-		error = ffs_update(vp, 0);
+		if (sync_doupdate(ip))
+			error = ffs_update(vp, 0);
 		if (error != 0)
 			allerror = error;
 		vput(vp);
@@ -1486,7 +1493,7 @@ ffs_sync(mp, waitfor)
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
-	int error, count, wait, lockreq, allerror = 0;
+	int error, count, lockreq, allerror = 0;
 	int suspend;
 	int suspended;
 	int secondary_writes;
@@ -1495,7 +1502,6 @@ ffs_sync(mp, waitfor)
 	int softdep_accdeps;
 	struct bufobj *bo;
 
-	wait = 0;
 	suspend = 0;
 	suspended = 0;
 	td = curthread;
@@ -1517,10 +1523,8 @@ ffs_sync(mp, waitfor)
 		suspend = 1;
 		waitfor = MNT_WAIT;
 	}
-	if (waitfor == MNT_WAIT) {
-		wait = 1;
+	if (waitfor == MNT_WAIT)
 		lockreq = LK_EXCLUSIVE;
-	}
 	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
 loop:
 	/* Grab snapshot of secondary write counts */
@@ -1688,6 +1692,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_dev = dev;
 	ip->i_number = ino;
 	ip->i_ea_refs = 0;
+	ip->i_nextclustercg = -1;
 #ifdef QUOTA
 	{
 		int i;
@@ -1972,12 +1977,19 @@ ffs_backgroundwritedone(struct buf *bp)
 	BO_LOCK(bufobj);
 	if ((origbp = gbincore(bp->b_bufobj, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
+
+	/*
+	 * We should mark the cylinder group buffer origbp as
+	 * dirty, to not loose the failed write.
+	 */
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
+		origbp->b_vflags |= BV_BKGRDERR;
 	BO_UNLOCK(bufobj);
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
 	pbrelvp(bp);
-	if (!LIST_EMPTY(&bp->b_dep))
+	if (!LIST_EMPTY(&bp->b_dep) && (bp->b_ioflags & BIO_ERROR) == 0)
 		buf_complete(bp);
 #ifdef SOFTUPDATES
 	if (!LIST_EMPTY(&bp->b_dep))
@@ -1989,6 +2001,15 @@ ffs_backgroundwritedone(struct buf *bp)
 	 */
 	bp->b_flags |= B_NOCACHE;
 	bp->b_flags &= ~B_CACHE;
+
+	/*
+	 * Prevent brelse() from trying to keep and re-dirtying bp on
+	 * errors. It causes b_bufobj dereference in
+	 * bdirty()/reassignbuf(), and b_bufobj was cleared in
+	 * pbrelvp() above.
+	 */
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
+		bp->b_flags |= B_INVAL;
 	bufdone(bp);
 	BO_LOCK(bufobj);
 	/*
@@ -2023,15 +2044,12 @@ static int
 ffs_bufwrite(struct buf *bp)
 {
 	struct buf *newbp;
-	int oldflags;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
 		return (0);
 	}
-
-	oldflags = bp->b_flags;
 
 	if (!BUF_ISLOCKED(bp))
 		panic("bufwrite: buffer is not busy???");
@@ -2053,6 +2071,7 @@ ffs_bufwrite(struct buf *bp)
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("bufwrite: still writing");
 	}
+	bp->b_vflags &= ~BV_BKGRDERR;
 	BO_UNLOCK(bp->b_bufobj);
 
 	/*
@@ -2075,7 +2094,7 @@ ffs_bufwrite(struct buf *bp)
 		if (newbp == NULL)
 			goto normal_write;
 
-		KASSERT((bp->b_flags & B_UNMAPPED) == 0, ("Unmapped cg"));
+		KASSERT(buf_mapped(bp), ("Unmapped cg"));
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
 		BO_LOCK(bp->b_bufobj);
 		bp->b_vflags |= BV_BKGRDINPROG;

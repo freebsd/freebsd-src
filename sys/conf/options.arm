@@ -21,6 +21,8 @@ CPU_XSCALE_81342	opt_global.h
 CPU_XSCALE_IXP425	opt_global.h
 CPU_XSCALE_IXP435	opt_global.h
 CPU_XSCALE_PXA2X0	opt_global.h
+DEV_GIC			opt_global.h
+EFI			opt_platform.h
 FLASHADDR		opt_global.h
 GIC_DEFAULT_ICFGR_INIT	opt_global.h
 IPI_IRQ_START		opt_smp.h
@@ -40,6 +42,9 @@ PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
 SOC_BCM2835		opt_global.h
 SOC_BCM2836		opt_global.h
+SOC_IMX51		opt_global.h
+SOC_IMX53		opt_global.h
+SOC_IMX6		opt_global.h
 SOC_MV_ARMADAXP		opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_DOVE		opt_global.h

@@ -2806,6 +2806,11 @@ public:
   virtual bool useLoadStackGuardNode() const {
     return false;
   }
+
+  /// Returns true if arguments should be sign-extended in lib calls.
+  virtual bool shouldSignExtendTypeInLibCall(EVT Type, bool IsSigned) const {
+    return IsSigned;
+  }
 };
 
 /// Given an LLVM IR type and return type attributes, compute the return value

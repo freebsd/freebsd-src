@@ -8,12 +8,18 @@
     bin
     ..
     include
+        private
+            bsdstat
+            ..
+            ucl
+            ..
+        ..
     ..
     lib
         aout
         ..
         clang
-            3.6.0
+            3.6.1
                 include
                 ..
                 lib
@@ -32,15 +38,15 @@
         ..
         i18n
         ..
-        private
+        libxo
+            encoder
+            ..
         ..
     ..
     lib32
         dtrace
         ..
         i18n
-        ..
-        private
         ..
     ..
     libdata
@@ -716,6 +722,8 @@
             ja_JP.UTF-8
             ..
             ja_JP.eucJP
+            ..
+            kk_Cyrl_KZ.UTF-8
             ..
             kk_KZ.PT154
             ..

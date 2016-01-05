@@ -101,7 +101,6 @@ static void	bwi_mac_opmode_init(struct bwi_mac *);
 static void	bwi_mac_hostflags_init(struct bwi_mac *);
 static void	bwi_mac_bss_param_init(struct bwi_mac *);
 
-static int	bwi_mac_fw_alloc(struct bwi_mac *);
 static void	bwi_mac_fw_free(struct bwi_mac *);
 static int	bwi_mac_fw_load(struct bwi_mac *);
 static int	bwi_mac_fw_init(struct bwi_mac *);
@@ -325,10 +324,6 @@ bwi_mac_init(struct bwi_mac *mac)
 	/*
 	 * Load and initialize firmwares
 	 */
-	error = bwi_mac_fw_alloc(mac);
-	if (error)
-		return error;
-
 	error = bwi_mac_fw_load(mac);
 	if (error)
 		return error;
@@ -837,11 +832,11 @@ bwi_fwimage_is_valid(struct bwi_softc *sc, const struct firmware *fw,
 		     uint8_t fw_type)
 {
 	const struct bwi_fwhdr *hdr;
-	struct ifnet *ifp = sc->sc_ifp;
 
 	if (fw->datasize < sizeof(*hdr)) {
-		if_printf(ifp, "invalid firmware (%s): invalid size %zu\n",
-			  fw->name, fw->datasize);
+		device_printf(sc->sc_dev,
+		    "invalid firmware (%s): invalid size %zu\n",
+		    fw->name, fw->datasize);
 		return 0;
 	}
 
@@ -852,25 +847,26 @@ bwi_fwimage_is_valid(struct bwi_softc *sc, const struct firmware *fw,
 		 * Don't verify IV's size, it has different meaning
 		 */
 		if (be32toh(hdr->fw_size) != fw->datasize - sizeof(*hdr)) {
-			if_printf(ifp, "invalid firmware (%s): size mismatch, "
-				  "fw %u, real %zu\n", fw->name,
-				  be32toh(hdr->fw_size),
-				  fw->datasize - sizeof(*hdr));
+			device_printf(sc->sc_dev,
+			    "invalid firmware (%s): size mismatch, "
+			    "fw %u, real %zu\n", fw->name,
+			    be32toh(hdr->fw_size), fw->datasize - sizeof(*hdr));
 			return 0;
 		}
 	}
 
 	if (hdr->fw_type != fw_type) {
-		if_printf(ifp, "invalid firmware (%s): type mismatch, "
-			  "fw \'%c\', target \'%c\'\n", fw->name,
-			  hdr->fw_type, fw_type);
+		device_printf(sc->sc_dev,
+		    "invalid firmware (%s): type mismatch, "
+		    "fw \'%c\', target \'%c\'\n", fw->name,
+		    hdr->fw_type, fw_type);
 		return 0;
 	}
 
 	if (hdr->fw_gen != BWI_FW_GEN_1) {
-		if_printf(ifp, "invalid firmware (%s): wrong generation, "
-			  "fw %d, target %d\n", fw->name,
-			  hdr->fw_gen, BWI_FW_GEN_1);
+		device_printf(sc->sc_dev,
+		    "invalid firmware (%s): wrong generation, "
+		    "fw %d, target %d\n", fw->name, hdr->fw_gen, BWI_FW_GEN_1);
 		return 0;
 	}
 	return 1;
@@ -879,11 +875,10 @@ bwi_fwimage_is_valid(struct bwi_softc *sc, const struct firmware *fw,
 /*
  * XXX Error cleanup
  */
-static int
+int
 bwi_mac_fw_alloc(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
 	char fwname[64];
 	int idx;
 
@@ -895,10 +890,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 		snprintf(fwname, sizeof(fwname), BWI_FW_STUB_PATH,
 			 sc->sc_fw_version);
 		mac->mac_stub = firmware_get(fwname);
-		if (mac->mac_stub == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
+		if (mac->mac_stub == NULL)
+			goto no_firmware;
 	}
 
 	if (mac->mac_ucode == NULL) {
@@ -907,11 +900,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  mac->mac_rev >= 5 ? 5 : mac->mac_rev);
 
 		mac->mac_ucode = firmware_get(fwname);
-		if (mac->mac_ucode == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
-
+		if (mac->mac_ucode == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_ucode, BWI_FW_T_UCODE))
 			return EINVAL;
 	}
@@ -922,11 +912,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  mac->mac_rev < 5 ? 4 : 5);
 
 		mac->mac_pcm = firmware_get(fwname);
-		if (mac->mac_pcm == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
-
+		if (mac->mac_pcm == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_pcm, BWI_FW_T_PCM))
 			return EINVAL;
 	}
@@ -938,8 +925,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 		} else if (mac->mac_rev >= 5 && mac->mac_rev <= 10) {
 			idx = 5;
 		} else {
-			if_printf(ifp, "no suitible IV for MAC rev %d\n",
-				  mac->mac_rev);
+			device_printf(sc->sc_dev,
+			    "no suitible IV for MAC rev %d\n", mac->mac_rev);
 			return ENODEV;
 		}
 
@@ -947,10 +934,8 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  sc->sc_fw_version, idx);
 
 		mac->mac_iv = firmware_get(fwname);
-		if (mac->mac_iv == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
+		if (mac->mac_iv == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_iv, BWI_FW_T_IV))
 			return EINVAL;
 	}
@@ -960,12 +945,12 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 		if (mac->mac_rev == 2 || mac->mac_rev == 4 ||
 		    mac->mac_rev >= 11) {
 			/* No extended IV */
-			goto back;
+			return (0);
 		} else if (mac->mac_rev >= 5 && mac->mac_rev <= 10) {
 			idx = 5;
 		} else {
-			if_printf(ifp, "no suitible ExtIV for MAC rev %d\n",
-				  mac->mac_rev);
+			device_printf(sc->sc_dev,
+			    "no suitible ExtIV for MAC rev %d\n", mac->mac_rev);
 			return ENODEV;
 		}
 
@@ -973,15 +958,16 @@ bwi_mac_fw_alloc(struct bwi_mac *mac)
 			  sc->sc_fw_version, idx);
 
 		mac->mac_iv_ext = firmware_get(fwname);
-		if (mac->mac_iv_ext == NULL) {
-			if_printf(ifp, "request firmware %s failed\n", fwname);
-			return ENOMEM;
-		}
+		if (mac->mac_iv_ext == NULL)
+			goto no_firmware;
 		if (!bwi_fwimage_is_valid(sc, mac->mac_iv_ext, BWI_FW_T_IV))
 			return EINVAL;
 	}
-back:
-	return 0;
+	return (0);
+
+no_firmware:
+	device_printf(sc->sc_dev, "request firmware %s failed\n", fwname);
+	return (ENOENT);
 }
 
 static void
@@ -1017,7 +1003,6 @@ static int
 bwi_mac_fw_load(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
 	const uint32_t *fw;
 	uint16_t fw_rev;
 	int fw_len, i;
@@ -1072,7 +1057,8 @@ bwi_mac_fw_load(struct bwi_mac *mac)
 		DELAY(10);
 	}
 	if (i == NRETRY) {
-		if_printf(ifp, "firmware (ucode&pcm) loading timed out\n");
+		device_printf(sc->sc_dev,
+		    "firmware (ucode&pcm) loading timed out\n");
 		return ETIMEDOUT;
 	}
 
@@ -1082,12 +1068,14 @@ bwi_mac_fw_load(struct bwi_mac *mac)
 
 	fw_rev = MOBJ_READ_2(mac, BWI_COMM_MOBJ, BWI_COMM_MOBJ_FWREV);
 	if (fw_rev > BWI_FW_VERSION3_REVMAX) {
-		if_printf(ifp, "firmware version 4 is not supported yet\n");
+		device_printf(sc->sc_dev,
+		    "firmware version 4 is not supported yet\n");
 		return ENODEV;
 	}
 
-	if_printf(ifp, "firmware rev 0x%04x, patch level 0x%04x\n", fw_rev,
-		  MOBJ_READ_2(mac, BWI_COMM_MOBJ, BWI_COMM_MOBJ_FWPATCHLV));
+	device_printf(sc->sc_dev,
+	    "firmware rev 0x%04x, patch level 0x%04x\n", fw_rev,
+	    MOBJ_READ_2(mac, BWI_COMM_MOBJ, BWI_COMM_MOBJ_FWPATCHLV));
 	return 0;
 }
 
@@ -1147,7 +1135,6 @@ static int
 bwi_mac_fw_load_iv(struct bwi_mac *mac, const struct firmware *fw)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
 	const struct bwi_fwhdr *hdr;
 	const struct bwi_fw_iv *iv;
 	int n, i, iv_img_size;
@@ -1170,7 +1157,7 @@ bwi_mac_fw_load_iv(struct bwi_mac *mac, const struct firmware *fw)
 		int sz = 0;
 
 		if (iv_img_size < sizeof(iv->iv_ofs)) {
-			if_printf(ifp, "invalid IV image, ofs\n");
+			device_printf(sc->sc_dev, "invalid IV image, ofs\n");
 			return EINVAL;
 		}
 		iv_img_size -= sizeof(iv->iv_ofs);
@@ -1180,7 +1167,7 @@ bwi_mac_fw_load_iv(struct bwi_mac *mac, const struct firmware *fw)
 
 		ofs = __SHIFTOUT(iv_ofs, BWI_FW_IV_OFS_MASK);
 		if (ofs >= 0x1000) {
-			if_printf(ifp, "invalid ofs (0x%04x) "
+			device_printf(sc->sc_dev, "invalid ofs (0x%04x) "
 				  "for %dth iv\n", ofs, i);
 			return EINVAL;
 		}
@@ -1189,7 +1176,8 @@ bwi_mac_fw_load_iv(struct bwi_mac *mac, const struct firmware *fw)
 			uint32_t val32;
 
 			if (iv_img_size < sizeof(iv->iv_val.val32)) {
-				if_printf(ifp, "invalid IV image, val32\n");
+				device_printf(sc->sc_dev,
+				    "invalid IV image, val32\n");
 				return EINVAL;
 			}
 			iv_img_size -= sizeof(iv->iv_val.val32);
@@ -1201,7 +1189,8 @@ bwi_mac_fw_load_iv(struct bwi_mac *mac, const struct firmware *fw)
 			uint16_t val16;
 
 			if (iv_img_size < sizeof(iv->iv_val.val16)) {
-				if_printf(ifp, "invalid IV image, val16\n");
+				device_printf(sc->sc_dev,
+				    "invalid IV image, val16\n");
 				return EINVAL;
 			}
 			iv_img_size -= sizeof(iv->iv_val.val16);
@@ -1215,7 +1204,8 @@ bwi_mac_fw_load_iv(struct bwi_mac *mac, const struct firmware *fw)
 	}
 
 	if (iv_img_size != 0) {
-		if_printf(ifp, "invalid IV image, size left %d\n", iv_img_size);
+		device_printf(sc->sc_dev, "invalid IV image, size left %d\n",
+		    iv_img_size);
 		return EINVAL;
 	}
 	return 0;
@@ -1224,19 +1214,19 @@ bwi_mac_fw_load_iv(struct bwi_mac *mac, const struct firmware *fw)
 static int
 bwi_mac_fw_init(struct bwi_mac *mac)
 {
-	struct ifnet *ifp = mac->mac_sc->sc_ifp;
+	device_t dev = mac->mac_sc->sc_dev;
 	int error;
 
 	error = bwi_mac_fw_load_iv(mac, mac->mac_iv);
 	if (error) {
-		if_printf(ifp, "load IV failed\n");
+		device_printf(dev, "load IV failed\n");
 		return error;
 	}
 
 	if (mac->mac_iv_ext != NULL) {
 		error = bwi_mac_fw_load_iv(mac, mac->mac_iv_ext);
 		if (error)
-			if_printf(ifp, "load ExtIV failed\n");
+			device_printf(dev, "load ExtIV failed\n");
 	}
 	return error;
 }
@@ -1245,8 +1235,7 @@ static void
 bwi_mac_opmode_init(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t mac_status;
 	uint16_t pre_tbtt;
 
@@ -1295,7 +1284,7 @@ bwi_mac_opmode_init(struct bwi_mac *mac)
 		break;
 	}
 
-	if (ic->ic_ifp->if_flags & IFF_PROMISC)
+	if (ic->ic_promisc > 0)
 		mac_status |= BWI_MAC_STATUS_PROMISC;
 
 	CSR_WRITE_4(sc, BWI_MAC_STATUS, mac_status);
@@ -1346,8 +1335,7 @@ bwi_mac_bss_param_init(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
 	struct bwi_phy *phy = &mac->mac_phy;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	const struct ieee80211_rate_table *rt;
 	struct bwi_retry_lim lim;
 	uint16_t cw_min;
@@ -1930,8 +1918,7 @@ static void
 bwi_mac_lock(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	KASSERT((mac->mac_flags & BWI_MAC_F_LOCKED) == 0,
 	    ("mac_flags 0x%x", mac->mac_flags));
@@ -1954,8 +1941,7 @@ static void
 bwi_mac_unlock(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	KASSERT(mac->mac_flags & BWI_MAC_F_LOCKED,
 	    ("mac_flags 0x%x", mac->mac_flags));

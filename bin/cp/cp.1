@@ -32,7 +32,7 @@
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2013
+.Dd June 6, 2015
 .Dt CP 1
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl alpvx
+.Op Fl alpsvx
 .Ar source_file target_file
 .Nm
 .Oo
@@ -53,7 +53,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f | i | n
-.Op Fl alpvx
+.Op Fl alpsvx
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -179,6 +179,8 @@ If the source file has both its set-user-ID and set-group-ID bits on,
 and either the user ID or group ID cannot be preserved, neither
 the set-user-ID nor set-group-ID bits are preserved in the copy's
 permissions.
+.It Fl s
+Create symbolic links to regular files in a hierarchy instead of copying.
 .It Fl v
 Cause
 .Nm
@@ -298,7 +300,10 @@ differ as they copy special files as normal
 files while recreating a hierarchy.
 .Pp
 The
-.Fl v
+.Fl l,
+.Fl s,
+.Fl v,
+.Fl x
 and
 .Fl n
 options are non-standard and their use in scripts is not recommended.

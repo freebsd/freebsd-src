@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/dtrace
 
 PROG=		dtrace
@@ -20,9 +22,10 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 #CFLAGS+=	-DNEED_ERRLOC
 #YFLAGS+=	-d
 
-DPADD=		${LIBPTHREAD} ${LIBDTRACE} ${LIBY} ${LIBL} ${LIBPROC} \
-		${LIBCTF} ${LIBELF} ${LIBZ} ${LIBUTIL} ${LIBRTLD_DB}
-LDADD=		-lpthread -ldtrace -ly -ll -lproc -lctf -lelf -lz -lutil \
-		-lrtld_db
+LIBADD=	dtrace
+
+.if ${MK_DTRACE_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

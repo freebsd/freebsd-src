@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
 INCS= gssapi.h
 INCSDIR= ${INCLUDEDIR}/gssapi
 

@@ -43,16 +43,14 @@ __FBSDID("$FreeBSD$");
  */
 /*ARGSUSED*/
 void
-db_write_cmd(db_expr_t address, boolean_t have_addr, db_expr_t count,
+db_write_cmd(db_expr_t address, bool have_addr, db_expr_t count,
     char * modif)
 {
-	register
 	db_addr_t	addr;
-	register
 	db_expr_t	old_value;
 	db_expr_t	new_value;
-	register int	size;
-	boolean_t	wrote_one = FALSE;
+	int		size;
+	bool		wrote_one = false;
 
 	addr = (db_addr_t) address;
 
@@ -73,13 +71,13 @@ db_write_cmd(db_expr_t address, boolean_t have_addr, db_expr_t count,
 	}
 
 	while (db_expression(&new_value)) {
-	    old_value = db_get_value(addr, size, FALSE);
+	    old_value = db_get_value(addr, size, false);
 	    db_printsym(addr, DB_STGY_ANY);
 	    db_printf("\t\t%#8lr\t=\t%#8lr\n", (long)old_value,(long)new_value);
 	    db_put_value(addr, size, new_value);
 	    addr += size;
 
-	    wrote_one = TRUE;
+	    wrote_one = true;
 	}
 
 	if (!wrote_one)

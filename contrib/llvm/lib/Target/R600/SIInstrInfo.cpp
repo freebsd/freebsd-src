@@ -121,12 +121,20 @@ bool SIInstrInfo::areLoadsFromSameBasePtr(SDNode *Load0, SDNode *Load1,
     if (Load0->getOperand(0) != Load1->getOperand(0))
       return false;
 
+    const ConstantSDNode *Load0Offset =
+        dyn_cast<ConstantSDNode>(Load0->getOperand(1));
+    const ConstantSDNode *Load1Offset =
+        dyn_cast<ConstantSDNode>(Load1->getOperand(1));
+
+    if (!Load0Offset || !Load1Offset)
+      return false;
+
     // Check chain.
     if (findChainOperand(Load0) != findChainOperand(Load1))
       return false;
 
-    Offset0 = cast<ConstantSDNode>(Load0->getOperand(1))->getZExtValue();
-    Offset1 = cast<ConstantSDNode>(Load1->getOperand(1))->getZExtValue();
+    Offset0 = Load0Offset->getZExtValue();
+    Offset1 = Load1Offset->getZExtValue();
     return true;
   }
 
@@ -333,6 +341,21 @@ SIInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     return;
 
   } else if (AMDGPU::SReg_64RegClass.contains(DestReg)) {
+    if (DestReg == AMDGPU::VCC) {
+      if (AMDGPU::SReg_64RegClass.contains(SrcReg)) {
+        BuildMI(MBB, MI, DL, get(AMDGPU::S_MOV_B64), AMDGPU::VCC)
+          .addReg(SrcReg, getKillRegState(KillSrc));
+      } else {
+        // FIXME: Hack until VReg_1 removed.
+        assert(AMDGPU::VGPR_32RegClass.contains(SrcReg));
+        BuildMI(MBB, MI, DL, get(AMDGPU::V_CMP_NE_I32_e32), AMDGPU::VCC)
+          .addImm(0)
+          .addReg(SrcReg, getKillRegState(KillSrc));
+      }
+
+      return;
+    }
+
     assert(AMDGPU::SReg_64RegClass.contains(SrcReg));
     BuildMI(MBB, MI, DL, get(AMDGPU::S_MOV_B64), DestReg)
             .addReg(SrcReg, getKillRegState(KillSrc));
@@ -408,11 +431,15 @@ unsigned SIInstrInfo::commuteOpcode(unsigned Opcode) const {
   int NewOpc;
 
   // Try to map original to commuted opcode
-  if ((NewOpc = AMDGPU::getCommuteRev(Opcode)) != -1)
+  NewOpc = AMDGPU::getCommuteRev(Opcode);
+  // Check if the commuted (REV) opcode exists on the target.
+  if (NewOpc != -1 && pseudoToMCOpcode(NewOpc) != -1)
     return NewOpc;
 
   // Try to map commuted to original opcode
-  if ((NewOpc = AMDGPU::getCommuteOrig(Opcode)) != -1)
+  NewOpc = AMDGPU::getCommuteOrig(Opcode);
+  // Check if the original (non-REV) opcode exists on the target.
+  if (NewOpc != -1 && pseudoToMCOpcode(NewOpc) != -1)
     return NewOpc;
 
   return Opcode;
@@ -1121,6 +1148,8 @@ bool SIInstrInfo::verifyInstruction(const MachineInstr *MI,
       return false;
     }
 
+    int RegClass = Desc.OpInfo[i].RegClass;
+
     switch (Desc.OpInfo[i].OperandType) {
     case MCOI::OPERAND_REGISTER:
       if (MI->getOperand(i).isImm() || MI->getOperand(i).isFPImm()) {
@@ -1131,7 +1160,7 @@ bool SIInstrInfo::verifyInstruction(const MachineInstr *MI,
     case AMDGPU::OPERAND_REG_IMM32:
       break;
     case AMDGPU::OPERAND_REG_INLINE_C:
-      if (MI->getOperand(i).isImm() && !isInlineConstant(MI->getOperand(i))) {
+      if (isLiteralConstant(MI->getOperand(i))) {
         ErrInfo = "Illegal immediate value for operand.";
         return false;
       }
@@ -1152,7 +1181,6 @@ bool SIInstrInfo::verifyInstruction(const MachineInstr *MI,
     if (!MI->getOperand(i).isReg())
       continue;
 
-    int RegClass = Desc.OpInfo[i].RegClass;
     if (RegClass != -1) {
       unsigned Reg = MI->getOperand(i).getReg();
       if (TargetRegisterInfo::isVirtualRegister(Reg))
@@ -1193,31 +1221,6 @@ bool SIInstrInfo::verifyInstruction(const MachineInstr *MI,
     }
     if (ConstantBusCount > 1) {
       ErrInfo = "VOP* instruction uses the constant bus more than once";
-      return false;
-    }
-  }
-
-  // Verify SRC1 for VOP2 and VOPC
-  if (Src1Idx != -1 && (isVOP2(Opcode) || isVOPC(Opcode))) {
-    const MachineOperand &Src1 = MI->getOperand(Src1Idx);
-    if (Src1.isImm()) {
-      ErrInfo = "VOP[2C] src1 cannot be an immediate.";
-      return false;
-    }
-  }
-
-  // Verify VOP3
-  if (isVOP3(Opcode)) {
-    if (Src0Idx != -1 && isLiteralConstant(MI->getOperand(Src0Idx))) {
-      ErrInfo = "VOP3 src0 cannot be a literal constant.";
-      return false;
-    }
-    if (Src1Idx != -1 && isLiteralConstant(MI->getOperand(Src1Idx))) {
-      ErrInfo = "VOP3 src1 cannot be a literal constant.";
-      return false;
-    }
-    if (Src2Idx != -1 && isLiteralConstant(MI->getOperand(Src2Idx))) {
-      ErrInfo = "VOP3 src2 cannot be a literal constant.";
       return false;
     }
   }
@@ -1292,6 +1295,7 @@ unsigned SIInstrInfo::getVALUOp(const MachineInstr &MI) {
   case AMDGPU::S_BCNT1_I32_B32: return AMDGPU::V_BCNT_U32_B32_e64;
   case AMDGPU::S_FF1_I32_B32: return AMDGPU::V_FFBL_B32_e32;
   case AMDGPU::S_FLBIT_I32_B32: return AMDGPU::V_FFBH_U32_e32;
+  case AMDGPU::S_FLBIT_I32: return AMDGPU::V_FFBH_I32_e64;
   }
 }
 
@@ -2040,6 +2044,24 @@ void SIInstrInfo::moveToVALU(MachineInstr &TopInst) const {
     case AMDGPU::S_LSHR_B32:
       if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
         NewOpcode = AMDGPU::V_LSHRREV_B32_e64;
+        swapOperands(Inst);
+      }
+      break;
+    case AMDGPU::S_LSHL_B64:
+      if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
+        NewOpcode = AMDGPU::V_LSHLREV_B64;
+        swapOperands(Inst);
+      }
+      break;
+    case AMDGPU::S_ASHR_I64:
+      if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
+        NewOpcode = AMDGPU::V_ASHRREV_I64;
+        swapOperands(Inst);
+      }
+      break;
+    case AMDGPU::S_LSHR_B64:
+      if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
+        NewOpcode = AMDGPU::V_LSHRREV_B64;
         swapOperands(Inst);
       }
       break;

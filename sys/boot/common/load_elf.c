@@ -191,10 +191,17 @@ __elfN(loadfile_raw)(char *filename, u_int64_t dest,
 	    goto oerr;
 	}
 	/* 
-	 * Calculate destination address based on kernel entrypoint 	
+	 * Calculate destination address based on kernel entrypoint.
+	 *
+	 * For ARM, the destination address is independent of any values in the
+	 * elf header (an ARM kernel can be loaded at any 2MB boundary), so we
+	 * leave dest set to the value calculated by archsw.arch_loadaddr() and
+	 * passed in to this function.
 	 */
+#ifndef __arm__
         if (ehdr->e_type == ET_EXEC)
 	    dest = (ehdr->e_entry & ~PAGE_MASK);
+#endif
 	if ((ehdr->e_entry & ~PAGE_MASK) == 0) {
 	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: not a kernel (maybe static binary?)\n");
 	    err = EPERM;
@@ -348,22 +355,18 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	    off = 0;
 #elif defined(__arm__)
 	/*
-	 * The elf headers in some kernels specify virtual addresses in all
-	 * header fields.  More recently, the e_entry and p_paddr fields are the
-	 * proper physical addresses.  Even when the p_paddr fields are correct,
-	 * the MI code below uses the p_vaddr fields with an offset added for
-	 * loading (doing so is arguably wrong).  To make loading work, we need
-	 * an offset that represents the difference between physical and virtual
-	 * addressing.  ARM kernels are always linked at 0xCnnnnnnn.  Depending
-	 * on the headers, the offset value passed in may be physical or virtual
-	 * (because it typically comes from e_entry), but we always replace
-	 * whatever is passed in with the va<->pa offset.  On the other hand, we
-	 * always remove the high-order part of the entry address whether it's
-	 * physical or virtual, because it will be adjusted later for the actual
-	 * physical entry point based on where the image gets loaded.
+	 * The elf headers in arm kernels specify virtual addresses in all
+	 * header fields, even the ones that should be physical addresses.
+	 * We assume the entry point is in the first page, and masking the page
+	 * offset will leave us with the virtual address the kernel was linked
+	 * at.  We subtract that from the load offset, making 'off' into the
+	 * value which, when added to a virtual address in an elf header,
+	 * translates it to a physical address.  We do the va->pa conversion on
+	 * the entry point address in the header now, so that later we can
+	 * launch the kernel by just jumping to that address.
 	 */
-	off = -0xc0000000;
-	ehdr->e_entry &= ~0xf0000000;
+	off -= ehdr->e_entry & ~PAGE_MASK;
+	ehdr->e_entry += off;
 #ifdef ELF_VERBOSE
 	printf("ehdr->e_entry 0x%08x, va<->pa off %llx\n", ehdr->e_entry, off);
 #endif

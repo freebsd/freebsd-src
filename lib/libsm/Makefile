@@ -29,7 +29,7 @@ SRCS+=	assert.c debug.c errstring.c exc.c heap.c match.c rpool.c \
 	smstdio.c snprintf.c sscanf.c stdio.c strio.c ungetc.c \
 	vasprintf.c vfprintf.c vfscanf.c vprintf.c vsnprintf.c \
 	wbuf.c wsetup.c string.c stringf.c \
-	xtrap.c strto.c test.c path.c strcasecmp.c strrevcmp.c \
+	xtrap.c strto.c test.c strcasecmp.c strrevcmp.c \
 	signal.c clock.c config.c sem.c shm.c mbdb.c strexit.c cf.c ldap.c \
 	niprop.c mpeix.c memstat.c util.c inet6_ntop.c
 CLEANFILES+=sm_os.h

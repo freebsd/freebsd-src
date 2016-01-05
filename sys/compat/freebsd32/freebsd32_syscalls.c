@@ -581,4 +581,6 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_ppoll",			/* 545 = freebsd32_ppoll */
 	"freebsd32_futimens",			/* 546 = freebsd32_futimens */
 	"freebsd32_utimensat",			/* 547 = freebsd32_utimensat */
+	"numa_getaffinity",			/* 548 = numa_getaffinity */
+	"numa_setaffinity",			/* 549 = numa_setaffinity */
 };

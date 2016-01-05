@@ -1935,25 +1935,6 @@ cru2x(struct ucred *cr, struct xucred *xcr)
 }
 
 /*
- * small routine to swap a thread's current ucred for the correct one taken
- * from the process.
- */
-void
-cred_update_thread(struct thread *td)
-{
-	struct proc *p;
-	struct ucred *cred;
-
-	p = td->td_proc;
-	cred = td->td_ucred;
-	PROC_LOCK(p);
-	td->td_ucred = crhold(p->p_ucred);
-	PROC_UNLOCK(p);
-	if (cred != NULL)
-		crfree(cred);
-}
-
-/*
  * Set initial process credentials.
  * Callers are responsible for providing the reference for provided credentials.
  */
@@ -1987,6 +1968,8 @@ proc_set_cred(struct proc *p, struct ucred *newcred)
 
 	oldcred = p->p_ucred;
 	p->p_ucred = newcred;
+	if (newcred != NULL)
+		PROC_UPDATE_COW(p);
 	return (oldcred);
 }
 

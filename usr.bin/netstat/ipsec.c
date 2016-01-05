@@ -157,6 +157,9 @@ static struct val2str ipsec_espnames[] = {
 #ifdef SADB_X_EALG_AESCTR
 	{ SADB_X_EALG_AESCTR, "aes-ctr", },
 #endif
+#ifdef SADB_X_EALG_AESGCM16
+	{ SADB_X_EALG_AESGCM16, "aes-gcm-16", },
+#endif
 	{ -1, NULL },
 };
 

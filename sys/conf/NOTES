@@ -156,6 +156,7 @@ options 	GEOM_GATE		# Userland services.
 options 	GEOM_JOURNAL		# Journaling.
 options 	GEOM_LABEL		# Providers labelization.
 options 	GEOM_LINUX_LVM		# Linux LVM2 volumes
+options 	GEOM_MAP		# Map based partitioning
 options 	GEOM_MBR		# DOS/MBR partitioning
 options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_MULTIPATH		# Disk multipath
@@ -176,6 +177,7 @@ options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
+options 	GEOM_UNCOMPRESS		# Read-only compressed disks (lzma, zip)
 options 	GEOM_UZIP		# Read-only compressed disks
 options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
@@ -576,6 +578,7 @@ options 	STACK
 # please see hwpmc(4).
 
 device		hwpmc			# Driver (also a loadable module)
+options 	HWPMC_DEBUG
 options 	HWPMC_HOOKS		# Other necessary kernel hooks
 
 
@@ -706,6 +709,7 @@ options 	ALTQ_CBQ	# Class Based Queueing
 options 	ALTQ_RED	# Random Early Detection
 options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
+options		ALTQ_FAIRQ	# Fair Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
 options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
@@ -993,8 +997,7 @@ options 	ACCEPT_FILTER_HTTP
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
-# This requires the use of 'device crypto', 'options IPSEC'
-# or 'device cryptodev'.
+# This requires the use of 'device crypto' and 'options IPSEC'.
 options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
@@ -2642,6 +2645,8 @@ device		usb
 device		udbp
 # USB Fm Radio
 device		ufm
+# USB temperature meter
+device		ugold
 # USB LED
 device		uled
 # Human Interface Device (anything with buttons and dials)
@@ -2811,6 +2816,10 @@ options 	DCONS_FORCE_GDB=1	# force to be the gdb device
 # been fed back to OpenBSD.
 
 device		crypto		# core crypto support
+
+# Only install the cryptodev device if you are running tests, or know
+# specifically why you need it.  In most cases, it is not needed and
+# will make things slower.
 device		cryptodev	# /dev/crypto for access to h/w
 
 device		rndtest		# FIPS 140-2 entropy tester
@@ -2972,12 +2981,20 @@ options 	MAXFILES=999
 
 # Random number generator
 # Only ONE of the below two may be used; they are mutually exclusive.
-options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
-#options 	RANDOM_FORTUNA	# Fortuna CSPRNG
-options 	RANDOM_DEBUG	# Debugging messages
+# If neither is present, then the Fortuna algorithm is selected.
+#options 	RANDOM_YARROW	# Yarrow CSPRNG (old default)
+#options 	RANDOM_LOADABLE	# Allow the algorithm to be loaded as
+				# a module.
+# Select this to allow high-rate but potentially expensive
+# harvesting of Slab-Allocator entropy. In very high-rate
+# situations the value of doing this is dubious at best.
+options 	RANDOM_ENABLE_UMA	# slab allocator
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC
+
+# Intel em(4) driver
+options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
 
 # zlib I/O stream support
 # This enables support for compressed core dumps.

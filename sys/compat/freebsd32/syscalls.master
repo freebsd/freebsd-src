@@ -1074,3 +1074,9 @@
 547	AUE_FUTIMESAT	STD	{ int freebsd32_utimensat(int fd, \
 				    char *path, \
 				    struct timespec *times, int flag); }
+548	AUE_NULL	NOPROTO	{ int numa_getaffinity(cpuwhich_t which, \
+				    id_t id, \
+				    struct vm_domain_policy *policy); }
+549	AUE_NULL	NOPROTO	{ int numa_setaffinity(cpuwhich_t which, \
+				    id_t id, \
+				    const struct vm_domain_policy *policy); }

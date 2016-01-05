@@ -1160,13 +1160,6 @@ void DAGCombiner::Run(CombineLevel AtLevel) {
   LegalOperations = Level >= AfterLegalizeVectorOps;
   LegalTypes = Level >= AfterLegalizeTypes;
 
-  // Early exit if this basic block is in an optnone function.
-  AttributeSet FnAttrs =
-    DAG.getMachineFunction().getFunction()->getAttributes();
-  if (FnAttrs.hasAttribute(AttributeSet::FunctionIndex,
-                           Attribute::OptimizeNone))
-    return;
-
   // Add all the dag nodes to the worklist.
   for (SelectionDAG::allnodes_iterator I = DAG.allnodes_begin(),
        E = DAG.allnodes_end(); I != E; ++I)
@@ -2788,9 +2781,13 @@ SDValue DAGCombiner::visitAND(SDNode *N) {
                SplatBitSize = SplatBitSize * 2)
             SplatValue |= SplatValue.shl(SplatBitSize);
 
-        Constant = APInt::getAllOnesValue(BitWidth);
-        for (unsigned i = 0, n = SplatBitSize/BitWidth; i < n; ++i)
-          Constant &= SplatValue.lshr(i*BitWidth).zextOrTrunc(BitWidth);
+        // Make sure that variable 'Constant' is only set if 'SplatBitSize' is a
+        // multiple of 'BitWidth'. Otherwise, we could propagate a wrong value.
+        if (SplatBitSize % BitWidth == 0) {
+          Constant = APInt::getAllOnesValue(BitWidth);
+          for (unsigned i = 0, n = SplatBitSize/BitWidth; i < n; ++i)
+            Constant &= SplatValue.lshr(i*BitWidth).zextOrTrunc(BitWidth);
+        }
       }
     }
 
@@ -11043,7 +11040,9 @@ SDValue DAGCombiner::visitBUILD_VECTOR(SDNode *N) {
       } else if (VecInT.getSizeInBits() == VT.getSizeInBits() * 2) {
         // If the input vector is too large, try to split it.
         // We don't support having two input vectors that are too large.
-        if (VecIn2.getNode())
+        // If the zero vector was used, we can not split the vector,
+        // since we'd need 3 inputs.
+        if (UsesZeroVector || VecIn2.getNode())
           return SDValue();
 
         if (!TLI.isExtractSubvectorCheap(VT, VT.getVectorNumElements()))
@@ -11055,7 +11054,6 @@ SDValue DAGCombiner::visitBUILD_VECTOR(SDNode *N) {
           DAG.getConstant(VT.getVectorNumElements(), TLI.getVectorIdxTy()));
         VecIn1 = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, VT, VecIn1,
           DAG.getConstant(0, TLI.getVectorIdxTy()));
-        UsesZeroVector = false;
       } else
         return SDValue();
     }

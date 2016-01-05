@@ -808,7 +808,7 @@ __expand_table(HTAB *hashp)
 			hashp->DSIZE = dirsize << 1;
 		}
 		if ((hashp->dir[new_segnum] =
-		    (SEGMENT)calloc(hashp->SGSIZE, sizeof(SEGMENT))) == NULL)
+		    calloc(hashp->SGSIZE, sizeof(SEGMENT))) == NULL)
 			return (-1);
 		hashp->exsegs++;
 		hashp->nsegs++;
@@ -877,7 +877,7 @@ alloc_segs(HTAB *hashp, int nsegs)
 	int save_errno;
 
 	if ((hashp->dir =
-	    (SEGMENT *)calloc(hashp->DSIZE, sizeof(SEGMENT *))) == NULL) {
+	    calloc(hashp->DSIZE, sizeof(SEGMENT *))) == NULL) {
 		save_errno = errno;
 		(void)hdestroy(hashp);
 		errno = save_errno;
@@ -887,8 +887,7 @@ alloc_segs(HTAB *hashp, int nsegs)
 	if (nsegs == 0)
 		return (0);
 	/* Allocate segments */
-	if ((store = (SEGMENT)calloc(nsegs << hashp->SSHIFT,
-	    sizeof(SEGMENT))) == NULL) {
+	if ((store = calloc(nsegs << hashp->SSHIFT, sizeof(SEGMENT))) == NULL) {
 		save_errno = errno;
 		(void)hdestroy(hashp);
 		errno = save_errno;

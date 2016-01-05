@@ -432,7 +432,7 @@ scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	uint32_t res_len = 0;
 	unsigned long rel_tgt_port = 0;
 	uint8_t *res_buf = NULL;
-	int scope = SPR_LU_SCOPE, res_type = 0, key_set = 0, sa_key_set = 0;
+	int scope = SPR_LU_SCOPE, res_type = 0;
 	struct persist_transport_id *id, *id2;
 	STAILQ_HEAD(, persist_transport_id) transport_id_list;
 	uint64_t key = 0, sa_key = 0;
@@ -510,10 +510,8 @@ scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			}
 			if (c == 'k') {
 				key = tmpval;
-				key_set = 1;
 			} else {
 				sa_key = tmpval;
-				sa_key_set = 1;
 			}
 			break;
 		}

@@ -767,10 +767,6 @@ adastrategy(struct bio *bp)
 	 * Place it in the queue of disk activities for this disk
 	 */
 	if (bp->bio_cmd == BIO_DELETE) {
-		KASSERT((softc->flags & ADA_FLAG_CAN_TRIM) ||
-			((softc->flags & ADA_FLAG_CAN_CFA) &&
-			 !(softc->flags & ADA_FLAG_CAN_48BIT)),
-			("BIO_DELETE but no supported TRIM method."));
 		bioq_disksort(&softc->trim_queue, bp);
 	} else {
 		if (ADA_SIO)
@@ -1544,7 +1540,12 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			    !(softc->flags & ADA_FLAG_CAN_48BIT)) {
 				ada_cfaerase(softc, bp, ataio);
 			} else {
-				panic("adastart: BIO_DELETE without method, not possible.");
+				/* This can happen if DMA was disabled. */
+				bioq_remove(&softc->trim_queue, bp);
+				biofinish(bp, NULL, EOPNOTSUPP);
+				xpt_release_ccb(start_ccb);
+				adaschedule(periph);
+				return;
 			}
 			softc->trim_running = 1;
 			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
@@ -1606,9 +1607,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 				}
 			}
 			if (fail) {
-				bp->bio_error = EIO;
-				bp->bio_flags |= BIO_ERROR;
-				biodone(bp);
+				biofinish(bp, NULL, EIO);
 				xpt_release_ccb(start_ccb);
 				adaschedule(periph);
 				return;

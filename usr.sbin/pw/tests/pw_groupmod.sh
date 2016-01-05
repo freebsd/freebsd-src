@@ -71,10 +71,48 @@ do_not_duplicate_group_on_gid_change_body() {
 	atf_check -o inline:"testgroup:*:12345:\n" -s exit:0 -x grep "^testgroup" ${HOME}/group
 }
 
+atf_test_case groupmod_rename
+groupmod_rename_body() {
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} groupadd foo
+	atf_check -s exit:0 ${PW} groupmod foo -l bar
+	atf_check -s exit:0 -o match:"^bar:.*" \
+		grep "^bar:.*" ${HOME}/group
+}
+
+atf_test_case groupmod_members
+groupmod_members_body() {
+	populate_etc_skel
+
+	for i in user1 user2 user3 user4; do
+		atf_check -s exit:0 ${PW} useradd $i
+	done
+
+	atf_check -s exit:0 ${PW} groupadd foo -M "user1, user2"
+	atf_check -o inline:"foo:*:1005:user1,user2\n" -s exit:0 \
+		${PW} groupshow foo
+	atf_check -s exit:0 ${PW} groupmod foo -m "user3, user4"
+	atf_check -o inline:"foo:*:1005:user1,user2,user3,user4\n" -s exit:0 \
+		${PW} groupshow foo
+	atf_check -s exit:0 ${PW} groupmod foo -M "user1, user4"
+	atf_check -o inline:"foo:*:1005:user1,user4\n" -s exit:0 \
+		${PW} groupshow foo
+	# what about duplicates
+	atf_check -s exit:0 ${PW} groupmod foo -m "user1, user2, user3, user4"
+	atf_check -o inline:"foo:*:1005:user1,user4,user2,user3\n" -s exit:0 \
+		${PW} groupshow foo
+	atf_check -s exit:0 ${PW} groupmod foo -d "user1, user3"
+	atf_check -o inline:"foo:*:1005:user4,user2\n" -s exit:0 \
+		${PW} groupshow foo
+}
+
 atf_init_test_cases() {
 	atf_add_test_case groupmod_user
 	atf_add_test_case groupmod_invalid_user
 	atf_add_test_case groupmod_bug_193704
 	atf_add_test_case usermod_bug_185666
 	atf_add_test_case do_not_duplicate_group_on_gid_change
+	atf_add_test_case groupmod_rename
+	atf_add_test_case groupmod_members
 }

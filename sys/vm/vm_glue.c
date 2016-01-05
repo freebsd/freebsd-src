@@ -230,7 +230,7 @@ vsunlock(void *addr, size_t len)
 static vm_page_t
 vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 {
-	vm_page_t m, ma[1];
+	vm_page_t m;
 	vm_pindex_t pindex;
 	int rv;
 
@@ -238,11 +238,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 	pindex = OFF_TO_IDX(offset);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid != VM_PAGE_BITS_ALL) {
-		ma[0] = m;
-		rv = vm_pager_get_pages(object, ma, 1, 0);
-		m = vm_page_lookup(object, pindex);
-		if (m == NULL)
-			goto out;
+		rv = vm_pager_get_pages(object, &m, 1, 0);
 		if (rv != VM_PAGER_OK) {
 			vm_page_lock(m);
 			vm_page_free(m);
@@ -331,11 +327,11 @@ vm_thread_new(struct thread *td, int pages)
 
 	/* Bounds check */
 	if (pages <= 1)
-		pages = KSTACK_PAGES;
+		pages = kstack_pages;
 	else if (pages > KSTACK_MAX_PAGES)
 		pages = KSTACK_MAX_PAGES;
 
-	if (pages == KSTACK_PAGES) {
+	if (pages == kstack_pages) {
 		mtx_lock(&kstack_cache_mtx);
 		if (kstack_cache != NULL) {
 			ks_ce = kstack_cache;
@@ -344,7 +340,7 @@ vm_thread_new(struct thread *td, int pages)
 
 			td->td_kstack_obj = ks_ce->ksobj;
 			td->td_kstack = (vm_offset_t)ks_ce;
-			td->td_kstack_pages = KSTACK_PAGES;
+			td->td_kstack_pages = kstack_pages;
 			return (1);
 		}
 		mtx_unlock(&kstack_cache_mtx);
@@ -448,7 +444,7 @@ vm_thread_dispose(struct thread *td)
 	ks = td->td_kstack;
 	td->td_kstack = 0;
 	td->td_kstack_pages = 0;
-	if (pages == KSTACK_PAGES && kstacks <= kstack_cache_size) {
+	if (pages == kstack_pages && kstacks <= kstack_cache_size) {
 		ks_ce = (struct kstack_cache_entry *)ks;
 		ks_ce->ksobj = ksobj;
 		mtx_lock(&kstack_cache_mtx);
@@ -475,7 +471,7 @@ vm_thread_stack_lowmem(void *nulll)
 		ks_ce = ks_ce->next_ks_entry;
 
 		vm_thread_stack_dispose(ks_ce1->ksobj, (vm_offset_t)ks_ce1,
-		    KSTACK_PAGES);
+		    kstack_pages);
 	}
 }
 
@@ -571,7 +567,7 @@ vm_thread_swapin(struct thread *td)
 {
 	vm_object_t ksobj;
 	vm_page_t ma[KSTACK_MAX_PAGES];
-	int i, j, k, pages, rv;
+	int i, j, pages, rv;
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
@@ -593,9 +589,12 @@ vm_thread_swapin(struct thread *td)
 			if (rv != VM_PAGER_OK)
 	panic("vm_thread_swapin: cannot get kstack for proc: %d",
 				    td->td_proc->p_pid);
+			/*
+			 * All pages in the array are in place, due to the
+			 * pager is always the swap pager, which doesn't
+			 * free or remove wired non-req pages from object.
+			 */
 			vm_object_pip_wakeup(ksobj);
-			for (k = i; k < j; k++)
-				ma[k] = vm_page_lookup(ksobj, k);
 			vm_page_xunbusy(ma[i]);
 		} else if (vm_page_xbusied(ma[i]))
 			vm_page_xunbusy(ma[i]);

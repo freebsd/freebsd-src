@@ -6,6 +6,15 @@ SECTIONS
 {
   /* Read-only sections, merged into text segment: */
   . = UBLDR_LOADADDR + SIZEOF_HEADERS;
+  .text      :
+  {
+    *(.text)
+    /* .gnu.warning sections are handled specially by elf32.em.  */
+    *(.gnu.warning)
+    *(.gnu.linkonce.t*)
+  } =0
+  _etext = .;
+  PROVIDE (etext = .);
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
@@ -32,15 +41,6 @@ SECTIONS
   .rela.sbss     : { *(.rela.sbss)		}
   .rela.sdata2   : { *(.rela.sdata2)		}
   .rela.sbss2    : { *(.rela.sbss2)		}
-  .text      :
-  {
-    *(.text)
-    /* .gnu.warning sections are handled specially by elf32.em.  */
-    *(.gnu.warning)
-    *(.gnu.linkonce.t*)
-  } =0
-  _etext = .;
-  PROVIDE (etext = .);
   .init      : { *(.init)    } =0
   .fini      : { *(.fini)    } =0
   .rodata    : { *(.rodata) *(.gnu.linkonce.r*) }

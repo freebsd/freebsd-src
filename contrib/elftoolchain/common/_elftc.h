@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _elftc.h 3175 2015-03-27 17:21:24Z emaste $
+ * $Id: _elftc.h 3209 2015-05-17 13:40:46Z kaiwang27 $
  */
 
 /**
@@ -342,12 +342,13 @@ struct name {							\
 
 
 #if defined(__GLIBC__) || defined(__linux__)
-
+#ifndef _GNU_SOURCE
 /*
  * GLIBC based systems have a global 'char *' pointer referencing
  * the executable's name.
  */
 extern const char *program_invocation_short_name;
+#endif	/* !_GNU_SOURCE */
 
 #define	ELFTC_GETPROGNAME()	program_invocation_short_name
 

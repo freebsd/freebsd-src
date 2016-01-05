@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1990, 1993 The Regents of the University of California.
+ * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
@@ -38,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
@@ -45,19 +47,17 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
-int
-fclose(FILE *fp)
+static int
+cleanfile(FILE *fp, bool c)
 {
 	int r;
 
-	if (fp->_flags == 0) {	/* not open! */
-		errno = EBADF;
-		return (EOF);
-	}
-	FLOCKFILE(fp);
 	r = fp->_flags & __SWR ? __sflush(fp) : 0;
-	if (fp->_close != NULL && (*fp->_close)(fp->_cookie) < 0)
-		r = EOF;
+	if (c) {
+		if (fp->_close != NULL && (*fp->_close)(fp->_cookie) < 0)
+			r = EOF;
+	}
+
 	if (fp->_flags & __SMBF)
 		free((char *)fp->_bf._base);
 	if (HASUB(fp))
@@ -80,6 +80,59 @@ fclose(FILE *fp)
 	STDIO_THREAD_LOCK();
 	fp->_flags = 0;		/* Release this FILE for reuse. */
 	STDIO_THREAD_UNLOCK();
+
+	return (r);
+}
+
+int
+fdclose(FILE *fp, int *fdp)
+{
+	int r, err;
+
+	if (fdp != NULL)
+		*fdp = -1;
+
+	if (fp->_flags == 0) {	/* not open! */
+		errno = EBADF;
+		return (EOF);
+	}
+
+	FLOCKFILE(fp);
+	r = 0;
+	if (fp->_close != __sclose) {
+		r = EOF;
+		errno = EOPNOTSUPP;
+	} else if (fp->_file < 0) {
+		r = EOF;
+		errno = EBADF;
+	}
+	if (r == EOF) {
+		err = errno;
+		(void)cleanfile(fp, true);
+		errno = err;
+	} else {
+		if (fdp != NULL)
+			*fdp = fp->_file;
+		r = cleanfile(fp, false);
+	}
 	FUNLOCKFILE(fp);
+
+	return (r);
+}
+
+int
+fclose(FILE *fp)
+{
+	int r;
+
+	if (fp->_flags == 0) {	/* not open! */
+		errno = EBADF;
+		return (EOF);
+	}
+
+	FLOCKFILE(fp);
+	r = cleanfile(fp, true);
+	FUNLOCKFILE(fp);
+
 	return (r);
 }

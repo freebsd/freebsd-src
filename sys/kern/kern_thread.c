@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/selinfo.h>
+#include <sys/sysent.h>
 #include <sys/turnstile.h>
 #include <sys/ktr.h>
 #include <sys/rwlock.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
+#include <vm/vm_domain.h>
 #include <sys/eventhandler.h>
 
 SDT_PROVIDER_DECLARE(proc);
@@ -74,6 +76,8 @@ static struct mtx zombie_lock;
 MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
 
 static void thread_zombie(struct thread *);
+static int thread_unsuspend_one(struct thread *td, struct proc *p,
+    bool boundary);
 
 #define TID_BUFFER_SIZE	1024
 
@@ -324,8 +328,7 @@ thread_reap(void)
 		mtx_unlock_spin(&zombie_lock);
 		while (td_first) {
 			td_next = TAILQ_NEXT(td_first, td_slpq);
-			if (td_first->td_ucred)
-				crfree(td_first->td_ucred);
+			thread_cow_free(td_first);
 			thread_free(td_first);
 			td_first = td_next;
 		}
@@ -349,6 +352,7 @@ thread_alloc(int pages)
 		return (NULL);
 	}
 	cpu_thread_alloc(td);
+	vm_domain_policy_init(&td->td_vm_dom_policy);
 	return (td);
 }
 
@@ -378,7 +382,64 @@ thread_free(struct thread *td)
 	cpu_thread_free(td);
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
+	vm_domain_policy_cleanup(&td->td_vm_dom_policy);
 	uma_zfree(thread_zone, td);
+}
+
+void
+thread_cow_get_proc(struct thread *newtd, struct proc *p)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	newtd->td_ucred = crhold(p->p_ucred);
+	newtd->td_limit = lim_hold(p->p_limit);
+	newtd->td_cowgen = p->p_cowgen;
+}
+
+void
+thread_cow_get(struct thread *newtd, struct thread *td)
+{
+
+	newtd->td_ucred = crhold(td->td_ucred);
+	newtd->td_limit = lim_hold(td->td_limit);
+	newtd->td_cowgen = td->td_cowgen;
+}
+
+void
+thread_cow_free(struct thread *td)
+{
+
+	if (td->td_ucred != NULL)
+		crfree(td->td_ucred);
+	if (td->td_limit != NULL)
+		lim_free(td->td_limit);
+}
+
+void
+thread_cow_update(struct thread *td)
+{
+	struct proc *p;
+	struct ucred *oldcred;
+	struct plimit *oldlimit;
+
+	p = td->td_proc;
+	oldcred = NULL;
+	oldlimit = NULL;
+	PROC_LOCK(p);
+	if (td->td_ucred != p->p_ucred) {
+		oldcred = td->td_ucred;
+		td->td_ucred = crhold(p->p_ucred);
+	}
+	if (td->td_limit != p->p_limit) {
+		oldlimit = td->td_limit;
+		td->td_limit = lim_hold(p->p_limit);
+	}
+	td->td_cowgen = p->p_cowgen;
+	PROC_UNLOCK(p);
+	if (oldcred != NULL)
+		crfree(oldcred);
+	if (oldlimit != NULL)
+		lim_free(oldlimit);
 }
 
 /*
@@ -445,7 +506,7 @@ thread_exit(void)
 				if (p->p_numthreads == p->p_suspcount) {
 					thread_lock(p->p_singlethread);
 					wakeup_swapper = thread_unsuspend_one(
-						p->p_singlethread, p);
+						p->p_singlethread, p, false);
 					thread_unlock(p->p_singlethread);
 					if (wakeup_swapper)
 						kick_proc0();
@@ -518,7 +579,7 @@ thread_wait(struct proc *p)
 	cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
 	cpu_thread_clean(td);
-	crfree(td->td_ucred);
+	thread_cow_free(td);
 	thread_reap();	/* check for zombie threads etc. */
 }
 
@@ -544,7 +605,7 @@ thread_link(struct thread *td, struct proc *p)
 	LIST_INIT(&td->td_lprof[0]);
 	LIST_INIT(&td->td_lprof[1]);
 	sigqueue_init(&td->td_sigqueue, p);
-	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
+	callout_init(&td->td_slpcallout, 1);
 	TAILQ_INSERT_TAIL(&p->p_threads, td, td_plist);
 	p->p_numthreads++;
 }
@@ -603,19 +664,19 @@ weed_inhib(int mode, struct thread *td2, struct proc *p)
 	switch (mode) {
 	case SINGLE_EXIT:
 		if (TD_IS_SUSPENDED(td2))
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, true);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
 			wakeup_swapper |= sleepq_abort(td2, EINTR);
 		break;
 	case SINGLE_BOUNDARY:
 		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
 			wakeup_swapper |= sleepq_abort(td2, ERESTART);
 		break;
 	case SINGLE_NO_EXIT:
 		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
 			wakeup_swapper |= sleepq_abort(td2, ERESTART);
 		break;
@@ -630,7 +691,7 @@ weed_inhib(int mode, struct thread *td2, struct proc *p)
 		 */
 		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & (TDF_BOUNDARY |
 		    TDF_ALLPROCSUSP)) == 0)
-			wakeup_swapper |= thread_unsuspend_one(td2, p);
+			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0) {
 			if ((td2->td_flags & TDF_SBDRY) == 0) {
 				thread_suspend_one(td2);
@@ -759,6 +820,29 @@ stopme:
 			PROC_LOCK(p);
 			PROC_SLOCK(p);
 		}
+	} else if (mode == SINGLE_BOUNDARY) {
+		/*
+		 * Wait until all suspended threads are removed from
+		 * the processors.  The thread_suspend_check()
+		 * increments p_boundary_count while it is still
+		 * running, which makes it possible for the execve()
+		 * to destroy vmspace while our other threads are
+		 * still using the address space.
+		 *
+		 * We lock the thread, which is only allowed to
+		 * succeed after context switch code finished using
+		 * the address space.
+		 */
+		FOREACH_THREAD_IN_PROC(p, td2) {
+			if (td2 == td)
+				continue;
+			thread_lock(td2);
+			KASSERT((td2->td_flags & TDF_BOUNDARY) != 0,
+			    ("td %p not on boundary", td2));
+			KASSERT(TD_IS_SUSPENDED(td2),
+			    ("td %p is not suspended", td2));
+			thread_unlock(td2);
+		}
 	}
 	PROC_SUNLOCK(p);
 	return (0);
@@ -843,12 +927,9 @@ thread_suspend_check(int return_instead)
 			return (ERESTART);
 
 		/*
-		 * Ignore suspend requests for stop signals if they
-		 * are deferred.
+		 * Ignore suspend requests if they are deferred.
 		 */
-		if ((P_SHOULDSTOP(p) == P_STOPPED_SIG ||
-		    (p->p_flag & P_TOTAL_STOP) != 0) &&
-		    (td->td_flags & TDF_SBDRY) != 0) {
+		if ((td->td_flags & TDF_SBDRY) != 0) {
 			KASSERT(return_instead,
 			    ("TDF_SBDRY set for unsafe thread_suspend_check"));
 			return (0);
@@ -862,6 +943,14 @@ thread_suspend_check(int return_instead)
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
 			PROC_UNLOCK(p);
 			tidhash_remove(td);
+
+			/*
+			 * Allow Linux emulation layer to do some work
+			 * before thread suicide.
+			 */
+			if (__predict_false(p->p_sysent->sv_thread_detach != NULL))
+				(p->p_sysent->sv_thread_detach)(td);
+
 			PROC_LOCK(p);
 			tdsigcleanup(td);
 			umtx_thread_exit(td);
@@ -875,8 +964,8 @@ thread_suspend_check(int return_instead)
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount + 1) {
 				thread_lock(p->p_singlethread);
-				wakeup_swapper =
-				    thread_unsuspend_one(p->p_singlethread, p);
+				wakeup_swapper = thread_unsuspend_one(
+				    p->p_singlethread, p, false);
 				thread_unlock(p->p_singlethread);
 				if (wakeup_swapper)
 					kick_proc0();
@@ -895,15 +984,8 @@ thread_suspend_check(int return_instead)
 		}
 		PROC_SUNLOCK(p);
 		mi_switch(SW_INVOL | SWT_SUSPEND, NULL);
-		if (return_instead == 0)
-			td->td_flags &= ~TDF_BOUNDARY;
 		thread_unlock(td);
 		PROC_LOCK(p);
-		if (return_instead == 0) {
-			PROC_SLOCK(p);
-			p->p_boundary_count--;
-			PROC_SUNLOCK(p);
-		}
 	}
 	return (0);
 }
@@ -952,8 +1034,8 @@ thread_suspend_one(struct thread *td)
 	sched_sleep(td, 0);
 }
 
-int
-thread_unsuspend_one(struct thread *td, struct proc *p)
+static int
+thread_unsuspend_one(struct thread *td, struct proc *p, bool boundary)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -963,6 +1045,10 @@ thread_unsuspend_one(struct thread *td, struct proc *p)
 	if (td->td_proc == p) {
 		PROC_SLOCK_ASSERT(p, MA_OWNED);
 		p->p_suspcount--;
+		if (boundary && (td->td_flags & TDF_BOUNDARY) != 0) {
+			td->td_flags &= ~TDF_BOUNDARY;
+			p->p_boundary_count--;
+		}
 	}
 	return (setrunnable(td));
 }
@@ -983,12 +1069,13 @@ thread_unsuspend(struct proc *p)
                 FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
 			if (TD_IS_SUSPENDED(td)) {
-				wakeup_swapper |= thread_unsuspend_one(td, p);
+				wakeup_swapper |= thread_unsuspend_one(td, p,
+				    true);
 			}
 			thread_unlock(td);
 		}
-	} else if ((P_SHOULDSTOP(p) == P_STOPPED_SINGLE) &&
-	    (p->p_numthreads == p->p_suspcount)) {
+	} else if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE &&
+	    p->p_numthreads == p->p_suspcount) {
 		/*
 		 * Stopping everything also did the job for the single
 		 * threading request. Now we've downgraded to single-threaded,
@@ -997,7 +1084,7 @@ thread_unsuspend(struct proc *p)
 		if (p->p_singlethread->td_proc == p) {
 			thread_lock(p->p_singlethread);
 			wakeup_swapper = thread_unsuspend_one(
-			    p->p_singlethread, p);
+			    p->p_singlethread, p, false);
 			thread_unlock(p->p_singlethread);
 		}
 	}
@@ -1021,6 +1108,12 @@ thread_single_end(struct proc *p, int mode)
 	KASSERT((mode == SINGLE_ALLPROC && (p->p_flag & P_TOTAL_STOP) != 0) ||
 	    (mode != SINGLE_ALLPROC && (p->p_flag & P_TOTAL_STOP) == 0),
 	    ("mode %d does not match P_TOTAL_STOP", mode));
+	KASSERT(mode == SINGLE_ALLPROC || p->p_singlethread == curthread,
+	    ("thread_single_end from other thread %p %p",
+	    curthread, p->p_singlethread));
+	KASSERT(mode != SINGLE_BOUNDARY ||
+	    (p->p_flag & P_SINGLE_BOUNDARY) != 0,
+	    ("mis-matched SINGLE_BOUNDARY flags %x", p->p_flag));
 	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_SINGLE_BOUNDARY |
 	    P_TOTAL_STOP);
 	PROC_SLOCK(p);
@@ -1036,11 +1129,14 @@ thread_single_end(struct proc *p, int mode)
                 FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
 			if (TD_IS_SUSPENDED(td)) {
-				wakeup_swapper |= thread_unsuspend_one(td, p);
+				wakeup_swapper |= thread_unsuspend_one(td, p,
+				    mode == SINGLE_BOUNDARY);
 			}
 			thread_unlock(td);
 		}
 	}
+	KASSERT(mode != SINGLE_BOUNDARY || p->p_boundary_count == 0,
+	    ("inconsistent boundary count %d", p->p_boundary_count));
 	PROC_SUNLOCK(p);
 	if (wakeup_swapper)
 		kick_proc0();

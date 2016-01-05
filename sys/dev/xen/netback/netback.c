@@ -87,8 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
 
-#include <machine/xen/xenvar.h>
-
 /*--------------------------- Compile-time Tunables --------------------------*/
 
 /*---------------------------------- Macros ----------------------------------*/
@@ -132,7 +130,7 @@ static MALLOC_DEFINE(M_XENNETBACK, "xnb", "Xen Net Back Driver Data");
 	req < rsp ? req : rsp;                                          \
 })
 
-#define	virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
+#define	virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 #define	virt_to_offset(x) ((x) & (PAGE_SIZE - 1))
 
 /**
@@ -473,7 +471,6 @@ struct xnb_softc {
 	 */
 	gnttab_copy_table	tx_gnttab;
 
-#ifdef XENHVM
 	/**
 	 * Resource representing allocated physical address space
 	 * associated with our per-instance kva region.
@@ -482,7 +479,6 @@ struct xnb_softc {
 
 	/** Resource id for allocated physical address space. */
 	int			pseudo_phys_res_id;
-#endif
 
 	/** Ring mapping and interrupt configuration data. */
 	struct xnb_ring_config	ring_configs[XNB_NUM_RING_TYPES];
@@ -626,16 +622,11 @@ static void
 xnb_free_communication_mem(struct xnb_softc *xnb)
 {
 	if (xnb->kva != 0) {
-#ifndef XENHVM
-		kva_free(xnb->kva, xnb->kva_size);
-#else
 		if (xnb->pseudo_phys_res != NULL) {
-			bus_release_resource(xnb->dev, SYS_RES_MEMORY,
-			    xnb->pseudo_phys_res_id,
+			xenmem_free(xnb->dev, xnb->pseudo_phys_res_id,
 			    xnb->pseudo_phys_res);
 			xnb->pseudo_phys_res = NULL;
 		}
-#endif /* XENHVM */
 	}
 	xnb->kva = 0;
 	xnb->gnt_base_addr = 0;
@@ -816,12 +807,7 @@ xnb_alloc_communication_mem(struct xnb_softc *xnb)
 	for (i=0; i < XNB_NUM_RING_TYPES; i++) {
 		xnb->kva_size += xnb->ring_configs[i].ring_pages * PAGE_SIZE;
 	}
-#ifndef XENHVM
-	xnb->kva = kva_alloc(xnb->kva_size);
-	if (xnb->kva == 0)
-		return (ENOMEM);
-	xnb->gnt_base_addr = xnb->kva;
-#else /* defined XENHVM */
+
 	/*
 	 * Reserve a range of pseudo physical memory that we can map
 	 * into kva.  These pages will only be backed by machine
@@ -830,17 +816,14 @@ xnb_alloc_communication_mem(struct xnb_softc *xnb)
 	 * into this space.
 	 */
 	xnb->pseudo_phys_res_id = 0;
-	xnb->pseudo_phys_res = bus_alloc_resource(xnb->dev, SYS_RES_MEMORY,
-						  &xnb->pseudo_phys_res_id,
-						  0, ~0, xnb->kva_size,
-						  RF_ACTIVE);
+	xnb->pseudo_phys_res = xenmem_alloc(xnb->dev, &xnb->pseudo_phys_res_id,
+	    xnb->kva_size);
 	if (xnb->pseudo_phys_res == NULL) {
 		xnb->kva = 0;
 		return (ENOMEM);
 	}
 	xnb->kva = (vm_offset_t)rman_get_virtual(xnb->pseudo_phys_res);
 	xnb->gnt_base_addr = rman_get_start(xnb->pseudo_phys_res);
-#endif /* !defined XENHVM */
 	return (0);
 }
 

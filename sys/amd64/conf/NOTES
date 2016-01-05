@@ -17,6 +17,22 @@ profile         2
 #
 options 	KDTRACE_HOOKS
 
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall
+
 
 #####################################################################
 # SMP OPTIONS:
@@ -469,6 +485,10 @@ device         nvme    # base NVMe driver
 device         nvd     # expose NVMe namespaces as disks, depends on nvme
 
 #
+# PMC-Sierra SAS/SATA controller
+device		pmspcv
+
+#
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
 # it's tested on a big-endian machine
 #
@@ -494,6 +514,8 @@ device		virtio_balloon	# VirtIO Memory Balloon device
 device		virtio_random	# VirtIO Entropy device
 device		virtio_console	# VirtIO Console device
 
+# Microsoft Hyper-V enchancement support
+options 	HYPERV		# Hyper-V kernel infrastructure
 device 		hyperv		# HyperV drivers
 
 # Xen HVM Guest Optimizations
@@ -531,6 +553,7 @@ device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG
 device		aesni		# AES-NI OpenCrypto module
+device		ioat		# Intel I/OAT DMA engine
 
 #
 # Laptop/Notebook options:
@@ -597,6 +620,9 @@ options 	COMPAT_FREEBSD32
 
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
+
+# Enable 64-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI64
 
 # Enable Linux ABI emulation
 #XXX#options 	COMPAT_LINUX

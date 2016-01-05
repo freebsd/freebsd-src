@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2007-2009 Roy Marples
+# Copyright (c) 2007-2012 Roy Marples
 # All rights reserved
 
 # named subscriber for resolvconf
@@ -29,7 +29,7 @@
 [ -f "@SYSCONFDIR@"/resolvconf.conf ] || exit 0
 . "@SYSCONFDIR@/resolvconf.conf" || exit 1
 [ -z "$named_zones" -a -z "$named_options" ] && exit 0
-[ -z "$RESOLVCONF" ] && eval "$(@PREFIX@/sbin/resolvconf -v)"
+[ -z "$RESOLVCONF" ] && eval "$(@SBINDIR@/resolvconf -v)"
 NL="
 "
 
@@ -40,6 +40,9 @@ then
 	if [ -x "@RCDIR@"/bind9 ]; then
 		# Debian and derivatives
 		named_service=bind9
+	elif [ -x "@RCDIR@"/rc.bind ]; then
+		# Slackware
+		named_service=rc.bind
 	fi
 fi
 : ${named_service:=named}
@@ -70,6 +73,13 @@ for d in $DOMAINS; do
 	done
 	newzones="$newzones	};$NL};$NL"
 done
+
+# Try to ensure that config dirs exist
+if type config_mkdirs >/dev/null 2>&1; then
+	config_mkdirs "$named_options" "$named_zones"
+else
+	@SBINDIR@/resolvconf -D "$named_options" "$named_zones"
+fi
 
 # No point in changing files or reloading bind if the end result has not
 # changed

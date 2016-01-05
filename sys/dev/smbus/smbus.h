@@ -29,9 +29,13 @@
 #ifndef __SMBUS_H
 #define __SMBUS_H
 
+#define SMBUS_ADDR_MIN	0x10
+#define SMBUS_ADDR_MAX	0x70
+
 struct smbus_softc {
 	device_t owner;		/* smbus owner device structure */
 	struct mtx lock;
+	unsigned char addrs[SMBUS_ADDR_MAX];
 };
 
 void smbus_generic_intr(device_t dev, u_char devaddr, char low, char high, int err);

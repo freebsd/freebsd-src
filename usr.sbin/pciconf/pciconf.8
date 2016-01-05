@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2014
+.Dd September 06, 2015
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -281,7 +281,9 @@ indicates a halfword (two-byte) operation.
 The default is to read or
 write a longword (four bytes).
 .Sh ENVIRONMENT
-The PCI vendor/device information database is normally read from
+PCI vendor and device information is read from
+.Pa /usr/local/share/pciids/pci.ids .
+If that file is not present, it is read from
 .Pa /usr/share/misc/pci_vendors .
 This path can be overridden by setting the environment variable
 .Ev PCICONF_VENDOR_DATABASE .

@@ -39,7 +39,6 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 #include <libutil.h>
-#include <openssl/md5.h>
 
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
@@ -117,6 +116,7 @@ struct portal_group {
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
+	int				pg_foreign;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
@@ -146,6 +146,7 @@ struct port {
 	struct portal_group		*p_portal_group;
 	struct pport			*p_pport;
 	struct target			*p_target;
+	int				p_foreign;
 
 	uint32_t			p_ctl_port;
 };
@@ -263,11 +264,12 @@ struct keys {
 };
 
 #define	CHAP_CHALLENGE_LEN	1024
+#define	CHAP_DIGEST_LEN		16 /* Equal to MD5 digest size. */
 
 struct chap {
 	unsigned char	chap_id;
 	char		chap_challenge[CHAP_CHALLENGE_LEN];
-	char		chap_response[MD5_DIGEST_LENGTH];
+	char		chap_response[CHAP_DIGEST_LEN];
 };
 
 struct rchap {
@@ -391,7 +393,7 @@ void			lun_option_set(struct lun_option *clo,
 
 void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
-int			kernel_lun_resize(struct lun *lun);
+int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
 void			kernel_limits(const char *offload,

@@ -528,7 +528,7 @@ AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
 int
 AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
 	const unsigned char *addt, const unsigned char *ivec,
-	unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
+	const unsigned char *tag, uint32_t nbytes, uint32_t abytes, int ibytes,
 	const unsigned char *key, int nr)
 {
 	int i, j ,k;
@@ -677,7 +677,7 @@ AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
 	X = _mm_shuffle_epi8(X, BSWAP_MASK);
 	T = _mm_xor_si128(X, T);
 
-	if (!m128icmp(T, _mm_loadu_si128((__m128i*)tag)))
+	if (!m128icmp(T, _mm_loadu_si128((const __m128i*)tag)))
 		return 0; //in case the authentication failed
 
 	ctr1 = _mm_shuffle_epi8(Y, BSWAP_EPI64);

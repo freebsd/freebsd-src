@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: mach,v 1.19 2014/04/30 21:41:02 christos Exp $
+# $File: mach,v 1.20 2015/05/21 18:28:41 christos Exp $
 # Mach has two magic numbers, 0xcafebabe and 0xfeedface.
 # Unfortunately the first, cafebabe, is shared with
 # Java ByteCode, so they are both handled in the file "cafebabe".
@@ -207,8 +207,10 @@
 #
 0	lelong&0xfffffffe	0xfeedface	Mach-O
 !:strength +1
+!:mime application/x-mach-binary
 >0	use	\^mach-o-be
 
 0	belong&0xfffffffe	0xfeedface	Mach-O
 !:strength +1
+!:mime application/x-mach-binary
 >0	use	mach-o-be

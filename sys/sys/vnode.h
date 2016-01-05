@@ -77,6 +77,7 @@ struct vpollinfo {
  *	c - namecache mutex
  *	f - freelist mutex
  *	i - interlock
+ *	I - updated with atomics, 0->1 and 1->0 transitions with interlock held
  *	m - mount point interlock
  *	p - pollinfo lock
  *	u - Only a reference to the vnode is needed to read.
@@ -162,8 +163,8 @@ struct vnode {
 	daddr_t	v_lastw;			/* v last write  */
 	int	v_clen;				/* v length of cur. cluster */
 
-	int	v_holdcnt;			/* i prevents recycling. */
-	int	v_usecount;			/* i ref count of users */
+	u_int	v_holdcnt;			/* I prevents recycling. */
+	u_int	v_usecount;			/* I ref count of users */
 	u_int	v_iflag;			/* i vnode flags (see below) */
 	u_int	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
@@ -397,6 +398,7 @@ extern int		vttoif_tab[];
 #define	V_WAIT		0x0001	/* vn_start_write: sleep for suspend */
 #define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
 #define	V_XSLEEP	0x0004	/* vn_start_write: just return after sleep */
+#define	V_MNTREF	0x0010	/* vn_start_write: mp is already ref-ed */
 
 #define	VR_START_WRITE	0x0001	/* vfs_write_resume: start write atomically */
 #define	VR_NO_SUSPCLR	0x0002	/* vfs_write_resume: do not clear suspension */
@@ -418,6 +420,7 @@ extern int		vttoif_tab[];
  * Global vnode data.
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
+extern	struct mount *rootdevmp;	/* "/dev" mount */
 extern	int async_io_version;		/* 0 or POSIX version of AIO i'face */
 extern	int desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
@@ -604,6 +607,7 @@ struct vnode;
 typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
 
 /* cache_* may belong in namei.h. */
+void	cache_changesize(int newhashsize);
 #define	cache_enter(dvp, vp, cnp)					\
 	cache_enter_time(dvp, vp, cnp, NULL, NULL)
 void	cache_enter_time(struct vnode *dvp, struct vnode *vp,
@@ -615,7 +619,6 @@ void	cache_purge(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
 void	cache_purgevfs(struct mount *mp);
 int	change_dir(struct vnode *vp, struct thread *td);
-int	change_root(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
 int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
@@ -651,13 +654,15 @@ int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    struct ucred *cred, int *privused);
 void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
-void	vdrop(struct vnode *);
-void	vdropl(struct vnode *);
+#define	vdrop(vp)	_vdrop((vp), 0)
+#define	vdropl(vp)	_vdrop((vp), 1)
+void	_vdrop(struct vnode *, bool);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
-void	vhold(struct vnode *);
-void	vholdl(struct vnode *);
+#define	vhold(vp)	_vhold((vp), 0)
+#define	vholdl(vp)	_vhold((vp), 1)
+void	_vhold(struct vnode *, bool);
 void	vinactive(struct vnode *, struct thread *);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
@@ -691,7 +696,7 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    struct ucred *active_cred, struct ucred *file_cred, size_t *aresid,
 	    struct thread *td);
 int	vn_rlimit_fsize(const struct vnode *vn, const struct uio *uio,
-	    const struct thread *td);
+	    struct thread *td);
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	    struct ucred *file_cred, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
@@ -824,7 +829,6 @@ void vnode_destroy_vobject(struct vnode *vp);
 extern struct vop_vector fifo_specops;
 extern struct vop_vector dead_vnodeops;
 extern struct vop_vector default_vnodeops;
-extern struct vop_vector devfs_specops;
 
 #define VOP_PANIC	((void*)(uintptr_t)vop_panic)
 #define VOP_NULL	((void*)(uintptr_t)vop_null)
@@ -840,6 +844,7 @@ int	fifo_printinfo(struct vnode *);
 /* vfs_hash.c */
 typedef int vfs_hash_cmp_t(struct vnode *vp, void *arg);
 
+void vfs_hash_changesize(int newhashsize);
 int vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg);
 u_int vfs_hash_index(struct vnode *vp);
 int vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg);

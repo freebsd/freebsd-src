@@ -79,6 +79,8 @@ struct in_addr_4in6 {
 /*
  * NOTE: ipv6 addrs should be 64-bit aligned, per RFC 2553.  in_conninfo has
  * some extra padding to accomplish this.
+ * NOTE 2: tcp_syncache.c uses first 5 32-bit words, which identify fport,
+ * lport, faddr to generate hash, so these fields shouldn't be moved.
  */
 struct in_endpoints {
 	u_int16_t	ie_fport;		/* foreign port */
@@ -130,23 +132,35 @@ struct in_conninfo {
 struct	icmp6_filter;
 
 /*-
- * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4
- * and IPv6 sockets.  In the case of TCP, further per-connection state is
+ * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4 and
+ * IPv6 sockets.  In the case of TCP and UDP, further per-connection state is
  * hung off of inp_ppcb most of the time.  Almost all fields of struct inpcb
  * are static after creation or protected by a per-inpcb rwlock, inp_lock.  A
- * few fields also require the global pcbinfo lock for the inpcb to be held,
- * when modified, such as the global connection lists and hashes, as well as
- * binding information (which affects which hash a connection is on).  This
- * model means that connections can be looked up without holding the
- * per-connection lock, which is important for performance when attempting to
- * find the connection for a packet given its IP and port tuple.  Writing to
- * these fields that write locks be held on both the inpcb and global locks.
+ * few fields are protected by multiple locks as indicated in the locking notes
+ * below.  For these fields, all of the listed locks must be write-locked for
+ * any modifications.  However, these fields can be safely read while any one of
+ * the listed locks are read-locked.  This model can permit greater concurrency
+ * for read operations.  For example, connections can be looked up while only
+ * holding a read lock on the global pcblist lock.  This is important for
+ * performance when attempting to find the connection for a packet given its IP
+ * and port tuple.
+ *
+ * One noteworthy exception is that the global pcbinfo lock follows a different
+ * set of rules in relation to the inp_list field.  Rather than being
+ * write-locked for modifications and read-locked for list iterations, it must
+ * be read-locked during modifications and write-locked during list iterations.
+ * This ensures that the relatively rare global list iterations safely walk a
+ * stable snapshot of connections while allowing more common list modifications
+ * to safely grab the pcblist lock just while adding or removing a connection
+ * from the global list.
  *
  * Key:
  * (c) - Constant after initialization
  * (g) - Protected by the pcbgroup lock
  * (i) - Protected by the inpcb lock
  * (p) - Protected by the pcbinfo lock for the inpcb
+ * (l) - Protected by the pcblist lock for the inpcb
+ * (h) - Protected by the pcbhash lock for the inpcb
  * (s) - Protected by another subsystem's locks
  * (x) - Undefined locking
  *
@@ -161,15 +175,21 @@ struct	icmp6_filter;
  * socket has been freed), or there may be close(2)-related races.
  *
  * The inp_vflag field is overloaded, and would otherwise ideally be (c).
+ *
+ * TODO:  Currently only the TCP stack is leveraging the global pcbinfo lock
+ * read-lock usage during modification, this model can be applied to other
+ * protocols (especially SCTP).
  */
 struct inpcb {
-	LIST_ENTRY(inpcb) inp_hash;	/* (i/p) hash list */
+	LIST_ENTRY(inpcb) inp_hash;	/* (h/i) hash list */
 	LIST_ENTRY(inpcb) inp_pcbgrouphash;	/* (g/i) hash list */
-	LIST_ENTRY(inpcb) inp_list;	/* (i/p) list for all PCBs for proto */
+	LIST_ENTRY(inpcb) inp_list;	/* (p/l) list for all PCBs for proto */
+	                                /* (p[w]) for list iteration */
+	                                /* (p[r]/l) for addition/removal */
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	inpcbgroup *inp_pcbgroup; /* (g/i) PCB group list */
-	LIST_ENTRY(inpcb) inp_pcbgroup_wild; /* (g/i/p) group wildcard entry */
+	LIST_ENTRY(inpcb) inp_pcbgroup_wild; /* (g/i/h) group wildcard entry */
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */
@@ -188,7 +208,7 @@ struct inpcb {
 					 *     general use */
 
 	/* Local and foreign ports, local and foreign addr. */
-	struct	in_conninfo inp_inc;	/* (i/p) list for PCB's local port */
+	struct	in_conninfo inp_inc;	/* (i) list for PCB's local port */
 
 	/* MAC and IPSEC policy information. */
 	struct	label *inp_label;	/* (i) MAC label */
@@ -213,8 +233,8 @@ struct inpcb {
 		int	inp6_cksum;
 		short	inp6_hops;
 	} inp_depend6;
-	LIST_ENTRY(inpcb) inp_portlist;	/* (i/p) */
-	struct	inpcbport *inp_phd;	/* (i/p) head of this list */
+	LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
+	struct	inpcbport *inp_phd;	/* (i/h) head of this list */
 #define inp_zero_size offsetof(struct inpcb, inp_gencnt)
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
 	struct llentry	*inp_lle;	/* cached L2 information */
@@ -279,37 +299,46 @@ struct inpcbport {
  * Global data structure for each high-level protocol (UDP, TCP, ...) in both
  * IPv4 and IPv6.  Holds inpcb lists and information for managing them.
  *
- * Each pcbinfo is protected by two locks: ipi_lock and ipi_hash_lock,
- * the former covering mutable global fields (such as the global pcb list),
- * and the latter covering the hashed lookup tables.  The lock order is:
+ * Each pcbinfo is protected by three locks: ipi_lock, ipi_hash_lock and
+ * ipi_list_lock:
+ *  - ipi_lock covering the global pcb list stability during loop iteration,
+ *  - ipi_hash_lock covering the hashed lookup tables,
+ *  - ipi_list_lock covering mutable global fields (such as the global
+ *    pcb list)
  *
- *    ipi_lock (before) inpcb locks (before) {ipi_hash_lock, pcbgroup locks}
+ * The lock order is:
+ *
+ *    ipi_lock (before)
+ *        inpcb locks (before)
+ *            ipi_list locks (before)
+ *                {ipi_hash_lock, pcbgroup locks}
  *
  * Locking key:
  *
  * (c) Constant or nearly constant after initialisation
  * (g) Locked by ipi_lock
+ * (l) Locked by ipi_list_lock
  * (h) Read using either ipi_hash_lock or inpcb lock; write requires both
  * (p) Protected by one or more pcbgroup locks
  * (x) Synchronisation properties poorly defined
  */
 struct inpcbinfo {
 	/*
-	 * Global lock protecting global inpcb list, inpcb count, etc.
+	 * Global lock protecting full inpcb list traversal
 	 */
 	struct rwlock		 ipi_lock;
 
 	/*
 	 * Global list of inpcbs on the protocol.
 	 */
-	struct inpcbhead	*ipi_listhead;		/* (g) */
-	u_int			 ipi_count;		/* (g) */
+	struct inpcbhead	*ipi_listhead;		/* (g/l) */
+	u_int			 ipi_count;		/* (l) */
 
 	/*
 	 * Generation count -- incremented each time a connection is allocated
 	 * or freed.
 	 */
-	u_quad_t		 ipi_gencnt;		/* (g) */
+	u_quad_t		 ipi_gencnt;		/* (l) */
 
 	/*
 	 * Fields associated with port lookup and allocation.
@@ -367,6 +396,11 @@ struct inpcbinfo {
 	 * general use 2
 	 */
 	void 			*ipi_pspare[2];
+
+	/*
+	 * Global lock protecting global inpcb list, inpcb count, etc.
+	 */
+	struct rwlock		 ipi_list_lock;
 };
 
 #ifdef _KERNEL
@@ -459,12 +493,32 @@ short	inp_so_options(const struct inpcb *inp);
 #define INP_INFO_TRY_RLOCK(ipi)	rw_try_rlock(&(ipi)->ipi_lock)
 #define INP_INFO_TRY_WLOCK(ipi)	rw_try_wlock(&(ipi)->ipi_lock)
 #define INP_INFO_TRY_UPGRADE(ipi)	rw_try_upgrade(&(ipi)->ipi_lock)
+#define INP_INFO_WLOCKED(ipi)	rw_wowned(&(ipi)->ipi_lock)
 #define INP_INFO_RUNLOCK(ipi)	rw_runlock(&(ipi)->ipi_lock)
 #define INP_INFO_WUNLOCK(ipi)	rw_wunlock(&(ipi)->ipi_lock)
 #define	INP_INFO_LOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_LOCKED)
 #define INP_INFO_RLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_RLOCKED)
 #define INP_INFO_WLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_WLOCKED)
 #define INP_INFO_UNLOCK_ASSERT(ipi)	rw_assert(&(ipi)->ipi_lock, RA_UNLOCKED)
+
+#define INP_LIST_LOCK_INIT(ipi, d) \
+        rw_init_flags(&(ipi)->ipi_list_lock, (d), 0)
+#define INP_LIST_LOCK_DESTROY(ipi)  rw_destroy(&(ipi)->ipi_list_lock)
+#define INP_LIST_RLOCK(ipi)     rw_rlock(&(ipi)->ipi_list_lock)
+#define INP_LIST_WLOCK(ipi)     rw_wlock(&(ipi)->ipi_list_lock)
+#define INP_LIST_TRY_RLOCK(ipi) rw_try_rlock(&(ipi)->ipi_list_lock)
+#define INP_LIST_TRY_WLOCK(ipi) rw_try_wlock(&(ipi)->ipi_list_lock)
+#define INP_LIST_TRY_UPGRADE(ipi)       rw_try_upgrade(&(ipi)->ipi_list_lock)
+#define INP_LIST_RUNLOCK(ipi)   rw_runlock(&(ipi)->ipi_list_lock)
+#define INP_LIST_WUNLOCK(ipi)   rw_wunlock(&(ipi)->ipi_list_lock)
+#define INP_LIST_LOCK_ASSERT(ipi) \
+	rw_assert(&(ipi)->ipi_list_lock, RA_LOCKED)
+#define INP_LIST_RLOCK_ASSERT(ipi) \
+	rw_assert(&(ipi)->ipi_list_lock, RA_RLOCKED)
+#define INP_LIST_WLOCK_ASSERT(ipi) \
+	rw_assert(&(ipi)->ipi_list_lock, RA_WLOCKED)
+#define INP_LIST_UNLOCK_ASSERT(ipi) \
+	rw_assert(&(ipi)->ipi_list_lock, RA_UNLOCKED)
 
 #define	INP_HASH_LOCK_INIT(ipi, d) \
 	rw_init_flags(&(ipi)->ipi_hash_lock, (d), 0)

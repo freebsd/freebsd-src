@@ -950,7 +950,7 @@ struct nfsreq {
 };
 
 #ifndef NFS_MAXBSIZE
-#define	NFS_MAXBSIZE	MAXBSIZE
+#define	NFS_MAXBSIZE	MAXBCACHEBUF
 #endif
 
 /*

@@ -3,7 +3,7 @@
 
 Summary: Apache Portable Runtime library
 Name: apr
-Version: 1.5.1
+Version: 1.5.2
 Release: 1
 License: Apache Software License
 Group: System Environment/Libraries
@@ -76,7 +76,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc docs/APRDesign.html docs/canonical_filenames.html
 %doc docs/incomplete_types docs/non_apr_programs
-%doc --parents html
+%doc html
 %{_bindir}/apr*config
 %{_libdir}/libapr-%{aprver}.*a
 %{_libdir}/libapr-%{aprver}.so

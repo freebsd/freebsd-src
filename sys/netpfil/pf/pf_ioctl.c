@@ -1665,13 +1665,13 @@ relock_DIOCKILLSTATES:
 				if (s->direction == PF_OUT) {
 					srcaddr = &sk->addr[1];
 					dstaddr = &sk->addr[0];
-					srcport = sk->port[0];
+					srcport = sk->port[1];
 					dstport = sk->port[0];
 				} else {
 					srcaddr = &sk->addr[0];
 					dstaddr = &sk->addr[1];
 					srcport = sk->port[0];
-					dstport = sk->port[0];
+					dstport = sk->port[1];
 				}
 
 				if ((!psk->psk_af || sk->af == psk->psk_af)
@@ -2724,8 +2724,7 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
-		totlen = (io->pfrio_size + io->pfrio_size2) *
-		    sizeof(struct pfr_addr);
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = malloc(totlen, M_TEMP, M_WAITOK);
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
@@ -3756,6 +3755,7 @@ pf_unload(void)
 		wakeup_one(pf_purge_thread);
 		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
 	}
+	PF_RULES_WUNLOCK();
 	pf_normalize_cleanup();
 	pfi_cleanup();
 	pfr_cleanup();
@@ -3763,7 +3763,6 @@ pf_unload(void)
 	pf_cleanup();
 	if (IS_DEFAULT_VNET(curvnet))
 		pf_mtag_cleanup();
-	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);

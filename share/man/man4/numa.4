@@ -1,0 +1,172 @@
+.\" Copyright (c) 2015 Adrian Chadd <adrian@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2015
+.Dt NUMA 4
+.Os
+.Sh NAME
+.Nm NUMA
+.Nd Non-Uniform Memory Access
+.Sh SYNOPSIS
+.Cd options SMP
+.Cd options MAXMEMDOM=16
+.Pp
+.In sys/numa.h
+.In sys/cpuset.h
+.In sys/bus.h
+.Sh DESCRIPTION
+Non-Uniform Memory Access is a computer architecture design which
+involves unequal costs between processors, memory and IO devices
+in a given system.
+.Pp
+In a
+.Nm
+architecture, the latency to access specific memory or IO devices
+depends upon which processor the memory or device is attached to.
+Accessing memory local to a processor is faster than accessing memory
+that is connected to one of the other processors.
+.Pp
+.Nm
+is enabled when the
+.Cd MAXMEMDOM
+option is used in a kernel configuration
+file and is set to a value greater than 1.
+.Pp
+Thread and process
+.Nm
+policies are controlled with the
+.Xr numa_setaffinity 2
+and
+.Xr numa_getaffinity 2
+syscalls.
+.Pp
+The
+.Xr numactl 1
+tool is available for starting processes with a non-default
+policy, or to change the policy of an existing thread or process.
+.Pp
+Systems with non-uniform access to I/O devices may mark those devices
+with the local VM domain identifier.
+Drivers can find out their local domain information by calling
+.Xr bus_get_domain 9 .
+.Ss MIB Variables
+The operation of
+.Nm
+is controlled and exposes information with these
+.Xr sysctl 8
+MIB variables:
+.Pp
+.Bl -tag -width indent -compact
+.It Va vm.ndomains
+The number of VM domains which have been detected.
+.Pp
+.It Va vm.default_policy
+The default VM domain allocation policy.
+Defaults to "first-touch-rr".
+The valid values are "first-touch", "first-touch-rr",
+"rr", where "rr" is a short-hand for "round-robin."
+See
+.Xr numa_setaffinity 2
+for more information about the available policies.
+.Pp
+.It Va vm.phys_locality
+A table indicating the relative cost of each VM domain to each other.
+A value of 10 indicates equal cost.
+A value of -1 means the locality map is not available or no
+locality information is available.
+.Pp
+.It Va vm.phys_segs
+The map of physical memory, grouped by VM domain.
+.El
+.Sh IMPLEMENTATION NOTES
+The current
+.Nm
+implementation is VM-focused.
+The hardware
+.Nm
+domains are mapped into a contiguous, non-sparse
+VM domain space, starting from 0.
+Thus, VM domain information (for example, the domain identifier) is not
+necessarily the same as is found in the hardware specific information.
+.Pp
+The
+.Nm
+allocation policies are implemented as a policy and iterator in
+.Pa sys/vm/vm_domain.c
+and
+.Pa sys/vm/vm_domain.h .
+Policy information is available in both struct thread and struct proc.
+Processes inherit
+.Nm
+policy from parent processes and threads inherit
+.Nm
+policy from parent threads.
+Note that threads do not explicitly inherit their
+.Nm
+policy from processes.
+Instead, if no thread policy is set, the system
+will fall back to the process policy.
+.Pp
+For now,
+.Nm
+domain policies only influence physical page allocation in
+.Pa sys/vm/vm_phys.c .
+This is useful for userland memory allocation, but not for kernel
+and driver memory allocation.
+These features will be implemented in future work.
+.Sh SEE ALSO
+.Xr numactl 1 ,
+.Xr numa_getaffinity 2 ,
+.Xr numa_setaffinity 2 ,
+.Xr bus_get_domain 9
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 9.0
+as a first-touch allocation policy with a fail-over to round-robin allocation
+and was not configurable.
+It was then modified in
+.Fx 10.0
+to implement a round-robin allocation policy and was also not configurable.
+.Pp
+The
+.Xr numa_getaffinity 2
+and
+.Xr numa_setaffinity 2
+syscalls first appeared in
+.Fx 11.0 .
+.Pp
+The
+.Xr numactl 1
+tool first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+This manual page written by
+.An Adrian Chadd Aq Mt adrian@FreeBSD.org .
+.Sh NOTES
+No statistics are kept to indicate how often
+.Nm
+allocation policies succeed or fail.

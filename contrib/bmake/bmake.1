@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.247 2015/04/10 08:43:32 wiz Exp $
+.\"	$NetBSD: make.1,v 1.249 2015/06/05 07:33:40 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd April 9, 2015
+.Dd June 4, 2015
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -993,14 +993,15 @@ This is especially useful with
 .Ql Ev MAKEOBJDIR .
 .Pp
 .Ql Va .OBJDIR
-may be modified in the makefile as a global variable.
+may be modified in the makefile via the special target
+.Ql Ic .OBJDIR .
 In all cases,
 .Nm
 will
 .Xr chdir 2
-to
+to the specified directory if it exists, and set
 .Ql Va .OBJDIR
-and set
+and
 .Ql Ev PWD
 to that directory before executing any targets.
 .
@@ -2001,6 +2002,15 @@ Disable parallel mode.
 Synonym for
 .Ic .NOTPARALLEL ,
 for compatibility with other pmake variants.
+.It Ic .OBJDIR
+The source is a new value for
+.Ql Va .OBJDIR .
+If it exists,
+.Nm
+will
+.Xr chdir 2
+to it and update the value of
+.Ql Va .OBJDIR .
 .It Ic .ORDER
 The named targets are made in sequence.
 This ordering does not add targets to the list of targets to be made.

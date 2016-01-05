@@ -637,8 +637,8 @@ ar71xx_pci_intr(void *arg)
 				continue;
 			}
 
-			/* Flush DDR FIFO for IP2 */
-			ar71xx_device_ddr_flush_ip2();
+			/* Flush DDR FIFO for PCI/PCIe */
+			ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_PCIE);
 
 			/* TODO: frame instead of NULL? */
 			intr_event_handle(event, NULL);

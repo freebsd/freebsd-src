@@ -42,7 +42,7 @@
 /* Whether the C compiler accepts the "unused" attribute */
 #undef HAVE_ATTR_UNUSED
 
-/* Define to 1 if your system has a working `chown' function. */
+/* Define to 1 if you have the `chown' function. */
 #undef HAVE_CHOWN
 
 /* Define to 1 if you have the `chroot' function. */
@@ -145,6 +145,9 @@
 
 /* Whether getaddrinfo is available */
 #undef HAVE_GETADDRINFO
+
+/* Define to 1 if you have the `getauxval' function. */
+#undef HAVE_GETAUXVAL
 
 /* Define to 1 if you have the `getentropy' function. */
 #undef HAVE_GETENTROPY
@@ -797,6 +800,10 @@
 #define ARG_LL "%ll"
 #else
 #define ARG_LL "%I64"
+#endif
+
+#ifndef AF_LOCAL
+#define AF_LOCAL AF_UNIX
 #endif
 
 

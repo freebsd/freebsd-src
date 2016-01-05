@@ -45,7 +45,8 @@ struct flash_slice {
 };
 
 #ifdef _KERNEL
-int flash_fill_slices(device_t, struct flash_slice *, int *);
+int fdt_flash_fill_slices(device_t, struct flash_slice *, int *) __weak_symbol;
+void flash_register_slicer(int (*)(device_t, struct flash_slice *, int *));
 #endif /* _KERNEL */
 
 #endif /* _FLASH_SLICER_H_ */

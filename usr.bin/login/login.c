@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
-#include <libutil.h>
 #include <login_cap.h>
 #include <pwd.h>
 #include <setjmp.h>

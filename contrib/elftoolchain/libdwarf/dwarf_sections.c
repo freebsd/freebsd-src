@@ -104,8 +104,8 @@ dwarf_get_section_max_offsets(Dwarf_Debug dbg, Dwarf_Unsigned *debug_info,
     Dwarf_Unsigned *debug_ranges, Dwarf_Unsigned *debug_pubtypes)
 {
 
-	return (dwarf_get_section_max_offsets(dbg, debug_info, debug_abbrev,
+	return (dwarf_get_section_max_offsets_b(dbg, debug_info, debug_abbrev,
 	    debug_line, debug_loc, debug_aranges, debug_macinfo,
 	    debug_pubnames, debug_str, debug_frame, debug_ranges,
-	    debug_pubtypes));
+	    debug_pubtypes, NULL));
 }

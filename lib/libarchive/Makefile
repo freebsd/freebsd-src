@@ -37,12 +37,6 @@ CFLAGS+=	-DPPMD_32BIT
 .endif
 NO_WCAST_ALIGN.clang=
 
-.ifndef COMPAT_32BIT
-beforeinstall:
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-		${.CURDIR}/libarchive.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
-.endif
-
 .PATH: ${LIBARCHIVEDIR}/libarchive
 
 # Headers to be installed in /usr/include

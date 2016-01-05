@@ -624,11 +624,11 @@ static void check_avoid_default_addr_size(struct check *c, struct node *dt,
 	if (!reg && !ranges)
 		return;
 
-	if ((node->parent->addr_cells == -1))
+	if (node->parent->addr_cells == -1)
 		FAIL(c, "Relying on default #address-cells value for %s",
 		     node->fullpath);
 
-	if ((node->parent->size_cells == -1))
+	if (node->parent->size_cells == -1)
 		FAIL(c, "Relying on default #size-cells value for %s",
 		     node->fullpath);
 }

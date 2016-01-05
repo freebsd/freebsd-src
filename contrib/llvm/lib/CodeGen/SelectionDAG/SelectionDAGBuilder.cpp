@@ -3399,30 +3399,21 @@ void SelectionDAGBuilder::visitGetElementPtr(const User &I) {
       Ty = StTy->getElementType(Field);
     } else {
       Ty = cast<SequentialType>(Ty)->getElementType();
+      MVT PtrTy = DAG.getTargetLoweringInfo().getPointerTy(AS);
+      unsigned PtrSize = PtrTy.getSizeInBits();
+      APInt ElementSize(PtrSize, DL->getTypeAllocSize(Ty));
 
       // If this is a constant subscript, handle it quickly.
-      const TargetLowering &TLI = DAG.getTargetLoweringInfo();
-      if (const ConstantInt *CI = dyn_cast<ConstantInt>(Idx)) {
-        if (CI->isZero()) continue;
-        uint64_t Offs =
-            DL->getTypeAllocSize(Ty)*cast<ConstantInt>(CI)->getSExtValue();
-        SDValue OffsVal;
-        EVT PTy = TLI.getPointerTy(AS);
-        unsigned PtrBits = PTy.getSizeInBits();
-        if (PtrBits < 64)
-          OffsVal = DAG.getNode(ISD::TRUNCATE, getCurSDLoc(), PTy,
-                                DAG.getConstant(Offs, MVT::i64));
-        else
-          OffsVal = DAG.getConstant(Offs, PTy);
-
-        N = DAG.getNode(ISD::ADD, getCurSDLoc(), N.getValueType(), N,
-                        OffsVal);
+      if (const auto *CI = dyn_cast<ConstantInt>(Idx)) {
+        if (CI->isZero())
+          continue;
+        APInt Offs = ElementSize * CI->getValue().sextOrTrunc(PtrSize);
+        SDValue OffsVal = DAG.getConstant(Offs, PtrTy);
+        N = DAG.getNode(ISD::ADD, getCurSDLoc(), N.getValueType(), N, OffsVal);
         continue;
       }
 
       // N = N + Idx * ElementSize;
-      APInt ElementSize =
-          APInt(TLI.getPointerSizeInBits(AS), DL->getTypeAllocSize(Ty));
       SDValue IdxN = getValue(Idx);
 
       // If the index is smaller or larger than intptr_t, truncate or extend
@@ -5727,6 +5718,11 @@ void SelectionDAGBuilder::LowerCallTo(ImmutableCallSite CS, SDValue Callee,
     // Skip the first return-type Attribute to get to params.
     Entry.setAttributes(&CS, i - CS.arg_begin() + 1);
     Args.push_back(Entry);
+
+    // If we have an explicit sret argument that is an Instruction, (i.e., it
+    // might point to function-local memory), we can't meaningfully tail-call.
+    if (Entry.isSRet && isa<Instruction>(V))
+      isTailCall = false;
   }
 
   // Check if target-independent constraints permit a tail call here.
@@ -7353,6 +7349,10 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
     Entry.Alignment = Align;
     CLI.getArgs().insert(CLI.getArgs().begin(), Entry);
     CLI.RetTy = Type::getVoidTy(CLI.RetTy->getContext());
+
+    // sret demotion isn't compatible with tail-calls, since the sret argument
+    // points into the callers stack frame.
+    CLI.IsTailCall = false;
   } else {
     for (unsigned I = 0, E = RetTys.size(); I != E; ++I) {
       EVT VT = RetTys[I];
@@ -7638,7 +7638,8 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
     ISD::ArgFlagsTy Flags;
     Flags.setSRet();
     MVT RegisterVT = TLI->getRegisterType(*DAG.getContext(), ValueVTs[0]);
-    ISD::InputArg RetArg(Flags, RegisterVT, ValueVTs[0], true, 0, 0);
+    ISD::InputArg RetArg(Flags, RegisterVT, ValueVTs[0], true,
+                         ISD::InputArg::NoArgIndex, 0);
     Ins.push_back(RetArg);
   }
 

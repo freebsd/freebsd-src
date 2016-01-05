@@ -27,13 +27,5 @@ SRCS+=	aeabi_memcmp.S		\
 	aeabi_memmove.S		\
 	aeabi_memset.S
 
-# Mark the functions as hidden so they are not available outside of libc.
-CFLAGS.aeabi_memcmp.S=	-DVISIBILITY_HIDDEN
-CFLAGS.aeabi_memcpy.S=	-DVISIBILITY_HIDDEN
-CFLAGS.aeabi_memmove.S=	-DVISIBILITY_HIDDEN
-CFLAGS.aeabi_memset.S=	-DVISIBILITY_HIDDEN
-CFLAGS+=		${CFLAGS.${.IMPSRC:T}}
-
-
 SYM_MAPS+=${LIBC_SRCTOP}/arm/aeabi/Symbol.map
 

@@ -163,33 +163,10 @@ mmcsd_attach(device_t dev)
 	d->d_sectorsize = mmc_get_sector_size(dev);
 	d->d_maxsize = mmc_get_max_data(dev) * d->d_sectorsize;
 	d->d_mediasize = (off_t)mmc_get_media_size(dev) * d->d_sectorsize;
-	d->d_stripeoffset = 0;
 	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
-	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize * 1; /* conservative */
-	/*
-	 * The d_fw* values are fake. However, layout is aided by making the
-	 * number of fwsectors equal to the erase sectors from the drive since
-	 * we set the stripe size equal to that. We set fwheads such that there
-	 * are ~20 cylinder groups since all values are somewhat arbitrary here
-	 * and this gives good behavior with ffs without wasting too much
-	 * space.  Sadly, geom_part wants to round partitions to these
-	 * values. While not bad, in and of itself, the values we present here
-	 * will almost certainly be different then the values that USB SD
-	 * adapters use and there's too much variation between brands to just
-	 * use those values here.  Also SD to ATA adapters favor traditional
-	 * ata sizes, which are different again from the USB adapters (which
-	 * favor SCSI values). This rounding leads to a loss of up to 5% of the
-	 * usable space (usually much less, but that's why 20 was selected: to
-	 * limit this effect at a few percent). gpart needs a way to override
-	 * this behavior for situations like this, but doesn't provide
-	 * one. Perhaps this behavior should be tunable as well, but maybe that
-	 * belongs in the disk layer.  These values will be much better than
-	 * the default ones.
-	 */
-	d->d_fwsectors = mmc_get_erase_sector(dev);
-	d->d_fwheads = mmc_get_media_size(dev) / (d->d_fwsectors * 20);
+	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	strlcpy(d->d_ident, mmc_get_card_sn_string(dev), sizeof(d->d_ident));
 	strlcpy(d->d_descr, mmc_get_card_id_string(dev), sizeof(d->d_descr));
 

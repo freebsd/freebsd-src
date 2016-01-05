@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/systm.h>
-#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
@@ -231,10 +230,11 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			regs[1] |= (vcpu_id << CPUID_0000_0001_APICID_SHIFT);
 
 			/*
-			 * Don't expose VMX, SpeedStep or TME capability.
+			 * Don't expose VMX, SpeedStep, TME or SMX capability.
 			 * Advertise x2APIC capability and Hypervisor guest.
 			 */
 			regs[2] &= ~(CPUID2_VMX | CPUID2_EST | CPUID2_TM2);
+			regs[2] &= ~(CPUID2_SMX);
 
 			regs[2] |= CPUID2_HV;
 
@@ -286,17 +286,19 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * Hide thermal monitoring
 			 */
 			regs[3] &= ~(CPUID_ACPI | CPUID_TM);
-			
-			/*
-			 * Machine check handling is done in the host.
-			 * Hide MTRR capability.
-			 */
-			regs[3] &= ~(CPUID_MCA | CPUID_MCE | CPUID_MTRR);
 
-                        /*
-                        * Hide the debug store capability.
-                        */
+			/*
+			 * Hide the debug store capability.
+			 */
 			regs[3] &= ~CPUID_DS;
+
+			/*
+			 * Advertise the Machine Check and MTRR capability.
+			 *
+			 * Some guest OSes (e.g. Windows) will not boot if
+			 * these features are absent.
+			 */
+			regs[3] |= (CPUID_MCA | CPUID_MCE | CPUID_MTRR);
 
 			logical_cpus = threads_per_core * cores_per_package;
 			regs[1] &= ~CPUID_HTT_CORES;
@@ -485,4 +487,35 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 	*edx = regs[3];
 
 	return (1);
+}
+
+bool
+vm_cpuid_capability(struct vm *vm, int vcpuid, enum vm_cpuid_capability cap)
+{
+	bool rv;
+
+	KASSERT(cap > 0 && cap < VCC_LAST, ("%s: invalid vm_cpu_capability %d",
+	    __func__, cap));
+
+	/*
+	 * Simply passthrough the capabilities of the host cpu for now.
+	 */
+	rv = false;
+	switch (cap) {
+	case VCC_NO_EXECUTE:
+		if (amd_feature & AMDID_NX)
+			rv = true;
+		break;
+	case VCC_FFXSR:
+		if (amd_feature & AMDID_FFXSR)
+			rv = true;
+		break;
+	case VCC_TCE:
+		if (amd_feature2 & AMDID2_TCE)
+			rv = true;
+		break;
+	default:
+		panic("%s: unknown vm_cpu_capability %d", __func__, cap);
+	}
+	return (rv);
 }

@@ -611,7 +611,11 @@ dtrace_panic(const char *format, ...)
 	va_list alist;
 
 	va_start(alist, format);
+#ifdef __FreeBSD__
+	vpanic(format, alist);
+#else
 	dtrace_vpanic(format, alist);
+#endif
 	va_end(alist);
 }
 
@@ -3506,7 +3510,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 */
 		if (DTRACE_ANCHORED(mstate->dtms_probe) && CPU_ON_INTR(CPU))
 			return ((uint64_t)p0.p_cred->cr_uid);
-#endif
 
 		/*
 		 * It is always safe to dereference one's own t_procp pointer:
@@ -3518,6 +3521,9 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 * credential, since this is never NULL after process birth.
 		 */
 		return ((uint64_t)curthread->t_procp->p_cred->cr_uid);
+#else
+		return ((uint64_t)curthread->td_ucred->cr_uid);
+#endif
 
 	case DIF_VAR_GID:
 		if (!dtrace_priv_proc(state))
@@ -3529,7 +3535,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 */
 		if (DTRACE_ANCHORED(mstate->dtms_probe) && CPU_ON_INTR(CPU))
 			return ((uint64_t)p0.p_cred->cr_gid);
-#endif
 
 		/*
 		 * It is always safe to dereference one's own t_procp pointer:
@@ -3541,6 +3546,9 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 * credential, since this is never NULL after process birth.
 		 */
 		return ((uint64_t)curthread->t_procp->p_cred->cr_gid);
+#else
+		return ((uint64_t)curthread->td_ucred->cr_gid);
+#endif
 
 	case DIF_VAR_ERRNO: {
 #ifdef illumos
@@ -11880,7 +11888,8 @@ err:
 	int i;
 
 	*factor = 1;
-#if defined(__amd64__) || defined(__arm__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
+    defined(__mips__) || defined(__powerpc__)
 	/*
 	 * FreeBSD isn't good at limiting the amount of memory we
 	 * ask to malloc, so let's place a limit here before trying
@@ -14221,8 +14230,8 @@ dtrace_state_create(struct cdev *dev)
 	state->dts_cleaner = CYCLIC_NONE;
 	state->dts_deadman = CYCLIC_NONE;
 #else
-	callout_init(&state->dts_cleaner, CALLOUT_MPSAFE);
-	callout_init(&state->dts_deadman, CALLOUT_MPSAFE);
+	callout_init(&state->dts_cleaner, 1);
+	callout_init(&state->dts_deadman, 1);
 #endif
 	state->dts_vstate.dtvs_state = state;
 

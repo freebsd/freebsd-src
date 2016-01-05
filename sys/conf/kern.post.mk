@@ -121,7 +121,7 @@ gdbinit:
 .endif
 .endif
 
-${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -133,9 +133,6 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 	${SYSTEM_LD_TAIL}
-.if defined(MFS_IMAGE)
-	sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
-.endif
 
 .if !exists(${.OBJDIR}/.depend)
 ${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
@@ -177,18 +174,18 @@ hack.So: Makefile
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
-	NM='${NM}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 genassym.o: $S/$M/$M/genassym.c
 	${CC} -c ${CFLAGS:N-fno-common} $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
-# We have "special" -I include paths for opensolaris/zfs files in 'depend'.
-CFILES_NOZFS=	${CFILES:N*/opensolaris/*}
-SFILES_NOZFS=	${SFILES:N*/opensolaris/*}
-CFILES_ZFS=	${CFILES:M*/opensolaris/*}
-SFILES_ZFS=	${SFILES:M*/opensolaris/*}
+# We have "special" -I include paths for zfs/dtrace files in 'depend'.
+CFILES_NOCDDL=	${CFILES:N*/cddl/*:N*fs/nfsclient/nfs_clkdtrace*}
+SFILES_NOCDDL=	${SFILES:N*/cddl/*}
+CFILES_CDDL=	${CFILES:M*/cddl/*}
+SFILES_CDDL=	${SFILES:M*/cddl/*}
 
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
@@ -198,13 +195,13 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${MFILES:T:S/.m$/.h/}
 .depend: .PRECIOUS ${SRCS}
 	rm -f .newdep
-	${MAKE} -V CFILES_NOZFS -V SYSTEM_CFILES -V GEN_CFILES | \
+	${MAKE} -V CFILES_NOCDDL -V SYSTEM_CFILES -V GEN_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V CFILES_ZFS | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS}
-	${MAKE} -V SFILES_NOZFS | \
+	${MAKE} -V CFILES_CDDL | \
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS} ${FBT_CFLAGS} ${DTRACE_CFLAGS}
+	${MAKE} -V SFILES_NOCDDL | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
-	${MAKE} -V SFILES_ZFS | \
+	${MAKE} -V SFILES_CDDL | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
@@ -300,6 +297,27 @@ vnode_if_newproto.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -p
 vnode_if_typedef.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -q
+
+.if ${MFS_IMAGE:Uno} != "no"
+# Generate an object file from the file system image to embed in the kernel
+# via linking. Make sure the contents are in the mfs section and rename the
+# start/end/size variables to __start_mfs, __stop_mfs, and mfs_size,
+# respectively.
+embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
+	${OBJCOPY} --input-target binary \
+	    --output-target ${EMBEDFS_FORMAT.${MACHINE_ARCH}} \
+	    --binary-architecture ${EMBEDFS_ARCH.${MACHINE_ARCH}} \
+	    ${MFS_IMAGE} ${.TARGET}
+	${OBJCOPY} \
+	    --rename-section .data=mfs,contents,alloc,load,readonly,data \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_size=__mfs_root_size \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_start=mfs_root \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_end=mfs_root_end \
+	    ${.TARGET}
+.endif
 
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.

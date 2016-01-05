@@ -9,7 +9,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -61,7 +61,7 @@
 #define FILE_WRITABLE(_prt,_flg) \
         (   (_prt & PROT_WRITE) \
          && ((_flg & (MAP_SHARED|MAP_PRIVATE)) == MAP_SHARED))
-#define MAP_FAILED_PTR ((void*)MAP_FAILED)
+#define MAP_FAILED_PTR (VOIDP(MAP_FAILED))
 
 /**
  * Load the contents of a text file.  There are two separate implementations,
@@ -93,7 +93,7 @@ load_text_file(tmap_info_t * mapinfo, char const * pzFile)
 
     {
         size_t sz = mapinfo->txt_size;
-        char*  pz = mapinfo->txt_data;
+        char * pz = mapinfo->txt_data;
 
         while (sz > 0) {
             ssize_t rdct = read(mapinfo->txt_fd, pz, sz);
@@ -254,12 +254,12 @@ close_mmap_files(tmap_info_t * mi)
  *
  * what:  map a text file with terminating NUL
  *
- * arg:   char const*,  pzFile,  name of the file to map
- * arg:   int,          prot,    mmap protections (see mmap(2))
- * arg:   int,          flags,   mmap flags (see mmap(2))
- * arg:   tmap_info_t*, mapinfo, returned info about the mapping
+ * arg:   char const *,  pzFile,  name of the file to map
+ * arg:   int,           prot,    mmap protections (see mmap(2))
+ * arg:   int,           flags,   mmap flags (see mmap(2))
+ * arg:   tmap_info_t *, mapinfo, returned info about the mapping
  *
- * ret-type:   void*
+ * ret-type:   void *
  * ret-desc:   The mmaped data address
  *
  * doc:
@@ -296,7 +296,7 @@ close_mmap_files(tmap_info_t * mi)
  * #include <mylib.h>
  * tmap_info_t mi;
  * int no_nul;
- * void* data = text_mmap("file", PROT_WRITE, MAP_PRIVATE, &mi);
+ * void * data = text_mmap("file", PROT_WRITE, MAP_PRIVATE, &mi);
  * if (data == MAP_FAILED) return;
  * no_nul = (mi.txt_size == mi.txt_full_size);
  * << use the data >>
@@ -327,7 +327,7 @@ text_mmap(char const * pzFile, int prot, int flags, tmap_info_t * mi)
  *
  * what:  unmap the data mapped in by text_mmap
  *
- * arg:   tmap_info_t*, mapinfo, info about the mapping
+ * arg:   tmap_info_t *, mapinfo, info about the mapping
  *
  * ret-type:   int
  * ret-desc:   -1 or 0.  @code{errno} will have the error code.

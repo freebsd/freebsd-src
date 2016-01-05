@@ -25,7 +25,7 @@ pidfile="/var/run/${name}.pid"
 
 : ${local_unbound_workdir:=/var/unbound}
 : ${local_unbound_config:=${local_unbound_workdir}/unbound.conf}
-: ${local_unbound_flags:=-c${local_unbound_config}}
+: ${local_unbound_flags:="-c ${local_unbound_config}"}
 : ${local_unbound_forwardconf:=${local_unbound_workdir}/forward.conf}
 : ${local_unbound_controlconf:=${local_unbound_workdir}/control.conf}
 : ${local_unbound_anchor:=${local_unbound_workdir}/root.key}

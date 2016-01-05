@@ -100,9 +100,16 @@ CmDoCompile (
     Event = UtBeginEvent ("Preprocess input file");
     if (Gbl_PreprocessFlag)
     {
+        /* Enter compiler name as a #define */
+
+        PrAddDefine (ASL_DEFINE, "", FALSE);
+
         /* Preprocessor */
 
         PrDoPreprocess ();
+        Gbl_CurrentLineNumber = 1;
+        Gbl_LogicalLineNumber = 1;
+
         if (Gbl_PreprocessOnly)
         {
             UtEndEvent (Event);
@@ -111,6 +118,7 @@ CmDoCompile (
         }
     }
     UtEndEvent (Event);
+
 
     /* Build the parse tree */
 
@@ -708,7 +716,7 @@ CmCleanupAndExit (
     /* Close all open files */
 
     /*
-     * Take care with the preprocessor file (.i), it might be the same
+     * Take care with the preprocessor file (.pre), it might be the same
      * as the "input" file, depending on where the compiler has terminated
      * or aborted. Prevent attempt to close the same file twice in
      * loop below.
@@ -733,10 +741,9 @@ CmCleanupAndExit (
         FlDeleteFile (ASL_FILE_AML_OUTPUT);
     }
 
-    /* Delete the preprocessor output file (.i) unless -li flag is set */
+    /* Delete the preprocessor temp file unless full debug was specified */
 
-    if (!Gbl_PreprocessorOutputFlag &&
-        Gbl_PreprocessFlag)
+    if (Gbl_PreprocessFlag && !Gbl_KeepPreprocessorTempFile)
     {
         FlDeleteFile (ASL_FILE_PREPROCESSOR);
     }
@@ -752,8 +759,6 @@ CmCleanupAndExit (
      * Note: Handles are cleared by FlCloseFile above, so we look at the
      * filename instead, to determine if the .SRC file was actually
      * created.
-     *
-     * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
      */
     if (!Gbl_SourceOutputFlag)
     {

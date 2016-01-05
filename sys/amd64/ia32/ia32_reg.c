@@ -79,11 +79,9 @@ __FBSDID("$FreeBSD$");
 int
 fill_regs32(struct thread *td, struct reg32 *regs)
 {
-	struct pcb *pcb;
 	struct trapframe *tp;
 
 	tp = td->td_frame;
-	pcb = td->td_pcb;
 	if (tp->tf_flags & TF_HASSEGS) {
 		regs->r_gs = tp->tf_gs;
 		regs->r_fs = tp->tf_fs;
@@ -113,18 +111,16 @@ fill_regs32(struct thread *td, struct reg32 *regs)
 int
 set_regs32(struct thread *td, struct reg32 *regs)
 {
-	struct pcb *pcb;
 	struct trapframe *tp;
 
 	tp = td->td_frame;
 	if (!EFL_SECURE(regs->r_eflags, tp->tf_rflags) || !CS_SECURE(regs->r_cs))
 		return (EINVAL);
-	pcb = td->td_pcb;
 	tp->tf_gs = regs->r_gs;
 	tp->tf_fs = regs->r_fs;
 	tp->tf_es = regs->r_es;
 	tp->tf_ds = regs->r_ds;
-	set_pcb_flags(pcb, PCB_FULL_IRET);
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	tp->tf_flags = TF_HASSEGS;
 	tp->tf_rdi = regs->r_edi;
 	tp->tf_rsi = regs->r_esi;

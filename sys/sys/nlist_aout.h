@@ -56,8 +56,6 @@ struct nlist {
 	} n_un;
 #else
 	const char *n_name;	/* symbol name (in memory) */
-	int : 8 * (sizeof(long) > sizeof(char *) ?
-	    sizeof(long) - sizeof(char *) : sizeof(char *) - sizeof(long));
 #endif
 	unsigned char n_type;	/* type defines */
 	char n_other;		/* ".type" and binding information */

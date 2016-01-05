@@ -32,13 +32,12 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <paths.h>
-#include <sys/wait.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+
 #include "pw.h"
 
-#if !defined(_PATH_YP)
-#define	_PATH_YP	"/var/yp/"
-#endif
 const char     *Modes[] = {
   "add", "del", "mod", "show", "next",
   NULL};
@@ -56,7 +55,7 @@ static const char *Combo2[] = {
 
 struct pwf PWF =
 {
-	0,
+	PWF_REGULAR,
 	setpwent,
 	endpwent,
 	getpwent,
@@ -71,7 +70,7 @@ struct pwf PWF =
 };
 struct pwf VPWF =
 {
-	1,
+	PWF_ALT,
 	vsetpwent,
 	vendpwent,
 	vgetpwent,
@@ -84,64 +83,63 @@ struct pwf VPWF =
 	vgetgrnam,
 };
 
-static struct cargs arglist;
+static int (*cmdfunc[W_NUM][M_NUM])(int argc, char **argv, char *_name) = {
+	{ /* user */
+		pw_user_add,
+		pw_user_del,
+		pw_user_mod,
+		pw_user_show,
+		pw_user_next,
+		pw_user_lock,
+		pw_user_unlock,
+	},
+	{ /* group */
+		pw_group_add,
+		pw_group_del,
+		pw_group_mod,
+		pw_group_show,
+		pw_group_next,
+	}
+};
 
-static int      getindex(const char *words[], const char *word);
-static void     cmdhelp(int mode, int which);
+struct pwconf conf;
 
+static int	getindex(const char *words[], const char *word);
+static void	cmdhelp(int mode, int which);
 
 int
 main(int argc, char *argv[])
 {
-	int             ch;
-	int             mode = -1;
-	int             which = -1;
-	char		*config = NULL;
-	struct userconf *cnf;
+	int		mode = -1, which = -1, tmp;
 	struct stat	st;
+	char		arg, *arg1;
+	bool		relocated, nis;
 
-	static const char *opts[W_NUM][M_NUM] =
-	{
-		{ /* user */
-			"V:C:qn:u:c:d:e:p:g:G:mM:k:s:oL:i:w:h:H:Db:NPy:Y",
-			"V:C:qn:u:rY",
-			"V:C:qn:u:c:d:e:p:g:G:mM:l:k:s:w:L:h:H:FNPY",
-			"V:C:qn:u:FPa7",
-			"V:C:q",
-			"V:C:q",
-			"V:C:q"
-		},
-		{ /* grp  */
-			"V:C:qn:g:h:H:M:opNPY",
-			"V:C:qn:g:Y",
-			"V:C:qn:d:g:l:h:H:FM:m:NPY",
-			"V:C:qn:g:FPa",
-			"V:C:q"
-		 }
-	};
+	arg1 = NULL;
+	relocated = nis = false;
+	memset(&conf, 0, sizeof(conf));
+	strlcpy(conf.rootdir, "/", sizeof(conf.rootdir));
+	strlcpy(conf.etcpath, _PATH_PWD, sizeof(conf.etcpath));
+	conf.fd = -1;
+	conf.checkduplicate = true;
 
-	static int      (*funcs[W_NUM]) (struct userconf * _cnf, int _mode, struct cargs * _args) =
-	{			/* Request handlers */
-		pw_user,
-		pw_group
-	};
-
-	LIST_INIT(&arglist);
-
-	(void)setlocale(LC_ALL, "");
+	setlocale(LC_ALL, "");
 
 	/*
 	 * Break off the first couple of words to determine what exactly
 	 * we're being asked to do
 	 */
 	while (argc > 1) {
-		int             tmp;
-
 		if (*argv[1] == '-') {
 			/*
 			 * Special case, allow pw -V<dir> <operation> [args] for scripts etc.
 			 */
-			if (argv[1][1] == 'V') {
+			arg = argv[1][1];
+			if (arg == 'V' || arg == 'R') {
+				if (relocated)
+					errx(EXIT_FAILURE, "Both '-R' and '-V' "
+					    "specified, only one accepted");
+				relocated = true;
 				optarg = &argv[1][2];
 				if (*optarg == '\0') {
 					if (stat(argv[2], &st) != 0)
@@ -155,7 +153,14 @@ main(int argc, char *argv[])
 					++argv;
 					--argc;
 				}
-				addarg(&arglist, 'V', optarg);
+				memcpy(&PWF, &VPWF, sizeof PWF);
+				if (arg == 'R') {
+					strlcpy(conf.rootdir, optarg,
+					    sizeof(conf.rootdir));
+					PWF._altdir = PWF_ROOTDIR;
+				}
+				snprintf(conf.etcpath, sizeof(conf.etcpath),
+				    "%s%s", optarg, arg == 'R' ? "/etc" : "");
 			} else
 				break;
 		}
@@ -171,7 +176,7 @@ main(int argc, char *argv[])
 		} else if (strcmp(argv[1], "help") == 0 && argv[2] == NULL)
 			cmdhelp(mode, which);
 		else if (which != -1 && mode != -1)
-			addarg(&arglist, 'n', argv[1]);
+				arg1 = argv[1];
 		else
 			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
 		++argv;
@@ -184,99 +189,25 @@ main(int argc, char *argv[])
 	if (mode == -1 || which == -1)
 		cmdhelp(mode, which);
 
-	/*
-	 * We know which mode we're in and what we're about to do, so now
-	 * let's dispatch the remaining command line args in a genric way.
-	 */
-	optarg = NULL;
+	conf.rootfd = open(conf.rootdir, O_DIRECTORY|O_CLOEXEC);
+	if (conf.rootfd == -1)
+		errx(EXIT_FAILURE, "Unable to open '%s'", conf.rootdir);
 
-	while ((ch = getopt(argc, argv, opts[which][mode])) != -1) {
-		if (ch == '?')
-			errx(EX_USAGE, "unknown switch");
-		else
-			addarg(&arglist, ch, optarg);
-		optarg = NULL;
-	}
-
-	/*
-	 * Must be root to attempt an update
-	 */
-	if (geteuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
-		errx(EX_NOPERM, "you must be root to run this program");
-
-	/*
-	 * We should immediately look for the -q 'quiet' switch so that we
-	 * don't bother with extraneous errors
-	 */
-	if (getarg(&arglist, 'q') != NULL)
-		freopen(_PATH_DEVNULL, "w", stderr);
-
-	/*
-	 * Set our base working path if not overridden
-	 */
-
-	config = getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL;
-
-	if (getarg(&arglist, 'V') != NULL) {
-		char * etcpath = getarg(&arglist, 'V')->val;
-		if (*etcpath) {
-			if (config == NULL) {	/* Only override config location if -C not specified */
-				config = malloc(MAXPATHLEN);
-				snprintf(config, MAXPATHLEN, "%s/pw.conf", etcpath);
-			}
-			memcpy(&PWF, &VPWF, sizeof PWF);
-			setpwdir(etcpath);
-			setgrdir(etcpath);
-		}
-	}
-
-	/*
-	 * Now, let's do the common initialisation
-	 */
-	cnf = read_userconfig(config);
-
-	ch = funcs[which] (cnf, mode, &arglist);
-
-	/*
-	 * If everything went ok, and we've been asked to update
-	 * the NIS maps, then do it now
-	 */
-	if (ch == EXIT_SUCCESS && getarg(&arglist, 'Y') != NULL) {
-		pid_t	pid;
-
-		fflush(NULL);
-		if (chdir(_PATH_YP) == -1)
-			warn("chdir(" _PATH_YP ")");
-		else if ((pid = fork()) == -1)
-			warn("fork()");
-		else if (pid == 0) {
-			/* Is make anywhere else? */
-			execlp("/usr/bin/make", "make", (char *)NULL);
-			_exit(1);
-		} else {
-			int   i;
-			waitpid(pid, &i, 0);
-			if ((i = WEXITSTATUS(i)) != 0)
-				errx(ch, "make exited with status %d", i);
-			else
-				pw_log(cnf, mode, which, "NIS maps updated");
-		}
-	}
-	return ch;
+	return (cmdfunc[which][mode](argc, argv, arg1));
 }
 
 
 static int
 getindex(const char *words[], const char *word)
 {
-	int             i = 0;
+	int	i = 0;
 
 	while (words[i]) {
 		if (strcmp(words[i], word) == 0)
-			return i;
+			return (i);
 		i++;
 	}
-	return -1;
+	return (-1);
 }
 
 
@@ -302,6 +233,7 @@ cmdhelp(int mode, int which)
 			{
 				"usage: pw useradd [name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"  Adding users:\n"
@@ -324,7 +256,8 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
 				"\t-V etcdir      alternate /etc location\n"
-			        "\t-D             set user defaults\n"
+				"\t-R rootir      alternate root directory\n"
+				"\t-D             set user defaults\n"
 				"\t-b dir         default home root dir\n"
 				"\t-e period      default expiry period\n"
 				"\t-p period      default password change period\n"
@@ -340,12 +273,15 @@ cmdhelp(int mode, int which)
 				"\t-y path        set NIS passwd file path\n",
 				"usage: pw userdel [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-Y             update NIS maps\n"
+				"\t-y path        set NIS passwd file path\n"
 				"\t-r             remove home & contents\n",
 				"usage: pw usermod [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if no user\n"
@@ -366,9 +302,11 @@ cmdhelp(int mode, int which)
 				"\t-h fd          read password on fd\n"
 				"\t-H fd          read encrypted password on fd\n"
 				"\t-Y             update NIS maps\n"
+				"\t-y path        set NIS passwd file path\n"
 				"\t-N             no update\n",
 				"usage: pw usershow [uid|name] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-F             force print\n"
@@ -377,6 +315,7 @@ cmdhelp(int mode, int which)
 				"\t-7             print in v7 format\n",
 				"usage: pw usernext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n",
 				"usage pw: lock [switches]\n"
@@ -391,6 +330,7 @@ cmdhelp(int mode, int which)
 			{
 				"usage: pw groupadd [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-n group       group name\n"
@@ -401,11 +341,13 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw groupdel [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-Y             update NIS maps\n",
 				"usage: pw groupmod [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if not exists\n"
@@ -419,6 +361,7 @@ cmdhelp(int mode, int which)
 				"\t-N             no update\n",
 				"usage: pw groupshow [group|gid] [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-F             force print\n"
@@ -426,6 +369,7 @@ cmdhelp(int mode, int which)
 				"\t-a             print all accounting groups\n",
 				"usage: pw groupnext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
+				"\t-R rootir      alternate root directory\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 			}
@@ -434,27 +378,4 @@ cmdhelp(int mode, int which)
 		fprintf(stderr, "%s", help[which][mode]);
 	}
 	exit(EXIT_FAILURE);
-}
-
-struct carg    *
-getarg(struct cargs * _args, int ch)
-{
-	struct carg    *c = LIST_FIRST(_args);
-
-	while (c != NULL && c->ch != ch)
-		c = LIST_NEXT(c, list);
-	return c;
-}
-
-struct carg    *
-addarg(struct cargs * _args, int ch, char *argstr)
-{
-	struct carg    *ca = malloc(sizeof(struct carg));
-
-	if (ca == NULL)
-		errx(EX_OSERR, "out of memory");
-	ca->ch = ch;
-	ca->val = argstr;
-	LIST_INSERT_HEAD(_args, ca, list);
-	return ca;
 }

@@ -146,6 +146,7 @@ relegate_dir_external(svn_wc_context_t *wc_ctx,
 static svn_error_t *
 switch_dir_external(const char *local_abspath,
                     const char *url,
+                    const char *url_from_externals_definition,
                     const svn_opt_revision_t *peg_revision,
                     const svn_opt_revision_t *revision,
                     const char *defining_abspath,
@@ -168,6 +169,46 @@ switch_dir_external(const char *local_abspath,
 
   if (revision->kind == svn_opt_revision_number)
     external_rev = revision->value.number;
+
+  /* 
+   * The code below assumes existing versioned paths are *not* part of
+   * the external's defining working copy.
+   * The working copy library does not support registering externals
+   * on top of existing BASE nodes and will error out if we try.
+   * So if the external target is part of the defining working copy's
+   * BASE tree, don't attempt to create the external. Doing so would
+   * leave behind a switched path instead of an external (since the
+   * switch succeeds but registration of the external in the DB fails).
+   * The working copy then cannot be updated until the path is switched back.
+   * See issue #4085.
+   */
+  SVN_ERR(svn_wc__node_get_base(&kind, NULL, NULL,
+                                &repos_root_url, &repos_uuid,
+                                NULL, ctx->wc_ctx, local_abspath,
+                                TRUE, /* ignore_enoent */
+                                TRUE, /* show hidden */
+                                pool, pool));
+  if (kind != svn_node_unknown)
+    {
+      const char *wcroot_abspath;
+      const char *defining_wcroot_abspath;
+
+      SVN_ERR(svn_wc__get_wcroot(&wcroot_abspath, ctx->wc_ctx,
+                                 local_abspath, pool, pool));
+      SVN_ERR(svn_wc__get_wcroot(&defining_wcroot_abspath, ctx->wc_ctx,
+                                 defining_abspath, pool, pool));
+      if (strcmp(wcroot_abspath, defining_wcroot_abspath) == 0)
+        return svn_error_createf(SVN_ERR_WC_PATH_UNEXPECTED_STATUS, NULL,
+                                 _("The external '%s' defined in %s at '%s' "
+                                   "cannot be checked out because '%s' is "
+                                   "already a versioned path."),
+                                   url_from_externals_definition,
+                                   SVN_PROP_EXTERNALS,
+                                   svn_dirent_local_style(defining_abspath,
+                                                          pool),
+                                   svn_dirent_local_style(local_abspath,
+                                                          pool));
+    }
 
   /* If path is a directory, try to update/switch to the correct URL
      and revision. */
@@ -201,6 +242,20 @@ switch_dir_external(const char *local_abspath,
                                                   FALSE, TRUE,
                                                   timestamp_sleep,
                                                   ctx, subpool));
+
+              /* We just decided that this existing directory is an external,
+                 so update the external registry with this information, like
+                 when checking out an external */
+              SVN_ERR(svn_wc__external_register(ctx->wc_ctx,
+                                    defining_abspath,
+                                    local_abspath, svn_node_dir,
+                                    repos_root_url, repos_uuid,
+                                    svn_uri_skip_ancestor(repos_root_url,
+                                                          url, pool),
+                                    external_peg_rev,
+                                    external_rev,
+                                    pool));
+
               svn_pool_destroy(subpool);
               goto cleanup;
             }
@@ -460,7 +515,10 @@ switch_file_external(const char *local_abspath,
 
     svn_dirent_split(&dir_abspath, &target, local_abspath, scratch_pool);
 
-    /* Open an RA session to 'source' URL */
+    /* ### Why do we open a new session?  RA_SESSION is a valid
+       ### session -- the caller used it to call svn_ra_check_path on
+       ### this very URL, the caller also did the resolving and
+       ### reparenting that is repeated here. */
     SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &switch_loc,
                                               url, dir_abspath,
                                               peg_revision, revision,
@@ -497,7 +555,7 @@ switch_file_external(const char *local_abspath,
      invalid revnum, that means RA will use the latest revision. */
     SVN_ERR(svn_ra_do_switch3(ra_session, &reporter, &report_baton,
                               switch_loc->rev,
-                              target, svn_depth_unknown, url,
+                              target, svn_depth_unknown, switch_loc->url,
                               FALSE /* send_copyfrom */,
                               TRUE /* ignore_ancestry */,
                               switch_editor, switch_baton,
@@ -738,6 +796,7 @@ handle_external_item_change(svn_client_ctx_t *ctx,
     {
       case svn_node_dir:
         SVN_ERR(switch_dir_external(local_abspath, new_loc->url,
+                                    new_item->url,
                                     &(new_item->peg_revision),
                                     &(new_item->revision),
                                     parent_dir_abspath,

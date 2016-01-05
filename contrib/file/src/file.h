@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.164 2015/01/01 17:07:34 christos Exp $
+ * @(#)$File: file.h,v 1.168 2015/04/09 20:01:41 christos Exp $
  */
 
 #ifndef __file_h__
@@ -126,7 +126,7 @@
 #endif
 
 #ifndef HOWMANY
-# define HOWMANY (256 * 1024)	/* how much of the file to look at */
+# define HOWMANY (1024 * 1024)	/* how much of the file to look at */
 #endif
 #define MAXMAGIS 8192		/* max entries in any one magic file
 				   or directory */
@@ -135,8 +135,8 @@
 #define MAXstring 64		/* max len of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	12
-#define FILE_MAGICSIZE	248
+#define VERSIONNO	13
+#define FILE_MAGICSIZE	312
 
 #define	FILE_LOAD	0
 #define FILE_CHECK	1
@@ -307,7 +307,9 @@ struct magic {
 	/* Words 33-52 */
 	char mimetype[MAXMIME]; /* MIME type */
 	/* Words 53-54 */
-	char apple[8];
+	char apple[8];		/* APPLE CREATOR/TYPE */
+	/* Words 55-63 */
+	char ext[64];		/* Popular extensions */
 };
 
 #define BIT(A)   (1 << (A))
@@ -564,6 +566,12 @@ char   *ctime_r(const time_t *, char *);
 #ifndef HAVE_ASCTIME_R
 char   *asctime_r(const struct tm *, char *);
 #endif
+#ifndef HAVE_GMTIME_R
+struct tm *gmtime_r(const time_t *, struct tm *);
+#endif
+#ifndef HAVE_LOCALTIME_R
+struct tm *localtime_r(const time_t *, struct tm *);
+#endif
 #ifndef HAVE_FMTCHECK
 const char *fmtcheck(const char *, const char *) 
      __attribute__((__format_arg__(2)));
@@ -589,6 +597,9 @@ static const char *rcsid(const char *p) { \
 #endif
 #else
 #define FILE_RCSID(id)
+#endif
+#ifndef __RCSID
+#define __RCSID(a)
 #endif
 
 #endif /* __file_h__ */

@@ -165,9 +165,10 @@ int isp_allocate_xs_tgt(ispsoftc_t *, void *, uint32_t *);
 void *isp_find_xs_tgt(ispsoftc_t *, uint32_t);
 uint32_t isp_find_tgt_handle(ispsoftc_t *, void *);
 void isp_destroy_tgt_handle(ispsoftc_t *, uint32_t);
-
+#endif
 int isp_find_pdb_by_wwn(ispsoftc_t *, int, uint64_t, fcportdb_t **);
-int isp_find_pdb_by_loopid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
+#ifdef ISP_TARGET_MODE
+int isp_find_pdb_by_handle(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 int isp_find_pdb_by_sid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 void isp_find_chan_by_did(ispsoftc_t *, uint32_t, uint16_t *);
 void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t, uint16_t);

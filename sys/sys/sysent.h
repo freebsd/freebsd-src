@@ -136,13 +136,15 @@ struct sysentvec {
 	uint32_t	sv_timekeep_gen;
 	void		*sv_shared_page_obj;
 	void		(*sv_schedtail)(struct thread *);
+	void		(*sv_thread_detach)(struct thread *);
 };
 
-#define	SV_ILP32	0x000100
-#define	SV_LP64		0x000200
-#define	SV_IA32		0x004000
-#define	SV_AOUT		0x008000
-#define	SV_SHP		0x010000
+#define	SV_ILP32	0x000100	/* 32-bit executable. */
+#define	SV_LP64		0x000200	/* 64-bit executable. */
+#define	SV_IA32		0x004000	/* Intel 32-bit executable. */
+#define	SV_AOUT		0x008000	/* a.out executable. */
+#define	SV_SHP		0x010000	/* Shared page. */
+#define	SV_CAPSICUM	0x020000	/* Force cap_enter() on startup. */
 
 #define	SV_ABI_MASK	0xff
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
@@ -152,6 +154,7 @@ struct sysentvec {
 /* same as ELFOSABI_XXX, to prevent header pollution */
 #define	SV_ABI_LINUX	3
 #define	SV_ABI_FREEBSD 	9
+#define	SV_ABI_CLOUDABI	17
 #define	SV_ABI_UNDEF	255
 
 #ifdef _KERNEL

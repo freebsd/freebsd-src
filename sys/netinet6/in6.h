@@ -485,6 +485,8 @@ struct route_in6 {
 #define	IPV6_FLOWID		67 /* int; flowid of given socket */
 #define	IPV6_FLOWTYPE		68 /* int; flowtype of given socket */
 #define	IPV6_RSSBUCKETID	69 /* int; RSS bucket ID of given socket */
+#define	IPV6_RECVFLOWID		70 /* bool; receive IP6 flowid/flowtype w/ datagram */
+#define	IPV6_RECVRSSBUCKETID	71 /* bool; receive IP6 RSS bucket id w/ datagram */
 
 /*
  * The following option is private; do not use it from user applications.

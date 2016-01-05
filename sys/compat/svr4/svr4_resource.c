@@ -130,9 +130,7 @@ svr4_sys_getrlimit(td, uap)
 	if (rl == -1)
 		return EINVAL;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &blim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &blim);
 
 	/*
 	 * Our infinity, is their maxfiles.
@@ -181,9 +179,7 @@ svr4_sys_setrlimit(td, uap)
 	if ((error = copyin(uap->rlp, &slim, sizeof(slim))) != 0)
 		return error;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &curlim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &curlim);
 
 	/*
 	 * if the limit is SVR4_RLIM_INFINITY, then we set it to our
@@ -228,9 +224,7 @@ svr4_sys_getrlimit64(td, uap)
 	if (rl == -1)
 		return EINVAL;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &blim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &blim);
 
 	/*
 	 * Our infinity, is their maxfiles.
@@ -279,9 +273,7 @@ svr4_sys_setrlimit64(td, uap)
 	if ((error = copyin(uap->rlp, &slim, sizeof(slim))) != 0)
 		return error;
 
-	PROC_LOCK(td->td_proc);
-	lim_rlimit(td->td_proc, rl, &curlim);
-	PROC_UNLOCK(td->td_proc);
+	lim_rlimit(td, rl, &curlim);
 
 	/*
 	 * if the limit is SVR4_RLIM64_INFINITY, then we set it to our

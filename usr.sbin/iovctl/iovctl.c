@@ -29,12 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/iov.h>
+#include <sys/dnv.h>
+#include <sys/nv.h>
 
-#include <dnv.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <nv.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +80,7 @@ get_schema(int fd)
 		err(1, "Could not fetch config schema");
 	}
 
-	schema = nvlist_unpack(arg.schema, arg.len);
+	schema = nvlist_unpack(arg.schema, arg.len, NV_FLAG_IGNORE_CASE);
 	if (schema == NULL)
 		err(1, "Could not unpack schema");
 

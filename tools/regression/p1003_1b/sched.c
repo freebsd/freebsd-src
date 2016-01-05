@@ -41,16 +41,17 @@
 #define _POSIX_SOURCE
 #define _POSIX_C_SOURCE 199309L
 
-#include <unistd.h>
-#include <stdlib.h>
-
-#include <stdio.h>
-#include <string.h>
+#include <sys/mman.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/mman.h>
-
+#include <limits.h>
 #include <sched.h>
+#include <stdio.h>
+#define	__XSI_VISIBLE 1
+#include <stdlib.h>
+#undef __XSI_VISIBLE
+#include <string.h>
+#include <unistd.h>
 
 #include "prutil.h"
 
@@ -209,17 +210,14 @@ int sched(int ac, char *av[])
 
 
 	{
-#define NAM "P1003_1b_schedXXXX"
-		char nam[L_tmpnam];
+		char nam[] = "P1003_1b_schedXXXXXX";
 		int fd;
 		pid_t p;
 		pid_t *lastrun;
 
-		strcpy(nam, NAM);
-		if (tmpnam(nam) != nam)
-			q(__LINE__, errno, "tmpnam " NAM);
-		q(__LINE__, (fd = open(nam, O_RDWR|O_CREAT, 0666)),
-			"open " NAM);
+		fd = mkstemp(nam);
+		if (fd == -1)
+			q(__LINE__, errno, "mkstemp failed");
 
 		(void)unlink(nam);
 

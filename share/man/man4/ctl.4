@@ -23,12 +23,12 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 8, 2015
+.Dd August 9, 2015
 .Dt CTL 4
 .Os
 .Sh NAME
 .Nm ctl
-.Nd CAM Target Layer
+.Nd CAM Target Layer / iSCSI target
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -84,6 +84,42 @@ All I/O handled in-kernel, no userland context switch overhead
 .El
 .Pp
 It also serves as a kernel component of the native iSCSI target.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va kern.cam.ctl.debug
+Bit mask of enabled CTL log levels:
+.Bl -tag -offset indent -compact
+.It 1
+log commands with errors;
+.It 2
+log all commands;
+.It 4
+log received data for commands except READ/WRITE.
+.El
+Defaults to 0.
+.It Va kern.cam.ctl.iscsi.debug
+Verbosity level for log messages from the kernel part of iSCSI target.
+Set to 0 to disable logging or 1 to warn about potential problems.
+Larger values enable debugging output.
+Defaults to 1.
+.It Va kern.cam.ctl.iscsi.maxcmdsn_delta
+The number of outstanding commands to advertise to the iSCSI initiator.
+Technically, it is the difference between ExpCmdSN and MaxCmdSN fields
+in the iSCSI PDU.
+Defaults to 256.
+.It Va kern.cam.ctl.iscsi.ping_timeout
+The number of seconds to wait for the iSCSI initiator to respond to a NOP-In
+PDU.
+In the event that there is no response within that time the session gets
+forcibly terminated.
+Set to 0 to disable sending NOP-In PDUs.
+Defaults to 5.
+.El
 .Sh SEE ALSO
 .Xr ctladm 8 ,
 .Xr ctld 8 ,

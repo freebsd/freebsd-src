@@ -278,6 +278,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk->d_maxsize = nvme_ns_get_max_io_xfer_size(ns);
 	disk->d_sectorsize = nvme_ns_get_sector_size(ns);
 	disk->d_mediasize = (off_t)nvme_ns_get_size(ns);
+	disk->d_delmaxsize = (off_t)nvme_ns_get_size(ns);
 
 	if (TAILQ_EMPTY(&disk_head))
 		disk->d_unit = 0;

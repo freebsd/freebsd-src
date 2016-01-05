@@ -75,13 +75,12 @@
 #define	VM_PHYSSEG_MAX		64
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
  * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
  * the pool from which physical pages for small UMA objects are
  * allocated.
  */
-#define	VM_NFREEPOOL		3
-#define	VM_FREEPOOL_CACHE	2
+#define	VM_NFREEPOOL		2
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
 
@@ -157,15 +156,18 @@
 #define	VM_MIN_KERNEL_ADDRESS	(0xffffff8000000000UL)
 #define	VM_MAX_KERNEL_ADDRESS	(0xffffff8800000000UL)
 
-/* Direct Map for 64 GiB of PA: 0x0 - 0xfffffffff */
+/* Direct Map for 128 GiB of PA: 0x0 - 0x1fffffffff */
 #define	DMAP_MIN_ADDRESS	(0xffffffc000000000UL)
-#define	DMAP_MAX_ADDRESS	(0xffffffcfffffffffUL)
+#define	DMAP_MAX_ADDRESS	(0xffffffdfffffffffUL)
 
 #define	DMAP_MIN_PHYSADDR	(0x0000000000000000UL)
 #define	DMAP_MAX_PHYSADDR	(DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS)
 
 /* True if pa is in the dmap range */
 #define	PHYS_IN_DMAP(pa)	((pa) <= DMAP_MAX_PHYSADDR)
+/* True if va is in the dmap range */
+#define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS && \
+    (va) <= DMAP_MAX_ADDRESS)
 
 #define	PHYS_TO_DMAP(pa)						\
 ({									\
@@ -177,7 +179,7 @@
 
 #define	DMAP_TO_PHYS(va)						\
 ({									\
-	KASSERT(((va) <= DMAP_MAX_ADDRESS || (va) >= DMAP_MIN_ADDRESS),	\
+	KASSERT(VIRT_IN_DMAP(va),					\
 	    ("%s: VA out of range, VA: 0x%lx", __func__,		\
 	    (vm_offset_t)(va)));					\
 	(va) & ~DMAP_MIN_ADDRESS;					\
@@ -221,6 +223,8 @@
 #ifndef	VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+#define	UMA_MD_SMALL_ALLOC
 
 extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;

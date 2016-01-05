@@ -86,27 +86,9 @@ typedef enum {
 } ctl_ooa_status;
 
 struct ctl_ooa_info {
-	uint32_t target_id;	/* Passed in to CTL */
 	uint32_t lun_id;	/* Passed in to CTL */
 	uint32_t num_entries;	/* Returned from CTL */
 	ctl_ooa_status status;	/* Returned from CTL */
-};
-
-struct ctl_hard_startstop_info {
-	cfi_mt_status status;
-	int total_luns;
-	int luns_complete;
-	int luns_failed;
-};
-
-struct ctl_bbrread_info {
-	int			lun_num;	/* Passed in to CTL */
-	uint64_t		lba;		/* Passed in to CTL */
-	int			len;		/* Passed in to CTL */
-	cfi_mt_status		status;		/* Returned from CTL */
-	cfi_bbrread_status	bbr_status;	/* Returned from CTL */
-	uint8_t			scsi_status;	/* Returned from CTL */
-	struct scsi_sense_data	sense_data;	/* Returned from CTL */
 };
 
 typedef enum {
@@ -131,7 +113,6 @@ typedef enum {
 } ctl_delay_status;
 
 struct ctl_io_delay_info {
-	uint32_t		target_id;
 	uint32_t		lun_id;
 	ctl_delay_type		delay_type;
 	ctl_delay_location	delay_loc;
@@ -150,7 +131,6 @@ typedef enum {
  * means that we will let through every N SYNCHRONIZE CACHE commands.
  */
 struct ctl_sync_info {
-	uint32_t		target_id;	/* passed to kernel */
 	uint32_t		lun_id;		/* passed to kernel */
 	int			sync_interval;	/* depends on whether get/set */
 	ctl_gs_sync_status	status;		/* passed from kernel */
@@ -279,7 +259,6 @@ struct ctl_error_desc_cmd {
 /*
  * Error injection descriptor.
  *
- * target_id:	   Target ID to act on.
  * lun_id	   LUN to act on.
  * lun_error:	   The type of error to inject.  See above for descriptions.
  * error_pattern:  What kind of command to act on.  See above.
@@ -290,7 +269,6 @@ struct ctl_error_desc_cmd {
  * links:	   Kernel use only.
  */
 struct ctl_error_desc {
-	uint32_t			target_id;	/* To kernel */
 	uint32_t			lun_id;		/* To kernel */
 	ctl_lun_error			lun_error;	/* To kernel */
 	ctl_lun_error_pattern		error_pattern;	/* To kernel */
@@ -828,10 +806,6 @@ struct ctl_lun_map {
 #define	CTL_DISABLE_PORT	_IOW(CTL_MINOR, 0x05, struct ctl_port_entry)
 #define	CTL_DUMP_OOA		_IO(CTL_MINOR, 0x06)
 #define	CTL_CHECK_OOA		_IOWR(CTL_MINOR, 0x07, struct ctl_ooa_info)
-#define	CTL_HARD_STOP		_IOR(CTL_MINOR, 0x08, \
-				     struct ctl_hard_startstop_info)
-#define	CTL_HARD_START		_IOR(CTL_MINOR, 0x09, \
-				     struct ctl_hard_startstop_info)
 #define	CTL_DELAY_IO		_IOWR(CTL_MINOR, 0x10, struct ctl_io_delay_info)
 #define	CTL_REALSYNC_GET	_IOR(CTL_MINOR, 0x11, int)
 #define	CTL_REALSYNC_SET	_IOW(CTL_MINOR, 0x12, int)
@@ -839,7 +813,6 @@ struct ctl_lun_map {
 #define	CTL_GETSYNC		_IOWR(CTL_MINOR, 0x14, struct ctl_sync_info)
 #define	CTL_GETSTATS		_IOWR(CTL_MINOR, 0x15, struct ctl_stats)
 #define	CTL_ERROR_INJECT	_IOWR(CTL_MINOR, 0x16, struct ctl_error_desc)
-#define	CTL_BBRREAD		_IOWR(CTL_MINOR, 0x17, struct ctl_bbrread_info)
 #define	CTL_GET_OOA		_IOWR(CTL_MINOR, 0x18, struct ctl_ooa)
 #define	CTL_DUMP_STRUCTS	_IO(CTL_MINOR, 0x19)
 #define	CTL_GET_PORT_LIST	_IOWR(CTL_MINOR, 0x20, struct ctl_port_list)

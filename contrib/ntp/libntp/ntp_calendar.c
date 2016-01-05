@@ -29,7 +29,7 @@ ntpcal_set_timefunc(
 	)
 {
 	systime_func_ptr res;
-	
+
 	res = systime_func;
 	if (NULL == nfunc)
 		nfunc = &time;
@@ -118,7 +118,7 @@ vint64_to_time(
 #endif
 
 	return res;
-} 
+}
 
 /*
  *---------------------------------------------------------------------
@@ -170,7 +170,7 @@ ntpcal_get_build_date(
 #ifdef DEBUG
 	static int        ignore  = 0;
 #endif
-	
+
 	ZERO(*jd);
 	jd->year     = 1970;
 	jd->month    = 1;
@@ -255,7 +255,7 @@ static const uint16_t real_month_table[2][13] = {
  * in the proleptic Gregorian calendar. The begin of the Christian Era
  * (0001-01-01) is RD(1).
  *
- * 
+ *
  * Some notes on the implementation:
  *
  * Calendar algorithms thrive on the division operation, which is one of
@@ -351,7 +351,7 @@ ntpcal_periodic_extend(
 	char	 cpl = 0; /* modulo complement flag */
 	char	 neg = 0; /* sign change flag	    */
 
-	/* make the cycle positive and adjust the flags */ 
+	/* make the cycle positive and adjust the flags */
 	if (cycle < 0) {
 		cycle = - cycle;
 		neg ^= 1;
@@ -407,21 +407,21 @@ ntpcal_ntp_to_time(
 
 #ifdef HAVE_INT64
 
-	res.q_s = (pivot != NULL) 
+	res.q_s = (pivot != NULL)
 		      ? *pivot
-		      : now();	
+		      : now();
 	res.Q_s -= 0x80000000;		/* unshift of half range */
 	ntp	-= (uint32_t)JAN_1970;	/* warp into UN*X domain */
 	ntp	-= res.D_s.lo;		/* cycle difference	 */
 	res.Q_s += (uint64_t)ntp;	/* get expanded time	 */
 
 #else /* no 64bit scalars */
-	
+
 	time_t tmp;
-	
-	tmp = (pivot != NULL) 
+
+	tmp = (pivot != NULL)
 		  ? *pivot
-		  : now();	
+		  : now();
 	res = time_to_vint64(&tmp);
 	M_SUB(res.D_s.hi, res.D_s.lo, 0, 0x80000000);
 	ntp -= (uint32_t)JAN_1970;	/* warp into UN*X domain */
@@ -465,9 +465,9 @@ ntpcal_ntp_to_ntp(
 	res.Q_s += (uint64_t)ntp;	/* get expanded time	 */
 
 #else /* no 64bit scalars */
-	
+
 	time_t tmp;
-	
+
 	tmp = (pivot)
 		  ? *pivot
 		  : now();
@@ -492,7 +492,7 @@ ntpcal_ntp_to_ntp(
  */
 
 /*
- *------------------------------------------------------------------- 
+ *-------------------------------------------------------------------
  * Split a 64bit seconds value into elapsed days in 'res.hi' and
  * elapsed seconds since midnight in 'res.lo' using explicit floor
  * division. This function happily accepts negative time values as
@@ -532,7 +532,7 @@ ntpcal_daysplit(
 	isneg = M_ISNEG(op.D_s.hi);
 	if (isneg)
 		M_NEG(op.D_s.hi, op.D_s.lo);
-		
+
 	/* save remainder of DIV 128, shift for divide */
 	r  = op.D_s.lo & 127; /* save remainder bits */
 	op.D_s.lo = (op.D_s.lo >> 7) | (op.D_s.hi << 25);
@@ -572,16 +572,16 @@ ntpcal_daysplit(
 		} else
 			q = ~q + 1;
 	}
-	
+
 	res.hi = q;
 	res.lo = r;
 
-#endif	
+#endif
 	return res;
 }
 
 /*
- *------------------------------------------------------------------- 
+ *-------------------------------------------------------------------
  * Split a 32bit seconds value into h/m/s and excessive days.  This
  * function happily accepts negative time values as timestamps before
  * midnight.
@@ -632,7 +632,7 @@ ntpcal_split_eradays(
 {
 	ntpcal_split res;
 	int32_t	     n400, n100, n004, n001, yday; /* calendar year cycles */
-	
+
 	/*
 	 * Split off calendar cycles, using floor division in the first
 	 * step. After that first step, simple division does it because
@@ -652,7 +652,7 @@ ntpcal_split_eradays(
 	yday = yday % GREGORIAN_NORMAL_LEAP_CYCLE_DAYS;
 	n001 = yday / DAYSPERYEAR;
 	yday = yday % DAYSPERYEAR;
-	
+
 	/*
 	 * check for leap cycle overflows and calculate the leap flag
 	 * if needed
@@ -665,11 +665,11 @@ ntpcal_split_eradays(
 			*isleapyear = 1;
 	} else if (isleapyear)
 		*isleapyear = (n001 == 3) && ((n004 != 24) || (n100 == 3));
-	
+
 	/* now merge the cycles to elapsed years, using horner scheme */
 	res.hi = ((4*n400 + n100)*25 + n004)*4 + n001;
 	res.lo = yday;
-	
+
 	return res;
 }
 
@@ -724,7 +724,13 @@ ntpcal_rd_to_date(
 
 	leaps = 0;
 	retv = 0;
-	/* get day-of-week first */
+	/* Get day-of-week first. Since rd is signed, the remainder can
+	 * be in the range [-6..+6], but the assignment to an unsigned
+	 * variable maps the negative values to positive values >=7.
+	 * This makes the sign correction look strange, but adding 7
+	 * causes the needed wrap-around into the desired value range of
+	 * zero to six, both inclusive.
+	 */
 	jd->weekday = rd % 7;
 	if (jd->weekday >= 7)	/* unsigned! */
 		jd->weekday += 7;
@@ -794,7 +800,7 @@ ntpcal_daysec_to_date(
 {
 	int32_t days;
 	int   ts[3];
-	
+
 	days = priv_timesplit(ts, sec);
 	jd->hour   = (uint8_t)ts[0];
 	jd->minute = (uint8_t)ts[1];
@@ -817,7 +823,7 @@ ntpcal_daysec_to_tm(
 {
 	int32_t days;
 	int32_t ts[3];
-	
+
 	days = priv_timesplit(ts, sec);
 	utm->tm_hour = ts[0];
 	utm->tm_min  = ts[1];
@@ -946,7 +952,7 @@ ntpcal_dayjoin(
 	/* fix sign */
 	if (isneg)
 		M_NEG(res.D_s.hi, res.D_s.lo);
-	
+
 	/* properly add seconds */
 	p2 = 0;
 	if (secs < 0) {
@@ -957,7 +963,7 @@ ntpcal_dayjoin(
 	}
 	M_ADD(res.D_s.hi, res.D_s.lo, p2, p1);
 
-#endif	
+#endif
 
 	return res;
 }
@@ -1279,7 +1285,7 @@ ntpcal_ntp64_to_date(
 	)
 {
 	ntpcal_split ds;
-	
+
 	ds = ntpcal_daysplit(ntp);
 	ds.hi += ntpcal_daysec_to_date(jd, ds.lo);
 
@@ -1294,7 +1300,7 @@ ntpcal_ntp_to_date(
 	)
 {
 	vint64	ntp64;
-	
+
 	/*
 	 * Unfold ntp time around current time into NTP domain. Split
 	 * into days and seconds, shift days into CE domain and
@@ -1516,12 +1522,12 @@ isocal_split_eraweeks(
 	res.lo += (res.lo >= 10435);
 	cents	= res.lo / 5218;
 	res.lo %= 5218;		/* res.lo is weeks in century now */
-	
+
 	/* convert elapsed weeks in century to elapsed years and weeks */
 	res.lo	= res.lo * 157 + bctab[cents];
 	res.hi += cents * 100 + res.lo / 8192;
-	res.lo	= (res.lo % 8192) / 157;	
-	
+	res.lo	= (res.lo % 8192) / 157;
+
 	return res;
 }
 
@@ -1538,7 +1544,7 @@ isocal_ntp64_to_date(
 {
 	ntpcal_split ds;
 	int32_t      ts[3];
-	
+
 	/*
 	 * Split NTP time into days and seconds, shift days into CE
 	 * domain and process the parts.
@@ -1576,7 +1582,7 @@ isocal_ntp_to_date(
 	)
 {
 	vint64	ntp64;
-	
+
 	/*
 	 * Unfold ntp time around current time into NTP domain, then
 	 * convert the full time stamp.

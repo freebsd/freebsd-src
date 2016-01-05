@@ -30,7 +30,4 @@ SRCS=	virtio_scsi.c
 SRCS+=	virtio_bus_if.h virtio_if.h
 SRCS+=	bus_if.h device_if.h opt_scsi.h opt_cam.h
 
-MFILES=	kern/bus_if.m kern/device_if.m \
-	dev/virtio/virtio_bus_if.m dev/virtio/virtio_if.m
-
 .include <bsd.kmod.mk>

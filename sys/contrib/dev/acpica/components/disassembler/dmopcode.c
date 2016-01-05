@@ -45,11 +45,10 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
-#ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmopcode")
@@ -269,10 +268,10 @@ AcpiDmPredefinedDescription (
      * Note: NameString is guaranteed to be upper case here.
      */
     LastCharIsDigit =
-        (ACPI_IS_DIGIT (NameString[3]));    /* d */
+        (isdigit ((int) NameString[3]));    /* d */
     LastCharsAreHex =
-        (ACPI_IS_XDIGIT (NameString[2]) &&  /* xx */
-         ACPI_IS_XDIGIT (NameString[3]));
+        (isxdigit ((int) NameString[2]) &&  /* xx */
+         isxdigit ((int) NameString[3]));
 
     switch (NameString[1])
     {
@@ -967,7 +966,7 @@ AcpiDmDisassembleOneOp (
             (WalkState->Results) &&
             (WalkState->ResultCount))
         {
-            AcpiDmDecodeInternalObject (
+            AcpiDbDecodeInternalObject (
                 WalkState->Results->Results.ObjDesc [
                     (WalkState->ResultCount - 1) %
                         ACPI_RESULTS_FRAME_OBJ_NUM]);
@@ -977,5 +976,3 @@ AcpiDmDisassembleOneOp (
         break;
     }
 }
-
-#endif  /* ACPI_DISASSEMBLER */

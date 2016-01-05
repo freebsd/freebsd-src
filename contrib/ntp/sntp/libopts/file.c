@@ -10,7 +10,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -107,7 +107,7 @@ open_file_fd(tOptions * pOpts, tOptDesc * pOD, tuFileMode mode)
         /* NOTREACHED */
 
     if ((pOD->fOptState & OPTST_ALLOC_ARG) != 0)
-        pOD->optCookie = (void *)(intptr_t)pOD->optArg.argString;
+        pOD->optCookie = VOIDP(pOD->optArg.argString);
     else
         AGDUPSTR(pOD->optCookie, pOD->optArg.argString, "file name");
 
@@ -131,7 +131,7 @@ fopen_file_fp(tOptions * pOpts, tOptDesc * pOD, tuFileMode mode)
         /* NOTREACHED */
 
     if ((pOD->fOptState & OPTST_ALLOC_ARG) != 0)
-        pOD->optCookie = (void *)(intptr_t)pOD->optArg.argString;
+        pOD->optCookie = VOIDP(pOD->optArg.argString);
     else
         AGDUPSTR(pOD->optCookie, pOD->optArg.argString, "file name");
 
@@ -143,8 +143,8 @@ fopen_file_fp(tOptions * pOpts, tOptDesc * pOD, tuFileMode mode)
  * private:
  *
  * what:  Decipher a boolean value
- * arg:   + tOptions*     + pOpts    + program options descriptor  +
- * arg:   + tOptDesc*     + pOptDesc + the descriptor for this arg +
+ * arg:   + tOptions *    + pOpts    + program options descriptor  +
+ * arg:   + tOptDesc *    + pOptDesc + the descriptor for this arg +
  * arg:   + teOptFileType + ftype    + File handling type          +
  * arg:   + tuFileMode    + mode     + file open mode (if needed)  +
  *
@@ -153,7 +153,7 @@ fopen_file_fp(tOptions * pOpts, tOptDesc * pOD, tuFileMode mode)
  *   The mode specifies if the file must exist, must not exist or may
  *   (or may not) exist.  The mode may also specify opening the
  *   file: don't, open just the descriptor (fd), or open as a stream
- *   (FILE* pointer).
+ *   (FILE * pointer).
 =*/
 void
 optionFileCheck(tOptions * pOpts, tOptDesc * pOD,

@@ -259,7 +259,7 @@ uint64_t qumasks[sizeof(uint64_t) * CHAR_BIT + 1];
 /* free list for sbuf structures */
 static	sbuf_t	 *sbfrlst;
 
-/* Typ of next expected symbol */
+/* type of next expected symbol */
 symt_t	symtyp;
 
 
@@ -518,7 +518,7 @@ icon(int base)
 		warning(252);
 
 	/*
-	 * If the value is to big for the current type, we must choose
+	 * If the value is too big for the current type, we must choose
 	 * another type.
 	 */
 	ansiu = 0;

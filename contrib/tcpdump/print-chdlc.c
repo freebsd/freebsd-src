@@ -56,7 +56,8 @@ chdlc_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, register co
 }
 
 u_int
-chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length) {
+chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length)
+{
 	u_int proto;
 
 	proto = EXTRACT_16BITS(&p[2]);
@@ -75,11 +76,9 @@ chdlc_print(netdissect_options *ndo, register const u_char *p, u_int length) {
 	case ETHERTYPE_IP:
 		ip_print(ndo, p, length);
 		break;
-#ifdef INET6
 	case ETHERTYPE_IPV6:
 		ip6_print(ndo, p, length);
 		break;
-#endif
 	case CHDLC_TYPE_SLARP:
 		chdlc_slarp_print(ndo, p, length);
 		break;

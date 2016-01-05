@@ -29,10 +29,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
+
 #include <err.h>
 #include <pwd.h>
 #include <libutil.h>
@@ -46,6 +44,7 @@ pw_nisupdate(const char * path, struct passwd * pwd, char const * user)
 	struct passwd *pw = NULL;
 	struct passwd *old_pw = NULL;
 
+	printf("===> %s\n", path);
 	if (pwd != NULL)
 		pw = pw_dup(pwd);
 

@@ -66,17 +66,25 @@ output, with attributes that detail how to render the data.
 .Pp
 There are four encoding styles supported by
 .Nm :
-TEXT, HTML, JSON,
-and XML.
-JSON and XML are suitable for encoding data, while TEXT and
-HTML are suited for display to the user.
-TEXT output can be display
-on a terminal session, allowing compatibility with traditional usage.
+.Bl -bullet
+.It
+TEXT output can be display on a terminal session, allowing
+compatibility with traditional command line usage.
+.It
+XML output is suitable for tools like XPath and protocols like
+NETCONF.
+.It
+JSON output can be used for RESTful APIs and integration with
+languages like Javascript and Python.
+.It
 HTML can be matched with a small CSS file to permit rendering in any
 HTML5 browser.
-XML output is suitable for tools like XPath and
-protocols like NETCONF.
-JSON output can be used for RESTful APIs.
+.El
+.Pp
+In general, XML and JSON are suitable for encoding data, while TEXT is
+suited for terminal output and HTML is suited for display in a web
+browser (see
+.Xr xohtml 1 ).
 .Pp
 The
 .Nm
@@ -177,6 +185,19 @@ formatted output.
 See
 .Xr xo_format 5
 for details.
+.It Fn xo_emit_warn
+.It Fn xo_emit_warnx
+.It Fn xo_emit_warn_c
+.It Fn xo_emit_warn_hc
+.It Fn xo_emit_err
+.It Fn xo_emit_errc
+.It Fn xo_emit_errx
+These functions are mildly compatible with their standard libc
+namesakes, but use the format string defined in
+.Xr xo_format 5 .
+While there is an increased cost for converting the strings, the
+output provided can be richer and more useful.   See also
+.Xr xo_err 3
 .It Fn xo_warn
 .It Fn xo_warnx
 .It Fn xo_warn_c
@@ -269,30 +290,13 @@ Instructs
 .Nm
 to use an alternative set of low-level output functions.
 .El
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
 .Xr xo 1 ,
 .Xr xolint 1 ,
 .Xr xo_attr 3 ,
 .Xr xo_create 3 ,
 .Xr xo_emit 3 ,
+.Xr xo_emit_err 3 ,
 .Xr xo_err 3 ,
 .Xr xo_finish 3 ,
 .Xr xo_flush 3 ,
@@ -307,10 +311,3 @@ https://github.com/Juniper/libxo/releases
 .Xr xo_set_style 3 ,
 .Xr xo_set_writer 3 ,
 .Xr xo_format 5
-.Sh HISTORY
-The
-.Nm
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer

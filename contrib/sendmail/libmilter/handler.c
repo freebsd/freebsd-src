@@ -15,7 +15,7 @@ SM_RCSID("@(#)$Id: handler.c,v 8.40 2013-11-22 20:51:36 ca Exp $")
 
 #if !_FFR_WORKERS_POOL
 /*
-**  HANDLE_SESSION -- Handle a connected session in its own context
+**  MI_HANDLE_SESSION -- Handle a connected session in its own context
 **
 **	Parameters:
 **		ctx -- context structure

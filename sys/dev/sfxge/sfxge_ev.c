@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -82,12 +86,13 @@ sfxge_ev_qcomplete(struct sfxge_evq *evq, boolean_t eop)
 
 static boolean_t
 sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
-    uint16_t flags)
+	    uint16_t flags)
 {
 	struct sfxge_evq *evq;
 	struct sfxge_softc *sc;
 	struct sfxge_rxq *rxq;
-	unsigned int expected;
+	unsigned int stop;
+	unsigned int delta;
 	struct sfxge_rx_sw_desc *rx_desc;
 
 	evq = arg;
@@ -106,27 +111,39 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	if (__predict_false(rxq->init_state != SFXGE_RXQ_STARTED))
 		goto done;
 
-	expected = rxq->pending++ & rxq->ptr_mask;
-	if (id != expected) {
-		evq->exception = B_TRUE;
+	stop = (id + 1) & rxq->ptr_mask;
+	id = rxq->pending & rxq->ptr_mask;
+	delta = (stop >= id) ? (stop - id) : (rxq->entries - id + stop);
+	rxq->pending += delta;
 
-		device_printf(sc->dev, "RX completion out of order"
-			      " (id=%#x expected=%#x flags=%#x); resetting\n",
-			      id, expected, flags);
-		sfxge_schedule_reset(sc);
+	if (delta != 1) {
+		if ((!efx_nic_cfg_get(sc->enp)->enc_rx_batching_enabled) ||
+		    (delta <= 0) ||
+		    (delta > efx_nic_cfg_get(sc->enp)->enc_rx_batch_max)) {
+			evq->exception = B_TRUE;
 
-		goto done;
+			device_printf(sc->dev, "RX completion out of order"
+						  " (id=%#x delta=%u flags=%#x); resetting\n",
+						  id, delta, flags);
+			sfxge_schedule_reset(sc);
+
+			goto done;
+		}
 	}
 
 	rx_desc = &rxq->queue[id];
 
-	KASSERT(rx_desc->flags == EFX_DISCARD,
-	    ("rx_desc->flags != EFX_DISCARD"));
-	rx_desc->flags = flags;
-
-	KASSERT(size < (1 << 16), ("size > (1 << 16)"));
-	rx_desc->size = (uint16_t)size;
 	prefetch_read_many(rx_desc->mbuf);
+
+	for (; id != stop; id = (id + 1) & rxq->ptr_mask) {
+		rx_desc = &rxq->queue[id];
+		KASSERT(rx_desc->flags == EFX_DISCARD,
+				("rx_desc->flags != EFX_DISCARD"));
+		rx_desc->flags = flags;
+
+		KASSERT(size < (1 << 16), ("size > (1 << 16)"));
+		rx_desc->size = (uint16_t)size;
+	}
 
 	evq->rx_done++;
 
@@ -147,6 +164,18 @@ sfxge_ev_exception(void *arg, uint32_t code, uint32_t data)
 	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	sc = evq->sc;
+
+	DBGPRINT(sc->dev, "[%d] %s", evq->index,
+			  (code == EFX_EXCEPTION_RX_RECOVERY) ? "RX_RECOVERY" :
+			  (code == EFX_EXCEPTION_RX_DSC_ERROR) ? "RX_DSC_ERROR" :
+			  (code == EFX_EXCEPTION_TX_DSC_ERROR) ? "TX_DSC_ERROR" :
+			  (code == EFX_EXCEPTION_UNKNOWN_SENSOREVT) ? "UNKNOWN_SENSOREVT" :
+			  (code == EFX_EXCEPTION_FWALERT_SRAM) ? "FWALERT_SRAM" :
+			  (code == EFX_EXCEPTION_UNKNOWN_FWALERT) ? "UNKNOWN_FWALERT" :
+			  (code == EFX_EXCEPTION_RX_ERROR) ? "RX_ERROR" :
+			  (code == EFX_EXCEPTION_TX_ERROR) ? "TX_ERROR" :
+			  (code == EFX_EXCEPTION_EV_ERROR) ? "EV_ERROR" :
+			  "UNKNOWN");
 
 	evq->exception = B_TRUE;
 
@@ -180,6 +209,11 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 
 	/* Resend a software event on the correct queue */
 	index = rxq->index;
+	if (index == evq->index) {
+		sfxge_rx_qflush_done(rxq);
+		return (B_FALSE);
+	}
+
 	evq = sc->evq[index];
 
 	label = rxq_index;
@@ -298,6 +332,11 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 	KASSERT(txq != NULL, ("txq == NULL"));
 	KASSERT(txq->init_state == SFXGE_TXQ_INITIALIZED,
 	    ("txq not initialized"));
+
+	if (txq->evq_index == evq->index) {
+		sfxge_tx_qflush_done(txq);
+		return (B_FALSE);
+	}
 
 	/* Resend a software event on the correct queue */
 	evq = sc->evq[txq->evq_index];
@@ -551,7 +590,9 @@ sfxge_ev_initialized(void *arg)
 	evq = (struct sfxge_evq *)arg;
 	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
-	KASSERT(evq->init_state == SFXGE_EVQ_STARTING,
+	/* Init done events may be duplicated on 7xxx */
+	KASSERT(evq->init_state == SFXGE_EVQ_STARTING ||
+		evq->init_state == SFXGE_EVQ_STARTED,
 	    ("evq not starting"));
 
 	evq->init_state = SFXGE_EVQ_STARTED;

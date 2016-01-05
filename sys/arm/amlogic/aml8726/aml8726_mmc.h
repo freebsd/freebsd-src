@@ -47,20 +47,6 @@
 #define	AML_MMC_WRITE_TIMEOUT			500
 #define	AML_MMC_MAX_TIMEOUT			5000
 
-/*
- * Internally the timeout is implemented by counting clock cycles.
- *
- * Since the hardware implements timeouts by counting cycles
- * the minimum read / write timeout (assuming the minimum
- * conversion factor of 1 cycle per usec) is:
- *
- *   (8 bits * 512 bytes per block + 16 bits CRC) = 4112 usec
- */
-#if ((AML_MMC_READ_TIMEOUT * 1000) < 4112 ||	\
-    (AML_MMC_WRITE_TIMEOUT * 1000) < 4112)
-#error "Single block timeout is smaller than supported"
-#endif
-
 #define	AML_MMC_CMD_ARGUMENT_REG		0
 
 #define	AML_MMC_CMD_SEND_REG			4

@@ -198,7 +198,7 @@ static int	archive_read_format_cpio_read_data(struct archive_read *,
 static int	archive_read_format_cpio_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	archive_read_format_cpio_skip(struct archive_read *);
-static int	be4(const unsigned char *);
+static int64_t	be4(const unsigned char *);
 static int	find_odc_header(struct archive_read *);
 static int	find_newc_header(struct archive_read *);
 static int	header_bin_be(struct archive_read *, struct cpio *,
@@ -213,7 +213,7 @@ static int	header_afiol(struct archive_read *, struct cpio *,
 		    struct archive_entry *, size_t *, size_t *);
 static int	is_octal(const char *, size_t);
 static int	is_hex(const char *, size_t);
-static int	le4(const unsigned char *);
+static int64_t	le4(const unsigned char *);
 static int	record_hardlink(struct archive_read *a,
 		    struct cpio *cpio, struct archive_entry *entry);
 
@@ -864,8 +864,11 @@ header_bin_le(struct archive_read *a, struct cpio *cpio,
 
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, bin_header_size, NULL);
-	if (h == NULL)
+	if (h == NULL) {
+	    archive_set_error(&a->archive, 0,
+		"End of file trying to read next cpio header");
 	    return (ARCHIVE_FATAL);
+	}
 
 	/* Parse out binary fields. */
 	header = (const unsigned char *)h;
@@ -900,8 +903,11 @@ header_bin_be(struct archive_read *a, struct cpio *cpio,
 
 	/* Read fixed-size portion of header. */
 	h = __archive_read_ahead(a, bin_header_size, NULL);
-	if (h == NULL)
+	if (h == NULL) {
+	    archive_set_error(&a->archive, 0,
+		"End of file trying to read next cpio header");
 	    return (ARCHIVE_FATAL);
+	}
 
 	/* Parse out binary fields. */
 	header = (const unsigned char *)h;
@@ -944,17 +950,17 @@ archive_read_format_cpio_cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
-static int
+static int64_t
 le4(const unsigned char *p)
 {
-	return ((p[0]<<16) + (p[1]<<24) + (p[2]<<0) + (p[3]<<8));
+	return ((p[0] << 16) + (((int64_t)p[1]) << 24) + (p[2] << 0) + (p[3] << 8));
 }
 
 
-static int
+static int64_t
 be4(const unsigned char *p)
 {
-	return ((p[0]<<24) + (p[1]<<16) + (p[2]<<8) + (p[3]));
+	return ((((int64_t)p[0]) << 24) + (p[1] << 16) + (p[2] << 8) + (p[3]));
 }
 
 /*

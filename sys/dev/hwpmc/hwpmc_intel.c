@@ -46,14 +46,14 @@ intel_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
 
-	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
+	PMCDBG3(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
 	    pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS);
 
 	/* allow the RDPMC instruction if needed */
 	if (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS)
 		load_cr4(rcr4() | CR4_PCE);
 
-	PMCDBG(MDP,SWI,1, "cr4=0x%jx", (uintmax_t) rcr4());
+	PMCDBG1(MDP,SWI,1, "cr4=0x%jx", (uintmax_t) rcr4());
 
 	return 0;
 }
@@ -64,7 +64,7 @@ intel_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 	(void) pc;
 	(void) pp;		/* can be NULL */
 
-	PMCDBG(MDP,SWO,1, "pc=%p pp=%p cr4=0x%jx", pc, pp,
+	PMCDBG3(MDP,SWO,1, "pc=%p pp=%p cr4=0x%jx", pc, pp,
 	    (uintmax_t) rcr4());
 
 	/* always turn off the RDPMC instruction */
@@ -83,7 +83,7 @@ pmc_intel_initialize(void)
 	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[intel,%d] Initializing non-intel processor", __LINE__));
 
-	PMCDBG(MDP,INI,0, "intel-initialize cpuid=0x%x", cpu_id);
+	PMCDBG1(MDP,INI,0, "intel-initialize cpuid=0x%x", cpu_id);
 
 	cputype = -1;
 	nclasses = 2;

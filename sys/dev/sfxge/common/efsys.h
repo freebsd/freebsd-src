@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * $FreeBSD$
  */
@@ -56,6 +60,7 @@ extern "C" {
 #else
 #define	EFSYS_USE_UINT64 0
 #endif
+#define	EFSYS_HAS_SSE2_M128 0
 #if _BYTE_ORDER == _BIG_ENDIAN
 #define	EFSYS_IS_BIG_ENDIAN 1
 #define	EFSYS_IS_LITTLE_ENDIAN 0
@@ -88,6 +93,10 @@ extern "C" {
 
 #ifndef P2ROUNDUP
 #define	P2ROUNDUP(x, align)	(-(-(x) & -(align)))
+#endif
+
+#ifndef P2ALIGN
+#define	P2ALIGN(_x, _a)		((_x) & -(_a))
 #endif
 
 #ifndef IS2P
@@ -176,7 +185,7 @@ prefetch_read_once(void *addr)
 #endif
 static __inline void
 sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
-    struct mbuf *m, bus_dma_segment_t *seg)
+		    struct mbuf *m, bus_dma_segment_t *seg)
 {
 #if defined(__i386__) || defined(__amd64__)
 	seg->ds_addr = pmap_kextract(mtod(m, vm_offset_t));
@@ -187,10 +196,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 	bus_dmamap_load_mbuf_sg(tag, map, m, seg, &nsegstmp, 0);
 #endif
 }
-
-/* Modifiers used for DOS builds */
-#define	__cs
-#define	__far
 
 /* Modifiers used for Windows builds */
 #define	__in
@@ -231,6 +236,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_FALCON 0
 #define	EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE 0
 #define	EFSYS_OPT_SIENA 1
+#define	EFSYS_OPT_HUNTINGTON 1
 #ifdef DEBUG
 #define	EFSYS_OPT_CHECK_REG 1
 #else
@@ -248,19 +254,19 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_MON_NULL 0
 #define	EFSYS_OPT_MON_LM87 0
 #define	EFSYS_OPT_MON_MAX6647 0
-#define	EFSYS_OPT_MON_SIENA 0
+#define	EFSYS_OPT_MON_MCDI 0
 #define	EFSYS_OPT_MON_STATS 0
 
 #define	EFSYS_OPT_PHY_NULL 0
 #define	EFSYS_OPT_PHY_QT2022C2 0
 #define	EFSYS_OPT_PHY_SFX7101 0
 #define	EFSYS_OPT_PHY_TXC43128 0
-#define	EFSYS_OPT_PHY_PM8358 0
 #define	EFSYS_OPT_PHY_SFT9001 0
 #define	EFSYS_OPT_PHY_QT2025C 0
 #define	EFSYS_OPT_PHY_STATS 1
 #define	EFSYS_OPT_PHY_PROPS 0
-#define	EFSYS_OPT_PHY_BIST 1
+#define	EFSYS_OPT_PHY_BIST 0
+#define	EFSYS_OPT_BIST 1
 #define	EFSYS_OPT_PHY_LED_CONTROL 1
 #define	EFSYS_OPT_PHY_FLAGS 0
 
@@ -276,7 +282,8 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_WOL 1
 #define	EFSYS_OPT_RX_SCALE 1
 #define	EFSYS_OPT_QSTATS 1
-#define	EFSYS_OPT_FILTER 0
+#define	EFSYS_OPT_FILTER 1
+#define	EFSYS_OPT_MCAST_FILTER_LIST 1
 #define	EFSYS_OPT_RX_SCATTER 0
 #define	EFSYS_OPT_RX_HDR_SPLIT 0
 
@@ -618,6 +625,9 @@ typedef struct efsys_mem_s {
 #define	EFSYS_MEM_ADDR(_esmp)						\
 	((_esmp)->esm_addr)
 
+#define	EFSYS_MEM_IS_NULL(_esmp)					\
+	((_esmp)->esm_base == NULL)
+
 /* BAR */
 
 #define	SFXGE_LOCK_NAME_MAX	16
@@ -880,6 +890,24 @@ typedef struct efsys_bar_s {
 	} while (B_FALSE)
 #endif
 
+/*
+ * Guarantees 64bit aligned 64bit writes to write combined BAR mapping
+ * (required by PIO hardware)
+ */
+#define	EFSYS_BAR_WC_WRITEQ(_esbp, _offset, _eqp)			\
+	do {								\
+		_NOTE(CONSTANTCONDITION)				\
+		KASSERT(IS_P2ALIGNED(_offset, sizeof (efx_qword_t)),	\
+		    ("not power of 2 aligned"));			\
+									\
+		(void) (_esbp);						\
+									\
+		/* FIXME: Perform a 64-bit write */			\
+		KASSERT(0, ("not implemented"));			\
+									\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
 #if defined(SFXGE_USE_BUS_SPACE_8)
 #define	EFSYS_BAR_WRITEO(_esbp, _offset, _eop, _lock)			\
 	do {								\
@@ -979,6 +1007,13 @@ typedef struct efsys_bar_s {
 	} while (B_FALSE)
 #endif
 
+/* Use the standard octo-word write for doorbell writes */
+#define	EFSYS_BAR_DOORBELL_WRITEO(_esbp, _offset, _eop)			\
+	do {								\
+		EFSYS_BAR_WRITEO((_esbp), (_offset), (_eop), B_FALSE);	\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
 /* SPIN */
 
 #define	EFSYS_SPIN(_us)							\
@@ -993,6 +1028,23 @@ typedef struct efsys_bar_s {
 
 #define	EFSYS_MEM_READ_BARRIER()	rmb()
 #define	EFSYS_PIO_WRITE_BARRIER()
+
+/* DMA SYNC */
+#define	EFSYS_DMA_SYNC_FOR_KERNEL(_esmp, _offset, _size)		\
+	do {								\
+		bus_dmamap_sync((_esmp)->esm_tag,			\
+		    (_esmp)->esm_map,					\
+		    BUS_DMASYNC_POSTREAD);				\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#define	EFSYS_DMA_SYNC_FOR_DEVICE(_esmp, _offset, _size)		\
+	do {								\
+		bus_dmamap_sync((_esmp)->esm_tag,			\
+		    (_esmp)->esm_map,					\
+		    BUS_DMASYNC_PREWRITE);				\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
 
 /* TIMESTAMP */
 
@@ -1150,7 +1202,7 @@ extern void	sfxge_err(efsys_identifier_t *, unsigned int,
 
 #define	EFSYS_ASSERT(_exp) do {						\
 	if (!(_exp))							\
-		panic(#_exp);						\
+		panic("%s", #_exp);					\
 	} while (0)
 
 #define	EFSYS_ASSERT3(_x, _op, _y, _t) do {				\
@@ -1163,6 +1215,10 @@ extern void	sfxge_err(efsys_identifier_t *, unsigned int,
 #define	EFSYS_ASSERT3U(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, uint64_t)
 #define	EFSYS_ASSERT3S(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, int64_t)
 #define	EFSYS_ASSERT3P(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, uintptr_t)
+
+/* ROTATE */
+
+#define	EFSYS_HAS_ROTL_DWORD 0
 
 #ifdef	__cplusplus
 }

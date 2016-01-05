@@ -563,17 +563,6 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 	/* Let's try to link values */
 	for (i = 0; i < count; i++) {
 		ptei = &tei[i];
-		if (ptei->value != 0) {
-
-			/*
-			 * We may be here after several process restarts,
-			 * so we need to update all fields that might
-			 * have changed.
-			 */
-			ptv = (struct table_val_link *)ptei->ptv;
-			ptv->pval = &pval[i];
-			continue;
-		}
 
 		/* Check if record has appeared */
 		mask_table_value(ptei->pvalue, &tval, ts->vmask);

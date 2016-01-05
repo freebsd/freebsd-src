@@ -49,7 +49,7 @@ struct pcb {
 	__uint128_t	pcb_vfp[32];
 	uint32_t	pcb_fpcr;
 	uint32_t	pcb_fpsr;
-	u_int		pcb_fpflags;
+	int		pcb_fpflags;
 #define	PCB_FP_STARTED	0x01
 	u_int		pcb_vfpcpu;	/* Last cpu this thread ran VFP code */
 };

@@ -249,9 +249,12 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 	}
 
 	pf_vvi = (struct i40e_virtchnl_version_info *)event.msg_buf;
-	if ((pf_vvi->major != I40E_VIRTCHNL_VERSION_MAJOR) ||
-	    (pf_vvi->minor != I40E_VIRTCHNL_VERSION_MINOR))
+	if ((pf_vvi->major > I40E_VIRTCHNL_VERSION_MAJOR) ||
+	    ((pf_vvi->major == I40E_VIRTCHNL_VERSION_MAJOR) &&
+	    (pf_vvi->minor > I40E_VIRTCHNL_VERSION_MINOR)))
 		err = EIO;
+	else
+		sc->pf_version = pf_vvi->minor;
 
 out_alloc:
 	free(event.msg_buf, M_DEVBUF);
@@ -269,7 +272,18 @@ out:
 int
 ixlv_send_vf_config_msg(struct ixlv_sc *sc)
 {
-	return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
+	u32	caps;
+
+	caps = I40E_VIRTCHNL_VF_OFFLOAD_L2 |
+	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ |
+	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    I40E_VIRTCHNL_VF_OFFLOAD_VLAN;
+
+	if (sc->pf_version)
+		return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
+				  (u8 *)&caps, sizeof(caps));
+	else
+		return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
 				  NULL, 0);
 }
 

@@ -651,12 +651,13 @@ struct ksem_close_args {
 int
 sys_ksem_close(struct thread *td, struct ksem_close_args *uap)
 {
+	cap_rights_t rights;
 	struct ksem *ks;
 	struct file *fp;
 	int error;
 
 	/* No capability rights required to close a semaphore. */
-	error = ksem_get(td, uap->id, 0, &fp);
+	error = ksem_get(td, uap->id, cap_rights_init(&rights), &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -872,12 +873,13 @@ struct ksem_destroy_args {
 int
 sys_ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 {
+	cap_rights_t rights;
 	struct file *fp;
 	struct ksem *ks;
 	int error;
 
 	/* No capability rights required to close a semaphore. */
-	error = ksem_get(td, uap->id, 0, &fp);
+	error = ksem_get(td, uap->id, cap_rights_init(&rights), &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;

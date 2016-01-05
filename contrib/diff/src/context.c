@@ -62,7 +62,7 @@ print_context_label (char const *mark,
 	{
 	  time_t sec = inf->stat.st_mtime;
 	  verify (info_preserved, sizeof inf->stat.st_mtime <= sizeof sec);
-	  sprintf (buf, "%jd.%.9d", (intmax_t)sec, nsec);
+	  sprintf (buf, "%jd.%.9ld", (intmax_t)sec, nsec);
 	}
       fprintf (outfile, "%s %s\t%s\n", mark, inf->name, buf);
     }

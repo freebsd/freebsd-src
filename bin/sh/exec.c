@@ -522,17 +522,16 @@ static struct tblentry **lastcmdentry;
 static struct tblentry *
 cmdlookup(const char *name, int add)
 {
-	int hashval;
+	unsigned int hashval;
 	const char *p;
 	struct tblentry *cmdp;
 	struct tblentry **pp;
 	size_t len;
 
 	p = name;
-	hashval = *p << 4;
+	hashval = (unsigned char)*p << 4;
 	while (*p)
 		hashval += *p++;
-	hashval &= 0x7FFF;
 	pp = &cmdtable[hashval % CMDTABLESIZE];
 	for (cmdp = *pp ; cmdp ; cmdp = cmdp->next) {
 		if (equal(cmdp->cmdname, name))

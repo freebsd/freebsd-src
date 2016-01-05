@@ -418,6 +418,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 		xinpcb.total_recvs = inp->total_recvs;
 		xinpcb.total_nospaces = inp->total_nospaces;
 		xinpcb.fragmentation_point = inp->sctp_frag_point;
+		xinpcb.socket = inp->sctp_socket;
 		so = inp->sctp_socket;
 		if ((so == NULL) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
@@ -452,7 +453,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 			if (stcb->asoc.primary_destination != NULL)
 				xstcb.primary_addr = stcb->asoc.primary_destination->ro._l_addr;
 			xstcb.heartbeat_interval = stcb->asoc.heart_beat_delay;
-			xstcb.state = SCTP_GET_STATE(&stcb->asoc);	/* FIXME */
+			xstcb.state = (uint32_t) sctp_map_assoc_state(stcb->asoc.state);
 			/* 7.0 does not support these */
 			xstcb.assoc_id = sctp_get_associd(stcb);
 			xstcb.peers_rwnd = stcb->asoc.peers_rwnd;
@@ -510,6 +511,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.mtu = net->mtu;
 				xraddr.rtt = net->rtt / 1000;
 				xraddr.heartbeat_interval = net->heart_beat_delay;
+				xraddr.ssthresh = net->ssthresh;
 				xraddr.start_time.tv_sec = (uint32_t) net->start_time.tv_sec;
 				xraddr.start_time.tv_usec = (uint32_t) net->start_time.tv_usec;
 				SCTP_INP_RUNLOCK(inp);

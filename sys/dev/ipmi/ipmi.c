@@ -756,17 +756,22 @@ ipmi_startup(void *arg)
 	}
 	device_printf(dev, "Number of channels %d\n", i);
 
-	/* probe for watchdog */
-	IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
-	    IPMI_GET_WDOG, 0, 0);
+	/*
+	 * Probe for watchdog, but only for backends which support
+	 * polled driver requests.
+	 */
+	if (sc->ipmi_driver_requests_polled) {
+		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		    IPMI_GET_WDOG, 0, 0);
 
-	ipmi_submit_driver_request(sc, req, 0);
+		ipmi_submit_driver_request(sc, req, 0);
 
-	if (req->ir_compcode == 0x00) {
-		device_printf(dev, "Attached watchdog\n");
-		/* register the watchdog event handler */
-		sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(watchdog_list,
-		    ipmi_wd_event, sc, 0);
+		if (req->ir_compcode == 0x00) {
+			device_printf(dev, "Attached watchdog\n");
+			/* register the watchdog event handler */
+			sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(
+			    watchdog_list, ipmi_wd_event, sc, 0);
+		}
 	}
 
 	sc->ipmi_cdev = make_dev(&ipmi_cdevsw, device_get_unit(dev),

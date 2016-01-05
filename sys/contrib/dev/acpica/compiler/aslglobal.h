@@ -73,6 +73,7 @@ ASL_FILE_INFO                       Gbl_Files [ASL_NUM_FILES] =
     {NULL, NULL, "Binary Output:", "AML Output"},
     {NULL, NULL, "Source Output:", "Source Output"},
     {NULL, NULL, "Preprocessor: ", "Preprocessor Output"},
+    {NULL, NULL, "Preprocessor: ", "Preprocessor Temp File"},
     {NULL, NULL, "Listing File: ", "Listing Output"},
     {NULL, NULL, "Hex Dump:     ", "Hex Table Output"},
     {NULL, NULL, "Namespace:    ", "Namespace Output"},
@@ -123,10 +124,10 @@ ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_CurrentLineBuffer, NUL
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_LineBufPtr, NULL);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_LineBufferSize, ASL_DEFAULT_LINE_BUFFER_SIZE);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentColumn, 0);
-ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_PreviousLineNumber, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLineNumber, 1);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_LogicalLineNumber, 1);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_CurrentLineOffset, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_OriginalInputFileSize, 0);
 ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_SyntaxError, 0);
 
 /* Exception reporting */
@@ -146,6 +147,7 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_UseDefaultAmlFilename, 
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_MapfileFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_NsOutputFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessorOutputFlag, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_KeepPreprocessorTempFile, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DebugFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_AsmOutputFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_C_OutputFlag, FALSE);

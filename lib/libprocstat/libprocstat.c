@@ -767,6 +767,8 @@ kinfo_getfile_core(struct procstat_core *core, int *cntp)
 	eb = buf + len;
 	while (bp < eb) {
 		kf = (struct kinfo_file *)(uintptr_t)bp;
+		if (kf->kf_structsize == 0)
+			break;
 		bp += kf->kf_structsize;
 		cnt++;
 	}
@@ -782,6 +784,8 @@ kinfo_getfile_core(struct procstat_core *core, int *cntp)
 	/* Pass 2: unpack */
 	while (bp < eb) {
 		kf = (struct kinfo_file *)(uintptr_t)bp;
+		if (kf->kf_structsize == 0)
+			break;
 		/* Copy/expand into pre-zeroed buffer */
 		memcpy(kp, kf, kf->kf_structsize);
 		/* Advance to next packed record */
@@ -1235,7 +1239,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	struct vnode vnode;
 	char tagstr[12];
 	void *vp;
-	int error, found;
+	int error;
 	unsigned int i;
 
 	assert(kd);
@@ -1264,7 +1268,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	/*
 	 * Find appropriate handler.
 	 */
-	for (i = 0, found = 0; i < NTYPES; i++)
+	for (i = 0; i < NTYPES; i++)
 		if (!strcmp(fstypes[i].tag, tagstr)) {
 			if (fstypes[i].handler(kd, &vnode, vn) != 0) {
 				goto fail;

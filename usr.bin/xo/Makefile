@@ -10,6 +10,6 @@ MAN=	xo.1
 # XXX For xoversion.h
 CFLAGS+=-I${LIBXO}/libxo
 
-LIBADD=	xo
+LIBADD=	xo util
 
 .include <bsd.prog.mk>

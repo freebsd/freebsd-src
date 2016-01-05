@@ -216,7 +216,7 @@ shm_find_segment(int arg, bool is_shmid)
 	shmseg = &shmsegs[segnum];
 	if ((shmseg->u.shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
 	    (!shm_allow_removed &&
-	     (shmseg->u.shm_perm.mode & SHMSEG_REMOVED) != 0) ||
+	    (shmseg->u.shm_perm.mode & SHMSEG_REMOVED) != 0) ||
 	    (is_shmid && shmseg->u.shm_perm.seq != IPCID_TO_SEQ(arg)))
 		return (NULL);
 	return (shmseg);
@@ -278,8 +278,9 @@ kern_shmdt_locked(struct thread *td, const void *shmaddr)
 	struct shmmap_state *shmmap_s;
 #ifdef MAC
 	struct shmid_kernel *shmsegptr;
+	int error;
 #endif
-	int error, i;
+	int i;
 
 	SYSVSHM_ASSERT_LOCKED();
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
@@ -301,8 +302,7 @@ kern_shmdt_locked(struct thread *td, const void *shmaddr)
 	if (error != 0)
 		return (error);
 #endif
-	error = shm_delete_mapping(p->p_vmspace, shmmap_s);
-	return (error);
+	return (shm_delete_mapping(p->p_vmspace, shmmap_s));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -380,10 +380,8 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		 * This is just a hint to vm_map_find() about where to
 		 * put it.
 		 */
-		PROC_LOCK(p);
 		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
-		    lim_max(p, RLIMIT_DATA));
-		PROC_UNLOCK(p);
+		    lim_max(td, RLIMIT_DATA));
 	}
 
 	vm_object_reference(shmseg->object);
@@ -443,7 +441,6 @@ kern_shmctl_locked(struct thread *td, int shmid, int cmd, void *buf,
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 
-	error = 0;
 	switch (cmd) {
 	/*
 	 * It is possible that kern_shmctl is being called from the Linux ABI
@@ -552,10 +549,10 @@ struct shmctl_args {
 int
 sys_shmctl(struct thread *td, struct shmctl_args *uap)
 {
-	int error = 0;
+	int error;
 	struct shmid_ds buf;
 	size_t bufsz;
-	
+
 	/*
 	 * The only reason IPC_INFO, SHM_INFO, SHM_STAT exists is to support
 	 * Linux binaries.  If we see the call come through the FreeBSD ABI,
@@ -570,11 +567,11 @@ sys_shmctl(struct thread *td, struct shmctl_args *uap)
 		if ((error = copyin(uap->buf, &buf, sizeof(struct shmid_ds))))
 			goto done;
 	}
-	
+
 	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&buf, &bufsz);
 	if (error)
 		goto done;
-	
+
 	/* Cases in which we need to copyout */
 	switch (uap->cmd) {
 	case IPC_STAT:
@@ -651,17 +648,19 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 	    ("segnum %d shmalloced %d", segnum, shmalloced));
 	shmseg = &shmsegs[segnum];
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	if (racct_add(td->td_proc, RACCT_NSHM, 1)) {
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		if (racct_add(td->td_proc, RACCT_NSHM, 1)) {
+			PROC_UNLOCK(td->td_proc);
+			return (ENOSPC);
+		}
+		if (racct_add(td->td_proc, RACCT_SHMSIZE, size)) {
+			racct_sub(td->td_proc, RACCT_NSHM, 1);
+			PROC_UNLOCK(td->td_proc);
+			return (ENOMEM);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (ENOSPC);
 	}
-	if (racct_add(td->td_proc, RACCT_SHMSIZE, size)) {
-		racct_sub(td->td_proc, RACCT_NSHM, 1);
-		PROC_UNLOCK(td->td_proc);
-		return (ENOMEM);
-	}
-	PROC_UNLOCK(td->td_proc);
 #endif
 
 	/*
@@ -672,10 +671,12 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 	    0, size, VM_PROT_DEFAULT, 0, cred);
 	if (shm_object == NULL) {
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		racct_sub(td->td_proc, RACCT_NSHM, 1);
-		racct_sub(td->td_proc, RACCT_SHMSIZE, size);
-		PROC_UNLOCK(td->td_proc);
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			racct_sub(td->td_proc, RACCT_NSHM, 1);
+			racct_sub(td->td_proc, RACCT_SHMSIZE, size);
+			PROC_UNLOCK(td->td_proc);
+		}
 #endif
 		return (ENOMEM);
 	}
@@ -797,10 +798,10 @@ shmrealloc(void)
 	for (i = 0; i < shmalloced; i++)
 		bcopy(&shmsegs[i], &newsegs[i], sizeof(newsegs[0]));
 	for (; i < shminfo.shmmni; i++) {
-		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
-		shmsegs[i].u.shm_perm.seq = 0;
+		newsegs[i].u.shm_perm.mode = SHMSEG_FREE;
+		newsegs[i].u.shm_perm.seq = 0;
 #ifdef MAC
-		mac_sysvshm_init(&shmsegs[i]);
+		mac_sysvshm_init(&newsegs[i]);
 #endif
 	}
 	free(shmsegs, M_SHM);
@@ -892,7 +893,7 @@ shminit(void)
 static int
 shmunload(void)
 {
-	int i;	
+	int i;
 
 	if (shm_nused > 0)
 		return (EBUSY);
@@ -961,40 +962,39 @@ oshmctl(struct thread *td, struct oshmctl_args *uap)
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
+	if (uap->cmd != IPC_STAT) {
+		return (freebsd7_shmctl(td,
+		    (struct freebsd7_shmctl_args *)uap));
+	}
 	SYSVSHM_LOCK();
 	shmseg = shm_find_segment(uap->shmid, true);
 	if (shmseg == NULL) {
 		SYSVSHM_UNLOCK();
 		return (EINVAL);
 	}
-	switch (uap->cmd) {
-	case IPC_STAT:
-		error = ipcperm(td, &shmseg->u.shm_perm, IPC_R);
-		if (error != 0)
-			break;
-#ifdef MAC
-		error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg,
-		    uap->cmd);
-		if (error != 0)
-			break;
-#endif
-		ipcperm_new2old(&shmseg->u.shm_perm, &outbuf.shm_perm);
-		outbuf.shm_segsz = shmseg->u.shm_segsz;
-		outbuf.shm_cpid = shmseg->u.shm_cpid;
-		outbuf.shm_lpid = shmseg->u.shm_lpid;
-		outbuf.shm_nattch = shmseg->u.shm_nattch;
-		outbuf.shm_atime = shmseg->u.shm_atime;
-		outbuf.shm_dtime = shmseg->u.shm_dtime;
-		outbuf.shm_ctime = shmseg->u.shm_ctime;
-		outbuf.shm_handle = shmseg->object;
-		error = copyout(&outbuf, uap->ubuf, sizeof(outbuf));
-		break;
-	default:
-		error = freebsd7_shmctl(td, (struct freebsd7_shmctl_args *)uap);
-		break;
+	error = ipcperm(td, &shmseg->u.shm_perm, IPC_R);
+	if (error != 0) {
+		SYSVSHM_UNLOCK();
+		return (error);
 	}
+#ifdef MAC
+	error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg, uap->cmd);
+	if (error != 0) {
+		SYSVSHM_UNLOCK();
+		return (error);
+	}
+#endif
+	ipcperm_new2old(&shmseg->u.shm_perm, &outbuf.shm_perm);
+	outbuf.shm_segsz = shmseg->u.shm_segsz;
+	outbuf.shm_cpid = shmseg->u.shm_cpid;
+	outbuf.shm_lpid = shmseg->u.shm_lpid;
+	outbuf.shm_nattch = shmseg->u.shm_nattch;
+	outbuf.shm_atime = shmseg->u.shm_atime;
+	outbuf.shm_dtime = shmseg->u.shm_dtime;
+	outbuf.shm_ctime = shmseg->u.shm_ctime;
+	outbuf.shm_handle = shmseg->object;
 	SYSVSHM_UNLOCK();
-	return (error);
+	return (copyout(&outbuf, uap->ubuf, sizeof(outbuf)));
 #else
 	return (EINVAL);
 #endif
@@ -1019,16 +1019,12 @@ struct shmsys_args {
 int
 sys_shmsys(struct thread *td, struct shmsys_args *uap)
 {
-	int error;
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
 	if (uap->which < 0 || uap->which >= nitems(shmcalls))
 		return (EINVAL);
-	SYSVSHM_LOCK();
-	error = (*shmcalls[uap->which])(td, &uap->a2);
-	SYSVSHM_UNLOCK();
-	return (error);
+	return ((*shmcalls[uap->which])(td, &uap->a2));
 }
 
 #endif	/* i386 && (COMPAT_FREEBSD4 || COMPAT_43) */
@@ -1087,7 +1083,7 @@ int
 freebsd7_freebsd32_shmctl(struct thread *td,
     struct freebsd7_freebsd32_shmctl_args *uap)
 {
-	int error = 0;
+	int error;
 	union {
 		struct shmid_ds shmid_ds;
 		struct shm_info shm_info;
@@ -1114,11 +1110,11 @@ freebsd7_freebsd32_shmctl(struct thread *td,
 		CP(u32.shmid_ds32, u.shmid_ds, shm_dtime);
 		CP(u32.shmid_ds32, u.shmid_ds, shm_ctime);
 	}
-	
+
 	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&u, &sz);
 	if (error)
 		goto done;
-	
+
 	/* Cases in which we need to copyout */
 	switch (uap->cmd) {
 	case IPC_INFO:
@@ -1172,7 +1168,7 @@ done:
 int
 freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
 {
-	int error = 0;
+	int error;
 	union {
 		struct shmid_ds shmid_ds;
 		struct shm_info shm_info;
@@ -1184,7 +1180,7 @@ freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
 		struct shminfo32 shminfo32;
 	} u32;
 	size_t sz;
-	
+
 	if (uap->cmd == IPC_SET) {
 		if ((error = copyin(uap->buf, &u32.shmid_ds32,
 		    sizeof(u32.shmid_ds32))))
@@ -1199,11 +1195,11 @@ freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
 		CP(u32.shmid_ds32, u.shmid_ds, shm_dtime);
 		CP(u32.shmid_ds32, u.shmid_ds, shm_ctime);
 	}
-	
+
 	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&u, &sz);
 	if (error)
 		goto done;
-	
+
 	/* Cases in which we need to copyout */
 	switch (uap->cmd) {
 	case IPC_INFO:
@@ -1270,11 +1266,11 @@ struct freebsd7_shmctl_args {
 int
 freebsd7_shmctl(struct thread *td, struct freebsd7_shmctl_args *uap)
 {
-	int error = 0;
+	int error;
 	struct shmid_ds_old old;
 	struct shmid_ds buf;
 	size_t bufsz;
-	
+
 	/*
 	 * The only reason IPC_INFO, SHM_INFO, SHM_STAT exists is to support
 	 * Linux binaries.  If we see the call come through the FreeBSD ABI,
@@ -1297,7 +1293,7 @@ freebsd7_shmctl(struct thread *td, struct freebsd7_shmctl_args *uap)
 		CP(old, buf, shm_dtime);
 		CP(old, buf, shm_ctime);
 	}
-	
+
 	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&buf, &bufsz);
 	if (error)
 		goto done;

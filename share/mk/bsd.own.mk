@@ -28,8 +28,6 @@
 #
 # LIBCOMPATDIR	Base path for compat libraries. [/usr/lib/compat]
 #
-# LIBPRIVATEDIR	Base path for private libraries. [/usr/lib/private]
-#
 # LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
 # LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
@@ -140,7 +138,7 @@ _uid!=	id -u
 .if !defined(USER)
 USER!=	id -un
 .endif
-_gid!=	id -gn
+_gid!=	id -g
 .for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
 $xOWN=	${USER}
 $xGRP=	${_gid}
@@ -171,7 +169,6 @@ DTBMODE?=	444
 
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
-LIBPRIVATEDIR?=	/usr/lib/private
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec
 LINTLIBDIR?=	/usr/libdata/lint
@@ -222,9 +219,11 @@ INCLUDEDIR?=	/usr/include
 #
 HRDLINK?=	-l h
 SYMLINK?=	-l s
+RSYMLINK?=	-l rs
 
 INSTALL_LINK?=		${INSTALL} ${HRDLINK}
 INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+INSTALL_RSYMLINK?=	${INSTALL} ${RSYMLINK}
 
 # Common variables
 .if !defined(DEBUG_FLAGS)

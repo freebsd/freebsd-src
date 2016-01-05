@@ -194,6 +194,7 @@ AslDoOptions (
             DtParserdebug = 1;
             PrParserdebug = 1;
             Gbl_DebugFlag = TRUE;
+            Gbl_KeepPreprocessorTempFile = TRUE;
             break;
 
         case 'p':   /* Prune ASL parse tree */
@@ -439,6 +440,7 @@ AslDoOptions (
             /* Produce listing file (Mixed source/aml) */
 
             Gbl_ListingFlag = TRUE;
+            AcpiGbl_DmOpt_Listing = TRUE;
             break;
 
         case 'i':

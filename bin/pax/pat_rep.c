@@ -43,9 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
 #ifdef NET2_REGEX
 #include <regexp.h>
 #else

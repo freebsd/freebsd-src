@@ -156,6 +156,21 @@ typedef struct dt_module {
 #define	DT_DM_KERNEL	0x2	/* module is associated with a kernel object */
 #define	DT_DM_PRIMARY	0x4	/* module is a krtld primary kernel object */
 
+#ifdef __FreeBSD__
+/*
+ * A representation of a FreeBSD kernel module, used when checking module
+ * dependencies.  This differs from dt_module_t, which refers to a KLD in the
+ * case of kernel probes.  Since modules can be identified regardless of whether
+ * they've been compiled into the kernel, we use them to identify DTrace
+ * modules.
+ */
+typedef struct dt_kmodule {
+	struct dt_kmodule *dkm_next;	/* hash table entry */
+	char *dkm_name;			/* string name of module */
+	dt_module_t *dkm_module;	/* corresponding KLD module */
+} dt_kmodule_t;
+#endif
+
 typedef struct dt_provmod {
 	char *dp_name;				/* name of provider module */
 	struct dt_provmod *dp_next;		/* next module */
@@ -235,6 +250,9 @@ struct dtrace_hdl {
 	dt_idhash_t *dt_tls;	/* hash table of thread-local identifiers */
 	dt_list_t dt_modlist;	/* linked list of dt_module_t's */
 	dt_module_t **dt_mods;	/* hash table of dt_module_t's */
+#ifdef __FreeBSD__
+	dt_kmodule_t **dt_kmods; /* hash table of dt_kmodule_t's */
+#endif
 	uint_t dt_modbuckets;	/* number of module hash buckets */
 	uint_t dt_nmods;	/* number of modules in hash and list */
 	dt_provmod_t *dt_provmod; /* linked list of provider modules */

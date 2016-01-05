@@ -84,9 +84,9 @@ vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td, s
 				continue;
 			if (fn != NULL && fn(vp, arg))
 				continue;
-			VI_LOCK(vp);
+			vhold(vp);
 			rw_runlock(&vfs_hash_lock);
-			error = vget(vp, flags | LK_INTERLOCK, td);
+			error = vget(vp, flags | LK_VNHELD, td);
 			if (error == ENOENT && (flags & LK_NOWAIT) == 0)
 				break;
 			if (error)
@@ -128,9 +128,9 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 				continue;
 			if (fn != NULL && fn(vp2, arg))
 				continue;
-			VI_LOCK(vp2);
+			vhold(vp2);
 			rw_wunlock(&vfs_hash_lock);
-			error = vget(vp2, flags | LK_INTERLOCK, td);
+			error = vget(vp2, flags | LK_VNHELD, td);
 			if (error == ENOENT && (flags & LK_NOWAIT) == 0)
 				break;
 			rw_wlock(&vfs_hash_lock);
@@ -160,4 +160,41 @@ vfs_hash_rehash(struct vnode *vp, u_int hash)
 	LIST_INSERT_HEAD(vfs_hash_bucket(vp->v_mount, hash), vp, v_hashlist);
 	vp->v_hash = hash;
 	rw_wunlock(&vfs_hash_lock);
+}
+
+void
+vfs_hash_changesize(int newmaxvnodes)
+{
+	struct vfs_hash_head *vfs_hash_newtbl, *vfs_hash_oldtbl;
+	u_long vfs_hash_newmask, vfs_hash_oldmask;
+	struct vnode *vp;
+	int i;
+
+	vfs_hash_newtbl = hashinit(newmaxvnodes, M_VFS_HASH,
+		&vfs_hash_newmask);
+	/* If same hash table size, nothing to do */
+	if (vfs_hash_mask == vfs_hash_newmask) {
+		free(vfs_hash_newtbl, M_VFS_HASH);
+		return;
+	}
+	/*
+	 * Move everything from the old hash table to the new table.
+	 * None of the vnodes in the table can be recycled because to
+	 * do so, they have to be removed from the hash table.
+	 */
+	rw_wlock(&vfs_hash_lock);
+	vfs_hash_oldtbl = vfs_hash_tbl;
+	vfs_hash_oldmask = vfs_hash_mask;
+	vfs_hash_tbl = vfs_hash_newtbl;
+	vfs_hash_mask = vfs_hash_newmask;
+	for (i = 0; i <= vfs_hash_oldmask; i++) {
+		while ((vp = LIST_FIRST(&vfs_hash_oldtbl[i])) != NULL) {
+			LIST_REMOVE(vp, v_hashlist);
+			LIST_INSERT_HEAD(
+			    vfs_hash_bucket(vp->v_mount, vp->v_hash),
+			    vp, v_hashlist);
+		}
+	}
+	rw_wunlock(&vfs_hash_lock);
+	free(vfs_hash_oldtbl, M_VFS_HASH);
 }

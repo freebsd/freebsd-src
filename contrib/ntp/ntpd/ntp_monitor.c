@@ -183,7 +183,7 @@ mon_getmoremem(void)
 		      : mru_incalloc;
 
 	if (entries) {
-		chunk = emalloc(entries * sizeof(*chunk));
+		chunk = eallocarray(entries, sizeof(*chunk));
 		mru_alloc += entries;
 		for (chunk += entries; entries; entries--)
 			mon_free_entry(--chunk);

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.108 2015/01/01 17:43:47 christos Exp $
+# $File: filesystems,v 1.109 2015/02/22 01:22:54 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid  
@@ -1928,6 +1928,7 @@
 >>38917	string    3         (version 2.0)
 >>38917	byte     >0x33      (unknown version, ID 0x%X)
 >>38917	byte     <0x31      (unknown version, ID 0x%X)
+>0x1FE	leshort  0xAA55     (DOS/MBR boot sector)
 # "application id" which appears to be used as a volume label
 >32808	string/T  >\0       '%s'
 >34816	string    \000CD001\001EL\ TORITO\ SPECIFICATION    (bootable)

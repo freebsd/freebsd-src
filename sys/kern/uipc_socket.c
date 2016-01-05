@@ -440,7 +440,7 @@ sodealloc(struct socket *so)
 	if (so->so_snd.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
-	/* remove acccept filter if one is present. */
+	/* remove accept filter if one is present. */
 	if (so->so_accf != NULL)
 		do_setopt_accept_filter(so, NULL);
 #ifdef MAC
@@ -805,7 +805,7 @@ sofree(struct socket *so)
 
 	VNET_SO_ASSERT(so);
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
-		(*pr->pr_domain->dom_dispose)(so->so_rcv.sb_mb);
+		(*pr->pr_domain->dom_dispose)(so);
 	if (pr->pr_usrreqs->pru_detach != NULL)
 		(*pr->pr_usrreqs->pru_detach)(so);
 
@@ -2334,6 +2334,9 @@ soshutdown(struct socket *so, int how)
 
 	if (!(how == SHUT_RD || how == SHUT_WR || how == SHUT_RDWR))
 		return (EINVAL);
+	if ((so->so_state &
+	    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0)
+		return (ENOTCONN);
 
 	CURVNET_SET(so->so_vnet);
 	if (pr->pr_usrreqs->pru_flush != NULL)
@@ -2356,7 +2359,7 @@ sorflush(struct socket *so)
 {
 	struct sockbuf *sb = &so->so_rcv;
 	struct protosw *pr = so->so_proto;
-	struct sockbuf asb;
+	struct socket aso;
 
 	VNET_SO_ASSERT(so);
 
@@ -2381,8 +2384,9 @@ sorflush(struct socket *so)
 	 * and mutex data unchanged.
 	 */
 	SOCKBUF_LOCK(sb);
-	bzero(&asb, offsetof(struct sockbuf, sb_startzero));
-	bcopy(&sb->sb_startzero, &asb.sb_startzero,
+	bzero(&aso, sizeof(aso));
+	aso.so_pcb = so->so_pcb;
+	bcopy(&sb->sb_startzero, &aso.so_rcv.sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	bzero(&sb->sb_startzero,
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
@@ -2390,12 +2394,12 @@ sorflush(struct socket *so)
 	sbunlock(sb);
 
 	/*
-	 * Dispose of special rights and flush the socket buffer.  Don't call
-	 * any unsafe routines (that rely on locks being initialized) on asb.
+	 * Dispose of special rights and flush the copied socket.  Don't call
+	 * any unsafe routines (that rely on locks being initialized) on aso.
 	 */
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
-		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
-	sbrelease_internal(&asb, so);
+		(*pr->pr_domain->dom_dispose)(&aso);
+	sbrelease_internal(&aso.so_rcv, so);
 }
 
 /*

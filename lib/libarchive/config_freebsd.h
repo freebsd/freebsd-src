@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include <osreldate.h>
+
 /* FreeBSD 5.0 and later have ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define HAVE_ACL_CREATE_ENTRY 1
@@ -219,6 +221,11 @@
 #define HAVE_WMEMCPY 1
 #define HAVE_ZLIB_H 1
 #define TIME_WITH_SYS_TIME 1
+
+#if __FreeBSD_version >= 1100056
+#define HAVE_FUTIMENS 1
+#define HAVE_UTIMENSAT 1
+#endif
 
 /* FreeBSD 4 and earlier lack intmax_t/uintmax_t */
 #if __FreeBSD__ < 5

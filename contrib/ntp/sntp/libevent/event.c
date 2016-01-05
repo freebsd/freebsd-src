@@ -526,22 +526,24 @@ event_enable_debug_mode(void)
 #endif
 }
 
-#if 0
 void
 event_disable_debug_mode(void)
 {
+#ifndef EVENT__DISABLE_DEBUG_MODE
 	struct event_debug_entry **ent, *victim;
 
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
 	for (ent = HT_START(event_debug_map, &global_debug_map); ent; ) {
 		victim = *ent;
-		ent = HT_NEXT_RMV(event_debug_map,&global_debug_map, ent);
+		ent = HT_NEXT_RMV(event_debug_map, &global_debug_map, ent);
 		mm_free(victim);
 	}
 	HT_CLEAR(event_debug_map, &global_debug_map);
 	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
-}
+
+	event_debug_mode_on_  = 0;
 #endif
+}
 
 struct event_base *
 event_base_new_with_config(const struct event_config *cfg)
@@ -991,6 +993,21 @@ event_reinit(struct event_base *base)
 done:
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return (res);
+}
+
+/* Get the monotonic time for this event_base' timer */
+int
+event_gettime_monotonic(struct event_base *base, struct timeval *tv)
+{
+  int rv = -1;
+
+  if (base && tv) {
+    EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+    rv = evutil_gettime_monotonic_(&(base->monotonic_timer), tv);
+    EVBASE_RELEASE_LOCK(base, th_base_lock);
+  }
+
+  return rv;
 }
 
 const char **
@@ -1454,9 +1471,12 @@ done:
 static inline void
 event_persist_closure(struct event_base *base, struct event *ev)
 {
-
-	// Define our callback, we use this to store our callback before it's executed
 	void (*evcb_callback)(evutil_socket_t, short, void *);
+
+        // Other fields of *ev that must be stored before executing
+        evutil_socket_t evcb_fd;
+        short evcb_res;
+        void *evcb_arg;
 
 	/* reschedule the persistent event if we have a timeout. */
 	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec) {
@@ -1501,13 +1521,16 @@ event_persist_closure(struct event_base *base, struct event *ev)
 	}
 
 	// Save our callback before we release the lock
-	evcb_callback = *ev->ev_callback;
+	evcb_callback = ev->ev_callback;
+        evcb_fd = ev->ev_fd;
+        evcb_res = ev->ev_res;
+        evcb_arg = ev->ev_arg;
 
 	// Release the lock
  	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	// Execute the callback
-	(evcb_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
+        (evcb_callback)(evcb_fd, evcb_res, evcb_arg);
 }
 
 /*
@@ -1569,8 +1592,9 @@ event_process_active_single_queue(struct event_base *base,
 			event_persist_closure(base, ev);
 			break;
 		case EV_CLOSURE_EVENT: {
+			void (*evcb_callback)(evutil_socket_t, short, void *);
 			EVUTIL_ASSERT(ev != NULL);
-			void (*evcb_callback)(evutil_socket_t, short, void *) = *ev->ev_callback;
+			evcb_callback = *ev->ev_callback;
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			evcb_callback(ev->ev_fd, ev->ev_res, ev->ev_arg);
 		}
@@ -1583,14 +1607,16 @@ event_process_active_single_queue(struct event_base *base,
 		break;
 		case EV_CLOSURE_EVENT_FINALIZE:
 		case EV_CLOSURE_EVENT_FINALIZE_FREE: {
+			void (*evcb_evfinalize)(struct event *, void *);
+			int evcb_closure = evcb->evcb_closure;
 			EVUTIL_ASSERT(ev != NULL);
-			void (*evcb_evfinalize)(struct event *, void *) = ev->ev_evcallback.evcb_cb_union.evcb_evfinalize;
 			base->current_event = NULL;
+			evcb_evfinalize = ev->ev_evcallback.evcb_cb_union.evcb_evfinalize;
 			EVUTIL_ASSERT((evcb->evcb_flags & EVLIST_FINALIZING));
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			evcb_evfinalize(ev, ev->ev_arg);
 			event_debug_note_teardown_(ev);
-			if (evcb->evcb_closure == EV_CLOSURE_EVENT_FINALIZE_FREE)
+			if (evcb_closure == EV_CLOSURE_EVENT_FINALIZE_FREE)
 				mm_free(ev);
 		}
 		break;
@@ -3739,6 +3765,7 @@ event_free_debug_globals_locks(void)
 	if (event_debug_map_lock_ != NULL) {
 		EVTHREAD_FREE_LOCK(event_debug_map_lock_, 0);
 		event_debug_map_lock_ = NULL;
+		evthreadimpl_disable_lock_debugging_();
 	}
 #endif /* EVENT__DISABLE_DEBUG_MODE */
 #endif /* EVENT__DISABLE_THREAD_SUPPORT */
@@ -3774,6 +3801,7 @@ event_free_globals(void)
 void
 libevent_global_shutdown(void)
 {
+	event_disable_debug_mode();
 	event_free_globals();
 }
 

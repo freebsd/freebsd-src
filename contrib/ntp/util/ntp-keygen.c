@@ -827,24 +827,24 @@ gen_md5(
 	str = fheader("MD5key", id, groupname);
 	for (i = 1; i <= MD5KEYS; i++) {
 		for (j = 0; j < MD5SIZE; j++) {
-			int temp;
+			u_char temp;
 
 			while (1) {
 				int rc;
 
-				rc = ntp_crypto_random_buf(&temp, 1);
+				rc = ntp_crypto_random_buf(
+				    &temp, sizeof(temp));
 				if (-1 == rc) {
 					fprintf(stderr, "ntp_crypto_random_buf() failed.\n");
 					exit (-1);
 				}
-				temp &= 0xff;
 				if (temp == '#')
 					continue;
 
 				if (temp > 0x20 && temp < 0x7f)
 					break;
 			}
-			md5key[j] = (u_char)temp;
+			md5key[j] = temp;
 		}
 		md5key[j] = '\0';
 		fprintf(str, "%2d MD5 %s  # MD5 key\n", i,
@@ -2170,15 +2170,29 @@ fheader	(
 	FILE	*str;		/* file handle */
 	char	linkname[MAXFILENAME]; /* link name */
 	int	temp;
-
+#ifdef HAVE_UMASK
+        mode_t  orig_umask;
+#endif
+        
 	snprintf(filename, sizeof(filename), "ntpkey_%s_%s.%u", file,
 	    owner, fstamp); 
-	if ((str = fopen(filename, "w")) == NULL) {
+#ifdef HAVE_UMASK
+        orig_umask = umask( S_IWGRP | S_IRWXO );
+        str = fopen(filename, "w");
+        (void) umask(orig_umask);
+#else
+        str = fopen(filename, "w");
+#endif
+	if (str == NULL) {
 		perror("Write");
 		exit (-1);
 	}
-	snprintf(linkname, sizeof(linkname), "ntpkey_%s_%s", ulink,
-	    hostname);
+        if (strcmp(ulink, "md5") == 0) {
+          strcpy(linkname,"ntp.keys");
+        } else {
+          snprintf(linkname, sizeof(linkname), "ntpkey_%s_%s", ulink,
+                   hostname);
+        }
 	(void)remove(linkname);		/* The symlink() line below matters */
 	temp = symlink(filename, linkname);
 	if (temp < 0)

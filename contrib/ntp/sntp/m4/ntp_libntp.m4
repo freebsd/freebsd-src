@@ -878,13 +878,13 @@ AC_CACHE_CHECK(
     [for SIGIO],
     [ntp_cv_hdr_def_sigio],
     [AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <signal.h>
 
 	    #ifndef SIGIO
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_cv_hdr_def_sigio=yes],
 	[ntp_cv_hdr_def_sigio=no]
     )]
@@ -910,6 +910,9 @@ case "$ntp_cv_hdr_def_sigio" in
 	ans=no
 	;;
      *-sni-sysv*)
+	ans=no
+	;;
+     *-stratus-vos)
 	ans=no
 	;;
      *-univel-sysv*)
@@ -947,13 +950,13 @@ AC_CACHE_CHECK(
     [for SIGPOLL],
     [ntp_cv_hdr_def_sigpoll],
     [AC_PREPROC_IFELSE(
-	[
+	[AC_LANG_SOURCE([
 	    #include <signal.h>
 	    
 	    #ifndef SIGPOLL
 	    # error
 	    #endif
-	],
+	])],
 	[ntp_cv_hdr_def_sigpoll=yes],
 	[ntp_cv_hdr_def_sigpoll=no]
     )]
@@ -974,6 +977,9 @@ case "$ntp_cv_hdr_def_sigpoll" in
 	ans=no
 	;;
      *-sni-sysv*)
+	ans=no
+	;;
+     *-stratus-vos)
 	ans=no
 	;;
      *-*-aix[[4-9]]*)
@@ -1033,6 +1039,9 @@ case "$ntp_cv_hdr_def_sigpoll" in
 	ans=no
 	;;
      *-sni-sysv*)
+	ans=no
+	;;
+     *-stratus-vos)
 	ans=no
 	;;
      *-*-aix[[4-9]]*)

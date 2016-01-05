@@ -197,8 +197,8 @@ gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
 	static u_int num_intr_cells;
 
 	if (num_intr_cells == 0) {
-		if (OF_searchencprop(OF_node_from_xref(iparent), 
-		    "#interrupt-cells", &num_intr_cells, 
+		if (OF_searchencprop(OF_node_from_xref(iparent),
+		    "#interrupt-cells", &num_intr_cells,
 		    sizeof(num_intr_cells)) == -1) {
 			num_intr_cells = 1;
 		}

@@ -6,7 +6,6 @@ load	:
 	-kldload dtrace
 .if ${MACHINE_CPUARCH} == "i386"
 	-kldload sdt
-	-kldload lockstat
 	-kldload fbt
 	-kldload prototype
 .endif
@@ -20,7 +19,6 @@ unload	:
 .if ${MACHINE_CPUARCH} == "i386"
 	-kldunload prototype
 	-kldunload fbt
-	-kldunload lockstat
 	-kldunload sdt
 .endif
 	-kldunload dtrace

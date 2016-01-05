@@ -52,7 +52,7 @@
 #	$SB/obj-i386/bsd/gnu/lib/csu
 #	$SB/obj-i386/bsd/gnu/lib/libgcc
 #	$SB/obj-i386/bsd/include
-#	$SB/obj-i386/bsd/lib/csu/i386-elf
+#	$SB/obj-i386/bsd/lib/csu/i386
 #	$SB/obj-i386/bsd/lib/libc
 #	$SB/src/bsd/include
 #	$SB/src/bsd/sys/i386/include

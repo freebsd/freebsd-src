@@ -1175,7 +1175,7 @@ via_attach(device_t dev)
 	    "snd_via8233 softc");
 	via->dev = dev;
 
-	callout_init(&via->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&via->poll_timer, 1);
 	via->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(dev),
