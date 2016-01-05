@@ -474,7 +474,7 @@ process_conn_error(struct c4iw_ep *ep)
 	if (state != ABORTING) {
 
 		CTR2(KTR_IW_CXGBE, "%s:pce1 %p", __func__, ep);
-		close_socket(&ep->com, 1);
+		close_socket(&ep->com, 0);
 		state_set(&ep->com, DEAD);
 		c4iw_put_ep(&ep->com);
 	}
