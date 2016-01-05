@@ -1669,7 +1669,8 @@ bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
 
 	ASSERT_BO_LOCKED(bo);
 
-	for (lblkno = startn;; lblkno++) {
+	for (lblkno = startn;;) {
+again:
 		bp = BUF_PCTRIE_LOOKUP_GE(&bufv->bv_root, lblkno);
 		if (bp == NULL || bp->b_lblkno >= endn)
 			break;
@@ -1677,11 +1678,14 @@ bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
 		    LK_INTERLOCK, BO_LOCKPTR(bo), "brlsfl", 0, 0);
 		if (error != 0) {
 			BO_RLOCK(bo);
-			return (error != ENOLCK ? error : EAGAIN);
+			if (error == ENOLCK)
+				goto again;
+			return (error);
 		}
 		KASSERT(bp->b_bufobj == bo,
 		    ("bp %p wrong b_bufobj %p should be %p",
 		    bp, bp->b_bufobj, bo));
+		lblkno = bp->b_lblkno + 1;
 		if ((bp->b_flags & B_MANAGED) == 0)
 			bremfree(bp);
 		bp->b_flags |= B_RELBUF;
