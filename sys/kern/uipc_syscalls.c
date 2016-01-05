@@ -1890,7 +1890,8 @@ sf_ext_free_nocache(void *arg1, void *arg2)
 		else if (!vm_page_xbusied(pg) && VM_OBJECT_TRYWLOCK(obj)) {
 			vm_page_free(pg);
 			VM_OBJECT_WUNLOCK(obj);
-		}
+		} else
+			vm_page_deactivate(pg);
 	}
 	vm_page_unlock(pg);
 
