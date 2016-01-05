@@ -115,7 +115,8 @@ bsdinstall hostname || error "Set hostname failed"
 
 export DISTRIBUTIONS="base.txz kernel.txz"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`awk -F'\t' '!/^(kernel|base)/{print $4,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
+	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
+	DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
 
 	exec 3>&1
 	EXTRA_DISTS=$( eval dialog \
@@ -129,16 +130,20 @@ if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	done
 fi
 
+LOCAL_DISTRIBUTIONS="MANIFEST"
 FETCH_DISTRIBUTIONS=""
 for dist in $DISTRIBUTIONS; do
 	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
 		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+	else
+		LOCAL_DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS $dist"
 	fi
 done
+LOCAL_DISTRIBUTIONS=`echo $LOCAL_DISTRIBUTIONS`	# Trim white space
 FETCH_DISTRIBUTIONS=`echo $FETCH_DISTRIBUTIONS`	# Trim white space
 
 if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
-	dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "No installation files were found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
+	dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
 	bsdinstall netconfig || error
 	NETCONFIG_DONE=yes
 fi
@@ -299,6 +304,7 @@ esac
 
 if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	ALL_DISTRIBUTIONS="$DISTRIBUTIONS"
+	WANT_DEBUG=
 
 	# Download to a directory in the new system as scratch space
 	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
@@ -310,13 +316,63 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 		DISTDIR_IS_UNIONFS=1
 		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
 	else
-		export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
+		export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
 		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
 	fi
 		
 	export FTP_PASSIVE_MODE=YES
-	bsdinstall distfetch || error "Failed to fetch distribution"
+	# Iterate through the distribution list and set a flag if debugging
+	# distributions have been selected.
+	for _DISTRIBUTION in $DISTRIBUTIONS; do
+		case $_DISTRIBUTION in
+			*-dbg.*)
+				[ -e $BSDINSTALL_DISTDIR/$_DISTRIBUTION ] \
+					&& continue
+				WANT_DEBUG=1
+				DEBUG_LIST="\n$DEBUG_LIST\n$_DISTRIBUTION"
+				;;
+			*)
+				;;
+		esac
+	done
+
+	# Fetch the distributions.
+	bsdinstall distfetch
+	rc=$?
+
+	if [ $rc -ne 0 ]; then
+		# If unable to fetch the remote distributions, recommend
+		# deselecting the debugging distributions, and retrying the
+		# installation, since failure to fetch *-dbg.txz should not
+		# be considered a fatal installation error.
+		msg="Failed to fetch remote distribution"
+		if [ ! -z "$WANT_DEBUG" ]; then
+			# Trim leading and trailing newlines.
+			DEBUG_LIST="${DEBUG_LIST%%\n}"
+			DEBUG_LIST="${DEBUG_LIST##\n}"
+			msg="$msg\n\nPlease deselect the following distributions"
+			msg="$msg and retry the installation:"
+			msg="$msg\n$DEBUG_LIST"
+		fi
+		error "$msg"
+	fi
 	export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
+fi
+
+if [ ! -z "$LOCAL_DISTRIBUTIONS" ]; then
+	# Download to a directory in the new system as scratch space
+	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
+	mkdir -p "$BSDINSTALL_FETCHDEST" || error "Could not create directory $BSDINSTALL_FETCHDEST"
+	# Try to use any existing distfiles
+	if [ -d $BSDINSTALL_DISTDIR ]; then
+		DISTDIR_IS_UNIONFS=1
+		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
+		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
+	fi
+	env DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS" \
+		BSDINSTALL_DISTSITE="file:///usr/freebsd-dist" \
+		bsdinstall distfetch || \
+		error "Failed to fetch distribution from local media"
 fi
 
 bsdinstall checksum || error "Distribution checksum failed"
