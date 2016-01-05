@@ -1239,6 +1239,9 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 			freeifaddrs(ifap);
 			if (sdl != NULL)
 				return(1);
+			else
+				errx(EX_DATAERR,
+				    "interface '%s' does not exist", str);
 		}
 		break;
 	case RTAX_IFP:
