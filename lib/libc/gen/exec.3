@@ -28,7 +28,7 @@
 .\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2015
+.Dd January 5, 2016
 .Dt EXEC 3
 .Os
 .Sh NAME
@@ -161,7 +161,7 @@ the default path is set according to the
 definition in
 .In paths.h ,
 which is set to
-.Dq Ev /usr/bin:/bin .
+.Dq Ev /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin .
 For
 .Fn execvP ,
 the search path is specified as an argument to the function.
