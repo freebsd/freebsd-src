@@ -11,8 +11,7 @@ LDADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 
 PACKAGE=	clang
 
-DPADD+=	${LIBNCURSESW}
-LDADD+=	-lncursesw
+LIBADD+= ncursesw pthread
 
 BINDIR?= /usr/bin
 
