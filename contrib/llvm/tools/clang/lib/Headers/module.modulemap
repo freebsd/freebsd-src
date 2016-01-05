@@ -49,7 +49,7 @@ module _Builtin_intrinsics [system] [extern_c] {
     explicit module sse {
       requires sse
       export mmx
-      export * // note: for hackish <emmintrin.h> dependency
+      export sse2 // note: for hackish <emmintrin.h> dependency
       header "xmmintrin.h"
     }
 
@@ -157,6 +157,8 @@ module _Builtin_intrinsics [system] [extern_c] {
     explicit module aes_pclmul {
       requires aes, pclmul
       header "wmmintrin.h"
+      export aes
+      export pclmul
     }
 
     explicit module aes {
@@ -167,6 +169,24 @@ module _Builtin_intrinsics [system] [extern_c] {
     explicit module pclmul {
       requires pclmul
       header "__wmmintrin_pclmul.h"
+    }
+  }
+
+  explicit module systemz {
+    requires systemz
+    export *
+
+    header "s390intrin.h"
+
+    explicit module htm {
+      requires htm
+      header "htmintrin.h"
+      header "htmxlintrin.h"
+    }
+
+    explicit module zvector {
+      requires zvector, vx
+      header "vecintrin.h"
     }
   }
 }

@@ -117,15 +117,14 @@ public:
     iterator insert(const_iterator p, value_type&& v);
     iterator insert(const_iterator p, size_type n, const value_type& v);
     template <class InputIterator>
-        iterator insert (const_iterator p, InputIterator f, InputIterator l);
+        iterator insert(const_iterator p, InputIterator f, InputIterator l);
     iterator insert(const_iterator p, initializer_list<value_type> il);
     void pop_front();
     void pop_back();
     iterator erase(const_iterator p);
     iterator erase(const_iterator f, const_iterator l);
     void swap(deque& c)
-        noexcept(!allocator_type::propagate_on_container_swap::value ||
-                 __is_nothrow_swappable<allocator_type>::value);
+        noexcept(allocator_traits<allocator_type>::is_always_equal::value);  // C++17
     void clear() noexcept;
 };
 
@@ -168,6 +167,7 @@ template <class T, class Allocator>
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Tp, class _Allocator> class __deque_base;
+template <class _Tp, class _Allocator = allocator<_Tp> > class _LIBCPP_TYPE_VIS_ONLY deque;
 
 template <class _ValueType, class _Pointer, class _Reference, class _MapPointer,
           class _DiffType, _DiffType _BlockSize>
@@ -911,22 +911,10 @@ protected:
 
     static const difference_type __block_size = sizeof(value_type) < 256 ? 4096 / sizeof(value_type) : 16;
 
-    typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<pointer>
-#else
-                rebind_alloc<pointer>::other
-#endif
-                                                         __pointer_allocator;
+    typedef typename __rebind_alloc_helper<__alloc_traits, pointer>::type __pointer_allocator;
     typedef allocator_traits<__pointer_allocator>        __map_traits;
     typedef typename __map_traits::pointer               __map_pointer;
-    typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<const_pointer>
-#else
-                rebind_alloc<const_pointer>::other
-#endif
-                                                         __const_pointer_allocator;
+    typedef typename __rebind_alloc_helper<__alloc_traits, const_pointer>::type __const_pointer_allocator;
     typedef typename allocator_traits<__const_pointer_allocator>::const_pointer __map_const_pointer;
     typedef __split_buffer<pointer, __pointer_allocator> __map;
 
@@ -965,8 +953,12 @@ public:
 
 #endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
     void swap(__deque_base& __c)
-        _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value ||
-                   __is_nothrow_swappable<allocator_type>::value);
+#if _LIBCPP_STD_VER >= 14
+        _NOEXCEPT;
+#else
+        _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value || 
+                    __is_nothrow_swappable<allocator_type>::value);
+#endif
 protected:
     void clear() _NOEXCEPT;
 
@@ -1001,26 +993,6 @@ private:
 
     _LIBCPP_INLINE_VISIBILITY
     void __move_assign_alloc(__deque_base&, false_type) _NOEXCEPT
-        {}
-
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(allocator_type& __x, allocator_type& __y)
-        _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value ||
-                   __is_nothrow_swappable<allocator_type>::value)
-        {__swap_alloc(__x, __y, integral_constant<bool,
-                      __alloc_traits::propagate_on_container_swap::value>());}
-
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(allocator_type& __x, allocator_type& __y, true_type)
-        _NOEXCEPT_(__is_nothrow_swappable<allocator_type>::value)
-        {
-            using _VSTD::swap;
-            swap(__x, __y);
-        }
-
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(allocator_type&, allocator_type&, false_type)
-        _NOEXCEPT
         {}
 };
 
@@ -1145,13 +1117,17 @@ __deque_base<_Tp, _Allocator>::__deque_base(__deque_base&& __c, const allocator_
 template <class _Tp, class _Allocator>
 void
 __deque_base<_Tp, _Allocator>::swap(__deque_base& __c)
-        _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value||
-                   __is_nothrow_swappable<allocator_type>::value)
+#if _LIBCPP_STD_VER >= 14
+        _NOEXCEPT
+#else
+        _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value || 
+                    __is_nothrow_swappable<allocator_type>::value)
+#endif
 {
     __map_.swap(__c.__map_);
     _VSTD::swap(__start_, __c.__start_);
     _VSTD::swap(size(), __c.size());
-    __swap_alloc(__alloc(), __c.__alloc());
+    __swap_allocator(__alloc(), __c.__alloc());
 }
 
 template <class _Tp, class _Allocator>
@@ -1178,7 +1154,7 @@ __deque_base<_Tp, _Allocator>::clear() _NOEXCEPT
     }
 }
 
-template <class _Tp, class _Allocator = allocator<_Tp> >
+template <class _Tp, class _Allocator /*= allocator<_Tp>*/>
 class _LIBCPP_TYPE_VIS_ONLY deque
     : private __deque_base<_Tp, _Allocator>
 {
@@ -1332,11 +1308,15 @@ public:
     iterator insert(const_iterator __p, const value_type& __v);
     iterator insert(const_iterator __p, size_type __n, const value_type& __v);
     template <class _InputIter>
-        iterator insert (const_iterator __p, _InputIter __f, _InputIter __l,
+        iterator insert(const_iterator __p, _InputIter __f, _InputIter __l,
                          typename enable_if<__is_input_iterator<_InputIter>::value
-                                         &&!__is_bidirectional_iterator<_InputIter>::value>::type* = 0);
+                                         &&!__is_forward_iterator<_InputIter>::value>::type* = 0);
+    template <class _ForwardIterator>
+        iterator insert(const_iterator __p, _ForwardIterator __f, _ForwardIterator __l,
+                               typename enable_if<__is_forward_iterator<_ForwardIterator>::value
+                                         &&!__is_bidirectional_iterator<_ForwardIterator>::value>::type* = 0);
     template <class _BiIter>
-        iterator insert (const_iterator __p, _BiIter __f, _BiIter __l,
+        iterator insert(const_iterator __p, _BiIter __f, _BiIter __l,
                          typename enable_if<__is_bidirectional_iterator<_BiIter>::value>::type* = 0);
 #ifndef _LIBCPP_HAS_NO_GENERALIZED_INITIALIZERS
     _LIBCPP_INLINE_VISIBILITY
@@ -1349,8 +1329,12 @@ public:
     iterator erase(const_iterator __f, const_iterator __l);
 
     void swap(deque& __c)
+#if _LIBCPP_STD_VER >= 14
+        _NOEXCEPT;
+#else
         _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value ||
                    __is_nothrow_swappable<allocator_type>::value);
+#endif
     void clear() _NOEXCEPT;
 
     _LIBCPP_INLINE_VISIBILITY
@@ -2098,12 +2082,26 @@ template <class _InputIter>
 typename deque<_Tp, _Allocator>::iterator
 deque<_Tp, _Allocator>::insert(const_iterator __p, _InputIter __f, _InputIter __l,
                                typename enable_if<__is_input_iterator<_InputIter>::value
-                                               &&!__is_bidirectional_iterator<_InputIter>::value>::type*)
+                                               &&!__is_forward_iterator<_InputIter>::value>::type*)
 {
     __split_buffer<value_type, allocator_type&> __buf(__base::__alloc());
     __buf.__construct_at_end(__f, __l);
     typedef typename __split_buffer<value_type, allocator_type&>::iterator __bi;
     return insert(__p, move_iterator<__bi>(__buf.begin()), move_iterator<__bi>(__buf.end()));
+}
+
+template <class _Tp, class _Allocator>
+template <class _ForwardIterator>
+typename deque<_Tp, _Allocator>::iterator
+deque<_Tp, _Allocator>::insert(const_iterator __p, _ForwardIterator __f, _ForwardIterator __l,
+                               typename enable_if<__is_forward_iterator<_ForwardIterator>::value
+                                               &&!__is_bidirectional_iterator<_ForwardIterator>::value>::type*)
+{
+    size_type __n = _VSTD::distance(__f, __l);
+    __split_buffer<value_type, allocator_type&> __buf(__n, 0, __base::__alloc());
+    __buf.__construct_at_end(__f, __l);
+    typedef typename __split_buffer<value_type, allocator_type&>::iterator __fwd;
+    return insert(__p, move_iterator<__fwd>(__buf.begin()), move_iterator<__fwd>(__buf.end()));
 }
 
 template <class _Tp, class _Allocator>
@@ -2269,19 +2267,14 @@ deque<_Tp, _Allocator>::__add_front_capacity()
         __split_buffer<pointer, typename __base::__pointer_allocator&>
             __buf(max<size_type>(2 * __base::__map_.capacity(), 1),
                   0, __base::__map_.__alloc());
-#ifndef _LIBCPP_NO_EXCEPTIONS
-        try
-        {
-#endif  // _LIBCPP_NO_EXCEPTIONS
-            __buf.push_back(__alloc_traits::allocate(__a, __base::__block_size));
-#ifndef _LIBCPP_NO_EXCEPTIONS
-        }
-        catch (...)
-        {
-            __alloc_traits::deallocate(__a, __buf.front(), __base::__block_size);
-            throw;
-        }
-#endif  // _LIBCPP_NO_EXCEPTIONS
+
+        typedef __allocator_destructor<_Allocator> _Dp;
+        unique_ptr<pointer, _Dp> __hold(
+            __alloc_traits::allocate(__a, __base::__block_size),
+                _Dp(__a, __base::__block_size));
+        __buf.push_back(__hold.get());
+        __hold.release();
+    
         for (typename __base::__map_pointer __i = __base::__map_.begin();
                 __i != __base::__map_.end(); ++__i)
             __buf.push_back(*__i);
@@ -2417,19 +2410,14 @@ deque<_Tp, _Allocator>::__add_back_capacity()
             __buf(max<size_type>(2* __base::__map_.capacity(), 1),
                   __base::__map_.size(),
                   __base::__map_.__alloc());
-#ifndef _LIBCPP_NO_EXCEPTIONS
-        try
-        {
-#endif  // _LIBCPP_NO_EXCEPTIONS
-            __buf.push_back(__alloc_traits::allocate(__a, __base::__block_size));
-#ifndef _LIBCPP_NO_EXCEPTIONS
-        }
-        catch (...)
-        {
-            __alloc_traits::deallocate(__a, __buf.back(), __base::__block_size);
-            throw;
-        }
-#endif  // _LIBCPP_NO_EXCEPTIONS
+
+        typedef __allocator_destructor<_Allocator> _Dp;
+        unique_ptr<pointer, _Dp> __hold(
+            __alloc_traits::allocate(__a, __base::__block_size),
+                _Dp(__a, __base::__block_size));
+        __buf.push_back(__hold.get());
+        __hold.release();
+
         for (typename __base::__map_pointer __i = __base::__map_.end();
                 __i != __base::__map_.begin();)
             __buf.push_front(*--__i);
@@ -2702,7 +2690,7 @@ deque<_Tp, _Allocator>::erase(const_iterator __f)
     difference_type __pos = __f - __b;
     iterator __p = __b + __pos;
     allocator_type& __a = __base::__alloc();
-    if (__pos < (__base::size() - 1) / 2)
+    if (__pos <= (__base::size() - 1) / 2)
     {   // erase from front
         _VSTD::move_backward(__b, __p, _VSTD::next(__p));
         __alloc_traits::destroy(__a, _VSTD::addressof(*__b));
@@ -2740,7 +2728,7 @@ deque<_Tp, _Allocator>::erase(const_iterator __f, const_iterator __l)
     if (__n > 0)
     {
         allocator_type& __a = __base::__alloc();
-        if (__pos < (__base::size() - __n) / 2)
+        if (__pos <= (__base::size() - __n) / 2)
         {   // erase from front
             iterator __i = _VSTD::move_backward(__b, __p, __p + __n);
             for (; __b != __i; ++__b)
@@ -2796,8 +2784,12 @@ template <class _Tp, class _Allocator>
 inline _LIBCPP_INLINE_VISIBILITY
 void
 deque<_Tp, _Allocator>::swap(deque& __c)
-        _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value ||
-                   __is_nothrow_swappable<allocator_type>::value)
+#if _LIBCPP_STD_VER >= 14
+        _NOEXCEPT
+#else
+        _NOEXCEPT_(!__alloc_traits::propagate_on_container_swap::value || 
+                    __is_nothrow_swappable<allocator_type>::value)
+#endif
 {
     __base::swap(__c);
 }

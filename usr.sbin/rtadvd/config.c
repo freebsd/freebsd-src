@@ -808,7 +808,7 @@ getconfig_free_rti:
 		makeentry(entbuf, sizeof(entbuf), i, "rdnss");
 		addr = (char *)agetstr(entbuf, &bp);
 		if (addr == NULL)
-			break;
+			continue;
 		ELM_MALLOC(rdn, exit(1));
 
 		TAILQ_INIT(&rdn->rd_list);
@@ -859,7 +859,7 @@ getconfig_free_rdn:
 		makeentry(entbuf, sizeof(entbuf), i, "dnssl");
 		addr = (char *)agetstr(entbuf, &bp);
 		if (addr == NULL)
-			break;
+			continue;
 
 		ELM_MALLOC(dns, exit(1));
 
@@ -1528,6 +1528,7 @@ make_packet(struct rainfo *rai)
 		/* Padding to next 8 octets boundary */
 		len = buf - (char *)ndopt_dnssl;
 		len += (len % 8) ? 8 - len % 8 : 0;
+		buf = (char *)ndopt_dnssl + len;
 
 		/* Length field must be in 8 octets */
 		ndopt_dnssl->nd_opt_dnssl_len = len / 8;

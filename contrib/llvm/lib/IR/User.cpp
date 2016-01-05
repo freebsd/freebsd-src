@@ -13,6 +13,7 @@
 #include "llvm/IR/Operator.h"
 
 namespace llvm {
+class BasicBlock;
 
 //===----------------------------------------------------------------------===//
 //                                 User Class
@@ -39,28 +40,77 @@ void User::replaceUsesOfWith(Value *From, Value *To) {
 //                         User allocHungoffUses Implementation
 //===----------------------------------------------------------------------===//
 
-Use *User::allocHungoffUses(unsigned N) const {
+void User::allocHungoffUses(unsigned N, bool IsPhi) {
+  assert(HasHungOffUses && "alloc must have hung off uses");
+
+  static_assert(AlignOf<Use>::Alignment >= AlignOf<Use::UserRef>::Alignment,
+                "Alignment is insufficient for 'hung-off-uses' pieces");
+  static_assert(AlignOf<Use::UserRef>::Alignment >=
+                    AlignOf<BasicBlock *>::Alignment,
+                "Alignment is insufficient for 'hung-off-uses' pieces");
+
   // Allocate the array of Uses, followed by a pointer (with bottom bit set) to
   // the User.
   size_t size = N * sizeof(Use) + sizeof(Use::UserRef);
+  if (IsPhi)
+    size += N * sizeof(BasicBlock *);
   Use *Begin = static_cast<Use*>(::operator new(size));
   Use *End = Begin + N;
   (void) new(End) Use::UserRef(const_cast<User*>(this), 1);
-  return Use::initTags(Begin, End);
+  setOperandList(Use::initTags(Begin, End));
+}
+
+void User::growHungoffUses(unsigned NewNumUses, bool IsPhi) {
+  assert(HasHungOffUses && "realloc must have hung off uses");
+
+  unsigned OldNumUses = getNumOperands();
+
+  // We don't support shrinking the number of uses.  We wouldn't have enough
+  // space to copy the old uses in to the new space.
+  assert(NewNumUses > OldNumUses && "realloc must grow num uses");
+
+  Use *OldOps = getOperandList();
+  allocHungoffUses(NewNumUses, IsPhi);
+  Use *NewOps = getOperandList();
+
+  // Now copy from the old operands list to the new one.
+  std::copy(OldOps, OldOps + OldNumUses, NewOps);
+
+  // If this is a Phi, then we need to copy the BB pointers too.
+  if (IsPhi) {
+    auto *OldPtr =
+        reinterpret_cast<char *>(OldOps + OldNumUses) + sizeof(Use::UserRef);
+    auto *NewPtr =
+        reinterpret_cast<char *>(NewOps + NewNumUses) + sizeof(Use::UserRef);
+    std::copy(OldPtr, OldPtr + (OldNumUses * sizeof(BasicBlock *)), NewPtr);
+  }
+  Use::zap(OldOps, OldOps + OldNumUses, true);
 }
 
 //===----------------------------------------------------------------------===//
 //                         User operator new Implementations
 //===----------------------------------------------------------------------===//
 
-void *User::operator new(size_t s, unsigned Us) {
-  void *Storage = ::operator new(s + sizeof(Use) * Us);
+void *User::operator new(size_t Size, unsigned Us) {
+  assert(Us < (1u << NumUserOperandsBits) && "Too many operands");
+  void *Storage = ::operator new(Size + sizeof(Use) * Us);
   Use *Start = static_cast<Use*>(Storage);
   Use *End = Start + Us;
   User *Obj = reinterpret_cast<User*>(End);
-  Obj->OperandList = Start;
-  Obj->NumOperands = Us;
+  Obj->NumUserOperands = Us;
+  Obj->HasHungOffUses = false;
   Use::initTags(Start, End);
+  return Obj;
+}
+
+void *User::operator new(size_t Size) {
+  // Allocate space for a single Use*
+  void *Storage = ::operator new(Size + sizeof(Use *));
+  Use **HungOffOperandList = static_cast<Use **>(Storage);
+  User *Obj = reinterpret_cast<User *>(HungOffOperandList + 1);
+  Obj->NumUserOperands = 0;
+  Obj->HasHungOffUses = true;
+  *HungOffOperandList = nullptr;
   return Obj;
 }
 
@@ -69,11 +119,21 @@ void *User::operator new(size_t s, unsigned Us) {
 //===----------------------------------------------------------------------===//
 
 void User::operator delete(void *Usr) {
-  User *Start = static_cast<User*>(Usr);
-  Use *Storage = static_cast<Use*>(Usr) - Start->NumOperands;
-  // If there were hung-off uses, they will have been freed already and
-  // NumOperands reset to 0, so here we just free the User itself.
-  ::operator delete(Storage);
+  // Hung off uses use a single Use* before the User, while other subclasses
+  // use a Use[] allocated prior to the user.
+  User *Obj = static_cast<User *>(Usr);
+  if (Obj->HasHungOffUses) {
+    Use **HungOffOperandList = static_cast<Use **>(Usr) - 1;
+    // drop the hung off uses.
+    Use::zap(*HungOffOperandList, *HungOffOperandList + Obj->NumUserOperands,
+             /* Delete */ true);
+    ::operator delete(HungOffOperandList);
+  } else {
+    Use *Storage = static_cast<Use *>(Usr) - Obj->NumUserOperands;
+    Use::zap(Storage, Storage + Obj->NumUserOperands,
+             /* Delete */ false);
+    ::operator delete(Storage);
+  }
 }
 
 //===----------------------------------------------------------------------===//

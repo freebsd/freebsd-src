@@ -133,13 +133,30 @@ void _endhostdnsent(void);
 void _endhosthtent(struct hostent_data *);
 void _endnetdnsent(void);
 void _endnethtent(struct netent_data *);
-struct hostent *_gethostbynisaddr(const void *, socklen_t, int);
-struct hostent *_gethostbynisname(const char *, int);
 void _map_v4v6_address(const char *, char *);
 void _map_v4v6_hostent(struct hostent *, char **, char *);
 void _sethostdnsent(int);
 void _sethosthtent(int, struct hostent_data *);
 void _setnetdnsent(int);
 void _setnethtent(int, struct netent_data *);
+
+struct hostent *__dns_getanswer(const char *, int, const char *, int);
+int _dns_gethostbyaddr(void *, void *, va_list);
+int _dns_gethostbyname(void *, void *, va_list);
+int _dns_getnetbyaddr(void *, void *, va_list);
+int _dns_getnetbyname(void *, void *, va_list);
+int _ht_gethostbyaddr(void *, void *, va_list);
+int _ht_gethostbyname(void *, void *, va_list);
+int _ht_getnetbyaddr(void *, void *, va_list);
+int _ht_getnetbyname(void *, void *, va_list);
+int _nis_gethostbyaddr(void *, void *, va_list);
+int _nis_gethostbyname(void *, void *, va_list);
+int _nis_getnetbyaddr(void *, void *, va_list);
+int _nis_getnetbyname(void *, void *, va_list);
+#ifdef NS_CACHING
+int __proto_id_func(char *, size_t *, va_list, void *);
+int __proto_marshal_func(char *, size_t *, void *, va_list, void *);
+int __proto_unmarshal_func(char *, size_t, void *, va_list, void *);
+#endif
 
 #endif /* _NETDB_PRIVATE_H_ */

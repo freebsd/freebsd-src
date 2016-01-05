@@ -40,7 +40,7 @@ typedef bool lto_bool_t;
  * @{
  */
 
-#define LTO_API_VERSION 11
+#define LTO_API_VERSION 17
 
 /**
  * \since prior to LTO_API_VERSION=3
@@ -62,7 +62,9 @@ typedef enum {
     LTO_SYMBOL_SCOPE_HIDDEN                = 0x00001000,
     LTO_SYMBOL_SCOPE_PROTECTED             = 0x00002000,
     LTO_SYMBOL_SCOPE_DEFAULT               = 0x00001800,
-    LTO_SYMBOL_SCOPE_DEFAULT_CAN_BE_HIDDEN = 0x00002800
+    LTO_SYMBOL_SCOPE_DEFAULT_CAN_BE_HIDDEN = 0x00002800,
+    LTO_SYMBOL_COMDAT                      = 0x00004000,
+    LTO_SYMBOL_ALIAS                       = 0x00008000
 } lto_symbol_attributes;
 
 /**
@@ -171,7 +173,7 @@ lto_module_create_from_memory(const void* mem, size_t length);
  * Loads an object file from memory with an extra path argument.
  * Returns NULL on error (check lto_get_error_message() for details).
  *
- * \since prior to LTO_API_VERSION=9
+ * \since LTO_API_VERSION=9
  */
 extern lto_module_t
 lto_module_create_from_memory_with_path(const void* mem, size_t length,
@@ -279,39 +281,15 @@ lto_module_get_symbol_attribute(lto_module_t mod, unsigned int index);
 
 
 /**
- * Returns the number of dependent libraries in the object module.
+ * Returns the module's linker options.
  *
- * \since LTO_API_VERSION=8
- */
-extern unsigned int
-lto_module_get_num_deplibs(lto_module_t mod);
-
-
-/**
- * Returns the ith dependent library in the module.
+ * The linker options may consist of multiple flags. It is the linker's
+ * responsibility to split the flags using a platform-specific mechanism.
  *
- * \since LTO_API_VERSION=8
+ * \since LTO_API_VERSION=16
  */
 extern const char*
-lto_module_get_deplib(lto_module_t mod, unsigned int index);
-
-
-/**
- * Returns the number of linker options in the object module.
- *
- * \since LTO_API_VERSION=8
- */
-extern unsigned int
-lto_module_get_num_linkeropts(lto_module_t mod);
-
-
-/**
- * Returns the ith linker option in the module.
- *
- * \since LTO_API_VERSION=8
- */
-extern const char*
-lto_module_get_linkeropt(lto_module_t mod, unsigned int index);
+lto_module_get_linkeropts(lto_module_t mod);
 
 
 /**
@@ -396,6 +374,17 @@ extern lto_bool_t
 lto_codegen_add_module(lto_code_gen_t cg, lto_module_t mod);
 
 /**
+ * Sets the object module for code generation. This will transfer the ownship of
+ * the module to code generator.
+ *
+ * \c cg and \c mod must both be in the same context.
+ *
+ * \since LTO_API_VERSION=13
+ */
+extern void
+lto_codegen_set_module(lto_code_gen_t cg, lto_module_t mod);
+
+/**
  * Sets if debug info should be generated.
  * Returns true on error (check lto_get_error_message() for details).
  *
@@ -464,6 +453,8 @@ lto_codegen_write_merged_modules(lto_code_gen_t cg, const char* path);
 
 /**
  * Generates code for all added modules into one native object file.
+ * This calls lto_codegen_optimize then lto_codegen_compile_optimized.
+ *
  * On success returns a pointer to a generated mach-o/ELF buffer and
  * length set to the buffer size.  The buffer is owned by the
  * lto_code_gen_t and will be freed when lto_codegen_dispose()
@@ -477,6 +468,9 @@ lto_codegen_compile(lto_code_gen_t cg, size_t* length);
 
 /**
  * Generates code for all added modules into one native object file.
+ * This calls lto_codegen_optimize then lto_codegen_compile_optimized (instead
+ * of returning a generated mach-o/ELF buffer, it writes to a file).
+ *
  * The name of the file is written to name. Returns true on error.
  *
  * \since LTO_API_VERSION=5
@@ -484,6 +478,36 @@ lto_codegen_compile(lto_code_gen_t cg, size_t* length);
 extern lto_bool_t
 lto_codegen_compile_to_file(lto_code_gen_t cg, const char** name);
 
+/**
+ * Runs optimization for the merged module. Returns true on error.
+ *
+ * \since LTO_API_VERSION=12
+ */
+extern lto_bool_t
+lto_codegen_optimize(lto_code_gen_t cg);
+
+/**
+ * Generates code for the optimized merged module into one native object file.
+ * It will not run any IR optimizations on the merged module.
+ *
+ * On success returns a pointer to a generated mach-o/ELF buffer and length set
+ * to the buffer size.  The buffer is owned by the lto_code_gen_t and will be
+ * freed when lto_codegen_dispose() is called, or
+ * lto_codegen_compile_optimized() is called again. On failure, returns NULL
+ * (check lto_get_error_message() for details).
+ *
+ * \since LTO_API_VERSION=12
+ */
+extern const void*
+lto_codegen_compile_optimized(lto_code_gen_t cg, size_t* length);
+
+/**
+ * Returns the runtime API version.
+ *
+ * \since LTO_API_VERSION=12
+ */
+extern unsigned int
+lto_api_version(void);
 
 /**
  * Sets options to help debug codegen bugs.
@@ -501,6 +525,28 @@ lto_codegen_debug_options(lto_code_gen_t cg, const char *);
  */
 extern void
 lto_initialize_disassembler(void);
+
+/**
+ * Sets if we should run internalize pass during optimization and code
+ * generation.
+ *
+ * \since LTO_API_VERSION=14
+ */
+extern void
+lto_codegen_set_should_internalize(lto_code_gen_t cg,
+                                   lto_bool_t ShouldInternalize);
+
+/**
+ * \brief Set whether to embed uselists in bitcode.
+ *
+ * Sets whether \a lto_codegen_write_merged_modules() should embed uselists in
+ * output bitcode.  This should be turned on for all -save-temps output.
+ *
+ * \since LTO_API_VERSION=15
+ */
+extern void
+lto_codegen_set_should_embed_uselists(lto_code_gen_t cg,
+                                      lto_bool_t ShouldEmbedUselists);
 
 #ifdef __cplusplus
 }

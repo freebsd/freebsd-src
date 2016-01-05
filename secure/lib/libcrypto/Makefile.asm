@@ -12,34 +12,39 @@
 	${LCRYPTO_SRC}/crypto/aes/asm \
 	${LCRYPTO_SRC}/crypto/bn/asm \
 	${LCRYPTO_SRC}/crypto/camellia/asm \
+	${LCRYPTO_SRC}/crypto/ec/asm \
 	${LCRYPTO_SRC}/crypto/md5/asm \
 	${LCRYPTO_SRC}/crypto/modes/asm \
 	${LCRYPTO_SRC}/crypto/rc4/asm \
-	${LCRYPTO_SRC}/crypto/rc5/asm \
 	${LCRYPTO_SRC}/crypto/sha/asm \
 	${LCRYPTO_SRC}/crypto/whrlpool/asm
 
 # aes
-SRCS=	aes-x86_64.pl aesni-sha1-x86_64.pl aesni-x86_64.pl bsaes-x86_64.pl \
+SRCS=	aes-x86_64.pl aesni-mb-x86_64.pl aesni-sha1-x86_64.pl \
+	aesni-sha256-x86_64.pl aesni-x86_64.pl bsaes-x86_64.pl \
 	vpaes-x86_64.pl
 
 # bn
-SRCS+=	modexp512-x86_64.pl x86_64-gf2m.pl x86_64-mont.pl x86_64-mont5.pl
+SRCS+=	rsaz-avx2.pl rsaz-x86_64.pl x86_64-gf2m.pl x86_64-mont.pl \
+	x86_64-mont5.pl
 
 # camellia
 SRCS+=	cmll-x86_64.pl
+
+# ec
+SRCS+=	ecp_nistz256-x86_64.pl
 
 # md5
 SRCS+=	md5-x86_64.pl
 
 # modes
-SRCS+=	ghash-x86_64.pl
+SRCS+=	aesni-gcm-x86_64.pl ghash-x86_64.pl
 
 # rc4
 SRCS+=	rc4-md5-x86_64.pl rc4-x86_64.pl
 
 # sha
-SRCS+=	sha1-x86_64.pl sha512-x86_64.pl
+SRCS+=	sha1-mb-x86_64.pl sha1-x86_64.pl sha256-mb-x86_64.pl sha512-x86_64.pl
 
 # whrlpool
 SRCS+=	wp-x86_64.pl
@@ -72,7 +77,6 @@ x86_64cpuid.cmt: x86_64cpuid.pl
 	${LCRYPTO_SRC}/crypto/bf/asm \
 	${LCRYPTO_SRC}/crypto/bn/asm \
 	${LCRYPTO_SRC}/crypto/camellia/asm \
-	${LCRYPTO_SRC}/crypto/cast/asm \
 	${LCRYPTO_SRC}/crypto/des/asm \
 	${LCRYPTO_SRC}/crypto/md5/asm \
 	${LCRYPTO_SRC}/crypto/modes/asm \
@@ -95,9 +99,6 @@ SRCS+=	bn-586.pl co-586.pl x86-gf2m.pl x86-mont.pl
 
 # camellia
 SRCS+=	cmll-x86.pl
-
-# cast
-SRCS+=	cast-586.pl
 
 # des
 SRCS+=	crypt586.pl des-586.pl

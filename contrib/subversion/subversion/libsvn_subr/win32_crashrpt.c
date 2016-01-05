@@ -37,6 +37,8 @@ typedef int win32_crashrpt__dummy;
 
 #include "svn_version.h"
 
+#include "sysinfo.h"
+
 #include "win32_crashrpt.h"
 #include "win32_crashrpt_dll.h"
 
@@ -58,12 +60,13 @@ HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
 
 /*** Code. ***/
 
-/* Convert a wide-character string to utf-8. This function will create a buffer
- * large enough to hold the result string, the caller should free this buffer.
+/* Convert a wide-character string to the current windows locale, suitable
+ * for directly using stdio. This function will create a buffer large
+ * enough to hold the result string, the caller should free this buffer.
  * If the string can't be converted, NULL is returned.
  */
 static char *
-convert_wbcs_to_utf8(const wchar_t *str)
+convert_wbcs_to_ansi(const wchar_t *str)
 {
   size_t len = wcslen(str);
   char *utf8_str = malloc(sizeof(wchar_t) * len + 1);
@@ -167,7 +170,7 @@ write_module_info_callback(void *data,
       FILE *log_file = (FILE *)data;
       MINIDUMP_MODULE_CALLBACK module = callback_input->Module;
 
-      char *buf = convert_wbcs_to_utf8(module.FullPath);
+      char *buf = convert_wbcs_to_ansi(module.FullPath);
       fprintf(log_file, FORMAT_PTR, module.BaseOfImage);
       fprintf(log_file, "  %s", buf);
       free(buf);
@@ -188,7 +191,7 @@ static void
 write_process_info(EXCEPTION_RECORD *exception, CONTEXT *context,
                    FILE *log_file)
 {
-  OSVERSIONINFO oi;
+  OSVERSIONINFOEXW oi;
   const char *cmd_line;
   char workingdir[8192];
 
@@ -207,13 +210,11 @@ write_process_info(EXCEPTION_RECORD *exception, CONTEXT *context,
                 SVN_VERSION, __DATE__, __TIME__);
 
   /* write information about the OS */
-  oi.dwOSVersionInfoSize = sizeof(oi);
-  GetVersionEx(&oi);
-
-  fprintf(log_file,
-                "Platform: Windows OS version %d.%d build %d %s\n\n",
-                oi.dwMajorVersion, oi.dwMinorVersion, oi.dwBuildNumber,
-                oi.szCSDVersion);
+  if (svn_sysinfo___fill_windows_version(&oi))
+    fprintf(log_file,
+                  "Platform: Windows OS version %d.%d build %d %S\n\n",
+                  oi.dwMajorVersion, oi.dwMinorVersion, oi.dwBuildNumber,
+                  oi.szCSDVersion);
 
   /* write the exception code */
   fprintf(log_file,
@@ -244,16 +245,16 @@ write_process_info(EXCEPTION_RECORD *exception, CONTEXT *context,
                 "Rsp=%016I64x Rbp=%016I64x Rsi=%016I64x Rdi=%016I64x\n",
                 context->Rsp, context->Rbp, context->Rsi, context->Rdi);
   fprintf(log_file,
-                "R8= %016I64x R9= %016I64x R10= %016I64x R11=%016I64x\n",
+                "R8= %016I64x R9= %016I64x R10=%016I64x R11=%016I64x\n",
                 context->R8, context->R9, context->R10, context->R11);
   fprintf(log_file,
                 "R12=%016I64x R13=%016I64x R14=%016I64x R15=%016I64x\n",
                 context->R12, context->R13, context->R14, context->R15);
 
   fprintf(log_file,
-                "cs=%04x  ss=%04x  ds=%04x  es=%04x  fs=%04x  gs=%04x  ss=%04x\n",
-                context->SegCs, context->SegDs, context->SegEs,
-                context->SegFs, context->SegGs, context->SegSs);
+                "cs=%04x  ss=%04x  ds=%04x  es=%04x  fs=%04x  gs=%04x\n",
+                context->SegCs, context->SegSs, context->SegDs,
+                context->SegEs, context->SegFs, context->SegGs);
 #else
 #error Unknown processortype, please disable SVN_USE_WIN32_CRASHHANDLER
 #endif
@@ -335,7 +336,7 @@ format_value(char *value_str, DWORD64 mod_base, DWORD type, void *value_addr)
           if (SymGetTypeInfo_(proc, mod_base, type, TI_GET_SYMNAME,
                               &type_name_wbcs))
             {
-              char *type_name = convert_wbcs_to_utf8(type_name_wbcs);
+              char *type_name = convert_wbcs_to_ansi(type_name_wbcs);
               LocalFree(type_name_wbcs);
 
               if (ptr == 0)

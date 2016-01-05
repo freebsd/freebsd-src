@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Target/StackFrame.h"
 
 // C Includes
@@ -18,6 +16,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
+#include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Core/ValueObjectConstResult.h"
@@ -919,7 +918,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                     }
                                     else
                                     {
-                                        child_valobj_sp = valobj_sp->GetSyntheticArrayMemberFromPointer (child_index, true);
+                                        child_valobj_sp = valobj_sp->GetSyntheticArrayMember (child_index, true);
                                         if (!child_valobj_sp)
                                         {
                                             valobj_sp->GetExpressionPath (var_expr_path_strm, false);
@@ -1373,11 +1372,11 @@ StackFrame::DumpUsingSettingsFormat (Stream *strm, const char *frame_marker)
     if (frame_marker)
         s.PutCString(frame_marker);
 
-    const char *frame_format = NULL;
+    const FormatEntity::Entry *frame_format = NULL;
     Target *target = exe_ctx.GetTargetPtr();
     if (target)
         frame_format = target->GetDebugger().GetFrameFormat();
-    if (frame_format && Debugger::FormatPrompt (frame_format, &m_sc, &exe_ctx, NULL, s))
+    if (frame_format && FormatEntity::Format(*frame_format, s, &m_sc, &exe_ctx, NULL, NULL, false, false))
     {
         strm->Write(s.GetData(), s.GetSize());
     }
@@ -1405,13 +1404,15 @@ StackFrame::Dump (Stream *strm, bool show_frame_index, bool show_fullpaths)
     const bool show_module = true;
     const bool show_inline = true;
     const bool show_function_arguments = true;
+    const bool show_function_name = true;
     m_sc.DumpStopContext (strm, 
                           exe_ctx.GetBestExecutionContextScope(), 
                           GetFrameCodeAddress(), 
                           show_fullpaths, 
                           show_module, 
                           show_inline,
-                          show_function_arguments);
+                          show_function_arguments,
+                          show_function_name);
 }
 
 void

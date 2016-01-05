@@ -7,14 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Expression/ClangExpressionParser.h"
 
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
+#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
@@ -23,6 +22,7 @@
 #include "lldb/Expression/ClangExpression.h"
 #include "lldb/Expression/ClangExpressionDeclMap.h"
 #include "lldb/Expression/ClangModulesDeclVendor.h"
+#include "lldb/Expression/ClangPersistentVariables.h"
 #include "lldb/Expression/IRExecutionUnit.h"
 #include "lldb/Expression/IRDynamicChecks.h"
 #include "lldb/Expression/IRInterpreter.h"
@@ -95,12 +95,15 @@ std::string GetBuiltinIncludePath(const char *Argv0) {
 
 class ClangExpressionParser::LLDBPreprocessorCallbacks : public PPCallbacks
 {
-    ClangModulesDeclVendor  &m_decl_vendor;
-    StreamString             m_error_stream;
-    bool                     m_has_errors = false;
+    ClangModulesDeclVendor     &m_decl_vendor;
+    ClangPersistentVariables   &m_persistent_vars;
+    StreamString                m_error_stream;
+    bool                        m_has_errors = false;
 public:
-    LLDBPreprocessorCallbacks(ClangModulesDeclVendor &decl_vendor) :
-        m_decl_vendor(decl_vendor)
+    LLDBPreprocessorCallbacks(ClangModulesDeclVendor &decl_vendor,
+                              ClangPersistentVariables &persistent_vars) :
+        m_decl_vendor(decl_vendor),
+        m_persistent_vars(persistent_vars)
     {
     }
     
@@ -108,18 +111,25 @@ public:
                               ModuleIdPath path,
                               const clang::Module * /*null*/)
     {
-        std::vector<llvm::StringRef> string_path;
+        std::vector<ConstString> string_path;
         
         for (const std::pair<IdentifierInfo *, SourceLocation> &component : path)
         {
-            string_path.push_back(component.first->getName());
+            string_path.push_back(ConstString(component.first->getName()));
         }
      
         StreamString error_stream;
         
-        if (!m_decl_vendor.AddModule(string_path, m_error_stream))
+        ClangModulesDeclVendor::ModuleVector exported_modules;
+        
+        if (!m_decl_vendor.AddModule(string_path, &exported_modules, m_error_stream))
         {
             m_has_errors = true;
+        }
+        
+        for (ClangModulesDeclVendor::ModuleID module : exported_modules)
+        {
+            m_persistent_vars.AddHandLoadedClangModule(module);
         }
     }
     
@@ -227,6 +237,9 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
     if (expr.DesiredResultType() == ClangExpression::eResultTypeId)
         m_compiler->getLangOpts().DebuggerCastResultToId = true;
 
+    m_compiler->getLangOpts().CharIsSigned =
+            ArchSpec(m_compiler->getTargetOpts().Triple.c_str()).CharIsSignedByDefault();
+
     // Spell checking is a nice feature, but it ends up completing a
     // lot of types that we didn't strictly speaking need to complete.
     // As a result, we spend a long time parsing and importing debug
@@ -294,7 +307,7 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
     
     if (ClangModulesDeclVendor *decl_vendor = target_sp->GetClangModulesDeclVendor())
     {
-        std::unique_ptr<PPCallbacks> pp_callbacks(new LLDBPreprocessorCallbacks(*decl_vendor));
+        std::unique_ptr<PPCallbacks> pp_callbacks(new LLDBPreprocessorCallbacks(*decl_vendor, target_sp->GetPersistentVariables()));
         m_pp_callbacks = static_cast<LLDBPreprocessorCallbacks*>(pp_callbacks.get());
         m_compiler->getPreprocessor().addPPCallbacks(std::move(pp_callbacks));
     }
@@ -305,10 +318,10 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
     m_builtin_context.reset(new Builtin::Context());
 
     std::unique_ptr<clang::ASTContext> ast_context(new ASTContext(m_compiler->getLangOpts(),
-                                                                 m_compiler->getSourceManager(),
-                                                                 m_compiler->getPreprocessor().getIdentifierTable(),
-                                                                 *m_selector_table.get(),
-                                                                 *m_builtin_context.get()));
+                                                                  m_compiler->getSourceManager(),
+                                                                  m_compiler->getPreprocessor().getIdentifierTable(),
+                                                                  *m_selector_table.get(),
+                                                                  *m_builtin_context.get()));
     
     ast_context->InitBuiltinTypes(m_compiler->getTarget());
 
@@ -328,8 +341,9 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
     m_llvm_context.reset(new LLVMContext());
     m_code_generator.reset(CreateLLVMCodeGen(m_compiler->getDiagnostics(),
                                              module_name,
+                                             m_compiler->getHeaderSearchOpts(),
+                                             m_compiler->getPreprocessorOpts(),
                                              m_compiler->getCodeGenOpts(),
-                                             m_compiler->getTargetOpts(),
                                              *m_llvm_context));
 }
 
@@ -395,6 +409,9 @@ ClangExpressionParser::Parse (Stream &stream)
 
     ASTConsumer *ast_transformer = m_expr.ASTTransformer(m_code_generator.get());
 
+    if (ClangExpressionDeclMap *decl_map = m_expr.DeclMap())
+        decl_map->InstallCodeGenerator(m_code_generator.get());
+    
     if (ast_transformer)
         ParseAST(m_compiler->getPreprocessor(), ast_transformer, m_compiler->getASTContext());
     else
@@ -524,10 +541,11 @@ ClangExpressionParser::PrepareForExecution (lldb::addr_t &func_addr,
         bool ir_can_run = ir_for_target.runOnModule(*execution_unit_sp->GetModule());
 
         Error interpret_error;
-
-        can_interpret = IRInterpreter::CanInterpret(*execution_unit_sp->GetModule(), *execution_unit_sp->GetFunction(), interpret_error);
-
         Process *process = exe_ctx.GetProcessPtr();
+
+        bool interpret_function_calls = !process ? false : process->CanInterpretFunctionCalls();
+        can_interpret = IRInterpreter::CanInterpret(*execution_unit_sp->GetModule(), *execution_unit_sp->GetFunction(), interpret_error, interpret_function_calls);
+
 
         if (!ir_can_run)
         {

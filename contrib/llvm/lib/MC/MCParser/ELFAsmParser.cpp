@@ -16,7 +16,7 @@
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/Support/ELF.h"
 using namespace llvm;
 
@@ -174,7 +174,7 @@ bool ELFAsmParser::ParseDirectiveSymbolAttribute(StringRef Directive, SMLoc) {
       if (getParser().parseIdentifier(Name))
         return TokError("expected identifier in directive");
 
-      MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+      MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
       getStreamer().EmitSymbolAttribute(Sym, Attr);
 
@@ -199,8 +199,7 @@ bool ELFAsmParser::ParseSectionSwitch(StringRef Section, unsigned Type,
       return true;
   }
 
-  getStreamer().SwitchSection(getContext().getELFSection(
-                                Section, Type, Flags, Kind),
+  getStreamer().SwitchSection(getContext().getELFSection(Section, Type, Flags),
                               Subsection);
 
   return false;
@@ -210,7 +209,7 @@ bool ELFAsmParser::ParseDirectiveSize(StringRef, SMLoc) {
   StringRef Name;
   if (getParser().parseIdentifier(Name))
     return TokError("expected identifier in directive");
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbolELF *Sym = cast<MCSymbolELF>(getContext().getOrCreateSymbol(Name));
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in directive");
@@ -223,7 +222,7 @@ bool ELFAsmParser::ParseDirectiveSize(StringRef, SMLoc) {
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in directive");
 
-  getStreamer().EmitELFSize(Sym, Expr);
+  getStreamer().emitELFSize(Sym, Expr);
   return false;
 }
 
@@ -267,40 +266,6 @@ bool ELFAsmParser::ParseSectionName(StringRef &SectionName) {
     return true;
 
   return false;
-}
-
-static SectionKind computeSectionKind(unsigned Flags, unsigned ElemSize) {
-  if (Flags & ELF::SHF_EXECINSTR)
-    return SectionKind::getText();
-  if (Flags & ELF::SHF_TLS)
-    return SectionKind::getThreadData();
-  if (Flags & ELF::SHF_MERGE) {
-    if (Flags & ELF::SHF_STRINGS) {
-      switch (ElemSize) {
-      default:
-        break;
-      case 1:
-        return SectionKind::getMergeable1ByteCString();
-      case 2:
-        return SectionKind::getMergeable2ByteCString();
-      case 4:
-        return SectionKind::getMergeable4ByteCString();
-      }
-    } else {
-      switch (ElemSize) {
-      default:
-        break;
-      case 4:
-        return SectionKind::getMergeableConst4();
-      case 8:
-        return SectionKind::getMergeableConst8();
-      case 16:
-        return SectionKind::getMergeableConst16();
-      }
-    }
-  }
-
-  return SectionKind::getDataRel();
 }
 
 static unsigned parseSectionFlags(StringRef flagsStr, bool *UseLastGroup) {
@@ -413,6 +378,8 @@ bool ELFAsmParser::ParseSectionArguments(bool IsPush, SMLoc loc) {
   unsigned Flags = 0;
   const MCExpr *Subsection = nullptr;
   bool UseLastGroup = false;
+  StringRef UniqueStr;
+  int64_t UniqueID = ~0;
 
   // Set the defaults first.
   if (SectionName == ".fini" || SectionName == ".init" ||
@@ -497,6 +464,22 @@ bool ELFAsmParser::ParseSectionArguments(bool IsPush, SMLoc loc) {
             return TokError("Linkage must be 'comdat'");
         }
       }
+      if (getLexer().is(AsmToken::Comma)) {
+        Lex();
+        if (getParser().parseIdentifier(UniqueStr))
+          return TokError("expected identifier in directive");
+        if (UniqueStr != "unique")
+          return TokError("expected 'unique'");
+        if (getLexer().isNot(AsmToken::Comma))
+          return TokError("expected commma");
+        Lex();
+        if (getParser().parseAbsoluteExpression(UniqueID))
+          return true;
+        if (UniqueID < 0)
+          return TokError("unique id must be positive");
+        if (!isUInt<32>(UniqueID) || UniqueID == ~0U)
+          return TokError("unique id is too large");
+      }
     }
   }
 
@@ -544,22 +527,21 @@ EndStmt:
       }
   }
 
-  SectionKind Kind = computeSectionKind(Flags, Size);
-  const MCSection *ELFSection = getContext().getELFSection(
-      SectionName, Type, Flags, Kind, Size, GroupName);
+  MCSection *ELFSection = getContext().getELFSection(SectionName, Type, Flags,
+                                                     Size, GroupName, UniqueID);
   getStreamer().SwitchSection(ELFSection, Subsection);
 
   if (getContext().getGenDwarfForAssembly()) {
-    auto &Sections = getContext().getGenDwarfSectionSyms();
-    auto InsertResult = Sections.insert(
-        std::make_pair(ELFSection, std::make_pair(nullptr, nullptr)));
-    if (InsertResult.second) {
+    bool InsertResult = getContext().addGenDwarfSection(ELFSection);
+    if (InsertResult) {
       if (getContext().getDwarfVersion() <= 2)
         Warning(loc, "DWARF2 only supports one section per compilation unit");
 
-      MCSymbol *SectionStartSymbol = getContext().CreateTempSymbol();
-      getStreamer().EmitLabel(SectionStartSymbol);
-      InsertResult.first->second.first = SectionStartSymbol;
+      if (!ELFSection->getBeginSymbol()) {
+        MCSymbol *SectionStartSymbol = getContext().createTempSymbol();
+        getStreamer().EmitLabel(SectionStartSymbol);
+        ELFSection->setBeginSymbol(SectionStartSymbol);
+      }
     }
   }
 
@@ -600,7 +582,7 @@ bool ELFAsmParser::ParseDirectiveType(StringRef, SMLoc) {
     return TokError("expected identifier in directive");
 
   // Handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   // NOTE the comma is optional in all cases.  It is only documented as being
   // optional in the first case, however, GAS will silently treat the comma as
@@ -611,10 +593,16 @@ bool ELFAsmParser::ParseDirectiveType(StringRef, SMLoc) {
     Lex();
 
   if (getLexer().isNot(AsmToken::Identifier) &&
-      getLexer().isNot(AsmToken::Hash) && getLexer().isNot(AsmToken::At) &&
-      getLexer().isNot(AsmToken::Percent) && getLexer().isNot(AsmToken::String))
-    return TokError("expected STT_<TYPE_IN_UPPER_CASE>, '#<type>', '@<type>', "
-                    "'%<type>' or \"<type>\"");
+      getLexer().isNot(AsmToken::Hash) &&
+      getLexer().isNot(AsmToken::Percent) &&
+      getLexer().isNot(AsmToken::String)) {
+    if (!getLexer().getAllowAtInIdentifier())
+      return TokError("expected STT_<TYPE_IN_UPPER_CASE>, '#<type>', "
+                      "'%<type>' or \"<type>\"");
+    else if (getLexer().isNot(AsmToken::At))
+      return TokError("expected STT_<TYPE_IN_UPPER_CASE>, '#<type>', '@<type>', "
+                      "'%<type>' or \"<type>\"");
+  }
 
   if (getLexer().isNot(AsmToken::String) &&
       getLexer().isNot(AsmToken::Identifier))
@@ -679,9 +667,9 @@ bool ELFAsmParser::ParseDirectiveSymver(StringRef, SMLoc) {
   if (AliasName.find('@') == StringRef::npos)
     return TokError("expected a '@' in the name");
 
-  MCSymbol *Alias = getContext().GetOrCreateSymbol(AliasName);
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
-  const MCExpr *Value = MCSymbolRefExpr::Create(Sym, getContext());
+  MCSymbol *Alias = getContext().getOrCreateSymbol(AliasName);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
+  const MCExpr *Value = MCSymbolRefExpr::create(Sym, getContext());
 
   getStreamer().EmitAssignment(Alias, Value);
   return false;
@@ -697,9 +685,7 @@ bool ELFAsmParser::ParseDirectiveVersion(StringRef, SMLoc) {
 
   Lex();
 
-  const MCSection *Note =
-    getContext().getELFSection(".note", ELF::SHT_NOTE, 0,
-                               SectionKind::getReadOnly());
+  MCSection *Note = getContext().getELFSection(".note", ELF::SHT_NOTE, 0);
 
   getStreamer().PushSection();
   getStreamer().SwitchSection(Note);
@@ -731,9 +717,9 @@ bool ELFAsmParser::ParseDirectiveWeakref(StringRef, SMLoc) {
   if (getParser().parseIdentifier(Name))
     return TokError("expected identifier in directive");
 
-  MCSymbol *Alias = getContext().GetOrCreateSymbol(AliasName);
+  MCSymbol *Alias = getContext().getOrCreateSymbol(AliasName);
 
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   getStreamer().EmitWeakReference(Alias, Sym);
   return false;

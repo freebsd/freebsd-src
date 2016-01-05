@@ -327,16 +327,7 @@ main(int argc, char **argv)
 	struct request_info req;
 	int denied;
 	char *service = NULL;
-	union {
-		struct sockaddr peer_un;
-		struct sockaddr_in peer_un4;
-		struct sockaddr_in6 peer_un6;
-		struct sockaddr_storage peer_max;
-	} p_un;
-#define peer	p_un.peer_un
-#define peer4	p_un.peer_un4
-#define peer6	p_un.peer_un6
-#define peermax	p_un.peer_max
+	struct sockaddr_storage peer;
 	int i;
 	struct addrinfo hints, *res;
 	const char *servname;
@@ -656,24 +647,24 @@ main(int argc, char **argv)
 		    } else
 			    ctrl = sep->se_fd;
 		    if (dolog && !ISWRAP(sep)) {
-			    char pname[INET6_ADDRSTRLEN] = "unknown";
+			    char pname[NI_MAXHOST] = "unknown";
 			    socklen_t sl;
-			    sl = sizeof peermax;
+			    sl = sizeof(peer);
 			    if (getpeername(ctrl, (struct sockaddr *)
-					    &peermax, &sl)) {
-				    sl = sizeof peermax;
+					    &peer, &sl)) {
+				    sl = sizeof(peer);
 				    if (recvfrom(ctrl, buf, sizeof(buf),
 					MSG_PEEK,
-					(struct sockaddr *)&peermax,
+					(struct sockaddr *)&peer,
 					&sl) >= 0) {
-				      getnameinfo((struct sockaddr *)&peermax,
-						  peer.sa_len,
+				      getnameinfo((struct sockaddr *)&peer,
+						  peer.ss_len,
 						  pname, sizeof(pname),
 						  NULL, 0, NI_NUMERICHOST);
 				    }
 			    } else {
-			            getnameinfo((struct sockaddr *)&peermax,
-						peer.sa_len,
+			            getnameinfo((struct sockaddr *)&peer,
+						peer.ss_len,
 						pname, sizeof(pname),
 						NULL, 0, NI_NUMERICHOST);
 			    }
@@ -1752,8 +1743,6 @@ more:
                 memmove(sep->se_proto, sep->se_proto + 4,
                     strlen(sep->se_proto) + 1 - 4);
                 sep->se_rpc = 1;
-		memcpy(&sep->se_ctrladdr4, bind_sa4,
-			sizeof(sep->se_ctrladdr4));
                 sep->se_rpc_prog = sep->se_rpc_lowvers =
 			sep->se_rpc_highvers = 0;
                 if ((versp = strrchr(sep->se_service, '/'))) {
@@ -2100,7 +2089,7 @@ inetd_setproctitle(const char *a, int s)
 {
 	socklen_t size;
 	struct sockaddr_storage ss;
-	char buf[80], pbuf[INET6_ADDRSTRLEN];
+	char buf[80], pbuf[NI_MAXHOST];
 
 	size = sizeof(ss);
 	if (getpeername(s, (struct sockaddr *)&ss, &size) == 0) {
@@ -2116,7 +2105,7 @@ int
 check_loop(const struct sockaddr *sa, const struct servtab *sep)
 {
 	struct servtab *se2;
-	char pname[INET6_ADDRSTRLEN];
+	char pname[NI_MAXHOST];
 
 	for (se2 = servtab; se2; se2 = se2->se_next) {
 		if (!se2->se_bi || se2->se_socktype != SOCK_DGRAM)
@@ -2130,8 +2119,8 @@ check_loop(const struct sockaddr *sa, const struct servtab *sep)
 			continue;
 #ifdef INET6
 		case AF_INET6:
-			if (((const struct sockaddr_in *)sa)->sin_port ==
-			    se2->se_ctrladdr4.sin_port)
+			if (((const struct sockaddr_in6 *)sa)->sin6_port ==
+			    se2->se_ctrladdr6.sin6_port)
 				goto isloop;
 			continue;
 #endif
@@ -2330,7 +2319,7 @@ cpmip(const struct servtab *sep, int ctrl)
 			}
 		}
 		if ((cnt * 60) / (CHTSIZE * CHTGRAN) > sep->se_maxcpm) {
-			char pname[INET6_ADDRSTRLEN];
+			char pname[NI_MAXHOST];
 
 			getnameinfo((struct sockaddr *)&rss,
 				    ((struct sockaddr *)&rss)->sa_len,

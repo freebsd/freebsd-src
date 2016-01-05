@@ -6,7 +6,6 @@ SUBDIR= \
 	ctfconvert \
 	ctfdump \
 	ctfmerge \
-	sgsmsg \
 	${_tests} \
 	${_zinject} \
 	${_zlook} \

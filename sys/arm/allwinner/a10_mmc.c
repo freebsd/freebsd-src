@@ -883,3 +883,4 @@ static driver_t a10_mmc_driver = {
 };
 
 DRIVER_MODULE(a10_mmc, simplebus, a10_mmc_driver, a10_mmc_devclass, 0, 0);
+DRIVER_MODULE(mmc, a10_mmc, mmc_driver, mmc_devclass, NULL, NULL);

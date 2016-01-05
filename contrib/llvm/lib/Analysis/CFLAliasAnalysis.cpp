@@ -14,8 +14,7 @@
 // Alias Analysis" by Zhang Q, Lyu M R, Yuan H, and Su Z. -- to summarize the
 // papers, we build a graph of the uses of a variable, where each node is a
 // memory location, and each edge is an action that happened on that memory
-// location.  The "actions" can be one of Dereference, Reference, Assign, or
-// Assign.
+// location.  The "actions" can be one of Dereference, Reference, or Assign.
 //
 // Two variables are considered as aliasing iff you can reach one value's node
 // from the other value's node and the language formed by concatenating all of
@@ -43,13 +42,18 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
 #include <forward_list>
+#include <memory>
 #include <tuple>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "cfl-aa"
 
 // Try to go from a Value* to a Function*. Never returns nullptr.
 static Optional<Function *> parentFunctionOfValue(Value *);
@@ -74,7 +78,7 @@ static Optional<Value *> getTargetValue(Instruction *);
 static bool hasUsefulEdges(Instruction *);
 
 const StratifiedIndex StratifiedLink::SetSentinel =
-  std::numeric_limits<StratifiedIndex>::max();
+    std::numeric_limits<StratifiedIndex>::max();
 
 namespace {
 // StratifiedInfo Attribute things.
@@ -82,11 +86,13 @@ typedef unsigned StratifiedAttr;
 LLVM_CONSTEXPR unsigned MaxStratifiedAttrIndex = NumStratifiedAttrs;
 LLVM_CONSTEXPR unsigned AttrAllIndex = 0;
 LLVM_CONSTEXPR unsigned AttrGlobalIndex = 1;
-LLVM_CONSTEXPR unsigned AttrFirstArgIndex = 2;
+LLVM_CONSTEXPR unsigned AttrUnknownIndex = 2;
+LLVM_CONSTEXPR unsigned AttrFirstArgIndex = 3;
 LLVM_CONSTEXPR unsigned AttrLastArgIndex = MaxStratifiedAttrIndex;
 LLVM_CONSTEXPR unsigned AttrMaxNumArgs = AttrLastArgIndex - AttrFirstArgIndex;
 
 LLVM_CONSTEXPR StratifiedAttr AttrNone = 0;
+LLVM_CONSTEXPR StratifiedAttr AttrUnknown = 1 << AttrUnknownIndex;
 LLVM_CONSTEXPR StratifiedAttr AttrAll = ~AttrNone;
 
 // \brief StratifiedSets call for knowledge of "direction", so this is how we
@@ -141,9 +147,8 @@ struct FunctionInfo {
   // Lots of functions have < 4 returns. Adjust as necessary.
   SmallVector<Value *, 4> ReturnedValues;
 
-  FunctionInfo(StratifiedSets<Value *> &&S,
-               SmallVector<Value *, 4> &&RV)
-    : Sets(std::move(S)), ReturnedValues(std::move(RV)) {}
+  FunctionInfo(StratifiedSets<Value *> &&S, SmallVector<Value *, 4> &&RV)
+      : Sets(std::move(S)), ReturnedValues(std::move(RV)) {}
 };
 
 struct CFLAliasAnalysis;
@@ -155,7 +160,7 @@ struct FunctionHandle : public CallbackVH {
     assert(CFLAA != nullptr);
   }
 
-  virtual ~FunctionHandle() {}
+  ~FunctionHandle() override {}
 
   void deleted() override { removeSelfFromCache(); }
   void allUsesReplacedWith(Value *) override { removeSelfFromCache(); }
@@ -183,7 +188,7 @@ public:
     initializeCFLAliasAnalysisPass(*PassRegistry::getPassRegistry());
   }
 
-  virtual ~CFLAliasAnalysis() {}
+  ~CFLAliasAnalysis() override {}
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AliasAnalysis::getAnalysisUsage(AU);
@@ -213,9 +218,10 @@ public:
     return Iter->second;
   }
 
-  AliasResult query(const Location &LocA, const Location &LocB);
+  AliasResult query(const MemoryLocation &LocA, const MemoryLocation &LocB);
 
-  AliasResult alias(const Location &LocA, const Location &LocB) override {
+  AliasResult alias(const MemoryLocation &LocA,
+                    const MemoryLocation &LocB) override {
     if (LocA.Ptr == LocB.Ptr) {
       if (LocA.Size == LocB.Size) {
         return MustAlias;
@@ -226,14 +232,22 @@ public:
 
     // Comparisons between global variables and other constants should be
     // handled by BasicAA.
+    // TODO: ConstantExpr handling -- CFLAA may report NoAlias when comparing
+    // a GlobalValue and ConstantExpr, but every query needs to have at least
+    // one Value tied to a Function, and neither GlobalValues nor ConstantExprs
+    // are.
     if (isa<Constant>(LocA.Ptr) && isa<Constant>(LocB.Ptr)) {
-      return MayAlias;
+      return AliasAnalysis::alias(LocA, LocB);
     }
 
-    return query(LocA, LocB);
+    AliasResult QueryResult = query(LocA, LocB);
+    if (QueryResult == MayAlias)
+      return AliasAnalysis::alias(LocA, LocB);
+
+    return QueryResult;
   }
 
-  void initializePass() override { InitializeAliasAnalysis(this); }
+  bool doInitialization(Module &M) override;
 };
 
 void FunctionHandle::removeSelfFromCache() {
@@ -256,9 +270,19 @@ public:
     llvm_unreachable("Unsupported instruction encountered");
   }
 
+  void visitPtrToIntInst(PtrToIntInst &Inst) {
+    auto *Ptr = Inst.getOperand(0);
+    Output.push_back(Edge(Ptr, Ptr, EdgeType::Assign, AttrUnknown));
+  }
+
+  void visitIntToPtrInst(IntToPtrInst &Inst) {
+    auto *Ptr = &Inst;
+    Output.push_back(Edge(Ptr, Ptr, EdgeType::Assign, AttrUnknown));
+  }
+
   void visitCastInst(CastInst &Inst) {
-    Output.push_back(Edge(&Inst, Inst.getOperand(0), EdgeType::Assign,
-                          AttrNone));
+    Output.push_back(
+        Edge(&Inst, Inst.getOperand(0), EdgeType::Assign, AttrNone));
   }
 
   void visitBinaryOperator(BinaryOperator &Inst) {
@@ -281,8 +305,7 @@ public:
   }
 
   void visitPHINode(PHINode &Inst) {
-    for (unsigned I = 0, E = Inst.getNumIncomingValues(); I != E; ++I) {
-      Value *Val = Inst.getIncomingValue(I);
+    for (Value *Val : Inst.incoming_values()) {
       Output.push_back(Edge(&Inst, Val, EdgeType::Assign, AttrNone));
     }
   }
@@ -295,8 +318,11 @@ public:
   }
 
   void visitSelectInst(SelectInst &Inst) {
-    auto *Condition = Inst.getCondition();
-    Output.push_back(Edge(&Inst, Condition, EdgeType::Assign, AttrNone));
+    // Condition is not processed here (The actual statement producing
+    // the condition result is processed elsewhere). For select, the
+    // condition is evaluated, but not loaded, stored, or assigned
+    // simply as a result of being the condition of a select.
+
     auto *TrueVal = Inst.getTrueValue();
     Output.push_back(Edge(&Inst, TrueVal, EdgeType::Assign, AttrNone));
     auto *FalseVal = Inst.getFalseValue();
@@ -367,7 +393,7 @@ public:
 
     // I put this here to give us an upper bound on time taken by IPA. Is it
     // really (realistically) needed? Keep in mind that we do have an n^2 algo.
-    if (std::distance(Args.begin(), Args.end()) > (int) MaxSupportedArgs)
+    if (std::distance(Args.begin(), Args.end()) > (int)MaxSupportedArgs)
       return false;
 
     // Exit early if we'll fail anyway
@@ -419,7 +445,7 @@ public:
         }
         if (AddEdge)
           Output.push_back(Edge(FuncValue, ArgVal, EdgeType::Assign,
-                            StratifiedAttrs().flip()));
+                                StratifiedAttrs().flip()));
       }
 
       if (Parameters.size() != Arguments.size())
@@ -513,6 +539,19 @@ public:
     Output.push_back(Edge(&Inst, From1, EdgeType::Assign, AttrNone));
     Output.push_back(Edge(&Inst, From2, EdgeType::Assign, AttrNone));
   }
+
+  void visitConstantExpr(ConstantExpr *CE) {
+    switch (CE->getOpcode()) {
+    default:
+      llvm_unreachable("Unknown instruction type encountered!");
+// Build the switch statement using the Instruction.def file.
+#define HANDLE_INST(NUM, OPCODE, CLASS)                                        \
+  case Instruction::OPCODE:                                                    \
+    visit##OPCODE(*(CLASS *)CE);                                               \
+    break;
+#include "llvm/IR/Instruction.def"
+    }
+  }
 };
 
 // For a given instruction, we need to know which Value* to get the
@@ -561,8 +600,7 @@ private:
     EdgeTypeT Weight;
     Node Other;
 
-    Edge(const EdgeTypeT &W, const Node &N)
-      : Weight(W), Other(N) {}
+    Edge(const EdgeTypeT &W, const Node &N) : Weight(W), Other(N) {}
 
     bool operator==(const Edge &E) const {
       return Weight == E.Weight && Other == E.Other;
@@ -716,6 +754,10 @@ static EdgeType flipWeight(EdgeType);
 static void argsToEdges(CFLAliasAnalysis &, Instruction *,
                         SmallVectorImpl<Edge> &);
 
+// Gets edges of the given ConstantExpr*, writing them to the SmallVector*.
+static void argsToEdges(CFLAliasAnalysis &, ConstantExpr *,
+                        SmallVectorImpl<Edge> &);
+
 // Gets the "Level" that one should travel in StratifiedSets
 // given an EdgeType.
 static Level directionOfEdgeType(EdgeType);
@@ -724,6 +766,25 @@ static Level directionOfEdgeType(EdgeType);
 // given function
 static void buildGraphFrom(CFLAliasAnalysis &, Function *,
                            SmallVectorImpl<Value *> &, NodeMapT &, GraphT &);
+
+// Gets the edges of a ConstantExpr as if it was an Instruction. This
+// function also acts on any nested ConstantExprs, adding the edges
+// of those to the given SmallVector as well.
+static void constexprToEdges(CFLAliasAnalysis &, ConstantExpr &,
+                             SmallVectorImpl<Edge> &);
+
+// Given an Instruction, this will add it to the graph, along with any
+// Instructions that are potentially only available from said Instruction
+// For example, given the following line:
+//   %0 = load i16* getelementptr ([1 x i16]* @a, 0, 0), align 2
+// addInstructionToGraph would add both the `load` and `getelementptr`
+// instructions to the graph appropriately.
+static void addInstructionToGraph(CFLAliasAnalysis &, Instruction &,
+                                  SmallVectorImpl<Value *> &, NodeMapT &,
+                                  GraphT &);
+
+// Notes whether it would be pointless to add the given Value to our sets.
+static bool canSkipAddingToSets(Value *Val);
 
 // Builds the graph + StratifiedSets for a function.
 static FunctionInfo buildSetsFrom(CFLAliasAnalysis &, Function *);
@@ -763,18 +824,28 @@ static bool hasUsefulEdges(Instruction *Inst) {
   return !isa<CmpInst>(Inst) && !isa<FenceInst>(Inst) && !IsNonInvokeTerminator;
 }
 
+static bool hasUsefulEdges(ConstantExpr *CE) {
+  // ConstantExpr doens't have terminators, invokes, or fences, so only needs
+  // to check for compares.
+  return CE->getOpcode() != Instruction::ICmp &&
+         CE->getOpcode() != Instruction::FCmp;
+}
+
 static Optional<StratifiedAttr> valueToAttrIndex(Value *Val) {
   if (isa<GlobalValue>(Val))
     return AttrGlobalIndex;
 
   if (auto *Arg = dyn_cast<Argument>(Val))
-    if (!Arg->hasNoAliasAttr())
+    // Only pointer arguments should have the argument attribute,
+    // because things can't escape through scalars without us seeing a
+    // cast, and thus, interaction with them doesn't matter.
+    if (!Arg->hasNoAliasAttr() && Arg->getType()->isPointerTy())
       return argNumberToAttrIndex(Arg->getArgNo());
   return NoneType();
 }
 
 static StratifiedAttr argNumberToAttrIndex(unsigned ArgNum) {
-  if (ArgNum > AttrMaxNumArgs)
+  if (ArgNum >= AttrMaxNumArgs)
     return AttrAllIndex;
   return ArgNum + AttrFirstArgIndex;
 }
@@ -793,8 +864,17 @@ static EdgeType flipWeight(EdgeType Initial) {
 
 static void argsToEdges(CFLAliasAnalysis &Analysis, Instruction *Inst,
                         SmallVectorImpl<Edge> &Output) {
+  assert(hasUsefulEdges(Inst) &&
+         "Expected instructions to have 'useful' edges");
   GetEdgesVisitor v(Analysis, Output);
   v.visit(Inst);
+}
+
+static void argsToEdges(CFLAliasAnalysis &Analysis, ConstantExpr *CE,
+                        SmallVectorImpl<Edge> &Output) {
+  assert(hasUsefulEdges(CE) && "Expected constant expr to have 'useful' edges");
+  GetEdgesVisitor v(Analysis, Output);
+  v.visitConstantExpr(CE);
 }
 
 static Level directionOfEdgeType(EdgeType Weight) {
@@ -809,13 +889,39 @@ static Level directionOfEdgeType(EdgeType Weight) {
   llvm_unreachable("Incomplete switch coverage");
 }
 
-// Aside: We may remove graph construction entirely, because it doesn't really
-// buy us much that we don't already have. I'd like to add interprocedural
-// analysis prior to this however, in case that somehow requires the graph
-// produced by this for efficient execution
-static void buildGraphFrom(CFLAliasAnalysis &Analysis, Function *Fn,
-                           SmallVectorImpl<Value *> &ReturnedValues,
-                           NodeMapT &Map, GraphT &Graph) {
+static void constexprToEdges(CFLAliasAnalysis &Analysis,
+                             ConstantExpr &CExprToCollapse,
+                             SmallVectorImpl<Edge> &Results) {
+  SmallVector<ConstantExpr *, 4> Worklist;
+  Worklist.push_back(&CExprToCollapse);
+
+  SmallVector<Edge, 8> ConstexprEdges;
+  SmallPtrSet<ConstantExpr *, 4> Visited;
+  while (!Worklist.empty()) {
+    auto *CExpr = Worklist.pop_back_val();
+
+    if (!hasUsefulEdges(CExpr))
+      continue;
+
+    ConstexprEdges.clear();
+    argsToEdges(Analysis, CExpr, ConstexprEdges);
+    for (auto &Edge : ConstexprEdges) {
+      if (auto *Nested = dyn_cast<ConstantExpr>(Edge.From))
+        if (Visited.insert(Nested).second)
+          Worklist.push_back(Nested);
+
+      if (auto *Nested = dyn_cast<ConstantExpr>(Edge.To))
+        if (Visited.insert(Nested).second)
+          Worklist.push_back(Nested);
+    }
+
+    Results.append(ConstexprEdges.begin(), ConstexprEdges.end());
+  }
+}
+
+static void addInstructionToGraph(CFLAliasAnalysis &Analysis, Instruction &Inst,
+                                  SmallVectorImpl<Value *> &ReturnedValues,
+                                  NodeMapT &Map, GraphT &Graph) {
   const auto findOrInsertNode = [&Map, &Graph](Value *Val) {
     auto Pair = Map.insert(std::make_pair(Val, GraphT::Node()));
     auto &Iter = Pair.first;
@@ -826,40 +932,84 @@ static void buildGraphFrom(CFLAliasAnalysis &Analysis, Function *Fn,
     return Iter->second;
   };
 
+  // We don't want the edges of most "return" instructions, but we *do* want
+  // to know what can be returned.
+  if (isa<ReturnInst>(&Inst))
+    ReturnedValues.push_back(&Inst);
+
+  if (!hasUsefulEdges(&Inst))
+    return;
+
   SmallVector<Edge, 8> Edges;
-  for (auto &Bb : Fn->getBasicBlockList()) {
-    for (auto &Inst : Bb.getInstList()) {
-      // We don't want the edges of most "return" instructions, but we *do* want
-      // to know what can be returned.
-      if (auto *Ret = dyn_cast<ReturnInst>(&Inst))
-        ReturnedValues.push_back(Ret);
+  argsToEdges(Analysis, &Inst, Edges);
 
-      if (!hasUsefulEdges(&Inst))
-        continue;
-
-      Edges.clear();
-      argsToEdges(Analysis, &Inst, Edges);
-
-      // In the case of an unused alloca (or similar), edges may be empty. Note
-      // that it exists so we can potentially answer NoAlias.
-      if (Edges.empty()) {
-        auto MaybeVal = getTargetValue(&Inst);
-        assert(MaybeVal.hasValue());
-        auto *Target = *MaybeVal;
-        findOrInsertNode(Target);
-        continue;
-      }
-
-      for (const Edge &E : Edges) {
-        auto To = findOrInsertNode(E.To);
-        auto From = findOrInsertNode(E.From);
-        auto FlippedWeight = flipWeight(E.Weight);
-        auto Attrs = E.AdditionalAttrs;
-        Graph.addEdge(From, To, std::make_pair(E.Weight, Attrs),
-                                std::make_pair(FlippedWeight, Attrs));
-      }
-    }
+  // In the case of an unused alloca (or similar), edges may be empty. Note
+  // that it exists so we can potentially answer NoAlias.
+  if (Edges.empty()) {
+    auto MaybeVal = getTargetValue(&Inst);
+    assert(MaybeVal.hasValue());
+    auto *Target = *MaybeVal;
+    findOrInsertNode(Target);
+    return;
   }
+
+  const auto addEdgeToGraph = [&Graph, &findOrInsertNode](const Edge &E) {
+    auto To = findOrInsertNode(E.To);
+    auto From = findOrInsertNode(E.From);
+    auto FlippedWeight = flipWeight(E.Weight);
+    auto Attrs = E.AdditionalAttrs;
+    Graph.addEdge(From, To, std::make_pair(E.Weight, Attrs),
+                  std::make_pair(FlippedWeight, Attrs));
+  };
+
+  SmallVector<ConstantExpr *, 4> ConstantExprs;
+  for (const Edge &E : Edges) {
+    addEdgeToGraph(E);
+    if (auto *Constexpr = dyn_cast<ConstantExpr>(E.To))
+      ConstantExprs.push_back(Constexpr);
+    if (auto *Constexpr = dyn_cast<ConstantExpr>(E.From))
+      ConstantExprs.push_back(Constexpr);
+  }
+
+  for (ConstantExpr *CE : ConstantExprs) {
+    Edges.clear();
+    constexprToEdges(Analysis, *CE, Edges);
+    std::for_each(Edges.begin(), Edges.end(), addEdgeToGraph);
+  }
+}
+
+// Aside: We may remove graph construction entirely, because it doesn't really
+// buy us much that we don't already have. I'd like to add interprocedural
+// analysis prior to this however, in case that somehow requires the graph
+// produced by this for efficient execution
+static void buildGraphFrom(CFLAliasAnalysis &Analysis, Function *Fn,
+                           SmallVectorImpl<Value *> &ReturnedValues,
+                           NodeMapT &Map, GraphT &Graph) {
+  for (auto &Bb : Fn->getBasicBlockList())
+    for (auto &Inst : Bb.getInstList())
+      addInstructionToGraph(Analysis, Inst, ReturnedValues, Map, Graph);
+}
+
+static bool canSkipAddingToSets(Value *Val) {
+  // Constants can share instances, which may falsely unify multiple
+  // sets, e.g. in
+  // store i32* null, i32** %ptr1
+  // store i32* null, i32** %ptr2
+  // clearly ptr1 and ptr2 should not be unified into the same set, so
+  // we should filter out the (potentially shared) instance to
+  // i32* null.
+  if (isa<Constant>(Val)) {
+    bool Container = isa<ConstantVector>(Val) || isa<ConstantArray>(Val) ||
+                     isa<ConstantStruct>(Val);
+    // TODO: Because all of these things are constant, we can determine whether
+    // the data is *actually* mutable at graph building time. This will probably
+    // come for free/cheap with offset awareness.
+    bool CanStoreMutableData =
+        isa<GlobalValue>(Val) || isa<ConstantExpr>(Val) || Container;
+    return !CanStoreMutableData;
+  }
+
+  return false;
 }
 
 static FunctionInfo buildSetsFrom(CFLAliasAnalysis &Analysis, Function *Fn) {
@@ -893,7 +1043,7 @@ static FunctionInfo buildSetsFrom(CFLAliasAnalysis &Analysis, Function *Fn) {
     while (!Worklist.empty()) {
       auto Node = Worklist.pop_back_val();
       auto *CurValue = findValueOrDie(Node);
-      if (isa<Constant>(CurValue) && !isa<GlobalValue>(CurValue))
+      if (canSkipAddingToSets(CurValue))
         continue;
 
       for (const auto &EdgeTuple : Graph.edgesFor(Node)) {
@@ -902,7 +1052,7 @@ static FunctionInfo buildSetsFrom(CFLAliasAnalysis &Analysis, Function *Fn) {
         auto &OtherNode = std::get<1>(EdgeTuple);
         auto *OtherValue = findValueOrDie(OtherNode);
 
-        if (isa<Constant>(OtherValue) && !isa<GlobalValue>(OtherValue))
+        if (canSkipAddingToSets(OtherValue))
           continue;
 
         bool Added;
@@ -918,16 +1068,16 @@ static FunctionInfo buildSetsFrom(CFLAliasAnalysis &Analysis, Function *Fn) {
           break;
         }
 
-        if (Added) {
-          auto Aliasing = Weight.second;
-          if (auto MaybeCurIndex = valueToAttrIndex(CurValue))
-            Aliasing.set(*MaybeCurIndex);
-          if (auto MaybeOtherIndex = valueToAttrIndex(OtherValue))
-            Aliasing.set(*MaybeOtherIndex);
-          Builder.noteAttributes(CurValue, Aliasing);
-          Builder.noteAttributes(OtherValue, Aliasing);
+        auto Aliasing = Weight.second;
+        if (auto MaybeCurIndex = valueToAttrIndex(CurValue))
+          Aliasing.set(*MaybeCurIndex);
+        if (auto MaybeOtherIndex = valueToAttrIndex(OtherValue))
+          Aliasing.set(*MaybeOtherIndex);
+        Builder.noteAttributes(CurValue, Aliasing);
+        Builder.noteAttributes(OtherValue, Aliasing);
+
+        if (Added)
           Worklist.push_back(OtherNode);
-        }
       }
     }
   }
@@ -937,7 +1087,12 @@ static FunctionInfo buildSetsFrom(CFLAliasAnalysis &Analysis, Function *Fn) {
   // things that were present during construction being present in the graph.
   // So, we add all present arguments here.
   for (auto &Arg : Fn->args()) {
-    Builder.add(&Arg);
+    if (!Builder.add(&Arg))
+      continue;
+
+    auto Attrs = valueToAttrIndex(&Arg);
+    if (Attrs.hasValue())
+      Builder.noteAttributes(&Arg, *Attrs);
   }
 
   return FunctionInfo(Builder.build(), std::move(ReturnedValues));
@@ -954,9 +1109,8 @@ void CFLAliasAnalysis::scan(Function *Fn) {
   Handles.push_front(FunctionHandle(Fn, this));
 }
 
-AliasAnalysis::AliasResult
-CFLAliasAnalysis::query(const AliasAnalysis::Location &LocA,
-                        const AliasAnalysis::Location &LocB) {
+AliasResult CFLAliasAnalysis::query(const MemoryLocation &LocA,
+                                    const MemoryLocation &LocB) {
   auto *ValA = const_cast<Value *>(LocA.Ptr);
   auto *ValB = const_cast<Value *>(LocB.Ptr);
 
@@ -964,8 +1118,10 @@ CFLAliasAnalysis::query(const AliasAnalysis::Location &LocA,
   auto MaybeFnA = parentFunctionOfValue(ValA);
   auto MaybeFnB = parentFunctionOfValue(ValB);
   if (!MaybeFnA.hasValue() && !MaybeFnB.hasValue()) {
-    llvm_unreachable("Don't know how to extract the parent function "
-                     "from values A or B");
+    // The only times this is known to happen are when globals + InlineAsm
+    // are involved
+    DEBUG(dbgs() << "CFLAA: could not extract parent function information.\n");
+    return MayAlias;
   }
 
   if (MaybeFnA.hasValue()) {
@@ -983,31 +1139,44 @@ CFLAliasAnalysis::query(const AliasAnalysis::Location &LocA,
   auto &Sets = MaybeInfo->Sets;
   auto MaybeA = Sets.find(ValA);
   if (!MaybeA.hasValue())
-    return AliasAnalysis::MayAlias;
+    return MayAlias;
 
   auto MaybeB = Sets.find(ValB);
   if (!MaybeB.hasValue())
-    return AliasAnalysis::MayAlias;
+    return MayAlias;
 
   auto SetA = *MaybeA;
   auto SetB = *MaybeB;
-
-  if (SetA.Index == SetB.Index)
-    return AliasAnalysis::PartialAlias;
-
   auto AttrsA = Sets.getLink(SetA.Index).Attrs;
   auto AttrsB = Sets.getLink(SetB.Index).Attrs;
+
   // Stratified set attributes are used as markets to signify whether a member
-  // of a StratifiedSet (or a member of a set above the current set) has 
+  // of a StratifiedSet (or a member of a set above the current set) has
   // interacted with either arguments or globals. "Interacted with" meaning
-  // its value may be different depending on the value of an argument or 
+  // its value may be different depending on the value of an argument or
   // global. The thought behind this is that, because arguments and globals
   // may alias each other, if AttrsA and AttrsB have touched args/globals,
-  // we must conservatively say that they alias. However, if at least one of 
-  // the sets has no values that could legally be altered by changing the value 
+  // we must conservatively say that they alias. However, if at least one of
+  // the sets has no values that could legally be altered by changing the value
   // of an argument or global, then we don't have to be as conservative.
   if (AttrsA.any() && AttrsB.any())
-    return AliasAnalysis::MayAlias;
+    return MayAlias;
 
-  return AliasAnalysis::NoAlias;
+  // We currently unify things even if the accesses to them may not be in
+  // bounds, so we can't return partial alias here because we don't
+  // know whether the pointer is really within the object or not.
+  // IE Given an out of bounds GEP and an alloca'd pointer, we may
+  // unify the two. We can't return partial alias for this case.
+  // Since we do not currently track enough information to
+  // differentiate
+
+  if (SetA.Index == SetB.Index)
+    return MayAlias;
+
+  return NoAlias;
+}
+
+bool CFLAliasAnalysis::doInitialization(Module &M) {
+  InitializeAliasAnalysis(this, &M.getDataLayout());
+  return true;
 }

@@ -28,15 +28,20 @@ DIRDEPS_FILTER+= N*.host
 .for m in host common
 M_dep_qual_fixes += C;($m),[^/.,]*$$;\1;
 .endfor
-
 #.info M_dep_qual_fixes=${M_dep_qual_fixes}
-# we want to supress these dependencies for host tools
-# but some libs are sadly needed.
-_need_host_libs= \
-	lib/libc++ \
-	lib/libcxxrt \
-	lib/libdwarf \
-	lib/libmd \
+
+# Cheat for including src.libnames.mk
+__<bsd.init.mk>__:
+# Pull in _INTERNALLIBS
+.include <src.libnames.mk>
+
+# Host libraries should mostly be excluded from the build so the
+# host version in /usr/lib is used.  Internal libraries need to be
+# allowed to be built though since they are never installed.
+_need_host_libs=
+.for lib in ${_INTERNALLIBS}
+_need_host_libs+= ${LIB${lib:tu}DIR:S,^${OBJTOP}/,,}
+.endfor
 
 N_host_libs:= ${cd ${SRCTOP} && echo lib/lib*:L:sh:${_need_host_libs:${M_ListToSkip}}:${M_ListToSkip}}
 DIRDEPS_FILTER.host = \
@@ -79,11 +84,93 @@ DIRDEPS += \
 	cddl/usr.bin/ctfmerge.host
 .endif
 
+# Bootstrap support.  Give hints to DIRDEPS if there is no Makefile.depend*
+# generated yet.  This can be based on things such as SRC files and LIBADD.
+# These hints will not factor into the final Makefile.depend as only what is
+# used will be added in and handled via [local.]gendirdeps.mk.  This is not
+# done for MACHINE=host builds.
+# XXX: Include this in local.autodep.mk as well for gendirdeps without filemon.
+.if ${RELDIR} == ${DEP_RELDIR} # Only do this for main build target
+.for _depfile in ${.MAKE.DEPENDFILE_PREFERENCE:T}
+.if !defined(_have_depfile) && exists(${.CURDIR}/${_depfile})
+_have_depfile=
 .endif
+.endfor
+.if !defined(_have_depfile)
+# KMOD does not use any stdlibs.
+.if !defined(KMOD)
+# Has C files. The C_DIRDEPS are shared with C++ files as well.
+C_DIRDEPS= \
+	gnu/lib/csu \
+	gnu/lib/libgcc \
+	include \
+	include/xlocale \
+	lib/${CSU_DIR} \
+	lib/libc \
+	lib/libcompiler_rt \
 
-.if ${MK_CLANG} == "yes" && ${DEP_RELDIR:Nlib/clang/lib*:Nlib/libc*} == ""
-DIRDEPS+= lib/clang/include
+.if !empty(SRCS:M*.c)
+DIRDEPS+= ${C_DIRDEPS}
 .endif
+# Has C++ files
+.if !empty(SRCS:M*.cc) || !empty(SRCS:M*.C) || !empty(SRCS:M*.cpp) || \
+    !empty(SRCS:M*.cxx)
+DIRDEPS+= ${C_DIRDEPS}
+.if ${MK_CLANG} == "yes"
+DIRDEPS+= lib/libc++ lib/libcxxrt
+.else
+DIRDEPS+= gnu/lib/libstdc++ gnu/lib/libsupc++
+.endif
+# XXX: Clang and GCC always adds -lm currently, even when not needed.
+DIRDEPS+= lib/msun
+.endif	# CXX
+.endif	# !defined(KMOD)
+# Has yacc files.
+.if !empty(SRCS:M*.y)
+DIRDEPS+=	usr.bin/yacc.host
+.endif
+# Gather PROGS dependencies
+.if !empty(PROGS)
+_PROGS_LIBADD=
+_PROGS_DPADD=
+.for _prog in ${PROGS}
+.if !empty(LIBADD.${_prog})
+_PROGS_LIBADD+=	${LIBADD.${_prog}}
+.endif
+.if !empty(DPADD.${_prog})
+_PROGS_DPADD+=	${DPADD.${_prog}}
+.endif
+.endfor
+.endif	# !empty(PROGS)
+.if !empty(DPADD)
+# Taken from meta.autodep.mk (where it only does something with
+# BUILD_AT_LEVEL0, which we don't use).
+# This only works for DPADD with full OBJ/SRC paths, which is mostly just
+# _INTERNALLIBS.
+_DPADD= ${DPADD} ${_PROGS_DPADD}
+_DP_DIRDEPS= \
+	${_DPADD:O:u:M${OBJTOP}*:H:N.:tA:C,${OBJTOP}[^/]*/,,:N.:O:u} \
+	${_DPADD:O:u:M${OBJROOT}*:N${OBJTOP}*:N${STAGE_ROOT}/*:H:S,${OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
+# Resolve the paths to RELDIRs
+.if !empty(_DP_DIRDEPS)
+DIRDEPS+= ${_DP_DIRDEPS:C,^,${SRCTOP}/,:tA:C,^${SRCTOP}/,,}
+.endif
+.endif	# !empty(DPADD)
+.if !empty(LIBADD)
+# Also handle LIBADD for non-internal libraries.
+_ALL_LIBADD= ${LIBADD} ${_PROGS_LIBADD}
+.for _lib in ${_ALL_LIBADD:O:u}
+_lib${_lib}reldir= ${LIB${_lib:tu}DIR:C,${OBJTOP}/,,}
+.if defined(LIB${_lib:tu}DIR) && ${DIRDEPS:M${_lib${_lib}reldir}} == "" && \
+    exists(${SRCTOP}/${_lib${_lib}reldir})
+DIRDEPS+= ${_lib${_lib}reldir}
+.endif
+.endfor
+.endif	# !empty(LIBADD)
+.endif	# no Makefile.depend*
+.endif	# ${RELDIR} == ${DEP_RELDIR}
+
+.endif	# ${DEP_MACHINE} != "host"
 
 .if ${MK_STAGING} == "yes"
 # we need targets/pseudo/stage to prep the stage tree

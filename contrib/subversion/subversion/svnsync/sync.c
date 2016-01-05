@@ -195,8 +195,8 @@ svnsync_normalize_revprops(apr_hash_t *rev_props,
        hi;
        hi = apr_hash_next(hi))
     {
-      const char *propname = svn__apr_hash_index_key(hi);
-      const svn_string_t *propval = svn__apr_hash_index_val(hi);
+      const char *propname = apr_hash_this_key(hi);
+      const svn_string_t *propval = apr_hash_this_val(hi);
 
       if (svn_prop_needs_translation(propname))
         {

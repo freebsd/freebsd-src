@@ -39,6 +39,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
@@ -201,14 +202,14 @@ namespace {
       initializeBBVectorizePass(*PassRegistry::getPassRegistry());
     }
 
-    BBVectorize(Pass *P, const VectorizeConfig &C)
+    BBVectorize(Pass *P, Function &F, const VectorizeConfig &C)
       : BasicBlockPass(ID), Config(C) {
       AA = &P->getAnalysis<AliasAnalysis>();
       DT = &P->getAnalysis<DominatorTreeWrapperPass>().getDomTree();
       SE = &P->getAnalysis<ScalarEvolution>();
-      DataLayoutPass *DLP = P->getAnalysisIfAvailable<DataLayoutPass>();
-      DL = DLP ? &DLP->getDataLayout() : nullptr;
-      TTI = IgnoreTargetInfo ? nullptr : &P->getAnalysis<TargetTransformInfo>();
+      TTI = IgnoreTargetInfo
+                ? nullptr
+                : &P->getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
     }
 
     typedef std::pair<Value *, Value *> ValuePair;
@@ -220,7 +221,6 @@ namespace {
     AliasAnalysis *AA;
     DominatorTree *DT;
     ScalarEvolution *SE;
-    const DataLayout *DL;
     const TargetTransformInfo *TTI;
 
     // FIXME: const correct?
@@ -440,9 +440,10 @@ namespace {
       AA = &getAnalysis<AliasAnalysis>();
       DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
       SE = &getAnalysis<ScalarEvolution>();
-      DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-      DL = DLP ? &DLP->getDataLayout() : nullptr;
-      TTI = IgnoreTargetInfo ? nullptr : &getAnalysis<TargetTransformInfo>();
+      TTI = IgnoreTargetInfo
+                ? nullptr
+                : &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(
+                      *BB.getParent());
 
       return vectorizeBB(BB);
     }
@@ -452,7 +453,7 @@ namespace {
       AU.addRequired<AliasAnalysis>();
       AU.addRequired<DominatorTreeWrapperPass>();
       AU.addRequired<ScalarEvolution>();
-      AU.addRequired<TargetTransformInfo>();
+      AU.addRequired<TargetTransformInfoWrapperPass>();
       AU.addPreserved<AliasAnalysis>();
       AU.addPreserved<DominatorTreeWrapperPass>();
       AU.addPreserved<ScalarEvolution>();
@@ -637,19 +638,19 @@ namespace {
             dyn_cast<SCEVConstant>(OffsetSCEV)) {
         ConstantInt *IntOff = ConstOffSCEV->getValue();
         int64_t Offset = IntOff->getSExtValue();
-
+        const DataLayout &DL = I->getModule()->getDataLayout();
         Type *VTy = IPtr->getType()->getPointerElementType();
-        int64_t VTyTSS = (int64_t) DL->getTypeStoreSize(VTy);
+        int64_t VTyTSS = (int64_t)DL.getTypeStoreSize(VTy);
 
         Type *VTy2 = JPtr->getType()->getPointerElementType();
         if (VTy != VTy2 && Offset < 0) {
-          int64_t VTy2TSS = (int64_t) DL->getTypeStoreSize(VTy2);
+          int64_t VTy2TSS = (int64_t)DL.getTypeStoreSize(VTy2);
           OffsetInElmts = Offset/VTy2TSS;
-          return (abs64(Offset) % VTy2TSS) == 0;
+          return (std::abs(Offset) % VTy2TSS) == 0;
         }
 
         OffsetInElmts = Offset/VTyTSS;
-        return (abs64(Offset) % VTyTSS) == 0;
+        return (std::abs(Offset) % VTyTSS) == 0;
       }
 
       return false;
@@ -661,7 +662,7 @@ namespace {
       Function *F = I->getCalledFunction();
       if (!F) return false;
 
-      Intrinsic::ID IID = (Intrinsic::ID) F->getIntrinsicID();
+      Intrinsic::ID IID = F->getIntrinsicID();
       if (!IID) return false;
 
       switch(IID) {
@@ -841,7 +842,7 @@ namespace {
 
     // It is important to cleanup here so that future iterations of this
     // function have less work to do.
-    (void) SimplifyInstructionsInBlock(&BB, DL, AA->getTargetLibraryInfo());
+    (void)SimplifyInstructionsInBlock(&BB, AA->getTargetLibraryInfo());
     return true;
   }
 
@@ -895,10 +896,6 @@ namespace {
       return false;
     }
 
-    // We can't vectorize memory operations without target data
-    if (!DL && IsSimpleLoadStore)
-      return false;
-
     Type *T1, *T2;
     getInstructionTypes(I, T1, T2);
 
@@ -933,9 +930,8 @@ namespace {
     if (T2->isX86_FP80Ty() || T2->isPPC_FP128Ty() || T2->isX86_MMXTy())
       return false;
 
-    if ((!Config.VectorizePointers || !DL) &&
-        (T1->getScalarType()->isPointerTy() ||
-         T2->getScalarType()->isPointerTy()))
+    if (!Config.VectorizePointers && (T1->getScalarType()->isPointerTy() ||
+                                      T2->getScalarType()->isPointerTy()))
       return false;
 
     if (!TTI && (T1->getPrimitiveSizeInBits() >= Config.VectorBits ||
@@ -980,8 +976,8 @@ namespace {
       unsigned IAlignment, JAlignment, IAddressSpace, JAddressSpace;
       int64_t OffsetInElmts = 0;
       if (getPairPtrInfo(I, J, IPtr, JPtr, IAlignment, JAlignment,
-            IAddressSpace, JAddressSpace,
-            OffsetInElmts) && abs64(OffsetInElmts) == 1) {
+                         IAddressSpace, JAddressSpace, OffsetInElmts) &&
+          std::abs(OffsetInElmts) == 1) {
         FixedOrder = (int) OffsetInElmts;
         unsigned BottomAlignment = IAlignment;
         if (OffsetInElmts < 0) BottomAlignment = JAlignment;
@@ -996,8 +992,8 @@ namespace {
           // An aligned load or store is possible only if the instruction
           // with the lower offset has an alignment suitable for the
           // vector type.
-
-          unsigned VecAlignment = DL->getPrefTypeAlignment(VType);
+          const DataLayout &DL = I->getModule()->getDataLayout();
+          unsigned VecAlignment = DL.getPrefTypeAlignment(VType);
           if (BottomAlignment < VecAlignment)
             return false;
         }
@@ -1102,7 +1098,7 @@ namespace {
     CallInst *CI = dyn_cast<CallInst>(I);
     Function *FI;
     if (CI && (FI = CI->getCalledFunction())) {
-      Intrinsic::ID IID = (Intrinsic::ID) FI->getIntrinsicID();
+      Intrinsic::ID IID = FI->getIntrinsicID();
       if (IID == Intrinsic::powi || IID == Intrinsic::ctlz ||
           IID == Intrinsic::cttz) {
         Value *A1I = CI->getArgOperand(1),
@@ -1277,7 +1273,7 @@ namespace {
             CostSavings, FixedOrder)) continue;
 
         // J is a candidate for merging with I.
-        if (!PairableInsts.size() ||
+        if (PairableInsts.empty() ||
              PairableInsts[PairableInsts.size()-1] != I) {
           PairableInsts.push_back(I);
         }
@@ -2774,7 +2770,7 @@ namespace {
         continue;
       } else if (isa<CallInst>(I)) {
         Function *F = cast<CallInst>(I)->getCalledFunction();
-        Intrinsic::ID IID = (Intrinsic::ID) F->getIntrinsicID();
+        Intrinsic::ID IID = F->getIntrinsicID();
         if (o == NumOperands-1) {
           BasicBlock &BB = *I->getParent();
 
@@ -3107,7 +3103,17 @@ namespace {
       else if (H->hasName())
         K->takeName(H);
 
-      if (!isa<StoreInst>(K))
+      if (auto CS = CallSite(K)) {
+        SmallVector<Type *, 3> Tys;
+        FunctionType *Old = CS.getFunctionType();
+        unsigned NumOld = Old->getNumParams();
+        assert(NumOld <= ReplacedOperands.size());
+        for (unsigned i = 0; i != NumOld; ++i)
+          Tys.push_back(ReplacedOperands[i]->getType());
+        CS.mutateFunctionType(
+            FunctionType::get(getVecTypeForPair(L->getType(), H->getType()),
+                              Tys, Old->isVarArg()));
+      } else if (!isa<StoreInst>(K))
         K->mutateType(getVecTypeForPair(L->getType(), H->getType()));
 
       unsigned KnownIDs[] = {
@@ -3192,7 +3198,7 @@ char BBVectorize::ID = 0;
 static const char bb_vectorize_name[] = "Basic-Block Vectorization";
 INITIALIZE_PASS_BEGIN(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
-INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_END(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
@@ -3203,7 +3209,7 @@ BasicBlockPass *llvm::createBBVectorizePass(const VectorizeConfig &C) {
 
 bool
 llvm::vectorizeBasicBlock(Pass *P, BasicBlock &BB, const VectorizeConfig &C) {
-  BBVectorize BBVectorizer(P, C);
+  BBVectorize BBVectorizer(P, *BB.getParent(), C);
   return BBVectorizer.vectorizeBB(BB);
 }
 

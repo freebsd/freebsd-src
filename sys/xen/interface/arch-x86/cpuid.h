@@ -30,12 +30,20 @@
 #ifndef __XEN_PUBLIC_ARCH_X86_CPUID_H__
 #define __XEN_PUBLIC_ARCH_X86_CPUID_H__
 
-/* Xen identification leaves start at 0x40000000. */
+/*
+ * For compatibility with other hypervisor interfaces, the Xen cpuid leaves
+ * can be found at the first otherwise unused 0x100 aligned boundary starting
+ * from 0x40000000.
+ *
+ * e.g If viridian extensions are enabled for an HVM domain, the Xen cpuid
+ * leaves will start at 0x40000100
+ */
+
 #define XEN_CPUID_FIRST_LEAF 0x40000000
 #define XEN_CPUID_LEAF(i)    (XEN_CPUID_FIRST_LEAF + (i))
 
 /*
- * Leaf 1 (0x40000000)
+ * Leaf 1 (0x40000x00)
  * EAX: Largest Xen-information leaf. All leaves up to an including @EAX
  *      are supported by the Xen host.
  * EBX-EDX: "XenVMMXenVMM" signature, allowing positive identification
@@ -46,14 +54,14 @@
 #define XEN_CPUID_SIGNATURE_EDX 0x4d4d566e /* "nVMM" */
 
 /*
- * Leaf 2 (0x40000001)
+ * Leaf 2 (0x40000x01)
  * EAX[31:16]: Xen major version.
  * EAX[15: 0]: Xen minor version.
  * EBX-EDX: Reserved (currently all zeroes).
  */
 
 /*
- * Leaf 3 (0x40000002)
+ * Leaf 3 (0x40000x02)
  * EAX: Number of hypercall transfer pages. This register is always guaranteed
  *      to specify one hypercall page.
  * EBX: Base address of Xen-specific MSRs.
@@ -64,5 +72,19 @@
 /* Does the host support MMU_PT_UPDATE_PRESERVE_AD for this guest? */
 #define _XEN_CPUID_FEAT1_MMU_PT_UPDATE_PRESERVE_AD 0
 #define XEN_CPUID_FEAT1_MMU_PT_UPDATE_PRESERVE_AD  (1u<<0)
+
+/*
+ * Leaf 5 (0x40000x04)
+ * HVM-specific features
+ * EAX: Features
+ * EBX: vcpu id (iff EAX has XEN_HVM_CPUID_VCPU_ID_PRESENT flag)
+ */
+#define XEN_HVM_CPUID_APIC_ACCESS_VIRT (1u << 0) /* Virtualized APIC registers */
+#define XEN_HVM_CPUID_X2APIC_VIRT      (1u << 1) /* Virtualized x2APIC accesses */
+/* Memory mapped from other domains has valid IOMMU entries */
+#define XEN_HVM_CPUID_IOMMU_MAPPINGS   (1u << 2)
+#define XEN_HVM_CPUID_VCPU_ID_PRESENT  (1u << 3) /* vcpu id is present in EBX */
+
+#define XEN_CPUID_MAX_NUM_LEAVES 4
 
 #endif /* __XEN_PUBLIC_ARCH_X86_CPUID_H__ */

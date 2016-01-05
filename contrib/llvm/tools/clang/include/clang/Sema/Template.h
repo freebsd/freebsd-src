@@ -239,8 +239,8 @@ namespace clang {
 
     // This class is non-copyable
     LocalInstantiationScope(
-      const LocalInstantiationScope &) LLVM_DELETED_FUNCTION;
-    void operator=(const LocalInstantiationScope &) LLVM_DELETED_FUNCTION;
+      const LocalInstantiationScope &) = delete;
+    void operator=(const LocalInstantiationScope &) = delete;
 
   public:
     LocalInstantiationScope(Sema &SemaRef, bool CombineWithOuterScope = false)
@@ -413,6 +413,7 @@ namespace clang {
 #define LINKAGESPEC(DERIVED, BASE)
 #define OBJCCOMPATIBLEALIAS(DERIVED, BASE)
 #define OBJCMETHOD(DERIVED, BASE)
+#define OBJCTYPEPARAM(DERIVED, BASE)
 #define OBJCIVAR(DERIVED, BASE)
 #define OBJCPROPERTY(DERIVED, BASE)
 #define OBJCPROPERTYIMPL(DERIVED, BASE)

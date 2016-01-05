@@ -150,7 +150,7 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     /*
      * Attach the PCI bus proper.
      */
-    if (device_add_child(dev, "pci", busno) == NULL) {
+    if (device_add_child(dev, "pci", -1) == NULL) {
 	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
 	return_VALUE(ENXIO);
     }

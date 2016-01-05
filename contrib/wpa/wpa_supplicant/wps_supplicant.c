@@ -39,6 +39,14 @@
 #define WPS_PIN_SCAN_IGNORE_SEL_REG 3
 #endif /* WPS_PIN_SCAN_IGNORE_SEL_REG */
 
+/*
+ * The minimum time in seconds before trying to associate to a WPS PIN AP that
+ * does not have Selected Registrar TRUE.
+ */
+#ifndef WPS_PIN_TIME_IGNORE_SEL_REG
+#define WPS_PIN_TIME_IGNORE_SEL_REG 5
+#endif /* WPS_PIN_TIME_IGNORE_SEL_REG */
+
 static void wpas_wps_timeout(void *eloop_ctx, void *timeout_ctx);
 static void wpas_clear_wps(struct wpa_supplicant *wpa_s);
 
@@ -539,6 +547,7 @@ static int wpa_supplicant_wps_cred(void *ctx,
 			return -1;
 		}
 	}
+	ssid->priority = wpa_s->conf->wps_priority;
 
 	wpas_wps_security_workaround(wpa_s, ssid, cred);
 
@@ -551,6 +560,9 @@ static int wpa_supplicant_wps_cred(void *ctx,
 		return -1;
 	}
 #endif /* CONFIG_NO_CONFIG_WRITE */
+
+	if (ssid->priority)
+		wpa_config_update_prio_list(wpa_s->conf);
 
 	/*
 	 * Optimize the post-WPS scan based on the channel used during
@@ -880,7 +892,8 @@ static int wpa_supplicant_wps_rf_band(void *ctx)
 	if (!wpa_s->current_ssid || !wpa_s->assoc_freq)
 		return 0;
 
-	return (wpa_s->assoc_freq > 2484) ? WPS_RF_50GHZ : WPS_RF_24GHZ;
+	return (wpa_s->assoc_freq > 50000) ? WPS_RF_60GHZ :
+		(wpa_s->assoc_freq > 2484) ? WPS_RF_50GHZ : WPS_RF_24GHZ;
 }
 
 
@@ -942,8 +955,20 @@ static void wpas_clear_wps(struct wpa_supplicant *wpa_s)
 static void wpas_wps_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
+	union wps_event_data data;
+
 	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_TIMEOUT "Requested operation timed "
 		"out");
+	os_memset(&data, 0, sizeof(data));
+	data.fail.config_error = WPS_CFG_MSG_TIMEOUT;
+	data.fail.error_indication = WPS_EI_NO_ERROR;
+	/*
+	 * Call wpas_notify_wps_event_fail() directly instead of through
+	 * wpa_supplicant_wps_event() which would end up registering unnecessary
+	 * timeouts (those are only for the case where the failure happens
+	 * during an EAP-WSC exchange).
+	 */
+	wpas_notify_wps_event_fail(wpa_s, &data.fail);
 	wpas_clear_wps(wpa_s);
 }
 
@@ -1178,6 +1203,7 @@ static int wpas_wps_start_dev_pw(struct wpa_supplicant *wpa_s,
 	}
 #ifdef CONFIG_P2P
 	if (p2p_group && wpa_s->go_params && wpa_s->go_params->ssid_len) {
+		os_free(ssid->ssid);
 		ssid->ssid = os_zalloc(wpa_s->go_params->ssid_len + 1);
 		if (ssid->ssid) {
 			ssid->ssid_len = wpa_s->go_params->ssid_len;
@@ -1216,10 +1242,27 @@ static int wpas_wps_start_dev_pw(struct wpa_supplicant *wpa_s,
 int wpas_wps_start_pin(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		       const char *pin, int p2p_group, u16 dev_pw_id)
 {
+	os_get_reltime(&wpa_s->wps_pin_start_time);
 	return wpas_wps_start_dev_pw(wpa_s, NULL, bssid, pin, p2p_group,
 				     dev_pw_id, NULL, NULL, 0, 0);
 }
 
+
+void wpas_wps_pbc_overlap(struct wpa_supplicant *wpa_s)
+{
+	union wps_event_data data;
+
+	os_memset(&data, 0, sizeof(data));
+	data.fail.config_error = WPS_CFG_MULTIPLE_PBC_DETECTED;
+	data.fail.error_indication = WPS_EI_NO_ERROR;
+	/*
+	 * Call wpas_notify_wps_event_fail() directly instead of through
+	 * wpa_supplicant_wps_event() which would end up registering unnecessary
+	 * timeouts (those are only for the case where the failure happens
+	 * during an EAP-WSC exchange).
+	 */
+	wpas_notify_wps_event_fail(wpa_s, &data.fail);
+}
 
 /* Cancel the wps pbc/pin requests */
 int wpas_wps_cancel(struct wpa_supplicant *wpa_s)
@@ -1487,6 +1530,8 @@ int wpas_wps_init(struct wpa_supplicant *wpa_s)
 				wps->dev.rf_bands |= WPS_RF_24GHZ;
 			else if (modes[m].mode == HOSTAPD_MODE_IEEE80211A)
 				wps->dev.rf_bands |= WPS_RF_50GHZ;
+			else if (modes[m].mode == HOSTAPD_MODE_IEEE80211AD)
+				wps->dev.rf_bands |= WPS_RF_60GHZ;
 		}
 	}
 	if (wps->dev.rf_bands == 0) {
@@ -1609,9 +1654,15 @@ int wpas_wps_ssid_bss_match(struct wpa_supplicant *wpa_s,
 		 * external Registrar.
 		 */
 		if (!wps_is_addr_authorized(wps_ie, wpa_s->own_addr, 1)) {
-			if (wpa_s->scan_runs < WPS_PIN_SCAN_IGNORE_SEL_REG) {
-				wpa_printf(MSG_DEBUG, "   skip - WPS AP "
-					   "without active PIN Registrar");
+			struct os_reltime age;
+
+			os_reltime_age(&wpa_s->wps_pin_start_time, &age);
+
+			if (wpa_s->scan_runs < WPS_PIN_SCAN_IGNORE_SEL_REG ||
+			    age.sec < WPS_PIN_TIME_IGNORE_SEL_REG) {
+				wpa_printf(MSG_DEBUG,
+					   "   skip - WPS AP without active PIN Registrar (scan_runs=%d age=%d)",
+					   wpa_s->scan_runs, (int) age.sec);
 				wpabuf_free(wps_ie);
 				return 0;
 			}
@@ -1694,10 +1745,10 @@ int wpas_wps_ssid_wildcard_ok(struct wpa_supplicant *wpa_s,
 int wpas_wps_scan_pbc_overlap(struct wpa_supplicant *wpa_s,
 			      struct wpa_bss *selected, struct wpa_ssid *ssid)
 {
-	const u8 *sel_uuid, *uuid;
+	const u8 *sel_uuid;
 	struct wpabuf *wps_ie;
 	int ret = 0;
-	struct wpa_bss *bss;
+	size_t i;
 
 	if (!eap_is_wps_pbc_enrollee(&ssid->eap))
 		return 0;
@@ -1718,40 +1769,28 @@ int wpas_wps_scan_pbc_overlap(struct wpa_supplicant *wpa_s,
 		sel_uuid = NULL;
 	}
 
-	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
-		struct wpabuf *ie;
-		if (bss == selected)
+	for (i = 0; i < wpa_s->num_wps_ap; i++) {
+		struct wps_ap_info *ap = &wpa_s->wps_ap[i];
+
+		if (!ap->pbc_active ||
+		    os_memcmp(selected->bssid, ap->bssid, ETH_ALEN) == 0)
 			continue;
-		ie = wpa_bss_get_vendor_ie_multi(bss, WPS_IE_VENDOR_TYPE);
-		if (!ie)
-			continue;
-		if (!wps_is_selected_pbc_registrar(ie)) {
-			wpabuf_free(ie);
-			continue;
-		}
+
 		wpa_printf(MSG_DEBUG, "WPS: Another BSS in active PBC mode: "
-			   MACSTR, MAC2STR(bss->bssid));
-		uuid = wps_get_uuid_e(ie);
+			   MACSTR, MAC2STR(ap->bssid));
 		wpa_hexdump(MSG_DEBUG, "WPS: UUID of the other BSS",
-			    uuid, UUID_LEN);
-		if (os_memcmp(selected->bssid, bss->bssid, ETH_ALEN) == 0) {
-			wpabuf_free(ie);
-			continue;
-		}
-		if (sel_uuid == NULL || uuid == NULL ||
-		    os_memcmp(sel_uuid, uuid, UUID_LEN) != 0) {
+			    ap->uuid, UUID_LEN);
+		if (sel_uuid == NULL ||
+		    os_memcmp(sel_uuid, ap->uuid, UUID_LEN) != 0) {
 			ret = 1; /* PBC overlap */
 			wpa_msg(wpa_s, MSG_INFO, "WPS: PBC overlap detected: "
 				MACSTR " and " MACSTR,
 				MAC2STR(selected->bssid),
-				MAC2STR(bss->bssid));
-			wpabuf_free(ie);
+				MAC2STR(ap->bssid));
 			break;
 		}
 
 		/* TODO: verify that this is reasonable dual-band situation */
-
-		wpabuf_free(ie);
 	}
 
 	wpabuf_free(wps_ie);
@@ -1910,7 +1949,7 @@ static int wpas_wps_network_to_cred(struct wpa_ssid *ssid,
 				    struct wps_credential *cred)
 {
 	os_memset(cred, 0, sizeof(*cred));
-	if (ssid->ssid_len > 32)
+	if (ssid->ssid_len > SSID_MAX_LEN)
 		return -1;
 	os_memcpy(cred->ssid, ssid->ssid, ssid->ssid_len);
 	cred->ssid_len = ssid->ssid_len;
@@ -2582,6 +2621,10 @@ static int wpas_wps_nfc_rx_handover_sel(struct wpa_supplicant *wpa_s,
 			 (attr.rf_bands == NULL ||
 			  *attr.rf_bands & WPS_RF_50GHZ))
 			freq = 5000 + 5 * chan;
+		else if (chan >= 1 && chan <= 4 &&
+			 (attr.rf_bands == NULL ||
+			  *attr.rf_bands & WPS_RF_60GHZ))
+			freq = 56160 + 2160 * chan;
 
 		if (freq) {
 			wpa_printf(MSG_DEBUG,
@@ -2771,7 +2814,8 @@ static void wpas_wps_update_ap_info_bss(struct wpa_supplicant *wpa_s,
 	struct wpabuf *wps;
 	enum wps_ap_info_type type;
 	struct wps_ap_info *ap;
-	int r;
+	int r, pbc_active;
+	const u8 *uuid;
 
 	if (wpa_scan_get_vendor_ie(res, WPS_IE_VENDOR_TYPE) == NULL)
 		return;
@@ -2788,7 +2832,8 @@ static void wpas_wps_update_ap_info_bss(struct wpa_supplicant *wpa_s,
 	else
 		type = WPS_AP_NOT_SEL_REG;
 
-	wpabuf_free(wps);
+	uuid = wps_get_uuid_e(wps);
+	pbc_active = wps_is_selected_pbc_registrar(wps);
 
 	ap = wpas_wps_get_ap_info(wpa_s, res->bssid);
 	if (ap) {
@@ -2800,13 +2845,16 @@ static void wpas_wps_update_ap_info_bss(struct wpa_supplicant *wpa_s,
 			if (type != WPS_AP_NOT_SEL_REG)
 				wpa_blacklist_del(wpa_s, ap->bssid);
 		}
-		return;
+		ap->pbc_active = pbc_active;
+		if (uuid)
+			os_memcpy(ap->uuid, uuid, WPS_UUID_LEN);
+		goto out;
 	}
 
 	ap = os_realloc_array(wpa_s->wps_ap, wpa_s->num_wps_ap + 1,
 			      sizeof(struct wps_ap_info));
 	if (ap == NULL)
-		return;
+		goto out;
 
 	wpa_s->wps_ap = ap;
 	ap = &wpa_s->wps_ap[wpa_s->num_wps_ap];
@@ -2815,8 +2863,14 @@ static void wpas_wps_update_ap_info_bss(struct wpa_supplicant *wpa_s,
 	os_memset(ap, 0, sizeof(*ap));
 	os_memcpy(ap->bssid, res->bssid, ETH_ALEN);
 	ap->type = type;
+	ap->pbc_active = pbc_active;
+	if (uuid)
+		os_memcpy(ap->uuid, uuid, WPS_UUID_LEN);
 	wpa_printf(MSG_DEBUG, "WPS: AP " MACSTR " type %d added",
 		   MAC2STR(ap->bssid), ap->type);
+
+out:
+	wpabuf_free(wps);
 }
 
 

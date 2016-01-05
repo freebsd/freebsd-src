@@ -1,5 +1,6 @@
 /*-
  * Copyright (C) 2013 Intel Corporation
+ * Copyright (C) 2015 EMC Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,44 +32,92 @@
 
 struct ntb_softc;
 
-#define NTB_NUM_MW	2
-#define NTB_LINK_DOWN	0
-#define NTB_LINK_UP	1
+#define NTB_MAX_NUM_MW	3
 
-enum ntb_hw_event {
-	NTB_EVENT_SW_EVENT0 = 0,
-	NTB_EVENT_SW_EVENT1,
-	NTB_EVENT_SW_EVENT2,
-	NTB_EVENT_HW_ERROR,
-	NTB_EVENT_HW_LINK_UP,
-	NTB_EVENT_HW_LINK_DOWN,
+enum ntb_speed {
+	NTB_SPEED_AUTO = -1,
+	NTB_SPEED_NONE = 0,
+	NTB_SPEED_GEN1 = 1,
+	NTB_SPEED_GEN2 = 2,
+	NTB_SPEED_GEN3 = 3,
 };
 
-typedef void (*ntb_db_callback)(void *data, int db_num);
-typedef void (*ntb_event_callback)(void *data, enum ntb_hw_event event);
+enum ntb_width {
+	NTB_WIDTH_AUTO = -1,
+	NTB_WIDTH_NONE = 0,
+	NTB_WIDTH_1 = 1,
+	NTB_WIDTH_2 = 2,
+	NTB_WIDTH_4 = 4,
+	NTB_WIDTH_8 = 8,
+	NTB_WIDTH_12 = 12,
+	NTB_WIDTH_16 = 16,
+	NTB_WIDTH_32 = 32,
+};
 
-int ntb_register_event_callback(struct ntb_softc *ntb, ntb_event_callback func);
-void ntb_unregister_event_callback(struct ntb_softc *ntb);
-int ntb_register_db_callback(struct ntb_softc *ntb, unsigned int idx,
-    void *data, ntb_db_callback func);
-void ntb_unregister_db_callback(struct ntb_softc *ntb, unsigned int idx);
-void *ntb_find_transport(struct ntb_softc *ntb);
-struct ntb_softc *ntb_register_transport(struct ntb_softc *ntb,
-    void *transport);
-void ntb_unregister_transport(struct ntb_softc *ntb);
-int ntb_get_max_spads(struct ntb_softc *ntb);
-int ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
-int ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
-int ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx,
+SYSCTL_DECL(_hw_ntb);
+
+typedef void (*ntb_db_callback)(void *data, uint32_t vector);
+typedef void (*ntb_event_callback)(void *data);
+
+struct ntb_ctx_ops {
+	ntb_event_callback	link_event;
+	ntb_db_callback		db_event;
+};
+
+device_t ntb_get_device(struct ntb_softc *);
+
+bool ntb_link_is_up(struct ntb_softc *, enum ntb_speed *, enum ntb_width *);
+void ntb_link_event(struct ntb_softc *);
+int ntb_link_enable(struct ntb_softc *, enum ntb_speed, enum ntb_width);
+int ntb_link_disable(struct ntb_softc *);
+
+int ntb_set_ctx(struct ntb_softc *, void *, const struct ntb_ctx_ops *);
+void *ntb_get_ctx(struct ntb_softc *, const struct ntb_ctx_ops **);
+void ntb_clear_ctx(struct ntb_softc *);
+
+uint8_t ntb_mw_count(struct ntb_softc *);
+int ntb_mw_get_range(struct ntb_softc *, unsigned mw_idx, vm_paddr_t *base,
+    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size,
+    bus_addr_t *plimit);
+int ntb_mw_set_trans(struct ntb_softc *, unsigned mw_idx, bus_addr_t, size_t);
+int ntb_mw_clear_trans(struct ntb_softc *, unsigned mw_idx);
+
+int ntb_mw_get_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t *mode);
+int ntb_mw_set_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t mode);
+
+uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
+int ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
+int ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
+int ntb_peer_spad_write(struct ntb_softc *ntb, unsigned int idx,
     uint32_t val);
-int ntb_read_remote_spad(struct ntb_softc *ntb, unsigned int idx,
+int ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx,
     uint32_t *val);
-void *ntb_get_mw_vbase(struct ntb_softc *ntb, unsigned int mw);
-vm_paddr_t ntb_get_mw_pbase(struct ntb_softc *ntb, unsigned int mw);
-u_long ntb_get_mw_size(struct ntb_softc *ntb, unsigned int mw);
-void ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr);
-void ntb_ring_sdb(struct ntb_softc *ntb, unsigned int db);
-bool ntb_query_link_status(struct ntb_softc *ntb);
-device_t ntb_get_device(struct ntb_softc *ntb);
+
+uint64_t ntb_db_valid_mask(struct ntb_softc *);
+uint64_t ntb_db_vector_mask(struct ntb_softc *, uint32_t vector);
+bus_addr_t ntb_get_peer_db_addr(struct ntb_softc *, vm_size_t *sz_out);
+
+void ntb_db_clear(struct ntb_softc *, uint64_t bits);
+void ntb_db_clear_mask(struct ntb_softc *, uint64_t bits);
+uint64_t ntb_db_read(struct ntb_softc *);
+void ntb_db_set_mask(struct ntb_softc *, uint64_t bits);
+void ntb_peer_db_set(struct ntb_softc *, uint64_t bits);
+
+#define XEON_SPAD_COUNT		16
+#define ATOM_SPAD_COUNT		16
+
+/* Hardware owns the low 16 bits of features. */
+#define NTB_BAR_SIZE_4K		(1 << 0)
+#define NTB_SDOORBELL_LOCKUP	(1 << 1)
+#define NTB_SB01BASE_LOCKUP	(1 << 2)
+#define NTB_B2BDOORBELL_BIT14	(1 << 3)
+/* Software/configuration owns the top 16 bits. */
+#define NTB_SPLIT_BAR		(1ull << 16)
+
+#define NTB_FEATURES_STR \
+    "\20\21SPLIT_BAR4\04B2B_DOORBELL_BIT14\03SB01BASE_LOCKUP" \
+    "\02SDOORBELL_LOCKUP\01BAR_SIZE_4K"
+
+bool ntb_has_feature(struct ntb_softc *, uint32_t);
 
 #endif /* _NTB_HW_H_ */

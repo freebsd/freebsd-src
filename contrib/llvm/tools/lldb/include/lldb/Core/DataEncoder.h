@@ -357,7 +357,7 @@ public:
     ///     The number of bytes that this object now contains.
     //------------------------------------------------------------------
     uint32_t
-    SetData (const void *bytes, uint32_t length, lldb::ByteOrder byte_order);
+    SetData (void *bytes, uint32_t length, lldb::ByteOrder byte_order);
 
     //------------------------------------------------------------------
     /// Adopt a subset of shared data in \a data_sp.
@@ -446,7 +446,7 @@ protected:
     uint8_t *m_end;     ///< A pointer to the byte that is past the end of the data.
     lldb::ByteOrder m_byte_order;   ///< The byte order of the data we are extracting from.
     uint8_t m_addr_size;            ///< The address size to use when extracting pointers or addresses
-    mutable lldb::DataBufferSP m_data_sp; ///< The shared pointer to data that can be shared among multilple instances
+    mutable lldb::DataBufferSP m_data_sp; ///< The shared pointer to data that can be shared among multiple instances
     
 private:
     DISALLOW_COPY_AND_ASSIGN (DataEncoder);

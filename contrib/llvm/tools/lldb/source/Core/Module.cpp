@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Core/AddressResolverFileLine.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Module.h"
@@ -25,7 +23,7 @@
 #include "lldb/Host/Symbols.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/ScriptInterpreter.h"
-#include "lldb/lldb-private-log.h"
+#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolContext.h"
@@ -38,6 +36,9 @@
 #include "lldb/Symbol/SymbolFile.h"
 
 #include "Plugins/ObjectFile/JIT/ObjectFileJIT.h"
+
+#include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/Signals.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -145,14 +146,13 @@ Module::Module (const ModuleSpec &module_spec) :
     m_object_mod_time (),
     m_objfile_sp (),
     m_symfile_ap (),
-    m_ast (),
+    m_ast (new ClangASTContext),
     m_source_mappings (),
     m_sections_ap(),
     m_did_load_objfile (false),
     m_did_load_symbol_vendor (false),
     m_did_parse_uuid (false),
     m_did_init_ast (false),
-    m_is_dynamic_loader_module (false),
     m_file_has_changed (false),
     m_first_file_changed_log (false)
 {
@@ -250,14 +250,13 @@ Module::Module(const FileSpec& file_spec,
     m_object_mod_time (),
     m_objfile_sp (),
     m_symfile_ap (),
-    m_ast (),
+    m_ast (new ClangASTContext),
     m_source_mappings (),
     m_sections_ap(),
     m_did_load_objfile (false),
     m_did_load_symbol_vendor (false),
     m_did_parse_uuid (false),
     m_did_init_ast (false),
-    m_is_dynamic_loader_module (false),
     m_file_has_changed (false),
     m_first_file_changed_log (false)
 {
@@ -297,14 +296,13 @@ Module::Module () :
     m_object_mod_time (),
     m_objfile_sp (),
     m_symfile_ap (),
-    m_ast (),
+    m_ast (new ClangASTContext),
     m_source_mappings (),
     m_sections_ap(),
     m_did_load_objfile (false),
     m_did_load_symbol_vendor (false),
     m_did_parse_uuid (false),
     m_did_init_ast (false),
-    m_is_dynamic_loader_module (false),
     m_file_has_changed (false),
     m_first_file_changed_log (false)
 {
@@ -443,10 +441,10 @@ Module::GetClangASTContext ()
                     object_arch.GetTriple().setOS(llvm::Triple::MacOSX);
                 }
             }
-            m_ast.SetArchitecture (object_arch);
+            m_ast->SetArchitecture (object_arch);
         }
     }
-    return m_ast;
+    return *m_ast;
 }
 
 void
@@ -904,10 +902,9 @@ Module::FindFunctions (const RegularExpression& regex,
                         {
                             sc.symbol = symtab->SymbolAtIndex(symbol_indexes[i]);
                             SymbolType sym_type = sc.symbol->GetType();
-                            if (sc.symbol && (sym_type == eSymbolTypeCode ||
-                                              sym_type == eSymbolTypeResolver))
+                            if (sc.symbol && sc.symbol->ValueIsAddress() && (sym_type == eSymbolTypeCode || sym_type == eSymbolTypeResolver))
                             {
-                                FileAddrToIndexMap::const_iterator pos = file_addr_to_index.find(sc.symbol->GetAddress().GetFileAddress());
+                                FileAddrToIndexMap::const_iterator pos = file_addr_to_index.find(sc.symbol->GetAddressRef().GetFileAddress());
                                 if (pos == end)
                                     sc_list.Append(sc);
                                 else
@@ -1236,7 +1233,12 @@ Module::LogMessageVerboseBacktrace (Log *log, const char *format, ...)
         log_message.PrintfVarArg (format, args);
         va_end (args);
         if (log->GetVerbose())
-            Host::Backtrace (log_message, 1024);
+        {
+            std::string back_trace;
+            llvm::raw_string_ostream stream(back_trace);
+            llvm::sys::PrintStackTrace(stream);
+            log_message.PutCString(back_trace.c_str());
+        }
         log->PutCString(log_message.GetString().c_str());
     }
 }
@@ -1304,10 +1306,14 @@ Module::GetObjectFile()
                                                    data_offset);
             if (m_objfile_sp)
             {
-                // Once we get the object file, update our module with the object file's 
+                // Once we get the object file, update our module with the object file's
                 // architecture since it might differ in vendor/os if some parts were
-                // unknown.
-                m_objfile_sp->GetArchitecture (m_arch);
+                // unknown.  But since the matching arch might already be more specific
+                // than the generic COFF architecture, only merge in those values that
+                // overwrite unspecified unknown values.
+                ArchSpec new_arch;
+                m_objfile_sp->GetArchitecture(new_arch);
+                m_arch.MergeFrom(new_arch);
             }
             else
             {
@@ -1460,9 +1466,11 @@ Module::FindSymbolsMatchingRegExAndType (const RegularExpression &regex, SymbolT
 void
 Module::SetSymbolFileFileSpec (const FileSpec &file)
 {
-    // Remove any sections in the unified section list that come from the current symbol vendor.
+    if (!file.Exists())
+        return;
     if (m_symfile_ap)
     {
+        // Remove any sections in the unified section list that come from the current symbol vendor.
         SectionList *section_list = GetSectionList();
         SymbolFile *symbol_file = m_symfile_ap->GetSymbolFile();
         if (section_list && symbol_file)
@@ -1470,21 +1478,49 @@ Module::SetSymbolFileFileSpec (const FileSpec &file)
             ObjectFile *obj_file = symbol_file->GetObjectFile();
             // Make sure we have an object file and that the symbol vendor's objfile isn't
             // the same as the module's objfile before we remove any sections for it...
-            if (obj_file && obj_file != m_objfile_sp.get())
+            if (obj_file)
             {
-                size_t num_sections = section_list->GetNumSections (0);
-                for (size_t idx = num_sections; idx > 0; --idx)
+                // Check to make sure we aren't trying to specify the file we already have
+                if (obj_file->GetFileSpec() == file)
                 {
-                    lldb::SectionSP section_sp (section_list->GetSectionAtIndex (idx - 1));
-                    if (section_sp->GetObjectFile() == obj_file)
+                    // We are being told to add the exact same file that we already have
+                    // we don't have to do anything.
+                    return;
+                }
+
+                // The symbol file might be a directory bundle ("/tmp/a.out.dSYM") instead
+                // of a full path to the symbol file within the bundle
+                // ("/tmp/a.out.dSYM/Contents/Resources/DWARF/a.out"). So we need to check this
+
+                if (file.IsDirectory())
+                {
+                    std::string new_path(file.GetPath());
+                    std::string old_path(obj_file->GetFileSpec().GetPath());
+                    if (old_path.find(new_path) == 0)
                     {
-                        section_list->DeleteSection (idx - 1);
+                        // We specified the same bundle as the symbol file that we already have
+                        return;
+                    }
+                }
+
+                if (obj_file != m_objfile_sp.get())
+                {
+                    size_t num_sections = section_list->GetNumSections (0);
+                    for (size_t idx = num_sections; idx > 0; --idx)
+                    {
+                        lldb::SectionSP section_sp (section_list->GetSectionAtIndex (idx - 1));
+                        if (section_sp->GetObjectFile() == obj_file)
+                        {
+                            section_list->DeleteSection (idx - 1);
+                        }
                     }
                 }
             }
         }
+        // Keep all old symbol files around in case there are any lingering type references in
+        // any SBValue objects that might have been handed out.
+        m_old_symfiles.push_back(std::move(m_symfile_ap));
     }
-
     m_symfile_spec = file;
     m_symfile_ap.reset();
     m_did_load_symbol_vendor = false;
@@ -1607,7 +1643,7 @@ Module::SetArchitecture (const ArchSpec &new_arch)
         m_arch = new_arch;
         return true;
     }    
-    return m_arch.IsExactMatch(new_arch);
+    return m_arch.IsCompatibleMatch(new_arch);
 }
 
 bool 
@@ -1732,7 +1768,7 @@ Module::PrepareForFunctionNameLookup (const ConstString &name,
                 if (CPPLanguageRuntime::ExtractContextAndIdentifier (name_cstr, context, basename))
                     lookup_name_type_mask |= (eFunctionNameTypeMethod | eFunctionNameTypeBase);
                 else
-                    lookup_name_type_mask = eFunctionNameTypeFull;
+                    lookup_name_type_mask |= eFunctionNameTypeFull;
             }
             else
             {
@@ -1821,3 +1857,13 @@ Module::CreateJITModule (const lldb::ObjectFileJITDelegateSP &delegate_sp)
     return ModuleSP();
 }
 
+bool
+Module::GetIsDynamicLinkEditor()
+{
+    ObjectFile * obj_file = GetObjectFile ();
+
+    if (obj_file)
+        return obj_file->GetIsDynamicLinkEditor();
+
+    return false;
+}

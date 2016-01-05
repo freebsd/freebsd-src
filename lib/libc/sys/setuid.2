@@ -28,7 +28,7 @@
 .\"     @(#)setuid.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd December 15, 2015
 .Dt SETUID 2
 .Os
 .Sh NAME
@@ -40,7 +40,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In unistd.h
 .Ft int
 .Fn setuid "uid_t uid"
@@ -178,15 +177,10 @@ pseudocode(void)
 	int fd;
 	/* ... */
 
-	fd = open("/path/to/sensitive/data", O_RDWR);
+	fd = open("/path/to/sensitive/data", O_RDWR | O_CLOEXEC);
 	if (fd == -1)
 		err(1, "open");
 
-	/*
-	 * Set close-on-exec flag; see fcntl(2) for more information.
-	 */
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
-		err(1, "fcntl(F_SETFD)");
 	/* ... */
 	execve(path, argv, environ);
 }

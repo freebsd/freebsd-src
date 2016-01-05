@@ -61,9 +61,15 @@
 #include "services/localzone.h"
 #include "services/cache/infra.h"
 #include "services/cache/rrset.h"
-#include "ldns/sbuffer.h"
+#include "sldns/sbuffer.h"
 #ifdef HAVE_PTHREAD
 #include <signal.h>
+#endif
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+#ifdef HAVE_TIME_H
+#include <time.h>
 #endif
 
 #if defined(UB_ON_WINDOWS) && defined (HAVE_WINDOWS_H)
@@ -218,6 +224,12 @@ static void ub_stop_bg(struct ub_ctx* ctx)
 			ub_thread_join(ctx->bg_tid);
 		} else {
 			lock_basic_unlock(&ctx->cfglock);
+#ifndef UB_ON_WINDOWS
+			if(waitpid(ctx->bg_pid, NULL, 0) == -1) {
+				if(verbosity > 2)
+					log_err("waitpid: %s", strerror(errno));
+			}
+#endif
 		}
 	}
 	else {
@@ -946,7 +958,7 @@ ub_ctx_resolvconf(struct ub_ctx* ctx, const char* fname)
 			while (ptr) {
 				numserv++;
 				if((retval=ub_ctx_set_fwd(ctx, 
-					ptr->IpAddress.String)!=0)) {
+					ptr->IpAddress.String))!=0) {
 					free(info);
 					return retval;
 				}
@@ -1028,7 +1040,6 @@ ub_ctx_hosts(struct ub_ctx* ctx, const char* fname)
 					"\\hosts");
 				retval=ub_ctx_hosts(ctx, buf);
 			}
-			free(name);
 			return retval;
 		}
 		return UB_READFILE;
@@ -1053,6 +1064,8 @@ ub_ctx_hosts(struct ub_ctx* ctx, const char* fname)
 		/* skip addr */
 		while(isxdigit((unsigned char)*parse) || *parse == '.' || *parse == ':')
 			parse++;
+		if(*parse == '\r')
+			parse++;
 		if(*parse == '\n' || *parse == 0)
 			continue;
 		if(*parse == '%') 
@@ -1066,7 +1079,8 @@ ub_ctx_hosts(struct ub_ctx* ctx, const char* fname)
 		*parse++ = 0; /* end delimiter for addr ... */
 		/* go to names and add them */
 		while(*parse) {
-			while(*parse == ' ' || *parse == '\t' || *parse=='\n')
+			while(*parse == ' ' || *parse == '\t' || *parse=='\n'
+				|| *parse=='\r')
 				parse++;
 			if(*parse == 0 || *parse == '#')
 				break;

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
+#include <sys/vdso.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -72,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
 #include <machine/vmparam.h>
@@ -251,7 +253,13 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	tf->tf_sp = stack;
+	/*
+	 * We need to set x0 for init as it doesn't call
+	 * cpu_set_syscall_retval to copy the value. We also
+	 * need to set td_retval for the cases where we do.
+	 */
+	tf->tf_x[0] = td->td_retval[0] = stack;
+	tf->tf_sp = STACKALIGN(stack);
 	tf->tf_lr = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
 }
@@ -499,6 +507,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct trapframe *tf;
 	struct sigframe *fp, frame;
 	struct sigacts *psp;
+	struct sysentvec *sysent;
 	int code, onstack, sig;
 
 	td = curthread;
@@ -557,7 +566,12 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	tf->tf_elr = (register_t)catcher;
 	tf->tf_sp = (register_t)fp;
-	tf->tf_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	sysent = p->p_sysent;
+	if (sysent->sv_sigcode_base != 0)
+		tf->tf_lr = (register_t)sysent->sv_sigcode_base;
+	else
+		tf->tf_lr = (register_t)(sysent->sv_psstrings -
+		    *(sysent->sv_szsigcode));
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_elr,
 	    tf->tf_sp);
@@ -806,7 +820,7 @@ initarm(struct arm64_bootparams *abp)
 		kmdp = preload_search_by_type("elf64 kernel");
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *), 0);
 
 #ifdef FDT
 	try_load_dtb(kmdp);
@@ -869,6 +883,17 @@ initarm(struct arm64_bootparams *abp)
 	early_boot = 0;
 }
 
+uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
+    struct timecounter *);
+
+uint32_t
+cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+{
+
+	return (arm_cpu_fill_vdso_timehands != NULL ?
+	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
+}
+
 #ifdef DDB
 #include <ddb/ddb.h>
 
@@ -894,8 +919,11 @@ DB_SHOW_COMMAND(specialregs, db_show_spregs)
 	PRINT_REG(elr_el1);
 	PRINT_REG(esr_el1);
 	PRINT_REG(far_el1);
+#if 0
+	/* ARM64TODO: Enable VFP before reading floating-point registers */
 	PRINT_REG(fpcr);
 	PRINT_REG(fpsr);
+#endif
 	PRINT_REG(id_aa64afr0_el1);
 	PRINT_REG(id_aa64afr1_el1);
 	PRINT_REG(id_aa64dfr0_el1);

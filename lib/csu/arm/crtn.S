@@ -8,3 +8,5 @@ __FBSDID("$FreeBSD$");
 	.section .fini,"ax",%progbits
 	ldmea	fp, {fp, sp, pc}
 	mov	pc, lr
+
+	.section .note.GNU-stack,"",%progbits

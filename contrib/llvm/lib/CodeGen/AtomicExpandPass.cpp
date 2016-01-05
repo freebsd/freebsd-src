@@ -31,10 +31,11 @@ using namespace llvm;
 namespace {
   class AtomicExpand: public FunctionPass {
     const TargetMachine *TM;
+    const TargetLowering *TLI;
   public:
     static char ID; // Pass identification, replacement for typeid
     explicit AtomicExpand(const TargetMachine *TM = nullptr)
-      : FunctionPass(ID), TM(TM) {
+      : FunctionPass(ID), TM(TM), TLI(nullptr) {
       initializeAtomicExpandPass(*PassRegistry::getPassRegistry());
     }
 
@@ -47,7 +48,7 @@ namespace {
     bool expandAtomicLoadToLL(LoadInst *LI);
     bool expandAtomicLoadToCmpXchg(LoadInst *LI);
     bool expandAtomicStore(StoreInst *SI);
-    bool expandAtomicRMW(AtomicRMWInst *AI);
+    bool tryExpandAtomicRMW(AtomicRMWInst *AI);
     bool expandAtomicRMWToLLSC(AtomicRMWInst *AI);
     bool expandAtomicRMWToCmpXchg(AtomicRMWInst *AI);
     bool expandAtomicCmpXchg(AtomicCmpXchgInst *CI);
@@ -67,9 +68,9 @@ FunctionPass *llvm::createAtomicExpandPass(const TargetMachine *TM) {
 }
 
 bool AtomicExpand::runOnFunction(Function &F) {
-  if (!TM || !TM->getSubtargetImpl()->enableAtomicExpand())
+  if (!TM || !TM->getSubtargetImpl(F)->enableAtomicExpand())
     return false;
-  auto TargetLowering = TM->getSubtargetImpl()->getTargetLowering();
+  TLI = TM->getSubtargetImpl(F)->getTargetLowering();
 
   SmallVector<Instruction *, 1> AtomicInsts;
 
@@ -91,7 +92,7 @@ bool AtomicExpand::runOnFunction(Function &F) {
 
     auto FenceOrdering = Monotonic;
     bool IsStore, IsLoad;
-    if (TargetLowering->getInsertFencesForAtomic()) {
+    if (TLI->getInsertFencesForAtomic()) {
       if (LI && isAtLeastAcquire(LI->getOrdering())) {
         FenceOrdering = LI->getOrdering();
         LI->setOrdering(Monotonic);
@@ -107,9 +108,9 @@ bool AtomicExpand::runOnFunction(Function &F) {
         FenceOrdering = RMWI->getOrdering();
         RMWI->setOrdering(Monotonic);
         IsStore = IsLoad = true;
-      } else if (CASI && !TargetLowering->hasLoadLinkedStoreConditional() &&
-                    (isAtLeastRelease(CASI->getSuccessOrdering()) ||
-                     isAtLeastAcquire(CASI->getSuccessOrdering()))) {
+      } else if (CASI && !TLI->hasLoadLinkedStoreConditional() &&
+                 (isAtLeastRelease(CASI->getSuccessOrdering()) ||
+                  isAtLeastAcquire(CASI->getSuccessOrdering()))) {
         // If a compare and swap is lowered to LL/SC, we can do smarter fence
         // insertion, with a stronger one on the success path than on the
         // failure path. As a result, fence insertion is directly done by
@@ -125,20 +126,22 @@ bool AtomicExpand::runOnFunction(Function &F) {
       }
     }
 
-    if (LI && TargetLowering->shouldExpandAtomicLoadInIR(LI)) {
+    if (LI && TLI->shouldExpandAtomicLoadInIR(LI)) {
       MadeChange |= expandAtomicLoad(LI);
-    } else if (SI && TargetLowering->shouldExpandAtomicStoreInIR(SI)) {
+    } else if (SI && TLI->shouldExpandAtomicStoreInIR(SI)) {
       MadeChange |= expandAtomicStore(SI);
     } else if (RMWI) {
       // There are two different ways of expanding RMW instructions:
       // - into a load if it is idempotent
       // - into a Cmpxchg/LL-SC loop otherwise
       // we try them in that order.
-      MadeChange |= (isIdempotentRMW(RMWI) &&
-                        simplifyIdempotentRMW(RMWI)) ||
-                    (TargetLowering->shouldExpandAtomicRMWInIR(RMWI) &&
-                        expandAtomicRMW(RMWI));
-    } else if (CASI && TargetLowering->hasLoadLinkedStoreConditional()) {
+
+      if (isIdempotentRMW(RMWI) && simplifyIdempotentRMW(RMWI)) {
+        MadeChange = true;
+      } else {
+        MadeChange |= tryExpandAtomicRMW(RMWI);
+      }
+    } else if (CASI && TLI->hasLoadLinkedStoreConditional()) {
       MadeChange |= expandAtomicCmpXchg(CASI);
     }
   }
@@ -149,13 +152,9 @@ bool AtomicExpand::bracketInstWithFences(Instruction *I, AtomicOrdering Order,
                                          bool IsStore, bool IsLoad) {
   IRBuilder<> Builder(I);
 
-  auto LeadingFence =
-      TM->getSubtargetImpl()->getTargetLowering()->emitLeadingFence(
-      Builder, Order, IsStore, IsLoad);
+  auto LeadingFence = TLI->emitLeadingFence(Builder, Order, IsStore, IsLoad);
 
-  auto TrailingFence =
-      TM->getSubtargetImpl()->getTargetLowering()->emitTrailingFence(
-      Builder, Order, IsStore, IsLoad);
+  auto TrailingFence = TLI->emitTrailingFence(Builder, Order, IsStore, IsLoad);
   // The trailing fence is emitted before the instruction instead of after
   // because there is no easy way of setting Builder insertion point after
   // an instruction. So we must erase it from the BB, and insert it back
@@ -171,16 +170,13 @@ bool AtomicExpand::bracketInstWithFences(Instruction *I, AtomicOrdering Order,
 }
 
 bool AtomicExpand::expandAtomicLoad(LoadInst *LI) {
-   if (TM->getSubtargetImpl()
-          ->getTargetLowering()
-          ->hasLoadLinkedStoreConditional())
+  if (TLI->hasLoadLinkedStoreConditional())
     return expandAtomicLoadToLL(LI);
   else
     return expandAtomicLoadToCmpXchg(LI);
 }
 
 bool AtomicExpand::expandAtomicLoadToLL(LoadInst *LI) {
-  auto TLI = TM->getSubtargetImpl()->getTargetLowering();
   IRBuilder<> Builder(LI);
 
   // On some architectures, load-linked instructions are atomic for larger
@@ -218,7 +214,7 @@ bool AtomicExpand::expandAtomicStore(StoreInst *SI) {
   // atomic if implemented as a native store. So we replace them by an
   // atomic swap, that can be implemented for example as a ldrex/strex on ARM
   // or lock cmpxchg8/16b on X86, as these are atomic for larger sizes.
-  // It is the responsibility of the target to only return true in
+  // It is the responsibility of the target to only signal expansion via
   // shouldExpandAtomicRMW in cases where this is required and possible.
   IRBuilder<> Builder(SI);
   AtomicRMWInst *AI =
@@ -227,16 +223,26 @@ bool AtomicExpand::expandAtomicStore(StoreInst *SI) {
   SI->eraseFromParent();
 
   // Now we have an appropriate swap instruction, lower it as usual.
-  return expandAtomicRMW(AI);
+  return tryExpandAtomicRMW(AI);
 }
 
-bool AtomicExpand::expandAtomicRMW(AtomicRMWInst *AI) {
-  if (TM->getSubtargetImpl()
-          ->getTargetLowering()
-          ->hasLoadLinkedStoreConditional())
+bool AtomicExpand::tryExpandAtomicRMW(AtomicRMWInst *AI) {
+  switch (TLI->shouldExpandAtomicRMWInIR(AI)) {
+  case TargetLoweringBase::AtomicRMWExpansionKind::None:
+    return false;
+  case TargetLoweringBase::AtomicRMWExpansionKind::LLSC: {
+    assert(TLI->hasLoadLinkedStoreConditional() &&
+           "TargetLowering requested we expand AtomicRMW instruction into "
+           "load-linked/store-conditional combos, but such instructions aren't "
+           "supported");
+
     return expandAtomicRMWToLLSC(AI);
-  else
+  }
+  case TargetLoweringBase::AtomicRMWExpansionKind::CmpXChg: {
     return expandAtomicRMWToCmpXchg(AI);
+  }
+  }
+  llvm_unreachable("Unhandled case in tryExpandAtomicRMW");
 }
 
 /// Emit IR to implement the given atomicrmw operation on values in registers,
@@ -277,7 +283,6 @@ static Value *performAtomicOp(AtomicRMWInst::BinOp Op, IRBuilder<> &Builder,
 }
 
 bool AtomicExpand::expandAtomicRMWToLLSC(AtomicRMWInst *AI) {
-  auto TLI = TM->getSubtargetImpl()->getTargetLowering();
   AtomicOrdering MemOpOrder = AI->getOrdering();
   Value *Addr = AI->getPointerOperand();
   BasicBlock *BB = AI->getParent();
@@ -397,7 +402,6 @@ bool AtomicExpand::expandAtomicRMWToCmpXchg(AtomicRMWInst *AI) {
 }
 
 bool AtomicExpand::expandAtomicCmpXchg(AtomicCmpXchgInst *CI) {
-  auto TLI = TM->getSubtargetImpl()->getTargetLowering();
   AtomicOrdering SuccessOrder = CI->getSuccessOrdering();
   AtomicOrdering FailureOrder = CI->getFailureOrdering();
   Value *Addr = CI->getPointerOperand();
@@ -460,7 +464,7 @@ bool AtomicExpand::expandAtomicCmpXchg(AtomicCmpXchgInst *CI) {
   Value *ShouldStore =
       Builder.CreateICmpEQ(Loaded, CI->getCompareOperand(), "should_store");
 
-  // If the the cmpxchg doesn't actually need any ordering when it fails, we can
+  // If the cmpxchg doesn't actually need any ordering when it fails, we can
   // jump straight past that fence instruction (if it exists).
   Builder.CreateCondBr(ShouldStore, TryStoreBB, FailureBB);
 
@@ -551,13 +555,10 @@ bool AtomicExpand::isIdempotentRMW(AtomicRMWInst* RMWI) {
 }
 
 bool AtomicExpand::simplifyIdempotentRMW(AtomicRMWInst* RMWI) {
-  auto TLI = TM->getSubtargetImpl()->getTargetLowering();
-
   if (auto ResultingLoad = TLI->lowerIdempotentRMWIntoFencedLoad(RMWI)) {
     if (TLI->shouldExpandAtomicLoadInIR(ResultingLoad))
       expandAtomicLoad(ResultingLoad);
     return true;
   }
-
   return false;
 }

@@ -5,22 +5,21 @@
 #include "ntp_types.h"
 #include "ntp_fp.h"
 
-#include <math.h>
 #include "timevalops.h"
 
+#include <math.h>
 #include "unity.h"
 
 
-//in unity_helper.h :
 #define TEST_ASSERT_EQUAL_timeval(a, b) { \
     TEST_ASSERT_EQUAL_MESSAGE(a.tv_sec, b.tv_sec, "Field tv_sec"); \
     TEST_ASSERT_EQUAL_MESSAGE(a.tv_usec, b.tv_usec, "Field tv_usec");	\
 }
 
-//timeval has time_t, long, and time_t is basically uint
 
 static u_int32 my_tick_to_tsf(u_int32 ticks);
 static u_int32 my_tsf_to_tick(u_int32 tsf);
+
 
 // that's it...
 typedef struct {
@@ -28,24 +27,65 @@ typedef struct {
 	u_int32	frac;
 } lfpfracdata ;
 
+typedef int bool;
+
+struct timeval timeval_init( time_t hi, long lo);
+const bool timeval_isValid(struct timeval V);
+l_fp l_fp_init(int32 i, u_int32 f);
+bool AssertTimevalClose(const struct timeval m, const struct timeval n, const struct timeval limit);
+bool AssertFpClose(const l_fp m, const l_fp n, const l_fp limit);
+
+void test_Helpers1(void);
+void test_Normalise(void);
+void test_SignNoFrac(void);
+void test_SignWithFrac(void);
+void test_CmpFracEQ(void);
+void test_CmpFracGT(void);
+void test_CmpFracLT(void);
+void test_AddFullNorm(void);
+void test_AddFullOflow1(void);
+void test_AddUsecNorm(void);
+void test_AddUsecOflow1(void);
+void test_SubFullNorm(void);
+void test_SubFullOflow(void);
+void test_SubUsecNorm(void);
+void test_SubUsecOflow(void);
+void test_Neg(void);
+void test_AbsNoFrac(void);
+void test_AbsWithFrac(void);
+void test_Helpers2(void);
+void test_ToLFPbittest(void);
+void test_ToLFPrelPos(void);
+void test_ToLFPrelNeg(void);
+void test_ToLFPabs(void);
+void test_FromLFPbittest(void);
+void test_FromLFPrelPos(void);
+void test_FromLFPrelNeg(void);
+void test_LFProundtrip(void);
+void test_ToString(void);
+
 
 //******************************************MY CUSTOM FUNCTIONS*******************************
 
-typedef int bool; //TRUE and FALSE are already defined somewhere, so I can't do typedef enum { FALSE, TRUE } boolean;
 
-struct timeval timeval_init( time_t hi, long lo){
+
+struct timeval
+timeval_init( time_t hi, long lo){
 	struct timeval V; 
 	V.tv_sec = hi; 
 	V.tv_usec = lo;
 	return V;
 }
 
-const bool timeval_isValid(struct timeval V)
-	{ return V.tv_usec >= 0 && V.tv_usec < 1000000; }
 
-//taken from lfpfunc.c -> maybe remove this from timevalops.c and lfpfunc. and put in c_timstructs.h ????!!!!!
-l_fp l_fp_init(int32 i, u_int32 f)
-{
+const bool
+timeval_isValid(struct timeval V) {
+	return V.tv_usec >= 0 && V.tv_usec < 1000000;
+}
+
+
+l_fp
+l_fp_init(int32 i, u_int32 f) {
 	l_fp temp;
 	temp.l_i  = i;
 	temp.l_uf = f;
@@ -53,8 +93,9 @@ l_fp l_fp_init(int32 i, u_int32 f)
 	return temp;
 }
 
-bool AssertTimevalClose(const struct timeval m, const struct timeval n, const struct timeval limit)
-{
+
+bool
+AssertTimevalClose(const struct timeval m, const struct timeval n, const struct timeval limit) {
 	struct timeval diff;
 
 	diff = abs_tval(sub_tval(m, n));
@@ -63,17 +104,16 @@ bool AssertTimevalClose(const struct timeval m, const struct timeval n, const st
 	
 	else 
 	{
-		//printf("");
-		//<< m_expr << " which is " << timeval_wrap(m)
-		//<< "\nand\n"
-		//<< n_expr << " which is " << timeval_wrap(n)
-		//<< "\nare not close; diff=" << timeval_wrap(diff);
+		printf("m_expr which is %ld.%lu \nand\nn_expr which is %ld.%lu\nare not close; diff=%ld.%luusec\n", m.tv_sec, m.tv_usec, n.tv_sec, n.tv_usec, diff.tv_sec, diff.tv_usec); 
+		//I don't have variables m_expr and n_expr in unity, those are command line arguments which only getst has!!!
+		
 		return FALSE;
 	}
 }
 
-bool AssertFpClose(const l_fp m,const l_fp n, const l_fp limit)
-{
+
+bool
+AssertFpClose(const l_fp m, const l_fp n, const l_fp limit) {
 	l_fp diff;
 
 	if (L_ISGEQ(&m, &n)) {
@@ -87,10 +127,8 @@ bool AssertFpClose(const l_fp m,const l_fp n, const l_fp limit)
 		return TRUE;
 	}
 	else {
-		//<< m_expr << " which is " << l_fp_wrap(m)
-		//<< "\nand\n"
-		//<< n_expr << " which is " << l_fp_wrap(n)
-		//<< "\nare not close; diff=" << l_fp_wrap(diff);
+		printf("m_expr which is %s \nand\nn_expr which is %s\nare not close; diff=%susec\n", lfptoa(&m, 10), lfptoa(&n, 10), lfptoa(&diff, 10)); 
+		//printf("m_expr which is %d.%d \nand\nn_expr which is %d.%d\nare not close; diff=%d.%dusec\n", m.l_uf, m.Ul_i, n.l_uf, n.Ul_i, diff.l_uf, diff.Ul_i); 
 		return FALSE;
 	}
 }
@@ -116,8 +154,8 @@ static const lfpfracdata fdata[] = {
 };
 
 
-u_int32 my_tick_to_tsf(u_int32 ticks)
-{
+u_int32
+my_tick_to_tsf(u_int32 ticks) {
 	// convert microseconds to l_fp fractional units, using double
 	// precision float calculations or, if available, 64bit integer
 	// arithmetic. This should give the precise fraction, rounded to
@@ -131,8 +169,9 @@ u_int32 my_tick_to_tsf(u_int32 ticks)
 	// truncated nonsense, so don't use it out-of-bounds.
 }
 
-u_int32 my_tsf_to_tick(u_int32 tsf)
-{
+
+u_int32
+my_tsf_to_tick(u_int32 tsf) {
 	// Inverse operation: converts fraction to microseconds.
 #ifdef HAVE_U_INT64
 	return (u_int32)( ((u_int64)(tsf) * 1000000 + 0x80000000) >> 32); //CHECK ME!!!
@@ -150,7 +189,8 @@ u_int32 my_tsf_to_tick(u_int32 tsf)
 // test support stuff - part1
 // ---------------------------------------------------------------------
 
-void test_Helpers1() {
+void
+test_Helpers1(void) {
 	struct timeval x;
 
 	for (x.tv_sec = -2; x.tv_sec < 3; x.tv_sec++) {
@@ -170,7 +210,8 @@ void test_Helpers1() {
 // test normalisation
 //----------------------------------------------------------------------
 
-void test_Normalise() {
+void
+test_Normalise(void) {
 	long ns;
 	for (ns = -2000000000; ns <= 2000000000; ns += 10000000) {
 		struct timeval x = timeval_init(0, ns);
@@ -184,7 +225,8 @@ void test_Normalise() {
 // test classification
 //----------------------------------------------------------------------
 
-void test_SignNoFrac() {
+void
+test_SignNoFrac(void) {
 	int i;
 	// sign test, no fraction
 	for (i = -4; i <= 4; ++i) {
@@ -196,7 +238,9 @@ void test_SignNoFrac() {
 	}
 }
 
-void test_SignWithFrac() {
+
+void
+test_SignWithFrac(void) {
 	// sign test, with fraction
 	int i;
 	for (i = -4; i <= 4; ++i) {
@@ -211,8 +255,9 @@ void test_SignWithFrac() {
 //----------------------------------------------------------------------
 // test compare
 //----------------------------------------------------------------------
-void test_CmpFracEQ() {
-	int i,j;
+void
+test_CmpFracEQ(void) {
+	int i, j;
 	// fractions are equal
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
@@ -225,9 +270,11 @@ void test_CmpFracEQ() {
 		}
 }
 
-void test_CmpFracGT() {
+
+void
+test_CmpFracGT(void) {
 	// fraction a bigger fraction b
-	int i,j;
+	int i, j;
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timeval a = timeval_init( i , 999800);
@@ -239,9 +286,11 @@ void test_CmpFracGT() {
 		}
 }
 
-void test_CmpFracLT() {
+
+void
+test_CmpFracLT(void) {
 	// fraction a less fraction b
-	int i,j;
+	int i, j;
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timeval a = timeval_init(i, 200);
@@ -257,8 +306,9 @@ void test_CmpFracLT() {
 // Test addition (sum)
 //----------------------------------------------------------------------
 
-void test_AddFullNorm() {
-	int i,j;
+void
+test_AddFullNorm(void) {
+	int i, j;
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timeval a = timeval_init(i, 200);
@@ -271,8 +321,10 @@ void test_AddFullNorm() {
 		}
 }
 
-void test_AddFullOflow1() {
-	int i,j;
+
+void
+test_AddFullOflow1(void) {
+	int i, j;
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timeval a = timeval_init(i, 200);
@@ -285,7 +337,9 @@ void test_AddFullOflow1() {
 		}
 }
 
-void test_AddUsecNorm() {
+
+void
+test_AddUsecNorm(void) {
 	int i;
 	for (i = -4; i <= 4; ++i) {
 		struct timeval a = timeval_init(i, 200);
@@ -297,7 +351,9 @@ void test_AddUsecNorm() {
 	}
 }
 
-void test_AddUsecOflow1() {
+
+void
+test_AddUsecOflow1(void) {
 	int i;
 	for (i = -4; i <= 4; ++i) {
 		struct timeval a = timeval_init(i, 200);
@@ -313,8 +369,9 @@ void test_AddUsecOflow1() {
 // test subtraction (difference)
 //----------------------------------------------------------------------
 
-void test_SubFullNorm() {
-	int i,j;
+void
+test_SubFullNorm(void) {
+	int i, j;
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timeval a = timeval_init(i, 600);
@@ -327,8 +384,10 @@ void test_SubFullNorm() {
 		}
 }
 
-void test_SubFullOflow() {
-	int i,j;
+
+void
+test_SubFullOflow(void) {
+	int i, j;
 	for (i = -4; i <= 4; ++i)
 		for (j = -4; j <= 4; ++j) {
 			struct timeval a = timeval_init(i, 100);
@@ -341,7 +400,9 @@ void test_SubFullOflow() {
 		}
 }
 
-void test_SubUsecNorm() {
+
+void
+test_SubUsecNorm(void) {
 	int i = -4;
 	for (i = -4; i <= 4; ++i) {
 		struct timeval a = timeval_init(i, 600);
@@ -353,7 +414,9 @@ void test_SubUsecNorm() {
 	}
 }
 
-void test_SubUsecOflow() {
+
+void
+test_SubUsecOflow(void) {
 	int i = -4;
 	for (i = -4; i <= 4; ++i) {
 		struct timeval a = timeval_init(i, 100);
@@ -369,7 +432,8 @@ void test_SubUsecOflow() {
 // test negation
 //----------------------------------------------------------------------
 
-void test_Neg() {
+void
+test_Neg(void) {
 	int i = -4;
 	for (i = -4; i <= 4; ++i) {
 		struct timeval a = timeval_init(i, 100);
@@ -386,7 +450,8 @@ void test_Neg() {
 // test abs value
 //----------------------------------------------------------------------
 
-void test_AbsNoFrac() {
+void
+test_AbsNoFrac(void) {
 	int i = -4;
 	for (i = -4; i <= 4; ++i) {
 		struct timeval a = timeval_init(i, 0);
@@ -397,7 +462,9 @@ void test_AbsNoFrac() {
 	}
 }
 
-void test_AbsWithFrac() {
+
+void
+test_AbsWithFrac(void) {
 	int i = -4;
 	for (i = -4; i <= 4; ++i) {
 		struct timeval a = timeval_init(i, 100);
@@ -413,8 +480,9 @@ void test_AbsWithFrac() {
 // ---------------------------------------------------------------------
 
 
-void test_Helpers2() {
-	//struct AssertTimevalClose isClose = AssertTimevalClose_init(0, 2);
+void
+test_Helpers2(void) {
+
 	struct timeval limit = timeval_init(0, 2);
 	struct timeval x, y;
 	long i;	
@@ -423,14 +491,14 @@ void test_Helpers2() {
 		for (x.tv_usec = 1;
 		     x.tv_usec < 1000000;
 		     x.tv_usec += 499999) {
-			for (i = -4; i < 5; i++) {
+			for (i = -4; i < 5; ++i) {
 				y = x;
 				y.tv_usec += i;
 				if (i >= -2 && i <= 2){
-					TEST_ASSERT_TRUE(AssertTimevalClose(x,y,limit));//ASSERT_PRED_FORMAT2(isClose, x, y);
+					TEST_ASSERT_TRUE(AssertTimevalClose(x, y, limit));//ASSERT_PRED_FORMAT2(isClose, x, y);
 				}
 				else {
-					TEST_ASSERT_FALSE(AssertTimevalClose(x,y,limit));//ASSERT_PRED_FORMAT2(!isClose, x, y);
+					TEST_ASSERT_FALSE(AssertTimevalClose(x, y, limit));
 				}
 			}
 		}
@@ -439,66 +507,72 @@ void test_Helpers2() {
 
 // and the global predicate instances we're using here
 
-//static l_fp lfpClose =  l_fp_init(0,1); //static AssertFpClose FpClose(0, 1);
-//static struct timeval timevalClose = timeval_init(0,1); //static AssertTimevalClose TimevalClose(0, 1);
+//static l_fp lfpClose =  l_fp_init(0, 1); //static AssertFpClose FpClose(0, 1);
+//static struct timeval timevalClose = timeval_init(0, 1); //static AssertTimevalClose TimevalClose(0, 1);
 
 //----------------------------------------------------------------------
 // conversion to l_fp
 //----------------------------------------------------------------------
 
-void test_ToLFPbittest() {
-	l_fp lfpClose =  l_fp_init(0,1);	
+void
+test_ToLFPbittest(void) {
+	l_fp lfpClose =  l_fp_init(0, 1);	
 
 	u_int32 i = 0;
-	for (i = 0; i < 1000000; i++) {
+	for (i = 0; i < 1000000; ++i) {
 		struct timeval a = timeval_init(1, i);
-		l_fp E = l_fp_init(1,my_tick_to_tsf(i));
+		l_fp E = l_fp_init(1, my_tick_to_tsf(i));
 		l_fp r;
 
 		r = tval_intv_to_lfp(a);
-		TEST_ASSERT_TRUE(AssertFpClose(E,r,lfpClose));	//ASSERT_PRED_FORMAT2(FpClose, E, r);
+		TEST_ASSERT_TRUE(AssertFpClose(E, r, lfpClose));	//ASSERT_PRED_FORMAT2(FpClose, E, r);
 	}
 }
 
 
-void test_ToLFPrelPos() {
-	l_fp lfpClose =  l_fp_init(0,1);
+void
+test_ToLFPrelPos(void) {
+	l_fp lfpClose =  l_fp_init(0, 1);
 
 	int i = 0;
-	for (i = 0; i < COUNTOF(fdata); i++) {
+	for (i = 0; i < COUNTOF(fdata); ++i) {
 		struct timeval a = timeval_init(1, fdata[i].usec);
 		l_fp E = l_fp_init(1, fdata[i].frac);
 		l_fp r;
 
 		r = tval_intv_to_lfp(a);
-		TEST_ASSERT_TRUE(AssertFpClose(E,r,lfpClose)); //ASSERT_PRED_FORMAT2(FpClose, E, r);
+		TEST_ASSERT_TRUE(AssertFpClose(E, r, lfpClose));
 	}
 }
 
-void test_ToLFPrelNeg() {
-	l_fp lfpClose =  l_fp_init(0,1);
+
+void
+test_ToLFPrelNeg(void) {
+	l_fp lfpClose =  l_fp_init(0, 1);
 	int i = 0;
-	for (i = 0; i < COUNTOF(fdata); i++) {
+	for (i = 0; i < COUNTOF(fdata); ++i) {
 		struct timeval a = timeval_init(-1, fdata[i].usec);
 		l_fp E = l_fp_init(~0, fdata[i].frac);
 		l_fp    r;
 
 		r = tval_intv_to_lfp(a);
-		TEST_ASSERT_TRUE(AssertFpClose(E,r,lfpClose)); //ASSERT_PRED_FORMAT2(FpClose,E, r);
+		TEST_ASSERT_TRUE(AssertFpClose(E, r, lfpClose));
 	}
 }
 
-void test_ToLFPabs() {
-	l_fp lfpClose =  l_fp_init(0,1);
+
+void
+test_ToLFPabs(void) {
+	l_fp lfpClose =  l_fp_init(0, 1);
 
 	int i = 0;
-	for (i = 0; i < COUNTOF(fdata); i++) {
+	for (i = 0; i < COUNTOF(fdata); ++i) {
 		struct timeval a = timeval_init(1, fdata[i].usec);
 		l_fp E = l_fp_init(1 + JAN_1970, fdata[i].frac);
 		l_fp    r;
 
 		r = tval_stamp_to_lfp(a);
-		TEST_ASSERT_TRUE(AssertFpClose(E,r,lfpClose)); //ASSERT_PRED_FORMAT2(FpClose, E, r);
+		TEST_ASSERT_TRUE(AssertFpClose(E, r, lfpClose));
 	}
 }
 
@@ -506,8 +580,9 @@ void test_ToLFPabs() {
 // conversion from l_fp
 //----------------------------------------------------------------------
 
-void test_FromLFPbittest() {
-	struct timeval timevalClose = timeval_init(0,1);
+void
+test_FromLFPbittest(void) {
+	struct timeval timevalClose = timeval_init(0, 1);
 	// Not *exactly* a bittest, because 2**32 tests would take a
 	// really long time even on very fast machines! So we do test
 	// every 1000 fractional units.
@@ -520,42 +595,48 @@ void test_FromLFPbittest() {
 		r = lfp_intv_to_tval(a);
 		// The conversion might be off by one microsecond when
 		// comparing to calculated value.
-		TEST_ASSERT_TRUE(AssertTimevalClose(E,r,timevalClose)); //ASSERT_PRED_FORMAT2(TimevalClose, E, r);
+		TEST_ASSERT_TRUE(AssertTimevalClose(E, r, timevalClose));
 	}
 }
 
-void test_FromLFPrelPos() {
-	struct timeval timevalClose = timeval_init(0,1);
+
+void
+test_FromLFPrelPos(void) {
+	struct timeval timevalClose = timeval_init(0, 1);
 	int i = 0;	
-	for (i = 0; i < COUNTOF(fdata); i++) {
+	for (i = 0; i < COUNTOF(fdata); ++i) {
 		l_fp a = l_fp_init(1, fdata[i].frac);
 		struct timeval E = timeval_init(1, fdata[i].usec);
 		struct timeval r;
 
 		r = lfp_intv_to_tval(a);
-		TEST_ASSERT_TRUE(AssertTimevalClose(E,r,timevalClose)); //ASSERT_PRED_FORMAT2(TimevalClose, E, r);
+		TEST_ASSERT_TRUE(AssertTimevalClose(E, r, timevalClose));
 	}
 }
 
-void test_FromLFPrelNeg() {
-	struct timeval timevalClose = timeval_init(0,1);
+
+void
+test_FromLFPrelNeg(void) {
+	struct timeval timevalClose = timeval_init(0, 1);
 	int i = 0;
-	for (i = 0; i < COUNTOF(fdata); i++) {
+	for (i = 0; i < COUNTOF(fdata); ++i) {
 		l_fp a = l_fp_init(~0, fdata[i].frac);
 		struct timeval E = timeval_init(-1, fdata[i].usec);
 		struct timeval r;
 
 		r = lfp_intv_to_tval(a);
-		TEST_ASSERT_TRUE(AssertTimevalClose(E,r,timevalClose)); //ASSERT_PRED_FORMAT2(TimevalClose, E, r);
+		TEST_ASSERT_TRUE(AssertTimevalClose(E, r, timevalClose));
 	}
 }
 
+
 // usec -> frac -> usec roundtrip, using a prime start and increment
-void test_LFProundtrip() {
+void
+test_LFProundtrip(void) {
 	int32_t t = -1;
 	u_int32 i = 5;
 	for (t = -1; t < 2; ++t)
-		for (i = 5; i < 1000000; i+=11) {
+		for (i = 5; i < 1000000; i += 11) {
 			struct timeval E = timeval_init(t, i);
 			l_fp a;
 			struct timeval r;
@@ -570,7 +651,8 @@ void test_LFProundtrip() {
 // string formatting
 //----------------------------------------------------------------------
 
-void test_ToString() {
+void
+test_ToString(void) {
 	static const struct {
 		time_t	     sec;
 		long	     usec;
@@ -588,7 +670,7 @@ void test_ToString() {
 	int i;
 	for (i = 0; i < COUNTOF(data); ++i) {
 		struct timeval a = timeval_init(data[i].sec, data[i].usec);
-		const char *  E = data[i].repr; //??
+		const char *  E = data[i].repr;
 		const char *  r = tvaltoa(a);
 
 		TEST_ASSERT_EQUAL_STRING(E, r);

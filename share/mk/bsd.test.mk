@@ -10,9 +10,11 @@
 
 __<bsd.test.mk>__:
 
-.ifndef TESTSDIR
-.error "Please define TESTSDIR when including bsd.test.mk"
-.endif
+# Third-party software (kyua, etc) prefix.
+LOCALBASE?=	/usr/local
+
+# Tests install directory
+TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
 
 # List of subdirectories containing tests into which to recurse.  This has the
 # same semantics as SUBDIR at build-time.  However, the directories listed here
@@ -89,10 +91,6 @@ test: beforetest realtest
 .if target(aftertest)
 .ORDER: realtest aftertest
 test: aftertest
-.endif
-
-.if !empty(SUBDIR)
-.include <bsd.subdir.mk>
 .endif
 
 .ifdef PROG

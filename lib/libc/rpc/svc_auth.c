@@ -95,9 +95,7 @@ struct svc_auth_ops svc_auth_null_ops;
  * invalid.
  */
 enum auth_stat
-_authenticate(rqst, msg)
-	struct svc_req *rqst;
-	struct rpc_msg *msg;
+_authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 {
 	int cred_flavor;
 	struct authsvc *asp;

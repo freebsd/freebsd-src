@@ -7,27 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBBroadcaster.h
-//
-// Overview:    CMICmnLLDBBroadcaster interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
-#include <lldb/API/SBBroadcaster.h>
+#include "lldb/API/SBBroadcaster.h"
 #include "MICmnBase.h"
 #include "MIUtilSingletonBase.h"
 
 //++ ============================================================================
-// Details: MI derived class from LLDB SBBroardcaster API.
+// Details: MI derived class from LLDB SBBroadcaster API.
 //
 //          *** This class (files) is a place holder until we know we need it or
 //          *** not
@@ -43,8 +31,8 @@ class CMICmnLLDBBroadcaster : public CMICmnBase, public lldb::SBBroadcaster, pub
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
     // Methods:
   private:
     /* ctor */ CMICmnLLDBBroadcaster(void);
@@ -54,5 +42,5 @@ class CMICmnLLDBBroadcaster : public CMICmnBase, public lldb::SBBroadcaster, pub
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnLLDBBroadcaster(void);
+    /* dtor */ ~CMICmnLLDBBroadcaster(void) override;
 };

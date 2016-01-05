@@ -9,8 +9,6 @@
 #ifndef WPA_COMMON_H
 #define WPA_COMMON_H
 
-#define WPA_MAX_SSID_LEN 32
-
 /* IEEE 802.11i */
 #define PMKID_LEN 16
 #define PMK_LEN 32
@@ -24,8 +22,8 @@
 (WPA_CIPHER_CCMP | WPA_CIPHER_GCMP | WPA_CIPHER_TKIP | WPA_CIPHER_NONE | \
 WPA_CIPHER_GCMP_256 | WPA_CIPHER_CCMP_256)
 #define WPA_ALLOWED_GROUP_CIPHERS \
-(WPA_CIPHER_CCMP | WPA_CIPHER_GCMP | WPA_CIPHER_TKIP | WPA_CIPHER_WEP104 | \
-WPA_CIPHER_WEP40 | WPA_CIPHER_GCMP_256 | WPA_CIPHER_CCMP_256 | \
+(WPA_CIPHER_CCMP | WPA_CIPHER_GCMP | WPA_CIPHER_TKIP | \
+WPA_CIPHER_GCMP_256 | WPA_CIPHER_CCMP_256 | \
 WPA_CIPHER_GTK_NOT_USED)
 
 #define WPA_SELECTOR_LEN 4
@@ -42,13 +40,8 @@ WPA_CIPHER_GTK_NOT_USED)
 #define WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X RSN_SELECTOR(0x00, 0x50, 0xf2, 2)
 #define WPA_AUTH_KEY_MGMT_CCKM RSN_SELECTOR(0x00, 0x40, 0x96, 0)
 #define WPA_CIPHER_SUITE_NONE RSN_SELECTOR(0x00, 0x50, 0xf2, 0)
-#define WPA_CIPHER_SUITE_WEP40 RSN_SELECTOR(0x00, 0x50, 0xf2, 1)
 #define WPA_CIPHER_SUITE_TKIP RSN_SELECTOR(0x00, 0x50, 0xf2, 2)
-#if 0
-#define WPA_CIPHER_SUITE_WRAP RSN_SELECTOR(0x00, 0x50, 0xf2, 3)
-#endif
 #define WPA_CIPHER_SUITE_CCMP RSN_SELECTOR(0x00, 0x50, 0xf2, 4)
-#define WPA_CIPHER_SUITE_WEP104 RSN_SELECTOR(0x00, 0x50, 0xf2, 5)
 
 
 #define RSN_AUTH_KEY_MGMT_UNSPEC_802_1X RSN_SELECTOR(0x00, 0x0f, 0xac, 1)
@@ -70,13 +63,11 @@ RSN_SELECTOR(0x00, 0x0f, 0xac, 13)
 #define RSN_AUTH_KEY_MGMT_OSEN RSN_SELECTOR(0x50, 0x6f, 0x9a, 0x01)
 
 #define RSN_CIPHER_SUITE_NONE RSN_SELECTOR(0x00, 0x0f, 0xac, 0)
-#define RSN_CIPHER_SUITE_WEP40 RSN_SELECTOR(0x00, 0x0f, 0xac, 1)
 #define RSN_CIPHER_SUITE_TKIP RSN_SELECTOR(0x00, 0x0f, 0xac, 2)
 #if 0
 #define RSN_CIPHER_SUITE_WRAP RSN_SELECTOR(0x00, 0x0f, 0xac, 3)
 #endif
 #define RSN_CIPHER_SUITE_CCMP RSN_SELECTOR(0x00, 0x0f, 0xac, 4)
-#define RSN_CIPHER_SUITE_WEP104 RSN_SELECTOR(0x00, 0x0f, 0xac, 5)
 #define RSN_CIPHER_SUITE_AES_128_CMAC RSN_SELECTOR(0x00, 0x0f, 0xac, 6)
 #define RSN_CIPHER_SUITE_NO_GROUP_ADDRESSED RSN_SELECTOR(0x00, 0x0f, 0xac, 7)
 #define RSN_CIPHER_SUITE_GCMP RSN_SELECTOR(0x00, 0x0f, 0xac, 8)
@@ -308,7 +299,6 @@ struct wpa_igtk_kde {
 } STRUCT_PACKED;
 #endif /* CONFIG_IEEE80211W */
 
-#ifdef CONFIG_IEEE80211R
 struct rsn_mdie {
 	u8 mobility_domain[MOBILITY_DOMAIN_ID_LEN];
 	u8 ft_capab;
@@ -336,7 +326,6 @@ struct rsn_rdie {
 	le16 status_code;
 } STRUCT_PACKED;
 
-#endif /* CONFIG_IEEE80211R */
 
 #ifdef _MSC_VER
 #pragma pack(pop)
@@ -446,6 +435,7 @@ int wpa_ft_parse_ies(const u8 *ies, size_t ies_len, struct wpa_ft_ies *parse);
 int wpa_cipher_key_len(int cipher);
 int wpa_cipher_rsc_len(int cipher);
 int wpa_cipher_to_alg(int cipher);
+int wpa_cipher_valid_group(int cipher);
 int wpa_cipher_valid_pairwise(int cipher);
 int wpa_cipher_valid_mgmt_group(int cipher);
 u32 wpa_cipher_to_suite(int proto, int cipher);

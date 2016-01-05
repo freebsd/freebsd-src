@@ -5,7 +5,6 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/libc++ \
-	lib/msun \
 	usr.bin/clang/clang-tblgen.host \
 
 
@@ -13,16 +12,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-lldb.o: AttrList.inc.h
-lldb.o: Attrs.inc.h
-lldb.o: CommentCommandList.inc.h
-lldb.o: DeclNodes.inc.h
-lldb.o: DiagnosticCommonKinds.inc.h
-lldb.o: StmtNodes.inc.h
-lldb.po: AttrList.inc.h
-lldb.po: Attrs.inc.h
-lldb.po: CommentCommandList.inc.h
-lldb.po: DeclNodes.inc.h
-lldb.po: DiagnosticCommonKinds.inc.h
-lldb.po: StmtNodes.inc.h
 .endif

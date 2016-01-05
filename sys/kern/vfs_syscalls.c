@@ -435,6 +435,8 @@ sys_getfsstat(td, uap)
 	size_t count;
 	int error;
 
+	if (uap->bufsize < 0 || uap->bufsize > SIZE_MAX)
+		return (EINVAL);
 	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
 	    UIO_USERSPACE, uap->flags);
 	if (error == 0)
@@ -625,13 +627,18 @@ freebsd4_getfsstat(td, uap)
 	size_t count, size;
 	int error;
 
+	if (uap->bufsize < 0)
+		return (EINVAL);
 	count = uap->bufsize / sizeof(struct ostatfs);
+	if (count > SIZE_MAX / sizeof(struct statfs))
+		return (EINVAL);
 	size = count * sizeof(struct statfs);
 	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE,
 	    uap->flags);
-	if (size > 0) {
+	td->td_retval[0] = count;
+	if (size != 0) {
 		sp = buf;
-		while (count > 0 && error == 0) {
+		while (count != 0 && error == 0) {
 			cvtstatfs(sp, &osb);
 			error = copyout(&osb, uap->buf, sizeof(osb));
 			sp++;
@@ -640,8 +647,6 @@ freebsd4_getfsstat(td, uap)
 		}
 		free(buf, M_TEMP);
 	}
-	if (error == 0)
-		td->td_retval[0] = count;
 	return (error);
 }
 
@@ -2160,9 +2165,9 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 		return (error);
 	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	if (error == 0) {
-		SDT_PROBE(vfs, , stat, mode, path, sb.st_mode, 0, 0, 0);
+		SDT_PROBE2(vfs, , stat, mode, path, sb.st_mode);
 		if (S_ISREG(sb.st_mode))
-			SDT_PROBE(vfs, , stat, reg, path, pathseg, 0, 0, 0);
+			SDT_PROBE2(vfs, , stat, reg, path, pathseg);
 		if (__predict_false(hook != NULL))
 			hook(nd.ni_vp, &sb);
 	}
@@ -4610,8 +4615,6 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 			new->fa_advice = advice;
 			new->fa_start = offset;
 			new->fa_end = end;
-			new->fa_prevstart = 0;
-			new->fa_prevend = 0;
 			fp->f_advice = new;
 			new = fa;
 		}

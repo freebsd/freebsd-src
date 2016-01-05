@@ -614,6 +614,15 @@ int crypto_bignum_is_zero(const struct crypto_bignum *a);
 int crypto_bignum_is_one(const struct crypto_bignum *a);
 
 /**
+ * crypto_bignum_legendre - Compute the Legendre symbol (a/p)
+ * @a: Bignum
+ * @p: Bignum
+ * Returns: Legendre symbol -1,0,1 on success; -2 on calculation failure
+ */
+int crypto_bignum_legendre(const struct crypto_bignum *a,
+			   const struct crypto_bignum *p);
+
+/**
  * struct crypto_ec - Elliptic curve context
  *
  * Internal data structure for EC implementation. The contents is specific
@@ -758,6 +767,16 @@ int crypto_ec_point_solve_y_coord(struct crypto_ec *e,
 				  const struct crypto_bignum *x, int y_bit);
 
 /**
+ * crypto_ec_point_compute_y_sqr - Compute y^2 = x^3 + ax + b
+ * @e: EC context from crypto_ec_init()
+ * @x: x coordinate
+ * Returns: y^2 on success, %NULL failure
+ */
+struct crypto_bignum *
+crypto_ec_point_compute_y_sqr(struct crypto_ec *e,
+			      const struct crypto_bignum *x);
+
+/**
  * crypto_ec_point_is_at_infinity - Check whether EC point is neutral element
  * @e: EC context from crypto_ec_init()
  * @p: EC point
@@ -775,5 +794,16 @@ int crypto_ec_point_is_at_infinity(struct crypto_ec *e,
  */
 int crypto_ec_point_is_on_curve(struct crypto_ec *e,
 				const struct crypto_ec_point *p);
+
+/**
+ * crypto_ec_point_cmp - Compare two EC points
+ * @e: EC context from crypto_ec_init()
+ * @a: EC point
+ * @b: EC point
+ * Returns: 0 on equal, non-zero otherwise
+ */
+int crypto_ec_point_cmp(const struct crypto_ec *e,
+			const struct crypto_ec_point *a,
+			const struct crypto_ec_point *b);
 
 #endif /* CRYPTO_H */

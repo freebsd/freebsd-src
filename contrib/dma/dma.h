@@ -1,8 +1,9 @@
 /*
+ * Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de> and
+ * by Simon Schubert <2@0x2c.org> and
  * Matthias Schmidt <matthias@dragonflybsd.org>.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +44,7 @@
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
 #include <netdb.h>
+#include <sysexits.h>
 
 #define VERSION	"DragonFly Mail Agent " DMA_VERSION
 
@@ -173,6 +175,8 @@ extern char errmsg[ERRMSG_SIZE];
 
 /* aliases_parse.y */
 int yyparse(void);
+int yywrap(void);
+int yylex(void);
 extern FILE *yyin;
 
 /* conf.c */

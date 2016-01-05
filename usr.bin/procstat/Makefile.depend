@@ -13,7 +13,9 @@ DIRDEPS = \
 	lib/libelf \
 	lib/libkvm \
 	lib/libprocstat \
+	lib/libsbuf \
 	lib/libutil \
+	lib/libxo \
 
 
 .include <dirdeps.mk>

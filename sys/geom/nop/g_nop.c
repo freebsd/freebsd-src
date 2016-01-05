@@ -119,6 +119,24 @@ g_nop_start(struct bio *bp)
 		sc->sc_wrotebytes += bp->bio_length;
 		failprob = sc->sc_wfailprob;
 		break;
+	case BIO_DELETE:
+		sc->sc_deletes++;
+		break;
+	case BIO_GETATTR:
+		sc->sc_getattrs++;
+		break;
+	case BIO_FLUSH:
+		sc->sc_flushes++;
+		break;
+	case BIO_CMD0:
+		sc->sc_cmd0s++;
+		break;
+	case BIO_CMD1:
+		sc->sc_cmd1s++;
+		break;
+	case BIO_CMD2:
+		sc->sc_cmd2s++;
+		break;
 	}
 	mtx_unlock(&sc->sc_lock);
 	if (failprob > 0) {
@@ -162,7 +180,7 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
     int ioerror, u_int rfailprob, u_int wfailprob, off_t offset, off_t size,
-    u_int secsize)
+    u_int secsize, u_int stripesize, u_int stripeoffset)
 {
 	struct g_nop_softc *sc;
 	struct g_geom *gp;
@@ -208,6 +226,18 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		return (EINVAL);
 	}
 	size -= size % secsize;
+	if ((stripesize % pp->sectorsize) != 0) {
+		gctl_error(req, "Invalid stripesize for provider %s.", pp->name);
+		return (EINVAL);
+	}
+	if ((stripeoffset % pp->sectorsize) != 0) {
+		gctl_error(req, "Invalid stripeoffset for provider %s.", pp->name);
+		return (EINVAL);
+	}
+	if (stripesize != 0 && stripeoffset >= stripesize) {
+		gctl_error(req, "stripeoffset is too big.");
+		return (EINVAL);
+	}
 	snprintf(name, sizeof(name), "%s%s", pp->name, G_NOP_SUFFIX);
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0) {
@@ -219,11 +249,19 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_offset = offset;
 	sc->sc_explicitsize = explicitsize;
+	sc->sc_stripesize = stripesize;
+	sc->sc_stripeoffset = stripeoffset;
 	sc->sc_error = ioerror;
 	sc->sc_rfailprob = rfailprob;
 	sc->sc_wfailprob = wfailprob;
 	sc->sc_reads = 0;
 	sc->sc_writes = 0;
+	sc->sc_deletes = 0;
+	sc->sc_getattrs = 0;
+	sc->sc_flushes = 0;
+	sc->sc_cmd0s = 0;
+	sc->sc_cmd1s = 0;
+	sc->sc_cmd2s = 0;
 	sc->sc_readbytes = 0;
 	sc->sc_wrotebytes = 0;
 	mtx_init(&sc->sc_lock, "gnop lock", NULL, MTX_DEF);
@@ -238,6 +276,8 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
+	newpp->stripesize = stripesize;
+	newpp->stripeoffset = stripeoffset;
 
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
@@ -304,7 +344,8 @@ static void
 g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
-	intmax_t *error, *rfailprob, *wfailprob, *offset, *secsize, *size;
+	intmax_t *error, *rfailprob, *wfailprob, *offset, *secsize, *size,
+	    *stripesize, *stripeoffset;
 	const char *name;
 	char param[16];
 	int i, *nargs;
@@ -370,6 +411,24 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Invalid '%s' argument", "secsize");
 		return;
 	}
+	stripesize = gctl_get_paraml(req, "stripesize", sizeof(*stripesize));
+	if (stripesize == NULL) {
+		gctl_error(req, "No '%s' argument", "stripesize");
+		return;
+	}
+	if (*stripesize < 0) {
+		gctl_error(req, "Invalid '%s' argument", "stripesize");
+		return;
+	}
+	stripeoffset = gctl_get_paraml(req, "stripeoffset", sizeof(*stripeoffset));
+	if (stripeoffset == NULL) {
+		gctl_error(req, "No '%s' argument", "stripeoffset");
+		return;
+	}
+	if (*stripeoffset < 0) {
+		gctl_error(req, "Invalid '%s' argument", "stripeoffset");
+		return;
+	}
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
@@ -390,7 +449,8 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		    *error == -1 ? EIO : (int)*error,
 		    *rfailprob == -1 ? 0 : (u_int)*rfailprob,
 		    *wfailprob == -1 ? 0 : (u_int)*wfailprob,
-		    (off_t)*offset, (off_t)*size, (u_int)*secsize) != 0) {
+		    (off_t)*offset, (off_t)*size, (u_int)*secsize,
+		    (u_int)*stripesize, (u_int)*stripeoffset) != 0) {
 			return;
 		}
 	}
@@ -566,6 +626,12 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 		sc = pp->geom->softc;
 		sc->sc_reads = 0;
 		sc->sc_writes = 0;
+		sc->sc_deletes = 0;
+		sc->sc_getattrs = 0;
+		sc->sc_flushes = 0;
+		sc->sc_cmd0s = 0;
+		sc->sc_cmd1s = 0;
+		sc->sc_cmd2s = 0;
 		sc->sc_readbytes = 0;
 		sc->sc_wrotebytes = 0;
 	}
@@ -623,6 +689,12 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<Error>%d</Error>\n", indent, sc->sc_error);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
+	sbuf_printf(sb, "%s<Deletes>%ju</Deletes>\n", indent, sc->sc_deletes);
+	sbuf_printf(sb, "%s<Getattrs>%ju</Getattrs>\n", indent, sc->sc_getattrs);
+	sbuf_printf(sb, "%s<Flushes>%ju</Flushes>\n", indent, sc->sc_flushes);
+	sbuf_printf(sb, "%s<Cmd0s>%ju</Cmd0s>\n", indent, sc->sc_cmd0s);
+	sbuf_printf(sb, "%s<Cmd1s>%ju</Cmd1s>\n", indent, sc->sc_cmd1s);
+	sbuf_printf(sb, "%s<Cmd2s>%ju</Cmd2s>\n", indent, sc->sc_cmd2s);
 	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
 	    sc->sc_readbytes);
 	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,

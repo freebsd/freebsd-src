@@ -178,6 +178,7 @@ run_customize
 setup_nanobsd
 prune_usr
 run_late_customize
+fixup_before_diskimage
 if $do_image ; then
 	create_diskimage
 else

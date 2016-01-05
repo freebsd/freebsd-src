@@ -2,10 +2,15 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/gen
-
-ATF_TESTS_C=		arc4random_test
+ATF_TESTS_C+=		arc4random_test
+ATF_TESTS_C+=		fmtcheck2_test
+ATF_TESTS_C+=		fmtmsg_test
+ATF_TESTS_C+=		fnmatch2_test
 ATF_TESTS_C+=		fpclassify2_test
+ATF_TESTS_C+=		ftw_test
+ATF_TESTS_C+=		popen_test
+ATF_TESTS_C+=		posix_spawn_test
+ATF_TESTS_C+=		wordexp_test
 
 # TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid, t_sleep
 # TODO: t_siginfo (fixes require further inspection)
@@ -40,22 +45,34 @@ NETBSD_ATF_TESTS_C+=	vis_test
 
 .include "../Makefile.netbsd-tests"
 
-LDADD.humanize_number_test+=	-lutil
-DPADD.humanize_number_test+=	${LIBUTIL}
+LIBADD.humanize_number_test+=	util
 
-LDADD.fpclassify_test+=	-lm
-DPADD.fpclassify_test+=	${LIBM}
-LDADD.fpsetround_test+=	-lm
-DPADD.fpsetround_test+=	${LIBM}
-LDADD.siginfo_test+=	-lm
-DPADD.siginfo_test+=	${LIBM}
+LIBADD.fpclassify_test+=m
+LIBADD.fpsetround_test+=m
+LIBADD.siginfo_test+=	m
 
-LDADD.nice_test+=	-lpthread
-DPADD.nice_test+=	${LIBPTHREAD}
-LDADD.syslog_test+=	-lpthread
-DPADD.syslog_test+=	${LIBPTHREAD}
+LIBADD.nice_test+=	pthread
+LIBADD.syslog_test+=	pthread
+
+CFLAGS+=		-I${.CURDIR}
+
+SRCS.fmtcheck2_test=	fmtcheck_test.c
+SRCS.fnmatch2_test=	fnmatch_test.c
 
 TESTS_SUBDIRS=	execve
 TESTS_SUBDIRS+=	posix_spawn
+
+# The old testcase name
+TEST_FNMATCH=	test-fnmatch
+CLEANFILES+=		${GEN_SH_CASE_TESTCASES}
+sh-tests: .PHONY
+.for target in clean obj depend all
+	@cd ${.CURDIR} && ${MAKE} PROG=${TEST_FNMATCH} \
+	    -DNO_SUBDIR ${target}
+.endfor
+	@cd ${.OBJDIR} && ./${TEST_FNMATCH} -s 1 > \
+	    ${SRCTOP}/bin/sh/tests/builtins/case2.0
+	@cd ${.OBJDIR} && ./${TEST_FNMATCH} -s 2 > \
+	    ${SRCTOP}/bin/sh/tests/builtins/case3.0
 
 .include <bsd.test.mk>

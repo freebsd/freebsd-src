@@ -16,6 +16,7 @@
 #define LLVM_TRANSFORMS_UTILS_LOCAL_H
 
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Operator.h"
@@ -31,7 +32,6 @@ class DbgDeclareInst;
 class StoreInst;
 class LoadInst;
 class Value;
-class Pass;
 class PHINode;
 class AllocaInst;
 class AssumptionCache;
@@ -89,7 +89,7 @@ bool RecursivelyDeleteDeadPHINode(PHINode *PN,
 ///
 /// This returns true if it changed the code, note that it can delete
 /// instructions in other blocks as well in this block.
-bool SimplifyInstructionsInBlock(BasicBlock *BB, const DataLayout *TD = nullptr,
+bool SimplifyInstructionsInBlock(BasicBlock *BB,
                                  const TargetLibraryInfo *TLI = nullptr);
 
 //===----------------------------------------------------------------------===//
@@ -107,15 +107,14 @@ bool SimplifyInstructionsInBlock(BasicBlock *BB, const DataLayout *TD = nullptr,
 ///
 /// .. and delete the predecessor corresponding to the '1', this will attempt to
 /// recursively fold the 'and' to 0.
-void RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred,
-                                  DataLayout *TD = nullptr);
+void RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred);
 
 /// MergeBasicBlockIntoOnlyPred - BB is a block with one predecessor and its
 /// predecessor is known to have one successor (BB!).  Eliminate the edge
 /// between them, moving the instructions in the predecessor into BB.  This
 /// deletes the predecessor block.
 ///
-void MergeBasicBlockIntoOnlyPred(BasicBlock *BB, Pass *P = nullptr);
+void MergeBasicBlockIntoOnlyPred(BasicBlock *BB, DominatorTree *DT = nullptr);
 
 /// TryToSimplifyUncondBranchFromEmptyBlock - BB is known to contain an
 /// unconditional branch, and contains no instructions other than PHI nodes,
@@ -138,8 +137,7 @@ bool EliminateDuplicatePHINodes(BasicBlock *BB);
 /// the basic block that was pointed to.
 ///
 bool SimplifyCFG(BasicBlock *BB, const TargetTransformInfo &TTI,
-                 unsigned BonusInstThreshold, const DataLayout *TD = nullptr,
-                 AssumptionCache *AC = nullptr);
+                 unsigned BonusInstThreshold, AssumptionCache *AC = nullptr);
 
 /// FlatternCFG - This function is used to flatten a CFG.  For
 /// example, it uses parallel-and and parallel-or mode to collapse
@@ -151,8 +149,7 @@ bool FlattenCFG(BasicBlock *BB, AliasAnalysis *AA = nullptr);
 /// and if a predecessor branches to us and one of our successors, fold the
 /// setcc into the predecessor and use logical operations to pick the right
 /// destination.
-bool FoldBranchToCommonDest(BranchInst *BI, const DataLayout *DL = nullptr,
-                            unsigned BonusInstThreshold = 1);
+bool FoldBranchToCommonDest(BranchInst *BI, unsigned BonusInstThreshold = 1);
 
 /// DemoteRegToStack - This function takes a virtual register computed by an
 /// Instruction and replaces it with a slot in the stack frame, allocated via
@@ -174,18 +171,17 @@ AllocaInst *DemotePHIToStack(PHINode *P, Instruction *AllocaPoint = nullptr);
 /// and it is more than the alignment of the ultimate object, see if we can
 /// increase the alignment of the ultimate object, making this check succeed.
 unsigned getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
-                                    const DataLayout *TD = nullptr,
-                                    AssumptionCache *AC = nullptr,
+                                    const DataLayout &DL,
                                     const Instruction *CxtI = nullptr,
+                                    AssumptionCache *AC = nullptr,
                                     const DominatorTree *DT = nullptr);
 
 /// getKnownAlignment - Try to infer an alignment for the specified pointer.
-static inline unsigned getKnownAlignment(Value *V,
-                                         const DataLayout *TD = nullptr,
-                                         AssumptionCache *AC = nullptr,
+static inline unsigned getKnownAlignment(Value *V, const DataLayout &DL,
                                          const Instruction *CxtI = nullptr,
+                                         AssumptionCache *AC = nullptr,
                                          const DominatorTree *DT = nullptr) {
-  return getOrEnforceKnownAlignment(V, 0, TD, AC, CxtI, DT);
+  return getOrEnforceKnownAlignment(V, 0, DL, CxtI, AC, DT);
 }
 
 /// EmitGEPOffset - Given a getelementptr instruction/constantexpr, emit the
@@ -193,11 +189,11 @@ static inline unsigned getKnownAlignment(Value *V,
 /// in the base pointer).  Return the result as a signed integer of intptr size.
 /// When NoAssumptions is true, no assumptions about index computation not
 /// overflowing is made.
-template<typename IRBuilderTy>
-Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &TD, User *GEP,
+template <typename IRBuilderTy>
+Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &DL, User *GEP,
                      bool NoAssumptions = false) {
   GEPOperator *GEPOp = cast<GEPOperator>(GEP);
-  Type *IntPtrTy = TD.getIntPtrType(GEP->getType());
+  Type *IntPtrTy = DL.getIntPtrType(GEP->getType());
   Value *Result = Constant::getNullValue(IntPtrTy);
 
   // If the GEP is inbounds, we know that none of the addressing operations will
@@ -212,7 +208,7 @@ Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &TD, User *GEP,
   for (User::op_iterator i = GEP->op_begin() + 1, e = GEP->op_end(); i != e;
        ++i, ++GTI) {
     Value *Op = *i;
-    uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType()) & PtrSizeMask;
+    uint64_t Size = DL.getTypeAllocSize(GTI.getIndexedType()) & PtrSizeMask;
     if (Constant *OpC = dyn_cast<Constant>(Op)) {
       if (OpC->isZeroValue())
         continue;
@@ -223,7 +219,7 @@ Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &TD, User *GEP,
           OpC = OpC->getSplatValue();
 
         uint64_t OpValue = cast<ConstantInt>(OpC)->getZExtValue();
-        Size = TD.getStructLayout(STy)->getElementOffset(OpValue);
+        Size = DL.getStructLayout(STy)->getElementOffset(OpValue);
 
         if (Size)
           Result = Builder->CreateAdd(Result, ConstantInt::get(IntPtrTy, Size),
@@ -275,10 +271,11 @@ bool LowerDbgDeclare(Function &F);
 /// an alloca, if any.
 DbgDeclareInst *FindAllocaDbgDeclare(Value *V);
 
-/// replaceDbgDeclareForAlloca - Replaces llvm.dbg.declare instruction when
-/// alloca is replaced with a new value.
+/// \brief Replaces llvm.dbg.declare instruction when an alloca is replaced with
+/// a new value.  If Deref is true, tan additional DW_OP_deref is prepended to
+/// the expression.
 bool replaceDbgDeclareForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
-                                DIBuilder &Builder);
+                                DIBuilder &Builder, bool Deref);
 
 /// \brief Remove all blocks that can not be reached from the function's entry.
 ///
@@ -290,6 +287,10 @@ bool removeUnreachableBlocks(Function &F);
 /// Metadata not listed as known via KnownIDs is removed
 void combineMetadata(Instruction *K, const Instruction *J, ArrayRef<unsigned> KnownIDs);
 
+/// \brief Replace each use of 'From' with 'To' if that use is dominated by 
+/// the given edge.  Returns the number of replacements made.
+unsigned replaceDominatedUsesWith(Value *From, Value *To, DominatorTree &DT,
+                                  const BasicBlockEdge &Edge);
 } // End llvm namespace
 
 #endif

@@ -1,4 +1,4 @@
-.TH "unbound-checkconf" "8" "Mar 10, 2015" "NLnet Labs" "unbound 1.5.3"
+.TH "unbound-checkconf" "8" "Dec 10, 2015" "NLnet Labs" "unbound 1.5.7"
 .\"
 .\" unbound-checkconf.8 -- unbound configuration checker manual
 .\"
@@ -31,7 +31,7 @@ The available options are:
 Show the version and commandline option help.
 .TP
 .B \-f
-Print full pathname, with chroot applied to it.  Use with the -o option.
+Print full pathname, with chroot applied to it.  Use with the \-o option.
 .TP
 .B \-o\fI option
 If given, after checking the config file the value of this option is 

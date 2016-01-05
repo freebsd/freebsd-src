@@ -18,14 +18,13 @@ SRCS=	ConstantPools.cpp \
 	MCCodeGenInfo.cpp \
 	MCContext.cpp \
 	MCDwarf.cpp \
-	MCELF.cpp \
 	MCELFObjectTargetWriter.cpp \
 	MCELFStreamer.cpp \
 	MCExpr.cpp \
 	MCInst.cpp \
 	MCInstPrinter.cpp \
 	MCInstrAnalysis.cpp \
-	MCLabel.cpp \
+	MCInstrDesc.cpp \
 	MCLinkerOptimizationHint.cpp \
 	MCMachOStreamer.cpp \
 	MCMachObjectTargetWriter.cpp \
@@ -34,6 +33,7 @@ SRCS=	ConstantPools.cpp \
 	MCObjectStreamer.cpp \
 	MCObjectWriter.cpp \
 	MCRegisterInfo.cpp \
+	MCSchedule.cpp \
 	MCSection.cpp \
 	MCSectionCOFF.cpp \
 	MCSectionELF.cpp \
@@ -41,7 +41,7 @@ SRCS=	ConstantPools.cpp \
 	MCStreamer.cpp \
 	MCSubtargetInfo.cpp \
 	MCSymbol.cpp \
-	MCSymbolizer.cpp \
+	MCSymbolELF.cpp \
 	MCTargetOptions.cpp \
 	MCValue.cpp \
 	MCWin64EH.cpp \
@@ -50,7 +50,15 @@ SRCS=	ConstantPools.cpp \
 	StringTableBuilder.cpp \
 	SubtargetFeature.cpp \
 	WinCOFFObjectWriter.cpp \
-	WinCOFFStreamer.cpp \
+	WinCOFFStreamer.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	MCLabel.cpp \
 	YAML.cpp
+.endif
+
+.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
+SRCS+=	MCSymbolizer.cpp
+.endif
 
 .include "../clang.lib.mk"

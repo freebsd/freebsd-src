@@ -26,6 +26,7 @@
 #
 # $FreeBSD$
 
+from __future__ import print_function
 import sys
 import re
 import random
@@ -142,7 +143,7 @@ class Colormap:
 			color = self.map[name]
 		except:
 			color = colors[random.randrange(0, len(colors))]
-			print "Picking random color", color, "for", name
+			print("Picking random color", color, "for", name)
 			self.map[name] = color
 			self.table.append((name, color))
 		return (color)
@@ -461,7 +462,7 @@ class SourceStats(Toplevel):
 			if (event.type == "pad"):
 				continue
 			duration = event.duration
-			if (eventtypes.has_key(event.name)):
+			if (event.name in eventtypes):
 				(c, d) = eventtypes[event.name]
 				c += 1
 				d += duration
@@ -736,9 +737,9 @@ class StateEvent(Event):
 		color = colormap.lookup(self.name)
 		if (duration < 0):
 			duration = 0
-			print "Unsynchronized timestamp"
-			print self.cpu, self.timestamp
-			print next.cpu, next.timestamp
+			print("Unsynchronized timestamp")
+			print(self.cpu, self.timestamp)
+			print(next.cpu, next.timestamp)
 		delta = duration / canvas.ratio
 		l = canvas.create_rectangle(xpos, ypos,
 		    xpos + delta, ypos - 10, fill=color, width=0,
@@ -762,9 +763,9 @@ class CountEvent(Event):
 		self.duration = duration = next.timestamp - self.timestamp
 		if (duration < 0):
 			duration = 0
-			print "Unsynchronized timestamp"
-			print self.cpu, self.timestamp
-			print next.cpu, next.timestamp
+			print("Unsynchronized timestamp")
+			print(self.cpu, self.timestamp)
+			print(next.cpu, next.timestamp)
 		self.attrs.insert(0, ("count", self.count))
 		self.attrs.insert(1, ("duration", ticks2sec(duration)))
 		delta = duration / canvas.ratio
@@ -941,7 +942,7 @@ class KTRFile:
 		try:
 			ifp = open(file)
 		except:
-			print "Can't open", file
+			print("Can't open", file)
 			sys.exit(1)
 
 		# quoteexp matches a quoted string, no escaping
@@ -989,14 +990,14 @@ class KTRFile:
 				status.startup("Parsing line " + str(lineno))
 			m = ktrre.match(line);
 			if (m == None):
-				print "Can't parse", lineno, line,
+				print("Can't parse", lineno, line, end=' ')
 				continue;
 			(index, cpu, timestamp, group, id, type, dat, dat1, attrstring) = m.groups();
 			if (dat == None):
 				dat = dat1
 			if (self.checkstamp(timestamp) == 0):
-				print "Bad timestamp at", lineno, ":",
-				print cpu, timestamp 
+				print("Bad timestamp at", lineno, ":", end=' ')
+				print(cpu, timestamp) 
 				continue
 			#
 			# Build the table of optional attributes
@@ -1032,7 +1033,7 @@ class KTRFile:
 			args = (dat, cpu, timestamp, attrs)
 			e = self.makeevent(group, id, type, args)
 			if (e == None):
-				print "Unknown type", type, lineno, line,
+				print("Unknown type", type, lineno, line, end=' ')
 
 	def makeevent(self, group, id, type, args):
 		e = None
@@ -1069,7 +1070,7 @@ class KTRFile:
 
 	def makeid(self, group, id, type):
 		tag = group + id
-		if (self.taghash.has_key(tag)):
+		if (tag in self.taghash):
 			return self.taghash[tag]
 		if (type == "counter"):
 			source = Counter(group, id)
@@ -1098,9 +1099,9 @@ class KTRFile:
 		if (self.stathz != 0):
 			return (self.timespan() / self.ticks[0]) * int(self.stathz)
 		# Pretend we have a 1ns clock
-		print "WARNING: No clock discovered and no frequency ",
-		print "specified via the command line."
-		print "Using fake 1ghz clock"
+		print("WARNING: No clock discovered and no frequency ", end=' ')
+		print("specified via the command line.")
+		print("Using fake 1ghz clock")
 		return (oneghz);
 
 	def fixup(self):
@@ -1624,7 +1625,7 @@ class SchedGraph(Frame):
 		return self.display.getstate(tag)
 
 if (len(sys.argv) != 2 and len(sys.argv) != 3):
-	print "usage:", sys.argv[0], "<ktr file> [clock freq in ghz]"
+	print("usage:", sys.argv[0], "<ktr file> [clock freq in ghz]")
 	sys.exit(1)
 
 if (len(sys.argv) > 2):

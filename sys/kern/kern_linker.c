@@ -70,6 +70,12 @@ SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RWTUN,
     &kld_debug, 0, "Set various levels of KLD debug");
 #endif
 
+/* These variables are used by kernel debuggers to enumerate loaded files. */
+const int kld_off_address = offsetof(struct linker_file, address);
+const int kld_off_filename = offsetof(struct linker_file, filename);
+const int kld_off_pathname = offsetof(struct linker_file, pathname);
+const int kld_off_next = offsetof(struct linker_file, link.tqe_next);
+
 /*
  * static char *linker_search_path(const char *name, struct mod_depend
  * *verinfo);
@@ -292,10 +298,10 @@ linker_file_register_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_xlock();
+	sysctl_wlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
-	sysctl_xunlock();
+	sysctl_wunlock();
 	sx_xlock(&kld_sx);
 }
 
@@ -313,10 +319,10 @@ linker_file_unregister_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_xlock();
+	sysctl_wlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
-	sysctl_xunlock();
+	sysctl_wunlock();
 	sx_xlock(&kld_sx);
 }
 
@@ -1403,7 +1409,7 @@ linker_addmodules(linker_file_t lf, struct mod_metadata **start,
 		if (mp->md_type != MDT_VERSION)
 			continue;
 		modname = mp->md_cval;
-		ver = ((struct mod_version *)mp->md_data)->mv_version;
+		ver = ((const struct mod_version *)mp->md_data)->mv_version;
 		if (modlist_lookup(modname, ver) != NULL) {
 			printf("module %s already present!\n", modname);
 			/* XXX what can we do? this is a build error. :-( */
@@ -1524,7 +1530,7 @@ restart:
 					if (mp->md_type != MDT_VERSION)
 						continue;
 					modname = mp->md_cval;
-					nver = ((struct mod_version *)
+					nver = ((const struct mod_version *)
 					    mp->md_data)->mv_version;
 					if (modlist_lookup(modname,
 					    nver) != NULL) {
@@ -2050,7 +2056,7 @@ linker_load_dependencies(linker_file_t lf)
 		if (mp->md_type != MDT_VERSION)
 			continue;
 		modname = mp->md_cval;
-		ver = ((struct mod_version *)mp->md_data)->mv_version;
+		ver = ((const struct mod_version *)mp->md_data)->mv_version;
 		mod = modlist_lookup(modname, ver);
 		if (mod != NULL) {
 			printf("interface %s.%d already present in the KLD"

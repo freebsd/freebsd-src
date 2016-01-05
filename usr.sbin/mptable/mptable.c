@@ -217,7 +217,8 @@ main( int argc, char *argv[] )
     apic_probe( &paddr, &where );
     if ( where <= 0 ) {
         fprintf( stderr, "\n MP FPS NOT found,\n" );
-        fprintf( stderr, " suggest trying -grope option!!!\n\n" );
+        if (!grope)
+            fprintf( stderr, " suggest trying -grope option!!!\n\n" );
         return 1;
     }
 

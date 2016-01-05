@@ -97,7 +97,6 @@ struct rt2560_rx_ring {
 
 struct rt2560_vap {
 	struct ieee80211vap	ral_vap;
-	struct ieee80211_beacon_offsets	ral_bo;
 
 	int			(*ral_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
@@ -147,10 +146,8 @@ struct rt2560_softc {
 	int			nb_ant;
 
 	struct rt2560_rx_radiotap_header sc_rxtap;
-	int			sc_rxtap_len;
-
 	struct rt2560_tx_radiotap_header sc_txtap;
-	int			sc_txtap_len;
+
 #define RT2560_F_INPUT_RUNNING	0x1
 #define RT2560_F_RUNNING	0x2
 	int			sc_flags;

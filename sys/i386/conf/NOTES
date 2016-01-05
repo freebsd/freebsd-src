@@ -989,7 +989,7 @@ options 	NKPT=31
 # ABI Emulation
 
 # Enable iBCS2 runtime support for SCO and ISC binaries
-options 	IBCS2
+#options 	IBCS2
 
 # Emulate spx device for client side of SVR3 local X interface
 options 	SPX_HACK

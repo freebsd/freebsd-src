@@ -125,7 +125,15 @@ struct mtx smp_ipi_mtx;
 static void
 mp_setmaxid(void *dummy)
 {
+
 	cpu_mp_setmaxid();
+
+	KASSERT(mp_ncpus >= 1, ("%s: CPU count < 1", __func__));
+	KASSERT(mp_ncpus > 1 || mp_maxid == 0,
+	    ("%s: one CPU but mp_maxid is not zero", __func__));
+	KASSERT(mp_maxid >= mp_ncpus - 1,
+	    ("%s: counters out of sync: max %d, count %d", __func__,
+		mp_maxid, mp_ncpus));
 }
 SYSINIT(cpu_mp_setmaxid, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_setmaxid, NULL);
 

@@ -18,3 +18,5 @@ END_COMPILERRT_FUNCTION(__aeabi_memmove)
 
 DEFINE_AEABI_FUNCTION_ALIAS(__aeabi_memmove4, __aeabi_memmove)
 DEFINE_AEABI_FUNCTION_ALIAS(__aeabi_memmove8, __aeabi_memmove)
+
+	.section .note.GNU-stack,"",%progbits

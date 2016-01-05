@@ -149,8 +149,4 @@
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
-#ifdef _KERNEL
-#define	NO_FUEWORD	1
-#endif
-
 #endif /* !_ARM_INCLUDE_PARAM_H_ */

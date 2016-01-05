@@ -215,6 +215,7 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_SHDR		0x0009		/* section header table */
 #define MODINFOMD_CTORS_ADDR	0x000a		/* address of .ctors */
 #define MODINFOMD_CTORS_SIZE	0x000b		/* size of .ctors */
+#define MODINFOMD_FW_HANDLE	0x000c		/* Firmware dependent handle */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
@@ -264,7 +265,7 @@ extern int kld_debug;
 
 #endif
 
-typedef Elf_Addr elf_lookup_fn(linker_file_t, Elf_Size, int);
+typedef int elf_lookup_fn(linker_file_t, Elf_Size, int, Elf_Addr *);
 
 /* Support functions */
 int	elf_reloc(linker_file_t _lf, Elf_Addr base, const void *_rel, int _type, elf_lookup_fn _lu);

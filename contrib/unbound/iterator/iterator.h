@@ -51,9 +51,10 @@ struct iter_forwards;
 struct iter_donotq;
 struct iter_prep_list;
 struct iter_priv;
+struct rbtree_t;
 
 /** max number of targets spawned for a query and its subqueries */
-#define MAX_TARGET_COUNT	32
+#define MAX_TARGET_COUNT	64
 /** max number of query restarts. Determines max number of CNAME chain. */
 #define MAX_RESTART_COUNT       8
 /** max number of referrals. Makes sure resolver does not run away */
@@ -96,6 +97,9 @@ struct iter_env {
 	/** private address space and private domains */
 	struct iter_priv* priv;
 
+	/** whitelist for capsforid names */
+	struct rbtree_t* caps_white;
+
 	/** The maximum dependency depth that this resolver will pursue. */
 	int max_dependency_depth;
 
@@ -108,6 +112,32 @@ struct iter_env {
 	 * array of max_dependency_depth+1 size.
 	 */
 	int* target_fetch_policy;
+
+	/** ip6.arpa dname in wireformat, used for qname-minimisation */
+	uint8_t* ip6arpa_dname;
+};
+
+/**
+ * QNAME minimisation state
+ */
+enum minimisation_state {
+	/**
+	 * (Re)start minimisation. Outgoing QNAME should be set to dp->name.
+	 * State entered on new query or after following refferal or CNAME.
+	 */
+	INIT_MINIMISE_STATE = 0,
+	/**
+	 * QNAME minimisataion ongoing. Increase QNAME on every iteration.
+	 */
+	MINIMISE_STATE,
+	/**
+	 * Don't increment QNAME this iteration
+	 */
+	SKIP_MINIMISE_STATE,
+	/**
+	 * Send out full QNAME + original QTYPE
+	 */
+	DONOT_MINIMISE_STATE,
 };
 
 /**
@@ -235,6 +265,7 @@ struct iter_qstate {
 	/** state for capsfail: stored query for comparisons. Can be NULL if
 	 * no response had been seen prior to starting the fallback. */
 	struct reply_info* caps_reply;
+	struct dns_msg* caps_response;
 
 	/** Current delegation message - returned for non-RD queries */
 	struct dns_msg* deleg_msg;
@@ -257,6 +288,9 @@ struct iter_qstate {
 	/** number of target queries spawned in [1], for this query and its
 	 * subqueries, the malloced-array is shared, [0] refcount. */
 	int* target_count;
+
+	/** if true, already tested for ratelimiting and passed the test */
+	int ratelimit_ok;
 
 	/**
 	 * The query must store NS records from referrals as parentside RRs
@@ -314,6 +348,15 @@ struct iter_qstate {
 
 	/** list of pending queries to authoritative servers. */
 	struct outbound_list outlist;
+
+	/** QNAME minimisation state */
+	enum minimisation_state minimisation_state;
+
+	/**
+	 * The query info that is sent upstream. Will be a subset of qchase
+	 * when qname minimisation is enabled.
+	 */
+	struct query_info qinfo_out;
 };
 
 /**

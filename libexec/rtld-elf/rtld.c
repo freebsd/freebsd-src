@@ -56,15 +56,10 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
+#include "paths.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
 #include "notes.h"
-
-#ifndef COMPAT_32BIT
-#define PATH_RTLD	"/libexec/ld-elf.so.1"
-#else
-#define PATH_RTLD	"/libexec/ld-elf32.so.1"
-#endif
 
 /* Types. */
 typedef void (*func_ptr_type)();
@@ -260,6 +255,15 @@ int tls_max_index = 1;		/* Largest module index allocated */
 bool ld_library_path_rpath = false;
 
 /*
+ * Globals for path names, and such
+ */
+char *ld_elf_hints_default = _PATH_ELF_HINTS;
+char *ld_path_libmap_conf = _PATH_LIBMAP_CONF;
+char *ld_path_rtld = _PATH_RTLD;
+char *ld_standard_library_path = STANDARD_LIBRARY_PATH;
+char *ld_env_prefix = LD_;
+
+/*
  * Fill in a DoneList with an allocation large enough to hold all of
  * the currently-loaded objects.  Keep this as a macro since it calls
  * alloca and we want that to occur within the scope of the caller.
@@ -318,6 +322,24 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 		strlcpy(ut.name, name, sizeof(ut.name));
 	utrace(&ut, sizeof(ut));
 }
+
+#ifdef RTLD_VARIANT_ENV_NAMES
+/*
+ * construct the env variable based on the type of binary that's
+ * running.
+ */
+static inline const char *
+_LD(const char *var)
+{
+	static char buffer[128];
+
+	strlcpy(buffer, ld_env_prefix, sizeof(buffer));
+	strlcat(buffer, var, sizeof(buffer));
+	return (buffer);
+}
+#else
+#define _LD(x)	LD_ x
+#endif
 
 /*
  * Main entry point for dynamic linking.  The first argument is the
@@ -413,7 +435,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     trust = !issetugid();
 
-    ld_bind_now = getenv(LD_ "BIND_NOW");
+    md_abi_variant_hook(aux_info);
+
+    ld_bind_now = getenv(_LD("BIND_NOW"));
     /* 
      * If the process is tainted, then we un-set the dangerous environment
      * variables.  The process will be marked as tainted until setuid(2)
@@ -421,24 +445,24 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * future processes to honor the potentially un-safe variables.
      */
     if (!trust) {
-        if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "LIBMAP") ||
-	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBRARY_PATH_FDS") ||
-	    unsetenv(LD_ "LIBMAP_DISABLE") ||
-	    unsetenv(LD_ "DEBUG") || unsetenv(LD_ "ELF_HINTS_PATH") ||
-	    unsetenv(LD_ "LOADFLTR") || unsetenv(LD_ "LIBRARY_PATH_RPATH")) {
+	if (unsetenv(_LD("PRELOAD")) || unsetenv(_LD("LIBMAP")) ||
+	    unsetenv(_LD("LIBRARY_PATH")) || unsetenv(_LD("LIBRARY_PATH_FDS")) ||
+	    unsetenv(_LD("LIBMAP_DISABLE")) ||
+	    unsetenv(_LD("DEBUG")) || unsetenv(_LD("ELF_HINTS_PATH")) ||
+	    unsetenv(_LD("LOADFLTR")) || unsetenv(_LD("LIBRARY_PATH_RPATH"))) {
 		_rtld_error("environment corrupt; aborting");
 		rtld_die();
 	}
     }
-    ld_debug = getenv(LD_ "DEBUG");
-    libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
-    libmap_override = getenv(LD_ "LIBMAP");
-    ld_library_path = getenv(LD_ "LIBRARY_PATH");
-    ld_library_dirs = getenv(LD_ "LIBRARY_PATH_FDS");
-    ld_preload = getenv(LD_ "PRELOAD");
-    ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
-    ld_loadfltr = getenv(LD_ "LOADFLTR") != NULL;
-    library_path_rpath = getenv(LD_ "LIBRARY_PATH_RPATH");
+    ld_debug = getenv(_LD("DEBUG"));
+    libmap_disable = getenv(_LD("LIBMAP_DISABLE")) != NULL;
+    libmap_override = getenv(_LD("LIBMAP"));
+    ld_library_path = getenv(_LD("LIBRARY_PATH"));
+    ld_library_dirs = getenv(_LD("LIBRARY_PATH_FDS"));
+    ld_preload = getenv(_LD("PRELOAD"));
+    ld_elf_hints_path = getenv(_LD("ELF_HINTS_PATH"));
+    ld_loadfltr = getenv(_LD("LOADFLTR")) != NULL;
+    library_path_rpath = getenv(_LD("LIBRARY_PATH_RPATH"));
     if (library_path_rpath != NULL) {
 	    if (library_path_rpath[0] == 'y' ||
 		library_path_rpath[0] == 'Y' ||
@@ -450,11 +474,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
 	(ld_library_path != NULL) || (ld_preload != NULL) ||
 	(ld_elf_hints_path != NULL) || ld_loadfltr;
-    ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
-    ld_utrace = getenv(LD_ "UTRACE");
+    ld_tracing = getenv(_LD("TRACE_LOADED_OBJECTS"));
+    ld_utrace = getenv(_LD("UTRACE"));
 
     if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
-	ld_elf_hints_path = _PATH_ELF_HINTS;
+	ld_elf_hints_path = ld_elf_hints_default;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -588,7 +612,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	exit(0);
     }
 
-    if (getenv(LD_ "DUMP_REL_PRE") != NULL) {
+    if (getenv(_LD("DUMP_REL_PRE")) != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -616,7 +640,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (do_copy_relocations(obj_main) == -1)
 	rtld_die();
 
-    if (getenv(LD_ "DUMP_REL_POST") != NULL) {
+    if (getenv(_LD("DUMP_REL_POST")) != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -1120,14 +1144,13 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	 * is mapped read-only. DT_MIPS_RLD_MAP is used instead.
 	 */
 
-#ifndef __mips__
 	case DT_DEBUG:
-	    /* XXX - not implemented yet */
+	    if (!obj->writable_dynamic)
+		break;
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
 	    break;
-#endif
 
 	case DT_FLAGS:
 		if (dynp->d_un.d_val & DF_ORIGIN)
@@ -1144,7 +1167,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 #ifdef __mips__
 	case DT_MIPS_LOCAL_GOTNO:
 		obj->local_gotno = dynp->d_un.d_val;
-	    break;
+		break;
 
 	case DT_MIPS_SYMTABNO:
 		obj->symtabno = dynp->d_un.d_val;
@@ -1156,6 +1179,12 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 	case DT_MIPS_RLD_MAP:
 		*((Elf_Addr *)(dynp->d_un.d_ptr)) = (Elf_Addr) &r_debug;
+		break;
+#endif
+
+#ifdef __powerpc64__
+	case DT_PPC64_GLINK:
+		obj->glink = (Elf_Addr) (obj->relocbase + dynp->d_un.d_ptr);
 		break;
 #endif
 
@@ -1302,6 +1331,8 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 
 	case PT_DYNAMIC:
+	    if (ph->p_flags & PROT_WRITE)
+		obj->writable_dynamic = true;
 	    obj->dynamic = (const Elf_Dyn *)(ph->p_vaddr + obj->relocbase);
 	    break;
 
@@ -1352,22 +1383,22 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 		if (note->n_namesz != sizeof(NOTE_FREEBSD_VENDOR) ||
 		    note->n_descsz != sizeof(int32_t))
 			continue;
-		if (note->n_type != ABI_NOTETYPE &&
-		    note->n_type != CRT_NOINIT_NOTETYPE)
+		if (note->n_type != NT_FREEBSD_ABI_TAG &&
+		    note->n_type != NT_FREEBSD_NOINIT_TAG)
 			continue;
 		note_name = (const char *)(note + 1);
 		if (strncmp(NOTE_FREEBSD_VENDOR, note_name,
 		    sizeof(NOTE_FREEBSD_VENDOR)) != 0)
 			continue;
 		switch (note->n_type) {
-		case ABI_NOTETYPE:
+		case NT_FREEBSD_ABI_TAG:
 			/* FreeBSD osrel note */
 			p = (uintptr_t)(note + 1);
 			p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
 			obj->osrel = *(const int32_t *)(p);
 			dbg("note osrel %d", obj->osrel);
 			break;
-		case CRT_NOINIT_NOTETYPE:
+		case NT_FREEBSD_NOINIT_TAG:
 			/* FreeBSD 'crt does not call init' note */
 			obj->crt_no_init = true;
 			dbg("note crt_no_init");
@@ -1511,7 +1542,7 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
 	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
           (pathname = search_library_path(name, gethints(false))) != NULL ||
-	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
+	  (pathname = search_library_path(name, ld_standard_library_path)) != NULL)
 	    return (pathname);
     } else {
 	nodeflib = objgiven ? refobj->z_nodeflib : false;
@@ -1525,7 +1556,7 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
 	  (pathname = search_library_path(name, gethints(nodeflib))) != NULL ||
 	  (objgiven && !nodeflib &&
-	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL))
+	  (pathname = search_library_path(name, ld_standard_library_path)) != NULL))
 	    return (pathname);
     }
 
@@ -1695,7 +1726,7 @@ gethints(bool nostdlib)
 	hargs.request = RTLD_DI_SERINFOSIZE;
 	hargs.serinfo = &hmeta;
 
-	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
+	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
 	path_enumerate(p, fill_search_info, &hargs);
 
 	SLPinfo = xmalloc(smeta.dls_size);
@@ -1714,7 +1745,7 @@ gethints(bool nostdlib)
 	hargs.serpath = &hintinfo->dls_serpath[0];
 	hargs.strspace = (char *)&hintinfo->dls_serpath[hmeta.dls_cnt];
 
-	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
+	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
 	path_enumerate(p, fill_search_info, &hargs);
 
 	/*
@@ -1892,7 +1923,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     digest_dynamic2(&obj_rtld, dyn_rpath, dyn_soname, dyn_runpath);
 
     /* Replace the path with a dynamically allocated copy. */
-    obj_rtld.path = xstrdup(PATH_RTLD);
+    obj_rtld.path = xstrdup(ld_path_rtld);
 
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
@@ -3506,7 +3537,7 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
     path_enumerate(obj->runpath, fill_search_info, &args);
     path_enumerate(gethints(obj->z_nodeflib), fill_search_info, &args);
     if (!obj->z_nodeflib)
-      path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args);
+      path_enumerate(ld_standard_library_path, fill_search_info, &args);
 
 
     if (request == RTLD_DI_SERINFOSIZE) {
@@ -3544,7 +3575,7 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
 
     args.flags = LA_SER_DEFAULT;
     if (!obj->z_nodeflib &&
-      path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args) != NULL)
+      path_enumerate(ld_standard_library_path, fill_search_info, &args) != NULL)
 	return (-1);
     return (0);
 }
@@ -4168,16 +4199,16 @@ trace_loaded_objects(Obj_Entry *obj)
     char	*fmt1, *fmt2, *fmt, *main_local, *list_containers;
     int		c;
 
-    if ((main_local = getenv(LD_ "TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
+    if ((main_local = getenv(_LD("TRACE_LOADED_OBJECTS_PROGNAME"))) == NULL)
 	main_local = "";
 
-    if ((fmt1 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT1")) == NULL)
+    if ((fmt1 = getenv(_LD("TRACE_LOADED_OBJECTS_FMT1"))) == NULL)
 	fmt1 = "\t%o => %p (%x)\n";
 
-    if ((fmt2 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT2")) == NULL)
+    if ((fmt2 = getenv(_LD("TRACE_LOADED_OBJECTS_FMT2"))) == NULL)
 	fmt2 = "\t%o (%x)\n";
 
-    list_containers = getenv(LD_ "TRACE_LOADED_OBJECTS_ALL");
+    list_containers = getenv(_LD("TRACE_LOADED_OBJECTS_ALL"));
 
     for (; obj; obj = obj->next) {
 	Needed_Entry		*needed;
@@ -4386,7 +4417,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 }
 
 #if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
-    defined(__powerpc__)
+    defined(__powerpc__) || defined(__riscv__)
 
 /*
  * Allocate Static TLS using the Variant I method.

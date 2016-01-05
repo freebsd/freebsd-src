@@ -20,22 +20,12 @@
 using namespace llvm;
 
 namespace llvm {
-namespace {
-// Helper for extensive error checking in debug builds.
-std::error_code Check(std::error_code Err) {
-  if (Err) {
-    report_fatal_error(Err.message());
-  }
-  return Err;
-}
-
-} // end anonymous namespace
 
 class RuntimeDyldELF : public RuntimeDyldImpl {
 
   void resolveRelocation(const SectionEntry &Section, uint64_t Offset,
                          uint64_t Value, uint32_t Type, int64_t Addend,
-                         uint64_t SymOffset = 0);
+                         uint64_t SymOffset = 0, SID SectionID = 0);
 
   void resolveX86_64Relocation(const SectionEntry &Section, uint64_t Offset,
                                uint64_t Value, uint32_t Type, int64_t Addend,
@@ -59,12 +49,24 @@ class RuntimeDyldELF : public RuntimeDyldImpl {
   void resolveSystemZRelocation(const SectionEntry &Section, uint64_t Offset,
                                 uint64_t Value, uint32_t Type, int64_t Addend);
 
+  void resolveMIPS64Relocation(const SectionEntry &Section, uint64_t Offset,
+                               uint64_t Value, uint32_t Type, int64_t Addend,
+                               uint64_t SymOffset, SID SectionID);
+
+  int64_t evaluateMIPS64Relocation(const SectionEntry &Section,
+                                   uint64_t Offset, uint64_t Value,
+                                   uint32_t Type,  int64_t Addend,
+                                   uint64_t SymOffset, SID SectionID);
+
+  void applyMIPS64Relocation(uint8_t *TargetPtr, int64_t CalculatedValue,
+                             uint32_t Type);
+
   unsigned getMaxStubSize() override {
     if (Arch == Triple::aarch64 || Arch == Triple::aarch64_be)
       return 20; // movz; movk; movk; movk; br
     if (Arch == Triple::arm || Arch == Triple::thumb)
       return 8; // 32-bit instruction and 32-bit address
-    else if (Arch == Triple::mipsel || Arch == Triple::mips)
+    else if (IsMipsO32ABI)
       return 16;
     else if (Arch == Triple::ppc64 || Arch == Triple::ppc64le)
       return 44;
@@ -83,23 +85,55 @@ class RuntimeDyldELF : public RuntimeDyldImpl {
       return 1;
   }
 
-  void findPPC64TOCSection(const ObjectFile &Obj,
+  void setMipsABI(const ObjectFile &Obj) override;
+
+  void findPPC64TOCSection(const ELFObjectFileBase &Obj,
                            ObjSectionToIDMap &LocalSections,
                            RelocationValueRef &Rel);
-  void findOPDEntrySection(const ObjectFile &Obj,
+  void findOPDEntrySection(const ELFObjectFileBase &Obj,
                            ObjSectionToIDMap &LocalSections,
                            RelocationValueRef &Rel);
 
-  uint64_t findGOTEntry(uint64_t LoadAddr, uint64_t Offset);
   size_t getGOTEntrySize();
 
-  void updateGOTEntries(StringRef Name, uint64_t Addr) override;
+  SectionEntry &getSection(unsigned SectionID) { return Sections[SectionID]; }
 
-  // Relocation entries for symbols whose position-independent offset is
-  // updated in a global offset table.
-  typedef SmallVector<RelocationValueRef, 2> GOTRelocations;
-  GOTRelocations GOTEntries; // List of entries requiring finalization.
-  SmallVector<std::pair<SID, GOTRelocations>, 8> GOTs; // Allocated tables.
+  // Allocate no GOT entries for use in the given section.
+  uint64_t allocateGOTEntries(unsigned SectionID, unsigned no);
+
+  // Resolve the relvative address of GOTOffset in Section ID and place
+  // it at the given Offset
+  void resolveGOTOffsetRelocation(unsigned SectionID, uint64_t Offset,
+                                  uint64_t GOTOffset);
+
+  // For a GOT entry referenced from SectionID, compute a relocation entry
+  // that will place the final resolved value in the GOT slot
+  RelocationEntry computeGOTOffsetRE(unsigned SectionID,
+                                     uint64_t GOTOffset,
+                                     uint64_t SymbolOffset,
+                                     unsigned Type);
+
+  // Compute the address in memory where we can find the placeholder
+  void *computePlaceholderAddress(unsigned SectionID, uint64_t Offset) const;
+
+  // Split out common case for createing the RelocationEntry for when the relocation requires
+  // no particular advanced processing.
+  void processSimpleRelocation(unsigned SectionID, uint64_t Offset, unsigned RelType, RelocationValueRef Value);
+
+  // The tentative ID for the GOT section
+  unsigned GOTSectionID;
+
+  // Records the current number of allocated slots in the GOT
+  // (This would be equivalent to GOTEntries.size() were it not for relocations
+  // that consume more than one slot)
+  unsigned CurrentGOTIndex;
+
+  // A map from section to a GOT section that has entries for section's GOT
+  // relocations. (Mips64 specific)
+  DenseMap<SID, SID> SectionToGOTMap;
+
+  // A map to avoid duplicate got entries (Mips64 specific)
+  StringMap<uint64_t> GOTSymbolOffsets;
 
   // When a module is loaded we save the SectionID of the EH frame section
   // in a table until we receive a request to register all unregistered
@@ -108,8 +142,9 @@ class RuntimeDyldELF : public RuntimeDyldImpl {
   SmallVector<SID, 2> RegisteredEHFrameSections;
 
 public:
-  RuntimeDyldELF(RTDyldMemoryManager *mm);
-  virtual ~RuntimeDyldELF();
+  RuntimeDyldELF(RuntimeDyld::MemoryManager &MemMgr,
+                 RuntimeDyld::SymbolResolver &Resolver);
+  ~RuntimeDyldELF() override;
 
   std::unique_ptr<RuntimeDyld::LoadedObjectInfo>
   loadObject(const object::ObjectFile &O) override;

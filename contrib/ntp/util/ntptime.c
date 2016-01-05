@@ -73,7 +73,7 @@ static sigjmp_buf env;		/* environment var. for pll_trap() */
 static volatile int pll_control; /* (0) daemon, (1) kernel loop */
 static volatile int status;	/* most recent status bits */
 static volatile int flash;	/* most recent ntp_adjtime() bits */
-char* progname;
+char const * progname;
 static char optargs[] = "MNT:cde:f:hm:o:rs:t:";
 
 int
@@ -91,7 +91,7 @@ main(
 #endif
 	struct timeval tv;
 	struct timex ntx, _ntx;
-	int	times[20];
+	int	times[20] = { 0 };
 	double ftemp, gtemp, htemp;
 	long time_frac;				/* ntv.time.tv_frac_sec (us/ns) */
 	l_fp ts;

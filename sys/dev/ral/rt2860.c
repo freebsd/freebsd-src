@@ -513,7 +513,7 @@ rt2860_alloc_tx_ring(struct rt2860_softc *sc, struct rt2860_tx_ring *ring)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    size, 1, size, 0, NULL, NULL, &ring->desc_dmat);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "could not create desc DMA map\n");
+		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
 	}
 
@@ -1699,10 +1699,9 @@ rt2860_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	RAL_LOCK(sc);
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(sc->sc_flags & RT2860_RUNNNING)) {
+	if (!(sc->sc_flags & RT2860_RUNNING)) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	if (params == NULL) {
@@ -1717,10 +1716,6 @@ rt2860_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		 * sending the frame.
 		 */
 		error = rt2860_tx_raw(sc, m, ni, params);
-	}
-	if (error != 0) {
-		/* NB: m is reclaimed on tx failure */
-		ieee80211_free_node(ni);
 	}
 	sc->sc_tx_timer = 5;
 	RAL_UNLOCK(sc);
@@ -1945,7 +1940,7 @@ rt2860_transmit(struct ieee80211com *ic, struct mbuf *m)
 	int error;
 
 	RAL_LOCK(sc);
-	if ((sc->sc_flags & RT2860_RUNNNING) == 0) {
+	if ((sc->sc_flags & RT2860_RUNNING) == 0) {
 		RAL_UNLOCK(sc);
 		return (ENXIO);
 	}
@@ -1968,7 +1963,7 @@ rt2860_start(struct rt2860_softc *sc)
 
 	RAL_LOCK_ASSERT(sc);
 
-	if ((sc->sc_flags & RT2860_RUNNNING) == 0)
+	if ((sc->sc_flags & RT2860_RUNNING) == 0)
 		return;
 
 	while (!SLIST_EMPTY(&sc->data_pool) && sc->qfullmsk == 0 &&
@@ -1991,7 +1986,7 @@ rt2860_watchdog(void *arg)
 
 	RAL_LOCK_ASSERT(sc);
 
-	KASSERT(sc->sc_flags & RT2860_RUNNNING, ("not running"));
+	KASSERT(sc->sc_flags & RT2860_RUNNING, ("not running"));
 
 	if (sc->sc_invalid)		/* card ejected */
 		return;
@@ -2014,12 +2009,12 @@ rt2860_parent(struct ieee80211com *ic)
 
 	RAL_LOCK(sc);
 	if (ic->ic_nrunning> 0) {
-		if (!(sc->sc_flags & RT2860_RUNNNING)) {
+		if (!(sc->sc_flags & RT2860_RUNNING)) {
 			rt2860_init_locked(sc);
 			startall = 1;
 		} else
 			rt2860_update_promisc(ic);
-	} else if (sc->sc_flags & RT2860_RUNNNING)
+	} else if (sc->sc_flags & RT2860_RUNNING)
 		rt2860_stop_locked(sc);
 	RAL_UNLOCK(sc);
 	if (startall)
@@ -2260,7 +2255,6 @@ void
 rt2860_set_basicrates(struct rt2860_softc *sc,
     const struct ieee80211_rateset *rs)
 {
-#define RV(r)	((r) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t mask = 0;
 	uint8_t rate;
@@ -2272,11 +2266,11 @@ rt2860_set_basicrates(struct rt2860_softc *sc,
 		if (!(rate & IEEE80211_RATE_BASIC))
 			continue;
 
-		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt, RV(rate));
+		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt,
+		    IEEE80211_RV(rate));
 	}
 
 	RAL_WRITE(sc, RT2860_LEGACY_BASIC_RATE, mask);
-#undef RV
 }
 
 static void
@@ -3054,7 +3048,7 @@ rt2860_updateslot(struct ieee80211com *ic)
 
 	tmp = RAL_READ(sc, RT2860_BKOFF_SLOT_CFG);
 	tmp &= ~0xff;
-	tmp |= (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	tmp |= IEEE80211_GET_SLOTTIME(ic);
 	RAL_WRITE(sc, RT2860_BKOFF_SLOT_CFG, tmp);
 }
 
@@ -3351,7 +3345,7 @@ rt2860_read_eeprom(struct rt2860_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 
 	/* read EEPROM version */
 	val = rt2860_srom_read(sc, RT2860_EEPROM_VERSION);
-	DPRINTF(("EEPROM rev=%d, FAE=%d\n", val & 0xff, val >> 8));
+	DPRINTF(("EEPROM rev=%d, FAE=%d\n", val >> 8, val & 0xff));
 
 	/* read MAC address */
 	val = rt2860_srom_read(sc, RT2860_EEPROM_MAC01);
@@ -3797,7 +3791,7 @@ rt2860_init(void *arg)
 	rt2860_init_locked(sc);
 	RAL_UNLOCK(sc);
 
-	if (sc->sc_flags & RT2860_RUNNNING)
+	if (sc->sc_flags & RT2860_RUNNING)
 		ieee80211_start_all(ic);
 }
 
@@ -4057,7 +4051,7 @@ rt2860_init_locked(struct rt2860_softc *sc)
 	if (sc->sc_flags & RT2860_ADVANCED_PS)
 		rt2860_mcu_cmd(sc, RT2860_MCU_CMD_PSLEVEL, sc->pslevel, 0);
 
-	sc->sc_flags |= RT2860_RUNNNING;
+	sc->sc_flags |= RT2860_RUNNING;
 
 	callout_reset(&sc->watchdog_ch, hz, rt2860_watchdog, sc);
 }
@@ -4078,12 +4072,12 @@ rt2860_stop_locked(struct rt2860_softc *sc)
 	uint32_t tmp;
 	int qid;
 
-	if (sc->sc_flags & RT2860_RUNNNING)
+	if (sc->sc_flags & RT2860_RUNNING)
 		rt2860_set_leds(sc, 0);	/* turn all LEDs off */
 
 	callout_stop(&sc->watchdog_ch);
 	sc->sc_tx_timer = 0;
-	sc->sc_flags &= ~RT2860_RUNNNING;
+	sc->sc_flags &= ~RT2860_RUNNING;
 
 	/* disable interrupts */
 	RAL_WRITE(sc, RT2860_INT_MASK, 0);
@@ -4269,12 +4263,11 @@ static int
 rt2860_setup_beacon(struct rt2860_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_beacon_offsets bo;
 	struct rt2860_txwi txwi;
 	struct mbuf *m;
 	int ridx;
 
-	if ((m = ieee80211_beacon_alloc(vap->iv_bss, &bo)) == NULL)
+	if ((m = ieee80211_beacon_alloc(vap->iv_bss)) == NULL)
 		return ENOBUFS;
 
 	memset(&txwi, 0, sizeof txwi);

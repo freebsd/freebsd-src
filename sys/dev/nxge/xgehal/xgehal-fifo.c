@@ -464,7 +464,7 @@ __hal_fifo_hw_initialize(xge_hal_device_h devh)
 
 	    if (!hldev->config.fifo.queue[i].configured ||
 	        !hldev->config.fifo.queue[i].intr_vector ||
-	        !hldev->config.intr_mode != XGE_HAL_INTR_MODE_MSIX)
+	        hldev->config.intr_mode != XGE_HAL_INTR_MODE_MSIX)
 	        continue;
 
 	    /* find channel */

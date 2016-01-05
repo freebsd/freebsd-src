@@ -43,6 +43,7 @@ namespace HexagonII {
     TypeXTYPE   = 8,
     TypeMEMOP   = 9,
     TypeNV      = 10,
+    TypeDUPLEX  = 11,
     TypePREFIX  = 30, // Such as extenders.
     TypeENDLOOP = 31  // Such as end of a HW loop.
   };
@@ -70,7 +71,7 @@ namespace HexagonII {
     PostInc        = 6   // Post increment addressing mode
   };
 
-  enum MemAccessSize {
+  enum class MemAccessSize {
     NoMemAccess = 0,            // Not a memory acces instruction.
     ByteAccess = 1,             // Byte access instruction (memb).
     HalfWordAccess = 2,         // Half word access instruction (memh).
@@ -190,7 +191,26 @@ namespace HexagonII {
     MO_GPREL
   };
 
-  enum class InstParseBits : uint32_t {
+  // Hexagon Sub-instruction classes.
+  enum SubInstructionGroup {
+    HSIG_None = 0,
+    HSIG_L1,
+    HSIG_L2,
+    HSIG_S1,
+    HSIG_S2,
+    HSIG_A,
+    HSIG_Compound
+  };
+
+  // Hexagon Compound classes.
+  enum CompoundGroup {
+    HCG_None = 0,
+    HCG_A,
+    HCG_B,
+    HCG_C
+  };
+
+  enum InstParseBits {
     INST_PARSE_MASK       = 0x0000c000,
     INST_PARSE_PACKET_END = 0x0000c000,
     INST_PARSE_LOOP_END   = 0x00008000,

@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.117 2015/06/03 19:51:27 christos Exp $
-.Dd June 3, 2015
+.\" $File: file.man,v 1.118 2015/09/11 17:24:09 christos Exp $
+.Dd September 11, 2015
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -316,6 +316,7 @@ Set various parameter limits.
 .It Li elf_notes Ta 256 Ta max ELF notes processed
 .It Li elf_phnum Ta 128 Ta max ELF program sections processed
 .It Li elf_shnum Ta 32768 Ta max ELF sections processed
+.It Li regex Ta 8192 Ta length limit for regex searches
 .El
 .It Fl r , Fl Fl raw
 Don't translate unprintable characters to \eooo.

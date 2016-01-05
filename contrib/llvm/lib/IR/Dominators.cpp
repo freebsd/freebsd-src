@@ -62,18 +62,14 @@ bool BasicBlockEdge::isSingleEdge() const {
 //
 //===----------------------------------------------------------------------===//
 
-TEMPLATE_INSTANTIATION(class llvm::DomTreeNodeBase<BasicBlock>);
-TEMPLATE_INSTANTIATION(class llvm::DominatorTreeBase<BasicBlock>);
+template class llvm::DomTreeNodeBase<BasicBlock>;
+template class llvm::DominatorTreeBase<BasicBlock>;
 
-#define LLVM_COMMA ,
-TEMPLATE_INSTANTIATION(void llvm::Calculate<Function LLVM_COMMA BasicBlock *>(
-    DominatorTreeBase<GraphTraits<BasicBlock *>::NodeType> &DT LLVM_COMMA
-        Function &F));
-TEMPLATE_INSTANTIATION(
-    void llvm::Calculate<Function LLVM_COMMA Inverse<BasicBlock *> >(
-        DominatorTreeBase<GraphTraits<Inverse<BasicBlock *> >::NodeType> &DT
-            LLVM_COMMA Function &F));
-#undef LLVM_COMMA
+template void llvm::Calculate<Function, BasicBlock *>(
+    DominatorTreeBase<GraphTraits<BasicBlock *>::NodeType> &DT, Function &F);
+template void llvm::Calculate<Function, Inverse<BasicBlock *>>(
+    DominatorTreeBase<GraphTraits<Inverse<BasicBlock *>>::NodeType> &DT,
+    Function &F);
 
 // dominates - Return true if Def dominates a use in User. This performs
 // the special checks necessary if Def and User are in the same basic block.
@@ -282,9 +278,6 @@ bool DominatorTree::isReachableFromEntry(const Use &U) const {
 }
 
 void DominatorTree::verifyDomTree() const {
-  if (!VerifyDomInfo)
-    return;
-
   Function &F = *getRoot()->getParent();
 
   DominatorTree OtherDT;
@@ -350,7 +343,10 @@ bool DominatorTreeWrapperPass::runOnFunction(Function &F) {
   return false;
 }
 
-void DominatorTreeWrapperPass::verifyAnalysis() const { DT.verifyDomTree(); }
+void DominatorTreeWrapperPass::verifyAnalysis() const {
+    if (VerifyDomInfo)
+      DT.verifyDomTree();
+}
 
 void DominatorTreeWrapperPass::print(raw_ostream &OS, const Module *) const {
   DT.print(OS);

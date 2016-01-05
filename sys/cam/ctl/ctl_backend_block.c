@@ -2,6 +2,7 @@
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * Copyright (c) 2009-2011 Spectra Logic Corporation
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Edward Tomasz Napierala
@@ -126,18 +127,11 @@ typedef enum {
 	CTL_BE_BLOCK_FILE
 } ctl_be_block_type;
 
-struct ctl_be_block_devdata {
-	struct cdev *cdev;
-	struct cdevsw *csw;
-	int dev_ref;
-};
-
 struct ctl_be_block_filedata {
 	struct ucred *cred;
 };
 
 union ctl_be_block_bedata {
-	struct ctl_be_block_devdata dev;
 	struct ctl_be_block_filedata file;
 };
 
@@ -263,17 +257,12 @@ static int ctl_be_block_open_file(struct ctl_be_block_lun *be_lun,
 static int ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun,
 				 struct ctl_lun_req *req);
 static int ctl_be_block_close(struct ctl_be_block_lun *be_lun);
-static int ctl_be_block_open(struct ctl_be_block_softc *softc,
-			     struct ctl_be_block_lun *be_lun,
+static int ctl_be_block_open(struct ctl_be_block_lun *be_lun,
 			     struct ctl_lun_req *req);
 static int ctl_be_block_create(struct ctl_be_block_softc *softc,
 			       struct ctl_lun_req *req);
 static int ctl_be_block_rm(struct ctl_be_block_softc *softc,
 			   struct ctl_lun_req *req);
-static int ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
-				  struct ctl_lun_req *req);
-static int ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
-				 struct ctl_lun_req *req);
 static int ctl_be_block_modify(struct ctl_be_block_softc *softc,
 			   struct ctl_lun_req *req);
 static void ctl_be_block_lun_shutdown(void *be_lun);
@@ -358,6 +347,48 @@ ctl_complete_beio(struct ctl_be_block_io *beio)
 	}
 }
 
+static size_t
+cmp(uint8_t *a, uint8_t *b, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		if (a[i] != b[i])
+			break;
+	}
+	return (i);
+}
+
+static void
+ctl_be_block_compare(union ctl_io *io)
+{
+	struct ctl_be_block_io *beio;
+	uint64_t off, res;
+	int i;
+	uint8_t info[8];
+
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
+	off = 0;
+	for (i = 0; i < beio->num_segs; i++) {
+		res = cmp(beio->sg_segs[i].addr,
+		    beio->sg_segs[i + CTLBLK_HALF_SEGS].addr,
+		    beio->sg_segs[i].len);
+		off += res;
+		if (res < beio->sg_segs[i].len)
+			break;
+	}
+	if (i < beio->num_segs) {
+		scsi_u64to8b(off, info);
+		ctl_set_sense(&io->scsiio, /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_MISCOMPARE,
+		    /*asc*/ 0x1D, /*ascq*/ 0x00,
+		    /*type*/ SSD_ELEM_INFO,
+		    /*size*/ sizeof(info), /*data*/ &info,
+		    /*type*/ SSD_ELEM_NONE);
+	} else
+		ctl_set_success(&io->scsiio);
+}
+
 static int
 ctl_be_block_move_done(union ctl_io *io)
 {
@@ -367,7 +398,6 @@ ctl_be_block_move_done(union ctl_io *io)
 #ifdef CTL_TIME_IO
 	struct bintime cur_bt;
 #endif
-	int i;
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	be_lun = beio->lun;
@@ -375,11 +405,11 @@ ctl_be_block_move_done(union ctl_io *io)
 	DPRINTF("entered\n");
 
 #ifdef CTL_TIME_IO
-	getbintime(&cur_bt);
+	getbinuptime(&cur_bt);
 	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
 	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
+#endif
 	io->io_hdr.num_dmas++;
-#endif  
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
 
 	/*
@@ -395,21 +425,7 @@ ctl_be_block_move_done(union ctl_io *io)
 			ctl_set_success(&io->scsiio);
 		} else if (lbalen->flags & CTL_LLF_COMPARE) {
 			/* We have two data blocks ready for comparison. */
-			for (i = 0; i < beio->num_segs; i++) {
-				if (memcmp(beio->sg_segs[i].addr,
-				    beio->sg_segs[i + CTLBLK_HALF_SEGS].addr,
-				    beio->sg_segs[i].len) != 0)
-					break;
-			}
-			if (i < beio->num_segs)
-				ctl_set_sense(&io->scsiio,
-				    /*current_error*/ 1,
-				    /*sense_key*/ SSD_KEY_MISCOMPARE,
-				    /*asc*/ 0x1D,
-				    /*ascq*/ 0x00,
-				    SSD_ELEM_NONE);
-			else
-				ctl_set_success(&io->scsiio);
+			ctl_be_block_compare(io);
 		}
 	} else if ((io->io_hdr.port_status != 0) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
@@ -447,14 +463,8 @@ ctl_be_block_move_done(union ctl_io *io)
 	 * interrupt context, and therefore we cannot block.
 	 */
 	mtx_lock(&be_lun->queue_lock);
-	/*
-	 * XXX KDM make sure that links is okay to use at this point.
-	 * Otherwise, we either need to add another field to ctl_io_hdr,
-	 * or deal with resource allocation here.
-	 */
 	STAILQ_INSERT_TAIL(&be_lun->datamove_queue, &io->io_hdr, links);
 	mtx_unlock(&be_lun->queue_lock);
-
 	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 
 	return (0);
@@ -515,13 +525,17 @@ ctl_be_block_biodone(struct bio *bio)
 			ctl_set_invalid_opcode(&io->scsiio);
 		} else if (error == ENOSPC || error == EDQUOT) {
 			ctl_set_space_alloc_fail(&io->scsiio);
+		} else if (error == EROFS || error == EACCES) {
+			ctl_set_hw_write_protected(&io->scsiio);
 		} else if (beio->bio_cmd == BIO_FLUSH) {
 			/* XXX KDM is there is a better error here? */
 			ctl_set_internal_failure(&io->scsiio,
 						 /*sks_valid*/ 1,
 						 /*retry_count*/ 0xbad2);
-		} else
-			ctl_set_medium_error(&io->scsiio);
+		} else {
+			ctl_set_medium_error(&io->scsiio,
+			    beio->bio_cmd == BIO_READ);
+		}
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -538,11 +552,13 @@ ctl_be_block_biodone(struct bio *bio)
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
-		    beio->beio_cont == NULL)
+		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
+			ctl_serseq_done(io);
+		}
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
@@ -564,15 +580,12 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 
 	(void) vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
 
-	if (MNT_SHARED_WRITES(mountpoint)
-	 || ((mountpoint == NULL)
-	  && MNT_SHARED_WRITES(be_lun->vn->v_mount)))
+	if (MNT_SHARED_WRITES(mountpoint) ||
+	    ((mountpoint == NULL) && MNT_SHARED_WRITES(be_lun->vn->v_mount)))
 		lock_flags = LK_SHARED;
 	else
 		lock_flags = LK_EXCLUSIVE;
-
 	vn_lock(be_lun->vn, lock_flags | LK_RETRY);
-
 	error = VOP_FSYNC(be_lun->vn, beio->io_arg ? MNT_NOWAIT : MNT_WAIT,
 	    curthread);
 	VOP_UNLOCK(be_lun->vn, 0);
@@ -597,10 +610,10 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	ctl_complete_beio(beio);
 }
 
-SDT_PROBE_DEFINE1(cbb, kernel, read, file_start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, file_start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, read, file_done,"uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, file_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, file_start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, file_start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, file_done,"uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, file_done, "uint64_t");
 
 static void
 ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
@@ -610,8 +623,8 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	union ctl_io *io;
 	struct uio xuio;
 	struct iovec *xiovec;
-	int flags;
-	int error, i;
+	size_t s;
+	int error, flags, i;
 
 	DPRINTF("entered\n");
 
@@ -625,10 +638,10 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
-		SDT_PROBE(cbb, kernel, read, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, file_start);
 		xuio.uio_rw = UIO_READ;
 	} else {
-		SDT_PROBE(cbb, kernel, write, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, file_start);
 		xuio.uio_rw = UIO_WRITE;
 	}
 	xuio.uio_offset = beio->io_offset;
@@ -671,20 +684,34 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		error = VOP_READ(be_lun->vn, &xuio, flags, file_data->cred);
 
 		VOP_UNLOCK(be_lun->vn, 0);
-		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, file_done);
+		if (error == 0 && xuio.uio_resid > 0) {
+			/*
+			 * If we red less then requested (EOF), then
+			 * we should clean the rest of the buffer.
+			 */
+			s = beio->io_len - xuio.uio_resid;
+			for (i = 0; i < beio->num_segs; i++) {
+				if (s >= beio->sg_segs[i].len) {
+					s -= beio->sg_segs[i].len;
+					continue;
+				}
+				bzero((uint8_t *)beio->sg_segs[i].addr + s,
+				    beio->sg_segs[i].len - s);
+				s = 0;
+			}
+		}
 	} else {
 		struct mount *mountpoint;
 		int lock_flags;
 
 		(void)vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
 
-		if (MNT_SHARED_WRITES(mountpoint)
-		 || ((mountpoint == NULL)
+		if (MNT_SHARED_WRITES(mountpoint) || ((mountpoint == NULL)
 		  && MNT_SHARED_WRITES(be_lun->vn->v_mount)))
 			lock_flags = LK_SHARED;
 		else
 			lock_flags = LK_EXCLUSIVE;
-
 		vn_lock(be_lun->vn, lock_flags | LK_RETRY);
 
 		/*
@@ -706,7 +733,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		VOP_UNLOCK(be_lun->vn, 0);
 
 		vn_finished_write(mountpoint);
-		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, file_done);
         }
 
 	mtx_lock(&be_lun->io_lock);
@@ -720,15 +747,14 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	 * return the I/O to the user.
 	 */
 	if (error != 0) {
-		char path_str[32];
-
-		ctl_scsi_path_string(io, path_str, sizeof(path_str));
-		printf("%s%s command returned errno %d\n", path_str,
-		       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE", error);
 		if (error == ENOSPC || error == EDQUOT) {
 			ctl_set_space_alloc_fail(&io->scsiio);
-		} else
-			ctl_set_medium_error(&io->scsiio);
+		} else if (error == EROFS || error == EACCES) {
+			ctl_set_hw_write_protected(&io->scsiio);
+		} else {
+			ctl_set_medium_error(&io->scsiio,
+			    beio->bio_cmd == BIO_READ);
+		}
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -743,11 +769,13 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
-		    beio->beio_cont == NULL)
+		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
+			ctl_serseq_done(io);
+		}
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
@@ -823,16 +851,15 @@ static void
 ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 			   struct ctl_be_block_io *beio)
 {
-	struct ctl_be_block_devdata *dev_data;
 	union ctl_io *io;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	struct uio xuio;
 	struct iovec *xiovec;
-	int flags;
-	int error, i;
+	int error, flags, i, ref;
 
 	DPRINTF("entered\n");
 
-	dev_data = &be_lun->backend.dev;
 	io = beio->io;
 	flags = 0;
 	if (ARGS(io)->flags & CTL_LLF_DPO)
@@ -842,10 +869,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
-		SDT_PROBE(cbb, kernel, read, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, file_start);
 		xuio.uio_rw = UIO_READ;
 	} else {
-		SDT_PROBE(cbb, kernel, write, file_start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, file_start);
 		xuio.uio_rw = UIO_WRITE;
 	}
 	xuio.uio_offset = beio->io_offset;
@@ -865,13 +892,20 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
-	if (beio->bio_cmd == BIO_READ) {
-		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, flags);
-		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
-	} else {
-		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, flags);
-		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
-	}
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw) {
+		if (beio->bio_cmd == BIO_READ)
+			error = csw->d_read(dev, &xuio, flags);
+		else
+			error = csw->d_write(dev, &xuio, flags);
+		dev_relthread(dev, ref);
+	} else
+		error = ENXIO;
+
+	if (beio->bio_cmd == BIO_READ)
+		SDT_PROBE0(cbb, , read, file_done);
+	else
+		SDT_PROBE0(cbb, , write, file_done);
 
 	mtx_lock(&be_lun->io_lock);
 	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
@@ -886,8 +920,12 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	if (error != 0) {
 		if (error == ENOSPC || error == EDQUOT) {
 			ctl_set_space_alloc_fail(&io->scsiio);
-		} else
-			ctl_set_medium_error(&io->scsiio);
+		} else if (error == EROFS || error == EACCES) {
+			ctl_set_hw_write_protected(&io->scsiio);
+		} else {
+			ctl_set_medium_error(&io->scsiio,
+			    beio->bio_cmd == BIO_READ);
+		}
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -902,11 +940,13 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 		ctl_complete_beio(beio);
 	} else {
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
-		    beio->beio_cont == NULL)
+		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
+			ctl_serseq_done(io);
+		}
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
@@ -915,23 +955,30 @@ static void
 ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 			struct ctl_be_block_io *beio)
 {
-	struct ctl_be_block_devdata *dev_data = &be_lun->backend.dev;
 	union ctl_io *io = beio->io;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	struct ctl_lba_len_flags *lbalen = ARGS(io);
 	struct scsi_get_lba_status_data *data;
 	off_t roff, off;
-	int error, status;
+	int error, ref, status;
 
 	DPRINTF("entered\n");
 
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw == NULL) {
+		status = 0;	/* unknown up to the end */
+		off = be_lun->size_bytes;
+		goto done;
+	}
 	off = roff = ((off_t)lbalen->lba) * be_lun->cbe_lun.blocksize;
-	error = (*dev_data->csw->d_ioctl)(dev_data->cdev, FIOSEEKHOLE,
-	    (caddr_t)&off, FREAD, curthread);
+	error = csw->d_ioctl(dev, FIOSEEKHOLE, (caddr_t)&off, FREAD,
+	    curthread);
 	if (error == 0 && off > roff)
 		status = 0;	/* mapped up to off */
 	else {
-		error = (*dev_data->csw->d_ioctl)(dev_data->cdev, FIOSEEKDATA,
-		    (caddr_t)&off, FREAD, curthread);
+		error = csw->d_ioctl(dev, FIOSEEKDATA, (caddr_t)&off, FREAD,
+		    curthread);
 		if (error == 0 && off > roff)
 			status = 1;	/* deallocated up to off */
 		else {
@@ -939,7 +986,9 @@ ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 			off = be_lun->size_bytes;
 		}
 	}
+	dev_relthread(dev, ref);
 
+done:
 	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
 	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
 	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize -
@@ -954,11 +1003,9 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 		       struct ctl_be_block_io *beio)
 {
 	struct bio *bio;
-	union ctl_io *io;
-	struct ctl_be_block_devdata *dev_data;
-
-	dev_data = &be_lun->backend.dev;
-	io = beio->io;
+	struct cdevsw *csw;
+	struct cdev *dev;
+	int ref;
 
 	DPRINTF("entered\n");
 
@@ -966,7 +1013,6 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 	bio = g_alloc_bio();
 
 	bio->bio_cmd	    = BIO_FLUSH;
-	bio->bio_dev	    = dev_data->cdev;
 	bio->bio_offset	    = 0;
 	bio->bio_data	    = 0;
 	bio->bio_done	    = ctl_be_block_biodone;
@@ -986,7 +1032,15 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 	devstat_start_transaction(be_lun->disk_stats, &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
-	(*dev_data->csw->d_strategy)(bio);
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw) {
+		bio->bio_dev = dev;
+		csw->d_strategy(bio);
+		dev_relthread(dev, ref);
+	} else {
+		bio->bio_error = ENXIO;
+		ctl_be_block_biodone(bio);
+	}
 }
 
 static void
@@ -995,15 +1049,17 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 		       uint64_t off, uint64_t len, int last)
 {
 	struct bio *bio;
-	struct ctl_be_block_devdata *dev_data;
 	uint64_t maxlen;
+	struct cdevsw *csw;
+	struct cdev *dev;
+	int ref;
 
-	dev_data = &be_lun->backend.dev;
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
 	maxlen = LONG_MAX - (LONG_MAX % be_lun->cbe_lun.blocksize);
 	while (len > 0) {
 		bio = g_alloc_bio();
 		bio->bio_cmd	    = BIO_DELETE;
-		bio->bio_dev	    = dev_data->cdev;
+		bio->bio_dev	    = dev;
 		bio->bio_offset	    = off;
 		bio->bio_length	    = MIN(len, maxlen);
 		bio->bio_data	    = 0;
@@ -1020,8 +1076,15 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 			beio->send_complete = 1;
 		mtx_unlock(&be_lun->io_lock);
 
-		(*dev_data->csw->d_strategy)(bio);
+		if (csw) {
+			csw->d_strategy(bio);
+		} else {
+			bio->bio_error = ENXIO;
+			ctl_be_block_biodone(bio);
+		}
 	}
+	if (csw)
+		dev_relthread(dev, ref);
 }
 
 static void
@@ -1029,12 +1092,10 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 		       struct ctl_be_block_io *beio)
 {
 	union ctl_io *io;
-	struct ctl_be_block_devdata *dev_data;
 	struct ctl_ptr_len_flags *ptrlen;
 	struct scsi_unmap_desc *buf, *end;
 	uint64_t len;
 
-	dev_data = &be_lun->backend.dev;
 	io = beio->io;
 
 	DPRINTF("entered\n");
@@ -1067,23 +1128,25 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			  struct ctl_be_block_io *beio)
 {
 	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
-	int i;
 	struct bio *bio;
-	struct ctl_be_block_devdata *dev_data;
+	struct cdevsw *csw;
+	struct cdev *dev;
 	off_t cur_offset;
-	int max_iosize;
+	int i, max_iosize, ref;
 
 	DPRINTF("entered\n");
-
-	dev_data = &be_lun->backend.dev;
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
 
 	/*
 	 * We have to limit our I/O size to the maximum supported by the
 	 * backend device.  Hopefully it is MAXPHYS.  If the driver doesn't
 	 * set it properly, use DFLTPHYS.
 	 */
-	max_iosize = dev_data->cdev->si_iosize_max;
-	if (max_iosize < PAGE_SIZE)
+	if (csw) {
+		max_iosize = dev->si_iosize_max;
+		if (max_iosize < PAGE_SIZE)
+			max_iosize = DFLTPHYS;
+	} else
 		max_iosize = DFLTPHYS;
 
 	cur_offset = beio->io_offset;
@@ -1101,7 +1164,7 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			KASSERT(bio != NULL, ("g_alloc_bio() failed!\n"));
 
 			bio->bio_cmd = beio->bio_cmd;
-			bio->bio_dev = dev_data->cdev;
+			bio->bio_dev = dev;
 			bio->bio_caller1 = beio;
 			bio->bio_length = min(cur_size, max_iosize);
 			bio->bio_offset = cur_offset;
@@ -1128,23 +1191,36 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 	 */
 	while ((bio = TAILQ_FIRST(&queue)) != NULL) {
 		TAILQ_REMOVE(&queue, bio, bio_queue);
-		(*dev_data->csw->d_strategy)(bio);
+		if (csw)
+			csw->d_strategy(bio);
+		else {
+			bio->bio_error = ENXIO;
+			ctl_be_block_biodone(bio);
+		}
 	}
+	if (csw)
+		dev_relthread(dev, ref);
 }
 
 static uint64_t
 ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
 {
-	struct ctl_be_block_devdata	*dev_data = &be_lun->backend.dev;
 	struct diocgattr_arg	arg;
-	int			error;
+	struct cdevsw *csw;
+	struct cdev *dev;
+	int error, ref;
 
-	if (dev_data->csw == NULL || dev_data->csw->d_ioctl == NULL)
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw == NULL)
 		return (UINT64_MAX);
 	strlcpy(arg.name, attrname, sizeof(arg.name));
 	arg.len = sizeof(arg.value.off);
-	error = dev_data->csw->d_ioctl(dev_data->cdev,
-	    DIOCGATTR, (caddr_t)&arg, FREAD, curthread);
+	if (csw->d_ioctl) {
+		error = csw->d_ioctl(dev, DIOCGATTR, (caddr_t)&arg, FREAD,
+		    curthread);
+	} else
+		error = ENODEV;
+	dev_relthread(dev, ref);
 	if (error != 0)
 		return (UINT64_MAX);
 	return (arg.value.off);
@@ -1267,7 +1343,12 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		buf = beio->sg_segs[i].addr;
 		end = buf + seglen;
 		for (; buf < end; buf += cbe_lun->blocksize) {
-			memcpy(buf, io->scsiio.kern_data_ptr, cbe_lun->blocksize);
+			if (lbalen->flags & SWS_NDOB) {
+				memset(buf, 0, cbe_lun->blocksize);
+			} else {
+				memcpy(buf, io->scsiio.kern_data_ptr,
+				    cbe_lun->blocksize);
+			}
 			if (lbalen->flags & SWS_LBDATA)
 				scsi_ulto4b(lbalen->lba + lba, buf);
 			lba++;
@@ -1420,10 +1501,10 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	}
 }
 
-SDT_PROBE_DEFINE1(cbb, kernel, read, start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, read, alloc_done, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, kernel, write, alloc_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, start, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, alloc_done, "uint64_t");
+SDT_PROBE_DEFINE1(cbb, , write, alloc_done, "uint64_t");
 
 static void
 ctl_be_block_next(struct ctl_be_block_io *beio)
@@ -1445,14 +1526,8 @@ ctl_be_block_next(struct ctl_be_block_io *beio)
 	io->io_hdr.status |= CTL_STATUS_NONE;
 
 	mtx_lock(&be_lun->queue_lock);
-	/*
-	 * XXX KDM make sure that links is okay to use at this point.
-	 * Otherwise, we either need to add another field to ctl_io_hdr,
-	 * or deal with resource allocation here.
-	 */
 	STAILQ_INSERT_TAIL(&be_lun->input_queue, &io->io_hdr, links);
 	mtx_unlock(&be_lun->queue_lock);
-
 	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 }
 
@@ -1474,9 +1549,9 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 
 	lbalen = ARGS(io);
 	if (lbalen->flags & CTL_LLF_WRITE) {
-		SDT_PROBE(cbb, kernel, write, start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, start);
 	} else {
-		SDT_PROBE(cbb, kernel, read, start, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, start);
 	}
 
 	beio = ctl_alloc_beio(softc);
@@ -1555,7 +1630,7 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	io->scsiio.kern_data_len = beio->io_len;
 	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_sg_entries = beio->num_segs;
-	io->io_hdr.flags |= CTL_FLAG_ALLOCATED | CTL_FLAG_KDPTR_SGLIST;
+	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 
 	/*
 	 * For the read case, we need to read the data into our buffers and
@@ -1563,13 +1638,13 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	 * need to get the data from the user first.
 	 */
 	if (beio->bio_cmd == BIO_READ) {
-		SDT_PROBE(cbb, kernel, read, alloc_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , read, alloc_done);
 		be_lun->dispatch(be_lun, beio);
 	} else {
-		SDT_PROBE(cbb, kernel, write, alloc_done, 0, 0, 0, 0, 0);
+		SDT_PROBE0(cbb, , write, alloc_done);
 #ifdef CTL_TIME_IO
-        	getbintime(&io->io_hdr.dma_start_bt);
-#endif  
+		getbinuptime(&io->io_hdr.dma_start_bt);
+#endif
 		ctl_datamove(io);
 	}
 }
@@ -1577,33 +1652,32 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 static void
 ctl_be_block_worker(void *context, int pending)
 {
-	struct ctl_be_block_lun *be_lun;
-	struct ctl_be_block_softc *softc;
+	struct ctl_be_block_lun *be_lun = (struct ctl_be_block_lun *)context;
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	union ctl_io *io;
-
-	be_lun = (struct ctl_be_block_lun *)context;
-	softc = be_lun->softc;
+	struct ctl_be_block_io *beio;
 
 	DPRINTF("entered\n");
-
-	mtx_lock(&be_lun->queue_lock);
+	/*
+	 * Fetch and process I/Os from all queues.  If we detect LUN
+	 * CTL_LUN_FLAG_NO_MEDIA status here -- it is result of a race,
+	 * so make response maximally opaque to not confuse initiator.
+	 */
 	for (;;) {
+		mtx_lock(&be_lun->queue_lock);
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->datamove_queue);
 		if (io != NULL) {
-			struct ctl_be_block_io *beio;
-
 			DPRINTF("datamove queue\n");
-
 			STAILQ_REMOVE(&be_lun->datamove_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
-
 			mtx_unlock(&be_lun->queue_lock);
-
 			beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-
+			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
+				ctl_set_busy(&io->scsiio);
+				ctl_complete_beio(beio);
+				return;
+			}
 			be_lun->dispatch(be_lun, beio);
-
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_write_queue);
@@ -1612,8 +1686,12 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE(&be_lun->config_write_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 			mtx_unlock(&be_lun->queue_lock);
+			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
+				ctl_set_busy(&io->scsiio);
+				ctl_config_write_done(io);
+				return;
+			}
 			ctl_be_block_cw_dispatch(be_lun, io);
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_read_queue);
@@ -1622,25 +1700,26 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE(&be_lun->config_read_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 			mtx_unlock(&be_lun->queue_lock);
+			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
+				ctl_set_busy(&io->scsiio);
+				ctl_config_read_done(io);
+				return;
+			}
 			ctl_be_block_cr_dispatch(be_lun, io);
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->input_queue);
 		if (io != NULL) {
 			DPRINTF("input queue\n");
-
 			STAILQ_REMOVE(&be_lun->input_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 			mtx_unlock(&be_lun->queue_lock);
-
-			/*
-			 * We must drop the lock, since this routine and
-			 * its children may sleep.
-			 */
+			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
+				ctl_set_busy(&io->scsiio);
+				ctl_data_submit_done(io);
+				return;
+			}
 			ctl_be_block_dispatch(be_lun, io);
-
-			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 
@@ -1648,9 +1727,9 @@ ctl_be_block_worker(void *context, int pending)
 		 * If we get here, there is no work left in the queues, so
 		 * just break out and let the task queue go to sleep.
 		 */
+		mtx_unlock(&be_lun->queue_lock);
 		break;
 	}
-	mtx_unlock(&be_lun->queue_lock);
 }
 
 /*
@@ -1679,11 +1758,6 @@ ctl_be_block_submit(union ctl_io *io)
 	PRIV(io)->len = 0;
 
 	mtx_lock(&be_lun->queue_lock);
-	/*
-	 * XXX KDM make sure that links is okay to use at this point.
-	 * Otherwise, we either need to add another field to ctl_io_hdr,
-	 * or deal with resource allocation here.
-	 */
 	STAILQ_INSERT_TAIL(&be_lun->input_queue, &io->io_hdr, links);
 	mtx_unlock(&be_lun->queue_lock);
 	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
@@ -1746,7 +1820,6 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 	int			      error;
 
-	error = 0;
 	cbe_lun = &be_lun->cbe_lun;
 	file_data = &be_lun->backend.file;
 	params = &be_lun->params;
@@ -1767,21 +1840,6 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		return (error);
 	}
 
-	/*
-	 * Verify that we have the ability to upgrade to exclusive
-	 * access on this file so we can trap errors at open instead
-	 * of reporting them during first access.
-	 */
-	if (VOP_ISLOCKED(be_lun->vn) != LK_EXCLUSIVE) {
-		vn_lock(be_lun->vn, LK_UPGRADE | LK_RETRY);
-		if (be_lun->vn->v_iflag & VI_DOOMED) {
-			error = EBADF;
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "error locking file %s", be_lun->dev_path);
-			return (error);
-		}
-	}
-
 	file_data->cred = crhold(curthread->td_ucred);
 	if (params->lun_size_bytes != 0)
 		be_lun->size_bytes = params->lun_size_bytes;
@@ -1796,6 +1854,8 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	 */
 	if (params->blocksize_bytes != 0)
 		cbe_lun->blocksize = params->blocksize_bytes;
+	else if (cbe_lun->lun_type == T_CDROM)
+		cbe_lun->blocksize = 2048;
 	else
 		cbe_lun->blocksize = 512;
 	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
@@ -1853,22 +1913,19 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_lun_create_params *params;
-	struct vattr		      vattr;
+	struct cdevsw		     *csw;
 	struct cdev		     *dev;
-	struct cdevsw		     *devsw;
 	char			     *value;
-	int			      error, atomic, maxio, unmap, tmp;
+	int			      error, atomic, maxio, ref, unmap, tmp;
 	off_t			      ps, pss, po, pos, us, uss, uo, uos, otmp;
 
 	params = &be_lun->params;
 
 	be_lun->dev_type = CTL_BE_BLOCK_DEV;
-	be_lun->backend.dev.cdev = be_lun->vn->v_rdev;
-	be_lun->backend.dev.csw = dev_refthread(be_lun->backend.dev.cdev,
-					     &be_lun->backend.dev.dev_ref);
-	if (be_lun->backend.dev.csw == NULL)
-		panic("Unable to retrieve device switch");
-	if (strcmp(be_lun->backend.dev.csw->d_name, "zvol") == 0) {
+	csw = devvn_refthread(be_lun->vn, &dev, &ref);
+	if (csw == NULL)
+		return (ENXIO);
+	if (strcmp(csw->d_name, "zvol") == 0) {
 		be_lun->dispatch = ctl_be_block_dispatch_zvol;
 		be_lun->get_lba_status = ctl_be_block_gls_zvol;
 		atomic = maxio = CTLBLK_MAX_IO_SIZE;
@@ -1876,7 +1933,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->dispatch = ctl_be_block_dispatch_dev;
 		be_lun->get_lba_status = NULL;
 		atomic = 0;
-		maxio = be_lun->backend.dev.cdev->si_iosize_max;
+		maxio = dev->si_iosize_max;
 		if (maxio <= 0)
 			maxio = DFLTPHYS;
 		if (maxio > CTLBLK_MAX_IO_SIZE)
@@ -1886,26 +1943,17 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->getattr = ctl_be_block_getattr_dev;
 	be_lun->unmap = ctl_be_block_unmap_dev;
 
-	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
-	if (error) {
+	if (!csw->d_ioctl) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "error getting vnode attributes for device %s",
-			 be_lun->dev_path);
-		return (error);
-	}
-
-	dev = be_lun->vn->v_rdev;
-	devsw = dev->si_devsw;
-	if (!devsw->d_ioctl) {
-		snprintf(req->error_str, sizeof(req->error_str),
-			 "no d_ioctl for device %s!",
-			 be_lun->dev_path);
+			 "no d_ioctl for device %s!", be_lun->dev_path);
 		return (ENODEV);
 	}
 
-	error = devsw->d_ioctl(dev, DIOCGSECTORSIZE, (caddr_t)&tmp, FREAD,
+	error = csw->d_ioctl(dev, DIOCGSECTORSIZE, (caddr_t)&tmp, FREAD,
 			       curthread);
 	if (error) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned for DIOCGSECTORSIZE ioctl "
 			 "on %s!", error, be_lun->dev_path);
@@ -1923,24 +1971,28 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		if (params->blocksize_bytes % tmp == 0) {
 			cbe_lun->blocksize = params->blocksize_bytes;
 		} else {
+			dev_relthread(dev, ref);
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "requested blocksize %u is not an even "
 				 "multiple of backing device blocksize %u",
 				 params->blocksize_bytes, tmp);
 			return (EINVAL);
-			
 		}
 	} else if (params->blocksize_bytes != 0) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "requested blocksize %u < backing device "
 			 "blocksize %u", params->blocksize_bytes, tmp);
 		return (EINVAL);
-	} else
+	} else if (cbe_lun->lun_type == T_CDROM)
+		cbe_lun->blocksize = MAX(tmp, 2048);
+	else
 		cbe_lun->blocksize = tmp;
 
-	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
-			       curthread);
+	error = csw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
+			     curthread);
 	if (error) {
+		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned for DIOCGMEDIASIZE "
 			 " ioctl on %s!", error,
@@ -1950,6 +2002,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 
 	if (params->lun_size_bytes != 0) {
 		if (params->lun_size_bytes > otmp) {
+			dev_relthread(dev, ref);
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "requested LUN size %ju > backing device "
 				 "size %ju",
@@ -1965,13 +2018,13 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
 	    0 : (be_lun->size_blocks - 1);
 
-	error = devsw->d_ioctl(dev, DIOCGSTRIPESIZE,
-			       (caddr_t)&ps, FREAD, curthread);
+	error = csw->d_ioctl(dev, DIOCGSTRIPESIZE, (caddr_t)&ps, FREAD,
+	    curthread);
 	if (error)
 		ps = po = 0;
 	else {
-		error = devsw->d_ioctl(dev, DIOCGSTRIPEOFFSET,
-				       (caddr_t)&po, FREAD, curthread);
+		error = csw->d_ioctl(dev, DIOCGSTRIPEOFFSET, (caddr_t)&po,
+		    FREAD, curthread);
 		if (error)
 			po = 0;
 	}
@@ -2016,8 +2069,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 
 		strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
 		arg.len = sizeof(arg.value.i);
-		error = devsw->d_ioctl(dev, DIOCGATTR,
-		    (caddr_t)&arg, FREAD, curthread);
+		error = csw->d_ioctl(dev, DIOCGATTR, (caddr_t)&arg, FREAD,
+		    curthread);
 		unmap = (error == 0) ? arg.value.i : 0;
 	}
 	value = ctl_get_opt(&cbe_lun->options, "unmap");
@@ -2028,6 +2081,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	else
 		cbe_lun->flags &= ~CTL_LUN_FLAG_UNMAP;
 
+	dev_relthread(dev, ref);
 	return (0);
 }
 
@@ -2038,24 +2092,6 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 	int flags;
 
 	if (be_lun->vn) {
-		switch (be_lun->dev_type) {
-		case CTL_BE_BLOCK_DEV:
-			if (be_lun->backend.dev.csw) {
-				dev_relthread(be_lun->backend.dev.cdev,
-					      be_lun->backend.dev.dev_ref);
-				be_lun->backend.dev.csw  = NULL;
-				be_lun->backend.dev.cdev = NULL;
-			}
-			break;
-		case CTL_BE_BLOCK_FILE:
-			break;
-		case CTL_BE_BLOCK_NONE:
-			break;
-		default:
-			panic("Unexpected backend type.");
-			break;
-		}
-
 		flags = FREAD;
 		if ((cbe_lun->flags & CTL_LUN_FLAG_READONLY) == 0)
 			flags |= FWRITE;
@@ -2074,7 +2110,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 		case CTL_BE_BLOCK_NONE:
 			break;
 		default:
-			panic("Unexpected backend type.");
+			panic("Unexpected backend type %d", be_lun->dev_type);
 			break;
 		}
 		be_lun->dev_type = CTL_BE_BLOCK_NONE;
@@ -2083,8 +2119,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 }
 
 static int
-ctl_be_block_open(struct ctl_be_block_softc *softc,
-		  struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
+ctl_be_block_open(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct nameidata nd;
@@ -2110,7 +2145,10 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 
 	flags = FREAD;
 	value = ctl_get_opt(&cbe_lun->options, "readonly");
-	if (value == NULL || strcmp(value, "on") != 0)
+	if (value != NULL) {
+		if (strcmp(value, "on") != 0)
+			flags |= FWRITE;
+	} else if (cbe_lun->lun_type == T_DIRECT)
 		flags |= FWRITE;
 
 again:
@@ -2226,10 +2264,13 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
 		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 
-	if (cbe_lun->lun_type == T_DIRECT) {
+	if (cbe_lun->lun_type == T_DIRECT ||
+	    cbe_lun->lun_type == T_CDROM) {
 		be_lun->size_bytes = params->lun_size_bytes;
 		if (params->blocksize_bytes != 0)
 			cbe_lun->blocksize = params->blocksize_bytes;
+		else if (cbe_lun->lun_type == T_CDROM)
+			cbe_lun->blocksize = 2048;
 		else
 			cbe_lun->blocksize = 512;
 		be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
@@ -2238,7 +2279,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 		if ((cbe_lun->flags & CTL_LUN_FLAG_PRIMARY) ||
 		    control_softc->ha_mode == CTL_HA_MODE_SER_ONLY) {
-			retval = ctl_be_block_open(softc, be_lun, req);
+			retval = ctl_be_block_open(be_lun, req);
 			if (retval != 0) {
 				retval = 0;
 				req->status = CTL_LUN_WARNING;
@@ -2249,10 +2290,6 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		num_threads = 1;
 	}
 
-	/*
-	 * XXX This searching loop might be refactored to be combined with
-	 * the loop above,
-	 */
 	value = ctl_get_opt(&cbe_lun->options, "num_threads");
 	if (value != NULL) {
 		tmp_num_threads = strtol(value, NULL, 0);
@@ -2272,7 +2309,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	}
 
 	if (be_lun->vn == NULL)
-		cbe_lun->flags |= CTL_LUN_FLAG_OFFLINE;
+		cbe_lun->flags |= CTL_LUN_FLAG_NO_MEDIA;
 	/* Tell the user the blocksize we ended up using */
 	params->lun_size_bytes = be_lun->size_bytes;
 	params->blocksize_bytes = cbe_lun->blocksize;
@@ -2431,6 +2468,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_rm_params *params;
 	struct ctl_be_block_lun *be_lun;
+	struct ctl_be_lun *cbe_lun;
 	int retval;
 
 	params = &req->reqdata.rm;
@@ -2441,25 +2479,30 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			break;
 	}
 	mtx_unlock(&softc->lock);
-
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "LUN %u is not managed by the block backend",
 			 params->lun_id);
 		goto bailout_error;
 	}
+	cbe_lun = &be_lun->cbe_lun;
 
-	retval = ctl_disable_lun(&be_lun->cbe_lun);
-
+	retval = ctl_disable_lun(cbe_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned from ctl_disable_lun() for "
 			 "LUN %d", retval, params->lun_id);
 		goto bailout_error;
-
 	}
 
-	retval = ctl_invalidate_lun(&be_lun->cbe_lun);
+	if (be_lun->vn != NULL) {
+		cbe_lun->flags |= CTL_LUN_FLAG_NO_MEDIA;
+		ctl_lun_no_media(cbe_lun);
+		taskqueue_drain_all(be_lun->io_taskqueue);
+		ctl_be_block_close(be_lun);
+	}
+
+	retval = ctl_invalidate_lun(cbe_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "error %d returned from ctl_invalidate_lun() for "
@@ -2468,15 +2511,12 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	}
 
 	mtx_lock(&softc->lock);
-
 	be_lun->flags |= CTL_BE_BLOCK_LUN_WAITING;
-
 	while ((be_lun->flags & CTL_BE_BLOCK_LUN_UNCONFIGURED) == 0) {
                 retval = msleep(be_lun, &softc->lock, PCATCH, "ctlblk", 0);
                 if (retval == EINTR)
                         break;
         }
-
 	be_lun->flags &= ~CTL_BE_BLOCK_LUN_WAITING;
 
 	if ((be_lun->flags & CTL_BE_BLOCK_LUN_UNCONFIGURED) == 0) {
@@ -2491,106 +2531,25 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	softc->num_luns--;
 	mtx_unlock(&softc->lock);
 
-	taskqueue_drain(be_lun->io_taskqueue, &be_lun->io_task);
-
+	taskqueue_drain_all(be_lun->io_taskqueue);
 	taskqueue_free(be_lun->io_taskqueue);
-
-	ctl_be_block_close(be_lun);
 
 	if (be_lun->disk_stats != NULL)
 		devstat_remove_entry(be_lun->disk_stats);
 
 	uma_zdestroy(be_lun->lun_zone);
 
-	ctl_free_opts(&be_lun->cbe_lun.options);
+	ctl_free_opts(&cbe_lun->options);
 	free(be_lun->dev_path, M_CTLBLK);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);
 	free(be_lun, M_CTLBLK);
 
 	req->status = CTL_LUN_OK;
-
 	return (0);
 
 bailout_error:
-
 	req->status = CTL_LUN_ERROR;
-
-	return (0);
-}
-
-static int
-ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
-			 struct ctl_lun_req *req)
-{
-	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
-	struct vattr vattr;
-	int error;
-	struct ctl_lun_create_params *params = &be_lun->params;
-
-	if (params->lun_size_bytes != 0) {
-		be_lun->size_bytes = params->lun_size_bytes;
-	} else  {
-		vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
-		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
-		VOP_UNLOCK(be_lun->vn, 0);
-		if (error != 0) {
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "error calling VOP_GETATTR() for file %s",
-				 be_lun->dev_path);
-			return (error);
-		}
-		be_lun->size_bytes = vattr.va_size;
-	}
-	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
-	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
-	    0 : (be_lun->size_blocks - 1);
-	return (0);
-}
-
-static int
-ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
-			struct ctl_lun_req *req)
-{
-	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
-	struct ctl_be_block_devdata *dev_data;
-	int error;
-	struct ctl_lun_create_params *params = &be_lun->params;
-	uint64_t size_bytes;
-
-	dev_data = &be_lun->backend.dev;
-	if (!dev_data->csw->d_ioctl) {
-		snprintf(req->error_str, sizeof(req->error_str),
-			 "no d_ioctl for device %s!", be_lun->dev_path);
-		return (ENODEV);
-	}
-
-	error = dev_data->csw->d_ioctl(dev_data->cdev, DIOCGMEDIASIZE,
-			       (caddr_t)&size_bytes, FREAD,
-			       curthread);
-	if (error) {
-		snprintf(req->error_str, sizeof(req->error_str),
-			 "error %d returned for DIOCGMEDIASIZE ioctl "
-			 "on %s!", error, be_lun->dev_path);
-		return (error);
-	}
-
-	if (params->lun_size_bytes != 0) {
-		if (params->lun_size_bytes > size_bytes) {
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "requested LUN size %ju > backing device "
-				 "size %ju",
-				 (uintmax_t)params->lun_size_bytes,
-				 (uintmax_t)size_bytes);
-			return (EINVAL);
-		}
-		be_lun->size_bytes = params->lun_size_bytes;
-	} else {
-		be_lun->size_bytes = size_bytes;
-	}
-	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
-	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
-	    0 : (be_lun->size_blocks - 1);
 	return (0);
 }
 
@@ -2612,7 +2571,6 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			break;
 	}
 	mtx_unlock(&softc->lock);
-
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "LUN %u is not managed by the block backend",
@@ -2647,23 +2605,30 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	if ((cbe_lun->flags & CTL_LUN_FLAG_PRIMARY) ||
 	    control_softc->ha_mode == CTL_HA_MODE_SER_ONLY) {
 		if (be_lun->vn == NULL)
-			error = ctl_be_block_open(softc, be_lun, req);
+			error = ctl_be_block_open(be_lun, req);
 		else if (vn_isdisk(be_lun->vn, &error))
-			error = ctl_be_block_modify_dev(be_lun, req);
-		else if (be_lun->vn->v_type == VREG)
-			error = ctl_be_block_modify_file(be_lun, req);
-		else
+			error = ctl_be_block_open_dev(be_lun, req);
+		else if (be_lun->vn->v_type == VREG) {
+			vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
+			error = ctl_be_block_open_file(be_lun, req);
+			VOP_UNLOCK(be_lun->vn, 0);
+		} else
 			error = EINVAL;
-		if ((cbe_lun->flags & CTL_LUN_FLAG_OFFLINE) &&
+		if ((cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) &&
 		    be_lun->vn != NULL) {
-			cbe_lun->flags &= ~CTL_LUN_FLAG_OFFLINE;
-			ctl_lun_online(cbe_lun);
+			cbe_lun->flags &= ~CTL_LUN_FLAG_NO_MEDIA;
+			ctl_lun_has_media(cbe_lun);
+		} else if ((cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) == 0 &&
+		    be_lun->vn == NULL) {
+			cbe_lun->flags |= CTL_LUN_FLAG_NO_MEDIA;
+			ctl_lun_no_media(cbe_lun);
 		}
+		cbe_lun->flags &= ~CTL_LUN_FLAG_EJECTED;
 	} else {
 		if (be_lun->vn != NULL) {
-			cbe_lun->flags |= CTL_LUN_FLAG_OFFLINE;
-			ctl_lun_offline(cbe_lun);
-			pause("CTL LUN offline", hz / 8);	// XXX
+			cbe_lun->flags |= CTL_LUN_FLAG_NO_MEDIA;
+			ctl_lun_no_media(cbe_lun);
+			taskqueue_drain_all(be_lun->io_taskqueue);
 			error = ctl_be_block_close(be_lun);
 		} else
 			error = 0;
@@ -2689,7 +2654,6 @@ ctl_be_block_lun_shutdown(void *be_lun)
 	struct ctl_be_block_softc *softc;
 
 	lun = (struct ctl_be_block_lun *)be_lun;
-
 	softc = lun->softc;
 
 	mtx_lock(&softc->lock);
@@ -2697,7 +2661,6 @@ ctl_be_block_lun_shutdown(void *be_lun)
 	if (lun->flags & CTL_BE_BLOCK_LUN_WAITING)
 		wakeup(lun);
 	mtx_unlock(&softc->lock);
-
 }
 
 static void
@@ -2746,14 +2709,13 @@ ctl_be_block_config_write(union ctl_io *io)
 	struct ctl_be_lun *cbe_lun;
 	int retval;
 
-	retval = 0;
-
 	DPRINTF("entered\n");
 
 	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 		CTL_PRIV_BACKEND_LUN].ptr;
 	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
 
+	retval = 0;
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
@@ -2776,40 +2738,46 @@ ctl_be_block_config_write(union ctl_io *io)
 		break;
 	case START_STOP_UNIT: {
 		struct scsi_start_stop_unit *cdb;
+		struct ctl_lun_req req;
 
 		cdb = (struct scsi_start_stop_unit *)io->scsiio.cdb;
-
-		if (cdb->how & SSS_START)
-			retval = ctl_start_lun(cbe_lun);
-		else {
-			retval = ctl_stop_lun(cbe_lun);
-			/*
-			 * XXX KDM Copan-specific offline behavior.
-			 * Figure out a reasonable way to port this?
-			 */
-#ifdef NEEDTOPORT
-			if ((retval == 0)
-			 && (cdb->byte2 & SSS_ONOFFLINE))
-				retval = ctl_lun_offline(cbe_lun);
-#endif
-		}
-
-		/*
-		 * In general, the above routines should not fail.  They
-		 * just set state for the LUN.  So we've got something
-		 * pretty wrong here if we can't start or stop the LUN.
-		 */
-		if (retval != 0) {
-			ctl_set_internal_failure(&io->scsiio,
-						 /*sks_valid*/ 1,
-						 /*retry_count*/ 0xf051);
-			retval = CTL_RETVAL_COMPLETE;
-		} else {
+		if ((cdb->how & SSS_PC_MASK) != 0) {
 			ctl_set_success(&io->scsiio);
+			ctl_config_write_done(io);
+			break;
 		}
+		if (cdb->how & SSS_START) {
+			if ((cdb->how & SSS_LOEJ) && be_lun->vn == NULL) {
+				retval = ctl_be_block_open(be_lun, &req);
+				cbe_lun->flags &= ~CTL_LUN_FLAG_EJECTED;
+				if (retval == 0) {
+					cbe_lun->flags &= ~CTL_LUN_FLAG_NO_MEDIA;
+					ctl_lun_has_media(cbe_lun);
+				} else {
+					cbe_lun->flags |= CTL_LUN_FLAG_NO_MEDIA;
+					ctl_lun_no_media(cbe_lun);
+				}
+			}
+			ctl_start_lun(cbe_lun);
+		} else {
+			ctl_stop_lun(cbe_lun);
+			if (cdb->how & SSS_LOEJ) {
+				cbe_lun->flags |= CTL_LUN_FLAG_NO_MEDIA;
+				cbe_lun->flags |= CTL_LUN_FLAG_EJECTED;
+				ctl_lun_ejected(cbe_lun);
+				if (be_lun->vn != NULL)
+					ctl_be_block_close(be_lun);
+			}
+		}
+
+		ctl_set_success(&io->scsiio);
 		ctl_config_write_done(io);
 		break;
 	}
+	case PREVENT_ALLOW:
+		ctl_set_success(&io->scsiio);
+		ctl_config_write_done(io);
+		break;
 	default:
 		ctl_set_invalid_opcode(&io->scsiio);
 		ctl_config_write_done(io);
@@ -2871,22 +2839,16 @@ ctl_be_block_lun_info(void *be_lun, struct sbuf *sb)
 	int retval;
 
 	lun = (struct ctl_be_block_lun *)be_lun;
-	retval = 0;
 
 	retval = sbuf_printf(sb, "\t<num_threads>");
-
 	if (retval != 0)
 		goto bailout;
-
 	retval = sbuf_printf(sb, "%d", lun->num_threads);
-
 	if (retval != 0)
 		goto bailout;
-
 	retval = sbuf_printf(sb, "</num_threads>\n");
 
 bailout:
-
 	return (retval);
 }
 

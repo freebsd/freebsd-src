@@ -86,6 +86,13 @@ public:
   /// of the right bracket.
   SourceLocation getOperatorLoc() const { return getRParenLoc(); }
 
+  SourceLocation getExprLoc() const LLVM_READONLY {
+    return (Operator < OO_Plus || Operator >= OO_Arrow ||
+            Operator == OO_PlusPlus || Operator == OO_MinusMinus)
+               ? getLocStart()
+               : getOperatorLoc();
+  }
+
   SourceLocation getLocStart() const LLVM_READONLY { return Range.getBegin(); }
   SourceLocation getLocEnd() const LLVM_READONLY { return Range.getEnd(); }
   SourceRange getSourceRange() const { return Range; }
@@ -1127,7 +1134,7 @@ public:
                                   ConstructionKind ConstructKind,
                                   SourceRange ParenOrBraceRange);
 
-  CXXConstructorDecl* getConstructor() const { return Constructor; }
+  CXXConstructorDecl *getConstructor() const { return Constructor; }
   void setConstructor(CXXConstructorDecl *C) { Constructor = C; }
 
   SourceLocation getLocation() const { return Loc; }
@@ -1404,14 +1411,13 @@ class LambdaExpr : public Expr {
   unsigned *getArrayIndexStarts() const {
     return reinterpret_cast<unsigned *>(getStoredStmts() + NumCaptures + 1);
   }
-  
+
   /// \brief Retrieve the complete set of array-index variables.
   VarDecl **getArrayIndexVars() const {
-    unsigned ArrayIndexSize =
-        llvm::RoundUpToAlignment(sizeof(unsigned) * (NumCaptures + 1),
-                                 llvm::alignOf<VarDecl*>());
+    unsigned ArrayIndexSize = llvm::RoundUpToAlignment(
+        sizeof(unsigned) * (NumCaptures + 1), llvm::alignOf<VarDecl *>());
     return reinterpret_cast<VarDecl **>(
-        reinterpret_cast<char*>(getArrayIndexStarts()) + ArrayIndexSize);
+        reinterpret_cast<char *>(getArrayIndexStarts()) + ArrayIndexSize);
   }
 
 public:
@@ -1445,6 +1451,9 @@ public:
   SourceLocation getCaptureDefaultLoc() const {
     return CaptureDefaultLoc;
   }
+
+  /// \brief Determine whether one of this lambda's captures is an init-capture.
+  bool isInitCapture(const LambdaCapture *Capture) const;
 
   /// \brief An iterator that walks over the captures of the lambda,
   /// both implicit and explicit.
@@ -1685,6 +1694,10 @@ public:
   ///   If the allocation function returns null, initialization shall
   ///   not be done, the deallocation function shall not be called,
   ///   and the value of the new-expression shall be null.
+  ///
+  /// C++ DR1748:
+  ///   If the allocation function is a reserved placement allocation
+  ///   function that returns null, the behavior is undefined.
   ///
   /// An allocation function is not allowed to return null unless it
   /// has a non-throwing exception-specification.  The '03 rule is

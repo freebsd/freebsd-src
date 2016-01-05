@@ -197,7 +197,9 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_CORTEXA15R3,	CPU_CLASS_CORTEXA,	"Cortex A15-r3",
 	  generic_steppings },
-	{ CPU_ID_KRAIT,		CPU_CLASS_KRAIT,	"Krait",
+	{ CPU_ID_KRAIT300R0,	CPU_CLASS_KRAIT,	"Krait 300-r0",
+	  generic_steppings },
+	{ CPU_ID_KRAIT300R1,	CPU_CLASS_KRAIT,	"Krait 300-r1",
 	  generic_steppings },
 
 	{ CPU_ID_80200,		CPU_CLASS_XSCALE,	"i80200",

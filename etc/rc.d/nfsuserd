@@ -15,5 +15,14 @@ command="/usr/sbin/${name}"
 sig_stop="USR1"
 
 load_rc_config $name
+start_precmd="nfsuserd_precmd"
+
+nfsuserd_precmd()
+{
+	if checkyesno nfs_server_managegids; then
+		rc_flags="-manage-gids ${nfsuserd_flags}"
+	fi
+	return 0
+}
 
 run_rc_command "$1"

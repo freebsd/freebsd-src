@@ -7,7 +7,7 @@
 INTERNALLIB=	yes
 LIB=		svn_fs
 
-SRCS=		access.c editor.c fs-loader.c
+SRCS=		access.c deprecated.c editor.c fs-loader.c
 
 CFLAGS+=	-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/../.. \
 		-I${.CURDIR}/../libapr \

@@ -1,10 +1,6 @@
 # $FreeBSD$
 kern/kern_clocksource.c			standard
 
-arm/arm/bus_space_base.c		standard
-arm/arm/bus_space_asm_generic.S		standard
-arm/arm/bus_space_generic.c		standard
-
 arm/allwinner/a10_ahci.c		optional	ahci
 arm/allwinner/a10_clk.c			standard
 arm/allwinner/a10_common.c		standard

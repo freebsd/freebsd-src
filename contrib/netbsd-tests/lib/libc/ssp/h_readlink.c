@@ -46,7 +46,6 @@ main(int argc, char *argv[])
 {
 #ifdef __FreeBSD__
 	char b[512], *sl;
-	int n;
 	size_t len = atoi(argv[1]);
 	sl = malloc(len);
 	memset(sl, 'a', len);
@@ -54,7 +53,7 @@ main(int argc, char *argv[])
 	unlink("symlink");
 	if (symlink(sl, "symlink") == -1)
 		err(1, "symlink()");
-	n = readlink("symlink", b, len);
+	(void)readlink("symlink", b, len);
 	unlink("symlink");
 #else
 	char b[MAXPATHLEN];

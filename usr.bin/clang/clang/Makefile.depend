@@ -28,7 +28,6 @@ DIRDEPS = \
 	lib/clang/libllvmaarch64asmparser \
 	lib/clang/libllvmaarch64codegen \
 	lib/clang/libllvmaarch64desc \
-	lib/clang/libllvmaarch64disassembler \
 	lib/clang/libllvmaarch64info \
 	lib/clang/libllvmaarch64instprinter \
 	lib/clang/libllvmaarch64utils \
@@ -57,7 +56,6 @@ DIRDEPS = \
 	lib/clang/libllvmmipsasmparser \
 	lib/clang/libllvmmipscodegen \
 	lib/clang/libllvmmipsdesc \
-	lib/clang/libllvmmipsdisassembler \
 	lib/clang/libllvmmipsinfo \
 	lib/clang/libllvmmipsinstprinter \
 	lib/clang/libllvmobjcarcopts \
@@ -75,7 +73,6 @@ DIRDEPS = \
 	lib/clang/libllvmsparcasmparser \
 	lib/clang/libllvmsparccodegen \
 	lib/clang/libllvmsparcdesc \
-	lib/clang/libllvmsparcdisassembler \
 	lib/clang/libllvmsparcinfo \
 	lib/clang/libllvmsparcinstprinter \
 	lib/clang/libllvmsupport \
@@ -85,13 +82,13 @@ DIRDEPS = \
 	lib/clang/libllvmx86asmparser \
 	lib/clang/libllvmx86codegen \
 	lib/clang/libllvmx86desc \
-	lib/clang/libllvmx86disassembler \
 	lib/clang/libllvmx86info \
 	lib/clang/libllvmx86instprinter \
 	lib/clang/libllvmx86utils \
 	lib/libc \
 	lib/libc++ \
 	lib/libcompiler_rt \
+	lib/libthr \
 	lib/libz \
 	lib/msun \
 	lib/ncurses/ncursesw \

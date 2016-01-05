@@ -18,8 +18,8 @@
 #include "MSP430ISelLowering.h"
 #include "MSP430InstrInfo.h"
 #include "MSP430RegisterInfo.h"
-#include "MSP430SelectionDAGInfo.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/Target/TargetSelectionDAGInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include <string>
 
@@ -32,17 +32,16 @@ class StringRef;
 class MSP430Subtarget : public MSP430GenSubtargetInfo {
   virtual void anchor();
   bool ExtendedInsts;
-  const DataLayout DL; // Calculates type size & alignment
   MSP430FrameLowering FrameLowering;
   MSP430InstrInfo InstrInfo;
   MSP430TargetLowering TLInfo;
-  MSP430SelectionDAGInfo TSInfo;
+  TargetSelectionDAGInfo TSInfo;
 
 public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   ///
-  MSP430Subtarget(const std::string &TT, const std::string &CPU,
+  MSP430Subtarget(const Triple &TT, const std::string &CPU,
                   const std::string &FS, const TargetMachine &TM);
 
   MSP430Subtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
@@ -55,14 +54,13 @@ public:
     return &FrameLowering;
   }
   const MSP430InstrInfo *getInstrInfo() const override { return &InstrInfo; }
-  const DataLayout *getDataLayout() const override { return &DL; }
   const TargetRegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
   }
   const MSP430TargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
-  const MSP430SelectionDAGInfo *getSelectionDAGInfo() const override {
+  const TargetSelectionDAGInfo *getSelectionDAGInfo() const override {
     return &TSInfo;
   }
 };

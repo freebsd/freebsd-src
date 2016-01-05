@@ -22,50 +22,62 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
+#include "ntp_calendar.h"
+#include <string.h>
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_DaySplitMerge();
-extern void test_SplitYearDays1();
-extern void test_SplitYearDays2();
-extern void test_RataDie1();
-extern void test_LeapYears1();
-extern void test_LeapYears2();
-extern void test_RoundTripDate();
-extern void test_RoundTripYearStart();
-extern void test_RoundTripMonthStart();
-extern void test_RoundTripWeekStart();
-extern void test_RoundTripDayStart();
+extern void test_DaySplitMerge(void);
+extern void test_SplitYearDays1(void);
+extern void test_SplitYearDays2(void);
+extern void test_RataDie1(void);
+extern void test_LeapYears1(void);
+extern void test_LeapYears2(void);
+extern void test_RoundTripDate(void);
+extern void test_RoundTripYearStart(void);
+extern void test_RoundTripMonthStart(void);
+extern void test_RoundTripWeekStart(void);
+extern void test_RoundTripDayStart(void);
+extern void test_IsoCalYearsToWeeks(void);
+extern void test_IsoCalWeeksToYearStart(void);
+extern void test_IsoCalWeeksToYearEnd(void);
+extern void test_DaySecToDate(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "calendar.c";
   UnityBegin("calendar.c");
-  RUN_TEST(test_DaySplitMerge, 230);
-  RUN_TEST(test_SplitYearDays1, 254);
-  RUN_TEST(test_SplitYearDays2, 268);
-  RUN_TEST(test_RataDie1, 283);
-  RUN_TEST(test_LeapYears1, 293);
-  RUN_TEST(test_LeapYears2, 308);
-  RUN_TEST(test_RoundTripDate, 326);
-  RUN_TEST(test_RoundTripYearStart, 355);
-  RUN_TEST(test_RoundTripMonthStart, 371);
-  RUN_TEST(test_RoundTripWeekStart, 387);
-  RUN_TEST(test_RoundTripDayStart, 403);
+  RUN_TEST(test_DaySplitMerge, 21);
+  RUN_TEST(test_SplitYearDays1, 22);
+  RUN_TEST(test_SplitYearDays2, 23);
+  RUN_TEST(test_RataDie1, 24);
+  RUN_TEST(test_LeapYears1, 25);
+  RUN_TEST(test_LeapYears2, 26);
+  RUN_TEST(test_RoundTripDate, 27);
+  RUN_TEST(test_RoundTripYearStart, 28);
+  RUN_TEST(test_RoundTripMonthStart, 29);
+  RUN_TEST(test_RoundTripWeekStart, 30);
+  RUN_TEST(test_RoundTripDayStart, 31);
+  RUN_TEST(test_IsoCalYearsToWeeks, 32);
+  RUN_TEST(test_IsoCalWeeksToYearStart, 33);
+  RUN_TEST(test_IsoCalWeeksToYearEnd, 34);
+  RUN_TEST(test_DaySecToDate, 35);
 
   return (UnityEnd());
 }

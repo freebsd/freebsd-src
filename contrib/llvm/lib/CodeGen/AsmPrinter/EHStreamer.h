@@ -23,12 +23,14 @@ class MachineModuleInfo;
 class MachineInstr;
 class MachineFunction;
 class AsmPrinter;
+class MCSymbol;
+class MCSymbolRefExpr;
 
 template <typename T>
 class SmallVectorImpl;
 
 /// Emits exception handling directives.
-class EHStreamer : public AsmPrinterHandler {
+class LLVM_LIBRARY_VISIBILITY EHStreamer : public AsmPrinterHandler {
 protected:
   /// Target of directive emission.
   AsmPrinter *Asm;
@@ -60,11 +62,11 @@ protected:
   /// Structure describing an entry in the call-site table.
   struct CallSiteEntry {
     // The 'try-range' is BeginLabel .. EndLabel.
-    MCSymbol *BeginLabel; // zero indicates the start of the function.
-    MCSymbol *EndLabel;   // zero indicates the end of the function.
+    MCSymbol *BeginLabel; // Null indicates the start of the function.
+    MCSymbol *EndLabel;   // Null indicates the end of the function.
 
-    // The landing pad starts at PadLabel.
-    MCSymbol *PadLabel;   // zero indicates that there is no landing pad.
+    // LPad contains the landing pad start labels.
+    const LandingPadInfo *LPad; // Null indicates that there is no landing pad.
     unsigned Action;
   };
 
@@ -78,13 +80,15 @@ protected:
   /// `false' otherwise.
   bool callToNoUnwindFunction(const MachineInstr *MI);
 
+  void computePadMap(const SmallVectorImpl<const LandingPadInfo *> &LandingPads,
+                     RangeMapType &PadMap);
+
   /// Compute the call-site table.  The entry for an invoke has a try-range
   /// containing the call, a non-zero landing pad and an appropriate action.
   /// The entry for an ordinary call has a try-range containing the call and
   /// zero for the landing pad and the action.  Calls marked 'nounwind' have
   /// no entry and must not be contained in the try-range of any entry - they
   /// form gaps in the table.  Entries must be ordered by try-range address.
-
   void computeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
                             const SmallVectorImpl<const LandingPadInfo *> &LPs,
                             const SmallVectorImpl<unsigned> &FirstActions);
@@ -112,19 +116,16 @@ protected:
 
   virtual void emitTypeInfos(unsigned TTypeEncoding);
 
+  // Helpers for for identifying what kind of clause an EH typeid or selector
+  // corresponds to. Negative selectors are for filter clauses, the zero
+  // selector is for cleanups, and positive selectors are for catch clauses.
+  static bool isFilterEHSelector(int Selector) { return Selector < 0; }
+  static bool isCleanupEHSelector(int Selector) { return Selector == 0; }
+  static bool isCatchEHSelector(int Selector) { return Selector > 0; }
+
 public:
   EHStreamer(AsmPrinter *A);
-  virtual ~EHStreamer();
-
-  /// Emit all exception information that should come after the content.
-  void endModule() override;
-
-  /// Gather pre-function exception information.  Assumes being emitted
-  /// immediately after the function entry point.
-  void beginFunction(const MachineFunction *MF) override;
-
-  /// Gather and emit post-function exception information.
-  void endFunction(const MachineFunction *) override;
+  ~EHStreamer() override;
 
   // Unused.
   void setSymbolSize(const MCSymbol *Sym, uint64_t Size) override {}

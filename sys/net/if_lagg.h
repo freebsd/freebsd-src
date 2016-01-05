@@ -53,7 +53,6 @@ typedef enum {
 	LAGG_PROTO_FAILOVER,	/* active failover */
 	LAGG_PROTO_LOADBALANCE,	/* loadbalance */
 	LAGG_PROTO_LACP,	/* 802.3ad lacp */
-	LAGG_PROTO_ETHERCHANNEL,/* Cisco FEC */
 	LAGG_PROTO_BROADCAST,	/* broadcast */
 	LAGG_PROTO_MAX,
 } lagg_proto;
@@ -66,7 +65,6 @@ struct lagg_protos {
 #define	LAGG_PROTO_DEFAULT	LAGG_PROTO_FAILOVER
 #define LAGG_PROTOS	{						\
 	{ "failover",		LAGG_PROTO_FAILOVER },		\
-	{ "fec",		LAGG_PROTO_ETHERCHANNEL },		\
 	{ "lacp",		LAGG_PROTO_LACP },			\
 	{ "loadbalance",	LAGG_PROTO_LOADBALANCE },		\
 	{ "roundrobin",	LAGG_PROTO_ROUNDROBIN },		\
@@ -203,11 +201,16 @@ struct lagg_mc {
 	SLIST_ENTRY(lagg_mc)	mc_entries;
 };
 
+typedef enum {
+	LAGG_LLQTYPE_PHYS = 0,	/* Task related to physical (underlying) port */
+	LAGG_LLQTYPE_VIRT,	/* Task related to lagg interface itself */
+} lagg_llqtype;
+
 /* List of interfaces to have the MAC address modified */
 struct lagg_llq {
 	struct ifnet		*llq_ifp;
 	uint8_t			llq_lladdr[ETHER_ADDR_LEN];
-	uint8_t			llq_primary;
+	lagg_llqtype		llq_type;
 	SLIST_ENTRY(lagg_llq)	llq_entries;
 };
 
@@ -275,6 +278,7 @@ struct lagg_port {
 #define	LAGG_WUNLOCK(_sc)	rm_wunlock(&(_sc)->sc_mtx)
 #define	LAGG_RLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_RLOCKED)
 #define	LAGG_WLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_WLOCKED)
+#define	LAGG_UNLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_UNLOCKED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );

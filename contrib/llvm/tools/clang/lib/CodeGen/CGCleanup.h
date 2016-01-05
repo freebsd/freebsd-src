@@ -62,6 +62,9 @@ protected:
     /// Whether this cleanup is currently active.
     unsigned IsActive : 1;
 
+    /// Whether this cleanup is a lifetime marker
+    unsigned IsLifetimeMarker : 1;
+
     /// Whether the normal cleanup should test the activation flag.
     unsigned TestFlagInNormalCleanup : 1;
 
@@ -75,7 +78,7 @@ protected:
     /// The number of fixups required by enclosing scopes (not including
     /// this one).  If this is the top cleanup scope, all the fixups
     /// from this index onwards belong to this scope.
-    unsigned FixupDepth : 32 - 17 - NumCommonBits; // currently 13    
+    unsigned FixupDepth : 32 - 18 - NumCommonBits; // currently 13
   };
 
   class FilterBitFields {
@@ -272,6 +275,7 @@ public:
     CleanupBits.IsNormalCleanup = isNormal;
     CleanupBits.IsEHCleanup = isEH;
     CleanupBits.IsActive = isActive;
+    CleanupBits.IsLifetimeMarker = false;
     CleanupBits.TestFlagInNormalCleanup = false;
     CleanupBits.TestFlagInEHCleanup = false;
     CleanupBits.CleanupSize = cleanupSize;
@@ -284,18 +288,19 @@ public:
     delete ExtInfo;
   }
   // Objects of EHCleanupScope are not destructed. Use Destroy().
-  ~EHCleanupScope() LLVM_DELETED_FUNCTION;
+  ~EHCleanupScope() = delete;
 
   bool isNormalCleanup() const { return CleanupBits.IsNormalCleanup; }
   llvm::BasicBlock *getNormalBlock() const { return NormalBlock; }
   void setNormalBlock(llvm::BasicBlock *BB) { NormalBlock = BB; }
 
   bool isEHCleanup() const { return CleanupBits.IsEHCleanup; }
-  llvm::BasicBlock *getEHBlock() const { return getCachedEHDispatchBlock(); }
-  void setEHBlock(llvm::BasicBlock *BB) { setCachedEHDispatchBlock(BB); }
 
   bool isActive() const { return CleanupBits.IsActive; }
   void setActive(bool A) { CleanupBits.IsActive = A; }
+
+  bool isLifetimeMarker() const { return CleanupBits.IsLifetimeMarker; }
+  void setLifetimeMarker() { CleanupBits.IsLifetimeMarker = true; }
 
   llvm::AllocaInst *getActiveFlag() const { return ActiveFlag; }
   void setActiveFlag(llvm::AllocaInst *Var) { ActiveFlag = Var; }

@@ -145,6 +145,9 @@ ath_hal_mac_name(struct ath_hal *ah)
 	case AR_SREV_VERSION_QCA9565:
 		/* XXX should say QCA, not AR */
 		return "9565";
+	case AR_SREV_VERSION_QCA9530:
+		/* XXX should say QCA, not AR */
+		return "9530";
 	}
 	return "????";
 }
@@ -1428,15 +1431,15 @@ ath_hal_EepromDataRead(struct ath_hal *ah, u_int off, uint16_t *data)
  * This is the unmapped frequency which is programmed into the hardware.
  */
 int
-ath_hal_mhz2ieee_2ghz(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan)
+ath_hal_mhz2ieee_2ghz(struct ath_hal *ah, int freq)
 {
 
-	if (ichan->channel == 2484)
+	if (freq == 2484)
 		return 14;
-	if (ichan->channel < 2484)
-		return ((int) ichan->channel - 2407) / 5;
+	if (freq < 2484)
+		return ((int) freq - 2407) / 5;
 	else
-		return 15 + ((ichan->channel - 2512) / 20);
+		return 15 + ((freq - 2512) / 20);
 }
 
 /*

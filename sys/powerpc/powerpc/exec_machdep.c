@@ -501,9 +501,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
 	struct trapframe	*tf;
 	register_t		argc;
-	#ifdef __powerpc64__
-	register_t		entry_desc[3];
-	#endif
 
 	tf = trapframe(td);
 	bzero(tf, sizeof *tf);
@@ -546,24 +543,13 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[7] = 0;				/* termination vector */
 	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
 
+	tf->srr0 = imgp->entry_addr;
 	#ifdef __powerpc64__
-	/*
-	 * For 64-bit, we need to disentangle the function descriptor
-	 * 
-	 * 0. entry point
-	 * 1. TOC value (r2)
-	 * 2. Environment pointer (r11)
-	 */
-
-	(void)copyin((void *)imgp->entry_addr, entry_desc, sizeof(entry_desc));
-	tf->srr0 = entry_desc[0] + imgp->reloc_base;
-	tf->fixreg[2] = entry_desc[1] + imgp->reloc_base;
-	tf->fixreg[11] = entry_desc[2] + imgp->reloc_base;
+	tf->fixreg[12] = imgp->entry_addr;
 	tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
 	if (mfmsr() & PSL_HV)
 		tf->srr1 |= PSL_HV;
 	#else
-	tf->srr0 = imgp->entry_addr;
 	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 	#endif
 	td->td_pcb->pcb_flags = 0;
@@ -986,11 +972,12 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb2->pcb_sp = (register_t)cf;
-	#ifdef __powerpc64__
+	#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 	pcb2->pcb_lr = ((register_t *)fork_trampoline)[0];
 	pcb2->pcb_toc = ((register_t *)fork_trampoline)[1];
 	#else
 	pcb2->pcb_lr = (register_t)fork_trampoline;
+	pcb2->pcb_context[0] = pcb2->pcb_lr;
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
 

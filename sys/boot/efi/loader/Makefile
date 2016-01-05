@@ -12,7 +12,6 @@ MK_SSP=		no
 PROG=		loader.sym
 INTERNALPROG=
 
-.PATH: ${.CURDIR}/../../efi/loader
 # architecture-specific loader code
 SRCS=	autoload.c \
 	bootinfo.c \
@@ -68,7 +67,7 @@ HAVE_BCACHE=    yes
 CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
-# Always add MI sources 
+# Always add MI sources
 .PATH:		${.CURDIR}/../../common
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
@@ -97,7 +96,7 @@ EFI_TARGET=	efi-app-ia32
 EFI_TARGET=	binary
 .endif
 
-loader.efi: loader.sym
+loader.efi: ${PROG}
 	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
 		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
 		exit 1; \

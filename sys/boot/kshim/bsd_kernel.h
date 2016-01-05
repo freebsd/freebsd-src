@@ -109,6 +109,7 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	WITNESS_WARN(...)
 #define	cold 0
 #define	BUS_PROBE_GENERIC 0
+#define	BUS_PROBE_DEFAULT (-20)
 #define	CALLOUT_RETURNUNLOCKED 0x1
 #undef ffs
 #define	ffs(x) __builtin_ffs(x)
@@ -138,6 +139,10 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
   (((usb_handle_request_t *)(device_get_method(dev, "usb_handle_request")))(dev,## __VA_ARGS__))
 #define	USB_TAKE_CONTROLLER(dev, ...) \
   (((usb_take_controller_t *)(device_get_method(dev, "usb_take_controller")))(dev,## __VA_ARGS__))
+#define	GPIO_PIN_SET(dev, ...) \
+  (((gpio_pin_set_t *)(device_get_method(dev, "gpio_pin_set")))(dev,## __VA_ARGS__))
+#define	GPIO_PIN_SETFLAGS(dev, ...) \
+  (((gpio_pin_setflags_t *)(device_get_method(dev, "gpio_pin_setflags")))(dev,## __VA_ARGS__))
 
 enum {
 	SI_SUB_DUMMY = 0x0000000,
@@ -302,6 +307,8 @@ typedef int device_resume_t (device_t dev);
 typedef int device_shutdown_t (device_t dev);
 typedef int device_probe_t (device_t dev);
 typedef int device_suspend_t (device_t dev);
+typedef int gpio_pin_set_t (device_t dev, uint32_t, unsigned int);
+typedef int gpio_pin_setflags_t (device_t dev, uint32_t, uint32_t);
 
 typedef int bus_child_location_str_t (device_t parent, device_t child, char *buf, size_t buflen);
 typedef int bus_child_pnpinfo_str_t (device_t parent, device_t child, char *buf, size_t buflen);
@@ -397,6 +404,8 @@ int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);
 int	bus_generic_print_child(device_t dev, device_t child);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
+int	bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, bus_size_t size, bus_space_handle_t *nbshp);
 
 /* BUS SPACE API */
 
@@ -495,5 +504,79 @@ struct selinfo {
 
 extern const void *sysinit_data[];
 extern const void *sysuninit_data[];
+
+/* Resources */
+
+enum intr_type {
+	INTR_TYPE_TTY = 1,
+	INTR_TYPE_BIO = 2,
+	INTR_TYPE_NET = 4,
+	INTR_TYPE_CAM = 8,
+	INTR_TYPE_MISC = 16,
+	INTR_TYPE_CLK = 32,
+	INTR_TYPE_AV = 64,
+	INTR_EXCL = 256,		/* exclusive interrupt */
+	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
+	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_MD1 = 4096,		/* flag reserved for MD use */
+	INTR_MD2 = 8192,		/* flag reserved for MD use */
+	INTR_MD3 = 16384,		/* flag reserved for MD use */
+	INTR_MD4 = 32768		/* flag reserved for MD use */
+};
+
+struct resource_i {
+	u_long		r_start;	/* index of the first entry in this resource */
+	u_long		r_end;		/* index of the last entry (inclusive) */
+};
+
+struct resource {
+	struct resource_i	*__r_i;
+	bus_space_tag_t		r_bustag; /* bus_space tag */
+	bus_space_handle_t	r_bushandle;	/* bus_space handle */
+};
+
+struct resource_spec {
+	int	type;
+	int	rid;
+	int	flags;
+};
+
+#define	SYS_RES_IRQ	1	/* interrupt lines */
+#define	SYS_RES_DRQ	2	/* isa dma lines */
+#define	SYS_RES_MEMORY	3	/* i/o memory */
+#define	SYS_RES_IOPORT	4	/* i/o ports */
+
+#define	RF_ALLOCATED	0x0001	/* resource has been reserved */
+#define	RF_ACTIVE	0x0002	/* resource allocation has been activated */
+#define	RF_SHAREABLE	0x0004	/* resource permits contemporaneous sharing */
+#define	RF_SPARE1	0x0008
+#define	RF_SPARE2	0x0010
+#define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
+#define	RF_PREFETCHABLE	0x0040	/* resource is prefetchable */
+#define	RF_OPTIONAL	0x0080	/* for bus_alloc_resources() */
+
+int bus_alloc_resources(device_t, struct resource_spec *, struct resource **);
+int bus_release_resource(device_t, int, int, struct resource *);
+void bus_release_resources(device_t, const struct resource_spec *,
+    struct resource **);
+struct resource *bus_alloc_resource_any(device_t, int, int *, unsigned int);
+int bus_generic_attach(device_t);
+bus_space_tag_t rman_get_bustag(struct resource *);
+bus_space_handle_t rman_get_bushandle(struct resource *);
+u_long rman_get_size(struct resource *);
+int bus_setup_intr(device_t, struct resource *, int, driver_filter_t,
+    driver_intr_t, void *, void **);
+int bus_teardown_intr(device_t, struct resource *, void *);
+int ofw_bus_status_okay(device_t);
+int ofw_bus_is_compatible(device_t, char *);
+
+extern int (*bus_alloc_resource_any_cb)(struct resource *res, device_t dev,
+    int type, int *rid, unsigned int flags);
+extern int (*ofw_bus_status_ok_cb)(device_t dev);
+extern int (*ofw_bus_is_compatible_cb)(device_t dev, char *name);
+
+#ifndef strlcpy
+#define	strlcpy(d,s,n) snprintf((d),(n),"%s",(s))
+#endif
 
 #endif					/* _BSD_KERNEL_H_ */

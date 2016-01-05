@@ -28,14 +28,6 @@ template <class _Tp, class _NodePtr, class _DiffType>
     class _LIBCPP_TYPE_VIS_ONLY __tree_iterator;
 template <class _Tp, class _ConstNodePtr, class _DiffType>
     class _LIBCPP_TYPE_VIS_ONLY __tree_const_iterator;
-template <class _Key, class _Tp, class _Compare, class _Allocator>
-    class _LIBCPP_TYPE_VIS_ONLY map;
-template <class _Key, class _Tp, class _Compare, class _Allocator>
-    class _LIBCPP_TYPE_VIS_ONLY multimap;
-template <class _Key, class _Compare, class _Allocator>
-    class _LIBCPP_TYPE_VIS_ONLY set;
-template <class _Key, class _Compare, class _Allocator>
-    class _LIBCPP_TYPE_VIS_ONLY multiset;
 
 /*
 
@@ -522,9 +514,9 @@ public:
     bool __value_constructed;
 
     _LIBCPP_INLINE_VISIBILITY
-    explicit __tree_node_destructor(allocator_type& __na) _NOEXCEPT
+    explicit __tree_node_destructor(allocator_type& __na, bool __val = false) _NOEXCEPT
         : __na_(__na),
-          __value_constructed(false)
+          __value_constructed(__val)
         {}
 
     _LIBCPP_INLINE_VISIBILITY
@@ -622,8 +614,6 @@ class _LIBCPP_TYPE_VIS_ONLY __tree_iterator
 {
     typedef _NodePtr                                              __node_pointer;
     typedef typename pointer_traits<__node_pointer>::element_type __node;
-    typedef typename __node::base                                 __node_base;
-    typedef typename __node_base::pointer                         __node_base_pointer;
 
     __node_pointer __ptr_;
 
@@ -652,17 +642,21 @@ public:
         {return pointer_traits<pointer>::pointer_to(__ptr_->__value_);}
 
     _LIBCPP_INLINE_VISIBILITY
-    __tree_iterator& operator++()
-        {__ptr_ = static_cast<__node_pointer>(__tree_next(static_cast<__node_base_pointer>(__ptr_)));
-         return *this;}
+    __tree_iterator& operator++() {
+      __ptr_ = static_cast<__node_pointer>(
+          __tree_next(static_cast<typename __node::base::pointer>(__ptr_)));
+      return *this;
+    }
     _LIBCPP_INLINE_VISIBILITY
     __tree_iterator operator++(int)
         {__tree_iterator __t(*this); ++(*this); return __t;}
 
     _LIBCPP_INLINE_VISIBILITY
-    __tree_iterator& operator--()
-        {__ptr_ = static_cast<__node_pointer>(__tree_prev(static_cast<__node_base_pointer>(__ptr_)));
-         return *this;}
+    __tree_iterator& operator--() {
+      __ptr_ = static_cast<__node_pointer>(
+          __tree_prev(static_cast<typename __node::base::pointer>(__ptr_)));
+      return *this;
+    }
     _LIBCPP_INLINE_VISIBILITY
     __tree_iterator operator--(int)
         {__tree_iterator __t(*this); --(*this); return __t;}
@@ -691,14 +685,6 @@ class _LIBCPP_TYPE_VIS_ONLY __tree_const_iterator
 {
     typedef _ConstNodePtr                                         __node_pointer;
     typedef typename pointer_traits<__node_pointer>::element_type __node;
-    typedef typename __node::base                                 __node_base;
-    typedef typename pointer_traits<__node_pointer>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind<__node_base>
-#else
-            rebind<__node_base>::other
-#endif
-                                                                  __node_base_pointer;
 
     __node_pointer __ptr_;
 
@@ -743,17 +729,39 @@ public:
         {return pointer_traits<pointer>::pointer_to(__ptr_->__value_);}
 
     _LIBCPP_INLINE_VISIBILITY
-    __tree_const_iterator& operator++()
-        {__ptr_ = static_cast<__node_pointer>(__tree_next(static_cast<__node_base_pointer>(__ptr_)));
-         return *this;}
+    __tree_const_iterator& operator++() {
+      typedef typename pointer_traits<__node_pointer>::template
+#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
+          rebind<typename __node::base>
+#else
+          rebind<typename __node::base>::other
+#endif
+              __node_base_pointer;
+
+      __ptr_ = static_cast<__node_pointer>(
+          __tree_next(static_cast<__node_base_pointer>(__ptr_)));
+      return *this;
+    }
+
     _LIBCPP_INLINE_VISIBILITY
     __tree_const_iterator operator++(int)
         {__tree_const_iterator __t(*this); ++(*this); return __t;}
 
     _LIBCPP_INLINE_VISIBILITY
-    __tree_const_iterator& operator--()
-        {__ptr_ = static_cast<__node_pointer>(__tree_prev(static_cast<__node_base_pointer>(__ptr_)));
-         return *this;}
+    __tree_const_iterator& operator--() {
+      typedef typename pointer_traits<__node_pointer>::template
+#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
+          rebind<typename __node::base>
+#else
+          rebind<typename __node::base>::other
+#endif
+              __node_base_pointer;
+
+      __ptr_ = static_cast<__node_pointer>(
+          __tree_prev(static_cast<__node_base_pointer>(__ptr_)));
+      return *this;
+    }
+
     _LIBCPP_INLINE_VISIBILITY
     __tree_const_iterator operator--(int)
         {__tree_const_iterator __t(*this); --(*this); return __t;}
@@ -794,13 +802,7 @@ public:
 
     typedef __tree_node<value_type, __void_pointer> __node;
     typedef __tree_node_base<__void_pointer>        __node_base;
-    typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-            rebind_alloc<__node>
-#else
-            rebind_alloc<__node>::other
-#endif
-                                                     __node_allocator;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __node>::type __node_allocator;
     typedef allocator_traits<__node_allocator>       __node_traits;
     typedef typename __node_traits::pointer          __node_pointer;
     typedef typename __node_traits::pointer          __node_const_pointer;
@@ -924,9 +926,12 @@ public:
 
     void swap(__tree& __t)
         _NOEXCEPT_(
-            __is_nothrow_swappable<value_compare>::value &&
-            (!__node_traits::propagate_on_container_swap::value ||
-             __is_nothrow_swappable<__node_allocator>::value));
+            __is_nothrow_swappable<value_compare>::value
+#if _LIBCPP_STD_VER <= 11
+            && (!__node_traits::propagate_on_container_swap::value ||
+                 __is_nothrow_swappable<__node_allocator>::value)
+#endif
+            );
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
 #ifndef _LIBCPP_HAS_NO_VARIADICS
@@ -1093,25 +1098,6 @@ private:
         {__node_alloc() = _VSTD::move(__t.__node_alloc());}
     _LIBCPP_INLINE_VISIBILITY
     void __move_assign_alloc(__tree& __t, false_type) _NOEXCEPT {}
-
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(__node_allocator& __x, __node_allocator& __y)
-        _NOEXCEPT_(
-            !__node_traits::propagate_on_container_swap::value ||
-            __is_nothrow_swappable<__node_allocator>::value)
-        {__swap_alloc(__x, __y, integral_constant<bool,
-                      __node_traits::propagate_on_container_swap::value>());}
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(__node_allocator& __x, __node_allocator& __y, true_type)
-        _NOEXCEPT_(__is_nothrow_swappable<__node_allocator>::value)
-        {
-            using _VSTD::swap;
-            swap(__x, __y);
-        }
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(__node_allocator& __x, __node_allocator& __y, false_type)
-        _NOEXCEPT
-        {}
 
     __node_pointer __detach();
     static __node_pointer __detach(__node_pointer);
@@ -1450,15 +1436,18 @@ __tree<_Tp, _Compare, _Allocator>::destroy(__node_pointer __nd) _NOEXCEPT
 template <class _Tp, class _Compare, class _Allocator>
 void
 __tree<_Tp, _Compare, _Allocator>::swap(__tree& __t)
-    _NOEXCEPT_(
-        __is_nothrow_swappable<value_compare>::value &&
-        (!__node_traits::propagate_on_container_swap::value ||
-         __is_nothrow_swappable<__node_allocator>::value))
+        _NOEXCEPT_(
+            __is_nothrow_swappable<value_compare>::value
+#if _LIBCPP_STD_VER <= 11
+            && (!__node_traits::propagate_on_container_swap::value ||
+                 __is_nothrow_swappable<__node_allocator>::value)
+#endif
+            )
 {
     using _VSTD::swap;
     swap(__begin_node_, __t.__begin_node_);
     swap(__pair1_.first(), __t.__pair1_.first());
-    __swap_alloc(__node_alloc(), __t.__node_alloc());
+    __swap_allocator(__node_alloc(), __t.__node_alloc());
     __pair3_.swap(__t.__pair3_);
     if (size() == 0)
         __begin_node() = __end_node();
@@ -2290,7 +2279,7 @@ __tree<_Tp, _Compare, _Allocator>::remove(const_iterator __p) _NOEXCEPT
     --size();
     __tree_remove(__end_node()->__left_,
                   static_cast<__node_base_pointer>(__np));
-    return __node_holder(__np, _Dp(__node_alloc()));
+    return __node_holder(__np, _Dp(__node_alloc(), true));
 }
 
 template <class _Tp, class _Compare, class _Allocator>

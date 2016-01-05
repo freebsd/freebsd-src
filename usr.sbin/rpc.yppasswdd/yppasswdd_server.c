@@ -212,12 +212,12 @@ validate(struct passwd *opw, struct x_passwd *npw)
 	 * Don't allow the user to shoot himself in the foot,
 	 * even on purpose.
 	 */
-	if (!ok_shell(npw->pw_shell)) {
+	if (!no_chsh && !ok_shell(npw->pw_shell)) {
 		yp_error("%s is not a valid shell", npw->pw_shell);
 		return(1);
 	}
 
-	if (validchars(npw->pw_shell)) {
+	if (!no_chsh && validchars(npw->pw_shell)) {
 		yp_error("specified shell contains invalid characters");
 		return(1);
 	}

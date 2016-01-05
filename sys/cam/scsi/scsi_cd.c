@@ -1081,11 +1081,11 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP ||
 		    (error = cderror(done_ccb, CAM_RETRY_SELTO,
 				SF_RETRY_UA | SF_NO_PRINT)) == 0) {
-
 			snprintf(announce_buf, sizeof(announce_buf),
-				"cd present [%lu x %lu byte records]",
-				cdp->disksize, (u_long)cdp->blksize);
-
+			    "%juMB (%ju %u byte sectors)",
+			    ((uintmax_t)cdp->disksize * cdp->blksize) /
+			     (1024 * 1024),
+			    (uintmax_t)cdp->disksize, cdp->blksize);
 		} else {
 			if (error == ERESTART) {
 				/*

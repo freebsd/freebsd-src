@@ -145,9 +145,12 @@ void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
 void	identify_cpu(void);
+void	print_cpu_features(u_int);
 void	swi_vm(void *v);
 
 #define	CPU_AFFINITY(cpu)	__cpu_affinity[(cpu)]
+#define	CPU_CURRENT_SOCKET				\
+    (CPU_AFF2(CPU_AFFINITY(PCPU_GET(cpuid))))
 
 static __inline uint64_t
 get_cyclecount(void)

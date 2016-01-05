@@ -89,6 +89,7 @@ extern sighandler_t signal(int sig, sighandler_t);
 #else
 
 #include <inttypes.h>
+#include <limits.h>
 
 #include <getopt.h>
 #include <libgen.h>
@@ -96,14 +97,7 @@ extern sighandler_t signal(int sig, sighandler_t);
 #include <termios.h>
 #include <unistd.h>
 
-#include <histedit.h>
 #include <pthread.h>
 #include <sys/time.h>
-
-#if defined(__FreeBSD__)
-#include <readline/readline.h>
-#else
-#include <editline/readline.h>
-#endif
 
 #endif

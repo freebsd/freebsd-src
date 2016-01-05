@@ -75,6 +75,7 @@ static cl::opt<bool> DisableOptExtTo64("disable-hexagon-opt-ext-to-64",
     cl::desc("Disable Optimization of extensions to i64."));
 
 namespace llvm {
+  FunctionPass *createHexagonPeephole();
   void initializeHexagonPeepholePass(PassRegistry&);
 }
 
@@ -112,7 +113,7 @@ INITIALIZE_PASS(HexagonPeephole, "hexagon-peephole", "Hexagon Peephole",
 
 bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
   QII = static_cast<const HexagonInstrInfo *>(MF.getSubtarget().getInstrInfo());
-  QRI = MF.getTarget().getSubtarget<HexagonSubtarget>().getRegisterInfo();
+  QRI = MF.getSubtarget<HexagonSubtarget>().getRegisterInfo();
   MRI = &MF.getRegInfo();
 
   DenseMap<unsigned, unsigned> PeepholeMap;
@@ -271,14 +272,7 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
           switch (Op) {
             case Hexagon::C2_mux:
             case Hexagon::C2_muxii:
-            case Hexagon::TFR_condset_ii:
               NewOp = Op;
-              break;
-            case Hexagon::TFR_condset_ri:
-              NewOp = Hexagon::TFR_condset_ir;
-              break;
-            case Hexagon::TFR_condset_ir:
-              NewOp = Hexagon::TFR_condset_ri;
               break;
             case Hexagon::C2_muxri:
               NewOp = Hexagon::C2_muxir;

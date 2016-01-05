@@ -231,13 +231,10 @@ void
 mrt6_stats()
 {
 	struct mrt6stat mrtstat;
-	size_t len = sizeof mrtstat;
 
-	if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len, NULL, 0) <
-	    0) {
-		xo_warn("sysctl: net.inet6.ip6.mrt6stat");
+	if (fetch_stats("net.inet6.ip6.mrt6stat", 0, &mrtstat,
+	    sizeof(mrtstat), kread_counters) != 0)
 		return;
-	}
 
 	xo_open_container("multicast-statistics");
 	xo_emit("{T:IPv6 multicast forwarding}:\n");

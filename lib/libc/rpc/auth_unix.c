@@ -91,12 +91,7 @@ struct audata {
  * Returns an auth handle with the given stuff in it.
  */
 AUTH *
-authunix_create(machname, uid, gid, len, aup_gids)
-	char *machname;
-	u_int uid;
-	u_int gid;
-	int len;
-	u_int *aup_gids;
+authunix_create(char *machname, u_int uid, u_int gid, int len, u_int *aup_gids)
 {
 	struct authunix_parms aup;
 	char mymem[MAX_AUTH_BYTES];
@@ -182,7 +177,7 @@ authunix_create(machname, uid, gid, len, aup_gids)
  * syscalls.
  */
 AUTH *
-authunix_create_default()
+authunix_create_default(void)
 {
 	AUTH *auth;
 	int ngids;
@@ -218,16 +213,13 @@ authunix_create_default()
 
 /* ARGSUSED */
 static void
-authunix_nextverf(auth)
-	AUTH *auth;
+authunix_nextverf(AUTH *auth)
 {
 	/* no action necessary */
 }
 
 static bool_t
-authunix_marshal(auth, xdrs)
-	AUTH *auth;
-	XDR *xdrs;
+authunix_marshal(AUTH *auth, XDR *xdrs)
 {
 	struct audata *au;
 
@@ -239,9 +231,7 @@ authunix_marshal(auth, xdrs)
 }
 
 static bool_t
-authunix_validate(auth, verf)
-	AUTH *auth;
-	struct opaque_auth *verf;
+authunix_validate(AUTH *auth, struct opaque_auth *verf)
 {
 	struct audata *au;
 	XDR xdrs;
@@ -317,8 +307,7 @@ done:
 }
 
 static void
-authunix_destroy(auth)
-	AUTH *auth;
+authunix_destroy(AUTH *auth)
 {
 	struct audata *au;
 
@@ -343,8 +332,7 @@ authunix_destroy(auth)
  * sets private data, au_marshed and au_mpos
  */
 static void
-marshal_new_auth(auth)
-	AUTH *auth;
+marshal_new_auth(AUTH *auth)
 {
 	XDR	xdr_stream;
 	XDR	*xdrs = &xdr_stream;
@@ -363,7 +351,7 @@ marshal_new_auth(auth)
 }
 
 static struct auth_ops *
-authunix_ops()
+authunix_ops(void)
 {
 	static struct auth_ops ops;
 

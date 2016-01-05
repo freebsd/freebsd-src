@@ -89,7 +89,6 @@ namespace {
 
   private:
     bool HasDomTree;
-    const DataLayout *DL;
 
     /// DeadInsts - Keep track of instructions we have made dead, so that
     /// we can remove them after we are done working.
@@ -159,9 +158,10 @@ namespace {
     void isSafeMemAccess(uint64_t Offset, uint64_t MemSize,
                          Type *MemOpType, bool isStore, AllocaInfo &Info,
                          Instruction *TheAccess, bool AllowWholeAccess);
-    bool TypeHasComponent(Type *T, uint64_t Offset, uint64_t Size);
-    uint64_t FindElementAndOffset(Type *&T, uint64_t &Offset,
-                                  Type *&IdxTy);
+    bool TypeHasComponent(Type *T, uint64_t Offset, uint64_t Size,
+                          const DataLayout &DL);
+    uint64_t FindElementAndOffset(Type *&T, uint64_t &Offset, Type *&IdxTy,
+                                  const DataLayout &DL);
 
     void DoScalarReplacement(AllocaInst *AI,
                              std::vector<AllocaInst*> &WorkList);
@@ -699,9 +699,9 @@ void ConvertToScalarInfo::ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI,
       // If the source and destination are both to the same alloca, then this is
       // a noop copy-to-self, just delete it.  Otherwise, emit a load and store
       // as appropriate.
-      AllocaInst *OrigAI = cast<AllocaInst>(GetUnderlyingObject(Ptr, &DL, 0));
+      AllocaInst *OrigAI = cast<AllocaInst>(GetUnderlyingObject(Ptr, DL, 0));
 
-      if (GetUnderlyingObject(MTI->getSource(), &DL, 0) != OrigAI) {
+      if (GetUnderlyingObject(MTI->getSource(), DL, 0) != OrigAI) {
         // Dest must be OrigAI, change this to be a load from the original
         // pointer (bitcasted), then a store to our new alloca.
         assert(MTI->getRawDest() == Ptr && "Neither use is of pointer?");
@@ -717,7 +717,7 @@ void ConvertToScalarInfo::ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI,
         LoadInst *SrcVal = Builder.CreateLoad(SrcPtr, "srcval");
         SrcVal->setAlignment(MTI->getAlignment());
         Builder.CreateStore(SrcVal, NewAI);
-      } else if (GetUnderlyingObject(MTI->getDest(), &DL, 0) != OrigAI) {
+      } else if (GetUnderlyingObject(MTI->getDest(), DL, 0) != OrigAI) {
         // Src must be OrigAI, change this to be a load from NewAI then a store
         // through the original dest pointer (bitcasted).
         assert(MTI->getRawSource() == Ptr && "Neither use is of pointer?");
@@ -1032,16 +1032,7 @@ bool SROA::runOnFunction(Function &F) {
   if (skipOptnoneFunction(F))
     return false;
 
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
-
   bool Changed = performPromotion(F);
-
-  // FIXME: ScalarRepl currently depends on DataLayout more than it
-  // theoretically needs to. It should be refactored in order to support
-  // target-independent IR. Until this is done, just skip the actual
-  // scalar-replacement portion of this pass.
-  if (!DL) return Changed;
 
   while (1) {
     bool LocalChange = performScalarRepl(F);
@@ -1061,7 +1052,7 @@ class AllocaPromoter : public LoadAndStorePromoter {
   SmallVector<DbgDeclareInst *, 4> DDIs;
   SmallVector<DbgValueInst *, 4> DVIs;
 public:
-  AllocaPromoter(const SmallVectorImpl<Instruction*> &Insts, SSAUpdater &S,
+  AllocaPromoter(ArrayRef<Instruction*> Insts, SSAUpdater &S,
                  DIBuilder *DB)
     : LoadAndStorePromoter(Insts, S), AI(nullptr), DIB(DB) {}
 
@@ -1069,8 +1060,8 @@ public:
     // Remember which alloca we're promoting (for isInstInList).
     this->AI = AI;
     if (auto *L = LocalAsMetadata::getIfExists(AI)) {
-      if (auto *DebugNode = MetadataAsValue::getIfExists(AI->getContext(), L)) {
-        for (User *U : DebugNode->users())
+      if (auto *DINode = MetadataAsValue::getIfExists(AI->getContext(), L)) {
+        for (User *U : DINode->users())
           if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(U))
             DDIs.push_back(DDI);
           else if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(U))
@@ -1126,10 +1117,9 @@ public:
       } else {
         continue;
       }
-      Instruction *DbgVal = DIB->insertDbgValueIntrinsic(
-          Arg, 0, DIVariable(DVI->getVariable()),
-          DIExpression(DVI->getExpression()), Inst);
-      DbgVal->setDebugLoc(DVI->getDebugLoc());
+      DIB->insertDbgValueIntrinsic(Arg, 0, DVI->getVariable(),
+                                   DVI->getExpression(), DVI->getDebugLoc(),
+                                   Inst);
     }
   }
 };
@@ -1148,9 +1138,10 @@ public:
 ///
 /// We can do this to a select if its only uses are loads and if the operand to
 /// the select can be loaded unconditionally.
-static bool isSafeSelectToSpeculate(SelectInst *SI, const DataLayout *DL) {
-  bool TDerefable = SI->getTrueValue()->isDereferenceablePointer(DL);
-  bool FDerefable = SI->getFalseValue()->isDereferenceablePointer(DL);
+static bool isSafeSelectToSpeculate(SelectInst *SI) {
+  const DataLayout &DL = SI->getModule()->getDataLayout();
+  bool TDerefable = isDereferenceablePointer(SI->getTrueValue(), DL);
+  bool FDerefable = isDereferenceablePointer(SI->getFalseValue(), DL);
 
   for (User *U : SI->users()) {
     LoadInst *LI = dyn_cast<LoadInst>(U);
@@ -1158,11 +1149,13 @@ static bool isSafeSelectToSpeculate(SelectInst *SI, const DataLayout *DL) {
 
     // Both operands to the select need to be dereferencable, either absolutely
     // (e.g. allocas) or at this point because we can see other accesses to it.
-    if (!TDerefable && !isSafeToLoadUnconditionally(SI->getTrueValue(), LI,
-                                                    LI->getAlignment(), DL))
+    if (!TDerefable &&
+        !isSafeToLoadUnconditionally(SI->getTrueValue(), LI,
+                                     LI->getAlignment()))
       return false;
-    if (!FDerefable && !isSafeToLoadUnconditionally(SI->getFalseValue(), LI,
-                                                    LI->getAlignment(), DL))
+    if (!FDerefable &&
+        !isSafeToLoadUnconditionally(SI->getFalseValue(), LI,
+                                     LI->getAlignment()))
       return false;
   }
 
@@ -1185,7 +1178,7 @@ static bool isSafeSelectToSpeculate(SelectInst *SI, const DataLayout *DL) {
 ///
 /// We can do this to a select if its only uses are loads and if the operand to
 /// the select can be loaded unconditionally.
-static bool isSafePHIToSpeculate(PHINode *PN, const DataLayout *DL) {
+static bool isSafePHIToSpeculate(PHINode *PN) {
   // For now, we can only do this promotion if the load is in the same block as
   // the PHI, and if there are no stores between the phi and load.
   // TODO: Allow recursive phi users.
@@ -1208,6 +1201,8 @@ static bool isSafePHIToSpeculate(PHINode *PN, const DataLayout *DL) {
 
     MaxAlign = std::max(MaxAlign, LI->getAlignment());
   }
+
+  const DataLayout &DL = PN->getModule()->getDataLayout();
 
   // Okay, we know that we have one or more loads in the same block as the PHI.
   // We can transform this if it is safe to push the loads into the predecessor
@@ -1233,8 +1228,8 @@ static bool isSafePHIToSpeculate(PHINode *PN, const DataLayout *DL) {
 
     // If this pointer is always safe to load, or if we can prove that there is
     // already a load in the block, then we can move the load to the pred block.
-    if (InVal->isDereferenceablePointer(DL) ||
-        isSafeToLoadUnconditionally(InVal, Pred->getTerminator(), MaxAlign, DL))
+    if (isDereferenceablePointer(InVal, DL) ||
+        isSafeToLoadUnconditionally(InVal, Pred->getTerminator(), MaxAlign))
       continue;
 
     return false;
@@ -1248,7 +1243,7 @@ static bool isSafePHIToSpeculate(PHINode *PN, const DataLayout *DL) {
 /// direct (non-volatile) loads and stores to it.  If the alloca is close but
 /// not quite there, this will transform the code to allow promotion.  As such,
 /// it is a non-pure predicate.
-static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout *DL) {
+static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout &DL) {
   SetVector<Instruction*, SmallVector<Instruction*, 4>,
             SmallPtrSet<Instruction*, 4> > InstsToRewrite;
   for (User *U : AI->users()) {
@@ -1279,7 +1274,7 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout *DL) {
 
       // If it is safe to turn "load (select c, AI, ptr)" into a select of two
       // loads, then we can transform this by rewriting the select.
-      if (!isSafeSelectToSpeculate(SI, DL))
+      if (!isSafeSelectToSpeculate(SI))
         return false;
 
       InstsToRewrite.insert(SI);
@@ -1294,7 +1289,7 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout *DL) {
 
       // If it is safe to turn "load (phi [AI, ptr, ...])" into a PHI of loads
       // in the pred blocks, then we can transform this by rewriting the PHI.
-      if (!isSafePHIToSpeculate(PN, DL))
+      if (!isSafePHIToSpeculate(PN))
         return false;
 
       InstsToRewrite.insert(PN);
@@ -1416,6 +1411,7 @@ static bool tryToMakeAllocaBePromotable(AllocaInst *AI, const DataLayout *DL) {
 
 bool SROA::performPromotion(Function &F) {
   std::vector<AllocaInst*> Allocas;
+  const DataLayout &DL = F.getParent()->getDataLayout();
   DominatorTree *DT = nullptr;
   if (HasDomTree)
     DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
@@ -1479,6 +1475,7 @@ bool SROA::ShouldAttemptScalarRepl(AllocaInst *AI) {
 //
 bool SROA::performScalarRepl(Function &F) {
   std::vector<AllocaInst*> WorkList;
+  const DataLayout &DL = F.getParent()->getDataLayout();
 
   // Scan the entry basic block, adding allocas to the worklist.
   BasicBlock &BB = F.getEntryBlock();
@@ -1508,7 +1505,7 @@ bool SROA::performScalarRepl(Function &F) {
     // transform the allocation instruction if it is an array allocation
     // (allocations OF arrays are ok though), and an allocation of a scalar
     // value cannot be decomposed at all.
-    uint64_t AllocaSize = DL->getTypeAllocSize(AI->getAllocatedType());
+    uint64_t AllocaSize = DL.getTypeAllocSize(AI->getAllocatedType());
 
     // Do not promote [0 x %struct].
     if (AllocaSize == 0) continue;
@@ -1531,8 +1528,9 @@ bool SROA::performScalarRepl(Function &F) {
     // promoted itself.  If so, we don't want to transform it needlessly.  Note
     // that we can't just check based on the type: the alloca may be of an i32
     // but that has pointer arithmetic to set byte 3 of it or something.
-    if (AllocaInst *NewAI = ConvertToScalarInfo(
-              (unsigned)AllocaSize, *DL, ScalarLoadThreshold).TryConvert(AI)) {
+    if (AllocaInst *NewAI =
+            ConvertToScalarInfo((unsigned)AllocaSize, DL, ScalarLoadThreshold)
+                .TryConvert(AI)) {
       NewAI->takeName(AI);
       AI->eraseFromParent();
       ++NumConverted;
@@ -1610,6 +1608,7 @@ void SROA::DeleteDeadInstructions() {
 /// referenced by this instruction.
 void SROA::isSafeForScalarRepl(Instruction *I, uint64_t Offset,
                                AllocaInfo &Info) {
+  const DataLayout &DL = I->getModule()->getDataLayout();
   for (Use &U : I->uses()) {
     Instruction *User = cast<Instruction>(U.getUser());
 
@@ -1632,8 +1631,8 @@ void SROA::isSafeForScalarRepl(Instruction *I, uint64_t Offset,
       if (!LI->isSimple())
         return MarkUnsafe(Info, User);
       Type *LIType = LI->getType();
-      isSafeMemAccess(Offset, DL->getTypeAllocSize(LIType),
-                      LIType, false, Info, LI, true /*AllowWholeAccess*/);
+      isSafeMemAccess(Offset, DL.getTypeAllocSize(LIType), LIType, false, Info,
+                      LI, true /*AllowWholeAccess*/);
       Info.hasALoadOrStore = true;
 
     } else if (StoreInst *SI = dyn_cast<StoreInst>(User)) {
@@ -1642,8 +1641,8 @@ void SROA::isSafeForScalarRepl(Instruction *I, uint64_t Offset,
         return MarkUnsafe(Info, User);
 
       Type *SIType = SI->getOperand(0)->getType();
-      isSafeMemAccess(Offset, DL->getTypeAllocSize(SIType),
-                      SIType, true, Info, SI, true /*AllowWholeAccess*/);
+      isSafeMemAccess(Offset, DL.getTypeAllocSize(SIType), SIType, true, Info,
+                      SI, true /*AllowWholeAccess*/);
       Info.hasALoadOrStore = true;
     } else if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(User)) {
       if (II->getIntrinsicID() != Intrinsic::lifetime_start &&
@@ -1675,6 +1674,7 @@ void SROA::isSafePHISelectUseForScalarRepl(Instruction *I, uint64_t Offset,
     if (!Info.CheckedPHIs.insert(PN).second)
       return;
 
+  const DataLayout &DL = I->getModule()->getDataLayout();
   for (User *U : I->users()) {
     Instruction *UI = cast<Instruction>(U);
 
@@ -1691,8 +1691,8 @@ void SROA::isSafePHISelectUseForScalarRepl(Instruction *I, uint64_t Offset,
       if (!LI->isSimple())
         return MarkUnsafe(Info, UI);
       Type *LIType = LI->getType();
-      isSafeMemAccess(Offset, DL->getTypeAllocSize(LIType),
-                      LIType, false, Info, LI, false /*AllowWholeAccess*/);
+      isSafeMemAccess(Offset, DL.getTypeAllocSize(LIType), LIType, false, Info,
+                      LI, false /*AllowWholeAccess*/);
       Info.hasALoadOrStore = true;
 
     } else if (StoreInst *SI = dyn_cast<StoreInst>(UI)) {
@@ -1701,8 +1701,8 @@ void SROA::isSafePHISelectUseForScalarRepl(Instruction *I, uint64_t Offset,
         return MarkUnsafe(Info, UI);
 
       Type *SIType = SI->getOperand(0)->getType();
-      isSafeMemAccess(Offset, DL->getTypeAllocSize(SIType),
-                      SIType, true, Info, SI, false /*AllowWholeAccess*/);
+      isSafeMemAccess(Offset, DL.getTypeAllocSize(SIType), SIType, true, Info,
+                      SI, false /*AllowWholeAccess*/);
       Info.hasALoadOrStore = true;
     } else if (isa<PHINode>(UI) || isa<SelectInst>(UI)) {
       isSafePHISelectUseForScalarRepl(UI, Offset, Info);
@@ -1746,9 +1746,11 @@ void SROA::isSafeGEP(GetElementPtrInst *GEPI,
   // constant part of the offset.
   if (NonConstant)
     Indices.pop_back();
-  Offset += DL->getIndexedOffset(GEPI->getPointerOperandType(), Indices);
-  if (!TypeHasComponent(Info.AI->getAllocatedType(), Offset,
-                        NonConstantIdxSize))
+
+  const DataLayout &DL = GEPI->getModule()->getDataLayout();
+  Offset += DL.getIndexedOffset(GEPI->getPointerOperandType(), Indices);
+  if (!TypeHasComponent(Info.AI->getAllocatedType(), Offset, NonConstantIdxSize,
+                        DL))
     MarkUnsafe(Info, GEPI);
 }
 
@@ -1803,9 +1805,10 @@ void SROA::isSafeMemAccess(uint64_t Offset, uint64_t MemSize,
                            Type *MemOpType, bool isStore,
                            AllocaInfo &Info, Instruction *TheAccess,
                            bool AllowWholeAccess) {
+  const DataLayout &DL = TheAccess->getModule()->getDataLayout();
   // Check if this is a load/store of the entire alloca.
   if (Offset == 0 && AllowWholeAccess &&
-      MemSize == DL->getTypeAllocSize(Info.AI->getAllocatedType())) {
+      MemSize == DL.getTypeAllocSize(Info.AI->getAllocatedType())) {
     // This can be safe for MemIntrinsics (where MemOpType is 0) and integer
     // loads/stores (which are essentially the same as the MemIntrinsics with
     // regard to copying padding between elements).  But, if an alloca is
@@ -1828,7 +1831,7 @@ void SROA::isSafeMemAccess(uint64_t Offset, uint64_t MemSize,
   }
   // Check if the offset/size correspond to a component within the alloca type.
   Type *T = Info.AI->getAllocatedType();
-  if (TypeHasComponent(T, Offset, MemSize)) {
+  if (TypeHasComponent(T, Offset, MemSize, DL)) {
     Info.hasSubelementAccess = true;
     return;
   }
@@ -1838,24 +1841,25 @@ void SROA::isSafeMemAccess(uint64_t Offset, uint64_t MemSize,
 
 /// TypeHasComponent - Return true if T has a component type with the
 /// specified offset and size.  If Size is zero, do not check the size.
-bool SROA::TypeHasComponent(Type *T, uint64_t Offset, uint64_t Size) {
+bool SROA::TypeHasComponent(Type *T, uint64_t Offset, uint64_t Size,
+                            const DataLayout &DL) {
   Type *EltTy;
   uint64_t EltSize;
   if (StructType *ST = dyn_cast<StructType>(T)) {
-    const StructLayout *Layout = DL->getStructLayout(ST);
+    const StructLayout *Layout = DL.getStructLayout(ST);
     unsigned EltIdx = Layout->getElementContainingOffset(Offset);
     EltTy = ST->getContainedType(EltIdx);
-    EltSize = DL->getTypeAllocSize(EltTy);
+    EltSize = DL.getTypeAllocSize(EltTy);
     Offset -= Layout->getElementOffset(EltIdx);
   } else if (ArrayType *AT = dyn_cast<ArrayType>(T)) {
     EltTy = AT->getElementType();
-    EltSize = DL->getTypeAllocSize(EltTy);
+    EltSize = DL.getTypeAllocSize(EltTy);
     if (Offset >= AT->getNumElements() * EltSize)
       return false;
     Offset %= EltSize;
   } else if (VectorType *VT = dyn_cast<VectorType>(T)) {
     EltTy = VT->getElementType();
-    EltSize = DL->getTypeAllocSize(EltTy);
+    EltSize = DL.getTypeAllocSize(EltTy);
     if (Offset >= VT->getNumElements() * EltSize)
       return false;
     Offset %= EltSize;
@@ -1867,7 +1871,7 @@ bool SROA::TypeHasComponent(Type *T, uint64_t Offset, uint64_t Size) {
   // Check if the component spans multiple elements.
   if (Offset + Size > EltSize)
     return false;
-  return TypeHasComponent(EltTy, Offset, Size);
+  return TypeHasComponent(EltTy, Offset, Size, DL);
 }
 
 /// RewriteForScalarRepl - Alloca AI is being split into NewElts, so rewrite
@@ -1876,6 +1880,7 @@ bool SROA::TypeHasComponent(Type *T, uint64_t Offset, uint64_t Size) {
 /// instruction.
 void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
                                 SmallVectorImpl<AllocaInst *> &NewElts) {
+  const DataLayout &DL = I->getModule()->getDataLayout();
   for (Value::use_iterator UI = I->use_begin(), E = I->use_end(); UI!=E;) {
     Use &TheUse = *UI++;
     Instruction *User = cast<Instruction>(TheUse.getUser());
@@ -1893,8 +1898,7 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
     if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(User)) {
       ConstantInt *Length = dyn_cast<ConstantInt>(MI->getLength());
       uint64_t MemSize = Length->getZExtValue();
-      if (Offset == 0 &&
-          MemSize == DL->getTypeAllocSize(AI->getAllocatedType()))
+      if (Offset == 0 && MemSize == DL.getTypeAllocSize(AI->getAllocatedType()))
         RewriteMemIntrinUserOfAlloca(MI, I, AI, NewElts);
       // Otherwise the intrinsic can only touch a single element and the
       // address operand will be updated, so nothing else needs to be done.
@@ -1930,8 +1934,8 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
         LI->replaceAllUsesWith(Insert);
         DeadInsts.push_back(LI);
       } else if (LIType->isIntegerTy() &&
-                 DL->getTypeAllocSize(LIType) ==
-                 DL->getTypeAllocSize(AI->getAllocatedType())) {
+                 DL.getTypeAllocSize(LIType) ==
+                     DL.getTypeAllocSize(AI->getAllocatedType())) {
         // If this is a load of the entire alloca to an integer, rewrite it.
         RewriteLoadUserOfWholeAlloca(LI, AI, NewElts);
       }
@@ -1957,8 +1961,8 @@ void SROA::RewriteForScalarRepl(Instruction *I, AllocaInst *AI, uint64_t Offset,
         }
         DeadInsts.push_back(SI);
       } else if (SIType->isIntegerTy() &&
-                 DL->getTypeAllocSize(SIType) ==
-                 DL->getTypeAllocSize(AI->getAllocatedType())) {
+                 DL.getTypeAllocSize(SIType) ==
+                     DL.getTypeAllocSize(AI->getAllocatedType())) {
         // If this is a store of the entire alloca from an integer, rewrite it.
         RewriteStoreUserOfWholeAlloca(SI, AI, NewElts);
       }
@@ -2001,7 +2005,8 @@ void SROA::RewriteBitCast(BitCastInst *BC, AllocaInst *AI, uint64_t Offset,
   Type *T = AI->getAllocatedType();
   uint64_t EltOffset = 0;
   Type *IdxTy;
-  uint64_t Idx = FindElementAndOffset(T, EltOffset, IdxTy);
+  uint64_t Idx = FindElementAndOffset(T, EltOffset, IdxTy,
+                                      BC->getModule()->getDataLayout());
   Instruction *Val = NewElts[Idx];
   if (Val->getType() != BC->getDestTy()) {
     Val = new BitCastInst(Val, BC->getDestTy(), "", BC);
@@ -2016,11 +2021,12 @@ void SROA::RewriteBitCast(BitCastInst *BC, AllocaInst *AI, uint64_t Offset,
 /// Sets T to the type of the element and Offset to the offset within that
 /// element.  IdxTy is set to the type of the index result to be used in a
 /// GEP instruction.
-uint64_t SROA::FindElementAndOffset(Type *&T, uint64_t &Offset,
-                                    Type *&IdxTy) {
+uint64_t SROA::FindElementAndOffset(Type *&T, uint64_t &Offset, Type *&IdxTy,
+                                    const DataLayout &DL) {
   uint64_t Idx = 0;
+
   if (StructType *ST = dyn_cast<StructType>(T)) {
-    const StructLayout *Layout = DL->getStructLayout(ST);
+    const StructLayout *Layout = DL.getStructLayout(ST);
     Idx = Layout->getElementContainingOffset(Offset);
     T = ST->getContainedType(Idx);
     Offset -= Layout->getElementOffset(Idx);
@@ -2028,7 +2034,7 @@ uint64_t SROA::FindElementAndOffset(Type *&T, uint64_t &Offset,
     return Idx;
   } else if (ArrayType *AT = dyn_cast<ArrayType>(T)) {
     T = AT->getElementType();
-    uint64_t EltSize = DL->getTypeAllocSize(T);
+    uint64_t EltSize = DL.getTypeAllocSize(T);
     Idx = Offset / EltSize;
     Offset -= Idx * EltSize;
     IdxTy = Type::getInt64Ty(T->getContext());
@@ -2036,7 +2042,7 @@ uint64_t SROA::FindElementAndOffset(Type *&T, uint64_t &Offset,
   }
   VectorType *VT = cast<VectorType>(T);
   T = VT->getElementType();
-  uint64_t EltSize = DL->getTypeAllocSize(T);
+  uint64_t EltSize = DL.getTypeAllocSize(T);
   Idx = Offset / EltSize;
   Offset -= Idx * EltSize;
   IdxTy = Type::getInt64Ty(T->getContext());
@@ -2049,6 +2055,7 @@ uint64_t SROA::FindElementAndOffset(Type *&T, uint64_t &Offset,
 void SROA::RewriteGEP(GetElementPtrInst *GEPI, AllocaInst *AI, uint64_t Offset,
                       SmallVectorImpl<AllocaInst *> &NewElts) {
   uint64_t OldOffset = Offset;
+  const DataLayout &DL = GEPI->getModule()->getDataLayout();
   SmallVector<Value*, 8> Indices(GEPI->op_begin() + 1, GEPI->op_end());
   // If the GEP was dynamic then it must have been a dynamic vector lookup.
   // In this case, it must be the last GEP operand which is dynamic so keep that
@@ -2057,19 +2064,19 @@ void SROA::RewriteGEP(GetElementPtrInst *GEPI, AllocaInst *AI, uint64_t Offset,
   Value* NonConstantIdx = nullptr;
   if (!GEPI->hasAllConstantIndices())
     NonConstantIdx = Indices.pop_back_val();
-  Offset += DL->getIndexedOffset(GEPI->getPointerOperandType(), Indices);
+  Offset += DL.getIndexedOffset(GEPI->getPointerOperandType(), Indices);
 
   RewriteForScalarRepl(GEPI, AI, Offset, NewElts);
 
   Type *T = AI->getAllocatedType();
   Type *IdxTy;
-  uint64_t OldIdx = FindElementAndOffset(T, OldOffset, IdxTy);
+  uint64_t OldIdx = FindElementAndOffset(T, OldOffset, IdxTy, DL);
   if (GEPI->getOperand(0) == AI)
     OldIdx = ~0ULL; // Force the GEP to be rewritten.
 
   T = AI->getAllocatedType();
   uint64_t EltOffset = Offset;
-  uint64_t Idx = FindElementAndOffset(T, EltOffset, IdxTy);
+  uint64_t Idx = FindElementAndOffset(T, EltOffset, IdxTy, DL);
 
   // If this GEP does not move the pointer across elements of the alloca
   // being split, then it does not needs to be rewritten.
@@ -2080,7 +2087,7 @@ void SROA::RewriteGEP(GetElementPtrInst *GEPI, AllocaInst *AI, uint64_t Offset,
   SmallVector<Value*, 8> NewArgs;
   NewArgs.push_back(Constant::getNullValue(i32Ty));
   while (EltOffset != 0) {
-    uint64_t EltIdx = FindElementAndOffset(T, EltOffset, IdxTy);
+    uint64_t EltIdx = FindElementAndOffset(T, EltOffset, IdxTy, DL);
     NewArgs.push_back(ConstantInt::get(IdxTy, EltIdx));
   }
   if (NonConstantIdx) {
@@ -2114,9 +2121,10 @@ void SROA::RewriteLifetimeIntrinsic(IntrinsicInst *II, AllocaInst *AI,
   // Put matching lifetime markers on everything from Offset up to
   // Offset+OldSize.
   Type *AIType = AI->getAllocatedType();
+  const DataLayout &DL = II->getModule()->getDataLayout();
   uint64_t NewOffset = Offset;
   Type *IdxTy;
-  uint64_t Idx = FindElementAndOffset(AIType, NewOffset, IdxTy);
+  uint64_t Idx = FindElementAndOffset(AIType, NewOffset, IdxTy, DL);
 
   IRBuilder<> Builder(II);
   uint64_t Size = OldSize->getLimitedValue();
@@ -2126,10 +2134,10 @@ void SROA::RewriteLifetimeIntrinsic(IntrinsicInst *II, AllocaInst *AI,
     // split the alloca again later.
     unsigned AS = AI->getType()->getAddressSpace();
     Value *V = Builder.CreateBitCast(NewElts[Idx], Builder.getInt8PtrTy(AS));
-    V = Builder.CreateGEP(V, Builder.getInt64(NewOffset));
+    V = Builder.CreateGEP(Builder.getInt8Ty(), V, Builder.getInt64(NewOffset));
 
     IdxTy = NewElts[Idx]->getAllocatedType();
-    uint64_t EltSize = DL->getTypeAllocSize(IdxTy) - NewOffset;
+    uint64_t EltSize = DL.getTypeAllocSize(IdxTy) - NewOffset;
     if (EltSize > Size) {
       EltSize = Size;
       Size = 0;
@@ -2145,7 +2153,7 @@ void SROA::RewriteLifetimeIntrinsic(IntrinsicInst *II, AllocaInst *AI,
 
   for (; Idx != NewElts.size() && Size; ++Idx) {
     IdxTy = NewElts[Idx]->getAllocatedType();
-    uint64_t EltSize = DL->getTypeAllocSize(IdxTy);
+    uint64_t EltSize = DL.getTypeAllocSize(IdxTy);
     if (EltSize > Size) {
       EltSize = Size;
       Size = 0;
@@ -2221,6 +2229,7 @@ SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
   bool SROADest = MI->getRawDest() == Inst;
 
   Constant *Zero = Constant::getNullValue(Type::getInt32Ty(MI->getContext()));
+  const DataLayout &DL = MI->getModule()->getDataLayout();
 
   for (unsigned i = 0, e = NewElts.size(); i != e; ++i) {
     // If this is a memcpy/memmove, emit a GEP of the other element address.
@@ -2237,10 +2246,10 @@ SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
       PointerType *OtherPtrTy = cast<PointerType>(OtherPtr->getType());
       Type *OtherTy = OtherPtrTy->getElementType();
       if (StructType *ST = dyn_cast<StructType>(OtherTy)) {
-        EltOffset = DL->getStructLayout(ST)->getElementOffset(i);
+        EltOffset = DL.getStructLayout(ST)->getElementOffset(i);
       } else {
         Type *EltTy = cast<SequentialType>(OtherTy)->getElementType();
-        EltOffset = DL->getTypeAllocSize(EltTy)*i;
+        EltOffset = DL.getTypeAllocSize(EltTy) * i;
       }
 
       // The alignment of the other pointer is the guaranteed alignment of the
@@ -2281,7 +2290,7 @@ SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
           Type *ValTy = EltTy->getScalarType();
 
           // Construct an integer with the right value.
-          unsigned EltSize = DL->getTypeSizeInBits(ValTy);
+          unsigned EltSize = DL.getTypeSizeInBits(ValTy);
           APInt OneVal(EltSize, CI->getZExtValue());
           APInt TotalVal(OneVal);
           // Set each byte.
@@ -2311,7 +2320,7 @@ SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *Inst,
       // this element.
     }
 
-    unsigned EltSize = DL->getTypeAllocSize(EltTy);
+    unsigned EltSize = DL.getTypeAllocSize(EltTy);
     if (!EltSize)
       continue;
 
@@ -2345,12 +2354,13 @@ SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
   // and store the element value to the individual alloca.
   Value *SrcVal = SI->getOperand(0);
   Type *AllocaEltTy = AI->getAllocatedType();
-  uint64_t AllocaSizeBits = DL->getTypeAllocSizeInBits(AllocaEltTy);
+  const DataLayout &DL = SI->getModule()->getDataLayout();
+  uint64_t AllocaSizeBits = DL.getTypeAllocSizeInBits(AllocaEltTy);
 
   IRBuilder<> Builder(SI);
 
   // Handle tail padding by extending the operand
-  if (DL->getTypeSizeInBits(SrcVal->getType()) != AllocaSizeBits)
+  if (DL.getTypeSizeInBits(SrcVal->getType()) != AllocaSizeBits)
     SrcVal = Builder.CreateZExt(SrcVal,
                             IntegerType::get(SI->getContext(), AllocaSizeBits));
 
@@ -2360,15 +2370,15 @@ SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
   // There are two forms here: AI could be an array or struct.  Both cases
   // have different ways to compute the element offset.
   if (StructType *EltSTy = dyn_cast<StructType>(AllocaEltTy)) {
-    const StructLayout *Layout = DL->getStructLayout(EltSTy);
+    const StructLayout *Layout = DL.getStructLayout(EltSTy);
 
     for (unsigned i = 0, e = NewElts.size(); i != e; ++i) {
       // Get the number of bits to shift SrcVal to get the value.
       Type *FieldTy = EltSTy->getElementType(i);
       uint64_t Shift = Layout->getElementOffsetInBits(i);
 
-      if (DL->isBigEndian())
-        Shift = AllocaSizeBits-Shift-DL->getTypeAllocSizeInBits(FieldTy);
+      if (DL.isBigEndian())
+        Shift = AllocaSizeBits - Shift - DL.getTypeAllocSizeInBits(FieldTy);
 
       Value *EltVal = SrcVal;
       if (Shift) {
@@ -2377,7 +2387,7 @@ SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
       }
 
       // Truncate down to an integer of the right size.
-      uint64_t FieldSizeBits = DL->getTypeSizeInBits(FieldTy);
+      uint64_t FieldSizeBits = DL.getTypeSizeInBits(FieldTy);
 
       // Ignore zero sized fields like {}, they obviously contain no data.
       if (FieldSizeBits == 0) continue;
@@ -2402,12 +2412,12 @@ SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
   } else {
     ArrayType *ATy = cast<ArrayType>(AllocaEltTy);
     Type *ArrayEltTy = ATy->getElementType();
-    uint64_t ElementOffset = DL->getTypeAllocSizeInBits(ArrayEltTy);
-    uint64_t ElementSizeBits = DL->getTypeSizeInBits(ArrayEltTy);
+    uint64_t ElementOffset = DL.getTypeAllocSizeInBits(ArrayEltTy);
+    uint64_t ElementSizeBits = DL.getTypeSizeInBits(ArrayEltTy);
 
     uint64_t Shift;
 
-    if (DL->isBigEndian())
+    if (DL.isBigEndian())
       Shift = AllocaSizeBits-ElementOffset;
     else
       Shift = 0;
@@ -2441,7 +2451,7 @@ SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
       }
       new StoreInst(EltVal, DestField, SI);
 
-      if (DL->isBigEndian())
+      if (DL.isBigEndian())
         Shift -= ElementOffset;
       else
         Shift += ElementOffset;
@@ -2459,7 +2469,8 @@ SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
   // Extract each element out of the NewElts according to its structure offset
   // and form the result value.
   Type *AllocaEltTy = AI->getAllocatedType();
-  uint64_t AllocaSizeBits = DL->getTypeAllocSizeInBits(AllocaEltTy);
+  const DataLayout &DL = LI->getModule()->getDataLayout();
+  uint64_t AllocaSizeBits = DL.getTypeAllocSizeInBits(AllocaEltTy);
 
   DEBUG(dbgs() << "PROMOTING LOAD OF WHOLE ALLOCA: " << *AI << '\n' << *LI
                << '\n');
@@ -2469,10 +2480,10 @@ SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
   const StructLayout *Layout = nullptr;
   uint64_t ArrayEltBitOffset = 0;
   if (StructType *EltSTy = dyn_cast<StructType>(AllocaEltTy)) {
-    Layout = DL->getStructLayout(EltSTy);
+    Layout = DL.getStructLayout(EltSTy);
   } else {
     Type *ArrayEltTy = cast<ArrayType>(AllocaEltTy)->getElementType();
-    ArrayEltBitOffset = DL->getTypeAllocSizeInBits(ArrayEltTy);
+    ArrayEltBitOffset = DL.getTypeAllocSizeInBits(ArrayEltTy);
   }
 
   Value *ResultVal =
@@ -2484,7 +2495,7 @@ SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
     Value *SrcField = NewElts[i];
     Type *FieldTy =
       cast<PointerType>(SrcField->getType())->getElementType();
-    uint64_t FieldSizeBits = DL->getTypeSizeInBits(FieldTy);
+    uint64_t FieldSizeBits = DL.getTypeSizeInBits(FieldTy);
 
     // Ignore zero sized fields like {}, they obviously contain no data.
     if (FieldSizeBits == 0) continue;
@@ -2515,7 +2526,7 @@ SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
     else  // Array case.
       Shift = i*ArrayEltBitOffset;
 
-    if (DL->isBigEndian())
+    if (DL.isBigEndian())
       Shift = AllocaSizeBits-Shift-FieldIntTy->getBitWidth();
 
     if (Shift) {
@@ -2532,7 +2543,7 @@ SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
   }
 
   // Handle tail padding by truncating the result
-  if (DL->getTypeSizeInBits(LI->getType()) != AllocaSizeBits)
+  if (DL.getTypeSizeInBits(LI->getType()) != AllocaSizeBits)
     ResultVal = new TruncInst(ResultVal, LI->getType(), "", LI);
 
   LI->replaceAllUsesWith(ResultVal);
@@ -2589,13 +2600,15 @@ bool SROA::isSafeAllocaToScalarRepl(AllocaInst *AI) {
     return false;
   }
 
+  const DataLayout &DL = AI->getModule()->getDataLayout();
+
   // Okay, we know all the users are promotable.  If the aggregate is a memcpy
   // source and destination, we have to be careful.  In particular, the memcpy
   // could be moving around elements that live in structure padding of the LLVM
   // types, but may actually be used.  In these cases, we refuse to promote the
   // struct.
   if (Info.isMemCpySrc && Info.isMemCpyDst &&
-      HasPadding(AI->getAllocatedType(), *DL))
+      HasPadding(AI->getAllocatedType(), DL))
     return false;
 
   // If the alloca never has an access to just *part* of it, but is accessed

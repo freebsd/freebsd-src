@@ -27,14 +27,17 @@
 #ifndef __XEN_PUBLIC_XEN_COMPAT_H__
 #define __XEN_PUBLIC_XEN_COMPAT_H__
 
-#define __XEN_LATEST_INTERFACE_VERSION__ 0x00040200
+#define __XEN_LATEST_INTERFACE_VERSION__ 0x00040600
 
 #if defined(__XEN__) || defined(__XEN_TOOLS__)
 /* Xen is built with matching headers and implements the latest interface. */
 #define __XEN_INTERFACE_VERSION__ __XEN_LATEST_INTERFACE_VERSION__
 #elif !defined(__XEN_INTERFACE_VERSION__)
-/* Guests which do not specify a version get the legacy interface. */
-#define __XEN_INTERFACE_VERSION__ 0x00000000
+/*
+ * The interface version is not set if and only if xen/xen-os.h is not
+ * included.
+ */
+#error "Please include xen/xen-os.h"
 #endif
 
 #if __XEN_INTERFACE_VERSION__ > __XEN_LATEST_INTERFACE_VERSION__

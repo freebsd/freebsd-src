@@ -39,7 +39,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 /* A function to diff locally added and locally copied files.
-  
+
    Reports the file LOCAL_ABSPATH as ADDED file with relpath RELPATH to
    PROCESSOR with as parent baton PROCESSOR_PARENT_BATON.
 
@@ -60,7 +60,7 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
                              apr_pool_t *scratch_pool);
 
 /* A function to diff locally added and locally copied directories.
-  
+
    Reports the directory LOCAL_ABSPATH and everything below it (limited by
    DEPTH) as added with relpath RELPATH to PROCESSOR with as parent baton
    PROCESSOR_PARENT_BATON.

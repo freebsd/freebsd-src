@@ -4,6 +4,8 @@ arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
 arm/arm/blockio.S		standard
 arm/arm/bus_space_asm_generic.S	standard
+arm/arm/bus_space_base.c	optional	fdt
+arm/arm/bus_space_generic.c	standard
 arm/arm/busdma_machdep.c 	optional	!armv6
 arm/arm/busdma_machdep-v6.c 	optional	armv6
 arm/arm/copystr.S		standard
@@ -37,18 +39,25 @@ arm/arm/fiq.c			standard
 arm/arm/fiq_subr.S		standard
 arm/arm/fusu.S			standard
 arm/arm/gdb_machdep.c		optional	gdb
+arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
+arm/arm/hdmi_if.m		optional	hdmi
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
-arm/arm/intr.c			standard
+arm/arm/intr.c			optional	!arm_intrng
+kern/subr_intr.c		optional	arm_intrng
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
+arm/arm/machdep_intr.c		standard
 arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
+arm/arm/mpcore_timer.c		optional	mpcore_timer
 arm/arm/nexus.c			standard
+arm/arm/ofw_machdep.c		optional	fdt
 arm/arm/physmem.c		standard
+kern/pic_if.m			optional	arm_intrng
 arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
@@ -56,6 +65,7 @@ arm/arm/platform_if.m		optional	platform
 arm/arm/pmap.c			optional	!armv6
 arm/arm/pmap-v6.c		optional	armv6 !arm_new_pmap
 arm/arm/pmap-v6-new.c		optional	armv6 arm_new_pmap
+arm/arm/pmu.c			optional	pmu | fdt hwpmc
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
@@ -84,11 +94,12 @@ cddl/dev/dtrace/arm/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/arm/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+dev/dwc/if_dwc.c		optional	dwc
+dev/dwc/if_dwc_if.m		optional	dwc
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc armv6
-dev/kbd/kbd.c			optional	sc | vt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
@@ -101,7 +112,6 @@ font.h				optional	sc			\
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 kern/subr_busdma_bufalloc.c	standard
-kern/subr_dummy_vdso_tc.c	standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard
 libkern/arm/divsi3.S		standard
@@ -116,6 +126,7 @@ libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
 libkern/divdi3.c		standard
 libkern/ffsl.c			standard
+libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard

@@ -386,10 +386,8 @@ static bool ExtractLoops(BugDriver &BD,
       // that masked the error.  Stop loop extraction now.
 
       std::vector<std::pair<std::string, FunctionType*> > MisCompFunctions;
-      for (unsigned i = 0, e = MiscompiledFunctions.size(); i != e; ++i) {
-        Function *F = MiscompiledFunctions[i];
-        MisCompFunctions.push_back(std::make_pair(F->getName(),
-                                                  F->getFunctionType()));
+      for (Function *F : MiscompiledFunctions) {
+        MisCompFunctions.emplace_back(F->getName(), F->getFunctionType());
       }
 
       if (Linker::LinkModules(ToNotOptimize, ToOptimizeLoopExtracted))
@@ -414,8 +412,7 @@ static bool ExtractLoops(BugDriver &BD,
     for (Module::iterator I = ToOptimizeLoopExtracted->begin(),
            E = ToOptimizeLoopExtracted->end(); I != E; ++I)
       if (!I->isDeclaration())
-        MisCompFunctions.push_back(std::make_pair(I->getName(),
-                                                  I->getFunctionType()));
+        MisCompFunctions.emplace_back(I->getName(), I->getFunctionType());
 
     // Okay, great!  Now we know that we extracted a loop and that loop
     // extraction both didn't break the program, and didn't mask the problem.
@@ -596,8 +593,7 @@ static bool ExtractBlocks(BugDriver &BD,
   for (Module::iterator I = Extracted->begin(), E = Extracted->end();
        I != E; ++I)
     if (!I->isDeclaration())
-      MisCompFunctions.push_back(std::make_pair(I->getName(),
-                                                I->getFunctionType()));
+      MisCompFunctions.emplace_back(I->getName(), I->getFunctionType());
 
   if (Linker::LinkModules(ProgClone, Extracted.get()))
     exit(1);
@@ -852,7 +848,8 @@ static void CleanupAndPrepareModules(BugDriver &BD, Module *&Test,
         // GetElementPtr *funcName, ulong 0, ulong 0
         std::vector<Constant*> GEPargs(2,
                      Constant::getNullValue(Type::getInt32Ty(F->getContext())));
-        Value *GEP = ConstantExpr::getGetElementPtr(funcName, GEPargs);
+        Value *GEP = ConstantExpr::getGetElementPtr(InitArray->getType(),
+                                                    funcName, GEPargs);
         std::vector<Value*> ResolverArgs;
         ResolverArgs.push_back(GEP);
 
@@ -975,7 +972,7 @@ static bool TestCodeGenerator(BugDriver &BD, Module *Test, Module *Safe,
   }
 
   if (BD.writeProgramToFile(SafeModuleBC.str(), SafeModuleFD, Safe)) {
-    errs() << "Error writing bitcode to `" << SafeModuleBC.str()
+    errs() << "Error writing bitcode to `" << SafeModuleBC
            << "'\nExiting.";
     exit(1);
   }
@@ -1050,7 +1047,7 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
   }
 
   if (writeProgramToFile(TestModuleBC.str(), TestModuleFD, ToCodeGen)) {
-    errs() << "Error writing bitcode to `" << TestModuleBC.str()
+    errs() << "Error writing bitcode to `" << TestModuleBC
            << "'\nExiting.";
     exit(1);
   }
@@ -1068,7 +1065,7 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
   }
 
   if (writeProgramToFile(SafeModuleBC.str(), SafeModuleFD, ToNotCodeGen)) {
-    errs() << "Error writing bitcode to `" << SafeModuleBC.str()
+    errs() << "Error writing bitcode to `" << SafeModuleBC
            << "'\nExiting.";
     exit(1);
   }
@@ -1079,17 +1076,17 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
 
   outs() << "You can reproduce the problem with the command line: \n";
   if (isExecutingJIT()) {
-    outs() << "  lli -load " << SharedObject << " " << TestModuleBC.str();
+    outs() << "  lli -load " << SharedObject << " " << TestModuleBC;
   } else {
-    outs() << "  llc " << TestModuleBC.str() << " -o " << TestModuleBC.str()
+    outs() << "  llc " << TestModuleBC << " -o " << TestModuleBC
            << ".s\n";
     outs() << "  gcc " << SharedObject << " " << TestModuleBC.str()
-              << ".s -o " << TestModuleBC.str() << ".exe";
+              << ".s -o " << TestModuleBC << ".exe";
 #if defined (HAVE_LINK_R)
     outs() << " -Wl,-R.";
 #endif
     outs() << "\n";
-    outs() << "  " << TestModuleBC.str() << ".exe";
+    outs() << "  " << TestModuleBC << ".exe";
   }
   for (unsigned i = 0, e = InputArgv.size(); i != e; ++i)
     outs() << " " << InputArgv[i];

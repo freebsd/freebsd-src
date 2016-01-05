@@ -506,6 +506,7 @@ pmcstat_show_usage(void)
 	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
+	    "\t -e\t\t use wide history counter for gprof(1) output\n"
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
@@ -627,7 +628,7 @@ main(int argc, char **argv)
 	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:M:NO:P:R:S:TWa:c:df:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EF:G:M:NO:P:R:S:TWa:c:def:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
 		case 'a':	/* Annotate + callgraph */
 			args.pa_flags |= FLAG_DO_ANNOTATE;
@@ -666,6 +667,10 @@ main(int argc, char **argv)
 		case 'd':	/* toggle descendents */
 			do_descendants = !do_descendants;
 			args.pa_required |= FLAG_HAS_PROCESS_PMCS;
+			break;
+
+		case 'e':	/* wide gprof metrics */
+			args.pa_flags |= FLAG_DO_WIDE_GPROF_HC;
 			break;
 
 		case 'F':	/* produce a system-wide calltree */
@@ -1020,6 +1025,13 @@ main(int argc, char **argv)
 	    !(args.pa_flags & (FLAG_HAS_SAMPLING_PMCS|FLAG_READ_LOGFILE)))
 		errx(EX_USAGE,
 "ERROR: options -g/-G/-m/-T require sampling PMCs or -R to be specified."
+		    );
+
+	/* check if -e was specified without -g */
+	if ((args.pa_flags & FLAG_DO_WIDE_GPROF_HC) &&
+	    !(args.pa_flags & FLAG_DO_GPROF))
+		errx(EX_USAGE,
+"ERROR: option -e requires gprof mode to be specified."
 		    );
 
 	/* check if -O was spuriously specified */
@@ -1500,14 +1512,24 @@ main(int argc, char **argv)
 			    "ERROR: Cannot retrieve driver statistics");
 		if (ds_start.pm_intr_bufferfull != ds_end.pm_intr_bufferfull &&
 		    args.pa_verbosity > 0)
-			warnx("WARNING: some samples were dropped.\n"
-"Please consider tuning the \"kern.hwpmc.nsamples\" tunable."
+			warnx(
+"WARNING: sampling was paused at least %u time%s.\n"
+"Please consider tuning the \"kern.hwpmc.nsamples\" tunable.",
+			    ds_end.pm_intr_bufferfull -
+			    ds_start.pm_intr_bufferfull,
+			    ((ds_end.pm_intr_bufferfull -
+			    ds_start.pm_intr_bufferfull) != 1) ? "s" : ""
 			    );
 		if (ds_start.pm_buffer_requests_failed !=
 		    ds_end.pm_buffer_requests_failed &&
 		    args.pa_verbosity > 0)
-			warnx("WARNING: some events were discarded.\n"
-"Please consider tuning the \"kern.hwpmc.nbuffers\" tunable."
+			warnx(
+"WARNING: at least %u event%s were discarded while running.\n"
+"Please consider tuning the \"kern.hwpmc.nbuffers\" tunable.",
+	 		    ds_end.pm_buffer_requests_failed -
+			    ds_start.pm_buffer_requests_failed,
+			    ((ds_end.pm_buffer_requests_failed -
+			    ds_start.pm_buffer_requests_failed) != 1) ? "s" : ""
 			    );
 	}
 

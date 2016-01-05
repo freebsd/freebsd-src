@@ -167,6 +167,7 @@ class VirtRegRewriter : public MachineFunctionPass {
 
   void rewrite();
   void addMBBLiveIns();
+  bool readsUndefSubreg(const MachineOperand &MO) const;
 public:
   static char ID;
   VirtRegRewriter() : MachineFunctionPass(ID) {}
@@ -264,8 +265,7 @@ void VirtRegRewriter::addMBBLiveIns() {
             if ((SubRegLaneMask & S.LaneMask) == 0)
               continue;
             for (unsigned i = 0, e = LiveIn.size(); i != e; ++i) {
-              if (!LiveIn[i]->isLiveIn(SubReg))
-                LiveIn[i]->addLiveIn(SubReg);
+              LiveIn[i]->addLiveIn(SubReg);
             }
           }
           LiveIn.clear();
@@ -277,16 +277,45 @@ void VirtRegRewriter::addMBBLiveIns() {
         if (!Indexes->findLiveInMBBs(Seg.start, Seg.end, LiveIn))
           continue;
         for (unsigned i = 0, e = LiveIn.size(); i != e; ++i)
-          if (!LiveIn[i]->isLiveIn(PhysReg))
-            LiveIn[i]->addLiveIn(PhysReg);
+          LiveIn[i]->addLiveIn(PhysReg);
         LiveIn.clear();
       }
     }
   }
+
+  // Sort and unique MBB LiveIns as we've not checked if SubReg/PhysReg were in
+  // each MBB's LiveIns set before calling addLiveIn on them.
+  for (MachineBasicBlock &MBB : *MF)
+    MBB.sortUniqueLiveIns();
+}
+
+/// Returns true if the given machine operand \p MO only reads undefined lanes.
+/// The function only works for use operands with a subregister set.
+bool VirtRegRewriter::readsUndefSubreg(const MachineOperand &MO) const {
+  // Shortcut if the operand is already marked undef.
+  if (MO.isUndef())
+    return true;
+
+  unsigned Reg = MO.getReg();
+  const LiveInterval &LI = LIS->getInterval(Reg);
+  const MachineInstr &MI = *MO.getParent();
+  SlotIndex BaseIndex = LIS->getInstructionIndex(&MI);
+  // This code is only meant to handle reading undefined subregisters which
+  // we couldn't properly detect before.
+  assert(LI.liveAt(BaseIndex) &&
+         "Reads of completely dead register should be marked undef already");
+  unsigned SubRegIdx = MO.getSubReg();
+  unsigned UseMask = TRI->getSubRegIndexLaneMask(SubRegIdx);
+  // See if any of the relevant subregister liveranges is defined at this point.
+  for (const LiveInterval::SubRange &SR : LI.subranges()) {
+    if ((SR.LaneMask & UseMask) != 0 && SR.liveAt(BaseIndex))
+      return false;
+  }
+  return true;
 }
 
 void VirtRegRewriter::rewrite() {
-  bool NoSubRegLiveness = !MRI->tracksSubRegLiveness();
+  bool NoSubRegLiveness = !MRI->subRegLivenessEnabled();
   SmallVector<unsigned, 8> SuperDeads;
   SmallVector<unsigned, 8> SuperDefs;
   SmallVector<unsigned, 8> SuperKills;
@@ -364,32 +393,51 @@ void VirtRegRewriter::rewrite() {
         assert(!MRI->isReserved(PhysReg) && "Reserved register assignment");
 
         // Preserve semantics of sub-register operands.
-        if (MO.getSubReg()) {
-          // A virtual register kill refers to the whole register, so we may
-          // have to add <imp-use,kill> operands for the super-register.  A
-          // partial redef always kills and redefines the super-register.
-          if (NoSubRegLiveness && MO.readsReg()
-              && (MO.isDef() || MO.isKill()))
-            SuperKills.push_back(PhysReg);
+        unsigned SubReg = MO.getSubReg();
+        if (SubReg != 0) {
+          if (NoSubRegLiveness) {
+            // A virtual register kill refers to the whole register, so we may
+            // have to add <imp-use,kill> operands for the super-register.  A
+            // partial redef always kills and redefines the super-register.
+            if (MO.readsReg() && (MO.isDef() || MO.isKill()))
+              SuperKills.push_back(PhysReg);
 
-          if (MO.isDef()) {
-            // The <def,undef> flag only makes sense for sub-register defs, and
-            // we are substituting a full physreg.  An <imp-use,kill> operand
-            // from the SuperKills list will represent the partial read of the
-            // super-register.
-            MO.setIsUndef(false);
-
-            // Also add implicit defs for the super-register.
-            if (NoSubRegLiveness) {
+            if (MO.isDef()) {
+              // Also add implicit defs for the super-register.
               if (MO.isDead())
                 SuperDeads.push_back(PhysReg);
               else
                 SuperDefs.push_back(PhysReg);
             }
+          } else {
+            if (MO.isUse()) {
+              if (readsUndefSubreg(MO))
+                // We need to add an <undef> flag if the subregister is
+                // completely undefined (and we are not adding super-register
+                // defs).
+                MO.setIsUndef(true);
+            } else if (!MO.isDead()) {
+              assert(MO.isDef());
+              // Things get tricky when we ran out of lane mask bits and
+              // merged multiple lanes into the overflow bit: In this case
+              // our subregister liveness tracking isn't precise and we can't
+              // know what subregister parts are undefined, fall back to the
+              // implicit super-register def then.
+              unsigned LaneMask = TRI->getSubRegIndexLaneMask(SubReg);
+              if (TargetRegisterInfo::isImpreciseLaneMask(LaneMask))
+                SuperDefs.push_back(PhysReg);
+            }
           }
 
+          // The <def,undef> flag only makes sense for sub-register defs, and
+          // we are substituting a full physreg.  An <imp-use,kill> operand
+          // from the SuperKills list will represent the partial read of the
+          // super-register.
+          if (MO.isDef())
+            MO.setIsUndef(false);
+
           // PhysReg operands cannot have subregister indexes.
-          PhysReg = TRI->getSubReg(PhysReg, MO.getSubReg());
+          PhysReg = TRI->getSubReg(PhysReg, SubReg);
           assert(PhysReg && "Invalid SubReg for physical register");
           MO.setSubReg(0);
         }
@@ -414,17 +462,11 @@ void VirtRegRewriter::rewrite() {
       // Finally, remove any identity copies.
       if (MI->isIdentityCopy()) {
         ++NumIdCopies;
-        if (MI->getNumOperands() == 2) {
-          DEBUG(dbgs() << "Deleting identity copy.\n");
-          if (Indexes)
-            Indexes->removeMachineInstrFromMaps(MI);
-          // It's safe to erase MI because MII has already been incremented.
-          MI->eraseFromParent();
-        } else {
-          // Transform identity copy to a KILL to deal with subregisters.
-          MI->setDesc(TII->get(TargetOpcode::KILL));
-          DEBUG(dbgs() << "Identity copy: " << *MI);
-        }
+        DEBUG(dbgs() << "Deleting identity copy.\n");
+        if (Indexes)
+          Indexes->removeMachineInstrFromMaps(MI);
+        // It's safe to erase MI because MII has already been incremented.
+        MI->eraseFromParent();
       }
     }
   }

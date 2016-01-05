@@ -313,8 +313,6 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 	racct_sub_cred(cred, RACCT_SWAP, decr);
 }
 
-static void swapdev_strategy(struct buf *, struct swdevt *sw);
-
 #define SWM_FREE	0x02	/* free, period			*/
 #define SWM_POP		0x04	/* pop out			*/
 
@@ -359,9 +357,10 @@ static vm_object_t
 		swap_pager_alloc(void *handle, vm_ooffset_t size,
 		    vm_prot_t prot, vm_ooffset_t offset, struct ucred *);
 static void	swap_pager_dealloc(vm_object_t object);
-static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int);
-static int	swap_pager_getpages_async(vm_object_t, vm_page_t *, int, int,
-    pgo_getpages_iodone_t, void *);
+static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int *,
+    int *);
+static int	swap_pager_getpages_async(vm_object_t, vm_page_t *, int, int *,
+    int *, pgo_getpages_iodone_t, void *);
 static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
@@ -414,16 +413,6 @@ static void swp_pager_meta_build(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free(vm_object_t, vm_pindex_t, daddr_t);
 static void swp_pager_meta_free_all(vm_object_t);
 static daddr_t swp_pager_meta_ctl(vm_object_t, vm_pindex_t, int);
-
-static void
-swp_pager_free_nrpage(vm_page_t m)
-{
-
-	vm_page_lock(m);
-	if (m->wire_count == 0)
-		vm_page_free(m);
-	vm_page_unlock(m);
-}
 
 /*
  * SWP_SIZECHECK() -	update swap_pager_full indication
@@ -1105,15 +1094,11 @@ swap_pager_unswapped(vm_page_t m)
  *	left busy, but the others adjusted.
  */
 static int
-swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
+swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
+    int *rahead)
 {
 	struct buf *bp;
-	vm_page_t mreq;
-	int i;
-	int j;
 	daddr_t blk;
-
-	mreq = m[reqpage];
 
 	/*
 	 * Calculate range to retrieve.  The pages have already been assigned
@@ -1124,44 +1109,17 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 *
 	 * The swp_*() calls must be made with the object locked.
 	 */
-	blk = swp_pager_meta_ctl(mreq->object, mreq->pindex, 0);
+	blk = swp_pager_meta_ctl(m[0]->object, m[0]->pindex, 0);
 
-	for (i = reqpage - 1; i >= 0; --i) {
-		daddr_t iblk;
-
-		iblk = swp_pager_meta_ctl(m[i]->object, m[i]->pindex, 0);
-		if (blk != iblk + (reqpage - i))
-			break;
-	}
-	++i;
-
-	for (j = reqpage + 1; j < count; ++j) {
-		daddr_t jblk;
-
-		jblk = swp_pager_meta_ctl(m[j]->object, m[j]->pindex, 0);
-		if (blk != jblk - (j - reqpage))
-			break;
-	}
-
-	/*
-	 * free pages outside our collection range.   Note: we never free
-	 * mreq, it must remain busy throughout.
-	 */
-	if (0 < i || j < count) {
-		int k;
-
-		for (k = 0; k < i; ++k)
-			swp_pager_free_nrpage(m[k]);
-		for (k = j; k < count; ++k)
-			swp_pager_free_nrpage(m[k]);
-	}
-
-	/*
-	 * Return VM_PAGER_FAIL if we have nothing to do.  Return mreq
-	 * still busy, but the others unbusied.
-	 */
 	if (blk == SWAPBLK_NONE)
 		return (VM_PAGER_FAIL);
+
+#ifdef INVARIANTS
+	for (int i = 0; i < count; i++)
+		KASSERT(blk + i ==
+		    swp_pager_meta_ctl(m[i]->object, m[i]->pindex, 0),
+		    ("%s: range is not contiguous", __func__));
+#endif
 
 	/*
 	 * Getpbuf() can sleep.
@@ -1177,21 +1135,16 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	bp->b_iodone = swp_pager_async_iodone;
 	bp->b_rcred = crhold(thread0.td_ucred);
 	bp->b_wcred = crhold(thread0.td_ucred);
-	bp->b_blkno = blk - (reqpage - i);
-	bp->b_bcount = PAGE_SIZE * (j - i);
-	bp->b_bufsize = PAGE_SIZE * (j - i);
-	bp->b_pager.pg_reqpage = reqpage - i;
+	bp->b_blkno = blk;
+	bp->b_bcount = PAGE_SIZE * count;
+	bp->b_bufsize = PAGE_SIZE * count;
+	bp->b_npages = count;
 
 	VM_OBJECT_WLOCK(object);
-	{
-		int k;
-
-		for (k = i; k < j; ++k) {
-			bp->b_pages[k - i] = m[k];
-			m[k]->oflags |= VPO_SWAPINPROG;
-		}
+	for (int i = 0; i < count; i++) {
+		bp->b_pages[i] = m[i];
+		m[i]->oflags |= VPO_SWAPINPROG;
 	}
-	bp->b_npages = j - i;
 
 	PCPU_INC(cnt.v_swapin);
 	PCPU_ADD(cnt.v_swappgsin, bp->b_npages);
@@ -1223,8 +1176,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * is set in the meta-data.
 	 */
 	VM_OBJECT_WLOCK(object);
-	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
-		mreq->oflags |= VPO_SWAPSLEEP;
+	while ((m[0]->oflags & VPO_SWAPINPROG) != 0) {
+		m[0]->oflags |= VPO_SWAPSLEEP;
 		PCPU_INC(cnt.v_intrans);
 		if (VM_OBJECT_SLEEP(object, &object->paging_in_progress, PSWP,
 		    "swread", hz * 20)) {
@@ -1235,15 +1188,18 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	}
 
 	/*
-	 * mreq is left busied after completion, but all the other pages
-	 * are freed.  If we had an unrecoverable read error the page will
-	 * not be valid.
+	 * If we had an unrecoverable read error pages will not be valid.
 	 */
-	if (mreq->valid != VM_PAGE_BITS_ALL) {
-		return (VM_PAGER_ERROR);
-	} else {
-		return (VM_PAGER_OK);
-	}
+	for (int i = 0; i < count; i++)
+		if (m[i]->valid != VM_PAGE_BITS_ALL)
+			return (VM_PAGER_ERROR);
+
+	if (rbehind)
+		*rbehind = 0;
+	if (rahead)
+		*rahead = 0;
+
+	return (VM_PAGER_OK);
 
 	/*
 	 * A final note: in a low swap situation, we cannot deallocate swap
@@ -1261,11 +1217,11 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
  */
 static int
 swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
-    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
+    int *rbehind, int *rahead, pgo_getpages_iodone_t iodone, void *arg)
 {
 	int r, error;
 
-	r = swap_pager_getpages(object, m, count, reqpage);
+	r = swap_pager_getpages(object, m, count, rbehind, rahead);
 	VM_OBJECT_WUNLOCK(object);
 	switch (r) {
 	case VM_PAGER_OK:
@@ -1308,7 +1264,7 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
  *	those whos rtvals[] entry is not set to VM_PAGER_PEND on return.
  *	We need to unbusy the rest on I/O completion.
  */
-void
+static void
 swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
     int flags, int *rtvals)
 {
@@ -1529,33 +1485,11 @@ swp_pager_async_iodone(struct buf *bp)
 			 */
 			if (bp->b_iocmd == BIO_READ) {
 				/*
-				 * When reading, reqpage needs to stay
-				 * locked for the parent, but all other
-				 * pages can be freed.  We still want to
-				 * wakeup the parent waiting on the page,
-				 * though.  ( also: pg_reqpage can be -1 and
-				 * not match anything ).
-				 *
-				 * We have to wake specifically requested pages
-				 * up too because we cleared VPO_SWAPINPROG and
-				 * someone may be waiting for that.
-				 *
 				 * NOTE: for reads, m->dirty will probably
 				 * be overridden by the original caller of
 				 * getpages so don't play cute tricks here.
 				 */
 				m->valid = 0;
-				if (i != bp->b_pager.pg_reqpage)
-					swp_pager_free_nrpage(m);
-				else {
-					vm_page_lock(m);
-					vm_page_flash(m);
-					vm_page_unlock(m);
-				}
-				/*
-				 * If i == bp->b_pager.pg_reqpage, do not wake
-				 * the page up.  The caller needs to.
-				 */
 			} else {
 				/*
 				 * If a write error occurs, reactivate page
@@ -1577,38 +1511,12 @@ swp_pager_async_iodone(struct buf *bp)
 			 * want to do that anyway, but it was an optimization
 			 * that existed in the old swapper for a time before
 			 * it got ripped out due to precisely this problem.
-			 *
-			 * If not the requested page then deactivate it.
-			 *
-			 * Note that the requested page, reqpage, is left
-			 * busied, but we still have to wake it up.  The
-			 * other pages are released (unbusied) by
-			 * vm_page_xunbusy().
 			 */
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("swp_pager_async_iodone: page %p is mapped", m));
-			m->valid = VM_PAGE_BITS_ALL;
 			KASSERT(m->dirty == 0,
 			    ("swp_pager_async_iodone: page %p is dirty", m));
-
-			/*
-			 * We have to wake specifically requested pages
-			 * up too because we cleared VPO_SWAPINPROG and
-			 * could be waiting for it in getpages.  However,
-			 * be sure to not unbusy getpages specifically
-			 * requested page - getpages expects it to be
-			 * left busy.
-			 */
-			if (i != bp->b_pager.pg_reqpage) {
-				vm_page_lock(m);
-				vm_page_deactivate(m);
-				vm_page_unlock(m);
-				vm_page_xunbusy(m);
-			} else {
-				vm_page_lock(m);
-				vm_page_flash(m);
-				vm_page_unlock(m);
-			}
+			m->valid = VM_PAGE_BITS_ALL;
 		} else {
 			/*
 			 * For write success, clear the dirty
@@ -1729,7 +1637,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 		return;
 	}
 
-	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
+	if (swap_pager_getpages(object, &m, 1, NULL, NULL) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_wakeup(object);
 	vm_page_dirty(m);

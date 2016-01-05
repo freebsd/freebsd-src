@@ -592,12 +592,68 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 	return (0);
 }
 
+static int
+kernel_wait(int iscsi_fd, int timeout)
+{
+	struct iscsi_session_state *states = NULL;
+	const struct iscsi_session_state *state;
+	struct iscsi_session_list isl;
+	unsigned int i, nentries = 1;
+	bool all_connected;
+	int error;
+
+	for (;;) {
+		for (;;) {
+			states = realloc(states,
+			    nentries * sizeof(struct iscsi_session_state));
+			if (states == NULL)
+				xo_err(1, "realloc");
+
+			memset(&isl, 0, sizeof(isl));
+			isl.isl_nentries = nentries;
+			isl.isl_pstates = states;
+
+			error = ioctl(iscsi_fd, ISCSISLIST, &isl);
+			if (error != 0 && errno == EMSGSIZE) {
+				nentries *= 4;
+				continue;
+			}
+			break;
+		}
+		if (error != 0) {
+			xo_warn("ISCSISLIST");
+			return (error);
+		}
+
+		all_connected = true;
+		for (i = 0; i < isl.isl_nentries; i++) {
+			state = &states[i];
+
+			if (!state->iss_connected) {
+				all_connected = false;
+				break;
+			}
+		}
+
+		if (all_connected)
+			return (0);
+
+		sleep(1);
+
+		if (timeout > 0) {
+			timeout--;
+			if (timeout == 0)
+				return (1);
+		}
+	}
+}
+
 static void
 usage(void)
 {
 
 	fprintf(stderr, "usage: iscsictl -A -p portal -t target "
-	    "[-u user -s secret]\n");
+	    "[-u user -s secret] [-w timeout]\n");
 	fprintf(stderr, "       iscsictl -A -d discovery-host "
 	    "[-u user -s secret]\n");
 	fprintf(stderr, "       iscsictl -A -a [-c path]\n");
@@ -609,7 +665,7 @@ usage(void)
 	fprintf(stderr, "       iscsictl -R [-p portal] [-t target]\n");
 	fprintf(stderr, "       iscsictl -R -a\n");
 	fprintf(stderr, "       iscsictl -R -n nickname [-c path]\n");
-	fprintf(stderr, "       iscsictl -L [-v]\n");
+	fprintf(stderr, "       iscsictl -L [-v] [-w timeout]\n");
 	exit(1);
 }
 
@@ -631,6 +687,7 @@ main(int argc, char **argv)
 	const char *conf_path = DEFAULT_CONFIG_PATH;
 	char *nickname = NULL, *discovery_host = NULL, *portal = NULL,
 	     *target = NULL, *user = NULL, *secret = NULL;
+	int timeout = -1;
 	long long session_id = -1;
 	char *end;
 	int ch, error, iscsi_fd, retval, saved_errno;
@@ -641,7 +698,7 @@ main(int argc, char **argv)
 	argc = xo_parse_args(argc, argv);
 	xo_open_container("iscsictl");
 
-	while ((ch = getopt(argc, argv, "AMRLac:d:i:n:p:t:u:s:v")) != -1) {
+	while ((ch = getopt(argc, argv, "AMRLac:d:i:n:p:t:u:s:vw:")) != -1) {
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -691,6 +748,13 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			vflag = 1;
+			break;
+		case 'w':
+			timeout = strtol(optarg, &end, 10);
+			if ((size_t)(end - optarg) != strlen(optarg))
+				xo_errx(1, "trailing characters after timeout");
+			if (timeout < 0)
+				xo_errx(1, "timeout cannot be negative");
 			break;
 		case '?':
 		default:
@@ -782,6 +846,8 @@ main(int argc, char **argv)
 
 		if (vflag != 0)
 			xo_errx(1, "-v cannot be used with -M");
+		if (timeout != -1)
+			xo_errx(1, "-w cannot be used with -M");
 
 	} else if (Rflag != 0) {
 		if (user != NULL)
@@ -811,6 +877,8 @@ main(int argc, char **argv)
 			xo_errx(1, "-i cannot be used with -R");
 		if (vflag != 0)
 			xo_errx(1, "-v cannot be used with -R");
+		if (timeout != -1)
+			xo_errx(1, "-w cannot be used with -R");
 
 	} else {
 		assert(Lflag != 0);
@@ -895,6 +963,9 @@ main(int argc, char **argv)
 		else
 			failed += kernel_list(iscsi_fd, targ, vflag);
 	}
+
+	if (timeout != -1)
+		failed += kernel_wait(iscsi_fd, timeout);
 
 	error = close(iscsi_fd);
 	if (error != 0)

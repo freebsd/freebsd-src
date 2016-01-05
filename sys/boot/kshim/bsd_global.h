@@ -29,6 +29,8 @@
 
 #include <bsd_kernel.h>
 
+#include <sys/gpio.h>
+
 #define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_freebsd_loader.h>
 #include <dev/usb/usb_endian.h>
@@ -59,6 +61,8 @@
 #include <dev/usb/usb_generic.h>
 #include <dev/usb/quirk/usb_quirk.h>
 #include <dev/usb/template/usb_template.h>
+#include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
 
 extern struct usb_process usb_process[USB_PROC_MAX];
 

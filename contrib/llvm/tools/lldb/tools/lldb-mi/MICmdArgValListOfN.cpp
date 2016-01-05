@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValListOfN.cpp
-//
-// Overview:    CMICmdArgValListOfN implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmdArgValListOfN.h"
 #include "MICmdArgContext.h"
@@ -86,7 +74,7 @@ CMICmdArgValListOfN::Validate(CMICmdArgContext &vwArgContext)
     }
 
     if (vwArgContext.IsEmpty())
-        return MIstatus::success;
+        return m_bMandatory ? MIstatus::failure : MIstatus::success;
 
     const CMIUtilString &rArg(vwArgContext.GetArgsLeftToParse());
     if (IsListOfN(rArg) && CreateList(rArg))

@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Core/PluginManager.h"
 
 #include <limits.h>
@@ -885,6 +883,7 @@ struct LanguageRuntimeInstance
     ConstString name;
     std::string description;
     LanguageRuntimeCreateInstance create_callback;
+    LanguageRuntimeGetCommandObject command_callback;
 };
 
 typedef std::vector<LanguageRuntimeInstance> LanguageRuntimeInstances;
@@ -908,7 +907,8 @@ PluginManager::RegisterPlugin
 (
     const ConstString &name,
     const char *description,
-    LanguageRuntimeCreateInstance create_callback
+    LanguageRuntimeCreateInstance create_callback,
+    LanguageRuntimeGetCommandObject command_callback
 )
 {
     if (create_callback)
@@ -919,6 +919,7 @@ PluginManager::RegisterPlugin
         if (description && description[0])
             instance.description = description;
         instance.create_callback = create_callback;
+        instance.command_callback = command_callback;
         Mutex::Locker locker (GetLanguageRuntimeMutex ());
         GetLanguageRuntimeInstances ().push_back (instance);
     }
@@ -953,6 +954,16 @@ PluginManager::GetLanguageRuntimeCreateCallbackAtIndex (uint32_t idx)
     LanguageRuntimeInstances &instances = GetLanguageRuntimeInstances ();
     if (idx < instances.size())
         return instances[idx].create_callback;
+    return NULL;
+}
+
+LanguageRuntimeGetCommandObject
+PluginManager::GetLanguageRuntimeGetCommandObjectAtIndex (uint32_t idx)
+{
+    Mutex::Locker locker (GetLanguageRuntimeMutex ());
+    LanguageRuntimeInstances &instances = GetLanguageRuntimeInstances ();
+    if (idx < instances.size())
+        return instances[idx].command_callback;
     return NULL;
 }
 

@@ -40,6 +40,7 @@ typedef int win32_crypto__dummy;
 #include "svn_user.h"
 #include "svn_base64.h"
 
+#include "auth.h"
 #include "private/svn_auth_private.h"
 
 #include "svn_private_config.h"
@@ -213,7 +214,7 @@ static const svn_auth_provider_t windows_simple_provider = {
 
 /* Public API */
 void
-svn_auth_get_windows_simple_provider(svn_auth_provider_object_t **provider,
+svn_auth__get_windows_simple_provider(svn_auth_provider_object_t **provider,
                                      apr_pool_t *pool)
 {
   svn_auth_provider_object_t *po = apr_pcalloc(pool, sizeof(*po));
@@ -331,7 +332,7 @@ static const svn_auth_provider_t windows_ssl_client_cert_pw_provider = {
 
 /* Public API */
 void
-svn_auth_get_windows_ssl_client_cert_pw_provider
+svn_auth__get_windows_ssl_client_cert_pw_provider
    (svn_auth_provider_object_t **provider,
     apr_pool_t *pool)
 {
@@ -482,7 +483,7 @@ static const svn_auth_provider_t windows_server_trust_provider = {
 
 /* Public API */
 void
-svn_auth_get_windows_ssl_server_trust_provider
+svn_auth__get_windows_ssl_server_trust_provider
   (svn_auth_provider_object_t **provider, apr_pool_t *pool)
 {
   svn_auth_provider_object_t *po = apr_pcalloc(pool, sizeof(*po));

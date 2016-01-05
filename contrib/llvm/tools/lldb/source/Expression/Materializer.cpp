@@ -12,6 +12,7 @@
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Expression/ClangExpressionVariable.h"
+#include "lldb/Expression/ClangPersistentVariables.h"
 #include "lldb/Expression/Materializer.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/Symbol.h"
@@ -49,7 +50,7 @@ Materializer::AddStructMember (Entity &entity)
 void
 Materializer::Entity::SetSizeAndAlignmentFromType (ClangASTType &type)
 {
-    m_size = type.GetByteSize();
+    m_size = type.GetByteSize(nullptr);
     
     uint32_t bit_alignment = type.GetTypeBitAlign();
     
@@ -780,7 +781,7 @@ public:
             
             const lldb::addr_t load_addr = process_address + m_offset;
 
-            size_t byte_size = m_type.GetByteSize();
+            size_t byte_size = m_type.GetByteSize(nullptr);
             size_t bit_align = m_type.GetTypeBitAlign();
             size_t byte_align = (bit_align + 7) / 8;
             
@@ -1051,7 +1052,7 @@ public:
                         m_symbol.GetName().AsCString());
         }
         
-        Address &sym_address = m_symbol.GetAddress();
+        const Address sym_address = m_symbol.GetAddress();
 
         ExecutionContextScope *exe_scope = map.GetBestExecutionContextScope();
         

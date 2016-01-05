@@ -286,6 +286,14 @@ public:
             sx::partiallyMatches(CapExpr, other.CapExpr);
   }
 
+  const ValueDecl* valueDecl() const {
+    if (Negated)
+      return nullptr;
+    if (auto *P = dyn_cast<til::Project>(CapExpr))
+      return P->clangDecl();
+    return nullptr;
+  }
+
   std::string toString() const {
     if (Negated)
       return "!" + sx::toString(CapExpr);
@@ -422,8 +430,8 @@ private:
     }
 
   private:
-    BlockInfo(const BlockInfo &) LLVM_DELETED_FUNCTION;
-    void operator=(const BlockInfo &) LLVM_DELETED_FUNCTION;
+    BlockInfo(const BlockInfo &) = delete;
+    void operator=(const BlockInfo &) = delete;
   };
 
   // We implement the CFGVisitor API

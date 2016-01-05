@@ -579,7 +579,9 @@ def err_mmap_module_id : Error<
 def err_mmap_expected_library_name : Error<
   "expected %select{library|framework}0 name as a string">;
 def err_mmap_config_macro_submodule : Error<
-  "configuration macros are only allowed on top-level modules">;
+  "configuration macros are only allowed in top-level modules">;
+def err_mmap_use_decl_submodule : Error<
+  "use declarations are only allowed in top-level modules">;
 def err_mmap_expected_config_macro : Error<
   "expected configuration macro name after ','">;
 def err_mmap_expected_conflicts_comma : Error<
@@ -625,9 +627,10 @@ def warn_uncovered_module_header : Warning<
   InGroup<IncompleteUmbrella>;
 def err_expected_id_building_module : Error<
   "expected a module name in '__building_module' expression">;
-def error_use_of_private_header_outside_module : Error<
-  "use of private header from outside its module: '%0'">;
-def error_undeclared_use_of_module : Error<
+def warn_use_of_private_header_outside_module : Warning<
+  "use of private header from outside its module: '%0'">,
+  InGroup<DiagGroup<"private-header">>, DefaultError;
+def err_undeclared_use_of_module : Error<
   "module %0 does not depend on a module exporting '%1'">;
 def warn_non_modular_include_in_framework_module : Warning<
   "include of non-modular header inside framework module '%0'">,
@@ -635,11 +638,28 @@ def warn_non_modular_include_in_framework_module : Warning<
 def warn_non_modular_include_in_module : Warning<
   "include of non-modular header inside module '%0'">,
   InGroup<NonModularIncludeInModule>, DefaultIgnore;
-
+def warn_module_conflict : Warning<
+  "module '%0' conflicts with already-imported module '%1': %2">, 
+  InGroup<ModuleConflict>;
 
 def warn_header_guard : Warning<
   "%0 is used as a header guard here, followed by #define of a different macro">,
   InGroup<DiagGroup<"header-guard">>;
 def note_header_guard : Note<
-  "%0 is defined here; did you mean %1?">;  
+  "%0 is defined here; did you mean %1?">;
+
+let CategoryName = "Nullability Issue" in {
+
+def err_pp_assume_nonnull_syntax : Error<"expected 'begin' or 'end'">;
+def err_pp_double_begin_of_assume_nonnull : Error<
+  "already inside '#pragma clang assume_nonnull'">;
+def err_pp_unmatched_end_of_assume_nonnull : Error<
+  "not currently inside '#pragma clang assume_nonnull'">;
+def err_pp_include_in_assume_nonnull : Error<
+  "cannot #include files inside '#pragma clang assume_nonnull'">;
+def err_pp_eof_in_assume_nonnull : Error<
+  "'#pragma clang assume_nonnull' was not ended within this file">;
+
+}
+
 }

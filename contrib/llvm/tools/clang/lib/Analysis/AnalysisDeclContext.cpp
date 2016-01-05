@@ -472,9 +472,9 @@ public:
   : BEVals(bevals), BC(bc) {}
 
   void VisitStmt(Stmt *S) {
-    for (Stmt::child_range I = S->children(); I; ++I)
-      if (Stmt *child = *I)
-        Visit(child);
+    for (Stmt *Child : S->children())
+      if (Child)
+        Visit(Child);
   }
 
   void VisitDeclRefExpr(DeclRefExpr *DR) {
@@ -530,14 +530,14 @@ static DeclVec* LazyInitializeReferencedDecls(const BlockDecl *BD,
   return BV;
 }
 
-std::pair<AnalysisDeclContext::referenced_decls_iterator,
-          AnalysisDeclContext::referenced_decls_iterator>
+llvm::iterator_range<AnalysisDeclContext::referenced_decls_iterator>
 AnalysisDeclContext::getReferencedBlockVars(const BlockDecl *BD) {
   if (!ReferencedBlockVars)
     ReferencedBlockVars = new llvm::DenseMap<const BlockDecl*,void*>();
 
-  DeclVec *V = LazyInitializeReferencedDecls(BD, (*ReferencedBlockVars)[BD], A);
-  return std::make_pair(V->begin(), V->end());
+  const DeclVec *V =
+      LazyInitializeReferencedDecls(BD, (*ReferencedBlockVars)[BD], A);
+  return llvm::make_range(V->begin(), V->end());
 }
 
 ManagedAnalysis *&AnalysisDeclContext::getAnalysisImpl(const void *tag) {

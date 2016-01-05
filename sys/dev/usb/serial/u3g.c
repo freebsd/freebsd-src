@@ -198,11 +198,6 @@ static driver_t u3g_driver = {
 	.size = sizeof(struct u3g_softc),
 };
 
-DRIVER_MODULE(u3g, uhub, u3g_driver, u3g_devclass, u3g_driver_loaded, 0);
-MODULE_DEPEND(u3g, ucom, 1, 1, 1);
-MODULE_DEPEND(u3g, usb, 1, 1, 1);
-MODULE_VERSION(u3g, 1);
-
 static const STRUCT_USB_HOST_ID u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	U3G_DEV(ACERP, H10, 0),
@@ -525,6 +520,7 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(SIERRA, MC5727_2, 0),
 	U3G_DEV(SIERRA, MC5728, 0),
 	U3G_DEV(SIERRA, MC7354, 0),
+	U3G_DEV(SIERRA, MC7355, 0),
 	U3G_DEV(SIERRA, MC8700, 0),
 	U3G_DEV(SIERRA, MC8755, 0),
 	U3G_DEV(SIERRA, MC8755_2, 0),
@@ -585,6 +581,12 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(SIERRA, TRUINSTALL, U3GINIT_SIERRA),
 #undef	U3G_DEV
 };
+
+DRIVER_MODULE(u3g, uhub, u3g_driver, u3g_devclass, u3g_driver_loaded, 0);
+MODULE_DEPEND(u3g, ucom, 1, 1, 1);
+MODULE_DEPEND(u3g, usb, 1, 1, 1);
+MODULE_VERSION(u3g, 1);
+USB_PNP_HOST_INFO(u3g_devs);
 
 static int
 u3g_sierra_init(struct usb_device *udev)

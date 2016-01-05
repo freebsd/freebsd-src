@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/eventhandler.h>
+#include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -136,6 +137,10 @@ static int show_busybufs = 1;
 SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
 	&show_busybufs, 0, "");
 
+int suspend_blocked = 0;
+SYSCTL_INT(_kern, OID_AUTO, suspend_blocked, CTLFLAG_RW,
+	&suspend_blocked, 0, "Block suspend due to a pending shutdown");
+
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
  * to indicate that the kernel has already called panic.
@@ -150,10 +155,16 @@ static struct dumperinfo dumper;	/* our selected dumper */
 static struct pcb dumppcb;		/* Registers. */
 lwpid_t dumptid;			/* Thread ID. */
 
+static struct cdevsw reroot_cdevsw = {
+     .d_version = D_VERSION,
+     .d_name    = "reroot",
+};
+
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
 static void shutdown_reset(void *junk, int howto);
+static int kern_reroot(void);
 
 /* register various local shutdown events */
 static void
@@ -173,6 +184,26 @@ shutdown_conf(void *unused)
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
 
 /*
+ * The only reason this exists is to create the /dev/reroot/ directory,
+ * used by reroot code in init(8) as a mountpoint for tmpfs.
+ */
+static void
+reroot_conf(void *unused)
+{
+	int error;
+	struct cdev *cdev;
+
+	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &cdev,
+	    &reroot_cdevsw, NULL, UID_ROOT, GID_WHEEL, 0600, "reroot/reroot");
+	if (error != 0) {
+		printf("%s: failed to create device node, error %d",
+		    __func__, error);
+	}
+}
+
+SYSINIT(reroot_conf, SI_SUB_DEVFS, SI_ORDER_ANY, reroot_conf, NULL);
+
+/*
  * The system call that results in a reboot.
  */
 /* ARGSUSED */
@@ -188,9 +219,13 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 	if (error == 0)
 		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
-		mtx_lock(&Giant);
-		kern_reboot(uap->opt);
-		mtx_unlock(&Giant);
+		if (uap->opt & RB_REROOT) {
+			error = kern_reroot();
+		} else {
+			mtx_lock(&Giant);
+			kern_reboot(uap->opt);
+			mtx_unlock(&Giant);
+		}
 	}
 	return (error);
 }
@@ -333,6 +368,102 @@ kern_reboot(int howto)
 
 	for(;;) ;	/* safety against shutdown_reset not working */
 	/* NOTREACHED */
+}
+
+/*
+ * The system call that results in changing the rootfs.
+ */
+static int
+kern_reroot(void)
+{
+	struct vnode *oldrootvnode, *vp;
+	struct mount *mp, *devmp;
+	int error;
+
+	if (curproc != initproc)
+		return (EPERM);
+
+	/*
+	 * Mark the filesystem containing currently-running executable
+	 * (the temporary copy of init(8)) busy.
+	 */
+	vp = curproc->p_textvp;
+	error = vn_lock(vp, LK_SHARED);
+	if (error != 0)
+		return (error);
+	mp = vp->v_mount;
+	error = vfs_busy(mp, MBF_NOWAIT);
+	if (error != 0) {
+		vfs_ref(mp);
+		VOP_UNLOCK(vp, 0);
+		error = vfs_busy(mp, 0);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		vfs_rel(mp);
+		if (error != 0) {
+			VOP_UNLOCK(vp, 0);
+			return (ENOENT);
+		}
+		if (vp->v_iflag & VI_DOOMED) {
+			VOP_UNLOCK(vp, 0);
+			vfs_unbusy(mp);
+			return (ENOENT);
+		}
+	}
+	VOP_UNLOCK(vp, 0);
+
+	/*
+	 * Remove the filesystem containing currently-running executable
+	 * from the mount list, to prevent it from being unmounted
+	 * by vfs_unmountall(), and to avoid confusing vfs_mountroot().
+	 *
+	 * Also preserve /dev - forcibly unmounting it could cause driver
+	 * reinitialization.
+	 */
+
+	vfs_ref(rootdevmp);
+	devmp = rootdevmp;
+	rootdevmp = NULL;
+
+	mtx_lock(&mountlist_mtx);
+	TAILQ_REMOVE(&mountlist, mp, mnt_list);
+	TAILQ_REMOVE(&mountlist, devmp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+
+	oldrootvnode = rootvnode;
+
+	/*
+	 * Unmount everything except for the two filesystems preserved above.
+	 */
+	vfs_unmountall();
+
+	/*
+	 * Add /dev back; vfs_mountroot() will move it into its new place.
+	 */
+	mtx_lock(&mountlist_mtx);
+	TAILQ_INSERT_HEAD(&mountlist, devmp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+	rootdevmp = devmp;
+	vfs_rel(rootdevmp);
+
+	/*
+	 * Mount the new rootfs.
+	 */
+	vfs_mountroot();
+
+	/*
+	 * Update all references to the old rootvnode.
+	 */
+	mountcheckdirs(oldrootvnode, rootvnode);
+
+	/*
+	 * Add the temporary filesystem back and unbusy it.
+	 */
+	mtx_lock(&mountlist_mtx);
+	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+	vfs_unbusy(mp);
+
+	return (0);
 }
 
 /*

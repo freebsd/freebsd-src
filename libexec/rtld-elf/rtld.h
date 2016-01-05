@@ -41,22 +41,6 @@
 #include "rtld_lock.h"
 #include "rtld_machdep.h"
 
-#ifdef COMPAT_32BIT
-#undef STANDARD_LIBRARY_PATH
-#undef _PATH_ELF_HINTS
-#define	_PATH_ELF_HINTS		"/var/run/ld-elf32.so.hints"
-/* For running 32 bit binaries  */
-#define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
-#define LD_ "LD_32_"
-#endif
-
-#ifndef STANDARD_LIBRARY_PATH
-#define STANDARD_LIBRARY_PATH	"/lib:/usr/lib"
-#endif
-#ifndef LD_
-#define LD_ "LD_"
-#endif
-
 #define NEW(type)	((type *) xmalloc(sizeof(type)))
 #define CNEW(type)	((type *) xcalloc(1, sizeof(type)))
 
@@ -203,6 +187,9 @@ typedef struct Struct_Obj_Entry {
     Elf_Word symtabno;		/* Number of dynamic symbols */
     Elf_Word gotsym;		/* First dynamic symbol in GOT */
 #endif
+#ifdef __powerpc64__
+    Elf_Addr glink;		/* GLINK PLT call stub section */
+#endif
 
     const Elf_Verneed *verneed; /* Required versions. */
     Elf_Word verneednum;	/* Number of entries in verneed table */
@@ -277,6 +264,7 @@ typedef struct Struct_Obj_Entry {
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
     bool dlopened : 1;		/* dlopen()-ed (vs. load statically) */
+    bool writable_dynamic : 1;	/* PT_DYNAMIC is writable */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */

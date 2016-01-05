@@ -593,7 +593,102 @@ atomic_store_rel_long(volatile u_long *p, u_long v)
 	*p = v;
 }
 
+static __inline int
+atomic_testandset_32(volatile uint32_t *p, u_int v)
+{
+	uint32_t tmp, tmp2, res, mask;
+
+	mask = 1u << (v & 0x1f);
+	tmp = tmp2 = 0;
+	__asm __volatile(
+	"1:	ldrex	%0, [%4]	\n"
+	"	orr	%1, %0, %3	\n"
+	"	strex	%2, %1, [%4]	\n"
+	"	cmp	%2, #0		\n"
+	"	it	ne		\n"
+	"	bne	1b		\n"
+	: "=&r" (res), "=&r" (tmp), "=&r" (tmp2)
+	: "r" (mask), "r" (p)
+	: "cc", "memory");
+	return ((res & mask) != 0);
+}
+
+static __inline int
+atomic_testandset_int(volatile u_int *p, u_int v)
+{
+
+	return (atomic_testandset_32((volatile uint32_t *)p, v));
+}
+
+static __inline int
+atomic_testandset_long(volatile u_long *p, u_int v)
+{
+
+	return (atomic_testandset_32((volatile uint32_t *)p, v));
+}
+
+static __inline int
+atomic_testandset_64(volatile uint64_t *p, u_int v)
+{
+	volatile uint32_t *p32;
+
+	p32 = (volatile uint32_t *)p;
+	/* Assume little-endian */
+	if (v >= 32) {
+		v &= 0x1f;
+		p32++;
+	}
+	return (atomic_testandset_32(p32, v));
+}
+
+static __inline uint32_t
+atomic_swap_32(volatile uint32_t *p, uint32_t v)
+{
+	uint32_t ret, exflag;
+
+	__asm __volatile(
+	    "1: ldrex	%[ret], [%[ptr]]		\n"
+	    "   strex	%[exf], %[val], [%[ptr]]	\n"
+	    "   teq	%[exf], #0			\n"
+	    "   it	ne				\n"
+	    "   bne	1b				\n"
+	    : [ret] "=r"  (ret),
+	      [exf] "=&r" (exflag)
+	    : [val] "r"  (v),
+	      [ptr] "r"  (p)
+	    : "cc", "memory");
+	return (ret);
+}
+
 #undef ATOMIC_ACQ_REL
 #undef ATOMIC_ACQ_REL_LONG
+
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	dmb();
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	dmb();
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	dmb();
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	dmb();
+}
 
 #endif /* _MACHINE_ATOMIC_V6_H_ */

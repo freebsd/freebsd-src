@@ -81,6 +81,9 @@ status_dummy_callback(void *baton,
 static svn_error_t *
 cleanup_internal(svn_wc__db_t *db,
                  const char *dir_abspath,
+                 svn_boolean_t break_locks,
+                 svn_boolean_t fix_recorded_timestamps,
+                 svn_boolean_t vacuum_pristines,
                  svn_cancel_func_t cancel_func,
                  void *cancel_baton,
                  apr_pool_t *scratch_pool)
@@ -98,7 +101,7 @@ cleanup_internal(svn_wc__db_t *db,
                                       scratch_pool, scratch_pool));
   if (lock_abspath)
     dir_abspath = lock_abspath;
-  SVN_ERR(svn_wc__db_wclock_obtain(db, dir_abspath, -1, TRUE, scratch_pool));
+  SVN_ERR(svn_wc__db_wclock_obtain(db, dir_abspath, -1, break_locks, scratch_pool));
 
   /* Run our changes before the subdirectories. We may not have to recurse
      if we blow away a subdir.  */
@@ -117,7 +120,7 @@ cleanup_internal(svn_wc__db_t *db,
      svn_wc__check_wcroot() as that function, will just return true
      once we start sharing databases with externals.
    */
-  if (is_wcroot)
+  if (is_wcroot && vacuum_pristines)
     {
     /* Cleanup the tmp area of the admin subdir, if running the log has not
        removed it!  The logs have been run, so anything left here has no hope
@@ -128,17 +131,20 @@ cleanup_internal(svn_wc__db_t *db,
       SVN_ERR(svn_wc__db_pristine_cleanup(db, dir_abspath, scratch_pool));
     }
 
-  /* Instead of implementing a separate repair step here, use the standard
-     status walker's optimized implementation, which performs repairs when
-     there is a lock. */
-  SVN_ERR(svn_wc__internal_walk_status(db, dir_abspath, svn_depth_infinity,
-                                       FALSE /* get_all */,
-                                       FALSE /* no_ignore */,
-                                       FALSE /* ignore_text_mods */,
-                                       NULL /* ignore patterns */,
-                                       status_dummy_callback, NULL,
-                                       cancel_func, cancel_baton,
-                                       scratch_pool));
+  if (fix_recorded_timestamps)
+    {
+      /* Instead of implementing a separate repair step here, use the standard
+         status walker's optimized implementation, which performs repairs when
+         there is a lock. */
+      SVN_ERR(svn_wc__internal_walk_status(db, dir_abspath, svn_depth_infinity,
+                                           FALSE /* get_all */,
+                                           FALSE /* no_ignore */,
+                                           FALSE /* ignore_text_mods */,
+                                           NULL /* ignore patterns */,
+                                           status_dummy_callback, NULL,
+                                           cancel_func, cancel_baton,
+                                           scratch_pool));
+    }
 
   /* All done, toss the lock */
   SVN_ERR(svn_wc__db_wclock_release(db, dir_abspath, scratch_pool));
@@ -146,39 +152,59 @@ cleanup_internal(svn_wc__db_t *db,
   return SVN_NO_ERROR;
 }
 
-
-/* ### possibly eliminate the WC_CTX parameter? callers really shouldn't
-   ### be doing anything *but* running a cleanup, and we need a special
-   ### DB anyway. ... *shrug* ... consider later.  */
 svn_error_t *
-svn_wc_cleanup3(svn_wc_context_t *wc_ctx,
+svn_wc_cleanup4(svn_wc_context_t *wc_ctx,
                 const char *local_abspath,
+                svn_boolean_t break_locks,
+                svn_boolean_t fix_recorded_timestamps,
+                svn_boolean_t clear_dav_cache,
+                svn_boolean_t vacuum_pristines,
                 svn_cancel_func_t cancel_func,
                 void *cancel_baton,
+                svn_wc_notify_func2_t notify_func,
+                void *notify_baton,
                 apr_pool_t *scratch_pool)
 {
   svn_wc__db_t *db;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
+  SVN_ERR_ASSERT(wc_ctx != NULL);
 
-  /* We need a DB that allows a non-empty work queue (though it *will*
-     auto-upgrade). We'll handle everything manually.  */
-  SVN_ERR(svn_wc__db_open(&db,
-                          NULL /* ### config */, FALSE, FALSE,
-                          scratch_pool, scratch_pool));
+  if (break_locks)
+    {
+      /* We'll handle everything manually.  */
 
-  SVN_ERR(cleanup_internal(db, local_abspath, cancel_func, cancel_baton,
+      /* Close the existing database (if any) to avoid problems with
+         exclusive database usage */
+      SVN_ERR(svn_wc__db_drop_root(wc_ctx->db, local_abspath,
+                                   scratch_pool));
+
+      SVN_ERR(svn_wc__db_open(&db,
+                              NULL /* ### config */, FALSE, FALSE,
+                              scratch_pool, scratch_pool));
+    }
+  else
+    db = wc_ctx->db;
+
+  SVN_ERR(cleanup_internal(db, local_abspath,
+                           break_locks,
+                           fix_recorded_timestamps,
+                           vacuum_pristines,
+                           cancel_func, cancel_baton,
                            scratch_pool));
 
   /* The DAV cache suffers from flakiness from time to time, and the
      pre-1.7 prescribed workarounds aren't as user-friendly in WC-NG. */
-  SVN_ERR(svn_wc__db_base_clear_dav_cache_recursive(db, local_abspath,
-                                                    scratch_pool));
+  if (clear_dav_cache)
+    SVN_ERR(svn_wc__db_base_clear_dav_cache_recursive(db, local_abspath,
+                                                      scratch_pool));
 
-  SVN_ERR(svn_wc__db_vacuum(db, local_abspath, scratch_pool));
+  if (vacuum_pristines)
+    SVN_ERR(svn_wc__db_vacuum(db, local_abspath, scratch_pool));
 
   /* We're done with this DB, so proactively close it.  */
-  SVN_ERR(svn_wc__db_close(db));
+  if (break_locks)
+    SVN_ERR(svn_wc__db_close(db));
 
   return SVN_NO_ERROR;
 }

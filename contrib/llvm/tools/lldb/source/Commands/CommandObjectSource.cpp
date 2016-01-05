@@ -7,15 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectSource.h"
 
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Interpreter/Args.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/FileLineResolver.h"
 #include "lldb/Core/Module.h"
@@ -24,6 +21,7 @@
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Host/FileSpec.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/Symbol.h"
@@ -63,7 +61,7 @@ class CommandObjectSourceInfo : public CommandObjectParsed
             switch (short_option)
             {
             case 'l':
-                start_line = Args::StringToUInt32 (option_arg, 0);
+                start_line = StringConvert::ToUInt32 (option_arg, 0);
                 if (start_line == 0)
                     error.SetErrorStringWithFormat("invalid line number: '%s'", option_arg);
                 break;
@@ -171,13 +169,13 @@ class CommandObjectSourceList : public CommandObjectParsed
             switch (short_option)
             {
             case 'l':
-                start_line = Args::StringToUInt32 (option_arg, 0);
+                start_line = StringConvert::ToUInt32 (option_arg, 0);
                 if (start_line == 0)
                     error.SetErrorStringWithFormat("invalid line number: '%s'", option_arg);
                 break;
 
             case 'c':
-                num_lines = Args::StringToUInt32 (option_arg, 0);
+                num_lines = StringConvert::ToUInt32 (option_arg, 0);
                 if (num_lines == 0)
                     error.SetErrorStringWithFormat("invalid line count: '%s'", option_arg);
                 break;
@@ -253,7 +251,7 @@ public:
                              "source list",
                              "Display source code (as specified) based on the current executable's debug info.",
                              NULL,
-                             eFlagRequiresTarget), 
+                             eCommandRequiresTarget), 
         m_options (interpreter)
     {
     }
@@ -539,9 +537,9 @@ protected:
                 {
                     SymbolContext sc;
                     sc_list_symbols.GetContextAtIndex (i, sc);
-                    if (sc.symbol)
+                    if (sc.symbol && sc.symbol->ValueIsAddress())
                     {
-                        const Address &base_address = sc.symbol->GetAddress();
+                        const Address &base_address = sc.symbol->GetAddressRef();
                         Function *function = base_address.CalculateSymbolContextFunction();
                         if (function)
                         {
@@ -690,13 +688,15 @@ protected:
                     bool show_module = true;
                     bool show_inlined_frames = true;
                     const bool show_function_arguments = true;
+                    const bool show_function_name = true;
                     sc.DumpStopContext(&result.GetOutputStream(),
                                        m_exe_ctx.GetBestExecutionContextScope(),
                                        sc.line_entry.range.GetBaseAddress(),
                                        show_fullpaths,
                                        show_module,
                                        show_inlined_frames,
-                                       show_function_arguments);
+                                       show_function_arguments,
+                                       show_function_name);
                     result.GetOutputStream().EOL();
 
                     if (m_options.num_lines == 0)

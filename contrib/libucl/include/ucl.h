@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Vsevolod Stakhov
+/* Copyright (c) 2013-2015, Vsevolod Stakhov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,7 +135,9 @@ typedef enum ucl_emitter {
 	UCL_EMIT_JSON = 0, /**< Emit fine formatted JSON */
 	UCL_EMIT_JSON_COMPACT, /**< Emit compacted JSON */
 	UCL_EMIT_CONFIG, /**< Emit human readable config format */
-	UCL_EMIT_YAML /**< Emit embedded YAML format */
+	UCL_EMIT_YAML, /**< Emit embedded YAML format */
+	UCL_EMIT_MSGPACK, /**< Emit msgpack output */
+	UCL_EMIT_MAX /**< Unsupported emitter type */
 } ucl_emitter_t;
 
 /**
@@ -145,6 +147,7 @@ typedef enum ucl_emitter {
  * UCL still has to perform copying implicitly.
  */
 typedef enum ucl_parser_flags {
+	UCL_PARSER_DEFAULT = 0x0,       /**< No special flags */
 	UCL_PARSER_KEY_LOWERCASE = 0x1, /**< Convert all keys to lower case */
 	UCL_PARSER_ZEROCOPY = 0x2, /**< Parse input in zero-copy mode if possible */
 	UCL_PARSER_NO_TIME = 0x4, /**< Do not parse time and treat time values as strings */
@@ -155,6 +158,7 @@ typedef enum ucl_parser_flags {
  * String conversion flags, that are used in #ucl_object_fromstring_common function.
  */
 typedef enum ucl_string_flags {
+	UCL_STRING_RAW = 0x0,     /**< Treat string as is */
 	UCL_STRING_ESCAPE = 0x1,  /**< Perform JSON escape */
 	UCL_STRING_TRIM = 0x2,    /**< Trim leading and trailing whitespaces */
 	UCL_STRING_PARSE_BOOLEAN = 0x4,    /**< Parse passed string and detect boolean */
@@ -172,13 +176,34 @@ typedef enum ucl_string_flags {
  * Basic flags for an object
  */
 typedef enum ucl_object_flags {
-	UCL_OBJECT_ALLOCATED_KEY = 0x1, /**< An object has key allocated internally */
-	UCL_OBJECT_ALLOCATED_VALUE = 0x2, /**< An object has a string value allocated internally */
-	UCL_OBJECT_NEED_KEY_ESCAPE = 0x4, /**< The key of an object need to be escaped on output */
-	UCL_OBJECT_EPHEMERAL = 0x8, /**< Temporary object that does not need to be freed really */
-	UCL_OBJECT_MULTILINE = 0x10, /**< String should be displayed as multiline string */
-	UCL_OBJECT_MULTIVALUE = 0x20 /**< Object is a key with multiple values */
+	UCL_OBJECT_ALLOCATED_KEY = (1 << 0), /**< An object has key allocated internally */
+	UCL_OBJECT_ALLOCATED_VALUE = (1 << 1), /**< An object has a string value allocated internally */
+	UCL_OBJECT_NEED_KEY_ESCAPE = (1 << 2), /**< The key of an object need to be escaped on output */
+	UCL_OBJECT_EPHEMERAL = (1 << 3), /**< Temporary object that does not need to be freed really */
+	UCL_OBJECT_MULTILINE = (1 << 4), /**< String should be displayed as multiline string */
+	UCL_OBJECT_MULTIVALUE = (1 << 5), /**< Object is a key with multiple values */
+	UCL_OBJECT_INHERITED = (1 << 6), /**< Object has been inherited from another */
+	UCL_OBJECT_BINARY = (1 << 7) /**< Object contains raw binary data */
 } ucl_object_flags_t;
+
+/**
+ * Duplicate policy types
+ */
+enum ucl_duplicate_strategy {
+	UCL_DUPLICATE_APPEND = 0, /**< Default policy to merge based on priorities */
+	UCL_DUPLICATE_MERGE,     /**< Merge new object with old one */
+	UCL_DUPLICATE_REWRITE,   /**< Rewrite old keys */
+	UCL_DUPLICATE_ERROR      /**< Stop parsing on duplicate found */
+};
+
+/**
+ * Input format type
+ */
+enum ucl_parse_type {
+	UCL_PARSE_UCL = 0, /**< Default ucl format */
+	UCL_PARSE_MSGPACK, /**< Message pack input format */
+	UCL_PARSE_CSEXP /**< Canonical S-expressions */
+};
 
 /**
  * UCL object structure. Please mention that the most of fields should not be touched by
@@ -190,7 +215,7 @@ typedef struct ucl_object_s {
 	 */
 	union {
 		int64_t iv;							/**< Int value of an object */
-		const char *sv;					/**< String value of an object */
+		const char *sv;						/**< String value of an object */
 		double dv;							/**< Double value of an object */
 		void *av;							/**< Array					*/
 		void *ov;							/**< Object					*/
@@ -496,6 +521,15 @@ UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
 		unsigned int index);
 
 /**
+ * Return the index of `elt` in the array `top`
+ * @param top object to get a key from (must be of type UCL_ARRAY)
+ * @param elt element to find index of (must NOT be NULL)
+ * @return index of `elt` in the array `top or (unsigned int)-1 if `elt` is not found
+ */
+UCL_EXTERN unsigned int ucl_array_index_of (ucl_object_t *top,
+		ucl_object_t *elt);
+
+/**
  * Replace an element in an array with a different element, returning the object
  * that was replaced. This object is not released, caller must unref the
  * returned object when it is no longer needed.
@@ -612,6 +646,19 @@ UCL_EXTERN const ucl_object_t* ucl_object_find_key (const ucl_object_t *obj,
 		const char *key);
 
 /**
+ * Return object identified by a key in the specified object, if the first key is
+ * not found then look for the next one. This process is repeated unless
+ * the next argument in the list is not NULL. So, `ucl_object_find_any_key(obj, key, NULL)`
+ * is equal to `ucl_object_find_key(obj, key)`
+ * @param obj object to get a key from (must be of type UCL_OBJECT)
+ * @param key key to search
+ * @param ... list of alternative keys to search (NULL terminated)
+ * @return object matching the specified key or NULL if key was not found
+ */
+UCL_EXTERN const ucl_object_t* ucl_object_find_any_key (const ucl_object_t *obj,
+		const char *key, ...);
+
+/**
  * Return object identified by a fixed size key in the specified object
  * @param obj object to get a key from (must be of type UCL_OBJECT)
  * @param key key to search
@@ -629,6 +676,16 @@ UCL_EXTERN const ucl_object_t* ucl_object_find_keyl (const ucl_object_t *obj,
  */
 UCL_EXTERN const ucl_object_t *ucl_lookup_path (const ucl_object_t *obj,
 		const char *path);
+
+/**
+ * Return object identified by object notation string using arbitrary delimiter
+ * @param obj object to search in
+ * @param path dot.notation.path to the path to lookup. May use numeric .index on arrays
+ * @param sep the sepatorator to use in place of . (incase keys have . in them)
+ * @return object matched the specified path or NULL if path is not found
+ */
+UCL_EXTERN const ucl_object_t *ucl_lookup_path_char (const ucl_object_t *obj,
+		const char *path, char sep);
 
 /**
  * Returns a key of an object as a NULL terminated string
@@ -683,7 +740,7 @@ UCL_EXTERN int ucl_object_compare (const ucl_object_t *o1,
  * @param cmp
  */
 UCL_EXTERN void ucl_object_array_sort (ucl_object_t *ar,
-		int (*cmp)(const ucl_object_t *o1, const ucl_object_t *o2));
+		int (*cmp)(const ucl_object_t **o1, const ucl_object_t **o2));
 
 /**
  * Get the priority for specific UCL object
@@ -769,6 +826,21 @@ typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len,
 		const ucl_object_t *arguments,
 		void* ud);
 
+/**
+ * Context dependent macro handler for a parser
+ * @param data the content of macro
+ * @param len the length of content
+ * @param arguments arguments object
+ * @param context previously parsed context
+ * @param ud opaque user data
+ * @param err error pointer
+ * @return true if macro has been parsed
+ */
+typedef bool (*ucl_context_macro_handler) (const unsigned char *data, size_t len,
+		const ucl_object_t *arguments,
+		const ucl_object_t *context,
+		void* ud);
+
 /* Opaque parser */
 struct ucl_parser;
 
@@ -780,14 +852,36 @@ struct ucl_parser;
 UCL_EXTERN struct ucl_parser* ucl_parser_new (int flags);
 
 /**
+ * Sets the default priority for the parser applied to chunks that does not
+ * specify priority explicitly
+ * @param parser parser object
+ * @param prio default priority (0 .. 16)
+ * @return true if parser's default priority was set
+ */
+UCL_EXTERN bool ucl_parser_set_default_priority (struct ucl_parser *parser,
+		unsigned prio);
+/**
  * Register new handler for a macro
  * @param parser parser object
  * @param macro macro name (without leading dot)
  * @param handler handler (it is called immediately after macro is parsed)
  * @param ud opaque user data for a handler
  */
-UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser, const char *macro,
+UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser,
+		const char *macro,
 		ucl_macro_handler handler, void* ud);
+
+/**
+ * Register new context dependent handler for a macro
+ * @param parser parser object
+ * @param macro macro name (without leading dot)
+ * @param handler handler (it is called immediately after macro is parsed)
+ * @param ud opaque user data for a handler
+ */
+UCL_EXTERN void ucl_parser_register_context_macro (struct ucl_parser *parser,
+		const char *macro,
+		ucl_context_macro_handler handler,
+		void* ud);
 
 /**
  * Handler to detect unregistered variables
@@ -843,6 +937,21 @@ UCL_EXTERN bool ucl_parser_add_chunk_priority (struct ucl_parser *parser,
 		const unsigned char *data, size_t len, unsigned priority);
 
 /**
+ * Full version of ucl_add_chunk with priority and duplicate strategy
+ * @param parser parser structure
+ * @param data the pointer to the beginning of a chunk
+ * @param len the length of a chunk
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @param strat duplicates merging strategy
+ * @param parse_type input format
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_chunk_full (struct ucl_parser *parser,
+		const unsigned char *data, size_t len, unsigned priority,
+		enum ucl_duplicate_strategy strat, enum ucl_parse_type parse_type);
+
+/**
  * Load ucl object from a string
  * @param parser parser structure
  * @param data the pointer to the string
@@ -851,6 +960,18 @@ UCL_EXTERN bool ucl_parser_add_chunk_priority (struct ucl_parser *parser,
  */
 UCL_EXTERN bool ucl_parser_add_string (struct ucl_parser *parser,
 		const char *data,size_t len);
+
+/**
+ * Load ucl object from a string
+ * @param parser parser structure
+ * @param data the pointer to the string
+ * @param len the length of the string, if `len` is 0 then `data` must be zero-terminated string
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if string has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_string_priority (struct ucl_parser *parser,
+		const char *data, size_t len, unsigned priority);
 
 /**
  * Load and add data from a file
@@ -863,6 +984,18 @@ UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
 		const char *filename);
 
 /**
+ * Load and add data from a file
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_file_priority (struct ucl_parser *parser,
+		const char *filename, unsigned priority);
+
+/**
  * Load and add data from a file descriptor
  * @param parser parser structure
  * @param filename the name of file
@@ -873,6 +1006,28 @@ UCL_EXTERN bool ucl_parser_add_fd (struct ucl_parser *parser,
 		int fd);
 
 /**
+ * Load and add data from a file descriptor
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_fd_priority (struct ucl_parser *parser,
+		int fd, unsigned priority);
+
+/**
+ * Provide a UCL_ARRAY of paths to search for include files. The object is
+ * copied so caller must unref the object.
+ * @param parser parser structure
+ * @param paths UCL_ARRAY of paths to search
+ * @return true if the path search array was replaced in the parser
+ */
+UCL_EXTERN bool ucl_set_include_path (struct ucl_parser *parser,
+		ucl_object_t *paths);
+
+/**
  * Get a top object for a parser (refcount is increased)
  * @param parser parser structure
  * @param err if *err is NULL it is set to parser error
@@ -881,10 +1036,32 @@ UCL_EXTERN bool ucl_parser_add_fd (struct ucl_parser *parser,
 UCL_EXTERN ucl_object_t* ucl_parser_get_object (struct ucl_parser *parser);
 
 /**
- * Get the error string if failing
+ * Get the error string if parsing has been failed
  * @param parser parser object
+ * @return error description
  */
 UCL_EXTERN const char *ucl_parser_get_error(struct ucl_parser *parser);
+
+/**
+ * Get the code of the last error
+ * @param parser parser object
+ * @return error code
+ */
+UCL_EXTERN int ucl_parser_get_error_code(struct ucl_parser *parser);
+
+/**
+ * Get the current column number within parser
+ * @param parser parser object
+ * @return current column number
+ */
+UCL_EXTERN unsigned ucl_parser_get_column(struct ucl_parser *parser);
+
+/**
+ * Get the current line number within parser
+ * @param parser parser object
+ * @return current line number
+ */
+UCL_EXTERN unsigned ucl_parser_get_linenum(struct ucl_parser *parser);
 
 /**
  * Clear the error in the parser
@@ -992,6 +1169,17 @@ struct ucl_emitter_context {
  */
 UCL_EXTERN unsigned char *ucl_object_emit (const ucl_object_t *obj,
 		enum ucl_emitter emit_type);
+
+/**
+ * Emit object to a string that can contain `\0` inside
+ * @param obj object
+ * @param emit_type if type is #UCL_EMIT_JSON then emit json, if type is
+ * #UCL_EMIT_CONFIG then emit config like object
+ * @param len the resulting length
+ * @return dump of an object (must be freed after using) or NULL in case of error
+ */
+UCL_EXTERN unsigned char *ucl_object_emit_len (const ucl_object_t *obj,
+		enum ucl_emitter emit_type, size_t *len);
 
 /**
  * Emit object to a string

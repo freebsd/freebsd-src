@@ -691,10 +691,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Align to 16 bytes. */
 	sfp = (struct sigframe *)((unsigned int)sp & ~0xF);
 
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
@@ -2466,10 +2462,11 @@ init386(first)
 	} else {
 		metadata_missing = 1;
 	}
-	if (envmode == 1)
-		kern_envp = static_env;
-	else if (bootinfo.bi_envp)
-		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
+
+	if (bootinfo.bi_envp)
+		init_static_kenv((caddr_t)bootinfo.bi_envp + KERNBASE, 0);
+	else
+		init_static_kenv(NULL, 0);
 
 	/* Init basic tunables, hz etc */
 	init_param1();

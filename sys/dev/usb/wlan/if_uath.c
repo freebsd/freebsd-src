@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_radiotap.h>
 
@@ -155,15 +156,6 @@ enum {
 	(void) sc;						\
 } while (0)
 #endif
-
-/* unaligned little endian access */
-#define LE_READ_2(p)							\
-	((u_int16_t)							\
-	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8)))
-#define LE_READ_4(p)							\
-	((u_int32_t)							\
-	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
-	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
 /* recognized device vendors/products */
 static const STRUCT_USB_HOST_ID uath_devs[] = {
@@ -599,7 +591,6 @@ uath_dump_cmd(const uint8_t *buf, int len, char prefix)
 static const char *
 uath_codename(int code)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	static const char *names[] = {
 	    "0x00",
 	    "HOST_AVAILABLE",
@@ -662,13 +653,12 @@ uath_codename(int code)
 	};
 	static char buf[8];
 
-	if (code < N(names))
+	if (code < nitems(names))
 		return names[code];
 	if (code == WDCMSG_SET_DEFAULT_KEY)
 		return "SET_DEFAULT_KEY";
 	snprintf(buf, sizeof(buf), "0x%02x", code);
 	return buf;
-#undef N
 }
 #endif
 
@@ -1486,7 +1476,7 @@ uath_wme_init(struct uath_softc *sc)
 		qinfo.attr.aifs		= htobe32(uath_wme_11g[ac].aifsn);
 		qinfo.attr.logcwmin	= htobe32(uath_wme_11g[ac].logcwmin);
 		qinfo.attr.logcwmax	= htobe32(uath_wme_11g[ac].logcwmax);
-		qinfo.attr.bursttime	= htobe32(UATH_TXOP_TO_US(
+		qinfo.attr.bursttime	= htobe32(IEEE80211_TXOP_TO_US(
 					    uath_wme_11g[ac].txop));
 		qinfo.attr.mode		= htobe32(uath_wme_11g[ac].acm);/*XXX? */
 		qinfo.attr.qflags	= htobe32(1);	/* XXX? */
@@ -1673,22 +1663,6 @@ uath_txfrag_setup(struct uath_softc *sc, uath_datahead *frags,
 	return !STAILQ_EMPTY(frags);
 }
 
-/*
- * Reclaim mbuf resources.  For fragmented frames we need to claim each frag
- * chained with m_nextpkt.
- */
-static void
-uath_freetx(struct mbuf *m)
-{
-	struct mbuf *next;
-
-	do {
-		next = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		m_freem(m);
-	} while ((m = next) != NULL);
-}
-
 static int
 uath_transmit(struct ieee80211com *ic, struct mbuf *m)   
 {
@@ -1745,7 +1719,7 @@ uath_start(struct uath_softc *sc)
 		    !uath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, UATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
-			uath_freetx(m);
+			ieee80211_free_mbuf(m);
 			goto bad;
 		}
 		sc->sc_seqnum = 0;
@@ -1780,7 +1754,7 @@ uath_start(struct uath_softc *sc)
 				    "%s: flush fragmented packet, state %s\n",
 				    __func__,
 				    ieee80211_state_name[ni->ni_vap->iv_state]);
-				uath_freetx(next);
+				ieee80211_free_mbuf(next);
 				goto reclaim;
 			}
 			m = next;
@@ -1807,7 +1781,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
 	    !(sc->sc_flags & UATH_FLAG_INITDONE)) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		UATH_UNLOCK(sc);
 		return (ENETDOWN);
 	}
@@ -1815,7 +1788,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* grab a TX buffer  */
 	bf = uath_getbuf(sc);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		UATH_UNLOCK(sc);
 		return (ENOBUFS);
@@ -1823,7 +1795,6 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	sc->sc_seqnum = 0;
 	if (uath_tx_start(sc, m, ni, bf) != 0) {
-		ieee80211_free_node(ni);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		UATH_STAT_INC(sc, st_tx_inactive);
 		UATH_UNLOCK(sc);
@@ -2823,3 +2794,4 @@ DRIVER_MODULE(uath, uhub, uath_driver, uath_devclass, NULL, 0);
 MODULE_DEPEND(uath, wlan, 1, 1, 1);
 MODULE_DEPEND(uath, usb, 1, 1, 1);
 MODULE_VERSION(uath, 1);
+USB_PNP_HOST_INFO(uath_devs);

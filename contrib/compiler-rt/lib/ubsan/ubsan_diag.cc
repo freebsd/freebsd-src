@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "ubsan_platform.h"
+#if CAN_SANITIZE_UB
 #include "ubsan_diag.h"
 #include "ubsan_init.h"
 #include "ubsan_flags.h"
@@ -25,7 +27,7 @@
 using namespace __ubsan;
 
 static void MaybePrintStackTrace(uptr pc, uptr bp) {
-  // We assume that flags are already parsed: InitIfNecessary
+  // We assume that flags are already parsed, as UBSan runtime
   // will definitely be called when we print the first diagnostics message.
   if (!flags()->print_stacktrace)
     return;
@@ -44,17 +46,25 @@ static void MaybePrintStackTrace(uptr pc, uptr bp) {
 static void MaybeReportErrorSummary(Location Loc) {
   if (!common_flags()->print_summary)
     return;
-  // Don't try to unwind the stack trace in UBSan summaries: just use the
-  // provided location.
+  const char *ErrorType = "undefined-behavior";
   if (Loc.isSourceLocation()) {
     SourceLocation SLoc = Loc.getSourceLocation();
     if (!SLoc.isInvalid()) {
-      ReportErrorSummary("undefined-behavior", SLoc.getFilename(),
-                         SLoc.getLine(), "");
+      AddressInfo AI;
+      AI.file = internal_strdup(SLoc.getFilename());
+      AI.line = SLoc.getLine();
+      AI.column = SLoc.getColumn();
+      AI.function = internal_strdup("");  // Avoid printing ?? as function name.
+      ReportErrorSummary(ErrorType, AI);
+      AI.Clear();
       return;
     }
+  } else if (Loc.isSymbolizedStack()) {
+    const AddressInfo &AI = Loc.getSymbolizedStack()->info;
+    ReportErrorSummary(ErrorType, AI);
+    return;
   }
-  ReportErrorSummary("undefined-behavior");
+  ReportErrorSummary(ErrorType);
 }
 
 namespace {
@@ -69,7 +79,7 @@ class Decorator : public SanitizerCommonDecorator {
 }
 
 SymbolizedStack *__ubsan::getSymbolizedLocation(uptr PC) {
-  InitIfNecessary();
+  InitAsStandaloneIfNecessary();
   return Symbolizer::GetOrInit()->SymbolizePC(PC);
 }
 
@@ -111,7 +121,8 @@ static void renderLocation(Location Loc) {
       LocBuffer.append("<unknown>");
     else
       RenderSourceLocation(&LocBuffer, SLoc.getFilename(), SLoc.getLine(),
-                           SLoc.getColumn(), common_flags()->strip_path_prefix);
+                           SLoc.getColumn(), common_flags()->symbolize_vs_style,
+                           common_flags()->strip_path_prefix);
     break;
   }
   case Location::LK_Memory:
@@ -121,6 +132,7 @@ static void renderLocation(Location Loc) {
     const AddressInfo &Info = Loc.getSymbolizedStack()->info;
     if (Info.file) {
       RenderSourceLocation(&LocBuffer, Info.file, Info.line, Info.column,
+                           common_flags()->symbolize_vs_style,
                            common_flags()->strip_path_prefix);
     } else if (Info.module) {
       RenderModuleLocation(&LocBuffer, Info.module, Info.module_offset,
@@ -153,8 +165,12 @@ static void renderText(const char *Message, const Diag::Arg *Args) {
       case Diag::AK_String:
         Printf("%s", A.String);
         break;
-      case Diag::AK_Mangled: {
-        Printf("'%s'", Symbolizer::GetOrInit()->Demangle(A.String));
+      case Diag::AK_TypeName: {
+        if (SANITIZER_WINDOWS)
+          // The Windows implementation demangles names early.
+          Printf("'%s'", A.String);
+        else
+          Printf("'%s'", Symbolizer::GetOrInit()->Demangle(A.String));
         break;
       }
       case Diag::AK_SInt:
@@ -174,7 +190,11 @@ static void renderText(const char *Message, const Diag::Arg *Args) {
         // FIXME: Support floating-point formatting in sanitizer_common's
         //        printf, and stop using snprintf here.
         char Buffer[32];
+#if SANITIZER_WINDOWS
+        sprintf_s(Buffer, sizeof(Buffer), "%Lg", (long double)A.Float);
+#else
         snprintf(Buffer, sizeof(Buffer), "%Lg", (long double)A.Float);
+#endif
         Printf("%s", Buffer);
         break;
       }
@@ -323,7 +343,7 @@ Diag::~Diag() {
 
 ScopedReport::ScopedReport(ReportOptions Opts, Location SummaryLoc)
     : Opts(Opts), SummaryLoc(SummaryLoc) {
-  InitIfNecessary();
+  InitAsStandaloneIfNecessary();
   CommonSanitizerReportMutex.Lock();
 }
 
@@ -348,11 +368,10 @@ void __ubsan::InitializeSuppressions() {
 }
 
 bool __ubsan::IsVptrCheckSuppressed(const char *TypeName) {
-  // If .preinit_array is not used, it is possible that the UBSan runtime is not
-  // initialized.
-  if (!SANITIZER_CAN_USE_PREINIT_ARRAY)
-    InitIfNecessary();
+  InitAsStandaloneIfNecessary();
   CHECK(suppression_ctx);
   Suppression *s;
   return suppression_ctx->Match(TypeName, kVptrCheck, &s);
 }
+
+#endif  // CAN_SANITIZE_UB

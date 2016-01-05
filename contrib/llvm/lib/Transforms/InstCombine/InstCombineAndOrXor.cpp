@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InstCombine.h"
+#include "InstCombineInternal.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/Intrinsics.h"
@@ -22,30 +22,12 @@ using namespace PatternMatch;
 
 #define DEBUG_TYPE "instcombine"
 
-/// isFreeToInvert - Return true if the specified value is free to invert (apply
-/// ~ to).  This happens in cases where the ~ can be eliminated.
-static inline bool isFreeToInvert(Value *V) {
-  // ~(~(X)) -> X.
-  if (BinaryOperator::isNot(V))
-    return true;
-
-  // Constants can be considered to be not'ed values.
-  if (isa<ConstantInt>(V))
-    return true;
-
-  // Compares can be inverted if they have a single use.
-  if (CmpInst *CI = dyn_cast<CmpInst>(V))
-    return CI->hasOneUse();
-
-  return false;
-}
-
 static inline Value *dyn_castNotVal(Value *V) {
   // If this is not(not(x)) don't return that this is a not: we want the two
   // not's to be folded first.
   if (BinaryOperator::isNot(V)) {
     Value *Operand = BinaryOperator::getNotArgument(V);
-    if (!isFreeToInvert(Operand))
+    if (!IsFreeToInvert(Operand, Operand->hasOneUse()))
       return Operand;
   }
 
@@ -111,7 +93,8 @@ static Value *getFCmpValue(bool isordered, unsigned code,
   case 5: Pred = isordered ? FCmpInst::FCMP_ONE : FCmpInst::FCMP_UNE; break;
   case 6: Pred = isordered ? FCmpInst::FCMP_OLE : FCmpInst::FCMP_ULE; break;
   case 7:
-    if (!isordered) return ConstantInt::getTrue(LHS->getContext());
+    if (!isordered)
+      return ConstantInt::get(CmpInst::makeCmpResultType(LHS->getType()), 1);
     Pred = FCmpInst::FCMP_ORD; break;
   }
   return Builder->CreateFCmp(Pred, LHS, RHS);
@@ -997,9 +980,9 @@ Value *InstCombiner::FoldAndOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
   // Make a constant range that's the intersection of the two icmp ranges.
   // If the intersection is empty, we know that the result is false.
   ConstantRange LHSRange =
-    ConstantRange::makeICmpRegion(LHSCC, LHSCst->getValue());
+      ConstantRange::makeAllowedICmpRegion(LHSCC, LHSCst->getValue());
   ConstantRange RHSRange =
-    ConstantRange::makeICmpRegion(RHSCC, RHSCst->getValue());
+      ConstantRange::makeAllowedICmpRegion(RHSCC, RHSCst->getValue());
 
   if (LHSRange.intersectWith(RHSRange).isEmptySet())
     return ConstantInt::get(CmpInst::makeCmpResultType(LHS->getType()), 0);
@@ -1727,15 +1710,17 @@ Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS,
       Value *Mask = nullptr;
       Value *Masked = nullptr;
       if (LAnd->getOperand(0) == RAnd->getOperand(0) &&
-          isKnownToBeAPowerOfTwo(LAnd->getOperand(1), false, 0, AC, CxtI, DT) &&
-          isKnownToBeAPowerOfTwo(RAnd->getOperand(1), false, 0, AC, CxtI, DT)) {
+          isKnownToBeAPowerOfTwo(LAnd->getOperand(1), DL, false, 0, AC, CxtI,
+                                 DT) &&
+          isKnownToBeAPowerOfTwo(RAnd->getOperand(1), DL, false, 0, AC, CxtI,
+                                 DT)) {
         Mask = Builder->CreateOr(LAnd->getOperand(1), RAnd->getOperand(1));
         Masked = Builder->CreateAnd(LAnd->getOperand(0), Mask);
       } else if (LAnd->getOperand(1) == RAnd->getOperand(1) &&
-                 isKnownToBeAPowerOfTwo(LAnd->getOperand(0), false, 0, AC, CxtI,
-                                        DT) &&
-                 isKnownToBeAPowerOfTwo(RAnd->getOperand(0), false, 0, AC, CxtI,
-                                        DT)) {
+                 isKnownToBeAPowerOfTwo(LAnd->getOperand(0), DL, false, 0, AC,
+                                        CxtI, DT) &&
+                 isKnownToBeAPowerOfTwo(RAnd->getOperand(0), DL, false, 0, AC,
+                                        CxtI, DT)) {
         Mask = Builder->CreateOr(LAnd->getOperand(0), RAnd->getOperand(0));
         Masked = Builder->CreateAnd(LAnd->getOperand(1), Mask);
       }
@@ -2585,8 +2570,10 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
 
         // ~(X & Y) --> (~X | ~Y) - De Morgan's Law
         // ~(X | Y) === (~X & ~Y) - De Morgan's Law
-        if (isFreeToInvert(Op0I->getOperand(0)) &&
-            isFreeToInvert(Op0I->getOperand(1))) {
+        if (IsFreeToInvert(Op0I->getOperand(0),
+                           Op0I->getOperand(0)->hasOneUse()) &&
+            IsFreeToInvert(Op0I->getOperand(1),
+                           Op0I->getOperand(1)->hasOneUse())) {
           Value *NotX =
             Builder->CreateNot(Op0I->getOperand(0), "notlhs");
           Value *NotY =
@@ -2604,15 +2591,16 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
     }
   }
 
-
-  if (ConstantInt *RHS = dyn_cast<ConstantInt>(Op1)) {
-    if (RHS->isOne() && Op0->hasOneUse())
+  if (Constant *RHS = dyn_cast<Constant>(Op1)) {
+    if (RHS->isAllOnesValue() && Op0->hasOneUse())
       // xor (cmp A, B), true = not (cmp A, B) = !cmp A, B
       if (CmpInst *CI = dyn_cast<CmpInst>(Op0))
         return CmpInst::Create(CI->getOpcode(),
                                CI->getInversePredicate(),
                                CI->getOperand(0), CI->getOperand(1));
+  }
 
+  if (ConstantInt *RHS = dyn_cast<ConstantInt>(Op1)) {
     // fold (xor(zext(cmp)), 1) and (xor(sext(cmp)), -1) to ext(!cmp).
     if (CastInst *Op0C = dyn_cast<CastInst>(Op0)) {
       if (CmpInst *CI = dyn_cast<CmpInst>(Op0C->getOperand(0))) {

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2014
+.Dd November 24, 2015
 .Dt IPHETH 4
 .Os
 .Sh NAME
@@ -47,6 +47,8 @@ following lines in your kernel configuration file:
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
+.Cd "device miibus"
+.Cd "device uether"
 .Cd "device ipheth"
 .Ed
 .Sh DESCRIPTION

@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIDriver.h
-//
-// Overview:    CMIDriver interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers
@@ -51,7 +39,6 @@ class CMICmnStreamStdout;
 class CMIDriver : public CMICmnBase,
                   public CMIDriverMgr::IDriver,
                   public CMIDriverBase,
-                  public CMICmnStreamStdin::IStreamStdin,
                   public MI::ISingleton<CMIDriver>
 {
     friend class MI::ISingleton<CMIDriver>;
@@ -59,7 +46,7 @@ class CMIDriver : public CMICmnBase,
     // Enumerations:
   public:
     //++ ----------------------------------------------------------------------
-    // Details: The MI Driver has a running state which is used to help determin
+    // Details: The MI Driver has a running state which is used to help determine
     //          which specific action(s) it should take or not allow.
     //          The driver when operational and not shutting down alternates
     //          between eDriverState_RunningNotDebugging and
@@ -81,8 +68,8 @@ class CMIDriver : public CMICmnBase,
     // Methods:
   public:
     // MI system
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
 
     // MI state
     bool GetExitApplicationFlag(void) const;
@@ -101,35 +88,32 @@ class CMIDriver : public CMICmnBase,
     bool WriteMessageToLog(const CMIUtilString &vMessage);
     bool SetEnableFallThru(const bool vbYes);
     bool GetEnableFallThru(void) const;
-    bool InjectMICommand(const CMIUtilString &vMICmd);
     bool HaveExecutableFileNamePathOnCmdLine(void) const;
     const CMIUtilString &GetExecutableFileNamePathOnCmdLine(void) const;
 
     // Overridden:
   public:
     // From CMIDriverMgr::IDriver
-    virtual bool DoInitialize(void);
-    virtual bool DoShutdown(void);
-    virtual bool DoMainLoop(void);
-    virtual void DoResizeWindow(const uint32_t vWindowSizeWsCol);
-    virtual lldb::SBError DoParseArgs(const int argc, const char *argv[], FILE *vpStdOut, bool &vwbExiting);
-    virtual CMIUtilString GetError(void) const;
-    virtual const CMIUtilString &GetName(void) const;
-    virtual lldb::SBDebugger &GetTheDebugger(void);
-    virtual bool GetDriverIsGDBMICompatibleDriver(void) const;
-    virtual bool SetId(const CMIUtilString &vId);
-    virtual const CMIUtilString &GetId(void) const;
+    bool DoInitialize(void) override;
+    bool DoShutdown(void) override;
+    bool DoMainLoop(void) override;
+    lldb::SBError DoParseArgs(const int argc, const char *argv[], FILE *vpStdOut, bool &vwbExiting) override;
+    CMIUtilString GetError(void) const override;
+    const CMIUtilString &GetName(void) const override;
+    lldb::SBDebugger &GetTheDebugger(void) override;
+    bool GetDriverIsGDBMICompatibleDriver(void) const override;
+    bool SetId(const CMIUtilString &vId) override;
+    const CMIUtilString &GetId(void) const override;
     // From CMIDriverBase
-    virtual void SetExitApplicationFlag(const bool vbForceExit);
-    virtual bool DoFallThruToAnotherDriver(const CMIUtilString &vCmd, CMIUtilString &vwErrMsg);
-    virtual bool SetDriverToFallThruTo(const CMIDriverBase &vrOtherDriver);
-    virtual FILE *GetStdin(void) const;
-    virtual FILE *GetStdout(void) const;
-    virtual FILE *GetStderr(void) const;
-    virtual const CMIUtilString &GetDriverName(void) const;
-    virtual const CMIUtilString &GetDriverId(void) const;
-    // From CMICmnStreamStdin
-    virtual bool ReadLine(const CMIUtilString &vStdInBuffer, bool &vrbYesExit);
+    void SetExitApplicationFlag(const bool vbForceExit) override;
+    bool DoFallThruToAnotherDriver(const CMIUtilString &vCmd, CMIUtilString &vwErrMsg) override;
+    bool SetDriverToFallThruTo(const CMIDriverBase &vrOtherDriver) override;
+    FILE *GetStdin(void) const override;
+    FILE *GetStdout(void) const override;
+    FILE *GetStderr(void) const override;
+    const CMIUtilString &GetDriverName(void) const override;
+    const CMIUtilString &GetDriverId(void) const override;
+    void DeliverSignal(int signal) override;
 
     // Typedefs:
   private:
@@ -142,23 +126,23 @@ class CMIDriver : public CMICmnBase,
     void operator=(const CMIDriver &);
 
     lldb::SBError ParseArgs(const int argc, const char *argv[], FILE *vpStdOut, bool &vwbExiting);
-    bool ReadStdinLineQueue(void);
     bool DoAppQuit(void);
     bool InterpretCommand(const CMIUtilString &vTextLine);
     bool InterpretCommandThisDriver(const CMIUtilString &vTextLine, bool &vwbCmdYesValid);
+    CMIUtilString WrapCLICommandIntoMICommand(const CMIUtilString &vTextLine) const;
     bool InterpretCommandFallThruDriver(const CMIUtilString &vTextLine, bool &vwbCmdYesValid);
     bool ExecuteCommand(const SMICmdData &vCmdData);
     bool StartWorkerThreads(void);
     bool StopWorkerThreads(void);
     bool InitClientIDEToMIDriver(void) const;
     bool InitClientIDEEclipse(void) const;
-    bool QueueMICommand(const CMIUtilString &vMICmd);
-    bool LocalDebugSessionStartupInjectCommands(void);
+    bool LocalDebugSessionStartupExecuteCommands(void);
+    bool ExecuteCommandFile(const bool vbAsyncMode);
 
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMIDriver(void);
+    /* dtor */ ~CMIDriver(void) override;
 
     // Attributes:
   private:
@@ -168,15 +152,16 @@ class CMIDriver : public CMICmnBase,
     //
     bool m_bFallThruToOtherDriverEnabled; // True = yes fall through, false = do not pass on command
     CMIUtilThreadMutex m_threadMutex;
-    QueueStdinLine_t m_queueStdinLine; // Producer = stdin monitor, consumer = *this driver
     bool m_bDriverIsExiting;           // True = yes, driver told to quit, false = continue working
     void *m_handleMainThread;          // *this driver is run by the main thread
     CMICmnStreamStdin &m_rStdin;
     CMICmnLLDBDebugger &m_rLldbDebugger;
     CMICmnStreamStdout &m_rStdOut;
     DriverState_e m_eCurrentDriverState;
-    bool m_bHaveExecutableFileNamePathOnCmdLine; // True = Yes executable given as one of the parameters to the MI Driver, false = not found
+    bool m_bHaveExecutableFileNamePathOnCmdLine; // True = yes, executable given as one of the parameters to the MI Driver, false = not found
     CMIUtilString m_strCmdLineArgExecuteableFileNamePath;
-    bool m_bDriverDebuggingArgExecutable; // True = The MI Driver (MI mode) is debugging executable passed as argument, false = running via
-                                          // a client i.e Eclipse
+    bool m_bDriverDebuggingArgExecutable; // True = the MI Driver (MI mode) is debugging executable passed as argument,
+                                          // false = running via a client (e.g. Eclipse)
+    bool m_bHaveCommandFileNamePathOnCmdLine; // True = file with initial commands given as one of the parameters to the MI Driver, false = not found
+    CMIUtilString m_strCmdLineArgCommandFileNamePath;
 };

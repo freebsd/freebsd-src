@@ -14,30 +14,69 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/StackMapLivenessAnalysis.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "stackmaps"
 
-namespace llvm {
-cl::opt<bool> EnablePatchPointLiveness("enable-patchpoint-liveness",
-  cl::Hidden, cl::init(true),
-  cl::desc("Enable PatchPoint Liveness Analysis Pass"));
-}
+static cl::opt<bool> EnablePatchPointLiveness(
+    "enable-patchpoint-liveness", cl::Hidden, cl::init(true),
+    cl::desc("Enable PatchPoint Liveness Analysis Pass"));
 
 STATISTIC(NumStackMapFuncVisited, "Number of functions visited");
 STATISTIC(NumStackMapFuncSkipped, "Number of functions skipped");
 STATISTIC(NumBBsVisited,          "Number of basic blocks visited");
 STATISTIC(NumBBsHaveNoStackmap,   "Number of basic blocks with no stackmap");
 STATISTIC(NumStackMaps,           "Number of StackMaps visited");
+
+namespace {
+/// \brief This pass calculates the liveness information for each basic block in
+/// a function and attaches the register live-out information to a patchpoint
+/// intrinsic if present.
+///
+/// This pass can be disabled via the -enable-patchpoint-liveness=false flag.
+/// The pass skips functions that don't have any patchpoint intrinsics. The
+/// information provided by this pass is optional and not required by the
+/// aformentioned intrinsic to function.
+class StackMapLiveness : public MachineFunctionPass {
+  const TargetRegisterInfo *TRI;
+  LivePhysRegs LiveRegs;
+
+public:
+  static char ID;
+
+  /// \brief Default construct and initialize the pass.
+  StackMapLiveness();
+
+  /// \brief Tell the pass manager which passes we depend on and what
+  /// information we preserve.
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+
+  /// \brief Calculate the liveness information for the given machine function.
+  bool runOnMachineFunction(MachineFunction &MF) override;
+
+private:
+  /// \brief Performs the actual liveness calculation for the function.
+  bool calculateLiveness(MachineFunction &MF);
+
+  /// \brief Add the current register live set to the instruction.
+  void addLiveOutSetToMI(MachineFunction &MF, MachineInstr &MI);
+
+  /// \brief Create a register mask and initialize it with the registers from
+  /// the register live set.
+  uint32_t *createRegisterMask(MachineFunction &MF) const;
+};
+} // namespace
 
 char StackMapLiveness::ID = 0;
 char &llvm::StackMapLivenessID = StackMapLiveness::ID;
@@ -55,45 +94,41 @@ void StackMapLiveness::getAnalysisUsage(AnalysisUsage &AU) const {
   // We preserve all information.
   AU.setPreservesAll();
   AU.setPreservesCFG();
-  // Default dependencie for all MachineFunction passes.
-  AU.addRequired<MachineFunctionAnalysis>();
+  MachineFunctionPass::getAnalysisUsage(AU);
 }
 
 /// Calculate the liveness information for the given machine function.
-bool StackMapLiveness::runOnMachineFunction(MachineFunction &_MF) {
+bool StackMapLiveness::runOnMachineFunction(MachineFunction &MF) {
   if (!EnablePatchPointLiveness)
     return false;
 
-  DEBUG(dbgs() << "********** COMPUTING STACKMAP LIVENESS: "
-               << _MF.getName() << " **********\n");
-  MF = &_MF;
-  TRI = MF->getSubtarget().getRegisterInfo();
+  DEBUG(dbgs() << "********** COMPUTING STACKMAP LIVENESS: " << MF.getName()
+               << " **********\n");
+  TRI = MF.getSubtarget().getRegisterInfo();
   ++NumStackMapFuncVisited;
 
   // Skip this function if there are no patchpoints to process.
-  if (!MF->getFrameInfo()->hasPatchPoint()) {
+  if (!MF.getFrameInfo()->hasPatchPoint()) {
     ++NumStackMapFuncSkipped;
     return false;
   }
-  return calculateLiveness();
+  return calculateLiveness(MF);
 }
 
 /// Performs the actual liveness calculation for the function.
-bool StackMapLiveness::calculateLiveness() {
+bool StackMapLiveness::calculateLiveness(MachineFunction &MF) {
   bool HasChanged = false;
   // For all basic blocks in the function.
-  for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end();
-       MBBI != MBBE; ++MBBI) {
-    DEBUG(dbgs() << "****** BB " << MBBI->getName() << " ******\n");
+  for (auto &MBB : MF) {
+    DEBUG(dbgs() << "****** BB " << MBB.getName() << " ******\n");
     LiveRegs.init(TRI);
-    LiveRegs.addLiveOuts(MBBI);
+    LiveRegs.addLiveOuts(&MBB);
     bool HasStackMap = false;
     // Reverse iterate over all instructions and add the current live register
     // set to an instruction if we encounter a patchpoint instruction.
-    for (MachineBasicBlock::reverse_iterator I = MBBI->rbegin(),
-         E = MBBI->rend(); I != E; ++I) {
+    for (auto I = MBB.rbegin(), E = MBB.rend(); I != E; ++I) {
       if (I->getOpcode() == TargetOpcode::PATCHPOINT) {
-        addLiveOutSetToMI(*I);
+        addLiveOutSetToMI(MF, *I);
         HasChanged = true;
         HasStackMap = true;
         ++NumStackMaps;
@@ -109,21 +144,23 @@ bool StackMapLiveness::calculateLiveness() {
 }
 
 /// Add the current register live set to the instruction.
-void StackMapLiveness::addLiveOutSetToMI(MachineInstr &MI) {
-  uint32_t *Mask = createRegisterMask();
+void StackMapLiveness::addLiveOutSetToMI(MachineFunction &MF,
+                                         MachineInstr &MI) {
+  uint32_t *Mask = createRegisterMask(MF);
   MachineOperand MO = MachineOperand::CreateRegLiveOut(Mask);
-  MI.addOperand(*MF, MO);
+  MI.addOperand(MF, MO);
 }
 
 /// Create a register mask and initialize it with the registers from the
 /// register live set.
-uint32_t *StackMapLiveness::createRegisterMask() const {
+uint32_t *StackMapLiveness::createRegisterMask(MachineFunction &MF) const {
   // The mask is owned and cleaned up by the Machine Function.
-  uint32_t *Mask = MF->allocateRegisterMask(TRI->getNumRegs());
-  for (LivePhysRegs::const_iterator RI = LiveRegs.begin(), RE = LiveRegs.end();
-       RI != RE; ++RI)
-    Mask[*RI / 32] |= 1U << (*RI % 32);
+  uint32_t *Mask = MF.allocateRegisterMask(TRI->getNumRegs());
+  for (auto Reg : LiveRegs)
+    Mask[Reg / 32] |= 1U << (Reg % 32);
 
+  // Give the target a chance to adjust the mask.
   TRI->adjustStackMapLiveOutMask(Mask);
+
   return Mask;
 }

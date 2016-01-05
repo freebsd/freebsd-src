@@ -2,34 +2,36 @@
 
 # local configuration specific to meta mode
 # XXX some of this should be in meta.sys.mk
-# we assume that MK_META_MODE=yes
+# we assume that MK_DIRDEPS_BUILD=yes
 
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
+_default_makeobjdir=$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
+
 .if empty(OBJROOT) || ${.MAKE.LEVEL} == 0
-.if !make(showconfig)
-.if defined(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
-.warning MAKEOBJDIRPREFIX not supported; setting MAKEOBJDIR...
+.if defined(MAKEOBJDIRPREFIX)
 # put things approximately where they want
-OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP:S,/src,,}/
-# OBJTOP set below
-MAKEOBJDIR=$${.CURDIR:S,$${SRCTOP},$${OBJTOP},}
+OBJROOT:=${MAKEOBJDIRPREFIX}${SRCTOP}/
 MAKEOBJDIRPREFIX=
-# export but do not track
-.export-env MAKEOBJDIRPREFIX MAKEOBJDIR
-# now for our own use
-MAKEOBJDIR= ${.CURDIR:S,${SRCTOP},${OBJTOP},}
+.export MAKEOBJDIRPREFIX
 .endif
+.if empty(MAKEOBJDIR)
+# OBJTOP set below
+MAKEOBJDIR=${_default_makeobjdir}
+# export but do not track
+.export-env MAKEOBJDIR
+# Expand for our own use
+MAKEOBJDIR:= ${MAKEOBJDIR}
 .endif
 .if !empty(SB)
 SB_OBJROOT ?= ${SB}/obj/
 # this is what we use below
 OBJROOT ?= ${SB_OBJROOT}
 .endif
-OBJROOT ?= ${SRCTOP:H}/obj/
+OBJROOT ?= /usr/obj${SRCTOP}/
 .if ${OBJROOT:M*/} != ""
-OBJROOT:= ${OBJROOT:tA}/
+OBJROOT:= ${OBJROOT:H:tA}/
 .else
 OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 .endif
@@ -41,17 +43,19 @@ OBJROOT:= ${OBJROOT:H:tA}/${OBJROOT:T}
 .endif
 
 # from src/Makefile (for universe)
-TARGET_ARCHES_arm?=     arm armeb armv6 armv6eb
-TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32
+TARGET_ARCHES_arm?=     arm armeb armv6 armv6hf
+TARGET_ARCHES_arm64?=   aarch64
+TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
 TARGET_ARCHES_powerpc?= powerpc powerpc64
 TARGET_ARCHES_pc98?=    i386
+TARGET_ARCHES_riscv?=   riscv64
 
 # some corner cases
 BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
-ALL_MACHINE_LIST?= amd64 arm i386 ia64 mips pc98 powerpc sparc64
+ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips pc98 powerpc riscv sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
@@ -103,10 +107,10 @@ TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
 TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
 OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
 
-.if ${.CURDIR} == ${SRCTOP}
-RELDIR = .
-.elif ${.CURDIR:M${SRCTOP}/*}
-RELDIR := ${.CURDIR:S,${SRCTOP}/,,}
+.if defined(MAKEOBJDIR)
+.if ${MAKEOBJDIR:M*/*} == ""
+.error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
+.endif
 .endif
 
 HOST_OBJTOP ?= ${OBJROOT}${HOST_TARGET}
@@ -145,7 +149,18 @@ STAGE_MACHINE:= ${TARGET_OBJ_SPEC}
 .endif
 STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
 STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
+STAGE_TARGET_OBJTOP:= ${STAGE_ROOT}/${TARGET_OBJ_SPEC}
 STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
+# These are exported for hooking in out-of-tree builds.  They will always
+# be overridden in sub-makes above when building in-tree.
+.export STAGE_OBJTOP STAGE_TARGET_OBJTOP STAGE_HOST_OBJTOP
+
+# Use tools/install.sh which can avoid the need for xinstall for simple cases.
+INSTALL?=	sh ${SRCTOP}/tools/install.sh
+# This is for stage-install to pickup from the environment.
+REAL_INSTALL:=	${INSTALL}
+.export REAL_INSTALL
+STAGE_INSTALL=	sh ${.PARSEDIR:tA}/stage-install.sh OBJDIR=${.OBJDIR:tA}
 
 STAGE_LIBDIR= ${STAGE_OBJTOP}${_LIBDIR:U${LIBDIR:U/lib}}
 STAGE_INCLUDEDIR= ${STAGE_OBJTOP}${INCLUDEDIR:U/usr/include}
@@ -156,7 +171,7 @@ STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
 LDFLAGS_LAST+= -Wl,-rpath-link -Wl,${STAGE_LIBDIR}
 .if ${MK_SYSROOT} == "yes"
-SYSROOT?= ${STAGE_OBJTOP}/
+SYSROOT?= ${STAGE_OBJTOP}
 .else
 LDFLAGS_LAST+= -L${STAGE_LIBDIR}
 .endif
@@ -194,20 +209,42 @@ TRACER= ${TIME_STAMP} ${:U}
 .if ${MACHINE} == "host"
 MK_SHARED_TOOLCHAIN= no
 .endif
+TOOLCHAIN_VARS=	AS AR CC CLANG_TBLGEN CXX CPP LD NM OBJDUMP OBJCOPY RANLIB \
+		STRINGS SIZE TBLGEN
+_toolchain_bin_CLANG_TBLGEN=	/usr/bin/clang-tblgen
+_toolchain_bin_CXX=		/usr/bin/c++
 .ifdef WITH_TOOLSDIR
 TOOLSDIR?= ${HOST_OBJTOP}/tools
-.elif defined(STAGE_HOST_OBJTOP) && exists(${STAGE_HOST_OBJTOP}/usr/bin)
+.elif defined(STAGE_HOST_OBJTOP)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
-.if ${.MAKE.LEVEL} == 0 && exists(${TOOLSDIR}/usr/bin)
-PATH:= ${PATH:S,:, ,g:@d@${exists(${TOOLSDIR}$d):?${TOOLSDIR}$d:}@:ts:}:${PATH}
+# Don't use the bootstrap tools logic on itself.
+.if ${.TARGETS:Mbootstrap-tools} == "" && \
+    !make(showconfig) && \
+    !defined(BOOTSTRAPPING_TOOLS) && !empty(TOOLSDIR) && ${.MAKE.LEVEL} == 0
+.for dir in /sbin /bin /usr/sbin /usr/bin
+PATH:= ${TOOLSDIR}${dir}:${PATH}
+.endfor
 .export PATH
-.if exists(${TOOLSDIR}/usr/bin/cc)
-HOST_CC?= ${TOOLSDIR}/usr/bin/cc
-CC?= ${TOOLSDIR}/usr/bin/cc
-CXX?= ${TOOLSDIR}/usr/bin/c++
-.export HOST_CC CC CXX
+# Prefer the TOOLSDIR version of the toolchain if present vs the host version.
+.for var in ${TOOLCHAIN_VARS}
+_toolchain_bin.${var}=	${TOOLSDIR}${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
+.if exists(${_toolchain_bin.${var}})
+HOST_${var}?=	${_toolchain_bin.${var}}
+${var}?=	${HOST_${var}}
+.export		HOST_${var} ${var}
 .endif
+.endfor
+.endif
+
+.for var in ${TOOLCHAIN_VARS}
+HOST_${var}?=	${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
+.endfor
+
+.if ${MACHINE} == "host"
+.for var in ${TOOLCHAIN_VARS}
+${var}=		${HOST_${var}}
+.endfor
 .endif
 
 .if ${MACHINE:Nhost:Ncommon} != "" && ${MACHINE} != ${HOST_MACHINE}

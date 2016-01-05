@@ -76,7 +76,7 @@ extern struct pcpu *pcpup;
     	(pcpup + (id & CPU_MASK));					\
     })
 #endif
-	
+
 static inline struct thread *
 get_curthread(void)
 {

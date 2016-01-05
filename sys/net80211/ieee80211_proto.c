@@ -107,6 +107,8 @@ static void update_mcast(void *, int);
 static void update_promisc(void *, int);
 static void update_channel(void *, int);
 static void update_chw(void *, int);
+static void update_wme(void *, int);
+static void restart_vaps(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 
 static int
@@ -144,6 +146,8 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
 	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
 	TASK_INIT(&ic->ic_chw_task, 0, update_chw, ic);
+	TASK_INIT(&ic->ic_wme_task, 0, update_wme, ic);
+	TASK_INIT(&ic->ic_restart_task, 0, restart_vaps, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
 		AGGRESSIVE_MODE_SWITCH_HYSTERESIS;
@@ -491,7 +495,6 @@ int
 ieee80211_fix_rate(struct ieee80211_node *ni,
 	struct ieee80211_rateset *nrs, int flags)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	int i, j, rix, error;
@@ -545,7 +548,8 @@ ieee80211_fix_rate(struct ieee80211_node *ni,
 			 * Sort rates.
 			 */
 			for (j = i + 1; j < nrs->rs_nrates; j++) {
-				if (RV(nrs->rs_rates[i]) > RV(nrs->rs_rates[j])) {
+				if (IEEE80211_RV(nrs->rs_rates[i]) >
+				    IEEE80211_RV(nrs->rs_rates[j])) {
 					r = nrs->rs_rates[i];
 					nrs->rs_rates[i] = nrs->rs_rates[j];
 					nrs->rs_rates[j] = r;
@@ -604,8 +608,7 @@ ieee80211_fix_rate(struct ieee80211_node *ni,
 		    "ucastrate %x\n", __func__, fixedrate, ucastrate, flags);
 		return badrate | IEEE80211_RATE_BASIC;
 	} else
-		return RV(okrate);
-#undef RV
+		return IEEE80211_RV(okrate);
 }
 
 /*
@@ -1134,7 +1137,8 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		ieee80211_beacon_notify(vap, IEEE80211_BEACON_WME);
 	}
 
-	wme->wme_update(ic);
+	/* schedule the deferred WME update */
+	ieee80211_runtask(ic, &ic->ic_wme_task);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
 	    "%s: WME params updated, cap_info 0x%x\n", __func__,
@@ -1199,6 +1203,26 @@ update_chw(void *arg, int npending)
 	ic->ic_update_chw(ic);
 }
 
+static void
+update_wme(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	/*
+	 * XXX should we defer the WME configuration update until now?
+	 */
+	ic->ic_wme.wme_update(ic);
+}
+
+static void
+restart_vaps(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	ieee80211_suspend_all(ic);
+	ieee80211_resume_all(ic);
+}
+
 /*
  * Block until the parent is in a known state.  This is
  * used after any operations that dispatch a task (e.g.
@@ -1214,6 +1238,7 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 	ieee80211_draintask(ic, &ic->ic_chan_task);
 	ieee80211_draintask(ic, &ic->ic_bmiss_task);
 	ieee80211_draintask(ic, &ic->ic_chw_task);
+	ieee80211_draintask(ic, &ic->ic_wme_task);
 	taskqueue_unblock(ic->ic_tq);
 }
 
@@ -1470,6 +1495,19 @@ ieee80211_resume_all(struct ieee80211com *ic)
 		}
 	}
 	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Restart all vap's running on a device.
+ */
+void
+ieee80211_restart_all(struct ieee80211com *ic)
+{
+	/*
+	 * NB: do not use ieee80211_runtask here, we will
+	 * block & drain net80211 taskqueue.
+	 */
+	taskqueue_enqueue(taskqueue_thread, &ic->ic_restart_task);
 }
 
 void

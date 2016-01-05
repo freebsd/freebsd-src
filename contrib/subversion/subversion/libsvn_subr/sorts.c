@@ -32,6 +32,7 @@
 #include "svn_path.h"
 #include "svn_sorts.h"
 #include "svn_error.h"
+#include "private/svn_sorts_private.h"
 
 
 
@@ -133,6 +134,14 @@ svn_sort_compare_ranges(const void *a, const void *b)
   return item1->start < item2->start ? -1 : 1;
 }
 
+void
+svn_sort__array(apr_array_header_t *array,
+                int (*comparison_func)(const void *,
+                                       const void *))
+{
+  qsort(array->elts, array->nelts, array->elt_size, comparison_func);
+}
+
 apr_array_header_t *
 svn_sort__hash(apr_hash_t *ht,
                int (*comparison_func)(const svn_sort__item_t *,
@@ -171,7 +180,7 @@ svn_sort__hash(apr_hash_t *ht,
 
   /* quicksort the array if it isn't already sorted.  */
   if (!sorted)
-    qsort(ary->elts, ary->nelts, ary->elt_size,
+    svn_sort__array(ary,
           (int (*)(const void *, const void *))comparison_func);
 
   return ary;
@@ -213,8 +222,8 @@ bsearch_lower_bound(const void *key,
 }
 
 int
-svn_sort__bsearch_lower_bound(const void *key,
-                              const apr_array_header_t *array,
+svn_sort__bsearch_lower_bound(const apr_array_header_t *array,
+                              const void *key,
                               int (*compare_func)(const void *, const void *))
 {
   return bsearch_lower_bound(key,
@@ -222,9 +231,77 @@ svn_sort__bsearch_lower_bound(const void *key,
                              compare_func);
 }
 
+void *
+svn_sort__array_lookup(const apr_array_header_t *array,
+                       const void *key,
+                       int *hint,
+                       int (*compare_func)(const void *, const void *))
+{
+  void *result;
+  int idx;
+
+  /* If provided, try the index following *HINT (i.e. probably the last
+   * hit location) first.  This speeds up linear scans. */
+  if (hint)
+    {
+      /* We intend to insert right behind *HINT.
+       * Exit this function early, if we actually can. */
+      idx = *hint + 1;
+      if (idx >= array->nelts)
+        {
+          /* We intend to insert after the last entry.
+           * That is only allowed if that last entry is smaller than KEY.
+           * In that case, there will be no current entry, i.e. we must
+           * return NULL. */
+          apr_size_t offset;
+
+          *hint = array->nelts;
+          if (array->nelts == 0)
+            return NULL;
+
+          offset = (array->nelts - 1) * array->elt_size;
+          if (compare_func(array->elts + offset, key) < 0)
+            return NULL;
+        }
+      else if (idx > 0)
+        {
+          /* Intend to insert at a position inside the array, i.e. not
+           * at one of the boundaries.  The predecessor must be smaller
+           * and the current entry at IDX must be larger than KEY. */
+          void *previous;
+
+          *hint = idx;
+          previous = array->elts + (idx-1) * array->elt_size;
+          result = array->elts + idx * array->elt_size;
+          if (compare_func(previous, key) && !compare_func(result, key))
+            return result;
+        }
+      else if (idx <= 0)
+        {
+          /* Intend to insert at the beginning of an non-empty array.
+           * That requires the first entry to be larger than KEY. */
+          *hint = 0;
+          if (!compare_func(array->elts, key))
+            return array->elts;
+        }
+
+      /* The HINT did not help. */
+    }
+
+  idx = bsearch_lower_bound(key, array->elts, array->nelts, array->elt_size,
+                            compare_func);
+  if (hint)
+    *hint = idx;
+  if (idx >= array->nelts)
+    return NULL;
+
+  result = array->elts + idx * array->elt_size;
+  return compare_func(result, key) ? NULL : result;
+}
+
 void
-svn_sort__array_insert(const void *new_element,
-                       apr_array_header_t *array,
+svn_sort__array_insert(apr_array_header_t *array,
+                       const void *new_element,
                        int insert_index)
 {
   int elements_to_move;
@@ -306,4 +383,150 @@ svn_sort__array_reverse(apr_array_header_t *array,
           memcpy(y, tmp, sz);
         }
     }
+}
+
+/* Our priority queue data structure:
+ * Simply remember the constructor parameters.
+ */
+struct svn_priority_queue__t
+{
+  /* the queue elements, ordered as a heap according to COMPARE_FUNC */
+  apr_array_header_t *elements;
+
+  /* predicate used to order the heap */
+  int (*compare_func)(const void *, const void *);
+};
+
+/* Return TRUE, if heap element number LHS in QUEUE is smaller than element
+ * number RHS according to QUEUE->COMPARE_FUNC
+ */
+static int
+heap_is_less(svn_priority_queue__t *queue,
+             apr_size_t lhs,
+             apr_size_t rhs)
+{
+  char *lhs_value = queue->elements->elts + lhs * queue->elements->elt_size;
+  char *rhs_value = queue->elements->elts + rhs * queue->elements->elt_size;
+
+  /* nelts is never negative */
+  assert(lhs < (apr_size_t)queue->elements->nelts);
+  assert(rhs < (apr_size_t)queue->elements->nelts);
+  return queue->compare_func(lhs_value, rhs_value) < 0;
+}
+
+/* Exchange elements number LHS and RHS in QUEUE.
+ */
+static void
+heap_swap(svn_priority_queue__t *queue,
+          apr_size_t lhs,
+          apr_size_t rhs)
+{
+  int i;
+  char *lhs_value = queue->elements->elts + lhs * queue->elements->elt_size;
+  char *rhs_value = queue->elements->elts + rhs * queue->elements->elt_size;
+
+  for (i = 0; i < queue->elements->elt_size; ++i)
+    {
+      char temp = lhs_value[i];
+      lhs_value[i] = rhs_value[i];
+      rhs_value[i] = temp;
+    }
+}
+
+/* Move element number IDX to lower indexes until the heap criterion is
+ * fulfilled again.
+ */
+static void
+heap_bubble_down(svn_priority_queue__t *queue,
+                 int idx)
+{
+  while (idx > 0 && heap_is_less(queue, idx, (idx - 1) / 2))
+    {
+      heap_swap(queue, idx, (idx - 1) / 2);
+      idx = (idx - 1) / 2;
+    }
+}
+
+/* Move element number IDX to higher indexes until the heap criterion is
+ * fulfilled again.
+ */
+static void
+heap_bubble_up(svn_priority_queue__t *queue,
+               int idx)
+{
+  while (2 * idx + 2 < queue->elements->nelts)
+    {
+      int child = heap_is_less(queue, 2 * idx + 1, 2 * idx + 2)
+                ? 2 * idx + 1
+                : 2 * idx + 2;
+
+      if (heap_is_less(queue, idx, child))
+        return;
+
+      heap_swap(queue, idx, child);
+      idx = child;
+    }
+
+  if (   2 * idx + 1 < queue->elements->nelts
+      && heap_is_less(queue, 2 * idx + 1, idx))
+    heap_swap(queue, 2 * idx + 1, idx);
+}
+
+svn_priority_queue__t *
+svn_priority_queue__create(apr_array_header_t *elements,
+                           int (*compare_func)(const void *, const void *))
+{
+  int i;
+
+  svn_priority_queue__t *queue = apr_pcalloc(elements->pool, sizeof(*queue));
+  queue->elements = elements;
+  queue->compare_func = compare_func;
+
+  for (i = elements->nelts / 2; i >= 0; --i)
+    heap_bubble_up(queue, i);
+
+  return queue;
+}
+
+apr_size_t
+svn_priority_queue__size(svn_priority_queue__t *queue)
+{
+  return queue->elements->nelts;
+}
+
+void *
+svn_priority_queue__peek(svn_priority_queue__t *queue)
+{
+  return queue->elements->nelts ? queue->elements->elts : NULL;
+}
+
+void
+svn_priority_queue__update(svn_priority_queue__t *queue)
+{
+  heap_bubble_up(queue, 0);
+}
+
+void
+svn_priority_queue__pop(svn_priority_queue__t *queue)
+{
+  if (queue->elements->nelts)
+    {
+      memmove(queue->elements->elts,
+              queue->elements->elts
+              + (queue->elements->nelts - 1) * queue->elements->elt_size,
+              queue->elements->elt_size);
+      --queue->elements->nelts;
+      heap_bubble_up(queue, 0);
+    }
+}
+
+void
+svn_priority_queue__push(svn_priority_queue__t *queue,
+                         const void *element)
+{
+  /* we cannot duplicate elements due to potential array re-allocs */
+  assert(element && element != queue->elements->elts);
+
+  memcpy(apr_array_push(queue->elements), element, queue->elements->elt_size);
+  heap_bubble_down(queue, queue->elements->nelts - 1);
 }

@@ -51,4 +51,6 @@ struct arm_gic_softc {
 	uint32_t		nirqs;
 };
 
+int arm_gic_attach(device_t);
+
 #endif

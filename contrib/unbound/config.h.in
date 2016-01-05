@@ -70,6 +70,10 @@
    if you don't. */
 #undef HAVE_DECL_NID_X9_62_PRIME256V1
 
+/* Define to 1 if you have the declaration of `reallocarray', and to 0 if you
+   don't. */
+#undef HAVE_DECL_REALLOCARRAY
+
 /* Define to 1 if you have the declaration of `sk_SSL_COMP_pop_free', and to 0
    if you don't. */
 #undef HAVE_DECL_SK_SSL_COMP_POP_FREE
@@ -78,6 +82,10 @@
    `SSL_COMP_get_compression_methods', and to 0 if you don't. */
 #undef HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS
 
+/* Define to 1 if you have the declaration of `SSL_CTX_set_ecdh_auto', and to
+   0 if you don't. */
+#undef HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
+
 /* Define to 1 if you have the declaration of `strlcat', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRLCAT
@@ -85,6 +93,10 @@
 /* Define to 1 if you have the declaration of `strlcpy', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRLCPY
+
+/* Define to 1 if you have the declaration of `XML_StopParser', and to 0 if
+   you don't. */
+#undef HAVE_DECL_XML_STOPPARSER
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
@@ -143,6 +155,9 @@
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #undef HAVE_FSEEKO
 
+/* Define to 1 if you have the `fsync' function. */
+#undef HAVE_FSYNC
+
 /* Whether getaddrinfo is available */
 #undef HAVE_GETADDRINFO
 
@@ -197,6 +212,9 @@
 /* Define to 1 if you have the <iphlpapi.h> header file. */
 #undef HAVE_IPHLPAPI_H
 
+/* Define to 1 if you have the `isblank' function. */
+#undef HAVE_ISBLANK
+
 /* Define to 1 if you have the `kill' function. */
 #undef HAVE_KILL
 
@@ -223,6 +241,9 @@
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
+
+/* Use libnettle for crypto */
+#undef HAVE_NETTLE
 
 /* Use libnss for crypto */
 #undef HAVE_NSS
@@ -265,6 +286,9 @@
 
 /* Define to 1 if you have the `random' function. */
 #undef HAVE_RANDOM
+
+/* Define to 1 if you have the `reallocarray' function. */
+#undef HAVE_REALLOCARRAY
 
 /* Define to 1 if you have the `recvmsg' function. */
 #undef HAVE_RECVMSG
@@ -523,6 +547,9 @@
 
 /* The size of `time_t', as computed by sizeof. */
 #undef SIZEOF_TIME_T
+
+/* define if (v)snprintf does not return length needed, (but length used) */
+#undef SNPRINTF_RET_BROKEN
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
@@ -837,15 +864,13 @@
 #define MAXHOSTNAMELEN 256
 #endif
 
-
-#ifndef HAVE_SNPRINTF
+#if !defined(HAVE_SNPRINTF) || defined(SNPRINTF_RET_BROKEN)
 #define snprintf snprintf_unbound
 #define vsnprintf vsnprintf_unbound
 #include <stdarg.h>
 int snprintf (char *str, size_t count, const char *fmt, ...);
 int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
-#endif /* HAVE_SNPRINTF */
-
+#endif /* HAVE_SNPRINTF or SNPRINTF_RET_BROKEN */
 
 #ifndef HAVE_INET_PTON
 #define inet_pton inet_pton_unbound
@@ -886,6 +911,12 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #ifndef HAVE_GMTIME_R
 #define gmtime_r gmtime_r_unbound
 struct tm *gmtime_r(const time_t *timep, struct tm *result);
+#endif
+
+
+#ifndef HAVE_REALLOCARRAY
+#define reallocarray reallocarrayunbound
+void* reallocarray(void *ptr, size_t nmemb, size_t size);
 #endif
 
 
@@ -935,6 +966,11 @@ int memcmp(const void *x, const void *y, size_t n);
 char *ctime_r(const time_t *timep, char *buf);
 #endif
 
+#ifndef HAVE_ISBLANK
+#define isblank unbound_isblank
+int isblank(int c);
+#endif
+
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
 #define strptime unbound_strptime
 struct tm;
@@ -953,6 +989,9 @@ uint32_t arc4random(void);
 #  endif
 #  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
 uint32_t arc4random_uniform(uint32_t upper_bound);
+#  endif
+#  if !HAVE_DECL_REALLOCARRAY
+void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM

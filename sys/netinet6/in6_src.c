@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
@@ -133,7 +134,7 @@ static int selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct rtentry **, int, u_int);
 static int in6_selectif(struct sockaddr_in6 *, struct ip6_pktopts *,
-	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **,
+	struct ip6_moptions *, struct ifnet **,
 	struct ifnet *, u_int);
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
@@ -176,7 +177,7 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
 int
 in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
-    struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
+    struct inpcb *inp, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
 	struct rm_priotracker in6_ifa_tracker;
@@ -226,7 +227,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		struct in6_ifaddr *ia6;
 
 		/* get the outgoing interface */
-		if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp, oifp,
+		if ((error = in6_selectif(dstsock, opts, mopts, &ifp, oifp,
 		    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB))
 		    != 0)
 			return (error);
@@ -292,7 +293,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * the outgoing interface and the destination address.
 	 */
 	/* get the outgoing interface */
-	if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp, oifp,
+	if ((error = in6_selectif(dstsock, opts, mopts, &ifp, oifp,
 	    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB)) != 0)
 		return (error);
 
@@ -760,24 +761,27 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 
 static int
 in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
-    struct ip6_moptions *mopts, struct route_in6 *ro, struct ifnet **retifp,
+    struct ip6_moptions *mopts, struct ifnet **retifp,
     struct ifnet *oifp, u_int fibnum)
 {
 	int error;
 	struct route_in6 sro;
 	struct rtentry *rt = NULL;
+	int rt_flags;
 
 	KASSERT(retifp != NULL, ("%s: retifp is NULL", __func__));
 
-	if (ro == NULL) {
-		bzero(&sro, sizeof(sro));
-		ro = &sro;
-	}
+	bzero(&sro, sizeof(sro));
+	rt_flags = 0;
 
-	if ((error = selectroute(dstsock, opts, mopts, ro, retifp,
-	    &rt, 1, fibnum)) != 0) {
-		if (ro == &sro && rt && rt == sro.ro_rt)
-			RTFREE(rt);
+	error = selectroute(dstsock, opts, mopts, &sro, retifp, &rt, 1, fibnum);
+
+	if (rt)
+		rt_flags = rt->rt_flags;
+	if (rt && rt == sro.ro_rt)
+		RTFREE(rt);
+
+	if (error != 0) {
 		/* Help ND. See oifp comment in in6_selectsrc(). */
 		if (oifp != NULL && fibnum == RT_DEFAULT_FIB) {
 			*retifp = oifp;
@@ -803,16 +807,12 @@ in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * Although this may not be very harmful, it should still be confusing.
 	 * We thus reject the case here.
 	 */
-	if (rt && (rt->rt_flags & (RTF_REJECT | RTF_BLACKHOLE))) {
-		int flags = (rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 
-		if (ro == &sro && rt && rt == sro.ro_rt)
-			RTFREE(rt);
-		return (flags);
+	if (rt_flags & (RTF_REJECT | RTF_BLACKHOLE)) {
+		error = (rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
+		return (error);
 	}
 
-	if (ro == &sro && rt && rt == sro.ro_rt)
-		RTFREE(rt);
 	return (0);
 }
 
@@ -860,19 +860,16 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 	else if (ifp)
 		return (ND_IFINFO(ifp)->chlim);
 	else if (in6p && !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
-		struct route_in6 ro6;
-		struct ifnet *lifp;
+		struct nhop6_basic nh6;
+		struct in6_addr dst;
+		uint32_t fibnum, scopeid;
+		int hlim;
 
-		bzero(&ro6, sizeof(ro6));
-		ro6.ro_dst.sin6_family = AF_INET6;
-		ro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		ro6.ro_dst.sin6_addr = in6p->in6p_faddr;
-		in6_rtalloc(&ro6, in6p->inp_inc.inc_fibnum);
-		if (ro6.ro_rt) {
-			lifp = ro6.ro_rt->rt_ifp;
-			RTFREE(ro6.ro_rt);
-			if (lifp)
-				return (ND_IFINFO(lifp)->chlim);
+		fibnum = in6p->inp_inc.inc_fibnum;
+		in6_splitscope(&in6p->in6p_faddr, &dst, &scopeid);
+		if (fib6_lookup_nh_basic(fibnum, &dst, scopeid, 0, 0, &nh6)==0){
+			hlim = ND_IFINFO(nh6.nh_ifp)->chlim;
+			return (hlim);
 		}
 	}
 	return (V_ip6_defhlim);

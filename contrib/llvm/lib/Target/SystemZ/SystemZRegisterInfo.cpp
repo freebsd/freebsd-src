@@ -28,14 +28,15 @@ SystemZRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 }
 
 const uint32_t *
-SystemZRegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+SystemZRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+                                          CallingConv::ID CC) const {
   return CSR_SystemZ_RegMask;
 }
 
 BitVector
 SystemZRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  const SystemZFrameLowering *TFI = getFrameLowering(MF);
 
   if (TFI->hasFP(MF)) {
     // R11D is the frame pointer.  Reserve all aliases.
@@ -63,7 +64,7 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
   MachineFunction &MF = *MBB.getParent();
   auto *TII =
       static_cast<const SystemZInstrInfo *>(MF.getSubtarget().getInstrInfo());
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  const SystemZFrameLowering *TFI = getFrameLowering(MF);
   DebugLoc DL = MI->getDebugLoc();
 
   // Decompose the frame index into a base and offset.
@@ -134,6 +135,6 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
 
 unsigned
 SystemZRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  const SystemZFrameLowering *TFI = getFrameLowering(MF);
   return TFI->hasFP(MF) ? SystemZ::R11D : SystemZ::R15D;
 }

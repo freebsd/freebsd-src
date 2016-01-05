@@ -17,22 +17,21 @@
 using namespace llvm;
 using namespace llvm::opt;
 
-Arg::Arg(const Option _Opt, StringRef S, unsigned _Index, const Arg *_BaseArg)
-  : Opt(_Opt), BaseArg(_BaseArg), Spelling(S), Index(_Index),
-    Claimed(false), OwnsValues(false) {
-}
+Arg::Arg(const Option Opt, StringRef S, unsigned Index, const Arg *BaseArg)
+    : Opt(Opt), BaseArg(BaseArg), Spelling(S), Index(Index), Claimed(false),
+      OwnsValues(false) {}
 
-Arg::Arg(const Option _Opt, StringRef S, unsigned _Index,
-         const char *Value0, const Arg *_BaseArg)
-  : Opt(_Opt), BaseArg(_BaseArg), Spelling(S), Index(_Index),
-    Claimed(false), OwnsValues(false) {
+Arg::Arg(const Option Opt, StringRef S, unsigned Index, const char *Value0,
+         const Arg *BaseArg)
+    : Opt(Opt), BaseArg(BaseArg), Spelling(S), Index(Index), Claimed(false),
+      OwnsValues(false) {
   Values.push_back(Value0);
 }
 
-Arg::Arg(const Option _Opt, StringRef S, unsigned _Index,
-         const char *Value0, const char *Value1, const Arg *_BaseArg)
-  : Opt(_Opt), BaseArg(_BaseArg), Spelling(S), Index(_Index),
-    Claimed(false), OwnsValues(false) {
+Arg::Arg(const Option Opt, StringRef S, unsigned Index, const char *Value0,
+         const char *Value1, const Arg *BaseArg)
+    : Opt(Opt), BaseArg(BaseArg), Spelling(S), Index(Index), Claimed(false),
+      OwnsValues(false) {
   Values.push_back(Value0);
   Values.push_back(Value1);
 }
@@ -83,15 +82,13 @@ void Arg::renderAsInput(const ArgList &Args, ArgStringList &Output) const {
     return;
   }
 
-  for (unsigned i = 0, e = getNumValues(); i != e; ++i)
-    Output.push_back(getValue(i));
+  Output.append(Values.begin(), Values.end());
 }
 
 void Arg::render(const ArgList &Args, ArgStringList &Output) const {
   switch (getOption().getRenderStyle()) {
   case Option::RenderValuesStyle:
-    for (unsigned i = 0, e = getNumValues(); i != e; ++i)
-      Output.push_back(getValue(i));
+    Output.append(Values.begin(), Values.end());
     break;
 
   case Option::RenderCommaJoinedStyle: {
@@ -109,14 +106,12 @@ void Arg::render(const ArgList &Args, ArgStringList &Output) const {
  case Option::RenderJoinedStyle:
     Output.push_back(Args.GetOrMakeJoinedArgString(
                        getIndex(), getSpelling(), getValue(0)));
-    for (unsigned i = 1, e = getNumValues(); i != e; ++i)
-      Output.push_back(getValue(i));
+    Output.append(Values.begin() + 1, Values.end());
     break;
 
   case Option::RenderSeparateStyle:
     Output.push_back(Args.MakeArgString(getSpelling()));
-    for (unsigned i = 0, e = getNumValues(); i != e; ++i)
-      Output.push_back(getValue(i));
+    Output.append(Values.begin(), Values.end());
     break;
   }
 }

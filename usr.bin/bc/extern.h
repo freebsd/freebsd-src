@@ -1,5 +1,5 @@
 /*	$FreeBSD$						*/
-/*      $OpenBSD: extern.h,v 1.10 2013/09/19 16:12:01 otto Exp $	*/
+/*      $OpenBSD: extern.h,v 1.12 2014/04/17 19:07:14 otto Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -39,9 +39,9 @@ extern int	fileindex;
 extern int	sargc;
 extern const char	**sargv;
 extern const char	*filename;
-extern bool		 interactive;
-extern EditLine		*el;
-extern History		*hist;
-extern HistEvent	 he;
+extern bool	 interactive;
+extern EditLine	*el;
+extern History	*hist;
+extern HistEvent he;
 extern char	*cmdexpr;
 extern struct termios ttysaved;

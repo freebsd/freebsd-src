@@ -18,6 +18,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/IR/User.h"
 
 namespace llvm {
@@ -25,14 +26,31 @@ namespace llvm {
 class FastMathFlags;
 class LLVMContext;
 class MDNode;
+class BasicBlock;
 struct AAMDNodes;
 
-template<typename ValueSubClass, typename ItemParentClass>
-  class SymbolTableListTraits;
+template <>
+struct ilist_traits<Instruction>
+    : public SymbolTableListTraits<Instruction, BasicBlock> {
+
+  /// \brief Return a node that marks the end of a list.
+  ///
+  /// The sentinel is relative to this instance, so we use a non-static
+  /// method.
+  Instruction *createSentinel() const;
+  static void destroySentinel(Instruction *) {}
+
+  Instruction *provideInitialHead() const { return createSentinel(); }
+  Instruction *ensureHead(Instruction *) const { return createSentinel(); }
+  static void noteHead(Instruction *, Instruction *) {}
+
+private:
+  mutable ilist_half_node<Instruction> Sentinel;
+};
 
 class Instruction : public User, public ilist_node<Instruction> {
-  void operator=(const Instruction &) LLVM_DELETED_FUNCTION;
-  Instruction(const Instruction &) LLVM_DELETED_FUNCTION;
+  void operator=(const Instruction &) = delete;
+  Instruction(const Instruction &) = delete;
 
   BasicBlock *Parent;
   DebugLoc DbgLoc;                         // 'dbg' Metadata cache.
@@ -44,7 +62,7 @@ class Instruction : public User, public ilist_node<Instruction> {
   };
 public:
   // Out of line virtual method, so the vtable, etc has a home.
-  ~Instruction();
+  ~Instruction() override;
 
   /// user_back - Specialize the methods defined in Value, as we know that an
   /// instruction can only be used by other instructions.
@@ -54,7 +72,13 @@ public:
   inline const BasicBlock *getParent() const { return Parent; }
   inline       BasicBlock *getParent()       { return Parent; }
 
-  const DataLayout *getDataLayout() const;
+  /// \brief Return the module owning the function this instruction belongs to
+  /// or nullptr it the function does not have a module.
+  ///
+  /// Note: this is undefined behavior if the instruction does not have a
+  /// parent, or the parent basic block does not have a parent function.
+  const Module *getModule() const;
+  Module *getModule();
 
   /// removeFromParent - This method unlinks 'this' from the containing basic
   /// block, but does not delete it.
@@ -64,14 +88,15 @@ public:
   /// eraseFromParent - This method unlinks 'this' from the containing basic
   /// block and deletes it.
   ///
-  void eraseFromParent();
+  /// \returns an iterator pointing to the element after the erased one
+  iplist<Instruction>::iterator eraseFromParent();
 
-  /// insertBefore - Insert an unlinked instructions into a basic block
-  /// immediately before the specified instruction.
+  /// Insert an unlinked instruction into a basic block immediately before
+  /// the specified instruction.
   void insertBefore(Instruction *InsertPos);
 
-  /// insertAfter - Insert an unlinked instructions into a basic block
-  /// immediately after the specified instruction.
+  /// Insert an unlinked instruction into a basic block immediately after the
+  /// specified instruction.
   void insertAfter(Instruction *InsertPos);
 
   /// moveBefore - Unlink this instruction from its current basic block and
@@ -129,9 +154,7 @@ public:
 
   /// hasMetadata() - Return true if this instruction has any metadata attached
   /// to it.
-  bool hasMetadata() const {
-    return !DbgLoc.isUnknown() || hasMetadataHashEntry();
-  }
+  bool hasMetadata() const { return DbgLoc || hasMetadataHashEntry(); }
 
   /// hasMetadataOtherThanDebugLoc - Return true if this instruction has
   /// metadata attached to it other than a debug location.
@@ -201,7 +224,7 @@ public:
   void setAAMetadata(const AAMDNodes &N);
 
   /// setDebugLoc - Set the debug location information for this instruction.
-  void setDebugLoc(const DebugLoc &Loc) { DbgLoc = Loc; }
+  void setDebugLoc(DebugLoc Loc) { DbgLoc = std::move(Loc); }
 
   /// getDebugLoc - Return the debug location for this node as a DebugLoc.
   const DebugLoc &getDebugLoc() const { return DbgLoc; }
@@ -359,7 +382,7 @@ public:
   ///
   /// Note that this does not consider malloc and alloca to have side
   /// effects because the newly allocated memory is completely invisible to
-  /// instructions which don't used the returned value.  For cases where this
+  /// instructions which don't use the returned value.  For cases where this
   /// matters, isSafeToSpeculativelyExecute may be more appropriate.
   bool mayHaveSideEffects() const {
     return mayWriteToMemory() || mayThrow() || !mayReturn();
@@ -486,9 +509,22 @@ protected:
               Instruction *InsertBefore = nullptr);
   Instruction(Type *Ty, unsigned iType, Use *Ops, unsigned NumOps,
               BasicBlock *InsertAtEnd);
-  virtual Instruction *clone_impl() const = 0;
 
+private:
+  /// Create a copy of this instruction.
+  Instruction *cloneImpl() const;
 };
+
+inline Instruction *ilist_traits<Instruction>::createSentinel() const {
+  // Since i(p)lists always publicly derive from their corresponding traits,
+  // placing a data member in this class will augment the i(p)list.  But since
+  // the NodeTy is expected to be publicly derive from ilist_node<NodeTy>,
+  // there is a legal viable downcast from it to NodeTy. We use this trick to
+  // superimpose an i(p)list with a "ghostly" NodeTy, which becomes the
+  // sentinel. Dereferencing the sentinel is forbidden (save the
+  // ilist_node<NodeTy>), so no one will ever notice the superposition.
+  return static_cast<Instruction *>(&Sentinel);
+}
 
 // Instruction* is only 4-byte aligned.
 template<>

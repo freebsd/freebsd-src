@@ -199,7 +199,7 @@ GenericTaintChecker::TaintPropagationRule::getTaintPropagationRule(
                                                      const FunctionDecl *FDecl,
                                                      StringRef Name,
                                                      CheckerContext &C) {
-  // TODO: Currently, we might loose precision here: we always mark a return
+  // TODO: Currently, we might lose precision here: we always mark a return
   // value as tainted even if it's just a pointer, pointing to tainted data.
 
   // Check for exact name match for functions without builtin substitutes.
@@ -642,9 +642,9 @@ bool GenericTaintChecker::generateReportIfTainted(const Expr *E,
   // Generate diagnostic.
   if (ExplodedNode *N = C.addTransition()) {
     initBugType();
-    BugReport *report = new BugReport(*BT, Msg, N);
+    auto report = llvm::make_unique<BugReport>(*BT, Msg, N);
     report->addRange(E->getSourceRange());
-    C.emitReport(report);
+    C.emitReport(std::move(report));
     return true;
   }
   return false;

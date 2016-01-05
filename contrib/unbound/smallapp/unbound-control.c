@@ -109,6 +109,7 @@ usage()
 	printf("  get_option opt		get option value\n");
 	printf("  list_stubs			list stub-zones and root hints in use\n");
 	printf("  list_forwards			list forward-zones in use\n");
+	printf("  list_insecure			list domain-insecure zones\n");
 	printf("  list_local_zones		list local-zones in use\n");
 	printf("  list_local_data		list local-data RRs in use\n");
 	printf("  insecure_add zone 		add domain-insecure zone\n");
@@ -122,6 +123,8 @@ usage()
 	printf("  forward [off | addr ...]	without arg show forward setup\n");
 	printf("				or off to turn off root forwarding\n");
 	printf("				or give list of ip addresses\n");
+	printf("  ratelimit_list [+a]		list ratelimited domains\n");
+	printf("		+a		list all, also not ratelimited\n");
 	printf("Version %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
@@ -153,12 +156,14 @@ setup_ctx(struct config_file* cfg)
         ctx = SSL_CTX_new(SSLv23_client_method());
 	if(!ctx)
 		ssl_err("could not allocate SSL_CTX pointer");
-        if(!(SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2))
+        if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
+		!= SSL_OP_NO_SSLv2)
 		ssl_err("could not set SSL_OP_NO_SSLv2");
         if(cfg->remote_control_use_cert) {
-		if(!(SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3))
+		if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
+			!= SSL_OP_NO_SSLv3)
 			ssl_err("could not set SSL_OP_NO_SSLv3");
-		if(!SSL_CTX_use_certificate_file(ctx,c_cert,SSL_FILETYPE_PEM) ||
+		if(!SSL_CTX_use_certificate_chain_file(ctx,c_cert) ||
 		    !SSL_CTX_use_PrivateKey_file(ctx,c_key,SSL_FILETYPE_PEM)
 		    || !SSL_CTX_check_private_key(ctx))
 			ssl_err("Error setting up SSL_CTX client key and cert");
@@ -358,6 +363,9 @@ go(const char* cfgfile, char* svr, int quiet, int argc, char* argv[])
 		fatal_exit("could not read config file");
 	if(!cfg->remote_control_enable)
 		log_warn("control-enable is 'no' in the config file.");
+#ifdef UB_ON_WINDOWS
+	w_config_adjust_directory(cfg);
+#endif
 	ctx = setup_ctx(cfg);
 
 	/* contact server */

@@ -22,8 +22,9 @@ public:
 
   typedef uint32_t TargetPtrT;
 
-  RuntimeDyldMachOI386(RTDyldMemoryManager *MM)
-      : RuntimeDyldMachOCRTPBase(MM) {}
+  RuntimeDyldMachOI386(RuntimeDyld::MemoryManager &MM,
+                       RuntimeDyld::SymbolResolver &Resolver)
+      : RuntimeDyldMachOCRTPBase(MM, Resolver) {}
 
   unsigned getMaxStubSize() override { return 0; }
 
@@ -67,7 +68,7 @@ public:
     //   Value.Addend += RelocAddr + 4;
     // }
     if (RE.IsPCRel)
-      makeValueAddendPCRel(Value, Obj, RelI, 1 << RE.Size);
+      makeValueAddendPCRel(Value, RelI, 1 << RE.Size);
 
     RE.Addend = Value.Offset;
 
@@ -137,8 +138,7 @@ private:
     uint32_t RelocType = Obj.getAnyRelocationType(RE);
     bool IsPCRel = Obj.getAnyRelocationPCRel(RE);
     unsigned Size = Obj.getAnyRelocationLength(RE);
-    uint64_t Offset;
-    RelI->getOffset(Offset);
+    uint64_t Offset = RelI->getOffset();
     uint8_t *LocalAddress = Section.Address + Offset;
     unsigned NumBytes = 1 << Size;
     uint64_t Addend = readBytesUnaligned(LocalAddress, NumBytes);
@@ -166,20 +166,19 @@ private:
     uint32_t SectionBID =
         findOrEmitSection(Obj, SectionB, IsCode, ObjSectionToID);
 
-    if (Addend != AddrA - AddrB)
-      Error("Unexpected SECTDIFF relocation addend.");
+    // Compute the addend 'C' from the original expression 'A - B + C'.
+    Addend -= AddrA - AddrB;
 
     DEBUG(dbgs() << "Found SECTDIFF: AddrA: " << AddrA << ", AddrB: " << AddrB
                  << ", Addend: " << Addend << ", SectionA ID: " << SectionAID
                  << ", SectionAOffset: " << SectionAOffset
                  << ", SectionB ID: " << SectionBID
                  << ", SectionBOffset: " << SectionBOffset << "\n");
-    RelocationEntry R(SectionID, Offset, RelocType, 0, SectionAID,
-                      SectionAOffset, SectionBID, SectionBOffset, IsPCRel,
-                      Size);
+    RelocationEntry R(SectionID, Offset, RelocType, Addend, SectionAID,
+                      SectionAOffset, SectionBID, SectionBOffset,
+                      IsPCRel, Size);
 
     addRelocationForSection(R, SectionAID);
-    addRelocationForSection(R, SectionBID);
 
     return ++RelI;
   }
@@ -197,8 +196,7 @@ private:
     uint32_t RelocType = Obj.getAnyRelocationType(RE);
     bool IsPCRel = Obj.getAnyRelocationPCRel(RE);
     unsigned Size = Obj.getAnyRelocationLength(RE);
-    uint64_t Offset;
-    RelI->getOffset(Offset);
+    uint64_t Offset = RelI->getOffset();
     uint8_t *LocalAddress = Section.Address + Offset;
     unsigned NumBytes = 1 << Size;
     int64_t Addend = readBytesUnaligned(LocalAddress, NumBytes);
@@ -242,13 +240,14 @@ private:
       unsigned SymbolIndex =
           Obj.getIndirectSymbolTableEntry(DySymTabCmd, FirstIndirectSymbol + i);
       symbol_iterator SI = Obj.getSymbolByIndex(SymbolIndex);
-      StringRef IndirectSymbolName;
-      SI->getName(IndirectSymbolName);
+      ErrorOr<StringRef> IndirectSymbolName = SI->getName();
+      if (std::error_code EC = IndirectSymbolName.getError())
+        report_fatal_error(EC.message());
       uint8_t *JTEntryAddr = JTSectionAddr + JTEntryOffset;
       createStubFunction(JTEntryAddr);
       RelocationEntry RE(JTSectionID, JTEntryOffset + 1,
                          MachO::GENERIC_RELOC_VANILLA, 0, true, 2);
-      addRelocationForSymbol(RE, IndirectSymbolName);
+      addRelocationForSymbol(RE, *IndirectSymbolName);
       JTEntryOffset += JTEntrySize;
     }
   }

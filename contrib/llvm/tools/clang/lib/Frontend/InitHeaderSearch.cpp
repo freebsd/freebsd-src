@@ -65,7 +65,7 @@ public:
   /// AddSystemHeaderPrefix - Add the specified prefix to the system header
   /// prefix list.
   void AddSystemHeaderPrefix(StringRef Prefix, bool IsSystemHeader) {
-    SystemHeaderPrefixes.push_back(std::make_pair(Prefix, IsSystemHeader));
+    SystemHeaderPrefixes.emplace_back(Prefix, IsSystemHeader);
   }
 
   /// AddGnuCPlusPlusIncludePaths - Add the necessary paths to support a gnu
@@ -81,11 +81,6 @@ public:
   void AddMinGWCPlusPlusIncludePaths(StringRef Base,
                                      StringRef Arch,
                                      StringRef Version);
-
-  /// AddMinGW64CXXPaths - Add the necessary paths to support
-  /// libstdc++ of x86_64-w64-mingw32 aka mingw-w64.
-  void AddMinGW64CXXPaths(StringRef Base,
-                          StringRef Version);
 
   // AddDefaultCIncludePaths - Add paths that should always be searched.
   void AddDefaultCIncludePaths(const llvm::Triple &triple,
@@ -208,30 +203,22 @@ void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(StringRef Base,
           CXXSystem, false);
 }
 
-void InitHeaderSearch::AddMinGW64CXXPaths(StringRef Base,
-                                          StringRef Version) {
-  // Assumes Base is HeaderSearchOpts' ResourceDir
-  AddPath(Base + "/../../../include/c++/" + Version,
-          CXXSystem, false);
-  AddPath(Base + "/../../../include/c++/" + Version + "/x86_64-w64-mingw32",
-          CXXSystem, false);
-  AddPath(Base + "/../../../include/c++/" + Version + "/i686-w64-mingw32",
-          CXXSystem, false);
-  AddPath(Base + "/../../../include/c++/" + Version + "/backward",
-          CXXSystem, false);
-}
-
 void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
                                             const HeaderSearchOptions &HSOpts) {
   llvm::Triple::OSType os = triple.getOS();
 
   if (HSOpts.UseStandardSystemIncludes) {
     switch (os) {
+    case llvm::Triple::CloudABI:
     case llvm::Triple::FreeBSD:
     case llvm::Triple::NetBSD:
     case llvm::Triple::OpenBSD:
     case llvm::Triple::Bitrig:
+    case llvm::Triple::NaCl:
       break;
+    case llvm::Triple::Win32:
+      if (triple.getEnvironment() != llvm::Triple::Cygnus)
+        break;
     default:
       // FIXME: temporary hack: hard-coded paths.
       AddPath("/usr/local/include", System, false);
@@ -246,7 +233,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     // supplied path.
     SmallString<128> P = StringRef(HSOpts.ResourceDir);
     llvm::sys::path::append(P, "include");
-    AddUnmappedPath(P.str(), ExternCSystem, false);
+    AddUnmappedPath(P, ExternCSystem, false);
   }
 
   // All remaining additions are for system include directories, early exit if
@@ -269,6 +256,14 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
   switch (os) {
   case llvm::Triple::Linux:
     llvm_unreachable("Include management is handled in the driver.");
+
+  case llvm::Triple::CloudABI: {
+    // <sysroot>/<triple>/include
+    SmallString<128> P = StringRef(HSOpts.ResourceDir);
+    llvm::sys::path::append(P, "../../..", triple.str(), "include");
+    AddPath(P, System, false);
+    break;
+  }
 
   case llvm::Triple::Haiku:
     AddPath("/boot/common/include", System, false);
@@ -313,26 +308,6 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
       AddPath("/usr/include/w32api", System, false);
       break;
     case llvm::Triple::GNU:
-      // mingw-w64 crt include paths
-      // <sysroot>/i686-w64-mingw32/include
-      SmallString<128> P = StringRef(HSOpts.ResourceDir);
-      llvm::sys::path::append(P, "../../../i686-w64-mingw32/include");
-      AddPath(P.str(), System, false);
-
-      // <sysroot>/x86_64-w64-mingw32/include
-      P.resize(HSOpts.ResourceDir.size());
-      llvm::sys::path::append(P, "../../../x86_64-w64-mingw32/include");
-      AddPath(P.str(), System, false);
-
-      // mingw.org crt include paths
-      // <sysroot>/include
-      P.resize(HSOpts.ResourceDir.size());
-      llvm::sys::path::append(P, "../../../include");
-      AddPath(P.str(), System, false);
-      AddPath("/mingw/include", System, false);
-#if defined(LLVM_ON_WIN32)
-      AddPath("c:/mingw/include", System, false); 
-#endif
       break;
     }
     break;
@@ -340,8 +315,15 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     break;
   }
 
-  if ( os != llvm::Triple::RTEMS )
+  switch (os) {
+  case llvm::Triple::CloudABI:
+  case llvm::Triple::RTEMS:
+  case llvm::Triple::NaCl:
+    break;
+  default:
     AddPath("/usr/include", ExternCSystem, false);
+    break;
+  }
 }
 
 void InitHeaderSearch::
@@ -402,27 +384,8 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
       // g++-4 / Cygwin-1.5
       AddMinGWCPlusPlusIncludePaths("/usr/lib/gcc", "i686-pc-cygwin", "4.3.2");
       break;
-    case llvm::Triple::GNU:
-      // mingw-w64 C++ include paths (i686-w64-mingw32 and x86_64-w64-mingw32)
-      AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.7.0");
-      AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.7.1");
-      AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.7.2");
-      AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.7.3");
-      AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.8.0");
-      AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.8.1");
-      AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.8.2");
-      // mingw.org C++ include paths
-#if defined(LLVM_ON_WIN32)
-      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.7.0");
-      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.7.1");
-      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.7.2");
-      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.7.3");
-      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.8.0");
-      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.8.1");
-      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.8.2");
-#endif
-      break;
     }
+    break;
   case llvm::Triple::DragonFly:
     if (llvm::sys::fs::exists("/usr/lib/gcc47"))
       AddPath("/usr/include/c++/4.7", CXXSystem, false);
@@ -465,8 +428,7 @@ void InitHeaderSearch::AddDefaultIncludePaths(const LangOptions &Lang,
     return;
 
   case llvm::Triple::Win32:
-    if (triple.getEnvironment() == llvm::Triple::MSVC ||
-        triple.getEnvironment() == llvm::Triple::Itanium ||
+    if (triple.getEnvironment() != llvm::Triple::Cygnus ||
         triple.isOSBinFormatMachO())
       return;
     break;
@@ -488,7 +450,7 @@ void InitHeaderSearch::AddDefaultIncludePaths(const LangOptions &Lang,
 
           // Get foo/include/c++/v1
           llvm::sys::path::append(P, "include", "c++", "v1");
-          AddUnmappedPath(P.str(), CXXSystem, false);
+          AddUnmappedPath(P, CXXSystem, false);
         }
       }
       // On Solaris, include the support directory for things like xlocale and
@@ -699,7 +661,7 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
     // Set up the builtin include directory in the module map.
     SmallString<128> P = StringRef(HSOpts.ResourceDir);
     llvm::sys::path::append(P, "include");
-    if (const DirectoryEntry *Dir = HS.getFileMgr().getDirectory(P.str()))
+    if (const DirectoryEntry *Dir = HS.getFileMgr().getDirectory(P))
       HS.getModuleMap().setBuiltinIncludeDir(Dir);
   }
 

@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectRegister.h"
 
 // C Includes
@@ -25,6 +23,7 @@
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
 #include "lldb/Interpreter/OptionValueArray.h"
+#include "lldb/Interpreter/OptionValueBoolean.h"
 #include "lldb/Interpreter/OptionValueUInt64.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
@@ -47,10 +46,10 @@ public:
                              "register read",
                              "Dump the contents of one or more register values from the current frame.  If no register is specified, dumps them all.",
                              NULL,
-                             eFlagRequiresFrame         |
-                             eFlagRequiresRegContext    |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused   ),
+                             eCommandRequiresFrame         |
+                             eCommandRequiresRegContext    |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused   ),
         m_option_group (interpreter),
         m_format_options (eFormatDefault),
         m_command_options ()
@@ -143,7 +142,7 @@ public:
         const RegisterSet * const reg_set = reg_ctx->GetRegisterSet(set_idx);
         if (reg_set)
         {
-            strm.Printf ("%s:\n", reg_set->name);
+            strm.Printf ("%s:\n", (reg_set->name ? reg_set->name : "unknown") );
             strm.IndentMore ();
             const size_t num_registers = reg_set->num_registers;
             for (size_t reg_idx = 0; reg_idx < num_registers; ++reg_idx)
@@ -376,10 +375,10 @@ public:
                              "register write",
                              "Modify a single register value.",
                              NULL,
-                             eFlagRequiresFrame         |
-                             eFlagRequiresRegContext    |
-                             eFlagProcessMustBeLaunched |
-                             eFlagProcessMustBePaused)
+                             eCommandRequiresFrame         |
+                             eCommandRequiresRegContext    |
+                             eCommandProcessMustBeLaunched |
+                             eCommandProcessMustBePaused)
     {
         CommandArgumentEntry arg1;
         CommandArgumentEntry arg2;

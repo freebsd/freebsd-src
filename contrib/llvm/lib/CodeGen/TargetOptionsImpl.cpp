@@ -12,23 +12,26 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Module.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 /// DisableFramePointerElim - This returns true if frame pointer elimination
 /// optimization should be disabled for the given machine function.
 bool TargetOptions::DisableFramePointerElim(const MachineFunction &MF) const {
-  // Check to see if we should eliminate non-leaf frame pointers and then
-  // check to see if we should eliminate all frame pointers.
-  if (MF.getFunction()->hasFnAttribute("no-frame-pointer-elim-non-leaf") &&
-      !NoFramePointerElim) {
-    const MachineFrameInfo *MFI = MF.getFrameInfo();
-    return MFI->hasCalls();
-  }
+  // Check to see if we should eliminate all frame pointers.
+  if (MF.getSubtarget().getFrameLowering()->noFramePointerElim(MF))
+    return true;
 
-  return NoFramePointerElim;
+  // Check to see if we should eliminate non-leaf frame pointers.
+  if (MF.getFunction()->hasFnAttribute("no-frame-pointer-elim-non-leaf"))
+    return MF.getFrameInfo()->hasCalls();
+
+  return false;
 }
 
 /// LessPreciseFPMAD - This flag return true when -enable-fp-mad option
@@ -43,18 +46,4 @@ bool TargetOptions::LessPreciseFPMAD() const {
 /// that the rounding mode of the FPU can change from its default.
 bool TargetOptions::HonorSignDependentRoundingFPMath() const {
   return !UnsafeFPMath && HonorSignDependentRoundingFPMathOption;
-}
-
-/// getTrapFunctionName - If this returns a non-empty string, this means isel
-/// should lower Intrinsic::trap to a call to the specified function name
-/// instead of an ISD::TRAP node.
-StringRef TargetOptions::getTrapFunctionName() const {
-  return TrapFuncName;
-}
-
-/// getCFIFuncName - If this returns a non-empty string, then it is the name of
-/// the function that gets called on CFI violations in CFI non-enforcing mode
-/// (!TargetOptions::CFIEnforcing).
-StringRef TargetOptions::getCFIFuncName() const {
-  return CFIFuncName;
 }

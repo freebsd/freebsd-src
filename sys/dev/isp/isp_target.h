@@ -51,7 +51,9 @@ typedef enum {
 	NT_LOGOUT,
 	NT_GLOBAL_LOGOUT,
 	NT_CHANGED,
-	NT_HBA_RESET
+	NT_HBA_RESET,
+	NT_QUERY_TASK_SET,
+	NT_QUERY_ASYNC_EVENT
 } isp_ncode_t;
 
 typedef struct isp_notify {

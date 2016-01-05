@@ -73,8 +73,8 @@ private:
 
   bool isValidBufferID(unsigned i) const { return i && i <= Buffers.size(); }
 
-  SourceMgr(const SourceMgr&) LLVM_DELETED_FUNCTION;
-  void operator=(const SourceMgr&) LLVM_DELETED_FUNCTION;
+  SourceMgr(const SourceMgr&) = delete;
+  void operator=(const SourceMgr&) = delete;
 public:
   SourceMgr()
     : LineNoCache(nullptr), DiagHandler(nullptr), DiagContext(nullptr) {}
@@ -276,8 +276,8 @@ public:
     return FixIts;
   }
 
-  void print(const char *ProgName, raw_ostream &S,
-             bool ShowColors = true) const;
+  void print(const char *ProgName, raw_ostream &S, bool ShowColors = true,
+             bool ShowKindLabel = true) const;
 };
 
 }  // end llvm namespace

@@ -48,7 +48,6 @@ device		gpio
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_STATIC_ID	# Static device numbering
 
 # ATA/SCSI peripherals
 device		scbus		# SCSI bus (required for ATA/SCSI)

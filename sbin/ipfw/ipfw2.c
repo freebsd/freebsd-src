@@ -3625,7 +3625,7 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		action->opcode = O_NAT;
 		action->len = F_INSN_SIZE(ipfw_insn_nat);
 		CHECK_ACTLEN;
-		if (_substrcmp(*av, "global") == 0) {
+		if (*av != NULL && _substrcmp(*av, "global") == 0) {
 			action->arg1 = 0;
 			av++;
 			break;
@@ -4983,9 +4983,47 @@ ipfw_flush(int force)
 static struct _s_x intcmds[] = {
       { "talist",	TOK_TALIST },
       { "iflist",	TOK_IFLIST },
+      { "olist",	TOK_OLIST },
       { "vlist",	TOK_VLIST },
       { NULL, 0 }
 };
+
+static void
+ipfw_list_objects(int ac, char *av[])
+{
+	ipfw_obj_lheader req, *olh;
+	ipfw_obj_ntlv *ntlv;
+	size_t sz;
+	int i;
+
+	memset(&req, 0, sizeof(req));
+	sz = sizeof(req);
+	if (do_get3(IP_FW_DUMP_SRVOBJECTS, &req.opheader, &sz) != 0)
+		if (errno != ENOMEM)
+			return;
+
+	sz = req.size;
+	if ((olh = calloc(1, sz)) == NULL)
+		return;
+
+	olh->size = sz;
+	if (do_get3(IP_FW_DUMP_SRVOBJECTS, &olh->opheader, &sz) != 0) {
+		free(olh);
+		return;
+	}
+
+	if (olh->count > 0)
+		printf("Objects list:\n");
+	else
+		printf("There are no objects\n");
+	ntlv = (ipfw_obj_ntlv *)(olh + 1);
+	for (i = 0; i < olh->count; i++) {
+		printf(" kidx: %4d\ttype: %2d\tname: %s\n", ntlv->idx,
+		    ntlv->head.type, ntlv->name);
+		ntlv++;
+	}
+	free(olh);
+}
 
 void
 ipfw_internal_handler(int ac, char *av[])
@@ -5004,6 +5042,9 @@ ipfw_internal_handler(int ac, char *av[])
 		break;
 	case TOK_TALIST:
 		ipfw_list_ta(ac, av);
+		break;
+	case TOK_OLIST:
+		ipfw_list_objects(ac, av);
 		break;
 	case TOK_VLIST:
 		ipfw_list_values(ac, av);

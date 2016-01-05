@@ -866,6 +866,35 @@ vm_reserv_init(void)
 }
 
 /*
+ * Returns true if the given page belongs to a reservation and that page is
+ * free.  Otherwise, returns false.
+ */
+bool
+vm_reserv_is_page_free(vm_page_t m)
+{
+	vm_reserv_t rv;
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	rv = vm_reserv_from_page(m);
+	if (rv->object == NULL)
+		return (false);
+	return (popmap_is_clear(rv->popmap, m - rv->pages));
+}
+
+/*
+ * If the given page belongs to a reservation, returns the level of that
+ * reservation.  Otherwise, returns -1.
+ */
+int
+vm_reserv_level(vm_page_t m)
+{
+	vm_reserv_t rv;
+
+	rv = vm_reserv_from_page(m);
+	return (rv->object != NULL ? 0 : -1);
+}
+
+/*
  * Returns a reservation level if the given page belongs to a fully-populated
  * reservation and -1 otherwise.
  */
@@ -971,7 +1000,7 @@ vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 {
 	vm_paddr_t pa, size;
 	vm_reserv_t rv;
-	int hi, i, lo, next_free;
+	int hi, i, lo, low_index, next_free;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	if (npages > VM_LEVEL_0_NPAGES - 1)
@@ -990,8 +1019,9 @@ vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 		}
 		if (pa < low) {
 			/* Start the search for free pages at "low". */
-			i = (low - pa) / NBPOPMAP;
-			hi = (low - pa) % NBPOPMAP;
+			low_index = (low + PAGE_MASK - pa) >> PAGE_SHIFT;
+			i = low_index / NBPOPMAP;
+			hi = low_index % NBPOPMAP;
 		} else
 			i = hi = 0;
 		do {
@@ -1071,6 +1101,23 @@ vm_reserv_rename(vm_page_t m, vm_object_t new_object, vm_object_t old_object,
 			rv->pindex -= old_object_offset;
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
+	}
+}
+
+/*
+ * Returns the size (in bytes) of a reservation of the specified level.
+ */
+int
+vm_reserv_size(int level)
+{
+
+	switch (level) {
+	case 0:
+		return (VM_LEVEL_0_SIZE);
+	case -1:
+		return (PAGE_SIZE);
+	default:
+		return (0);
 	}
 }
 

@@ -71,6 +71,10 @@
    if you don't. */
 #define HAVE_DECL_NID_X9_62_PRIME256V1 1
 
+/* Define to 1 if you have the declaration of `reallocarray', and to 0 if you
+   don't. */
+/* #undef HAVE_DECL_REALLOCARRAY */
+
 /* Define to 1 if you have the declaration of `sk_SSL_COMP_pop_free', and to 0
    if you don't. */
 #define HAVE_DECL_SK_SSL_COMP_POP_FREE 1
@@ -79,6 +83,10 @@
    `SSL_COMP_get_compression_methods', and to 0 if you don't. */
 #define HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS 1
 
+/* Define to 1 if you have the declaration of `SSL_CTX_set_ecdh_auto', and to
+   0 if you don't. */
+#define HAVE_DECL_SSL_CTX_SET_ECDH_AUTO 1
+
 /* Define to 1 if you have the declaration of `strlcat', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_STRLCAT */
@@ -86,6 +94,10 @@
 /* Define to 1 if you have the declaration of `strlcpy', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_STRLCPY */
+
+/* Define to 1 if you have the declaration of `XML_StopParser', and to 0 if
+   you don't. */
+#define HAVE_DECL_XML_STOPPARSER 1
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -144,6 +156,9 @@
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #define HAVE_FSEEKO 1
 
+/* Define to 1 if you have the `fsync' function. */
+#define HAVE_FSYNC 1
+
 /* Whether getaddrinfo is available */
 #define HAVE_GETADDRINFO 1
 
@@ -198,6 +213,9 @@
 /* Define to 1 if you have the <iphlpapi.h> header file. */
 /* #undef HAVE_IPHLPAPI_H */
 
+/* Define to 1 if you have the `isblank' function. */
+#define HAVE_ISBLANK 1
+
 /* Define to 1 if you have the `kill' function. */
 #define HAVE_KILL 1
 
@@ -224,6 +242,9 @@
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
+
+/* Use libnettle for crypto */
+/* #undef HAVE_NETTLE */
 
 /* Use libnss for crypto */
 /* #undef HAVE_NSS */
@@ -266,6 +287,9 @@
 
 /* Define to 1 if you have the `random' function. */
 #define HAVE_RANDOM 1
+
+/* Define to 1 if you have the `reallocarray' function. */
+#define HAVE_REALLOCARRAY 1
 
 /* Define to 1 if you have the `recvmsg' function. */
 #define HAVE_RECVMSG 1
@@ -486,7 +510,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.5.3"
+#define PACKAGE_STRING "unbound 1.5.7"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -495,7 +519,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.3"
+#define PACKAGE_VERSION "1.5.7"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -514,7 +538,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,5,3,0
+#define RSRC_PACKAGE_VERSION 1,5,7,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -524,6 +548,9 @@
 
 /* The size of `time_t', as computed by sizeof. */
 #define SIZEOF_TIME_T 8
+
+/* define if (v)snprintf does not return length needed, (but length used) */
+/* #undef SNPRINTF_RET_BROKEN */
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -559,7 +586,7 @@
 /* #undef USE_ECDSA_EVP_WORKAROUND */
 
 /* Define this to enable GOST support. */
-/* #undef USE_GOST */
+#define USE_GOST 1
 
 /* Define if you want to use internal select based events */
 #define USE_MINI_EVENT 1
@@ -838,15 +865,13 @@
 #define MAXHOSTNAMELEN 256
 #endif
 
-
-#ifndef HAVE_SNPRINTF
+#if !defined(HAVE_SNPRINTF) || defined(SNPRINTF_RET_BROKEN)
 #define snprintf snprintf_unbound
 #define vsnprintf vsnprintf_unbound
 #include <stdarg.h>
 int snprintf (char *str, size_t count, const char *fmt, ...);
 int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
-#endif /* HAVE_SNPRINTF */
-
+#endif /* HAVE_SNPRINTF or SNPRINTF_RET_BROKEN */
 
 #ifndef HAVE_INET_PTON
 #define inet_pton inet_pton_unbound
@@ -887,6 +912,12 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #ifndef HAVE_GMTIME_R
 #define gmtime_r gmtime_r_unbound
 struct tm *gmtime_r(const time_t *timep, struct tm *result);
+#endif
+
+
+#ifndef HAVE_REALLOCARRAY
+#define reallocarray reallocarrayunbound
+void* reallocarray(void *ptr, size_t nmemb, size_t size);
 #endif
 
 
@@ -936,6 +967,11 @@ int memcmp(const void *x, const void *y, size_t n);
 char *ctime_r(const time_t *timep, char *buf);
 #endif
 
+#ifndef HAVE_ISBLANK
+#define isblank unbound_isblank
+int isblank(int c);
+#endif
+
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
 #define strptime unbound_strptime
 struct tm;
@@ -954,6 +990,9 @@ uint32_t arc4random(void);
 #  endif
 #  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
 uint32_t arc4random_uniform(uint32_t upper_bound);
+#  endif
+#  if !HAVE_DECL_REALLOCARRAY
+void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #  endif
 #endif /* HAVE_LIBRESSL */
 #ifndef HAVE_ARC4RANDOM

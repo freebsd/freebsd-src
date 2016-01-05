@@ -53,6 +53,8 @@ vm_page_t	vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex,
 void		vm_reserv_break_all(vm_object_t object);
 boolean_t	vm_reserv_free_page(vm_page_t m);
 void		vm_reserv_init(void);
+bool		vm_reserv_is_page_free(vm_page_t m);
+int		vm_reserv_level(vm_page_t m);
 int		vm_reserv_level_iffullpop(vm_page_t m);
 boolean_t	vm_reserv_reactivate_page(vm_page_t m);
 boolean_t	vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low,
@@ -60,6 +62,7 @@ boolean_t	vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low,
 boolean_t	vm_reserv_reclaim_inactive(void);
 void		vm_reserv_rename(vm_page_t m, vm_object_t new_object,
 		    vm_object_t old_object, vm_pindex_t old_object_offset);
+int		vm_reserv_size(int level);
 vm_paddr_t	vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end,
 		    vm_paddr_t high_water);
 

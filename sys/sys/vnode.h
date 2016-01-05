@@ -234,7 +234,6 @@ struct xvnode {
  *	are required for writing but the status may be checked with either.
  */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
-#define	VI_AGE		0x0040	/* Insert vnode at head of free list */
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
 #define	VI_ACTIVE	0x0200	/* This vnode is on the active list */
@@ -606,6 +605,8 @@ struct vnode;
 
 typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
 
+int	bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn,
+	    daddr_t endn);
 /* cache_* may belong in namei.h. */
 void	cache_changesize(int newhashsize);
 #define	cache_enter(dvp, vp, cnp)					\
@@ -781,6 +782,7 @@ void	vop_lookup_post(void *a, int rc);
 void	vop_lookup_pre(void *a);
 void	vop_mkdir_post(void *a, int rc);
 void	vop_mknod_post(void *a, int rc);
+void	vop_reclaim_post(void *a, int rc);
 void	vop_remove_post(void *a, int rc);
 void	vop_rename_post(void *a, int rc);
 void	vop_rename_pre(void *a);
@@ -796,7 +798,8 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define	VOP_WRITE_PRE(ap)						\
 	struct vattr va;						\
-	int error, osize, ooffset, noffset;				\
+	int error;							\
+	off_t osize, ooffset, noffset;					\
 									\
 	osize = ooffset = noffset = 0;					\
 	if (!VN_KNLIST_EMPTY((ap)->a_vp)) {				\
@@ -804,7 +807,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 		if (error)						\
 			return (error);					\
 		ooffset = (ap)->a_uio->uio_offset;			\
-		osize = va.va_size;					\
+		osize = (off_t)va.va_size;				\
 	}
 
 #define VOP_WRITE_POST(ap, ret)						\

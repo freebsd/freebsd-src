@@ -38,7 +38,7 @@
  *
  * This file contains helper functions for the validator module.
  * The functions help with aggressive negative caching.
- * This creates new denials of existance, and proofs for absence of types
+ * This creates new denials of existence, and proofs for absence of types
  * from cached NSEC records.
  */
 #include "config.h"
@@ -59,8 +59,8 @@
 #include "util/config_file.h"
 #include "services/cache/rrset.h"
 #include "services/cache/dns.h"
-#include "ldns/rrdef.h"
-#include "ldns/sbuffer.h"
+#include "sldns/rrdef.h"
+#include "sldns/sbuffer.h"
 
 int val_neg_data_compare(const void* a, const void* b)
 {

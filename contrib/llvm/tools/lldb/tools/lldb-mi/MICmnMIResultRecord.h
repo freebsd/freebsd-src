@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIResultRecord.h
-//
-// Overview:    CMICmnMIResultRecord interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
@@ -88,7 +76,7 @@ class CMICmnMIResultRecord : public CMICmnBase
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnMIResultRecord(void);
+    /* dtor */ ~CMICmnMIResultRecord(void) override;
 
     // Methods:
   private:

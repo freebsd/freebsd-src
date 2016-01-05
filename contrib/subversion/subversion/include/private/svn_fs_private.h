@@ -179,6 +179,23 @@ svn_fs__editor_commit(svn_revnum_t *revision,
                       apr_pool_t *scratch_pool);
 
 
+/** Set @a *mergeinfo to the mergeinfo for @a path in @a root.
+ *
+ * If there is no mergeinfo, set @a *mergeinfo to NULL.
+ *
+ * See svn_fs_get_mergeinfo2() but for the meanings of @a inherit and
+ * @a adjust_inheritable_mergeinfo and other details.
+ */
+svn_error_t *
+svn_fs__get_mergeinfo_for_path(svn_mergeinfo_t *mergeinfo,
+                               svn_fs_root_t *root,
+                               const char *path,
+                               svn_mergeinfo_inheritance_t inherit,
+                               svn_boolean_t adjust_inherited_mergeinfo,
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool);
+
+
 /** @} */
 
 

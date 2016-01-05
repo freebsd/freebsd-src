@@ -99,10 +99,6 @@ __FBSDID("$FreeBSD$");
 
 #define	COPROC_VFP	10
 
-#ifdef KDTRACE_HOOKS
-int (*dtrace_invop_jump_addr)(struct trapframe *);
-#endif
-
 static int gdb_trapper(u_int, u_int, struct trapframe *, int);
 
 LIST_HEAD(, undefined_handler) undefined_handlers[MAX_COPROCS];
@@ -206,12 +202,6 @@ undefinedinstruction(struct trapframe *frame)
 
 	PCPU_INC(cnt.v_trap);
 
-#if __ARM_ARCH >= 7
-	if ((frame->tf_spsr & PSR_T) != 0)
-		frame->tf_pc -= THUMB_INSN_SIZE;
-	else
-#endif
-		frame->tf_pc -= INSN_SIZE;
 	fault_pc = frame->tf_pc;
 
 	/*
@@ -350,12 +340,6 @@ undefinedinstruction(struct trapframe *frame)
 #endif
 			return;
 		}
-#ifdef KDTRACE_HOOKS
-		else if (dtrace_invop_jump_addr != 0) {
-			dtrace_invop_jump_addr(frame);
-			return;
-		}
-#endif
 		else
 			panic("Undefined instruction in kernel.\n");
 	}

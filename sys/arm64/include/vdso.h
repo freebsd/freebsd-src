@@ -29,6 +29,7 @@
 #define	_MACHINE_VDSO_H_
 
 #define	VDSO_TIMEHANDS_MD			\
-	uint32_t	th_res[8];
+	uint32_t	th_physical;		\
+	uint32_t	th_res[7];
 
 #endif /* !_MACHINE_VDSO_H_ */

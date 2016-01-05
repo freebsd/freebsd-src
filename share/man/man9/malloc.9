@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2014
+.Dd November 19, 2015
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -227,6 +227,13 @@ may sleep when called with
 .Dv M_WAITOK .
 .Fn free
 never sleeps.
+However,
+.Fn malloc ,
+.Fn realloc,
+.Fn reallocf
+and
+.Fn free
+may not be called in a critical section or while holding a spin lock.
 .Pp
 Any calls to
 .Fn malloc

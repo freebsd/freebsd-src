@@ -1011,9 +1011,14 @@
       <para>Marvell 88W8363 IEEE 802.11n wireless network
 	adapters (&man.mwl.4; driver)</para>
 
+      &hwlist.otus;
+
       &hwlist.ral;
 
       &hwlist.rsu;
+
+      <para>Realtek RTL8188CE based PCIe IEEE 802.11b/g/n wireless network
+	adapters (&man.rtwn.4; driver)</para>
 
       &hwlist.rum;
 

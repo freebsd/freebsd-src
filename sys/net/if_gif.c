@@ -197,6 +197,8 @@ gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	GIF2IFP(sc)->if_transmit  = gif_transmit;
 	GIF2IFP(sc)->if_qflush  = gif_qflush;
 	GIF2IFP(sc)->if_output = gif_output;
+	GIF2IFP(sc)->if_capabilities |= IFCAP_LINKSTATE;
+	GIF2IFP(sc)->if_capenable |= IFCAP_LINKSTATE;
 	if_attach(GIF2IFP(sc));
 	bpfattach(GIF2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	if (ng_gif_attach_p != NULL)
@@ -527,7 +529,6 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 	struct gif_softc *sc;
 	struct ether_header *eh;
 	struct ifnet *oldifp;
-	uint32_t gif_options;
 	int isr, n, af;
 
 	if (ifp == NULL) {
@@ -536,7 +537,6 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 		return;
 	}
 	sc = ifp->if_softc;
-	gif_options = sc->gif_options;
 	m->m_pkthdr.rcvif = ifp;
 	m_clrprotoflags(m);
 	switch (proto) {
@@ -1040,10 +1040,13 @@ gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 #if defined(INET) || defined(INET6)
 bad:
 #endif
-	if (error == 0 && sc->gif_family != 0)
+	if (error == 0 && sc->gif_family != 0) {
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	else
+		if_link_state_change(ifp, LINK_STATE_UP);
+	} else {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_link_state_change(ifp, LINK_STATE_DOWN);
+	}
 	return (error);
 }
 
@@ -1065,4 +1068,5 @@ gif_delete_tunnel(struct ifnet *ifp)
 		free(sc->gif_hdr, M_GIF);
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 }

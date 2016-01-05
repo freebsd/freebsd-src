@@ -177,11 +177,11 @@ CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 install: ${INSTALLINFODIRS}
 .if !empty(IFILES:N*.html)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
-		${IFILES:N*.html} ${DESTDIR}${INFODIR}
+		${IFILES:N*.html} ${DESTDIR}${INFODIR}/
 .endif
 .if !empty(FORMATS:Mhtml)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
-		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}
+		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}/
 .endif
 .else
 # The indirection in the following is to avoid the null install rule

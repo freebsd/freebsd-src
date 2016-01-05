@@ -558,7 +558,7 @@ sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t key_id)
 		atomic_add_int(&skey->refcount, 1);
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount acquire to %d\n",
-		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
+		    __func__, (void *)stcb, key_id, skey->refcount);
 	}
 }
 
@@ -578,7 +578,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 	if (skey) {
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount release to %d\n",
-		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
+		    __func__, (void *)stcb, key_id, skey->refcount);
 
 		/* see if a notification should be generated */
 		if ((skey->refcount <= 2) && (skey->deactivated)) {
@@ -587,7 +587,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 			    key_id, 0, so_locked);
 			SCTPDBG(SCTP_DEBUG_AUTH2,
 			    "%s: stcb %p key %u no longer used, %d\n",
-			    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
+			    __func__, (void *)stcb, key_id, skey->refcount);
 		}
 		sctp_free_sharedkey(skey);
 	}
@@ -1651,8 +1651,8 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 
 	/* is the indicated HMAC supported? */
 	if (!sctp_auth_is_supported_hmac(stcb->asoc.local_hmacs, hmac_id)) {
-		struct mbuf *m_err;
-		struct sctp_auth_invalid_hmac *err;
+		struct mbuf *op_err;
+		struct sctp_error_auth_invalid_hmac *cause;
 
 		SCTP_STAT_INCR(sctps_recvivalhmacid);
 		SCTPDBG(SCTP_DEBUG_AUTH1,
@@ -1662,20 +1662,19 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 		 * report this in an Error Chunk: Unsupported HMAC
 		 * Identifier
 		 */
-		m_err = sctp_get_mbuf_for_msg(sizeof(*err), 0, M_NOWAIT,
-		    1, MT_HEADER);
-		if (m_err != NULL) {
+		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_error_auth_invalid_hmac),
+		    0, M_NOWAIT, 1, MT_HEADER);
+		if (op_err != NULL) {
 			/* pre-reserve some space */
-			SCTP_BUF_RESV_UF(m_err, sizeof(struct sctp_chunkhdr));
+			SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
 			/* fill in the error */
-			err = mtod(m_err, struct sctp_auth_invalid_hmac *);
-			bzero(err, sizeof(*err));
-			err->ph.param_type = htons(SCTP_CAUSE_UNSUPPORTED_HMACID);
-			err->ph.param_length = htons(sizeof(*err));
-			err->hmac_id = ntohs(hmac_id);
-			SCTP_BUF_LEN(m_err) = sizeof(*err);
+			cause = mtod(op_err, struct sctp_error_auth_invalid_hmac *);
+			cause->cause.code = htons(SCTP_CAUSE_UNSUPPORTED_HMACID);
+			cause->cause.length = htons(sizeof(struct sctp_error_auth_invalid_hmac));
+			cause->hmac_id = ntohs(hmac_id);
+			SCTP_BUF_LEN(op_err) = sizeof(struct sctp_error_auth_invalid_hmac);
 			/* queue it */
-			sctp_queue_op_err(stcb, m_err);
+			sctp_queue_op_err(stcb, op_err);
 		}
 		return (-1);
 	}

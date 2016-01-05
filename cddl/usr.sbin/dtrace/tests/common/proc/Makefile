@@ -24,7 +24,6 @@ CFILES= \
      tst.sigwait.c  \
 
 
-LDADD.tst.sigwait.exe+= -lrt
-DPADD.tst.sigwait.exe+= ${LIBRT}
+LIBADD.tst.sigwait.exe+= rt
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"

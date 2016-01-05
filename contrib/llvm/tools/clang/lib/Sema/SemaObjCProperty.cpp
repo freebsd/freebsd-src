@@ -19,6 +19,7 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Initialization.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallString.h"
@@ -102,15 +103,6 @@ static void checkARCPropertyDecl(Sema &S, ObjCPropertyDecl *property) {
     << propertyLifetime;
 }
 
-static unsigned deduceWeakPropertyFromType(Sema &S, QualType T) {
-  if ((S.getLangOpts().getGC() != LangOptions::NonGC && 
-       T.isObjCGCWeak()) ||
-      (S.getLangOpts().ObjCAutoRefCount &&
-       T.getObjCLifetime() == Qualifiers::OCL_Weak))
-    return ObjCDeclSpec::DQ_PR_weak;
-  return 0;
-}
-
 /// \brief Check this Objective-C property against a property declared in the
 /// given protocol.
 static void
@@ -145,10 +137,10 @@ Decl *Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
                           tok::ObjCKeywordKind MethodImplKind,
                           DeclContext *lexicalDC) {
   unsigned Attributes = ODS.getPropertyAttributes();
+  FD.D.setObjCWeakProperty((Attributes & ObjCDeclSpec::DQ_PR_weak) != 0);
   TypeSourceInfo *TSI = GetTypeForDeclarator(FD.D, S);
   QualType T = TSI->getType();
-  Attributes |= deduceWeakPropertyFromType(*this, T);
-  
+  Attributes |= deduceWeakPropertyFromType(T);
   bool isReadWrite = ((Attributes & ObjCDeclSpec::DQ_PR_readwrite) ||
                       // default is readwrite!
                       !(Attributes & ObjCDeclSpec::DQ_PR_readonly));
@@ -172,7 +164,7 @@ Decl *Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
                                            isAssign, isReadWrite,
                                            Attributes,
                                            ODS.getPropertyAttributes(),
-                                           isOverridingProperty, TSI,
+                                           isOverridingProperty, T, TSI,
                                            MethodImplKind);
       if (!Res)
         return nullptr;
@@ -183,7 +175,7 @@ Decl *Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
     Res = CreatePropertyDecl(S, ClassDecl, AtLoc, LParenLoc, FD,
                              GetterSel, SetterSel, isAssign, isReadWrite,
                              Attributes, ODS.getPropertyAttributes(),
-                             TSI, MethodImplKind);
+                             T, TSI, MethodImplKind);
     if (lexicalDC)
       Res->setLexicalDeclContext(lexicalDC);
   }
@@ -321,7 +313,8 @@ Sema::HandlePropertyInClassExtension(Scope *S,
                                      const unsigned Attributes,
                                      const unsigned AttributesAsWritten,
                                      bool *isOverridingProperty,
-                                     TypeSourceInfo *T,
+                                     QualType T,
+                                     TypeSourceInfo *TSI,
                                      tok::ObjCKeywordKind MethodImplKind) {
   ObjCCategoryDecl *CDecl = cast<ObjCCategoryDecl>(CurContext);
   // Diagnose if this property is already in continuation class.
@@ -347,7 +340,7 @@ Sema::HandlePropertyInClassExtension(Scope *S,
   // FIXME. We should really be using CreatePropertyDecl for this.
   ObjCPropertyDecl *PDecl =
     ObjCPropertyDecl::Create(Context, DC, FD.D.getIdentifierLoc(),
-                             PropertyId, AtLoc, LParenLoc, T);
+                             PropertyId, AtLoc, LParenLoc, T, TSI);
   PDecl->setPropertyAttributesAsWritten(
                           makePropertyAttributesAsWritten(AttributesAsWritten));
   if (Attributes & ObjCDeclSpec::DQ_PR_readonly)
@@ -358,6 +351,11 @@ Sema::HandlePropertyInClassExtension(Scope *S,
     PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_nonatomic);
   if (Attributes & ObjCDeclSpec::DQ_PR_atomic)
     PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_atomic);
+  if (Attributes & ObjCDeclSpec::DQ_PR_nullability)
+    PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_nullability);
+  if (Attributes & ObjCDeclSpec::DQ_PR_null_resettable)
+    PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_null_resettable);
+
   // Set setter/getter selector name. Needed later.
   PDecl->setGetterName(GetterSel);
   PDecl->setSetterName(SetterSel);
@@ -382,7 +380,8 @@ Sema::HandlePropertyInClassExtension(Scope *S,
     ObjCPropertyDecl *PrimaryPDecl =
       CreatePropertyDecl(S, CCPrimary, AtLoc, LParenLoc,
                          FD, GetterSel, SetterSel, isAssign, isReadWrite,
-                         Attributes,AttributesAsWritten, T, MethodImplKind, DC);
+                         Attributes,AttributesAsWritten, T, TSI, MethodImplKind, 
+                         DC);
 
     // A case of continuation class adding a new property in the class. This
     // is not what it was meant for. However, gcc supports it and so should we.
@@ -406,9 +405,11 @@ Sema::HandlePropertyInClassExtension(Scope *S,
     // this conversion is safe only because the wider type is for a 'readonly'
     // property in primary class and 'narrowed' type for a 'readwrite' property
     // in continuation class.
-    if (!isa<ObjCObjectPointerType>(PIDecl->getType()) ||
-        !isa<ObjCObjectPointerType>(PDecl->getType()) ||
-        (!isObjCPointerConversion(PDecl->getType(), PIDecl->getType(), 
+    QualType PrimaryClassPropertyT = Context.getCanonicalType(PIDecl->getType());
+    QualType ClassExtPropertyT = Context.getCanonicalType(PDecl->getType());
+    if (!isa<ObjCObjectPointerType>(PrimaryClassPropertyT) ||
+        !isa<ObjCObjectPointerType>(ClassExtPropertyT) ||
+        (!isObjCPointerConversion(ClassExtPropertyT, PrimaryClassPropertyT,
                                   ConvertedType, IncompatibleObjC))
         || IncompatibleObjC) {
       Diag(AtLoc, 
@@ -424,7 +425,7 @@ Sema::HandlePropertyInClassExtension(Scope *S,
   if (isReadWrite && (PIkind & ObjCPropertyDecl::OBJC_PR_readonly)) {
     PIkind &= ~ObjCPropertyDecl::OBJC_PR_readonly;
     PIkind |= ObjCPropertyDecl::OBJC_PR_readwrite;
-    PIkind |= deduceWeakPropertyFromType(*this, PIDecl->getType());
+    PIkind |= deduceWeakPropertyFromType(PIDecl->getType());
     unsigned ClassExtensionMemoryModel = getOwnershipRule(Attributes);
     unsigned PrimaryClassMemoryModel = getOwnershipRule(PIkind);
     if (PrimaryClassMemoryModel && ClassExtensionMemoryModel &&
@@ -528,11 +529,11 @@ ObjCPropertyDecl *Sema::CreatePropertyDecl(Scope *S,
                                            const bool isReadWrite,
                                            const unsigned Attributes,
                                            const unsigned AttributesAsWritten,
+                                           QualType T,
                                            TypeSourceInfo *TInfo,
                                            tok::ObjCKeywordKind MethodImplKind,
                                            DeclContext *lexicalDC){
   IdentifierInfo *PropertyId = FD.D.getIdentifier();
-  QualType T = TInfo->getType();
 
   // Issue a warning if property is 'assign' as default and its object, which is
   // gc'able conforms to NSCopying protocol
@@ -561,7 +562,8 @@ ObjCPropertyDecl *Sema::CreatePropertyDecl(Scope *S,
   DeclContext *DC = cast<DeclContext>(CDecl);
   ObjCPropertyDecl *PDecl = ObjCPropertyDecl::Create(Context, DC,
                                                      FD.D.getIdentifierLoc(),
-                                                     PropertyId, AtLoc, LParenLoc, TInfo);
+                                                     PropertyId, AtLoc, 
+                                                     LParenLoc, T, TInfo);
 
   if (ObjCPropertyDecl *prevDecl =
         ObjCPropertyDecl::findPropertyDecl(DC, PropertyId)) {
@@ -635,6 +637,12 @@ ObjCPropertyDecl *Sema::CreatePropertyDecl(Scope *S,
     PDecl->setPropertyImplementation(ObjCPropertyDecl::Required);
   else if (MethodImplKind == tok::objc_optional)
     PDecl->setPropertyImplementation(ObjCPropertyDecl::Optional);
+
+  if (Attributes & ObjCDeclSpec::DQ_PR_nullability)
+    PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_nullability);
+
+  if (Attributes & ObjCDeclSpec::DQ_PR_null_resettable)
+    PDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_null_resettable);
 
   return PDecl;
 }
@@ -1149,7 +1157,9 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
                                  CK_LValueToRValue, SelfExpr, nullptr,
                                  VK_RValue);
       Expr *IvarRefExpr =
-        new (Context) ObjCIvarRefExpr(Ivar, Ivar->getType(), PropertyDiagLoc,
+        new (Context) ObjCIvarRefExpr(Ivar,
+                                      Ivar->getUsageType(SelfDecl->getType()),
+                                      PropertyDiagLoc,
                                       Ivar->getLocation(),
                                       LoadSelfExpr, true, true);
       ExprResult Res = PerformCopyInitialization(
@@ -1199,7 +1209,9 @@ Decl *Sema::ActOnPropertyImplDecl(Scope *S,
                                  CK_LValueToRValue, SelfExpr, nullptr,
                                  VK_RValue);
       Expr *lhs =
-        new (Context) ObjCIvarRefExpr(Ivar, Ivar->getType(), PropertyDiagLoc,
+        new (Context) ObjCIvarRefExpr(Ivar,
+                                      Ivar->getUsageType(SelfDecl->getType()),
+                                      PropertyDiagLoc,
                                       Ivar->getLocation(),
                                       LoadSelfExpr, true, true);
       ObjCMethodDecl::param_iterator P = setterMethod->param_begin();
@@ -1750,6 +1762,33 @@ void Sema::DiagnoseUnimplementedProperties(Scope *S, ObjCImplDecl* IMPDecl,
   }
 }
 
+void Sema::diagnoseNullResettableSynthesizedSetters(const ObjCImplDecl *impDecl) {
+  for (const auto *propertyImpl : impDecl->property_impls()) {
+    const auto *property = propertyImpl->getPropertyDecl();
+
+    // Warn about null_resettable properties with synthesized setters,
+    // because the setter won't properly handle nil.
+    if (propertyImpl->getPropertyImplementation()
+          == ObjCPropertyImplDecl::Synthesize &&
+        (property->getPropertyAttributes() &
+         ObjCPropertyDecl::OBJC_PR_null_resettable) &&
+        property->getGetterMethodDecl() &&
+        property->getSetterMethodDecl()) {
+      auto *getterMethod = property->getGetterMethodDecl();
+      auto *setterMethod = property->getSetterMethodDecl();
+      if (!impDecl->getInstanceMethod(setterMethod->getSelector()) &&
+          !impDecl->getInstanceMethod(getterMethod->getSelector())) {
+        SourceLocation loc = propertyImpl->getLocation();
+        if (loc.isInvalid())
+          loc = impDecl->getLocStart();
+
+        Diag(loc, diag::warn_null_resettable_setter)
+          << setterMethod->getSelector() << property->getDeclName();
+      }
+    }
+  }
+}
+
 void
 Sema::AtomicPropertySetterGetterRules (ObjCImplDecl* IMPDecl,
                                        ObjCContainerDecl* IDecl) {
@@ -1854,6 +1893,39 @@ void Sema::DiagnoseOwningPropertyGetterSynthesis(const ObjCImplementationDecl *D
           Diag(PD->getLocation(), diag::err_cocoa_naming_owned_rule);
         else
           Diag(PD->getLocation(), diag::warn_cocoa_naming_owned_rule);
+
+        // Look for a getter explicitly declared alongside the property.
+        // If we find one, use its location for the note.
+        SourceLocation noteLoc = PD->getLocation();
+        SourceLocation fixItLoc;
+        for (auto *getterRedecl : method->redecls()) {
+          if (getterRedecl->isImplicit())
+            continue;
+          if (getterRedecl->getDeclContext() != PD->getDeclContext())
+            continue;
+          noteLoc = getterRedecl->getLocation();
+          fixItLoc = getterRedecl->getLocEnd();
+        }
+
+        Preprocessor &PP = getPreprocessor();
+        TokenValue tokens[] = {
+          tok::kw___attribute, tok::l_paren, tok::l_paren,
+          PP.getIdentifierInfo("objc_method_family"), tok::l_paren,
+          PP.getIdentifierInfo("none"), tok::r_paren,
+          tok::r_paren, tok::r_paren
+        };
+        StringRef spelling = "__attribute__((objc_method_family(none)))";
+        StringRef macroName = PP.getLastMacroWithSpelling(noteLoc, tokens);
+        if (!macroName.empty())
+          spelling = macroName;
+
+        auto noteDiag = Diag(noteLoc, diag::note_cocoa_naming_declare_family)
+            << method->getDeclName() << spelling;
+        if (fixItLoc.isValid()) {
+          SmallString<64> fixItText(" ");
+          fixItText += spelling;
+          noteDiag << FixItHint::CreateInsertion(fixItLoc, fixItText);
+        }
       }
     }
   }
@@ -1952,9 +2024,21 @@ void Sema::ProcessPropertyDecl(ObjCPropertyDecl *property,
       redeclaredProperty->getLocation() :
       property->getLocation();
 
+    // If the property is null_resettable, the getter returns nonnull.
+    QualType resultTy = property->getType();
+    if (property->getPropertyAttributes() &
+        ObjCPropertyDecl::OBJC_PR_null_resettable) {
+      QualType modifiedTy = resultTy;
+      if (auto nullability = AttributedType::stripOuterNullability(modifiedTy)) {
+        if (*nullability == NullabilityKind::Unspecified)
+          resultTy = Context.getAttributedType(AttributedType::attr_nonnull,
+                                               modifiedTy, modifiedTy);
+      }
+    }
+
     GetterMethod = ObjCMethodDecl::Create(Context, Loc, Loc,
                              property->getGetterName(),
-                             property->getType(), nullptr, CD,
+                             resultTy, nullptr, CD,
                              /*isInstance=*/true, /*isVariadic=*/false,
                              /*isPropertyAccessor=*/true,
                              /*isImplicitlyDeclared=*/true, /*isDefined=*/false,
@@ -2015,12 +2099,25 @@ void Sema::ProcessPropertyDecl(ObjCPropertyDecl *property,
                                 ObjCMethodDecl::Optional :
                                 ObjCMethodDecl::Required);
 
+      // If the property is null_resettable, the setter accepts a
+      // nullable value.
+      QualType paramTy = property->getType().getUnqualifiedType();
+      if (property->getPropertyAttributes() &
+          ObjCPropertyDecl::OBJC_PR_null_resettable) {
+        QualType modifiedTy = paramTy;
+        if (auto nullability = AttributedType::stripOuterNullability(modifiedTy)){
+          if (*nullability == NullabilityKind::Unspecified)
+            paramTy = Context.getAttributedType(AttributedType::attr_nullable,
+                                                modifiedTy, modifiedTy);
+        }
+      }
+
       // Invent the arguments for the setter. We don't bother making a
       // nice name for the argument.
       ParmVarDecl *Argument = ParmVarDecl::Create(Context, SetterMethod,
                                                   Loc, Loc,
                                                   property->getIdentifier(),
-                                    property->getType().getUnqualifiedType(),
+                                                  paramTy,
                                                   /*TInfo=*/nullptr,
                                                   SC_None,
                                                   nullptr);
@@ -2190,6 +2287,22 @@ void Sema::CheckObjCPropertyAttributes(Decl *PDecl,
       Diag(Loc, diag::err_objc_property_attr_mutually_exclusive)
         << "strong" << "weak";
       Attributes &= ~ObjCDeclSpec::DQ_PR_weak;
+  }
+
+  if (Attributes & ObjCDeclSpec::DQ_PR_weak) {
+    // 'weak' and 'nonnull' are mutually exclusive.
+    if (auto nullability = PropertyTy->getNullability(Context)) {
+      if (*nullability == NullabilityKind::NonNull)
+        Diag(Loc, diag::err_objc_property_attr_mutually_exclusive)
+          << "nonnull" << "weak";
+    } else {
+        PropertyTy =
+          Context.getAttributedType(
+            AttributedType::getNullabilityAttrKind(NullabilityKind::Nullable),
+            PropertyTy, PropertyTy);
+        TypeSourceInfo *TSInfo = PropertyDecl->getTypeSourceInfo();
+        PropertyDecl->setType(PropertyTy, TSInfo);
+    }
   }
 
   if ((Attributes & ObjCDeclSpec::DQ_PR_atomic) &&

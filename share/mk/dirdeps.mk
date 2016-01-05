@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: dirdeps.mk,v 1.54 2015/06/08 20:55:11 sjg Exp $
+# $Id: dirdeps.mk,v 1.55 2015/10/20 22:04:53 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -242,6 +242,21 @@ DEP_${TARGET_SPEC_VARS:[$i]} := ${_tspec:[$i]}
 .else
 DEP_MACHINE := ${_DEP_TARGET_SPEC}
 .endif
+
+.if ${MAKEFILE:T} == ${.PARSEFILE} && empty(DIRDEPS) && ${.TARGETS:Uall:M*/*} != ""
+# This little trick let's us do
+#
+# mk -f dirdeps.mk some/dir.${TARGET_SPEC}
+#
+all:
+${.TARGETS:Nall}: all
+DIRDEPS := ${.TARGETS:M*/*}
+# so that -DNO_DIRDEPS works
+DEP_RELDIR := ${DIRDEPS:R:[1]}
+# disable DIRDEPS_CACHE as it does not like this trick
+MK_DIRDEPS_CACHE = no
+.endif
+
 
 # pickup customizations
 # as below you can use !target(_DIRDEP_USE) to protect things

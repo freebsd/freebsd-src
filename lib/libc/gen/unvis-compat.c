@@ -34,6 +34,8 @@
 
 #define	_UNVIS_END	1
 
+int __unvis_44bsd(char *, int, int *, int);
+
 int
 __unvis_44bsd(char *cp, int c, int *astate, int flag)
 {

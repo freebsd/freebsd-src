@@ -15,7 +15,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libgssapi \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

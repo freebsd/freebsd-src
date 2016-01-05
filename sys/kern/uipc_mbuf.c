@@ -395,7 +395,7 @@ mb_free_ext(struct mbuf *m)
  * Attach the cluster from *m to *n, set up m_ext in *n
  * and bump the refcount of the cluster.
  */
-static void
+void
 mb_dupcl(struct mbuf *n, const struct mbuf *m)
 {
 
@@ -1034,8 +1034,6 @@ bad:
  * the amount of empty space before the data in the new mbuf to be specified
  * (in the event that the caller expects to prepend later).
  */
-int MSFail;
-
 struct mbuf *
 m_copyup(struct mbuf *n, int len, int dstoff)
 {
@@ -1072,7 +1070,6 @@ m_copyup(struct mbuf *n, int len, int dstoff)
 	return (m);
  bad:
 	m_freem(n);
-	MSFail++;
 	return (NULL);
 }
 
@@ -1869,6 +1866,11 @@ m_unshare(struct mbuf *m0, int how)
 		if (n == NULL) {
 			m_freem(m0);
 			return (NULL);
+		}
+		if (m->m_flags & M_PKTHDR) {
+			KASSERT(mprev == NULL, ("%s: m0 %p, m %p has M_PKTHDR",
+			    __func__, m0, m));
+			m_move_pkthdr(n, m);
 		}
 		len = m->m_len;
 		off = 0;

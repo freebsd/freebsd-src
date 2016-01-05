@@ -32,7 +32,6 @@
 #ifndef _DEV_WTAP_WTAPVAR_H
 #define _DEV_WTAP_WTAPVAR_H
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/module.h>
@@ -44,7 +43,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <sys/types.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -116,7 +114,6 @@ struct wtap_vap {
 	struct wtap_medium	*av_md;		/* back pointer */
 	struct mbuf *beacon;			/* beacon */
 	struct ieee80211_node	*bf_node;	/* pointer to the node */
-	struct ieee80211_beacon_offsets av_boff;/* dynamic update state */
 	struct callout		av_swba;	/* software beacon alert */
 	uint32_t		av_bcinterval;	/* beacon interval */
 	void (*av_recv_mgmt)(struct ieee80211_node *,

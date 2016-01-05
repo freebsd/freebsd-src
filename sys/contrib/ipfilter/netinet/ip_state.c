@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD$ */
 
 /*
  * Copyright (C) 2012 by Darren Reed.
@@ -1054,7 +1054,7 @@ ipf_state_putent(softc, softs, data)
 /* to pointers and adjusts running stats for the hash table as appropriate. */
 /*                                                                          */
 /* This function can fail if the filter rule has had a population policy of */
-/* IP addresses used with stateful filteirng assigned to it.                */
+/* IP addresses used with stateful filtering assigned to it.                */
 /*                                                                          */
 /* Locking: it is assumed that some kind of lock on ipf_state is held.      */
 /*          Exits with is_lock initialised and held - *EVEN IF ERROR*.      */
@@ -1081,7 +1081,7 @@ ipf_state_insert(softc, is, rev)
 	}
 
 	/*
-	 * If we could trust is_hv, then the modulous would not be needed,
+	 * If we could trust is_hv, then the modulus would not be needed,
 	 * but when running with IPFILTER_SYNC, this stops bad values.
 	 */
 	hv = is->is_hv % softs->ipf_state_size;
@@ -1672,6 +1672,10 @@ ipf_state_add(softc, fin, stsave, flags)
 		SBUMPD(ipf_state_stats, iss_bucket_full);
 		return 4;
 	}
+
+	/*
+	 * No existing state; create new
+	 */
 	KMALLOC(is, ipstate_t *);
 	if (is == NULL) {
 		SBUMPD(ipf_state_stats, iss_nomem);
@@ -1683,7 +1687,7 @@ ipf_state_add(softc, fin, stsave, flags)
 	is->is_rule = fr;
 
 	/*
-	 * Do not do the modulous here, it is done in ipf_state_insert().
+	 * Do not do the modulus here, it is done in ipf_state_insert().
 	 */
 	if (fr != NULL) {
 		ipftq_t *tq;
@@ -1711,7 +1715,7 @@ ipf_state_add(softc, fin, stsave, flags)
 	/*
 	 * It may seem strange to set is_ref to 2, but if stsave is not NULL
 	 * then a copy of the pointer is being stored somewhere else and in
-	 * the end, it will expect to be able to do osmething with it.
+	 * the end, it will expect to be able to do something with it.
 	 */
 	is->is_me = stsave;
 	if (stsave != NULL) {
@@ -3642,17 +3646,16 @@ ipf_state_del(softc, is, why)
 		is->is_me = NULL;
 		is->is_ref--;
 	}
-	if (is->is_ref > 1) {
+	is->is_ref--;
+	if (is->is_ref > 0) {
 		int refs;
 
-		is->is_ref--;
 		refs = is->is_ref;
 		MUTEX_EXIT(&is->is_lock);
 		if (!orphan)
 			softs->ipf_state_stats.iss_orphan++;
 		return refs;
 	}
-	MUTEX_EXIT(&is->is_lock);
 
 	fr = is->is_rule;
 	is->is_rule = NULL;
@@ -3663,7 +3666,8 @@ ipf_state_del(softc, is, why)
 		}
 	}
 
-	is->is_ref = 0;
+	ASSERT(is->is_ref == 0);
+	MUTEX_EXIT(&is->is_lock);
 
 	if (is->is_tqehead[0] != NULL) {
 		if (ipf_deletetimeoutqueue(is->is_tqehead[0]) == 0)

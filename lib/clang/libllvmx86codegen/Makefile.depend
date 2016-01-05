@@ -25,6 +25,12 @@ X86CallFrameOptimization.o: X86GenSubtargetInfo.inc.h
 X86CallFrameOptimization.po: X86GenInstrInfo.inc.h
 X86CallFrameOptimization.po: X86GenRegisterInfo.inc.h
 X86CallFrameOptimization.po: X86GenSubtargetInfo.inc.h
+X86ExpandPseudo.o: X86GenInstrInfo.inc.h
+X86ExpandPseudo.o: X86GenRegisterInfo.inc.h
+X86ExpandPseudo.o: X86GenSubtargetInfo.inc.h
+X86ExpandPseudo.po: X86GenInstrInfo.inc.h
+X86ExpandPseudo.po: X86GenRegisterInfo.inc.h
+X86ExpandPseudo.po: X86GenSubtargetInfo.inc.h
 X86FastISel.o: Intrinsics.inc.h
 X86FastISel.o: X86GenCallingConv.inc.h
 X86FastISel.o: X86GenFastISel.inc.h
@@ -113,9 +119,11 @@ X86Subtarget.o: X86GenSubtargetInfo.inc.h
 X86Subtarget.po: X86GenInstrInfo.inc.h
 X86Subtarget.po: X86GenRegisterInfo.inc.h
 X86Subtarget.po: X86GenSubtargetInfo.inc.h
+X86TargetMachine.o: Intrinsics.inc.h
 X86TargetMachine.o: X86GenInstrInfo.inc.h
 X86TargetMachine.o: X86GenRegisterInfo.inc.h
 X86TargetMachine.o: X86GenSubtargetInfo.inc.h
+X86TargetMachine.po: Intrinsics.inc.h
 X86TargetMachine.po: X86GenInstrInfo.inc.h
 X86TargetMachine.po: X86GenRegisterInfo.inc.h
 X86TargetMachine.po: X86GenSubtargetInfo.inc.h
@@ -133,4 +141,6 @@ X86VZeroUpper.o: X86GenSubtargetInfo.inc.h
 X86VZeroUpper.po: X86GenInstrInfo.inc.h
 X86VZeroUpper.po: X86GenRegisterInfo.inc.h
 X86VZeroUpper.po: X86GenSubtargetInfo.inc.h
+X86WinEHState.o: Intrinsics.inc.h
+X86WinEHState.po: Intrinsics.inc.h
 .endif

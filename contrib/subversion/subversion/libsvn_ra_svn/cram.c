@@ -114,7 +114,7 @@ static svn_error_t *fail(svn_ra_svn_conn_t *conn, apr_pool_t *pool,
                          const char *msg)
 {
   SVN_ERR(svn_ra_svn__write_tuple(conn, pool, "w(c)", "failure", msg));
-  return svn_ra_svn__flush(conn, pool);
+  return svn_error_trace(svn_ra_svn__flush(conn, pool));
 }
 
 /* If we can, make the nonce with random bytes.  If we can't... well,

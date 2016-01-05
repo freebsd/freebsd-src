@@ -110,7 +110,7 @@ struct wpa_driver_nl80211_data {
 	u8 bssid[ETH_ALEN];
 	u8 prev_bssid[ETH_ALEN];
 	int associated;
-	u8 ssid[32];
+	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
 	enum nl80211_iftype nlmode;
 	enum nl80211_iftype ap_scan_as_station;
@@ -145,6 +145,9 @@ struct wpa_driver_nl80211_data {
 	unsigned int get_features_vendor_cmd_avail:1;
 	unsigned int set_rekey_offload:1;
 	unsigned int p2p_go_ctwindow_supported:1;
+	unsigned int setband_vendor_cmd_avail:1;
+	unsigned int get_pref_freq_list:1;
+	unsigned int set_prob_oper_freq:1;
 
 	u64 remain_on_chan_cookie;
 	u64 send_action_cookie;
@@ -169,7 +172,7 @@ struct wpa_driver_nl80211_data {
 	/* From failed authentication command */
 	int auth_freq;
 	u8 auth_bssid_[ETH_ALEN];
-	u8 auth_ssid[32];
+	u8 auth_ssid[SSID_MAX_LEN];
 	size_t auth_ssid_len;
 	int auth_alg;
 	u8 *auth_ie;
@@ -232,7 +235,6 @@ int process_bss_event(struct nl_msg *msg, void *arg);
 
 #ifdef ANDROID
 int android_nl_socket_set_nonblocking(struct nl_handle *handle);
-int android_genl_ctrl_resolve(struct nl_handle *handle, const char *name);
 int android_pno_start(struct i802_bss *bss,
 		      struct wpa_driver_scan_params *params);
 int android_pno_stop(struct i802_bss *bss);
@@ -270,5 +272,6 @@ int wpa_driver_nl80211_sched_scan(void *priv,
 int wpa_driver_nl80211_stop_sched_scan(void *priv);
 struct wpa_scan_results * wpa_driver_nl80211_get_scan_results(void *priv);
 void nl80211_dump_scan(struct wpa_driver_nl80211_data *drv);
+const u8 * nl80211_get_ie(const u8 *ies, size_t ies_len, u8 ie);
 
 #endif /* DRIVER_NL80211_H */

@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.sbin/fstyp
-
 ATF_TESTS_SH=	fstyp_test
 
 FILES=	ext2.img.bz2

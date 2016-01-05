@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_rss.h>
 #include <netinet/in_systm.h>
@@ -291,7 +292,7 @@ tcp_timer_delack(void *xtp)
 
 	tp->t_flags |= TF_ACKNOW;
 	TCPSTAT_INC(tcps_delack);
-	(void) tcp_output(tp);
+	(void) tp->t_fb->tfb_tcp_output(tp);
 	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
 }
@@ -369,6 +370,8 @@ tcp_timer_2msl(void *xtp)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
+
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -454,6 +457,7 @@ tcp_timer_keep(void *xtp)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	CURVNET_RESTORE();
@@ -468,6 +472,7 @@ dropit:
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -538,7 +543,7 @@ tcp_timer_persist(void *xtp)
 	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
-	(void) tcp_output(tp);
+	(void) tp->t_fb->tfb_tcp_output(tp);
 	tp->t_flags &= ~TF_FORCEDATA;
 
 out:
@@ -546,6 +551,7 @@ out:
 	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, NULL, NULL, PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -637,7 +643,8 @@ tcp_timer_rexmt(void * xtp)
 	} else
 		tp->t_flags &= ~TF_PREVVALID;
 	TCPSTAT_INC(tcps_rexmttimeo);
-	if (tp->t_state == TCPS_SYN_SENT)
+	if ((tp->t_state == TCPS_SYN_SENT) ||
+	    (tp->t_state == TCPS_SYN_RECEIVED))
 		rexmt = TCPTV_RTOBASE * tcp_syn_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
@@ -658,9 +665,15 @@ tcp_timer_rexmt(void * xtp)
 		int isipv6;
 #endif
 
+		/*
+		 * Idea here is that at each stage of mtu probe (usually, 1448
+		 * -> 1188 -> 524) should be given 2 chances to recover before
+		 *  further clamping down. 'tp->t_rxtshift % 2 == 0' should
+		 *  take care of that.
+		 */
 		if (((tp->t_flags2 & (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) ==
 		    (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) &&
-		    (tp->t_rxtshift <= 2)) {
+		    (tp->t_rxtshift >= 2 && tp->t_rxtshift % 2 == 0)) {
 			/*
 			 * Enter Path MTU Black-hole Detection mechanism:
 			 * - Disable Path MTU Discovery (IP "DF" bit).
@@ -728,9 +741,11 @@ tcp_timer_rexmt(void * xtp)
 			 * with a lowered MTU, maybe this isn't a blackhole and
 			 * we restore the previous MSS and blackhole detection
 			 * flags.
+			 * The limit '6' is determined by giving each probe
+			 * stage (1448, 1188, 524) 2 chances to recover.
 			 */
 			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) &&
-			    (tp->t_rxtshift > 4)) {
+			    (tp->t_rxtshift > 6)) {
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				optlen = tp->t_maxopd - tp->t_maxseg;
@@ -784,7 +799,7 @@ tcp_timer_rexmt(void * xtp)
 
 	cc_cong_signal(tp, NULL, CC_RTO);
 
-	(void) tcp_output(tp);
+	(void) tp->t_fb->tfb_tcp_output(tp);
 
 out:
 #ifdef TCPDEBUG
@@ -792,6 +807,7 @@ out:
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	if (headlocked)
@@ -843,11 +859,15 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 			f_reset = TT_2MSL_RST;
 			break;
 		default:
+			if (tp->t_fb->tfb_tcp_timer_activate) {
+				tp->t_fb->tfb_tcp_timer_activate(tp, timer_type, delta);
+				return;
+			}
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	if (delta == 0) {
 		if ((tp->t_timers->tt_flags & timer_type) &&
-		    callout_stop(t_callout) &&
+		    (callout_stop(t_callout) > 0) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		}
@@ -889,6 +909,9 @@ tcp_timer_active(struct tcpcb *tp, uint32_t timer_type)
 			t_callout = &tp->t_timers->tt_2msl;
 			break;
 		default:
+			if (tp->t_fb->tfb_tcp_timer_active) {
+				return(tp->t_fb->tfb_tcp_timer_active(tp, timer_type));
+			}
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 	return callout_active(t_callout);
@@ -930,11 +953,19 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 			f_reset = TT_2MSL_RST;
 			break;
 		default:
+			if (tp->t_fb->tfb_tcp_timer_stop) {
+				/* 
+				 * XXXrrs we need to look at this with the
+				 * stop case below (flags).
+				 */
+				tp->t_fb->tfb_tcp_timer_stop(tp, timer_type);
+				return;
+			}
 			panic("tp %p bad timer_type %#x", tp, timer_type);
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if (callout_stop(t_callout) &&
+		if ((callout_stop(t_callout) > 0) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		} else {

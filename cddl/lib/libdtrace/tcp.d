@@ -103,11 +103,15 @@ typedef struct tcpsinfo {
 	int32_t tcps_state;		/* TCP state */
 	uint32_t tcps_iss;		/* Initial sequence # sent */
 	uint32_t tcps_suna;		/* sequence # sent but unacked */
+	uint32_t tcps_smax;		/* highest sequence number sent */
 	uint32_t tcps_snxt;		/* next sequence # to send */
 	uint32_t tcps_rack;		/* sequence # we have acked */
 	uint32_t tcps_rnxt;		/* next sequence # expected */
 	uint32_t tcps_swnd;		/* send window size */
 	int32_t tcps_snd_ws;		/* send window scaling */
+	uint32_t tcps_swl1;		/* window update seg seq number */
+	uint32_t tcps_swl2;		/* window update seg ack number */
+	uint32_t tcps_rup;		/* receive urgent pointer */
 	uint32_t tcps_rwnd;		/* receive window size */
 	int32_t tcps_rcv_ws;		/* receive window scaling */
 	uint32_t tcps_cwnd;		/* congestion window */
@@ -117,7 +121,8 @@ typedef struct tcpsinfo {
 	uint32_t tcps_rto;		/* round-trip timeout, msec */
 	uint32_t tcps_mss;		/* max segment size */
 	int tcps_retransmit;		/* retransmit send event, boolean */
-	int tcps_srtt;                  /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
+	int tcps_srtt;			/* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
+	int tcps_debug;		/* socket has SO_DEBUG set */
 } tcpsinfo_t;
 
 /*
@@ -188,12 +193,16 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_state =		p == NULL ? -1 : p->t_state;
 	tcps_iss =		p == NULL ? 0  : p->iss;
 	tcps_suna =		p == NULL ? 0  : p->snd_una;
+	tcps_smax =		p == NULL ? 0  : p->snd_max;
 	tcps_snxt =		p == NULL ? 0  : p->snd_nxt;
 	tcps_rack =		p == NULL ? 0  : p->last_ack_sent;
 	tcps_rnxt =		p == NULL ? 0  : p->rcv_nxt;
 	tcps_swnd =		p == NULL ? -1  : p->snd_wnd;
 	tcps_snd_ws =		p == NULL ? -1  : p->snd_scale;
+	tcps_swl1 =		p == NULL ? -1  : p->snd_wl1;
+	tcps_swl2 = 		p == NULL ? -1  : p->snd_wl2;
 	tcps_rwnd =		p == NULL ? -1  : p->rcv_wnd;
+	tcps_rup =		p == NULL ? -1  : p->rcv_up;
 	tcps_rcv_ws =		p == NULL ? -1  : p->rcv_scale;
 	tcps_cwnd =		p == NULL ? -1  : p->snd_cwnd;
 	tcps_cwnd_ssthresh =	p == NULL ? -1  : p->snd_ssthresh;
@@ -203,6 +212,8 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_mss =		p == NULL ? -1  : p->t_maxseg;
 	tcps_retransmit =	p == NULL ? -1 : p->t_rxtshift > 0 ? 1 : 0;
 	tcps_srtt =             p == NULL ? -1  : p->t_srtt;   /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
+	tcps_debug =		p == NULL ? 0 :
+	    p->t_inpcb->inp_socket->so_options & 1;
 };
 
 #pragma D binding "1.6.3" translator
@@ -242,3 +253,123 @@ translator tcpinfoh_t < struct tcphdr *p > {
 translator tcplsinfo_t < int s > {
 	tcps_state =	s;
 };
+
+
+/* Support for TCP debug */
+
+#pragma D binding "1.12.1" TA_INPUT
+inline int TA_INPUT =	0;
+#pragma D binding "1.12.1" TA_OUTPUT
+inline int TA_OUTPUT =	1;
+#pragma D binding "1.12.1" TA_USER
+inline int TA_USER =	2;
+#pragma D binding "1.12.1" TA_RESPOND
+inline int TA_RESPOND =	3;
+#pragma D binding "1.12.1" TA_DROP
+inline int TA_DROP =	4;
+
+/* direction strings. */
+
+#pragma D binding "1.12.1" tcpdebug_dir_string
+inline string tcpdebug_dir_string[uint8_t direction] =
+	direction == TA_INPUT ?	"input" :
+	direction == TA_OUTPUT ? "output" :
+	direction == TA_USER ? "user" :
+	direction == TA_RESPOND ? "respond" :
+	direction == TA_OUTPUT ? "drop" :
+	"unknown" ;
+
+#pragma D binding "1.12.1" tcpflag_string
+inline string tcpflag_string[uint8_t flags] =
+	flags & TH_FIN ?	"FIN" :
+	flags & TH_SYN ?	"SYN" :
+	flags & TH_RST ?	"RST" :
+	flags & TH_PUSH ?	"PUSH" :
+	flags & TH_ACK ?	"ACK" :
+	flags & TH_URG ?	"URG" :
+	flags & TH_ECE ?	"ECE" :
+	flags & TH_CWR ?	"CWR" :
+	"unknown" ;
+
+#pragma D binding "1.12.1" PRU_ATTACH
+inline int PRU_ATTACH		= 0;
+#pragma D binding "1.12.1" PRU_DETACH
+inline int PRU_DETACH		= 1;
+#pragma D binding "1.12.1" PRU_BIND
+inline int PRU_BIND		= 2;
+#pragma D binding "1.12.1" PRU_LISTEN
+inline int PRU_LISTEN		= 3;
+#pragma D binding "1.12.1" PRU_CONNECT
+inline int PRU_CONNECT		= 4;
+#pragma D binding "1.12.1" PRU_ACCEPT
+inline int PRU_ACCEPT	 = 5 ;
+#pragma D binding "1.12.1" PRU_DISCONNECT
+inline int PRU_DISCONNECT=  6;
+#pragma D binding "1.12.1" PRU_SHUTDOWN
+inline int PRU_SHUTDOWN	 =  7;
+#pragma D binding "1.12.1" PRU_RCVD
+inline int PRU_RCVD	 =  8;
+#pragma D binding "1.12.1" PRU_SEND
+inline int PRU_SEND	 =  9;
+#pragma D binding "1.12.1" PRU_ABORT
+inline int PRU_ABORT	  = 10;
+#pragma D binding "1.12.1" PRU_CONTROL
+inline int PRU_CONTROL	  = 11;
+#pragma D binding "1.12.1" PRU_SENSE
+inline int PRU_SENSE	  = 12;
+#pragma D binding "1.12.1" PRU_RCVOOB
+inline int PRU_RCVOOB	  = 13;
+#pragma D binding "1.12.1" PRU_SENDOOB
+inline int PRU_SENDOOB	  = 14;
+#pragma D binding "1.12.1" PRU_SOCKADDR
+inline int PRU_SOCKADDR	  = 15;
+#pragma D binding "1.12.1" PRU_PEERADDR
+inline int PRU_PEERADDR	  = 16;
+#pragma D binding "1.12.1" PRU_CONNECT2
+inline int PRU_CONNECT2	  = 17;
+#pragma D binding "1.12.1" PRU_FASTTIMO
+inline int PRU_FASTTIMO	  = 18;
+#pragma D binding "1.12.1" PRU_SLOWTIMO
+inline int PRU_SLOWTIMO	  = 19;
+#pragma D binding "1.12.1" PRU_PROTORCV
+inline int PRU_PROTORCV	  = 20;
+#pragma D binding "1.12.1" PRU_PROTOSEND
+inline int PRU_PROTOSEND  = 21;
+#pragma D binding "1.12.1" PRU_SEND_EOF
+inline int PRU_SEND_EOF	  = 22;
+#pragma D binding "1.12.1" PRU_SOSETLABEL
+inline int PRU_SOSETLABEL = 23;
+#pragma D binding "1.12.1" PRU_CLOSE
+inline int PRU_CLOSE	  = 24;
+#pragma D binding "1.12.1" PRU_FLUSH
+inline int PRU_FLUSH	  = 25;
+
+#pragma D binding "1.12.1" prureq_string
+inline string prureq_string[uint8_t req] =
+	req == PRU_ATTACH ? "ATTACH" :
+	req == PRU_DETACH ? "DETACH" :
+	req == PRU_BIND ? "BIND" :
+	req == PRU_LISTEN ? "LISTEN" :
+	req == PRU_CONNECT ? "CONNECT" :
+	req == PRU_ACCEPT ? "ACCEPT" :
+	req == PRU_DISCONNECT ? "DISCONNECT" :
+	req == PRU_SHUTDOWN ? "SHUTDOWN" :
+	req == PRU_RCVD ? "RCVD" :
+	req == PRU_SEND ? "SEND" :
+	req == PRU_ABORT ? "ABORT" :
+	req == PRU_CONTROL ? "CONTROL" :
+	req == PRU_SENSE ? "SENSE" :
+	req == PRU_RCVOOB ? "RCVOOB" :
+	req == PRU_SENDOOB ? "SENDOOB" :
+	req == PRU_SOCKADDR ? "SOCKADDR" :
+	req == PRU_PEERADDR ? "PEERADDR" :
+	req == PRU_CONNECT2 ? "CONNECT2" :
+	req == PRU_FASTTIMO ? "FASTTIMO" :
+	req == PRU_SLOWTIMO ? "SLOWTIMO" :
+	req == PRU_PROTORCV ? "PROTORCV" :
+	req == PRU_PROTOSEND ? "PROTOSEND" :
+	req == PRU_SEND ? "SEND_EOF" :
+	req == PRU_SOSETLABEL ? "SOSETLABEL" :
+	req == PRU_CLOSE ? "CLOSE" :
+	req == PRU_FLUSH ? "FLUSE" :
+	"unknown" ;

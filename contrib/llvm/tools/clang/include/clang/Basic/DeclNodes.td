@@ -11,6 +11,7 @@ class DDecl<Decl base, bit abstract = 0> : Decl<abstract> {
 class DeclContext { }
 
 def TranslationUnit : Decl, DeclContext;
+def ExternCContext : Decl, DeclContext;
 def Named : Decl<1>;
   def Namespace : DDecl<Named>, DeclContext;
   def UsingDirective : DDecl<Named>;
@@ -20,6 +21,7 @@ def Named : Decl<1>;
     def TypedefName : DDecl<Type, 1>;
       def Typedef : DDecl<TypedefName>;
       def TypeAlias : DDecl<TypedefName>;
+      def ObjCTypeParam : DDecl<TypedefName>;
     def UnresolvedUsingTypename : DDecl<Type>;
     def Tag : DDecl<Type, 1>, DeclContext;
       def Enum : DDecl<Tag>;

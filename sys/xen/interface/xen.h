@@ -31,9 +31,7 @@
 
 #if defined(__i386__) || defined(__x86_64__)
 #include "arch-x86/xen.h"
-#elif defined(__ia64__)
-#include "arch-ia64.h"
-#elif defined(__arm__)
+#elif defined(__arm__) || defined (__aarch64__)
 #include "arch-arm.h"
 #else
 #error "Unsupported architecture"
@@ -45,8 +43,10 @@ DEFINE_XEN_GUEST_HANDLE(char);
 __DEFINE_XEN_GUEST_HANDLE(uchar, unsigned char);
 DEFINE_XEN_GUEST_HANDLE(int);
 __DEFINE_XEN_GUEST_HANDLE(uint,  unsigned int);
+#if __XEN_INTERFACE_VERSION__ < 0x00040300
 DEFINE_XEN_GUEST_HANDLE(long);
 __DEFINE_XEN_GUEST_HANDLE(ulong, unsigned long);
+#endif
 DEFINE_XEN_GUEST_HANDLE(void);
 
 DEFINE_XEN_GUEST_HANDLE(uint64_t);
@@ -101,6 +101,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
 #define __HYPERVISOR_kexec_op             37
 #define __HYPERVISOR_tmem_op              38
 #define __HYPERVISOR_xc_reserved_op       39 /* reserved for XenClient */
+#define __HYPERVISOR_xenpmu_op            40
 
 /* Architecture-specific hypercall definitions. */
 #define __HYPERVISOR_arch_0               48
@@ -160,6 +161,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
 #define VIRQ_MEM_EVENT  10 /* G. (DOM0) A memory event has occured           */
 #define VIRQ_XC_RESERVED 11 /* G. Reserved for XenClient                     */
 #define VIRQ_ENOMEM     12 /* G. (DOM0) Low on heap memory       */
+#define VIRQ_XENPMU     13 /* V.  PMC interrupt                              */
 
 /* Architecture-specific VIRQ definitions. */
 #define VIRQ_ARCH_0    16
@@ -277,15 +279,15 @@ DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
  *  refer to Intel SDM 10.12. The PAT allows to set the caching attributes of
  *  pages instead of using MTRRs.
  *
- *  The PAT MSR is as follow (it is a 64-bit value, each entry is 8 bits):
- *             PAT4                 PAT0
- *   +---+----+----+----+-----+----+----+
- *    WC | WC | WB | UC | UC- | WC | WB |  <= Linux
- *   +---+----+----+----+-----+----+----+
- *    WC | WT | WB | UC | UC- | WT | WB |  <= BIOS (default when machine boots)
- *   +---+----+----+----+-----+----+----+
- *    WC | WP | WC | UC | UC- | WT | WB |  <= Xen
- *   +---+----+----+----+-----+----+----+
+ *  The PAT MSR is as follows (it is a 64-bit value, each entry is 8 bits):
+ *                    PAT4                 PAT0
+ *  +-----+-----+----+----+----+-----+----+----+
+ *  | UC  | UC- | WC | WB | UC | UC- | WC | WB |  <= Linux
+ *  +-----+-----+----+----+----+-----+----+----+
+ *  | UC  | UC- | WT | WB | UC | UC- | WT | WB |  <= BIOS (default when machine boots)
+ *  +-----+-----+----+----+----+-----+----+----+
+ *  | rsv | rsv | WP | WC | UC | UC- | WT | WB |  <= Xen
+ *  +-----+-----+----+----+----+-----+----+----+
  *
  *  The lookup of this index table translates to looking up
  *  Bit 7, Bit 4, and Bit 3 of val entry:
@@ -319,48 +321,54 @@ DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
 
 /*
  * MMU EXTENDED OPERATIONS
- * 
- * HYPERVISOR_mmuext_op() accepts a list of mmuext_op structures.
+ *
+ * ` enum neg_errnoval
+ * ` HYPERVISOR_mmuext_op(mmuext_op_t uops[],
+ * `                      unsigned int count,
+ * `                      unsigned int *pdone,
+ * `                      unsigned int foreigndom)
+ */
+/* HYPERVISOR_mmuext_op() accepts a list of mmuext_op structures.
  * A foreigndom (FD) can be specified (or DOMID_SELF for none).
  * Where the FD has some effect, it is described below.
- * 
+ *
  * cmd: MMUEXT_(UN)PIN_*_TABLE
  * mfn: Machine frame number to be (un)pinned as a p.t. page.
  *      The frame must belong to the FD, if one is specified.
- * 
+ *
  * cmd: MMUEXT_NEW_BASEPTR
  * mfn: Machine frame number of new page-table base to install in MMU.
- * 
+ *
  * cmd: MMUEXT_NEW_USER_BASEPTR [x86/64 only]
  * mfn: Machine frame number of new page-table base to install in MMU
  *      when in user space.
- * 
+ *
  * cmd: MMUEXT_TLB_FLUSH_LOCAL
  * No additional arguments. Flushes local TLB.
- * 
+ *
  * cmd: MMUEXT_INVLPG_LOCAL
  * linear_addr: Linear address to be flushed from the local TLB.
- * 
+ *
  * cmd: MMUEXT_TLB_FLUSH_MULTI
  * vcpumask: Pointer to bitmap of VCPUs to be flushed.
- * 
+ *
  * cmd: MMUEXT_INVLPG_MULTI
  * linear_addr: Linear address to be flushed.
  * vcpumask: Pointer to bitmap of VCPUs to be flushed.
- * 
+ *
  * cmd: MMUEXT_TLB_FLUSH_ALL
  * No additional arguments. Flushes all VCPUs' TLBs.
- * 
+ *
  * cmd: MMUEXT_INVLPG_ALL
  * linear_addr: Linear address to be flushed from all VCPUs' TLBs.
- * 
+ *
  * cmd: MMUEXT_FLUSH_CACHE
  * No additional arguments. Writes back and flushes cache contents.
  *
  * cmd: MMUEXT_FLUSH_CACHE_GLOBAL
  * No additional arguments. Writes back and flushes cache contents
  * on all CPUs in the system.
- * 
+ *
  * cmd: MMUEXT_SET_LDT
  * linear_addr: Linear address of LDT base (NB. must be page-aligned).
  * nr_ents: Number of entries in LDT.
@@ -375,6 +383,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
  * cmd: MMUEXT_[UN]MARK_SUPER
  * mfn: Machine frame number of head of superpage to be [un]marked.
  */
+/* ` enum mmuext_cmd { */
 #define MMUEXT_PIN_L1_TABLE      0
 #define MMUEXT_PIN_L2_TABLE      1
 #define MMUEXT_PIN_L3_TABLE      2
@@ -395,10 +404,11 @@ DEFINE_XEN_GUEST_HANDLE(xen_ulong_t);
 #define MMUEXT_FLUSH_CACHE_GLOBAL 18
 #define MMUEXT_MARK_SUPER       19
 #define MMUEXT_UNMARK_SUPER     20
+/* ` } */
 
 #ifndef __ASSEMBLY__
 struct mmuext_op {
-    unsigned int cmd;
+    unsigned int cmd; /* => enum mmuext_cmd */
     union {
         /* [UN]PIN_TABLE, NEW_BASEPTR, NEW_USER_BASEPTR
          * CLEAR_PAGE, COPY_PAGE, [UN]MARK_SUPER */
@@ -423,9 +433,24 @@ typedef struct mmuext_op mmuext_op_t;
 DEFINE_XEN_GUEST_HANDLE(mmuext_op_t);
 #endif
 
+/*
+ * ` enum neg_errnoval
+ * ` HYPERVISOR_update_va_mapping(unsigned long va, u64 val,
+ * `                              enum uvm_flags flags)
+ * `
+ * ` enum neg_errnoval
+ * ` HYPERVISOR_update_va_mapping_otherdomain(unsigned long va, u64 val,
+ * `                                          enum uvm_flags flags,
+ * `                                          domid_t domid)
+ * `
+ * ` @va: The virtual address whose mapping we want to change
+ * ` @val: The new page table entry, must contain a machine address
+ * ` @flags: Control TLB flushes
+ */
 /* These are passed as 'flags' to update_va_mapping. They can be ORed. */
 /* When specifying UVMF_MULTI, also OR in a pointer to a CPU bitmap.   */
 /* UVMF_LOCAL is merely UVMF_MULTI with a NULL bitmap pointer.         */
+/* ` enum uvm_flags { */
 #define UVMF_NONE               (0UL<<0) /* No flushing at all.   */
 #define UVMF_TLB_FLUSH          (1UL<<0) /* Flush entire TLB(s).  */
 #define UVMF_INVLPG             (2UL<<0) /* Flush only one entry. */
@@ -433,6 +458,7 @@ DEFINE_XEN_GUEST_HANDLE(mmuext_op_t);
 #define UVMF_MULTI              (0UL<<2) /* Flush subset of TLBs. */
 #define UVMF_LOCAL              (0UL<<2) /* Flush local TLB.      */
 #define UVMF_ALL                (1UL<<2) /* Flush all TLBs.       */
+/* ` } */
 
 /*
  * Commands to HYPERVISOR_console_io().
@@ -462,7 +488,21 @@ DEFINE_XEN_GUEST_HANDLE(mmuext_op_t);
 /* x86/PAE guests: support PDPTs above 4GB. */
 #define VMASST_TYPE_pae_extended_cr3     3
 
+/*
+ * x86/64 guests: strictly hide M2P from user mode.
+ * This allows the guest to control respective hypervisor behavior:
+ * - when not set, L4 tables get created with the respective slot blank,
+ *   and whenever the L4 table gets used as a kernel one the missing
+ *   mapping gets inserted,
+ * - when set, L4 tables get created with the respective slot initialized
+ *   as before, and whenever the L4 table gets used as a user one the
+ *   mapping gets zapped.
+ */
+#define VMASST_TYPE_m2p_strict           32
+
+#if __XEN_INTERFACE_VERSION__ < 0x00040600
 #define MAX_VMASST_TYPE                  3
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -515,21 +555,28 @@ typedef struct mmu_update mmu_update_t;
 DEFINE_XEN_GUEST_HANDLE(mmu_update_t);
 
 /*
- * Send an array of these to HYPERVISOR_multicall().
- * NB. The fields are natural register size for this architecture.
+ * ` enum neg_errnoval
+ * ` HYPERVISOR_multicall(multicall_entry_t call_list[],
+ * `                      uint32_t nr_calls);
+ *
+ * NB. The fields are logically the natural register size for this
+ * architecture. In cases where xen_ulong_t is larger than this then
+ * any unused bits in the upper portion must be zero.
  */
 struct multicall_entry {
-    unsigned long op, result;
-    unsigned long args[6];
+    xen_ulong_t op, result;
+    xen_ulong_t args[6];
 };
 typedef struct multicall_entry multicall_entry_t;
 DEFINE_XEN_GUEST_HANDLE(multicall_entry_t);
 
+#if __XEN_INTERFACE_VERSION__ < 0x00040400
 /*
- * Event channel endpoints per domain:
+ * Event channel endpoints per domain (when using the 2-level ABI):
  *  1024 if a long is 32 bits; 4096 if a long is 64 bits.
  */
-#define NR_EVENT_CHANNELS (sizeof(unsigned long) * sizeof(unsigned long) * 64)
+#define NR_EVENT_CHANNELS EVTCHN_2L_NR_CHANNELS
+#endif
 
 struct vcpu_time_info {
     /*
@@ -585,8 +632,12 @@ struct vcpu_info {
      * to block: this avoids wakeup-waiting races.
      */
     uint8_t evtchn_upcall_pending;
+#ifdef XEN_HAVE_PV_UPCALL_MASK
     uint8_t evtchn_upcall_mask;
-    unsigned long evtchn_pending_sel;
+#else /* XEN_HAVE_PV_UPCALL_MASK */
+    uint8_t pad0;
+#endif /* XEN_HAVE_PV_UPCALL_MASK */
+    xen_ulong_t evtchn_pending_sel;
     struct arch_vcpu_info arch;
     struct vcpu_time_info time;
 }; /* 64 bytes (x86) */
@@ -595,6 +646,7 @@ typedef struct vcpu_info vcpu_info_t;
 #endif
 
 /*
+ * `incontents 200 startofday_shared Start-of-day shared data structure
  * Xen/kernel shared data -- pointer provided in start_info.
  *
  * This structure is defined to be both smaller than a page, and the
@@ -636,8 +688,8 @@ struct shared_info {
      * per-vcpu selector word to be set. Each bit in the selector covers a
      * 'C long' in the PENDING bitfield array.
      */
-    unsigned long evtchn_pending[sizeof(unsigned long) * 8];
-    unsigned long evtchn_mask[sizeof(unsigned long) * 8];
+    xen_ulong_t evtchn_pending[sizeof(xen_ulong_t) * 8];
+    xen_ulong_t evtchn_mask[sizeof(xen_ulong_t) * 8];
 
     /*
      * Wallclock time: updated only by control software. Guests should base
@@ -646,6 +698,12 @@ struct shared_info {
     uint32_t wc_version;      /* Version counter: see vcpu_time_info_t. */
     uint32_t wc_sec;          /* Secs  00:00:00 UTC, Jan 1, 1970.  */
     uint32_t wc_nsec;         /* Nsecs 00:00:00 UTC, Jan 1, 1970.  */
+#if !defined(__i386__)
+    uint32_t wc_sec_hi;
+# define xen_wc_sec_hi wc_sec_hi
+#elif !defined(__XEN__) && !defined(__XEN_TOOLS__)
+# define xen_wc_sec_hi arch.wc_sec_hi
+#endif
 
     struct arch_shared_info arch;
 
@@ -655,30 +713,43 @@ typedef struct shared_info shared_info_t;
 #endif
 
 /*
- * Start-of-day memory layout:
+ * `incontents 200 startofday Start-of-day memory layout
+ *
  *  1. The domain is started within contiguous virtual-memory region.
  *  2. The contiguous region ends on an aligned 4MB boundary.
  *  3. This the order of bootstrap elements in the initial virtual region:
  *      a. relocated kernel image
  *      b. initial ram disk              [mod_start, mod_len]
+ *         (may be omitted)
  *      c. list of allocated page frames [mfn_list, nr_pages]
  *         (unless relocated due to XEN_ELFNOTE_INIT_P2M)
  *      d. start_info_t structure        [register ESI (x86)]
- *      e. bootstrap page tables         [pt_base, CR3 (x86)]
- *      f. bootstrap stack               [register ESP (x86)]
+ *         in case of dom0 this page contains the console info, too
+ *      e. unless dom0: xenstore ring page
+ *      f. unless dom0: console ring page
+ *      g. bootstrap page tables         [pt_base and CR3 (x86)]
+ *      h. bootstrap stack               [register ESP (x86)]
  *  4. Bootstrap elements are packed together, but each is 4kB-aligned.
- *  5. The initial ram disk may be omitted.
- *  6. The list of page frames forms a contiguous 'pseudo-physical' memory
+ *  5. The list of page frames forms a contiguous 'pseudo-physical' memory
  *     layout for the domain. In particular, the bootstrap virtual-memory
  *     region is a 1:1 mapping to the first section of the pseudo-physical map.
- *  7. All bootstrap elements are mapped read-writable for the guest OS. The
+ *  6. All bootstrap elements are mapped read-writable for the guest OS. The
  *     only exception is the bootstrap page table, which is mapped read-only.
- *  8. There is guaranteed to be at least 512kB padding after the final
+ *  7. There is guaranteed to be at least 512kB padding after the final
  *     bootstrap element. If necessary, the bootstrap virtual region is
  *     extended by an extra 4MB to ensure this.
+ *
+ * Note: Prior to 25833:bb85bbccb1c9. ("x86/32-on-64 adjust Dom0 initial page
+ * table layout") a bug caused the pt_base (3.g above) and cr3 to not point
+ * to the start of the guest page tables (it was offset by two pages).
+ * This only manifested itself on 32-on-64 dom0 kernels and not 32-on-64 domU
+ * or 64-bit kernels of any colour. The page tables for a 32-on-64 dom0 got
+ * allocated in the order: 'first L1','first L2', 'first L3', so the offset
+ * to the page table base is by two pages back. The initial domain if it is
+ * 32-bit and runs under a 64-bit hypervisor should _NOT_ use two of the
+ * pages preceding pt_base and mark them as reserved/unused.
  */
-
-#define MAX_GUEST_CMDLINE 1024
+#ifdef XEN_HAVE_PV_GUEST_ENTRY
 struct start_info {
     /* THE FOLLOWING ARE FILLED IN BOTH ON INITIAL BOOT AND ON RESUME.    */
     char magic[32];             /* "xen-<version>-<platform>".            */
@@ -705,6 +776,7 @@ struct start_info {
                                 /* (PFN of pre-loaded module if           */
                                 /*  SIF_MOD_START_PFN set in flags).      */
     unsigned long mod_len;      /* Size (bytes) of pre-loaded module.     */
+#define MAX_GUEST_CMDLINE 1024
     int8_t cmd_line[MAX_GUEST_CMDLINE];
     /* The pfn range here covers both page table and p->m table frames.   */
     unsigned long first_p2m_pfn;/* 1st pfn forming initial P->M table.    */
@@ -717,12 +789,15 @@ typedef struct start_info start_info_t;
 #define console_mfn    console.domU.mfn
 #define console_evtchn console.domU.evtchn
 #endif
+#endif /* XEN_HAVE_PV_GUEST_ENTRY */
 
 /* These flags are passed in the 'flags' field of start_info_t. */
 #define SIF_PRIVILEGED    (1<<0)  /* Is the domain privileged? */
 #define SIF_INITDOMAIN    (1<<1)  /* Is this the initial control domain? */
 #define SIF_MULTIBOOT_MOD (1<<2)  /* Is mod_start a multiboot module? */
 #define SIF_MOD_START_PFN (1<<3)  /* Is mod_start a PFN? */
+#define SIF_VIRT_P2M_4TOOLS (1<<4) /* Do Xen tools understand a virt. mapped */
+                                   /* P->M making the 3 level tree obsolete? */
 #define SIF_PM_MASK       (0xFF<<8) /* reserve 1 byte for xen-pm options */
 
 /*
@@ -750,7 +825,14 @@ struct xen_multiboot_mod_list
     /* Unused, must be zero */
     uint32_t pad;
 };
-
+/*
+ * `incontents 200 startofday_dom0_console Dom0_console
+ *
+ * The console structure in start_info.console.dom0
+ *
+ * This structure includes a variety of information required to
+ * have a working VGA/VESA console.
+ */
 typedef struct dom0_vga_console_info {
     uint8_t video_type; /* DOM0_VGA_CONSOLE_??? */
 #define XEN_VGATYPE_TEXT_MODE_3 0x03
@@ -815,6 +897,9 @@ __DEFINE_XEN_GUEST_HANDLE(uint64, uint64_t);
 /* Default definitions for macros used by domctl/sysctl. */
 #if defined(__XEN__) || defined(__XEN_TOOLS__)
 
+#ifndef int64_aligned_t
+#define int64_aligned_t int64_t
+#endif
 #ifndef uint64_aligned_t
 #define uint64_aligned_t uint64_t
 #endif
@@ -823,9 +908,9 @@ __DEFINE_XEN_GUEST_HANDLE(uint64, uint64_t);
 #endif
 
 #ifndef __ASSEMBLY__
-struct xenctl_cpumap {
+struct xenctl_bitmap {
     XEN_GUEST_HANDLE_64(uint8) bitmap;
-    uint32_t nr_cpus;
+    uint32_t nr_bits;
 };
 #endif
 
@@ -836,7 +921,7 @@ struct xenctl_cpumap {
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

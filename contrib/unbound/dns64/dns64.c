@@ -590,6 +590,10 @@ dns64_synth_aaaa_data(const struct ub_packed_rrset_key* fk,
 	 * for the RRs themselves. Each RR has a length, TTL, pointer to wireformat
 	 * data, 2 bytes of data length, and 16 bytes of IPv6 address.
 	 */
+	if(fd->count > RR_COUNT_MAX) {
+		*dd_out = NULL;
+		return; /* integer overflow protection in alloc */
+	}
 	if (!(dd = *dd_out = regional_alloc(region,
 		  sizeof(struct packed_rrset_data)
 		  + fd->count * (sizeof(size_t) + sizeof(time_t) +
@@ -614,8 +618,10 @@ dns64_synth_aaaa_data(const struct ub_packed_rrset_key* fk,
 	dd->rr_ttl = (time_t*)&dd->rr_data[dd->count];
 	for(i = 0; i < fd->count; ++i) {
 		if (fd->rr_len[i] != 6 || fd->rr_data[i][0] != 0
-		    || fd->rr_data[i][1] != 4)
+		    || fd->rr_data[i][1] != 4) {
+			*dd_out = NULL;
 			return;
+		}
 		dd->rr_len[i] = 18;
 		dd->rr_data[i] =
 		    (uint8_t*)&dd->rr_ttl[dd->count] + 18*i;
@@ -634,6 +640,7 @@ dns64_synth_aaaa_data(const struct ub_packed_rrset_key* fk,
 	 */
 	if(!dk) {
 		log_err("no key");
+		*dd_out = NULL;
 		return;
 	}
 
@@ -642,6 +649,7 @@ dns64_synth_aaaa_data(const struct ub_packed_rrset_key* fk,
 
 	if(!dk->rk.dname) {
 		log_err("out of memory");
+		*dd_out = NULL;
 		return;
 	}
 
@@ -713,6 +721,8 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 		if(i<rep->an_numrrsets && fk->rk.type == htons(LDNS_RR_TYPE_A)) {
 			/* also sets dk->entry.hash */
 			dns64_synth_aaaa_data(fk, fd, dk, &dd, super->region, dns64_env);
+			if(!dd)
+				return;
 			/* Delete negative AAAA record from cache stored by
 			 * the iterator module */
 			rrset_cache_remove(super->env->rrset_cache, dk->rk.dname, 

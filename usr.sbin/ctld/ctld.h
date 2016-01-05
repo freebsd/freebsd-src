@@ -43,6 +43,7 @@
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
 #define	DEFAULT_BLOCKSIZE		512
+#define	DEFAULT_CD_BLOCKSIZE		2048
 
 #define	MAX_LUNS			1024
 #define	MAX_NAME_LEN			223
@@ -104,6 +105,8 @@ struct portal {
 	int				p_socket;
 };
 
+TAILQ_HEAD(options, option);
+
 #define	PG_FILTER_UNKNOWN		0
 #define	PG_FILTER_NONE			1
 #define	PG_FILTER_PORTAL		2
@@ -113,6 +116,7 @@ struct portal {
 struct portal_group {
 	TAILQ_ENTRY(portal_group)	pg_next;
 	struct conf			*pg_conf;
+	struct options			pg_options;
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
@@ -151,19 +155,19 @@ struct port {
 	uint32_t			p_ctl_port;
 };
 
-struct lun_option {
-	TAILQ_ENTRY(lun_option)		lo_next;
-	struct lun			*lo_lun;
-	char				*lo_name;
-	char				*lo_value;
+struct option {
+	TAILQ_ENTRY(option)		o_next;
+	char				*o_name;
+	char				*o_value;
 };
 
 struct lun {
 	TAILQ_ENTRY(lun)		l_next;
 	struct conf			*l_conf;
-	TAILQ_HEAD(, lun_option)	l_options;
+	struct options			l_options;
 	char				*l_name;
 	char				*l_backend;
+	uint8_t				l_device_type;
 	int				l_blocksize;
 	char				*l_device_id;
 	char				*l_path;
@@ -375,6 +379,7 @@ struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
 struct lun		*lun_find(const struct conf *conf, const char *name);
 void			lun_set_backend(struct lun *lun, const char *value);
+void			lun_set_device_type(struct lun *lun, uint8_t value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
@@ -383,13 +388,11 @@ void			lun_set_serial(struct lun *lun, const char *value);
 void			lun_set_size(struct lun *lun, size_t value);
 void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
 
-struct lun_option	*lun_option_new(struct lun *lun,
+struct option		*option_new(struct options *os,
 			    const char *name, const char *value);
-void			lun_option_delete(struct lun_option *clo);
-struct lun_option	*lun_option_find(const struct lun *lun,
-			    const char *name);
-void			lun_option_set(struct lun_option *clo,
-			    const char *value);
+void			option_delete(struct options *os, struct option *co);
+struct option		*option_find(const struct options *os, const char *name);
+void			option_set(struct option *o, const char *value);
 
 void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
@@ -399,7 +402,7 @@ void			kernel_handoff(struct connection *conn);
 void			kernel_limits(const char *offload,
 			    size_t *max_data_segment_length);
 int			kernel_port_add(struct port *port);
-int			kernel_port_update(struct port *port);
+int			kernel_port_update(struct port *port, struct port *old);
 int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 

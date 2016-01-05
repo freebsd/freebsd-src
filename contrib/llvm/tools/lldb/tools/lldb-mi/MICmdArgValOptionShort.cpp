@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValOptionShort.cpp
-//
-// Overview:    CMICmdArgValOptionShort implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmdArgValOptionShort.h"
 #include "MICmdArgContext.h"
@@ -92,7 +80,7 @@ CMICmdArgValOptionShort::IsArgShortOption(const CMIUtilString &vrTxt) const
         return false;
 
     // Look for -f short option
-    nPos = vrTxt.find("-");
+    nPos = vrTxt.find('-');
     if (nPos != 0)
         return false;
 

@@ -41,7 +41,7 @@ static void
 emitSPUpdate(MachineBasicBlock &MBB,
              MachineBasicBlock::iterator &MBBI,
              const TargetInstrInfo &TII, DebugLoc dl,
-             const Thumb1RegisterInfo &MRI,
+             const ThumbRegisterInfo &MRI,
              int NumBytes, unsigned MIFlags = MachineInstr::NoFlags)  {
   emitThumbRegPlusImmediate(MBB, MBBI, dl, ARM::SP, ARM::SP, NumBytes, TII,
                             MRI, MIFlags);
@@ -52,9 +52,9 @@ void Thumb1FrameLowering::
 eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                               MachineBasicBlock::iterator I) const {
   const Thumb1InstrInfo &TII =
-      *static_cast<const Thumb1InstrInfo *>(MF.getSubtarget().getInstrInfo());
-  const Thumb1RegisterInfo *RegInfo = static_cast<const Thumb1RegisterInfo *>(
-      MF.getSubtarget().getRegisterInfo());
+      *static_cast<const Thumb1InstrInfo *>(STI.getInstrInfo());
+  const ThumbRegisterInfo *RegInfo =
+      static_cast<const ThumbRegisterInfo *>(STI.getRegisterInfo());
   if (!hasReservedCallFrame(MF)) {
     // If we have alloca, convert as follows:
     // ADJCALLSTACKDOWN -> sub, sp, sp, amount
@@ -82,23 +82,20 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
   MBB.erase(I);
 }
 
-void Thumb1FrameLowering::emitPrologue(MachineFunction &MF) const {
-  MachineBasicBlock &MBB = MF.front();
+void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
+                                       MachineBasicBlock &MBB) const {
+  assert(&MBB == &MF.front() && "Shrink-wrapping not yet implemented");
   MachineBasicBlock::iterator MBBI = MBB.begin();
   MachineFrameInfo  *MFI = MF.getFrameInfo();
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
   MachineModuleInfo &MMI = MF.getMMI();
   const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
-  const Thumb1RegisterInfo *RegInfo = static_cast<const Thumb1RegisterInfo *>(
-      MF.getSubtarget().getRegisterInfo());
+  const ThumbRegisterInfo *RegInfo =
+      static_cast<const ThumbRegisterInfo *>(STI.getRegisterInfo());
   const Thumb1InstrInfo &TII =
-      *static_cast<const Thumb1InstrInfo *>(MF.getSubtarget().getInstrInfo());
+      *static_cast<const Thumb1InstrInfo *>(STI.getInstrInfo());
 
-  unsigned Align = MF.getTarget()
-                       .getSubtargetImpl()
-                       ->getFrameLowering()
-                       ->getStackAlignment();
-  unsigned ArgRegsSaveSize = AFI->getArgRegsSaveSize(Align);
+  unsigned ArgRegsSaveSize = AFI->getArgRegsSaveSize();
   unsigned NumBytes = MFI->getStackSize();
   assert(NumBytes >= ArgRegsSaveSize &&
          "ArgRegsSaveSize is included in NumBytes");
@@ -331,20 +328,16 @@ void Thumb1FrameLowering::emitEpilogue(MachineFunction &MF,
   DebugLoc dl = MBBI->getDebugLoc();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
-  const Thumb1RegisterInfo *RegInfo = static_cast<const Thumb1RegisterInfo *>(
-      MF.getSubtarget().getRegisterInfo());
+  const ThumbRegisterInfo *RegInfo =
+      static_cast<const ThumbRegisterInfo *>(STI.getRegisterInfo());
   const Thumb1InstrInfo &TII =
-      *static_cast<const Thumb1InstrInfo *>(MF.getSubtarget().getInstrInfo());
+      *static_cast<const Thumb1InstrInfo *>(STI.getInstrInfo());
 
-  unsigned Align = MF.getTarget()
-                       .getSubtargetImpl()
-                       ->getFrameLowering()
-                       ->getStackAlignment();
-  unsigned ArgRegsSaveSize = AFI->getArgRegsSaveSize(Align);
+  unsigned ArgRegsSaveSize = AFI->getArgRegsSaveSize();
   int NumBytes = (int)MFI->getStackSize();
   assert((unsigned)NumBytes >= ArgRegsSaveSize &&
          "ArgRegsSaveSize is included in NumBytes");
-  const MCPhysReg *CSRegs = RegInfo->getCalleeSavedRegs();
+  const MCPhysReg *CSRegs = RegInfo->getCalleeSavedRegs(&MF);
   unsigned FramePtr = RegInfo->getFrameRegister(MF);
 
   if (!AFI->hasStackFrame()) {
@@ -372,7 +365,7 @@ void Thumb1FrameLowering::emitEpilogue(MachineFunction &MF,
       // frame pointer stack slot, the target is ELF and the function has FP, or
       // the target uses var sized objects.
       if (NumBytes) {
-        assert(MF.getRegInfo().isPhysRegUsed(ARM::R4) &&
+        assert(!MFI->getPristineRegs(MF).test(ARM::R4) &&
                "No scratch register to restore SP from FP!");
         emitThumbRegPlusImmediate(MBB, MBBI, dl, ARM::R4, FramePtr, -NumBytes,
                                   TII, *RegInfo);
@@ -466,8 +459,7 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
     return false;
 
   DebugLoc DL;
-  MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = *STI.getInstrInfo();
 
   if (MI != MBB.end()) DL = MI->getDebugLoc();
 
@@ -506,7 +498,7 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
 
   MachineFunction &MF = *MBB.getParent();
   ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
-  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = *STI.getInstrInfo();
 
   bool isVarArg = AFI->getArgRegsSaveSize() > 0;
   DebugLoc DL = MI->getDebugLoc();

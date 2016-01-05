@@ -278,7 +278,7 @@ blocking_child_common(
 		req = receive_blocking_req_internal(c);
 		if (NULL == req) {
 			say_bye = TRUE;
-			break;
+			continue;
 		}
 
 		DEBUG_REQUIRE(BLOCKING_REQ_MAGIC == req->magic_sig);

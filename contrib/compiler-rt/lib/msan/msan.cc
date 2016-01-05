@@ -26,6 +26,8 @@
 #include "sanitizer_common/sanitizer_stacktrace.h"
 #include "sanitizer_common/sanitizer_symbolizer.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
+#include "ubsan/ubsan_flags.h"
+#include "ubsan/ubsan_init.h"
 
 // ACHTUNG! No system header includes in this file.
 
@@ -133,11 +135,6 @@ static void RegisterMsanFlags(FlagParser *parser, Flags *f) {
 }
 
 static void InitializeFlags() {
-  Flags *f = flags();
-  FlagParser parser;
-  RegisterMsanFlags(&parser, f);
-  RegisterCommonFlags(&parser);
-
   SetCommonFlagsDefaults();
   {
     CommonFlags cf;
@@ -151,14 +148,35 @@ static void InitializeFlags() {
     OverrideCommonFlags(cf);
   }
 
+  Flags *f = flags();
   f->SetDefaults();
+
+  FlagParser parser;
+  RegisterMsanFlags(&parser, f);
+  RegisterCommonFlags(&parser);
+
+#if MSAN_CONTAINS_UBSAN
+  __ubsan::Flags *uf = __ubsan::flags();
+  uf->SetDefaults();
+
+  FlagParser ubsan_parser;
+  __ubsan::RegisterUbsanFlags(&ubsan_parser, uf);
+  RegisterCommonFlags(&ubsan_parser);
+#endif
 
   // Override from user-specified string.
   if (__msan_default_options)
     parser.ParseString(__msan_default_options());
+#if MSAN_CONTAINS_UBSAN
+  const char *ubsan_default_options = __ubsan::MaybeCallUbsanDefaultOptions();
+  ubsan_parser.ParseString(ubsan_default_options);
+#endif
 
   const char *msan_options = GetEnv("MSAN_OPTIONS");
   parser.ParseString(msan_options);
+#if MSAN_CONTAINS_UBSAN
+  ubsan_parser.ParseString(GetEnv("UBSAN_OPTIONS"));
+#endif
   VPrintf(1, "MSAN_OPTIONS: %s\n", msan_options ? msan_options : "<empty>");
 
   SetVerbosity(common_flags()->verbosity);
@@ -355,13 +373,12 @@ void __msan_init() {
   InitTlsSize();
 
   InitializeFlags();
+  CacheBinaryName();
   __sanitizer_set_report_path(common_flags()->log_path);
 
   InitializeInterceptors();
   InstallAtExitHandler(); // Needs __cxa_atexit interceptor.
 
-  if (MSAN_REPLACE_OPERATORS_NEW_AND_DELETE)
-    ReplaceOperatorsNewAndDelete();
   DisableCoreDumperIfNecessary();
   if (StackSizeIsUnlimited()) {
     VPrintf(1, "Unlimited stack, doing reexec\n");
@@ -374,7 +391,7 @@ void __msan_init() {
   __msan_clear_on_return();
   if (__msan_get_track_origins())
     VPrintf(1, "msan_track_origins\n");
-  if (!InitShadow(/* map_shadow */ true, __msan_get_track_origins())) {
+  if (!InitShadow(__msan_get_track_origins())) {
     Printf("FATAL: MemorySanitizer can not mmap the shadow memory.\n");
     Printf("FATAL: Make sure to compile with -fPIE and to link with -pie.\n");
     Printf("FATAL: Disabling ASLR is known to cause this error.\n");
@@ -393,6 +410,10 @@ void __msan_init() {
   MsanThread *main_thread = MsanThread::Create(0, 0);
   SetCurrentThread(main_thread);
   main_thread->ThreadStart();
+
+#if MSAN_CONTAINS_UBSAN
+  __ubsan::InitAsPlugin();
+#endif
 
   VPrintf(1, "MemorySanitizer init done\n");
 
@@ -541,6 +562,13 @@ u32 __msan_get_origin(const void *a) {
   uptr aligned = x & ~3ULL;
   uptr origin_ptr = MEM_TO_ORIGIN(aligned);
   return *(u32*)origin_ptr;
+}
+
+int __msan_origin_is_descendant_or_same(u32 this_id, u32 prev_id) {
+  Origin o = Origin::FromRawId(this_id);
+  while (o.raw_id() != prev_id && o.isChainedOrigin())
+    o = o.getNextChainedOrigin(nullptr);
+  return o.raw_id() == prev_id;
 }
 
 u32 __msan_get_umr_origin() {

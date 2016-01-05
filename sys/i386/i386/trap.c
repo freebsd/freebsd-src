@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kdb.h"
 #include "opt_npx.h"
+#include "opt_stack.h"
 #include "opt_trap.h"
 
 #include <sys/param.h>
@@ -94,6 +95,7 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#include <machine/stack.h>
 #include <machine/tss.h>
 #include <machine/vm86.h>
 
@@ -219,18 +221,25 @@ trap(struct trapframe *frame)
 		goto out;
 	}
 
-#ifdef	HWPMC_HOOKS
-	/*
-	 * CPU PMCs interrupt using an NMI so we check for that first.
-	 * If the HWPMC module is active, 'pmc_hook' will point to
-	 * the function to be called.  A return value of '1' from the
-	 * hook means that the NMI was handled by it and that we can
-	 * return immediately.
-	 */
-	if (type == T_NMI && pmc_intr &&
-	    (*pmc_intr)(PCPU_GET(cpuid), frame))
-	    goto out;
+	if (type == T_NMI) {
+#ifdef HWPMC_HOOKS
+		/*
+		 * CPU PMCs interrupt using an NMI so we check for that first.
+		 * If the HWPMC module is active, 'pmc_hook' will point to
+		 * the function to be called.  A non-zero return value from the
+		 * hook means that the NMI was consumed by it and that we can
+		 * return immediately.
+		 */
+		if (pmc_intr != NULL &&
+		    (*pmc_intr)(PCPU_GET(cpuid), frame) != 0)
+			goto out;
 #endif
+
+#ifdef STACK
+		if (stack_nmi_handler(frame) != 0)
+			goto out;
+#endif
+	}
 
 	if (type == T_MCHK) {
 		mca_intr();

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: make,v 1.1 2011/12/08 12:12:46 rrt Exp $
+# $File: make,v 1.2 2015/08/25 07:34:06 christos Exp $
 # make:  file(1) magic for makefiles
 #
 0	regex/100l	\^CFLAGS	makefile script text

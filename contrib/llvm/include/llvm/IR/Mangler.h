@@ -25,28 +25,15 @@ template <typename T> class SmallVectorImpl;
 class Twine;
 
 class Mangler {
-public:
-  enum ManglerPrefixTy {
-    Default,               ///< Emit default string before each symbol.
-    Private,               ///< Emit "private" prefix before each symbol.
-    LinkerPrivate          ///< Emit "linker private" prefix before each symbol.
-  };
-
-private:
-  const DataLayout *DL;
-
-  /// AnonGlobalIDs - We need to give global values the same name every time
-  /// they are mangled.  This keeps track of the number we give to anonymous
-  /// ones.
-  ///
+  /// We need to give global values the same name every time they are mangled.
+  /// This keeps track of the number we give to anonymous ones.
   mutable DenseMap<const GlobalValue*, unsigned> AnonGlobalIDs;
 
-  /// NextAnonGlobalID - This simple counter is used to unique value names.
-  ///
+  /// This simple counter is used to unique value names.
   mutable unsigned NextAnonGlobalID;
 
 public:
-  Mangler(const DataLayout *DL) : DL(DL), NextAnonGlobalID(1) {}
+  Mangler() : NextAnonGlobalID(1) {}
 
   /// Print the appropriate prefix and the specified global variable's name.
   /// If the global variable doesn't have a name, this fills in a unique name
@@ -58,10 +45,10 @@ public:
 
   /// Print the appropriate prefix and the specified name as the global variable
   /// name. GVName must not be empty.
-  void getNameWithPrefix(raw_ostream &OS, const Twine &GVName,
-                         ManglerPrefixTy PrefixTy = Mangler::Default) const;
-  void getNameWithPrefix(SmallVectorImpl<char> &OutName, const Twine &GVName,
-                         ManglerPrefixTy PrefixTy = Mangler::Default) const;
+  static void getNameWithPrefix(raw_ostream &OS, const Twine &GVName,
+                                const DataLayout &DL);
+  static void getNameWithPrefix(SmallVectorImpl<char> &OutName,
+                                const Twine &GVName, const DataLayout &DL);
 };
 
 } // End llvm namespace

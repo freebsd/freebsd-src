@@ -1,5 +1,7 @@
 #	$FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	makefs
 
 CFLAGS+=-I${.CURDIR}
@@ -31,5 +33,9 @@ SRCS+=	ffs_tables.c
 
 CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
 LIBADD=		netbsd util sbuf
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

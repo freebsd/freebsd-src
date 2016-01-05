@@ -302,9 +302,15 @@ log(int level, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	(void)_vprintf(level, log_open ? TOLOG : TOCONS | TOLOG, fmt, ap);
+	vlog(level, fmt, ap);
 	va_end(ap);
+}
 
+void
+vlog(int level, const char *fmt, va_list ap)
+{
+
+	(void)_vprintf(level, log_open ? TOLOG : TOCONS | TOLOG, fmt, ap);
 	msgbuftrigger = 1;
 }
 

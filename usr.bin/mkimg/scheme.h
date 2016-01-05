@@ -36,6 +36,7 @@ enum alias {
 	/* start */
 	ALIAS_EBR,
 	ALIAS_EFI,
+	ALIAS_FAT16B,
 	ALIAS_FAT32,
 	ALIAS_FREEBSD,
 	ALIAS_FREEBSD_BOOT,
@@ -46,6 +47,7 @@ enum alias {
 	ALIAS_FREEBSD_ZFS,
 	ALIAS_MBR,
 	ALIAS_NTFS,
+	ALIAS_PPCBOOT,
 	/* end */
 	ALIAS_COUNT		/* Keep last! */
 };

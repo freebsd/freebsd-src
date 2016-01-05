@@ -893,18 +893,16 @@ bool DeclSpec::SetConstexprSpec(SourceLocation Loc, const char *&PrevSpec,
   return false;
 }
 
-void DeclSpec::setProtocolQualifiers(Decl * const *Protos,
-                                     unsigned NP,
-                                     SourceLocation *ProtoLocs,
-                                     SourceLocation LAngleLoc) {
-  if (NP == 0) return;
-  Decl **ProtoQuals = new Decl*[NP];
-  memcpy(ProtoQuals, Protos, sizeof(Decl*)*NP);
-  ProtocolQualifiers = ProtoQuals;
-  ProtocolLocs = new SourceLocation[NP];
-  memcpy(ProtocolLocs, ProtoLocs, sizeof(SourceLocation)*NP);
-  NumProtocolQualifiers = NP;
-  ProtocolLAngleLoc = LAngleLoc;
+bool DeclSpec::SetConceptSpec(SourceLocation Loc, const char *&PrevSpec,
+                              unsigned &DiagID) {
+  if (Concept_specified) {
+    DiagID = diag::ext_duplicate_declspec;
+    PrevSpec = "concept";
+    return true;
+  }
+  Concept_specified = true;
+  ConceptLoc = Loc;
+  return false;
 }
 
 void DeclSpec::SaveWrittenBuiltinSpecs() {
@@ -983,10 +981,18 @@ void DeclSpec::Finish(DiagnosticsEngine &D, Preprocessor &PP, const PrintingPoli
                                  getSpecifierName((TST)TypeSpecType, Policy));
       }
 
-      // Only 'short' is valid with vector bool. (PIM 2.1)
-      if ((TypeSpecWidth != TSW_unspecified) && (TypeSpecWidth != TSW_short))
+      // Only 'short' and 'long long' are valid with vector bool. (PIM 2.1)
+      if ((TypeSpecWidth != TSW_unspecified) && (TypeSpecWidth != TSW_short) &&
+          (TypeSpecWidth != TSW_longlong))
         Diag(D, TSWLoc, diag::err_invalid_vector_bool_decl_spec)
           << getSpecifierName((TSW)TypeSpecWidth);
+
+      // vector bool long long requires VSX support or ZVector.
+      if ((TypeSpecWidth == TSW_longlong) &&
+          (!PP.getTargetInfo().hasFeature("vsx")) &&
+          (!PP.getTargetInfo().hasFeature("power8-vector")) &&
+          !PP.getLangOpts().ZVector)
+        Diag(D, TSTLoc, diag::err_invalid_vector_long_long_decl_spec);
 
       // Elements of vector bool are interpreted as unsigned. (PIM 2.1)
       if ((TypeSpecType == TST_char) || (TypeSpecType == TST_int) ||
@@ -994,14 +1000,23 @@ void DeclSpec::Finish(DiagnosticsEngine &D, Preprocessor &PP, const PrintingPoli
         TypeSpecSign = TSS_unsigned;
     } else if (TypeSpecType == TST_double) {
       // vector long double and vector long long double are never allowed.
-      // vector double is OK for Power7 and later.
+      // vector double is OK for Power7 and later, and ZVector.
       if (TypeSpecWidth == TSW_long || TypeSpecWidth == TSW_longlong)
         Diag(D, TSWLoc, diag::err_invalid_vector_long_double_decl_spec);
-      else if (!PP.getTargetInfo().hasFeature("vsx"))
+      else if (!PP.getTargetInfo().hasFeature("vsx") &&
+               !PP.getLangOpts().ZVector)
         Diag(D, TSTLoc, diag::err_invalid_vector_double_decl_spec);
+    } else if (TypeSpecType == TST_float) {
+      // vector float is unsupported for ZVector.
+      if (PP.getLangOpts().ZVector)
+        Diag(D, TSTLoc, diag::err_invalid_vector_float_decl_spec);
     } else if (TypeSpecWidth == TSW_long) {
-      Diag(D, TSWLoc, diag::warn_vector_long_decl_spec_combination)
-        << getSpecifierName((TST)TypeSpecType, Policy);
+      // vector long is unsupported for ZVector and deprecated for AltiVec.
+      if (PP.getLangOpts().ZVector)
+        Diag(D, TSWLoc, diag::err_invalid_vector_long_decl_spec);
+      else
+        Diag(D, TSWLoc, diag::warn_vector_long_decl_spec_combination)
+          << getSpecifierName((TST)TypeSpecType, Policy);
     }
 
     if (TypeAltiVecPixel) {
@@ -1214,7 +1229,10 @@ void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,
 
 bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
                                   const char *&PrevSpec) {
+  if (!FirstLocation.isValid())
+    FirstLocation = Loc;
   LastLocation = Loc;
+  LastSpecifier = VS;
   
   if (Specifiers & VS) {
     PrevSpec = getSpecifierName(VS);

@@ -14,6 +14,7 @@
 #include "WindowsSupport.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ConvertUTF.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/WindowsError.h"
 #include "llvm/Support/raw_ostream.h"
@@ -434,7 +435,8 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   DWORD status;
   BOOL rc = GetExitCodeProcess(PI.ProcessHandle, &status);
   DWORD err = GetLastError();
-  CloseHandle(PI.ProcessHandle);
+  if (err != ERROR_INVALID_HANDLE)
+    CloseHandle(PI.ProcessHandle);
 
   if (!rc) {
     SetLastError(err);
@@ -513,7 +515,7 @@ llvm::sys::writeFileWithEncoding(StringRef FileName, StringRef Contents,
   }
 
   if (OS.has_error())
-    return std::make_error_code(std::errc::io_error);
+    return make_error_code(errc::io_error);
 
   return EC;
 }

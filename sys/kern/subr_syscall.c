@@ -63,14 +63,14 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	td->td_pticks = 0;
 	if (td->td_cowgen != p->p_cowgen)
 		thread_cow_update(td);
-	if (p->p_flag & P_TRACED) {
-		traced = 1;
+	traced = (p->p_flag & P_TRACED) != 0;
+	if (traced || td->td_dbgflags & TDB_USERWR) {
 		PROC_LOCK(p);
 		td->td_dbgflags &= ~TDB_USERWR;
-		td->td_dbgflags |= TDB_SCE;
+		if (traced)
+			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
-	} else
-		traced = 0;
+	}
 	error = (p->p_sysent->sv_fetch_syscall_args)(td, sa);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
@@ -83,11 +83,12 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	if (error == 0) {
 
 		STOPEVENT(p, S_SCE, sa->narg);
-		if (p->p_flag & P_TRACED && p->p_stops & S_PT_SCE) {
+		if (p->p_flag & P_TRACED) {
 			PROC_LOCK(p);
 			td->td_dbg_sc_code = sa->code;
 			td->td_dbg_sc_narg = sa->narg;
-			ptracestop((td), SIGTRAP);
+			if (p->p_stops & S_PT_SCE)
+				ptracestop((td), SIGTRAP);
 			PROC_UNLOCK(p);
 		}
 		if (td->td_dbgflags & TDB_USERWR) {
@@ -125,14 +126,9 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			goto retval;
 
 #ifdef KDTRACE_HOOKS
-		/*
-		 * If the systrace module has registered it's probe
-		 * callback and if there is a probe active for the
-		 * syscall 'entry', process the probe.
-		 */
+		/* Give the syscall:::entry DTrace probe a chance to fire. */
 		if (systrace_probe_func != NULL && sa->callp->sy_entry != 0)
-			(*systrace_probe_func)(sa->callp->sy_entry, sa->code,
-			    sa->callp, sa->args, 0);
+			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
 #endif
 
 		AUDIT_SYSCALL_ENTER(sa->code, td);
@@ -144,14 +140,10 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			td->td_errno = error;
 
 #ifdef KDTRACE_HOOKS
-		/*
-		 * If the systrace module has registered it's probe
-		 * callback and if there is a probe active for the
-		 * syscall 'return', process the probe.
-		 */
+		/* Give the syscall:::return DTrace probe a chance to fire. */
 		if (systrace_probe_func != NULL && sa->callp->sy_return != 0)
-			(*systrace_probe_func)(sa->callp->sy_return, sa->code,
-			    sa->callp, NULL, (error) ? -1 : td->td_retval[0]);
+			(*systrace_probe_func)(sa, SYSTRACE_RETURN,
+			    error ? -1 : td->td_retval[0]);
 #endif
 		syscall_thread_exit(td, sa->callp);
 	}
@@ -174,6 +166,9 @@ syscallret(struct thread *td, int error, struct syscall_args *sa)
 {
 	struct proc *p, *p2;
 	int traced;
+
+	KASSERT((td->td_pflags & TDP_FORKING) == 0,
+	    ("fork() did not clear TDP_FORKING upon completion"));
 
 	p = td->td_proc;
 

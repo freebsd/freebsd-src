@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_regs.h"
 #include "efx_impl.h"
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_sram_buf_tbl_set(
 	__in		efx_nic_t *enp,
 	__in		uint32_t id,
@@ -50,7 +50,7 @@ efx_sram_buf_tbl_set(
 	efsys_dma_addr_t addr;
 	efx_oword_t oword;
 	unsigned int count;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -158,7 +158,7 @@ fail2:
 	EFX_BAR_WRITEO(enp, FR_AZ_BUF_TBL_UPD_REG, &oword);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -306,7 +306,7 @@ efx_sram_pattern_fn_t	__efx_sram_pattern_fns[] = {
 	efx_sram_bit_sweep_set
 };
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_pattern_type_t type)

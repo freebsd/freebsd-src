@@ -108,6 +108,7 @@ struct cctl_lun_nv {
 struct cctl_lun {
 	uint64_t lun_id;
 	char *backend_type;
+	uint8_t device_type;
 	uint64_t size_blocks;
 	uint32_t blocksize;
 	char *serial_number;
@@ -119,6 +120,7 @@ struct cctl_lun {
 
 struct cctl_port {
 	uint32_t port_id;
+	char *port_frontend;
 	char *port_name;
 	int pp;
 	int vp;
@@ -220,6 +222,8 @@ cctl_end_element(void *user_data, const char *name)
 	if (strcmp(name, "backend_type") == 0) {
 		cur_lun->backend_type = str;
 		str = NULL;
+	} else if (strcmp(name, "lun_type") == 0) {
+		cur_lun->device_type = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "size") == 0) {
 		cur_lun->size_blocks = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "blocksize") == 0) {
@@ -331,7 +335,10 @@ cctl_end_pelement(void *user_data, const char *name)
 	devlist->cur_sb[devlist->level] = NULL;
 	devlist->level--;
 
-	if (strcmp(name, "port_name") == 0) {
+	if (strcmp(name, "frontend_type") == 0) {
+		cur_port->port_frontend = str;
+		str = NULL;
+	} else if (strcmp(name, "port_name") == 0) {
 		cur_port->port_name = str;
 		str = NULL;
 	} else if (strcmp(name, "physical_port") == 0) {
@@ -389,7 +396,7 @@ conf_new_from_kernel(void)
 	struct pport *pp;
 	struct port *cp;
 	struct lun *cl;
-	struct lun_option *lo;
+	struct option *o;
 	struct ctl_lun_list list;
 	struct cctl_devlist_data devlist;
 	struct cctl_lun *lun;
@@ -471,7 +478,7 @@ retry_port:
 		return (NULL);
 	}
 
-	if (list.status == CTL_PORT_LIST_ERROR) {
+	if (list.status == CTL_LUN_LIST_ERROR) {
 		log_warnx("error returned from CTL_PORT_LIST ioctl: %s",
 		    list.error_str);
 		free(str);
@@ -506,15 +513,22 @@ retry_port:
 
 	name = NULL;
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
-		if (name)
-			free(name);
-		if (port->pp == 0 && port->vp == 0)
+		if (strcmp(port->port_frontend, "ha") == 0)
+			continue;
+		free(name);
+		if (port->pp == 0 && port->vp == 0) {
 			name = checked_strdup(port->port_name);
-		else if (port->vp == 0)
-			asprintf(&name, "%s/%d", port->port_name, port->pp);
-		else
-			asprintf(&name, "%s/%d/%d", port->port_name, port->pp,
-			    port->vp);
+		} else if (port->vp == 0) {
+			retval = asprintf(&name, "%s/%d",
+			    port->port_name, port->pp);
+			if (retval <= 0)
+				log_err(1, "asprintf");
+		} else {
+			retval = asprintf(&name, "%s/%d/%d",
+			    port->port_name, port->pp, port->vp);
+			if (retval <= 0)
+				log_err(1, "asprintf");
+		}
 
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
@@ -574,8 +588,7 @@ retry_port:
 		}
 		cp->p_ctl_port = port->port_id;
 	}
-	if (name)
-		free(name);
+	free(name);
 
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
 		struct cctl_lun_nv *nv;
@@ -604,6 +617,7 @@ retry_port:
 			continue;
 		}
 		lun_set_backend(cl, lun->backend_type);
+		lun_set_device_type(cl, lun->device_type);
 		lun_set_blocksize(cl, lun->blocksize);
 		lun_set_device_id(cl, lun->device_id);
 		lun_set_serial(cl, lun->serial_number);
@@ -616,8 +630,8 @@ retry_port:
 				lun_set_path(cl, nv->value);
 				continue;
 			}
-			lo = lun_option_new(cl, nv->name, nv->value);
-			if (lo == NULL)
+			o = option_new(&cl->l_options, nv->name, nv->value);
+			if (o == NULL)
 				log_warnx("unable to add CTL lun option %s "
 				    "for CTL lun %ju \"%s\"",
 				    nv->name, (uintmax_t) lun->lun_id,
@@ -642,7 +656,7 @@ str_arg(struct ctl_be_arg *arg, const char *name, const char *value)
 int
 kernel_lun_add(struct lun *lun)
 {
-	struct lun_option *lo;
+	struct option *o;
 	struct ctl_lun_req req;
 	int error, i, num_options;
 
@@ -656,8 +670,13 @@ kernel_lun_add(struct lun *lun)
 	if (lun->l_size != 0)
 		req.reqdata.create.lun_size_bytes = lun->l_size;
 
+	if (lun->l_ctl_lun >= 0) {
+		req.reqdata.create.req_lun_id = lun->l_ctl_lun;
+		req.reqdata.create.flags |= CTL_LUN_FLAG_ID_REQ;
+	}
+
 	req.reqdata.create.flags |= CTL_LUN_FLAG_DEV_TYPE;
-	req.reqdata.create.device_type = T_DIRECT;
+	req.reqdata.create.device_type = lun->l_device_type;
 
 	if (lun->l_serial != NULL) {
 		strncpy(req.reqdata.create.serial_num, lun->l_serial,
@@ -672,31 +691,31 @@ kernel_lun_add(struct lun *lun)
 	}
 
 	if (lun->l_path != NULL) {
-		lo = lun_option_find(lun, "file");
-		if (lo != NULL) {
-			lun_option_set(lo, lun->l_path);
+		o = option_find(&lun->l_options, "file");
+		if (o != NULL) {
+			option_set(o, lun->l_path);
 		} else {
-			lo = lun_option_new(lun, "file", lun->l_path);
-			assert(lo != NULL);
+			o = option_new(&lun->l_options, "file", lun->l_path);
+			assert(o != NULL);
 		}
 	}
 
-	lo = lun_option_find(lun, "ctld_name");
-	if (lo != NULL) {
-		lun_option_set(lo, lun->l_name);
+	o = option_find(&lun->l_options, "ctld_name");
+	if (o != NULL) {
+		option_set(o, lun->l_name);
 	} else {
-		lo = lun_option_new(lun, "ctld_name", lun->l_name);
-		assert(lo != NULL);
+		o = option_new(&lun->l_options, "ctld_name", lun->l_name);
+		assert(o != NULL);
 	}
 
-	lo = lun_option_find(lun, "scsiname");
-	if (lo == NULL && lun->l_scsiname != NULL) {
-		lo = lun_option_new(lun, "scsiname", lun->l_scsiname);
-		assert(lo != NULL);
+	o = option_find(&lun->l_options, "scsiname");
+	if (o == NULL && lun->l_scsiname != NULL) {
+		o = option_new(&lun->l_options, "scsiname", lun->l_scsiname);
+		assert(o != NULL);
 	}
 
 	num_options = 0;
-	TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+	TAILQ_FOREACH(o, &lun->l_options, o_next)
 		num_options++;
 
 	req.num_be_args = num_options;
@@ -709,8 +728,8 @@ kernel_lun_add(struct lun *lun)
 		}
 
 		i = 0;
-		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
-			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
+		TAILQ_FOREACH(o, &lun->l_options, o_next) {
+			str_arg(&req.be_args[i], o->o_name, o->o_value);
 			i++;
 		}
 		assert(i == num_options);
@@ -745,7 +764,7 @@ kernel_lun_add(struct lun *lun)
 int
 kernel_lun_modify(struct lun *lun)
 {
-	struct lun_option *lo;
+	struct option *o;
 	struct ctl_lun_req req;
 	int error, i, num_options;
 
@@ -758,7 +777,7 @@ kernel_lun_modify(struct lun *lun)
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
 	num_options = 0;
-	TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+	TAILQ_FOREACH(o, &lun->l_options, o_next)
 		num_options++;
 
 	req.num_be_args = num_options;
@@ -771,8 +790,8 @@ kernel_lun_modify(struct lun *lun)
 		}
 
 		i = 0;
-		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
-			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
+		TAILQ_FOREACH(o, &lun->l_options, o_next) {
+			str_arg(&req.be_args[i], o->o_name, o->o_value);
 			i++;
 		}
 		assert(i == num_options);
@@ -930,6 +949,7 @@ kernel_limits(const char *offload, size_t *max_data_segment_length)
 int
 kernel_port_add(struct port *port)
 {
+	struct option *o;
 	struct ctl_port_entry entry;
 	struct ctl_req req;
 	struct ctl_lun_map lm;
@@ -944,6 +964,8 @@ kernel_port_add(struct port *port)
 		strlcpy(req.driver, "iscsi", sizeof(req.driver));
 		req.reqtype = CTL_REQ_CREATE;
 		req.num_args = 5;
+		TAILQ_FOREACH(o, &pg->pg_options, o_next)
+			req.num_args++;
 		req.args = malloc(req.num_args * sizeof(*req.args));
 		if (req.args == NULL)
 			log_err(1, "malloc");
@@ -959,6 +981,8 @@ kernel_port_add(struct port *port)
 		if (targ->t_alias)
 			str_arg(&req.args[n++], "cfiscsi_target_alias", targ->t_alias);
 		str_arg(&req.args[n++], "ctld_portal_group_name", pg->pg_name);
+		TAILQ_FOREACH(o, &pg->pg_options, o_next)
+			str_arg(&req.args[n++], o->o_name, o->o_value);
 		req.num_args = n;
 		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
 		free(req.args);
@@ -1024,11 +1048,13 @@ kernel_port_add(struct port *port)
 }
 
 int
-kernel_port_update(struct port *port)
+kernel_port_update(struct port *port, struct port *oport)
 {
 	struct ctl_lun_map lm;
 	struct target *targ = port->p_target;
+	struct target *otarg = oport->p_target;
 	int error, i;
+	uint32_t olun;
 
 	/* Map configured LUNs and unmap others */
 	for (i = 0; i < MAX_LUNS; i++) {
@@ -1038,6 +1064,12 @@ kernel_port_update(struct port *port)
 			lm.lun = UINT32_MAX;
 		else
 			lm.lun = targ->t_luns[i]->l_ctl_lun;
+		if (otarg->t_luns[i] == NULL)
+			olun = UINT32_MAX;
+		else
+			olun = otarg->t_luns[i]->l_ctl_lun;
+		if (lm.lun == olun)
+			continue;
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
 		if (error != 0)
 			log_warn("CTL_LUN_MAP ioctl failed");

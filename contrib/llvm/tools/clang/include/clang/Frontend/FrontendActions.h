@@ -85,11 +85,9 @@ public:
   /// create the PCHGenerator instance returned by CreateASTConsumer.
   ///
   /// \returns true if an error occurred, false otherwise.
-  static bool ComputeASTConsumerArguments(CompilerInstance &CI,
-                                          StringRef InFile,
-                                          std::string &Sysroot,
-                                          std::string &OutputFile,
-                                          raw_ostream *&OS);
+  static raw_pwrite_stream *
+  ComputeASTConsumerArguments(CompilerInstance &CI, StringRef InFile,
+                              std::string &Sysroot, std::string &OutputFile);
 };
 
 class GenerateModuleAction : public ASTFrontendAction {
@@ -119,11 +117,10 @@ public:
   /// create the PCHGenerator instance returned by CreateASTConsumer.
   ///
   /// \returns true if an error occurred, false otherwise.
-  bool ComputeASTConsumerArguments(CompilerInstance &CI,
-                                   StringRef InFile,
-                                   std::string &Sysroot,
-                                   std::string &OutputFile,
-                                   raw_ostream *&OS);
+  raw_pwrite_stream *ComputeASTConsumerArguments(CompilerInstance &CI,
+                                                 StringRef InFile,
+                                                 std::string &Sysroot,
+                                                 std::string &OutputFile);
 };
 
 class SyntaxOnlyAction : public ASTFrontendAction {
@@ -188,7 +185,7 @@ protected:
 
 public:
   ASTMergeAction(FrontendAction *AdaptedAction, ArrayRef<std::string> ASTFiles);
-  virtual ~ASTMergeAction();
+  ~ASTMergeAction() override;
 
   bool usesPreprocessorOnly() const override;
   TranslationUnitKind getTranslationUnitKind() override;

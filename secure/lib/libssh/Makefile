@@ -38,13 +38,11 @@ LIBADD+=	ldns
 .endif
 
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
+SRCS+=	 ssh_namespace.h
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
-.endif
-
-.if ${MK_OPENSSH_NONE_CIPHER} != "no"
-CFLAGS+= -DNONE_CIPHER_ENABLED
+SRCS+=	 krb5_config.h
 .endif
 
 NO_LINT=
@@ -54,8 +52,3 @@ LIBADD+=	crypto crypt z
 .include <bsd.lib.mk>
 
 .PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
-.if ${MK_KERBEROS_SUPPORT} != "no"
-${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
-.endif

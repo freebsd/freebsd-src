@@ -37,4 +37,6 @@ SUBDIR+=22.rpcgen \
 	26.rpcrfc \
 	27.nfsrpc
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

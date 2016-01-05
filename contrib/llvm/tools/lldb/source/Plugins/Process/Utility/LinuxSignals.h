@@ -16,20 +16,19 @@
 // Project includes
 #include "lldb/Target/UnixSignals.h"
 
-namespace process_linux
+namespace lldb_private {
+
+/// Linux specific set of Unix signals.
+class LinuxSignals : public UnixSignals
 {
+public:
+    LinuxSignals();
 
-    /// Linux specific set of Unix signals.
-    class LinuxSignals
-        : public lldb_private::UnixSignals
-    {
-    public:
-        LinuxSignals();
+private:
+    void
+    Reset() override;
+};
 
-    private:
-        void
-        Reset();
-    };
-}
+} // namespace lldb_private
 
-#endif
+#endif // liblldb_LinuxSignals_H_

@@ -39,16 +39,6 @@
 /* File provider                                                         */
 /*-----------------------------------------------------------------------*/
 
-/* The keys that will be stored on disk.  These serve the same role as
- * similar constants in other providers.
- *
- * AUTHN_PASSTYPE_KEY just records the passphrase type next to the
- * passphrase, so that anyone who is manually editing their authn
- * files can know which provider owns the password.
- */
-#define AUTHN_PASSPHRASE_KEY            "passphrase"
-#define AUTHN_PASSTYPE_KEY              "passtype"
-
 /* Baton type for the ssl client cert passphrase provider. */
 typedef struct ssl_client_cert_pw_file_provider_baton_t
 {
@@ -75,7 +65,7 @@ svn_auth__ssl_client_cert_pw_get(svn_boolean_t *done,
                                  apr_pool_t *pool)
 {
   svn_string_t *str;
-  str = svn_hash_gets(creds, AUTHN_PASSPHRASE_KEY);
+  str = svn_hash_gets(creds, SVN_CONFIG_AUTHN_PASSPHRASE_KEY);
   if (str && str->data)
     {
       *passphrase = str->data;
@@ -98,7 +88,7 @@ svn_auth__ssl_client_cert_pw_set(svn_boolean_t *done,
                                  svn_boolean_t non_interactive,
                                  apr_pool_t *pool)
 {
-  svn_hash_sets(creds, AUTHN_PASSPHRASE_KEY,
+  svn_hash_sets(creds, SVN_CONFIG_AUTHN_PASSPHRASE_KEY,
                 svn_string_create(passphrase, pool));
   *done = TRUE;
   return SVN_NO_ERROR;
@@ -308,7 +298,7 @@ svn_auth__ssl_client_cert_pw_cache_set(svn_boolean_t *saved,
 
           if (*saved && passtype)
             {
-              svn_hash_sets(creds_hash, AUTHN_PASSTYPE_KEY,
+              svn_hash_sets(creds_hash, SVN_CONFIG_AUTHN_PASSTYPE_KEY,
                             svn_string_create(passtype, pool));
             }
 

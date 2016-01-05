@@ -107,6 +107,7 @@ static char	*setupextattr(int);
 static void	 xtrattr(char *, long);
 static void	 set_extattr_link(char *, void *, int);
 static void	 set_extattr_fd(int, char *, void *, int);
+static void	 skiphole(void (*)(char *, long), long *);
 static int	 gethead(struct s_spcl *);
 static void	 readtape(char *);
 static void	 setdumpnum(void);
@@ -927,6 +928,20 @@ skipfile(void)
 }
 
 /*
+ * Skip a hole in an output file
+ */
+static void
+skiphole(void (*skip)(char *, long), long *seekpos)
+{
+	char buf[MAXBSIZE];
+
+	if (*seekpos > 0) {
+		(*skip)(buf, *seekpos);
+		*seekpos = 0;
+	}
+}
+
+/*
  * Extract a file from the tape.
  * When an allocated block is found it is passed to the fill function;
  * when an unallocated block (hole) is found, a zeroed buffer is passed
@@ -938,14 +953,15 @@ getfile(void (*datafill)(char *, long), void (*attrfill)(char *, long),
 {
 	int i;
 	off_t size;
+	long seekpos;
 	int curblk, attrsize;
 	void (*fillit)(char *, long);
-	static char clearedbuf[MAXBSIZE];
 	char buf[MAXBSIZE / TP_BSIZE][TP_BSIZE];
 	char junk[TP_BSIZE];
 
 	curblk = 0;
 	size = spcl.c_size;
+	seekpos = 0;
 	attrsize = spcl.c_extsize;
 	if (spcl.c_type == TS_END)
 		panic("ran off end of tape\n");
@@ -974,22 +990,30 @@ loop:
 		if (readmapflag || spcl.c_addr[i]) {
 			readtape(&buf[curblk++][0]);
 			if (curblk == fssize / TP_BSIZE) {
+				skiphole(skip, &seekpos);
 				(*fillit)((char *)buf, (long)(size > TP_BSIZE ?
 				     fssize : (curblk - 1) * TP_BSIZE + size));
 				curblk = 0;
 			}
 		} else {
 			if (curblk > 0) {
+				skiphole(skip, &seekpos);
 				(*fillit)((char *)buf, (long)(size > TP_BSIZE ?
 				     curblk * TP_BSIZE :
 				     (curblk - 1) * TP_BSIZE + size));
 				curblk = 0;
 			}
-			(*skip)(clearedbuf, (long)(size > TP_BSIZE ?
-				TP_BSIZE : size));
+			/*
+			 * We have a block of a hole. Don't skip it
+			 * now, because there may be next adjacent
+			 * block of the hole in the file. Postpone the
+			 * seek until next file write.
+			 */
+			seekpos += (long)(size > TP_BSIZE ? TP_BSIZE : size);
 		}
 		if ((size -= TP_BSIZE) <= 0) {
 			if (size > -TP_BSIZE && curblk > 0) {
+				skiphole(skip, &seekpos);
 				(*fillit)((char *)buf,
 					(long)((curblk * TP_BSIZE) + size));
 				curblk = 0;

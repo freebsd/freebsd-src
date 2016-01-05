@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.sbin/pw
-
 ATF_TESTS_SH=	pw_etcdir \
 		pw_lock \
 		pw_config \

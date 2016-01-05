@@ -36,38 +36,60 @@ extern "C" {
 #include "svn_repos.h"
 #include "svn_ra_svn.h"
 
+#include "private/svn_atomic.h"
+#include "private/svn_mutex.h"
+#include "private/svn_repos_private.h"
+#include "private/svn_subr_private.h"
+
 enum username_case_type { CASE_FORCE_UPPER, CASE_FORCE_LOWER, CASE_ASIS };
 
-typedef struct server_baton_t {
+enum authn_type { UNAUTHENTICATED, AUTHENTICATED };
+enum access_type { NO_ACCESS, READ_ACCESS, WRITE_ACCESS };
+
+typedef struct repository_t {
   svn_repos_t *repos;
   const char *repos_name;  /* URI-encoded name of repository (not for authz) */
+  const char *repos_root;  /* Repository root directory */
   svn_fs_t *fs;            /* For convenience; same as svn_repos_fs(repos) */
   const char *base;        /* Base directory for config files */
-  svn_config_t *cfg;       /* Parsed repository svnserve.conf */
   svn_config_t *pwdb;      /* Parsed password database */
   svn_authz_t *authzdb;    /* Parsed authz rules */
   const char *authz_repos_name; /* The name of the repository for authz */
   const char *realm;       /* Authentication realm */
   const char *repos_url;   /* URL to base of repository */
+  const char *hooks_env;   /* Path to the hooks environment file or NULL */
+  const char *uuid;        /* Repository ID */
+  apr_array_header_t *capabilities;
+                           /* Client capabilities (SVN_RA_CAPABILITY_*) */
   svn_stringbuf_t *fs_path;/* Decoded base in-repos path (w/ leading slash) */
-  apr_hash_t *fs_config;   /* Additional FS configuration parameters */
-  const char *user;        /* Authenticated username of the user */
   enum username_case_type username_case; /* Case-normalize the username? */
+  svn_boolean_t use_sasl;  /* Use Cyrus SASL for authentication;
+                              always false if SVN_HAVE_SASL not defined */
+  unsigned min_ssf;        /* min-encryption SASL parameter */
+  unsigned max_ssf;        /* max-encryption SASL parameter */
+
+  enum access_type auth_access; /* access granted to authenticated users */
+  enum access_type anon_access; /* access granted to annonymous users */
+
+} repository_t;
+
+typedef struct client_info_t {
+  const char *user;        /* Authenticated username of the user */
+  const char *remote_host; /* IP of the client that contacted the server */
   const char *authz_user;  /* Username for authz ('user' + 'username_case') */
   svn_boolean_t tunnel;    /* Tunneled through login agent */
   const char *tunnel_user; /* Allow EXTERNAL to authenticate as this */
+} client_info_t;
+
+typedef struct server_baton_t {
+  repository_t *repository; /* repository-specific data to use */
+  client_info_t *client_info; /* client-specific data to use */
+  struct logger_t *logger; /* Log file data structure.
+                              May be NULL even if log_file is not. */
   svn_boolean_t read_only; /* Disallow write access (global flag) */
-  svn_boolean_t use_sasl;  /* Use Cyrus SASL for authentication;
-                              always false if SVN_HAVE_SASL not defined */
-  apr_file_t *log_file;    /* Log filehandle. */
   svn_boolean_t vhost;     /* Use virtual-host-based path to repo. */
   apr_pool_t *pool;
 } server_baton_t;
-
-enum authn_type { UNAUTHENTICATED, AUTHENTICATED };
-enum access_type { NO_ACCESS, READ_ACCESS, WRITE_ACCESS };
-
-enum access_type get_access(server_baton_t *b, enum authn_type auth);
 
 typedef struct serve_params_t {
   /* The virtual root of the repositories to serve.  The client URL
@@ -97,20 +119,21 @@ typedef struct serve_params_t {
      per-repository svnserve.conf are not read. */
   svn_config_t *cfg;
 
-  /* A filehandle open for writing logs to; possibly NULL. */
-  apr_file_t *log_file;
+  /* logging data structure; possibly NULL. */
+  struct logger_t *logger;
+
+  /* all configurations should be opened through this factory */
+  svn_repos__config_pool_t *config_pool;
+
+  /* all authz data should be opened through this factory */
+  svn_repos__authz_pool_t *authz_pool;
+
+  /* The FS configuration to be applied to all repositories.
+     It mainly contains things like cache settings. */
+  apr_hash_t *fs_config;
 
   /* Username case normalization style. */
   enum username_case_type username_case;
-
-  /* Enable text delta caching for all FSFS repositories. */
-  svn_boolean_t cache_txdeltas;
-
-  /* Enable full-text caching for all FSFS repositories. */
-  svn_boolean_t cache_fulltexts;
-
-  /* Enable revprop caching for all FSFS repositories. */
-  svn_boolean_t cache_revprops;
 
   /* Size of the in-memory cache (used by FSFS only). */
   apr_uint64_t memory_cache_size;
@@ -133,28 +156,65 @@ typedef struct serve_params_t {
   svn_boolean_t vhost;
 } serve_params_t;
 
+/* This structure contains all data that describes a client / server
+   connection.  Their lifetime is separated from the thread-local
+   serving pools. */
+typedef struct connection_t
+{
+  /* socket return by accept() */
+  apr_socket_t *usock;
+
+  /* server-global parameters */
+  serve_params_t *params;
+
+  /* connection-specific objects */
+  server_baton_t *baton;
+
+  /* buffered connection object used by the marshaller */
+  svn_ra_svn_conn_t *conn;
+
+  /* memory pool for objects with connection lifetime */
+  apr_pool_t *pool;
+
+  /* Number of threads using the pool.
+     The pool passed to apr_thread_create can only be released when both
+
+        A: the call to apr_thread_create has returned to the calling thread
+        B: the new thread has started running and reached apr_thread_start_t
+
+     So we set the atomic counter to 2 then both the calling thread and
+     the new thread decrease it and when it reaches 0 the pool can be
+     released.  */
+  svn_atomic_t ref_count;
+
+} connection_t;
+
+/* Return a client_info_t structure allocated in POOL and initialize it
+ * with data from CONN. */
+client_info_t * get_client_info(svn_ra_svn_conn_t *conn,
+                                serve_params_t *params,
+                                apr_pool_t *pool);
+
 /* Serve the connection CONN according to the parameters PARAMS. */
 svn_error_t *serve(svn_ra_svn_conn_t *conn, serve_params_t *params,
                    apr_pool_t *pool);
 
-/* Load the password database for the listening server based on the
-   entries in the SERVER struct.
+/* Serve the connection CONNECTION for as long as IS_BUSY does not
+   return TRUE.  If IS_BUSY is NULL, serve the connection until it
+   either gets terminated or there is an error.  If TERMINATE_P is
+   not NULL, set *TERMINATE_P to TRUE if the connection got
+   terminated.
 
-   SERVER and CONN must not be NULL. The real errors will be logged with
-   SERVER and CONN but return generic errors to the client. */
-svn_error_t *load_pwdb_config(server_baton_t *server,
-                              svn_ra_svn_conn_t *conn,
-                              apr_pool_t *pool);
-
-/* Load the authz database for the listening server based on the
-   entries in the SERVER struct.
-
-   SERVER and CONN must not be NULL. The real errors will be logged with
-   SERVER and CONN but return generic errors to the client. */
-svn_error_t *load_authz_config(server_baton_t *server,
-                               svn_ra_svn_conn_t *conn,
-                               const char *repos_root,
-                               apr_pool_t *pool);
+   For the first call, CONNECTION->CONN may be NULL in which case we
+   will create an ra_svn connection object.  Subsequent calls will
+   check for an open repository and automatically re-open the repo
+   in pool if necessary.
+ */
+svn_error_t *
+serve_interruptable(svn_boolean_t *terminate_p,
+                    connection_t *connection,
+                    svn_boolean_t (* is_busy)(connection_t *),
+                    apr_pool_t *pool);
 
 /* Initialize the Cyrus SASL library. POOL is used for allocations. */
 svn_error_t *cyrus_init(apr_pool_t *pool);
@@ -171,13 +231,6 @@ svn_error_t *cyrus_auth_request(svn_ra_svn_conn_t *conn,
    written, including terminating null byte. */
 apr_size_t escape_errorlog_item(char *dest, const char *source,
                                 apr_size_t buflen);
-
-/* Log ERR to LOG_FILE if LOG_FILE is not NULL.  Include REMOTE_HOST,
-   USER, and REPOS in the log if they are not NULL.  Allocate temporary
-   char buffers in POOL (which caller can then clear or dispose of). */
-void
-log_error(svn_error_t *err, apr_file_t *log_file, const char *remote_host,
-          const char *user, const char *repos, apr_pool_t *pool);
 
 #ifdef __cplusplus
 }

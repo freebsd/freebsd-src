@@ -13,6 +13,8 @@
 
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"AR71XX_BASE"
 ident		"DIR-825B1"
 hints		"DIR-825B1.hints"

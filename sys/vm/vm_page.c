@@ -149,6 +149,8 @@ static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_page_blacklist, "A", "Blacklist pages");
 
+/* Is the page daemon waiting for free pages? */
+static int vm_pageout_pages_needed;
 
 static uma_zone_t fakepg_zone;
 
@@ -156,11 +158,14 @@ static struct vnode *vm_page_alloc_init(vm_page_t m);
 static void vm_page_cache_turn_free(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(uint8_t queue, vm_page_t m);
+static void vm_page_free_wakeup(void);
 static void vm_page_init_fakepg(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
 static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object,
     vm_page_t mpred);
+static int vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
+    vm_paddr_t high);
 
 SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init_fakepg, NULL);
 
@@ -977,38 +982,28 @@ vm_page_free_zero(vm_page_t m)
 
 /*
  * Unbusy and handle the page queueing for a page from the VOP_GETPAGES()
- * array which is not the request page.
+ * array which was optionally read ahead or behind.
  */
 void
 vm_page_readahead_finish(vm_page_t m)
 {
 
-	if (m->valid != 0) {
-		/*
-		 * Since the page is not the requested page, whether
-		 * it should be activated or deactivated is not
-		 * obvious.  Empirical results have shown that
-		 * deactivating the page is usually the best choice,
-		 * unless the page is wanted by another thread.
-		 */
-		vm_page_lock(m);
-		if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
-			vm_page_activate(m);
-		else
-			vm_page_deactivate(m);
-		vm_page_unlock(m);
-		vm_page_xunbusy(m);
-	} else {
-		/*
-		 * Free the completely invalid page.  Such page state
-		 * occurs due to the short read operation which did
-		 * not covered our page at all, or in case when a read
-		 * error happens.
-		 */
-		vm_page_lock(m);
-		vm_page_free(m);
-		vm_page_unlock(m);
-	}
+	/* We shouldn't put invalid pages on queues. */
+	KASSERT(m->valid != 0, ("%s: %p is invalid", __func__, m));
+
+	/*
+	 * Since the page is not the actually needed one, whether it should
+	 * be activated or deactivated is not obvious.  Empirical results
+	 * have shown that deactivating the page is usually the best choice,
+	 * unless the page is wanted by another thread.
+	 */
+	vm_page_lock(m);
+	if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
+		vm_page_activate(m);
+	else
+		vm_page_deactivate(m);
+	vm_page_unlock(m);
+	vm_page_xunbusy(m);
 }
 
 /*
@@ -1322,22 +1317,17 @@ vm_page_prev(vm_page_t m)
 vm_page_t
 vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t mold, mpred;
+	vm_page_t mold;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(mnew->object == NULL,
+	    ("vm_page_replace: page already in object"));
 
 	/*
 	 * This function mostly follows vm_page_insert() and
 	 * vm_page_remove() without the radix, object count and vnode
 	 * dance.  Double check such functions for more comments.
 	 */
-	mpred = vm_radix_lookup(&object->rtree, pindex);
-	KASSERT(mpred != NULL,
-	    ("vm_page_replace: replacing page not present with pindex"));
-	mpred = TAILQ_PREV(mpred, respgs, listq);
-	if (mpred != NULL)
-		KASSERT(mpred->pindex < pindex,
-		    ("vm_page_insert_after: mpred doesn't precede pindex"));
 
 	mnew->object = object;
 	mnew->pindex = pindex;
@@ -1345,17 +1335,17 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	KASSERT(mold->queue == PQ_NONE,
 	    ("vm_page_replace: mold is on a paging queue"));
 
-	/* Detach the old page from the resident tailq. */
+	/* Keep the resident page list in sorted order. */
+	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
 	TAILQ_REMOVE(&object->memq, mold, listq);
 
 	mold->object = NULL;
 	vm_page_xunbusy(mold);
 
-	/* Insert the new page in the resident tailq. */
-	if (mpred != NULL)
-		TAILQ_INSERT_AFTER(&object->memq, mpred, mnew, listq);
-	else
-		TAILQ_INSERT_HEAD(&object->memq, mnew, listq);
+	/*
+	 * The object's resident_page_count does not change because we have
+	 * swapped one page for another, but OBJ_MIGHTBEDIRTY.
+	 */
 	if (pmap_page_is_write_mapped(mnew))
 		vm_object_set_writeable_dirty(object);
 	return (mold);
@@ -2106,6 +2096,592 @@ vm_page_alloc_freelist(int flind, int req)
 	return (m);
 }
 
+#define	VPSC_ANY	0	/* No restrictions. */
+#define	VPSC_NORESERV	1	/* Skip reservations; implies VPSC_NOSUPER. */
+#define	VPSC_NOSUPER	2	/* Skip superpages. */
+
+/*
+ *	vm_page_scan_contig:
+ *
+ *	Scan vm_page_array[] between the specified entries "m_start" and
+ *	"m_end" for a run of contiguous physical pages that satisfy the
+ *	specified conditions, and return the lowest page in the run.  The
+ *	specified "alignment" determines the alignment of the lowest physical
+ *	page in the run.  If the specified "boundary" is non-zero, then the
+ *	run of physical pages cannot span a physical address that is a
+ *	multiple of "boundary".
+ *
+ *	"m_end" is never dereferenced, so it need not point to a vm_page
+ *	structure within vm_page_array[].
+ *
+ *	"npages" must be greater than zero.  "m_start" and "m_end" must not
+ *	span a hole (or discontiguity) in the physical address space.  Both
+ *	"alignment" and "boundary" must be a power of two.
+ */
+vm_page_t
+vm_page_scan_contig(u_long npages, vm_page_t m_start, vm_page_t m_end,
+    u_long alignment, vm_paddr_t boundary, int options)
+{
+	struct mtx *m_mtx, *new_mtx;
+	vm_object_t object;
+	vm_paddr_t pa;
+	vm_page_t m, m_run;
+#if VM_NRESERVLEVEL > 0
+	int level;
+#endif
+	int m_inc, order, run_ext, run_len;
+
+	KASSERT(npages > 0, ("npages is 0"));
+	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
+	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
+	m_run = NULL;
+	run_len = 0;
+	m_mtx = NULL;
+	for (m = m_start; m < m_end && run_len < npages; m += m_inc) {
+		KASSERT((m->flags & (PG_FICTITIOUS | PG_MARKER)) == 0,
+		    ("page %p is PG_FICTITIOUS or PG_MARKER", m));
+
+		/*
+		 * If the current page would be the start of a run, check its
+		 * physical address against the end, alignment, and boundary
+		 * conditions.  If it doesn't satisfy these conditions, either
+		 * terminate the scan or advance to the next page that
+		 * satisfies the failed condition.
+		 */
+		if (run_len == 0) {
+			KASSERT(m_run == NULL, ("m_run != NULL"));
+			if (m + npages > m_end)
+				break;
+			pa = VM_PAGE_TO_PHYS(m);
+			if ((pa & (alignment - 1)) != 0) {
+				m_inc = atop(roundup2(pa, alignment) - pa);
+				continue;
+			}
+			if (((pa ^ (pa + ptoa(npages) - 1)) & ~(boundary -
+			    1)) != 0) {
+				m_inc = atop(roundup2(pa, boundary) - pa);
+				continue;
+			}
+		} else
+			KASSERT(m_run != NULL, ("m_run == NULL"));
+
+		/*
+		 * Avoid releasing and reacquiring the same page lock.
+		 */
+		new_mtx = vm_page_lockptr(m);
+		if (m_mtx != new_mtx) {
+			if (m_mtx != NULL)
+				mtx_unlock(m_mtx);
+			m_mtx = new_mtx;
+			mtx_lock(m_mtx);
+		}
+		m_inc = 1;
+retry:
+		if (m->wire_count != 0 || m->hold_count != 0)
+			run_ext = 0;
+#if VM_NRESERVLEVEL > 0
+		else if ((level = vm_reserv_level(m)) >= 0 &&
+		    (options & VPSC_NORESERV) != 0) {
+			run_ext = 0;
+			/* Advance to the end of the reservation. */
+			pa = VM_PAGE_TO_PHYS(m);
+			m_inc = atop(roundup2(pa + 1, vm_reserv_size(level)) -
+			    pa);
+		}
+#endif
+		else if ((object = m->object) != NULL) {
+			/*
+			 * The page is considered eligible for relocation if
+			 * and only if it could be laundered or reclaimed by
+			 * the page daemon.
+			 */
+			if (!VM_OBJECT_TRYRLOCK(object)) {
+				mtx_unlock(m_mtx);
+				VM_OBJECT_RLOCK(object);
+				mtx_lock(m_mtx);
+				if (m->object != object) {
+					/*
+					 * The page may have been freed.
+					 */
+					VM_OBJECT_RUNLOCK(object);
+					goto retry;
+				} else if (m->wire_count != 0 ||
+				    m->hold_count != 0) {
+					run_ext = 0;
+					goto unlock;
+				}
+			}
+			KASSERT((m->flags & PG_UNHOLDFREE) == 0,
+			    ("page %p is PG_UNHOLDFREE", m));
+			/* Don't care: PG_NODUMP, PG_WINATCFLS, PG_ZERO. */
+			if (object->type != OBJT_DEFAULT &&
+			    object->type != OBJT_SWAP &&
+			    object->type != OBJT_VNODE)
+				run_ext = 0;
+			else if ((m->flags & PG_CACHED) != 0 ||
+			    m != vm_page_lookup(object, m->pindex)) {
+				/*
+				 * The page is cached or recently converted
+				 * from cached to free.
+				 */
+#if VM_NRESERVLEVEL > 0
+				if (level >= 0) {
+					/*
+					 * The page is reserved.  Extend the
+					 * current run by one page.
+					 */
+					run_ext = 1;
+				} else
+#endif
+				if ((order = m->order) < VM_NFREEORDER) {
+					/*
+					 * The page is enqueued in the
+					 * physical memory allocator's cache/
+					 * free page queues.  Moreover, it is
+					 * the first page in a power-of-two-
+					 * sized run of contiguous cache/free
+					 * pages.  Add these pages to the end
+					 * of the current run, and jump
+					 * ahead.
+					 */
+					run_ext = 1 << order;
+					m_inc = 1 << order;
+				} else
+					run_ext = 0;
+#if VM_NRESERVLEVEL > 0
+			} else if ((options & VPSC_NOSUPER) != 0 &&
+			    (level = vm_reserv_level_iffullpop(m)) >= 0) {
+				run_ext = 0;
+				/* Advance to the end of the superpage. */
+				pa = VM_PAGE_TO_PHYS(m);
+				m_inc = atop(roundup2(pa + 1,
+				    vm_reserv_size(level)) - pa);
+#endif
+			} else if (object->memattr == VM_MEMATTR_DEFAULT &&
+			    m->queue != PQ_NONE && !vm_page_busied(m)) {
+				/*
+				 * The page is allocated but eligible for
+				 * relocation.  Extend the current run by one
+				 * page.
+				 */
+				KASSERT(pmap_page_get_memattr(m) ==
+				    VM_MEMATTR_DEFAULT,
+				    ("page %p has an unexpected memattr", m));
+				KASSERT((m->oflags & (VPO_SWAPINPROG |
+				    VPO_SWAPSLEEP | VPO_UNMANAGED)) == 0,
+				    ("page %p has unexpected oflags", m));
+				/* Don't care: VPO_NOSYNC. */
+				run_ext = 1;
+			} else
+				run_ext = 0;
+unlock:
+			VM_OBJECT_RUNLOCK(object);
+#if VM_NRESERVLEVEL > 0
+		} else if (level >= 0) {
+			/*
+			 * The page is reserved but not yet allocated.  In
+			 * other words, it is still cached or free.  Extend
+			 * the current run by one page.
+			 */
+			run_ext = 1;
+#endif
+		} else if ((order = m->order) < VM_NFREEORDER) {
+			/*
+			 * The page is enqueued in the physical memory
+			 * allocator's cache/free page queues.  Moreover, it
+			 * is the first page in a power-of-two-sized run of
+			 * contiguous cache/free pages.  Add these pages to
+			 * the end of the current run, and jump ahead.
+			 */
+			run_ext = 1 << order;
+			m_inc = 1 << order;
+		} else {
+			/*
+			 * Skip the page for one of the following reasons: (1)
+			 * It is enqueued in the physical memory allocator's
+			 * cache/free page queues.  However, it is not the
+			 * first page in a run of contiguous cache/free pages.
+			 * (This case rarely occurs because the scan is
+			 * performed in ascending order.) (2) It is not
+			 * reserved, and it is transitioning from free to
+			 * allocated.  (Conversely, the transition from
+			 * allocated to free for managed pages is blocked by
+			 * the page lock.) (3) It is allocated but not
+			 * contained by an object and not wired, e.g.,
+			 * allocated by Xen's balloon driver.
+			 */
+			run_ext = 0;
+		}
+
+		/*
+		 * Extend or reset the current run of pages.
+		 */
+		if (run_ext > 0) {
+			if (run_len == 0)
+				m_run = m;
+			run_len += run_ext;
+		} else {
+			if (run_len > 0) {
+				m_run = NULL;
+				run_len = 0;
+			}
+		}
+	}
+	if (m_mtx != NULL)
+		mtx_unlock(m_mtx);
+	if (run_len >= npages)
+		return (m_run);
+	return (NULL);
+}
+
+/*
+ *	vm_page_reclaim_run:
+ *
+ *	Try to relocate each of the allocated virtual pages within the
+ *	specified run of physical pages to a new physical address.  Free the
+ *	physical pages underlying the relocated virtual pages.  A virtual page
+ *	is relocatable if and only if it could be laundered or reclaimed by
+ *	the page daemon.  Whenever possible, a virtual page is relocated to a
+ *	physical address above "high".
+ *
+ *	Returns 0 if every physical page within the run was already free or
+ *	just freed by a successful relocation.  Otherwise, returns a non-zero
+ *	value indicating why the last attempt to relocate a virtual page was
+ *	unsuccessful.
+ *
+ *	"req_class" must be an allocation class.
+ */
+static int
+vm_page_reclaim_run(int req_class, u_long npages, vm_page_t m_run,
+    vm_paddr_t high)
+{
+	struct mtx *m_mtx, *new_mtx;
+	struct spglist free;
+	vm_object_t object;
+	vm_paddr_t pa;
+	vm_page_t m, m_end, m_new;
+	int error, order, req;
+
+	KASSERT((req_class & VM_ALLOC_CLASS_MASK) == req_class,
+	    ("req_class is not an allocation class"));
+	SLIST_INIT(&free);
+	error = 0;
+	m = m_run;
+	m_end = m_run + npages;
+	m_mtx = NULL;
+	for (; error == 0 && m < m_end; m++) {
+		KASSERT((m->flags & (PG_FICTITIOUS | PG_MARKER)) == 0,
+		    ("page %p is PG_FICTITIOUS or PG_MARKER", m));
+
+		/*
+		 * Avoid releasing and reacquiring the same page lock.
+		 */
+		new_mtx = vm_page_lockptr(m);
+		if (m_mtx != new_mtx) {
+			if (m_mtx != NULL)
+				mtx_unlock(m_mtx);
+			m_mtx = new_mtx;
+			mtx_lock(m_mtx);
+		}
+retry:
+		if (m->wire_count != 0 || m->hold_count != 0)
+			error = EBUSY;
+		else if ((object = m->object) != NULL) {
+			/*
+			 * The page is relocated if and only if it could be
+			 * laundered or reclaimed by the page daemon.
+			 */
+			if (!VM_OBJECT_TRYWLOCK(object)) {
+				mtx_unlock(m_mtx);
+				VM_OBJECT_WLOCK(object);
+				mtx_lock(m_mtx);
+				if (m->object != object) {
+					/*
+					 * The page may have been freed.
+					 */
+					VM_OBJECT_WUNLOCK(object);
+					goto retry;
+				} else if (m->wire_count != 0 ||
+				    m->hold_count != 0) {
+					error = EBUSY;
+					goto unlock;
+				}
+			}
+			KASSERT((m->flags & PG_UNHOLDFREE) == 0,
+			    ("page %p is PG_UNHOLDFREE", m));
+			/* Don't care: PG_NODUMP, PG_WINATCFLS, PG_ZERO. */
+			if (object->type != OBJT_DEFAULT &&
+			    object->type != OBJT_SWAP &&
+			    object->type != OBJT_VNODE)
+				error = EINVAL;
+			else if ((m->flags & PG_CACHED) != 0 ||
+			    m != vm_page_lookup(object, m->pindex)) {
+				/*
+				 * The page is cached or recently converted
+				 * from cached to free.
+				 */
+				VM_OBJECT_WUNLOCK(object);
+				goto cached;
+			} else if (object->memattr != VM_MEMATTR_DEFAULT)
+				error = EINVAL;
+			else if (m->queue != PQ_NONE && !vm_page_busied(m)) {
+				KASSERT(pmap_page_get_memattr(m) ==
+				    VM_MEMATTR_DEFAULT,
+				    ("page %p has an unexpected memattr", m));
+				KASSERT((m->oflags & (VPO_SWAPINPROG |
+				    VPO_SWAPSLEEP | VPO_UNMANAGED)) == 0,
+				    ("page %p has unexpected oflags", m));
+				/* Don't care: VPO_NOSYNC. */
+				if (m->valid != 0) {
+					/*
+					 * First, try to allocate a new page
+					 * that is above "high".  Failing
+					 * that, try to allocate a new page
+					 * that is below "m_run".  Allocate
+					 * the new page between the end of
+					 * "m_run" and "high" only as a last
+					 * resort.
+					 */
+					req = req_class | VM_ALLOC_NOOBJ;
+					if ((m->flags & PG_NODUMP) != 0)
+						req |= VM_ALLOC_NODUMP;
+					if (trunc_page(high) !=
+					    ~(vm_paddr_t)PAGE_MASK) {
+						m_new = vm_page_alloc_contig(
+						    NULL, 0, req, 1,
+						    round_page(high),
+						    ~(vm_paddr_t)0,
+						    PAGE_SIZE, 0,
+						    VM_MEMATTR_DEFAULT);
+					} else
+						m_new = NULL;
+					if (m_new == NULL) {
+						pa = VM_PAGE_TO_PHYS(m_run);
+						m_new = vm_page_alloc_contig(
+						    NULL, 0, req, 1,
+						    0, pa - 1, PAGE_SIZE, 0,
+						    VM_MEMATTR_DEFAULT);
+					}
+					if (m_new == NULL) {
+						pa += ptoa(npages);
+						m_new = vm_page_alloc_contig(
+						    NULL, 0, req, 1,
+						    pa, high, PAGE_SIZE, 0,
+						    VM_MEMATTR_DEFAULT);
+					}
+					if (m_new == NULL) {
+						error = ENOMEM;
+						goto unlock;
+					}
+					KASSERT(m_new->wire_count == 0,
+					    ("page %p is wired", m));
+
+					/*
+					 * Replace "m" with the new page.  For
+					 * vm_page_replace(), "m" must be busy
+					 * and dequeued.  Finally, change "m"
+					 * as if vm_page_free() was called.
+					 */
+					if (object->ref_count != 0)
+						pmap_remove_all(m);
+					m_new->aflags = m->aflags;
+					KASSERT(m_new->oflags == VPO_UNMANAGED,
+					    ("page %p is managed", m));
+					m_new->oflags = m->oflags & VPO_NOSYNC;
+					pmap_copy_page(m, m_new);
+					m_new->valid = m->valid;
+					m_new->dirty = m->dirty;
+					m->flags &= ~PG_ZERO;
+					vm_page_xbusy(m);
+					vm_page_remque(m);
+					vm_page_replace_checked(m_new, object,
+					    m->pindex, m);
+					m->valid = 0;
+					vm_page_undirty(m);
+
+					/*
+					 * The new page must be deactivated
+					 * before the object is unlocked.
+					 */
+					new_mtx = vm_page_lockptr(m_new);
+					if (m_mtx != new_mtx) {
+						mtx_unlock(m_mtx);
+						m_mtx = new_mtx;
+						mtx_lock(m_mtx);
+					}
+					vm_page_deactivate(m_new);
+				} else {
+					m->flags &= ~PG_ZERO;
+					vm_page_remque(m);
+					vm_page_remove(m);
+					KASSERT(m->dirty == 0,
+					    ("page %p is dirty", m));
+				}
+				SLIST_INSERT_HEAD(&free, m, plinks.s.ss);
+			} else
+				error = EBUSY;
+unlock:
+			VM_OBJECT_WUNLOCK(object);
+		} else {
+cached:
+			mtx_lock(&vm_page_queue_free_mtx);
+			order = m->order;
+			if (order < VM_NFREEORDER) {
+				/*
+				 * The page is enqueued in the physical memory
+				 * allocator's cache/free page queues.
+				 * Moreover, it is the first page in a power-
+				 * of-two-sized run of contiguous cache/free
+				 * pages.  Jump ahead to the last page within
+				 * that run, and continue from there.
+				 */
+				m += (1 << order) - 1;
+			}
+#if VM_NRESERVLEVEL > 0
+			else if (vm_reserv_is_page_free(m))
+				order = 0;
+#endif
+			mtx_unlock(&vm_page_queue_free_mtx);
+			if (order == VM_NFREEORDER)
+				error = EINVAL;
+		}
+	}
+	if (m_mtx != NULL)
+		mtx_unlock(m_mtx);
+	if ((m = SLIST_FIRST(&free)) != NULL) {
+		mtx_lock(&vm_page_queue_free_mtx);
+		do {
+			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
+			vm_phys_freecnt_adj(m, 1);
+#if VM_NRESERVLEVEL > 0
+			if (!vm_reserv_free_page(m))
+#else
+			if (true)
+#endif
+				vm_phys_free_pages(m, 0);
+		} while ((m = SLIST_FIRST(&free)) != NULL);
+		vm_page_zero_idle_wakeup();
+		vm_page_free_wakeup();
+		mtx_unlock(&vm_page_queue_free_mtx);
+	}
+	return (error);
+}
+
+#define	NRUNS	16
+
+CTASSERT(powerof2(NRUNS));
+
+#define	RUN_INDEX(count)	((count) & (NRUNS - 1))
+
+#define	MIN_RECLAIM	8
+
+/*
+ *	vm_page_reclaim_contig:
+ *
+ *	Reclaim allocated, contiguous physical memory satisfying the specified
+ *	conditions by relocating the virtual pages using that physical memory.
+ *	Returns true if reclamation is successful and false otherwise.  Since
+ *	relocation requires the allocation of physical pages, reclamation may
+ *	fail due to a shortage of cache/free pages.  When reclamation fails,
+ *	callers are expected to perform VM_WAIT before retrying a failed
+ *	allocation operation, e.g., vm_page_alloc_contig().
+ *
+ *	The caller must always specify an allocation class through "req".
+ *
+ *	allocation classes:
+ *	VM_ALLOC_NORMAL		normal process request
+ *	VM_ALLOC_SYSTEM		system *really* needs a page
+ *	VM_ALLOC_INTERRUPT	interrupt time request
+ *
+ *	The optional allocation flags are ignored.
+ *
+ *	"npages" must be greater than zero.  Both "alignment" and "boundary"
+ *	must be a power of two.
+ */
+bool
+vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary)
+{
+	vm_paddr_t curr_low;
+	vm_page_t m_run, m_runs[NRUNS];
+	u_long count, reclaimed;
+	int error, i, options, req_class;
+
+	KASSERT(npages > 0, ("npages is 0"));
+	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
+	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
+	req_class = req & VM_ALLOC_CLASS_MASK;
+
+	/*
+	 * The page daemon is allowed to dig deeper into the free page list.
+	 */
+	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
+		req_class = VM_ALLOC_SYSTEM;
+
+	/*
+	 * Return if the number of cached and free pages cannot satisfy the
+	 * requested allocation.
+	 */
+	count = vm_cnt.v_free_count + vm_cnt.v_cache_count;
+	if (count < npages + vm_cnt.v_free_reserved || (count < npages +
+	    vm_cnt.v_interrupt_free_min && req_class == VM_ALLOC_SYSTEM) ||
+	    (count < npages && req_class == VM_ALLOC_INTERRUPT))
+		return (false);
+
+	/*
+	 * Scan up to three times, relaxing the restrictions ("options") on
+	 * the reclamation of reservations and superpages each time.
+	 */
+	for (options = VPSC_NORESERV;;) {
+		/*
+		 * Find the highest runs that satisfy the given constraints
+		 * and restrictions, and record them in "m_runs".
+		 */
+		curr_low = low;
+		count = 0;
+		for (;;) {
+			m_run = vm_phys_scan_contig(npages, curr_low, high,
+			    alignment, boundary, options);
+			if (m_run == NULL)
+				break;
+			curr_low = VM_PAGE_TO_PHYS(m_run) + ptoa(npages);
+			m_runs[RUN_INDEX(count)] = m_run;
+			count++;
+		}
+
+		/*
+		 * Reclaim the highest runs in LIFO (descending) order until
+		 * the number of reclaimed pages, "reclaimed", is at least
+		 * MIN_RECLAIM.  Reset "reclaimed" each time because each
+		 * reclamation is idempotent, and runs will (likely) recur
+		 * from one scan to the next as restrictions are relaxed.
+		 */
+		reclaimed = 0;
+		for (i = 0; count > 0 && i < NRUNS; i++) {
+			count--;
+			m_run = m_runs[RUN_INDEX(count)];
+			error = vm_page_reclaim_run(req_class, npages, m_run,
+			    high);
+			if (error == 0) {
+				reclaimed += npages;
+				if (reclaimed >= MIN_RECLAIM)
+					return (true);
+			}
+		}
+
+		/*
+		 * Either relax the restrictions on the next scan or return if
+		 * the last scan had no restrictions.
+		 */
+		if (options == VPSC_NORESERV)
+			options = VPSC_NOSUPER;
+		else if (options == VPSC_NOSUPER)
+			options = VPSC_ANY;
+		else if (options == VPSC_ANY)
+			return (reclaimed != 0);
+	}
+}
+
 /*
  *	vm_wait:	(also see VM_WAIT macro)
  *
@@ -2476,42 +3052,46 @@ vm_page_wire(vm_page_t m)
 /*
  * vm_page_unwire:
  *
- * Release one wiring of the specified page, potentially enabling it to be
- * paged again.  If paging is enabled, then the value of the parameter
- * "queue" determines the queue to which the page is added.
+ * Release one wiring of the specified page, potentially allowing it to be
+ * paged out.  Returns TRUE if the number of wirings transitions to zero and
+ * FALSE otherwise.
  *
- * However, unless the page belongs to an object, it is not enqueued because
- * it cannot be paged out.
+ * Only managed pages belonging to an object can be paged out.  If the number
+ * of wirings transitions to zero and the page is eligible for page out, then
+ * the page is added to the specified paging queue (unless PQ_NONE is
+ * specified).
  *
  * If a page is fictitious, then its wire count must always be one.
  *
  * A managed page must be locked.
  */
-void
+boolean_t
 vm_page_unwire(vm_page_t m, uint8_t queue)
 {
 
-	KASSERT(queue < PQ_COUNT,
+	KASSERT(queue < PQ_COUNT || queue == PQ_NONE,
 	    ("vm_page_unwire: invalid queue %u request for page %p",
 	    queue, m));
 	if ((m->oflags & VPO_UNMANAGED) == 0)
-		vm_page_lock_assert(m, MA_OWNED);
+		vm_page_assert_locked(m);
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		KASSERT(m->wire_count == 1,
 	    ("vm_page_unwire: fictitious page %p's wire count isn't one", m));
-		return;
+		return (FALSE);
 	}
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
 			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
-			if ((m->oflags & VPO_UNMANAGED) != 0 ||
-			    m->object == NULL)
-				return;
-			if (queue == PQ_INACTIVE)
-				m->flags &= ~PG_WINATCFLS;
-			vm_page_enqueue(queue, m);
-		}
+			if ((m->oflags & VPO_UNMANAGED) == 0 &&
+			    m->object != NULL && queue != PQ_NONE) {
+				if (queue == PQ_INACTIVE)
+					m->flags &= ~PG_WINATCFLS;
+				vm_page_enqueue(queue, m);
+			}
+			return (TRUE);
+		} else
+			return (FALSE);
 	} else
 		panic("vm_page_unwire: page %p's wire count is zero", m);
 }
@@ -2530,14 +3110,16 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
  * processes.  This optimization causes one-time-use metadata to be
  * reused more quickly.
  *
- * Normally athead is 0 resulting in LRU operation.  athead is set
- * to 1 if we want this page to be 'as if it were placed in the cache',
- * except without unmapping it from the process address space.
+ * Normally noreuse is FALSE, resulting in LRU operation.  noreuse is set
+ * to TRUE if we want this page to be 'as if it were placed in the cache',
+ * except without unmapping it from the process address space.  In
+ * practice this is implemented by inserting the page at the head of the
+ * queue, using a marker page to guide FIFO insertion ordering.
  *
  * The page must be locked.
  */
 static inline void
-_vm_page_deactivate(vm_page_t m, int athead)
+_vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 {
 	struct vm_pagequeue *pq;
 	int queue;
@@ -2548,7 +3130,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	 * Ignore if the page is already inactive, unless it is unlikely to be
 	 * reactivated.
 	 */
-	if ((queue = m->queue) == PQ_INACTIVE && !athead)
+	if ((queue = m->queue) == PQ_INACTIVE && !noreuse)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
 		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
@@ -2563,8 +3145,9 @@ _vm_page_deactivate(vm_page_t m, int athead)
 			vm_pagequeue_lock(pq);
 		}
 		m->queue = PQ_INACTIVE;
-		if (athead)
-			TAILQ_INSERT_HEAD(&pq->pq_pl, m, plinks.q);
+		if (noreuse)
+			TAILQ_INSERT_BEFORE(&vm_phys_domain(m)->vmd_inacthead,
+			    m, plinks.q);
 		else
 			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 		vm_pagequeue_cnt_inc(pq);
@@ -2581,7 +3164,20 @@ void
 vm_page_deactivate(vm_page_t m)
 {
 
-	_vm_page_deactivate(m, 0);
+	_vm_page_deactivate(m, FALSE);
+}
+
+/*
+ * Move the specified page to the inactive queue with the expectation
+ * that it is unlikely to be reused.
+ *
+ * The page must be locked.
+ */
+void
+vm_page_deactivate_noreuse(vm_page_t m)
+{
+
+	_vm_page_deactivate(m, TRUE);
 }
 
 /*
@@ -2736,8 +3332,7 @@ vm_page_cache(vm_page_t m)
 /*
  * vm_page_advise
  *
- * 	Deactivate or do nothing, as appropriate.  This routine is used
- * 	by madvise() and vop_stdadvise().
+ * 	Deactivate or do nothing, as appropriate.
  *
  *	The object and page must be locked.
  */
@@ -3096,7 +3691,8 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 		bits = VM_PAGE_BITS_ALL;
 	else
 		bits = vm_page_bits(base, size);
-	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
+	if (object->ref_count != 0 && m->valid == VM_PAGE_BITS_ALL &&
+	    bits != 0)
 		pmap_remove_all(m);
 	KASSERT((bits == 0 && m->valid == VM_PAGE_BITS_ALL) ||
 	    !pmap_page_is_mapped(m),
@@ -3290,7 +3886,6 @@ DB_SHOW_COMMAND(page, vm_page_print_page_info)
 	db_printf("vm_cnt.v_free_reserved: %d\n", vm_cnt.v_free_reserved);
 	db_printf("vm_cnt.v_free_min: %d\n", vm_cnt.v_free_min);
 	db_printf("vm_cnt.v_free_target: %d\n", vm_cnt.v_free_target);
-	db_printf("vm_cnt.v_cache_min: %d\n", vm_cnt.v_cache_min);
 	db_printf("vm_cnt.v_inactive_target: %d\n", vm_cnt.v_inactive_target);
 }
 

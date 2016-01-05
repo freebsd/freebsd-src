@@ -362,6 +362,17 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	 * checksum/compression/copies.
 	 */
 	if (ds != NULL) {
+		boolean_t needlock = B_FALSE;
+
+		/*
+		 * Note: it's valid to open the objset if the dataset is
+		 * long-held, in which case the pool_config lock will not
+		 * be held.
+		 */
+		if (!dsl_pool_config_held(dmu_objset_pool(os))) {
+			needlock = B_TRUE;
+			dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+		}
 		err = dsl_prop_register(ds,
 		    zfs_prop_to_name(ZFS_PROP_PRIMARYCACHE),
 		    primary_cache_changed_cb, os);
@@ -413,6 +424,8 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 				    recordsize_changed_cb, os);
 			}
 		}
+		if (needlock)
+			dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 		if (err != 0) {
 			VERIFY(arc_buf_remove_ref(os->os_phys_buf,
 			    &os->os_phys_buf));
@@ -468,6 +481,13 @@ int
 dmu_objset_from_ds(dsl_dataset_t *ds, objset_t **osp)
 {
 	int err = 0;
+
+	/*
+	 * We shouldn't be doing anything with dsl_dataset_t's unless the
+	 * pool_config lock is held, or the dataset is long-held.
+	 */
+	ASSERT(dsl_pool_config_held(ds->ds_dir->dd_pool) ||
+	    dsl_dataset_long_held(ds));
 
 	mutex_enter(&ds->ds_opening_lock);
 	if (ds->ds_objset == NULL) {
@@ -680,45 +700,12 @@ dmu_objset_evict(objset_t *os)
 	for (int t = 0; t < TXG_SIZE; t++)
 		ASSERT(!dmu_objset_is_dirty(os, t));
 
-	if (ds) {
-		if (!ds->ds_is_snapshot) {
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_CHECKSUM),
-			    checksum_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_COMPRESSION),
-			    compression_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_COPIES),
-			    copies_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_DEDUP),
-			    dedup_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_LOGBIAS),
-			    logbias_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_SYNC),
-			    sync_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_REDUNDANT_METADATA),
-			    redundant_metadata_changed_cb, os));
-			VERIFY0(dsl_prop_unregister(ds,
-			    zfs_prop_to_name(ZFS_PROP_RECORDSIZE),
-			    recordsize_changed_cb, os));
-		}
-		VERIFY0(dsl_prop_unregister(ds,
-		    zfs_prop_to_name(ZFS_PROP_PRIMARYCACHE),
-		    primary_cache_changed_cb, os));
-		VERIFY0(dsl_prop_unregister(ds,
-		    zfs_prop_to_name(ZFS_PROP_SECONDARYCACHE),
-		    secondary_cache_changed_cb, os));
-	}
+	if (ds)
+		dsl_prop_unregister_all(ds, os);
 
 	if (os->os_sa)
 		sa_tear_down(os);
 
-	os->os_evicting = B_TRUE;
 	dmu_objset_evict_dbufs(os);
 
 	mutex_enter(&os->os_lock);

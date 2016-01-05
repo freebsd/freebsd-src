@@ -14,6 +14,7 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/Stream.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/Args.h"
 
 using namespace lldb;
@@ -33,10 +34,10 @@ OptionValuePathMappings::DumpValue (const ExecutionContext *exe_ctx, Stream &str
 }
 
 Error
-OptionValuePathMappings::SetValueFromCString (const char *value, VarSetOperationType op)
+OptionValuePathMappings::SetValueFromString (llvm::StringRef value, VarSetOperationType op)
 {
     Error error;
-    Args args(value);
+    Args args(value.str().c_str());
     const size_t argc = args.GetArgumentCount();
 
     switch (op)
@@ -50,7 +51,7 @@ OptionValuePathMappings::SetValueFromCString (const char *value, VarSetOperation
             // Must be at least one index + 1 pair of paths, and the pair count must be even
             if (argc >= 3 && (((argc - 1) & 1) == 0))
             {
-                uint32_t idx = Args::StringToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
+                uint32_t idx = StringConvert::ToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
                 const uint32_t count = m_path_mappings.GetSize();
                 if (idx > count)
                 {
@@ -108,7 +109,7 @@ OptionValuePathMappings::SetValueFromCString (const char *value, VarSetOperation
             // Must be at least one index + 1 pair of paths, and the pair count must be even
             if (argc >= 3 && (((argc - 1) & 1) == 0))
             {
-                uint32_t idx = Args::StringToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
+                uint32_t idx = StringConvert::ToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
                 const uint32_t count = m_path_mappings.GetSize();
                 if (idx > count)
                 {
@@ -141,7 +142,7 @@ OptionValuePathMappings::SetValueFromCString (const char *value, VarSetOperation
                 size_t i;
                 for (i=0; all_indexes_valid && i<argc; ++i)
                 {
-                    const int idx = Args::StringToSInt32(args.GetArgumentAtIndex(i), INT32_MAX);
+                    const int idx = StringConvert::ToSInt32(args.GetArgumentAtIndex(i), INT32_MAX);
                     if (idx == INT32_MAX)
                         all_indexes_valid = false;
                     else
@@ -174,7 +175,7 @@ OptionValuePathMappings::SetValueFromCString (const char *value, VarSetOperation
             break;
 
         case eVarSetOperationInvalid:
-            error = OptionValue::SetValueFromCString (value, op);
+            error = OptionValue::SetValueFromString (value, op);
             break;
     }
     return error;

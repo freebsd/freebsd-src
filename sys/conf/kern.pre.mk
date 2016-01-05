@@ -128,7 +128,7 @@ CFLAGS+=	${CONF_CFLAGS}
 LINTFLAGS=	${LINTOBJKERNFLAGS}
 
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
-NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+NORMAL_S= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
 NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 
@@ -157,15 +157,15 @@ DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/intel -I$S/cddl/dev/dtrace/x86
 .endif
 DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/common/util -I$S -DDIS_MEM -DSMP
 DTRACE_ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${DTRACE_CFLAGS}
-DTRACE_C=	${CC} -c ${DTRACE_CFLAGS} ${CDDL_CFLAGS}	${WERROR} ${PROF} ${.IMPSRC}
-DTRACE_S=	${CC} -c ${DTRACE_ASM_CFLAGS} ${CDDL_CFLAGS}	${WERROR} ${.IMPSRC}
+DTRACE_C=	${CC} -c ${DTRACE_CFLAGS}	${WERROR} ${PROF} ${.IMPSRC}
+DTRACE_S=	${CC} -c ${DTRACE_ASM_CFLAGS}	${WERROR} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for DTrace/FBT
 FBT_CFLAGS=	-DBUILDING_DTRACE -nostdinc -I$S/cddl/dev/fbt/${MACHINE_CPUARCH} -I$S/cddl/dev/fbt -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common -I$S ${CDDL_CFLAGS}
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 FBT_CFLAGS+=	-I$S/cddl/dev/fbt/x86
 .endif
-FBT_C=		${CC} -c ${FBT_CFLAGS} ${CDDL_CFLAGS}		${WERROR} ${PROF} ${.IMPSRC}
+FBT_C=		${CC} -c ${FBT_CFLAGS}		${WERROR} ${PROF} ${.IMPSRC}
 
 .if ${MK_CTF} != "no"
 NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
@@ -177,9 +177,13 @@ NORMAL_CTFCONVERT=	@:
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
+# Linux Kernel Programming Interface C-flags
+LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include
+LINUXKPI_C=		${NORMAL_C} ${LINUXKPI_INCLUDES}
+
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
-OFEDINCLUDES=	-I$S/ofed/include/
+OFEDINCLUDES=	-I$S/ofed/include ${LINUXKPI_INCLUDES}
 OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
@@ -202,9 +206,8 @@ SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 SYSTEM_DEP+= ${LDSCRIPT}
 
 # Calculate path for .m files early, if needed.
-.if !defined(_MPATH)
+.if !defined(__MPATH)
 __MPATH!=find ${S:tA}/ -name \*_if.m
-_MPATH=${__MPATH:H:O:u}
 .endif
 
 # MKMODULESENV is set here so that port makefiles can augment
@@ -223,7 +226,7 @@ MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
-MKMODULESENV+=	_MPATH="${_MPATH}"
+MKMODULESENV+=	__MPATH="${__MPATH}"
 
 # Architecture and output format arguments for objdump to convert image to
 # object file

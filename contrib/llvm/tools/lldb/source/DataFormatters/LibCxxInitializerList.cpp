@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/DataFormatters/CXXFormatterFunctions.h"
 
 #include "lldb/Core/ConstString.h"
@@ -107,7 +105,7 @@ lldb_private::formatters::LibcxxInitializerListSyntheticFrontEnd::Update()
     if (kind != lldb::eTemplateArgumentKindType || false == m_element_type.IsValid())
         return false;
     
-    m_element_size = m_element_type.GetByteSize();
+    m_element_size = m_element_type.GetByteSize(nullptr);
     
     if (m_element_size > 0)
         m_start = m_backend.GetChildMemberWithName(g___begin_,true).get(); // store raw pointers or end up with a circular dependency

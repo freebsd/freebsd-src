@@ -26,15 +26,14 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd April 1, 2006
+.Dd July 31, 2015
 .Dt EXAMPLE 4 i386
 .Os
 .Sh NAME
 .Nm example
 .Nd "example device driver manual page"
 .Sh SYNOPSIS
-To compile the
-driver into the kernel,
+To compile the driver into the kernel,
 place the following lines in the
 kernel configuration file:
 .Bd -ragged -offset indent
@@ -42,8 +41,7 @@ kernel configuration file:
 .Cd "options EXAMPLE_DEBUG"
 .Ed
 .Pp
-Alternatively, to load the
-driver as a
+Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent

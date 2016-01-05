@@ -161,6 +161,7 @@ static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_input_default(struct ifnet *, struct mbuf *);
+static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
@@ -173,7 +174,7 @@ static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
-static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
+static int	if_detach_internal(struct ifnet *, int, struct if_clone **);
 
 #ifdef INET6
 /*
@@ -182,6 +183,10 @@ static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
  */
 extern void	nd6_setmtu(struct ifnet *);
 #endif
+
+/* ipsec helper hooks */
+VNET_DEFINE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
+VNET_DEFINE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
 
 VNET_DEFINE(int, if_index);
 int	ifqmaxlen = IFQ_MAXLEN;
@@ -669,6 +674,9 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 	if (ifp->if_input == NULL)
 		ifp->if_input = if_input_default;
 
+	if (ifp->if_requestencap == NULL)
+		ifp->if_requestencap = if_requestencap_default;
+
 	if (!vmove) {
 #ifdef MAC
 		mac_ifnet_create(ifp);
@@ -880,7 +888,7 @@ if_detach(struct ifnet *ifp)
 	CURVNET_RESTORE();
 }
 
-static void
+static int
 if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
@@ -902,11 +910,19 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 #endif
 	IFNET_WUNLOCK();
 	if (!found) {
+		/*
+		 * While we would want to panic here, we cannot
+		 * guarantee that the interface is indeed still on
+		 * the list given we don't hold locks all the way.
+		 */
+		return (ENOENT);
+#if 0
 		if (vmove)
 			panic("%s: ifp=%p not on the ifnet tailq %p",
 			    __func__, ifp, &V_ifnet);
 		else
 			return; /* XXX this should panic as well? */
+#endif
 	}
 
 	/* Check if this is a cloned interface or not. */
@@ -989,6 +1005,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
 	}
+
+	return (0);
 }
 
 #ifdef VIMAGE
@@ -1003,12 +1021,16 @@ void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	struct if_clone *ifc;
+	int rc;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
+	 * If we cannot find it, we lost the race to someone else.
 	 */
-	if_detach_internal(ifp, 1, &ifc);
+	rc = if_detach_internal(ifp, 1, &ifc);
+	if (rc != 0)
+		return;
 
 	/*
 	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
@@ -1545,76 +1567,53 @@ ifa_free(struct ifaddr *ifa)
 	}
 }
 
-int
-ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+static int
+ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
+    struct sockaddr *ia)
 {
-	int error = 0;
-	struct rtentry *rt = NULL;
+	int error;
 	struct rt_addrinfo info;
-	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+	struct sockaddr_dl null_sdl;
+	struct ifnet *ifp;
+
+	ifp = ifa->ifa_ifp;
 
 	bzero(&info, sizeof(info));
-	info.rti_ifp = V_loif;
+	if (cmd != RTM_DELETE)
+		info.rti_ifp = V_loif;
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_ADD, &info, &rt, ifa->ifa_ifp->if_fib);
+	link_init_sdl(ifp, (struct sockaddr *)&null_sdl, ifp->if_type);
 
-	if (error == 0 && rt != NULL) {
-		RT_LOCK(rt);
-		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-			ifa->ifa_ifp->if_type;
-		((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-			ifa->ifa_ifp->if_index;
-		RT_REMREF(rt);
-		RT_UNLOCK(rt);
-	} else if (error != 0)
-		log(LOG_DEBUG, "%s: insertion failed: %u\n", __func__, error);
+	error = rtrequest1_fib(cmd, &info, NULL, ifp->if_fib);
+
+	if (error != 0)
+		log(LOG_DEBUG, "%s: %s failed for interface %s: %u\n",
+		    __func__, otype, if_name(ifp), error);
 
 	return (error);
+}
+
+int
+ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+{
+
+	return (ifa_maintain_loopback_route(RTM_ADD, "insertion", ifa, ia));
 }
 
 int
 ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 {
-	int error = 0;
-	struct rt_addrinfo info;
-	struct sockaddr_dl null_sdl;
 
-	bzero(&null_sdl, sizeof(null_sdl));
-	null_sdl.sdl_len = sizeof(null_sdl);
-	null_sdl.sdl_family = AF_LINK;
-	null_sdl.sdl_type = ifa->ifa_ifp->if_type;
-	null_sdl.sdl_index = ifa->ifa_ifp->if_index;
-	bzero(&info, sizeof(info));
-	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
-	info.rti_info[RTAX_DST] = ia;
-	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_DELETE, &info, NULL, ifa->ifa_ifp->if_fib);
-
-	if (error != 0)
-		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
-
-	return (error);
+	return (ifa_maintain_loopback_route(RTM_DELETE, "deletion", ifa, ia));
 }
 
 int
-ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
+ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 {
-	struct rtentry *rt;
 
-	rt = rtalloc1_fib(sa, 0, 0, fib);
-	if (rt == NULL) {
-		log(LOG_DEBUG, "%s: fail", __func__);
-		return (EHOSTUNREACH);
-	}
-	((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
-	    ifa->ifa_ifp->if_type;
-	((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-	    ifa->ifa_ifp->if_index;
-	RTFREE_LOCKED(rt);
-
-	return (0);
+	return (ifa_maintain_loopback_route(RTM_CHANGE, "switch", ifa, ia));
 }
 
 /*
@@ -2535,7 +2534,6 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
-		EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		break;
 
 	case SIOCAIFGROUP:
@@ -3337,8 +3335,10 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
  *
  * At this time we only support certain types of interfaces,
  * and we don't allow the length of the address to change.
+ *
+ * Set noinline to be dtrace-friendly
  */
-int
+__noinline int
 if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 {
 	struct sockaddr_dl *sdl;
@@ -3396,17 +3396,45 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 			ifr.ifr_flagshigh = ifp->if_flags >> 16;
 			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 		}
-#ifdef INET
-		/*
-		 * Also send gratuitous ARPs to notify other nodes about
-		 * the address change.
-		 */
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family == AF_INET)
-				arp_ifinit(ifp, ifa);
-		}
-#endif
 	}
+	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+	return (0);
+}
+
+/*
+ * Compat function for handling basic encapsulation requests.
+ * Not converted stacks (FDDI, IB, ..) supports traditional
+ * output model: ARP (and other similar L2 protocols) are handled
+ * inside output routine, arpresolve/nd6_resolve() returns MAC
+ * address instead of full prepend.
+ *
+ * This function creates calculated header==MAC for IPv4/IPv6 and
+ * returns EAFNOSUPPORT (which is then handled in ARP code) for other
+ * address families.
+ */
+static int
+if_requestencap_default(struct ifnet *ifp, struct if_encap_req *req)
+{
+
+	if (req->rtype != IFENCAP_LL)
+		return (EOPNOTSUPP);
+
+	if (req->bufsize < req->lladdr_len)
+		return (ENOMEM);
+
+	switch (req->family) {
+	case AF_INET:
+	case AF_INET6:
+		break;
+	default:
+		return (EAFNOSUPPORT);
+	}
+
+	/* Copy lladdr to storage as is */
+	memmove(req->buf, req->lladdr, req->lladdr_len);
+	req->bufsize = req->lladdr_len;
+	req->lladdr_off = 0;
+
 	return (0);
 }
 

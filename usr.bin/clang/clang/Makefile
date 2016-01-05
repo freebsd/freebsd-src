@@ -18,9 +18,11 @@ LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 MLINKS=	clang.1 clang++.1 \
 	clang.1 clang-cpp.1
 .if ${MK_CLANG_IS_CC} != "no"
+SCRIPTS=CC.sh
+SCRIPTSNAME=CC
+
 LINKS+=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/c++ \
-	${BINDIR}/clang ${BINDIR}/CC \
 	${BINDIR}/clang ${BINDIR}/cpp
 MLINKS+= clang.1 cc.1 \
 	clang.1 c++.1 \
@@ -66,10 +68,8 @@ LIBDEPS=clangfrontendtool \
 	llvmirreader \
 	llvmipo \
 	llvmvectorize \
-	llvminstrumentation \
 	llvmbitwriter \
 	llvmasmparser \
-	llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
@@ -82,7 +82,6 @@ LIBDEPS=clangfrontendtool \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipsdisassembler \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
@@ -94,25 +93,24 @@ LIBDEPS=clangfrontendtool \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
-	llvmsparcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
 	llvmsparcinfo \
 	llvmsparcinstprinter \
-	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \
@@ -125,7 +123,6 @@ LIBDEPS=clangfrontendtool \
 	llvmcore \
 	llvmsupport
 
-.include "../clang.prog.mk"
+LIBADD+=	z
 
-DPADD+=	${LIBZ}
-LDADD+=	-lz
+.include "../clang.prog.mk"

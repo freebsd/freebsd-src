@@ -315,9 +315,18 @@ public:
 
   // LiveIn management methods.
 
-  /// addLiveIn - Add the specified register as a live in.  Note that it
-  /// is an error to add the same register to the same set more than once.
-  void addLiveIn(unsigned Reg)  { LiveIns.push_back(Reg); }
+  /// Adds the specified register as a live in. Note that it is an error to add
+  /// the same register to the same set more than once unless the intention is
+  /// to call sortUniqueLiveIns after all registers are added.
+  void addLiveIn(unsigned Reg) { LiveIns.push_back(Reg); }
+
+  /// Sorts and uniques the LiveIns vector. It can be significantly faster to do
+  /// this than repeatedly calling isLiveIn before calling addLiveIn for every
+  /// LiveIn insertion.
+  void sortUniqueLiveIns() {
+    std::sort(LiveIns.begin(), LiveIns.end());
+    LiveIns.erase(std::unique(LiveIns.begin(), LiveIns.end()), LiveIns.end());
+  }
 
   /// Add PhysReg as live in to this block, and ensure that there is a copy of
   /// PhysReg to a virtual register of class RC. Return the virtual register
@@ -452,16 +461,27 @@ public:
   /// instruction of this basic block. If a terminator does not exist,
   /// it returns end()
   iterator getFirstTerminator();
-  const_iterator getFirstTerminator() const;
+  const_iterator getFirstTerminator() const {
+    return const_cast<MachineBasicBlock *>(this)->getFirstTerminator();
+  }
 
   /// getFirstInstrTerminator - Same getFirstTerminator but it ignores bundles
   /// and return an instr_iterator instead.
   instr_iterator getFirstInstrTerminator();
 
+  /// getFirstNonDebugInstr - returns an iterator to the first non-debug
+  /// instruction in the basic block, or end()
+  iterator getFirstNonDebugInstr();
+  const_iterator getFirstNonDebugInstr() const {
+    return const_cast<MachineBasicBlock *>(this)->getFirstNonDebugInstr();
+  }
+
   /// getLastNonDebugInstr - returns an iterator to the last non-debug
   /// instruction in the basic block, or end()
   iterator getLastNonDebugInstr();
-  const_iterator getLastNonDebugInstr() const;
+  const_iterator getLastNonDebugInstr() const {
+    return const_cast<MachineBasicBlock *>(this)->getLastNonDebugInstr();
+  }
 
   /// SplitCriticalEdge - Split the critical edge from this block to the
   /// given successor block, and return the newly created block, or null
@@ -624,21 +644,24 @@ public:
                          ///< neighborhood.
   };
 
-  /// computeRegisterLiveness - Return whether (physical) register \c Reg
-  /// has been <def>ined and not <kill>ed as of just before \c MI.
+  /// Return whether (physical) register \p Reg has been <def>ined and not
+  /// <kill>ed as of just before \p Before.
   ///
-  /// Search is localised to a neighborhood of
-  /// \c Neighborhood instructions before (searching for defs or kills) and
-  /// Neighborhood instructions after (searching just for defs) MI.
+  /// Search is localised to a neighborhood of \p Neighborhood instructions
+  /// before (searching for defs or kills) and \p Neighborhood instructions
+  /// after (searching just for defs) \p Before.
   ///
-  /// \c Reg must be a physical register.
+  /// \p Reg must be a physical register.
   LivenessQueryResult computeRegisterLiveness(const TargetRegisterInfo *TRI,
-                                              unsigned Reg, MachineInstr *MI,
-                                              unsigned Neighborhood=10);
+                                              unsigned Reg,
+                                              const_iterator Before,
+                                              unsigned Neighborhood=10) const;
 
   // Debugging methods.
   void dump() const;
   void print(raw_ostream &OS, SlotIndexes* = nullptr) const;
+  void print(raw_ostream &OS, ModuleSlotTracker &MST,
+             SlotIndexes * = nullptr) const;
 
   // Printing method used by LoopInfo.
   void printAsOperand(raw_ostream &OS, bool PrintType = true) const;

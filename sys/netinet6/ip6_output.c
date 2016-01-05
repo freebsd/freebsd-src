@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
@@ -147,8 +148,11 @@ static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
 	struct ip6_frag **);
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
-static int ip6_getpmtu(struct route_in6 *, struct route_in6 *,
+static int ip6_getpmtu(struct route_in6 *, int,
 	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
+static int ip6_calcmtu(struct ifnet *, const struct in6_addr *, u_long,
+	u_long *, int *);
+static int ip6_getpmtu_ctl(u_int, struct in6_addr *, u_long *);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -712,7 +716,7 @@ again:
 		*ifpp = ifp;
 
 	/* Determine path MTU. */
-	if ((error = ip6_getpmtu(ro_pmtu, ro, ifp, &finaldst, &mtu,
+	if ((error = ip6_getpmtu(ro_pmtu, ro != ro_pmtu, ifp, &finaldst, &mtu,
 	    &alwaysfrag, fibnum)) != 0)
 		goto bad;
 
@@ -935,7 +939,7 @@ passout:
 			    m->m_pkthdr.len);
 			ifa_free(&ia6->ia_ifa);
 		}
-		error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
+		error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
 		goto done;
 	}
 
@@ -1034,7 +1038,7 @@ sendorfree:
 				counter_u64_add(ia->ia_ifa.ifa_obytes,
 				    m->m_pkthdr.len);
 			}
-			error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
+			error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
 		} else
 			m_freem(m);
 	}
@@ -1045,8 +1049,6 @@ sendorfree:
 done:
 	if (ro == &ip6route)
 		RO_RTFREE(ro);
-	if (ro_pmtu == &ip6route)
-		RO_RTFREE(ro_pmtu);
 	return (error);
 
 freehdrs:
@@ -1215,35 +1217,105 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 	return (0);
 }
 
+/*
+ * Calculates IPv6 path mtu for destination @dst.
+ * Resulting MTU is stored in @mtup.
+ *
+ * Returns 0 on success.
+ */
 static int
-ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
+ip6_getpmtu_ctl(u_int fibnum, struct in6_addr *dst, u_long *mtup)
+{
+	struct nhop6_extended nh6;
+	struct in6_addr kdst;
+	uint32_t scopeid;
+	struct ifnet *ifp;
+	u_long mtu;
+	int error;
+
+	in6_splitscope(dst, &kdst, &scopeid);
+	if (fib6_lookup_nh_ext(fibnum, &kdst, scopeid, NHR_REF, 0, &nh6) != 0)
+		return (EHOSTUNREACH);
+
+	ifp = nh6.nh_ifp;
+	mtu = nh6.nh_mtu;
+
+	error = ip6_calcmtu(ifp, dst, mtu, mtup, NULL);
+	fib6_free_nh_ext(fibnum, &nh6);
+
+	return (error);
+}
+
+/*
+ * Calculates IPv6 path MTU for @dst based on transmit @ifp,
+ * and cached data in @ro_pmtu.
+ * MTU from (successful) route lookup is saved (along with dst)
+ * inside @ro_pmtu to avoid subsequent route lookups after packet
+ * filter processing.
+ *
+ * Stores mtu and always-frag value into @mtup and @alwaysfragp.
+ * Returns 0 on success.
+ */
+static int
+ip6_getpmtu(struct route_in6 *ro_pmtu, int do_lookup,
     struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
     int *alwaysfragp, u_int fibnum)
 {
-	u_int32_t mtu = 0;
-	int alwaysfrag = 0;
-	int error = 0;
+	struct nhop6_basic nh6;
+	struct in6_addr kdst;
+	uint32_t scopeid;
+	struct sockaddr_in6 *sa6_dst;
+	u_long mtu;
 
-	if (ro_pmtu != ro) {
-		/* The first hop and the final destination may differ. */
-		struct sockaddr_in6 *sa6_dst =
-		    (struct sockaddr_in6 *)&ro_pmtu->ro_dst;
-		if (ro_pmtu->ro_rt &&
-		    ((ro_pmtu->ro_rt->rt_flags & RTF_UP) == 0 ||
-		     !IN6_ARE_ADDR_EQUAL(&sa6_dst->sin6_addr, dst))) {
-			RTFREE(ro_pmtu->ro_rt);
-			ro_pmtu->ro_rt = (struct rtentry *)NULL;
-		}
-		if (ro_pmtu->ro_rt == NULL) {
+	mtu = 0;
+	if (do_lookup) {
+
+		/*
+		 * Here ro_pmtu has final destination address, while
+		 * ro might represent immediate destination.
+		 * Use ro_pmtu destination since mtu might differ.
+		 */
+		sa6_dst = (struct sockaddr_in6 *)&ro_pmtu->ro_dst;
+		if (!IN6_ARE_ADDR_EQUAL(&sa6_dst->sin6_addr, dst))
+			ro_pmtu->ro_mtu = 0;
+
+		if (ro_pmtu->ro_mtu == 0) {
 			bzero(sa6_dst, sizeof(*sa6_dst));
 			sa6_dst->sin6_family = AF_INET6;
 			sa6_dst->sin6_len = sizeof(struct sockaddr_in6);
 			sa6_dst->sin6_addr = *dst;
 
-			in6_rtalloc(ro_pmtu, fibnum);
+			in6_splitscope(dst, &kdst, &scopeid);
+			if (fib6_lookup_nh_basic(fibnum, &kdst, scopeid, 0, 0,
+			    &nh6) == 0)
+				ro_pmtu->ro_mtu = nh6.nh_mtu;
 		}
+
+		mtu = ro_pmtu->ro_mtu;
 	}
-	if (ro_pmtu->ro_rt) {
+
+	if (ro_pmtu->ro_rt)
+		mtu = ro_pmtu->ro_rt->rt_mtu;
+
+	return (ip6_calcmtu(ifp, dst, mtu, mtup, alwaysfragp));
+}
+
+/*
+ * Calculate MTU based on transmit @ifp, route mtu @rt_mtu and
+ * hostcache data for @dst.
+ * Stores mtu and always-frag value into @mtup and @alwaysfragp.
+ *
+ * Returns 0 on success.
+ */
+static int
+ip6_calcmtu(struct ifnet *ifp, const struct in6_addr *dst, u_long rt_mtu,
+    u_long *mtup, int *alwaysfragp)
+{
+	u_long mtu = 0;
+	int alwaysfrag = 0;
+	int error = 0;
+
+	if (rt_mtu > 0) {
 		u_int32_t ifmtu;
 		struct in_conninfo inc;
 
@@ -1251,14 +1323,12 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 		inc.inc_flags |= INC_ISIPV6;
 		inc.inc6_faddr = *dst;
 
-		if (ifp == NULL)
-			ifp = ro_pmtu->ro_rt->rt_ifp;
 		ifmtu = IN6_LINKMTU(ifp);
 		mtu = tcp_hc_getmtu(&inc);
 		if (mtu)
-			mtu = min(mtu, ro_pmtu->ro_rt->rt_mtu);
+			mtu = min(mtu, rt_mtu);
 		else
-			mtu = ro_pmtu->ro_rt->rt_mtu;
+			mtu = rt_mtu;
 		if (mtu == 0)
 			mtu = ifmtu;
 		else if (mtu < IPV6_MMTU) {
@@ -1830,6 +1900,7 @@ do { \
 			case IPV6_RSSBUCKETID:
 			case IPV6_RECVRSSBUCKETID:
 #endif
+			case IPV6_BINDMULTI:
 				switch (optname) {
 
 				case IPV6_RECVHOPOPTS:
@@ -1935,9 +2006,6 @@ do { \
 			{
 				u_long pmtu = 0;
 				struct ip6_mtuinfo mtuinfo;
-				struct route_in6 sro;
-
-				bzero(&sro, sizeof(sro));
 
 				if (!(so->so_state & SS_ISCONNECTED))
 					return (ENOTCONN);
@@ -1946,11 +2014,8 @@ do { \
 				 * routing, or optional information to specify
 				 * the outgoing interface.
 				 */
-				error = ip6_getpmtu(&sro, NULL, NULL,
-				    &in6p->in6p_faddr, &pmtu, NULL,
-				    so->so_fibnum);
-				if (sro.ro_rt)
-					RTFREE(sro.ro_rt);
+				error = ip6_getpmtu_ctl(so->so_fibnum,
+				    &in6p->in6p_faddr, &pmtu);
 				if (error)
 					break;
 				if (pmtu > IPV6_MAXPACKET)

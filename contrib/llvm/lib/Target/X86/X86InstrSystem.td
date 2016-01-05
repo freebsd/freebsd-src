@@ -38,9 +38,6 @@ def INT3 : I<0xcc, RawFrm, (outs), (ins), "int3",
               [(int_x86_int (i8 3))], IIC_INT3>;
 } // SchedRW
 
-def : Pat<(debugtrap),
-          (INT3)>;
-
 // The long form of "int $3" turns into int3 as a size optimization.
 // FIXME: This doesn't work because InstAlias can't match immediate constants.
 //def : InstAlias<"int\t$3", (INT3)>;
@@ -71,6 +68,10 @@ def IRET64 : RI<0xcf, RawFrm, (outs), (ins), "iretq", [], IIC_IRET>,
              Requires<[In64BitMode]>;
 } // SchedRW
 
+def : Pat<(debugtrap),
+          (INT3)>, Requires<[NotPS4]>;
+def : Pat<(debugtrap),
+          (INT (i8 0x41))>, Requires<[IsPS4]>;
 
 //===----------------------------------------------------------------------===//
 //  Input/Output Instructions.
@@ -437,7 +438,9 @@ def LLDT16m : I<0x00, MRM2m, (outs), (ins i16mem:$src),
 //===----------------------------------------------------------------------===//
 // Specialized register support
 let SchedRW = [WriteSystem] in {
+let Uses = [EAX, ECX, EDX] in
 def WRMSR : I<0x30, RawFrm, (outs), (ins), "wrmsr", [], IIC_WRMSR>, TB;
+let Defs = [EAX, EDX], Uses = [ECX] in
 def RDMSR : I<0x32, RawFrm, (outs), (ins), "rdmsr", [], IIC_RDMSR>, TB;
 
 let Defs = [RAX, RDX], Uses = [ECX] in
@@ -485,15 +488,28 @@ let Uses = [RDX, RAX] in {
   def XSAVE : I<0xAE, MRM4m, (outs opaque512mem:$dst), (ins),
                "xsave\t$dst", []>, TB;
   def XSAVE64 : RI<0xAE, MRM4m, (outs opaque512mem:$dst), (ins),
-                 "xsave{q|64}\t$dst", []>, TB, Requires<[In64BitMode]>;
+                 "xsave64\t$dst", []>, TB, Requires<[In64BitMode]>;
   def XRSTOR : I<0xAE, MRM5m, (outs), (ins opaque512mem:$dst),
                "xrstor\t$dst", []>, TB;
   def XRSTOR64 : RI<0xAE, MRM5m, (outs), (ins opaque512mem:$dst),
-                 "xrstor{q|64}\t$dst", []>, TB, Requires<[In64BitMode]>;
+                 "xrstor64\t$dst", []>, TB, Requires<[In64BitMode]>;
   def XSAVEOPT : I<0xAE, MRM6m, (outs opaque512mem:$dst), (ins),
-                  "xsaveopt\t$dst", []>, TB;
+                  "xsaveopt\t$dst", []>, PS;
   def XSAVEOPT64 : RI<0xAE, MRM6m, (outs opaque512mem:$dst), (ins),
-                    "xsaveopt{q|64}\t$dst", []>, TB, Requires<[In64BitMode]>;
+                    "xsaveopt64\t$dst", []>, PS, Requires<[In64BitMode]>;
+
+  def XRSTORS : I<0xC7, MRM3m, (outs), (ins opaque512mem:$dst),
+                "xrstors\t$dst", []>, TB;
+  def XRSTORS64 : RI<0xC7, MRM3m, (outs), (ins opaque512mem:$dst),
+                  "xrstors64\t$dst", []>, TB, Requires<[In64BitMode]>;
+  def XSAVEC : I<0xC7, MRM4m, (outs opaque512mem:$dst), (ins),
+                "xsavec\t$dst", []>, TB;
+  def XSAVEC64 : RI<0xC7, MRM4m, (outs opaque512mem:$dst), (ins),
+                  "xsavec64\t$dst", []>, TB, Requires<[In64BitMode]>;
+  def XSAVES : I<0xC7, MRM5m, (outs opaque512mem:$dst), (ins),
+                "xsaves\t$dst", []>, TB;
+  def XSAVES64 : RI<0xC7, MRM5m, (outs opaque512mem:$dst), (ins),
+                  "xsaves64\t$dst", []>, TB, Requires<[In64BitMode]>;
 }
 } // SchedRW
 
@@ -559,7 +575,13 @@ def INVPCID64 : I<0x82, MRMSrcMem, (outs), (ins GR64:$src1, i128mem:$src2),
 
 //===----------------------------------------------------------------------===//
 // SMAP Instruction
-let Predicates = [HasSMAP], Defs = [EFLAGS] in {
+let Defs = [EFLAGS] in {
   def CLAC : I<0x01, MRM_CA, (outs), (ins), "clac", []>, TB;
   def STAC : I<0x01, MRM_CB, (outs), (ins), "stac", []>, TB;
+}
+
+//===----------------------------------------------------------------------===//
+// SMX Instruction
+let Uses = [RAX, RBX, RCX, RDX], Defs = [RAX, RBX, RCX] in {
+  def GETSEC : I<0x37, RawFrm, (outs), (ins), "getsec", []>, TB;
 }

@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnThreadMgrStd.h
-//
-// Overview:    CMICmnThreadMgr interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
@@ -47,8 +35,8 @@ class CMICmnThreadMgrStd : public CMICmnBase, public MI::ISingleton<CMICmnThread
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
     bool
     ThreadAllTerminate(void); // Ask all threads to stop (caution)
     template <typename T>     // Ask the thread manager to start and stop threads on our behalf
@@ -70,7 +58,7 @@ class CMICmnThreadMgrStd : public CMICmnBase, public MI::ISingleton<CMICmnThread
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnThreadMgrStd(void);
+    /* dtor */ ~CMICmnThreadMgrStd(void) override;
 
     // Attributes:
   private:

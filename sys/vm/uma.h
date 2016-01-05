@@ -521,6 +521,19 @@ int uma_zone_get_max(uma_zone_t zone);
 void uma_zone_set_warning(uma_zone_t zone, const char *warning);
 
 /*
+ * Sets a function to run when limit is reached
+ *
+ * Arguments:
+ *	zone  The zone to which this applies
+ *	fx  The function ro run
+ *
+ * Returns:
+ *	Nothing
+ */
+typedef void (*uma_maxaction_t)(uma_zone_t);
+void uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t);
+
+/*
  * Obtains the approximate current number of items allocated from a zone
  *
  * Arguments:

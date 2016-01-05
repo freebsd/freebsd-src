@@ -13,23 +13,25 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/:C/riscv64/riscv/}
 .endif
 
 
 # Some options we need now
 __DEFAULT_NO_OPTIONS= \
-	DIRDEPS_CACHE \
-	META_MODE \
-	META_FILES \
-
+	DIRDEPS_BUILD \
+	DIRDEPS_CACHE
 
 __DEFAULT_DEPENDENT_OPTIONS= \
-	AUTO_OBJ/META_MODE \
-	STAGING/META_MODE \
-	SYSROOT/META_MODE
+	AUTO_OBJ/DIRDEPS_BUILD \
+	META_MODE/DIRDEPS_BUILD \
+	STAGING/DIRDEPS_BUILD \
+	SYSROOT/DIRDEPS_BUILD
 
-.include <bsd.mkopt.mk>
+__ENV_ONLY_OPTIONS:= \
+	${__DEFAULT_NO_OPTIONS} \
+	${__DEFAULT_YES_OPTIONS} \
+	${__DEFAULT_DEPENDENT_OPTIONS:H}
 
 # early include for customization
 # see local.sys.mk below
@@ -38,18 +40,25 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 .if defined(.PARSEDIR)
 .sinclude <local.sys.env.mk>
 
-.if ${MK_META_MODE} == "yes"
+.include <bsd.mkopt.mk>
+
+.if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_FILES} == "yes" && defined(.MAKEFLAGS)
+.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS)
 .if ${.MAKEFLAGS:M-B} == ""
 .MAKE.MODE= meta verbose
 .endif
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
+# Don't do this for 'make showconfig' as it enables all options where meta mode
+# is not expected.
+.if !make(showconfig)
 .sinclude <auto.obj.mk>
 .endif
-
+.endif
+.else # bmake
+.include <bsd.mkopt.mk>
 .endif
 
 # If the special target .POSIX appears (without prerequisites or
@@ -60,6 +69,10 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 #
 # The rules below use this macro to distinguish between Posix-compliant
 # and default behaviour.
+#
+# This functionality is currently broken, since make(1) processes sys.mk
+# before reading any other files, and consequently has no opportunity to
+# set the %POSIX macro before we read this point.
 
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
@@ -133,13 +146,12 @@ ECHODIR		?=	true
 .endif
 .endif
 
-.if defined(.PARSEDIR)
-# _+_ appears to be a workaround for the special src .MAKE not working.
-# setting it to + interferes with -N
-_+_		?=
-.elif !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
-# the check above matches only a single -n, so -n -n will result
-# in _+_ = +
+.if ${.MAKEFLAGS:M-N}
+# bmake -N is supposed to skip executing anything but it does not skip
+# exeucting '+' commands.  The '+' feature is used where .MAKE
+# is not safe for the entire target.  -N is intended to skip building sub-makes
+# so it executing '+' commands is not right.  Work around the bug by not
+# setting '+' when -N is used.
 _+_		?=
 .else
 _+_		?=	+
@@ -264,7 +276,7 @@ YFLAGS		?=	-d
 
 # non-Posix rule set
 
-.sh:
+.sh: .NOMETA
 	cp -fp ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
@@ -306,11 +318,11 @@ YFLAGS		?=	-d
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.o:
-	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
 	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
@@ -382,6 +394,10 @@ SHELL=	${__MAKE_SHELL}
 # Tell bmake the makefile preference
 .MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
 
+# Tell bmake to always pass job tokens, regardless of target depending on
+# .MAKE or looking like ${MAKE}/${.MAKE}/$(MAKE)/$(.MAKE)/make.
+.MAKE.ALWAYS_PASS_JOB_QUEUE= yes
+
 # By default bmake does *not* use set -e
 # when running target scripts, this is a problem for many makefiles here.
 # So define a shell that will do what FreeBSD expects.
@@ -394,6 +410,15 @@ __MAKE_SHELL?=/bin/sh
 	path=${__MAKE_SHELL}
 .endif
 
+# Hack for ports compatibility. Historically, ports makefiles have
+# assumed they can examine MACHINE_CPU without including anything
+# because this was automatically included in sys.mk. For /usr/src,
+# this file has moved to being included from bsd.opts.mk. Until all
+# the ports files are modernized, and a reasonable transition
+# period has passed, include it while we're in a ports tree here
+# to preserve historic behavior.
+.if exists(${.CURDIR}/../../Mk/bsd.port.mk)
 .include <bsd.cpu.mk>
+.endif
 
 .endif # ! Posix

@@ -148,14 +148,14 @@ static efx_mon_ops_t	*__efx_mon_ops[] = {
 #endif
 };
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mon_init(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mon_t *emp = &(enp->en_mon);
 	efx_mon_ops_t *emop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -205,7 +205,7 @@ fail2:
 	enp->en_mod_flags &= ~EFX_MOD_MON;
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -303,11 +303,11 @@ efx_mon_stat_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 efx_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
 {
 	efx_mon_t *emp = &(enp->en_mon);
 	efx_mon_ops_t *emop = emp->em_emop;
@@ -326,7 +326,7 @@ efx_mon_fini(
 {
 	efx_mon_t *emp = &(enp->en_mon);
 	efx_mon_ops_t *emop = emp->em_emop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -337,7 +337,7 @@ efx_mon_fini(
 	if (emop->emo_reset != NULL) {
 		rc = emop->emo_reset(enp);
 		if (rc != 0)
-			EFSYS_PROBE1(fail1, int, rc);
+			EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	}
 
 	emp->em_type = EFX_MON_INVALID;

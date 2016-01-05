@@ -1,5 +1,4 @@
 /* $OpenBSD: misc.c,v 1.92 2013/10/14 23:28:23 djm Exp $ */
-/* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.

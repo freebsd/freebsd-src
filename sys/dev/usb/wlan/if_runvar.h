@@ -119,11 +119,14 @@ struct run_cmdq {
 
 struct run_vap {
 	struct ieee80211vap             vap;
-	struct ieee80211_beacon_offsets bo;
 	struct mbuf			*beacon_mbuf;
 
 	int                             (*newstate)(struct ieee80211vap *,
                                             enum ieee80211_state, int);
+	void				(*recv_mgmt)(struct ieee80211_node *,
+					    struct mbuf *, int,
+					    const struct ieee80211_rx_stats *,
+					    int, int);
 
 	uint8_t				rvp_id;
 };
@@ -250,14 +253,12 @@ struct run_softc {
 		uint8_t	pad[64];
 	}				sc_rxtapu;
 #define sc_rxtap	sc_rxtapu.th
-	int				sc_rxtap_len;
 
 	union {
 		struct run_tx_radiotap_header th;
 		uint8_t	pad[64];
 	}				sc_txtapu;
 #define sc_txtap	sc_txtapu.th
-	int				sc_txtap_len;
 };
 
 #define	RUN_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)

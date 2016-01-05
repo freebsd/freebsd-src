@@ -251,11 +251,6 @@ static driver_t uvisor_driver = {
 	.size = sizeof(struct uvisor_softc),
 };
 
-DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
-MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
-MODULE_DEPEND(uvisor, usb, 1, 1, 1);
-MODULE_VERSION(uvisor, 1);
-
 static const STRUCT_USB_HOST_ID uvisor_devs[] = {
 #define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	UVISOR_DEV(ACEECA, MEZ1000, UVISOR_FLAG_PALM4),
@@ -287,6 +282,12 @@ static const STRUCT_USB_HOST_ID uvisor_devs[] = {
 	UVISOR_DEV(TAPWAVE, ZODIAC, UVISOR_FLAG_PALM4),
 #undef UVISOR_DEV
 };
+
+DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
+MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
+MODULE_DEPEND(uvisor, usb, 1, 1, 1);
+MODULE_VERSION(uvisor, 1);
+USB_PNP_HOST_INFO(uvisor_devs);
 
 static int
 uvisor_probe(device_t dev)

@@ -35,8 +35,10 @@
 #include "ixgbe_api.h"
 #include "ixgbe_common.h"
 
+#define IXGBE_EMPTY_PARAM
+
 static const u32 ixgbe_mvals_base[IXGBE_MVALS_IDX_LIMIT] = {
-	IXGBE_MVALS_INIT()
+	IXGBE_MVALS_INIT(IXGBE_EMPTY_PARAM)
 };
 
 static const u32 ixgbe_mvals_X540[IXGBE_MVALS_IDX_LIMIT] = {
@@ -113,6 +115,7 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 		status = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
 		break;
 	}
+	hw->mac.max_link_up_time = IXGBE_LINK_UP_TIME;
 
 	return status;
 }
@@ -187,6 +190,7 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 		hw->mvals = ixgbe_mvals_X540;
 		break;
 	case IXGBE_DEV_ID_X550T:
+	case IXGBE_DEV_ID_X550T1:
 		hw->mac.type = ixgbe_mac_X550;
 		hw->mvals = ixgbe_mvals_X550;
 		break;

@@ -655,7 +655,7 @@ pmap_set_pg(void)
 		va = KERNBASE + KERNLOAD;
 		while (va  < endva) {
 			pdir_pde(PTD, va) |= pgeflag;
-			invltlb();	/* Play it safe, invltlb() every time */
+			invltlb();	/* Flush non-PG_G entries. */
 			va += NBPDR;
 		}
 	} else {
@@ -664,7 +664,7 @@ pmap_set_pg(void)
 			pte = vtopte(va);
 			if (*pte)
 				*pte |= pgeflag;
-			invltlb();	/* Play it safe, invltlb() every time */
+			invltlb();	/* Flush non-PG_G entries. */
 			va += PAGE_SIZE;
 		}
 	}
@@ -973,6 +973,22 @@ pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
 		load_cr4(cr4 | CR4_PGE);
 	}
 }
+
+void
+invltlb_glob(void)
+{
+	uint64_t cr4;
+
+	if (pgeflag == 0) {
+		invltlb();
+	} else {
+		cr4 = rcr4();
+		load_cr4(cr4 & ~CR4_PGE);
+		load_cr4(cr4 | CR4_PGE);
+	}
+}
+
+
 #ifdef SMP
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
@@ -996,13 +1012,13 @@ pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	cpuset_t other_cpus;
+	cpuset_t *mask, other_cpus;
 	u_int cpuid;
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invlpg(va);
-		smp_invlpg(va);
+		mask = &all_cpus;
 	} else {
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
@@ -1010,24 +1026,32 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invlpg(va);
 		CPU_AND(&other_cpus, &pmap->pm_active);
-		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invlpg(other_cpus, va);
+		mask = &other_cpus;
 	}
+	smp_masked_invlpg(*mask, va);
 	sched_unpin();
 }
+
+/* 4k PTEs -- Chosen to exceed the total size of Broadwell L2 TLB */
+#define	PMAP_INVLPG_THRESHOLD	(4 * 1024 * PAGE_SIZE)
 
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	cpuset_t other_cpus;
+	cpuset_t *mask, other_cpus;
 	vm_offset_t addr;
 	u_int cpuid;
+
+	if (eva - sva >= PMAP_INVLPG_THRESHOLD) {
+		pmap_invalidate_all(pmap);
+		return;
+	}
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
-		smp_invlpg_range(sva, eva);
+		mask = &all_cpus;
 	} else {
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
@@ -1036,22 +1060,25 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
 		CPU_AND(&other_cpus, &pmap->pm_active);
-		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invlpg_range(other_cpus, sva, eva);
+		mask = &other_cpus;
 	}
+	smp_masked_invlpg_range(*mask, sva, eva);
 	sched_unpin();
 }
 
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	cpuset_t other_cpus;
+	cpuset_t *mask, other_cpus;
 	u_int cpuid;
 
 	sched_pin();
-	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
+	if (pmap == kernel_pmap) {
+		invltlb_glob();
+		mask = &all_cpus;
+	} else if (!CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invltlb();
-		smp_invltlb();
+		mask = &all_cpus;
 	} else {
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
@@ -1059,9 +1086,9 @@ pmap_invalidate_all(pmap_t pmap)
 		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invltlb();
 		CPU_AND(&other_cpus, &pmap->pm_active);
-		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invltlb(other_cpus);
+		mask = &other_cpus;
 	}
+	smp_masked_invltlb(*mask, pmap);
 	sched_unpin();
 }
 
@@ -1193,7 +1220,9 @@ PMAP_INLINE void
 pmap_invalidate_all(pmap_t pmap)
 {
 
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
+	if (pmap == kernel_pmap)
+		invltlb_glob();
+	else if (!CPU_EMPTY(&pmap->pm_active))
 		invltlb();
 }
 
@@ -1234,9 +1263,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 
 	if ((cpu_feature & CPUID_SS) != 0 && !force)
 		; /* If "Self Snoop" is supported and allowed, do nothing. */
-	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+	else if ((cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
-
 #ifdef DEV_APIC
 		/*
 		 * XXX: Some CPUs fault, hang, or trash the local APIC
@@ -1256,8 +1284,23 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 		 */
 		mfence();
 		for (; sva < eva; sva += cpu_clflush_line_size)
-			clflush(sva);
+			clflushopt(sva);
 		mfence();
+	} else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
+#ifdef DEV_APIC
+		if (pmap_kextract(sva) == lapic_paddr)
+			return;
+#endif
+		/*
+		 * Writes are ordered by CLFLUSH on Intel CPUs.
+		 */
+		if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflush(sva);
+		if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 	} else {
 
 		/*
@@ -2312,7 +2355,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 }
@@ -5224,8 +5267,10 @@ pmap_flush_page(vm_page_t m)
 {
 	struct sysmaps *sysmaps;
 	vm_offset_t sva, eva;
+	bool useclflushopt;
 
-	if ((cpu_feature & CPUID_CLFSH) != 0) {
+	useclflushopt = (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0;
+	if (useclflushopt || (cpu_feature & CPUID_CLFSH) != 0) {
 		sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
 		mtx_lock(&sysmaps->lock);
 		if (*sysmaps->CMAP2)
@@ -5239,13 +5284,20 @@ pmap_flush_page(vm_page_t m)
 
 		/*
 		 * Use mfence despite the ordering implied by
-		 * mtx_{un,}lock() because clflush is not guaranteed
-		 * to be ordered by any other instruction.
+		 * mtx_{un,}lock() because clflush on non-Intel CPUs
+		 * and clflushopt are not guaranteed to be ordered by
+		 * any other instruction.
 		 */
-		mfence();
-		for (; sva < eva; sva += cpu_clflush_line_size)
-			clflush(sva);
-		mfence();
+		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
+		for (; sva < eva; sva += cpu_clflush_line_size) {
+			if (useclflushopt)
+				clflushopt(sva);
+			else
+				clflush(sva);
+		}
+		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 		*sysmaps->CMAP2 = 0;
 		sched_unpin();
 		mtx_unlock(&sysmaps->lock);

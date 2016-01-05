@@ -16,6 +16,9 @@
 #ifndef LLVM_CLANG_BASIC_SPECIFIERS_H
 #define LLVM_CLANG_BASIC_SPECIFIERS_H
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/DataTypes.h"
+
 namespace clang {
   /// \brief Specifies the width of a type, e.g., short, long, or long long.
   enum TypeSpecifierWidth {
@@ -209,8 +212,9 @@ namespace clang {
     CC_X86_64SysV,  // __attribute__((sysv_abi))
     CC_AAPCS,       // __attribute__((pcs("aapcs")))
     CC_AAPCS_VFP,   // __attribute__((pcs("aapcs-vfp")))
-    CC_PnaclCall,   // __attribute__((pnaclcall))
-    CC_IntelOclBicc // __attribute__((intel_ocl_bicc))
+    CC_IntelOclBicc, // __attribute__((intel_ocl_bicc))
+    CC_SpirFunction, // default for OpenCL functions on SPIR target
+    CC_SpirKernel    // inferred for OpenCL kernels on SPIR target
   };
 
   /// \brief Checks whether the given calling convention supports variadic
@@ -222,6 +226,8 @@ namespace clang {
     case CC_X86ThisCall:
     case CC_X86Pascal:
     case CC_X86VectorCall:
+    case CC_SpirFunction:
+    case CC_SpirKernel:
       return false;
     default:
       return true;
@@ -236,6 +242,23 @@ namespace clang {
     SD_Static,         ///< Static storage duration.
     SD_Dynamic         ///< Dynamic storage duration.
   };
+
+  /// Describes the nullability of a particular type.
+  enum class NullabilityKind : uint8_t {
+    /// Values of this type can never be null.
+    NonNull = 0,
+    /// Values of this type can be null.
+    Nullable,
+    /// Whether values of this type can be null is (explicitly)
+    /// unspecified. This captures a (fairly rare) case where we
+    /// can't conclude anything about the nullability of the type even
+    /// though it has been considered.
+    Unspecified
+  };
+
+  /// Retrieve the spelling of the given nullability kind.
+  llvm::StringRef getNullabilitySpelling(NullabilityKind kind,
+                                         bool isContextSensitive = false);
 } // end namespace clang
 
 #endif // LLVM_CLANG_BASIC_SPECIFIERS_H

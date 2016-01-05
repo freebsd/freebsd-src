@@ -67,6 +67,7 @@ static const char SVN_FILE_LINE_UNDEFINED[] = "svn:<undefined>";
 #undef svn_error_create
 #undef svn_error_createf
 #undef svn_error_quick_wrap
+#undef svn_error_quick_wrapf
 #undef svn_error_wrap_apr
 
 /* Note: Although this is a "__" function, it was historically in the
@@ -85,17 +86,15 @@ svn_error__locate(const char *file, long line)
 
 /* Cleanup function for errors.  svn_error_clear () removes this so
    errors that are properly handled *don't* hit this code. */
-#if defined(SVN_DEBUG)
 static apr_status_t err_abort(void *data)
 {
   svn_error_t *err = data;  /* For easy viewing in a debugger */
-  err = err; /* Fake a use for the variable to avoid compiler warnings */
+  SVN_UNUSED(err);
 
   if (!getenv("SVN_DBG_NO_ABORT_ON_ERROR_LEAK"))
     abort();
   return APR_SUCCESS;
 }
-#endif
 
 
 static svn_error_t *
@@ -110,7 +109,8 @@ make_error_internal(apr_status_t apr_err,
     pool = child->pool;
   else
     {
-      if (apr_pool_create(&pool, NULL))
+      pool = svn_pool_create(NULL);
+      if (!pool)
         abort();
     }
 
@@ -201,7 +201,8 @@ svn_error_wrap_apr(apr_status_t status,
       va_end(ap);
       if (msg_apr)
         {
-          err->message = apr_pstrcat(err->pool, msg, ": ", msg_apr, NULL);
+          err->message = apr_pstrcat(err->pool, msg, ": ", msg_apr,
+                                     SVN_VA_NULL);
         }
       else
         {
@@ -222,6 +223,26 @@ svn_error_quick_wrap(svn_error_t *child, const char *new_msg)
   return svn_error_create(child->apr_err,
                           child,
                           new_msg);
+}
+
+svn_error_t *
+svn_error_quick_wrapf(svn_error_t *child,
+                      const char *fmt,
+                      ...)
+{
+  svn_error_t *err;
+  va_list ap;
+
+  if (child == SVN_NO_ERROR)
+    return SVN_NO_ERROR;
+
+  err = make_error_internal(child->apr_err, child);
+
+  va_start(ap, fmt);
+  err->message = apr_pvsprintf(err->pool, fmt, ap);
+  va_end(ap);
+
+  return err;
 }
 
 /* Messages in tracing errors all point to this static string. */
@@ -259,8 +280,7 @@ svn_error_compose_create(svn_error_t *err1,
   if (err1 && err2)
     {
       svn_error_compose(err1,
-                        svn_error_quick_wrap(err2,
-                                             _("Additional errors:")));
+                        svn_error_create(SVN_ERR_COMPOSED_ERROR, err2, NULL));
       return err1;
     }
   return err1 ? err1 : err2;
@@ -314,7 +334,10 @@ svn_error_root_cause(svn_error_t *err)
 {
   while (err)
     {
-      if (err->child)
+      /* I don't think we can change the behavior here, but the additional
+         error chain doesn't define the root cause. Perhaps we should rev
+         this function. */
+      if (err->child /*&& err->child->apr_err != SVN_ERR_COMPOSED_ERROR*/)
         err = err->child;
       else
         break;
@@ -336,12 +359,16 @@ svn_error_find_cause(svn_error_t *err, apr_status_t apr_err)
 }
 
 svn_error_t *
-svn_error_dup(svn_error_t *err)
+svn_error_dup(const svn_error_t *err)
 {
   apr_pool_t *pool;
   svn_error_t *new_err = NULL, *tmp_err = NULL;
 
-  if (apr_pool_create(&pool, NULL))
+  if (!err)
+    return SVN_NO_ERROR;
+
+  pool = svn_pool_create(NULL);
+  if (!pool)
     abort();
 
   for (; err; err = err->child)
@@ -388,7 +415,7 @@ svn_error_clear(svn_error_t *err)
 }
 
 svn_boolean_t
-svn_error__is_tracing_link(svn_error_t *err)
+svn_error__is_tracing_link(const svn_error_t *err)
 {
 #ifdef SVN_ERR__TRACING
   /* ### A strcmp()?  Really?  I think it's the best we can do unless
@@ -423,10 +450,8 @@ svn_error_purge_tracing(svn_error_t *err)
       if (! err)
         return svn_error_create(
                  SVN_ERR_ASSERTION_ONLY_TRACING_LINKS,
-                 svn_error_compose_create(
-                   svn_error__malfunction(TRUE, __FILE__, __LINE__,
-                                          NULL /* ### say something? */),
-                   err),
+                 svn_error__malfunction(TRUE, __FILE__, __LINE__,
+                                        NULL /* ### say something? */),
                  NULL);
 
       /* Copy the current error except for its child error pointer
@@ -535,12 +560,6 @@ print_error(svn_error_t *err, FILE *stream, const char *prefix)
 }
 
 void
-svn_handle_error(svn_error_t *err, FILE *stream, svn_boolean_t fatal)
-{
-  svn_handle_error2(err, stream, fatal, "svn: ");
-}
-
-void
 svn_handle_error2(svn_error_t *err,
                   FILE *stream,
                   svn_boolean_t fatal,
@@ -559,11 +578,7 @@ svn_handle_error2(svn_error_t *err,
   apr_array_header_t *empties;
   svn_error_t *tmp_err;
 
-  /* ### The rest of this file carefully avoids using svn_pool_*(),
-     preferring apr_pool_*() instead.  I can't remember why -- it may
-     be an artifact of r843793, or it may be for some deeper reason --
-     but I'm playing it safe and using apr_pool_*() here too. */
-  apr_pool_create(&subpool, err->pool);
+  subpool = svn_pool_create(err->pool);
   empties = apr_array_make(subpool, 0, sizeof(apr_status_t));
 
   tmp_err = err;
@@ -611,17 +626,20 @@ svn_handle_error2(svn_error_t *err,
     }
 }
 
-
 void
-svn_handle_warning(FILE *stream, svn_error_t *err)
-{
-  svn_handle_warning2(stream, err, "svn: ");
-}
-
-void
-svn_handle_warning2(FILE *stream, svn_error_t *err, const char *prefix)
+svn_handle_warning2(FILE *stream, const svn_error_t *err, const char *prefix)
 {
   char buf[256];
+#ifdef SVN_DEBUG
+  const char *symbolic_name = svn_error_symbolic_name(err->apr_err);
+#endif
+
+#ifdef SVN_DEBUG
+  if (symbolic_name)
+    svn_error_clear(
+      svn_cmdline_fprintf(stream, err->pool, "%swarning: apr_err=%s\n",
+                          prefix, symbolic_name));
+#endif
 
   svn_error_clear(svn_cmdline_fprintf
                   (stream, err->pool,
@@ -632,7 +650,7 @@ svn_handle_warning2(FILE *stream, svn_error_t *err, const char *prefix)
 }
 
 const char *
-svn_err_best_message(svn_error_t *err, char *buf, apr_size_t bufsize)
+svn_err_best_message(const svn_error_t *err, char *buf, apr_size_t bufsize)
 {
   /* Skip over any trace records.  */
   while (svn_error__is_tracing_link(err))
@@ -672,18 +690,42 @@ svn_strerror(apr_status_t statcode, char *buf, apr_size_t bufsize)
   return apr_strerror(statcode, buf, bufsize);
 }
 
+#ifdef SVN_DEBUG
+/* Defines svn__errno and svn__apr_errno */
+#include "errorcode.inc"
+#endif
+
 const char *
 svn_error_symbolic_name(apr_status_t statcode)
 {
   const err_defn *defn;
+#ifdef SVN_DEBUG
+  int i;
+#endif /* SVN_DEBUG */
 
   for (defn = error_table; defn->errdesc != NULL; ++defn)
     if (defn->errcode == (svn_errno_t)statcode)
       return defn->errname;
 
   /* "No error" is not in error_table. */
-  if (statcode == SVN_NO_ERROR)
+  if (statcode == APR_SUCCESS)
     return "SVN_NO_ERROR";
+
+#ifdef SVN_DEBUG
+  /* Try errno.h symbols. */
+  /* Linear search through a sorted array */
+  for (i = 0; i < sizeof(svn__errno) / sizeof(svn__errno[0]); i++)
+    if (svn__errno[i].errcode == (int)statcode)
+      return svn__errno[i].errname;
+
+  /* Try APR errors. */
+  /* Linear search through a sorted array */
+  for (i = 0; i < sizeof(svn__apr_errno) / sizeof(svn__apr_errno[0]); i++)
+    if (svn__apr_errno[i].errcode == (int)statcode)
+      return svn__apr_errno[i].errname;
+#endif /* SVN_DEBUG */
+
+  /* ### TODO: do we need APR_* error macros?  What about APR_TO_OS_ERROR()? */
 
   return NULL;
 }
@@ -739,6 +781,12 @@ svn_error_set_malfunction_handler(svn_error_malfunction_handler_t func)
 
   malfunction_handler = func;
   return old_malfunction_handler;
+}
+
+svn_error_malfunction_handler_t
+svn_error_get_malfunction_handler(void)
+{
+  return malfunction_handler;
 }
 
 /* Note: Although this is a "__" function, it is in the public ABI, so

@@ -4,7 +4,6 @@
 DIRDEPS = \
 	include \
 	include/xlocale \
-	lib/libutil \
 
 
 .include <dirdeps.mk>
@@ -83,8 +82,6 @@ mpeix.o: sm_os.h
 mpeix.po: sm_os.h
 niprop.o: sm_os.h
 niprop.po: sm_os.h
-path.o: sm_os.h
-path.po: sm_os.h
 put.o: sm_os.h
 put.po: sm_os.h
 refill.o: sm_os.h

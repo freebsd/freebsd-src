@@ -1,6 +1,6 @@
 if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -202,6 +202,100 @@ f_sysrc_get()
 		#
 		eval echo '"${'"$1"'}"' 2> /dev/null
 	)
+}
+
+# f_sysrc_service_configs [-a|-p] $name [$var_to_set]
+#
+# Get a list of optional `rc.conf.d' entries sourced by system `rc.d' script
+# $name (see rc.subr(8) for additional information on `rc.conf.d'). If $name
+# exists in `/etc/rc.d' or $local_startup directories and is an rc(8) script
+# the result is a space separated list of `rc.conf.d' entries sourced by the
+# $name `rc.d' script. Otherwise, if $name exists as a binary `rc.d' script,
+# the result is ``/etc/rc.conf.d/$name /usr/local/etc/rc.conf.d/$name''. The
+# result is NULL if $name does not exist.
+#
+# If $var_to_set is missing or NULL, output is to standard out. Returns success
+# if $name was found, failure otherwise.
+#
+# If `-a' flag is given and $var_to_set is non-NULL, append result to value of
+# $var_to_set rather than overwriting current contents.
+#
+# If `-p' flag is given and $var_to_set is non-NULL, prepend result to value of
+# $var_to_set rather than overwriting current contents.
+#
+# NB: The `-a' and `-p' option flags are mutually exclusive.
+#
+f_sysrc_service_configs()
+{
+	local OPTIND=1 OPTARG __flag __append= __prepend=
+	local __local_startup __dir __spath __stype __names=
+
+	while getopts ap __flag; do
+		case "$__flag" in
+		a) __append=1 __prepend= ;;
+		p) __prepend=1 __append= ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	[ $# -gt 0 ] || return $FAILURE
+	local __sname="$1" __var_to_set="$2"
+
+	__local_startup=$( f_sysrc_get local_startup )
+	for __dir in /etc/rc.d $__local_startup; do
+		__spath="$__dir/$__sname"
+		[ -f "$__spath" -a -x "$__spath" ] || __spath= continue
+		break
+	done
+	[ "$__spath" ] || return $FAILURE
+
+	__stype=$( file -b "$__spath" 2> /dev/null )
+	case "$__stype" in
+	*"shell script"*)
+		__names=$( exec 9<&1 1>&- 2>&-
+			last_name=
+			print_name() {
+				local name="$1"
+				[ "$name" = "$last_name" ] && return
+				echo "$name" >&9
+				last_name="$name"
+			}
+			eval "$( awk '{
+				gsub(/load_rc_config /, "print_name ")
+				gsub(/run_rc_command /, ": ")
+				print
+			}' "$__spath" )"
+		) ;;
+	*)
+		__names="$__sname"
+	esac
+
+	local __name __test_path __configs=
+	for __name in $__names; do
+		for __dir in /etc/rc.d $__local_startup; do
+			__test_path="${__dir%/rc.d}/rc.conf.d/$__name"
+			[ -d "$__test_path" ] ||
+				__configs="$__configs $__test_path" continue
+			for __test_path in "$__test_path"/*; do
+				[ -f "$__test_path" ] || continue
+				__configs="$__configs $__test_path"
+			done	
+		done
+	done
+	__configs="${__configs# }"
+
+	if [ "$__var_to_set" ]; then
+		local __cur=
+		[ "$__append" -o "$__prepend" ] &&
+			f_getvar "$__var_to_set" __cur
+		[ "$__append"  ] && __configs="$__cur{$__cur:+ }$__configs"
+		[ "$__prepend" ] && __configs="$__configs${__cur:+ }$__cur"
+		setvar "$__var_to_set" "$__configs"
+	else
+		echo "$__configs"
+	fi
+
+	return $SUCCESS
 }
 
 # f_sysrc_get_default $varname

@@ -47,7 +47,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSV3
-#options 	BOOTP_WIRED_TO=cpsw0
+#options 	BOOTP_WIRED_TO=dwc0
 
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
@@ -62,7 +62,6 @@ device		mmcsd			# mmc/sd flash cards
 # ATA controllers
 device		ahci			# AHCI-compatible SATA controllers
 #device		ata			# Legacy ATA/SATA controllers
-#options 	ATA_STATIC_ID		# Static device numbering
 
 # Console and misc
 device		uart
@@ -102,7 +101,8 @@ device		ether
 device		mii
 device		bpf
 
-device		emac
+#device		emac			# 10/100 integrated EMAC controller
+device		dwc			# 10/100/1000 integrated GMAC controller
 
 # USB ethernet support, requires miibus
 device		miibus

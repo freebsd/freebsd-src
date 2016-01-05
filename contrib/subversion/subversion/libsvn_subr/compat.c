@@ -95,21 +95,31 @@ svn_compat_log_revprops_in(apr_pool_t *pool)
 }
 
 void
-svn_compat_log_revprops_out(const char **author, const char **date,
-                            const char **message, apr_hash_t *revprops)
+svn_compat_log_revprops_out_string(const svn_string_t **author,
+                                   const svn_string_t **date,
+                                   const svn_string_t **message,
+                                   apr_hash_t *revprops)
 {
-  svn_string_t *author_s, *date_s,  *message_s;
-
   *author = *date = *message = NULL;
   if (revprops)
     {
-      if ((author_s = svn_hash_gets(revprops, SVN_PROP_REVISION_AUTHOR)))
-        *author = author_s->data;
-      if ((date_s = svn_hash_gets(revprops, SVN_PROP_REVISION_DATE)))
-        *date = date_s->data;
-      if ((message_s = svn_hash_gets(revprops, SVN_PROP_REVISION_LOG)))
-        *message = message_s->data;
+      *author = svn_hash_gets(revprops, SVN_PROP_REVISION_AUTHOR);
+      *date = svn_hash_gets(revprops, SVN_PROP_REVISION_DATE);
+      *message = svn_hash_gets(revprops, SVN_PROP_REVISION_LOG);
     }
+}
+
+void
+svn_compat_log_revprops_out(const char **author, const char **date,
+                            const char **message, apr_hash_t *revprops)
+{
+  const svn_string_t *author_s, *date_s,  *message_s;
+  svn_compat_log_revprops_out_string(&author_s, &date_s,  &message_s,
+                                     revprops);
+
+  *author = author_s ? author_s->data : NULL;
+  *date = date_s ? date_s->data : NULL;
+  *message = message_s ? message_s->data : NULL;
 }
 
 /* Baton for use with svn_compat_wrap_log_receiver */

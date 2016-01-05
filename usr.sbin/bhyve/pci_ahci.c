@@ -926,7 +926,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		ata_string((uint8_t *)(buf+23), "001", 8);
 		ata_string((uint8_t *)(buf+27), "BHYVE SATA DISK", 40);
 		buf[47] = (0x8000 | 128);
-		buf[48] = 0x1;
+		buf[48] = 0;
 		buf[49] = (1 << 8 | 1 << 9 | 1 << 11);
 		buf[50] = (1 << 14);
 		buf[53] = (1 << 1 | 1 << 2);
@@ -1683,6 +1683,8 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	case ATA_READ_LOG_DMA_EXT:
 		ahci_handle_read_log(p, slot, cfis);
 		break;
+	case ATA_SECURITY_FREEZE_LOCK:
+	case ATA_SMART_CMD:
 	case ATA_NOP:
 		ahci_write_fis_d2h(p, slot, cfis,
 		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);

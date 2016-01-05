@@ -180,16 +180,15 @@ X509 *d2i_X509_AUX(X509 **a, const unsigned char **pp, long length)
     if (!a || *a == NULL) {
         freeret = 1;
     }
-    ret = d2i_X509(a, pp, length);
+    ret = d2i_X509(a, &q, length);
     /* If certificate unreadable then forget it */
     if (!ret)
         return NULL;
     /* update length */
-    length -= *pp - q;
-    if (!length)
-        return ret;
-    if (!d2i_X509_CERT_AUX(&ret->aux, pp, length))
+    length -= q - *pp;
+    if (length > 0 && !d2i_X509_CERT_AUX(&ret->aux, &q, length))
         goto err;
+    *pp = q;
     return ret;
  err:
     if (freeret) {
@@ -207,4 +206,24 @@ int i2d_X509_AUX(X509 *a, unsigned char **pp)
     if (a)
         length += i2d_X509_CERT_AUX(a->aux, pp);
     return length;
+}
+
+int i2d_re_X509_tbs(X509 *x, unsigned char **pp)
+{
+    x->cert_info->enc.modified = 1;
+    return i2d_X509_CINF(x->cert_info, pp);
+}
+
+void X509_get0_signature(ASN1_BIT_STRING **psig, X509_ALGOR **palg,
+                         const X509 *x)
+{
+    if (psig)
+        *psig = x->signature;
+    if (palg)
+        *palg = x->sig_alg;
+}
+
+int X509_get_signature_nid(const X509 *x)
+{
+    return OBJ_obj2nid(x->sig_alg->algorithm);
 }

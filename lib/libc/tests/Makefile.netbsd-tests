@@ -1,7 +1,9 @@
 # $FreeBSD$
 
-OBJTOP?=	${.OBJDIR:H:H:H:H}
-SRCTOP?=	${.CURDIR:H:H:H:H}
-TESTSRC?=	${SRCTOP}/contrib/netbsd-tests/lib/libc/${.CURDIR:T}
+TESTSRC:=	${SRCTOP}/contrib/netbsd-tests/${RELDIR:C/libc\/tests/libc/}
+
+TESTSDIR:=	${TESTSBASE}/${RELDIR:C/libc\/tests/libc/}
+
+WARNS?=		2
 
 .include <netbsd-tests.test.mk>

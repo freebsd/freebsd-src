@@ -5,7 +5,7 @@ LDNSDIR= ${.CURDIR}/../../contrib/ldns
 UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound
 
 # Hold my beer and watch this
-.PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/dns64 ${UNBOUNDDIR}/iterator ${UNBOUNDDIR}/ldns ${UNBOUNDDIR}/libunbound ${UNBOUNDDIR}/services ${UNBOUNDDIR}/services/cache ${UNBOUNDDIR}/util ${UNBOUNDDIR}/util/data ${UNBOUNDDIR}/util/storage ${UNBOUNDDIR}/validator 
+.PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/dns64 ${UNBOUNDDIR}/iterator ${UNBOUNDDIR}/sldns ${UNBOUNDDIR}/libunbound ${UNBOUNDDIR}/services ${UNBOUNDDIR}/services/cache ${UNBOUNDDIR}/util ${UNBOUNDDIR}/util/data ${UNBOUNDDIR}/util/storage ${UNBOUNDDIR}/validator 
 
 LIB=	unbound
 PRIVATELIB=

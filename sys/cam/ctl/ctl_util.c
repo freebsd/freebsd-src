@@ -89,7 +89,10 @@ static struct ctl_task_desc ctl_task_table[] = {
 	{CTL_TASK_TARGET_RESET, "Target Reset"},
 	{CTL_TASK_BUS_RESET, "Bus Reset"},
 	{CTL_TASK_PORT_LOGIN, "Port Login"},
-	{CTL_TASK_PORT_LOGOUT, "Port Logout"}
+	{CTL_TASK_PORT_LOGOUT, "Port Logout"},
+	{CTL_TASK_QUERY_TASK, "Query Task"},
+	{CTL_TASK_QUERY_TASK_SET, "Query Task Set"},
+	{CTL_TASK_QUERY_ASYNC_EVENT, "Query Async Event"}
 };
 
 void
@@ -486,8 +489,7 @@ ctl_scsi_mode_sense(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 
 void
 ctl_scsi_start_stop(union ctl_io *io, int start, int load_eject, int immediate,
-		    int power_conditions, int onoffline __unused,
-		    ctl_tag_type tag_type, uint8_t control)
+    int power_conditions, ctl_tag_type tag_type, uint8_t control)
 {
 	struct scsi_start_stop_unit *cdb;
 
@@ -498,10 +500,6 @@ ctl_scsi_start_stop(union ctl_io *io, int start, int load_eject, int immediate,
 	cdb->opcode = START_STOP_UNIT;
 	if (immediate)
 		cdb->byte2 |= SSS_IMMED;
-#ifdef NEEDTOPORT
-	if (onoffline)
-		cdb->byte2 |= SSS_ONOFFLINE;
-#endif
 	cdb->how = power_conditions;
 	if (load_eject)
 		cdb->how |= SSS_LOEJ;
@@ -846,24 +844,8 @@ void
 ctl_io_error_print(union ctl_io *io, struct scsi_inquiry_data *inq_data)
 {
 	char str[512];
-#ifdef NEEDTOPORT
-	char *message;
-	char *line;
 
-	message = io_error_string(io, inq_data, str, sizeof(str));
-
-	for (line = strsep(&message, "\n"); line != NULL;
-	     line = strsep(&message, "\n")) {
-		csevent_log(CSC_CTL | CSC_SHELF_SW | CTL_ERROR_REPORT,
-                            csevent_LogType_Trace,
-                            csevent_Severity_Information,
-                            csevent_AlertLevel_Green,
-                            csevent_FRU_Firmware,
-                            csevent_FRU_Unknown, "%s", line);
-	}
-#else
 	printf("%s", ctl_io_error_string(io, inq_data, str, sizeof(str)));
-#endif
 
 }
 
@@ -879,7 +861,7 @@ ctl_data_print(union ctl_io *io)
 		return;
 	if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
 		return;
-	if (io->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST)	/* XXX: Implement */
+	if (io->scsiio.ext_sg_entries > 0)	/* XXX: Implement */
 		return;
 	ctl_scsi_path_string(io, path_str, sizeof(path_str));
 	len = min(io->scsiio.kern_data_len, 4096);

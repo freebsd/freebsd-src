@@ -223,9 +223,9 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 	}
 	seinfo = (struct sctp_extrcvinfo *)sinfo;
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO) &&
-	    (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_AVAIL)) {
+	    (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_AVAIL)) {
 		provide_nxt = 1;
-		len += CMSG_SPACE(sizeof(struct sctp_rcvinfo));
+		len += CMSG_SPACE(sizeof(struct sctp_nxtinfo));
 	} else {
 		provide_nxt = 0;
 	}
@@ -276,20 +276,20 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 		cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_nxtinfo));
 		cmh->cmsg_type = SCTP_NXTINFO;
 		nxtinfo = (struct sctp_nxtinfo *)CMSG_DATA(cmh);
-		nxtinfo->nxt_sid = seinfo->sreinfo_next_stream;
+		nxtinfo->nxt_sid = seinfo->serinfo_next_stream;
 		nxtinfo->nxt_flags = 0;
-		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_IS_UNORDERED) {
+		if (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_IS_UNORDERED) {
 			nxtinfo->nxt_flags |= SCTP_UNORDERED;
 		}
-		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_IS_NOTIFICATION) {
+		if (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_IS_NOTIFICATION) {
 			nxtinfo->nxt_flags |= SCTP_NOTIFICATION;
 		}
-		if (seinfo->sreinfo_next_flags & SCTP_NEXT_MSG_ISCOMPLETE) {
+		if (seinfo->serinfo_next_flags & SCTP_NEXT_MSG_ISCOMPLETE) {
 			nxtinfo->nxt_flags |= SCTP_COMPLETE;
 		}
-		nxtinfo->nxt_ppid = seinfo->sreinfo_next_ppid;
-		nxtinfo->nxt_length = seinfo->sreinfo_next_length;
-		nxtinfo->nxt_assoc_id = seinfo->sreinfo_next_aid;
+		nxtinfo->nxt_ppid = seinfo->serinfo_next_ppid;
+		nxtinfo->nxt_length = seinfo->serinfo_next_length;
+		nxtinfo->nxt_assoc_id = seinfo->serinfo_next_aid;
 		cmh = (struct cmsghdr *)((caddr_t)cmh + CMSG_SPACE(sizeof(struct sctp_nxtinfo)));
 		SCTP_BUF_LEN(ret) += CMSG_SPACE(sizeof(struct sctp_nxtinfo));
 	}
@@ -1426,30 +1426,25 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	strmno = ntohs(ch->dp.stream_id);
 	if (strmno >= asoc->streamincnt) {
-		struct sctp_paramhdr *phdr;
-		struct mbuf *mb;
+		struct sctp_error_invalid_stream *cause;
 
-		mb = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) * 2),
+		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_error_invalid_stream),
 		    0, M_NOWAIT, 1, MT_DATA);
-		if (mb != NULL) {
+		if (op_err != NULL) {
 			/* add some space up front so prepend will work well */
-			SCTP_BUF_RESV_UF(mb, sizeof(struct sctp_chunkhdr));
-			phdr = mtod(mb, struct sctp_paramhdr *);
+			SCTP_BUF_RESV_UF(op_err, sizeof(struct sctp_chunkhdr));
+			cause = mtod(op_err, struct sctp_error_invalid_stream *);
 			/*
 			 * Error causes are just param's and this one has
 			 * two back to back phdr, one with the error type
 			 * and size, the other with the streamid and a rsvd
 			 */
-			SCTP_BUF_LEN(mb) = (sizeof(struct sctp_paramhdr) * 2);
-			phdr->param_type = htons(SCTP_CAUSE_INVALID_STREAM);
-			phdr->param_length =
-			    htons(sizeof(struct sctp_paramhdr) * 2);
-			phdr++;
-			/* We insert the stream in the type field */
-			phdr->param_type = ch->dp.stream_id;
-			/* And set the length to 0 for the rsvd field */
-			phdr->param_length = 0;
-			sctp_queue_op_err(stcb, mb);
+			SCTP_BUF_LEN(op_err) = sizeof(struct sctp_error_invalid_stream);
+			cause->cause.code = htons(SCTP_CAUSE_INVALID_STREAM);
+			cause->cause.length = htons(sizeof(struct sctp_error_invalid_stream));
+			cause->stream_id = ch->dp.stream_id;
+			cause->reserved = htons(0);
+			sctp_queue_op_err(stcb, op_err);
 		}
 		SCTP_STAT_INCR(sctps_badsid);
 		SCTP_TCB_LOCK_ASSERT(stcb);
@@ -2492,34 +2487,21 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				/* unknown chunk type, use bit rules */
 				if (ch->ch.chunk_type & 0x40) {
 					/* Add a error report to the queue */
-					struct mbuf *merr;
-					struct sctp_paramhdr *phd;
+					struct mbuf *op_err;
+					struct sctp_gen_error_cause *cause;
 
-					merr = sctp_get_mbuf_for_msg(sizeof(*phd), 0, M_NOWAIT, 1, MT_DATA);
-					if (merr) {
-						phd = mtod(merr, struct sctp_paramhdr *);
-						/*
-						 * We cheat and use param
-						 * type since we did not
-						 * bother to define a error
-						 * cause struct. They are
-						 * the same basic format
-						 * with different names.
-						 */
-						phd->param_type =
-						    htons(SCTP_CAUSE_UNRECOG_CHUNK);
-						phd->param_length =
-						    htons(chk_length + sizeof(*phd));
-						SCTP_BUF_LEN(merr) = sizeof(*phd);
-						SCTP_BUF_NEXT(merr) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
-						if (SCTP_BUF_NEXT(merr)) {
-							if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(merr), SCTP_SIZE32(chk_length) - chk_length, NULL) == NULL) {
-								sctp_m_freem(merr);
-							} else {
-								sctp_queue_op_err(stcb, merr);
-							}
+					op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_gen_error_cause),
+					    0, M_NOWAIT, 1, MT_DATA);
+					if (op_err != NULL) {
+						cause = mtod(op_err, struct sctp_gen_error_cause *);
+						cause->code = htons(SCTP_CAUSE_UNRECOG_CHUNK);
+						cause->length = htons(chk_length + sizeof(struct sctp_gen_error_cause));
+						SCTP_BUF_LEN(op_err) = sizeof(struct sctp_gen_error_cause);
+						SCTP_BUF_NEXT(op_err) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
+						if (SCTP_BUF_NEXT(op_err) != NULL) {
+							sctp_queue_op_err(stcb, op_err);
 						} else {
-							sctp_m_freem(merr);
+							sctp_m_freem(op_err);
 						}
 					}
 				}
@@ -2780,6 +2762,11 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 						} else {
 							panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
 #endif
+						}
+						if ((stcb->asoc.strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+						    (stcb->asoc.strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+						    TAILQ_EMPTY(&stcb->asoc.strmout[tp1->rec.data.stream_number].outqueue)) {
+							stcb->asoc.trigger_reset = 1;
 						}
 						tp1->sent = SCTP_DATAGRAM_NR_ACKED;
 						if (tp1->data) {
@@ -3754,6 +3741,11 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 #endif
 					}
 				}
+				if ((asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+				    (asoc->strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+				    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.stream_number].outqueue)) {
+					asoc->trigger_reset = 1;
+				}
 				TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 				if (tp1->data) {
 					/* sa_ignore NO_NULL_CHK */
@@ -4002,6 +3994,7 @@ again:
 				op_err = sctp_generate_cause(SCTP_CAUSE_USER_INITIATED_ABT, "");
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_26;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+				return;
 			} else {
 				struct sctp_nets *netp;
 
@@ -4478,6 +4471,11 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 				panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
 #endif
 			}
+		}
+		if ((asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+		    (asoc->strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+		    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.stream_number].outqueue)) {
+			asoc->trigger_reset = 1;
 		}
 		TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 		if (PR_SCTP_ENABLED(tp1->flags)) {

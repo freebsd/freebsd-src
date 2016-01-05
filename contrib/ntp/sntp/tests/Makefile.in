@@ -88,15 +88,13 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-EXTRA_PROGRAMS = $(am__EXEEXT_1)
+EXTRA_PROGRAMS =
 check_PROGRAMS = test-crypto$(EXEEXT) test-keyFile$(EXEEXT) \
 	test-kodDatabase$(EXEEXT) test-kodFile$(EXEEXT) \
-	test-networking$(EXEEXT) test-packetHandling$(EXEEXT) \
-	test-packetProcessing$(EXEEXT) test-utilities$(EXEEXT) \
-	$(am__EXEEXT_2) $(am__EXEEXT_3)
-@GTEST_AVAILABLE_TRUE@am__append_1 = tests
-@GTEST_AVAILABLE_FALSE@am__append_2 = tests
-@NTP_CROSSCOMPILE_FALSE@am__append_3 = $(check_PROGRAMS)
+	test-log$(EXEEXT) test-networking$(EXEEXT) \
+	test-packetHandling$(EXEEXT) test-packetProcessing$(EXEEXT) \
+	test-utilities$(EXEEXT) $(am__EXEEXT_1)
+@NTP_CROSSCOMPILE_FALSE@am__append_1 = $(check_PROGRAMS)
 subdir = tests
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
@@ -133,24 +131,21 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES = fileHandlingTest.h
 CONFIG_CLEAN_VPATH_FILES =
-@GTEST_AVAILABLE_FALSE@am__EXEEXT_1 = tests$(EXEEXT)
-am__EXEEXT_2 =
-@GTEST_AVAILABLE_TRUE@am__EXEEXT_3 = tests$(EXEEXT)
+am__EXEEXT_1 =
 am__objects_1 =
 am_test_crypto_OBJECTS = test_crypto-crypto.$(OBJEXT) \
 	test_crypto-run-crypto.$(OBJEXT) test_crypto-version.$(OBJEXT) \
 	$(am__objects_1)
 test_crypto_OBJECTS = $(am_test_crypto_OBJECTS)
+test_crypto_LDADD = $(LDADD)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = ../libsntp.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(top_builddir)/../libntp/libntp.a \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-am__DEPENDENCIES_3 = $(am__DEPENDENCIES_2) \
+test_crypto_DEPENDENCIES = $(am__DEPENDENCIES_2) \
 	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-test_crypto_DEPENDENCIES = $(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -158,85 +153,63 @@ am__v_lt_1 =
 test_crypto_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_crypto_CFLAGS) \
 	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-am_test_keyFile_OBJECTS = test_keyFile-keyFile.$(OBJEXT) \
-	test_keyFile-run-keyFile.$(OBJEXT) \
-	test_keyFile-version.$(OBJEXT) $(am__objects_1)
+am_test_keyFile_OBJECTS = fileHandlingTest.$(OBJEXT) keyFile.$(OBJEXT) \
+	run-keyFile.$(OBJEXT) version.$(OBJEXT) $(am__objects_1)
 test_keyFile_OBJECTS = $(am_test_keyFile_OBJECTS)
-test_keyFile_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+test_keyFile_LDADD = $(LDADD)
+test_keyFile_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-test_keyFile_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_keyFile_CFLAGS) \
-	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-am_test_kodDatabase_OBJECTS = test_kodDatabase-kodDatabase.$(OBJEXT) \
-	test_kodDatabase-run-kodDatabase.$(OBJEXT) \
-	test_kodDatabase-version.$(OBJEXT) $(am__objects_1)
+am_test_kodDatabase_OBJECTS = kodDatabase.$(OBJEXT) \
+	run-kodDatabase.$(OBJEXT) version.$(OBJEXT) $(am__objects_1)
 test_kodDatabase_OBJECTS = $(am_test_kodDatabase_OBJECTS)
-test_kodDatabase_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+test_kodDatabase_LDADD = $(LDADD)
+test_kodDatabase_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-test_kodDatabase_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(test_kodDatabase_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
-	-o $@
-am_test_kodFile_OBJECTS = test_kodFile-kodFile.$(OBJEXT) \
-	test_kodFile-run-kodFile.$(OBJEXT) \
-	test_kodFile-version.$(OBJEXT) $(am__objects_1)
+am_test_kodFile_OBJECTS = fileHandlingTest.$(OBJEXT) kodFile.$(OBJEXT) \
+	run-kodFile.$(OBJEXT) version.$(OBJEXT) $(am__objects_1)
 test_kodFile_OBJECTS = $(am_test_kodFile_OBJECTS)
-test_kodFile_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+test_kodFile_LDADD = $(LDADD)
+test_kodFile_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-test_kodFile_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(test_kodFile_CFLAGS) \
-	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-am_test_networking_OBJECTS = test_networking-networking.$(OBJEXT) \
-	test_networking-run-networking.$(OBJEXT) \
-	test_networking-version.$(OBJEXT) $(am__objects_1)
+am_test_log_OBJECTS = t-log.$(OBJEXT) run-t-log.$(OBJEXT) \
+	version.$(OBJEXT) $(am__objects_1)
+test_log_OBJECTS = $(am_test_log_OBJECTS)
+test_log_LDADD = $(LDADD)
+test_log_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
+am_test_networking_OBJECTS = networking.$(OBJEXT) \
+	run-networking.$(OBJEXT) version.$(OBJEXT) $(am__objects_1)
 test_networking_OBJECTS = $(am_test_networking_OBJECTS)
-test_networking_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+test_networking_LDADD = $(LDADD)
+test_networking_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-test_networking_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(test_networking_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
-	-o $@
-am_test_packetHandling_OBJECTS =  \
-	test_packetHandling-packetHandling.$(OBJEXT) \
-	test_packetHandling-run-packetHandling.$(OBJEXT) \
-	test_packetHandling-version.$(OBJEXT) $(am__objects_1)
+am_test_packetHandling_OBJECTS = packetHandling.$(OBJEXT) \
+	run-packetHandling.$(OBJEXT) version.$(OBJEXT) \
+	$(am__objects_1)
 test_packetHandling_OBJECTS = $(am_test_packetHandling_OBJECTS)
-test_packetHandling_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+test_packetHandling_LDADD = $(LDADD)
+test_packetHandling_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-test_packetHandling_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(test_packetHandling_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
-am_test_packetProcessing_OBJECTS =  \
-	test_packetProcessing-packetProcessing.$(OBJEXT) \
-	test_packetProcessing-run-packetProcessing.$(OBJEXT) \
+am_test_packetProcessing_OBJECTS = packetProcessing.$(OBJEXT) \
+	run-packetProcessing.$(OBJEXT) sntptest.$(OBJEXT) \
 	$(am__objects_1)
 test_packetProcessing_OBJECTS = $(am_test_packetProcessing_OBJECTS)
-test_packetProcessing_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+test_packetProcessing_LDADD = $(LDADD)
+test_packetProcessing_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
-test_packetProcessing_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(test_packetProcessing_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
-am_test_utilities_OBJECTS = test_utilities-utilities.$(OBJEXT) \
-	test_utilities-run-utilities.$(OBJEXT) $(am__objects_1)
+am_test_utilities_OBJECTS = fileHandlingTest.$(OBJEXT) \
+	utilities.$(OBJEXT) run-utilities.$(OBJEXT) $(am__objects_1)
 test_utilities_OBJECTS = $(am_test_utilities_OBJECTS)
-test_utilities_DEPENDENCIES = $(am__DEPENDENCIES_3) \
-	$(am__DEPENDENCIES_1)
-test_utilities_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(test_utilities_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o \
-	$@
-am__objects_2 = tests_main.$(OBJEXT) $(am__objects_1)
-am_tests_OBJECTS = $(am__objects_2) g_networking.$(OBJEXT) \
-	g_packetHandling.$(OBJEXT) g_packetProcessing.$(OBJEXT) \
-	$(am__objects_1)
-tests_OBJECTS = $(am_tests_OBJECTS)
-tests_LDADD = $(LDADD)
-tests_DEPENDENCIES = ../libsntp.a $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(top_builddir)/../libntp/libntp.a \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+test_utilities_LDADD = $(LDADD)
+test_utilities_DEPENDENCIES = $(am__DEPENDENCIES_2) \
+	$(top_builddir)/unity/libunity.a $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -272,34 +245,16 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
-LTCXXCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) \
-	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
-	$(AM_CXXFLAGS) $(CXXFLAGS)
-AM_V_CXX = $(am__v_CXX_@AM_V@)
-am__v_CXX_ = $(am__v_CXX_@AM_DEFAULT_V@)
-am__v_CXX_0 = @echo "  CXX     " $@;
-am__v_CXX_1 = 
-CXXLD = $(CXX)
-CXXLINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
-	$(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
-am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
-am__v_CXXLD_0 = @echo "  CXXLD   " $@;
-am__v_CXXLD_1 = 
 SOURCES = $(test_crypto_SOURCES) $(test_keyFile_SOURCES) \
 	$(test_kodDatabase_SOURCES) $(test_kodFile_SOURCES) \
-	$(test_networking_SOURCES) $(test_packetHandling_SOURCES) \
-	$(test_packetProcessing_SOURCES) $(test_utilities_SOURCES) \
-	$(tests_SOURCES)
+	$(test_log_SOURCES) $(test_networking_SOURCES) \
+	$(test_packetHandling_SOURCES) \
+	$(test_packetProcessing_SOURCES) $(test_utilities_SOURCES)
 DIST_SOURCES = $(test_crypto_SOURCES) $(test_keyFile_SOURCES) \
 	$(test_kodDatabase_SOURCES) $(test_kodFile_SOURCES) \
-	$(test_networking_SOURCES) $(test_packetHandling_SOURCES) \
-	$(test_packetProcessing_SOURCES) $(test_utilities_SOURCES) \
-	$(tests_SOURCES)
+	$(test_log_SOURCES) $(test_networking_SOURCES) \
+	$(test_packetHandling_SOURCES) \
+	$(test_packetProcessing_SOURCES) $(test_utilities_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -545,6 +500,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BUILD_THREAD = @BUILD_THREAD@
 CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
 CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
 CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
@@ -553,6 +509,7 @@ CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_LIBEVENT = @CFLAGS_LIBEVENT@
 CFLAGS_NTP = @CFLAGS_NTP@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -606,6 +563,7 @@ LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIB_SYSLOG = @LIB_SYSLOG@
 LIPO = @LIPO@
 LN_S = @LN_S@
+LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
@@ -774,49 +732,31 @@ NULL =
 #endif
 BUILT_SOURCES = $(srcdir)/run-crypto.c $(srcdir)/run-keyFile.c \
 	$(srcdir)/run-kodDatabase.c $(srcdir)/run-kodFile.c \
-	$(srcdir)/run-networking.c $(srcdir)/run-packetProcessing.c \
-	$(srcdir)/run-utilities.c $(srcdir)/run-packetHandling.c \
+	$(srcdir)/run-networking.c $(srcdir)/run-packetHandling.c \
+	$(srcdir)/run-packetProcessing.c $(srcdir)/run-utilities.c \
 	$(NULL) check-libsntp check-libntp check-libunity .deps-ver
-CLEANFILES = kod-output-blank kod-output-single kod-output-multiple \
-	debug-output-lfp-dec debug-output-lfp-bin debug-output-pkt \
+CLEANFILES = debug-output-lfp-bin debug-output-lfp-dec \
+	debug-output-pkt kod-output-blank kod-output-multiple \
+	kod-output-single testLogfile.log testLogfile2.log $(NULL) \
 	data/kod-output-multiple data/kod-output-single \
 	data/debug-output-pkt data/debug-output-lfp-dec \
 	data/kod-output-blank data/debug-output-lfp-bin $(NULL) \
 	check-libsntp check-libntp check-libunity .deps-ver
-DISTCLEANFILES = kod-output-blank kod-output-single kod-output-multiple
-run_unity = cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
-
-#if BUILD_SNTP
-#check_PROGRAMS += tests
-#endif
-base_SOURCES = \
-	../tests_main.cpp	\
+DISTCLEANFILES = \
+	kod-output-blank	\
+	kod-output-single 	\
+	kod-output-multiple	\
+	testLogfile.log		\
+	testLogfile2.log	\
 	$(NULL)
 
-tests_SOURCES = \
-	$(base_SOURCES)		\
-	g_networking.cpp	\
-	g_packetHandling.cpp	\
-	g_packetProcessing.cpp	\
+std_unity_list = \
+	$(srcdir)/../unity/auto/generate_test_runner.rb	\
 	$(NULL)
 
-
-# HMS: this test was for the 4.2.6 sntp code.
-#	g_nameresolution.cpp	
-
-# HMS: Somebody needs to audit the following files to
-# make sure all of these tests are now handled by Unity
-#
-#	g_utilities.cpp		
-#	g_kodDatabase.cpp	
-#	g_keyFile.cpp		
-#	g_crypto.cpp		
-#	g_kodFile.cpp		
+run_unity = cd $(srcdir) && ruby ../unity/auto/generate_test_runner.rb
 noinst_HEADERS = \
-	fileHandlingTest.h	\
 	sntptest.h		\
-	g_fileHandlingTest.h	\
-	g_sntptest.h		\
 	$(NULL)
 
 dist_check_SCRIPTS = tests-runner
@@ -838,93 +778,27 @@ EXTRA_DIST = \
 
 
 #split into LDADD and tests_LDADD?
-LDADD = \
+base_LDADD = \
 	../libsntp.a				\
 	$(LIBOPTS_LDADD)			\
 	$(LDADD_LIBEVENT)			\
 	$(top_builddir)/../libntp/libntp.a	\
 	$(LDADD_LIBNTP)				\
 	$(LDADD_NTP)				\
-	$(GTEST_LDFLAGS)			\
-	$(GTEST_LIBS)				\
 	$(NULL)
 
-unity_tests_LDADD = \
-	$(LDADD)				\
+LDADD = \
+	$(base_LDADD)				\
 	$(top_builddir)/unity/libunity.a	\
 	$(LIBM)					\
 	$(NULL)
 
 AM_CFLAGS = $(CFLAGS_NTP)
-AM_CXXFLAGS = $(GTEST_CXXFLAGS)
+#AM_CPPFLAGS += -I$(top_srcdir)/sntp/unity
 AM_CPPFLAGS = $(SNTP_INCS) -I$(srcdir)/.. -I$(top_srcdir)/../tests \
-	$(LIBOPTS_CFLAGS) $(CPPFLAGS_LIBEVENT) $(GTEST_CPPFLAGS) \
-	$(CPPFLAGS_NTP)
+	$(LIBOPTS_CFLAGS) $(CPPFLAGS_LIBEVENT) $(CPPFLAGS_NTP) \
+	-DUNITY_INCLUDE_CONFIG_H -I$(top_srcdir)/unity
 AM_LDFLAGS = $(LDFLAGS_NTP)
-test_keyFile_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_keyFile_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_kodDatabase_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_kodDatabase_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_kodFile_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_kodFile_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_networking_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_networking_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_utilities_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_utilities_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_crypto_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_crypto_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_packetProcessing_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_packetProcessing_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_packetHandling_CFLAGS = \
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_packetHandling_LDADD = \
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
 test_networking_SOURCES = \
 	networking.c			\
 	run-networking.c		\
@@ -944,26 +818,34 @@ test_kodDatabase_SOURCES = \
 	$(NULL)
 
 test_keyFile_SOURCES = \
+	fileHandlingTest.c		\
 	keyFile.c			\
 	run-keyFile.c			\
 	$(top_builddir)/version.c	\
 	$(NULL)
 
 test_kodFile_SOURCES = \
+	fileHandlingTest.c		\
 	kodFile.c			\
 	run-kodFile.c			\
 	$(top_builddir)/version.c	\
 	$(NULL)
 
-#	../version.c
 test_packetProcessing_SOURCES = \
 	packetProcessing.c		\
 	run-packetProcessing.c		\
+	sntptest.c			\
 	$(NULL)
 
 test_utilities_SOURCES = \
+	fileHandlingTest.c		\
 	utilities.c			\
 	run-utilities.c			\
+	$(NULL)
+
+test_crypto_CFLAGS = \
+	$(CFLAGS_LIBEVENT)		\
+	$(AM_CFLAGS)			\
 	$(NULL)
 
 test_crypto_SOURCES = \
@@ -972,10 +854,16 @@ test_crypto_SOURCES = \
 	$(top_builddir)/version.c	\
 	$(NULL)
 
+test_log_SOURCES = \
+	t-log.c			\
+	run-t-log.c			\
+	$(top_builddir)/version.c	\
+	$(NULL)
+
 
 #$(srcdir)/../version.c: $(srcdir)/../version.c
 #	gcc -o version.o ../version.c
-TESTS = $(am__append_3)
+TESTS = $(am__append_1)
 SNTP_INCS = -I$(top_srcdir)/../include \
 	-I$(top_srcdir)/../lib/isc/include \
 	-I$(top_srcdir)/../lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/include \
@@ -984,7 +872,7 @@ all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
-.SUFFIXES: .c .cpp .lo .log .o .obj .test .test$(EXEEXT) .trs
+.SUFFIXES: .c .lo .log .o .obj .test .test$(EXEEXT) .trs
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(top_srcdir)/depsver.mf $(top_srcdir)/includes.mf $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -1033,35 +921,35 @@ test-crypto$(EXEEXT): $(test_crypto_OBJECTS) $(test_crypto_DEPENDENCIES) $(EXTRA
 
 test-keyFile$(EXEEXT): $(test_keyFile_OBJECTS) $(test_keyFile_DEPENDENCIES) $(EXTRA_test_keyFile_DEPENDENCIES) 
 	@rm -f test-keyFile$(EXEEXT)
-	$(AM_V_CCLD)$(test_keyFile_LINK) $(test_keyFile_OBJECTS) $(test_keyFile_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(test_keyFile_OBJECTS) $(test_keyFile_LDADD) $(LIBS)
 
 test-kodDatabase$(EXEEXT): $(test_kodDatabase_OBJECTS) $(test_kodDatabase_DEPENDENCIES) $(EXTRA_test_kodDatabase_DEPENDENCIES) 
 	@rm -f test-kodDatabase$(EXEEXT)
-	$(AM_V_CCLD)$(test_kodDatabase_LINK) $(test_kodDatabase_OBJECTS) $(test_kodDatabase_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(test_kodDatabase_OBJECTS) $(test_kodDatabase_LDADD) $(LIBS)
 
 test-kodFile$(EXEEXT): $(test_kodFile_OBJECTS) $(test_kodFile_DEPENDENCIES) $(EXTRA_test_kodFile_DEPENDENCIES) 
 	@rm -f test-kodFile$(EXEEXT)
-	$(AM_V_CCLD)$(test_kodFile_LINK) $(test_kodFile_OBJECTS) $(test_kodFile_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(test_kodFile_OBJECTS) $(test_kodFile_LDADD) $(LIBS)
+
+test-log$(EXEEXT): $(test_log_OBJECTS) $(test_log_DEPENDENCIES) $(EXTRA_test_log_DEPENDENCIES) 
+	@rm -f test-log$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_log_OBJECTS) $(test_log_LDADD) $(LIBS)
 
 test-networking$(EXEEXT): $(test_networking_OBJECTS) $(test_networking_DEPENDENCIES) $(EXTRA_test_networking_DEPENDENCIES) 
 	@rm -f test-networking$(EXEEXT)
-	$(AM_V_CCLD)$(test_networking_LINK) $(test_networking_OBJECTS) $(test_networking_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(test_networking_OBJECTS) $(test_networking_LDADD) $(LIBS)
 
 test-packetHandling$(EXEEXT): $(test_packetHandling_OBJECTS) $(test_packetHandling_DEPENDENCIES) $(EXTRA_test_packetHandling_DEPENDENCIES) 
 	@rm -f test-packetHandling$(EXEEXT)
-	$(AM_V_CCLD)$(test_packetHandling_LINK) $(test_packetHandling_OBJECTS) $(test_packetHandling_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(test_packetHandling_OBJECTS) $(test_packetHandling_LDADD) $(LIBS)
 
 test-packetProcessing$(EXEEXT): $(test_packetProcessing_OBJECTS) $(test_packetProcessing_DEPENDENCIES) $(EXTRA_test_packetProcessing_DEPENDENCIES) 
 	@rm -f test-packetProcessing$(EXEEXT)
-	$(AM_V_CCLD)$(test_packetProcessing_LINK) $(test_packetProcessing_OBJECTS) $(test_packetProcessing_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(test_packetProcessing_OBJECTS) $(test_packetProcessing_LDADD) $(LIBS)
 
 test-utilities$(EXEEXT): $(test_utilities_OBJECTS) $(test_utilities_DEPENDENCIES) $(EXTRA_test_utilities_DEPENDENCIES) 
 	@rm -f test-utilities$(EXEEXT)
-	$(AM_V_CCLD)$(test_utilities_LINK) $(test_utilities_OBJECTS) $(test_utilities_LDADD) $(LIBS)
-
-tests$(EXEEXT): $(tests_OBJECTS) $(tests_DEPENDENCIES) $(EXTRA_tests_DEPENDENCIES) 
-	@rm -f tests$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(tests_OBJECTS) $(tests_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(test_utilities_OBJECTS) $(test_utilities_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -1069,32 +957,28 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/g_networking.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/g_packetHandling.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/g_packetProcessing.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fileHandlingTest.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/keyFile.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kodDatabase.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kodFile.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/networking.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/packetHandling.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/packetProcessing.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-keyFile.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-kodDatabase.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-kodFile.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-networking.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-packetHandling.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-packetProcessing.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-t-log.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-utilities.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sntptest.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t-log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_crypto-crypto.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_crypto-run-crypto.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_crypto-version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_keyFile-keyFile.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_keyFile-run-keyFile.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_keyFile-version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_kodDatabase-kodDatabase.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_kodDatabase-run-kodDatabase.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_kodDatabase-version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_kodFile-kodFile.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_kodFile-run-kodFile.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_kodFile-version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_networking-networking.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_networking-run-networking.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_networking-version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_packetHandling-packetHandling.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_packetHandling-run-packetHandling.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_packetHandling-version.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_packetProcessing-packetProcessing.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_packetProcessing-run-packetProcessing.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_utilities-run-utilities.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_utilities-utilities.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tests_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utilities.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/version.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -1159,306 +1043,19 @@ test_crypto-version.obj: $(top_builddir)/version.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_crypto_CFLAGS) $(CFLAGS) -c -o test_crypto-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
 
-test_keyFile-keyFile.o: keyFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -MT test_keyFile-keyFile.o -MD -MP -MF $(DEPDIR)/test_keyFile-keyFile.Tpo -c -o test_keyFile-keyFile.o `test -f 'keyFile.c' || echo '$(srcdir)/'`keyFile.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_keyFile-keyFile.Tpo $(DEPDIR)/test_keyFile-keyFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='keyFile.c' object='test_keyFile-keyFile.o' libtool=no @AMDEPBACKSLASH@
+version.o: $(top_builddir)/version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT version.o -MD -MP -MF $(DEPDIR)/version.Tpo -c -o version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/version.Tpo $(DEPDIR)/version.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='version.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -c -o test_keyFile-keyFile.o `test -f 'keyFile.c' || echo '$(srcdir)/'`keyFile.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
 
-test_keyFile-keyFile.obj: keyFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -MT test_keyFile-keyFile.obj -MD -MP -MF $(DEPDIR)/test_keyFile-keyFile.Tpo -c -o test_keyFile-keyFile.obj `if test -f 'keyFile.c'; then $(CYGPATH_W) 'keyFile.c'; else $(CYGPATH_W) '$(srcdir)/keyFile.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_keyFile-keyFile.Tpo $(DEPDIR)/test_keyFile-keyFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='keyFile.c' object='test_keyFile-keyFile.obj' libtool=no @AMDEPBACKSLASH@
+version.obj: $(top_builddir)/version.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT version.obj -MD -MP -MF $(DEPDIR)/version.Tpo -c -o version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/version.Tpo $(DEPDIR)/version.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='version.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -c -o test_keyFile-keyFile.obj `if test -f 'keyFile.c'; then $(CYGPATH_W) 'keyFile.c'; else $(CYGPATH_W) '$(srcdir)/keyFile.c'; fi`
-
-test_keyFile-run-keyFile.o: run-keyFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -MT test_keyFile-run-keyFile.o -MD -MP -MF $(DEPDIR)/test_keyFile-run-keyFile.Tpo -c -o test_keyFile-run-keyFile.o `test -f 'run-keyFile.c' || echo '$(srcdir)/'`run-keyFile.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_keyFile-run-keyFile.Tpo $(DEPDIR)/test_keyFile-run-keyFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-keyFile.c' object='test_keyFile-run-keyFile.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -c -o test_keyFile-run-keyFile.o `test -f 'run-keyFile.c' || echo '$(srcdir)/'`run-keyFile.c
-
-test_keyFile-run-keyFile.obj: run-keyFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -MT test_keyFile-run-keyFile.obj -MD -MP -MF $(DEPDIR)/test_keyFile-run-keyFile.Tpo -c -o test_keyFile-run-keyFile.obj `if test -f 'run-keyFile.c'; then $(CYGPATH_W) 'run-keyFile.c'; else $(CYGPATH_W) '$(srcdir)/run-keyFile.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_keyFile-run-keyFile.Tpo $(DEPDIR)/test_keyFile-run-keyFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-keyFile.c' object='test_keyFile-run-keyFile.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -c -o test_keyFile-run-keyFile.obj `if test -f 'run-keyFile.c'; then $(CYGPATH_W) 'run-keyFile.c'; else $(CYGPATH_W) '$(srcdir)/run-keyFile.c'; fi`
-
-test_keyFile-version.o: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -MT test_keyFile-version.o -MD -MP -MF $(DEPDIR)/test_keyFile-version.Tpo -c -o test_keyFile-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_keyFile-version.Tpo $(DEPDIR)/test_keyFile-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_keyFile-version.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -c -o test_keyFile-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-
-test_keyFile-version.obj: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -MT test_keyFile-version.obj -MD -MP -MF $(DEPDIR)/test_keyFile-version.Tpo -c -o test_keyFile-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_keyFile-version.Tpo $(DEPDIR)/test_keyFile-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_keyFile-version.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_keyFile_CFLAGS) $(CFLAGS) -c -o test_keyFile-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-
-test_kodDatabase-kodDatabase.o: kodDatabase.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -MT test_kodDatabase-kodDatabase.o -MD -MP -MF $(DEPDIR)/test_kodDatabase-kodDatabase.Tpo -c -o test_kodDatabase-kodDatabase.o `test -f 'kodDatabase.c' || echo '$(srcdir)/'`kodDatabase.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodDatabase-kodDatabase.Tpo $(DEPDIR)/test_kodDatabase-kodDatabase.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='kodDatabase.c' object='test_kodDatabase-kodDatabase.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -c -o test_kodDatabase-kodDatabase.o `test -f 'kodDatabase.c' || echo '$(srcdir)/'`kodDatabase.c
-
-test_kodDatabase-kodDatabase.obj: kodDatabase.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -MT test_kodDatabase-kodDatabase.obj -MD -MP -MF $(DEPDIR)/test_kodDatabase-kodDatabase.Tpo -c -o test_kodDatabase-kodDatabase.obj `if test -f 'kodDatabase.c'; then $(CYGPATH_W) 'kodDatabase.c'; else $(CYGPATH_W) '$(srcdir)/kodDatabase.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodDatabase-kodDatabase.Tpo $(DEPDIR)/test_kodDatabase-kodDatabase.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='kodDatabase.c' object='test_kodDatabase-kodDatabase.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -c -o test_kodDatabase-kodDatabase.obj `if test -f 'kodDatabase.c'; then $(CYGPATH_W) 'kodDatabase.c'; else $(CYGPATH_W) '$(srcdir)/kodDatabase.c'; fi`
-
-test_kodDatabase-run-kodDatabase.o: run-kodDatabase.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -MT test_kodDatabase-run-kodDatabase.o -MD -MP -MF $(DEPDIR)/test_kodDatabase-run-kodDatabase.Tpo -c -o test_kodDatabase-run-kodDatabase.o `test -f 'run-kodDatabase.c' || echo '$(srcdir)/'`run-kodDatabase.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodDatabase-run-kodDatabase.Tpo $(DEPDIR)/test_kodDatabase-run-kodDatabase.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-kodDatabase.c' object='test_kodDatabase-run-kodDatabase.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -c -o test_kodDatabase-run-kodDatabase.o `test -f 'run-kodDatabase.c' || echo '$(srcdir)/'`run-kodDatabase.c
-
-test_kodDatabase-run-kodDatabase.obj: run-kodDatabase.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -MT test_kodDatabase-run-kodDatabase.obj -MD -MP -MF $(DEPDIR)/test_kodDatabase-run-kodDatabase.Tpo -c -o test_kodDatabase-run-kodDatabase.obj `if test -f 'run-kodDatabase.c'; then $(CYGPATH_W) 'run-kodDatabase.c'; else $(CYGPATH_W) '$(srcdir)/run-kodDatabase.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodDatabase-run-kodDatabase.Tpo $(DEPDIR)/test_kodDatabase-run-kodDatabase.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-kodDatabase.c' object='test_kodDatabase-run-kodDatabase.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -c -o test_kodDatabase-run-kodDatabase.obj `if test -f 'run-kodDatabase.c'; then $(CYGPATH_W) 'run-kodDatabase.c'; else $(CYGPATH_W) '$(srcdir)/run-kodDatabase.c'; fi`
-
-test_kodDatabase-version.o: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -MT test_kodDatabase-version.o -MD -MP -MF $(DEPDIR)/test_kodDatabase-version.Tpo -c -o test_kodDatabase-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodDatabase-version.Tpo $(DEPDIR)/test_kodDatabase-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_kodDatabase-version.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -c -o test_kodDatabase-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-
-test_kodDatabase-version.obj: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -MT test_kodDatabase-version.obj -MD -MP -MF $(DEPDIR)/test_kodDatabase-version.Tpo -c -o test_kodDatabase-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodDatabase-version.Tpo $(DEPDIR)/test_kodDatabase-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_kodDatabase-version.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodDatabase_CFLAGS) $(CFLAGS) -c -o test_kodDatabase-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-
-test_kodFile-kodFile.o: kodFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -MT test_kodFile-kodFile.o -MD -MP -MF $(DEPDIR)/test_kodFile-kodFile.Tpo -c -o test_kodFile-kodFile.o `test -f 'kodFile.c' || echo '$(srcdir)/'`kodFile.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodFile-kodFile.Tpo $(DEPDIR)/test_kodFile-kodFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='kodFile.c' object='test_kodFile-kodFile.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -c -o test_kodFile-kodFile.o `test -f 'kodFile.c' || echo '$(srcdir)/'`kodFile.c
-
-test_kodFile-kodFile.obj: kodFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -MT test_kodFile-kodFile.obj -MD -MP -MF $(DEPDIR)/test_kodFile-kodFile.Tpo -c -o test_kodFile-kodFile.obj `if test -f 'kodFile.c'; then $(CYGPATH_W) 'kodFile.c'; else $(CYGPATH_W) '$(srcdir)/kodFile.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodFile-kodFile.Tpo $(DEPDIR)/test_kodFile-kodFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='kodFile.c' object='test_kodFile-kodFile.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -c -o test_kodFile-kodFile.obj `if test -f 'kodFile.c'; then $(CYGPATH_W) 'kodFile.c'; else $(CYGPATH_W) '$(srcdir)/kodFile.c'; fi`
-
-test_kodFile-run-kodFile.o: run-kodFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -MT test_kodFile-run-kodFile.o -MD -MP -MF $(DEPDIR)/test_kodFile-run-kodFile.Tpo -c -o test_kodFile-run-kodFile.o `test -f 'run-kodFile.c' || echo '$(srcdir)/'`run-kodFile.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodFile-run-kodFile.Tpo $(DEPDIR)/test_kodFile-run-kodFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-kodFile.c' object='test_kodFile-run-kodFile.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -c -o test_kodFile-run-kodFile.o `test -f 'run-kodFile.c' || echo '$(srcdir)/'`run-kodFile.c
-
-test_kodFile-run-kodFile.obj: run-kodFile.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -MT test_kodFile-run-kodFile.obj -MD -MP -MF $(DEPDIR)/test_kodFile-run-kodFile.Tpo -c -o test_kodFile-run-kodFile.obj `if test -f 'run-kodFile.c'; then $(CYGPATH_W) 'run-kodFile.c'; else $(CYGPATH_W) '$(srcdir)/run-kodFile.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodFile-run-kodFile.Tpo $(DEPDIR)/test_kodFile-run-kodFile.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-kodFile.c' object='test_kodFile-run-kodFile.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -c -o test_kodFile-run-kodFile.obj `if test -f 'run-kodFile.c'; then $(CYGPATH_W) 'run-kodFile.c'; else $(CYGPATH_W) '$(srcdir)/run-kodFile.c'; fi`
-
-test_kodFile-version.o: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -MT test_kodFile-version.o -MD -MP -MF $(DEPDIR)/test_kodFile-version.Tpo -c -o test_kodFile-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodFile-version.Tpo $(DEPDIR)/test_kodFile-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_kodFile-version.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -c -o test_kodFile-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-
-test_kodFile-version.obj: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -MT test_kodFile-version.obj -MD -MP -MF $(DEPDIR)/test_kodFile-version.Tpo -c -o test_kodFile-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_kodFile-version.Tpo $(DEPDIR)/test_kodFile-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_kodFile-version.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_kodFile_CFLAGS) $(CFLAGS) -c -o test_kodFile-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-
-test_networking-networking.o: networking.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -MT test_networking-networking.o -MD -MP -MF $(DEPDIR)/test_networking-networking.Tpo -c -o test_networking-networking.o `test -f 'networking.c' || echo '$(srcdir)/'`networking.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_networking-networking.Tpo $(DEPDIR)/test_networking-networking.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='networking.c' object='test_networking-networking.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -c -o test_networking-networking.o `test -f 'networking.c' || echo '$(srcdir)/'`networking.c
-
-test_networking-networking.obj: networking.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -MT test_networking-networking.obj -MD -MP -MF $(DEPDIR)/test_networking-networking.Tpo -c -o test_networking-networking.obj `if test -f 'networking.c'; then $(CYGPATH_W) 'networking.c'; else $(CYGPATH_W) '$(srcdir)/networking.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_networking-networking.Tpo $(DEPDIR)/test_networking-networking.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='networking.c' object='test_networking-networking.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -c -o test_networking-networking.obj `if test -f 'networking.c'; then $(CYGPATH_W) 'networking.c'; else $(CYGPATH_W) '$(srcdir)/networking.c'; fi`
-
-test_networking-run-networking.o: run-networking.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -MT test_networking-run-networking.o -MD -MP -MF $(DEPDIR)/test_networking-run-networking.Tpo -c -o test_networking-run-networking.o `test -f 'run-networking.c' || echo '$(srcdir)/'`run-networking.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_networking-run-networking.Tpo $(DEPDIR)/test_networking-run-networking.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-networking.c' object='test_networking-run-networking.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -c -o test_networking-run-networking.o `test -f 'run-networking.c' || echo '$(srcdir)/'`run-networking.c
-
-test_networking-run-networking.obj: run-networking.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -MT test_networking-run-networking.obj -MD -MP -MF $(DEPDIR)/test_networking-run-networking.Tpo -c -o test_networking-run-networking.obj `if test -f 'run-networking.c'; then $(CYGPATH_W) 'run-networking.c'; else $(CYGPATH_W) '$(srcdir)/run-networking.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_networking-run-networking.Tpo $(DEPDIR)/test_networking-run-networking.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-networking.c' object='test_networking-run-networking.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -c -o test_networking-run-networking.obj `if test -f 'run-networking.c'; then $(CYGPATH_W) 'run-networking.c'; else $(CYGPATH_W) '$(srcdir)/run-networking.c'; fi`
-
-test_networking-version.o: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -MT test_networking-version.o -MD -MP -MF $(DEPDIR)/test_networking-version.Tpo -c -o test_networking-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_networking-version.Tpo $(DEPDIR)/test_networking-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_networking-version.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -c -o test_networking-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-
-test_networking-version.obj: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -MT test_networking-version.obj -MD -MP -MF $(DEPDIR)/test_networking-version.Tpo -c -o test_networking-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_networking-version.Tpo $(DEPDIR)/test_networking-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_networking-version.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_networking_CFLAGS) $(CFLAGS) -c -o test_networking-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-
-test_packetHandling-packetHandling.o: packetHandling.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -MT test_packetHandling-packetHandling.o -MD -MP -MF $(DEPDIR)/test_packetHandling-packetHandling.Tpo -c -o test_packetHandling-packetHandling.o `test -f 'packetHandling.c' || echo '$(srcdir)/'`packetHandling.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetHandling-packetHandling.Tpo $(DEPDIR)/test_packetHandling-packetHandling.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='packetHandling.c' object='test_packetHandling-packetHandling.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -c -o test_packetHandling-packetHandling.o `test -f 'packetHandling.c' || echo '$(srcdir)/'`packetHandling.c
-
-test_packetHandling-packetHandling.obj: packetHandling.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -MT test_packetHandling-packetHandling.obj -MD -MP -MF $(DEPDIR)/test_packetHandling-packetHandling.Tpo -c -o test_packetHandling-packetHandling.obj `if test -f 'packetHandling.c'; then $(CYGPATH_W) 'packetHandling.c'; else $(CYGPATH_W) '$(srcdir)/packetHandling.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetHandling-packetHandling.Tpo $(DEPDIR)/test_packetHandling-packetHandling.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='packetHandling.c' object='test_packetHandling-packetHandling.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -c -o test_packetHandling-packetHandling.obj `if test -f 'packetHandling.c'; then $(CYGPATH_W) 'packetHandling.c'; else $(CYGPATH_W) '$(srcdir)/packetHandling.c'; fi`
-
-test_packetHandling-run-packetHandling.o: run-packetHandling.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -MT test_packetHandling-run-packetHandling.o -MD -MP -MF $(DEPDIR)/test_packetHandling-run-packetHandling.Tpo -c -o test_packetHandling-run-packetHandling.o `test -f 'run-packetHandling.c' || echo '$(srcdir)/'`run-packetHandling.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetHandling-run-packetHandling.Tpo $(DEPDIR)/test_packetHandling-run-packetHandling.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-packetHandling.c' object='test_packetHandling-run-packetHandling.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -c -o test_packetHandling-run-packetHandling.o `test -f 'run-packetHandling.c' || echo '$(srcdir)/'`run-packetHandling.c
-
-test_packetHandling-run-packetHandling.obj: run-packetHandling.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -MT test_packetHandling-run-packetHandling.obj -MD -MP -MF $(DEPDIR)/test_packetHandling-run-packetHandling.Tpo -c -o test_packetHandling-run-packetHandling.obj `if test -f 'run-packetHandling.c'; then $(CYGPATH_W) 'run-packetHandling.c'; else $(CYGPATH_W) '$(srcdir)/run-packetHandling.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetHandling-run-packetHandling.Tpo $(DEPDIR)/test_packetHandling-run-packetHandling.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-packetHandling.c' object='test_packetHandling-run-packetHandling.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -c -o test_packetHandling-run-packetHandling.obj `if test -f 'run-packetHandling.c'; then $(CYGPATH_W) 'run-packetHandling.c'; else $(CYGPATH_W) '$(srcdir)/run-packetHandling.c'; fi`
-
-test_packetHandling-version.o: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -MT test_packetHandling-version.o -MD -MP -MF $(DEPDIR)/test_packetHandling-version.Tpo -c -o test_packetHandling-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetHandling-version.Tpo $(DEPDIR)/test_packetHandling-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_packetHandling-version.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -c -o test_packetHandling-version.o `test -f '$(top_builddir)/version.c' || echo '$(srcdir)/'`$(top_builddir)/version.c
-
-test_packetHandling-version.obj: $(top_builddir)/version.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -MT test_packetHandling-version.obj -MD -MP -MF $(DEPDIR)/test_packetHandling-version.Tpo -c -o test_packetHandling-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetHandling-version.Tpo $(DEPDIR)/test_packetHandling-version.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$(top_builddir)/version.c' object='test_packetHandling-version.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetHandling_CFLAGS) $(CFLAGS) -c -o test_packetHandling-version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
-
-test_packetProcessing-packetProcessing.o: packetProcessing.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -MT test_packetProcessing-packetProcessing.o -MD -MP -MF $(DEPDIR)/test_packetProcessing-packetProcessing.Tpo -c -o test_packetProcessing-packetProcessing.o `test -f 'packetProcessing.c' || echo '$(srcdir)/'`packetProcessing.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetProcessing-packetProcessing.Tpo $(DEPDIR)/test_packetProcessing-packetProcessing.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='packetProcessing.c' object='test_packetProcessing-packetProcessing.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -c -o test_packetProcessing-packetProcessing.o `test -f 'packetProcessing.c' || echo '$(srcdir)/'`packetProcessing.c
-
-test_packetProcessing-packetProcessing.obj: packetProcessing.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -MT test_packetProcessing-packetProcessing.obj -MD -MP -MF $(DEPDIR)/test_packetProcessing-packetProcessing.Tpo -c -o test_packetProcessing-packetProcessing.obj `if test -f 'packetProcessing.c'; then $(CYGPATH_W) 'packetProcessing.c'; else $(CYGPATH_W) '$(srcdir)/packetProcessing.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetProcessing-packetProcessing.Tpo $(DEPDIR)/test_packetProcessing-packetProcessing.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='packetProcessing.c' object='test_packetProcessing-packetProcessing.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -c -o test_packetProcessing-packetProcessing.obj `if test -f 'packetProcessing.c'; then $(CYGPATH_W) 'packetProcessing.c'; else $(CYGPATH_W) '$(srcdir)/packetProcessing.c'; fi`
-
-test_packetProcessing-run-packetProcessing.o: run-packetProcessing.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -MT test_packetProcessing-run-packetProcessing.o -MD -MP -MF $(DEPDIR)/test_packetProcessing-run-packetProcessing.Tpo -c -o test_packetProcessing-run-packetProcessing.o `test -f 'run-packetProcessing.c' || echo '$(srcdir)/'`run-packetProcessing.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetProcessing-run-packetProcessing.Tpo $(DEPDIR)/test_packetProcessing-run-packetProcessing.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-packetProcessing.c' object='test_packetProcessing-run-packetProcessing.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -c -o test_packetProcessing-run-packetProcessing.o `test -f 'run-packetProcessing.c' || echo '$(srcdir)/'`run-packetProcessing.c
-
-test_packetProcessing-run-packetProcessing.obj: run-packetProcessing.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -MT test_packetProcessing-run-packetProcessing.obj -MD -MP -MF $(DEPDIR)/test_packetProcessing-run-packetProcessing.Tpo -c -o test_packetProcessing-run-packetProcessing.obj `if test -f 'run-packetProcessing.c'; then $(CYGPATH_W) 'run-packetProcessing.c'; else $(CYGPATH_W) '$(srcdir)/run-packetProcessing.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_packetProcessing-run-packetProcessing.Tpo $(DEPDIR)/test_packetProcessing-run-packetProcessing.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-packetProcessing.c' object='test_packetProcessing-run-packetProcessing.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_packetProcessing_CFLAGS) $(CFLAGS) -c -o test_packetProcessing-run-packetProcessing.obj `if test -f 'run-packetProcessing.c'; then $(CYGPATH_W) 'run-packetProcessing.c'; else $(CYGPATH_W) '$(srcdir)/run-packetProcessing.c'; fi`
-
-test_utilities-utilities.o: utilities.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -MT test_utilities-utilities.o -MD -MP -MF $(DEPDIR)/test_utilities-utilities.Tpo -c -o test_utilities-utilities.o `test -f 'utilities.c' || echo '$(srcdir)/'`utilities.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_utilities-utilities.Tpo $(DEPDIR)/test_utilities-utilities.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utilities.c' object='test_utilities-utilities.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -c -o test_utilities-utilities.o `test -f 'utilities.c' || echo '$(srcdir)/'`utilities.c
-
-test_utilities-utilities.obj: utilities.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -MT test_utilities-utilities.obj -MD -MP -MF $(DEPDIR)/test_utilities-utilities.Tpo -c -o test_utilities-utilities.obj `if test -f 'utilities.c'; then $(CYGPATH_W) 'utilities.c'; else $(CYGPATH_W) '$(srcdir)/utilities.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_utilities-utilities.Tpo $(DEPDIR)/test_utilities-utilities.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utilities.c' object='test_utilities-utilities.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -c -o test_utilities-utilities.obj `if test -f 'utilities.c'; then $(CYGPATH_W) 'utilities.c'; else $(CYGPATH_W) '$(srcdir)/utilities.c'; fi`
-
-test_utilities-run-utilities.o: run-utilities.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -MT test_utilities-run-utilities.o -MD -MP -MF $(DEPDIR)/test_utilities-run-utilities.Tpo -c -o test_utilities-run-utilities.o `test -f 'run-utilities.c' || echo '$(srcdir)/'`run-utilities.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_utilities-run-utilities.Tpo $(DEPDIR)/test_utilities-run-utilities.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-utilities.c' object='test_utilities-run-utilities.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -c -o test_utilities-run-utilities.o `test -f 'run-utilities.c' || echo '$(srcdir)/'`run-utilities.c
-
-test_utilities-run-utilities.obj: run-utilities.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -MT test_utilities-run-utilities.obj -MD -MP -MF $(DEPDIR)/test_utilities-run-utilities.Tpo -c -o test_utilities-run-utilities.obj `if test -f 'run-utilities.c'; then $(CYGPATH_W) 'run-utilities.c'; else $(CYGPATH_W) '$(srcdir)/run-utilities.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/test_utilities-run-utilities.Tpo $(DEPDIR)/test_utilities-run-utilities.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='run-utilities.c' object='test_utilities-run-utilities.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(test_utilities_CFLAGS) $(CFLAGS) -c -o test_utilities-run-utilities.obj `if test -f 'run-utilities.c'; then $(CYGPATH_W) 'run-utilities.c'; else $(CYGPATH_W) '$(srcdir)/run-utilities.c'; fi`
-
-.cpp.o:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ $<
-
-.cpp.obj:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
-
-.cpp.lo:
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
-
-tests_main.o: ../tests_main.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT tests_main.o -MD -MP -MF $(DEPDIR)/tests_main.Tpo -c -o tests_main.o `test -f '../tests_main.cpp' || echo '$(srcdir)/'`../tests_main.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/tests_main.Tpo $(DEPDIR)/tests_main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../tests_main.cpp' object='tests_main.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o tests_main.o `test -f '../tests_main.cpp' || echo '$(srcdir)/'`../tests_main.cpp
-
-tests_main.obj: ../tests_main.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT tests_main.obj -MD -MP -MF $(DEPDIR)/tests_main.Tpo -c -o tests_main.obj `if test -f '../tests_main.cpp'; then $(CYGPATH_W) '../tests_main.cpp'; else $(CYGPATH_W) '$(srcdir)/../tests_main.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/tests_main.Tpo $(DEPDIR)/tests_main.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../tests_main.cpp' object='tests_main.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o tests_main.obj `if test -f '../tests_main.cpp'; then $(CYGPATH_W) '../tests_main.cpp'; else $(CYGPATH_W) '$(srcdir)/../tests_main.cpp'; fi`
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o version.obj `if test -f '$(top_builddir)/version.c'; then $(CYGPATH_W) '$(top_builddir)/version.c'; else $(CYGPATH_W) '$(srcdir)/$(top_builddir)/version.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1687,6 +1284,13 @@ test-kodFile.log: test-kodFile$(EXEEXT)
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-log.log: test-log$(EXEEXT)
+	@p='test-log$(EXEEXT)'; \
+	b='test-log'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 test-networking.log: test-networking$(EXEEXT)
 	@p='test-networking$(EXEEXT)'; \
 	b='test-networking'; \
@@ -1711,13 +1315,6 @@ test-packetProcessing.log: test-packetProcessing$(EXEEXT)
 test-utilities.log: test-utilities$(EXEEXT)
 	@p='test-utilities$(EXEEXT)'; \
 	b='test-utilities'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
-tests.log: tests$(EXEEXT)
-	@p='tests$(EXEEXT)'; \
-	b='tests'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
@@ -1926,6 +1523,9 @@ $(srcdir)/run-utilities.c: $(srcdir)/utilities.c $(std_unity_list)
 $(srcdir)/run-crypto.c: $(srcdir)/crypto.c $(std_unity_list)
 	$(run_unity) crypto.c run-crypto.c
 
+$(srcdir)/run-t-log.c: $(srcdir)/t-log.c $(std_unity_list)
+	$(run_unity) t-log.c run-t-log.c
+
 check-libsntp: ../libsntp.a
 	@echo stamp > $@
 
@@ -1938,10 +1538,10 @@ check-libntp: ../../libntp/libntp.a
 ../../libntp/libntp.a:
 	cd ../../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
-check-libunity: ../sntp/unity/libunity.a
+check-libunity: ../unity/libunity.a
 	@echo stamp > $@
 
-../sntp/unity/libunity.a:
+../unity/libunity.a:
 	cd ../unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\

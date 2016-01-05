@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 __weak_reference(__creat, creat);
 __weak_reference(__creat, _creat);
 
+int __creat(const char *path, mode_t mode);
+
 #pragma weak creat
 int
 __creat(const char *path, mode_t mode)

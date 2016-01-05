@@ -63,233 +63,236 @@ whirlpool_block:
 	movq	%r15,64+56(%rsp)
 	xorq	%rsi,%rsi
 	movq	%rsi,24(%rbx)
+	jmp	.Lround
 .align	16
 .Lround:
 	movq	4096(%rbp,%rsi,8),%r8
 	movl	0(%rsp),%eax
 	movl	4(%rsp),%ebx
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%al,%ecx
+	movzbl	%ah,%edx
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r8
 	movq	7(%rbp,%rdi,8),%r9
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	0+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	movq	6(%rbp,%rsi,8),%r10
 	movq	5(%rbp,%rdi,8),%r11
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	movq	4(%rbp,%rsi,8),%r12
 	movq	3(%rbp,%rdi,8),%r13
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	0+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	movq	2(%rbp,%rsi,8),%r14
 	movq	1(%rbp,%rdi,8),%r15
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r9
 	xorq	7(%rbp,%rdi,8),%r10
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	8+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r11
 	xorq	5(%rbp,%rdi,8),%r12
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r13
 	xorq	3(%rbp,%rdi,8),%r14
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	8+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r15
 	xorq	1(%rbp,%rdi,8),%r8
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r10
 	xorq	7(%rbp,%rdi,8),%r11
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	16+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r12
 	xorq	5(%rbp,%rdi,8),%r13
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r14
 	xorq	3(%rbp,%rdi,8),%r15
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	16+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r8
 	xorq	1(%rbp,%rdi,8),%r9
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r11
 	xorq	7(%rbp,%rdi,8),%r12
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	24+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r13
 	xorq	5(%rbp,%rdi,8),%r14
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r15
 	xorq	3(%rbp,%rdi,8),%r8
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	24+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r9
 	xorq	1(%rbp,%rdi,8),%r10
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r12
 	xorq	7(%rbp,%rdi,8),%r13
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	32+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r14
 	xorq	5(%rbp,%rdi,8),%r15
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r8
 	xorq	3(%rbp,%rdi,8),%r9
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	32+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r10
 	xorq	1(%rbp,%rdi,8),%r11
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r13
 	xorq	7(%rbp,%rdi,8),%r14
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	40+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r15
 	xorq	5(%rbp,%rdi,8),%r8
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r9
 	xorq	3(%rbp,%rdi,8),%r10
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	40+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r11
 	xorq	1(%rbp,%rdi,8),%r12
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r14
 	xorq	7(%rbp,%rdi,8),%r15
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	48+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r8
 	xorq	5(%rbp,%rdi,8),%r9
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r10
 	xorq	3(%rbp,%rdi,8),%r11
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	48+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r12
 	xorq	1(%rbp,%rdi,8),%r13
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r15
 	xorq	7(%rbp,%rdi,8),%r8
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	56+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r9
 	xorq	5(%rbp,%rdi,8),%r10
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r11
 	xorq	3(%rbp,%rdi,8),%r12
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	56+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r13
 	xorq	1(%rbp,%rdi,8),%r14
 	movq	%r8,0(%rsp)
@@ -300,228 +303,228 @@ whirlpool_block:
 	movq	%r13,40(%rsp)
 	movq	%r14,48(%rsp)
 	movq	%r15,56(%rsp)
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r8
 	xorq	7(%rbp,%rdi,8),%r9
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	64+0+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r10
 	xorq	5(%rbp,%rdi,8),%r11
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r12
 	xorq	3(%rbp,%rdi,8),%r13
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	64+0+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r14
 	xorq	1(%rbp,%rdi,8),%r15
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r9
 	xorq	7(%rbp,%rdi,8),%r10
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	64+8+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r11
 	xorq	5(%rbp,%rdi,8),%r12
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r13
 	xorq	3(%rbp,%rdi,8),%r14
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	64+8+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r15
 	xorq	1(%rbp,%rdi,8),%r8
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r10
 	xorq	7(%rbp,%rdi,8),%r11
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	64+16+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r12
 	xorq	5(%rbp,%rdi,8),%r13
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r14
 	xorq	3(%rbp,%rdi,8),%r15
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	64+16+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r8
 	xorq	1(%rbp,%rdi,8),%r9
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r11
 	xorq	7(%rbp,%rdi,8),%r12
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	64+24+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r13
 	xorq	5(%rbp,%rdi,8),%r14
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r15
 	xorq	3(%rbp,%rdi,8),%r8
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	64+24+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r9
 	xorq	1(%rbp,%rdi,8),%r10
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r12
 	xorq	7(%rbp,%rdi,8),%r13
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	64+32+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r14
 	xorq	5(%rbp,%rdi,8),%r15
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r8
 	xorq	3(%rbp,%rdi,8),%r9
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	64+32+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r10
 	xorq	1(%rbp,%rdi,8),%r11
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r13
 	xorq	7(%rbp,%rdi,8),%r14
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	64+40+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r15
 	xorq	5(%rbp,%rdi,8),%r8
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r9
 	xorq	3(%rbp,%rdi,8),%r10
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	64+40+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r11
 	xorq	1(%rbp,%rdi,8),%r12
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r14
 	xorq	7(%rbp,%rdi,8),%r15
-	movb	%al,%cl
-	movb	%ah,%dl
 	movl	64+48+8(%rsp),%eax
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r8
 	xorq	5(%rbp,%rdi,8),%r9
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r10
 	xorq	3(%rbp,%rdi,8),%r11
-	movb	%bl,%cl
-	movb	%bh,%dl
 	movl	64+48+8+4(%rsp),%ebx
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r12
 	xorq	1(%rbp,%rdi,8),%r13
-	movb	%al,%cl
-	movb	%ah,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%eax
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	0(%rbp,%rsi,8),%r15
 	xorq	7(%rbp,%rdi,8),%r8
-	movb	%al,%cl
-	movb	%ah,%dl
 
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	6(%rbp,%rsi,8),%r9
 	xorq	5(%rbp,%rdi,8),%r10
-	movb	%bl,%cl
-	movb	%bh,%dl
-	leaq	(%rcx,%rcx,1),%rsi
-	leaq	(%rdx,%rdx,1),%rdi
 	shrl	$16,%ebx
+	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%bl,%ecx
+	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%bh,%edx
 	xorq	4(%rbp,%rsi,8),%r11
 	xorq	3(%rbp,%rdi,8),%r12
-	movb	%bl,%cl
-	movb	%bh,%dl
 
 	leaq	(%rcx,%rcx,1),%rsi
+	movzbl	%al,%ecx
 	leaq	(%rdx,%rdx,1),%rdi
+	movzbl	%ah,%edx
 	xorq	2(%rbp,%rsi,8),%r13
 	xorq	1(%rbp,%rdi,8),%r14
 	leaq	128(%rsp),%rbx

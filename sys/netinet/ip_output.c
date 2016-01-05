@@ -567,7 +567,7 @@ sendit:
 			RO_RTFREE(ro);
 			if (have_ia_ref)
 				ifa_free(&ia->ia_ifa);
-			ro->ro_lle = NULL;
+			ro->ro_prepend = NULL;
 			rte = NULL;
 			gw = dst;
 			ip = mtod(m, struct ip *);

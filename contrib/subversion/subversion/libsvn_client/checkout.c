@@ -67,6 +67,7 @@ initialize_area(const char *local_abspath,
 
 svn_error_t *
 svn_client__checkout_internal(svn_revnum_t *result_rev,
+                              svn_boolean_t *timestamp_sleep,
                               const char *url,
                               const char *local_abspath,
                               const svn_opt_revision_t *peg_revision,
@@ -74,18 +75,16 @@ svn_client__checkout_internal(svn_revnum_t *result_rev,
                               svn_depth_t depth,
                               svn_boolean_t ignore_externals,
                               svn_boolean_t allow_unver_obstructions,
-                              svn_boolean_t *timestamp_sleep,
+                              svn_ra_session_t *ra_session,
                               svn_client_ctx_t *ctx,
-                              apr_pool_t *pool)
+                              apr_pool_t *scratch_pool)
 {
   svn_node_kind_t kind;
-  apr_pool_t *session_pool = svn_pool_create(pool);
-  svn_ra_session_t *ra_session;
   svn_client__pathrev_t *pathrev;
 
   /* Sanity check.  Without these, the checkout is meaningless. */
   SVN_ERR_ASSERT(local_abspath != NULL);
-  SVN_ERR_ASSERT(svn_uri_is_canonical(url, pool));
+  SVN_ERR_ASSERT(svn_uri_is_canonical(url, scratch_pool));
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
 
   /* Fulfill the docstring promise of svn_client_checkout: */
@@ -94,15 +93,38 @@ svn_client__checkout_internal(svn_revnum_t *result_rev,
       && (revision->kind != svn_opt_revision_head))
     return svn_error_create(SVN_ERR_CLIENT_BAD_REVISION, NULL, NULL);
 
-  /* Get the RA connection. */
-  SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &pathrev,
-                                            url, NULL, peg_revision, revision,
-                                            ctx, session_pool));
+  /* Get the RA connection, if needed. */
+  if (ra_session)
+    {
+      svn_error_t *err = svn_ra_reparent(ra_session, url, scratch_pool);
 
-  pathrev = svn_client__pathrev_dup(pathrev, pool);
-  SVN_ERR(svn_ra_check_path(ra_session, "", pathrev->rev, &kind, pool));
+      if (err)
+        {
+          if (err->apr_err == SVN_ERR_RA_ILLEGAL_URL)
+            {
+              svn_error_clear(err);
+              ra_session = NULL;
+            }
+          else
+            return svn_error_trace(err);
+        }
+      else
+        {
+          SVN_ERR(svn_client__resolve_rev_and_url(&pathrev,
+                                                  ra_session, url,
+                                                  peg_revision, revision,
+                                                  ctx, scratch_pool));
+        }
+    }
 
-  svn_pool_destroy(session_pool);
+  if (!ra_session)
+    {
+      SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &pathrev,
+                                                url, NULL, peg_revision,
+                                                revision, ctx, scratch_pool));
+    }
+
+  SVN_ERR(svn_ra_check_path(ra_session, "", pathrev->rev, &kind, scratch_pool));
 
   if (kind == svn_node_none)
     return svn_error_createf(SVN_ERR_RA_ILLEGAL_URL, NULL,
@@ -112,31 +134,35 @@ svn_client__checkout_internal(svn_revnum_t *result_rev,
       (SVN_ERR_UNSUPPORTED_FEATURE , NULL,
        _("URL '%s' refers to a file, not a directory"), pathrev->url);
 
-  SVN_ERR(svn_io_check_path(local_abspath, &kind, pool));
+  SVN_ERR(svn_io_check_path(local_abspath, &kind, scratch_pool));
 
   if (kind == svn_node_none)
     {
       /* Bootstrap: create an incomplete working-copy root dir.  Its
          entries file should only have an entry for THIS_DIR with a
          URL, revnum, and an 'incomplete' flag.  */
-      SVN_ERR(svn_io_make_dir_recursively(local_abspath, pool));
-      SVN_ERR(initialize_area(local_abspath, pathrev, depth, ctx, pool));
+      SVN_ERR(svn_io_make_dir_recursively(local_abspath, scratch_pool));
+      SVN_ERR(initialize_area(local_abspath, pathrev, depth, ctx,
+                              scratch_pool));
     }
   else if (kind == svn_node_dir)
     {
       int wc_format;
       const char *entry_url;
 
-      SVN_ERR(svn_wc_check_wc2(&wc_format, ctx->wc_ctx, local_abspath, pool));
+      SVN_ERR(svn_wc_check_wc2(&wc_format, ctx->wc_ctx, local_abspath,
+                               scratch_pool));
+
       if (! wc_format)
         {
-          SVN_ERR(initialize_area(local_abspath, pathrev, depth, ctx, pool));
+          SVN_ERR(initialize_area(local_abspath, pathrev, depth, ctx,
+                                  scratch_pool));
         }
       else
         {
           /* Get PATH's URL. */
           SVN_ERR(svn_wc__node_get_url(&entry_url, ctx->wc_ctx, local_abspath,
-                                       pool, pool));
+                                       scratch_pool, scratch_pool));
 
           /* If PATH's existing URL matches the incoming one, then
              just update.  This allows 'svn co' to restart an
@@ -146,24 +172,25 @@ svn_client__checkout_internal(svn_revnum_t *result_rev,
                           SVN_ERR_WC_OBSTRUCTED_UPDATE, NULL,
                           _("'%s' is already a working copy for a"
                             " different URL"),
-                          svn_dirent_local_style(local_abspath, pool));
+                          svn_dirent_local_style(local_abspath, scratch_pool));
         }
     }
   else
     {
       return svn_error_createf(SVN_ERR_WC_NODE_KIND_CHANGE, NULL,
                                _("'%s' already exists and is not a directory"),
-                               svn_dirent_local_style(local_abspath, pool));
+                               svn_dirent_local_style(local_abspath,
+                                                      scratch_pool));
     }
 
   /* Have update fix the incompleteness. */
-  SVN_ERR(svn_client__update_internal(result_rev, local_abspath,
-                                      revision, depth, TRUE,
+  SVN_ERR(svn_client__update_internal(result_rev, timestamp_sleep,
+                                      local_abspath, revision, depth, TRUE,
                                       ignore_externals,
                                       allow_unver_obstructions,
                                       TRUE /* adds_as_modification */,
-                                      FALSE, FALSE,
-                                      timestamp_sleep, ctx, pool));
+                                      FALSE, FALSE, ra_session,
+                                      ctx, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -186,10 +213,12 @@ svn_client_checkout3(svn_revnum_t *result_rev,
 
   SVN_ERR(svn_dirent_get_absolute(&local_abspath, path, pool));
 
-  err = svn_client__checkout_internal(result_rev, URL, local_abspath,
+  err = svn_client__checkout_internal(result_rev, &sleep_here,
+                                      URL, local_abspath,
                                       peg_revision, revision, depth,
                                       ignore_externals,
-                                      allow_unver_obstructions, &sleep_here,
+                                      allow_unver_obstructions,
+                                      NULL /* ra_session */,
                                       ctx, pool);
   if (sleep_here)
     svn_io_sleep_for_timestamps(local_abspath, pool);

@@ -65,6 +65,10 @@
 #include <machine/param.h>
 #include <machine/asm.h>
 
+#ifdef _CALL_ELF
+.abiversion _CALL_ELF
+#endif
+
 TOC_ENTRY(blocked_lock)
 
 /*
@@ -255,6 +259,8 @@ ENTRY(savectx)
 	mfcr	%r4			/* Save the condition register */
 	std	%r4,PCB_CR(%r3)
 	std	%r2,PCB_TOC(%r3)	/* Save the TOC pointer */
+	mflr	%r4			/* Save the link register */
+	std	%r4,PCB_LR(%r3)
 	blr
 
 /*

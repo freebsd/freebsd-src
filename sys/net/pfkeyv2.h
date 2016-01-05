@@ -225,7 +225,7 @@ struct sadb_x_policy {
   u_int8_t sadb_x_policy_dir;		/* direction, see ipsec.h */
   u_int8_t sadb_x_policy_reserved;
   u_int32_t sadb_x_policy_id;
-  u_int32_t sadb_x_policy_reserved2;
+  u_int32_t sadb_x_policy_priority;
 };
 _Static_assert(sizeof(struct sadb_x_policy) == 16, "struct size mismatch");
 

@@ -96,6 +96,7 @@
 #define R92C_SYS_CFG			0x0f0
 /* MAC General Configuration. */
 #define R92C_CR				0x100
+#define R92C_MSR			0x102
 #define R92C_PBP			0x104
 #define R92C_TRXDMA_CTRL		0x10c
 #define R92C_TRXFF_BNDY			0x114
@@ -157,6 +158,9 @@
 #define R92C_INIRTS_RATE_SEL		0x480
 #define R92C_INIDATA_RATE_SEL(macid)	(0x484 + (macid))
 #define R92C_MAX_AGGR_NUM		0x4ca
+#define R88E_TX_RPT_CTRL		0x4ec
+#define R88E_TX_RPT_MACID_MAX		0x4ed
+#define R88E_TX_RPT_TIME		0x4f0
 /* EDCA Configuration. */
 #define R92C_EDCA_VO_PARAM		0x500
 #define R92C_EDCA_VI_PARAM		0x504
@@ -377,22 +381,23 @@
 #define R92C_SYS_CFG_TYPE_92C		0x08000000
 
 /* Bits for R92C_CR. */
-#define R92C_CR_HCI_TXDMA_EN	0x00000001
-#define R92C_CR_HCI_RXDMA_EN	0x00000002
-#define R92C_CR_TXDMA_EN	0x00000004
-#define R92C_CR_RXDMA_EN	0x00000008
-#define R92C_CR_PROTOCOL_EN	0x00000010
-#define R92C_CR_SCHEDULE_EN	0x00000020
-#define R92C_CR_MACTXEN		0x00000040
-#define R92C_CR_MACRXEN		0x00000080
-#define R92C_CR_ENSEC		0x00000200
-#define R92C_CR_CALTMR_EN	0x00000400
-#define R92C_CR_NETTYPE_S	16
-#define R92C_CR_NETTYPE_M	0x00030000
-#define R92C_CR_NETTYPE_NOLINK	0
-#define R92C_CR_NETTYPE_ADHOC	1
-#define R92C_CR_NETTYPE_INFRA	2
-#define R92C_CR_NETTYPE_AP	3
+#define R92C_CR_HCI_TXDMA_EN	0x0001
+#define R92C_CR_HCI_RXDMA_EN	0x0002
+#define R92C_CR_TXDMA_EN	0x0004
+#define R92C_CR_RXDMA_EN	0x0008
+#define R92C_CR_PROTOCOL_EN	0x0010
+#define R92C_CR_SCHEDULE_EN	0x0020
+#define R92C_CR_MACTXEN		0x0040
+#define R92C_CR_MACRXEN		0x0080
+#define R92C_CR_ENSEC		0x0200
+#define R92C_CR_CALTMR_EN	0x0400
+
+/* Bits for R92C_MSR. */
+#define R92C_MSR_NOLINK		0x00
+#define R92C_MSR_ADHOC		0x01
+#define R92C_MSR_INFRA		0x02
+#define R92C_MSR_AP		0x03
+#define R92C_MSR_MASK		(R92C_MSR_AP)
 
 /* Bits for R92C_PBP. */
 #define R92C_PBP_PSRX_M		0x0f
@@ -477,6 +482,10 @@
 #define R92C_RRSR_RSC_UPSUBCHNL		0x00400000
 #define R92C_RRSR_SHORT			0x00800000
 
+/* Bits for R88E_TX_RPT_CTRL. */
+#define R88E_TX_RPT1_ENA		0x01
+#define R88E_TX_RPT2_ENA		0x02
+
 /* Bits for R92C_EDCA_XX_PARAM. */
 #define R92C_EDCA_PARAM_AIFS_M		0x000000ff
 #define R92C_EDCA_PARAM_AIFS_S		0
@@ -487,11 +496,44 @@
 #define R92C_EDCA_PARAM_TXOP_M		0xffff0000
 #define R92C_EDCA_PARAM_TXOP_S		16
 
+/* Bits for R92C_HWSEQ_CTRL / R92C_TXPAUSE. */
+#define R92C_TX_QUEUE_VO		0x01
+#define R92C_TX_QUEUE_VI		0x02
+#define R92C_TX_QUEUE_BE		0x04
+#define R92C_TX_QUEUE_BK		0x08
+#define R92C_TX_QUEUE_MGT		0x10
+#define R92C_TX_QUEUE_HIGH		0x20
+#define R92C_TX_QUEUE_BCN		0x40
+
+/* Shortcuts. */
+#define R92C_TX_QUEUE_AC			\
+	(R92C_TX_QUEUE_VO | R92C_TX_QUEUE_VI |	\
+	 R92C_TX_QUEUE_BE | R92C_TX_QUEUE_BK)
+
+#define R92C_TX_QUEUE_ALL			\
+	(R92C_TX_QUEUE_AC | R92C_TX_QUEUE_MGT |	\
+	 R92C_TX_QUEUE_HIGH | R92C_TX_QUEUE_BCN | 0x80)	/* XXX */
+
 /* Bits for R92C_BCN_CTRL. */
 #define R92C_BCN_CTRL_EN_MBSSID		0x02
 #define R92C_BCN_CTRL_TXBCN_RPT		0x04
 #define R92C_BCN_CTRL_EN_BCN		0x08
 #define R92C_BCN_CTRL_DIS_TSF_UDT0	0x10
+
+/* Bits for R92C_MBID_NUM. */
+#define R92C_MBID_TXBCN_RPT0		0x08
+#define R92C_MBID_TXBCN_RPT1		0x10
+
+/* Bits for R92C_DUAL_TSF_RST. */
+#define R92C_DUAL_TSF_RST0		0x01
+#define R92C_DUAL_TSF_RST1		0x02
+
+/* Bits for R92C_ACMHWCTRL. */
+#define R92C_ACMHWCTRL_EN		0x01
+#define R92C_ACMHWCTRL_BE		0x02
+#define R92C_ACMHWCTRL_VI		0x04
+#define R92C_ACMHWCTRL_VO		0x08
+#define R92C_ACMHWCTRL_ACM_MASK		0x0f
 
 /* Bits for R92C_APSD_CTRL. */
 #define R92C_APSD_CTRL_OFF		0x40
@@ -532,6 +574,20 @@
 #define R92C_CAMCMD_WRITE	0x00010000
 #define R92C_CAMCMD_CLR		0x40000000
 #define R92C_CAMCMD_POLLING	0x80000000
+
+/* Bits for R92C_SECCFG. */
+#define R92C_SECCFG_TXUCKEY_DEF	0x0001
+#define R92C_SECCFG_RXUCKEY_DEF	0x0002
+#define R92C_SECCFG_TXENC_ENA	0x0004
+#define R92C_SECCFG_RXDEC_ENA	0x0008
+#define R92C_SECCFG_CMP_A2	0x0010
+#define R92C_SECCFG_TXBCKEY_DEF	0x0040
+#define R92C_SECCFG_RXBCKEY_DEF	0x0080
+#define R88E_SECCFG_CHK_KEYID	0x0100
+
+/* Bits for R92C_RXFLTMAP*. */
+#define R92C_RXFLTMAP_SUBTYPE(subtype)	\
+	(1 << ((subtype) >> IEEE80211_FC0_SUBTYPE_SHIFT))
 
 
 /*
@@ -801,10 +857,6 @@
 #define R92C_RAID_11B	6
 
 
-/* Macros to access unaligned little-endian memory. */
-#define LE_READ_2(x)	((x)[0] | (x)[1] << 8)
-#define LE_READ_4(x)	((x)[0] | (x)[1] << 8 | (x)[2] << 16 | (x)[3] << 24)
-
 /*
  * Macros to access subfields in registers.
  */
@@ -878,6 +930,11 @@ struct r92c_fw_cmd_macid_cfg {
 	uint8_t		macid;
 #define URTWN_MACID_BSS		0
 #define URTWN_MACID_BC		4	/* Broadcast. */
+#define R92C_MACID_MAX		31
+#define R88E_MACID_MAX		63
+#define URTWN_MACID_MAX(sc)	(((sc)->chip & URTWN_CHIP_88E) ? \
+				    R88E_MACID_MAX : R92C_MACID_MAX)
+#define URTWN_MACID_UNDEFINED	(uint8_t)-1
 #define URTWN_MACID_VALID	0x80
 } __packed;
 
@@ -928,6 +985,8 @@ struct r92c_rom {
 	uint8_t		curstomer_id;
 } __packed;
 
+#define	URTWN_EFUSE_MAX_LEN		512
+
 /* Rx MAC descriptor. */
 struct r92c_rx_stat {
 	uint32_t	rxdw0;
@@ -937,6 +996,8 @@ struct r92c_rx_stat {
 #define R92C_RXDW0_ICVERR	0x00008000
 #define R92C_RXDW0_INFOSZ_M	0x000f0000
 #define R92C_RXDW0_INFOSZ_S	16
+#define R92C_RXDW0_CIPHER_M	0x00700000
+#define R92C_RXDW0_CIPHER_S	20
 #define R92C_RXDW0_QOS		0x00800000
 #define R92C_RXDW0_SHIFT_M	0x03000000
 #define R92C_RXDW0_SHIFT_S	24
@@ -953,6 +1014,11 @@ struct r92c_rx_stat {
 #define R92C_RXDW3_RATE_S	0
 #define R92C_RXDW3_HT		0x00000040
 #define R92C_RXDW3_HTC		0x00000400
+#define R88E_RXDW3_RPT_M	0x0000c000
+#define R88E_RXDW3_RPT_S	14
+#define R88E_RXDW3_RPT_RX	0
+#define R88E_RXDW3_RPT_TX1	1
+#define R88E_RXDW3_RPT_TX2	2
 
 	uint32_t	rxdw4;
 	uint32_t	rxdw5;
@@ -979,22 +1045,22 @@ struct r92c_rx_cck {
 
 struct r88e_rx_cck {
 	uint8_t		path_agc[2];
+	uint8_t		chan;
+	uint8_t		reserved1;
 	uint8_t		sig_qual;
 	uint8_t		agc_rpt;
 	uint8_t		rpt_b;
-	uint8_t 	reserved1;
+	uint8_t		reserved2;
 	uint8_t		noise_power;
 	uint8_t		path_cfotail[2];        
 	uint8_t		pcts_mask[2];   
 	uint8_t		stream_rxevm[2];        
 	uint8_t		path_rxsnr[2];
 	uint8_t		noise_power_db_lsb;
-	uint8_t		reserved2[3];
+	uint8_t		reserved3[3];
 	uint8_t		stream_csi[2];
 	uint8_t		stream_target_csi[2];
 	uint8_t		sig_evm;
-	uint8_t		reserved3;
-	uint8_t		reserved4;
 } __packed;
 
 /* Tx MAC descriptor. */
@@ -1018,8 +1084,16 @@ struct r92c_tx_desc {
 #define R92C_TXDW1_AGGBK	0x00000040
 #define R92C_TXDW1_QSEL_M	0x00001f00
 #define R92C_TXDW1_QSEL_S	8
-#define R92C_TXDW1_QSEL_BE	0x00
+
+#define R92C_TXDW1_QSEL_BE	0x00	/* or 0x03 */
+#define R92C_TXDW1_QSEL_BK	0x01	/* or 0x02 */
+#define R92C_TXDW1_QSEL_VI	0x04	/* or 0x05 */
+#define R92C_TXDW1_QSEL_VO	0x06	/* or 0x07 */
+#define URTWN_MAX_TID		8
+
+#define R92C_TXDW1_QSEL_BEACON	0x10
 #define R92C_TXDW1_QSEL_MGNT	0x12
+
 #define R92C_TXDW1_RAID_M	0x000f0000
 #define R92C_TXDW1_RAID_S	16
 #define R92C_TXDW1_CIPHER_M	0x00c00000
@@ -1032,15 +1106,17 @@ struct r92c_tx_desc {
 
 	uint32_t	txdw2;
 #define R88E_TXDW2_AGGBK	0x00010000
+#define R88E_TXDW2_CCX_RPT	0x00080000
 
 	uint16_t	txdw3;
 	uint16_t	txdseq;
+#define R88E_TXDSEQ_HWSEQ_EN	0x8000
 
 	uint32_t	txdw4;
 #define R92C_TXDW4_RTSRATE_M	0x0000003f
 #define R92C_TXDW4_RTSRATE_S	0
-#define R92C_TXDW4_QOS		0x00000040
-#define R92C_TXDW4_HWSEQ	0x00000080
+#define R92C_TXDW4_HWSEQ_QOS	0x00000040
+#define R92C_TXDW4_HWSEQ_EN	0x00000080
 #define R92C_TXDW4_DRVRATE	0x00000100
 #define R92C_TXDW4_CTS2SELF	0x00000800
 #define R92C_TXDW4_RTSEN	0x00001000
@@ -1063,198 +1139,43 @@ struct r92c_tx_desc {
 	uint16_t	pad;
 } __packed __attribute__((aligned(4)));
 
+struct r88e_tx_rpt_ccx {
+	uint8_t		rptb0;
+	uint8_t		rptb1;
+#define R88E_RPTB1_MACID_M	0x3f
+#define R88E_RPTB1_MACID_S	0
+#define R88E_RPTB1_PKT_OK	0x40
+#define R88E_RPTB1_BMC		0x80
 
-/*
- * Driver definitions.
- */
-#define URTWN_RX_LIST_COUNT		1
-#define URTWN_TX_LIST_COUNT		8
-#define URTWN_HOST_CMD_RING_COUNT	32
+	uint8_t		rptb2;
+#define R88E_RPTB2_RETRY_CNT_M	0x3f
+#define R88E_RPTB2_RETRY_CNT_S	0
+#define R88E_RPTB2_LIFE_EXPIRE	0x40
+#define R88E_RPTB2_RETRY_OVER	0x80
 
-#define URTWN_RXBUFSZ	(16 * 1024)
-#define URTWN_TXBUFSZ	(sizeof(struct r92c_tx_desc) + IEEE80211_MAX_LEN)
-#define	URTWN_RX_DESC_SIZE	(sizeof(struct r92c_rx_stat))
-#define	URTWN_TX_DESC_SIZE	(sizeof(struct r92c_tx_desc))
+	uint8_t		rptb3;
+	uint8_t		rptb4;
+	uint8_t		rptb5;
+	uint8_t		rptb6;
+#define R88E_RPTB6_QSEL_M	0xf0
+#define R88E_RPTB6_QSEL_S	4
+
+	uint8_t		rptb7;
+} __packed;
+
+
+static const uint8_t ridx2rate[] =
+	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
+
+/* HW rate indices. */
+#define URTWN_RIDX_CCK1		0
+#define URTWN_RIDX_CCK11	3
+#define URTWN_RIDX_OFDM6	4
+#define URTWN_RIDX_OFDM24	8
+#define URTWN_RIDX_OFDM54	11
 
 #define URTWN_RIDX_COUNT	28
 
-#define URTWN_TX_TIMEOUT	5000	/* ms */
-
-#define URTWN_LED_LINK	0
-#define URTWN_LED_DATA	1
-
-struct urtwn_rx_radiotap_header {
-	struct ieee80211_radiotap_header wr_ihdr;
-	uint8_t		wr_flags;
-	uint8_t		wr_rate;
-	uint16_t	wr_chan_freq;
-	uint16_t	wr_chan_flags;
-	uint8_t		wr_dbm_antsignal;
-} __packed __aligned(8);
-
-#define URTWN_RX_RADIOTAP_PRESENT			\
-	(1 << IEEE80211_RADIOTAP_FLAGS |		\
-	 1 << IEEE80211_RADIOTAP_RATE |			\
-	 1 << IEEE80211_RADIOTAP_CHANNEL |		\
-	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)
-
-struct urtwn_tx_radiotap_header {
-	struct ieee80211_radiotap_header wt_ihdr;
-	uint8_t		wt_flags;
-	uint16_t	wt_chan_freq;
-	uint16_t	wt_chan_flags;
-} __packed __aligned(8);
-
-#define URTWN_TX_RADIOTAP_PRESENT			\
-	(1 << IEEE80211_RADIOTAP_FLAGS |		\
-	 1 << IEEE80211_RADIOTAP_CHANNEL)
-
-struct urtwn_softc;
-
-struct urtwn_data {
-	struct urtwn_softc		*sc;
-	uint8_t				*buf;
-	uint16_t			buflen;
-	struct mbuf			*m;
-	struct ieee80211_node		*ni;
-	STAILQ_ENTRY(urtwn_data)	next;
-};
-typedef STAILQ_HEAD(, urtwn_data) urtwn_datahead;
-
-struct urtwn_cmdq {
-	void			*arg0;
-	void			*arg1;
-	void			(*func)(void *);
-	struct ieee80211_key	*k;
-	struct ieee80211_key	key;
-	uint8_t			mac[IEEE80211_ADDR_LEN];
-	uint8_t			wcid;
-};
-
-struct urtwn_fw_info {
-	const uint8_t		*data;
-	size_t			size;
-};
-
-struct urtwn_vap {
-	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
-
-	int				(*newstate)(struct ieee80211vap *,
-					    enum ieee80211_state, int);
-};
-#define	URTWN_VAP(vap)	((struct urtwn_vap *)(vap))
-
-struct urtwn_host_cmd {
-	void	(*cb)(struct urtwn_softc *, void *);
-	uint8_t	data[256];
-};
-
-struct urtwn_cmd_newstate {
-	enum ieee80211_state	state;
-	int			arg;
-};
-
-struct urtwn_cmd_key {
-	struct ieee80211_key	key;
-	uint16_t		associd;
-};
-
-enum {
-	URTWN_BULK_RX,
-	URTWN_BULK_TX_BE,	/* = WME_AC_BE */
-	URTWN_BULK_TX_BK,	/* = WME_AC_BK */
-	URTWN_BULK_TX_VI,	/* = WME_AC_VI */
-	URTWN_BULK_TX_VO,	/* = WME_AC_VI */
-	URTWN_N_TRANSFER = 5,
-};
-
-#define	URTWN_EP_QUEUES	URTWN_BULK_RX
-
-struct urtwn_softc {
-	struct ieee80211com		sc_ic;
-	struct mbufq			sc_snd;
-	device_t			sc_dev;
-	struct usb_device		*sc_udev;
-
-	int				ac2idx[WME_NUM_AC];
-	u_int				sc_flags;
-#define URTWN_FLAG_CCK_HIPWR	0x01
-#define URTWN_DETACHED		0x02
-#define	URTWN_RUNNING		0x04
-
-	u_int				chip;
-#define	URTWN_CHIP_92C		0x01
-#define	URTWN_CHIP_92C_1T2R	0x02
-#define	URTWN_CHIP_UMC		0x04
-#define	URTWN_CHIP_UMC_A_CUT	0x08
-#define	URTWN_CHIP_88E		0x10
-
-	void				(*sc_rf_write)(struct urtwn_softc *,
-					    int, uint8_t, uint32_t);
-	int				(*sc_power_on)(struct urtwn_softc *);
-	int				(*sc_dma_init)(struct urtwn_softc *);
-
-	uint8_t				board_type;
-	uint8_t				regulatory;
-	uint8_t				pa_setting;
-	int				avg_pwdb;
-	int				thcal_state;
-	int				thcal_lctemp;
-	int				ntxchains;
-	int				nrxchains;
-	int				ledlink;
-	int				sc_txtimer;
-
-	int				fwcur;
-	struct urtwn_data		sc_rx[URTWN_RX_LIST_COUNT];
-	urtwn_datahead			sc_rx_active;
-	urtwn_datahead			sc_rx_inactive;
-	struct urtwn_data		sc_tx[URTWN_TX_LIST_COUNT];
-	urtwn_datahead			sc_tx_active;
-	urtwn_datahead			sc_tx_inactive;
-	urtwn_datahead			sc_tx_pending;
-
-	const char			*fwname;
-	const struct firmware		*fw_fp;
-	struct urtwn_fw_info		fw;
-	void				*fw_virtaddr;
-
-	struct r92c_rom			rom;
-	uint8_t				r88e_rom[512];
-	uint8_t				cck_tx_pwr[6];
-	uint8_t				ht40_tx_pwr[5];
-	int8_t				bw20_tx_pwr_diff;
-	int8_t				ofdm_tx_pwr_diff;
-		
-	struct callout			sc_watchdog_ch;
-	struct mtx			sc_mtx;
-
-/* need to be power of 2, otherwise URTWN_CMDQ_GET fails */
-#define	URTWN_CMDQ_MAX	16
-#define	URTWN_CMDQ_MASQ	(URTWN_CMDQ_MAX - 1)
-	struct urtwn_cmdq		cmdq[URTWN_CMDQ_MAX];
-	struct task			cmdq_task;
-	uint32_t			cmdq_store;
-	uint8_t                         cmdq_exec;
-	uint8_t                         cmdq_run;
-	uint8_t                         cmdq_key_set;
-#define	URTWN_CMDQ_ABORT	0
-#define	URTWN_CMDQ_GO		1
-
-	uint32_t			rf_chnlbw[R92C_MAX_CHAINS];
-	struct usb_xfer			*sc_xfer[URTWN_N_TRANSFER];
-
-	struct urtwn_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
-	struct urtwn_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
-};
-
-#define	URTWN_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
-#define	URTWN_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
-#define	URTWN_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 
 /*
  * MAC initialization values.

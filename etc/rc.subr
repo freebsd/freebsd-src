@@ -768,6 +768,8 @@ check_startmsgs()
 #
 #	${name}_prepend	n	Command added before ${command}.
 #
+#	${name}_login_class n	Login class to use, else "daemon".
+#
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
 #
@@ -942,7 +944,7 @@ run_rc_command()
 	    _nice=\$${name}_nice	_user=\$${name}_user \
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
-	    _prepend=\$${name}_prepend
+	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon}
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -974,6 +976,14 @@ run_rc_command()
 			fi
 		fi
 
+		if [ $rc_arg = "start" -a -z "$rc_fast" -a -n "$rc_pid" ]; then
+			if [ -z "$rc_quiet" ]; then
+				echo 1>&2 "${name} already running? " \
+				    "(pid=$rc_pid)."
+			fi
+			return 1
+		fi
+
 					# if there's a custom ${XXX_cmd},
 					# run that instead of the default
 					#
@@ -1002,14 +1012,6 @@ run_rc_command()
 			;;
 
 		start)
-			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
-				if [ -z "$rc_quiet" ]; then
-					echo 1>&2 "${name} already running? " \
-					    "(pid=$rc_pid)."
-				fi
-				return 1
-			fi
-
 			if [ ! -x "${_chroot}${_chroot:+/}${command}" ]; then
 				warn "run_rc_command: cannot run $command"
 				return 1
@@ -1049,6 +1051,9 @@ $command $rc_flags $command_args"
 					_doit="$_prepend $_doit"
 				fi
 			fi
+
+					# Prepend default limits
+			_doit="limits -C $_login_class $_doit"
 
 					# run the full command
 					#
@@ -1311,8 +1316,10 @@ run_rc_script()
 }
 
 #
-# load_rc_config name
-#	Source in the configuration file for a given name.
+# load_rc_config [service]
+#	Source in the configuration file(s) for a given service.
+#	If no service is specified, only the global configuration
+#	file(s) will be loaded.
 #
 load_rc_config()
 {

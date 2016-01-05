@@ -64,6 +64,9 @@ private:
   /// \brief The top-level modules that are known.
   llvm::StringMap<Module *> Modules;
 
+  /// \brief The number of modules we have created in total.
+  unsigned NumCreatedModules;
+
 public:
   /// \brief Flags describing the role of a module header.
   enum ModuleHeaderRole {
@@ -104,7 +107,7 @@ public:
 
     // \brief Whether this known header is valid (i.e., it has an
     // associated module).
-    LLVM_EXPLICIT operator bool() const {
+    explicit operator bool() const {
       return Storage.getPointer() != nullptr;
     }
   };
@@ -228,8 +231,7 @@ private:
     return static_cast<bool>(findHeaderInUmbrellaDirs(File, IntermediateDirs));
   }
 
-  Module *inferFrameworkModule(StringRef ModuleName,
-                               const DirectoryEntry *FrameworkDir,
+  Module *inferFrameworkModule(const DirectoryEntry *FrameworkDir,
                                Attributes Attrs, Module *Parent);
 
 public:
@@ -265,20 +267,10 @@ public:
   ///
   /// \param File The header file that is likely to be included.
   ///
-  /// \param RequestingModule Specifies the module the header is intended to be
-  /// used from.  Used to disambiguate if a header is present in multiple
-  /// modules.
-  ///
-  /// \param IncludeTextualHeaders If \c true, also find textual headers. By
-  /// default, these are treated like excluded headers and result in no known
-  /// header being found.
-  ///
   /// \returns The module KnownHeader, which provides the module that owns the
   /// given header file.  The KnownHeader is default constructed to indicate
   /// that no module owns this header file.
-  KnownHeader findModuleForHeader(const FileEntry *File,
-                                  Module *RequestingModule = nullptr,
-                                  bool IncludeTextualHeaders = false);
+  KnownHeader findModuleForHeader(const FileEntry *File);
 
   /// \brief Reports errors if a module must not include a specific file.
   ///
@@ -351,10 +343,9 @@ public:
 
   /// \brief Infer the contents of a framework module map from the given
   /// framework directory.
-  Module *inferFrameworkModule(StringRef ModuleName, 
-                               const DirectoryEntry *FrameworkDir,
+  Module *inferFrameworkModule(const DirectoryEntry *FrameworkDir,
                                bool IsSystem, Module *Parent);
-  
+
   /// \brief Retrieve the module map file containing the definition of the given
   /// module.
   ///
@@ -434,11 +425,13 @@ public:
   
   /// \brief Sets the umbrella header of the given module to the given
   /// header.
-  void setUmbrellaHeader(Module *Mod, const FileEntry *UmbrellaHeader);
+  void setUmbrellaHeader(Module *Mod, const FileEntry *UmbrellaHeader,
+                         Twine NameAsWritten);
 
   /// \brief Sets the umbrella directory of the given module to the given
   /// directory.
-  void setUmbrellaDir(Module *Mod, const DirectoryEntry *UmbrellaDir);
+  void setUmbrellaDir(Module *Mod, const DirectoryEntry *UmbrellaDir,
+                      Twine NameAsWritten);
 
   /// \brief Adds this header to the given module.
   /// \param Role The role of the header wrt the module.
@@ -459,9 +452,13 @@ public:
   /// \param HomeDir The directory in which relative paths within this module
   ///        map file will be resolved.
   ///
+  /// \param ExternModuleLoc The location of the "extern module" declaration
+  ///        that caused us to load this module map file, if any.
+  ///
   /// \returns true if an error occurred, false otherwise.
   bool parseModuleMapFile(const FileEntry *File, bool IsSystem,
-                          const DirectoryEntry *HomeDir);
+                          const DirectoryEntry *HomeDir,
+                          SourceLocation ExternModuleLoc = SourceLocation());
     
   /// \brief Dump the contents of the module map, for debugging purposes.
   void dump();

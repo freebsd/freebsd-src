@@ -23,10 +23,8 @@ bool baseRegNeedsLoadStoreMask(unsigned Reg);
 
 // This function creates an MCELFStreamer for Mips NaCl.
 MCELFStreamer *createMipsNaClELFStreamer(MCContext &Context, MCAsmBackend &TAB,
-                                         raw_ostream &OS,
-                                         MCCodeEmitter *Emitter,
-                                         const MCSubtargetInfo &STI,
-                                         bool RelaxAll);
+                                         raw_pwrite_stream &OS,
+                                         MCCodeEmitter *Emitter, bool RelaxAll);
 }
 
 #endif

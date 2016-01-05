@@ -8,11 +8,20 @@
 
 /* This file tests both atolfp and mstolfp */
 
+void test_PositiveInteger(void);
+void test_NegativeInteger(void);
+void test_PositiveFraction(void);
+void test_NegativeFraction(void);
+void test_PositiveMsFraction(void);
+void test_NegativeMsFraction(void);
+void test_InvalidChars(void);
+
+
 void test_PositiveInteger(void) {
 	const char *str = "500";
 	const char *str_ms = "500000";
 
-	l_fp expected = {500,0};
+	l_fp expected = {{500},0};
 	l_fp actual, actual_ms;
 
 	TEST_ASSERT_TRUE(atolfp(str, &actual));
@@ -43,7 +52,7 @@ void test_PositiveFraction(void) {
 	const char *str = "+500.5";
 	const char *str_ms = "500500.0";
 
-	l_fp expected = {500, HALF};
+	l_fp expected = {{500}, HALF};
 	l_fp actual, actual_ms;
 
 	TEST_ASSERT_TRUE(atolfp(str, &actual));
@@ -74,7 +83,7 @@ void test_PositiveMsFraction(void) {
 	const char *str = "300.00025";
 	const char *str_ms = "300000.25";
 
-	l_fp expected = {300, QUARTER_PROMILLE_APPRX};
+	l_fp expected = {{300}, QUARTER_PROMILLE_APPRX};
 	l_fp actual, actual_ms;
 
 

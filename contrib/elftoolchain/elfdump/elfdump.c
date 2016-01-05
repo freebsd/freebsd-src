@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3198 2015-05-14 18:36:19Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3250 2015-10-06 13:56:15Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -205,11 +205,11 @@ d_tags(uint64_t tag)
 	case 0x6ffffef5: return "DT_GNU_HASH";
 	case 0x6ffffef8: return "DT_GNU_CONFLICT";
 	case 0x6ffffef9: return "DT_GNU_LIBLIST";
-	case 0x6ffffefa: return "DT_SUNW_CONFIG";
-	case 0x6ffffefb: return "DT_SUNW_DEPAUDIT";
-	case 0x6ffffefc: return "DT_SUNW_AUDIT";
-	case 0x6ffffefd: return "DT_SUNW_PLTPAD";
-	case 0x6ffffefe: return "DT_SUNW_MOVETAB";
+	case 0x6ffffefa: return "DT_CONFIG";
+	case 0x6ffffefb: return "DT_DEPAUDIT";
+	case 0x6ffffefc: return "DT_AUDIT";
+	case 0x6ffffefd: return "DT_PLTPAD";
+	case 0x6ffffefe: return "DT_MOVETAB";
 	case 0x6ffffeff: return "DT_SYMINFO (DT_ADDRRNGHI)";
 	case 0x6ffffff9: return "DT_RELACOUNT";
 	case 0x6ffffffa: return "DT_RELCOUNT";
@@ -244,11 +244,14 @@ e_machines(unsigned int mach)
 	case EM_860:	return "EM_860";
 	case EM_MIPS:	return "EM_MIPS";
 	case EM_PPC:	return "EM_PPC";
+	case EM_PPC64:	return "EM_PPC64";
 	case EM_ARM:	return "EM_ARM";
 	case EM_ALPHA:	return "EM_ALPHA (legacy)";
 	case EM_SPARCV9:return "EM_SPARCV9";
 	case EM_IA_64:	return "EM_IA_64";
 	case EM_X86_64:	return "EM_X86_64";
+	case EM_AARCH64:return "EM_AARCH64";
+	case EM_RISCV:	return "EM_RISCV";
 	}
 	snprintf(machdesc, sizeof(machdesc),
 	    "(unknown machine) -- type 0x%x", mach);
@@ -271,11 +274,12 @@ static const char *ei_data[] = {
 	"ELFDATANONE", "ELFDATA2LSB", "ELFDATA2MSB"
 };
 
-static const char *ei_abis[] = {
-	"ELFOSABI_SYSV", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
-	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS",
-	"ELFOSABI_MONTEREY", "ELFOSABI_IRIX", "ELFOSABI_FREEBSD",
-	"ELFOSABI_TRU64", "ELFOSABI_MODESTO", "ELFOSABI_OPENBSD"
+static const char *ei_abis[256] = {
+	"ELFOSABI_NONE", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
+	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS", "ELFOSABI_AIX",
+	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
+	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
+	[255] = "ELFOSABI_STANDALONE"
 };
 
 static const char *p_types[] = {
@@ -330,6 +334,7 @@ sh_types(u_int64_t sht) {
 	case 18: return "SHT_SYMTAB_SHNDX";
 	/* 0x60000000 - 0x6fffffff operating system-specific semantics */
 	case 0x6ffffff0: return "XXX:VERSYM";
+	case 0x6ffffff4: return "SHT_SUNW_dof";
 	case 0x6ffffff6: return "SHT_GNU_HASH";
 	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
 	case 0x6ffffffc: return "XXX:VERDEF";
@@ -818,6 +823,7 @@ static void	elf_print_checksum(struct elfdump *ed);
 static void	find_gotrel(struct elfdump *ed, struct section *gs,
     struct rel_entry *got);
 static struct spec_name	*find_name(struct elfdump *ed, const char *name);
+static int	get_ent_count(const struct section *s, int *ent_count);
 static const char *get_symbol_name(struct elfdump *ed, int symtab, int i);
 static const char *get_string(struct elfdump *ed, int strtab, size_t off);
 static void	get_versym(struct elfdump *ed, int i, uint16_t **vs, int *nvs);
@@ -1626,6 +1632,24 @@ elf_print_shdr(struct elfdump *ed)
 }
 
 /*
+ * Return number of entries in the given section. We'd prefer ent_count be a
+ * size_t, but libelf APIs already use int for section indices.
+ */
+static int
+get_ent_count(const struct section *s, int *ent_count)
+{
+	if (s->entsize == 0) {
+		warnx("section %s has entry size 0", s->name);
+		return (0);
+	} else if (s->sz / s->entsize > INT_MAX) {
+		warnx("section %s has invalid section count", s->name);
+		return (0);
+	}
+	*ent_count = (int)(s->sz / s->entsize);
+	return (1);
+}
+
+/*
  * Retrieve the content of the corresponding SHT_SUNW_versym section for
  * a symbol table section.
  */
@@ -1656,7 +1680,9 @@ get_versym(struct elfdump *ed, int i, uint16_t **vs, int *nvs)
 	}
 
 	*vs = data->d_buf;
-	*nvs = data->d_size / s->entsize;
+	assert(data->d_size == s->sz);
+	if (!get_ent_count(s, nvs))
+		*nvs = 0;
 }
 
 /*
@@ -1687,7 +1713,9 @@ elf_print_symtab(struct elfdump *ed, int i)
 	}
 	vs = NULL;
 	nvs = 0;
-	len = data->d_size / s->entsize;
+	assert(data->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	if (ed->flags & SOLARIS_FMT) {
 		if (ed->ec == ELFCLASS32)
 			PRT("     index    value       ");
@@ -1786,7 +1814,9 @@ elf_print_dynamic(struct elfdump *ed)
 			warnx("elf_getdata failed: %s", elf_errmsg(elferr));
 		return;
 	}
-	len = data->d_size / s->entsize;
+	assert(data->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	for (i = 0; i < len; i++) {
 		if (gelf_getdyn(data, i, &dyn) != &dyn) {
 			warnx("gelf_getdyn failed: %s", elf_errmsg(-1));
@@ -1912,7 +1942,9 @@ elf_print_rela(struct elfdump *ed, struct section *s, Elf_Data *data)
 	} else
 		PRT("\nrelocation with addend (%s):\n", s->name);
 	r.type = SHT_RELA;
-	len = data->d_size / s->entsize;
+	assert(data->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	for (j = 0; j < len; j++) {
 		if (gelf_getrela(data, j, &r.u_r.rela) != &r.u_r.rela) {
 			warnx("gelf_getrela failed: %s",
@@ -1941,7 +1973,9 @@ elf_print_rel(struct elfdump *ed, struct section *s, Elf_Data *data)
 	} else
 		PRT("\nrelocation (%s):\n", s->name);
 	r.type = SHT_REL;
-	len = data->d_size / s->entsize;
+	assert(data->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	for (j = 0; j < len; j++) {
 		if (gelf_getrel(data, j, &r.u_r.rel) != &r.u_r.rel) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
@@ -2042,7 +2076,9 @@ find_gotrel(struct elfdump *ed, struct section *gs, struct rel_entry *got)
 		}
 		memset(&r, 0, sizeof(struct rel_entry));
 		r.type = s->type;
-		len = data->d_size / s->entsize;
+		assert(data->d_size == s->sz);
+		if (!get_ent_count(s, &len))
+			return;
 		for (j = 0; j < len; j++) {
 			if (s->type == SHT_REL) {
 				if (gelf_getrel(data, j, &r.u_r.rel) !=
@@ -2086,9 +2122,11 @@ elf_print_got_section(struct elfdump *ed, struct section *s)
 			return;
 	}
 
+	if (!get_ent_count(s, &len))
+		return;
 	if (ed->flags & SOLARIS_FMT)
-		PRT("\nGlobal Offset Table Section:  %s  (%jd entries)\n",
-		    s->name, s->sz / s->entsize);
+		PRT("\nGlobal Offset Table Section:  %s  (%d entries)\n",
+		    s->name, len);
 	else
 		PRT("\nglobal offset table: %s\n", s->name);
 	(void) elf_errno();
@@ -2115,7 +2153,7 @@ elf_print_got_section(struct elfdump *ed, struct section *s)
 		warnx("gelf_xlatetom failed: %s", elf_errmsg(-1));
 		return;
 	}
-	len = dst.d_size / s->entsize;
+	assert(dst.d_size == s->sz);
 	if (ed->flags & SOLARIS_FMT) {
 		/*
 		 * In verbose/Solaris mode, we search the relocation sections
@@ -2503,7 +2541,8 @@ elf_print_gnu_hash(struct elfdump *ed, struct section *s)
 	shift2 = buf[3];
 	buf += 4;
 	ds = &ed->sl[s->link];
-	dynsymcount = ds->sz / ds->entsize;
+	if (!get_ent_count(ds, &dynsymcount))
+		return;
 	nchain = dynsymcount - symndx;
 	if (data->d_size != 4 * sizeof(uint32_t) + maskwords *
 	    (ed->ec == ELFCLASS32 ? sizeof(uint32_t) : sizeof(uint64_t)) +

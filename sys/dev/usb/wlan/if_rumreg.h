@@ -34,13 +34,36 @@
 #define RT2573_WRITE_LED	0x0a
 
 /*
- * Control and status registers.
+ * WME registers.
  */
 #define RT2573_AIFSN_CSR	0x0400
 #define RT2573_CWMIN_CSR	0x0404
 #define RT2573_CWMAX_CSR	0x0408
+#define RT2573_TXOP01_CSR	0x040C
+#define RT2573_TXOP23_CSR	0x0410
 #define RT2573_MCU_CODE_BASE	0x0800
-#define RT2573_HW_BEACON_BASE0	0x2400
+
+/*
+ * H/w encryption/decryption support
+ */
+#define KEY_SIZE		(IEEE80211_KEYBUF_SIZE + IEEE80211_MICBUF_SIZE)
+#define RT2573_ADDR_MAX         64
+#define RT2573_SKEY_MAX		4
+
+#define RT2573_SKEY(vap, kidx)	(0x1000 + ((vap) * RT2573_SKEY_MAX + \
+	(kidx)) * KEY_SIZE)
+#define RT2573_PKEY(id)		(0x1200 + (id) * KEY_SIZE)
+
+#define RT2573_ADDR_ENTRY(id)	(0x1a00 + (id) * 8)
+
+/*
+ * Shared memory area
+ */
+#define RT2573_HW_BCN_BASE(id)	(0x2400 + (id) * 0x100)
+
+/*
+ * Control and status registers.
+ */
 #define RT2573_MAC_CSR0		0x3000
 #define RT2573_MAC_CSR1		0x3004
 #define RT2573_MAC_CSR2		0x3008
@@ -95,13 +118,23 @@
 #define RT2573_STA_CSR5		0x30d4
 
 
+/* possible values for register RT2573_ADDR_MODE */
+#define RT2573_MODE_MASK	0x7
+#define RT2573_MODE_NOSEC	0
+#define RT2573_MODE_WEP40	1
+#define RT2573_MODE_WEP104	2
+#define RT2573_MODE_TKIP	3
+#define RT2573_MODE_AES_CCMP	4
+#define RT2573_MODE_CKIP40	5
+#define RT2573_MODE_CKIP104	6
+
 /* possible flags for register RT2573_MAC_CSR1 */
 #define RT2573_RESET_ASIC	(1 << 0)
 #define RT2573_RESET_BBP	(1 << 1)
 #define RT2573_HOST_READY	(1 << 2)
 
 /* possible flags for register MAC_CSR5 */
-#define RT2573_ONE_BSSID	3
+#define RT2573_NUM_BSSID_MSK(n)	(((n * 3) & 3) << 16)
 
 /* possible flags for register TXRX_CSR0 */
 /* Tx filter flags are in the low 16 bits */
@@ -122,13 +155,20 @@
 #define RT2573_SHORT_PREAMBLE	(1 << 18)
 #define RT2573_MRR_ENABLED	(1 << 19)
 #define RT2573_MRR_CCK_FALLBACK	(1 << 22)
+#define RT2573_LONG_RETRY(max)	((max) << 24)
+#define RT2573_LONG_RETRY_MASK	(0xf << 24)
+#define RT2573_SHORT_RETRY(max)	((max) << 28)
+#define RT2573_SHORT_RETRY_MASK	(0xf << 28)
 
 /* possible flags for register TXRX_CSR9 */
-#define RT2573_TSF_TICKING	(1 << 16)
-#define RT2573_TSF_MODE(x)	(((x) & 0x3) << 17)
-/* TBTT stands for Target Beacon Transmission Time */
-#define RT2573_ENABLE_TBTT	(1 << 19)
-#define RT2573_GENERATE_BEACON	(1 << 20)
+#define RT2573_TSF_TIMER_EN		(1 << 16)
+#define RT2573_TSF_SYNC_MODE(x)		(((x) & 0x3) << 17)
+#define RT2573_TSF_SYNC_MODE_DIS	0
+#define RT2573_TSF_SYNC_MODE_STA	1
+#define RT2573_TSF_SYNC_MODE_IBSS	2
+#define RT2573_TSF_SYNC_MODE_HOSTAP	3
+#define RT2573_TBTT_TIMER_EN		(1 << 19)
+#define RT2573_BCN_TX_EN		(1 << 20)
 
 /* possible flags for register PHY_CSR0 */
 #define RT2573_PA_PE_2GHZ	(1 << 16)
@@ -175,6 +215,10 @@ struct rum_tx_desc {
 #define RT2573_TX_OFDM			(1 << 5)
 #define RT2573_TX_IFS_SIFS		(1 << 6)
 #define RT2573_TX_LONG_RETRY		(1 << 7)
+#define RT2573_TX_TKIPMIC		(1 << 8)
+#define RT2573_TX_KEY_PAIR		(1 << 9)
+#define RT2573_TX_KEY_ID(id)		(((id) & 0x3f) << 10)
+#define RT2573_TX_CIP_MODE(m)		((m) << 29)
 
 	uint16_t	wme;
 #define RT2573_QID(v)		(v)
@@ -182,8 +226,9 @@ struct rum_tx_desc {
 #define RT2573_LOGCWMIN(v)	((v) << 8)
 #define RT2573_LOGCWMAX(v)	((v) << 12)
 
-	uint16_t	xflags;
-#define RT2573_TX_HWSEQ		(1 << 12)
+	uint8_t		hdrlen;
+	uint8_t		xflags;
+#define RT2573_TX_HWSEQ		(1 << 4)
 
 	uint8_t		plcp_signal;
 	uint8_t		plcp_service;
@@ -207,8 +252,24 @@ struct rum_rx_desc {
 	uint32_t	flags;
 #define RT2573_RX_BUSY		(1 << 0)
 #define RT2573_RX_DROP		(1 << 1)
+#define RT2573_RX_UC2ME		(1 << 2)
+#define RT2573_RX_MC		(1 << 3)
+#define RT2573_RX_BC		(1 << 4)
+#define RT2573_RX_MYBSS		(1 << 5)
 #define RT2573_RX_CRC_ERROR	(1 << 6)
 #define RT2573_RX_OFDM		(1 << 7)
+
+#define RT2573_RX_DEC_MASK	(3 << 8)
+#define RT2573_RX_DEC_OK	(0 << 8)
+
+#define RT2573_RX_IV_ERROR	(1 << 8)
+#define RT2573_RX_MIC_ERROR	(2 << 8)
+#define RT2573_RX_KEY_ERROR	(3 << 8)
+
+#define RT2573_RX_KEY_PAIR	(1 << 28)
+
+#define RT2573_RX_CIP_MASK	(7 << 29)
+#define RT2573_RX_CIP_MODE(m)	((m) << 29)
 
 	uint8_t		rate;
 	uint8_t		rssi;

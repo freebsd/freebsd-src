@@ -70,7 +70,9 @@ struct _LIBCPP_TYPE_VIS_ONLY less<void>
     template <class _T1, class _T2> 
     _LIBCPP_CONSTEXPR_AFTER_CXX11 _LIBCPP_INLINE_VISIBILITY
     auto operator()(_T1&& __t, _T2&& __u) const
-        { return _VSTD::forward<_T1>(__t) < _VSTD::forward<_T2>(__u); }
+    _NOEXCEPT_(noexcept(_VSTD::forward<_T1>(__t) < _VSTD::forward<_T2>(__u)))
+    -> decltype        (_VSTD::forward<_T1>(__t) < _VSTD::forward<_T2>(__u))
+        { return        _VSTD::forward<_T1>(__t) < _VSTD::forward<_T2>(__u); }
     typedef void is_transparent;
 };
 #endif
@@ -417,6 +419,26 @@ template <class _Tp, class ..._Args>
 struct __invoke_return
 {
     typedef decltype(__invoke(_VSTD::declval<_Tp>(), _VSTD::declval<_Args>()...)) type;
+};
+
+template <class _Ret>
+struct __invoke_void_return_wrapper
+{
+    template <class ..._Args>
+    static _Ret __call(_Args&&... __args)
+    {
+        return __invoke(_VSTD::forward<_Args>(__args)...);
+    }
+};
+
+template <>
+struct __invoke_void_return_wrapper<void>
+{
+    template <class ..._Args>
+    static void __call(_Args&&... __args)
+    {
+        __invoke(_VSTD::forward<_Args>(__args)...);
+    }
 };
 
 template <class _Tp>

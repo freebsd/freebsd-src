@@ -514,7 +514,7 @@ public:
       : Digits(Digits), Scale(Scale) {}
 
 private:
-  ScaledNumber(const std::pair<uint64_t, int16_t> &X)
+  ScaledNumber(const std::pair<DigitsT, int16_t> &X)
       : Digits(X.first), Scale(X.second) {}
 
 public:
@@ -670,14 +670,7 @@ public:
     return ScaledNumbers::compare(Digits, Scale, X.Digits, X.Scale);
   }
   int compareTo(uint64_t N) const {
-    ScaledNumber Scaled = get(N);
-    int Compare = compare(Scaled);
-    if (Width == 64 || Compare != 0)
-      return Compare;
-
-    // Check for precision loss.  We know *this == RoundTrip.
-    uint64_t RoundTrip = Scaled.template toInt<uint64_t>();
-    return N == RoundTrip ? 0 : RoundTrip < N ? -1 : 1;
+    return ScaledNumbers::compare<uint64_t>(Digits, Scale, N, 0);
   }
   int compareTo(int64_t N) const { return N < 0 ? 1 : compareTo(uint64_t(N)); }
 
@@ -732,9 +725,19 @@ SCALED_NUMBER_BOP(+, += )
 SCALED_NUMBER_BOP(-, -= )
 SCALED_NUMBER_BOP(*, *= )
 SCALED_NUMBER_BOP(/, /= )
-SCALED_NUMBER_BOP(<<, <<= )
-SCALED_NUMBER_BOP(>>, >>= )
 #undef SCALED_NUMBER_BOP
+
+template <class DigitsT>
+ScaledNumber<DigitsT> operator<<(const ScaledNumber<DigitsT> &L,
+                                 int16_t Shift) {
+  return ScaledNumber<DigitsT>(L) <<= Shift;
+}
+
+template <class DigitsT>
+ScaledNumber<DigitsT> operator>>(const ScaledNumber<DigitsT> &L,
+                                 int16_t Shift) {
+  return ScaledNumber<DigitsT>(L) >>= Shift;
+}
 
 template <class DigitsT>
 raw_ostream &operator<<(raw_ostream &OS, const ScaledNumber<DigitsT> &X) {

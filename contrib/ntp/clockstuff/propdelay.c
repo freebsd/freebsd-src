@@ -117,7 +117,7 @@ int Cflag = 0;
 int Gflag = 0;
 int height;
 
-char *progname;
+char const *progname;
 
 static	void	doit		(double, double, double, double, double, char *);
 static	double	latlong		(char *, int);

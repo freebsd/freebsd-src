@@ -82,10 +82,6 @@ static u_int g_raid_idle_threshold = 1000000;
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, idle_threshold, CTLFLAG_RWTUN,
     &g_raid_idle_threshold, 1000000,
     "Time in microseconds to consider a volume idle.");
-static u_int ar_legacy_aliases = 1;
-SYSCTL_INT(_kern_geom_raid, OID_AUTO, legacy_aliases, CTLFLAG_RWTUN,
-           &ar_legacy_aliases, 0, "Create aliases named as the legacy ataraid style.");
-
 
 #define	MSLEEP(rv, ident, mtx, priority, wmesg, timeout)	do {	\
 	G_RAID_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));		\
@@ -1628,7 +1624,6 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
 	char name[G_RAID_MAX_VOLUMENAME];
-	char   announce_buf[80], buf1[32];
 	off_t off;
 	int i;
 
@@ -1643,21 +1638,6 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 		/* Otherwise use sequential volume number. */
 		snprintf(name, sizeof(name), "raid/r%d", vol->v_global_id);
 	}
-
-	/*
-	 * Create a /dev/ar%d that the old ataraid(4) stack once
-	 * created as an alias for /dev/raid/r%d if requested.
-	 * This helps going from stable/7 ataraid devices to newer
-	 * FreeBSD releases. sbruno 07 MAY 2013
-	 */
-
-        if (ar_legacy_aliases) {
-		snprintf(announce_buf, sizeof(announce_buf),
-                        "kern.devalias.%s", name);
-                snprintf(buf1, sizeof(buf1),
-                        "ar%d", vol->v_global_id);
-                kern_setenv(announce_buf, buf1);
-        }
 
 	pp = g_new_providerf(sc->sc_geom, "%s", name);
 	pp->flags |= G_PF_DIRECT_RECEIVE;

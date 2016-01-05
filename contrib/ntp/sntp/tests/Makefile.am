@@ -1,10 +1,31 @@
 NULL =
 BUILT_SOURCES =
-CLEANFILES = kod-output-blank kod-output-single kod-output-multiple debug-output-lfp-dec debug-output-lfp-bin debug-output-pkt
-DISTCLEANFILES = kod-output-blank kod-output-single kod-output-multiple
 EXTRA_PROGRAMS =
 
-run_unity =	cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
+CLEANFILES =			\
+	debug-output-lfp-bin	\
+	debug-output-lfp-dec	\
+	debug-output-pkt	\
+	kod-output-blank	\
+	kod-output-multiple	\
+	kod-output-single	\
+	testLogfile.log		\
+	testLogfile2.log	\
+	$(NULL)
+
+DISTCLEANFILES =		\
+	kod-output-blank	\
+	kod-output-single 	\
+	kod-output-multiple	\
+	testLogfile.log		\
+	testLogfile2.log	\
+	$(NULL)
+
+std_unity_list =					\
+	$(srcdir)/../unity/auto/generate_test_runner.rb	\
+	$(NULL)
+
+run_unity =	cd $(srcdir) && ruby ../unity/auto/generate_test_runner.rb
 
 # Use EXTRA_PROGRAMS for test files that are under development but
 # not production-ready
@@ -15,50 +36,15 @@ check_PROGRAMS =			\
 	test-keyFile			\
 	test-kodDatabase		\
 	test-kodFile			\
+	test-log			\
 	test-networking			\
 	test-packetHandling		\
 	test-packetProcessing		\
 	test-utilities			\
 	$(NULL)
 
-if GTEST_AVAILABLE
-check_PROGRAMS += tests
-else
-EXTRA_PROGRAMS += tests
-endif
-
-#if BUILD_SNTP
-#check_PROGRAMS += tests
-#endif
-
-base_SOURCES =			\
-	../tests_main.cpp	\
-	$(NULL)
-
-tests_SOURCES =			\
-	$(base_SOURCES)		\
-	g_networking.cpp	\
-	g_packetHandling.cpp	\
-	g_packetProcessing.cpp	\
-	$(NULL)
-
-# HMS: this test was for the 4.2.6 sntp code.
-#	g_nameresolution.cpp	
-
-# HMS: Somebody needs to audit the following files to
-# make sure all of these tests are now handled by Unity
-#
-#	g_utilities.cpp		
-#	g_kodDatabase.cpp	
-#	g_keyFile.cpp		
-#	g_crypto.cpp		
-#	g_kodFile.cpp		
-
 noinst_HEADERS =		\
-	fileHandlingTest.h	\
 	sntptest.h		\
-	g_fileHandlingTest.h	\
-	g_sntptest.h		\
 	$(NULL)
 
 dist_check_SCRIPTS =	tests-runner
@@ -89,33 +75,32 @@ CLEANFILES +=				\
 	$(NULL)
 
 #split into LDADD and tests_LDADD?
-LDADD =						\
+base_LDADD =					\
 	../libsntp.a				\
 	$(LIBOPTS_LDADD)			\
 	$(LDADD_LIBEVENT)			\
 	$(top_builddir)/../libntp/libntp.a	\
 	$(LDADD_LIBNTP)				\
 	$(LDADD_NTP)				\
-	$(GTEST_LDFLAGS)			\
-	$(GTEST_LIBS)				\
 	$(NULL)
 
-unity_tests_LDADD =				\
-	$(LDADD)				\
+LDADD =						\
+	$(base_LDADD)				\
 	$(top_builddir)/unity/libunity.a	\
 	$(LIBM)					\
 	$(NULL)
 
-AM_CFLAGS   = $(CFLAGS_NTP)
-AM_CXXFLAGS = $(GTEST_CXXFLAGS)
+AM_CFLAGS  = $(CFLAGS_NTP)
 
 AM_CPPFLAGS  = $(SNTP_INCS)
 AM_CPPFLAGS += -I$(srcdir)/..
 AM_CPPFLAGS += -I$(top_srcdir)/../tests
 AM_CPPFLAGS += $(LIBOPTS_CFLAGS)
 AM_CPPFLAGS += $(CPPFLAGS_LIBEVENT)
-AM_CPPFLAGS += $(GTEST_CPPFLAGS)
 AM_CPPFLAGS += $(CPPFLAGS_NTP)
+AM_CPPFLAGS += -DUNITY_INCLUDE_CONFIG_H
+#AM_CPPFLAGS += -I$(top_srcdir)/sntp/unity
+AM_CPPFLAGS += -I$(top_srcdir)/unity
 
 AM_LDFLAGS = $(LDFLAGS_NTP)
 
@@ -125,73 +110,9 @@ BUILT_SOURCES +=				\
 	$(srcdir)/run-kodDatabase.c		\
 	$(srcdir)/run-kodFile.c			\
 	$(srcdir)/run-networking.c		\
+	$(srcdir)/run-packetHandling.c		\
 	$(srcdir)/run-packetProcessing.c	\
 	$(srcdir)/run-utilities.c		\
-	$(srcdir)/run-packetHandling.c		\
-	$(NULL)
-
-test_keyFile_CFLAGS =			\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_keyFile_LDADD =			\
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_kodDatabase_CFLAGS =		\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_kodDatabase_LDADD =		\
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_kodFile_CFLAGS =			\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_kodFile_LDADD =			\
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_networking_CFLAGS =		\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_networking_LDADD =			\
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_utilities_CFLAGS =			\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_utilities_LDADD =			\
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_crypto_CFLAGS =			\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_crypto_LDADD =			\
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_packetProcessing_CFLAGS =		\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_packetProcessing_LDADD =		\
-	$(unity_tests_LDADD)		\
-	$(NULL)
-
-test_packetHandling_CFLAGS =		\
-	-I$(top_srcdir)/unity		\
-	$(NULL)
-
-test_packetHandling_LDADD =		\
-	$(unity_tests_LDADD)		\
 	$(NULL)
 
 test_networking_SOURCES =		\
@@ -213,31 +134,45 @@ test_kodDatabase_SOURCES =		\
 	$(NULL)
 
 test_keyFile_SOURCES =			\
+	fileHandlingTest.c		\
 	keyFile.c			\
 	run-keyFile.c			\
 	$(top_builddir)/version.c	\
 	$(NULL)
 
 test_kodFile_SOURCES =			\
+	fileHandlingTest.c		\
 	kodFile.c			\
 	run-kodFile.c			\
 	$(top_builddir)/version.c	\
 	$(NULL)
-#	../version.c
 
 test_packetProcessing_SOURCES =		\
 	packetProcessing.c		\
 	run-packetProcessing.c		\
+	sntptest.c			\
 	$(NULL)
 
 test_utilities_SOURCES =		\
+	fileHandlingTest.c		\
 	utilities.c			\
 	run-utilities.c			\
+	$(NULL)
+
+test_crypto_CFLAGS =			\
+	$(CFLAGS_LIBEVENT)		\
+	$(AM_CFLAGS)			\
 	$(NULL)
 
 test_crypto_SOURCES =			\
 	crypto.c			\
 	run-crypto.c			\
+	$(top_builddir)/version.c	\
+	$(NULL)
+
+test_log_SOURCES =			\
+	t-log.c			\
+	run-t-log.c			\
 	$(top_builddir)/version.c	\
 	$(NULL)
 
@@ -265,6 +200,10 @@ $(srcdir)/run-utilities.c: $(srcdir)/utilities.c $(std_unity_list)
 
 $(srcdir)/run-crypto.c: $(srcdir)/crypto.c $(std_unity_list)
 	$(run_unity) crypto.c run-crypto.c
+
+$(srcdir)/run-t-log.c: $(srcdir)/t-log.c $(std_unity_list)
+	$(run_unity) t-log.c run-t-log.c
+
 
 #$(srcdir)/../version.c: $(srcdir)/../version.c
 #	gcc -o version.o ../version.c
@@ -301,10 +240,10 @@ check-libntp: ../../libntp/libntp.a
 ../../libntp/libntp.a:
 	cd ../../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 
-check-libunity: ../sntp/unity/libunity.a
+check-libunity: ../unity/libunity.a
 	@echo stamp > $@
 
-../sntp/unity/libunity.a:
+../unity/libunity.a:
 	cd ../unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
 
 include $(top_srcdir)/depsver.mf

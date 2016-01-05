@@ -100,7 +100,7 @@ static const char laggname[] = "lagg";
 
 static void	lagg_lladdr(struct lagg_softc *, uint8_t *);
 static void	lagg_capabilities(struct lagg_softc *);
-static void	lagg_port_lladdr(struct lagg_port *, uint8_t *);
+static void	lagg_port_lladdr(struct lagg_port *, uint8_t *, lagg_llqtype);
 static void	lagg_port_setlladdr(void *, int);
 static int	lagg_port_create(struct lagg_softc *, struct ifnet *);
 static int	lagg_port_destroy(struct lagg_port *, int);
@@ -219,13 +219,6 @@ static const struct lagg_proto {
 	.pr_lladdr = lagg_lacp_lladdr,
 	.pr_request = lacp_req,
 	.pr_portreq = lacp_portreq,
-    },
-    {
-	.pr_num = LAGG_PROTO_ETHERCHANNEL,
-	.pr_attach = lagg_lb_attach,
-	.pr_detach = lagg_lb_detach,
-	.pr_start = lagg_lb_start,
-	.pr_input = lagg_lb_input,
     },
     {
 	.pr_num = LAGG_PROTO_BROADCAST,
@@ -550,6 +543,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 		lagg_port_destroy(lp, 1);
 	/* Unhook the aggregation protocol */
 	lagg_proto_detach(sc);
+	LAGG_UNLOCK_ASSERT(sc);
 
 	ifmedia_removeall(&sc->sc_media);
 	ether_ifdetach(ifp);
@@ -564,7 +558,12 @@ lagg_clone_destroy(struct ifnet *ifp)
 	free(sc, M_DEVBUF);
 }
 
-static void
+/*
+ * Set link-layer address on the lagg interface itself.
+ * 
+ * Set noinline to be dtrace-friendly
+ */
+static __noinline void
 lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -584,11 +583,16 @@ lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 	bcopy(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN);
 	lagg_proto_lladdr(sc);
 
+	/*
+	 * Send notification request for lagg interface
+	 * itself. Note that new lladdr is already set.
+	 */
 	bzero(&lp, sizeof(lp));
 	lp.lp_ifp = sc->sc_ifp;
 	lp.lp_softc = sc;
 
-	lagg_port_lladdr(&lp, lladdr);
+	/* Do not request lladdr change */
+	lagg_port_lladdr(&lp, lladdr, LAGG_LLQTYPE_VIRT);
 }
 
 static void
@@ -629,57 +633,63 @@ lagg_capabilities(struct lagg_softc *sc)
 	}
 }
 
-static void
-lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
+/*
+ * Enqueue interface lladdr notification.
+ * If request is already queued, it is updated.
+ * If setting lladdr is also desired, @do_change has to be set to 1.
+ *
+ * Set noinline to be dtrace-friendly
+ */
+static __noinline void
+lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr, lagg_llqtype llq_type)
 {
 	struct lagg_softc *sc = lp->lp_softc;
 	struct ifnet *ifp = lp->lp_ifp;
 	struct lagg_llq *llq;
-	int pending = 0;
-	int primary;
 
 	LAGG_WLOCK_ASSERT(sc);
 
-	primary = (sc->sc_primary->lp_ifp == ifp) ? 1 : 0;
-	if (primary == 0 && (lp->lp_detaching ||
-	    memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0))
+	/*
+	 * Do not enqueue requests where lladdr is the same for
+	 * "physical" interfaces (e.g. ports in lagg)
+	 */
+	if (llq_type == LAGG_LLQTYPE_PHYS &&
+	    memcmp(IF_LLADDR(ifp), lladdr, ETHER_ADDR_LEN) == 0)
 		return;
 
 	/* Check to make sure its not already queued to be changed */
 	SLIST_FOREACH(llq, &sc->sc_llq_head, llq_entries) {
 		if (llq->llq_ifp == ifp) {
-			pending = 1;
-			break;
+			/* Update lladdr, it may have changed */
+			bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
+			return;
 		}
 	}
 
-	if (!pending) {
-		llq = malloc(sizeof(struct lagg_llq), M_DEVBUF, M_NOWAIT);
-		if (llq == NULL)	/* XXX what to do */
-			return;
-	}
+	llq = malloc(sizeof(struct lagg_llq), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (llq == NULL)	/* XXX what to do */
+		return;
 
-	/* Update the lladdr even if pending, it may have changed */
 	llq->llq_ifp = ifp;
-	llq->llq_primary = primary;
+	llq->llq_type = llq_type;
 	bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
-
-	if (!pending)
-		SLIST_INSERT_HEAD(&sc->sc_llq_head, llq, llq_entries);
+	/* XXX: We should insert to tail */
+	SLIST_INSERT_HEAD(&sc->sc_llq_head, llq, llq_entries);
 
 	taskqueue_enqueue(taskqueue_swi, &sc->sc_lladdr_task);
 }
 
 /*
  * Set the interface MAC address from a taskqueue to avoid a LOR.
+ *
+ * Set noinline to be dtrace-friendly
  */
-static void
+static __noinline void
 lagg_port_setlladdr(void *arg, int pending)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)arg;
 	struct lagg_llq *llq, *head;
 	struct ifnet *ifp;
-	int error;
 
 	/* Grab a local reference of the queue and remove it from the softc */
 	LAGG_WLOCK(sc);
@@ -695,17 +705,16 @@ lagg_port_setlladdr(void *arg, int pending)
 		ifp = llq->llq_ifp;
 
 		CURVNET_SET(ifp->if_vnet);
-		if (llq->llq_primary == 0) {
-			/*
-			 * Set the link layer address on the laggport interface.
-			 * if_setlladdr() triggers gratuitous ARPs for INET.
-			 */
-			error = if_setlladdr(ifp, llq->llq_lladdr,
+
+		/*
+		 * Set the link layer address on the laggport interface.
+		 * Note that if_setlladdr() or iflladdr_event handler
+		 * may result in arp transmission / lltable updates.
+		 */
+		if (llq->llq_type == LAGG_LLQTYPE_PHYS)
+			if_setlladdr(ifp, llq->llq_lladdr,
 			    ETHER_ADDR_LEN);
-			if (error)
-				printf("%s: setlladdr failed on %s\n", __func__,
-				    ifp->if_xname);
-		} else
+		else
 			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		CURVNET_RESTORE();
 		head = SLIST_NEXT(llq, llq_entries);
@@ -737,7 +746,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	}
 
 	/* XXX Disallow non-ethernet interfaces (this should be any of 802) */
-	if (ifp->if_type != IFT_ETHER)
+	if (ifp->if_type != IFT_ETHER && ifp->if_type != IFT_L2VLAN)
 		return (EPROTONOSUPPORT);
 
 	/* Allow the first Ethernet member to define the MTU */
@@ -791,10 +800,15 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 
 	if (SLIST_EMPTY(&sc->sc_ports)) {
 		sc->sc_primary = lp;
+		/* First port in lagg. Update/notify lagg lladdress */
 		lagg_lladdr(sc, IF_LLADDR(ifp));
 	} else {
-		/* Update link layer address for this port */
-		lagg_port_lladdr(lp, IF_LLADDR(sc->sc_ifp));
+
+		/*
+		 * Update link layer address for this port and
+		 * send notifications to other subsystems.
+		 */
+		lagg_port_lladdr(lp, IF_LLADDR(sc->sc_ifp), LAGG_LLQTYPE_PHYS);
 	}
 
 	/*
@@ -862,7 +876,7 @@ static int
 lagg_port_destroy(struct lagg_port *lp, int rundelport)
 {
 	struct lagg_softc *sc = lp->lp_softc;
-	struct lagg_port *lp_ptr;
+	struct lagg_port *lp_ptr, *lp0;
 	struct lagg_llq *llq;
 	struct ifnet *ifp = lp->lp_ifp;
 	uint64_t *pval, vdiff;
@@ -880,7 +894,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	if (!lp->lp_detaching) {
 		lagg_ether_cmdmulti(lp, 0);
 		lagg_setflags(lp, 0);
-		lagg_port_lladdr(lp, lp->lp_lladdr);
+		lagg_port_lladdr(lp, lp->lp_lladdr, LAGG_LLQTYPE_PHYS);
 	}
 
 	/* Restore interface */
@@ -904,18 +918,24 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	if (lp == sc->sc_primary) {
 		uint8_t lladdr[ETHER_ADDR_LEN];
 
-		if ((lp_ptr = SLIST_FIRST(&sc->sc_ports)) == NULL) {
+		if ((lp0 = SLIST_FIRST(&sc->sc_ports)) == NULL) {
 			bzero(&lladdr, ETHER_ADDR_LEN);
 		} else {
-			bcopy(lp_ptr->lp_lladdr,
+			bcopy(lp0->lp_lladdr,
 			    lladdr, ETHER_ADDR_LEN);
 		}
 		lagg_lladdr(sc, lladdr);
-		sc->sc_primary = lp_ptr;
 
-		/* Update link layer address for each port */
+		/* Mark lp0 as new primary */
+		sc->sc_primary = lp0;
+
+		/*
+		 * Enqueue lladdr update/notification for each port
+		 * (new primary needs update as well, to switch from
+		 * old lladdr to its 'real' one).
+		 */
 		SLIST_FOREACH(lp_ptr, &sc->sc_ports, lp_entries)
-			lagg_port_lladdr(lp_ptr, lladdr);
+			lagg_port_lladdr(lp_ptr, lladdr, LAGG_LLQTYPE_PHYS);
 	}
 
 	/* Remove any pending lladdr changes from the queue */
@@ -1125,7 +1145,6 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
-		case LAGG_PROTO_ETHERCHANNEL:
 		case LAGG_PROTO_BROADCAST:
 			if (LAGG_PORTACTIVE(lp))
 				rp->rp_flags |= LAGG_PORT_ACTIVE;
@@ -1148,8 +1167,8 @@ static void
 lagg_init(void *xsc)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)xsc;
-	struct lagg_port *lp;
 	struct ifnet *ifp = sc->sc_ifp;
+	struct lagg_port *lp;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
@@ -1157,9 +1176,14 @@ lagg_init(void *xsc)
 	LAGG_WLOCK(sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	/* Update the port lladdrs */
+
+	/*
+	 * Update the port lladdrs if needed.
+	 * This might be if_setlladdr() notification
+	 * that lladdr has been changed.
+	 */
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-		lagg_port_lladdr(lp, IF_LLADDR(ifp));
+		lagg_port_lladdr(lp, IF_LLADDR(ifp), LAGG_LLQTYPE_PHYS);
 
 	lagg_proto_init(sc);
 
@@ -1243,6 +1267,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		LAGG_WLOCK(sc);
 		lagg_proto_detach(sc);
+		LAGG_UNLOCK_ASSERT(sc);
 		lagg_proto_attach(sc, ra->ra_proto);
 		break;
 	case SIOCGLAGGOPTS:
@@ -1759,7 +1784,6 @@ lagg_linkstate(struct lagg_softc *sc)
 			break;
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
-		case LAGG_PROTO_ETHERCHANNEL:
 		case LAGG_PROTO_BROADCAST:
 			speed = 0;
 			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)

@@ -4,8 +4,6 @@
 
 BINDIR=		${TESTSDIR}
 
-TESTSDIR=	${TESTSBASE}/lib/libc/regex
-
 IMPLEMENTATION?=      -DREGEX_SPENCER
 
 CFLAGS.h_regex+=-I${TESTSRC} -I${.CURDIR:H:H}/regex
@@ -53,7 +51,6 @@ CFLAGS.$t+=	-I${TESTSRC} ${IMPLEMENTATION}
 
 .include "../Makefile.netbsd-tests"
 
-DPADD.regex_att_test+=	${LIBUTIL}
-LDADD.regex_att_test+=	-lutil
+LIBADD.regex_att_test+=	util
 
 .include <bsd.test.mk>

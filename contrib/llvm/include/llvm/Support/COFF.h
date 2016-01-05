@@ -155,16 +155,6 @@ namespace COFF {
     uint8_t  NumberOfAuxSymbols;
   };
 
-  enum SymbolFlags {
-    SF_TypeMask = 0x0000FFFF,
-    SF_TypeShift = 0,
-
-    SF_ClassMask = 0x00FF0000,
-    SF_ClassShift = 16,
-
-    SF_WeakExternal = 0x01000000
-  };
-
   enum SymbolSectionNumber : int32_t {
     IMAGE_SYM_DEBUG     = -2,
     IMAGE_SYM_ABSOLUTE  = -1,
@@ -664,16 +654,17 @@ namespace COFF {
     }
   };
 
-  enum CodeViewLineTableIdentifiers {
-    DEBUG_SECTION_MAGIC           = 0x4,
-    DEBUG_SYMBOL_SUBSECTION       = 0xF1,
-    DEBUG_LINE_TABLE_SUBSECTION   = 0xF2,
+  enum CodeViewIdentifiers {
+    DEBUG_LINE_TABLES_HAVE_COLUMN_RECORDS = 0x1,
+    DEBUG_SECTION_MAGIC = 0x4,
+    DEBUG_SYMBOL_SUBSECTION = 0xF1,
+    DEBUG_LINE_TABLE_SUBSECTION = 0xF2,
     DEBUG_STRING_TABLE_SUBSECTION = 0xF3,
-    DEBUG_INDEX_SUBSECTION        = 0xF4,
+    DEBUG_INDEX_SUBSECTION = 0xF4,
 
     // Symbol subsections are split into records of different types.
     DEBUG_SYMBOL_TYPE_PROC_START = 0x1147,
-    DEBUG_SYMBOL_TYPE_PROC_END   = 0x114F
+    DEBUG_SYMBOL_TYPE_PROC_END = 0x114F
   };
 
   inline bool isReservedSectionNumber(int32_t SectionNumber) {

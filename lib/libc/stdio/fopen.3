@@ -120,7 +120,9 @@ This is strictly for compatibility with
 .St -isoC
 and has effect only for
 .Fn fmemopen
-; otherwise the ``b'' is ignored.
+; otherwise
+.Dq Li b
+is ignored.
 .Pp
 Any created files will have mode
 .Do Dv S_IRUSR
@@ -230,7 +232,9 @@ allocates
 .Fa size
 bytes of memory. This buffer is automatically freed when the
 stream is closed. Buffers can be opened in text-mode (default) or binary-mode
-(if ``b'' is present in the second or third position of the
+(if
+.Dq Li b
+is present in the second or third position of the
 .Fa mode
 argument). Buffers opened in text-mode make sure that writes are terminated with
 a NULL byte, if the last write hasn't filled up the whole buffer. Buffers
@@ -343,5 +347,7 @@ The
 function
 conforms to
 .St -p1003.1-2008 .
-The ``b'' mode does not conform to any standard
+The
+.Dq Li b
+mode does not conform to any standard
 but is also supported by glibc.

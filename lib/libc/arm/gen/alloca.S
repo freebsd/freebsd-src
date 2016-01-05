@@ -44,3 +44,5 @@ ENTRY(alloca)
 	mov	r0, sp			/* r0 = base of new space */
 	RET
 END(alloca)
+
+	.section .note.GNU-stack,"",%progbits

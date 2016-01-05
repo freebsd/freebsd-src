@@ -344,7 +344,7 @@ struct mbuf {
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
-#define	EXT_JUMBOP	3	/* jumbo cluster 4096 bytes */
+#define	EXT_JUMBOP	3	/* jumbo cluster page sized */
 #define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
@@ -524,6 +524,7 @@ extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
 
+void		 mb_dupcl(struct mbuf *, const struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
 

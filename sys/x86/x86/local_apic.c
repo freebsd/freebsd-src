@@ -467,10 +467,20 @@ native_lapic_init(vm_paddr_t addr)
 	 * we by default enable suppression even when system only has
 	 * one IO-APIC, since EOI is broadcasted to all APIC agents,
 	 * including CPUs, otherwise.
+	 *
+	 * It seems that at least some KVM versions report
+	 * EOI_SUPPRESSION bit, but auto-EOI does not work.
 	 */
 	ver = lapic_read32(LAPIC_VERSION);
 	if ((ver & APIC_VER_EOI_SUPPRESSION) != 0) {
 		lapic_eoi_suppression = 1;
+		if (vm_guest == VM_GUEST_VM &&
+		    !strcmp(hv_vendor, "KVMKVMKVM")) {
+			if (bootverbose)
+				printf(
+		       "KVM -- disabling lapic eoi suppression\n");
+			lapic_eoi_suppression = 0;
+		}
 		TUNABLE_INT_FETCH("hw.lapic_eoi_suppression",
 		    &lapic_eoi_suppression);
 	}
@@ -1703,11 +1713,10 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 	icrlo = APIC_DESTMODE_PHY | APIC_TRIGMOD_EDGE | APIC_LEVEL_ASSERT;
 
 	/*
-	 * IPI_STOP_HARD is just a "fake" vector used to send a NMI.
-	 * Use special rules regard NMI if passed, otherwise specify
-	 * the vector.
+	 * NMI IPIs are just fake vectors used to send a NMI.  Use special rules
+	 * regarding NMIs if passed, otherwise specify the vector.
 	 */
-	if (vector == IPI_STOP_HARD)
+	if (vector >= IPI_NMI_FIRST)
 		icrlo |= APIC_DELMODE_NMI;
 	else
 		icrlo |= vector | APIC_DELMODE_FIXED;

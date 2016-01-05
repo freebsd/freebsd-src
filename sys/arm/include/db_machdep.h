@@ -74,7 +74,7 @@ typedef int		db_expr_t;
 
 #define	inst_branch(ins)	(((ins) & 0x0f000000) == 0x0a000000 || \
 				 ((ins) & 0x0fdffff0) == 0x079ff100 || \
-				 ((ins) & 0x0cf0f000) == 0x0490f000 || \
+				 ((ins) & 0x0cd0f000) == 0x0490f000 || \
 				 ((ins) & 0x0ffffff0) == 0x012fff30 || /* blx */ \
 				 ((ins) & 0x0de0f000) == 0x0080f000)
 
@@ -90,7 +90,7 @@ typedef int		db_expr_t;
 
 int db_validate_address(vm_offset_t);
 
-u_int branch_taken (u_int insn, u_int pc);
+u_int branch_taken (u_int insn, db_addr_t pc);
 
 #ifdef __ARMEB__
 #define BYTE_MSF	(1)

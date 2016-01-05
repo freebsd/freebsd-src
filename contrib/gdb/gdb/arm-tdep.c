@@ -2580,6 +2580,21 @@ arm_elf_osabi_sniffer (bfd *abfd)
 	      osabi = GDB_OSABI_ARM_EABI_V2;
 	      break;
 
+	    case EF_ARM_EABI_VER3:
+	    case EF_ARM_EABI_VER4:
+	    case EF_ARM_EABI_VER5:
+	      /*
+	       * GDB does not support these EABI versions. Fallback
+	       * to the highest known to make the KGDB working with
+	       * kernel ELF image.
+	       */
+	      osabi = GDB_OSABI_ARM_EABI_V2;
+	      printf ("\n%s:%d "
+	              "arm_elf_osabi_sniffer: Unsupported ARM EABI "
+	              "version 0x%x, falling back to 0x%x\n",
+	              __FILE__, __LINE__, eflags, EF_ARM_EABI_VER2);
+	      break;
+
 	    case EF_ARM_EABI_UNKNOWN:
 	      /* Assume GNU tools.  */
 	      osabi = GDB_OSABI_ARM_APCS;

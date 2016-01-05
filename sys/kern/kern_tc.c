@@ -1702,12 +1702,15 @@ pps_event(struct pps_state *pps, int event)
 	struct bintime bt;
 	struct timespec ts, *tsp, *osp;
 	u_int tcount, *pcount;
-	int foff, fhard;
+	int foff;
 	pps_seq_t *pseq;
 #ifdef FFCLOCK
 	struct timespec *tsp_ffc;
 	pps_seq_t *pseq_ffc;
 	ffcounter *ffcount;
+#endif
+#ifdef PPS_SYNC
+	int fhard;
 #endif
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
@@ -1724,7 +1727,9 @@ pps_event(struct pps_state *pps, int event)
 		tsp = &pps->ppsinfo.assert_timestamp;
 		osp = &pps->ppsparam.assert_offset;
 		foff = pps->ppsparam.mode & PPS_OFFSETASSERT;
+#ifdef PPS_SYNC
 		fhard = pps->kcmode & PPS_CAPTUREASSERT;
+#endif
 		pcount = &pps->ppscount[0];
 		pseq = &pps->ppsinfo.assert_sequence;
 #ifdef FFCLOCK
@@ -1736,7 +1741,9 @@ pps_event(struct pps_state *pps, int event)
 		tsp = &pps->ppsinfo.clear_timestamp;
 		osp = &pps->ppsparam.clear_offset;
 		foff = pps->ppsparam.mode & PPS_OFFSETCLEAR;
+#ifdef PPS_SYNC
 		fhard = pps->kcmode & PPS_CAPTURECLEAR;
+#endif
 		pcount = &pps->ppscount[1];
 		pseq = &pps->ppsinfo.clear_sequence;
 #ifdef FFCLOCK
@@ -1924,20 +1931,27 @@ SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL);
 static int cpu_tick_variable;
 static uint64_t	cpu_tick_frequency;
 
+static DPCPU_DEFINE(uint64_t, tc_cpu_ticks_base);
+static DPCPU_DEFINE(unsigned, tc_cpu_ticks_last);
+
 static uint64_t
 tc_cpu_ticks(void)
 {
-	static uint64_t base;
-	static unsigned last;
-	unsigned u;
 	struct timecounter *tc;
+	uint64_t res, *base;
+	unsigned u, *last;
 
+	critical_enter();
+	base = DPCPU_PTR(tc_cpu_ticks_base);
+	last = DPCPU_PTR(tc_cpu_ticks_last);
 	tc = timehands->th_counter;
 	u = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
-	if (u < last)
-		base += (uint64_t)tc->tc_counter_mask + 1;
-	last = u;
-	return (u + base);
+	if (u < *last)
+		*base += (uint64_t)tc->tc_counter_mask + 1;
+	*last = u;
+	res = u + *base;
+	critical_exit();
+	return (res);
 }
 
 void

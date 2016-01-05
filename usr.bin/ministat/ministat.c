@@ -192,8 +192,10 @@ Avg(struct dataset *ds)
 static double
 Median(struct dataset *ds)
 {
-
-	return (ds->points[ds->n / 2]);
+	if ((ds->n % 2) == 0)
+		return ((ds->points[ds->n / 2] + (ds->points[(ds->n / 2) - 1])) / 2);
+    	else
+		return (ds->points[ds->n / 2]);
 }
 
 static double

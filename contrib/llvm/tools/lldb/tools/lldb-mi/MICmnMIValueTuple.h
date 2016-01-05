@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIValueTuple.h
-//
-// Overview:    CMICmnMIValueTuple interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -62,7 +50,7 @@ class CMICmnMIValueTuple : public CMICmnMIValue
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnMIValueTuple(void);
+    /* dtor */ ~CMICmnMIValueTuple(void) override;
 
     // Methods:
   private:
@@ -72,5 +60,5 @@ class CMICmnMIValueTuple : public CMICmnMIValue
 
     // Attributes:
   private:
-    bool m_bSpaceAfterComma; // True = put space seperators into the string, false = no spaces used
+    bool m_bSpaceAfterComma; // True = put space separators into the string, false = no spaces used
 };

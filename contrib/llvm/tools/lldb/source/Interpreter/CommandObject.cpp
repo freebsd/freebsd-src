@@ -7,11 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Interpreter/CommandObject.h"
 
 #include <string>
+#include <sstream>
 #include <map>
 
 #include <stdlib.h>
@@ -25,13 +24,12 @@
 // FIXME: Make a separate file for the completers.
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Core/FileSpecList.h"
+#include "lldb/DataFormatters/FormatManager.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
-#include "lldb/Interpreter/ScriptInterpreter.h"
-#include "lldb/Interpreter/ScriptInterpreterPython.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -120,6 +118,12 @@ void
 CommandObject::SetHelp (const char *cstr)
 {
     m_cmd_help_short = cstr;
+}
+
+void
+CommandObject::SetHelp (std::string str)
+{
+    m_cmd_help_short = str;
 }
 
 void
@@ -221,20 +225,20 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
     m_exe_ctx = m_interpreter.GetExecutionContext();
 
     const uint32_t flags = GetFlags().Get();
-    if (flags & (eFlagRequiresTarget   |
-                 eFlagRequiresProcess  |
-                 eFlagRequiresThread   |
-                 eFlagRequiresFrame    |
-                 eFlagTryTargetAPILock ))
+    if (flags & (eCommandRequiresTarget   |
+                 eCommandRequiresProcess  |
+                 eCommandRequiresThread   |
+                 eCommandRequiresFrame    |
+                 eCommandTryTargetAPILock ))
     {
 
-        if ((flags & eFlagRequiresTarget) && !m_exe_ctx.HasTargetScope())
+        if ((flags & eCommandRequiresTarget) && !m_exe_ctx.HasTargetScope())
         {
             result.AppendError (GetInvalidTargetDescription());
             return false;
         }
 
-        if ((flags & eFlagRequiresProcess) && !m_exe_ctx.HasProcessScope())
+        if ((flags & eCommandRequiresProcess) && !m_exe_ctx.HasProcessScope())
         {
             if (!m_exe_ctx.HasTargetScope())
                 result.AppendError (GetInvalidTargetDescription());
@@ -243,7 +247,7 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
             return false;
         }
         
-        if ((flags & eFlagRequiresThread) && !m_exe_ctx.HasThreadScope())
+        if ((flags & eCommandRequiresThread) && !m_exe_ctx.HasThreadScope())
         {
             if (!m_exe_ctx.HasTargetScope())
                 result.AppendError (GetInvalidTargetDescription());
@@ -254,7 +258,7 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
             return false;
         }
         
-        if ((flags & eFlagRequiresFrame) && !m_exe_ctx.HasFrameScope())
+        if ((flags & eCommandRequiresFrame) && !m_exe_ctx.HasFrameScope())
         {
             if (!m_exe_ctx.HasTargetScope())
                 result.AppendError (GetInvalidTargetDescription());
@@ -267,13 +271,13 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
             return false;
         }
         
-        if ((flags & eFlagRequiresRegContext) && (m_exe_ctx.GetRegisterContext() == nullptr))
+        if ((flags & eCommandRequiresRegContext) && (m_exe_ctx.GetRegisterContext() == nullptr))
         {
             result.AppendError (GetInvalidRegContextDescription());
             return false;
         }
 
-        if (flags & eFlagTryTargetAPILock)
+        if (flags & eCommandTryTargetAPILock)
         {
             Target *target = m_exe_ctx.GetTargetPtr();
             if (target)
@@ -281,13 +285,13 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
         }
     }
 
-    if (GetFlags().AnySet (CommandObject::eFlagProcessMustBeLaunched | CommandObject::eFlagProcessMustBePaused))
+    if (GetFlags().AnySet (eCommandProcessMustBeLaunched | eCommandProcessMustBePaused))
     {
         Process *process = m_interpreter.GetExecutionContext().GetProcessPtr();
         if (process == nullptr)
         {
             // A process that is not running is considered paused.
-            if (GetFlags().Test(CommandObject::eFlagProcessMustBeLaunched))
+            if (GetFlags().Test(eCommandProcessMustBeLaunched))
             {
                 result.AppendError ("Process must exist.");
                 result.SetStatus (eReturnStatusFailed);
@@ -311,7 +315,7 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
             case eStateDetached:
             case eStateExited:
             case eStateUnloaded:
-                if (GetFlags().Test(CommandObject::eFlagProcessMustBeLaunched))
+                if (GetFlags().Test(eCommandProcessMustBeLaunched))
                 {
                     result.AppendError ("Process must be launched.");
                     result.SetStatus (eReturnStatusFailed);
@@ -321,7 +325,7 @@ CommandObject::CheckRequirements (CommandReturnObject &result)
 
             case eStateRunning:
             case eStateStepping:
-                if (GetFlags().Test(CommandObject::eFlagProcessMustBePaused))
+                if (GetFlags().Test(eCommandProcessMustBePaused))
                 {
                     result.AppendError ("Process is running.  Use 'process interrupt' to pause execution.");
                     result.SetStatus (eReturnStatusFailed);
@@ -499,14 +503,14 @@ CommandObject::GetArgumentEntryAtIndex (int idx)
     return nullptr;
 }
 
-CommandObject::ArgumentTableEntry *
+const CommandObject::ArgumentTableEntry *
 CommandObject::FindArgumentDataByType (CommandArgumentType arg_type)
 {
     const ArgumentTableEntry *table = CommandObject::GetArgumentTable();
 
     for (int i = 0; i < eArgTypeLastArg; ++i)
         if (table[i].arg_type == arg_type)
-            return (ArgumentTableEntry *) &(table[i]);
+            return &(table[i]);
 
     return nullptr;
 }
@@ -515,7 +519,7 @@ void
 CommandObject::GetArgumentHelp (Stream &str, CommandArgumentType arg_type, CommandInterpreter &interpreter)
 {
     const ArgumentTableEntry* table = CommandObject::GetArgumentTable();
-    ArgumentTableEntry *entry = (ArgumentTableEntry *) &(table[arg_type]);
+    const ArgumentTableEntry *entry = &(table[arg_type]);
     
     // The table is *supposed* to be kept in arg_type order, but someone *could* have messed it up...
 
@@ -549,7 +553,7 @@ CommandObject::GetArgumentHelp (Stream &str, CommandArgumentType arg_type, Comma
 const char *
 CommandObject::GetArgumentName (CommandArgumentType arg_type)
 {
-    ArgumentTableEntry *entry = (ArgumentTableEntry *) &(CommandObject::GetArgumentTable()[arg_type]);
+    const ArgumentTableEntry *entry = &(CommandObject::GetArgumentTable()[arg_type]);
 
     // The table is *supposed* to be kept in arg_type order, but someone *could* have messed it up...
 
@@ -843,12 +847,9 @@ LanguageTypeHelpTextCallback ()
     
     StreamString sstr;
     sstr << "One of the following languages:\n";
-    
-    for (unsigned int l = eLanguageTypeUnknown; l < eNumLanguageTypes; ++l)
-    {
-        sstr << "  " << LanguageRuntime::GetNameForLanguageType(static_cast<LanguageType>(l)) << "\n";
-    }
-    
+
+    LanguageRuntime::PrintAllLanguages(sstr, "  ", "\n");
+
     sstr.Flush();
     
     std::string data = sstr.GetString();
@@ -921,6 +922,27 @@ ExprPathHelpTextCallback()
 }
 
 void
+CommandObject::FormatLongHelpText (Stream &output_strm, const char *long_help)
+{
+    CommandInterpreter& interpreter = GetCommandInterpreter();
+    std::stringstream lineStream (long_help);
+    std::string line;
+    while (std::getline (lineStream, line)) {
+        if (line.empty()) {
+            output_strm << "\n";
+            continue;
+        }
+        size_t result = line.find_first_not_of (" \t");
+        if (result == std::string::npos) {
+            result = 0;
+        }
+        std::string whitespace_prefix = line.substr (0, result);
+        std::string remainder = line.substr (result);
+        interpreter.OutputFormattedHelpText(output_strm, whitespace_prefix.c_str(), remainder.c_str());
+    }
+}
+
+void
 CommandObject::GenerateHelpText (CommandReturnObject &result)
 {
     GenerateHelpText(result.GetOutputStream());
@@ -947,7 +969,7 @@ CommandObject::GenerateHelpText (Stream &output_strm)
         const char *long_help = GetHelpLong();
         if ((long_help != nullptr)
             && (strlen (long_help) > 0))
-            output_strm.Printf ("\n%s", long_help);
+            FormatLongHelpText (output_strm, long_help);
         if (WantsRawCommandString() && !WantsCompletion())
         {
             // Emit the message about using ' -- ' between the end of the command options and the raw input
@@ -984,7 +1006,7 @@ CommandObject::GenerateHelpText (Stream &output_strm)
         const char *long_help = GetHelpLong();
         if ((long_help != nullptr)
             && (strlen (long_help) > 0))
-            output_strm.Printf ("%s", long_help);
+            FormatLongHelpText (output_strm, long_help);
         else if (WantsRawCommandString())
         {
             std::string help_text (GetHelp());
@@ -1020,18 +1042,15 @@ CommandObject::AddIDsArgumentData(CommandArgumentEntry &arg, CommandArgumentType
 const char * 
 CommandObject::GetArgumentTypeAsCString (const lldb::CommandArgumentType arg_type)
 {
-    if (arg_type >=0 && arg_type < eArgTypeLastArg)
-        return g_arguments_data[arg_type].arg_name;
-    return nullptr;
-
+    assert(arg_type < eArgTypeLastArg && "Invalid argument type passed to GetArgumentTypeAsCString");
+    return g_arguments_data[arg_type].arg_name;
 }
 
 const char * 
 CommandObject::GetArgumentDescriptionAsCString (const lldb::CommandArgumentType arg_type)
 {
-    if (arg_type >=0 && arg_type < eArgTypeLastArg)
-        return g_arguments_data[arg_type].help_text;
-    return nullptr;
+    assert(arg_type < eArgTypeLastArg && "Invalid argument type passed to GetArgumentDescriptionAsCString");
+    return g_arguments_data[arg_type].help_text;
 }
 
 Target *
@@ -1192,6 +1211,7 @@ CommandObject::g_arguments_data[] =
     { eArgTypeThreadID, "thread-id", CommandCompletions::eNoCompletion, { nullptr, false }, "Thread ID number." },
     { eArgTypeThreadIndex, "thread-index", CommandCompletions::eNoCompletion, { nullptr, false }, "Index into the process' list of threads." },
     { eArgTypeThreadName, "thread-name", CommandCompletions::eNoCompletion, { nullptr, false }, "The thread's name." },
+    { eArgTypeTypeName, "type-name", CommandCompletions::eNoCompletion, { nullptr, false }, "A type name." },
     { eArgTypeUnsignedInteger, "unsigned-integer", CommandCompletions::eNoCompletion, { nullptr, false }, "An unsigned integer." },
     { eArgTypeUnixSignal, "unix-signal", CommandCompletions::eNoCompletion, { nullptr, false }, "A valid Unix signal name or number (e.g. SIGKILL, KILL or 9)." },
     { eArgTypeVarName, "variable-name", CommandCompletions::eNoCompletion, { nullptr, false }, "The name of a variable in your program." },

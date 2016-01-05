@@ -57,7 +57,7 @@ svn__adler32(apr_uint32_t checksum, const char *data, apr_off_t len)
    */
   if (len >= 80)
     {
-      /* Larger buffers can be effiently handled by Marc Adler's
+      /* Larger buffers can be efficiently handled by Marc Adler's
        * optimized code. Also, new zlib versions will come with
        * SIMD code for x86 and x64.
        */
@@ -76,16 +76,16 @@ svn__adler32(apr_uint32_t checksum, const char *data, apr_off_t len)
        * (approx. one clock tick per byte + 2 ticks loop overhead)
        */
       for (; len >= 8; len -= 8, input += 8)
-      {
-        s1 += input[0]; s2 += s1;
-        s1 += input[1]; s2 += s1;
-        s1 += input[2]; s2 += s1;
-        s1 += input[3]; s2 += s1;
-        s1 += input[4]; s2 += s1;
-        s1 += input[5]; s2 += s1;
-        s1 += input[6]; s2 += s1;
-        s1 += input[7]; s2 += s1;
-      }
+        {
+          s1 += input[0]; s2 += s1;
+          s1 += input[1]; s2 += s1;
+          s1 += input[2]; s2 += s1;
+          s1 += input[3]; s2 += s1;
+          s1 += input[4]; s2 += s1;
+          s1 += input[5]; s2 += s1;
+          s1 += input[6]; s2 += s1;
+          s1 += input[7]; s2 += s1;
+        }
 
       /* Adler-32 calculation as a simple two ticks per iteration loop.
        */

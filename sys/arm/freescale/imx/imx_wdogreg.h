@@ -47,6 +47,7 @@
 #define		WDOG_SR_STEP2		0xaaaa
 
 #define	WDOG_RSR_REG	0x04	/* Reset Status Register */
+#define		WDOG_RSR_POR		(1 << 4) /* Due to Power-On Reset */
 #define		WDOG_RSR_TOUT		(1 << 1) /* Due WDog timeout reset */
 #define		WDOG_RSR_SFTW		(1 << 0) /* Due Soft reset */
 

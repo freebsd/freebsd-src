@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2013
+.Dd November 9, 2015
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -44,15 +44,16 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl DxZ
-.Op Fl B Ar byte-order
+.Op Fl B Ar endian
 .Op Fl b Ar free-blocks
 .Op Fl d Ar debug-mask
-.Op Fl F Ar specfile
+.Op Fl F Ar mtree-specfile
 .Op Fl f Ar free-files
 .Op Fl M Ar minimum-size
 .Op Fl m Ar maximum-size
 .Op Fl N Ar userdb-dir
 .Op Fl o Ar fs-options
+.Op Fl R Ar roundup-size
 .Op Fl S Ar sector-size
 .Op Fl s Ar image-size
 .Op Fl t Ar fs-type
@@ -68,9 +69,9 @@ from the directory tree
 .Ar directory
 or from the mtree manifest
 .Ar manifest .
-If optional directory tree
+If any optional directory trees are passed in the
 .Ar extra-directory
-is passed, then the directory tree of each argument will be merged
+arguments, then the directory tree of each argument will be merged
 into the
 .Ar directory
 or
@@ -81,9 +82,9 @@ No special devices or privileges are required to perform this task.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
-.It Fl B Ar byte-order
+.It Fl B Ar endian
 Set the byte order of the image to
-.Ar byte-order .
+.Ar endian .
 Valid byte orders are
 .Ql 4321 ,
 .Ql big ,
@@ -113,9 +114,9 @@ Enable various levels of debugging, depending upon which bits are
 set in
 .Ar debug-mask .
 XXX: document these
-.It Fl F Ar specfile
+.It Fl F Ar mtree-specfile
 Use
-.Ar specfile
+.Ar mtree-specfile
 as an
 .Xr mtree 8
 .Sq specfile
@@ -173,13 +174,13 @@ Set the maximum size of the file system image to
 .Ar maximum-size .
 An error will be raised if the target file system needs to be larger
 than this to accommodate the provided directory tree.
-.It Fl N Ar dbdir
+.It Fl N Ar userdb-dir
 Use the user database text file
 .Pa master.passwd
 and group database text file
 .Pa group
 from
-.Ar dbdir ,
+.Ar userdb-dir ,
 rather than using the results from the system's
 .Xr getpwnam 3
 and
@@ -195,6 +196,14 @@ Deprecated.
 See the
 .Fl Z
 flag.
+.It Fl R Ar roundup-size
+Round the image up to
+.Ar roundup-size .
+.Ar roundup-size
+should be a multiple of the file system block size.
+This option only applies to the
+.Sy ffs
+file system type.
 .It Fl S Ar sector-size
 Set the file system sector size to
 .Ar sector-size .
@@ -217,7 +226,9 @@ ISO 9660 file system.
 .It Fl x
 Exclude file system nodes not explicitly listed in the specfile.
 .It Fl Z
-Create the image as a sparse file.
+Create a sparse file for
+.Sy ffs .
+This is useful for virtual machine images.
 .El
 .Pp
 Where sizes are specified, a decimal number of bytes is expected.
@@ -292,10 +303,10 @@ The following keywords are supported:
 .It Sy allow-deep-trees
 Allow the directory structure to exceed the maximum specified in
 the spec.
-.\" .It Sy allow-illegal-chars
-.\" Unknown
-.\" .It Sy allow-lowercase
-.\" Unknown
+.It Sy allow-illegal-chars
+Allow illegal characters in filenames. This option is not implemented.
+.It Sy allow-lowercase
+Allow lowercase characters in filenames. This option is not implemented.
 .It Sy allow-max-name
 Allow 37 instead of 33 characters for filenames by omitting the
 version id.
@@ -309,6 +320,8 @@ Use the
 extension to encode
 .Tn RISC OS
 metadata.
+.It Sy bootimagedir
+Boot image directory. This option is not implemented.
 .It Sy chrp-boot
 Write an MBR partition table to the image to allow older CHRP hardware to
 boot.
@@ -329,8 +342,18 @@ or
 Load a generic boot image into the first 32K of the cd9660 image.
 .It Sy hard-disk-boot
 Boot image is a hard disk image.
+.It Sy isolevel
+An integer representing the ISO 9660 interchange level where
+.Dq level
+is either
+.Ql 1
+or
+.Ql 2 .
+.Dq level
+.Ql 3
+is not implemented.
 .It Sy keep-bad-images
-Do not throw away images whose write was aborted due to an error.
+Do not discard images whose write was aborted due to an error.
 For debugging purposes.
 .It Sy label
 Label name of the image.
@@ -342,14 +365,16 @@ Boot image is a
 ElTorito image.
 .It Sy no-trailing-padding
 Do not pad the image (apparently Linux needs the padding).
-.\" .It Sy omit-trailing-period
-.\" Unknown
+.It Sy omit-trailing-period
+Omit trailing periods in filenames.
 .It Sy preparer
 Preparer ID of the image.
 .It Sy publisher
 Publisher ID of the image.
 .It Sy rockridge
 Use RockRidge extensions (for longer filenames, etc.).
+.It Sy verbose
+Turns on verbose output.
 .It Sy volumeid
 Volume set identifier of the image.
 .El
@@ -364,10 +389,10 @@ utility appeared in
 .Nx 1.6 .
 .Sh AUTHORS
 .An Luke Mewburn Aq Mt lukem@NetBSD.org
-(original program)
-.An Daniel Watt
-.An Walter Deignan
-.An Ryan Gabrys
-.An Alan Perez-Rathke
+(original program),
+.An Daniel Watt ,
+.An Walter Deignan ,
+.An Ryan Gabrys ,
+.An Alan Perez-Rathke ,
 .An Ram Vedam
 (cd9660 support)

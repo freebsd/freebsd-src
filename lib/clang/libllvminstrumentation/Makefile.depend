@@ -25,6 +25,8 @@ InstrProfiling.o: Intrinsics.inc.h
 InstrProfiling.po: Intrinsics.inc.h
 MemorySanitizer.o: Intrinsics.inc.h
 MemorySanitizer.po: Intrinsics.inc.h
+SafeStack.o: Intrinsics.inc.h
+SafeStack.po: Intrinsics.inc.h
 ThreadSanitizer.o: Intrinsics.inc.h
 ThreadSanitizer.po: Intrinsics.inc.h
 .endif

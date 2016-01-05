@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libkvm \
 	lib/libprocstat/zfs \
 	lib/libutil \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

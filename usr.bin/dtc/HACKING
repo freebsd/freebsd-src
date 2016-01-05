@@ -21,19 +21,17 @@ welcome.
 C++11
 -----
 
-This project currently aims to compile with g++ 4.2.1 and so doesn't make any
-use of C++11 features.  It would be a good idea to relax this restriction once
-clang is the default compiler for ARM, MIPS and PowerPC.
+This project uses C++11, as the goal for FreeBSD 11 is to require C/C++11 as a
+minimum, either from clang or an external toolchain.  In particular, it uses
+`std::unique_ptr` extensively for memory management within the tree.  Unique
+pointers are also used in several other places to track ownership.
 
-This code makes use of a lot of iterator loops, which would be cleaner using
-the new syntax in C++11.  It also explicitly deletes a lot of objects held in
-collections in destructors that have these collections as their members.  This
-could be simplified by using `shared_ptr`.
+Most iterator loops use the new loop syntax and the `auto` type for type
+deduction.  Range-based `for` loops generally improve the readability of the
+code, though `auto` should only be used in places where the type can be deduced
+as easily by the reader as by the compiler.
 
-The code does make use of `static_assert()`, but uses a macro in utility.hh to
-remove these if they are not supported.  The FreeBSD standard headers also
-define a compatibility macro the implements static asserts in terms of an array
-with 1 element on success and -1 elements on failure.
+The code also makes use of `static_assert()` to track compile-time invariants.
 
 Adding New Checks
 -----------------

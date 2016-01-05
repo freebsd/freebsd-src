@@ -1,5 +1,5 @@
 /*
- * libounbound.i: pyUnbound module (libunbound wrapper for Python)
+ * libunbound.i: pyUnbound module (libunbound wrapper for Python)
  * 
  * Copyright (c) 2009, Zdenek Vasicek (vasicek AT fit.vutbr.cz)
  *                     Marek Vavrusa  (xvavru00 AT stud.fit.vutbr.cz)
@@ -60,7 +60,11 @@
 %}
 
 //%include "doc.i"
+#if PY_MAJOR_VERSION >= 3
+%include "file_py3.i" // python 3 FILE *
+#else
 %include "file.i"
+#endif
 
 %feature("docstring") strerror "Convert error value to a human readable string."
 
@@ -451,7 +455,7 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
         #_UB_CTX_METHODS#   
         
         def zone_print(self):
-            """Print local zones using debougout"""            
+            """Print local zones using debugout"""            
             _unbound.ub_ctx_print_local_zones(self)
 
         def zone_add(self,zonename,zonetype):

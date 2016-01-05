@@ -12,6 +12,8 @@
 
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"AR724X_BASE"
 ident		"AP93"
 hints		"AP93.hints"

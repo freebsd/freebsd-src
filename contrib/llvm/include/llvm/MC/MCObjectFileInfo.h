@@ -18,28 +18,24 @@
 #include "llvm/Support/CodeGen.h"
 
 namespace llvm {
-  class MCContext;
-  class MCSection;
-  class StringRef;
+class MCContext;
+class MCSection;
 
 class MCObjectFileInfo {
 protected:
-  /// CommDirectiveSupportsAlignment - True if .comm supports alignment.  This
-  /// is a hack for as long as we support 10.4 Tiger, whose assembler doesn't
-  /// support alignment on comm.
+  /// True if .comm supports alignment.  This is a hack for as long as we
+  /// support 10.4 Tiger, whose assembler doesn't support alignment on comm.
   bool CommDirectiveSupportsAlignment;
 
-  /// SupportsWeakEmptyEHFrame - True if target object file supports a
-  /// weak_definition of constant 0 for an omitted EH frame.
+  /// True if target object file supports a weak_definition of constant 0 for an
+  /// omitted EH frame.
   bool SupportsWeakOmittedEHFrame;
 
-  /// SupportsCompactUnwindWithoutEHFrame - True if the target object file
-  /// supports emitting a compact unwind section without an associated EH frame
-  /// section.
+  /// True if the target object file supports emitting a compact unwind section
+  /// without an associated EH frame section.
   bool SupportsCompactUnwindWithoutEHFrame;
 
-  /// PersonalityEncoding, LSDAEncoding, TTypeEncoding - Some encoding values
-  /// for EH.
+  /// Some encoding values for EH.
   unsigned PersonalityEncoding;
   unsigned LSDAEncoding;
   unsigned FDECFIEncoding;
@@ -49,152 +45,154 @@ protected:
   unsigned EHSectionType;
   unsigned EHSectionFlags;
 
-  /// CompactUnwindDwarfEHFrameOnly - Compact unwind encoding indicating that we
-  /// should emit only an EH frame.
+  /// Compact unwind encoding indicating that we should emit only an EH frame.
   unsigned CompactUnwindDwarfEHFrameOnly;
 
-  /// TextSection - Section directive for standard text.
-  ///
-  const MCSection *TextSection;
+  /// Section directive for standard text.
+  MCSection *TextSection;
 
-  /// DataSection - Section directive for standard data.
-  ///
-  const MCSection *DataSection;
+  /// Section directive for standard data.
+  MCSection *DataSection;
 
-  /// BSSSection - Section that is default initialized to zero.
-  const MCSection *BSSSection;
+  /// Section that is default initialized to zero.
+  MCSection *BSSSection;
 
-  /// ReadOnlySection - Section that is readonly and can contain arbitrary
-  /// initialized data.  Targets are not required to have a readonly section.
-  /// If they don't, various bits of code will fall back to using the data
-  /// section for constants.
-  const MCSection *ReadOnlySection;
+  /// Section that is readonly and can contain arbitrary initialized data.
+  /// Targets are not required to have a readonly section. If they don't,
+  /// various bits of code will fall back to using the data section for
+  /// constants.
+  MCSection *ReadOnlySection;
 
-  /// StaticCtorSection - This section contains the static constructor pointer
-  /// list.
-  const MCSection *StaticCtorSection;
+  /// This section contains the static constructor pointer list.
+  MCSection *StaticCtorSection;
 
-  /// StaticDtorSection - This section contains the static destructor pointer
-  /// list.
-  const MCSection *StaticDtorSection;
+  /// This section contains the static destructor pointer list.
+  MCSection *StaticDtorSection;
 
-  /// LSDASection - If exception handling is supported by the target, this is
-  /// the section the Language Specific Data Area information is emitted to.
-  const MCSection *LSDASection;
+  /// If exception handling is supported by the target, this is the section the
+  /// Language Specific Data Area information is emitted to.
+  MCSection *LSDASection;
 
-  /// CompactUnwindSection - If exception handling is supported by the target
-  /// and the target can support a compact representation of the CIE and FDE,
-  /// this is the section to emit them into.
-  const MCSection *CompactUnwindSection;
+  /// If exception handling is supported by the target and the target can
+  /// support a compact representation of the CIE and FDE, this is the section
+  /// to emit them into.
+  MCSection *CompactUnwindSection;
 
   // Dwarf sections for debug info.  If a target supports debug info, these must
   // be set.
-  const MCSection *DwarfAbbrevSection;
-  const MCSection *DwarfInfoSection;
-  const MCSection *DwarfLineSection;
-  const MCSection *DwarfFrameSection;
-  const MCSection *DwarfPubTypesSection;
+  MCSection *DwarfAbbrevSection;
+  MCSection *DwarfInfoSection;
+  MCSection *DwarfLineSection;
+  MCSection *DwarfFrameSection;
+  MCSection *DwarfPubTypesSection;
   const MCSection *DwarfDebugInlineSection;
-  const MCSection *DwarfStrSection;
-  const MCSection *DwarfLocSection;
-  const MCSection *DwarfARangesSection;
-  const MCSection *DwarfRangesSection;
-  const MCSection *DwarfMacroInfoSection;
+  MCSection *DwarfStrSection;
+  MCSection *DwarfLocSection;
+  MCSection *DwarfARangesSection;
+  MCSection *DwarfRangesSection;
   // The pubnames section is no longer generated by default.  The generation
   // can be enabled by a compiler flag.
-  const MCSection *DwarfPubNamesSection;
+  MCSection *DwarfPubNamesSection;
 
-  // DWARF5 Experimental Debug Info Sections
+  /// DWARF5 Experimental Debug Info Sections
   /// DwarfAccelNamesSection, DwarfAccelObjCSection,
   /// DwarfAccelNamespaceSection, DwarfAccelTypesSection -
   /// If we use the DWARF accelerated hash tables then we want to emit these
   /// sections.
-  const MCSection *DwarfAccelNamesSection;
-  const MCSection *DwarfAccelObjCSection;
-  const MCSection *DwarfAccelNamespaceSection;
-  const MCSection *DwarfAccelTypesSection;
+  MCSection *DwarfAccelNamesSection;
+  MCSection *DwarfAccelObjCSection;
+  MCSection *DwarfAccelNamespaceSection;
+  MCSection *DwarfAccelTypesSection;
 
-  /// These are used for the Fission separate debug information files.
-  const MCSection *DwarfInfoDWOSection;
-  const MCSection *DwarfTypesDWOSection;
-  const MCSection *DwarfAbbrevDWOSection;
-  const MCSection *DwarfStrDWOSection;
-  const MCSection *DwarfLineDWOSection;
-  const MCSection *DwarfLocDWOSection;
-  const MCSection *DwarfStrOffDWOSection;
-  const MCSection *DwarfAddrSection;
+  // These are used for the Fission separate debug information files.
+  MCSection *DwarfInfoDWOSection;
+  MCSection *DwarfTypesDWOSection;
+  MCSection *DwarfAbbrevDWOSection;
+  MCSection *DwarfStrDWOSection;
+  MCSection *DwarfLineDWOSection;
+  MCSection *DwarfLocDWOSection;
+  MCSection *DwarfStrOffDWOSection;
+  MCSection *DwarfAddrSection;
 
-  /// Sections for newer gnu pubnames and pubtypes.
-  const MCSection *DwarfGnuPubNamesSection;
-  const MCSection *DwarfGnuPubTypesSection;
+  /// Section for newer gnu pubnames.
+  MCSection *DwarfGnuPubNamesSection;
+  /// Section for newer gnu pubtypes.
+  MCSection *DwarfGnuPubTypesSection;
 
-  const MCSection *COFFDebugSymbolsSection;
+  MCSection *COFFDebugSymbolsSection;
 
-  // Extra TLS Variable Data section.  If the target needs to put additional
-  // information for a TLS variable, it'll go here.
-  const MCSection *TLSExtraDataSection;
+  /// Extra TLS Variable Data section.
+  ///
+  /// If the target needs to put additional information for a TLS variable,
+  /// it'll go here.
+  MCSection *TLSExtraDataSection;
 
-  /// TLSDataSection - Section directive for Thread Local data.
-  /// ELF, MachO and COFF.
-  const MCSection *TLSDataSection;        // Defaults to ".tdata".
+  /// Section directive for Thread Local data. ELF, MachO and COFF.
+  MCSection *TLSDataSection; // Defaults to ".tdata".
 
-  /// TLSBSSSection - Section directive for Thread Local uninitialized data.
-  /// Null if this target doesn't support a BSS section.
-  /// ELF and MachO only.
-  const MCSection *TLSBSSSection;         // Defaults to ".tbss".
+  /// Section directive for Thread Local uninitialized data.
+  ///
+  /// Null if this target doesn't support a BSS section. ELF and MachO only.
+  MCSection *TLSBSSSection; // Defaults to ".tbss".
 
   /// StackMap section.
-  const MCSection *StackMapSection;
+  MCSection *StackMapSection;
 
-  /// EHFrameSection - EH frame section. It is initialized on demand so it
-  /// can be overwritten (with uniquing).
-  const MCSection *EHFrameSection;
+  /// FaultMap section.
+  MCSection *FaultMapSection;
 
-  /// ELF specific sections.
+  /// EH frame section.
   ///
-  const MCSection *DataRelSection;
+  /// It is initialized on demand so it can be overwritten (with uniquing).
+  MCSection *EHFrameSection;
+
+  // ELF specific sections.
+  MCSection *DataRelSection;
   const MCSection *DataRelLocalSection;
-  const MCSection *DataRelROSection;
-  const MCSection *DataRelROLocalSection;
-  const MCSection *MergeableConst4Section;
-  const MCSection *MergeableConst8Section;
-  const MCSection *MergeableConst16Section;
+  MCSection *DataRelROSection;
+  MCSection *DataRelROLocalSection;
+  MCSection *MergeableConst4Section;
+  MCSection *MergeableConst8Section;
+  MCSection *MergeableConst16Section;
 
-  /// MachO specific sections.
+  // MachO specific sections.
+
+  /// Section for thread local structure information.
   ///
+  /// Contains the source code name of the variable, visibility and a pointer to
+  /// the initial value (.tdata or .tbss).
+  MCSection *TLSTLVSection; // Defaults to ".tlv".
 
-  /// TLSTLVSection - Section for thread local structure information.
-  /// Contains the source code name of the variable, visibility and a pointer
-  /// to the initial value (.tdata or .tbss).
-  const MCSection *TLSTLVSection;         // Defaults to ".tlv".
+  /// Section for thread local data initialization functions.
+  const MCSection *TLSThreadInitSection; // Defaults to ".thread_init_func".
 
-  /// TLSThreadInitSection - Section for thread local data initialization
-  /// functions.
-  const MCSection *TLSThreadInitSection;  // Defaults to ".thread_init_func".
-
-  const MCSection *CStringSection;
-  const MCSection *UStringSection;
-  const MCSection *TextCoalSection;
-  const MCSection *ConstTextCoalSection;
-  const MCSection *ConstDataSection;
-  const MCSection *DataCoalSection;
-  const MCSection *DataCommonSection;
-  const MCSection *DataBSSSection;
-  const MCSection *FourByteConstantSection;
-  const MCSection *EightByteConstantSection;
-  const MCSection *SixteenByteConstantSection;
-  const MCSection *LazySymbolPointerSection;
-  const MCSection *NonLazySymbolPointerSection;
+  MCSection *CStringSection;
+  MCSection *UStringSection;
+  MCSection *TextCoalSection;
+  MCSection *ConstTextCoalSection;
+  MCSection *ConstDataSection;
+  MCSection *DataCoalSection;
+  MCSection *DataCommonSection;
+  MCSection *DataBSSSection;
+  MCSection *FourByteConstantSection;
+  MCSection *EightByteConstantSection;
+  MCSection *SixteenByteConstantSection;
+  MCSection *LazySymbolPointerSection;
+  MCSection *NonLazySymbolPointerSection;
 
   /// COFF specific sections.
-  ///
-  const MCSection *DrectveSection;
-  const MCSection *PDataSection;
-  const MCSection *XDataSection;
+  MCSection *DrectveSection;
+  MCSection *PDataSection;
+  MCSection *XDataSection;
+  MCSection *SXDataSection;
 
 public:
-  void InitMCObjectFileInfo(StringRef TT, Reloc::Model RM, CodeModel::Model CM,
-                            MCContext &ctx);
+  void InitMCObjectFileInfo(const Triple &TT, Reloc::Model RM,
+                            CodeModel::Model CM, MCContext &ctx);
+  LLVM_ATTRIBUTE_DEPRECATED(
+      void InitMCObjectFileInfo(StringRef TT, Reloc::Model RM,
+                                CodeModel::Model CM, MCContext &ctx),
+      "StringRef GNU Triple argument replaced by a llvm::Triple object");
 
   bool getSupportsWeakOmittedEHFrame() const {
     return SupportsWeakOmittedEHFrame;
@@ -215,97 +213,70 @@ public:
     return CompactUnwindDwarfEHFrameOnly;
   }
 
-  const MCSection *getTextSection() const { return TextSection; }
-  const MCSection *getDataSection() const { return DataSection; }
-  const MCSection *getBSSSection() const { return BSSSection; }
-  const MCSection *getLSDASection() const { return LSDASection; }
-  const MCSection *getCompactUnwindSection() const{
-    return CompactUnwindSection;
-  }
-  const MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
-  const MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
-  const MCSection *getDwarfLineSection() const { return DwarfLineSection; }
-  const MCSection *getDwarfFrameSection() const { return DwarfFrameSection; }
-  const MCSection *getDwarfPubNamesSection() const{return DwarfPubNamesSection;}
-  const MCSection *getDwarfPubTypesSection() const{return DwarfPubTypesSection;}
-  const MCSection *getDwarfGnuPubNamesSection() const {
+  MCSection *getTextSection() const { return TextSection; }
+  MCSection *getDataSection() const { return DataSection; }
+  MCSection *getBSSSection() const { return BSSSection; }
+  MCSection *getLSDASection() const { return LSDASection; }
+  MCSection *getCompactUnwindSection() const { return CompactUnwindSection; }
+  MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
+  MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
+  MCSection *getDwarfLineSection() const { return DwarfLineSection; }
+  MCSection *getDwarfFrameSection() const { return DwarfFrameSection; }
+  MCSection *getDwarfPubNamesSection() const { return DwarfPubNamesSection; }
+  MCSection *getDwarfPubTypesSection() const { return DwarfPubTypesSection; }
+  MCSection *getDwarfGnuPubNamesSection() const {
     return DwarfGnuPubNamesSection;
   }
-  const MCSection *getDwarfGnuPubTypesSection() const {
+  MCSection *getDwarfGnuPubTypesSection() const {
     return DwarfGnuPubTypesSection;
   }
   const MCSection *getDwarfDebugInlineSection() const {
     return DwarfDebugInlineSection;
   }
-  const MCSection *getDwarfStrSection() const { return DwarfStrSection; }
-  const MCSection *getDwarfLocSection() const { return DwarfLocSection; }
-  const MCSection *getDwarfARangesSection() const { return DwarfARangesSection;}
-  const MCSection *getDwarfRangesSection() const { return DwarfRangesSection; }
-  const MCSection *getDwarfMacroInfoSection() const {
-    return DwarfMacroInfoSection;
-  }
+  MCSection *getDwarfStrSection() const { return DwarfStrSection; }
+  MCSection *getDwarfLocSection() const { return DwarfLocSection; }
+  MCSection *getDwarfARangesSection() const { return DwarfARangesSection; }
+  MCSection *getDwarfRangesSection() const { return DwarfRangesSection; }
 
   // DWARF5 Experimental Debug Info Sections
-  const MCSection *getDwarfAccelNamesSection() const {
+  MCSection *getDwarfAccelNamesSection() const {
     return DwarfAccelNamesSection;
   }
-  const MCSection *getDwarfAccelObjCSection() const {
-    return DwarfAccelObjCSection;
-  }
-  const MCSection *getDwarfAccelNamespaceSection() const {
+  MCSection *getDwarfAccelObjCSection() const { return DwarfAccelObjCSection; }
+  MCSection *getDwarfAccelNamespaceSection() const {
     return DwarfAccelNamespaceSection;
   }
-  const MCSection *getDwarfAccelTypesSection() const {
+  MCSection *getDwarfAccelTypesSection() const {
     return DwarfAccelTypesSection;
   }
-  const MCSection *getDwarfInfoDWOSection() const {
-    return DwarfInfoDWOSection;
-  }
-  const MCSection *getDwarfTypesSection(uint64_t Hash) const;
-  const MCSection *getDwarfTypesDWOSection() const {
-    return DwarfTypesDWOSection;
-  }
-  const MCSection *getDwarfAbbrevDWOSection() const {
-    return DwarfAbbrevDWOSection;
-  }
-  const MCSection *getDwarfStrDWOSection() const {
-    return DwarfStrDWOSection;
-  }
-  const MCSection *getDwarfLineDWOSection() const {
-    return DwarfLineDWOSection;
-  }
-  const MCSection *getDwarfLocDWOSection() const {
-    return DwarfLocDWOSection;
-  }
-  const MCSection *getDwarfStrOffDWOSection() const {
-    return DwarfStrOffDWOSection;
-  }
-  const MCSection *getDwarfAddrSection() const {
-    return DwarfAddrSection;
-  }
+  MCSection *getDwarfInfoDWOSection() const { return DwarfInfoDWOSection; }
+  MCSection *getDwarfTypesSection(uint64_t Hash) const;
+  MCSection *getDwarfTypesDWOSection() const { return DwarfTypesDWOSection; }
+  MCSection *getDwarfAbbrevDWOSection() const { return DwarfAbbrevDWOSection; }
+  MCSection *getDwarfStrDWOSection() const { return DwarfStrDWOSection; }
+  MCSection *getDwarfLineDWOSection() const { return DwarfLineDWOSection; }
+  MCSection *getDwarfLocDWOSection() const { return DwarfLocDWOSection; }
+  MCSection *getDwarfStrOffDWOSection() const { return DwarfStrOffDWOSection; }
+  MCSection *getDwarfAddrSection() const { return DwarfAddrSection; }
 
-  const MCSection *getCOFFDebugSymbolsSection() const {
+  MCSection *getCOFFDebugSymbolsSection() const {
     return COFFDebugSymbolsSection;
   }
 
-  const MCSection *getTLSExtraDataSection() const {
-    return TLSExtraDataSection;
-  }
+  MCSection *getTLSExtraDataSection() const { return TLSExtraDataSection; }
   const MCSection *getTLSDataSection() const { return TLSDataSection; }
-  const MCSection *getTLSBSSSection() const { return TLSBSSSection; }
+  MCSection *getTLSBSSSection() const { return TLSBSSSection; }
 
-  const MCSection *getStackMapSection() const { return StackMapSection; }
+  MCSection *getStackMapSection() const { return StackMapSection; }
+  MCSection *getFaultMapSection() const { return FaultMapSection; }
 
-  /// ELF specific sections.
-  ///
-  const MCSection *getDataRelSection() const { return DataRelSection; }
+  // ELF specific sections.
+  MCSection *getDataRelSection() const { return DataRelSection; }
   const MCSection *getDataRelLocalSection() const {
     return DataRelLocalSection;
   }
-  const MCSection *getDataRelROSection() const { return DataRelROSection; }
-  const MCSection *getDataRelROLocalSection() const {
-    return DataRelROLocalSection;
-  }
+  MCSection *getDataRelROSection() const { return DataRelROSection; }
+  MCSection *getDataRelROLocalSection() const { return DataRelROLocalSection; }
   const MCSection *getMergeableConst4Section() const {
     return MergeableConst4Section;
   }
@@ -316,22 +287,21 @@ public:
     return MergeableConst16Section;
   }
 
-  /// MachO specific sections.
-  ///
+  // MachO specific sections.
   const MCSection *getTLSTLVSection() const { return TLSTLVSection; }
   const MCSection *getTLSThreadInitSection() const {
     return TLSThreadInitSection;
   }
   const MCSection *getCStringSection() const { return CStringSection; }
   const MCSection *getUStringSection() const { return UStringSection; }
-  const MCSection *getTextCoalSection() const { return TextCoalSection; }
+  MCSection *getTextCoalSection() const { return TextCoalSection; }
   const MCSection *getConstTextCoalSection() const {
     return ConstTextCoalSection;
   }
   const MCSection *getConstDataSection() const { return ConstDataSection; }
   const MCSection *getDataCoalSection() const { return DataCoalSection; }
   const MCSection *getDataCommonSection() const { return DataCommonSection; }
-  const MCSection *getDataBSSSection() const { return DataBSSSection; }
+  MCSection *getDataBSSSection() const { return DataBSSSection; }
   const MCSection *getFourByteConstantSection() const {
     return FourByteConstantSection;
   }
@@ -341,33 +311,29 @@ public:
   const MCSection *getSixteenByteConstantSection() const {
     return SixteenByteConstantSection;
   }
-  const MCSection *getLazySymbolPointerSection() const {
+  MCSection *getLazySymbolPointerSection() const {
     return LazySymbolPointerSection;
   }
-  const MCSection *getNonLazySymbolPointerSection() const {
+  MCSection *getNonLazySymbolPointerSection() const {
     return NonLazySymbolPointerSection;
   }
 
-  /// COFF specific sections.
-  ///
-  const MCSection *getDrectveSection() const { return DrectveSection; }
-  const MCSection *getPDataSection() const { return PDataSection; }
-  const MCSection *getXDataSection() const { return XDataSection; }
+  // COFF specific sections.
+  MCSection *getDrectveSection() const { return DrectveSection; }
+  MCSection *getPDataSection() const { return PDataSection; }
+  MCSection *getXDataSection() const { return XDataSection; }
+  MCSection *getSXDataSection() const { return SXDataSection; }
 
-  const MCSection *getEHFrameSection() {
+  MCSection *getEHFrameSection() {
     if (!EHFrameSection)
       InitEHFrameSection();
     return EHFrameSection;
   }
 
   enum Environment { IsMachO, IsELF, IsCOFF };
-  Environment getObjectFileType() const {
-    return Env;
-  }
+  Environment getObjectFileType() const { return Env; }
 
-  Reloc::Model getRelocM() const {
-    return RelocM;
-  }
+  Reloc::Model getRelocM() const { return RelocM; }
 
 private:
   Environment Env;
@@ -376,12 +342,11 @@ private:
   MCContext *Ctx;
   Triple TT;
 
-  void InitMachOMCObjectFileInfo(Triple T);
-  void InitELFMCObjectFileInfo(Triple T);
-  void InitCOFFMCObjectFileInfo(Triple T);
+  void initMachOMCObjectFileInfo(Triple T);
+  void initELFMCObjectFileInfo(Triple T);
+  void initCOFFMCObjectFileInfo(Triple T);
 
-  /// InitEHFrameSection - Initialize EHFrameSection on demand.
-  ///
+  /// Initialize EHFrameSection on demand.
   void InitEHFrameSection();
 
 public:

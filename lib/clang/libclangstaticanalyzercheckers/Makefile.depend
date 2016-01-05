@@ -175,16 +175,6 @@ CheckSizeofPointer.po: CommentCommandList.inc.h
 CheckSizeofPointer.po: DeclNodes.inc.h
 CheckSizeofPointer.po: DiagnosticCommonKinds.inc.h
 CheckSizeofPointer.po: StmtNodes.inc.h
-CheckerDocumentation.o: Checkers.inc.h
-CheckerDocumentation.o: CommentCommandList.inc.h
-CheckerDocumentation.o: DeclNodes.inc.h
-CheckerDocumentation.o: DiagnosticCommonKinds.inc.h
-CheckerDocumentation.o: StmtNodes.inc.h
-CheckerDocumentation.po: Checkers.inc.h
-CheckerDocumentation.po: CommentCommandList.inc.h
-CheckerDocumentation.po: DeclNodes.inc.h
-CheckerDocumentation.po: DiagnosticCommonKinds.inc.h
-CheckerDocumentation.po: StmtNodes.inc.h
 ChrootChecker.o: Checkers.inc.h
 ChrootChecker.o: CommentCommandList.inc.h
 ChrootChecker.o: DeclNodes.inc.h

@@ -12,6 +12,8 @@
 
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"AR71XX_BASE"
 ident		"WZR-HPAG300H"
 hints		"WZR-HPAG300H.hints"

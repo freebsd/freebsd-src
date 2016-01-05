@@ -6,8 +6,6 @@
 .include <src.opts.mk>
 .endif
 
-DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
-
 DIRDEPS = \
 	lib/clang/include \
 	share/doc/llvm/clang \

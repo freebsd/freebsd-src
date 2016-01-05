@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.73 2014/09/07 20:55:34 joerg Exp $	*/
+/*	$NetBSD: suff.c,v 1.75 2015/12/20 22:44:10 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: suff.c,v 1.73 2014/09/07 20:55:34 joerg Exp $";
+static char rcsid[] = "$NetBSD: suff.c,v 1.75 2015/12/20 22:44:10 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)suff.c	8.4 (Berkeley) 3/21/94";
 #else
-__RCSID("$NetBSD: suff.c,v 1.73 2014/09/07 20:55:34 joerg Exp $");
+__RCSID("$NetBSD: suff.c,v 1.75 2015/12/20 22:44:10 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -553,7 +553,20 @@ Suff_ClearSuffixes(void)
 #endif
     sufflist = Lst_Init(FALSE);
     sNum = 0;
-    suffNull = emptySuff;
+    if (suffNull)
+	SuffFree(suffNull);
+    emptySuff = suffNull = bmake_malloc(sizeof(Suff));
+
+    suffNull->name =   	    bmake_strdup("");
+    suffNull->nameLen =     0;
+    suffNull->searchPath =  Lst_Init(FALSE);
+    Dir_Concat(suffNull->searchPath, dirSearchPath);
+    suffNull->children =    Lst_Init(FALSE);
+    suffNull->parents =	    Lst_Init(FALSE);
+    suffNull->ref =	    Lst_Init(FALSE);
+    suffNull->sNum =   	    sNum++;
+    suffNull->flags =  	    SUFF_NULL;
+    suffNull->refCount =    1;
 }
 
 /*-
@@ -1543,7 +1556,7 @@ SuffExpandChildren(LstNode cln, GNode *pgn)
     if (DEBUG(SUFF)) {
 	fprintf(debug_file, "Expanding \"%s\"...", cgn->name);
     }
-    cp = Var_Subst(NULL, cgn->name, pgn, TRUE);
+    cp = Var_Subst(NULL, cgn->name, pgn, TRUE, TRUE);
 
     if (cp != NULL) {
 	Lst	    members = Lst_Init(FALSE);
@@ -1596,7 +1609,7 @@ SuffExpandChildren(LstNode cln, GNode *pgn)
 		    int 	len;
 		    void	*freeIt;
 
-		    junk = Var_Parse(cp, pgn, TRUE, &len, &freeIt);
+		    junk = Var_Parse(cp, pgn, TRUE, TRUE, &len, &freeIt);
 		    if (junk != var_Error) {
 			cp += len - 1;
 		    }
@@ -2524,32 +2537,18 @@ Suff_SetNull(char *name)
 void
 Suff_Init(void)
 {
-    sufflist = Lst_Init(FALSE);
 #ifdef CLEANUP
     suffClean = Lst_Init(FALSE);
 #endif
     srclist = Lst_Init(FALSE);
     transforms = Lst_Init(FALSE);
 
-    sNum = 0;
     /*
      * Create null suffix for single-suffix rules (POSIX). The thing doesn't
      * actually go on the suffix list or everyone will think that's its
      * suffix.
      */
-    emptySuff = suffNull = bmake_malloc(sizeof(Suff));
-
-    suffNull->name =   	    bmake_strdup("");
-    suffNull->nameLen =     0;
-    suffNull->searchPath =  Lst_Init(FALSE);
-    Dir_Concat(suffNull->searchPath, dirSearchPath);
-    suffNull->children =    Lst_Init(FALSE);
-    suffNull->parents =	    Lst_Init(FALSE);
-    suffNull->ref =	    Lst_Init(FALSE);
-    suffNull->sNum =   	    sNum++;
-    suffNull->flags =  	    SUFF_NULL;
-    suffNull->refCount =    1;
-
+    Suff_ClearSuffixes();
 }
 
 

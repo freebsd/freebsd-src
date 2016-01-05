@@ -95,7 +95,7 @@ svn_ra_svn__do_internal_auth(svn_ra_svn__session_baton_t *sess,
     {
       SVN_ERR(svn_auth_first_credentials(&creds, &iterstate,
                                          SVN_AUTH_CRED_SIMPLE, realmstring,
-                                         sess->callbacks->auth_baton, pool));
+                                         sess->auth_baton, pool));
       if (!creds)
         return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                 _("Can't get password"));

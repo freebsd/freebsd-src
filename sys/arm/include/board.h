@@ -37,7 +37,7 @@ struct arm_board {
 	const char	*board_name;	/* Human readable name */
 	arm_board_init_fn *board_init;	/* Board initialize code */
 };
- 
+
 #if defined(ARM_MANY_BOARD)
 
 #include "board_id.h"

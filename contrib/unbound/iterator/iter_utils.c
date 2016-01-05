@@ -64,7 +64,8 @@
 #include "validator/val_kentry.h"
 #include "validator/val_utils.h"
 #include "validator/val_sigcrypt.h"
-#include "ldns/sbuffer.h"
+#include "sldns/sbuffer.h"
+#include "sldns/str2wire.h"
 
 /** time when nameserver glue is said to be 'recent' */
 #define SUSPICION_RECENT_EXPIRY 86400
@@ -105,6 +106,40 @@ read_fetch_policy(struct iter_env* ie, const char* str)
 	return 1;
 }
 
+/** apply config caps whitelist items to name tree */
+static int
+caps_white_apply_cfg(rbtree_t* ntree, struct config_file* cfg)
+{
+	struct config_strlist* p;
+	for(p=cfg->caps_whitelist; p; p=p->next) {
+		struct name_tree_node* n;
+		size_t len;
+		uint8_t* nm = sldns_str2wire_dname(p->str, &len);
+		if(!nm) {
+			log_err("could not parse %s", p->str);
+			return 0;
+		}
+		n = (struct name_tree_node*)calloc(1, sizeof(*n));
+		if(!n) {
+			log_err("out of memory");
+			free(nm);
+			return 0;
+		}
+		n->node.key = n;
+		n->name = nm;
+		n->len = len;
+		n->labs = dname_count_labels(nm);
+		n->dclass = LDNS_RR_CLASS_IN;
+		if(!name_tree_insert(ntree, n, nm, len, n->labs, n->dclass)) {
+			/* duplicate element ignored, idempotent */
+			free(n->name);
+			free(n);
+		}
+	}
+	name_tree_init_parents(ntree);
+	return 1;
+}
+
 int 
 iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
 {
@@ -127,6 +162,16 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
 	if(!iter_env->priv || !priv_apply_cfg(iter_env->priv, cfg)) {
 		log_err("Could not set private addresses");
 		return 0;
+	}
+	if(cfg->caps_whitelist) {
+		if(!iter_env->caps_white)
+			iter_env->caps_white = rbtree_create(name_tree_compare);
+		if(!iter_env->caps_white || !caps_white_apply_cfg(
+			iter_env->caps_white, cfg)) {
+			log_err("Could not set capsforid whitelist");
+			return 0;
+		}
+
 	}
 	iter_env->supports_ipv6 = cfg->do_ip6;
 	iter_env->supports_ipv4 = cfg->do_ip4;
@@ -210,7 +255,7 @@ iter_filter_unsuitable(struct iter_env* iter_env, struct module_env* env,
 			return -1; /* server is lame */
 		else if(rtt >= USEFUL_SERVER_TOP_TIMEOUT)
 			/* server is unresponsive,
-			 * we used to return TOP_TIMOUT, but fairly useless,
+			 * we used to return TOP_TIMEOUT, but fairly useless,
 			 * because if == TOP_TIMEOUT is dropped because
 			 * blacklisted later, instead, remove it here, so
 			 * other choices (that are not blacklisted) can be
@@ -261,7 +306,7 @@ iter_fill_rtt(struct iter_env* iter_env, struct module_env* env,
 	return got_it;
 }
 
-/** filter the addres list, putting best targets at front,
+/** filter the address list, putting best targets at front,
  * returns number of best targets (or 0, no suitable targets) */
 static int
 iter_filter_order(struct iter_env* iter_env, struct module_env* env,
@@ -748,6 +793,12 @@ caps_strip_reply(struct reply_info* rep)
 			break;
 		}
 	}
+}
+
+int caps_failed_rcode(struct reply_info* rep)
+{
+	return !(FLAGS_GET_RCODE(rep->flags) == LDNS_RCODE_NOERROR ||
+		FLAGS_GET_RCODE(rep->flags) == LDNS_RCODE_NXDOMAIN);
 }
 
 void 

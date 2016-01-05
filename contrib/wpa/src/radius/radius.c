@@ -167,7 +167,7 @@ struct radius_attr_type {
 	} data_type;
 };
 
-static struct radius_attr_type radius_attrs[] =
+static const struct radius_attr_type radius_attrs[] =
 {
 	{ RADIUS_ATTR_USER_NAME, "User-Name", RADIUS_ATTR_TEXT },
 	{ RADIUS_ATTR_USER_PASSWORD, "User-Password", RADIUS_ATTR_UNDIST },
@@ -259,7 +259,7 @@ static struct radius_attr_type radius_attrs[] =
 #define RADIUS_ATTRS ARRAY_SIZE(radius_attrs)
 
 
-static struct radius_attr_type *radius_get_attr_type(u8 type)
+static const struct radius_attr_type *radius_get_attr_type(u8 type)
 {
 	size_t i;
 
@@ -274,7 +274,7 @@ static struct radius_attr_type *radius_get_attr_type(u8 type)
 
 static void radius_msg_dump_attr(struct radius_attr_hdr *hdr)
 {
-	struct radius_attr_type *attr;
+	const struct radius_attr_type *attr;
 	int len;
 	unsigned char *pos;
 	char buf[1000];
@@ -1225,7 +1225,7 @@ int radius_msg_add_mppe_keys(struct radius_msg *msg,
 	}
 
 	/* MS-MPPE-Recv-Key */
-	buf = os_malloc(hlen + send_key_len + 16);
+	buf = os_malloc(hlen + recv_key_len + 16);
 	if (buf == NULL) {
 		return 0;
 	}
@@ -1425,7 +1425,7 @@ struct radius_tunnel_attrs {
 /**
  * radius_msg_get_vlanid - Parse RADIUS attributes for VLAN tunnel information
  * @msg: RADIUS message
- * Returns: VLAN ID for the first tunnel configuration of -1 if none is found
+ * Returns: VLAN ID for the first tunnel configuration or 0 if none is found
  */
 int radius_msg_get_vlanid(struct radius_msg *msg)
 {
@@ -1488,7 +1488,7 @@ int radius_msg_get_vlanid(struct radius_msg *msg)
 			return tun->vlanid;
 	}
 
-	return -1;
+	return 0;
 }
 
 

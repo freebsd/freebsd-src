@@ -44,7 +44,7 @@ rc=0
 if check_yesno_period security_status_pfdenied_enable
 then
 	TMP=`mktemp -t security`
-	if pfctl -sr -v 2>/dev/null | nawk '{if (/^block/) {buf=$0; getline; gsub(" +"," ",$0); print buf$0;} }' > ${TMP}; then
+	if pfctl -sr -v 2>/dev/null | nawk '{if (/^block/) {buf=$0; getline; gsub(" +"," ",$0); if ($5 > 0) print buf$0;} }' > ${TMP}; then
 	  check_diff new_only pf ${TMP} "${host} pf denied packets:"
 	fi
 	rc=$?

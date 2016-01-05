@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PJDFSTEST_SRCDIR=	${.CURDIR:H:H:H:H}/contrib/pjdfstest
+PJDFSTEST_SRCDIR=	${SRCTOP}/contrib/pjdfstest
 
 TESTSDIR=	${TESTSBASE}/sys/pjdfstest
 
@@ -35,5 +35,7 @@ TESTS_SUBDIRS+=	rmdir
 TESTS_SUBDIRS+=	symlink
 TESTS_SUBDIRS+=	truncate
 TESTS_SUBDIRS+=	unlink
+
+SUBDIR_PARALLEL=
 
 .include <bsd.test.mk>

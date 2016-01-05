@@ -41,8 +41,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "mips16-registerinfo"
 
-Mips16RegisterInfo::Mips16RegisterInfo(const MipsSubtarget &ST)
-  : MipsRegisterInfo(ST) {}
+Mips16RegisterInfo::Mips16RegisterInfo() : MipsRegisterInfo() {}
 
 bool Mips16RegisterInfo::requiresRegisterScavenging
   (const MachineFunction &MF) const {
@@ -140,8 +139,7 @@ void Mips16RegisterInfo::eliminateFI(MachineBasicBlock::iterator II,
     DebugLoc DL = II->getDebugLoc();
     unsigned NewImm;
     const Mips16InstrInfo &TII =
-        *static_cast<const Mips16InstrInfo *>(
-            MBB.getParent()->getSubtarget().getInstrInfo());
+        *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
     FrameReg = TII.loadImmediate(FrameReg, Offset, MBB, II, DL, NewImm);
     Offset = SignExtend64<16>(NewImm);
     IsKill = true;

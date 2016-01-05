@@ -522,11 +522,18 @@ imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable)
 	else
 		freq = sc->baseclk_hz / (2 * divisor);
 
-	for (prescale = 2; prescale < freq / prescale / 16;)
+	for (prescale = 2; freq < sc->baseclk_hz / (prescale * 16);)
 		prescale <<= 1;
 
-	for (divisor = 1; freq < freq / prescale / divisor;)
+	for (divisor = 1; freq < sc->baseclk_hz / (prescale * divisor);)
 		++divisor;
+
+#ifdef DEBUG	
+	device_printf(sc->dev,
+	    "desired SD freq: %d, actual: %d; base %d prescale %d divisor %d\n",
+	    freq, sc->baseclk_hz / (prescale * divisor), sc->baseclk_hz, 
+	    prescale, divisor);
+#endif	
 
 	prescale >>= 1;
 	divisor -= 1;
@@ -827,4 +834,4 @@ static driver_t imx_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_imx, simplebus, imx_sdhci_driver, imx_sdhci_devclass, 0, 0);
 MODULE_DEPEND(sdhci_imx, sdhci, 1, 1, 1);
-
+DRIVER_MODULE(mmc, sdhci_imx, mmc_driver, mmc_devclass, NULL, NULL);

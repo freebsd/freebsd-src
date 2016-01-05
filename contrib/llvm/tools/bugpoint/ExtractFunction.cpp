@@ -17,10 +17,10 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Pass.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileUtilities.h"
@@ -195,9 +195,9 @@ static Constant *GetTorInit(std::vector<std::pair<Function*, int> > &TorList) {
   assert(!TorList.empty() && "Don't create empty tor list!");
   std::vector<Constant*> ArrayElts;
   Type *Int32Ty = Type::getInt32Ty(TorList[0].first->getContext());
-  
+
   StructType *STy =
-    StructType::get(Int32Ty, TorList[0].first->getType(), NULL);
+      StructType::get(Int32Ty, TorList[0].first->getType(), nullptr);
   for (unsigned i = 0, e = TorList.size(); i != e; ++i) {
     Constant *Elts[] = {
       ConstantInt::get(Int32Ty, TorList[i].second),

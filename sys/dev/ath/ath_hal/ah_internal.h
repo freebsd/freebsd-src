@@ -1031,7 +1031,7 @@ ath_hal_getantennaallowed(struct ath_hal *ah,
 /*
  * Map the given 2GHz channel to an IEEE number.
  */
-extern	int ath_hal_mhz2ieee_2ghz(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
+extern	int ath_hal_mhz2ieee_2ghz(struct ath_hal *, int freq);
 
 /*
  * Clear the channel survey data.

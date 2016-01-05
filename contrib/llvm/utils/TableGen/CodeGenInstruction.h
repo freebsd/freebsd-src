@@ -14,9 +14,10 @@
 #ifndef LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
 #define LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineValueType.h"
-#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/SMLoc.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -255,6 +256,7 @@ namespace llvm {
     bool isRegSequence : 1;
     bool isExtractSubreg : 1;
     bool isInsertSubreg : 1;
+    bool isConvergent : 1;
 
     std::string DeprecatedReason;
     bool HasComplexDeprecationPredicate;

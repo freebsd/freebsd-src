@@ -81,6 +81,8 @@ public:
     AS_Declspec,
     /// __ptr16, alignas(...), etc.
     AS_Keyword,
+    /// Context-sensitive version of a keyword attribute.
+    AS_ContextSensitiveKeyword,
     /// #pragma ...
     AS_Pragma
   };
@@ -204,10 +206,10 @@ private:
     return *reinterpret_cast<const PropertyData*>(this + 1);
   }
 
-  AttributeList(const AttributeList &) LLVM_DELETED_FUNCTION;
-  void operator=(const AttributeList &) LLVM_DELETED_FUNCTION;
-  void operator delete(void *) LLVM_DELETED_FUNCTION;
-  ~AttributeList() LLVM_DELETED_FUNCTION;
+  AttributeList(const AttributeList &) = delete;
+  void operator=(const AttributeList &) = delete;
+  void operator delete(void *) = delete;
+  ~AttributeList() = delete;
 
   size_t allocated_size() const;
 
@@ -343,14 +345,20 @@ public:
 
   bool isAlignasAttribute() const {
     // FIXME: Use a better mechanism to determine this.
-    return getKind() == AT_Aligned && SyntaxUsed == AS_Keyword;
+    return getKind() == AT_Aligned && isKeywordAttribute();
   }
 
   bool isDeclspecAttribute() const { return SyntaxUsed == AS_Declspec; }
   bool isCXX11Attribute() const {
     return SyntaxUsed == AS_CXX11 || isAlignasAttribute();
   }
-  bool isKeywordAttribute() const { return SyntaxUsed == AS_Keyword; }
+  bool isKeywordAttribute() const {
+    return SyntaxUsed == AS_Keyword || SyntaxUsed == AS_ContextSensitiveKeyword;
+  }
+
+  bool isContextSensitiveKeywordAttribute() const {
+    return SyntaxUsed == AS_ContextSensitiveKeyword;
+  }
 
   bool isInvalid() const { return Invalid; }
   void setInvalid(bool b = true) const { Invalid = b; }
@@ -670,7 +678,7 @@ public:
     : pool(factory), list(nullptr) {
   }
 
-  ParsedAttributes(const ParsedAttributes &) LLVM_DELETED_FUNCTION;
+  ParsedAttributes(const ParsedAttributes &) = delete;
 
   AttributePool &getPool() const { return pool; }
 
@@ -822,6 +830,7 @@ enum AttributeDeclKind {
   ExpectedFunctionMethodOrClass,
   ExpectedFunctionMethodOrParameter,
   ExpectedClass,
+  ExpectedEnum,
   ExpectedVariable,
   ExpectedMethod,
   ExpectedVariableFunctionOrLabel,
@@ -842,6 +851,7 @@ enum AttributeDeclKind {
   ExpectedFunctionVariableOrClass,
   ExpectedObjectiveCProtocol,
   ExpectedFunctionGlobalVarMethodOrProperty,
+  ExpectedStructOrUnionOrTypedef,
   ExpectedStructOrTypedef,
   ExpectedObjectiveCInterfaceOrProtocol,
   ExpectedKernelFunction

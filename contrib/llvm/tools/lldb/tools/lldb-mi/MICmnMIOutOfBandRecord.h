@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnMIOutOfBandRecord.h
-//
-// Overview:    CMICmnMIOutOfBandRecord interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers:
@@ -27,6 +15,7 @@
 // In-house headers:
 #include "MICmnBase.h"
 #include "MIUtilString.h"
+#include "MICmnMIValueConst.h"
 #include "MICmnMIValueResult.h"
 
 //++ ============================================================================
@@ -73,6 +62,9 @@ class CMICmnMIOutOfBandRecord : public CMICmnBase
         eOutOfBand_ThreadCreated,
         eOutOfBand_ThreadExited,
         eOutOfBand_ThreadSelected,
+        eOutOfBand_TargetModuleLoaded,
+        eOutOfBand_TargetModuleUnloaded,
+        eOutOfBand_TargetStreamOutput,
         eOutOfBand_count // Always the last one
     };
 
@@ -85,15 +77,16 @@ class CMICmnMIOutOfBandRecord : public CMICmnBase
   public:
     /* ctor */ CMICmnMIOutOfBandRecord(void);
     /* ctor */ CMICmnMIOutOfBandRecord(const OutOfBand_e veType);
-    /* ctor */ CMICmnMIOutOfBandRecord(const OutOfBand_e veType, const CMICmnMIValueResult &vValue);
+    /* ctor */ CMICmnMIOutOfBandRecord(const OutOfBand_e veType, const CMICmnMIValueConst &vConst);
+    /* ctor */ CMICmnMIOutOfBandRecord(const OutOfBand_e veType, const CMICmnMIValueResult &vResult);
     //
     const CMIUtilString &GetString(void) const;
-    bool Add(const CMICmnMIValue &vMIValue);
+    bool Add(const CMICmnMIValueResult &vResult);
 
     // Overridden:
   public:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnMIOutOfBandRecord(void);
+    /* dtor */ ~CMICmnMIOutOfBandRecord(void) override;
 
     // Methods:
   private:

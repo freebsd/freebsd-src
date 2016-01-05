@@ -160,7 +160,7 @@ dir_change_prop(void *dir_baton,
   if (! db->created)
     {
       /* We can still store them in the hash for immediate addition
-         with the svn_wc_add_from_disk2() call */
+         with the svn_wc_add_from_disk3() call */
       if (! db->properties)
         db->properties = apr_hash_make(db->pool);
 
@@ -173,7 +173,7 @@ dir_change_prop(void *dir_baton,
       /* We have already notified for this directory, so don't do that again */
       SVN_ERR(svn_wc_prop_set4(eb->wc_ctx, db->local_abspath, name, value,
                                svn_depth_empty, FALSE, NULL,
-                               NULL, NULL, /* Cancelation */
+                               NULL, NULL, /* Cancellation */
                                NULL, NULL, /* Notification */
                                scratch_pool));
     }
@@ -213,9 +213,10 @@ ensure_added(struct dir_baton_t *db,
   db->created = TRUE;
 
   /* Add the directory with all the already collected properties */
-  SVN_ERR(svn_wc_add_from_disk2(db->eb->wc_ctx,
+  SVN_ERR(svn_wc_add_from_disk3(db->eb->wc_ctx,
                                 db->local_abspath,
                                 db->properties,
+                                TRUE /* skip checks */,
                                 db->eb->notify_func,
                                 db->eb->notify_baton,
                                 scratch_pool));
@@ -306,7 +307,7 @@ file_change_prop(void *file_baton,
     }
 
   /* We store all properties in the hash for immediate addition
-      with the svn_wc_add_from_disk2() call */
+      with the svn_wc_add_from_disk3() call */
   if (! fb->properties)
     fb->properties = apr_hash_make(fb->pool);
 
@@ -375,7 +376,8 @@ file_close(void *file_baton,
                                                     fb->pool)));
     }
 
-  SVN_ERR(svn_wc_add_from_disk2(eb->wc_ctx, fb->local_abspath, fb->properties,
+  SVN_ERR(svn_wc_add_from_disk3(eb->wc_ctx, fb->local_abspath, fb->properties,
+                                TRUE /* skip checks */,
                                 eb->notify_func, eb->notify_baton,
                                 fb->pool));
 
@@ -526,7 +528,7 @@ svn_client__copy_foreign(const char *url,
         for (hi = apr_hash_first(scratch_pool, props); hi;
              hi = apr_hash_next(hi))
           {
-            const char *name = svn__apr_hash_index_key(hi);
+            const char *name = apr_hash_this_key(hi);
 
             if (svn_property_kind2(name) != svn_prop_regular_kind
                 || ! strcmp(name, SVN_PROP_MERGEINFO))
@@ -538,12 +540,14 @@ svn_client__copy_foreign(const char *url,
 
       if (!already_locked)
         SVN_WC__CALL_WITH_WRITE_LOCK(
-              svn_wc_add_from_disk2(ctx->wc_ctx, dst_abspath, props,
+              svn_wc_add_from_disk3(ctx->wc_ctx, dst_abspath, props,
+                                    TRUE /* skip checks */,
                                     ctx->notify_func2, ctx->notify_baton2,
                                     scratch_pool),
               ctx->wc_ctx, dir_abspath, FALSE, scratch_pool);
       else
-        SVN_ERR(svn_wc_add_from_disk2(ctx->wc_ctx, dst_abspath, props,
+        SVN_ERR(svn_wc_add_from_disk3(ctx->wc_ctx, dst_abspath, props,
+                                      TRUE /* skip checks */,
                                       ctx->notify_func2, ctx->notify_baton2,
                                       scratch_pool));
     }

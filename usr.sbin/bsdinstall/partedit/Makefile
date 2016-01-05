@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BINDIR= /usr/libexec/bsdinstall
+BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	partedit
 LINKS= ${BINDIR}/partedit ${BINDIR}/autopart \
        ${BINDIR}/partedit ${BINDIR}/scriptedpart

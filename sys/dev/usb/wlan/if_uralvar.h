@@ -73,7 +73,7 @@ typedef STAILQ_HEAD(, ural_tx_data) ural_txdhead;
 
 struct ural_vap {
 	struct ieee80211vap		vap;
-	struct ieee80211_beacon_offsets	bo;
+
 	struct usb_callout		ratectl_ch;
 	struct task			ratectl_task;
 
@@ -125,10 +125,7 @@ struct ural_softc {
 	int				nb_ant;
 
 	struct ural_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
 	struct ural_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define RAL_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)

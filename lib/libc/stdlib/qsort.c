@@ -64,9 +64,7 @@ static inline void	 swapfunc(char *, char *, int, int, int);
 	es % sizeof(TYPE) ? 2 : es == sizeof(TYPE) ? 0 : 1;
 
 static inline void
-swapfunc(a, b, n, swaptype_long, swaptype_int)
-	char *a, *b;
-	int n, swaptype_long, swaptype_int;
+swapfunc( char *a, char *b, int n, int swaptype_long, int swaptype_int)
 {
 	if (swaptype_long <= 1)
 		swapcode(long, a, b, n)

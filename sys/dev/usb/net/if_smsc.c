@@ -1707,7 +1707,7 @@ smsc_attach_post_sub(struct usb_ether *ue)
 	/* The chip supports TCP/UDP checksum offloading on TX and RX paths, however
 	 * currently only RX checksum is supported in the driver (see top of file).
 	 */
-	ifp->if_capabilities |= IFCAP_RXCSUM;
+	ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_hwassist = 0;
 	
 	/* TX checksuming is disabled (for now?)
@@ -1858,3 +1858,4 @@ MODULE_DEPEND(smsc, usb, 1, 1, 1);
 MODULE_DEPEND(smsc, ether, 1, 1, 1);
 MODULE_DEPEND(smsc, miibus, 1, 1, 1);
 MODULE_VERSION(smsc, 1);
+USB_PNP_HOST_INFO(smsc_devs);

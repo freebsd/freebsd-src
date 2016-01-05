@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 MAKE_PRINT_VAR_ON_ERROR+= \
 	.CURDIR \
 	.MAKE \
@@ -13,6 +13,7 @@ MAKE_PRINT_VAR_ON_ERROR+= \
 	MAKEOBJDIRPREFIX \
 	MAKESYSPATH \
 	MAKE_VERSION\
+	PATH \
 	SRCTOP \
 	OBJTOP \
 	${MAKE_PRINT_VAR_ON_ERROR_XTRAS}
@@ -23,3 +24,15 @@ MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
 .endif
 
 .include "src.sys.mk"
+
+.if ${.MAKE.MODE:Unormal:Mmeta*} != ""
+# we can afford to use cookies to prevent some targets
+# re-running needlessly
+META_COOKIE_TOUCH= touch ${COOKIE.${.TARGET}:U${.OBJDIR}/${.TARGET}}
+# some targets need to be .PHONY - but not in meta mode
+META_NOPHONY=
+.else
+META_COOKIE_TOUCH=
+META_NOPHONY= .PHONY
+.endif
+

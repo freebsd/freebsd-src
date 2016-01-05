@@ -247,6 +247,13 @@ char * os_readfile(const char *name, size_t *len);
 int os_file_exists(const char *fname);
 
 /**
+ * os_fdatasync - Sync a file's (for a given stream) state with storage device
+ * @stream: the stream to be flushed
+ * Returns: 0 if the operation succeeded or -1 on failure
+ */
+int os_fdatasync(FILE *stream);
+
+/**
  * os_zalloc - Allocate and zero memory
  * @size: Number of bytes to allocate
  * Returns: Pointer to allocated and zeroed memory or %NULL on failure
@@ -645,5 +652,13 @@ int os_exec(const char *program, const char *arg, int wait_completion);
 
 #define strcpy OS_DO_NOT_USE_strcpy
 #endif /* OS_REJECT_C_LIB_FUNCTIONS */
+
+
+#if defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS)
+#define TEST_FAIL() testing_test_fail()
+int testing_test_fail(void);
+#else
+#define TEST_FAIL() 0
+#endif
 
 #endif /* OS_H */
