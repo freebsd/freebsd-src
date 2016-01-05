@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -43,6 +43,7 @@ extern char *prproto[];
 extern char *eqproto;
 extern char *hproto;
 extern char *wproto;
+extern char *every_first_cmd;
 extern IFILE curr_ifile;
 extern char version[];
 extern int jump_sline;
@@ -58,6 +59,7 @@ extern int logfile;
 #if TAGS
 public char *tagoption = NULL;
 extern char *tags;
+extern char ztags[];
 #endif
 #if MSDOS_COMPILER
 extern int nm_fg_color, nm_bg_color;
@@ -87,7 +89,7 @@ opt_o(type, s)
 	switch (type)
 	{
 	case INIT:
-		namelogfile = s;
+		namelogfile = save(s);
 		break;
 	case TOGGLE:
 		if (ch_getflags() & CH_CANSEEK)
@@ -101,6 +103,8 @@ opt_o(type, s)
 			return;
 		}
 		s = skipsp(s);
+		if (namelogfile != NULL)
+			free(namelogfile);
 		namelogfile = lglob(s);
 		use_logfile(namelogfile);
 		sync_logfile();
@@ -176,7 +180,7 @@ opt_j(type, s)
 		{
 
 			sprintf(buf, ".%06d", jump_sline_fraction);
-			len = strlen(buf);
+			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
 			buf[len] = '\0';
@@ -241,7 +245,7 @@ opt_shift(type, s)
 		{
 
 			sprintf(buf, ".%06d", shift_count_fraction);
-			len = strlen(buf);
+			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
 			buf[len] = '\0';
@@ -295,7 +299,7 @@ opt_t(type, s)
 	switch (type)
 	{
 	case INIT:
-		tagoption = s;
+		tagoption = save(s);
 		/* Do the rest in main() */
 		break;
 	case TOGGLE:
@@ -335,10 +339,12 @@ opt__T(type, s)
 	switch (type)
 	{
 	case INIT:
-		tags = s;
+		tags = save(s);
 		break;
 	case TOGGLE:
 		s = skipsp(s);
+		if (tags != NULL && tags != ztags)
+			free(tags);
 		tags = lglob(s);
 		break;
 	case QUERY:
@@ -361,18 +367,26 @@ opt_p(type, s)
 	{
 	case INIT:
 		/*
-		 * Unget a search command for the specified string.
-		 * {{ This won't work if the "/" command is
-		 *    changed or invalidated by a .lesskey file. }}
+		 * Unget a command for the specified string.
 		 */
-		plusoption = TRUE;
-		ungetsc(s);
-		/*
-		 * In "more" mode, the -p argument is a command,
-		 * not a search string, so we don't need a slash.
-		 */
-		if (!less_is_more)
+		if (less_is_more)
+		{
+			/*
+			 * In "more" mode, the -p argument is a command,
+			 * not a search string, so we don't need a slash.
+			 */
+			every_first_cmd = save(s);
+		} else
+		{
+			plusoption = TRUE;
+			ungetcc(CHAR_END_COMMAND);
+			ungetsc(s);
+			 /*
+			  * {{ This won't work if the "/" command is
+			  *    changed or invalidated by a .lesskey file. }}
+			  */
 			ungetsc("/");
+		}
 		break;
 	}
 }
@@ -503,7 +517,7 @@ opt__V(type, s)
 		putstr("no ");
 #endif
 		putstr("regular expressions)\n");
-		putstr("Copyright (C) 1984-2012 Mark Nudelman\n\n");
+		putstr("Copyright (C) 1984-2015  Mark Nudelman\n\n");
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");
