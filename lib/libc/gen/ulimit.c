@@ -58,7 +58,6 @@ ulimit(int cmd, ...)
 		if (arg > RLIM_INFINITY / 512)
 			arg = RLIM_INFINITY / 512;
 		limit.rlim_max = limit.rlim_cur = arg * 512;
-		limit.rlim_max = limit.rlim_cur = arg * 512;
 
 		/* The setrlimit() function sets errno to EPERM if needed. */
 		if (setrlimit(RLIMIT_FSIZE, &limit) == -1)
