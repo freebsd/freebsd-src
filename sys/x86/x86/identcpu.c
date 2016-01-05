@@ -894,6 +894,8 @@ printcpuinfo(void)
 				       "\005HLE"
 				       /* Advanced Vector Instructions 2 */
 				       "\006AVX2"
+				       /* FDP_EXCPTN_ONLY */
+				       "\007FDPEXC"
 				       /* Supervisor Mode Execution Prot. */
 				       "\010SMEP"
 				       /* Bit Manipulation Instructions */
