@@ -70,6 +70,7 @@ void ioat_put_dmaengine(bus_dmaengine_t dmaengine);
 
 /* Check the DMA engine's HW version */
 int ioat_get_hwversion(bus_dmaengine_t dmaengine);
+size_t ioat_get_max_io_size(bus_dmaengine_t dmaengine);
 
 /*
  * Set interrupt coalescing on a DMA channel.

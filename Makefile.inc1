@@ -1317,27 +1317,43 @@ packagekernel:
 .if defined(NO_ROOT)
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
+	    tar cvf - --exclude '*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvf - --include '*/*/*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
+	    tar cvf - --exclude '*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvf - --include '*/*/*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endfor
 .endif
 .else
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - . | \
+	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - . | \
+	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endfor
 .endif
 .endif
