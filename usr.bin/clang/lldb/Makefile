@@ -16,7 +16,7 @@ SRCS=	Driver.cpp \
 # Man page directory
 .PATH: ${LLDB_SRCS}/docs
 
-LIBADD=	edit panel ncursesw execinfo z
+LIBADD+=	edit panel ncursesw execinfo z
 
 LLDB_LIBS=\
 	lldb \

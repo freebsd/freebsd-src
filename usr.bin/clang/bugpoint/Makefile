@@ -40,4 +40,6 @@ LIBDEPS=llvmcodegen \
 	llvmcore \
 	llvmsupport
 
+LIBADD+=	z
+
 .include "../clang.prog.mk"
