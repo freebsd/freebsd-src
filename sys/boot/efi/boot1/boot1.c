@@ -132,8 +132,7 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 	conout->Reset(conout, TRUE);
 	max_dim = best_mode = 0;
 	for (i = 0; ; i++) {
-		status = conout->QueryMode(conout, i,
-		    &cols, &rows);
+		status = conout->QueryMode(conout, i, &cols, &rows);
 		if (EFI_ERROR(status))
 			break;
 		if (cols * rows > max_dim) {
