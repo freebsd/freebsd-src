@@ -47,6 +47,7 @@ INCS=	__clang_cuda_runtime_wrapper.h \
 	mmintrin.h \
 	module.modulemap \
 	nmmintrin.h \
+	pkuintrin.h \
 	pmmintrin.h \
 	popcntintrin.h \
 	prfchwintrin.h \

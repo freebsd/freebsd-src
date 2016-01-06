@@ -1100,6 +1100,7 @@ OLD_FILES+=usr/lib/clang/3.8.0/include/mm_malloc.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/mmintrin.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/module.modulemap
 OLD_FILES+=usr/lib/clang/3.8.0/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.8.0/include/pkuintrin.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/pmmintrin.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/popcntintrin.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/prfchwintrin.h
