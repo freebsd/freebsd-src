@@ -1,0 +1,13 @@
+add_lldb_library(lldbPluginObjCLanguage
+  ObjCLanguage.cpp
+  CF.cpp
+  Cocoa.cpp
+  CoreMedia.cpp
+  NSArray.cpp
+  NSDictionary.cpp
+  NSError.cpp
+  NSException.cpp
+  NSIndexPath.cpp
+  NSSet.cpp
+  NSString.cpp
+)
