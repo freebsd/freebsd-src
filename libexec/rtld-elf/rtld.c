@@ -435,7 +435,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     trust = !issetugid();
 
-    md_abi_variant_hook(aux_info);
+/*  md_abi_variant_hook(aux_info); */
 
     ld_bind_now = getenv(_LD("BIND_NOW"));
     /* 
@@ -1144,13 +1144,13 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	 * is mapped read-only. DT_MIPS_RLD_MAP is used instead.
 	 */
 
-#ifndef __mips__
 	case DT_DEBUG:
+	    if (!obj->writable_dynamic)
+		break;
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
 	    break;
-#endif
 
 	case DT_FLAGS:
 		if (dynp->d_un.d_val & DF_ORIGIN)
@@ -1331,6 +1331,8 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 
 	case PT_DYNAMIC:
+	    if (ph->p_flags & PROT_WRITE)
+		obj->writable_dynamic = true;
 	    obj->dynamic = (const Elf_Dyn *)(ph->p_vaddr + obj->relocbase);
 	    break;
 
