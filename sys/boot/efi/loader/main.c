@@ -334,6 +334,7 @@ command_mode(int argc, char *argv[])
 	char rowenv[8];
 	EFI_STATUS status;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout;
+	extern void HO(void);
 
 	conout = ST->ConOut;
 
@@ -355,7 +356,7 @@ command_mode(int argc, char *argv[])
 		}
 		sprintf(rowenv, "%u", (unsigned)rows);
 		setenv("LINES", rowenv, 1);
-
+		HO();		/* set cursor */
 		return (CMD_OK);
 	}
 
