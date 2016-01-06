@@ -69,7 +69,7 @@ private:
   }
   int getPhdrsNum() const;
 
-  OutputSection<ELFT> *getBSS();
+  OutputSection<ELFT> *getBss();
   void addCommonSymbols(std::vector<DefinedCommon *> &Syms);
   void addCopyRelSymbols(std::vector<SharedSymbol<ELFT> *> &Syms);
 
@@ -330,18 +330,17 @@ void Writer<ELFT>::scanRelocs(InputSectionBase<ELFT> &S,
 }
 
 template <class ELFT>
-static void reportUndefined(const SymbolTable<ELFT> &S, const SymbolBody &Sym) {
+static void reportUndefined(SymbolTable<ELFT> &Symtab, SymbolBody *Sym) {
   if (Config->Shared && !Config->NoUndefined)
     return;
 
-  ELFFileBase<ELFT> *SymFile = findFile<ELFT>(S.getObjectFiles(), &Sym);
-  std::string Message = "undefined symbol: " + Sym.getName().str();
-  if (SymFile)
-    Message += " in " + SymFile->getName().str();
+  std::string Msg = "undefined symbol: " + Sym->getName().str();
+  if (ELFFileBase<ELFT> *File = Symtab.findFile(Sym))
+    Msg += " in " + File->getName().str();
   if (Config->NoInhibitExec)
-    warning(Message);
+    warning(Msg);
   else
-    error(Message);
+    error(Msg);
 }
 
 // Local symbols are not in the linker's symbol table. This function scans
@@ -466,7 +465,7 @@ static bool compareOutputSections(OutputSectionBase<ELFT> *A,
   return false;
 }
 
-template <class ELFT> OutputSection<ELFT> *Writer<ELFT>::getBSS() {
+template <class ELFT> OutputSection<ELFT> *Writer<ELFT>::getBss() {
   if (!Out<ELFT>::Bss) {
     Out<ELFT>::Bss =
         new OutputSection<ELFT>(".bss", SHT_NOBITS, SHF_ALLOC | SHF_WRITE);
@@ -480,8 +479,6 @@ template <class ELFT> OutputSection<ELFT> *Writer<ELFT>::getBSS() {
 // This function adds them to end of BSS section.
 template <class ELFT>
 void Writer<ELFT>::addCommonSymbols(std::vector<DefinedCommon *> &Syms) {
-  typedef typename ELFFile<ELFT>::uintX_t uintX_t;
-
   if (Syms.empty())
     return;
 
@@ -491,11 +488,11 @@ void Writer<ELFT>::addCommonSymbols(std::vector<DefinedCommon *> &Syms) {
                      return A->MaxAlignment > B->MaxAlignment;
                    });
 
-  uintX_t Off = getBSS()->getSize();
+  uintX_t Off = getBss()->getSize();
   for (DefinedCommon *C : Syms) {
     uintX_t Align = C->MaxAlignment;
     Off = RoundUpToAlignment(Off, Align);
-    C->OffsetInBSS = Off;
+    C->OffsetInBss = Off;
     Off += C->Size;
   }
 
@@ -507,7 +504,7 @@ template <class ELFT>
 void Writer<ELFT>::addCopyRelSymbols(std::vector<SharedSymbol<ELFT> *> &Syms) {
   if (Syms.empty())
     return;
-  uintX_t Off = getBSS()->getSize();
+  uintX_t Off = getBss()->getSize();
   for (SharedSymbol<ELFT> *C : Syms) {
     const Elf_Sym &Sym = C->Sym;
     const Elf_Shdr *Sec = C->File->getSection(Sym);
@@ -518,7 +515,7 @@ void Writer<ELFT>::addCopyRelSymbols(std::vector<SharedSymbol<ELFT> *> &Syms) {
     uintX_t Align = 1 << TrailingZeros;
     Out<ELFT>::Bss->updateAlign(Align);
     Off = RoundUpToAlignment(Off, Align);
-    C->OffsetInBSS = Off;
+    C->OffsetInBss = Off;
     Off += Sym.st_size;
   }
   Out<ELFT>::Bss->setSize(Off);
@@ -803,7 +800,7 @@ template <class ELFT> void Writer<ELFT>::createSections() {
     SymbolBody *Body = P.second->Body;
     if (auto *U = dyn_cast<Undefined>(Body))
       if (!U->isWeak() && !U->canKeepUndefined())
-        reportUndefined<ELFT>(Symtab, *Body);
+        reportUndefined<ELFT>(Symtab, Body);
 
     if (auto *C = dyn_cast<DefinedCommon>(Body))
       CommonSymbols.push_back(C);
@@ -958,10 +955,12 @@ void Writer<ELFT>::addStartStopSymbols(OutputSectionBase<ELFT> *Sec) {
   StringSaver Saver(Alloc);
   StringRef Start = Saver.save("__start_" + S);
   StringRef Stop = Saver.save("__stop_" + S);
-  if (Symtab.isUndefined(Start))
-    Symtab.addSynthetic(Start, *Sec, 0);
-  if (Symtab.isUndefined(Stop))
-    Symtab.addSynthetic(Stop, *Sec, Sec->getSize());
+  if (SymbolBody *B = Symtab.find(Start))
+    if (B->isUndefined())
+      Symtab.addSynthetic(Start, *Sec, 0);
+  if (SymbolBody *B = Symtab.find(Stop))
+    if (B->isUndefined())
+      Symtab.addSynthetic(Stop, *Sec, Sec->getSize());
 }
 
 template <class ELFT> static bool needsPhdr(OutputSectionBase<ELFT> *Sec) {
@@ -1016,7 +1015,7 @@ template <class ELFT> void Writer<ELFT>::assignAddresses() {
   Elf_Phdr GnuRelroPhdr = {};
   Elf_Phdr TlsPhdr{};
   bool RelroAligned = false;
-  uintX_t ThreadBSSOffset = 0;
+  uintX_t ThreadBssOffset = 0;
   // Create phdrs as we assign VAs and file offsets to all output sections.
   for (OutputSectionBase<ELFT> *Sec : OutputSections) {
     Elf_Phdr *PH = &Phdrs[PhdrIdx];
@@ -1042,11 +1041,11 @@ template <class ELFT> void Writer<ELFT>::assignAddresses() {
           setPhdr(&TlsPhdr, PT_TLS, PF_R, FileOff, VA, 0, Sec->getAlign());
         if (Sec->getType() != SHT_NOBITS)
           VA = RoundUpToAlignment(VA, Sec->getAlign());
-        uintX_t TVA = RoundUpToAlignment(VA + ThreadBSSOffset, Sec->getAlign());
+        uintX_t TVA = RoundUpToAlignment(VA + ThreadBssOffset, Sec->getAlign());
         Sec->setVA(TVA);
         TlsPhdr.p_memsz += Sec->getSize();
         if (Sec->getType() == SHT_NOBITS) {
-          ThreadBSSOffset = TVA - VA + Sec->getSize();
+          ThreadBssOffset = TVA - VA + Sec->getSize();
         } else {
           TlsPhdr.p_filesz += Sec->getSize();
           VA += Sec->getSize();
