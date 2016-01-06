@@ -67,7 +67,7 @@ main(int argc, char *argv[])
 {
 	struct utmpx utx;
 	const struct passwd *pw;
-	int ch, howto, i, fd, lflag, nflag, qflag, sverrno;
+	int ch, howto, i, fd, lflag, nflag, qflag, sverrno, Nflag;
 	u_int pageins;
 	const char *user, *kernel = NULL;
 
@@ -76,8 +76,8 @@ main(int argc, char *argv[])
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "dk:lnpq")) != -1)
+	lflag = nflag = qflag = Nflag = 0;
+	while ((ch = getopt(argc, argv, "dk:lNnpq")) != -1)
 		switch(ch) {
 		case 'd':
 			howto |= RB_DUMP;
@@ -91,6 +91,10 @@ main(int argc, char *argv[])
 		case 'n':
 			nflag = 1;
 			howto |= RB_NOSYNC;
+			break;
+		case 'N':
+			nflag = 1;
+			Nflag = 1;
 			break;
 		case 'p':
 			howto |= RB_POWEROFF;
@@ -107,6 +111,8 @@ main(int argc, char *argv[])
 
 	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
 		errx(1, "cannot dump (-d) when halting; must reboot instead");
+	if (Nflag && (howto & RB_NOSYNC) != 0)
+		errx(1, "-N cannot be used with -n");
 	if (geteuid()) {
 		errno = EPERM;
 		err(1, NULL);
