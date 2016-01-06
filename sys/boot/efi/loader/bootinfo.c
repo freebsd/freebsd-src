@@ -290,7 +290,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		     pages, &addr);
 		if (EFI_ERROR(status)) {
 			printf("%s: AllocatePages error %lu\n", __func__,
-			    (unsigned long)(status & ~EFI_ERROR_MASK));
+			    EFI_ERROR_CODE(status));
 			return (ENOMEM);
 		}
 
@@ -306,7 +306,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
 		if (EFI_ERROR(status)) {
 			printf("%s: GetMemoryMap error %lu\n", __func__,
-			    (unsigned long)(status & ~EFI_ERROR_MASK));
+			    EFI_ERROR_CODE(status));
 			return (EINVAL);
 		}
 		status = BS->ExitBootServices(IH, efi_mapkey);
@@ -320,8 +320,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		}
 		BS->FreePages(addr, pages);
 	}
-	printf("ExitBootServices error %lu\n",
-	    (unsigned long)(status & ~EFI_ERROR_MASK));
+	printf("ExitBootServices error %lu\n", EFI_ERROR_CODE(status));
 	return (EINVAL);
 }
 
