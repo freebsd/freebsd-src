@@ -89,7 +89,7 @@ PyInit__lldb(void);
 #define LLDBSwigPyInit PyInit__lldb
 
 #else
-extern "C" void 
+extern "C" void
 init_lldb(void);
 
 #define LLDBSwigPyInit init_lldb
@@ -286,7 +286,7 @@ SystemInitializerFull::Initialize()
     EmulateInstructionARM64::Initialize();
     SymbolFileDWARFDebugMap::Initialize();
     ItaniumABILanguageRuntime::Initialize();
-    
+
     CPlusPlusLanguage::Initialize();
 
 #if defined(_MSC_VER)
@@ -394,7 +394,7 @@ SystemInitializerFull::Terminate()
     ItaniumABILanguageRuntime::Terminate();
 
     CPlusPlusLanguage::Terminate();
-    
+
 #if defined(__APPLE__)
     ProcessMachCore::Terminate();
     ProcessKDP::Terminate();
