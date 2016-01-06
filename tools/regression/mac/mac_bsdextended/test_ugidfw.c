@@ -33,24 +33,19 @@
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
 #include <err.h>
+#include <errno.h>
 #include <grp.h>
 #include <pwd.h>
-#include <ugidfw.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ugidfw.h>
+#include <unistd.h>
 
 /*
  * Starting point for a regression test for mac_bsdextended(4) and the
  * supporting libugidfw(3).
  */
-void
-usage(void)
-{
-
-	fprintf(stderr, "test_ugidfw\n");
-	exit(-1);
-}
 
 /*
  * This section of the regression test passes some test cases through the
@@ -68,7 +63,6 @@ static const char *test_users[] = {
 	"operator",
 	"bin",
 };
-static const int test_users_len = sizeof(test_users) / sizeof(char *);
 
 static const char *test_groups[] = {
 	"wheel",
@@ -76,7 +70,8 @@ static const char *test_groups[] = {
 	"operator",
 	"bin",
 };
-static const int test_groups_len = sizeof(test_groups) / sizeof(char *);
+
+int test_num;
 
 /*
  * List of test strings that must go in (and come out) of libugidfw intact.
@@ -147,7 +142,6 @@ static const char *test_strings[] = {
 	    "object ! uid root:daemon gid daemon filesys / suid sgid uid_of_subject gid_of_subject ! type r "
 	    "mode rsx",
 };
-static const int test_strings_len = sizeof(test_strings) / sizeof(char *);
 
 static void
 test_libugidfw_strings(void)
@@ -155,51 +149,67 @@ test_libugidfw_strings(void)
 	struct mac_bsdextended_rule rule;
 	char errorstr[256];
 	char rulestr[256];
-	int i, error;
+	int error, i;
 
-	for (i = 0; i < test_users_len; i++) {
+	for (i = 0; i < nitems(test_users); i++, test_num++) {
 		if (getpwnam(test_users[i]) == NULL)
-			err(-1, "test_libugidfw_strings: getpwnam: %s",
-			    test_users[i]);
+			printf("not ok %d # test_libugidfw_strings: getpwnam(%s) "
+			    "failed: %s\n", test_num, test_users[i], strerror(errno));
+		else
+			printf("ok %d\n", test_num);
 	}
 
-	for (i = 0; i < test_groups_len; i++) {
+	for (i = 0; i < nitems(test_groups); i++, test_num++) {
 		if (getgrnam(test_groups[i]) == NULL)
-			err(-1, "test_libugidfw_strings: getgrnam: %s",
-			    test_groups[i]);
+			printf("not ok %d # test_libugidfw_strings: getgrnam(%s) "
+			    "failed: %s\n", test_num, test_groups[i], strerror(errno));
+		else
+			printf("ok %d\n", test_num);
 	}
 
-	for (i = 0; i < test_strings_len; i++) {
+	for (i = 0; i < nitems(test_strings); i++) {
 		error = bsde_parse_rule_string(test_strings[i], &rule,
 		    sizeof(errorstr), errorstr);
 		if (error == -1)
-			errx(-1, "bsde_parse_rule_string: '%s' (%d): %s",
-			    test_strings[i], i, errorstr);
+			printf("not ok %d # bsde_parse_rule_string: '%s' (%d) "
+			    "failed: %s\n", test_num, test_strings[i], i, errorstr);
+		else
+			printf("ok %d\n", test_num);
+		test_num++;
+
 		error = bsde_rule_to_string(&rule, rulestr, sizeof(rulestr));
 		if (error < 0)
-			errx(-1, "bsde_rule_to_string: rule for '%s' "
-			    "returned %d", test_strings[i], error);
+			printf("not ok %d # bsde_rule_to_string: rule for '%s' "
+			    "returned %d\n", test_num, test_strings[i], error);
+		else
+			printf("ok %d\n", test_num);
+		test_num++;
 
 		if (strcmp(test_strings[i], rulestr) != 0)
-			errx(-1, "test_libugidfw: '%s' in, '%s' out",
-			    test_strings[i], rulestr);
+			printf("not ok %d # test_libugidfw: '%s' in, '%s' "
+			    "out\n", test_num, test_strings[i], rulestr);
+		else
+			printf("ok %d\n", test_num);
+		test_num++;
 	}
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	char errorstr[256];
 	int count, slots;
 
-	if (argc != 1)
-		usage();
+	test_num = 1;
 
 	/* Print an error if a non-root user attemps to run the tests. */
 	if (getuid() != 0) {
-		fprintf(stderr, "Error!  Only root may run this utility\n");
-		return (EXIT_FAILURE);
+		printf("1..0 # SKIP you must be root\n");
+		return (0);
 	}
+
+	printf("1..%lu\n", nitems(test_users) + nitems(test_groups) +
+	    3 * nitems(test_strings) + 2);
 
 	/*
 	 * We can test some parts of the library without the MAC Framework
@@ -210,12 +220,15 @@ main(int argc, char *argv[])
 
 	switch (mac_is_present("bsdextended")) {
 	case -1:
-		err(-1, "mac_is_present");
+		printf("1..0 # SKIP mac_is_present failed: %s\n",
+		    strerror(errno));
+		return (0);
 	case 1:
 		break;
 	case 0:
 	default:
-		errx(-1, "mac_bsdextended not loaded");
+		printf("1..0 # SKIP mac_bsdextended not loaded\n");
+		return (0);
 	}
 
 	/*
@@ -226,13 +239,19 @@ main(int argc, char *argv[])
 	 */
 	count = bsde_get_rule_count(sizeof(errorstr), errorstr);
 	if (count == -1)
-		errx(-1, "bsde_get_rule_count: %s", errorstr);
-	if (count != 0)
-		errx(-1, "bsde_get_rule_count: %d rules", count);
+		printf("not ok %d # bsde_get_rule_count: %s\n", test_num,
+		    errorstr);
+	else
+		printf("ok %d\n", test_num);
+
+	test_num++;
 
 	slots = bsde_get_rule_slots(sizeof(errorstr), errorstr);
 	if (slots == -1)
-		errx(-1, "bsde_get_rule_slots: %s", errorstr);
+		printf("not ok %d # bsde_get_rule_slots: %s\n", test_num,
+		    errorstr);
+	else
+		printf("ok %d\n", test_num);
 
 	return (0);
 }
