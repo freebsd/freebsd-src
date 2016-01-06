@@ -37,6 +37,7 @@ namespace libunwind {
 #if _LIBUNWIND_ARM_EHABI
 #if defined(__FreeBSD__)
 
+#include <sys/link_elf.h>
 typedef void *_Unwind_Ptr;
 
 #elif defined(__linux__)
