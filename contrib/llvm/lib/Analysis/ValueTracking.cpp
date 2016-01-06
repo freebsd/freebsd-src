@@ -1743,9 +1743,10 @@ bool isKnownToBeAPowerOfTwo(Value *V, bool OrZero, unsigned Depth,
     return false;
 
   Value *X = nullptr, *Y = nullptr;
-  // A shift of a power of two is a power of two or zero.
+  // A shift left or a logical shift right of a power of two is a power of two
+  // or zero.
   if (OrZero && (match(V, m_Shl(m_Value(X), m_Value())) ||
-                 match(V, m_Shr(m_Value(X), m_Value()))))
+                 match(V, m_LShr(m_Value(X), m_Value()))))
     return isKnownToBeAPowerOfTwo(X, /*OrZero*/ true, Depth, Q, DL);
 
   if (ZExtInst *ZI = dyn_cast<ZExtInst>(V))
@@ -2829,7 +2830,12 @@ Value *llvm::GetPointerBaseWithConstantOffset(Value *Ptr, int64_t &Offset,
                                               const DataLayout &DL) {
   unsigned BitWidth = DL.getPointerTypeSizeInBits(Ptr->getType());
   APInt ByteOffset(BitWidth, 0);
-  while (1) {
+
+  // We walk up the defs but use a visited set to handle unreachable code. In
+  // that case, we stop after accumulating the cycle once (not that it
+  // matters).
+  SmallPtrSet<Value *, 16> Visited;
+  while (Visited.insert(Ptr).second) {
     if (Ptr->getType()->isVectorTy())
       break;
 
@@ -3268,12 +3274,9 @@ static bool isDereferenceableAndAlignedPointer(
   }
 
   // For gc.relocate, look through relocations
-  if (const IntrinsicInst *I = dyn_cast<IntrinsicInst>(V))
-    if (I->getIntrinsicID() == Intrinsic::experimental_gc_relocate) {
-      GCRelocateOperands RelocateInst(I);
-      return isDereferenceableAndAlignedPointer(
-          RelocateInst.getDerivedPtr(), Align, DL, CtxI, DT, TLI, Visited);
-    }
+  if (const GCRelocateInst *RelocateInst = dyn_cast<GCRelocateInst>(V))
+    return isDereferenceableAndAlignedPointer(
+        RelocateInst->getDerivedPtr(), Align, DL, CtxI, DT, TLI, Visited);
 
   if (const AddrSpaceCastInst *ASC = dyn_cast<AddrSpaceCastInst>(V))
     return isDereferenceableAndAlignedPointer(ASC->getOperand(0), Align, DL,
@@ -3473,10 +3476,6 @@ bool llvm::isKnownNonNull(const Value *V, const TargetLibraryInfo *TLI) {
   if (auto CS = ImmutableCallSite(V))
     if (CS.isReturnNonNull())
       return true;
-
-  // operator new never returns null.
-  if (isOperatorNewLikeFn(V, TLI, /*LookThroughBitCast=*/true))
-    return true;
 
   return false;
 }
