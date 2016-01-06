@@ -14,6 +14,7 @@
 
 #include "X86AsmPrinter.h"
 #include "X86RegisterInfo.h"
+#include "X86ShuffleDecodeConstantPool.h"
 #include "InstPrinter/X86ATTInstPrinter.h"
 #include "MCTargetDesc/X86BaseInfo.h"
 #include "Utils/X86ShuffleDecode.h"
@@ -452,10 +453,6 @@ ReSimplify:
            "Unexpected # of LEA operands");
     assert(OutMI.getOperand(1+X86::AddrSegmentReg).getReg() == 0 &&
            "LEA has segment specified!");
-    break;
-
-  case X86::MOV32ri64:
-    OutMI.setOpcode(X86::MOV32ri);
     break;
 
   // Commute operands to get a smaller encoding by using VEX.R instead of VEX.B

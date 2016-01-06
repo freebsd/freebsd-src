@@ -498,10 +498,10 @@ let Predicates = [HasXSAVE] in {
 let Predicates = [HasXSAVEOPT] in {
   def XSAVEOPT : I<0xAE, MRM6m, (outs), (ins opaque512mem:$dst),
                    "xsaveopt\t$dst",
-                   [(int_x86_xsaveopt addr:$dst, EDX, EAX)]>, TB;
+                   [(int_x86_xsaveopt addr:$dst, EDX, EAX)]>, PS;
   def XSAVEOPT64 : RI<0xAE, MRM6m, (outs), (ins opaque512mem:$dst),
                       "xsaveopt64\t$dst",
-                      [(int_x86_xsaveopt64 addr:$dst, EDX, EAX)]>, TB, Requires<[In64BitMode]>;
+                      [(int_x86_xsaveopt64 addr:$dst, EDX, EAX)]>, PS, Requires<[In64BitMode]>;
 }
 let Predicates = [HasXSAVEC] in {
   def XSAVEC : I<0xC7, MRM4m, (outs), (ins opaque512mem:$dst),
@@ -551,10 +551,17 @@ let Defs = [RAX, RDX, RSI], Uses = [RAX, RSI] in
   def MONTMUL : I<0xa6, MRM_C0, (outs), (ins), "montmul", []>, TB;
 //==-----------------------------------------------------------------------===//
 // PKU  - enable protection key
+let usesCustomInserter = 1 in {
+  def WRPKRU : PseudoI<(outs), (ins GR32:$src),
+                [(int_x86_wrpkru GR32:$src)]>;
+  def RDPKRU : PseudoI<(outs GR32:$dst), (ins),
+                [(set GR32:$dst, (int_x86_rdpkru))]>;
+}
+
 let Defs = [EAX, EDX], Uses = [ECX] in 
-  def RDPKRU : I<0x01, MRM_EE, (outs), (ins), "rdpkru", []>, TB;
+  def RDPKRUr : I<0x01, MRM_EE, (outs), (ins), "rdpkru", []>, TB;
 let Uses = [EAX, ECX, EDX] in
-  def WRPKRU : I<0x01, MRM_EF, (outs), (ins), "wrpkru", []>, TB;
+  def WRPKRUr : I<0x01, MRM_EF, (outs), (ins), "wrpkru", []>, TB;
 
 //===----------------------------------------------------------------------===//
 // FS/GS Base Instructions

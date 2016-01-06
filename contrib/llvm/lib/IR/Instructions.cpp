@@ -609,20 +609,6 @@ void InvokeInst::setSuccessorV(unsigned idx, BasicBlock *B) {
   return setSuccessor(idx, B);
 }
 
-bool InvokeInst::hasFnAttrImpl(Attribute::AttrKind A) const {
-  if (AttributeList.hasAttribute(AttributeSet::FunctionIndex, A))
-    return true;
-
-  // Operand bundles override attributes on the called function, but don't
-  // override attributes directly present on the invoke instruction.
-  if (isFnAttrDisallowedByOpBundle(A))
-    return false;
-
-  if (const Function *F = getCalledFunction())
-    return F->getAttributes().hasAttribute(AttributeSet::FunctionIndex, A);
-  return false;
-}
-
 bool InvokeInst::paramHasAttr(unsigned i, Attribute::AttrKind A) const {
   assert(i < (getNumArgOperands() + 1) && "Param index out of bounds!");
 
@@ -932,6 +918,17 @@ void CatchSwitchInst::addHandler(BasicBlock *Handler) {
   assert(OpNo < ReservedSpace && "Growing didn't work!");
   setNumHungOffUseOperands(getNumOperands() + 1);
   getOperandList()[OpNo] = Handler;
+}
+
+void CatchSwitchInst::removeHandler(handler_iterator HI) {
+  // Move all subsequent handlers up one.
+  Use *EndDst = op_end() - 1;
+  for (Use *CurDst = HI.getCurrent(); CurDst != EndDst; ++CurDst)
+    *CurDst = *(CurDst + 1);
+  // Null out the last handler use.
+  *EndDst = nullptr;
+
+  setNumHungOffUseOperands(getNumOperands() - 1);
 }
 
 BasicBlock *CatchSwitchInst::getSuccessorV(unsigned idx) const {
