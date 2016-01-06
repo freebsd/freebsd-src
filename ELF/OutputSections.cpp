@@ -239,14 +239,13 @@ bool RelocationSection<ELFT>::applyTlsDynamicReloc(SymbolBody *Body,
 }
 
 template <class ELFT> void RelocationSection<ELFT>::writeTo(uint8_t *Buf) {
-  const unsigned EntrySize = IsRela ? sizeof(Elf_Rela) : sizeof(Elf_Rel);
   for (const DynamicReloc<ELFT> &Rel : Relocs) {
     auto *P = reinterpret_cast<Elf_Rel *>(Buf);
-    Buf += EntrySize;
+    Buf += IsRela ? sizeof(Elf_Rela) : sizeof(Elf_Rel);
 
     // Skip placeholder for global dynamic TLS relocation pair. It was already
     // handled by the previous relocation.
-    if (!Rel.C || !Rel.RI)
+    if (!Rel.C)
       continue;
 
     InputSectionBase<ELFT> &C = *Rel.C;
@@ -262,16 +261,16 @@ template <class ELFT> void RelocationSection<ELFT>::writeTo(uint8_t *Buf) {
       continue;
     bool NeedsCopy = Body && Target->needsCopyRel(Type, *Body);
     bool NeedsGot = Body && Target->relocNeedsGot(Type, *Body);
-    bool CanBePreempted = canBePreempted(Body, NeedsGot);
+    bool CBP = canBePreempted(Body, NeedsGot);
     bool LazyReloc = Body && Target->supportsLazyRelocations() &&
                      Target->relocNeedsPlt(Type, *Body);
     bool IsDynRelative = Type == Target->getRelativeReloc();
 
-    unsigned Sym = CanBePreempted ? Body->DynamicSymbolTableIndex : 0;
+    unsigned Sym = CBP ? Body->DynamicSymbolTableIndex : 0;
     unsigned Reloc;
-    if (!CanBePreempted && Body && isGnuIFunc<ELFT>(*Body))
+    if (!CBP && Body && isGnuIFunc<ELFT>(*Body))
       Reloc = Target->getIRelativeReloc();
-    else if (!CanBePreempted || IsDynRelative)
+    else if (!CBP || IsDynRelative)
       Reloc = Target->getRelativeReloc();
     else if (LazyReloc)
       Reloc = Target->getPltReloc();
@@ -289,7 +288,7 @@ template <class ELFT> void RelocationSection<ELFT>::writeTo(uint8_t *Buf) {
       P->r_offset = Out<ELFT>::Got->getEntryAddr(*Body);
     else if (NeedsCopy)
       P->r_offset = Out<ELFT>::Bss->getVA() +
-                    dyn_cast<SharedSymbol<ELFT>>(Body)->OffsetInBSS;
+                    cast<SharedSymbol<ELFT>>(Body)->OffsetInBss;
     else
       P->r_offset = C.getOffset(RI.r_offset) + C.OutSec->getVA();
 
@@ -300,7 +299,7 @@ template <class ELFT> void RelocationSection<ELFT>::writeTo(uint8_t *Buf) {
     uintX_t Addend;
     if (NeedsCopy)
       Addend = 0;
-    else if (CanBePreempted || IsDynRelative)
+    else if (CBP || IsDynRelative)
       Addend = OrigAddend;
     else if (Body)
       Addend = getSymVA<ELFT>(*Body) + OrigAddend;
@@ -640,6 +639,9 @@ template <class ELFT> void DynamicSection<ELFT>::finalize() {
   if (DtFlags1)
     ++NumEntries; // DT_FLAGS_1
 
+  if (!Config->Entry.empty())
+    ++NumEntries; // DT_DEBUG
+
   if (Config->EMachine == EM_MIPS) {
     ++NumEntries; // DT_MIPS_RLD_VERSION
     ++NumEntries; // DT_MIPS_FLAGS
@@ -738,6 +740,8 @@ template <class ELFT> void DynamicSection<ELFT>::writeTo(uint8_t *Buf) {
     WriteVal(DT_FLAGS, DtFlags);
   if (DtFlags1)
     WriteVal(DT_FLAGS_1, DtFlags1);
+  if (!Config->Entry.empty())
+    WriteVal(DT_DEBUG, 0);
 
   // See "Dynamic Section" in Chapter 5 in the following document
   // for detailed description:
@@ -799,11 +803,11 @@ typename ELFFile<ELFT>::uintX_t lld::elf2::getSymVA(const SymbolBody &S) {
     return SC->OutSec->getVA() + SC->getOffset(DR.Sym);
   }
   case SymbolBody::DefinedCommonKind:
-    return Out<ELFT>::Bss->getVA() + cast<DefinedCommon>(S).OffsetInBSS;
+    return Out<ELFT>::Bss->getVA() + cast<DefinedCommon>(S).OffsetInBss;
   case SymbolBody::SharedKind: {
     auto &SS = cast<SharedSymbol<ELFT>>(S);
     if (SS.NeedsCopy)
-      return Out<ELFT>::Bss->getVA() + SS.OffsetInBSS;
+      return Out<ELFT>::Bss->getVA() + SS.OffsetInBss;
     return 0;
   }
   case SymbolBody::UndefinedElfKind:
@@ -1119,9 +1123,9 @@ void MergeOutputSection<ELFT>::addSection(InputSectionBase<ELFT> *C) {
   ArrayRef<uint8_t> D = S->getSectionData();
   StringRef Data((const char *)D.data(), D.size());
   uintX_t EntSize = S->getSectionHdr()->sh_entsize;
-  uintX_t Offset = 0;
 
   if (this->Header.sh_flags & SHF_STRINGS) {
+    uintX_t Offset = 0;
     while (!Data.empty()) {
       size_t End = findNull(Data, EntSize);
       if (End == StringRef::npos)
@@ -1139,8 +1143,7 @@ void MergeOutputSection<ELFT>::addSection(InputSectionBase<ELFT> *C) {
     for (unsigned I = 0, N = Data.size(); I != N; I += EntSize) {
       StringRef Entry = Data.substr(I, EntSize);
       size_t OutputOffset = Builder.add(Entry);
-      S->Offsets.push_back(std::make_pair(Offset, OutputOffset));
-      Offset += EntSize;
+      S->Offsets.push_back(std::make_pair(I, OutputOffset));
     }
   }
 }
