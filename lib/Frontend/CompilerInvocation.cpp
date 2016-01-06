@@ -8,13 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "TestModuleFileExtension.h"
-#include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/Util.h"
+#include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/LangStandard.h"
 #include "clang/Frontend/Utils.h"
@@ -133,6 +134,20 @@ static void addDiagnosticArgs(ArgList &Args, OptSpecifier Group,
         Diagnostics.emplace_back(Arg);
     }
   }
+}
+
+static void getAllNoBuiltinFuncValues(ArgList &Args,
+                                      std::vector<std::string> &Funcs) {
+  SmallVector<const char *, 8> Values;
+  for (const auto &Arg : Args) {
+    const Option &O = Arg->getOption();
+    if (O.matches(options::OPT_fno_builtin_)) {
+      const char *FuncName = Arg->getValue();
+      if (Builtin::Context::isBuiltinFunc(FuncName))
+        Values.push_back(FuncName);
+    }
+  }
+  Funcs.insert(Funcs.end(), Values.begin(), Values.end());
 }
 
 static bool ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
@@ -399,18 +414,29 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   }
 
   if (Arg *A = Args.getLastArg(OPT_debug_info_kind_EQ)) {
-    Opts.setDebugInfo(
-        llvm::StringSwitch<CodeGenOptions::DebugInfoKind>(A->getValue())
+    unsigned Val =
+        llvm::StringSwitch<unsigned>(A->getValue())
             .Case("line-tables-only", CodeGenOptions::DebugLineTablesOnly)
             .Case("limited", CodeGenOptions::LimitedDebugInfo)
-            .Case("standalone", CodeGenOptions::FullDebugInfo));
+            .Case("standalone", CodeGenOptions::FullDebugInfo)
+            .Default(~0U);
+    if (Val == ~0U)
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args)
+                                                << A->getValue();
+    else
+      Opts.setDebugInfo(static_cast<CodeGenOptions::DebugInfoKind>(Val));
   }
   if (Arg *A = Args.getLastArg(OPT_debugger_tuning_EQ)) {
-    Opts.setDebuggerTuning(
-        llvm::StringSwitch<CodeGenOptions::DebuggerKind>(A->getValue())
-            .Case("gdb", CodeGenOptions::DebuggerKindGDB)
-            .Case("lldb", CodeGenOptions::DebuggerKindLLDB)
-            .Case("sce", CodeGenOptions::DebuggerKindSCE));
+    unsigned Val = llvm::StringSwitch<unsigned>(A->getValue())
+                       .Case("gdb", CodeGenOptions::DebuggerKindGDB)
+                       .Case("lldb", CodeGenOptions::DebuggerKindLLDB)
+                       .Case("sce", CodeGenOptions::DebuggerKindSCE)
+                       .Default(~0U);
+    if (Val == ~0U)
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args)
+                                                << A->getValue();
+    else
+      Opts.setDebuggerTuning(static_cast<CodeGenOptions::DebuggerKind>(Val));
   }
   Opts.DwarfVersion = getLastArgIntValue(Args, OPT_dwarf_version_EQ, 0, Diags);
   Opts.DebugColumnInfo = Args.hasArg(OPT_dwarf_column_info);
@@ -441,6 +467,8 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.OptimizeSize = getOptimizationLevelSize(Args);
   Opts.SimplifyLibCalls = !(Args.hasArg(OPT_fno_builtin) ||
                             Args.hasArg(OPT_ffreestanding));
+  if (Opts.SimplifyLibCalls)
+    getAllNoBuiltinFuncValues(Args, Opts.NoBuiltinFuncs);
   Opts.UnrollLoops =
       Args.hasFlag(OPT_funroll_loops, OPT_fno_unroll_loops,
                    (Opts.OptimizationLevel > 1 && !Opts.OptimizeSize));
@@ -1658,6 +1686,8 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.ShortEnums = Args.hasArg(OPT_fshort_enums);
   Opts.Freestanding = Args.hasArg(OPT_ffreestanding);
   Opts.NoBuiltin = Args.hasArg(OPT_fno_builtin) || Opts.Freestanding;
+  if (!Opts.NoBuiltin)
+    getAllNoBuiltinFuncValues(Args, Opts.NoBuiltinFuncs);
   Opts.NoMathBuiltin = Args.hasArg(OPT_fno_math_builtin);
   Opts.AssumeSaneOperatorNew = !Args.hasArg(OPT_fno_assume_sane_operator_new);
   Opts.SizedDeallocation = Args.hasArg(OPT_fsized_deallocation);
@@ -1784,6 +1814,30 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.OpenMP = Args.hasArg(options::OPT_fopenmp);
   Opts.OpenMPUseTLS =
       Opts.OpenMP && !Args.hasArg(options::OPT_fnoopenmp_use_tls);
+  Opts.OpenMPIsDevice =
+      Opts.OpenMP && Args.hasArg(options::OPT_fopenmp_is_device);
+
+  // Get the OpenMP target triples if any.
+  if (Arg *A = Args.getLastArg(options::OPT_omptargets_EQ)) {
+
+    for (unsigned i = 0; i < A->getNumValues(); ++i) {
+      llvm::Triple TT(A->getValue(i));
+
+      if (TT.getArch() == llvm::Triple::UnknownArch)
+        Diags.Report(clang::diag::err_drv_invalid_omp_target) << A->getValue(i);
+      else
+        Opts.OMPTargetTriples.push_back(TT);
+    }
+  }
+
+  // Get OpenMP host file path if any and report if a non existent file is
+  // found
+  if (Arg *A = Args.getLastArg(options::OPT_omp_host_ir_file_path)) {
+    Opts.OMPHostIRFile = A->getValue();
+    if (!llvm::sys::fs::exists(Opts.OMPHostIRFile))
+      Diags.Report(clang::diag::err_drv_omp_host_ir_file_not_found)
+          << Opts.OMPHostIRFile;
+  }
 
   // Record whether the __DEPRECATED define was requested.
   Opts.Deprecated = Args.hasFlag(OPT_fdeprecated_macro,
