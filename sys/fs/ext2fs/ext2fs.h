@@ -187,6 +187,7 @@ struct csum {
 
 #define	EXT2F_INCOMPAT_COMP		0x0001
 #define	EXT2F_INCOMPAT_FTYPE		0x0002
+#define	EXT2F_INCOMPAT_RECOVER		0x0004
 #define	EXT2F_INCOMPAT_META_BG		0x0010
 #define	EXT2F_INCOMPAT_EXTENTS		0x0040
 #define	EXT2F_INCOMPAT_64BIT		0x0080
@@ -208,6 +209,7 @@ struct csum {
  *
  * We do not support these EXT4 features but they are irrelevant
  * for read-only support:
+ * - EXT2F_INCOMPAT_RECOVER
  * - EXT2F_INCOMPAT_FLEX_BG
  * - EXT2F_INCOMPAT_META_BG
  */
@@ -216,6 +218,7 @@ struct csum {
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
 #define	EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
 #define	EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_EXTENTS | \
+					 EXT2F_INCOMPAT_RECOVER | \
 					 EXT2F_INCOMPAT_FLEX_BG | \
 					 EXT2F_INCOMPAT_META_BG )
 
