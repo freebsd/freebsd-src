@@ -331,20 +331,20 @@ load(const char *fname)
 	    buffer, bufsize, &loaderhandle);
 	if (EFI_ERROR(status))
 		printf("LoadImage failed with error %lu\n",
-		    status & ~EFI_ERROR_MASK);
+		    EFI_ERROR_CODE(status));
 
 	status = systab->BootServices->HandleProtocol(loaderhandle,
 	    &LoadedImageGUID, (VOID**)&loaded_image);
 	if (EFI_ERROR(status))
 		printf("HandleProtocol failed with error %lu\n",
-		    status & ~EFI_ERROR_MASK);
+		    EFI_ERROR_CODE(status));
 
 	loaded_image->DeviceHandle = bootdevhandle;
 
 	status = systab->BootServices->StartImage(loaderhandle, NULL, NULL);
 	if (EFI_ERROR(status))
 		printf("StartImage failed with error %lu\n",
-		    status & ~EFI_ERROR_MASK);
+		    EFI_ERROR_CODE(status));
 }
 
 static void
