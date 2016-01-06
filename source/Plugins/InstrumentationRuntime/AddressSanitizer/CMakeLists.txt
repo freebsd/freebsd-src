@@ -1,0 +1,3 @@
+add_lldb_library(lldbPluginInstrumentationRuntimeAddressSanitizer
+  AddressSanitizerRuntime.cpp
+  )

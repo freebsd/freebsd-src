@@ -1,0 +1,41 @@
+"""
+Test SBSection APIs.
+"""
+
+from __future__ import print_function
+
+
+
+from lldbsuite.test.lldbtest import *
+
+class SectionAPITestCase(TestBase):
+
+    mydir = TestBase.compute_mydir(__file__)
+
+    @add_test_categories(['pyapi'])
+    def test_get_target_byte_size(self):
+        d = {'EXE': 'b.out'}
+        self.build(dictionary=d)
+        self.setTearDownCleanup(dictionary=d)
+        exe = os.path.join(os.getcwd(), 'b.out')
+        target = self.dbg.CreateTarget(exe)
+        self.assertTrue(target, VALID_TARGET)
+
+        # find the .data section of the main module            
+        mod = target.GetModuleAtIndex(0)
+        data_section = None
+        for s in mod.sections:
+            sect_type = s.GetSectionType()
+            if sect_type == lldb.eSectionTypeData:
+                data_section = s
+                break
+            elif sect_type == lldb.eSectionTypeContainer:
+                for i in range(s.GetNumSubSections()):
+                    ss = s.GetSubSectionAtIndex(i)
+                    sect_type = ss.GetSectionType()
+                    if sect_type == lldb.eSectionTypeData:
+                        data_section = ss
+                        break                    
+
+        self.assertIsNotNone(data_section)
+        self.assertEqual(data_section.target_byte_size, 1)

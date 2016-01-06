@@ -1,0 +1,10 @@
+add_lldb_library(lldbPluginAppleObjCRuntime
+  AppleObjCRuntime.cpp
+  AppleObjCRuntimeV1.cpp
+  AppleObjCRuntimeV2.cpp
+  AppleObjCTrampolineHandler.cpp
+  AppleObjCDeclVendor.cpp
+  AppleThreadPlanStepThroughObjCTrampoline.cpp
+  AppleObjCClassDescriptorV2.cpp
+  AppleObjCTypeEncodingParser.cpp
+  )
