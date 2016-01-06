@@ -36,11 +36,33 @@ NETBSD_ATF_TESTS_C+=	sqrt_test
 NETBSD_ATF_TESTS_C+=	tan_test
 NETBSD_ATF_TESTS_C+=	tanh_test
 
+TAP_TESTS_C+=	cexp_test
+TAP_TESTS_C+=	conj_test
+TAP_TESTS_C+=	csqrt_test
+TAP_TESTS_C+=	fenv_test
+TAP_TESTS_C+=	fmaxmin_test
+TAP_TESTS_C+=	ilogb_test
+TAP_TESTS_C+=	invctrig_test
+TAP_TESTS_C+=	logarithm_test
+TAP_TESTS_C+=	lrint_test
+TAP_TESTS_C+=	nan_test
+TAP_TESTS_C+=	nearbyint_test
+TAP_TESTS_C+=	next_test
+TAP_TESTS_C+=	rem_test
+TAP_TESTS_C+=	trig_test
+
+.for t in ${TAP_TESTS_C}
+CFLAGS.$t+=	-O0
+CFLAGS.$t+=	-I${SRCTOP}/tools/regression/lib/msun
+.endfor
+
 CSTD=		c99
 
 LDADD+=		-lm
 DPADD+=		${LIBM}
 #COPTS+=	-Wfloat-equal
+
+IGNORE_PRAGMA=
 
 # Copied from lib/msun/Makefile
 .if ${MACHINE_CPUARCH} == "i386"
