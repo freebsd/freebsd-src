@@ -18,6 +18,7 @@
 #include "X86FrameLowering.h"
 #include "X86InstrBuilder.h"
 #include "X86MachineFunctionInfo.h"
+#include "X86ShuffleDecodeConstantPool.h"
 #include "X86TargetMachine.h"
 #include "X86TargetObjectFile.h"
 #include "llvm/ADT/SmallBitVector.h"
@@ -4556,6 +4557,7 @@ static SDValue Insert128BitVector(SDValue Result, SDValue Vec, unsigned IdxVal,
     MVT CastVT = Subtarget.hasAVX2() ? MVT::v8i32 : MVT::v8f32;
 
     SDValue Mask = DAG.getConstant(0x0f, dl, MVT::i8);
+    Result = DAG.getBitcast(CastVT, Result);
     Vec256 = DAG.getBitcast(CastVT, Vec256);
     Vec256 = DAG.getNode(X86ISD::BLENDI, dl, CastVT, Result, Vec256, Mask);
     return DAG.getBitcast(ResultVT, Vec256);
@@ -4851,8 +4853,6 @@ static bool getTargetShuffleMask(SDNode *N, MVT VT,
 
     if (auto *C = dyn_cast<Constant>(MaskCP->getConstVal())) {
       DecodePSHUFBMask(C, Mask);
-      if (Mask.empty())
-        return false;
       break;
     }
 
@@ -4870,7 +4870,6 @@ static bool getTargetShuffleMask(SDNode *N, MVT VT,
   case X86ISD::VPERM2X128:
     ImmN = N->getOperand(N->getNumOperands()-1);
     DecodeVPERM2X128Mask(VT, cast<ConstantSDNode>(ImmN)->getZExtValue(), Mask);
-    if (Mask.empty()) return false;
     // Mask only contains negative index if an element is zero.
     if (std::any_of(Mask.begin(), Mask.end(),
                     [](int M){ return M == SM_SentinelZero; }))
@@ -4948,8 +4947,6 @@ static bool getTargetShuffleMask(SDNode *N, MVT VT,
 
     if (auto *C = dyn_cast<Constant>(MaskCP->getConstVal())) {
       DecodeVPERMVMask(C, VT, Mask);
-      if (Mask.empty())
-        return false;
       break;
     }
     return false;
@@ -5000,14 +4997,16 @@ static bool getTargetShuffleMask(SDNode *N, MVT VT,
 
     if (auto *C = dyn_cast<Constant>(MaskCP->getConstVal())) {
       DecodeVPERMV3Mask(C, VT, Mask);
-      if (Mask.empty())
-        return false;
       break;
     }
     return false;
   }
   default: llvm_unreachable("unknown target shuffle node");
   }
+
+  // Empty mask indicates the decode failed.
+  if (Mask.empty())
+    return false;
 
   // If we have a fake unary shuffle, the shuffle mask is spread across two
   // inputs that are actually the same node. Re-map the mask to always point
@@ -17372,6 +17371,18 @@ static SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, const X86Subtarget *Subtarget,
   if (!IntrData) {
     if (IntNo == llvm::Intrinsic::x86_seh_ehregnode)
       return MarkEHRegistrationNode(Op, DAG);
+    if (IntNo == llvm::Intrinsic::x86_flags_read_u32 ||
+        IntNo == llvm::Intrinsic::x86_flags_read_u64 ||
+        IntNo == llvm::Intrinsic::x86_flags_write_u32 ||
+        IntNo == llvm::Intrinsic::x86_flags_write_u64) {
+      // We need a frame pointer because this will get lowered to a PUSH/POP
+      // sequence.
+      MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
+      MFI->setHasOpaqueSPAdjustment(true);
+      // Don't do anything here, we will expand these intrinsics out later
+      // during ExpandISelPseudos in EmitInstrWithCustomInserter.
+      return SDValue();
+    }
     return SDValue();
   }
 
@@ -21144,6 +21155,47 @@ static MachineBasicBlock *EmitPCMPSTRI(MachineInstr *MI, MachineBasicBlock *BB,
   return BB;
 }
 
+static MachineBasicBlock *EmitWRPKRU(MachineInstr *MI, MachineBasicBlock *BB,
+                                     const X86Subtarget *Subtarget) {
+  DebugLoc dl = MI->getDebugLoc();
+  const TargetInstrInfo *TII = Subtarget->getInstrInfo();
+
+  // insert input VAL into EAX
+  BuildMI(*BB, MI, dl, TII->get(TargetOpcode::COPY), X86::EAX)
+                           .addReg(MI->getOperand(0).getReg());
+  // insert zero to ECX
+  BuildMI(*BB, MI, dl, TII->get(X86::XOR32rr), X86::ECX)
+                           .addReg(X86::ECX)
+                           .addReg(X86::ECX);
+  // insert zero to EDX
+  BuildMI(*BB, MI, dl, TII->get(X86::XOR32rr), X86::EDX)
+                           .addReg(X86::EDX)
+                           .addReg(X86::EDX);
+  // insert WRPKRU instruction
+  BuildMI(*BB, MI, dl, TII->get(X86::WRPKRUr));
+
+  MI->eraseFromParent(); // The pseudo is gone now.
+  return BB;
+}
+
+static MachineBasicBlock *EmitRDPKRU(MachineInstr *MI, MachineBasicBlock *BB,
+                                     const X86Subtarget *Subtarget) {
+  DebugLoc dl = MI->getDebugLoc();
+  const TargetInstrInfo *TII = Subtarget->getInstrInfo();
+
+  // insert zero to ECX
+  BuildMI(*BB, MI, dl, TII->get(X86::XOR32rr), X86::ECX)
+                           .addReg(X86::ECX)
+                           .addReg(X86::ECX);
+  // insert RDPKRU instruction
+  BuildMI(*BB, MI, dl, TII->get(X86::RDPKRUr));
+  BuildMI(*BB, MI, dl, TII->get(TargetOpcode::COPY), MI->getOperand(0).getReg())
+                           .addReg(X86::EAX);
+
+  MI->eraseFromParent(); // The pseudo is gone now.
+  return BB;
+}
+
 static MachineBasicBlock *EmitMonitor(MachineInstr *MI, MachineBasicBlock *BB,
                                       const X86Subtarget *Subtarget) {
   DebugLoc dl = MI->getDebugLoc();
@@ -22495,6 +22547,36 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   case X86::CMOV_V64I1:
     return EmitLoweredSelect(MI, BB);
 
+  case X86::RDFLAGS32:
+  case X86::RDFLAGS64: {
+    DebugLoc DL = MI->getDebugLoc();
+    const TargetInstrInfo *TII = Subtarget->getInstrInfo();
+    unsigned PushF =
+        MI->getOpcode() == X86::RDFLAGS32 ? X86::PUSHF32 : X86::PUSHF64;
+    unsigned Pop =
+        MI->getOpcode() == X86::RDFLAGS32 ? X86::POP32r : X86::POP64r;
+    BuildMI(*BB, MI, DL, TII->get(PushF));
+    BuildMI(*BB, MI, DL, TII->get(Pop), MI->getOperand(0).getReg());
+
+    MI->eraseFromParent(); // The pseudo is gone now.
+    return BB;
+  }
+
+  case X86::WRFLAGS32:
+  case X86::WRFLAGS64: {
+    DebugLoc DL = MI->getDebugLoc();
+    const TargetInstrInfo *TII = Subtarget->getInstrInfo();
+    unsigned Push =
+        MI->getOpcode() == X86::WRFLAGS32 ? X86::PUSH32r : X86::PUSH64r;
+    unsigned PopF =
+        MI->getOpcode() == X86::WRFLAGS32 ? X86::POPF32 : X86::POPF64;
+    BuildMI(*BB, MI, DL, TII->get(Push)).addReg(MI->getOperand(0).getReg());
+    BuildMI(*BB, MI, DL, TII->get(PopF));
+
+    MI->eraseFromParent(); // The pseudo is gone now.
+    return BB;
+  }
+
   case X86::RELEASE_FADD32mr:
   case X86::RELEASE_FADD64mr:
     return EmitLoweredAtomicFP(MI, BB);
@@ -22611,7 +22693,11 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   // Thread synchronization.
   case X86::MONITOR:
     return EmitMonitor(MI, BB, Subtarget);
-
+  // PKU feature
+  case X86::WRPKRU:
+    return EmitWRPKRU(MI, BB, Subtarget);
+  case X86::RDPKRU:
+    return EmitRDPKRU(MI, BB, Subtarget);
   // xbegin
   case X86::XBEGIN:
     return EmitXBegin(MI, BB, Subtarget->getInstrInfo());
@@ -23480,6 +23566,31 @@ static SDValue PerformTargetShuffleCombine(SDValue N, SelectionDAG &DAG,
     }
     return SDValue();
   }
+  case X86ISD::BLENDI: {
+    SDValue V0 = N->getOperand(0);
+    SDValue V1 = N->getOperand(1);
+    assert(VT == V0.getSimpleValueType() && VT == V1.getSimpleValueType() &&
+           "Unexpected input vector types");
+
+    // Canonicalize a v2f64 blend with a mask of 2 by swapping the vector
+    // operands and changing the mask to 1. This saves us a bunch of
+    // pattern-matching possibilities related to scalar math ops in SSE/AVX.
+    // x86InstrInfo knows how to commute this back after instruction selection
+    // if it would help register allocation.
+
+    // TODO: If optimizing for size or a processor that doesn't suffer from
+    // partial register update stalls, this should be transformed into a MOVSD
+    // instruction because a MOVSD is 1-2 bytes smaller than a BLENDPD.
+
+    if (VT == MVT::v2f64)
+      if (auto *Mask = dyn_cast<ConstantSDNode>(N->getOperand(2)))
+        if (Mask->getZExtValue() == 2 && !isShuffleFoldableLoad(V0)) {
+          SDValue NewMask = DAG.getConstant(1, DL, MVT::i8);
+          return DAG.getNode(X86ISD::BLENDI, DL, VT, V1, V0, NewMask);
+        }
+
+    return SDValue();
+  }
   default:
     return SDValue();
   }
@@ -23573,9 +23684,13 @@ static SDValue PerformTargetShuffleCombine(SDValue N, SelectionDAG &DAG,
 /// the operands which explicitly discard the lanes which are unused by this
 /// operation to try to flow through the rest of the combiner the fact that
 /// they're unused.
-static SDValue combineShuffleToAddSub(SDNode *N, SelectionDAG &DAG) {
+static SDValue combineShuffleToAddSub(SDNode *N, const X86Subtarget *Subtarget,
+                                      SelectionDAG &DAG) {
   SDLoc DL(N);
   EVT VT = N->getValueType(0);
+  if ((!Subtarget->hasSSE3() || (VT != MVT::v4f32 && VT != MVT::v2f64)) &&
+      (!Subtarget->hasAVX() || (VT != MVT::v8f32 && VT != MVT::v4f64)))
+    return SDValue();
 
   // We only handle target-independent shuffles.
   // FIXME: It would be easy and harmless to use the target shuffle mask
@@ -23617,12 +23732,6 @@ static SDValue combineShuffleToAddSub(SDNode *N, SelectionDAG &DAG) {
         isShuffleEquivalent(V1, V2, Mask, {0, 9, 2, 11, 4, 13, 6, 15})))
     return SDValue();
 
-  // Only specific types are legal at this point, assert so we notice if and
-  // when these change.
-  assert((VT == MVT::v4f32 || VT == MVT::v2f64 || VT == MVT::v8f32 ||
-          VT == MVT::v4f64) &&
-         "Unknown vector type encountered!");
-
   return DAG.getNode(X86ISD::ADDSUB, DL, VT, LHS, RHS);
 }
 
@@ -23642,8 +23751,8 @@ static SDValue PerformShuffleCombine(SDNode *N, SelectionDAG &DAG,
 
   // If we have legalized the vector types, look for blends of FADD and FSUB
   // nodes that we can fuse into an ADDSUB node.
-  if (TLI.isTypeLegal(VT) && Subtarget->hasSSE3())
-    if (SDValue AddSub = combineShuffleToAddSub(N, DAG))
+  if (TLI.isTypeLegal(VT))
+    if (SDValue AddSub = combineShuffleToAddSub(N, Subtarget, DAG))
       return AddSub;
 
   // Combine 256-bit vector shuffles. This is only profitable when in AVX mode
@@ -27310,7 +27419,7 @@ static SDValue PerformZExtCombine(SDNode *N, SelectionDAG &DAG,
   // from AH (which we otherwise need to do contortions to access).
   if (N0.getOpcode() == ISD::UDIVREM &&
       N0.getResNo() == 1 && N0.getValueType() == MVT::i8 &&
-      (VT == MVT::i32 || VT == MVT::i64)) {
+      VT == MVT::i32) {
     SDVTList NodeTys = DAG.getVTList(MVT::i8, VT);
     SDValue R = DAG.getNode(X86ISD::UDIVREM8_ZEXT_HREG, dl, NodeTys,
                             N0.getOperand(0), N0.getOperand(1));
@@ -27378,32 +27487,6 @@ static SDValue PerformISDSETCCCombine(SDNode *N, SelectionDAG &DAG,
       return LHS.getOperand(0);
     }
   }
-
-  return SDValue();
-}
-
-static SDValue PerformBLENDICombine(SDNode *N, SelectionDAG &DAG) {
-  SDValue V0 = N->getOperand(0);
-  SDValue V1 = N->getOperand(1);
-  SDLoc DL(N);
-  EVT VT = N->getValueType(0);
-
-  // Canonicalize a v2f64 blend with a mask of 2 by swapping the vector
-  // operands and changing the mask to 1. This saves us a bunch of
-  // pattern-matching possibilities related to scalar math ops in SSE/AVX.
-  // x86InstrInfo knows how to commute this back after instruction selection
-  // if it would help register allocation.
-
-  // TODO: If optimizing for size or a processor that doesn't suffer from
-  // partial register update stalls, this should be transformed into a MOVSD
-  // instruction because a MOVSD is 1-2 bytes smaller than a BLENDPD.
-
-  if (VT == MVT::v2f64)
-    if (auto *Mask = dyn_cast<ConstantSDNode>(N->getOperand(2)))
-      if (Mask->getZExtValue() == 2 && !isShuffleFoldableLoad(V0)) {
-        SDValue NewMask = DAG.getConstant(1, DL, MVT::i8);
-        return DAG.getNode(X86ISD::BLENDI, DL, VT, V1, V0, NewMask);
-      }
 
   return SDValue();
 }
@@ -27840,6 +27923,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::FANDN:       return PerformFANDNCombine(N, DAG, Subtarget);
   case X86ISD::BT:          return PerformBTCombine(N, DAG, DCI);
   case X86ISD::VZEXT_MOVL:  return PerformVZEXT_MOVLCombine(N, DAG);
+// TODO: refactor the [SU]DIVREM8_[SZ]EXT_HREG code so that it's not duplicated.
   case ISD::ANY_EXTEND:
   case ISD::ZERO_EXTEND:    return PerformZExtCombine(N, DAG, DCI, Subtarget);
   case ISD::SIGN_EXTEND:    return PerformSExtCombine(N, DAG, DCI, Subtarget);
@@ -27851,6 +27935,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::VZEXT:       return performVZEXTCombine(N, DAG, DCI, Subtarget);
   case X86ISD::SHUFP:       // Handle all target specific shuffles
   case X86ISD::PALIGNR:
+  case X86ISD::BLENDI:
   case X86ISD::UNPCKH:
   case X86ISD::UNPCKL:
   case X86ISD::MOVHLPS:
@@ -27865,7 +27950,6 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::VPERM2X128:
   case ISD::VECTOR_SHUFFLE: return PerformShuffleCombine(N, DAG, DCI,Subtarget);
   case ISD::FMA:            return PerformFMACombine(N, DAG, Subtarget);
-  case X86ISD::BLENDI:    return PerformBLENDICombine(N, DAG);
   case ISD::MGATHER:
   case ISD::MSCATTER:       return PerformGatherScatterCombine(N, DAG);
   }
@@ -27900,6 +27984,18 @@ bool X86TargetLowering::isTypeDesirableForOp(unsigned Opc, EVT VT) const {
   case ISD::XOR:
     return false;
   }
+}
+
+/// This function checks if any of the users of EFLAGS copies the EFLAGS. We
+/// know that the code that lowers COPY of EFLAGS has to use the stack, and if
+/// we don't adjust the stack we clobber the first frame index.
+/// See X86InstrInfo::copyPhysReg.
+bool X86TargetLowering::hasCopyImplyingStackAdjustment(
+    MachineFunction *MF) const {
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  return any_of(MRI.reg_instructions(X86::EFLAGS),
+                [](const MachineInstr &RI) { return RI.isCopy(); });
 }
 
 /// IsDesirableToPromoteOp - This method query the target whether it is

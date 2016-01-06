@@ -866,6 +866,27 @@ void MachineInstr::addMemOperand(MachineFunction &MF,
   setMemRefs(NewMemRefs, NewMemRefs + NewNum);
 }
 
+std::pair<MachineInstr::mmo_iterator, unsigned>
+MachineInstr::mergeMemRefsWith(const MachineInstr& Other) {
+  // TODO: If we end up with too many memory operands, return the empty
+  // conservative set rather than failing asserts.
+  // TODO: consider uniquing elements within the operand lists to reduce
+  // space usage and fall back to conservative information less often.
+  size_t CombinedNumMemRefs = (memoperands_end() - memoperands_begin())
+    + (Other.memoperands_end() - Other.memoperands_begin());
+
+  MachineFunction *MF = getParent()->getParent();
+  mmo_iterator MemBegin = MF->allocateMemRefsArray(CombinedNumMemRefs);
+  mmo_iterator MemEnd = std::copy(memoperands_begin(), memoperands_end(),
+                                  MemBegin);
+  MemEnd = std::copy(Other.memoperands_begin(), Other.memoperands_end(),
+                     MemEnd);
+  assert(MemEnd - MemBegin == (ptrdiff_t)CombinedNumMemRefs &&
+         "missing memrefs");
+  
+  return std::make_pair(MemBegin, CombinedNumMemRefs);
+}
+
 bool MachineInstr::hasPropertyInBundle(unsigned Mask, QueryType Type) const {
   assert(!isBundledWithPred() && "Must be called on bundle header");
   for (MachineBasicBlock::const_instr_iterator MII = getIterator();; ++MII) {
@@ -1738,7 +1759,10 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
   bool HaveSemi = false;
   const unsigned PrintableFlags = FrameSetup | FrameDestroy;
   if (Flags & PrintableFlags) {
-    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    if (!HaveSemi) {
+      OS << ";";
+      HaveSemi = true;
+    }
     OS << " flags: ";
 
     if (Flags & FrameSetup)
@@ -1749,7 +1773,10 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
   }
 
   if (!memoperands_empty()) {
-    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    if (!HaveSemi) {
+      OS << ";";
+      HaveSemi = true;
+    }
 
     OS << " mem:";
     for (mmo_iterator i = memoperands_begin(), e = memoperands_end();
@@ -1762,7 +1789,10 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
 
   // Print the regclass of any virtual registers encountered.
   if (MRI && !VirtRegs.empty()) {
-    if (!HaveSemi) OS << ";"; HaveSemi = true;
+    if (!HaveSemi) {
+      OS << ";";
+      HaveSemi = true;
+    }
     for (unsigned i = 0; i != VirtRegs.size(); ++i) {
       const TargetRegisterClass *RC = MRI->getRegClass(VirtRegs[i]);
       OS << " " << TRI->getRegClassName(RC)
@@ -1781,7 +1811,8 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
 
   // Print debug location information.
   if (isDebugValue() && getOperand(e - 2).isMetadata()) {
-    if (!HaveSemi) OS << ";";
+    if (!HaveSemi)
+      OS << ";";
     auto *DV = cast<DILocalVariable>(getOperand(e - 2).getMetadata());
     OS << " line no:" <<  DV->getLine();
     if (auto *InlinedAt = debugLoc->getInlinedAt()) {
@@ -1795,7 +1826,8 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
     if (isIndirectDebugValue())
       OS << " indirect";
   } else if (debugLoc && MF) {
-    if (!HaveSemi) OS << ";";
+    if (!HaveSemi)
+      OS << ";";
     OS << " dbg:";
     debugLoc.print(OS);
   }
