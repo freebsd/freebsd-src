@@ -10,6 +10,7 @@ TESTS_SUBDIRS+=		fifo
 TESTS_SUBDIRS+=		file
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
+TESTS_SUBDIRS+=		mac
 TESTS_SUBDIRS+=		mqueue
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		posixshm
