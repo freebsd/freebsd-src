@@ -814,7 +814,7 @@ def fno_blocks : Flag<["-"], "fno-blocks">, Group<f_Group>;
 def fno_borland_extensions : Flag<["-"], "fno-borland-extensions">, Group<f_Group>;
 def fno_builtin : Flag<["-"], "fno-builtin">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Disable implicit builtin knowledge of functions">;
-def fno_builtin_ : Joined<["-"], "fno-builtin-">, Group<clang_ignored_f_Group>,
+def fno_builtin_ : Joined<["-"], "fno-builtin-">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Disable implicit builtin knowledge of a specific function">;
 def fno_math_builtin : Flag<["-"], "fno-math-builtin">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Disable implicit builtin knowledge of math functions">;
@@ -1369,6 +1369,7 @@ def mno_xsave : Flag<["-"], "mno-xsave">, Group<m_x86_Features_Group>;
 def mno_xsaveopt : Flag<["-"], "mno-xsaveopt">, Group<m_x86_Features_Group>;
 def mno_xsavec : Flag<["-"], "mno-xsavec">, Group<m_x86_Features_Group>;
 def mno_xsaves : Flag<["-"], "mno-xsaves">, Group<m_x86_Features_Group>;
+def mno_pku : Flag<["-"], "mno-pku">, Group<m_x86_Features_Group>;
 
 def munaligned_access : Flag<["-"], "munaligned-access">, Group<m_arm_Features_Group>,
   HelpText<"Allow memory accesses to be unaligned (AArch32/AArch64 only)">;
@@ -1384,6 +1385,8 @@ def mno_restrict_it: Flag<["-"], "mno-restrict-it">, Group<m_arm_Features_Group>
 def marm : Flag<["-"], "marm">, Alias<mno_thumb>;
 def ffixed_r9 : Flag<["-"], "ffixed-r9">, Group<m_arm_Features_Group>,
   HelpText<"Reserve the r9 register (ARM only)">;
+def mno_movt : Flag<["-"], "mno-movt">, Group<m_arm_Features_Group>,
+  HelpText<"Disallow use of movt/movw pairs (ARM only)">;
 def mcrc : Flag<["-"], "mcrc">, Group<m_arm_Features_Group>,
   HelpText<"Allow use of CRC instructions (ARM only)">;
 def mnocrc : Flag<["-"], "mnocrc">, Group<m_arm_Features_Group>,
@@ -1520,6 +1523,7 @@ def mf16c : Flag<["-"], "mf16c">, Group<m_x86_Features_Group>;
 def mrtm : Flag<["-"], "mrtm">, Group<m_x86_Features_Group>;
 def mprfchw : Flag<["-"], "mprfchw">, Group<m_x86_Features_Group>;
 def mrdseed : Flag<["-"], "mrdseed">, Group<m_x86_Features_Group>;
+def mpku : Flag<["-"], "mpku">, Group<m_x86_Features_Group>;
 def madx : Flag<["-"], "madx">, Group<m_x86_Features_Group>;
 def msha : Flag<["-"], "msha">, Group<m_x86_Features_Group>;
 def mcx16 : Flag<["-"], "mcx16">, Group<m_x86_Features_Group>;
@@ -1647,6 +1651,8 @@ def nostdlib : Flag<["-"], "nostdlib">;
 def object : Flag<["-"], "object">;
 def o : JoinedOrSeparate<["-"], "o">, Flags<[DriverOption, RenderAsInput, CC1Option, CC1AsOption]>,
   HelpText<"Write output to <file>">, MetaVarName<"<file>">;
+def omptargets_EQ : CommaJoined<["-"], "omptargets=">, Flags<[DriverOption, CC1Option]>,
+  HelpText<"Specify comma-separated list of triples OpenMP offloading targets to be supported">;
 def pagezero__size : JoinedOrSeparate<["-"], "pagezero_size">;
 def pass_exit_codes : Flag<["-", "--"], "pass-exit-codes">, Flags<[Unsupported]>;
 def pedantic_errors : Flag<["-", "--"], "pedantic-errors">, Group<pedantic_Group>, Flags<[CC1Option]>;

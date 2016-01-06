@@ -4157,8 +4157,9 @@ TEST_F(FormatTest, FormatsBuilderPattern) {
   verifyFormat("return aaaaaaaaaaaaaaaaa->aaaaa().aaaaaaaaaaaaa().aaaaaa() <\n"
                "       aaaaaaaaaaaaaaa->aaaaa().aaaaaaaaaaaaa().aaaaaa();");
   verifyFormat(
-      "aaaaaaa->aaaaaaa->aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(\n"
-      "                    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)\n"
+      "aaaaaaa->aaaaaaa\n"
+      "    ->aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(\n"
+      "        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)\n"
       "    ->aaaaaaaa(aaaaaaaaaaaaaaa);");
   verifyFormat(
       "aaaaaaa->aaaaaaa\n"
@@ -4234,6 +4235,25 @@ TEST_F(FormatTest, FormatsBuilderPattern) {
       "return !soooooooooooooome_map\n"
       "            .insert(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)\n"
       "            .second;");
+  verifyFormat(
+      "return aaaaaaaaaaaaaaaa\n"
+      "    .aaaaaaaaaaaaaaaaaaaaaaa(aaaaaaaaaaaaaaaaa, aaaaaaaaaaaaaaaaa)\n"
+      "    .aaaa(aaaaaaaaaaaaaa);");
+  // No hanging indent here.
+  verifyFormat("aaaaaaaaaaaaaaaa.aaaaaaaaaaaaaa.aaaaaaaaaaaaaaa(\n"
+               "    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa);");
+  verifyFormat("aaaaaaaaaaaaaaaa.aaaaaaaaaaaaaa().aaaaaaaaaaaaaaa(\n"
+               "    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa);");
+  verifyFormat("aaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaa(aaaaaaaaaaaaaaaaaaaa)\n"
+               "    .aaa(aaaaaaaaaaaaaaaaaaaaaaaaaaaaa);",
+               getLLVMStyleWithColumns(60));
+  verifyFormat("aaaaaaaaaaaaaaaaaa\n"
+               "    .aaaaaaaaaaaaaaaaaaa(aaaaaaaaaaaaaaaaaaaa)\n"
+               "    .aaa(aaaaaaaaaaaaaaaaaaaaaaaaaaaaa);",
+               getLLVMStyleWithColumns(59));
+  verifyFormat("aaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(\n"
+               "        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)\n"
+               "    .aaaaaa(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa);");
 }
 
 TEST_F(FormatTest, BreaksAccordingToOperatorPrecedence) {
@@ -5048,6 +5068,15 @@ TEST_F(FormatTest, AlignsPipes) {
   verifyFormat("llvm::errs() << aaaaaaaaaaaaaaaaaaaaaa << endl\n"
                "             << bbbbbbbbbbbbbbbbbbbbbb << endl;");
   verifyFormat("llvm::errs() << endl << bbbbbbbbbbbbbbbbbbbbbb << endl;");
+
+  // Handle '\n'.
+  verifyFormat("llvm::errs() << aaaaaaaaaaaaaaaaaaaaaa << \"\\n\"\n"
+               "             << bbbbbbbbbbbbbbbbbbbbbb << \"\\n\";");
+  verifyFormat("llvm::errs() << aaaaaaaaaaaaaaaaaaaaaa << \'\\n\'\n"
+               "             << bbbbbbbbbbbbbbbbbbbbbb << \'\\n\';");
+  verifyFormat("llvm::errs() << aaaa << \"aaaaaaaaaaaaaaaaaa\\n\"\n"
+               "             << bbbb << \"bbbbbbbbbbbbbbbbbb\\n\";");
+  verifyFormat("llvm::errs() << \"\\n\" << bbbbbbbbbbbbbbbbbbbbbb << \"\\n\";");
 }
 
 TEST_F(FormatTest, UnderstandsEquals) {
@@ -6047,6 +6076,8 @@ TEST_F(FormatTest, FormatsArrays) {
                "                         [bbbbbbbbbbbbbbbbbbbbbbbbb] = c;");
   verifyFormat("aaaaaaaaaaaaaaaaaaaaaaaaa[aaaaaaaaaaa(aaaaaaaaaaaa)]\n"
                "                         [bbbbbbbbbbb(bbbbbbbbbbbb)] = c;");
+  verifyFormat("if (aaaaaaaaaaaaaaaaaaaaaaaa &&\n"
+               "    aaaaaaaaaaaaaaaaaaa[aaaaaaaaaaaaa][aaaaaaaaaaaaa]) {\n}");
   verifyFormat("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
                "    [bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb] = ccccccccccc;");
   verifyFormat("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
@@ -6542,6 +6573,15 @@ TEST_F(FormatTest, FormatsBracedListsInColumnLayout) {
                "  struct Dummy {};\n"
                "  f(v);\n"
                "}");
+
+  // Long lists should be formatted in columns even if they are nested.
+  verifyFormat(
+      "vector<int> x = function({1, 22, 333, 4444, 55555, 666666, 7777777,\n"
+      "                          1, 22, 333, 4444, 55555, 666666, 7777777,\n"
+      "                          1, 22, 333, 4444, 55555, 666666, 7777777,\n"
+      "                          1, 22, 333, 4444, 55555, 666666, 7777777,\n"
+      "                          1, 22, 333, 4444, 55555, 666666, 7777777,\n"
+      "                          1, 22, 333, 4444, 55555, 666666, 7777777});");
 }
 
 TEST_F(FormatTest, PullTrivialFunctionDefinitionsIntoSingleLine) {
@@ -7279,6 +7319,11 @@ TEST_F(FormatTest, FormatObjCMethodDeclarations) {
                "               interval:(float)theInterval {\n"
                "}");
   verifyFormat("- (void)shortf:(GTMFoo *)theFoo\n"
+               "      longKeyword:(NSRect)theRect\n"
+               "    longerKeyword:(float)theInterval\n"
+               "            error:(NSError **)theError {\n"
+               "}");
+  verifyFormat("- (void)shortf:(GTMFoo *)theFoo\n"
                "          longKeyword:(NSRect)theRect\n"
                "    evenLongerKeyword:(float)theInterval\n"
                "                error:(NSError **)theError {\n"
@@ -7467,8 +7512,8 @@ TEST_F(FormatTest, FormatObjCMethodExpr) {
                "    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa];");
   verifyFormat("[aaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaa[aaaaaaaaaaaaaaaaaaaaa]\n"
                "    aaaaaaaaaaaaaaaaaaaaaa];");
-  verifyFormat("[call aaaaaaaa.aaaaaa.aaaaaaaa.aaaaaaaa.aaaaaaaa\n"
-               "        .aaaaaaaa.aaaaaaaa];", // FIXME: Indentation seems off.
+  verifyFormat("[call aaaaaaaa.aaaaaa.aaaaaaaa.aaaaaaaa.aaaaaaaa.aaaaaaaa\n"
+               "        .aaaaaaaa];", // FIXME: Indentation seems off.
                getLLVMStyleWithColumns(60));
 
   verifyFormat(
@@ -8263,7 +8308,7 @@ TEST_F(FormatTest, ConfigurableUseOfTab) {
                "\taaaaaaaaaaaaaaaaaaaaaaaaaaaa();\n"
                "};",
                Tab);
-  verifyFormat("enum A {\n"
+  verifyFormat("enum AA {\n"
                "\ta1, // Force multiple lines\n"
                "\ta2,\n"
                "\ta3\n"
@@ -10505,6 +10550,8 @@ TEST_F(FormatTest, FormatsLambdas) {
   verifyFormat("auto my_lambda = [](const string &some_parameter) {\n"
                "  return some_parameter.size();\n"
                "};");
+  verifyFormat("std::function<std::string(const std::string &)> my_lambda =\n"
+               "    [](const string &s) { return s; };");
   verifyFormat("int i = aaaaaa ? 1 //\n"
                "               : [] {\n"
                "                   return 2; //\n"
