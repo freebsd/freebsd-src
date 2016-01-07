@@ -24,6 +24,7 @@ SRCS+=	gss-genr.c
 
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
+SRCS+=	ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBWRAP} ${LIBPAM}
 LDADD=	-lssh -lutil -lwrap ${MINUSLPAM}
@@ -44,6 +45,7 @@ LDADD+=  -lbsm
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
+SRCS+=	krb5_config.h
 DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} \
 	${LIBCOM_ERR} ${LIBROKEN} ${LIBWIND} ${LIBHEIMBASE} ${LIBHEIMIPCC}
 LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lhx509 -lasn1 \
@@ -74,8 +76,3 @@ CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
-.if ${MK_KERBEROS_SUPPORT} != "no"
-${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
-.endif
