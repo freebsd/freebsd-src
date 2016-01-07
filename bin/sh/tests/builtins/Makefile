@@ -48,6 +48,7 @@ FILES+=		cd5.0
 FILES+=		cd6.0
 FILES+=		cd7.0
 FILES+=		cd8.0
+FILES+=		cd9.0 cd9.0.stdout
 FILES+=		command1.0
 FILES+=		command2.0
 FILES+=		command3.0
