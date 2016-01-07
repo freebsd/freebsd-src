@@ -265,7 +265,6 @@ struct nvme_controller {
 	uint32_t		enable_aborts;
 
 	uint32_t		num_io_queues;
-	boolean_t		per_cpu_io_queues;
 
 	/* Fields for tracking progress during controller initialization. */
 	struct intr_config_hook	config_hook;
