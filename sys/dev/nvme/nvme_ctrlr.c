@@ -999,7 +999,9 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	if (pci_msix_count(dev) < 2) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
-	} else if (pci_msix_count(dev) < num_vectors_requested) {
+	}
+
+	if (pci_msix_count(dev) < num_vectors_requested) {
 		ctrlr->per_cpu_io_queues = FALSE;
 		ctrlr->num_io_queues = 1;
 		num_vectors_requested = 2; /* one for admin, one for I/O */
@@ -1009,26 +1011,28 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
 		ctrlr->msix_enabled = 0;
 		goto intx;
-	} else if (num_vectors_allocated < num_vectors_requested) {
+	}
+
+	if (num_vectors_allocated < num_vectors_requested) {
 		if (num_vectors_allocated < 2) {
 			pci_release_msi(dev);
 			ctrlr->msix_enabled = 0;
 			goto intx;
-		} else {
-			ctrlr->per_cpu_io_queues = FALSE;
-			ctrlr->num_io_queues = 1;
-			/*
-			 * Release whatever vectors were allocated, and just
-			 *  reallocate the two needed for the admin and single
-			 *  I/O qpair.
-			 */
-			num_vectors_allocated = 2;
-			pci_release_msi(dev);
-			if (pci_alloc_msix(dev, &num_vectors_allocated) != 0)
-				panic("could not reallocate any vectors\n");
-			if (num_vectors_allocated != 2)
-				panic("could not reallocate 2 vectors\n");
 		}
+
+		ctrlr->per_cpu_io_queues = FALSE;
+		ctrlr->num_io_queues = 1;
+		/*
+		 * Release whatever vectors were allocated, and just
+		 *  reallocate the two needed for the admin and single
+		 *  I/O qpair.
+		 */
+		num_vectors_allocated = 2;
+		pci_release_msi(dev);
+		if (pci_alloc_msix(dev, &num_vectors_allocated) != 0)
+			panic("could not reallocate any vectors\n");
+		if (num_vectors_allocated != 2)
+			panic("could not reallocate 2 vectors\n");
 	}
 
 	/*
