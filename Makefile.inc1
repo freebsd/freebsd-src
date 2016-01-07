@@ -1012,10 +1012,14 @@ KERNCONFDIR?=	${KRNLCONFDIR}
 
 BUILDKERNELS=
 INSTALLKERNEL=
+.if defined(NO_INSTALLKERNEL)
+# All of the BUILDKERNELS loops start at index 1.
+BUILDKERNELS+= dummy
+.endif
 .for _kernel in ${KERNCONF}
 .if exists(${KERNCONFDIR}/${_kernel})
 BUILDKERNELS+=	${_kernel}
-.if empty(INSTALLKERNEL)
+.if empty(INSTALLKERNEL) && !defined(NO_INSTALLKERNEL)
 INSTALLKERNEL= ${_kernel}
 .endif
 .endif
@@ -1029,12 +1033,12 @@ ${WMAKE_TGTS:N_worldtmp:Nbuild32} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 # Builds all kernels defined by BUILDKERNELS.
 #
 buildkernel: .MAKE .PHONY
-.if empty(BUILDKERNELS)
+.if empty(BUILDKERNELS:Ndummy)
 	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF})."; \
 	false
 .endif
 	@echo
-.for _kernel in ${BUILDKERNELS}
+.for _kernel in ${BUILDKERNELS:Ndummy}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
@@ -1093,6 +1097,7 @@ buildkernel: .MAKE .PHONY
 #
 installkernel installkernel.debug \
 reinstallkernel reinstallkernel.debug: _installcheck_kernel
+.if !defined(NO_INSTALLKERNEL)
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
@@ -1103,6 +1108,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+.endif
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	@echo "--------------------------------------------------------------"
@@ -1115,6 +1121,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 .endif
 
 distributekernel distributekernel.debug:
+.if !defined(NO_INSTALLKERNEL)
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
@@ -1131,6 +1138,7 @@ distributekernel distributekernel.debug:
 .if defined(NO_ROOT)
 	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
+.endif
 .endif
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
@@ -1153,9 +1161,11 @@ distributekernel distributekernel.debug:
 
 packagekernel:
 .if defined(NO_ROOT)
+.if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
+.endif
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
@@ -1164,9 +1174,11 @@ packagekernel:
 .endfor
 .endif
 .else
+.if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
+.endif
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
