@@ -1343,7 +1343,7 @@ mt_param(int argc, char **argv, int mtfd, char *xml_str,
 			break;
 		case 'p':
 			if (param_name != NULL) {
-				warnx("Only one paramter name may be "
+				warnx("Only one parameter name may be "
 				    "specified");
 				retval = 1;
 				goto bailout;
@@ -1355,7 +1355,7 @@ mt_param(int argc, char **argv, int mtfd, char *xml_str,
 			break;
 		case 's':
 			if (param_value != NULL) {
-				warnx("Only one paramter value may be "
+				warnx("Only one parameter value may be "
 				    "specified");
 				retval = 1;
 				goto bailout;

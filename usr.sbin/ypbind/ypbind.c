@@ -392,7 +392,7 @@ main(int argc, char *argv[])
 	if (flock(yplockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
 		errx(1, "another ypbind is already running. Aborting");
 
-	/* XXX domainname will be overriden if we use restricted mode */
+	/* XXX domainname will be overridden if we use restricted mode */
 	yp_get_default_domain(&domain_name);
 	if (domain_name[0] == '\0')
 		errx(1, "domainname not set. Aborting");

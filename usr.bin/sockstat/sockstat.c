@@ -365,7 +365,7 @@ gather_sctp(void)
 				         htons(xinpcb->local_port));
 				break;
 			default:
-				errx(1, "adress family %d not supported",
+				errx(1, "address family %d not supported",
 				     xladdr->address.sa.sa_family);
 			}
 			laddr->next = NULL;
@@ -457,7 +457,7 @@ gather_sctp(void)
 						 htons(xstcb->local_port));
 					break;
 				default:
-					errx(1, "adress family %d not supported",
+					errx(1, "address family %d not supported",
 					     xladdr->address.sa.sa_family);
 				}
 				laddr->next = NULL;
@@ -499,7 +499,7 @@ gather_sctp(void)
 						 htons(xstcb->remote_port));
 					break;
 				default:
-					errx(1, "adress family %d not supported",
+					errx(1, "address family %d not supported",
 					     xraddr->address.sa.sa_family);
 				}
 				faddr->next = NULL;
