@@ -698,7 +698,7 @@ enum mlx5e_link_mode {
 	MLX5E_56GBASE_R4 = 8,
 	MLX5E_10GBASE_CR = 12,
 	MLX5E_10GBASE_SR = 13,
-	MLX5E_10GBASE_ER = 14,
+	MLX5E_10GBASE_LR = 14,
 	MLX5E_40GBASE_SR4 = 15,
 	MLX5E_40GBASE_LR4 = 16,
 	MLX5E_100GBASE_CR4 = 20,
@@ -787,5 +787,6 @@ void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
 void	mlx5e_send_nop(struct mlx5e_sq *, u32, bool);
+int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
 
 #endif					/* _MLX5_EN_H_ */

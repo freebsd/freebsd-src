@@ -76,7 +76,7 @@ main(int argc, char *argv[])
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	lflag = nflag = qflag = 0;
+	lflag = nflag = qflag = Nflag = 0;
 	while ((ch = getopt(argc, argv, "dk:lNnpqr")) != -1)
 		switch(ch) {
 		case 'd':

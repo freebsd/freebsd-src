@@ -111,10 +111,7 @@ _ENTRY(_rtld_start)
  *
  * Call into the MI binder. This routine is reached via the PLT call cell
  *
- * For ELFv1, on entry, %r11 contains a pointer to the (object, relocation)
- * tuple.
- *
- * For ELFv2, %r11 contains an object pointer and %r0 contains the PLT index.
+ * On entry, %r11 contains an object pointer and %r0 contains the PLT index.
  *
  * Save all registers, call into the binder to resolve and fixup the external
  * routine, and then transfer to the external routine on return.
@@ -122,7 +119,7 @@ _ENTRY(_rtld_start)
 	.globl  _rtld_bind
 
 _ENTRY(_rtld_bind_start)
-	mr	%r12,%r0		# shunt r0 immediately to r12 for ELFv2
+	mr	%r12,%r0		# save r0 (index) immediately to r12
 	mflr    %r0
 	std     %r0,16(%r1)		# save lr
 	mfcr    %r0
@@ -139,13 +136,9 @@ _ENTRY(_rtld_bind_start)
 	std	%r9,64+6*8(%r1)
 	std	%r10,64+7*8(%r1)
 
-#if !defined(_CALL_ELF) || _CALL_ELF == 1
-	ld	%r3,0(%r11)
-	ld	%r4,8(%r11)
-#else
 	mr	%r3,%r11
-	mulli	%r4,%r12,24		/* Multiply index by sizeof(Elf_Rela) */
-#endif
+	mulli	%r4,%r12,24		# Multiply index by sizeof(Elf_Rela)
+
 	bl      _rtld_bind		# target addr = _rtld_bind(obj, reloff)
 	nop
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Dec 22, 2012
+.Dd Jan 3, 2016
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Nm make_dev_cred ,
 .Nm make_dev_credf ,
 .Nm make_dev_p ,
+.Nm make_dev_s ,
 .Nm make_dev_alias ,
 .Nm make_dev_alias_p ,
 .Nm destroy_dev ,
@@ -45,16 +46,10 @@ and DEVFS registration for devices
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/conf.h
-.Ft struct cdev *
-.Fn make_dev "struct cdevsw *cdevsw" "int unit" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
-.Ft struct cdev *
-.Fn make_dev_cred "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
-.Ft struct cdev *
-.Fn make_dev_credf "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft void
+.Fn make_dev_args_init "struct make_dev_args *args"
 .Ft int
-.Fn make_dev_p "int flags" "struct cdev **cdev" "struct cdevsw *devsw" "struct ucred *cr" "uid_t uid" "gid_t gid" "int mode" "const char *fmt" ...
-.Ft struct cdev *
-.Fn make_dev_alias "struct cdev *pdev" "const char *fmt" ...
+.Fn make_dev_s "struct make_dev_args *args" "struct cdev **cdev" "const char *fmt" ...
 .Ft int
 .Fn make_dev_alias_p "int flags" "struct cdev **cdev" "struct cdev *pdev" "const char *fmt" ...
 .Ft void
@@ -67,12 +62,26 @@ and DEVFS registration for devices
 .Fn destroy_dev_drain "struct cdevsw *csw"
 .Ft void
 .Fn dev_depends "struct cdev *pdev" "struct cdev *cdev"
+.Pp
+LEGACY INTERFACES
+.Ft struct cdev *
+.Fn make_dev "struct cdevsw *cdevsw" "int unit" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_cred "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_credf "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft int
+.Fn make_dev_p "int flags" "struct cdev **cdev" "struct cdevsw *devsw" "struct ucred *cr" "uid_t uid" "gid_t gid" "int mode" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_alias "struct cdev *pdev" "const char *fmt" ...
 .Sh DESCRIPTION
 The
-.Fn make_dev_credf
+.Fn make_dev_s
 function creates a
 .Fa cdev
-structure for a new device.
+structure for a new device, which is returned into the
+.Fa cdev
+argument.
 It also notifies
 .Xr devfs 5
 of the presence of the new device, that causes corresponding nodes
@@ -80,10 +89,34 @@ to be created.
 Besides this, a
 .Xr devctl 4
 notification is sent.
-The device will be owned by
-.Va uid ,
+The function takes the structure
+.Va struct make_dev_args args ,
+which specifies the parameters for the device creation:
+.Pp
+.Bd -literal -offset indent -compact
+struct make_dev_args {
+	size_t		 mda_size;
+	int		 mda_flags;
+	struct cdevsw	*mda_devsw;
+	struct ucred	*mda_cr;
+	uid_t		 mda_uid;
+	gid_t		 mda_gid;
+	int		 mda_mode;
+	int		 mda_unit;
+	void		*mda_si_drv1;
+	void		*mda_si_drv2;
+};
+.Ed
+Before use and filling with the desired values, the structure must be
+initialized by the
+.Fn make_dev_args_init
+function, which ensures that future kernel interface expansion does
+not affect driver source code or binary interface.
+.Pp
+The created device will be owned by
+.Va args.mda_uid ,
 with the group ownership as
-.Va gid .
+.Va args.mda_gid .
 The name is the expansion of
 .Va fmt
 and following arguments as
@@ -97,7 +130,7 @@ mount point and may contain slash
 .Ql /
 characters to denote subdirectories.
 The permissions of the file specified in
-.Va perms
+.Va args.mda_mode
 are defined in
 .In sys/stat.h :
 .Pp
@@ -126,29 +159,28 @@ are defined in
 .Ed
 .Pp
 The
-.Va cr
+.Va args.mda_cr
 argument specifies credentials that will be stored in the
 .Fa si_cred
 member of the initialized
 .Fa struct cdev .
+.Pp
 The
-.Va flags
+.Va args.mda_flags
 argument alters the operation of
-.Fn make_dev_credf
-or
-.Fn make_dev_p .
+.Fn make_dev_s.
 The following values are currently accepted:
 .Pp
-.Bl -tag -width "MAKEDEV_CHECKNAME" -compact -offset indent
-.It MAKEDEV_REF
+.Bl -tag -width "It Dv MAKEDEV_CHECKNAME" -compact -offset indent
+.It Dv MAKEDEV_REF
 reference the created device
-.It MAKEDEV_NOWAIT
+.It Dv MAKEDEV_NOWAIT
 do not sleep, the call may fail
-.It MAKEDEV_WAITOK
+.It Dv MAKEDEV_WAITOK
 allow the function to sleep to satisfy malloc
-.It MAKEDEV_ETERNAL
+.It Dv MAKEDEV_ETERNAL
 created device will be never destroyed
-.It MAKEDEV_CHECKNAME
+.It Dv MAKEDEV_CHECKNAME
 return an error if the device name is invalid or already exists
 .El
 .Pp
@@ -189,8 +221,47 @@ For the convenience, use the
 flag for the code that can be compiled into kernel or loaded
 (and unloaded) as loadable module.
 .Pp
-A panic will occur if the MAKEDEV_CHECKNAME flag is not specified
+A panic will occur if the
+.Dv MAKEDEV_CHECKNAME
+flag is not specified
 and the device name is invalid or already exists.
+.Pp
+The
+.Fn make_dev_p
+use of the form
+.Bd -literal -offset indent
+struct cdev *dev;
+int res;
+res = make_dev_p(flags, &dev, cdevsw, cred, uid, gid, perms, name);
+.Ed
+is equivalent to the code
+.Bd -literal -offset indent
+struct cdev *dev;
+struct make_dev_args args;
+int res;
+
+make_dev_args_init(&args);
+args.mda_flags = flags;
+args.mda_devsw = cdevsw;
+args.mda_cred = cred;
+args.mda_uid = uid;
+args.mda_gid = gid;
+args.mda_mode = perms;
+res = make_dev_s(&args, &dev, name);
+.Ed
+.Pp
+Similarly, the
+.Fn make_dev_credf
+function call is equivalent to
+.Bd -literal -offset indent
+	(void) make_dev_s(&args, &dev, name);
+.Ed
+In other words,
+.Fn make_dev_credf
+does not allow the caller to obtain the return value, and in
+kernels compiled with the
+.Va INVARIANTS
+options, the function asserts that the device creation succeeded.
 .Pp
 The
 .Fn make_dev_cred
@@ -207,45 +278,55 @@ make_dev_credf(0, cdevsw, unit, NULL, uid, gid, perms, fmt, ...);
 .Ed
 .Pp
 The
-.Fn make_dev_p
-function is similar to
-.Fn make_dev_credf
-but it may return an error number and takes a pointer to the resulting
-.Ft *cdev
-as an argument.
-.Pp
-The
-.Fn make_dev_alias
+.Fn make_dev_alias_p
 function takes the returned
 .Ft cdev
 from
 .Fn make_dev
 and makes another (aliased) name for this device.
 It is an error to call
-.Fn make_dev_alias
+.Fn make_dev_alias_p
 prior to calling
 .Fn make_dev .
 .Pp
-.Fn make_dev_alias_p
+The
+.Fn make_dev_alias
 function is similar to
 .Fn make_dev_alias
-but it takes a pointer to the resulting
+but it returns the resulting aliasing
 .Ft *cdev
-as an argument and may return an error.
+and may not return an error.
 .Pp
 The
 .Fa cdev
 returned by
-.Fn make_dev
+.Fn make_dev_s
 and
-.Fn make_dev_alias
+.Fn make_dev_alias_p
 has two fields,
 .Fa si_drv1
 and
 .Fa si_drv2 ,
 that are available to store state.
 Both fields are of type
-.Ft void * .
+.Ft void * ,
+and can be initialized simultaneously with the
+.Va cdev
+allocation by filling
+.Va args.mda_si_drv1
+and
+.Va args.mda_si_drv2
+members of the
+.Fn make_dev_s
+argument structure, or filled after the
+.Va cdev
+is allocated, if using legacy interfaces.
+In the latter case, the driver should handle the race of
+accessing uninitialized
+.Va si_drv1
+and
+.Va si_drv2
+itself.
 These are designed to replace the
 .Fa unit
 argument to
@@ -331,8 +412,10 @@ unload until
 is actually finished for all of them.
 .Sh RETURN VALUES
 If successful,
+.Fn make_dev_s
+and
 .Fn make_dev_p
-will return 0, otherwise it will return an error.
+will return 0, otherwise they will return an error.
 If successful,
 .Fn make_dev_credf
 will return a valid
@@ -341,10 +424,11 @@ pointer, otherwise it will return
 .Dv NULL .
 .Sh ERRORS
 The
+.Fn make_dev_s ,
 .Fn make_dev_p
 and
 .Fn make_dev_alias_p
-call will fail and the device will be not registered if:
+calls will fail and the device will be not registered if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 The
@@ -403,3 +487,7 @@ The function
 .Fn make_dev_p
 first appeared in
 .Fx 8.2 .
+The function
+.Fn make_dev_s
+first appeared in
+.Fx 11.0 .

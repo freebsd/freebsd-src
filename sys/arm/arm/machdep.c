@@ -194,6 +194,8 @@ int _min_bzero_size = 0;
 extern int *end;
 
 #ifdef FDT
+static char *loader_envp;
+
 vm_paddr_t pmap_pa;
 
 #ifdef ARM_NEW_PMAP
@@ -1002,6 +1004,8 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
 
+	init_static_kenv(NULL, 0);
+
 	return (lastaddr);
 }
 
@@ -1074,6 +1078,8 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	bcopy(atag_list, atags,
 	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
 
+	init_static_kenv(NULL, 0);
+
 	return fake_preload_metadata(abp);
 }
 #endif
@@ -1106,7 +1112,8 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 		return 0;
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	init_static_kenv(loader_envp, 0);
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
@@ -1429,13 +1436,13 @@ print_kenv(void)
 	char *cp;
 
 	debugf("loader passed (static) kenv:\n");
-	if (kern_envp == NULL) {
+	if (loader_envp == NULL) {
 		debugf(" no env, null ptr\n");
 		return;
 	}
-	debugf(" kern_envp = 0x%08x\n", (uint32_t)kern_envp);
+	debugf(" loader_envp = 0x%08x\n", (uint32_t)loader_envp);
 
-	for (cp = kern_envp; cp != NULL; cp = kenv_next(cp))
+	for (cp = loader_envp; cp != NULL; cp = kenv_next(cp))
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 

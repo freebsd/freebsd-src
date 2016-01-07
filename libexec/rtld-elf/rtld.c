@@ -204,8 +204,6 @@ extern Elf_Dyn _DYNAMIC;
 #define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
 #endif
 
-#define _LD(x)	LD_ x
-
 int dlclose(void *) __exported;
 char *dlerror(void) __exported;
 void *dlopen(const char *, int) __exported;
@@ -325,6 +323,24 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 	utrace(&ut, sizeof(ut));
 }
 
+#ifdef RTLD_VARIANT_ENV_NAMES
+/*
+ * construct the env variable based on the type of binary that's
+ * running.
+ */
+static inline const char *
+_LD(const char *var)
+{
+	static char buffer[128];
+
+	strlcpy(buffer, ld_env_prefix, sizeof(buffer));
+	strlcat(buffer, var, sizeof(buffer));
+	return (buffer);
+}
+#else
+#define _LD(x)	LD_ x
+#endif
+
 /*
  * Main entry point for dynamic linking.  The first argument is the
  * stack pointer.  The stack is expected to be laid out as described
@@ -418,6 +434,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     }
 
     trust = !issetugid();
+
+/*  md_abi_variant_hook(aux_info); */
 
     ld_bind_now = getenv(_LD("BIND_NOW"));
     /* 
@@ -1126,13 +1144,13 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	 * is mapped read-only. DT_MIPS_RLD_MAP is used instead.
 	 */
 
-#ifndef __mips__
 	case DT_DEBUG:
+	    if (!obj->writable_dynamic)
+		break;
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
 	    break;
-#endif
 
 	case DT_FLAGS:
 		if (dynp->d_un.d_val & DF_ORIGIN)
@@ -1313,6 +1331,8 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 
 	case PT_DYNAMIC:
+	    if (ph->p_flags & PROT_WRITE)
+		obj->writable_dynamic = true;
 	    obj->dynamic = (const Elf_Dyn *)(ph->p_vaddr + obj->relocbase);
 	    break;
 

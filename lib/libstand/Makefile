@@ -11,13 +11,14 @@ MK_SSP=		no
 
 .include <src.opts.mk>
 
-LIBSTAND_SRC=	${.CURDIR}
+LIBSTAND_SRC?=	${.CURDIR}
+LIBSTAND_CPUARCH?=${MACHINE_CPUARCH}
 LIBC_SRC=	${LIBSTAND_SRC}/../libc
 
 LIB=		stand
 NO_PIC=
-INCS=		stand.h
-MAN=		libstand.3
+INCS?=		stand.h
+MAN?=		libstand.3
 
 WARNS?=		0
 
@@ -37,12 +38,19 @@ SRCS+= ntoh.c
 
 # string functions from libc
 .PATH: ${LIBC_SRC}/string
-SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
-	memmove.c memset.c qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
+SRCS+=	bcmp.c bcopy.c bzero.c ffs.c fls.c \
+	memccpy.c memchr.c memcmp.c memcpy.c memmove.c memset.c \
+	qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
 	strcspn.c strlcat.c strlcpy.c strlen.c strncat.c strncmp.c strncpy.c \
 	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${LIBC_SRC}/arm/gen
+
+# Do not generate movt/movw, because the relocation fixup for them does not
+# translate to the -Bsymbolic -pie format required by self_reloc() in loader(8).
+# Also, the fpu is not available in a standalone environment.
+CFLAGS.clang+=	-mllvm -arm-use-movt=0
+CFLAGS.clang+=	-mfpu=none
 
 # Compiler support functions
 .PATH: ${LIBSTAND_SRC}/../../contrib/compiler-rt/lib/builtins/
@@ -72,7 +80,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_create_nil.c uuid_equal.c uuid_from_string.c uuid_is_nil.c uuid_to_string.c
 
 # _setjmp/_longjmp
-.PATH: ${LIBSTAND_SRC}/${MACHINE_CPUARCH}
+.PATH: ${LIBSTAND_SRC}/${LIBSTAND_CPUARCH}
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
