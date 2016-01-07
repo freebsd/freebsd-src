@@ -143,13 +143,6 @@ TGTS+=	${BITGTS}
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
-_MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
-    ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
-    -f /dev/null -V MAKEOBJDIRPREFIX dummy
-.if !empty(_MAKEOBJDIRPREFIX)
-.error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
-	(in make.conf(5)) or command-line variable.
-.endif
 
 # We often need to use the tree's version of make to build it.
 # Choices add to complexity though.
