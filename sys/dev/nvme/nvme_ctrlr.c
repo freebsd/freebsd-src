@@ -160,7 +160,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 				     num_trackers,
 				     ctrlr);
 
-		if (ctrlr->per_cpu_io_queues)
+		if (ctrlr->num_io_queues > 1)
 			bus_bind_intr(ctrlr->dev, qpair->res, i);
 	}
 
@@ -402,7 +402,6 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 			nvme_io_qpair_destroy(&ctrlr->ioq[i]);
 
 		ctrlr->num_io_queues = 1;
-		ctrlr->per_cpu_io_queues = 0;
 	}
 
 	return (0);
@@ -779,7 +778,6 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 {
 
 	ctrlr->num_io_queues = 1;
-	ctrlr->per_cpu_io_queues = 0;
 	ctrlr->rid = 0;
 	ctrlr->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
 	    &ctrlr->rid, RF_SHAREABLE | RF_ACTIVE);
@@ -969,9 +967,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 
 	per_cpu_io_queues = 1;
 	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
-	ctrlr->per_cpu_io_queues = per_cpu_io_queues ? TRUE : FALSE;
 
-	if (ctrlr->per_cpu_io_queues)
+	if (per_cpu_io_queues)
 		ctrlr->num_io_queues = mp_ncpus;
 	else
 		ctrlr->num_io_queues = 1;
@@ -1002,7 +999,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	}
 
 	if (pci_msix_count(dev) < num_vectors_requested) {
-		ctrlr->per_cpu_io_queues = FALSE;
 		ctrlr->num_io_queues = 1;
 		num_vectors_requested = 2; /* one for admin, one for I/O */
 	}
@@ -1020,7 +1016,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 			goto intx;
 		}
 
-		ctrlr->per_cpu_io_queues = FALSE;
 		ctrlr->num_io_queues = 1;
 		/*
 		 * Release whatever vectors were allocated, and just
@@ -1192,7 +1187,7 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 {
 	struct nvme_qpair       *qpair;
 
-	if (ctrlr->per_cpu_io_queues)
+	if (ctrlr->num_io_queues > 1)
 		qpair = &ctrlr->ioq[curcpu];
 	else
 		qpair = &ctrlr->ioq[0];
