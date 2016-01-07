@@ -204,19 +204,6 @@ nvd_bioq_process(void *arg, int pending)
 		if (bp == NULL)
 			break;
 
-#ifdef BIO_ORDERED
-		/*
-		 * BIO_ORDERED flag dictates that all outstanding bios
-		 *  must be completed before processing the bio with
-		 *  BIO_ORDERED flag set.
-		 */
-		if (bp->bio_flags & BIO_ORDERED) {
-			while (ndisk->cur_depth > 0) {
-				pause("nvd flush", 1);
-			}
-		}
-#endif
-
 		bp->bio_driver1 = NULL;
 		atomic_add_int(&ndisk->cur_depth, 1);
 
