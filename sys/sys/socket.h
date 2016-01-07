@@ -585,13 +585,9 @@ struct sf_hdtr {
 
 /*
  * Sendfile-specific flag(s)
- *
- * SF_NODISKIO and SF_MNOWAIT are unused since 11.0, but we keep
- * them in header to keep applications compilable.  We will try to
- * avoid to reuse their bits as long as possible.
  */
-#define	SF_NODISKIO     0x00000001	/* unused */
-#define	SF_MNOWAIT	0x00000002	/* unused */
+#define	SF_NODISKIO     0x00000001
+#define	SF_MNOWAIT	0x00000002	/* obsolete */
 #define	SF_SYNC		0x00000004
 #define	SF_NOCACHE	0x00000010
 #define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))
