@@ -41,7 +41,7 @@
 #define PATH_SHELL	"/bin/sh"
 #endif
 
-#define CMDBUFMAX	4096
+#define CMDBUFMAX	65536
 
 __BEGIN_DECLS
 int	shell_spawn_pipecmd(const char *_cmd, const char *_label, pid_t *_pid);
