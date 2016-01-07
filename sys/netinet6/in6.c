@@ -2449,6 +2449,7 @@ in6_if2idlen(struct ifnet *ifp)
 #ifdef IFT_MIP
 	case IFT_MIP:	/* ditto */
 #endif
+	case IFT_BRIDGE:	/* bridge(4) only does Ethernet-like links */
 	case IFT_INFINIBAND:
 		return (64);
 	case IFT_FDDI:		/* RFC2467 */
