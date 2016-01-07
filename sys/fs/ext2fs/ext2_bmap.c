@@ -96,6 +96,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct ext4_extent *ep;
 	struct ext4_extent_path path = { .ep_bp = NULL };
 	daddr_t lbn;
+	int ret = 0;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
@@ -113,15 +114,21 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	ext4_ext_find_extent(fs, ip, lbn, &path);
 	ep = path.ep_ext;
 	if (ep == NULL)
-		return (EIO);
+		ret = EIO;
+	else {
+		*bnp = fsbtodb(fs, lbn - ep->e_blk +
+		    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
 
-	*bnp = fsbtodb(fs, lbn - ep->e_blk +
-	    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
+		if (*bnp == 0)
+			*bnp = -1;
+	}
 
-	if (*bnp == 0)
-		*bnp = -1;
+	if (path.ep_bp != NULL) {
+		brelse(path.ep_bp);
+		path.ep_bp = NULL;
+	}
 
-	return (0);
+	return (ret);
 }
 
 /*
