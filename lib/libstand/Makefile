@@ -17,7 +17,7 @@ LIBC_SRC=	${LIBSTAND_SRC}/../libc
 
 LIB=		stand
 NO_PIC=
-INCS=		stand.h
+INCS?=		stand.h
 MAN?=		libstand.3
 
 WARNS?=		0
