@@ -46,6 +46,13 @@ menu_help="Customize system console behavior"
 # can be i18n'ed but `command' is the name of a script.
 #
 menu_selection="console|console"
+menu_selection="vt_font|font"
+menu_selection="vt_keymap|keymap"
+menu_selection="vt_repeat|repeat"
+menu_selection="vt_saver|saver"
+menu_selection="vt_screenmap|screenmap"
+menu_selection="vt_ttys|ttys"
+# For backward compatibility
 menu_selection="syscons_font|font"
 menu_selection="syscons_keymap|keymap"
 menu_selection="syscons_repeat|repeat"
