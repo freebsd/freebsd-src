@@ -8,3 +8,5 @@ SUBDIR+=		userboot
 .if ${MK_FORTH} != "no"
 SUBDIR+=		ficl32
 .endif
+
+SUBDIR+=		i386
