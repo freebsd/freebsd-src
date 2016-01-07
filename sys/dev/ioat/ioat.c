@@ -789,6 +789,21 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 	CTR0(KTR_IOAT, __func__);
 }
 
+int
+ioat_acquire_reserve(bus_dmaengine_t dmaengine, unsigned n, int mflags)
+{
+	struct ioat_softc *ioat;
+	int error;
+
+	ioat = to_ioat_softc(dmaengine);
+	ioat_acquire(dmaengine);
+
+	error = ioat_reserve_space(ioat, n, mflags);
+	if (error != 0)
+		ioat_release(dmaengine);
+	return (error);
+}
+
 void
 ioat_release(bus_dmaengine_t dmaengine)
 {

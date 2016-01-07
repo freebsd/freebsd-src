@@ -96,11 +96,24 @@ uint16_t ioat_get_max_coalesce_period(bus_dmaengine_t dmaengine);
 
 /*
  * Acquire must be called before issuing an operation to perform. Release is
- * called after. Multiple operations can be issued within the context of one
+ * called after.  Multiple operations can be issued within the context of one
  * acquire and release
  */
 void ioat_acquire(bus_dmaengine_t dmaengine);
 void ioat_release(bus_dmaengine_t dmaengine);
+
+/*
+ * Acquire_reserve can be called to ensure there is room for N descriptors.  If
+ * it succeeds, the next N valid operations will successfully enqueue.
+ *
+ * It may fail with:
+ *   - ENXIO if the channel is in an errored state, or the driver is being
+ *     unloaded
+ *   - EAGAIN if mflags included M_NOWAIT
+ *
+ * On failure, the caller does not hold the dmaengine.
+ */
+int ioat_acquire_reserve(bus_dmaengine_t dmaengine, unsigned n, int mflags);
 
 /*
  * Issue a blockfill operation.  The 64-bit pattern 'fillpattern' is written to
