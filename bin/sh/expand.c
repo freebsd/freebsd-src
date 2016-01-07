@@ -951,8 +951,8 @@ varvalue(const char *name, int quoted, int subtype, int flag,
 	case '-':
 		p = buf;
 		for (i = 0 ; i < NSHORTOPTS ; i++) {
-			if (optlist[i].val)
-				*p++ = optlist[i].letter;
+			if (optval[i])
+				*p++ = optletter[i];
 		}
 		*p = '\0';
 		strtodest(buf, flag, subtype, quoted, dst);
