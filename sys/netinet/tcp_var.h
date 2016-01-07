@@ -180,8 +180,6 @@ struct tcpcb {
 	u_long	snd_spare2;		/* unused */
 	tcp_seq	snd_recover;		/* for use in NewReno Fast Recovery */
 
-	u_int	t_maxopd;		/* mss plus options */
-
 	u_int	t_rcvtime;		/* inactivity time */
 	u_int	t_starttime;		/* time connection was established */
 	u_int	t_rtttime;		/* RTT measurement start time */
@@ -192,6 +190,7 @@ struct tcpcb {
 
 	int	t_rxtcur;		/* current retransmit value (ticks) */
 	u_int	t_maxseg;		/* maximum segment size */
+	u_int	t_pmtud_saved_maxseg;	/* pre-blackhole MSS */
 	int	t_srtt;			/* smoothed round-trip time */
 	int	t_rttvar;		/* variance in round-trip time */
 
@@ -251,7 +250,6 @@ struct tcpcb {
 	u_int	t_tsomax;		/* TSO total burst length limit in bytes */
 	u_int	t_tsomaxsegcount;	/* TSO maximum segment count */
 	u_int	t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
-	u_int	t_pmtud_saved_maxopd;	/* pre-blackhole MSS */
 	u_int	t_flags2;		/* More tcpcb flags storage */
 #if defined(_KERNEL) && defined(TCP_RFC7413)
 	uint32_t t_ispare[6];		/* 5 UTO, 1 TBD */
@@ -775,6 +773,7 @@ int tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb 
 
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
+u_int	 tcp_maxseg(const struct tcpcb *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
 	    struct tcp_ifcap *);
 void	 tcp_mss(struct tcpcb *, int);

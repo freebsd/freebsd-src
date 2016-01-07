@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_icmp.h>
@@ -94,6 +95,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/in6_fib.h>
+#include <netinet6/scope6_var.h>
 #endif /* INET6 */
 
 #include <machine/in_cksum.h>
@@ -2985,49 +2988,35 @@ static u_int16_t
 pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 {
 #ifdef INET
-	struct sockaddr_in	*dst;
-	struct route		 ro;
+	struct nhop4_basic	nh4;
 #endif /* INET */
 #ifdef INET6
-	struct sockaddr_in6	*dst6;
-	struct route_in6	 ro6;
+	struct nhop6_basic	nh6;
+	struct in6_addr		dst6;
+	uint32_t		scopeid;
 #endif /* INET6 */
-	struct rtentry		*rt = NULL;
 	int			 hlen = 0;
-	u_int16_t		 mss = V_tcp_mssdflt;
+	uint16_t		 mss = 0;
 
 	switch (af) {
 #ifdef INET
 	case AF_INET:
 		hlen = sizeof(struct ip);
-		bzero(&ro, sizeof(ro));
-		dst = (struct sockaddr_in *)&ro.ro_dst;
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = addr->v4;
-		in_rtalloc_ign(&ro, 0, rtableid);
-		rt = ro.ro_rt;
+		if (fib4_lookup_nh_basic(rtableid, addr->v4, 0, 0, &nh4) == 0)
+			mss = nh4.nh_mtu - hlen - sizeof(struct tcphdr);
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
 		hlen = sizeof(struct ip6_hdr);
-		bzero(&ro6, sizeof(ro6));
-		dst6 = (struct sockaddr_in6 *)&ro6.ro_dst;
-		dst6->sin6_family = AF_INET6;
-		dst6->sin6_len = sizeof(*dst6);
-		dst6->sin6_addr = addr->v6;
-		in6_rtalloc_ign(&ro6, 0, rtableid);
-		rt = ro6.ro_rt;
+		in6_splitscope(&addr->v6, &dst6, &scopeid);
+		if (fib6_lookup_nh_basic(rtableid, &dst6, scopeid, 0,0,&nh6)==0)
+			mss = nh6.nh_mtu - hlen - sizeof(struct tcphdr);
 		break;
 #endif /* INET6 */
 	}
 
-	if (rt && rt->rt_ifp) {
-		mss = rt->rt_ifp->if_mtu - hlen - sizeof(struct tcphdr);
-		mss = max(V_tcp_mssdflt, mss);
-		RTFREE(rt);
-	}
+	mss = max(V_tcp_mssdflt, mss);
 	mss = min(mss, offer);
 	mss = max(mss, 64);		/* sanity - at least max opt space */
 	return (mss);
@@ -5194,13 +5183,12 @@ pf_pull_hdr(struct mbuf *m, int off, void *p, int len,
 	return (p);
 }
 
-int
-pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
+#ifdef RADIX_MPATH
+static int
+pf_routable_oldmpath(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
     int rtableid)
 {
-#ifdef RADIX_MPATH
 	struct radix_node_head	*rnh;
-#endif
 	struct sockaddr_in	*dst;
 	int			 ret = 1;
 	int			 check_mpath;
@@ -5215,12 +5203,10 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 	struct ifnet		*ifp;
 
 	check_mpath = 0;
-#ifdef RADIX_MPATH
 	/* XXX: stick to table 0 for now */
 	rnh = rt_tables_get_rnh(0, af);
 	if (rnh != NULL && rn_mpath_capable(rnh))
 		check_mpath = 1;
-#endif
 	bzero(&ro, sizeof(ro));
 	switch (af) {
 	case AF_INET:
@@ -5283,9 +5269,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 
 			if (kif->pfik_ifp == ifp)
 				ret = 1;
-#ifdef RADIX_MPATH
 			rn = rn_mpath_next(rn);
-#endif
 		} while (check_mpath == 1 && rn != NULL && ret == 0);
 	} else
 		ret = 0;
@@ -5293,6 +5277,72 @@ out:
 	if (ro.ro_rt != NULL)
 		RTFREE(ro.ro_rt);
 	return (ret);
+}
+#endif
+
+int
+pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
+    int rtableid)
+{
+#ifdef INET
+	struct nhop4_basic	nh4;
+#endif
+#ifdef INET6
+	struct nhop6_basic	nh6;
+#endif
+	struct ifnet		*ifp;
+#ifdef RADIX_MPATH
+	struct radix_node_head	*rnh;
+
+	/* XXX: stick to table 0 for now */
+	rnh = rt_tables_get_rnh(0, af);
+	if (rnh != NULL && rn_mpath_capable(rnh))
+		return (pf_routable_oldmpath(addr, af, kif, rtableid));
+#endif
+	/*
+	 * Skip check for addresses with embedded interface scope,
+	 * as they would always match anyway.
+	 */
+	if (af == AF_INET6 && IN6_IS_SCOPE_EMBED(&addr->v6))
+		return (1);
+
+	if (af != AF_INET && af != AF_INET6)
+		return (0);
+
+	/* Skip checks for ipsec interfaces */
+	if (kif != NULL && kif->pfik_ifp->if_type == IFT_ENC)
+		return (1);
+
+	ifp = NULL;
+
+	switch (af) {
+#ifdef INET6
+	case AF_INET6:
+		if (fib6_lookup_nh_basic(rtableid, &addr->v6, 0, 0, 0, &nh6)!=0)
+			return (0);
+		ifp = nh6.nh_ifp;
+		break;
+#endif
+#ifdef INET
+	case AF_INET:
+		if (fib4_lookup_nh_basic(rtableid, addr->v4, 0, 0, &nh4) != 0)
+			return (0);
+		ifp = nh4.nh_ifp;
+		break;
+#endif
+	}
+
+	/* No interface given, this is a no-route check */
+	if (kif == NULL)
+		return (1);
+
+	if (kif->pfik_ifp == NULL)
+		return (0);
+
+	/* Perform uRPF check if passed input interface */
+	if (kif->pfik_ifp == ifp)
+		return (1);
+	return (0);
 }
 
 #ifdef INET
@@ -5344,23 +5394,20 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin_addr = ip->ip_dst;
 
 	if (r->rt == PF_FASTROUTE) {
-		struct rtentry *rt;
+		struct nhop4_basic nh4;
 
 		if (s)
 			PF_STATE_UNLOCK(s);
-		rt = rtalloc1_fib(sintosa(&dst), 0, 0, M_GETFIB(m0));
-		if (rt == NULL) {
+
+		if (fib4_lookup_nh_basic(M_GETFIB(m0), ip->ip_dst, 0,
+		    m0->m_pkthdr.flowid, &nh4) != 0) {
 			KMOD_IPSTAT_INC(ips_noroute);
 			error = EHOSTUNREACH;
 			goto bad;
 		}
 
-		ifp = rt->rt_ifp;
-		counter_u64_add(rt->rt_pksent, 1);
-
-		if (rt->rt_flags & RTF_GATEWAY)
-			bcopy(satosin(rt->rt_gateway), &dst, sizeof(dst));
-		RTFREE_LOCKED(rt);
+		ifp = nh4.nh_ifp;
+		dst.sin_addr = nh4.nh_addr;
 	} else {
 		if (TAILQ_EMPTY(&r->rpool.list)) {
 			DPFPRINTF(PF_DEBUG_URGENT,

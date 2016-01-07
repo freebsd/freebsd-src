@@ -147,7 +147,7 @@ efi_fmtdev(void *vdev)
 		break;
 	}
 
-	return(buf);
+	return (buf);
 }
 
 /*
@@ -161,7 +161,7 @@ efi_setcurrdev(struct env_var *ev, int flags, const void *value)
 
 	rv = efi_parsedev(&ncurr, value, NULL);
 	if (rv != 0)
-		return(rv);
+		return (rv);
 
 	free(ncurr);
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);

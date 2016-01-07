@@ -42,8 +42,15 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+/*
+ * Used for calculating number of CPUs to assign to each core and number of I/O
+ *  queues to allocate per controller.
+ */
+#define NVME_CEILING(num, div)	((((num) - 1) / (div)) + 1)
+
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
+static void nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
 
 static int
 nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
@@ -140,6 +147,13 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 */
 	num_trackers = min(num_trackers, (num_entries-1));
 
+	/*
+	 * This was calculated previously when setting up interrupts, but
+	 *  a controller could theoretically support fewer I/O queues than
+	 *  MSI-X vectors.  So calculate again here just to be safe.
+	 */
+	ctrlr->num_cpus_per_ioq = NVME_CEILING(mp_ncpus, ctrlr->num_io_queues);
+
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
 
@@ -160,8 +174,13 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 				     num_trackers,
 				     ctrlr);
 
-		if (ctrlr->per_cpu_io_queues)
-			bus_bind_intr(ctrlr->dev, qpair->res, i);
+		/*
+		 * Do not bother binding interrupts if we only have one I/O
+		 *  interrupt thread for this controller.
+		 */
+		if (ctrlr->num_io_queues > 1)
+			bus_bind_intr(ctrlr->dev, qpair->res,
+			    i * ctrlr->num_cpus_per_ioq);
 	}
 
 	return (0);
@@ -306,8 +325,15 @@ nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 	int i;
 
 	nvme_admin_qpair_disable(&ctrlr->adminq);
-	for (i = 0; i < ctrlr->num_io_queues; i++)
-		nvme_io_qpair_disable(&ctrlr->ioq[i]);
+	/*
+	 * I/O queues are not allocated before the initial HW
+	 *  reset, so do not try to disable them.  Use is_initialized
+	 *  to determine if this is the initial HW reset.
+	 */
+	if (ctrlr->is_initialized) {
+		for (i = 0; i < ctrlr->num_io_queues; i++)
+			nvme_io_qpair_disable(&ctrlr->ioq[i]);
+	}
 
 	DELAY(100*1000);
 
@@ -363,7 +389,7 @@ static int
 nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 {
 	struct nvme_completion_poll_status	status;
-	int					cq_allocated, i, sq_allocated;
+	int					cq_allocated, sq_allocated;
 
 	status.done = FALSE;
 	nvme_ctrlr_cmd_set_num_queues(ctrlr, ctrlr->num_io_queues,
@@ -384,26 +410,12 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	cq_allocated = (status.cpl.cdw0 >> 16) + 1;
 
 	/*
-	 * Check that the controller was able to allocate the number of
-	 *  queues we requested.  If not, revert to one IO queue pair.
+	 * Controller may allocate more queues than we requested,
+	 *  so use the minimum of the number requested and what was
+	 *  actually allocated.
 	 */
-	if (sq_allocated < ctrlr->num_io_queues ||
-	    cq_allocated < ctrlr->num_io_queues) {
-
-		/*
-		 * Destroy extra IO queue pairs that were created at
-		 *  controller construction time but are no longer
-		 *  needed.  This will only happen when a controller
-		 *  supports fewer queues than MSI-X vectors.  This
-		 *  is not the normal case, but does occur with the
-		 *  Chatham prototype board.
-		 */
-		for (i = 1; i < ctrlr->num_io_queues; i++)
-			nvme_io_qpair_destroy(&ctrlr->ioq[i]);
-
-		ctrlr->num_io_queues = 1;
-		ctrlr->per_cpu_io_queues = 0;
-	}
+	ctrlr->num_io_queues = min(ctrlr->num_io_queues, sq_allocated);
+	ctrlr->num_io_queues = min(ctrlr->num_io_queues, cq_allocated);
 
 	return (0);
 }
@@ -687,9 +699,20 @@ static void
 nvme_ctrlr_start(void *ctrlr_arg)
 {
 	struct nvme_controller *ctrlr = ctrlr_arg;
+	uint32_t old_num_io_queues;
 	int i;
 
-	nvme_qpair_reset(&ctrlr->adminq);
+	/*
+	 * Only reset adminq here when we are restarting the
+	 *  controller after a reset.  During initialization,
+	 *  we have already submitted admin commands to get
+	 *  the number of I/O queues supported, so cannot reset
+	 *  the adminq again here.
+	 */
+	if (ctrlr->is_resetting) {
+		nvme_qpair_reset(&ctrlr->adminq);
+	}
+
 	for (i = 0; i < ctrlr->num_io_queues; i++)
 		nvme_qpair_reset(&ctrlr->ioq[i]);
 
@@ -700,9 +723,23 @@ nvme_ctrlr_start(void *ctrlr_arg)
 		return;
 	}
 
+	/*
+	 * The number of qpairs are determined during controller initialization,
+	 *  including using NVMe SET_FEATURES/NUMBER_OF_QUEUES to determine the
+	 *  HW limit.  We call SET_FEATURES again here so that it gets called
+	 *  after any reset for controllers that depend on the driver to
+	 *  explicit specify how many queues it will use.  This value should
+	 *  never change between resets, so panic if somehow that does happen.
+	 */
+	old_num_io_queues = ctrlr->num_io_queues;
 	if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
 		nvme_ctrlr_fail(ctrlr);
 		return;
+	}
+
+	if (old_num_io_queues != ctrlr->num_io_queues) {
+		panic("num_io_queues changed from %u to %u", old_num_io_queues,
+		    ctrlr->num_io_queues);
 	}
 
 	if (nvme_ctrlr_create_qpairs(ctrlr) != 0) {
@@ -727,7 +764,16 @@ nvme_ctrlr_start_config_hook(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
 
-	nvme_ctrlr_start(ctrlr);
+	nvme_qpair_reset(&ctrlr->adminq);
+	nvme_admin_qpair_enable(&ctrlr->adminq);
+
+	if (nvme_ctrlr_set_num_qpairs(ctrlr) == 0 &&
+	    nvme_ctrlr_construct_io_qpairs(ctrlr) == 0)
+		nvme_ctrlr_start(ctrlr);
+	else
+		nvme_ctrlr_fail(ctrlr);
+
+	nvme_sysctl_initialize_ctrlr(ctrlr);
 	config_intrhook_disestablish(&ctrlr->config_hook);
 
 	ctrlr->is_initialized = 1;
@@ -778,8 +824,9 @@ static int
 nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 {
 
+	ctrlr->msix_enabled = 0;
 	ctrlr->num_io_queues = 1;
-	ctrlr->per_cpu_io_queues = 0;
+	ctrlr->num_cpus_per_ioq = mp_ncpus;
 	ctrlr->rid = 0;
 	ctrlr->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
 	    &ctrlr->rid, RF_SHAREABLE | RF_ACTIVE);
@@ -926,13 +973,77 @@ static struct cdevsw nvme_ctrlr_cdevsw = {
 	.d_ioctl =	nvme_ctrlr_ioctl
 };
 
+static void
+nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
+{
+	device_t	dev;
+	int		per_cpu_io_queues;
+	int		num_vectors_requested, num_vectors_allocated;
+	int		num_vectors_available;
+
+	dev = ctrlr->dev;
+	per_cpu_io_queues = 1;
+	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
+
+	ctrlr->force_intx = 0;
+	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
+
+	/*
+	 * FreeBSD currently cannot allocate more than about 190 vectors at
+	 *  boot, meaning that systems with high core count and many devices
+	 *  requesting per-CPU interrupt vectors will not get their full
+	 *  allotment.  So first, try to allocate as many as we may need to
+	 *  understand what is available, then immediately release them.
+	 *  Then figure out how many of those we will actually use, based on
+	 *  assigning an equal number of cores to each I/O queue.
+	 */
+
+	/* One vector for per core I/O queue, plus one vector for admin queue. */
+	num_vectors_available = min(pci_msix_count(dev), mp_ncpus + 1);
+	if (pci_alloc_msix(dev, &num_vectors_available) != 0) {
+		num_vectors_available = 0;
+	}
+	pci_release_msi(dev);
+
+	if (ctrlr->force_intx || num_vectors_available < 2) {
+		nvme_ctrlr_configure_intx(ctrlr);
+		return;
+	}
+
+	if (per_cpu_io_queues)
+		ctrlr->num_cpus_per_ioq = NVME_CEILING(mp_ncpus, num_vectors_available + 1);
+	else
+		ctrlr->num_cpus_per_ioq = mp_ncpus;
+
+	ctrlr->num_io_queues = NVME_CEILING(mp_ncpus, ctrlr->num_cpus_per_ioq);
+	num_vectors_requested = ctrlr->num_io_queues + 1;
+	num_vectors_allocated = num_vectors_requested;
+
+	/*
+	 * Now just allocate the number of vectors we need.  This should
+	 *  succeed, since we previously called pci_alloc_msix()
+	 *  successfully returning at least this many vectors, but just to
+	 *  be safe, if something goes wrong just revert to INTx.
+	 */
+	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
+		nvme_ctrlr_configure_intx(ctrlr);
+		return;
+	}
+
+	if (num_vectors_allocated < num_vectors_requested) {
+		pci_release_msi(dev);
+		nvme_ctrlr_configure_intx(ctrlr);
+		return;
+	}
+
+	ctrlr->msix_enabled = 1;
+}
+
 int
 nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
-	int			i, per_cpu_io_queues, rid;
-	int			num_vectors_requested, num_vectors_allocated;
 	int			status, timeout_period;
 
 	ctrlr->dev = dev;
@@ -967,116 +1078,13 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	nvme_retry_count = NVME_DEFAULT_RETRY_COUNT;
 	TUNABLE_INT_FETCH("hw.nvme.retry_count", &nvme_retry_count);
 
-	per_cpu_io_queues = 1;
-	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
-	ctrlr->per_cpu_io_queues = per_cpu_io_queues ? TRUE : FALSE;
-
-	if (ctrlr->per_cpu_io_queues)
-		ctrlr->num_io_queues = mp_ncpus;
-	else
-		ctrlr->num_io_queues = 1;
-
-	ctrlr->force_intx = 0;
-	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
-
 	ctrlr->enable_aborts = 0;
 	TUNABLE_INT_FETCH("hw.nvme.enable_aborts", &ctrlr->enable_aborts);
 
-	ctrlr->msix_enabled = 1;
-
-	if (ctrlr->force_intx) {
-		ctrlr->msix_enabled = 0;
-		goto intx;
-	}
-
-	/* One vector per IO queue, plus one vector for admin queue. */
-	num_vectors_requested = ctrlr->num_io_queues + 1;
-
-	/*
-	 * If we cannot even allocate 2 vectors (one for admin, one for
-	 *  I/O), then revert to INTx.
-	 */
-	if (pci_msix_count(dev) < 2) {
-		ctrlr->msix_enabled = 0;
-		goto intx;
-	} else if (pci_msix_count(dev) < num_vectors_requested) {
-		ctrlr->per_cpu_io_queues = FALSE;
-		ctrlr->num_io_queues = 1;
-		num_vectors_requested = 2; /* one for admin, one for I/O */
-	}
-
-	num_vectors_allocated = num_vectors_requested;
-	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
-		ctrlr->msix_enabled = 0;
-		goto intx;
-	} else if (num_vectors_allocated < num_vectors_requested) {
-		if (num_vectors_allocated < 2) {
-			pci_release_msi(dev);
-			ctrlr->msix_enabled = 0;
-			goto intx;
-		} else {
-			ctrlr->per_cpu_io_queues = FALSE;
-			ctrlr->num_io_queues = 1;
-			/*
-			 * Release whatever vectors were allocated, and just
-			 *  reallocate the two needed for the admin and single
-			 *  I/O qpair.
-			 */
-			num_vectors_allocated = 2;
-			pci_release_msi(dev);
-			if (pci_alloc_msix(dev, &num_vectors_allocated) != 0)
-				panic("could not reallocate any vectors\n");
-			if (num_vectors_allocated != 2)
-				panic("could not reallocate 2 vectors\n");
-		}
-	}
-
-	/*
-	 * On earlier FreeBSD releases, there are reports that
-	 *  pci_alloc_msix() can return successfully with all vectors
-	 *  requested, but a subsequent bus_alloc_resource_any()
-	 *  for one of those vectors fails.  This issue occurs more
-	 *  readily with multiple devices using per-CPU vectors.
-	 * To workaround this issue, try to allocate the resources now,
-	 *  and fall back to INTx if we cannot allocate all of them.
-	 *  This issue cannot be reproduced on more recent versions of
-	 *  FreeBSD which have increased the maximum number of MSI-X
-	 *  vectors, but adding the workaround makes it easier for
-	 *  vendors wishing to import this driver into kernels based on
-	 *  older versions of FreeBSD.
-	 */
-	for (i = 0; i < num_vectors_allocated; i++) {
-		rid = i + 1;
-		ctrlr->msi_res[i] = bus_alloc_resource_any(ctrlr->dev,
-		    SYS_RES_IRQ, &rid, RF_ACTIVE);
-
-		if (ctrlr->msi_res[i] == NULL) {
-			ctrlr->msix_enabled = 0;
-			while (i > 0) {
-				i--;
-				bus_release_resource(ctrlr->dev,
-				    SYS_RES_IRQ,
-				    rman_get_rid(ctrlr->msi_res[i]),
-				    ctrlr->msi_res[i]);
-			}
-			pci_release_msi(dev);
-			nvme_printf(ctrlr, "could not obtain all MSI-X "
-			    "resources, reverting to intx\n");
-			break;
-		}
-	}
-
-intx:
-
-	if (!ctrlr->msix_enabled)
-		nvme_ctrlr_configure_intx(ctrlr);
+	nvme_ctrlr_setup_interrupts(ctrlr);
 
 	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
 	nvme_ctrlr_construct_admin_qpair(ctrlr);
-	status = nvme_ctrlr_construct_io_qpairs(ctrlr);
-
-	if (status != 0)
-		return (status);
 
 	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_WHEEL, 0600, "nvme%d", device_get_unit(dev));
@@ -1188,11 +1196,7 @@ nvme_ctrlr_submit_io_request(struct nvme_controller *ctrlr,
 {
 	struct nvme_qpair       *qpair;
 
-	if (ctrlr->per_cpu_io_queues)
-		qpair = &ctrlr->ioq[curcpu];
-	else
-		qpair = &ctrlr->ioq[0];
-
+	qpair = &ctrlr->ioq[curcpu / ctrlr->num_cpus_per_ioq];
 	nvme_qpair_submit_request(qpair, req);
 }
 
