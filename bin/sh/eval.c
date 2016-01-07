@@ -496,10 +496,12 @@ exphere(union node *redir, struct arglist *fn)
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
 	int need_longjmp = 0;
+	unsigned char saveoptreset;
 
 	redir->nhere.expdoc = "";
 	savelocalvars = localvars;
 	localvars = NULL;
+	saveoptreset = shellparam.reset;
 	forcelocal++;
 	savehandler = handler;
 	if (setjmp(jmploc.loc))
@@ -514,6 +516,7 @@ exphere(union node *redir, struct arglist *fn)
 	forcelocal--;
 	poplocalvars();
 	localvars = savelocalvars;
+	shellparam.reset = saveoptreset;
 	if (need_longjmp)
 		longjmp(handler->loc, 1);
 	INTON;
@@ -647,6 +650,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
+	unsigned char saveoptreset;
 
 	result->fd = -1;
 	result->buf = NULL;
@@ -661,6 +665,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	if (is_valid_fast_cmdsubst(n)) {
 		savelocalvars = localvars;
 		localvars = NULL;
+		saveoptreset = shellparam.reset;
 		forcelocal++;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
@@ -671,6 +676,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 				forcelocal--;
 				poplocalvars();
 				localvars = savelocalvars;
+				shellparam.reset = saveoptreset;
 				longjmp(handler->loc, 1);
 			}
 		} else {
@@ -681,6 +687,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		forcelocal--;
 		poplocalvars();
 		localvars = savelocalvars;
+		shellparam.reset = saveoptreset;
 	} else {
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
