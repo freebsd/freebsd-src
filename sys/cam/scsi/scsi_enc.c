@@ -264,10 +264,6 @@ enc_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL) {
-		return (ENXIO);
-	}
-
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);
 
@@ -302,8 +298,6 @@ enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
 	mtx = cam_periph_mtx(periph);
 	mtx_lock(mtx);
 
@@ -364,9 +358,6 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 		addr = NULL;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering encioctl\n"));
 
 	cam_periph_lock(periph);
@@ -905,6 +896,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	enc_softc_t *enc;
 	struct ccb_getdev *cgd;
 	char *tname;
+	struct make_dev_args args;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -987,12 +979,20 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	enc->enc_dev = make_dev(&enc_cdevsw, periph->unit_number,
-	    UID_ROOT, GID_OPERATOR, 0600, "%s%d",
-	    periph->periph_name, periph->unit_number);
-
+	make_dev_args_init(&args);
+	args.mda_devsw = &enc_cdevsw;
+	args.mda_unit = periph->unit_number;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = periph;
+	err = make_dev_s(&args, &enc->enc_dev, "%s%d", periph->periph_name,
+	    periph->unit_number);
 	cam_periph_lock(periph);
-	enc->enc_dev->si_drv1 = periph;
+	if (err != 0) {
+		cam_periph_release_locked(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 
 	enc->enc_flags |= ENC_FLAG_INITIALIZED;
 
