@@ -47,6 +47,8 @@ struct nvd_disk;
 static disk_ioctl_t nvd_ioctl;
 static disk_strategy_t nvd_strategy;
 
+static void nvd_done(void *arg, const struct nvme_completion *cpl);
+
 static void *nvd_new_disk(struct nvme_namespace *ns, void *ctrlr);
 static void destroy_geom_disk(struct nvd_disk *ndisk);
 
@@ -148,6 +150,26 @@ nvd_unload()
 	nvme_unregister_consumer(consumer_handle);
 }
 
+static int
+nvd_bio_submit(struct nvd_disk *ndisk, struct bio *bp)
+{
+	int err;
+
+	bp->bio_driver1 = NULL;
+	atomic_add_int(&ndisk->cur_depth, 1);
+	err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
+	if (err) {
+		atomic_add_int(&ndisk->cur_depth, -1);
+		bp->bio_error = err;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_resid = bp->bio_bcount;
+		biodone(bp);
+		return (-1);
+	}
+
+	return (0);
+}
+
 static void
 nvd_strategy(struct bio *bp)
 {
@@ -195,7 +217,6 @@ nvd_bioq_process(void *arg, int pending)
 {
 	struct nvd_disk *ndisk = arg;
 	struct bio *bp;
-	int err;
 
 	for (;;) {
 		mtx_lock(&ndisk->bioqlock);
@@ -204,17 +225,7 @@ nvd_bioq_process(void *arg, int pending)
 		if (bp == NULL)
 			break;
 
-		bp->bio_driver1 = NULL;
-		atomic_add_int(&ndisk->cur_depth, 1);
-
-		err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
-
-		if (err) {
-			atomic_add_int(&ndisk->cur_depth, -1);
-			bp->bio_error = err;
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_resid = bp->bio_bcount;
-			biodone(bp);
+		if (nvd_bio_submit(ndisk, bp) != 0) {
 			continue;
 		}
 
