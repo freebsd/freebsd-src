@@ -288,7 +288,7 @@ static u_long nummiss; STATNODE(CTLFLAG_RD, nummiss, &nummiss,
     "Number of cache misses");
 static u_long nummisszap; STATNODE(CTLFLAG_RD, nummisszap, &nummisszap,
     "Number of cache misses we do not want to cache");
-static u_long numposzaps; STATNODE(CTLFLAG_RD, numposzaps, &numposzaps, 
+static u_long numposzaps; STATNODE(CTLFLAG_RD, numposzaps, &numposzaps,
     "Number of cache hits (positive) we do not want to cache");
 static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits,
     "Number of cache hits (positive)");
@@ -302,8 +302,6 @@ static u_long numupgrades; STATNODE(CTLFLAG_RD, numupgrades, &numupgrades,
 SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
     &nchstats, sizeof(nchstats), "LU",
     "VFS cache effectiveness statistics");
-
-
 
 static void cache_zap(struct namecache *ncp);
 static int vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
@@ -410,8 +408,7 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
  *   pointer to a vnode or if it is just a negative cache entry.
  */
 static void
-cache_zap(ncp)
-	struct namecache *ncp;
+cache_zap(struct namecache *ncp)
 {
 	struct vnode *vp;
 
@@ -446,7 +443,7 @@ cache_zap(ncp)
 	}
 	numcache--;
 	cache_free(ncp);
-	if (vp)
+	if (vp != NULL)
 		vdrop(vp);
 }
 
@@ -468,12 +465,8 @@ cache_zap(ncp)
  */
 
 int
-cache_lookup(dvp, vpp, cnp, tsp, ticksp)
-	struct vnode *dvp;
-	struct vnode **vpp;
-	struct componentname *cnp;
-	struct timespec *tsp;
-	int *ticksp;
+cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
+    struct timespec *tsp, int *ticksp)
 {
 	struct namecache *ncp;
 	uint32_t hash;
@@ -701,12 +694,8 @@ unlock:
  * Add an entry to the cache.
  */
 void
-cache_enter_time(dvp, vp, cnp, tsp, dtsp)
-	struct vnode *dvp;
-	struct vnode *vp;
-	struct componentname *cnp;
-	struct timespec *tsp;
-	struct timespec *dtsp;
+cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
+    struct timespec *tsp, struct timespec *dtsp)
 {
 	struct namecache *ncp, *n2;
 	struct namecache_ts *n3;
@@ -836,9 +825,9 @@ cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 		 * has populated v_cache_dd pointer already.
 		 */
 		if (dvp->v_cache_dd != NULL) {
-		    CACHE_WUNLOCK();
-		    cache_free(ncp);
-		    return;
+			CACHE_WUNLOCK();
+			cache_free(ncp);
+			return;
 		}
 		KASSERT(vp == NULL || vp->v_type == VDIR,
 		    ("wrong vnode type %p", vp));
@@ -846,7 +835,7 @@ cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 	}
 
 	numcache++;
-	if (!vp) {
+	if (vp == NULL) {
 		numneg++;
 		if (cnp->cn_flags & ISWHITEOUT)
 			ncp->nc_flag |= NCF_WHITE;
@@ -884,7 +873,7 @@ cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 	 * "negative" cache queue, otherwise, we place it into the
 	 * destination vnode's cache entries queue.
 	 */
-	if (vp) {
+	if (vp != NULL) {
 		TAILQ_INSERT_HEAD(&vp->v_cache_dst, ncp, nc_dst);
 		SDT_PROBE3(vfs, namecache, enter, done, dvp, nc_get_name(ncp),
 		    vp);
@@ -975,8 +964,7 @@ cache_changesize(int newmaxvnodes)
  * Invalidate all entries to a particular vnode.
  */
 void
-cache_purge(vp)
-	struct vnode *vp;
+cache_purge(struct vnode *vp)
 {
 
 	CTR1(KTR_VFS, "cache_purge(%p)", vp);
@@ -999,8 +987,7 @@ cache_purge(vp)
  * Invalidate all negative entries for a particular directory vnode.
  */
 void
-cache_purge_negative(vp)
-	struct vnode *vp;
+cache_purge_negative(struct vnode *vp)
 {
 	struct namecache *cp, *ncp;
 
@@ -1018,8 +1005,7 @@ cache_purge_negative(vp)
  * Flush all entries referencing a particular filesystem.
  */
 void
-cache_purgevfs(mp)
-	struct mount *mp;
+cache_purgevfs(struct mount *mp)
 {
 	struct nchashhead *ncpp;
 	struct namecache *ncp, *nnp;
@@ -1042,12 +1028,7 @@ cache_purgevfs(mp)
  */
 
 int
-vfs_cache_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
+vfs_cache_lookup(struct vop_lookup_args *ap)
 {
 	struct vnode *dvp;
 	int error;
@@ -1088,9 +1069,7 @@ SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0,
 
 /* Implementation of the getcwd syscall. */
 int
-sys___getcwd(td, uap)
-	struct thread *td;
-	struct __getcwd_args *uap;
+sys___getcwd(struct thread *td, struct __getcwd_args *uap)
 {
 
 	return (kern___getcwd(td, uap->buf, UIO_USERSPACE, uap->buflen,
