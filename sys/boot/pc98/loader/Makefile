@@ -89,12 +89,7 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 .PATH: ${.CURDIR}/../../forth
 .include	"${.CURDIR}/../../forth/Makefile.inc"
 
-.if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	${.CURDIR}/../../i386/loader/loader.rc
-.endif
-.if !exists(${DESTDIR}/boot/menu.rc)
-FILES+= menu.rc
-.endif
+FILES+=	${.CURDIR}/../../i386/loader/loader.rc menu.rc
 
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT}
