@@ -281,7 +281,11 @@ ftp: packagesystem
 	cp *.txz MANIFEST ftp
 
 release:	real-release vm-release cloudware-release
-	touch ${.OBJDIR}/${.TARGET}
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} release-done
+	true
+
+release-done:
+	touch release
 
 real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj

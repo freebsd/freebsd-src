@@ -6,7 +6,6 @@ DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
 	include/arpa \
-	include/rpc \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
@@ -26,6 +25,4 @@ amd64-freebsd32.o: freebsd32_syscalls.h
 amd64-freebsd32.po: freebsd32_syscalls.h
 amd64-linux32.o: amd64-linux32_syscalls.h
 amd64-linux32.po: amd64-linux32_syscalls.h
-ioctl.o: ioctl.c
-ioctl.po: ioctl.c
 .endif
