@@ -95,6 +95,7 @@ FILES+=		getopts6.0
 FILES+=		getopts7.0
 FILES+=		getopts8.0 getopts8.0.stdout
 FILES+=		getopts9.0 getopts9.0.stdout
+FILES+=		getopts10.0
 FILES+=		hash1.0 hash1.0.stdout
 FILES+=		hash2.0 hash2.0.stdout
 FILES+=		hash3.0 hash3.0.stdout
