@@ -593,8 +593,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 void
 tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct tcpstat tcpstat, zerostat;
-	size_t len = sizeof tcpstat;
+	struct tcpstat tcpstat;
 
 #ifdef INET6
 	if (tcp_done != 0)
@@ -603,16 +602,9 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		tcp_done = 1;
 #endif
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.tcp.stats", &tcpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.tcp.stats");
-			return;
-		}
-	} else
-		kread_counters(off, &tcpstat, len);
+	if (fetch_stats("net.inet.tcp.stats", off, &tcpstat,
+	    sizeof(tcpstat), kread_counters) != 0)
+		return;
 
 	printf ("%s:\n", name);
 
@@ -755,8 +747,7 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 void
 udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct udpstat udpstat, zerostat;
-	size_t len = sizeof udpstat;
+	struct udpstat udpstat;
 	uint64_t delivered;
 
 #ifdef INET6
@@ -766,16 +757,9 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		udp_done = 1;
 #endif
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.udp.stats", &udpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.udp.stats");
-			return;
-		}
-	} else
-		kread_counters(off, &udpstat, len);
+	if (fetch_stats("net.inet.udp.stats", off, &udpstat,
+	    sizeof(udpstat), kread_counters) != 0)
+		return;
 
 	printf("%s:\n", name);
 #define	p(f, m) if (udpstat.f || sflag <= 1) \
@@ -815,23 +799,11 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 void
 carp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct carpstats carpstat, zerostat;
-	size_t len = sizeof(struct carpstats);
+	struct carpstats carpstat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.carp.stats", &carpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				warn("sysctl: net.inet.carp.stats");
-			return;
-		}
-	} else {
-		if (off == 0)
-			return;
-		kread_counters(off, &carpstat, len);
-	}
+	if (fetch_stats("net.inet.carp.stats", off, &carpstat,
+	    sizeof(carpstat), kread_counters) != 0)
+		return;
 
 	printf("%s:\n", name);
 
@@ -866,19 +838,11 @@ carp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 void
 ip_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct ipstat ipstat, zerostat;
-	size_t len = sizeof ipstat;
+	struct ipstat ipstat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.ip.stats", &ipstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.ip.stats");
-			return;
-		}
-	} else
-		kread_counters(off, &ipstat, len);
+	if (fetch_stats("net.inet.ip.stats", off, &ipstat,
+	    sizeof(ipstat), kread_counters) != 0)
+		return;
 
 	printf("%s:\n", name);
 
@@ -930,19 +894,11 @@ ip_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 void
 arp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct arpstat arpstat, zerostat;
-	size_t len = sizeof(arpstat);
+	struct arpstat arpstat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.link.ether.arp.stats", &arpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.link.ether.arp.stats");
-			return;
-		}
-	} else
-		kread_counters(off, &arpstat, len);
+	if (fetch_stats("net.link.ether.arp.stats", off, &arpstat,
+	    sizeof(arpstat), kread_counters) != 0)
+		return;
 
 	printf("%s:\n", name);
 
@@ -1015,21 +971,13 @@ static	const char *icmpnames[ICMP_MAXTYPE + 1] = {
 void
 icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct icmpstat icmpstat, zerostat;
-	int i, first;
+	struct icmpstat icmpstat;
 	size_t len;
+	int i, first;
 
-	len = sizeof icmpstat;
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.icmp.stats", &icmpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.icmp.stats");
-			return;
-		}
-	} else
-		kread_counters(off, &icmpstat, len);
+	if (fetch_stats("net.inet.icmp.stats", off, &icmpstat,
+	    sizeof(icmpstat), kread_counters) != 0)
+		return;
 
 	printf("%s:\n", name);
 
@@ -1138,43 +1086,11 @@ igmp_stats_live_old(const char *name)
 void
 igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct igmpstat igmpstat, zerostat;
-	size_t len;
+	struct igmpstat igmpstat;
 
-#ifndef BURN_BRIDGES
-	if (live) {
-		/*
-		 * Detect if we are being run against a pre-IGMPv3 kernel.
-		 * We cannot do this for a core file as the legacy
-		 * struct igmpstat has no size field, nor does it
-		 * export it in any readily-available symbols.
-		 */
-		len = 0;
-		if (sysctlbyname("net.inet.igmp.stats", NULL, &len, NULL,
-		    0) < 0) {
-			warn("sysctl: net.inet.igmp.stats");
-			return;
-		}
-		if (len < sizeof(igmpstat)) {
-			igmp_stats_live_old(name);
-			return;
-		}
-	}
-#endif /* !BURN_BRIDGES */
-
-	len = sizeof(igmpstat);
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.igmp.stats");
-			return;
-		}
-	} else {
-		len = sizeof(igmpstat);
-		kread(off, &igmpstat, len);
-	}
+	if (fetch_stats("net.inet.igmp.stats", 0, &igmpstat,
+	    sizeof(igmpstat), kread) != 0)
+		return;
 
 	if (igmpstat.igps_version != IGPS_VERSION_3) {
 		warnx("%s: version mismatch (%d != %d)", __func__,
@@ -1221,23 +1137,11 @@ void
 pim_stats(u_long off __unused, const char *name, int af1 __unused,
     int proto __unused)
 {
-	struct pimstat pimstat, zerostat;
-	size_t len = sizeof pimstat;
+	struct pimstat pimstat;
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.pim.stats", &pimstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			if (errno != ENOENT)
-				warn("sysctl: net.inet.pim.stats");
-			return;
-		}
-	} else {
-		if (off == 0)
-			return;
-		kread_counters(off, &pimstat, len);
-	}
+	if (fetch_stats("net.inet.pim.stats", off, &pimstat,
+	    sizeof(pimstat), kread_counters) != 0)
+		return;
 
 	printf("%s:\n", name);
 

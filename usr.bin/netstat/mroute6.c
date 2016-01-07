@@ -246,7 +246,6 @@ mrt6_stats()
 {
 	struct mrt6stat mrtstat;
 	u_long mstaddr;
-	size_t len = sizeof mrtstat;
 
 	kresolve_list(mrl);
 	mstaddr = mrl[N_MRT6STAT].n_value;
@@ -255,15 +254,9 @@ mrt6_stats()
 		fprintf(stderr, "No IPv6 MROUTING kernel support.\n");
 		return;
 	}
-
-	if (live) {
-		if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len,
-		    NULL, 0) < 0) {
-			warn("sysctl: net.inet6.ip6.mrt6stat");
-			return;
-		}
-	} else
-		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
+	if (fetch_stats("net.inet6.ip6.mrt6stat", 0, &mrtstat,
+	    sizeof(mrtstat), kread_counters) != 0)
+		return;
 
 	printf("IPv6 multicast forwarding:\n");
 
