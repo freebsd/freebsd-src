@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2016
+.Dd January 7, 2016
 .Dt IOAT 4
 .Os
 .Sh NAME
@@ -73,6 +73,8 @@ In
 .Fn ioat_get_max_coalesce_period "bus_dmaengine_t dmaengine"
 .Ft void
 .Fn ioat_acquire "bus_dmaengine_t dmaengine"
+.Ft int
+.Fn ioat_acquire_reserve "bus_dmaengine_t dmaengine" "uint32_t n" "int mflags"
 .Ft void
 .Fn ioat_release "bus_dmaengine_t dmaengine"
 .Ft struct bus_dmadesc *
@@ -178,6 +180,14 @@ When the user wants to offload a copy, they will first
 the
 .Ar bus_dmaengine_t
 object for exclusive access to enqueue operations on that channel.
+Optionally, the user can reserve space by using
+.Fn ioat_acquire_reserve
+instead.
+If
+.Fn ioat_acquire_reserve
+succeeds, there is guaranteed to be room for
+.Fa N
+new operations in the internal ring buffer.
 Then, they will submit one or more operations using
 .Fn ioat_blockfill ,
 .Fn ioat_copy ,
