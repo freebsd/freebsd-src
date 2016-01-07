@@ -2012,7 +2012,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	}
 
 	/*
-	 * Go through the new portals, opening the sockets as neccessary.
+	 * Go through the new portals, opening the sockets as necessary.
 	 */
 	TAILQ_FOREACH(newpg, &newconf->conf_portal_groups, pg_next) {
 		if (newpg->pg_foreign)

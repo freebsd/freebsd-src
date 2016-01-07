@@ -67,7 +67,7 @@ struct ifinfo {
 	int active;		/* interface status */
 	int probeinterval;	/* interval of probe timer (if necessary) */
 	int probetimer;		/* rest of probe timer */
-	int mediareqok;		/* wheter the IF supports SIOCGIFMEDIA */
+	int mediareqok;		/* whether the IF supports SIOCGIFMEDIA */
 	int otherconfig;	/* need a separate protocol for the "other"
 				 * configuration */
 	int state;
