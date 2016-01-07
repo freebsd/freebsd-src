@@ -904,8 +904,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			/*
 			 * Do implied connect if not yet connected,
 			 * initialize window to default value, and
-			 * initialize maxseg/maxopd using peer's cached
-			 * MSS.
+			 * initialize maxseg using peer's cached MSS.
 			 */
 #ifdef INET6
 			if (isipv6)
@@ -964,8 +963,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			/*
 			 * Do implied connect if not yet connected,
 			 * initialize window to default value, and
-			 * initialize maxseg/maxopd using peer's cached
-			 * MSS.
+			 * initialize maxseg using peer's cached MSS.
 			 */
 #ifdef INET6
 			if (isipv6)
@@ -2208,8 +2206,8 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    "0x%08x\n", tp->snd_ssthresh, tp->snd_recover);
 
 	db_print_indent(indent);
-	db_printf("t_maxopd: %u   t_rcvtime: %u   t_startime: %u\n",
-	    tp->t_maxopd, tp->t_rcvtime, tp->t_starttime);
+	db_printf("t_rcvtime: %u   t_startime: %u\n",
+	    tp->t_rcvtime, tp->t_starttime);
 
 	db_print_indent(indent);
 	db_printf("t_rttime: %u   t_rtsq: 0x%08x\n",
