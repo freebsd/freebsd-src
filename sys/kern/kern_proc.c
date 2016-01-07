@@ -234,6 +234,7 @@ proc_init(void *mem, int size, int flags)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
+	p->p_pgrp = NULL;
 	SDT_PROBE3(proc, kernel, init, return, p, size, flags);
 	return (0);
 }
