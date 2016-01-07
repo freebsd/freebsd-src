@@ -33,13 +33,6 @@ __ENV_ONLY_OPTIONS:= \
 	${__DEFAULT_YES_OPTIONS} \
 	${__DEFAULT_DEPENDENT_OPTIONS:H}
 
-__ENV_ONLY_VARS= \
-	MAKEOBJDIR \
-	MAKEOBJDIRPREFIX
-.for _var in ${__ENV_ONLY_VARS}
-_pre_includes_${_var:tl}:=	${${_var}:U__null}
-.endfor
-
 # early include for customization
 # see local.sys.mk below
 # Not included when building in fmake compatibility mode (still needed
@@ -57,9 +50,6 @@ _pre_includes_${_var:tl}:=	${${_var}:U__null}
 .endif
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
-# Reset, since it is allowed to be set from src-env.conf included before this.
-_pre_includes_makeobjdirprefix:= ${MAKEOBJDIRPREFIX:U__null}
-_pre_includes_makeobjdir:= ${MAKEOBJDIR:U__null}
 # This needs to be done early - before .PATH is computed
 # Don't do this for 'make showconfig' as it enables all options where meta mode
 # is not expected.
@@ -419,15 +409,6 @@ __MAKE_SHELL?=/bin/sh
 	echoFlag=v errFlag=e \
 	path=${__MAKE_SHELL}
 .endif
-
-# Ensure MAKEOBJDIRPREFIX was not incorrectly set.
-.for _var in ${__ENV_ONLY_VARS}
-.if ${.MAKEOVERRIDES:M${_var}} || (defined(${_var}) && \
-    ${${_var}} != ${_pre_includes_${_var:tl}})
-.error ${_var} can only be set in environment, not as a global (in make.conf(5)) or command-line variable.
-.endif
-.undef _pre_includes_${_var:tl}
-.endfor
 
 # Hack for ports compatibility. Historically, ports makefiles have
 # assumed they can examine MACHINE_CPU without including anything
