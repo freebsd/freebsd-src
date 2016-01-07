@@ -294,25 +294,20 @@ mbpr(void *kvmd, u_long mbaddr)
 	    "(%juk/9k/16k)\n", jumbop_failures, jumbo9_failures,
 	    jumbo16_failures, jumbop_size / 1024);
 
-	if (live) {
-		mlen = sizeof(nsfbufs);
-		if (!sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL,
-		    0) &&
-		    !sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused,
-		    &mlen, NULL, 0) &&
-		    !sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak,
-		    &mlen, NULL, 0))
-			printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
-			    nsfbufsused, nsfbufspeak, nsfbufs);
-		mlen = sizeof(sfstat);
-		if (sysctlbyname("kern.ipc.sfstat", &sfstat, &mlen, NULL, 0)) {
-			warn("kern.ipc.sfstat");
-			goto out;
-		}
-	} else {
-		if (kread_counters(mbaddr, (char *)&sfstat, sizeof sfstat) != 0)
-			goto out;
-	}
+	mlen = sizeof(nsfbufs);
+	if (live &&
+	    sysctlbyname("kern.ipc.nsfbufs", &nsfbufs, &mlen, NULL, 0) == 0 &&
+	    sysctlbyname("kern.ipc.nsfbufsused", &nsfbufsused, &mlen,
+	    NULL, 0) == 0 &&
+	    sysctlbyname("kern.ipc.nsfbufspeak", &nsfbufspeak, &mlen,
+	    NULL, 0) == 0)
+		printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
+		    nsfbufsused, nsfbufspeak, nsfbufs);
+
+	if (fetch_stats("kern.ipc.sfstat", mbaddr, &sfstat, sizeof(sfstat),
+	    kread_counters) != 0)
+		goto out;
+
 	printf("%ju requests for sfbufs denied\n",
 	    (uintmax_t)sfstat.sf_allocfail);
 	printf("%ju requests for sfbufs delayed\n",
