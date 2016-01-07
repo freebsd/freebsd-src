@@ -1536,14 +1536,13 @@ assign_rxopt(struct tcpcb *tp, uint16_t tcpopt)
 	struct toepcb *toep = tp->t_toe;
 	struct adapter *sc = toep->tp_tod->tod_softc;
 
-	tp->t_maxseg = tp->t_maxopd = sc->params.mtus[G_TCPOPT_MSS(tcpopt)] - 40;
+	tp->t_maxseg = sc->params.mtus[G_TCPOPT_MSS(tcpopt)] - 40;
 
 	if (G_TCPOPT_TSTAMP(tcpopt)) {
 		tp->t_flags |= TF_RCVD_TSTMP;
 		tp->t_flags |= TF_REQ_TSTMP;	/* forcibly set */
 		tp->ts_recent = 0;		/* XXX */
 		tp->ts_recent_age = tcp_ts_getticks();
-		tp->t_maxseg -= TCPOLEN_TSTAMP_APPA;
 	}
 
 	if (G_TCPOPT_SACK(tcpopt))
