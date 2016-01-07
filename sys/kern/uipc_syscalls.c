@@ -2080,7 +2080,6 @@ struct sf_io {
 	int		npages;
 	struct file	*sock_fp;
 	struct mbuf	*m;
-	vm_pindex_t	last_wired;
 	vm_page_t	pa[];
 };
 
@@ -2090,12 +2089,8 @@ sf_iodone(void *arg, vm_page_t *pg, int count, int error)
 	struct sf_io *sfio = arg;
 	struct socket *so;
 
-	for (int i = 0; i < count; i++) {
-		if (pg[i]->pindex <= sfio->last_wired)
-			vm_page_xunbusy(pg[i]);
-		else
-			vm_page_readahead_finish(pg[i]);
-	}
+	for (int i = 0; i < count; i++)
+		vm_page_xunbusy(pg[i]);
 
 	if (error)
 		sfio->error = error;
@@ -2165,9 +2160,6 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		}
 	}
 
-	if (npages > 0)
-		sfio->last_wired = pa[npages - 1]->pindex;
-
 	for (int i = 0; i < npages;) {
 		int j, a, count, rv;
 
@@ -2217,49 +2209,36 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		 * We want to pagein as many pages as possible, limited only
 		 * by the 'a' hint and actual request.
 		 *
-		 * If calculated count yields in value greater than npages,
-		 * then we are doing optional readahead, and we need to grab
-		 * pages for it.  Since readahead is optional, we prefer
-		 * failure over sleep and thus say VM_ALLOC_NOWAIT.
+		 * We should not pagein into already valid page, thus if
+		 * 'j' didn't reach last page, trim by that page.
+		 *
+		 * When the pagein fulfils the request, also specify readahead.
 		 */
 		if (j < npages)
 			a = min(a, j - i - 1);
-		count = min(a + 1, npages + rhpages - i);
-		for (j = npages; j < i + count; j++) {
-			pa[j] = vm_page_grab(obj, OFF_TO_IDX(vmoff(j, off)),
-			    VM_ALLOC_NORMAL | VM_ALLOC_NOWAIT);
-			if (pa[j] == NULL) {
-				count = j - i;
-				break;
-			}
-			if (pa[j]->valid) {
-				vm_page_xunbusy(pa[j]);
-				count = j - i;
-				break;
-			}
-		}
+		count = min(a + 1, npages - i);
 
-		SFSTAT_INC(sf_iocnt);
-		if (j > npages) {
-			SFSTAT_ADD(sf_pages_read, npages - i);
-			SFSTAT_ADD(sf_rhpages_read, j - npages);
-		} else
-			SFSTAT_ADD(sf_pages_read, count);
-
-		nios++;
 		refcount_acquire(&sfio->nios);
-		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL, NULL,
+		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL,
+		    i + count == npages ? &rhpages : NULL,
 		    &sf_iodone, sfio);
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
 		    __func__, obj, pa[i]));
 
+		SFSTAT_INC(sf_iocnt);
+		SFSTAT_ADD(sf_pages_read, count);
+		if (i + count == npages)
+			SFSTAT_ADD(sf_rhpages_read, rhpages);
+
+#ifdef INVARIANTS
 		for (j = i; j < i + count && j < npages; j++)
 			KASSERT(pa[j] == vm_page_lookup(obj,
 			    OFF_TO_IDX(vmoff(j, off))),
 			    ("pa[j] %p lookup %p\n", pa[j],
 			    vm_page_lookup(obj, OFF_TO_IDX(vmoff(j, off)))));
-
+#endif
 		i += count;
+		nios++;
 	}
 
 	VM_OBJECT_WUNLOCK(obj);
@@ -2564,7 +2543,7 @@ retry_space:
 		    npages, rhpages);
 
 		sfio = malloc(sizeof(struct sf_io) +
-		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
+		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
 		sfio->error = 0;
 
