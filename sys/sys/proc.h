@@ -558,7 +558,7 @@ struct proc {
 	int		p_osrel;	/* (x) osreldate for the
 					       binary (from ELF note, if any) */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
-	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
+	void		*p_pad0;
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
@@ -604,6 +604,7 @@ struct proc {
 	pid_t		p_reapsubtree;	/* (e) Pid of the direct child of the
 					       reaper which spawned
 					       our subtree. */
+	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 };
 
 #define	p_session	p_pgrp->pg_session
