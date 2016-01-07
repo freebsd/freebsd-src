@@ -131,6 +131,7 @@ The credential includes all the groups to which the user is a member
 on the local machine (see
 .Xr id 1 ) .
 The user may be specified by name or number.
+The user string may be quoted, or use backslash escaping.
 .Pp
 .Sm off
 .Fl maproot Li = Sy user:group1:group2:...
@@ -140,6 +141,7 @@ to be used for remote access by root.
 The elements of the list may be either names or numbers.
 Note that user: should be used to distinguish a credential containing
 no groups from a complete credential for that user.
+The group names may be quoted, or use backslash escaping.
 .Pp
 .Sm off
 .Fl mapall Li = Sy user
