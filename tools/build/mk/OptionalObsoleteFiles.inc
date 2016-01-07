@@ -2834,6 +2834,13 @@ OLD_FILES+=usr/share/man/man8/traceroute6.8.gz
 OLD_FILES+=rescue/ping6
 .endif
 
+.if ${MK_INETD} == no
+OLD_FILES+=etc/rc.d/inetd
+OLD_FILES+=usr/sbin/inetd
+OLD_FILES+=usr/share/man/man5/inetd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/inetd.8.gz
+.endif
+
 .if ${MK_IPFILTER} == no
 OLD_FILES+=etc/periodic/security/510.ipfdenied
 OLD_FILES+=etc/periodic/security/610.ipf6denied
