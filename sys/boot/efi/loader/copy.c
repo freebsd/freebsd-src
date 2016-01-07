@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 
 #ifndef EFI_STAGING_SIZE
-#define	EFI_STAGING_SIZE	32
+#define	EFI_STAGING_SIZE	48
 #endif
 
 #define	STAGE_PAGES	((EFI_STAGING_SIZE) * 1024 * 1024 / 4096)
