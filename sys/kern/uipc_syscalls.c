@@ -2106,9 +2106,9 @@ sf_iodone(void *arg, vm_page_t *pg, int count, int error)
 		/*
 		 * I/O operation failed.  The state of data in the socket
 		 * is now inconsistent, and all what we can do is to tear
-		 * it down. sbflush() would free all ready mbufs and detach
-		 * not ready. We will free the mbufs corresponding to this
-		 * I/O manually.
+		 * it down. Protocl abort metho would tear down protocol
+		 * state, free all ready mbufs and detach not ready ones.
+		 * We will free the mbufs corresponding to this I/O manually.
 		 *
 		 * The socket would be marked with EIO and made available
 		 * for read, so that application receives EIO on next
