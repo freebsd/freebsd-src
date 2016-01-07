@@ -3733,38 +3733,29 @@ em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
  		offload |= CSUM_TCP;
  		tucss = hdr_len;
  		tucso = hdr_len + offsetof(struct tcphdr, th_sum);
-		/*
-		 * The 82574L can only remember the *last* context used
-		 * regardless of queue that it was use for.  We cannot reuse
-		 * contexts on this hardware platform and must generate a new
-		 * context every time.  82574L hardware spec, section 7.2.6,
-		 * second note.
-		 */
-		if (adapter->num_queues < 2) {
- 			/*
- 		 	* Setting up new checksum offload context for every
-			* frames takes a lot of processing time for hardware.
-			* This also reduces performance a lot for small sized
-			* frames so avoid it if driver can use previously
-			* configured checksum offload context.
- 		 	*/
- 			if (txr->last_hw_offload == offload) {
- 				if (offload & CSUM_IP) {
- 					if (txr->last_hw_ipcss == ipcss &&
- 				    	txr->last_hw_ipcso == ipcso &&
- 				    	txr->last_hw_tucss == tucss &&
- 				    	txr->last_hw_tucso == tucso)
- 						return;
- 				} else {
- 					if (txr->last_hw_tucss == tucss &&
- 				    	txr->last_hw_tucso == tucso)
- 						return;
- 				}
-  			}
- 			txr->last_hw_offload = offload;
- 			txr->last_hw_tucss = tucss;
- 			txr->last_hw_tucso = tucso;
-		}
+ 		/*
+ 		 * Setting up new checksum offload context for every frames
+ 		 * takes a lot of processing time for hardware. This also
+ 		 * reduces performance a lot for small sized frames so avoid
+ 		 * it if driver can use previously configured checksum
+ 		 * offload context.
+ 		 */
+ 		if (txr->last_hw_offload == offload) {
+ 			if (offload & CSUM_IP) {
+ 				if (txr->last_hw_ipcss == ipcss &&
+ 				    txr->last_hw_ipcso == ipcso &&
+ 				    txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
+ 			} else {
+ 				if (txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
+ 			}
+  		}
+ 		txr->last_hw_offload = offload;
+ 		txr->last_hw_tucss = tucss;
+ 		txr->last_hw_tucso = tucso;
  		/*
  		 * Start offset for payload checksum calculation.
  		 * End offset for payload checksum calculation.
@@ -3780,38 +3771,29 @@ em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
  		*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
  		tucss = hdr_len;
  		tucso = hdr_len + offsetof(struct udphdr, uh_sum);
-		/*
-		 * The 82574L can only remember the *last* context used
-		 * regardless of queue that it was use for.  We cannot reuse
-		 * contexts on this hardware platform and must generate a new
-		 * context every time.  82574L hardware spec, section 7.2.6,
-		 * second note.
-		 */
-		if (adapter->num_queues < 2) {
- 			/*
- 		 	* Setting up new checksum offload context for every
-			* frames takes a lot of processing time for hardware.
-			* This also reduces performance a lot for small sized
-			* frames so avoid it if driver can use previously
-			* configured checksum offload context.
- 		 	*/
- 			if (txr->last_hw_offload == offload) {
- 				if (offload & CSUM_IP) {
- 					if (txr->last_hw_ipcss == ipcss &&
- 				    	txr->last_hw_ipcso == ipcso &&
- 				    	txr->last_hw_tucss == tucss &&
- 				    	txr->last_hw_tucso == tucso)
- 						return;
- 				} else {
- 					if (txr->last_hw_tucss == tucss &&
- 				    	txr->last_hw_tucso == tucso)
- 						return;
- 				}
+ 		/*
+ 		 * Setting up new checksum offload context for every frames
+ 		 * takes a lot of processing time for hardware. This also
+ 		 * reduces performance a lot for small sized frames so avoid
+ 		 * it if driver can use previously configured checksum
+ 		 * offload context.
+ 		 */
+ 		if (txr->last_hw_offload == offload) {
+ 			if (offload & CSUM_IP) {
+ 				if (txr->last_hw_ipcss == ipcss &&
+ 				    txr->last_hw_ipcso == ipcso &&
+ 				    txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
+ 			} else {
+ 				if (txr->last_hw_tucss == tucss &&
+ 				    txr->last_hw_tucso == tucso)
+ 					return;
  			}
- 			txr->last_hw_offload = offload;
- 			txr->last_hw_tucss = tucss;
- 			txr->last_hw_tucso = tucso;
-		}
+ 		}
+ 		txr->last_hw_offload = offload;
+ 		txr->last_hw_tucss = tucss;
+ 		txr->last_hw_tucso = tucso;
  		/*
  		 * Start offset for header checksum calculation.
  		 * End offset for header checksum calculation.
