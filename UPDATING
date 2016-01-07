@@ -26,6 +26,11 @@ older version of current is a bit fragile.
 	Kernel modules isp_2400_multi and isp_2500_multi were removed and
 	should be replaced with isp_2400 and isp_2500 modules respectively.
 
+20150806:
+	The menu.rc and loader.rc files will now be replaced during 
+	upgrades. Please migrate local changes to menu.rc.local and
+	loader.rc.local instead.
+
 20151026:
 	NTP has been upgraded to 4.2.8p4.
 
