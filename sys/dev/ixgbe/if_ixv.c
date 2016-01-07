@@ -1664,7 +1664,7 @@ ixv_initialize_receive_units(struct adapter *adapter)
 
 		/* Disable the queue */
 		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
-		rxdctl &= ~(IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME);
+		rxdctl &= ~IXGBE_RXDCTL_ENABLE;
 		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), rxdctl);
 		for (int j = 0; j < 10; j++) {
 			if (IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i)) &
@@ -1698,8 +1698,7 @@ ixv_initialize_receive_units(struct adapter *adapter)
 		rxr->tail = IXGBE_VFRDT(rxr->me);
 
 		/* Do the queue enabling last */
-		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
-		rxdctl |= IXGBE_RXDCTL_ENABLE;
+		rxdctl |= IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME;
 		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), rxdctl);
 		for (int k = 0; k < 10; k++) {
 			if (IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i)) &
