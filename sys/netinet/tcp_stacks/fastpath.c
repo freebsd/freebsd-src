@@ -158,13 +158,11 @@ static void	 tcp_do_segment_fastack(struct mbuf *, struct tcphdr *,
  *	  the ack that opens up a 0-sized window.
  *	- LRO wasn't used for this segment. We make sure by checking that the
  *	  segment size is not larger than the MSS.
- *	- Delayed acks are enabled or this is a half-synchronized T/TCP
- *	  connection.
  */
 #define DELAY_ACK(tp, tlen)						\
 	((!tcp_timer_active(tp, TT_DELACK) &&				\
 	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
-	    (tlen <= tp->t_maxopd) &&					\
+	    (tlen <= tp->t_maxseg) &&					\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
 /*
