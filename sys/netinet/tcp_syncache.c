@@ -1852,6 +1852,7 @@ syncookie_mac(struct in_conninfo *inc, tcp_seq irs, uint8_t flags,
 	}
 	SipHash_Update(&ctx, &inc->inc_fport, sizeof(inc->inc_fport));
 	SipHash_Update(&ctx, &inc->inc_lport, sizeof(inc->inc_lport));
+	SipHash_Update(&ctx, &irs, sizeof(irs));
 	SipHash_Update(&ctx, &flags, sizeof(flags));
 	SipHash_Update(&ctx, &secmod, sizeof(secmod));
 	SipHash_Final((u_int8_t *)&siphash, &ctx);
