@@ -59,6 +59,7 @@ Juergen Perlinger (perlinger@ntp.org) Feb 2012
 #include <stdio.h>
 #include <process.h>
 #include <syslog.h>
+#include <limits.h>
 
 #include "ntpd.h"
 #include "ntp_machine.h"
@@ -1514,7 +1515,7 @@ io_completion_port_add_socket(
  */
 int
 io_completion_port_sendto(
-	int		fd,
+	SOCKET		fd,
 	void  *		pkt,
 	size_t		len,
 	sockaddr_u *	dest
@@ -1527,8 +1528,10 @@ io_completion_port_sendto(
 	int errval;
 	int AddrLen;
 
+	if (len > INT_MAX)
+		len = INT_MAX;
 	wsabuf.buf = (void *)pkt;
-	wsabuf.len = len;
+	wsabuf.len = (DWORD)len;
 	AddrLen = SOCKLEN(dest);
 	octets_sent = 0;
 
@@ -1558,7 +1561,7 @@ io_completion_port_sendto(
 		return -1;
 	}
 
-	if (len != (int)octets_sent) {
+	if ((DWORD)len != octets_sent) {
 		msyslog(LOG_ERR, "WSASendTo(%s) sent %u of %d octets",
 			stoa(dest), octets_sent, len);
 		SetLastError(ERROR_BAD_LENGTH);
@@ -1567,7 +1570,7 @@ io_completion_port_sendto(
 
 	DPRINTF(4, ("sendto %s %d octets\n", stoa(dest), len));
 
-	return len;
+	return (int)len;
 }
 
 
@@ -1632,7 +1635,7 @@ GetReceivedBuffers()
 	return (full_recvbuffs());	/* get received buffers */
 }
 
-#else
+#else /*defined(HAVE_IO_COMPLETION_PORT) */
   static int NonEmptyCompilationUnit;
-#endif
+#endif  /*!defined(HAVE_IO_COMPLETION_PORT) */
 

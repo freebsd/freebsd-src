@@ -16,7 +16,7 @@ extern	int	io_completion_port_add_socket(SOCKET fd, struct interface *);
 struct refclockio; /* in ntp_refclock.h but inclusion here triggers problems */
 extern	int	io_completion_port_add_clock_io(struct refclockio *rio);
 extern	void	io_completion_port_remove_clock_io(struct refclockio *rio);
-extern	int	io_completion_port_sendto(int, void *, size_t, sockaddr_u *);
+extern	int	io_completion_port_sendto(SOCKET, void *, size_t, sockaddr_u *);
 
 extern	int	GetReceivedBuffers(void);
 

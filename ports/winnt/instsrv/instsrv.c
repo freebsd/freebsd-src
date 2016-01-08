@@ -240,12 +240,12 @@ int addSourceToRegistry(LPSTR pszAppname, LPSTR pszMsgDLL)
     }
     
   /* Add the Event-ID message-file name to the subkey. */
-  bSuccess = RegSetValueEx(hk,  /* subkey handle         */
-      "EventMessageFile",       /* value name            */
-      0,                        /* must be zero          */
-      REG_EXPAND_SZ,            /* value type            */
-      (LPBYTE) pszMsgDLL,       /* address of value data */
-      strlen(pszMsgDLL) + 1);   /* length of value data  */
+  bSuccess = RegSetValueEx(hk,          /* subkey handle         */
+      "EventMessageFile",               /* value name            */
+      0,                                /* must be zero          */
+      REG_EXPAND_SZ,                    /* value type            */
+      (LPBYTE) pszMsgDLL,               /* address of value data */
+      (DWORD)(strlen(pszMsgDLL) + 1));  /* length of value data  */
  if(bSuccess != ERROR_SUCCESS)
     {
       PERR("RegSetValueEx");

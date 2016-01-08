@@ -159,7 +159,7 @@ struct timeval {
  * Unix and  implemented in the Windows port similarly to
  * refclock_open().
  */
-extern int tty_open(char *, int, int);
+extern int tty_open(const char *, int, int);
 
 /*
  * disable use of __declspec(dllexport) by libisc routines

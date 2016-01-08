@@ -285,7 +285,13 @@
     <ClCompile Include="..\..\..\..\ntpd\rc_cmdlength.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_acts.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_arbiter.c" />
-    <ClCompile Include="..\..\..\..\ntpd\refclock_arc.c" />
+    <ClCompile Include="..\..\..\..\ntpd\refclock_arc.c">
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4307;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\ntpd\refclock_as2201.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_atom.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_bancomm.c" />
