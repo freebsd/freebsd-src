@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/rcupdate.h>
+#include <linux/interrupt.h>
 
 #include <vm/vm_pager.h>
 
@@ -1137,6 +1138,114 @@ const struct kobj_type linux_cdev_ktype = {
 const struct kobj_type linux_cdev_static_ktype = {
 	.release = linux_cdev_static_release,
 };
+
+static void
+linux_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	if (linkstate == LINK_STATE_UP)
+		nb->notifier_call(nb, NETDEV_UP, ifp);
+	else
+		nb->notifier_call(nb, NETDEV_DOWN, ifp);
+}
+
+static void
+linux_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_REGISTER, ifp);
+}
+
+static void
+linux_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_UNREGISTER, ifp);
+}
+
+static void
+linux_handle_iflladdr_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_CHANGEADDR, ifp);
+}
+
+static void
+linux_handle_ifaddr_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, ifp);
+}
+
+int
+register_netdevice_notifier(struct notifier_block *nb)
+{
+
+	nb->tags[NETDEV_UP] = EVENTHANDLER_REGISTER(
+	    ifnet_link_event, linux_handle_ifnet_link_event, nb, 0);
+	nb->tags[NETDEV_REGISTER] = EVENTHANDLER_REGISTER(
+	    ifnet_arrival_event, linux_handle_ifnet_arrival_event, nb, 0);
+	nb->tags[NETDEV_UNREGISTER] = EVENTHANDLER_REGISTER(
+	    ifnet_departure_event, linux_handle_ifnet_departure_event, nb, 0);
+	nb->tags[NETDEV_CHANGEADDR] = EVENTHANDLER_REGISTER(
+	    iflladdr_event, linux_handle_iflladdr_event, nb, 0);
+
+	return (0);
+}
+
+int
+register_inetaddr_notifier(struct notifier_block *nb)
+{
+
+        nb->tags[NETDEV_CHANGEIFADDR] = EVENTHANDLER_REGISTER(
+            ifaddr_event, linux_handle_ifaddr_event, nb, 0);
+        return (0);
+}
+
+int
+unregister_netdevice_notifier(struct notifier_block *nb)
+{
+
+        EVENTHANDLER_DEREGISTER(ifnet_link_event,
+	    nb->tags[NETDEV_UP]);
+        EVENTHANDLER_DEREGISTER(ifnet_arrival_event,
+	    nb->tags[NETDEV_REGISTER]);
+        EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+	    nb->tags[NETDEV_UNREGISTER]);
+        EVENTHANDLER_DEREGISTER(iflladdr_event,
+	    nb->tags[NETDEV_CHANGEADDR]);
+
+	return (0);
+}
+
+int
+unregister_inetaddr_notifier(struct notifier_block *nb)
+{
+
+        EVENTHANDLER_DEREGISTER(ifaddr_event,
+            nb->tags[NETDEV_CHANGEIFADDR]);
+
+        return (0);
+}
+
+void
+linux_irq_handler(void *ent)
+{
+	struct irq_ent *irqe;
+
+	irqe = ent;
+	irqe->handler(irqe->irq, irqe->arg);
+}
 
 static void
 linux_compat_init(void *arg)
