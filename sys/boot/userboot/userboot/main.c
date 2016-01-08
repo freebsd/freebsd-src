@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 static void userboot_zfs_probe(void);
 static int userboot_zfs_found;
+static void init_zfs_bootenv(char *currdev);
 #endif
 
 #define	USERBOOT_VERSION	USERBOOT_VERSION_3
@@ -190,6 +191,10 @@ extract_currdev(void)
 		dev.d_unit = 0;
 	}
 
+#if defined(USERBOOT_ZFS_SUPPORT)
+	init_zfs_bootenv(zfs_fmtdev(&dev));
+#endif
+
 	env_setenv("currdev", EV_VOLATILE, userboot_fmtdev(&dev),
             userboot_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, userboot_fmtdev(&dev),
@@ -197,6 +202,29 @@ extract_currdev(void)
 }
 
 #if defined(USERBOOT_ZFS_SUPPORT)
+static void
+init_zfs_bootenv(char *currdev)
+{
+	char *beroot;
+
+	/* Remove the trailing : */
+	currdev[strlen(currdev) - 1] = '\0';
+	setenv("zfs_be_active", currdev, 1);
+	/* Do not overwrite if already set */
+	setenv("vfs.root.mountfrom", currdev, 0);
+	/* Forward past zfs: */
+	currdev = strchr(currdev, ':');
+	currdev++;
+	/* Remove the last element (current bootenv) */
+	beroot = strrchr(currdev, '/');
+	if (beroot != NULL)
+		beroot[0] = '\0';
+
+	beroot = currdev;
+	
+	setenv("zfs_be_root", beroot, 1);
+}
+
 static void
 userboot_zfs_probe(void)
 {
@@ -235,6 +263,33 @@ command_lszfs(int argc, char *argv[])
 		command_errmsg = strerror(err);
 		return (CMD_ERROR);
 	}
+	return (CMD_OK);
+}
+
+COMMAND_SET(reloadbe, "reloadbe", "refresh the list of ZFS Boot Environments",
+	    command_reloadbe);
+
+static int
+command_reloadbe(int argc, char *argv[])
+{
+	int err;
+
+	if (argc > 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	if (argc == 2) {
+		err = zfs_bootenv(argv[1]);
+	} else {
+		err = zfs_bootenv(getenv("zfs_be_root"));
+	}
+
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+
 	return (CMD_OK);
 }
 #endif /* USERBOOT_ZFS_SUPPORT */
