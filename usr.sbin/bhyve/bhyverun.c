@@ -307,14 +307,13 @@ static int
 vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
 	int error;
-	int bytes, port, in, out, string;
+	int bytes, port, in, out;
 	int vcpu;
 
 	vcpu = *pvcpu;
 
 	port = vme->u.inout.port;
 	bytes = vme->u.inout.bytes;
-	string = vme->u.inout.string;
 	in = vme->u.inout.in;
 	out = !in;
 
@@ -596,7 +595,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 static void
 vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 {
-	int error, rc, prevcpu;
+	int error, rc;
 	enum vm_exitcode exitcode;
 	cpuset_t active_cpus;
 
@@ -616,8 +615,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 		error = vm_run(ctx, vcpu, &vmexit[vcpu]);
 		if (error != 0)
 			break;
-
-		prevcpu = vcpu;
 
 		exitcode = vmexit[vcpu].exitcode;
 		if (exitcode >= VM_EXITCODE_MAX || handler[exitcode] == NULL) {
