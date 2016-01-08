@@ -292,8 +292,8 @@ rendezvous_request(xprt, msg)
 	int sock, flags;
 	struct cf_rendezvous *r;
 	struct cf_conn *cd;
-	struct sockaddr_storage addr;
-	socklen_t len;
+	struct sockaddr_storage addr, sslocal;
+	socklen_t len, slen;
 	struct __rpc_sockinfo si;
 	SVCXPRT *newxprt;
 	fd_set cleanfds;
@@ -358,6 +358,20 @@ again:
 		__xdrrec_setnonblock(&cd->xdrs, cd->maxrec);
 	} else
 		cd->nonblock = FALSE;
+	slen = sizeof(struct sockaddr_storage);
+	if(_getsockname(sock, (struct sockaddr *)(void *)&sslocal, &slen) < 0) {
+		warnx("svc_vc_create: could not retrieve local addr");
+		newxprt->xp_ltaddr.maxlen = newxprt->xp_ltaddr.len = 0;
+	} else {
+		newxprt->xp_ltaddr.maxlen = newxprt->xp_ltaddr.len = sslocal.ss_len;
+		newxprt->xp_ltaddr.buf = mem_alloc((size_t)sslocal.ss_len);
+		if (newxprt->xp_ltaddr.buf == NULL) {
+			warnx("svc_vc_create: no mem for local addr");
+			newxprt->xp_ltaddr.maxlen = newxprt->xp_ltaddr.len = 0;
+		} else {
+			memcpy(newxprt->xp_ltaddr.buf, &sslocal, (size_t)sslocal.ss_len);
+		}
+	}
 
 	gettimeofday(&cd->last_recv_time, NULL);
 
