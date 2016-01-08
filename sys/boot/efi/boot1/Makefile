@@ -79,8 +79,15 @@ boot1.o: ${.CURDIR}/../../common/ufsread.c
 # created by generate-fat.sh
 
 .include "${.CURDIR}/Makefile.fat"
+BOOT1_MAXSIZE?=	131072
 
 boot1.efifat: boot1.efi
+	@set -- `ls -l boot1.efi`; \
+	x=$$(($$5-${BOOT1_MAXSIZE})); \
+	if [ $$x -ge 0 ]; then \
+	    echo "boot1 $$x bytes too large; regenerate FAT templates?" >&2 ;\
+	    exit 1; \
+	fi
 	echo ${.OBJDIR}
 	uudecode ${.CURDIR}/fat-${MACHINE}.tmpl.bz2.uu
 	mv fat-${MACHINE}.tmpl.bz2 ${.TARGET}.bz2
