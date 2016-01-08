@@ -570,9 +570,8 @@ _worldtmp: .PHONY
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
 #	XXX - These three can depend on any header file.
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
+	rm -f ${OBJTREE}${.CURDIR}/lib/libsysdecode/ioctl.c
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
     lib usr legacy/bin legacy/usr
