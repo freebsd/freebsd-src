@@ -78,6 +78,7 @@ SRCS=	APFloat.cpp \
 	Triple.cpp \
 	Twine.cpp \
 	Unicode.cpp \
+	Valgrind.cpp \
 	YAMLParser.cpp \
 	YAMLTraits.cpp \
 	circular_raw_ostream.cpp \
@@ -101,8 +102,7 @@ SRCS+=	ARMWinEH.cpp \
 .endif
 
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	Memory.cpp \
-	Valgrind.cpp
+SRCS+=	Memory.cpp
 .endif
 
 .include "../clang.lib.mk"

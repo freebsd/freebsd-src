@@ -185,9 +185,9 @@ namespace {
 
       (void)new llvm::IntervalPartition();
       (void)new llvm::ScalarEvolutionWrapperPass();
-      ((llvm::Function*)nullptr)->viewCFGOnly();
+      ((llvm::Function*)1)->viewCFGOnly();
       llvm::RGPassManager RGM;
-      ((llvm::RegionPass*)nullptr)->runOnRegion((llvm::Region*)nullptr, RGM);
+      ((llvm::RegionPass*)1)->runOnRegion((llvm::Region*)nullptr, RGM);
       llvm::AliasSetTracker X(*(llvm::AliasAnalysis*)nullptr);
       X.add(nullptr, 0, llvm::AAMDNodes()); // for -print-alias-sets
       (void) llvm::AreStatisticsEnabled();
