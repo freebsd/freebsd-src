@@ -352,6 +352,7 @@
     <ClInclude Include="..\..\..\..\include\ntp_types.h" />
     <ClInclude Include="..\..\..\..\include\ntp_unixtime.h" />
     <ClInclude Include="..\..\..\..\include\recvbuff.h" />
+    <ClInclude Include="..\..\..\..\include\safecast.h" />
     <ClInclude Include="..\..\..\..\include\timespecops.h" />
     <ClInclude Include="..\..\..\..\include\timetoa.h" />
     <ClInclude Include="..\..\..\..\include\timevalops.h" />

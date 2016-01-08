@@ -27,17 +27,18 @@ size_t		c_hnds;	/* current array size */
  * work by duplicating the handle for the 2nd open, allowing
  * refclock_atom to share a GPS refclock's comm port.
  */
-HANDLE common_serial_open(
-	char *	dev,
-	char **	pwindev
+HANDLE
+common_serial_open(
+	const char *	dev,
+	char **		pwindev
 	)
 {
-	char *	windev;
-	HANDLE	handle;
-	size_t	unit;
-	size_t	prev_c_hnds;
-	size_t	opens;
-	char *	pch;
+	char *		windev;
+	HANDLE		handle;
+	size_t		unit;
+	size_t		prev_c_hnds;
+	size_t		opens;
+	const char *	pch;
 
 	/*
 	 * This is odd, but we'll take any unix device path
@@ -206,7 +207,7 @@ int isserialhandle(
  * file descriptor if success and -1 if failure.
  */
 int tty_open(
-	char *dev,		/* device name pointer */
+	const char *dev,	/* device name pointer */
 	int access,		/* O_RDWR */
 	int mode		/* unused */
 	)
@@ -229,7 +230,7 @@ int tty_open(
 		return -1;
 	}
 
-	return (int)_open_osfhandle((int)Handle, _O_TEXT);
+	return (int)_open_osfhandle((intptr_t)Handle, _O_TEXT);
 }
 
 
@@ -239,10 +240,11 @@ int tty_open(
  * This routine opens a serial port for I/O and sets default options. It
  * returns the file descriptor or -1 indicating failure.
  */
-int refclock_open(
-	char *	dev,		/* device name pointer */
-	u_int	speed,		/* serial port speed (code) */
-	u_int	flags		/* line discipline flags */
+int
+refclock_open(
+	const char *	dev,	/* device name pointer */
+	u_int		speed,	/* serial port speed (code) */
+	u_int		flags	/* line discipline flags */
 	)
 {
 	char *		windev;
@@ -397,7 +399,7 @@ int refclock_open(
 	translate = (LDISC_RAW & flags)
 			? 0
 			: _O_TEXT;
-	fd = _open_osfhandle((int)h, translate);
+	fd = _open_osfhandle((intptr_t)h, translate);
 	/* refclock_open() long returned 0 on failure, avoid it. */
 	if (0 == fd) {
 		fd = _dup(0);

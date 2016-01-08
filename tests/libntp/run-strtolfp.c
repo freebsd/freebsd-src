@@ -55,13 +55,13 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("strtolfp.c");
-  RUN_TEST(test_PositiveInteger, 11);
-  RUN_TEST(test_NegativeInteger, 12);
-  RUN_TEST(test_PositiveFraction, 13);
-  RUN_TEST(test_NegativeFraction, 14);
-  RUN_TEST(test_PositiveMsFraction, 15);
-  RUN_TEST(test_NegativeMsFraction, 16);
-  RUN_TEST(test_InvalidChars, 17);
+  RUN_TEST(test_PositiveInteger, 12);
+  RUN_TEST(test_NegativeInteger, 13);
+  RUN_TEST(test_PositiveFraction, 14);
+  RUN_TEST(test_NegativeFraction, 15);
+  RUN_TEST(test_PositiveMsFraction, 16);
+  RUN_TEST(test_NegativeMsFraction, 17);
+  RUN_TEST(test_InvalidChars, 18);
 
   return (UnityEnd());
 }

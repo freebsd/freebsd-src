@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("numtohost.c");
-  RUN_TEST(test_LoopbackNetNonResolve, 8);
+  RUN_TEST(test_LoopbackNetNonResolve, 9);
 
   return (UnityEnd());
 }
