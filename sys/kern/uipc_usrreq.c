@@ -981,7 +981,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				    control))
 					control = NULL;
 			} else
-				sbappend_locked(&so2->so_rcv, m);
+				sbappendstream_locked(&so2->so_rcv, m, flags);
 			break;
 
 		case SOCK_SEQPACKET: {
