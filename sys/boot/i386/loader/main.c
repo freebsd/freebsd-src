@@ -321,7 +321,8 @@ init_zfs_bootenv(char *currdev)
 	currdev++;
 	/* Remove the last element (current bootenv) */
 	beroot = strrchr(currdev, '/');
-	beroot[0] = '\0';
+	if (beroot != NULL)
+		beroot[0] = '\0';
 
 	beroot = currdev;
 	
