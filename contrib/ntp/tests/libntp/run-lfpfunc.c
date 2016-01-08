@@ -58,15 +58,15 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("lfpfunc.c");
-  RUN_TEST(test_AdditionLR, 50);
-  RUN_TEST(test_AdditionRL, 51);
-  RUN_TEST(test_SubtractionLR, 52);
-  RUN_TEST(test_SubtractionRL, 53);
-  RUN_TEST(test_Negation, 54);
-  RUN_TEST(test_Absolute, 55);
-  RUN_TEST(test_FDF_RoundTrip, 56);
-  RUN_TEST(test_SignedRelOps, 57);
-  RUN_TEST(test_UnsignedRelOps, 58);
+  RUN_TEST(test_AdditionLR, 51);
+  RUN_TEST(test_AdditionRL, 52);
+  RUN_TEST(test_SubtractionLR, 53);
+  RUN_TEST(test_SubtractionRL, 54);
+  RUN_TEST(test_Negation, 55);
+  RUN_TEST(test_Absolute, 56);
+  RUN_TEST(test_FDF_RoundTrip, 57);
+  RUN_TEST(test_SignedRelOps, 58);
+  RUN_TEST(test_UnsignedRelOps, 59);
 
   return (UnityEnd());
 }

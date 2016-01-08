@@ -288,7 +288,7 @@ parse_ioread(
 		break;
 	}
 
-	parseprintf(DD_PARSE, ("parse_ioread(0x%lx, char=0x%x, ..., ...)\n", (unsigned long)parseio, ch & 0xFF));
+	parseprintf(DD_PARSE, ("parse_ioread(0x%p, char=0x%x, ..., ...)\n", (void*)parseio, ch & 0xFF));
 
 	if (!clockformats[parseio->parse_lformat]->convert)
 	{

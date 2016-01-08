@@ -5,8 +5,19 @@
 
 #include "unity.h"
 
+void setUp(void);
 void test_Address(void);
 void test_Netmask(void);
+
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
+
 
 void
 test_Address(void) {

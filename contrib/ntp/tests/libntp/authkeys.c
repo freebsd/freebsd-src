@@ -51,18 +51,21 @@ setUp(void)
 	cache_flags = 0;
 	cache_secret = NULL;
 	cache_secretsize = 0;
+
+	return;
 }
 
 void
 tearDown(void)
 {
-
+	return;
 }
 
 static const int KEYTYPE = KEY_TYPE_MD5;
 
 void
-AddTrustedKey(keyid_t keyno) {
+AddTrustedKey(keyid_t keyno)
+{
 	/*
 	 * We need to add a MD5-key in addition to setting the
 	 * trust, because authhavekey() requires type != 0.
@@ -70,15 +73,21 @@ AddTrustedKey(keyid_t keyno) {
 	MD5auth_setkey(keyno, KEYTYPE, NULL, 0);
 
 	authtrust(keyno, TRUE);
+
+	return;
 }
 
 void
-AddUntrustedKey(keyid_t keyno) {
+AddUntrustedKey(keyid_t keyno)
+{
 	authtrust(keyno, FALSE);
+
+	return;
 }
 
 void
-test_AddTrustedKeys(void) {
+test_AddTrustedKeys(void)
+{
 	const keyid_t KEYNO1 = 5;
 	const keyid_t KEYNO2 = 8;
 
@@ -87,48 +96,65 @@ test_AddTrustedKeys(void) {
 
 	TEST_ASSERT_TRUE(authistrusted(KEYNO1));
 	TEST_ASSERT_TRUE(authistrusted(KEYNO2));
+
+	return;
 }
 
 void
-test_AddUntrustedKey(void) {
+test_AddUntrustedKey(void)
+{
 	const keyid_t KEYNO = 3;
    
 	AddUntrustedKey(KEYNO);
 
 	TEST_ASSERT_FALSE(authistrusted(KEYNO));
+
+	return;
 }
 
 void
-test_HaveKeyCorrect(void) {
+test_HaveKeyCorrect(void)
+{
 	const keyid_t KEYNO = 3;
 
 	AddTrustedKey(KEYNO);
 
 	TEST_ASSERT_TRUE(auth_havekey(KEYNO));
 	TEST_ASSERT_TRUE(authhavekey(KEYNO));
+
+	return;
 }
 
 void
-test_HaveKeyIncorrect(void) {
+test_HaveKeyIncorrect(void)
+{
 	const keyid_t KEYNO = 2;
 
 	TEST_ASSERT_FALSE(auth_havekey(KEYNO));
 	TEST_ASSERT_FALSE(authhavekey(KEYNO));
+
+	return;
 }
 
 void
-test_AddWithAuthUseKey(void) {
+test_AddWithAuthUseKey(void)
+{
 	const keyid_t KEYNO = 5;
 	const char* KEY = "52a";
 
-	TEST_ASSERT_TRUE(authusekey(KEYNO, KEYTYPE, (u_char*)KEY));	
+	TEST_ASSERT_TRUE(authusekey(KEYNO, KEYTYPE, (const u_char*)KEY));
+
+	return;
 }
 
 void
-test_EmptyKey(void) {
+test_EmptyKey(void)
+{
 	const keyid_t KEYNO = 3;
 	const char* KEY = "";
 
 
-	TEST_ASSERT_FALSE(authusekey(KEYNO, KEYTYPE, (u_char*)KEY));
+	TEST_ASSERT_FALSE(authusekey(KEYNO, KEYTYPE, (const u_char*)KEY));
+
+	return;
 }

@@ -63,21 +63,21 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("calendar.c");
-  RUN_TEST(test_DaySplitMerge, 21);
-  RUN_TEST(test_SplitYearDays1, 22);
-  RUN_TEST(test_SplitYearDays2, 23);
-  RUN_TEST(test_RataDie1, 24);
-  RUN_TEST(test_LeapYears1, 25);
-  RUN_TEST(test_LeapYears2, 26);
-  RUN_TEST(test_RoundTripDate, 27);
-  RUN_TEST(test_RoundTripYearStart, 28);
-  RUN_TEST(test_RoundTripMonthStart, 29);
-  RUN_TEST(test_RoundTripWeekStart, 30);
-  RUN_TEST(test_RoundTripDayStart, 31);
-  RUN_TEST(test_IsoCalYearsToWeeks, 32);
-  RUN_TEST(test_IsoCalWeeksToYearStart, 33);
-  RUN_TEST(test_IsoCalWeeksToYearEnd, 34);
-  RUN_TEST(test_DaySecToDate, 35);
+  RUN_TEST(test_DaySplitMerge, 22);
+  RUN_TEST(test_SplitYearDays1, 23);
+  RUN_TEST(test_SplitYearDays2, 24);
+  RUN_TEST(test_RataDie1, 25);
+  RUN_TEST(test_LeapYears1, 26);
+  RUN_TEST(test_LeapYears2, 27);
+  RUN_TEST(test_RoundTripDate, 28);
+  RUN_TEST(test_RoundTripYearStart, 29);
+  RUN_TEST(test_RoundTripMonthStart, 30);
+  RUN_TEST(test_RoundTripWeekStart, 31);
+  RUN_TEST(test_RoundTripDayStart, 32);
+  RUN_TEST(test_IsoCalYearsToWeeks, 33);
+  RUN_TEST(test_IsoCalWeeksToYearStart, 34);
+  RUN_TEST(test_IsoCalWeeksToYearEnd, 35);
+  RUN_TEST(test_DaySecToDate, 36);
 
   return (UnityEnd());
 }

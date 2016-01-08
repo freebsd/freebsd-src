@@ -41,6 +41,7 @@
 #include "timevalops.h"
 #include "timespecops.h"
 #include "ntpd-opts.h"
+#include "safecast.h"
 
 /* Don't include ISC's version of IPv6 variables and structures */
 #define ISC_IPV6_H 1
@@ -772,7 +773,7 @@ is_ip_address(
 			hints.ai_flags |= AI_NUMERICHOST;
 			if (getaddrinfo(tmpbuf, NULL, &hints, &result) == 0) {
 				AF(addr) = AF_INET6;
-				resaddr6 = (struct sockaddr_in6 *)result->ai_addr;
+				resaddr6 = UA_PTR(struct sockaddr_in6, result->ai_addr);
 				SET_ADDR6N(addr, resaddr6->sin6_addr);
 				SET_SCOPE(addr, resaddr6->sin6_scope_id);
 
@@ -3365,7 +3366,7 @@ fetch_timestamp(
 #endif  /* HAVE_BINTIME */
 #ifdef HAVE_TIMESTAMPNS
 			case SCM_TIMESTAMPNS:
-				tsp = (struct timespec *)CMSG_DATA(cmsghdr);
+				tsp = UA_PTR(struct timespec, CMSG_DATA(cmsghdr));
 				if (sys_tick > measured_tick &&
 				    sys_tick > 1e-9) {
 					ticks = (unsigned long)((tsp->tv_nsec * 1e-9) /
@@ -3666,8 +3667,7 @@ input_handler(
 	fds = activefds;
 	tvzero.tv_sec = tvzero.tv_usec = 0;
 
-	n = select(maxactivefd + 1, &fds, (fd_set *)0, (fd_set *)0,
-		   &tvzero);
+	n = select(maxactivefd + 1, &fds, NULL, NULL, &tvzero);
 
 	/*
 	 * If there are no packets waiting just return
@@ -4447,7 +4447,7 @@ close_and_delete_fd_from_list(
 		break;
 
 	case FD_TYPE_FILE:
-		closeserial(lsock->fd);
+		closeserial((int)lsock->fd);
 		break;
 
 	default:
@@ -4643,7 +4643,7 @@ process_routing_msgs(struct asyncio_reader *reader)
 	 * process routing message
 	 */
 #ifdef HAVE_RTNETLINK
-	for (nh = (struct nlmsghdr *)buffer;
+	for (nh = UA_PTR(struct nlmsghdr, buffer);
 	     NLMSG_OK(nh, cnt);
 	     nh = NLMSG_NEXT(nh, cnt)) {
 		msg_type = nh->nlmsg_type;

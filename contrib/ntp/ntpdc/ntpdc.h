@@ -63,5 +63,5 @@ extern	int impl_ver;
 extern	int showhostnames;
 extern	int s_port;
 
-extern	int	doquery	(int, int, int, int, int, char *, int *, int *, char **, int, int);
+extern	int	doquery	(int, int, int, size_t, size_t, const char *, size_t *, size_t *, const char **, int, int);
 extern	const char * nntohost	(sockaddr_u *);

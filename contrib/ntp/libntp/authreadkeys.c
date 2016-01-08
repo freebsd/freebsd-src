@@ -77,14 +77,23 @@ nexttok(
  * data on global/static level.
  */
 
-static const size_t nerr_loglimit = 5u;
-static const size_t nerr_maxlimit = 15;
+static const u_int nerr_loglimit = 5u;
+static const u_int nerr_maxlimit = 15;
 
-static void log_maybe(size_t*, const char*, ...) NTP_PRINTF(2, 3);
+static void log_maybe(u_int*, const char*, ...) NTP_PRINTF(2, 3);
+
+typedef struct keydata KeyDataT;
+struct keydata {
+	KeyDataT *next;		/* queue/stack link		*/
+	keyid_t   keyid;	/* stored key ID		*/
+	u_short   keytype;	/* stored key type		*/
+	u_short   seclen;	/* length of secret		*/
+	u_char    secbuf[1];	/* begin of secret (formal only)*/
+};
 
 static void
 log_maybe(
-	size_t     *pnerr,
+	u_int      *pnerr,
 	const char *fmt  ,
 	...)
 {
@@ -113,25 +122,24 @@ authreadkeys(
 	u_char	keystr[32];		/* Bug 2537 */
 	size_t	len;
 	size_t	j;
-	size_t  nerr;
+	u_int   nerr;
+	KeyDataT *list = NULL;
+	KeyDataT *next = NULL;
 	/*
 	 * Open file.  Complain and return if it can't be opened.
 	 */
 	fp = fopen(file, "r");
 	if (fp == NULL) {
-		msyslog(LOG_ERR, "authreadkeys: file %s: %m",
+		msyslog(LOG_ERR, "authreadkeys: file '%s': %m",
 		    file);
-		return (0);
+		goto onerror;
 	}
 	INIT_SSL();
 
 	/*
-	 * Remove all existing keys
-	 */
-	auth_delkeys();
-
-	/*
-	 * Now read lines from the file, looking for key entries
+	 * Now read lines from the file, looking for key entries. Put
+	 * the data into temporary store for later propagation to avoid
+	 * two-pass processing.
 	 */
 	nerr = 0;
 	while ((line = fgets(buf, sizeof buf, fp)) != NULL) {
@@ -216,11 +224,16 @@ authreadkeys(
 				  "authreadkeys: no key for key %d", keyno);
 			continue;
 		}
+		next = NULL;
 		len = strlen(token);
 		if (len <= 20) {	/* Bug 2537 */
-			MD5auth_setkey(keyno, keytype, (u_char *)token, len);
+			next = emalloc(sizeof(KeyDataT) + len);
+			next->keyid   = keyno;
+			next->keytype = keytype;
+			next->seclen  = len;
+			memcpy(next->secbuf, token, len);
 		} else {
-			char	hex[] = "0123456789abcdef";
+			static const char hex[] = "0123456789abcdef";
 			u_char	temp;
 			char	*ptr;
 			size_t	jlim;
@@ -242,19 +255,51 @@ authreadkeys(
 					  keyno);
 				continue;
 			}
-			MD5auth_setkey(keyno, keytype, keystr, jlim / 2);
+			len = jlim/2; /* hmmmm.... what about odd length?!? */
+			next = emalloc(sizeof(KeyDataT) + len);
+			next->keyid   = keyno;
+			next->keytype = keytype;
+			next->seclen  = len;
+			memcpy(next->secbuf, keystr, len);
 		}
+		INSIST(NULL != next);
+		next->next = list;
+		list = next;
 	}
 	fclose(fp);
 	if (nerr > nerr_maxlimit) {
 		msyslog(LOG_ERR,
-			"authreadkeys: emergency break after %u errors",
-			nerr);
-		return (0);
-	} else if (nerr > nerr_loglimit) {
+			"authreadkeys: rejecting file '%s' after %u errors (emergency break)",
+			file, nerr);
+		goto onerror;
+	}
+	if (nerr > 0) {
 		msyslog(LOG_ERR,
-			"authreadkeys: found %u more error(s)",
-			nerr - nerr_loglimit);
+			"authreadkeys: rejecting file '%s' after %u error(s)",
+			file, nerr);
+		goto onerror;
+	}
+
+	/* first remove old file-based keys */
+	auth_delkeys();
+	/* insert the new key material */
+	while (NULL != (next = list)) {
+		list = next->next;
+		MD5auth_setkey(next->keyid, next->keytype,
+			       next->secbuf, next->seclen);
+		/* purge secrets from memory before free()ing it */
+		memset(next, 0, sizeof(*next) + next->seclen);
+		free(next);
 	}
 	return (1);
+
+  onerror:
+	/* Mop up temporary storage before bailing out. */
+	while (NULL != (next = list)) {
+		list = next->next;
+		/* purge secrets from memory before free()ing it */
+		memset(next, 0, sizeof(*next) + next->seclen);
+		free(next);
+	}
+	return (0);
 }
