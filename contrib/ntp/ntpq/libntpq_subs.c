@@ -42,7 +42,7 @@ ntpq_doquerylist(
 	associd_t associd,
 	int auth,
 	u_short *rstatus,
-	int *dsize,
+	size_t *dsize,
 	const char **datap
 	)
 {

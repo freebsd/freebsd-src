@@ -1,9 +1,9 @@
-.Dd October 21 2015
+.Dd January 7 2016
 .Dt NTPSNMPD @NTPSNMPD_MS@ User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntpsnmpd-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  October 21, 2015 at 12:39:45 PM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  January  7, 2016 at 11:32:18 PM by AutoGen 5.18.5
 .\"  From the definitions    ntpsnmpd-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME

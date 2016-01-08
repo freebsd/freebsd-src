@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/tcp_timer.h>
@@ -480,8 +481,8 @@ do_pass_accept_req(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	unsigned int tid = GET_TID(req);
 	struct listen_ctx *lctx = lookup_stid(&td->tid_maps, stid);
 	struct l2t_entry *e = NULL;
+	struct nhop4_basic nh4;
 	struct sockaddr_in nam;
-	struct rtentry *rt;
 	struct inpcb *inp;
 	struct socket *so;
 	struct port_info *pi;
@@ -525,18 +526,12 @@ do_pass_accept_req(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	nam.sin_len = sizeof(nam);
 	nam.sin_family = AF_INET;
 	nam.sin_addr = inc.inc_faddr;
-	rt = rtalloc1((struct sockaddr *)&nam, 0, 0);
-	if (rt == NULL)
+	if (fib4_lookup_nh_basic(RT_DEFAULT_FIB, nam.sin_addr, 0, 0, &nh4) != 0)
 		REJECT_PASS_ACCEPT();
 	else {
-		struct sockaddr *nexthop;
-
-		RT_UNLOCK(rt);
-		nexthop = rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway :
-		    (struct sockaddr *)&nam;
-		if (rt->rt_ifp == ifp)
-			e = t3_l2t_get(pi, rt->rt_ifp, nexthop);
-		RTFREE(rt);
+		nam.sin_addr = nh4.nh_addr;
+		if (nh4.nh_ifp == ifp)
+			e = t3_l2t_get(pi, ifp, (struct sockaddr *)&nam);
 		if (e == NULL)
 			REJECT_PASS_ACCEPT();	/* no l2te, or ifp mismatch */
 	}
