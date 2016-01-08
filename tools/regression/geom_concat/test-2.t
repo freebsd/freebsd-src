@@ -5,18 +5,17 @@
 
 echo '1..1'
 
-us=45
 tsize=6
-src=`mktemp /tmp/$base.XXXXXX` || exit 1
-dst=`mktemp /tmp/$base.XXXXXX` || exit 1
+src=`mktemp $base.XXXXXX` || exit 1
+dst=`mktemp $base.XXXXXX` || exit 1
+
+us0=$(attach_md -t malloc -s 1M) || exit 1
+us1=$(attach_md -t malloc -s 2M) || exit 1
+us2=$(attach_md -t malloc -s 3M) || exit 1
 
 dd if=/dev/random of=${src} bs=1m count=$tsize >/dev/null 2>&1
 
-mdconfig -a -t malloc -s 1M -u $us || exit 1
-mdconfig -a -t malloc -s 2M -u `expr $us + 1` || exit 1
-mdconfig -a -t malloc -s 3M -u `expr $us + 2` || exit 1
-
-gconcat create $name /dev/md${us} /dev/md`expr $us + 1` /dev/md`expr $us + 2` || exit 1
+gconcat create $name /dev/$us0 /dev/$us1 /dev/$us2 || exit 1
 devwait
 
 dd if=${src} of=/dev/concat/${name} bs=1m count=$tsize >/dev/null 2>&1
@@ -28,8 +27,4 @@ else
 	echo "ok - md5 checksum comparison"
 fi
 
-gconcat destroy $name
-mdconfig -d -u $us
-mdconfig -d -u `expr $us + 1`
-mdconfig -d -u `expr $us + 2`
 rm -f ${src} ${dst}
