@@ -9,7 +9,7 @@ ZIMAGE=		${IMAGE}.uzip
 UZIMAGE=	${ZIMAGE}.uue
 
 test:
-	@sh runtests.sh
+	prove -rv ./test-1.t
 
 image:
 	makefs -s 1048576 ${IMAGE} etalon
