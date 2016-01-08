@@ -449,6 +449,28 @@ typical_embedded ( ) (
 )
 customize_cmd typical_embedded
 
+fix_pkg ( ) (
+	chdir ${NANO_WORLDDIR}
+	mkdir -p pkg
+	mkdir -p pkg/db
+	mkdir -p pkg/cache
+	mkdir -p pkg/tmp		# Needed for pkg bootstrap
+	mkdir -p usr/local/etc		# Will get moved to local/etc
+	(
+	echo 'PKG_DBDIR = "/pkg/db"'
+	echo 'PKG_CACHEDIR = "/pkg/cache"'
+	echo 'DEFAULT_ALWAYS_YES = "yes"'
+	echo 'ASSUME_ALWAYS_YES = "yes"'
+	) >> usr/local/etc/pkg.conf
+	[ -z ${NANO_NOPRIV_BUILD} ] || (
+	echo "./pkg type=dir uname=root gname=wheel mode=0755"
+	echo "./pkg/cache type=dir uname=root gname=wheel mode=0755"
+	echo "./pkg/db type=dir uname=root gname=wheel mode=0755"
+	echo "./pkg/tmp type=dir uname=root gname=wheel mode=0755"
+	) >> ${NANO_METALOG}
+)
+customize_cmd fix_pkg
+
 save_build ( ) (
 	VERSION_FILE=${NANO_WORLDDIR}/etc/version
 	if [ "${SVNREVISION}" = "${REVISION}" ]; then
