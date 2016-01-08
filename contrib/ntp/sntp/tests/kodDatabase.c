@@ -1,5 +1,6 @@
 #include "config.h"
 
+#include "ntp_workimpl.h"
 #include "ntp_types.h"
 #include "sntptest.h"
 #include "ntp_stdlib.h"
@@ -20,6 +21,7 @@ void test_DeleteEntry(void);
 void
 setUp(void) {
 	kod_init_kod_db("/dev/null", TRUE);
+	init_lib();
 }
 
 

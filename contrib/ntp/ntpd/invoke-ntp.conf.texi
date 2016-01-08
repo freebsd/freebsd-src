@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  October 21, 2015 at 12:38:16 PM by AutoGen 5.18.5
+# It has been AutoGen-ed  January  7, 2016 at 11:30:49 PM by AutoGen 5.18.5
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
