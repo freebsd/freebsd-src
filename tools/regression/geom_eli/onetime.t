@@ -1,8 +1,9 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
 
 echo "1..460"
@@ -24,7 +25,7 @@ for cipher in aes:0 aes:128 aes:256 \
 	ealgo=${cipher%%:*}
 	keylen=${cipher##*:}
 	for secsize in 512 1024 2048 4096 8192; do
-		rnd=`mktemp /tmp/$base.XXXXXX` || exit 1
+		rnd=`mktemp $base.XXXXXX` || exit 1
 		mdconfig -a -t malloc -s `expr $secsize \* $sectors`b -u $no || exit 1
 
 		geli onetime -e $ealgo -l $keylen -s $secsize md${no} 2>/dev/null

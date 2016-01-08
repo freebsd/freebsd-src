@@ -1,13 +1,14 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
-keyfile0=`mktemp /tmp/$base.XXXXXX` || exit 1
-keyfile1=`mktemp /tmp/$base.XXXXXX` || exit 1
-passfile0=`mktemp /tmp/$base.XXXXXX` || exit 1
-passfile1=`mktemp /tmp/$base.XXXXXX` || exit 1
+keyfile0=`mktemp $base.XXXXXX` || exit 1
+keyfile1=`mktemp $base.XXXXXX` || exit 1
+passfile0=`mktemp $base.XXXXXX` || exit 1
+passfile1=`mktemp $base.XXXXXX` || exit 1
 mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
 
 echo "1..150"
@@ -122,5 +123,4 @@ for iter in -1 0 64; do
 	echo "ok ${i}"; i=$((i+1))
 done
 
-mdconfig -d -u $no
 rm -f ${keyfile0} ${keyfile1} ${passfile0} ${passfile1}

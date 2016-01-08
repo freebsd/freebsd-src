@@ -1,6 +1,7 @@
-#! /bin/sh
-#
+#!/bin/sh
 # $FreeBSD$
+
+. $(dirname $0)/conf.sh
 
 echo 1..27
 
@@ -21,8 +22,6 @@ setsize() {
 }
 
 # Initialise
-
-kldload geom_eli >/dev/null 2>&1
 
 setsize 10 40 || echo -n "not "
 echo ok $i - "Sized ${md}a to 10m"
@@ -145,6 +144,5 @@ echo ok $i - "Attached ${md}p1.eli"
 i=$((i + 1))
 
 geli detach ${md}p1.eli
-mdconfig -du$unit
 
 rm tmp.*

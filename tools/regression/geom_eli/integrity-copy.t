@@ -1,11 +1,12 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
-keyfile=`mktemp /tmp/$base.XXXXXX` || exit 1
-sector=`mktemp /tmp/$base.XXXXXX` || exit 1
+keyfile=`mktemp $base.XXXXXX` || exit 1
+sector=`mktemp $base.XXXXXX` || exit 1
 
 echo "1..5520"
 
