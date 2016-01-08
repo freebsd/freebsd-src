@@ -1,4 +1,61 @@
 ---
+(4.2.8p5) 2016/01/07 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 2956] small-step/big-step.  Close the panic gate earlier.  HStenn.
+* CID 1339955: Free allocated memory in caljulian test.  HStenn.
+* CID 1339962: Explicitly initialize variable in caljulian test.  HStenn.
+* CID 1341527: Quiet a CHECKED_RETURN in sntp/tests/t-log.c.  HStenn.
+* CID 1341533: Missing assertion in sntp/tests/t-log.c.  HStenn.
+* CID 1341534: Resource leak in tests/ntpd/t-ntp_signd.c.  HStenn.
+* CID 1341535: Resource leak in tests/ntpd/t-ntp_signd.c.  HStenn.
+* CID 1341536: Resource leak in tests/ntpd/t-ntp_signd.c.  HStenn.
+* CID 1341537: Resource leak in tests/ntpd/t-ntp_signd.c.  HStenn.
+* CID 1341538: Memory leak in tests/ntpd/ntp_prio_q.c:262.  HStenn.
+* CID 1341677: Nits in sntp/tests/keyFile.c.  HStenn.
+* CID 1341678: Nits in sntp/tests/keyFile.c.  HStenn.
+* CID 1341679: Nits in sntp/tests/keyFile.c.  HStenn.
+* CID 1341680: Nits in sntp/tests/keyFile.c.  HStenn.
+* CID 1341681: Nits in sntp/tests/keyFile.c.  HStenn.
+* CID 1341682: Nit in libntp/authreadkeys.c.  HStenn.
+* CID 1341684: Nit in tests/ntpd/t-ntp_signd.c.  HStenn.
+* [Bug 2829] Look at pipe_fds in ntpd.c  (did so. perlinger@ntp.org)
+* [Bug 2887] stratum -1 config results as showing value 99
+  - fudge stratum should only accept values [0..16]. perlinger@ntp.org
+* [Bug 2932] Update leapsecond file info in miscopt.html.  CWoodbury, HStenn.
+* [Bug 2934] tests/ntpd/t-ntp_scanner.c has a magic constant wired in.  HMurray
+* [Bug 2944] errno is not preserved properly in ntpdate after sendto call.
+  - applied patch by Christos Zoulas.  perlinger@ntp.org
+* [Bug 2952] Symmetric active/passive mode is broken.  HStenn.
+* [Bug 2954] Version 4.2.8p4 crashes on startup with sig fault
+  - fixed data race conditions in threaded DNS worker. perlinger@ntp.org
+  - limit threading warm-up to linux; FreeBSD bombs on it. perlinger@ntp.org
+* [Bug 2957] 'unsigned int' vs 'size_t' format clash. perlinger@ntp.org
+  - accept key file only if there are no parsing errors
+  - fixed size_t/u_int format clash
+  - fixed wrong use of 'strlcpy'
+* [Bug 2958] ntpq: fatal error messages need a final newline. Craig Leres.
+* [Bug 2962] truncation of size_t/ptrdiff_t on 64bit targets. perlinger@ntp.org
+  - fixed several other warnings (cast-alignment, missing const, missing prototypes)
+  - promote use of 'size_t' for values that express a size
+  - use ptr-to-const for read-only arguments
+  - make sure SOCKET values are not truncated (win32-specific)
+  - format string fixes
+* [Bug 2965] Local clock didn't work since 4.2.8p4.  Martin Burnicki.
+* [Bug 2967] ntpdate command suffers an assertion failure
+  - fixed ntp_rfc2553.c to return proper address length. perlinger@ntp.org
+* [Bug 2969]  Seg fault from ntpq/mrulist when looking at server with
+              lots of clients. perlinger@ntp.org
+* [Bug 2971] ntpq bails on ^C: select fails: Interrupted system call
+  - changed stacked/nested handling of CTRL-C. perlinger@ntp.org
+* Unity cleanup for FreeBSD-6.4.  Harlan Stenn.
+* Unity test cleanup.  Harlan Stenn.
+* Libevent autoconf pthread fixes for FreeBSD-10.  Harlan Stenn.
+* Header cleanup in tests/sandbox/uglydate.c.  Harlan Stenn.
+* Header cleanup in tests/libntp/sfptostr.c.  Harlan Stenn.
+* Quiet a warning from clang.  Harlan Stenn.
+* Update the NEWS file.  Harlan Stenn.
+* Update scripts/calc_tickadj/Makefile.am.  Harlan Stenn.
+---
 (4.2.8p4) 2015/10/21 Released by Harlan Stenn <stenn@ntp.org>
 (4.2.8p4-RC1) 2015/10/06 Released by Harlan Stenn <stenn@ntp.org>
 
