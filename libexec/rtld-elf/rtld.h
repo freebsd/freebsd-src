@@ -264,7 +264,6 @@ typedef struct Struct_Obj_Entry {
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
     bool dlopened : 1;		/* dlopen()-ed (vs. load statically) */
-    bool writable_dynamic : 1;	/* PT_DYNAMIC is writable */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
