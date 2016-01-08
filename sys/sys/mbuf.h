@@ -343,12 +343,13 @@ struct mbuf {
  * External mbuf storage buffer types.
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
-#define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
+#define	EXT_SFBUF	2	/* sendfile(2)'s sf_buf */
 #define	EXT_JUMBOP	3	/* jumbo cluster page sized */
 #define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
+#define	EXT_SFBUF_NOCACHE 8	/* sendfile(2)'s sf_buf not to be cached */
 
 #define	EXT_VENDOR1	224	/* for vendor-internal use */
 #define	EXT_VENDOR2	225	/* for vendor-internal use */
@@ -397,6 +398,7 @@ struct mbuf {
  */
 void sf_ext_ref(void *, void *);
 void sf_ext_free(void *, void *);
+void sf_ext_free_nocache(void *, void *);
 
 /*
  * Flags indicating checksum, segmentation and other offload work to be
