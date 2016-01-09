@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 static int	linux_do_tkill(struct thread *td, struct thread *tdt,
 		    ksiginfo_t *ksi);
+static void	sicode_to_lsicode(int si_code, int *lsi_code);
+
 
 void
 linux_to_bsd_sigset(l_sigset_t *lss, sigset_t *bss)
@@ -595,7 +597,7 @@ linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = sig;
-	ksi.ksi_code = LINUX_SI_TKILL;
+	ksi.ksi_code = SI_LWP;
 	ksi.ksi_errno = 0;
 	ksi.ksi_pid = td->td_proc->p_pid;
 	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
@@ -633,7 +635,7 @@ linux_tkill(struct thread *td, struct linux_tkill_args *args)
 
 	ksiginfo_init(&ksi);
 	ksi.ksi_signo = sig;
-	ksi.ksi_code = LINUX_SI_TKILL;
+	ksi.ksi_code = SI_LWP;
 	ksi.ksi_errno = 0;
 	ksi.ksi_pid = td->td_proc->p_pid;
 	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
@@ -641,36 +643,111 @@ linux_tkill(struct thread *td, struct linux_tkill_args *args)
 }
 
 void
-ksiginfo_to_lsiginfo(ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig)
+ksiginfo_to_lsiginfo(const ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig)
 {
 
-	lsi->lsi_signo = sig;
-	lsi->lsi_code = ksi->ksi_code;
+	siginfo_to_lsiginfo(&ksi->ksi_info, lsi, sig);
+}
 
-	switch (sig) {
-	case LINUX_SIGPOLL:
-		/* XXX si_fd? */
-		lsi->lsi_band = ksi->ksi_band;
+static void
+sicode_to_lsicode(int si_code, int *lsi_code)
+{
+
+	switch (si_code) {
+	case SI_USER:
+		*lsi_code = LINUX_SI_USER;
 		break;
-	case LINUX_SIGCHLD:
-		lsi->lsi_pid = ksi->ksi_pid;
-		lsi->lsi_uid = ksi->ksi_uid;
-		lsi->lsi_status = ksi->ksi_status;
+	case SI_KERNEL:
+		*lsi_code = LINUX_SI_KERNEL;
 		break;
-	case LINUX_SIGBUS:
-	case LINUX_SIGILL:
-	case LINUX_SIGFPE:
-	case LINUX_SIGSEGV:
-		lsi->lsi_addr = PTROUT(ksi->ksi_addr);
+	case SI_QUEUE:
+		*lsi_code = LINUX_SI_QUEUE;
+		break;
+	case SI_TIMER:
+		*lsi_code = LINUX_SI_TIMER;
+		break;
+	case SI_MESGQ:
+		*lsi_code = LINUX_SI_MESGQ;
+		break;
+	case SI_ASYNCIO:
+		*lsi_code = LINUX_SI_ASYNCIO;
+		break;
+	case SI_LWP:
+		*lsi_code = LINUX_SI_TKILL;
 		break;
 	default:
-		/* XXX SI_TIMER etc... */
-		lsi->lsi_pid = ksi->ksi_pid;
-		lsi->lsi_uid = ksi->ksi_uid;
+		*lsi_code = si_code;
 		break;
 	}
-	if (sig >= LINUX_SIGRTMIN) {
-		lsi->lsi_int = ksi->ksi_info.si_value.sival_int;
-		lsi->lsi_ptr = PTROUT(ksi->ksi_info.si_value.sival_ptr);
+}
+
+void
+siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
+{
+
+	/* sig alredy converted */
+	lsi->lsi_signo = sig;
+	sicode_to_lsicode(si->si_code, &lsi->lsi_code);
+
+	switch (si->si_code) {
+	case SI_LWP:
+		lsi->lsi_pid = si->si_pid;
+		lsi->lsi_uid = si->si_uid;
+		break;
+
+	case SI_TIMER:
+		lsi->lsi_int = si->si_value.sival_int;
+		lsi->lsi_ptr = PTROUT(si->si_value.sival_ptr);
+		lsi->lsi_tid = si->si_timerid;
+		break;
+
+	case SI_QUEUE:
+		lsi->lsi_pid = si->si_pid;
+		lsi->lsi_uid = si->si_uid;
+		lsi->lsi_ptr = PTROUT(si->si_value.sival_ptr);
+		break;
+
+	case SI_ASYNCIO:
+		lsi->lsi_int = si->si_value.sival_int;
+		lsi->lsi_ptr = PTROUT(si->si_value.sival_ptr);
+		break;
+
+	default:
+		switch (sig) {
+		case LINUX_SIGPOLL:
+			/* XXX si_fd? */
+			lsi->lsi_band = si->si_band;
+			break;
+
+		case LINUX_SIGCHLD:
+			lsi->lsi_errno = 0;
+			lsi->lsi_pid = si->si_pid;
+			lsi->lsi_uid = si->si_uid;
+
+			if (si->si_code == CLD_STOPPED)
+				lsi->lsi_status = BSD_TO_LINUX_SIGNAL(si->si_status);
+			else if (si->si_code == CLD_CONTINUED)
+				lsi->lsi_status = BSD_TO_LINUX_SIGNAL(SIGCONT);
+			else
+				lsi->lsi_status = si->si_status;
+			break;
+
+		case LINUX_SIGBUS:
+		case LINUX_SIGILL:
+		case LINUX_SIGFPE:
+		case LINUX_SIGSEGV:
+			lsi->lsi_addr = PTROUT(si->si_addr);
+			break;
+
+		default:
+			lsi->lsi_pid = si->si_pid;
+			lsi->lsi_uid = si->si_uid;
+			if (sig >= LINUX_SIGRTMIN) {
+				lsi->lsi_int = si->si_value.sival_int;
+				lsi->lsi_ptr = PTROUT(si->si_value.sival_ptr);
+			}
+			break;
+		}
+		break;
 	}
 }
