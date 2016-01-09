@@ -62,11 +62,11 @@ linux${SFX}_support.o: linux${SFX}_assym.h assym.s
 
 .if ${MACHINE_CPUARCH} == "amd64"
 ${VDSO}.so: linux${SFX}_locore.o
-	${OBJCOPY} --input binary --output elf64-x86-64-freebsd			\
+	${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd			\
 	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
 .else
 ${VDSO}.so: linux${SFX}_locore.o
-	${OBJCOPY} --input binary --output elf32-i386-freebsd			\
+	${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd			\
 	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
 .endif
 
