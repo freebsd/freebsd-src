@@ -48,6 +48,7 @@
 #define LINUX_MSG_RST		0x1000
 #define LINUX_MSG_ERRQUEUE	0x2000
 #define LINUX_MSG_NOSIGNAL	0x4000
+#define LINUX_MSG_WAITFORONE	0x10000
 #define LINUX_MSG_CMSG_CLOEXEC	0x40000000
 
 /* Socket-level control message types */
@@ -63,6 +64,12 @@ struct l_msghdr {
 	l_uintptr_t	msg_control;
 	l_size_t	msg_controllen;
 	l_uint		msg_flags;
+};
+
+struct l_mmsghdr {
+	struct l_msghdr	msg_hdr;
+	l_uint		msg_len;
+
 };
 
 struct l_cmsghdr {
@@ -279,6 +286,8 @@ int linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args);
 #define	LINUX_SENDMSG		16
 #define	LINUX_RECVMSG		17
 #define	LINUX_ACCEPT4		18
+#define	LINUX_RECVMMSG		19
+#define	LINUX_SENDMMSG		20
 
 /* Socket options */
 #define	LINUX_IP_TOS		1
