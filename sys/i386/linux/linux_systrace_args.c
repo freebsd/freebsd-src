@@ -12,9 +12,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	int64_t *iarg  = (int64_t *) uarg;
 	switch (sysnum) {
 #define	nosys	linux_nosys
-	/* sys_exit */
+	/* linux_exit */
 	case 1: {
-		struct sys_exit_args *p = params;
+		struct linux_exit_args *p = params;
 		iarg[0] = p->rval; /* int */
 		*n_args = 1;
 		break;
@@ -2363,7 +2363,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	const char *p = NULL;
 	switch (sysnum) {
 #define	nosys	linux_nosys
-	/* sys_exit */
+	/* linux_exit */
 	case 1:
 		switch(ndx) {
 		case 0:
@@ -5733,7 +5733,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	const char *p = NULL;
 	switch (sysnum) {
 #define	nosys	linux_nosys
-	/* sys_exit */
+	/* linux_exit */
 	case 1:
 		if (ndx == 0 || ndx == 1)
 			p = "void";
