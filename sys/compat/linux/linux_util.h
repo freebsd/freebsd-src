@@ -44,6 +44,8 @@
 #include <sys/cdefs.h>
 #include <sys/uio.h>
 
+MALLOC_DECLARE(M_LINUX);
+
 extern const char linux_emul_path[];
 
 int linux_emul_convpath(struct thread *, const char *, enum uio_seg, char **, int, int);

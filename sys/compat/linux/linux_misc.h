@@ -31,6 +31,8 @@
 #ifndef _LINUX_MISC_H_
 #define	_LINUX_MISC_H_
 
+#include <sys/sysctl.h>
+
 /*
  * Miscellaneous
  */
@@ -138,5 +140,7 @@ void linux_to_bsd_waitopts(int options, int *bsdopts);
 int linux_set_upcall_kse(struct thread *td, register_t stack);
 int linux_set_cloned_tls(struct thread *td, void *desc);
 struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
+
+int linux_sysctl_debug(SYSCTL_HANDLER_ARGS);
 
 #endif	/* _LINUX_MISC_H_ */

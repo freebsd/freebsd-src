@@ -197,6 +197,7 @@ SUBDIR=	\
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linux_common} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -799,6 +800,7 @@ _viawd=		viawd
 _virtio=	virtio
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
+_linux_common=	linux_common
 .endif
 _vxge=  	vxge
 _x86bios=	x86bios
