@@ -104,7 +104,6 @@ int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
 	struct image_args eargs;
-	struct vmspace *oldvmspace;
 	char *newpath;
 	int error;
 
@@ -115,19 +114,11 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 		printf(ARGS(execve, "%s"), newpath);
 #endif
 
-	error = pre_execve(td, &oldvmspace);
-	if (error != 0) {
-		free(newpath, M_TEMP);
-		return (error);
-	}
 	error = exec_copyin_args(&eargs, newpath, UIO_SYSSPACE,
 	    args->argp, args->envp);
 	free(newpath, M_TEMP);
 	if (error == 0)
-		error = kern_execve(td, &eargs, NULL);
-	if (error == 0)
 		error = linux_common_execve(td, &eargs);
-	post_execve(td, error, oldvmspace);
 	return (error);
 }
 
