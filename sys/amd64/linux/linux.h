@@ -250,9 +250,6 @@ struct l_newstat {
 #define	LINUX_SS_ONSTACK	1
 #define	LINUX_SS_DISABLE	2
 
-int linux_to_bsd_sigaltstack(int lsa);
-int bsd_to_linux_sigaltstack(int bsa);
-
 typedef void	(*l_handler_t)(l_int);
 
 typedef struct {
