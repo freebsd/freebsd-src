@@ -523,8 +523,6 @@ struct l_rt_sigframe {
 	l_handler_t 		sf_handler;
 } __packed;
 
-extern struct sysentvec elf_linux_sysvec;
-
 /*
  * open/fcntl flags
  */
