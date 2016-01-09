@@ -875,9 +875,9 @@ svr4_sys_times(td, uap)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	PROC_SLOCK(p);
+	PROC_STATLOCK(p);
 	calcru(p, &utime, &stime);
-	PROC_SUNLOCK(p);
+	PROC_STATUNLOCK(p);
 	calccru(p, &cutime, &cstime);
 	PROC_UNLOCK(p);
 
@@ -1288,9 +1288,9 @@ loop:
 			pid = p->p_pid;
 			status = p->p_xstat;
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 
@@ -1315,9 +1315,9 @@ loop:
 			pid = p->p_pid;
 			status = W_STOPCODE(p->p_xstat);
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {
@@ -1339,9 +1339,9 @@ loop:
 			pid = p->p_pid;
 			ru = p->p_ru;
 			status = SIGCONT;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {
