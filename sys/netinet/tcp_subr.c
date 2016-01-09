@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/hhook.h>
 #include <sys/kernel.h>
 #include <sys/khelp.h>

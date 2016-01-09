@@ -467,7 +467,6 @@ int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
 	    struct rt_addrinfo *);
 void	rib_free_info(struct rt_addrinfo *info);
 
-#include <sys/eventhandler.h>
 #endif
 
 #endif
