@@ -110,8 +110,7 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define	LINUX_SYS_linux_rt_sendsig	0
 #define	LINUX_SYS_linux_sendsig		0
 
-const char *linux_platform = "i686";
-static int linux_szplatform;
+const char *linux_kplatform;
 static int linux_szsigcode;
 static vm_object_t linux_shared_page_obj;
 static char *linux_shared_page_mapping;
@@ -229,6 +228,7 @@ struct linux32_ps_strings {
 LINUX_VDSO_SYM_INTPTR(linux32_sigcode);
 LINUX_VDSO_SYM_INTPTR(linux32_rt_sigcode);
 LINUX_VDSO_SYM_INTPTR(linux32_vsyscall);
+LINUX_VDSO_SYM_CHAR(linux_platform);
 
 /*
  * If FreeBSD & Linux have a difference of opinion about what a trap
@@ -257,11 +257,10 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args;
 	Elf32_Addr *base;
-	Elf32_Addr *pos, *uplatform;
+	Elf32_Addr *pos;
 	struct linux32_ps_strings *arginfo;
 
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
@@ -296,7 +295,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY_32(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
 	AUXARGS_ENTRY_32(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY_32(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
-	AUXARGS_ENTRY_32(pos, LINUX_AT_PLATFORM, PTROUT(uplatform));
+	AUXARGS_ENTRY_32(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
 	if (args->execfd != -1)
 		AUXARGS_ENTRY_32(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY_32(pos, AT_NULL, 0);
@@ -883,15 +882,8 @@ linux_copyout_strings(struct image_params *imgp)
 	 * Also deal with signal trampoline code for this exec type.
 	 */
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	destp =	(caddr_t)arginfo - SPARE_USRSPACE - linux_szplatform -
-	    roundup((ARG_MAX - imgp->args->stringspace),
-	    sizeof(char *));
-
-	/*
-	 * Install LINUX_PLATFORM
-	 */
-	copyout(linux_platform, ((caddr_t)arginfo - linux_szplatform),
-	    linux_szplatform);
+	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
+	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -1075,6 +1067,9 @@ linux_vdso_install(void *param)
 	bcopy(elf_linux_sysvec.sv_sigcode, linux_shared_page_mapping,
 	    linux_szsigcode);
 	elf_linux_sysvec.sv_shared_page_obj = linux_shared_page_obj;
+
+	linux_kplatform = linux_shared_page_mapping +
+	    (linux_platform - (caddr_t)LINUX32_SHAREDPAGE);
 }
 SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t)linux_vdso_install, NULL);
@@ -1181,8 +1176,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			    linux_proc_exec, NULL, 1000);
 			linux_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
 			    linux_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
-			linux_szplatform = roundup(strlen(linux_platform) + 1,
-			    sizeof(char *));
 			linux_osd_jail_register();
 			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)

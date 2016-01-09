@@ -732,7 +732,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 			*p = '\0';
 			break;
 		}
-	strlcpy(utsname.machine, linux_platform, LINUX_MAX_UTSNAME);
+	strlcpy(utsname.machine, linux_kplatform, LINUX_MAX_UTSNAME);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }
