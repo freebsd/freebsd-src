@@ -751,6 +751,8 @@ _lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+_linux64=	linux64
+_linux_common=	linux_common
 _mly=		mly
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _mlx4=		mlx4
@@ -801,8 +803,6 @@ _viawd=		viawd
 _virtio=	virtio
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
-_linux_common=	linux_common
-_linux64=	linux64
 .endif
 _vxge=  	vxge
 _x86bios=	x86bios
