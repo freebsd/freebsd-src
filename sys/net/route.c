@@ -858,7 +858,7 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 		src = rt_key(rt);
 		dst = info->rti_info[RTAX_DST];
 		sa_len = src->sa_len;
-		if (src != NULL && dst != NULL) {
+		if (dst != NULL) {
 			if (src->sa_len > dst->sa_len)
 				return (ENOMEM);
 			memcpy(dst, src, src->sa_len);
