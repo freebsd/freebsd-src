@@ -141,12 +141,12 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		return (ENOTDIR);
 	}
 
-	mib = malloc(la.nlen * sizeof(l_int), M_TEMP, M_WAITOK);
+	mib = malloc(la.nlen * sizeof(l_int), M_LINUX, M_WAITOK);
 	error = copyin(PTRIN(la.name), mib, la.nlen * sizeof(l_int));
 	if (error) {
 		LIN_SDT_PROBE1(sysctl, linux_sysctl, copyin_error, error);
 		LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
-		free(mib, M_TEMP);
+		free(mib, M_LINUX);
 		return (error);
 	}
 
@@ -158,7 +158,7 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		switch (mib[1]) {
 		case LINUX_KERN_VERSION:
 			error = handle_string(&la, version);
-			free(mib, M_TEMP);
+			free(mib, M_LINUX);
 			LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
 			return (error);
 		default:
@@ -187,7 +187,7 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		sbuf_delete(sb);
 	}
 
-	free(mib, M_TEMP);
+	free(mib, M_LINUX);
 
 	LIN_SDT_PROBE1(sysctl, linux_sysctl, return, ENOTDIR);
 	return (ENOTDIR);
