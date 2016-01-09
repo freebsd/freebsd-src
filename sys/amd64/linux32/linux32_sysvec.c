@@ -294,7 +294,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	base--;
 	suword32(base, (uint32_t)imgp->args->argc);
 	*stack_base = (register_t *)base;
-	return 0;
+	return (0);
 }
 
 extern unsigned long linux_sznonrtsigcode;
@@ -1171,9 +1171,9 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			printf("Could not deinstall ELF interpreter entry\n");
 		break;
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
-	return error;
+	return (error);
 }
 
 static moduledata_t linux_elf_mod = {
