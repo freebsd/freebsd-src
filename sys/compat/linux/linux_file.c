@@ -235,6 +235,7 @@ linux_lseek(struct thread *td, struct linux_lseek_args *args)
     return error;
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_llseek(struct thread *td, struct linux_llseek_args *args)
 {
@@ -273,6 +274,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	lda.count = 1;
 	return linux_getdents(td, &lda);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 /*
  * Note that linux_getdents(2) and linux_getdents64(2) have the same
@@ -919,6 +921,7 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 {
@@ -936,6 +939,8 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 	LFREEPATH(path);
 	return (error);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
 int
 linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 {
@@ -1123,6 +1128,7 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 {
@@ -1132,6 +1138,7 @@ linux_oldumount(struct thread *td, struct linux_oldumount_args *args)
 	args2.flags = 0;
 	return (linux_umount(td, &args2));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_umount(struct thread *td, struct linux_umount_args *args)
@@ -1262,7 +1269,7 @@ bsd_to_linux_flock64(struct flock *bsd_flock, struct l_flock64 *linux_flock)
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static int
-fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
+fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 {
 	struct l_flock linux_flock;
 	struct flock bsd_flock;
@@ -1388,17 +1395,13 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 int
 linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 {
-	struct linux_fcntl64_args args64;
 
 #ifdef DEBUG
 	if (ldebug(fcntl))
 		printf(ARGS(fcntl, "%d, %08x, *"), args->fd, args->cmd);
 #endif
 
-	args64.fd = args->fd;
-	args64.cmd = args->cmd;
-	args64.arg = args->arg;
-	return (fcntl_common(td, &args64));
+	return (fcntl_common(td, args));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
@@ -1407,6 +1410,7 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 {
 	struct l_flock64 linux_flock;
 	struct flock bsd_flock;
+	struct linux_fcntl_args fcntl_args;
 	int error;
 
 #ifdef DEBUG
@@ -1447,7 +1451,10 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		    (intptr_t)&bsd_flock));
 	}
 
-	return (fcntl_common(td, args));
+	fcntl_args.fd = args->fd;
+	fcntl_args.cmd = args->cmd;
+	fcntl_args.arg = args->arg;
+	return (fcntl_common(td, &fcntl_args));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
@@ -1543,6 +1550,7 @@ linux_fadvise64(struct thread *td, struct linux_fadvise64_args *args)
 	    advice));
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 {
@@ -1554,6 +1562,7 @@ linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
 	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
 	    advice));
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_pipe(struct thread *td, struct linux_pipe_args *args)
