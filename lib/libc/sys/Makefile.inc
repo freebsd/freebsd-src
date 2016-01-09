@@ -38,6 +38,10 @@ SRCS+=	${SYSCALL_COMPAT_SRCS}
 NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
 .endif
 
+SRCS+= futimens.c utimensat.c
+NOASM+= futimens.o utimensat.o
+PSEUDO+= _futimens.o _utimensat.o
+
 INTERPOSED = \
 	accept \
 	accept4 \
@@ -317,6 +321,7 @@ MAN+=	sctp_generic_recvmsg.2 \
 	umask.2 \
 	undelete.2 \
 	unlink.2 \
+	utimensat.2 \
 	utimes.2 \
 	utrace.2 \
 	uuidgen.2 \
@@ -449,6 +454,7 @@ MLINKS+=timer_settime.2 timer_getoverrun.2 \
 	timer_settime.2 timer_gettime.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
+MLINKS+=utimensat.2 futimens.2
 MLINKS+=utimes.2 futimes.2 \
 	utimes.2 futimesat.2 \
 	utimes.2 lutimes.2

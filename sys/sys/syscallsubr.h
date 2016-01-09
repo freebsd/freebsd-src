@@ -106,6 +106,8 @@ int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
 int	kern_ftruncate(struct thread *td, int fd, off_t length);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
+int	kern_futimens(struct thread *td, int fd, struct timespec *tptr,
+	    enum uio_seg tptrseg);
 int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	    long *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
@@ -255,6 +257,9 @@ int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_utimesat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg);
+int	kern_utimensat(struct thread *td, int fd, char *path,
+	    enum uio_seg pathseg, struct timespec *tptr, enum uio_seg tptrseg,
+	    int follow);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
 int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,

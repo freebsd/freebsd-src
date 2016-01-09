@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2013
+.Dd January 23, 2015
 .Dt RIGHTS 4
 .Os
 .Sh NAME
@@ -273,9 +273,13 @@ with the
 flag.
 .It Dv CAP_FUTIMES
 Permit
-.Xr futimes 2
+.Xr futimens 2
 and
+.Xr futimes 2 ,
+and permit
 .Xr futimesat 2
+and
+.Xr utimensat 2
 if the
 .Dv CAP_LOOKUP
 right is also present.

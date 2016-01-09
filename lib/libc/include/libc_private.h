@@ -379,6 +379,10 @@ int		__libc_system(const char *);
 int		__libc_tcdrain(int);
 int		__fcntl_compat(int fd, int cmd, ...);
 
+int		__sys_futimens(int fd, const struct timespec *times) __hidden;
+int		__sys_utimensat(int fd, const char *path,
+		    const struct timespec *times, int flag) __hidden;
+
 /* execve() with PATH processing to implement posix_spawnp() */
 int _execvpe(const char *, char * const *, char * const *);
 

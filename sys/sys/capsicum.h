@@ -146,9 +146,9 @@
 #define	CAP_FSTATAT		(CAP_FSTAT | CAP_LOOKUP)
 /* Allows for fstatfs(2). */
 #define	CAP_FSTATFS		CAPRIGHT(0, 0x0000000000100000ULL)
-/* Allows for futimes(2). */
+/* Allows for futimens(2) and futimes(2). */
 #define	CAP_FUTIMES		CAPRIGHT(0, 0x0000000000200000ULL)
-/* Allows for futimes(2) and futimesat(2). */
+/* Allows for futimens(2), futimes(2), futimesat(2) and utimensat(2). */
 #define	CAP_FUTIMESAT		(CAP_FUTIMES | CAP_LOOKUP)
 /* Allows for linkat(2) and renameat(2) (destination directory descriptor). */
 #define	CAP_LINKAT		(CAP_LOOKUP | 0x0000000000400000ULL)
