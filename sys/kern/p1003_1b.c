@@ -296,13 +296,26 @@ kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 		targettd = FIRST_THREAD_IN_PROC(targetp);
 	}
 
-	e = p_cansee(td, targetp);
-	if (e == 0)
-		e = ksched_rr_get_interval(ksched, targettd, ts);
+	e = kern_sched_rr_get_interval_td(td, targettd, ts);
 	PROC_UNLOCK(targetp);
 	return (e);
 }
 
+int
+kern_sched_rr_get_interval_td(struct thread *td, struct thread *targettd,
+    struct timespec *ts)
+{
+	struct proc *p;
+	int error;
+
+	p = targettd->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	error = p_cansee(td, p);
+	if (error == 0)
+		error = ksched_rr_get_interval(ksched, targettd, ts);
+	return (error);
+}
 #endif
 
 static void
