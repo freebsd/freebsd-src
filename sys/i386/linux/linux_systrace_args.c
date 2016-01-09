@@ -2355,7 +2355,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_recvmmsg */
 	case 337: {
-		*n_args = 0;
+		struct linux_recvmmsg_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		uarg[1] = (intptr_t) p->msg; /* struct l_mmsghdr * */
+		iarg[2] = p->vlen; /* l_uint */
+		iarg[3] = p->flags; /* l_uint */
+		uarg[4] = (intptr_t) p->timeout; /* struct l_timespec * */
+		*n_args = 5;
 		break;
 	}
 	/* linux_fanotify_init */
@@ -2400,7 +2406,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_sendmmsg */
 	case 345: {
-		*n_args = 0;
+		struct linux_sendmmsg_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		uarg[1] = (intptr_t) p->msg; /* struct l_mmsghdr * */
+		iarg[2] = p->vlen; /* l_uint */
+		iarg[3] = p->flags; /* l_uint */
+		*n_args = 4;
 		break;
 	}
 	/* linux_setns */
@@ -5950,6 +5961,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_recvmmsg */
 	case 337:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "struct l_mmsghdr *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		case 4:
+			p = "struct l_timespec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fanotify_init */
 	case 338:
@@ -5990,6 +6020,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sendmmsg */
 	case 345:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "struct l_mmsghdr *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_setns */
 	case 346:
@@ -7320,6 +7366,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 336:
 	/* linux_recvmmsg */
 	case 337:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fanotify_init */
 	case 338:
 	/* linux_fanotify_mark */
@@ -7339,6 +7388,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 344:
 	/* linux_sendmmsg */
 	case 345:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_setns */
 	case 346:
 	/* linux_process_vm_readv */
