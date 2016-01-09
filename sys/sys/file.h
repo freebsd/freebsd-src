@@ -65,6 +65,7 @@ struct socket;
 #define	DTYPE_PTS	10	/* pseudo teletype master device */
 #define	DTYPE_DEV	11	/* Device specific fd type */
 #define	DTYPE_PROCDESC	12	/* process descriptor */
+#define	DTYPE_LINUXEFD	13	/* emulation eventfd type */
 
 #ifdef _KERNEL
 

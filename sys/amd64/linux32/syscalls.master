@@ -535,7 +535,7 @@
 320	AUE_NULL	STD	{ int linux_utimensat(void); }
 321	AUE_NULL	STD	{ int linux_signalfd(void); }
 322	AUE_NULL	STD	{ int linux_timerfd_create(void); }
-323	AUE_NULL	STD	{ int linux_eventfd(void); }
+323	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 ; linux 2.6.23:
 324	AUE_NULL	STD	{ int linux_fallocate(void); }
 ; linux 2.6.25:
@@ -543,7 +543,7 @@
 326	AUE_NULL	STD	{ int linux_timerfd_gettime(void); }
 ; linux 2.6.27:
 327	AUE_NULL	STD	{ int linux_signalfd4(void); }
-328	AUE_NULL	STD	{ int linux_eventfd2(void); }
+328	AUE_NULL	STD	{ int linux_eventfd2(l_uint initval, l_int flags); }
 329	AUE_NULL	STD	{ int linux_epoll_create1(l_int flags); }
 330	AUE_NULL	STD	{ int linux_dup3(l_int oldfd,		\
 					l_int newfd, l_int flags); }
