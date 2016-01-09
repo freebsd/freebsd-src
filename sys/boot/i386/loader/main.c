@@ -262,7 +262,6 @@ extract_currdev(void)
 	    new_currdev.d_kind.zfs.root_guid = 0;
 	}
 	new_currdev.d_dev = &zfs_dev;
-	init_zfs_bootenv(zfs_fmtdev(&new_currdev));
 #endif
     } else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 	/* The passed-in boot device is bad */
@@ -295,6 +294,11 @@ extract_currdev(void)
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
 	new_currdev.d_unit = 0;
     }
+
+#ifdef LOADER_ZFS_SUPPORT
+    if (new_currdev.d_type == DEVT_ZFS)
+	init_zfs_bootenv(zfs_fmtdev(&new_currdev));
+#endif
 
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);
