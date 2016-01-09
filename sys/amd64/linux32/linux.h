@@ -40,8 +40,10 @@
  */
 extern u_char linux_debug_map[];
 #define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
-#define	ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
-#define	LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
+#define	ARGS(nm, fmt)	"linux(%ld/%ld): "#nm"("fmt")\n",			\
+			(long)td->td_proc->p_pid, (long)td->td_tid
+#define	LMSG(fmt)	"linux(%ld/%ld): "fmt"\n",				\
+			(long)td->td_proc->p_pid, (long)td->td_tid
 #define	LINUX_DTRACE	linuxulator32
 
 #ifdef MALLOC_DECLARE
