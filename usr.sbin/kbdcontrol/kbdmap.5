@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2008
+.Dd January 9, 2016
 .Dt KBDMAP 5
 .Os
 .Sh NAME
@@ -111,9 +111,9 @@ ack,
 bel,
 bs,
 ht,
-nl,
+lf,
 vt,
-np,
+ff,
 cr,
 so,
 si,
@@ -132,10 +132,16 @@ esc,
 fs,
 gs,
 rs,
-ns,
 us,
 sp,
 del.
+.It Ar control-alias
+One of the historical aliases for certain
+.Tn ASCII
+control characters:
+nl,
+np,
+ns.
 .It Ar accentname
 By giving one of the accent names,
 the next key pressed will produce
