@@ -568,7 +568,7 @@ rtredirect_fib(struct sockaddr *dst,
 	struct sockaddr *src,
 	u_int fibnum)
 {
-	struct rtentry *rt, *rt0 = NULL;
+	struct rtentry *rt;
 	int error = 0;
 	short *stat = NULL;
 	struct rt_addrinfo info;
@@ -627,7 +627,7 @@ rtredirect_fib(struct sockaddr *dst,
 			 * Create new route, rather than smashing route to net.
 			 */
 		create:
-			rt0 = rt;
+			RTFREE(rt);
 			rt = NULL;
 		
 			flags |= RTF_DYNAMIC;
@@ -637,21 +637,14 @@ rtredirect_fib(struct sockaddr *dst,
 			info.rti_info[RTAX_NETMASK] = netmask;
 			info.rti_ifa = ifa;
 			info.rti_flags = flags;
-			if (rt0 != NULL)
-				RT_UNLOCK(rt0);	/* drop lock to avoid LOR with RNH */
 			error = rtrequest1_fib(RTM_ADD, &info, &rt, fibnum);
 			if (rt != NULL) {
 				RT_LOCK(rt);
-				if (rt0 != NULL)
-					EVENTHANDLER_INVOKE(route_redirect_event, rt0, rt, dst);
 				flags = rt->rt_flags;
 			}
-			if (rt0 != NULL)
-				RTFREE(rt0);
 			
 			stat = &V_rtstat.rts_dynamic;
 		} else {
-			struct rtentry *gwrt;
 
 			/*
 			 * Smash the current notion of the gateway to
@@ -669,11 +662,7 @@ rtredirect_fib(struct sockaddr *dst,
 			RADIX_NODE_HEAD_LOCK(rnh);
 			RT_LOCK(rt);
 			rt_setgate(rt, rt_key(rt), gateway);
-			gwrt = rtalloc1(gateway, 1, RTF_RNH_LOCKED);
 			RADIX_NODE_HEAD_UNLOCK(rnh);
-			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
-			if (gwrt)
-				RTFREE_LOCKED(gwrt);
 		}
 	} else
 		error = EHOSTUNREACH;
