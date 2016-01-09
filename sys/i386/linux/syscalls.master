@@ -208,7 +208,7 @@
 113	AUE_NULL	STD	{ int linux_vm86old(void); }
 114	AUE_WAIT4	STD	{ int linux_wait4(l_pid_t pid, \
 				    l_int *status, l_int options, \
-				    struct l_rusage *rusage); }
+				    void *rusage); }
 115	AUE_SWAPOFF	STD	{ int linux_swapoff(void); }
 116	AUE_NULL	STD	{ int linux_sysinfo(struct l_sysinfo *info); }
 117	AUE_NULL	STD	{ int linux_ipc(l_uint what, l_int arg1, \
