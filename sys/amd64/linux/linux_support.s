@@ -45,9 +45,9 @@ ENTRY(futex_xchgl)
 	movq	$VM_MAXUSER_ADDRESS-4,%rax
 	cmpq	%rax,%rsi
 	ja	futex_fault
-	xchgq	%rdi,(%rsi)
-	movq	%rdi,(%rdx)
-	xorq	%rax,%rax
+	xchgl	%edi,(%rsi)
+	movl	%edi,(%rdx)
+	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
 
@@ -60,9 +60,9 @@ ENTRY(futex_addl)
 #ifdef SMP
 	lock
 #endif
-	xaddq	%rdi,(%rsi)
-	movq	%rdi,(%rdx)
-	xorq	%rax,%rax
+	xaddl	%edi,(%rsi)
+	movl	%edi,(%rdx)
+	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
 
@@ -72,16 +72,16 @@ ENTRY(futex_orl)
 	movq	$VM_MAXUSER_ADDRESS-4,%rax
 	cmpq	%rax,%rsi
 	ja	futex_fault
-	movq	(%rsi),%rax
-1:	movq	%rax,%rcx
-	orq	%rdi,%rcx
+	movl	(%rsi),%eax
+1:	movl	%eax,%ecx
+	orl	%edi,%ecx
 #ifdef SMP
 	lock
 #endif
-	cmpxchgq %rcx,(%rsi)
+	cmpxchgl %ecx,(%rsi)
 	jnz	1b
-	movq	%rax,(%rdx)
-	xorq	%rax,%rax
+	movl	%eax,(%rdx)
+	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
 
@@ -91,16 +91,16 @@ ENTRY(futex_andl)
 	movq	$VM_MAXUSER_ADDRESS-4,%rax
 	cmpq	%rax,%rsi
 	ja	futex_fault
-	movq	(%rsi),%rax
-1:	movq	%rax,%rcx
-	andq	%rdi,%rcx
+	movl	(%rsi),%eax
+1:	movl	%eax,%ecx
+	andl	%edi,%ecx
 #ifdef SMP
 	lock
 #endif
-	cmpxchgq %rcx,(%rsi)
+	cmpxchgl %ecx,(%rsi)
 	jnz	1b
-	movq	%rax,(%rdx)
-	xorq	%rax,%rax
+	movl	%eax,(%rdx)
+	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
 
@@ -110,15 +110,15 @@ ENTRY(futex_xorl)
 	movq	$VM_MAXUSER_ADDRESS-4,%rax
 	cmpq	%rax,%rsi
 	ja	futex_fault
-	movq	(%rsi),%rax
-1:	movq	%rax,%rcx
-	xorq	%rdi,%rcx
+	movl	(%rsi),%eax
+1:	movl	%eax,%ecx
+	xorl	%edi,%ecx
 #ifdef SMP
 	lock
 #endif
-	cmpxchgq %rcx,(%rsi)
+	cmpxchgl %ecx,(%rsi)
 	jnz	1b
-	movq	%rax,(%rdx)
-	xorq	%rax,%rax
+	movl	%eax,(%rdx)
+	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	ret
