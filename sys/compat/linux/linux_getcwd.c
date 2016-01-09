@@ -186,7 +186,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	dirbuflen = DIRBLKSIZ;
 	if (dirbuflen < va.va_blocksize)
 		dirbuflen = va.va_blocksize;
-	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
+	dirbuf = malloc(dirbuflen, M_LINUX, M_WAITOK);
 
 #if 0
 unionread:
@@ -274,7 +274,7 @@ unionread:
 out:
 	vput(lvp);
 	*lvpp = NULL;
-	free(dirbuf, M_TEMP);
+	free(dirbuf, M_LINUX);
 	return error;
 }
 

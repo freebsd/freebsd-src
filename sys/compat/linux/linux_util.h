@@ -45,6 +45,8 @@
 #include <sys/uio.h>
 
 MALLOC_DECLARE(M_LINUX);
+MALLOC_DECLARE(M_FUTEX);
+MALLOC_DECLARE(M_FUTEX_WP);
 
 extern const char linux_emul_path[];
 
