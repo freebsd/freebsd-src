@@ -89,8 +89,6 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 	if (newtd != NULL) {
 		/* non-exec call */
 		em = malloc(sizeof(*em), M_TEMP, M_WAITOK | M_ZERO);
-		em->pdeath_signal = 0;
-		em->robust_futexes = NULL;
 		if (flags & LINUX_CLONE_THREAD) {
 			LINUX_CTR1(proc_init, "thread newtd(%d)",
 			    newtd->td_tid);
@@ -117,6 +115,11 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		KASSERT(em != NULL, ("proc_init: emuldata not found in exec case.\n"));
 
 		em->em_tid = td->td_proc->p_pid;
+		em->flags = 0;
+		em->pdeath_signal = 0;
+		em->robust_futexes = NULL;
+		em->child_clear_tid = NULL;
+		em->child_set_tid = NULL;
 
 		 /* epoll should be destroyed in a case of exec. */
 		pem = pem_find(td->td_proc);
@@ -129,8 +132,6 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		}
 	}
 
-	em->child_clear_tid = NULL;
-	em->child_set_tid = NULL;
 }
 
 void 
