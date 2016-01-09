@@ -106,14 +106,12 @@ LIN_SDT_PROBE_DEFINE1(time, linux_clock_getres, return, "int");
 LIN_SDT_PROBE_DEFINE2(time, linux_nanosleep, entry, "const struct l_timespec *",
     "struct l_timespec *");
 LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, conversion_error, "int");
-LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, nanosleep_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, copyout_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, return, "int");
 LIN_SDT_PROBE_DEFINE4(time, linux_clock_nanosleep, entry, "clockid_t", "int",
     "struct l_timespec *", "struct l_timespec *");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, conversion_error, "int");
-LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, nanosleep_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, copyout_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, unsupported_flags, "int");
@@ -469,7 +467,7 @@ linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)
 	struct timespec *rmtp;
 	struct l_timespec lrqts, lrmts;
 	struct timespec rqts, rmts;
-	int error;
+	int error, error2;
 
 	LIN_SDT_PROBE2(time, linux_nanosleep, entry, args->rqtp, args->rmtp);
 
@@ -481,9 +479,9 @@ linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)
 	}
 
 	if (args->rmtp != NULL)
-	   	rmtp = &rmts;
+		rmtp = &rmts;
 	else
-	   	rmtp = NULL;
+		rmtp = NULL;
 
 	error = linux_to_native_timespec(&rqts, &lrqts);
 	if (error != 0) {
@@ -492,25 +490,19 @@ linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)
 		return (error);
 	}
 	error = kern_nanosleep(td, &rqts, rmtp);
-	if (error != 0) {
-		LIN_SDT_PROBE1(time, linux_nanosleep, nanosleep_error, error);
-		LIN_SDT_PROBE1(time, linux_nanosleep, return, error);
-		return (error);
-	}
-
 	if (args->rmtp != NULL) {
-	   	native_to_linux_timespec(&lrmts, rmtp);
-	   	error = copyout(&lrmts, args->rmtp, sizeof(lrmts));
-		if (error != 0) {
+		native_to_linux_timespec(&lrmts, rmtp);
+		error2 = copyout(&lrmts, args->rmtp, sizeof(lrmts));
+		if (error2 != 0) {
 			LIN_SDT_PROBE1(time, linux_nanosleep, copyout_error,
-			    error);
-			LIN_SDT_PROBE1(time, linux_nanosleep, return, error);
-		   	return (error);
+			    error2);
+			LIN_SDT_PROBE1(time, linux_nanosleep, return, error2);
+			return (error2);
 		}
 	}
 
-	LIN_SDT_PROBE1(time, linux_nanosleep, return, 0);
-	return (0);
+	LIN_SDT_PROBE1(time, linux_nanosleep, return, error);
+	return (error);
 }
 
 int
@@ -519,7 +511,7 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 	struct timespec *rmtp;
 	struct l_timespec lrqts, lrmts;
 	struct timespec rqts, rmts;
-	int error;
+	int error, error2;
 
 	LIN_SDT_PROBE4(time, linux_clock_nanosleep, entry, args->which,
 	    args->flags, args->rqtp, args->rmtp);
@@ -539,7 +531,7 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 		return (EINVAL);
 	}
 
-	error = copyin(args->rqtp, &lrqts, sizeof lrqts);
+	error = copyin(args->rqtp, &lrqts, sizeof(lrqts));
 	if (error != 0) {
 		LIN_SDT_PROBE1(time, linux_clock_nanosleep, copyin_error,
 		    error);
@@ -548,9 +540,9 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 	}
 
 	if (args->rmtp != NULL)
-	   	rmtp = &rmts;
+		rmtp = &rmts;
 	else
-	   	rmtp = NULL;
+		rmtp = NULL;
 
 	error = linux_to_native_timespec(&rqts, &lrqts);
 	if (error != 0) {
@@ -560,24 +552,19 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 		return (error);
 	}
 	error = kern_nanosleep(td, &rqts, rmtp);
-	if (error != 0) {
-		LIN_SDT_PROBE1(time, linux_clock_nanosleep, nanosleep_error,
-		    error);
-		LIN_SDT_PROBE1(time, linux_clock_nanosleep, return, error);
-		return (error);
-	}
-
 	if (args->rmtp != NULL) {
+		/* XXX. Not for TIMER_ABSTIME */
 	   	native_to_linux_timespec(&lrmts, rmtp);
-	   	error = copyout(&lrmts, args->rmtp, sizeof lrmts );
-		if (error != 0) {
+		error2 = copyout(&lrmts, args->rmtp, sizeof(lrmts));
+		if (error2 != 0) {
 			LIN_SDT_PROBE1(time, linux_clock_nanosleep,
-			    copyout_error, error);
-			LIN_SDT_PROBE1(time, linux_nanosleep, return, error);
-		   	return (error);
+			    copyout_error, error2);
+			LIN_SDT_PROBE1(time, linux_clock_nanosleep,
+			    return, error2);
+			return (error2);
 		}
 	}
 
-	LIN_SDT_PROBE1(time, linux_clock_nanosleep, return, 0);
-	return (0);
+	LIN_SDT_PROBE1(time, linux_clock_nanosleep, return, error);
+	return (error);
 }
