@@ -29,7 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 #define	__ELF_WORD_SIZE	32
+#else
+#define	__ELF_WORD_SIZE	64
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -135,7 +139,7 @@ __elfN(linux_vdso_fixup)(struct sysentvec *sv)
 }
 
 void
-__elfN(linux_vdso_reloc)(struct sysentvec *sv, int vdso_adjust)
+__elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
 {
 	struct linux_vdso_sym *lsym;
 	Elf_Ehdr *ehdr;
