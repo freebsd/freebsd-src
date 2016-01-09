@@ -391,7 +391,7 @@ Symtab::InitNameIndexes()
                     m_name_to_index.Append (entry);
                 }
             }
-
+                
             // If the demangled name turns out to be an ObjC name, and
             // is a category name, add the version without categories to the index too.
             ObjCLanguage::MethodName objc_method (entry.cstring, true);
