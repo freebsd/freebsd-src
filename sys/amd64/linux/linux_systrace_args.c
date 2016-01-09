@@ -2052,7 +2052,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_utimensat */
 	case 280: {
-		*n_args = 0;
+		struct linux_utimensat_args *p = params;
+		iarg[0] = p->dfd; /* l_int */
+		uarg[1] = (intptr_t) p->pathname; /* const char * */
+		uarg[2] = (intptr_t) p->times; /* const struct l_timespec * */
+		iarg[3] = p->flags; /* l_int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_epoll_pwait */
@@ -5355,6 +5360,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_utimensat */
 	case 280:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "const char *";
+			break;
+		case 2:
+			p = "const struct l_timespec *";
+			break;
+		case 3:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_epoll_pwait */
 	case 281:
@@ -6698,6 +6719,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 279:
 	/* linux_utimensat */
 	case 280:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_epoll_pwait */
 	case 281:
 		if (ndx == 0 || ndx == 1)
