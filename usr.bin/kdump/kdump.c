@@ -636,6 +636,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_readlinkat:
 			case SYS_renameat:
 			case SYS_unlinkat:
+			case SYS_utimensat:
 				putchar('(');
 				atfdname(*ip, decimal);
 				c = ',';

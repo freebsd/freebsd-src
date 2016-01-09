@@ -983,5 +983,10 @@
 545	AUE_POLL	STD	{ int ppoll(struct pollfd *fds, u_int nfds, \
 				    const struct timespec *ts, \
 				    const sigset_t *set); }
+546	AUE_FUTIMES	STD	{ int futimens(int fd, \
+				    struct timespec *times); }
+547	AUE_FUTIMESAT	STD	{ int utimensat(int fd, \
+				    char *path, \
+				    struct timespec *times, int flag); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
