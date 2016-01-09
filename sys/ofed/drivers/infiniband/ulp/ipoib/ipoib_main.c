@@ -1260,16 +1260,12 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 #if defined(INET) || defined(INET6)
 	struct llentry *lle = NULL;
 #endif
-	struct rtentry *rt0 = NULL;
 	struct ipoib_header *eh;
 	int error = 0, is_gw = 0;
 	short type;
 
-	if (ro != NULL) {
-		rt0 = ro->ro_rt;
-		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
-			is_gw = 1;
-	}
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
