@@ -326,18 +326,17 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 	return(stat_copyout(&buf, args->up));
 }
 
-/* XXX - All fields of type l_int are defined as l_long on i386 */
 struct l_statfs {
-	l_int		f_type;
-	l_int		f_bsize;
-	l_int		f_blocks;
-	l_int		f_bfree;
-	l_int		f_bavail;
-	l_int		f_files;
-	l_int		f_ffree;
+	l_long		f_type;
+	l_long		f_bsize;
+	l_long		f_blocks;
+	l_long		f_bfree;
+	l_long		f_bavail;
+	l_long		f_files;
+	l_long		f_ffree;
 	l_fsid_t	f_fsid;
-	l_int		f_namelen;
-	l_int		f_spare[6];
+	l_long		f_namelen;
+	l_long		f_spare[6];
 };
 
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L
