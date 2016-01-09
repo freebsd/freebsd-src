@@ -480,9 +480,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the argument list for the signal handler.
 	 */
-	if (p->p_sysent->sv_sigtbl)
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+	sig = BSD_TO_LINUX_SIGNAL(sig);
 
 	bzero(&frame, sizeof(frame));
 
@@ -623,9 +621,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the argument list for the signal handler.
 	 */
-	if (p->p_sysent->sv_sigtbl)
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+	sig = BSD_TO_LINUX_SIGNAL(sig);
 
 	bzero(&frame, sizeof(frame));
 
