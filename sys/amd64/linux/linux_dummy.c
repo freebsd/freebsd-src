@@ -98,7 +98,6 @@ DUMMY(tee);
 DUMMY(sync_file_range);
 DUMMY(vmsplice);
 DUMMY(move_pages);
-DUMMY(epoll_pwait);
 DUMMY(signalfd);
 DUMMY(timerfd);
 DUMMY(timerfd_settime);
