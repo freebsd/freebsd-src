@@ -219,6 +219,18 @@ void
 linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 {
 	struct thread *td = curthread;
+	struct thread *othertd;
+
+	/*
+	 * In a case of execing from linux binary properly detach
+	 * other threads from the user space.
+	 */
+	if (__predict_false(SV_PROC_ABI(p) == SV_ABI_LINUX)) {
+		FOREACH_THREAD_IN_PROC(p, othertd) {
+			if (td != othertd)
+				(p->p_sysent->sv_thread_detach)(othertd);
+		}
+	}
 
 	/*
 	 * In a case of execing to linux binary we create linux
