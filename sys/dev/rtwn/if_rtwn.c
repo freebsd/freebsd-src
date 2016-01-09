@@ -1683,7 +1683,7 @@ rtwn_tx(struct rtwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 0));
 	}
 	/* Set sequence number (already little endian). */
-	txd->txdseq = *(uint16_t *)wh->i_seq;
+	txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
 	
 	if (!qos) {
 		/* Use HW sequence numbering for non-QoS frames. */
