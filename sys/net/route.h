@@ -219,6 +219,7 @@ fib_rte_to_nh_flags(int rt_flags)
 	return (res);
 }
 
+#ifdef _KERNEL
 /* rte<>ro_flags translation */
 static inline void
 rt_update_ro_flags(struct route *ro)
@@ -231,6 +232,7 @@ rt_update_ro_flags(struct route *ro)
 	ro->ro_flags |= (rt_flags & RTF_BLACKHOLE) ? RT_BLACKHOLE : 0;
 	ro->ro_flags |= (rt_flags & RTF_GATEWAY) ? RT_HAS_GW : 0;
 }
+#endif
 
 /*
  * Routing statistics.
