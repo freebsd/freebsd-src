@@ -150,28 +150,6 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 	 -72, -67, -71
 };
 
-int bsd_to_linux_signal[LINUX_SIGTBLSZ] = {
-	LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT, LINUX_SIGILL,
-	LINUX_SIGTRAP, LINUX_SIGABRT, 0, LINUX_SIGFPE,
-	LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, LINUX_SIGSYS,
-	LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM, LINUX_SIGURG,
-	LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT, LINUX_SIGCHLD,
-	LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, LINUX_SIGXCPU,
-	LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, LINUX_SIGWINCH,
-	0, LINUX_SIGUSR1, LINUX_SIGUSR2
-};
-
-int linux_to_bsd_signal[LINUX_SIGTBLSZ] = {
-	SIGHUP, SIGINT, SIGQUIT, SIGILL,
-	SIGTRAP, SIGABRT, SIGBUS, SIGFPE,
-	SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2,
-	SIGPIPE, SIGALRM, SIGTERM, SIGBUS,
-	SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP,
-	SIGTTIN, SIGTTOU, SIGURG, SIGXCPU,
-	SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH,
-	SIGIO, SIGURG, SIGSYS
-};
-
 #define LINUX_T_UNKNOWN  255
 static int _bsd_to_linux_trapcode[] = {
 	LINUX_T_UNKNOWN,	/* 0 */
@@ -657,8 +635,8 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
 	mtx_unlock(&psp->ps_mtx);
 
-	/* Translate the signal if appropriate. */
-	sig = BSD_TO_LINUX_SIGNAL(sig);
+	/* Translate the signal. */
+	sig = bsd_to_linux_signal(sig);
 
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
@@ -772,8 +750,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= LINUX_SIGTBLSZ,
-	.sv_sigtbl	= bsd_to_linux_signal,
+	.sv_sigsize	= 0,
+	.sv_sigtbl	= NULL,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= bsd_to_linux_errno,
 	.sv_transtrap	= translate_traps,

@@ -686,7 +686,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		act.lsa_flags = osa.lsa_flags;
 		act.lsa_restorer = osa.lsa_restorer;
 		LINUX_SIGEMPTYSET(act.lsa_mask);
-		act.lsa_mask.__bits[0] = osa.lsa_mask;
+		act.lsa_mask.__mask = osa.lsa_mask;
 	}
 
 	error = linux_do_sigaction(td, args->sig, args->nsa ? &act : NULL,
@@ -696,7 +696,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		osa.lsa_handler = oact.lsa_handler;
 		osa.lsa_flags = oact.lsa_flags;
 		osa.lsa_restorer = oact.lsa_restorer;
-		osa.lsa_mask = oact.lsa_mask.__bits[0];
+		osa.lsa_mask = oact.lsa_mask.__mask;
 		error = copyout(&osa, args->osa, sizeof(l_osigaction_t));
 	}
 
@@ -720,7 +720,7 @@ linux_sigsuspend(struct thread *td, struct linux_sigsuspend_args *args)
 #endif
 
 	LINUX_SIGEMPTYSET(mask);
-	mask.__bits[0] = args->mask;
+	mask.__mask = args->mask;
 	linux_to_bsd_sigset(&mask, &sigmask);
 	return (kern_sigsuspend(td, sigmask));
 }
