@@ -516,7 +516,9 @@
 306	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
 					l_mode_t mode); }
 307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int amode, l_int flag); }
-308	AUE_NULL	STD	{ int linux_pselect6(void); }
+308	AUE_SELECT	STD	{ int linux_pselect6(l_int nfds, l_fd_set *readfds,	\
+					l_fd_set *writefds, l_fd_set *exceptfds,	\
+					struct l_timespec *tsp, l_uintptr_t *sig); }
 309	AUE_NULL	STD	{ int linux_ppoll(void); }
 310	AUE_NULL	STD	{ int linux_unshare(void); }
 ; linux 2.6.17:
