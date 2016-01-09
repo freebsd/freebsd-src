@@ -10,7 +10,7 @@ CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 VDSO=	linux${SFX}_vdso
 
 KMOD=	linux
-SRCS=	linux_fork.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
+SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c \
 	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
 	linux${SFX}_machdep.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
@@ -30,7 +30,8 @@ SRCS+=	opt_apic.h
 OBJS=	${VDSO}.so
 
 .if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	linux_ptrace.c imgact_linux.c linux_util.c linux_mib.c opt_cpu.h
+SRCS+=	linux_ptrace.c imgact_linux.c linux_util.c linux_mib.c \
+	linux_emul.c opt_cpu.h
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
