@@ -559,7 +559,9 @@
 335	AUE_NULL	STD	{ int linux_rt_tsigqueueinfo(void); }
 336	AUE_NULL	STD	{ int linux_perf_event_open(void); }
 ; linux 2.6.33:
-337	AUE_NULL	STD	{ int linux_recvmmsg(void); }
+337	AUE_NULL	STD	{ int linux_recvmmsg(l_int s,			\
+				    struct l_mmsghdr *msg, l_uint vlen,		\
+				    l_uint flags, struct l_timespec *timeout); }
 338	AUE_NULL	STD	{ int linux_fanotify_init(void); }
 339	AUE_NULL	STD	{ int linux_fanotify_mark(void); }
 ; linux 2.6.36:
@@ -572,7 +574,9 @@
 342	AUE_NULL	STD	{ int linux_open_by_handle_at(void); }
 343	AUE_NULL	STD	{ int linux_clock_adjtime(void); }
 344	AUE_NULL	STD	{ int linux_syncfs(void); }
-345	AUE_NULL	STD	{ int linux_sendmmsg(void); }
+345	AUE_NULL	STD	{ int linux_sendmmsg(l_int s,			\
+				    struct l_mmsghdr *msg, l_uint vlen,		\
+				    l_uint flags); }
 346	AUE_NULL	STD	{ int linux_setns(void); }
 347	AUE_NULL	STD	{ int linux_process_vm_readv(void); }
 348	AUE_NULL	STD	{ int linux_process_vm_writev(void); }
