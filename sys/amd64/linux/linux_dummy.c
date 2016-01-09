@@ -102,7 +102,6 @@ DUMMY(utimensat);
 DUMMY(epoll_pwait);
 DUMMY(signalfd);
 DUMMY(timerfd);
-DUMMY(fallocate);
 DUMMY(timerfd_settime);
 DUMMY(timerfd_gettime);
 DUMMY(signalfd4);
