@@ -320,7 +320,6 @@ linux_copyout_strings(struct image_params *imgp)
 
 	/*
 	 * Calculate string base and vector table pointers.
-	 * Also deal with signal trampoline code for this exec type.
 	 */
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
