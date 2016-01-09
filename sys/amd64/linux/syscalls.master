@@ -373,7 +373,7 @@
 210	AUE_NULL	UNIMPL	linux_io_cancel
 211	AUE_NULL	UNIMPL	linux_get_thread_area
 212	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
-213	AUE_NULL	STD	{ int linux_epoll_create(void); }
+213	AUE_NULL	STD	{ int linux_epoll_create(l_int size); }
 214	AUE_NULL	STD	{ int linux_epoll_ctl_old(void); }
 215	AUE_NULL	STD	{ int linux_epoll_wait_old(void); }
 216	AUE_NULL	STD	{ int linux_remap_file_pages(void); }
@@ -397,8 +397,10 @@
 230	AUE_NULL	STD	{ int linux_clock_nanosleep(clockid_t which, int flags, \
 				    struct l_timespec *rqtp, struct l_timespec *rmtp); }
 231	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
-232	AUE_NULL	STD	{ int linux_epoll_wait(void); }
-233	AUE_NULL	STD	{ int linux_epoll_ctl(void); }
+232	AUE_NULL	STD	{ int linux_epoll_wait(l_int epfd, struct epoll_event *events, \
+					l_int maxevents, l_int timeout); }
+233	AUE_NULL	STD	{ int linux_epoll_ctl(l_int epfd, l_int op, l_int fd, \
+					struct epoll_event *event); }
 234	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 235	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 				    struct l_timeval *tptr); }
@@ -466,7 +468,8 @@
 278	AUE_NULL	STD	{ int linux_vmsplice(void); }
 279	AUE_NULL	STD	{ int linux_move_pages(void); }
 280	AUE_NULL	STD	{ int linux_utimensat(void); }
-281	AUE_NULL	STD	{ int linux_epoll_pwait(void); }
+281     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
+                                        l_int maxevents, l_int timeout, l_sigset_t *mask); }
 282	AUE_NULL	STD	{ int linux_signalfd(void); }
 283	AUE_NULL	STD	{ int linux_timerfd(void); }
 284	AUE_NULL	STD	{ int linux_eventfd(void); }
@@ -477,7 +480,7 @@
 				    l_uintptr_t namelen, int flags); }
 289	AUE_NULL	STD	{ int linux_signalfd4(void); }
 290	AUE_NULL	STD	{ int linux_eventfd2(void); }
-291	AUE_NULL	STD	{ int linux_epoll_create1(void); }
+291	AUE_NULL	STD	{ int linux_epoll_create1(l_int flags); }
 292	AUE_NULL	STD	{ int linux_dup3(l_int oldfd,		\
 				    l_int newfd, l_int flags); }
 293	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
