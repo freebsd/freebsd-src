@@ -46,7 +46,7 @@ tohex(char **buf, int len, uint32_t val)
 	char *walker = *buf;
 	int i;
 
-	for (i = len - 1; i >= 0; i++) {
+	for (i = len - 1; i >= 0; i--) {
 		walker[i] = hexstr[val & 0xf];
 		val >>= 4;
 	}
