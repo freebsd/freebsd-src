@@ -41,14 +41,13 @@ CFLAGS+=	-fPIC
 LDFLAGS+=	-Wl,-znocombreloc
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386"
 #
 # Add libstand for the runtime functions used by the compiler - for example
 # __aeabi_* (arm) or __divdi3 (i386).
+# as well as required string and memory functions for all platforms.
 #
 DPADD+=		${LIBSTAND}
 LDADD+=		-lstand
-.endif
 
 DPADD+=		${LDSCRIPT}
 
