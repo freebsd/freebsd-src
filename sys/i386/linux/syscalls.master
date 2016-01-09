@@ -546,7 +546,8 @@
 322	AUE_NULL	STD	{ int linux_timerfd_create(void); }
 323	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 ; linux 2.6.23:
-324	AUE_NULL	STD	{ int linux_fallocate(void); }
+324	AUE_NULL	STD	{ int linux_fallocate(l_int fd, l_int mode, \
+				    l_loff_t offset, l_loff_t len); }
 ; linux 2.6.25:
 325	AUE_NULL	STD	{ int linux_timerfd_settime(void); }
 326	AUE_NULL	STD	{ int linux_timerfd_gettime(void); }
