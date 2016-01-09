@@ -961,6 +961,8 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 
 static char l32_map_str[] = "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
 static char l64_map_str[] = "%016lx-%016lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
+static char vdso_str[] = "      [vdso]";
+static char stack_str[] = "      [stack]";
 
 /*
  * Filler function for proc/pid/maps
@@ -997,6 +999,11 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	vm = vmspace_acquire_ref(p);
 	if (vm == NULL)
 		return (ESRCH);
+
+	if (SV_CURPROC_FLAG(SV_LP64))
+		l_map_str = l64_map_str;
+	else
+		l_map_str = l32_map_str;
 	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
@@ -1035,6 +1042,11 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 				VOP_GETATTR(vp, &vat, td->td_ucred);
 				ino = vat.va_fileid;
 				vput(vp);
+			} else if (SV_PROC_ABI(p) == SV_ABI_LINUX) {
+				if (e_start == p->p_sysent->sv_shared_page_base)
+					name = vdso_str;
+				if (e_end == p->p_sysent->sv_usrstack)
+					name = stack_str;
 			}
 		} else {
 			flags = 0;
@@ -1046,10 +1058,6 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		 * format:
 		 *  start, end, access, offset, major, minor, inode, name.
 		 */
-		if (SV_CURPROC_FLAG(SV_LP64))
-			l_map_str = l64_map_str;
-		else
-			l_map_str = l32_map_str;
 		error = sbuf_printf(sb, l_map_str,
 		    (u_long)e_start, (u_long)e_end,
 		    (e_prot & VM_PROT_READ)?"r":"-",
