@@ -133,12 +133,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sfp = (struct sigframe *)((vm_offset_t)(regs->sp - 
 		    sizeof(struct sigframe)) & ~(sizeof(__int64_t) - 1));
 
-	/* Translate the signal if appropriate */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-	}
-
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
 	regs->a2 = (register_t)(intptr_t)&sfp->sf_uc;

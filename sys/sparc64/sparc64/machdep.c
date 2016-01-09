@@ -658,10 +658,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	fp = (struct frame *)sfp - 1;
 
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
 	/* Build the argument list for the signal handler. */
 	tf->tf_out[0] = sig;
 	tf->tf_out[2] = (register_t)&sfp->sf_uc;
