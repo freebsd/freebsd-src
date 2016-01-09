@@ -85,8 +85,11 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 	struct linux_emuldata *em;
 	struct linux_pemuldata *pem;
 	struct epoll_emuldata *emd;
+	struct proc *p;
 
 	if (newtd != NULL) {
+		p = newtd->td_proc;
+
 		/* non-exec call */
 		em = malloc(sizeof(*em), M_TEMP, M_WAITOK | M_ZERO);
 		if (flags & LINUX_CLONE_THREAD) {
@@ -95,26 +98,26 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 
 			em->em_tid = newtd->td_tid;
 		} else {
-			LINUX_CTR1(proc_init, "fork newtd(%d)",
-			    newtd->td_proc->p_pid);
+			LINUX_CTR1(proc_init, "fork newtd(%d)", p->p_pid);
 
-			em->em_tid = newtd->td_proc->p_pid;
+			em->em_tid = p->p_pid;
 
 			pem = malloc(sizeof(*pem), M_LINUX, M_WAITOK | M_ZERO);
 			sx_init(&pem->pem_sx, "lpemlk");
-			newtd->td_proc->p_emuldata = pem;
+			p->p_emuldata = pem;
 		}
 		newtd->td_emuldata = em;
 	} else {
+		p = td->td_proc;
+
 		/* exec */
-		LINUX_CTR1(proc_init, "exec newtd(%d)",
-		    td->td_proc->p_pid);
+		LINUX_CTR1(proc_init, "exec newtd(%d)", p->p_pid);
 
 		/* lookup the old one */
 		em = em_find(td);
 		KASSERT(em != NULL, ("proc_init: emuldata not found in exec case.\n"));
 
-		em->em_tid = td->td_proc->p_pid;
+		em->em_tid = p->p_pid;
 		em->flags = 0;
 		em->pdeath_signal = 0;
 		em->robust_futexes = NULL;
@@ -122,7 +125,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		em->child_set_tid = NULL;
 
 		 /* epoll should be destroyed in a case of exec. */
-		pem = pem_find(td->td_proc);
+		pem = pem_find(p);
 		KASSERT(pem != NULL, ("proc_exit: proc emuldata not found.\n"));
 
 		if (pem->epoll != NULL) {
