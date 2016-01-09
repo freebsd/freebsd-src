@@ -273,10 +273,10 @@ get_process_cputime(struct proc *targetp, struct timespec *ats)
 	uint64_t runtime;
 	struct rusage ru;
 
-	PROC_SLOCK(targetp);
+	PROC_STATLOCK(targetp);
 	rufetch(targetp, &ru);
 	runtime = targetp->p_rux.rux_runtime;
-	PROC_SUNLOCK(targetp);
+	PROC_STATUNLOCK(targetp);
 	cputick2timespec(runtime, ats);
 }
 
@@ -325,17 +325,17 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		break;
 	case CLOCK_VIRTUAL:
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
+		PROC_STATLOCK(p);
 		calcru(p, &user, &sys);
-		PROC_SUNLOCK(p);
+		PROC_STATUNLOCK(p);
 		PROC_UNLOCK(p);
 		TIMEVAL_TO_TIMESPEC(&user, ats);
 		break;
 	case CLOCK_PROF:
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
+		PROC_STATLOCK(p);
 		calcru(p, &user, &sys);
-		PROC_SUNLOCK(p);
+		PROC_STATUNLOCK(p);
 		PROC_UNLOCK(p);
 		timevaladd(&user, &sys);
 		TIMEVAL_TO_TIMESPEC(&user, ats);
@@ -695,9 +695,9 @@ kern_getitimer(struct thread *td, u_int which, struct itimerval *aitv)
 				timevalsub(&aitv->it_value, &ctv);
 		}
 	} else {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		*aitv = p->p_stats->p_timer[which];
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	return (0);
 }
@@ -779,10 +779,10 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 		    aitv->it_value.tv_usec != 0 &&
 		    aitv->it_value.tv_usec < tick)
 			aitv->it_value.tv_usec = tick;
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		*oitv = p->p_stats->p_timer[which];
 		p->p_stats->p_timer[which] = *aitv;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	return (0);
 }

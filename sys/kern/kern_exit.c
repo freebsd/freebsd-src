@@ -660,7 +660,9 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Save our children's rusage information in our exit rusage.
 	 */
+	PROC_STATLOCK(p);
 	ruadd(&p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
+	PROC_STATUNLOCK(p);
 
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.
@@ -1044,8 +1046,6 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		return (0);
 	}
 
-	PROC_SLOCK(p);
-
 	if (siginfo != NULL) {
 		bzero(siginfo, sizeof(*siginfo));
 		siginfo->si_errno = 0;
@@ -1092,7 +1092,9 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	if (wrusage != NULL) {
 		rup = &wrusage->wru_self;
 		*rup = p->p_ru;
+		PROC_STATLOCK(p);
 		calcru(p, &rup->ru_utime, &rup->ru_stime);
+		PROC_STATUNLOCK(p);
 
 		rup = &wrusage->wru_children;
 		*rup = p->p_stats->p_cru;
@@ -1100,10 +1102,10 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	}
 
 	if (p->p_state == PRS_ZOMBIE && !check_only) {
+		PROC_SLOCK(p);
 		proc_reap(td, p, status, options);
 		return (-1);
 	}
-	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 	return (1);
 }
