@@ -712,13 +712,18 @@ zfs_list(const char *name)
 int
 zfs_bootenv(const char *name)
 {
-	static char	poolname[ZFS_MAXNAMELEN], *dsname;
+	static char	poolname[ZFS_MAXNAMELEN], *dsname, *root;
 	char		becount[4];
 	uint64_t	objid;
 	spa_t		*spa;
 	int		len, rv, pages, perpage, currpage;
 
-	if (strcmp(name, getenv("zfs_be_root")) != 0) {
+	if (name == NULL)
+		return (EINVAL);
+	if ((root = getenv("zfs_be_root")) == NULL)
+		return (EINVAL);
+
+	if (strcmp(name, root) != 0) {
 		if (setenv("zfs_be_root", name, 1) != 0)
 			return (ENOMEM);
 	}
