@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
@@ -75,12 +76,17 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux, 1);
 
-MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
-
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define SHELLMAGIC      0x2123 /* #! */
 #else
 #define SHELLMAGIC      0x2321
+#endif
+
+#if defined(DEBUG)
+SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
+            CTLTYPE_STRING | CTLFLAG_RW,
+            0, 0, linux_sysctl_debug, "A",
+            "Linux debugging control");
 #endif
 
 /*
@@ -103,7 +109,6 @@ extern char _binary_linux_locore_o_end;
 extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
-SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
 
 static int	linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
@@ -1129,7 +1134,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	Elf32_Brandinfo **brandinfo;
 	int error;
 	struct linux_ioctl_handler **lihp;
-	struct linux_device_handler **ldhp;
 
 	error = 0;
 
@@ -1142,8 +1146,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux_ioctl_register_handler(*lihp);
-			SET_FOREACH(ldhp, linux_device_handler_set)
-				linux_device_register_handler(*ldhp);
 			LIST_INIT(&futex_list);
 			mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 			linux_exit_tag = EVENTHANDLER_REGISTER(process_exit, linux_proc_exit,
@@ -1176,8 +1178,6 @@ linux_elf_modevent(module_t mod, int type, void *data)
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux_ioctl_unregister_handler(*lihp);
-			SET_FOREACH(ldhp, linux_device_handler_set)
-				linux_device_unregister_handler(*ldhp);
 			mtx_destroy(&futex_mtx);
 			EVENTHANDLER_DEREGISTER(process_exit, linux_exit_tag);
 			EVENTHANDLER_DEREGISTER(process_exec, linux_exec_tag);
