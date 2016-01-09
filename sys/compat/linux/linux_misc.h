@@ -33,6 +33,9 @@
 
 #include <sys/sysctl.h>
 
+				/* bits per mask */
+#define	LINUX_NFDBITS		sizeof(l_fd_mask) * 8
+
 /*
  * Miscellaneous
  */
