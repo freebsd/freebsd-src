@@ -38,6 +38,7 @@ arm64/arm64/mem.c		standard
 arm64/arm64/minidump_machdep.c	standard
 arm64/arm64/mp_machdep.c	optional	smp
 arm64/arm64/nexus.c		standard
+arm64/arm64/ofw_machdep.c	optional	fdt
 arm64/arm64/pic_if.m		standard
 arm64/arm64/pmap.c		standard
 arm64/arm64/stack_machdep.c	optional	ddb | stack

@@ -6,7 +6,7 @@
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump_subr.c kdump_subr.h kdump.c ioctl.c subr.c
+SRCS=		kdump_subr.c kdump_subr.h kdump.c subr.c
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
 LIBADD=		sysdecode
@@ -15,15 +15,9 @@ LIBADD+=	capsicum
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
 
-.if ${MK_PF} != "no"
-CFLAGS+=-DPF
-.endif
-
 NO_WERROR?=	YES
 
-CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h
-
-beforedepend: ioctl.c
+CLEANFILES=	kdump_subr.c kdump_subr.h
 
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
 beforedepend: linux_syscalls.c
@@ -43,10 +37,6 @@ linux32_syscalls.c: linux32_syscalls.conf
 	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
 	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux32/syscalls.master ${.CURDIR}/linux32_syscalls.conf
 .endif
-
-ioctl.c: mkioctls
-	env MACHINE=${MACHINE} CPP="${CPP}" \
-	    sh ${.CURDIR}/mkioctls print ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
 kdump_subr.h: mksubr
 	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} | \

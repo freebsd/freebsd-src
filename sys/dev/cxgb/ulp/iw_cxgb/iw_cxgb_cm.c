@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -264,20 +265,14 @@ void __free_ep(struct iwch_ep_common *epc)
 	free(epc, M_DEVBUF);
 }
 
-static struct rtentry *
+static int
 find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
-    __be16 peer_port, u8 tos)
+    __be16 peer_port, u8 tos, struct nhop4_extended *pnh4)
 {
-        struct route iproute;
-        struct sockaddr_in *dst = (struct sockaddr_in *)&iproute.ro_dst;
- 
-        bzero(&iproute, sizeof iproute);
-	dst->sin_family = AF_INET;
-	dst->sin_len = sizeof *dst;
-        dst->sin_addr.s_addr = peer_ip;
- 
-        rtalloc(&iproute);
-	return iproute.ro_rt;
+	struct in_addr addr;
+
+	addr.s_addr = peer_ip;
+	return (fib4_lookup_nh_ext(RT_DEFAULT_FIB, addr, NHR_REF, 0, pnh4));
 }
 
 static void
@@ -1293,7 +1288,7 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int err = 0;
 	struct iwch_dev *h = to_iwch_dev(cm_id->device);
 	struct iwch_ep *ep;
-	struct rtentry *rt;
+	struct nhop4_extended nh4;
 	struct toedev *tdev;
 	
 	if (is_loopback_dst(cm_id)) {
@@ -1329,28 +1324,28 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail2;
 
 	/* find a route */
-	rt = find_route(cm_id->local_addr.sin_addr.s_addr,
+	err = find_route(cm_id->local_addr.sin_addr.s_addr,
 			cm_id->remote_addr.sin_addr.s_addr,
 			cm_id->local_addr.sin_port,
-			cm_id->remote_addr.sin_port, IPTOS_LOWDELAY);
-	if (!rt) {
+			cm_id->remote_addr.sin_port, IPTOS_LOWDELAY, &nh4);
+	if (err) {
 		printf("%s - cannot find route.\n", __FUNCTION__);
 		err = EHOSTUNREACH;
 		goto fail2;
 	}
 
-	if (!(rt->rt_ifp->if_flags & IFCAP_TOE)) {
+	if (!(nh4.nh_ifp->if_flags & IFCAP_TOE)) {
 		printf("%s - interface not TOE capable.\n", __FUNCTION__);
-		RTFREE(rt);
+		fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
 		goto fail2;
 	}
-	tdev = TOEDEV(rt->rt_ifp);
+	tdev = TOEDEV(nh4.nh_ifp);
 	if (tdev == NULL) {
 		printf("%s - No toedev for interface.\n", __FUNCTION__);
-		RTFREE(rt);
+		fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
 		goto fail2;
 	}
-	RTFREE(rt);
+	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
 
 	state_set(&ep->com, CONNECTING);
 	ep->com.local_addr = cm_id->local_addr;

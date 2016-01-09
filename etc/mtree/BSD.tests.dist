@@ -386,6 +386,12 @@
         ..
         kqueue
         ..
+        mac
+            bsdextended
+            ..
+            portacl
+            ..
+        ..
         mqueue
         ..
         netinet
@@ -615,6 +621,8 @@
         nmtree
         ..
         pw
+        ..
+        rpcbind
         ..
         sa
         ..

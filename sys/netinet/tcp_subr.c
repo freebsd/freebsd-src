@@ -84,6 +84,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -593,10 +596,6 @@ tcp_init(void)
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT,
 	    &V_tcp_hhh[HHOOK_TCP_EST_OUT], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
-	/* Setup the tcp function block list */
-	TAILQ_INIT(&t_functions);
-	rw_init_flags(&tcp_function_lock, "tcp_func_lock" , 0);
-	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
 	if (hashsize == 0) {
@@ -613,7 +612,7 @@ tcp_init(void)
 		 */
 		if (hashsize < 512)
 			hashsize = 512;
-		if (bootverbose)
+		if (bootverbose && IS_DEFAULT_VNET(curvnet))
 			printf("%s: %s auto tuned to %d\n", __func__,
 			    tcbhash_tuneable, hashsize);
 	}
@@ -675,6 +674,10 @@ tcp_init(void)
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
+	/* Setup the tcp function block list */
+	TAILQ_INIT(&t_functions);
+	rw_init_flags(&tcp_function_lock, "tcp_func_lock" , 0);
+	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -704,6 +707,10 @@ tcp_init(void)
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif
+
+#ifdef TCP_RFC7413
+	tcp_fastopen_init();
+#endif
 }
 
 #ifdef VIMAGE
@@ -712,6 +719,9 @@ tcp_destroy(void)
 {
 	int error;
 
+#ifdef TCP_RFC7413
+	tcp_fastopen_destroy();
+#endif
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
@@ -1077,7 +1087,7 @@ tcp_newtcpcb(struct inpcb *inp)
 #endif
 	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
-	tp->t_maxseg = tp->t_maxopd =
+	tp->t_maxseg =
 #ifdef INET6
 		isipv6 ? V_tcp_v6mssdflt :
 #endif /* INET6 */
@@ -1438,6 +1448,17 @@ tcp_close(struct tcpcb *tp)
 #ifdef TCP_OFFLOAD
 	if (tp->t_state == TCPS_LISTEN)
 		tcp_offload_listen_stop(tp);
+#endif
+#ifdef TCP_RFC7413
+	/*
+	 * This releases the TFO pending counter resource for TFO listen
+	 * sockets as well as passively-created TFO sockets that transition
+	 * from SYN_RECEIVED to CLOSED.
+	 */
+	if (tp->t_tfo_pending) {
+		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
+		tp->t_tfo_pending = NULL;
+	}
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
@@ -1880,7 +1901,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					 * Only process the offered MTU if it
 					 * is smaller than the current one.
 					 */
-					if (mtu < tp->t_maxopd +
+					if (mtu < tp->t_maxseg +
 					    sizeof(struct tcpiphdr)) {
 						bzero(&inc, sizeof(inc));
 						inc.inc_faddr = faddr;
@@ -2261,6 +2282,59 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	return (maxmtu);
 }
 #endif /* INET6 */
+
+/*
+ * Calculate effective SMSS per RFC5681 definition for a given TCP
+ * connection at its current state, taking into account SACK and etc.
+ */
+u_int
+tcp_maxseg(const struct tcpcb *tp)
+{
+	u_int optlen;
+
+	if (tp->t_flags & TF_NOOPT)
+		return (tp->t_maxseg);
+
+	/*
+	 * Here we have a simplified code from tcp_addoptions(),
+	 * without a proper loop, and having most of paddings hardcoded.
+	 * We might make mistakes with padding here in some edge cases,
+	 * but this is harmless, since result of tcp_maxseg() is used
+	 * only in cwnd and ssthresh estimations.
+	 */
+#define	PAD(len)	((((len) / 4) + !!((len) % 4)) * 4)
+	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+		if (tp->t_flags & TF_RCVD_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = 0;
+#ifdef TCP_SIGNATURE
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+		if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks > 0) {
+			optlen += TCPOLEN_SACKHDR;
+			optlen += tp->rcv_numsacks * TCPOLEN_SACK;
+			optlen = PAD(optlen);
+		}
+	} else {
+		if (tp->t_flags & TF_REQ_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = PAD(TCPOLEN_MAXSEG);
+		if (tp->t_flags & TF_REQ_SCALE)
+			optlen += PAD(TCPOLEN_WINDOW);
+#ifdef TCP_SIGNATURE
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+		if (tp->t_flags & TF_SACK_PERMIT)
+			optlen += PAD(TCPOLEN_SACK_PERMITTED);
+	}
+#undef PAD
+	optlen = min(optlen, TCP_MAXOLEN);
+	return (tp->t_maxseg - optlen);
+}
 
 #ifdef IPSEC
 /* compute ESP/AH header size for TCP, including outer IP header. */

@@ -132,8 +132,7 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 	conout->Reset(conout, TRUE);
 	max_dim = best_mode = 0;
 	for (i = 0; ; i++) {
-		status = conout->QueryMode(conout, i,
-		    &cols, &rows);
+		status = conout->QueryMode(conout, i, &cols, &rows);
 		if (EFI_ERROR(status))
 			break;
 		if (cols * rows > max_dim) {
@@ -330,18 +329,21 @@ load(const char *fname)
 	status = systab->BootServices->LoadImage(TRUE, image, bootdevpath,
 	    buffer, bufsize, &loaderhandle);
 	if (EFI_ERROR(status))
-		printf("LoadImage failed with error %lx\n", status);
+		printf("LoadImage failed with error %lu\n",
+		    EFI_ERROR_CODE(status));
 
 	status = systab->BootServices->HandleProtocol(loaderhandle,
 	    &LoadedImageGUID, (VOID**)&loaded_image);
 	if (EFI_ERROR(status))
-		printf("HandleProtocol failed with error %lx\n", status);
+		printf("HandleProtocol failed with error %lu\n",
+		    EFI_ERROR_CODE(status));
 
 	loaded_image->DeviceHandle = bootdevhandle;
 
 	status = systab->BootServices->StartImage(loaderhandle, NULL, NULL);
 	if (EFI_ERROR(status))
-		printf("StartImage failed with error %lx\n", status);
+		printf("StartImage failed with error %lu\n",
+		    EFI_ERROR_CODE(status));
 }
 
 static void

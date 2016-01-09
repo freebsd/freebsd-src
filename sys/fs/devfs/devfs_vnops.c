@@ -244,18 +244,18 @@ devfs_populate_vp(struct vnode *vp)
 	if (DEVFS_DMP_DROP(dmp)) {
 		sx_xunlock(&dmp->dm_lock);
 		devfs_unmount_final(dmp);
-		return (EBADF);
+		return (ERESTART);
 	}
 	if ((vp->v_iflag & VI_DOOMED) != 0) {
 		sx_xunlock(&dmp->dm_lock);
-		return (EBADF);
+		return (ERESTART);
 	}
 	de = vp->v_data;
 	KASSERT(de != NULL,
 	    ("devfs_populate_vp: vp->v_data == NULL but vnode not doomed"));
 	if ((de->de_flags & DE_DOOMED) != 0) {
 		sx_xunlock(&dmp->dm_lock);
-		return (EBADF);
+		return (ERESTART);
 	}
 
 	return (0);
@@ -557,7 +557,9 @@ devfs_access(struct vop_access_args *ap)
 	return (error);
 }
 
-/* ARGSUSED */
+_Static_assert(((FMASK | FCNTLFLAGS) & (FLASTCLOSE | FREVOKE)) == 0,
+    "devfs-only flag reuse failed");
+
 static int
 devfs_close(struct vop_close_args *ap)
 {
@@ -566,7 +568,7 @@ devfs_close(struct vop_close_args *ap)
 	struct proc *p;
 	struct cdev *dev = vp->v_rdev;
 	struct cdevsw *dsw;
-	int vp_locked, error, ref;
+	int dflags, error, ref, vp_locked;
 
 	/*
 	 * XXX: Don't call d_close() if we were called because of
@@ -621,9 +623,11 @@ devfs_close(struct vop_close_args *ap)
 	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
+	dflags = 0;
 	VI_LOCK(vp);
 	if (vp->v_iflag & VI_DOOMED) {
 		/* Forced close. */
+		dflags |= FREVOKE | FNONBLOCK;
 	} else if (dsw->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */
 	} else if (count_dev(dev) > 1) {
@@ -631,13 +635,15 @@ devfs_close(struct vop_close_args *ap)
 		dev_relthread(dev, ref);
 		return (0);
 	}
+	if (count_dev(dev) == 1)
+		dflags |= FLASTCLOSE;
 	vholdl(vp);
 	VI_UNLOCK(vp);
 	vp_locked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
+	error = dsw->d_close(dev, ap->a_fflag | dflags, S_IFCHR, td);
 	dev_relthread(dev, ref);
 	vn_lock(vp, vp_locked | LK_RETRY);
 	vdrop(vp);
@@ -1141,7 +1147,7 @@ devfs_open(struct vop_open_args *ap)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
-	/* cleanup any cdevpriv upon error */
+	/* Clean up any cdevpriv upon error. */
 	if (error != 0)
 		devfs_clear_cdevpriv();
 	td->td_fpop = fpop;
@@ -1560,11 +1566,15 @@ devfs_setattr(struct vop_setattr_args *ap)
 		return (EINVAL);
 	}
 
+	error = devfs_populate_vp(vp);
+	if (error != 0)
+		return (error);
+
 	de = vp->v_data;
 	if (vp->v_type == VDIR)
 		de = de->de_dir;
 
-	error = c = 0;
+	c = 0;
 	if (vap->va_uid == (uid_t)VNOVAL)
 		uid = de->de_uid;
 	else
@@ -1577,8 +1587,8 @@ devfs_setattr(struct vop_setattr_args *ap)
 		if ((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
 		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) {
 			error = priv_check(td, PRIV_VFS_CHOWN);
-			if (error)
-				return (error);
+			if (error != 0)
+				goto ret;
 		}
 		de->de_uid = uid;
 		de->de_gid = gid;
@@ -1588,8 +1598,8 @@ devfs_setattr(struct vop_setattr_args *ap)
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if (ap->a_cred->cr_uid != de->de_uid) {
 			error = priv_check(td, PRIV_VFS_ADMIN);
-			if (error)
-				return (error);
+			if (error != 0)
+				goto ret;
 		}
 		de->de_mode = vap->va_mode;
 		c = 1;
@@ -1598,7 +1608,7 @@ devfs_setattr(struct vop_setattr_args *ap)
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		error = vn_utimes_perm(vp, vap, ap->a_cred, td);
 		if (error != 0)
-			return (error);
+			goto ret;
 		if (vap->va_atime.tv_sec != VNOVAL) {
 			if (vp->v_type == VCHR)
 				vp->v_rdev->si_atime = vap->va_atime;
@@ -1620,7 +1630,10 @@ devfs_setattr(struct vop_setattr_args *ap)
 		else
 			vfs_timestamp(&de->de_mtime);
 	}
-	return (0);
+
+ret:
+	sx_xunlock(&VFSTODEVFS(vp->v_mount)->dm_lock);
+	return (error);
 }
 
 #ifdef MAC

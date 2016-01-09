@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
+#include <linux/rcupdate.h>
+#include <linux/interrupt.h>
 
 #include <vm/vm_pager.h>
 
@@ -76,13 +79,14 @@ MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 #undef cdev
 #define	RB_ROOT(head)	(head)->rbh_root
 
-struct kobject class_root;
-struct device linux_rootdev;
-struct class miscclass;
+struct kobject linux_class_root;
+struct device linux_root_device;
+struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
 struct net init_net;
 spinlock_t pci_lock;
+struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
 
@@ -93,7 +97,50 @@ panic_cmp(struct rb_node *one, struct rb_node *two)
 }
 
 RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
- 
+
+int
+kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
+{
+	va_list tmp_va;
+	int len;
+	char *old;
+	char *name;
+	char dummy;
+
+	old = kobj->name;
+
+	if (old && fmt == NULL)
+		return (0);
+
+	/* compute length of string */
+	va_copy(tmp_va, args);
+	len = vsnprintf(&dummy, 0, fmt, tmp_va);
+	va_end(tmp_va);
+
+	/* account for zero termination */
+	len++;
+
+	/* check for error */
+	if (len < 1)
+		return (-EINVAL);
+
+	/* allocate memory for string */
+	name = kzalloc(len, GFP_KERNEL);
+	if (name == NULL)
+		return (-ENOMEM);
+	vsnprintf(name, len, fmt, args);
+	kobj->name = name;
+
+	/* free old string */
+	kfree(old);
+
+	/* filter new string */
+	for (; *name != '\0'; name++)
+		if (*name == '/')
+			*name = '!';
+	return (0);
+}
+
 int
 kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 {
@@ -107,13 +154,13 @@ kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 	return (error);
 }
 
-static inline int
+static int
 kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 {
-	struct kobj_type *t;
+	const struct kobj_type *t;
 	int error;
 
-	kobj->parent = kobject_get(parent);
+	kobj->parent = parent;
 	error = sysfs_create_dir(kobj);
 	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
 		struct attribute **attr;
@@ -147,16 +194,13 @@ kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
 }
 
 void
-kobject_release(struct kref *kref)
+linux_kobject_release(struct kref *kref)
 {
 	struct kobject *kobj;
 	char *name;
 
 	kobj = container_of(kref, struct kobject, kref);
 	sysfs_remove_dir(kobj);
-	if (kobj->parent)
-		kobject_put(kobj->parent);
-	kobj->parent = NULL;
 	name = kobj->name;
 	if (kobj->ktype && kobj->ktype->release)
 		kobj->ktype->release(kobj);
@@ -164,27 +208,130 @@ kobject_release(struct kref *kref)
 }
 
 static void
-kobject_kfree(struct kobject *kobj)
+linux_kobject_kfree(struct kobject *kobj)
 {
 	kfree(kobj);
 }
 
 static void
-kobject_kfree_name(struct kobject *kobj)
+linux_kobject_kfree_name(struct kobject *kobj)
 {
 	if (kobj) {
 		kfree(kobj->name);
 	}
 }
 
-struct kobj_type kfree_type = { .release = kobject_kfree };
+const struct kobj_type linux_kfree_type = {
+	.release = linux_kobject_kfree
+};
 
 static void
-dev_release(struct device *dev)
+linux_device_release(struct device *dev)
 {
-	pr_debug("dev_release: %s\n", dev_name(dev));
+	pr_debug("linux_device_release: %s\n", dev_name(dev));
 	kfree(dev);
 }
+
+static ssize_t
+linux_class_show(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	struct class_attribute *dattr;
+	ssize_t error;
+
+	dattr = container_of(attr, struct class_attribute, attr);
+	error = -EIO;
+	if (dattr->show)
+		error = dattr->show(container_of(kobj, struct class, kobj),
+		    dattr, buf);
+	return (error);
+}
+
+static ssize_t
+linux_class_store(struct kobject *kobj, struct attribute *attr, const char *buf,
+    size_t count)
+{
+	struct class_attribute *dattr;
+	ssize_t error;
+
+	dattr = container_of(attr, struct class_attribute, attr);
+	error = -EIO;
+	if (dattr->store)
+		error = dattr->store(container_of(kobj, struct class, kobj),
+		    dattr, buf, count);
+	return (error);
+}
+
+static void
+linux_class_release(struct kobject *kobj)
+{
+	struct class *class;
+
+	class = container_of(kobj, struct class, kobj);
+	if (class->class_release)
+		class->class_release(class);
+}
+
+static const struct sysfs_ops linux_class_sysfs = {
+	.show  = linux_class_show,
+	.store = linux_class_store,
+};
+
+const struct kobj_type linux_class_ktype = {
+	.release = linux_class_release,
+	.sysfs_ops = &linux_class_sysfs
+};
+
+static void
+linux_dev_release(struct kobject *kobj)
+{
+	struct device *dev;
+
+	dev = container_of(kobj, struct device, kobj);
+	/* This is the precedence defined by linux. */
+	if (dev->release)
+		dev->release(dev);
+	else if (dev->class && dev->class->dev_release)
+		dev->class->dev_release(dev);
+}
+
+static ssize_t
+linux_dev_show(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	struct device_attribute *dattr;
+	ssize_t error;
+
+	dattr = container_of(attr, struct device_attribute, attr);
+	error = -EIO;
+	if (dattr->show)
+		error = dattr->show(container_of(kobj, struct device, kobj),
+		    dattr, buf);
+	return (error);
+}
+
+static ssize_t
+linux_dev_store(struct kobject *kobj, struct attribute *attr, const char *buf,
+    size_t count)
+{
+	struct device_attribute *dattr;
+	ssize_t error;
+
+	dattr = container_of(attr, struct device_attribute, attr);
+	error = -EIO;
+	if (dattr->store)
+		error = dattr->store(container_of(kobj, struct device, kobj),
+		    dattr, buf, count);
+	return (error);
+}
+
+static const struct sysfs_ops linux_dev_sysfs = {
+	.show  = linux_dev_show,
+	.store = linux_dev_store,
+};
+
+const struct kobj_type linux_dev_ktype = {
+	.release = linux_dev_release,
+	.sysfs_ops = &linux_dev_sysfs
+};
 
 struct device *
 device_create(struct class *class, struct device *parent, dev_t devt,
@@ -198,7 +345,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 	dev->class = class;
 	dev->devt = devt;
 	dev->driver_data = drvdata;
-	dev->release = dev_release;
+	dev->release = linux_device_release;
 	va_start(args, fmt);
 	kobject_set_name_vargs(&dev->kobj, fmt, args);
 	va_end(args);
@@ -208,7 +355,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 }
 
 int
-kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
+kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
     struct kobject *parent, const char *fmt, ...)
 {
 	va_list args;
@@ -913,26 +1060,215 @@ linux_completion_done(struct completion *c)
 	return (isdone);
 }
 
+void
+linux_delayed_work_fn(void *arg)
+{
+	struct delayed_work *work;
+
+	work = arg;
+	taskqueue_enqueue(work->work.taskqueue, &work->work.work_task);
+}
+
+void
+linux_work_fn(void *context, int pending)
+{
+	struct work_struct *work;
+
+	work = context;
+	work->fn(work);
+}
+
+void
+linux_flush_fn(void *context, int pending)
+{
+}
+
+struct workqueue_struct *
+linux_create_workqueue_common(const char *name, int cpus)
+{
+	struct workqueue_struct *wq;
+
+	wq = kmalloc(sizeof(*wq), M_WAITOK);
+	wq->taskqueue = taskqueue_create(name, M_WAITOK,
+	    taskqueue_thread_enqueue,  &wq->taskqueue);
+	atomic_set(&wq->draining, 0);
+	taskqueue_start_threads(&wq->taskqueue, cpus, PWAIT, "%s", name);
+
+	return (wq);
+}
+
+void
+destroy_workqueue(struct workqueue_struct *wq)
+{
+	taskqueue_free(wq->taskqueue);
+	kfree(wq);
+}
+
+static void
+linux_cdev_release(struct kobject *kobj)
+{
+	struct linux_cdev *cdev;
+	struct kobject *parent;
+
+	cdev = container_of(kobj, struct linux_cdev, kobj);
+	parent = kobj->parent;
+	if (cdev->cdev)
+		destroy_dev(cdev->cdev);
+	kfree(cdev);
+	kobject_put(parent);
+}
+
+static void
+linux_cdev_static_release(struct kobject *kobj)
+{
+	struct linux_cdev *cdev;
+	struct kobject *parent;
+
+	cdev = container_of(kobj, struct linux_cdev, kobj);
+	parent = kobj->parent;
+	if (cdev->cdev)
+		destroy_dev(cdev->cdev);
+	kobject_put(parent);
+}
+
+const struct kobj_type linux_cdev_ktype = {
+	.release = linux_cdev_release,
+};
+
+const struct kobj_type linux_cdev_static_ktype = {
+	.release = linux_cdev_static_release,
+};
+
+static void
+linux_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	if (linkstate == LINK_STATE_UP)
+		nb->notifier_call(nb, NETDEV_UP, ifp);
+	else
+		nb->notifier_call(nb, NETDEV_DOWN, ifp);
+}
+
+static void
+linux_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_REGISTER, ifp);
+}
+
+static void
+linux_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_UNREGISTER, ifp);
+}
+
+static void
+linux_handle_iflladdr_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_CHANGEADDR, ifp);
+}
+
+static void
+linux_handle_ifaddr_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, ifp);
+}
+
+int
+register_netdevice_notifier(struct notifier_block *nb)
+{
+
+	nb->tags[NETDEV_UP] = EVENTHANDLER_REGISTER(
+	    ifnet_link_event, linux_handle_ifnet_link_event, nb, 0);
+	nb->tags[NETDEV_REGISTER] = EVENTHANDLER_REGISTER(
+	    ifnet_arrival_event, linux_handle_ifnet_arrival_event, nb, 0);
+	nb->tags[NETDEV_UNREGISTER] = EVENTHANDLER_REGISTER(
+	    ifnet_departure_event, linux_handle_ifnet_departure_event, nb, 0);
+	nb->tags[NETDEV_CHANGEADDR] = EVENTHANDLER_REGISTER(
+	    iflladdr_event, linux_handle_iflladdr_event, nb, 0);
+
+	return (0);
+}
+
+int
+register_inetaddr_notifier(struct notifier_block *nb)
+{
+
+        nb->tags[NETDEV_CHANGEIFADDR] = EVENTHANDLER_REGISTER(
+            ifaddr_event, linux_handle_ifaddr_event, nb, 0);
+        return (0);
+}
+
+int
+unregister_netdevice_notifier(struct notifier_block *nb)
+{
+
+        EVENTHANDLER_DEREGISTER(ifnet_link_event,
+	    nb->tags[NETDEV_UP]);
+        EVENTHANDLER_DEREGISTER(ifnet_arrival_event,
+	    nb->tags[NETDEV_REGISTER]);
+        EVENTHANDLER_DEREGISTER(ifnet_departure_event,
+	    nb->tags[NETDEV_UNREGISTER]);
+        EVENTHANDLER_DEREGISTER(iflladdr_event,
+	    nb->tags[NETDEV_CHANGEADDR]);
+
+	return (0);
+}
+
+int
+unregister_inetaddr_notifier(struct notifier_block *nb)
+{
+
+        EVENTHANDLER_DEREGISTER(ifaddr_event,
+            nb->tags[NETDEV_CHANGEIFADDR]);
+
+        return (0);
+}
+
+void
+linux_irq_handler(void *ent)
+{
+	struct irq_ent *irqe;
+
+	irqe = ent;
+	irqe->handler(irqe->irq, irqe->arg);
+}
+
 static void
 linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 	int i;
 
+	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
+
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
-	kobject_init(&class_root, &class_ktype);
-	kobject_set_name(&class_root, "class");
-	class_root.oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(rootoid),
+	kobject_init(&linux_class_root, &linux_class_ktype);
+	kobject_set_name(&linux_class_root, "class");
+	linux_class_root.oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(rootoid),
 	    OID_AUTO, "class", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "class");
-	kobject_init(&linux_rootdev.kobj, &dev_ktype);
-	kobject_set_name(&linux_rootdev.kobj, "device");
-	linux_rootdev.kobj.oidp = SYSCTL_ADD_NODE(NULL,
+	kobject_init(&linux_root_device.kobj, &linux_dev_ktype);
+	kobject_set_name(&linux_root_device.kobj, "device");
+	linux_root_device.kobj.oidp = SYSCTL_ADD_NODE(NULL,
 	    SYSCTL_CHILDREN(rootoid), OID_AUTO, "device", CTLFLAG_RD, NULL,
 	    "device");
-	linux_rootdev.bsddev = root_bus;
-	miscclass.name = "misc";
-	class_register(&miscclass);
+	linux_root_device.bsddev = root_bus;
+	linux_class_misc.name = "misc";
+	class_register(&linux_class_misc);
 	INIT_LIST_HEAD(&pci_drivers);
 	INIT_LIST_HEAD(&pci_devices);
 	spin_lock_init(&pci_lock);
@@ -945,9 +1281,12 @@ SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 static void
 linux_compat_uninit(void *arg)
 {
-	kobject_kfree_name(&class_root);
-	kobject_kfree_name(&linux_rootdev.kobj);
-	kobject_kfree_name(&miscclass.kobj);
+	linux_kobject_kfree_name(&linux_class_root);
+	linux_kobject_kfree_name(&linux_root_device.kobj);
+	linux_kobject_kfree_name(&linux_class_misc.kobj);
+
+	synchronize_rcu();
+	sx_destroy(&linux_global_rcu_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 

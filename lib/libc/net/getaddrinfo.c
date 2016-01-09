@@ -2164,7 +2164,11 @@ getanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 		return sentinel.ai_next;
 	}
 
-	RES_SET_H_ERRNO(res, NO_RECOVERY);
+	/*
+	 * We could have walked a CNAME chain, but the ultimate target
+	 * may not have what we looked for.
+	 */
+	RES_SET_H_ERRNO(res, ntohs(hp->ancount) > 0 ? NO_DATA : NO_RECOVERY);
 	return NULL;
 }
 
@@ -2341,6 +2345,7 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	if (sentinel.ai_next == NULL)
 		switch (res->res_h_errno) {
 		case HOST_NOT_FOUND:
+		case NO_DATA:
 			return NS_NOTFOUND;
 		case TRY_AGAIN:
 			return NS_TRYAGAIN;

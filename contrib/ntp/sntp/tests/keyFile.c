@@ -62,19 +62,26 @@ CompareKeysAlternative(int key_id,
 void
 test_ReadEmptyKeyFile(void) {
 	struct key* keys = NULL;
+	const char *path = CreatePath("key-test-empty", INPUT_DIR);
 
-	TEST_ASSERT_EQUAL(0, auth_init(CreatePath("key-test-empty", INPUT_DIR), &keys));
+	TEST_ASSERT_NOT_NULL(path);
+	TEST_ASSERT_EQUAL(0, auth_init(path, &keys));
 	TEST_ASSERT_NULL(keys);
+
+	free((void *)path);
 }
 
 
 void
 test_ReadASCIIKeys(void) {
 	struct key* keys = NULL;
+	const char *path = CreatePath("key-test-ascii", INPUT_DIR);
 
-	TEST_ASSERT_EQUAL(2, auth_init(CreatePath("key-test-ascii", INPUT_DIR), &keys));
-
+	TEST_ASSERT_NOT_NULL(path);
+	TEST_ASSERT_EQUAL(2, auth_init(path, &keys));
 	TEST_ASSERT_NOT_NULL(keys);
+
+	free((void *)path);
 
 	struct key* result = NULL;
 	get_key(40, &result);
@@ -91,10 +98,12 @@ test_ReadASCIIKeys(void) {
 void
 test_ReadHexKeys(void) {
 	struct key* keys = NULL;
+	const char *path = CreatePath("key-test-hex", INPUT_DIR);
 
-	TEST_ASSERT_EQUAL(3, auth_init(CreatePath("key-test-hex", INPUT_DIR), &keys));
-
+	TEST_ASSERT_NOT_NULL(path);
+	TEST_ASSERT_EQUAL(3, auth_init(path, &keys));
 	TEST_ASSERT_NOT_NULL(keys);
+	free((void *)path);
 
 	struct key* result = NULL;
 	get_key(10, &result);
@@ -119,10 +128,12 @@ test_ReadHexKeys(void) {
 void
 test_ReadKeyFileWithComments(void) {
 	struct key* keys = NULL;
+	const char *path = CreatePath("key-test-comments", INPUT_DIR);
 
-	TEST_ASSERT_EQUAL(2, auth_init(CreatePath("key-test-comments", INPUT_DIR), &keys));
-	
+	TEST_ASSERT_NOT_NULL(path);
+	TEST_ASSERT_EQUAL(2, auth_init(path, &keys));
 	TEST_ASSERT_NOT_NULL(keys);
+	free((void *)path);
 
 	struct key* result = NULL;
 	get_key(10, &result);
@@ -140,10 +151,12 @@ test_ReadKeyFileWithComments(void) {
 void
 test_ReadKeyFileWithInvalidHex(void) {
 	struct key* keys = NULL;
+	const char *path = CreatePath("key-test-invalid-hex", INPUT_DIR);
 
-	TEST_ASSERT_EQUAL(1, auth_init(CreatePath("key-test-invalid-hex", INPUT_DIR), &keys));
-
+	TEST_ASSERT_NOT_NULL(path);
+	TEST_ASSERT_EQUAL(1, auth_init(path, &keys));
 	TEST_ASSERT_NOT_NULL(keys);
+	free((void *)path);
 
 	struct key* result = NULL;
 	get_key(10, &result);

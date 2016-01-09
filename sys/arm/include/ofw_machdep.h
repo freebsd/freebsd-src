@@ -32,6 +32,9 @@
 #ifndef _MACHINE_OFW_MACHDEP_H_
 #define _MACHINE_OFW_MACHDEP_H_
 
+#include <sys/types.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 #include <vm/vm.h>
 
 typedef	uint32_t	cell_t;

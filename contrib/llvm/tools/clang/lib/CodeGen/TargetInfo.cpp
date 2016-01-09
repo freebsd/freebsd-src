@@ -1552,12 +1552,10 @@ public:
 
 /// WinX86_64ABIInfo - The Windows X86_64 ABI information.
 class WinX86_64ABIInfo : public ABIInfo {
-
-  ABIArgInfo classify(QualType Ty, unsigned &FreeSSERegs,
-                      bool IsReturnType) const;
-
 public:
-  WinX86_64ABIInfo(CodeGen::CodeGenTypes &CGT) : ABIInfo(CGT) {}
+  WinX86_64ABIInfo(CodeGen::CodeGenTypes &CGT)
+      : ABIInfo(CGT),
+        IsMingw64(getTarget().getTriple().isWindowsGNUEnvironment()) {}
 
   void computeInfo(CGFunctionInfo &FI) const override;
 
@@ -1574,6 +1572,12 @@ public:
     // FIXME: Assumes vectorcall is in use.
     return isX86VectorCallAggregateSmallEnough(NumMembers);
   }
+
+private:
+  ABIArgInfo classify(QualType Ty, unsigned &FreeSSERegs,
+                      bool IsReturnType) const;
+
+  bool IsMingw64;
 };
 
 class X86_64TargetCodeGenInfo : public TargetCodeGenInfo {
@@ -3070,11 +3074,6 @@ ABIArgInfo WinX86_64ABIInfo::classify(QualType Ty, unsigned &FreeSSERegs,
 
     if (RT->getDecl()->hasFlexibleArrayMember())
       return ABIArgInfo::getIndirect(0, /*ByVal=*/false);
-
-    // FIXME: mingw-w64-gcc emits 128-bit struct as i128
-    if (Width == 128 && getTarget().getTriple().isWindowsGNUEnvironment())
-      return ABIArgInfo::getDirect(llvm::IntegerType::get(getVMContext(),
-                                                          Width));
   }
 
   // vectorcall adds the concept of a homogenous vector aggregate, similar to
@@ -3115,6 +3114,14 @@ ABIArgInfo WinX86_64ABIInfo::classify(QualType Ty, unsigned &FreeSSERegs,
   const BuiltinType *BT = Ty->getAs<BuiltinType>();
   if (BT && BT->getKind() == BuiltinType::Bool)
     return ABIArgInfo::getExtend();
+
+  // Mingw64 GCC uses the old 80 bit extended precision floating point unit. It
+  // passes them indirectly through memory.
+  if (IsMingw64 && BT && BT->getKind() == BuiltinType::LongDouble) {
+    const llvm::fltSemantics *LDF = &getTarget().getLongDoubleFormat();
+    if (LDF == &llvm::APFloat::x87DoubleExtended)
+      return ABIArgInfo::getIndirect(Align, /*ByVal=*/false);
+  }
 
   return ABIArgInfo::getDirect();
 }

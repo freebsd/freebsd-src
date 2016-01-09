@@ -106,8 +106,8 @@ static const struct {
 		.subtype = IFM_10G_SR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_ER] = {
-		.subtype = IFM_10G_ER,
+	[MLX5E_10GBASE_LR] = {
+		.subtype = IFM_10G_LR,
 		.baudrate = IF_Gbps(10ULL),
 	},
 	[MLX5E_40GBASE_SR4] = {
@@ -1604,6 +1604,16 @@ mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 {
 	void *cqc = param->cqc;
 
+
+	/*
+	 * TODO The sysctl to control on/off is a bool value for now, which means
+	 * we only support CSUM, once HASH is implemnted we'll need to address that.
+	 */
+	if (priv->params.cqe_zipping_en) {
+		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_CSUM);
+		MLX5_SET(cqc, cqc, cqe_compression_en, 1);
+	}
+
 	MLX5_SET(cqc, cqc, log_cq_size, priv->params.log_rq_size);
 	MLX5_SET(cqc, cqc, cq_period, priv->params.rx_cq_moderation_usec);
 	MLX5_SET(cqc, cqc, cq_max_count, priv->params.rx_cq_moderation_pkts);
@@ -1699,6 +1709,62 @@ mlx5e_close_channels(struct mlx5e_priv *priv)
 	priv->channel = NULL;
 
 	free(ptr, M_MLX5EN);
+}
+
+static int
+mlx5e_refresh_sq_params(struct mlx5e_priv *priv, struct mlx5e_sq *sq)
+{
+	return (mlx5_core_modify_cq_moderation(priv->mdev, &sq->cq.mcq,
+	    priv->params.tx_cq_moderation_usec,
+	    priv->params.tx_cq_moderation_pkts));
+}
+
+static int
+mlx5e_refresh_rq_params(struct mlx5e_priv *priv, struct mlx5e_rq *rq)
+{
+	return (mlx5_core_modify_cq_moderation(priv->mdev, &rq->cq.mcq,
+	    priv->params.rx_cq_moderation_usec,
+	    priv->params.rx_cq_moderation_pkts));
+}
+
+static int
+mlx5e_refresh_channel_params_sub(struct mlx5e_priv *priv, struct mlx5e_channel *c)
+{
+	int err;
+	int i;
+
+	if (c == NULL)
+		return (EINVAL);
+
+	err = mlx5e_refresh_rq_params(priv, &c->rq);
+	if (err)
+		goto done;
+
+	for (i = 0; i != c->num_tc; i++) {
+		err = mlx5e_refresh_sq_params(priv, &c->sq[i]);
+		if (err)
+			goto done;
+	}
+done:
+	return (err);
+}
+
+int
+mlx5e_refresh_channel_params(struct mlx5e_priv *priv)
+{
+	int i;
+
+	if (priv->channel == NULL)
+		return (EINVAL);
+
+	for (i = 0; i < priv->params.num_channels; i++) {
+		int err;
+
+		err = mlx5e_refresh_channel_params_sub(priv, priv->channel[i]);
+		if (err)
+			return (err);
+	}
+	return (0);
 }
 
 static int
@@ -2288,6 +2354,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	int size_read = 0;
 	int module_num;
 	int max_mtu;
+	uint8_t read_addr;
 
 	priv = ifp->if_softc;
 
@@ -2474,11 +2541,21 @@ out:
 		}
 
 		/*
-		 * Note that we ignore i2c.addr here. The driver hardcodes
-		 * the address to 0x50, while standard expects it to be 0xA0.
+		 * Currently 0XA0 and 0xA2 are the only addresses permitted.
+		 * The internal conversion is as follows:
 		 */
+		if (i2c.dev_addr == 0xA0)
+			read_addr = MLX5E_I2C_ADDR_LOW;
+		else if (i2c.dev_addr == 0xA2)
+			read_addr = MLX5E_I2C_ADDR_HIGH;
+		else {
+			if_printf(ifp, "Query eeprom failed, "
+			    "Invalid Address: %X\n", i2c.dev_addr);
+			error = EINVAL;
+			goto err_i2c;
+		}
 		error = mlx5_query_eeprom(priv->mdev,
-		    MLX5E_I2C_ADDR_LOW, MLX5E_EEPROM_LOW_PAGE,
+		    read_addr, MLX5E_EEPROM_LOW_PAGE,
 		    (uint32_t)i2c.offset, (uint32_t)i2c.len, module_num,
 		    (uint32_t *)i2c.data, &size_read);
 		if (error) {
@@ -2489,7 +2566,7 @@ out:
 
 		if (i2c.len > MLX5_EEPROM_MAX_BYTES) {
 			error = mlx5_query_eeprom(priv->mdev,
-			    MLX5E_I2C_ADDR_LOW, MLX5E_EEPROM_LOW_PAGE,
+			    read_addr, MLX5E_EEPROM_LOW_PAGE,
 			    (uint32_t)(i2c.offset + size_read),
 			    (uint32_t)(i2c.len - size_read), module_num,
 			    (uint32_t *)(i2c.data + size_read), &size_read);
@@ -2570,6 +2647,8 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	 */
 	priv->params.hw_lro_en = false;
 	priv->params.lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
+
+	priv->params.cqe_zipping_en = !!MLX5_CAP_GEN(mdev, cqe_compression);
 
 	priv->mdev = mdev;
 	priv->params.num_channels = num_comp_vectors;

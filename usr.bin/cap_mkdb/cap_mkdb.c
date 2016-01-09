@@ -119,7 +119,7 @@ main(int argc, char *argv[])
 	(void)snprintf(buf, sizeof(buf), "%s.db", capname ? capname : *argv);
 	if ((capname = strdup(buf)) == NULL)
 		errx(1, "strdup failed");
-	if ((capdbp = dbopen(capname, O_CREAT | O_TRUNC | O_RDWR,
+	if ((capdbp = dbopen(capname, O_CREAT | O_TRUNC | O_RDWR | O_SYNC,
 	    DEFFILEMODE, DB_HASH, &openinfo)) == NULL)
 		err(1, "%s", buf);
 

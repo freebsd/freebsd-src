@@ -24,6 +24,15 @@ maintainer of a sub-system is to check recent logs for that directory or
 sub-system.
 ***
 
+***
+Maintainers are encouraged to visit:
+  https://reviews.freebsd.org/herald
+
+and configure notifications for parts of the tree which they maintain.
+Notifications can automatically be sent when someone proposes a revision or
+makes a commit to the specified subtree.
+***
+
 subsystem	login	notes
 -----------------------------
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
@@ -47,7 +56,9 @@ isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 kqueue		jmg	Pre-commit review requested.  Documentation Required.
+libdpv		dteske	Pre-commit review requested. Keep in sync with dpv(1).
 libfetch	des	Pre-commit review requested.
+libfigpar	dteske	Pre-commit review requested.
 libpam		des	Pre-commit review requested.
 linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
@@ -76,6 +87,7 @@ sh(1)		jilles		Pre-commit review requested. This also applies
 				compiled in as builtins.
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
 share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
+sys/boot/forth		dteske	Pre-commit review requested.
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
@@ -85,74 +97,8 @@ sys/dev/usb	hselasky	If in doubt, ask.
 sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
 sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 tests			freebsd-testing,ngie	Pre-commit review requested.
+usr.sbin/bsdconfig	dteske	Pre-commit phabricator review requested.
+usr.sbin/dpv	dteske	Pre-commit review requested. Keep in sync with libdpv.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
+usr.sbin/sysrc	dteske	Pre-commit phabricator review requested. Keep in sync with bsdconfig(8) sysrc.subr.
 vmm(4)		neel,grehan	Pre-commit review requested.
----- OLD ----
-libc/posix1e	rwatson	Pre-commit review requested.
-POSIX.1e ACLs	rwatson	Pre-commit review requested.
-UFS EAs		rwatson	Pre-commit review requested.
-MAC Framework	rwatson	Pre-commit review requested.
-MAC Modules	rwatson	Pre-commit review requested.
-contrib/openbsm	rwatson	Pre-commit review requested.
-sys/security/audit	rwatson	Pre-commit review requested.
-ahc(4)		gibbs	Pre-commit review requested.
-ahd(4)		gibbs	Pre-commit review requested.
-cdboot		jhb	Pre-commit review requested.
-pxeboot		jhb	Pre-commit review requested.
-witness		jhb	Pre-commit review requested.
-CAM		gibbs,
-		ken	Pre-commit review requested. send to scsi@freebsd.org
-devstat(9)	ken	Pre-commit review requested.
-camcontrol(8)	ken	Pre-commit review requested.
-libcam		ken	Pre-commit review requested.
-libdevstat	ken	Pre-commit review requested.
-iostat(8)	ken	Pre-commit review requested.
-cd(4)		ken	Pre-commit review requested.
-pass(4)		ken	Pre-commit review requested.
-ch(4)		ken	Pre-commit review requested.
-em(4)		jfv	Pre-commit review requested.
-nvi		peter	Try not to break it.
-libz		peter	Try not to break it.
-groff		ru	Recommends pre-commit review.
-ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
-drm		rnoland	Just keep me informed of changes, try not to break it.
-unifdef(1)	fanf	Pre-commit review requested.
-ntp         	roberto	Pre-commit review requested.
-inetd		dwmalone	Recommends pre-commit review.
-contrib/smbfs	bp	Open for in-tree committs. In case of functional
-			changes pre-commit review requested.
-file		obrien	Insists to keep file blocked from other's unapproved
-			commits
-contrib/bzip2	obrien	Pre-commit review required.
-geom		freebsd-geom@FreeBSD.org
-geom_concat	pjd	Pre-commit review preferred.
-geom_gate	pjd	Pre-commit review preferred.
-geom_label	pjd	Pre-commit review preferred.
-geom_mirror	pjd	Pre-commit review preferred.
-geom_nop	pjd	Pre-commit review preferred.
-geom_raid3	pjd	Pre-commit review preferred.
-geom_shsec	pjd	Pre-commit review preferred.
-geom_stripe	pjd	Pre-commit review preferred.
-geom_zero	pjd	Pre-commit review preferred.
-sbin/geom	pjd	Pre-commit review preferred.
-zfs		freebsd-fs@FreeBSD.org
-linux emul	emulation	Please discuss changes here.
-bs{diff,patch}	cperciva	Pre-commit review requested.
-portsnap	cperciva	Pre-commit review requested.
-freebsd-update	cperciva	Pre-commit review requested.
-sys/netgraph/bluetooth	emax	Pre-commit review preferred.
-lib/libbluetooth	emax	Pre-commit review preferred.
-lib/libsdp		emax	Pre-commit review preferred.
-usr.bin/bluetooth	emax	Pre-commit review preferred.
-usr.sbin/bluetooth	emax	Pre-commit review preferred.
-share/zoneinfo		edwin	Heads-up appreciated, since our data is coming
-				from a third party source.
-usr.sbin/zic		edwin   Heads-up appreciated, since this code is
-				maintained by a third party source.
-lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
-				is maintained by a third party source.
-sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
-cmx		daniel@roe.ch	Pre-commit review preferred.
-filemon		obrien		Pre-commit review preferred.
-sysdoc		trhodes		Pre-commit review preferred.
-

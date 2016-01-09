@@ -35,8 +35,9 @@ typedef	enum {
 
 #ifdef _SEARCH_PRIVATE
 typedef	struct node {
-	char         *key;
+	void         *key;
 	struct node  *llink, *rlink;
+	signed char   balance;
 } node_t;
 
 struct que_elem {
@@ -46,11 +47,8 @@ struct que_elem {
 #endif
 
 #if __BSD_VISIBLE
-struct _ENTRY;
 struct hsearch_data {
-	struct _ENTRY *table;
-	size_t size;
-	size_t filled;
+	struct __hsearch *__hsearch;
 };
 #endif
 
