@@ -53,6 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_misc.h>
+
+static int	linux_do_tkill(struct thread *td, struct thread *tdt,
+		    ksiginfo_t *ksi);
 
 void
 linux_to_bsd_sigset(l_sigset_t *lss, sigset_t *bss)
@@ -537,56 +541,21 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 }
 
 static int
-linux_do_tkill(struct thread *td, l_int tgid, l_int pid, l_int signum)
+linux_do_tkill(struct thread *td, struct thread *tdt, ksiginfo_t *ksi)
 {
-	struct proc *proc = td->td_proc;
-	struct linux_emuldata *em;
 	struct proc *p;
-	ksiginfo_t ksi;
 	int error;
 
-	AUDIT_ARG_SIGNUM(signum);
-	AUDIT_ARG_PID(pid);
-
-	/*
-	 * Allow signal 0 as a means to check for privileges
-	 */
-	if (!LINUX_SIG_VALID(signum) && signum != 0)
-		return (EINVAL);
-
-	if (signum > 0 && signum <= LINUX_SIGTBLSZ)
-		signum = linux_to_bsd_signal[_SIG_IDX(signum)];
-
-	if ((p = pfind(pid)) == NULL) {
-		if ((p = zpfind(pid)) == NULL)
-			return (ESRCH);
-	}
-
+	p = tdt->td_proc;
+	AUDIT_ARG_SIGNUM(ksi->ksi_signo);
+	AUDIT_ARG_PID(p->p_pid);
 	AUDIT_ARG_PROCESS(p);
-	error = p_cansignal(td, p, signum);
-	if (error != 0 || signum == 0)
+
+	error = p_cansignal(td, p, ksi->ksi_signo);
+	if (error != 0 || ksi->ksi_signo == 0)
 		goto out;
 
-	error = ESRCH;
-	em = em_find(p, EMUL_DONTLOCK);
-
-	if (em == NULL) {
-#ifdef DEBUG
-		printf("emuldata not found in do_tkill.\n");
-#endif
-		goto out;
-	}
-	if (tgid > 0 && em->shared->group_pid != tgid)
-		goto out;
-
-	ksiginfo_init(&ksi);
-	ksi.ksi_signo = signum;
-	ksi.ksi_code = LINUX_SI_TKILL;
-	ksi.ksi_errno = 0;
-	ksi.ksi_pid = proc->p_pid;
-	ksi.ksi_uid = proc->p_ucred->cr_ruid;
-
-	error = pksignal(p, ksi.ksi_signo, &ksi);
+	tdksignal(tdt, ksi->ksi_signo, ksi);
 
 out:
 	PROC_UNLOCK(p);
@@ -596,20 +565,53 @@ out:
 int
 linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 {
+	struct thread *tdt;
+	ksiginfo_t ksi;
+	int sig;
 
 #ifdef DEBUG
 	if (ldebug(tgkill))
-		printf(ARGS(tgkill, "%d, %d, %d"), args->tgid, args->pid, args->sig);
+		printf(ARGS(tgkill, "%d, %d, %d"),
+		    args->tgid, args->pid, args->sig);
 #endif
+
 	if (args->pid <= 0 || args->tgid <=0)
 		return (EINVAL);
 
-	return (linux_do_tkill(td, args->tgid, args->pid, args->sig));
+	/*
+	 * Allow signal 0 as a means to check for privileges
+	 */
+	if (!LINUX_SIG_VALID(args->sig) && args->sig != 0)
+		return (EINVAL);
+
+	if (args->sig > 0 && args->sig <= LINUX_SIGTBLSZ)
+		sig = linux_to_bsd_signal[_SIG_IDX(args->sig)];
+	else
+		sig = args->sig;
+
+	tdt = linux_tdfind(td, args->pid, args->tgid);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = LINUX_SI_TKILL;
+	ksi.ksi_errno = 0;
+	ksi.ksi_pid = td->td_proc->p_pid;
+	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
+	return (linux_do_tkill(td, tdt, &ksi));
 }
 
+/*
+ * Deprecated since 2.5.75. Replaced by tgkill().
+ */
 int
 linux_tkill(struct thread *td, struct linux_tkill_args *args)
 {
+	struct thread *tdt;
+	ksiginfo_t ksi;
+	int sig;
+
 #ifdef DEBUG
 	if (ldebug(tkill))
 		printf(ARGS(tkill, "%i, %i"), args->tid, args->sig);
@@ -617,7 +619,25 @@ linux_tkill(struct thread *td, struct linux_tkill_args *args)
 	if (args->tid <= 0)
 		return (EINVAL);
 
-	return (linux_do_tkill(td, 0, args->tid, args->sig));
+	if (!LINUX_SIG_VALID(args->sig))
+		return (EINVAL);
+
+	if (args->sig > 0 && args->sig <= LINUX_SIGTBLSZ)
+		sig = linux_to_bsd_signal[_SIG_IDX(args->sig)];
+	else
+		sig = args->sig;
+
+	tdt = linux_tdfind(td, args->tid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = LINUX_SI_TKILL;
+	ksi.ksi_errno = 0;
+	ksi.ksi_pid = td->td_proc->p_pid;
+	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
+	return (linux_do_tkill(td, tdt, &ksi));
 }
 
 void
