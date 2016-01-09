@@ -55,7 +55,7 @@
 #define	LINUX_MREMAP_MAYMOVE	1
 #define	LINUX_MREMAP_FIXED	2
 
-extern const char *linux_platform;
+extern const char *linux_kplatform;
 
 /*
  * Non-standard aux entry types used in Linux ELF binaries.
