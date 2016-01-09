@@ -198,6 +198,7 @@ SUBDIR=	\
 	${_linsysfs} \
 	${_linux} \
 	${_linux_common} \
+	${_linux64} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -801,6 +802,7 @@ _virtio=	virtio
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
 _linux_common=	linux_common
+_linux64=	linux64
 .endif
 _vxge=  	vxge
 _x86bios=	x86bios
