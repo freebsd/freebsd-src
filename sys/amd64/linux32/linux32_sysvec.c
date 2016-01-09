@@ -150,28 +150,6 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 	 -72, -67, -71
 };
 
-int bsd_to_linux_signal[LINUX_SIGTBLSZ] = {
-	LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT, LINUX_SIGILL,
-	LINUX_SIGTRAP, LINUX_SIGABRT, 0, LINUX_SIGFPE,
-	LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, LINUX_SIGSYS,
-	LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM, LINUX_SIGURG,
-	LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT, LINUX_SIGCHLD,
-	LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, LINUX_SIGXCPU,
-	LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, LINUX_SIGWINCH,
-	0, LINUX_SIGUSR1, LINUX_SIGUSR2
-};
-
-int linux_to_bsd_signal[LINUX_SIGTBLSZ] = {
-	SIGHUP, SIGINT, SIGQUIT, SIGILL,
-	SIGTRAP, SIGABRT, SIGBUS, SIGFPE,
-	SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2,
-	SIGPIPE, SIGALRM, SIGTERM, SIGBUS,
-	SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP,
-	SIGTTIN, SIGTTOU, SIGURG, SIGXCPU,
-	SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH,
-	SIGIO, SIGURG, SIGSYS
-};
-
 #define LINUX_T_UNKNOWN  255
 static int _bsd_to_linux_trapcode[] = {
 	LINUX_T_UNKNOWN,	/* 0 */
@@ -344,7 +322,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the argument list for the signal handler.
 	 */
-	sig = BSD_TO_LINUX_SIGNAL(sig);
+	sig = bsd_to_linux_signal(sig);
 
 	bzero(&frame, sizeof(frame));
 
@@ -371,7 +349,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
-	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__bits[0];
+	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__mask;
 	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_rdi;
 	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_rsi;
 	frame.sf_sc.uc_mcontext.sc_ebp    = regs->tf_rbp;
@@ -452,7 +430,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct trapframe *regs;
 	struct l_sigframe *fp, frame;
 	l_sigset_t lmask;
-	int oonstack, i;
+	int oonstack;
 	int sig, code;
 
 	sig = ksi->ksi_signo;
@@ -490,7 +468,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the argument list for the signal handler.
 	 */
-	sig = BSD_TO_LINUX_SIGNAL(sig);
+	sig = bsd_to_linux_signal(sig);
 
 	bzero(&frame, sizeof(frame));
 
@@ -502,7 +480,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	frame.sf_sc.sc_mask   = lmask.__bits[0];
+	frame.sf_sc.sc_mask   = lmask.__mask;
 	frame.sf_sc.sc_gs     = regs->tf_gs;
 	frame.sf_sc.sc_fs     = regs->tf_fs;
 	frame.sf_sc.sc_es     = regs->tf_es;
@@ -524,8 +502,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.sc_cr2    = (u_int32_t)(uintptr_t)ksi->ksi_addr;
 	frame.sf_sc.sc_trapno = bsd_to_linux_trapcode(code);
 
-	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
-		frame.sf_extramask[i] = lmask.__bits[i+1];
+	frame.sf_extramask[0] = lmask.__mask;
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
@@ -571,7 +548,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	struct trapframe *regs;
 	sigset_t bmask;
 	l_sigset_t lmask;
-	int eflags, i;
+	int eflags;
 	ksiginfo_t ksi;
 
 	regs = td->td_frame;
@@ -612,9 +589,8 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 		return(EINVAL);
 	}
 
-	lmask.__bits[0] = frame.sf_sc.sc_mask;
-	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
-		lmask.__bits[i+1] = frame.sf_extramask[i];
+	lmask.__mask = frame.sf_sc.sc_mask;
+	lmask.__mask = frame.sf_extramask[0];
 	linux_to_bsd_sigset(&lmask, &bmask);
 	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
@@ -1035,8 +1011,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= LINUX_SIGTBLSZ,
-	.sv_sigtbl	= bsd_to_linux_signal,
+	.sv_sigsize	= 0,
+	.sv_sigtbl	= NULL,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= bsd_to_linux_errno,
 	.sv_transtrap	= translate_traps,

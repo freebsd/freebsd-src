@@ -32,6 +32,7 @@
 #ifndef _AMD64_LINUX_H_
 #define	_AMD64_LINUX_H_
 
+#include <compat/linux/linux.h>
 #include <amd64/linux/linux_syscall.h>
 
 /*
@@ -173,49 +174,6 @@ struct l_newstat {
 	l_long		__unused3;
 };
 
-/*
- * Signalling
- */
-#define	LINUX_SIGHUP		1
-#define	LINUX_SIGINT		2
-#define	LINUX_SIGQUIT		3
-#define	LINUX_SIGILL		4
-#define	LINUX_SIGTRAP		5
-#define	LINUX_SIGABRT		6
-#define	LINUX_SIGIOT		LINUX_SIGABRT
-#define	LINUX_SIGBUS		7
-#define	LINUX_SIGFPE		8
-#define	LINUX_SIGKILL		9
-#define	LINUX_SIGUSR1		10
-#define	LINUX_SIGSEGV		11
-#define	LINUX_SIGUSR2		12
-#define	LINUX_SIGPIPE		13
-#define	LINUX_SIGALRM		14
-#define	LINUX_SIGTERM		15
-#define	LINUX_SIGSTKFLT		16
-#define	LINUX_SIGCHLD		17
-#define	LINUX_SIGCONT		18
-#define	LINUX_SIGSTOP		19
-#define	LINUX_SIGTSTP		20
-#define	LINUX_SIGTTIN		21
-#define	LINUX_SIGTTOU		22
-#define	LINUX_SIGURG		23
-#define	LINUX_SIGXCPU		24
-#define	LINUX_SIGXFSZ		25
-#define	LINUX_SIGVTALRM		26
-#define	LINUX_SIGPROF		27
-#define	LINUX_SIGWINCH		28
-#define	LINUX_SIGIO		29
-#define	LINUX_SIGPOLL		LINUX_SIGIO
-#define	LINUX_SIGPWR		30
-#define	LINUX_SIGSYS		31
-#define	LINUX_SIGRTMIN		32
-
-#define	LINUX_SIGTBLSZ		31
-#define	LINUX_NSIG		64
-#define	LINUX_NBPW		64
-#define	LINUX_NSIG_WORDS	(LINUX_NSIG / LINUX_NBPW)
-
 /* sigaction flags */
 #define	LINUX_SA_NOCLDSTOP	0x00000001
 #define	LINUX_SA_NOCLDWAIT	0x00000002
@@ -232,29 +190,10 @@ struct l_newstat {
 #define	LINUX_SIG_UNBLOCK	1
 #define	LINUX_SIG_SETMASK	2
 
-/* primitives to manipulate sigset_t */
-
-#define	LINUX_SIGEMPTYSET(set)					\
-	do {							\
-		(set).__bits[0] = 0;				\
-	} while(0)
-
-#define	LINUX_SIGISMEMBER(set, sig)				\
-	(1UL & ((set).__bits[0] >> _SIG_IDX(sig)))
-
-#define	LINUX_SIGADDSET(set, sig)				\
-	(set).__bits[0] |= 1UL << _SIG_IDX(sig)
-
 /* sigaltstack */
 #define	LINUX_MINSIGSTKSZ	2048
-#define	LINUX_SS_ONSTACK	1
-#define	LINUX_SS_DISABLE	2
 
 typedef void	(*l_handler_t)(l_int);
-
-typedef struct {
-	l_ulong __bits[LINUX_NSIG_WORDS];
-} l_sigset_t;
 
 typedef struct {
 	l_handler_t	lsa_handler;

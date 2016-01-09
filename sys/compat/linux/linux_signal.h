@@ -43,21 +43,9 @@
 #define	LINUX_SI_SIGIO		-5	/* sent by queued SIGIO */
 #define	LINUX_SI_TKILL		-6	/* sent by tkill system call */
 
-extern int bsd_to_linux_signal[];
-extern int linux_to_bsd_signal[];
-
-int linux_to_bsd_sigaltstack(int lsa);
-int bsd_to_linux_sigaltstack(int bsa);
-void linux_to_bsd_sigset(l_sigset_t *, sigset_t *);
-void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
 int linux_do_sigaction(struct thread *, int, l_sigaction_t *, l_sigaction_t *);
 void ksiginfo_to_lsiginfo(const ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig);
 void siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig);
 void lsiginfo_to_ksiginfo(const l_siginfo_t *lsi, ksiginfo_t *ksi, int sig);
-
-#define LINUX_SIG_VALID(sig)	((sig) <= LINUX_NSIG && (sig) > 0)
-
-#define BSD_TO_LINUX_SIGNAL(sig)				\
-	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
 
 #endif /* _LINUX_SIGNAL_H_ */
