@@ -741,6 +741,8 @@ struct l_desc_struct {
 #define	LINUX_GET_USEABLE(desc)		\
 	(((desc)->b >> LINUX_ENTRY_B_USEABLE) & 1)
 
+#define	linux_copyout_rusage(r, u)	copyout(r, u, sizeof(*r))
+
 /* robust futexes */
 struct linux_robust_list {
 	struct linux_robust_list	*next;
