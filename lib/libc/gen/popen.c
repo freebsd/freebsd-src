@@ -73,6 +73,7 @@ popen(command, type)
 	struct pid *cur;
 	FILE *iop;
 	int pdes[2], pid, twoway, cloexec;
+	int pdes_unused_in_parent;
 	char *argv[4];
 	struct pid *p;
 
@@ -99,6 +100,20 @@ popen(command, type)
 		return (NULL);
 	}
 
+	if (*type == 'r') {
+		iop = fdopen(pdes[0], type);
+		pdes_unused_in_parent = pdes[1];
+	} else {
+		iop = fdopen(pdes[1], type);
+		pdes_unused_in_parent = pdes[0];
+	}
+	if (iop == NULL) {
+		(void)_close(pdes[0]);
+		(void)_close(pdes[1]);
+		free(cur);
+		return (NULL);
+	}
+
 	argv[0] = "sh";
 	argv[1] = "-c";
 	argv[2] = (char *)command;
@@ -108,9 +123,14 @@ popen(command, type)
 	switch (pid = vfork()) {
 	case -1:			/* Error. */
 		THREAD_UNLOCK();
-		(void)_close(pdes[0]);
-		(void)_close(pdes[1]);
+		/*
+		 * The _close() closes the unused end of pdes[], while
+		 * the fclose() closes the used end of pdes[], *and* cleans
+		 * up iop.
+		 */
+		(void)_close(pdes_unused_in_parent);
 		free(cur);
+		(void)fclose(iop);
 		return (NULL);
 		/* NOTREACHED */
 	case 0:				/* Child. */
@@ -155,14 +175,8 @@ popen(command, type)
 	}
 	THREAD_UNLOCK();
 
-	/* Parent; assume fdopen can't fail. */
-	if (*type == 'r') {
-		iop = fdopen(pdes[0], type);
-		(void)_close(pdes[1]);
-	} else {
-		iop = fdopen(pdes[1], type);
-		(void)_close(pdes[0]);
-	}
+	/* Parent. */
+	(void)_close(pdes_unused_in_parent);
 
 	/* Link into list of file descriptors. */
 	cur->fp = iop;
