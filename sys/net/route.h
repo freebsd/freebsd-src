@@ -64,9 +64,13 @@ struct route {
 
 #define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
 #define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
-#define	RT_L2_ME		(1 << RT_L2_ME_BIT)
-#define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)
-#define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)
+#define	RT_L2_ME		(1 << RT_L2_ME_BIT)		/* 0x0004 */
+#define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)		/* 0x0008 */
+#define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)	/* 0x0010 */
+
+#define	RT_REJECT		0x0020		/* Destination is reject */
+#define	RT_BLACKHOLE		0x0040		/* Destination is blackhole */
+#define	RT_HAS_GW		0x0080		/* Destination has GW  */
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -213,6 +217,19 @@ fib_rte_to_nh_flags(int rt_flags)
 	res |= (rt_flags & RTF_GATEWAY) ? NHF_GATEWAY : 0;
 
 	return (res);
+}
+
+/* rte<>ro_flags translation */
+static inline void
+rt_update_ro_flags(struct route *ro)
+{
+	int rt_flags = ro->ro_rt->rt_flags;
+
+	ro->ro_flags &= ~ (RT_REJECT|RT_BLACKHOLE|RT_HAS_GW);
+
+	ro->ro_flags = (rt_flags & RTF_REJECT) ? RT_REJECT : 0;
+	ro->ro_flags |= (rt_flags & RTF_BLACKHOLE) ? RT_BLACKHOLE : 0;
+	ro->ro_flags |= (rt_flags & RTF_GATEWAY) ? RT_HAS_GW : 0;
 }
 
 /*
