@@ -3814,6 +3814,7 @@ ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
 #endif
 	int error;
 
+	error = ENOENT;
 #ifdef INET
 	if (keylen == 4) {
 		in.s_addr = *(in_addr_t *)key;
@@ -3825,9 +3826,6 @@ ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
 	if (keylen == 6)
 		error = fib6_lookup_nh_basic(ti->data,
 		    (struct in6_addr *)key, 0, 0, 0, &nh6);
-#endif
-#if !defined(INET6) && !defined(INET)
-	error = ENOENT;
 #endif
 
 	if (error != 0)
