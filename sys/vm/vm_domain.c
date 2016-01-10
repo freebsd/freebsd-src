@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_domain.h>
 
 static __inline int
-vm_domain_rr_selectdomain(void)
+vm_domain_rr_selectdomain(int skip_domain)
 {
 #if MAXMEMDOM > 1
 	struct thread *td;
@@ -71,6 +71,16 @@ vm_domain_rr_selectdomain(void)
 
 	td->td_dom_rr_idx++;
 	td->td_dom_rr_idx %= vm_ndomains;
+
+	/*
+	 * If skip_domain is provided then skip over that
+	 * domain.  This is intended for round robin variants
+	 * which first try a fixed domain.
+	 */
+	if ((skip_domain > -1) && (td->td_dom_rr_idx == skip_domain)) {
+		td->td_dom_rr_idx++;
+		td->td_dom_rr_idx %= vm_ndomains;
+	}
 	return (td->td_dom_rr_idx);
 #else
 	return (0);
@@ -339,12 +349,12 @@ vm_domain_iterator_run(struct vm_domain_iterator *vi, int *domain)
 		if (vi->n == vm_ndomains)
 			*domain = vi->domain;
 		else
-			*domain = vm_domain_rr_selectdomain();
+			*domain = vm_domain_rr_selectdomain(vi->domain);
 		vi->n--;
 		break;
 	case VM_POLICY_ROUND_ROBIN:
 	default:
-		*domain = vm_domain_rr_selectdomain();
+		*domain = vm_domain_rr_selectdomain(-1);
 		vi->n--;
 		break;
 	}
