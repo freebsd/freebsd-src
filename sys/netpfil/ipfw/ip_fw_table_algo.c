@@ -53,8 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
 #include <netinet/ip_fw.h>
+#include <netinet6/in6_fib.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/ip_fw_table.h>
@@ -3778,7 +3780,6 @@ struct table_algo flow_hash = {
  *
  */
 
-static struct rtentry *lookup_kfib(void *key, int keylen, int fib);
 static int ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val);
 static int kfib_parse_opts(int *pfib, char *data);
@@ -3792,46 +3793,44 @@ static void ta_dump_kfib_tinfo(void *ta_state, struct table_info *ti,
 static int contigmask(uint8_t *p, int len);
 static int ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent);
+static int ta_dump_kfib_tentry_int(struct sockaddr *paddr,
+    struct sockaddr *pmask, ipfw_obj_tentry *tent);
 static int ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent);
 static void ta_foreach_kfib(void *ta_state, struct table_info *ti,
     ta_foreach_f *f, void *arg);
 
-static struct rtentry *
-lookup_kfib(void *key, int keylen, int fib)
-{
-	struct sockaddr *s;
-
-	if (keylen == 4) {
-		struct sockaddr_in sin;
-		bzero(&sin, sizeof(sin));
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = *(in_addr_t *)key;
-		s = (struct sockaddr *)&sin;
-	} else {
-		struct sockaddr_in6 sin6;
-		bzero(&sin6, sizeof(sin6));
-		sin6.sin6_len = sizeof(struct sockaddr_in6);
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_addr = *(struct in6_addr *)key;
-		s = (struct sockaddr *)&sin6;
-	}
-
-	return (rtalloc1_fib(s, 0, 0, fib));
-}
 
 static int
 ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val)
 {
-	struct rtentry *rte;
+#ifdef INET
+	struct nhop4_basic nh4;
+	struct in_addr in;
+#endif
+#ifdef INET6
+	struct nhop6_basic nh6;
+#endif
+	int error;
 
-	if ((rte = lookup_kfib(key, keylen, ti->data)) == NULL)
+#ifdef INET
+	if (keylen == 4) {
+		in.s_addr = *(in_addr_t *)key;
+		error = fib4_lookup_nh_basic(ti->data,
+		    in, 0, 0, &nh4);
+	}
+#endif
+#ifdef INET6
+	if (keylen == 6)
+		error = fib6_lookup_nh_basic(ti->data,
+		    (struct in6_addr *)key, 0, 0, 0, &nh6);
+#endif
+
+	if (error != 0)
 		return (0);
 
 	*val = 0;
-	RTFREE_LOCKED(rte);
 
 	return (1);
 }
@@ -3940,6 +3939,16 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
 	struct rtentry *rte;
+
+	rte = (struct rtentry *)e;
+
+	return ta_dump_kfib_tentry_int(rt_key(rte), rt_mask(rte), tent);
+}
+
+static int
+ta_dump_kfib_tentry_int(struct sockaddr *paddr, struct sockaddr *pmask,
+    ipfw_obj_tentry *tent)
+{
 #ifdef INET
 	struct sockaddr_in *addr, *mask;
 #endif
@@ -3948,14 +3957,13 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 #endif
 	int len;
 
-	rte = (struct rtentry *)e;
-	addr = (struct sockaddr_in *)rt_key(rte);
-	mask = (struct sockaddr_in *)rt_mask(rte);
 	len = 0;
 
 	/* Guess IPv4/IPv6 radix by sockaddr family */
 #ifdef INET
-	if (addr->sin_family == AF_INET) {
+	if (paddr->sa_family == AF_INET) {
+		addr = (struct sockaddr_in *)paddr;
+		mask = (struct sockaddr_in *)pmask;
 		tent->k.addr.s_addr = addr->sin_addr.s_addr;
 		len = 32;
 		if (mask != NULL)
@@ -3968,9 +3976,9 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 	}
 #endif
 #ifdef INET6
-	if (addr->sin_family == AF_INET6) {
-		addr6 = (struct sockaddr_in6 *)addr;
-		mask6 = (struct sockaddr_in6 *)mask;
+	if (paddr->sa_family == AF_INET6) {
+		addr6 = (struct sockaddr_in6 *)paddr;
+		mask6 = (struct sockaddr_in6 *)pmask;
 		memcpy(&tent->k, &addr6->sin6_addr, sizeof(struct in6_addr));
 		len = 128;
 		if (mask6 != NULL)
@@ -3990,28 +3998,43 @@ static int
 ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent)
 {
-	struct rtentry *rte;
-	void *key;
-	int keylen;
+	struct rt_addrinfo info;
+	struct sockaddr_in6 key6, dst6, mask6;
+	struct sockaddr *dst, *key, *mask;
+
+	/* Prepare sockaddr for prefix/mask and info */
+	bzero(&dst6, sizeof(dst6));
+	dst6.sin6_len = sizeof(dst6);
+	dst = (struct sockaddr *)&dst6;
+	bzero(&mask6, sizeof(mask6));
+	mask6.sin6_len = sizeof(mask6);
+	mask = (struct sockaddr *)&mask6;
+
+	bzero(&info, sizeof(info));
+	info.rti_info[RTAX_DST] = dst;
+	info.rti_info[RTAX_NETMASK] = mask;
+
+	/* Prepare the lookup key */
+	bzero(&key6, sizeof(key6));
+	key6.sin6_family = tent->subtype;
+	key = (struct sockaddr *)&key6;
 
 	if (tent->subtype == AF_INET) {
-		key = &tent->k.addr;
-		keylen = sizeof(struct in_addr);
+		((struct sockaddr_in *)&key6)->sin_addr = tent->k.addr;
+		key6.sin6_len = sizeof(struct sockaddr_in);
 	} else {
-		key = &tent->k.addr6;
-		keylen = sizeof(struct in6_addr);
+		key6.sin6_addr = tent->k.addr6;
+		key6.sin6_len = sizeof(struct sockaddr_in6);
 	}
 
-	if ((rte = lookup_kfib(key, keylen, ti->data)) == NULL)
-		return (0);
+	if (rib_lookup_info(ti->data, key, 0, 0, &info) != 0)
+		return (ENOENT);
+	if ((info.rti_addrs & RTA_NETMASK) == 0)
+		mask = NULL;
 
-	if (rte != NULL) {
-		ta_dump_kfib_tentry(ta_state, ti, rte, tent);
-		RTFREE_LOCKED(rte);
-		return (0);
-	}
+	ta_dump_kfib_tentry_int(dst, mask, tent);
 
-	return (ENOENT);
+	return (0);
 }
 
 static void
