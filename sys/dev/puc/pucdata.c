@@ -42,12 +42,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
+#include <dev/ic/ns16550.h>
+
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include <dev/puc/puc_bus.h>
 #include <dev/puc/puc_cfg.h>
 #include <dev/puc/puc_bfe.h>
 
+static puc_config_f puc_config_advantech;
 static puc_config_f puc_config_amc;
 static puc_config_f puc_config_diva;
 static puc_config_f puc_config_exar;
@@ -691,10 +695,25 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_exar_pcie
 	},
 
+	/*
+	 * The Advantech PCI-1602 Rev. A use the first two ports of an Oxford
+	 * Semiconductor OXuPCI954.  Note these boards have a hardware bug in
+	 * that they drive the RS-422/485 transmitters after power-on until a
+	 * driver initalizes the UARTs.
+	 */
 	{   0x13fe, 0x1600, 0x1602, 0x0002,
-	    "Advantech PCI-1602",
+	    "Advantech PCI-1602 Rev. A",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_2S, 0x10, 0, 8,
+	    .config_function = puc_config_advantech
+	},
+
+	/* Advantech PCI-1602 Rev. B1/PCI-1603 are also based on OXuPCI952. */
+	{   0x13fe, 0xa102, 0x13fe, 0xa102,
+	    "Advantech 2-port PCI (PCI-1602 Rev. B1/PCI-1603)",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 4, 0,
+	    .config_function = puc_config_advantech
 	},
 
 	{   0x1407, 0x0100, 0xffff, 0,
@@ -1256,6 +1275,92 @@ const struct puc_cfg puc_pci_devices[] = {
 };
 
 static int
+puc_config_advantech(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
+    intptr_t *res __unused)
+{
+	const struct puc_cfg *cfg;
+	struct resource *cres;
+	struct puc_bar *bar;
+	device_t cdev, dev;
+	bus_size_t off;
+	int base, crtype, fixed, high, i, oxpcie;
+	uint8_t acr, func, mask;
+
+	if (cmd != PUC_CFG_SETUP)
+		return (ENXIO);
+
+	base = fixed = oxpcie = 0;
+	crtype = SYS_RES_IOPORT;
+	acr = mask = 0x0;
+	func = high = 1;
+	off = 0x60;
+
+	cfg = sc->sc_cfg;
+	switch (cfg->subvendor) {
+	case 0x13fe:
+		switch (cfg->device) {
+		case 0xa102:
+			high = 0;
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
+	}
+	if (fixed == 1)
+		goto setup;
+
+	dev = sc->sc_dev;
+	cdev = pci_find_dbsf(pci_get_domain(dev), pci_get_bus(dev),
+	    pci_get_slot(dev), func);
+	if (cdev == NULL) {
+		device_printf(dev, "could not find config function\n");
+		return (ENXIO);
+	}
+
+	i = PCIR_BAR(0);
+	cres = bus_alloc_resource_any(cdev, crtype, &i, RF_ACTIVE);
+	if (cres == NULL) {
+		device_printf(dev, "could not allocate config resource\n");
+		return (ENXIO);
+	}
+
+	if (oxpcie == 0) {
+		mask = bus_read_1(cres, off);
+		if (pci_get_function(dev) == 1)
+			base = 4;
+	}
+
+ setup:
+	for (i = 0; i < sc->sc_nports; ++i) {
+		device_printf(dev, "port %d: ", i);
+		bar = puc_get_bar(sc, cfg->rid + i * cfg->d_rid);
+		if (bar == NULL) {
+			printf("could not get BAR\n");
+			continue;
+		}
+
+		if (fixed == 0) {
+			if ((mask & (1 << (base + i))) == 0) {
+				acr = 0;
+				printf("RS-232\n");
+			} else {
+				acr = (high == 1 ? 0x18 : 0x10);
+				printf("RS-422/RS-485, active-%s auto-DTR\n",
+				    high == 1 ? "high" : "low");
+			}
+		}
+
+		bus_write_1(bar->b_res, REG_SPR, REG_ACR);
+		bus_write_1(bar->b_res, REG_ICR, acr);
+	}
+
+	bus_release_resource(cdev, crtype, rman_get_rid(cres), cres);
+	return (0);
+}
+
+static int
 puc_config_amc(struct puc_softc *sc __unused, enum puc_cfg_cmd cmd, int port,
     intptr_t *res)
 {
@@ -1360,24 +1465,17 @@ puc_config_quatech(struct puc_softc *sc, enum puc_cfg_cmd cmd,
 		bar = puc_get_bar(sc, cfg->rid);
 		if (bar == NULL)
 			return (ENXIO);
-		/* Set DLAB in the LCR register of UART 0. */
-		bus_write_1(bar->b_res, 3, 0x80);
-		/* Write 0 to the SPR register of UART 0. */
-		bus_write_1(bar->b_res, 7, 0);
-		/* Read back the contents of the SPR register of UART 0. */
-		v0 = bus_read_1(bar->b_res, 7);
-		/* Write a specific value to the SPR register of UART 0. */
-		bus_write_1(bar->b_res, 7, 0x80 + -cfg->clock);
-		/* Read back the contents of the SPR register of UART 0. */
-		v1 = bus_read_1(bar->b_res, 7);
-		/* Clear DLAB in the LCR register of UART 0. */
-		bus_write_1(bar->b_res, 3, 0);
-		/* Save the two values read-back from the SPR register. */
+		bus_write_1(bar->b_res, REG_LCR, LCR_DLAB);
+		bus_write_1(bar->b_res, REG_SPR, 0);
+		v0 = bus_read_1(bar->b_res, REG_SPR);
+		bus_write_1(bar->b_res, REG_SPR, 0x80 + -cfg->clock);
+		v1 = bus_read_1(bar->b_res, REG_SPR);
+		bus_write_1(bar->b_res, REG_LCR, 0);
 		sc->sc_cfg_data = (v0 << 8) | v1;
 		if (v0 == 0 && v1 == 0x80 + -cfg->clock) {
 			/*
 			 * The SPR register echoed the two values written
-			 * by us. This means that the SPAD jumper is set.
+			 * by us.  This means that the SPAD jumper is set.
 			 */
 			device_printf(sc->sc_dev, "warning: extra features "
 			    "not usable -- SPAD compatibility enabled\n");
@@ -1385,7 +1483,7 @@ puc_config_quatech(struct puc_softc *sc, enum puc_cfg_cmd cmd,
 		}
 		if (v0 != 0) {
 			/*
-			 * The first value doesn't match. This can only mean
+			 * The first value doesn't match.  This can only mean
 			 * that the SPAD jumper is not set and that a non-
 			 * standard fixed clock multiplier jumper is set.
 			 */
@@ -1399,8 +1497,8 @@ puc_config_quatech(struct puc_softc *sc, enum puc_cfg_cmd cmd,
 			return (0);
 		}
 		/*
-		 * The first value matched, but the second didn't. We know
-		 * that the SPAD jumper is not set. We also know that the
+		 * The first value matched, but the second didn't.  We know
+		 * that the SPAD jumper is not set.  We also know that the
 		 * clock rate multiplier is software controlled *and* that
 		 * we just programmed it to the maximum allowed.
 		 */
@@ -1415,8 +1513,8 @@ puc_config_quatech(struct puc_softc *sc, enum puc_cfg_cmd cmd,
 			/*
 			 * XXX With the SPAD jumper applied, there's no
 			 * easy way of knowing if there's also a clock
-			 * rate multiplier jumper installed. Let's hope
-			 * not...
+			 * rate multiplier jumper installed.  Let's hope
+			 * not ...
 			 */
 			*res = DEFAULT_RCLK;
 		} else if (v0 == 0) {
@@ -1678,15 +1776,15 @@ puc_config_oxford_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 	case PUC_CFG_GET_NPORTS:
 		/*
 		 * Check if we are being called from puc_bfe_attach()
-		 * or puc_bfe_probe(). If puc_bfe_probe(), we cannot
-		 * puc_get_bar(), so we return a value of 16. This has cosmetic
-		 * side-effects at worst; in PUC_CFG_GET_DESC,
-		 * (int)sc->sc_cfg_data will not contain the true number of
-		 * ports in PUC_CFG_GET_DESC, but we are not implementing that
-		 * call for this device family anyway.
+		 * or puc_bfe_probe().  If puc_bfe_probe(), we cannot
+		 * puc_get_bar(), so we return a value of 16.  This has
+		 * cosmetic side-effects at worst; in PUC_CFG_GET_DESC,
+		 * sc->sc_cfg_data will not contain the true number of
+		 * ports in PUC_CFG_GET_DESC, but we are not implementing
+		 * that call for this device family anyway.
 		 *
-		 * The check is for initialisation of sc->sc_bar[idx], which is
-		 * only done in puc_bfe_attach().
+		 * The check is for initialization of sc->sc_bar[idx],
+		 * which is only done in puc_bfe_attach().
 		 */
 		idx = 0;
 		do {
