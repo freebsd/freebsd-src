@@ -1039,47 +1039,6 @@ icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	}
 }
 
-#ifndef BURN_BRIDGES
-/*
- * Dump IGMP statistics structure (pre 8.x kernel).
- */
-static void
-igmp_stats_live_old(const char *name)
-{
-	struct oigmpstat oigmpstat, zerostat;
-	size_t len = sizeof(oigmpstat);
-
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.igmp.stats", &oigmpstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.igmp.stats");
-		return;
-	}
-
-	printf("%s:\n", name);
-
-#define	p(f, m) if (oigmpstat.f || sflag <= 1) \
-    printf(m, oigmpstat.f, plural(oigmpstat.f))
-#define	py(f, m) if (oigmpstat.f || sflag <= 1) \
-    printf(m, oigmpstat.f, oigmpstat.f != 1 ? "ies" : "y")
-	p(igps_rcv_total, "\t%u message%s received\n");
-	p(igps_rcv_tooshort, "\t%u message%s received with too few bytes\n");
-	p(igps_rcv_badsum, "\t%u message%s received with bad checksum\n");
-	py(igps_rcv_queries, "\t%u membership quer%s received\n");
-	py(igps_rcv_badqueries,
-	    "\t%u membership quer%s received with invalid field(s)\n");
-	p(igps_rcv_reports, "\t%u membership report%s received\n");
-	p(igps_rcv_badreports,
-	    "\t%u membership report%s received with invalid field(s)\n");
-	p(igps_rcv_ourreports,
-"\t%u membership report%s received for groups to which we belong\n");
-        p(igps_snd_reports, "\t%u membership report%s sent\n");
-#undef p
-#undef py
-}
-#endif /* !BURN_BRIDGES */
-
 /*
  * Dump IGMP statistics structure.
  */
