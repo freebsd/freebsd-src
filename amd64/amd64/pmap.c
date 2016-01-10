@@ -1321,7 +1321,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 		 * Promotion: flush every 4KB page mapping from the TLB,
 		 * including any global (PG_G) mappings.
 		 */
-		invltlb_globpcid();
+		invltlb_glob();
 	}
 }
 #ifdef SMP
@@ -1421,12 +1421,20 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	sched_unpin();
 }
 
+/* 4k PTEs -- Chosen to exceed the total size of Broadwell L2 TLB */
+#define	PMAP_INVLPG_THRESHOLD	(4 * 1024 * PAGE_SIZE)
+
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	cpuset_t *mask;
 	vm_offset_t addr;
 	u_int cpuid, i;
+
+	if (eva - sva >= PMAP_INVLPG_THRESHOLD) {
+		pmap_invalidate_all(pmap);
+		return;
+	}
 
 	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
@@ -1482,7 +1490,7 @@ pmap_invalidate_all(pmap_t pmap)
 			bzero(&d, sizeof(d));
 			invpcid(&d, INVPCID_CTXGLOB);
 		} else {
-			invltlb_globpcid();
+			invltlb_glob();
 		}
 		mask = &all_cpus;
 	} else {
@@ -1653,7 +1661,7 @@ pmap_invalidate_all(pmap_t pmap)
 			bzero(&d, sizeof(d));
 			invpcid(&d, INVPCID_CTXGLOB);
 		} else {
-			invltlb_globpcid();
+			invltlb_glob();
 		}
 	} else if (pmap == PCPU_GET(curpmap)) {
 		if (pmap_pcid_enabled) {

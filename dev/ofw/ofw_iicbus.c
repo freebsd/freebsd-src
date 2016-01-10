@@ -190,6 +190,8 @@ ofw_iicbus_attach(device_t dev)
 		device_set_ivars(childdev, dinfo);
 	}
 
+	/* Register bus */
+	OF_device_register_xref(OF_xref_from_node(node), dev);
 	return (bus_generic_attach(dev));
 }
 

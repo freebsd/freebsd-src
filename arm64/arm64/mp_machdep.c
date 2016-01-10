@@ -175,7 +175,7 @@ arm64_cpu_attach(device_t dev)
 static void
 release_aps(void *dummy __unused)
 {
-	int i;
+	int cpu, i;
 
 	/* Setup the IPI handler */
 	for (i = 0; i < COUNT_IPI; i++)
@@ -188,8 +188,14 @@ release_aps(void *dummy __unused)
 	printf("Release APs\n");
 
 	for (i = 0; i < 2000; i++) {
-		if (smp_started)
+		if (smp_started) {
+			for (cpu = 0; cpu <= mp_maxid; cpu++) {
+				if (CPU_ABSENT(cpu))
+					continue;
+				print_cpu_features(cpu);
+			}
 			return;
+		}
 		DELAY(1000);
 	}
 

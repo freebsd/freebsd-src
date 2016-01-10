@@ -101,7 +101,7 @@ struct imx51_gpio_softc {
 	bus_space_handle_t	sc_ioh;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NGPIO];
-	struct arm_irqsrc 	*gpio_pic_irqsrc[NGPIO];
+	struct intr_irqsrc 	*gpio_pic_irqsrc[NGPIO];
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -149,7 +149,7 @@ static int imx51_gpio_pin_toggle(device_t, uint32_t pin);
  * this is teardown_intr
  */
 static void
-gpio_pic_disable_intr(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx51_gpio_softc *sc;
 	u_int irq;
@@ -168,7 +168,7 @@ gpio_pic_disable_intr(device_t dev, struct arm_irqsrc *isrc)
  * this is mask_intr
  */
 static void
-gpio_pic_disable_source(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_disable_source(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx51_gpio_softc *sc;
 
@@ -183,7 +183,7 @@ gpio_pic_disable_source(device_t dev, struct arm_irqsrc *isrc)
  * this is setup_intr
  */
 static void
-gpio_pic_enable_intr(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx51_gpio_softc *sc;
 	int icfg;
@@ -226,7 +226,7 @@ gpio_pic_enable_intr(device_t dev, struct arm_irqsrc *isrc)
  * this is unmask_intr
  */
 static void
-gpio_pic_enable_source(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_enable_source(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx51_gpio_softc *sc;
 
@@ -238,7 +238,7 @@ gpio_pic_enable_source(device_t dev, struct arm_irqsrc *isrc)
 }
 
 static void
-gpio_pic_post_filter(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx51_gpio_softc *sc;
 
@@ -250,7 +250,7 @@ gpio_pic_post_filter(device_t dev, struct arm_irqsrc *isrc)
 }
 
 static void
-gpio_pic_post_ithread(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 
 	arm_irq_memory_barrier(0);
@@ -258,7 +258,7 @@ gpio_pic_post_ithread(device_t dev, struct arm_irqsrc *isrc)
 }
 
 static void
-gpio_pic_pre_ithread(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 
 	gpio_pic_disable_source(dev, isrc);
@@ -268,7 +268,7 @@ gpio_pic_pre_ithread(device_t dev, struct arm_irqsrc *isrc)
  * intrng calls this to make a new isrc known to us.
  */
 static int
-gpio_pic_register(device_t dev, struct arm_irqsrc *isrc, boolean_t *is_percpu)
+gpio_pic_register(device_t dev, struct intr_irqsrc *isrc, boolean_t *is_percpu)
 {
 	struct imx51_gpio_softc *sc;
 	u_int irq, tripol;
@@ -320,7 +320,7 @@ gpio_pic_register(device_t dev, struct arm_irqsrc *isrc, boolean_t *is_percpu)
 		    tripol);
 		return (ENOTSUP);
 	}
-	isrc->isrc_nspc_type = ARM_IRQ_NSPC_PLAIN;
+	isrc->isrc_nspc_type = INTR_IRQ_NSPC_PLAIN;
 	isrc->isrc_nspc_num = irq;
 
 	/*
@@ -337,12 +337,12 @@ gpio_pic_register(device_t dev, struct arm_irqsrc *isrc, boolean_t *is_percpu)
 	isrc->isrc_data = irq;
 	mtx_unlock_spin(&sc->sc_mtx);
 
-	arm_irq_set_name(isrc, "%s,%u", device_get_nameunit(sc->dev), irq);
+	intr_irq_set_name(isrc, "%s,%u", device_get_nameunit(sc->dev), irq);
 	return (0);
 }
 
 static int
-gpio_pic_unregister(device_t dev, struct arm_irqsrc *isrc)
+gpio_pic_unregister(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct imx51_gpio_softc *sc;
 	u_int irq;
@@ -359,7 +359,7 @@ gpio_pic_unregister(device_t dev, struct arm_irqsrc *isrc)
 	isrc->isrc_data = 0;
 	mtx_unlock_spin(&sc->sc_mtx);
 
-	arm_irq_set_name(isrc, "");
+	intr_irq_set_name(isrc, "");
 	return (0);
 }
 
@@ -378,7 +378,7 @@ gpio_pic_filter(void *arg)
 		if ((interrupts & 0x1) == 0)
 			continue;
 		if (sc->gpio_pic_irqsrc[i])
-			arm_irq_dispatch(sc->gpio_pic_irqsrc[i], curthread->td_intr_frame);
+			intr_irq_dispatch(sc->gpio_pic_irqsrc[i], curthread->td_intr_frame);
 		else
 			device_printf(sc->dev, "spurious interrupt %d\n", i);
 	}
@@ -656,7 +656,7 @@ imx51_gpio_attach(device_t dev)
 	}
 
 #ifdef ARM_INTRNG
-	arm_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
+	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
 #endif
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	

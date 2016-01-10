@@ -85,11 +85,9 @@ efx_infer_family(
 
 #define	EFX_PCI_DEVID_HUNTINGTON_PF_UNINIT	0x0901
 #define	EFX_PCI_DEVID_FARMINGDALE		0x0903	/* SFC9120 PF */
-#define	EFX_PCI_DEVID_HUNTINGTON		0x0913	/* SFL9122 PF */
 #define	EFX_PCI_DEVID_GREENPORT			0x0923	/* SFC9140 PF */
 
 #define	EFX_PCI_DEVID_FARMINGDALE_VF		0x1903	/* SFC9120 VF */
-#define	EFX_PCI_DEVID_HUNTINGTON_VF		0x1913	/* SFL9122 VF */
 #define	EFX_PCI_DEVID_GREENPORT_VF		0x1923	/* SFC9140 VF */
 
 
@@ -201,12 +199,28 @@ typedef enum efx_mcdi_exception_e {
 	EFX_MCDI_EXCEPTION_MC_BADASSERT,
 } efx_mcdi_exception_t;
 
+#if EFSYS_OPT_MCDI_LOGGING
+typedef enum efx_log_msg_e
+{
+	EFX_LOG_INVALID,
+	EFX_LOG_MCDI_REQUEST,
+	EFX_LOG_MCDI_RESPONSE,
+} efx_log_msg_t;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+
 typedef struct efx_mcdi_transport_s {
 	void		*emt_context;
 	efsys_mem_t	*emt_dma_mem;
 	void		(*emt_execute)(void *, efx_mcdi_req_t *);
 	void		(*emt_ev_cpl)(void *);
 	void		(*emt_exception)(void *, efx_mcdi_exception_t);
+#if EFSYS_OPT_MCDI_LOGGING
+	void		(*emt_logger)(void *, efx_log_msg_t,
+					void *, size_t, void *, size_t);
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	void		(*emt_ev_proxy_response)(void *, uint32_t, efx_rc_t);
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
 } efx_mcdi_transport_t;
 
 extern	__checkReturn	efx_rc_t
@@ -1161,8 +1175,11 @@ typedef struct efx_nic_cfg_s {
 	boolean_t               enc_hw_tx_insert_vlan_enabled;
 	/* Datapath firmware vadapter/vport/vswitch support */
 	boolean_t		enc_datapath_cap_evb;
+	boolean_t               enc_rx_disable_scatter_supported;
+	boolean_t               enc_allow_set_mac_with_installed_filters;
 	/* External port identifier */
 	uint8_t			enc_external_port;
+	uint32_t		enc_mcdi_max_payload_length;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
@@ -2013,6 +2030,9 @@ efx_tx_fini(
 #define	EFX_TXQ_DC_NDESCS(_dcsize)	(8 << _dcsize)
 
 #define	EFX_TXQ_MAX_BUFS 8 /* Maximum independent of EFX_BUG35388_WORKAROUND. */
+
+#define	EFX_TXQ_CKSUM_IPV4	0x0001
+#define	EFX_TXQ_CKSUM_TCPUDP	0x0002
 
 extern	__checkReturn	efx_rc_t
 efx_tx_qcreate(

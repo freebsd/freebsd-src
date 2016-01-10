@@ -49,6 +49,10 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 
+#if EFSYS_OPT_MCDI_LOGGING
+#include <dev/pci/pcivar.h>
+#endif
+
 #define	SFXGE_MCDI_POLL_INTERVAL_MIN 10		/* 10us in 1us units */
 #define	SFXGE_MCDI_POLL_INTERVAL_MAX 100000	/* 100ms in 1us units */
 #define	SFXGE_MCDI_WATCHDOG_INTERVAL 10000000	/* 10s in 1us units */
@@ -163,6 +167,64 @@ sfxge_mcdi_exception(void *arg, efx_mcdi_exception_t eme)
 	sfxge_schedule_reset(sc);
 }
 
+#if EFSYS_OPT_MCDI_LOGGING
+
+#define SFXGE_MCDI_LOG_BUF_SIZE 128
+
+static size_t
+sfxge_mcdi_do_log(char *buffer, void *data, size_t data_size,
+		  size_t pfxsize, size_t position)
+{
+	uint32_t *words = data;
+	size_t i;
+
+	for (i = 0; i < data_size; i += sizeof(*words)) {
+		if (position + 2 * sizeof(*words) + 1 >= SFXGE_MCDI_LOG_BUF_SIZE) {
+			buffer[position] = '\0';
+			printf("%s \\\n", buffer);
+			position = pfxsize;
+		}
+		snprintf(buffer + position, SFXGE_MCDI_LOG_BUF_SIZE - position,
+			 " %08x", *words);
+		words++;
+		position += 2 * sizeof(uint32_t) + 1;
+	}
+	return (position);
+}
+
+static void
+sfxge_mcdi_logger(void *arg, efx_log_msg_t type,
+		  void *header, size_t header_size,
+		  void *data, size_t data_size)
+{
+	struct sfxge_softc *sc = (struct sfxge_softc *)arg;
+	char buffer[SFXGE_MCDI_LOG_BUF_SIZE];
+	size_t pfxsize;
+	size_t start;
+
+	if (!sc->mcdi_logging)
+		return;
+
+	pfxsize = snprintf(buffer, sizeof(buffer),
+			   "sfc %04x:%02x:%02x.%02x %s MCDI RPC %s:",
+			   pci_get_domain(sc->dev),
+			   pci_get_bus(sc->dev),
+			   pci_get_slot(sc->dev),
+			   pci_get_function(sc->dev),
+			   device_get_nameunit(sc->dev),
+			   type == EFX_LOG_MCDI_REQUEST ? "REQ" :
+			   type == EFX_LOG_MCDI_RESPONSE ? "RESP" : "???");
+	start = sfxge_mcdi_do_log(buffer, header, header_size,
+				  pfxsize, pfxsize);
+	start = sfxge_mcdi_do_log(buffer, data, data_size, pfxsize, start);
+	if (start != pfxsize) {
+		buffer[start] = '\0';
+		printf("%s\n", buffer);
+	}
+}
+
+#endif
+
 int
 sfxge_mcdi_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ip)
 {
@@ -269,6 +331,14 @@ sfxge_mcdi_init(struct sfxge_softc *sc)
 	emtp->emt_execute = sfxge_mcdi_execute;
 	emtp->emt_ev_cpl = sfxge_mcdi_ev_cpl;
 	emtp->emt_exception = sfxge_mcdi_exception;
+#if EFSYS_OPT_MCDI_LOGGING
+	emtp->emt_logger = sfxge_mcdi_logger;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
+		       SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+		       OID_AUTO, "mcdi_logging", CTLFLAG_RW,
+		       &sc->mcdi_logging, 0,
+		       "MCDI logging");
+#endif
 
 	if ((rc = efx_mcdi_init(enp, emtp)) != 0)
 		goto fail;

@@ -921,9 +921,9 @@ falconsiena_tx_qcreate(
 
 	EFX_SET_OWORD_FIELD(oword, FRF_BZ_TX_NON_IP_DROP_DIS, 1);
 	EFX_SET_OWORD_FIELD(oword, FRF_BZ_TX_IP_CHKSM_DIS,
-	    (flags & EFX_CKSUM_IPV4) ? 0 : 1);
+	    (flags & EFX_TXQ_CKSUM_IPV4) ? 0 : 1);
 	EFX_SET_OWORD_FIELD(oword, FRF_BZ_TX_TCP_CHKSM_DIS,
-	    (flags & EFX_CKSUM_TCPUDP) ? 0 : 1);
+	    (flags & EFX_TXQ_CKSUM_TCPUDP) ? 0 : 1);
 
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_TX_DESC_PTR_TBL,
 	    etp->et_index, &oword, B_TRUE);

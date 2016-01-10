@@ -243,6 +243,8 @@ extern struct vm_object kmem_object_store;
 	rw_try_upgrade(&(object)->lock)
 #define	VM_OBJECT_WLOCK(object)						\
 	rw_wlock(&(object)->lock)
+#define	VM_OBJECT_WOWNED(object)					\
+	rw_wowned(&(object)->lock)
 #define	VM_OBJECT_WUNLOCK(object)					\
 	rw_wunlock(&(object)->lock)
 

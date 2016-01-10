@@ -238,7 +238,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 	pindex = OFF_TO_IDX(offset);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid != VM_PAGE_BITS_ALL) {
-		rv = vm_pager_get_pages(object, &m, 1, 0);
+		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
 		if (rv != VM_PAGER_OK) {
 			vm_page_lock(m);
 			vm_page_free(m);
@@ -567,37 +567,37 @@ vm_thread_swapin(struct thread *td)
 {
 	vm_object_t ksobj;
 	vm_page_t ma[KSTACK_MAX_PAGES];
-	int i, j, pages, rv;
+	int pages;
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_WLOCK(ksobj);
-	for (i = 0; i < pages; i++)
+	for (int i = 0; i < pages; i++)
 		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL |
 		    VM_ALLOC_WIRED);
-	for (i = 0; i < pages; i++) {
-		if (ma[i]->valid != VM_PAGE_BITS_ALL) {
-			vm_page_assert_xbusied(ma[i]);
-			vm_object_pip_add(ksobj, 1);
-			for (j = i + 1; j < pages; j++) {
-				if (ma[j]->valid != VM_PAGE_BITS_ALL)
-					vm_page_assert_xbusied(ma[j]);
-				if (ma[j]->valid == VM_PAGE_BITS_ALL)
-					break;
-			}
-			rv = vm_pager_get_pages(ksobj, ma + i, j - i, 0);
-			if (rv != VM_PAGER_OK)
-	panic("vm_thread_swapin: cannot get kstack for proc: %d",
-				    td->td_proc->p_pid);
-			/*
-			 * All pages in the array are in place, due to the
-			 * pager is always the swap pager, which doesn't
-			 * free or remove wired non-req pages from object.
-			 */
-			vm_object_pip_wakeup(ksobj);
+	for (int i = 0; i < pages;) {
+		int j, a, count, rv;
+
+		vm_page_assert_xbusied(ma[i]);
+		if (ma[i]->valid == VM_PAGE_BITS_ALL) {
 			vm_page_xunbusy(ma[i]);
-		} else if (vm_page_xbusied(ma[i]))
-			vm_page_xunbusy(ma[i]);
+			i++;
+			continue;
+		}
+		vm_object_pip_add(ksobj, 1);
+		for (j = i + 1; j < pages; j++)
+			if (ma[j]->valid == VM_PAGE_BITS_ALL)
+				break;
+		rv = vm_pager_has_page(ksobj, ma[i]->pindex, NULL, &a);
+		KASSERT(rv == 1, ("%s: missing page %p", __func__, ma[i]));
+		count = min(a + 1, j - i);
+		rv = vm_pager_get_pages(ksobj, ma + i, count, NULL, NULL);
+		KASSERT(rv == VM_PAGER_OK, ("%s: cannot get kstack for proc %d",
+		    __func__, td->td_proc->p_pid));
+		vm_object_pip_wakeup(ksobj);
+		for (j = i; j < i + count; j++)
+			vm_page_xunbusy(ma[j]);
+		i += count;
 	}
 	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);

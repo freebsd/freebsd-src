@@ -2,6 +2,7 @@
  * Copyright (c) 2006,2007
  *	Damien Bergamini <damien.bergamini@free.fr>
  *	Benjamin Close <Benjamin.Close@clearchain.com>
+ * Copyright (c) 2015 Andriy Voskoboinyk <avos@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -3555,6 +3556,13 @@ static void
 wpi_update_promisc(struct ieee80211com *ic)
 {
 	struct wpi_softc *sc = ic->ic_softc;
+
+	WPI_LOCK(sc);
+	if (sc->sc_running == 0) {
+		WPI_UNLOCK(sc);
+		return;
+	}
+	WPI_UNLOCK(sc);
 
 	WPI_RXON_LOCK(sc);
 	wpi_set_promisc(sc);

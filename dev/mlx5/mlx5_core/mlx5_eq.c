@@ -31,6 +31,13 @@
 #include <dev/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
 
+#include "opt_rss.h"
+
+#ifdef  RSS
+#include <net/rss_config.h>
+#include <netinet/in_rss.h>
+#endif
+
 enum {
 	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
 	MLX5_EQE_OWNER_INIT_VAL	= 0x1,
@@ -55,7 +62,6 @@ enum {
 			       (1ull << MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR) | \
 			       (1ull << MLX5_EVENT_TYPE_WQ_ACCESS_ERROR)    | \
 			       (1ull << MLX5_EVENT_TYPE_PORT_CHANGE)	    | \
-			       (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE)   | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_CATAS_ERROR)    | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_LAST_WQE)	    | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_RQ_LIMIT))
@@ -389,6 +395,18 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 			  priv->irq_info[vecidx].name, eq);
 	if (err)
 		goto err_eq;
+#ifdef RSS
+	if (vecidx >= MLX5_EQ_VEC_COMP_BASE) {
+		u8 bucket = vecidx - MLX5_EQ_VEC_COMP_BASE;
+		err = bind_irq_to_cpu(priv->msix_arr[vecidx].vector,
+				      rss_getcpu(bucket % rss_getnumbuckets()));
+		if (err)
+			goto err_irq;
+	}
+#else
+	if (0)
+		goto err_irq;
+#endif
 
 
 	/* EQs are created in ARMED state
@@ -398,6 +416,8 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	kvfree(in);
 	return 0;
 
+err_irq:
+	free_irq(priv->msix_arr[vecidx].vector, eq);
 
 err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
@@ -451,6 +471,10 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, port_module_event))
 		async_event_mask |= (1ull <<
 				     MLX5_EVENT_TYPE_CODING_PORT_MODULE_EVENT);
+
+	if (MLX5_CAP_GEN(dev, nic_vport_change_event))
+		async_event_mask |= (1ull <<
+				     MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,10 +101,11 @@ fd_install(unsigned int fd, struct linux_file *filp)
 
 	if (fget_unlocked(curthread->td_proc->p_fd, fd,
 	    cap_rights_init(&rights), &file, NULL) != 0) {
-		file = NULL;
+		filp->_file = NULL;
+	} else {
+		filp->_file = file;
+		finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
 	}
-	filp->_file = file;
-	finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
 
 	/* drop the extra reference */
 	fput(filp);
@@ -118,6 +119,21 @@ get_unused_fd(void)
 	int fd;
 
 	error = falloc(curthread, &file, &fd, 0);
+	if (error)
+		return -error;
+	/* drop the extra reference */
+	fdrop(file, curthread);
+	return fd;
+}
+
+static inline int
+get_unused_fd_flags(int flags)
+{
+	struct file *file;
+	int error;
+	int fd;
+
+	error = falloc(curthread, &file, &fd, flags);
 	if (error)
 		return -error;
 	/* drop the extra reference */

@@ -64,10 +64,10 @@ EFI_GUID fdtdtb = FDT_TABLE_GUID;
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
-	char vendor[128];
+	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i;
+	int i, j, vargood;
 
 	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
@@ -76,6 +76,29 @@ main(int argc, CHAR16 *argv[])
 	 * printf() etc. once this is done.
 	 */
 	cons_probe();
+
+	/*
+	 * Loop through the args, and for each one that contains an '=' that is
+	 * not the first character, add it to the environment.  This allows
+	 * loader and kernel env vars to be passed on the command line.  Convert
+	 * args from UCS-2 to ASCII (16 to 8 bit) as they are copied.
+	 */
+	for (i = 1; i < argc; i++) {
+		vargood = 0;
+		for (j = 0; argv[i][j] != 0; j++) {
+			if (j == sizeof(var)) {
+				vargood = 0;
+				break;
+			}
+			if (j > 0 && argv[i][j] == '=')
+				vargood = 1;
+			var[j] = (char)argv[i][j];
+		}
+		if (vargood) {
+			var[j] = 0;
+			putenv(var);
+		}
+	}
 
 	if (efi_copy_init()) {
 		printf("failed to allocate staging area\n");
@@ -204,50 +227,47 @@ command_memmap(int argc, char *argv[])
 	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		printf("Can't determine memory map size\n");
-		return CMD_ERROR;
+		return (CMD_ERROR);
 	}
 	map = malloc(sz);
 	status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
 	if (EFI_ERROR(status)) {
 		printf("Can't read memory map\n");
-		return CMD_ERROR;
+		return (CMD_ERROR);
 	}
 
 	ndesc = sz / dsz;
 	printf("%23s %12s %12s %8s %4s\n",
-	       "Type", "Physical", "Virtual", "#Pages", "Attr");
+	    "Type", "Physical", "Virtual", "#Pages", "Attr");
 
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
-	    printf("%23s %012lx %012lx %08lx ",
-		   types[p->Type],
-		   p->PhysicalStart,
-		   p->VirtualStart,
-		   p->NumberOfPages);
-	    if (p->Attribute & EFI_MEMORY_UC)
-		printf("UC ");
-	    if (p->Attribute & EFI_MEMORY_WC)
-		printf("WC ");
-	    if (p->Attribute & EFI_MEMORY_WT)
-		printf("WT ");
-	    if (p->Attribute & EFI_MEMORY_WB)
-		printf("WB ");
-	    if (p->Attribute & EFI_MEMORY_UCE)
-		printf("UCE ");
-	    if (p->Attribute & EFI_MEMORY_WP)
-		printf("WP ");
-	    if (p->Attribute & EFI_MEMORY_RP)
-		printf("RP ");
-	    if (p->Attribute & EFI_MEMORY_XP)
-		printf("XP ");
-	    printf("\n");
+		printf("%23s %012lx %012lx %08lx ", types[p->Type],
+		   p->PhysicalStart, p->VirtualStart, p->NumberOfPages);
+		if (p->Attribute & EFI_MEMORY_UC)
+			printf("UC ");
+		if (p->Attribute & EFI_MEMORY_WC)
+			printf("WC ");
+		if (p->Attribute & EFI_MEMORY_WT)
+			printf("WT ");
+		if (p->Attribute & EFI_MEMORY_WB)
+			printf("WB ");
+		if (p->Attribute & EFI_MEMORY_UCE)
+			printf("UCE ");
+		if (p->Attribute & EFI_MEMORY_WP)
+			printf("WP ");
+		if (p->Attribute & EFI_MEMORY_RP)
+			printf("RP ");
+		if (p->Attribute & EFI_MEMORY_XP)
+			printf("XP ");
+		printf("\n");
 	}
 
-	return CMD_OK;
+	return (CMD_OK);
 }
 
-COMMAND_SET(configuration, "configuration",
-	    "print configuration tables", command_configuration);
+COMMAND_SET(configuration, "configuration", "print configuration tables",
+    command_configuration);
 
 static const char *
 guid_to_string(EFI_GUID *guid)
@@ -295,7 +315,7 @@ command_configuration(int argc, char *argv[])
 		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
 	}
 
-	return CMD_OK;
+	return (CMD_OK);
 }
 
 
@@ -311,6 +331,7 @@ command_mode(int argc, char *argv[])
 	char rowenv[8];
 	EFI_STATUS status;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout;
+	extern void HO(void);
 
 	conout = ST->ConOut;
 
@@ -332,14 +353,15 @@ command_mode(int argc, char *argv[])
 		}
 		sprintf(rowenv, "%u", (unsigned)rows);
 		setenv("LINES", rowenv, 1);
-
+		HO();		/* set cursor */
 		return (CMD_OK);
 	}
 
-	for (i = 0; ; i++) {
+	printf("Current mode: %d\n", conout->Mode->Mode);
+	for (i = 0; i <= conout->Mode->MaxMode; i++) {
 		status = conout->QueryMode(conout, i, &cols, &rows);
 		if (EFI_ERROR(status))
-			break;
+			continue;
 		printf("Mode %d: %u columns, %u rows\n", i, (unsigned)cols,
 		    (unsigned)rows);
 	}
@@ -370,20 +392,17 @@ command_nvram(int argc, char *argv[])
 	status = RS->GetNextVariableName(&varsz, NULL, NULL);
 
 	for (; status != EFI_NOT_FOUND; ) {
-		status = RS->GetNextVariableName(&varsz, var,
-		    &varguid);
+		status = RS->GetNextVariableName(&varsz, var, &varguid);
 		//if (EFI_ERROR(status))
 			//break;
 
 		conout->OutputString(conout, var);
 		printf("=");
 		datasz = 0;
-		status = RS->GetVariable(var, &varguid, NULL, &datasz,
-		    NULL);
+		status = RS->GetVariable(var, &varguid, NULL, &datasz, NULL);
 		/* XXX: check status */
 		data = malloc(datasz);
-		status = RS->GetVariable(var, &varguid, NULL, &datasz,
-		    data);
+		status = RS->GetVariable(var, &varguid, NULL, &datasz, data);
 		if (EFI_ERROR(status))
 			printf("<error retrieving variable>");
 		else {

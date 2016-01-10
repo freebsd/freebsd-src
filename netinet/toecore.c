@@ -70,7 +70,6 @@ static TAILQ_HEAD(, toedev) toedev_list;
 static eventhandler_tag listen_start_eh;
 static eventhandler_tag listen_stop_eh;
 static eventhandler_tag lle_event_eh;
-static eventhandler_tag route_redirect_eh;
 
 static int
 toedev_connect(struct toedev *tod __unused, struct socket *so __unused,
@@ -428,24 +427,13 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		KASSERT(lle->la_flags & LLE_VALID,
 		    ("%s: %p resolved but not valid?", __func__, lle));
 
-		lladdr = (uint8_t *)&lle->ll_addr;
+		lladdr = (uint8_t *)lle->ll_addr;
 #ifdef VLAN_TAG
 		VLAN_TAG(ifp, &vtag);
 #endif
 	}
 
 	tod->tod_l2_update(tod, ifp, sa, lladdr, vtag);
-}
-
-/*
- * XXX: implement.
- */
-static void
-toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
-    struct rtentry *rt1, struct sockaddr *sa)
-{
-
-	return;
 }
 
 /*
@@ -509,7 +497,7 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			KASSERT(!(tp->t_flags & TF_TOE),
 			    ("%s: tp %p still offloaded.", __func__, tp));
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-			(void) tcp_output(tp);
+			(void) tp->t_fb->tfb_tcp_output(tp);
 		} else {
 
 			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
@@ -534,8 +522,6 @@ toecore_load(void)
 	    toe_listen_stop_event, NULL, EVENTHANDLER_PRI_ANY);
 	lle_event_eh = EVENTHANDLER_REGISTER(lle_event, toe_lle_event, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	route_redirect_eh = EVENTHANDLER_REGISTER(route_redirect_event,
-	    toe_route_redirect_event, NULL, EVENTHANDLER_PRI_ANY);
 
 	return (0);
 }
@@ -553,7 +539,6 @@ toecore_unload(void)
 	EVENTHANDLER_DEREGISTER(tcp_offload_listen_start, listen_start_eh);
 	EVENTHANDLER_DEREGISTER(tcp_offload_listen_stop, listen_stop_eh);
 	EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
-	EVENTHANDLER_DEREGISTER(route_redirect_event, route_redirect_eh);
 
 	mtx_unlock(&toedev_lock);
 	mtx_destroy(&toedev_lock);

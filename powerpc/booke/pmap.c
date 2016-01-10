@@ -161,7 +161,6 @@ unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 #define PMAP_REMOVE_DONE(pmap) \
 	((pmap) != kernel_pmap && (pmap)->pm_stats.resident_count == 0)
 
-extern void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
 extern int elf32_nxstack;
 
 /**************************************************************************/
@@ -195,6 +194,7 @@ static unsigned int tlb1_idx;
 static vm_offset_t tlb1_map_base = VM_MAX_KERNEL_ADDRESS;
 
 static tlbtid_t tid_alloc(struct pmap *);
+static void tid_flush(tlbtid_t tid);
 
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
 
@@ -1024,12 +1024,13 @@ pte_find(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 static void
 mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 {
-	vm_offset_t phys_kernelend;
+	vm_paddr_t phys_kernelend;
 	struct mem_region *mp, *mp1;
 	int cnt, i, j;
-	u_int s, e, sz;
+	vm_paddr_t s, e, sz;
+	vm_paddr_t physsz, hwphyssz;
 	u_int phys_avail_count;
-	vm_size_t physsz, hwphyssz, kstack0_sz;
+	vm_size_t kstack0_sz;
 	vm_offset_t kernel_pdir, kstack0, va;
 	vm_paddr_t kstack0_phys;
 	void *dpcpu;
@@ -1163,7 +1164,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	for (mp = availmem_regions; mp->mr_size; mp++) {
 		s = mp->mr_start;
 		e = mp->mr_start + mp->mr_size;
-		debugf(" %08x-%08x -> ", s, e);
+		debugf(" %09jx-%09jx -> ", (uintmax_t)s, (uintmax_t)e);
 		/* Check whether this region holds all of the kernel. */
 		if (s < kernload && e > phys_kernelend) {
 			availmem_regions[cnt].mr_start = phys_kernelend;
@@ -1188,7 +1189,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		if (e < s)
 			e = s;
 		sz = e - s;
-		debugf("%08x-%08x = %x\n", s, e, sz);
+		debugf("%09jx-%09jx = %jx\n",
+		    (uintmax_t)s, (uintmax_t)e, (uintmax_t)sz);
 
 		/* Check whether some memory is left here. */
 		if (sz == 0) {
@@ -1237,10 +1239,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	for (i = 0, j = 0; i < availmem_regions_sz; i++, j += 2) {
 
 		debugf(" region: 0x%jx - 0x%jx (0x%jx)\n",
-		    availmem_regions[i].mr_start,
-		    availmem_regions[i].mr_start +
+		    (uintmax_t)availmem_regions[i].mr_start,
+		    (uintmax_t)availmem_regions[i].mr_start +
 		        availmem_regions[i].mr_size,
-		    availmem_regions[i].mr_size);
+		    (uintmax_t)availmem_regions[i].mr_size);
 
 		if (hwphyssz != 0 &&
 		    (physsz + availmem_regions[i].mr_size) >= hwphyssz) {
@@ -2233,8 +2235,17 @@ mmu_booke_zero_page_area(mmu_t mmu, vm_page_t m, int off, int size)
 static void
 mmu_booke_zero_page(mmu_t mmu, vm_page_t m)
 {
+	vm_offset_t off, va;
 
-	mmu_booke_zero_page_area(mmu, m, 0, PAGE_SIZE);
+	mtx_lock(&zero_page_mutex);
+	va = zero_page_va;
+
+	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
+	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
+		__asm __volatile("dcbzl 0,%0" :: "r"(va + off));
+	mmu_booke_kremove(mmu, va);
+
+	mtx_unlock(&zero_page_mutex);
 }
 
 /*
@@ -2913,7 +2924,7 @@ tid_alloc(pmap_t pmap)
 		tidbusy[thiscpu][tid]->pm_tid[thiscpu] = TID_NONE;
 
 		/* Flush all entries from TLB0 matching this TID. */
-		tid_flush(tid, tlb0_ways, tlb0_entries_per_way);
+		tid_flush(tid);
 	}
 
 	tidbusy[thiscpu][tid] = pmap;
@@ -3423,4 +3434,49 @@ tlb1_iomapped(int i, vm_paddr_t pa, vm_size_t size, vm_offset_t *va)
 	/* Return virtual address of this mapping. */
 	*va = (tlb1[i].mas2 & MAS2_EPN_MASK) + (pa - pa_start);
 	return (0);
+}
+
+/*
+ * Invalidate all TLB0 entries which match the given TID. Note this is
+ * dedicated for cases when invalidations should NOT be propagated to other
+ * CPUs.
+ */
+static void
+tid_flush(tlbtid_t tid)
+{
+	register_t msr;
+	uint32_t mas0, mas1, mas2;
+	int entry, way;
+
+
+	/* Don't evict kernel translations */
+	if (tid == TID_KERNEL)
+		return;
+
+	msr = mfmsr();
+	__asm __volatile("wrteei 0");
+
+	for (way = 0; way < TLB0_WAYS; way++)
+		for (entry = 0; entry < TLB0_ENTRIES_PER_WAY; entry++) {
+
+			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
+			mtspr(SPR_MAS0, mas0);
+			__asm __volatile("isync");
+
+			mas2 = entry << MAS2_TLB0_ENTRY_IDX_SHIFT;
+			mtspr(SPR_MAS2, mas2);
+
+			__asm __volatile("isync; tlbre");
+
+			mas1 = mfspr(SPR_MAS1);
+
+			if (!(mas1 & MAS1_VALID))
+				continue;
+			if (((mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT) != tid)
+				continue;
+			mas1 &= ~MAS1_VALID;
+			mtspr(SPR_MAS1, mas1);
+			__asm __volatile("isync; tlbwe; isync; msync");
+		}
+	mtmsr(msr);
 }

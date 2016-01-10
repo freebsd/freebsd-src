@@ -196,6 +196,7 @@
 #define	PTE2_ATTR_NOCACHE	TEX2_CLASS_1
 #define	PTE2_ATTR_DEVICE	TEX2_CLASS_2
 #define	PTE2_ATTR_SO		TEX2_CLASS_3
+#define	PTE2_ATTR_WT		TEX2_CLASS_4
 /*
  * Software defined bits for L1	descriptors
  *  - L1_AP0 is	used as	page accessed bit

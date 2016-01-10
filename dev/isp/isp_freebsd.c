@@ -632,7 +632,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			tmf->tmf_header.rqs_entry_count = 1;
 			tmf->tmf_nphdl = lp->handle;
 			tmf->tmf_delay = 2;
-			tmf->tmf_timeout = 2;
+			tmf->tmf_timeout = 4;
 			tmf->tmf_tidlo = lp->portid;
 			tmf->tmf_tidhi = lp->portid >> 16;
 			tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
@@ -668,7 +668,8 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				ISP_UNLOCK(isp);
 				break;
 			}
-			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 5000000);
+			MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
+			    MBCMD_DEFAULT_TIMEOUT + tmf->tmf_timeout * 1000000);
 			mbs.param[1] = QENTRY_LEN;
 			mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 			mbs.param[3] = DMA_WD0(fcp->isp_scdma);
@@ -1403,7 +1404,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			cto->ct_iid_hi = atp->portid >> 16;
 			cto->ct_oxid = atp->oxid;
 			cto->ct_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(ccb));
-			cto->ct_timeout = 120;
+			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
 			cto->ct_flags = atp->tattr << CT7_TASK_ATTR_SHIFT;
 
 			/*
@@ -1555,7 +1556,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					cto->ct_lun = ccb->ccb_h.target_lun;
 				}
 			}
-			cto->ct_timeout = 10;
+			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
 			cto->ct_rxid = cso->tag_id;
 
 			/*
@@ -1693,7 +1694,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
 			break;
 		}
-		if (isp_allocate_xs_tgt(isp, ccb, &handle)) {
+		handle = isp_allocate_handle(isp, ccb, ISP_HANDLE_TARGET);
+		if (handle == 0) {
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path, "No XFLIST pointers for %s\n", __func__);
 			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
 			isp_free_pcmd(isp, ccb);
@@ -1722,7 +1724,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 
 		dmaresult = ISP_DMASETUP(isp, cso, (ispreq_t *) local);
 		if (dmaresult != CMD_QUEUED) {
-			isp_destroy_tgt_handle(isp, handle);
+			isp_destroy_handle(isp, handle);
 			isp_free_pcmd(isp, ccb);
 			if (dmaresult == CMD_EAGAIN) {
 				TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
@@ -2379,12 +2381,12 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	uint32_t handle, moved_data = 0, data_requested;
 
 	handle = ((ct2_entry_t *)arg)->ct_syshandle;
-	ccb = isp_find_xs_tgt(isp, handle);
+	ccb = isp_find_xs(isp, handle);
 	if (ccb == NULL) {
 		isp_print_bytes(isp, "null ccb in isp_handle_platform_ctio", QENTRY_LEN, arg);
 		return;
 	}
-	isp_destroy_tgt_handle(isp, handle);
+	isp_destroy_handle(isp, handle);
 	data_requested = PISP_PCMD(ccb)->datalen;
 	isp_free_pcmd(isp, ccb);
 	if (isp->isp_nactive) {
@@ -3320,7 +3322,7 @@ isp_loop_dead(ispsoftc_t *isp, int chan)
 		for (i = 0; i < isp->isp_maxcmds; i++) {
 			struct ccb_scsiio *xs;
 
-			if (!ISP_VALID_HANDLE(isp, isp->isp_xflist[i].handle)) {
+			if (ISP_H2HT(isp->isp_xflist[i].handle) != ISP_HANDLE_INITIATOR) {
 				continue;
 			}
 			if ((xs = isp->isp_xflist[i].cmd) == NULL) {
@@ -4550,91 +4552,52 @@ isp_uninit(ispsoftc_t *isp)
 	ISP_DISABLE_INTS(isp);
 }
 
-/*
- * When we want to get the 'default' WWNs (when lacking NVRAM), we pick them
- * up from our platform default (defww{p|n}n) and morph them based upon
- * channel.
- * 
- * When we want to get the 'active' WWNs, we get NVRAM WWNs and then morph them
- * based upon channel.
- */
-
 uint64_t
 isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 {
 	uint64_t seed;
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 
-	/*
-	 * If we're asking for a active WWN, the default overrides get
-	 * returned, otherwise the NVRAM value is picked.
-	 * 
-	 * If we're asking for a default WWN, we just pick the default override.
-	 */
-	if (isactive) {
-		seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
-		if (seed) {
-			return (seed);
-		}
-		seed = iswwnn ? FCPARAM(isp, chan)->isp_wwnn_nvram : FCPARAM(isp, chan)->isp_wwpn_nvram;
-		if (seed) {
-			return (seed);
-		}
-		return (0x400000007F000009ull);
-	}
-
+	/* First try to use explicitly configured WWNs. */
 	seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
-
-	/*
-	 * For channel zero just return what we have. For either ACTIVE or
-	 * DEFAULT cases, we depend on default override of NVRAM values for
-	 * channel zero.
-	 */
-	if (chan == 0) {
+	if (seed)
 		return (seed);
+
+	/* Otherwise try to use WWNs from NVRAM. */
+	if (isactive) {
+		seed = iswwnn ? FCPARAM(isp, chan)->isp_wwnn_nvram :
+		    FCPARAM(isp, chan)->isp_wwpn_nvram;
+		if (seed)
+			return (seed);
 	}
 
-	/*
-	 * For other channels, we are doing one of three things:
-	 * 
-	 * 1. If what we have now is non-zero, return it. Otherwise we morph
-	 * values from channel 0. 2. If we're here for a WWPN we synthesize
-	 * it if Channel 0's wwpn has a type 2 NAA. 3. If we're here for a
-	 * WWNN we synthesize it if Channel 0's wwnn has a type 2 NAA.
-	 */
-
-	if (seed) {
-		return (seed);
+	/* If still no WWNs, try to steal them from the first channel. */
+	if (chan > 0) {
+		seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn :
+		    ISP_FC_PC(isp, 0)->def_wwpn;
+		if (seed == 0) {
+			seed = iswwnn ? FCPARAM(isp, 0)->isp_wwnn_nvram :
+			    FCPARAM(isp, 0)->isp_wwpn_nvram;
+		}
 	}
-	seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
-	if (seed == 0)
-		seed = iswwnn ? FCPARAM(isp, 0)->isp_wwnn_nvram : FCPARAM(isp, 0)->isp_wwpn_nvram;
 
-	if (((seed >> 60) & 0xf) == 2) {
+	/* If still nothing -- improvise. */
+	if (seed == 0) {
+		seed = 0x400000007F000000ull + device_get_unit(isp->isp_dev);
+		if (!iswwnn)
+			seed ^= 0x0100000000000000ULL;
+	}
+
+	/* For additional channels we have to improvise even more. */
+	if (!iswwnn && chan > 0) {
 		/*
-		 * The type 2 NAA fields for QLogic cards appear be laid out
-		 * thusly:
-		 * 
-		 * bits 63..60 NAA == 2 bits 59..57 unused/zero bit 56
-		 * port (1) or node (0) WWN distinguishor bit 48
-		 * physical port on dual-port chips (23XX/24XX)
-		 * 
-		 * This is somewhat nutty, particularly since bit 48 is
-		 * irrelevant as they assign separate serial numbers to
-		 * different physical ports anyway.
-		 * 
 		 * We'll stick our channel number plus one first into bits
 		 * 57..59 and thence into bits 52..55 which allows for 8 bits
-		 * of channel which is comfortably more than our maximum
-		 * (126) now.
+		 * of channel which is enough for our maximum of 255 channels.
 		 */
-		seed &= ~0x0FF0000000000000ULL;
-		if (iswwnn == 0) {
-			seed |= ((uint64_t) (chan + 1) & 0xf) << 56;
-			seed |= ((uint64_t) ((chan + 1) >> 4) & 0xf) << 52;
-		}
-	} else {
-		seed = 0;
+		seed ^= 0x0100000000000000ULL;
+		seed ^= ((uint64_t) (chan + 1) & 0xf) << 56;
+		seed ^= ((uint64_t) ((chan + 1) >> 4) & 0xf) << 52;
 	}
 	return (seed);
 }

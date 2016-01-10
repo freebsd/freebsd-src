@@ -152,11 +152,6 @@ static driver_t ugensa_driver = {
 	.size = sizeof(struct ugensa_softc),
 };
 
-DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
-MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
-MODULE_DEPEND(ugensa, usb, 1, 1, 1);
-MODULE_VERSION(ugensa, 1);
-
 static const STRUCT_USB_HOST_ID ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_AIRPRIME, USB_PRODUCT_AIRPRIME_PC5220, 0)},
 	{USB_VPI(USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CDMA_MODEM1, 0)},
@@ -164,6 +159,12 @@ static const STRUCT_USB_HOST_ID ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_49GPLUS, 0)},
 	{USB_VPI(USB_VENDOR_NOVATEL2, USB_PRODUCT_NOVATEL2_FLEXPACKGPS, 0)},
 };
+
+DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
+MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
+MODULE_DEPEND(ugensa, usb, 1, 1, 1);
+MODULE_VERSION(ugensa, 1);
+USB_PNP_HOST_INFO(ugensa_devs);
 
 static int
 ugensa_probe(device_t dev)

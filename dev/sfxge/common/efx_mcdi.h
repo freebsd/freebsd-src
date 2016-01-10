@@ -59,6 +59,12 @@ struct efx_mcdi_req_s {
 	uint8_t		*emr_out_buf;
 	size_t		emr_out_length;
 	size_t		emr_out_length_used;
+	/* Internals: low level transport details */
+	unsigned int	emr_err_code;
+	unsigned int	emr_err_arg;
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	uint32_t	emr_proxy_handle;
+#endif
 };
 
 typedef struct efx_mcdi_iface_s {
@@ -82,12 +88,31 @@ efx_mcdi_execute_quiet(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp);
 
+ extern			void
+efx_mcdi_read_response_header(
+	__in		efx_nic_t *enp,
+	__inout		efx_mcdi_req_t *emrp);
+
 extern			void
 efx_mcdi_ev_cpl(
 	__in		efx_nic_t *enp,
 	__in		unsigned int seq,
 	__in		unsigned int outlen,
 	__in		int errcode);
+
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_proxy_handle(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *handlep);
+
+extern			void
+efx_mcdi_ev_proxy_response(
+	__in		efx_nic_t *enp,
+	__in		unsigned int handle,
+	__in		unsigned int status);
+#endif
 
 extern			void
 efx_mcdi_ev_death(
@@ -150,6 +175,17 @@ extern	__checkReturn		efx_rc_t
 efx_mcdi_macaddr_change_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp);
+
+extern	__checkReturn		efx_rc_t
+efx_mcdi_link_control_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp);
+
+extern	__checkReturn		efx_rc_t
+efx_mcdi_mac_spoofing_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp);
+
 
 #if EFSYS_OPT_BIST
 #if EFSYS_OPT_HUNTINGTON
@@ -349,6 +385,18 @@ efx_mcdi_get_loopback_modes(
 
 #define	MCDI_CMD_DWORD_FIELD(_edp, _field)				\
 	EFX_DWORD_FIELD(*_edp, MC_CMD_ ## _field)
+
+#define	EFX_MCDI_HAVE_PRIVILEGE(mask, priv)				\
+	(((mask) & (MC_CMD_PRIVILEGE_MASK_IN_GRP_ ## priv)) ==		\
+	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ ## priv))
+
+typedef enum efx_mcdi_feature_id_e {
+	EFX_MCDI_FEATURE_FW_UPDATE = 0,
+	EFX_MCDI_FEATURE_LINK_CONTROL,
+	EFX_MCDI_FEATURE_MACADDR_CHANGE,
+	EFX_MCDI_FEATURE_MAC_SPOOFING,
+	EFX_MCDI_FEATURE_NIDS
+} efx_mcdi_feature_id_t;
 
 #ifdef	__cplusplus
 }

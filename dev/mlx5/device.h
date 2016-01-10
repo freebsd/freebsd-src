@@ -1023,6 +1023,26 @@ enum {
 	MLX5_MODIFY_ESW_VPORT_CONTEXT_FIELD_SELECT_CVLAN_INSERT = 1 << 3
 };
 
+enum {
+	MLX5_UC_ADDR_CHANGE = (1 << 0),
+	MLX5_MC_ADDR_CHANGE = (1 << 1),
+	MLX5_VLAN_CHANGE    = (1 << 2),
+	MLX5_PROMISC_CHANGE = (1 << 3),
+	MLX5_MTU_CHANGE     = (1 << 4),
+};
+
+enum mlx5_list_type {
+	MLX5_NIC_VPORT_LIST_TYPE_UC   = 0x0,
+	MLX5_NIC_VPORT_LIST_TYPE_MC   = 0x1,
+	MLX5_NIC_VPORT_LIST_TYPE_VLAN = 0x2,
+};
+
+enum {
+	MLX5_ESW_VPORT_ADMIN_STATE_DOWN  = 0x0,
+	MLX5_ESW_VPORT_ADMIN_STATE_UP    = 0x1,
+	MLX5_ESW_VPORT_ADMIN_STATE_AUTO  = 0x2,
+};
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */
@@ -1086,6 +1106,22 @@ enum mlx5_cap_type {
 #define MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, cap) \
 	MLX5_GET(flow_table_eswitch_cap, \
 		 mdev->hca_caps_max[MLX5_CAP_ESWITCH_FLOW_TABLE], cap)
+
+#define MLX5_CAP_ESW_FLOWTABLE_EGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(dev, \
+			       flow_table_properties_esw_acl_egress.cap)
+
+#define MLX5_CAP_ESW_FLOWTABLE_EGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(dev, \
+				   flow_table_properties_esw_acl_egress.cap)
+
+#define MLX5_CAP_ESW_FLOWTABLE_INGRESS_ACL(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE(dev, \
+			       flow_table_properties_esw_acl_ingress.cap)
+
+#define MLX5_CAP_ESW_FLOWTABLE_INGRESS_ACL_MAX(mdev, cap) \
+	MLX5_CAP_ESW_FLOWTABLE_MAX(dev, \
+				   flow_table_properties_esw_acl_ingress.cap)
 
 #define MLX5_CAP_ESW(mdev, cap) \
 	MLX5_GET(e_switch_cap, \
@@ -1184,4 +1220,36 @@ struct mlx5_ifc_mcia_reg_bits {
 };
 
 #define MLX5_CMD_OP_QUERY_EEPROM 0x93c
+
+struct mlx5_mini_cqe8 {
+	union {
+		u32 rx_hash_result;
+		u32 checksum;
+		struct {
+			u16 wqe_counter;
+			u8  s_wqe_opcode;
+			u8  reserved;
+		} s_wqe_info;
+	};
+	u32 byte_cnt;
+};
+
+enum {
+	MLX5_NO_INLINE_DATA,
+	MLX5_INLINE_DATA32_SEG,
+	MLX5_INLINE_DATA64_SEG,
+	MLX5_COMPRESSED,
+};
+
+enum mlx5_exp_cqe_zip_recv_type {
+	MLX5_CQE_FORMAT_HASH,
+	MLX5_CQE_FORMAT_CSUM,
+};
+
+#define MLX5E_CQE_FORMAT_MASK 0xc
+static inline int mlx5_get_cqe_format(const struct mlx5_cqe64 *cqe)
+{
+	return (cqe->op_own & MLX5E_CQE_FORMAT_MASK) >> 2;
+}
+
 #endif /* MLX5_DEVICE_H */

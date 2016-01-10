@@ -90,8 +90,10 @@ efx_mcdi_init_txq(
 
 	MCDI_IN_POPULATE_DWORD_6(req, INIT_TXQ_IN_FLAGS,
 	    INIT_TXQ_IN_FLAG_BUFF_MODE, 0,
-	    INIT_TXQ_IN_FLAG_IP_CSUM_DIS, (flags & EFX_CKSUM_IPV4) ? 0 : 1,
-	    INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, (flags & EFX_CKSUM_TCPUDP) ? 0 : 1,
+	    INIT_TXQ_IN_FLAG_IP_CSUM_DIS,
+	    (flags & EFX_TXQ_CKSUM_IPV4) ? 0 : 1,
+	    INIT_TXQ_IN_FLAG_TCP_CSUM_DIS,
+	    (flags & EFX_TXQ_CKSUM_TCPUDP) ? 0 : 1,
 	    INIT_TXQ_IN_FLAG_TCP_UDP_ONLY, 0,
 	    INIT_TXQ_IN_CRC_MODE, 0,
 	    INIT_TXQ_IN_FLAG_TIMESTAMP, 0);
@@ -210,8 +212,10 @@ hunt_tx_qcreate(
 	EFX_POPULATE_QWORD_4(desc,
 	    ESF_DZ_TX_DESC_IS_OPT, 1,
 	    ESF_DZ_TX_OPTION_TYPE, ESE_DZ_TX_OPTION_DESC_CRC_CSUM,
-	    ESF_DZ_TX_OPTION_UDP_TCP_CSUM, (flags & EFX_CKSUM_TCPUDP) ? 1 : 0,
-	    ESF_DZ_TX_OPTION_IP_CSUM, (flags & EFX_CKSUM_IPV4) ? 1 : 0);
+	    ESF_DZ_TX_OPTION_UDP_TCP_CSUM,
+	    (flags & EFX_TXQ_CKSUM_TCPUDP) ? 1 : 0,
+	    ESF_DZ_TX_OPTION_IP_CSUM,
+	    (flags & EFX_TXQ_CKSUM_IPV4) ? 1 : 0);
 
 	EFSYS_MEM_WRITEQ(etp->et_esmp, 0, &desc);
 	hunt_tx_qpush(etp, *addedp, 0);

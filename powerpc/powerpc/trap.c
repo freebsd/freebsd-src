@@ -74,11 +74,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/spr.h>
 #include <machine/sr.h>
 
-#define	FAULTBUF_LR	0
+/* Below matches setjmp.S */
+#define	FAULTBUF_LR	21
 #define	FAULTBUF_R1	1
 #define	FAULTBUF_R2	2
-#define	FAULTBUF_CR	3
-#define	FAULTBUF_R13	4
+#define	FAULTBUF_CR	22
+#define	FAULTBUF_R14	3
 
 static void	trap_fatal(struct trapframe *frame);
 static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
@@ -252,6 +253,7 @@ trap(struct trapframe *frame)
 			enable_fpu(td);
 			break;
 
+		case EXC_VECAST_E:
 		case EXC_VECAST_G4:
 		case EXC_VECAST_G5:
 			/*
@@ -401,6 +403,9 @@ static void
 printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 {
 	uint16_t ver;
+#ifdef BOOKE
+	vm_paddr_t pa;
+#endif
 
 	printf("\n");
 	printf("%s %s trap:\n", isfatal ? "fatal" : "handled",
@@ -429,7 +434,10 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 			printf("    msssr0         = 0x%lx\n",
 			    (u_long)mfspr(SPR_MSSSR0));
 #elif defined(BOOKE)
-		printf("   mcsr           = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
+		pa = mfspr(SPR_MCARU);
+		pa = (pa << 32) | mfspr(SPR_MCAR);
+		printf("   mcsr            = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
+		printf("   mcar            = 0x%jx\n", (uintmax_t)pa);
 #endif
 		break;
 	}
@@ -455,18 +463,19 @@ static int
 handle_onfault(struct trapframe *frame)
 {
 	struct		thread *td;
-	faultbuf	*fb;
+	jmp_buf		*fb;
 
 	td = curthread;
 	fb = td->td_pcb->pcb_onfault;
 	if (fb != NULL) {
-		frame->srr0 = (*fb)[FAULTBUF_LR];
-		frame->fixreg[1] = (*fb)[FAULTBUF_R1];
-		frame->fixreg[2] = (*fb)[FAULTBUF_R2];
+		frame->srr0 = (*fb)->_jb[FAULTBUF_LR];
+		frame->fixreg[1] = (*fb)->_jb[FAULTBUF_R1];
+		frame->fixreg[2] = (*fb)->_jb[FAULTBUF_R2];
 		frame->fixreg[3] = 1;
-		frame->cr = (*fb)[FAULTBUF_CR];
-		bcopy(&(*fb)[FAULTBUF_R13], &frame->fixreg[13],
-		    19 * sizeof(register_t));
+		frame->cr = (*fb)->_jb[FAULTBUF_CR];
+		bcopy(&(*fb)->_jb[FAULTBUF_R14], &frame->fixreg[14],
+		    18 * sizeof(register_t));
+		td->td_pcb->pcb_onfault = NULL; /* Returns twice, not thrice */
 		return (1);
 	}
 	return (0);

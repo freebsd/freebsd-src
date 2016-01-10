@@ -149,6 +149,9 @@ efx_mcdi_vadaptor_alloc(
 	req.emr_out_length = MC_CMD_VADAPTOR_ALLOC_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, VADAPTOR_ALLOC_IN_UPSTREAM_PORT_ID, port_id);
+	MCDI_IN_POPULATE_DWORD_1(req, VADAPTOR_ALLOC_IN_FLAGS,
+	    VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED,
+	    enp->en_nic_cfg.enc_allow_set_mac_with_installed_filters ? 1 : 0);
 
 	efx_mcdi_execute(enp, &req);
 
@@ -920,6 +923,23 @@ hunt_get_datapath_caps(
 		encp->enc_rx_batching_enabled = B_FALSE;
 	}
 
+	/* Check if the firmware supports disabling scatter on RXQs */
+	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
+			    GET_CAPABILITIES_OUT_RX_DISABLE_SCATTER) == 1) {
+		encp->enc_rx_disable_scatter_supported = B_TRUE;
+	} else {
+		encp->enc_rx_disable_scatter_supported = B_FALSE;
+	}
+
+	/* Check if the firmware supports set mac with running filters */
+	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
+	    GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED)
+	    == 1) {
+		encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
+	} else {
+		encp->enc_allow_set_mac_with_installed_filters = B_FALSE;
+	}
+
 	return (0);
 
 fail2:
@@ -1071,17 +1091,17 @@ hunt_board_cfg(
 	/* MAC address for this function */
 	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
 		rc = efx_mcdi_get_mac_address_pf(enp, mac_addr);
+		if ((rc == 0) && (mac_addr[0] & 0x02)) {
+			/*
+			 * If the static config does not include a global MAC
+			 * address pool then the board may return a locally
+			 * administered MAC address (this should only happen on
+			 * incorrectly programmed boards).
+			 */
+			rc = EINVAL;
+		}
 	} else {
 		rc = efx_mcdi_get_mac_address_vf(enp, mac_addr);
-	}
-	if ((rc == 0) && (mac_addr[0] & 0x02)) {
-		/*
-		 * If the static config does not include a global MAC address
-		 * pool then the board may return a locally administered MAC
-		 * address (this should only happen on incorrectly programmed
-		 * boards).
-		 */
-		rc = EINVAL;
 	}
 	if (rc != 0)
 		goto fail4;
@@ -1532,6 +1552,8 @@ hunt_nic_init(
 	uint32_t min_vi_count, max_vi_count;
 	uint32_t vi_count, vi_base;
 	uint32_t i;
+	uint32_t retry;
+	uint32_t delay_us;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
@@ -1622,14 +1644,49 @@ hunt_nic_init(
 		}
 	}
 
-	/* Allocate a vAdapter attached to our upstream vPort/pPort */
-	if ((rc = efx_mcdi_vadaptor_alloc(enp, EVB_PORT_ID_ASSIGNED)) != 0)
-		goto fail5;
+	/*
+	 * Allocate a vAdaptor attached to our upstream vPort/pPort.
+	 *
+	 * On a VF, this may fail with MC_CMD_ERR_NO_EVB_PORT (ENOENT) if the PF
+	 * driver has yet to bring up the EVB port. See bug 56147. In this case,
+	 * retry the request several times after waiting a while. The wait time
+	 * between retries starts small (10ms) and exponentially increases.
+	 * Total wait time is a little over two seconds. Retry logic in the
+	 * client driver may mean this whole loop is repeated if it continues to
+	 * fail.
+	 */
+	retry = 0;
+	delay_us = 10000;
+	while ((rc = efx_mcdi_vadaptor_alloc(enp, EVB_PORT_ID_ASSIGNED)) != 0) {
+		if (EFX_PCI_FUNCTION_IS_PF(&enp->en_nic_cfg) ||
+		    (rc != ENOENT)) {
+			/*
+			 * Do not retry alloc for PF, or for other errors on
+			 * a VF.
+			 */
+			goto fail5;
+		}
+
+		/* VF startup before PF is ready. Retry allocation. */
+		if (retry > 5) {
+			/* Too many attempts */
+			rc = EINVAL;
+			goto fail6;
+		}
+		EFSYS_PROBE1(mcdi_no_evb_port_retry, int, retry);
+		EFSYS_SLEEP(delay_us);
+		retry++;
+		if (delay_us < 500000)
+			delay_us <<= 2;
+	}
 
 	enp->en_vport_id = EVB_PORT_ID_ASSIGNED;
+	enp->en_nic_cfg.enc_mcdi_max_payload_length = MCDI_CTL_SDU_LEN_MAX_V2;
 
 	return (0);
 
+fail6:
+	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
 fail4:

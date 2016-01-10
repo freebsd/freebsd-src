@@ -11,5 +11,3 @@ CFLAGS+= -I${.CURDIR}/../../ofed/include
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
-
-CFLAGS+= -Wno-cast-qual -Wno-pointer-arith

@@ -270,7 +270,7 @@ static void	iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *,
 static int	iwm_get_noise(const struct iwm_mvm_statistics_rx_non_phy *);
 static void	iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct iwm_rx_packet *,
                                    struct iwm_rx_data *);
-static void	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
+static int	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
                                          struct iwm_rx_packet *,
 				         struct iwm_node *);
 static void	iwm_mvm_rx_tx_cmd(struct iwm_softc *, struct iwm_rx_packet *,
@@ -423,9 +423,8 @@ iwm_set_default_calib(struct iwm_softc *sc, const void *data)
 static void
 iwm_fw_info_free(struct iwm_fw_info *fw)
 {
-	firmware_put(fw->fw_rawdata, FIRMWARE_UNLOAD);
-	fw->fw_rawdata = NULL;
-	fw->fw_rawsize = 0;
+	firmware_put(fw->fw_fp, FIRMWARE_UNLOAD);
+	fw->fw_fp = NULL;
 	/* don't touch fw->fw_status */
 	memset(fw->fw_sects, 0, sizeof(fw->fw_sects));
 }
@@ -450,32 +449,30 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfwp", 0);
 	fw->fw_status = IWM_FW_STATUS_INPROGRESS;
 
-	if (fw->fw_rawdata != NULL)
+	if (fw->fw_fp != NULL)
 		iwm_fw_info_free(fw);
 
 	/*
 	 * Load firmware into driver memory.
-	 * fw_rawdata and fw_rawsize will be set.
+	 * fw_fp will be set.
 	 */
 	IWM_UNLOCK(sc);
 	fwp = firmware_get(sc->sc_fwname);
+	IWM_LOCK(sc);
 	if (fwp == NULL) {
 		device_printf(sc->sc_dev,
 		    "could not read firmware %s (error %d)\n",
 		    sc->sc_fwname, error);
-		IWM_LOCK(sc);
 		goto out;
 	}
-	IWM_LOCK(sc);
-	fw->fw_rawdata = fwp->data;
-	fw->fw_rawsize = fwp->datasize;
+	fw->fw_fp = fwp;
 
 	/*
 	 * Parse firmware contents
 	 */
 
-	uhdr = (const void *)fw->fw_rawdata;
-	if (*(const uint32_t *)fw->fw_rawdata != 0
+	uhdr = (const void *)fw->fw_fp->data;
+	if (*(const uint32_t *)fw->fw_fp->data != 0
 	    || le32toh(uhdr->magic) != IWM_TLV_UCODE_MAGIC) {
 		device_printf(sc->sc_dev, "invalid firmware %s\n",
 		    sc->sc_fwname);
@@ -485,7 +482,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 
 	sc->sc_fwver = le32toh(uhdr->ver);
 	data = uhdr->data;
-	len = fw->fw_rawsize - sizeof(*uhdr);
+	len = fw->fw_fp->datasize - sizeof(*uhdr);
 
 	while (len >= sizeof(tlv)) {
 		size_t tlv_len;
@@ -684,7 +681,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
  out:
 	if (error) {
 		fw->fw_status = IWM_FW_STATUS_NONE;
-		if (fw->fw_rawdata != NULL)
+		if (fw->fw_fp != NULL)
 			iwm_fw_info_free(fw);
 	} else
 		fw->fw_status = IWM_FW_STATUS_DONE;
@@ -956,7 +953,7 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 
 	error = bus_dma_tag_create(sc->sc_dmat, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-            IWM_MAX_SCATTER - 1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
+            IWM_MAX_SCATTER - 2, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create TX buf DMA tag\n");
 		goto fail;
@@ -2400,12 +2397,13 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	IWM_LOCK(sc);
 }
 
-static void
+static int
 iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	struct iwm_node *in)
 {
 	struct iwm_mvm_tx_resp *tx_resp = (void *)pkt->data;
-	struct ieee80211vap *vap = in->in_ni.ni_vap;
+	struct ieee80211_node *ni = &in->in_ni;
+	struct ieee80211vap *vap = ni->ni_vap;
 	int status = le16toh(tx_resp->status.status) & IWM_TX_STATUS_MSK;
 	int failack = tx_resp->failure_frame;
 
@@ -2414,14 +2412,13 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	/* Update rate control statistics. */
 	if (status != IWM_TX_STATUS_SUCCESS &&
 	    status != IWM_TX_STATUS_DIRECT_DONE) {
-		if_inc_counter(vap->iv_ifp, IFCOUNTER_OERRORS, 1);
-		ieee80211_ratectl_tx_complete(vap, &in->in_ni,
+		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_FAILURE, &failack, NULL);
+		return (1);
 	} else {
-		if_inc_counter(vap->iv_ifp, IFCOUNTER_OPACKETS, 1);
-		ieee80211_ratectl_tx_complete(vap, &in->in_ni,
+		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_SUCCESS, &failack, NULL);
-
+		return (0);
 	}
 }
 
@@ -2435,33 +2432,30 @@ iwm_mvm_rx_tx_cmd(struct iwm_softc *sc,
 	struct iwm_tx_ring *ring = &sc->txq[qid];
 	struct iwm_tx_data *txd = &ring->data[idx];
 	struct iwm_node *in = txd->in;
+	struct mbuf *m = txd->m;
+	int status;
 
-	if (txd->done) {
-		device_printf(sc->sc_dev,
-		    "%s: got tx interrupt that's already been handled!\n",
-		    __func__);
-		return;
-	}
+	KASSERT(txd->done == 0, ("txd not done"));
+	KASSERT(txd->in != NULL, ("txd without node"));
+	KASSERT(txd->m != NULL, ("txd without mbuf"));
+
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	sc->sc_tx_timer = 0;
 
-	iwm_mvm_rx_tx_cmd_single(sc, pkt, in);
+	status = iwm_mvm_rx_tx_cmd_single(sc, pkt, in);
 
 	/* Unmap and free mbuf. */
 	bus_dmamap_sync(ring->data_dmat, txd->map, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(ring->data_dmat, txd->map);
-	m_freem(txd->m);
 
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
 	    "free txd %p, in %p\n", txd, txd->in);
-	KASSERT(txd->done == 0, ("txd not done"));
 	txd->done = 1;
-	KASSERT(txd->in, ("txd without node"));
-
 	txd->m = NULL;
 	txd->in = NULL;
-	ieee80211_free_node((struct ieee80211_node *)in);
+
+	ieee80211_tx_complete(&in->in_ni, m, status);
 
 	if (--ring->queued < IWM_TX_RING_LOMARK) {
 		sc->qfullmsk &= ~(1 << ring->qid);
@@ -2649,7 +2643,7 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct iwm_node *in = (struct iwm_node *)ni;
+	struct iwm_node *in = IWM_NODE(ni);
 	struct iwm_tx_ring *ring;
 	struct iwm_tx_data *data;
 	struct iwm_tfd *desc;
@@ -2706,7 +2700,6 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 		tap->wt_chan_freq = htole16(ni->ni_chan->ic_freq);
 		tap->wt_chan_flags = htole16(ni->ni_chan->ic_flags);
 		tap->wt_rate = rinfo->rate;
-		tap->wt_hwqueue = ac;
 		if (k != NULL)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		ieee80211_radiotap_tx(vap, m);
@@ -2782,23 +2775,15 @@ iwm_tx(struct iwm_softc *sc, struct mbuf *m, struct ieee80211_node *ni, int ac)
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
-		MGETHDR(m1, M_NOWAIT, MT_DATA);
+		m1 = m_collapse(m, M_NOWAIT, IWM_MAX_SCATTER - 2);
 		if (m1 == NULL) {
+			device_printf(sc->sc_dev,
+			    "%s: could not defrag mbuf\n", __func__);
 			m_freem(m);
-			return ENOBUFS;
+			return (ENOBUFS);
 		}
-		if (m->m_pkthdr.len > MHLEN) {
-			MCLGET(m1, M_NOWAIT);
-			if (!(m1->m_flags & M_EXT)) {
-				m_freem(m);
-				m_freem(m1);
-				return ENOBUFS;
-			}
-		}
-		m_copydata(m, 0, m->m_pkthdr.len, mtod(m1, void *));
-		m1->m_pkthdr.len = m1->m_len = m->m_pkthdr.len;
-		m_freem(m);
 		m = m1;
+
 		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m,
 		    segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
@@ -3182,7 +3167,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	 * freed from underneath us. Grr.
 	 */
 	ni = ieee80211_ref_node(vap->iv_bss);
-	in = (struct iwm_node *) ni;
+	in = IWM_NODE(ni);
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_STATE,
 	    "%s: called; vap=%p, bss ni=%p\n",
 	    __func__,
@@ -3289,7 +3274,7 @@ out:
 static int
 iwm_assoc(struct ieee80211vap *vap, struct iwm_softc *sc)
 {
-	struct iwm_node *in = (struct iwm_node *)vap->iv_bss;
+	struct iwm_node *in = IWM_NODE(vap->iv_bss);
 	int error;
 
 	if ((error = iwm_mvm_update_sta(sc, in)) != 0) {
@@ -3515,7 +3500,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (vap->iv_state == IEEE80211_S_RUN && nstate != vap->iv_state) {
 		iwm_mvm_disable_beacon_filter(sc);
 
-		if (((in = (void *)vap->iv_bss) != NULL))
+		if (((in = IWM_NODE(vap->iv_bss)) != NULL))
 			in->in_assoc = 0;
 
 		iwm_release(sc, NULL);
@@ -3591,7 +3576,7 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			break;
 		}
 
-		in = (struct iwm_node *)vap->iv_bss;
+		in = IWM_NODE(vap->iv_bss);
 		iwm_mvm_power_mac_update_mode(sc, in);
 		iwm_mvm_enable_beacon_filter(sc, in);
 		iwm_mvm_update_quotas(sc, in);
@@ -4596,7 +4581,7 @@ iwm_attach(device_t dev)
 	int txq_i, i;
 
 	sc->sc_dev = dev;
-	mtx_init(&sc->sc_mtx, "iwm_mtx", MTX_DEF, 0);
+	IWM_LOCK_INIT(sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 	callout_init_mtx(&sc->sc_watchdog_to, &sc->sc_mtx, 0);
 	TASK_INIT(&sc->sc_es_task, 0, iwm_endscan_cb, sc);
@@ -4969,10 +4954,10 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 		iwm_free_tx_ring(sc, &sc->txq[i]);
 
 	/* Free firmware */
-	if (fw->fw_rawdata != NULL)
+	if (fw->fw_fp != NULL)
 		iwm_fw_info_free(fw);
 
-	/* free scheduler */
+	/* Free scheduler */
 	iwm_free_sched(sc);
 	if (sc->ict_dma.vaddr != NULL)
 		iwm_free_ict(sc);
@@ -4985,7 +4970,7 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	iwm_pci_detach(dev);
 
 	mbufq_drain(&sc->sc_snd);
-	mtx_destroy(&sc->sc_mtx);
+	IWM_LOCK_DESTROY(sc);
 
 	return (0);
 }

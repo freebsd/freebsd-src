@@ -497,7 +497,7 @@ efx_nvram_tlv_validate(
 	}
 
 	/* The partition header must be the first item (at offset zero) */
-	if ((rc = tlv_init_cursor_from_size(&cursor, partn_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)partn_data,
 		    partn_size)) != 0) {
 		rc = EFAULT;
 		goto fail2;
@@ -607,7 +607,7 @@ hunt_nvram_read_tlv_segment(
 	}
 
 	/* A PARTITION_HEADER tag must be the first item at the given offset */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 		    max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail3;
@@ -725,7 +725,7 @@ hunt_nvram_buf_read_tlv(
 	}
 
 	/* Find requested TLV tag in segment data */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 		    max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail2;
@@ -734,7 +734,7 @@ hunt_nvram_buf_read_tlv(
 		rc = ENOENT;
 		goto fail3;
 	}
-	value = tlv_value(&cursor);
+	value = (caddr_t)tlv_value(&cursor);
 	length = tlv_length(&cursor);
 
 	if (length == 0)
@@ -853,14 +853,13 @@ hunt_nvram_buf_segment_size(
 	efx_rc_t rc;
 	tlv_cursor_t cursor;
 	struct tlv_partition_header *header;
-	struct tlv_partition_trailer *trailer;
 	uint32_t cksum;
 	int pos;
 	uint32_t *end_tag_position;
 	uint32_t segment_length;
 
 	/* A PARTITION_HEADER tag must be the first item at the given offset */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 		    max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail1;
@@ -883,7 +882,6 @@ hunt_nvram_buf_segment_size(
 		rc = EINVAL;
 		goto fail4;
 	}
-	trailer = (struct tlv_partition_trailer *)tlv_item(&cursor);
 
 	if ((rc = tlv_advance(&cursor)) != 0) {
 		rc = EINVAL;
@@ -995,7 +993,7 @@ hunt_nvram_buf_write_tlv(
 	efx_rc_t rc;
 
 	/* A PARTITION_HEADER tag must be the first item (at offset zero) */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 			max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail1;
@@ -1010,7 +1008,7 @@ hunt_nvram_buf_write_tlv(
 	if ((rc = tlv_find(&cursor, tag)) == 0) {
 		/* Modify existing TLV item */
 		if ((rc = tlv_modify(&cursor, tag,
-			    tag_data, tag_size)) != 0)
+			    (uint8_t *)tag_data, tag_size)) != 0)
 			goto fail3;
 	} else {
 		/* Insert a new TLV item before the PARTITION_TRAILER */
@@ -1020,7 +1018,7 @@ hunt_nvram_buf_write_tlv(
 			goto fail4;
 		}
 		if ((rc = tlv_insert(&cursor, tag,
-			    tag_data, tag_size)) != 0) {
+			    (uint8_t *)tag_data, tag_size)) != 0) {
 			rc = EINVAL;
 			goto fail5;
 		}
@@ -1295,7 +1293,8 @@ hunt_nvram_partn_size(
 {
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_nvram_info(enp, partn, sizep, NULL, NULL)) != 0)
+	if ((rc = efx_mcdi_nvram_info(enp, partn, sizep,
+	    NULL, NULL, NULL)) != 0)
 		goto fail1;
 
 	return (0);
@@ -1364,12 +1363,37 @@ hunt_nvram_partn_erase(
 	__in			size_t size)
 {
 	efx_rc_t rc;
+	uint32_t erase_size;
 
-	if ((rc = efx_mcdi_nvram_erase(enp, partn, offset, size)) != 0)
+	if ((rc = efx_mcdi_nvram_info(enp, partn, NULL, NULL,
+	    &erase_size, NULL)) != 0)
 		goto fail1;
+
+	if (erase_size == 0) {
+		if ((rc = efx_mcdi_nvram_erase(enp, partn, offset, size)) != 0)
+			goto fail2;
+	} else {
+		if (size % erase_size != 0) {
+			rc = EINVAL;
+			goto fail3;
+		}
+		while (size > 0) {
+			if ((rc = efx_mcdi_nvram_erase(enp, partn, offset,
+			    erase_size)) != 0)
+				goto fail4;
+			offset += erase_size;
+			size -= erase_size;
+		}
+	}
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -1385,14 +1409,32 @@ hunt_nvram_partn_write(
 	__in			size_t size)
 {
 	size_t chunk;
+	uint32_t write_size;
 	efx_rc_t rc;
 
+	if ((rc = efx_mcdi_nvram_info(enp, partn, NULL, NULL,
+	    NULL, &write_size)) != 0)
+		goto fail1;
+
+	if (write_size != 0) {
+		/*
+		 * Check that the size is a multiple of the write chunk size if
+		 * the write chunk size is available.
+		 */
+		if (size % write_size != 0) {
+			rc = EINVAL;
+			goto fail2;
+		}
+	} else {
+		write_size = HUNTINGTON_NVRAM_CHUNK;
+	}
+
 	while (size > 0) {
-		chunk = MIN(size, HUNTINGTON_NVRAM_CHUNK);
+		chunk = MIN(size, write_size);
 
 		if ((rc = efx_mcdi_nvram_write(enp, partn, offset,
 			    data, chunk)) != 0) {
-			goto fail1;
+			goto fail3;
 		}
 
 		size -= chunk;
@@ -1402,6 +1444,10 @@ hunt_nvram_partn_write(
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -1490,7 +1536,15 @@ static hunt_parttbl_entry_t hunt_parttbl[] = {
 	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   1, EFX_NVRAM_DYNAMIC_CFG},
 	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   2, EFX_NVRAM_DYNAMIC_CFG},
 	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   3, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   4, EFX_NVRAM_DYNAMIC_CFG}
+	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   4, EFX_NVRAM_DYNAMIC_CFG},
+	{NVRAM_PARTITION_TYPE_FPGA,		   1, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA,		   2, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA,		   3, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA,		   4, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   1, EFX_NVRAM_FPGA_BACKUP},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   2, EFX_NVRAM_FPGA_BACKUP},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   3, EFX_NVRAM_FPGA_BACKUP},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   4, EFX_NVRAM_FPGA_BACKUP}
 };
 
 static	__checkReturn		hunt_parttbl_entry_t *

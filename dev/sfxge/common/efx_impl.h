@@ -456,12 +456,12 @@ typedef struct efx_mcdi_ops_s {
 	efx_rc_t	(*emco_init)(efx_nic_t *, const efx_mcdi_transport_t *);
 	void		(*emco_request_copyin)(efx_nic_t *, efx_mcdi_req_t *,
 					unsigned int, boolean_t, boolean_t);
-	boolean_t	(*emco_request_poll)(efx_nic_t *);
 	void		(*emco_request_copyout)(efx_nic_t *, efx_mcdi_req_t *);
 	efx_rc_t	(*emco_poll_reboot)(efx_nic_t *);
+	boolean_t	(*emco_poll_response)(efx_nic_t *);
+	void		(*emco_read_response)(efx_nic_t *, void *, size_t, size_t);
 	void		(*emco_fini)(efx_nic_t *);
-	efx_rc_t	(*emco_fw_update_supported)(efx_nic_t *, boolean_t *);
-	efx_rc_t	(*emco_macaddr_change_supported)(efx_nic_t *, boolean_t *);
+	efx_rc_t	(*emco_feature_supported)(efx_nic_t *, efx_mcdi_feature_id_t, boolean_t *);
 } efx_mcdi_ops_t;
 
 typedef struct efx_mcdi_s {
@@ -535,7 +535,8 @@ efx_mcdi_nvram_info(
 	__in			uint32_t partn,
 	__out_opt		size_t *sizep,
 	__out_opt		uint32_t *addressp,
-	__out_opt		uint32_t *erase_sizep);
+	__out_opt		uint32_t *erase_sizep,
+	__out_opt		uint32_t *write_sizep);
 
 	__checkReturn		efx_rc_t
 efx_mcdi_nvram_update_start(

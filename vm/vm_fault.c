@@ -107,13 +107,8 @@ __FBSDID("$FreeBSD$");
 #define PFBAK 4
 #define PFFOR 4
 
-static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
-
-#define	VM_FAULT_READ_BEHIND	8
 #define	VM_FAULT_READ_DEFAULT	(1 + VM_FAULT_READ_AHEAD_INIT)
 #define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
-#define	VM_FAULT_NINCR		(VM_FAULT_READ_MAX / VM_FAULT_READ_BEHIND)
-#define	VM_FAULT_SUM		(VM_FAULT_NINCR * (VM_FAULT_NINCR + 1) / 2)
 
 #define	VM_FAULT_DONTNEED_MIN	1048576
 
@@ -133,7 +128,7 @@ struct faultstate {
 static void vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr,
 	    int ahead);
 static void vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
-	    int faultcount, int reqpage);
+	    int backward, int forward);
 
 static inline void
 release_page(struct faultstate *fs)
@@ -288,11 +283,10 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
-	int alloc_req, era, faultcount, nera, reqpage, result;
+	int alloc_req, era, faultcount, nera, result;
 	boolean_t growstack, is_first_object_locked, wired;
 	int map_generation;
 	vm_object_t next_object;
-	vm_page_t marray[VM_FAULT_READ_MAX];
 	int hardfault;
 	struct faultstate fs;
 	struct vnode *vp;
@@ -303,7 +297,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	growstack = TRUE;
 	PCPU_INC(cnt.v_vm_faults);
 	fs.vp = NULL;
-	faultcount = reqpage = 0;
+	faultcount = 0;
 
 RetryFault:;
 
@@ -389,7 +383,7 @@ RetryFault:;
 		    FALSE);
 		VM_OBJECT_RUNLOCK(fs.first_object);
 		if (!wired)
-			vm_fault_prefault(&fs, vaddr, 0, 0);
+			vm_fault_prefault(&fs, vaddr, PFBAK, PFFOR);
 		vm_map_lookup_done(fs.map, fs.entry);
 		curthread->td_ru.ru_minflt++;
 		return (KERN_SUCCESS);
@@ -652,36 +646,13 @@ vnode_locked:
 			    ("vm_fault: vnode-backed object mapped by system map"));
 
 			/*
-			 * now we find out if any other pages should be paged
-			 * in at this time this routine checks to see if the
-			 * pages surrounding this fault reside in the same
-			 * object as the page for this fault.  If they do,
-			 * then they are faulted in also into the object.  The
-			 * array "marray" returned contains an array of
-			 * vm_page_t structs where one of them is the
-			 * vm_page_t passed to the routine.  The reqpage
-			 * return value is the index into the marray for the
-			 * vm_page_t passed to the routine.
-			 *
-			 * fs.m plus the additional pages are exclusive busied.
+			 * Page in the requested page and hint the pager,
+			 * that it may bring up surrounding pages.
 			 */
-			faultcount = vm_fault_additional_pages(
-			    fs.m, behind, ahead, marray, &reqpage);
-
-			rv = faultcount ?
-			    vm_pager_get_pages(fs.object, marray, faultcount,
-				reqpage) : VM_PAGER_FAIL;
-
+			rv = vm_pager_get_pages(fs.object, &fs.m, 1,
+			    &behind, &ahead);
 			if (rv == VM_PAGER_OK) {
-				/*
-				 * Found the page. Leave it busy while we play
-				 * with it.
-				 *
-				 * Pager could have changed the page.  Pager
-				 * is responsible for disposition of old page
-				 * if moved.
-				 */
-				fs.m = marray[reqpage];
+				faultcount = behind + 1 + ahead;
 				hardfault++;
 				break; /* break to PAGE HAS BEEN FOUND */
 			}
@@ -839,7 +810,7 @@ vnode_locked:
 				 * get rid of the unnecessary page
 				 */
 				vm_page_lock(fs.first_m);
-				vm_page_free(fs.first_m);
+				vm_page_remove(fs.first_m);
 				vm_page_unlock(fs.first_m);
 				/*
 				 * grab the page and put it into the 
@@ -848,9 +819,13 @@ vnode_locked:
 				 */
 				if (vm_page_rename(fs.m, fs.first_object,
 				    fs.first_pindex)) {
+					VM_OBJECT_WUNLOCK(fs.first_object);
 					unlock_and_deallocate(&fs);
 					goto RetryFault;
 				}
+				vm_page_lock(fs.first_m);
+				vm_page_free(fs.first_m);
+				vm_page_unlock(fs.first_m);
 #if VM_NRESERVLEVEL > 0
 				/*
 				 * Rename the reservation.
@@ -961,16 +936,13 @@ vnode_locked:
 	}
 	/*
 	 * If the page was filled by a pager, update the map entry's
-	 * last read offset.  Since the pager does not return the
-	 * actual set of pages that it read, this update is based on
-	 * the requested set.  Typically, the requested and actual
-	 * sets are the same.
+	 * last read offset.
 	 *
 	 * XXX The following assignment modifies the map
 	 * without holding a write lock on it.
 	 */
 	if (hardfault)
-		fs.entry->next_read = fs.pindex + faultcount - reqpage;
+		fs.entry->next_read = fs.pindex + ahead + 1;
 
 	vm_fault_dirty(fs.entry, fs.m, prot, fault_type, fault_flags, TRUE);
 	vm_page_assert_xbusied(fs.m);
@@ -993,7 +965,9 @@ vnode_locked:
 	    fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
 	if (faultcount != 1 && (fault_flags & VM_FAULT_WIRE) == 0 &&
 	    wired == 0)
-		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
+		vm_fault_prefault(&fs, vaddr,
+		    faultcount > 0 ? behind : PFBAK,
+		    faultcount > 0 ? ahead : PFFOR);
 	VM_OBJECT_WLOCK(fs.object);
 	vm_page_lock(fs.m);
 
@@ -1110,7 +1084,7 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
  */
 static void
 vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
-    int faultcount, int reqpage)
+    int backward, int forward)
 {
 	pmap_t pmap;
 	vm_map_entry_t entry;
@@ -1118,19 +1092,12 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 	vm_offset_t addr, starta;
 	vm_pindex_t pindex;
 	vm_page_t m;
-	int backward, forward, i;
+	int i;
 
 	pmap = fs->map->pmap;
 	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))
 		return;
 
-	if (faultcount > 0) {
-		backward = reqpage;
-		forward = faultcount - reqpage - 1;
-	} else {
-		backward = PFBAK;
-		forward = PFFOR;
-	}
 	entry = fs->entry;
 
 	starta = addra - backward * PAGE_SIZE;
@@ -1459,133 +1426,6 @@ again:
 		dst_entry->eflags &= ~(MAP_ENTRY_COW | MAP_ENTRY_NEEDS_COPY);
 		vm_object_deallocate(src_object);
 	}
-}
-
-
-/*
- * This routine checks around the requested page for other pages that
- * might be able to be faulted in.  This routine brackets the viable
- * pages for the pages to be paged in.
- *
- * Inputs:
- *	m, rbehind, rahead
- *
- * Outputs:
- *  marray (array of vm_page_t), reqpage (index of requested page)
- *
- * Return value:
- *  number of pages in marray
- */
-static int
-vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
-	vm_page_t m;
-	int rbehind;
-	int rahead;
-	vm_page_t *marray;
-	int *reqpage;
-{
-	int i,j;
-	vm_object_t object;
-	vm_pindex_t pindex, startpindex, endpindex, tpindex;
-	vm_page_t rtm;
-	int cbehind, cahead;
-
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-
-	object = m->object;
-	pindex = m->pindex;
-	cbehind = cahead = 0;
-
-	/*
-	 * if the requested page is not available, then give up now
-	 */
-	if (!vm_pager_has_page(object, pindex, &cbehind, &cahead)) {
-		return 0;
-	}
-
-	if ((cbehind == 0) && (cahead == 0)) {
-		*reqpage = 0;
-		marray[0] = m;
-		return 1;
-	}
-
-	if (rahead > cahead) {
-		rahead = cahead;
-	}
-
-	if (rbehind > cbehind) {
-		rbehind = cbehind;
-	}
-
-	/*
-	 * scan backward for the read behind pages -- in memory 
-	 */
-	if (pindex > 0) {
-		if (rbehind > pindex) {
-			rbehind = pindex;
-			startpindex = 0;
-		} else {
-			startpindex = pindex - rbehind;
-		}
-
-		if ((rtm = TAILQ_PREV(m, pglist, listq)) != NULL &&
-		    rtm->pindex >= startpindex)
-			startpindex = rtm->pindex + 1;
-
-		/* tpindex is unsigned; beware of numeric underflow. */
-		for (i = 0, tpindex = pindex - 1; tpindex >= startpindex &&
-		    tpindex < pindex; i++, tpindex--) {
-
-			rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL |
-			    VM_ALLOC_IFNOTCACHED);
-			if (rtm == NULL) {
-				/*
-				 * Shift the allocated pages to the
-				 * beginning of the array.
-				 */
-				for (j = 0; j < i; j++) {
-					marray[j] = marray[j + tpindex + 1 -
-					    startpindex];
-				}
-				break;
-			}
-
-			marray[tpindex - startpindex] = rtm;
-		}
-	} else {
-		startpindex = 0;
-		i = 0;
-	}
-
-	marray[i] = m;
-	/* page offset of the required page */
-	*reqpage = i;
-
-	tpindex = pindex + 1;
-	i++;
-
-	/*
-	 * scan forward for the read ahead pages
-	 */
-	endpindex = tpindex + rahead;
-	if ((rtm = TAILQ_NEXT(m, listq)) != NULL && rtm->pindex < endpindex)
-		endpindex = rtm->pindex;
-	if (endpindex > object->size)
-		endpindex = object->size;
-
-	for (; tpindex < endpindex; i++, tpindex++) {
-
-		rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL |
-		    VM_ALLOC_IFNOTCACHED);
-		if (rtm == NULL) {
-			break;
-		}
-
-		marray[i] = rtm;
-	}
-
-	/* return number of pages */
-	return i;
 }
 
 /*

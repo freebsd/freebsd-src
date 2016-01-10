@@ -567,10 +567,11 @@ efx_mcdi_nvram_info(
 	__in			uint32_t partn,
 	__out_opt		size_t *sizep,
 	__out_opt		uint32_t *addressp,
-	__out_opt		uint32_t *erase_sizep)
+	__out_opt		uint32_t *erase_sizep,
+	__out_opt		uint32_t *write_sizep)
 {
 	uint8_t payload[MAX(MC_CMD_NVRAM_INFO_IN_LEN,
-			    MC_CMD_NVRAM_INFO_OUT_LEN)];
+			    MC_CMD_NVRAM_INFO_V2_OUT_LEN)];
 	efx_mcdi_req_t req;
 	efx_rc_t rc;
 
@@ -579,7 +580,7 @@ efx_mcdi_nvram_info(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_INFO_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_NVRAM_INFO_OUT_LEN;
+	req.emr_out_length = MC_CMD_NVRAM_INFO_V2_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, NVRAM_INFO_IN_TYPE, partn);
 
@@ -603,6 +604,13 @@ efx_mcdi_nvram_info(
 
 	if (erase_sizep)
 		*erase_sizep = MCDI_OUT_DWORD(req, NVRAM_INFO_OUT_ERASESIZE);
+
+	if (write_sizep) {
+		*write_sizep =
+			(req.emr_out_length_used <
+			    MC_CMD_NVRAM_INFO_V2_OUT_LEN) ?
+			0 : MCDI_OUT_DWORD(req, NVRAM_INFO_V2_OUT_WRITESIZE);
+	}
 
 	return (0);
 
@@ -741,6 +749,11 @@ fail1:
 	return (rc);
 }
 
+/*
+ * The NVRAM_WRITE MCDI command is a V1 command and so is supported by both
+ * Sienna and EF10 based boards.  However EF10 based boards support the use
+ * of this command with payloads up to the maximum MCDI V2 payload length.
+ */
 	__checkReturn		efx_rc_t
 efx_mcdi_nvram_write(
 	__in			efx_nic_t *enp,
@@ -750,11 +763,18 @@ efx_mcdi_nvram_write(
 	__in			size_t size)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_WRITE_IN_LENMAX,
-			    MC_CMD_NVRAM_WRITE_OUT_LEN)];
+	uint8_t payload[MAX(MCDI_CTL_SDU_LEN_MAX_V1,
+			    MCDI_CTL_SDU_LEN_MAX_V2)];
 	efx_rc_t rc;
+	size_t max_data_size;
 
-	if (size > MC_CMD_NVRAM_WRITE_IN_LENMAX) {
+	max_data_size = enp->en_nic_cfg.enc_mcdi_max_payload_length
+	    - MC_CMD_NVRAM_WRITE_IN_LEN(0);
+	EFSYS_ASSERT3U(enp->en_nic_cfg.enc_mcdi_max_payload_length, >, 0);
+	EFSYS_ASSERT3U(max_data_size, <,
+		    enp->en_nic_cfg.enc_mcdi_max_payload_length);
+
+	if (size > max_data_size) {
 		rc = EINVAL;
 		goto fail1;
 	}

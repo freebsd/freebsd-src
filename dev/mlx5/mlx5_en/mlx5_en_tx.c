@@ -85,7 +85,15 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 
 	/* check if flowid is set */
 	if (M_HASHTYPE_GET(mb) != M_HASHTYPE_NONE) {
-		ch = (mb->m_pkthdr.flowid % 128) % ch;
+#ifdef RSS
+		u32 temp;
+
+		if (rss_hash2bucket(mb->m_pkthdr.flowid,
+		    M_HASHTYPE_GET(mb), &temp) == 0)
+			ch = temp % ch;
+		else
+#endif
+			ch = (mb->m_pkthdr.flowid % 128) % ch;
 	} else {
 #if (__FreeBSD_version >= 1100000)
 		ch = m_ether_tcpip_hash(MBUF_HASHFLAG_L3 |
@@ -374,6 +382,8 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 		cqe = mlx5e_get_cqe(&sq->cq);
 		if (!cqe)
 			break;
+
+		mlx5_cqwq_pop(&sq->cq.wq);
 
 		ci = sqcc & sq->wq.sz_m1;
 		mb = sq->mbuf[ci].mbuf;

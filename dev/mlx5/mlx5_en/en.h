@@ -50,6 +50,13 @@
 #include <net/ethernet.h>
 #include <sys/buf_ring.h>
 
+#include "opt_rss.h"
+
+#ifdef	RSS
+#include <net/rss_config.h>
+#include <netinet/in_rss.h>
+#endif
+
 #include <machine/bus.h>
 
 #ifdef HAVE_TURBO_LRO
@@ -356,12 +363,14 @@ struct mlx5e_params {
 	u8	default_vlan_prio;
 	u8	num_tc;
 	u8	rx_cq_moderation_mode;
+	u8	tx_cq_moderation_mode;
 	u16	rx_cq_moderation_usec;
 	u16	rx_cq_moderation_pkts;
 	u16	tx_cq_moderation_usec;
 	u16	tx_cq_moderation_pkts;
 	u16	min_rx_wqes;
 	bool	hw_lro_en;
+	bool	cqe_zipping_en;
 	u32	lro_wqe_sz;
 	u16	rx_hash_log_tbl_sz;
 };
@@ -381,7 +390,9 @@ struct mlx5e_params {
   m(+1, u64 rx_coalesce_mode, "rx_coalesce_mode", "0: EQE mode 1: CQE mode") \
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
-  m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro")
+  m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
+  m(+1, u64 cqe_zipping, "cqe_zipping", "0 : CQE zipping disabled")
 
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))
 
@@ -687,7 +698,7 @@ enum mlx5e_link_mode {
 	MLX5E_56GBASE_R4 = 8,
 	MLX5E_10GBASE_CR = 12,
 	MLX5E_10GBASE_SR = 13,
-	MLX5E_10GBASE_ER = 14,
+	MLX5E_10GBASE_LR = 14,
 	MLX5E_40GBASE_SR4 = 15,
 	MLX5E_40GBASE_LR4 = 16,
 	MLX5E_100GBASE_CR4 = 20,
@@ -776,5 +787,6 @@ void	mlx5e_create_stats(struct sysctl_ctx_list *,
     struct sysctl_oid_list *, const char *,
     const char **, unsigned, u64 *);
 void	mlx5e_send_nop(struct mlx5e_sq *, u32, bool);
+int	mlx5e_refresh_channel_params(struct mlx5e_priv *);
 
 #endif					/* _MLX5_EN_H_ */

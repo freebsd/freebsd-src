@@ -84,7 +84,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#include <netinet/in_fib.h>
 #ifdef INET6
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/ip6_var.h>
@@ -437,19 +439,10 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 #if defined(USERSPACE) || !defined(__FreeBSD__)
 	return 0;
 #else
-	struct route ro;
-	struct sockaddr_in *dst;
+	struct nhop4_basic nh4;
 
-	bzero(&ro, sizeof(ro));
-
-	dst = (struct sockaddr_in *)&(ro.ro_dst);
-	dst->sin_family = AF_INET;
-	dst->sin_len = sizeof(*dst);
-	dst->sin_addr = src;
-	in_rtalloc_ign(&ro, 0, fib);
-
-	if (ro.ro_rt == NULL)
-		return 0;
+	if (fib4_lookup_nh_basic(fib, src, NHR_IFAIF, 0, &nh4) != 0)
+		return (0);
 
 	/*
 	 * If ifp is provided, check for equality with rtentry.
@@ -458,26 +451,18 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	 * routing entry (via lo0) for our own address
 	 * may exist, so we need to handle routing assymetry.
 	 */
-	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {
-		RTFREE(ro.ro_rt);
-		return 0;
-	}
+	if (ifp != NULL && ifp != nh4.nh_ifp)
+		return (0);
 
 	/* if no ifp provided, check if rtentry is not default route */
-	if (ifp == NULL &&
-	     satosin(rt_key(ro.ro_rt))->sin_addr.s_addr == INADDR_ANY) {
-		RTFREE(ro.ro_rt);
-		return 0;
-	}
+	if (ifp == NULL && (nh4.nh_flags & NHF_DEFAULT) != 0)
+		return (0);
 
 	/* or if this is a blackhole/reject route */
-	if (ifp == NULL && ro.ro_rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
-		RTFREE(ro.ro_rt);
-		return 0;
-	}
+	if (ifp == NULL && (nh4.nh_flags & (NHF_REJECT|NHF_BLACKHOLE)) != 0)
+		return (0);
 
 	/* found valid route */
-	RTFREE(ro.ro_rt);
 	return 1;
 #endif /* __FreeBSD__ */
 }
@@ -537,49 +522,28 @@ ipfw_localip6(struct in6_addr *in6)
 static int
 verify_path6(struct in6_addr *src, struct ifnet *ifp, u_int fib)
 {
-	struct route_in6 ro;
-	struct sockaddr_in6 *dst;
+	struct nhop6_basic nh6;
 
-	bzero(&ro, sizeof(ro));
+	if (IN6_IS_SCOPE_LINKLOCAL(src))
+		return (1);
 
-	dst = (struct sockaddr_in6 * )&(ro.ro_dst);
-	dst->sin6_family = AF_INET6;
-	dst->sin6_len = sizeof(*dst);
-	dst->sin6_addr = *src;
+	if (fib6_lookup_nh_basic(fib, src, 0, NHR_IFAIF, 0, &nh6) != 0)
+		return (0);
 
-	in6_rtalloc_ign(&ro, 0, fib);
-	if (ro.ro_rt == NULL)
-		return 0;
-
-	/* 
-	 * if ifp is provided, check for equality with rtentry
-	 * We should use rt->rt_ifa->ifa_ifp, instead of rt->rt_ifp,
-	 * to support the case of sending packets to an address of our own.
-	 * (where the former interface is the first argument of if_simloop()
-	 *  (=ifp), the latter is lo0)
-	 */
-	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {
-		RTFREE(ro.ro_rt);
-		return 0;
-	}
+	/* If ifp is provided, check for equality with route table. */
+	if (ifp != NULL && ifp != nh6.nh_ifp)
+		return (0);
 
 	/* if no ifp provided, check if rtentry is not default route */
-	if (ifp == NULL &&
-	    IN6_IS_ADDR_UNSPECIFIED(&satosin6(rt_key(ro.ro_rt))->sin6_addr)) {
-		RTFREE(ro.ro_rt);
-		return 0;
-	}
+	if (ifp == NULL && (nh6.nh_flags & NHF_DEFAULT) != 0)
+		return (0);
 
 	/* or if this is a blackhole/reject route */
-	if (ifp == NULL && ro.ro_rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
-		RTFREE(ro.ro_rt);
-		return 0;
-	}
+	if (ifp == NULL && (nh6.nh_flags & (NHF_REJECT|NHF_BLACKHOLE)) != 0)
+		return (0);
 
 	/* found valid route */
-	RTFREE(ro.ro_rt);
 	return 1;
-
 }
 
 static int
@@ -2850,11 +2814,10 @@ vnet_ipfw_uninit(const void *unused)
 
 	IPFW_UH_WLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
-	IPFW_UH_WLOCK(chain);
 
-	IPFW_WLOCK(chain);
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
-	IPFW_WUNLOCK(chain);
+
+	IPFW_UH_WLOCK(chain);
 
 	reap = NULL;
 	IPFW_WLOCK(chain);

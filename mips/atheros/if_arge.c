@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_arge.h"
 
 #if defined(ARGE_MDIO)
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 #include <dev/etherswitch/miiproxy.h>
 #include "mdio_if.h"
 #endif
@@ -885,6 +885,11 @@ arge_attach(device_t dev)
 	/*
 	 * Don't do this for the MDIO bus case - it's already done
 	 * as part of the MDIO bus attachment.
+	 *
+	 * XXX TODO: if we don't do this, we don't ever release the MAC
+	 * from reset and we can't use the port.  Now, if we define ARGE_MDIO
+	 * but we /don't/ define two MDIO busses, then we can't actually
+	 * use both MACs.
 	 */
 #if !defined(ARGE_MDIO)
 	/* Initialize the MAC block */

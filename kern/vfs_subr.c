@@ -346,6 +346,66 @@ PCTRIE_DEFINE(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free);
 #ifndef	MAXVNODES_MAX
 #define	MAXVNODES_MAX	(512 * 1024 * 1024 / 64)	/* 8M */
 #endif
+
+/*
+ * Initialize a vnode as it first enters the zone.
+ */
+static int
+vnode_init(void *mem, int size, int flags)
+{
+	struct vnode *vp;
+	struct bufobj *bo;
+
+	vp = mem;
+	bzero(vp, size);
+	/*
+	 * Setup locks.
+	 */
+	vp->v_vnlock = &vp->v_lock;
+	mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
+	/*
+	 * By default, don't allow shared locks unless filesystems opt-in.
+	 */
+	lockinit(vp->v_vnlock, PVFS, "vnode", VLKTIMEOUT,
+	    LK_NOSHARE | LK_IS_VNODE);
+	/*
+	 * Initialize bufobj.
+	 */
+	bo = &vp->v_bufobj;
+	bo->__bo_vnode = vp;
+	rw_init(BO_LOCKPTR(bo), "bufobj interlock");
+	bo->bo_private = vp;
+	TAILQ_INIT(&bo->bo_clean.bv_hd);
+	TAILQ_INIT(&bo->bo_dirty.bv_hd);
+	/*
+	 * Initialize namecache.
+	 */
+	LIST_INIT(&vp->v_cache_src);
+	TAILQ_INIT(&vp->v_cache_dst);
+	/*
+	 * Initialize rangelocks.
+	 */
+	rangelock_init(&vp->v_rl);
+	return (0);
+}
+
+/*
+ * Free a vnode when it is cleared from the zone.
+ */
+static void
+vnode_fini(void *mem, int size)
+{
+	struct vnode *vp;
+	struct bufobj *bo;
+
+	vp = mem;
+	rangelock_destroy(&vp->v_rl);
+	lockdestroy(vp->v_vnlock);
+	mtx_destroy(&vp->v_interlock);
+	bo = &vp->v_bufobj;
+	rw_destroy(BO_LOCKPTR(bo));
+}
+
 static void
 vntblinit(void *dummy __unused)
 {
@@ -379,7 +439,7 @@ vntblinit(void *dummy __unused)
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", NULL, MTX_DEF);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    vnode_init, vnode_fini, UMA_ALIGN_PTR, 0);
 	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	/*
@@ -1223,8 +1283,8 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
     struct vnode **vpp)
 {
 	struct vnode *vp;
-	struct bufobj *bo;
 	struct thread *td;
+	struct lock_object *lo;
 	static int cyclecount;
 	int error;
 
@@ -1271,40 +1331,42 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	mtx_unlock(&vnode_free_list_mtx);
 alloc:
 	atomic_add_long(&vnodes_created, 1);
-	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
+	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
 	/*
-	 * Setup locks.
+	 * Locks are given the generic name "vnode" when created.
+	 * Follow the historic practice of using the filesystem
+	 * name when they allocated, e.g., "zfs", "ufs", "nfs, etc.
+	 *
+	 * Locks live in a witness group keyed on their name. Thus,
+	 * when a lock is renamed, it must also move from the witness
+	 * group of its old name to the witness group of its new name.
+	 *
+	 * The change only needs to be made when the vnode moves
+	 * from one filesystem type to another. We ensure that each
+	 * filesystem use a single static name pointer for its tag so
+	 * that we can compare pointers rather than doing a strcmp().
 	 */
-	vp->v_vnlock = &vp->v_lock;
-	mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
+	lo = &vp->v_vnlock->lock_object;
+	if (lo->lo_name != tag) {
+		lo->lo_name = tag;
+		WITNESS_DESTROY(lo);
+		WITNESS_INIT(lo, tag);
+	}
 	/*
-	 * By default, don't allow shared locks unless filesystems
-	 * opt-in.
+	 * By default, don't allow shared locks unless filesystems opt-in.
 	 */
-	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOSHARE | LK_IS_VNODE);
-	/*
-	 * Initialize bufobj.
-	 */
-	bo = &vp->v_bufobj;
-	bo->__bo_vnode = vp;
-	rw_init(BO_LOCKPTR(bo), "bufobj interlock");
-	bo->bo_ops = &buf_ops_bio;
-	bo->bo_private = vp;
-	TAILQ_INIT(&bo->bo_clean.bv_hd);
-	TAILQ_INIT(&bo->bo_dirty.bv_hd);
-	/*
-	 * Initialize namecache.
-	 */
-	LIST_INIT(&vp->v_cache_src);
-	TAILQ_INIT(&vp->v_cache_dst);
+	vp->v_vnlock->lock_object.lo_flags |= LK_NOSHARE;
 	/*
 	 * Finalize various vnode identity bits.
 	 */
+	KASSERT(vp->v_object == NULL, ("stale v_object %p", vp));
+	KASSERT(vp->v_lockf == NULL, ("stale v_lockf %p", vp));
+	KASSERT(vp->v_pollinfo == NULL, ("stale v_pollinfo %p", vp));
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_init_counters(vp);
-	vp->v_data = NULL;
+	vp->v_bufobj.bo_ops = &buf_ops_bio;
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -1313,11 +1375,10 @@ alloc:
 		printf("NULL mp in getnewvnode()\n");
 #endif
 	if (mp != NULL) {
-		bo->bo_bsize = mp->mnt_stat.f_iosize;
+		vp->v_bufobj.bo_bsize = mp->mnt_stat.f_iosize;
 		if ((mp->mnt_kern_flag & MNTK_NOKNOTE) != 0)
 			vp->v_vflag |= VV_NOKNOTE;
 	}
-	rangelock_init(&vp->v_rl);
 
 	/*
 	 * For the filesystems which do not use vfs_hash_insert(),
@@ -1591,13 +1652,55 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
 		BO_LOCK(bo);
-		if (nbp != NULL &&
-		    (nbp->b_bufobj != bo ||
-		     nbp->b_lblkno != lblkno ||
-		     (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) != xflags))
+		nbp = gbincore(bo, lblkno);
+		if (nbp == NULL || (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
+		    != xflags)
 			break;			/* nbp invalid */
 	}
 	return (retval);
+}
+
+int
+bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
+{
+	struct buf *bp;
+	int error;
+	daddr_t lblkno;
+
+	ASSERT_BO_LOCKED(bo);
+
+	for (lblkno = startn;;) {
+again:
+		bp = BUF_PCTRIE_LOOKUP_GE(&bufv->bv_root, lblkno);
+		if (bp == NULL || bp->b_lblkno >= endn)
+			break;
+		error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
+		    LK_INTERLOCK, BO_LOCKPTR(bo), "brlsfl", 0, 0);
+		if (error != 0) {
+			BO_RLOCK(bo);
+			if (error == ENOLCK)
+				goto again;
+			return (error);
+		}
+		KASSERT(bp->b_bufobj == bo,
+		    ("bp %p wrong b_bufobj %p should be %p",
+		    bp, bp->b_bufobj, bo));
+		lblkno = bp->b_lblkno + 1;
+		if ((bp->b_flags & B_MANAGED) == 0)
+			bremfree(bp);
+		bp->b_flags |= B_RELBUF;
+		/*
+		 * In the VMIO case, use the B_NOREUSE flag to hint that the
+		 * pages backing each buffer in the range are unlikely to be
+		 * reused.  Dirty buffers will have the hint applied once
+		 * they've been written.
+		 */
+		if (bp->b_vp->v_object != NULL)
+			bp->b_flags |= B_NOREUSE;
+		brelse(bp);
+		BO_RLOCK(bo);
+	}
+	return (0);
 }
 
 /*
@@ -2683,6 +2786,12 @@ _vdrop(struct vnode *vp, bool locked)
 	}
 	/*
 	 * The vnode has been marked for destruction, so free it.
+	 *
+	 * The vnode will be returned to the zone where it will
+	 * normally remain until it is needed for another vnode. We
+	 * need to cleanup (or verify that the cleanup has already
+	 * been done) any residual data left from its current use
+	 * so as not to contaminate the freshly allocated vnode.
 	 */
 	CTR2(KTR_VFS, "%s: destroying the vnode %p", __func__, vp);
 	atomic_subtract_long(&numvnodes, 1);
@@ -2703,20 +2812,25 @@ _vdrop(struct vnode *vp, bool locked)
 	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
 	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
 	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
+	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
+	    ("Dangling rangelock waiters"));
 	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_vnode_destroy(vp);
 #endif
-	if (vp->v_pollinfo != NULL)
+	if (vp->v_pollinfo != NULL) {
 		destroy_vpollinfo(vp->v_pollinfo);
+		vp->v_pollinfo = NULL;
+	}
 #ifdef INVARIANTS
 	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
 #endif
-	rangelock_destroy(&vp->v_rl);
-	lockdestroy(vp->v_vnlock);
-	mtx_destroy(&vp->v_interlock);
-	rw_destroy(BO_LOCKPTR(bo));
+	bzero(&vp->v_un, sizeof(vp->v_un));
+	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
+	vp->v_iflag = 0;
+	vp->v_vflag = 0;
+	bo->bo_flag = 0;
 	uma_zfree(vnode_zone, vp);
 }
 
@@ -3081,6 +3195,7 @@ vgonel(struct vnode *vp)
 	 * Clear the advisory locks and wake up waiting threads.
 	 */
 	(void)VOP_ADVLOCKPURGE(vp);
+	vp->v_lockf = NULL;
 	/*
 	 * Delete from old mount point vnode list.
 	 */

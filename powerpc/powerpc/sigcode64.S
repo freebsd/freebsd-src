@@ -57,6 +57,7 @@ CNAME(sigcode64):
 
 CNAME(sigcode64_elfv2):
 	addi	1,1,-112		/* reserved space for callee */
+	mflr	12			/* ELFv2 wants the address in r12 */
 	blrl
 
 	addi	3,1,112+SF_UC		/* restore sp, and get &frame->sf_uc */

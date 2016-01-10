@@ -4,6 +4,7 @@
  * Copyright (c) 2005-2007 Damien Bergamini <damien.bergamini@free.fr>
  * Copyright (c) 2006 Niall O'Higgins <niallo@openbsd.org>
  * Copyright (c) 2007-2008 Hans Petter Selasky <hselasky@FreeBSD.org>
+ * Copyright (c) 2015 Andriy Voskoboinyk <avos@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -467,8 +468,9 @@ rum_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct rum_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t iface_index, bands;
 	uint32_t tmp;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index;
 	int error, ntries;
 
 	device_set_usb_desc(self);
@@ -536,12 +538,12 @@ rum_attach(device_t self)
 	    IEEE80211_CRYPTO_TKIPMIC |
 	    IEEE80211_CRYPTO_TKIP;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if (sc->rf_rev == RT2573_RF_5225 || sc->rf_rev == RT2573_RF_5226)
-		setbit(&bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, &bands);
+		setbit(bands, IEEE80211_MODE_11A);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_update_promisc = rum_update_promisc;
@@ -2068,7 +2070,7 @@ rum_update_slot_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t slottime;
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	rum_modbits(sc, RT2573_MAC_CSR9, slottime, 0xff);
 
@@ -3016,3 +3018,4 @@ DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
 MODULE_DEPEND(rum, wlan, 1, 1, 1);
 MODULE_DEPEND(rum, usb, 1, 1, 1);
 MODULE_VERSION(rum, 1);
+USB_PNP_HOST_INFO(rum_devs);

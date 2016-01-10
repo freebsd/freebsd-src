@@ -7,6 +7,7 @@ mlx5_alloc.c \
 mlx5_cmd.c \
 mlx5_cq.c \
 mlx5_eq.c \
+mlx5_eswitch_vacl.c \
 mlx5_flow_table.c \
 mlx5_fw.c \
 mlx5_health.c \
@@ -24,7 +25,7 @@ mlx5_uar.c \
 mlx5_vport.c \
 mlx5_wq.c \
 device_if.h bus_if.h vnode_if.h pci_if.h \
-        opt_inet.h opt_inet6.h opt_random.h
+        opt_inet.h opt_inet6.h opt_random.h opt_rss.h
 
 CFLAGS+= -I${.CURDIR}/../../ofed/include
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include

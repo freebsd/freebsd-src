@@ -46,7 +46,8 @@ efx_mcdi_init_rxq(
 	__in		uint32_t target_evq,
 	__in		uint32_t label,
 	__in		uint32_t instance,
-	__in		efsys_mem_t *esmp)
+	__in		efsys_mem_t *esmp,
+	__in		boolean_t disable_scatter)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[
@@ -71,12 +72,13 @@ efx_mcdi_init_rxq(
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_TARGET_EVQ, target_evq);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_LABEL, label);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_INSTANCE, instance);
-	MCDI_IN_POPULATE_DWORD_5(req, INIT_RXQ_IN_FLAGS,
-				    INIT_RXQ_IN_FLAG_BUFF_MODE, 0,
-				    INIT_RXQ_IN_FLAG_HDR_SPLIT, 0,
-				    INIT_RXQ_IN_FLAG_TIMESTAMP, 0,
-				    INIT_RXQ_IN_CRC_MODE, 0,
-				    INIT_RXQ_IN_FLAG_PREFIX, 1);
+	MCDI_IN_POPULATE_DWORD_6(req, INIT_RXQ_IN_FLAGS,
+			    INIT_RXQ_IN_FLAG_BUFF_MODE, 0,
+			    INIT_RXQ_IN_FLAG_HDR_SPLIT, 0,
+			    INIT_RXQ_IN_FLAG_TIMESTAMP, 0,
+			    INIT_RXQ_IN_CRC_MODE, 0,
+			    INIT_RXQ_IN_FLAG_PREFIX, 1,
+			    INIT_RXQ_IN_FLAG_DISABLE_SCATTER, disable_scatter);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_OWNER_ID, 0);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
 
@@ -685,6 +687,7 @@ hunt_rx_qcreate(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_rc_t rc;
+	boolean_t disable_scatter;
 
 	_NOTE(ARGUNUSED(erp))
 
@@ -704,14 +707,21 @@ hunt_rx_qcreate(
 		goto fail2;
 	}
 
+	/* Scatter can only be disabled if the firmware supports doing so */
+	if ((type != EFX_RXQ_TYPE_SCATTER) &&
+	    enp->en_nic_cfg.enc_rx_disable_scatter_supported) {
+		disable_scatter = B_TRUE;
+	} else {
+		disable_scatter = B_FALSE;
+	}
+
 	/*
-	 * FIXME: Siena code handles different queue types (default, header
-	 * split, scatter); we'll need to do something more here later, but
-	 * all that stuff is TBD for now.
+	 * Note: EFX_RXQ_TYPE_SPLIT_HEADER and EFX_RXQ_TYPE_SPLIT_PAYLOAD are
+	 * not supported here.
 	 */
 
 	if ((rc = efx_mcdi_init_rxq(enp, n, eep->ee_index, label, index,
-	    esmp)) != 0)
+	    esmp, disable_scatter)) != 0)
 		goto fail3;
 
 	erp->er_eep = eep;

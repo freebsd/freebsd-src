@@ -29,6 +29,25 @@
 
 #include <linux/types.h>
 
+#define	ETH_MODULE_SFF_8079		1
+#define	ETH_MODULE_SFF_8079_LEN		256
+#define	ETH_MODULE_SFF_8472		2
+#define	ETH_MODULE_SFF_8472_LEN		512
+#define	ETH_MODULE_SFF_8636		3
+#define	ETH_MODULE_SFF_8636_LEN		256
+#define	ETH_MODULE_SFF_8436		4
+#define	ETH_MODULE_SFF_8436_LEN		256
+
+struct ethtool_eeprom {
+	u32	offset;
+	u32	len;
+};
+
+struct ethtool_modinfo {
+	u32	type;
+	u32	eeprom_len;
+};
+
 static inline bool 
 is_zero_ether_addr(const u8 * addr)
 {

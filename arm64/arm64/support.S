@@ -60,7 +60,6 @@ ENTRY(casueword32)
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, w3, [x0]		/* Store the new data */
 	cbnz	w5, 1b			/* Retry on failure */
-	ldrb	w0, [x0]		/* Try loading the data */
 2:	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
 	str	w4, [x2]		/* Store the read data */
 	mov	x0, #0			/* Success */
@@ -81,7 +80,6 @@ ENTRY(casueword)
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, x3, [x0]		/* Store the new data */
 	cbnz	w5, 1b			/* Retry on failure */
-	ldrb	w0, [x0]		/* Try loading the data */
 2:	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
 	str	x4, [x2]		/* Store the read data */
 	mov	x0, #0			/* Success */

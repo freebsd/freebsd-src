@@ -41,12 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/hhook.h>
 #include <sys/kernel.h>
 #include <sys/khelp.h>
 #include <sys/sysctl.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
+#include <sys/refcount.h>
 #include <sys/mbuf.h>
 #ifdef INET6
 #include <sys/domain.h>
@@ -83,6 +85,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -124,6 +129,8 @@ VNET_DEFINE(int, tcp_mssdflt) = TCP_MSS;
 #ifdef INET6
 VNET_DEFINE(int, tcp_v6mssdflt) = TCP6_MSS;
 #endif
+
+struct rwlock tcp_function_lock;
 
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
@@ -236,6 +243,179 @@ static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 static void	tcp_timer_discard(struct tcpcb *, uint32_t);
 
+
+static struct tcp_function_block tcp_def_funcblk = {
+	"default",
+	tcp_output,
+	tcp_do_segment,
+	tcp_default_ctloutput,
+	NULL,
+	NULL,	
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	0,
+	0
+};
+
+struct tcp_funchead t_functions;
+static struct tcp_function_block *tcp_func_set_ptr = &tcp_def_funcblk;
+
+static struct tcp_function_block *
+find_tcp_functions_locked(struct tcp_function_set *fs)
+{
+	struct tcp_function *f;
+	struct tcp_function_block *blk=NULL;
+
+	TAILQ_FOREACH(f, &t_functions, tf_next) {
+		if (strcmp(f->tf_fb->tfb_tcp_block_name, fs->function_set_name) == 0) {
+			blk = f->tf_fb;
+			break;
+		}
+	}
+	return(blk);
+}
+
+static struct tcp_function_block *
+find_tcp_fb_locked(struct tcp_function_block *blk, struct tcp_function **s)
+{
+	struct tcp_function_block *rblk=NULL;
+	struct tcp_function *f;
+
+	TAILQ_FOREACH(f, &t_functions, tf_next) {
+		if (f->tf_fb == blk) {
+			rblk = blk;
+			if (s) {
+				*s = f;
+			}
+			break;
+		}
+	}
+	return (rblk);
+}
+
+struct tcp_function_block *
+find_and_ref_tcp_functions(struct tcp_function_set *fs)
+{
+	struct tcp_function_block *blk;
+	
+	rw_rlock(&tcp_function_lock);	
+	blk = find_tcp_functions_locked(fs);
+	if (blk)
+		refcount_acquire(&blk->tfb_refcnt); 
+	rw_runlock(&tcp_function_lock);
+	return(blk);
+}
+
+struct tcp_function_block *
+find_and_ref_tcp_fb(struct tcp_function_block *blk)
+{
+	struct tcp_function_block *rblk;
+	
+	rw_rlock(&tcp_function_lock);	
+	rblk = find_tcp_fb_locked(blk, NULL);
+	if (rblk) 
+		refcount_acquire(&rblk->tfb_refcnt);
+	rw_runlock(&tcp_function_lock);
+	return(rblk);
+}
+
+
+static int
+sysctl_net_inet_default_tcp_functions(SYSCTL_HANDLER_ARGS)
+{
+	int error=ENOENT;
+	struct tcp_function_set fs;
+	struct tcp_function_block *blk;
+
+	memset(&fs, 0, sizeof(fs));
+	rw_rlock(&tcp_function_lock);
+	blk = find_tcp_fb_locked(tcp_func_set_ptr, NULL);
+	if (blk) {
+		/* Found him */
+		strcpy(fs.function_set_name, blk->tfb_tcp_block_name);
+		fs.pcbcnt = blk->tfb_refcnt;
+	}
+	rw_runlock(&tcp_function_lock);	
+	error = sysctl_handle_string(oidp, fs.function_set_name,
+				     sizeof(fs.function_set_name), req);
+
+	/* Check for error or no change */
+	if (error != 0 || req->newptr == NULL)
+		return(error);
+
+	rw_wlock(&tcp_function_lock);
+	blk = find_tcp_functions_locked(&fs);
+	if ((blk == NULL) ||
+	    (blk->tfb_flags & TCP_FUNC_BEING_REMOVED)) { 
+		error = ENOENT; 
+		goto done;
+	}
+	tcp_func_set_ptr = blk;
+done:
+	rw_wunlock(&tcp_function_lock);
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_default,
+	    CTLTYPE_STRING | CTLFLAG_RW,
+	    NULL, 0, sysctl_net_inet_default_tcp_functions, "A",
+	    "Set/get the default TCP functions");
+
+static int
+sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
+{
+	int error, cnt, linesz;
+	struct tcp_function *f;
+	char *buffer, *cp;
+	size_t bufsz, outsz;
+
+	cnt = 0;
+	rw_rlock(&tcp_function_lock);
+	TAILQ_FOREACH(f, &t_functions, tf_next) {
+		cnt++;
+	}
+	rw_runlock(&tcp_function_lock);
+
+	bufsz = (cnt+2) * (TCP_FUNCTION_NAME_LEN_MAX + 12) + 1;
+	buffer = malloc(bufsz, M_TEMP, M_WAITOK);
+
+	error = 0;
+	cp = buffer;
+
+	linesz = snprintf(cp, bufsz, "\n%-32s%c %s\n", "Stack", 'D', "PCB count");
+	cp += linesz;
+	bufsz -= linesz;
+	outsz = linesz;
+
+	rw_rlock(&tcp_function_lock);	
+	TAILQ_FOREACH(f, &t_functions, tf_next) {
+		linesz = snprintf(cp, bufsz, "%-32s%c %u\n",
+		    f->tf_fb->tfb_tcp_block_name,
+		    (f->tf_fb == tcp_func_set_ptr) ? '*' : ' ',
+		    f->tf_fb->tfb_refcnt);
+		if (linesz >= bufsz) {
+			error = EOVERFLOW;
+			break;
+		}
+		cp += linesz;
+		bufsz -= linesz;
+		outsz += linesz;
+	}
+	rw_runlock(&tcp_function_lock);
+	if (error == 0)
+		error = sysctl_handle_string(oidp, buffer, outsz + 1, req);
+	free(buffer, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_available,
+	    CTLTYPE_STRING|CTLFLAG_RD,
+	    NULL, 0, sysctl_net_inet_list_available, "A",
+	    "list available TCP Function sets");
+
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
  *
@@ -263,6 +443,8 @@ static VNET_DEFINE(uma_zone_t, tcpcb_zone);
 #define	V_tcpcb_zone			VNET(tcpcb_zone)
 
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
+MALLOC_DEFINE(M_TCPFUNCTIONS, "tcpfunc", "TCP function set memory");
+
 static struct mtx isn_mtx;
 
 #define	ISN_LOCK_INIT()	mtx_init(&isn_mtx, "isn_mtx", NULL, MTX_DEF)
@@ -311,6 +493,96 @@ maketcp_hashsize(int size)
 	return (hashsize);
 }
 
+int
+register_tcp_functions(struct tcp_function_block *blk, int wait)
+{
+	struct tcp_function_block *lblk;
+	struct tcp_function *n;
+	struct tcp_function_set fs;
+
+	if ((blk->tfb_tcp_output == NULL) ||
+	    (blk->tfb_tcp_do_segment == NULL) ||
+	    (blk->tfb_tcp_ctloutput == NULL) ||
+	    (strlen(blk->tfb_tcp_block_name) == 0)) {
+		/* 
+		 * These functions are required and you
+		 * need a name.
+		 */
+		return (EINVAL);
+	}
+	if (blk->tfb_tcp_timer_stop_all ||
+	    blk->tfb_tcp_timers_left ||
+	    blk->tfb_tcp_timer_activate ||
+	    blk->tfb_tcp_timer_active ||
+	    blk->tfb_tcp_timer_stop) {
+		/*
+		 * If you define one timer function you 
+		 * must have them all.
+		 */
+		if ((blk->tfb_tcp_timer_stop_all == NULL) ||
+		    (blk->tfb_tcp_timers_left  == NULL) ||
+		    (blk->tfb_tcp_timer_activate == NULL) ||
+		    (blk->tfb_tcp_timer_active == NULL) ||
+		    (blk->tfb_tcp_timer_stop == NULL)) {
+			return (EINVAL);			
+		}
+	}	
+	n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
+	if (n == NULL) {
+		return (ENOMEM);
+	}
+	n->tf_fb = blk;
+	strcpy(fs.function_set_name, blk->tfb_tcp_block_name);
+	rw_wlock(&tcp_function_lock);
+	lblk = find_tcp_functions_locked(&fs);
+	if (lblk) {
+		/* Duplicate name space not allowed */
+		rw_wunlock(&tcp_function_lock);
+		free(n, M_TCPFUNCTIONS);
+		return (EALREADY);
+	}
+	refcount_init(&blk->tfb_refcnt, 0);
+	blk->tfb_flags = 0;
+	TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
+	rw_wunlock(&tcp_function_lock);
+	return(0);
+}	
+
+int
+deregister_tcp_functions(struct tcp_function_block *blk)
+{
+	struct tcp_function_block *lblk;
+	struct tcp_function *f;
+	int error=ENOENT;
+	
+	if (strcmp(blk->tfb_tcp_block_name, "default") == 0) {
+		/* You can't un-register the default */
+		return (EPERM);
+	}
+	rw_wlock(&tcp_function_lock);
+	if (blk == tcp_func_set_ptr) {
+		/* You can't free the current default */
+		rw_wunlock(&tcp_function_lock);
+		return (EBUSY);
+	}
+	if (blk->tfb_refcnt) {
+		/* Still tcb attached, mark it. */
+		blk->tfb_flags |= TCP_FUNC_BEING_REMOVED;
+		rw_wunlock(&tcp_function_lock);		
+		return (EBUSY);
+	}
+	lblk = find_tcp_fb_locked(blk, &f);
+	if (lblk) {
+		/* Found */
+		TAILQ_REMOVE(&t_functions, f, tf_next);
+		f->tf_fb = NULL;
+		free(f, M_TCPFUNCTIONS);
+		error = 0;
+	}
+	rw_wunlock(&tcp_function_lock);
+	return (error);
+}
+
 void
 tcp_init(void)
 {
@@ -325,7 +597,6 @@ tcp_init(void)
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT,
 	    &V_tcp_hhh[HHOOK_TCP_EST_OUT], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
-
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
 	if (hashsize == 0) {
@@ -342,7 +613,7 @@ tcp_init(void)
 		 */
 		if (hashsize < 512)
 			hashsize = 512;
-		if (bootverbose)
+		if (bootverbose && IS_DEFAULT_VNET(curvnet))
 			printf("%s: %s auto tuned to %d\n", __func__,
 			    tcbhash_tuneable, hashsize);
 	}
@@ -404,6 +675,10 @@ tcp_init(void)
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
+	/* Setup the tcp function block list */
+	TAILQ_INIT(&t_functions);
+	rw_init_flags(&tcp_function_lock, "tcp_func_lock" , 0);
+	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -433,6 +708,10 @@ tcp_init(void)
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif
+
+#ifdef TCP_RFC7413
+	tcp_fastopen_init();
+#endif
 }
 
 #ifdef VIMAGE
@@ -441,6 +720,9 @@ tcp_destroy(void)
 {
 	int error;
 
+#ifdef TCP_RFC7413
+	tcp_fastopen_destroy();
+#endif
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
@@ -768,7 +1050,13 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->ccv = &tm->ccv;
 	tp->ccv->type = IPPROTO_TCP;
 	tp->ccv->ccvc.tcp = tp;
-
+	rw_rlock(&tcp_function_lock);
+	tp->t_fb = tcp_func_set_ptr;
+	refcount_acquire(&tp->t_fb->tfb_refcnt);
+	rw_runlock(&tcp_function_lock);
+	if (tp->t_fb->tfb_tcp_fb_init) {
+		(*tp->t_fb->tfb_tcp_fb_init)(tp);
+	}
 	/*
 	 * Use the current system default CC algorithm.
 	 */
@@ -779,12 +1067,18 @@ tcp_newtcpcb(struct inpcb *inp)
 
 	if (CC_ALGO(tp)->cb_init != NULL)
 		if (CC_ALGO(tp)->cb_init(tp->ccv) > 0) {
+			if (tp->t_fb->tfb_tcp_fb_fini)
+				(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+			refcount_release(&tp->t_fb->tfb_refcnt);
 			uma_zfree(V_tcpcb_zone, tm);
 			return (NULL);
 		}
 
 	tp->osd = &tm->osd;
 	if (khelp_init_osd(HELPER_CLASS_TCP, tp->osd)) {
+		if (tp->t_fb->tfb_tcp_fb_fini)
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+		refcount_release(&tp->t_fb->tfb_refcnt);
 		uma_zfree(V_tcpcb_zone, tm);
 		return (NULL);
 	}
@@ -794,7 +1088,7 @@ tcp_newtcpcb(struct inpcb *inp)
 #endif
 	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
-	tp->t_maxseg = tp->t_maxopd =
+	tp->t_maxseg =
 #ifdef INET6
 		isipv6 ? V_tcp_v6mssdflt :
 #endif /* INET6 */
@@ -925,7 +1219,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tcp_state_change(tp, TCPS_CLOSED);
-		(void) tcp_output(tp);
+		(void) tp->t_fb->tfb_tcp_output(tp);
 		TCPSTAT_INC(tcps_drops);
 	} else
 		TCPSTAT_INC(tcps_conndrops);
@@ -960,6 +1254,10 @@ tcp_discardcb(struct tcpcb *tp)
 	tcp_timer_stop(tp, TT_KEEP);
 	tcp_timer_stop(tp, TT_2MSL);
 	tcp_timer_stop(tp, TT_DELACK);
+	if (tp->t_fb->tfb_tcp_timer_stop_all) {
+		/* Call the stop-all function of the methods */
+		tp->t_fb->tfb_tcp_timer_stop_all(tp);
+	}
 
 	/*
 	 * If we got enough samples through the srtt filter,
@@ -1044,6 +1342,14 @@ tcp_discardcb(struct tcpcb *tp)
 	inp->inp_ppcb = NULL;
 	if ((tp->t_timers->tt_flags & TT_MASK) == 0) {
 		/* We own the last reference on tcpcb, let's free it. */
+		if ((tp->t_fb->tfb_tcp_timers_left) &&
+		    (tp->t_fb->tfb_tcp_timers_left(tp))) {
+			    /* Some fb timers left running! */
+			    return;
+		}
+		if (tp->t_fb->tfb_tcp_fb_fini)
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_inpcb = NULL;
 		uma_zfree(V_tcpcb_zone, tp);
 		released = in_pcbrele_wlocked(inp);
@@ -1105,6 +1411,14 @@ tcp_timer_discard(struct tcpcb *tp, uint32_t timer_type)
 	tp->t_timers->tt_flags &= ~timer_type;
 	if ((tp->t_timers->tt_flags & TT_MASK) == 0) {
 		/* We own the last reference on this tcpcb, let's free it. */
+		if ((tp->t_fb->tfb_tcp_timers_left) &&
+		    (tp->t_fb->tfb_tcp_timers_left(tp))) {
+			    /* Some fb timers left running! */
+			    goto leave;
+		}
+		if (tp->t_fb->tfb_tcp_fb_fini)
+			(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+		refcount_release(&tp->t_fb->tfb_refcnt);
 		tp->t_inpcb = NULL;
 		uma_zfree(V_tcpcb_zone, tp);
 		if (in_pcbrele_wlocked(inp)) {
@@ -1113,6 +1427,7 @@ tcp_timer_discard(struct tcpcb *tp, uint32_t timer_type)
 			return;
 		}
 	}
+leave:
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	CURVNET_RESTORE();
@@ -1134,6 +1449,17 @@ tcp_close(struct tcpcb *tp)
 #ifdef TCP_OFFLOAD
 	if (tp->t_state == TCPS_LISTEN)
 		tcp_offload_listen_stop(tp);
+#endif
+#ifdef TCP_RFC7413
+	/*
+	 * This releases the TFO pending counter resource for TFO listen
+	 * sockets as well as passively-created TFO sockets that transition
+	 * from SYN_RECEIVED to CLOSED.
+	 */
+	if (tp->t_tfo_pending) {
+		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
+		tp->t_tfo_pending = NULL;
+	}
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
@@ -1576,7 +1902,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					 * Only process the offered MTU if it
 					 * is smaller than the current one.
 					 */
-					if (mtu < tp->t_maxopd +
+					if (mtu < tp->t_maxseg +
 					    sizeof(struct tcpiphdr)) {
 						bzero(&inc, sizeof(inc));
 						inc.inc_faddr = faddr;
@@ -1865,7 +2191,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	tp->snd_recover = tp->snd_max;
 	if (tp->t_flags & TF_SACK_PERMIT)
 		EXIT_FASTRECOVERY(tp->t_flags);
-	tcp_output(tp);
+	tp->t_fb->tfb_tcp_output(tp);
 }
 
 #ifdef INET
@@ -1957,6 +2283,59 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	return (maxmtu);
 }
 #endif /* INET6 */
+
+/*
+ * Calculate effective SMSS per RFC5681 definition for a given TCP
+ * connection at its current state, taking into account SACK and etc.
+ */
+u_int
+tcp_maxseg(const struct tcpcb *tp)
+{
+	u_int optlen;
+
+	if (tp->t_flags & TF_NOOPT)
+		return (tp->t_maxseg);
+
+	/*
+	 * Here we have a simplified code from tcp_addoptions(),
+	 * without a proper loop, and having most of paddings hardcoded.
+	 * We might make mistakes with padding here in some edge cases,
+	 * but this is harmless, since result of tcp_maxseg() is used
+	 * only in cwnd and ssthresh estimations.
+	 */
+#define	PAD(len)	((((len) / 4) + !!((len) % 4)) * 4)
+	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+		if (tp->t_flags & TF_RCVD_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = 0;
+#ifdef TCP_SIGNATURE
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+		if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks > 0) {
+			optlen += TCPOLEN_SACKHDR;
+			optlen += tp->rcv_numsacks * TCPOLEN_SACK;
+			optlen = PAD(optlen);
+		}
+	} else {
+		if (tp->t_flags & TF_REQ_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = PAD(TCPOLEN_MAXSEG);
+		if (tp->t_flags & TF_REQ_SCALE)
+			optlen += PAD(TCPOLEN_WINDOW);
+#ifdef TCP_SIGNATURE
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+		if (tp->t_flags & TF_SACK_PERMIT)
+			optlen += PAD(TCPOLEN_SACK_PERMITTED);
+	}
+#undef PAD
+	optlen = min(optlen, TCP_MAXOLEN);
+	return (tp->t_maxseg - optlen);
+}
 
 #ifdef IPSEC
 /* compute ESP/AH header size for TCP, including outer IP header. */

@@ -247,6 +247,7 @@ MODULE_DEPEND(mos, uether, 1, 1, 1);
 MODULE_DEPEND(mos, usb, 1, 1, 1);
 MODULE_DEPEND(mos, ether, 1, 1, 1);
 MODULE_DEPEND(mos, miibus, 1, 1, 1);
+USB_PNP_HOST_INFO(mos_devs);
 
 static const struct usb_ether_methods mos_ue_methods = {
 	.ue_attach_post = mos_attach_post,

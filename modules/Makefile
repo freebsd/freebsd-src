@@ -220,6 +220,7 @@ SUBDIR=	\
 	malo \
 	mcd \
 	md \
+	mdio \
 	mem \
 	mfi \
 	mii \
@@ -310,6 +311,8 @@ SUBDIR=	\
 	re \
 	reiserfs \
 	rl \
+	rtwn \
+	${_rtwnfw} \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -346,6 +349,7 @@ SUBDIR=	\
 	${_syscons} \
 	sysvipc \
 	${_ti} \
+	tcp/fastpath \
 	tests/framework \
 	tests/callout_test \
 	tl \
@@ -480,6 +484,7 @@ _fxp=		fxp
 _ispfw=		ispfw
 _mwlfw=		mwlfw
 _ralfw=		ralfw
+_rtwnfw=	rtwnfw
 _sf=		sf
 _ti=		ti
 _txp=		txp
@@ -770,6 +775,12 @@ afterinstall:
 .endif
 
 .include "${SYSDIR}/conf/config.mk"
+
+# Use sys/conf/kmod.mk's MPATH to avoid redundantly running in every subdir.
+.if !defined(__MPATH)
+__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
+.export __MPATH
+.endif
 
 SUBDIR:= ${SUBDIR:u:O}
 
