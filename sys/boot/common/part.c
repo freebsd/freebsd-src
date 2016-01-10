@@ -306,6 +306,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		table->type = PTABLE_NONE;
 		goto out;
 	}
+	DEBUG("GPT detected");
 	size = MIN(hdr.hdr_entries * hdr.hdr_entsz,
 	    MAXTBLSZ * table->sectorsize);
 	for (i = 0; i < size / hdr.hdr_entsz; i++) {
@@ -631,6 +632,11 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	if (buf[DOSMAGICOFFSET] != 0x55 ||
 	    buf[DOSMAGICOFFSET + 1] != 0xaa) {
 		DEBUG("magic sequence not found");
+#if defined(LOADER_GPT_SUPPORT)
+		/* There is no PMBR, check that we have backup GPT */
+		table->type = PTABLE_GPT;
+		table = ptable_gptread(table, dev, dread);
+#endif
 		goto out;
 	}
 	/* Check that we have PMBR. Also do some validation. */
