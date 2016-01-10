@@ -2194,26 +2194,25 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	}
 
 	if (srcp == NULL) {
-		int e;
-		struct sockaddr_in6 sin6;
+		int error;
+		struct in6_addr dst6;
+		uint32_t scopeid;
 
 		/*
 		 * This case matches to multicasts, our anycast, or unicasts
 		 * that we do not own.  Select a source address based on the
 		 * source address of the erroneous packet.
 		 */
-		bzero(&sin6, sizeof(sin6));
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(sin6);
-		sin6.sin6_addr = ip6->ip6_dst; /* zone ID should be embedded */
+		in6_splitscope(&ip6->ip6_dst, &dst6, &scopeid);
+		error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+		    scopeid, NULL, &src6, &hlim);
 
-		e = in6_selectsrc(&sin6, NULL, NULL, NULL, &outif, &src6);
-		if (e) {
+		if (error) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			nd6log((LOG_DEBUG,
 			    "icmp6_reflect: source can't be determined: "
 			    "dst=%s, error=%d\n",
-			    ip6_sprintf(ip6buf, &ip6->ip6_dst), e));
+			    ip6_sprintf(ip6buf, &ip6->ip6_dst), error));
 			goto bad;
 		}
 		srcp = &src6;
@@ -2228,10 +2227,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
 	ip6->ip6_vfc |= IPV6_VERSION;
 	ip6->ip6_nxt = IPPROTO_ICMPV6;
-	if (outif)
-		ip6->ip6_hlim = ND_IFINFO(outif)->chlim;
-	else
-		ip6->ip6_hlim = hlim;
+	ip6->ip6_hlim = hlim;
 
 	icmp6->icmp6_cksum = 0;
 	icmp6->icmp6_cksum = in6_cksum(m, IPPROTO_ICMPV6,
