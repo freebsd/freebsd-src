@@ -1,8 +1,44 @@
 ----------------------------------------
+8 January 2016. Summary of changes for version 20160108:
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all ACPICA copyrights and signons to 2016: Added the 2016 
+copyright to all source code module headers and utility/tool signons. 
+This includes the standard Linux dual-license header. This affects 
+virtually every file in the ACPICA core subsystem, iASL compiler, all 
+ACPICA utilities, and the ACPICA test suite.
+
+Fixed a regression introduced in version 20151218 concerning the 
+execution of so-called module-level ASL/AML code. Namespace objects 
+created under a module-level If() construct were not properly/fully 
+entered into the namespace and could cause an interpreter fault when 
+accessed.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+Current Release:
+    Non-Debug Version: 102.7K Code, 28.4K Data, 131.1K Total
+    Debug Version:     200.4K Code, 81.9K Data, 282.4K Total
+  Previous Release:
+    Non-Debug Version: 102.6K Code, 28.4K Data, 131.0K Total
+    Debug Version:     200.3K Code, 81.9K Data, 282.3K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Fixed a problem with the compilation of the GpioIo and GpioInt resource 
+descriptors. The _PIN field name was incorrectly defined to be an array 
+of 32-bit values, but the _PIN values are in fact 16 bits each. This 
+would cause incorrect bit width warnings when using Word (16-bit) fields 
+to access the descriptors.
+
+
+----------------------------------------
 18 December 2015. Summary of changes for version 20151218:
-
-This release is available at https://acpica.org/downloads
-
 
 1) ACPICA kernel-resident subsystem:
 
@@ -155,11 +191,9 @@ SSDTs within a single output file. Also added ommand line support to
 specify the number of SSDTs (in addition to a single DSDT). ACPICA BZ 
 1223, 1225.
 
+
 ----------------------------------------
 24 November 2015. Summary of changes for version 20151124:
-
-This release is available at https://acpica.org/downloads
-
 
 1) ACPICA kernel-resident subsystem:
 
@@ -235,6 +269,7 @@ iASL: Added an error message for an attempt to open a Scope() on an
 object defined in an SSDT. The DSDT is always loaded into the namespace 
 first, so any attempt to open a Scope on an SSDT object will fail at 
 runtime.
+
 
 ----------------------------------------
 30 September 2015. Summary of changes for version 20150930:
@@ -328,6 +363,7 @@ possible compiler output files when building the test suite -- thus
 exercising these features of the compiler. These files are automatically 
 deleted when the test suite exits.
 
+
 ----------------------------------------
 18 August 2015. Summary of changes for version 20150818:
 
@@ -411,6 +447,7 @@ current namespace objects (Object type and count). This is displayed if
 the command is entered with no arguments.
 
 AcpiNames: Add -x option to specify debug level, similar to AcpiExec.
+
 
 ----------------------------------------
 17 July 2015. Summary of changes for version 20150717:
@@ -668,12 +705,14 @@ directives.
 AcpiHelp: Added a new option, -t, to display all known/supported ACPI 
 tables.
 
+
 ----------------------------------------
 10 April 2015. Summary of changes for version 20150410:
 
 Reverted a change introduced in version 20150408 that caused
 a regression in the disassembler where incorrect operator
 symbols could be emitted.
+
 
 ----------------------------------------
 08 April 2015. Summary of changes for version 20150408:
@@ -747,6 +786,7 @@ Debugger: Removed some unused global variables.
 
 Tests: Updated the makefile for proper generation of the AAPITS suite.
 
+
 ----------------------------------------
 04 February 2015. Summary of changes for version 20150204:
 
@@ -787,7 +827,8 @@ David Box
     Non-Debug Version: 101.7K Code, 27.9K Data, 129.6K Total
     Debug Version:     199.2K Code, 82.4K Data, 281.6K Total
 
-----------------------------------------
+--
+--------------------------------------
 07 November 2014. Summary of changes for version 20141107:
 
 This release is available at https://acpica.org/downloads
@@ -1291,6 +1332,7 @@ Disassembler: Cleaned up a block of code that extracts a parent Op
 object. Added a comment that explains that the parent is guaranteed to be 
 valid in this case. ACPICA BZ 1069.
 
+
 ----------------------------------------
 24 April 2014. Summary of changes for version 20140424:
 
@@ -1357,6 +1399,7 @@ Unix application OSL: Update line-editing support. Add additional error
 checking and take care not to reset terminal attributes on exit if they 
 were never set. This should help guarantee that the terminal is always 
 left in the previous state on program exit.
+
 
 ----------------------------------------
 25 March 2014. Summary of changes for version 20140325:
@@ -1458,6 +1501,7 @@ AcpiBin utility:
 is made obsolete by the AcpiXtract utility.
 2) General cleanup of open files and allocated buffers.
 
+
 ----------------------------------------
 14 February 2014. Summary of changes for version 20140214:
 
@@ -1522,6 +1566,7 @@ displaying object data.
 iASL: Removed the obsolete -g option to obtain ACPI tables from the 
 Windows registry. This feature has been superseded by the acpidump 
 utility. 
+
 
 ----------------------------------------
 14 January 2014. Summary of changes for version 20140114:
@@ -1598,6 +1643,7 @@ successful. The original value is then restored and verified.
 Debugger: Added the "test predefined" command. This change makes this 
 test public and puts it under the new "test" command. The test executes 
 each and every predefined name within the current namespace.
+
 
 ----------------------------------------
 18 December 2013. Summary of changes for version 20131218:
@@ -1700,6 +1746,7 @@ Example ACPICA code (source/tools/examples): Updated the example code so
 that it builds to an actual working program, not just example code. Added 
 ACPI tables and execution of an example control method in the DSDT. Added 
 makefile support for Unix generation.
+
 
 ----------------------------------------
 15 November 2013. Summary of changes for version 20131115:
