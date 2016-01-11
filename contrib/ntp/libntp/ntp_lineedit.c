@@ -29,6 +29,7 @@
 #include "ntp.h"
 #include "ntp_stdlib.h"
 #include "ntp_lineedit.h"
+#include "safecast.h"
 
 #define MAXEDITLINE	512
 
@@ -213,7 +214,7 @@ ntp_readline(
 
 	line = fgets(line_buf, sizeof(line_buf), stdin);
 	if (NULL != line && *line) {
-		*pcount = strlen(line);
+		*pcount = (int)strlen(line); /* cannot overflow here */
 		line = estrdup(line);
 	} else
 		line = NULL;
