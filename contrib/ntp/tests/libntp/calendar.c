@@ -8,31 +8,42 @@
 
 static int leapdays(int year);
 
-int isGT(int first, int second);
-int leapdays(int year);
-char * CalendarFromCalToString(const struct calendar *cal);
-char * CalendarFromIsoToString(const struct isodate *iso); 
-int IsEqualCal(const struct calendar *expected, const struct calendar *actual);
-int IsEqualIso(const struct isodate *expected, const struct isodate *actual);
-char * DateFromCalToString(const struct calendar *cal);
-char * DateFromIsoToString(const struct isodate *iso);
-int IsEqualDateCal(const struct calendar *expected, const struct calendar *actual);
-int IsEqualDateIso(const struct isodate *expected, const struct isodate *actual);
-void test_DaySplitMerge(void);
-void test_SplitYearDays1(void);
-void test_SplitYearDays2(void);
-void test_RataDie1(void);
-void test_LeapYears1(void);
-void test_LeapYears2(void);
-void test_RoundTripDate(void);
-void test_RoundTripYearStart(void);
-void test_RoundTripMonthStart(void);
-void test_RoundTripWeekStart(void);
-void test_RoundTripDayStart(void);
-void test_IsoCalYearsToWeeks(void);
-void test_IsoCalWeeksToYearStart(void);
-void test_IsoCalWeeksToYearEnd(void);
-void test_DaySecToDate(void);
+void	setUp(void);
+int	isGT(int first, int second);
+int	leapdays(int year);
+char *	CalendarFromCalToString(const struct calendar *cal);
+char *	CalendarFromIsoToString(const struct isodate *iso); 
+int	IsEqualCal(const struct calendar *expected, const struct calendar *actual);
+int	IsEqualIso(const struct isodate *expected, const struct isodate *actual);
+char *	DateFromCalToString(const struct calendar *cal);
+char *	DateFromIsoToString(const struct isodate *iso);
+int	IsEqualDateCal(const struct calendar *expected, const struct calendar *actual);
+int	IsEqualDateIso(const struct isodate *expected, const struct isodate *actual);
+void	test_DaySplitMerge(void);
+void	test_SplitYearDays1(void);
+void	test_SplitYearDays2(void);
+void	test_RataDie1(void);
+void	test_LeapYears1(void);
+void	test_LeapYears2(void);
+void	test_RoundTripDate(void);
+void	test_RoundTripYearStart(void);
+void	test_RoundTripMonthStart(void);
+void	test_RoundTripWeekStart(void);
+void	test_RoundTripDayStart(void);
+void	test_IsoCalYearsToWeeks(void);
+void	test_IsoCalWeeksToYearStart(void);
+void	test_IsoCalWeeksToYearEnd(void);
+void	test_DaySecToDate(void);
+
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
+
 
 /*
  * ---------------------------------------------------------------------
@@ -42,7 +53,7 @@ void test_DaySecToDate(void);
 int
 isGT(int first, int second)
 {
-	if(first > second) {	
+	if(first > second) {
 		return TRUE;
 	} else {
 		return FALSE;
@@ -100,9 +111,14 @@ IsEqualCal(
 	    expected->second == actual->second) {
 		return TRUE;
 	} else {
-		printf("expected: %s but was %s",
-		       CalendarFromCalToString(expected),
-		       CalendarFromCalToString(actual));
+		char *p_exp = CalendarFromCalToString(expected);
+		char *p_act = CalendarFromCalToString(actual);
+
+		printf("expected: %s but was %s", p_exp, p_act);
+
+		free(p_exp);
+		free(p_act);
+
 		return FALSE;		  
 	}
 }
@@ -215,8 +231,10 @@ static const u_short real_month_days[2][14] = {
  * the 'vint64' is definitely needed.
  */
 void
-test_DaySplitMerge(void) {
+test_DaySplitMerge(void)
+{
 	int32 day,sec;
+
 	for (day = -1000000; day <= 1000000; day += 100) {
 		for (sec = -100000; sec <= 186400; sec += 10000) {
 			vint64		 merge;
@@ -242,11 +260,15 @@ test_DaySplitMerge(void) {
 			TEST_ASSERT_EQUAL(esec, split.lo);
 		}
 	}
+
+	return;
 }
 
 void
-test_SplitYearDays1(void) {
+test_SplitYearDays1(void)
+{
 	int32 eyd;
+
 	for (eyd = -1; eyd <= 365; eyd++) {
 		ntpcal_split split = ntpcal_split_yeardays(eyd, 0);
 		if (split.lo >= 0 && split.hi >= 0) {
@@ -257,11 +279,15 @@ test_SplitYearDays1(void) {
 		} else
 			TEST_ASSERT_TRUE(eyd < 0 || eyd > 364);
 	}
+
+	return;
 }
-		
+
 void
-test_SplitYearDays2(void) {
+test_SplitYearDays2(void)
+{
 	int32 eyd;
+
 	for (eyd = -1; eyd <= 366; eyd++) {
 		ntpcal_split split = ntpcal_split_yeardays(eyd, 1);
 		if (split.lo >= 0 && split.hi >= 0) {
@@ -274,21 +300,27 @@ test_SplitYearDays2(void) {
 		} else
 			TEST_ASSERT_TRUE(eyd < 0 || eyd > 365);
 		}
+
+	return;
 }
-		
+
 void
-test_RataDie1(void) {
+test_RataDie1(void)
+{
 	int32	 testDate = 1; /* 0001-01-01 (proleptic date) */
 	struct calendar expected = { 1, 1, 1, 1 };
 	struct calendar actual;
 
 	ntpcal_rd_to_date(&actual, testDate);
 	TEST_ASSERT_TRUE(IsEqualDateCal(&expected, &actual));
+
+	return;
 }
 
 /* check last day of february for first 10000 years */
 void
-test_LeapYears1(void) {
+test_LeapYears1(void)
+{
 	struct calendar dateIn, dateOut;
 
 	for (dateIn.year = 1; dateIn.year < 10000; ++dateIn.year) {
@@ -300,11 +332,14 @@ test_LeapYears1(void) {
 
 		TEST_ASSERT_TRUE(IsEqualDateCal(&dateIn, &dateOut));
 	}
+
+	return;
 }
 
 /* check first day of march for first 10000 years */
 void
-test_LeapYears2(void) {
+test_LeapYears2(void)
+{
 	struct calendar dateIn, dateOut;
 
 	for (dateIn.year = 1; dateIn.year < 10000; ++dateIn.year) {
@@ -315,6 +350,8 @@ test_LeapYears2(void) {
 		ntpcal_rd_to_date(&dateOut, ntpcal_date_to_rd(&dateIn));
 		TEST_ASSERT_TRUE(IsEqualDateCal(&dateIn, &dateOut));
 	}
+
+	return;
 }
 
 /* Full roundtrip from 1601-01-01 to 2400-12-31
@@ -324,7 +361,8 @@ test_LeapYears2(void) {
  * invalid output can occur.)
  */
 void
-test_RoundTripDate(void) {
+test_RoundTripDate(void)
+{
 	struct calendar truDate, expDate = { 1600, 0, 12, 31 };;
 	int	 leaps;
 	int32	 truRdn, expRdn	= ntpcal_date_to_rd(&expDate);
@@ -335,7 +373,7 @@ test_RoundTripDate(void) {
 		expDate.yearday = 0;
 		leaps = leapdays(expDate.year);
 		while (expDate.month < 12) {
-			expDate.month++;			
+			expDate.month++;
 			expDate.monthday = 0;
 			while (expDate.monthday < real_month_days[leaps][expDate.month]) {
 				expDate.monthday++;
@@ -350,11 +388,14 @@ test_RoundTripDate(void) {
 			}
 		}
 	}
+
+	return;
 }
 
 /* Roundtrip testing on calyearstart */
 void
-test_RoundTripYearStart(void) {
+test_RoundTripYearStart(void)
+{
 	static const time_t pivot = 0;
 	u_int32 ntp, expys, truys;
 	struct calendar date;
@@ -367,11 +408,14 @@ test_RoundTripYearStart(void) {
 		expys = ntpcal_date_to_ntp(&date);
 		TEST_ASSERT_EQUAL(expys, truys);
 	}
-}	
+
+	return;
+}
 
 /* Roundtrip testing on calmonthstart */
 void
-test_RoundTripMonthStart(void) {
+test_RoundTripMonthStart(void)
+{
 	static const time_t pivot = 0;
 	u_int32 ntp, expms, trums;
 	struct calendar date;
@@ -384,11 +428,14 @@ test_RoundTripMonthStart(void) {
 		expms = ntpcal_date_to_ntp(&date);
 		TEST_ASSERT_EQUAL(expms, trums);
 	}
-}	
+
+	return;
+}
 
 /* Roundtrip testing on calweekstart */
 void
-test_RoundTripWeekStart(void) {
+test_RoundTripWeekStart(void)
+{
 	static const time_t pivot = 0;
 	u_int32 ntp, expws, truws;
 	struct isodate date;
@@ -401,11 +448,14 @@ test_RoundTripWeekStart(void) {
 		expws = isocal_date_to_ntp(&date);
 		TEST_ASSERT_EQUAL(expws, truws);
 	}
-}	
+
+	return;
+}
 
 /* Roundtrip testing on caldaystart */
 void
-test_RoundTripDayStart(void) {
+test_RoundTripDayStart(void)
+{
 	static const time_t pivot = 0;
 	u_int32 ntp, expds, truds;
 	struct calendar date;
@@ -417,6 +467,8 @@ test_RoundTripDayStart(void) {
 		expds = ntpcal_date_to_ntp(&date);
 		TEST_ASSERT_EQUAL(expds, truds);
 	}
+
+	return;
 }
 
 /* ---------------------------------------------------------------------
@@ -444,6 +496,7 @@ refimpl_WeeksInIsoYears(
 	int32_t years)
 {
 	int32_t days, weeks;
+
 	days = ntpcal_weekday_close(
 		ntpcal_days_in_years(years) + 1,
 		CAL_MONDAY) - 1;
@@ -455,6 +508,7 @@ refimpl_WeeksInIsoYears(
 	weeks = days / 7;
 	days  = days % 7;
 	TEST_ASSERT_EQUAL(0, days); /* paranoia check... */
+
 	return weeks;
 }
 
@@ -462,9 +516,11 @@ refimpl_WeeksInIsoYears(
  * they are not, the calendar needs a better implementation...
  */
 void
-test_IsoCalYearsToWeeks(void) {
+test_IsoCalYearsToWeeks(void)
+{
 	int32_t years;
 	int32_t wref, wcal;
+
 	for (years = -1000; years < 4000; ++years) {
 		/* get number of weeks before years (reference) */
 		wref = refimpl_WeeksInIsoYears(years);
@@ -472,13 +528,17 @@ test_IsoCalYearsToWeeks(void) {
 		wcal = isocal_weeks_in_years(years);
 		TEST_ASSERT_EQUAL(wref, wcal);
 	}
+
+	return;
 }
 
 void
-test_IsoCalWeeksToYearStart(void) {
+test_IsoCalWeeksToYearStart(void)
+{
 	int32_t years;
 	int32_t wref;
 	ntpcal_split ysplit;
+
 	for (years = -1000; years < 4000; ++years) {
 		/* get number of weeks before years (reference) */
 		wref = refimpl_WeeksInIsoYears(years);
@@ -488,13 +548,17 @@ test_IsoCalWeeksToYearStart(void) {
 		TEST_ASSERT_EQUAL(years, ysplit.hi);
 		TEST_ASSERT_EQUAL(0, ysplit.lo);
 	}
+
+	return;
 }
 
 void
-test_IsoCalWeeksToYearEnd(void) {
+test_IsoCalWeeksToYearEnd(void)
+{
 	int32_t years;
 	int32_t wref;
 	ntpcal_split ysplit;
+
 	for (years = -1000; years < 4000; ++years) {
 		/* get last week of previous year */
 		wref = refimpl_WeeksInIsoYears(years) - 1;
@@ -504,10 +568,13 @@ test_IsoCalWeeksToYearEnd(void) {
 		TEST_ASSERT_EQUAL(years-1, ysplit.hi);
 		TEST_ASSERT(ysplit.lo == 51 || ysplit.lo == 52);
 	}
+
+	return;
 }
 
 void
-test_DaySecToDate(void) {
+test_DaySecToDate(void)
+{
 	struct calendar cal;
 	int32_t days;
 
@@ -538,4 +605,6 @@ test_DaySecToDate(void) {
 	days = ntpcal_daysec_to_date(&cal, 86400);
 	TEST_ASSERT_MESSAGE((days==1 && cal.hour==0 && cal.minute==0 && cal.second==0),
 		"failed for 86400");
+
+	return;
 }
