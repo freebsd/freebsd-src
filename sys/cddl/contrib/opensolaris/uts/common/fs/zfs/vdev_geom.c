@@ -594,7 +594,15 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 				vdev_geom_read_guids(zcp, &pguid, &vguid);
 				g_topology_lock();
 				vdev_geom_detach_taster(zcp);
-				if (pguid != spa_guid(vd->vdev_spa) ||
+				/* 
+				 * Check that the label's vdev guid matches the
+				 * desired guid.  If the label has a pool guid,
+				 * check that it matches too. (Inactive spares
+				 * and L2ARCs do not have any pool guid in the
+				 * label.)
+				*/
+				if ((pguid != 0 &&
+				     pguid != spa_guid(vd->vdev_spa)) ||
 				    vguid != vd->vdev_guid)
 					continue;
 				cp = vdev_geom_attach(pp, vd);
