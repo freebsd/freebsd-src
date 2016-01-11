@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
+static void nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
 
 static int
 nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
@@ -777,6 +778,7 @@ static int
 nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 {
 
+	ctrlr->msix_enabled = 0;
 	ctrlr->num_io_queues = 1;
 	ctrlr->rid = 0;
 	ctrlr->res = bus_alloc_resource_any(ctrlr->dev, SYS_RES_IRQ,
@@ -925,13 +927,73 @@ static struct cdevsw nvme_ctrlr_cdevsw = {
 	.d_ioctl =	nvme_ctrlr_ioctl
 };
 
+static void
+nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
+{
+	device_t	dev;
+	int		per_cpu_io_queues;
+	int		num_vectors_requested, num_vectors_allocated;
+
+	dev = ctrlr->dev;
+	per_cpu_io_queues = 1;
+	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
+
+	ctrlr->force_intx = 0;
+	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
+
+	if (ctrlr->force_intx || pci_msix_count(dev) < 2) {
+		nvme_ctrlr_configure_intx(ctrlr);
+		return;
+	}
+
+	ctrlr->msix_enabled = 1;
+
+	if (per_cpu_io_queues)
+		ctrlr->num_io_queues = mp_ncpus;
+	else
+		ctrlr->num_io_queues = 1;
+
+	/* One vector per IO queue, plus one vector for admin queue. */
+	num_vectors_requested = ctrlr->num_io_queues + 1;
+
+	if (pci_msix_count(dev) < num_vectors_requested) {
+		ctrlr->num_io_queues = 1;
+		num_vectors_requested = 2; /* one for admin, one for I/O */
+	}
+
+	num_vectors_allocated = num_vectors_requested;
+	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
+		nvme_ctrlr_configure_intx(ctrlr);
+		return;
+	}
+
+	if (num_vectors_allocated < num_vectors_requested) {
+		if (num_vectors_allocated < 2) {
+			pci_release_msi(dev);
+			nvme_ctrlr_configure_intx(ctrlr);
+			return;
+		}
+
+		ctrlr->num_io_queues = 1;
+		/*
+		 * Release whatever vectors were allocated, and just
+		 *  reallocate the two needed for the admin and single
+		 *  I/O qpair.
+		 */
+		num_vectors_allocated = 2;
+		pci_release_msi(dev);
+		if (pci_alloc_msix(dev, &num_vectors_allocated) != 0)
+			panic("could not reallocate any vectors\n");
+		if (num_vectors_allocated != 2)
+			panic("could not reallocate 2 vectors\n");
+	}
+}
+
 int
 nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
-	int			per_cpu_io_queues;
-	int			num_vectors_requested, num_vectors_allocated;
 	int			status, timeout_period;
 
 	ctrlr->dev = dev;
@@ -966,75 +1028,10 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	nvme_retry_count = NVME_DEFAULT_RETRY_COUNT;
 	TUNABLE_INT_FETCH("hw.nvme.retry_count", &nvme_retry_count);
 
-	per_cpu_io_queues = 1;
-	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
-
-	if (per_cpu_io_queues)
-		ctrlr->num_io_queues = mp_ncpus;
-	else
-		ctrlr->num_io_queues = 1;
-
-	ctrlr->force_intx = 0;
-	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
-
 	ctrlr->enable_aborts = 0;
 	TUNABLE_INT_FETCH("hw.nvme.enable_aborts", &ctrlr->enable_aborts);
 
-	ctrlr->msix_enabled = 1;
-
-	if (ctrlr->force_intx) {
-		ctrlr->msix_enabled = 0;
-		goto intx;
-	}
-
-	/* One vector per IO queue, plus one vector for admin queue. */
-	num_vectors_requested = ctrlr->num_io_queues + 1;
-
-	/*
-	 * If we cannot even allocate 2 vectors (one for admin, one for
-	 *  I/O), then revert to INTx.
-	 */
-	if (pci_msix_count(dev) < 2) {
-		ctrlr->msix_enabled = 0;
-		goto intx;
-	}
-
-	if (pci_msix_count(dev) < num_vectors_requested) {
-		ctrlr->num_io_queues = 1;
-		num_vectors_requested = 2; /* one for admin, one for I/O */
-	}
-
-	num_vectors_allocated = num_vectors_requested;
-	if (pci_alloc_msix(dev, &num_vectors_allocated) != 0) {
-		ctrlr->msix_enabled = 0;
-		goto intx;
-	}
-
-	if (num_vectors_allocated < num_vectors_requested) {
-		if (num_vectors_allocated < 2) {
-			pci_release_msi(dev);
-			ctrlr->msix_enabled = 0;
-			goto intx;
-		}
-
-		ctrlr->num_io_queues = 1;
-		/*
-		 * Release whatever vectors were allocated, and just
-		 *  reallocate the two needed for the admin and single
-		 *  I/O qpair.
-		 */
-		num_vectors_allocated = 2;
-		pci_release_msi(dev);
-		if (pci_alloc_msix(dev, &num_vectors_allocated) != 0)
-			panic("could not reallocate any vectors\n");
-		if (num_vectors_allocated != 2)
-			panic("could not reallocate 2 vectors\n");
-	}
-
-intx:
-
-	if (!ctrlr->msix_enabled)
-		nvme_ctrlr_configure_intx(ctrlr);
+	nvme_ctrlr_setup_interrupts(ctrlr);
 
 	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
 	nvme_ctrlr_construct_admin_qpair(ctrlr);
