@@ -287,7 +287,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 		disk->d_unit =
 		    TAILQ_LAST(&disk_head, disk_list)->disk->d_unit + 1;
 
-	disk->d_flags = 0;
+	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
 
 	if (nvme_ns_get_flags(ns) & NVME_NS_DEALLOCATE_SUPPORTED)
 		disk->d_flags |= DISKFLAG_CANDELETE;
