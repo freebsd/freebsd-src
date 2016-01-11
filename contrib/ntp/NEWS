@@ -1,7 +1,108 @@
 ---
+
+NTP 4.2.8p5
+
+Focus: Security, Bug fixes, enhancements.
+
+Severity: MEDIUM
+
+In addition to bug fixes and enhancements, this release fixes the
+following medium-severity vulnerability:
+
+* Small-step/big-step.  Close the panic gate earlier.
+    References: Sec 2956, CVE-2015-5300
+    Affects: All ntp-4 releases up to, but not including 4.2.8p5, and
+	4.3.0 up to, but not including 4.3.78
+    CVSS3: (AV:N/AC:H/PR:H/UI:R/S:C/C:L/I:N/A:L) Base Score: 4.0, MEDIUM
+    Summary: If ntpd is always started with the -g option, which is
+	common and against long-standing recommendation, and if at the
+	moment ntpd is restarted an attacker can immediately respond to
+	enough requests from enough sources trusted by the target, which
+	is difficult and not common, there is a window of opportunity
+	where the attacker can cause ntpd to set the time to an
+	arbitrary value. Similarly, if an attacker is able to respond
+	to enough requests from enough sources trusted by the target,
+	the attacker can cause ntpd to abort and restart, at which
+	point it can tell the target to set the time to an arbitrary
+	value if and only if ntpd was re-started against long-standing
+	recommendation with the -g flag, or if ntpd was not given the
+	-g flag, the attacker can move the target system's time by at
+	most 900 seconds' time per attack.
+    Mitigation:
+	Configure ntpd to get time from multiple sources.
+	Upgrade to 4.2.8p5, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page
+	As we've long documented, only use the -g option to ntpd in
+	    cold-start situations.
+	Monitor your ntpd instances. 
+    Credit: This weakness was discovered by Aanchal Malhotra,
+	Isaac E. Cohen, and Sharon Goldberg at Boston University. 
+
+    NOTE WELL: The -g flag disables the limit check on the panic_gate
+	in ntpd, which is 900 seconds by default. The bug identified by
+	the researchers at Boston University is that the panic_gate
+	check was only re-enabled after the first change to the system
+	clock that was greater than 128 milliseconds, by default. The
+	correct behavior is that the panic_gate check should be
+	re-enabled after any initial time correction.
+
+	If an attacker is able to inject consistent but erroneous time
+	responses to your systems via the network or "over the air",
+	perhaps by spoofing radio, cellphone, or navigation satellite
+	transmissions, they are in a great position to affect your
+	system's clock. There comes a point where your very best
+	defenses include:
+
+	    Configure ntpd to get time from multiple sources.
+	    Monitor your ntpd instances. 
+
+Other fixes:
+
+* Coverity submission process updated from Coverity 5 to Coverity 7.
+  The NTP codebase has been undergoing regular Coverity scans on an
+  ongoing basis since 2006.  As part of our recent upgrade from
+  Coverity 5 to Coverity 7, Coverity identified 16 nits in some of
+  the newly-written Unity test programs.  These were fixed.
+* [Bug 2829] Clean up pipe_fds in ntpd.c  perlinger@ntp.org
+* [Bug 2887] stratum -1 config results as showing value 99
+  - fudge stratum should only accept values [0..16]. perlinger@ntp.org
+* [Bug 2932] Update leapsecond file info in miscopt.html.  CWoodbury, HStenn.
+* [Bug 2934] tests/ntpd/t-ntp_scanner.c has a magic constant wired in.  HMurray
+* [Bug 2944] errno is not preserved properly in ntpdate after sendto call.
+  - applied patch by Christos Zoulas.  perlinger@ntp.org
+* [Bug 2952] Peer associations broken by fix for Bug 2901/CVE-2015-7704.
+* [Bug 2954] Version 4.2.8p4 crashes on startup on some OSes.
+  - fixed data race conditions in threaded DNS worker. perlinger@ntp.org
+  - limit threading warm-up to linux; FreeBSD bombs on it. perlinger@ntp.org
+* [Bug 2957] 'unsigned int' vs 'size_t' format clash. perlinger@ntp.org
+  - accept key file only if there are no parsing errors
+  - fixed size_t/u_int format clash
+  - fixed wrong use of 'strlcpy'
+* [Bug 2958] ntpq: fatal error messages need a final newline. Craig Leres.
+* [Bug 2962] truncation of size_t/ptrdiff_t on 64bit targets. perlinger@ntp.org
+  - fixed several other warnings (cast-alignment, missing const, missing prototypes)
+  - promote use of 'size_t' for values that express a size
+  - use ptr-to-const for read-only arguments
+  - make sure SOCKET values are not truncated (win32-specific)
+  - format string fixes
+* [Bug 2965] Local clock didn't work since 4.2.8p4.  Martin Burnicki.
+* [Bug 2967] ntpdate command suffers an assertion failure
+  - fixed ntp_rfc2553.c to return proper address length. perlinger@ntp.org
+* [Bug 2969]  Seg fault from ntpq/mrulist when looking at server with
+              lots of clients. perlinger@ntp.org
+* [Bug 2971] ntpq bails on ^C: select fails: Interrupted system call
+  - changed stacked/nested handling of CTRL-C. perlinger@ntp.org
+* Unity cleanup for FreeBSD-6.4.  Harlan Stenn.
+* Unity test cleanup.  Harlan Stenn.
+* Libevent autoconf pthread fixes for FreeBSD-10.  Harlan Stenn.
+* Header cleanup in tests/sandbox/uglydate.c.  Harlan Stenn.
+* Header cleanup in tests/libntp/sfptostr.c.  Harlan Stenn.
+* Quiet a warning from clang.  Harlan Stenn.
+
+---
 NTP 4.2.8p4
 
-Focus: Security, Bug fies, enhancements.
+Focus: Security, Bug fixes, enhancements.
 
 Severity: MEDIUM
 
@@ -339,8 +440,8 @@ Credit: This weakness was discovered by Aleksandar Nikolic of Cisco Talos.
 
 Backward-Incompatible changes:
 * [Bug 2817] Default on Linux is now "rlimit memlock -1".
-While the general default of 32M is still the case, under Linux
-the default value has been changed to -1 (do not lock ntpd into
+  While the general default of 32M is still the case, under Linux
+  the default value has been changed to -1 (do not lock ntpd into
   memory).  A value of 0 means "lock ntpd into memory with whatever
   memory it needs." If your ntp.conf file has an explicit "rlimit memlock"
   value in it, that value will continue to be used.
