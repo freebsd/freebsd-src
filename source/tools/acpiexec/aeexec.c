@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,6 +82,10 @@ AeHardwareInterfaces (
 
 static void
 AeGenericRegisters (
+    void);
+
+static void
+AeTestSleepData (
     void);
 
 #if (!ACPI_REDUCED_HARDWARE)
@@ -551,6 +555,40 @@ AeHardwareInterfaces (
 
 /******************************************************************************
  *
+ * FUNCTION:    AeTestSleepData
+ *
+ * DESCRIPTION: Exercise the sleep/wake support (_S0, _S1, etc.)
+ *
+ *****************************************************************************/
+
+static void
+AeTestSleepData (
+    void)
+{
+    int                     State;
+    UINT8                   TypeA;
+    UINT8                   TypeB;
+    ACPI_STATUS             Status;
+
+
+    /* Attempt to get sleep data for all known sleep states */
+
+    for (State = ACPI_STATE_S0; State <= ACPI_S_STATES_MAX; State++)
+    {
+        Status = AcpiGetSleepTypeData ((UINT8) State, &TypeA, &TypeB);
+
+        /* All sleep methods are optional */
+
+        if (Status != AE_NOT_FOUND)
+        {
+            ACPI_CHECK_OK (AcpiGetSleepTypeData, Status);
+        }
+    }
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    AeMiscellaneousTests
  *
  * DESCRIPTION: Various ACPICA validation tests.
@@ -632,6 +670,7 @@ AeMiscellaneousTests (
     AeTestBufferArgument();
     AeTestPackageArgument ();
     AeMutexInterfaces ();
+    AeTestSleepData ();
 
     /* Test _OSI install/remove */
 
