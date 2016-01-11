@@ -215,6 +215,7 @@ nvd_bioq_process(void *arg, int pending)
 			bp->bio_flags |= BIO_ERROR;
 			bp->bio_resid = bp->bio_bcount;
 			biodone(bp);
+			continue;
 		}
 
 #ifdef BIO_ORDERED
