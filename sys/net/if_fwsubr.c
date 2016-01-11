@@ -106,9 +106,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	}
 
 #if defined(INET) || defined(INET6)
-	if (ro != NULL && ro->ro_rt != NULL &&
-	    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
-		is_gw = 1;
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
 #endif
 	/*
 	 * For unicast, we make a tag to store the lladdr of the
@@ -145,10 +144,6 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 * doesn't fit into the arp model.
 		 */
 		if (unicast) {
-			is_gw = 0;
-			if (ro != NULL && ro->ro_rt != NULL &&
-			    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
-				is_gw = 1;
 			error = arpresolve(ifp, is_gw, m, dst, (u_char *) destfw, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);

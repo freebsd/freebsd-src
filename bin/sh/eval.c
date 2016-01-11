@@ -1039,12 +1039,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		reffunc(cmdentry.u.func);
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
-			freeparam(&shellparam);
-			shellparam = saveparam;
 			popredir();
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
+			freeparam(&shellparam);
+			shellparam = saveparam;
 			funcnest--;
 			handler = savehandler;
 			longjmp(handler->loc, 1);

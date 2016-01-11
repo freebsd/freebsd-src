@@ -570,9 +570,8 @@ _worldtmp: .PHONY
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
 #	XXX - These three can depend on any header file.
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
+	rm -f ${OBJTREE}${.CURDIR}/lib/libsysdecode/ioctl.c
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
     lib usr legacy/bin legacy/usr
@@ -1425,11 +1424,13 @@ _vtfontcvt=	usr.bin/vtfontcvt
 _sed=		usr.bin/sed
 .endif
 
-.if ${BOOTSTRAPPING} < 1000002
+.if ${BOOTSTRAPPING} < 1000033
 _libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
+_lex=		usr.bin/lex
 
 ${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
+${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
@@ -1441,12 +1442,6 @@ ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 
 .if ${BOOTSTRAPPING} < 1000027
 _cat=		bin/cat
-.endif
-
-.if ${BOOTSTRAPPING} < 1000033
-_lex=		usr.bin/lex
-
-${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
 # r277259 crunchide: Correct 64-bit section header offset

@@ -104,6 +104,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_syscallnames = freebsd32_syscallnames,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
