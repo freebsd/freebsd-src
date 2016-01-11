@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include "config.h"
 #include "ntp_fp.h"
+#include "ntp_stdlib.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -47,7 +48,7 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("uglydate.c");
-  RUN_TEST(test_ConstantDateTime, 9);
+  RUN_TEST(test_ConstantDateTime, 10);
 
   return (UnityEnd());
 }

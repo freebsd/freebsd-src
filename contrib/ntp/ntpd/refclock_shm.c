@@ -381,7 +381,8 @@ static inline void memory_barrier(void)
 static enum segstat_t shm_query(volatile struct shmTime *shm_in, struct shm_stat_t *shm_stat)
 /* try to grab a sample from the specified SHM segment */
 {
-    volatile struct shmTime shmcopy, *shm = shm_in;
+    struct shmTime shmcopy;
+    volatile struct shmTime *shm = shm_in;
     volatile int cnt;
 
     unsigned int cns_new, rns_new;
@@ -418,7 +419,7 @@ static enum segstat_t shm_query(volatile struct shmTime *shm_in, struct shm_stat
      * (b) memset compiles to an uninterruptible single-instruction bitblt.
      */
     memory_barrier();
-    memcpy((void *)&shmcopy, (void *)shm, sizeof(struct shmTime));
+    memcpy(&shmcopy, (void*)(uintptr_t)shm, sizeof(struct shmTime));
     shm->valid = 0;
     memory_barrier();
 
