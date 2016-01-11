@@ -110,6 +110,7 @@
 #include <limits.h>
 #include <math.h>
 #include <nlist.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,6 +136,8 @@ struct device_selection *dev_select;
 int maxshowdevs;
 volatile sig_atomic_t headercount;
 volatile sig_atomic_t wresized;		/* Tty resized, when non-zero. */
+volatile sig_atomic_t alarm_rang;
+volatile sig_atomic_t return_requested;
 unsigned short wrows;			/* Current number of tty rows. */
 int dflag = 0, Iflag = 0, Cflag = 0, Tflag = 0, oflag = 0, Kflag = 0;
 int xflag = 0, zflag = 0;
@@ -143,6 +146,8 @@ int xflag = 0, zflag = 0;
 static void usage(void);
 static void needhdr(int signo);
 static void needresize(int signo);
+static void needreturn(int signo);
+static void alarm_clock(int signo);
 static void doresize(void);
 static void phdr(void);
 static void devstats(int perf_select, long double etime, int havelast);
@@ -172,6 +177,7 @@ main(int argc, char **argv)
 	int count = 0, waittime = 0;
 	char *memf = NULL, *nlistf = NULL;
 	struct devstat_match *matches;
+	struct itimerval alarmspec;
 	int num_matches = 0;
 	char errbuf[_POSIX2_LINE_MAX];
 	kvm_t *kd = NULL;
@@ -442,10 +448,28 @@ main(int argc, char **argv)
 		wrows = IOSTAT_DEFAULT_ROWS;
 	}
 
+	/*
+	 * Register a SIGINT handler so that we can print out final statistics
+	 * when we get that signal
+	 */
+	(void)signal(SIGINT, needreturn);
+
+	/*
+	 * Register a SIGALRM handler to implement sleeps if the user uses the
+	 * -c or -w options
+	 */
+	(void)signal(SIGALRM, alarm_clock);
+	alarmspec.it_interval.tv_sec = waittime / 1000;
+	alarmspec.it_interval.tv_usec = 1000 * (waittime % 1000);
+	alarmspec.it_value.tv_sec = waittime / 1000;
+	alarmspec.it_value.tv_usec = 1000 * (waittime % 1000);
+	setitimer(ITIMER_REAL, &alarmspec, NULL);
+
 	for (headercount = 1;;) {
 		struct devinfo *tmp_dinfo;
 		long tmp;
 		long double etime;
+		sigset_t sigmask, oldsigmask;
 
 		if (Tflag > 0) {
 			if ((readvar(kd, "kern.tty_nin", X_TK_NIN, &cur.tk_nin,
@@ -599,10 +623,23 @@ main(int argc, char **argv)
 		}
 		fflush(stdout);
 
-		if (count >= 0 && --count <= 0)
+		if ((count >= 0 && --count <= 0) || return_requested)
 			break;
 
-		usleep(waittime * 1000);
+		/*
+		 * Use sigsuspend to safely sleep until either signal is
+		 * received
+		 */
+		alarm_rang = 0;
+		sigemptyset(&sigmask);
+		sigaddset(&sigmask, SIGINT);
+		sigaddset(&sigmask, SIGALRM);
+		sigprocmask(SIG_BLOCK, &sigmask, &oldsigmask);
+		while (! (alarm_rang || return_requested) ) {
+			sigsuspend(&oldsigmask);
+		}
+		sigprocmask(SIG_UNBLOCK, &sigmask, NULL);
+
 		havelast = 1;
 	}
 
@@ -630,6 +667,24 @@ needresize(int signo)
 
 	wresized = 1;
 	headercount = 1;
+}
+
+/*
+ * Record the alarm so the main loop can break its sleep
+ */
+void
+alarm_clock(int signo)
+{
+	alarm_rang = 1;
+}
+
+/*
+ * Request that the main loop exit soon
+ */
+void
+needreturn(int signo)
+{
+	return_requested = 1;
 }
 
 /*
