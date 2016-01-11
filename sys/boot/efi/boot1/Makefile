@@ -32,7 +32,11 @@ FILES=	boot1.efi boot1.efifat
 FILESMODE_boot1.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
-LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared -Wl,-znocombreloc
+LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+LDFLAGS+=	-Wl,-znocombreloc
+.endif
 
 ${PROG}:	${LDSCRIPT}
 
@@ -75,6 +79,7 @@ CLEANFILES= boot1.efifat
 
 .include <bsd.prog.mk>
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 beforedepend ${OBJS}: machine x86
 
 CLEANFILES+=   machine x86 boot1.efi
@@ -84,3 +89,4 @@ machine:
 
 x86:
 	ln -sf ${.CURDIR}/../../../x86/include x86
+.endif
