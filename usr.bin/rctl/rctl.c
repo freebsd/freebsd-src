@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#define	RCTL_DEFAULT_BUFSIZE	4096
+#define	RCTL_DEFAULT_BUFSIZE	128 * 1024
 
 static id_t
 parse_user(const char *s)
