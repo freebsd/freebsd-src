@@ -590,7 +590,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * while Linux keeps the super block in a locked buffer.
 	 */
 	ump->um_e2fs = malloc(sizeof(struct m_ext2fs),
-		M_EXT2MNT, M_WAITOK);
+		M_EXT2MNT, M_WAITOK | M_ZERO);
 	ump->um_e2fs->e2fs = malloc(sizeof(struct ext2fs),
 		M_EXT2MNT, M_WAITOK);
 	mtx_init(EXT2_MTX(ump), "EXT2FS", "EXT2FS Lock", MTX_DEF);
