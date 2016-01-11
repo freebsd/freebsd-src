@@ -809,7 +809,7 @@ pw_user_show(int argc, char **argv, char *arg1)
 		case 'a':
 			all = true;
 			break;
-		case 7:
+		case '7':
 			v7 = true;
 			break;
 		}
