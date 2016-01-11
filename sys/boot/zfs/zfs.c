@@ -413,7 +413,7 @@ struct zfs_probe_args {
 	int		fd;
 	const char	*devname;
 	uint64_t	*pool_guid;
-	uint16_t	secsz;
+	u_int		secsz;
 };
 
 static int
