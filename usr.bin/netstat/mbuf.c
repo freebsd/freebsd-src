@@ -326,13 +326,33 @@ mbpr(void *kvmd, u_long mbaddr)
 	    kread_counters) != 0)
 		goto out;
 
+        xo_emit("{:sendfile-syscalls/%ju} {N:sendfile syscalls}\n",
+	    (uintmax_t)sfstat.sf_syscalls); 
+        xo_emit("{:sendfile-no-io/%ju} "
+	    "{N:sendfile syscalls completed without I\\/O request}\n", 
+            (uintmax_t)sfstat.sf_noiocnt);
+	xo_emit("{:sendfile-io-count/%ju} "
+	    "{N:requests for I\\/O initiated by sendfile}\n",
+	    (uintmax_t)sfstat.sf_iocnt);
+        xo_emit("{:sendfile-pages-sent/%ju} "
+	    "{N:pages read by sendfile as part of a request}\n",
+            (uintmax_t)sfstat.sf_pages_read);
+        xo_emit("{:sendfile-pages-valid/%ju} "
+	    "{N:pages were valid at time of a sendfile request}\n",
+            (uintmax_t)sfstat.sf_pages_valid);
+        xo_emit("{:sendfile-requested-readahead/%ju} "
+	    "{N:pages were requested for read ahead by applications}\n",
+            (uintmax_t)sfstat.sf_rhpages_requested);
+        xo_emit("{:sendfile-readahead/%ju} "
+	    "{N:pages were read ahead by sendfile}\n",
+            (uintmax_t)sfstat.sf_rhpages_read);
+	xo_emit("{:sendfile-busy-encounters/%ju} "
+	    "{N:times sendfile encountered an already busy page}\n",
+	    (uintmax_t)sfstat.sf_busy);
 	xo_emit("{:sfbufs-alloc-failed/%ju} {N:requests for sfbufs denied}\n",
 	    (uintmax_t)sfstat.sf_allocfail);
 	xo_emit("{:sfbufs-alloc-wait/%ju} {N:requests for sfbufs delayed}\n",
 	    (uintmax_t)sfstat.sf_allocwait);
-	xo_emit("{:sfbufs-io-count/%ju} "
-	    "{N:requests for I\\/O initiated by sendfile}\n",
-	    (uintmax_t)sfstat.sf_iocnt);
 out:
 	xo_close_container("mbuf-statistics");
 	memstat_mtl_free(mtlp);

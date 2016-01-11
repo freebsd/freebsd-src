@@ -1437,7 +1437,7 @@ main(int argc, char *argv[])
 
 
 	for (;;) {
-		r = poll (hv_kvp_poll_fd, 1, 100);
+		r = poll (hv_kvp_poll_fd, 1, INFTIM);
 
 		KVP_LOG(LOG_DEBUG, "poll returned r = %d, revent = 0x%x\n",
 		    r, hv_kvp_poll_fd[0].revents);

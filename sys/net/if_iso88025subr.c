@@ -214,12 +214,8 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct rtentry *rt0 = NULL;
 	int is_gw = 0;
 
-	if (ro != NULL) {
-		rt0 = ro->ro_rt;
-		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
-			is_gw = 1;
-	}
-
+	if (ro != NULL)
+		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)

@@ -631,7 +631,6 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	struct udphdr *udp6;
 	struct in6_addr *laddr, *faddr, in6a;
 	struct sockaddr_in6 *sin6 = NULL;
-	struct ifnet *oifp = NULL;
 	int cscov_partial = 0;
 	int scope_ambiguous = 0;
 	u_short fport;
@@ -731,15 +730,10 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		}
 
 		if (!IN6_IS_ADDR_V4MAPPED(faddr)) {
-			error = in6_selectsrc(sin6, optp, inp,
-			    td->td_ucred, &oifp, &in6a);
+			error = in6_selectsrc_socket(sin6, optp, inp,
+			    td->td_ucred, scope_ambiguous, &in6a, NULL);
 			if (error)
 				goto release;
-			if (oifp && scope_ambiguous &&
-			    (error = in6_setscope(&sin6->sin6_addr,
-			    oifp, NULL))) {
-				goto release;
-			}
 			laddr = &in6a;
 		} else
 			laddr = &inp->in6p_laddr;	/* XXX */

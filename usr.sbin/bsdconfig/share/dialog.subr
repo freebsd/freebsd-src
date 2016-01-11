@@ -1605,7 +1605,6 @@ f_dialog_pause()
 			$height $width
 	else
 		[ $duration -gt 0 ] && duration=$(( $duration - 1 ))
-		[ $duration -gt 1 ] && duration=$(( $duration - 1 ))
 		height=$(( $height + 3 )) # Add height for progress bar
 		$DIALOG \
 			--title "$DIALOG_TITLE"         \

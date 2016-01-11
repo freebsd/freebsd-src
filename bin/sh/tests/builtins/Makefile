@@ -111,6 +111,7 @@ FILES+=		local1.0
 FILES+=		local2.0
 FILES+=		local3.0
 FILES+=		local4.0
+FILES+=		local5.0
 .if ${MK_NLS} != "no"
 FILES+=		locale1.0
 .endif
