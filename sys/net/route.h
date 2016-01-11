@@ -228,7 +228,7 @@ rt_update_ro_flags(struct route *ro)
 
 	ro->ro_flags &= ~ (RT_REJECT|RT_BLACKHOLE|RT_HAS_GW);
 
-	ro->ro_flags = (rt_flags & RTF_REJECT) ? RT_REJECT : 0;
+	ro->ro_flags |= (rt_flags & RTF_REJECT) ? RT_REJECT : 0;
 	ro->ro_flags |= (rt_flags & RTF_BLACKHOLE) ? RT_BLACKHOLE : 0;
 	ro->ro_flags |= (rt_flags & RTF_GATEWAY) ? RT_HAS_GW : 0;
 }
