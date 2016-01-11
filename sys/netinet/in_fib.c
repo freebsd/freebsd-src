@@ -200,6 +200,13 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
 	rn = rh->rnh_matchaddr((void *)&sin, rh);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
+#ifdef RADIX_MPATH
+		rte = rt_mpath_select(rte, flowid);
+		if (rte == NULL) {
+			RADIX_NODE_HEAD_RUNLOCK(rh);
+			return (ENOENT);
+		}
+#endif
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_extended(rte, dst, flags, pnh4);
