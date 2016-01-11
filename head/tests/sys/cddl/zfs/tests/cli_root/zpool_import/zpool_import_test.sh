@@ -516,6 +516,22 @@ zpool_import_missing_004_pos_body()
 	ksh93 $(atf_get_srcdir)/zpool_import_missing_004_pos.ksh || atf_fail "Testcase failed"
 }
 
+atf_test_case zpool_import_missing_005_pos
+zpool_import_missing_005_pos_head()
+{
+	atf_set "descr" "Verify that zpool import succeeds when devices of all types have been renamed"
+	atf_set "require.progs"  mkfile mdconfig zfs zpool
+	atf_set "timeout" 300
+}
+zpool_import_missing_005_pos_body()
+{
+	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
+	. $(atf_get_srcdir)/../../../include/default.cfg
+	. $(atf_get_srcdir)/zpool_import.cfg
+
+	ksh93 $(atf_get_srcdir)/zpool_import_missing_005_pos.ksh || atf_fail "Testcase failed"
+}
+
 
 atf_test_case zpool_import_rename_001_pos cleanup
 zpool_import_rename_001_pos_head()
@@ -592,6 +608,7 @@ atf_init_test_cases()
 	atf_add_test_case zpool_import_missing_002_pos
 	atf_add_test_case zpool_import_missing_003_pos
 	atf_add_test_case zpool_import_missing_004_pos
+	atf_add_test_case zpool_import_missing_005_pos
 	atf_add_test_case zpool_import_rename_001_pos
 	atf_add_test_case zpool_import_corrupt_001_pos
 }
