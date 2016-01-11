@@ -930,7 +930,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 {
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
-	int			i, per_cpu_io_queues, rid;
+	int			per_cpu_io_queues;
 	int			num_vectors_requested, num_vectors_allocated;
 	int			status, timeout_period;
 
@@ -1029,41 +1029,6 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 			panic("could not reallocate any vectors\n");
 		if (num_vectors_allocated != 2)
 			panic("could not reallocate 2 vectors\n");
-	}
-
-	/*
-	 * On earlier FreeBSD releases, there are reports that
-	 *  pci_alloc_msix() can return successfully with all vectors
-	 *  requested, but a subsequent bus_alloc_resource_any()
-	 *  for one of those vectors fails.  This issue occurs more
-	 *  readily with multiple devices using per-CPU vectors.
-	 * To workaround this issue, try to allocate the resources now,
-	 *  and fall back to INTx if we cannot allocate all of them.
-	 *  This issue cannot be reproduced on more recent versions of
-	 *  FreeBSD which have increased the maximum number of MSI-X
-	 *  vectors, but adding the workaround makes it easier for
-	 *  vendors wishing to import this driver into kernels based on
-	 *  older versions of FreeBSD.
-	 */
-	for (i = 0; i < num_vectors_allocated; i++) {
-		rid = i + 1;
-		ctrlr->msi_res[i] = bus_alloc_resource_any(ctrlr->dev,
-		    SYS_RES_IRQ, &rid, RF_ACTIVE);
-
-		if (ctrlr->msi_res[i] == NULL) {
-			ctrlr->msix_enabled = 0;
-			while (i > 0) {
-				i--;
-				bus_release_resource(ctrlr->dev,
-				    SYS_RES_IRQ,
-				    rman_get_rid(ctrlr->msi_res[i]),
-				    ctrlr->msi_res[i]);
-			}
-			pci_release_msi(dev);
-			nvme_printf(ctrlr, "could not obtain all MSI-X "
-			    "resources, reverting to intx\n");
-			break;
-		}
 	}
 
 intx:
