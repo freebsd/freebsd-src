@@ -5,7 +5,7 @@
 PROG=	bhyvectl
 SRCS=	bhyvectl.c
 
-MAN=
+MAN=	bhyvectl.8
 
 LIBADD=	vmmapi util
 
