@@ -70,7 +70,6 @@ static TAILQ_HEAD(, toedev) toedev_list;
 static eventhandler_tag listen_start_eh;
 static eventhandler_tag listen_stop_eh;
 static eventhandler_tag lle_event_eh;
-static eventhandler_tag route_redirect_eh;
 
 static int
 toedev_connect(struct toedev *tod __unused, struct socket *so __unused,
@@ -438,17 +437,6 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 }
 
 /*
- * XXX: implement.
- */
-static void
-toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
-    struct rtentry *rt1, struct sockaddr *sa)
-{
-
-	return;
-}
-
-/*
  * Returns 0 or EWOULDBLOCK on success (any other value is an error).  0 means
  * lladdr and vtag are valid on return, EWOULDBLOCK means the TOE driver's
  * tod_l2_update will be called later, when the entry is resolved or times out.
@@ -534,8 +522,6 @@ toecore_load(void)
 	    toe_listen_stop_event, NULL, EVENTHANDLER_PRI_ANY);
 	lle_event_eh = EVENTHANDLER_REGISTER(lle_event, toe_lle_event, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	route_redirect_eh = EVENTHANDLER_REGISTER(route_redirect_event,
-	    toe_route_redirect_event, NULL, EVENTHANDLER_PRI_ANY);
 
 	return (0);
 }
@@ -553,7 +539,6 @@ toecore_unload(void)
 	EVENTHANDLER_DEREGISTER(tcp_offload_listen_start, listen_start_eh);
 	EVENTHANDLER_DEREGISTER(tcp_offload_listen_stop, listen_stop_eh);
 	EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
-	EVENTHANDLER_DEREGISTER(route_redirect_event, route_redirect_eh);
 
 	mtx_unlock(&toedev_lock);
 	mtx_destroy(&toedev_lock);

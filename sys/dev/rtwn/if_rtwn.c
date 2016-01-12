@@ -251,7 +251,7 @@ rtwn_attach(device_t dev)
 	struct rtwn_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t lcsr;
-	uint8_t bands;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int i, count, error, rid;
 
 	sc->sc_dev = dev;
@@ -353,10 +353,10 @@ rtwn_attach(device_t dev)
 		| IEEE80211_C_WME		/* 802.11e */
 		;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 
@@ -1438,7 +1438,7 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
     struct rtwn_rx_data *rx_data, int desc_idx)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
+	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
 	struct r92c_rx_phystat *phy = NULL;
 	uint32_t rxdw0, rxdw3;
@@ -1462,7 +1462,8 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
 	}
 
 	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
-	if (__predict_false(pktlen < sizeof(*wh) || pktlen > MCLBYTES)) {
+	if (__predict_false(pktlen < sizeof(struct ieee80211_frame_ack) ||
+	    pktlen > MCLBYTES)) {
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
@@ -1554,10 +1555,13 @@ rtwn_rx_frame(struct rtwn_softc *sc, struct r92c_rx_desc *rx_desc,
 	}
 
 	RTWN_UNLOCK(sc);
-	wh = mtod(m, struct ieee80211_frame *);
+	wh = mtod(m, struct ieee80211_frame_min *);
+	if (m->m_len >= sizeof(*wh))
+		ni = ieee80211_find_rxnode(ic, wh);
+	else
+		ni = NULL;
 
 	/* Send the frame to the 802.11 layer. */
-	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 	if (ni != NULL) {
 		(void)ieee80211_input(ni, m, rssi - nf, nf);
 		/* Node is no longer needed. */
@@ -1683,7 +1687,7 @@ rtwn_tx(struct rtwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 0));
 	}
 	/* Set sequence number (already little endian). */
-	txd->txdseq = *(uint16_t *)wh->i_seq;
+	txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
 	
 	if (!qos) {
 		/* Use HW sequence numbering for non-QoS frames. */

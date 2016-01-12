@@ -271,8 +271,8 @@ iwi_attach(device_t dev)
 	struct iwi_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t val;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int i, error;
-	uint8_t bands;
 
 	sc->sc_dev = dev;
 
@@ -373,13 +373,13 @@ iwi_attach(device_t dev)
 	val = iwi_read_prom_word(sc, IWI_EEPROM_MAC + 2);
 	ic->ic_macaddr[4] = val & 0xff;
 	ic->ic_macaddr[5] = val >> 8;
-	
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if (pci_get_device(dev) >= 0x4223) 
-		setbit(&bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, &bands);
+		setbit(bands, IEEE80211_MODE_11A);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	/* override default methods */

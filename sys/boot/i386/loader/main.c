@@ -296,7 +296,8 @@ extract_currdev(void)
     }
 
 #ifdef LOADER_ZFS_SUPPORT
-    init_zfs_bootenv(zfs_fmtdev(&new_currdev));
+    if (new_currdev.d_type == DEVT_ZFS)
+	init_zfs_bootenv(zfs_fmtdev(&new_currdev));
 #endif
 
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
@@ -311,9 +312,14 @@ init_zfs_bootenv(char *currdev)
 {
 	char *beroot;
 
+	if (strlen(currdev) == 0)
+		return;
+	if(strncmp(currdev, "zfs:", 4) != 0)
+		return;
 	/* Remove the trailing : */
 	currdev[strlen(currdev) - 1] = '\0';
 	setenv("zfs_be_active", currdev, 1);
+	setenv("zfs_be_currpage", "1", 1);
 	/* Do not overwrite if already set */
 	setenv("vfs.root.mountfrom", currdev, 0);
 	/* Forward past zfs: */
@@ -321,10 +327,9 @@ init_zfs_bootenv(char *currdev)
 	currdev++;
 	/* Remove the last element (current bootenv) */
 	beroot = strrchr(currdev, '/');
-	beroot[0] = '\0';
-
+	if (beroot != NULL)
+		beroot[0] = '\0';
 	beroot = currdev;
-	
 	setenv("zfs_be_root", beroot, 1);
 }
 #endif
@@ -393,6 +398,7 @@ static int
 command_reloadbe(int argc, char *argv[])
 {
     int err;
+    char *root;
 
     if (argc > 2) {
 	command_errmsg = "wrong number of arguments";
@@ -402,6 +408,11 @@ command_reloadbe(int argc, char *argv[])
     if (argc == 2) {
 	err = zfs_bootenv(argv[1]);
     } else {
+	root = getenv("zfs_be_root");
+	if (root == NULL) {
+	    /* There does not appear to be a ZFS pool here, exit without error */
+	    return (CMD_OK);
+	}
 	err = zfs_bootenv(getenv("zfs_be_root"));
     }
 

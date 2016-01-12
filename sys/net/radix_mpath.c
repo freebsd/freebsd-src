@@ -197,13 +197,48 @@ rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
 	return (0);
 }
 
-void
-rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
+static struct rtentry *
+rt_mpath_selectrte(struct rtentry *rte, uint32_t hash)
 {
 	struct radix_node *rn0, *rn;
 	u_int32_t n;
 	struct rtentry *rt;
 	int64_t weight;
+
+	/* beyond here, we use rn as the master copy */
+	rn0 = rn = (struct radix_node *)rte;
+	n = rn_mpath_count(rn0);
+
+	/* gw selection by Modulo-N Hash (RFC2991) XXX need improvement? */
+	hash += hashjitter;
+	hash %= n;
+	for (weight = abs((int32_t)hash), rt = rte;
+	     weight >= rt->rt_weight && rn; 
+	     weight -= rt->rt_weight) {
+		
+		/* stay within the multipath routes */
+		if (rn->rn_dupedkey && rn->rn_mask != rn->rn_dupedkey->rn_mask)
+			break;
+		rn = rn->rn_dupedkey;
+		rt = (struct rtentry *)rn;
+	}
+
+	return (rt);
+}
+
+struct rtentry *
+rt_mpath_select(struct rtentry *rte, uint32_t hash)
+{
+	if (rn_mpath_next((struct radix_node *)rte) == NULL)
+		return (rte);
+
+	return (rt_mpath_selectrte(rte, hash));
+}
+
+void
+rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
+{
+	struct rtentry *rt;
 
 	/*
 	 * XXX we don't attempt to lookup cached route again; what should
@@ -222,34 +257,18 @@ rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 		return;
 	}
 
-	/* beyond here, we use rn as the master copy */
-	rn0 = rn = (struct radix_node *)ro->ro_rt;
-	n = rn_mpath_count(rn0);
-
-	/* gw selection by Modulo-N Hash (RFC2991) XXX need improvement? */
-	hash += hashjitter;
-	hash %= n;
-	for (weight = abs((int32_t)hash), rt = ro->ro_rt;
-	     weight >= rt->rt_weight && rn; 
-	     weight -= rt->rt_weight) {
-		
-		/* stay within the multipath routes */
-		if (rn->rn_dupedkey && rn->rn_mask != rn->rn_dupedkey->rn_mask)
-			break;
-		rn = rn->rn_dupedkey;
-		rt = (struct rtentry *)rn;
-	}
+	rt = rt_mpath_selectrte(ro->ro_rt, hash);
 	/* XXX try filling rt_gwroute and avoid unreachable gw  */
 
 	/* gw selection has failed - there must be only zero weight routes */
-	if (!rn) {
+	if (!rt) {
 		RT_UNLOCK(ro->ro_rt);
 		ro->ro_rt = NULL;
 		return;
 	}
 	if (ro->ro_rt != rt) {
 		RTFREE_LOCKED(ro->ro_rt);
-		ro->ro_rt = (struct rtentry *)rn;
+		ro->ro_rt = rt;
 		RT_LOCK(ro->ro_rt);
 		RT_ADDREF(ro->ro_rt);
 

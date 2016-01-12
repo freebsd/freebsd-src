@@ -2006,11 +2006,11 @@ do_trustkey(
 	u_long trust
 	)
 {
-	register u_long *kp;
+	register uint32_t *kp;
 	register int items;
 
 	items = INFO_NITEMS(inpkt->err_nitems);
-	kp = (u_long *)&inpkt->u;
+	kp = (uint32_t*)&inpkt->u;
 	while (items-- > 0) {
 		authtrust(*kp, trust);
 		kp++;

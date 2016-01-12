@@ -481,27 +481,21 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			ifa_free(ifa);
 		} else {
 			int error;
-			struct sockaddr_in6 dst_sa;
-			struct in6_addr src_in;
-			struct ifnet *oifp;
+			struct in6_addr dst6, src6;
+			uint32_t scopeid;
 
-			bzero(&dst_sa, sizeof(dst_sa));
-			dst_sa.sin6_family = AF_INET6;
-			dst_sa.sin6_len = sizeof(dst_sa);
-			dst_sa.sin6_addr = ip6->ip6_dst;
-
-			oifp = ifp;
-			error = in6_selectsrc(&dst_sa, NULL,
-			    NULL, NULL, &oifp, &src_in);
+			in6_splitscope(&ip6->ip6_dst, &dst6, &scopeid);
+			error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+			    scopeid, ifp, &src6, NULL);
 			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG, "%s: source can't be "
 				    "determined: dst=%s, error=%d\n", __func__,
-				    ip6_sprintf(ip6buf, &dst_sa.sin6_addr),
+				    ip6_sprintf(ip6buf, &dst6),
 				    error));
 				goto bad;
 			}
-			ip6->ip6_src = src_in;
+			ip6->ip6_src = src6;
 		}
 	} else {
 		/*
@@ -941,12 +935,12 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 {
 	struct mbuf *m;
 	struct m_tag *mtag;
-	struct ifnet *oifp;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
-	struct in6_addr src, daddr6;
-	struct sockaddr_in6 dst_sa;
+	struct in6_addr daddr6, dst6, src6;
+	uint32_t scopeid;
+
 	int icmp6len, maxlen, error;
 	caddr_t mac = NULL;
 
@@ -998,24 +992,21 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		flags &= ~ND_NA_FLAG_SOLICITED;
 	}
 	ip6->ip6_dst = daddr6;
-	bzero(&dst_sa, sizeof(struct sockaddr_in6));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(struct sockaddr_in6);
-	dst_sa.sin6_addr = daddr6;
 
 	/*
 	 * Select a source whose scope is the same as that of the dest.
 	 */
-	oifp = ifp;
-	error = in6_selectsrc(&dst_sa, NULL, NULL, NULL, &oifp, &src);
+	in6_splitscope(&daddr6, &dst6, &scopeid);
+	error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+	    scopeid, ifp, &src6, NULL);
 	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_DEBUG, "nd6_na_output: source can't be "
 		    "determined: dst=%s, error=%d\n",
-		    ip6_sprintf(ip6buf, &dst_sa.sin6_addr), error));
+		    ip6_sprintf(ip6buf, &daddr6), error));
 		goto bad;
 	}
-	ip6->ip6_src = src;
+	ip6->ip6_src = src6;
 	nd_na = (struct nd_neighbor_advert *)(ip6 + 1);
 	nd_na->nd_na_type = ND_NEIGHBOR_ADVERT;
 	nd_na->nd_na_code = 0;

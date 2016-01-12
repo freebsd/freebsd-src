@@ -156,7 +156,6 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-extern unsigned char kernel_text[];
 extern unsigned char _etext[];
 extern unsigned char _edata[];
 extern unsigned char __bss_start[];
@@ -311,7 +310,7 @@ booke_init(u_long arg1, u_long arg2)
 		end += fdt_totalsize((void *)dtbp);
 		__endkernel = end;
 		mdp = NULL;
-	} else if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
+	} else if (arg1 > (uintptr_t)btext)	/* FreeBSD loader */
 		mdp = (void *)arg1;
 	else					/* U-Boot */
 		mdp = NULL;
