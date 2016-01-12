@@ -65,7 +65,7 @@ ef10_vpd_init(
 	 */
 	svpd = NULL;
 	svpd_size = 0;
-	rc = hunt_nvram_partn_read_tlv(enp,
+	rc = ef10_nvram_partn_read_tlv(enp,
 	    NVRAM_PARTITION_TYPE_STATIC_CONFIG,
 	    TLV_TAG_PF_STATIC_VPD(pci_pf),
 	    &svpd, &svpd_size);
@@ -142,7 +142,7 @@ ef10_vpd_read(
 
 	pci_pf = enp->en_nic_cfg.enc_pf;
 
-	if ((rc = hunt_nvram_partn_read_tlv(enp,
+	if ((rc = ef10_nvram_partn_read_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
 		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
 		    &dvpd, &dvpd_size)) != 0)
@@ -404,7 +404,7 @@ ef10_vpd_write(
 		goto fail1;
 
 	/* Store new dynamic VPD in all segments in DYNAMIC_CONFIG partition */
-	if ((rc = hunt_nvram_partn_write_segment_tlv(enp,
+	if ((rc = ef10_nvram_partn_write_segment_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
 		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
 		    data, vpd_length, B_TRUE)) != 0) {
