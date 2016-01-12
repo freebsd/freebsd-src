@@ -191,8 +191,8 @@ efx_nic_destroy(
 
 #if EFSYS_OPT_MCDI
 
-#if EFSYS_OPT_HUNTINGTON
-/* Huntington requires MCDIv2 commands */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+/* Huntington and Medford require MCDIv2 commands */
 #define	WITH_MCDI_V2 1
 #endif
 
