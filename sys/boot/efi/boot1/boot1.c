@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 void panic(const char *fmt, ...) __dead2;
 void putchar(int c);
+EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
 
 static int domount(EFI_DEVICE_PATH *device, EFI_BLOCK_IO *blkio, int quiet);
 static void load(const char *fname);
@@ -62,7 +63,7 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 	EFI_BOOT_SERVICES *BS;
 	EFI_CONSOLE_CONTROL_PROTOCOL *ConsoleControl = NULL;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
-	char *path = _PATH_LOADER;
+	const char *path = _PATH_LOADER;
 
 	systab = Xsystab;
 	image = Ximage;
@@ -157,7 +158,6 @@ fsstat(ufs_ino_t inode)
 {
 #ifndef UFS2_ONLY
 	static struct ufs1_dinode dp1;
-	ufs1_daddr_t addr1;
 #endif
 #ifndef UFS1_ONLY
 	static struct ufs2_dinode dp2;
@@ -166,11 +166,8 @@ fsstat(ufs_ino_t inode)
 	static ufs_ino_t inomap;
 	char *blkbuf;
 	void *indbuf;
-	size_t n, nb, size, off, vboff;
-	ufs_lbn_t lbn;
-	ufs2_daddr_t addr2, vbaddr;
+	size_t n, size;
 	static ufs2_daddr_t blkmap, indmap;
-	u_int u;
 
 	blkbuf = dmadat->blkbuf;
 	indbuf = dmadat->indbuf;
@@ -194,7 +191,7 @@ fsstat(ufs_ino_t inode)
 #endif
 			    ) &&
 			    fs.fs_bsize <= MAXBSIZE &&
-			    fs.fs_bsize >= sizeof(struct fs))
+			    fs.fs_bsize >= (int32_t)sizeof(struct fs))
 				break;
 		}
 		if (sblock_try[n] == -1) {
@@ -218,10 +215,10 @@ fsstat(ufs_ino_t inode)
 		    sizeof(struct ufs2_dinode));
 #else
 		if (fs.fs_magic == FS_UFS1_MAGIC)
-			memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
+			memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
 			    sizeof(struct ufs1_dinode));
 		else
-			memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
+			memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
 			    sizeof(struct ufs2_dinode));
 #endif
 		inomap = inode;

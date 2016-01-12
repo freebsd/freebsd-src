@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Solarflare Communications Inc.
+ * Copyright (c) 2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,44 +26,22 @@
  * The views and conclusions contained in the software and documentation are
  * those of the authors and should not be interpreted as representing official
  * policies, either expressed or implied, of the FreeBSD Project.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef	_SYS_MEDFORD_IMPL_H
+#define	_SYS_MEDFORD_IMPL_H
 
-#include "efsys.h"
-#include "efx.h"
-#include "efx_impl.h"
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
-#if EFSYS_OPT_HUNTINGTON
+#define	MEDFORD_PIOBUF_NBUFS	(16)
 
 
-#if EFSYS_OPT_DIAG
-
-	__checkReturn	efx_rc_t
-ef10_sram_test(
-	__in		efx_nic_t *enp,
-	__in		efx_sram_pattern_fn_t func)
-{
-	efx_rc_t rc;
-
-	/* FIXME */
-	_NOTE(ARGUNUSED(enp))
-	_NOTE(ARGUNUSED(func))
-	if (B_FALSE) {
-		rc = ENOTSUP;
-		goto fail1;
-	}
-	/* FIXME */
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
+#ifdef	__cplusplus
 }
+#endif
 
-#endif	/* EFSYS_OPT_DIAG */
-
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* _SYS_MEDFORD_IMPL_H */

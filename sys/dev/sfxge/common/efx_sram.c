@@ -55,20 +55,21 @@ efx_sram_buf_tbl_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
 
-#if EFSYS_OPT_HUNTINGTON
-	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	if (enp->en_family == EFX_FAMILY_HUNTINGTON ||
+	    enp->en_family == EFX_FAMILY_MEDFORD) {
 		/*
 		 * FIXME: the efx_sram_buf_tbl_*() functionality needs to be
 		 * pulled inside the Falcon/Siena queue create/destroy code,
 		 * and then the original functions can be removed (see bug30834
 		 * comment #1).  But, for now, we just ensure that they are
-		 * no-ops for Huntington, to allow bringing up existing drivers
+		 * no-ops for EF10, to allow bringing up existing drivers
 		 * without modification.
 		 */
 
 		return (0);
 	}
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	if (stop >= EFX_BUF_TBL_SIZE) {
 		rc = EFBIG;
@@ -176,20 +177,21 @@ efx_sram_buf_tbl_clear(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
 
-#if EFSYS_OPT_HUNTINGTON
-	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	if (enp->en_family == EFX_FAMILY_HUNTINGTON ||
+	    enp->en_family == EFX_FAMILY_MEDFORD) {
 		/*
 		 * FIXME: the efx_sram_buf_tbl_*() functionality needs to be
 		 * pulled inside the Falcon/Siena queue create/destroy code,
 		 * and then the original functions can be removed (see bug30834
 		 * comment #1).  But, for now, we just ensure that they are
-		 * no-ops for Huntington, to allow bringing up existing drivers
+		 * no-ops for EF10, to allow bringing up existing drivers
 		 * without modification.
 		 */
 
 		return;
 	}
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	EFSYS_ASSERT3U(stop, <, EFX_BUF_TBL_SIZE);
 

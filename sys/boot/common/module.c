@@ -983,7 +983,7 @@ moduledir_rebuild(void)
 {
     struct	moduledir *mdp, *mtmp;
     const char	*path, *cp, *ep;
-    int		cplen;
+    size_t	cplen;
 
     path = getenv("module_path");
     if (path == NULL)
