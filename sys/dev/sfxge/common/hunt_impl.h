@@ -56,15 +56,15 @@ extern "C" {
 /* EV */
 
 	__checkReturn	efx_rc_t
-hunt_ev_init(
+ef10_ev_init(
 	__in		efx_nic_t *enp);
 
 			void
-hunt_ev_fini(
+ef10_ev_fini(
 	__in		efx_nic_t *enp);
 
 	__checkReturn	efx_rc_t
-hunt_ev_qcreate(
+ef10_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
@@ -73,39 +73,39 @@ hunt_ev_qcreate(
 	__in		efx_evq_t *eep);
 
 			void
-hunt_ev_qdestroy(
+ef10_ev_qdestroy(
 	__in		efx_evq_t *eep);
 
 	__checkReturn	efx_rc_t
-hunt_ev_qprime(
+ef10_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count);
 
 			void
-hunt_ev_qpost(
+ef10_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data);
 
 	__checkReturn	efx_rc_t
-hunt_ev_qmoderate(
+ef10_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
 
 #if EFSYS_OPT_QSTATS
 			void
-hunt_ev_qstats_update(
+ef10_ev_qstats_update(
 	__in				efx_evq_t *eep,
 	__inout_ecount(EV_NQSTATS)	efsys_stat_t *stat);
 #endif /* EFSYS_OPT_QSTATS */
 
 		void
-hunt_ev_rxlabel_init(
+ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
 	__in		unsigned int label);
 
 		void
-hunt_ev_rxlabel_fini(
+ef10_ev_rxlabel_fini(
 	__in		efx_evq_t *eep,
 	__in		unsigned int label);
 
