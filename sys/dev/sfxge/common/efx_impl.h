@@ -436,9 +436,9 @@ typedef struct efx_filter_s {
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 	falconsiena_filter_t	*ef_falconsiena_filter;
 #endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
-#if EFSYS_OPT_HUNTINGTON
-	hunt_filter_table_t	*ef_hunt_filter_table;
-#endif /* EFSYS_OPT_HUNTINGTON */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	ef10_filter_table_t	*ef_ef10_filter_table;
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 } efx_filter_t;
 
 extern			void
