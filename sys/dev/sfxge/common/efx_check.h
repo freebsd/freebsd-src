@@ -397,12 +397,9 @@
 # endif
 #endif /* EFSYS_OPT_WOL */
 
-/* Support calculating multicast pktfilter in common code */
-#if EFSYS_OPT_MCAST_FILTER_LIST
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
-	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
-#  error "MCAST_FILTER_LIST requires FALCON or SIENA or HUNTINGTON or MEDFORD"
-# endif
+/* Obsolete option */
+#ifdef EFSYS_OPT_MCAST_FILTER_LIST
+#  error "MCAST_FILTER_LIST is obsolete and not supported"
 #endif /* EFSYS_OPT_MCAST_FILTER_LIST */
 
 /* Support BIST */
