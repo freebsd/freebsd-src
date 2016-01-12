@@ -505,13 +505,6 @@ efx_mac_fcntl_get(
 	__out		unsigned int *fcntl_wantedp,
 	__out		unsigned int *fcntl_linkp);
 
-#define	EFX_MAC_HASH_BITS	(1 << 8)
-
-extern	__checkReturn			efx_rc_t
-efx_mac_hash_set(
-	__in				efx_nic_t *enp,
-	__in_ecount(EFX_MAC_HASH_BITS)	unsigned int const *bucket);
-
 
 #if EFSYS_OPT_MAC_STATS
 
