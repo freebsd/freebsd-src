@@ -963,3 +963,14 @@ hv_rf_on_send_request_halt_completion(void *context)
 	request->halt_complete_flag = 1;
 }
 
+/*
+ * RNDIS filter when "all" reception is done
+ */
+void
+hv_rf_receive_rollup(netvsc_dev *net_dev)
+{
+	rndis_device *rndis_dev;
+
+	rndis_dev = (rndis_device *)net_dev->extension;
+	netvsc_recv_rollup(rndis_dev->net_dev->dev);
+}
