@@ -179,28 +179,53 @@ static efx_tx_ops_t	__efx_tx_siena_ops = {
 
 #if EFSYS_OPT_HUNTINGTON
 static efx_tx_ops_t	__efx_tx_hunt_ops = {
-	hunt_tx_init,				/* etxo_init */
-	hunt_tx_fini,				/* etxo_fini */
-	hunt_tx_qcreate,			/* etxo_qcreate */
-	hunt_tx_qdestroy,			/* etxo_qdestroy */
-	hunt_tx_qpost,				/* etxo_qpost */
-	hunt_tx_qpush,				/* etxo_qpush */
-	hunt_tx_qpace,				/* etxo_qpace */
-	hunt_tx_qflush,				/* etxo_qflush */
-	hunt_tx_qenable,			/* etxo_qenable */
-	hunt_tx_qpio_enable,			/* etxo_qpio_enable */
-	hunt_tx_qpio_disable,			/* etxo_qpio_disable */
-	hunt_tx_qpio_write,			/* etxo_qpio_write */
-	hunt_tx_qpio_post,			/* etxo_qpio_post */
-	hunt_tx_qdesc_post,			/* etxo_qdesc_post */
-	hunt_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
+	ef10_tx_init,				/* etxo_init */
+	ef10_tx_fini,				/* etxo_fini */
+	ef10_tx_qcreate,			/* etxo_qcreate */
+	ef10_tx_qdestroy,			/* etxo_qdestroy */
+	ef10_tx_qpost,				/* etxo_qpost */
+	ef10_tx_qpush,				/* etxo_qpush */
+	ef10_tx_qpace,				/* etxo_qpace */
+	ef10_tx_qflush,				/* etxo_qflush */
+	ef10_tx_qenable,			/* etxo_qenable */
+	ef10_tx_qpio_enable,			/* etxo_qpio_enable */
+	ef10_tx_qpio_disable,			/* etxo_qpio_disable */
+	ef10_tx_qpio_write,			/* etxo_qpio_write */
+	ef10_tx_qpio_post,			/* etxo_qpio_post */
+	ef10_tx_qdesc_post,			/* etxo_qdesc_post */
+	ef10_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
 	hunt_tx_qdesc_tso_create,		/* etxo_qdesc_tso_create */
-	hunt_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
+	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
-	hunt_tx_qstats_update,			/* etxo_qstats_update */
+	ef10_tx_qstats_update,			/* etxo_qstats_update */
 #endif
 };
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+static efx_tx_ops_t	__efx_tx_medford_ops = {
+	ef10_tx_init,				/* etxo_init */
+	ef10_tx_fini,				/* etxo_fini */
+	ef10_tx_qcreate,			/* etxo_qcreate */
+	ef10_tx_qdestroy,			/* etxo_qdestroy */
+	ef10_tx_qpost,				/* etxo_qpost */
+	ef10_tx_qpush,				/* etxo_qpush */
+	ef10_tx_qpace,				/* etxo_qpace */
+	ef10_tx_qflush,				/* etxo_qflush */
+	ef10_tx_qenable,			/* etxo_qenable */
+	ef10_tx_qpio_enable,			/* etxo_qpio_enable */
+	ef10_tx_qpio_disable,			/* etxo_qpio_disable */
+	ef10_tx_qpio_write,			/* etxo_qpio_write */
+	ef10_tx_qpio_post,			/* etxo_qpio_post */
+	ef10_tx_qdesc_post,			/* etxo_qdesc_post */
+	ef10_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
+	NULL,					/* etxo_qdesc_tso_create */
+	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
+#if EFSYS_OPT_QSTATS
+	ef10_tx_qstats_update,			/* etxo_qstats_update */
+#endif
+};
+#endif /* EFSYS_OPT_MEDFORD */
 
 	__checkReturn	efx_rc_t
 efx_tx_init(
@@ -240,6 +265,12 @@ efx_tx_init(
 		etxop = (efx_tx_ops_t *)&__efx_tx_hunt_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		etxop = (efx_tx_ops_t *)&__efx_tx_medford_ops;
+		break;
+#endif /* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
