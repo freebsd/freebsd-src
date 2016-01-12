@@ -797,6 +797,10 @@ struct efx_txq_s {
 			rev = 'D';					\
 			break;						\
 									\
+		case EFX_FAMILY_MEDFORD:				\
+			rev = 'E';					\
+			break;						\
+									\
 		default:						\
 			rev = '?';					\
 			break;						\
