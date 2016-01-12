@@ -42,7 +42,12 @@
 extern "C" {
 #endif
 
-#define	HUNTINGTON_NVRAM_CHUNK 0x80
+/*
+ * FIXME: This is just a power of 2 which fits in an MCDI v1 message, and could
+ * possibly be increased, or the write size reported by newer firmware used
+ * instead.
+ */
+#define	EF10_NVRAM_CHUNK 0x80
 
 /* Alignment requirement for value written to RX WPTR:
  *  the WPTR must be aligned to an 8 descriptor boundary
@@ -296,7 +301,7 @@ hunt_mcdi_feature_supported(
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_buf_read_tlv(
+ef10_nvram_buf_read_tlv(
 	__in				efx_nic_t *enp,
 	__in_bcount(max_seg_size)	caddr_t seg_data,
 	__in				size_t max_seg_size,
@@ -305,7 +310,7 @@ hunt_nvram_buf_read_tlv(
 	__out				size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_buf_write_tlv(
+ef10_nvram_buf_write_tlv(
 	__inout_bcount(partn_size)	caddr_t partn_data,
 	__in				size_t partn_size,
 	__in				uint32_t tag,
@@ -314,7 +319,7 @@ hunt_nvram_buf_write_tlv(
 	__out				size_t *total_lengthp);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_read_tlv(
+ef10_nvram_partn_read_tlv(
 	__in				efx_nic_t *enp,
 	__in				uint32_t partn,
 	__in				uint32_t tag,
@@ -322,7 +327,7 @@ hunt_nvram_partn_read_tlv(
 	__out				size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_write_tlv(
+ef10_nvram_partn_write_tlv(
 	__in		   	efx_nic_t *enp,
 	__in		    	uint32_t partn,
 	__in		     	uint32_t tag,
@@ -330,7 +335,7 @@ hunt_nvram_partn_write_tlv(
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_write_segment_tlv(
+ef10_nvram_partn_write_segment_tlv(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in			uint32_t tag,
@@ -339,18 +344,18 @@ hunt_nvram_partn_write_segment_tlv(
 	__in			boolean_t all_segments);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_size(
+ef10_nvram_partn_size(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_lock(
+ef10_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_read(
+ef10_nvram_partn_read(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in			unsigned int offset,
@@ -358,14 +363,14 @@ hunt_nvram_partn_read(
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_erase(
+ef10_nvram_partn_erase(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in			unsigned int offset,
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_write(
+ef10_nvram_partn_write(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in			unsigned int offset,
@@ -373,7 +378,7 @@ hunt_nvram_partn_write(
 	__in			size_t size);
 
 extern				void
-hunt_nvram_partn_unlock(
+ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn);
 
@@ -384,32 +389,32 @@ hunt_nvram_partn_unlock(
 #if EFSYS_OPT_DIAG
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_test(
+ef10_nvram_test(
 	__in			efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_DIAG */
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_size(
+ef10_nvram_size(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_get_version(
+ef10_nvram_get_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_rw_start(
+ef10_nvram_rw_start(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *pref_chunkp);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_read_chunk(
+ef10_nvram_read_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in			unsigned int offset,
@@ -417,12 +422,12 @@ hunt_nvram_read_chunk(
 	__in			size_t size);
 
 extern	 __checkReturn		efx_rc_t
-hunt_nvram_erase(
+ef10_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_write_chunk(
+ef10_nvram_write_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in			unsigned int offset,
@@ -430,18 +435,18 @@ hunt_nvram_write_chunk(
 	__in			size_t size);
 
 extern				void
-hunt_nvram_rw_finish(
+ef10_nvram_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_set_version(
+ef10_nvram_partn_set_version(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in_ecount(4)		uint16_t version[4]);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_set_version(
+ef10_nvram_set_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
