@@ -457,6 +457,18 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 	return (0);
 }
 
+static uint8_t
+dwc_otg_uses_split(struct usb_device *udev)
+{
+	/*
+	 * When a LOW or FULL speed device is connected directly to
+	 * the USB port we don't use split transactions:
+	 */ 
+	return (udev->speed != USB_SPEED_HIGH &&
+	    udev->parent_hs_hub != NULL &&
+	    udev->parent_hs_hub->parent_hub != NULL);
+}
+
 static void
 dwc_otg_update_host_frame_interval(struct dwc_otg_softc *sc)
 {
@@ -3325,16 +3337,16 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 		else
 			hcchar |= (td->ep_type << HCCHAR_EPTYPE_SHIFT);
 
-		if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_LOW)
-			hcchar |= HCCHAR_LSPDDEV;
 		if (UE_GET_DIR(xfer->endpointno) == UE_DIR_IN)
 			hcchar |= HCCHAR_EPDIR_IN;
 
 		switch (xfer->xroot->udev->speed) {
-		case USB_SPEED_FULL:
 		case USB_SPEED_LOW:
+			hcchar |= HCCHAR_LSPDDEV;
+			/* FALLTHROUGH */
+		case USB_SPEED_FULL:
 			/* check if root HUB port is running High Speed */
-			if (xfer->xroot->udev->parent_hs_hub != NULL) {
+			if (dwc_otg_uses_split(xfer->xroot->udev)) {
 				hcsplt = HCSPLT_SPLTENA |
 				    (xfer->xroot->udev->hs_port_no <<
 				    HCSPLT_PRTADDR_SHIFT) |
@@ -4156,7 +4168,10 @@ dwc_otg_device_isoc_start(struct usb_xfer *xfer)
 		framenum = DSTS_SOFFN_GET(temp);
 	}
 
-	if (xfer->xroot->udev->parent_hs_hub != NULL)
+	/*
+	 * Check if port is doing 8000 or 1000 frames per second:
+	 */
+	if (sc->sc_flags.status_high_speed)
 		framenum /= 8;
 
 	framenum &= DWC_OTG_FRAME_MASK;
@@ -4833,7 +4848,7 @@ dwc_otg_xfer_setup(struct usb_setup_params *parm)
 			td = USB_ADD_BYTES(parm->buf, parm->size[0]);
 
 			/* compute shared bandwidth resource index for TT */
-			if (parm->udev->parent_hs_hub != NULL && parm->udev->speed != USB_SPEED_HIGH) {
+			if (dwc_otg_uses_split(parm->udev)) {
 				if (parm->udev->parent_hs_hub->ddesc.bDeviceProtocol == UDPROTO_HSHUBMTT)
 					td->tt_index = parm->udev->device_index;
 				else
