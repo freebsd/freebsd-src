@@ -6,6 +6,7 @@
 
 LIB=		efi_fdt
 INTERNALLIB=
+WARNS?=		6
 
 SRCS=		efi_fdt.c
 
