@@ -177,11 +177,15 @@ static void	iwn4965_print_power_group(struct iwn_softc *, int);
 #endif
 static void	iwn5000_read_eeprom(struct iwn_softc *);
 static uint32_t	iwn_eeprom_channel_flags(struct iwn_eeprom_chan *);
-static void	iwn_read_eeprom_band(struct iwn_softc *, int);
-static void	iwn_read_eeprom_ht40(struct iwn_softc *, int);
+static void	iwn_read_eeprom_band(struct iwn_softc *, int, int, int *,
+		    struct ieee80211_channel[]);
+static void	iwn_read_eeprom_ht40(struct iwn_softc *, int, int, int *,
+		    struct ieee80211_channel[]);
 static void	iwn_read_eeprom_channels(struct iwn_softc *, int, uint32_t);
 static struct iwn_eeprom_chan *iwn_find_eeprom_channel(struct iwn_softc *,
 		    struct ieee80211_channel *);
+static void	iwn_getradiocaps(struct ieee80211com *, int, int *,
+		    struct ieee80211_channel[]);
 static int	iwn_setregdomain(struct ieee80211com *,
 		    struct ieee80211_regdomain *, int,
 		    struct ieee80211_channel[]);
@@ -666,6 +670,7 @@ iwn_attach(device_t dev)
 	ic->ic_set_channel = iwn_set_channel;
 	ic->ic_scan_curchan = iwn_scan_curchan;
 	ic->ic_scan_mindwell = iwn_scan_mindwell;
+	ic->ic_getradiocaps = iwn_getradiocaps;
 	ic->ic_setregdomain = iwn_setregdomain;
 
 	iwn_radiotap_attach(sc);
@@ -2371,9 +2376,9 @@ iwn_eeprom_channel_flags(struct iwn_eeprom_chan *channel)
 }
 
 static void
-iwn_read_eeprom_band(struct iwn_softc *sc, int n)
+iwn_read_eeprom_band(struct iwn_softc *sc, int n, int maxchans, int *nchans,
+    struct ieee80211_channel chans[])
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
 	struct ieee80211_channel *c;
@@ -2390,10 +2395,14 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 			    channels[i].maxpwr);
 			continue;
 		}
+
+		if (*nchans >= maxchans)
+			break;
+
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
 
-		c = &ic->ic_channels[ic->ic_nchans++];
+		c = &chans[(*nchans)++];
 		c->ic_ieee = chan;
 		c->ic_maxregpower = channels[i].maxpwr;
 		c->ic_maxpower = 2*c->ic_maxregpower;
@@ -2402,7 +2411,11 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 			c->ic_freq = ieee80211_ieee2mhz(chan, IEEE80211_CHAN_G);
 			/* G =>'s B is supported */
 			c->ic_flags = IEEE80211_CHAN_B | nflags;
-			c = &ic->ic_channels[ic->ic_nchans++];
+
+			if (*nchans >= maxchans)
+				break;
+
+			c = &chans[(*nchans)++];
 			c[0] = c[-1];
 			c->ic_flags = IEEE80211_CHAN_G | nflags;
 		} else {	/* 5GHz band */
@@ -2418,8 +2431,11 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 		    channels[i].flags, channels[i].maxpwr);
 
 		if (sc->sc_flags & IWN_FLAG_HAS_11N) {
+			if (*nchans >= maxchans)
+				break;
+
 			/* add HT20, HT40 added separately */
-			c = &ic->ic_channels[ic->ic_nchans++];
+			c = &chans[(*nchans)++];
 			c[0] = c[-1];
 			c->ic_flags |= IEEE80211_CHAN_HT20;
 		}
@@ -2430,7 +2446,8 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 }
 
 static void
-iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
+iwn_read_eeprom_ht40(struct iwn_softc *sc, int n, int maxchans, int *nchans,
+    struct ieee80211_channel chans[])
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
@@ -2454,6 +2471,10 @@ iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
 			    channels[i].maxpwr);
 			continue;
 		}
+
+		if (*nchans + 1 >= maxchans)
+			break;
+
 		chan = band->chan[i];
 		nflags = iwn_eeprom_channel_flags(&channels[i]);
 
@@ -2481,12 +2502,12 @@ iwn_read_eeprom_ht40(struct iwn_softc *sc, int n)
 		    "add ht40 chan %d flags 0x%x maxpwr %d\n",
 		    chan, channels[i].flags, channels[i].maxpwr);
 
-		c = &ic->ic_channels[ic->ic_nchans++];
+		c = &chans[(*nchans)++];
 		c[0] = cent[0];
 		c->ic_extieee = extc->ic_ieee;
 		c->ic_flags &= ~IEEE80211_CHAN_HT;
 		c->ic_flags |= IEEE80211_CHAN_HT40U | nflags;
-		c = &ic->ic_channels[ic->ic_nchans++];
+		c = &chans[(*nchans)++];
 		c[0] = extc[0];
 		c->ic_extieee = cent->ic_ieee;
 		c->ic_flags &= ~IEEE80211_CHAN_HT;
@@ -2505,10 +2526,13 @@ iwn_read_eeprom_channels(struct iwn_softc *sc, int n, uint32_t addr)
 	iwn_read_prom_data(sc, addr, &sc->eeprom_channels[n],
 	    iwn_bands[n].nchan * sizeof (struct iwn_eeprom_chan));
 
-	if (n < 5)
-		iwn_read_eeprom_band(sc, n);
-	else
-		iwn_read_eeprom_ht40(sc, n);
+	if (n < 5) {
+		iwn_read_eeprom_band(sc, n, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+		    ic->ic_channels);
+	} else {
+		iwn_read_eeprom_ht40(sc, n, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+		    ic->ic_channels);
+	}
 	ieee80211_sort_channels(ic->ic_channels, ic->ic_nchans);
 }
 
@@ -2536,6 +2560,20 @@ iwn_find_eeprom_channel(struct iwn_softc *sc, struct ieee80211_channel *c)
 		}
 	}
 	return NULL;
+}
+
+static void
+iwn_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	struct iwn_softc *sc = ic->ic_softc;
+	int i;
+
+	/* Parse the list of authorized channels. */
+	for (i = 0; i < 5 && *nchans < maxchans; i++)
+		iwn_read_eeprom_band(sc, i, maxchans, nchans, chans);
+	for (i = 5; i < IWN_NBANDS - 1 && *nchans < maxchans; i++)
+		iwn_read_eeprom_ht40(sc, i, maxchans, nchans, chans);
 }
 
 /*
