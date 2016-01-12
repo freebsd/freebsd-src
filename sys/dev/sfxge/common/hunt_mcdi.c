@@ -81,6 +81,7 @@ ef10_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_dword_t dword;
 	efx_rc_t rc;
@@ -88,6 +89,13 @@ ef10_mcdi_init(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 		    enp->en_family == EFX_FAMILY_MEDFORD);
 	EFSYS_ASSERT(enp->en_features & EFX_FEATURE_MCDI_DMA);
+
+	/*
+	 * All EF10 firmware supports MCDIv2 and MCDIv1.
+	 * Medford BootROM supports MCDIv2 and MCDIv1.
+	 * Huntington BootROM supports MCDIv1 only.
+	 */
+	emip->emi_max_version = 2;
 
 	/* A host DMA buffer is required for EF10 MCDI */
 	if (esmp == NULL) {
