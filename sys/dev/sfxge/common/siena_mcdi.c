@@ -244,6 +244,9 @@ siena_mcdi_init(
 		goto fail1;
 	}
 
+	/* Siena BootROM and firmware only support MCDIv1 */
+	emip->emi_max_version = 1;
+
 	/*
 	 * Wipe the atomic reboot status so subsequent MCDI requests succeed.
 	 * BOOT_STATUS is preserved so eno_nic_probe() can boot out of the
