@@ -148,6 +148,48 @@ fail1:
 	return (rc);
 }
 
+			void
+ef10_intr_status_line(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *fatalp,
+	__out		uint32_t *qmaskp)
+{
+	efx_dword_t dword;
+
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
+
+	/* Read the queue mask and implicitly acknowledge the interrupt. */
+	EFX_BAR_READD(enp, ER_DZ_BIU_INT_ISR_REG, &dword, B_FALSE);
+	*qmaskp = EFX_DWORD_FIELD(dword, EFX_DWORD_0);
+
+	EFSYS_PROBE1(qmask, uint32_t, *qmaskp);
+
+	*fatalp = B_FALSE;
+}
+
+			void
+ef10_intr_status_message(
+	__in		efx_nic_t *enp,
+	__in		unsigned int message,
+	__out		boolean_t *fatalp)
+{
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
+
+	_NOTE(ARGUNUSED(enp, message))
+
+	/* EF10 fatal errors are reported via events */
+	*fatalp = B_FALSE;
+}
+
+			void
+ef10_intr_fatal(
+	__in		efx_nic_t *enp)
+{
+	/* EF10 fatal errors are reported via events */
+	_NOTE(ARGUNUSED(enp))
+}
 
 			void
 ef10_intr_fini(
