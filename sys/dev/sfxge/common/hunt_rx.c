@@ -739,11 +739,6 @@ ef10_rx_qcreate(
 		disable_scatter = B_FALSE;
 	}
 
-	/*
-	 * Note: EFX_RXQ_TYPE_SPLIT_HEADER and EFX_RXQ_TYPE_SPLIT_PAYLOAD are
-	 * not supported here.
-	 */
-
 	if ((rc = efx_mcdi_init_rxq(enp, n, eep->ee_index, label, index,
 	    esmp, disable_scatter)) != 0)
 		goto fail3;
