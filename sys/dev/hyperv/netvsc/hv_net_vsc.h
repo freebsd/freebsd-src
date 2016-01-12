@@ -1011,6 +1011,7 @@ typedef struct hn_softc {
 	u_long		hn_csum_tcp;
 	u_long		hn_csum_trusted;
 	u_long		hn_lro_tried;
+	u_long		hn_small_pkts;
 } hn_softc_t;
 
 
