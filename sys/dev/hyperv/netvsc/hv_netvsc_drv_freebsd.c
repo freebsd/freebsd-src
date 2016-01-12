@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -138,6 +139,15 @@ __FBSDID("$FreeBSD$");
     CSUM_IP_ISCSI|CSUM_IP6_UDP|CSUM_IP6_TCP|CSUM_IP6_SCTP|		\
     CSUM_IP6_TSO|CSUM_IP6_ISCSI)
 
+/* XXX move to netinet/tcp_lro.h */
+#define HN_LRO_HIWAT_MAX				65535
+#define HN_LRO_HIWAT_DEF				HN_LRO_HIWAT_MAX
+/* YYY 2*MTU is a bit rough, but should be good enough. */
+#define HN_LRO_HIWAT_MTULIM(ifp)			(2 * (ifp)->if_mtu)
+#define HN_LRO_HIWAT_ISVALID(sc, hiwat)			\
+    ((hiwat) >= HN_LRO_HIWAT_MTULIM((sc)->hn_ifp) ||	\
+     (hiwat) <= HN_LRO_HIWAT_MAX)
+
 /*
  * Data types
  */
@@ -171,6 +181,9 @@ int hv_promisc_mode = 0;    /* normal mode by default */
 /* The one and only one */
 static struct hv_netvsc_driver_context g_netvsc_drv;
 
+/* Trust tcp segements verification on host side. */
+static int hn_trust_hosttcp = 0;
+TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
 
 /*
  * Forward declarations
@@ -181,6 +194,19 @@ static void hn_ifinit(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int  hn_start_locked(struct ifnet *ifp);
 static void hn_start(struct ifnet *ifp);
+#ifdef HN_LRO_HIWAT
+static int hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS);
+#endif
+static int hn_check_iplen(const struct mbuf *, int);
+
+static __inline void
+hn_set_lro_hiwat(struct hn_softc *sc, int hiwat)
+{
+	sc->hn_lro_hiwat = hiwat;
+#ifdef HN_LRO_HIWAT
+	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
+#endif
+}
 
 /*
  * NetVsc get message transport protocol type 
@@ -310,6 +336,8 @@ netvsc_attach(device_t dev)
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
 	struct ifnet *ifp;
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx;
 	int ret;
 
 	netvsc_init();
@@ -322,6 +350,8 @@ netvsc_attach(device_t dev)
 	bzero(sc, sizeof(hn_softc_t));
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
+	sc->hn_lro_hiwat = HN_LRO_HIWAT_DEF;
+	sc->hn_trust_hosttcp = hn_trust_hosttcp;
 
 	NV_LOCK_INIT(sc, "NetVSCLock");
 
@@ -349,9 +379,11 @@ netvsc_attach(device_t dev)
 	 */
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |=
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO;
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
+	    IFCAP_LRO;
 	ifp->if_capenable |=
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO;
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
+	    IFCAP_LRO;
 	/*
 	 * Only enable UDP checksum offloading when it is on 2012R2 or
 	 * later. UDP checksum offloading doesn't work on earlier
@@ -372,7 +404,58 @@ netvsc_attach(device_t dev)
 		sc->hn_carrier = 1;
 	}
 
+	tcp_lro_init(&sc->hn_lro);
+	/* Driver private LRO settings */
+	sc->hn_lro.ifp = ifp;
+#ifdef HN_LRO_HIWAT
+	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
+#endif
+
 	ether_ifattach(ifp, device_info.mac_addr);
+
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "lro_queued",
+	    CTLFLAG_RW, &sc->hn_lro.lro_queued, 0, "LRO queued");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "lro_flushed",
+	    CTLFLAG_RW, &sc->hn_lro.lro_flushed, 0, "LRO flushed");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "lro_tried",
+	    CTLFLAG_RW, &sc->hn_lro_tried, "# of LRO tries");
+#ifdef HN_LRO_HIWAT
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_hiwat",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_hiwat_sysctl,
+	    "I", "LRO high watermark");
+#endif
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "trust_hosttcp",
+	    CTLFLAG_RW, &sc->hn_trust_hosttcp, 0,
+	    "Trust tcp segement verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_ip",
+	    CTLFLAG_RW, &sc->hn_csum_ip, "RXCSUM IP");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_tcp",
+	    CTLFLAG_RW, &sc->hn_csum_tcp, "RXCSUM TCP");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_trusted",
+	    CTLFLAG_RW, &sc->hn_csum_trusted,
+	    "# of TCP segements that we trust host's csum verification");
+
+	if (unit == 0) {
+		struct sysctl_ctx_list *dc_ctx;
+		struct sysctl_oid_list *dc_child;
+		devclass_t dc;
+
+		/*
+		 * Add sysctl nodes for devclass
+		 */
+		dc = device_get_devclass(dev);
+		dc_ctx = devclass_get_sysctl_ctx(dc);
+		dc_child = SYSCTL_CHILDREN(devclass_get_sysctl_tree(dc));
+
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hosttcp",
+		    CTLFLAG_RD, &hn_trust_hosttcp, 0,
+		    "Trust tcp segement verification on host side, "
+		    "when csum info is missing (global setting)");
+	}
 
 	return (0);
 }
@@ -383,6 +466,7 @@ netvsc_attach(device_t dev)
 static int
 netvsc_detach(device_t dev)
 {
+	struct hn_softc *sc = device_get_softc(dev);
 	struct hv_device *hv_device = vmbus_get_devctx(dev); 
 
 	if (bootverbose)
@@ -400,6 +484,8 @@ netvsc_detach(device_t dev)
 	 */
 
 	hv_rf_on_device_remove(hv_device, HV_RF_NV_DESTROY_CHANNEL);
+
+	tcp_lro_free(&sc->hn_lro);
 
 	return (0);
 }
@@ -887,7 +973,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 	struct mbuf *m_new;
 	struct ifnet *ifp;
 	device_t dev = device_ctx->device;
-	int size;
+	int size, do_lro = 0;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
@@ -938,6 +1024,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 		if (csum_info->receive.ip_csum_succeeded) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
+			sc->hn_csum_ip++;
 		}
 
 		/* TCP csum offload */
@@ -945,9 +1032,50 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
+			sc->hn_csum_tcp++;
+		}
+
+		if (csum_info->receive.ip_csum_succeeded &&
+		    csum_info->receive.tcp_csum_succeeded)
+			do_lro = 1;
+	} else {
+		const struct ether_header *eh;
+		uint16_t etype;
+		int hoff;
+
+		hoff = sizeof(*eh);
+		if (m_new->m_len < hoff)
+			goto skip;
+		eh = mtod(m_new, struct ether_header *);
+		etype = ntohs(eh->ether_type);
+		if (etype == ETHERTYPE_VLAN) {
+			const struct ether_vlan_header *evl;
+
+			hoff = sizeof(*evl);
+			if (m_new->m_len < hoff)
+				goto skip;
+			evl = mtod(m_new, struct ether_vlan_header *);
+			etype = ntohs(evl->evl_proto);
+		}
+
+		if (etype == ETHERTYPE_IP) {
+			int pr;
+
+			pr = hn_check_iplen(m_new, hoff);
+			if (pr == IPPROTO_TCP) {
+				if (sc->hn_trust_hosttcp) {
+					sc->hn_csum_trusted++;
+					m_new->m_pkthdr.csum_flags |=
+					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
+					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+					m_new->m_pkthdr.csum_data = 0xffff;
+				}
+				/* Rely on SW csum verification though... */
+				do_lro = 1;
+			}
 		}
 	}
-
+skip:
 	if ((packet->vlan_tci != 0) &&
 	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
 		m_new->m_pkthdr.ether_vtag = packet->vlan_tci;
@@ -961,10 +1089,35 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
+	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
+		struct lro_ctrl *lro = &sc->hn_lro;
+
+		if (lro->lro_cnt) {
+			sc->hn_lro_tried++;
+			if (tcp_lro_rx(lro, m_new, 0) == 0) {
+				/* DONE! */
+				return 0;
+			}
+		}
+	}
+
 	/* We're not holding the lock here, so don't release it */
 	(*ifp->if_input)(ifp, m_new);
 
 	return (0);
+}
+
+void
+netvsc_recv_rollup(struct hv_device *device_ctx)
+{
+	hn_softc_t *sc = device_get_softc(device_ctx->device);
+	struct lro_ctrl *lro = &sc->hn_lro;
+	struct lro_entry *queued;
+
+	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lro->lro_active, next);
+		tcp_lro_flush(lro, queued);
+	}
 }
 
 /*
@@ -1022,7 +1175,13 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		/* Obtain and record requested MTU */
 		ifp->if_mtu = ifr->ifr_mtu;
- 		
+		/*
+		 * Make sure that LRO high watermark is still valid,
+		 * after MTU change (the 2*MTU limit).
+		 */
+		if (!HN_LRO_HIWAT_ISVALID(sc, sc->hn_lro_hiwat))
+			hn_set_lro_hiwat(sc, HN_LRO_HIWAT_MTULIM(ifp));
+
 		do {
 			NV_LOCK(sc);
 			if (!sc->temp_unusable) {
@@ -1147,6 +1306,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_capenable |= IFCAP_RXCSUM;
 			}
 		}
+		if (mask & IFCAP_LRO)
+			ifp->if_capenable ^= IFCAP_LRO;
 
 		if (mask & IFCAP_TSO4) {
 			ifp->if_capenable ^= IFCAP_TSO4;
@@ -1291,6 +1452,102 @@ hn_watchdog(struct ifnet *ifp)
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 #endif
+
+#ifdef HN_LRO_HIWAT
+static int
+hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int hiwat, error;
+
+	hiwat = sc->hn_lro_hiwat;
+	error = sysctl_handle_int(oidp, &hiwat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	if (!HN_LRO_HIWAT_ISVALID(sc, hiwat))
+		return EINVAL;
+
+	if (sc->hn_lro_hiwat != hiwat)
+		hn_set_lro_hiwat(sc, hiwat);
+	return 0;
+}
+#endif	/* HN_LRO_HIWAT */
+
+static int
+hn_check_iplen(const struct mbuf *m, int hoff)
+{
+	const struct ip *ip;
+	int len, iphlen, iplen;
+	const struct tcphdr *th;
+	int thoff;				/* TCP data offset */
+
+	len = hoff + sizeof(struct ip);
+
+	/* The packet must be at least the size of an IP header. */
+	if (m->m_pkthdr.len < len)
+		return IPPROTO_DONE;
+
+	/* The fixed IP header must reside completely in the first mbuf. */
+	if (m->m_len < len)
+		return IPPROTO_DONE;
+
+	ip = mtodo(m, hoff);
+
+	/* Bound check the packet's stated IP header length. */
+	iphlen = ip->ip_hl << 2;
+	if (iphlen < sizeof(struct ip))		/* minimum header length */
+		return IPPROTO_DONE;
+
+	/* The full IP header must reside completely in the one mbuf. */
+	if (m->m_len < hoff + iphlen)
+		return IPPROTO_DONE;
+
+	iplen = ntohs(ip->ip_len);
+
+	/*
+	 * Check that the amount of data in the buffers is as
+	 * at least much as the IP header would have us expect.
+	 */
+	if (m->m_pkthdr.len < hoff + iplen)
+		return IPPROTO_DONE;
+
+	/*
+	 * Ignore IP fragments.
+	 */
+	if (ntohs(ip->ip_off) & (IP_OFFMASK | IP_MF))
+		return IPPROTO_DONE;
+
+	/*
+	 * The TCP/IP or UDP/IP header must be entirely contained within
+	 * the first fragment of a packet.
+	 */
+	switch (ip->ip_p) {
+	case IPPROTO_TCP:
+		if (iplen < iphlen + sizeof(struct tcphdr))
+			return IPPROTO_DONE;
+		if (m->m_len < hoff + iphlen + sizeof(struct tcphdr))
+			return IPPROTO_DONE;
+		th = (const struct tcphdr *)((const uint8_t *)ip + iphlen);
+		thoff = th->th_off << 2;
+		if (thoff < sizeof(struct tcphdr) || thoff + iphlen > iplen)
+			return IPPROTO_DONE;
+		if (m->m_len < hoff + iphlen + thoff)
+			return IPPROTO_DONE;
+		break;
+	case IPPROTO_UDP:
+		if (iplen < iphlen + sizeof(struct udphdr))
+			return IPPROTO_DONE;
+		if (m->m_len < hoff + iphlen + sizeof(struct udphdr))
+			return IPPROTO_DONE;
+		break;
+	default:
+		if (iplen < iphlen)
+			return IPPROTO_DONE;
+		break;
+	}
+	return ip->ip_p;
+}
 
 static device_method_t netvsc_methods[] = {
         /* Device interface */
