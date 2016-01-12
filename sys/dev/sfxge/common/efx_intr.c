@@ -101,17 +101,16 @@ static efx_intr_ops_t	__efx_intr_siena_ops = {
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
-static efx_intr_ops_t	__efx_intr_hunt_ops = {
-	hunt_intr_init,			/* eio_init */
-	hunt_intr_enable,		/* eio_enable */
-	hunt_intr_disable,		/* eio_disable */
-	hunt_intr_disable_unlocked,	/* eio_disable_unlocked */
-	hunt_intr_trigger,		/* eio_trigger */
-	hunt_intr_fini,			/* eio_fini */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+static efx_intr_ops_t	__efx_intr_ef10_ops = {
+	ef10_intr_init,			/* eio_init */
+	ef10_intr_enable,		/* eio_enable */
+	ef10_intr_disable,		/* eio_disable */
+	ef10_intr_disable_unlocked,	/* eio_disable_unlocked */
+	ef10_intr_trigger,		/* eio_trigger */
+	ef10_intr_fini,			/* eio_fini */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON */
-
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	__checkReturn	efx_rc_t
 efx_intr_init(
@@ -152,9 +151,15 @@ efx_intr_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		eiop = (efx_intr_ops_t *)&__efx_intr_hunt_ops;
+		eiop = (efx_intr_ops_t *)&__efx_intr_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		eiop = (efx_intr_ops_t *)&__efx_intr_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
