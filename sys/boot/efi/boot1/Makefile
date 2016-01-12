@@ -11,6 +11,7 @@ MK_SSP=		no
 
 PROG=		boot1.sym
 INTERNALPROG=
+WARNS?=		6
 
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S

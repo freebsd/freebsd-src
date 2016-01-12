@@ -127,7 +127,6 @@ typedef uint64_t   UINTN;
 #define BAD_POINTER         0xFBFBFBFBFBFBFBFB
 #define MAX_ADDRESS         0xFFFFFFFFFFFFFFFF
 
-#pragma intrinsic (__break)  
 #define BREAKPOINT()  __break(0)
 
 //
@@ -180,7 +179,6 @@ typedef uint64_t   UINTN;
 // BugBug: Need to find out if this is portable accross compliers.
 //
 void __mfa (void);                       
-#pragma intrinsic (__mfa)  
 #define MEMORY_FENCE()    __mfa()
 
 #ifdef EFI_NO_INTERFACE_DECL

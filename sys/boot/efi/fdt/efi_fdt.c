@@ -44,7 +44,6 @@ int
 fdt_platform_load_dtb(void)
 {
 	struct fdt_header *hdr;
-	int err;
 
 	hdr = efi_get_table(&fdtdtb);
 	if (hdr != NULL) {
@@ -54,7 +53,7 @@ fdt_platform_load_dtb(void)
 		}
 	}
 
-	return (err);
+	return (1);
 }
 
 void

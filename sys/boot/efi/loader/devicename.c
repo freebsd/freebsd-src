@@ -31,10 +31,12 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <sys/disklabel.h>
-#include "bootstrap.h"
+#include <bootstrap.h>
 
 #include <efi.h>
 #include <efilib.h>
+
+#include "loader_efi.h"
 
 static int efi_parsedev(struct devdesc **, const char *, const char **);
 

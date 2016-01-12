@@ -68,6 +68,7 @@ main(int argc, CHAR16 *argv[])
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
 	int i, j, vargood;
+	UINTN k;
 
 	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
@@ -155,10 +156,10 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_copyout = efi_copyout;
 	archsw.arch_readin = efi_readin;
 
-	for (i = 0; i < ST->NumberOfTableEntries; i++) {
-		guid = &ST->ConfigurationTable[i].VendorGuid;
+	for (k = 0; k < ST->NumberOfTableEntries; k++) {
+		guid = &ST->ConfigurationTable[k].VendorGuid;
 		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
-			smbios_detect(ST->ConfigurationTable[i].VendorTable);
+			smbios_detect(ST->ConfigurationTable[k].VendorTable);
 			break;
 		}
 	}
@@ -242,8 +243,9 @@ command_memmap(int argc, char *argv[])
 
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
-		printf("%23s %012lx %012lx %08lx ", types[p->Type],
-		   p->PhysicalStart, p->VirtualStart, p->NumberOfPages);
+		printf("%23s %012jx %012jx %08jx ", types[p->Type],
+		   (uintmax_t)p->PhysicalStart, (uintmax_t)p->VirtualStart,
+		   (uintmax_t)p->NumberOfPages);
 		if (p->Attribute & EFI_MEMORY_UC)
 			printf("UC ");
 		if (p->Attribute & EFI_MEMORY_WC)
@@ -284,9 +286,10 @@ guid_to_string(EFI_GUID *guid)
 static int
 command_configuration(int argc, char *argv[])
 {
-	int i;
+	UINTN i;
 
-	printf("NumberOfTableEntries=%ld\n", ST->NumberOfTableEntries);
+	printf("NumberOfTableEntries=%lu\n",
+		(unsigned long)ST->NumberOfTableEntries);
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		EFI_GUID *guid;
 
@@ -382,9 +385,8 @@ command_nvram(int argc, char *argv[])
 	CHAR16 *data;
 	EFI_STATUS status;
 	EFI_GUID varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
-	UINTN varsz, datasz;
+	UINTN varsz, datasz, i;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout;
-	int i;
 
 	conout = ST->ConOut;
 
