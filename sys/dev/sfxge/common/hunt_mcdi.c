@@ -36,12 +36,12 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
 #if EFSYS_OPT_MCDI
 
 #ifndef WITH_MCDI_V2
-#error "WITH_MCDI_V2 required for Huntington MCDIv2 commands."
+#error "WITH_MCDI_V2 required for EF10 MCDIv2 commands."
 #endif
 
 typedef enum efx_mcdi_header_type_e {
@@ -77,7 +77,7 @@ typedef enum efx_mcdi_header_type_e {
 
 
 	__checkReturn	efx_rc_t
-hunt_mcdi_init(
+ef10_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
@@ -85,10 +85,11 @@ hunt_mcdi_init(
 	efx_dword_t dword;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 	EFSYS_ASSERT(enp->en_features & EFX_FEATURE_MCDI_DMA);
 
-	/* A host DMA buffer is required for Huntington MCDI */
+	/* A host DMA buffer is required for EF10 MCDI */
 	if (esmp == NULL) {
 		rc = EINVAL;
 		goto fail1;
@@ -107,7 +108,7 @@ hunt_mcdi_init(
 	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_HWRD_REG, &dword, B_FALSE);
 
 	/* Save initial MC reboot status */
-	(void) hunt_mcdi_poll_reboot(enp);
+	(void) ef10_mcdi_poll_reboot(enp);
 
 	/* Start a new epoch (allow fresh MCDI requests to succeed) */
 	efx_mcdi_new_epoch(enp);
@@ -123,7 +124,7 @@ fail1:
 }
 
 			void
-hunt_mcdi_fini(
+ef10_mcdi_fini(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
@@ -132,7 +133,7 @@ hunt_mcdi_fini(
 }
 
 			void
-hunt_mcdi_request_copyin(
+ef10_mcdi_request_copyin(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp,
 	__in		unsigned int seq,
@@ -148,7 +149,8 @@ hunt_mcdi_request_copyin(
 	unsigned int pos;
 	size_t offset;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	xflags = 0;
 	if (ev_cpl)
@@ -225,7 +227,7 @@ hunt_mcdi_request_copyin(
 }
 
 			void
-hunt_mcdi_request_copyout(
+ef10_mcdi_request_copyout(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp)
 {
@@ -241,13 +243,13 @@ hunt_mcdi_request_copyout(
 
 	/* Read the command header to detect MCDI response format */
 	hdr_len = sizeof (hdr[0]);
-	hunt_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
+	ef10_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
 	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
 		/*
 		 * Read the actual payload length. The length given in the event
 		 * is only correct for responses with the V1 format.
 		 */
-		hunt_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
+		ef10_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
 		hdr_len += sizeof (hdr[1]);
 
 		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
@@ -256,7 +258,7 @@ hunt_mcdi_request_copyout(
 
 	/* Copy payload out into caller supplied buffer */
 	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
-	hunt_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
+	ef10_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
 
 #if EFSYS_OPT_MCDI_LOGGING
 	if (emtp->emt_logger != NULL) {
@@ -269,7 +271,7 @@ hunt_mcdi_request_copyout(
 }
 
 	__checkReturn	boolean_t
-hunt_mcdi_poll_response(
+ef10_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
@@ -281,7 +283,7 @@ hunt_mcdi_poll_response(
 }
 
 			void
-hunt_mcdi_read_response(
+ef10_mcdi_read_response(
 	__in		efx_nic_t *enp,
 	__out		void *bufferp,
 	__in		size_t offset,
@@ -300,7 +302,7 @@ hunt_mcdi_read_response(
 }
 
 			efx_rc_t
-hunt_mcdi_poll_reboot(
+ef10_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
@@ -324,7 +326,7 @@ hunt_mcdi_poll_reboot(
 		 *
 		 * The Siena support for checking for MC reboot from status
 		 * flags is broken - see comments in siena_mcdi_poll_reboot().
-		 * As the generic MCDI code is shared the Huntington reboot
+		 * As the generic MCDI code is shared the EF10 reboot
 		 * detection suffers similar problems.
 		 *
 		 * Do not report an error when the boot status changes until
@@ -346,7 +348,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_mcdi_feature_supported(
+ef10_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp)
@@ -355,7 +357,8 @@ hunt_mcdi_feature_supported(
 	uint32_t privilege_mask = encp->enc_privilege_mask;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * Use privilege mask state at MCDI attach.
@@ -417,4 +420,4 @@ fail1:
 
 #endif	/* EFSYS_OPT_MCDI */
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
