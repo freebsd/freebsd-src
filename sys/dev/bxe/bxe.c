@@ -747,6 +747,8 @@ static __noinline int bxe_nic_unload(struct bxe_softc *sc,
 static void bxe_handle_sp_tq(void *context, int pending);
 static void bxe_handle_fp_tq(void *context, int pending);
 
+static int bxe_add_cdev(struct bxe_softc *sc);
+static void bxe_del_cdev(struct bxe_softc *sc);
 
 /* calculate crc32 on a buffer (NOTE: crc32_length MUST be aligned to 8) */
 uint32_t
@@ -4514,7 +4516,7 @@ bxe_nic_unload(struct bxe_softc *sc,
     sc->rx_mode = BXE_RX_MODE_NONE;
     /* XXX set rx mode ??? */
 
-    if (IS_PF(sc)) {
+    if (IS_PF(sc) && !sc->grcdump_done) {
         /* set ALWAYS_ALIVE bit in shmem */
         sc->fw_drv_pulse_wr_seq |= DRV_PULSE_ALWAYS_ALIVE;
 
@@ -4534,7 +4536,8 @@ bxe_nic_unload(struct bxe_softc *sc,
         ; /* bxe_vfpf_close_vf(sc); */
     } else if (unload_mode != UNLOAD_RECOVERY) {
         /* if this is a normal/close unload need to clean up chip */
-        bxe_chip_cleanup(sc, unload_mode, keep_link);
+        if (!sc->grcdump_done)
+            bxe_chip_cleanup(sc, unload_mode, keep_link);
     } else {
         /* Send the UNLOAD_REQUEST to the MCP */
         bxe_send_unload_req(sc, unload_mode);
@@ -16317,6 +16320,12 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     CTLFLAG_RW, &sc->debug,
                     "debug logging mode");
 
+    sc->trigger_grcdump = 0;
+    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "trigger_grcdump",
+                    CTLFLAG_RW, &sc->trigger_grcdump, 0,
+                    "set by driver when a grcdump is needed");
+
+
     sc->rx_budget = bxe_rx_budget;
     SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "rx_budget",
                     CTLFLAG_RW, &sc->rx_budget, 0,
@@ -16445,8 +16454,20 @@ bxe_attach(device_t dev)
         return (ENXIO);
     }
 
+    if (bxe_add_cdev(sc) != 0) {
+        if (sc->ifnet != NULL) {
+            ether_ifdetach(sc->ifnet);
+        }
+        ifmedia_removeall(&sc->ifmedia);
+        bxe_release_mutexes(sc);
+        bxe_deallocate_bars(sc);
+        pci_disable_busmaster(dev);
+        return (ENXIO);
+    }
+
     /* allocate device interrupts */
     if (bxe_interrupt_alloc(sc) != 0) {
+        bxe_del_cdev(sc);
         if (sc->ifnet != NULL) {
             ether_ifdetach(sc->ifnet);
         }
@@ -16460,6 +16481,7 @@ bxe_attach(device_t dev)
     /* allocate ilt */
     if (bxe_alloc_ilt_mem(sc) != 0) {
         bxe_interrupt_free(sc);
+        bxe_del_cdev(sc);
         if (sc->ifnet != NULL) {
             ether_ifdetach(sc->ifnet);
         }
@@ -16474,6 +16496,7 @@ bxe_attach(device_t dev)
     if (bxe_alloc_hsi_mem(sc) != 0) {
         bxe_free_ilt_mem(sc);
         bxe_interrupt_free(sc);
+        bxe_del_cdev(sc);
         if (sc->ifnet != NULL) {
             ether_ifdetach(sc->ifnet);
         }
@@ -16544,6 +16567,8 @@ bxe_detach(device_t dev)
         BLOGE(sc, "Cannot detach while VLANs are in use.\n");
         return(EBUSY);
     }
+
+    bxe_del_cdev(sc);
 
     /* stop the periodic callout */
     bxe_periodic_stop(sc);
@@ -18865,3 +18890,457 @@ ecore_storm_memset_struct(struct bxe_softc *sc,
     }
 }
 
+
+/*
+ * character device - ioctl interface definitions
+ */
+
+
+#include "bxe_dump.h"
+#include "bxe_ioctl.h"
+#include <sys/conf.h>
+
+static int bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+                struct thread *td);
+
+static struct cdevsw bxe_cdevsw = {
+    .d_version = D_VERSION,
+    .d_ioctl = bxe_eioctl,
+    .d_name = "bxecnic",
+};
+
+#define BXE_PATH(sc)    (CHIP_IS_E1x(sc) ? 0 : (sc->pcie_func & 1))
+
+
+#define DUMP_ALL_PRESETS        0x1FFF
+#define DUMP_MAX_PRESETS        13
+#define IS_E1_REG(chips)        ((chips & DUMP_CHIP_E1) == DUMP_CHIP_E1)
+#define IS_E1H_REG(chips)       ((chips & DUMP_CHIP_E1H) == DUMP_CHIP_E1H)
+#define IS_E2_REG(chips)        ((chips & DUMP_CHIP_E2) == DUMP_CHIP_E2)
+#define IS_E3A0_REG(chips)      ((chips & DUMP_CHIP_E3A0) == DUMP_CHIP_E3A0)
+#define IS_E3B0_REG(chips)      ((chips & DUMP_CHIP_E3B0) == DUMP_CHIP_E3B0)
+
+#define IS_REG_IN_PRESET(presets, idx)  \
+                ((presets & (1 << (idx-1))) == (1 << (idx-1)))
+
+
+static int
+bxe_get_preset_regs_len(struct bxe_softc *sc, uint32_t preset)
+{
+    if (CHIP_IS_E1(sc))
+        return dump_num_registers[0][preset-1];
+    else if (CHIP_IS_E1H(sc))
+        return dump_num_registers[1][preset-1];
+    else if (CHIP_IS_E2(sc))
+        return dump_num_registers[2][preset-1];
+    else if (CHIP_IS_E3A0(sc))
+        return dump_num_registers[3][preset-1];
+    else if (CHIP_IS_E3B0(sc))
+        return dump_num_registers[4][preset-1];
+    else
+        return 0;
+}
+
+static int
+bxe_get_max_regs_len(struct bxe_softc *sc)
+{
+    uint32_t preset_idx;
+    int regdump_len32, len32;
+
+    regdump_len32 = bxe_get_preset_regs_len(sc, 1);
+
+    /* Calculate the total preset regs length */
+    for (preset_idx = 2; preset_idx <= DUMP_MAX_PRESETS; preset_idx++) {
+
+        len32 = bxe_get_preset_regs_len(sc, preset_idx);
+
+        if (regdump_len32 < len32)
+            regdump_len32 = len32;
+    }
+
+    return regdump_len32;
+}
+
+static int
+bxe_get_total_regs_len32(struct bxe_softc *sc)
+{
+    uint32_t preset_idx;
+    int regdump_len32 = 0;
+
+
+    /* Calculate the total preset regs length */
+    for (preset_idx = 1; preset_idx <= DUMP_MAX_PRESETS; preset_idx++) {
+        regdump_len32 += bxe_get_preset_regs_len(sc, preset_idx);
+    }
+
+    return regdump_len32;
+}
+
+static const uint32_t *
+__bxe_get_page_addr_ar(struct bxe_softc *sc)
+{
+    if (CHIP_IS_E2(sc))
+        return page_vals_e2;
+    else if (CHIP_IS_E3(sc))
+        return page_vals_e3;
+    else
+        return NULL;
+}
+
+static uint32_t
+__bxe_get_page_reg_num(struct bxe_softc *sc)
+{
+    if (CHIP_IS_E2(sc))
+        return PAGE_MODE_VALUES_E2;
+    else if (CHIP_IS_E3(sc))
+        return PAGE_MODE_VALUES_E3;
+    else
+        return 0;
+}
+
+static const uint32_t *
+__bxe_get_page_write_ar(struct bxe_softc *sc)
+{
+    if (CHIP_IS_E2(sc))
+        return page_write_regs_e2;
+    else if (CHIP_IS_E3(sc))
+        return page_write_regs_e3;
+    else
+        return NULL;
+}
+
+static uint32_t
+__bxe_get_page_write_num(struct bxe_softc *sc)
+{
+    if (CHIP_IS_E2(sc))
+        return PAGE_WRITE_REGS_E2;
+    else if (CHIP_IS_E3(sc))
+        return PAGE_WRITE_REGS_E3;
+    else
+        return 0;
+}
+
+static const struct reg_addr *
+__bxe_get_page_read_ar(struct bxe_softc *sc)
+{
+    if (CHIP_IS_E2(sc))
+        return page_read_regs_e2;
+    else if (CHIP_IS_E3(sc))
+        return page_read_regs_e3;
+    else
+        return NULL;
+}
+
+static uint32_t
+__bxe_get_page_read_num(struct bxe_softc *sc)
+{
+    if (CHIP_IS_E2(sc))
+        return PAGE_READ_REGS_E2;
+    else if (CHIP_IS_E3(sc))
+        return PAGE_READ_REGS_E3;
+    else
+        return 0;
+}
+
+static bool
+bxe_is_reg_in_chip(struct bxe_softc *sc, const struct reg_addr *reg_info)
+{
+    if (CHIP_IS_E1(sc))
+        return IS_E1_REG(reg_info->chips);
+    else if (CHIP_IS_E1H(sc))
+        return IS_E1H_REG(reg_info->chips);
+    else if (CHIP_IS_E2(sc))
+        return IS_E2_REG(reg_info->chips);
+    else if (CHIP_IS_E3A0(sc))
+        return IS_E3A0_REG(reg_info->chips);
+    else if (CHIP_IS_E3B0(sc))
+        return IS_E3B0_REG(reg_info->chips);
+    else
+        return 0;
+}
+
+static bool
+bxe_is_wreg_in_chip(struct bxe_softc *sc, const struct wreg_addr *wreg_info)
+{
+    if (CHIP_IS_E1(sc))
+        return IS_E1_REG(wreg_info->chips);
+    else if (CHIP_IS_E1H(sc))
+        return IS_E1H_REG(wreg_info->chips);
+    else if (CHIP_IS_E2(sc))
+        return IS_E2_REG(wreg_info->chips);
+    else if (CHIP_IS_E3A0(sc))
+        return IS_E3A0_REG(wreg_info->chips);
+    else if (CHIP_IS_E3B0(sc))
+        return IS_E3B0_REG(wreg_info->chips);
+    else
+        return 0;
+}
+
+/**
+ * bxe_read_pages_regs - read "paged" registers
+ *
+ * @bp          device handle
+ * @p           output buffer
+ *
+ * Reads "paged" memories: memories that may only be read by first writing to a
+ * specific address ("write address") and then reading from a specific address
+ * ("read address"). There may be more than one write address per "page" and
+ * more than one read address per write address.
+ */
+static void
+bxe_read_pages_regs(struct bxe_softc *sc, uint32_t *p, uint32_t preset)
+{
+    uint32_t i, j, k, n;
+
+    /* addresses of the paged registers */
+    const uint32_t *page_addr = __bxe_get_page_addr_ar(sc);
+    /* number of paged registers */
+    int num_pages = __bxe_get_page_reg_num(sc);
+    /* write addresses */
+    const uint32_t *write_addr = __bxe_get_page_write_ar(sc);
+    /* number of write addresses */
+    int write_num = __bxe_get_page_write_num(sc);
+    /* read addresses info */
+    const struct reg_addr *read_addr = __bxe_get_page_read_ar(sc);
+    /* number of read addresses */
+    int read_num = __bxe_get_page_read_num(sc);
+    uint32_t addr, size;
+
+    for (i = 0; i < num_pages; i++) {
+        for (j = 0; j < write_num; j++) {
+            REG_WR(sc, write_addr[j], page_addr[i]);
+
+            for (k = 0; k < read_num; k++) {
+                if (IS_REG_IN_PRESET(read_addr[k].presets, preset)) {
+                    size = read_addr[k].size;
+                    for (n = 0; n < size; n++) {
+                        addr = read_addr[k].addr + n*4;
+                        *p++ = REG_RD(sc, addr);
+                    }
+                }
+            }
+        }
+    }
+    return;
+}
+
+
+static int
+bxe_get_preset_regs(struct bxe_softc *sc, uint32_t *p, uint32_t preset)
+{
+    uint32_t i, j, addr;
+    const struct wreg_addr *wreg_addr_p = NULL;
+
+    if (CHIP_IS_E1(sc))
+        wreg_addr_p = &wreg_addr_e1;
+    else if (CHIP_IS_E1H(sc))
+        wreg_addr_p = &wreg_addr_e1h;
+    else if (CHIP_IS_E2(sc))
+        wreg_addr_p = &wreg_addr_e2;
+    else if (CHIP_IS_E3A0(sc))
+        wreg_addr_p = &wreg_addr_e3;
+    else if (CHIP_IS_E3B0(sc))
+        wreg_addr_p = &wreg_addr_e3b0;
+    else
+        return (-1);
+
+    /* Read the idle_chk registers */
+    for (i = 0; i < IDLE_REGS_COUNT; i++) {
+        if (bxe_is_reg_in_chip(sc, &idle_reg_addrs[i]) &&
+            IS_REG_IN_PRESET(idle_reg_addrs[i].presets, preset)) {
+            for (j = 0; j < idle_reg_addrs[i].size; j++)
+                *p++ = REG_RD(sc, idle_reg_addrs[i].addr + j*4);
+        }
+    }
+
+    /* Read the regular registers */
+    for (i = 0; i < REGS_COUNT; i++) {
+        if (bxe_is_reg_in_chip(sc, &reg_addrs[i]) &&
+            IS_REG_IN_PRESET(reg_addrs[i].presets, preset)) {
+            for (j = 0; j < reg_addrs[i].size; j++)
+                *p++ = REG_RD(sc, reg_addrs[i].addr + j*4);
+        }
+    }
+
+    /* Read the CAM registers */
+    if (bxe_is_wreg_in_chip(sc, wreg_addr_p) &&
+        IS_REG_IN_PRESET(wreg_addr_p->presets, preset)) {
+        for (i = 0; i < wreg_addr_p->size; i++) {
+            *p++ = REG_RD(sc, wreg_addr_p->addr + i*4);
+
+            /* In case of wreg_addr register, read additional
+               registers from read_regs array
+             */
+            for (j = 0; j < wreg_addr_p->read_regs_count; j++) {
+                addr = *(wreg_addr_p->read_regs);
+                *p++ = REG_RD(sc, addr + j*4);
+            }
+        }
+    }
+
+    /* Paged registers are supported in E2 & E3 only */
+    if (CHIP_IS_E2(sc) || CHIP_IS_E3(sc)) {
+        /* Read "paged" registers */
+        bxe_read_pages_regs(sc, p, preset);
+    }
+
+    return 0;
+}
+
+static int
+bxe_grc_dump(struct bxe_softc *sc, bxe_grcdump_t *dump)
+{
+    int rval = 0;
+    uint32_t preset_idx;
+    uint8_t *buf;
+    uint32_t size;
+    struct  dump_header *d_hdr;
+    
+    ecore_disable_blocks_parity(sc);
+
+    buf = dump->grcdump;
+    d_hdr = dump->grcdump;
+
+    d_hdr->header_size = (sizeof(struct  dump_header) >> 2) - 1;
+    d_hdr->version = BNX2X_DUMP_VERSION;
+    d_hdr->preset = DUMP_ALL_PRESETS;
+
+    if (CHIP_IS_E1(sc)) {
+        d_hdr->dump_meta_data = DUMP_CHIP_E1;
+    } else if (CHIP_IS_E1H(sc)) {
+        d_hdr->dump_meta_data = DUMP_CHIP_E1H;
+    } else if (CHIP_IS_E2(sc)) {
+        d_hdr->dump_meta_data = DUMP_CHIP_E2 |
+                (BXE_PATH(sc) ? DUMP_PATH_1 : DUMP_PATH_0);
+    } else if (CHIP_IS_E3A0(sc)) {
+        d_hdr->dump_meta_data = DUMP_CHIP_E3A0 |
+                (BXE_PATH(sc) ? DUMP_PATH_1 : DUMP_PATH_0);
+    } else if (CHIP_IS_E3B0(sc)) {
+        d_hdr->dump_meta_data = DUMP_CHIP_E3B0 |
+                (BXE_PATH(sc) ? DUMP_PATH_1 : DUMP_PATH_0);
+    }
+
+    dump->grcdump_dwords = sizeof(struct  dump_header) >> 2;
+    buf += sizeof(struct  dump_header);
+
+    for (preset_idx = 1; preset_idx <= DUMP_MAX_PRESETS; preset_idx++) {
+
+        /* Skip presets with IOR */
+        if ((preset_idx == 2) || (preset_idx == 5) || (preset_idx == 8) ||
+            (preset_idx == 11))
+            continue;
+
+        rval = bxe_get_preset_regs(sc, sc->grc_dump, preset_idx);
+
+	if (rval)
+            break;
+
+        size = bxe_get_preset_regs_len(sc, preset_idx) * (sizeof (uint32_t));
+
+        rval = copyout(sc->grc_dump, buf, size);
+
+        if (rval)
+	    break;
+
+	dump->grcdump_dwords += (size / (sizeof (uint32_t)));
+
+        buf += size;
+    }
+
+    ecore_clear_blocks_parity(sc);
+    ecore_enable_blocks_parity(sc);
+
+    sc->grcdump_done = 1;
+    return(rval);
+}
+
+static int
+bxe_add_cdev(struct bxe_softc *sc)
+{
+    int max_preset_size;
+
+    max_preset_size = bxe_get_max_regs_len(sc) * (sizeof (uint32_t));
+
+    sc->grc_dump = malloc(max_preset_size, M_DEVBUF, M_NOWAIT);
+
+    if (sc->grc_dump == NULL)
+        return (-1);
+
+    sc->ioctl_dev = make_dev(&bxe_cdevsw,
+                            sc->ifnet->if_dunit,
+                            UID_ROOT,
+                            GID_WHEEL,
+                            0600,
+                            "%s",
+                            if_name(sc->ifnet));
+
+    if (sc->ioctl_dev == NULL) {
+
+        free(sc->grc_dump, M_DEVBUF);
+
+        return (-1);
+    }
+
+    sc->ioctl_dev->si_drv1 = sc;
+
+    return (0);
+}
+
+static void
+bxe_del_cdev(struct bxe_softc *sc)
+{
+    if (sc->ioctl_dev != NULL)
+        destroy_dev(sc->ioctl_dev);
+
+    if (sc->grc_dump == NULL)
+        free(sc->grc_dump, M_DEVBUF);
+
+    return;
+}
+
+static int
+bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+        struct thread *td)
+{
+    struct bxe_softc    *sc;
+    int                 rval = 0;
+    device_t            pci_dev;
+    bxe_grcdump_t       *dump = NULL;
+    int grc_dump_size;
+
+    if ((sc = (struct bxe_softc *)dev->si_drv1) == NULL)
+        return ENXIO;
+
+    pci_dev= sc->dev;
+
+    dump = (bxe_grcdump_t *)data;
+
+    switch(cmd) {
+
+        case BXE_GRC_DUMP_SIZE:
+            dump->pci_func = sc->pcie_func;
+            dump->grcdump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
+					sizeof(struct  dump_header);
+            break;
+
+        case BXE_GRC_DUMP:
+            
+            grc_dump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
+				sizeof(struct  dump_header);
+
+            if ((sc->grc_dump == NULL) || (dump->grcdump == NULL) ||
+                (dump->grcdump_size < grc_dump_size)) {
+                rval = EINVAL;
+                break;
+            }
+
+            rval = bxe_grc_dump(sc, dump);
+
+            break;
+
+        default:
+            break;
+    }
+
+    return (rval);
+}
