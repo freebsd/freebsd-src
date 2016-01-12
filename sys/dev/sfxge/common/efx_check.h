@@ -52,16 +52,17 @@
 
 /* Verify chip implements accessed registers */
 #if EFSYS_OPT_CHECK_REG
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "CHECK_REG requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "CHECK_REG requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_CHECK_REG */
 
 /* Decode fatal errors */
 #if EFSYS_OPT_DECODE_INTR_FATAL
 # if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  if EFSYS_OPT_HUNTINGTON
-#   error "INTR_FATAL not supported on HUNTINGTON"
+#  if (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#   error "INTR_FATAL not supported on HUNTINGTON or MEDFORD"
 #  endif
 #  error "INTR_FATAL requires FALCON or SIENA"
 # endif
@@ -69,15 +70,17 @@
 
 /* Support diagnostic hardware tests */
 #if EFSYS_OPT_DIAG
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "DIAG requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "DIAG requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_DIAG */
 
 /* Support optimized EVQ data access */
 #if EFSYS_OPT_EV_PREFETCH
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "EV_PREFETCH requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "EV_PREFETCH requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_EV_PREFETCH */
 
@@ -90,21 +93,23 @@
 
 /* Support hardware packet filters */
 #if EFSYS_OPT_FILTER
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "FILTER requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "FILTER requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_FILTER */
 
-#if EFSYS_OPT_HUNTINGTON
+#if (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
 # if !EFSYS_OPT_FILTER
-#  error "HUNTINGTON requires FILTER"
+#  error "HUNTINGTON or MEDFORD requires FILTER"
 # endif
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 /* Support hardware loopback modes */
 #if EFSYS_OPT_LOOPBACK
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "LOOPBACK requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "LOOPBACK requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_LOOPBACK */
 
@@ -124,26 +129,26 @@
 
 /* Support MAC statistics */
 #if EFSYS_OPT_MAC_STATS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MAC_STATS requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "MAC_STATS requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MAC_STATS */
 
 /* Support management controller messages */
 #if EFSYS_OPT_MCDI
-# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
 #  if EFSYS_OPT_FALCON
 #   error "MCDI not supported on FALCON"
 #  endif
-#  error "MCDI requires SIENA or HUNTINGTON"
+#  error "MCDI requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MCDI */
 
-#if EFSYS_OPT_SIENA && !EFSYS_OPT_MCDI
-# error "SIENA requires MCDI"
-#endif
-#if EFSYS_OPT_HUNTINGTON && !EFSYS_OPT_MCDI
-# error "HUNTINGTON requires MCDI"
+#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+# if !EFSYS_OPT_MCDI
+#  error "SIENA or HUNTINGTON or MEDFORD requires MCDI"
+# endif
 #endif
 
 /* Support MCDI logging */
@@ -193,15 +198,16 @@
 
 /* Support monitor statistics (voltage/temperature) */
 #if EFSYS_OPT_MON_STATS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MON_STATS requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "MON_STATS requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MON_STATS */
 
 /* Support Monitor via mcdi */
 #if EFSYS_OPT_MON_MCDI
-# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MON_MCDI requires SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "MON_MCDI requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MON_MCDI*/
 
@@ -216,8 +222,9 @@
 
 /* Support non volatile configuration */
 #if EFSYS_OPT_NVRAM
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "NVRAM requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "NVRAM requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_NVRAM */
 
@@ -340,29 +347,33 @@
 
 /* Support EVQ/RXQ/TXQ statistics */
 #if EFSYS_OPT_QSTATS
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "QSTATS requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "QSTATS requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_QSTATS */
 
 /* Support receive header split */
 #if EFSYS_OPT_RX_HDR_SPLIT
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "RX_HDR_SPLIT requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "RX_HDR_SPLIT requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_RX_HDR_SPLIT */
 
 /* Support receive scaling (RSS) */
 #if EFSYS_OPT_RX_SCALE
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "RX_SCALE requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "RX_SCALE requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_RX_SCALE */
 
 /* Support receive scatter DMA */
 #if EFSYS_OPT_RX_SCATTER
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "RX_SCATTER requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "RX_SCATTER requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_RX_SCATTER */
 
@@ -373,8 +384,9 @@
 
 /* Support PCI Vital Product Data (VPD) */
 #if EFSYS_OPT_VPD
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "VPD requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "VPD requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_VPD */
 
@@ -385,17 +397,16 @@
 # endif
 #endif /* EFSYS_OPT_WOL */
 
-/* Support calculating multicast pktfilter in common code */
-#if EFSYS_OPT_MCAST_FILTER_LIST
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "MCAST_FILTER_LIST requires FALCON or SIENA or HUNTINGTON"
-# endif
+/* Obsolete option */
+#ifdef EFSYS_OPT_MCAST_FILTER_LIST
+#  error "MCAST_FILTER_LIST is obsolete and not supported"
 #endif /* EFSYS_OPT_MCAST_FILTER_LIST */
 
 /* Support BIST */
 #if EFSYS_OPT_BIST
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
-#  error "BIST requires FALCON or SIENA or HUNTINGTON"
+# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
+	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "BIST requires FALCON or SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_BIST */
 

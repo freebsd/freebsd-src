@@ -91,22 +91,22 @@ static efx_vpd_ops_t	__efx_vpd_siena_ops = {
 
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_vpd_ops_t	__efx_vpd_hunt_ops = {
-	hunt_vpd_init,		/* evpdo_init */
-	hunt_vpd_size,		/* evpdo_size */
-	hunt_vpd_read,		/* evpdo_read */
-	hunt_vpd_verify,	/* evpdo_verify */
-	hunt_vpd_reinit,	/* evpdo_reinit */
-	hunt_vpd_get,		/* evpdo_get */
-	hunt_vpd_set,		/* evpdo_set */
-	hunt_vpd_next,		/* evpdo_next */
-	hunt_vpd_write,		/* evpdo_write */
-	hunt_vpd_fini,		/* evpdo_fini */
+static efx_vpd_ops_t	__efx_vpd_ef10_ops = {
+	ef10_vpd_init,		/* evpdo_init */
+	ef10_vpd_size,		/* evpdo_size */
+	ef10_vpd_read,		/* evpdo_read */
+	ef10_vpd_verify,	/* evpdo_verify */
+	ef10_vpd_reinit,	/* evpdo_reinit */
+	ef10_vpd_get,		/* evpdo_get */
+	ef10_vpd_set,		/* evpdo_set */
+	ef10_vpd_next,		/* evpdo_next */
+	ef10_vpd_write,		/* evpdo_write */
+	ef10_vpd_fini,		/* evpdo_fini */
 };
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	__checkReturn		efx_rc_t
 efx_vpd_init(
@@ -134,9 +134,15 @@ efx_vpd_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		evpdop = (efx_vpd_ops_t *)&__efx_vpd_hunt_ops;
+		evpdop = (efx_vpd_ops_t *)&__efx_vpd_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		evpdop = (efx_vpd_ops_t *)&__efx_vpd_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);

@@ -919,6 +919,7 @@ hv_nv_on_receive(netvsc_dev *net_dev, struct hv_device *device,
 	 */
 	hv_nv_on_receive_completion(device, vm_xfer_page_pkt->d.transaction_id,
 	    status);
+	hv_rf_receive_rollup(net_dev);
 }
 
 /*

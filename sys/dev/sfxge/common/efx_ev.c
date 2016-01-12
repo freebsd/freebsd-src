@@ -139,20 +139,20 @@ static efx_ev_ops_t	__efx_ev_siena_ops = {
 };
 #endif /* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
-static efx_ev_ops_t	__efx_ev_hunt_ops = {
-	hunt_ev_init,				/* eevo_init */
-	hunt_ev_fini,				/* eevo_fini */
-	hunt_ev_qcreate,			/* eevo_qcreate */
-	hunt_ev_qdestroy,			/* eevo_qdestroy */
-	hunt_ev_qprime,				/* eevo_qprime */
-	hunt_ev_qpost,				/* eevo_qpost */
-	hunt_ev_qmoderate,			/* eevo_qmoderate */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+static efx_ev_ops_t	__efx_ev_ef10_ops = {
+	ef10_ev_init,				/* eevo_init */
+	ef10_ev_fini,				/* eevo_fini */
+	ef10_ev_qcreate,			/* eevo_qcreate */
+	ef10_ev_qdestroy,			/* eevo_qdestroy */
+	ef10_ev_qprime,				/* eevo_qprime */
+	ef10_ev_qpost,				/* eevo_qpost */
+	ef10_ev_qmoderate,			/* eevo_qmoderate */
 #if EFSYS_OPT_QSTATS
-	hunt_ev_qstats_update,			/* eevo_qstats_update */
+	ef10_ev_qstats_update,			/* eevo_qstats_update */
 #endif
 };
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 
 	__checkReturn	efx_rc_t
@@ -185,9 +185,15 @@ efx_ev_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		eevop = (efx_ev_ops_t *)&__efx_ev_hunt_ops;
+		eevop = (efx_ev_ops_t *)&__efx_ev_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		eevop = (efx_ev_ops_t *)&__efx_ev_ef10_ops;
+		break;
+#endif /* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);

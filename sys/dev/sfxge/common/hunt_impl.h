@@ -42,7 +42,12 @@
 extern "C" {
 #endif
 
-#define	HUNTINGTON_NVRAM_CHUNK 0x80
+/*
+ * FIXME: This is just a power of 2 which fits in an MCDI v1 message, and could
+ * possibly be increased, or the write size reported by newer firmware used
+ * instead.
+ */
+#define	EF10_NVRAM_CHUNK 0x80
 
 /* Alignment requirement for value written to RX WPTR:
  *  the WPTR must be aligned to an 8 descriptor boundary
@@ -50,21 +55,21 @@ extern "C" {
 #define	HUNTINGTON_RX_WPTR_ALIGN 8
 
 /* Invalid RSS context handle */
-#define	HUNTINGTON_RSS_CONTEXT_INVALID	(0xffffffff)
+#define	EF10_RSS_CONTEXT_INVALID	(0xffffffff)
 
 
 /* EV */
 
 	__checkReturn	efx_rc_t
-hunt_ev_init(
+ef10_ev_init(
 	__in		efx_nic_t *enp);
 
 			void
-hunt_ev_fini(
+ef10_ev_fini(
 	__in		efx_nic_t *enp);
 
 	__checkReturn	efx_rc_t
-hunt_ev_qcreate(
+ef10_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
@@ -73,69 +78,69 @@ hunt_ev_qcreate(
 	__in		efx_evq_t *eep);
 
 			void
-hunt_ev_qdestroy(
+ef10_ev_qdestroy(
 	__in		efx_evq_t *eep);
 
 	__checkReturn	efx_rc_t
-hunt_ev_qprime(
+ef10_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count);
 
 			void
-hunt_ev_qpost(
+ef10_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data);
 
 	__checkReturn	efx_rc_t
-hunt_ev_qmoderate(
+ef10_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
 
 #if EFSYS_OPT_QSTATS
 			void
-hunt_ev_qstats_update(
+ef10_ev_qstats_update(
 	__in				efx_evq_t *eep,
 	__inout_ecount(EV_NQSTATS)	efsys_stat_t *stat);
 #endif /* EFSYS_OPT_QSTATS */
 
 		void
-hunt_ev_rxlabel_init(
+ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
 	__in		unsigned int label);
 
 		void
-hunt_ev_rxlabel_fini(
+ef10_ev_rxlabel_fini(
 	__in		efx_evq_t *eep,
 	__in		unsigned int label);
 
 /* INTR */
 
 	__checkReturn	efx_rc_t
-hunt_intr_init(
+ef10_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
 	__in		efsys_mem_t *esmp);
 
 			void
-hunt_intr_enable(
+ef10_intr_enable(
 	__in		efx_nic_t *enp);
 
 			void
-hunt_intr_disable(
+ef10_intr_disable(
 	__in		efx_nic_t *enp);
 
 			void
-hunt_intr_disable_unlocked(
+ef10_intr_disable_unlocked(
 	__in		efx_nic_t *enp);
 
 	__checkReturn	efx_rc_t
-hunt_intr_trigger(
+ef10_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level);
 
 			void
-hunt_intr_fini(
+ef10_intr_fini(
 	__in		efx_nic_t *enp);
 
 /* NIC */
@@ -247,16 +252,16 @@ hunt_mac_stats_update(
 #if EFSYS_OPT_MCDI
 
 extern	__checkReturn	efx_rc_t
-hunt_mcdi_init(
+ef10_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *mtp);
 
 extern			void
-hunt_mcdi_fini(
+ef10_mcdi_fini(
 	__in		efx_nic_t *enp);
 
 extern			void
-hunt_mcdi_request_copyin(
+ef10_mcdi_request_copyin(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp,
 	__in		unsigned int seq,
@@ -264,27 +269,27 @@ hunt_mcdi_request_copyin(
 	__in		boolean_t new_epoch);
 
 extern	__checkReturn	boolean_t
-hunt_mcdi_poll_response(
+ef10_mcdi_poll_response(
 	__in		efx_nic_t *enp);
 
 extern			void
-hunt_mcdi_read_response(
+ef10_mcdi_read_response(
 	__in		efx_nic_t *enp,
 	__out		void *bufferp,
 	__in		size_t offset,
 	__in		size_t length);
 
 extern			void
-hunt_mcdi_request_copyout(
+ef10_mcdi_request_copyout(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp);
 
 extern			efx_rc_t
-hunt_mcdi_poll_reboot(
+ef10_mcdi_poll_reboot(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mcdi_feature_supported(
+ef10_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp);
@@ -296,7 +301,7 @@ hunt_mcdi_feature_supported(
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_buf_read_tlv(
+ef10_nvram_buf_read_tlv(
 	__in				efx_nic_t *enp,
 	__in_bcount(max_seg_size)	caddr_t seg_data,
 	__in				size_t max_seg_size,
@@ -305,7 +310,7 @@ hunt_nvram_buf_read_tlv(
 	__out				size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_buf_write_tlv(
+ef10_nvram_buf_write_tlv(
 	__inout_bcount(partn_size)	caddr_t partn_data,
 	__in				size_t partn_size,
 	__in				uint32_t tag,
@@ -314,7 +319,7 @@ hunt_nvram_buf_write_tlv(
 	__out				size_t *total_lengthp);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_read_tlv(
+ef10_nvram_partn_read_tlv(
 	__in				efx_nic_t *enp,
 	__in				uint32_t partn,
 	__in				uint32_t tag,
@@ -322,7 +327,7 @@ hunt_nvram_partn_read_tlv(
 	__out				size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_write_tlv(
+ef10_nvram_partn_write_tlv(
 	__in		   	efx_nic_t *enp,
 	__in		    	uint32_t partn,
 	__in		     	uint32_t tag,
@@ -330,7 +335,7 @@ hunt_nvram_partn_write_tlv(
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_write_segment_tlv(
+ef10_nvram_partn_write_segment_tlv(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in			uint32_t tag,
@@ -339,18 +344,18 @@ hunt_nvram_partn_write_segment_tlv(
 	__in			boolean_t all_segments);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_size(
+ef10_nvram_partn_size(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_lock(
+ef10_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_read(
+ef10_nvram_partn_read(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in			unsigned int offset,
@@ -358,14 +363,14 @@ hunt_nvram_partn_read(
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_erase(
+ef10_nvram_partn_erase(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in			unsigned int offset,
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_write(
+ef10_nvram_partn_write(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in			unsigned int offset,
@@ -373,7 +378,7 @@ hunt_nvram_partn_write(
 	__in			size_t size);
 
 extern				void
-hunt_nvram_partn_unlock(
+ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn);
 
@@ -384,32 +389,32 @@ hunt_nvram_partn_unlock(
 #if EFSYS_OPT_DIAG
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_test(
+ef10_nvram_test(
 	__in			efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_DIAG */
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_size(
+ef10_nvram_size(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_get_version(
+ef10_nvram_get_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_rw_start(
+ef10_nvram_rw_start(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *pref_chunkp);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_read_chunk(
+ef10_nvram_read_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in			unsigned int offset,
@@ -417,12 +422,12 @@ hunt_nvram_read_chunk(
 	__in			size_t size);
 
 extern	 __checkReturn		efx_rc_t
-hunt_nvram_erase(
+ef10_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_write_chunk(
+ef10_nvram_write_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in			unsigned int offset,
@@ -430,18 +435,18 @@ hunt_nvram_write_chunk(
 	__in			size_t size);
 
 extern				void
-hunt_nvram_rw_finish(
+ef10_nvram_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_partn_set_version(
+ef10_nvram_partn_set_version(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in_ecount(4)		uint16_t version[4]);
 
 extern	__checkReturn		efx_rc_t
-hunt_nvram_set_version(
+ef10_nvram_set_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
@@ -562,7 +567,7 @@ hunt_bist_stop(
 #if EFSYS_OPT_DIAG
 
 extern	__checkReturn	efx_rc_t
-hunt_sram_test(
+ef10_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_sram_pattern_fn_t func);
 
@@ -572,15 +577,15 @@ hunt_sram_test(
 /* TX */
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_init(
+ef10_tx_init(
 	__in		efx_nic_t *enp);
 
 extern			void
-hunt_tx_fini(
+ef10_tx_fini(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qcreate(
+ef10_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -593,11 +598,11 @@ hunt_tx_qcreate(
 	__out		unsigned int *addedp);
 
 extern		void
-hunt_tx_qdestroy(
+ef10_tx_qdestroy(
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpost(
+ef10_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
 	__in		unsigned int n,
@@ -605,48 +610,48 @@ hunt_tx_qpost(
 	__inout		unsigned int *addedp);
 
 extern			void
-hunt_tx_qpush(
+ef10_tx_qpush(
 	__in		efx_txq_t *etp,
 	__in		unsigned int added,
 	__in		unsigned int pushed);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpace(
+ef10_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qflush(
+ef10_tx_qflush(
 	__in		efx_txq_t *etp);
 
 extern			void
-hunt_tx_qenable(
+ef10_tx_qenable(
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpio_enable(
+ef10_tx_qpio_enable(
 	__in		efx_txq_t *etp);
 
 extern			void
-hunt_tx_qpio_disable(
+ef10_tx_qpio_disable(
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpio_write(
+ef10_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(buf_length)	uint8_t *buffer,
 	__in			size_t buf_length,
 	__in                    size_t pio_buf_offset);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpio_post(
+ef10_tx_qpio_post(
 	__in			efx_txq_t *etp,
 	__in			size_t pkt_length,
 	__in			unsigned int completed,
 	__inout			unsigned int *addedp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qdesc_post(
+ef10_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
 	__in		unsigned int n,
@@ -654,7 +659,7 @@ hunt_tx_qdesc_post(
 	__inout		unsigned int *addedp);
 
 extern	void
-hunt_tx_qdesc_dma_create(
+ef10_tx_qdesc_dma_create(
 	__in	efx_txq_t *etp,
 	__in	efsys_dma_addr_t addr,
 	__in	size_t size,
@@ -670,7 +675,7 @@ hunt_tx_qdesc_tso_create(
 	__out	efx_desc_t *edp);
 
 extern	void
-hunt_tx_qdesc_vlantci_create(
+ef10_tx_qdesc_vlantci_create(
 	__in	efx_txq_t *etp,
 	__in	uint16_t vlan_tci,
 	__out	efx_desc_t *edp);
@@ -679,7 +684,7 @@ hunt_tx_qdesc_vlantci_create(
 #if EFSYS_OPT_QSTATS
 
 extern			void
-hunt_tx_qstats_update(
+ef10_tx_qstats_update(
 	__in				efx_txq_t *etp,
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat);
 
@@ -758,48 +763,48 @@ hunt_nic_pio_unlink(
 #if EFSYS_OPT_VPD
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_init(
+ef10_vpd_init(
 	__in			efx_nic_t *enp);
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_size(
+ef10_vpd_size(
 	__in			efx_nic_t *enp,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_read(
+ef10_vpd_read(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_verify(
+ef10_vpd_verify(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_reinit(
+ef10_vpd_reinit(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_get(
+ef10_vpd_get(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__inout			efx_vpd_value_t *evvp);
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_set(
+ef10_vpd_set(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__in			efx_vpd_value_t *evvp);
 
 extern	__checkReturn		efx_rc_t
-hunt_vpd_next(
+ef10_vpd_next(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
@@ -807,13 +812,13 @@ hunt_vpd_next(
 	__inout			unsigned int *contp);
 
 extern __checkReturn		efx_rc_t
-hunt_vpd_write(
+ef10_vpd_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
 extern				void
-hunt_vpd_fini(
+ef10_vpd_fini(
 	__in			efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_VPD */
@@ -822,12 +827,12 @@ hunt_vpd_fini(
 /* RX */
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_init(
+ef10_rx_init(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_RX_HDR_SPLIT
 extern	__checkReturn	efx_rc_t
-hunt_rx_hdr_split_enable(
+ef10_rx_hdr_split_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int hdr_buf_size,
 	__in		unsigned int pld_buf_size);
@@ -835,7 +840,7 @@ hunt_rx_hdr_split_enable(
 
 #if EFSYS_OPT_RX_SCATTER
 extern	__checkReturn	efx_rc_t
-hunt_rx_scatter_enable(
+ef10_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size);
 #endif	/* EFSYS_OPT_RX_SCATTER */
@@ -844,20 +849,20 @@ hunt_rx_scatter_enable(
 #if EFSYS_OPT_RX_SCALE
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_scale_mode_set(
+ef10_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_scale_key_set(
+ef10_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_scale_tbl_set(
+ef10_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
@@ -865,7 +870,7 @@ hunt_rx_scale_tbl_set(
 #endif /* EFSYS_OPT_RX_SCALE */
 
 extern			void
-hunt_rx_qpost(
+ef10_rx_qpost(
 	__in		efx_rxq_t *erp,
 	__in_ecount(n)	efsys_dma_addr_t *addrp,
 	__in		size_t size,
@@ -874,21 +879,21 @@ hunt_rx_qpost(
 	__in		unsigned int added);
 
 extern			void
-hunt_rx_qpush(
+ef10_rx_qpush(
 	__in		efx_rxq_t *erp,
 	__in		unsigned int added,
 	__inout		unsigned int *pushedp);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_qflush(
+ef10_rx_qflush(
 	__in		efx_rxq_t *erp);
 
 extern		void
-hunt_rx_qenable(
+ef10_rx_qenable(
 	__in		efx_rxq_t *erp);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_qcreate(
+ef10_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -900,11 +905,11 @@ hunt_rx_qcreate(
 	__in		efx_rxq_t *erp);
 
 extern			void
-hunt_rx_qdestroy(
+ef10_rx_qdestroy(
 	__in		efx_rxq_t *erp);
 
 extern			void
-hunt_rx_fini(
+ef10_rx_fini(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_FILTER
@@ -1001,26 +1006,6 @@ hunt_filter_default_rxq_clear(
 
 
 #endif /* EFSYS_OPT_FILTER */
-
-extern	__checkReturn			efx_rc_t
-hunt_pktfilter_set(
-	__in				efx_nic_t *enp,
-	__in				boolean_t unicst,
-	__in				boolean_t brdcst);
-
-#if EFSYS_OPT_MCAST_FILTER_LIST
-
-extern	__checkReturn			efx_rc_t
-hunt_pktfilter_mcast_set(
-	__in				efx_nic_t *enp,
-	__in				uint8_t const *addrs,
-	__in				int count);
-
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
-
-extern	__checkReturn			efx_rc_t
-hunt_pktfilter_mcast_all(
-	__in				efx_nic_t *enp);
 
 extern	__checkReturn			efx_rc_t
 efx_mcdi_get_function_info(
