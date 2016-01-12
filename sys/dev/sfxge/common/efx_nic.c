@@ -291,7 +291,7 @@ static efx_nic_ops_t	__efx_nic_hunt_ops = {
 	hunt_nic_get_vi_pool,		/* eno_get_vi_pool */
 	hunt_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	hunt_sram_test,			/* eno_sram_test */
+	ef10_sram_test,			/* eno_sram_test */
 	hunt_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
 	hunt_nic_fini,			/* eno_fini */
