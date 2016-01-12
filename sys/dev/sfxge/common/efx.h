@@ -1128,6 +1128,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_buftbl_limit;
 	uint32_t		enc_piobuf_limit;
 	uint32_t		enc_piobuf_size;
+	uint32_t		enc_piobuf_min_alloc_size;
 	uint32_t		enc_evq_timer_quantum_ns;
 	uint32_t		enc_evq_timer_max_us;
 	uint32_t		enc_clk_mult;
