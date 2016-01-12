@@ -727,7 +727,7 @@ hunt_rx_qcreate(
 	erp->er_eep = eep;
 	erp->er_label = label;
 
-	hunt_ev_rxlabel_init(eep, erp, label);
+	ef10_ev_rxlabel_init(eep, erp, label);
 
 	return (0);
 
@@ -749,7 +749,7 @@ hunt_rx_qdestroy(
 	efx_evq_t *eep = erp->er_eep;
 	unsigned int label = erp->er_label;
 
-	hunt_ev_rxlabel_fini(eep, label);
+	ef10_ev_rxlabel_fini(eep, label);
 
 	EFSYS_ASSERT(enp->en_rx_qcount != 0);
 	--enp->en_rx_qcount;
