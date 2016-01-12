@@ -3734,7 +3734,7 @@ unmount_or_warn(struct mount *mp)
 	int error;
 
 	error = dounmount(mp, MNT_FORCE, curthread);
-	if (error != 0) {
+	if (error != 0 && strcmp(mp->mnt_vfc->vfc_name, "devfs") != 0) {
 		printf("unmount of %s failed (", mp->mnt_stat.f_mntonname);
 		if (error == EBUSY)
 			printf("BUSY)\n");
