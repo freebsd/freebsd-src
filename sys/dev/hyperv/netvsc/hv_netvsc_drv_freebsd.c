@@ -469,6 +469,8 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_trusted",
 	    CTLFLAG_RW, &sc->hn_csum_trusted,
 	    "# of TCP segements that we trust host's csum verification");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "small_pkts",
+	    CTLFLAG_RW, &sc->hn_small_pkts, "# of small packets received");
 
 	if (unit == 0) {
 		struct sysctl_ctx_list *dc_ctx;
@@ -1022,35 +1024,38 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 	 */
 	if (packet->tot_data_buf_len > (ifp->if_mtu + ETHER_HDR_LEN)) {
 		return (0);
+	} else if (packet->tot_data_buf_len <= MHLEN) {
+		m_new = m_gethdr(M_NOWAIT, MT_DATA);
+		if (m_new == NULL)
+			return (0);
+		memcpy(mtod(m_new, void *), packet->data,
+		    packet->tot_data_buf_len);
+		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
+		sc->hn_small_pkts++;
+	} else {
+		/*
+		 * Get an mbuf with a cluster.  For packets 2K or less,
+		 * get a standard 2K cluster.  For anything larger, get a
+		 * 4K cluster.  Any buffers larger than 4K can cause problems
+		 * if looped around to the Hyper-V TX channel, so avoid them.
+		 */
+		size = MCLBYTES;
+		if (packet->tot_data_buf_len > MCLBYTES) {
+			/* 4096 */
+			size = MJUMPAGESIZE;
+		}
+
+		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
+		if (m_new == NULL) {
+			device_printf(dev, "alloc mbuf failed.\n");
+			return (0);
+		}
+
+		hv_m_append(m_new, packet->tot_data_buf_len, packet->data);
 	}
-
-	/*
-	 * Get an mbuf with a cluster.  For packets 2K or less,
-	 * get a standard 2K cluster.  For anything larger, get a
-	 * 4K cluster.  Any buffers larger than 4K can cause problems
-	 * if looped around to the Hyper-V TX channel, so avoid them.
-	 */
-	size = MCLBYTES;
-
-	if (packet->tot_data_buf_len > MCLBYTES) {
-		/* 4096 */
-		size = MJUMPAGESIZE;
-	}
-
-	m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
-
-	if (m_new == NULL) {
-		device_printf(dev, "alloc mbuf failed.\n");
-		return (0);
-	}
-
-	hv_m_append(m_new, packet->tot_data_buf_len,
-			packet->data);
-
 	m_new->m_pkthdr.rcvif = ifp;
 
 	/* receive side checksum offload */
-	m_new->m_pkthdr.csum_flags = 0;
 	if (NULL != csum_info) {
 		/* IP csum offload */
 		if (csum_info->receive.ip_csum_succeeded) {
