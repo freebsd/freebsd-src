@@ -107,7 +107,6 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
-	struct radix_node *ret;
 
 	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
@@ -148,34 +147,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
 	}
 
-	ret = rn_addroute(v_arg, n_arg, head, treenodes);
-	if (ret == NULL) {
-		struct rtentry *rt2;
-		/*
-		 * We are trying to add a net route, but can't.
-		 * The following case should be allowed, so we'll make a
-		 * special check for this:
-		 *	Two IPv6 addresses with the same prefix is assigned
-		 *	to a single interrface.
-		 *	# ifconfig if0 inet6 3ffe:0501::1 prefix 64 alias (*1)
-		 *	# ifconfig if0 inet6 3ffe:0501::2 prefix 64 alias (*2)
-		 *	In this case, (*1) and (*2) want to add the same
-		 *	net route entry, 3ffe:0501:: -> if0.
-		 *	This case should not raise an error.
-		 */
-		rt2 = in6_rtalloc1((struct sockaddr *)sin6, 0, RTF_RNH_LOCKED,
-		    rt->rt_fibnum);
-		if (rt2) {
-			if (((rt2->rt_flags & (RTF_HOST|RTF_GATEWAY)) == 0)
-			 && rt2->rt_gateway
-			 && rt2->rt_gateway->sa_family == AF_LINK
-			 && rt2->rt_ifp == rt->rt_ifp) {
-				ret = rt2->rt_nodes;
-			}
-			RTFREE_LOCKED(rt2);
-		}
-	}
-	return (ret);
+	return (rn_addroute(v_arg, n_arg, head, treenodes));
 }
 
 /*

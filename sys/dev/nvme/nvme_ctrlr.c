@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012-2015 Intel Corporation
+ * Copyright (C) 2012-2016 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include "nvme_private.h"
-
-/*
- * Used for calculating number of CPUs to assign to each core and number of I/O
- *  queues to allocate per controller.
- */
-#define NVME_CEILING(num, div)	((((num) - 1) / (div)) + 1)
 
 static void nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 						struct nvme_async_event_request *aer);
@@ -152,7 +146,7 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 *  a controller could theoretically support fewer I/O queues than
 	 *  MSI-X vectors.  So calculate again here just to be safe.
 	 */
-	ctrlr->num_cpus_per_ioq = NVME_CEILING(mp_ncpus, ctrlr->num_io_queues);
+	ctrlr->num_cpus_per_ioq = howmany(mp_ncpus, ctrlr->num_io_queues);
 
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
@@ -978,12 +972,26 @@ nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 {
 	device_t	dev;
 	int		per_cpu_io_queues;
+	int		min_cpus_per_ioq;
 	int		num_vectors_requested, num_vectors_allocated;
 	int		num_vectors_available;
 
 	dev = ctrlr->dev;
+	min_cpus_per_ioq = 1;
+	TUNABLE_INT_FETCH("hw.nvme.min_cpus_per_ioq", &min_cpus_per_ioq);
+
+	if (min_cpus_per_ioq < 1) {
+		min_cpus_per_ioq = 1;
+	} else if (min_cpus_per_ioq > mp_ncpus) {
+		min_cpus_per_ioq = mp_ncpus;
+	}
+
 	per_cpu_io_queues = 1;
 	TUNABLE_INT_FETCH("hw.nvme.per_cpu_io_queues", &per_cpu_io_queues);
+
+	if (per_cpu_io_queues == 0) {
+		min_cpus_per_ioq = mp_ncpus;
+	}
 
 	ctrlr->force_intx = 0;
 	TUNABLE_INT_FETCH("hw.nvme.force_intx", &ctrlr->force_intx);
@@ -1010,12 +1018,14 @@ nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 		return;
 	}
 
-	if (per_cpu_io_queues)
-		ctrlr->num_cpus_per_ioq = NVME_CEILING(mp_ncpus, num_vectors_available + 1);
-	else
-		ctrlr->num_cpus_per_ioq = mp_ncpus;
+	/*
+	 * Do not use all vectors for I/O queues - one must be saved for the
+	 *  admin queue.
+	 */
+	ctrlr->num_cpus_per_ioq = max(min_cpus_per_ioq,
+	    howmany(mp_ncpus, num_vectors_available - 1));
 
-	ctrlr->num_io_queues = NVME_CEILING(mp_ncpus, ctrlr->num_cpus_per_ioq);
+	ctrlr->num_io_queues = howmany(mp_ncpus, ctrlr->num_cpus_per_ioq);
 	num_vectors_requested = ctrlr->num_io_queues + 1;
 	num_vectors_allocated = num_vectors_requested;
 

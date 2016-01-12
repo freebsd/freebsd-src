@@ -241,6 +241,13 @@ fib6_lookup_nh_ext(uint32_t fibnum, const struct in6_addr *dst,uint32_t scopeid,
 	rn = rh->rnh_matchaddr((void *)&sin6, rh);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
+#ifdef RADIX_MPATH
+		rte = rt_mpath_select(rte, flowid);
+		if (rte == NULL) {
+			RADIX_NODE_HEAD_RUNLOCK(rh);
+			return (ENOENT);
+		}
+#endif
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib6_rte_to_nh_extended(rte, &sin6.sin6_addr, flags,
