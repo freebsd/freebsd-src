@@ -1109,7 +1109,7 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	 * mapping of pages.
 	 */
 #define	SYSMAP(c, p, v, n)  do {		\
-	v = (c)pmap_preboot_reserve_pages(1);	\
+	v = (c)pmap_preboot_reserve_pages(n);	\
 	p = pt2map_entry((vm_offset_t)v);	\
 	} while (0)
 
