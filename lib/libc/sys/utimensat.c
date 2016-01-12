@@ -42,8 +42,11 @@ utimensat(int fd, const char *path, const struct timespec times[2], int flag)
 {
 	struct timeval now, tv[2], *tvp;
 	struct stat sb;
+	int osreldate;
 
-	if (__getosreldate() >= 1100056)
+	osreldate = __getosreldate();
+	if (osreldate >= 1100056 ||
+	    (osreldate >= 1002506 && osreldate < 1100000))
 		return (__sys_utimensat(fd, path, times, flag));
 
 	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0) {
