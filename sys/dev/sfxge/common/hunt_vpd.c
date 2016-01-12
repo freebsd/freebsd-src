@@ -81,8 +81,8 @@ hunt_vpd_init(
 			goto fail2;
 	}
 
-	enp->en_u.hunt.enu_svpd = svpd;
-	enp->en_u.hunt.enu_svpd_length = svpd_size;
+	enp->en_arch.ef10.ena_svpd = svpd;
+	enp->en_arch.ef10.ena_svpd_length = svpd_size;
 
 out:
 	return (0);
@@ -197,7 +197,7 @@ hunt_vpd_verify(
 	 * Verify that there is no duplication between the static and
 	 * dynamic cfg sectors.
 	 */
-	if (enp->en_u.hunt.enu_svpd_length == 0)
+	if (enp->en_arch.ef10.ena_svpd_length == 0)
 		goto done;
 
 	dcont = 0;
@@ -213,8 +213,8 @@ hunt_vpd_verify(
 		_NOTE(CONSTANTCONDITION)
 		while (1) {
 			if ((rc = efx_vpd_hunk_next(
-			    enp->en_u.hunt.enu_svpd,
-			    enp->en_u.hunt.enu_svpd_length, &stag, &skey,
+			    enp->en_arch.ef10.ena_svpd,
+			    enp->en_arch.ef10.ena_svpd_length, &stag, &skey,
 			    NULL, NULL, &scont)) != 0)
 				goto fail3;
 			if (scont == 0)
@@ -254,14 +254,14 @@ hunt_vpd_reinit(
 	/*
 	 * Only create an ID string if the dynamic cfg doesn't have one
 	 */
-	if (enp->en_u.hunt.enu_svpd_length == 0)
+	if (enp->en_arch.ef10.ena_svpd_length == 0)
 		wantpid = B_TRUE;
 	else {
 		unsigned int offset;
 		uint8_t length;
 
-		rc = efx_vpd_hunk_get(enp->en_u.hunt.enu_svpd,
-				    enp->en_u.hunt.enu_svpd_length,
+		rc = efx_vpd_hunk_get(enp->en_arch.ef10.ena_svpd,
+				    enp->en_arch.ef10.ena_svpd_length,
 				    EFX_VPD_ID, 0, &offset, &length);
 		if (rc == 0)
 			wantpid = B_FALSE;
@@ -298,13 +298,13 @@ hunt_vpd_get(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
 	/* Attempt to satisfy the request from svpd first */
-	if (enp->en_u.hunt.enu_svpd_length > 0) {
-		if ((rc = efx_vpd_hunk_get(enp->en_u.hunt.enu_svpd,
-		    enp->en_u.hunt.enu_svpd_length, evvp->evv_tag,
+	if (enp->en_arch.ef10.ena_svpd_length > 0) {
+		if ((rc = efx_vpd_hunk_get(enp->en_arch.ef10.ena_svpd,
+		    enp->en_arch.ef10.ena_svpd_length, evvp->evv_tag,
 		    evvp->evv_keyword, &offset, &length)) == 0) {
 			evvp->evv_length = length;
 			memcpy(evvp->evv_value,
-			    enp->en_u.hunt.enu_svpd + offset, length);
+			    enp->en_arch.ef10.ena_svpd + offset, length);
 			return (0);
 		} else if (rc != ENOENT)
 			goto fail1;
@@ -340,12 +340,12 @@ hunt_vpd_set(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
 	/* If the provided (tag,keyword) exists in svpd, then it is readonly */
-	if (enp->en_u.hunt.enu_svpd_length > 0) {
+	if (enp->en_arch.ef10.ena_svpd_length > 0) {
 		unsigned int offset;
 		uint8_t length;
 
-		if ((rc = efx_vpd_hunk_get(enp->en_u.hunt.enu_svpd,
-		    enp->en_u.hunt.enu_svpd_length, evvp->evv_tag,
+		if ((rc = efx_vpd_hunk_get(enp->en_arch.ef10.ena_svpd,
+		    enp->en_arch.ef10.ena_svpd_length, evvp->evv_tag,
 		    evvp->evv_keyword, &offset, &length)) == 0) {
 			rc = EACCES;
 			goto fail1;
@@ -421,12 +421,12 @@ hunt_vpd_fini(
 {
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
-	if (enp->en_u.hunt.enu_svpd_length > 0) {
-		EFSYS_KMEM_FREE(enp->en_esip, enp->en_u.hunt.enu_svpd_length,
-				enp->en_u.hunt.enu_svpd);
+	if (enp->en_arch.ef10.ena_svpd_length > 0) {
+		EFSYS_KMEM_FREE(enp->en_esip, enp->en_arch.ef10.ena_svpd_length,
+				enp->en_arch.ef10.ena_svpd);
 
-		enp->en_u.hunt.enu_svpd = NULL;
-		enp->en_u.hunt.enu_svpd_length = 0;
+		enp->en_arch.ef10.ena_svpd = NULL;
+		enp->en_arch.ef10.ena_svpd_length = 0;
 	}
 }
 

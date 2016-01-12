@@ -715,30 +715,30 @@ hunt_nic_alloc_piobufs(
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(max_piobuf_count, <=,
-	    EFX_ARRAY_SIZE(enp->en_u.hunt.enu_piobuf_handle));
+	    EFX_ARRAY_SIZE(enp->en_arch.ef10.ena_piobuf_handle));
 
-	enp->en_u.hunt.enu_piobuf_count = 0;
+	enp->en_arch.ef10.ena_piobuf_count = 0;
 
 	for (i = 0; i < max_piobuf_count; i++) {
-		handlep = &enp->en_u.hunt.enu_piobuf_handle[i];
+		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
 		if ((rc = efx_mcdi_alloc_piobuf(enp, handlep)) != 0)
 			goto fail1;
 
-		enp->en_u.hunt.enu_pio_alloc_map[i] = 0;
-		enp->en_u.hunt.enu_piobuf_count++;
+		enp->en_arch.ef10.ena_pio_alloc_map[i] = 0;
+		enp->en_arch.ef10.ena_piobuf_count++;
 	}
 
 	return;
 
 fail1:
-	for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
-		handlep = &enp->en_u.hunt.enu_piobuf_handle[i];
+	for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
+		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
 		efx_mcdi_free_piobuf(enp, *handlep);
 		*handlep = EFX_PIOBUF_HANDLE_INVALID;
 	}
-	enp->en_u.hunt.enu_piobuf_count = 0;
+	enp->en_arch.ef10.ena_piobuf_count = 0;
 }
 
 
@@ -749,13 +749,13 @@ hunt_nic_free_piobufs(
 	efx_piobuf_handle_t *handlep;
 	unsigned int i;
 
-	for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
-		handlep = &enp->en_u.hunt.enu_piobuf_handle[i];
+	for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
+		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
 		efx_mcdi_free_piobuf(enp, *handlep);
 		*handlep = EFX_PIOBUF_HANDLE_INVALID;
 	}
-	enp->en_u.hunt.enu_piobuf_count = 0;
+	enp->en_arch.ef10.ena_piobuf_count = 0;
 }
 
 /* Sub-allocate a block from a piobuf */
@@ -781,14 +781,14 @@ hunt_nic_pio_alloc(
 	EFSYS_ASSERT(sizep);
 
 	if ((edcp->edc_pio_alloc_size == 0) ||
-	    (enp->en_u.hunt.enu_piobuf_count == 0)) {
+	    (enp->en_arch.ef10.ena_piobuf_count == 0)) {
 		rc = ENOMEM;
 		goto fail1;
 	}
 	blk_per_buf = HUNT_PIOBUF_SIZE / edcp->edc_pio_alloc_size;
 
-	for (buf = 0; buf < enp->en_u.hunt.enu_piobuf_count; buf++) {
-		uint32_t *map = &enp->en_u.hunt.enu_pio_alloc_map[buf];
+	for (buf = 0; buf < enp->en_arch.ef10.ena_piobuf_count; buf++) {
+		uint32_t *map = &enp->en_arch.ef10.ena_pio_alloc_map[buf];
 
 		if (~(*map) == 0)
 			continue;
@@ -805,7 +805,7 @@ hunt_nic_pio_alloc(
 	goto fail2;
 
 done:
-	*handlep = enp->en_u.hunt.enu_piobuf_handle[buf];
+	*handlep = enp->en_arch.ef10.ena_piobuf_handle[buf];
 	*bufnump = buf;
 	*blknump = blk;
 	*sizep = edcp->edc_pio_alloc_size;
@@ -831,13 +831,13 @@ hunt_nic_pio_free(
 	uint32_t *map;
 	efx_rc_t rc;
 
-	if ((bufnum >= enp->en_u.hunt.enu_piobuf_count) ||
+	if ((bufnum >= enp->en_arch.ef10.ena_piobuf_count) ||
 	    (blknum >= (8 * sizeof (*map)))) {
 		rc = EINVAL;
 		goto fail1;
 	}
 
-	map = &enp->en_u.hunt.enu_pio_alloc_map[bufnum];
+	map = &enp->en_arch.ef10.ena_pio_alloc_map[bufnum];
 	if ((*map & (1u << blknum)) == 0) {
 		rc = ENOENT;
 		goto fail2;
@@ -1579,7 +1579,8 @@ hunt_nic_init(
 	 * each VI that is using a sub-allocated block from the piobuf.
 	 */
 	min_vi_count = edcp->edc_min_vi_count;
-	max_vi_count = edcp->edc_max_vi_count + enp->en_u.hunt.enu_piobuf_count;
+	max_vi_count =
+	    edcp->edc_max_vi_count + enp->en_arch.ef10.ena_piobuf_count;
 
 	/* Ensure that the previously attached driver's VIs are freed */
 	if ((rc = efx_mcdi_free_vis(enp)) != 0)
@@ -1601,44 +1602,44 @@ hunt_nic_init(
 		goto fail4;
 	}
 
-	enp->en_u.hunt.enu_vi_base = vi_base;
-	enp->en_u.hunt.enu_vi_count = vi_count;
+	enp->en_arch.ef10.ena_vi_base = vi_base;
+	enp->en_arch.ef10.ena_vi_count = vi_count;
 
-	if (vi_count < min_vi_count + enp->en_u.hunt.enu_piobuf_count) {
+	if (vi_count < min_vi_count + enp->en_arch.ef10.ena_piobuf_count) {
 		/* Not enough extra VIs to map piobufs */
 		hunt_nic_free_piobufs(enp);
 	}
 
-	enp->en_u.hunt.enu_pio_write_vi_base =
-	    vi_count - enp->en_u.hunt.enu_piobuf_count;
+	enp->en_arch.ef10.ena_pio_write_vi_base =
+	    vi_count - enp->en_arch.ef10.ena_piobuf_count;
 
 	/* Save UC memory mapping details */
-	enp->en_u.hunt.enu_uc_mem_map_offset = 0;
-	if (enp->en_u.hunt.enu_piobuf_count > 0) {
-		enp->en_u.hunt.enu_uc_mem_map_size =
+	enp->en_arch.ef10.ena_uc_mem_map_offset = 0;
+	if (enp->en_arch.ef10.ena_piobuf_count > 0) {
+		enp->en_arch.ef10.ena_uc_mem_map_size =
 		    (ER_DZ_TX_PIOBUF_STEP *
-		    enp->en_u.hunt.enu_pio_write_vi_base);
+		    enp->en_arch.ef10.ena_pio_write_vi_base);
 	} else {
-		enp->en_u.hunt.enu_uc_mem_map_size =
+		enp->en_arch.ef10.ena_uc_mem_map_size =
 		    (ER_DZ_TX_PIOBUF_STEP *
-		    enp->en_u.hunt.enu_vi_count);
+		    enp->en_arch.ef10.ena_vi_count);
 	}
 
 	/* Save WC memory mapping details */
-	enp->en_u.hunt.enu_wc_mem_map_offset =
-	    enp->en_u.hunt.enu_uc_mem_map_offset +
-	    enp->en_u.hunt.enu_uc_mem_map_size;
+	enp->en_arch.ef10.ena_wc_mem_map_offset =
+	    enp->en_arch.ef10.ena_uc_mem_map_offset +
+	    enp->en_arch.ef10.ena_uc_mem_map_size;
 
-	enp->en_u.hunt.enu_wc_mem_map_size =
+	enp->en_arch.ef10.ena_wc_mem_map_size =
 	    (ER_DZ_TX_PIOBUF_STEP *
-	    enp->en_u.hunt.enu_piobuf_count);
+	    enp->en_arch.ef10.ena_piobuf_count);
 
 	/* Link piobufs to extra VIs in WC mapping */
-	if (enp->en_u.hunt.enu_piobuf_count > 0) {
-		for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
+	if (enp->en_arch.ef10.ena_piobuf_count > 0) {
+		for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
 			rc = efx_mcdi_link_piobuf(enp,
-			    enp->en_u.hunt.enu_pio_write_vi_base + i,
-			    enp->en_u.hunt.enu_piobuf_handle[i]);
+			    enp->en_arch.ef10.ena_pio_write_vi_base + i,
+			    enp->en_arch.ef10.ena_piobuf_handle[i]);
 			if (rc != 0)
 				break;
 		}
@@ -1715,7 +1716,7 @@ hunt_nic_get_vi_pool(
 	 * Report VIs that the client driver can use.
 	 * Do not include VIs used for PIO buffer writes.
 	 */
-	*vi_countp = enp->en_u.hunt.enu_pio_write_vi_base;
+	*vi_countp = enp->en_arch.ef10.ena_pio_write_vi_base;
 
 	return (0);
 }
@@ -1739,14 +1740,14 @@ hunt_nic_get_bar_region(
 	switch (region) {
 	case EFX_REGION_VI:
 		/* UC mapped memory BAR region for VI registers */
-		*offsetp = enp->en_u.hunt.enu_uc_mem_map_offset;
-		*sizep = enp->en_u.hunt.enu_uc_mem_map_size;
+		*offsetp = enp->en_arch.ef10.ena_uc_mem_map_offset;
+		*sizep = enp->en_arch.ef10.ena_uc_mem_map_size;
 		break;
 
 	case EFX_REGION_PIO_WRITE_VI:
 		/* WC mapped memory BAR region for piobuf writes */
-		*offsetp = enp->en_u.hunt.enu_wc_mem_map_offset;
-		*sizep = enp->en_u.hunt.enu_wc_mem_map_size;
+		*offsetp = enp->en_arch.ef10.ena_wc_mem_map_offset;
+		*sizep = enp->en_arch.ef10.ena_wc_mem_map_size;
 		break;
 
 	default:
@@ -1773,10 +1774,10 @@ hunt_nic_fini(
 	enp->en_vport_id = 0;
 
 	/* Unlink piobufs from extra VIs in WC mapping */
-	if (enp->en_u.hunt.enu_piobuf_count > 0) {
-		for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
+	if (enp->en_arch.ef10.ena_piobuf_count > 0) {
+		for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
 			rc = efx_mcdi_unlink_piobuf(enp,
-			    enp->en_u.hunt.enu_pio_write_vi_base + i);
+			    enp->en_arch.ef10.ena_pio_write_vi_base + i);
 			if (rc != 0)
 				break;
 		}
@@ -1785,7 +1786,7 @@ hunt_nic_fini(
 	hunt_nic_free_piobufs(enp);
 
 	(void) efx_mcdi_free_vis(enp);
-	enp->en_u.hunt.enu_vi_count = 0;
+	enp->en_arch.ef10.ena_vi_count = 0;
 }
 
 			void
