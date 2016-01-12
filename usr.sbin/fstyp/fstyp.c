@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,13 +54,18 @@ typedef int (*fstyp_function)(FILE *, char *, size_t);
 static struct {
 	const char	*name;
 	fstyp_function	function;
+	bool		unmountable;
 } fstypes[] = {
-	{ "cd9660", &fstyp_cd9660 },
-	{ "ext2fs", &fstyp_ext2fs },
-	{ "msdosfs", &fstyp_msdosfs },
-	{ "ntfs", &fstyp_ntfs },
-	{ "ufs", &fstyp_ufs },
-	{ NULL, NULL }
+	{ "cd9660", &fstyp_cd9660, false },
+	{ "ext2fs", &fstyp_ext2fs, false },
+	{ "geli", &fstyp_geli, true },
+	{ "msdosfs", &fstyp_msdosfs, false },
+	{ "ntfs", &fstyp_ntfs, false },
+	{ "ufs", &fstyp_ufs, false },
+#ifdef HAVE_ZFS
+	{ "zfs", &fstyp_zfs, true },
+#endif
+	{ NULL, NULL, NULL }
 };
 
 void *
@@ -124,7 +128,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: fstyp [-l][-s] special\n");
+	fprintf(stderr, "usage: fstyp [-l] [-s] [-u] special\n");
 	exit(1);
 }
 
@@ -153,19 +157,22 @@ int
 main(int argc, char **argv)
 {
 	int ch, error, i, nbytes;
-	bool ignore_type = false, show_label = false;
+	bool ignore_type = false, show_label = false, show_unmountable = false;
 	char label[LABEL_LEN + 1], strvised[LABEL_LEN * 4 + 1];
 	char *path;
 	FILE *fp;
 	fstyp_function fstyp_f;
 
-	while ((ch = getopt(argc, argv, "ls")) != -1) {
+	while ((ch = getopt(argc, argv, "lsu")) != -1) {
 		switch (ch) {
 		case 'l':
 			show_label = true;
 			break;
 		case 's':
 			ignore_type = true;
+			break;
+		case 'u':
+			show_unmountable = true;
 			break;
 		default:
 			usage();
@@ -193,6 +200,8 @@ main(int argc, char **argv)
 	memset(label, '\0', sizeof(label));
 
 	for (i = 0;; i++) {
+		if (show_unmountable == false && fstypes[i].unmountable == true)
+			continue;
 		fstyp_f = fstypes[i].function;
 		if (fstyp_f == NULL)
 			break;
