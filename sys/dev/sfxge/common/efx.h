@@ -594,6 +594,7 @@ typedef enum efx_mon_type_e {
 	EFX_MON_MAX6647,
 	EFX_MON_SFC90X0,
 	EFX_MON_SFC91X0,
+	EFX_MON_SFC92X0,
 	EFX_MON_NTYPES
 } efx_mon_type_t;
 
@@ -1148,12 +1149,12 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_mcdi_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
 #endif /* EFSYS_OPT_SIENA */
-#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
+#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
 #if EFSYS_OPT_MON_STATS
 	uint32_t		*enc_mcdi_sensor_maskp;
 	uint32_t		enc_mcdi_sensor_mask_size;
 #endif	/* EFSYS_OPT_MON_STATS */
-#endif	/* (EFSYS_OPT_SIENA | EFSYS_OPT_HUNTINGTON) */
+#endif	/* (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD) */
 #if EFSYS_OPT_BIST
 	uint32_t		enc_bist_mask;
 #endif	/* EFSYS_OPT_BIST */
