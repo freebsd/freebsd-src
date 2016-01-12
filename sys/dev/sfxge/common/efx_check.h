@@ -61,9 +61,6 @@
 /* Decode fatal errors */
 #if EFSYS_OPT_DECODE_INTR_FATAL
 # if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA)
-#  if (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
-#   error "INTR_FATAL not supported on HUNTINGTON or MEDFORD"
-#  endif
 #  error "INTR_FATAL requires FALCON or SIENA"
 # endif
 #endif /* EFSYS_OPT_DECODE_INTR_FATAL */
@@ -138,9 +135,6 @@
 /* Support management controller messages */
 #if EFSYS_OPT_MCDI
 # if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
-#  if EFSYS_OPT_FALCON
-#   error "MCDI not supported on FALCON"
-#  endif
 #  error "MCDI requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_MCDI */
@@ -186,14 +180,14 @@
 # endif
 #endif /* EFSYS_OPT_MON_NULL */
 
-/* Support Siena monitor */
+/* Obsolete option */
 #ifdef EFSYS_OPT_MON_SIENA
-#  error "MON_SIENA is obsolete use MON_MCDI"
+#  error "MON_SIENA is obsolete (replaced by MON_MCDI)."
 #endif /* EFSYS_OPT_MON_SIENA*/
 
-/* Support Huntington monitor */
+/* Obsolete option */
 #ifdef EFSYS_OPT_MON_HUNTINGTON
-#  error "MON_HUNTINGTON is obsolete use MON_MCDI"
+#  error "MON_HUNTINGTON is obsolete (replaced by MON_MCDI)."
 #endif /* EFSYS_OPT_MON_HUNTINGTON*/
 
 /* Support monitor statistics (voltage/temperature) */
@@ -265,9 +259,9 @@
 # endif
 #endif /* EFSYS_OPT_PCIE_TUNE */
 
-/* Support PHY BIST diagnostics */
+/* Obsolete option */
 #if EFSYS_OPT_PHY_BIST
-#  error "PHY_BIST is obsolete. It has been replaced by the BIST option."
+#  error "PHY_BIST is obsolete (replaced by BIST)."
 #endif /* EFSYS_OPT_PHY_BIST */
 
 /* Support PHY flags */
@@ -379,7 +373,7 @@
 
 /* Obsolete option */
 #ifdef EFSYS_OPT_STAT_NAME
-# error "EFSYS_OPT_STAT_NAME is obsolete (replaced by EFSYS_OPT_NAMES)."
+# error "STAT_NAME is obsolete (replaced by NAMES)."
 #endif
 
 /* Support PCI Vital Product Data (VPD) */
@@ -399,7 +393,7 @@
 
 /* Obsolete option */
 #ifdef EFSYS_OPT_MCAST_FILTER_LIST
-#  error "MCAST_FILTER_LIST is obsolete and not supported"
+#  error "MCAST_FILTER_LIST is obsolete and is not supported"
 #endif /* EFSYS_OPT_MCAST_FILTER_LIST */
 
 /* Support BIST */
