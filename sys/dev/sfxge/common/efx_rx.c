@@ -175,29 +175,29 @@ static efx_rx_ops_t __efx_rx_siena_ops = {
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
-static efx_rx_ops_t __efx_rx_hunt_ops = {
-	hunt_rx_init,				/* erxo_init */
-	hunt_rx_fini,				/* erxo_fini */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+static efx_rx_ops_t __efx_rx_ef10_ops = {
+	ef10_rx_init,				/* erxo_init */
+	ef10_rx_fini,				/* erxo_fini */
 #if EFSYS_OPT_RX_HDR_SPLIT
-	hunt_rx_hdr_split_enable,		/* erxo_hdr_split_enable */
+	ef10_rx_hdr_split_enable,		/* erxo_hdr_split_enable */
 #endif
 #if EFSYS_OPT_RX_SCATTER
-	hunt_rx_scatter_enable,			/* erxo_scatter_enable */
+	ef10_rx_scatter_enable,			/* erxo_scatter_enable */
 #endif
 #if EFSYS_OPT_RX_SCALE
-	hunt_rx_scale_mode_set,			/* erxo_scale_mode_set */
-	hunt_rx_scale_key_set,			/* erxo_scale_key_set */
-	hunt_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
+	ef10_rx_scale_mode_set,			/* erxo_scale_mode_set */
+	ef10_rx_scale_key_set,			/* erxo_scale_key_set */
+	ef10_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
 #endif
-	hunt_rx_qpost,				/* erxo_qpost */
-	hunt_rx_qpush,				/* erxo_qpush */
-	hunt_rx_qflush,				/* erxo_qflush */
-	hunt_rx_qenable,			/* erxo_qenable */
-	hunt_rx_qcreate,			/* erxo_qcreate */
-	hunt_rx_qdestroy,			/* erxo_qdestroy */
+	ef10_rx_qpost,				/* erxo_qpost */
+	ef10_rx_qpush,				/* erxo_qpush */
+	ef10_rx_qflush,				/* erxo_qflush */
+	ef10_rx_qenable,			/* erxo_qenable */
+	ef10_rx_qcreate,			/* erxo_qcreate */
+	ef10_rx_qdestroy,			/* erxo_qdestroy */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 
 	__checkReturn	efx_rc_t
@@ -235,9 +235,15 @@ efx_rx_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		erxop = (efx_rx_ops_t *)&__efx_rx_hunt_ops;
+		erxop = (efx_rx_ops_t *)&__efx_rx_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		erxop = (efx_rx_ops_t *)&__efx_rx_ef10_ops;
+		break;
+#endif /* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -607,7 +613,7 @@ efx_rx_qdestroy(
  * Hash values are in network (big-endian) byte order.
  *
  *
- * On Huntington the pseudo-header is laid out as:
+ * On EF10 the pseudo-header is laid out as:
  * (See also SF-109306-TC section 9)
  *
  * Toeplitz hash (32 bits, little-endian)
@@ -629,7 +635,8 @@ efx_psuedo_hdr_pkt_length_get(
 	__in		uint8_t *buffer,
 	__out		uint16_t *pkt_lengthp)
 {
-	if (enp->en_family != EFX_FAMILY_HUNTINGTON) {
+	if (enp->en_family != EFX_FAMILY_HUNTINGTON &&
+	    enp->en_family != EFX_FAMILY_MEDFORD) {
 		EFSYS_ASSERT(0);
 		return (ENOTSUP);
 	}
@@ -656,6 +663,7 @@ efx_psuedo_hdr_hash_get(
 			    (buffer[14] << 8) |
 			    buffer[15]);
 		case EFX_FAMILY_HUNTINGTON:
+		case EFX_FAMILY_MEDFORD:
 			return (buffer[0] |
 			    (buffer[1] << 8) |
 			    (buffer[2] << 16) |
