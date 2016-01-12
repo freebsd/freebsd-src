@@ -838,7 +838,7 @@ setifmetric(const char *val, int dummy __unused, int s,
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_metric = atoi(val);
 	if (ioctl(s, SIOCSIFMETRIC, (caddr_t)&ifr) < 0)
-		warn("ioctl (set metric)");
+		err(1, "ioctl SIOCSIFMETRIC (set metric)");
 }
 
 static void
@@ -848,7 +848,7 @@ setifmtu(const char *val, int dummy __unused, int s,
 	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_mtu = atoi(val);
 	if (ioctl(s, SIOCSIFMTU, (caddr_t)&ifr) < 0)
-		warn("ioctl (set mtu)");
+		err(1, "ioctl SIOCSIFMTU (set mtu)");
 }
 
 static void
@@ -858,15 +858,12 @@ setifname(const char *val, int dummy __unused, int s,
 	char *newname;
 
 	newname = strdup(val);
-	if (newname == NULL) {
-		warn("no memory to set ifname");
-		return;
-	}
+	if (newname == NULL)
+		err(1, "no memory to set ifname");
 	ifr.ifr_data = newname;
 	if (ioctl(s, SIOCSIFNAME, (caddr_t)&ifr) < 0) {
-		warn("ioctl (set name)");
 		free(newname);
-		return;
+		err(1, "ioctl SIOCSIFNAME (set name)");
 	}
 	strlcpy(name, newname, sizeof(name));
 	free(newname);
@@ -893,7 +890,7 @@ setifdescr(const char *val, int dummy __unused, int s,
 	}
 
 	if (ioctl(s, SIOCSIFDESCR, (caddr_t)&ifr) < 0)
-		warn("ioctl (set descr)");
+		err(1, "ioctl SIOCSIFDESCR (set descr)");
 
 	free(newdescr);
 }
