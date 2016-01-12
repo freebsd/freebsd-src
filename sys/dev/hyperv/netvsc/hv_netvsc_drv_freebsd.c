@@ -194,6 +194,8 @@ static void hn_ifinit(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int  hn_start_locked(struct ifnet *ifp);
 static void hn_start(struct ifnet *ifp);
+static int hn_ifmedia_upd(struct ifnet *ifp);
+static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 #ifdef HN_LRO_HIWAT
 static int hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
@@ -262,6 +264,29 @@ static uint32_t get_transport_proto_type(struct mbuf *m_head)
 	}
 
 	return (ret_val);
+}
+
+static int
+hn_ifmedia_upd(struct ifnet *ifp __unused)
+{
+
+	return EOPNOTSUPP;
+}
+
+static void
+hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	struct hn_softc *sc = ifp->if_softc;
+
+	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER;
+
+	if (!sc->hn_carrier) {
+		ifmr->ifm_active |= IFM_NONE;
+		return;
+	}
+	ifmr->ifm_status |= IFM_ACTIVE;
+	ifmr->ifm_active |= IFM_10G_T | IFM_FDX;
 }
 
 /*
@@ -374,6 +399,12 @@ netvsc_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = 511;
 	IFQ_SET_READY(&ifp->if_snd);
 
+	ifmedia_init(&sc->hn_media, 0, hn_ifmedia_upd, hn_ifmedia_sts);
+	ifmedia_add(&sc->hn_media, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(&sc->hn_media, IFM_ETHER | IFM_AUTO);
+	/* XXX ifmedia_set really should do this for us */
+	sc->hn_media.ifm_media = sc->hn_media.ifm_cur->ifm_media;
+
 	/*
 	 * Tell upper layers that we support full VLAN capability.
 	 */
@@ -485,6 +516,7 @@ netvsc_detach(device_t dev)
 
 	hv_rf_on_device_remove(hv_device, HV_RF_NV_DESTROY_CHANNEL);
 
+	ifmedia_removeall(&sc->hn_media);
 	tcp_lro_free(&sc->hn_lro);
 
 	return (0);
@@ -1332,10 +1364,11 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = 0;
 		}
 #endif
-		/* FALLTHROUGH */
+		error = EINVAL;
+		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		error = EINVAL;
+		error = ifmedia_ioctl(ifp, ifr, &sc->hn_media, cmd);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
