@@ -252,16 +252,16 @@ hunt_mac_stats_update(
 #if EFSYS_OPT_MCDI
 
 extern	__checkReturn	efx_rc_t
-hunt_mcdi_init(
+ef10_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *mtp);
 
 extern			void
-hunt_mcdi_fini(
+ef10_mcdi_fini(
 	__in		efx_nic_t *enp);
 
 extern			void
-hunt_mcdi_request_copyin(
+ef10_mcdi_request_copyin(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp,
 	__in		unsigned int seq,
@@ -269,27 +269,27 @@ hunt_mcdi_request_copyin(
 	__in		boolean_t new_epoch);
 
 extern	__checkReturn	boolean_t
-hunt_mcdi_poll_response(
+ef10_mcdi_poll_response(
 	__in		efx_nic_t *enp);
 
 extern			void
-hunt_mcdi_read_response(
+ef10_mcdi_read_response(
 	__in		efx_nic_t *enp,
 	__out		void *bufferp,
 	__in		size_t offset,
 	__in		size_t length);
 
 extern			void
-hunt_mcdi_request_copyout(
+ef10_mcdi_request_copyout(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp);
 
 extern			efx_rc_t
-hunt_mcdi_poll_reboot(
+ef10_mcdi_poll_reboot(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mcdi_feature_supported(
+ef10_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp);

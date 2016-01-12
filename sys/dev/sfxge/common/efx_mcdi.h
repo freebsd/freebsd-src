@@ -188,11 +188,11 @@ efx_mcdi_mac_spoofing_supported(
 
 
 #if EFSYS_OPT_BIST
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_enable_offline(
 	__in			efx_nic_t *enp);
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_start(
 	__in			efx_nic_t *enp,
