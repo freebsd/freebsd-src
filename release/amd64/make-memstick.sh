@@ -29,12 +29,14 @@ if [ -e ${2} ]; then
 fi
 
 echo '/dev/ufs/FreeBSD_Install / ufs ro,noatime 1 1' > ${1}/etc/fstab
+echo 'root_rw_mount="NO"' > ${1}/etc/rc.conf.local
 makefs -B little -o label=FreeBSD_Install ${2} ${1}
 if [ $? -ne 0 ]; then
 	echo "makefs failed"
 	exit 1
 fi
 rm ${1}/etc/fstab
+rm ${1}/etc/rc.conf.local
 
 unit=$(mdconfig -a -t vnode -f ${2})
 if [ $? -ne 0 ]; then
