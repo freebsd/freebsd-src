@@ -95,10 +95,11 @@ fd_install(unsigned int fd, struct linux_file *filp)
 
 	if (fget_unlocked(curthread->td_proc->p_fd, fd, NULL, 0, &file,
 	    NULL) != 0) {
-		file = NULL;
+		filp->_file = NULL;
+	} else {
+		filp->_file = file;
+		finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
 	}
-	filp->_file = file;
-	finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
 
 	/* drop the extra reference */
 	fput(filp);
