@@ -508,35 +508,10 @@ efx_mac_fcntl_get(
 #define	EFX_MAC_HASH_BITS	(1 << 8)
 
 extern	__checkReturn			efx_rc_t
-efx_pktfilter_init(
-	__in				efx_nic_t *enp);
-
-extern					void
-efx_pktfilter_fini(
-	__in				efx_nic_t *enp);
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_set(
-	__in		efx_nic_t *enp,
-	__in		boolean_t unicst,
-	__in		boolean_t brdcst);
-
-extern	__checkReturn			efx_rc_t
 efx_mac_hash_set(
 	__in				efx_nic_t *enp,
 	__in_ecount(EFX_MAC_HASH_BITS)	unsigned int const *bucket);
 
-#if EFSYS_OPT_MCAST_FILTER_LIST
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_mcast_list_set(
-	__in				efx_nic_t *enp,
-	__in				uint8_t const *addrs,
-	__in				int count);
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_mcast_all(
-	__in				efx_nic_t *enp);
 
 #if EFSYS_OPT_MAC_STATS
 
