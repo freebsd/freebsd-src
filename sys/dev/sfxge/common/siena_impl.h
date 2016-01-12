@@ -158,18 +158,18 @@ siena_mcdi_feature_supported(
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_size(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_lock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn);
+	__in			uint32_t partn);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_read(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
@@ -177,14 +177,14 @@ siena_nvram_partn_read(
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_erase(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_write(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
@@ -192,12 +192,12 @@ siena_nvram_partn_write(
 extern				void
 siena_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn);
+	__in			uint32_t partn);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_get_dynamic_cfg(
 	__in			efx_nic_t *enp,
-	__in			unsigned int index,
+	__in			uint32_t partn,
 	__in			boolean_t vpd,
 	__out			siena_mc_dynamic_config_hdr_t **dcfgp,
 	__out			size_t *sizep);
@@ -223,7 +223,7 @@ siena_nvram_size(
 extern	__checkReturn		efx_rc_t
 siena_nvram_get_subtype(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__out			uint32_t *subtypep);
 
 extern	__checkReturn		efx_rc_t

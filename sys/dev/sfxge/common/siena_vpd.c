@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 static	__checkReturn			efx_rc_t
 siena_vpd_get_static(
 	__in				efx_nic_t *enp,
-	__in				unsigned int partn,
+	__in				uint32_t partn,
 	__deref_out_bcount_opt(*sizep)	caddr_t *svpdp,
 	__out				size_t *sizep)
 {
@@ -207,7 +207,7 @@ siena_vpd_size(
 	__out			size_t *sizep)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	unsigned int partn;
+	uint32_t partn;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
