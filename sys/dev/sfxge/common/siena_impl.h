@@ -127,10 +127,10 @@ siena_mcdi_poll_response(
 
 extern			void
 siena_mcdi_read_response(
-	__in		efx_nic_t *enp,
-	__out		void *bufferp,
-	__in		size_t offset,
-	__in		size_t length);
+	__in			efx_nic_t *enp,
+	__out_bcount(length)	void *bufferp,
+	__in			size_t offset,
+	__in			size_t length);
 
 extern			void
 siena_mcdi_request_copyout(

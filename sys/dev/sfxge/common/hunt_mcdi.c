@@ -307,10 +307,10 @@ ef10_mcdi_poll_response(
 
 			void
 ef10_mcdi_read_response(
-	__in		efx_nic_t *enp,
-	__out		void *bufferp,
-	__in		size_t offset,
-	__in		size_t length)
+	__in			efx_nic_t *enp,
+	__out_bcount(length)	void *bufferp,
+	__in			size_t offset,
+	__in			size_t length)
 {
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
