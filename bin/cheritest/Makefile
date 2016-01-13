@@ -29,7 +29,7 @@ WANT_DUMP=	yes
 LIBADD= 	cheri z
 .endif
 
-LIBADD+=	xo
+LIBADD+=	xo util
 
 NO_SHARED?=	YES
 
