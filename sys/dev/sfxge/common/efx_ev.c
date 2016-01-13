@@ -498,7 +498,7 @@ falconsiena_ev_rx_not_ok(
 		EFX_EV_QSTAT_INCR(eep, EV_RX_FRM_TRUNC);
 		(*flagsp) |= EFX_DISCARD;
 
-#if (EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER)
+#if EFSYS_OPT_RX_SCATTER
 		/*
 		 * Lookout for payload queue ran dry errors and ignore them.
 		 *
@@ -513,7 +513,7 @@ falconsiena_ev_rx_not_ok(
 		    (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_JUMBO_CONT) == 0) &&
 		    (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_BYTE_CNT) == 0))
 			ignore = B_TRUE;
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 	}
 
 	if (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_ETH_CRC_ERR) != 0) {
@@ -574,10 +574,10 @@ falconsiena_ev_rx(
 	uint32_t size;
 	uint32_t label;
 	boolean_t ok;
-#if (EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER)
+#if EFSYS_OPT_RX_SCATTER
 	boolean_t sop;
 	boolean_t jumbo_cont;
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 	uint32_t hdr_type;
 	boolean_t is_v6;
 	uint16_t flags;
@@ -592,10 +592,10 @@ falconsiena_ev_rx(
 	label = EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_Q_LABEL);
 	ok = (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_PKT_OK) != 0);
 
-#if (EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER)
+#if EFSYS_OPT_RX_SCATTER
 	sop = (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_SOP) != 0);
 	jumbo_cont = (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_JUMBO_CONT) != 0);
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 
 	hdr_type = EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_HDR_TYPE);
 
@@ -650,13 +650,13 @@ falconsiena_ev_rx(
 		break;
 	}
 
-#if EFSYS_OPT_RX_SCATTER || EFSYS_OPT_RX_HDR_SPLIT
+#if EFSYS_OPT_RX_SCATTER
 	/* Report scatter and header/lookahead split buffer flags */
 	if (sop)
 		flags |= EFX_PKT_START;
 	if (jumbo_cont)
 		flags |= EFX_PKT_CONT;
-#endif	/* EFSYS_OPT_RX_SCATTER || EFSYS_OPT_RX_HDR_SPLIT */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 
 	/* Detect errors included in the FSF_AZ_RX_EV_PKT_OK indication */
 	if (!ok) {
