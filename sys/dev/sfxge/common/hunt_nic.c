@@ -50,7 +50,8 @@ efx_mcdi_get_port_assignment(
 			    MC_CMD_GET_PORT_ASSIGNMENT_OUT_LEN)];
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PORT_ASSIGNMENT;
@@ -93,7 +94,8 @@ efx_mcdi_get_port_modes(
 			    MC_CMD_GET_PORT_MODES_OUT_LEN)];
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PORT_MODES;
@@ -212,7 +214,8 @@ efx_mcdi_get_mac_address_pf(
 			    MC_CMD_GET_MAC_ADDRESSES_OUT_LEN)];
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_MAC_ADDRESSES;
@@ -269,7 +272,8 @@ efx_mcdi_get_mac_address_vf(
 			    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMAX)];
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_VPORT_GET_MAC_ADDRESSES;
@@ -331,7 +335,8 @@ efx_mcdi_get_clock(
 			    MC_CMD_GET_CLOCK_OUT_LEN)];
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_CLOCK;
@@ -706,7 +711,7 @@ fail1:
 }
 
 static			void
-hunt_nic_alloc_piobufs(
+ef10_nic_alloc_piobufs(
 	__in		efx_nic_t *enp,
 	__in		uint32_t max_piobuf_count)
 {
@@ -743,7 +748,7 @@ fail1:
 
 
 static			void
-hunt_nic_free_piobufs(
+ef10_nic_free_piobufs(
 	__in		efx_nic_t *enp)
 {
 	efx_piobuf_handle_t *handlep;
@@ -760,7 +765,7 @@ hunt_nic_free_piobufs(
 
 /* Sub-allocate a block from a piobuf */
 	__checkReturn	efx_rc_t
-hunt_nic_pio_alloc(
+ef10_nic_pio_alloc(
 	__inout		efx_nic_t *enp,
 	__out		uint32_t *bufnump,
 	__out		efx_piobuf_handle_t *handlep,
@@ -774,7 +779,8 @@ hunt_nic_pio_alloc(
 	uint32_t buf, blk;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 	EFSYS_ASSERT(bufnump);
 	EFSYS_ASSERT(handlep);
 	EFSYS_ASSERT(blknump);
@@ -824,7 +830,7 @@ fail1:
 
 /* Free a piobuf sub-allocated block */
 	__checkReturn	efx_rc_t
-hunt_nic_pio_free(
+ef10_nic_pio_free(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t bufnum,
 	__in		uint32_t blknum)
@@ -856,7 +862,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_nic_pio_link(
+ef10_nic_pio_link(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t vi_index,
 	__in		efx_piobuf_handle_t handle)
@@ -865,7 +871,7 @@ hunt_nic_pio_link(
 }
 
 	__checkReturn	efx_rc_t
-hunt_nic_pio_unlink(
+ef10_nic_pio_unlink(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t vi_index)
 {
@@ -873,7 +879,7 @@ hunt_nic_pio_unlink(
 }
 
 static	__checkReturn	efx_rc_t
-hunt_get_datapath_caps(
+ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
@@ -964,7 +970,7 @@ static struct {
 	efx_family_t	family;
 	uint32_t	modes_mask;
 	uint32_t	stride;
-}	__hunt_external_port_mappings[] = {
+}	__ef10_external_port_mappings[] = {
 	/* Supported modes requiring 1 output per port */
 	{
 		EFX_FAMILY_HUNTINGTON,
@@ -993,7 +999,7 @@ static struct {
 };
 
 static	__checkReturn	efx_rc_t
-hunt_external_port_mapping(
+ef10_external_port_mapping(
 	__in		efx_nic_t *enp,
 	__in		uint32_t port,
 	__out		uint8_t *external_portp)
@@ -1013,14 +1019,14 @@ hunt_external_port_mapping(
 	 * Infer the internal port -> external port mapping from
 	 * the possible port modes for this NIC.
 	 */
-	for (i = 0; i < EFX_ARRAY_SIZE(__hunt_external_port_mappings); ++i) {
-		if (__hunt_external_port_mappings[i].family !=
+	for (i = 0; i < EFX_ARRAY_SIZE(__ef10_external_port_mappings); ++i) {
+		if (__ef10_external_port_mappings[i].family !=
 		    enp->en_family)
 			continue;
-		matches = (__hunt_external_port_mappings[i].modes_mask &
+		matches = (__ef10_external_port_mappings[i].modes_mask &
 		    port_modes);
 		if (matches != 0) {
-			stride = __hunt_external_port_mappings[i].stride;
+			stride = __ef10_external_port_mappings[i].stride;
 			port_modes &= ~matches;
 		}
 	}
@@ -1073,7 +1079,7 @@ hunt_board_cfg(
 	 */
 	emip->emi_port = port + 1;
 
-	if ((rc = hunt_external_port_mapping(enp, port,
+	if ((rc = ef10_external_port_mapping(enp, port,
 		    &encp->enc_external_port)) != 0)
 		goto fail2;
 
@@ -1237,7 +1243,7 @@ hunt_board_cfg(
 	}
 
 	/* Check capabilities of running datapath firmware */
-	if ((rc = hunt_get_datapath_caps(enp)) != 0)
+	if ((rc = ef10_get_datapath_caps(enp)) != 0)
 	    goto fail12;
 
 	/* Alignment for receive packet DMA buffers */
@@ -1245,7 +1251,7 @@ hunt_board_cfg(
 	encp->enc_rx_buf_align_end = 64; /* RX DMA end padding */
 
 	/* Alignment for WPTR updates */
-	encp->enc_rx_push_align = HUNTINGTON_RX_WPTR_ALIGN;
+	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
 
 	/*
 	 * Set resource limits for MC_CMD_ALLOC_VIS. Note that we cannot use
@@ -1339,14 +1345,15 @@ fail1:
 
 
 	__checkReturn	efx_rc_t
-hunt_nic_probe(
+ef10_nic_probe(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
 	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/* Read and clear any assertion state */
 	if ((rc = efx_mcdi_read_assertion(enp)) != 0)
@@ -1426,7 +1433,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_nic_set_drv_limits(
+ef10_nic_set_drv_limits(
 	__inout		efx_nic_t *enp,
 	__in		efx_drv_limits_t *edlp)
 {
@@ -1501,7 +1508,7 @@ fail1:
 
 
 	__checkReturn	efx_rc_t
-hunt_nic_reset(
+ef10_nic_reset(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
@@ -1509,7 +1516,7 @@ hunt_nic_reset(
 			    MC_CMD_ENTITY_RESET_OUT_LEN)];
 	efx_rc_t rc;
 
-	/* hunt_nic_reset() is called to recover from BADASSERT failures. */
+	/* ef10_nic_reset() is called to recover from BADASSERT failures. */
 	if ((rc = efx_mcdi_read_assertion(enp)) != 0)
 		goto fail1;
 	if ((rc = efx_mcdi_exit_assertion_handler(enp)) != 0)
@@ -1548,7 +1555,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_nic_init(
+ef10_nic_init(
 	__in		efx_nic_t *enp)
 {
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
@@ -1559,14 +1566,15 @@ hunt_nic_init(
 	uint32_t delay_us;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/* Enable reporting of some events (e.g. link change) */
 	if ((rc = efx_mcdi_log_ctrl(enp)) != 0)
 		goto fail1;
 
 	/* Allocate (optional) on-chip PIO buffers */
-	hunt_nic_alloc_piobufs(enp, edcp->edc_max_piobuf_count);
+	ef10_nic_alloc_piobufs(enp, edcp->edc_max_piobuf_count);
 
 	/*
 	 * For best performance, PIO writes should use a write-combined
@@ -1610,7 +1618,7 @@ hunt_nic_init(
 
 	if (vi_count < min_vi_count + enp->en_arch.ef10.ena_piobuf_count) {
 		/* Not enough extra VIs to map piobufs */
-		hunt_nic_free_piobufs(enp);
+		ef10_nic_free_piobufs(enp);
 	}
 
 	enp->en_arch.ef10.ena_pio_write_vi_base =
@@ -1700,7 +1708,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 
-	hunt_nic_free_piobufs(enp);
+	ef10_nic_free_piobufs(enp);
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
@@ -1709,11 +1717,12 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_nic_get_vi_pool(
+ef10_nic_get_vi_pool(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *vi_countp)
 {
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * Report VIs that the client driver can use.
@@ -1725,7 +1734,7 @@ hunt_nic_get_vi_pool(
 }
 
 	__checkReturn	efx_rc_t
-hunt_nic_get_bar_region(
+ef10_nic_get_bar_region(
 	__in		efx_nic_t *enp,
 	__in		efx_nic_region_t region,
 	__out		uint32_t *offsetp,
@@ -1733,7 +1742,8 @@ hunt_nic_get_bar_region(
 {
 	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * TODO: Specify host memory mapping alignment and granularity
@@ -1767,7 +1777,7 @@ fail1:
 }
 
 			void
-hunt_nic_fini(
+ef10_nic_fini(
 	__in		efx_nic_t *enp)
 {
 	uint32_t i;
@@ -1786,14 +1796,14 @@ hunt_nic_fini(
 		}
 	}
 
-	hunt_nic_free_piobufs(enp);
+	ef10_nic_free_piobufs(enp);
 
 	(void) efx_mcdi_free_vis(enp);
 	enp->en_arch.ef10.ena_vi_count = 0;
 }
 
 			void
-hunt_nic_unprobe(
+ef10_nic_unprobe(
 	__in		efx_nic_t *enp)
 {
 #if EFSYS_OPT_MON_STATS
@@ -1805,7 +1815,7 @@ hunt_nic_unprobe(
 #if EFSYS_OPT_DIAG
 
 	__checkReturn	efx_rc_t
-hunt_nic_register_test(
+ef10_nic_register_test(
 	__in		efx_nic_t *enp)
 {
 	efx_rc_t rc;

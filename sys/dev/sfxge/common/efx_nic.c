@@ -284,18 +284,18 @@ static efx_nic_ops_t	__efx_nic_siena_ops = {
 #if EFSYS_OPT_HUNTINGTON
 
 static efx_nic_ops_t	__efx_nic_hunt_ops = {
-	hunt_nic_probe,			/* eno_probe */
-	hunt_nic_set_drv_limits,	/* eno_set_drv_limits */
-	hunt_nic_reset,			/* eno_reset */
-	hunt_nic_init,			/* eno_init */
-	hunt_nic_get_vi_pool,		/* eno_get_vi_pool */
-	hunt_nic_get_bar_region,	/* eno_get_bar_region */
+	ef10_nic_probe,			/* eno_probe */
+	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
+	ef10_nic_reset,			/* eno_reset */
+	ef10_nic_init,			/* eno_init */
+	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
+	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
 	ef10_sram_test,			/* eno_sram_test */
-	hunt_nic_register_test,		/* eno_register_test */
+	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
-	hunt_nic_fini,			/* eno_fini */
-	hunt_nic_unprobe,		/* eno_unprobe */
+	ef10_nic_fini,			/* eno_fini */
+	ef10_nic_unprobe,		/* eno_unprobe */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON */

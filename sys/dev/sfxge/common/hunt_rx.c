@@ -651,7 +651,7 @@ ef10_rx_qpush(
 	efx_dword_t dword;
 
 	/* Hardware has alignment restriction for WPTR */
-	wptr = P2ALIGN(added, HUNTINGTON_RX_WPTR_ALIGN);
+	wptr = P2ALIGN(added, EF10_RX_WPTR_ALIGN);
 	if (pushed == wptr)
 		return;
 

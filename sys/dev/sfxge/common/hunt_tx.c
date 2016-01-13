@@ -251,7 +251,7 @@ ef10_tx_qpio_enable(
 	}
 
 	/* Sub-allocate a PIO block from a piobuf */
-	if ((rc = hunt_nic_pio_alloc(enp,
+	if ((rc = ef10_nic_pio_alloc(enp,
 		    &etp->et_pio_bufnum,
 		    &handle,
 		    &etp->et_pio_blknum,
@@ -262,7 +262,7 @@ ef10_tx_qpio_enable(
 	EFSYS_ASSERT3U(etp->et_pio_size, !=, 0);
 
 	/* Link the piobuf to this TXQ */
-	if ((rc = hunt_nic_pio_link(enp, etp->et_index, handle)) != 0) {
+	if ((rc = ef10_nic_pio_link(enp, etp->et_index, handle)) != 0) {
 		goto fail3;
 	}
 
@@ -283,7 +283,7 @@ ef10_tx_qpio_enable(
 
 fail3:
 	EFSYS_PROBE(fail3);
-	hunt_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
+	ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
 	etp->et_pio_size = 0;
 fail2:
 	EFSYS_PROBE(fail2);
@@ -301,10 +301,10 @@ ef10_tx_qpio_disable(
 
 	if (etp->et_pio_size != 0) {
 		/* Unlink the piobuf from this TXQ */
-		hunt_nic_pio_unlink(enp, etp->et_index);
+		ef10_nic_pio_unlink(enp, etp->et_index);
 
 		/* Free the sub-allocated PIO block */
-		hunt_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
+		ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
 		etp->et_pio_size = 0;
 		etp->et_pio_write_offset = 0;
 	}
