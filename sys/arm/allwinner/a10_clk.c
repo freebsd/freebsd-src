@@ -347,3 +347,21 @@ a10_clk_mmc_cfg(int devid, int freq)
 
 	return (0);
 }
+
+int
+a10_clk_dmac_activate(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Gating AHB clock for DMA controller */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
+	reg_value |= CCM_AHB_GATING_DMA;
+	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
+
+	return (0);
+}
