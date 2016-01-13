@@ -316,7 +316,7 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
       case CK_ArrayToPointerDecay:
       case CK_BitCast:
       case CK_AddressSpaceConversion:
-      case CK_IntegralCast:
+      case CK_BooleanToSignedIntegral:
       case CK_NullToPointer:
       case CK_IntegralToPointer:
       case CK_PointerToIntegral:
@@ -345,6 +345,17 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
         // Delegate to SValBuilder to process.
         SVal V = state->getSVal(Ex, LCtx);
         V = svalBuilder.evalCast(V, T, ExTy);
+        // Negate the result if we're treating the boolean as a signed i1
+        if (CastE->getCastKind() == CK_BooleanToSignedIntegral)
+          V = evalMinus(V);
+        state = state->BindExpr(CastE, LCtx, V);
+        Bldr.generateNode(CastE, Pred, state);
+        continue;
+      }
+      case CK_IntegralCast: {
+        // Delegate to SValBuilder to process.
+        SVal V = state->getSVal(Ex, LCtx);
+        V = svalBuilder.evalIntegralCast(state, V, T, ExTy);
         state = state->BindExpr(CastE, LCtx, V);
         Bldr.generateNode(CastE, Pred, state);
         continue;
