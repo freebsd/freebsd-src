@@ -105,6 +105,7 @@ public:
   // you can access P->Backref->Body to get the resolver's result.
   void setBackref(Symbol *P) { Backref = P; }
   SymbolBody *repl() { return Backref ? Backref->Body : this; }
+  Symbol *getSymbol() { return Backref; }
 
   // Decides which symbol should "win" in the symbol table, this or
   // the Other. Returns 1 if this wins, -1 if the Other wins, or 0 if
@@ -299,8 +300,11 @@ template <class ELFT> struct ElfSym {
   typedef typename llvm::object::ELFFile<ELFT>::Elf_Sym Elf_Sym;
 
   // Used to represent an undefined symbol which we don't want
-  // to add to the output file's symbol table.
-  static Elf_Sym IgnoreUndef;
+  // to add to the output file's symbol table. The `IgnoredWeak`
+  // has weak binding and can be substituted. The `Ignore` has
+  // global binding and gets priority over symbols from shared libs.
+  static Elf_Sym IgnoredWeak;
+  static Elf_Sym Ignored;
 
   // The content for _end and end symbols.
   static Elf_Sym End;
@@ -314,7 +318,8 @@ template <class ELFT> struct ElfSym {
   static Elf_Sym RelaIpltEnd;
 };
 
-template <class ELFT> typename ElfSym<ELFT>::Elf_Sym ElfSym<ELFT>::IgnoreUndef;
+template <class ELFT> typename ElfSym<ELFT>::Elf_Sym ElfSym<ELFT>::IgnoredWeak;
+template <class ELFT> typename ElfSym<ELFT>::Elf_Sym ElfSym<ELFT>::Ignored;
 template <class ELFT> typename ElfSym<ELFT>::Elf_Sym ElfSym<ELFT>::End;
 template <class ELFT> typename ElfSym<ELFT>::Elf_Sym ElfSym<ELFT>::MipsGp;
 template <class ELFT>

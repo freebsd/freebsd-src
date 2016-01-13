@@ -26,10 +26,10 @@ using namespace llvm::object;
 using namespace lld;
 using namespace lld::elf2;
 
-Configuration *lld::elf2::Config;
-LinkerDriver *lld::elf2::Driver;
+Configuration *elf2::Config;
+LinkerDriver *elf2::Driver;
 
-void lld::elf2::link(ArrayRef<const char *> Args) {
+void elf2::link(ArrayRef<const char *> Args) {
   Configuration C;
   LinkerDriver D;
   Config = &C;
@@ -42,9 +42,9 @@ static std::pair<ELFKind, uint16_t> parseEmulation(StringRef S) {
     return {ELF32BEKind, EM_MIPS};
   if (S == "elf32ltsmip")
     return {ELF32LEKind, EM_MIPS};
-  if (S == "elf32ppc")
+  if (S == "elf32ppc" || S == "elf32ppc_fbsd")
     return {ELF32BEKind, EM_PPC};
-  if (S == "elf64ppc")
+  if (S == "elf64ppc" || S == "elf64ppc_fbsd")
     return {ELF64BEKind, EM_PPC64};
   if (S == "elf_i386")
     return {ELF32LEKind, EM_386};
@@ -107,6 +107,24 @@ void LinkerDriver::addFile(StringRef Path) {
   }
 }
 
+// Some command line options or some combinations of them are not allowed.
+// This function checks for such errors.
+static void checkOptions(opt::InputArgList &Args) {
+  // Traditional linkers can generate re-linkable object files instead
+  // of executables or DSOs. We don't support that since the feature
+  // does not seem to provide more value than the static archiver.
+  if (Args.hasArg(OPT_relocatable))
+    error("-r option is not supported. Use 'ar' command instead.");
+
+  // The MIPS ABI as of 2016 does not support the GNU-style symbol lookup
+  // table which is a relatively new feature.
+  if (Config->EMachine == EM_MIPS && Config->GnuHash)
+    error("The .gnu.hash section is not compatible with the MIPS target.");
+
+  if (Config->EMachine == EM_AMDGPU && !Config->Entry.empty())
+    error("-e option is not valid for AMDGPU.");
+}
+
 static StringRef
 getString(opt::InputArgList &Args, unsigned Key, StringRef Default = "") {
   if (auto *Arg = Args.getLastArg(Key))
@@ -125,13 +143,9 @@ void LinkerDriver::main(ArrayRef<const char *> ArgsArr) {
   initSymbols();
 
   opt::InputArgList Args = parseArgs(&Alloc, ArgsArr);
+  readConfigs(Args);
   createFiles(Args);
-
-  // Traditional linkers can generate re-linkable object files instead
-  // of executables or DSOs. We don't support that since the feature
-  // does not seem to provide more value than the static archiver.
-  if (Args.hasArg(OPT_relocatable))
-    error("-r option is not supported. Use 'ar' command instead.");
+  checkOptions(Args);
 
   switch (Config->EKind) {
   case ELF32LEKind:
@@ -151,7 +165,8 @@ void LinkerDriver::main(ArrayRef<const char *> ArgsArr) {
   }
 }
 
-void LinkerDriver::createFiles(opt::InputArgList &Args) {
+// Initializes Config members by the command line options.
+void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   for (auto *Arg : Args.filtered(OPT_L))
     Config->SearchPaths.push_back(Arg->getValue());
 
@@ -162,10 +177,9 @@ void LinkerDriver::createFiles(opt::InputArgList &Args) {
     Config->RPath = llvm::join(RPaths.begin(), RPaths.end(), ":");
 
   if (auto *Arg = Args.getLastArg(OPT_m)) {
+    // Parse ELF{32,64}{LE,BE} and CPU type.
     StringRef S = Arg->getValue();
-    std::pair<ELFKind, uint16_t> P = parseEmulation(S);
-    Config->EKind = P.first;
-    Config->EMachine = P.second;
+    std::tie(Config->EKind, Config->EMachine) = parseEmulation(S);
     Config->Emulation = S;
   }
 
@@ -217,7 +231,9 @@ void LinkerDriver::createFiles(opt::InputArgList &Args) {
 
   for (auto *Arg : Args.filtered(OPT_undefined))
     Config->Undefined.push_back(Arg->getValue());
+}
 
+void LinkerDriver::createFiles(opt::InputArgList &Args) {
   for (auto *Arg : Args) {
     switch (Arg->getOption().getID()) {
     case OPT_l:
@@ -250,9 +266,6 @@ void LinkerDriver::createFiles(opt::InputArgList &Args) {
 
   if (Files.empty())
     error("no input files.");
-
-  if (Config->GnuHash && Config->EMachine == EM_MIPS)
-    error("The .gnu.hash section is not compatible with the MIPS target.");
 }
 
 template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
@@ -261,7 +274,10 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
 
   if (!Config->Shared) {
     // Add entry symbol.
-    if (Config->Entry.empty())
+    //
+    // There is no entry symbol for AMDGPU binaries, so skip adding one to avoid
+    // having and undefined symbol.
+    if (Config->Entry.empty() && Config->EMachine != EM_AMDGPU)
       Config->Entry = (Config->EMachine == EM_MIPS) ? "__start" : "_start";
 
     // In the assembly for 32 bit x86 the _GLOBAL_OFFSET_TABLE_ symbol
@@ -288,8 +304,9 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
 
   if (Config->EMachine == EM_MIPS) {
     // On MIPS O32 ABI, _gp_disp is a magic symbol designates offset between
-    // start of function and gp pointer into GOT.
-    Config->MipsGpDisp = Symtab.addIgnored("_gp_disp");
+    // start of function and gp pointer into GOT. Use 'strong' variant of
+    // the addIgnored to prevent '_gp_disp' substitution.
+    Config->MipsGpDisp = Symtab.addIgnoredStrong("_gp_disp");
 
     // Define _gp for MIPS. st_value of _gp symbol will be updated by Writer
     // so that it points to an absolute address which is relative to GOT.
@@ -303,6 +320,9 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
 
   for (StringRef S : Config->Undefined)
     Symtab.addUndefinedOpt(S);
+
+  for (auto *Arg : Args.filtered(OPT_wrap))
+    Symtab.wrap(Arg->getValue());
 
   if (Config->OutputFile.empty())
     Config->OutputFile = "a.out";

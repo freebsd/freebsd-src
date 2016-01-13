@@ -1,4 +1,4 @@
-add_llvm_library(lldELF
+add_lld_library(lldELF
   Atoms.cpp
   DynamicFile.cpp
   ELFFile.cpp
@@ -27,4 +27,3 @@ add_subdirectory(Mips)
 add_subdirectory(Hexagon)
 add_subdirectory(AArch64)
 add_subdirectory(ARM)
-add_subdirectory(AMDGPU)

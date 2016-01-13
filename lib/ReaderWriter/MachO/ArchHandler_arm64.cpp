@@ -687,17 +687,28 @@ void ArchHandler_arm64::applyFixupRelocatable(const Reference &ref,
   case delta64:
     *loc64 = ref.addend() + inAtomAddress - fixupAddress;
     return;
+  case unwindFDEToFunction:
+    // We don't emit unwindFDEToFunction in -r mode as they are implicitly
+    // generated from the data in the __eh_frame section.  So here we need
+    // to use the targetAddress so that we can generate the full relocation
+    // when we parse again later.
+    *loc64 = targetAddress - fixupAddress;
+    return;
   case delta32:
     *loc32 = ref.addend() + inAtomAddress - fixupAddress;
     return;
   case negDelta32:
+    // We don't emit negDelta32 in -r mode as they are implicitly
+    // generated from the data in the __eh_frame section.  So here we need
+    // to use the targetAddress so that we can generate the full relocation
+    // when we parse again later.
     *loc32 = fixupAddress - targetAddress + ref.addend();
     return;
   case pointer64ToGOT:
     *loc64 = 0;
     return;
   case delta32ToGOT:
-    *loc32 = -fixupAddress;
+    *loc32 = inAtomAddress - fixupAddress;
     return;
   case addOffset12:
     llvm_unreachable("lazy reference kind implies GOT pass was run");
@@ -708,9 +719,6 @@ void ArchHandler_arm64::applyFixupRelocatable(const Reference &ref,
   case imageOffsetGot:
   case unwindInfoToEhFrame:
     llvm_unreachable("fixup implies __unwind_info");
-    return;
-  case unwindFDEToFunction:
-    // Do nothing for now
     return;
   case invalid:
     // Fall into llvm_unreachable().
