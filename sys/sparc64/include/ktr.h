@@ -34,14 +34,10 @@
 
 #include <sys/ktr.h>
 
-#ifndef LOCORE
-
-#define	KTR_CPU	PCPU_GET(mid)
-
-#else
+#ifdef LOCORE
 
 /*
- * XXX could really use another register...
+ * XXX could really use another register ...
  */
 #define	ATR(desc, r1, r2, r3, l1, l2) \
 	.sect	.rodata ; \
@@ -63,16 +59,13 @@ l2:	add	r2, 1, r3 ; \
 	add	r1, r2, r1 ; \
 	rd	%tick, r2 ; \
 	stx	r2, [r1 + KTR_TIMESTAMP] ; \
-	lduw	[PCPU(MID)], r2 ; \
+	lduw	[PCPU(CPUID)], r2 ; \
 	stw	r2, [r1 + KTR_CPU] ; \
 	stw	%g0, [r1 + KTR_LINE] ; \
 	stx	%g0, [r1 + KTR_FILE] ; \
 	SET(l1 ## b, r3, r2) ; \
 	stx	r2, [r1 + KTR_DESC]
 
-/*
- * NB: this clobbers %y.
- */
 #define CATR(mask, desc, r1, r2, r3, l1, l2, l3) \
 	set	mask, r1 ; \
 	SET(ktr_mask, r3, r2) ; \
@@ -82,16 +75,14 @@ l2:	add	r2, 1, r3 ; \
 	 nop ; \
 	lduw	[PCPU(CPUID)], r2 ; \
 	mov	_NCPUBITS, r3 ; \
-	mov	%g0, %y ; \
-	udiv	r2, r3, r2 ; \
+	udivx	r2, r3, r2 ; \
 	srl	r2, 0, r2 ; \
 	sllx	r2, PTR_SHIFT, r2 ; \
 	SET(ktr_cpumask, r3, r1) ; \
 	ldx	[r1 + r2], r1 ; \
 	lduw	[PCPU(CPUID)], r2 ; \
 	mov	_NCPUBITS, r3 ; \
-	mov	%g0, %y ; \
-	udiv	r2, r3, r2 ; \
+	udivx	r2, r3, r2 ; \
 	srl	r2, 0, r2 ; \
 	smul	r2, r3, r3 ; \
 	lduw	[PCPU(CPUID)], r2 ; \
