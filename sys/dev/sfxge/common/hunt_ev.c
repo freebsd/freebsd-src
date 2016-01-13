@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 #if EFSYS_OPT_MON_STATS
 #include "mcdi_mon.h"
@@ -54,35 +51,35 @@ __FBSDID("$FreeBSD$");
 
 
 static	__checkReturn	boolean_t
-hunt_ev_rx(
+ef10_ev_rx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_tx(
+ef10_ev_tx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_driver(
+ef10_ev_driver(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_drv_gen(
+ef10_ev_drv_gen(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
 static	__checkReturn	boolean_t
-hunt_ev_mcdi(
+ef10_ev_mcdi(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -230,7 +227,7 @@ fail1:
 
 
 	__checkReturn	efx_rc_t
-hunt_ev_init(
+ef10_ev_init(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -238,14 +235,14 @@ hunt_ev_init(
 }
 
 			void
-hunt_ev_fini(
+ef10_ev_fini(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
 
 	__checkReturn	efx_rc_t
-hunt_ev_qcreate(
+ef10_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
@@ -272,11 +269,11 @@ hunt_ev_qcreate(
 	}
 
 	/* Set up the handler table */
-	eep->ee_rx	= hunt_ev_rx;
-	eep->ee_tx	= hunt_ev_tx;
-	eep->ee_driver	= hunt_ev_driver;
-	eep->ee_drv_gen	= hunt_ev_drv_gen;
-	eep->ee_mcdi	= hunt_ev_mcdi;
+	eep->ee_rx	= ef10_ev_rx;
+	eep->ee_tx	= ef10_ev_tx;
+	eep->ee_driver	= ef10_ev_driver;
+	eep->ee_drv_gen	= ef10_ev_drv_gen;
+	eep->ee_mcdi	= ef10_ev_mcdi;
 
 	/*
 	 * Set up the event queue
@@ -299,18 +296,19 @@ fail1:
 }
 
 			void
-hunt_ev_qdestroy(
+ef10_ev_qdestroy(
 	__in		efx_evq_t *eep)
 {
 	efx_nic_t *enp = eep->ee_enp;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+	    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	(void) efx_mcdi_fini_evq(eep->ee_enp, eep->ee_index);
 }
 
 	__checkReturn	efx_rc_t
-hunt_ev_qprime(
+ef10_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
 {
@@ -390,7 +388,7 @@ fail1:
 }
 
 			void
-hunt_ev_qpost(
+ef10_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data)
 {
@@ -406,7 +404,7 @@ hunt_ev_qpost(
 }
 
 	__checkReturn	efx_rc_t
-hunt_ev_qmoderate(
+ef10_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us)
 {
@@ -463,14 +461,10 @@ fail1:
 
 #if EFSYS_OPT_QSTATS
 			void
-hunt_ev_qstats_update(
+ef10_ev_qstats_update(
 	__in				efx_evq_t *eep,
 	__inout_ecount(EV_NQSTATS)	efsys_stat_t *stat)
 {
-	/*
-	 * TBD: Consider a common Siena/Huntington function.  The code is
-	 * essentially identical.
-	 */
 	unsigned int id;
 
 	for (id = 0; id < EV_NQSTATS; id++) {
@@ -484,7 +478,7 @@ hunt_ev_qstats_update(
 
 
 static	__checkReturn	boolean_t
-hunt_ev_rx(
+ef10_ev_rx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -502,7 +496,6 @@ hunt_ev_rx(
 	uint32_t l3_class;
 	uint32_t l4_class;
 	uint32_t next_read_lbits;
-	boolean_t soft1, soft2;
 	uint16_t flags;
 	boolean_t should_abort;
 	efx_evq_rxq_state_t *eersp;
@@ -563,10 +556,6 @@ hunt_ev_rx(
 		/* ECC memory error */
 		flags |= EFX_DISCARD;
 	}
-
-	/* FIXME: do we need soft bits from RXDP firmware ? */
-	soft1 = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_EV_SOFT1) != 0);
-	soft2 = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_EV_SOFT2) != 0);
 
 	mcast = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_MAC_CLASS);
 	if (mcast == ESE_DZ_MAC_CLASS_UCAST)
@@ -691,7 +680,7 @@ hunt_ev_rx(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_tx(
+ef10_ev_tx(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -726,7 +715,7 @@ hunt_ev_tx(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_driver(
+ef10_ev_driver(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -776,7 +765,7 @@ hunt_ev_driver(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_drv_gen(
+ef10_ev_drv_gen(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -804,7 +793,7 @@ hunt_ev_drv_gen(
 }
 
 static	__checkReturn	boolean_t
-hunt_ev_mcdi(
+ef10_ev_mcdi(
 	__in		efx_evq_t *eep,
 	__in		efx_qword_t *eqp,
 	__in		const efx_ev_callbacks_t *eecp,
@@ -1000,7 +989,7 @@ hunt_ev_mcdi(
 }
 
 		void
-hunt_ev_rxlabel_init(
+ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
 	__in		unsigned int label)
@@ -1017,7 +1006,7 @@ hunt_ev_rxlabel_init(
 }
 
 		void
-hunt_ev_rxlabel_fini(
+ef10_ev_rxlabel_fini(
 	__in		efx_evq_t *eep,
 	__in		unsigned int label)
 {

@@ -31,9 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_MAC_FALCON_GMAC
@@ -462,55 +460,6 @@ efx_mac_fcntl_get(
 	*fcntl_wantedp = wanted;
 }
 
-/*
- * FIXME: efx_mac_hash_set() should be deleted once all its callers have been
- * updated to use efx_mac_multicast_list_set().
- * Then efx_port_t.ep_multicst_hash could be made Falcon/Siena specific as
- * well.
- */
-	__checkReturn			efx_rc_t
-efx_mac_hash_set(
-	__in				efx_nic_t *enp,
-	__in_ecount(EFX_MAC_HASH_BITS)	unsigned int const *bucket)
-{
-	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
-	efx_oword_t old_hash[2];
-	unsigned int index;
-	efx_rc_t rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
-
-	memcpy(old_hash, epp->ep_multicst_hash, sizeof (old_hash));
-
-	/* Set the lower 128 bits of the hash */
-	EFX_ZERO_OWORD(epp->ep_multicst_hash[0]);
-	for (index = 0; index < 128; index++) {
-		if (bucket[index] != 0)
-			EFX_SET_OWORD_BIT(epp->ep_multicst_hash[0], index);
-	}
-
-	/* Set the upper 128 bits of the hash */
-	EFX_ZERO_OWORD(epp->ep_multicst_hash[1]);
-	for (index = 0; index < 128; index++) {
-		if (bucket[index + 128] != 0)
-			EFX_SET_OWORD_BIT(epp->ep_multicst_hash[1], index);
-	}
-
-	if ((rc = emop->emo_reconfigure(enp)) != 0)
-		goto fail1;
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	memcpy(epp->ep_multicst_hash, old_hash, sizeof (old_hash));
-
-	return (rc);
-}
-
 	__checkReturn	efx_rc_t
 efx_mac_multicast_list_set(
 	__in				efx_nic_t *enp,
@@ -911,6 +860,8 @@ fail1:
 
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+
+#define	EFX_MAC_HASH_BITS	(1 << 8)
 
 /* Compute the multicast hash as used on Falcon and Siena. */
 static	void

@@ -6,7 +6,7 @@ testsdir=$(dirname $0)
 
 echo "1..1"
 
-UUE=$testsdir/test-1.img.uzip.uue
+UUE=$testsdir/1.img.uzip.uue
 uudecode $UUE
 us0=$(attach_md -f $(basename $UUE .uue)) || exit 1
 sleep 1

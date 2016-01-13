@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 	__checkReturn	efx_rc_t
@@ -49,7 +46,8 @@ efx_family(
 		case EFX_PCI_DEVID_FALCON:
 			*efp = EFX_FAMILY_FALCON;
 			return (0);
-#endif
+#endif /* EFSYS_OPT_FALCON */
+
 #if EFSYS_OPT_SIENA
 		case EFX_PCI_DEVID_SIENA_F1_UNINIT:
 			/*
@@ -63,7 +61,7 @@ efx_family(
 		case EFX_PCI_DEVID_SIENA:
 			*efp = EFX_FAMILY_SIENA;
 			return (0);
-#endif
+#endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 		case EFX_PCI_DEVID_HUNTINGTON_PF_UNINIT:
@@ -83,7 +81,26 @@ efx_family(
 		case EFX_PCI_DEVID_GREENPORT_VF:
 			*efp = EFX_FAMILY_HUNTINGTON;
 			return (0);
-#endif
+#endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+		case EFX_PCI_DEVID_MEDFORD_PF_UNINIT:
+			/*
+			 * Hardware default for PF0 of uninitialised Medford.
+			 * manftest must be able to cope with this device id.
+			 */
+			*efp = EFX_FAMILY_MEDFORD;
+			return (0);
+
+		case EFX_PCI_DEVID_MEDFORD:
+			*efp = EFX_FAMILY_MEDFORD;
+			return (0);
+
+		case EFX_PCI_DEVID_MEDFORD_VF:
+			*efp = EFX_FAMILY_MEDFORD;
+			return (0);
+#endif /* EFSYS_OPT_MEDFORD */
+
 		default:
 			break;
 		}
@@ -110,8 +127,12 @@ efx_infer_family(
 
 	EFSYS_BAR_READO(esbp, FR_AZ_CS_DEBUG_REG_OFST, &oword, B_TRUE);
 	portnum = EFX_OWORD_FIELD(oword, FRF_CZ_CS_PORT_NUM);
-	switch (portnum) {
-	case 0: {
+	if ((portnum == 1) || (portnum == 2)) {
+#if EFSYS_OPT_SIENA
+		family = EFX_FAMILY_SIENA;
+		goto out;
+#endif
+	} else if (portnum == 0) {
 		efx_dword_t dword;
 		uint32_t hw_rev;
 
@@ -119,31 +140,25 @@ efx_infer_family(
 		    B_TRUE);
 		hw_rev = EFX_DWORD_FIELD(dword, ERF_DZ_HW_REV_ID);
 		if (hw_rev == ER_DZ_BIU_HW_REV_ID_REG_RESET) {
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+			/*
+			 * BIU_HW_REV_ID is the same for Huntington and Medford.
+			 * Assume Huntington, as Medford is very similar.
+			 */
 			family = EFX_FAMILY_HUNTINGTON;
-			break;
+			goto out;
 #endif
 		} else {
 #if EFSYS_OPT_FALCON
 			family = EFX_FAMILY_FALCON;
-			break;
+			goto out;
 #endif
 		}
-		rc = ENOTSUP;
-		goto fail1;
 	}
+	rc = ENOTSUP;
+	goto fail1;
 
-#if EFSYS_OPT_SIENA
-	case 1:
-	case 2:
-		family = EFX_FAMILY_SIENA;
-		break;
-#endif
-	default:
-		rc = ENOTSUP;
-		goto fail1;
-	}
-
+out:
 	if (efp != NULL)
 		*efp = family;
 	return (0);
@@ -266,18 +281,18 @@ static efx_nic_ops_t	__efx_nic_siena_ops = {
 #if EFSYS_OPT_HUNTINGTON
 
 static efx_nic_ops_t	__efx_nic_hunt_ops = {
-	hunt_nic_probe,			/* eno_probe */
-	hunt_nic_set_drv_limits,	/* eno_set_drv_limits */
-	hunt_nic_reset,			/* eno_reset */
-	hunt_nic_init,			/* eno_init */
-	hunt_nic_get_vi_pool,		/* eno_get_vi_pool */
-	hunt_nic_get_bar_region,	/* eno_get_bar_region */
+	ef10_nic_probe,			/* eno_probe */
+	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
+	ef10_nic_reset,			/* eno_reset */
+	ef10_nic_init,			/* eno_init */
+	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
+	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
-	hunt_sram_test,			/* eno_sram_test */
-	hunt_nic_register_test,		/* eno_register_test */
+	ef10_sram_test,			/* eno_sram_test */
+	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
-	hunt_nic_fini,			/* eno_fini */
-	hunt_nic_unprobe,		/* eno_unprobe */
+	ef10_nic_fini,			/* eno_fini */
+	ef10_nic_unprobe,		/* eno_unprobe */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON */

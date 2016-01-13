@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -149,6 +148,13 @@ static const struct mcdi_sensor_map_s {
 	STAT(Px, CONTROLLER_SLAVE_VPTAT_EXT_ADC), /* 0x46 SLAVE_VPTAT_EXT_ADC */
 	STAT(Px, CONTROLLER_SLAVE_INTERNAL_TEMP_EXT_ADC),
 					/* 0x47 SLAVE_INTERNAL_TEMP_EXT_ADC */
+	STAT_NO_SENSOR(),		/* 0x48 (no sensor) */
+	STAT(Px, SODIMM_VOUT),		/* 0x49 SODIMM_VOUT */
+	STAT(Px, SODIMM_0_TEMP),	/* 0x4a SODIMM_0_TEMP */
+	STAT(Px, SODIMM_1_TEMP),	/* 0x4b SODIMM_1_TEMP */
+	STAT(Px, PHY0_VCC),		/* 0x4c PHY0_VCC */
+	STAT(Px, PHY1_VCC),		/* 0x4d PHY1_VCC */
+	STAT(Px, CONTROLLER_TDIODE_TEMP), /* 0x4e CONTROLLER_TDIODE_TEMP */
 };
 
 #define	MCDI_STATIC_SENSOR_ASSERT(_field)				\
@@ -476,6 +482,11 @@ mcdi_mon_cfg_build(
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
 		encp->enc_mon_type = EFX_MON_SFC91X0;
+		break;
+#endif
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		encp->enc_mon_type = EFX_MON_SFC92X0;
 		break;
 #endif
 	default:
