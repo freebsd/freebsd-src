@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -281,9 +280,9 @@ hunt_mac_filter_default_rxq_set(
 	boolean_t old_using_rss;
 	efx_rc_t rc;
 
-	hunt_filter_get_default_rxq(enp, &old_rxq, &old_using_rss);
+	ef10_filter_get_default_rxq(enp, &old_rxq, &old_using_rss);
 
-	hunt_filter_default_rxq_set(enp, erp, using_rss);
+	ef10_filter_default_rxq_set(enp, erp, using_rss);
 
 	rc = efx_filter_reconfigure(enp, epp->ep_mac_addr,
 				    epp->ep_all_unicst, epp->ep_mulcst,
@@ -299,7 +298,7 @@ hunt_mac_filter_default_rxq_set(
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
-	hunt_filter_default_rxq_set(enp, old_rxq, old_using_rss);
+	ef10_filter_default_rxq_set(enp, old_rxq, old_using_rss);
 
 	return (rc);
 }
@@ -310,7 +309,7 @@ hunt_mac_filter_default_rxq_clear(
 {
 	efx_port_t *epp = &(enp->en_port);
 
-	hunt_filter_default_rxq_clear(enp);
+	ef10_filter_default_rxq_clear(enp);
 
 	efx_filter_reconfigure(enp, epp->ep_mac_addr,
 				    epp->ep_all_unicst, epp->ep_mulcst,

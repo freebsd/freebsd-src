@@ -31,6 +31,8 @@
 #ifndef	_LOADER_EFI_COPY_H_
 #define	_LOADER_EFI_COPY_H_
 
+#include <stand.h>
+
 int	efi_autoload(void);
 
 int	efi_getdev(void **vdev, const char *devspec, const char **path);

@@ -435,6 +435,7 @@ ATF_TC_BODY(addrmerge_localhost_only, tc)
 	/* We must return localhost if there is nothing better */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("127.0.0.1.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_singlehomed);
@@ -450,6 +451,7 @@ ATF_TC_BODY(addrmerge_singlehomed, tc)
 
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_one_addr_on_each_subnet);
@@ -466,6 +468,7 @@ ATF_TC_BODY(addrmerge_one_addr_on_each_subnet, tc)
 	/* We must return the address on the caller's subnet */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.2.3.46", maddr);
+	free(maddr);
 }
 
 
@@ -488,6 +491,7 @@ ATF_TC_BODY(addrmerge_one_addr_on_each_subnet_rev, tc)
 	/* We must return the address on the caller's subnet */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_point2point);
@@ -505,6 +509,7 @@ ATF_TC_BODY(addrmerge_point2point, tc)
 	/* addrmerge should disprefer P2P interfaces */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.130.3.46", maddr);
+	free(maddr);
 }
 
 /* Like addrerge_point2point, but getifaddrs returns a different order */
@@ -523,6 +528,7 @@ ATF_TC_BODY(addrmerge_point2point_rev, tc)
 	/* addrmerge should disprefer P2P interfaces */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.130.3.46", maddr);
+	free(maddr);
 }
 
 /*
@@ -544,6 +550,7 @@ ATF_TC_BODY(addrmerge_bindip, tc)
 	/* We must return the address to which we are bound */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.3.3.46", maddr);
+	free(maddr);
 }
 
 /* Like addrmerge_bindip, but getifaddrs returns a different order */
@@ -562,6 +569,7 @@ ATF_TC_BODY(addrmerge_bindip_rev, tc)
 	/* We must return the address to which we are bound */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.3.3.46", maddr);
+	free(maddr);
 }
 
 /* 
@@ -582,6 +590,7 @@ ATF_TC_BODY(addrmerge_recvdstaddr, tc)
 	/* We must return the address on which the request was received */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_recvdstaddr_rev);
@@ -598,6 +607,7 @@ ATF_TC_BODY(addrmerge_recvdstaddr_rev, tc)
 	/* We must return the address on which the request was received */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("192.0.2.2.3.46", maddr);
+	free(maddr);
 }
 
 #ifdef INET6
@@ -614,6 +624,7 @@ ATF_TC_BODY(addrmerge_localhost_only6, tc)
 	/* We must return localhost if there is nothing better */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("::1.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_singlehomed6);
@@ -629,6 +640,7 @@ ATF_TC_BODY(addrmerge_singlehomed6, tc)
 
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8::2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_one_addr_on_each_subnet6);
@@ -645,6 +657,7 @@ ATF_TC_BODY(addrmerge_one_addr_on_each_subnet6, tc)
 	/* We must return the address on the caller's subnet */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8::2.3.46", maddr);
+	free(maddr);
 }
 
 
@@ -667,6 +680,7 @@ ATF_TC_BODY(addrmerge_one_addr_on_each_subnet6_rev, tc)
 	/* We must return the address on the caller's subnet */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8::2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_point2point6);
@@ -684,6 +698,7 @@ ATF_TC_BODY(addrmerge_point2point6, tc)
 	/* addrmerge should disprefer P2P interfaces */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8:1::2.3.46", maddr);
+	free(maddr);
 }
 
 /* Like addrerge_point2point, but getifaddrs returns a different order */
@@ -702,6 +717,7 @@ ATF_TC_BODY(addrmerge_point2point6_rev, tc)
 	/* addrmerge should disprefer P2P interfaces */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8:1::2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_bindip6);
@@ -719,6 +735,7 @@ ATF_TC_BODY(addrmerge_bindip6, tc)
 	/* We must return the address to which we are bound */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8::3.3.46", maddr);
+	free(maddr);
 }
 
 /* Like addrerge_bindip, but getifaddrs returns a different order */
@@ -737,6 +754,7 @@ ATF_TC_BODY(addrmerge_bindip6_rev, tc)
 	/* We must return the address to which we are bound */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8::3.3.46", maddr);
+	free(maddr);
 }
 
 /* 
@@ -761,6 +779,7 @@ ATF_TC_BODY(addrmerge_ipv6_linklocal, tc)
 	/* We must return the address to which we are bound */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("fe80::2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_ipv6_linklocal_rev);
@@ -781,6 +800,7 @@ ATF_TC_BODY(addrmerge_ipv6_linklocal_rev, tc)
 	/* We must return the address to which we are bound */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("fe80::2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_recvdstaddr6);
@@ -797,6 +817,7 @@ ATF_TC_BODY(addrmerge_recvdstaddr6, tc)
 	/* We must return the address on which the request was received */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8::2.3.46", maddr);
+	free(maddr);
 }
 
 ATF_TC_WITHOUT_HEAD(addrmerge_recvdstaddr6_rev);
@@ -813,6 +834,7 @@ ATF_TC_BODY(addrmerge_recvdstaddr6_rev, tc)
 	/* We must return the address on which the request was received */
 	ATF_REQUIRE(maddr != NULL);
 	ATF_CHECK_STREQ("2001:db8::2.3.46", maddr);
+	free(maddr);
 }
 #endif /* INET6 */
 

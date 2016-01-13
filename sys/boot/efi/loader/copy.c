@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
+#include "loader_efi.h"
+
 #ifndef EFI_STAGING_SIZE
 #define	EFI_STAGING_SIZE	48
 #endif

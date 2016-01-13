@@ -31,12 +31,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
+#if EFSYS_OPT_MON_MCDI
 #include "mcdi_mon.h"
+#endif
 
 #if EFSYS_OPT_QSTATS
 #define	EFX_EV_QSTAT_INCR(_eep, _stat)					\
@@ -139,20 +138,20 @@ static efx_ev_ops_t	__efx_ev_siena_ops = {
 };
 #endif /* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
-static efx_ev_ops_t	__efx_ev_hunt_ops = {
-	hunt_ev_init,				/* eevo_init */
-	hunt_ev_fini,				/* eevo_fini */
-	hunt_ev_qcreate,			/* eevo_qcreate */
-	hunt_ev_qdestroy,			/* eevo_qdestroy */
-	hunt_ev_qprime,				/* eevo_qprime */
-	hunt_ev_qpost,				/* eevo_qpost */
-	hunt_ev_qmoderate,			/* eevo_qmoderate */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+static efx_ev_ops_t	__efx_ev_ef10_ops = {
+	ef10_ev_init,				/* eevo_init */
+	ef10_ev_fini,				/* eevo_fini */
+	ef10_ev_qcreate,			/* eevo_qcreate */
+	ef10_ev_qdestroy,			/* eevo_qdestroy */
+	ef10_ev_qprime,				/* eevo_qprime */
+	ef10_ev_qpost,				/* eevo_qpost */
+	ef10_ev_qmoderate,			/* eevo_qmoderate */
 #if EFSYS_OPT_QSTATS
-	hunt_ev_qstats_update,			/* eevo_qstats_update */
+	ef10_ev_qstats_update,			/* eevo_qstats_update */
 #endif
 };
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 
 	__checkReturn	efx_rc_t
@@ -185,9 +184,15 @@ efx_ev_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		eevop = (efx_ev_ops_t *)&__efx_ev_hunt_ops;
+		eevop = (efx_ev_ops_t *)&__efx_ev_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		eevop = (efx_ev_ops_t *)&__efx_ev_ef10_ops;
+		break;
+#endif /* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -492,7 +497,7 @@ falconsiena_ev_rx_not_ok(
 		EFX_EV_QSTAT_INCR(eep, EV_RX_FRM_TRUNC);
 		(*flagsp) |= EFX_DISCARD;
 
-#if (EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER)
+#if EFSYS_OPT_RX_SCATTER
 		/*
 		 * Lookout for payload queue ran dry errors and ignore them.
 		 *
@@ -507,7 +512,7 @@ falconsiena_ev_rx_not_ok(
 		    (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_JUMBO_CONT) == 0) &&
 		    (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_BYTE_CNT) == 0))
 			ignore = B_TRUE;
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 	}
 
 	if (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_ETH_CRC_ERR) != 0) {
@@ -568,10 +573,10 @@ falconsiena_ev_rx(
 	uint32_t size;
 	uint32_t label;
 	boolean_t ok;
-#if (EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER)
+#if EFSYS_OPT_RX_SCATTER
 	boolean_t sop;
 	boolean_t jumbo_cont;
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 	uint32_t hdr_type;
 	boolean_t is_v6;
 	uint16_t flags;
@@ -586,10 +591,10 @@ falconsiena_ev_rx(
 	label = EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_Q_LABEL);
 	ok = (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_PKT_OK) != 0);
 
-#if (EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER)
+#if EFSYS_OPT_RX_SCATTER
 	sop = (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_SOP) != 0);
 	jumbo_cont = (EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_JUMBO_CONT) != 0);
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT || EFSYS_OPT_RX_SCATTER */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 
 	hdr_type = EFX_QWORD_FIELD(*eqp, FSF_AZ_RX_EV_HDR_TYPE);
 
@@ -644,13 +649,13 @@ falconsiena_ev_rx(
 		break;
 	}
 
-#if EFSYS_OPT_RX_SCATTER || EFSYS_OPT_RX_HDR_SPLIT
+#if EFSYS_OPT_RX_SCATTER
 	/* Report scatter and header/lookahead split buffer flags */
 	if (sop)
 		flags |= EFX_PKT_START;
 	if (jumbo_cont)
 		flags |= EFX_PKT_CONT;
-#endif	/* EFSYS_OPT_RX_SCATTER || EFSYS_OPT_RX_HDR_SPLIT */
+#endif	/* EFSYS_OPT_RX_SCATTER */
 
 	/* Detect errors included in the FSF_AZ_RX_EV_PKT_OK indication */
 	if (!ok) {
