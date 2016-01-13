@@ -1103,7 +1103,7 @@ ef10_nvram_segment_write_tlv(
 	__in			boolean_t write)
 {
 	efx_rc_t rc;
-	int status;
+	efx_rc_t status;
 	size_t original_segment_size;
 	size_t modified_segment_size;
 
