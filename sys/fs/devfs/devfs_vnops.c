@@ -192,7 +192,7 @@ devfs_destroy_cdevpriv(struct cdev_privdata *p)
 	free(p, M_CDEVPDATA);
 }
 
-void
+static void
 devfs_fpdrop(struct file *fp)
 {
 	struct cdev_privdata *p;
