@@ -10,7 +10,6 @@ SRCS=	cheri_enter.c			\
 	cheri_system.c			\
 	cheri_type.c			\
 	libcheri_classes.S		\
-	libcheri_stat.c			\
 	sandbox.c			\
 	sandbox_elf.c			\
 	sandbox_loader.c		\

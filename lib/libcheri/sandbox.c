@@ -50,7 +50,6 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <libgen.h>
-#include <sandbox_stat.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,7 +61,6 @@
 #include "cheri_fd.h"
 #include "cheri_invoke.h"
 #include "cheri_system.h"
-#include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandbox_elf.h"
 #include "sandbox_internal.h"
@@ -373,20 +371,6 @@ sandbox_class_new(const char *path, size_t maxmaplen,
 	}
 	sandbox_classes[num_sandbox_classes++] = sbcp;
 
-	/*
-	 * Register the class/object for statistics; also register a single
-	 * "noname" method to catch statistics for unnamed or overflow
-	 * methods.
-	 *
-	 * NB: We use the base address of the sandbox's $c0 as the 'name' of
-	 * the object, since this is most useful for comparison to capability
-	 * values.  However, you could also see an argument for using 'sb'
-	 * itself here.
-	 */
-	(void)sandbox_stat_class_register(&sbcp->sbc_sandbox_class_statp,
-	    basename_r(path, sandbox_basename));
-	(void)sandbox_stat_method_register(&sbcp->sbc_sandbox_method_nonamep,
-	    sbcp->sbc_sandbox_class_statp, "<noname>");
 	*sbcpp = sbcp;
 	return (0);
 
@@ -412,9 +396,7 @@ sandbox_class_method_declare(struct sandbox_class *sbcp, u_int methodnum,
 		errno = EEXIST;
 		return (-1);
 	}
-	return (sandbox_stat_method_register(
-	    &sbcp->sbc_sandbox_methods[methodnum],
-	    sbcp->sbc_sandbox_class_statp, methodname));
+	return (0);
 }
 
 void
@@ -422,17 +404,6 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
 {
 	u_int i;
 
-	for (i = 0; i < SANDBOX_CLASS_METHOD_COUNT; i++) {
-		if (sbcp->sbc_sandbox_methods[i] != NULL)
-			(void)sandbox_stat_method_deregister(
-			    sbcp->sbc_sandbox_methods[i]);
-	}
-	if (sbcp->sbc_sandbox_method_nonamep != NULL)
-		(void)sandbox_stat_method_deregister(
-		    sbcp->sbc_sandbox_method_nonamep);
-	if (sbcp->sbc_sandbox_class_statp != NULL)
-		(void)sandbox_stat_class_deregister(
-		    sbcp->sbc_sandbox_class_statp);
 	sandbox_class_unload(sbcp);
 	close(sbcp->sbc_fd);
 	free(sbcp->sbc_path);
@@ -600,11 +571,6 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, register_t methodnum,
 	 * 2. Does the right thing happen with $a0..$a7, $c3..$c10?
 	 */
 	sbcp = sbop->sbo_sandbox_classp;
-	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
-		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_methods[methodnum]);
-	else
-		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
-	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 	start = cheri_get_cyclecount();
 	v0 = cheri_invoke(sbop->sbo_cheri_object_invoke,
 	    CHERI_INVOKE_METHOD_LEGACY_INVOKE,
@@ -612,22 +578,6 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, register_t methodnum,
 	    a1, a2, a3, a4, a5, a6, a7,
 	    c3, c4, c5, c6, c7, c8, c9, c10);
 	sample = cheri_get_cyclecount() - start;
-	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
-		SANDBOX_METHOD_TIME_SAMPLE(
-		    sbcp->sbc_sandbox_methods[methodnum], sample);
-	else
-		SANDBOX_METHOD_TIME_SAMPLE(
-		    sbcp->sbc_sandbox_method_nonamep, sample);
-	SANDBOX_OBJECT_TIME_SAMPLE(sbop->sbo_sandbox_object_statp, sample);
-	if (v0 < 0) {
-		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
-			SANDBOX_METHOD_FAULT(
-			    sbcp->sbc_sandbox_methods[methodnum]);
-		else
-			SANDBOX_METHOD_FAULT(
-			    sbcp->sbc_sandbox_method_nonamep);
-		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
-	}
 	return (v0);
 }
 
@@ -654,11 +604,6 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	register_t v0;
 
 	sbcp = sbop->sbo_sandbox_classp;
-	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
-		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_methods[methodnum]);
-	else
-		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
-	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 	cclear = cheri_zerocap();
 	c3 = (c3p != NULL ? *(__capability void **)c3p : cclear);
 	c4 = (c4p != NULL ? *(__capability void **)c4p : cclear);
@@ -673,15 +618,6 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	    methodnum,
 	    a1, a2, a3, a4, a5, a6, a7,
 	    c3, c4, c5, c6, c7, c8, c9, c10);
-	if (v0 < 0) {
-		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
-			SANDBOX_METHOD_FAULT(
-			    sbcp->sbc_sandbox_methods[methodnum]);
-		else
-			SANDBOX_METHOD_FAULT(
-			    sbcp->sbc_sandbox_method_nonamep);
-		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
-	}
 	return (v0);
 }
 
@@ -691,10 +627,6 @@ sandbox_object_destroy(struct sandbox_object *sbop)
 	struct sandbox_class *sbcp;
 
 	sbcp = sbop->sbo_sandbox_classp;
-	SANDBOX_CLASS_FREE(sbcp->sbc_sandbox_class_statp);
-	if (sbop->sbo_sandbox_object_statp != NULL)
-		(void)sandbox_stat_object_deregister(
-		    sbop->sbo_sandbox_object_statp);
 	sandbox_object_unload(sbop);		/* Unmap memory. */
 	CHERI_SYSTEM_OBJECT_FINI(sbop);
 	(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);

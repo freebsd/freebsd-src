@@ -102,9 +102,6 @@ struct kinfo_kstack;
 struct kinfo_vmentry;
 struct procstat;
 struct rlimit;
-struct sandbox_class_stat;
-struct sandbox_method_stat;
-struct sandbox_object_stat;
 struct filestat {
 	int	fs_type;	/* Descriptor type. */
 	int	fs_flags;	/* filestat specific flags. */
@@ -175,12 +172,6 @@ void	procstat_freekstack(struct procstat *procstat,
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
     struct filestat_list *head);
-void	procstat_freesbclasses(struct procstat *procstat,
-	    struct sandbox_class_stat *classes);
-void	procstat_freesbmethods(struct procstat *procstat,
-	    struct sandbox_method_stat *methods);
-void	procstat_freesbobjects(struct procstat *procstat,
-	    struct sandbox_object_stat *objects);
 void	procstat_freevmmap(struct procstat *procstat,
     struct kinfo_vmentry *vmmap);
 struct filestat_list	*procstat_getfiles(struct procstat *procstat,
@@ -217,12 +208,6 @@ int	procstat_getpathname(struct procstat *procstat, struct kinfo_proc *kp,
     char *pathname, size_t maxlen);
 int	procstat_getrlimit(struct procstat *procstat, struct kinfo_proc *kp,
     int which, struct rlimit* rlimit);
-struct sandbox_class_stat	*procstat_getsbclasses(
-	    struct procstat *procstat, struct kinfo_proc *kp, size_t *lenp);
-struct sandbox_method_stat	*procstat_getsbmethods(
-	    struct procstat *procstat, struct kinfo_proc *kp, size_t *lenp);
-struct sandbox_object_stat	*procstat_getsbobjects(
-	    struct procstat *procstat, struct kinfo_proc *kp, size_t *lenp);
 int	procstat_getumask(struct procstat *procstat, struct kinfo_proc *kp,
     unsigned short* umask);
 struct kinfo_vmentry	*procstat_getvmmap(struct procstat *procstat,

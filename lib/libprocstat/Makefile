@@ -15,8 +15,7 @@ SRCS=	cd9660.c	\
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
-INCS=		libprocstat.h		\
-		sandbox_stat.h
+INCS=		libprocstat.h
 CFLAGS+=	-I. -I${.CURDIR} -D_KVM_VNODE
 SHLIB_MAJOR=	1
 

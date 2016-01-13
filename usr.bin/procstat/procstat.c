@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2007, 2011 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,19 +39,18 @@
 
 #include "procstat.h"
 
-static int Lflag, Oflag, Rflag;
 static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, rflag;
 static int sflag, tflag, vflag, xflag, Sflag;
-int	hflag, nflag, Cflag, Hflag, Xflag;
+int	hflag, nflag, Cflag, Hflag;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: procstat [-CHhnX] [-M core] [-N system] "
+	fprintf(stderr, "usage: procstat [-CHhn] [-M core] [-N system] "
 	    "[-w interval] \n");
-	fprintf(stderr, "                [-L | -O | -R | -S | -b | -c | -e | "
-	    "-f | -i | -j | -k | -l | -r | -s | -t | -v | -x]\n");
+	fprintf(stderr, "                [-b | -c | -e | -f | -i | -j | -k | "
+	    "-l | -r | -s | -S | -t | -v | -x]\n");
 	fprintf(stderr, "                [-a | pid | core ...]\n");
 	exit(EX_USAGE);
 }
@@ -60,13 +59,7 @@ static void
 procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 {
 
-	if (Lflag)
-		procstat_sandbox_classes(prstat, kipp);
-	else if (Rflag)
-		procstat_sandbox_methods(prstat, kipp);
-	else if (Sflag)
-		procstat_sandbox_objects(prstat, kipp);
-	else if (bflag)
+	if (bflag)
 		procstat_bin(prstat, kipp);
 	else if (cflag)
 		procstat_args(prstat, kipp);
@@ -137,14 +130,10 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "CHLM:N:ORSXabcefijklhrstvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "CHN:M:abcefijklhrsStvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
-			break;
-
-		case 'L':
-			Lflag++;
 			break;
 
 		case 'H':
@@ -154,27 +143,12 @@ main(int argc, char *argv[])
 		case 'M':
 			memf = optarg;
 			break;
-
 		case 'N':
 			nlistf = optarg;
 			break;
-
-		case 'O':
-			Oflag++;
-			break;
-
-		case 'R':
-			Rflag++;
-			break;
-
 		case 'S':
 			Sflag++;
 			break;
-
-		case 'X':
-			Xflag++;
-			break;
-
 		case 'a':
 			aflag++;
 			break;
@@ -258,9 +232,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	/* We require that either 0 or 1 mode flags be set. */
-	tmp = Lflag + Oflag + Rflag + Sflag + bflag + cflag + eflag + fflag +
-	    iflag + jflag + (kflag ? 1 : 0) + lflag + rflag + sflag + tflag +
-	    vflag + xflag;
+	tmp = bflag + cflag + eflag + fflag + iflag + jflag + (kflag ? 1 : 0) +
+	    lflag + rflag + sflag + tflag + vflag + xflag + Sflag;
 	if (!(tmp == 0 || tmp == 1))
 		usage();
 
@@ -274,10 +247,6 @@ main(int argc, char *argv[])
 
 	/* Only allow -C with -f. */
 	if (Cflag && !fflag)
-		usage();
-
-	/* Only allow -X with -S and -R. */
-	if (Xflag && !(Sflag || Rflag))
 		usage();
 
 	if (memf != NULL)

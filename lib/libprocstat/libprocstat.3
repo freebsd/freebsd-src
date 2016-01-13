@@ -36,9 +36,6 @@
 .Nm procstat_freegroups ,
 .Nm procstat_freekstack ,
 .Nm procstat_freeprocs ,
-.Nm procstat_freesbclasses ,
-.Nm procstat_freesbmethods ,
-.Nm procstat_freesbobjects ,
 .Nm procstat_freevmmap ,
 .Nm procstat_get_pipe_info ,
 .Nm procstat_get_pts_info ,
@@ -56,9 +53,6 @@
 .Nm procstat_getpathname ,
 .Nm procstat_getprocs ,
 .Nm procstat_getrlimit ,
-.Nm procstat_getsbclasses ,
-.Nm procstat_getsbmethods ,
-.Nm procstat_getsbobjects ,
 .Nm procstat_getumask ,
 .Nm procstat_getvmmap ,
 .Nm procstat_open_core ,
@@ -103,21 +97,6 @@
 .Fc
 .Ft void
 .Fn procstat_freeprocs "struct procstat *procstat" "struct kinfo_proc *p"
-.Ft void
-.Fo procstat_freesbclasses
-.Fa "struct procstat *procstat"
-.Fa "struct sandbox_class_stat *classes"
-.Fc
-.Ft void
-.Fo procstat_freesbmethods
-.Fa "struct procstat *procstat"
-.Fa "struct sandbox_method_stat *methods"
-.Fc
-.Ft void
-.Fo procstat_freesbobjects
-.Fa "struct procstat *procstat"
-.Fa "struct sandbox_object_stat *objects"
-.Fc
 .Ft void
 .Fo procstat_freevmmap
 .Fa "struct procstat *procstat"
@@ -229,24 +208,6 @@
 .Fa "struct kinfo_proc *kp"
 .Fa "int which"
 .Fa "struct rlimit* rlimit"
-.Fc
-.Ft "struct sandbox_class_stat *"
-.Fo procstat_getsbclasses
-.Fa "struct procstat *procstat"
-.Fa "struct kinfo_proc *kp"
-.Fa "size_t *lenp"
-.Fc
-.Ft "struct sandbox_method_stat *"
-.Fo procstat_getsbmethods
-.Fa "struct procstat *procstat"
-.Fa "struct kinfo_proc *kp"
-.Fa "size_t *lenp"
-.Fc
-.Ft "struct sandbox_object_stat *"
-.Fo procstat_getsbobjects
-.Fa "struct procstat *procstat"
-.Fa "struct kinfo_proc *kp"
-.Fa "size_t *lenp"
 .Fc
 .Ft "int"
 .Fo procstat_getumask
@@ -483,34 +444,6 @@ structure, a pointer to
 structure, resource index
 .Fa which ,
 and returns the actual resource limit in the 4th reference parameter.
-.Pp
-The
-.Fn procstat_getsbclasses ,
-.Fn procstat_getsbmethods ,
-and
-.Fn procstat_getsbobjects
-functions return information about process sandboxing state: classes, methods,
-and objects.
-Each function accepts a pointer to the procstat structure returned by one of
-the
-.Fn procstat_open_*
-functions, and a pointer to a
-.Vt kinfo_proc
-structure from the array obtained from
-.Fn procstat_getprocs .
-Arrays of sandbox class, method, and object structures will be returned via
-allocated memory; the size of the memory (in bytes) is returned via
-.Fa lenp .
-The caller must pass allocated memory to a subsequent call to the
-.Fn procstat_freesbclasses ,
-.Fn procstat_freesbmethods ,
-or
-.Fn procstat_freesbobjects()
-function calls.
-Note: these functions are currently usable only with procstat structures
-returned by
-.Fn procstat_open_sysctl ;
-kvm and core variations may also be implemented in the future.
 .Pp
 The
 .Fn procstat_getumask

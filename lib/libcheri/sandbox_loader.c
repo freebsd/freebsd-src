@@ -49,7 +49,6 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <libgen.h>
-#include <sandbox_stat.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,7 +59,6 @@
 #include "cheri_invoke.h"
 #include "cheri_system.h"
 #include "cheri_type.h"
-#include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandbox_elf.h"
 #include "sandbox_internal.h"
@@ -366,15 +364,6 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	sbmp->sbm_vtable = sandbox_make_vtable(sbop->sbo_datamem, NULL,
 	    sbcp->sbc_provided_classes);
 	sbmp->sbm_stackcap = sbop->sbo_stackcap;
-
-	if (sbcp->sbc_sandbox_class_statp != NULL) {
-		(void)sandbox_stat_object_register(
-		    &sbop->sbo_sandbox_object_statp,
-		    sbcp->sbc_sandbox_class_statp,
-		    SANDBOX_OBJECT_TYPE_POINTER,
-		    (uintptr_t)sbop->sbo_datamem);
-		SANDBOX_CLASS_ALLOC(sbcp->sbc_sandbox_class_statp);
-	}
 
 	/*
 	 * Construct data capability for run-time linker vector.

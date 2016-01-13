@@ -21,9 +21,6 @@ FBSD_1.3 {
 	procstat_freeenvv;
 	procstat_freegroups;
 	procstat_freekstack;
-	procstat_freesbclasses;
-	procstat_freesbmethods;
-	procstat_freesbobjects;
 	procstat_freevmmap;
 	procstat_get_sem_info;
 	procstat_get_shm_info;
@@ -35,9 +32,6 @@ FBSD_1.3 {
 	procstat_getosrel;
 	procstat_getpathname;
 	procstat_getrlimit;
-	procstat_getsbclasses;
-	procstat_getsbmethods;
-	procstat_getsbobjects;
 	procstat_getumask;
 	procstat_getvmmap;
 	procstat_open_core;
