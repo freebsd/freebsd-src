@@ -598,8 +598,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt = malloc(sizeof(struct intel_crt), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 
-	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 
 	connector = &intel_connector->base;
 	drm_connector_init(dev, &intel_connector->base,
