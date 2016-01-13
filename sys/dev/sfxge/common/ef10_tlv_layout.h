@@ -764,4 +764,20 @@ struct tlv_rx_event_merging_config {
 #define TLV_RX_EVENT_MERGING_MAX_EVENTS_DEFAULT 7
 #define TLV_RX_EVENT_MERGING_TIMEOUT_NS_DEFAULT 8740
 
+#define TLV_TAG_PCIE_LINK_SETTINGS (0x101f0000)
+struct tlv_pcie_link_settings {
+  uint32_t tag;
+  uint32_t length;
+  uint16_t gen;   /* Target PCIe generation: 1, 2, 3 */
+  uint16_t width; /* Number of lanes */
+};
+
+#define TLV_TAG_LICENSE (0x20800000)
+
+typedef struct tlv_license {
+  uint32_t  tag;
+  uint32_t  length;
+  uint8_t   data[];
+} tlv_license_t;
+
 #endif /* CI_MGMT_TLV_LAYOUT_H */
