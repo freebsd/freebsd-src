@@ -672,6 +672,7 @@ struct efx_nic_s {
 		struct {
 			int			ena_vi_base;
 			int			ena_vi_count;
+			int			ena_vi_shift;
 #if EFSYS_OPT_VPD
 			caddr_t			ena_svpd;
 			size_t			ena_svpd_length;
