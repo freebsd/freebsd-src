@@ -342,6 +342,10 @@ typedef struct efx_intr_ops_s {
 	void		(*eio_disable)(efx_nic_t *);
 	void		(*eio_disable_unlocked)(efx_nic_t *);
 	efx_rc_t	(*eio_trigger)(efx_nic_t *, unsigned int);
+	void		(*eio_status_line)(efx_nic_t *, boolean_t *, uint32_t *);
+	void		(*eio_status_message)(efx_nic_t *, unsigned int,
+				 boolean_t *);
+	void		(*eio_fatal)(efx_nic_t *);
 	void		(*eio_fini)(efx_nic_t *);
 } efx_intr_ops_t;
 
@@ -436,9 +440,9 @@ typedef struct efx_filter_s {
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 	falconsiena_filter_t	*ef_falconsiena_filter;
 #endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
-#if EFSYS_OPT_HUNTINGTON
-	hunt_filter_table_t	*ef_hunt_filter_table;
-#endif /* EFSYS_OPT_HUNTINGTON */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	ef10_filter_table_t	*ef_ef10_filter_table;
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 } efx_filter_t;
 
 extern			void
