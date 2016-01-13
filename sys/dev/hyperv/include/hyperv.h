@@ -759,7 +759,6 @@ typedef struct hv_vmbus_channel {
 	hv_vmbus_ring_buffer_info	inbound;
 
 	struct mtx			inbound_lock;
-	hv_vmbus_handle			control_work_queue;
 
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;
