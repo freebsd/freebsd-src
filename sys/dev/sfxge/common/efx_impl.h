@@ -157,10 +157,6 @@ typedef struct efx_tx_ops_s {
 typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_init)(efx_nic_t *);
 	void		(*erxo_fini)(efx_nic_t *);
-#if EFSYS_OPT_RX_HDR_SPLIT
-	efx_rc_t	(*erxo_hdr_split_enable)(efx_nic_t *, unsigned int,
-						 unsigned int);
-#endif
 #if EFSYS_OPT_RX_SCATTER
 	efx_rc_t	(*erxo_scatter_enable)(efx_nic_t *, unsigned int);
 #endif
