@@ -31,10 +31,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
+#if EFSYS_OPT_MON_MCDI
 #include "mcdi_mon.h"
+#endif
 
 #if EFSYS_OPT_HUNTINGTON
 
