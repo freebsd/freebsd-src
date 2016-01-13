@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160113:
+	With the addition of ypldap(8), a new _ypldap user is now required
+	during installworld. "mergemaster -p" can be used to add the user
+	prior to installworld, as documented in the handbook.
+
 20151216:
 	The tftp loader (pxeboot) now uses the option root-path directive. As a
 	consequence it no longer looks for a pxeboot.4th file on the tftp
