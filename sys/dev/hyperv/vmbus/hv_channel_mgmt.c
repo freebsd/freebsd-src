@@ -34,13 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "hv_vmbus_priv.h"
 
-typedef void (*hv_pfn_channel_msg_handler)(hv_vmbus_channel_msg_header* msg);
-
-typedef struct hv_vmbus_channel_msg_table_entry {
-	hv_vmbus_channel_msg_type    messageType;
-	hv_pfn_channel_msg_handler   messageHandler;
-} hv_vmbus_channel_msg_table_entry;
-
 /*
  * Internal functions
  */
@@ -52,36 +45,46 @@ static void vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_offers_delivered(hv_vmbus_channel_msg_header* hdr);
 static void vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr);
-static void vmbus_channel_process_offer(void *context);
 
 /**
  * Channel message dispatch table
  */
 hv_vmbus_channel_msg_table_entry
     g_channel_message_table[HV_CHANNEL_MESSAGE_COUNT] = {
-	{ HV_CHANNEL_MESSAGE_INVALID, NULL },
-	{ HV_CHANNEL_MESSAGE_OFFER_CHANNEL, vmbus_channel_on_offer },
+	{ HV_CHANNEL_MESSAGE_INVALID,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGE_OFFER_CHANNEL,
+		0, vmbus_channel_on_offer },
 	{ HV_CHANNEL_MESSAGE_RESCIND_CHANNEL_OFFER,
-		vmbus_channel_on_offer_rescind },
-	{ HV_CHANNEL_MESSAGE_REQUEST_OFFERS, NULL },
+		0, vmbus_channel_on_offer_rescind },
+	{ HV_CHANNEL_MESSAGE_REQUEST_OFFERS,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_ALL_OFFERS_DELIVERED,
-		vmbus_channel_on_offers_delivered },
-	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL, NULL },
+		1, vmbus_channel_on_offers_delivered },
+	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_OPEN_CHANNEL_RESULT,
-		vmbus_channel_on_open_result },
-	{ HV_CHANNEL_MESSAGE_CLOSE_CHANNEL, NULL },
-	{ HV_CHANNEL_MESSAGEL_GPADL_HEADER, NULL },
-	{ HV_CHANNEL_MESSAGE_GPADL_BODY, NULL },
+		1, vmbus_channel_on_open_result },
+	{ HV_CHANNEL_MESSAGE_CLOSE_CHANNEL,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGEL_GPADL_HEADER,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGE_GPADL_BODY,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_GPADL_CREATED,
-		vmbus_channel_on_gpadl_created },
-	{ HV_CHANNEL_MESSAGE_GPADL_TEARDOWN, NULL },
+		1, vmbus_channel_on_gpadl_created },
+	{ HV_CHANNEL_MESSAGE_GPADL_TEARDOWN,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_GPADL_TORNDOWN,
-		vmbus_channel_on_gpadl_torndown },
-	{ HV_CHANNEL_MESSAGE_REL_ID_RELEASED, NULL },
-	{ HV_CHANNEL_MESSAGE_INITIATED_CONTACT, NULL },
+		1, vmbus_channel_on_gpadl_torndown },
+	{ HV_CHANNEL_MESSAGE_REL_ID_RELEASED,
+		0, NULL },
+	{ HV_CHANNEL_MESSAGE_INITIATED_CONTACT,
+		0, NULL },
 	{ HV_CHANNEL_MESSAGE_VERSION_RESPONSE,
-		vmbus_channel_on_version_response },
-	{ HV_CHANNEL_MESSAGE_UNLOAD, NULL }
+		1, vmbus_channel_on_version_response },
+	{ HV_CHANNEL_MESSAGE_UNLOAD,
+		0, NULL }
 };
 
 
@@ -209,15 +212,6 @@ hv_queue_work_item(
 	return (taskqueue_enqueue(wq->queue, &w->work));
 }
 
-/**
- * @brief Rescind the offer by initiating a device removal
- */
-static void
-vmbus_channel_process_rescind_offer(void *context)
-{
-	hv_vmbus_channel* channel = (hv_vmbus_channel*) context;
-	hv_vmbus_child_device_unregister(channel->device);
-}
 
 /**
  * @brief Allocate and initialize a vmbus channel object
@@ -240,14 +234,6 @@ hv_vmbus_allocate_channel(void)
 
 	TAILQ_INIT(&channel->sc_list_anchor);
 
-	channel->control_work_queue = hv_work_queue_create("control");
-
-	if (channel->control_work_queue == NULL) {
-	    mtx_destroy(&channel->inbound_lock);
-	    free(channel, M_DEVBUF);
-	    return (NULL);
-	}
-
 	return (channel);
 }
 
@@ -258,7 +244,6 @@ static inline void
 ReleaseVmbusChannel(void *context)
 {
 	hv_vmbus_channel* channel = (hv_vmbus_channel*) context;
-	hv_work_queue_close(channel->control_work_queue);
 	free(channel, M_DEVBUF);
 }
 
@@ -284,14 +269,12 @@ hv_vmbus_free_vmbus_channel(hv_vmbus_channel* channel)
  * associated with this offer
  */
 static void
-vmbus_channel_process_offer(void *context)
+vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 {
-	hv_vmbus_channel*	new_channel;
 	boolean_t		f_new;
 	hv_vmbus_channel*	channel;
 	int			ret;
 
-	new_channel = (hv_vmbus_channel*) context;
 	f_new = TRUE;
 	channel = NULL;
 
@@ -524,11 +507,7 @@ vmbus_channel_on_offer(hv_vmbus_channel_msg_header* hdr)
 	new_channel->monitor_group = (uint8_t) offer->monitor_id / 32;
 	new_channel->monitor_bit = (uint8_t) offer->monitor_id % 32;
 
-	/* TODO: Make sure the offer comes from our parent partition */
-	hv_queue_work_item(
-	    new_channel->control_work_queue,
-	    vmbus_channel_process_offer,
-	    new_channel);
+	vmbus_channel_process_offer(new_channel);
 }
 
 /**
@@ -549,8 +528,7 @@ vmbus_channel_on_offer_rescind(hv_vmbus_channel_msg_header* hdr)
 	if (channel == NULL) 
 	    return;
 
-	hv_queue_work_item(channel->control_work_queue,
-	    vmbus_channel_process_rescind_offer, channel);
+	hv_vmbus_child_device_unregister(channel->device);
 }
 
 /**
