@@ -4158,6 +4158,7 @@ ClangASTContext::GetTypeClass (lldb::opaque_compiler_type_t type)
         case clang::Type::Decltype:                 break;
         case clang::Type::TemplateSpecialization:   break;
         case clang::Type::Atomic:                   break;
+        case clang::Type::Pipe:                     break;
             
             // pointer type decayed from an array or function type.
         case clang::Type::Decayed:                  break;
@@ -4891,6 +4892,7 @@ ClangASTContext::GetEncoding (lldb::opaque_compiler_type_t type, uint64_t &count
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
         case clang::Type::Adjusted:
+        case clang::Type::Pipe:
             break;
             
             // pointer type decayed from an array or function type.
@@ -5008,6 +5010,7 @@ ClangASTContext::GetFormat (lldb::opaque_compiler_type_t type)
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
         case clang::Type::Adjusted:
+        case clang::Type::Pipe:
             break;
             
             // pointer type decayed from an array or function type.
@@ -9965,6 +9968,18 @@ ClangASTContext::DeclContextGetName (void *opaque_decl_ctx)
         clang::NamedDecl *named_decl = llvm::dyn_cast<clang::NamedDecl>((clang::DeclContext *)opaque_decl_ctx);
         if (named_decl)
             return ConstString(named_decl->getName());
+    }
+    return ConstString();
+}
+
+ConstString
+ClangASTContext::DeclContextGetScopeQualifiedName (void *opaque_decl_ctx)
+{
+    if (opaque_decl_ctx)
+    {
+        clang::NamedDecl *named_decl = llvm::dyn_cast<clang::NamedDecl>((clang::DeclContext *)opaque_decl_ctx);
+        if (named_decl)
+            return ConstString(llvm::StringRef(named_decl->getQualifiedNameAsString()));
     }
     return ConstString();
 }
