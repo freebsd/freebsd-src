@@ -1578,47 +1578,86 @@ static ef10_parttbl_entry_t medford_parttbl[] = {
 	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   4, EFX_NVRAM_FPGA_BACKUP}
 };
 
-static	__checkReturn		ef10_parttbl_entry_t *
-ef10_parttbl_entry(
+static	__checkReturn		efx_rc_t
+ef10_parttbl_get(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type)
+	__out			ef10_parttbl_entry_t **parttblp,
+	__out			size_t *parttbl_rowsp)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	ef10_parttbl_entry_t *entry;
-	ef10_parttbl_entry_t *parttbl;
-	size_t parttbl_size = 0;
-	unsigned int i;
-
-	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
-
 	switch (enp->en_family) {
 	case EFX_FAMILY_HUNTINGTON:
-		parttbl = hunt_parttbl;
-		parttbl_size = EFX_ARRAY_SIZE(hunt_parttbl);
+		*parttblp = hunt_parttbl;
+		*parttbl_rowsp = EFX_ARRAY_SIZE(hunt_parttbl);
 		break;
 
 	case EFX_FAMILY_MEDFORD:
-		parttbl = medford_parttbl;
-		parttbl_size = EFX_ARRAY_SIZE(medford_parttbl);
+		*parttblp = medford_parttbl;
+		*parttbl_rowsp = EFX_ARRAY_SIZE(medford_parttbl);
 		break;
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
-		goto not_found;
+		return (EINVAL);
 	}
+	return (0);
+}
 
-	if (parttbl != NULL) {
-		for (i = 0; i < parttbl_size; i++) {
-			entry = &parttbl[i];
+	__checkReturn		efx_rc_t
+ef10_nvram_type_to_partn(
+	__in			efx_nic_t *enp,
+	__in			efx_nvram_type_t type,
+	__out			uint32_t *partnp)
+{
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	ef10_parttbl_entry_t *parttbl = NULL;
+	size_t parttbl_rows = 0;
+	unsigned int i;
 
-			if (entry->port == emip->emi_port &&
-			    entry->nvtype == type) {
-				return (entry);
+	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
+	EFSYS_ASSERT(partnp != NULL);
+
+	if (ef10_parttbl_get(enp, &parttbl, &parttbl_rows) == 0) {
+		for (i = 0; i < parttbl_rows; i++) {
+			ef10_parttbl_entry_t *entry = &parttbl[i];
+
+			if (entry->nvtype == type &&
+			    entry->port == emip->emi_port) {
+				*partnp = entry->partn;
+				return (0);
 			}
 		}
 	}
-not_found:
-	return (NULL);
+
+	return (ENOTSUP);
+}
+
+
+static	__checkReturn		efx_rc_t
+ef10_nvram_partn_to_type(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__out			efx_nvram_type_t *typep)
+{
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	ef10_parttbl_entry_t *parttbl = NULL;
+	size_t parttbl_rows = 0;
+	unsigned int i;
+
+	EFSYS_ASSERT(typep != NULL);
+
+	if (ef10_parttbl_get(enp, &parttbl, &parttbl_rows) == 0) {
+		for (i = 0; i < parttbl_rows; i++) {
+			ef10_parttbl_entry_t *entry = &parttbl[i];
+
+			if (entry->partn == partn &&
+			    entry->port == emip->emi_port) {
+				*typep = entry->nvtype;
+				return (0);
+			}
+		}
+	}
+
+	return (ENOTSUP);
 }
 
 
@@ -1628,18 +1667,14 @@ not_found:
 ef10_nvram_test(
 	__in			efx_nic_t *enp)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	ef10_parttbl_entry_t *entry;
-	ef10_parttbl_entry_t *parttbl;
-	size_t parttbl_size = 0;
+	efx_nvram_type_t type;
 	unsigned int npartns = 0;
 	uint32_t *partns = NULL;
 	size_t size;
 	unsigned int i;
-	unsigned int j;
 	efx_rc_t rc;
 
-	/* Find supported partitions */
+	/* Read available partitions from NVRAM partition map */
 	size = MC_CMD_NVRAM_PARTITIONS_OUT_TYPE_ID_MAXNUM * sizeof (uint32_t);
 	EFSYS_KMEM_ALLOC(enp->en_esip, size, partns);
 	if (partns == NULL) {
@@ -1652,46 +1687,18 @@ ef10_nvram_test(
 		goto fail2;
 	}
 
-	/*
-	 * Iterate over the list of supported partition types
-	 * applicable to *this* port
-	 */
-	switch (enp->en_family) {
-	case EFX_FAMILY_HUNTINGTON:
-		parttbl = hunt_parttbl;
-		parttbl_size = EFX_ARRAY_SIZE(hunt_parttbl);
-		break;
-
-	case EFX_FAMILY_MEDFORD:
-		parttbl = medford_parttbl;
-		parttbl_size = EFX_ARRAY_SIZE(medford_parttbl);
-		break;
-
-	default:
-		EFSYS_ASSERT(B_FALSE);
-		goto fail3;
-	}
-
-	for (i = 0; i < parttbl_size; i++) {
-		entry = &parttbl[i];
-
-		if (entry->port != emip->emi_port)
+	for (i = 0; i < npartns; i++) {
+		/* Check if the partition is supported for this port */
+		if ((rc = ef10_nvram_partn_to_type(enp, partns[i], &type)) != 0)
 			continue;
 
-		for (j = 0; j < npartns; j++) {
-			if (entry->partn == partns[j]) {
-				rc = efx_mcdi_nvram_test(enp, entry->partn);
-				if (rc != 0)
-					goto fail4;
-			}
-		}
+		if ((rc = efx_mcdi_nvram_test(enp, partns[i])) != 0)
+			goto fail3;
 	}
 
 	EFSYS_KMEM_FREE(enp->en_esip, size, partns);
 	return (0);
 
-fail4:
-	EFSYS_PROBE(fail3);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
@@ -1710,15 +1717,11 @@ ef10_nvram_size(
 	__in			efx_nvram_type_t type,
 	__out			size_t *sizep)
 {
-	ef10_parttbl_entry_t *entry;
 	uint32_t partn;
 	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
-		rc = ENOTSUP;
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
-	}
-	partn = entry->partn;
 
 	if ((rc = ef10_nvram_partn_size(enp, partn, sizep)) != 0)
 		goto fail2;
@@ -1742,15 +1745,11 @@ ef10_nvram_get_version(
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4])
 {
-	ef10_parttbl_entry_t *entry;
 	uint32_t partn;
 	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
-		rc = ENOTSUP;
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
-	}
-	partn = entry->partn;
 
 	/* FIXME: get highest partn version from all ports */
 	/* FIXME: return partn description if available */
@@ -1775,15 +1774,11 @@ ef10_nvram_rw_start(
 	__in			efx_nvram_type_t type,
 	__out			size_t *chunk_sizep)
 {
-	ef10_parttbl_entry_t *entry;
 	uint32_t partn;
 	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
-		rc = ENOTSUP;
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
-	}
-	partn = entry->partn;
 
 	if ((rc = ef10_nvram_partn_lock(enp, partn)) != 0)
 		goto fail2;
@@ -1809,16 +1804,13 @@ ef10_nvram_read_chunk(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	ef10_parttbl_entry_t *entry;
+	uint32_t partn;
 	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
-		rc = ENOTSUP;
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
-	}
 
-	if ((rc = ef10_nvram_partn_read(enp, entry->partn,
-		    offset, data, size)) != 0)
+	if ((rc = ef10_nvram_partn_read(enp, partn, offset, data, size)) != 0)
 		goto fail2;
 
 	return (0);
@@ -1836,19 +1828,17 @@ ef10_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type)
 {
-	ef10_parttbl_entry_t *entry;
+	uint32_t partn;
 	size_t size;
 	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
-		rc = ENOTSUP;
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
-	}
 
-	if ((rc = ef10_nvram_partn_size(enp, entry->partn, &size)) != 0)
+	if ((rc = ef10_nvram_partn_size(enp, partn, &size)) != 0)
 		goto fail2;
 
-	if ((rc = ef10_nvram_partn_erase(enp, entry->partn, 0, size)) != 0)
+	if ((rc = ef10_nvram_partn_erase(enp, partn, 0, size)) != 0)
 		goto fail3;
 
 	return (0);
@@ -1871,16 +1861,13 @@ ef10_nvram_write_chunk(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
-	ef10_parttbl_entry_t *entry;
+	uint32_t partn;
 	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
-		rc = ENOTSUP;
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
-	}
 
-	if ((rc = ef10_nvram_partn_write(enp, entry->partn,
-		    offset, data, size)) != 0)
+	if ((rc = ef10_nvram_partn_write(enp, partn, offset, data, size)) != 0)
 		goto fail2;
 
 	return (0);
@@ -1898,10 +1885,11 @@ ef10_nvram_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type)
 {
-	ef10_parttbl_entry_t *entry;
+	uint32_t partn;
+	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) != NULL)
-		ef10_nvram_partn_unlock(enp, entry->partn);
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) == 0)
+		ef10_nvram_partn_unlock(enp, partn);
 }
 
 	__checkReturn		efx_rc_t
@@ -1910,15 +1898,11 @@ ef10_nvram_set_version(
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4])
 {
-	ef10_parttbl_entry_t *entry;
 	uint32_t partn;
 	efx_rc_t rc;
 
-	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
-		rc = ENOTSUP;
+	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
-	}
-	partn = entry->partn;
 
 	if ((rc = ef10_nvram_partn_set_version(enp, partn, version)) != 0)
 		goto fail2;
@@ -1927,7 +1911,6 @@ ef10_nvram_set_version(
 
 fail2:
 	EFSYS_PROBE(fail2);
-
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
