@@ -335,7 +335,7 @@ private:
     public:
       /// \brief Kind of a given entry. Currently, only target regions are
       /// supported.
-      enum OffloadingEntryInfoKinds {
+      enum OffloadingEntryInfoKinds : unsigned {
         // Entry is a target region.
         OFFLOAD_ENTRY_INFO_TARGET_REGION = 0,
         // Invalid entry info.
@@ -955,7 +955,7 @@ public:
   /// \brief Emit the target regions enclosed in \a GD function definition or
   /// the function itself in case it is a valid device function. Returns true if
   /// \a GD was dealt with successfully.
-  /// \param FD Function to scan.
+  /// \param GD Function to scan.
   virtual bool emitTargetFunctions(GlobalDecl GD);
 
   /// \brief Emit the global variable if it is a valid device global variable.

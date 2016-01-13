@@ -446,6 +446,12 @@ ASTTypeWriter::VisitAtomicType(const AtomicType *T) {
   Code = TYPE_ATOMIC;
 }
 
+void
+ASTTypeWriter::VisitPipeType(const PipeType *T) {
+  Writer.AddTypeRef(T->getElementType(), Record);
+  Code = TYPE_PIPE;
+}
+
 namespace {
 
 class TypeLocWriter : public TypeLocVisitor<TypeLocWriter> {
@@ -671,6 +677,9 @@ void TypeLocWriter::VisitAtomicTypeLoc(AtomicTypeLoc TL) {
   Writer.AddSourceLocation(TL.getKWLoc(), Record);
   Writer.AddSourceLocation(TL.getLParenLoc(), Record);
   Writer.AddSourceLocation(TL.getRParenLoc(), Record);
+}
+void TypeLocWriter::VisitPipeTypeLoc(PipeTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getKWLoc(), Record);
 }
 
 void ASTWriter::WriteTypeAbbrevs() {
@@ -4611,6 +4620,11 @@ void ASTWriter::WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord) {
         AddSourceLocation(Update.getLoc(), Record);
         break;
 
+      case UPD_CXX_INSTANTIATED_DEFAULT_ARGUMENT:
+        AddStmt(const_cast<Expr*>(
+                  cast<ParmVarDecl>(Update.getDecl())->getDefaultArg()));
+        break;
+
       case UPD_CXX_INSTANTIATED_CLASS_DEFINITION: {
         auto *RD = cast<CXXRecordDecl>(D);
         UpdatedDeclContexts.insert(RD->getPrimaryContext());
@@ -5777,6 +5791,15 @@ void ASTWriter::StaticDataMemberInstantiated(const VarDecl *D) {
   DeclUpdates[D].push_back(
       DeclUpdate(UPD_CXX_INSTANTIATED_STATIC_DATA_MEMBER,
        D->getMemberSpecializationInfo()->getPointOfInstantiation()));
+}
+
+void ASTWriter::DefaultArgumentInstantiated(const ParmVarDecl *D) {
+  assert(!WritingAST && "Already writing the AST!");
+  if (!D->isFromASTFile())
+    return;
+
+  DeclUpdates[D].push_back(
+      DeclUpdate(UPD_CXX_INSTANTIATED_DEFAULT_ARGUMENT, D));
 }
 
 void ASTWriter::AddedObjCCategoryToInterface(const ObjCCategoryDecl *CatD,
