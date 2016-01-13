@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
+
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/sleepqueue.h>
@@ -770,42 +771,47 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src)
 {
 	struct drm_i915_error_object *dst;
-	struct sf_buf *sf;
-	void *d, *s;
-	int page, page_count;
+	int i, count;
 	u32 reloc_offset;
 
 	if (src == NULL || src->pages == NULL)
 		return NULL;
 
-	page_count = src->base.size / PAGE_SIZE;
+	count = src->base.size / PAGE_SIZE;
 
-	dst = malloc(sizeof(*dst) + page_count * sizeof(u32 *), DRM_I915_GEM,
-	    M_NOWAIT);
+	dst = malloc(sizeof(*dst) + count * sizeof(u32 *), DRM_I915_GEM, M_NOWAIT);
 	if (dst == NULL)
-		return (NULL);
+		return NULL;
 
 	reloc_offset = src->gtt_offset;
-	for (page = 0; page < page_count; page++) {
+	for (i = 0; i < count; i++) {
+		void *d;
+
 		d = malloc(PAGE_SIZE, DRM_I915_GEM, M_NOWAIT);
 		if (d == NULL)
 			goto unwind;
 
 		if (reloc_offset < dev_priv->mm.gtt_mappable_end &&
 		    src->has_global_gtt_mapping) {
+			void *s;
+
 			/* Simply ignore tiling or any overlapping fence.
 			 * It's part of the error state, and this hopefully
 			 * captures what the GPU read.
 			 */
 			s = pmap_mapdev_attr(src->base.dev->agp->base +
-			    reloc_offset, PAGE_SIZE, PAT_WRITE_COMBINING);
+						     reloc_offset,
+						     PAGE_SIZE, PAT_WRITE_COMBINING);
 			memcpy(d, s, PAGE_SIZE);
 			pmap_unmapdev((vm_offset_t)s, PAGE_SIZE);
 		} else {
-			drm_clflush_pages(&src->pages[page], 1);
+			struct sf_buf *sf;
+			void *s;
+
+			drm_clflush_pages(&src->pages[i], 1);
 
 			sched_pin();
-			sf = sf_buf_alloc(src->pages[page], SFB_CPUPRIVATE |
+			sf = sf_buf_alloc(src->pages[i], SFB_CPUPRIVATE |
 			    SFB_NOWAIT);
 			if (sf != NULL) {
 				s = (void *)(uintptr_t)sf_buf_kva(sf);
@@ -817,21 +823,21 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			}
 			sched_unpin();
 
-			drm_clflush_pages(&src->pages[page], 1);
+			drm_clflush_pages(&src->pages[i], 1);
 		}
 
-		dst->pages[page] = d;
+		dst->pages[i] = d;
 
 		reloc_offset += PAGE_SIZE;
 	}
-	dst->page_count = page_count;
+	dst->page_count = count;
 	dst->gtt_offset = src->gtt_offset;
 
 	return dst;
 
 unwind:
-	while (page--)
-		free(dst->pages[page], DRM_I915_GEM);
+	while (i--)
+		free(dst->pages[i], DRM_I915_GEM);
 	free(dst, DRM_I915_GEM);
 	return NULL;
 }
@@ -2571,6 +2577,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
 	else
