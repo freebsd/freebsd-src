@@ -271,6 +271,12 @@ siena_nvram_set_version(
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
 
+extern	__checkReturn		efx_rc_t
+siena_nvram_type_to_partn(
+	__in			efx_nic_t *enp,
+	__in			efx_nvram_type_t type,
+	__out			uint32_t *partnp);
+
 #endif	/* EFSYS_OPT_NVRAM */
 
 #if EFSYS_OPT_VPD
