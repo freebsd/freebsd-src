@@ -34,7 +34,6 @@
 #define	_SYS_EFX_MCDI_H
 
 #include "efx.h"
-#include "efx_regs.h"
 #include "efx_regs_mcdi.h"
 
 #ifdef	__cplusplus
