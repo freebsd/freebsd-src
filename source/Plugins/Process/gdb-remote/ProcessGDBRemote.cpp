@@ -173,118 +173,6 @@ namespace {
 
 } // anonymous namespace end
 
-class ProcessGDBRemote::GDBLoadedModuleInfoList
-{
-public:
-
-    class LoadedModuleInfo
-    {
-    public:
-
-        enum e_data_point
-        {
-            e_has_name      = 0,
-            e_has_base      ,
-            e_has_dynamic   ,
-            e_has_link_map  ,
-            e_num
-        };
-
-        LoadedModuleInfo ()
-        {
-            for (uint32_t i = 0; i < e_num; ++i)
-                m_has[i] = false;
-        }
-
-        void set_name (const std::string & name)
-        {
-            m_name = name;
-            m_has[e_has_name] = true;
-        }
-        bool get_name (std::string & out) const
-        {
-            out = m_name;
-            return m_has[e_has_name];
-        }
-
-        void set_base (const lldb::addr_t base)
-        {
-            m_base = base;
-            m_has[e_has_base] = true;
-        }
-        bool get_base (lldb::addr_t & out) const
-        {
-            out = m_base;
-            return m_has[e_has_base];
-        }
-
-        void set_base_is_offset (bool is_offset)
-        {
-            m_base_is_offset = is_offset;
-        }
-        bool get_base_is_offset(bool & out) const
-        {
-            out = m_base_is_offset;
-            return m_has[e_has_base];
-        }
-
-        void set_link_map (const lldb::addr_t addr)
-        {
-            m_link_map = addr;
-            m_has[e_has_link_map] = true;
-        }
-        bool get_link_map (lldb::addr_t & out) const
-        {
-            out = m_link_map;
-            return m_has[e_has_link_map];
-        }
-
-        void set_dynamic (const lldb::addr_t addr)
-        {
-            m_dynamic = addr;
-            m_has[e_has_dynamic] = true;
-        }
-        bool get_dynamic (lldb::addr_t & out) const
-        {
-            out = m_dynamic;
-            return m_has[e_has_dynamic];
-        }
-
-        bool has_info (e_data_point datum)
-        {
-            assert (datum < e_num);
-            return m_has[datum];
-        }
-
-    protected:
-
-        bool m_has[e_num];
-        std::string m_name;
-        lldb::addr_t m_link_map;
-        lldb::addr_t m_base;
-        bool m_base_is_offset;
-        lldb::addr_t m_dynamic;
-    };
-
-    GDBLoadedModuleInfoList ()
-        : m_list ()
-        , m_link_map (LLDB_INVALID_ADDRESS)
-    {}
-
-    void add (const LoadedModuleInfo & mod)
-    {
-        m_list.push_back (mod);
-    }
-
-    void clear ()
-    {
-        m_list.clear ();
-    }
-
-    std::vector<LoadedModuleInfo> m_list;
-    lldb::addr_t m_link_map;
-};
-
 // TODO Randomly assigning a port is unsafe.  We should get an unused
 // ephemeral port from the kernel and make sure we reserve it before passing
 // it to debugserver.
@@ -2034,6 +1922,8 @@ ProcessGDBRemote::SetThreadStopInfo (lldb::tid_t tid,
                                      const std::vector<addr_t> &exc_data,
                                      addr_t thread_dispatch_qaddr,
                                      bool queue_vars_valid, // Set to true if queue_name, queue_kind and queue_serial are valid
+                                     LazyBool associated_with_dispatch_queue,
+                                     addr_t dispatch_queue_t,
                                      std::string &queue_name,
                                      QueueKind queue_kind,
                                      uint64_t queue_serial)
@@ -2074,9 +1964,14 @@ ProcessGDBRemote::SetThreadStopInfo (lldb::tid_t tid,
             gdb_thread->SetThreadDispatchQAddr (thread_dispatch_qaddr);
             // Check if the GDB server was able to provide the queue name, kind and serial number
             if (queue_vars_valid)
-                gdb_thread->SetQueueInfo(std::move(queue_name), queue_kind, queue_serial);
+                gdb_thread->SetQueueInfo(std::move(queue_name), queue_kind, queue_serial, dispatch_queue_t, associated_with_dispatch_queue);
             else
                 gdb_thread->ClearQueueInfo();
+
+            gdb_thread->SetAssociatedWithLibdispatchQueue (associated_with_dispatch_queue);
+
+            if (dispatch_queue_t != LLDB_INVALID_ADDRESS)
+                gdb_thread->SetQueueLibdispatchQueueAddress (dispatch_queue_t);
 
             // Make sure we update our thread stop reason just once
             if (!thread_sp->StopInfoIsUpToDate())
@@ -2248,9 +2143,11 @@ ProcessGDBRemote::SetThreadStopInfo (StructuredData::Dictionary *thread_dict)
     static ConstString g_key_metype("metype");
     static ConstString g_key_medata("medata");
     static ConstString g_key_qaddr("qaddr");
+    static ConstString g_key_dispatch_queue_t("dispatch_queue_t");
+    static ConstString g_key_associated_with_dispatch_queue("associated_with_dispatch_queue");
     static ConstString g_key_queue_name("qname");
     static ConstString g_key_queue_kind("qkind");
-    static ConstString g_key_queue_serial("qserial");
+    static ConstString g_key_queue_serial_number("qserialnum");
     static ConstString g_key_registers("registers");
     static ConstString g_key_memory("memory");
     static ConstString g_key_address("address");
@@ -2270,9 +2167,11 @@ ProcessGDBRemote::SetThreadStopInfo (StructuredData::Dictionary *thread_dict)
     addr_t thread_dispatch_qaddr = LLDB_INVALID_ADDRESS;
     ExpeditedRegisterMap expedited_register_map;
     bool queue_vars_valid = false;
+    addr_t dispatch_queue_t = LLDB_INVALID_ADDRESS;
+    LazyBool associated_with_dispatch_queue = eLazyBoolCalculate;
     std::string queue_name;
     QueueKind queue_kind = eQueueKindUnknown;
-    uint64_t queue_serial = 0;
+    uint64_t queue_serial_number = 0;
     // Iterate through all of the thread dictionary key/value pairs from the structured data dictionary
 
     thread_dict->ForEach([this,
@@ -2286,9 +2185,11 @@ ProcessGDBRemote::SetThreadStopInfo (StructuredData::Dictionary *thread_dict)
                           &exc_data,
                           &thread_dispatch_qaddr,
                           &queue_vars_valid,
+                          &associated_with_dispatch_queue,
+                          &dispatch_queue_t,
                           &queue_name,
                           &queue_kind,
-                          &queue_serial]
+                          &queue_serial_number]
                           (ConstString key, StructuredData::Object* object) -> bool
     {
         if (key == g_key_tid)
@@ -2340,11 +2241,26 @@ ProcessGDBRemote::SetThreadStopInfo (StructuredData::Dictionary *thread_dict)
                 queue_kind = eQueueKindConcurrent;
             }
         }
-        else if (key == g_key_queue_serial)
+        else if (key == g_key_queue_serial_number)
         {
-            queue_serial = object->GetIntegerValue(0);
-            if (queue_serial != 0)
+            queue_serial_number = object->GetIntegerValue(0);
+            if (queue_serial_number != 0)
                 queue_vars_valid = true;
+        }
+        else if (key == g_key_dispatch_queue_t)
+        {
+            dispatch_queue_t = object->GetIntegerValue(0);
+            if (dispatch_queue_t != 0 && dispatch_queue_t != LLDB_INVALID_ADDRESS)
+                queue_vars_valid = true;
+        }
+        else if (key == g_key_associated_with_dispatch_queue)
+        {
+            queue_vars_valid = true;
+            bool associated = object->GetBooleanValue ();
+            if (associated)
+                associated_with_dispatch_queue = eLazyBoolYes;
+            else
+                associated_with_dispatch_queue = eLazyBoolNo;
         }
         else if (key == g_key_reason)
         {
@@ -2416,9 +2332,11 @@ ProcessGDBRemote::SetThreadStopInfo (StructuredData::Dictionary *thread_dict)
                               exc_data,
                               thread_dispatch_qaddr,
                               queue_vars_valid,
+                              associated_with_dispatch_queue,
+                              dispatch_queue_t,
                               queue_name,
                               queue_kind,
-                              queue_serial);
+                              queue_serial_number);
 }
 
 StateType
@@ -2461,9 +2379,11 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
             std::vector<addr_t> exc_data;
             addr_t thread_dispatch_qaddr = LLDB_INVALID_ADDRESS;
             bool queue_vars_valid = false; // says if locals below that start with "queue_" are valid
+            addr_t dispatch_queue_t = LLDB_INVALID_ADDRESS;
+            LazyBool associated_with_dispatch_queue = eLazyBoolCalculate;
             std::string queue_name;
             QueueKind queue_kind = eQueueKindUnknown;
-            uint64_t queue_serial = 0;
+            uint64_t queue_serial_number = 0;
             ExpeditedRegisterMap expedited_register_map;
             while (stop_packet.GetNameColonValue(key, value))
             {
@@ -2554,6 +2474,11 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                 {
                     thread_dispatch_qaddr = StringConvert::ToUInt64 (value.c_str(), 0, 16);
                 }
+                else if (key.compare("dispatch_queue_t") == 0)
+                {
+                    queue_vars_valid = true;
+                    dispatch_queue_t = StringConvert::ToUInt64 (value.c_str(), 0, 16);
+                }
                 else if (key.compare("qname") == 0)
                 {
                     queue_vars_valid = true;
@@ -2577,10 +2502,10 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                         queue_kind = eQueueKindConcurrent;
                     }
                 }
-                else if (key.compare("qserial") == 0)
+                else if (key.compare("qserialnum") == 0)
                 {
-                    queue_serial = StringConvert::ToUInt64 (value.c_str(), 0, 0);
-                    if (queue_serial != 0)
+                    queue_serial_number = StringConvert::ToUInt64 (value.c_str(), 0, 0);
+                    if (queue_serial_number != 0)
                         queue_vars_valid = true;
                 }
                 else if (key.compare("reason") == 0)
@@ -2678,9 +2603,11 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                                                     exc_data,
                                                     thread_dispatch_qaddr,
                                                     queue_vars_valid,
+                                                    associated_with_dispatch_queue,
+                                                    dispatch_queue_t,
                                                     queue_name,
                                                     queue_kind,
-                                                    queue_serial);
+                                                    queue_serial_number);
 
             return eStateStopped;
         }
@@ -3051,7 +2978,7 @@ ProcessGDBRemote::GetImageInfoAddress()
     // the loaded module list can also provides a link map address
     if (addr == LLDB_INVALID_ADDRESS)
     {
-        GDBLoadedModuleInfoList list;
+        LoadedModuleInfoList list;
         if (GetLoadedModuleList (list).Success())
             addr = list.m_link_map;
     }
@@ -4703,7 +4630,7 @@ ProcessGDBRemote::GetGDBServerRegisterInfo ()
 }
 
 Error
-ProcessGDBRemote::GetLoadedModuleList (GDBLoadedModuleInfoList & list)
+ProcessGDBRemote::GetLoadedModuleList (LoadedModuleInfoList & list)
 {
     // Make sure LLDB has an XML parser it can use first
     if (!XMLDocument::XMLEnabled())
@@ -4747,7 +4674,7 @@ ProcessGDBRemote::GetLoadedModuleList (GDBLoadedModuleInfoList & list)
 
         root_element.ForEachChildElementWithName("library", [log, &list](const XMLNode &library) -> bool {
 
-            GDBLoadedModuleInfoList::LoadedModuleInfo module;
+            LoadedModuleInfoList::LoadedModuleInfo module;
 
             library.ForEachAttribute([log, &module](const llvm::StringRef &name, const llvm::StringRef &value) -> bool {
 
@@ -4817,7 +4744,7 @@ ProcessGDBRemote::GetLoadedModuleList (GDBLoadedModuleInfoList & list)
             return Error();
 
         root_element.ForEachChildElementWithName("library", [log, &list](const XMLNode &library) -> bool {
-            GDBLoadedModuleInfoList::LoadedModuleInfo module;
+            LoadedModuleInfoList::LoadedModuleInfo module;
 
             llvm::StringRef name = library.GetAttributeValue("name");
             module.set_name(name.str());
@@ -4879,19 +4806,18 @@ ProcessGDBRemote::LoadModuleAtAddress (const FileSpec &file, lldb::addr_t base_a
 }
 
 size_t
-ProcessGDBRemote::LoadModules ()
+ProcessGDBRemote::LoadModules (LoadedModuleInfoList &module_list)
 {
     using lldb_private::process_gdb_remote::ProcessGDBRemote;
 
     // request a list of loaded libraries from GDBServer
-    GDBLoadedModuleInfoList module_list;
     if (GetLoadedModuleList (module_list).Fail())
         return 0;
 
     // get a list of all the modules
     ModuleList new_modules;
 
-    for (GDBLoadedModuleInfoList::LoadedModuleInfo & modInfo : module_list.m_list)
+    for (LoadedModuleInfoList::LoadedModuleInfo & modInfo : module_list.m_list)
     {
         std::string  mod_name;
         lldb::addr_t mod_base;
@@ -4942,6 +4868,14 @@ ProcessGDBRemote::LoadModules ()
     }
 
     return new_modules.GetSize();
+
+}
+
+size_t
+ProcessGDBRemote::LoadModules ()
+{
+    LoadedModuleInfoList module_list;
+    return LoadModules (module_list);
 }
 
 Error
