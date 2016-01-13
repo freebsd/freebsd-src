@@ -345,14 +345,18 @@ pmap_bootstrap(u_int cpu_impl)
 	if (OF_getprop(pmem, "available", mra, sz) == -1)
 		OF_panic("%s: getprop /memory/available", __func__);
 	sz /= sizeof(*mra);
-	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
+#ifdef DIAGNOSTIC
+	OF_printf("pmap_bootstrap: physical memory\n");
+#endif
 	qsort(mra, sz, sizeof (*mra), mr_cmp);
 	physsz = 0;
 	getenv_quad("hw.physmem", &physmem);
 	physmem = btoc(physmem);
 	for (i = 0, j = 0; i < sz; i++, j += 2) {
-		CTR2(KTR_PMAP, "start=%#lx size=%#lx", mra[i].mr_start,
+#ifdef DIAGNOSTIC
+		OF_printf("start=%#lx size=%#lx\n", mra[i].mr_start,
 		    mra[i].mr_size);
+#endif
 		if (physmem != 0 && btoc(physsz + mra[i].mr_size) >= physmem) {
 			if (btoc(physsz) < physmem) {
 				phys_avail[j] = mra[i].mr_start;
@@ -616,13 +620,16 @@ pmap_bootstrap(u_int cpu_impl)
 		    __func__);
 	sz /= sizeof(*translations);
 	translations_size = sz;
-	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
+#ifdef DIAGNOSTIC
+	OF_printf("pmap_bootstrap: translations\n");
+#endif
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 	for (i = 0; i < sz; i++) {
-		CTR3(KTR_PMAP,
-		    "translation: start=%#lx size=%#lx tte=%#lx",
+#ifdef DIAGNOSTIC
+		OF_printf("translation: start=%#lx size=%#lx tte=%#lx\n",
 		    translations[i].om_start, translations[i].om_size,
 		    translations[i].om_tte);
+#endif
 		if ((translations[i].om_tte & TD_V) == 0)
 			continue;
 		if (translations[i].om_start < VM_MIN_PROM_ADDRESS ||

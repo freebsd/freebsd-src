@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <machine/cpu.h>
-#ifdef __sparc64__
-#include <machine/ktr.h>
-#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
