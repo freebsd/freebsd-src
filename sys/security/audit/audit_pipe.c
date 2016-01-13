@@ -223,7 +223,6 @@ static struct cdev	*audit_pipe_dev;
  * Special device methods and definition.
  */
 static d_open_t		audit_pipe_open;
-static d_close_t	audit_pipe_close;
 static d_read_t		audit_pipe_read;
 static d_ioctl_t	audit_pipe_ioctl;
 static d_poll_t		audit_pipe_poll;
@@ -232,7 +231,6 @@ static d_kqfilter_t	audit_pipe_kqfilter;
 static struct cdevsw	audit_pipe_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	audit_pipe_open,
-	.d_close =	audit_pipe_close,
 	.d_read =	audit_pipe_read,
 	.d_ioctl =	audit_pipe_ioctl,
 	.d_poll =	audit_pipe_poll,
@@ -658,6 +656,7 @@ audit_pipe_dtor(void *arg)
 	struct audit_pipe *ap;
 
 	ap = arg;
+	funsetown(&ap->ap_sigio);
 	AUDIT_PIPE_LIST_WLOCK();
 	AUDIT_PIPE_LOCK(ap);
 	audit_pipe_free(ap);
@@ -676,33 +675,13 @@ audit_pipe_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	int error;
 
 	ap = audit_pipe_alloc();
-	if (ap == NULL) {
+	if (ap == NULL)
 		return (ENOMEM);
-	}
 	fsetown(td->td_proc->p_pid, &ap->ap_sigio);
 	error = devfs_set_cdevpriv(ap, audit_pipe_dtor);
-	if (error != 0) {
-		AUDIT_PIPE_LIST_WLOCK();
-		audit_pipe_free(ap);
-		AUDIT_PIPE_LIST_WUNLOCK();
-	}
-	return (0);
-}
-
-/*
- * Close audit pipe, tear down all records, etc.
- */
-static int
-audit_pipe_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	struct audit_pipe *ap;
-	int error;
-
-	error = devfs_get_cdevpriv((void **)&ap);
 	if (error != 0)
-		return (error);
-	funsetown(&ap->ap_sigio);
-	return (0);
+		audit_pipe_dtor(ap);
+	return (error);
 }
 
 /*
