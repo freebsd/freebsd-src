@@ -156,6 +156,20 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
+
+		dma: dma-controller@01c02000 {
+			compatible = "allwinner,sun4i-a10-dma";
+			reg = <0x01c02000 0x1000>;
+			interrupts = <27>;
+			interrupt-parent = <&GIC>;
+		};
+
+		codec: codec@01c22c00 {
+			compatible = "allwinner,sun7i-a20-codec";
+			reg = <0x01c22c00 0x40>;
+			interrupts = <30>;
+			interrupt-parent = <&GIC>;
+		};
 	};
 };
 
