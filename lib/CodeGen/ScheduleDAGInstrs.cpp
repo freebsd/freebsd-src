@@ -896,11 +896,16 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
     assert(SU && "No SUnit mapped to this MI");
 
     if (RPTracker) {
-      PressureDiff *PDiff = PDiffs ? &(*PDiffs)[SU->NodeNum] : nullptr;
-      RPTracker->recede(/*LiveUses=*/nullptr, PDiff);
-      assert(RPTracker->getPos() == std::prev(MII) &&
-             "RPTracker can't find MI");
       collectVRegUses(SU);
+
+      RegisterOperands RegOpers;
+      RegOpers.collect(*MI, *TRI, MRI);
+      if (PDiffs != nullptr)
+        PDiffs->addInstruction(SU->NodeNum, RegOpers, MRI);
+
+      RPTracker->recedeSkipDebugValues();
+      assert(&*RPTracker->getPos() == MI && "RPTracker in sync");
+      RPTracker->recede(RegOpers);
     }
 
     assert(
@@ -1005,6 +1010,9 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
           addChainDependency(AAForDep, MFI, MF.getDataLayout(), SU,
                              I->second[i], RejectMemNodes, TrueMemOrderLatency);
       }
+      // This call must come after calls to addChainDependency() since it
+      // consumes the 'RejectMemNodes' list that addChainDependency() possibly
+      // adds to.
       adjustChainDeps(AA, MFI, MF.getDataLayout(), SU, &ExitSU, RejectMemNodes,
                       TrueMemOrderLatency);
       PendingLoads.clear();
@@ -1086,6 +1094,9 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
           addChainDependency(AAForDep, MFI, MF.getDataLayout(), SU, AliasChain,
                              RejectMemNodes);
       }
+      // This call must come after calls to addChainDependency() since it
+      // consumes the 'RejectMemNodes' list that addChainDependency() possibly
+      // adds to.
       adjustChainDeps(AA, MFI, MF.getDataLayout(), SU, &ExitSU, RejectMemNodes,
                       TrueMemOrderLatency);
     } else if (MI->mayLoad()) {
@@ -1133,13 +1144,16 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
           else
             NonAliasMemUses[V].push_back(SU);
         }
-        if (MayAlias)
-          adjustChainDeps(AA, MFI, MF.getDataLayout(), SU, &ExitSU,
-                          RejectMemNodes, /*Latency=*/0);
         // Add dependencies on alias and barrier chains, if needed.
         if (MayAlias && AliasChain)
           addChainDependency(AAForDep, MFI, MF.getDataLayout(), SU, AliasChain,
                              RejectMemNodes);
+        if (MayAlias)
+          // This call must come after calls to addChainDependency() since it
+          // consumes the 'RejectMemNodes' list that addChainDependency()
+          // possibly adds to.
+          adjustChainDeps(AA, MFI, MF.getDataLayout(), SU, &ExitSU,
+                          RejectMemNodes, /*Latency=*/0);
         if (BarrierChain)
           BarrierChain->addPred(SDep(SU, SDep::Barrier));
       }

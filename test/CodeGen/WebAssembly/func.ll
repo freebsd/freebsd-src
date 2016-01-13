@@ -2,11 +2,12 @@
 
 ; Test that basic functions assemble as expected.
 
-target datalayout = "e-p:32:32-i64:64-n32:64-S128"
+target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown"
 
 ; CHECK-LABEL: f0:
 ; CHECK: return{{$}}
+; CHECK: .endfunc{{$}}
 ; CHECK: .size f0,
 define void @f0() {
   ret void

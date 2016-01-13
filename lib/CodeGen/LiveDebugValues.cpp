@@ -19,6 +19,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -30,7 +32,7 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
-#include <deque>
+#include <queue>
 #include <list>
 
 using namespace llvm;
@@ -76,16 +78,13 @@ private:
   typedef std::list<VarLoc> VarLocList;
   typedef SmallDenseMap<const MachineBasicBlock *, VarLocList> VarLocInMBB;
 
-  bool OLChanged; // OutgoingLocs got changed for this bb.
-  bool MBBJoined; // The MBB was joined.
-
   void transferDebugValue(MachineInstr &MI, VarLocList &OpenRanges);
   void transferRegisterDef(MachineInstr &MI, VarLocList &OpenRanges);
-  void transferTerminatorInst(MachineInstr &MI, VarLocList &OpenRanges,
+  bool transferTerminatorInst(MachineInstr &MI, VarLocList &OpenRanges,
                               VarLocInMBB &OutLocs);
-  void transfer(MachineInstr &MI, VarLocList &OpenRanges, VarLocInMBB &OutLocs);
+  bool transfer(MachineInstr &MI, VarLocList &OpenRanges, VarLocInMBB &OutLocs);
 
-  void join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs, VarLocInMBB &InLocs);
+  bool join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs, VarLocInMBB &InLocs);
 
   bool ExtendRanges(MachineFunction &MF);
 
@@ -225,24 +224,18 @@ void LiveDebugValues::transferRegisterDef(MachineInstr &MI,
 }
 
 /// Terminate all open ranges at the end of the current basic block.
-void LiveDebugValues::transferTerminatorInst(MachineInstr &MI,
+bool LiveDebugValues::transferTerminatorInst(MachineInstr &MI,
                                              VarLocList &OpenRanges,
                                              VarLocInMBB &OutLocs) {
+  bool Changed = false;
   const MachineBasicBlock *CurMBB = MI.getParent();
   if (!(MI.isTerminator() || (&MI == &CurMBB->instr_back())))
-    return;
+    return false;
 
   if (OpenRanges.empty())
-    return;
+    return false;
 
-  if (OutLocs.find(CurMBB) == OutLocs.end()) {
-    // Create space for new Outgoing locs entries.
-    VarLocList VLL;
-    OutLocs.insert(std::make_pair(CurMBB, std::move(VLL)));
-  }
-  auto OL = OutLocs.find(CurMBB);
-  assert(OL != OutLocs.end());
-  VarLocList &VLL = OL->second;
+  VarLocList &VLL = OutLocs[CurMBB];
 
   for (auto OR : OpenRanges) {
     // Copy OpenRanges to OutLocs, if not already present.
@@ -251,28 +244,30 @@ void LiveDebugValues::transferTerminatorInst(MachineInstr &MI,
     if (std::find_if(VLL.begin(), VLL.end(),
                      [&](const VarLoc &V) { return (OR == V); }) == VLL.end()) {
       VLL.push_back(std::move(OR));
-      OLChanged = true;
+      Changed = true;
     }
   }
   OpenRanges.clear();
+  return Changed;
 }
 
 /// This routine creates OpenRanges and OutLocs.
-void LiveDebugValues::transfer(MachineInstr &MI, VarLocList &OpenRanges,
+bool LiveDebugValues::transfer(MachineInstr &MI, VarLocList &OpenRanges,
                                VarLocInMBB &OutLocs) {
+  bool Changed = false;
   transferDebugValue(MI, OpenRanges);
   transferRegisterDef(MI, OpenRanges);
-  transferTerminatorInst(MI, OpenRanges, OutLocs);
+  Changed = transferTerminatorInst(MI, OpenRanges, OutLocs);
+  return Changed;
 }
 
 /// This routine joins the analysis results of all incoming edges in @MBB by
 /// inserting a new DBG_VALUE instruction at the start of the @MBB - if the same
 /// source variable in all the predecessors of @MBB reside in the same location.
-void LiveDebugValues::join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs,
+bool LiveDebugValues::join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs,
                            VarLocInMBB &InLocs) {
   DEBUG(dbgs() << "join MBB: " << MBB.getName() << "\n");
-
-  MBBJoined = false;
+  bool Changed = false;
 
   VarLocList InLocsT; // Temporary incoming locations.
 
@@ -282,7 +277,7 @@ void LiveDebugValues::join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs,
     auto OL = OutLocs.find(p);
     // Join is null in case of empty OutLocs from any of the pred.
     if (OL == OutLocs.end())
-      return;
+      return false;
 
     // Just copy over the Out locs to incoming locs for the first predecessor.
     if (p == *MBB.pred_begin()) {
@@ -292,27 +287,18 @@ void LiveDebugValues::join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs,
 
     // Join with this predecessor.
     VarLocList &VLL = OL->second;
-    InLocsT.erase(std::remove_if(InLocsT.begin(), InLocsT.end(),
-                                 [&](VarLoc &ILT) {
-                                   return (std::find_if(VLL.begin(), VLL.end(),
-                                                        [&](const VarLoc &V) {
-                                                          return (ILT == V);
-                                                        }) == VLL.end());
-                                 }),
-                  InLocsT.end());
+    InLocsT.erase(
+        std::remove_if(InLocsT.begin(), InLocsT.end(), [&](VarLoc &ILT) {
+          return (std::find_if(VLL.begin(), VLL.end(), [&](const VarLoc &V) {
+                    return (ILT == V);
+                  }) == VLL.end());
+        }), InLocsT.end());
   }
 
   if (InLocsT.empty())
-    return;
+    return false;
 
-  if (InLocs.find(&MBB) == InLocs.end()) {
-    // Create space for new Incoming locs entries.
-    VarLocList VLL;
-    InLocs.insert(std::make_pair(&MBB, std::move(VLL)));
-  }
-  auto IL = InLocs.find(&MBB);
-  assert(IL != InLocs.end());
-  VarLocList &ILL = IL->second;
+  VarLocList &ILL = InLocs[&MBB];
 
   // Insert DBG_VALUE instructions, if not already inserted.
   for (auto ILT : InLocsT) {
@@ -331,12 +317,13 @@ void LiveDebugValues::join(MachineBasicBlock &MBB, VarLocInMBB &OutLocs,
         MI->getOperand(1).setImm(DMI->getOperand(1).getImm());
       DEBUG(dbgs() << "Inserted: "; MI->dump(););
       ++NumInserted;
-      MBBJoined = true; // rerun transfer().
+      Changed = true;
 
       VarLoc V(ILT.Var, MI);
       ILL.push_back(std::move(V));
     }
   }
+  return Changed;
 }
 
 /// Calculate the liveness information for the given machine function and
@@ -346,48 +333,72 @@ bool LiveDebugValues::ExtendRanges(MachineFunction &MF) {
   DEBUG(dbgs() << "\nDebug Range Extension\n");
 
   bool Changed = false;
-  OLChanged = MBBJoined = false;
+  bool OLChanged = false;
+  bool MBBJoined = false;
 
   VarLocList OpenRanges; // Ranges that are open until end of bb.
   VarLocInMBB OutLocs;   // Ranges that exist beyond bb.
   VarLocInMBB InLocs;    // Ranges that are incoming after joining.
 
-  std::deque<MachineBasicBlock *> BBWorklist;
-
+  DenseMap<unsigned int, MachineBasicBlock *> OrderToBB;
+  DenseMap<MachineBasicBlock *, unsigned int> BBToOrder;
+  std::priority_queue<unsigned int, std::vector<unsigned int>,
+                      std::greater<unsigned int>> Worklist;
+  std::priority_queue<unsigned int, std::vector<unsigned int>,
+                      std::greater<unsigned int>> Pending;
   // Initialize every mbb with OutLocs.
   for (auto &MBB : MF)
     for (auto &MI : MBB)
       transfer(MI, OpenRanges, OutLocs);
   DEBUG(printVarLocInMBB(OutLocs, "OutLocs after initialization", dbgs()));
 
-  // Construct a worklist of MBBs.
-  for (auto &MBB : MF)
-    BBWorklist.push_back(&MBB);
+  ReversePostOrderTraversal<MachineFunction *> RPOT(&MF);
+  unsigned int RPONumber = 0;
+  for (auto RI = RPOT.begin(), RE = RPOT.end(); RI != RE; ++RI) {
+    OrderToBB[RPONumber] = *RI;
+    BBToOrder[*RI] = RPONumber;
+    Worklist.push(RPONumber);
+    ++RPONumber;
+  }
 
-  // Perform join() and transfer() using the worklist until the ranges converge
-  // Ranges have converged when the worklist is empty.
-  while (!BBWorklist.empty()) {
-    MachineBasicBlock *MBB = BBWorklist.front();
-    BBWorklist.pop_front();
+  // This is a standard "union of predecessor outs" dataflow problem.
+  // To solve it, we perform join() and transfer() using the two worklist method
+  // until the ranges converge.
+  // Ranges have converged when both worklists are empty.
+  while (!Worklist.empty() || !Pending.empty()) {
+    // We track what is on the pending worklist to avoid inserting the same
+    // thing twice.  We could avoid this with a custom priority queue, but this
+    // is probably not worth it.
+    SmallPtrSet<MachineBasicBlock *, 16> OnPending;
+    while (!Worklist.empty()) {
+      MachineBasicBlock *MBB = OrderToBB[Worklist.top()];
+      Worklist.pop();
+      MBBJoined = join(*MBB, OutLocs, InLocs);
 
-    join(*MBB, OutLocs, InLocs);
+      if (MBBJoined) {
+        MBBJoined = false;
+        Changed = true;
+        for (auto &MI : *MBB)
+          OLChanged |= transfer(MI, OpenRanges, OutLocs);
+        DEBUG(printVarLocInMBB(OutLocs, "OutLocs after propagating", dbgs()));
+        DEBUG(printVarLocInMBB(InLocs, "InLocs after propagating", dbgs()));
 
-    if (MBBJoined) {
-      Changed = true;
-      for (auto &MI : *MBB)
-        transfer(MI, OpenRanges, OutLocs);
-      DEBUG(printVarLocInMBB(OutLocs, "OutLocs after propagating", dbgs()));
-      DEBUG(printVarLocInMBB(InLocs, "InLocs after propagating", dbgs()));
-
-      if (OLChanged) {
-        OLChanged = false;
-        for (auto s : MBB->successors())
-          if (std::find(BBWorklist.begin(), BBWorklist.end(), s) ==
-              BBWorklist.end()) // add if not already present.
-            BBWorklist.push_back(s);
+        if (OLChanged) {
+          OLChanged = false;
+          for (auto s : MBB->successors())
+            if (!OnPending.count(s)) {
+              OnPending.insert(s);
+              Pending.push(BBToOrder[s]);
+            }
+        }
       }
     }
+    Worklist.swap(Pending);
+    // At this point, pending must be empty, since it was just the empty
+    // worklist
+    assert(Pending.empty() && "Pending should be empty");
   }
+
   DEBUG(printVarLocInMBB(OutLocs, "Final OutLocs", dbgs()));
   DEBUG(printVarLocInMBB(InLocs, "Final InLocs", dbgs()));
   return Changed;

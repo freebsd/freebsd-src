@@ -2,7 +2,7 @@
 ; RUN: llc < %s -asm-verbose=false -fast-isel | FileCheck %s
 
 
-target datalayout = "e-p:32:32-i64:64-n32:64-S128"
+target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown"
 
 ; CHECK-LABEL: alloca32:
@@ -64,6 +64,27 @@ define void @allocarray() {
  ; CHECK: i32.add $push[[L6:.+]]=, [[L5]], $pop[[L4]]
  ; CHECK: i32.store {{.*}}=, 0($pop[[L6]]), ${{.+}}
  %p2 = getelementptr [5 x i32], [5 x i32]* %r, i32 0, i32 1
+ store i32 1, i32* %p2
+ ; CHECK: i32.const [[L7:.+]]=, 32
+ ; CHECK-NEXT: i32.add [[SP]]=, [[SP]], [[L7]]
+ ; CHECK-NEXT: i32.const [[L8:.+]]=, __stack_pointer
+ ; CHECK-NEXT: i32.store [[SP]]=, 0([[L7]]), [[SP]]
+ ret void
+}
+
+define void @allocarray_inbounds() {
+ ; CHECK: i32.const [[L1:.+]]=, __stack_pointer
+ ; CHECK-NEXT: i32.load [[L1]]=, 0([[L1]])
+ ; CHECK-NEXT: i32.const [[L2:.+]]=, 32
+ ; CHECK-NEXT: i32.sub [[SP:.+]]=, [[L1]], [[L2]]
+ %r = alloca [5 x i32]
+ ; CHECK: i32.const $push[[L3:.+]]=, 1
+ ; CHECK: i32.store {{.*}}=, 12([[SP]]), $pop[[L3]]
+ %p = getelementptr inbounds [5 x i32], [5 x i32]* %r, i32 0, i32 0
+ store i32 1, i32* %p
+ ; This store should have both the GEP and the FI folded into it.
+ ; CHECK-NEXT: i32.store {{.*}}=, 16([[SP]]), $pop
+ %p2 = getelementptr inbounds [5 x i32], [5 x i32]* %r, i32 0, i32 1
  store i32 1, i32* %p2
  ; CHECK: i32.const [[L7:.+]]=, 32
  ; CHECK-NEXT: i32.add [[SP]]=, [[SP]], [[L7]]

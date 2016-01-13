@@ -2,7 +2,7 @@
 
 ; Test varargs constructs.
 
-target datalayout = "e-p:32:32-i64:64-n32:64-S128"
+target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown"
 
 ; Test va_start.
@@ -103,7 +103,7 @@ entry:
 declare void @callee(...)
 
 ; CHECK-LABEL: caller_none:
-; CHECK-NEXT: call callee{{$}}
+; CHECK-NEXT: call callee@FUNCTION{{$}}
 ; CHECK-NEXT: return{{$}}
 define void @caller_none() {
   call void (...) @callee()
