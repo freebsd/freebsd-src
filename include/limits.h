@@ -59,11 +59,13 @@
 #define	_POSIX_TZNAME_MAX	3
 #endif
 
+#if __POSIX_VISIBLE >= 200112
 #define	BC_BASE_MAX		   99	/* max ibase/obase values in bc(1) */
 #define	BC_DIM_MAX		 2048	/* max array elements in bc(1) */
 #define	BC_SCALE_MAX		   99	/* max scale value in bc(1) */
 #define	BC_STRING_MAX		 1000	/* max const string length in bc(1) */
-#define	COLL_WEIGHTS_MAX	    0	/* max weights for order keyword */
+#define	CHARCLASS_NAME_MAX	   14	/* max character class name size */
+#define	COLL_WEIGHTS_MAX	   10	/* max weights for order keyword */
 #define	EXPR_NEST_MAX		   32	/* max expressions nested in expr(1) */
 #define	LINE_MAX		 2048	/* max bytes in an input line */
 #define	RE_DUP_MAX		  255	/* max RE's in interval notation */
@@ -72,10 +74,13 @@
 #define	_POSIX2_BC_DIM_MAX	2048
 #define	_POSIX2_BC_SCALE_MAX	99
 #define	_POSIX2_BC_STRING_MAX	1000
+#define	_POSIX2_CHARCLASS_NAME_MAX 14
+#define	_POSIX2_COLL_WEIGHTS_MAX 2
 #define	_POSIX2_EQUIV_CLASS_MAX	2
 #define	_POSIX2_EXPR_NEST_MAX	32
 #define	_POSIX2_LINE_MAX	2048
 #define	_POSIX2_RE_DUP_MAX	255
+#endif
 #endif
 
 #if __POSIX_VISIBLE >= 199309
@@ -110,8 +115,6 @@
 #define	_POSIX_TRACE_SYS_MAX	8
 #define	_POSIX_TRACE_USER_EVENT_MAX 32
 #define	_POSIX_TTY_NAME_MAX	9
-#define	_POSIX2_CHARCLASS_NAME_MAX 14
-#define	_POSIX2_COLL_WEIGHTS_MAX 2
 
 #define	_POSIX_RE_DUP_MAX	_POSIX2_RE_DUP_MAX
 #endif
