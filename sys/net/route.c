@@ -409,7 +409,6 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	struct rtentry *newrt;
 	struct rt_addrinfo info;
 	int err = 0, msgtype = RTM_MISS;
-	int needlock;
 
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
@@ -420,23 +419,16 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
-	needlock = !(ignflags & RTF_RNH_LOCKED);
-	if (needlock)
-		RADIX_NODE_HEAD_RLOCK(rnh);
-#ifdef INVARIANTS	
-	else
-		RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
-#endif
+	RADIX_NODE_HEAD_RLOCK(rnh);
 	rn = rnh->rnh_matchaddr(dst, rnh);
 	if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		newrt = RNTORT(rn);
 		RT_LOCK(newrt);
 		RT_ADDREF(newrt);
-		if (needlock)
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
-		goto done;
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
+		return (newrt);
 
-	} else if (needlock)
+	} else
 		RADIX_NODE_HEAD_RUNLOCK(rnh);
 	
 	/*
@@ -456,10 +448,7 @@ miss:
 		bzero(&info, sizeof(info));
 		info.rti_info[RTAX_DST] = dst;
 		rt_missmsg_fib(msgtype, &info, 0, err, fibnum);
-	}	
-done:
-	if (newrt)
-		RT_LOCK_ASSERT(newrt);
+	}
 	return (newrt);
 }
 
