@@ -53,6 +53,7 @@ static efx_nvram_ops_t	__efx_nvram_falcon_ops = {
 	falcon_nvram_write_chunk,	/* envo_write_chunk */
 	falcon_nvram_rw_finish,		/* envo_rw_finish */
 	falcon_nvram_set_version,	/* envo_set_version */
+	falcon_nvram_type_to_partn,	/* envo_type_to_partn */
 };
 
 #endif	/* EFSYS_OPT_FALCON */
@@ -71,6 +72,7 @@ static efx_nvram_ops_t	__efx_nvram_siena_ops = {
 	siena_nvram_write_chunk,	/* envo_write_chunk */
 	siena_nvram_rw_finish,		/* envo_rw_finish */
 	siena_nvram_set_version,	/* envo_set_version */
+	siena_nvram_type_to_partn,	/* envo_type_to_partn */
 };
 
 #endif	/* EFSYS_OPT_SIENA */
@@ -89,6 +91,7 @@ static efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 	ef10_nvram_write_chunk,		/* envo_write_chunk */
 	ef10_nvram_rw_finish,		/* envo_rw_finish */
 	ef10_nvram_set_version,		/* envo_set_version */
+	ef10_nvram_type_to_partn,	/* envo_type_to_partn */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
