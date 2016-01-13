@@ -575,6 +575,65 @@ fail1:
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
+
+/*
+ * EF10 RX pseudo-header
+ * ---------------------
+ *
+ * Receive packets are prefixed by an (optional) 14 byte pseudo-header:
+ *
+ *  +00: Toeplitz hash value.
+ *       (32bit little-endian)
+ *  +04: Outer VLAN tag. Zero if the packet did not have an outer VLAN tag.
+ *       (16bit big-endian)
+ *  +06: Inner VLAN tag. Zero if the packet did not have an inner VLAN tag.
+ *       (16bit big-endian)
+ *  +08: Packet Length. Zero if the RX datapath was in cut-through mode.
+ *       (16bit little-endian)
+ *  +10: MAC timestamp. Zero if timestamping is not enabled.
+ *       (32bit little-endian)
+ *
+ * See "The RX Pseudo-header" in SF-109306-TC.
+ */
+
+	__checkReturn	efx_rc_t
+ef10_rx_prefix_pktlen(
+	__in		efx_nic_t *enp,
+	__in		uint8_t *buffer,
+	__out		uint16_t *lengthp)
+{
+	/*
+	 * The RX pseudo-header contains the packet length, excluding the
+	 * pseudo-header. If the hardware receive datapath was operating in
+	 * cut-through mode then the length in the RX pseudo-header will be
+	 * zero, and the packet length must be obtained from the DMA length
+	 * reported in the RX event.
+	 */
+	*lengthp = buffer[8] | (buffer[9] << 8);
+	return (0);
+}
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	uint32_t
+ef10_rx_prefix_hash(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t func,
+	__in		uint8_t *buffer)
+{
+	switch (func) {
+	case EFX_RX_HASHALG_TOEPLITZ:
+		return (buffer[0] |
+		    (buffer[1] << 8) |
+		    (buffer[2] << 16) |
+		    (buffer[3] << 24));
+
+	default:
+		EFSYS_ASSERT(0);
+		return (0);
+	}
+}
+#endif /* EFSYS_OPT_RX_SCALE */
+
 			void
 ef10_rx_qpost(
 	__in		efx_rxq_t *erp,
