@@ -48,14 +48,6 @@ static			void
 falconsiena_rx_fini(
 	__in		efx_nic_t *enp);
 
-#if EFSYS_OPT_RX_HDR_SPLIT
-static	__checkReturn	efx_rc_t
-falconsiena_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size);
-#endif /* EFSYS_OPT_RX_HDR_SPLIT */
-
 #if EFSYS_OPT_RX_SCATTER
 static	__checkReturn	efx_rc_t
 falconsiena_rx_scatter_enable(
@@ -131,9 +123,6 @@ falconsiena_rx_qdestroy(
 static efx_rx_ops_t __efx_rx_falcon_ops = {
 	falconsiena_rx_init,			/* erxo_init */
 	falconsiena_rx_fini,			/* erxo_fini */
-#if EFSYS_OPT_RX_HDR_SPLIT
-	falconsiena_rx_hdr_split_enable,	/* erxo_hdr_split_enable */
-#endif
 #if EFSYS_OPT_RX_SCATTER
 	falconsiena_rx_scatter_enable,		/* erxo_scatter_enable */
 #endif
@@ -155,9 +144,6 @@ static efx_rx_ops_t __efx_rx_falcon_ops = {
 static efx_rx_ops_t __efx_rx_siena_ops = {
 	falconsiena_rx_init,			/* erxo_init */
 	falconsiena_rx_fini,			/* erxo_fini */
-#if EFSYS_OPT_RX_HDR_SPLIT
-	falconsiena_rx_hdr_split_enable,	/* erxo_hdr_split_enable */
-#endif
 #if EFSYS_OPT_RX_SCATTER
 	falconsiena_rx_scatter_enable,		/* erxo_scatter_enable */
 #endif
@@ -179,9 +165,6 @@ static efx_rx_ops_t __efx_rx_siena_ops = {
 static efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_init,				/* erxo_init */
 	ef10_rx_fini,				/* erxo_fini */
-#if EFSYS_OPT_RX_HDR_SPLIT
-	ef10_rx_hdr_split_enable,		/* erxo_hdr_split_enable */
-#endif
 #if EFSYS_OPT_RX_SCATTER
 	ef10_rx_scatter_enable,			/* erxo_scatter_enable */
 #endif
@@ -288,32 +271,6 @@ efx_rx_fini(
 	enp->en_erxop = NULL;
 	enp->en_mod_flags &= ~EFX_MOD_RX;
 }
-
-#if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	efx_rc_t
-efx_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size)
-{
-	efx_rx_ops_t *erxop = enp->en_erxop;
-	efx_rc_t rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-	EFSYS_ASSERT3U(enp->en_family, >=, EFX_FAMILY_SIENA);
-
-	if ((rc = erxop->erxo_hdr_split_enable(enp, hdr_buf_size,
-	    pld_buf_size)) != 0)
-		goto fail1;
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-	return (rc);
-}
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
 	__checkReturn	efx_rc_t
@@ -721,60 +678,6 @@ falconsiena_rx_init(
 
 	return (0);
 }
-
-#if EFSYS_OPT_RX_HDR_SPLIT
-static	__checkReturn	efx_rc_t
-falconsiena_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size)
-{
-	unsigned int nhdr32;
-	unsigned int npld32;
-	efx_oword_t oword;
-	efx_rc_t rc;
-
-	nhdr32 = hdr_buf_size / 32;
-	if ((nhdr32 == 0) ||
-	    (nhdr32 >= (1 << FRF_CZ_RX_HDR_SPLIT_HDR_BUF_SIZE_WIDTH)) ||
-	    ((hdr_buf_size % 32) != 0)) {
-		rc = EINVAL;
-		goto fail1;
-	}
-
-	npld32 = pld_buf_size / 32;
-	if ((npld32 == 0) ||
-	    (npld32 >= (1 << FRF_CZ_RX_HDR_SPLIT_PLD_BUF_SIZE_WIDTH)) ||
-	    ((pld_buf_size % 32) != 0)) {
-		rc = EINVAL;
-		goto fail2;
-	}
-
-	if (enp->en_rx_qcount > 0) {
-		rc = EBUSY;
-		goto fail3;
-	}
-
-	EFX_BAR_READO(enp, FR_AZ_RX_CFG_REG, &oword);
-
-	EFX_SET_OWORD_FIELD(oword, FRF_CZ_RX_HDR_SPLIT_EN, 1);
-	EFX_SET_OWORD_FIELD(oword, FRF_CZ_RX_HDR_SPLIT_HDR_BUF_SIZE, nhdr32);
-	EFX_SET_OWORD_FIELD(oword, FRF_CZ_RX_HDR_SPLIT_PLD_BUF_SIZE, npld32);
-
-	EFX_BAR_WRITEO(enp, FR_AZ_RX_CFG_REG, &oword);
-
-	return (0);
-
-fail3:
-	EFSYS_PROBE(fail3);
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
 static	__checkReturn	efx_rc_t
@@ -1278,26 +1181,6 @@ falconsiena_rx_qcreate(
 	case EFX_RXQ_TYPE_DEFAULT:
 		jumbo = B_FALSE;
 		break;
-
-#if EFSYS_OPT_RX_HDR_SPLIT
-	case EFX_RXQ_TYPE_SPLIT_HEADER:
-		if ((enp->en_family < EFX_FAMILY_SIENA) || ((index & 1) != 0)) {
-			rc = EINVAL;
-			goto fail4;
-		}
-		split = B_TRUE;
-		jumbo = B_TRUE;
-		break;
-
-	case EFX_RXQ_TYPE_SPLIT_PAYLOAD:
-		if ((enp->en_family < EFX_FAMILY_SIENA) || ((index & 1) == 0)) {
-			rc = EINVAL;
-			goto fail4;
-		}
-		split = B_FALSE;
-		jumbo = B_TRUE;
-		break;
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
 	case EFX_RXQ_TYPE_SCATTER:

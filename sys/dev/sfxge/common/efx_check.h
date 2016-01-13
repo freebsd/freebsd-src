@@ -347,12 +347,9 @@
 # endif
 #endif /* EFSYS_OPT_QSTATS */
 
-/* Support receive header split */
-#if EFSYS_OPT_RX_HDR_SPLIT
-# if !(EFSYS_OPT_FALCON || EFSYS_OPT_SIENA || \
-	EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
-#  error "RX_HDR_SPLIT requires FALCON or SIENA or HUNTINGTON or MEDFORD"
-# endif
+/* Obsolete option */
+#ifdef EFSYS_OPT_RX_HDR_SPLIT
+# error "RX_HDR_SPLIT is obsolete and is not supported"
 #endif /* EFSYS_OPT_RX_HDR_SPLIT */
 
 /* Support receive scaling (RSS) */
