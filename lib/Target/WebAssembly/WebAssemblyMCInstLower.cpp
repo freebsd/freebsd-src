@@ -36,15 +36,17 @@ MCSymbol *WebAssemblyMCInstLower::GetExternalSymbolSymbol(
   return Printer.GetExternalSymbolSymbol(MO.getSymbolName());
 }
 
-MCOperand WebAssemblyMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
-                                                     MCSymbol *Sym) const {
-  assert(MO.getTargetFlags() == 0 && "WebAssembly does not use target flags");
+MCOperand WebAssemblyMCInstLower::LowerSymbolOperand(MCSymbol *Sym,
+                                                     int64_t Offset,
+                                                     bool IsFunc) const {
+  MCSymbolRefExpr::VariantKind VK =
+      IsFunc ? MCSymbolRefExpr::VK_WebAssembly_FUNCTION
+             : MCSymbolRefExpr::VK_None;
+  const MCExpr *Expr = MCSymbolRefExpr::create(Sym, VK, Ctx);
 
-  const MCExpr *Expr = MCSymbolRefExpr::create(Sym, Ctx);
-
-  int64_t Offset = MO.getOffset();
   if (Offset != 0) {
-    assert(!MO.isJTI() && "Unexpected offset with jump table index");
+    if (IsFunc)
+      report_fatal_error("Function addresses with offsets not supported");
     Expr =
         MCBinaryExpr::createAdd(Expr, MCConstantExpr::create(Offset, Ctx), Ctx);
   }
@@ -64,6 +66,9 @@ void WebAssemblyMCInstLower::Lower(const MachineInstr *MI,
     default:
       MI->dump();
       llvm_unreachable("unknown operand type");
+    case MachineOperand::MO_MachineBasicBlock:
+      MI->dump();
+      llvm_unreachable("MachineBasicBlock operand should have been rewritten");
     case MachineOperand::MO_Register: {
       // Ignore all implicit register operands.
       if (MO.isImplicit())
@@ -89,15 +94,19 @@ void WebAssemblyMCInstLower::Lower(const MachineInstr *MI,
         llvm_unreachable("unknown floating point immediate type");
       break;
     }
-    case MachineOperand::MO_MachineBasicBlock:
-      MCOp = MCOperand::createExpr(
-          MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
-      break;
     case MachineOperand::MO_GlobalAddress:
-      MCOp = LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));
+      assert(MO.getTargetFlags() == 0 &&
+             "WebAssembly does not use target flags on GlobalAddresses");
+      MCOp = LowerSymbolOperand(GetGlobalAddressSymbol(MO), MO.getOffset(),
+                                MO.getGlobal()->getValueType()->isFunctionTy());
       break;
     case MachineOperand::MO_ExternalSymbol:
-      MCOp = LowerSymbolOperand(MO, GetExternalSymbolSymbol(MO));
+      // The target flag indicates whether this is a symbol for a
+      // variable or a function.
+      assert((MO.getTargetFlags() & -2) == 0 &&
+             "WebAssembly uses only one target flag bit on ExternalSymbols");
+      MCOp = LowerSymbolOperand(GetExternalSymbolSymbol(MO), /*Offset=*/0,
+                                MO.getTargetFlags() & 1);
       break;
     }
 

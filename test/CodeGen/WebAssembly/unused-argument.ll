@@ -2,7 +2,7 @@
 
 ; Make sure that argument offsets are correct even if some arguments are unused.
 
-target datalayout = "e-p:32:32-i64:64-n32:64-S128"
+target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown"
 
 ; CHECK-LABEL: unused_first:
@@ -22,7 +22,7 @@ define i32 @unused_second(i32 %x, i32 %y) {
 }
 
 ; CHECK-LABEL: call_something:
-; CHECK-NEXT: {{^}} i32.call $discard=, return_something{{$}}
+; CHECK-NEXT: {{^}} i32.call $discard=, return_something@FUNCTION{{$}}
 ; CHECK-NEXT: return{{$}}
 declare i32 @return_something()
 define void @call_something() {

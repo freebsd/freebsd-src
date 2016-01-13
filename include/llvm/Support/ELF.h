@@ -309,7 +309,12 @@ enum {
   EM_COOL          = 217, // iCelero CoolEngine
   EM_NORC          = 218, // Nanoradio Optimized RISC
   EM_CSR_KALIMBA   = 219, // CSR Kalimba architecture family
-  EM_AMDGPU        = 224  // AMD GPU architecture
+  EM_AMDGPU        = 224, // AMD GPU architecture
+
+  // A request has been made to the maintainer of the official registry for
+  // such numbers for an official value for WebAssembly. As soon as one is
+  // allocated, this enum will be updated to use it.
+  EM_WEBASSEMBLY   = 0x4157, // WebAssembly architecture
 };
 
 // Object file classes.
@@ -592,6 +597,11 @@ enum {
 // ELF Relocation type for Sparc.
 enum {
 #include "ELFRelocs/Sparc.def"
+};
+
+// ELF Relocation types for WebAssembly
+enum {
+#include "ELFRelocs/WebAssembly.def"
 };
 
 #undef ELF_RELOC
@@ -1024,7 +1034,10 @@ enum {
   PT_AMDGPU_HSA_LOAD_GLOBAL_PROGRAM = 0x60000000,
   PT_AMDGPU_HSA_LOAD_GLOBAL_AGENT   = 0x60000001,
   PT_AMDGPU_HSA_LOAD_READONLY_AGENT = 0x60000002,
-  PT_AMDGPU_HSA_LOAD_CODE_AGENT     = 0x60000003
+  PT_AMDGPU_HSA_LOAD_CODE_AGENT     = 0x60000003,
+
+  // WebAssembly program header types.
+  PT_WEBASSEMBLY_FUNCTIONS = PT_LOPROC + 0, // Function definitions.
 };
 
 // Segment flag bits.

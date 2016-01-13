@@ -165,6 +165,11 @@ cl::opt<bool>
 llvm::PrivateHeaders("private-headers",
                      cl::desc("Display format specific file headers"));
 
+cl::opt<bool>
+llvm::FirstPrivateHeader("private-header",
+                         cl::desc("Display only the first format specific file "
+                                  "header"));
+
 static cl::alias
 PrivateHeadersShort("p", cl::desc("Alias for --private-headers"),
                     cl::aliasopt(PrivateHeaders));
@@ -481,6 +486,23 @@ static std::error_code getRelocationValueString(const ELFObjectFile<ELFT> *Obj,
   case ELF::EM_HEXAGON:
   case ELF::EM_MIPS:
     res = Target;
+    break;
+  case ELF::EM_WEBASSEMBLY:
+    switch (type) {
+    case ELF::R_WEBASSEMBLY_DATA: {
+      std::string fmtbuf;
+      raw_string_ostream fmt(fmtbuf);
+      fmt << Target << (addend < 0 ? "" : "+") << addend;
+      fmt.flush();
+      Result.append(fmtbuf.begin(), fmtbuf.end());
+      break;
+    }
+    case ELF::R_WEBASSEMBLY_FUNCTION:
+      res = Target;
+      break;
+    default:
+      res = "Unknown";
+    }
     break;
   default:
     res = "Unknown";
@@ -1478,7 +1500,19 @@ static void printFaultMaps(const ObjectFile *Obj) {
   outs() << FMP;
 }
 
-static void printPrivateFileHeader(const ObjectFile *o) {
+static void printPrivateFileHeaders(const ObjectFile *o) {
+  if (o->isELF())
+    printELFFileHeader(o);
+  else if (o->isCOFF())
+    printCOFFFileHeader(o);
+  else if (o->isMachO()) {
+    printMachOFileHeader(o);
+    printMachOLoadCommands(o);
+  } else
+    report_fatal_error("Invalid/Unsupported object file format");
+}
+
+static void printFirstPrivateFileHeader(const ObjectFile *o) {
   if (o->isELF())
     printELFFileHeader(o);
   else if (o->isCOFF())
@@ -1510,7 +1544,9 @@ static void DumpObject(const ObjectFile *o) {
   if (UnwindInfo)
     PrintUnwindInfo(o);
   if (PrivateHeaders)
-    printPrivateFileHeader(o);
+    printPrivateFileHeaders(o);
+  if (FirstPrivateHeader)
+    printFirstPrivateFileHeader(o);
   if (ExportsTrie)
     printExportsTrie(o);
   if (Rebase)
@@ -1601,6 +1637,7 @@ int main(int argc, char **argv) {
       && !SymbolTable
       && !UnwindInfo
       && !PrivateHeaders
+      && !FirstPrivateHeader
       && !ExportsTrie
       && !Rebase
       && !Bind

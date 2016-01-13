@@ -38,6 +38,7 @@ std::string DirPlusFile(const std::string &DirPath,
 
 void Printf(const char *Fmt, ...);
 void Print(const Unit &U, const char *PrintAfter = "");
+void PrintASCII(const uint8_t *Data, size_t Size, const char *PrintAfter = "");
 void PrintASCII(const Unit &U, const char *PrintAfter = "");
 std::string Hash(const Unit &U);
 void SetTimer(int Seconds);
@@ -88,8 +89,6 @@ class Fuzzer {
     int SyncTimeout = 600;
     int ReportSlowUnits = 10;
     bool OnlyASCII = false;
-    int TBMDepth = 10;
-    int TBMWidth = 10;
     std::string OutputCorpus;
     std::string SyncCommand;
     std::string ArtifactPrefix = "./";
@@ -156,10 +155,8 @@ class Fuzzer {
 
   // Start tracing; forget all previously proposed mutations.
   void StartTraceRecording();
-  // Stop tracing and return the number of proposed mutations.
-  size_t StopTraceRecording();
-  // Apply Idx-th trace-based mutation to U.
-  void ApplyTraceBasedMutation(size_t Idx, Unit *U);
+  // Stop tracing.
+  void StopTraceRecording();
 
   void SetDeathCallback();
   static void StaticDeathCallback();
