@@ -433,6 +433,11 @@ namespace std {
 #define _LIBCPP_HAS_NO_ASAN
 #endif
 
+// Allow for build-time disabling of unsigned integer sanitization
+#ifndef _LIBCPP_DISABLE_UBSAN_UNSIGNED_INTEGER_CHECK
+#define _LIBCPP_DISABLE_UBSAN_UNSIGNED_INTEGER_CHECK __attribute((no_sanitize("unsigned-integer-overflow")))
+#endif 
+
 #elif defined(__GNUC__)
 
 #define _ALIGNAS(x) __attribute__((__aligned__(x)))
@@ -825,6 +830,10 @@ extern "C" void __sanitizer_annotate_contiguous_container(
      || defined(_LIBCPP_HAS_NO_THREADS)
 #define _LIBCPP_HAS_NO_ATOMIC_HEADER
 #endif
+
+#ifndef _LIBCPP_DISABLE_UBSAN_UNSIGNED_INTEGER_CHECK
+#define _LIBCPP_DISABLE_UBSAN_UNSIGNED_INTEGER_CHECK
+#endif 
 
 #endif // __cplusplus
 
