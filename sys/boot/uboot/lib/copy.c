@@ -100,7 +100,7 @@ uboot_loadaddr(u_int type, void *data, uint64_t addr)
 
 		biggest_block = 0;
 		biggest_size = 0;
-		subldr = rounddown2((uint64_t)(uintptr_t)_start, KERN_ALIGN);
+		subldr = rounddown2((uintptr_t)_start, KERN_ALIGN);
 		eubldr = roundup2((uint64_t)uboot_heap_end, KERN_ALIGN);
 		for (i = 0; i < si->mr_no; i++) {
 			if (si->mr[i].flags != MR_ATTR_DRAM)

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 	__checkReturn		efx_rc_t
 siena_nvram_partn_size(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__out			size_t *sizep)
 {
 	efx_rc_t rc;
@@ -72,7 +72,7 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_partn_lock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn)
+	__in			uint32_t partn)
 {
 	efx_rc_t rc;
 
@@ -91,7 +91,7 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_partn_read(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -123,7 +123,7 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_partn_erase(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__in			size_t size)
 {
@@ -144,7 +144,7 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_partn_write(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -176,7 +176,7 @@ fail1:
 				void
 siena_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn)
+	__in			uint32_t partn)
 {
 	boolean_t reboot;
 	efx_rc_t rc;
@@ -326,7 +326,7 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_get_dynamic_cfg(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			boolean_t vpd,
 	__out			siena_mc_dynamic_config_hdr_t **dcfgp,
 	__out			size_t *sizep)
@@ -455,7 +455,7 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_get_subtype(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__out			uint32_t *subtypep)
 {
 	efx_mcdi_req_t req;
@@ -515,8 +515,8 @@ siena_nvram_get_version(
 {
 	siena_mc_dynamic_config_hdr_t *dcfg;
 	siena_parttbl_entry_t *entry;
-	unsigned int dcfg_partn;
-	unsigned int partn;
+	uint32_t dcfg_partn;
+	uint32_t partn;
 	unsigned int i;
 	efx_rc_t rc;
 

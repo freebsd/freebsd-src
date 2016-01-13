@@ -140,6 +140,21 @@ ef10_intr_trigger(
 	__in		unsigned int level);
 
 			void
+ef10_intr_status_line(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *fatalp,
+	__out		uint32_t *qmaskp);
+
+			void
+ef10_intr_status_message(
+	__in		efx_nic_t *enp,
+	__in		unsigned int message,
+	__out		boolean_t *fatalp);
+
+			void
+ef10_intr_fatal(
+	__in		efx_nic_t *enp);
+			void
 ef10_intr_fini(
 	__in		efx_nic_t *enp);
 
@@ -346,18 +361,18 @@ ef10_nvram_partn_write_segment_tlv(
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_size(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_lock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn);
+	__in			uint32_t partn);
 
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_read(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
@@ -365,14 +380,14 @@ ef10_nvram_partn_read(
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_erase(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_write(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
@@ -380,7 +395,7 @@ ef10_nvram_partn_write(
 extern				void
 ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn);
+	__in			uint32_t partn);
 
 #endif /* EFSYS_OPT_NVRAM || EFSYS_OPT_VPD */
 
@@ -442,7 +457,7 @@ ef10_nvram_rw_finish(
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_set_version(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in_ecount(4)		uint16_t version[4]);
 
 extern	__checkReturn		efx_rc_t
@@ -914,71 +929,75 @@ ef10_rx_fini(
 
 #if EFSYS_OPT_FILTER
 
-typedef struct hunt_filter_handle_s {
-	uint32_t	hfh_lo;
-	uint32_t	hfh_hi;
-} hunt_filter_handle_t;
+typedef struct ef10_filter_handle_s {
+	uint32_t	efh_lo;
+	uint32_t	efh_hi;
+} ef10_filter_handle_t;
 
-typedef struct hunt_filter_entry_s {
-	uintptr_t hfe_spec; /* pointer to filter spec plus busy bit */
-	hunt_filter_handle_t hfe_handle;
-} hunt_filter_entry_t;
+typedef struct ef10_filter_entry_s {
+	uintptr_t efe_spec; /* pointer to filter spec plus busy bit */
+	ef10_filter_handle_t efe_handle;
+} ef10_filter_entry_t;
 
 /*
  * BUSY flag indicates that an update is in progress.
  * AUTO_OLD flag is used to mark and sweep MAC packet filters.
  */
-#define	EFX_HUNT_FILTER_FLAG_BUSY	1U
-#define	EFX_HUNT_FILTER_FLAG_AUTO_OLD	2U
-#define	EFX_HUNT_FILTER_FLAGS		3U
+#define	EFX_EF10_FILTER_FLAG_BUSY	1U
+#define	EFX_EF10_FILTER_FLAG_AUTO_OLD	2U
+#define	EFX_EF10_FILTER_FLAGS		3U
 
-#define	EFX_HUNT_FILTER_TBL_ROWS 8192
+/*
+ * Size of the hash table used by the driver. Doesn't need to be the
+ * same size as the hardware's table.
+ */
+#define	EFX_EF10_FILTER_TBL_ROWS 8192
 
 /* Allow for the broadcast address to be added to the multicast list */
-#define	EFX_HUNT_FILTER_MULTICAST_FILTERS_MAX	(EFX_MAC_MULTICAST_LIST_MAX + 1)
+#define	EFX_EF10_FILTER_MULTICAST_FILTERS_MAX	(EFX_MAC_MULTICAST_LIST_MAX + 1)
 
-typedef struct hunt_filter_table_s {
-	hunt_filter_entry_t	hft_entry[EFX_HUNT_FILTER_TBL_ROWS];
-	efx_rxq_t *		hft_default_rxq;
-	boolean_t 		hft_using_rss;
-	uint32_t 		hft_unicst_filter_index;
-	boolean_t 		hft_unicst_filter_set;
-	uint32_t 		hft_mulcst_filter_indexes[
-	    EFX_HUNT_FILTER_MULTICAST_FILTERS_MAX];
-	uint32_t 		hft_mulcst_filter_count;
-} hunt_filter_table_t;
+typedef struct ef10_filter_table_s {
+	ef10_filter_entry_t	eft_entry[EFX_EF10_FILTER_TBL_ROWS];
+	efx_rxq_t *		eft_default_rxq;
+	boolean_t 		eft_using_rss;
+	uint32_t 		eft_unicst_filter_index;
+	boolean_t 		eft_unicst_filter_set;
+	uint32_t 		eft_mulcst_filter_indexes[
+	    EFX_EF10_FILTER_MULTICAST_FILTERS_MAX];
+	uint32_t 		eft_mulcst_filter_count;
+} ef10_filter_table_t;
 
 	__checkReturn	efx_rc_t
-hunt_filter_init(
+ef10_filter_init(
 	__in		efx_nic_t *enp);
 
 			void
-hunt_filter_fini(
+ef10_filter_fini(
 	__in		efx_nic_t *enp);
 
 	__checkReturn	efx_rc_t
-hunt_filter_restore(
+ef10_filter_restore(
 	__in		efx_nic_t *enp);
 
 	__checkReturn	efx_rc_t
-hunt_filter_add(
+ef10_filter_add(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec,
 	__in		boolean_t may_replace);
 
 	__checkReturn	efx_rc_t
-hunt_filter_delete(
+ef10_filter_delete(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec);
 
 extern	__checkReturn	efx_rc_t
-hunt_filter_supported_filters(
+ef10_filter_supported_filters(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *list,
 	__out		size_t *length);
 
 extern	__checkReturn	efx_rc_t
-hunt_filter_reconfigure(
+ef10_filter_reconfigure(
 	__in				efx_nic_t *enp,
 	__in_ecount(6)			uint8_t const *mac_addr,
 	__in				boolean_t all_unicst,
@@ -989,19 +1008,19 @@ hunt_filter_reconfigure(
 	__in				int count);
 
 extern		void
-hunt_filter_get_default_rxq(
+ef10_filter_get_default_rxq(
 	__in		efx_nic_t *enp,
 	__out		efx_rxq_t **erpp,
 	__out		boolean_t *using_rss);
 
 extern		void
-hunt_filter_default_rxq_set(
+ef10_filter_default_rxq_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rxq_t *erp,
 	__in		boolean_t using_rss);
 
 extern		void
-hunt_filter_default_rxq_clear(
+ef10_filter_default_rxq_clear(
 	__in		efx_nic_t *enp);
 
 

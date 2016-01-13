@@ -643,7 +643,6 @@ efx_mcdi_ev_cpl(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
-	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_mcdi_req_t *emrp;
 	int state;
 
@@ -668,7 +667,7 @@ efx_mcdi_ev_cpl(
 	emip->emi_pending_req = NULL;
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	if (encp->enc_mcdi_max_payload_length > MCDI_CTL_SDU_LEN_MAX_V1) {
+	if (emip->emi_max_version >= 2) {
 		/* MCDIv2 response details do not fit into an event. */
 		efx_mcdi_read_response_header(enp, emrp);
 	} else {
