@@ -166,7 +166,11 @@ typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_scale_key_set)(efx_nic_t *, uint8_t *, size_t);
 	efx_rc_t	(*erxo_scale_tbl_set)(efx_nic_t *, unsigned int *,
 					      size_t);
-#endif
+	uint32_t	(*erxo_prefix_hash)(efx_nic_t *, efx_rx_hash_alg_t,
+					    uint8_t *);
+#endif /* EFSYS_OPT_RX_SCALE */
+	efx_rc_t	(*erxo_prefix_pktlen)(efx_nic_t *, uint8_t *,
+					      uint16_t *);
 	void		(*erxo_qpost)(efx_rxq_t *, efsys_dma_addr_t *, size_t,
 				      unsigned int, unsigned int,
 				      unsigned int);

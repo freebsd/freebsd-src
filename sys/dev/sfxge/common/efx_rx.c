@@ -75,6 +75,18 @@ falconsiena_rx_scale_tbl_set(
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
+static	__checkReturn	uint32_t
+falconsiena_rx_prefix_hash(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t func,
+	__in		uint8_t *buffer);
+
+static	__checkReturn	efx_rc_t
+falconsiena_rx_prefix_pktlen(
+	__in		efx_nic_t *enp,
+	__in		uint8_t *buffer,
+	__out		uint16_t *lengthp);
+
 #endif /* EFSYS_OPT_RX_SCALE */
 
 static			void
@@ -130,7 +142,9 @@ static efx_rx_ops_t __efx_rx_falcon_ops = {
 	falconsiena_rx_scale_mode_set,		/* erxo_scale_mode_set */
 	falconsiena_rx_scale_key_set,		/* erxo_scale_key_set */
 	falconsiena_rx_scale_tbl_set,		/* erxo_scale_tbl_set */
+	falconsiena_rx_prefix_hash,		/* erxo_prefix_hash */
 #endif
+	falconsiena_rx_prefix_pktlen,		/* erxo_prefix_pktlen */
 	falconsiena_rx_qpost,			/* erxo_qpost */
 	falconsiena_rx_qpush,			/* erxo_qpush */
 	falconsiena_rx_qflush,			/* erxo_qflush */
@@ -151,7 +165,9 @@ static efx_rx_ops_t __efx_rx_siena_ops = {
 	falconsiena_rx_scale_mode_set,		/* erxo_scale_mode_set */
 	falconsiena_rx_scale_key_set,		/* erxo_scale_key_set */
 	falconsiena_rx_scale_tbl_set,		/* erxo_scale_tbl_set */
+	falconsiena_rx_prefix_hash,		/* erxo_prefix_hash */
 #endif
+	falconsiena_rx_prefix_pktlen,		/* erxo_prefix_pktlen */
 	falconsiena_rx_qpost,			/* erxo_qpost */
 	falconsiena_rx_qpush,			/* erxo_qpush */
 	falconsiena_rx_qflush,			/* erxo_qflush */
@@ -172,7 +188,9 @@ static efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_scale_mode_set,			/* erxo_scale_mode_set */
 	ef10_rx_scale_key_set,			/* erxo_scale_key_set */
 	ef10_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
+	ef10_rx_prefix_hash,			/* erxo_prefix_hash */
 #endif
+	ef10_rx_prefix_pktlen,			/* erxo_prefix_pktlen */
 	ef10_rx_qpost,				/* erxo_qpost */
 	ef10_rx_qpush,				/* erxo_qpush */
 	ef10_rx_qflush,				/* erxo_qflush */
@@ -553,92 +571,29 @@ efx_rx_qdestroy(
 	erxop->erxo_qdestroy(erp);
 }
 
-/*
- * Psuedo-header info for Siena/Falcon.
- *
- * The psuedo-header is a byte array of one of the forms:
- *
- *  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
- * XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.TT.TT.TT.TT
- * XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.LL.LL
- *
- * where:
- *
- * TT.TT.TT.TT is a 32-bit Toeplitz hash
- * LL.LL is a 16-bit LFSR hash
- *
- * Hash values are in network (big-endian) byte order.
- *
- *
- * On EF10 the pseudo-header is laid out as:
- * (See also SF-109306-TC section 9)
- *
- * Toeplitz hash (32 bits, little-endian)
- * Out-of-band outer VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an outer VLAN tag)
- * Out-of-band inner VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an inner VLAN tag)
- * Packet length (16 bits, little-endian, may be 0)
- * MAC timestamp (32 bits, little-endian, may be 0)
- * VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an outer VLAN tag)
- * VLAN tag
- *     (16 bits, big-endian, 0 if the packet did not have an inner VLAN tag)
- */
-
 	__checkReturn	efx_rc_t
 efx_psuedo_hdr_pkt_length_get(
 	__in		efx_nic_t *enp,
 	__in		uint8_t *buffer,
-	__out		uint16_t *pkt_lengthp)
+	__out		uint16_t *lengthp)
 {
-	if (enp->en_family != EFX_FAMILY_HUNTINGTON &&
-	    enp->en_family != EFX_FAMILY_MEDFORD) {
-		EFSYS_ASSERT(0);
-		return (ENOTSUP);
-	}
+	efx_rx_ops_t *erxop = enp->en_erxop;
 
-	*pkt_lengthp = buffer[8] | (buffer[9] << 8);
-
-	return (0);
+	return (erxop->erxo_prefix_pktlen(enp, buffer, lengthp));
 }
 
 #if EFSYS_OPT_RX_SCALE
-
-uint32_t
+	__checkReturn	uint32_t
 efx_psuedo_hdr_hash_get(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer)
 {
-	if (func == EFX_RX_HASHALG_TOEPLITZ) {
-		switch (enp->en_family) {
-		case EFX_FAMILY_FALCON:
-		case EFX_FAMILY_SIENA:
-			return ((buffer[12] << 24) |
-			    (buffer[13] << 16) |
-			    (buffer[14] << 8) |
-			    buffer[15]);
-		case EFX_FAMILY_HUNTINGTON:
-		case EFX_FAMILY_MEDFORD:
-			return (buffer[0] |
-			    (buffer[1] << 8) |
-			    (buffer[2] << 16) |
-			    (buffer[3] << 24));
-		default:
-			EFSYS_ASSERT(0);
-			return (0);
-		}
-	} else if (func == EFX_RX_HASHALG_LFSR) {
-		EFSYS_ASSERT(enp->en_family == EFX_FAMILY_FALCON ||
-		    enp->en_family == EFX_FAMILY_SIENA);
-		return ((buffer[14] << 8) | buffer[15]);
-	} else {
-		EFSYS_ASSERT(0);
-		return (0);
-	}
-}
+	efx_rx_ops_t *erxop = enp->en_erxop;
 
+	EFSYS_ASSERT3U(enp->en_hash_support, ==, EFX_RX_HASH_AVAILABLE);
+	return (erxop->erxo_prefix_hash(enp, func, buffer));
+}
 #endif	/* EFSYS_OPT_RX_SCALE */
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
@@ -1025,6 +980,58 @@ fail1:
 	return (rc);
 }
 #endif
+
+/*
+ * Falcon/Siena psuedo-header
+ * --------------------------
+ *
+ * Receive packets are prefixed by an optional 16 byte pseudo-header.
+ * The psuedo-header is a byte array of one of the forms:
+ *
+ *  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+ * xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.TT.TT.TT.TT
+ * xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.xx.LL.LL
+ *
+ * where:
+ *   TT.TT.TT.TT   Toeplitz hash (32-bit big-endian)
+ *   LL.LL         LFSR hash     (16-bit big-endian)
+ */
+
+#if EFSYS_OPT_RX_SCALE
+static	__checkReturn	uint32_t
+falconsiena_rx_prefix_hash(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t func,
+	__in		uint8_t *buffer)
+{
+	switch (func) {
+	case EFX_RX_HASHALG_TOEPLITZ:
+		return ((buffer[12] << 24) |
+		    (buffer[13] << 16) |
+		    (buffer[14] <<  8) |
+		    buffer[15]);
+
+	case EFX_RX_HASHALG_LFSR:
+		return ((buffer[14] << 8) | buffer[15]);
+
+	default:
+		EFSYS_ASSERT(0);
+		return (0);
+	}
+}
+#endif /* EFSYS_OPT_RX_SCALE */
+
+static	__checkReturn	efx_rc_t
+falconsiena_rx_prefix_pktlen(
+	__in		efx_nic_t *enp,
+	__in		uint8_t *buffer,
+	__out		uint16_t *lengthp)
+{
+	/* Not supported by Falcon/Siena hardware */
+	EFSYS_ASSERT(0);
+	return (ENOTSUP);
+}
+
 
 static			void
 falconsiena_rx_qpost(
