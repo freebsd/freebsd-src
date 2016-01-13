@@ -653,7 +653,7 @@ yp_match(char *indomain, char *inmap, const char *inkey, int inkeylen,
 	struct timeval tv;
 	struct ypreq_key yprk;
 	int r;
-
+	int retries = 0;
 	*outval = NULL;
 	*outvallen = 0;
 
@@ -691,6 +691,11 @@ yp_match(char *indomain, char *inmap, const char *inkey, int inkeylen,
 #endif
 
 again:
+	if (retries > MAX_RETRIES) {
+		YPUNLOCK();
+		return (YPERR_RPC);
+	}
+
 	if (_yp_dobind(indomain, &ysd) != 0) {
 		YPUNLOCK();
 		return (YPERR_DOMAIN);
@@ -707,6 +712,7 @@ again:
 	if (r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_match: clnt_call");
 		_yp_unbind(ysd);
+		retries++;
 		goto again;
 	}
 
@@ -756,7 +762,7 @@ yp_first(char *indomain, char *inmap, char **outkey, int *outkeylen,
 	struct dom_binding *ysd;
 	struct timeval tv;
 	int r;
-
+	int retries = 0;
 	/* Sanity check */
 
 	if (indomain == NULL || !strlen(indomain) ||
@@ -768,6 +774,11 @@ yp_first(char *indomain, char *inmap, char **outkey, int *outkeylen,
 
 	YPLOCK();
 again:
+	if (retries > MAX_RETRIES) {
+		YPUNLOCK();
+		return (YPERR_RPC);
+	}
+
 	if (_yp_dobind(indomain, &ysd) != 0) {
 		YPUNLOCK();
 		return (YPERR_DOMAIN);
@@ -786,6 +797,7 @@ again:
 	if (r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_first: clnt_call");
 		_yp_unbind(ysd);
+		retries++;
 		goto again;
 	}
 	if (!(r = ypprot_err(yprkv.stat))) {
@@ -813,7 +825,7 @@ yp_next(char *indomain, char *inmap, char *inkey, int inkeylen,
 	struct dom_binding *ysd;
 	struct timeval tv;
 	int r;
-
+	int retries = 0;
 	/* Sanity check */
 
 	if (inkey == NULL || !strlen(inkey) || inkeylen <= 0 ||
@@ -826,6 +838,11 @@ yp_next(char *indomain, char *inmap, char *inkey, int inkeylen,
 
 	YPLOCK();
 again:
+	if (retries > MAX_RETRIES) {
+		YPUNLOCK();
+		return (YPERR_RPC);
+	}
+
 	if (_yp_dobind(indomain, &ysd) != 0) {
 		YPUNLOCK();
 		return (YPERR_DOMAIN);
@@ -846,6 +863,7 @@ again:
 	if (r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_next: clnt_call");
 		_yp_unbind(ysd);
+		retries++;
 		goto again;
 	}
 	if (!(r = ypprot_err(yprkv.stat))) {
@@ -874,7 +892,7 @@ yp_all(char *indomain, char *inmap, struct ypall_callback *incallback)
 	CLIENT *clnt;
 	u_long status, savstat;
 	int clnt_sock;
-
+	int retries = 0;
 	/* Sanity check */
 
 	if (indomain == NULL || !strlen(indomain) ||
@@ -883,6 +901,10 @@ yp_all(char *indomain, char *inmap, struct ypall_callback *incallback)
 
 	YPLOCK();
 again:
+	if (retries > MAX_RETRIES) {
+		YPUNLOCK();
+		return (YPERR_RPC);
+	}
 
 	if (_yp_dobind(indomain, &ysd) != 0) {
 		YPUNLOCK();
@@ -912,9 +934,10 @@ again:
 	if (clnt_call(clnt, YPPROC_ALL,
 		(xdrproc_t)xdr_ypreq_nokey, &yprnk,
 		(xdrproc_t)xdr_ypresp_all_seq, &status, tv) != RPC_SUCCESS) {
-			clnt_perror(ysd->dom_client, "yp_all: clnt_call");
+			clnt_perror(clnt, "yp_all: clnt_call");
 			clnt_destroy(clnt);
 			_yp_unbind(ysd);
+			retries++;
 			goto again;
 	}
 
