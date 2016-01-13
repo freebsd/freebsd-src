@@ -292,7 +292,7 @@ fail1:
 
 		void
 efx_filter_spec_init_rx(
-	__inout		efx_filter_spec_t *spec,
+	__out		efx_filter_spec_t *spec,
 	__in		efx_filter_priority_t priority,
 	__in		efx_filter_flag_t flags,
 	__in		efx_rxq_t *erp)
@@ -311,7 +311,7 @@ efx_filter_spec_init_rx(
 
 		void
 efx_filter_spec_init_tx(
-	__inout		efx_filter_spec_t *spec,
+	__out		efx_filter_spec_t *spec,
 	__in		efx_txq_t *etp)
 {
 	EFSYS_ASSERT3P(spec, !=, NULL);
