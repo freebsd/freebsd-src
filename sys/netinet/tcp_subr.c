@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/hhook.h>
 #include <sys/kernel.h>
 #include <sys/khelp.h>
@@ -1087,7 +1088,7 @@ tcp_newtcpcb(struct inpcb *inp)
 #endif
 	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
-	tp->t_maxseg = tp->t_maxopd =
+	tp->t_maxseg =
 #ifdef INET6
 		isipv6 ? V_tcp_v6mssdflt :
 #endif /* INET6 */
@@ -1901,7 +1902,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					 * Only process the offered MTU if it
 					 * is smaller than the current one.
 					 */
-					if (mtu < tp->t_maxopd +
+					if (mtu < tp->t_maxseg +
 					    sizeof(struct tcpiphdr)) {
 						bzero(&inc, sizeof(inc));
 						inc.inc_faddr = faddr;
@@ -2282,6 +2283,59 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	return (maxmtu);
 }
 #endif /* INET6 */
+
+/*
+ * Calculate effective SMSS per RFC5681 definition for a given TCP
+ * connection at its current state, taking into account SACK and etc.
+ */
+u_int
+tcp_maxseg(const struct tcpcb *tp)
+{
+	u_int optlen;
+
+	if (tp->t_flags & TF_NOOPT)
+		return (tp->t_maxseg);
+
+	/*
+	 * Here we have a simplified code from tcp_addoptions(),
+	 * without a proper loop, and having most of paddings hardcoded.
+	 * We might make mistakes with padding here in some edge cases,
+	 * but this is harmless, since result of tcp_maxseg() is used
+	 * only in cwnd and ssthresh estimations.
+	 */
+#define	PAD(len)	((((len) / 4) + !!((len) % 4)) * 4)
+	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+		if (tp->t_flags & TF_RCVD_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = 0;
+#ifdef TCP_SIGNATURE
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+		if ((tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks > 0) {
+			optlen += TCPOLEN_SACKHDR;
+			optlen += tp->rcv_numsacks * TCPOLEN_SACK;
+			optlen = PAD(optlen);
+		}
+	} else {
+		if (tp->t_flags & TF_REQ_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = PAD(TCPOLEN_MAXSEG);
+		if (tp->t_flags & TF_REQ_SCALE)
+			optlen += PAD(TCPOLEN_WINDOW);
+#ifdef TCP_SIGNATURE
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+		if (tp->t_flags & TF_SACK_PERMIT)
+			optlen += PAD(TCPOLEN_SACK_PERMITTED);
+	}
+#undef PAD
+	optlen = min(optlen, TCP_MAXOLEN);
+	return (tp->t_maxseg - optlen);
+}
 
 #ifdef IPSEC
 /* compute ESP/AH header size for TCP, including outer IP header. */

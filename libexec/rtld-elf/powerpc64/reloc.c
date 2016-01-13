@@ -338,26 +338,19 @@ static int
 reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 {
 	Elf_Addr *where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
-#if !defined(_CALL_ELF) || _CALL_ELF == 1
-	Elf_Addr *glink;
-#endif
 	long reloff;
 
 	reloff = rela - obj->pltrela;
 
+	dbg(" reloc_plt_object: where=%p,reloff=%lx,glink=%#lx", (void *)where,
+	    reloff, obj->glink);
+
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
-	if (obj->priv == NULL)
-		obj->priv = xmalloc(obj->pltrelasize);
-	glink = obj->priv + reloff*sizeof(Elf_Addr)*2;
-
-	dbg(" reloc_plt_object: where=%p,reloff=%lx,glink=%p", (void *)where, reloff, glink);
-
-	memcpy(where, _rtld_bind_start, sizeof(struct funcdesc));
-	((struct funcdesc *)(where))->env = (Elf_Addr)glink;
-	*(glink++) = (Elf_Addr)obj;
-	*(glink++) = reloff*sizeof(Elf_Rela);
+	/* Glink code is 3 instructions after the first 32k, 2 before */
+	*where = (Elf_Addr)obj->glink + 32 + 
+	    8*((reloff < 0x8000) ? reloff : 0x8000) + 
+	    12*((reloff < 0x8000) ? 0 : (reloff - 0x8000));
 #else
-	dbg(" reloc_plt_object: where=%p,reloff=%lx,glink=%#lx", (void *)where, reloff, obj->glink);
 	*where = (Elf_Addr)obj->glink + 4*reloff + 32;
 #endif
 
@@ -416,13 +409,6 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
 		target = (Elf_Addr)(defobj->relocbase + def->st_value);
 
-#if 0
-		/* PG XXX */
-		dbg("\"%s\" in \"%s\" --> %p in \"%s\"",
-		    defobj->strtab + def->st_name, basename(obj->path),
-		    (void *)target, basename(defobj->path));
-#endif
-
 		if (def == &sym_zero) {
 			/* Zero undefined weak symbols */
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
@@ -461,12 +447,28 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	    (void *)wherep, (void *)target, *(Elf_Addr *)target,
 	    (Elf_Addr)defobj->relocbase);
 
+	/*
+	 * For the trampoline, the second two elements of the function
+	 * descriptor are unused, so we are fine replacing those at any time
+	 * with the real ones with no thread safety implications. However, we
+	 * need to make sure the main entry point pointer ([0]) is seen to be
+	 * modified *after* the second two elements. This can't be done in
+	 * general, since there are no barriers in the reading code, but put in
+	 * some isyncs to at least make it a little better.
+	 */
 	memcpy(wherep, (void *)target, sizeof(struct funcdesc));
+	wherep[2] = ((Elf_Addr *)target)[2];
+	wherep[1] = ((Elf_Addr *)target)[1];
+	__asm __volatile ("isync" : : : "memory");
+	wherep[0] = ((Elf_Addr *)target)[0];
+	__asm __volatile ("isync" : : : "memory");
+
 	if (((struct funcdesc *)(wherep))->addr < (Elf_Addr)defobj->relocbase) {
 		/*
-		 * XXX: It is possible (e.g. LD_BIND_NOW) that the function
+		 * It is possible (LD_BIND_NOW) that the function
 		 * descriptor we are copying has not yet been relocated.
-		 * If this happens, fix it.
+		 * If this happens, fix it. Don't worry about threading in
+		 * this case since LD_BIND_NOW makes it irrelevant.
 		 */
 
 		((struct funcdesc *)(wherep))->addr +=
@@ -480,8 +482,6 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 
 	*wherep = target;
 #endif
-
-	__asm __volatile("sync" ::: "memory");
 
 	return (target);
 }
@@ -506,7 +506,6 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags,
 void
 init_pltgot(Obj_Entry *obj)
 {
-#if defined(_CALL_ELF) && _CALL_ELF == 2
 	Elf_Addr *pltcall;
 
 	pltcall = obj->pltgot;
@@ -515,10 +514,12 @@ init_pltgot(Obj_Entry *obj)
 		return;
 	}
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
 	pltcall[0] = (Elf_Addr)&_rtld_bind_start; 
 	pltcall[1] = (Elf_Addr)obj;
-
-	__asm __volatile("sync" ::: "memory");
+#else
+	memcpy(pltcall, _rtld_bind_start, sizeof(struct funcdesc));
+	pltcall[2] = (Elf_Addr)obj;
 #endif
 }
 

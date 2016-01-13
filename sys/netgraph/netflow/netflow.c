@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/counter.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
@@ -395,9 +396,8 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	int plen, uint8_t flags, uint8_t tcp_flags)
 {
 	struct flow6_entry *fle6;
-	struct sockaddr_in6 *src, *dst;
+	struct sockaddr_in6 sin6;
 	struct rtentry *rt;
-	struct route_in6 rin6;
 
 	mtx_assert(&hsh6->mtx, MA_OWNED);
 
@@ -425,16 +425,14 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	 * fill in out_ifx, dst_mask, nexthop, and dst_as in future releases.
 	 */
 	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
-		bzero(&rin6, sizeof(struct route_in6));
-		dst = (struct sockaddr_in6 *)&rin6.ro_dst;
-		dst->sin6_len = sizeof(struct sockaddr_in6);
-		dst->sin6_family = AF_INET6;
-		dst->sin6_addr = r->dst.r_dst6;
+		bzero(&sin6, sizeof(struct sockaddr_in6));
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = r->dst.r_dst6;
 
-		rin6.ro_rt = rtalloc1_fib((struct sockaddr *)dst, 0, 0, r->fib);
+		rt = rtalloc1_fib((struct sockaddr *)&sin6, 0, 0, r->fib);
 
-		if (rin6.ro_rt != NULL) {
-			rt = rin6.ro_rt;
+		if (rt != NULL) {
 			fle6->f.fle_o_ifx = rt->rt_ifp->if_index;
 
 			if (rt->rt_flags & RTF_GATEWAY &&
@@ -451,19 +449,16 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 		}
 	}
 
-	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
+	if ((flags & NG_NETFLOW_CONF_NOSRCLOOKUP) == 0) {
 		/* Do route lookup on source address, to fill in src_mask. */
-		bzero(&rin6, sizeof(struct route_in6));
-		src = (struct sockaddr_in6 *)&rin6.ro_dst;
-		src->sin6_len = sizeof(struct sockaddr_in6);
-		src->sin6_family = AF_INET6;
-		src->sin6_addr = r->src.r_src6;
+		bzero(&sin6, sizeof(struct sockaddr_in6));
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = r->src.r_src6;
 
-		rin6.ro_rt = rtalloc1_fib((struct sockaddr *)src, 0, 0, r->fib);
+		rt = rtalloc1_fib((struct sockaddr *)&sin6, 0, 0, r->fib);
 
-		if (rin6.ro_rt != NULL) {
-			rt = rin6.ro_rt;
-
+		if (rt != NULL) {
 			if (rt_mask(rt))
 				fle6->f.src_mask = RT_MASK6(rt);
 			else

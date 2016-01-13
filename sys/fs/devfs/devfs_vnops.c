@@ -244,18 +244,18 @@ devfs_populate_vp(struct vnode *vp)
 	if (DEVFS_DMP_DROP(dmp)) {
 		sx_xunlock(&dmp->dm_lock);
 		devfs_unmount_final(dmp);
-		return (EBADF);
+		return (ERESTART);
 	}
 	if ((vp->v_iflag & VI_DOOMED) != 0) {
 		sx_xunlock(&dmp->dm_lock);
-		return (EBADF);
+		return (ERESTART);
 	}
 	de = vp->v_data;
 	KASSERT(de != NULL,
 	    ("devfs_populate_vp: vp->v_data == NULL but vnode not doomed"));
 	if ((de->de_flags & DE_DOOMED) != 0) {
 		sx_xunlock(&dmp->dm_lock);
-		return (EBADF);
+		return (ERESTART);
 	}
 
 	return (0);
@@ -1147,7 +1147,7 @@ devfs_open(struct vop_open_args *ap)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
-	/* cleanup any cdevpriv upon error */
+	/* Clean up any cdevpriv upon error. */
 	if (error != 0)
 		devfs_clear_cdevpriv();
 	td->td_fpop = fpop;

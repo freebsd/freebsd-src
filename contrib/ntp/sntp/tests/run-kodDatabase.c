@@ -23,6 +23,7 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include "config.h"
+#include "ntp_workimpl.h"
 #include "ntp_types.h"
 #include "sntptest.h"
 #include "ntp_stdlib.h"
@@ -56,11 +57,11 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("kodDatabase.c");
-  RUN_TEST(test_SingleEntryHandling, 13);
-  RUN_TEST(test_MultipleEntryHandling, 14);
-  RUN_TEST(test_NoMatchInSearch, 15);
-  RUN_TEST(test_AddDuplicate, 16);
-  RUN_TEST(test_DeleteEntry, 17);
+  RUN_TEST(test_SingleEntryHandling, 14);
+  RUN_TEST(test_MultipleEntryHandling, 15);
+  RUN_TEST(test_NoMatchInSearch, 16);
+  RUN_TEST(test_AddDuplicate, 17);
+  RUN_TEST(test_DeleteEntry, 18);
 
   return (UnityEnd());
 }

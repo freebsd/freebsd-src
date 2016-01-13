@@ -91,6 +91,7 @@ struct cputab {
 	uint16_t	revfmt;
 	int		features;	/* Do not include PPC_FEATURE_32 or
 					 * PPC_FEATURE_HAS_MMU */
+	int		features2;
 	void		(*cpu_setup)(int cpuid, uint16_t vers);
 };
 #define	REVFMT_MAJMIN	1	/* %u.%u */
@@ -98,93 +99,102 @@ struct cputab {
 #define	REVFMT_DEC	3	/* %u */
 static const struct cputab models[] = {
         { "Motorola PowerPC 601",	MPC601,		REVFMT_DEC,
-	   PPC_FEATURE_HAS_FPU | PPC_FEATURE_UNIFIED_CACHE, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU | PPC_FEATURE_UNIFIED_CACHE, 0, cpu_6xx_setup },
         { "Motorola PowerPC 602",	MPC602,		REVFMT_DEC,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 603",	MPC603,		REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 603e",	MPC603e,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 603ev",	MPC603ev,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 604",	MPC604,		REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 604ev",	MPC604ev,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 620",	MPC620,		REVFMT_HEX,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0, NULL },
         { "Motorola PowerPC 750",	MPC750,		REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "IBM PowerPC 750FX",		IBM750FX,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "IBM PowerPC 970",		IBM970,		REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   cpu_970_setup },
+	   0, cpu_970_setup },
         { "IBM PowerPC 970FX",		IBM970FX,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   cpu_970_setup },
+	   0, cpu_970_setup },
         { "IBM PowerPC 970GX",		IBM970GX,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   cpu_970_setup },
+	   0, cpu_970_setup },
         { "IBM PowerPC 970MP",		IBM970MP,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   cpu_970_setup },
+	   0, cpu_970_setup },
         { "IBM POWER4",		IBMPOWER4,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0, NULL },
         { "IBM POWER4+",	IBMPOWER4PLUS,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0, NULL },
         { "IBM POWER5",		IBMPOWER5,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_SMT, 0, NULL },
         { "IBM POWER5+",	IBMPOWER5PLUS,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_SMT, 0, NULL },
         { "IBM POWER6",		IBMPOWER6,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   NULL },
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05, 0, NULL },
         { "IBM POWER7",		IBMPOWER7,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_HAS_VSX, NULL },
+	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+	   PPC_FEATURE_HAS_VSX, 0, NULL },
         { "IBM POWER7+",	IBMPOWER7PLUS,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_HAS_VSX, NULL },
+	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+	   PPC_FEATURE_HAS_VSX, 0, NULL },
         { "IBM POWER8E",	IBMPOWER8E,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_HAS_VSX, NULL },
+	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+	   PPC_FEATURE_HAS_VSX,
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM |
+	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
         { "IBM POWER8",		IBMPOWER8,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_HAS_VSX, NULL },
+	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+	   PPC_FEATURE_HAS_VSX,
+	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_HAS_HTM |
+	   PPC_FEATURE2_HAS_VCRYPTO, NULL },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 7455",	MPC7455,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 7457",	MPC7457,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 7447A",	MPC7447A,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 7448",	MPC7448,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Motorola PowerPC 8245",	MPC8245,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
         { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN,
-	   0, cpu_booke_setup },
+	   PPC_FEATURE_BOOKE, 0, cpu_booke_setup },
         { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
-	   0, cpu_booke_setup },
+	   PPC_FEATURE_BOOKE, 0, cpu_booke_setup },
 	{ "Freescale e500mc core",	FSL_E500mc,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, cpu_booke_setup },
+	   PPC_FEATURE_BOOKE | PPC_FEATURE_HAS_FPU, 0, cpu_booke_setup },
 	{ "Freescale e5500 core",	FSL_E5500,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, cpu_booke_setup },
-	{ "Freescale e6500 core",	FSL_E6500,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0,
 	   cpu_booke_setup },
+	{ "Freescale e6500 core",	FSL_E6500,	REVFMT_MAJMIN,
+	   PPC_FEATURE_BOOKE | PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC |
+	   PPC_FEATURE_HAS_FPU, 0, cpu_booke_setup },
         { "IBM Cell Broadband Engine",	IBMCELLBE,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   NULL},
-        { "Unknown PowerPC CPU",	0,		REVFMT_HEX, 0, NULL },
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+	   PPC_FEATURE_SMT, 0, NULL},
+        { "Unknown PowerPC CPU",	0,		REVFMT_HEX, 0, 0, NULL },
 };
 
 static void	cpu_6xx_print_cacheinfo(u_int, uint16_t);
@@ -194,8 +204,11 @@ static char model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 
 int cpu_features = PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU;
+int cpu_features2 = 0;
 SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features, CTLFLAG_RD,
     &cpu_features, sizeof(cpu_features), "IX", "PowerPC CPU features");
+SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features2, CTLFLAG_RD,
+    &cpu_features2, sizeof(cpu_features2), "IX", "PowerPC CPU features 2");
 
 /* Provide some user-friendly aliases for bits in cpu_features */
 SYSCTL_PROC(_hw, OID_AUTO, floatingpoint, CTLTYPE_INT | CTLFLAG_RD,
@@ -265,8 +278,12 @@ cpu_setup(u_int cpuid)
 	printf("\n");
 
 	cpu_features |= cp->features;
+	cpu_features2 |= cp->features2;
 	printf("cpu%d: Features %b\n", cpuid, cpu_features,
 	    PPC_FEATURE_BITMASK);
+	if (cpu_features2 != 0)
+		printf("cpu%d: Features2 %b\n", cpuid, cpu_features2,
+		    PPC_FEATURE2_BITMASK);
 
 	/*
 	 * Configure CPU
@@ -607,12 +624,6 @@ cpu_idle(int busy)
 	    busy, curcpu);
 }
 
-int
-cpu_idle_wakeup(int cpu)
-{
-	return (0);
-}
-
 static void
 cpu_idle_60x(sbintime_t sbt)
 {
@@ -651,14 +662,9 @@ cpu_idle_60x(sbintime_t sbt)
 static void
 cpu_idle_booke(sbintime_t sbt)
 {
-	register_t msr;
-
-	msr = mfmsr();
 
 #ifdef E500
-	/* Freescale E500 core RM section 6.4.1. */
-	__asm __volatile("msync; mtmsr %0; isync" ::
-	    "r" (msr | PSL_WE));
+	platform_cpu_idle(PCPU_GET(cpuid));
 #endif
 }
 

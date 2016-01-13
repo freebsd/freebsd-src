@@ -228,8 +228,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			/*
 			 * These are deferred until all other relocations have
 			 * been done.  All we do here is make sure that the COPY
-			 * relocation is not in a shared library.  They are allowed
-			 * only in executable files.
+			 * relocation is not in a shared library.  They are
+			 * allowed only in executable files.
 			 */
 			if (!obj->mainprog) {
 				_rtld_error("%s: Unexpected R_X86_64_COPY "

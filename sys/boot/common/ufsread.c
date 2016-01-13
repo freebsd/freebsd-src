@@ -207,11 +207,10 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 #endif
 			    ) &&
 			    fs.fs_bsize <= MAXBSIZE &&
-			    fs.fs_bsize >= sizeof(struct fs))
+			    fs.fs_bsize >= (int32_t)sizeof(struct fs))
 				break;
 		}
 		if (sblock_try[n] == -1) {
-			printf("Not ufs\n");
 			return -1;
 		}
 		dsk_meta++;
@@ -232,10 +231,10 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 		    sizeof(struct ufs2_dinode));
 #else
 		if (fs.fs_magic == FS_UFS1_MAGIC)
-			memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
+			memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
 			    sizeof(struct ufs1_dinode));
 		else
-			memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
+			memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
 			    sizeof(struct ufs2_dinode));
 #endif
 		inomap = inode;
@@ -284,7 +283,7 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 			return -1;
 		vbaddr = fsbtodb(&fs, addr2) + (off >> VBLKSHIFT) * DBPERVBLK;
 		vboff = off & VBLKMASK;
-		n = sblksize(&fs, size, lbn) - (off & ~VBLKMASK);
+		n = sblksize(&fs, (off_t)size, lbn) - (off & ~VBLKMASK);
 		if (n > VBLKSIZE)
 			n = VBLKSIZE;
 		if (blkmap != vbaddr) {

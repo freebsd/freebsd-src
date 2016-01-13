@@ -311,6 +311,8 @@ SUBDIR=	\
 	re \
 	reiserfs \
 	rl \
+	rtwn \
+	${_rtwnfw} \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -482,6 +484,7 @@ _fxp=		fxp
 _ispfw=		ispfw
 _mwlfw=		mwlfw
 _ralfw=		ralfw
+_rtwnfw=	rtwnfw
 _sf=		sf
 _ti=		ti
 _txp=		txp

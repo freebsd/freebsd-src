@@ -34,7 +34,6 @@
 #define	_SYS_EFX_MCDI_H
 
 #include "efx.h"
-#include "efx_regs.h"
 #include "efx_regs_mcdi.h"
 
 #ifdef	__cplusplus
@@ -69,6 +68,7 @@ struct efx_mcdi_req_s {
 
 typedef struct efx_mcdi_iface_s {
 	unsigned int		emi_port;
+	unsigned int		emi_max_version;
 	unsigned int		emi_seq;
 	efx_mcdi_req_t		*emi_pending_req;
 	boolean_t		emi_ev_cpl;
@@ -188,11 +188,11 @@ efx_mcdi_mac_spoofing_supported(
 
 
 #if EFSYS_OPT_BIST
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_enable_offline(
 	__in			efx_nic_t *enp);
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_start(
 	__in			efx_nic_t *enp,

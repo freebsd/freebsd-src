@@ -83,10 +83,10 @@ void
 yp_enable_events(void)
 {
 	int i;
-	extern fd_set	svc_fdset;
+	extern fd_set svc_fdset;
 	struct yp_event	*ye;
 
-	for (i = 0; i < getdtablesize(); i++) {
+	for (i = 0; i < FD_SETSIZE; i++) {
 		if (FD_ISSET(i, &svc_fdset)) {
 			if ((ye = calloc(1, sizeof(*ye))) == NULL)
 				fatal(NULL);

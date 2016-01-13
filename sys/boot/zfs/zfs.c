@@ -154,7 +154,7 @@ zfs_read(struct open_file *f, void *start, size_t size, size_t *resid	/* out */)
 	n = size;
 	if (fp->f_seekp + n > sb.st_size)
 		n = sb.st_size - fp->f_seekp;
-	
+
 	rc = dnode_read(spa, &fp->f_dnode, fp->f_seekp, start, n);
 	if (rc)
 		return (rc);
@@ -413,7 +413,7 @@ struct zfs_probe_args {
 	int		fd;
 	const char	*devname;
 	uint64_t	*pool_guid;
-	uint16_t	secsz;
+	u_int		secsz;
 };
 
 static int
@@ -507,7 +507,7 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 		}
 	}
 	close(pa.fd);
-	return (0);
+	return (ret);
 }
 
 /*
@@ -712,13 +712,18 @@ zfs_list(const char *name)
 int
 zfs_bootenv(const char *name)
 {
-	static char	poolname[ZFS_MAXNAMELEN], *dsname;
+	static char	poolname[ZFS_MAXNAMELEN], *dsname, *root;
 	char		becount[4];
 	uint64_t	objid;
 	spa_t		*spa;
 	int		len, rv, pages, perpage, currpage;
 
-	if (strcmp(name, getenv("zfs_be_root")) != 0) {
+	if (name == NULL)
+		return (EINVAL);
+	if ((root = getenv("zfs_be_root")) == NULL)
+		return (EINVAL);
+
+	if (strcmp(name, root) != 0) {
 		if (setenv("zfs_be_root", name, 1) != 0)
 			return (ENOMEM);
 	}

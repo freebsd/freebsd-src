@@ -31,10 +31,12 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <sys/disklabel.h>
-#include "bootstrap.h"
+#include <bootstrap.h>
 
 #include <efi.h>
 #include <efilib.h>
+
+#include "loader_efi.h"
 
 static int efi_parsedev(struct devdesc **, const char *, const char **);
 
@@ -147,7 +149,7 @@ efi_fmtdev(void *vdev)
 		break;
 	}
 
-	return(buf);
+	return (buf);
 }
 
 /*
@@ -161,7 +163,7 @@ efi_setcurrdev(struct env_var *ev, int flags, const void *value)
 
 	rv = efi_parsedev(&ncurr, value, NULL);
 	if (rv != 0)
-		return(rv);
+		return (rv);
 
 	free(ncurr);
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);

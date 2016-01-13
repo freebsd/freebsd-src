@@ -744,6 +744,15 @@ ioat_get_hwversion(bus_dmaengine_t dmaengine)
 	return (ioat->version);
 }
 
+size_t
+ioat_get_max_io_size(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->max_xfer_size);
+}
+
 int
 ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay)
 {
@@ -778,6 +787,21 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 	ioat = to_ioat_softc(dmaengine);
 	mtx_lock(&ioat->submit_lock);
 	CTR0(KTR_IOAT, __func__);
+}
+
+int
+ioat_acquire_reserve(bus_dmaengine_t dmaengine, unsigned n, int mflags)
+{
+	struct ioat_softc *ioat;
+	int error;
+
+	ioat = to_ioat_softc(dmaengine);
+	ioat_acquire(dmaengine);
+
+	error = ioat_reserve_space(ioat, n, mflags);
+	if (error != 0)
+		ioat_release(dmaengine);
+	return (error);
 }
 
 void

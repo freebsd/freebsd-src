@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 
@@ -45,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "ef10_tlv_layout.h"
 
 	__checkReturn		efx_rc_t
-hunt_vpd_init(
+ef10_vpd_init(
 	__in			efx_nic_t *enp)
 {
 	caddr_t svpd;
@@ -54,7 +51,8 @@ hunt_vpd_init(
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	pci_pf = enp->en_nic_cfg.enc_pf;
 	/*
@@ -64,7 +62,7 @@ hunt_vpd_init(
 	 */
 	svpd = NULL;
 	svpd_size = 0;
-	rc = hunt_nvram_partn_read_tlv(enp,
+	rc = ef10_nvram_partn_read_tlv(enp,
 	    NVRAM_PARTITION_TYPE_STATIC_CONFIG,
 	    TLV_TAG_PF_STATIC_VPD(pci_pf),
 	    &svpd, &svpd_size);
@@ -81,8 +79,8 @@ hunt_vpd_init(
 			goto fail2;
 	}
 
-	enp->en_u.hunt.enu_svpd = svpd;
-	enp->en_u.hunt.enu_svpd_length = svpd_size;
+	enp->en_arch.ef10.ena_svpd = svpd;
+	enp->en_arch.ef10.ena_svpd_length = svpd_size;
 
 out:
 	return (0);
@@ -98,13 +96,14 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_size(
+ef10_vpd_size(
 	__in			efx_nic_t *enp,
 	__out			size_t *sizep)
 {
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * This function returns the total size the user should allocate
@@ -125,7 +124,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_read(
+ef10_vpd_read(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -135,11 +134,12 @@ hunt_vpd_read(
 	uint32_t pci_pf;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	pci_pf = enp->en_nic_cfg.enc_pf;
 
-	if ((rc = hunt_nvram_partn_read_tlv(enp,
+	if ((rc = ef10_nvram_partn_read_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
 		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
 		    &dvpd, &dvpd_size)) != 0)
@@ -169,7 +169,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_verify(
+ef10_vpd_verify(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -182,12 +182,13 @@ hunt_vpd_verify(
 	unsigned int dcont;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/*
 	 * Strictly you could take the view that dynamic vpd is optional.
 	 * Instead, to conform more closely to the read/verify/reinit()
-	 * paradigm, we require dynamic vpd. hunt_vpd_reinit() will
+	 * paradigm, we require dynamic vpd. ef10_vpd_reinit() will
 	 * reinitialize it as required.
 	 */
 	if ((rc = efx_vpd_hunk_verify(data, size, NULL)) != 0)
@@ -197,7 +198,7 @@ hunt_vpd_verify(
 	 * Verify that there is no duplication between the static and
 	 * dynamic cfg sectors.
 	 */
-	if (enp->en_u.hunt.enu_svpd_length == 0)
+	if (enp->en_arch.ef10.ena_svpd_length == 0)
 		goto done;
 
 	dcont = 0;
@@ -213,8 +214,8 @@ hunt_vpd_verify(
 		_NOTE(CONSTANTCONDITION)
 		while (1) {
 			if ((rc = efx_vpd_hunk_next(
-			    enp->en_u.hunt.enu_svpd,
-			    enp->en_u.hunt.enu_svpd_length, &stag, &skey,
+			    enp->en_arch.ef10.ena_svpd,
+			    enp->en_arch.ef10.ena_svpd_length, &stag, &skey,
 			    NULL, NULL, &scont)) != 0)
 				goto fail3;
 			if (scont == 0)
@@ -243,7 +244,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_reinit(
+ef10_vpd_reinit(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -254,14 +255,14 @@ hunt_vpd_reinit(
 	/*
 	 * Only create an ID string if the dynamic cfg doesn't have one
 	 */
-	if (enp->en_u.hunt.enu_svpd_length == 0)
+	if (enp->en_arch.ef10.ena_svpd_length == 0)
 		wantpid = B_TRUE;
 	else {
 		unsigned int offset;
 		uint8_t length;
 
-		rc = efx_vpd_hunk_get(enp->en_u.hunt.enu_svpd,
-				    enp->en_u.hunt.enu_svpd_length,
+		rc = efx_vpd_hunk_get(enp->en_arch.ef10.ena_svpd,
+				    enp->en_arch.ef10.ena_svpd_length,
 				    EFX_VPD_ID, 0, &offset, &length);
 		if (rc == 0)
 			wantpid = B_FALSE;
@@ -285,7 +286,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_get(
+ef10_vpd_get(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
@@ -295,16 +296,17 @@ hunt_vpd_get(
 	uint8_t length;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/* Attempt to satisfy the request from svpd first */
-	if (enp->en_u.hunt.enu_svpd_length > 0) {
-		if ((rc = efx_vpd_hunk_get(enp->en_u.hunt.enu_svpd,
-		    enp->en_u.hunt.enu_svpd_length, evvp->evv_tag,
+	if (enp->en_arch.ef10.ena_svpd_length > 0) {
+		if ((rc = efx_vpd_hunk_get(enp->en_arch.ef10.ena_svpd,
+		    enp->en_arch.ef10.ena_svpd_length, evvp->evv_tag,
 		    evvp->evv_keyword, &offset, &length)) == 0) {
 			evvp->evv_length = length;
 			memcpy(evvp->evv_value,
-			    enp->en_u.hunt.enu_svpd + offset, length);
+			    enp->en_arch.ef10.ena_svpd + offset, length);
 			return (0);
 		} else if (rc != ENOENT)
 			goto fail1;
@@ -329,7 +331,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_set(
+ef10_vpd_set(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
@@ -337,15 +339,16 @@ hunt_vpd_set(
 {
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	/* If the provided (tag,keyword) exists in svpd, then it is readonly */
-	if (enp->en_u.hunt.enu_svpd_length > 0) {
+	if (enp->en_arch.ef10.ena_svpd_length > 0) {
 		unsigned int offset;
 		uint8_t length;
 
-		if ((rc = efx_vpd_hunk_get(enp->en_u.hunt.enu_svpd,
-		    enp->en_u.hunt.enu_svpd_length, evvp->evv_tag,
+		if ((rc = efx_vpd_hunk_get(enp->en_arch.ef10.ena_svpd,
+		    enp->en_arch.ef10.ena_svpd_length, evvp->evv_tag,
 		    evvp->evv_keyword, &offset, &length)) == 0) {
 			rc = EACCES;
 			goto fail1;
@@ -366,7 +369,7 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_next(
+ef10_vpd_next(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
@@ -379,7 +382,7 @@ hunt_vpd_next(
 }
 
 	__checkReturn		efx_rc_t
-hunt_vpd_write(
+ef10_vpd_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -388,7 +391,8 @@ hunt_vpd_write(
 	uint32_t pci_pf;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	pci_pf = enp->en_nic_cfg.enc_pf;
 
@@ -397,7 +401,7 @@ hunt_vpd_write(
 		goto fail1;
 
 	/* Store new dynamic VPD in all segments in DYNAMIC_CONFIG partition */
-	if ((rc = hunt_nvram_partn_write_segment_tlv(enp,
+	if ((rc = ef10_nvram_partn_write_segment_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
 		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
 		    data, vpd_length, B_TRUE)) != 0) {
@@ -416,17 +420,18 @@ fail1:
 }
 
 				void
-hunt_vpd_fini(
+ef10_vpd_fini(
 	__in			efx_nic_t *enp)
 {
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
-	if (enp->en_u.hunt.enu_svpd_length > 0) {
-		EFSYS_KMEM_FREE(enp->en_esip, enp->en_u.hunt.enu_svpd_length,
-				enp->en_u.hunt.enu_svpd);
+	if (enp->en_arch.ef10.ena_svpd_length > 0) {
+		EFSYS_KMEM_FREE(enp->en_esip, enp->en_arch.ef10.ena_svpd_length,
+				enp->en_arch.ef10.ena_svpd);
 
-		enp->en_u.hunt.enu_svpd = NULL;
-		enp->en_u.hunt.enu_svpd_length = 0;
+		enp->en_arch.ef10.ena_svpd = NULL;
+		enp->en_arch.ef10.ena_svpd_length = 0;
 	}
 }
 

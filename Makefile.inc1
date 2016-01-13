@@ -569,10 +569,9 @@ _worldtmp: .PHONY
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
-#	XXX - These three can depend on any header file.
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
+#	XXX - These can depend on any header file.
+	rm -f ${OBJTREE}${.CURDIR}/lib/libsysdecode/ioctl.c
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
     lib usr legacy/bin legacy/usr
@@ -1230,7 +1229,7 @@ reinstallkernel reinstallkernel.debug: _installcheck_kernel
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 .endif
-.if ${BUILDKERNELS:[#]} > 1
+.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing kernel ${_kernel}"
@@ -1261,7 +1260,7 @@ distributekernel distributekernel.debug:
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
-.if ${BUILDKERNELS:[#]} > 1
+.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
 	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
@@ -1284,27 +1283,43 @@ packagekernel:
 .if defined(NO_ROOT)
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
+	    tar cvf - --exclude '*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
-.if ${BUILDKERNELS:[#]} > 1
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvf - --include '*/*/*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
+.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
+	    tar cvf - --exclude '*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvf - --include '*/*/*.debug' \
+	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endfor
 .endif
 .else
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    tar cvf - . | \
+	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
-.if ${BUILDKERNELS:[#]} > 1
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
+.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    tar cvf - . | \
+	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
+	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endfor
 .endif
 .endif
@@ -1409,11 +1424,13 @@ _vtfontcvt=	usr.bin/vtfontcvt
 _sed=		usr.bin/sed
 .endif
 
-.if ${BOOTSTRAPPING} < 1000002
+.if ${BOOTSTRAPPING} < 1000033
 _libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
+_lex=		usr.bin/lex
 
 ${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
+${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
@@ -1425,12 +1442,6 @@ ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 
 .if ${BOOTSTRAPPING} < 1000027
 _cat=		bin/cat
-.endif
-
-.if ${BOOTSTRAPPING} < 1000033
-_lex=		usr.bin/lex
-
-${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
 # r277259 crunchide: Correct 64-bit section header offset

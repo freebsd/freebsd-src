@@ -136,7 +136,7 @@ process_pkt (
 		return PACKET_UNUSEABLE;
 	}
 	/* Note: pkt_len must be a multiple of 4 at this point! */
-	packet_end = (u_int32*)((char*)rpkt + pkt_len);
+	packet_end = (void*)((char*)rpkt + pkt_len);
 	exten_end = skip_efields(rpkt->exten, packet_end);
 	if (NULL == exten_end) {
 		msyslog(LOG_ERR,

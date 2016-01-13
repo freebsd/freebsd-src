@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
+#include "loader_efi.h"
+
 #ifndef EFI_STAGING_SIZE
 #define	EFI_STAGING_SIZE	48
 #endif
@@ -56,7 +58,7 @@ efi_copy_init(void)
 	    STAGE_PAGES, &staging);
 	if (EFI_ERROR(status)) {
 		printf("failed to allocate staging area: %lu\n",
-		    (unsigned long)(status & EFI_ERROR_MASK));
+		    EFI_ERROR_CODE(status));
 		return (status);
 	}
 	staging_end = staging + STAGE_PAGES * EFI_PAGE_SIZE;

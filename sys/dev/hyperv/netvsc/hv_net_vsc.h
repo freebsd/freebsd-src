@@ -44,6 +44,12 @@
 #include <sys/malloc.h>
 #include <sys/sx.h>
 
+#include <netinet/in.h>
+#include <netinet/tcp_lro.h>
+
+#include <net/if.h>
+#include <net/if_media.h>
+
 #include <dev/hyperv/include/hyperv.h>
 
 MALLOC_DECLARE(M_NETVSC);
@@ -983,6 +989,7 @@ typedef struct {
  */
 typedef struct hn_softc {
 	struct ifnet    *hn_ifp;
+	struct ifmedia	hn_media;
 	device_t        hn_dev;
 	uint8_t         hn_unit;
 	int             hn_carrier;
@@ -993,6 +1000,18 @@ typedef struct hn_softc {
 	int             temp_unusable;
 	struct hv_device  *hn_dev_obj;
 	netvsc_dev  	*net_dev;
+
+	struct lro_ctrl	hn_lro;
+	int		hn_lro_hiwat;
+
+	/* Trust tcp segments verification on host side */
+	int		hn_trust_hosttcp;
+
+	u_long		hn_csum_ip;
+	u_long		hn_csum_tcp;
+	u_long		hn_csum_trusted;
+	u_long		hn_lro_tried;
+	u_long		hn_small_pkts;
 } hn_softc_t;
 
 

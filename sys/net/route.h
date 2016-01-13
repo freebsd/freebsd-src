@@ -44,16 +44,17 @@
  */
 
 /*
- * A route consists of a destination address, a reference
- * to a routing entry, and a reference to an llentry.  
- * These are often held by protocols in their control
- * blocks, e.g. inpcb.
+ * Struct route consiste of a destination address,
+ * a route entry pointer, link-layer prepend data pointer along
+ * with its length.
  */
 struct route {
 	struct	rtentry *ro_rt;
 	char		*ro_prepend;
 	uint16_t	ro_plen;
 	uint16_t	ro_flags;
+	uint16_t	ro_mtu;	/* saved ro_rt mtu */
+	uint16_t	spare;
 	struct	sockaddr ro_dst;
 };
 
@@ -63,9 +64,13 @@ struct route {
 
 #define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
 #define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
-#define	RT_L2_ME		(1 << RT_L2_ME_BIT)
-#define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)
-#define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)
+#define	RT_L2_ME		(1 << RT_L2_ME_BIT)		/* 0x0004 */
+#define	RT_MAY_LOOP		(1 << RT_MAY_LOOP_BIT)		/* 0x0008 */
+#define	RT_HAS_HEADER		(1 << RT_HAS_HEADER_BIT)	/* 0x0010 */
+
+#define	RT_REJECT		0x0020		/* Destination is reject */
+#define	RT_BLACKHOLE		0x0040		/* Destination is blackhole */
+#define	RT_HAS_GW		0x0080		/* Destination has GW  */
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -196,6 +201,9 @@ struct rtentry {
 #define	NHR_IFAIF		0x01	/* Return ifa_ifp interface */
 #define	NHR_REF			0x02	/* For future use */
 
+/* Control plane route request flags */
+#define	NHR_COPY		0x100	/* Copy rte data */
+
 /* rte<>nhop translation */
 static inline uint16_t
 fib_rte_to_nh_flags(int rt_flags)
@@ -210,6 +218,21 @@ fib_rte_to_nh_flags(int rt_flags)
 
 	return (res);
 }
+
+#ifdef _KERNEL
+/* rte<>ro_flags translation */
+static inline void
+rt_update_ro_flags(struct route *ro)
+{
+	int rt_flags = ro->ro_rt->rt_flags;
+
+	ro->ro_flags &= ~ (RT_REJECT|RT_BLACKHOLE|RT_HAS_GW);
+
+	ro->ro_flags |= (rt_flags & RTF_REJECT) ? RT_REJECT : 0;
+	ro->ro_flags |= (rt_flags & RTF_BLACKHOLE) ? RT_BLACKHOLE : 0;
+	ro->ro_flags |= (rt_flags & RTF_GATEWAY) ? RT_HAS_GW : 0;
+}
+#endif
 
 /*
  * Routing statistics.
@@ -459,10 +482,10 @@ void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
+int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
+	    struct rt_addrinfo *);
+void	rib_free_info(struct rt_addrinfo *info);
 
-#include <sys/eventhandler.h>
-typedef void (*rtevent_redirect_fn)(void *, struct rtentry *, struct rtentry *, struct sockaddr *);
-EVENTHANDLER_DECLARE(route_redirect_event, rtevent_redirect_fn);
 #endif
 
 #endif

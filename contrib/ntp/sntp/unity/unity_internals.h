@@ -305,6 +305,18 @@ extern int UNITY_OUTPUT_CHAR(int);
 #   undef UNITY_WEAK_PRAGMA
 #endif
 
+#if !defined(UNITY_NORETURN_ATTRIBUTE)
+#   ifdef __GNUC__ // includes clang
+#       if !(defined(__WIN32__) && defined(__clang__))
+#           define UNITY_NORETURN_ATTRIBUTE __attribute__((noreturn))
+#       endif
+#   endif
+#endif
+
+#ifndef UNITY_NORETURN_ATTRIBUTE
+#   define UNITY_NORETURN_ATTRIBUTE
+#endif
+
 
 //-------------------------------------------------------
 // Internal Structs Needed
@@ -465,7 +477,7 @@ void UnityAssertNumbersWithin(const _U_SINT delta,
                               const UNITY_LINE_TYPE lineNumber,
                               const UNITY_DISPLAY_STYLE_T style);
 
-void UnityFail(const char* message, const UNITY_LINE_TYPE line);
+void UnityFail(const char* message, const UNITY_LINE_TYPE line) UNITY_NORETURN_ATTRIBUTE;
 
 void UnityIgnore(const char* message, const UNITY_LINE_TYPE line);
 

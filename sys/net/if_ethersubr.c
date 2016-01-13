@@ -202,7 +202,6 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 	uint32_t *pflags)
 {
 	struct ether_header *eh;
-	struct rtentry *rt;
 	uint32_t lleflags = 0;
 	int error = 0;
 #if defined(INET) || defined(INET6)
@@ -253,8 +252,7 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	if (error == EHOSTDOWN) {
-		rt = (ro != NULL) ? ro->ro_rt : NULL;
-		if (rt != NULL && (rt->rt_flags & RTF_GATEWAY) != 0)
+		if (ro != NULL && (ro->ro_flags & RT_HAS_GW) != 0)
 			error = EHOSTUNREACH;
 	}
 
@@ -324,6 +322,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	/*
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
+	 *
+	 * Note that we do prepend regardless of RT_HAS_HEADER flag.
+	 * This is done because BPF code shifts m_data pointer
+	 * to the end of ethernet header prior to calling if_output().
 	 */
 	M_PREPEND(m, hlen, M_NOWAIT);
 	if (m == NULL)
