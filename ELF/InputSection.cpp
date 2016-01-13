@@ -52,7 +52,9 @@ InputSectionBase<ELFT>::getOffset(uintX_t Offset) {
   case Merge:
     return cast<MergeInputSection<ELFT>>(this)->getOffset(Offset);
   case MipsReginfo:
-    return cast<MipsReginfoInputSection<ELFT>>(this)->getOffset(Offset);
+    // MIPS .reginfo sections are consumed by the linker,
+    // so it should never be copied to output.
+    llvm_unreachable("MIPS .reginfo reached writeTo().");
   }
   llvm_unreachable("Invalid section kind");
 }
@@ -209,7 +211,6 @@ void InputSectionBase<ELFT>::relocate(uint8_t *Buf, uint8_t *BufEnd,
     uintX_t SymVA = getSymVA<ELFT>(*Body);
     if (Target->relocNeedsPlt(Type, *Body)) {
       SymVA = Out<ELFT>::Plt->getEntryAddr(*Body);
-      Type = Target->getPltRefReloc(Type);
     } else if (Target->relocNeedsGot(Type, *Body)) {
       SymVA = Out<ELFT>::Got->getEntryAddr(*Body);
       if (Body->isTls())
@@ -217,8 +218,13 @@ void InputSectionBase<ELFT>::relocate(uint8_t *Buf, uint8_t *BufEnd,
     } else if (!Target->needsCopyRel(Type, *Body) &&
                isa<SharedSymbol<ELFT>>(*Body)) {
       continue;
-    } else if (Target->isTlsDynReloc(Type, *Body) ||
-               Target->isSizeDynReloc(Type, *Body)) {
+    } else if (Target->isTlsDynReloc(Type, *Body)) {
+      continue;
+    } else if (Target->isSizeReloc(Type) && canBePreempted(Body, false)) {
+      // A SIZE relocation is supposed to set a symbol size, but if a symbol
+      // can be preempted, the size at runtime may be different than link time.
+      // If that's the case, we leave the field alone rather than filling it
+      // with a possibly incorrect value.
       continue;
     } else if (Config->EMachine == EM_MIPS) {
       if (Type == R_MIPS_HI16 && Body == Config->MipsGpDisp)
@@ -346,22 +352,13 @@ MergeInputSection<ELFT>::getOffset(uintX_t Offset) {
 
 template <class ELFT>
 MipsReginfoInputSection<ELFT>::MipsReginfoInputSection(ObjectFile<ELFT> *F,
-                                                       const Elf_Shdr *Header)
-    : InputSectionBase<ELFT>(F, Header, InputSectionBase<ELFT>::MipsReginfo) {}
-
-template <class ELFT>
-uint32_t MipsReginfoInputSection<ELFT>::getGeneralMask() const {
+                                                       const Elf_Shdr *Hdr)
+    : InputSectionBase<ELFT>(F, Hdr, InputSectionBase<ELFT>::MipsReginfo) {
+  // Initialize this->Reginfo.
   ArrayRef<uint8_t> D = this->getSectionData();
-  if (D.size() != sizeof(Elf_Mips_RegInfo))
+  if (D.size() != sizeof(Elf_Mips_RegInfo<ELFT>))
     error("Invalid size of .reginfo section");
-  return reinterpret_cast<const Elf_Mips_RegInfo *>(D.data())->ri_gprmask;
-}
-
-template <class ELFT> uint32_t MipsReginfoInputSection<ELFT>::getGp0() const {
-  ArrayRef<uint8_t> D = this->getSectionData();
-  if (D.size() != sizeof(Elf_Mips_RegInfo))
-    error("Invalid size of .reginfo section");
-  return reinterpret_cast<const Elf_Mips_RegInfo *>(D.data())->ri_gp_value;
+  Reginfo = reinterpret_cast<const Elf_Mips_RegInfo<ELFT> *>(D.data());
 }
 
 template <class ELFT>
