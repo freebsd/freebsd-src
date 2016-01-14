@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <dialog.h>
 #include <err.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -481,6 +482,11 @@ dpv(struct dpv_config *config, struct dpv_file_node *file_list)
 	dprompt_init(file_list);
 		/* Reads: label_size pbar_size pprompt aprompt dpv_nfiles */
 		/* Inits: dheight and dwidth */
+
+	/* Default localeconv(3) settings for dialog(3) status */
+	setlocale(LC_NUMERIC,
+		getenv("LC_ALL") == NULL && getenv("LC_NUMERIC") == NULL ?
+		LC_NUMERIC_DEFAULT : "");
 
 	if (!debug) {
 		/* Internally create the initial `--gauge' prompt text */
