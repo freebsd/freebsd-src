@@ -1363,12 +1363,37 @@ hunt_nvram_partn_erase(
 	__in			size_t size)
 {
 	efx_rc_t rc;
+	uint32_t erase_size;
 
-	if ((rc = efx_mcdi_nvram_erase(enp, partn, offset, size)) != 0)
+	if ((rc = efx_mcdi_nvram_info(enp, partn, NULL, NULL,
+	    &erase_size, NULL)) != 0)
 		goto fail1;
+
+	if (erase_size == 0) {
+		if ((rc = efx_mcdi_nvram_erase(enp, partn, offset, size)) != 0)
+			goto fail2;
+	} else {
+		if (size % erase_size != 0) {
+			rc = EINVAL;
+			goto fail3;
+		}
+		while (size > 0) {
+			if ((rc = efx_mcdi_nvram_erase(enp, partn, offset,
+			    erase_size)) != 0)
+				goto fail4;
+			offset += erase_size;
+			size -= erase_size;
+		}
+	}
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
