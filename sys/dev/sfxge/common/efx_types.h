@@ -1584,7 +1584,7 @@ extern int fix_lint;
 
 #define	EFX_OR_BYTE(_byte1, _byte2)					\
 	do {								\
-		(_byte1).eb_u8[0] &= (_byte2).eb_u8[0];			\
+		(_byte1).eb_u8[0] |= (_byte2).eb_u8[0];			\
 	_NOTE(CONSTANTCONDITION) 					\
 	} while (B_FALSE)
 
