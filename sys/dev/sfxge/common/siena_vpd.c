@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_VPD
@@ -328,6 +325,13 @@ siena_vpd_verify(
 			goto fail2;
 		if (dcont == 0)
 			break;
+
+		/*
+		 * Skip the RV keyword. It should be present in both the static
+		 * and dynamic cfg sectors.
+		 */
+		if (dtag == EFX_VPD_RO && dkey == EFX_VPD_KEYWORD('R', 'V'))
+			continue;
 
 		scont = 0;
 		_NOTE(CONSTANTCONDITION)

@@ -3,6 +3,7 @@
 LIB=	efi
 INTERNALLIB=
 WARNS?=	2
+CWARNFLAGS.gcc+= -Wno-attributes
 
 SRCS=	delay.c efi_console.c efinet.c efipart.c errno.c handles.c \
 	libefi.c time.c

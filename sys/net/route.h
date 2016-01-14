@@ -175,7 +175,7 @@ struct rtentry {
 					/* 0x8000000 and up unassigned */
 #define	RTF_STICKY	 0x10000000	/* always route dst->src */
 
-#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
+#define	RTF_RNH_LOCKED	 0x40000000	/* unused */
 
 #define	RTF_GWFLAG_COMPAT 0x80000000	/* a compatibility bit for interacting
 					   with existing routing apps */
@@ -436,8 +436,6 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 /*
  * Note the following locking behavior:
  *
- *    rtalloc_ign() and rtalloc() return ro->ro_rt unlocked
- *
  *    rtalloc1() returns a locked rtentry
  *
  *    rtfree() and RTFREE_LOCKED() require a locked rtentry
@@ -445,9 +443,7 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
  *    RTFREE() uses an unlocked entry.
  */
 
-int	 rt_expunge(struct radix_node_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
-int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 void	rt_updatemtu(struct ifnet *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);
@@ -458,15 +454,8 @@ void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
-void	 rtalloc_ign(struct route *ro, u_long ignflags);
-void	 rtalloc(struct route *ro); /* XXX deprecated, use rtalloc_ign(ro, 0) */
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtinit(struct ifaddr *, int, int);
-int	 rtioctl(u_long, caddr_t);
-void	 rtredirect(struct sockaddr *, struct sockaddr *,
-	    struct sockaddr *, int, struct sockaddr *);
-int	 rtrequest(int, struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones
@@ -474,7 +463,6 @@ int	 rtrequest(int, struct sockaddr *,
  */
 int	 rt_getifa_fib(struct rt_addrinfo *, u_int fibnum);
 void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
-void	 rtalloc_fib(struct route *ro, u_int fibnum);
 struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
 void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,

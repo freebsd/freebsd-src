@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 	__checkReturn	efx_rc_t
@@ -247,6 +244,7 @@ fail1:
 
 static efx_nic_ops_t	__efx_nic_falcon_ops = {
 	falcon_nic_probe,		/* eno_probe */
+	NULL,				/* eno_board_cfg */
 	NULL,				/* eno_set_drv_limits */
 	falcon_nic_reset,		/* eno_reset */
 	falcon_nic_init,		/* eno_init */
@@ -266,6 +264,7 @@ static efx_nic_ops_t	__efx_nic_falcon_ops = {
 
 static efx_nic_ops_t	__efx_nic_siena_ops = {
 	siena_nic_probe,		/* eno_probe */
+	NULL,				/* eno_board_cfg */
 	NULL,				/* eno_set_drv_limits */
 	siena_nic_reset,		/* eno_reset */
 	siena_nic_init,			/* eno_init */
@@ -284,21 +283,43 @@ static efx_nic_ops_t	__efx_nic_siena_ops = {
 #if EFSYS_OPT_HUNTINGTON
 
 static efx_nic_ops_t	__efx_nic_hunt_ops = {
-	hunt_nic_probe,			/* eno_probe */
-	hunt_nic_set_drv_limits,	/* eno_set_drv_limits */
-	hunt_nic_reset,			/* eno_reset */
-	hunt_nic_init,			/* eno_init */
-	hunt_nic_get_vi_pool,		/* eno_get_vi_pool */
-	hunt_nic_get_bar_region,	/* eno_get_bar_region */
+	ef10_nic_probe,			/* eno_probe */
+	hunt_board_cfg,			/* eno_board_cfg */
+	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
+	ef10_nic_reset,			/* eno_reset */
+	ef10_nic_init,			/* eno_init */
+	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
+	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 #if EFSYS_OPT_DIAG
 	ef10_sram_test,			/* eno_sram_test */
-	hunt_nic_register_test,		/* eno_register_test */
+	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
-	hunt_nic_fini,			/* eno_fini */
-	hunt_nic_unprobe,		/* eno_unprobe */
+	ef10_nic_fini,			/* eno_fini */
+	ef10_nic_unprobe,		/* eno_unprobe */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+
+static efx_nic_ops_t	__efx_nic_medford_ops = {
+	ef10_nic_probe,			/* eno_probe */
+	medford_board_cfg,		/* eno_board_cfg */
+	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
+	ef10_nic_reset,			/* eno_reset */
+	ef10_nic_init,			/* eno_init */
+	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
+	ef10_nic_get_bar_region,	/* eno_get_bar_region */
+#if EFSYS_OPT_DIAG
+	ef10_sram_test,			/* eno_sram_test */
+	ef10_nic_register_test,		/* eno_register_test */
+#endif	/* EFSYS_OPT_DIAG */
+	ef10_nic_fini,			/* eno_fini */
+	ef10_nic_unprobe,		/* eno_unprobe */
+};
+
+#endif	/* EFSYS_OPT_MEDFORD */
+
 
 	__checkReturn	efx_rc_t
 efx_nic_create(
@@ -360,9 +381,28 @@ efx_nic_create(
 		    EFX_FEATURE_MAC_HEADER_FILTERS |
 		    EFX_FEATURE_MCDI_DMA |
 		    EFX_FEATURE_PIO_BUFFERS |
-		    EFX_FEATURE_FW_ASSISTED_TSO;
+		    EFX_FEATURE_FW_ASSISTED_TSO |
+		    EFX_FEATURE_FW_ASSISTED_TSO_V2;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		enp->en_enop = (efx_nic_ops_t *)&__efx_nic_medford_ops;
+		/*
+		 * FW_ASSISTED_TSO ommitted as Medford only supports firmware
+		 * assisted TSO version 2, not the v1 scheme used on Huntington.
+		 */
+		enp->en_features =
+		    EFX_FEATURE_IPV6 |
+		    EFX_FEATURE_LINK_EVENTS |
+		    EFX_FEATURE_PERIODIC_MAC_STATS |
+		    EFX_FEATURE_MCDI |
+		    EFX_FEATURE_MAC_HEADER_FILTERS |
+		    EFX_FEATURE_MCDI_DMA |
+		    EFX_FEATURE_PIO_BUFFERS;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 
 	default:
 		rc = ENOTSUP;
@@ -668,8 +708,9 @@ efx_nic_reset(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(enp->en_mod_flags & EFX_MOD_PROBE);
 	/*
-	 * All modules except the MCDI, PROBE, NVRAM, VPD, MON (which we
-	 * do not reset here) must have been shut down or never initialized.
+	 * All modules except the MCDI, PROBE, NVRAM, VPD, MON, LIC
+	 * (which we do not reset here) must have been shut down or never
+	 * initialized.
 	 *
 	 * A rule of thumb here is: If the controller or MC reboots, is *any*
 	 * state lost. If it's lost and needs reapplying, then the module
@@ -677,7 +718,7 @@ efx_nic_reset(
 	 */
 	mod_flags = enp->en_mod_flags;
 	mod_flags &= ~(EFX_MOD_MCDI | EFX_MOD_PROBE | EFX_MOD_NVRAM |
-		    EFX_MOD_VPD | EFX_MOD_MON);
+		    EFX_MOD_VPD | EFX_MOD_MON | EFX_MOD_LIC);
 	EFSYS_ASSERT3U(mod_flags, ==, 0);
 	if (mod_flags != 0) {
 		rc = EINVAL;

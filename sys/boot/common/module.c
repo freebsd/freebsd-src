@@ -112,7 +112,7 @@ command_load(int argc, char *argv[])
     typestr = NULL;
     if (argc == 1) {
 	command_errmsg = "no filename specified";
-	return(CMD_ERROR);
+	return (CMD_CRIT);
     }
     while ((ch = getopt(argc, argv, "kt:")) != -1) {
 	switch(ch) {
@@ -126,7 +126,7 @@ command_load(int argc, char *argv[])
 	case '?':
 	default:
 	    /* getopt has already reported an error */
-	    return(CMD_OK);
+	    return (CMD_OK);
 	}
     }
     argv += (optind - 1);
@@ -138,33 +138,46 @@ command_load(int argc, char *argv[])
     if (dofile) {
 	if ((argc != 2) || (typestr == NULL) || (*typestr == 0)) {
 	    command_errmsg = "invalid load type";
-	    return(CMD_ERROR);
+	    return (CMD_CRIT);
 	}
 
 	fp = file_findfile(argv[1], typestr);
 	if (fp) {
 		sprintf(command_errbuf, "warning: file '%s' already loaded", argv[1]);
-		return (CMD_ERROR);
+		return (CMD_WARN);
 	}
 
-	return (file_loadraw(argv[1], typestr, 1) ? CMD_OK : CMD_ERROR);
+	if (file_loadraw(argv[1], typestr, 1) != NULL)
+		return (CMD_OK);
+
+	/* Failing to load mfs_root is never going to end well! */
+	if (strcmp("mfs_root", typestr) == 0)
+		return (CMD_FATAL);
+
+	return (CMD_ERROR);
     }
     /*
      * Do we have explicit KLD load ?
      */
     if (dokld || file_havepath(argv[1])) {
 	error = mod_loadkld(argv[1], argc - 2, argv + 2);
-	if (error == EEXIST)
+	if (error == EEXIST) {
 	    sprintf(command_errbuf, "warning: KLD '%s' already loaded", argv[1]);
-	return (error == 0 ? CMD_OK : CMD_ERROR);
+	    return (CMD_WARN);
+	}
+	
+	return (error == 0 ? CMD_OK : CMD_CRIT);
     }
     /*
      * Looks like a request for a module.
      */
     error = mod_load(argv[1], NULL, argc - 2, argv + 2);
-    if (error == EEXIST)
+    if (error == EEXIST) {
 	sprintf(command_errbuf, "warning: module '%s' already loaded", argv[1]);
-    return (error == 0 ? CMD_OK : CMD_ERROR);
+	return (CMD_WARN);
+    }
+
+    return (error == 0 ? CMD_OK : CMD_CRIT);
 }
 
 COMMAND_SET(load_geli, "load_geli", "load a geli key", command_load_geli);

@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -466,32 +465,6 @@ ef10_rx_init(
 	return (0);
 }
 
-#if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	efx_rc_t
-ef10_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size)
-{
-	efx_rc_t rc;
-
-	/* FIXME */
-	_NOTE(ARGUNUSED(enp, hdr_buf_size, pld_buf_size))
-	if (B_FALSE) {
-		rc = ENOTSUP;
-		goto fail1;
-	}
-	/* FIXME */
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
-
 #if EFSYS_OPT_RX_SCATTER
 	__checkReturn	efx_rc_t
 ef10_rx_scatter_enable(
@@ -601,6 +574,65 @@ fail1:
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
+
+/*
+ * EF10 RX pseudo-header
+ * ---------------------
+ *
+ * Receive packets are prefixed by an (optional) 14 byte pseudo-header:
+ *
+ *  +00: Toeplitz hash value.
+ *       (32bit little-endian)
+ *  +04: Outer VLAN tag. Zero if the packet did not have an outer VLAN tag.
+ *       (16bit big-endian)
+ *  +06: Inner VLAN tag. Zero if the packet did not have an inner VLAN tag.
+ *       (16bit big-endian)
+ *  +08: Packet Length. Zero if the RX datapath was in cut-through mode.
+ *       (16bit little-endian)
+ *  +10: MAC timestamp. Zero if timestamping is not enabled.
+ *       (32bit little-endian)
+ *
+ * See "The RX Pseudo-header" in SF-109306-TC.
+ */
+
+	__checkReturn	efx_rc_t
+ef10_rx_prefix_pktlen(
+	__in		efx_nic_t *enp,
+	__in		uint8_t *buffer,
+	__out		uint16_t *lengthp)
+{
+	/*
+	 * The RX pseudo-header contains the packet length, excluding the
+	 * pseudo-header. If the hardware receive datapath was operating in
+	 * cut-through mode then the length in the RX pseudo-header will be
+	 * zero, and the packet length must be obtained from the DMA length
+	 * reported in the RX event.
+	 */
+	*lengthp = buffer[8] | (buffer[9] << 8);
+	return (0);
+}
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	uint32_t
+ef10_rx_prefix_hash(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t func,
+	__in		uint8_t *buffer)
+{
+	switch (func) {
+	case EFX_RX_HASHALG_TOEPLITZ:
+		return (buffer[0] |
+		    (buffer[1] << 8) |
+		    (buffer[2] << 16) |
+		    (buffer[3] << 24));
+
+	default:
+		EFSYS_ASSERT(0);
+		return (0);
+	}
+}
+#endif /* EFSYS_OPT_RX_SCALE */
+
 			void
 ef10_rx_qpost(
 	__in		efx_rxq_t *erp,
@@ -651,7 +683,7 @@ ef10_rx_qpush(
 	efx_dword_t dword;
 
 	/* Hardware has alignment restriction for WPTR */
-	wptr = P2ALIGN(added, HUNTINGTON_RX_WPTR_ALIGN);
+	wptr = P2ALIGN(added, EF10_RX_WPTR_ALIGN);
 	if (pushed == wptr)
 		return;
 

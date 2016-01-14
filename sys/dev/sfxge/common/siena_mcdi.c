@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
 #include "efx_impl.h"
 
@@ -54,57 +53,33 @@ __FBSDID("$FreeBSD$");
 
 
 			void
-siena_mcdi_request_copyin(
+siena_mcdi_send_request(
 	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp,
-	__in		unsigned int seq,
-	__in		boolean_t ev_cpl,
-	__in		boolean_t new_epoch)
+	__in		void *hdrp,
+	__in		size_t hdr_len,
+	__in		void *sdup,
+	__in		size_t sdu_len)
 {
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-#endif
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_dword_t hdr;
 	efx_dword_t dword;
-	unsigned int xflags;
 	unsigned int pdur;
 	unsigned int dbr;
 	unsigned int pos;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
-	_NOTE(ARGUNUSED(new_epoch))
 
 	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
 	pdur = SIENA_MCDI_PDU(emip);
 	dbr = SIENA_MCDI_DOORBELL(emip);
 
-	xflags = 0;
-	if (ev_cpl)
-		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
+	/* Write the header */
+	EFSYS_ASSERT3U(hdr_len, ==, sizeof (efx_dword_t));
+	dword = *(efx_dword_t *)hdrp;
+	EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM, pdur, &dword, B_TRUE);
 
-	/* Construct the header in shared memory */
-	EFX_POPULATE_DWORD_6(hdr,
-			    MCDI_HEADER_CODE, emrp->emr_cmd,
-			    MCDI_HEADER_RESYNC, 1,
-			    MCDI_HEADER_DATALEN, emrp->emr_in_length,
-			    MCDI_HEADER_SEQ, seq,
-			    MCDI_HEADER_RESPONSE, 0,
-			    MCDI_HEADER_XFLAGS, xflags);
-	EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM, pdur, &hdr, B_TRUE);
-
-#if EFSYS_OPT_MCDI_LOGGING
-	if (emtp->emt_logger != NULL) {
-		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
-		    &hdr, sizeof (hdr),
-		    emrp->emr_in_buf, emrp->emr_in_length);
-	}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-
-	/* Construct the payload */
-	for (pos = 0; pos < emrp->emr_in_length; pos += sizeof (efx_dword_t)) {
-		memcpy(&dword, MCDI_IN(*emrp, efx_dword_t, pos),
-		    MIN(sizeof (dword), emrp->emr_in_length - pos));
+	/* Write the payload */
+	for (pos = 0; pos < sdu_len; pos += sizeof (efx_dword_t)) {
+		dword = *(efx_dword_t *)((uint8_t *)sdup + pos);
 		EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM,
 		    pdur + 1 + (pos >> 2), &dword, B_FALSE);
 	}
@@ -197,10 +172,10 @@ siena_mcdi_poll_response(
 
 			void
 siena_mcdi_read_response(
-	__in		efx_nic_t *enp,
-	__out		void *bufferp,
-	__in		size_t offset,
-	__in		size_t length)
+	__in			efx_nic_t *enp,
+	__out_bcount(length)	void *bufferp,
+	__in			size_t offset,
+	__in			size_t length)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	unsigned int pdur;
