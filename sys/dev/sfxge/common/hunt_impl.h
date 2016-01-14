@@ -572,15 +572,15 @@ ef10_sram_test(
 /* TX */
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_init(
+ef10_tx_init(
 	__in		efx_nic_t *enp);
 
 extern			void
-hunt_tx_fini(
+ef10_tx_fini(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qcreate(
+ef10_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -593,11 +593,11 @@ hunt_tx_qcreate(
 	__out		unsigned int *addedp);
 
 extern		void
-hunt_tx_qdestroy(
+ef10_tx_qdestroy(
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpost(
+ef10_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
 	__in		unsigned int n,
@@ -605,48 +605,48 @@ hunt_tx_qpost(
 	__inout		unsigned int *addedp);
 
 extern			void
-hunt_tx_qpush(
+ef10_tx_qpush(
 	__in		efx_txq_t *etp,
 	__in		unsigned int added,
 	__in		unsigned int pushed);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpace(
+ef10_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qflush(
+ef10_tx_qflush(
 	__in		efx_txq_t *etp);
 
 extern			void
-hunt_tx_qenable(
+ef10_tx_qenable(
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpio_enable(
+ef10_tx_qpio_enable(
 	__in		efx_txq_t *etp);
 
 extern			void
-hunt_tx_qpio_disable(
+ef10_tx_qpio_disable(
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpio_write(
+ef10_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(buf_length)	uint8_t *buffer,
 	__in			size_t buf_length,
 	__in                    size_t pio_buf_offset);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qpio_post(
+ef10_tx_qpio_post(
 	__in			efx_txq_t *etp,
 	__in			size_t pkt_length,
 	__in			unsigned int completed,
 	__inout			unsigned int *addedp);
 
 extern	__checkReturn	efx_rc_t
-hunt_tx_qdesc_post(
+ef10_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
 	__in		unsigned int n,
@@ -654,7 +654,7 @@ hunt_tx_qdesc_post(
 	__inout		unsigned int *addedp);
 
 extern	void
-hunt_tx_qdesc_dma_create(
+ef10_tx_qdesc_dma_create(
 	__in	efx_txq_t *etp,
 	__in	efsys_dma_addr_t addr,
 	__in	size_t size,
@@ -670,7 +670,7 @@ hunt_tx_qdesc_tso_create(
 	__out	efx_desc_t *edp);
 
 extern	void
-hunt_tx_qdesc_vlantci_create(
+ef10_tx_qdesc_vlantci_create(
 	__in	efx_txq_t *etp,
 	__in	uint16_t vlan_tci,
 	__out	efx_desc_t *edp);
@@ -679,7 +679,7 @@ hunt_tx_qdesc_vlantci_create(
 #if EFSYS_OPT_QSTATS
 
 extern			void
-hunt_tx_qstats_update(
+ef10_tx_qstats_update(
 	__in				efx_txq_t *etp,
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat);
 
