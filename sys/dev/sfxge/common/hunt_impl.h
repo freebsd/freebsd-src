@@ -295,8 +295,8 @@ hunt_mcdi_macaddr_change_supported(
 extern	__checkReturn		int
 hunt_nvram_buf_read_tlv(
 	__in				efx_nic_t *enp,
-	__in_bcount(partn_size)		caddr_t partn_data,
-	__in				size_t partn_size,
+	__in_bcount(max_seg_size)	caddr_t seg_data,
+	__in				size_t max_seg_size,
 	__in				uint32_t tag,
 	__deref_out_bcount_opt(*sizep)	caddr_t *datap,
 	__out				size_t *sizep);
@@ -325,6 +325,15 @@ hunt_nvram_partn_write_tlv(
 	__in		     	uint32_t tag,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
+
+extern	__checkReturn		int
+hunt_nvram_partn_write_segment_tlv(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			uint32_t tag,
+	__in_bcount(size)	caddr_t data,
+	__in			size_t size,
+	__in			boolean_t all_segments);
 
 extern	__checkReturn		int
 hunt_nvram_partn_size(
