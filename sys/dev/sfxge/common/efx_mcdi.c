@@ -468,9 +468,8 @@ efx_mcdi_ev_cpl(
 	} else {
 		emrp->emr_out_length_used = outlen;
 		emrp->emr_rc = 0;
-
-		emcop->emco_request_copyout(enp, emrp);
 	}
+	emcop->emco_request_copyout(enp, emrp);
 
 	emtp->emt_ev_cpl(emtp->emt_context);
 }
