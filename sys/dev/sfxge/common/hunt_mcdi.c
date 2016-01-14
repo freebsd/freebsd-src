@@ -274,6 +274,18 @@ hunt_mcdi_request_copyout(
 #endif /* EFSYS_OPT_MCDI_LOGGING */
 }
 
+static	__checkReturn	boolean_t
+hunt_mcdi_poll_response(
+	__in		efx_nic_t *enp)
+{
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+	efsys_mem_t *esmp = emtp->emt_dma_mem;
+	efx_dword_t hdr;
+
+	EFSYS_MEM_READD(esmp, 0, &hdr);
+	return (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) ? B_TRUE : B_FALSE);
+}
+
 	__checkReturn	boolean_t
 hunt_mcdi_request_poll(
 	__in		efx_nic_t *enp)
@@ -301,13 +313,15 @@ hunt_mcdi_request_poll(
 
 	offset = 0;
 
-	/* Read the command header */
-	EFSYS_MEM_READD(esmp, offset, &hdr[0]);
-	offset += sizeof (efx_dword_t);
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_RESPONSE) == 0) {
+	/* Check if a response is available */
+	if (hunt_mcdi_poll_response(enp) == B_FALSE) {
 		EFSYS_UNLOCK(enp->en_eslp, state);
 		return (B_FALSE);
 	}
+
+	/* Read the response header */
+	EFSYS_MEM_READD(esmp, offset, &hdr[0]);
+	offset += sizeof (efx_dword_t);
 	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
 		EFSYS_MEM_READD(esmp, offset, &hdr[1]);
 		offset += sizeof (efx_dword_t);
