@@ -291,32 +291,6 @@ fail1:
 
 #endif	/* EFSYS_OPT_DIAG */
 
-	__checkReturn		efx_rc_t
-siena_nvram_size(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			size_t *sizep)
-{
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = siena_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
-	if ((rc = siena_nvram_partn_size(enp, partn, sizep)) != 0)
-		goto fail2;
-
-	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	*sizep = 0;
-
-	return (rc);
-}
 
 #define	SIENA_DYNAMIC_CFG_SIZE(_nitems)					\
 	(sizeof (siena_mc_dynamic_config_hdr_t) + ((_nitems) *		\
