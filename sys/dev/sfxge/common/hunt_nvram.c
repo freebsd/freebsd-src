@@ -1288,7 +1288,7 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_size(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__out			size_t *sizep)
 {
 	efx_rc_t rc;
@@ -1308,7 +1308,7 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_lock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn)
+	__in			uint32_t partn)
 {
 	efx_rc_t rc;
 
@@ -1326,7 +1326,7 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_read(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -1358,7 +1358,7 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_erase(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__in			size_t size)
 {
@@ -1403,7 +1403,7 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_write(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size)
@@ -1457,7 +1457,7 @@ fail1:
 				void
 ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn)
+	__in			uint32_t partn)
 {
 	boolean_t reboot;
 	efx_rc_t rc;
@@ -1475,7 +1475,7 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_set_version(
 	__in			efx_nic_t *enp,
-	__in			unsigned int partn,
+	__in			uint32_t partn,
 	__in_ecount(4)		uint16_t version[4])
 {
 	struct tlv_partition_version partn_version;
@@ -1911,7 +1911,7 @@ ef10_nvram_set_version(
 	__in_ecount(4)		uint16_t version[4])
 {
 	ef10_parttbl_entry_t *entry;
-	unsigned int partn;
+	uint32_t partn;
 	efx_rc_t rc;
 
 	if ((entry = ef10_parttbl_entry(enp, type)) == NULL) {
