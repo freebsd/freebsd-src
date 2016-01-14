@@ -43,19 +43,22 @@ typedef struct blocking_pipe_header_tag {
 } blocking_pipe_header;
 
 # ifdef WORK_THREAD
-#  ifdef WORK_PIPE
-typedef pthread_t *	thr_ref;
-typedef sem_t *		sem_ref;
+#  ifdef SYS_WINNT
+typedef struct { HANDLE thnd; } thread_type;
+typedef struct { HANDLE shnd; } sema_type;
 #  else
-typedef HANDLE		thr_ref;
-typedef HANDLE		sem_ref;
+typedef pthread_t	thread_type;
+typedef sem_t		sema_type;
 #  endif
+typedef thread_type	*thr_ref;
+typedef sema_type	*sem_ref;
 # endif
 
 /*
  *
  */
-#ifdef WORK_FORK
+#if defined(WORK_FORK)
+
 typedef struct blocking_child_tag {
 	int	reusable;
 	int	pid;
@@ -66,38 +69,59 @@ typedef struct blocking_child_tag {
 	int	resp_write_pipe;
 	int	ispipe;
 } blocking_child;
+
 #elif defined(WORK_THREAD)
+
 typedef struct blocking_child_tag {
 /*
  * blocking workitems and blocking_responses are dynamically-sized
  * one-dimensional arrays of pointers to blocking worker requests and
  * responses.
+ *
+ * IMPORTANT: This structure is shared between threads, and all access
+ * that is not atomic (especially queue operations) must hold the
+ * 'accesslock' semaphore to avoid data races.
+ *
+ * The resource management (thread/semaphore creation/destruction)
+ * functions and functions just testing a handle are safe because these
+ * are only changed by the main thread when no worker is running on the
+ * same data structure.
  */
 	int			reusable;
-	thr_ref			thread_ref;
-	u_int			thread_id;
-	blocking_pipe_header * volatile * volatile 
+	sem_ref			accesslock;	/* shared access lock */
+	thr_ref			thread_ref;	/* thread 'handle' */
+
+	/* the reuest queue */
+	blocking_pipe_header ** volatile
 				workitems;
 	volatile size_t		workitems_alloc;
-	size_t			next_workitem;	 /* parent */
-	size_t			next_workeritem; /* child */
-	blocking_pipe_header * volatile * volatile 
+	size_t			head_workitem;		/* parent */
+	size_t			tail_workitem;		/* child */
+	sem_ref			workitems_pending;	/* signalling */
+
+	/* the response queue */
+	blocking_pipe_header ** volatile
 				responses;
 	volatile size_t		responses_alloc;
-	size_t			next_response;	/* child */
-	size_t			next_workresp;	/* parent */
+	size_t			head_response;		/* child */
+	size_t			tail_response;		/* parent */
+
 	/* event handles / sem_t pointers */
-	/* sem_ref		child_is_blocking; */
-	sem_ref			blocking_req_ready;
 	sem_ref			wake_scheduled_sleep;
+
+	/* some systems use a pipe for notification, others a semaphore.
+	 * Both employ the queue above for the actual data transfer.
+	 */
 #ifdef WORK_PIPE
-	int			resp_read_pipe;	/* parent */
-	int			resp_write_pipe;/* child */
+	int			resp_read_pipe;		/* parent */
+	int			resp_write_pipe;	/* child */
 	int			ispipe;
-	void *			resp_read_ctx;	/* child */
+	void *			resp_read_ctx;		/* child */
 #else
-	sem_ref			blocking_response_ready;
+	sem_ref			responses_pending;	/* signalling */
 #endif
+	sema_type		sem_table[4];
+	thread_type		thr_table[1];
 } blocking_child;
 
 #endif	/* WORK_THREAD */
@@ -111,7 +135,7 @@ extern	u_int	available_blocking_child_slot(void);
 extern	int	queue_blocking_request(blocking_work_req, void *,
 				       size_t, blocking_work_callback,
 				       void *);
-extern	int	queue_blocking_response(blocking_child *, 
+extern	int	queue_blocking_response(blocking_child *,
 					blocking_pipe_header *, size_t,
 					const blocking_pipe_header *);
 extern	void	process_blocking_resp(blocking_child *);

@@ -1091,7 +1091,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 		return (EFAULT);
 	}
 
-	error = copyout(head, args->head, sizeof(struct linux_robust_list_head));
+	error = copyout(&head, args->head, sizeof(head));
 	if (error) {
 		LIN_SDT_PROBE1(futex, linux_get_robust_list, copyout_error,
 		    error);

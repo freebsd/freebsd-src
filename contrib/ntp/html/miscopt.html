@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
 <title>Miscellaneous Commands and Options</title>
-<!-- Changed by: Harlan Stenn, 29-Jun-2015 -->
+<!-- Changed by: Harlan Stenn, 17-Nov-2015 -->
 <link href="scripts/style.css" type="text/css" rel="stylesheet">
 </head>
 <body>
@@ -11,7 +11,7 @@
 <img src="pic/boom3.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
 <p>We have three, now looking for more.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->23-Sep-2015  10:20<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->17-Nov-2015  11:06<!-- #EndDate -->
     UTC</p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -57,7 +57,7 @@
   <dt id="interface"><tt>interface [listen | ignore | drop] [all | ipv4 | ipv6 | wildcard | <i>name</i> | <i>address</i>[/<i>prefixlen</i>]]</tt></dt>
   <dd>This command controls which network addresses <tt>ntpd</tt> opens, and whether input is dropped without processing. The first parameter determines the action for addresses which match the second parameter. That parameter specifies a class of addresses, or a specific interface name, or an address. In the address case, <tt><i>prefixlen</i></tt> determines how many bits must match for this rule to apply. <tt>ignore</tt> prevents opening matching addresses, <tt>drop</tt> causes <tt>ntpd</tt> to open the address and drop all received packets without examination. Multiple <tt>interface</tt> commands can be used. The last rule which matches a particular address determines the action for it. <tt>interface</tt> commands are disabled if any <a href="ntpd.html#--interface"><tt>-I</tt></a>, <a href="ntpd.html#--interface"><tt>--interface</tt></a>, <a href="ntpd.html#--novirtualips"><tt>-L</tt></a>, or <a href="ntpd.html#--novirtualips"><tt>--novirtualips</tt></a> command-line options are used.  If none of those options are used and no <tt>interface</tt> actions are specified in the configuration file, all available network addresses are opened. The <tt>nic</tt> command is an alias for <tt>interface</tt>.</dd>
   <dt id="leapfile"><tt>leapfile <i>leapfile</i></tt></dt>
-  <dd>This command loads the NIST leapseconds file and initializes the leapsecond values for the next leapsecond time, expiration time and TAI offset. The file can be obtained directly from NIST national time servers using <tt>ftp</tt> as the ASCII file <tt>pub/leap-seconds</tt>.</dd>
+  <dd>This command loads the IERS leapseconds file and initializes the leapsecond values for the next leapsecond time, expiration time and TAI offset. The file can be obtained directly from the IERS at <a href="https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list">https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list</a> or <a href="ftp://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list">ftp://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list</a>.</dd>
   <dd>The <i>leapfile</i> is scanned when <tt>ntpd</tt> processes the <tt>leapfile</tt> directive or when <tt>ntpd</tt> detects that <i>leapfile</i> has changed.  <tt>ntpd</tt> checks once a day to see if the <i>leapfile</i> has changed.</dd>
   <dd>While not strictly a security function, the Autokey protocol provides means to securely retrieve the current or updated leapsecond values from a server.</dd>
   <dt id="leapsmearinterval"><tt>leapsmearinterval <i>seconds</i></tt></dt>

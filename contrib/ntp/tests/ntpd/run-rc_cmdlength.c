@@ -26,6 +26,7 @@
 #include "ntp.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
+#include "rc_cmdlength.h"
 #include "test-libntp.h"
 #include <string.h>
 
@@ -51,7 +52,7 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("rc_cmdlength.c");
-  RUN_TEST(test_EvaluateCommandLength, 15);
+  RUN_TEST(test_EvaluateCommandLength, 16);
 
   return (UnityEnd());
 }
