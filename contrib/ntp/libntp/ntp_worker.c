@@ -150,7 +150,8 @@ available_blocking_child_slot(void)
 					  prev_octets);
 	blocking_children_alloc = new_alloc;
 
-	return prev_alloc;
+	/* assume we'll never have enough workers to overflow u_int */
+	return (u_int)prev_alloc;
 }
 
 

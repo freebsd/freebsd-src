@@ -63,7 +63,7 @@ symkey	key_listhead;		/* list of all in-use keys */;
  * keyid. We make this fairly big for potentially busy servers.
  */
 #define	DEF_AUTHHASHSIZE	64
-//#define	HASHMASK	((HASHSIZE)-1)
+/*#define	HASHMASK	((HASHSIZE)-1)*/
 #define	KEYHASH(keyid)	((keyid) & authhashmask)
 
 int	authhashdisabled;
@@ -511,7 +511,17 @@ authistrusted(
 	return TRUE;
 }
 
-
+/* Note: There are two locations below where 'strncpy()' is used. While
+ * this function is a hazard by itself, it's essential that it is used
+ * here. Bug 1243 involved that the secret was filled with NUL bytes
+ * after the first NUL encountered, and 'strlcpy()' simply does NOT have
+ * this behaviour. So disabling the fix and reverting to the buggy
+ * behaviour due to compatibility issues MUST also fill with NUL and
+ * this needs 'strncpy'. Also, the secret is managed as a byte blob of a
+ * given size, and eventually truncating it and replacing the last byte
+ * with a NUL would be a bug.
+ * perlinger@ntp.org 2015-10-10
+ */
 void
 MD5auth_setkey(
 	keyid_t keyno,
@@ -546,7 +556,8 @@ MD5auth_setkey(
 #ifndef DISABLE_BUG1243_FIX
 			memcpy(sk->secret, key, secretsize);
 #else
-			strlcpy((char *)sk->secret, (const char *)key,
+			/* >MUST< use 'strncpy()' here! See above! */
+			strncpy((char *)sk->secret, (const char *)key,
 				secretsize);
 #endif
 			if (cache_keyid == keyno) {
@@ -565,7 +576,8 @@ MD5auth_setkey(
 #ifndef DISABLE_BUG1243_FIX
 	memcpy(secret, key, secretsize);
 #else
-	strlcpy((char *)secret, (const char *)key, secretsize);
+	/* >MUST< use 'strncpy()' here! See above! */
+	strncpy((char *)secret, (const char *)key, secretsize);
 #endif
 	allocsymkey(bucket, keyno, 0, (u_short)keytype, 0,
 		    (u_short)secretsize, secret);
@@ -641,13 +653,13 @@ auth_agekeys(void)
  *
  * Returns length of authenticator field, zero if key not found.
  */
-int
+size_t
 authencrypt(
 	keyid_t		keyno,
 	u_int32 *	pkt,
-	int		length
+	size_t		length
 	)
-{\
+{
 	/*
 	 * A zero key identifier means the sender has not verified
 	 * the last message was correctly authenticated. The MAC
@@ -675,8 +687,8 @@ int
 authdecrypt(
 	keyid_t		keyno,
 	u_int32 *	pkt,
-	int		length,
-	int		size
+	size_t		length,
+	size_t		size
 	)
 {
 	/*

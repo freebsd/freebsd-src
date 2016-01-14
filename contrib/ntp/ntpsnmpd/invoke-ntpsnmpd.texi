@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpsnmpd.texi)
 #
-# It has been AutoGen-ed  October 21, 2015 at 12:39:43 PM by AutoGen 5.18.5
+# It has been AutoGen-ed  January  7, 2016 at 11:32:15 PM by AutoGen 5.18.5
 # From the definitions    ntpsnmpd-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -47,7 +47,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p4
+ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p5
 Usage:  ntpsnmpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
   Flg Arg Option-Name    Description
    -n no  nofork         Do not fork

@@ -11,6 +11,24 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160114	p33	FreeBSD-EN-16:02.pf
+			FreeBSD-EN-16:03.yplib
+			FreeBSD-SA-16:01.sctp
+			FreeBSD-SA-16:02.ntp
+			FreeBSD-SA-16:03.linux
+			FreeBSD-SA-16:04.linux
+			FreeBSD-SA-16:05.tcp
+			FreeBSD-SA-16:06.bsnmpd
+
+	Fix pf(4) generating bad TCP checksums. [EN-16:02]
+	Fix infinite loop in YP/NIS client library. [EN-16:03]
+	Fix remote denial of service in SCTP. [SA-16:01]
+	Update NTP to 4.2.8p5. [SA-16:02]
+	Fix kernel memory diclosure in Linux compatibility layer. [SA-16:03]
+	Fix kernel memory overwrite in Linux compatibility layer. [SA-16:04]
+	Fix crash in TCP MD5 signatures. [SA-16:05]
+	Fix insecure default permissions for snmpd.config. [SA-16:06]
+
 20151216	p32	FreeBSD-SA-15:27.bind
 	Fix BIND remote denial of service vulnerability. [SA-15:27]
 
