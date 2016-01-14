@@ -444,9 +444,9 @@ ef10_ev_qmoderate(
 		    eep->ee_index, &dword, 0);
 	} else {
 		EFX_POPULATE_DWORD_2(dword,
-		    FRF_CZ_TC_TIMER_MODE, mode,
-		    FRF_CZ_TC_TIMER_VAL, timer_val);
-		EFX_BAR_TBL_WRITED(enp, FR_BZ_TIMER_COMMAND_REGP0,
+		    ERF_DZ_TC_TIMER_MODE, mode,
+		    ERF_DZ_TC_TIMER_VAL, timer_val);
+		EFX_BAR_TBL_WRITED(enp, ER_DZ_EVQ_TMR_REG,
 		    eep->ee_index, &dword, 0);
 	}
 
