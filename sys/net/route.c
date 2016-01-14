@@ -576,8 +576,8 @@ rtredirect_fib(struct sockaddr *dst,
 			 * Create new route, rather than smashing route to net.
 			 */
 		create:
-			RTFREE(rt);
-			rt = NULL;
+			if (rt != NULL)
+				RTFREE_LOCKED(rt);
 		
 			flags |= RTF_DYNAMIC;
 			bzero((caddr_t)&info, sizeof(info));
