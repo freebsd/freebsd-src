@@ -562,7 +562,7 @@ hunt_bist_stop(
 #if EFSYS_OPT_DIAG
 
 extern	__checkReturn	efx_rc_t
-hunt_sram_test(
+ef10_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_sram_pattern_fn_t func);
 
