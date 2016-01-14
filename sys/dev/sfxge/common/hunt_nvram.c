@@ -240,7 +240,7 @@ fail1:
 
 static				efx_rc_t
 tlv_init_cursor(
-	__in	tlv_cursor_t	*cursor,
+	__out	tlv_cursor_t	*cursor,
 	__in	uint32_t	*block,
 	__in	uint32_t	*limit)
 {
@@ -255,7 +255,7 @@ tlv_init_cursor(
 
 static				efx_rc_t
 tlv_init_cursor_from_size(
-	__in	tlv_cursor_t	*cursor,
+	__out	tlv_cursor_t	*cursor,
 	__in	uint8_t	*block,
 	__in	size_t		size)
 {
