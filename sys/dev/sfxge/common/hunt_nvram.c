@@ -1295,7 +1295,8 @@ hunt_nvram_partn_size(
 {
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_nvram_info(enp, partn, sizep, NULL, NULL)) != 0)
+	if ((rc = efx_mcdi_nvram_info(enp, partn, sizep,
+	    NULL, NULL, NULL)) != 0)
 		goto fail1;
 
 	return (0);

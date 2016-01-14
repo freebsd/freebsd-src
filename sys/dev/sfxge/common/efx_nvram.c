@@ -567,10 +567,11 @@ efx_mcdi_nvram_info(
 	__in			uint32_t partn,
 	__out_opt		size_t *sizep,
 	__out_opt		uint32_t *addressp,
-	__out_opt		uint32_t *erase_sizep)
+	__out_opt		uint32_t *erase_sizep,
+	__out_opt		uint32_t *write_sizep)
 {
 	uint8_t payload[MAX(MC_CMD_NVRAM_INFO_IN_LEN,
-			    MC_CMD_NVRAM_INFO_OUT_LEN)];
+			    MC_CMD_NVRAM_INFO_V2_OUT_LEN)];
 	efx_mcdi_req_t req;
 	efx_rc_t rc;
 
@@ -579,7 +580,7 @@ efx_mcdi_nvram_info(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_INFO_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_NVRAM_INFO_OUT_LEN;
+	req.emr_out_length = MC_CMD_NVRAM_INFO_V2_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, NVRAM_INFO_IN_TYPE, partn);
 
@@ -603,6 +604,13 @@ efx_mcdi_nvram_info(
 
 	if (erase_sizep)
 		*erase_sizep = MCDI_OUT_DWORD(req, NVRAM_INFO_OUT_ERASESIZE);
+
+	if (write_sizep) {
+		*write_sizep =
+			(req.emr_out_length_used <
+			    MC_CMD_NVRAM_INFO_V2_OUT_LEN) ?
+			0 : MCDI_OUT_DWORD(req, NVRAM_INFO_V2_OUT_WRITESIZE);
+	}
 
 	return (0);
 
