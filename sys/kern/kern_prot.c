@@ -88,7 +88,6 @@ static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0, "BSD security policy");
 
-static void crextend(struct ucred *cr, int n);
 static void crsetgroups_locked(struct ucred *cr, int ngrp,
     gid_t *groups);
 
@@ -1981,7 +1980,7 @@ crcopysafe(struct proc *p, struct ucred *cr)
 /*
  * Extend the passed in credential to hold n items.
  */
-static void
+void
 crextend(struct ucred *cr, int n)
 {
 	int cnt;

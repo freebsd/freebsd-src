@@ -89,9 +89,10 @@ case "$ntp_use_local_libevent" in
 	    # LDADD_LIBEVENT=`$PKG_CONFIG --libs libevent | sed 's:-levent::'`
 	    # So now we dance...
 	    LDADD_LIBEVENT=
-	    for i in `$PKG_CONFIG --libs libevent`
+	    for i in `$PKG_CONFIG --libs libevent` `$PKG_CONFIG --cflags-only-other libevent_pthreads`
 	    do
 		case "$i" in
+		 -D*) ;;
 		 -levent*) ;;
 		 *) case "$LDADD_LIBEVENT" in
 		     '') LDADD_LIBEVENT="$i" ;;

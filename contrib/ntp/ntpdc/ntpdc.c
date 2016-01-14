@@ -32,6 +32,7 @@
 
 #include "ntp_libopts.h"
 #include "ntpdc-opts.h"
+#include "safecast.h"
 
 #ifdef SYS_VXWORKS
 				/* vxWorks needs mode flag -casey*/
@@ -74,8 +75,8 @@ int		ntpdcmain	(int,	char **);
 static	int	openhost	(const char *);
 static	int	sendpkt		(void *, size_t);
 static	void	growpktdata	(void);
-static	int	getresponse	(int, int, int *, int *, char **, int);
-static	int	sendrequest	(int, int, int, u_int, size_t, char *);
+static	int	getresponse	(int, int, size_t *, size_t *, const char **, size_t);
+static	int	sendrequest	(int, int, int, size_t, size_t, const char *);
 static	void	getcmds		(void);
 static	RETSIGTYPE abortcmd	(int);
 static	void	docmd		(const char *);
@@ -526,10 +527,11 @@ openhost(
 
 #ifdef SYS_VXWORKS
 	if (connect(sockfd, (struct sockaddr *)&hostaddr, 
-		    sizeof(hostaddr)) == -1) {
+		    sizeof(hostaddr)) == -1)
 #else
-	if (connect(sockfd, ai->ai_addr, ai->ai_addrlen) == -1) {
+	if (connect(sockfd, ai->ai_addr, ai->ai_addrlen) == -1)
 #endif /* SYS_VXWORKS */
+	{
 		error("connect");
 		exit(-1);
 	}
@@ -582,18 +584,18 @@ static int
 getresponse(
 	int implcode,
 	int reqcode,
-	int *ritems,
-	int *rsize,
-	char **rdata,
-	int esize
+	size_t *ritems,
+	size_t *rsize,
+	const char **rdata,
+	size_t esize
 	)
 {
 	struct resp_pkt rpkt;
 	struct sock_timeval tvo;
-	int items;
-	int i;
-	int size;
-	int datasize;
+	size_t items;
+	size_t i;
+	size_t size;
+	size_t datasize;
 	char *datap;
 	char *tmp_data;
 	char haveseq[MAXSEQ+1];
@@ -603,7 +605,7 @@ getresponse(
 	int seq;
 	fd_set fds;
 	ssize_t n;
-	int pad;
+	size_t pad;
 
 	/*
 	 * This is pretty tricky.  We may get between 1 and many packets
@@ -628,8 +630,7 @@ getresponse(
 		tvo = tvsout;
 	
 	FD_SET(sockfd, &fds);
-	n = select(sockfd+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
-
+	n = select(sockfd+1, &fds, NULL, NULL, &tvo);
 	if (n == -1) {
 		warning("select fails");
 		return -1;
@@ -640,7 +641,8 @@ getresponse(
 		 */
 		if (firstpkt) {
 			(void) fprintf(stderr,
-				       "%s: timed out, nothing received\n", currenthost);
+				       "%s: timed out, nothing received\n",
+				       currenthost);
 			return ERR_TIMEOUT;
 		} else {
 			(void) fprintf(stderr,
@@ -740,7 +742,7 @@ getresponse(
 	if ((size_t)datasize > (n-RESP_HEADER_SIZE)) {
 		if (debug)
 		    printf(
-			    "Received items %d, size %d (total %d), data in packet is %zu\n",
+			    "Received items %zu, size %zu (total %zu), data in packet is %zu\n",
 			    items, size, datasize, n-RESP_HEADER_SIZE);
 		goto again;
 	}
@@ -751,7 +753,7 @@ getresponse(
 	 */
 	if (!firstpkt && size != *rsize) {
 		if (debug)
-		    printf("Received itemsize %d, previous %d\n",
+		    printf("Received itemsize %zu, previous %zu\n",
 			   size, *rsize);
 		goto again;
 	}
@@ -781,7 +783,7 @@ getresponse(
 	 * So far, so good.  Copy this data into the output array.
 	 */
 	if ((datap + datasize + (pad * items)) > (pktdata + pktdatasize)) {
-		int offset = datap - pktdata;
+		size_t offset = datap - pktdata;
 		growpktdata();
 		*rdata = pktdata; /* might have been realloced ! */
 		datap = pktdata + offset;
@@ -844,9 +846,9 @@ sendrequest(
 	int implcode,
 	int reqcode,
 	int auth,
-	u_int qitems,
+	size_t qitems,
 	size_t qsize,
-	char *qdata
+	const char *qdata
 	)
 {
 	struct req_pkt qpkt;
@@ -855,7 +857,7 @@ sendrequest(
 	u_long	key_id;
 	l_fp	ts;
 	l_fp *	ptstamp;
-	int	maclen;
+	size_t	maclen;
 	char *	pass;
 
 	ZERO(qpkt);
@@ -918,13 +920,14 @@ sendrequest(
 	get_systime(&ts);
 	L_ADD(&ts, &delay_time);
 	HTONL_FP(&ts, ptstamp);
-	maclen = authencrypt(info_auth_keyid, (void *)&qpkt, reqsize);
+	maclen = authencrypt(
+		info_auth_keyid, (void *)&qpkt, size2int_chk(reqsize));
 	if (!maclen) {  
 		fprintf(stderr, "Key not found\n");
 		return 1;
 	} else if (maclen != (int)(info_auth_hashlen + sizeof(keyid_t))) {
 		fprintf(stderr,
-			"%d octet MAC, %zu expected with %zu octet digest\n",
+			"%zu octet MAC, %zu expected with %zu octet digest\n",
 			maclen, (info_auth_hashlen + sizeof(keyid_t)),
 			info_auth_hashlen);
 		return 1;
@@ -941,12 +944,12 @@ doquery(
 	int implcode,
 	int reqcode,
 	int auth,
-	int qitems,
-	int qsize,
-	char *qdata,
-	int *ritems,
-	int *rsize,
-	char **rdata,
+	size_t qitems,
+	size_t qsize,
+	const char *qdata,
+	size_t *ritems,
+	size_t *rsize,
+	const char **rdata,
  	int quiet_mask,
 	int esize
 	)
@@ -972,8 +975,7 @@ again:
 		tvzero.tv_sec = tvzero.tv_usec = 0;
 		FD_ZERO(&fds);
 		FD_SET(sockfd, &fds);
-		res = select(sockfd+1, &fds, (fd_set *)0, (fd_set *)0, &tvzero);
-
+		res = select(sockfd+1, &fds, NULL, NULL, &tvzero);
 		if (res == -1) {
 			warning("polling select");
 			return -1;
@@ -1271,7 +1273,7 @@ findcmd(
 	)
 {
 	register struct xcmd *cl;
-	register int clen;
+	size_t clen;
 	int nmatch;
 	struct xcmd *nearmatch = NULL;
 	struct xcmd *clist;
@@ -1384,7 +1386,7 @@ getarg(
 				return 0;
 			}
 			argp->uval *= 10;
-			argp->uval += (cp - digits);
+			argp->uval += (u_long)(cp - digits);
 		} while (*(++np) != '\0');
 
 		if (isneg) {
