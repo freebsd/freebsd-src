@@ -857,7 +857,7 @@ typedef struct nvsp_msg_ {
 #define NETVSC_SEND_BUFFER_SIZE			(1024*1024*15)   /* 15M */
 #define NETVSC_SEND_BUFFER_ID			0xface
 
-
+#define NETVSC_RECEIVE_BUFFER_SIZE_LEGACY	(1024*1024*15) /* 15MB */
 #define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16) /* 16MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe

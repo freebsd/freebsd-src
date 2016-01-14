@@ -642,6 +642,12 @@ hv_nv_connect_to_vsp(struct hv_device *device)
 	/* sema_wait(&NetVscChannel->channel_init_sema); */
 
 	/* Post the big receive buffer to NetVSP */
+	if (net_dev->nvsp_version <= NVSP_PROTOCOL_VERSION_2)
+		net_dev->rx_buf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
+	else
+		net_dev->rx_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
+	net_dev->send_buf_size = NETVSC_SEND_BUFFER_SIZE;
+
 	ret = hv_nv_init_rx_buffer_with_net_vsp(device);
 	if (ret == 0)
 		ret = hv_nv_init_send_buffer_with_net_vsp(device);
@@ -676,9 +682,6 @@ hv_nv_on_device_add(struct hv_device *device, void *additional_info)
 		goto cleanup;
 
 	/* Initialize the NetVSC channel extension */
-	net_dev->rx_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
-
-	net_dev->send_buf_size = NETVSC_SEND_BUFFER_SIZE;
 
 	sema_init(&net_dev->channel_init_sema, 0, "netdev_sema");
 
