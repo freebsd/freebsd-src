@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160114	p34	FreeBSD-SA-16:07.openssh
+
+	Fix OpenSSH client information leak. [SA-16:07]
+
 20160114	p33	FreeBSD-EN-16:02.pf
 			FreeBSD-EN-16:03.yplib
 			FreeBSD-SA-16:01.sctp
