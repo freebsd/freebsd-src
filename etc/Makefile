@@ -82,10 +82,6 @@ BIN1+= amd.map
 BIN1+= apmd.conf
 .endif
 
-.if ${MK_BSNMP} != "no"
-BIN1+= snmpd.config
-.endif
-
 .if ${MK_FREEBSD_UPDATE} != "no"
 BIN1+= freebsd-update.conf
 .endif
@@ -217,6 +213,11 @@ distribution:
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+.if ${MK_BSNMP} != "no"
+	cd ${.CURDIR}; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
+		snmpd.config ${DESTDIR}/etc;
+.endif
 .if ${MK_AT} == "no"
 	sed -i "" -e 's;.*/usr/libexec/atrun;#&;' ${DESTDIR}/etc/crontab
 .endif
