@@ -1302,9 +1302,11 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	if (error)
 		goto out;
 	newcred = crget();
+	crextend(newcred, ngrp + 1);
 	p = td->td_proc;
 	PROC_LOCK(p);
-	oldcred = crcopysafe(p, newcred);
+	oldcred = p->p_ucred;
+	crcopy(newcred, oldcred);
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
