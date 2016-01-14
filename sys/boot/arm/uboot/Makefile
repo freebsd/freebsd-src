@@ -8,6 +8,8 @@ NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 WARNS?=		1
+CWARNFLAGS.gcc+=	-Wno-int-to-pointer-cast
+
 # Address at which ubldr will be loaded.
 # This varies for different boards and SOCs.
 UBLDR_LOADADDR?=	0x1000000
