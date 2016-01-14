@@ -7,6 +7,7 @@
 #include "sockaddrtest.h"
 
 
+void setUp(void);
 void test_IPv4AddressWithPort(void);
 //#ifdef ISC_PLATFORM_HAVEIPV6
 void test_IPv6AddressWithPort(void);
@@ -15,6 +16,16 @@ void test_IgnoreIPv6Fields(void);
 void test_ScopedIPv6AddressWithPort(void);
 void test_HashEqual(void);
 void test_HashNotEqual(void);
+
+
+void
+setUp(void)
+{
+	init_lib();
+
+	return;
+}
+
 
 void 
 test_IPv4AddressWithPort(void) {
@@ -62,12 +73,12 @@ test_IPv6AddressWithPort(void) {
 void 
 test_ScopedIPv6AddressWithPort(void) {
 #ifdef ISC_PLATFORM_HAVESCOPEID
-	const struct in6_addr address = {
+	const struct in6_addr address = { { {
 		0xfe, 0x80, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00,
 		0x02, 0x12, 0x3f, 0xff, 
 		0xfe, 0x29, 0xff, 0xfa
-	};
+	} } };
 
 	const char* expected =
 		"fe80::212:3fff:fe29:fffa%5";

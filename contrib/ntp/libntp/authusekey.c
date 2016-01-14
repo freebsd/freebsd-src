@@ -23,7 +23,7 @@ authusekey(
 	const u_char *str
 	)
 {
-	int len;
+	size_t	len;
 
 	len = strlen((const char *)str);
 	if (0 == len)

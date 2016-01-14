@@ -1630,9 +1630,9 @@ list_err(
 static char *
 mkreadable(
 	char  *buffer,
-	long  blen,
+	size_t blen,
 	const char  *src,
-	u_long  srclen,
+	size_t srclen,
 	int hex
 	)
 {

@@ -4158,11 +4158,6 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	struct ip *h = NULL;
 	int chk;
 
-	/* We need a proper CSUM befor we start (s. OpenBSD ip_output) */
-	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-		in_delayed_cksum(*m);
-		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-	}
 	if ((*m)->m_pkthdr.len >= (int)sizeof(*h)) {
 		/* if m_pkthdr.len is less than ip header, pf will handle. */
 		h = mtod(*m, struct ip *);
@@ -4222,14 +4217,6 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 */
 	int chk;
 
-	/* We need a proper CSUM before we start (s. OpenBSD ip_output) */
-	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-#ifdef INET
-		/* XXX-BZ copy&paste error from r126261? */
-		in_delayed_cksum(*m);
-#endif
-		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-	}
 	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test6(PF_OUT, ifp, m, NULL, inp);
 	CURVNET_RESTORE();

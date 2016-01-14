@@ -28,6 +28,7 @@ void
 setUp(void) {
 	kod_db_cnt = 0;
 	kod_db = NULL;
+	init_lib();
 }
 
 
