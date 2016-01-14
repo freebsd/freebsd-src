@@ -50,6 +50,7 @@ METHOD void * alloc {
 # Free DMA channel
 #
 METHOD void free {
+	device_t dev;
 	void *dmachan;
 };
 
@@ -57,6 +58,7 @@ METHOD void free {
 # Get DMA channel configuration
 #
 METHOD uint32_t get_config {
+	device_t dev;
 	void *dmachan;
 };
 
@@ -64,6 +66,7 @@ METHOD uint32_t get_config {
 # Set DMA channel configuration
 #
 METHOD void set_config {
+	device_t dev;
 	void *dmachan;
 	uint32_t config;
 };
@@ -72,6 +75,7 @@ METHOD void set_config {
 # Start DMA channel transfer
 #
 METHOD int transfer {
+	device_t dev;
 	void *dmachan;
 	bus_addr_t src;
 	bus_addr_t dst;
@@ -82,5 +86,6 @@ METHOD int transfer {
 # Halt DMA channel transfer
 #
 METHOD void halt {
+	device_t dev;
 	void *dmachan;
 };

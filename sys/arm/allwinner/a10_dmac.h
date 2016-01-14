@@ -36,6 +36,7 @@
 #define	__BITS(__m, __n)	\
     ((__BIT(MAX((__m), (__n)) + 1) - 1) ^ (__BIT(MIN((__m), (__n))) - 1))
 #define	__LOWEST_SET_BIT(__mask) ((((__mask) - 1) & (__mask)) ^ (__mask))
+#define __SHIFTOUT(__x, __mask)	(((__x) & (__mask)) / __LOWEST_SET_BIT(__mask))
 #define __SHIFTIN(__x, __mask) ((__x) * __LOWEST_SET_BIT(__mask))
 
 #define AWIN_DMA_IRQ_EN_REG		0x0000

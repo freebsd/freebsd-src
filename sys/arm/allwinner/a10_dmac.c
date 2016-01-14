@@ -194,10 +194,8 @@ a10dmac_intr(void *priv)
 	uint32_t sta, bit, mask;
 	uint8_t index;
 
-	mtx_lock(&sc->sc_mtx);
 	sta = DMA_READ(sc, AWIN_DMA_IRQ_PEND_STA_REG);
 	DMA_WRITE(sc, AWIN_DMA_IRQ_PEND_STA_REG, sta);
-	mtx_unlock(&sc->sc_mtx);
 
 	while ((bit = ffs(sta & AWIN_DMA_IRQ_END_MASK)) != 0) {
 		mask = __BIT(bit - 1);
@@ -218,7 +216,7 @@ a10dmac_intr(void *priv)
 }
 
 static uint32_t
-a10dmac_get_config(void *priv)
+a10dmac_get_config(device_t dev, void *priv)
 {
 	struct a10dmac_channel *ch = priv;
 
@@ -230,7 +228,7 @@ a10dmac_get_config(void *priv)
 }
 
 static void
-a10dmac_set_config(void *priv, uint32_t val)
+a10dmac_set_config(device_t dev, void *priv, uint32_t val)
 {
 	struct a10dmac_channel *ch = priv;
 
@@ -258,7 +256,7 @@ a10dmac_alloc(device_t dev, bool dedicated, void (*cb)(void *), void *cbarg)
 		ch_count = NDMA_CHANNELS;
 	}
 
-	mtx_lock(&sc->sc_mtx);
+	mtx_lock_spin(&sc->sc_mtx);
 	for (index = 0; index < ch_count; index++) {
 		if (ch_list[index].ch_callback == NULL) {
 			ch = &ch_list[index];
@@ -275,22 +273,22 @@ a10dmac_alloc(device_t dev, bool dedicated, void (*cb)(void *), void *cbarg)
 			break;
 		}
 	}
-	mtx_unlock(&sc->sc_mtx);
+	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (ch);
 }
 
 static void
-a10dmac_free(void *priv)
+a10dmac_free(device_t dev, void *priv)
 {
 	struct a10dmac_channel *ch = priv;
 	struct a10dmac_softc *sc = ch->ch_sc;
 	uint32_t irqen, sta, cfg;
 
-	mtx_lock(&sc->sc_mtx);
+	mtx_lock_spin(&sc->sc_mtx);
 
 	irqen = DMA_READ(sc, AWIN_DMA_IRQ_EN_REG);
-	cfg = a10dmac_get_config(ch);
+	cfg = a10dmac_get_config(dev, ch);
 	if (ch->ch_type == CH_NDMA) {
 		sta = AWIN_DMA_IRQ_NDMA_END(ch->ch_index);
 		cfg &= ~AWIN_NDMA_CTL_DMA_LOADING;
@@ -299,24 +297,24 @@ a10dmac_free(void *priv)
 		cfg &= ~AWIN_DDMA_CTL_DMA_LOADING;
 	}
 	irqen &= ~sta;
-	a10dmac_set_config(ch, cfg);
+	a10dmac_set_config(dev, ch, cfg);
 	DMA_WRITE(sc, AWIN_DMA_IRQ_EN_REG, irqen);
 	DMA_WRITE(sc, AWIN_DMA_IRQ_PEND_STA_REG, sta);
 
 	ch->ch_callback = NULL;
 	ch->ch_callbackarg = NULL;
 
-	mtx_unlock(&sc->sc_mtx);
+	mtx_unlock_spin(&sc->sc_mtx);
 }
 
 static int
-a10dmac_transfer(void *priv, bus_addr_t src, bus_addr_t dst,
+a10dmac_transfer(device_t dev, void *priv, bus_addr_t src, bus_addr_t dst,
     size_t nbytes)
 {
 	struct a10dmac_channel *ch = priv;
 	uint32_t cfg;
 
-	cfg = a10dmac_get_config(ch);
+	cfg = a10dmac_get_config(dev, ch);
 	if (ch->ch_type == CH_NDMA) {
 		if (cfg & AWIN_NDMA_CTL_DMA_LOADING)
 			return (EBUSY);
@@ -326,7 +324,7 @@ a10dmac_transfer(void *priv, bus_addr_t src, bus_addr_t dst,
 		DMACH_WRITE(ch, AWIN_NDMA_BC_REG, nbytes);
 
 		cfg |= AWIN_NDMA_CTL_DMA_LOADING;
-		a10dmac_set_config(ch, cfg);
+		a10dmac_set_config(dev, ch, cfg);
 	} else {
 		if (cfg & AWIN_DDMA_CTL_DMA_LOADING)
 			return (EBUSY);
@@ -341,25 +339,25 @@ a10dmac_transfer(void *priv, bus_addr_t src, bus_addr_t dst,
 		    __SHIFTIN(7, AWIN_DDMA_PARA_SRC_WAIT_CYC));
 
 		cfg |= AWIN_DDMA_CTL_DMA_LOADING;
-		a10dmac_set_config(ch, cfg);
+		a10dmac_set_config(dev, ch, cfg);
 	}
 
 	return (0);
 }
 
 static void
-a10dmac_halt(void *priv)
+a10dmac_halt(device_t dev, void *priv)
 {
 	struct a10dmac_channel *ch = priv;
 	uint32_t cfg;
 
-	cfg = a10dmac_get_config(ch);
+	cfg = a10dmac_get_config(dev, ch);
 	if (ch->ch_type == CH_NDMA) {
 		cfg &= ~AWIN_NDMA_CTL_DMA_LOADING;
 	} else {
 		cfg &= ~AWIN_DDMA_CTL_DMA_LOADING;
 	}
-	a10dmac_set_config(ch, cfg);
+	a10dmac_set_config(dev, ch, cfg);
 }
 
 static device_method_t a10dmac_methods[] = {
