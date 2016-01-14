@@ -1246,7 +1246,6 @@ falconsiena_rx_qcreate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_oword_t oword;
 	uint32_t size;
-	boolean_t split;
 	boolean_t jumbo;
 	efx_rc_t rc;
 
@@ -1277,7 +1276,6 @@ falconsiena_rx_qcreate(
 
 	switch (type) {
 	case EFX_RXQ_TYPE_DEFAULT:
-		split = B_FALSE;
 		jumbo = B_FALSE;
 		break;
 
@@ -1307,7 +1305,6 @@ falconsiena_rx_qcreate(
 			rc = EINVAL;
 			goto fail4;
 		}
-		split = B_FALSE;
 		jumbo = B_TRUE;
 		break;
 #endif	/* EFSYS_OPT_RX_SCATTER */
@@ -1318,10 +1315,7 @@ falconsiena_rx_qcreate(
 	}
 
 	/* Set up the new descriptor queue */
-	EFX_POPULATE_OWORD_10(oword,
-	    FRF_CZ_RX_HDR_SPLIT, split,
-	    FRF_AZ_RX_ISCSI_DDIG_EN, 0,
-	    FRF_AZ_RX_ISCSI_HDIG_EN, 0,
+	EFX_POPULATE_OWORD_7(oword,
 	    FRF_AZ_RX_DESCQ_BUF_BASE_ID, id,
 	    FRF_AZ_RX_DESCQ_EVQ_ID, eep->ee_index,
 	    FRF_AZ_RX_DESCQ_OWNER_ID, 0,
