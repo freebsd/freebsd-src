@@ -891,13 +891,13 @@ ef10_rx_prefix_hash(
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer);
 
+#endif /* EFSYS_OPT_RX_SCALE */
+
 extern	__checkReturn	efx_rc_t
 ef10_rx_prefix_pktlen(
 	__in		efx_nic_t *enp,
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp);
-
-#endif /* EFSYS_OPT_RX_SCALE */
 
 extern			void
 ef10_rx_qpost(
