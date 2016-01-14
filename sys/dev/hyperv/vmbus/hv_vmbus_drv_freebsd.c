@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -153,7 +154,7 @@ handled:
  * message to process - an event or a channel message.
  */
 static inline int
-hv_vmbus_isr(void *unused) 
+hv_vmbus_isr(struct trapframe *frame)
 {
 	int				cpu;
 	hv_vmbus_message*		msg;
@@ -193,11 +194,35 @@ hv_vmbus_isr(void *unused)
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
 	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
 
+	/* we call eventtimer process the message */
+	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
+		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
+
+		/*
+		 * Make sure the write to message_type (ie set to
+		 * HV_MESSAGE_TYPE_NONE) happens before we read the
+		 * message_pending and EOMing. Otherwise, the EOMing will
+		 * not deliver any more messages
+		 * since there is no empty slot
+		 */
+		wmb();
+
+		if (msg->header.message_flags.u.message_pending) {
+			/*
+			 * This will cause message queue rescan to possibly
+			 * deliver another msg from the hypervisor
+			 */
+			wrmsr(HV_X64_MSR_EOM, 0);
+		}
+		hv_et_intr(frame);
+		return (FILTER_HANDLED);
+	}
+
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		swi_sched(hv_vmbus_g_context.msg_swintr[cpu], 0);
 	}
 
-	return FILTER_HANDLED;
+	return (FILTER_HANDLED);
 }
 
 #ifdef HV_DEBUG_INTR 
@@ -227,7 +252,7 @@ hv_vector_handler(struct trapframe *trap_frame)
 	hv_intr_count++;
 #endif
 
-	hv_vmbus_isr(NULL); 
+	hv_vmbus_isr(trap_frame);
 
 	/*
 	 * Enable preemption.
