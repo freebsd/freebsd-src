@@ -182,7 +182,7 @@ efx_mcdi_rss_context_alloc(
 	}
 
 	rss_context = MCDI_OUT_DWORD(req, RSS_CONTEXT_ALLOC_OUT_RSS_CONTEXT_ID);
-	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
+	if (rss_context == EF10_RSS_CONTEXT_INVALID) {
 		rc = ENOENT;
 		goto fail3;
 	}
@@ -213,7 +213,7 @@ efx_mcdi_rss_context_free(
 			    MC_CMD_RSS_CONTEXT_FREE_OUT_LEN)];
 	efx_rc_t rc;
 
-	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
+	if (rss_context == EF10_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -257,7 +257,7 @@ efx_mcdi_rss_context_set_flags(
 			    MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN)];
 	efx_rc_t rc;
 
-	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
+	if (rss_context == EF10_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -313,7 +313,7 @@ efx_mcdi_rss_context_set_key(
 			    MC_CMD_RSS_CONTEXT_SET_KEY_OUT_LEN)];
 	efx_rc_t rc;
 
-	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
+	if (rss_context == EF10_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -371,7 +371,7 @@ efx_mcdi_rss_context_set_table(
 	uint8_t *req_table;
 	int i, rc;
 
-	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
+	if (rss_context == EF10_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -415,7 +415,7 @@ fail1:
 
 
 	__checkReturn	efx_rc_t
-hunt_rx_init(
+ef10_rx_init(
 	__in		efx_nic_t *enp)
 {
 #if EFSYS_OPT_RX_SCALE
@@ -444,7 +444,7 @@ hunt_rx_init(
 
 #if EFSYS_OPT_RX_HDR_SPLIT
 	__checkReturn	efx_rc_t
-hunt_rx_hdr_split_enable(
+ef10_rx_hdr_split_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int hdr_buf_size,
 	__in		unsigned int pld_buf_size)
@@ -470,7 +470,7 @@ fail1:
 
 #if EFSYS_OPT_RX_SCATTER
 	__checkReturn	efx_rc_t
-hunt_rx_scatter_enable(
+ef10_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size)
 {
@@ -481,7 +481,7 @@ hunt_rx_scatter_enable(
 
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
-hunt_rx_scale_mode_set(
+ef10_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
@@ -521,7 +521,7 @@ fail1:
 
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
-hunt_rx_scale_key_set(
+ef10_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
@@ -550,7 +550,7 @@ fail1:
 
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
-hunt_rx_scale_tbl_set(
+ef10_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
@@ -578,7 +578,7 @@ fail1:
 #endif /* EFSYS_OPT_RX_SCALE */
 
 			void
-hunt_rx_qpost(
+ef10_rx_qpost(
 	__in		efx_rxq_t *erp,
 	__in_ecount(n)	efsys_dma_addr_t *addrp,
 	__in		size_t size,
@@ -616,7 +616,7 @@ hunt_rx_qpost(
 }
 
 			void
-hunt_rx_qpush(
+ef10_rx_qpush(
 	__in	efx_rxq_t *erp,
 	__in	unsigned int added,
 	__inout	unsigned int *pushedp)
@@ -647,7 +647,7 @@ hunt_rx_qpush(
 }
 
 	__checkReturn	efx_rc_t
-hunt_rx_qflush(
+ef10_rx_qflush(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
@@ -665,7 +665,7 @@ fail1:
 }
 
 		void
-hunt_rx_qenable(
+ef10_rx_qenable(
 	__in	efx_rxq_t *erp)
 {
 	/* FIXME */
@@ -674,7 +674,7 @@ hunt_rx_qenable(
 }
 
 	__checkReturn	efx_rc_t
-hunt_rx_qcreate(
+ef10_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -742,7 +742,7 @@ fail1:
 }
 
 		void
-hunt_rx_qdestroy(
+ef10_rx_qdestroy(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
@@ -758,7 +758,7 @@ hunt_rx_qdestroy(
 }
 
 		void
-hunt_rx_fini(
+ef10_rx_fini(
 	__in	efx_nic_t *enp)
 {
 #if EFSYS_OPT_RX_SCALE

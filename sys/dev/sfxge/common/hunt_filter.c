@@ -1351,7 +1351,7 @@ hunt_filter_default_rxq_set(
 
 #if EFSYS_OPT_RX_SCALE
 	EFSYS_ASSERT((using_rss == B_FALSE) ||
-	    (enp->en_rss_context != HUNTINGTON_RSS_CONTEXT_INVALID));
+	    (enp->en_rss_context != EF10_RSS_CONTEXT_INVALID));
 	table->hft_using_rss = using_rss;
 #else
 	EFSYS_ASSERT(using_rss == B_FALSE);

@@ -50,7 +50,7 @@ extern "C" {
 #define	HUNTINGTON_RX_WPTR_ALIGN 8
 
 /* Invalid RSS context handle */
-#define	HUNTINGTON_RSS_CONTEXT_INVALID	(0xffffffff)
+#define	EF10_RSS_CONTEXT_INVALID	(0xffffffff)
 
 
 /* EV */
@@ -822,12 +822,12 @@ hunt_vpd_fini(
 /* RX */
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_init(
+ef10_rx_init(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_RX_HDR_SPLIT
 extern	__checkReturn	efx_rc_t
-hunt_rx_hdr_split_enable(
+ef10_rx_hdr_split_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int hdr_buf_size,
 	__in		unsigned int pld_buf_size);
@@ -835,7 +835,7 @@ hunt_rx_hdr_split_enable(
 
 #if EFSYS_OPT_RX_SCATTER
 extern	__checkReturn	efx_rc_t
-hunt_rx_scatter_enable(
+ef10_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size);
 #endif	/* EFSYS_OPT_RX_SCATTER */
@@ -844,20 +844,20 @@ hunt_rx_scatter_enable(
 #if EFSYS_OPT_RX_SCALE
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_scale_mode_set(
+ef10_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_scale_key_set(
+ef10_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_scale_tbl_set(
+ef10_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
@@ -865,7 +865,7 @@ hunt_rx_scale_tbl_set(
 #endif /* EFSYS_OPT_RX_SCALE */
 
 extern			void
-hunt_rx_qpost(
+ef10_rx_qpost(
 	__in		efx_rxq_t *erp,
 	__in_ecount(n)	efsys_dma_addr_t *addrp,
 	__in		size_t size,
@@ -874,21 +874,21 @@ hunt_rx_qpost(
 	__in		unsigned int added);
 
 extern			void
-hunt_rx_qpush(
+ef10_rx_qpush(
 	__in		efx_rxq_t *erp,
 	__in		unsigned int added,
 	__inout		unsigned int *pushedp);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_qflush(
+ef10_rx_qflush(
 	__in		efx_rxq_t *erp);
 
 extern		void
-hunt_rx_qenable(
+ef10_rx_qenable(
 	__in		efx_rxq_t *erp);
 
 extern	__checkReturn	efx_rc_t
-hunt_rx_qcreate(
+ef10_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -900,11 +900,11 @@ hunt_rx_qcreate(
 	__in		efx_rxq_t *erp);
 
 extern			void
-hunt_rx_qdestroy(
+ef10_rx_qdestroy(
 	__in		efx_rxq_t *erp);
 
 extern			void
-hunt_rx_fini(
+ef10_rx_fini(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_FILTER
