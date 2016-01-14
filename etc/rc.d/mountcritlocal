@@ -44,7 +44,7 @@ mountcritlocal_start()
 	# and retry.
 	mount -a -t ${mount_excludes}
 	err=$?
-	if [ $? -ne 0 ]; then
+	if [ ${err} -ne 0 ]; then
 		echo
 		echo 'Mounting /etc/fstab filesystems failed,' \
 		    'will retry after root mount hold release'
