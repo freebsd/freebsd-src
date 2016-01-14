@@ -147,13 +147,33 @@ fail1:
 static	__checkReturn	efx_rc_t
 efx_mcdi_rss_context_alloc(
 	__in		efx_nic_t *enp,
+	__in		efx_rx_scale_support_t scale_support,
+	__in		uint32_t num_queues,
 	__out		uint32_t *rss_contextp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_RSS_CONTEXT_ALLOC_IN_LEN,
 			    MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN)];
 	uint32_t rss_context;
+	uint32_t context_type;
 	efx_rc_t rc;
+
+	if (num_queues > EFX_MAXRSS) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	switch (scale_support) {
+	case EFX_RX_SCALE_EXCLUSIVE:
+		context_type = MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE;
+		break;
+	case EFX_RX_SCALE_SHARED:
+		context_type = MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_SHARED;
+		break;
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_RSS_CONTEXT_ALLOC;
@@ -164,33 +184,36 @@ efx_mcdi_rss_context_alloc(
 
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
 	    EVB_PORT_ID_ASSIGNED);
-	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_TYPE,
-	    MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE);
+	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_TYPE, context_type);
 	/* NUM_QUEUES is only used to validate indirection table offsets */
-	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, 64);
+	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, num_queues);
 
 	efx_mcdi_execute(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail1;
+		goto fail3;
 	}
 
 	if (req.emr_out_length_used < MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN) {
 		rc = EMSGSIZE;
-		goto fail2;
+		goto fail4;
 	}
 
 	rss_context = MCDI_OUT_DWORD(req, RSS_CONTEXT_ALLOC_OUT_RSS_CONTEXT_ID);
 	if (rss_context == EF10_RSS_CONTEXT_INVALID) {
 		rc = ENOENT;
-		goto fail3;
+		goto fail5;
 	}
 
 	*rss_contextp = rss_context;
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
@@ -420,7 +443,8 @@ ef10_rx_init(
 {
 #if EFSYS_OPT_RX_SCALE
 
-	if (efx_mcdi_rss_context_alloc(enp, &enp->en_rss_context) == 0) {
+	if (efx_mcdi_rss_context_alloc(enp, EFX_RX_SCALE_EXCLUSIVE, EFX_MAXRSS,
+		&enp->en_rss_context) == 0) {
 		/*
 		 * Allocated an exclusive RSS context, which allows both the
 		 * indirection table and key to be modified.
