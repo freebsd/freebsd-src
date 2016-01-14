@@ -225,32 +225,24 @@ hv_vmbus_isr(struct trapframe *frame)
 	return (FILTER_HANDLED);
 }
 
-#ifdef HV_DEBUG_INTR 
-uint32_t hv_intr_count = 0;
-#endif
 uint32_t hv_vmbus_swintr_event_cpu[MAXCPU];
-uint32_t hv_vmbus_intr_cpu[MAXCPU];
+u_long *hv_vmbus_intr_cpu[MAXCPU];
 
 void
 hv_vector_handler(struct trapframe *trap_frame)
 {
-#ifdef HV_DEBUG_INTR
 	int cpu;
-#endif
 
 	/*
 	 * Disable preemption.
 	 */
 	critical_enter();
 
-#ifdef HV_DEBUG_INTR
 	/*
 	 * Do a little interrupt counting.
 	 */
 	cpu = PCPU_GET(cpuid);
-	hv_vmbus_intr_cpu[cpu]++;
-	hv_intr_count++;
-#endif
+	(*hv_vmbus_intr_cpu[cpu])++;
 
 	hv_vmbus_isr(trap_frame);
 
@@ -479,6 +471,7 @@ static int
 vmbus_bus_init(void)
 {
 	int i, j, n, ret;
+	char buf[MAXCOMLEN + 1];
 
 	if (vmbus_inited)
 		return (0);
@@ -515,12 +508,14 @@ vmbus_bus_init(void)
 	setup_args.vector = hv_vmbus_g_context.hv_cb_vector;
 
 	CPU_FOREACH(j) {
-		hv_vmbus_intr_cpu[j] = 0;
 		hv_vmbus_swintr_event_cpu[j] = 0;
 		hv_vmbus_g_context.hv_event_intr_event[j] = NULL;
 		hv_vmbus_g_context.hv_msg_intr_event[j] = NULL;
 		hv_vmbus_g_context.event_swintr[j] = NULL;
 		hv_vmbus_g_context.msg_swintr[j] = NULL;
+
+		snprintf(buf, sizeof(buf), "cpu%d:hyperv", j);
+		intrcnt_add(buf, &hv_vmbus_intr_cpu[j]);
 
 		for (i = 0; i < 2; i++)
 			setup_args.page_buffers[2 * j + i] = NULL;
