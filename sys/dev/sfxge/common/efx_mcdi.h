@@ -69,6 +69,7 @@ struct efx_mcdi_req_s {
 
 typedef struct efx_mcdi_iface_s {
 	unsigned int		emi_port;
+	unsigned int		emi_max_version;
 	unsigned int		emi_seq;
 	efx_mcdi_req_t		*emi_pending_req;
 	boolean_t		emi_ev_cpl;
