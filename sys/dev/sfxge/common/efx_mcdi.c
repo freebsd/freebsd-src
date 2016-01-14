@@ -55,6 +55,7 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 					/* emco_macaddr_change_supported */
 	siena_mcdi_link_control_supported,
 					/* emco_link_control_supported */
+	NULL,				/* emco_mac_spoofing_supported */
 	siena_mcdi_read_response,	/* emco_read_response */
 };
 
@@ -74,6 +75,8 @@ static efx_mcdi_ops_t	__efx_mcdi_hunt_ops = {
 					/* emco_macaddr_change_supported */
 	hunt_mcdi_link_control_supported,
 					/* emco_link_control_supported */
+	hunt_mcdi_mac_spoofing_supported,
+					/* emco_mac_spoofing_supported */
 	hunt_mcdi_read_response,	/* emco_read_response */
 };
 
@@ -1378,6 +1381,31 @@ efx_mcdi_link_control_supported(
 			goto fail1;
 	} else {
 		/* Earlier devices always supported link control */
+		*supportedp = B_TRUE;
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_mcdi_mac_spoofing_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp)
+{
+	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	efx_rc_t rc;
+
+	if (emcop != NULL && emcop->emco_mac_spoofing_supported != NULL) {
+		if ((rc = emcop->emco_mac_spoofing_supported(enp, supportedp))
+		    != 0)
+			goto fail1;
+	} else {
+		/* Earlier devices always supported MAC spoofing */
 		*supportedp = B_TRUE;
 	}
 
