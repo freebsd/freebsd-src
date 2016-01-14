@@ -1023,7 +1023,7 @@ struct linux_set_robust_list_args {
 };
 struct linux_get_robust_list_args {
 	char pid_l_[PADL_(l_int)]; l_int pid; char pid_r_[PADR_(l_int)];
-	char head_l_[PADL_(struct linux_robust_list_head *)]; struct linux_robust_list_head * head; char head_r_[PADR_(struct linux_robust_list_head *)];
+	char head_l_[PADL_(struct linux_robust_list_head **)]; struct linux_robust_list_head ** head; char head_r_[PADR_(struct linux_robust_list_head **)];
 	char len_l_[PADL_(l_size_t *)]; l_size_t * len; char len_r_[PADR_(l_size_t *)];
 };
 struct linux_splice_args {
