@@ -46,12 +46,12 @@ __FBSDID("$FreeBSD$");
 static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_init,		/* emco_init */
 	siena_mcdi_request_copyin,	/* emco_request_copyin */
-	siena_mcdi_request_poll,	/* emco_request_poll */
 	siena_mcdi_request_copyout,	/* emco_request_copyout */
 	siena_mcdi_poll_reboot,		/* emco_poll_reboot */
+	siena_mcdi_poll_response,	/* emco_poll_response */
+	siena_mcdi_read_response,	/* emco_read_response */
 	siena_mcdi_fini,		/* emco_fini */
 	siena_mcdi_feature_supported,	/* emco_feature_supported */
-	siena_mcdi_read_response,	/* emco_read_response */
 };
 
 #endif	/* EFSYS_OPT_SIENA */
@@ -61,12 +61,12 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 static efx_mcdi_ops_t	__efx_mcdi_hunt_ops = {
 	hunt_mcdi_init,			/* emco_init */
 	hunt_mcdi_request_copyin,	/* emco_request_copyin */
-	hunt_mcdi_request_poll,		/* emco_request_poll */
 	hunt_mcdi_request_copyout,	/* emco_request_copyout */
 	hunt_mcdi_poll_reboot,		/* emco_poll_reboot */
+	hunt_mcdi_poll_response,	/* emco_poll_response */
+	hunt_mcdi_read_response,	/* emco_read_response */
 	hunt_mcdi_fini,			/* emco_fini */
 	hunt_mcdi_feature_supported,	/* emco_feature_supported */
-	hunt_mcdi_read_response,	/* emco_read_response */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON */
@@ -189,7 +189,7 @@ efx_mcdi_request_copyin(
 	emcop->emco_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
 }
 
-static			void	__unused
+static			void
 efx_mcdi_request_copyout(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp)
@@ -208,6 +208,17 @@ efx_mcdi_poll_reboot(
 
 	rc = emcop->emco_poll_reboot(enp);
 	return (rc);
+}
+
+static			boolean_t
+efx_mcdi_poll_response(
+	__in		efx_nic_t *enp)
+{
+	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	boolean_t available;
+
+	available = emcop->emco_poll_response(enp);
+	return (available);
 }
 
 static			void
@@ -389,19 +400,63 @@ fail1:
 efx_mcdi_request_poll(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
-	boolean_t completed;
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	efx_mcdi_req_t *emrp;
+	int state;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MCDI);
 	EFSYS_ASSERT3U(enp->en_features, &, EFX_FEATURE_MCDI);
 
-	completed = B_FALSE;
+	/* Serialise against post-watchdog efx_mcdi_ev* */
+	EFSYS_LOCK(enp->en_eslp, state);
 
-	if (emcop != NULL && emcop->emco_request_poll != NULL)
-		completed = emcop->emco_request_poll(enp);
+	EFSYS_ASSERT(emip->emi_pending_req != NULL);
+	EFSYS_ASSERT(!emip->emi_ev_cpl);
+	emrp = emip->emi_pending_req;
 
-	return (completed);
+	/* Check for reboot atomically w.r.t efx_mcdi_request_start */
+	if (emip->emi_poll_cnt++ == 0) {
+		if ((rc = efx_mcdi_poll_reboot(enp)) != 0) {
+			emip->emi_pending_req = NULL;
+			EFSYS_UNLOCK(enp->en_eslp, state);
+			goto fail1;
+		}
+	}
+
+	/* Check if a response is available */
+	if (efx_mcdi_poll_response(enp) == B_FALSE) {
+		EFSYS_UNLOCK(enp->en_eslp, state);
+		return (B_FALSE);
+	}
+
+	/* Read the response header */
+	efx_mcdi_read_response_header(enp, emrp);
+
+	/* Request complete */
+	emip->emi_pending_req = NULL;
+
+	EFSYS_UNLOCK(enp->en_eslp, state);
+
+	if ((rc = emrp->emr_rc) != 0)
+		goto fail2;
+
+	efx_mcdi_request_copyout(enp, emrp);
+	return (B_TRUE);
+
+fail2:
+	if (!emrp->emr_quiet)
+		EFSYS_PROBE(fail2);
+fail1:
+	if (!emrp->emr_quiet)
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	/* Reboot/Assertion */
+	if (rc == EIO || rc == EINTR)
+		efx_mcdi_raise_exception(enp, emrp, rc);
+
+	return (B_TRUE);
 }
 
 	__checkReturn	boolean_t
