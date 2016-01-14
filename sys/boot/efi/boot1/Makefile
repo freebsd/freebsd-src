@@ -4,9 +4,6 @@ MAN=
 
 .include <bsd.own.mk>
 
-# In-tree GCC does not support __attribute__((ms_abi)).
-.if ${COMPILER_TYPE} != "gcc"
-
 MK_SSP=		no
 
 PROG=		boot1.sym
@@ -95,8 +92,6 @@ boot1.efifat: boot1.efi
 	dd if=boot1.efi of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
 CLEANFILES= boot1.efi boot1.efifat
-
-.endif # ${COMPILER_TYPE} != "gcc"
 
 .include <bsd.prog.mk>
 
