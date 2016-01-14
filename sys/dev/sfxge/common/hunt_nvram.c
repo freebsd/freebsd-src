@@ -497,7 +497,7 @@ efx_nvram_tlv_validate(
 	}
 
 	/* The partition header must be the first item (at offset zero) */
-	if ((rc = tlv_init_cursor_from_size(&cursor, partn_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)partn_data,
 		    partn_size)) != 0) {
 		rc = EFAULT;
 		goto fail2;
@@ -607,7 +607,7 @@ hunt_nvram_read_tlv_segment(
 	}
 
 	/* A PARTITION_HEADER tag must be the first item at the given offset */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 		    max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail3;
@@ -725,7 +725,7 @@ hunt_nvram_buf_read_tlv(
 	}
 
 	/* Find requested TLV tag in segment data */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 		    max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail2;
@@ -734,7 +734,7 @@ hunt_nvram_buf_read_tlv(
 		rc = ENOENT;
 		goto fail3;
 	}
-	value = tlv_value(&cursor);
+	value = (caddr_t)tlv_value(&cursor);
 	length = tlv_length(&cursor);
 
 	if (length == 0)
@@ -859,7 +859,7 @@ hunt_nvram_buf_segment_size(
 	uint32_t segment_length;
 
 	/* A PARTITION_HEADER tag must be the first item at the given offset */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 		    max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail1;
@@ -993,7 +993,7 @@ hunt_nvram_buf_write_tlv(
 	efx_rc_t rc;
 
 	/* A PARTITION_HEADER tag must be the first item (at offset zero) */
-	if ((rc = tlv_init_cursor_from_size(&cursor, seg_data,
+	if ((rc = tlv_init_cursor_from_size(&cursor, (uint8_t *)seg_data,
 			max_seg_size)) != 0) {
 		rc = EFAULT;
 		goto fail1;
@@ -1008,7 +1008,7 @@ hunt_nvram_buf_write_tlv(
 	if ((rc = tlv_find(&cursor, tag)) == 0) {
 		/* Modify existing TLV item */
 		if ((rc = tlv_modify(&cursor, tag,
-			    tag_data, tag_size)) != 0)
+			    (uint8_t *)tag_data, tag_size)) != 0)
 			goto fail3;
 	} else {
 		/* Insert a new TLV item before the PARTITION_TRAILER */
@@ -1018,7 +1018,7 @@ hunt_nvram_buf_write_tlv(
 			goto fail4;
 		}
 		if ((rc = tlv_insert(&cursor, tag,
-			    tag_data, tag_size)) != 0) {
+			    (uint8_t *)tag_data, tag_size)) != 0) {
 			rc = EINVAL;
 			goto fail5;
 		}
