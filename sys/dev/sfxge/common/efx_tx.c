@@ -142,6 +142,7 @@ static efx_tx_ops_t	__efx_tx_falcon_ops = {
 	falconsiena_tx_qdesc_post,		/* etxo_qdesc_post */
 	falconsiena_tx_qdesc_dma_create,	/* etxo_qdesc_dma_create */
 	NULL,					/* etxo_qdesc_tso_create */
+	NULL,					/* etxo_qdesc_tso2_create */
 	NULL,					/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
 	falconsiena_tx_qstats_update,		/* etxo_qstats_update */
@@ -167,6 +168,7 @@ static efx_tx_ops_t	__efx_tx_siena_ops = {
 	falconsiena_tx_qdesc_post,		/* etxo_qdesc_post */
 	falconsiena_tx_qdesc_dma_create,	/* etxo_qdesc_dma_create */
 	NULL,					/* etxo_qdesc_tso_create */
+	NULL,					/* etxo_qdesc_tso2_create */
 	NULL,					/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
 	falconsiena_tx_qstats_update,		/* etxo_qstats_update */
@@ -192,6 +194,7 @@ static efx_tx_ops_t	__efx_tx_hunt_ops = {
 	ef10_tx_qdesc_post,			/* etxo_qdesc_post */
 	ef10_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
 	hunt_tx_qdesc_tso_create,		/* etxo_qdesc_tso_create */
+	ef10_tx_qdesc_tso2_create,		/* etxo_qdesc_tso2_create */
 	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
 	ef10_tx_qstats_update,			/* etxo_qstats_update */
@@ -217,6 +220,7 @@ static efx_tx_ops_t	__efx_tx_medford_ops = {
 	ef10_tx_qdesc_post,			/* etxo_qdesc_post */
 	ef10_tx_qdesc_dma_create,		/* etxo_qdesc_dma_create */
 	NULL,					/* etxo_qdesc_tso_create */
+	ef10_tx_qdesc_tso2_create,		/* etxo_qdesc_tso2_create */
 	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
 #if EFSYS_OPT_QSTATS
 	ef10_tx_qstats_update,			/* etxo_qstats_update */
@@ -638,6 +642,24 @@ efx_tx_qdesc_tso_create(
 	EFSYS_ASSERT(etxop->etxo_qdesc_tso_create != NULL);
 
 	etxop->etxo_qdesc_tso_create(etp, ipv4_id, tcp_seq, tcp_flags, edp);
+}
+
+	void
+efx_tx_qdesc_tso2_create(
+	__in			efx_txq_t *etp,
+	__in			uint16_t ipv4_id,
+	__in			uint32_t tcp_seq,
+	__in			uint16_t mss,
+	__out_ecount(count)	efx_desc_t *edp,
+	__in			int count)
+{
+	efx_nic_t *enp = etp->et_enp;
+	efx_tx_ops_t *etxop = enp->en_etxop;
+
+	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
+	EFSYS_ASSERT(etxop->etxo_qdesc_tso2_create != NULL);
+
+	etxop->etxo_qdesc_tso2_create(etp, ipv4_id, tcp_seq, mss, edp, count);
 }
 
 	void

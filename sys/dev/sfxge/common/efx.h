@@ -1071,6 +1071,7 @@ efx_bist_stop(
 #define	EFX_FEATURE_TX_SRC_FILTERS	0x00000400
 #define	EFX_FEATURE_PIO_BUFFERS		0x00000800
 #define	EFX_FEATURE_FW_ASSISTED_TSO	0x00001000
+#define	EFX_FEATURE_FW_ASSISTED_TSO_V2	0x00002000
 
 typedef struct efx_nic_cfg_s {
 	uint32_t		enc_board_type;
@@ -1152,6 +1153,7 @@ typedef struct efx_nic_cfg_s {
 	 */
 	uint32_t                enc_tx_tso_tcp_header_offset_limit;
 	boolean_t               enc_fw_assisted_tso_enabled;
+	boolean_t               enc_fw_assisted_tso_v2_enabled;
 	boolean_t               enc_hw_tx_insert_vlan_enabled;
 	/* Datapath firmware vadapter/vport/vswitch support */
 	boolean_t		enc_datapath_cap_evb;
@@ -2002,6 +2004,7 @@ efx_tx_fini(
 
 #define	EFX_TXQ_CKSUM_IPV4	0x0001
 #define	EFX_TXQ_CKSUM_TCPUDP	0x0002
+#define	EFX_TXQ_FATSOV2		0x0004
 
 extern	__checkReturn	efx_rc_t
 efx_tx_qcreate(
@@ -2088,6 +2091,21 @@ efx_tx_qdesc_tso_create(
 	__in	uint32_t tcp_seq,
 	__in	uint8_t  tcp_flags,
 	__out	efx_desc_t *edp);
+
+/* Number of FATSOv2 option descriptors */
+#define	EFX_TX_FATSOV2_OPT_NDESCS		2
+
+/* Maximum number of DMA segments per TSO packet (not superframe) */
+#define	EFX_TX_FATSOV2_DMA_SEGS_PER_PKT_MAX	24
+
+extern	void
+efx_tx_qdesc_tso2_create(
+	__in			efx_txq_t *etp,
+	__in			uint16_t ipv4_id,
+	__in			uint32_t tcp_seq,
+	__in			uint16_t tcp_mss,
+	__out_ecount(count)	efx_desc_t *edp,
+	__in			int count);
 
 extern	void
 efx_tx_qdesc_vlantci_create(
