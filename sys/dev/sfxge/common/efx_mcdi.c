@@ -228,6 +228,114 @@ efx_mcdi_request_start(
 	emcop->emco_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
 }
 
+
+			void
+efx_mcdi_read_response_header(
+	__in		efx_nic_t *enp,
+	__inout		efx_mcdi_req_t *emrp)
+{
+#if EFSYS_OPT_MCDI_LOGGING
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	efx_dword_t hdr[2];
+	unsigned int hdr_len;
+	unsigned int data_len;
+	unsigned int seq;
+	unsigned int cmd;
+	unsigned int error;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT(emrp != NULL);
+
+	emcop->emco_read_response(enp, &hdr[0], 0, sizeof (hdr[0]));
+	hdr_len = sizeof (hdr[0]);
+
+	cmd = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE);
+	seq = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_SEQ);
+	error = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR);
+
+	if (cmd != MC_CMD_V2_EXTN) {
+		data_len = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_DATALEN);
+	} else {
+		emcop->emco_read_response(enp, &hdr[1], hdr_len,
+		    sizeof (hdr[1]));
+		hdr_len += sizeof (hdr[1]);
+
+		cmd = EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_EXTENDED_CMD);
+		data_len =
+		    EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
+	}
+
+	if (error && (data_len == 0)) {
+		/* The MC has rebooted since the request was sent. */
+		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
+		emcop->emco_poll_reboot(enp);
+		rc = EIO;
+		goto fail1;
+	}
+	if ((cmd != emrp->emr_cmd) ||
+	    (seq != ((emip->emi_seq - 1) & EFX_MASK32(MCDI_HEADER_SEQ)))) {
+		/* Response is for a different request */
+		rc = EIO;
+		goto fail2;
+	}
+	if (error) {
+		efx_dword_t err[2];
+		unsigned int err_len = MIN(data_len, sizeof (err));
+		int err_code = MC_CMD_ERR_EPROTO;
+		int err_arg = 0;
+
+		/* Read error code (and arg num for MCDI v2 commands) */
+		emcop->emco_read_response(enp, &err, hdr_len, err_len);
+
+		if (err_len >= (MC_CMD_ERR_CODE_OFST + sizeof (efx_dword_t)))
+			err_code = EFX_DWORD_FIELD(err[0], EFX_DWORD_0);
+#ifdef WITH_MCDI_V2
+		if (err_len >= (MC_CMD_ERR_ARG_OFST + sizeof (efx_dword_t)))
+			err_arg = EFX_DWORD_FIELD(err[1], EFX_DWORD_0);
+#endif
+		emrp->emr_err_code = err_code;
+		emrp->emr_err_arg = err_arg;
+
+#if EFSYS_OPT_MCDI_LOGGING
+		if (emtp->emt_logger != NULL) {
+			emtp->emt_logger(emtp->emt_context,
+			    EFX_LOG_MCDI_RESPONSE,
+			    &hdr, hdr_len,
+			    &err, err_len);
+		}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+
+		if (!emrp->emr_quiet) {
+			EFSYS_PROBE3(mcdi_err_arg, int, emrp->emr_cmd,
+			    int, err_code, int, err_arg);
+		}
+
+		rc = efx_mcdi_request_errcode(err_code);
+		goto fail3;
+	}
+
+	emrp->emr_rc = 0;
+	emrp->emr_out_length_used = data_len;
+	return;
+
+fail3:
+	if (!emrp->emr_quiet)
+		EFSYS_PROBE(fail3);
+fail2:
+	if (!emrp->emr_quiet)
+		EFSYS_PROBE(fail2);
+fail1:
+	if (!emrp->emr_quiet)
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	emrp->emr_rc = rc;
+	emrp->emr_out_length_used = 0;
+}
+
+
 	__checkReturn	boolean_t
 efx_mcdi_request_poll(
 	__in		efx_nic_t *enp)
