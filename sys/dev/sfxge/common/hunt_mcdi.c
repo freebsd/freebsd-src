@@ -303,9 +303,6 @@ hunt_mcdi_read_response(
 hunt_mcdi_request_poll(
 	__in		efx_nic_t *enp)
 {
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-#endif /* EFSYS_OPT_MCDI_LOGGING */
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_mcdi_req_t *emrp;
 	int state;
