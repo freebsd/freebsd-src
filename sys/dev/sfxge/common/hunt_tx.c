@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #define	EFX_TX_QSTAT_INCR(_etp, _stat)
 #endif
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_init_txq(
 	__in		efx_nic_t *enp,
 	__in		uint32_t size,
@@ -65,7 +65,7 @@ efx_mcdi_init_txq(
 	uint64_t addr;
 	int npages;
 	int i;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(EFX_TXQ_MAX_BUFS >=
 	    EFX_TXQ_NBUFS(EFX_TXQ_MAXNDESCS(&enp->en_nic_cfg)));
@@ -123,12 +123,12 @@ efx_mcdi_init_txq(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_fini_txq(
 	__in		efx_nic_t *enp,
 	__in		uint32_t instance)
@@ -136,7 +136,7 @@ efx_mcdi_fini_txq(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FINI_TXQ_IN_LEN,
 			    MC_CMD_FINI_TXQ_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_TXQ;
@@ -157,12 +157,12 @@ efx_mcdi_fini_txq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_init(
 	__in		efx_nic_t *enp)
 {
@@ -177,7 +177,7 @@ hunt_tx_fini(
 	_NOTE(ARGUNUSED(enp))
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -191,7 +191,7 @@ hunt_tx_qcreate(
 	__out		unsigned int *addedp)
 {
 	efx_qword_t desc;
-	int rc;
+	efx_rc_t rc;
 
 
 	if ((rc = efx_mcdi_init_txq(enp, n, eep->ee_index, label, index, flags,
@@ -219,7 +219,7 @@ hunt_tx_qcreate(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -233,13 +233,13 @@ hunt_tx_qdestroy(
 	/* FIXME */
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qpio_enable(
 	__in		efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_piobuf_handle_t handle;
-	int rc;
+	efx_rc_t rc;
 
 	if (etp->et_pio_size != 0) {
 		rc = EALREADY;
@@ -284,7 +284,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -306,7 +306,7 @@ hunt_tx_qpio_disable(
 	}
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(length)	uint8_t *buffer,
@@ -318,7 +318,7 @@ hunt_tx_qpio_write(
 	uint32_t write_offset;
 	uint32_t write_offset_limit;
 	efx_qword_t *eqp;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(length % sizeof (efx_qword_t) == 0);
 
@@ -349,12 +349,12 @@ hunt_tx_qpio_write(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qpio_post(
 	__in			efx_txq_t *etp,
 	__in			size_t pkt_length,
@@ -365,7 +365,7 @@ hunt_tx_qpio_post(
 	unsigned int id;
 	size_t offset;
 	unsigned int added = *addedp;
-	int rc;
+	efx_rc_t rc;
 
 
 	if (added - completed + 1 > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
@@ -402,12 +402,12 @@ hunt_tx_qpio_post(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
@@ -417,7 +417,7 @@ hunt_tx_qpost(
 {
 	unsigned int added = *addedp;
 	unsigned int i;
-	int rc;
+	efx_rc_t rc;
 
 	if (added - completed + n > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
 		rc = ENOSPC;
@@ -459,7 +459,7 @@ hunt_tx_qpost(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -499,7 +499,7 @@ hunt_tx_qpush(
 				    &oword);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
@@ -509,7 +509,7 @@ hunt_tx_qdesc_post(
 {
 	unsigned int added = *addedp;
 	unsigned int i;
-	int rc;
+	efx_rc_t rc;
 
 	if (added - completed + n > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
 		rc = ENOSPC;
@@ -536,7 +536,7 @@ hunt_tx_qdesc_post(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -603,12 +603,12 @@ hunt_tx_qdesc_vlantci_create(
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns)
 {
-	int rc;
+	efx_rc_t rc;
 
 	/* FIXME */
 	_NOTE(ARGUNUSED(etp, ns))
@@ -621,17 +621,17 @@ hunt_tx_qpace(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_tx_qflush(
 	__in		efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_fini_txq(enp, etp->et_index)) != 0)
 		goto fail1;
@@ -639,7 +639,7 @@ hunt_tx_qflush(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

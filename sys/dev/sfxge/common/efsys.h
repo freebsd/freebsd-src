@@ -225,6 +225,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	__deref_out_bcount_opt(n)
 
 #define	__checkReturn
+#define	__success(_x)
 
 #define	__drv_when(_p, _c)
 
