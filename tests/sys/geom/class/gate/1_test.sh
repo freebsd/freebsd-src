@@ -11,7 +11,6 @@ while [ -c /dev/ggate${us} ]; do
 	: $(( us += 1 ))
 done
 conf=`mktemp $base.XXXXXX` || exit 1
-pidfile=/var/run/ggated.pid
 port=33080
 
 work=$(attach_md -t malloc -s 1M)
@@ -20,7 +19,7 @@ src=$(attach_md -t malloc -s 1M)
 test_cleanup()
 {
 	ggatec destroy -f -u $us
-	pkill -F $pidfile
+	killall ggated
 	geom_test_cleanup
 }
 trap test_cleanup ABRT EXIT INT TERM
