@@ -162,6 +162,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { StatFs | OUT, 1 } } },
 	{ .name = "ftruncate", .ret_type = 1, .nargs = 2,
 	  .args = { { Int | IN, 0 }, { QuadHex | IN, 1 + QUAD_ALIGN } } },
+	{ .name = "futimens", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Timespec2 | IN, 1 } } },
 	{ .name = "futimes", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Timeval2 | IN, 1 } } },
 	{ .name = "futimesat", .ret_type = 1, .nargs = 3,
@@ -341,6 +343,9 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atflags, 2 } } },
 	{ .name = "unmount", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Int, 1 } } },
+	{ .name = "utimensat", .ret_type = 1, .nargs = 4,
+	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { Timespec2 | IN, 2 },
+		    { Atflags, 3 } } },
 	{ .name = "utimes", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Timeval2 | IN, 1 } } },
 	{ .name = "wait4", .ret_type = 1, .nargs = 4,
@@ -1080,6 +1085,37 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, "{ %jd.%09ld }", (intmax_t)ts.tv_sec,
 			    ts.tv_nsec);
 		else
+			fprintf(fp, "0x%lx", args[sc->offset]);
+		break;
+	}
+	case Timespec2: {
+		struct timespec ts[2];
+		const char *sep;
+		unsigned int i;
+
+		if (get_struct(pid, (void *)args[sc->offset], &ts, sizeof(ts))
+		    != -1) {
+			fputs("{ ", fp);
+			sep = "";
+			for (i = 0; i < nitems(ts); i++) {
+				fputs(sep, fp);
+				sep = ", ";
+				switch (ts[i].tv_nsec) {
+				case UTIME_NOW:
+					fprintf(fp, "UTIME_NOW");
+					break;
+				case UTIME_OMIT:
+					fprintf(fp, "UTIME_OMIT");
+					break;
+				default:
+					fprintf(fp, "%jd.%09ld",
+					    (intmax_t)ts[i].tv_sec,
+					    ts[i].tv_nsec);
+					break;
+				}
+			}
+			fputs(" }", fp);
+		} else
 			fprintf(fp, "0x%lx", args[sc->offset]);
 		break;
 	}
