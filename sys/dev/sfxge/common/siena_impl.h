@@ -473,7 +473,7 @@ siena_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
-	__out_opt			uint32_t *generationp);
+	__inout_opt			uint32_t *generationp);
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
