@@ -117,10 +117,6 @@ static uint64_t jobseqno;
 #define MAX_BUF_AIO		16
 #endif
 
-#ifndef AIOD_TIMEOUT_DEFAULT
-#define	AIOD_TIMEOUT_DEFAULT	(10 * hz)
-#endif
-
 #ifndef AIOD_LIFETIME_DEFAULT
 #define AIOD_LIFETIME_DEFAULT	(30 * hz)
 #endif
@@ -164,10 +160,6 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio, CTLFLAG_RD, &num_buf_aio, 0,
 /* Number of async I/O thread in the process of being started */
 /* XXX This should be local to aio_aqueue() */
 static int num_aio_resv_start = 0;
-
-static int aiod_timeout;
-SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout, CTLFLAG_RW, &aiod_timeout, 0,
-    "Timeout value for synchronous aio operations");
 
 static int aiod_lifetime;
 SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime, CTLFLAG_RW, &aiod_lifetime, 0,
@@ -504,7 +496,6 @@ aio_onceonly(void)
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiolio_zone = uma_zcreate("AIOLIO", sizeof(struct aioliojob), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
 	async_io_version = _POSIX_VERSION;
