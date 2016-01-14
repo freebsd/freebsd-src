@@ -386,10 +386,17 @@ efx_mcdi_get_loopback_modes(
 #define	MCDI_CMD_DWORD_FIELD(_edp, _field)				\
 	EFX_DWORD_FIELD(*_edp, MC_CMD_ ## _field)
 
-#define EFX_MCDI_HAVE_PRIVILEGE(mask, priv)              \
-	(((mask) &                                  \
-	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ ## priv)) == \
+#define	EFX_MCDI_HAVE_PRIVILEGE(mask, priv)				\
+	(((mask) & (MC_CMD_PRIVILEGE_MASK_IN_GRP_ ## priv)) ==		\
 	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ ## priv))
+
+typedef enum efx_mcdi_feature_id_e {
+	EFX_MCDI_FEATURE_FW_UPDATE = 0,
+	EFX_MCDI_FEATURE_LINK_CONTROL,
+	EFX_MCDI_FEATURE_MACADDR_CHANGE,
+	EFX_MCDI_FEATURE_MAC_SPOOFING,
+	EFX_MCDI_FEATURE_NIDS
+} efx_mcdi_feature_id_t;
 
 #ifdef	__cplusplus
 }

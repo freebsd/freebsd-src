@@ -329,39 +329,34 @@ siena_mcdi_fini(
 }
 
 	__checkReturn	efx_rc_t
-siena_mcdi_fw_update_supported(
+siena_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
+	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp)
 {
+	efx_rc_t rc;
+
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
-	*supportedp = B_TRUE;
+	switch (id) {
+	case EFX_MCDI_FEATURE_FW_UPDATE:
+	case EFX_MCDI_FEATURE_LINK_CONTROL:
+	case EFX_MCDI_FEATURE_MACADDR_CHANGE:
+	case EFX_MCDI_FEATURE_MAC_SPOOFING:
+		*supportedp = B_TRUE;
+		break;
+	default:
+		rc = ENOTSUP;
+		goto fail1;
+		break;
+	}
 
 	return (0);
-}
 
-	__checkReturn	efx_rc_t
-siena_mcdi_macaddr_change_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp)
-{
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
-	*supportedp = B_TRUE;
-
-	return (0);
-}
-
-	__checkReturn	efx_rc_t
-siena_mcdi_link_control_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp)
-{
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
-
-	*supportedp = B_TRUE;
-
-	return (0);
+	return (rc);
 }
 
 #endif	/* EFSYS_OPT_SIENA && EFSYS_OPT_MCDI */
