@@ -60,12 +60,14 @@ __FBSDID("$FreeBSD$");
 
 #include "hv_vmbus_priv.h"
 
-
-#define VMBUS_IRQ	0x5
+#include <contrib/dev/acpica/include/acpi.h>
+#include "acpi_if.h"
 
 static device_t vmbus_devp;
 static int vmbus_inited;
 static hv_setup_args setup_args; /* only CPU 0 supported at this time */
+
+static char *vmbus_ids[] = { "VMBUS", NULL };
 
 /**
  * @brief Software interrupt thread routine to handle channel messages from
@@ -350,25 +352,15 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 	return(ret);
 }
 
-static void
-vmbus_identify(driver_t *driver, device_t parent)
-{
-	if (!hv_vmbus_query_hypervisor_presence())
-		return;
-
-	vm_guest = VM_GUEST_HV;
-
-	BUS_ADD_CHILD(parent, 0, "vmbus", 0);
-}
-
 static int
 vmbus_probe(device_t dev) {
-	if(bootverbose)
-		device_printf(dev, "VMBUS: probe\n");
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
+	    device_get_unit(dev) != 0)
+		return (ENXIO);
 
 	device_set_desc(dev, "Vmbus Devices");
 
-	return (BUS_PROBE_NOWILDCARD);
+	return (BUS_PROBE_DEFAULT);
 }
 
 #ifdef HYPERV
@@ -723,7 +715,6 @@ vmbus_modevent(module_t mod, int what, void *arg)
 
 static device_method_t vmbus_methods[] = {
 	/** Device interface */
-	DEVMETHOD(device_identify, vmbus_identify),
 	DEVMETHOD(device_probe, vmbus_probe),
 	DEVMETHOD(device_attach, vmbus_attach),
 	DEVMETHOD(device_detach, vmbus_detach),
@@ -745,8 +736,9 @@ static driver_t vmbus_driver = { driver_name, vmbus_methods,0, };
 
 devclass_t vmbus_devclass;
 
-DRIVER_MODULE(vmbus, nexus, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
-MODULE_VERSION(vmbus,1);
+DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
+MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
+MODULE_VERSION(vmbus, 1);
 
 /* We want to be started after SMP is initialized */
 SYSINIT(vmb_init, SI_SUB_SMP + 1, SI_ORDER_FIRST, vmbus_init, NULL);
