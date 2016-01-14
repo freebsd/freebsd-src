@@ -401,4 +401,15 @@
 # endif
 #endif /* EFSYS_OPT_BIST */
 
+/* Support MCDI licensing API */
+#if EFSYS_OPT_LICENSING
+# if !EFSYS_OPT_MCDI
+#  error "LICENSING requires MCDI"
+# endif
+# if !EFSYS_HAS_UINT64
+#  error "LICENSING requires UINT64"
+# endif
+#endif /* EFSYS_OPT_LICENSING */
+
+
 #endif /* _SYS_EFX_CHECK_H */
