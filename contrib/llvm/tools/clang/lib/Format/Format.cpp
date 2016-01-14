@@ -583,6 +583,7 @@ FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
     GoogleStyle.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_Inline;
     GoogleStyle.AlwaysBreakBeforeMultilineStrings = false;
     GoogleStyle.BreakBeforeTernaryOperators = false;
+    GoogleStyle.CommentPragmas = "@(export|visibility) {";
     GoogleStyle.MaxEmptyLinesToKeep = 3;
     GoogleStyle.SpacesInContainerLiterals = false;
   } else if (Language == FormatStyle::LK_Proto) {
@@ -1238,6 +1239,8 @@ private:
           FormatTok->Type = TT_ImplicitStringLiteral;
           break;
         }
+        if (FormatTok->Type == TT_ImplicitStringLiteral)
+          break;
       }
 
       if (FormatTok->is(TT_ImplicitStringLiteral))
@@ -1901,8 +1904,9 @@ tooling::Replacements reformat(const FormatStyle &Style, StringRef Code,
       IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
       new DiagnosticOptions);
   SourceManager SourceMgr(Diagnostics, Files);
-  InMemoryFileSystem->addFile(FileName, 0,
-                              llvm::MemoryBuffer::getMemBuffer(Code, FileName));
+  InMemoryFileSystem->addFile(
+      FileName, 0, llvm::MemoryBuffer::getMemBuffer(
+                       Code, FileName, /*RequiresNullTerminator=*/false));
   FileID ID = SourceMgr.createFileID(Files.getFile(FileName), SourceLocation(),
                                      clang::SrcMgr::C_User);
   SourceLocation StartOfFile = SourceMgr.getLocForStartOfFile(ID);

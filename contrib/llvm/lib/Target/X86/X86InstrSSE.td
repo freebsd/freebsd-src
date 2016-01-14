@@ -1808,7 +1808,7 @@ def : InstAlias<"cvtss2si{q}\t{$src, $dst|$dst, $src}",
 def : InstAlias<"cvtsd2si{q}\t{$src, $dst|$dst, $src}",
                 (CVTSD2SI64rr GR64:$dst, VR128:$src), 0>;
 def : InstAlias<"cvtsd2si{q}\t{$src, $dst|$dst, $src}",
-                (CVTSD2SI64rm GR64:$dst, sdmem:$src)>;
+                (CVTSD2SI64rm GR64:$dst, sdmem:$src), 0>;
 
 /// SSE 2 Only
 
@@ -7838,9 +7838,7 @@ class avx_broadcast_rm<bits<8> opc, string OpcodeStr, RegisterClass RC,
   AVX8I<opc, MRMSrcMem, (outs RC:$dst), (ins x86memop:$src),
         !strconcat(OpcodeStr, "\t{$src, $dst|$dst, $src}"),
         [(set RC:$dst, (VT (X86VBroadcast (ld_frag addr:$src))))]>,
-        Sched<[Sched]>, VEX {
-    let mayLoad = 1;
-}
+        Sched<[Sched]>, VEX;
 
 // AVX2 adds register forms
 class avx2_broadcast_rr<bits<8> opc, string OpcodeStr, RegisterClass RC,
@@ -7871,7 +7869,7 @@ let ExeDomain = SSEPackedDouble in
 def VBROADCASTSDYrr  : avx2_broadcast_rr<0x19, "vbroadcastsd", VR256,
                                          v4f64, v2f64, WriteFShuffle256>, VEX_L;
 
-let mayLoad = 1, Predicates = [HasAVX2] in
+let mayLoad = 1, hasSideEffects = 0, Predicates = [HasAVX2] in
 def VBROADCASTI128 : AVX8I<0x5A, MRMSrcMem, (outs VR256:$dst),
                            (ins i128mem:$src),
                            "vbroadcasti128\t{$src, $dst|$dst, $src}", []>,
@@ -8258,6 +8256,9 @@ let Predicates = [HasF16C] in {
   def : Pat<(int_x86_vcvtph2ps_128 (vzmovl_v2i64 addr:$src)),
             (VCVTPH2PSrm addr:$src)>;
   def : Pat<(int_x86_vcvtph2ps_128 (vzload_v2i64 addr:$src)),
+            (VCVTPH2PSrm addr:$src)>;
+  def : Pat<(int_x86_vcvtph2ps_128 (bitconvert
+              (v2i64 (scalar_to_vector (loadi64 addr:$src))))),
             (VCVTPH2PSrm addr:$src)>;
 
   def : Pat<(store (f64 (extractelt (bc_v2f64 (v8i16

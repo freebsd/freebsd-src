@@ -3084,6 +3084,8 @@ ExprResult Sema::ActOnCharacterConstant(const Token &Tok, Scope *UDLScope) {
     Kind = CharacterLiteral::UTF16;
   else if (Literal.isUTF32())
     Kind = CharacterLiteral::UTF32;
+  else if (Literal.isUTF8())
+    Kind = CharacterLiteral::UTF8;
 
   Expr *Lit = new (Context) CharacterLiteral(Literal.getValue(), Kind, Ty,
                                              Tok.getLocation());
@@ -4313,10 +4315,16 @@ ExprResult Sema::BuildCXXDefaultArgExpr(SourceLocation CallLoc,
     if (Result.isInvalid())
       return ExprError();
 
-    Expr *Arg = Result.getAs<Expr>();
-    CheckCompletedExpr(Arg, Param->getOuterLocStart());
-    // Build the default argument expression.
-    return CXXDefaultArgExpr::Create(Context, CallLoc, Param, Arg);
+    Result = ActOnFinishFullExpr(Result.getAs<Expr>(),
+                                 Param->getOuterLocStart());
+    if (Result.isInvalid())
+      return ExprError();
+
+    // Remember the instantiated default argument.
+    Param->setDefaultArg(Result.getAs<Expr>());
+    if (ASTMutationListener *L = getASTMutationListener()) {
+      L->DefaultArgumentInstantiated(Param);
+    }
   }
 
   // If the default expression creates temporaries, we need to
@@ -4929,7 +4937,9 @@ Sema::ActOnCallExpr(Scope *S, Expr *Fn, SourceLocation LParenLoc,
       OverloadExpr *ovl = find.Expression;
       if (UnresolvedLookupExpr *ULE = dyn_cast<UnresolvedLookupExpr>(ovl))
         return BuildOverloadedCallExpr(S, Fn, ULE, LParenLoc, ArgExprs,
-                                       RParenLoc, ExecConfig);
+                                       RParenLoc, ExecConfig,
+                                       /*AllowTypoCorrection=*/true,
+                                       find.IsAddressOfOperand);
       return BuildCallToMemberFunction(S, Fn, LParenLoc, ArgExprs, RParenLoc);
     }
   }
@@ -4943,10 +4953,14 @@ Sema::ActOnCallExpr(Scope *S, Expr *Fn, SourceLocation LParenLoc,
 
   Expr *NakedFn = Fn->IgnoreParens();
 
+  bool CallingNDeclIndirectly = false;
   NamedDecl *NDecl = nullptr;
-  if (UnaryOperator *UnOp = dyn_cast<UnaryOperator>(NakedFn))
-    if (UnOp->getOpcode() == UO_AddrOf)
+  if (UnaryOperator *UnOp = dyn_cast<UnaryOperator>(NakedFn)) {
+    if (UnOp->getOpcode() == UO_AddrOf) {
+      CallingNDeclIndirectly = true;
       NakedFn = UnOp->getSubExpr()->IgnoreParens();
+    }
+  }
 
   if (isa<DeclRefExpr>(NakedFn)) {
     NDecl = cast<DeclRefExpr>(NakedFn)->getDecl();
@@ -4968,6 +4982,11 @@ Sema::ActOnCallExpr(Scope *S, Expr *Fn, SourceLocation LParenLoc,
     NDecl = cast<MemberExpr>(NakedFn)->getMemberDecl();
 
   if (FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(NDecl)) {
+    if (CallingNDeclIndirectly &&
+        !checkAddressOfFunctionIsAvailable(FD, /*Complain=*/true,
+                                           Fn->getLocStart()))
+      return ExprError();
+
     if (FD->hasAttr<EnableIfAttr>()) {
       if (const EnableIfAttr *Attr = CheckEnableIf(FD, ArgExprs, true)) {
         Diag(Fn->getLocStart(),
@@ -5583,6 +5602,39 @@ bool Sema::CheckVectorCast(SourceRange R, QualType VectorTy, QualType Ty,
   return false;
 }
 
+ExprResult Sema::prepareVectorSplat(QualType VectorTy, Expr *SplattedExpr) {
+  QualType DestElemTy = VectorTy->castAs<VectorType>()->getElementType();
+
+  if (DestElemTy == SplattedExpr->getType())
+    return SplattedExpr;
+
+  assert(DestElemTy->isFloatingType() ||
+         DestElemTy->isIntegralOrEnumerationType());
+
+  CastKind CK;
+  if (VectorTy->isExtVectorType() && SplattedExpr->getType()->isBooleanType()) {
+    // OpenCL requires that we convert `true` boolean expressions to -1, but
+    // only when splatting vectors.
+    if (DestElemTy->isFloatingType()) {
+      // To avoid having to have a CK_BooleanToSignedFloating cast kind, we cast
+      // in two steps: boolean to signed integral, then to floating.
+      ExprResult CastExprRes = ImpCastExprToType(SplattedExpr, Context.IntTy,
+                                                 CK_BooleanToSignedIntegral);
+      SplattedExpr = CastExprRes.get();
+      CK = CK_IntegralToFloating;
+    } else {
+      CK = CK_BooleanToSignedIntegral;
+    }
+  } else {
+    ExprResult CastExprRes = SplattedExpr;
+    CK = PrepareScalarCast(CastExprRes, DestElemTy);
+    if (CastExprRes.isInvalid())
+      return ExprError();
+    SplattedExpr = CastExprRes.get();
+  }
+  return ImpCastExprToType(SplattedExpr, DestElemTy, CK);
+}
+
 ExprResult Sema::CheckExtVectorCast(SourceRange R, QualType DestTy,
                                     Expr *CastExpr, CastKind &Kind) {
   assert(DestTy->isExtVectorType() && "Not an extended vector type!");
@@ -5613,15 +5665,8 @@ ExprResult Sema::CheckExtVectorCast(SourceRange R, QualType DestTy,
                 diag::err_invalid_conversion_between_vector_and_scalar)
       << DestTy << SrcTy << R;
 
-  QualType DestElemTy = DestTy->getAs<ExtVectorType>()->getElementType();
-  ExprResult CastExprRes = CastExpr;
-  CastKind CK = PrepareScalarCast(CastExprRes, DestElemTy);
-  if (CastExprRes.isInvalid())
-    return ExprError();
-  CastExpr = ImpCastExprToType(CastExprRes.get(), DestElemTy, CK).get();
-
   Kind = CK_VectorSplat;
-  return CastExpr;
+  return prepareVectorSplat(DestTy, CastExpr);
 }
 
 ExprResult
@@ -6960,13 +7005,9 @@ Sema::CheckAssignmentConstraints(QualType LHSType, ExprResult &RHS,
     if (RHSType->isExtVectorType())
       return Incompatible;
     if (RHSType->isArithmeticType()) {
-      // CK_VectorSplat does T -> vector T, so first cast to the
-      // element type.
-      QualType elType = cast<ExtVectorType>(LHSType)->getElementType();
-      if (elType != RHSType && ConvertRHS) {
-        Kind = PrepareScalarCast(RHS, elType);
-        RHS = ImpCastExprToType(RHS.get(), elType, Kind);
-      }
+      // CK_VectorSplat does T -> vector T, so first cast to the element type.
+      if (ConvertRHS)
+        RHS = prepareVectorSplat(LHSType, RHS.get());
       Kind = CK_VectorSplat;
       return Compatible;
     }
@@ -8184,7 +8225,7 @@ static QualType checkOpenCLVectorShift(Sema &S,
   if (RHS.isInvalid()) return QualType();
 
   QualType LHSType = LHS.get()->getType();
-  const VectorType *LHSVecTy = LHSType->getAs<VectorType>();
+  const VectorType *LHSVecTy = LHSType->castAs<VectorType>();
   QualType LHSEleType = LHSVecTy->getElementType();
 
   // Note that RHS might not be a vector.
@@ -13121,6 +13162,7 @@ bool Sema::tryCaptureVariable(
         case Type::ObjCObject:
         case Type::ObjCInterface:
         case Type::ObjCObjectPointer:
+        case Type::Pipe:
           llvm_unreachable("type class is never variably-modified!");
         case Type::Adjusted:
           QTy = cast<AdjustedType>(Ty)->getOriginalType();

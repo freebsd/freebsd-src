@@ -2069,6 +2069,16 @@ void Clang::AddHexagonTargetArgs(const ArgList &Args,
   CmdArgs.push_back("-machine-sink-split=0");
 }
 
+void Clang::AddWebAssemblyTargetArgs(const ArgList &Args,
+                                     ArgStringList &CmdArgs) const {
+  // Default to "hidden" visibility.
+  if (!Args.hasArg(options::OPT_fvisibility_EQ,
+                   options::OPT_fvisibility_ms_compat)) {
+    CmdArgs.push_back("-fvisibility");
+    CmdArgs.push_back("hidden");
+  }
+}
+
 // Decode AArch64 features from string like +[no]featureA+[no]featureB+...
 static bool DecodeAArch64Features(const Driver &D, StringRef text,
                                   std::vector<const char *> &Features) {
@@ -2970,7 +2980,7 @@ static void SplitDebugInfo(const ToolChain &TC, Compilation &C, const Tool &T,
   ExtractArgs.push_back(OutFile);
 
   const char *Exec = Args.MakeArgString(TC.GetProgramPath("objcopy"));
-  InputInfo II(Output.getFilename(), types::TY_Object, Output.getFilename());
+  InputInfo II(types::TY_Object, Output.getFilename(), Output.getFilename());
 
   // First extract the dwo sections.
   C.addCommand(llvm::make_unique<Command>(JA, T, Exec, ExtractArgs, II));
@@ -3253,8 +3263,9 @@ ParsePICArgs(const ToolChain &ToolChain, const llvm::Triple &Triple,
   // ToolChain.getTriple() and Triple?
   bool PIE = ToolChain.isPIEDefault();
   bool PIC = PIE || ToolChain.isPICDefault();
-  // The Darwin default to use PIC does not apply when using -static.
-  if (ToolChain.getTriple().isOSDarwin() && Args.hasArg(options::OPT_static))
+  // The Darwin/MachO default to use PIC does not apply when using -static.
+  if (ToolChain.getTriple().isOSBinFormatMachO() &&
+      Args.hasArg(options::OPT_static))
     PIE = PIC = false;
   bool IsPICLevelTwo = PIC;
 
@@ -4015,6 +4026,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   case llvm::Triple::hexagon:
     AddHexagonTargetArgs(Args, CmdArgs);
     break;
+
+  case llvm::Triple::wasm32:
+  case llvm::Triple::wasm64:
+    AddWebAssemblyTargetArgs(Args, CmdArgs);
+    break;
   }
 
   // The 'g' groups options involve a somewhat intricate sequence of decisions
@@ -4176,8 +4192,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-generate-type-units");
   }
 
-  // CloudABI uses -ffunction-sections and -fdata-sections by default.
-  bool UseSeparateSections = Triple.getOS() == llvm::Triple::CloudABI;
+  // CloudABI and WebAssembly use -ffunction-sections and -fdata-sections by
+  // default.
+  bool UseSeparateSections = Triple.getOS() == llvm::Triple::CloudABI ||
+                             Triple.getArch() == llvm::Triple::wasm32 ||
+                             Triple.getArch() == llvm::Triple::wasm64;
 
   if (Args.hasFlag(options::OPT_ffunction_sections,
                    options::OPT_fno_function_sections, UseSeparateSections)) {
@@ -6040,8 +6059,7 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
   // doesn't handle that so rather than warning about unused flags that are
   // actually used, we'll lie by omission instead.
   // FIXME: Stop lying and consume only the appropriate driver flags
-  for (const Arg *A : Args.filtered(options::OPT_W_Group))
-    A->claim();
+  Args.ClaimAllArgs(options::OPT_W_Group);
 
   CollectArgsForIntegratedAssembler(C, Args, CmdArgs,
                                     getToolChain().getDriver());
@@ -6078,6 +6096,12 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
 
   for (const auto &A : Args) {
     if (forwardToGCC(A->getOption())) {
+      // It is unfortunate that we have to claim here, as this means
+      // we will basically never report anything interesting for
+      // platforms using a generic gcc, even if we are just using gcc
+      // to get to the assembler.
+      A->claim();
+
       // Don't forward any -g arguments to assembly steps.
       if (isa<AssembleJobAction>(JA) &&
           A->getOption().matches(options::OPT_g_Group))
@@ -6088,11 +6112,6 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
           A->getOption().matches(options::OPT_W_Group))
         continue;
 
-      // It is unfortunate that we have to claim here, as this means
-      // we will basically never report anything interesting for
-      // platforms using a generic gcc, even if we are just using gcc
-      // to get to the assembler.
-      A->claim();
       A->render(Args, CmdArgs);
     }
   }
@@ -6502,10 +6521,6 @@ void amdgpu::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   std::string Linker = getToolChain().GetProgramPath(getShortName());
   ArgStringList CmdArgs;
-  CmdArgs.push_back("-flavor");
-  CmdArgs.push_back("old-gnu");
-  CmdArgs.push_back("-target");
-  CmdArgs.push_back(Args.MakeArgString(getToolChain().getTripleString()));
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs);
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
@@ -6534,6 +6549,14 @@ void wasm::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   ArgStringList CmdArgs;
   CmdArgs.push_back("-flavor");
   CmdArgs.push_back("ld");
+
+  // Enable garbage collection of unused input sections by default, since code
+  // size is of particular importance. This is significantly facilitated by
+  // the enabling of -ffunction-sections and -fdata-sections in
+  // Clang::ConstructJob.
+  if (areOptimizationsEnabled(Args))
+    CmdArgs.push_back("--gc-sections");
+
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs);
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
@@ -8965,7 +8988,7 @@ void nacltools::AssemblerARM::ConstructJob(Compilation &C, const JobAction &JA,
                                            const char *LinkingOutput) const {
   const toolchains::NaClToolChain &ToolChain =
       static_cast<const toolchains::NaClToolChain &>(getToolChain());
-  InputInfo NaClMacros(ToolChain.GetNaClArmMacrosPath(), types::TY_PP_Asm,
+  InputInfo NaClMacros(types::TY_PP_Asm, ToolChain.GetNaClArmMacrosPath(),
                        "nacl-arm-macros.s");
   InputInfoList NewInputs;
   NewInputs.push_back(NaClMacros);

@@ -27,6 +27,7 @@
 #include "lldb/Core/StringList.h"
 #include "lldb/Core/StructuredData.h"
 #include "lldb/Core/ThreadSafeValue.h"
+#include "lldb/Core/LoadedModuleInfoList.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/lldb-private-forward.h"
 #include "lldb/Utility/StringExtractor.h"
@@ -245,6 +246,9 @@ public:
                      uint32_t &update) override;
 
     size_t
+    LoadModules(LoadedModuleInfoList &module_list) override;
+
+    size_t
     LoadModules() override;
 
     Error
@@ -260,8 +264,6 @@ protected:
     friend class ThreadGDBRemote;
     friend class GDBRemoteCommunicationClient;
     friend class GDBRemoteRegisterContext;
-
-    class GDBLoadedModuleInfoList;
 
     //------------------------------------------------------------------
     /// Broadcaster event bits definitions.
@@ -429,6 +431,8 @@ protected:
                        const std::vector<lldb::addr_t> &exc_data,
                        lldb::addr_t thread_dispatch_qaddr,
                        bool queue_vars_valid,
+                       lldb_private::LazyBool associated_with_libdispatch_queue,
+                       lldb::addr_t dispatch_queue_t,
                        std::string &queue_name,
                        lldb::QueueKind queue_kind,
                        uint64_t queue_serial);
@@ -461,7 +465,7 @@ protected:
 
     // Query remote GDBServer for a detailed loaded library list
     Error
-    GetLoadedModuleList (GDBLoadedModuleInfoList &);
+    GetLoadedModuleList (LoadedModuleInfoList &);
 
     lldb::ModuleSP
     LoadModuleAtAddress (const FileSpec &file, lldb::addr_t base_addr, bool value_is_offset);

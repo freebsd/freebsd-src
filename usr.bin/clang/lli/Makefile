@@ -6,9 +6,6 @@ PROG_CXX=lli
 
 SRCDIR=	tools/lli
 SRCS=	OrcLazyJIT.cpp \
-	RemoteMemoryManager.cpp \
-	RemoteTarget.cpp \
-	RemoteTargetExternal.cpp \
 	lli.cpp
 
 TGHDRS=	Attributes \

@@ -43,6 +43,7 @@
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/CodeGen/StackProtector.h"
+#include "llvm/CodeGen/WinEHFuncInfo.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -569,6 +570,14 @@ void StackColoring::remapInstructions(DenseMap<int, int> &SlotRemap) {
         FixedInstr++;
       }
     }
+
+  // Update the location of C++ catch objects for the MSVC personality routine.
+  if (WinEHFuncInfo *EHInfo = MF->getWinEHFuncInfo())
+    for (WinEHTryBlockMapEntry &TBME : EHInfo->TryBlockMap)
+      for (WinEHHandlerType &H : TBME.HandlerArray)
+        if (H.CatchObj.FrameIndex != INT_MAX &&
+            SlotRemap.count(H.CatchObj.FrameIndex))
+          H.CatchObj.FrameIndex = SlotRemap[H.CatchObj.FrameIndex];
 
   DEBUG(dbgs()<<"Fixed "<<FixedMemOp<<" machine memory operands.\n");
   DEBUG(dbgs()<<"Fixed "<<FixedDbg<<" debug locations.\n");
