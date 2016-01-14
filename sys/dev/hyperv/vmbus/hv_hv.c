@@ -45,12 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include "hv_vmbus_priv.h"
 
-#define HV_X64_MSR_GUEST_OS_ID		0x40000000
-
-#define HV_X64_CPUID_MIN		0x40000005
-#define HV_X64_CPUID_MAX		0x4000ffff
-#define HV_X64_MSR_TIME_REF_COUNT	0x40000020
-
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
 
@@ -218,6 +212,8 @@ hv_vmbus_init(void)
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
 	tc_init(&hv_timecounter); /* register virtual timecount */
+
+	hv_et_init();
 	
 	return (0);
 
