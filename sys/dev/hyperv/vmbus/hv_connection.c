@@ -251,7 +251,7 @@ hv_vmbus_connect(void) {
 
 	hv_vmbus_protocal_version = version;
 	if (bootverbose)
-		printf("VMBUS: Portocal Version: %d.%d\n",
+		printf("VMBUS: Protocol Version: %d.%d\n",
 		    version >> 16, version & 0xFFFF);
 
 	sema_destroy(&msg_info->wait_sema);
