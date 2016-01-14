@@ -464,7 +464,7 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 {
 	struct fdt_mem_region *curmr;
 	uint32_t addr_cells, size_cells;
-	uint32_t *addr_cellsp, *reg,  *size_cellsp;
+	uint32_t *addr_cellsp, *size_cellsp;
 	int err, i, len, memory, root;
 	size_t realmrno;
 	uint8_t *buf, *sb;
