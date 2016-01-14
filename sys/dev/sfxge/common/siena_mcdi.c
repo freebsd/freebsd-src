@@ -222,15 +222,8 @@ siena_mcdi_read_response(
 siena_mcdi_request_poll(
 	__in		efx_nic_t *enp)
 {
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-#endif
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_mcdi_req_t *emrp;
-	efx_dword_t hdr;
-	unsigned int hdr_len;
-	unsigned int data_len;
-	unsigned int seq;
 	int state;
 	efx_rc_t rc;
 
@@ -260,86 +253,25 @@ siena_mcdi_request_poll(
 	}
 
 	/* Read the response header */
-	hdr_len = sizeof (hdr);
-	siena_mcdi_read_response(enp, &hdr, 0, hdr_len);
+	efx_mcdi_read_response_header(enp, emrp);
 
 	/* Request complete */
 	emip->emi_pending_req = NULL;
-	seq = (emip->emi_seq - 1) & EFX_MASK32(MCDI_HEADER_SEQ);
-
-	/* Check for synchronous reboot */
-	if (EFX_DWORD_FIELD(hdr, MCDI_HEADER_ERROR) != 0 &&
-	    EFX_DWORD_FIELD(hdr, MCDI_HEADER_DATALEN) == 0) {
-		/* Consume status word */
-		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
-		siena_mcdi_poll_reboot(enp);
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		rc = EIO;
-		goto fail2;
-	}
 
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	/* Check that the returned data is consistent */
-	if (EFX_DWORD_FIELD(hdr, MCDI_HEADER_CODE) != emrp->emr_cmd ||
-	    EFX_DWORD_FIELD(hdr, MCDI_HEADER_SEQ) != seq) {
-		/* Response is for a different request */
-		rc = EIO;
-		goto fail3;
-	}
+	if ((rc = emrp->emr_rc) != 0)
+		goto fail2;
 
-	data_len = EFX_DWORD_FIELD(hdr, MCDI_HEADER_DATALEN);
-	if (EFX_DWORD_FIELD(hdr, MCDI_HEADER_ERROR)) {
-		efx_dword_t err;
-		int err_code = MC_CMD_ERR_EPROTO;
-		unsigned int err_len = MIN(data_len, sizeof (err));
-
-		/* Read error code */
-		siena_mcdi_read_response(enp, &err, hdr_len, err_len);
-
-		if (err_len >= MC_CMD_ERR_CODE_OFST + sizeof (efx_dword_t))
-			err_code = EFX_DWORD_FIELD(err, EFX_DWORD_0);
-
-#if EFSYS_OPT_MCDI_LOGGING
-		if (emtp->emt_logger != NULL) {
-			emtp->emt_logger(emtp->emt_context,
-			    EFX_LOG_MCDI_RESPONSE,
-			    &hdr, hdr_len,
-			    &err, err_len);
-		}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-
-		rc = efx_mcdi_request_errcode(err_code);
-		if (!emrp->emr_quiet) {
-			EFSYS_PROBE2(mcdi_err, int, emrp->emr_cmd,
-			    int, err_code);
-		}
-		goto fail4;
-
-	} else {
-		emrp->emr_out_length_used = data_len;
-		emrp->emr_rc = 0;
-		siena_mcdi_request_copyout(enp, emrp);
-	}
-
+	siena_mcdi_request_copyout(enp, emrp);
 	goto out;
 
-fail4:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail4);
-fail3:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail3);
 fail2:
 	if (!emrp->emr_quiet)
 		EFSYS_PROBE(fail2);
 fail1:
 	if (!emrp->emr_quiet)
 		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	/* Fill out error state */
-	emrp->emr_rc = rc;
-	emrp->emr_out_length_used = 0;
 
 	/* Reboot/Assertion */
 	if (rc == EIO || rc == EINTR)
