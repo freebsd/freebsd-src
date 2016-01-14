@@ -1509,8 +1509,6 @@ fail1:
 
 #if EFSYS_OPT_NVRAM
 
-/* FIXME: Update partition table for Medford */
-
 typedef struct ef10_parttbl_entry_s {
 	unsigned int		partn;
 	unsigned int		port;
@@ -1518,7 +1516,7 @@ typedef struct ef10_parttbl_entry_s {
 } ef10_parttbl_entry_t;
 
 /* Translate EFX NVRAM types to firmware partition types */
-static ef10_parttbl_entry_t ef10_parttbl[] = {
+static ef10_parttbl_entry_t hunt_parttbl[] = {
 	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   1, EFX_NVRAM_MC_FIRMWARE},
 	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   2, EFX_NVRAM_MC_FIRMWARE},
 	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   3, EFX_NVRAM_MC_FIRMWARE},
@@ -1549,6 +1547,37 @@ static ef10_parttbl_entry_t ef10_parttbl[] = {
 	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   4, EFX_NVRAM_FPGA_BACKUP}
 };
 
+static ef10_parttbl_entry_t medford_parttbl[] = {
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   1, EFX_NVRAM_MC_FIRMWARE},
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   2, EFX_NVRAM_MC_FIRMWARE},
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   3, EFX_NVRAM_MC_FIRMWARE},
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   4, EFX_NVRAM_MC_FIRMWARE},
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  1, EFX_NVRAM_MC_GOLDEN},
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  2, EFX_NVRAM_MC_GOLDEN},
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  3, EFX_NVRAM_MC_GOLDEN},
+	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  4, EFX_NVRAM_MC_GOLDEN},
+	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   1, EFX_NVRAM_BOOTROM},
+	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   2, EFX_NVRAM_BOOTROM},
+	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   3, EFX_NVRAM_BOOTROM},
+	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   4, EFX_NVRAM_BOOTROM},
+	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 1, EFX_NVRAM_BOOTROM_CFG},
+	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 2, EFX_NVRAM_BOOTROM_CFG},
+	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 3, EFX_NVRAM_BOOTROM_CFG},
+	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 4, EFX_NVRAM_BOOTROM_CFG},
+	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   1, EFX_NVRAM_DYNAMIC_CFG},
+	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   2, EFX_NVRAM_DYNAMIC_CFG},
+	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   3, EFX_NVRAM_DYNAMIC_CFG},
+	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   4, EFX_NVRAM_DYNAMIC_CFG},
+	{NVRAM_PARTITION_TYPE_FPGA,		   1, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA,		   2, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA,		   3, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA,		   4, EFX_NVRAM_FPGA},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   1, EFX_NVRAM_FPGA_BACKUP},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   2, EFX_NVRAM_FPGA_BACKUP},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   3, EFX_NVRAM_FPGA_BACKUP},
+	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   4, EFX_NVRAM_FPGA_BACKUP}
+};
+
 static	__checkReturn		ef10_parttbl_entry_t *
 ef10_parttbl_entry(
 	__in			efx_nic_t *enp,
@@ -1556,17 +1585,39 @@ ef10_parttbl_entry(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	ef10_parttbl_entry_t *entry;
-	int i;
+	ef10_parttbl_entry_t *parttbl;
+	size_t parttbl_size = 0;
+	unsigned int i;
 
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 
-	for (i = 0; i < EFX_ARRAY_SIZE(ef10_parttbl); i++) {
-		entry = &ef10_parttbl[i];
+	switch (enp->en_family) {
+	case EFX_FAMILY_HUNTINGTON:
+		parttbl = hunt_parttbl;
+		parttbl_size = EFX_ARRAY_SIZE(hunt_parttbl);
+		break;
 
-		if (entry->port == emip->emi_port && entry->nvtype == type)
-			return (entry);
+	case EFX_FAMILY_MEDFORD:
+		parttbl = medford_parttbl;
+		parttbl_size = EFX_ARRAY_SIZE(medford_parttbl);
+		break;
+
+	default:
+		EFSYS_ASSERT(B_FALSE);
+		goto not_found;
 	}
 
+	if (parttbl != NULL) {
+		for (i = 0; i < parttbl_size; i++) {
+			entry = &parttbl[i];
+
+			if (entry->port == emip->emi_port &&
+			    entry->nvtype == type) {
+				return (entry);
+			}
+		}
+	}
+not_found:
 	return (NULL);
 }
 
@@ -1579,10 +1630,12 @@ ef10_nvram_test(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	ef10_parttbl_entry_t *entry;
+	ef10_parttbl_entry_t *parttbl;
+	size_t parttbl_size = 0;
 	unsigned int npartns = 0;
 	uint32_t *partns = NULL;
 	size_t size;
-	int i;
+	unsigned int i;
 	unsigned int j;
 	efx_rc_t rc;
 
@@ -1603,8 +1656,24 @@ ef10_nvram_test(
 	 * Iterate over the list of supported partition types
 	 * applicable to *this* port
 	 */
-	for (i = 0; i < EFX_ARRAY_SIZE(ef10_parttbl); i++) {
-		entry = &ef10_parttbl[i];
+	switch (enp->en_family) {
+	case EFX_FAMILY_HUNTINGTON:
+		parttbl = hunt_parttbl;
+		parttbl_size = EFX_ARRAY_SIZE(hunt_parttbl);
+		break;
+
+	case EFX_FAMILY_MEDFORD:
+		parttbl = medford_parttbl;
+		parttbl_size = EFX_ARRAY_SIZE(medford_parttbl);
+		break;
+
+	default:
+		EFSYS_ASSERT(B_FALSE);
+		goto fail3;
+	}
+
+	for (i = 0; i < parttbl_size; i++) {
+		entry = &parttbl[i];
 
 		if (entry->port != emip->emi_port)
 			continue;
@@ -1613,7 +1682,7 @@ ef10_nvram_test(
 			if (entry->partn == partns[j]) {
 				rc = efx_mcdi_nvram_test(enp, entry->partn);
 				if (rc != 0)
-					goto fail3;
+					goto fail4;
 			}
 		}
 	}
@@ -1621,6 +1690,8 @@ ef10_nvram_test(
 	EFSYS_KMEM_FREE(enp->en_esip, size, partns);
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail3);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
