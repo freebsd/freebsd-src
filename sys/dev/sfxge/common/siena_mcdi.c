@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 	: MC_SMEM_P1_STATUS_OFST >> 2)
 
 
-static			void
+			void
 siena_mcdi_send_request(
 	__in		efx_nic_t *enp,
 	__in		void *hdrp,
@@ -87,50 +87,6 @@ siena_mcdi_send_request(
 	/* Ring the doorbell */
 	EFX_POPULATE_DWORD_1(dword, EFX_DWORD_0, 0xd004be11);
 	EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM, dbr, &dword, B_FALSE);
-}
-
-			void
-siena_mcdi_request_copyin(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp,
-	__in		unsigned int seq,
-	__in		boolean_t ev_cpl,
-	__in		boolean_t new_epoch)
-{
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-#endif
-	efx_dword_t hdr;
-	size_t hdr_len;
-	unsigned int xflags;
-
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
-	_NOTE(ARGUNUSED(new_epoch))
-
-	xflags = 0;
-	if (ev_cpl)
-		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
-
-	/* Construct the header */
-	hdr_len = sizeof (hdr);
-	EFX_POPULATE_DWORD_6(hdr,
-			    MCDI_HEADER_CODE, emrp->emr_cmd,
-			    MCDI_HEADER_RESYNC, 1,
-			    MCDI_HEADER_DATALEN, emrp->emr_in_length,
-			    MCDI_HEADER_SEQ, seq,
-			    MCDI_HEADER_RESPONSE, 0,
-			    MCDI_HEADER_XFLAGS, xflags);
-
-#if EFSYS_OPT_MCDI_LOGGING
-	if (emtp->emt_logger != NULL) {
-		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
-		    &hdr, sizeof (hdr),
-		    emrp->emr_in_buf, emrp->emr_in_length);
-	}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-
-	siena_mcdi_send_request(enp, &hdr, hdr_len,
-	    emrp->emr_in_buf, emrp->emr_in_length);
 }
 
 			void
