@@ -195,7 +195,7 @@ if f_interactive; then
 		;;
 	"Dell Inc.")
 		case "$sys_model" in
-		"Latitude E7440"|"Latitude E7240")
+		"Latitude E7440"|"Latitude E7240"|"Precision Tower 5810")
 			dialog_workaround "$msg_gpt_active_fix"
 			retval=$?
 			f_dprintf "gpt_active_fix_prompt=[%s]" "$retval"
