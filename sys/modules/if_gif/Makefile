@@ -17,7 +17,9 @@ OPT_INET!= cat ${KERNBUILDDIR}/opt_inet.h; echo
 .if empty(OPT_INET)
 MK_INET_SUPPORT= no
 .endif
+.endif
 
+.if !defined(KERNBUILDDIR)
 .if ${MK_INET6_SUPPORT} != "no"
 opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
