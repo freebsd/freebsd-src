@@ -151,6 +151,11 @@ efx_mcdi_macaddr_change_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp);
 
+extern	__checkReturn		efx_rc_t
+efx_mcdi_link_control_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp);
+
 #if EFSYS_OPT_BIST
 #if EFSYS_OPT_HUNTINGTON
 extern	__checkReturn		efx_rc_t
