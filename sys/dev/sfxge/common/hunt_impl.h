@@ -370,12 +370,6 @@ ef10_nvram_partn_write_segment_tlv(
 	__in			boolean_t all_segments);
 
 extern	__checkReturn		efx_rc_t
-ef10_nvram_partn_size(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__out			size_t *sizep);
-
-extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
@@ -419,12 +413,6 @@ ef10_nvram_test(
 	__in			efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_DIAG */
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_size(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
 ef10_nvram_get_version(
@@ -482,6 +470,12 @@ ef10_nvram_type_to_partn(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			uint32_t *partnp);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_partn_size(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__out			size_t *sizep);
 
 #endif	/* EFSYS_OPT_NVRAM */
 
