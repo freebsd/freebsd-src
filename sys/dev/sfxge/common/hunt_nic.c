@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ef10_tlv_layout.h"
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_port_assignment(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *portp)
@@ -85,7 +85,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_port_modes(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *modesp)
@@ -205,7 +205,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_mac_address_pf(
 	__in			efx_nic_t *enp,
 	__out_ecount_opt(6)	uint8_t mac_addrp[6])
@@ -263,7 +263,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_mac_address_vf(
 	__in			efx_nic_t *enp,
 	__out_ecount_opt(6)	uint8_t mac_addrp[6])
@@ -326,7 +326,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_clock(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *sys_freqp)
@@ -376,7 +376,7 @@ fail1:
 	return (rc);
 }
 
-static 	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_vector_cfg(
 	__in		efx_nic_t *enp,
 	__out_opt	uint32_t *vec_basep,
@@ -889,7 +889,7 @@ ef10_nic_pio_unlink(
 	return (efx_mcdi_unlink_piobuf(enp, vi_index));
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
 {
@@ -992,6 +992,13 @@ static struct {
 		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
 		1
 	},
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_10G) |
+		(1 << TLV_PORT_MODE_10G_10G) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
+		1
+	},
 	/* Supported modes requiring 2 outputs per port */
 	{
 		EFX_FAMILY_HUNTINGTON,
@@ -1000,18 +1007,25 @@ static struct {
 		(1 << TLV_PORT_MODE_40G_10G_10G) |
 		(1 << TLV_PORT_MODE_10G_10G_40G),
 		2
-	}
-	/*
-	 * NOTE: Medford modes will require 4 outputs per port:
-	 *	TLV_PORT_MODE_10G_10G_10G_10G_Q
-	 *	TLV_PORT_MODE_10G_10G_10G_10G_Q2
-	 * The Q2 mode routes outputs to external port 2. Support for this
-	 * will require a new field specifying the number to add after
-	 * scaling by stride. This is fixed at 1 currently.
-	 */
+	},
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_40G) |
+		(1 << TLV_PORT_MODE_40G_40G) |
+		(1 << TLV_PORT_MODE_40G_10G_10G) |
+		(1 << TLV_PORT_MODE_10G_10G_40G),
+		2
+	},
+	/* Supported modes requiring 4 outputs per port */
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q2),
+		4
+	},
 };
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 ef10_external_port_mapping(
 	__in		efx_nic_t *enp,
 	__in		uint32_t port,
@@ -1064,7 +1078,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 hunt_board_cfg(
 	__in		efx_nic_t *enp)
 {
@@ -1320,7 +1334,7 @@ hunt_board_cfg(
 	 * Maximum number of bytes into the frame the TCP header can start for
 	 * firmware assisted TSO to work.
 	 */
-	encp->enc_tx_tso_tcp_header_offset_limit = 208;
+	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
 	return (0);
 
@@ -1361,6 +1375,7 @@ fail1:
 ef10_nic_probe(
 	__in		efx_nic_t *enp)
 {
+	efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
 	efx_rc_t rc;
@@ -1380,7 +1395,7 @@ ef10_nic_probe(
 	if ((rc = efx_mcdi_drv_attach(enp, B_TRUE)) != 0)
 		goto fail3;
 
-	if ((rc = hunt_board_cfg(enp)) != 0)
+	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
 			goto fail4;
 
