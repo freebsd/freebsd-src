@@ -119,7 +119,9 @@ private:
       }
     }
 
-    if (Left->Previous &&
+    if (Left->is(TT_OverloadedOperatorLParen)) {
+      Contexts.back().IsExpression = false;
+    } else if (Left->Previous &&
         (Left->Previous->isOneOf(tok::kw_static_assert, tok::kw_decltype,
                                  tok::kw_if, tok::kw_while, tok::l_paren,
                                  tok::comma) ||
@@ -132,9 +134,7 @@ private:
       // This is a parameter list of a lambda expression.
       Contexts.back().IsExpression = false;
     } else if (Line.InPPDirective &&
-               (!Left->Previous ||
-                !Left->Previous->isOneOf(tok::identifier,
-                                         TT_OverloadedOperator))) {
+               (!Left->Previous || !Left->Previous->is(tok::identifier))) {
       Contexts.back().IsExpression = true;
     } else if (Contexts[Contexts.size() - 2].CaretFound) {
       // This is the parameter list of an ObjC block.
@@ -198,6 +198,18 @@ private:
           Left->Type = TT_FunctionTypeLParen;
         Left->MatchingParen = CurrentToken;
         CurrentToken->MatchingParen = Left;
+
+        if (CurrentToken->Next && CurrentToken->Next->is(tok::l_brace) &&
+            Left->Previous && Left->Previous->is(tok::l_paren)) {
+          // Detect the case where macros are used to generate lambdas or
+          // function bodies, e.g.:
+          //   auto my_lambda = MARCO((Type *type, int i) { .. body .. });
+          for (FormatToken *Tok = Left; Tok != CurrentToken; Tok = Tok->Next) {
+            if (Tok->is(TT_BinaryOperator) &&
+                Tok->isOneOf(tok::star, tok::amp, tok::ampamp))
+              Tok->Type = TT_PointerOrReference;
+          }
+        }
 
         if (StartsObjCMethodExpr) {
           CurrentToken->Type = TT_ObjCMethodExpr;
@@ -568,7 +580,8 @@ private:
         if (CurrentToken->isOneOf(tok::star, tok::amp))
           CurrentToken->Type = TT_PointerOrReference;
         consumeToken();
-        if (CurrentToken && CurrentToken->Previous->is(TT_BinaryOperator))
+        if (CurrentToken &&
+            CurrentToken->Previous->isOneOf(TT_BinaryOperator, tok::comma))
           CurrentToken->Previous->Type = TT_OverloadedOperator;
       }
       if (CurrentToken) {
@@ -1713,7 +1726,7 @@ unsigned TokenAnnotator::splitPenalty(const AnnotatedLine &Line,
     if (Right.is(Keywords.kw_function) && Left.isNot(tok::comma))
       return 100;
     if (Left.is(TT_JsTypeColon))
-      return 100;
+      return 35;
   }
 
   if (Left.is(tok::comma) || (Right.is(tok::identifier) && Right.Next &&
@@ -2058,14 +2071,14 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
   if (Right.isOneOf(TT_TrailingReturnArrow, TT_LambdaArrow) ||
       Left.isOneOf(TT_TrailingReturnArrow, TT_LambdaArrow))
     return true;
+  if (Right.is(TT_OverloadedOperatorLParen))
+    return Style.SpaceBeforeParens == FormatStyle::SBPO_Always;
   if (Left.is(tok::comma))
     return true;
   if (Right.is(tok::comma))
     return false;
   if (Right.isOneOf(TT_CtorInitializerColon, TT_ObjCBlockLParen))
     return true;
-  if (Right.is(TT_OverloadedOperatorLParen))
-    return Style.SpaceBeforeParens == FormatStyle::SBPO_Always;
   if (Right.is(tok::colon)) {
     if (Line.First->isOneOf(tok::kw_case, tok::kw_default) ||
         !Right.getNextNonComment() || Right.getNextNonComment()->is(tok::semi))

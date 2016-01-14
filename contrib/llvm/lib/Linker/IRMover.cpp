@@ -773,6 +773,16 @@ GlobalValue *IRLinker::copyGlobalValueProto(const GlobalValue *SGV,
     NewGV->setLinkage(GlobalValue::ExternalWeakLinkage);
 
   NewGV->copyAttributesFrom(SGV);
+
+  // Remove these copied constants in case this stays a declaration, since
+  // they point to the source module. If the def is linked the values will
+  // be mapped in during linkFunctionBody.
+  if (auto *NewF = dyn_cast<Function>(NewGV)) {
+    NewF->setPersonalityFn(nullptr);
+    NewF->setPrefixData(nullptr);
+    NewF->setPrologueData(nullptr);
+  }
+
   return NewGV;
 }
 
@@ -1211,6 +1221,18 @@ void IRLinker::findNeededSubprograms(ValueToValueMapTy &ValueMap) {
   for (unsigned I = 0, E = CompileUnits->getNumOperands(); I != E; ++I) {
     auto *CU = cast<DICompileUnit>(CompileUnits->getOperand(I));
     assert(CU && "Expected valid compile unit");
+    // Ensure that we don't remove subprograms referenced by DIImportedEntity.
+    // It is not legal to have a DIImportedEntity with a null entity or scope.
+    // FIXME: The DISubprogram for functions not linked in but kept due to
+    // being referenced by a DIImportedEntity should also get their
+    // IsDefinition flag is unset.
+    SmallPtrSet<DISubprogram *, 8> ImportedEntitySPs;
+    for (auto *IE : CU->getImportedEntities()) {
+      if (auto *SP = dyn_cast<DISubprogram>(IE->getEntity()))
+        ImportedEntitySPs.insert(SP);
+      if (auto *SP = dyn_cast<DISubprogram>(IE->getScope()))
+        ImportedEntitySPs.insert(SP);
+    }
     for (auto *Op : CU->getSubprograms()) {
       // Unless we were doing function importing and deferred metadata linking,
       // any needed SPs should have been mapped as they would be reached
@@ -1218,7 +1240,7 @@ void IRLinker::findNeededSubprograms(ValueToValueMapTy &ValueMap) {
       // function bodies, or from DILocation on inlined instructions).
       assert(!(ValueMap.MD()[Op] && IsMetadataLinkingPostpass) &&
              "DISubprogram shouldn't be mapped yet");
-      if (!ValueMap.MD()[Op])
+      if (!ValueMap.MD()[Op] && !ImportedEntitySPs.count(Op))
         UnneededSubprograms.insert(Op);
     }
   }

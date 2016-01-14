@@ -7000,6 +7000,7 @@ void Sema::CheckConversionDeclarator(Declarator &D, QualType &R,
       case DeclaratorChunk::BlockPointer:
       case DeclaratorChunk::Reference:
       case DeclaratorChunk::MemberPointer:
+      case DeclaratorChunk::Pipe:
         extendLeft(Before, Chunk.getSourceRange());
         break;
 
@@ -7795,6 +7796,10 @@ bool Sema::CheckUsingShadowDecl(UsingDecl *Using, NamedDecl *Orig,
     if (IsEquivalentForUsingDecl(Context, D, Target)) {
       if (UsingShadowDecl *Shadow = dyn_cast<UsingShadowDecl>(*I))
         PrevShadow = Shadow;
+      FoundEquivalentDecl = true;
+    } else if (isEquivalentInternalLinkageDeclaration(D, Target)) {
+      // We don't conflict with an existing using shadow decl of an equivalent
+      // declaration, but we're not a redeclaration of it.
       FoundEquivalentDecl = true;
     }
 

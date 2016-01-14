@@ -1777,6 +1777,10 @@ bool SIInstrInfo::isLegalRegOperand(const MachineRegisterInfo &MRI,
     MRI.getRegClass(Reg) :
     RI.getPhysRegClass(Reg);
 
+  const SIRegisterInfo *TRI =
+      static_cast<const SIRegisterInfo*>(MRI.getTargetRegisterInfo());
+  RC = TRI->getSubRegClass(RC, MO.getSubReg());
+
   // In order to be legal, the common sub-class must be equal to the
   // class of the current operand.  For example:
   //
@@ -3074,4 +3078,16 @@ uint64_t SIInstrInfo::getScratchRsrcWords23() const {
     Rsrc23 &= ~AMDGPU::RSRC_DATA_FORMAT;
 
   return Rsrc23;
+}
+
+bool SIInstrInfo::isLowLatencyInstruction(const MachineInstr *MI) const {
+  unsigned Opc = MI->getOpcode();
+
+  return isSMRD(Opc);
+}
+
+bool SIInstrInfo::isHighLatencyInstruction(const MachineInstr *MI) const {
+  unsigned Opc = MI->getOpcode();
+
+  return isMUBUF(Opc) || isMTBUF(Opc) || isMIMG(Opc);
 }

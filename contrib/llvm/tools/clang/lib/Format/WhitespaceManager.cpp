@@ -30,7 +30,7 @@ WhitespaceManager::Change::Change(
     unsigned IndentLevel, int Spaces, unsigned StartOfTokenColumn,
     unsigned NewlinesBefore, StringRef PreviousLinePostfix,
     StringRef CurrentLinePrefix, tok::TokenKind Kind, bool ContinuesPPDirective,
-    bool IsStartOfDeclName)
+    bool IsStartOfDeclName, bool IsInsideToken)
     : CreateReplacement(CreateReplacement),
       OriginalWhitespaceRange(OriginalWhitespaceRange),
       StartOfTokenColumn(StartOfTokenColumn), NewlinesBefore(NewlinesBefore),
@@ -38,8 +38,8 @@ WhitespaceManager::Change::Change(
       CurrentLinePrefix(CurrentLinePrefix), Kind(Kind),
       ContinuesPPDirective(ContinuesPPDirective),
       IsStartOfDeclName(IsStartOfDeclName), IndentLevel(IndentLevel),
-      Spaces(Spaces), IsTrailingComment(false), TokenLength(0),
-      PreviousEndOfTokenColumn(0), EscapedNewlineColumn(0),
+      Spaces(Spaces), IsInsideToken(IsInsideToken), IsTrailingComment(false),
+      TokenLength(0), PreviousEndOfTokenColumn(0), EscapedNewlineColumn(0),
       StartOfBlockComment(nullptr), IndentationOffset(0) {}
 
 void WhitespaceManager::reset() {
@@ -55,20 +55,23 @@ void WhitespaceManager::replaceWhitespace(FormatToken &Tok, unsigned Newlines,
     return;
   Tok.Decision = (Newlines > 0) ? FD_Break : FD_Continue;
   Changes.push_back(
-      Change(true, Tok.WhitespaceRange, IndentLevel, Spaces, StartOfTokenColumn,
-             Newlines, "", "", Tok.Tok.getKind(), InPPDirective && !Tok.IsFirst,
-             Tok.is(TT_StartOfName) || Tok.is(TT_FunctionDeclarationName)));
+      Change(/*CreateReplacement=*/true, Tok.WhitespaceRange, IndentLevel,
+             Spaces, StartOfTokenColumn, Newlines, "", "", Tok.Tok.getKind(),
+             InPPDirective && !Tok.IsFirst,
+             Tok.is(TT_StartOfName) || Tok.is(TT_FunctionDeclarationName),
+             /*IsInsideToken=*/false));
 }
 
 void WhitespaceManager::addUntouchableToken(const FormatToken &Tok,
                                             bool InPPDirective) {
   if (Tok.Finalized)
     return;
-  Changes.push_back(
-      Change(false, Tok.WhitespaceRange, /*IndentLevel=*/0,
-             /*Spaces=*/0, Tok.OriginalColumn, Tok.NewlinesBefore, "", "",
-             Tok.Tok.getKind(), InPPDirective && !Tok.IsFirst,
-             Tok.is(TT_StartOfName) || Tok.is(TT_FunctionDeclarationName)));
+  Changes.push_back(Change(
+      /*CreateReplacement=*/false, Tok.WhitespaceRange, /*IndentLevel=*/0,
+      /*Spaces=*/0, Tok.OriginalColumn, Tok.NewlinesBefore, "", "",
+      Tok.Tok.getKind(), InPPDirective && !Tok.IsFirst,
+      Tok.is(TT_StartOfName) || Tok.is(TT_FunctionDeclarationName),
+      /*IsInsideToken=*/false));
 }
 
 void WhitespaceManager::replaceWhitespaceInToken(
@@ -81,15 +84,10 @@ void WhitespaceManager::replaceWhitespaceInToken(
   Changes.push_back(Change(
       true, SourceRange(Start, Start.getLocWithOffset(ReplaceChars)),
       IndentLevel, Spaces, std::max(0, Spaces), Newlines, PreviousPostfix,
-      CurrentPrefix,
-      // If we don't add a newline this change doesn't start a comment. Thus,
-      // when we align line comments, we don't need to treat this change as one.
-      // FIXME: We still need to take this change in account to properly
-      // calculate the new length of the comment and to calculate the changes
-      // for which to do the alignment when aligning comments.
-      Tok.is(TT_LineComment) && Newlines > 0 ? tok::comment : tok::unknown,
+      CurrentPrefix, Tok.is(TT_LineComment) ? tok::comment : tok::unknown,
       InPPDirective && !Tok.IsFirst,
-      Tok.is(TT_StartOfName) || Tok.is(TT_FunctionDeclarationName)));
+      Tok.is(TT_StartOfName) || Tok.is(TT_FunctionDeclarationName),
+      /*IsInsideToken=*/Newlines == 0));
 }
 
 const tooling::Replacements &WhitespaceManager::generateReplacements() {
@@ -109,6 +107,7 @@ const tooling::Replacements &WhitespaceManager::generateReplacements() {
 
 void WhitespaceManager::calculateLineBreakInformation() {
   Changes[0].PreviousEndOfTokenColumn = 0;
+  Change *LastOutsideTokenChange = &Changes[0];
   for (unsigned i = 1, e = Changes.size(); i != e; ++i) {
     unsigned OriginalWhitespaceStart =
         SourceMgr.getFileOffset(Changes[i].OriginalWhitespaceRange.getBegin());
@@ -119,11 +118,20 @@ void WhitespaceManager::calculateLineBreakInformation() {
                                  Changes[i].PreviousLinePostfix.size() +
                                  Changes[i - 1].CurrentLinePrefix.size();
 
+    // If there are multiple changes in this token, sum up all the changes until
+    // the end of the line.
+    if (Changes[i - 1].IsInsideToken)
+      LastOutsideTokenChange->TokenLength +=
+          Changes[i - 1].TokenLength + Changes[i - 1].Spaces;
+    else
+      LastOutsideTokenChange = &Changes[i - 1];
+
     Changes[i].PreviousEndOfTokenColumn =
         Changes[i - 1].StartOfTokenColumn + Changes[i - 1].TokenLength;
 
     Changes[i - 1].IsTrailingComment =
-        (Changes[i].NewlinesBefore > 0 || Changes[i].Kind == tok::eof) &&
+        (Changes[i].NewlinesBefore > 0 || Changes[i].Kind == tok::eof ||
+         (Changes[i].IsInsideToken && Changes[i].Kind == tok::comment)) &&
         Changes[i - 1].Kind == tok::comment;
   }
   // FIXME: The last token is currently not always an eof token; in those
@@ -133,6 +141,10 @@ void WhitespaceManager::calculateLineBreakInformation() {
 
   const WhitespaceManager::Change *LastBlockComment = nullptr;
   for (auto &Change : Changes) {
+    // Reset the IsTrailingComment flag for changes inside of trailing comments
+    // so they don't get realigned later.
+    if (Change.IsInsideToken)
+      Change.IsTrailingComment = false;
     Change.StartOfBlockComment = nullptr;
     Change.IndentationOffset = 0;
     if (Change.Kind == tok::comment) {
@@ -342,6 +354,12 @@ void WhitespaceManager::alignTrailingComments() {
 
     unsigned ChangeMinColumn = Changes[i].StartOfTokenColumn;
     unsigned ChangeMaxColumn = Style.ColumnLimit - Changes[i].TokenLength;
+
+    // If we don't create a replacement for this change, we have to consider
+    // it to be immovable.
+    if (!Changes[i].CreateReplacement)
+      ChangeMaxColumn = ChangeMinColumn;
+
     if (i + 1 != e && Changes[i + 1].ContinuesPPDirective)
       ChangeMaxColumn -= 2;
     // If this comment follows an } in column 0, it probably documents the

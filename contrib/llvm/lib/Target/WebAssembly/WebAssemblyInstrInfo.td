@@ -66,7 +66,17 @@ def WebAssemblywrapper  : SDNode<"WebAssemblyISD::Wrapper",
 // WebAssembly-specific Operands.
 //===----------------------------------------------------------------------===//
 
+let OperandNamespace = "WebAssembly" in {
+
+let OperandType = "OPERAND_BASIC_BLOCK" in
 def bb_op : Operand<OtherVT>;
+
+let OperandType = "OPERAND_FPIMM" in {
+def f32imm_op : Operand<f32>;
+def f64imm_op : Operand<f64>;
+} // OperandType = "OPERAND_FPIMM"
+
+} // OperandNamespace = "WebAssembly"
 
 //===----------------------------------------------------------------------===//
 // WebAssembly Instruction Format Definitions.
@@ -120,31 +130,20 @@ def CONST_I32 : I<(outs I32:$res), (ins i32imm:$imm),
 def CONST_I64 : I<(outs I64:$res), (ins i64imm:$imm),
                   [(set I64:$res, imm:$imm)],
                   "i64.const\t$res, $imm">;
-def CONST_F32 : I<(outs F32:$res), (ins f32imm:$imm),
+def CONST_F32 : I<(outs F32:$res), (ins f32imm_op:$imm),
                   [(set F32:$res, fpimm:$imm)],
                   "f32.const\t$res, $imm">;
-def CONST_F64 : I<(outs F64:$res), (ins f64imm:$imm),
+def CONST_F64 : I<(outs F64:$res), (ins f64imm_op:$imm),
                   [(set F64:$res, fpimm:$imm)],
                   "f64.const\t$res, $imm">;
 } // isMoveImm = 1
 
 } // Defs = [ARGUMENTS]
 
-def : Pat<(i32 (WebAssemblywrapper tglobaladdr:$dst)),
-          (CONST_I32 tglobaladdr:$dst)>;
-def : Pat<(i32 (WebAssemblywrapper texternalsym:$dst)),
-          (CONST_I32 texternalsym:$dst)>;
-def : Pat<(i32 (WebAssemblywrapper tjumptable:$dst)),
-          (CONST_I32 tjumptable:$dst)>;
-
-let Defs = [ARGUMENTS] in {
-
-// Function signature and local variable declaration "instructions".
-def PARAM  : I<(outs), (ins variable_ops), [], ".param  \t">;
-def RESULT : I<(outs), (ins variable_ops), [], ".result \t">;
-def LOCAL  : I<(outs), (ins variable_ops), [], ".local  \t">;
-
-} // Defs = [ARGUMENTS]
+def : Pat<(i32 (WebAssemblywrapper tglobaladdr:$addr)),
+          (CONST_I32 tglobaladdr:$addr)>;
+def : Pat<(i32 (WebAssemblywrapper texternalsym:$addr)),
+          (CONST_I32 texternalsym:$addr)>;
 
 //===----------------------------------------------------------------------===//
 // Additional sets of instructions.

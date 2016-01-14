@@ -526,7 +526,7 @@ void Darwin::AddDeploymentTarget(DerivedArgList &Args) const {
     // no environment variable defined, see if we can set the default based
     // on -isysroot.
     if (OSXTarget.empty() && iOSTarget.empty() && WatchOSTarget.empty() &&
-        Args.hasArg(options::OPT_isysroot)) {
+        TvOSTarget.empty() && Args.hasArg(options::OPT_isysroot)) {
       if (const Arg *A = Args.getLastArg(options::OPT_isysroot)) {
         StringRef isysroot = A->getValue();
         // Assume SDK has path: SOME_PATH/SDKs/PlatformXX.YY.sdk
@@ -2716,13 +2716,8 @@ const StringRef HexagonToolChain::GetDefaultCPU() {
 
 const StringRef HexagonToolChain::GetTargetCPUVersion(const ArgList &Args) {
   Arg *CpuArg = nullptr;
-
-  for (auto &A : Args) {
-    if (A->getOption().matches(options::OPT_mcpu_EQ)) {
-      CpuArg = A;
-      A->claim();
-    }
-  }
+  if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ, options::OPT_march_EQ))
+    CpuArg = A;
 
   StringRef CPU = CpuArg ? CpuArg->getValue() : GetDefaultCPU();
   if (CPU.startswith("hexagon"))
