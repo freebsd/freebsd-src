@@ -466,32 +466,6 @@ ef10_rx_init(
 	return (0);
 }
 
-#if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	efx_rc_t
-ef10_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size)
-{
-	efx_rc_t rc;
-
-	/* FIXME */
-	_NOTE(ARGUNUSED(enp, hdr_buf_size, pld_buf_size))
-	if (B_FALSE) {
-		rc = ENOTSUP;
-		goto fail1;
-	}
-	/* FIXME */
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
-
 #if EFSYS_OPT_RX_SCATTER
 	__checkReturn	efx_rc_t
 ef10_rx_scatter_enable(
