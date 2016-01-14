@@ -423,12 +423,6 @@ VmbusProcessChannelEvent(uint32_t relid)
 	// mtx_unlock(&channel->inbound_lock);
 }
 
-#ifdef HV_DEBUG_INTR
-extern uint32_t hv_intr_count;
-extern uint32_t hv_vmbus_swintr_event_cpu[MAXCPU];
-extern uint32_t hv_vmbus_intr_cpu[MAXCPU];
-#endif
-
 /**
  * Handler for events
  */
@@ -448,17 +442,6 @@ hv_vmbus_on_events(void *arg)
 	cpu = (int)(long)arg;
 	KASSERT(cpu <= mp_maxid, ("VMBUS: hv_vmbus_on_events: "
 	    "cpu out of range!"));
-
-#ifdef HV_DEBUG_INTR
-	int i;
-	hv_vmbus_swintr_event_cpu[cpu]++;
-	if (hv_intr_count % 10000 == 0) {
-                printf("VMBUS: Total interrupt %d\n", hv_intr_count);
-                for (i = 0; i < mp_ncpus; i++)
-                        printf("VMBUS: hw cpu[%d]: %d, event sw intr cpu[%d]: %d\n",
-			    i, hv_vmbus_intr_cpu[i], i, hv_vmbus_swintr_event_cpu[i]);
-        }
-#endif
 
 	if ((hv_vmbus_protocal_version == HV_VMBUS_VERSION_WS2008) ||
 	    (hv_vmbus_protocal_version == HV_VMBUS_VERSION_WIN7)) {
