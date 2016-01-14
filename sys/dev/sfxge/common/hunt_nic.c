@@ -1681,6 +1681,7 @@ hunt_nic_init(
 	}
 
 	enp->en_vport_id = EVB_PORT_ID_ASSIGNED;
+	enp->en_nic_cfg.enc_mcdi_max_payload_length = MCDI_CTL_SDU_LEN_MAX_V2;
 
 	return (0);
 
