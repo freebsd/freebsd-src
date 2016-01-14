@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 #if EFSYS_OPT_MON_STATS
 #include "mcdi_mon.h"
@@ -447,9 +444,9 @@ ef10_ev_qmoderate(
 		    eep->ee_index, &dword, 0);
 	} else {
 		EFX_POPULATE_DWORD_2(dword,
-		    FRF_CZ_TC_TIMER_MODE, mode,
-		    FRF_CZ_TC_TIMER_VAL, timer_val);
-		EFX_BAR_TBL_WRITED(enp, FR_BZ_TIMER_COMMAND_REGP0,
+		    ERF_DZ_TC_TIMER_MODE, mode,
+		    ERF_DZ_TC_TIMER_VAL, timer_val);
+		EFX_BAR_TBL_WRITED(enp, ER_DZ_EVQ_TMR_REG,
 		    eep->ee_index, &dword, 0);
 	}
 

@@ -84,6 +84,7 @@ extern "C" {
 #define	EFX_MOD_WOL		0x00000800
 #define	EFX_MOD_FILTER		0x00001000
 #define	EFX_MOD_PKTFILTER	0x00002000
+#define	EFX_MOD_LIC		0x00004000
 
 #define	EFX_RESET_MAC		0x00000001
 #define	EFX_RESET_PHY		0x00000002
@@ -146,6 +147,9 @@ typedef struct efx_tx_ops_s {
 	void		(*etxo_qdesc_tso_create)(efx_txq_t *, uint16_t,
 						uint32_t, uint8_t,
 						efx_desc_t *);
+	void		(*etxo_qdesc_tso2_create)(efx_txq_t *, uint16_t,
+						uint32_t, uint16_t,
+						efx_desc_t *, int);
 	void		(*etxo_qdesc_vlantci_create)(efx_txq_t *, uint16_t,
 						efx_desc_t *);
 #if EFSYS_OPT_QSTATS
@@ -157,10 +161,6 @@ typedef struct efx_tx_ops_s {
 typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_init)(efx_nic_t *);
 	void		(*erxo_fini)(efx_nic_t *);
-#if EFSYS_OPT_RX_HDR_SPLIT
-	efx_rc_t	(*erxo_hdr_split_enable)(efx_nic_t *, unsigned int,
-						 unsigned int);
-#endif
 #if EFSYS_OPT_RX_SCATTER
 	efx_rc_t	(*erxo_scatter_enable)(efx_nic_t *, unsigned int);
 #endif
@@ -170,7 +170,11 @@ typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_scale_key_set)(efx_nic_t *, uint8_t *, size_t);
 	efx_rc_t	(*erxo_scale_tbl_set)(efx_nic_t *, unsigned int *,
 					      size_t);
-#endif
+	uint32_t	(*erxo_prefix_hash)(efx_nic_t *, efx_rx_hash_alg_t,
+					    uint8_t *);
+#endif /* EFSYS_OPT_RX_SCALE */
+	efx_rc_t	(*erxo_prefix_pktlen)(efx_nic_t *, uint8_t *,
+					      uint16_t *);
 	void		(*erxo_qpost)(efx_rxq_t *, efsys_dma_addr_t *, size_t,
 				      unsigned int, unsigned int,
 				      unsigned int);
@@ -358,6 +362,7 @@ typedef struct efx_intr_s {
 
 typedef struct efx_nic_ops_s {
 	efx_rc_t	(*eno_probe)(efx_nic_t *);
+	efx_rc_t	(*eno_board_cfg)(efx_nic_t *);
 	efx_rc_t	(*eno_set_drv_limits)(efx_nic_t *, efx_drv_limits_t*);
 	efx_rc_t	(*eno_reset)(efx_nic_t *);
 	efx_rc_t	(*eno_init)(efx_nic_t *);
@@ -456,8 +461,8 @@ falconsiena_filter_tbl_clear(
 
 typedef struct efx_mcdi_ops_s {
 	efx_rc_t	(*emco_init)(efx_nic_t *, const efx_mcdi_transport_t *);
-	void		(*emco_request_copyin)(efx_nic_t *, efx_mcdi_req_t *,
-					unsigned int, boolean_t, boolean_t);
+	void		(*emco_send_request)(efx_nic_t *, void *, size_t,
+					void *, size_t);
 	void		(*emco_request_copyout)(efx_nic_t *, efx_mcdi_req_t *);
 	efx_rc_t	(*emco_poll_reboot)(efx_nic_t *);
 	boolean_t	(*emco_poll_response)(efx_nic_t *);
@@ -479,7 +484,6 @@ typedef struct efx_nvram_ops_s {
 #if EFSYS_OPT_DIAG
 	efx_rc_t	(*envo_test)(efx_nic_t *);
 #endif	/* EFSYS_OPT_DIAG */
-	efx_rc_t	(*envo_size)(efx_nic_t *, efx_nvram_type_t, size_t *);
 	efx_rc_t	(*envo_get_version)(efx_nic_t *, efx_nvram_type_t,
 					    uint32_t *, uint16_t *);
 	efx_rc_t	(*envo_rw_start)(efx_nic_t *, efx_nvram_type_t, size_t *);
@@ -492,6 +496,9 @@ typedef struct efx_nvram_ops_s {
 	efx_rc_t	(*envo_set_version)(efx_nic_t *, efx_nvram_type_t,
 					    uint16_t *);
 
+	efx_rc_t	(*envo_type_to_partn)(efx_nic_t *, efx_nvram_type_t,
+					    uint32_t *);
+	efx_rc_t	(*envo_partn_size)(efx_nic_t *, uint32_t, size_t *);
 } efx_nvram_ops_t;
 #endif /* EFSYS_OPT_NVRAM */
 
@@ -585,6 +592,18 @@ efx_mcdi_nvram_test(
 
 #endif /* EFSYS_OPT_VPD || EFSYS_OPT_NVRAM */
 
+#if EFSYS_OPT_LICENSING
+
+typedef struct efx_lic_ops_s {
+	efx_rc_t	(*elo_update_licenses)(efx_nic_t *);
+	efx_rc_t	(*elo_get_key_stats)(efx_nic_t *, efx_key_stats_t *);
+	efx_rc_t	(*elo_app_state)(efx_nic_t *, uint64_t, boolean_t *);
+	efx_rc_t	(*elo_get_id)(efx_nic_t *, size_t, uint32_t *,
+				      size_t *, uint8_t *);
+} efx_lic_ops_t;
+
+#endif
+
 typedef struct efx_drv_cfg_s {
 	uint32_t		edc_min_vi_count;
 	uint32_t		edc_max_vi_count;
@@ -634,6 +653,9 @@ struct efx_nic_s {
 	uint32_t		en_rss_context;
 #endif	/* EFSYS_OPT_RX_SCALE */
 	uint32_t		en_vport_id;
+#if EFSYS_OPT_LICENSING
+	efx_lic_ops_t		*en_elop;
+#endif
 	union {
 #if EFSYS_OPT_FALCON
 		struct {
@@ -672,6 +694,7 @@ struct efx_nic_s {
 		struct {
 			int			ena_vi_base;
 			int			ena_vi_count;
+			int			ena_vi_shift;
 #if EFSYS_OPT_VPD
 			caddr_t			ena_svpd;
 			size_t			ena_svpd_length;
@@ -1117,7 +1140,7 @@ efx_vpd_hunk_next(
 	__in				size_t size,
 	__out				efx_vpd_tag_t *tagp,
 	__out				efx_vpd_keyword_t *keyword,
-	__out_bcount_opt(*paylenp)	unsigned int *payloadp,
+	__out_opt			unsigned int *payloadp,
 	__out_opt			uint8_t *paylenp,
 	__inout				unsigned int *contp);
 

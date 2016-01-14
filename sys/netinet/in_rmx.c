@@ -191,12 +191,6 @@ in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum)
 	rtalloc_ign_fib(ro, ignflags, fibnum);
 }
 
-struct rtentry *
-in_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
-{
-	return (rtalloc1_fib(dst, report, ignflags, fibnum));
-}
-
 void
 in_rtredirect(struct sockaddr *dst,
 	struct sockaddr *gateway,
@@ -208,9 +202,3 @@ in_rtredirect(struct sockaddr *dst,
 	rtredirect_fib(dst, gateway, netmask, flags, src, fibnum);
 }
  
-void
-in_rtalloc(struct route *ro, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, 0UL, fibnum);
-}
-

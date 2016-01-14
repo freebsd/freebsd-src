@@ -38,6 +38,9 @@
 #define FALSE 0
 #endif
 
+/* localeconv(3) */
+#define LC_NUMERIC_DEFAULT	"en_US.ISO8859-1"
+
 /* Data to process */
 extern long long dpv_overall_read;
 
