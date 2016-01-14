@@ -457,8 +457,8 @@ falconsiena_filter_tbl_clear(
 
 typedef struct efx_mcdi_ops_s {
 	efx_rc_t	(*emco_init)(efx_nic_t *, const efx_mcdi_transport_t *);
-	void		(*emco_request_copyin)(efx_nic_t *, efx_mcdi_req_t *,
-					unsigned int, boolean_t, boolean_t);
+	void		(*emco_send_request)(efx_nic_t *, void *, size_t,
+					void *, size_t);
 	void		(*emco_request_copyout)(efx_nic_t *, efx_mcdi_req_t *);
 	efx_rc_t	(*emco_poll_reboot)(efx_nic_t *);
 	boolean_t	(*emco_poll_response)(efx_nic_t *);
