@@ -149,6 +149,9 @@ efx_mcdi_vadaptor_alloc(
 	req.emr_out_length = MC_CMD_VADAPTOR_ALLOC_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, VADAPTOR_ALLOC_IN_UPSTREAM_PORT_ID, port_id);
+	MCDI_IN_POPULATE_DWORD_1(req, VADAPTOR_ALLOC_IN_FLAGS,
+	    VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED,
+	    enp->en_nic_cfg.enc_allow_set_mac_with_installed_filters ? 1 : 0);
 
 	efx_mcdi_execute(enp, &req);
 
@@ -926,6 +929,15 @@ hunt_get_datapath_caps(
 		encp->enc_rx_disable_scatter_supported = B_TRUE;
 	} else {
 		encp->enc_rx_disable_scatter_supported = B_FALSE;
+	}
+
+	/* Check if the firmware supports set mac with running filters */
+	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
+	    GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED)
+	    == 1) {
+		encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
+	} else {
+		encp->enc_allow_set_mac_with_installed_filters = B_FALSE;
 	}
 
 	return (0);
