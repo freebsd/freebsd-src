@@ -351,7 +351,7 @@ hunt_mac_loopback_set(
 	return (0);
 
 fail1:
-	EFSYS_PROBE(fail2);
+	EFSYS_PROBE1(fail1, int, rc);
 
 	epp->ep_loopback_type = old_loopback_type;
 	epp->ep_loopback_link_mode = old_loopback_link_mode;
