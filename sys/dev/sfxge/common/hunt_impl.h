@@ -140,6 +140,21 @@ ef10_intr_trigger(
 	__in		unsigned int level);
 
 			void
+ef10_intr_status_line(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *fatalp,
+	__out		uint32_t *qmaskp);
+
+			void
+ef10_intr_status_message(
+	__in		efx_nic_t *enp,
+	__in		unsigned int message,
+	__out		boolean_t *fatalp);
+
+			void
+ef10_intr_fatal(
+	__in		efx_nic_t *enp);
+			void
 ef10_intr_fini(
 	__in		efx_nic_t *enp);
 
