@@ -12,7 +12,7 @@ SRCS=	hv_channel.c \
 	hv_ring_buffer.c \
 	hv_vmbus_drv_freebsd.c \
 	hv_vmbus_priv.h
-SRCS+=	bus_if.h device_if.h
+SRCS+=	acpi_if.h bus_if.h device_if.h opt_acpi.h
 
 CFLAGS+= -I${.CURDIR}/../../../dev/hyperv/include \
 	 -I${.CURDIR}/../../../dev/hyperv/vmbus \
