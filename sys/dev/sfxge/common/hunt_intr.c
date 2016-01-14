@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_HUNTINGTON
 
 	__checkReturn	efx_rc_t
-hunt_intr_init(
+ef10_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
 	__in		efsys_mem_t *esmp)
@@ -50,7 +50,7 @@ hunt_intr_init(
 
 
 			void
-hunt_intr_enable(
+ef10_intr_enable(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -58,7 +58,7 @@ hunt_intr_enable(
 
 
 			void
-hunt_intr_disable(
+ef10_intr_disable(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -66,7 +66,7 @@ hunt_intr_disable(
 
 
 			void
-hunt_intr_disable_unlocked(
+ef10_intr_disable_unlocked(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -83,7 +83,8 @@ efx_mcdi_trigger_interrupt(
 			    MC_CMD_TRIGGER_INTERRUPT_OUT_LEN)];
 	efx_rc_t rc;
 
-	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
 
 	if (level >= enp->en_nic_cfg.enc_intr_limit) {
 		rc = EINVAL;
@@ -118,7 +119,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_intr_trigger(
+ef10_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
 {
@@ -126,7 +127,10 @@ hunt_intr_trigger(
 	efx_rc_t rc;
 
 	if (encp->enc_bug41750_workaround) {
-		/* bug 41750: Test interrupts don't work on Greenport */
+		/*
+		 * bug 41750: Test interrupts don't work on Greenport
+		 * bug 50084: Test interrupts don't work on VFs
+		 */
 		rc = ENOTSUP;
 		goto fail1;
 	}
@@ -146,7 +150,7 @@ fail1:
 
 
 			void
-hunt_intr_fini(
+ef10_intr_fini(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
