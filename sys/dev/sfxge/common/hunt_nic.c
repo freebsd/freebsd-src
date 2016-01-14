@@ -768,6 +768,7 @@ hunt_nic_pio_alloc(
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep)
 {
+	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_drv_cfg_t *edcp = &enp->en_drv_cfg;
 	uint32_t blk_per_buf;
 	uint32_t buf, blk;
@@ -785,7 +786,7 @@ hunt_nic_pio_alloc(
 		rc = ENOMEM;
 		goto fail1;
 	}
-	blk_per_buf = HUNT_PIOBUF_SIZE / edcp->edc_pio_alloc_size;
+	blk_per_buf = encp->enc_piobuf_size / edcp->edc_pio_alloc_size;
 
 	for (buf = 0; buf < enp->en_arch.ef10.ena_piobuf_count; buf++) {
 		uint32_t *map = &enp->en_arch.ef10.ena_pio_alloc_map[buf];
@@ -1260,6 +1261,7 @@ hunt_board_cfg(
 
 	encp->enc_piobuf_limit = HUNT_PIOBUF_NBUFS;
 	encp->enc_piobuf_size = HUNT_PIOBUF_SIZE;
+	encp->enc_piobuf_min_alloc_size = HUNT_MIN_PIO_ALLOC_SIZE;
 
 	/*
 	 * Get the current privilege mask. Note that this may be modified
@@ -1470,7 +1472,8 @@ hunt_nic_set_drv_limits(
 		uint32_t blk_size, blk_count, blks_per_piobuf;
 
 		blk_size =
-		    MAX(edlp->edl_min_pio_alloc_size, HUNT_MIN_PIO_ALLOC_SIZE);
+		    MAX(edlp->edl_min_pio_alloc_size,
+			    encp->enc_piobuf_min_alloc_size);
 
 		blks_per_piobuf = encp->enc_piobuf_size / blk_size;
 		EFSYS_ASSERT3U(blks_per_piobuf, <=, 32);
