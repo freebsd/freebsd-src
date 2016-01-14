@@ -38,12 +38,12 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_WOL
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_wol_init(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -62,19 +62,19 @@ efx_wol_init(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_wol_filter_clear(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_WOL_FILTER_RESET_IN_LEN,
 			    MC_CMD_WOL_FILTER_RESET_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_WOL);
@@ -100,12 +100,12 @@ efx_wol_filter_clear(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_wol_filter_add(
 	__in		efx_nic_t *enp,
 	__in		efx_wol_type_t type,
@@ -116,7 +116,7 @@ efx_wol_filter_add(
 	uint8_t payload[MAX(MC_CMD_WOL_FILTER_SET_IN_LEN,
 			    MC_CMD_WOL_FILTER_SET_OUT_LEN)];
 	efx_byte_t link_mask;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_WOL);
@@ -222,12 +222,12 @@ efx_wol_filter_add(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_wol_filter_remove(
 	__in		efx_nic_t *enp,
 	__in		uint32_t filter_id)
@@ -235,7 +235,7 @@ efx_wol_filter_remove(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_WOL_FILTER_REMOVE_IN_LEN,
 			    MC_CMD_WOL_FILTER_REMOVE_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_WOL);
@@ -259,13 +259,13 @@ efx_wol_filter_remove(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_lightsout_offload_add(
 	__in		efx_nic_t *enp,
 	__in		efx_lightsout_offload_type_t type,
@@ -276,7 +276,7 @@ efx_lightsout_offload_add(
 	uint8_t payload[MAX(MAX(MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_ARP_LEN,
 				MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_NS_LEN),
 			    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_WOL);
@@ -341,13 +341,13 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_lightsout_offload_remove(
 	__in		efx_nic_t *enp,
 	__in		efx_lightsout_offload_type_t type,
@@ -356,7 +356,7 @@ efx_lightsout_offload_remove(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_REMOVE_LIGHTSOUT_OFFLOAD_IN_LEN,
 			    MC_CMD_REMOVE_LIGHTSOUT_OFFLOAD_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_WOL);
@@ -397,7 +397,7 @@ efx_lightsout_offload_remove(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

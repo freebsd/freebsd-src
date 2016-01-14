@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_HUNTINGTON
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -73,7 +73,7 @@ hunt_intr_disable_unlocked(
 }
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_trigger_interrupt(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
@@ -81,7 +81,7 @@ efx_mcdi_trigger_interrupt(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_TRIGGER_INTERRUPT_IN_LEN,
 			    MC_CMD_TRIGGER_INTERRUPT_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -112,18 +112,18 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	int rc;
+	efx_rc_t rc;
 
 	if (encp->enc_bug41750_workaround) {
 		/* bug 41750: Test interrupts don't work on Greenport */
@@ -139,7 +139,7 @@ hunt_intr_trigger(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

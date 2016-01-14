@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_SIENA
 
-static	__checkReturn		int
+static	__checkReturn		efx_rc_t
 siena_nic_get_partn_mask(
 	__in			efx_nic_t *enp,
 	__out			unsigned int *maskp)
@@ -46,7 +46,7 @@ siena_nic_get_partn_mask(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_NVRAM_TYPES_IN_LEN,
 			    MC_CMD_NVRAM_TYPES_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_TYPES;
@@ -74,18 +74,18 @@ siena_nic_get_partn_mask(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_PCIE_TUNE
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_nic_pcie_extended_sync(
 	__in		efx_nic_t *enp)
 {
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_set_workaround(enp, MC_CMD_WORKAROUND_BUG17230,
 		    B_TRUE, NULL) != 0))
@@ -94,14 +94,14 @@ siena_nic_pcie_extended_sync(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #endif	/* EFSYS_OPT_PCIE_TUNE */
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 siena_board_cfg(
 	__in		efx_nic_t *enp)
 {
@@ -110,7 +110,7 @@ siena_board_cfg(
 	efx_dword_t capabilities;
 	uint32_t board_type;
 	uint32_t nevq, nrxq, ntxq;
-	int rc;
+	efx_rc_t rc;
 
 	/* External port identifier using one-based port numbering */
 	encp->enc_external_port = (uint8_t)enp->en_mcdi.em_emip.emi_port;
@@ -176,17 +176,17 @@ siena_board_cfg(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 siena_phy_cfg(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	int rc;
+	efx_rc_t rc;
 
 	/* Fill out fields in enp->en_port and enp->en_nic_cfg from MCDI */
 	if ((rc = efx_mcdi_get_phy_cfg(enp)) != 0)
@@ -201,12 +201,12 @@ siena_phy_cfg(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_nic_probe(
 	__in		efx_nic_t *enp)
 {
@@ -215,7 +215,7 @@ siena_nic_probe(
 	siena_link_state_t sls;
 	unsigned int mask;
 	efx_oword_t oword;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
@@ -314,17 +314,17 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_nic_reset(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
@@ -360,7 +360,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (0);
 }
@@ -395,11 +395,11 @@ siena_nic_usrev_dis(
 	EFX_BAR_WRITEO(enp, FR_CZ_USR_EV_CFG, &oword);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_nic_init(
 	__in		efx_nic_t *enp)
 {
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
@@ -424,7 +424,7 @@ siena_nic_init(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -506,7 +506,7 @@ static const uint32_t __siena_table_masks[] = {
 	0xFFFF07FF, 0xFFFFFFFF, 0x0000007F, 0x00000000,
 };
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_nic_register_test(
 	__in		efx_nic_t *enp)
 {
@@ -514,7 +514,7 @@ siena_nic_register_test(
 	const uint32_t *dwordp;
 	unsigned int nitems;
 	unsigned int count;
-	int rc;
+	efx_rc_t rc;
 
 	/* Fill out the register mask entries */
 	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(__siena_register_masks)
@@ -571,7 +571,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
