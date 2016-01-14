@@ -89,6 +89,29 @@
 	<entry><para>Applications exiting due to segmentation
 	    violation on a correct memory address.</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:01.filemon.asc">FreeBSD-EN-16:01.filemon</link></entry>
+	<entry>14&nbsp;January&nbsp;2016</entry>
+	<entry><para><application>bmake</application> and
+	    &man.filemon.4; stability issues.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:02.pf.asc">FreeBSD-EN-16:02.pf</link></entry>
+	<entry>14&nbsp;January&nbsp;2016</entry>
+	<entry><para>Invalid TCP checksum issue.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-16:03.yplib.asc">FreeBSD-EN-16:03.yplib</link></entry>
+	<entry>14&nbsp;January&nbsp;2016</entry>
+	<entry><para><application>YP/NIS</application> library
+	    bug.</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
