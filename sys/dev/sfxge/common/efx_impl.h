@@ -1120,7 +1120,7 @@ efx_vpd_hunk_next(
 	__in				size_t size,
 	__out				efx_vpd_tag_t *tagp,
 	__out				efx_vpd_keyword_t *keyword,
-	__out_bcount_opt(*paylenp)	unsigned int *payloadp,
+	__out_opt			unsigned int *payloadp,
 	__out_opt			uint8_t *paylenp,
 	__inout				unsigned int *contp);
 
