@@ -47,6 +47,7 @@ struct a10_ccm_softc {
 	struct resource		*res;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	int			pll2_enabled;
 	int			pll6_enabled;
 };
 
@@ -255,6 +256,29 @@ a10_clk_pll6_get_rate(void)
 	return ((CCM_CLK_REF_FREQ * n * k) / 2);
 }
 
+static void
+a10_clk_pll2_enable(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	/*
+	 * Audio Codec (at 48KHz) needs PLL2 to be 24576000 Hz
+	 */
+	sc = a10_ccm_sc;
+	if (sc->pll2_enabled)
+		return;
+	reg_value = ccm_read_4(sc, CCM_PLL2_CFG);
+	reg_value &= ~(CCM_PLL2_CFG_PREDIV | CCM_PLL2_CFG_POSTDIV |
+	    CCM_PLL_CFG_FACTOR_N);
+	reg_value |= (21 << CCM_PLL2_CFG_PREDIV_SHIFT);
+	reg_value |= (86 << CCM_PLL_CFG_FACTOR_N_SHIFT);
+	reg_value |= (4 << CCM_PLL2_CFG_POSTDIV_SHIFT);
+	reg_value |= CCM_PLL_CFG_ENABLE;
+	ccm_write_4(sc, CCM_PLL2_CFG, reg_value);
+	sc->pll2_enabled = 1;
+}
+
 int
 a10_clk_ahci_activate(void)
 {
@@ -362,6 +386,31 @@ a10_clk_dmac_activate(void)
 	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value |= CCM_AHB_GATING_DMA;
 	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
+
+	return (0);
+}
+
+int
+a10_clk_codec_activate(void)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	a10_clk_pll2_enable();
+
+	/* Gating APB clock for ADDA */
+	reg_value = ccm_read_4(sc, CCM_APB0_GATING);
+	reg_value |= CCM_APB0_GATING_ADDA;
+	ccm_write_4(sc, CCM_APB0_GATING, reg_value);
+
+	/* Enable audio codec clock */
+	reg_value = ccm_read_4(sc, CCM_AUDIO_CODEC_CLK);
+	reg_value |= CCM_AUDIO_CODEC_ENABLE;
+	ccm_write_4(sc, CCM_AUDIO_CODEC_CLK, reg_value);
 
 	return (0);
 }
