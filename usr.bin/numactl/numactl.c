@@ -133,7 +133,7 @@ usage(void)
 }
 
 static int
-set_numa_domain_cpuaffinity(int cpu_domain)
+set_numa_domain_cpuaffinity(int cpu_domain, cpuwhich_t which, id_t id)
 {
 	cpuset_t set;
 	int error;
@@ -142,8 +142,8 @@ set_numa_domain_cpuaffinity(int cpu_domain)
 	    cpu_domain, sizeof(set), &set);
 	if (error != 0)
 		err(1, "cpuset_getaffinity");
-	error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
-	    sizeof(set), &set);
+	error = cpuset_setaffinity(CPU_LEVEL_WHICH, which, id, sizeof(set),
+	    &set);
 	if (error != 0)
 		err(1, "cpuset_setaffinity");
 
@@ -228,7 +228,8 @@ main(int argc, char *argv[])
 
 		/* If a CPU domain policy was given, include that too */
 		if (cpu_domain != -1)
-			(void) set_numa_domain_cpuaffinity(cpu_domain);
+			(void) set_numa_domain_cpuaffinity(cpu_domain,
+			    CPU_WHICH_PID, -1);
 
 		errno = 0;
 		execvp(*argv, argv);
@@ -278,7 +279,7 @@ main(int argc, char *argv[])
 
 	/* If a CPU domain policy was given, include that too */
 	if (cpu_domain != -1)
-		(void) set_numa_domain_cpuaffinity(cpu_domain);
+		(void) set_numa_domain_cpuaffinity(cpu_domain, which, id);
 
 	exit(0);
 }
