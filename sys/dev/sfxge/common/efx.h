@@ -61,6 +61,7 @@ typedef enum efx_family_e {
 	EFX_FAMILY_FALCON,
 	EFX_FAMILY_SIENA,
 	EFX_FAMILY_HUNTINGTON,
+	EFX_FAMILY_MEDFORD,
 	EFX_FAMILY_NTYPES
 } efx_family_t;
 
@@ -90,6 +91,9 @@ efx_infer_family(
 #define	EFX_PCI_DEVID_FARMINGDALE_VF		0x1903	/* SFC9120 VF */
 #define	EFX_PCI_DEVID_GREENPORT_VF		0x1923	/* SFC9140 VF */
 
+#define	EFX_PCI_DEVID_MEDFORD_PF_UNINIT		0x0913
+#define	EFX_PCI_DEVID_MEDFORD			0x0A03	/* SFC9240 PF */
+#define	EFX_PCI_DEVID_MEDFORD_VF		0x1A03	/* SFC9240 VF */
 
 #define	EFX_MEM_BAR	2
 
@@ -1153,11 +1157,11 @@ typedef struct efx_nic_cfg_s {
 #if EFSYS_OPT_BIST
 	uint32_t		enc_bist_mask;
 #endif	/* EFSYS_OPT_BIST */
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 	uint32_t		enc_pf;
 	uint32_t		enc_vf;
 	uint32_t		enc_privilege_mask;
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 	boolean_t		enc_bug26807_workaround;
 	boolean_t		enc_bug35388_workaround;
 	boolean_t		enc_bug41750_workaround;
