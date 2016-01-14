@@ -330,7 +330,7 @@ struct tlv_tmp_gubbins {
   uint64_t tx1_tags;     /* Bitmap */
   uint64_t dl_tags;      /* Bitmap */
   uint32_t flags;
-#define TLV_DPCPU_TX_STRIPE (1) /* TX striping is on */
+#define TLV_DPCPU_TX_STRIPE (1) /* No longer used, has no effect */
 #define TLV_DPCPU_BIU_TAGS  (2) /* Use BIU tag manager */
 #define TLV_DPCPU_TX0_TAGS  (4) /* tx0_tags is valid */
 #define TLV_DPCPU_TX1_TAGS  (8) /* tx1_tags is valid */
@@ -687,5 +687,43 @@ struct tlv_ocsd {
 #define TLV_OCSD_DISABLED 0
 #define TLV_OCSD_ENABLED 1 /* Default */
 };
+
+/* Descriptor cache config.
+ *
+ * Sets the sizes of the TX and RX descriptor caches as a power of 2. It also
+ * sets the total number of VIs. When the number of VIs is reduced VIs are taken
+ * away from the highest numbered port first, so a vi_count of 1024 means 1024
+ * VIs on the first port and 0 on the second (on a Torino).
+ */
+
+#define TLV_TAG_DESCRIPTOR_CACHE_CONFIG    (0x101d0000)
+
+struct tlv_descriptor_cache_config {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t rx_desc_cache_size;
+  uint8_t tx_desc_cache_size;
+  uint16_t vi_count;
+};
+#define TLV_DESC_CACHE_DEFAULT (0xff)
+#define TLV_VI_COUNT_DEFAULT   (0xffff)
+
+/* RX event merging config (read batching).
+ *
+ * Sets the global maximum number of events for the merging bins, and the
+ * global timeout configuration for the bins.
+ */
+
+#define TLV_TAG_RX_EVENT_MERGING_CONFIG    (0x101e0000)
+
+struct tlv_rx_event_merging_config {
+  uint32_t  tag;
+  uint32_t  length;
+  uint32_t  max_events;
+#define TLV_RX_EVENT_MERGING_CONFIG_MAX_EVENTS_MAX ((1 << 4) - 1)
+  uint32_t  timeout_ns;
+};
+#define TLV_RX_EVENT_MERGING_MAX_EVENTS_DEFAULT 7
+#define TLV_RX_EVENT_MERGING_TIMEOUT_NS_DEFAULT 8740
 
 #endif /* CI_MGMT_TLV_LAYOUT_H */
