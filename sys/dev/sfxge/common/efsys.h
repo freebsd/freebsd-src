@@ -238,6 +238,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_FALCON_NIC_CFG_OVERRIDE 0
 #define	EFSYS_OPT_SIENA 1
 #define	EFSYS_OPT_HUNTINGTON 1
+#define	EFSYS_OPT_MEDFORD 0
 #ifdef DEBUG
 #define	EFSYS_OPT_CHECK_REG 1
 #else
