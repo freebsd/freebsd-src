@@ -37,7 +37,7 @@
 extern "C" {
 #endif
 
-
+#define	MEDFORD_PIOBUF_NBUFS	(16)
 
 
 #ifdef	__cplusplus
