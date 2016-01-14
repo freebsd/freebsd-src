@@ -391,12 +391,14 @@ netvsc_attach(device_t dev)
 		sc->hn_carrier = 1;
 	}
 
+#if defined(INET) || defined(INET6)
 	tcp_lro_init(&sc->hn_lro);
 	/* Driver private LRO settings */
 	sc->hn_lro.ifp = ifp;
 #ifdef HN_LRO_HIWAT
 	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
 #endif
+#endif	/* INET || INET6 */
 
 	ether_ifattach(ifp, device_info.mac_addr);
 
@@ -475,7 +477,9 @@ netvsc_detach(device_t dev)
 	hv_rf_on_device_remove(hv_device, HV_RF_NV_DESTROY_CHANNEL);
 
 	ifmedia_removeall(&sc->hn_media);
+#if defined(INET) || defined(INET6)
 	tcp_lro_free(&sc->hn_lro);
+#endif
 
 	return (0);
 }
@@ -1083,6 +1087,7 @@ skip:
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
+#if defined(INET) || defined(INET6)
 		struct lro_ctrl *lro = &sc->hn_lro;
 
 		if (lro->lro_cnt) {
@@ -1092,6 +1097,7 @@ skip:
 				return 0;
 			}
 		}
+#endif
 	}
 
 	/* We're not holding the lock here, so don't release it */
@@ -1103,6 +1109,7 @@ skip:
 void
 netvsc_recv_rollup(struct hv_device *device_ctx)
 {
+#if defined(INET) || defined(INET6)
 	hn_softc_t *sc = device_get_softc(device_ctx->device);
 	struct lro_ctrl *lro = &sc->hn_lro;
 	struct lro_entry *queued;
@@ -1111,6 +1118,7 @@ netvsc_recv_rollup(struct hv_device *device_ctx)
 		SLIST_REMOVE_HEAD(&lro->lro_active, next);
 		tcp_lro_flush(lro, queued);
 	}
+#endif
 }
 
 /*
