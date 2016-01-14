@@ -140,6 +140,48 @@ ef10_mcdi_fini(
 	emip->emi_new_epoch = B_FALSE;
 }
 
+static			void
+ef10_mcdi_send_request(
+	__in		efx_nic_t *enp,
+	__in		void *hdrp,
+	__in		size_t hdr_len,
+	__in		void *sdup,
+	__in		size_t sdu_len)
+{
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+	efsys_mem_t *esmp = emtp->emt_dma_mem;
+	efx_dword_t dword;
+	unsigned int pos;
+
+	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
+		    enp->en_family == EFX_FAMILY_MEDFORD);
+
+	/* Write the header */
+	for (pos = 0; pos < hdr_len; pos += sizeof (efx_dword_t)) {
+		dword = *(efx_dword_t *)((uint8_t *)hdrp + pos);
+		EFSYS_MEM_WRITED(esmp, pos, &dword);
+	}
+
+	/* Write the payload */
+	for (pos = 0; pos < sdu_len; pos += sizeof (efx_dword_t)) {
+		dword = *(efx_dword_t *)((uint8_t *)sdup + pos);
+		EFSYS_MEM_WRITED(esmp, hdr_len + pos, &dword);
+	}
+
+	/* Guarantee ordering of memory (MCDI request) and PIO (MC doorbell) */
+	EFSYS_DMA_SYNC_FOR_DEVICE(esmp, 0, hdr_len + sdu_len);
+	EFSYS_PIO_WRITE_BARRIER();
+
+	/* Ring the doorbell to post the command DMA address to the MC */
+	EFX_POPULATE_DWORD_1(dword, EFX_DWORD_0,
+	    EFSYS_MEM_ADDR(esmp) >> 32);
+	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_LWRD_REG, &dword, B_FALSE);
+
+	EFX_POPULATE_DWORD_1(dword, EFX_DWORD_0,
+	    EFSYS_MEM_ADDR(esmp) & 0xffffffff);
+	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_HWRD_REG, &dword, B_FALSE);
+}
+
 			void
 ef10_mcdi_request_copyin(
 	__in		efx_nic_t *enp,
@@ -148,14 +190,13 @@ ef10_mcdi_request_copyin(
 	__in		boolean_t ev_cpl,
 	__in		boolean_t new_epoch)
 {
+#if EFSYS_OPT_MCDI_LOGGING
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efsys_mem_t *esmp = emtp->emt_dma_mem;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 	efx_mcdi_header_type_t hdr_type;
-	efx_dword_t dword;
 	efx_dword_t hdr[2];
+	size_t hdr_len;
 	unsigned int xflags;
-	unsigned int pos;
-	size_t offset;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 		    enp->en_family == EFX_FAMILY_MEDFORD);
@@ -164,13 +205,12 @@ ef10_mcdi_request_copyin(
 	if (ev_cpl)
 		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
 
-	offset = 0;
-
 	hdr_type = EFX_MCDI_HEADER_TYPE(emrp->emr_cmd,
 	    MAX(emrp->emr_in_length, emrp->emr_out_length));
 
 	if (hdr_type == EFX_MCDI_HEADER_TYPE_V2) {
 		/* Construct MCDI v2 header */
+		hdr_len = sizeof (hdr);
 		EFX_POPULATE_DWORD_8(hdr[0],
 		    MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
 		    MCDI_HEADER_RESYNC, 1,
@@ -180,16 +220,13 @@ ef10_mcdi_request_copyin(
 		    MCDI_HEADER_ERROR, 0,
 		    MCDI_HEADER_RESPONSE, 0,
 		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, offset, &hdr[0]);
-		offset += sizeof (efx_dword_t);
 
 		EFX_POPULATE_DWORD_2(hdr[1],
 		    MC_CMD_V2_EXTN_IN_EXTENDED_CMD, emrp->emr_cmd,
 		    MC_CMD_V2_EXTN_IN_ACTUAL_LEN, emrp->emr_in_length);
-		EFSYS_MEM_WRITED(esmp, offset, &hdr[1]);
-		offset += sizeof (efx_dword_t);
 	} else {
 		/* Construct MCDI v1 header */
+		hdr_len = sizeof (hdr[0]);
 		EFX_POPULATE_DWORD_8(hdr[0],
 		    MCDI_HEADER_CODE, emrp->emr_cmd,
 		    MCDI_HEADER_RESYNC, 1,
@@ -199,39 +236,18 @@ ef10_mcdi_request_copyin(
 		    MCDI_HEADER_ERROR, 0,
 		    MCDI_HEADER_RESPONSE, 0,
 		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, 0, &hdr[0]);
-		offset += sizeof (efx_dword_t);
 	}
 
 #if EFSYS_OPT_MCDI_LOGGING
 	if (emtp->emt_logger != NULL) {
 		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
-		    &hdr, offset,
+		    &hdr, hdr_len,
 		    emrp->emr_in_buf, emrp->emr_in_length);
 	}
 #endif /* EFSYS_OPT_MCDI_LOGGING */
 
-	/* Construct the payload */
-	for (pos = 0; pos < emrp->emr_in_length; pos += sizeof (efx_dword_t)) {
-		memcpy(&dword, MCDI_IN(*emrp, efx_dword_t, pos),
-		    MIN(sizeof (dword), emrp->emr_in_length - pos));
-		EFSYS_MEM_WRITED(esmp, offset + pos, &dword);
-	}
-
-	/* Ring the doorbell to post the command DMA address to the MC */
-	EFSYS_ASSERT((EFSYS_MEM_ADDR(esmp) & 0xFF) == 0);
-
-	/* Guarantee ordering of memory (MCDI request) and PIO (MC doorbell) */
-	EFSYS_DMA_SYNC_FOR_DEVICE(esmp, 0, offset + emrp->emr_in_length);
-	EFSYS_PIO_WRITE_BARRIER();
-
-	EFX_POPULATE_DWORD_1(dword,
-	    EFX_DWORD_0, EFSYS_MEM_ADDR(esmp) >> 32);
-	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_LWRD_REG, &dword, B_FALSE);
-
-	EFX_POPULATE_DWORD_1(dword,
-	    EFX_DWORD_0, EFSYS_MEM_ADDR(esmp) & 0xffffffff);
-	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_HWRD_REG, &dword, B_FALSE);
+	ef10_mcdi_send_request(enp, &hdr[0], hdr_len,
+	    emrp->emr_in_buf, emrp->emr_in_length);
 }
 
 			void
