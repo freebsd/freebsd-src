@@ -343,35 +343,6 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
  * Packet routing routines.
  */
 void
-rtalloc(struct route *ro)
-{
-
-	rtalloc_ign_fib(ro, 0UL, RT_DEFAULT_FIB);
-}
-
-void
-rtalloc_fib(struct route *ro, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, 0UL, fibnum);
-}
-
-void
-rtalloc_ign(struct route *ro, u_long ignore)
-{
-	struct rtentry *rt;
-
-	if ((rt = ro->ro_rt) != NULL) {
-		if (rt->rt_ifp != NULL && rt->rt_flags & RTF_UP)
-			return;
-		RTFREE(rt);
-		ro->ro_rt = NULL;
-	}
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, RT_DEFAULT_FIB);
-	if (ro->ro_rt)
-		RT_UNLOCK(ro->ro_rt);
-}
-
-void
 rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
 {
 	struct rtentry *rt;
@@ -539,17 +510,6 @@ done:
  * message from the network layer.
  */
 void
-rtredirect(struct sockaddr *dst,
-	struct sockaddr *gateway,
-	struct sockaddr *netmask,
-	int flags,
-	struct sockaddr *src)
-{
-
-	rtredirect_fib(dst, gateway, netmask, flags, src, RT_DEFAULT_FIB);
-}
-
-void
 rtredirect_fib(struct sockaddr *dst,
 	struct sockaddr *gateway,
 	struct sockaddr *netmask,
@@ -673,13 +633,6 @@ out:
 		ifa_free(ifa);
 }
 
-int
-rtioctl(u_long req, caddr_t data)
-{
-
-	return (rtioctl_fib(req, data, RT_DEFAULT_FIB));
-}
-
 /*
  * Routing table ioctl interface.
  */
@@ -775,19 +728,6 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
  * Do appropriate manipulations of a routing tree given
  * all the bits of info needed
  */
-int
-rtrequest(int req,
-	struct sockaddr *dst,
-	struct sockaddr *gateway,
-	struct sockaddr *netmask,
-	int flags,
-	struct rtentry **ret_nrt)
-{
-
-	return (rtrequest_fib(req, dst, gateway, netmask, flags, ret_nrt,
-	    RT_DEFAULT_FIB));
-}
-
 int
 rtrequest_fib(int req,
 	struct sockaddr *dst,
