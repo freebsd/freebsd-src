@@ -710,6 +710,84 @@ sfxge_if_qflush(struct ifnet *ifp)
 		sfxge_tx_qdpl_flush(sc->txq[i]);
 }
 
+#if SFXGE_TX_PARSE_EARLY
+
+/* There is little space for user data in mbuf pkthdr, so we
+ * use l*hlen fields which are not used by the driver otherwise
+ * to store header offsets.
+ * The fields are 8-bit, but it's ok, no header may be longer than 255 bytes.
+ */
+
+
+#define TSO_MBUF_PROTO(_mbuf)    ((_mbuf)->m_pkthdr.PH_loc.sixteen[0])
+/* We abuse l5hlen here because PH_loc can hold only 64 bits of data */
+#define TSO_MBUF_FLAGS(_mbuf)    ((_mbuf)->m_pkthdr.l5hlen)
+#define TSO_MBUF_PACKETID(_mbuf) ((_mbuf)->m_pkthdr.PH_loc.sixteen[1])
+#define TSO_MBUF_SEQNUM(_mbuf)   ((_mbuf)->m_pkthdr.PH_loc.thirtytwo[1])
+
+static void sfxge_parse_tx_packet(struct mbuf *mbuf)
+{
+	struct ether_header *eh = mtod(mbuf, struct ether_header *);
+	const struct tcphdr *th;
+	struct tcphdr th_copy;
+
+	/* Find network protocol and header */
+	TSO_MBUF_PROTO(mbuf) = eh->ether_type;
+	if (TSO_MBUF_PROTO(mbuf) == htons(ETHERTYPE_VLAN)) {
+		struct ether_vlan_header *veh =
+			mtod(mbuf, struct ether_vlan_header *);
+		TSO_MBUF_PROTO(mbuf) = veh->evl_proto;
+		mbuf->m_pkthdr.l2hlen = sizeof(*veh);
+	} else {
+		mbuf->m_pkthdr.l2hlen = sizeof(*eh);
+	}
+
+	/* Find TCP header */
+	if (TSO_MBUF_PROTO(mbuf) == htons(ETHERTYPE_IP)) {
+		const struct ip *iph = (const struct ip *)mtodo(mbuf, mbuf->m_pkthdr.l2hlen);
+
+		KASSERT(iph->ip_p == IPPROTO_TCP,
+			("TSO required on non-TCP packet"));
+		mbuf->m_pkthdr.l3hlen = mbuf->m_pkthdr.l2hlen + 4 * iph->ip_hl;
+		TSO_MBUF_PACKETID(mbuf) = iph->ip_id;
+	} else {
+		KASSERT(TSO_MBUF_PROTO(mbuf) == htons(ETHERTYPE_IPV6),
+			("TSO required on non-IP packet"));
+		KASSERT(((const struct ip6_hdr *)mtodo(mbuf, mbuf->m_pkthdr.l2hlen))->ip6_nxt ==
+			IPPROTO_TCP,
+			("TSO required on non-TCP packet"));
+		mbuf->m_pkthdr.l3hlen = mbuf->m_pkthdr.l2hlen + sizeof(struct ip6_hdr);
+		TSO_MBUF_PACKETID(mbuf) = 0;
+	}
+
+	KASSERT(mbuf->m_len >= mbuf->m_pkthdr.l3hlen,
+		("network header is fragmented in mbuf"));
+
+	/* We need TCP header including flags (window is the next) */
+	if (mbuf->m_len < mbuf->m_pkthdr.l3hlen + offsetof(struct tcphdr, th_win)) {
+		m_copydata(mbuf, mbuf->m_pkthdr.l3hlen, sizeof(th_copy),
+			   (caddr_t)&th_copy);
+		th = &th_copy;
+	} else {
+		th = (const struct tcphdr *)mtodo(mbuf, mbuf->m_pkthdr.l3hlen);
+	}
+
+	mbuf->m_pkthdr.l4hlen = mbuf->m_pkthdr.l3hlen + 4 * th->th_off;
+	TSO_MBUF_SEQNUM(mbuf) = ntohl(th->th_seq);
+
+	/* These flags must not be duplicated */
+	/*
+	 * RST should not be duplicated as well, but FreeBSD kernel
+	 * generates TSO packets with RST flag. So, do not assert
+	 * its absence.
+	 */
+	KASSERT(!(th->th_flags & (TH_URG | TH_SYN)),
+		("incompatible TCP flag 0x%x on TSO packet",
+		 th->th_flags & (TH_URG | TH_SYN)));
+	TSO_MBUF_FLAGS(mbuf) = th->th_flags;
+}
+#endif
+
 /*
  * TX start -- called by the stack.
  */
@@ -744,6 +822,10 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 
 			index = sc->rx_indir_table[hash % SFXGE_RX_SCALE_MAX];
 		}
+#if SFXGE_TX_PARSE_EARLY
+		if (m->m_pkthdr.csum_flags & CSUM_TSO)
+			sfxge_parse_tx_packet(m);
+#endif
 		txq = sc->txq[SFXGE_TXQ_IP_TCP_UDP_CKSUM + index];
 	} else if (m->m_pkthdr.csum_flags & CSUM_DELAY_IP) {
 		txq = sc->txq[SFXGE_TXQ_IP_CKSUM];
@@ -781,26 +863,32 @@ struct sfxge_tso_state {
 	unsigned seg_size;	/* TCP segment size */
 	int fw_assisted;	/* Use FW-assisted TSO */
 	u_short packet_id;	/* IPv4 packet ID from the original packet */
+	uint8_t tcp_flags;	/* TCP flags */
 	efx_desc_t header_desc; /* Precomputed header descriptor for
 				 * FW-assisted TSO */
 };
 
+#if !SFXGE_TX_PARSE_EARLY
 static const struct ip *tso_iph(const struct sfxge_tso_state *tso)
 {
 	KASSERT(tso->protocol == htons(ETHERTYPE_IP),
 		("tso_iph() in non-IPv4 state"));
 	return (const struct ip *)(tso->mbuf->m_data + tso->nh_off);
 }
+
 static __unused const struct ip6_hdr *tso_ip6h(const struct sfxge_tso_state *tso)
 {
 	KASSERT(tso->protocol == htons(ETHERTYPE_IPV6),
 		("tso_ip6h() in non-IPv6 state"));
 	return (const struct ip6_hdr *)(tso->mbuf->m_data + tso->nh_off);
 }
+
 static const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
 {
 	return (const struct tcphdr *)(tso->mbuf->m_data + tso->tcph_off);
 }
+#endif
+
 
 /* Size of preallocated TSO header buffers.  Larger blocks must be
  * allocated from the heap.
@@ -857,15 +945,18 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 		      const bus_dma_segment_t *hdr_dma_seg,
 		      struct mbuf *mbuf)
 {
-	struct ether_header *eh = mtod(mbuf, struct ether_header *);
 	const efx_nic_cfg_t *encp = efx_nic_cfg_get(txq->sc->enp);
+#if !SFXGE_TX_PARSE_EARLY
+	struct ether_header *eh = mtod(mbuf, struct ether_header *);
 	const struct tcphdr *th;
 	struct tcphdr th_copy;
+#endif
 
 	tso->fw_assisted = txq->sc->tso_fw_assisted;
 	tso->mbuf = mbuf;
 
 	/* Find network protocol and header */
+#if !SFXGE_TX_PARSE_EARLY
 	tso->protocol = eh->ether_type;
 	if (tso->protocol == htons(ETHERTYPE_VLAN)) {
 		struct ether_vlan_header *veh =
@@ -875,7 +966,14 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 	} else {
 		tso->nh_off = sizeof(*eh);
 	}
+#else
+	tso->protocol = TSO_MBUF_PROTO(mbuf);
+	tso->nh_off = mbuf->m_pkthdr.l2hlen;
+	tso->tcph_off = mbuf->m_pkthdr.l3hlen;
+	tso->packet_id = TSO_MBUF_PACKETID(mbuf);
+#endif
 
+#if !SFXGE_TX_PARSE_EARLY
 	/* Find TCP header */
 	if (tso->protocol == htons(ETHERTYPE_IP)) {
 		KASSERT(tso_iph(tso)->ip_p == IPPROTO_TCP,
@@ -890,12 +988,17 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 		tso->tcph_off = tso->nh_off + sizeof(struct ip6_hdr);
 		tso->packet_id = 0;
 	}
+#endif
+
+
 	if (tso->fw_assisted &&
 	    __predict_false(tso->tcph_off >
 			    encp->enc_tx_tso_tcp_header_offset_limit)) {
 		tso->fw_assisted = 0;
 	}
 
+
+#if !SFXGE_TX_PARSE_EARLY
 	KASSERT(mbuf->m_len >= tso->tcph_off,
 		("network header is fragmented in mbuf"));
 	/* We need TCP header including flags (window is the next) */
@@ -906,10 +1009,13 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 	} else {
 		th = tso_tcph(tso);
 	}
-
 	tso->header_len = tso->tcph_off + 4 * th->th_off;
+#else
+	tso->header_len = mbuf->m_pkthdr.l4hlen;
+#endif
 	tso->seg_size = mbuf->m_pkthdr.tso_segsz;
 
+#if !SFXGE_TX_PARSE_EARLY
 	tso->seqnum = ntohl(th->th_seq);
 
 	/* These flags must not be duplicated */
@@ -921,6 +1027,11 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 	KASSERT(!(th->th_flags & (TH_URG | TH_SYN)),
 		("incompatible TCP flag 0x%x on TSO packet",
 		 th->th_flags & (TH_URG | TH_SYN)));
+	tso->tcp_flags = th->th_flags;
+#else
+	tso->seqnum = TSO_MBUF_SEQNUM(mbuf);
+	tso->tcp_flags = TSO_MBUF_FLAGS(mbuf);
+#endif
 
 	tso->out_len = mbuf->m_pkthdr.len - tso->header_len;
 
@@ -1001,7 +1112,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	int rc;
 
 	if (tso->fw_assisted) {
-		uint8_t tcp_flags = tso_tcph(tso)->th_flags;
+		uint8_t tcp_flags = tso->tcp_flags;
 
 		if (tso->out_len > tso->seg_size)
 			tcp_flags &= ~(TH_FIN | TH_PUSH);
