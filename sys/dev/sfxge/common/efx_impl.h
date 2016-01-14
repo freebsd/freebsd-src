@@ -266,16 +266,6 @@ efx_filter_reconfigure(
 
 #endif /* EFSYS_OPT_FILTER */
 
-typedef struct efx_pktfilter_ops_s {
-	efx_rc_t	(*epfo_set)(efx_nic_t *,
-				boolean_t unicst,
-				boolean_t brdcast);
-#if EFSYS_OPT_MCAST_FILTER_LIST
-	efx_rc_t	(*epfo_mcast_list_set)(efx_nic_t *,
-				uint8_t const *addrs, int count);
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
-	efx_rc_t	(*epfo_mcast_all)(efx_nic_t *);
-} efx_pktfilter_ops_t;
 
 typedef struct efx_port_s {
 	efx_mac_type_t		ep_mac_type;
@@ -624,7 +614,6 @@ struct efx_nic_s {
 	efx_filter_t		en_filter;
 	efx_filter_ops_t	*en_efop;
 #endif	/* EFSYS_OPT_FILTER */
-	efx_pktfilter_ops_t	*en_epfop;
 #if EFSYS_OPT_MCDI
 	efx_mcdi_t		en_mcdi;
 #endif	/* EFSYS_OPT_MCDI */
