@@ -164,10 +164,11 @@ SSP_CFLAGS?=	-fstack-protector
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !ARM && !MIPS
 
-# Allow user-specified additional warning flags, plus compiler specific flag overrides.
-# Unless we've overriden this...
+# Allow user-specified additional warning flags, plus compiler and file
+# specific flag overrides, unless we've overriden this...
 .if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
+CFLAGS+=	${CWARNFLAGS.${.IMPSRC:T}}
 .endif
 
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
