@@ -102,6 +102,13 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, stats_update_period, CTLFLAG_RDTUN,
 	   &sfxge_stats_update_period, 0,
 	   "netstat interface statistics update period in ticks");
 
+#define	SFXGE_PARAM_RESTART_ATTEMPTS	SFXGE_PARAM(restart_attempts)
+static int sfxge_restart_attempts = 3;
+TUNABLE_INT(SFXGE_PARAM_RESTART_ATTEMPTS, &sfxge_restart_attempts);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, restart_attempts, CTLFLAG_RDTUN,
+	   &sfxge_restart_attempts, 0,
+	   "Maximum number of attempts to bring interface up after reset");
+
 #if EFSYS_OPT_MCDI_LOGGING
 #define	SFXGE_PARAM_MCDI_LOGGING	SFXGE_PARAM(mcdi_logging)
 static int sfxge_mcdi_logging = 0;
@@ -1018,7 +1025,7 @@ sfxge_reset(void *arg, int npending)
 
 	sfxge_stop(sc);
 	efx_nic_reset(sc->enp);
-	for (attempt = 0; attempt < 3; ++attempt) {
+	for (attempt = 0; attempt < sfxge_restart_attempts; ++attempt) {
 		if ((rc = sfxge_start(sc)) == 0)
 			goto done;
 
