@@ -1008,26 +1008,6 @@ hunt_filter_default_rxq_clear(
 #endif /* EFSYS_OPT_FILTER */
 
 extern	__checkReturn			efx_rc_t
-hunt_pktfilter_set(
-	__in				efx_nic_t *enp,
-	__in				boolean_t unicst,
-	__in				boolean_t brdcst);
-
-#if EFSYS_OPT_MCAST_FILTER_LIST
-
-extern	__checkReturn			efx_rc_t
-hunt_pktfilter_mcast_set(
-	__in				efx_nic_t *enp,
-	__in				uint8_t const *addrs,
-	__in				int count);
-
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
-
-extern	__checkReturn			efx_rc_t
-hunt_pktfilter_mcast_all(
-	__in				efx_nic_t *enp);
-
-extern	__checkReturn			efx_rc_t
 efx_mcdi_get_function_info(
 	__in				efx_nic_t *enp,
 	__out				uint32_t *pfp,
