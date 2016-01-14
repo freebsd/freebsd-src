@@ -300,7 +300,6 @@ struct tx_ring {
 	volatile u16		tx_avail;
 	u16			next_avail_desc;
 	u16			next_to_clean;
-	u16			process_limit;
 	u16			num_desc;
 	enum {
 	    IGB_QUEUE_IDLE = 1,
@@ -479,6 +478,7 @@ struct adapter {
 	int			has_manage;
 	int			wol;
 	int			rx_process_limit;
+	int			tx_process_limit;
 	u16			vf_ifp;  /* a VF interface */
 	bool			in_detach; /* Used only in igb_ioctl */
 

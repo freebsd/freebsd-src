@@ -408,6 +408,13 @@ SYSCTL_INT(_hw_igb, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
     &igb_rx_process_limit, 0,
     "Maximum number of received packets to process at a time, -1 means unlimited");
 
+/* How many packets txeof tries to clean at a time */
+static int igb_tx_process_limit = -1;
+TUNABLE_INT("hw.igb.tx_process_limit", &igb_tx_process_limit);
+SYSCTL_INT(_hw_igb, OID_AUTO, tx_process_limit, CTLFLAG_RDTUN,
+    &igb_tx_process_limit, 0,
+    "Maximum number of sent packets to process at a time, -1 means unlimited");
+
 #ifdef DEV_NETMAP	/* see ixgbe.c for details */
 #include <dev/netmap/if_igb_netmap.h>
 #endif /* DEV_NETMAP */
@@ -526,10 +533,14 @@ igb_attach(device_t dev)
 
 	e1000_get_bus_info(&adapter->hw);
 
-	/* Sysctl for limiting the amount of work done in the taskqueue */
+	/* Sysctls for limiting the amount of work done in the taskqueues */
 	igb_set_sysctl_value(adapter, "rx_processing_limit",
 	    "max number of rx packets to process",
 	    &adapter->rx_process_limit, igb_rx_process_limit);
+
+	igb_set_sysctl_value(adapter, "tx_processing_limit",
+	    "max number of tx packets to process",
+	    &adapter->tx_process_limit, igb_tx_process_limit);
 
 	/*
 	 * Validate number of transmit and receive descriptors. It
@@ -3956,7 +3967,7 @@ igb_txeof(struct tx_ring *txr)
 	struct adapter		*adapter = txr->adapter;
 	struct ifnet		*ifp = adapter->ifp;
 	u32			work, processed = 0;
-	u16			limit = txr->process_limit;
+	int			limit = adapter->tx_process_limit;
 	struct igb_tx_buf	*buf;
 	union e1000_adv_tx_desc *txd;
 
