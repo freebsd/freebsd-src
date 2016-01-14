@@ -406,7 +406,7 @@ isc__buffer_putmem(isc_buffer_t *b, const unsigned char *base,
 
 void
 isc__buffer_putstr(isc_buffer_t *b, const char *source) {
-	unsigned int l;
+	size_t l;
 	unsigned char *cp;
 
 	REQUIRE(ISC_BUFFER_VALID(b));
@@ -421,7 +421,7 @@ isc__buffer_putstr(isc_buffer_t *b, const char *source) {
 
 	cp = isc_buffer_used(b);
 	memcpy(cp, source, l);
-	b->used += l;
+	b->used += (u_int)l; /* checked above - no overflow here */
 }
 
 isc_result_t

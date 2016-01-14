@@ -15,6 +15,7 @@
 #include "ntp_string.h"
 #include "ntp_leapsec.h"
 #include "refidsmear.h"
+#include "lib_strbuf.h"
 
 #include <stdio.h>
 #ifdef HAVE_LIBSCF_H
@@ -172,8 +173,14 @@ void	pool_name_resolved	(int, int, void *, const char *,
 				 const struct addrinfo *);
 #endif /* WORKER */
 
+const char *	amtoa		(int am);
+
+
 void
-set_sys_leap(u_char new_sys_leap) {
+set_sys_leap(
+	u_char new_sys_leap
+	)
+{
 	sys_leap = new_sys_leap;
 	xmt_leap = sys_leap;
 
@@ -189,8 +196,9 @@ set_sys_leap(u_char new_sys_leap) {
 #ifdef LEAP_SMEAR
 		else {
 			/*
-			 * If leap smear is enabled in general we must never send a leap second warning
-			 * to clients, so make sure we only send "in sync".
+			 * If leap smear is enabled in general we must
+			 * never send a leap second warning to clients,
+			 * so make sure we only send "in sync".
 			 */
 			if (leap_smear.enabled)
 				xmt_leap = LEAP_NOWARNING;
@@ -199,34 +207,39 @@ set_sys_leap(u_char new_sys_leap) {
 	}
 }
 
+
 /*
  * Kiss Code check
  */
-int kiss_code_check(u_char hisleap, u_char hisstratum, u_char hismode, u_int32 refid) {
+int
+kiss_code_check(
+	u_char hisleap,
+	u_char hisstratum,
+	u_char hismode,
+	u_int32 refid
+	)
+{
 
-		if (   hismode == MODE_SERVER
-		    && hisleap == LEAP_NOTINSYNC
-		    && hisstratum == STRATUM_UNSPEC) {
-				if(memcmp(&refid,"RATE", 4) == 0) {
-					return (RATEKISS);	
-				}
-				else if(memcmp(&refid,"DENY", 4) == 0) {
-					return (DENYKISS);	
-				}
-				else if(memcmp(&refid,"RSTR", 4) == 0) {
-					return (RSTRKISS);	
-				}
-				else if(memcmp(&refid,"X", 1) == 0) {
-					return (XKISS);	
-				}
-				else {
-					return (UNKNOWNKISS);
-				}
+	if (   hismode == MODE_SERVER
+	    && hisleap == LEAP_NOTINSYNC
+	    && hisstratum == STRATUM_UNSPEC) {
+		if(memcmp(&refid,"RATE", 4) == 0) {
+			return (RATEKISS);
+		} else if(memcmp(&refid,"DENY", 4) == 0) {
+			return (DENYKISS);
+		} else if(memcmp(&refid,"RSTR", 4) == 0) {
+			return (RSTRKISS);
+		} else if(memcmp(&refid,"X", 1) == 0) {
+			return (XKISS);
+		} else {
+			return (UNKNOWNKISS);
 		}
-		else {
-			return (NOKISS);
-		}
+	} else {
+		return (NOKISS);
+	}
 }
+
+
 /*
  * transmit - transmit procedure called by poll timeout
  */
@@ -303,7 +316,7 @@ transmit(
 		peer->outdate = current_time;
 		if (   (peer_associations <= 2 * sys_maxclock)
 		    && (   peer_associations < sys_maxclock
-		    	|| sys_survivors < sys_minclock))
+			|| sys_survivors < sys_minclock))
 			pool_xmit(peer);
 		poll_update(peer, hpoll);
 		return;
@@ -416,6 +429,33 @@ transmit(
 	if (peer->hmode != MODE_BCLIENT)
 		peer_xmit(peer);
 	poll_update(peer, hpoll);
+
+	return;
+}
+
+
+const char *
+amtoa(
+	int am
+	)
+{
+	char *bp;
+
+	switch(am) {
+	    case AM_ERR:	return "AM_ERR";
+	    case AM_NOMATCH:	return "AM_NOMATCH";
+	    case AM_PROCPKT:	return "AM_PROCPKT";
+	    case AM_BCST:	return "AM_BCST";
+	    case AM_FXMIT:	return "AM_FXMIT";
+	    case AM_MANYCAST:	return "AM_MANYCAST";
+	    case AM_NEWPASS:	return "AM_NEWPASS";
+	    case AM_NEWBCL:	return "AM_NEWBCL";
+	    case AM_POSSBCL:	return "AM_POSSBCL";
+	    default:
+		LIB_GETBUF(bp);
+		snprintf(bp, LIB_BUFLENGTH, "AM_#%d", am);
+		return bp;
+	}
 }
 
 
@@ -434,16 +474,18 @@ receive(
 	u_char	hismode;		/* packet mode */
 	u_char	hisstratum;		/* packet stratum */
 	u_short	restrict_mask;		/* restrict bits */
-	int kissCode = NOKISS;	/* Kiss Code */
+	const char *hm_str;		/* hismode string */
+	const char *am_str;		/* association match string */
+	int	kissCode = NOKISS;	/* Kiss Code */
 	int	has_mac;		/* length of MAC field */
 	int	authlen;		/* offset of MAC field */
 	int	is_authentic = 0;	/* cryptosum ok */
 	int	retcode = AM_NOMATCH;	/* match code */
 	keyid_t	skeyid = 0;		/* key IDs */
 	u_int32	opcode = 0;		/* extension field opcode */
-	sockaddr_u *dstadr_sin; 	/* active runway */
+	sockaddr_u *dstadr_sin;		/* active runway */
 	struct peer *peer2;		/* aux peer structure pointer */
-	endpt *	match_ep;		/* newpeer() local address */
+	endpt	*match_ep;		/* newpeer() local address */
 	l_fp	p_org;			/* origin timestamp */
 	l_fp	p_rec;			/* receive timestamp */
 	l_fp	p_xmt;			/* transmit timestamp */
@@ -474,11 +516,12 @@ receive(
 		return;				/* bogus port */
 	}
 	restrict_mask = restrictions(&rbufp->recv_srcadr);
-	DPRINTF(2, ("receive: at %ld %s<-%s flags %x restrict %03x\n",
-		    current_time, stoa(&rbufp->dstadr->sin),
-		    stoa(&rbufp->recv_srcadr),
-		    rbufp->dstadr->flags, restrict_mask));
 	pkt = &rbufp->recv_pkt;
+	DPRINTF(2, ("receive: at %ld %s<-%s flags %x restrict %03x org %#010x.%08x xmt %#010x.%08x\n",
+		    current_time, stoa(&rbufp->dstadr->sin),
+		    stoa(&rbufp->recv_srcadr), rbufp->dstadr->flags,
+		    restrict_mask, ntohl(pkt->org.l_ui), ntohl(pkt->org.l_uf),
+		    ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf)));
 	hisversion = PKT_VERSION(pkt->li_vn_mode);
 	hisleap = PKT_LEAP(pkt->li_vn_mode);
 	hismode = (int)PKT_MODE(pkt->li_vn_mode);
@@ -685,6 +728,8 @@ receive(
 	NTOHL_FP(&pkt->org, &p_org);
 	NTOHL_FP(&pkt->rec, &p_rec);
 	NTOHL_FP(&pkt->xmt, &p_xmt);
+	hm_str = modetoa(hismode);
+	am_str = amtoa(retcode);
 
 	/*
 	 * Authentication is conditioned by three switches:
@@ -713,25 +758,21 @@ receive(
 	if (has_mac == 0) {
 		restrict_mask &= ~RES_MSSNTP;
 		is_authentic = AUTH_NONE; /* not required */
-#ifdef DEBUG
-		if (debug)
-			printf(
-			    "receive: at %ld %s<-%s mode %d len %d\n",
+		DPRINTF(2, ("receive: at %ld %s<-%s mode %d/%s:%s len %d org %#010x.%08x xmt %#010x.%08x NOMAC\n",
 			    current_time, stoa(dstadr_sin),
-			    stoa(&rbufp->recv_srcadr), hismode,
-			    authlen);
-#endif
+			    stoa(&rbufp->recv_srcadr), hismode, hm_str, am_str,
+			    authlen,
+			    ntohl(pkt->org.l_ui), ntohl(pkt->org.l_uf),
+			    ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf)));
 	} else if (has_mac == 4) {
 		restrict_mask &= ~RES_MSSNTP;
 		is_authentic = AUTH_CRYPTO; /* crypto-NAK */
-#ifdef DEBUG
-		if (debug)
-			printf(
-			    "receive: at %ld %s<-%s mode %d keyid %08x len %d auth %d\n",
+		DPRINTF(2, ("receive: at %ld %s<-%s mode %d/%s:%s keyid %08x len %d auth %d org %#010x.%08x xmt %#010x.%08x MAC4\n",
 			    current_time, stoa(dstadr_sin),
-			    stoa(&rbufp->recv_srcadr), hismode, skeyid,
-			    authlen + has_mac, is_authentic);
-#endif
+			    stoa(&rbufp->recv_srcadr), hismode, hm_str, am_str,
+			    skeyid, authlen + has_mac, is_authentic,
+			    ntohl(pkt->org.l_ui), ntohl(pkt->org.l_uf),
+			    ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf)));
 
 #ifdef HAVE_NTP_SIGND
 		/*
@@ -747,7 +788,7 @@ receive(
 		   && (restrict_mask & RES_MSSNTP)
 		   && (retcode == AM_FXMIT || retcode == AM_NEWPASS)
 		   && (memcmp(zero_key, (char *)pkt + authlen + 4,
-		   	      MAX_MD5_LEN - 4) == 0)) {
+			      MAX_MD5_LEN - 4) == 0)) {
 		is_authentic = AUTH_NONE;
 #endif /* HAVE_NTP_SIGND */
 
@@ -856,14 +897,12 @@ receive(
 		if (crypto_flags && skeyid > NTP_MAXKEY)
 			authtrust(skeyid, 0);
 #endif	/* AUTOKEY */
-#ifdef DEBUG
-		if (debug)
-			printf(
-			    "receive: at %ld %s<-%s mode %d keyid %08x len %d auth %d\n",
+		DPRINTF(2, ("receive: at %ld %s<-%s mode %d/%s:%s keyid %08x len %d auth %d org %#010x.%08x xmt %#010x.%08x\n",
 			    current_time, stoa(dstadr_sin),
-			    stoa(&rbufp->recv_srcadr), hismode, skeyid,
-			    authlen + has_mac, is_authentic);
-#endif
+			    stoa(&rbufp->recv_srcadr), hismode, hm_str, am_str,
+			    skeyid, authlen + has_mac, is_authentic,
+			    ntohl(pkt->org.l_ui), ntohl(pkt->org.l_uf),
+			    ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf)));
 	}
 
 	/*
@@ -1194,11 +1233,11 @@ receive(
 			 * debug-printed and not logged to avoid log
 			 * flooding.
 			 */
-			DPRINTF(1, ("receive: at %ld refusing to mobilize passive association"
-				    " with unknown peer %s mode %d keyid %08x len %d auth %d\n",
+			DPRINTF(2, ("receive: at %ld refusing to mobilize passive association"
+				    " with unknown peer %s mode %d/%s:%s keyid %08x len %d auth %d\n",
 				    current_time, stoa(&rbufp->recv_srcadr),
-				    hismode, skeyid, (authlen + has_mac),
-				    is_authentic));
+				    hismode, hm_str, am_str, skeyid,
+				    (authlen + has_mac), is_authentic));
 			sys_declined++;
 			return;
 		}
@@ -1321,26 +1360,36 @@ receive(
 		}
 
 	/*
-	 * Check for bogus packet in basic mode. If found, switch to
-	 * interleaved mode and resynchronize, but only after confirming
-	 * the packet is not bogus in symmetric interleaved mode.
+	 * Basic mode checks:
+	 *
+	 * If there is no origin timestamp, it's an initial packet.
+	 *
+	 * Otherwise, check for bogus packet in basic mode.
+	 * If it is bogus, switch to interleaved mode and resynchronize,
+	 * but only after confirming the packet is not bogus in
+	 * symmetric interleaved mode.
 	 *
 	 * This could also mean somebody is forging packets claiming to
 	 * be from us, attempting to cause our server to KoD us.
 	 */
 	} else if (peer->flip == 0) {
-		if (!L_ISEQU(&p_org, &peer->aorg)) {
+		if (0 < hisstratum && L_ISZERO(&p_org)) {
+			L_CLR(&peer->aorg);
+		} else if (!L_ISEQU(&p_org, &peer->aorg)) {
 			peer->bogusorg++;
 			peer->flash |= TEST2;	/* bogus */
 			msyslog(LOG_INFO,
-				"receive: Unexpected origin timestamp from %s",
-				ntoa(&peer->srcadr));
+				"receive: Unexpected origin timestamp %#010x.%08x from %s xmt %#010x.%08x",
+				ntohl(pkt->org.l_ui), ntohl(pkt->org.l_uf),
+				ntoa(&peer->srcadr),
+				ntohl(pkt->xmt.l_ui), ntohl(pkt->xmt.l_uf));
 			if (  !L_ISZERO(&peer->dst)
 			    && L_ISEQU(&p_org, &peer->dst)) {
+				/* Might be the start of an interleave */
 				peer->flip = 1;
 				report_event(PEVNT_XLEAVE, peer, NULL);
 			}
-			return; /* Bogus packet, we are done */
+			return; /* Bogus or possible interleave packet */
 		} else {
 			L_CLR(&peer->aorg);
 		}
@@ -1694,11 +1743,8 @@ process_packet(
 	 */
 	if (peer->flash & PKT_TEST_MASK) {
 		peer->seldisptoolarge++;
-#ifdef DEBUG
-		if (debug)
-			printf("packet: flash header %04x\n",
-			    peer->flash);
-#endif
+		DPRINTF(1, ("packet: flash header %04x\n",
+			    peer->flash));
 		return;
 	}
 
@@ -1871,15 +1917,12 @@ process_packet(
 	 * the roundtrip delay. Then it calculates the correction as a
 	 * fraction of d.
 	 */
- 	peer->t21 = t21;
+	peer->t21 = t21;
 	peer->t21_last = peer->t21_bytes;
 	peer->t34 = -t34;
 	peer->t34_bytes = len;
-#ifdef DEBUG
-	if (debug > 1)
-		printf("packet: t21 %.9lf %d t34 %.9lf %d\n", peer->t21,
-		    peer->t21_bytes, peer->t34, peer->t34_bytes);
-#endif
+	DPRINTF(2, ("packet: t21 %.9lf %d t34 %.9lf %d\n", peer->t21,
+		    peer->t21_bytes, peer->t34, peer->t34_bytes));
 	if (peer->r21 > 0 && peer->r34 > 0 && p_del > 0) {
 		if (peer->pmode != MODE_BROADCAST)
 			td = (peer->r34 / (peer->r21 + peer->r34) -
@@ -1888,7 +1931,7 @@ process_packet(
 			td = 0;
 
 		/*
- 		 * Unfortunately, in many cases the errors are
+		 * Unfortunately, in many cases the errors are
 		 * unacceptable, so for the present the rates are not
 		 * used. In future, we might find conditions where the
 		 * calculations are useful, so this should be considered
@@ -1896,12 +1939,9 @@ process_packet(
 		 */
 		t21 -= td;
 		t34 -= td;
-#ifdef DEBUG
-		if (debug > 1)
-			printf("packet: del %.6lf r21 %.1lf r34 %.1lf %.6lf\n",
+		DPRINTF(2, ("packet: del %.6lf r21 %.1lf r34 %.1lf %.6lf\n",
 			    p_del, peer->r21 / 1e3, peer->r34 / 1e3,
-			    td);
-#endif
+			    td));
 	}
 #endif /* ASSYM */
 
@@ -1994,12 +2034,8 @@ clock_update(
 	sys_rootdelay = peer->delay + peer->rootdelay;
 	sys_reftime = peer->dst;
 
-#ifdef DEBUG
-	if (debug)
-		printf(
-		    "clock_update: at %lu sample %lu associd %d\n",
-		    current_time, peer->epoch, peer->associd);
-#endif
+	DPRINTF(1, ("clock_update: at %lu sample %lu associd %d\n",
+		    current_time, peer->epoch, peer->associd));
 
 	/*
 	 * Comes now the moment of truth. Crank the clock discipline and
@@ -2308,13 +2344,9 @@ peer_clear(
 #ifdef AUTOKEY
 	peer->refresh = current_time + (1 << NTP_REFRESH);
 #endif	/* AUTOKEY */
-#ifdef DEBUG
-	if (debug)
-		printf(
-		    "peer_clear: at %ld next %ld associd %d refid %s\n",
+	DPRINTF(1, ("peer_clear: at %ld next %ld associd %d refid %s\n",
 		    current_time, peer->nextdate, peer->associd,
-		    ident);
-#endif
+		    ident));
 }
 
 
@@ -2478,11 +2510,8 @@ clock_filter(
 	 * packets.
 	 */
 	if (peer->filter_epoch[k] <= peer->epoch) {
-#if DEBUG
-	if (debug > 1)
-		printf("clock_filter: old sample %lu\n", current_time -
-		    peer->filter_epoch[k]);
-#endif
+	DPRINTF(2, ("clock_filter: old sample %lu\n", current_time -
+		    peer->filter_epoch[k]));
 		return;
 	}
 	peer->epoch = peer->filter_epoch[k];
@@ -2494,13 +2523,9 @@ clock_filter(
 	 */
 	record_peer_stats(&peer->srcadr, ctlpeerstatus(peer),
 	    peer->offset, peer->delay, peer->disp, peer->jitter);
-#ifdef DEBUG
-	if (debug)
-		printf(
-		    "clock_filter: n %d off %.6f del %.6f dsp %.6f jit %.6f\n",
+	DPRINTF(1, ("clock_filter: n %d off %.6f del %.6f dsp %.6f jit %.6f\n",
 		    m, peer->offset, peer->delay, peer->disp,
-		    peer->jitter);
-#endif
+		    peer->jitter));
 	if (peer->burst == 0 || sys_leap == LEAP_NOTINSYNC)
 		clock_select();
 }
@@ -3004,7 +3029,7 @@ clock_select(void)
 		typesystem = typepps;
 		sys_clockhop = 0;
 		typesystem->new_status = CTL_PST_SEL_PPS;
- 		sys_offset = typesystem->offset;
+		sys_offset = typesystem->offset;
 		sys_jitter = typesystem->jitter;
 		DPRINTF(1, ("select: pps offset %.9f jitter %.9f\n",
 			sys_offset, sys_jitter));
@@ -3157,11 +3182,11 @@ peer_xmit(
 	 * might not be usable.
 	 */
 	sendlen = LEN_PKT_NOMAC;
+	if (
 #ifdef AUTOKEY
-	if (!(peer->flags & FLAG_SKEY) && peer->keyid == 0) {
-#else	/* !AUTOKEY follows */
-	if (peer->keyid == 0) {
+	    !(peer->flags & FLAG_SKEY) &&
 #endif	/* !AUTOKEY */
+	    peer->keyid == 0) {
 
 		/*
 		 * Transmit a-priori timestamps
@@ -3207,13 +3232,11 @@ peer_xmit(
 		}
 		L_SUB(&xmt_ty, &xmt_tx);
 		LFPTOD(&xmt_ty, peer->xleave);
-#ifdef DEBUG
-		if (debug)
-			printf("transmit: at %ld %s->%s mode %d len %zu\n",
-		    	    current_time, peer->dstadr ?
-			    stoa(&peer->dstadr->sin) : "-",
-		            stoa(&peer->srcadr), peer->hmode, sendlen);
-#endif
+		DPRINTF(1, ("peer_xmit: at %ld %s->%s mode %d len %zu xmt %#010x.%08x\n",
+			    current_time,
+			    peer->dstadr ? stoa(&peer->dstadr->sin) : "-",
+		            stoa(&peer->srcadr), peer->hmode, sendlen,
+			    xmt_tx.l_ui, xmt_tx.l_uf));
 		return;
 	}
 
@@ -3498,7 +3521,7 @@ peer_xmit(
 		authtrust(xkeyid, 0);
 #endif	/* AUTOKEY */
 	if (sendlen > sizeof(xpkt)) {
-		msyslog(LOG_ERR, "proto: buffer overflow %zu", sendlen);
+		msyslog(LOG_ERR, "peer_xmit: buffer overflow %zu", sendlen);
 		exit (-1);
 	}
 	peer->t21_bytes = sendlen;
@@ -3521,30 +3544,33 @@ peer_xmit(
 	L_SUB(&xmt_ty, &xmt_tx);
 	LFPTOD(&xmt_ty, peer->xleave);
 #ifdef AUTOKEY
-#ifdef DEBUG
-	if (debug)
-		printf("transmit: at %ld %s->%s mode %d keyid %08x len %zu index %d\n",
+	DPRINTF(1, ("peer_xmit: at %ld %s->%s mode %d keyid %08x len %zu index %d\n",
 		    current_time, latoa(peer->dstadr),
 		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen,
-		    peer->keynumber);
-#endif
+		    peer->keynumber));
 #else	/* !AUTOKEY follows */
-#ifdef DEBUG
-	if (debug)
-		printf("transmit: at %ld %s->%s mode %d keyid %08x len %d\n",
+	DPRINTF(1, ("peer_xmit: at %ld %s->%s mode %d keyid %08x len %d\n",
 		    current_time, peer->dstadr ?
 		    ntoa(&peer->dstadr->sin) : "-",
-		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen);
-#endif
+		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen));
 #endif	/* !AUTOKEY */
+
+	return;
 }
 
 
 #ifdef LEAP_SMEAR
 
 static void
-leap_smear_add_offs(l_fp *t, l_fp *t_recv) {
+leap_smear_add_offs(
+	l_fp *t,
+	l_fp *t_recv
+	)
+{
+
 	L_ADD(t, &leap_smear.offset);
+
+	return;
 }
 
 #endif  /* LEAP_SMEAR */
@@ -3565,7 +3591,7 @@ fast_xmit(
 	struct pkt xpkt;	/* transmit packet structure */
 	struct pkt *rpkt;	/* receive packet structure */
 	l_fp	xmt_tx, xmt_ty;
-	int	sendlen;
+	size_t	sendlen;
 #ifdef AUTOKEY
 	u_int32	temp32;
 #endif
@@ -3684,13 +3710,10 @@ fast_xmit(
 	if (rbufp->recv_length == sendlen) {
 		sendpkt(&rbufp->recv_srcadr, rbufp->dstadr, 0, &xpkt,
 		    sendlen);
-#ifdef DEBUG
-		if (debug)
-			printf(
-			    "transmit: at %ld %s->%s mode %d len %d\n",
+		DPRINTF(1, ("fast_xmit: at %ld %s->%s mode %d len %lu\n",
 			    current_time, stoa(&rbufp->dstadr->sin),
-			    stoa(&rbufp->recv_srcadr), xmode, sendlen);
-#endif
+			    stoa(&rbufp->recv_srcadr), xmode,
+			    (u_long)sendlen));
 		return;
 	}
 
@@ -3717,7 +3740,7 @@ fast_xmit(
 		 */
 		cookie = session_key(&rbufp->recv_srcadr,
 		    &rbufp->dstadr->sin, 0, sys_private, 0);
-		if (rbufp->recv_length > sendlen + (int)MAX_MAC_LEN) {
+		if ((size_t)rbufp->recv_length > sendlen + MAX_MAC_LEN) {
 			session_key(&rbufp->dstadr->sin,
 			    &rbufp->recv_srcadr, xkeyid, 0, 2);
 			temp32 = CRYPTO_RESP;
@@ -3741,13 +3764,10 @@ fast_xmit(
 	get_systime(&xmt_ty);
 	L_SUB(&xmt_ty, &xmt_tx);
 	sys_authdelay = xmt_ty;
-#ifdef DEBUG
-	if (debug)
-		printf(
-		    "transmit: at %ld %s->%s mode %d keyid %08x len %d\n",
+	DPRINTF(1, ("fast_xmit: at %ld %s->%s mode %d keyid %08x len %lu\n",
 		    current_time, ntoa(&rbufp->dstadr->sin),
-		    ntoa(&rbufp->recv_srcadr), xmode, xkeyid, sendlen);
-#endif
+		    ntoa(&rbufp->recv_srcadr), xmode, xkeyid,
+		    (u_long)sendlen));
 }
 
 
@@ -3827,11 +3847,8 @@ pool_xmit(
 		LEN_PKT_NOMAC);
 	pool->sent++;
 	pool->throttle += (1 << pool->minpoll) - 2;
-#ifdef DEBUG
-	if (debug)
-		printf("transmit: at %ld %s->%s pool\n",
-		    current_time, latoa(lcladr), stoa(rmtadr));
-#endif
+	DPRINTF(1, ("pool_xmit: at %ld %s->%s pool\n",
+		    current_time, latoa(lcladr), stoa(rmtadr)));
 	msyslog(LOG_INFO, "Soliciting pool server %s", stoa(rmtadr));
 #endif	/* WORKER */
 }
@@ -3849,7 +3866,8 @@ pool_xmit(
 	 * group	different	1		ignore
 	 * * ignore if notrust
 	 */
-int group_test(
+int
+group_test(
 	char	*grp,
 	char	*ident
 	)
@@ -3929,11 +3947,8 @@ key_expire(
 	value_free(&peer->sndval);
 	peer->keynumber = 0;
 	peer->flags &= ~FLAG_ASSOC;
-#ifdef DEBUG
-	if (debug)
-		printf("key_expire: at %lu associd %d\n", current_time,
-		    peer->associd);
-#endif
+	DPRINTF(1, ("key_expire: at %lu associd %d\n", current_time,
+		    peer->associd));
 }
 #endif	/* AUTOKEY */
 
