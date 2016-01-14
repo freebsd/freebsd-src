@@ -31,10 +31,15 @@ SRCS+=	siena_mac.c siena_mcdi.c siena_nic.c siena_nvram.c siena_phy.c
 SRCS+=	siena_sram.c siena_vpd.c
 SRCS+=	siena_flash.h siena_impl.h
 
+SRCS+=	ef10_impl.h
+
 SRCS+=	hunt_ev.c hunt_intr.c hunt_mac.c hunt_mcdi.c hunt_nic.c
 SRCS+=	hunt_nvram.c hunt_rx.c hunt_phy.c hunt_sram.c hunt_tx.c hunt_vpd.c
 SRCS+=	hunt_filter.c
 SRCS+=	hunt_impl.h
+
+SRCS+=	medford_nic.c
+SRCS+=	medford_impl.h
 
 # Extra debug checks
 #CFLAGS += -DDEBUG=1
