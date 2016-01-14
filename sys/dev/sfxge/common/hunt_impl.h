@@ -54,6 +54,13 @@ extern "C" {
  */
 #define	EF10_RX_WPTR_ALIGN 8
 
+/*
+ * Max byte offset into the packet the TCP header must start for the hardware
+ * to be able to parse the packet correctly.
+ * FIXME: Move to ef10_impl.h when it is included in all driver builds.
+ */
+#define	EF10_TCP_HEADER_OFFSET_LIMIT	208
+
 /* Invalid RSS context handle */
 #define	EF10_RSS_CONTEXT_INVALID	(0xffffffff)
 
@@ -162,6 +169,10 @@ ef10_intr_fini(
 
 extern	__checkReturn	efx_rc_t
 ef10_nic_probe(
+	__in		efx_nic_t *enp);
+
+extern	__checkReturn	efx_rc_t
+hunt_board_cfg(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
