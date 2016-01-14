@@ -165,7 +165,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_init(
+ef10_tx_init(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
@@ -173,14 +173,14 @@ hunt_tx_init(
 }
 
 			void
-hunt_tx_fini(
+ef10_tx_fini(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_qcreate(
+ef10_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -218,7 +218,7 @@ hunt_tx_qcreate(
 	    (flags & EFX_TXQ_CKSUM_IPV4) ? 1 : 0);
 
 	EFSYS_MEM_WRITEQ(etp->et_esmp, 0, &desc);
-	hunt_tx_qpush(etp, *addedp, 0);
+	ef10_tx_qpush(etp, *addedp, 0);
 
 	return (0);
 
@@ -229,7 +229,7 @@ fail1:
 }
 
 		void
-hunt_tx_qdestroy(
+ef10_tx_qdestroy(
 	__in	efx_txq_t *etp)
 {
 	/* FIXME */
@@ -238,7 +238,7 @@ hunt_tx_qdestroy(
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_qpio_enable(
+ef10_tx_qpio_enable(
 	__in		efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -294,7 +294,7 @@ fail1:
 }
 
 			void
-hunt_tx_qpio_disable(
+ef10_tx_qpio_disable(
 	__in		efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -311,7 +311,7 @@ hunt_tx_qpio_disable(
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_qpio_write(
+ef10_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(length)	uint8_t *buffer,
 	__in			size_t length,
@@ -359,7 +359,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_qpio_post(
+ef10_tx_qpio_post(
 	__in			efx_txq_t *etp,
 	__in			size_t pkt_length,
 	__in			unsigned int completed,
@@ -412,7 +412,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_qpost(
+ef10_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
 	__in		unsigned int n,
@@ -474,7 +474,7 @@ fail1:
  * hardware decides not to use the pushed descriptor.
  */
 			void
-hunt_tx_qpush(
+ef10_tx_qpush(
 	__in		efx_txq_t *etp,
 	__in		unsigned int added,
 	__in		unsigned int pushed)
@@ -504,7 +504,7 @@ hunt_tx_qpush(
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_qdesc_post(
+ef10_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
 	__in		unsigned int n,
@@ -546,7 +546,7 @@ fail1:
 }
 
 	void
-hunt_tx_qdesc_dma_create(
+ef10_tx_qdesc_dma_create(
 	__in	efx_txq_t *etp,
 	__in	efsys_dma_addr_t addr,
 	__in	size_t size,
@@ -590,7 +590,7 @@ hunt_tx_qdesc_tso_create(
 }
 
 	void
-hunt_tx_qdesc_vlantci_create(
+ef10_tx_qdesc_vlantci_create(
 	__in	efx_txq_t *etp,
 	__in	uint16_t  tci,
 	__out	efx_desc_t *edp)
@@ -608,7 +608,7 @@ hunt_tx_qdesc_vlantci_create(
 
 
 	__checkReturn	efx_rc_t
-hunt_tx_qpace(
+ef10_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns)
 {
@@ -631,7 +631,7 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_tx_qflush(
+ef10_tx_qflush(
 	__in		efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
@@ -649,7 +649,7 @@ fail1:
 }
 
 			void
-hunt_tx_qenable(
+ef10_tx_qenable(
 	__in		efx_txq_t *etp)
 {
 	/* FIXME */
@@ -659,15 +659,10 @@ hunt_tx_qenable(
 
 #if EFSYS_OPT_QSTATS
 			void
-hunt_tx_qstats_update(
+ef10_tx_qstats_update(
 	__in				efx_txq_t *etp,
 	__inout_ecount(TX_NQSTATS)	efsys_stat_t *stat)
 {
-	/*
-	 * TBD: Consider a common Siena/Huntington function.  The code is
-	 * essentially identical.
-	 */
-
 	unsigned int id;
 
 	for (id = 0; id < TX_NQSTATS; id++) {
