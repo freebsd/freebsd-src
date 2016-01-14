@@ -426,11 +426,12 @@ fail1:
 static	__checkReturn	efx_rc_t
 efx_mcdi_get_capabilities(
 	__in		efx_nic_t *enp,
-	__out		efx_dword_t *flagsp)
+	__out		efx_dword_t *flagsp,
+	__out		efx_dword_t *flags2p)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
-			    MC_CMD_GET_CAPABILITIES_OUT_LEN)];
+			    MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)];
 	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -438,7 +439,7 @@ efx_mcdi_get_capabilities(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_CAPABILITIES_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V2_OUT_LEN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -453,6 +454,12 @@ efx_mcdi_get_capabilities(
 	}
 
 	*flagsp = *MCDI_OUT2(req, efx_dword_t, GET_CAPABILITIES_OUT_FLAGS1);
+
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+		EFX_ZERO_DWORD(*flags2p);
+	else
+		*flags2p = *MCDI_OUT2(req, efx_dword_t,
+		    GET_CAPABILITIES_V2_OUT_FLAGS2);
 
 	return (0);
 
@@ -887,9 +894,11 @@ ef10_get_datapath_caps(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_dword_t datapath_capabilities;
+	efx_dword_t datapath_capabilities_v2;
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_capabilities(enp, &datapath_capabilities)) != 0)
+	if ((rc = efx_mcdi_get_capabilities(enp, &datapath_capabilities,
+					    &datapath_capabilities_v2)) != 0)
 		goto fail1;
 
 	/*
