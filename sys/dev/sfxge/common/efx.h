@@ -2028,6 +2028,9 @@ efx_tx_fini(
 
 #define	EFX_TXQ_MAX_BUFS 8 /* Maximum independent of EFX_BUG35388_WORKAROUND. */
 
+#define	EFX_TXQ_CKSUM_IPV4	0x0001
+#define	EFX_TXQ_CKSUM_TCPUDP	0x0002
+
 extern	__checkReturn	efx_rc_t
 efx_tx_qcreate(
 	__in		efx_nic_t *enp,

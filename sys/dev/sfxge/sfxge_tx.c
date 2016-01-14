@@ -1439,10 +1439,10 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 		flags = 0;
 		break;
 	case SFXGE_TXQ_IP_CKSUM:
-		flags = EFX_CKSUM_IPV4;
+		flags = EFX_TXQ_CKSUM_IPV4;
 		break;
 	case SFXGE_TXQ_IP_TCP_UDP_CKSUM:
-		flags = EFX_CKSUM_IPV4 | EFX_CKSUM_TCPUDP;
+		flags = EFX_TXQ_CKSUM_IPV4 | EFX_TXQ_CKSUM_TCPUDP;
 		break;
 	default:
 		KASSERT(0, ("Impossible TX queue"));
