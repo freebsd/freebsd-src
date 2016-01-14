@@ -299,6 +299,21 @@ efx_mcdi_read_response_header(
 		emrp->emr_err_code = err_code;
 		emrp->emr_err_arg = err_arg;
 
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+		if ((err_code == MC_CMD_ERR_PROXY_PENDING) &&
+		    (err_len == sizeof (err))) {
+			/*
+			 * The MCDI request would normally fail with EPERM, but
+			 * firmware has forwarded it to an authorization agent
+			 * attached to a privileged PF.
+			 *
+			 * Save the authorization request handle. The client
+			 * must wait for a PROXY_RESPONSE event, or timeout.
+			 */
+			emrp->emr_proxy_handle = err_arg;
+		}
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
+
 #if EFSYS_OPT_MCDI_LOGGING
 		if (emtp->emt_logger != NULL) {
 			emtp->emt_logger(emtp->emt_context,
@@ -319,6 +334,9 @@ efx_mcdi_read_response_header(
 
 	emrp->emr_rc = 0;
 	emrp->emr_out_length_used = data_len;
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	emrp->emr_proxy_handle = 0;
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
 	return;
 
 fail3:
@@ -460,6 +478,9 @@ efx_mcdi_request_errcode(
 	case MC_CMD_ERR_MAC_EXIST:
 		return (EEXIST);
 
+	case MC_CMD_ERR_PROXY_PENDING:
+		return (EAGAIN);
+
 	default:
 		EFSYS_PROBE1(mc_pcol_error, int, err);
 		return (EIO);
@@ -581,10 +602,69 @@ efx_mcdi_ev_cpl(
 			emrp->emr_rc = 0;
 		}
 	}
-	emcop->emco_request_copyout(enp, emrp);
+	if (errcode == 0) {
+		emcop->emco_request_copyout(enp, emrp);
+	}
 
 	emtp->emt_ev_cpl(emtp->emt_context);
 }
+
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+
+	__checkReturn	efx_rc_t
+efx_mcdi_get_proxy_handle(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *handlep)
+{
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	efx_rc_t rc;
+
+	/*
+	 * Return proxy handle from MCDI request that returned with error
+	 * MC_MCD_ERR_PROXY_PENDING. This handle is used to wait for a matching
+	 * PROXY_RESPONSE event.
+	 */
+	if ((emrp == NULL) || (handlep == NULL)) {
+		rc = EINVAL;
+		goto fail1;
+	}
+	if ((emrp->emr_rc != 0) &&
+	    (emrp->emr_err_code == MC_CMD_ERR_PROXY_PENDING)) {
+		*handlep = emrp->emr_proxy_handle;
+		rc = 0;
+	} else {
+		*handlep = 0;
+		rc = ENOENT;
+	}
+	return (rc);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	return (rc);
+}
+
+			void
+efx_mcdi_ev_proxy_response(
+	__in		efx_nic_t *enp,
+	__in		unsigned int handle,
+	__in		unsigned int status)
+{
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+	efx_rc_t rc;
+
+	/*
+	 * Handle results of an authorization request for a privileged MCDI
+	 * command. If authorization was granted then we must re-issue the
+	 * original MCDI request. If authorization failed or timed out,
+	 * then the original MCDI request should be completed with the
+	 * result code from this event.
+	 */
+	rc = (status == 0) ? 0 : efx_mcdi_request_errcode(status);
+
+	emtp->emt_ev_proxy_response(emtp->emt_context, handle, rc);
+}
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
 
 			void
 efx_mcdi_ev_death(

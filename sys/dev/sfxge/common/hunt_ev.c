@@ -829,6 +829,20 @@ hunt_ev_mcdi(
 		    MCDI_EV_FIELD(eqp, CMDDONE_ERRNO));
 		break;
 
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	case MCDI_EVENT_CODE_PROXY_RESPONSE:
+		/*
+		 * This event notifies a function that an authorization request
+		 * has been processed. If the request was authorized then the
+		 * function can now re-send the original MCDI request.
+		 * See SF-113652-SW "SR-IOV Proxied Network Access Control".
+		 */
+		efx_mcdi_ev_proxy_response(enp,
+		    MCDI_EV_FIELD(eqp, PROXY_RESPONSE_HANDLE),
+		    MCDI_EV_FIELD(eqp, PROXY_RESPONSE_RC));
+		break;
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
+
 	case MCDI_EVENT_CODE_LINKCHANGE: {
 		efx_link_mode_t link_mode;
 
