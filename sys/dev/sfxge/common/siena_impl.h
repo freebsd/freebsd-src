@@ -156,12 +156,6 @@ siena_mcdi_feature_supported(
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD
 
 extern	__checkReturn		efx_rc_t
-siena_nvram_partn_size(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__out			size_t *sizep);
-
-extern	__checkReturn		efx_rc_t
 siena_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
@@ -213,12 +207,6 @@ siena_nvram_test(
 	__in			efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_DIAG */
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_size(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_get_subtype(
@@ -276,6 +264,12 @@ siena_nvram_type_to_partn(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			uint32_t *partnp);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_size(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__out			size_t *sizep);
 
 #endif	/* EFSYS_OPT_NVRAM */
 
