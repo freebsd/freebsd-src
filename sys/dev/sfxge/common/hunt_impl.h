@@ -112,30 +112,30 @@ hunt_ev_rxlabel_fini(
 /* INTR */
 
 	__checkReturn	efx_rc_t
-hunt_intr_init(
+ef10_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
 	__in		efsys_mem_t *esmp);
 
 			void
-hunt_intr_enable(
+ef10_intr_enable(
 	__in		efx_nic_t *enp);
 
 			void
-hunt_intr_disable(
+ef10_intr_disable(
 	__in		efx_nic_t *enp);
 
 			void
-hunt_intr_disable_unlocked(
+ef10_intr_disable_unlocked(
 	__in		efx_nic_t *enp);
 
 	__checkReturn	efx_rc_t
-hunt_intr_trigger(
+ef10_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level);
 
 			void
-hunt_intr_fini(
+ef10_intr_fini(
 	__in		efx_nic_t *enp);
 
 /* NIC */
