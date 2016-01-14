@@ -470,9 +470,9 @@ efx_mcdi_alloc_vis(
 	__in		efx_nic_t *enp,
 	__in		uint32_t min_vi_count,
 	__in		uint32_t max_vi_count,
-	__out_opt	uint32_t *vi_basep,
-	__out		uint32_t *vi_countp)
-
+	__out		uint32_t *vi_basep,
+	__out		uint32_t *vi_countp,
+	__out		uint32_t *vi_shiftp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_ALLOC_VIS_IN_LEN,
@@ -506,11 +506,14 @@ efx_mcdi_alloc_vis(
 		goto fail3;
 	}
 
-	if (vi_basep != NULL)
-		*vi_basep = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_BASE);
+	*vi_basep = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_BASE);
+	*vi_countp = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_COUNT);
 
-	if (vi_countp != NULL)
-		*vi_countp = MCDI_OUT_DWORD(req, ALLOC_VIS_OUT_VI_COUNT);
+	/* Report VI_SHIFT if available (always zero for Huntington) */
+	if (req.emr_out_length_used < MC_CMD_ALLOC_VIS_EXT_OUT_LEN)
+		*vi_shiftp = 0;
+	else
+		*vi_shiftp = MCDI_OUT_DWORD(req, ALLOC_VIS_EXT_OUT_VI_SHIFT);
 
 	return (0);
 
@@ -1560,7 +1563,7 @@ ef10_nic_init(
 {
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
 	uint32_t min_vi_count, max_vi_count;
-	uint32_t vi_count, vi_base;
+	uint32_t vi_count, vi_base, vi_shift;
 	uint32_t i;
 	uint32_t retry;
 	uint32_t delay_us;
@@ -1603,7 +1606,7 @@ ef10_nic_init(
 	 */
 	vi_count = 0;
 	if ((rc = efx_mcdi_alloc_vis(enp, min_vi_count, max_vi_count,
-		    &vi_base, &vi_count)) != 0)
+		    &vi_base, &vi_count, &vi_shift)) != 0)
 		goto fail3;
 
 	EFSYS_PROBE2(vi_alloc, uint32_t, vi_base, uint32_t, vi_count);
@@ -1615,6 +1618,7 @@ ef10_nic_init(
 
 	enp->en_arch.ef10.ena_vi_base = vi_base;
 	enp->en_arch.ef10.ena_vi_count = vi_count;
+	enp->en_arch.ef10.ena_vi_shift = vi_shift;
 
 	if (vi_count < min_vi_count + enp->en_arch.ef10.ena_piobuf_count) {
 		/* Not enough extra VIs to map piobufs */
