@@ -78,13 +78,13 @@ falconsiena_rx_prefix_hash(
 	__in		efx_rx_hash_alg_t func,
 	__in		uint8_t *buffer);
 
+#endif /* EFSYS_OPT_RX_SCALE */
+
 static	__checkReturn	efx_rc_t
 falconsiena_rx_prefix_pktlen(
 	__in		efx_nic_t *enp,
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp);
-
-#endif /* EFSYS_OPT_RX_SCALE */
 
 static			void
 falconsiena_rx_qpost(
