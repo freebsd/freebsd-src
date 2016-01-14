@@ -446,6 +446,9 @@ at91_mci_attach(device_t dev)
 	    CTLFLAG_RW, &sc->allow_overclock, 0,
 	    "Allow up to 30MHz clock for 25MHz request when next highest speed 15MHz or less.");
 
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "debug",
+	    CTLFLAG_RWTUN, &mci_debug, 0, "enable debug output");
+
 	/*
 	 * Our real min freq is master_clock/512, but upper driver layers are
 	 * going to set the min speed during card discovery, and the right speed
@@ -783,15 +786,6 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 			WR4(sc, PDC_PTCR, PDC_PTCR_RXTEN);
 		} else {
 			len = min(BBSIZE, remaining);
-			/*
-			 * If this is MCI1 revision 2xx controller, apply
-			 * a work-around for the "Data Write Operation and
-			 * number of bytes" erratum.
-			 */
-			if ((sc->sc_cap & CAP_MCI1_REV2XX) && len < 12) {
-				len = 12;
-				memset(sc->bbuf_vaddr[0], 0, 12);
-			}
 			at91_bswap_buf(sc, sc->bbuf_vaddr[0], data->data, len);
 			err = bus_dmamap_load(sc->dmatag, sc->bbuf_map[0],
 			    sc->bbuf_vaddr[0], len, at91_mci_getaddr,
@@ -800,8 +794,13 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				panic("IO write dmamap_load failed\n");
 			bus_dmamap_sync(sc->dmatag, sc->bbuf_map[0],
 			    BUS_DMASYNC_PREWRITE);
+			/*
+			 * Erratum workaround:  PDC transfer length on a write
+			 * must not be smaller than 12 bytes (3 words); only
+			 * blklen bytes (set above) are actually transferred.
+			 */
 			WR4(sc, PDC_TPR,paddr);
-			WR4(sc, PDC_TCR, len / 4);
+			WR4(sc, PDC_TCR, (len < 12) ? 3 : len / 4);
 			sc->bbuf_len[0] = len;
 			remaining -= len;
 			if (remaining == 0) {
@@ -818,7 +817,7 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 				bus_dmamap_sync(sc->dmatag, sc->bbuf_map[1],
 				    BUS_DMASYNC_PREWRITE);
 				WR4(sc, PDC_TNPR, paddr);
-				WR4(sc, PDC_TNCR, len / 4);
+				WR4(sc, PDC_TNCR, (len < 12) ? 3 : len / 4);
 				sc->bbuf_len[1] = len;
 				remaining -= len;
 			}
