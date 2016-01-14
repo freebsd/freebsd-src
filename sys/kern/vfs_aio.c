@@ -392,7 +392,7 @@ static struct filterops lio_filtops = {
 
 static eventhandler_tag exit_tag, exec_tag;
 
-TASKQUEUE_DEFINE_THREAD(aiod_bio);
+TASKQUEUE_DEFINE_THREAD(aiod_kick);
 
 /*
  * Main operations function for use as a kernel module.
@@ -555,7 +555,7 @@ aio_unload(void)
 		return error;
 	async_io_version = 0;
 	aio_swake = NULL;
-	taskqueue_free(taskqueue_aiod_bio);
+	taskqueue_free(taskqueue_aiod_kick);
 	delete_unrhdr(aiod_unr);
 	uma_zdestroy(kaio_zone);
 	uma_zdestroy(aiop_zone);
@@ -802,7 +802,7 @@ restart:
 		}
 	}
 	AIO_UNLOCK(ki);
-	taskqueue_drain(taskqueue_aiod_bio, &ki->kaio_task);
+	taskqueue_drain(taskqueue_aiod_kick, &ki->kaio_task);
 	mtx_destroy(&ki->kaio_mtx);
 	uma_zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
@@ -1861,7 +1861,7 @@ aio_kick_nowait(struct proc *userp)
 	} else if (((num_aio_resv_start + num_aio_procs) < max_aio_procs) &&
 	    ((ki->kaio_active_count + num_aio_resv_start) <
 	    ki->kaio_maxactive_count)) {
-		taskqueue_enqueue(taskqueue_aiod_bio, &ki->kaio_task);
+		taskqueue_enqueue(taskqueue_aiod_kick, &ki->kaio_task);
 	}
 }
 
