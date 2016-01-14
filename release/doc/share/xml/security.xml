@@ -252,6 +252,59 @@
 	<entry>5&nbsp;December&nbsp;2015</entry>
 	<entry><para>Multiple vulnerabilities</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-15:27.bind.asc">FreeBSD-SA-15:27.bind</link></entry>
+	<entry>16&nbsp;December&nbsp;2015</entry>
+	<entry><para>Remote denial of service</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:01.sctp.asc">FreeBSD-SA-16:01.sctp</link></entry>
+	<entry>15&nbsp;January&nbsp;2016</entry>
+	<entry><para>ICMPv6 error message vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:02.ntp.asc">FreeBSD-SA-16:02.ntp</link></entry>
+	<entry>15&nbsp;January&nbsp;2016</entry>
+	<entry><para>Panic threshold bypass
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:03.linux.asc">FreeBSD-SA-16:03.linux</link></entry>
+	<entry>15&nbsp;January&nbsp;2016</entry>
+	<entry><para>Incorrect <literal>futex</literal>
+	    handling</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:04.linux.asc">FreeBSD-SA-16:04.linux</link></entry>
+	<entry>15&nbsp;January&nbsp;2016</entry>
+	<entry><para>&man.setgroups.2; system call
+	    vulnerability</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:05.tcp.asc">FreeBSD-SA-16:05.tcp</link></entry>
+	<entry>15&nbsp;January&nbsp;2016</entry>
+	<entry><para>MD5 signature denial of service</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:06.bsnmpd.asc">FreeBSD-SA-16:06.bsnmpd</link></entry>
+	<entry>15&nbsp;January&nbsp;2016</entry>
+	<entry><para>Insecure default configuration file
+	  permissions</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
