@@ -212,6 +212,12 @@ medford_board_cfg(
 	 */
 	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
+	/*
+	 * Medford stores a single global copy of VPD, not per-PF as on
+	 * Huntington.
+	 */
+	encp->enc_vpd_is_global = B_TRUE;
+
 	return (0);
 
 fail11:
