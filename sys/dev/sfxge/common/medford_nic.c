@@ -189,9 +189,8 @@ medford_board_cfg(
 	 * the privilege mask to check for sufficient privileges, as that
 	 * can result in time-of-check/time-of-use bugs.
 	 */
-	if ((rc = efx_mcdi_privilege_mask(enp, pf, vf, &mask)) != 0)
+	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
 		goto fail10;
-
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
