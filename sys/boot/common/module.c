@@ -388,14 +388,14 @@ file_load_dependencies(struct preloaded_file *base_file)
 }
 
 /*
- * We've been asked to load (name) as (type), so just suck it in,
+ * We've been asked to load (fname) as (type), so just suck it in,
  * no arguments or anything.
  */
 struct preloaded_file *
-file_loadraw(char *name, char *type, int insert)
+file_loadraw(const char *fname, char *type, int insert)
 {
     struct preloaded_file	*fp;
-    char			*cp;
+    char			*name;
     int				fd, got;
     vm_offset_t			laddr;
 
@@ -406,12 +406,11 @@ file_loadraw(char *name, char *type, int insert)
     }
 
     /* locate the file on the load path */
-    cp = file_search(name, NULL);
-    if (cp == NULL) {
-	sprintf(command_errbuf, "can't find '%s'", name);
+    name = file_search(fname, NULL);
+    if (name == NULL) {
+	sprintf(command_errbuf, "can't find '%s'", fname);
 	return(NULL);
     }
-    name = cp;
 
     if ((fd = open(name, O_RDONLY)) < 0) {
 	sprintf(command_errbuf, "can't open '%s': %s", name, strerror(errno));
