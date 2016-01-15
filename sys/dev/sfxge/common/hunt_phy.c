@@ -219,7 +219,7 @@ fail1:
 	__checkReturn	efx_rc_t
 hunt_phy_get_link(
 	__in		efx_nic_t *enp,
-	__out		hunt_link_state_t *hlsp)
+	__out		ef10_link_state_t *elsp)
 {
 	/*
 	 * TBD: consider common Siena/Hunt function: Hunt is very similar
@@ -252,14 +252,14 @@ hunt_phy_get_link(
 	}
 
 	hunt_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_CAP),
-			    &hlsp->hls_adv_cap_mask);
+			    &elsp->els_adv_cap_mask);
 	hunt_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_LP_CAP),
-			    &hlsp->hls_lp_cap_mask);
+			    &elsp->els_lp_cap_mask);
 
 	hunt_phy_decode_link_mode(enp, MCDI_OUT_DWORD(req, GET_LINK_OUT_FLAGS),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_LINK_SPEED),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_FCNTL),
-			    &hlsp->hls_link_mode, &hlsp->hls_fcntl);
+			    &elsp->els_link_mode, &elsp->els_fcntl);
 
 #if EFSYS_OPT_LOOPBACK
 	/* Assert the MC_CMD_LOOPBACK and EFX_LOOPBACK namespace agree */
@@ -282,10 +282,10 @@ hunt_phy_get_link(
 	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_PCS == EFX_LOOPBACK_PCS);
 	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_PMAPMD == EFX_LOOPBACK_PMA_PMD);
 
-	hlsp->hls_loopback = MCDI_OUT_DWORD(req, GET_LINK_OUT_LOOPBACK_MODE);
+	elsp->els_loopback = MCDI_OUT_DWORD(req, GET_LINK_OUT_LOOPBACK_MODE);
 #endif	/* EFSYS_OPT_LOOPBACK */
 
-	hlsp->hls_mac_up = MCDI_OUT_DWORD(req, GET_LINK_OUT_MAC_FAULT) == 0;
+	elsp->els_mac_up = MCDI_OUT_DWORD(req, GET_LINK_OUT_MAC_FAULT) == 0;
 
 	return (0);
 
