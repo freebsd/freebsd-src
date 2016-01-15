@@ -2,7 +2,7 @@
 
 MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 MK_SSP=		no
 
@@ -11,13 +11,14 @@ INTERNALPROG=
 WARNS?=		6
 
 # architecture-specific loader code
-SRCS=	boot1.c self_reloc.c start.S
+SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 
 CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-DEFI_UFS_BOOT
 
 # Always add MI sources and REGULAR efi loader bits
 .PATH:		${.CURDIR}/../loader/arch/${MACHINE}
