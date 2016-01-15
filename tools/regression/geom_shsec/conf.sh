@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
+name="$(mktemp -u shsec.XXXXXX)"
 class="shsec"
 base=`basename $0`
 

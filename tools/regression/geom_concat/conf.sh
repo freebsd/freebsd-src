@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
+name="$(mktemp -u concat.XXXXXX)"
 class="concat"
 base=`basename $0`
 
