@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
+name="$(mktemp -u graid3.XXXXXX)"
 class="raid3"
 base=`basename $0`
 
