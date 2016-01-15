@@ -217,12 +217,6 @@ siena_nvram_get_version(
 	__out_ecount(4)		uint16_t version[4]);
 
 extern	__checkReturn		efx_rc_t
-siena_nvram_rw_start(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			size_t *pref_chunkp);
-
-extern	__checkReturn		efx_rc_t
 siena_nvram_read_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -265,6 +259,12 @@ siena_nvram_partn_size(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__out			size_t *sizep);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_rw_start(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__out			size_t *chunk_sizep);
 
 #endif	/* EFSYS_OPT_NVRAM */
 

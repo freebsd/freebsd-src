@@ -1747,27 +1747,21 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-ef10_nvram_rw_start(
+ef10_nvram_partn_rw_start(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
+	__in			uint32_t partn,
 	__out			size_t *chunk_sizep)
 {
-	uint32_t partn;
 	efx_rc_t rc;
 
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
 	if ((rc = ef10_nvram_partn_lock(enp, partn)) != 0)
-		goto fail2;
+		goto fail1;
 
 	if (chunk_sizep != NULL)
 		*chunk_sizep = EF10_NVRAM_CHUNK;
 
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
