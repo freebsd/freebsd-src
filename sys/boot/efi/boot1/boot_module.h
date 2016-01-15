@@ -97,6 +97,9 @@ typedef struct boot_module_t
 #ifdef EFI_UFS_BOOT
 extern const boot_module_t ufs_module;
 #endif
+#ifdef EFI_ZFS_BOOT
+extern const boot_module_t zfs_module;
+#endif
 
 /* Functions available to modules. */
 extern void add_device(dev_info_t **devinfop, dev_info_t *devinfo);

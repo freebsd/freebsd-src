@@ -10,8 +10,22 @@ PROG=		boot1.sym
 INTERNALPROG=
 WARNS?=		6
 
+.if ${MK_ZFS} != "no"
+# Disable warnings that are currently incompatible with the zfs boot code
+CWARNFLAGS.zfs_module.c += -Wno-array-bounds
+CWARNFLAGS.zfs_module.c += -Wno-cast-align
+CWARNFLAGS.zfs_module.c += -Wno-cast-qual
+CWARNFLAGS.zfs_module.c += -Wno-missing-prototypes
+CWARNFLAGS.zfs_module.c += -Wno-sign-compare
+CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
+CWARNFLAGS.zfs_module.c += -Wno-unused-function
+.endif
+
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
+.if ${MK_ZFS} != "no"
+SRCS+=		zfs_module.c
+.endif
 
 CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../include
@@ -19,6 +33,12 @@ CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-DEFI_UFS_BOOT
+
+.if ${MK_ZFS} != "no"
+CFLAGS+=	-I${.CURDIR}/../../zfs/
+CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs/
+CFLAGS+=	-DEFI_ZFS_BOOT
+.endif
 
 # Always add MI sources and REGULAR efi loader bits
 .PATH:		${.CURDIR}/../loader/arch/${MACHINE}
