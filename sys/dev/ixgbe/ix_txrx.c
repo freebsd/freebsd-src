@@ -40,11 +40,6 @@
 
 #include "ixgbe.h"
 
-#ifdef	RSS
-#include <net/rss_config.h>
-#include <netinet/in_rss.h>
-#endif
-
 #ifdef DEV_NETMAP
 #include <net/netmap.h>
 #include <sys/selinfo.h>
@@ -198,9 +193,6 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	struct ix_queue	*que;
 	struct tx_ring	*txr;
 	int 		i, err = 0;
-#ifdef	RSS
-	uint32_t bucket_id;
-#endif
 
 	/*
 	 * When doing RSS, map it to the same outbound queue
@@ -209,16 +201,9 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	 * If everything is setup correctly, it should be the
 	 * same bucket that the current CPU we're on is.
 	 */
-	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-#ifdef	RSS
-		if (rss_hash2bucket(m->m_pkthdr.flowid,
-		    M_HASHTYPE_GET(m), &bucket_id) == 0)
-			/* TODO: spit out something if bucket_id > num_queues? */
-			i = bucket_id % adapter->num_queues;
-		else 
-#endif
-			i = m->m_pkthdr.flowid % adapter->num_queues;
-	} else
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+		i = m->m_pkthdr.flowid % adapter->num_queues;
+	else
 		i = curcpu % adapter->num_queues;
 
 	/* Check for a hung queue and pick alternative */
@@ -573,6 +558,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 {
 	struct adapter *adapter = txr->adapter;
 	struct ixgbe_tx_buf *txbuf;
+	int i;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_slot *slot;
@@ -595,7 +581,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 	/* Free any existing tx buffers. */
         txbuf = txr->tx_buffers;
-	for (int i = 0; i < txr->num_desc; i++, txbuf++) {
+	for (i = 0; i < txr->num_desc; i++, txbuf++) {
 		if (txbuf->m_head != NULL) {
 			bus_dmamap_sync(txr->txtag, txbuf->map,
 			    BUS_DMASYNC_POSTWRITE);
@@ -616,8 +602,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 */
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
-			netmap_load_map(na, txr->txtag,
-			    txbuf->map, NMB(na, slot + si));
+			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* Clear the EOP descriptor pointer */
@@ -772,7 +757,8 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 	if (mp->m_flags & M_VLANTAG) {
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
 		vlan_macip_lens |= (vtag << IXGBE_ADVTXD_VLAN_SHIFT);
-	} else if (!IXGBE_IS_X550VF(adapter) && (offload == FALSE))
+	} 
+	else if (!IXGBE_IS_X550VF(adapter) && (offload == FALSE))
 		return (0);
 
 	/*
@@ -1373,7 +1359,7 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	device_t 		dev = adapter->dev;
 	struct ixgbe_rx_buf 	*rxbuf;
-	int             	bsize, error;
+	int             	i, bsize, error;
 
 	bsize = sizeof(struct ixgbe_rx_buf) * rxr->num_desc;
 	if (!(rxr->rx_buffers =
@@ -1400,7 +1386,7 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 		goto fail;
 	}
 
-	for (int i = 0; i < rxr->num_desc; i++, rxbuf++) {
+	for (i = 0; i < rxr->num_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
 		error = bus_dmamap_create(rxr->ptag, 0, &rxbuf->pmap);
 		if (error) {
@@ -1422,8 +1408,9 @@ static void
 ixgbe_free_receive_ring(struct rx_ring *rxr)
 { 
 	struct ixgbe_rx_buf       *rxbuf;
+	int i;
 
-	for (int i = 0; i < rxr->num_desc; i++) {
+	for (i = 0; i < rxr->num_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf != NULL) {
 			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
@@ -1906,23 +1893,25 @@ ixgbe_rxeof(struct ix_queue *que)
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixgbe_rx_checksum(staterr, sendmp, ptype);
 
-                        /*
-                         * In case of multiqueue, we have RXCSUM.PCSD bit set
-                         * and never cleared. This means we have RSS hash
-                         * available to be used.   
-                         */
-                        if (adapter->num_queues > 1) {
-                                sendmp->m_pkthdr.flowid =
-                                    le32toh(cur->wb.lower.hi_dword.rss);
+			/*
+			 * In case of multiqueue, we have RXCSUM.PCSD bit set
+			 * and never cleared. This means we have RSS hash
+			 * available to be used.
+			 */
+			if (adapter->num_queues > 1) {
+				sendmp->m_pkthdr.flowid =
+					le32toh(cur->wb.lower.hi_dword.rss);
 				/*
 				 * Full RSS support is not avilable in
 				 * FreeBSD 10 so setting the hash type to
 				 * OPAQUE.
 				 */
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
-                        } else {
-                                sendmp->m_pkthdr.flowid = que->msix;
+			} else {
+#if __FreeBSD_version >= 800000
+				sendmp->m_pkthdr.flowid = que->msix;
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
+#endif /* FreeBSD_version */
 			}
 		}
 next_desc:
@@ -2105,9 +2094,6 @@ ixgbe_allocate_queues(struct adapter *adapter)
 	struct rx_ring	*rxr;
 	int rsize, tsize, error = IXGBE_SUCCESS;
 	int txconf = 0, rxconf = 0;
-#ifdef PCI_IOV
-	enum ixgbe_iov_mode iov_mode;
-#endif
 
         /* First allocate the top level queue structs */
         if (!(adapter->queues =
@@ -2140,12 +2126,6 @@ ixgbe_allocate_queues(struct adapter *adapter)
 	tsize = roundup2(adapter->num_tx_desc *
 	    sizeof(union ixgbe_adv_tx_desc), DBA_ALIGN);
 
-#ifdef PCI_IOV
-	iov_mode = ixgbe_get_iov_mode(adapter);
-	adapter->pool = ixgbe_max_vfs(iov_mode);
-#else
-	adapter->pool = 0;
-#endif
 	/*
 	 * Now set up the TX queues, txconf is needed to handle the
 	 * possibility that things fail midcourse and we need to
@@ -2155,11 +2135,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		/* Set up some basics */
 		txr = &adapter->tx_rings[i];
 		txr->adapter = adapter;
-#ifdef PCI_IOV
-		txr->me = ixgbe_pf_que_index(iov_mode, i);
-#else
 		txr->me = i;
-#endif
 		txr->num_desc = adapter->num_tx_desc;
 
 		/* Initialize the TX side lock */
@@ -2206,11 +2182,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		rxr = &adapter->rx_rings[i];
 		/* Set up some basics */
 		rxr->adapter = adapter;
-#ifdef PCI_IOV
-		rxr->me = ixgbe_pf_que_index(iov_mode, i);
-#else
 		rxr->me = i;
-#endif
 		rxr->num_desc = adapter->num_rx_desc;
 
 		/* Initialize the RX side lock */
