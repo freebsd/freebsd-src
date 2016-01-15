@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_init,		/* emco_init */
 	siena_mcdi_send_request,	/* emco_send_request */
-	siena_mcdi_request_copyout,	/* emco_request_copyout */
 	siena_mcdi_poll_reboot,		/* emco_poll_reboot */
 	siena_mcdi_poll_response,	/* emco_poll_response */
 	siena_mcdi_read_response,	/* emco_read_response */
@@ -77,7 +76,6 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 static efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 	ef10_mcdi_init,			/* emco_init */
 	ef10_mcdi_send_request,		/* emco_send_request */
-	ef10_mcdi_request_copyout,	/* emco_request_copyout */
 	ef10_mcdi_poll_reboot,		/* emco_poll_reboot */
 	ef10_mcdi_poll_response,	/* emco_poll_response */
 	ef10_mcdi_read_response,	/* emco_read_response */
@@ -209,16 +207,6 @@ efx_mcdi_send_request(
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
 	emcop->emco_send_request(enp, hdrp, hdr_len, sdup, sdu_len);
-}
-
-static			void
-efx_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp)
-{
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
-
-	emcop->emco_request_copyout(enp, emrp);
 }
 
 static			efx_rc_t
@@ -353,7 +341,7 @@ efx_mcdi_request_start(
 }
 
 
-			void
+static			void
 efx_mcdi_read_response_header(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp)
@@ -468,6 +456,50 @@ fail1:
 	emrp->emr_out_length_used = 0;
 }
 
+static			void
+efx_mcdi_finish_response(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp)
+{
+#if EFSYS_OPT_MCDI_LOGGING
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+	efx_dword_t hdr[2];
+	unsigned int hdr_len;
+	size_t bytes;
+
+	if (emrp->emr_out_buf == NULL)
+		return;
+
+	/* Read the command header to detect MCDI response format */
+	hdr_len = sizeof (hdr[0]);
+	efx_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
+		/*
+		 * Read the actual payload length. The length given in the event
+		 * is only correct for responses with the V1 format.
+		 */
+		efx_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
+		hdr_len += sizeof (hdr[1]);
+
+		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
+					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
+	}
+
+	/* Copy payload out into caller supplied buffer */
+	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
+	efx_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context,
+		    EFX_LOG_MCDI_RESPONSE,
+		    &hdr, hdr_len,
+		    emrp->emr_out_buf, bytes);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+}
+
 
 	__checkReturn	boolean_t
 efx_mcdi_request_poll(
@@ -515,7 +547,7 @@ efx_mcdi_request_poll(
 	if ((rc = emrp->emr_rc) != 0)
 		goto fail2;
 
-	efx_mcdi_request_copyout(enp, emrp);
+	efx_mcdi_finish_response(enp, emrp);
 	return (B_TRUE);
 
 fail2:
@@ -709,7 +741,6 @@ efx_mcdi_ev_cpl(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_mcdi_req_t *emrp;
 	int state;
 
@@ -751,7 +782,7 @@ efx_mcdi_ev_cpl(
 		}
 	}
 	if (errcode == 0) {
-		emcop->emco_request_copyout(enp, emrp);
+		efx_mcdi_finish_response(enp, emrp);
 	}
 
 	emtp->emt_ev_cpl(emtp->emt_context);
