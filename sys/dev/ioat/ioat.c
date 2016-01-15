@@ -852,6 +852,8 @@ ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
 
 	if ((flags & DMA_INT_EN) != 0)
 		hw_desc->u.control_generic.int_enable = 1;
+	if ((flags & DMA_FENCE) != 0)
+		hw_desc->u.control_generic.fence = 1;
 
 	hw_desc->size = size;
 	hw_desc->src_addr = src;
