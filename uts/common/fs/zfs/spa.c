@@ -590,7 +590,6 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 					error = SET_ERROR(EINVAL);
 					break;
 				}
-				check++;
 			}
 			if (strlen(strval) > ZPROP_MAX_COMMENT)
 				error = E2BIG;
