@@ -488,6 +488,92 @@ check_binary(const unsigned char *buf, size_t len)
 }
 
 /*
+ * Extract to a file descriptor
+ */
+static int
+extract2fd(struct archive *a, char *pathname, int fd)
+{
+	int cr, text, warn;
+	ssize_t len;
+	unsigned char *p, *q, *end;
+
+	text = a_opt;
+	warn = 0;
+	cr = 0;
+
+	/* loop over file contents and write to fd */
+	for (int n = 0; ; n++) {
+		if (fd != STDOUT_FILENO)
+			if (tty && (n % 4) == 0)
+				info(" %c\b\b", spinner[(n / 4) % sizeof spinner]);
+
+		len = archive_read_data(a, buffer, sizeof buffer);
+
+		if (len < 0)
+			ac(len);
+
+		/* left over CR from previous buffer */
+		if (a_opt && cr) {
+			if (len == 0 || buffer[0] != '\n')
+				if (write(fd, "\r", 1) != 1)
+					error("write('%s')", pathname);
+			cr = 0;
+		}
+
+		/* EOF */
+		if (len == 0)
+			break;
+		end = buffer + len;
+
+		/*
+		 * Detect whether this is a text file.  The correct way to
+		 * do this is to check the least significant bit of the
+		 * "internal file attributes" field of the corresponding
+		 * file header in the central directory, but libarchive
+		 * does not provide access to this field, so we have to
+		 * guess by looking for non-ASCII characters in the
+		 * buffer.  Hopefully we won't guess wrong.  If we do
+		 * guess wrong, we print a warning message later.
+		 */
+		if (a_opt && n == 0) {
+			if (check_binary(buffer, len))
+				text = 0;
+		}
+
+		/* simple case */
+		if (!a_opt || !text) {
+			if (write(fd, buffer, len) != len)
+				error("write('%s')", pathname);
+			continue;
+		}
+
+		/* hard case: convert \r\n to \n (sigh...) */
+		for (p = buffer; p < end; p = q + 1) {
+			for (q = p; q < end; q++) {
+				if (!warn && BYTE_IS_BINARY(*q)) {
+					warningx("%s may be corrupted due"
+					    " to weak text file detection"
+					    " heuristic", pathname);
+					warn = 1;
+				}
+				if (q[0] != '\r')
+					continue;
+				if (&q[1] == end) {
+					cr = 1;
+					break;
+				}
+				if (q[1] == '\n')
+					break;
+			}
+			if (write(fd, p, q - p) != q - p)
+				error("write('%s')", pathname);
+		}
+	}
+
+	return text;
+}
+
+/*
  * Extract a regular file.
  */
 static void
@@ -497,10 +583,8 @@ extract_file(struct archive *a, struct archive_entry *e, char **path)
 	struct timespec mtime;
 	struct stat sb;
 	struct timespec ts[2];
-	int cr, fd, text, warn, check;
-	ssize_t len;
+	int fd, check, text;
 	const char *linkname;
-	unsigned char *p, *q, *end;
 
 	mode = archive_entry_mode(e) & 0777;
 	if (mode == 0)
@@ -558,77 +642,10 @@ recheck:
 	if ((fd = open(*path, O_RDWR|O_CREAT|O_TRUNC, mode)) < 0)
 		error("open('%s')", *path);
 
-	/* loop over file contents and write to disk */
 	info(" extracting: %s", *path);
-	text = a_opt;
-	warn = 0;
-	cr = 0;
-	for (int n = 0; ; n++) {
-		if (tty && (n % 4) == 0)
-			info(" %c\b\b", spinner[(n / 4) % sizeof spinner]);
 
-		len = archive_read_data(a, buffer, sizeof buffer);
+	text = extract2fd(a, *path, fd);
 
-		if (len < 0)
-			ac(len);
-
-		/* left over CR from previous buffer */
-		if (a_opt && cr) {
-			if (len == 0 || buffer[0] != '\n')
-				if (write(fd, "\r", 1) != 1)
-					error("write('%s')", *path);
-			cr = 0;
-		}
-
-		/* EOF */
-		if (len == 0)
-			break;
-		end = buffer + len;
-
-		/*
-		 * Detect whether this is a text file.  The correct way to
-		 * do this is to check the least significant bit of the
-		 * "internal file attributes" field of the corresponding
-		 * file header in the central directory, but libarchive
-		 * does not read the central directory, so we have to
-		 * guess by looking for non-ASCII characters in the
-		 * buffer.  Hopefully we won't guess wrong.  If we do
-		 * guess wrong, we print a warning message later.
-		 */
-		if (a_opt && n == 0) {
-			if (check_binary(buffer, len))
-				text = 0;
-		}
-
-		/* simple case */
-		if (!a_opt || !text) {
-			if (write(fd, buffer, len) != len)
-				error("write('%s')", *path);
-			continue;
-		}
-
-		/* hard case: convert \r\n to \n (sigh...) */
-		for (p = buffer; p < end; p = q + 1) {
-			for (q = p; q < end; q++) {
-				if (!warn && BYTE_IS_BINARY(*q)) {
-					warningx("%s may be corrupted due"
-					    " to weak text file detection"
-					    " heuristic", *path);
-					warn = 1;
-				}
-				if (q[0] != '\r')
-					continue;
-				if (&q[1] == end) {
-					cr = 1;
-					break;
-				}
-				if (q[1] == '\n')
-					break;
-			}
-			if (write(fd, p, q - p) != q - p)
-				error("write('%s')", *path);
-		}
-	}
 	if (tty)
 		info("  \b\b");
 	if (text)
@@ -726,9 +743,6 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 {
 	char *pathname;
 	mode_t filetype;
-	int cr, text, warn;
-	ssize_t len;
-	unsigned char *p, *q, *end;
 
 	pathname = pathdup(archive_entry_pathname(e));
 	filetype = archive_entry_filetype(e);
@@ -758,73 +772,7 @@ extract_stdout(struct archive *a, struct archive_entry *e)
 	if (c_opt)
 		info("x %s\n", pathname);
 
-	text = a_opt;
-	warn = 0;
-	cr = 0;
-	for (int n = 0; ; n++) {
-		len = archive_read_data(a, buffer, sizeof buffer);
-
-		if (len < 0)
-			ac(len);
-
-		/* left over CR from previous buffer */
-		if (a_opt && cr) {
-			if (len == 0 || buffer[0] != '\n') {
-				if (fwrite("\r", 1, 1, stderr) != 1)
-					error("write('%s')", pathname);
-			}
-			cr = 0;
-		}
-
-		/* EOF */
-		if (len == 0)
-			break;
-		end = buffer + len;
-
-		/*
-		 * Detect whether this is a text file.  The correct way to
-		 * do this is to check the least significant bit of the
-		 * "internal file attributes" field of the corresponding
-		 * file header in the central directory, but libarchive
-		 * does not read the central directory, so we have to
-		 * guess by looking for non-ASCII characters in the
-		 * buffer.  Hopefully we won't guess wrong.  If we do
-		 * guess wrong, we print a warning message later.
-		 */
-		if (a_opt && n == 0) {
-			if (check_binary(buffer, len))
-				text = 0;
-		}
-
-		/* simple case */
-		if (!a_opt || !text) {
-			if (fwrite(buffer, 1, len, stdout) != (size_t)len)
-				error("write('%s')", pathname);
-			continue;
-		}
-
-		/* hard case: convert \r\n to \n (sigh...) */
-		for (p = buffer; p < end; p = q + 1) {
-			for (q = p; q < end; q++) {
-				if (!warn && BYTE_IS_BINARY(*q)) {
-					warningx("%s may be corrupted due"
-					    " to weak text file detection"
-					    " heuristic", pathname);
-					warn = 1;
-				}
-				if (q[0] != '\r')
-					continue;
-				if (&q[1] == end) {
-					cr = 1;
-					break;
-				}
-				if (q[1] == '\n')
-					break;
-			}
-			if (fwrite(p, 1, q - p, stdout) != (size_t)(q - p))
-				error("write('%s')", pathname);
-		}
-	}
+	(void)extract2fd(a, pathname, STDOUT_FILENO);
 
 	free(pathname);
 }
