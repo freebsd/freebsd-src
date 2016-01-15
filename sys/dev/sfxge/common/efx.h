@@ -1162,6 +1162,8 @@ typedef struct efx_nic_cfg_s {
 	/* External port identifier */
 	uint8_t			enc_external_port;
 	uint32_t		enc_mcdi_max_payload_length;
+	/* VPD may be per-PF or global */
+	boolean_t		enc_vpd_is_global;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
