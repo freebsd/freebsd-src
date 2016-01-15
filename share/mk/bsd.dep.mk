@@ -170,12 +170,12 @@ DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
 .endif
-.for __obj in ${DEPENDOBJS:O:u}
+DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 .if ${.MAKEFLAGS:M-V} == ""
-.sinclude "${DEPENDFILE}.${__obj:${DEPEND_FILTER}}"
-.endif
-DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
+.for __depend_obj in ${DEPENDFILES_OBJS}
+.sinclude "${__depend_obj}"
 .endfor
+.endif
 .endif	# ${MK_FAST_DEPEND} == "yes"
 .endif	# defined(SRCS)
 
