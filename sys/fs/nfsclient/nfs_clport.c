@@ -1049,10 +1049,11 @@ nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp)
 u_int8_t *
 nfscl_getmyip(struct nfsmount *nmp, struct in6_addr *paddr, int *isinet6p)
 {
+#if defined(INET6) || defined(INET)
 	int error, fibnum;
 
 	fibnum = curthread->td_proc->p_fibnum;
-
+#endif
 #ifdef INET
 	if (nmp->nm_nam->sa_family == AF_INET) {
 		struct sockaddr_in *sin;
