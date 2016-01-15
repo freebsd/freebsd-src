@@ -39,7 +39,6 @@ extern struct devsw efinet_dev;
 extern struct netif_driver efinetif;
 
 void *efi_get_table(EFI_GUID *tbl);
-void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
 
 int efi_register_handles(struct devsw *, EFI_HANDLE *, EFI_HANDLE *, int);
 EFI_HANDLE efi_find_handle(struct devsw *, int);
