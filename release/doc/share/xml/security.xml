@@ -99,6 +99,14 @@
 	<entry><para>Insecure default configuration file
 	  permissions</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:07.openssh.asc">FreeBSD-SA-16:07.openssh</link></entry>
+	<entry>14&nbsp;January&nbsp;2016</entry>
+	<entry><para><application>OpenSSH</application> client
+	    information leak</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
