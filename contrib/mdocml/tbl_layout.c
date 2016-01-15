@@ -1,4 +1,4 @@
-/*	$Id: tbl_layout.c,v 1.38 2015/02/10 11:03:13 schwarze Exp $ */
+/*	$Id: tbl_layout.c,v 1.41 2015/10/12 00:08:16 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -115,7 +115,6 @@ mod:
 		    ln, *pos, "m");
 		goto mod;
 	case 'p':
-		/* FALLTHROUGH */
 	case 'v':
 		if (p[*pos] == '-' || p[*pos] == '+')
 			(*pos)++;
@@ -168,17 +167,14 @@ mod:
 
 	switch (p[(*pos)++]) {
 	case '3':
-		/* FALLTHROUGH */
 	case 'B':
 		cp->flags |= TBL_CELL_BOLD;
 		goto mod;
 	case '2':
-		/* FALLTHROUGH */
 	case 'I':
 		cp->flags |= TBL_CELL_ITALIC;
 		goto mod;
 	case '1':
-		/* FALLTHROUGH */
 	case 'R':
 		goto mod;
 	default:
@@ -308,6 +304,7 @@ tbl_layout(struct tbl_node *tbl, int ln, const char *p, int pos)
 				    rp->next->first == NULL) {
 					free(rp->next);
 					rp->next = NULL;
+					tbl->last_row = rp;
 				}
 			}
 			return;
@@ -354,5 +351,5 @@ cell_alloc(struct tbl_node *tbl, struct tbl_row *rp, enum tbl_cellt pos)
 	if (tbl->opts.cols <= p->col)
 		tbl->opts.cols = p->col + 1;
 
-	return(p);
+	return p;
 }
