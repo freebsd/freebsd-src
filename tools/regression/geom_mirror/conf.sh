@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-name="test"
+name="$(mktemp -u mirror.XXXXXX)"
 class="mirror"
 base=`basename $0`
 
