@@ -3,5 +3,5 @@
 int
 main(void)
 {
-	return( ! reallocarray(NULL, 2, 2));
+	return !reallocarray(NULL, 2, 2);
 }
