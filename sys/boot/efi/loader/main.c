@@ -199,6 +199,7 @@ main(int argc, CHAR16 *argv[])
 			   efi_setcurrdev, env_nounset);
 		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
 			   env_nounset);
+		init_zfs_bootenv(zfs_fmtdev(&currdev));
 		break;
 	}
 #endif
@@ -505,6 +506,38 @@ command_lszfs(int argc, char *argv[])
 		command_errmsg = strerror(err);
 		return (CMD_ERROR);
 	}
+	return (CMD_OK);
+}
+
+COMMAND_SET(reloadbe, "reloadbe", "refresh the list of ZFS Boot Environments",
+	    command_reloadbe);
+
+static int
+command_reloadbe(int argc, char *argv[])
+{
+	int err;
+	char *root;
+
+	if (argc > 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	if (argc == 2) {
+		err = zfs_bootenv(argv[1]);
+	} else {
+		root = getenv("zfs_be_root");
+		if (root == NULL) {
+			return (CMD_OK);
+		}
+		err = zfs_bootenv(root);
+	}
+
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+
 	return (CMD_OK);
 }
 #endif
