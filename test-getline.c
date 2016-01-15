@@ -5,7 +5,9 @@
 int
 main(void)
 {
-	size_t sz;
+	char	*line = NULL;
+	size_t	 linesz = 0;
+
 	fclose(stdin);
-	return(NULL != fgetln(stdin, &sz));
+	return getline(&line, &linesz, stdin) != -1;
 }

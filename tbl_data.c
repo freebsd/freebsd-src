@@ -1,4 +1,4 @@
-/*	$Id: tbl_data.c,v 1.39 2015/01/30 17:32:16 schwarze Exp $ */
+/*	$Id: tbl_data.c,v 1.41 2015/10/06 18:32:20 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -132,11 +132,12 @@ tbl_cdata(struct tbl_node *tbl, int ln, const char *p, int pos)
 		if (p[pos] == tbl->opts.tab) {
 			tbl->part = TBL_PART_DATA;
 			pos++;
-			getdata(tbl, tbl->last_span, ln, p, &pos);
-			return(1);
+			while (p[pos] != '\0')
+				getdata(tbl, tbl->last_span, ln, p, &pos);
+			return 1;
 		} else if (p[pos] == '\0') {
 			tbl->part = TBL_PART_DATA;
-			return(1);
+			return 1;
 		}
 
 		/* Fallthrough: T} is part of a word. */
@@ -156,7 +157,7 @@ tbl_cdata(struct tbl_node *tbl, int ln, const char *p, int pos)
 		mandoc_msg(MANDOCERR_TBLDATA_SPAN, tbl->parse,
 		    ln, pos, dat->string);
 
-	return(0);
+	return 0;
 }
 
 static struct tbl_span *
@@ -177,7 +178,7 @@ newspan(struct tbl_node *tbl, int line, struct tbl_row *rp)
 		dp->prev->next = dp;
 	tbl->last_span = dp;
 
-	return(dp);
+	return dp;
 }
 
 void

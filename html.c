@@ -1,4 +1,4 @@
-/*	$Id: html.c,v 1.185 2015/01/21 20:33:25 schwarze Exp $ */
+/*	$Id: html.c,v 1.192 2016/01/04 12:45:29 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -7,9 +7,9 @@
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -32,6 +32,7 @@
 #include "mandoc_aux.h"
 #include "out.h"
 #include "html.h"
+#include "manconf.h"
 #include "main.h"
 
 struct	htmldata {
@@ -129,42 +130,20 @@ static	void	 print_attr(struct html *, const char *, const char *);
 
 
 void *
-html_alloc(const struct mchars *mchars, char *outopts)
+html_alloc(const struct manoutput *outopts)
 {
 	struct html	*h;
-	const char	*toks[5];
-	char		*v;
-
-	toks[0] = "style";
-	toks[1] = "man";
-	toks[2] = "includes";
-	toks[3] = "fragment";
-	toks[4] = NULL;
 
 	h = mandoc_calloc(1, sizeof(struct html));
 
 	h->tags.head = NULL;
-	h->symtab = mchars;
+	h->style = outopts->style;
+	h->base_man = outopts->man;
+	h->base_includes = outopts->includes;
+	if (outopts->fragment)
+		h->oflags |= HTML_FRAGMENT;
 
-	while (outopts && *outopts)
-		switch (getsubopt(&outopts, UNCONST(toks), &v)) {
-		case 0:
-			h->style = v;
-			break;
-		case 1:
-			h->base_man = v;
-			break;
-		case 2:
-			h->base_includes = v;
-			break;
-		case 3:
-			h->oflags |= HTML_FRAGMENT;
-			break;
-		default:
-			break;
-		}
-
-	return(h);
+	return h;
 }
 
 void
@@ -237,13 +216,11 @@ print_metaf(struct html *h, enum mandoc_esc deco)
 		font = HTMLFONT_BI;
 		break;
 	case ESCAPE_FONT:
-		/* FALLTHROUGH */
 	case ESCAPE_FONTROMAN:
 		font = HTMLFONT_NONE;
 		break;
 	default:
 		abort();
-		/* NOTREACHED */
 	}
 
 	if (h->metaf) {
@@ -301,13 +278,10 @@ html_strlen(const char *cp)
 		cp++;
 		switch (mandoc_escape(&cp, NULL, NULL)) {
 		case ESCAPE_ERROR:
-			return(sz);
+			return sz;
 		case ESCAPE_UNICODE:
-			/* FALLTHROUGH */
 		case ESCAPE_NUMBERED:
-			/* FALLTHROUGH */
 		case ESCAPE_SPECIAL:
-			/* FALLTHROUGH */
 		case ESCAPE_OVERSTRIKE:
 			if (skip)
 				skip = 0;
@@ -321,7 +295,7 @@ html_strlen(const char *cp)
 			break;
 		}
 	}
-	return(sz);
+	return sz;
 }
 
 static int
@@ -342,17 +316,17 @@ print_escape(char c)
 		printf("&quot;");
 		break;
 	case ASCII_NBRSP:
-		putchar('-');
+		printf("&nbsp;");
 		break;
 	case ASCII_HYPH:
 		putchar('-');
-		/* FALLTHROUGH */
+		break;
 	case ASCII_BREAK:
 		break;
 	default:
-		return(0);
+		return 0;
 	}
-	return(1);
+	return 1;
 }
 
 static int
@@ -391,15 +365,10 @@ print_encode(struct html *h, const char *p, int norecurse)
 
 		switch (esc) {
 		case ESCAPE_FONT:
-			/* FALLTHROUGH */
 		case ESCAPE_FONTPREV:
-			/* FALLTHROUGH */
 		case ESCAPE_FONTBOLD:
-			/* FALLTHROUGH */
 		case ESCAPE_FONTITALIC:
-			/* FALLTHROUGH */
 		case ESCAPE_FONTBI:
-			/* FALLTHROUGH */
 		case ESCAPE_FONTROMAN:
 			if (0 == norecurse)
 				print_metaf(h, esc);
@@ -427,7 +396,7 @@ print_encode(struct html *h, const char *p, int norecurse)
 				continue;
 			break;
 		case ESCAPE_SPECIAL:
-			c = mchars_spec2cp(h->symtab, seq, len);
+			c = mchars_spec2cp(seq, len);
 			if (c <= 0)
 				continue;
 			break;
@@ -452,7 +421,7 @@ print_encode(struct html *h, const char *p, int norecurse)
 			putchar(c);
 	}
 
-	return(nospace);
+	return nospace;
 }
 
 static void
@@ -514,7 +483,7 @@ print_otag(struct html *h, enum htmltag tag,
 	if ((HTML_AUTOCLOSE | HTML_CLRLINE) & htmltags[tag].flags)
 		putchar('\n');
 
-	return(t);
+	return t;
 }
 
 static void
@@ -751,8 +720,8 @@ void
 bufcat_id(struct html *h, const char *src)
 {
 
-	/* Cf. <http://www.w3.org/TR/html4/types.html#h-6.2>. */
+	/* Cf. <http://www.w3.org/TR/html5/dom.html#the-id-attribute>. */
 
-	while ('\0' != *src)
-		bufcat_fmt(h, "%.2x", *src++);
+	for (; '\0' != *src; src++)
+		bufncat(h, *src == ' ' ? "_" : src, 1);
 }
