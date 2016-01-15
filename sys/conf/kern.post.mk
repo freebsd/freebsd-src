@@ -206,12 +206,12 @@ DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 CFLAGS+=	${DEPEND_CFLAGS}
 DEPENDOBJS+=	${SYSTEM_OBJS}
-.for __obj in ${DEPENDOBJS:O:u}
+DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if ${.MAKEFLAGS:M-V} == ""
-.sinclude ".depend.${__obj}"
-.endif
-DEPENDFILES_OBJS+=	.depend.${__obj}
+.for __depend_obj in ${DEPENDFILES_OBJS}
+.sinclude "${__depend_obj}"
 .endfor
+.endif
 .endif	# ${MK_FAST_DEPEND} == "yes"
 
 .NOPATH: .depend ${DEPENDFILES_OBJS}
