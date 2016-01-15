@@ -403,7 +403,7 @@ extract_dir(struct archive *a, struct archive_entry *e, const char *path)
 	if (mode & 0004)
 		mode |= 0001;
 
-	info("d %s\n", path);
+	info("   creating: %s/\n", path);
 	make_dir(path, mode);
 	ac(archive_read_data_skip(a));
 }
@@ -466,7 +466,9 @@ handle_existing_file(char **path)
  * one white-listed byte has to be found.
  *
  * Black-listed: 0..6, 14..25, 28..31
+ * 0xf3ffc07f = 11110011111111111100000001111111b
  * White-listed: 9..10, 13, >= 32
+ * 0x00002600 = 00000000000000000010011000000000b
  *
  * See the proginfo/txtvsbin.txt in the zip sources for a detailed discussion.
  */
@@ -930,7 +932,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] [-x pattern] zipfile\n");
+	fprintf(stderr, "Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] [-x pattern] "
+		"zipfile\n");
 	exit(1);
 }
 
