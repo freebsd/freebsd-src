@@ -48,16 +48,16 @@ hunt_mac_poll(
 	 */
 
 	efx_port_t *epp = &(enp->en_port);
-	hunt_link_state_t hls;
+	ef10_link_state_t els;
 	efx_rc_t rc;
 
-	if ((rc = hunt_phy_get_link(enp, &hls)) != 0)
+	if ((rc = hunt_phy_get_link(enp, &els)) != 0)
 		goto fail1;
 
-	epp->ep_adv_cap_mask = hls.hls_adv_cap_mask;
-	epp->ep_fcntl = hls.hls_fcntl;
+	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
+	epp->ep_fcntl = els.els_fcntl;
 
-	*link_modep = hls.hls_link_mode;
+	*link_modep = els.els_link_mode;
 
 	return (0);
 
@@ -79,17 +79,17 @@ hunt_mac_up(
 	 * essentially identical.
 	 */
 
-	hunt_link_state_t hls;
+	ef10_link_state_t els;
 	efx_rc_t rc;
 
 	/*
 	 * Because Huntington doesn't *require* polling, we can't rely on
 	 * hunt_mac_poll() being executed to populate epp->ep_mac_up.
 	 */
-	if ((rc = hunt_phy_get_link(enp, &hls)) != 0)
+	if ((rc = hunt_phy_get_link(enp, &els)) != 0)
 		goto fail1;
 
-	*mac_upp = hls.hls_mac_up;
+	*mac_upp = els.els_mac_up;
 
 	return (0);
 
