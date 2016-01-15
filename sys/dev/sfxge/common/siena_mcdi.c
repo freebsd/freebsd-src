@@ -89,35 +89,6 @@ siena_mcdi_send_request(
 	EFX_BAR_TBL_WRITED(enp, FR_CZ_MC_TREG_SMEM, dbr, &dword, B_FALSE);
 }
 
-			void
-siena_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp)
-{
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efx_dword_t hdr;
-#endif
-	size_t bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
-
-	/* Copy payload out if caller supplied buffer */
-	if (emrp->emr_out_buf != NULL) {
-		siena_mcdi_read_response(enp, emrp->emr_out_buf,
-		    sizeof (efx_dword_t), bytes);
-	}
-
-#if EFSYS_OPT_MCDI_LOGGING
-	if (emtp->emt_logger != NULL) {
-		siena_mcdi_read_response(enp, &hdr, 0, sizeof (hdr));
-
-		emtp->emt_logger(emtp->emt_context,
-		    EFX_LOG_MCDI_RESPONSE,
-		    &hdr, sizeof (hdr),
-		    emrp->emr_out_buf, bytes);
-	}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-}
-
 			efx_rc_t
 siena_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)

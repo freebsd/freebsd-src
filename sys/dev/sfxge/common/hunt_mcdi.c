@@ -150,50 +150,6 @@ ef10_mcdi_send_request(
 	EFX_BAR_WRITED(enp, ER_DZ_MC_DB_HWRD_REG, &dword, B_FALSE);
 }
 
-			void
-ef10_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp)
-{
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-	efx_dword_t hdr[2];
-	unsigned int hdr_len;
-	size_t bytes;
-
-	if (emrp->emr_out_buf == NULL)
-		return;
-
-	/* Read the command header to detect MCDI response format */
-	hdr_len = sizeof (hdr[0]);
-	ef10_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		/*
-		 * Read the actual payload length. The length given in the event
-		 * is only correct for responses with the V1 format.
-		 */
-		ef10_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
-		hdr_len += sizeof (hdr[1]);
-
-		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
-					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
-	}
-
-	/* Copy payload out into caller supplied buffer */
-	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
-	ef10_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
-
-#if EFSYS_OPT_MCDI_LOGGING
-	if (emtp->emt_logger != NULL) {
-		emtp->emt_logger(emtp->emt_context,
-		    EFX_LOG_MCDI_RESPONSE,
-		    &hdr, hdr_len,
-		    emrp->emr_out_buf, bytes);
-	}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-}
-
 	__checkReturn	boolean_t
 ef10_mcdi_poll_response(
 	__in		efx_nic_t *enp)
