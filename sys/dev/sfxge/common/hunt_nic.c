@@ -430,8 +430,8 @@ fail1:
 static	__checkReturn	efx_rc_t
 efx_mcdi_get_capabilities(
 	__in		efx_nic_t *enp,
-	__out		efx_dword_t *flagsp,
-	__out		efx_dword_t *flags2p)
+	__out		uint32_t *flagsp,
+	__out		uint32_t *flags2p)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
@@ -457,13 +457,12 @@ efx_mcdi_get_capabilities(
 		goto fail2;
 	}
 
-	*flagsp = *MCDI_OUT2(req, efx_dword_t, GET_CAPABILITIES_OUT_FLAGS1);
+	*flagsp = MCDI_OUT_DWORD(req, GET_CAPABILITIES_OUT_FLAGS1);
 
 	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
-		EFX_ZERO_DWORD(*flags2p);
+		*flags2p = 0;
 	else
-		*flags2p = *MCDI_OUT2(req, efx_dword_t,
-		    GET_CAPABILITIES_V2_OUT_FLAGS2);
+		*flags2p = MCDI_OUT_DWORD(req, GET_CAPABILITIES_V2_OUT_FLAGS2);
 
 	return (0);
 
@@ -897,78 +896,63 @@ ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	efx_dword_t datapath_capabilities;
-	efx_dword_t datapath_capabilities_v2;
+	uint32_t flags;
+	uint32_t flags2;
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_capabilities(enp, &datapath_capabilities,
-					    &datapath_capabilities_v2)) != 0)
+	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2)) != 0)
 		goto fail1;
+
+#define	CAP_FLAG(flags1, field)		\
+	((flags1) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
+
+#define	CAP_FLAG2(flags2, field)	\
+	((flags2) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
 
 	/*
 	 * Huntington RXDP firmware inserts a 0 or 14 byte prefix.
 	 * We only support the 14 byte prefix here.
 	 */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-		GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14) != 1) {
+	if (CAP_FLAG(flags, RX_PREFIX_LEN_14) == 0) {
 		rc = ENOTSUP;
 		goto fail2;
 	}
 	encp->enc_rx_prefix_size = 14;
 
 	/* Check if the firmware supports TSO */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_TX_TSO) == 1)
-		encp->enc_fw_assisted_tso_enabled = B_TRUE;
-	else
-		encp->enc_fw_assisted_tso_enabled = B_FALSE;
+	encp->enc_fw_assisted_tso_enabled =
+	    CAP_FLAG(flags, TX_TSO) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports FATSOv2 */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities_v2,
-				GET_CAPABILITIES_V2_OUT_TX_TSO_V2) == 1)
-		encp->enc_fw_assisted_tso_v2_enabled = B_TRUE;
-	else
-		encp->enc_fw_assisted_tso_v2_enabled = B_FALSE;
+	encp->enc_fw_assisted_tso_v2_enabled =
+	    CAP_FLAG2(flags2, TX_TSO_V2) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware has vadapter/vport/vswitch support */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_EVB) == 1)
-		encp->enc_datapath_cap_evb = B_TRUE;
-	else
-		encp->enc_datapath_cap_evb = B_FALSE;
+	encp->enc_datapath_cap_evb =
+	    CAP_FLAG(flags, EVB) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports VLAN insertion */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_TX_VLAN_INSERTION) == 1)
-		encp->enc_hw_tx_insert_vlan_enabled = B_TRUE;
-	else
-		encp->enc_hw_tx_insert_vlan_enabled = B_FALSE;
+	encp->enc_hw_tx_insert_vlan_enabled =
+	    CAP_FLAG(flags, TX_VLAN_INSERTION) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports RX event batching */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-		GET_CAPABILITIES_OUT_RX_BATCHING) == 1) {
-		encp->enc_rx_batching_enabled = B_TRUE;
+	encp->enc_rx_batching_enabled =
+	    CAP_FLAG(flags, RX_BATCHING) ? B_TRUE : B_FALSE;
+
+	if (encp->enc_rx_batching_enabled)
 		encp->enc_rx_batch_max = 16;
-	} else {
-		encp->enc_rx_batching_enabled = B_FALSE;
-	}
 
 	/* Check if the firmware supports disabling scatter on RXQs */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-			    GET_CAPABILITIES_OUT_RX_DISABLE_SCATTER) == 1) {
-		encp->enc_rx_disable_scatter_supported = B_TRUE;
-	} else {
-		encp->enc_rx_disable_scatter_supported = B_FALSE;
-	}
+	encp->enc_rx_disable_scatter_supported =
+	    CAP_FLAG(flags, RX_DISABLE_SCATTER) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports set mac with running filters */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-	    GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED)
-	    == 1) {
-		encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
-	} else {
-		encp->enc_allow_set_mac_with_installed_filters = B_FALSE;
-	}
+	encp->enc_allow_set_mac_with_installed_filters =
+	    CAP_FLAG(flags, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED) ?
+	    B_TRUE : B_FALSE;
+
+#undef CAP_FLAG
+#undef CAP_FLAG2
 
 	return (0);
 
