@@ -312,7 +312,12 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.bitmapsize = vm_page_dump_size;
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = KERNBASE;
-
+	mdhdr.arch = __ARM_ARCH;
+#if __ARM_ARCH >= 6
+	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V6;
+#else
+	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V4;
+#endif
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION, dumpsize,
 	    di->blocksize);
 

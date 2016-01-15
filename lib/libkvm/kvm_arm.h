@@ -67,13 +67,16 @@ typedef uint32_t	arm_pt_entry_t;
 #define	ARM_L1_C_ADDR_MASK	0xfffffc00	/* phys	address	of L2 Table */
 
 #define	ARM_L2_TYPE_INV	0x00		/* Invalid (fault) */
-#define	ARM_L2_TYPE_L	0x01		/* Large Page  - 64k - not used yet*/
-#define	ARM_L2_TYPE_S	0x02		/* Small Page  - 4 */
+#define	ARM_L2_TYPE_L	0x01		/* Large Page - 64k */
+#define	ARM_L2_TYPE_S	0x02		/* Small Page -  4k */
+#define	ARM_L2_TYPE_T	0x03		/* Tiny Page  -  1k - not used */
 #define	ARM_L2_TYPE_MASK	0x03
 
 #define	ARM_L2_ADDR_BITS	0x000ff000	/* L2 PTE address bits */
 
 #ifdef __arm__
+#include <machine/acle-compat.h>
+
 _Static_assert(PAGE_SHIFT == ARM_PAGE_SHIFT, "PAGE_SHIFT mismatch");
 _Static_assert(PAGE_SIZE == ARM_PAGE_SIZE, "PAGE_SIZE mismatch");
 _Static_assert(PAGE_MASK == ARM_PAGE_MASK, "PAGE_MASK mismatch");
@@ -99,6 +102,9 @@ _Static_assert(L1_C_ADDR_MASK == ARM_L1_C_ADDR_MASK, "L1_C_ADDR_MASK mismatch");
 _Static_assert(L2_TYPE_INV == ARM_L2_TYPE_INV, "L2_TYPE_INV mismatch");
 _Static_assert(L2_TYPE_L == ARM_L2_TYPE_L, "L2_TYPE_L mismatch");
 _Static_assert(L2_TYPE_S == ARM_L2_TYPE_S, "L2_TYPE_S mismatch");
+#if __ARM_ARCH < 6
+_Static_assert(L2_TYPE_T == ARM_L2_TYPE_T, "L2_TYPE_T mismatch");
+#endif
 _Static_assert(L2_TYPE_MASK == ARM_L2_TYPE_MASK, "L2_TYPE_MASK mismatch");
 _Static_assert(L2_ADDR_BITS == ARM_L2_ADDR_BITS, "L2_ADDR_BITS mismatch");
 #endif
