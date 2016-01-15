@@ -1,7 +1,6 @@
-/*	$Id: manpath.h,v 1.7 2014/12/01 04:05:32 schwarze Exp $ */
+/*	$Id: mandoc_ohash.h,v 1.2 2015/11/07 14:01:16 schwarze Exp $	*/
 /*
- * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
- * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,20 +14,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#if HAVE_OHASH
+#include <ohash.h>
+#else
+#include "compat_ohash.h"
+#endif
 
-/*
- * Unsorted list of unique, absolute paths to be searched for manual
- * databases.
- */
-struct	manpaths {
-	size_t	  sz;
-	char	**paths;
-};
-
-__BEGIN_DECLS
-
-void	 manpath_manconf(struct manpaths *, const char *);
-void	 manpath_parse(struct manpaths *, const char *, char *, char *);
-void	 manpath_free(struct manpaths *);
-
-__END_DECLS
+void		  mandoc_ohash_init(struct ohash *, unsigned int, ptrdiff_t);
