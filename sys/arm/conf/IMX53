@@ -136,11 +136,3 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
-
-# NOTE: serial console will be disabled if syscons enabled
-# Uncomment following lines for framebuffer/syscons support
-#device		sc
-#device		vt
-#device		kbdmux
-#options 	SC_DFLT_FONT		# compile font in
-#makeoptions	SC_DFLT_FONT=cp437
