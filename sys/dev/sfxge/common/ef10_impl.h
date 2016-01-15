@@ -81,6 +81,11 @@ extern	__checkReturn	efx_rc_t
 ef10_get_datapath_caps(
 	__in		efx_nic_t *enp);
 
+extern	__checkReturn		efx_rc_t
+ef10_get_privilege_mask(
+	__in			efx_nic_t *enp,
+	__out			uint32_t *maskp);
+
 extern	__checkReturn	efx_rc_t
 ef10_external_port_mapping(
 	__in		efx_nic_t *enp,
