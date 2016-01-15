@@ -47,7 +47,7 @@ medford_board_cfg(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint8_t mac_addr[6] = { 0 };
 	uint32_t board_type = 0;
-	hunt_link_state_t hls;
+	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
 	uint32_t port;
 	uint32_t pf;
@@ -126,10 +126,10 @@ medford_board_cfg(
 		goto fail6;
 
 	/* Obtain the default PHY advertised capabilities */
-	if ((rc = hunt_phy_get_link(enp, &hls)) != 0)
+	if ((rc = hunt_phy_get_link(enp, &els)) != 0)
 		goto fail7;
-	epp->ep_default_adv_cap_mask = hls.hls_adv_cap_mask;
-	epp->ep_adv_cap_mask = hls.hls_adv_cap_mask;
+	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
+	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/*
