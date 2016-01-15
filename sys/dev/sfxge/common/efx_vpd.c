@@ -669,7 +669,7 @@ efx_vpd_hunk_next(
 	__in				size_t size,
 	__out				efx_vpd_tag_t *tagp,
 	__out				efx_vpd_keyword_t *keywordp,
-	__out_bcount_opt(*paylenp)	unsigned int *payloadp,
+	__out_opt			unsigned int *payloadp,
 	__out_opt			uint8_t *paylenp,
 	__inout				unsigned int *contp)
 {
@@ -689,12 +689,18 @@ efx_vpd_hunk_next(
 		if ((rc = efx_vpd_next_tag(data, size, &offset,
 		    &tag, &taglen)) != 0)
 			goto fail1;
-		if (tag == EFX_VPD_END)
+
+		if (tag == EFX_VPD_END) {
+			keyword = 0;
+			paylen = 0;
+			index = 0;
 			break;
+		}
 
 		if (tag == EFX_VPD_ID) {
-			if (index == *contp) {
+			if (index++ == *contp) {
 				EFSYS_ASSERT3U(taglen, <, 0x100);
+				keyword = 0;
 				paylen = (uint8_t)MIN(taglen, 0xff);
 
 				goto done;
@@ -705,7 +711,7 @@ efx_vpd_hunk_next(
 				    taglen, pos, &keyword, &keylen)) != 0)
 					goto fail2;
 
-				if (index == *contp) {
+				if (index++ == *contp) {
 					offset += pos + 3;
 					paylen = keylen;
 
@@ -717,9 +723,6 @@ efx_vpd_hunk_next(
 		offset += taglen;
 	}
 
-	*contp = 0;
-	return (0);
-
 done:
 	*tagp = tag;
 	*keywordp = keyword;
@@ -728,7 +731,7 @@ done:
 	if (paylenp != NULL)
 		*paylenp = paylen;
 
-	++(*contp);
+	*contp = index;
 	return (0);
 
 fail2:

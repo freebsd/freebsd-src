@@ -111,7 +111,7 @@
 #define	KERNBASE		0xc0000000	/* start of kernel virtual */
 
 #define	VM_MIN_KERNEL_ADDRESS	KERNBASE
-#define	VM_MAX_KERNEL_ADDRESS	0xf8000000
+#define	VM_MAX_KERNEL_ADDRESS	0xf7ffffff
 #define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 
 #endif /* AIM/E500 */
@@ -129,7 +129,7 @@ struct pmap_physseg {
  * The physical address space is densely populated on 32-bit systems,
  * but may not be on 64-bit ones.
  */
-#ifdef __powerpc64__
+#ifdef __powerpc__
 #define	VM_PHYSSEG_SPARSE
 #else
 #define	VM_PHYSSEG_DENSE

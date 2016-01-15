@@ -48,13 +48,20 @@ ef10_vpd_init(
 	caddr_t svpd;
 	size_t svpd_size;
 	uint32_t pci_pf;
+	uint32_t tag;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 		    enp->en_family == EFX_FAMILY_MEDFORD);
 
-	pci_pf = enp->en_nic_cfg.enc_pf;
+	if (enp->en_nic_cfg.enc_vpd_is_global) {
+		tag = TLV_TAG_GLOBAL_STATIC_VPD;
+	} else {
+		pci_pf = enp->en_nic_cfg.enc_pf;
+		tag = TLV_TAG_PF_STATIC_VPD(pci_pf);
+	}
+
 	/*
 	 * The VPD interface exposes VPD resources from the combined static and
 	 * dynamic VPD storage. As the static VPD configuration should *never*
@@ -64,8 +71,7 @@ ef10_vpd_init(
 	svpd_size = 0;
 	rc = ef10_nvram_partn_read_tlv(enp,
 	    NVRAM_PARTITION_TYPE_STATIC_CONFIG,
-	    TLV_TAG_PF_STATIC_VPD(pci_pf),
-	    &svpd, &svpd_size);
+	    tag, &svpd, &svpd_size);
 	if (rc != 0) {
 		if (rc == EACCES) {
 			/* Unpriviledged functions cannot access VPD */
@@ -132,17 +138,22 @@ ef10_vpd_read(
 	caddr_t dvpd;
 	size_t dvpd_size;
 	uint32_t pci_pf;
+	uint32_t tag;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 		    enp->en_family == EFX_FAMILY_MEDFORD);
 
-	pci_pf = enp->en_nic_cfg.enc_pf;
+	if (enp->en_nic_cfg.enc_vpd_is_global) {
+		tag = TLV_TAG_GLOBAL_DYNAMIC_VPD;
+	} else {
+		pci_pf = enp->en_nic_cfg.enc_pf;
+		tag = TLV_TAG_PF_DYNAMIC_VPD(pci_pf);
+	}
 
 	if ((rc = ef10_nvram_partn_read_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
-		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
-		    &dvpd, &dvpd_size)) != 0)
+		    tag, &dvpd, &dvpd_size)) != 0)
 		goto fail1;
 
 	if (dvpd_size > size) {
@@ -209,6 +220,13 @@ ef10_vpd_verify(
 			goto fail2;
 		if (dcont == 0)
 			break;
+
+		/*
+		 * Skip the RV keyword. It should be present in both the static
+		 * and dynamic cfg sectors.
+		 */
+		if (dtag == EFX_VPD_RO && dkey == EFX_VPD_KEYWORD('R', 'V'))
+			continue;
 
 		scont = 0;
 		_NOTE(CONSTANTCONDITION)
@@ -389,12 +407,18 @@ ef10_vpd_write(
 {
 	size_t vpd_length;
 	uint32_t pci_pf;
+	uint32_t tag;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 		    enp->en_family == EFX_FAMILY_MEDFORD);
 
-	pci_pf = enp->en_nic_cfg.enc_pf;
+	if (enp->en_nic_cfg.enc_vpd_is_global) {
+		tag = TLV_TAG_GLOBAL_DYNAMIC_VPD;
+	} else {
+		pci_pf = enp->en_nic_cfg.enc_pf;
+		tag = TLV_TAG_PF_DYNAMIC_VPD(pci_pf);
+	}
 
 	/* Determine total length of new dynamic VPD */
 	if ((rc = efx_vpd_hunk_length(data, size, &vpd_length)) != 0)
@@ -403,8 +427,7 @@ ef10_vpd_write(
 	/* Store new dynamic VPD in all segments in DYNAMIC_CONFIG partition */
 	if ((rc = ef10_nvram_partn_write_segment_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
-		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
-		    data, vpd_length, B_TRUE)) != 0) {
+		    tag, data, vpd_length, B_TRUE)) != 0) {
 		goto fail2;
 	}
 
