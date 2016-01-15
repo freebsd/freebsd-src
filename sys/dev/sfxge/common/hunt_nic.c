@@ -980,6 +980,42 @@ fail1:
 	return (rc);
 }
 
+
+	__checkReturn		efx_rc_t
+ef10_get_privilege_mask(
+	__in			efx_nic_t *enp,
+	__out			uint32_t *maskp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t mask;
+	efx_rc_t rc;
+
+	if ((rc = efx_mcdi_privilege_mask(enp, encp->enc_pf, encp->enc_vf,
+					    &mask)) != 0) {
+		if (rc != ENOTSUP)
+			goto fail1;
+
+		/* Fallback for old firmware without privilege mask support */
+		if (EFX_PCI_FUNCTION_IS_PF(encp)) {
+			/* Assume PF has admin privilege */
+			mask = EF10_LEGACY_PF_PRIVILEGE_MASK;
+		} else {
+			/* VF is always unprivileged by default */
+			mask = EF10_LEGACY_VF_PRIVILEGE_MASK;
+		}
+	}
+
+	*maskp = mask;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+
 /*
  * The external port mapping is a one-based numbering of the external
  * connectors on the board. It does not distinguish off-board separated
@@ -1312,20 +1348,8 @@ hunt_board_cfg(
 	 * the privilege mask to check for sufficient privileges, as that
 	 * can result in time-of-check/time-of-use bugs.
 	 */
-	if ((rc = efx_mcdi_privilege_mask(enp, pf, vf, &mask)) != 0) {
-		if (rc != ENOTSUP)
-			goto fail13;
-
-		/* Fallback for old firmware without privilege mask support */
-		if (EFX_PCI_FUNCTION_IS_PF(encp)) {
-			/* Assume PF has admin privilege */
-			mask = HUNT_LEGACY_PF_PRIVILEGE_MASK;
-		} else {
-			/* VF is always unprivileged by default */
-			mask = HUNT_LEGACY_VF_PRIVILEGE_MASK;
-		}
-	}
-
+	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
+		goto fail13;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
