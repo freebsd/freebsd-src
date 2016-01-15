@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
@@ -45,7 +46,6 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-struct devdesc currdev;		/* our current device */
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 EFI_GUID acpi = ACPI_TABLE_GUID;
@@ -61,14 +61,35 @@ EFI_GUID memtype = MEMORY_TYPE_INFORMATION_TABLE_GUID;
 EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 
+/*
+ * Need this because EFI uses UTF-16 unicode string constants, but we
+ * use UTF-8. We can't use printf due to the possiblity of \0 and we
+ * don't support support wide characters either.
+ */
+static void
+print_str16(const CHAR16 *str)
+{
+	int i;
+
+	for (i = 0; str[i]; i++)
+		printf("%c", (char)str[i]);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i, j, vargood;
+	int i, j, vargood, unit;
+	struct devsw *dev;
 	UINTN k;
+
+	archsw.arch_autoload = efi_autoload;
+	archsw.arch_getdev = efi_getdev;
+	archsw.arch_copyin = efi_copyin;
+	archsw.arch_copyout = efi_copyout;
+	archsw.arch_readin = efi_readin;
 
 	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
@@ -116,6 +137,13 @@ main(int argc, CHAR16 *argv[])
 	/* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
+	printf("Command line arguments:");
+	for (i = 0; i < argc; i++) {
+		printf(" ");
+		print_str16(argv[i]);
+	}
+	printf("\n");
+
 	printf("Image base: 0x%lx\n", (u_long)img->ImageBase);
 	printf("EFI version: %d.%02d\n", ST->Hdr.Revision >> 16,
 	    ST->Hdr.Revision & 0xffff);
@@ -129,9 +157,6 @@ main(int argc, CHAR16 *argv[])
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 
-	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev, &currdev.d_unit);
-	currdev.d_type = currdev.d_dev->dv_type;
-
 	/*
 	 * Disable the watchdog timer. By default the boot manager sets
 	 * the timer to 5 minutes before invoking a boot option. If we
@@ -143,18 +168,26 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-	    efi_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
-	    env_nounset);
+	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit) != 0)
+		return (EFI_NOT_FOUND);
+
+	switch (dev->dv_type) {
+	default: {
+		struct devdesc currdev;
+
+		currdev.d_dev = dev;
+		currdev.d_unit = unit;
+		currdev.d_opendata = NULL;
+		currdev.d_type = currdev.d_dev->dv_type;
+		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
+			   efi_setcurrdev, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
+			   env_nounset);
+		break;
+	}
+	}
 
 	setenv("LINES", "24", 1);	/* optional */
-
-	archsw.arch_autoload = efi_autoload;
-	archsw.arch_getdev = efi_getdev;
-	archsw.arch_copyin = efi_copyin;
-	archsw.arch_copyout = efi_copyout;
-	archsw.arch_readin = efi_readin;
 
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
