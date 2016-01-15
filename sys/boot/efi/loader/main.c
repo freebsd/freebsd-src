@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
@@ -38,6 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <smbios.h>
 
+#ifdef EFI_ZFS_BOOT
+#include <libzfs.h>
+#endif
+
 #include "loader_efi.h"
 
 extern char bootprog_name[];
@@ -45,7 +50,6 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-struct devdesc currdev;		/* our current device */
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 EFI_GUID acpi = ACPI_TABLE_GUID;
@@ -61,14 +65,44 @@ EFI_GUID memtype = MEMORY_TYPE_INFORMATION_TABLE_GUID;
 EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 
+#ifdef EFI_ZFS_BOOT
+static void efi_zfs_probe(void);
+#endif
+
+/*
+ * Need this because EFI uses UTF-16 unicode string constants, but we
+ * use UTF-8. We can't use printf due to the possiblity of \0 and we
+ * don't support support wide characters either.
+ */
+static void
+print_str16(const CHAR16 *str)
+{
+	int i;
+
+	for (i = 0; str[i]; i++)
+		printf("%c", (char)str[i]);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i, j, vargood;
+	int i, j, vargood, unit;
+	struct devsw *dev;
+	uint64_t pool_guid;
 	UINTN k;
+
+	archsw.arch_autoload = efi_autoload;
+	archsw.arch_getdev = efi_getdev;
+	archsw.arch_copyin = efi_copyin;
+	archsw.arch_copyout = efi_copyout;
+	archsw.arch_readin = efi_readin;
+#ifdef EFI_ZFS_BOOT
+	/* Note this needs to be set before ZFS init. */
+	archsw.arch_zfs_probe = efi_zfs_probe;
+#endif
 
 	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
@@ -116,6 +150,13 @@ main(int argc, CHAR16 *argv[])
 	/* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
+	printf("Command line arguments:");
+	for (i = 0; i < argc; i++) {
+		printf(" ");
+		print_str16(argv[i]);
+	}
+	printf("\n");
+
 	printf("Image base: 0x%lx\n", (u_long)img->ImageBase);
 	printf("EFI version: %d.%02d\n", ST->Hdr.Revision >> 16,
 	    ST->Hdr.Revision & 0xffff);
@@ -129,9 +170,6 @@ main(int argc, CHAR16 *argv[])
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 
-	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev, &currdev.d_unit);
-	currdev.d_type = currdev.d_dev->dv_type;
-
 	/*
 	 * Disable the watchdog timer. By default the boot manager sets
 	 * the timer to 5 minutes before invoking a boot option. If we
@@ -143,18 +181,44 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-	    efi_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
-	    env_nounset);
+	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit, &pool_guid) != 0)
+		return (EFI_NOT_FOUND);
+
+	switch (dev->dv_type) {
+#ifdef EFI_ZFS_BOOT
+	case DEVT_ZFS: {
+		struct zfs_devdesc currdev;
+
+		currdev.d_dev = dev;
+		currdev.d_unit = unit;
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_opendata = NULL;
+		currdev.pool_guid = pool_guid;
+		currdev.root_guid = 0;
+		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
+			   efi_setcurrdev, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
+			   env_nounset);
+		init_zfs_bootenv(zfs_fmtdev(&currdev));
+		break;
+	}
+#endif
+	default: {
+		struct devdesc currdev;
+
+		currdev.d_dev = dev;
+		currdev.d_unit = unit;
+		currdev.d_opendata = NULL;
+		currdev.d_type = currdev.d_dev->dv_type;
+		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
+			   efi_setcurrdev, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
+			   env_nounset);
+		break;
+	}
+	}
 
 	setenv("LINES", "24", 1);	/* optional */
-
-	archsw.arch_autoload = efi_autoload;
-	archsw.arch_getdev = efi_getdev;
-	archsw.arch_copyin = efi_copyin;
-	archsw.arch_copyout = efi_copyout;
-	archsw.arch_readin = efi_readin;
 
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
@@ -423,6 +487,61 @@ command_nvram(int argc, char *argv[])
 	return (CMD_OK);
 }
 
+#ifdef EFI_ZFS_BOOT
+COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
+    command_lszfs);
+
+static int
+command_lszfs(int argc, char *argv[])
+{
+	int err;
+
+	if (argc != 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	err = zfs_list(argv[1]);
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+	return (CMD_OK);
+}
+
+COMMAND_SET(reloadbe, "reloadbe", "refresh the list of ZFS Boot Environments",
+	    command_reloadbe);
+
+static int
+command_reloadbe(int argc, char *argv[])
+{
+	int err;
+	char *root;
+
+	if (argc > 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	if (argc == 2) {
+		err = zfs_bootenv(argv[1]);
+	} else {
+		root = getenv("zfs_be_root");
+		if (root == NULL) {
+			return (CMD_OK);
+		}
+		err = zfs_bootenv(root);
+	}
+
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+
+	return (CMD_OK);
+}
+#endif
+
 #ifdef LOADER_FDT_SUPPORT
 extern int command_fdt_internal(int argc, char *argv[]);
 
@@ -440,4 +559,24 @@ command_fdt(int argc, char *argv[])
 }
 
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
+#endif
+
+#ifdef EFI_ZFS_BOOT
+static void
+efi_zfs_probe(void)
+{
+	EFI_HANDLE h;
+	u_int unit;
+	int i;
+	char dname[SPECNAMELEN + 1];
+	uint64_t guid;
+
+	unit = 0;
+	h = efi_find_handle(&efipart_dev, 0);
+	for (i = 0; h != NULL; h = efi_find_handle(&efipart_dev, ++i)) {
+		snprintf(dname, sizeof(dname), "%s%d:", efipart_dev.dv_name, i);
+		if (zfs_probe_dev(dname, &guid) == 0)
+			(void)efi_handle_update_dev(h, &zfs_dev, unit++, guid);
+	}
+}
 #endif

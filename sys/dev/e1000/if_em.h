@@ -473,13 +473,12 @@ struct adapter {
 
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
-	unsigned long	mbuf_alloc_failed;
-	unsigned long	mbuf_cluster_failed;
+	unsigned long	link_irq;
+	unsigned long	mbuf_defrag_failed;
+	unsigned long	no_tx_dma_setup;
 	unsigned long	no_tx_map_avail;
-        unsigned long	no_tx_dma_setup;
 	unsigned long	rx_overruns;
 	unsigned long	watchdog_events;
-	unsigned long	link_irq;
 
 	struct e1000_hw_stats stats;
 };

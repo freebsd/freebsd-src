@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 		base = leaf;						\
 		path_init(&path);					\
 	}								\
-	result = &(*leaf)->key;						\
 	path_taking_right(&path);					\
 	leaf = &(*leaf)->rlink;						\
 } while (0)

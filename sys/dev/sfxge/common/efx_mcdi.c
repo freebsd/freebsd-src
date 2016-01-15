@@ -36,13 +36,32 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_MCDI
 
+/*
+ * There are three versions of the MCDI interface:
+ *  - MCDIv0: Siena BootROM. Transport uses MCDIv1 headers.
+ *  - MCDIv1: Siena firmware and Huntington BootROM.
+ *  - MCDIv2: EF10 firmware (Huntington/Medford) and Medford BootROM.
+ *            Transport uses MCDIv2 headers.
+ *
+ * MCDIv2 Header NOT_EPOCH flag
+ * ----------------------------
+ * A new epoch begins at initial startup or after an MC reboot, and defines when
+ * the MC should reject stale MCDI requests.
+ *
+ * The first MCDI request sent by the host should contain NOT_EPOCH=0, and all
+ * subsequent requests (until the next MC reboot) should contain NOT_EPOCH=1.
+ *
+ * After rebooting the MC will fail all requests with NOT_EPOCH=1 by writing a
+ * response with ERROR=1 and DATALEN=0 until a request is seen with NOT_EPOCH=0.
+ */
+
+
 
 #if EFSYS_OPT_SIENA
 
 static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_init,		/* emco_init */
-	siena_mcdi_request_copyin,	/* emco_request_copyin */
-	siena_mcdi_request_copyout,	/* emco_request_copyout */
+	siena_mcdi_send_request,	/* emco_send_request */
 	siena_mcdi_poll_reboot,		/* emco_poll_reboot */
 	siena_mcdi_poll_response,	/* emco_poll_response */
 	siena_mcdi_read_response,	/* emco_read_response */
@@ -56,8 +75,7 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 
 static efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 	ef10_mcdi_init,			/* emco_init */
-	ef10_mcdi_request_copyin,	/* emco_request_copyin */
-	ef10_mcdi_request_copyout,	/* emco_request_copyout */
+	ef10_mcdi_send_request,		/* emco_send_request */
 	ef10_mcdi_poll_reboot,		/* emco_poll_reboot */
 	ef10_mcdi_poll_response,	/* emco_poll_response */
 	ef10_mcdi_read_response,	/* emco_read_response */
@@ -179,26 +197,16 @@ efx_mcdi_new_epoch(
 }
 
 static			void
-efx_mcdi_request_copyin(
+efx_mcdi_send_request(
 	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp,
-	__in		unsigned int seq,
-	__in		boolean_t ev_cpl,
-	__in		boolean_t new_epoch)
+	__in		void *hdrp,
+	__in		size_t hdr_len,
+	__in		void *sdup,
+	__in		size_t sdu_len)
 {
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 
-	emcop->emco_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
-}
-
-static			void
-efx_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp)
-{
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
-
-	emcop->emco_request_copyout(enp, emrp);
+	emcop->emco_send_request(enp, hdrp, hdr_len, sdup, sdu_len);
 }
 
 static			efx_rc_t
@@ -241,8 +249,15 @@ efx_mcdi_request_start(
 	__in		efx_mcdi_req_t *emrp,
 	__in		boolean_t ev_cpl)
 {
+#if EFSYS_OPT_MCDI_LOGGING
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+#endif
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	efx_dword_t hdr[2];
+	size_t hdr_len;
+	unsigned int max_version;
 	unsigned int seq;
+	unsigned int xflags;
 	boolean_t new_epoch;
 	int state;
 
@@ -269,13 +284,64 @@ efx_mcdi_request_start(
 	emip->emi_poll_cnt = 0;
 	seq = emip->emi_seq++ & EFX_MASK32(MCDI_HEADER_SEQ);
 	new_epoch = emip->emi_new_epoch;
+	max_version = emip->emi_max_version;
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	efx_mcdi_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
+	xflags = 0;
+	if (ev_cpl)
+		xflags |= MCDI_HEADER_XFLAGS_EVREQ;
+
+	/*
+	 * Huntington firmware supports MCDIv2, but the Huntington BootROM only
+	 * supports MCDIv1. Use MCDIv1 headers for MCDIv1 commands where
+	 * possible to support this.
+	 */
+	if ((max_version >= 2) &&
+	    ((emrp->emr_cmd > MC_CMD_CMD_SPACE_ESCAPE_7) ||
+	    (emrp->emr_in_length > MCDI_CTL_SDU_LEN_MAX_V1))) {
+		/* Construct MCDI v2 header */
+		hdr_len = sizeof (hdr);
+		EFX_POPULATE_DWORD_8(hdr[0],
+		    MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
+		    MCDI_HEADER_RESYNC, 1,
+		    MCDI_HEADER_DATALEN, 0,
+		    MCDI_HEADER_SEQ, seq,
+		    MCDI_HEADER_NOT_EPOCH, new_epoch ? 0 : 1,
+		    MCDI_HEADER_ERROR, 0,
+		    MCDI_HEADER_RESPONSE, 0,
+		    MCDI_HEADER_XFLAGS, xflags);
+
+		EFX_POPULATE_DWORD_2(hdr[1],
+		    MC_CMD_V2_EXTN_IN_EXTENDED_CMD, emrp->emr_cmd,
+		    MC_CMD_V2_EXTN_IN_ACTUAL_LEN, emrp->emr_in_length);
+	} else {
+		/* Construct MCDI v1 header */
+		hdr_len = sizeof (hdr[0]);
+		EFX_POPULATE_DWORD_8(hdr[0],
+		    MCDI_HEADER_CODE, emrp->emr_cmd,
+		    MCDI_HEADER_RESYNC, 1,
+		    MCDI_HEADER_DATALEN, emrp->emr_in_length,
+		    MCDI_HEADER_SEQ, seq,
+		    MCDI_HEADER_NOT_EPOCH, new_epoch ? 0 : 1,
+		    MCDI_HEADER_ERROR, 0,
+		    MCDI_HEADER_RESPONSE, 0,
+		    MCDI_HEADER_XFLAGS, xflags);
+	}
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
+		    &hdr, hdr_len,
+		    emrp->emr_in_buf, emrp->emr_in_length);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+
+	efx_mcdi_send_request(enp, &hdr[0], hdr_len,
+	    emrp->emr_in_buf, emrp->emr_in_length);
 }
 
 
-			void
+static			void
 efx_mcdi_read_response_header(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp)
@@ -384,17 +450,54 @@ efx_mcdi_read_response_header(
 	return;
 
 fail3:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail3);
 fail2:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail2);
 fail1:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
 	emrp->emr_rc = rc;
 	emrp->emr_out_length_used = 0;
+}
+
+static			void
+efx_mcdi_finish_response(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp)
+{
+#if EFSYS_OPT_MCDI_LOGGING
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+	efx_dword_t hdr[2];
+	unsigned int hdr_len;
+	size_t bytes;
+
+	if (emrp->emr_out_buf == NULL)
+		return;
+
+	/* Read the command header to detect MCDI response format */
+	hdr_len = sizeof (hdr[0]);
+	efx_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
+		/*
+		 * Read the actual payload length. The length given in the event
+		 * is only correct for responses with the V1 format.
+		 */
+		efx_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
+		hdr_len += sizeof (hdr[1]);
+
+		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
+					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
+	}
+
+	/* Copy payload out into caller supplied buffer */
+	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
+	efx_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context,
+		    EFX_LOG_MCDI_RESPONSE,
+		    &hdr, hdr_len,
+		    emrp->emr_out_buf, bytes);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 }
 
 
@@ -444,7 +547,7 @@ efx_mcdi_request_poll(
 	if ((rc = emrp->emr_rc) != 0)
 		goto fail2;
 
-	efx_mcdi_request_copyout(enp, emrp);
+	efx_mcdi_finish_response(enp, emrp);
 	return (B_TRUE);
 
 fail2:
@@ -638,7 +741,6 @@ efx_mcdi_ev_cpl(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_mcdi_req_t *emrp;
 	int state;
 
@@ -680,7 +782,7 @@ efx_mcdi_ev_cpl(
 		}
 	}
 	if (errcode == 0) {
-		emcop->emco_request_copyout(enp, emrp);
+		efx_mcdi_finish_response(enp, emrp);
 	}
 
 	emtp->emt_ev_cpl(emtp->emt_context);

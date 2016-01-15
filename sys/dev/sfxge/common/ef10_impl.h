@@ -45,6 +45,52 @@ extern "C" {
 #define	EF10_MAX_PIOBUF_NBUFS	MEDFORD_PIOBUF_NBUFS
 #endif
 
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_port_assignment(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *portp);
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_port_modes(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *modesp);
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_mac_address_pf(
+	__in			efx_nic_t *enp,
+	__out_ecount_opt(6)	uint8_t mac_addrp[6]);
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_mac_address_vf(
+	__in			efx_nic_t *enp,
+	__out_ecount_opt(6)	uint8_t mac_addrp[6]);
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_clock(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *sys_freqp);
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_vector_cfg(
+	__in		efx_nic_t *enp,
+	__out_opt	uint32_t *vec_basep,
+	__out_opt	uint32_t *pf_nvecp,
+	__out_opt	uint32_t *vf_nvecp);
+
+extern	__checkReturn	efx_rc_t
+ef10_get_datapath_caps(
+	__in		efx_nic_t *enp);
+
+extern	__checkReturn		efx_rc_t
+ef10_get_privilege_mask(
+	__in			efx_nic_t *enp,
+	__out			uint32_t *maskp);
+
+extern	__checkReturn	efx_rc_t
+ef10_external_port_mapping(
+	__in		efx_nic_t *enp,
+	__in		uint32_t port,
+	__out		uint8_t *external_portp);
 
 
 #ifdef	__cplusplus

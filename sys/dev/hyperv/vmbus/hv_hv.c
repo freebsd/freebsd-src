@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/timetc.h>
 #include <machine/bus.h>
+#include <machine/md_var.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -44,22 +45,10 @@ __FBSDID("$FreeBSD$");
 
 #include "hv_vmbus_priv.h"
 
-#define HV_X64_MSR_GUEST_OS_ID		0x40000000
-
-#define HV_X64_CPUID_MIN		0x40000005
-#define HV_X64_CPUID_MAX		0x4000ffff
-#define HV_X64_MSR_TIME_REF_COUNT	0x40000020
-
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
 
 static u_int hv_get_timecount(struct timecounter *tc);
-
-static inline void do_cpuid_inline(unsigned int op, unsigned int *eax,
-	unsigned int *ebx, unsigned int *ecx, unsigned int *edx) {
-	__asm__ __volatile__("cpuid" : "=a" (*eax), "=b" (*ebx), "=c" (*ecx),
-			     "=d" (*edx) : "0" (op), "c" (ecx));
-}
 
 /**
  * Globals
@@ -86,27 +75,10 @@ hv_get_timecount(struct timecounter *tc)
 int
 hv_vmbus_query_hypervisor_presence(void) 
 {
-	u_int regs[4];
-	int hyper_v_detected = 0;
-
-	/*
-	 * When Xen is detected and native Xen PV support is enabled,
-	 * ignore Xen's HyperV emulation.
-	 */
-	if (vm_guest == VM_GUEST_XEN)
+	if (vm_guest != VM_GUEST_HV)
 		return (0);
 
-	do_cpuid(1, regs);
-	if (regs[2] & 0x80000000) { /* if(a hypervisor is detected) */
-		/* make sure this really is Hyper-V */
-		/* we look at the CPUID info */
-		do_cpuid(HV_X64_MSR_GUEST_OS_ID, regs);
-		hyper_v_detected =
-				regs[0] >= HV_X64_CPUID_MIN &&
-				regs[0] <= HV_X64_CPUID_MAX &&
-				!memcmp("Microsoft Hv", &regs[1], 12);
-	}
-	return (hyper_v_detected);
+	return (hv_high >= HV_X64_CPUID_MIN && hv_high <= HV_X64_CPUID_MAX);
 }
 
 /**
@@ -115,10 +87,7 @@ hv_vmbus_query_hypervisor_presence(void)
 static int
 hv_vmbus_get_hypervisor_version(void) 
 {
-	unsigned int eax;
-	unsigned int ebx;
-	unsigned int ecx;
-	unsigned int edx;
+	u_int regs[4];
 	unsigned int maxLeaf;
 	unsigned int op;
 
@@ -127,28 +96,16 @@ hv_vmbus_get_hypervisor_version(void)
 	 * Viridian is present
 	 * Query id and revision.
 	 */
-	eax = 0;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
 	op = HV_CPU_ID_FUNCTION_HV_VENDOR_AND_MAX_FUNCTION;
-	do_cpuid_inline(op, &eax, &ebx, &ecx, &edx);
+	do_cpuid(op, regs);
 
-	maxLeaf = eax;
-	eax = 0;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
+	maxLeaf = regs[0];
 	op = HV_CPU_ID_FUNCTION_HV_INTERFACE;
-	do_cpuid_inline(op, &eax, &ebx, &ecx, &edx);
+	do_cpuid(op, regs);
 
 	if (maxLeaf >= HV_CPU_ID_FUNCTION_MS_HV_VERSION) {
-	    eax = 0;
-	    ebx = 0;
-	    ecx = 0;
-	    edx = 0;
 	    op = HV_CPU_ID_FUNCTION_MS_HV_VERSION;
-	    do_cpuid_inline(op, &eax, &ebx, &ecx, &edx);
+	    do_cpuid(op, regs);
 	}
 	return (maxLeaf);
 }
@@ -255,6 +212,8 @@ hv_vmbus_init(void)
 	hv_vmbus_g_context.hypercall_page = virt_addr;
 
 	tc_init(&hv_timecounter); /* register virtual timecount */
+
+	hv_et_init();
 	
 	return (0);
 

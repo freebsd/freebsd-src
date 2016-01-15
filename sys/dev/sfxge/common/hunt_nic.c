@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ef10_tlv_layout.h"
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_port_assignment(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *portp)
@@ -85,7 +85,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_port_modes(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *modesp)
@@ -112,7 +112,10 @@ efx_mcdi_get_port_modes(
 		goto fail1;
 	}
 
-	/* Accept pre-Medford size (8 bytes - no CurrentMode field) */
+	/*
+	 * Require only Modes and DefaultMode fields.
+	 * (CurrentMode field was added for Medford)
+	 */
 	if (req.emr_out_length_used <
 	    MC_CMD_GET_PORT_MODES_OUT_CURRENT_MODE_OFST) {
 		rc = EMSGSIZE;
@@ -205,7 +208,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_mac_address_pf(
 	__in			efx_nic_t *enp,
 	__out_ecount_opt(6)	uint8_t mac_addrp[6])
@@ -263,7 +266,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_mac_address_vf(
 	__in			efx_nic_t *enp,
 	__out_ecount_opt(6)	uint8_t mac_addrp[6])
@@ -326,7 +329,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_clock(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *sys_freqp)
@@ -376,7 +379,7 @@ fail1:
 	return (rc);
 }
 
-static 	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 efx_mcdi_get_vector_cfg(
 	__in		efx_nic_t *enp,
 	__out_opt	uint32_t *vec_basep,
@@ -427,8 +430,8 @@ fail1:
 static	__checkReturn	efx_rc_t
 efx_mcdi_get_capabilities(
 	__in		efx_nic_t *enp,
-	__out		efx_dword_t *flagsp,
-	__out		efx_dword_t *flags2p)
+	__out		uint32_t *flagsp,
+	__out		uint32_t *flags2p)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
@@ -454,13 +457,12 @@ efx_mcdi_get_capabilities(
 		goto fail2;
 	}
 
-	*flagsp = *MCDI_OUT2(req, efx_dword_t, GET_CAPABILITIES_OUT_FLAGS1);
+	*flagsp = MCDI_OUT_DWORD(req, GET_CAPABILITIES_OUT_FLAGS1);
 
 	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
-		EFX_ZERO_DWORD(*flags2p);
+		*flags2p = 0;
 	else
-		*flags2p = *MCDI_OUT2(req, efx_dword_t,
-		    GET_CAPABILITIES_V2_OUT_FLAGS2);
+		*flags2p = MCDI_OUT_DWORD(req, GET_CAPABILITIES_V2_OUT_FLAGS2);
 
 	return (0);
 
@@ -889,76 +891,68 @@ ef10_nic_pio_unlink(
 	return (efx_mcdi_unlink_piobuf(enp, vi_index));
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	efx_dword_t datapath_capabilities;
-	efx_dword_t datapath_capabilities_v2;
+	uint32_t flags;
+	uint32_t flags2;
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_capabilities(enp, &datapath_capabilities,
-					    &datapath_capabilities_v2)) != 0)
+	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2)) != 0)
 		goto fail1;
+
+#define	CAP_FLAG(flags1, field)		\
+	((flags1) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
+
+#define	CAP_FLAG2(flags2, field)	\
+	((flags2) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
 
 	/*
 	 * Huntington RXDP firmware inserts a 0 or 14 byte prefix.
 	 * We only support the 14 byte prefix here.
 	 */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-		GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14) != 1) {
+	if (CAP_FLAG(flags, RX_PREFIX_LEN_14) == 0) {
 		rc = ENOTSUP;
 		goto fail2;
 	}
 	encp->enc_rx_prefix_size = 14;
 
 	/* Check if the firmware supports TSO */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_TX_TSO) == 1)
-		encp->enc_fw_assisted_tso_enabled = B_TRUE;
-	else
-		encp->enc_fw_assisted_tso_enabled = B_FALSE;
+	encp->enc_fw_assisted_tso_enabled =
+	    CAP_FLAG(flags, TX_TSO) ? B_TRUE : B_FALSE;
+
+	/* Check if the firmware supports FATSOv2 */
+	encp->enc_fw_assisted_tso_v2_enabled =
+	    CAP_FLAG2(flags2, TX_TSO_V2) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware has vadapter/vport/vswitch support */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_EVB) == 1)
-		encp->enc_datapath_cap_evb = B_TRUE;
-	else
-		encp->enc_datapath_cap_evb = B_FALSE;
+	encp->enc_datapath_cap_evb =
+	    CAP_FLAG(flags, EVB) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports VLAN insertion */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-				GET_CAPABILITIES_OUT_TX_VLAN_INSERTION) == 1)
-		encp->enc_hw_tx_insert_vlan_enabled = B_TRUE;
-	else
-		encp->enc_hw_tx_insert_vlan_enabled = B_FALSE;
+	encp->enc_hw_tx_insert_vlan_enabled =
+	    CAP_FLAG(flags, TX_VLAN_INSERTION) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports RX event batching */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-		GET_CAPABILITIES_OUT_RX_BATCHING) == 1) {
-		encp->enc_rx_batching_enabled = B_TRUE;
+	encp->enc_rx_batching_enabled =
+	    CAP_FLAG(flags, RX_BATCHING) ? B_TRUE : B_FALSE;
+
+	if (encp->enc_rx_batching_enabled)
 		encp->enc_rx_batch_max = 16;
-	} else {
-		encp->enc_rx_batching_enabled = B_FALSE;
-	}
 
 	/* Check if the firmware supports disabling scatter on RXQs */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-			    GET_CAPABILITIES_OUT_RX_DISABLE_SCATTER) == 1) {
-		encp->enc_rx_disable_scatter_supported = B_TRUE;
-	} else {
-		encp->enc_rx_disable_scatter_supported = B_FALSE;
-	}
+	encp->enc_rx_disable_scatter_supported =
+	    CAP_FLAG(flags, RX_DISABLE_SCATTER) ? B_TRUE : B_FALSE;
 
 	/* Check if the firmware supports set mac with running filters */
-	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
-	    GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED)
-	    == 1) {
-		encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
-	} else {
-		encp->enc_allow_set_mac_with_installed_filters = B_FALSE;
-	}
+	encp->enc_allow_set_mac_with_installed_filters =
+	    CAP_FLAG(flags, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED) ?
+	    B_TRUE : B_FALSE;
+
+#undef CAP_FLAG
+#undef CAP_FLAG2
 
 	return (0);
 
@@ -969,6 +963,42 @@ fail1:
 
 	return (rc);
 }
+
+
+	__checkReturn		efx_rc_t
+ef10_get_privilege_mask(
+	__in			efx_nic_t *enp,
+	__out			uint32_t *maskp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t mask;
+	efx_rc_t rc;
+
+	if ((rc = efx_mcdi_privilege_mask(enp, encp->enc_pf, encp->enc_vf,
+					    &mask)) != 0) {
+		if (rc != ENOTSUP)
+			goto fail1;
+
+		/* Fallback for old firmware without privilege mask support */
+		if (EFX_PCI_FUNCTION_IS_PF(encp)) {
+			/* Assume PF has admin privilege */
+			mask = EF10_LEGACY_PF_PRIVILEGE_MASK;
+		} else {
+			/* VF is always unprivileged by default */
+			mask = EF10_LEGACY_VF_PRIVILEGE_MASK;
+		}
+	}
+
+	*maskp = mask;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 
 /*
  * The external port mapping is a one-based numbering of the external
@@ -992,6 +1022,13 @@ static struct {
 		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
 		1
 	},
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_10G) |
+		(1 << TLV_PORT_MODE_10G_10G) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
+		1
+	},
 	/* Supported modes requiring 2 outputs per port */
 	{
 		EFX_FAMILY_HUNTINGTON,
@@ -1000,18 +1037,25 @@ static struct {
 		(1 << TLV_PORT_MODE_40G_10G_10G) |
 		(1 << TLV_PORT_MODE_10G_10G_40G),
 		2
-	}
-	/*
-	 * NOTE: Medford modes will require 4 outputs per port:
-	 *	TLV_PORT_MODE_10G_10G_10G_10G_Q
-	 *	TLV_PORT_MODE_10G_10G_10G_10G_Q2
-	 * The Q2 mode routes outputs to external port 2. Support for this
-	 * will require a new field specifying the number to add after
-	 * scaling by stride. This is fixed at 1 currently.
-	 */
+	},
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_40G) |
+		(1 << TLV_PORT_MODE_40G_40G) |
+		(1 << TLV_PORT_MODE_40G_10G_10G) |
+		(1 << TLV_PORT_MODE_10G_10G_40G),
+		2
+	},
+	/* Supported modes requiring 4 outputs per port */
+	{
+		EFX_FAMILY_MEDFORD,
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q) |
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q2),
+		4
+	},
 };
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 ef10_external_port_mapping(
 	__in		efx_nic_t *enp,
 	__in		uint32_t port,
@@ -1064,7 +1108,7 @@ fail1:
 	return (rc);
 }
 
-static	__checkReturn	efx_rc_t
+	__checkReturn	efx_rc_t
 hunt_board_cfg(
 	__in		efx_nic_t *enp)
 {
@@ -1072,7 +1116,7 @@ hunt_board_cfg(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint8_t mac_addr[6];
 	uint32_t board_type = 0;
-	hunt_link_state_t hls;
+	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
 	uint32_t port;
 	uint32_t pf;
@@ -1146,10 +1190,10 @@ hunt_board_cfg(
 		goto fail6;
 
 	/* Obtain the default PHY advertised capabilities */
-	if ((rc = hunt_phy_get_link(enp, &hls)) != 0)
+	if ((rc = hunt_phy_get_link(enp, &els)) != 0)
 		goto fail7;
-	epp->ep_default_adv_cap_mask = hls.hls_adv_cap_mask;
-	epp->ep_adv_cap_mask = hls.hls_adv_cap_mask;
+	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
+	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
 	/*
 	 * Enable firmware workarounds for hardware errata.
@@ -1288,20 +1332,8 @@ hunt_board_cfg(
 	 * the privilege mask to check for sufficient privileges, as that
 	 * can result in time-of-check/time-of-use bugs.
 	 */
-	if ((rc = efx_mcdi_privilege_mask(enp, pf, vf, &mask)) != 0) {
-		if (rc != ENOTSUP)
-			goto fail13;
-
-		/* Fallback for old firmware without privilege mask support */
-		if (EFX_PCI_FUNCTION_IS_PF(encp)) {
-			/* Assume PF has admin privilege */
-			mask = HUNT_LEGACY_PF_PRIVILEGE_MASK;
-		} else {
-			/* VF is always unprivileged by default */
-			mask = HUNT_LEGACY_VF_PRIVILEGE_MASK;
-		}
-	}
-
+	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
+		goto fail13;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
@@ -1320,7 +1352,7 @@ hunt_board_cfg(
 	 * Maximum number of bytes into the frame the TCP header can start for
 	 * firmware assisted TSO to work.
 	 */
-	encp->enc_tx_tso_tcp_header_offset_limit = 208;
+	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
 	return (0);
 
@@ -1361,6 +1393,7 @@ fail1:
 ef10_nic_probe(
 	__in		efx_nic_t *enp)
 {
+	efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
 	efx_rc_t rc;
@@ -1380,7 +1413,7 @@ ef10_nic_probe(
 	if ((rc = efx_mcdi_drv_attach(enp, B_TRUE)) != 0)
 		goto fail3;
 
-	if ((rc = hunt_board_cfg(enp)) != 0)
+	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
 			goto fail4;
 

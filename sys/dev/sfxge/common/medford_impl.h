@@ -37,7 +37,29 @@
 extern "C" {
 #endif
 
+/* Alignment requirement for value written to RX WPTR:
+ *  the WPTR must be aligned to an 8 descriptor boundary
+ *
+ * FIXME: Is this the same on Medford as Huntington?
+ */
+#define	MEDFORD_RX_WPTR_ALIGN	8
+
+
+
+#ifndef	ER_EZ_TX_PIOBUF_SIZE
+#define	ER_EZ_TX_PIOBUF_SIZE	4096
+#endif
+
+
 #define	MEDFORD_PIOBUF_NBUFS	(16)
+#define	MEDFORD_PIOBUF_SIZE	(ER_EZ_TX_PIOBUF_SIZE)
+
+#define	MEDFORD_MIN_PIO_ALLOC_SIZE	(MEDFORD_PIOBUF_SIZE / 32)
+
+
+extern	__checkReturn	efx_rc_t
+medford_board_cfg(
+	__in		efx_nic_t *enp);
 
 
 #ifdef	__cplusplus

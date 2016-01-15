@@ -829,6 +829,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	u_int32_t lease;
 	static u_int32_t rev = 0;
 	struct nfsclds *dsp, *ndsp, *tdsp;
+	struct in6_addr a6;
 
 	if (nfsboottime.tv_sec == 0)
 		NFSSETBOOTTIME(nfsboottime);
@@ -889,7 +890,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	*tl = txdr_unsigned(NFS_CALLBCKPROG);
 	callblen = strlen(nfsv4_callbackaddr);
 	if (callblen == 0)
-		cp = nfscl_getmyip(nmp, &isinet6);
+		cp = nfscl_getmyip(nmp, &a6, &isinet6);
 	if (nfscl_enablecallb && nfs_numnfscbd > 0 &&
 	    (callblen > 0 || cp != NULL)) {
 		port = htons(nfsv4_cbport);

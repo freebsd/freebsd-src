@@ -1,5 +1,6 @@
 /*-
- * Copyright (c)1999 Citrus Project,
+ * Copyright (c) 2005 Peter Grehan.
+ * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,35 +24,54 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	citrus Id: wcsncat.c,v 1.1 1999/12/29 21:47:45 tshiozak Exp
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: wcsncat.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
-#endif /* LIBC_SCCS and not lint */
-#endif
-__FBSDID("$FreeBSD$");
+#include <sys/types.h>
+#include <machine/elf.h>
 
-#include <wchar.h>
+#include <err.h>
+#include <errno.h>
+#include <string.h>
 
-wchar_t *
-wcsncat(wchar_t * __restrict s1, const wchar_t * __restrict s2, size_t n)
+#include "ef.h"
+
+#include <stdio.h>
+
+/*
+ * Apply relocations to the values obtained from the file. `relbase' is the
+ * target relocation address of the section, and `dataoff/len' is the region
+ * that is to be relocated, and has been copied to *dest
+ */
+int
+ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
+    Elf_Off dataoff, size_t len, void *dest)
 {
-	wchar_t *p;
-	wchar_t *q;
-	const wchar_t *r;
+        Elf_Addr *where, addend;
+        Elf_Size rtype, symidx;
+        const Elf_Rela *rela;
 
-	p = s1;
-	while (*p)
-		p++;
-	q = p;
-	r = s2;
-	while (n && *r) {
-		*q++ = *r++;
-		n--;
+	if (reltype != EF_RELOC_RELA)
+		return (EINVAL);
+
+	rela = (const Elf_Rela *)reldata;
+	where = (Elf_Addr *) ((Elf_Off)dest - dataoff + rela->r_offset);
+	addend = rela->r_addend;
+	rtype = ELF_R_TYPE(rela->r_info);
+	symidx = ELF_R_SYM(rela->r_info);
+
+	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+                return (0);
+
+	switch(rtype) {
+	case R_AARCH64_RELATIVE:
+		*where = relbase + addend;
+		break;
+	case R_AARCH64_ABS64:
+		break;
+	default:
+		warnx("unhandled relocation type %lu", rtype);
+		break;
 	}
-	*q = '\0';
-	return s1;
+	return (0);
 }

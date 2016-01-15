@@ -88,11 +88,6 @@ efx_mcdi_execute_quiet(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp);
 
- extern			void
-efx_mcdi_read_response_header(
-	__in		efx_nic_t *enp,
-	__inout		efx_mcdi_req_t *emrp);
-
 extern			void
 efx_mcdi_ev_cpl(
 	__in		efx_nic_t *enp,

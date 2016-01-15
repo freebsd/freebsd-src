@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2015
+.Dd January 14, 2016
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1435,6 +1435,47 @@ The NMI allows one to break into the debugger on a wedged machine to
 diagnose problems.
 Other bus' bridge chipsets may be able to generate NMI using bus specific
 methods.
+There are many PCI and PCIe add-in cards which can generate NMI for
+debugging.
+Modern systems typically use IPMI to generate signals to enter the
+debugger.
+The
+.Dv devel/ipmitool
+port can be used to send the
+.Cd chassis power diag
+command which delivers an NMI to the processor.
+.Pp
+For serial consoles, you can break to the debugger by sending a BREAK
+condition on the serial line if
+.Cd options BREAK_TO_DEBUGGER
+is specified in the kernel.
+Most terminal emulation programs can send a break sequence with a
+special key sequence or via a menu item.
+However, in some setups, sending the break can be difficult to arrange
+or happens spuriously, so if the kernel contains
+.Cd options ALT_BREAK_TO_DEBUGGER
+then the sequence of CR TILDE CTRL-B enters the debugger;
+CR TILDE CTRL-P causes a panic instead of entering the
+debugger; and
+CR TILDE CTRL-R causes an immediate reboot.
+In all the above sequences, CR is a Carriage Return and is usually
+sent by hitting the Enter or Return key.
+TILDE is the ASCII tilde character (~).
+CTRL-x is Control x created by hitting the control key and then x
+and then releasing both.
+.Pp
+The break to debugger behavior may also be enabled by setting the
+.Xr sysctl 8
+.Dv debug.kdb.break_to_debugger
+to 1.
+The alt break to debugger behavior may also be enabled by setting the
+.Xr sysctl 8
+.Dv debug.kdb.alt_break_to_debugger
+to 1.
+The debugger may be entered by setting the
+.Xr sysctl 8
+.Dv debug.kdb.enter
+to 1.
 .Sh FILES
 Header files mentioned in this manual page can be found below
 .Pa /usr/include
