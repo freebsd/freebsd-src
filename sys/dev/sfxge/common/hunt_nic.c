@@ -1190,7 +1190,7 @@ hunt_board_cfg(
 		goto fail6;
 
 	/* Obtain the default PHY advertised capabilities */
-	if ((rc = hunt_phy_get_link(enp, &els)) != 0)
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail7;
 	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
 	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
