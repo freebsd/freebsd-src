@@ -291,10 +291,10 @@ struct sctp_sysctl {
 #define SCTPCTL_PMTU_RAISE_TIME_DEFAULT	SCTP_DEF_PMTU_RAISE_SEC
 
 /* shutdown_guard_time: Default shutdown guard timer in seconds */
-#define SCTPCTL_SHUTDOWN_GUARD_TIME_DESC	"Default shutdown guard timer in seconds"
+#define SCTPCTL_SHUTDOWN_GUARD_TIME_DESC	"Shutdown guard timer in seconds (0 means 5 times RTO.Max)"
 #define SCTPCTL_SHUTDOWN_GUARD_TIME_MIN		0
 #define SCTPCTL_SHUTDOWN_GUARD_TIME_MAX		0xFFFFFFFF
-#define SCTPCTL_SHUTDOWN_GUARD_TIME_DEFAULT	SCTP_DEF_MAX_SHUTDOWN_SEC
+#define SCTPCTL_SHUTDOWN_GUARD_TIME_DEFAULT	0
 
 /* secret_lifetime: Default secret lifetime in seconds */
 #define SCTPCTL_SECRET_LIFETIME_DESC	"Default secret lifetime in seconds"
