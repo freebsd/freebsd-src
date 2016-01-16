@@ -95,6 +95,10 @@
    don't. */
 /* #undef HAVE_DECL_STRLCPY */
 
+/* Define to 1 if you have the declaration of `XML_StopParser', and to 0 if
+   you don't. */
+#define HAVE_DECL_XML_STOPPARSER 1
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
@@ -152,6 +156,9 @@
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #define HAVE_FSEEKO 1
 
+/* Define to 1 if you have the `fsync' function. */
+#define HAVE_FSYNC 1
+
 /* Whether getaddrinfo is available */
 #define HAVE_GETADDRINFO 1
 
@@ -206,6 +213,9 @@
 /* Define to 1 if you have the <iphlpapi.h> header file. */
 /* #undef HAVE_IPHLPAPI_H */
 
+/* Define to 1 if you have the `isblank' function. */
+#define HAVE_ISBLANK 1
+
 /* Define to 1 if you have the `kill' function. */
 #define HAVE_KILL 1
 
@@ -232,6 +242,9 @@
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
+
+/* Use libnettle for crypto */
+/* #undef HAVE_NETTLE */
 
 /* Use libnss for crypto */
 /* #undef HAVE_NSS */
@@ -497,7 +510,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.5.5"
+#define PACKAGE_STRING "unbound 1.5.7"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -506,7 +519,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.5.5"
+#define PACKAGE_VERSION "1.5.7"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -525,7 +538,7 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,5,5,0
+#define RSRC_PACKAGE_VERSION 1,5,7,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
@@ -535,6 +548,9 @@
 
 /* The size of `time_t', as computed by sizeof. */
 #define SIZEOF_TIME_T 8
+
+/* define if (v)snprintf does not return length needed, (but length used) */
+/* #undef SNPRINTF_RET_BROKEN */
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -570,7 +586,7 @@
 /* #undef USE_ECDSA_EVP_WORKAROUND */
 
 /* Define this to enable GOST support. */
-/* #undef USE_GOST */
+#define USE_GOST 1
 
 /* Define if you want to use internal select based events */
 #define USE_MINI_EVENT 1
@@ -849,15 +865,13 @@
 #define MAXHOSTNAMELEN 256
 #endif
 
-
-#ifndef HAVE_SNPRINTF
+#if !defined(HAVE_SNPRINTF) || defined(SNPRINTF_RET_BROKEN)
 #define snprintf snprintf_unbound
 #define vsnprintf vsnprintf_unbound
 #include <stdarg.h>
 int snprintf (char *str, size_t count, const char *fmt, ...);
 int vsnprintf (char *str, size_t count, const char *fmt, va_list arg);
-#endif /* HAVE_SNPRINTF */
-
+#endif /* HAVE_SNPRINTF or SNPRINTF_RET_BROKEN */
 
 #ifndef HAVE_INET_PTON
 #define inet_pton inet_pton_unbound
@@ -951,6 +965,11 @@ int memcmp(const void *x, const void *y, size_t n);
 #ifndef HAVE_CTIME_R
 #define ctime_r unbound_ctime_r
 char *ctime_r(const time_t *timep, char *buf);
+#endif
+
+#ifndef HAVE_ISBLANK
+#define isblank unbound_isblank
+int isblank(int c);
 #endif
 
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)

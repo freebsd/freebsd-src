@@ -24,6 +24,9 @@ ldnsobj=$(realpath $(make -C$ldnsbld -V.OBJDIR))
 [ -f $ldnsobj/libldns.a ] || error "can't find LDNS object directory"
 export LDFLAGS="-L$ldnsobj"
 
+export CC=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCC)
+export CPP=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCPP)
+
 autoconf
 autoheader
 ./configure \
