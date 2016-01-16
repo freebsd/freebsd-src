@@ -6,7 +6,7 @@ MAN=
 
 WARNS=	6
 
-LDADD+=		-lpng_sb -lcheri
+LIBADD=	png_sb cheri
 
 NO_SHARED=
 
