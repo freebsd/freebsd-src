@@ -957,14 +957,15 @@ sctp_shutdown(struct socket *so)
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EOPNOTSUPP);
 		return (EOPNOTSUPP);
-	}
-	/*
-	 * Ok if we reach here its the TCP model and it is either a SHUT_WR
-	 * or SHUT_RDWR. This means we put the shutdown flag against it.
-	 */
-	{
+	} else {
+		/*
+		 * Ok, if we reach here its the TCP model and it is either a
+		 * SHUT_WR or SHUT_RDWR. This means we put the shutdown flag
+		 * against it.
+		 */
 		struct sctp_tcb *stcb;
 		struct sctp_association *asoc;
+		struct sctp_nets *netp;
 
 		if ((so->so_state &
 		    (SS_ISCONNECTED | SS_ISCONNECTING | SS_ISDISCONNECTING)) == 0) {
@@ -976,7 +977,7 @@ sctp_shutdown(struct socket *so)
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
 		if (stcb == NULL) {
 			/*
-			 * Ok we hit the case that the shutdown call was
+			 * Ok, we hit the case that the shutdown call was
 			 * made after an abort or something. Nothing to do
 			 * now.
 			 */
@@ -985,6 +986,27 @@ sctp_shutdown(struct socket *so)
 		}
 		SCTP_TCB_LOCK(stcb);
 		asoc = &stcb->asoc;
+		if (asoc->state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_INP_RUNLOCK(inp);
+			return (0);
+		}
+		if ((SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT) &&
+		    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_ECHOED) &&
+		    (SCTP_GET_STATE(asoc) != SCTP_STATE_OPEN)) {
+			/*
+			 * If we are not in or before ESTABLISHED, there is
+			 * no protocol action required.
+			 */
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_INP_RUNLOCK(inp);
+			return (0);
+		}
+		if (stcb->asoc.alternate) {
+			netp = stcb->asoc.alternate;
+		} else {
+			netp = stcb->asoc.primary_destination;
+		}
 		if (TAILQ_EMPTY(&asoc->send_queue) &&
 		    TAILQ_EMPTY(&asoc->sent_queue) &&
 		    (asoc->stream_queue_cnt == 0)) {
@@ -992,46 +1014,21 @@ sctp_shutdown(struct socket *so)
 				goto abort_anyway;
 			}
 			/* there is nothing queued to send, so I'm done... */
-			if (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) {
-				/* only send SHUTDOWN the first time through */
-				struct sctp_nets *netp;
-
-				if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
-				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
-					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
-				}
-				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
-				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-				sctp_stop_timers_for_shutdown(stcb);
-				if (stcb->asoc.alternate) {
-					netp = stcb->asoc.alternate;
-				} else {
-					netp = stcb->asoc.primary_destination;
-				}
-				sctp_send_shutdown(stcb, netp);
-				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
-				    stcb->sctp_ep, stcb, netp);
-				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-				    stcb->sctp_ep, stcb, netp);
-				sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_LOCKED);
+			if (SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) {
+				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			}
+			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
+			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
+			sctp_stop_timers_for_shutdown(stcb);
+			sctp_send_shutdown(stcb, netp);
+			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
+			    stcb->sctp_ep, stcb, netp);
 		} else {
 			/*
-			 * we still got (or just got) data to send, so set
-			 * SHUTDOWN_PENDING
+			 * We still got (or just got) data to send, so set
+			 * SHUTDOWN_PENDING.
 			 */
-			struct sctp_nets *netp;
-
-			if (stcb->asoc.alternate) {
-				netp = stcb->asoc.alternate;
-			} else {
-				netp = stcb->asoc.primary_destination;
-			}
-
-			asoc->state |= SCTP_STATE_SHUTDOWN_PENDING;
-			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb,
-			    netp);
-
+			SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 			if (asoc->locked_on_sending) {
 				/* Locked to send out the data */
 				struct sctp_stream_queue_pending *sp;
@@ -1042,7 +1039,7 @@ sctp_shutdown(struct socket *so)
 					    asoc->locked_on_sending->stream_no);
 				} else {
 					if ((sp->length == 0) && (sp->msg_is_complete == 0)) {
-						asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
+						SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_PARTIAL_MSG_LEFT);
 					}
 				}
 			}
@@ -1056,16 +1053,20 @@ sctp_shutdown(struct socket *so)
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    op_err, SCTP_SO_LOCKED);
-				goto skip_unlock;
-			} else {
-				sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING, SCTP_SO_LOCKED);
+				SCTP_INP_RUNLOCK(inp);
+				return (0);
 			}
 		}
+		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb, netp);
+		/*
+		 * XXX: Why do this in the case where we have still data
+		 * queued?
+		 */
+		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING, SCTP_SO_LOCKED);
 		SCTP_TCB_UNLOCK(stcb);
+		SCTP_INP_RUNLOCK(inp);
+		return (0);
 	}
-skip_unlock:
-	SCTP_INP_RUNLOCK(inp);
-	return (0);
 }
 
 /*
