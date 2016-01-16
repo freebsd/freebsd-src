@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 2014
+.Dd November 29, 2015
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -441,10 +441,8 @@ By default
 allows TLSv1 and newer when negotiating the connecting with the remote
 peer.
 You can change this behavior by setting the
-.Ev SSL_ALLOW_SSL2
-and
 .Ev SSL_ALLOW_SSL3
-environment variables to allow SSLv2 and SSLv3, respectively, and
+environment variable to allow SSLv3 and
 .Ev SSL_NO_TLS1 ,
 .Ev SSL_NO_TLS1_1 and
 .Ev SSL_NO_TLS1_2
@@ -633,11 +631,11 @@ If defined but empty, no User-Agent header is sent.
 .It Ev NETRC
 Specifies a file to use instead of
 .Pa ~/.netrc
-to look up login names and passwords for FTP sites.
+to look up login names and passwords for FTP and HTTP sites as well as
+HTTP proxies.
 See
 .Xr ftp 1
 for a description of the file format.
-This feature is experimental.
 .It Ev NO_PROXY
 Either a single asterisk, which disables the use of proxies
 altogether, or a comma- or whitespace-separated list of hosts for
@@ -646,8 +644,6 @@ which proxies should not be used.
 Same as
 .Ev NO_PROXY ,
 for compatibility.
-.It Ev SSL_ALLOW_SSL2
-Allow SSL version 2 when negotiating the connection (not recommended).
 .It Ev SSL_ALLOW_SSL3
 Allow SSL version 3 when negotiating the connection (not recommended).
 .It Ev SSL_CA_CERT_FILE
