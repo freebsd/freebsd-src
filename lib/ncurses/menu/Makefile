@@ -4,7 +4,7 @@
 
 SRCDIR=	${NCURSES_DIR}/menu
 
-LIB=	menu
+LIB=	menu${LIB_SUFFIX}
 
 .PATH: ${SRCDIR}
 SRCS=	\

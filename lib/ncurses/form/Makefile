@@ -4,7 +4,7 @@
 
 SRCDIR=	${NCURSES_DIR}/form
 
-LIB=	form
+LIB=	form${LIB_SUFFIX}
 
 .PATH: ${SRCDIR}
 SRCS=	\

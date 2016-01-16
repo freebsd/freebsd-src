@@ -25,7 +25,7 @@ LIB_PRIVATE=	${PRIVATELIB:Dprivate}
 .undef SHLIB_NAME
 .else
 .if !defined(SHLIB) && defined(LIB)
-SHLIB=		${LIB}${LIB_SUFFIX}
+SHLIB=		${LIB}
 .endif
 .if !defined(SHLIB_NAME) && defined(SHLIB) && defined(SHLIB_MAJOR)
 SHLIB_NAME=	lib${LIB_PRIVATE}${SHLIB}.so.${SHLIB_MAJOR}
@@ -181,10 +181,10 @@ CLEANFILES+=	${OBJS} ${STATICOBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
-_LIBS=		lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a
+_LIBS=		lib${LIB_PRIVATE}${LIB}.a
 
-lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a: ${OBJS} ${STATICOBJS}
-	@${ECHO} building static ${LIB}${LIB_SUFFIX} library
+lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
+	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
@@ -193,12 +193,12 @@ lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a: ${OBJS} ${STATICOBJS}
 .if !defined(INTERNALLIB)
 
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-_LIBS+=		lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_p.a
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 CLEANFILES+=	${POBJS}
 
-lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_p.a: ${POBJS}
-	@${ECHO} building profiled ${LIB}${LIB_SUFFIX} library
+lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
+	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${POBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
@@ -288,17 +288,17 @@ ${SHLIB_NAME_INSTALL}: ${SHLIB_NAME}
 .endif #defined(SHLIB_NAME)
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
-_LIBS+=		lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_pic.a
+_LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
-lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_pic.a: ${SOBJS}
-	@${ECHO} building special pic ${LIB}${LIB_SUFFIX} library
+lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
+	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
-LINTLIB=	llib-l${LIB}${LIB_SUFFIX}.ln
+LINTLIB=	llib-l${LIB}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
 CLEANFILES+=	${LINTOBJS}
@@ -361,12 +361,12 @@ realinstall: _libinstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}.a \
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}.a \
 	    ${DESTDIR}${_LIBDIR}/
 .endif
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}${LIB_SUFFIX}_p.a \
+	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}_p.a \
 	    ${DESTDIR}${_LIBDIR}/
 .endif
 .if defined(SHLIB_NAME)
@@ -402,7 +402,7 @@ _libinstall:
 .endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}${LIB_SUFFIX}_pic.a ${DESTDIR}${_LIBDIR}/
+	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}/
 .endif
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \

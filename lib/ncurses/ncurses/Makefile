@@ -11,7 +11,7 @@ MK_MAN=no
 
 .include "${.CURDIR}/../config.mk"
 
-LIB=		ncurses
+LIB=		ncurses${LIB_SUFFIX}
 SHLIB_MAJOR=	8
 
 NO_LINT=
