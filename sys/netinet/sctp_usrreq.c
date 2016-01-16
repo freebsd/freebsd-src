@@ -1007,16 +1007,15 @@ sctp_shutdown(struct socket *so)
 		} else {
 			netp = stcb->asoc.primary_destination;
 		}
-		if (TAILQ_EMPTY(&asoc->send_queue) &&
+		if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) &&
+		    TAILQ_EMPTY(&asoc->send_queue) &&
 		    TAILQ_EMPTY(&asoc->sent_queue) &&
 		    (asoc->stream_queue_cnt == 0)) {
 			if (asoc->locked_on_sending) {
 				goto abort_anyway;
 			}
 			/* there is nothing queued to send, so I'm done... */
-			if (SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) {
-				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
-			}
+			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_stop_timers_for_shutdown(stcb);
