@@ -835,7 +835,7 @@ ef10_ev_mcdi(
 	case MCDI_EVENT_CODE_LINKCHANGE: {
 		efx_link_mode_t link_mode;
 
-		hunt_phy_link_ev(enp, eqp, &link_mode);
+		ef10_phy_link_ev(enp, eqp, &link_mode);
 		should_abort = eecp->eec_link_change(arg, link_mode);
 		break;
 	}

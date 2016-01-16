@@ -2561,7 +2561,6 @@ dev/usb/controller/dwc_otg_fdt.c	optional dwcotg fdt
 dev/usb/controller/ehci.c		optional ehci
 dev/usb/controller/ehci_pci.c		optional ehci pci
 dev/usb/controller/ohci.c		optional ohci
-dev/usb/controller/ohci_atmelarm.c	optional ohci at91rm9200
 dev/usb/controller/ohci_pci.c		optional ohci pci
 dev/usb/controller/uhci.c		optional uhci
 dev/usb/controller/uhci_pci.c		optional uhci pci
