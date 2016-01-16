@@ -33,6 +33,8 @@ INCS=	\
 	pnglibconf.h
 .endif
 
+LIBADD=	z
+
 WARNS?=	6
 
 WANT_CHERI=	yes

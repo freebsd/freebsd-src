@@ -25,13 +25,7 @@ LIB${_LIB:tu}=	${.OBJDIR}/lib${_LIB}/lib${_LIB}.a
 LLVM_IR_FILE_${_LIB:tu}=	${.OBJDIR}/lib${_LIB}/lib${_LIB}.${LLVM_IR_TYPE}-a
 LLVM_NATIVE_FILE_${_LIB:tu}=	${.OBJDIR}/lib${_LIB}/lib${_LIB}.${LLVM_IR_TYPE}-a
 .endfor
-LIBADD+=	${NSLIBS}
-
-LDADD+=		\
-		${NSLIBS:S;^;-L${.CURDIR}/../nsfb/lib;} \
-		-ljpeg -lz -lpng_sb -lcheri -lm \
-		-Wl,--whole-archive -lnsfb ${LDX} -Wl,--no-whole-archive \
-		-lcurl -lbsdxml -lssl -lcrypto
+LIBADD+=	${NSLIBS} z png_sb cheri m nsfb bsdxml ssl crypto jpeg curl
 
 .PATH:          ${.CURDIR}/../nsfb
 SRCS=		\

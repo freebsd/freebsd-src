@@ -77,6 +77,7 @@ _LIBRARIES=	\
 		crypto \
 		css \
 		ctf \
+		curl \
 		cuse \
 		cxxrt \
 		devctl \
@@ -106,6 +107,7 @@ _LIBRARIES=	\
 		hx509 \
 		ipsec \
 		jail \
+		jpeg \
 		kadm5clnt \
 		kadm5srv \
 		kafs5 \
@@ -211,6 +213,7 @@ _DP_casper=	capsicum nv pjdlog
 _DP_capsicum=	nv
 _DP_kvm=	elf
 _DP_pjdlog=	util
+_DP_png=	z
 _DP_opie=	md
 _DP_usb=	pthread
 _DP_unbound=	ssl crypto pthread
