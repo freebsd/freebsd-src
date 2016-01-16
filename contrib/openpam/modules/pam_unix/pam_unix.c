@@ -74,7 +74,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 #endif
 	struct passwd *pwd;
 	const char *user;
-	char *crypt_password, *password;
+	const char *crypt_password, *password;
 	int pam_err, retry;
 
 	(void)argc;
@@ -98,7 +98,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	for (retry = 0; retry < 3; ++retry) {
 #ifdef OPENPAM
 		pam_err = pam_get_authtok(pamh, PAM_AUTHTOK,
-		    (const char **)&password, NULL);
+		    &password, NULL);
 #else
 		resp = NULL;
 		pam_err = (*conv->conv)(1, &msgp, &resp, conv->appdata_ptr);
