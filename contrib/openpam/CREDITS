@@ -21,6 +21,7 @@ ideas:
 	Christos Zoulas <christos@netbsd.org>
 	Daniel Richard G. <skunk@iskunk.org>
 	Darren J. Moffat <darren.moffat@sun.com>
+	Dimitry Andric <dim@freebsd.org>
 	Dmitry V. Levin <ldv@altlinux.org>
 	Don Lewis <truckman@freebsd.org>
 	Emmanuel Dreyfus <manu@netbsd.org>
@@ -32,9 +33,9 @@ ideas:
 	Hubert Feyrer <hubert@feyrer.de>
 	Jason Evans <jasone@freebsd.org>
 	Joe Marcus Clarke <marcus@freebsd.org>
-	Juli Mallett <jmallett@freebsd.org>
-	Ankita Pal <pal.ankita.ankita@gmail.com>
 	Jörg Sonnenberger <joerg@britannica.bec.de>
+	Juli Mallett <jmallett@freebsd.org>
+	Larry Baird <lab@gta.com>
 	Maëlle Lesage <lesage.maelle@gmail.com>
 	Mark Murray <markm@freebsd.org>
 	Matthias Drochner <drochner@netbsd.org>
