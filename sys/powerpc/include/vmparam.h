@@ -129,7 +129,7 @@ struct pmap_physseg {
  * The physical address space is densely populated on 32-bit systems,
  * but may not be on 64-bit ones.
  */
-#ifdef __powerpc__
+#ifdef __powerpc64__
 #define	VM_PHYSSEG_SPARSE
 #else
 #define	VM_PHYSSEG_DENSE
