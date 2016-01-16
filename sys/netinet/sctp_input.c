@@ -3764,7 +3764,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 		}
 	}
 	if (asoc->stream_reset_outstanding == 0) {
-		sctp_send_stream_reset_out_if_possible(stcb);
+		sctp_send_stream_reset_out_if_possible(stcb, SCTP_SO_NOT_LOCKED);
 	}
 	return (0);
 }
@@ -3832,7 +3832,7 @@ bad_boy:
 	} else {
 		sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_RESULT_ERR_BAD_SEQNO);
 	}
-	sctp_send_stream_reset_out_if_possible(stcb);
+	sctp_send_stream_reset_out_if_possible(stcb, SCTP_SO_NOT_LOCKED);
 }
 
 static int
