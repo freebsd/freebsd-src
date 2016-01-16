@@ -80,6 +80,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_syscallnames = syscallnames,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {
