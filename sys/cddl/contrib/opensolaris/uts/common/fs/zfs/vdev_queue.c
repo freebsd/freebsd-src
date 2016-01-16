@@ -520,7 +520,7 @@ vdev_queue_class_min_active(zio_priority_t p)
 	}
 }
 
-static int
+static __noinline int
 vdev_queue_max_async_writes(spa_t *spa)
 {
 	int writes;
