@@ -129,6 +129,7 @@ static void	linux_set_syscall_retval(struct thread *td, int error);
 static int	linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 		    u_long stack);
+static int	linux_vsyscall(struct thread *td);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
@@ -746,6 +747,53 @@ exec_linux_imgact_try(struct image_params *imgp)
 	return(error);
 }
 
+#define	LINUX_VSYSCALL_START		(-10UL << 20)
+#define	LINUX_VSYSCALL_SZ		1024
+
+const unsigned long linux_vsyscall_vector[] = {
+	LINUX_SYS_gettimeofday,
+	LINUX_SYS_linux_time,
+				/* getcpu not implemented */
+};
+
+static int
+linux_vsyscall(struct thread *td)
+{
+	struct trapframe *frame;
+	uint64_t retqaddr;
+	int code, traced;
+	int error; 
+
+	frame = td->td_frame;
+
+	/* Check %rip for vsyscall area */
+	if (__predict_true(frame->tf_rip < LINUX_VSYSCALL_START))
+		return (EINVAL);
+	if ((frame->tf_rip & (LINUX_VSYSCALL_SZ - 1)) != 0)
+		return (EINVAL);
+	code = (frame->tf_rip - LINUX_VSYSCALL_START) / LINUX_VSYSCALL_SZ;
+	if (code >= nitems(linux_vsyscall_vector))
+		return (EINVAL);
+
+	/*
+	 * vsyscall called as callq *(%rax), so we must
+	 * use return address from %rsp and also fixup %rsp
+	 */
+	error = copyin((void *)frame->tf_rsp, &retqaddr, sizeof(retqaddr));
+	if (error)
+		return (error);
+
+	frame->tf_rip = retqaddr;
+	frame->tf_rax = linux_vsyscall_vector[code];
+	frame->tf_rsp += 8;
+
+	traced = (frame->tf_flags & PSL_T);
+
+	amd64_syscall(td, traced);
+
+	return (0);
+}
+
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
@@ -781,7 +829,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_shared_page_base = SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
-	.sv_thread_detach = linux_thread_detach
+	.sv_thread_detach = linux_thread_detach,
+	.sv_trap	= linux_vsyscall,
 };
 
 static void

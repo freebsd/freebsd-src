@@ -327,6 +327,13 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
+			/*
+			 * Emulator can take care about this trap?
+			 */
+			if (*p->p_sysent->sv_trap != NULL &&
+			    (*p->p_sysent->sv_trap)(td) == 0)
+				goto userout;
+
 			addr = frame->tf_addr;
 			i = trap_pfault(frame, TRUE);
 			if (i == -1)
