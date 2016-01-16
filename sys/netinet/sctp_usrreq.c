@@ -5815,7 +5815,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 						if (laddr->ifa == NULL) {
 							SCTPDBG(SCTP_DEBUG_OUTPUT1, "%s: NULL ifa\n",
-							    __FUNCTION__);
+							    __func__);
 							continue;
 						}
 						if (laddr->ifa == ifa) {
