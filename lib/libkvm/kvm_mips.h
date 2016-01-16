@@ -49,7 +49,7 @@ typedef uint64_t	mips_physaddr_t;
 #define	MIPS64_KSEG1_END	0xffffffffbfffffff
 
 #define	MIPS32_PFN_MASK		(0x1FFFFFC0)
-#define	MIPS64_PFN_MASK		0x3FFFFFFC0
+#define	MIPS64_PFN_MASK		0xFFFFFFC0
 #define	MIPS_PFN_SHIFT		(6)
 
 #define	MIPS_PFN_TO_PA(pfn)	(((pfn) >> MIPS_PFN_SHIFT) << MIPS_PAGE_SHIFT)
