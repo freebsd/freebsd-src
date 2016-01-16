@@ -97,6 +97,7 @@ typedef enum efx_mac_type_e {
 	EFX_MAC_FALCON_XMAC,
 	EFX_MAC_SIENA,
 	EFX_MAC_HUNTINGTON,
+	EFX_MAC_MEDFORD,
 	EFX_MAC_NTYPES
 } efx_mac_type_t;
 
@@ -485,8 +486,6 @@ typedef struct efx_nvram_ops_s {
 #endif	/* EFSYS_OPT_DIAG */
 	efx_rc_t	(*envo_get_version)(efx_nic_t *, efx_nvram_type_t,
 					    uint32_t *, uint16_t *);
-	efx_rc_t	(*envo_read_chunk)(efx_nic_t *, efx_nvram_type_t,
-					    unsigned int, caddr_t, size_t);
 	efx_rc_t	(*envo_erase)(efx_nic_t *, efx_nvram_type_t);
 	efx_rc_t	(*envo_write_chunk)(efx_nic_t *, efx_nvram_type_t,
 					    unsigned int, caddr_t, size_t);
@@ -498,6 +497,8 @@ typedef struct efx_nvram_ops_s {
 					    uint32_t *);
 	efx_rc_t	(*envo_partn_size)(efx_nic_t *, uint32_t, size_t *);
 	efx_rc_t	(*envo_partn_rw_start)(efx_nic_t *, uint32_t, size_t *);
+	efx_rc_t	(*envo_partn_read)(efx_nic_t *, uint32_t,
+					    unsigned int, caddr_t, size_t);
 } efx_nvram_ops_t;
 #endif /* EFSYS_OPT_NVRAM */
 

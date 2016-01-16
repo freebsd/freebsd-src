@@ -220,41 +220,41 @@ ef10_nic_unprobe(
 /* MAC */
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_poll(
+ef10_mac_poll(
 	__in		efx_nic_t *enp,
 	__out		efx_link_mode_t *link_modep);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_up(
+ef10_mac_up(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *mac_upp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_addr_set(
+ef10_mac_addr_set(
 	__in	efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_reconfigure(
+ef10_mac_reconfigure(
 	__in	efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_multicast_list_set(
+ef10_mac_multicast_list_set(
 	__in				efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_filter_default_rxq_set(
+ef10_mac_filter_default_rxq_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rxq_t *erp,
 	__in		boolean_t using_rss);
 
 extern			void
-hunt_mac_filter_default_rxq_clear(
+ef10_mac_filter_default_rxq_clear(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_LOOPBACK
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_loopback_set(
+ef10_mac_loopback_set(
 	__in		efx_nic_t *enp,
 	__in		efx_link_mode_t link_mode,
 	__in		efx_loopback_type_t loopback_type);
@@ -264,7 +264,7 @@ hunt_mac_loopback_set(
 #if EFSYS_OPT_MAC_STATS
 
 extern	__checkReturn			efx_rc_t
-hunt_mac_stats_update(
+ef10_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
@@ -370,14 +370,6 @@ ef10_nvram_partn_lock(
 	__in			uint32_t partn);
 
 extern	__checkReturn		efx_rc_t
-ef10_nvram_partn_read(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__in			unsigned int offset,
-	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
-
-extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_erase(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
@@ -415,14 +407,6 @@ ef10_nvram_get_version(
 	__in			efx_nvram_type_t type,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_read_chunk(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in			unsigned int offset,
-	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
 
 extern	 __checkReturn		efx_rc_t
 ef10_nvram_erase(
@@ -472,6 +456,14 @@ ef10_nvram_partn_rw_start(
 	__in			uint32_t partn,
 	__out			size_t *chunk_sizep);
 
+extern	__checkReturn		efx_rc_t
+ef10_nvram_partn_read(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size);
+
 #endif	/* EFSYS_OPT_NVRAM */
 
 
@@ -489,38 +481,38 @@ typedef struct ef10_link_state_s {
 } ef10_link_state_t;
 
 extern			void
-hunt_phy_link_ev(
+ef10_phy_link_ev(
 	__in		efx_nic_t *enp,
 	__in		efx_qword_t *eqp,
 	__out		efx_link_mode_t *link_modep);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_get_link(
+ef10_phy_get_link(
 	__in		efx_nic_t *enp,
 	__out		ef10_link_state_t *elsp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_power(
+ef10_phy_power(
 	__in		efx_nic_t *enp,
 	__in		boolean_t on);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_reconfigure(
+ef10_phy_reconfigure(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_verify(
+ef10_phy_verify(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_oui_get(
+ef10_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip);
 
 #if EFSYS_OPT_PHY_STATS
 
 extern	__checkReturn			efx_rc_t
-hunt_phy_stats_update(
+ef10_phy_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
@@ -532,21 +524,21 @@ hunt_phy_stats_update(
 #if EFSYS_OPT_NAMES
 
 extern		const char *
-hunt_phy_prop_name(
+ef10_phy_prop_name(
 	__in	efx_nic_t *enp,
 	__in	unsigned int id);
 
 #endif	/* EFSYS_OPT_NAMES */
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_prop_get(
+ef10_phy_prop_get(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t flags,
 	__out		uint32_t *valp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_prop_set(
+ef10_phy_prop_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t val);

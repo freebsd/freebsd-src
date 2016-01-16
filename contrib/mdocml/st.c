@@ -1,4 +1,4 @@
-/*	$Id: st.c,v 1.11 2014/08/10 23:54:41 schwarze Exp $ */
+/*	$Id: st.c,v 1.13 2015/10/06 18:32:20 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -20,6 +20,7 @@
 
 #include <string.h>
 
+#include "roff.h"
 #include "mdoc.h"
 #include "libmdoc.h"
 
@@ -32,5 +33,5 @@ mdoc_a2st(const char *p)
 
 #include "st.in"
 
-	return(NULL);
+	return NULL;
 }

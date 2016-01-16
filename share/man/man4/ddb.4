@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2016
+.Dd January 15, 2016
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1437,15 +1437,18 @@ Other bus' bridge chipsets may be able to generate NMI using bus specific
 methods.
 There are many PCI and PCIe add-in cards which can generate NMI for
 debugging.
-Modern systems typically use IPMI to generate signals to enter the
+Modern server systems typically use IPMI to generate signals to enter the
 debugger.
 The
 .Dv devel/ipmitool
 port can be used to send the
 .Cd chassis power diag
 command which delivers an NMI to the processor.
+Embedded systems often use JTAG for debugging, but rarely use it in
+combination with
+.Nm .
 .Pp
-For serial consoles, you can break to the debugger by sending a BREAK
+For serial consoles, you can enter the debugger by sending a BREAK
 condition on the serial line if
 .Cd options BREAK_TO_DEBUGGER
 is specified in the kernel.
@@ -1464,11 +1467,13 @@ TILDE is the ASCII tilde character (~).
 CTRL-x is Control x created by hitting the control key and then x
 and then releasing both.
 .Pp
-The break to debugger behavior may also be enabled by setting the
+The break to enter the debugger behavior may be enabled at run-time
+by setting the
 .Xr sysctl 8
 .Dv debug.kdb.break_to_debugger
 to 1.
-The alt break to debugger behavior may also be enabled by setting the
+The alternate sequence to enter the debugger behavior may be enabled
+at run-time by setting the
 .Xr sysctl 8
 .Dv debug.kdb.alt_break_to_debugger
 to 1.

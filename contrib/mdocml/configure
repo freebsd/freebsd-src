@@ -16,8 +16,8 @@
 
 set -e
 
-[ -e config.log ] && mv config.log config.log.old
-[ -e config.h   ] && mv config.h config.h.old
+[ -w config.log ] && mv config.log config.log.old
+[ -w config.h   ] && mv config.h config.h.old
 
 # Output file descriptor usage:
 # 1 (stdout): config.h, Makefile.local
@@ -31,6 +31,7 @@ echo "config.log: writing..."
 # Initialize all variables here,
 # such that nothing can leak in from the environment.
 
+MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 OSNAME=
 
 CC=`printf "all:\\n\\t@echo \\\$(CC)\\n" | make -f -`
@@ -42,17 +43,26 @@ BUILD_DB=1
 BUILD_CGI=0
 
 HAVE_DIRENT_NAMLEN=
-HAVE_FGETLN=
+HAVE_ERR=
 HAVE_FTS=
+HAVE_GETLINE=
 HAVE_GETSUBOPT=
+HAVE_ISBLANK=
+HAVE_MKDTEMP=
 HAVE_MMAP=
+HAVE_PLEDGE=
+HAVE_PROGNAME=
 HAVE_REALLOCARRAY=
+HAVE_REWB_BSD=
+HAVE_REWB_SYSV=
 HAVE_STRCASESTR=
+HAVE_STRINGLIST=
 HAVE_STRLCAT=
 HAVE_STRLCPY=
 HAVE_STRPTIME=
 HAVE_STRSEP=
 HAVE_STRTONUM=
+HAVE_VASPRINTF=
 HAVE_WCHAR=
 
 HAVE_SQLITE3=
@@ -66,7 +76,6 @@ SBINDIR=
 INCLUDEDIR=
 LIBDIR=
 MANDIR=
-EXAMPLEDIR=
 HOMEBREWDIR=
 
 WWWPREFIX="/var/www"
@@ -74,10 +83,12 @@ HTDOCDIR=
 CGIBINDIR=
 
 BINM_APROPOS="apropos"
-BINM_MAN="man"
-BINM_WHATIS="whatis"
 BINM_MAKEWHATIS="makewhatis"
+BINM_MAN="man"
+BINM_SOELIM="soelim"
+BINM_WHATIS="whatis"
 MANM_MAN="man"
+MANM_MANCONF="man.conf"
 MANM_MDOC="mdoc"
 MANM_ROFF="roff"
 MANM_EQN="eqn"
@@ -91,7 +102,7 @@ INSTALL_DATA=
 
 # --- manual settings from configure.local -----------------------------
 
-if [ -e ./configure.local ]; then
+if [ -r ./configure.local ]; then
 	echo "configure.local: reading..." 1>&2
 	echo "configure.local: reading..." 1>&3
 	cat ./configure.local 1>&3
@@ -164,17 +175,26 @@ runtest() {
 
 # --- library functions ---
 runtest dirent-namlen	DIRENT_NAMLEN	|| true
-runtest fgetln		FGETLN		|| true
+runtest err		ERR		|| true
 runtest fts		FTS		|| true
+runtest getline		GETLINE		|| true
 runtest getsubopt	GETSUBOPT	|| true
+runtest isblank		ISBLANK		|| true
+runtest mkdtemp		MKDTEMP		|| true
 runtest mmap		MMAP		|| true
+runtest pledge		PLEDGE		|| true
+runtest progname	PROGNAME	|| true
 runtest reallocarray	REALLOCARRAY	|| true
+runtest rewb-bsd	REWB_BSD	|| true
+runtest rewb-sysv	REWB_SYSV	|| true
 runtest strcasestr	STRCASESTR	|| true
+runtest stringlist	STRINGLIST	|| true
 runtest strlcat		STRLCAT		|| true
 runtest strlcpy		STRLCPY		|| true
 runtest strptime	STRPTIME	|| true
 runtest strsep		STRSEP		|| true
 runtest strtonum	STRTONUM	|| true
+runtest vasprintf	VASPRINTF	|| true
 runtest wchar		WCHAR		|| true
 
 # --- sqlite3 ---
@@ -228,9 +248,9 @@ fi
 
 # --- DBLIB ---
 if [ ${BUILD_DB} -eq 0 ]; then
-	DBLIB=
+	DBLIB="-lz"
 elif [ -z "${DBLIB}" ]; then
-	DBLIB="${DETECTLIB}"
+	DBLIB="${DETECTLIB} -lz"
 	echo "DBLIB=\"${DBLIB}\"" 1>&2
 	echo "DBLIB=\"${DBLIB}\"" 1>&3
 	echo 1>&3
@@ -256,6 +276,10 @@ fi
 exec > config.h
 
 cat << __HEREDOC__
+#ifdef __cplusplus
+#error "Do not use C++.  See the INSTALL file."
+#endif
+
 #ifndef MANDOC_CONFIG_H
 #define MANDOC_CONFIG_H
 
@@ -265,28 +289,40 @@ cat << __HEREDOC__
 
 __HEREDOC__
 
-[ ${HAVE_FGETLN} -eq 0 -o ${HAVE_REALLOCARRAY} -eq 0 -o \
+[ ${HAVE_GETLINE} -eq 0 -o ${HAVE_REALLOCARRAY} -eq 0 -o \
   ${HAVE_STRLCAT} -eq 0 -o ${HAVE_STRLCPY} -eq 0 ] \
 	&& echo "#include <sys/types.h>"
-[ ${HAVE_FGETLN} -eq 0 ] && echo "#include <stdio.h>"
+[ ${HAVE_VASPRINTF} -eq 0 ] && echo "#include <stdarg.h>"
+[ ${HAVE_GETLINE} -eq 0 ] && echo "#include <stdio.h>"
 
 echo
+echo "#define MAN_CONF_FILE \"/etc/${MANM_MANCONF}\""
+echo "#define MANPATH_DEFAULT \"${MANPATH_DEFAULT}\""
 [ -n "${OSNAME}" ] && echo "#define OSNAME \"${OSNAME}\""
 [ -n "${HOMEBREWDIR}" ] && echo "#define HOMEBREWDIR \"${HOMEBREWDIR}\""
 
 cat << __HEREDOC__
 #define HAVE_DIRENT_NAMLEN ${HAVE_DIRENT_NAMLEN}
-#define HAVE_FGETLN ${HAVE_FGETLN}
+#define HAVE_ERR ${HAVE_ERR}
 #define HAVE_FTS ${HAVE_FTS}
+#define HAVE_GETLINE ${HAVE_GETLINE}
 #define HAVE_GETSUBOPT ${HAVE_GETSUBOPT}
+#define HAVE_ISBLANK ${HAVE_ISBLANK}
+#define HAVE_MKDTEMP ${HAVE_MKDTEMP}
 #define HAVE_MMAP ${HAVE_MMAP}
+#define HAVE_PLEDGE ${HAVE_PLEDGE}
+#define HAVE_PROGNAME ${HAVE_PROGNAME}
 #define HAVE_REALLOCARRAY ${HAVE_REALLOCARRAY}
+#define HAVE_REWB_BSD ${HAVE_REWB_BSD}
+#define HAVE_REWB_SYSV ${HAVE_REWB_SYSV}
 #define HAVE_STRCASESTR ${HAVE_STRCASESTR}
+#define HAVE_STRINGLIST ${HAVE_STRINGLIST}
 #define HAVE_STRLCAT ${HAVE_STRLCAT}
 #define HAVE_STRLCPY ${HAVE_STRLCPY}
 #define HAVE_STRPTIME ${HAVE_STRPTIME}
 #define HAVE_STRSEP ${HAVE_STRSEP}
 #define HAVE_STRTONUM ${HAVE_STRTONUM}
+#define HAVE_VASPRINTF ${HAVE_VASPRINTF}
 #define HAVE_WCHAR ${HAVE_WCHAR}
 #define HAVE_SQLITE3 ${HAVE_SQLITE3}
 #define HAVE_SQLITE3_ERRSTR ${HAVE_SQLITE3_ERRSTR}
@@ -294,32 +330,36 @@ cat << __HEREDOC__
 #define HAVE_MANPATH ${HAVE_MANPATH}
 
 #define BINM_APROPOS "${BINM_APROPOS}"
-#define BINM_MAN "${BINM_MAN}"
-#define BINM_WHATIS "${BINM_WHATIS}"
 #define BINM_MAKEWHATIS "${BINM_MAKEWHATIS}"
-
-#if !defined(__BEGIN_DECLS)
-#  ifdef __cplusplus
-#  define	__BEGIN_DECLS		extern "C" {
-#  else
-#  define	__BEGIN_DECLS
-#  endif
-#endif
-#if !defined(__END_DECLS)
-#  ifdef __cplusplus
-#  define	__END_DECLS		}
-#  else
-#  define	__END_DECLS
-#  endif
-#endif
+#define BINM_MAN "${BINM_MAN}"
+#define BINM_SOELIM "${BINM_SOELIM}"
+#define BINM_WHATIS "${BINM_WHATIS}"
 
 __HEREDOC__
 
-[ ${HAVE_FGETLN} -eq 0 ] && \
-	echo "extern	char	 *fgetln(FILE *, size_t *);"
+if [ ${HAVE_ERR} -eq 0 ]; then
+	echo "extern	void	  err(int, const char *, ...);"
+	echo "extern	void	  errx(int, const char *, ...);"
+	echo "extern	void	  warn(const char *, ...);"
+	echo "extern	void	  warnx(const char *, ...);"
+fi
+
+[ ${HAVE_GETLINE} -eq 0 ] && \
+	echo "extern	ssize_t	  getline(char **, size_t *, FILE *);"
 
 [ ${HAVE_GETSUBOPT} -eq 0 ] && \
 	echo "extern	int	  getsubopt(char **, char * const *, char **);"
+
+[ ${HAVE_ISBLANK} -eq 0 ] && \
+	echo "extern	int	  isblank(int);"
+
+[ ${HAVE_MKDTEMP} -eq 0 ] && \
+	echo "extern	char	 *mkdtemp(char *);"
+
+if [ ${HAVE_PROGNAME} -eq 0 ]; then
+	echo "extern 	const char *getprogname(void);"
+	echo "extern	void	  setprogname(const char *);"
+fi
 
 [ ${HAVE_REALLOCARRAY} -eq 0 ] && \
 	echo "extern	void	 *reallocarray(void *, size_t, size_t);"
@@ -342,6 +382,9 @@ __HEREDOC__
 [ ${HAVE_STRTONUM} -eq 0 ] && \
 	echo "extern	long long strtonum(const char *, long long, long long, const char **);"
 
+[ ${HAVE_VASPRINTF} -eq 0 ] && \
+	echo "extern	int	  vasprintf(char **, const char *, va_list);"
+
 echo
 echo "#endif /* MANDOC_CONFIG_H */"
 
@@ -357,7 +400,6 @@ exec > Makefile.local
 [ -z "${INCLUDEDIR}" ] && INCLUDEDIR="${PREFIX}/include/mandoc"
 [ -z "${LIBDIR}"     ] && LIBDIR="${PREFIX}/lib/mandoc"
 [ -z "${MANDIR}"     ] && MANDIR="${PREFIX}/man"
-[ -z "${EXAMPLEDIR}" ] && EXAMPLEDIR="${PREFIX}/share/examples/mandoc"
 
 [ -z "${HTDOCDIR}"   ] && HTDOCDIR="${WWWPREFIX}/htdocs"
 [ -z "${CGIBINDIR}"  ] && CGIBINDIR="${WWWPREFIX}/cgi-bin"
@@ -382,6 +424,7 @@ INSTALL_TARGETS="base-install"
 cat << __HEREDOC__
 BUILD_TARGETS	= ${BUILD_TARGETS}
 INSTALL_TARGETS	= ${INSTALL_TARGETS}
+CC		= ${CC}
 CFLAGS		= ${CFLAGS}
 DBLIB		= ${DBLIB}
 STATIC		= ${STATIC}
@@ -391,15 +434,16 @@ SBINDIR		= ${SBINDIR}
 INCLUDEDIR	= ${INCLUDEDIR}
 LIBDIR		= ${LIBDIR}
 MANDIR		= ${MANDIR}
-EXAMPLEDIR	= ${EXAMPLEDIR}
 WWWPREFIX	= ${WWWPREFIX}
 HTDOCDIR	= ${HTDOCDIR}
 CGIBINDIR	= ${CGIBINDIR}
 BINM_APROPOS	= ${BINM_APROPOS}
-BINM_MAN	= ${BINM_MAN}
-BINM_WHATIS	= ${BINM_WHATIS}
 BINM_MAKEWHATIS	= ${BINM_MAKEWHATIS}
+BINM_MAN	= ${BINM_MAN}
+BINM_SOELIM	= ${BINM_SOELIM}
+BINM_WHATIS	= ${BINM_WHATIS}
 MANM_MAN	= ${MANM_MAN}
+MANM_MANCONF	= ${MANM_MANCONF}
 MANM_MDOC	= ${MANM_MDOC}
 MANM_ROFF	= ${MANM_ROFF}
 MANM_EQN	= ${MANM_EQN}
