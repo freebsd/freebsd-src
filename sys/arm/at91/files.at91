@@ -68,3 +68,6 @@ dev/usb/controller/at91dci.c		optional	at91_dci
 dev/usb/controller/at91dci_atmelarm.c	optional	at91_dci ! fdt
 dev/usb/controller/at91dci_fdt.c	optional	at91_dci fdt
 
+# We need this for both FDT and !FDT since we use arm_base_bs_ta
+# files.arm picks it up for FDT.
+arm/arm/bus_space_base.c	optional	!fdt

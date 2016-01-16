@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/fdt.h>
 
 extern const struct arm_devmap_entry at91_devmap[];
-extern struct bus_space at91_bs_tag;
-bus_space_tag_t fdtbus_bs_tag = &at91_bs_tag;
 
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
