@@ -4819,13 +4819,11 @@ process_control_chunks:
 			/* The INIT chunk must be the only chunk. */
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
-				op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
-				    "INIT not the only chunk");
-				sctp_abort_association(inp, stcb, m, iphlen,
-				    src, dst, sh, op_err,
-				    mflowtype, mflowid,
-				    vrf_id, port);
+				/* RFC 4960 requires that no ABORT is sent */
 				*offset = length;
+				if (locked_tcb) {
+					SCTP_TCB_UNLOCK(locked_tcb);
+				}
 				return (NULL);
 			}
 			/* Honor our resource limit. */
