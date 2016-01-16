@@ -1,16 +1,17 @@
+LOCAL_LIBRARIES+=	imagebox terasic_mtl vuln_magic vuln_png
+
+LIBIMAGEBOXDIR=		ctsrd/lib/libimagebox
 LIBIMAGEBOX?=		${DESTDIR}${LIBDIR}/libimagebox.a
-DPADD_imagebox=		${LIBIMAGEBOX} ${LIBVULN_PNG} ${LIBZ} ${LIBPTHREAD}
-LDADD_imagebox=		-limagebox -lvuln_png -lz -lpthread
+_DP_imagebox=		vuln_png pthread
 
 # Depends on png, but don't include to all png or vuln_png to be used.
+LIBTERASIC_MTLDIR=	ctsrd/lib/libterasic_mtl
 LIBTERASIC_MTL?=	${DESTDIR}${LIBDIR}/libterasic_mtl.a
-DPADD_terasic_mtl=	${LIBTERASIC_MTL}
-LDADD_terasic_mtl=	-lterasic_mtl
 
+LIBVULN_MAGICDIR=	ctsrd/lib/libvuln_magic
 LIBVULN_MAGIC?=		${DESTDIR}${LIBDIR}/libvuln_magic.a
-DPADD_vuln_magic=	${LIBVULN_MAGIC} ${LIBZ}
-LDADD_vuln_magic=	-lvuln_magic -lz
+_DP_vuln_magic=		z
 
+LIBVULN_PNGDIR=		ctsrd/lib/libvuln_png
 LIBVULN_PNG?=		${DESTDIR}${LIBDIR}/libvuln_png.a
-DPADD_vuln_png=		${LIBVULN_PNG} ${LIBZ}
-LDADD_vuln_png=		-lvuln_png -lz
+_DP_vuln_png=		z
