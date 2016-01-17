@@ -911,7 +911,7 @@ static void
 displaysock(struct sock *s, int pos)
 {
 	void *p;
-	int hash;
+	int hash, first;
 	struct addr *laddr, *faddr;
 	struct sock *s_tmp;
 
@@ -924,6 +924,7 @@ displaysock(struct sock *s, int pos)
 		pos += xprintf("6 ");
 	laddr = s->laddr;
 	faddr = s->faddr;
+	first = 1;
 	while (laddr != NULL || faddr != NULL) {
 		while (pos < 36)
 			pos += xprintf(" ");
@@ -975,6 +976,14 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
+		if (first && opt_s && s->proto == IPPROTO_TCP) {
+			while (pos < 80)
+				pos += xprintf(" ");
+			if (s->state >= 0 && s->state < TCP_NSTATES)
+				pos += xprintf("%s", tcpstates[s->state]);
+			else
+				pos += xprintf("?");
+		}
 		if (laddr != NULL)
 			laddr = laddr->next;
 		if (faddr != NULL)
@@ -983,15 +992,9 @@ displaysock(struct sock *s, int pos)
 			xprintf("\n");
 			pos = 0;
 		}
+		first = 0;
 	}
-	if (opt_s && s->proto == IPPROTO_TCP) {
-		while (pos < 80)
-			pos += xprintf(" ");
-		if (s->state >= 0 && s->state < TCP_NSTATES)
-			pos += xprintf("%s", tcpstates[s->state]);
-		else
-			pos += xprintf("?");
-	}
+	xprintf("\n");
 }
 
 static void
@@ -1036,7 +1039,6 @@ display(void)
 				pos += xprintf(" ");
 			pos += xprintf("%d ", xf->xf_fd);
 			displaysock(s, pos);
-			xprintf("\n");
 		}
 	}
 	if (opt_j >= 0)
@@ -1051,7 +1053,6 @@ display(void)
 			pos += xprintf("%-8s %-10s %-5s %-2s ",
 			    "?", "?", "?", "?");
 			displaysock(s, pos);
-			xprintf("\n");
 		}
 	}
 }
