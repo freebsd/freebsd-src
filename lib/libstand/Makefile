@@ -65,8 +65,8 @@ SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64"
-.PATH: ${LIBC_SRC}/aarch64/gen
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
+.PATH: ${LIBC_SRC}/${MACHINE_CPUARCH}/gen
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
