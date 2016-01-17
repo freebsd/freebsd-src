@@ -1501,6 +1501,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 
 	/* We are GOOD to go */
 	stcb = sctp_aloc_assoc(inp, sa, &error, 0, vrf_id,
+	    inp->sctp_ep.pre_open_stream_count,
 	    (struct thread *)p
 	    );
 	if (stcb == NULL) {
@@ -6929,7 +6930,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	}
 	vrf_id = inp->def_vrf_id;
 	/* We are GOOD to go */
-	stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id, p);
+	stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id, inp->sctp_ep.pre_open_stream_count, p);
 	if (stcb == NULL) {
 		/* Gak! no memory */
 		goto out_now;
