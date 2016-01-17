@@ -141,7 +141,7 @@ enum {
 
 union urtwn_rom {
 	struct r92c_rom			r92c_rom;
-	uint8_t				r88e_rom[URTWN_EFUSE_MAX_LEN];
+	struct r88e_rom			r88e_rom;
 };
 
 struct urtwn_softc {
@@ -176,6 +176,8 @@ struct urtwn_softc {
 	uint8_t				board_type;
 	uint8_t				regulatory;
 	uint8_t				pa_setting;
+	int8_t				ofdm_tx_pwr_diff;
+	int8_t				bw20_tx_pwr_diff;
 	int				avg_pwdb;
 	int				thcal_state;
 	int				thcal_lctemp;
@@ -199,10 +201,6 @@ struct urtwn_softc {
 	void				*fw_virtaddr;
 
 	union urtwn_rom			rom;
-	uint8_t				cck_tx_pwr[6];
-	uint8_t				ht40_tx_pwr[5];
-	int8_t				bw20_tx_pwr_diff;
-	int8_t				ofdm_tx_pwr_diff;
 	uint16_t			last_rom_addr;
 		
 	struct callout			sc_watchdog_ch;
