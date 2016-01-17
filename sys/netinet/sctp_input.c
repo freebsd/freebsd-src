@@ -3651,6 +3651,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					 * Set it up so we don't stop
 					 * retransmitting
 					 */
+					asoc->stream_reset_outstanding++;
 					stcb->asoc.str_reset_seq_out--;
 					asoc->stream_reset_out_is_outstanding = 1;
 					no_clear = 1;
