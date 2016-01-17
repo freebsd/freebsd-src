@@ -598,9 +598,10 @@ gather_inet(int proto)
 		xig = (struct xinpgen *)(void *)((char *)xig + xig->xig_len);
 		if (xig >= exig)
 			break;
+		xip = (struct xinpcb *)xig;
+		xtp = (struct xtcpcb *)xig;
 		switch (proto) {
 		case IPPROTO_TCP:
-			xtp = (struct xtcpcb *)xig;
 			if (xtp->xt_len != sizeof(*xtp)) {
 				warnx("struct xtcpcb size mismatch");
 				goto out;
@@ -612,7 +613,6 @@ gather_inet(int proto)
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
-			xip = (struct xinpcb *)xig;
 			if (xip->xi_len != sizeof(*xip)) {
 				warnx("struct xinpcb size mismatch");
 				goto out;
