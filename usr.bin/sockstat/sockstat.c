@@ -332,6 +332,12 @@ gather_sctp(void)
 		sock->socket = xinpcb->socket;
 		sock->proto = IPPROTO_SCTP;
 		sock->protoname = "sctp";
+		if (xinpcb->flags & SCTP_PCB_FLAGS_UNBOUND)
+			sock->state = SCTP_CLOSED;
+		else if (xinpcb->maxqlen == 0)
+			sock->state = SCTP_BOUND;
+		else
+			sock->state = SCTP_LISTEN;
 		if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
 			sock->family = AF_INET6;
 			sock->vflag = INP_IPV6;
@@ -421,6 +427,7 @@ gather_sctp(void)
 				sock->socket = xinpcb->socket;
 				sock->proto = IPPROTO_SCTP;
 				sock->protoname = "sctp";
+				sock->state = (int)xstcb->state;
 				if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
 					sock->family = AF_INET6;
 					sock->vflag = INP_IPV6;
@@ -906,6 +913,46 @@ check_ports(struct sock *s)
 	return (0);
 }
 
+static const char *
+sctp_state(int state)
+{
+	switch (state) {
+	case SCTP_CLOSED:
+		return "CLOSED";
+		break;
+	case SCTP_BOUND:
+		return "BOUND";
+		break;
+	case SCTP_LISTEN:
+		return "LISTEN";
+		break;
+	case SCTP_COOKIE_WAIT:
+		return "COOKIE_WAIT";
+		break;
+	case SCTP_COOKIE_ECHOED:
+		return "COOKIE_ECHOED";
+		break;
+	case SCTP_ESTABLISHED:
+		return "ESTABLISHED";
+		break;
+	case SCTP_SHUTDOWN_SENT:
+		return "SHUTDOWN_SENT";
+		break;
+	case SCTP_SHUTDOWN_RECEIVED:
+		return "SHUTDOWN_RECEIVED";
+		break;
+	case SCTP_SHUTDOWN_ACK_SENT:
+		return "SHUTDOWN_ACK_SENT";
+		break;
+	case SCTP_SHUTDOWN_PENDING:
+		return "SHUTDOWN_PENDING";
+		break;
+	default:
+		return "UNKNOWN";
+		break;
+	}
+}
+
 static void
 displaysock(struct sock *s, int pos)
 {
@@ -975,13 +1022,22 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
-		if (first && opt_s && s->proto == IPPROTO_TCP) {
+		if (first && opt_s &&
+		    (s->proto == IPPROTO_SCTP || s->proto == IPPROTO_TCP)) {
 			while (pos < 80)
 				pos += xprintf(" ");
-			if (s->state >= 0 && s->state < TCP_NSTATES)
-				pos += xprintf("%s", tcpstates[s->state]);
-			else
-				pos += xprintf("?");
+			switch (s->proto) {
+			case IPPROTO_SCTP:
+				pos += xprintf("%s", sctp_state(s->state));
+				break;
+			case IPPROTO_TCP:
+				if (s->state >= 0 && s->state < TCP_NSTATES)
+					pos +=
+					    xprintf("%s", tcpstates[s->state]);
+				else
+					pos += xprintf("?");
+				break;
+			}
 		}
 		if (laddr != NULL)
 			laddr = laddr->next;
