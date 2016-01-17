@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #define DRQ_CLR_CNT	0x3
 
 #define AC_DAC_DPC	0x00
+#define  DAC_DPC_EN_DA		__BIT(31)
 #define AC_DAC_FIFOC	0x04
 #define  DAC_FIFOC_FS		__BITS(31,29)
 #define   DAC_FS_48KHZ		0
@@ -99,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #define AC_ADC_ACTL	0x28
 #define  ADC_ACTL_ADCREN	__BIT(31)
 #define  ADC_ACTL_ADCLEN	__BIT(30)
+#define  ADC_ACTL_PA_EN		__BIT(4)
 #define AC_DAC_CNT	0x30
 #define AC_ADC_CNT	0x34
 
@@ -170,6 +172,11 @@ a10codec_mixer_init(struct snd_mixer *m)
 	val = CODEC_READ(sc, AC_DAC_ACTL);
 	val |= DAC_ACTL_PAMUTE;
 	CODEC_WRITE(sc, AC_DAC_ACTL, val);
+
+	/* Enable PA */
+	val = CODEC_READ(sc, AC_ADC_ACTL);
+	val |= ADC_ACTL_PA_EN;
+	CODEC_WRITE(sc, AC_ADC_ACTL, val);
 
 	/* Unmute PA */
 	gpio = devclass_get_device(devclass_find("gpio"), 0);
@@ -584,6 +591,7 @@ a10codec_attach(device_t dev)
 	struct a10codec_info *sc;
 	char status[SND_STATUSLEN];
 	int rid, error;
+	uint32_t val;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->dev = dev;
@@ -636,6 +644,11 @@ a10codec_attach(device_t dev)
 	/* Activate audio codec clock */
 	a10_clk_codec_activate();
 
+	/* Enable DAC */
+	val = CODEC_READ(sc, AC_DAC_DPC);
+	val |= DAC_DPC_EN_DA;
+	CODEC_WRITE(sc, AC_DAC_DPC, val);
+
 #ifdef notdef
 	error = snd_setup_intr(dev, sc->irq, INTR_MPSAFE, a10codec_intr, sc,
 	    &sc->ih);
@@ -649,6 +662,8 @@ a10codec_attach(device_t dev)
 		device_printf(dev, "mixer_init failed\n");
 		goto fail;
 	}
+
+	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
 	if (pcm_register(dev, sc, 1, 1)) {
 		device_printf(dev, "pcm_register failed\n");
