@@ -655,6 +655,8 @@ again:;
 			if (rtm->rtm_flags & RTF_CLONED)
 				delete(host_buf);
 #else
+			if (rtm->rtm_flags & RTF_PINNED)
+				continue;
 			delete(host_buf);
 #endif
 			continue;
