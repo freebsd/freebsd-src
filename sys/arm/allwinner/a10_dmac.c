@@ -198,7 +198,7 @@ a10dmac_intr(void *priv)
 	DMA_WRITE(sc, AWIN_DMA_IRQ_PEND_STA_REG, sta);
 
 	while ((bit = ffs(sta & AWIN_DMA_IRQ_END_MASK)) != 0) {
-		mask = __BIT(bit - 1);
+		mask = (1U << (bit - 1));
 		sta &= ~mask;
 		index = ((bit - 1) / 2) & 7;
 		if (mask & AWIN_DMA_IRQ_NDMA) {
@@ -333,10 +333,10 @@ a10dmac_transfer(device_t dev, void *priv, bus_addr_t src, bus_addr_t dst,
 		DMACH_WRITE(ch, AWIN_DDMA_DEST_START_ADDR_REG, dst);
 		DMACH_WRITE(ch, AWIN_DDMA_BC_REG, nbytes);
 		DMACH_WRITE(ch, AWIN_DDMA_PARA_REG,
-		    __SHIFTIN(31, AWIN_DDMA_PARA_DST_DATA_BLK_SIZ) |
-		    __SHIFTIN(7, AWIN_DDMA_PARA_DST_WAIT_CYC) |
-		    __SHIFTIN(31, AWIN_DDMA_PARA_SRC_DATA_BLK_SIZ) |
-		    __SHIFTIN(7, AWIN_DDMA_PARA_SRC_WAIT_CYC));
+		    (31 << AWIN_DDMA_PARA_DST_DATA_BLK_SIZ_SHIFT) |
+		    (7 << AWIN_DDMA_PARA_DST_WAIT_CYC_SHIFT) |
+		    (31 << AWIN_DDMA_PARA_SRC_DATA_BLK_SIZ_SHIFT) |
+		    (7 << AWIN_DDMA_PARA_SRC_WAIT_CYC_SHIFT));
 
 		cfg |= AWIN_DDMA_CTL_DMA_LOADING;
 		a10dmac_set_config(dev, ch, cfg);

@@ -65,39 +65,46 @@ __FBSDID("$FreeBSD$");
 #define DRQ_CLR_CNT	0x3
 
 #define AC_DAC_DPC	0x00
-#define  DAC_DPC_EN_DA		__BIT(31)
+#define  DAC_DPC_EN_DA			0x80000000
 #define AC_DAC_FIFOC	0x04
-#define  DAC_FIFOC_FS		__BITS(31,29)
-#define   DAC_FS_48KHZ		0
-#define  DAC_FIFOC_FIFO_MODE	__BITS(25,24)
-#define   FIFO_MODE_16_15_0	1
-#define  DAC_FIFOC_DRQ_CLR_CNT	__BITS(22,21)
-#define  DAC_FIFOC_TX_TRIG_LEVEL __BITS(14,8)
-#define  DAC_FIFOC_DRQ_EN	__BIT(4)
-#define  DAC_FIFOC_FIFO_FLUSH	__BIT(0)
+#define  DAC_FIFOC_FS_SHIFT		29
+#define  DAC_FIFOC_FS_MASK		(7U << DAC_FIFOC_FS_SHIFT)
+#define   DAC_FS_48KHZ			0
+#define  DAC_FIFOC_FIFO_MODE_SHIFT	24
+#define  DAC_FIFOC_FIFO_MODE_MASK	(3U << DAC_FIFOC_FIFO_MODE_SHIFT)
+#define   FIFO_MODE_16_15_0		1
+#define  DAC_FIFOC_DRQ_CLR_CNT_SHIFT	21
+#define  DAC_FIFOC_DRQ_CLR_CNT_MASK	(3U << DAC_FIFOC_DRQ_CLR_CNT_SHIFT)
+#define  DAC_FIFOC_TX_TRIG_LEVEL_SHIFT	8
+#define  DAC_FIFOC_TX_TRIG_LEVEL_MASK	(0x7f << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT)
+#define  DAC_FIFOC_DRQ_EN		(1U << 4)
+#define  DAC_FIFOC_FIFO_FLUSH		(1U << 0)
 #define AC_DAC_FIFOS	0x08
 #define AC_DAC_TXDATA	0x0c
 #define AC_DAC_ACTL	0x10
-#define  DAC_ACTL_DACAREN	__BIT(31)
-#define  DAC_ACTL_DACALEN	__BIT(30)
-#define  DAC_ACTL_MIXEN		__BIT(29)
-#define  DAC_ACTL_DACPAS	__BIT(8)
-#define  DAC_ACTL_PAMUTE	__BIT(6)
-#define  DAC_ACTL_PAVOL		__BITS(5,0)
+#define  DAC_ACTL_DACAREN		(1U << 31)
+#define  DAC_ACTL_DACALEN		(1U << 30)
+#define  DAC_ACTL_MIXEN			(1U << 29)
+#define  DAC_ACTL_DACPAS		(1U << 8)
+#define  DAC_ACTL_PAMUTE		(1U << 6)
+#define  DAC_ACTL_PAVOL_SHIFT		0
+#define  DAC_ACTL_PAVOL_MASK		(0x3f << DAC_ACTL_PAVOL_SHIFT)
 #define AC_ADC_FIFOC	0x1c
-#define  ADC_FIFOC_FS		__BITS(31,29)
+#define  ADC_FIFOC_FS_SHIFT		29
+#define  ADC_FIFOC_FS_MASK		(7U << ADC_FIFOC_FS_SHIFT)
 #define   ADC_FS_48KHZ		0
-#define  ADC_FIFOC_EN_AD	__BIT(28)
-#define  ADC_FIFOC_RX_FIFO_MODE	__BIT(24)
-#define  ADC_FIFOC_RX_TRIG_LEVEL __BITS(12,8)
-#define  ADC_FIFOC_DRQ_EN	__BIT(4)
-#define  ADC_FIFOC_FIFO_FLUSH	__BIT(1)
+#define  ADC_FIFOC_EN_AD		(1U << 28)
+#define  ADC_FIFOC_RX_FIFO_MODE		(1U << 24)
+#define  ADC_FIFOC_RX_TRIG_LEVEL_SHIFT	8
+#define  ADC_FIFOC_RX_TRIG_LEVEL_MASK	(0x1f << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT)
+#define  ADC_FIFOC_DRQ_EN		(1U << 4)
+#define  ADC_FIFOC_FIFO_FLUSH		(1U << 1)
 #define AC_ADC_FIFOS	0x20
 #define AC_ADC_RXDATA	0x24
 #define AC_ADC_ACTL	0x28
-#define  ADC_ACTL_ADCREN	__BIT(31)
-#define  ADC_ACTL_ADCLEN	__BIT(30)
-#define  ADC_ACTL_PA_EN		__BIT(4)
+#define  ADC_ACTL_ADCREN		(1U << 31)
+#define  ADC_ACTL_ADCLEN		(1U << 30)
+#define  ADC_ACTL_PA_EN			(1U << 4)
 #define AC_DAC_CNT	0x30
 #define AC_ADC_CNT	0x34
 
@@ -204,12 +211,12 @@ a10codec_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
 
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
-		max = __SHIFTOUT(DAC_ACTL_PAVOL, DAC_ACTL_PAVOL);
+		max = DAC_ACTL_PAVOL_MASK >> DAC_ACTL_PAVOL_SHIFT;
 		nvol = (left * max) / 100;
 
 		val = CODEC_READ(sc, AC_DAC_ACTL);
-		val &= ~DAC_ACTL_PAVOL;
-		val |= __SHIFTIN(nvol, DAC_ACTL_PAVOL);
+		val &= ~DAC_ACTL_PAVOL_MASK;
+		val |= (nvol << DAC_ACTL_PAVOL_SHIFT);
 		CODEC_WRITE(sc, AC_DAC_ACTL, val);
 
 		left = right = (left * 100) / max;
@@ -269,33 +276,25 @@ static void
 a10codec_dmaconfig(struct a10codec_chinfo *ch)
 {
 	struct a10codec_info *sc = ch->parent;
-	uint32_t config;
+	uint32_t conf;
 
-	config = __SHIFTIN(AWIN_DMA_CTL_DATA_WIDTH_16,
-			   AWIN_DMA_CTL_DST_DATA_WIDTH) |
-		 __SHIFTIN(AWIN_DMA_CTL_BURST_LEN_4,
-			   AWIN_DMA_CTL_DST_BURST_LEN) |
-		 __SHIFTIN(AWIN_DMA_CTL_DATA_WIDTH_16,
-			   AWIN_DMA_CTL_SRC_DATA_WIDTH) |
-		 __SHIFTIN(AWIN_DMA_CTL_BURST_LEN_4,
-			   AWIN_DMA_CTL_SRC_BURST_LEN) |
-		 AWIN_DMA_CTL_BC_REMAINING;
+	conf = AWIN_DMA_CTL_BC_REMAINING |
+	    (AWIN_DMA_CTL_DATA_WIDTH_16 << AWIN_DMA_CTL_DST_DATA_WIDTH_SHIFT) |
+	    (AWIN_DMA_CTL_BURST_LEN_4 << AWIN_DMA_CTL_DST_BURST_LEN_SHIFT) |
+	    (AWIN_DMA_CTL_DATA_WIDTH_16 << AWIN_DMA_CTL_SRC_DATA_WIDTH_SHIFT) |
+	    (AWIN_DMA_CTL_BURST_LEN_4 << AWIN_DMA_CTL_SRC_BURST_LEN_SHIFT);
 
 	if (ch->dir == PCMDIR_PLAY) {
-		config |= AWIN_NDMA_CTL_DST_ADDR_NOINCR;
-		config |= __SHIFTIN(sc->drqtype_sdram,
-				    AWIN_DMA_CTL_SRC_DRQ_TYPE);
-		config |= __SHIFTIN(sc->drqtype_codec,
-				    AWIN_DMA_CTL_DST_DRQ_TYPE);
+		conf |= AWIN_NDMA_CTL_DST_ADDR_NOINCR;
+		conf |= (sc->drqtype_sdram << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
+		conf |= (sc->drqtype_codec << AWIN_DMA_CTL_DST_DRQ_TYPE_SHIFT);
 	} else {
-		config |= AWIN_NDMA_CTL_SRC_ADDR_NOINCR;
-		config |= __SHIFTIN(sc->drqtype_codec,
-				    AWIN_DMA_CTL_SRC_DRQ_TYPE);
-		config |= __SHIFTIN(sc->drqtype_sdram,
-				    AWIN_DMA_CTL_DST_DRQ_TYPE);
+		conf |= AWIN_NDMA_CTL_SRC_ADDR_NOINCR;
+		conf |= (sc->drqtype_codec << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
+		conf |= (sc->drqtype_sdram << AWIN_DMA_CTL_DST_DRQ_TYPE_SHIFT);
 	}
 
-	SUNXI_DMA_SET_CONFIG(ch->dmac, ch->dmachan, config);
+	SUNXI_DMA_SET_CONFIG(ch->dmac, ch->dmachan, conf);
 }
 
 static void
@@ -343,10 +342,10 @@ a10codec_start(struct a10codec_chinfo *ch)
 
 		/* Configure DAC FIFO */
 		CODEC_WRITE(sc, AC_DAC_FIFOC,
-		    __SHIFTIN(DAC_FS_48KHZ, DAC_FIFOC_FS) |
-		    __SHIFTIN(FIFO_MODE_16_15_0, DAC_FIFOC_FIFO_MODE) |
-		    __SHIFTIN(DRQ_CLR_CNT, DAC_FIFOC_DRQ_CLR_CNT) |
-		    __SHIFTIN(TX_TRIG_LEVEL, DAC_FIFOC_TX_TRIG_LEVEL));
+		    (DAC_FS_48KHZ << DAC_FIFOC_FS_SHIFT) |
+		    (FIFO_MODE_16_15_0 << DAC_FIFOC_FIFO_MODE_SHIFT) |
+		    (DRQ_CLR_CNT << DAC_FIFOC_DRQ_CLR_CNT_SHIFT) |
+		    (TX_TRIG_LEVEL << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT));
 
 		/* Enable DAC DRQ */
 		val = CODEC_READ(sc, AC_DAC_FIFOC);
@@ -372,8 +371,8 @@ a10codec_start(struct a10codec_chinfo *ch)
 		CODEC_WRITE(sc, AC_ADC_FIFOC,
 		    ADC_FIFOC_EN_AD |
 		    ADC_FIFOC_RX_FIFO_MODE |
-		    __SHIFTIN(ADC_FS_48KHZ, ADC_FIFOC_FS) |
-		    __SHIFTIN(RX_TRIG_LEVEL, ADC_FIFOC_RX_TRIG_LEVEL));
+		    (ADC_FS_48KHZ << ADC_FIFOC_FS_SHIFT) |
+		    (RX_TRIG_LEVEL << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT));
 
 		/* Enable ADC DRQ */
 		val = CODEC_READ(sc, AC_ADC_FIFOC);
