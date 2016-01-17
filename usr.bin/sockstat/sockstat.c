@@ -332,10 +332,8 @@ gather_sctp(void)
 		sock->socket = xinpcb->socket;
 		sock->proto = IPPROTO_SCTP;
 		sock->protoname = "sctp";
-		if (xinpcb->flags & SCTP_PCB_FLAGS_UNBOUND)
+		if (xinpcb->maxqlen == 0)
 			sock->state = SCTP_CLOSED;
-		else if (xinpcb->maxqlen == 0)
-			sock->state = SCTP_BOUND;
 		else
 			sock->state = SCTP_LISTEN;
 		if (xinpcb->flags & SCTP_PCB_FLAGS_BOUND_V6) {
