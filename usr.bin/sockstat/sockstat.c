@@ -542,9 +542,9 @@ gather_inet(int proto)
 	const char *varname, *protoname;
 	size_t len, bufsize;
 	void *buf;
-	int hash, retry, state, vflag;
+	int hash, retry, vflag;
 
-	state = vflag = 0;
+	vflag = 0;
 	if (opt_4)
 		vflag |= INP_IPV4;
 	if (opt_6)
@@ -609,7 +609,6 @@ gather_inet(int proto)
 			inp = &xtp->xt_inp;
 			so = &xtp->xt_socket;
 			protoname = xtp->xt_tp.t_flags & TF_TOE ? "toe" : "tcp";
-			state = xtp->xt_tp.t_state;
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
