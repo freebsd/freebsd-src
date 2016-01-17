@@ -31,7 +31,7 @@
 .\"     @(#)utimes.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2016
+.Dd January 17, 2016
 .Dt UTIMENSAT 2
 .Os
 .Sh NAME
@@ -183,10 +183,13 @@ argument
 points outside the process's allocated address space.
 .It Bq Er EINVAL
 The
-.Va tv_usec
+.Va tv_nsec
 component of at least one of the values specified by the
 .Fa times
-argument has a value less than 0 or greater than 999999.
+argument has a value less than 0 or greater than 999999999 and is not equal to
+.Dv UTIME_NOW
+or
+.Dv UTIME_OMIT .
 .It Bq Er EIO
 An I/O error occurred while reading or writing the affected inode.
 .It Bq Er EPERM
