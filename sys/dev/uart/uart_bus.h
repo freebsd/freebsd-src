@@ -112,6 +112,7 @@ struct uart_softc {
 	/* Pulse capturing support (PPS). */
 	struct pps_state sc_pps;
 	int		 sc_pps_mode;
+	sbintime_t	 sc_pps_captime;
 
 	/* Upper layer data. */
 	void		*sc_softih;
