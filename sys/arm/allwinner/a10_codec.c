@@ -60,9 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "a10_clk.h"
 #include "a10_dmac.h"
 
-/* Kludge */
-#define GPIO_CODEC_PAMUTE	271
-
 #define TX_TRIG_LEVEL	0xf
 #define RX_TRIG_LEVEL	0x7
 #define DRQ_CLR_CNT	0x3
@@ -163,8 +160,12 @@ static int
 a10codec_mixer_init(struct snd_mixer *m)
 {
 	struct a10codec_info *sc = mix_getdevinfo(m);
+	pcell_t prop[4];
+	phandle_t node;
 	device_t gpio;
 	uint32_t val;
+	ssize_t len;
+	int pin;
 
 	mix_setdevs(m, SOUND_MASK_VOLUME);
 
@@ -179,10 +180,15 @@ a10codec_mixer_init(struct snd_mixer *m)
 	CODEC_WRITE(sc, AC_ADC_ACTL, val);
 
 	/* Unmute PA */
-	gpio = devclass_get_device(devclass_find("gpio"), 0);
-	if (gpio != NULL) {
-		GPIO_PIN_SETFLAGS(gpio, GPIO_CODEC_PAMUTE, GPIO_PIN_OUTPUT);
-		GPIO_PIN_SET(gpio, GPIO_CODEC_PAMUTE, GPIO_PIN_LOW);
+	node = ofw_bus_get_node(sc->dev);
+	len = OF_getencprop(node, "pamute-gpio", prop, sizeof(prop));
+	if (len > 0 && (len / sizeof(prop[0])) == 4) {
+		gpio = OF_device_from_xref(prop[0]);
+		if (gpio != NULL) {
+			pin = prop[1] * 32 + prop[2];
+			GPIO_PIN_SETFLAGS(gpio, pin, GPIO_PIN_OUTPUT);
+			GPIO_PIN_SET(gpio, pin, GPIO_PIN_LOW);
+		}
 	}
 
 	return (0);

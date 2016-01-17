@@ -74,6 +74,11 @@
 		ahci: sata@01c18000 {
 			status = "okay";
 		};
+
+		codec: codec@01c22c00 {
+			status = "okay";
+			pamute-gpio = <&pio 7 15 GPIO_ACTIVE_HIGH>;
+		};
 	};
 
 	leds {

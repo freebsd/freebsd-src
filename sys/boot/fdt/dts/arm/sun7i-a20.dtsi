@@ -169,6 +169,7 @@
 			reg = <0x01c22c00 0x40>;
 			interrupts = <30>;
 			interrupt-parent = <&GIC>;
+			status = "disabled";
 		};
 	};
 };
