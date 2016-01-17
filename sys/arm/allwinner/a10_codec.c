@@ -539,25 +539,14 @@ static uint32_t
 a10codec_chan_getptr(kobj_t obj, void *data)
 {
 	struct a10codec_chinfo *ch = data;
-#if 0
-	struct a10codec_info *sc = ch->parent;
-	unsigned reg = ch->dir == PCMDIR_REC ? AC_ADC_CNT : AC_DAC_CNT;
-	uint32_t pos;
 
-	snd_mtxlock(sc->lock);
-	pos = CODEC_READ(sc, reg);
-	snd_mtxunlock(sc->lock);
-
-	return pos % sndbuf_getsize(ch->buffer);
-#else
-	return ch->pos;
-#endif
+	return (ch->pos);
 }
 
 static struct pcmchan_caps *
 a10codec_chan_getcaps(kobj_t obj, void *data)
 {
-	return &a10codec_caps;
+	return (&a10codec_caps);
 }
 
 static kobj_method_t a10codec_chan_methods[] = {
