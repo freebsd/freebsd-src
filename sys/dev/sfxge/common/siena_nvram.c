@@ -594,36 +594,6 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-siena_nvram_erase(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type)
-{
-	size_t size;
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = siena_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
-	if ((rc = siena_nvram_partn_size(enp, partn, &size)) != 0)
-		goto fail2;
-
-	if ((rc = siena_nvram_partn_erase(enp, partn, 0, size)) != 0)
-		goto fail3;
-
-	return (0);
-
-fail3:
-	EFSYS_PROBE(fail3);
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
-	__checkReturn		efx_rc_t
 siena_nvram_write_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
