@@ -185,6 +185,8 @@ devfs_destroy_cdevpriv(struct cdev_privdata *p)
 {
 
 	mtx_assert(&cdevpriv_mtx, MA_OWNED);
+	KASSERT(p->cdpd_fp->f_cdevpriv == p,
+	    ("devfs_destoy_cdevpriv %p != %p", p->cdpd_fp->f_cdevpriv, p));
 	p->cdpd_fp->f_cdevpriv = NULL;
 	LIST_REMOVE(p, cdpd_list);
 	mtx_unlock(&cdevpriv_mtx);
