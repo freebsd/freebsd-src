@@ -83,6 +83,7 @@ NOASM=
 .if ${LIBC_ARCH} != "aarch64" && \
     ${LIBC_ARCH} != "amd64" && \
     ${LIBC_ARCH} != "powerpc64" && \
+    ${LIBC_ARCH} != "riscv" && \
     ${LIBC_ARCH} != "sparc64" && \
     ${MACHINE_ARCH:Mmipsn32*} == "" && \
     ${MACHINE_ARCH:Mmips64*} == ""
@@ -101,7 +102,7 @@ NOASM=
 .include "${LIBC_SRCTOP}/uuid/Makefile.inc"
 .include "${LIBC_SRCTOP}/xdr/Makefile.inc"
 .if (${LIBC_ARCH} == "arm" && ${MACHINE_ARCH} != "armv6hf") ||\
-     ${LIBC_ARCH} == "mips"
+     ${LIBC_ARCH} == "mips" && ${LIBC_ARCH} == "riscv"
 .include "${LIBC_SRCTOP}/softfloat/Makefile.inc"
 .endif
 .if ${MK_NIS} != "no"
