@@ -13554,13 +13554,6 @@ out_unlocked:
 		}
 	}
 #endif
-#ifdef INVARIANTS
-	if (inp) {
-		sctp_validate_no_locks(inp);
-	} else {
-		SCTP_PRINTF("Warning - inp is NULL so cant validate locks\n");
-	}
-#endif
 	if (top) {
 		sctp_m_freem(top);
 	}
