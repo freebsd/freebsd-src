@@ -104,7 +104,26 @@ __FBSDID("$FreeBSD$");
 #define AC_ADC_ACTL	0x28
 #define  ADC_ACTL_ADCREN		(1U << 31)
 #define  ADC_ACTL_ADCLEN		(1U << 30)
+#define  ADC_ACTL_PREG1EN		(1U << 29)
+#define  ADC_ACTL_PREG2EN		(1U << 28)
+#define  ADC_ACTL_VMICEN		(1U << 27)
+#define  ADC_ACTL_ADCG_SHIFT		20
+#define  ADC_ACTL_ADCG_MASK		(7U << ADC_ACTL_ADCG_SHIFT)
+#define  ADC_ACTL_ADCIS_SHIFT		17
+#define  ADC_ACTL_ADCIS_MASK		(7U << ADC_ACTL_ADCIS_SHIFT)
+#define   ADC_IS_LINEIN			0
+#define   ADC_IS_FMIN			1
+#define   ADC_IS_MIC1			2
+#define   ADC_IS_MIC2			3
+#define   ADC_IS_MIC1_L_MIC2_R		4
+#define   ADC_IS_MIC1_LR_MIC2_LR	5
+#define   ADC_IS_OMIX			6
+#define   ADC_IS_LINEIN_L_MIC1_R	7
+#define  ADC_ACTL_LNRDF			(1U << 16)
+#define  ADC_ACTL_LNPREG_SHIFT		13
+#define  ADC_ACTL_LNPREG_MASK		(7U << ADC_ACTL_LNPREG_SHIFT)
 #define  ADC_ACTL_PA_EN			(1U << 4)
+#define  ADC_ACTL_DDE			(1U << 3)
 #define AC_DAC_CNT	0x30
 #define AC_ADC_CNT	0x34
 
@@ -174,7 +193,8 @@ a10codec_mixer_init(struct snd_mixer *m)
 	ssize_t len;
 	int pin;
 
-	mix_setdevs(m, SOUND_MASK_VOLUME);
+	mix_setdevs(m, SOUND_MASK_VOLUME | SOUND_MASK_LINE | SOUND_MASK_RECLEV);
+	mix_setrecdevs(m, SOUND_MASK_LINE | SOUND_MASK_LINE1 | SOUND_MASK_MIC);
 
 	/* Unmute input source to PA */
 	val = CODEC_READ(sc, AC_DAC_ACTL);
@@ -201,6 +221,19 @@ a10codec_mixer_init(struct snd_mixer *m)
 	return (0);
 }
 
+static const struct a10codec_mixer {
+	unsigned reg;
+	unsigned mask;
+	unsigned shift;
+} a10codec_mixers[SOUND_MIXER_NRDEVICES] = {
+	[SOUND_MIXER_VOLUME]	= { AC_DAC_ACTL, DAC_ACTL_PAVOL_MASK,
+				    DAC_ACTL_PAVOL_SHIFT },
+	[SOUND_MIXER_LINE]	= { AC_ADC_ACTL, ADC_ACTL_LNPREG_MASK,
+				    ADC_ACTL_LNPREG_SHIFT },
+	[SOUND_MIXER_RECLEV]	= { AC_ADC_ACTL, ADC_ACTL_ADCG_MASK,
+				    ADC_ACTL_ADCG_SHIFT },
+}; 
+
 static int
 a10codec_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
     unsigned right)
@@ -209,27 +242,61 @@ a10codec_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
 	uint32_t val;
 	unsigned nvol, max;
 
-	switch (dev) {
-	case SOUND_MIXER_VOLUME:
-		max = DAC_ACTL_PAVOL_MASK >> DAC_ACTL_PAVOL_SHIFT;
-		nvol = (left * max) / 100;
+	max = a10codec_mixers[dev].mask >> a10codec_mixers[dev].shift;
+	nvol = (left * max) / 100;
 
-		val = CODEC_READ(sc, AC_DAC_ACTL);
-		val &= ~DAC_ACTL_PAVOL_MASK;
-		val |= (nvol << DAC_ACTL_PAVOL_SHIFT);
-		CODEC_WRITE(sc, AC_DAC_ACTL, val);
+	val = CODEC_READ(sc, a10codec_mixers[dev].reg);
+	val &= ~a10codec_mixers[dev].mask;
+	val |= (nvol << a10codec_mixers[dev].shift);
+	CODEC_WRITE(sc, a10codec_mixers[dev].reg, val);
 
-		left = right = (left * 100) / max;
-		return (left | (right << 8));
+	left = right = (left * 100) / max;
+	return (left | (right << 8));
+}
+
+static uint32_t
+a10codec_mixer_setrecsrc(struct snd_mixer *m, uint32_t src)
+{
+	struct a10codec_info *sc = mix_getdevinfo(m);
+	uint32_t val;
+
+	val = CODEC_READ(sc, AC_ADC_ACTL);
+
+	switch (src) {
+	case SOUND_MASK_LINE:	/* line-in */
+		val &= ~ADC_ACTL_ADCIS_MASK;
+		val |= (ADC_IS_LINEIN << ADC_ACTL_ADCIS_SHIFT);
+		break;
+	case SOUND_MASK_MIC:	/* MIC1 */
+		val &= ~ADC_ACTL_ADCIS_MASK;
+		val |= (ADC_IS_MIC1 << ADC_ACTL_ADCIS_SHIFT);
+		break;
+	case SOUND_MASK_LINE1:	/* MIC2 */
+		val &= ~ADC_ACTL_ADCIS_MASK;
+		val |= (ADC_IS_MIC2 << ADC_ACTL_ADCIS_SHIFT);
+		break;
 	default:
-		return (-1);
+		break;
 	}
 
+	CODEC_WRITE(sc, AC_ADC_ACTL, val);
+
+	switch ((val & ADC_ACTL_ADCIS_MASK) >> ADC_ACTL_ADCIS_SHIFT) {
+	case ADC_IS_LINEIN:
+		return (SOUND_MASK_LINE);
+	case ADC_IS_MIC1:
+		return (SOUND_MASK_MIC);
+	case ADC_IS_MIC2:
+		return (SOUND_MASK_LINE1);
+	default:
+		return (0);
+	}
 }
 
 static kobj_method_t a10codec_mixer_methods[] = {
 	KOBJMETHOD(mixer_init,		a10codec_mixer_init),
 	KOBJMETHOD(mixer_set,		a10codec_mixer_set),
+	KOBJMETHOD(mixer_setrecsrc,	a10codec_mixer_setrecsrc),
 	KOBJMETHOD_END
 };
 MIXER_DECLARE(a10codec_mixer);
