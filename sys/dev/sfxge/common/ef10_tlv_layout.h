@@ -694,7 +694,6 @@ struct tlv_mcast_filter_chaining {
 #define TLV_MCAST_FILTER_CHAINING_ENABLED  (1)
 };
 
-
 /* Pacer rate limit per PF */
 #define TLV_TAG_RATE_LIMIT(pf)    (0x101b0000 + (pf))
 
@@ -703,7 +702,6 @@ struct tlv_rate_limit {
   uint32_t length;
   uint32_t rate_mbps;
 };
-
 
 /* OCSD Enable/Disable
  *
