@@ -594,15 +594,11 @@ fail1:
 }
 
 				void
-siena_nvram_rw_finish(
+siena_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type)
+	__in			uint32_t partn)
 {
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = siena_nvram_type_to_partn(enp, type, &partn)) == 0)
-		siena_nvram_partn_unlock(enp, partn);
+	siena_nvram_partn_unlock(enp, partn);
 }
 
 	__checkReturn		efx_rc_t
