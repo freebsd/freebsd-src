@@ -171,6 +171,7 @@ try_load(dev_info_t *dev, const char *loader_path, void **bufp, size_t *bufsize)
 	ssize_t read;
 	void *buf;
 
+	dsk_meta = 0;
 	devinfo = dev;
 	if ((ino = lookup(loader_path)) == 0)
 		return (EFI_NOT_FOUND);
