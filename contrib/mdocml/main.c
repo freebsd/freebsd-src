@@ -720,7 +720,7 @@ parse(struct curparse *curp, int fd, const char *file)
 	/* Begin by parsing the file itself. */
 
 	assert(file);
-	assert(fd > 0);
+	assert(fd >= 0);
 
 	rctmp = mparse_readfd(curp->mp, fd, file);
 	if (fd != STDIN_FILENO)
