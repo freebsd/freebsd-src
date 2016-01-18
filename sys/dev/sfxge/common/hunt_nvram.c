@@ -1768,33 +1768,6 @@ fail1:
 	return (rc);
 }
 
-	__checkReturn		efx_rc_t
-ef10_nvram_write_chunk(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in			unsigned int offset,
-	__in_bcount(size)	caddr_t data,
-	__in			size_t size)
-{
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
-	if ((rc = ef10_nvram_partn_write(enp, partn, offset, data, size)) != 0)
-		goto fail2;
-
-	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
 				void
 ef10_nvram_rw_finish(
 	__in			efx_nic_t *enp,
