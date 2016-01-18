@@ -675,10 +675,10 @@ __rpcbind_is_up()
 		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
 			 break;
 	}
+	endnetconfig(localhandle);
+
 	if (nconf == NULL)
 		return (FALSE);
-
-	endnetconfig(localhandle);
 
 	memset(&sun, 0, sizeof sun);
 	sock = _socket(AF_LOCAL, SOCK_STREAM, 0);
