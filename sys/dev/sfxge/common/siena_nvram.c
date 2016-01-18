@@ -594,15 +594,15 @@ siena_nvram_partn_rw_finish(
 }
 
 	__checkReturn		efx_rc_t
-siena_nvram_set_version(
+siena_nvram_partn_set_version(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
+	__in			uint32_t partn,
 	__in_ecount(4)		uint16_t version[4])
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	siena_mc_dynamic_config_hdr_t *dcfg = NULL;
 	siena_mc_fw_version_t *fwverp;
-	uint32_t dcfg_partn, partn;
+	uint32_t dcfg_partn;
 	size_t dcfg_size;
 	unsigned int hdr_length;
 	unsigned int vpd_length;
@@ -615,15 +615,12 @@ siena_nvram_set_version(
 	size_t length;
 	efx_rc_t rc;
 
-	if ((rc = siena_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
 	dcfg_partn = (emip->emi_port == 1)
 		? MC_CMD_NVRAM_TYPE_DYNAMIC_CFG_PORT0
 		: MC_CMD_NVRAM_TYPE_DYNAMIC_CFG_PORT1;
 
 	if ((rc = siena_nvram_partn_size(enp, dcfg_partn, &dcfg_size)) != 0)
-		goto fail2;
+		goto fail1;
 
 	if ((rc = siena_nvram_partn_lock(enp, dcfg_partn)) != 0)
 		goto fail2;

@@ -387,18 +387,6 @@ ef10_nvram_test(
 #endif	/* EFSYS_OPT_DIAG */
 
 extern	__checkReturn		efx_rc_t
-ef10_nvram_partn_set_version(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__in_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_set_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
 ef10_nvram_type_to_partn(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -450,6 +438,12 @@ ef10_nvram_partn_get_version(
 	__in			uint32_t partn,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_partn_set_version(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in_ecount(4)		uint16_t version[4]);
 
 #endif	/* EFSYS_OPT_NVRAM */
 

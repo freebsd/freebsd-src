@@ -1770,31 +1770,6 @@ ef10_nvram_partn_rw_finish(
 	ef10_nvram_partn_unlock(enp, partn);
 }
 
-	__checkReturn		efx_rc_t
-ef10_nvram_set_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in_ecount(4)		uint16_t version[4])
-{
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
-	if ((rc = ef10_nvram_partn_set_version(enp, partn, version)) != 0)
-		goto fail2;
-
-	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
 #endif	/* EFSYS_OPT_NVRAM */
 
 #endif	/* EFSYS_OPT_HUNTINGTON */
