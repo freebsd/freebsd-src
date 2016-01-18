@@ -333,10 +333,11 @@ command_mode(int argc, char *argv[])
 		return (CMD_OK);
 	}
 
-	for (i = 0; ; i++) {
+	printf("Current mode: %d\n", conout->Mode->Mode);
+	for (i = 0; i <= conout->Mode->MaxMode; i++) {
 		status = conout->QueryMode(conout, i, &cols, &rows);
 		if (EFI_ERROR(status))
-			break;
+			continue;
 		printf("Mode %d: %u columns, %u rows\n", i, (unsigned)cols,
 		    (unsigned)rows);
 	}
