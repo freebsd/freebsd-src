@@ -951,6 +951,13 @@ ef10_get_datapath_caps(
 	    CAP_FLAG(flags, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED) ?
 	    B_TRUE : B_FALSE;
 
+	/*
+	 * Check if firmware supports the extended MC_CMD_SET_MAC, which allows
+	 * specifying which parameters to configure.
+	 */
+	encp->enc_enhanced_set_mac_supported =
+		CAP_FLAG(flags, SET_MAC_ENHANCED) ? B_TRUE : B_FALSE;
+
 #undef CAP_FLAG
 #undef CAP_FLAG2
 
