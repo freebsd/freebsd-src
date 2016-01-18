@@ -127,8 +127,8 @@ try_load(const boot_module_t *mod)
 
 	if ((status = bs->StartImage(loaderhandle, NULL, NULL)) !=
 	    EFI_SUCCESS) {
-		printf("Failed start image provided by %s (%lu)\n", mod->name,
-		    EFI_ERROR_CODE(status));
+		printf("Failed to start image provided by %s (%lu)\n",
+		    mod->name, EFI_ERROR_CODE(status));
 		return;
 	}
 }
