@@ -484,9 +484,6 @@ typedef struct efx_nvram_ops_s {
 #if EFSYS_OPT_DIAG
 	efx_rc_t	(*envo_test)(efx_nic_t *);
 #endif	/* EFSYS_OPT_DIAG */
-	efx_rc_t	(*envo_set_version)(efx_nic_t *, efx_nvram_type_t,
-					    uint16_t *);
-
 	efx_rc_t	(*envo_type_to_partn)(efx_nic_t *, efx_nvram_type_t,
 					    uint32_t *);
 	efx_rc_t	(*envo_partn_size)(efx_nic_t *, uint32_t, size_t *);
@@ -500,6 +497,8 @@ typedef struct efx_nvram_ops_s {
 	void		(*envo_partn_rw_finish)(efx_nic_t *, uint32_t);
 	efx_rc_t	(*envo_partn_get_version)(efx_nic_t *, uint32_t,
 					    uint32_t *, uint16_t *);
+	efx_rc_t	(*envo_partn_set_version)(efx_nic_t *, uint32_t,
+					    uint16_t *);
 } efx_nvram_ops_t;
 #endif /* EFSYS_OPT_NVRAM */
 

@@ -187,12 +187,6 @@ siena_nvram_get_subtype(
 	__out			uint32_t *subtypep);
 
 extern	__checkReturn		efx_rc_t
-siena_nvram_set_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
 siena_nvram_type_to_partn(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -245,6 +239,11 @@ siena_nvram_partn_get_version(
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
 
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_set_version(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in_ecount(4)		uint16_t version[4]);
 
 #endif	/* EFSYS_OPT_NVRAM */
 
