@@ -12,7 +12,6 @@ MK_SSP=		no
 PROG=		loader.sym
 INTERNALPROG=
 
-.PATH: ${.CURDIR}/../../efi/loader
 # architecture-specific loader code
 SRCS=	autoload.c \
 	bootinfo.c \
@@ -80,7 +79,7 @@ EFI_TARGET=	efi-app-x86_64
 EFI_TARGET=	efi-app-ia32
 .endif
 
-loader.efi: loader.sym
+loader.efi: ${PROG}
 	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
 		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
 		exit 1; \

@@ -9,7 +9,7 @@ MAN=
 
 MK_SSP=		no
 
-PROG=		loader.sym
+PROG=		boot1.sym
 INTERNALPROG=
 
 # architecture-specific loader code
@@ -38,7 +38,7 @@ LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 LDFLAGS+=	-Wl,-znocombreloc
 .endif
 
-${PROG}:	${LDSCRIPT}
+DPADD+=		${LDSCRIPT}
 
 OBJCOPY?=	objcopy
 OBJDUMP?=	objdump
@@ -49,19 +49,19 @@ EFI_TARGET=	efi-app-x86_64
 EFI_TARGET=	efi-app-ia32
 .endif
 
-boot1.efi: loader.sym
+boot1.efi: ${PROG}
 	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
 		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
 		exit 1; \
 	fi
 	${OBJCOPY} -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
-		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
+		-j .rela.dyn -j .reloc -j .eh_frame \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
 boot1.o: ${.CURDIR}/../../common/ufsread.c
 
-# The following inserts out objects into a template FAT file system
+# The following inserts our objects into a template FAT file system
 # created by generate-fat.sh
 
 .include "${.CURDIR}/Makefile.fat"
