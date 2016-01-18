@@ -56,6 +56,7 @@ static efx_mac_ops_t	__efx_falcon_gmac_ops = {
 	falcon_mac_poll,			/* emo_poll */
 	falcon_mac_up,				/* emo_up */
 	falcon_gmac_reconfigure,		/* emo_addr_set */
+	falcon_gmac_reconfigure,		/* emo_pdu_set */
 	falcon_gmac_reconfigure,		/* emo_reconfigure */
 	falconsiena_mac_multicast_list_set,	/* emo_multicast_list_set */
 	NULL,					/* emo_filter_set_default_rxq */
@@ -77,6 +78,7 @@ static efx_mac_ops_t	__efx_falcon_xmac_ops = {
 	falcon_mac_poll,			/* emo_poll */
 	falcon_mac_up,				/* emo_up */
 	falcon_xmac_reconfigure,		/* emo_addr_set */
+	falcon_xmac_reconfigure,		/* emo_pdu_set */
 	falcon_xmac_reconfigure,		/* emo_reconfigure */
 	falconsiena_mac_multicast_list_set,	/* emo_multicast_list_set */
 	NULL,					/* emo_filter_set_default_rxq */
@@ -98,6 +100,7 @@ static efx_mac_ops_t	__efx_siena_mac_ops = {
 	siena_mac_poll,				/* emo_poll */
 	siena_mac_up,				/* emo_up */
 	siena_mac_reconfigure,			/* emo_addr_set */
+	siena_mac_reconfigure,			/* emo_pdu_set */
 	siena_mac_reconfigure,			/* emo_reconfigure */
 	falconsiena_mac_multicast_list_set,	/* emo_multicast_list_set */
 	NULL,					/* emo_filter_set_default_rxq */
@@ -119,6 +122,7 @@ static efx_mac_ops_t	__efx_ef10_mac_ops = {
 	ef10_mac_poll,				/* emo_poll */
 	ef10_mac_up,				/* emo_up */
 	ef10_mac_addr_set,			/* emo_addr_set */
+	ef10_mac_pdu_set,			/* emo_pdu_set */
 	ef10_mac_reconfigure,			/* emo_reconfigure */
 	ef10_mac_multicast_list_set,		/* emo_multicast_list_set */
 	ef10_mac_filter_default_rxq_set,	/* emo_filter_default_rxq_set */
@@ -196,7 +200,7 @@ efx_mac_pdu_set(
 
 	old_pdu = epp->ep_mac_pdu;
 	epp->ep_mac_pdu = (uint32_t)pdu;
-	if ((rc = emop->emo_reconfigure(enp)) != 0)
+	if ((rc = emop->emo_pdu_set(enp)) != 0)
 		goto fail3;
 
 	return (0);
