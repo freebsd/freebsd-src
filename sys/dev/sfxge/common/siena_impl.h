@@ -193,11 +193,6 @@ siena_nvram_get_version(
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
 
-extern				void
-siena_nvram_rw_finish(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type);
-
 extern	__checkReturn		efx_rc_t
 siena_nvram_set_version(
 	__in			efx_nic_t *enp,
@@ -244,6 +239,12 @@ siena_nvram_partn_write(
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
+
+extern				void
+siena_nvram_partn_rw_finish(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn);
+
 
 #endif	/* EFSYS_OPT_NVRAM */
 
