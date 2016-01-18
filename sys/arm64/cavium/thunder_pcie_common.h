@@ -29,8 +29,8 @@
 #ifndef _CAVIUM_THUNDER_PCIE_COMMON_H_
 #define	_CAVIUM_THUNDER_PCIE_COMMON_H_
 
-#define	MAX_RANGES_TUPLES	5
-#define	MIN_RANGES_TUPLES	2
+#define	RANGES_TUPLES_MAX	6
+#define	RANGES_TUPLES_INVALID (RANGES_TUPLES_MAX + 1)
 
 struct pcie_range {
 	uint64_t	pci_base;

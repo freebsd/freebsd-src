@@ -114,7 +114,7 @@ struct thunder_pem_softc {
 	struct resource		*reg;
 	bus_space_tag_t		reg_bst;
 	bus_space_handle_t	reg_bsh;
-	struct pcie_range	ranges[MAX_RANGES_TUPLES];
+	struct pcie_range	ranges[RANGES_TUPLES_MAX];
 	struct rman		mem_rman;
 	struct rman		io_rman;
 	bus_space_handle_t	pem_sli_base;
