@@ -43,7 +43,6 @@ static efx_nvram_ops_t	__efx_nvram_falcon_ops = {
 	falcon_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
 	falcon_nvram_get_version,	/* envo_get_version */
-	falcon_nvram_write_chunk,	/* envo_write_chunk */
 	falcon_nvram_rw_finish,		/* envo_rw_finish */
 	falcon_nvram_set_version,	/* envo_set_version */
 	falcon_nvram_type_to_partn,	/* envo_type_to_partn */
@@ -51,6 +50,7 @@ static efx_nvram_ops_t	__efx_nvram_falcon_ops = {
 	falcon_nvram_partn_rw_start,	/* envo_partn_rw_start */
 	falcon_nvram_partn_read,	/* envo_partn_read */
 	falcon_nvram_partn_erase,	/* envo_partn_erase */
+	falcon_nvram_partn_write,	/* envo_partn_write */
 };
 
 #endif	/* EFSYS_OPT_FALCON */
@@ -62,7 +62,6 @@ static efx_nvram_ops_t	__efx_nvram_siena_ops = {
 	siena_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
 	siena_nvram_get_version,	/* envo_get_version */
-	siena_nvram_write_chunk,	/* envo_write_chunk */
 	siena_nvram_rw_finish,		/* envo_rw_finish */
 	siena_nvram_set_version,	/* envo_set_version */
 	siena_nvram_type_to_partn,	/* envo_type_to_partn */
@@ -70,6 +69,7 @@ static efx_nvram_ops_t	__efx_nvram_siena_ops = {
 	siena_nvram_partn_rw_start,	/* envo_partn_rw_start */
 	siena_nvram_partn_read,		/* envo_partn_read */
 	siena_nvram_partn_erase,	/* envo_partn_erase */
+	siena_nvram_partn_write,	/* envo_partn_write */
 };
 
 #endif	/* EFSYS_OPT_SIENA */
@@ -81,7 +81,6 @@ static efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 	ef10_nvram_test,		/* envo_test */
 #endif	/* EFSYS_OPT_DIAG */
 	ef10_nvram_get_version,		/* envo_get_version */
-	ef10_nvram_write_chunk,		/* envo_write_chunk */
 	ef10_nvram_rw_finish,		/* envo_rw_finish */
 	ef10_nvram_set_version,		/* envo_set_version */
 	ef10_nvram_type_to_partn,	/* envo_type_to_partn */
@@ -89,6 +88,7 @@ static efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 	ef10_nvram_partn_rw_start,	/* envo_partn_rw_start */
 	ef10_nvram_partn_read,		/* envo_partn_read */
 	ef10_nvram_partn_erase,		/* envo_partn_erase */
+	ef10_nvram_partn_write,		/* envo_partn_write */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
@@ -351,6 +351,7 @@ efx_nvram_write_chunk(
 	__in			size_t size)
 {
 	efx_nvram_ops_t *envop = enp->en_envop;
+	uint32_t partn;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -361,11 +362,16 @@ efx_nvram_write_chunk(
 
 	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
 
-	if ((rc = envop->envo_write_chunk(enp, type, offset, data, size)) != 0)
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	if ((rc = envop->envo_partn_write(enp, partn, offset, data, size)) != 0)
+		goto fail2;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
