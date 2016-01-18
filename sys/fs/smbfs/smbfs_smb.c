@@ -333,18 +333,18 @@ smbfs_smb_flush(struct smbnode *np, struct smb_cred *scred)
 }
 
 int
-smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
+smbfs_smb_setfsize(struct smbnode *np, int64_t newsize, struct smb_cred *scred)
 {
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct smb_rq *rqp;
 	struct mbchain *mbp;
 	int error;
 
-	if (!smbfs_smb_seteof(np, (int64_t) newsize, scred)) {
+	if (!smbfs_smb_seteof(np, newsize, scred)) {
 		np->n_flag |= NFLUSHWIRE;
 		return (0);
 	}
-
+	/* XXX: We should use SMB_COM_WRITE_ANDX to support large offsets */
 	error = smb_rq_alloc(SSTOCP(ssp), SMB_COM_WRITE, scred, &rqp);
 	if (error)
 		return (error);
@@ -352,7 +352,7 @@ smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
 	smb_rq_wstart(rqp);
 	mb_put_mem(mbp, (caddr_t)&np->n_fid, 2, MB_MSYSTEM);
 	mb_put_uint16le(mbp, 0);
-	mb_put_uint32le(mbp, newsize);
+	mb_put_uint32le(mbp, (uint32_t)newsize);
 	mb_put_uint16le(mbp, 0);
 	smb_rq_wend(rqp);
 	smb_rq_bstart(rqp);
