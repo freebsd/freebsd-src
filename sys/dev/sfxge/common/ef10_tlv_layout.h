@@ -380,7 +380,7 @@ struct tlv_tmp_gubbins {
   int8_t with_rmon;             /* 0 -> off, 1 -> on, -1 -> leave alone */
   /* Consumed by clocks_hunt.c */
   int8_t clk_mode;             /* 0 -> off, 1 -> on, -1 -> leave alone */
-  /* Consumed by sram.c */
+  /* No longer used, superseded by TLV_TAG_DESCRIPTOR_CACHE_CONFIG. */
   int8_t rx_dc_size;           /* -1 -> leave alone */
   int8_t tx_dc_size;
   int16_t num_q_allocs;
