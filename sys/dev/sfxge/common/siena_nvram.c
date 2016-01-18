@@ -482,29 +482,25 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-siena_nvram_get_version(
+siena_nvram_partn_get_version(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
+	__in			uint32_t partn,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4])
 {
 	siena_mc_dynamic_config_hdr_t *dcfg;
 	siena_parttbl_entry_t *entry;
 	uint32_t dcfg_partn;
-	uint32_t partn;
 	unsigned int i;
 	efx_rc_t rc;
 
-	if ((rc = siena_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
 	if ((1 << partn) & ~enp->en_u.siena.enu_partn_mask) {
 		rc = ENOTSUP;
-		goto fail2;
+		goto fail1;
 	}
 
 	if ((rc = siena_nvram_get_subtype(enp, partn, subtypep)) != 0)
-		goto fail3;
+		goto fail2;
 
 	/*
 	 * Some partitions are accessible from both ports (for instance BOOTROM)
@@ -513,6 +509,7 @@ siena_nvram_get_version(
 	 */
 	version[0] = version[1] = version[2] = version[3] = 0;
 	for (i = 0; i < EFX_ARRAY_SIZE(siena_parttbl); i++) {
+		siena_mc_fw_version_t *verp;
 		unsigned int nitems;
 		uint16_t temp[4];
 		size_t length;
@@ -535,32 +532,27 @@ siena_nvram_get_version(
 
 		if ((rc = siena_nvram_get_dynamic_cfg(enp, dcfg_partn,
 		    B_FALSE, &dcfg, &length)) != 0)
-			goto fail4;
+			goto fail3;
 
 		nitems = EFX_DWORD_FIELD(dcfg->num_fw_version_items,
 			    EFX_DWORD_0);
 		if (nitems < entry->partn)
 			goto done;
 
-		temp[0] = EFX_WORD_FIELD(dcfg->fw_version[partn].version_w,
-			    EFX_WORD_0);
-		temp[1] = EFX_WORD_FIELD(dcfg->fw_version[partn].version_x,
-			    EFX_WORD_0);
-		temp[2] = EFX_WORD_FIELD(dcfg->fw_version[partn].version_y,
-			    EFX_WORD_0);
-		temp[3] = EFX_WORD_FIELD(dcfg->fw_version[partn].version_z,
-			    EFX_WORD_0);
+		verp = &dcfg->fw_version[partn];
+		temp[0] = EFX_WORD_FIELD(verp->version_w, EFX_WORD_0);
+		temp[1] = EFX_WORD_FIELD(verp->version_x, EFX_WORD_0);
+		temp[2] = EFX_WORD_FIELD(verp->version_y, EFX_WORD_0);
+		temp[3] = EFX_WORD_FIELD(verp->version_z, EFX_WORD_0);
 		if (memcmp(version, temp, sizeof (temp)) < 0)
 			memcpy(version, temp, sizeof (temp));
 
-	done:
+done:
 		EFSYS_KMEM_FREE(enp->en_esip, length, dcfg);
 	}
 
 	return (0);
 
-fail4:
-	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
