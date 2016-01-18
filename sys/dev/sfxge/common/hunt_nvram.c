@@ -1636,6 +1636,7 @@ ef10_nvram_type_to_partn(
 	return (ENOTSUP);
 }
 
+#if EFSYS_OPT_DIAG
 
 static	__checkReturn		efx_rc_t
 ef10_nvram_partn_to_type(
@@ -1664,9 +1665,6 @@ ef10_nvram_partn_to_type(
 
 	return (ENOTSUP);
 }
-
-
-#if EFSYS_OPT_DIAG
 
 	__checkReturn		efx_rc_t
 ef10_nvram_test(
