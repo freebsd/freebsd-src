@@ -162,6 +162,74 @@ fail1:
 	return (rc);
 }
 
+static	__checkReturn	efx_rc_t
+efx_mcdi_mtu_set(
+	__in		efx_nic_t *enp,
+	__in		uint32_t mtu)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_SET_MAC_EXT_IN_LEN,
+			    MC_CMD_SET_MAC_OUT_LEN)];
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_SET_MAC;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_SET_MAC_EXT_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_SET_MAC_OUT_LEN;
+
+	/* Only configure the MTU in this call to MC_CMD_SET_MAC */
+	MCDI_IN_SET_DWORD(req, SET_MAC_EXT_IN_MTU, mtu);
+	MCDI_IN_POPULATE_DWORD_1(req, SET_MAC_EXT_IN_CONTROL,
+			    SET_MAC_EXT_IN_CFG_MTU, 1);
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn	efx_rc_t
+ef10_mac_pdu_set(
+	__in		efx_nic_t *enp)
+{
+	efx_port_t *epp = &(enp->en_port);
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	efx_rc_t rc;
+
+	if (encp->enc_enhanced_set_mac_supported) {
+		if ((rc = efx_mcdi_mtu_set(enp, epp->ep_mac_pdu)) != 0)
+			goto fail1;
+	} else {
+		/*
+		 * Fallback for older Huntington firmware, which always
+		 * configure all of the parameters to MC_CMD_SET_MAC. This isn't
+		 * suitable for setting the MTU on unpriviliged functions.
+		 */
+		if ((rc = ef10_mac_reconfigure(enp)) != 0)
+			goto fail2;
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 __checkReturn	efx_rc_t
 ef10_mac_reconfigure(
 	__in		efx_nic_t *enp)
