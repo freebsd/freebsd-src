@@ -36,12 +36,9 @@
 #include <eficonsctl.h>
 
 #ifdef EFI_DEBUG
-#define DPRINTF(fmt, args...) \
-        do { \
-                printf(fmt, ##args) \
-        } while (0)
+#define DPRINTF(fmt, ...) printf(fmt, __VA_ARGS__)
 #else
-#define DPRINTF(fmt, args...) {}
+#define DPRINTF(fmt, ...) {}
 #endif
 
 /* EFI device info */
