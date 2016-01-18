@@ -467,8 +467,7 @@ timeout:
 	 * Try GPIO bitbanging instead.
 	 */
 	sc->force_bit_dev = true;
-	error = -IICBUS_TRANSFER(idev, msgs, nmsgs);
-	goto out;
+	error = -IICBUS_TRANSFER(dev_priv->bbbus[unit], msgs, nmsgs);
 
 out:
 	sx_xunlock(&dev_priv->gmbus_sx);
