@@ -71,6 +71,12 @@ SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW | CTLFLAG_TUN,
 TUNABLE_INT("debug.kld_debug", &kld_debug);
 #endif
 
+/* These variables are used by kernel debuggers to enumerate loaded files. */
+const int kld_off_address = offsetof(struct linker_file, address);
+const int kld_off_filename = offsetof(struct linker_file, filename);
+const int kld_off_pathname = offsetof(struct linker_file, pathname);
+const int kld_off_next = offsetof(struct linker_file, link.tqe_next);
+
 /*
  * static char *linker_search_path(const char *name, struct mod_depend
  * *verinfo);
