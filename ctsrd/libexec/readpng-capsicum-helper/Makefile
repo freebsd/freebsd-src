@@ -15,7 +15,7 @@ CFLAGS+=	-I/usr/local/include
 LDADD+=		-L/usr/local/lib -lpng
 LIBADD+=	m z
 .else
-LIBADD+=	vuln_png
+LIBADD+=	vuln_png z
 .endif
 
 .include <bsd.prog.mk>
