@@ -1581,6 +1581,7 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			logit("Bad packet length %u.", state->packlen);
 			if ((r = sshpkt_disconnect(ssh, "Packet corrupt")) != 0)
 				return r;
+			return SSH_ERR_CONN_CORRUPT;
 		}
 		sshbuf_reset(state->incoming_packet);
 	} else if (state->packlen == 0) {
