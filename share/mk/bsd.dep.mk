@@ -150,7 +150,8 @@ beforedepend: ${DHDRS}
 beforebuild: ${DHDRS}
 
 
-.if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Mmeta*} == ""
+.if ${MK_FAST_DEPEND} == "yes" && \
+    (${.MAKE.MODE:Mmeta} == "" || ${.MAKE.MODE:Mnofilemon} != "")
 DEPENDFILES+=	${DEPENDFILE}.*
 DEPEND_MP?=	-MP
 # Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
