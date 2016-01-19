@@ -120,22 +120,13 @@
 #MaxStartups 10:30:100
 #PermitTunnel no
 #ChrootDirectory none
-#VersionAddendum FreeBSD-20140420
+#VersionAddendum FreeBSD-20160119
 
 # no default banner path
 #Banner none
 
 # override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server
-
-# Change to yes to disable HPN tuning improvements.
-#HPNDisabled no
-
-# Buffer size for HPN to non-HPN connections.
-#HPNBufferSize 2048
-
-# TCP receive socket buffer polling for HPN.  Disable on non autotuning kernels.
-#TcpRcvBufPoll yes
 
 # Example of overriding settings on a per-user basis
 #Match User anoncvs
