@@ -89,6 +89,7 @@ CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR}
 CXXFLAGS+=	-std=c++11
 .endif
 CXXFLAGS+=	-fno-rtti
+STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
 
 .else # MK_LLVM_LIBUNWIND
 
@@ -204,8 +205,6 @@ HIDE =  -fvisibility=hidden -DHIDE_EXPORTS
 CC_T =	${CC} -c ${CFLAGS} ${HIDE} -fPIC
 CC_P =	${CC} -c ${CFLAGS} ${HIDE} -p -fPIC
 CC_S =	${CC} -c ${CFLAGS} ${PICFLAG} -DSHARED
-CXX_T =	${CXX} -c ${CXXFLAGS} ${HIDE} -fPIC
-CXX_P =	${CXX} -c ${CXXFLAGS} ${HIDE} -p -fPIC
 
 #-----------------------------------------------------------------------
 #
@@ -325,12 +324,6 @@ ${_src:R:S/$/.o/}: ${_src} ${COMMONHDRS}
 	${CC_T} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 ${_src:R:S/$/.po/}: ${_src} ${COMMONHDRS}
 	${CC_P} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
-.endfor
-.for _src in ${LIB2ADDEHSTATIC:M*.cpp}
-${_src:R:S/$/.o/}: ${_src} ${COMMONHDRS}
-	${CXX_T} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
-${_src:R:S/$/.po/}: ${_src} ${COMMONHDRS}
-	${CXX_P} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 .for _src in ${LIB2ADDEHSHARED:M*.c}
 ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
