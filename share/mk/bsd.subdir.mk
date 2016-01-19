@@ -25,27 +25,30 @@
 # 		This is a variant of install, which will
 # 		put the stuff into the right "distribution".
 #
-# 	See ALL_SUBDIR_TARGETS for list of targets that will recurse.
-# 	Custom targets can be added to SUBDIR_TARGETS in src.conf.
+# 	See SUBDIR_TARGETS for list of targets that will recurse.
 #
 # 	Targets defined in STANDALONE_SUBDIR_TARGETS will always be ran
 # 	with SUBDIR_PARALLEL and will not respect .WAIT or SUBDIR_DEPEND_
 # 	values.
 #
+# 	SUBDIR_TARGETS and STANDALONE_SUBDIR_TARGETS can be appended to
+# 	via make.conf or src.conf.
+#
 
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
 
-ALL_SUBDIR_TARGETS= all all-man buildconfig buildfiles buildincludes \
-		    checkdpadd clean cleandepend cleandir cleanilinks \
-		    cleanobj depend distribute files includes installconfig \
-		    installfiles installincludes realinstall lint maninstall \
-		    manlint obj objlink regress tags \
-		    ${SUBDIR_TARGETS}
+SUBDIR_TARGETS+= \
+		all all-man buildconfig buildfiles buildincludes \
+		checkdpadd clean cleandepend cleandir cleanilinks \
+		cleanobj depend distribute files includes installconfig \
+		installfiles installincludes realinstall lint maninstall \
+		manlint obj objlink regress tags \
 
 # Described above.
-STANDALONE_SUBDIR_TARGETS?= obj checkdpadd clean cleandepend cleandir \
-			    cleanilinks cleanobj installconfig
+STANDALONE_SUBDIR_TARGETS+= \
+		obj checkdpadd clean cleandepend cleandir \
+		cleanilinks cleanobj installconfig \
 
 .include <bsd.init.mk>
 
@@ -115,7 +118,7 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 	    dir=${.TARGET}; \
 	    ${_SUBDIR_SH};
 
-.for __target in ${ALL_SUBDIR_TARGETS}
+.for __target in ${SUBDIR_TARGETS}
 # Only recurse on directly-called targets.  I.e., don't recurse on dependencies
 # such as 'install' becoming {before,real,after}install, just recurse
 # 'install'.  Despite that, 'realinstall' is special due to ordering issues
@@ -154,12 +157,12 @@ ${__target}: ${__subdir_targets}
 ${__target}: _SUBDIR
 .endif	# SUBDIR_PARALLEL || _is_standalone_target
 .endif	# make(${__target})
-.endfor	# __target in ${ALL_SUBDIR_TARGETS}
+.endfor	# __target in ${SUBDIR_TARGETS}
 
 .endif	# !target(_SUBDIR)
 
 # Ensure all targets exist
-.for __target in ${ALL_SUBDIR_TARGETS}
+.for __target in ${SUBDIR_TARGETS}
 .if !target(${__target})
 ${__target}:
 .endif
