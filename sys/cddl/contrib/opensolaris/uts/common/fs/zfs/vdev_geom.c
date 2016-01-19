@@ -291,8 +291,8 @@ static void
 nvlist_get_guids(nvlist_t *list, uint64_t *pguid, uint64_t *vguid)
 {
 
-	nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, vguid);
-	nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
+	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, vguid);
+	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
 }
 
 static int
