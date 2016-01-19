@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.c,v 1.3 2015/01/20 23:14:00 deraadt Exp $	*/
+/*	$OpenBSD: sshbuf.c,v 1.4 2015/10/05 17:11:21 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -134,7 +134,7 @@ sshbuf_fromb(struct sshbuf *buf)
 void
 sshbuf_init(struct sshbuf *ret)
 {
-	bzero(ret, sizeof(*ret));
+	explicit_bzero(ret, sizeof(*ret));
 	ret->alloc = SSHBUF_SIZE_INIT;
 	ret->max_size = SSHBUF_SIZE_MAX;
 	ret->readonly = 0;
@@ -177,10 +177,10 @@ sshbuf_free(struct sshbuf *buf)
 		return;
 	dont_free = buf->dont_free;
 	if (!buf->readonly) {
-		bzero(buf->d, buf->alloc);
+		explicit_bzero(buf->d, buf->alloc);
 		free(buf->d);
 	}
-	bzero(buf, sizeof(*buf));
+	explicit_bzero(buf, sizeof(*buf));
 	if (!dont_free)
 		free(buf);
 }
@@ -196,7 +196,7 @@ sshbuf_reset(struct sshbuf *buf)
 		return;
 	}
 	if (sshbuf_check_sanity(buf) == 0)
-		bzero(buf->d, buf->alloc);
+		explicit_bzero(buf->d, buf->alloc);
 	buf->off = buf->size = 0;
 	if (buf->alloc != SSHBUF_SIZE_INIT) {
 		if ((d = realloc(buf->d, SSHBUF_SIZE_INIT)) != NULL) {
@@ -255,7 +255,7 @@ sshbuf_set_max_size(struct sshbuf *buf, size_t max_size)
 			rlen = roundup(buf->size, SSHBUF_SIZE_INC);
 		if (rlen > max_size)
 			rlen = max_size;
-		bzero(buf->d + buf->size, buf->alloc - buf->size);
+		explicit_bzero(buf->d + buf->size, buf->alloc - buf->size);
 		SSHBUF_DBG(("new alloc = %zu", rlen));
 		if ((dp = realloc(buf->d, rlen)) == NULL)
 			return SSH_ERR_ALLOC_FAIL;
