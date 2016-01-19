@@ -99,8 +99,8 @@ siena_nvram_partn_read(
 	while (size > 0) {
 		chunk = MIN(size, SIENA_NVRAM_CHUNK);
 
-		if ((rc = efx_mcdi_nvram_read(enp, partn, offset,
-			    data, chunk)) != 0) {
+		if ((rc = efx_mcdi_nvram_read(enp, partn, offset, data, chunk,
+			    MC_CMD_NVRAM_READ_IN_V2_DEFAULT)) != 0) {
 			goto fail1;
 		}
 

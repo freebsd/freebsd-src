@@ -721,10 +721,11 @@ efx_mcdi_nvram_read(
 	__in			uint32_t partn,
 	__in			uint32_t offset,
 	__out_bcount(size)	caddr_t data,
-	__in			size_t size)
+	__in			size_t size,
+	__in			uint32_t mode)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_READ_IN_LEN,
+	uint8_t payload[MAX(MC_CMD_NVRAM_READ_IN_V2_LEN,
 			    MC_CMD_NVRAM_READ_OUT_LENMAX)];
 	efx_rc_t rc;
 
@@ -736,13 +737,14 @@ efx_mcdi_nvram_read(
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_READ;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_NVRAM_READ_IN_LEN;
+	req.emr_in_length = MC_CMD_NVRAM_READ_IN_V2_LEN;
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_NVRAM_READ_OUT_LENMAX;
 
-	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_TYPE, partn);
-	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_OFFSET, offset);
-	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_LENGTH, size);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_TYPE, partn);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_OFFSET, offset);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_LENGTH, size);
+	MCDI_IN_SET_DWORD(req, NVRAM_READ_IN_V2_MODE, mode);
 
 	efx_mcdi_execute(enp, &req);
 

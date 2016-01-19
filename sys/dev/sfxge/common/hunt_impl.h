@@ -409,6 +409,15 @@ ef10_nvram_partn_rw_start(
 	__out			size_t *chunk_sizep);
 
 extern	__checkReturn		efx_rc_t
+ef10_nvram_partn_read_mode(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size,
+	__in			uint32_t mode);
+
+extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_read(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
