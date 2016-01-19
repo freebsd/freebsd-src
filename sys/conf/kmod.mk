@@ -456,7 +456,7 @@ cleandepend: cleanilinks
 cleanilinks:
 	rm -f ${_ILINKS}
 
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS}: ${SRCS:M*.h}
 .endif
 
