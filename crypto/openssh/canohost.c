@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.70 2014/01/19 04:17:29 dtucker Exp $ */
+/* $OpenBSD: canohost.c,v 1.71 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -16,6 +16,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -262,6 +263,11 @@ get_socket_address(int sock, int remote, int flags)
 	if (addr.ss_family == AF_INET6)
 		addrlen = sizeof(struct sockaddr_in6);
 
+	if (addr.ss_family == AF_UNIX) {
+		/* Get the Unix domain socket path. */
+		return xstrdup(((struct sockaddr_un *)&addr)->sun_path);
+	}
+
 	ipv64_normalise_mapped(&addr, &addrlen);
 
 	/* Get the address in ascii. */
@@ -383,6 +389,10 @@ get_sock_port(int sock, int local)
 	/* Work around Linux IPv6 weirdness */
 	if (from.ss_family == AF_INET6)
 		fromlen = sizeof(struct sockaddr_in6);
+
+	/* Unix domain sockets don't have a port number. */
+	if (from.ss_family == AF_UNIX)
+		return 0;
 
 	/* Return port number. */
 	if ((r = getnameinfo((struct sockaddr *)&from, fromlen, NULL, 0,

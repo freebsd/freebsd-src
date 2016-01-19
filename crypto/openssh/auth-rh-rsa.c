@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rh-rsa.c,v 1.43 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: auth-rh-rsa.c,v 1.44 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -24,6 +24,7 @@
 #include "uidswap.h"
 #include "log.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "key.h"
 #include "hostfile.h"

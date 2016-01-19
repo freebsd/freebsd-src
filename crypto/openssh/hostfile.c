@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.55 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: hostfile.c,v 1.57 2014/06/24 01:13:21 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -47,6 +47,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "xmalloc.h"
 #include "match.h"
@@ -182,6 +183,7 @@ static int
 hostfile_check_key(int bits, const Key *key, const char *host,
     const char *filename, u_long linenum)
 {
+#ifdef WITH_SSH1
 	if (key == NULL || key->type != KEY_RSA1 || key->rsa == NULL)
 		return 1;
 	if (bits != BN_num_bits(key->rsa->n)) {
@@ -191,6 +193,7 @@ hostfile_check_key(int bits, const Key *key, const char *host,
 		logit("Warning: replace %d with %d in %s, line %lu.",
 		    bits, BN_num_bits(key->rsa->n), filename, linenum);
 	}
+#endif
 	return 1;
 }
 
@@ -296,11 +299,15 @@ load_hostkeys(struct hostkeys *hostkeys, const char *host, const char *path)
 		key = key_new(KEY_UNSPEC);
 		if (!hostfile_read_key(&cp, &kbits, key)) {
 			key_free(key);
+#ifdef WITH_SSH1
 			key = key_new(KEY_RSA1);
 			if (!hostfile_read_key(&cp, &kbits, key)) {
 				key_free(key);
 				continue;
 			}
+#else
+			continue;
+#endif
 		}
 		if (!hostfile_check_key(kbits, key, host, path, linenum))
 			continue;

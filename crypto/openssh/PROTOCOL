@@ -232,6 +232,56 @@ The contents of the "data" field for layer 2 packets is:
 The "frame" field contains an IEEE 802.3 Ethernet frame, including
 header.
 
+2.4. connection: Unix domain socket forwarding
+
+OpenSSH supports local and remote Unix domain socket forwarding
+using the "streamlocal" extension.  Forwarding is initiated as per
+TCP sockets but with a single path instead of a host and port.
+
+Similar to direct-tcpip, direct-streamlocal is sent by the client
+to request that the server make a connection to a Unix domain socket.
+
+	byte		SSH_MSG_CHANNEL_OPEN
+	string		"direct-streamlocal@openssh.com"
+	uint32		sender channel
+	uint32		initial window size
+	uint32		maximum packet size
+	string		socket path
+	string		reserved for future use
+
+Similar to forwarded-tcpip, forwarded-streamlocal is sent by the
+server when the client has previously send the server a streamlocal-forward
+GLOBAL_REQUEST.
+
+	byte		SSH_MSG_CHANNEL_OPEN
+	string		"forwarded-streamlocal@openssh.com"
+	uint32		sender channel
+	uint32		initial window size
+	uint32		maximum packet size
+	string		socket path
+	string		reserved for future use
+
+The reserved field is not currently defined and is ignored on the
+remote end.  It is intended to be used in the future to pass
+information about the socket file, such as ownership and mode.
+The client currently sends the empty string for this field.
+
+Similar to tcpip-forward, streamlocal-forward is sent by the client
+to request remote forwarding of a Unix domain socket.
+
+	byte		SSH2_MSG_GLOBAL_REQUEST
+	string		"streamlocal-forward@openssh.com"
+	boolean		TRUE
+	string		socket path
+
+Similar to cancel-tcpip-forward, cancel-streamlocal-forward is sent
+by the client cancel the forwarding of a Unix domain socket.
+
+	byte		SSH2_MSG_GLOBAL_REQUEST
+	string		"cancel-streamlocal-forward@openssh.com"
+	boolean		FALSE
+	string		socket path
+
 3. SFTP protocol changes
 
 3.1. sftp: Reversal of arguments to SSH_FXP_SYMLINK
@@ -356,4 +406,4 @@ respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-$OpenBSD: PROTOCOL,v 1.23 2013/12/01 23:19:05 djm Exp $
+$OpenBSD: PROTOCOL,v 1.24 2014/07/15 15:54:14 millert Exp $

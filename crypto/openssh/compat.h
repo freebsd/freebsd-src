@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.h,v 1.44 2013/12/30 23:52:27 djm Exp $ */
+/* $OpenBSD: compat.h,v 1.45 2014/04/18 23:52:25 djm Exp $ */
 /* $FreeBSD$ */
 
 /*

@@ -41,6 +41,7 @@
 #include "packet.h"
 #include "dispatch.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 
 /* import */

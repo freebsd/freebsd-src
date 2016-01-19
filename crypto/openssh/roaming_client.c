@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming_client.c,v 1.7 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: roaming_client.c,v 1.8 2014/04/29 18:01:49 markus Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -27,9 +27,6 @@
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
-
-#include <openssl/crypto.h>
-#include <openssl/sha.h>
 
 #include "xmalloc.h"
 #include "buffer.h"

@@ -1,4 +1,4 @@
-/* $OpenBSD: hmac.h,v 1.6 2014/01/27 18:58:14 markus Exp $ */
+/* $OpenBSD: hmac.h,v 1.9 2014/06/24 01:13:21 djm Exp $ */
 /*
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
  *
@@ -21,6 +21,7 @@
 /* Returns the algorithm's digest length in bytes or 0 for invalid algorithm */
 size_t ssh_hmac_bytes(int alg);
 
+struct sshbuf;
 struct ssh_hmac_ctx;
 struct ssh_hmac_ctx *ssh_hmac_start(int alg);
 
@@ -29,7 +30,7 @@ int ssh_hmac_init(struct ssh_hmac_ctx *ctx, const void *key, size_t klen)
 	__attribute__((__bounded__(__buffer__, 2, 3)));
 int ssh_hmac_update(struct ssh_hmac_ctx *ctx, const void *m, size_t mlen)
 	__attribute__((__bounded__(__buffer__, 2, 3)));
-int ssh_hmac_update_buffer(struct ssh_hmac_ctx *ctx, const Buffer *b);
+int ssh_hmac_update_buffer(struct ssh_hmac_ctx *ctx, const struct sshbuf *b);
 int ssh_hmac_final(struct ssh_hmac_ctx *ctx, u_char *d, size_t dlen)
 	__attribute__((__bounded__(__buffer__, 2, 3)));
 void ssh_hmac_free(struct ssh_hmac_ctx *ctx);

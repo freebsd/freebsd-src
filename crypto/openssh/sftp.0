@@ -1,4 +1,4 @@
-SFTP(1)                    OpenBSD Reference Manual                    SFTP(1)
+SFTP(1)                     General Commands Manual                    SFTP(1)
 
 NAME
      sftp - secure file transfer program
@@ -44,9 +44,9 @@ DESCRIPTION
 
      -6      Forces sftp to use IPv6 addresses only.
 
-     -a      Attempt to continue interrupted downloads rather than overwriting
-             existing partial or complete copies of files.  If the remote file
-             contents differ from the partial local copy then the resultant
+     -a      Attempt to continue interrupted transfers rather than overwriting
+             existing partial or complete copies of files.  If the partial
+             contents differ from those being transferred, then the resultant
              file is likely to be corrupt.
 
      -B buffer_size
@@ -60,10 +60,11 @@ DESCRIPTION
              used in conjunction with non-interactive authentication.  A
              batchfile of `-' may be used to indicate standard input.  sftp
              will abort if any of the following commands fail: get, put,
-             reget, rename, ln, rm, mkdir, chdir, ls, lchdir, chmod, chown,
-             chgrp, lpwd, df, symlink, and lmkdir.  Termination on error can
-             be suppressed on a command by command basis by prefixing the
-             command with a `-' character (for example, -rm /tmp/blah*).
+             reget, reput, rename, ln, rm, mkdir, chdir, ls, lchdir, chmod,
+             chown, chgrp, lpwd, df, symlink, and lmkdir.  Termination on
+             error can be suppressed on a command by command basis by
+             prefixing the command with a `-' character (for example, -rm
+             /tmp/blah*).
 
      -C      Enables compression (via ssh's -C flag).
 
@@ -310,13 +311,19 @@ INTERACTIVE COMMANDS
      progress
              Toggle display of progress meter.
 
-     put [-fPpr] local-path [remote-path]
+     put [-afPpr] local-path [remote-path]
              Upload local-path and store it on the remote machine.  If the
              remote path name is not specified, it is given the same name it
              has on the local machine.  local-path may contain glob(3)
              characters and may match multiple files.  If it does and
              remote-path is specified, then remote-path must specify a
              directory.
+
+             If the -a flag is specified, then attempt to resume partial
+             transfers of existing files.  Note that resumption assumes that
+             any partial copy of the remote file matches the local copy.  If
+             the local file contents differ from the remote local copy then
+             the resultant file is likely to be corrupt.
 
              If the -f flag is specified, then a request will be sent to the
              server to call fsync(2) after the file has been transferred.
@@ -336,6 +343,10 @@ INTERACTIVE COMMANDS
 
      reget [-Ppr] remote-path [local-path]
              Resume download of remote-path.  Equivalent to get with the -a
+             flag set.
+
+     reput [-Ppr] [local-path] remote-path
+             Resume upload of [local-path].  Equivalent to put with the -a
              flag set.
 
      rename oldpath newpath
@@ -367,4 +378,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 5.5                    October 20, 2013                    OpenBSD 5.5
+OpenBSD 5.6                     April 22, 2014                     OpenBSD 5.6

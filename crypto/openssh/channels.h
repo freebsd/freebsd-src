@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.113 2013/06/07 15:37:52 dtucker Exp $ */
+/* $OpenBSD: channels.h,v 1.115 2014/07/15 15:54:14 millert Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -57,7 +57,9 @@
 #define SSH_CHANNEL_MUX_LISTENER	15	/* Listener for mux conn. */
 #define SSH_CHANNEL_MUX_CLIENT		16	/* Conn. to mux slave */
 #define SSH_CHANNEL_ABANDONED		17	/* Abandoned session, eg mux */
-#define SSH_CHANNEL_MAX_TYPE		18
+#define SSH_CHANNEL_UNIX_LISTENER	18	/* Listening on a domain socket. */
+#define SSH_CHANNEL_RUNIX_LISTENER	19	/* Listening to a R-style domain socket. */
+#define SSH_CHANNEL_MAX_TYPE		20
 
 #define CHANNEL_CANCEL_PORT_STATIC	-1
 
@@ -255,6 +257,8 @@ char	*channel_open_message(void);
 int	 channel_find_open(void);
 
 /* tcp forwarding */
+struct Forward;
+struct ForwardOptions;
 void	 channel_set_af(int af);
 void     channel_permit_all_opens(void);
 void	 channel_add_permitted_opens(char *, int);
@@ -264,18 +268,19 @@ void	 channel_update_permitted_opens(int, int);
 void	 channel_clear_permitted_opens(void);
 void	 channel_clear_adm_permitted_opens(void);
 void 	 channel_print_adm_permitted_opens(void);
-int      channel_input_port_forward_request(int, int);
-Channel	*channel_connect_to(const char *, u_short, char *, char *);
+int      channel_input_port_forward_request(int, struct ForwardOptions *);
+Channel	*channel_connect_to_port(const char *, u_short, char *, char *);
+Channel *channel_connect_to_path(const char *, char *, char *);
 Channel	*channel_connect_stdio_fwd(const char*, u_short, int, int);
-Channel	*channel_connect_by_listen_address(u_short, char *, char *);
-int	 channel_request_remote_forwarding(const char *, u_short,
-	     const char *, u_short);
-int	 channel_setup_local_fwd_listener(const char *, u_short,
-	     const char *, u_short, int);
-int	 channel_request_rforward_cancel(const char *host, u_short port);
-int	 channel_setup_remote_fwd_listener(const char *, u_short, int *, int);
-int	 channel_cancel_rport_listener(const char *, u_short);
-int	 channel_cancel_lport_listener(const char *, u_short, int, int);
+Channel	*channel_connect_by_listen_address(const char *, u_short,
+	     char *, char *);
+Channel	*channel_connect_by_listen_path(const char *, char *, char *);
+int	 channel_request_remote_forwarding(struct Forward *);
+int	 channel_setup_local_fwd_listener(struct Forward *, struct ForwardOptions *);
+int	 channel_request_rforward_cancel(struct Forward *);
+int	 channel_setup_remote_fwd_listener(struct Forward *, int *, struct ForwardOptions *);
+int	 channel_cancel_rport_listener(struct Forward *);
+int	 channel_cancel_lport_listener(struct Forward *, int, struct ForwardOptions *);
 int	 permitopen_port(const char *);
 
 /* x11 forwarding */

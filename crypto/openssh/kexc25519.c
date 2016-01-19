@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519.c,v 1.5 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: kexc25519.c,v 1.7 2014/05/02 03:27:54 djm Exp $ */
 /*
  * Copyright (c) 2001, 2013 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.

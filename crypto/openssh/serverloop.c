@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.170 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.172 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -62,6 +62,7 @@ __RCSID("$FreeBSD$");
 #include "packet.h"
 #include "buffer.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 #include "canohost.h"
 #include "sshpty.h"
@@ -78,7 +79,6 @@ __RCSID("$FreeBSD$");
 #include "dispatch.h"
 #include "auth-options.h"
 #include "serverloop.h"
-#include "misc.h"
 #include "roaming.h"
 
 extern ServerOptions options;
@@ -971,12 +971,44 @@ server_request_direct_tcpip(void)
 	/* XXX fine grained permissions */
 	if ((options.allow_tcp_forwarding & FORWARD_LOCAL) != 0 &&
 	    !no_port_forwarding_flag) {
-		c = channel_connect_to(target, target_port,
+		c = channel_connect_to_port(target, target_port,
 		    "direct-tcpip", "direct-tcpip");
 	} else {
 		logit("refused local port forward: "
 		    "originator %s port %d, target %s port %d",
 		    originator, originator_port, target, target_port);
+	}
+
+	free(originator);
+	free(target);
+
+	return c;
+}
+
+static Channel *
+server_request_direct_streamlocal(void)
+{
+	Channel *c = NULL;
+	char *target, *originator;
+	u_short originator_port;
+
+	target = packet_get_string(NULL);
+	originator = packet_get_string(NULL);
+	originator_port = packet_get_int();
+	packet_check_eom();
+
+	debug("server_request_direct_streamlocal: originator %s port %d, target %s",
+	    originator, originator_port, target);
+
+	/* XXX fine grained permissions */
+	if ((options.allow_streamlocal_forwarding & FORWARD_LOCAL) != 0 &&
+	    !no_port_forwarding_flag) {
+		c = channel_connect_to_path(target,
+		    "direct-streamlocal@openssh.com", "direct-streamlocal");
+	} else {
+		logit("refused streamlocal port forward: "
+		    "originator %s port %d, target %s",
+		    originator, originator_port, target);
 	}
 
 	free(originator);
@@ -1082,6 +1114,8 @@ server_input_channel_open(int type, u_int32_t seq, void *ctxt)
 		c = server_request_session();
 	} else if (strcmp(ctype, "direct-tcpip") == 0) {
 		c = server_request_direct_tcpip();
+	} else if (strcmp(ctype, "direct-streamlocal@openssh.com") == 0) {
+		c = server_request_direct_streamlocal();
 	} else if (strcmp(ctype, "tun@openssh.com") == 0) {
 		c = server_request_tun();
 	}
@@ -1126,47 +1160,74 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 	/* -R style forwarding */
 	if (strcmp(rtype, "tcpip-forward") == 0) {
 		struct passwd *pw;
-		char *listen_address;
-		u_short listen_port;
+		struct Forward fwd;
 
 		pw = the_authctxt->pw;
 		if (pw == NULL || !the_authctxt->valid)
 			fatal("server_input_global_request: no/invalid user");
-		listen_address = packet_get_string(NULL);
-		listen_port = (u_short)packet_get_int();
+		memset(&fwd, 0, sizeof(fwd));
+		fwd.listen_host = packet_get_string(NULL);
+		fwd.listen_port = (u_short)packet_get_int();
 		debug("server_input_global_request: tcpip-forward listen %s port %d",
-		    listen_address, listen_port);
+		    fwd.listen_host, fwd.listen_port);
 
 		/* check permissions */
 		if ((options.allow_tcp_forwarding & FORWARD_REMOTE) == 0 ||
 		    no_port_forwarding_flag ||
-		    (!want_reply && listen_port == 0)
+		    (!want_reply && fwd.listen_port == 0)
 #ifndef NO_IPPORT_RESERVED_CONCEPT
-		    || (listen_port != 0 && listen_port < IPPORT_RESERVED &&
-                    pw->pw_uid != 0)
+		    || (fwd.listen_port != 0 && fwd.listen_port < IPPORT_RESERVED &&
+		    pw->pw_uid != 0)
 #endif
 		    ) {
 			success = 0;
 			packet_send_debug("Server has disabled port forwarding.");
 		} else {
 			/* Start listening on the port */
-			success = channel_setup_remote_fwd_listener(
-			    listen_address, listen_port,
-			    &allocated_listen_port, options.gateway_ports);
+			success = channel_setup_remote_fwd_listener(&fwd,
+			    &allocated_listen_port, &options.fwd_opts);
 		}
-		free(listen_address);
+		free(fwd.listen_host);
 	} else if (strcmp(rtype, "cancel-tcpip-forward") == 0) {
-		char *cancel_address;
-		u_short cancel_port;
+		struct Forward fwd;
 
-		cancel_address = packet_get_string(NULL);
-		cancel_port = (u_short)packet_get_int();
+		memset(&fwd, 0, sizeof(fwd));
+		fwd.listen_host = packet_get_string(NULL);
+		fwd.listen_port = (u_short)packet_get_int();
 		debug("%s: cancel-tcpip-forward addr %s port %d", __func__,
-		    cancel_address, cancel_port);
+		    fwd.listen_host, fwd.listen_port);
 
-		success = channel_cancel_rport_listener(cancel_address,
-		    cancel_port);
-		free(cancel_address);
+		success = channel_cancel_rport_listener(&fwd);
+		free(fwd.listen_host);
+	} else if (strcmp(rtype, "streamlocal-forward@openssh.com") == 0) {
+		struct Forward fwd;
+
+		memset(&fwd, 0, sizeof(fwd));
+		fwd.listen_path = packet_get_string(NULL);
+		debug("server_input_global_request: streamlocal-forward listen path %s",
+		    fwd.listen_path);
+
+		/* check permissions */
+		if ((options.allow_streamlocal_forwarding & FORWARD_REMOTE) == 0
+		    || no_port_forwarding_flag) {
+			success = 0;
+			packet_send_debug("Server has disabled port forwarding.");
+		} else {
+			/* Start listening on the socket */
+			success = channel_setup_remote_fwd_listener(
+			    &fwd, NULL, &options.fwd_opts);
+		}
+		free(fwd.listen_path);
+	} else if (strcmp(rtype, "cancel-streamlocal-forward@openssh.com") == 0) {
+		struct Forward fwd;
+
+		memset(&fwd, 0, sizeof(fwd));
+		fwd.listen_path = packet_get_string(NULL);
+		debug("%s: cancel-streamlocal-forward path %s", __func__,
+		    fwd.listen_path);
+
+		success = channel_cancel_rport_listener(&fwd);
+		free(fwd.listen_path);
 	} else if (strcmp(rtype, "no-more-sessions@openssh.com") == 0) {
 		no_more_sessions = 1;
 		success = 1;
@@ -1205,7 +1266,7 @@ server_input_channel_req(int type, u_int32_t seq, void *ctxt)
 	} else if ((c->type == SSH_CHANNEL_LARVAL ||
 	    c->type == SSH_CHANNEL_OPEN) && strcmp(c->ctype, "session") == 0)
 		success = session_input_channel_req(c, rtype);
-	if (reply) {
+	if (reply && !(c->flags & CHAN_CLOSE_SENT)) {
 		packet_start(success ?
 		    SSH2_MSG_CHANNEL_SUCCESS : SSH2_MSG_CHANNEL_FAILURE);
 		packet_put_int(c->remote_id);

@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.176 2014/01/17 13:12:38 dtucker Exp $ */
+/* $Id: defines.h,v 1.183 2014/09/02 19:33:26 djm Exp $ */
 
 
 /* Constants */
@@ -405,7 +405,7 @@ struct winsize {
 
 /* user may have set a different path */
 #if defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY)
-# undef _PATH_MAILDIR MAILDIR
+# undef _PATH_MAILDIR
 #endif /* defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY) */
 
 #ifdef MAIL_DIRECTORY
@@ -602,10 +602,6 @@ struct winsize {
 #if !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY)
 # define memmove(s1, s2, n) bcopy((s2), (s1), (n))
 #endif /* !defined(HAVE_MEMMOVE) && defined(HAVE_BCOPY) */
-
-#if defined(HAVE_VHANGUP) && !defined(HAVE_DEV_PTMX)
-#  define USE_VHANGUP
-#endif /* defined(HAVE_VHANGUP) && !defined(HAVE_DEV_PTMX) */
 
 #ifndef GETPGRP_VOID
 # include <unistd.h>
@@ -825,5 +821,24 @@ struct winsize {
     !defined(HAVE_ARC4RANDOM_STIR)
 # define arc4random_stir()
 #endif
+
+#ifndef HAVE_VA_COPY
+# ifdef HAVE___VA_COPY
+#  define va_copy(dest, src) __va_copy(dest, src)
+# else
+#  define va_copy(dest, src) (dest) = (src)
+# endif
+#endif
+
+#ifndef __predict_true
+# if defined(__GNUC__) && \
+     ((__GNUC__ > (2)) || (__GNUC__ == (2) && __GNUC_MINOR__ >= (96)))
+#  define __predict_true(exp)     __builtin_expect(((exp) != 0), 1)
+#  define __predict_false(exp)    __builtin_expect(((exp) != 0), 0)
+# else
+#  define __predict_true(exp)     ((exp) != 0)
+#  define __predict_false(exp)    ((exp) != 0)
+# endif /* gcc version */
+#endif /* __predict_true */
 
 #endif /* _DEFINES_H */

@@ -25,6 +25,8 @@
  */
 /* #define SANDBOX_SECCOMP_FILTER_DEBUG 1 */
 
+/* XXX it should be possible to do logging via the log socket safely */
+
 #ifdef SANDBOX_SECCOMP_FILTER_DEBUG
 /* Use the kernel headers in case of an older toolchain. */
 # include <asm/siginfo.h>
@@ -89,6 +91,7 @@ static const struct sock_filter preauth_insns[] = {
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS,
 		offsetof(struct seccomp_data, nr)),
 	SC_DENY(open, EACCES),
+	SC_DENY(stat, EACCES),
 	SC_ALLOW(getpid),
 	SC_ALLOW(gettimeofday),
 	SC_ALLOW(clock_gettime),
@@ -114,6 +117,10 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_mmap
 	SC_ALLOW(mmap),
+#endif
+#ifdef __dietlibc__
+	SC_ALLOW(mremap),
+	SC_ALLOW(exit),
 #endif
 	SC_ALLOW(munmap),
 	SC_ALLOW(exit_group),

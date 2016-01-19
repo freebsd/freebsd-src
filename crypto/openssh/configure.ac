@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.571 2014/02/21 17:09:34 tim Exp $
+# $Id: configure.ac,v 1.583 2014/08/26 20:32:01 djm Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT([OpenSSH], [Portable], [openssh-unix-dev@mindrot.org])
-AC_REVISION($Revision: 1.571 $)
+AC_REVISION($Revision: 1.583 $)
 AC_CONFIG_SRCDIR([ssh.c])
 AC_LANG([C])
 
@@ -364,7 +364,6 @@ AC_CHECK_HEADERS([ \
 	sys/audit.h \
 	sys/bitypes.h \
 	sys/bsdtty.h \
-	sys/capability.h \
 	sys/cdefs.h \
 	sys/dir.h \
 	sys/mman.h \
@@ -392,6 +391,13 @@ AC_CHECK_HEADERS([ \
 	utmp.h \
 	utmpx.h \
 	vis.h \
+])
+
+# sys/capsicum.h requires sys/types.h
+AC_CHECK_HEADERS([sys/capsicum.h], [], [], [
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
 ])
 
 # lastlog.h requires sys/time.h to be included first on Solaris
@@ -1631,10 +1637,6 @@ AC_CHECK_FUNCS([ \
 	Blowfish_expandstate \
 	Blowfish_expand0state \
 	Blowfish_stream2word \
-	arc4random \
-	arc4random_buf \
-	arc4random_stir \
-	arc4random_uniform \
 	asprintf \
 	b64_ntop \
 	__b64_ntop \
@@ -1678,6 +1680,7 @@ AC_CHECK_FUNCS([ \
 	mblen \
 	md5_crypt \
 	memmove \
+	memset_s \
 	mkdtemp \
 	mmap \
 	ngetaddrinfo \
@@ -1736,7 +1739,6 @@ AC_CHECK_FUNCS([ \
 	user_from_uid \
 	usleep \
 	vasprintf \
-	vhangup \
 	vsnprintf \
 	waitpid \
 ])
@@ -1948,11 +1950,9 @@ if test "x$ac_cv_func_snprintf" = "xyes" ; then
 	)
 fi
 
-# If we don't have a working asprintf, then we strongly depend on vsnprintf
-# returning the right thing on overflow: the number of characters it tried to
-# create (as per SUSv3)
-if test "x$ac_cv_func_asprintf" != "xyes" && \
-   test "x$ac_cv_func_vsnprintf" = "xyes" ; then
+# We depend on vsnprintf returning the right thing on overflow: the
+# number of characters it tried to create (as per SUSv3)
+if test "x$ac_cv_func_vsnprintf" = "xyes" ; then
 	AC_MSG_CHECKING([whether vsnprintf returns correct values on overflow])
 	AC_RUN_IFELSE(
 		[AC_LANG_PROGRAM([[
@@ -1960,15 +1960,23 @@ if test "x$ac_cv_func_asprintf" != "xyes" && \
 #include <stdio.h>
 #include <stdarg.h>
 
-int x_snprintf(char *str,size_t count,const char *fmt,...)
+int x_snprintf(char *str, size_t count, const char *fmt, ...)
 {
-	size_t ret; va_list ap;
-	va_start(ap, fmt); ret = vsnprintf(str, count, fmt, ap); va_end(ap);
+	size_t ret;
+	va_list ap;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(str, count, fmt, ap);
+	va_end(ap);
 	return ret;
 }
 		]], [[
-	char x[1];
-	exit(x_snprintf(x, 1, "%s %d", "hello", 12345) == 11 ? 0 : 1);
+char x[1];
+if (x_snprintf(x, 1, "%s %d", "hello", 12345) != 11)
+	return 1;
+if (x_snprintf(NULL, 0, "%s %d", "hello", 12345) != 11)
+	return 1;
+return 0;
 		]])],
 		[AC_MSG_RESULT([yes])],
 		[
@@ -2304,7 +2312,7 @@ AC_RUN_IFELSE(
 	if(fd == NULL)
 		exit(1);
 
-	if ((rc = fprintf(fd ,"%x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
+	if ((rc = fprintf(fd ,"%08x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
 		exit(1);
 
 	exit(0);
@@ -2339,13 +2347,21 @@ AC_RUN_IFELSE(
 	if(fd == NULL)
 		exit(1);
 
-	if ((rc = fprintf(fd ,"%x (%s)\n", SSLeay(), SSLeay_version(SSLEAY_VERSION))) <0)
+	if ((rc = fprintf(fd ,"%08x (%s)\n", SSLeay(),
+	    SSLeay_version(SSLEAY_VERSION))) <0)
 		exit(1);
 
 	exit(0);
 	]])],
 	[
 		ssl_library_ver=`cat conftest.ssllibver`
+		# Check version is supported.
+		case "$ssl_library_ver" in
+			0090[[0-7]]*|009080[[0-5]]*)
+				AC_MSG_ERROR([OpenSSL >= 0.9.8f required])
+		                ;;
+		        *) ;;
+		esac
 		AC_MSG_RESULT([$ssl_library_ver])
 	],
 	[
@@ -2356,6 +2372,10 @@ AC_RUN_IFELSE(
 		AC_MSG_WARN([cross compiling: not checking])
 	]
 )
+
+# XXX make --without-openssl work
+AC_DEFINE_UNQUOTED([WITH_OPENSSL], [1], [use libcrypto for cryptography])
+AC_DEFINE_UNQUOTED([WITH_SSH1], [1], [include SSH protocol version 1 support])
 
 AC_ARG_WITH([openssl-header-check],
 	[  --without-openssl-header-check Disable OpenSSL version consistency check],
@@ -2565,6 +2585,14 @@ AC_CHECK_FUNCS([SHA256_Update EVP_sha256], ,
 	hmac-sha2-256-etm@openssh.com hmac-sha2-512-etm@openssh.com"
      ]
 )
+# Search for RIPE-MD support in OpenSSL
+AC_CHECK_FUNCS([EVP_ripemd160], ,
+    [unsupported_algorithms="$unsupported_algorithms \
+	hmac-ripemd160
+	hmac-ripemd160@openssh.com
+	hmac-ripemd160-etm@openssh.com"
+     ]
+)
 
 # Check complete ECC support in OpenSSL
 AC_MSG_CHECKING([whether OpenSSL has NID_X9_62_prime256v1])
@@ -2684,6 +2712,13 @@ fi
 
 AC_SUBST([TEST_SSH_ECC])
 AC_SUBST([COMMENT_OUT_ECC])
+
+AC_CHECK_FUNCS([ \
+	arc4random \
+	arc4random_buf \
+	arc4random_stir \
+	arc4random_uniform \
+])
 
 saved_LIBS="$LIBS"
 AC_CHECK_LIB([iaf], [ia_openinfo], [
@@ -2868,7 +2903,14 @@ if test "x$PAM_MSG" = "xyes" ; then
 	])
 fi
 
-SSH_PRIVSEP_USER=sshd
+case "$host" in
+*-*-cygwin*)
+	SSH_PRIVSEP_USER=CYGWIN_SSH_PRIVSEP_USER
+	;;
+*)
+	SSH_PRIVSEP_USER=sshd
+	;;
+esac
 AC_ARG_WITH([privsep-user],
 	[  --with-privsep-user=user Specify non-privileged user for privilege separation],
 	[
@@ -2878,8 +2920,13 @@ AC_ARG_WITH([privsep-user],
 		fi
 	]
 )
-AC_DEFINE_UNQUOTED([SSH_PRIVSEP_USER], ["$SSH_PRIVSEP_USER"],
-	[non-privileged user for privilege separation])
+if test "x$SSH_PRIVSEP_USER" = "xCYGWIN_SSH_PRIVSEP_USER" ; then
+	AC_DEFINE_UNQUOTED([SSH_PRIVSEP_USER], [CYGWIN_SSH_PRIVSEP_USER],
+		[Cygwin function to fetch non-privileged user for privilege separation])
+else
+	AC_DEFINE_UNQUOTED([SSH_PRIVSEP_USER], ["$SSH_PRIVSEP_USER"],
+		[non-privileged user for privilege separation])
+fi
 AC_SUBST([SSH_PRIVSEP_USER])
 
 if test "x$have_linux_no_new_privs" = "x1" ; then
@@ -3044,10 +3091,10 @@ elif test "x$sandbox_arg" = "xseccomp_filter" || \
 	AC_DEFINE([SANDBOX_SECCOMP_FILTER], [1], [Sandbox using seccomp filter])
 elif test "x$sandbox_arg" = "xcapsicum" || \
      ( test -z "$sandbox_arg" && \
-       test "x$ac_cv_header_sys_capability_h" = "xyes" && \
+       test "x$ac_cv_header_sys_capsicum_h" = "xyes" && \
        test "x$ac_cv_func_cap_rights_limit" = "xyes") ; then
-       test "x$ac_cv_header_sys_capability_h" != "xyes" && \
-		AC_MSG_ERROR([capsicum sandbox requires sys/capability.h header])
+       test "x$ac_cv_header_sys_capsicum_h" != "xyes" && \
+		AC_MSG_ERROR([capsicum sandbox requires sys/capsicum.h header])
        test "x$ac_cv_func_cap_rights_limit" != "xyes" && \
 		AC_MSG_ERROR([capsicum sandbox requires cap_rights_limit function])
        SANDBOX_STYLE="capsicum"

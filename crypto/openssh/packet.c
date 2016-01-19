@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.192 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.198 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -67,7 +67,6 @@ __RCSID("$FreeBSD$");
 #include "crc32.h"
 #include "compress.h"
 #include "deattack.h"
-#include "channels.h"
 #include "compat.h"
 #include "ssh1.h"
 #include "ssh2.h"
@@ -78,7 +77,9 @@ __RCSID("$FreeBSD$");
 #include "log.h"
 #include "canohost.h"
 #include "misc.h"
+#include "channels.h"
 #include "ssh.h"
+#include "ssherr.h"
 #include "roaming.h"
 
 #ifdef PACKET_DEBUG
@@ -223,6 +224,7 @@ void
 packet_set_connection(int fd_in, int fd_out)
 {
 	const Cipher *none = cipher_by_name("none");
+	int r;
 
 	if (none == NULL)
 		fatal("packet_set_connection: cannot load cipher 'none'");
@@ -230,10 +232,11 @@ packet_set_connection(int fd_in, int fd_out)
 		active_state = alloc_session_state();
 	active_state->connection_in = fd_in;
 	active_state->connection_out = fd_out;
-	cipher_init(&active_state->send_context, none, (const u_char *)"",
-	    0, NULL, 0, CIPHER_ENCRYPT);
-	cipher_init(&active_state->receive_context, none, (const u_char *)"",
-	    0, NULL, 0, CIPHER_DECRYPT);
+	if ((r = cipher_init(&active_state->send_context, none,
+	    (const u_char *)"", 0, NULL, 0, CIPHER_ENCRYPT)) != 0 ||
+	    (r = cipher_init(&active_state->receive_context, none,
+	    (const u_char *)"", 0, NULL, 0, CIPHER_DECRYPT)) != 0)
+		fatal("%s: cipher_init: %s", __func__, ssh_err(r));
 	active_state->newkeys[MODE_IN] = active_state->newkeys[MODE_OUT] = NULL;
 	if (!active_state->initialized) {
 		active_state->initialized = 1;
@@ -330,13 +333,15 @@ void
 packet_get_keyiv(int mode, u_char *iv, u_int len)
 {
 	CipherContext *cc;
+	int r;
 
 	if (mode == MODE_OUT)
 		cc = &active_state->send_context;
 	else
 		cc = &active_state->receive_context;
 
-	cipher_get_keyiv(cc, iv, len);
+	if ((r = cipher_get_keyiv(cc, iv, len)) != 0)
+		fatal("%s: cipher_get_keyiv: %s", __func__, ssh_err(r));
 }
 
 int
@@ -382,13 +387,15 @@ void
 packet_set_iv(int mode, u_char *dat)
 {
 	CipherContext *cc;
+	int r;
 
 	if (mode == MODE_OUT)
 		cc = &active_state->send_context;
 	else
 		cc = &active_state->receive_context;
 
-	cipher_set_keyiv(cc, dat);
+	if ((r = cipher_set_keyiv(cc, dat)) != 0)
+		fatal("%s: cipher_set_keyiv: %s", __func__, ssh_err(r));
 }
 
 int
@@ -553,6 +560,7 @@ void
 packet_set_encryption_key(const u_char *key, u_int keylen, int number)
 {
 	const Cipher *cipher = cipher_by_number(number);
+	int r;
 
 	if (cipher == NULL)
 		fatal("packet_set_encryption_key: unknown cipher number %d", number);
@@ -562,10 +570,11 @@ packet_set_encryption_key(const u_char *key, u_int keylen, int number)
 		fatal("packet_set_encryption_key: keylen too big: %d", keylen);
 	memcpy(active_state->ssh1_key, key, keylen);
 	active_state->ssh1_keylen = keylen;
-	cipher_init(&active_state->send_context, cipher, key, keylen, NULL,
-	    0, CIPHER_ENCRYPT);
-	cipher_init(&active_state->receive_context, cipher, key, keylen, NULL,
-	    0, CIPHER_DECRYPT);
+	if ((r = cipher_init(&active_state->send_context, cipher,
+	    key, keylen, NULL, 0, CIPHER_ENCRYPT)) != 0 ||
+	    (r = cipher_init(&active_state->receive_context, cipher,
+	    key, keylen, NULL, 0, CIPHER_DECRYPT)) != 0)
+		fatal("%s: cipher_init: %s", __func__, ssh_err(r));
 }
 
 u_int
@@ -631,6 +640,7 @@ packet_put_raw(const void *buf, u_int len)
 	buffer_append(&active_state->outgoing_packet, buf, len);
 }
 
+#ifdef WITH_OPENSSL
 void
 packet_put_bignum(BIGNUM * value)
 {
@@ -642,6 +652,7 @@ packet_put_bignum2(BIGNUM * value)
 {
 	buffer_put_bignum2(&active_state->outgoing_packet, value);
 }
+#endif
 
 #ifdef OPENSSL_HAS_ECC
 void
@@ -743,7 +754,7 @@ set_newkeys(int mode)
 	Comp *comp;
 	CipherContext *cc;
 	u_int64_t *max_blocks;
-	int crypt_type;
+	int r, crypt_type;
 
 	debug2("set_newkeys: mode %d", mode);
 
@@ -785,8 +796,9 @@ set_newkeys(int mode)
 	if (cipher_authlen(enc->cipher) == 0 && mac_init(mac) == 0)
 		mac->enabled = 1;
 	DBG(debug("cipher_init_context: %d", mode));
-	cipher_init(cc, enc->cipher, enc->key, enc->key_len,
-	    enc->iv, enc->iv_len, crypt_type);
+	if ((r = cipher_init(cc, enc->cipher, enc->key, enc->key_len,
+	    enc->iv, enc->iv_len, crypt_type)) != 0)
+		fatal("%s: cipher_init: %s", __func__, ssh_err(r));
 	/* Deleting the keys does not gain extra security */
 	/* explicit_bzero(enc->iv,  enc->block_size);
 	   explicit_bzero(enc->key, enc->key_len);
@@ -913,8 +925,8 @@ packet_send2_wrapped(void)
 		    roundup(active_state->extra_pad, block_size);
 		pad = active_state->extra_pad -
 		    ((len + padlen) % active_state->extra_pad);
-		debug3("packet_send2: adding %d (len %d padlen %d extra_pad %d)",
-		    pad, len, padlen, active_state->extra_pad);
+		DBG(debug3("%s: adding %d (len %d padlen %d extra_pad %d)",
+		    __func__, pad, len, padlen, active_state->extra_pad));
 		padlen += pad;
 		active_state->extra_pad = 0;
 	}
@@ -1570,6 +1582,7 @@ packet_get_int64(void)
  * must have been initialized before this call.
  */
 
+#ifdef WITH_OPENSSL
 void
 packet_get_bignum(BIGNUM * value)
 {
@@ -1599,6 +1612,7 @@ packet_get_raw(u_int *length_ptr)
 		*length_ptr = bytes;
 	return buffer_ptr(&active_state->incoming_packet);
 }
+#endif
 
 int
 packet_remaining(void)
@@ -1619,7 +1633,7 @@ packet_get_string(u_int *length_ptr)
 	return buffer_get_string(&active_state->incoming_packet, length_ptr);
 }
 
-void *
+const void *
 packet_get_string_ptr(u_int *length_ptr)
 {
 	return buffer_get_string_ptr(&active_state->incoming_packet, length_ptr);
@@ -2054,5 +2068,25 @@ packet_restore_state(void)
 		buffer_append(&active_state->input, buf, len);
 		buffer_clear(&backup_state->input);
 		add_recv_bytes(len);
+	}
+}
+
+/* Reset after_authentication and reset compression in post-auth privsep */
+void
+packet_set_postauth(void)
+{
+	Comp *comp;
+	int mode;
+
+	debug("%s: called", __func__);
+	/* This was set in net child, but is not visible in user child */
+	active_state->after_authentication = 1;
+	active_state->rekeying = 0;
+	for (mode = 0; mode < MODE_MAX; mode++) {
+		if (active_state->newkeys[mode] == NULL)
+			continue;
+		comp = &active_state->newkeys[mode]->comp;
+		if (comp && comp->enabled)
+			packet_init_compression();
 	}
 }

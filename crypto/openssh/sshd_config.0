@@ -1,4 +1,4 @@
-SSHD_CONFIG(5)            OpenBSD Programmer's Manual           SSHD_CONFIG(5)
+SSHD_CONFIG(5)                File Formats Manual               SSHD_CONFIG(5)
 
 NAME
      sshd_config - OpenSSH SSH daemon configuration file
@@ -61,6 +61,16 @@ DESCRIPTION
              disabling TCP forwarding does not improve security unless users
              are also denied shell access, as they can always install their
              own forwarders.
+
+     AllowStreamLocalForwarding
+             Specifies whether StreamLocal (Unix-domain socket) forwarding is
+             permitted.  The available options are ``yes'' or ``all'' to allow
+             StreamLocal forwarding, ``no'' to prevent all StreamLocal
+             forwarding, ``local'' to allow local (from the perspective of
+             ssh(1)) forwarding only or ``remote'' to allow remote forwarding
+             only.  The default is ``yes''.  Note that disabling StreamLocal
+             forwarding does not improve security unless users are also denied
+             shell access, as they can always install their own forwarders.
 
      AllowUsers
              This keyword can be followed by a list of user name patterns,
@@ -168,7 +178,7 @@ DESCRIPTION
 
      ChallengeResponseAuthentication
              Specifies whether challenge-response authentication is allowed
-             (e.g. via PAM or though authentication styles supported in
+             (e.g. via PAM or through authentication styles supported in
              login.conf(5)) The default is ``yes''.
 
      ChrootDirectory
@@ -191,8 +201,9 @@ DESCRIPTION
              stderr(4), arandom(4) and tty(4) devices.  For file transfer
              sessions using ``sftp'', no additional configuration of the
              environment is necessary if the in-process sftp server is used,
-             though sessions which use logging do require /dev/log inside the
-             chroot directory (see sftp-server(8) for details).
+             though sessions which use logging may require /dev/log inside the
+             chroot directory on some operating systems (see sftp-server(8)
+             for details).
 
              The default is not to chroot(2).
 
@@ -200,19 +211,27 @@ DESCRIPTION
              Specifies the ciphers allowed for protocol version 2.  Multiple
              ciphers must be comma-separated.  The supported ciphers are:
 
-             ``3des-cbc'', ``aes128-cbc'', ``aes192-cbc'', ``aes256-cbc'',
-             ``aes128-ctr'', ``aes192-ctr'', ``aes256-ctr'',
-             ``aes128-gcm@openssh.com'', ``aes256-gcm@openssh.com'',
-             ``arcfour128'', ``arcfour256'', ``arcfour'', ``blowfish-cbc'',
-             ``cast128-cbc'', and ``chacha20-poly1305@openssh.com''.
+                   3des-cbc
+                   aes128-cbc
+                   aes192-cbc
+                   aes256-cbc
+                   aes128-ctr
+                   aes192-ctr
+                   aes256-ctr
+                   aes128-gcm@openssh.com
+                   aes256-gcm@openssh.com
+                   arcfour
+                   arcfour128
+                   arcfour256
+                   blowfish-cbc
+                   cast128-cbc
+                   chacha20-poly1305@openssh.com
 
              The default is:
 
-                aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
-                aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-                chacha20-poly1305@openssh.com,
-                aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
-                aes256-cbc,arcfour
+                   aes128-ctr,aes192-ctr,aes256-ctr,
+                   aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+                   chacha20-poly1305@openssh.com
 
              The list of available ciphers may also be obtained using the -Q
              option of ssh(1).
@@ -403,14 +422,24 @@ DESCRIPTION
 
      KexAlgorithms
              Specifies the available KEX (Key Exchange) algorithms.  Multiple
-             algorithms must be comma-separated.  The default is
+             algorithms must be comma-separated.  The supported algorithms
+             are:
+
+                   curve25519-sha256@libssh.org
+                   diffie-hellman-group1-sha1
+                   diffie-hellman-group14-sha1
+                   diffie-hellman-group-exchange-sha1
+                   diffie-hellman-group-exchange-sha256
+                   ecdh-sha2-nistp256
+                   ecdh-sha2-nistp384
+                   ecdh-sha2-nistp521
+
+             The default is:
 
                    curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
                    diffie-hellman-group-exchange-sha256,
-                   diffie-hellman-group-exchange-sha1,
-                   diffie-hellman-group14-sha1,
-                   diffie-hellman-group1-sha1
+                   diffie-hellman-group14-sha1
 
      KeyRegenerationInterval
              In protocol version 1, the ephemeral server key is automatically
@@ -452,16 +481,33 @@ DESCRIPTION
              data integrity protection.  Multiple algorithms must be comma-
              separated.  The algorithms that contain ``-etm'' calculate the
              MAC after encryption (encrypt-then-mac).  These are considered
-             safer and their use recommended.  The default is:
+             safer and their use recommended.  The supported MACs are:
 
-                   hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
+                   hmac-md5
+                   hmac-md5-96
+                   hmac-ripemd160
+                   hmac-sha1
+                   hmac-sha1-96
+                   hmac-sha2-256
+                   hmac-sha2-512
+                   umac-64@openssh.com
+                   umac-128@openssh.com
+                   hmac-md5-etm@openssh.com
+                   hmac-md5-96-etm@openssh.com
+                   hmac-ripemd160-etm@openssh.com
+                   hmac-sha1-etm@openssh.com
+                   hmac-sha1-96-etm@openssh.com
+                   hmac-sha2-256-etm@openssh.com
+                   hmac-sha2-512-etm@openssh.com
+                   umac-64-etm@openssh.com
+                   umac-128-etm@openssh.com
+
+             The default is:
+
                    umac-64-etm@openssh.com,umac-128-etm@openssh.com,
                    hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
-                   hmac-ripemd160-etm@openssh.com,hmac-sha1-96-etm@openssh.com,
-                   hmac-md5-96-etm@openssh.com,
-                   hmac-md5,hmac-sha1,umac-64@openssh.com,umac-128@openssh.com,
-                   hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
-                   hmac-sha1-96,hmac-md5-96
+                   umac-64@openssh.com,umac-128@openssh.com,
+                   hmac-sha2-256,hmac-sha2-512
 
      Match   Introduces a conditional block.  If all of the criteria on the
              Match line are satisfied, the keywords on the following lines
@@ -496,7 +542,7 @@ DESCRIPTION
              KbdInteractiveAuthentication, KerberosAuthentication,
              MaxAuthTries, MaxSessions, PasswordAuthentication,
              PermitEmptyPasswords, PermitOpen, PermitRootLogin, PermitTTY,
-             PermitTunnel, PubkeyAuthentication, RekeyLimit,
+             PermitTunnel, PermitUserRC, PubkeyAuthentication, RekeyLimit,
              RhostsRSAAuthentication, RSAAuthentication, X11DisplayOffset,
              X11Forwarding and X11UseLocalHost.
 
@@ -580,6 +626,10 @@ DESCRIPTION
              bypass access restrictions in some configurations using
              mechanisms such as LD_PRELOAD.
 
+     PermitUserRC
+             Specifies whether any ~/.ssh/rc file is executed.  The default is
+             ``yes''.
+
      PidFile
              Specifies the file that contains the process ID of the SSH
              daemon.  The default is /var/run/sshd.pid.
@@ -649,6 +699,27 @@ DESCRIPTION
      ServerKeyBits
              Defines the number of bits in the ephemeral protocol version 1
              server key.  The minimum value is 512, and the default is 1024.
+
+     StreamLocalBindMask
+             Sets the octal file creation mode mask (umask) used when creating
+             a Unix-domain socket file for local or remote port forwarding.
+             This option is only used for port forwarding to a Unix-domain
+             socket file.
+
+             The default value is 0177, which creates a Unix-domain socket
+             file that is readable and writable only by the owner.  Note that
+             not all operating systems honor the file mode on Unix-domain
+             socket files.
+
+     StreamLocalBindUnlink
+             Specifies whether to remove an existing Unix-domain socket file
+             for local or remote port forwarding before creating a new one.
+             If the socket file already exists and StreamLocalBindUnlink is
+             not enabled, sshd will be unable to forward the port to the Unix-
+             domain socket file.  This option is only used for port forwarding
+             to a Unix-domain socket file.
+
+             The argument must be ``yes'' or ``no''.  The default is ``no''.
 
      StrictModes
              Specifies whether sshd(8) should check file modes and ownership
@@ -832,4 +903,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.5                    February 27, 2014                   OpenBSD 5.5
+OpenBSD 5.6                      July 28, 2014                     OpenBSD 5.6

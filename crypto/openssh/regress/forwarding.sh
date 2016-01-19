@@ -1,4 +1,4 @@
-#	$OpenBSD: forwarding.sh,v 1.11 2013/06/10 21:56:43 dtucker Exp $
+#	$OpenBSD: forwarding.sh,v 1.12 2014/07/15 15:54:15 millert Exp $
 #	Placed in the Public Domain.
 
 tid="local and remote forwarding"
@@ -28,7 +28,7 @@ for p in 1 2; do
 	trace "transfer over forwarded channels and check result"
 	${SSH} -$q -F $OBJ/ssh_config -p$last -o 'ConnectionAttempts=4' \
 		somehost cat ${DATA} > ${COPY}
-	test -f ${COPY}		|| fail "failed copy of ${DATA}"
+	test -s ${COPY}		|| fail "failed copy of ${DATA}"
 	cmp ${DATA} ${COPY}	|| fail "corrupted copy of ${DATA}"
 
 	sleep 10
@@ -114,8 +114,24 @@ for p in 1 2; do
 	trace "config file: transfer over forwarded channels and check result"
 	${SSH} -F $OBJ/ssh_config -p${base}02 -o 'ConnectionAttempts=4' \
 		somehost cat ${DATA} > ${COPY}
-	test -f ${COPY}		|| fail "failed copy of ${DATA}"
+	test -s ${COPY}		|| fail "failed copy of ${DATA}"
 	cmp ${DATA} ${COPY}	|| fail "corrupted copy of ${DATA}"
 
 	wait
+done
+
+for p in 2; do
+	trace "transfer over chained unix domain socket forwards and check result"
+	rm -f $OBJ/unix-[123].fwd
+	${SSH} -f -F $OBJ/ssh_config -R${base}01:[$OBJ/unix-1.fwd] somehost sleep 10
+	${SSH} -f -F $OBJ/ssh_config -L[$OBJ/unix-1.fwd]:[$OBJ/unix-2.fwd] somehost sleep 10
+	${SSH} -f -F $OBJ/ssh_config -R[$OBJ/unix-2.fwd]:[$OBJ/unix-3.fwd] somehost sleep 10
+	${SSH} -f -F $OBJ/ssh_config -L[$OBJ/unix-3.fwd]:127.0.0.1:$PORT somehost sleep 10
+	${SSH} -F $OBJ/ssh_config -p${base}01 -o 'ConnectionAttempts=4' \
+		somehost cat ${DATA} > ${COPY}
+	test -s ${COPY}			|| fail "failed copy ${DATA}"
+	cmp ${DATA} ${COPY}		|| fail "corrupted copy of ${DATA}"
+
+	#wait
+	sleep 10
 done

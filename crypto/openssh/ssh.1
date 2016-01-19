@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.343 2013/12/07 11:58:46 naddy Exp $
+.\" $OpenBSD: ssh.1,v 1.348 2014/07/24 22:57:10 millert Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: December 7 2013 $
+.Dd $Mdocdate: July 24 2014 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -74,8 +74,9 @@ executing commands on a remote machine.
 It is intended to replace rlogin and rsh,
 and provide secure encrypted communications between
 two untrusted hosts over an insecure network.
-X11 connections and arbitrary TCP ports
-can also be forwarded over the secure channel.
+X11 connections, arbitrary TCP ports and
+.Ux Ns -domain
+sockets can also be forwarded over the secure channel.
 .Pp
 .Nm
 connects and logs into the specified
@@ -132,7 +133,9 @@ of the connection.
 Only useful on systems with more than one address.
 .It Fl C
 Requests compression of all data (including stdin, stdout, stderr, and
-data for forwarded X11 and TCP connections).
+data for forwarded X11, TCP and
+.Ux Ns -domain
+connections).
 The compression algorithm is the same used by
 .Xr gzip 1 ,
 and the
@@ -155,23 +158,6 @@ The supported values are
 .Dq blowfish ,
 and
 .Dq des .
-.Ar 3des
-(triple-des) is an encrypt-decrypt-encrypt triple with three different keys.
-It is believed to be secure.
-.Ar blowfish
-is a fast block cipher; it appears very secure and is much faster than
-.Ar 3des .
-.Ar des
-is only supported in the
-.Nm
-client for interoperability with legacy protocol 1 implementations
-that do not support the
-.Ar 3des
-cipher.
-Its use is strongly discouraged due to cryptographic weaknesses.
-The default is
-.Dq 3des .
-.Pp
 For protocol version 2,
 .Ar cipher_spec
 is a comma-separated list of ciphers
@@ -268,6 +254,8 @@ will wait for all remote port forwards to be successfully established
 before placing itself in the background.
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
+If used on a multiplexed connection, then this option must be specified
+on the master process.
 .It Fl I Ar pkcs11
 Specify the PKCS#11 shared library
 .Nm
@@ -482,6 +470,8 @@ For full details of the options listed below, and their possible values, see
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
+.It StreamLocalBindMask
+.It StreamLocalBindUnlink
 .It StrictHostKeyChecking
 .It TCPKeepAlive
 .It Tunnel
@@ -1467,7 +1457,6 @@ if an error occurred.
 .Xr ssh-keygen 1 ,
 .Xr ssh-keyscan 1 ,
 .Xr tun 4 ,
-.Xr hosts.equiv 5 ,
 .Xr ssh_config 5 ,
 .Xr ssh-keysign 8 ,
 .Xr sshd 8

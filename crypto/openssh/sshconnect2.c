@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.204 2014/02/02 03:44:32 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.210 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -61,8 +61,8 @@
 #include "dh.h"
 #include "authfd.h"
 #include "log.h"
-#include "readconf.h"
 #include "misc.h"
+#include "readconf.h"
 #include "match.h"
 #include "dispatch.h"
 #include "canohost.h"
@@ -156,6 +156,7 @@ order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
 void
 ssh_kex2(char *host, struct sockaddr *hostaddr, u_short port)
 {
+	char *myproposal[PROPOSAL_MAX] = { KEX_CLIENT };
 	Kex *kex;
 
 	xxx_host = host;
@@ -204,11 +205,13 @@ ssh_kex2(char *host, struct sockaddr *hostaddr, u_short port)
 
 	/* start key exchange */
 	kex = kex_setup(myproposal);
+#ifdef WITH_OPENSSL
 	kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
 	kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
 	kex->kex[KEX_ECDH_SHA2] = kexecdh_client;
+#endif
 	kex->kex[KEX_C25519_SHA256] = kexc25519_client;
 	kex->client_version_string=client_version_string;
 	kex->server_version_string=server_version_string;
@@ -967,7 +970,7 @@ identity_sign(Identity *id, u_char **sigp, u_int *lenp,
 	 * we have already loaded the private key or
 	 * the private key is stored in external hardware
 	 */
-	if (id->isprivate || (id->key->flags & KEY_FLAG_EXT))
+	if (id->isprivate || (id->key->flags & SSHKEY_FLAG_EXT))
 		return (key_sign(id->key, sigp, lenp, data, datalen));
 	/* load the private key from the file */
 	if ((prv = load_identity_file(id->filename, id->userprovided)) == NULL)
@@ -1175,12 +1178,12 @@ pubkey_prepare(Authctxt *authctxt)
 	}
 	/* Prefer PKCS11 keys that are explicitly listed */
 	TAILQ_FOREACH_SAFE(id, &files, next, tmp) {
-		if (id->key == NULL || (id->key->flags & KEY_FLAG_EXT) == 0)
+		if (id->key == NULL || (id->key->flags & SSHKEY_FLAG_EXT) == 0)
 			continue;
 		found = 0;
 		TAILQ_FOREACH(id2, &files, next) {
 			if (id2->key == NULL ||
-			    (id2->key->flags & KEY_FLAG_EXT) != 0)
+			    (id2->key->flags & SSHKEY_FLAG_EXT) == 0)
 				continue;
 			if (key_equal(id->key, id2->key)) {
 				TAILQ_REMOVE(&files, id, next);

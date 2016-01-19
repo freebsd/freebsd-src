@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.61 2014/02/04 00:18:23 djm Exp $ */
+/* $Id: openbsd-compat.h,v 1.62 2014/09/30 23:43:08 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -267,5 +267,21 @@ char *shadow_pw(struct passwd *pw);
 #include "port-solaris.h"
 #include "port-tun.h"
 #include "port-uw.h"
+
+/* _FORTIFY_SOURCE breaks FD_ISSET(n)/FD_SET(n) for n > FD_SETSIZE. Avoid. */
+#if defined(HAVE_FEATURES_H) && defined(_FORTIFY_SOURCE)
+# include <features.h>
+# if defined(__GNU_LIBRARY__) && defined(__GLIBC_PREREQ)
+#  if __GLIBC_PREREQ(2, 15) && (_FORTIFY_SOURCE > 0)
+#   include <sys/socket.h>  /* Ensure include guard is defined */
+#   undef FD_SET
+#   undef FD_ISSET
+#   define FD_SET(n, set)	kludge_FD_SET(n, set)
+#   define FD_ISSET(n, set)	kludge_FD_ISSET(n, set)
+void kludge_FD_SET(int, fd_set *);
+int kludge_FD_ISSET(int, fd_set *);
+#  endif /* __GLIBC_PREREQ(2, 15) && (_FORTIFY_SOURCE > 0) */
+# endif /* __GNU_LIBRARY__ && __GLIBC_PREREQ */
+#endif /* HAVE_FEATURES_H && _FORTIFY_SOURCE */
 
 #endif /* _OPENBSD_COMPAT_H */

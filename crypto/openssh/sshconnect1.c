@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect1.c,v 1.74 2014/02/02 03:44:32 djm Exp $ */
+/* $OpenBSD: sshconnect1.c,v 1.76 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -38,11 +38,11 @@
 #include "kex.h"
 #include "uidswap.h"
 #include "log.h"
+#include "misc.h"
 #include "readconf.h"
 #include "authfd.h"
 #include "sshconnect.h"
 #include "authfile.h"
-#include "misc.h"
 #include "canohost.h"
 #include "hostfile.h"
 #include "auth.h"
@@ -166,7 +166,7 @@ respond_to_rsa_challenge(BIGNUM * challenge, RSA * prv)
 
 	/* Decrypt the challenge using the private key. */
 	/* XXX think about Bleichenbacher, too */
-	if (rsa_private_decrypt(challenge, challenge, prv) <= 0)
+	if (rsa_private_decrypt(challenge, challenge, prv) != 0)
 		packet_disconnect(
 		    "respond_to_rsa_challenge: rsa_private_decrypt failed");
 
@@ -253,7 +253,7 @@ try_rsa_authentication(int idx)
 	 * load the private key.  Try first with empty passphrase; if it
 	 * fails, ask for a passphrase.
 	 */
-	if (public->flags & KEY_FLAG_EXT)
+	if (public->flags & SSHKEY_FLAG_EXT)
 		private = public;
 	else
 		private = key_load_private_type(KEY_RSA1, authfile, "", NULL,
@@ -302,7 +302,7 @@ try_rsa_authentication(int idx)
 	respond_to_rsa_challenge(challenge, private->rsa);
 
 	/* Destroy the private key unless it in external hardware. */
-	if (!(private->flags & KEY_FLAG_EXT))
+	if (!(private->flags & SSHKEY_FLAG_EXT))
 		key_free(private);
 
 	/* We no longer need the challenge. */
@@ -592,8 +592,9 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 			    BN_num_bits(server_key->rsa->n),
 			    SSH_KEY_BITS_RESERVED);
 		}
-		rsa_public_encrypt(key, key, server_key->rsa);
-		rsa_public_encrypt(key, key, host_key->rsa);
+		if (rsa_public_encrypt(key, key, server_key->rsa) != 0 ||
+		    rsa_public_encrypt(key, key, host_key->rsa) != 0)
+			fatal("%s: rsa_public_encrypt failed", __func__);
 	} else {
 		/* Host key has smaller modulus (or they are equal). */
 		if (BN_num_bits(server_key->rsa->n) <
@@ -604,8 +605,9 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 			    BN_num_bits(host_key->rsa->n),
 			    SSH_KEY_BITS_RESERVED);
 		}
-		rsa_public_encrypt(key, key, host_key->rsa);
-		rsa_public_encrypt(key, key, server_key->rsa);
+		if (rsa_public_encrypt(key, key, host_key->rsa) != 0 ||
+		    rsa_public_encrypt(key, key, server_key->rsa) != 0)
+			fatal("%s: rsa_public_encrypt failed", __func__);
 	}
 
 	/* Destroy the public keys since we no longer need them. */

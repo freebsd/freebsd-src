@@ -1,4 +1,4 @@
-#	$OpenBSD: login-timeout.sh,v 1.6 2014/02/27 20:04:16 djm Exp $
+#	$OpenBSD: login-timeout.sh,v 1.7 2014/03/13 20:44:49 djm Exp $
 #	Placed in the Public Domain.
 
 tid="connect after login grace timeout"
@@ -22,6 +22,7 @@ $SUDO kill `$SUDO cat $PIDFILE`
 trace "test login grace without privsep"
 echo "UsePrivilegeSeparation no" >> $OBJ/sshd_config
 start_sshd
+sleep 1
 
 (echo SSH-2.0-fake; sleep 60) | telnet 127.0.0.1 ${PORT} >/dev/null 2>&1 & 
 sleep 15
