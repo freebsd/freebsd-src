@@ -1079,9 +1079,6 @@ aio_daemon(void *_id)
 	aiop->aiothread = td;
 	aiop->aiothreadflags = 0;
 
-	/* The daemon resides in its own pgrp. */
-	sys_setsid(td, NULL);
-
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
 	 * and creating too many daemons.)
