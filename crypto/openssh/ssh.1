@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.348 2014/07/24 22:57:10 millert Exp $
+.\" $OpenBSD: ssh.1,v 1.356 2015/03/03 06:48:58 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 24 2014 $
+.Dd $Mdocdate: March 3 2015 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Nm ssh
 .Bk -words
-.Op Fl 1246AaCfgKkMNnqsTtVvXxYy
+.Op Fl 1246AaCfGgKkMNnqsTtVvXxYy
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl D Oo Ar bind_address : Oc Ns Ar port
@@ -59,7 +59,7 @@
 .Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
 .Op Fl p Ar port
-.Op Fl Q Cm cipher | cipher-auth | mac | kex | key
+.Op Fl Q Cm cipher | cipher-auth | mac | kex | key | protocol-version
 .Op Fl R Oo Ar bind_address : Oc Ns Ar port : Ns Ar host : Ns Ar hostport
 .Op Fl S Ar ctl_path
 .Op Fl W Ar host : Ns Ar port
@@ -252,6 +252,14 @@ then a client started with
 .Fl f
 will wait for all remote port forwards to be successfully established
 before placing itself in the background.
+.It Fl G
+Causes
+.Nm
+to print its configuration after evaluating
+.Cm Host
+and
+.Cm Match
+blocks and exit.
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
 If used on a multiplexed connection, then this option must be specified
@@ -426,6 +434,7 @@ For full details of the options listed below, and their possible values, see
 .It DynamicForward
 .It EscapeChar
 .It ExitOnForwardFailure
+.It FingerprintHash
 .It ForwardAgent
 .It ForwardX11
 .It ForwardX11Timeout
@@ -437,6 +446,7 @@ For full details of the options listed below, and their possible values, see
 .It HashKnownHosts
 .It Host
 .It HostbasedAuthentication
+.It HostbasedKeyTypes
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
@@ -476,6 +486,7 @@ For full details of the options listed below, and their possible values, see
 .It TCPKeepAlive
 .It Tunnel
 .It TunnelDevice
+.It UpdateHostKeys
 .It UsePrivilegedPort
 .It User
 .It UserKnownHostsFile
@@ -488,7 +499,7 @@ For full details of the options listed below, and their possible values, see
 Port to connect to on the remote host.
 This can be specified on a
 per-host basis in the configuration file.
-.It Fl Q Cm cipher | cipher-auth | mac | kex | key
+.It Fl Q Cm cipher | cipher-auth | mac | kex | key | protocol-version
 Queries
 .Nm
 for the algorithms supported for the specified version 2.
@@ -502,7 +513,9 @@ The available features are:
 .Ar kex
 (key exchange algorithms),
 .Ar key
-(key types).
+(key types) and
+.Ar protocol-version
+(supported SSH protocol versions).
 .It Fl q
 Quiet mode.
 Causes most warning and diagnostic messages to be suppressed.
@@ -750,7 +763,7 @@ key pair for authentication purposes.
 The server knows the public key, and only the user knows the private key.
 .Nm
 implements public key authentication protocol automatically,
-using one of the DSA, ECDSA, ED25519 or RSA algorithms.
+using one of the DSA, ECDSA, Ed25519 or RSA algorithms.
 Protocol 1 is restricted to using only RSA keys,
 but protocol 2 may use any.
 The HISTORY section of
@@ -778,7 +791,7 @@ This stores the private key in
 .Pa ~/.ssh/id_ecdsa
 (protocol 2 ECDSA),
 .Pa ~/.ssh/id_ed25519
-(protocol 2 ED25519),
+(protocol 2 Ed25519),
 or
 .Pa ~/.ssh/id_rsa
 (protocol 2 RSA)
@@ -790,7 +803,7 @@ and stores the public key in
 .Pa ~/.ssh/id_ecdsa.pub
 (protocol 2 ECDSA),
 .Pa ~/.ssh/id_ed25519.pub
-(protocol 2 ED25519),
+(protocol 2 Ed25519),
 or
 .Pa ~/.ssh/id_rsa.pub
 (protocol 2 RSA)
@@ -1085,7 +1098,7 @@ Fingerprints can be determined using
 If the fingerprint is already known, it can be matched
 and the key can be accepted or rejected.
 Because of the difficulty of comparing host keys
-just by looking at hex strings,
+just by looking at fingerprint strings,
 there is also support to compare host keys visually,
 using
 .Em random art .
@@ -1330,7 +1343,7 @@ secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
 .It Pa ~/.ssh/authorized_keys
-Lists the public keys (DSA, ECDSA, ED25519, RSA)
+Lists the public keys (DSA, ECDSA, Ed25519, RSA)
 that can be used for logging in as this user.
 The format of this file is described in the
 .Xr sshd 8

@@ -26,7 +26,7 @@
 
 #include "includes.h"
 
-#ifdef OPENSSL_HAS_ECC
+#if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
 
 #include <sys/types.h>
 
@@ -189,4 +189,4 @@ ssh_ecdsa_verify(const struct sshkey *key,
 	return ret;
 }
 
-#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL && OPENSSL_HAS_ECC */

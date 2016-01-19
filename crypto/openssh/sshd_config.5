@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.176 2014/07/28 15:40:08 schwarze Exp $
+.\" $OpenBSD: sshd_config.5,v 1.194 2015/02/20 23:46:01 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 28 2014 $
+.Dd $Mdocdate: February 20 2015 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -211,6 +211,18 @@ would restrict keyboard interactive authentication to the
 .Dq bsdauth
 device.
 .Pp
+If the
+.Dq publickey
+method is listed more than once,
+.Xr sshd 8
+verifies that keys that have been used successfully are not reused for
+subsequent authentications.
+For example, an
+.Cm AuthenticationMethods
+of
+.Dq publickey,publickey
+will require successful authentication using two different public keys.
+.Pp
 This option is only available for SSH protocol 2 and will yield a fatal
 error if enabled if protocol 1 is also enabled.
 Note that each authentication method listed should also be explicitly enabled
@@ -233,6 +245,13 @@ By default, no AuthorizedKeysCommand is run.
 Specifies the user under whose account the AuthorizedKeysCommand is run.
 It is recommended to use a dedicated user that has no other role on the host
 than running authorized keys commands.
+If
+.Cm AuthorizedKeysCommand
+is specified but
+.Cm AuthorizedKeysCommandUser
+is not, then
+.Xr sshd 8
+will refuse to start.
 .It Cm AuthorizedKeysFile
 Specifies the file that contains the public keys that can be used
 for user authentication.
@@ -312,8 +331,10 @@ The default is
 Specifies the pathname of a directory to
 .Xr chroot 2
 to after authentication.
-All components of the pathname must be root-owned directories that are
-not writable by any other user or group.
+At session startup
+.Xr sshd 8
+checks that all components of the pathname are root-owned directories
+which are not writable by any other user or group.
 After the chroot,
 .Xr sshd 8
 changes the working directory to the user's home directory.
@@ -337,7 +358,6 @@ nodes such as
 .Xr stdin 4 ,
 .Xr stdout 4 ,
 .Xr stderr 4 ,
-.Xr arandom 4
 and
 .Xr tty 4
 devices.
@@ -350,6 +370,13 @@ though sessions which use logging may require
 inside the chroot directory on some operating systems (see
 .Xr sftp-server 8
 for details).
+.Pp
+For safety, it is very important that the directory hierarchy be
+prevented from modification by other processes on the system (especially
+those outside the jail).
+Misconfiguration can lead to unsafe environments which
+.Xr sshd 8
+cannot detect.
 .Pp
 The default is not to
 .Xr chroot 2 .
@@ -401,7 +428,9 @@ chacha20-poly1305@openssh.com
 The list of available ciphers may also be obtained using the
 .Fl Q
 option of
-.Xr ssh 1 .
+.Xr ssh 1
+with an argument of
+.Dq cipher .
 .It Cm ClientAliveCountMax
 Sets the number of client alive messages (see below) which may be
 sent without
@@ -484,6 +513,14 @@ and finally
 See PATTERNS in
 .Xr ssh_config 5
 for more information on patterns.
+.It Cm FingerprintHash
+Specifies the hash algorithm used when logging key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
 .It Cm ForceCommand
 Forces the execution of the command specified by
 .Cm ForceCommand ,
@@ -534,6 +571,17 @@ on logout.
 The default is
 .Dq yes .
 Note that this option applies to protocol version 2 only.
+.It Cm HostbasedAcceptedKeyTypes
+Specifies the key types that will be accepted for hostbased authentication
+as a comma-separated pattern list.
+The default
+.Dq *
+will allow all key types.
+The
+.Fl Q
+option of
+.Xr ssh 1
+may be used to list supported key types.
 .It Cm HostbasedAuthentication
 Specifies whether rhosts or /etc/hosts.equiv authentication together
 with successful public key client host authentication is allowed
@@ -735,6 +783,13 @@ ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group14-sha1
 .Ed
+.Pp
+The list of available key exchange algorithms may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1
+with an argument of
+.Dq kex .
 .It Cm KeyRegenerationInterval
 In protocol version 1, the ephemeral server key is automatically regenerated
 after this many seconds (if it has been used).
@@ -754,18 +809,18 @@ The following forms may be used:
 .It
 .Cm ListenAddress
 .Sm off
-.Ar host No | Ar IPv4_addr No | Ar IPv6_addr
+.Ar host | Ar IPv4_addr | Ar IPv6_addr
 .Sm on
 .It
 .Cm ListenAddress
 .Sm off
-.Ar host No | Ar IPv4_addr No : Ar port
+.Ar host | Ar IPv4_addr : Ar port
 .Sm on
 .It
 .Cm ListenAddress
 .Sm off
 .Oo
-.Ar host No | Ar IPv6_addr Oc : Ar port
+.Ar host | Ar IPv6_addr Oc : Ar port
 .Sm on
 .El
 .Pp
@@ -853,6 +908,13 @@ hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
 umac-64@openssh.com,umac-128@openssh.com,
 hmac-sha2-256,hmac-sha2-512
 .Ed
+.Pp
+The list of available MAC algorithms may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1
+with an argument of
+.Dq mac .
 .It Cm Match
 Introduces a conditional block.
 If all of the criteria on the
@@ -863,7 +925,7 @@ set in the global section of the config file, until either another
 line or the end of the file.
 If a keyword appears in multiple
 .Cm Match
-blocks that are satisified, only the first instance of the keyword is
+blocks that are satisfied, only the first instance of the keyword is
 applied.
 .Pp
 The arguments to
@@ -907,6 +969,7 @@ Available keywords are
 .Cm AcceptEnv ,
 .Cm AllowAgentForwarding ,
 .Cm AllowGroups ,
+.Cm AllowStreamLocalForwarding ,
 .Cm AllowTcpForwarding ,
 .Cm AllowUsers ,
 .Cm AuthenticationMethods ,
@@ -921,8 +984,10 @@ Available keywords are
 .Cm ForceCommand ,
 .Cm GatewayPorts ,
 .Cm GSSAPIAuthentication ,
+.Cm HostbasedAcceptedKeyTypes ,
 .Cm HostbasedAuthentication ,
 .Cm HostbasedUsesNameFromPacketOnly ,
+.Cm IPQoS ,
 .Cm KbdInteractiveAuthentication ,
 .Cm KerberosAuthentication ,
 .Cm MaxAuthTries ,
@@ -934,10 +999,15 @@ Available keywords are
 .Cm PermitTTY ,
 .Cm PermitTunnel ,
 .Cm PermitUserRC ,
+.Cm PubkeyAcceptedKeyTypes ,
 .Cm PubkeyAuthentication ,
 .Cm RekeyLimit ,
+.Cm RevokedKeys ,
 .Cm RhostsRSAAuthentication ,
 .Cm RSAAuthentication ,
+.Cm StreamLocalBindMask ,
+.Cm StreamLocalBindUnlink ,
+.Cm TrustedUserCAKeys ,
 .Cm X11DisplayOffset ,
 .Cm X11Forwarding
 and
@@ -1071,6 +1141,10 @@ and
 .Dq ethernet .
 The default is
 .Dq no .
+.Pp
+Independent of this setting, the permissions of the selected
+.Xr tun 4
+device must allow access to the user.
 .It Cm PermitTTY
 Specifies whether
 .Xr pty 4
@@ -1146,6 +1220,17 @@ Specifying
 .Dq 2,1
 is identical to
 .Dq 1,2 .
+.It Cm PubkeyAcceptedKeyTypes
+Specifies the key types that will be accepted for public key authentication
+as a comma-separated pattern list.
+The default
+.Dq *
+will allow all key types.
+The
+.Fl Q
+option of
+.Xr ssh 1
+may be used to list supported key types.
 .It Cm PubkeyAuthentication
 Specifies whether public key authentication is allowed.
 The default is
@@ -1312,7 +1397,7 @@ should look up the remote host name and check that
 the resolved host name for the remote IP address maps back to the
 very same IP address.
 The default is
-.Dq yes .
+.Dq no .
 .It Cm UseLogin
 Specifies whether
 .Xr login 1

@@ -25,6 +25,8 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 
 #include <openssl/bn.h>
@@ -217,3 +219,4 @@ ssh_dss_verify(const struct sshkey *key,
 	}
 	return ret;
 }
+#endif /* WITH_OPENSSL */

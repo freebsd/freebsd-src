@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.276 2014/07/03 22:40:43 djm Exp $
+.\" $OpenBSD: sshd.8,v 1.278 2014/11/15 14:41:03 bentley Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: July 3 2014 $
+.Dd $Mdocdate: November 15 2014 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -279,7 +279,7 @@ though this can be changed via the
 .Cm Protocol
 option in
 .Xr sshd_config 5 .
-Protocol 2 supports DSA, ECDSA, ED25519 and RSA keys;
+Protocol 2 supports DSA, ECDSA, Ed25519 and RSA keys;
 protocol 1 only supports RSA keys.
 For both protocols,
 each host has a host-specific key,
@@ -607,10 +607,10 @@ Disables execution of
 Forbids X11 forwarding when this key is used for authentication.
 Any X11 forward requests by the client will return an error.
 .It Cm permitopen="host:port"
-Limit local
-.Li ``ssh -L''
-port forwarding such that it may only connect to the specified host and
-port.
+Limit local port forwarding with
+.Xr ssh 1
+.Fl L
+such that it may only connect to the specified host and port.
 IPv6 addresses can be specified by enclosing the address in square brackets.
 Multiple
 .Cm permitopen
@@ -811,7 +811,7 @@ secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
 .It Pa ~/.ssh/authorized_keys
-Lists the public keys (DSA, ECDSA, ED25519, RSA)
+Lists the public keys (DSA, ECDSA, Ed25519, RSA)
 that can be used for logging in as this user.
 The format of this file is described above.
 The content of the file is not highly sensitive, but the recommended

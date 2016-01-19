@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.115 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: channels.h,v 1.116 2015/01/19 20:07:45 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -231,17 +231,17 @@ void	 channel_send_window_changes(void);
 
 /* protocol handler */
 
-void	 channel_input_close(int, u_int32_t, void *);
-void	 channel_input_close_confirmation(int, u_int32_t, void *);
-void	 channel_input_data(int, u_int32_t, void *);
-void	 channel_input_extended_data(int, u_int32_t, void *);
-void	 channel_input_ieof(int, u_int32_t, void *);
-void	 channel_input_oclose(int, u_int32_t, void *);
-void	 channel_input_open_confirmation(int, u_int32_t, void *);
-void	 channel_input_open_failure(int, u_int32_t, void *);
-void	 channel_input_port_open(int, u_int32_t, void *);
-void	 channel_input_window_adjust(int, u_int32_t, void *);
-void	 channel_input_status_confirm(int, u_int32_t, void *);
+int	 channel_input_close(int, u_int32_t, void *);
+int	 channel_input_close_confirmation(int, u_int32_t, void *);
+int	 channel_input_data(int, u_int32_t, void *);
+int	 channel_input_extended_data(int, u_int32_t, void *);
+int	 channel_input_ieof(int, u_int32_t, void *);
+int	 channel_input_oclose(int, u_int32_t, void *);
+int	 channel_input_open_confirmation(int, u_int32_t, void *);
+int	 channel_input_open_failure(int, u_int32_t, void *);
+int	 channel_input_port_open(int, u_int32_t, void *);
+int	 channel_input_window_adjust(int, u_int32_t, void *);
+int	 channel_input_status_confirm(int, u_int32_t, void *);
 
 /* file descriptor handling (read/write) */
 
@@ -287,10 +287,10 @@ int	 permitopen_port(const char *);
 
 int	 x11_connect_display(void);
 int	 x11_create_display_inet(int, int, int, u_int *, int **);
-void     x11_input_open(int, u_int32_t, void *);
+int      x11_input_open(int, u_int32_t, void *);
 void	 x11_request_forwarding_with_spoofing(int, const char *, const char *,
 	     const char *, int);
-void	 deny_input_open(int, u_int32_t, void *);
+int	 deny_input_open(int, u_int32_t, void *);
 
 /* agent forwarding */
 

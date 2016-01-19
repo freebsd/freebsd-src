@@ -1,15 +1,16 @@
 SSH-AGENT(1)                General Commands Manual               SSH-AGENT(1)
 
 NAME
-     ssh-agent - authentication agent
+     ssh-agent M-bM-^@M-^S authentication agent
 
 SYNOPSIS
-     ssh-agent [-c | -s] [-d] [-a bind_address] [-t life] [command [arg ...]]
+     ssh-agent [-c | -s] [-d] [-a bind_address] [-E fingerprint_hash]
+               [-t life] [command [arg ...]]
      ssh-agent [-c | -s] -k
 
 DESCRIPTION
      ssh-agent is a program to hold private keys used for public key
-     authentication (RSA, DSA, ECDSA, ED25519).  ssh-agent is usually started
+     authentication (RSA, DSA, ECDSA, Ed25519).  ssh-agent is usually started
      in the beginning of an X-session or a login session, and all other
      windows or programs are started as clients to the ssh-agent program.
      Through use of environment variables the agent can be located and
@@ -33,6 +34,11 @@ DESCRIPTION
 
      -d      Debug mode.  When this option is specified ssh-agent will not
              fork.
+
+     -E fingerprint_hash
+             Specifies the hash algorithm used when displaying key
+             fingerprints.  Valid options are: M-bM-^@M-^\md5M-bM-^@M-^] and M-bM-^@M-^\sha256M-bM-^@M-^].  The
+             default is M-bM-^@M-^\sha256M-bM-^@M-^].
 
      -k      Kill the current agent (given by the SSH_AGENT_PID environment
              variable).
@@ -100,4 +106,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.6                     April 16, 2014                     OpenBSD 5.6
+OpenBSD 5.7                    December 21, 2014                   OpenBSD 5.7

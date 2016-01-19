@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.2 2014/06/18 15:42:09 naddy Exp $	*/
+/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.4 2015/01/14 15:02:39 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -38,24 +38,10 @@ sshbuf_get_bignum2(struct sshbuf *buf, BIGNUM *v)
 	size_t len;
 	int r;
 
-	if ((r = sshbuf_peek_string_direct(buf, &d, &len)) < 0)
+	if ((r = sshbuf_get_bignum2_bytes_direct(buf, &d, &len)) != 0)
 		return r;
-	/* Refuse negative (MSB set) bignums */
-	if ((len != 0 && (*d & 0x80) != 0))
-		return SSH_ERR_BIGNUM_IS_NEGATIVE;
-	/* Refuse overlong bignums, allow prepended \0 to avoid MSB set */
-	if (len > SSHBUF_MAX_BIGNUM + 1 ||
-	    (len == SSHBUF_MAX_BIGNUM + 1 && *d != 0))
-		return SSH_ERR_BIGNUM_TOO_LARGE;
 	if (v != NULL && BN_bin2bn(d, len, v) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	/* Consume the string */
-	if (sshbuf_get_string_direct(buf, NULL, NULL) != 0) {
-		/* Shouldn't happen */
-		SSHBUF_DBG(("SSH_ERR_INTERNAL_ERROR"));
-		SSHBUF_ABORT();
-		return SSH_ERR_INTERNAL_ERROR;
-	}
 	return 0;
 }
 
@@ -195,7 +181,8 @@ sshbuf_put_bignum1(struct sshbuf *buf, const BIGNUM *v)
 		return r;
 	}
 	POKE_U16(dp, len_bits);
-	memcpy(dp + 2, d, len_bytes);
+	if (len_bytes != 0)
+		memcpy(dp + 2, d, len_bytes);
 	bzero(d, sizeof(d));
 	return 0;
 }

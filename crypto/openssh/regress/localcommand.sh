@@ -1,4 +1,4 @@
-#	$OpenBSD: localcommand.sh,v 1.2 2013/05/17 10:24:48 dtucker Exp $
+#	$OpenBSD: localcommand.sh,v 1.3 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="localcommand"
@@ -6,7 +6,7 @@ tid="localcommand"
 echo 'PermitLocalCommand yes' >> $OBJ/ssh_proxy
 echo 'LocalCommand echo foo' >> $OBJ/ssh_proxy
 
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
 	verbose "test $tid: proto $p localcommand"
 	a=`${SSH} -F $OBJ/ssh_proxy -$p somehost true`
 	if [ "$a" != "foo" ] ; then

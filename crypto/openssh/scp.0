@@ -1,7 +1,7 @@
 SCP(1)                      General Commands Manual                     SCP(1)
 
 NAME
-     scp - secure copy (remote file copy program)
+     scp M-bM-^@M-^S secure copy (remote file copy program)
 
 SYNOPSIS
      scp [-12346BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]
@@ -17,7 +17,7 @@ DESCRIPTION
      File names may contain a user and host specification to indicate that the
      file is to be copied to/from that host.  Local file names can be made
      explicit using absolute or relative pathnames to avoid scp treating file
-     names containing `:' as host specifiers.  Copies between two remote hosts
+     names containing M-bM-^@M-^X:M-bM-^@M-^Y as host specifiers.  Copies between two remote hosts
      are also permitted.
 
      The options are as follows:
@@ -89,6 +89,7 @@ DESCRIPTION
                    HashKnownHosts
                    Host
                    HostbasedAuthentication
+                   HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
                    HostName
@@ -117,6 +118,7 @@ DESCRIPTION
                    ServerAliveCountMax
                    StrictHostKeyChecking
                    TCPKeepAlive
+                   UpdateHostKeys
                    UsePrivilegedPort
                    User
                    UserKnownHostsFile
@@ -124,7 +126,7 @@ DESCRIPTION
 
      -P port
              Specifies the port to connect to on the remote host.  Note that
-             this option is written with a capital `P', because -p is already
+             this option is written with a capital M-bM-^@M-^XPM-bM-^@M-^Y, because -p is already
              reserved for preserving the times and modes of the file.
 
      -p      Preserves modification times, access times, and modes from the
@@ -145,7 +147,7 @@ DESCRIPTION
              authentication, and configuration problems.
 
 EXIT STATUS
-     The scp utility exits 0 on success, and >0 if an error occurs.
+     The scp utility exitsM-BM- 0 on success, andM-BM- >0 if an error occurs.
 
 SEE ALSO
      sftp(1), ssh(1), ssh-add(1), ssh-agent(1), ssh-keygen(1), ssh_config(5),
@@ -159,4 +161,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 5.6                     March 19, 2014                     OpenBSD 5.6
+OpenBSD 5.7                    January 30, 2015                    OpenBSD 5.7

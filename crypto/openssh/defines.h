@@ -105,6 +105,17 @@ enum
 # endif /* PATH_MAX */
 #endif /* MAXPATHLEN */
 
+#ifndef HOST_NAME_MAX
+# include "netdb.h" /* for MAXHOSTNAMELEN */
+# if defined(_POSIX_HOST_NAME_MAX)
+#  define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# elif defined(MAXHOSTNAMELEN)
+#  define HOST_NAME_MAX MAXHOSTNAMELEN
+# else
+#  define HOST_NAME_MAX	255
+# endif
+#endif /* HOST_NAME_MAX */
+
 #if defined(HAVE_DECL_MAXSYMLINKS) && HAVE_DECL_MAXSYMLINKS == 0
 # define MAXSYMLINKS 5
 #endif
@@ -586,6 +597,12 @@ struct winsize {
 # undef HAVE_GAI_STRERROR
 #endif
 
+#if defined(HAVE_GETADDRINFO)
+# if defined(HAVE_DECL_AI_NUMERICSERV) && HAVE_DECL_AI_NUMERICSERV == 0
+#   define AI_NUMERICSERV	0
+# endif
+#endif
+
 #if defined(BROKEN_UPDWTMPX) && defined(HAVE_UPDWTMPX)
 # undef HAVE_UPDWTMPX
 #endif
@@ -803,14 +820,6 @@ struct winsize {
 
 #ifndef SSH_IOBUFSZ
 # define SSH_IOBUFSZ 8192
-#endif
-
-#ifndef _NSIG
-# ifdef NSIG
-#  define _NSIG NSIG
-# else
-#  define _NSIG 128
-# endif
 #endif
 
 /*

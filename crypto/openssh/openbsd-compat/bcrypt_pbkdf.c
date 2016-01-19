@@ -1,4 +1,4 @@
-/* $OpenBSD: bcrypt_pbkdf.c,v 1.4 2013/07/29 00:55:53 tedu Exp $ */
+/* $OpenBSD: bcrypt_pbkdf.c,v 1.9 2014/07/13 21:21:25 tedu Exp $ */
 /*
  * Copyright (c) 2013 Ted Unangst <tedu@openbsd.org>
  *
@@ -32,6 +32,9 @@
 #endif
 
 #include "crypto_api.h"
+#ifdef SHA512_DIGEST_LENGTH
+# undef SHA512_DIGEST_LENGTH
+#endif
 #define SHA512_DIGEST_LENGTH crypto_hash_sha512_BYTES
 
 /*
@@ -51,8 +54,8 @@
  *
  * One modification from official pbkdf2. Instead of outputting key material
  * linearly, we mix it. pbkdf2 has a known weakness where if one uses it to
- * generate (i.e.) 512 bits of key material for use as two 256 bit keys, an
- * attacker can merely run once through the outer loop below, but the user
+ * generate (e.g.) 512 bits of key material for use as two 256 bit keys, an
+ * attacker can merely run once through the outer loop, but the user
  * always runs it twice. Shuffling output bytes requires computing the
  * entirety of the key material to assemble any subkey. This is something a
  * wise caller could do; we just do it for you.
@@ -97,9 +100,9 @@ bcrypt_hash(u_int8_t *sha2pass, u_int8_t *sha2salt, u_int8_t *out)
 	}
 
 	/* zap */
-	memset(ciphertext, 0, sizeof(ciphertext));
-	memset(cdata, 0, sizeof(cdata));
-	memset(&state, 0, sizeof(state));
+	explicit_bzero(ciphertext, sizeof(ciphertext));
+	explicit_bzero(cdata, sizeof(cdata));
+	explicit_bzero(&state, sizeof(state));
 }
 
 int
@@ -113,6 +116,7 @@ bcrypt_pbkdf(const char *pass, size_t passlen, const u_int8_t *salt, size_t salt
 	u_int8_t *countsalt;
 	size_t i, j, amt, stride;
 	uint32_t count;
+	size_t origkeylen = keylen;
 
 	/* nothing crazy */
 	if (rounds < 1)
@@ -155,14 +159,17 @@ bcrypt_pbkdf(const char *pass, size_t passlen, const u_int8_t *salt, size_t salt
 		 * pbkdf2 deviation: ouput the key material non-linearly.
 		 */
 		amt = MIN(amt, keylen);
-		for (i = 0; i < amt; i++)
-			key[i * stride + (count - 1)] = out[i];
-		keylen -= amt;
+		for (i = 0; i < amt; i++) {
+			size_t dest = i * stride + (count - 1);
+			if (dest >= origkeylen)
+				break;
+			key[dest] = out[i];
+		}
+		keylen -= i;
 	}
 
 	/* zap */
-	memset(out, 0, sizeof(out));
-	memset(countsalt, 0, saltlen + 4);
+	explicit_bzero(out, sizeof(out));
 	free(countsalt);
 
 	return 0;

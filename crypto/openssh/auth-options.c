@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.64 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: auth-options.c,v 1.65 2015/01/14 10:30:34 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -21,15 +21,19 @@
 #include <stdarg.h>
 
 #include "openbsd-compat/sys-queue.h"
+
+#include "key.h"	/* XXX for typedef */
+#include "buffer.h"	/* XXX for typedef */
 #include "xmalloc.h"
 #include "match.h"
+#include "ssherr.h"
 #include "log.h"
 #include "canohost.h"
-#include "buffer.h"
+#include "sshbuf.h"
 #include "misc.h"
 #include "channels.h"
 #include "servconf.h"
-#include "key.h"
+#include "sshkey.h"
 #include "auth-options.h"
 #include "hostfile.h"
 #include "auth.h"
@@ -417,7 +421,7 @@ bad_option:
 #define OPTIONS_CRITICAL	1
 #define OPTIONS_EXTENSIONS	2
 static int
-parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
+parse_option_list(struct sshbuf *oblob, struct passwd *pw,
     u_int which, int crit,
     int *cert_no_port_forwarding_flag,
     int *cert_no_agent_forwarding_flag,
@@ -430,26 +434,25 @@ parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
 	char *command, *allowed;
 	const char *remote_ip;
 	char *name = NULL;
-	u_char *data_blob = NULL;
-	u_int nlen, dlen, clen;
-	Buffer c, data;
-	int ret = -1, result, found;
+	struct sshbuf *c = NULL, *data = NULL;
+	int r, ret = -1, result, found;
 
-	buffer_init(&data);
+	if ((c = sshbuf_fromb(oblob)) == NULL) {
+		error("%s: sshbuf_fromb failed", __func__);
+		goto out;
+	}
 
-	/* Make copy to avoid altering original */
-	buffer_init(&c);
-	buffer_append(&c, optblob, optblob_len);
-
-	while (buffer_len(&c) > 0) {
-		if ((name = buffer_get_cstring_ret(&c, &nlen)) == NULL ||
-		    (data_blob = buffer_get_string_ret(&c, &dlen)) == NULL) {
-			error("Certificate options corrupt");
+	while (sshbuf_len(c) > 0) {
+		sshbuf_free(data);
+		data = NULL;
+		if ((r = sshbuf_get_cstring(c, &name, NULL)) != 0 ||
+		    (r = sshbuf_froms(c, &data)) != 0) {
+			error("Unable to parse certificate options: %s",
+			    ssh_err(r));
 			goto out;
 		}
-		buffer_append(&data, data_blob, dlen);
-		debug3("found certificate option \"%.100s\" len %u",
-		    name, dlen);
+		debug3("found certificate option \"%.100s\" len %zu",
+		    name, sshbuf_len(data));
 		found = 0;
 		if ((which & OPTIONS_EXTENSIONS) != 0) {
 			if (strcmp(name, "permit-X11-forwarding") == 0) {
@@ -473,10 +476,10 @@ parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
 		}
 		if (!found && (which & OPTIONS_CRITICAL) != 0) {
 			if (strcmp(name, "force-command") == 0) {
-				if ((command = buffer_get_cstring_ret(&data,
-				    &clen)) == NULL) {
-					error("Certificate constraint \"%s\" "
-					    "corrupt", name);
+				if ((r = sshbuf_get_cstring(data, &command,
+				    NULL)) != 0) {
+					error("Unable to parse \"%s\" "
+					    "section: %s", name, ssh_err(r));
 					goto out;
 				}
 				if (*cert_forced_command != NULL) {
@@ -489,10 +492,10 @@ parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
 				found = 1;
 			}
 			if (strcmp(name, "source-address") == 0) {
-				if ((allowed = buffer_get_cstring_ret(&data,
-				    &clen)) == NULL) {
-					error("Certificate constraint "
-					    "\"%s\" corrupt", name);
+				if ((r = sshbuf_get_cstring(data, &allowed,
+				    NULL)) != 0) {
+					error("Unable to parse \"%s\" "
+					    "section: %s", name, ssh_err(r));
 					goto out;
 				}
 				if ((*cert_source_address_done)++) {
@@ -540,16 +543,13 @@ parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
 				logit("Certificate extension \"%s\" "
 				    "is not supported", name);
 			}
-		} else if (buffer_len(&data) != 0) {
+		} else if (sshbuf_len(data) != 0) {
 			error("Certificate option \"%s\" corrupt "
 			    "(extra data)", name);
 			goto out;
 		}
-		buffer_clear(&data);
 		free(name);
-		free(data_blob);
 		name = NULL;
-		data_blob = NULL;
 	}
 	/* successfully parsed all options */
 	ret = 0;
@@ -563,10 +563,8 @@ parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
 	}
 	if (name != NULL)
 		free(name);
-	if (data_blob != NULL)
-		free(data_blob);
-	buffer_free(&data);
-	buffer_free(&c);
+	sshbuf_free(data);
+	sshbuf_free(c);
 	return ret;
 }
 
@@ -575,7 +573,7 @@ parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
  * options so this must be called after auth_parse_options().
  */
 int
-auth_cert_options(Key *k, struct passwd *pw)
+auth_cert_options(struct sshkey *k, struct passwd *pw)
 {
 	int cert_no_port_forwarding_flag = 1;
 	int cert_no_agent_forwarding_flag = 1;
@@ -585,10 +583,9 @@ auth_cert_options(Key *k, struct passwd *pw)
 	char *cert_forced_command = NULL;
 	int cert_source_address_done = 0;
 
-	if (key_cert_is_legacy(k)) {
+	if (sshkey_cert_is_legacy(k)) {
 		/* All options are in the one field for v00 certs */
-		if (parse_option_list(buffer_ptr(k->cert->critical),
-		    buffer_len(k->cert->critical), pw,
+		if (parse_option_list(k->cert->critical, pw,
 		    OPTIONS_CRITICAL|OPTIONS_EXTENSIONS, 1,
 		    &cert_no_port_forwarding_flag,
 		    &cert_no_agent_forwarding_flag,
@@ -600,14 +597,12 @@ auth_cert_options(Key *k, struct passwd *pw)
 			return -1;
 	} else {
 		/* Separate options and extensions for v01 certs */
-		if (parse_option_list(buffer_ptr(k->cert->critical),
-		    buffer_len(k->cert->critical), pw,
+		if (parse_option_list(k->cert->critical, pw,
 		    OPTIONS_CRITICAL, 1, NULL, NULL, NULL, NULL, NULL,
 		    &cert_forced_command,
 		    &cert_source_address_done) == -1)
 			return -1;
-		if (parse_option_list(buffer_ptr(k->cert->extensions),
-		    buffer_len(k->cert->extensions), pw,
+		if (parse_option_list(k->cert->extensions, pw,
 		    OPTIONS_EXTENSIONS, 1,
 		    &cert_no_port_forwarding_flag,
 		    &cert_no_agent_forwarding_flag,

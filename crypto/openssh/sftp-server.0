@@ -1,7 +1,7 @@
 SFTP-SERVER(8)              System Manager's Manual             SFTP-SERVER(8)
 
 NAME
-     sftp-server - SFTP server subsystem
+     sftp-server M-bM-^@M-^S SFTP server subsystem
 
 SYNOPSIS
      sftp-server [-ehR] [-d start_directory] [-f log_facility] [-l log_level]
@@ -23,7 +23,7 @@ DESCRIPTION
      -d start_directory
              specifies an alternate starting directory for users.  The
              pathname may contain the following tokens that are expanded at
-             runtime: %% is replaced by a literal '%', %h is replaced by the
+             runtime: %% is replaced by a literal '%', %d is replaced by the
              home directory of the user being authenticated, and %u is
              replaced by the username of that user.  The default is to use the
              user's home directory.  This option is useful in conjunction with
@@ -65,8 +65,8 @@ DESCRIPTION
 
      -Q protocol_feature
              Query protocol features supported by sftp-server.  At present the
-             only feature that may be queried is ``requests'', which may be
-             used for black or whitelisting (flags -P and -p respectively).
+             only feature that may be queried is M-bM-^@M-^\requestsM-bM-^@M-^], which may be used
+             for black or whitelisting (flags -P and -p respectively).
 
      -R      Places this instance of sftp-server into a read-only mode.
              Attempts to open files for writing, as well as other operations
@@ -93,4 +93,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 5.6                      July 28, 2014                     OpenBSD 5.6
+OpenBSD 5.7                    December 11, 2014                   OpenBSD 5.7

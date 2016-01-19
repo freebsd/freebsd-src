@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_fuzz.c,v 1.1 2014/06/24 01:14:18 djm Exp $ */
+/* 	$OpenBSD: test_fuzz.c,v 1.4 2015/03/04 23:22:35 djm Exp $ */
 /*
  * Fuzz tests for key parsing
  *
@@ -53,7 +53,7 @@ public_fuzz(struct sshkey *k)
 	struct fuzz *fuzz;
 
 	ASSERT_PTR_NE(buf = sshbuf_new(), NULL);
-	ASSERT_INT_EQ(sshkey_to_blob_buf(k, buf), 0);
+	ASSERT_INT_EQ(sshkey_putb(k, buf), 0);
 	/* XXX need a way to run the tests in "slow, but complete" mode */
 	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | /* XXX too slow FUZZ_2_BIT_FLIP | */
 	    FUZZ_1_BYTE_FLIP | /* XXX too slow FUZZ_2_BYTE_FLIP | */
@@ -87,8 +87,11 @@ sig_fuzz(struct sshkey *k)
 	free(sig);
 	TEST_ONERROR(onerror, fuzz);
 	for(; !fuzz_done(fuzz); fuzz_next(fuzz)) {
-		sshkey_verify(k, fuzz_ptr(fuzz), fuzz_len(fuzz),
-		    c, sizeof(c), 0);
+		/* Ensure 1-bit difference at least */
+		if (fuzz_matches_original(fuzz))
+			continue;
+		ASSERT_INT_NE(sshkey_verify(k, fuzz_ptr(fuzz), fuzz_len(fuzz),
+		    c, sizeof(c), 0), 0);
 	}
 	fuzz_cleanup(fuzz);
 }
@@ -101,6 +104,7 @@ sshkey_fuzz_tests(void)
 	struct fuzz *fuzz;
 	int r;
 
+#ifdef WITH_SSH1
 	TEST_START("fuzz RSA1 private");
 	buf = load_file("rsa1_1");
 	fuzz = fuzz_begin(FUZZ_1_BIT_FLIP | FUZZ_1_BYTE_FLIP |
@@ -144,6 +148,7 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
 	TEST_DONE();
+#endif
 
 	TEST_START("fuzz RSA private");
 	buf = load_file("rsa_1");

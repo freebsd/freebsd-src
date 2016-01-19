@@ -32,8 +32,6 @@ void
 sshbuf_getput_crypto_tests(void)
 {
 	struct sshbuf *p1;
-	const u_char *d;
-	size_t s;
 	BIGNUM *bn, *bn2;
 	/* This one has num_bits != num_bytes * 8 to test bignum1 encoding */
 	const char *hexbn1 = "0102030405060708090a0b0c0d0e0f10";
@@ -48,7 +46,9 @@ sshbuf_getput_crypto_tests(void)
 		0x70, 0x60, 0x50, 0x40, 0x30, 0x20, 0x10, 0x00,
 		0x7f, 0xff, 0x11
 	};
-#ifdef OPENSSL_HAS_NISTP256
+#if defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256)
+	const u_char *d;
+	size_t s;
 	BIGNUM *bn_x, *bn_y;
 	int ec256_nid = NID_X9_62_prime256v1;
 	char *ec256_x = "0C828004839D0106AA59575216191357"
@@ -352,7 +352,7 @@ sshbuf_getput_crypto_tests(void)
 	sshbuf_free(p1);
 	TEST_DONE();
 
-#ifdef OPENSSL_HAS_NISTP256
+#if defined(OPENSSL_HAS_ECC) && defined(OPENSSL_HAS_NISTP256)
 	TEST_START("sshbuf_put_ec");
 	eck = EC_KEY_new_by_curve_name(ec256_nid);
 	ASSERT_PTR_NE(eck, NULL);

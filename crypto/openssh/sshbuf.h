@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.3 2014/06/24 01:13:21 djm Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.4 2015/01/14 15:02:39 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -209,6 +209,8 @@ int	sshbuf_peek_string_direct(const struct sshbuf *buf, const u_char **valp,
  * curve points.
  */
 int	sshbuf_put_bignum2_bytes(struct sshbuf *buf, const void *v, size_t len);
+int	sshbuf_get_bignum2_bytes_direct(struct sshbuf *buf,
+	    const u_char **valp, size_t *lenp);
 #ifdef WITH_OPENSSL
 int	sshbuf_get_bignum2(struct sshbuf *buf, BIGNUM *v);
 int	sshbuf_get_bignum1(struct sshbuf *buf, BIGNUM *v);

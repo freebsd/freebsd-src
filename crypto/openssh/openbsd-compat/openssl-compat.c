@@ -19,6 +19,8 @@
 #define SSH_DONT_OVERLOAD_OPENSSL_FUNCS
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <stdarg.h>
 #include <string.h>
 
@@ -78,3 +80,5 @@ ssh_OpenSSL_add_all_algorithms(void)
 	OPENSSL_config(NULL);
 }
 #endif
+
+#endif /* WITH_OPENSSL */

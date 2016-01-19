@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher.h,v 1.46 2014/06/24 01:13:21 djm Exp $ */
+/* $OpenBSD: cipher.h,v 1.47 2015/01/14 10:24:42 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -72,19 +72,19 @@ struct sshcipher_ctx {
 	const struct sshcipher *cipher;
 };
 
-typedef struct sshcipher Cipher ;
-typedef struct sshcipher_ctx CipherContext ;
+typedef struct sshcipher Cipher;
+typedef struct sshcipher_ctx CipherContext;
 
 u_int	 cipher_mask_ssh1(int);
 const struct sshcipher *cipher_by_name(const char *);
 const struct sshcipher *cipher_by_number(int);
 int	 cipher_number(const char *);
 char	*cipher_name(int);
+const char *cipher_warning_message(const struct sshcipher_ctx *);
 int	 ciphers_valid(const char *);
 char	*cipher_alg_list(char, int);
 int	 cipher_init(struct sshcipher_ctx *, const struct sshcipher *,
     const u_char *, u_int, const u_char *, u_int, int);
-const char* cipher_warning_message(const struct sshcipher_ctx *);
 int	 cipher_crypt(struct sshcipher_ctx *, u_int, u_char *, const u_char *,
     u_int, u_int, u_int);
 int	 cipher_get_length(struct sshcipher_ctx *, u_int *, u_int,

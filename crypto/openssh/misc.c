@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.94 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: misc.c,v 1.96 2015/01/16 06:40:12 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -31,8 +31,8 @@ __RCSID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/param.h>
 
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -552,7 +552,7 @@ tilde_expand_filename(const char *filename, uid_t uid)
 	if (path != NULL)
 		filename = path + 1;
 
-	if (xasprintf(&ret, "%s%s%s", pw->pw_dir, sep, filename) >= MAXPATHLEN)
+	if (xasprintf(&ret, "%s%s%s", pw->pw_dir, sep, filename) >= PATH_MAX)
 		fatal("tilde_expand_filename: Path too long");
 
 	return (ret);

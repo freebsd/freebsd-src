@@ -1,10 +1,12 @@
-#	$OpenBSD: agent-pkcs11.sh,v 1.1 2010/02/08 10:52:47 markus Exp $
+#	$OpenBSD: agent-pkcs11.sh,v 1.2 2015/01/12 11:46:32 djm Exp $
 #	Placed in the Public Domain.
 
 tid="pkcs11 agent test"
 
 TEST_SSH_PIN=""
 TEST_SSH_PKCS11=/usr/local/lib/soft-pkcs11.so.0.0
+
+test -f "$TEST_SSH_PKCS11" || fatal "$TEST_SSH_PKCS11 does not exist"
 
 # setup environment for soft-pkcs11 token
 SOFTPKCS11RC=$OBJ/pkcs11.info

@@ -1,4 +1,4 @@
-#	$OpenBSD: integrity.sh,v 1.14 2014/05/21 07:04:21 djm Exp $
+#	$OpenBSD: integrity.sh,v 1.15 2015/01/19 20:42:31 markus Exp $
 #	Placed in the Public Domain.
 
 tid="integrity"
@@ -20,7 +20,7 @@ echo "KexAlgorithms diffie-hellman-group14-sha1,diffie-hellman-group1-sha1" \
 	>> $OBJ/ssh_proxy
 
 # sshd-command for proxy (see test-exec.sh)
-cmd="$SUDO sh ${SRC}/sshd-log-wrapper.sh ${SSHD} ${TEST_SSHD_LOGFILE} -i -f $OBJ/sshd_proxy"
+cmd="$SUDO sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy"
 
 for m in $macs; do
 	trace "test $tid: mac $m"
@@ -58,7 +58,7 @@ for m in $macs; do
 		     tr -s '\r\n' '.')
 		case "$out" in
 		Bad?packet*)	elen=`expr $elen + 1`; skip=3;;
-		Corrupted?MAC* | Decryption?integrity?check?failed*)
+		Corrupted?MAC* | *message?authentication?code?incorrect*)
 				emac=`expr $emac + 1`; skip=0;;
 		padding*)	epad=`expr $epad + 1`; skip=0;;
 		*)		fail "unexpected error mac $m at $off: $out";;

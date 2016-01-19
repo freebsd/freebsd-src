@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.85 2014/04/20 02:49:32 djm Exp $ */
+/* $OpenBSD: compat.c,v 1.87 2015/01/19 20:20:20 markus Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -58,7 +58,7 @@ enable_compat13(void)
 	compat13 = 1;
 }
 /* datafellows bug compatibility */
-void
+u_int
 compat_datafellows(const char *version)
 {
 	int i;
@@ -175,13 +175,14 @@ compat_datafellows(const char *version)
 	for (i = 0; check[i].pat; i++) {
 		if (match_pattern_list(version, check[i].pat,
 		    strlen(check[i].pat), 0) == 1) {
-			datafellows = check[i].bugs;
 			debug("match: %s pat %s compat 0x%08x",
-			    version, check[i].pat, datafellows);
-			return;
+			    version, check[i].pat, check[i].bugs);
+			datafellows = check[i].bugs;	/* XXX for now */
+			return check[i].bugs;
 		}
 	}
 	debug("no match: %s", version);
+	return 0;
 }
 
 #define	SEP	","
@@ -193,7 +194,9 @@ proto_spec(const char *spec)
 
 	if (spec == NULL)
 		return ret;
-	q = s = xstrdup(spec);
+	q = s = strdup(spec);
+	if (s == NULL)
+		return ret;
 	for ((p = strsep(&q, SEP)); p && *p != '\0'; (p = strsep(&q, SEP))) {
 		switch (atoi(p)) {
 		case 1:
@@ -235,7 +238,7 @@ filter_proposal(char *proposal, const char *filter)
 			debug2("Compat: skipping algorithm \"%s\"", cp);
 	}
 	buffer_append(&b, "\0", 1);
-	fix_prop = xstrdup(buffer_ptr(&b));
+	fix_prop = xstrdup((char *)buffer_ptr(&b));
 	buffer_free(&b);
 	free(orig_prop);
 

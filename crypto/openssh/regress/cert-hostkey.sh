@@ -1,21 +1,29 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.9 2014/01/26 10:22:10 djm Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.11 2015/01/19 06:01:32 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
 
-rm -f $OBJ/known_hosts-cert $OBJ/host_ca_key* $OBJ/cert_host_key*
+rm -f $OBJ/known_hosts-cert* $OBJ/host_ca_key* $OBJ/host_revoked_*
+rm -f $OBJ/cert_host_key* $OBJ/host_krl_*
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 HOSTS='localhost-with-alias,127.0.0.1,::1'
 
-# Create a CA key and add it to known hosts
-${SSHKEYGEN} -q -N '' -t rsa  -f $OBJ/host_ca_key ||\
+# Create a CA key and add it to known hosts. Ed25519 chosed for speed.
+${SSHKEYGEN} -q -N '' -t ed25519  -f $OBJ/host_ca_key ||\
 	fail "ssh-keygen of host_ca_key failed"
 (
 	printf '@cert-authority '
 	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
-) > $OBJ/known_hosts-cert
+) > $OBJ/known_hosts-cert.orig
+cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
+
+# Plain text revocation files
+touch $OBJ/host_revoked_empty
+touch $OBJ/host_revoked_plain
+touch $OBJ/host_revoked_cert
+cp $OBJ/host_ca_key.pub $OBJ/host_revoked_ca
 
 PLAIN_TYPES=`$SSH -Q key-plain | sed 's/^ssh-dss/ssh-dsa/g;s/^ssh-//'`
 
@@ -26,17 +34,33 @@ type_has_legacy() {
 	return 0
 }
 
+# Prepare certificate, plain key and CA KRLs
+${SSHKEYGEN} -kf $OBJ/host_krl_empty || fatal "KRL init failed"
+${SSHKEYGEN} -kf $OBJ/host_krl_plain || fatal "KRL init failed"
+${SSHKEYGEN} -kf $OBJ/host_krl_cert || fatal "KRL init failed"
+${SSHKEYGEN} -kf $OBJ/host_krl_ca $OBJ/host_ca_key.pub \
+	|| fatal "KRL init failed"
+
 # Generate and sign host keys
+serial=1
 for ktype in $PLAIN_TYPES ; do 
 	verbose "$tid: sign host ${ktype} cert"
 	# Generate and sign a host key
 	${SSHKEYGEN} -q -N '' -t ${ktype} \
 	    -f $OBJ/cert_host_key_${ktype} || \
-		fail "ssh-keygen of cert_host_key_${ktype} failed"
-	${SSHKEYGEN} -h -q -s $OBJ/host_ca_key \
+		fatal "ssh-keygen of cert_host_key_${ktype} failed"
+	${SSHKEYGEN} -ukf $OBJ/host_krl_plain \
+	    $OBJ/cert_host_key_${ktype}.pub || fatal "KRL update failed"
+	cat $OBJ/cert_host_key_${ktype}.pub >> $OBJ/host_revoked_plain
+	${SSHKEYGEN} -h -q -s $OBJ/host_ca_key -z $serial \
 	    -I "regress host key for $USER" \
 	    -n $HOSTS $OBJ/cert_host_key_${ktype} ||
-		fail "couldn't sign cert_host_key_${ktype}"
+		fatal "couldn't sign cert_host_key_${ktype}"
+	${SSHKEYGEN} -ukf $OBJ/host_krl_cert \
+	    $OBJ/cert_host_key_${ktype}-cert.pub || \
+		fatal "KRL update failed"
+	cat $OBJ/cert_host_key_${ktype}-cert.pub >> $OBJ/host_revoked_cert
+	serial=`expr $serial + 1`
 	type_has_legacy $ktype || continue
 	cp $OBJ/cert_host_key_${ktype} $OBJ/cert_host_key_${ktype}_v00
 	cp $OBJ/cert_host_key_${ktype}.pub $OBJ/cert_host_key_${ktype}_v00.pub
@@ -44,10 +68,35 @@ for ktype in $PLAIN_TYPES ; do
 	${SSHKEYGEN} -t v00 -h -q -s $OBJ/host_ca_key \
 	    -I "regress host key for $USER" \
 	    -n $HOSTS $OBJ/cert_host_key_${ktype}_v00 ||
-		fail "couldn't sign cert_host_key_${ktype}_v00"
+		fatal "couldn't sign cert_host_key_${ktype}_v00"
+	${SSHKEYGEN} -ukf $OBJ/host_krl_cert \
+	    $OBJ/cert_host_key_${ktype}_v00-cert.pub || \
+		fatal "KRL update failed"
+	cat $OBJ/cert_host_key_${ktype}_v00-cert.pub >> $OBJ/host_revoked_cert
 done
 
-# Basic connect tests
+attempt_connect() {
+	_ident="$1"
+	_expect_success="$2"
+	shift; shift
+	verbose "$tid: $_ident expect success $_expect_success"
+	cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
+	${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
+	    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
+	    "$@" -F $OBJ/ssh_proxy somehost true
+	_r=$?
+	if [ "x$_expect_success" = "xyes" ] ; then
+		if [ $_r -ne 0 ]; then
+			fail "ssh cert connect $_ident failed"
+		fi
+	else
+		if [ $_r -eq 0 ]; then
+			fail "ssh cert connect $_ident succeeded unexpectedly"
+		fi
+	fi
+}
+
+# Basic connect and revocation tests.
 for privsep in yes no ; do
 	for ktype in $PLAIN_TYPES rsa_v00 dsa_v00; do 
 		verbose "$tid: host ${ktype} cert connect privsep $privsep"
@@ -58,12 +107,24 @@ for privsep in yes no ; do
 			echo UsePrivilegeSeparation $privsep
 		) > $OBJ/sshd_proxy
 
-		${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
-		    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
-			-F $OBJ/ssh_proxy somehost true
-		if [ $? -ne 0 ]; then
-			fail "ssh cert connect failed"
-		fi
+		#               test name                         expect success
+		attempt_connect "$ktype basic connect"			"yes"
+		attempt_connect "$ktype empty KRL"			"yes" \
+		    -oRevokedHostKeys=$OBJ/host_krl_empty
+		attempt_connect "$ktype KRL w/ plain key revoked"	"no" \
+		    -oRevokedHostKeys=$OBJ/host_krl_plain
+		attempt_connect "$ktype KRL w/ cert revoked"		"no" \
+		    -oRevokedHostKeys=$OBJ/host_krl_cert
+		attempt_connect "$ktype KRL w/ CA revoked"		"no" \
+		    -oRevokedHostKeys=$OBJ/host_krl_ca
+		attempt_connect "$ktype empty plaintext revocation"	"yes" \
+		    -oRevokedHostKeys=$OBJ/host_revoked_empty
+		attempt_connect "$ktype plain key plaintext revocation"	"no" \
+		    -oRevokedHostKeys=$OBJ/host_revoked_plain
+		attempt_connect "$ktype cert plaintext revocation"	"no" \
+		    -oRevokedHostKeys=$OBJ/host_revoked_cert
+		attempt_connect "$ktype CA plaintext revocation"	"no" \
+		    -oRevokedHostKeys=$OBJ/host_revoked_ca
 	done
 done
 
@@ -76,7 +137,8 @@ done
 		test -f "$OBJ/cert_host_key_${ktype}.pub" || fatal "no pubkey"
 		printf "@revoked * `cat $OBJ/cert_host_key_${ktype}.pub`\n"
 	done
-) > $OBJ/known_hosts-cert
+) > $OBJ/known_hosts-cert.orig
+cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 for privsep in yes no ; do
 	for ktype in $PLAIN_TYPES rsa_v00 dsa_v00; do 
 		verbose "$tid: host ${ktype} revoked cert privsep $privsep"
@@ -87,6 +149,7 @@ for privsep in yes no ; do
 			echo UsePrivilegeSeparation $privsep
 		) > $OBJ/sshd_proxy
 
+		cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 		${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 		    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 			-F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
@@ -104,7 +167,8 @@ done
 	printf '@revoked '
 	printf "* "
 	cat $OBJ/host_ca_key.pub
-) > $OBJ/known_hosts-cert
+) > $OBJ/known_hosts-cert.orig
+cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 for ktype in $PLAIN_TYPES rsa_v00 dsa_v00 ; do 
 	verbose "$tid: host ${ktype} revoked cert"
 	(
@@ -112,6 +176,7 @@ for ktype in $PLAIN_TYPES rsa_v00 dsa_v00 ; do
 		echo HostKey $OBJ/cert_host_key_${ktype}
 		echo HostCertificate $OBJ/cert_host_key_${ktype}-cert.pub
 	) > $OBJ/sshd_proxy
+	cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 	${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 	    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 		-F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
@@ -125,7 +190,8 @@ done
 	printf '@cert-authority '
 	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
-) > $OBJ/known_hosts-cert
+) > $OBJ/known_hosts-cert.orig
+cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 
 test_one() {
 	ident=$1
@@ -150,6 +216,7 @@ test_one() {
 			echo HostCertificate $OBJ/cert_host_key_${kt}-cert.pub
 		) > $OBJ/sshd_proxy
 	
+		cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 		${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 		    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
@@ -212,7 +279,8 @@ done
 	printf '@cert-authority '
 	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
-) > $OBJ/known_hosts-cert
+) > $OBJ/known_hosts-cert.orig
+cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 for v in v01 v00 ;  do 
 	for kt in $PLAIN_TYPES ; do 
 		type_has_legacy $kt || continue
@@ -232,6 +300,7 @@ for v in v01 v00 ;  do
 			echo HostCertificate $OBJ/cert_host_key_${kt}-cert.pub
 		) > $OBJ/sshd_proxy
 	
+		cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
 		${SSH} -2 -oUserKnownHostsFile=$OBJ/known_hosts-cert \
 		    -oGlobalKnownHostsFile=$OBJ/known_hosts-cert \
 			-F $OBJ/ssh_proxy -q somehost true >/dev/null 2>&1
@@ -241,4 +310,4 @@ for v in v01 v00 ;  do
 	done
 done
 
-rm -f $OBJ/known_hosts-cert $OBJ/host_ca_key* $OBJ/cert_host_key*
+rm -f $OBJ/known_hosts-cert* $OBJ/host_ca_key* $OBJ/cert_host_key*

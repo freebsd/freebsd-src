@@ -1,4 +1,4 @@
-/* $OpenBSD: digest.h,v 1.6 2014/07/03 04:36:45 djm Exp $ */
+/* $OpenBSD: digest.h,v 1.7 2014/12/21 22:27:56 djm Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  *
@@ -32,6 +32,12 @@
 
 struct sshbuf;
 struct ssh_digest_ctx;
+
+/* Looks up a digest algorithm by name */
+int ssh_digest_alg_by_name(const char *name);
+
+/* Returns the algorithm name for a digest identifier */
+const char *ssh_digest_alg_name(int alg);
 
 /* Returns the algorithm's digest length in bytes or 0 for invalid algorithm */
 size_t ssh_digest_bytes(int alg);

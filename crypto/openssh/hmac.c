@@ -1,4 +1,4 @@
-/* $OpenBSD: hmac.c,v 1.10 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: hmac.c,v 1.11 2015/01/15 21:37:14 markus Exp $ */
 /*
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
  *
@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <string.h>
 
-#include "buffer.h"
+#include "sshbuf.h"
 #include "digest.h"
 #include "hmac.h"
 
@@ -96,7 +96,7 @@ ssh_hmac_update(struct ssh_hmac_ctx *ctx, const void *m, size_t mlen)
 }
 
 int
-ssh_hmac_update_buffer(struct ssh_hmac_ctx *ctx, const Buffer *b)
+ssh_hmac_update_buffer(struct ssh_hmac_ctx *ctx, const struct sshbuf *b)
 {
 	return ssh_digest_update_buffer(ctx->digest, b);
 }

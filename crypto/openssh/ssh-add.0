@@ -1,10 +1,10 @@
 SSH-ADD(1)                  General Commands Manual                 SSH-ADD(1)
 
 NAME
-     ssh-add - adds private key identities to the authentication agent
+     ssh-add M-bM-^@M-^S adds private key identities to the authentication agent
 
 SYNOPSIS
-     ssh-add [-cDdkLlXx] [-t life] [file ...]
+     ssh-add [-cDdkLlXx] [-E fingerprint_hash] [-t life] [file ...]
      ssh-add -s pkcs11
      ssh-add -e pkcs11
 
@@ -42,6 +42,11 @@ DESCRIPTION
              list of paths to public key files to specify keys and
              certificates to be removed from the agent.  If no public key is
              found at a given path, ssh-add will append .pub and retry.
+
+     -E fingerprint_hash
+             Specifies the hash algorithm used when displaying key
+             fingerprints.  Valid options are: M-bM-^@M-^\md5M-bM-^@M-^] and M-bM-^@M-^\sha256M-bM-^@M-^].  The
+             default is M-bM-^@M-^\sha256M-bM-^@M-^].
 
      -e pkcs11
              Remove keys provided by the PKCS#11 shared library pkcs11.
@@ -96,7 +101,7 @@ FILES
              the user.
 
      ~/.ssh/id_ed25519
-             Contains the protocol version 2 ED25519 authentication identity
+             Contains the protocol version 2 Ed25519 authentication identity
              of the user.
 
      ~/.ssh/id_rsa
@@ -120,4 +125,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.6                    December 7, 2013                    OpenBSD 5.6
+OpenBSD 5.7                    December 21, 2014                   OpenBSD 5.7

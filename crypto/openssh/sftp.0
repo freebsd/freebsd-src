@@ -1,7 +1,7 @@
 SFTP(1)                     General Commands Manual                    SFTP(1)
 
 NAME
-     sftp - secure file transfer program
+     sftp M-bM-^@M-^S secure file transfer program
 
 SYNOPSIS
      sftp [-1246aCfpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
@@ -58,12 +58,12 @@ DESCRIPTION
              Batch mode reads a series of commands from an input batchfile
              instead of stdin.  Since it lacks user interaction it should be
              used in conjunction with non-interactive authentication.  A
-             batchfile of `-' may be used to indicate standard input.  sftp
+             batchfile of M-bM-^@M-^X-M-bM-^@M-^Y may be used to indicate standard input.  sftp
              will abort if any of the following commands fail: get, put,
              reget, reput, rename, ln, rm, mkdir, chdir, ls, lchdir, chmod,
              chown, chgrp, lpwd, df, symlink, and lmkdir.  Termination on
              error can be suppressed on a command by command basis by
-             prefixing the command with a `-' character (for example, -rm
+             prefixing the command with a M-bM-^@M-^X-M-bM-^@M-^Y character (for example, -rm
              /tmp/blah*).
 
      -C      Enables compression (via ssh's -C flag).
@@ -125,6 +125,7 @@ DESCRIPTION
                    HashKnownHosts
                    Host
                    HostbasedAuthentication
+                   HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
                    HostName
@@ -153,6 +154,7 @@ DESCRIPTION
                    ServerAliveCountMax
                    StrictHostKeyChecking
                    TCPKeepAlive
+                   UpdateHostKeys
                    UsePrivilegedPort
                    User
                    UserKnownHostsFile
@@ -193,7 +195,7 @@ INTERACTIVE COMMANDS
      those of ftp(1).  Commands are case insensitive.  Pathnames that contain
      spaces must be enclosed in quotes.  Any special characters contained
      within pathnames that are recognized by glob(3) must be escaped with
-     backslashes (`\').
+     backslashes (M-bM-^@M-^X\M-bM-^@M-^Y).
 
      bye     Quit sftp.
 
@@ -220,7 +222,7 @@ INTERACTIVE COMMANDS
              the capacity information will be displayed using "human-readable"
              suffixes.  The -i flag requests display of inode information in
              addition to capacity information.  This command is only supported
-             on servers that implement the ``statvfs@openssh.com'' extension.
+             on servers that implement the M-bM-^@M-^\statvfs@openssh.comM-bM-^@M-^] extension.
 
      exit    Quit sftp.
 
@@ -279,7 +281,7 @@ INTERACTIVE COMMANDS
 
              -1      Produce single columnar output.
 
-             -a      List files beginning with a dot (`.').
+             -a      List files beginning with a dot (M-bM-^@M-^X.M-bM-^@M-^Y).
 
              -f      Do not sort the listing.  The default sort order is
                      lexicographical.
@@ -378,4 +380,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 5.6                     April 22, 2014                     OpenBSD 5.6
+OpenBSD 5.7                    January 30, 2015                    OpenBSD 5.7

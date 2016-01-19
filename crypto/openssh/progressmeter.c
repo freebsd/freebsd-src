@@ -1,4 +1,4 @@
-/* $OpenBSD: progressmeter.c,v 1.40 2013/09/19 00:24:52 djm Exp $ */
+/* $OpenBSD: progressmeter.c,v 1.41 2015/01/14 13:54:13 djm Exp $ */
 /*
  * Copyright (c) 2003 Nils Nordman.  All rights reserved.
  *
@@ -65,7 +65,7 @@ static void update_progress_meter(int);
 
 static time_t start;		/* start progress */
 static time_t last_update;	/* last progress update */
-static char *file;		/* name of the file being transferred */
+static const char *file;	/* name of the file being transferred */
 static off_t start_pos;		/* initial position of transfer */
 static off_t end_pos;		/* ending position of transfer */
 static off_t cur_pos;		/* transfer position as of last refresh */
@@ -248,7 +248,7 @@ update_progress_meter(int ignore)
 }
 
 void
-start_progress_meter(char *f, off_t filesize, off_t *ctr)
+start_progress_meter(const char *f, off_t filesize, off_t *ctr)
 {
 	start = last_update = monotime();
 	file = f;

@@ -1,4 +1,4 @@
-#	$OpenBSD: rekey.sh,v 1.15 2014/04/21 22:15:37 djm Exp $
+#	$OpenBSD: rekey.sh,v 1.16 2015/02/14 12:43:16 markus Exp $
 #	Placed in the Public Domain.
 
 tid="rekey"
@@ -100,9 +100,29 @@ for s in 5 10; do
 	fi
 done
 
-echo "rekeylimit default 5" >>$OBJ/sshd_proxy
+for s in 16 1k 128k 256k; do
+	verbose "server rekeylimit ${s}"
+	cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+	echo "rekeylimit ${s}" >>$OBJ/sshd_proxy
+	rm -f ${COPY} ${LOG}
+	${SSH} -oCompression=no -F $OBJ/ssh_proxy somehost "cat ${DATA}" \
+	    > ${COPY}
+	if [ $? -ne 0 ]; then
+		fail "ssh failed"
+	fi
+	cmp ${DATA} ${COPY}		|| fail "corrupted copy"
+	n=`grep 'NEWKEYS sent' ${LOG} | wc -l`
+	n=`expr $n - 1`
+	trace "$n rekeying(s)"
+	if [ $n -lt 1 ]; then
+		fail "no rekeying occured"
+	fi
+done
+
 for s in 5 10; do
 	verbose "server rekeylimit default ${s} no data"
+	cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+	echo "rekeylimit default ${s}" >>$OBJ/sshd_proxy
 	rm -f ${COPY} ${LOG}
 	${SSH} -oCompression=no -F $OBJ/ssh_proxy somehost "sleep $s;sleep 3"
 	if [ $? -ne 0 ]; then

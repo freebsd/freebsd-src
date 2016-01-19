@@ -43,7 +43,10 @@
 #include "readpassphrase.h"
 #include "vis.h"
 #include "getrrsetbyname.h"
+#include "sha1.h"
 #include "sha2.h"
+#include "rmd160.h"
+#include "md5.h"
 #include "blf.h"
 
 #ifndef HAVE_BASENAME
@@ -61,6 +64,10 @@ void closefrom(int);
 #ifndef HAVE_GETCWD
 char *getcwd(char *pt, size_t size);
 #endif 
+
+#ifndef HAVE_REALLOCARRAY
+void *reallocarray(void *, size_t, size_t);
+#endif
 
 #if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
 char *realpath(const char *path, char *resolved);

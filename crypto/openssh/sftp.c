@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.164 2014/07/09 01:45:10 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.170 2015/01/20 23:14:00 deraadt Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -18,6 +18,7 @@
 #include "includes.h"
 __RCSID("$FreeBSD$");
 
+#include <sys/param.h>	/* MIN MAX */
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #ifdef HAVE_SYS_STAT_H
@@ -47,6 +48,7 @@ __RCSID("$FreeBSD$");
 #else
 typedef void EditLine;
 #endif
+#include <limits.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -64,7 +66,8 @@ typedef void EditLine;
 #include "misc.h"
 
 #include "sftp.h"
-#include "buffer.h"
+#include "ssherr.h"
+#include "sshbuf.h"
 #include "sftp-common.h"
 #include "sftp-client.h"
 
@@ -203,7 +206,7 @@ static const struct CMD cmds[] = {
 	{ "quit",	I_QUIT,		NOARGS	},
 	{ "reget",	I_REGET,	REMOTE	},
 	{ "rename",	I_RENAME,	REMOTE	},
-	{ "reput",      I_REPUT,        LOCAL   },
+	{ "reput",	I_REPUT,	LOCAL	},
 	{ "rm",		I_RM,		REMOTE	},
 	{ "rmdir",	I_RMDIR,	REMOTE	},
 	{ "symlink",	I_SYMLINK,	REMOTE	},
@@ -251,9 +254,9 @@ help(void)
 	    "df [-hi] [path]                    Display statistics for current directory or\n"
 	    "                                   filesystem containing 'path'\n"
 	    "exit                               Quit sftp\n"
-	    "get [-Ppr] remote [local]          Download file\n"
-	    "reget remote [local]		Resume download file\n"
-	    "reput [local] remote               Resume upload file\n"
+	    "get [-afPpRr] remote [local]       Download file\n"
+	    "reget [-fPpRr] remote [local]      Resume download file\n"
+	    "reput [-fPpRr] [local] remote      Resume upload file\n"
 	    "help                               Display this help text\n"
 	    "lcd path                           Change local directory to 'path'\n"
 	    "lls [ls-options [path]]            Display local directory listing\n"
@@ -264,7 +267,7 @@ help(void)
 	    "lumask umask                       Set local umask to 'umask'\n"
 	    "mkdir path                         Create remote directory\n"
 	    "progress                           Toggle display of progress meter\n"
-	    "put [-Ppr] local [remote]          Upload file\n"
+	    "put [-afPpRr] local [remote]       Upload file\n"
 	    "pwd                                Display remote working directory\n"
 	    "quit                               Quit sftp\n"
 	    "rename oldpath newpath             Rename remote file\n"
@@ -1401,7 +1404,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	int cmdnum, i;
 	unsigned long n_arg = 0;
 	Attrib a, *aa;
-	char path_buf[MAXPATHLEN];
+	char path_buf[PATH_MAX];
 	int err = 0;
 	glob_t g;
 
@@ -1520,6 +1523,9 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		err = do_df(conn, path1, hflag, iflag);
 		break;
 	case I_LCHDIR:
+		tmp = tilde_expand_filename(path1, getuid());
+		free(path1);
+		path1 = tmp;
 		if (chdir(path1) == -1) {
 			error("Couldn't change local directory to "
 			    "\"%s\": %s", path1, strerror(errno));
@@ -2082,8 +2088,8 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 		free(dir);
 	}
 
-	setlinebuf(stdout);
-	setlinebuf(infile);
+	setvbuf(stdout, NULL, _IOLBF, 0);
+	setvbuf(infile, NULL, _IOLBF, 0);
 
 	interactive = !batchmode && isatty(STDIN_FILENO);
 	err = 0;
