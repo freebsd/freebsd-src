@@ -19,6 +19,10 @@ set -e
 export CC=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCC)
 export CPP=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCPP)
 
+# regenerate configure and config.h.in
+autoheader
+autoconf
+
 # generate config.h with krb5 and stash it
 sh configure $configure_args --with-kerberos5
 mv config.log config.log.orig
