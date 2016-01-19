@@ -29,6 +29,11 @@ while getopts "Uv" flag; do
 done
 shift $((OPTIND-1))
 
+if ! [ -f "$1" ]; then
+	echo "No such file or directory: $1" >&2
+	exit 1
+fi
+
 mime=$(file -L --mime-type $1)
 isbin=0
 case $mime in
