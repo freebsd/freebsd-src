@@ -31,8 +31,6 @@
 .Nm make_dev ,
 .Nm make_dev_cred ,
 .Nm make_dev_credf ,
-.Nm make_dev_credf_drv ,
-.Nm make_dev_drv ,
 .Nm make_dev_p ,
 .Nm make_dev_s ,
 .Nm make_dev_alias ,
@@ -72,10 +70,6 @@ LEGACY INTERFACES
 .Fn make_dev_cred "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
 .Ft struct cdev *
 .Fn make_dev_credf "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
-.Ft struct cdev *
-.Fn make_dev_credf_drv "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "void *drv1" "void *drv2" "const char *fmt" ...
-.Ft struct cdev *
-.Fn make_dev_drv "struct cdevsw *cdevsw" "int unit" "uid_t uid" "gid_t gid" "int perms" "void *drv1" "void *drv2" "const char *fmt" ...
 .Ft int
 .Fn make_dev_p "int flags" "struct cdev **cdev" "struct cdevsw *devsw" "struct ucred *cr" "uid_t uid" "gid_t gid" "int mode" "const char *fmt" ...
 .Ft struct cdev *

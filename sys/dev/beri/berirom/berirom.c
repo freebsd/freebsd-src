@@ -91,6 +91,7 @@ berirom_attach(struct berirom_softc *sc)
 	u_int32_t bdate, btime, svnrev_bcd, svnrev, word;
 	struct clocktime ct;
 	struct timespec ts;
+	struct make_dev_args args;
 
 	if (rman_get_size(sc->br_res) < 4) {
 		device_printf(sc->br_dev, "BRAM too small to process (%d)\n",
@@ -98,9 +99,12 @@ berirom_attach(struct berirom_softc *sc)
 		return;
 	}
 
-	sc->br_cdev = make_dev_drv(&berirom_cdevsw, sc->br_unit, UID_ROOT,
-	     GID_WHEEL, S_IRUSR | S_IRGRP | S_IROTH, sc, NULL, "berirom%d",
-	     sc->br_unit);
+	make_dev_args_init(&args);
+	args.mda_devsw = &berirom_cdevsw;
+	args.mda_mode = S_IRUSR | S_IRGRP | S_IROTH;
+	args.mda_unit = sc->br_unit;
+	args.mda_si_drv1 = sc;
+	make_dev_s(&args, &sc->br_cdev, "berirom%d", sc->br_unit);
 	if (sc->br_unit == 0) {
 		sc->br_cdev_alias = make_dev_alias(sc->br_cdev, "berirom");
 		sc->br_cdev_alias->si_drv1 = sc;

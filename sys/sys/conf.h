@@ -264,9 +264,6 @@ void	dev_refl(struct cdev *dev);
 void	dev_rel(struct cdev *dev);
 struct cdev *make_dev(struct cdevsw *_devsw, int _unit, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);
-struct cdev *make_dev_drv(struct cdevsw *_devsw, int _unit, uid_t _uid,
-		gid_t _gid, int _perms, void *_drv1, void *_drv2,
-		const char *_fmt, ...) __printflike(8, 9);
 struct cdev *make_dev_cred(struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _perms,
 		const char *_fmt, ...) __printflike(7, 8);
@@ -274,11 +271,6 @@ struct cdev *make_dev_credf(int _flags,
 		struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
 		const char *_fmt, ...) __printflike(8, 9);
-struct cdev *make_dev_credf_drv(int _flags,
-		struct cdevsw *_devsw, int _unit,
-		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
-		void *_drv1, void *_drv2, const char *_fmt, ...)
-		__printflike(10, 11);
 int	make_dev_p(int _flags, struct cdev **_cdev, struct cdevsw *_devsw,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
 		const char *_fmt, ...) __printflike(8, 9);
