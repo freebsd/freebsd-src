@@ -377,7 +377,7 @@ fpuexit(struct thread *td)
 }
 
 int
-fpuformat()
+fpuformat(void)
 {
 
 	return (_MC_FPFMT_XMM);
@@ -663,7 +663,8 @@ fpudna(void)
 		 * fpu_initialstate, to ignite the XSAVEOPT
 		 * tracking engine.
 		 */
-		bcopy(fpu_initialstate, curpcb->pcb_save, cpu_max_ext_state_size);
+		bcopy(fpu_initialstate, curpcb->pcb_save,
+		    cpu_max_ext_state_size);
 		fpurestore(curpcb->pcb_save);
 		if (curpcb->pcb_initial_fpucw != __INITIAL_FPUCW__)
 			fldcw(curpcb->pcb_initial_fpucw);
@@ -678,7 +679,7 @@ fpudna(void)
 }
 
 void
-fpudrop()
+fpudrop(void)
 {
 	struct thread *td;
 
