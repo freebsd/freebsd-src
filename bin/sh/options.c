@@ -74,6 +74,7 @@ static void options(int);
 static void minus_o(char *, int);
 static void setoption(int, int);
 static void setoptionbyindex(int, int);
+static void setparam(int, char **);
 static int getopts(char *, char *, char **, char ***, char **);
 
 
@@ -224,7 +225,7 @@ end_options1:
 end_options2:
 	if (!cmdline) {
 		if (*argptr == NULL)
-			setparam(argptr);
+			setparam(0, argptr);
 		return;
 	}
 
@@ -318,22 +319,20 @@ setoption(int flag, int val)
  * Set the shell parameters.
  */
 
-void
-setparam(char **argv)
+static void
+setparam(int argc, char **argv)
 {
 	char **newparam;
 	char **ap;
-	int nparam;
 
-	for (nparam = 0 ; argv[nparam] ; nparam++);
-	ap = newparam = ckmalloc((nparam + 1) * sizeof *ap);
+	ap = newparam = ckmalloc((argc + 1) * sizeof *ap);
 	while (*argv) {
 		*ap++ = savestr(*argv++);
 	}
 	*ap = NULL;
 	freeparam(&shellparam);
 	shellparam.malloc = 1;
-	shellparam.nparam = nparam;
+	shellparam.nparam = argc;
 	shellparam.p = newparam;
 	shellparam.optp = NULL;
 	shellparam.reset = 1;
@@ -371,8 +370,7 @@ freeparam(struct shparam *param)
 int
 shiftcmd(int argc, char **argv)
 {
-	int n;
-	char **ap1, **ap2;
+	int i, n;
 
 	n = 1;
 	if (argc > 1)
@@ -381,12 +379,11 @@ shiftcmd(int argc, char **argv)
 		return 1;
 	INTOFF;
 	shellparam.nparam -= n;
-	for (ap1 = shellparam.p ; --n >= 0 ; ap1++) {
-		if (shellparam.malloc)
-			ckfree(*ap1);
-	}
-	ap2 = shellparam.p;
-	while ((*ap2++ = *ap1++) != NULL);
+	if (shellparam.malloc)
+		for (i = 0; i < n; i++)
+			ckfree(shellparam.p[i]);
+	memmove(shellparam.p, shellparam.p + n,
+	    (shellparam.nparam + 1) * sizeof(shellparam.p[0]));
 	shellparam.reset = 1;
 	INTON;
 	return 0;
@@ -407,7 +404,7 @@ setcmd(int argc, char **argv)
 	options(0);
 	optschanged();
 	if (*argptr != NULL) {
-		setparam(argptr);
+		setparam(argc - (argptr - argv), argptr);
 	}
 	INTON;
 	return 0;
