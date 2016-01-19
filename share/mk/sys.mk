@@ -44,11 +44,11 @@ __ENV_ONLY_OPTIONS:= \
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS)
-.if ${.MAKEFLAGS:M-B} == ""
+.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
 .MAKE.MODE= meta verbose
 .endif
-.endif
+.MAKE.MODE?= normal
+
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
 # Don't do this for 'make showconfig' as it enables all options where meta mode
