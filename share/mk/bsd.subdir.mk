@@ -45,7 +45,7 @@ ALL_SUBDIR_TARGETS= all all-man buildconfig buildfiles buildincludes \
 
 # Described above.
 STANDALONE_SUBDIR_TARGETS?= obj checkdpadd clean cleandepend cleandir \
-			    cleanilinks cleanobj
+			    cleanilinks cleanobj installconfig
 
 .include <bsd.init.mk>
 
