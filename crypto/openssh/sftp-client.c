@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.114 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.115 2014/04/21 14:36:16 logan Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -1420,7 +1420,7 @@ download_dir(struct sftp_conn *conn, char *src, char *dst,
 
 int
 do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
-    int preserve_flag, int fsync_flag)
+    int preserve_flag, int resume, int fsync_flag)
 {
 	int local_fd;
 	int status = SSH2_FX_OK;
@@ -1429,7 +1429,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 	char *handle, *data;
 	Buffer msg;
 	struct stat sb;
-	Attrib a;
+	Attrib a, *c = NULL;
 	u_int32_t startid;
 	u_int32_t ackid;
 	struct outstanding_ack {
@@ -1467,6 +1467,26 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 	if (!preserve_flag)
 		a.flags &= ~SSH2_FILEXFER_ATTR_ACMODTIME;
 
+	if (resume) {
+		/* Get remote file size if it exists */
+		if ((c = do_stat(conn, remote_path, 0)) == NULL) {
+			close(local_fd);                
+			return -1;
+		}
+
+		if ((off_t)c->size >= sb.st_size) {
+			error("destination file bigger or same size as "
+			      "source file");
+			close(local_fd);
+			return -1;
+		}
+
+		if (lseek(local_fd, (off_t)c->size, SEEK_SET) == -1) {
+			close(local_fd);
+			return -1;
+		}
+	}
+
 	buffer_init(&msg);
 
 	/* Send open request */
@@ -1474,7 +1494,8 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 	buffer_put_char(&msg, SSH2_FXP_OPEN);
 	buffer_put_int(&msg, id);
 	buffer_put_cstring(&msg, remote_path);
-	buffer_put_int(&msg, SSH2_FXF_WRITE|SSH2_FXF_CREAT|SSH2_FXF_TRUNC);
+	buffer_put_int(&msg, SSH2_FXF_WRITE|SSH2_FXF_CREAT|
+		      (resume ? SSH2_FXF_APPEND : SSH2_FXF_TRUNC));
 	encode_attrib(&msg, &a);
 	send_msg(conn, &msg);
 	debug3("Sent message SSH2_FXP_OPEN I:%u P:%s", id, remote_path);
@@ -1493,7 +1514,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 	data = xmalloc(conn->transfer_buflen);
 
 	/* Read from local and write to remote */
-	offset = progress_counter = 0;
+	offset = progress_counter = (resume ? c->size : 0);
 	if (showprogress)
 		start_progress_meter(local_path, sb.st_size,
 		    &progress_counter);
@@ -1608,7 +1629,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 
 static int
 upload_dir_internal(struct sftp_conn *conn, char *src, char *dst, int depth,
-    int preserve_flag, int print_flag, int fsync_flag)
+    int preserve_flag, int print_flag, int resume, int fsync_flag)
 {
 	int ret = 0, status;
 	DIR *dirp;
@@ -1677,12 +1698,12 @@ upload_dir_internal(struct sftp_conn *conn, char *src, char *dst, int depth,
 				continue;
 
 			if (upload_dir_internal(conn, new_src, new_dst,
-			    depth + 1, preserve_flag, print_flag,
+			    depth + 1, preserve_flag, print_flag, resume,
 			    fsync_flag) == -1)
 				ret = -1;
 		} else if (S_ISREG(sb.st_mode)) {
 			if (do_upload(conn, new_src, new_dst,
-			    preserve_flag, fsync_flag) == -1) {
+			    preserve_flag, resume, fsync_flag) == -1) {
 				error("Uploading of file %s to %s failed!",
 				    new_src, new_dst);
 				ret = -1;
@@ -1701,7 +1722,7 @@ upload_dir_internal(struct sftp_conn *conn, char *src, char *dst, int depth,
 
 int
 upload_dir(struct sftp_conn *conn, char *src, char *dst, int preserve_flag,
-    int print_flag, int fsync_flag)
+    int print_flag, int resume, int fsync_flag)
 {
 	char *dst_canon;
 	int ret;
@@ -1712,7 +1733,7 @@ upload_dir(struct sftp_conn *conn, char *src, char *dst, int preserve_flag,
 	}
 
 	ret = upload_dir_internal(conn, src, dst_canon, 0, preserve_flag,
-	    print_flag, fsync_flag);
+	    print_flag, resume, fsync_flag);
 
 	free(dst_canon);
 	return ret;

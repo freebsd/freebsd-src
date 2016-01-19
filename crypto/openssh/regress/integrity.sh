@@ -1,7 +1,8 @@
-#	$OpenBSD: integrity.sh,v 1.12 2013/11/21 03:18:51 djm Exp $
+#	$OpenBSD: integrity.sh,v 1.14 2014/05/21 07:04:21 djm Exp $
 #	Placed in the Public Domain.
 
 tid="integrity"
+cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 # start at byte 2900 (i.e. after kex) and corrupt at different offsets
 # XXX the test hangs if we modify the low bytes of the packet length
@@ -34,11 +35,15 @@ for m in $macs; do
 			# avoid modifying the high bytes of the length
 			continue
 		fi
+		cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
 		# modify output from sshd at offset $off
 		pxy="proxycommand=$cmd | $OBJ/modpipe -wm xor:$off:1"
 		if ssh -Q cipher-auth | grep "^${m}\$" >/dev/null 2>&1 ; then
+			echo "Ciphers=$m" >> $OBJ/sshd_proxy
 			macopt="-c $m"
 		else
+			echo "Ciphers=aes128-ctr" >> $OBJ/sshd_proxy
+			echo "MACs=$m" >> $OBJ/sshd_proxy
 			macopt="-m $m -c aes128-ctr"
 		fi
 		verbose "test $tid: $m @$off"
@@ -49,14 +54,14 @@ for m in $macs; do
 			fail "ssh -m $m succeeds with bit-flip at $off"
 		fi
 		ecnt=`expr $ecnt + 1`
-		output=$(tail -2 $TEST_SSH_LOGFILE | egrep -v "^debug" | \
+		out=$(tail -2 $TEST_SSH_LOGFILE | egrep -v "^debug" | \
 		     tr -s '\r\n' '.')
-		case "$output" in
+		case "$out" in
 		Bad?packet*)	elen=`expr $elen + 1`; skip=3;;
 		Corrupted?MAC* | Decryption?integrity?check?failed*)
 				emac=`expr $emac + 1`; skip=0;;
 		padding*)	epad=`expr $epad + 1`; skip=0;;
-		*)		fail "unexpected error mac $m at $off";;
+		*)		fail "unexpected error mac $m at $off: $out";;
 		esac
 	done
 	verbose "test $tid: $ecnt errors: mac $emac padding $epad length $elen"

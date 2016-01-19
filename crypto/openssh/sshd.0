@@ -1,4 +1,4 @@
-SSHD(8)                 OpenBSD System Manager's Manual                SSHD(8)
+SSHD(8)                     System Manager's Manual                    SSHD(8)
 
 NAME
      sshd - OpenSSH SSH daemon
@@ -11,7 +11,7 @@ SYNOPSIS
 
 DESCRIPTION
      sshd (OpenSSH Daemon) is the daemon program for ssh(1).  Together these
-     programs replace rlogin(1) and rsh(1), and provide secure encrypted
+     programs replace rlogin and rsh, and provide secure encrypted
      communications between two untrusted hosts over an insecure network.
 
      sshd listens for connections from clients.  It is normally started at
@@ -228,9 +228,10 @@ LOGIN PROCESS
 
            7.   Changes to user's home directory.
 
-           8.   If ~/.ssh/rc exists, runs it; else if /etc/ssh/sshrc exists,
-                runs it; otherwise runs xauth.  The ``rc'' files are given the
-                X11 authentication protocol and cookie in standard input.  See
+           8.   If ~/.ssh/rc exists and the sshd_config(5) PermitUserRC option
+                is set, runs it; else if /etc/ssh/sshrc exists, runs it;
+                otherwise runs xauth.  The ``rc'' files are given the X11
+                authentication protocol and cookie in standard input.  See
                 SSHRC, below.
 
            9.   Runs user's shell or command.
@@ -636,8 +637,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-CAVEATS
-     System security is not improved unless rshd, rlogind, and rexecd are
-     disabled (thus completely disabling rlogin and rsh into the machine).
-
-OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5
+OpenBSD 5.6                      July 3, 2014                      OpenBSD 5.6

@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.59 2013/07/12 00:19:59 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.61 2014/05/03 17:20:34 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -70,7 +70,7 @@ void	 packet_get_ecpoint(const EC_GROUP *, EC_POINT *);
 void	*packet_get_raw(u_int *length_ptr);
 void	*packet_get_string(u_int *length_ptr);
 char	*packet_get_cstring(u_int *length_ptr);
-void	*packet_get_string_ptr(u_int *length_ptr);
+const void	*packet_get_string_ptr(u_int *length_ptr);
 void     packet_disconnect(const char *fmt,...) __attribute__((noreturn)) __attribute__((format(printf, 1, 2)));
 void     packet_send_debug(const char *fmt,...) __attribute__((format(printf, 1, 2)));
 
@@ -120,6 +120,7 @@ time_t	 packet_get_rekey_timeout(void);
 
 void	 packet_backup_state(void);
 void	 packet_restore_state(void);
+void	 packet_set_postauth(void);
 
 void	*packet_get_input(void);
 void	*packet_get_output(void);

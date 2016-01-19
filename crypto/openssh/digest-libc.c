@@ -1,4 +1,4 @@
-/* $OpenBSD: digest-libc.c,v 1.2 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: digest-libc.c,v 1.3 2014/06/24 01:13:21 djm Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
@@ -28,7 +28,8 @@
 #include <sha1.h>
 #include <sha2.h>
 
-#include "buffer.h"
+#include "ssherr.h"
+#include "sshbuf.h"
 #include "digest.h"
 
 typedef void md_init_fn(void *mdctx);
@@ -164,7 +165,7 @@ ssh_digest_copy_state(struct ssh_digest_ctx *from, struct ssh_digest_ctx *to)
 	const struct ssh_digest *digest = ssh_digest_by_alg(from->alg);
 
 	if (digest == NULL || from->alg != to->alg)
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	memcpy(to->mdctx, from->mdctx, digest->ctx_len);
 	return 0;
 }
@@ -175,15 +176,15 @@ ssh_digest_update(struct ssh_digest_ctx *ctx, const void *m, size_t mlen)
 	const struct ssh_digest *digest = ssh_digest_by_alg(ctx->alg);
 
 	if (digest == NULL)
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	digest->md_update(ctx->mdctx, m, mlen);
 	return 0;
 }
 
 int
-ssh_digest_update_buffer(struct ssh_digest_ctx *ctx, const Buffer *b)
+ssh_digest_update_buffer(struct ssh_digest_ctx *ctx, const struct sshbuf *b)
 {
-	return ssh_digest_update(ctx, buffer_ptr(b), buffer_len(b));
+	return ssh_digest_update(ctx, sshbuf_ptr(b), sshbuf_len(b));
 }
 
 int
@@ -192,11 +193,11 @@ ssh_digest_final(struct ssh_digest_ctx *ctx, u_char *d, size_t dlen)
 	const struct ssh_digest *digest = ssh_digest_by_alg(ctx->alg);
 
 	if (digest == NULL)
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	if (dlen > UINT_MAX)
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	if (dlen < digest->digest_len) /* No truncation allowed */
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	digest->md_final(d, ctx->mdctx);
 	return 0;
 }
@@ -223,16 +224,16 @@ ssh_digest_memory(int alg, const void *m, size_t mlen, u_char *d, size_t dlen)
 	struct ssh_digest_ctx *ctx = ssh_digest_start(alg);
 
 	if (ctx == NULL)
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	if (ssh_digest_update(ctx, m, mlen) != 0 ||
 	    ssh_digest_final(ctx, d, dlen) != 0)
-		return -1;
+		return SSH_ERR_INVALID_ARGUMENT;
 	ssh_digest_free(ctx);
 	return 0;
 }
 
 int
-ssh_digest_buffer(int alg, const Buffer *b, u_char *d, size_t dlen)
+ssh_digest_buffer(int alg, const struct sshbuf *b, u_char *d, size_t dlen)
 {
-	return ssh_digest_memory(alg, buffer_ptr(b), buffer_len(b), d, dlen);
+	return ssh_digest_memory(alg, sshbuf_ptr(b), sshbuf_len(b), d, dlen);
 }

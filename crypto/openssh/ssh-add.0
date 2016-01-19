@@ -1,4 +1,4 @@
-SSH-ADD(1)                 OpenBSD Reference Manual                 SSH-ADD(1)
+SSH-ADD(1)                  General Commands Manual                 SSH-ADD(1)
 
 NAME
      ssh-add - adds private key identities to the authentication agent
@@ -120,4 +120,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5
+OpenBSD 5.6                    December 7, 2013                    OpenBSD 5.6
