@@ -20,7 +20,8 @@ libkey() {
 
 usage() {
 	cat <<-EOF
-	usage: $0 [-Uv] file
+	usage: $0 [-Uv] [-L LD_LIBRARY_PATH] file
+	       -L:       Specify an alternative LD_LIBRARY_PATH for the library resolution.
 	       -U:       Skip looking for unresolved symbols.
 	       -v:       Show which library each symbol is resolved to.
 	EOF
@@ -30,8 +31,9 @@ usage() {
 ret=0
 CHECK_UNRESOLVED=1
 VERBOSE_RESOLVED=0
-while getopts "Uv" flag; do
+while getopts "L:Uv" flag; do
 	case "${flag}" in
+		L) LIB_PATH="${OPTARG}" ;;
 		U) CHECK_UNRESOLVED=0 ;;
 		v) VERBOSE_RESOLVED=1 ;;
 		*) usage ;;
@@ -55,7 +57,14 @@ esac
 # Gather all symbols from the target
 unresolved_symbols=$(nm -u -D --format=posix "$1" | awk '$2 == "U" {print $1}' | tr '\n' ' ')
 [ ${isbin} -eq 1 ] && bss_symbols=$(nm -D --format=posix "$1" | awk '$2 == "B" && $4 != "" {print $1}' | tr '\n' ' ')
-ldd_libs=$(ldd $(realpath $1) | awk '{print $1 ":" $3}')
+if [ -n "${LIB_PATH}" ]; then
+	for libc in /lib/libc.so.*; do
+		LDD_ENV="LD_PRELOAD=${libc}"
+	done
+	LDD_ENV="${LDD_ENV} LD_LIBRARY_PATH=${LIB_PATH}"
+fi
+
+ldd_libs=$(env ${LDD_ENV} ldd $(realpath $1) | awk '{print $1 ":" $3}')
 
 # Check for useful libs
 list_libs=
