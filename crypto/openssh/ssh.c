@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.407 2014/07/17 07:22:19 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.416 2015/03/03 06:48:58 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -49,7 +49,6 @@ __RCSID("$FreeBSD$");
 #endif
 #include <sys/resource.h>
 #include <sys/ioctl.h>
-#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 
@@ -68,6 +67,7 @@ __RCSID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -108,6 +108,7 @@ __RCSID("$FreeBSD$");
 #include "uidswap.h"
 #include "roaming.h"
 #include "version.h"
+#include "ssherr.h"
 
 #ifdef ENABLE_PKCS11
 #include "ssh-pkcs11.h"
@@ -200,7 +201,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]\n"
+"usage: ssh [-1246AaCfGgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]\n"
 "           [-D [bind_address:]port] [-E log_file] [-e escape_char]\n"
 "           [-F configfile] [-I pkcs11] [-i identity_file]\n"
 "           [-L [bind_address:]port:host:hostport] [-l login_name] [-m mac_spec]\n"
@@ -277,6 +278,60 @@ resolve_host(const char *name, int port, int logerr, char *cname, size_t clen)
 }
 
 /*
+ * Attempt to resolve a numeric host address / port to a single address.
+ * Returns a canonical address string.
+ * Returns NULL on failure.
+ * NB. this function must operate with a options having undefined members.
+ */
+static struct addrinfo *
+resolve_addr(const char *name, int port, char *caddr, size_t clen)
+{
+	char addr[NI_MAXHOST], strport[NI_MAXSERV];
+	struct addrinfo hints, *res;
+	int gaierr;
+
+	if (port <= 0)
+		port = default_ssh_port();
+	snprintf(strport, sizeof strport, "%u", port);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = options.address_family == -1 ?
+	    AF_UNSPEC : options.address_family;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_NUMERICHOST|AI_NUMERICSERV;
+	if ((gaierr = getaddrinfo(name, strport, &hints, &res)) != 0) {
+		debug2("%s: could not resolve name %.100s as address: %s",
+		    __func__, name, ssh_gai_strerror(gaierr));
+		return NULL;
+	}
+	if (res == NULL) {
+		debug("%s: getaddrinfo %.100s returned no addresses",
+		 __func__, name);
+		return NULL;
+	}
+	if (res->ai_next != NULL) {
+		debug("%s: getaddrinfo %.100s returned multiple addresses",
+		    __func__, name);
+		goto fail;
+	}
+	if ((gaierr = getnameinfo(res->ai_addr, res->ai_addrlen,
+	    addr, sizeof(addr), NULL, 0, NI_NUMERICHOST)) != 0) {
+		debug("%s: Could not format address for name %.100s: %s",
+		    __func__, name, ssh_gai_strerror(gaierr));
+		goto fail;
+	}
+	if (strlcpy(caddr, addr, clen) >= clen) {
+		error("%s: host \"%s\" addr \"%s\" too long (max %lu)",
+		    __func__, name,  addr, (u_long)clen);
+		if (clen > 0)
+			*caddr = '\0';
+ fail:
+		freeaddrinfo(res);
+		return NULL;
+	}
+	return res;
+}
+
+/*
  * Check whether the cname is a permitted replacement for the hostname
  * and perform the replacement if it is.
  * NB. this function must operate with a options having undefined members.
@@ -326,7 +381,7 @@ static struct addrinfo *
 resolve_canonicalize(char **hostp, int port)
 {
 	int i, ndots;
-	char *cp, *fullhost, cname_target[NI_MAXHOST];
+	char *cp, *fullhost, newname[NI_MAXHOST];
 	struct addrinfo *addrs;
 
 	if (options.canonicalize_hostname == SSH_CANONICALISE_NO)
@@ -339,6 +394,19 @@ resolve_canonicalize(char **hostp, int port)
 	if (!option_clear_or_none(options.proxy_command) &&
 	    options.canonicalize_hostname != SSH_CANONICALISE_ALWAYS)
 		return NULL;
+
+	/* Try numeric hostnames first */
+	if ((addrs = resolve_addr(*hostp, port,
+	    newname, sizeof(newname))) != NULL) {
+		debug2("%s: hostname %.100s is address", __func__, *hostp);
+		if (strcasecmp(*hostp, newname) != 0) {
+			debug2("%s: canonicalised address \"%s\" => \"%s\"",
+			    __func__, *hostp, newname);
+			free(*hostp);
+			*hostp = xstrdup(newname);
+		}
+		return addrs;
+	}
 
 	/* Don't apply canonicalization to sufficiently-qualified hostnames */
 	ndots = 0;
@@ -353,20 +421,20 @@ resolve_canonicalize(char **hostp, int port)
 	}
 	/* Attempt each supplied suffix */
 	for (i = 0; i < options.num_canonical_domains; i++) {
-		*cname_target = '\0';
+		*newname = '\0';
 		xasprintf(&fullhost, "%s.%s.", *hostp,
 		    options.canonical_domains[i]);
 		debug3("%s: attempting \"%s\" => \"%s\"", __func__,
 		    *hostp, fullhost);
 		if ((addrs = resolve_host(fullhost, port, 0,
-		    cname_target, sizeof(cname_target))) == NULL) {
+		    newname, sizeof(newname))) == NULL) {
 			free(fullhost);
 			continue;
 		}
 		/* Remove trailing '.' */
 		fullhost[strlen(fullhost) - 1] = '\0';
 		/* Follow CNAME if requested */
-		if (!check_follow_cname(&fullhost, cname_target)) {
+		if (!check_follow_cname(&fullhost, newname)) {
 			debug("Canonicalized hostname \"%s\" => \"%s\"",
 			    *hostp, fullhost);
 		}
@@ -385,27 +453,49 @@ resolve_canonicalize(char **hostp, int port)
  * file if the user specifies a config file on the command line.
  */
 static void
-process_config_files(struct passwd *pw)
+process_config_files(const char *host_arg, struct passwd *pw, int post_canon)
 {
-	char buf[MAXPATHLEN];
+	char buf[PATH_MAX];
 	int r;
 
 	if (config != NULL) {
 		if (strcasecmp(config, "none") != 0 &&
-		    !read_config_file(config, pw, host, &options,
-		    SSHCONF_USERCONF))
+		    !read_config_file(config, pw, host, host_arg, &options,
+		    SSHCONF_USERCONF | (post_canon ? SSHCONF_POSTCANON : 0)))
 			fatal("Can't open user config file %.100s: "
 			    "%.100s", config, strerror(errno));
 	} else {
 		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
 		    _PATH_SSH_USER_CONFFILE);
 		if (r > 0 && (size_t)r < sizeof(buf))
-			(void)read_config_file(buf, pw, host, &options,
-			     SSHCONF_CHECKPERM|SSHCONF_USERCONF);
+			(void)read_config_file(buf, pw, host, host_arg,
+			    &options, SSHCONF_CHECKPERM | SSHCONF_USERCONF |
+			    (post_canon ? SSHCONF_POSTCANON : 0));
 
 		/* Read systemwide configuration file after user config. */
-		(void)read_config_file(_PATH_HOST_CONFIG_FILE, pw, host,
-		    &options, 0);
+		(void)read_config_file(_PATH_HOST_CONFIG_FILE, pw,
+		    host, host_arg, &options,
+		    post_canon ? SSHCONF_POSTCANON : 0);
+	}
+}
+
+/* Rewrite the port number in an addrinfo list of addresses */
+static void
+set_addrinfo_port(struct addrinfo *addrs, int port)
+{
+	struct addrinfo *addr;
+
+	for (addr = addrs; addr != NULL; addr = addr->ai_next) {
+		switch (addr->ai_family) {
+		case AF_INET:
+			((struct sockaddr_in *)addr->ai_addr)->
+			    sin_port = htons(port);
+			break;
+		case AF_INET6:
+			((struct sockaddr_in6 *)addr->ai_addr)->
+			    sin6_port = htons(port);
+			break;
+		}
 	}
 }
 
@@ -415,8 +505,8 @@ process_config_files(struct passwd *pw)
 int
 main(int ac, char **av)
 {
-	int i, r, opt, exit_status, use_syslog;
-	char *p, *cp, *line, *argv0, buf[MAXPATHLEN], *host_arg, *logfile;
+	int i, r, opt, exit_status, use_syslog, config_test = 0;
+	char *p, *cp, *line, *argv0, buf[PATH_MAX], *host_arg, *logfile;
 	char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
 	char cname[NI_MAXHOST];
 	struct stat st;
@@ -508,7 +598,7 @@ main(int ac, char **av)
 
  again:
 	while ((opt = getopt(ac, av, "1246ab:c:e:fgi:kl:m:no:p:qstvx"
-	    "ACD:E:F:I:KL:MNO:PQ:R:S:TVw:W:XYy")) != -1) {
+	    "ACD:E:F:GI:KL:MNO:PQ:R:S:TVw:W:XYy")) != -1) {
 		switch (opt) {
 		case '1':
 			options.protocol = SSH_PROTO_1;
@@ -540,6 +630,9 @@ main(int ac, char **av)
 			break;
 		case 'E':
 			logfile = xstrdup(optarg);
+			break;
+		case 'G':
+			config_test = 1;
 			break;
 		case 'Y':
 			options.forward_x11 = 1;
@@ -586,6 +679,13 @@ main(int ac, char **av)
 				cp = key_alg_list(1, 0);
 			else if (strcmp(optarg, "key-plain") == 0)
 				cp = key_alg_list(0, 1);
+			else if (strcmp(optarg, "protocol-version") == 0) {
+#ifdef WITH_SSH1
+				cp = xstrdup("1\n2");
+#else
+				cp = xstrdup("2");
+#endif
+			}
 			if (cp == NULL)
 				fatal("Unsupported query \"%s\"", optarg);
 			printf("%s\n", cp);
@@ -789,9 +889,9 @@ main(int ac, char **av)
 			break;
 		case 'o':
 			line = xstrdup(optarg);
-			if (process_config_line(&options, pw, host ? host : "",
-			    line, "command-line", 0, NULL, SSHCONF_USERCONF)
-			    != 0)
+			if (process_config_line(&options, pw,
+			    host ? host : "", host ? host : "", line,
+			    "command-line", 0, NULL, SSHCONF_USERCONF) != 0)
 				exit(255);
 			free(line);
 			break;
@@ -894,7 +994,7 @@ main(int ac, char **av)
 		logit("%s, %s", SSH_RELEASE, OPENSSL_VERSION);
 
 	/* Parse the configuration files */
-	process_config_files(pw);
+	process_config_files(host_arg, pw, 0);
 
 	/* Hostname canonicalisation needs a few options filled. */
 	fill_default_options_for_canonicalization(&options);
@@ -906,6 +1006,8 @@ main(int ac, char **av)
 		    "h", host, (char *)NULL);
 		free(host);
 		host = cp;
+		free(options.hostname);
+		options.hostname = xstrdup(host);
 	}
 
 	/* If canonicalization requested then try to apply it */
@@ -940,12 +1042,22 @@ main(int ac, char **av)
 	}
 
 	/*
-	 * If the target hostname has changed as a result of canonicalisation
-	 * then re-parse the configuration files as new stanzas may match.
+	 * If canonicalisation is enabled then re-parse the configuration
+	 * files as new stanzas may match.
 	 */
-	if (strcasecmp(host_arg, host) != 0) {
-		debug("Hostname has changed; re-reading configuration");
-		process_config_files(pw);
+	if (options.canonicalize_hostname != 0) {
+		debug("Re-reading configuration after hostname "
+		    "canonicalisation");
+		free(options.hostname);
+		options.hostname = xstrdup(host);
+		process_config_files(host_arg, pw, 1);
+		/*
+		 * Address resolution happens early with canonicalisation
+		 * enabled and the port number may have changed since, so
+		 * reset it in address list
+		 */
+		if (addrs != NULL && options.port > 0)
+			set_addrinfo_port(addrs, options.port);
 	}
 
 	/* Fill configuration defaults. */
@@ -962,6 +1074,12 @@ main(int ac, char **av)
 	    strcmp(options.proxy_command, "-") == 0 &&
 	    options.proxy_use_fdpass)
 		fatal("ProxyCommand=- and ProxyUseFDPass are incompatible");
+	if (options.control_persist &&
+	    options.update_hostkeys == SSH_UPDATE_HOSTKEYS_ASK) {
+		debug("UpdateHostKeys=ask is incompatible with ControlPersist; "
+		    "disabling");
+		options.update_hostkeys = 0;
+	}
 #ifndef HAVE_CYGWIN
 	if (original_effective_uid != 0)
 		options.use_privileged_port = 0;
@@ -1064,6 +1182,11 @@ main(int ac, char **av)
 	}
 	free(conn_hash_hex);
 
+	if (config_test) {
+		dump_client_config(&options, host);
+		exit(0);
+	}
+
 	if (muxclient_command != 0 && options.control_path == NULL)
 		fatal("No ControlPath specified for \"-O\" command");
 	if (options.control_path != NULL)
@@ -1119,26 +1242,26 @@ main(int ac, char **av)
 		PRIV_START;
 		sensitive_data.keys[0] = key_load_private_type(KEY_RSA1,
 		    _PATH_HOST_KEY_FILE, "", NULL, NULL);
-		sensitive_data.keys[1] = key_load_private_cert(KEY_DSA,
-		    _PATH_HOST_DSA_KEY_FILE, "", NULL);
 #ifdef OPENSSL_HAS_ECC
-		sensitive_data.keys[2] = key_load_private_cert(KEY_ECDSA,
+		sensitive_data.keys[1] = key_load_private_cert(KEY_ECDSA,
 		    _PATH_HOST_ECDSA_KEY_FILE, "", NULL);
 #endif
+		sensitive_data.keys[2] = key_load_private_cert(KEY_ED25519,
+		    _PATH_HOST_ED25519_KEY_FILE, "", NULL);
 		sensitive_data.keys[3] = key_load_private_cert(KEY_RSA,
 		    _PATH_HOST_RSA_KEY_FILE, "", NULL);
-		sensitive_data.keys[4] = key_load_private_cert(KEY_ED25519,
-		    _PATH_HOST_ED25519_KEY_FILE, "", NULL);
-		sensitive_data.keys[5] = key_load_private_type(KEY_DSA,
-		    _PATH_HOST_DSA_KEY_FILE, "", NULL, NULL);
+		sensitive_data.keys[4] = key_load_private_cert(KEY_DSA,
+		    _PATH_HOST_DSA_KEY_FILE, "", NULL);
 #ifdef OPENSSL_HAS_ECC
-		sensitive_data.keys[6] = key_load_private_type(KEY_ECDSA,
+		sensitive_data.keys[5] = key_load_private_type(KEY_ECDSA,
 		    _PATH_HOST_ECDSA_KEY_FILE, "", NULL, NULL);
 #endif
+		sensitive_data.keys[6] = key_load_private_type(KEY_ED25519,
+		    _PATH_HOST_ED25519_KEY_FILE, "", NULL, NULL);
 		sensitive_data.keys[7] = key_load_private_type(KEY_RSA,
 		    _PATH_HOST_RSA_KEY_FILE, "", NULL, NULL);
-		sensitive_data.keys[8] = key_load_private_type(KEY_ED25519,
-		    _PATH_HOST_ED25519_KEY_FILE, "", NULL, NULL);
+		sensitive_data.keys[8] = key_load_private_type(KEY_DSA,
+		    _PATH_HOST_DSA_KEY_FILE, "", NULL, NULL);
 		PRIV_END;
 
 		if (options.hostbased_authentication == 1 &&
@@ -1147,26 +1270,26 @@ main(int ac, char **av)
 		    sensitive_data.keys[6] == NULL &&
 		    sensitive_data.keys[7] == NULL &&
 		    sensitive_data.keys[8] == NULL) {
-			sensitive_data.keys[1] = key_load_cert(
-			    _PATH_HOST_DSA_KEY_FILE);
 #ifdef OPENSSL_HAS_ECC
-			sensitive_data.keys[2] = key_load_cert(
+			sensitive_data.keys[1] = key_load_cert(
 			    _PATH_HOST_ECDSA_KEY_FILE);
 #endif
+			sensitive_data.keys[2] = key_load_cert(
+			    _PATH_HOST_ED25519_KEY_FILE);
 			sensitive_data.keys[3] = key_load_cert(
 			    _PATH_HOST_RSA_KEY_FILE);
 			sensitive_data.keys[4] = key_load_cert(
-			    _PATH_HOST_ED25519_KEY_FILE);
-			sensitive_data.keys[5] = key_load_public(
-			    _PATH_HOST_DSA_KEY_FILE, NULL);
+			    _PATH_HOST_DSA_KEY_FILE);
 #ifdef OPENSSL_HAS_ECC
-			sensitive_data.keys[6] = key_load_public(
+			sensitive_data.keys[5] = key_load_public(
 			    _PATH_HOST_ECDSA_KEY_FILE, NULL);
 #endif
+			sensitive_data.keys[6] = key_load_public(
+			    _PATH_HOST_ED25519_KEY_FILE, NULL);
 			sensitive_data.keys[7] = key_load_public(
 			    _PATH_HOST_RSA_KEY_FILE, NULL);
 			sensitive_data.keys[8] = key_load_public(
-			    _PATH_HOST_ED25519_KEY_FILE, NULL);
+			    _PATH_HOST_DSA_KEY_FILE, NULL);
 			sensitive_data.external_keysign = 1;
 		}
 	}
@@ -1472,10 +1595,16 @@ ssh_init_forwarding(void)
 static void
 check_agent_present(void)
 {
+	int r;
+
 	if (options.forward_agent) {
 		/* Clear agent forwarding if we don't have an agent. */
-		if (!ssh_agent_present())
+		if ((r = ssh_get_authentication_socket(NULL)) != 0) {
 			options.forward_agent = 0;
+			if (r != SSH_ERR_AGENT_NOT_PRESENT)
+				debug("ssh_get_authentication_socket: %s",
+				    ssh_err(r));
+		}
 	}
 }
 

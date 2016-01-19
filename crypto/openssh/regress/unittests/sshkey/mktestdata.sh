@@ -1,5 +1,5 @@
 #!/bin/sh
-# $OpenBSD: mktestdata.sh,v 1.3 2014/07/22 23:57:40 dtucker Exp $
+# $OpenBSD: mktestdata.sh,v 1.4 2015/01/18 19:54:46 djm Exp $
 
 PW=mekmitasdigoat
 
@@ -186,5 +186,7 @@ ssh-keygen -Bf rsa_2 | awk '{print $2}' > rsa_2.fp.bb
 ssh-keygen -Bf dsa_2 | awk '{print $2}' > dsa_2.fp.bb
 ssh-keygen -Bf ecdsa_2 | awk '{print $2}' > ecdsa_2.fp.bb
 ssh-keygen -Bf ed25519_2 | awk '{print $2}' > ed25519_2.fp.bb
+
+# XXX Extend ssh-keygen to do detached signatures (better to test/fuzz against)
 
 echo "$PW" > pw

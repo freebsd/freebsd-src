@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.48 2014/07/17 07:22:19 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.50 2015/01/20 23:14:00 deraadt Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -34,7 +34,6 @@
 __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -1690,7 +1689,8 @@ mux_client_forward(int fd, int cancel_flag, u_int ftype, struct Forward *fwd)
 		buffer_put_cstring(&m, fwd->listen_path);
 	} else {
 		buffer_put_cstring(&m,
-		    fwd->listen_host == NULL ? "" : fwd->listen_host);
+		    fwd->listen_host == NULL ? "" :
+		    (*fwd->listen_host == '\0' ? "*" : fwd->listen_host));
 	}
 	buffer_put_int(&m, fwd->listen_port);
 	if (fwd->connect_path != NULL) {

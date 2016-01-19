@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.114 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: servconf.h,v 1.116 2015/01/13 07:39:19 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -99,8 +99,10 @@ typedef struct {
 						 * authentication. */
 	int     hostbased_authentication;	/* If true, permit ssh2 hostbased auth */
 	int     hostbased_uses_name_from_packet_only; /* experimental */
+	char   *hostbased_key_types;	/* Key types allowed for hostbased */
 	int     rsa_authentication;	/* If true, permit RSA authentication. */
 	int     pubkey_authentication;	/* If true, permit ssh2 pubkey authentication. */
+	char   *pubkey_key_types;	/* Key types allowed for public key */
 	int     kerberos_authentication;	/* If true, permit Kerberos
 						 * authentication. */
 	int     kerberos_or_local_passwd;	/* If true, permit kerberos
@@ -185,6 +187,8 @@ typedef struct {
 
 	u_int	num_auth_methods;
 	char   *auth_methods[MAX_AUTH_METHODS];
+
+	int	fingerprint_hash;
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */
@@ -213,6 +217,8 @@ struct connection_info {
 		M_CP_STROPT(authorized_principals_file); \
 		M_CP_STROPT(authorized_keys_command); \
 		M_CP_STROPT(authorized_keys_command_user); \
+		M_CP_STROPT(hostbased_key_types); \
+		M_CP_STROPT(pubkey_key_types); \
 		M_CP_STRARRAYOPT(authorized_keys_files, num_authkeys_files); \
 		M_CP_STRARRAYOPT(allow_users, num_allow_users); \
 		M_CP_STRARRAYOPT(deny_users, num_deny_users); \

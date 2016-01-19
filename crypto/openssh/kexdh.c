@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdh.c,v 1.24 2014/01/09 23:20:00 djm Exp $ */
+/* $OpenBSD: kexdh.c,v 1.25 2015/01/19 20:16:15 markus Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -25,63 +25,69 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 
 #include <signal.h>
 
 #include <openssl/evp.h>
 
-#include "buffer.h"
 #include "ssh2.h"
-#include "key.h"
+#include "sshkey.h"
 #include "cipher.h"
 #include "kex.h"
+#include "ssherr.h"
+#include "sshbuf.h"
 #include "digest.h"
-#include "log.h"
 
-void
+int
 kex_dh_hash(
-    char *client_version_string,
-    char *server_version_string,
-    char *ckexinit, int ckexinitlen,
-    char *skexinit, int skexinitlen,
-    u_char *serverhostkeyblob, int sbloblen,
-    BIGNUM *client_dh_pub,
-    BIGNUM *server_dh_pub,
-    BIGNUM *shared_secret,
-    u_char **hash, u_int *hashlen)
+    const char *client_version_string,
+    const char *server_version_string,
+    const u_char *ckexinit, size_t ckexinitlen,
+    const u_char *skexinit, size_t skexinitlen,
+    const u_char *serverhostkeyblob, size_t sbloblen,
+    const BIGNUM *client_dh_pub,
+    const BIGNUM *server_dh_pub,
+    const BIGNUM *shared_secret,
+    u_char *hash, size_t *hashlen)
 {
-	Buffer b;
-	static u_char digest[SSH_DIGEST_MAX_LENGTH];
+	struct sshbuf *b;
+	int r;
 
-	buffer_init(&b);
-	buffer_put_cstring(&b, client_version_string);
-	buffer_put_cstring(&b, server_version_string);
-
-	/* kexinit messages: fake header: len+SSH2_MSG_KEXINIT */
-	buffer_put_int(&b, ckexinitlen+1);
-	buffer_put_char(&b, SSH2_MSG_KEXINIT);
-	buffer_append(&b, ckexinit, ckexinitlen);
-	buffer_put_int(&b, skexinitlen+1);
-	buffer_put_char(&b, SSH2_MSG_KEXINIT);
-	buffer_append(&b, skexinit, skexinitlen);
-
-	buffer_put_string(&b, serverhostkeyblob, sbloblen);
-	buffer_put_bignum2(&b, client_dh_pub);
-	buffer_put_bignum2(&b, server_dh_pub);
-	buffer_put_bignum2(&b, shared_secret);
-
+	if (*hashlen < ssh_digest_bytes(SSH_DIGEST_SHA1))
+		return SSH_ERR_INVALID_ARGUMENT;
+	if ((b = sshbuf_new()) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	if ((r = sshbuf_put_cstring(b, client_version_string)) != 0 ||
+	    (r = sshbuf_put_cstring(b, server_version_string)) != 0 ||
+	    /* kexinit messages: fake header: len+SSH2_MSG_KEXINIT */
+	    (r = sshbuf_put_u32(b, ckexinitlen+1)) != 0 ||
+	    (r = sshbuf_put_u8(b, SSH2_MSG_KEXINIT)) != 0 ||
+	    (r = sshbuf_put(b, ckexinit, ckexinitlen)) != 0 ||
+	    (r = sshbuf_put_u32(b, skexinitlen+1)) != 0 ||
+	    (r = sshbuf_put_u8(b, SSH2_MSG_KEXINIT)) != 0 ||
+	    (r = sshbuf_put(b, skexinit, skexinitlen)) != 0 ||
+	    (r = sshbuf_put_string(b, serverhostkeyblob, sbloblen)) != 0 ||
+	    (r = sshbuf_put_bignum2(b, client_dh_pub)) != 0 ||
+	    (r = sshbuf_put_bignum2(b, server_dh_pub)) != 0 ||
+	    (r = sshbuf_put_bignum2(b, shared_secret)) != 0) {
+		sshbuf_free(b);
+		return r;
+	}
 #ifdef DEBUG_KEX
-	buffer_dump(&b);
+	sshbuf_dump(b, stderr);
 #endif
-	if (ssh_digest_buffer(SSH_DIGEST_SHA1, &b, digest, sizeof(digest)) != 0)
-		fatal("%s: ssh_digest_buffer failed", __func__);
-
-	buffer_free(&b);
-
-#ifdef DEBUG_KEX
-	dump_digest("hash", digest, ssh_digest_bytes(SSH_DIGEST_SHA1));
-#endif
-	*hash = digest;
+	if (ssh_digest_buffer(SSH_DIGEST_SHA1, b, hash, *hashlen) != 0) {
+		sshbuf_free(b);
+		return SSH_ERR_LIBCRYPTO_ERROR;
+	}
+	sshbuf_free(b);
 	*hashlen = ssh_digest_bytes(SSH_DIGEST_SHA1);
+#ifdef DEBUG_KEX
+	dump_digest("hash", hash, *hashlen);
+#endif
+	return 0;
 }
+#endif /* WITH_OPENSSL */

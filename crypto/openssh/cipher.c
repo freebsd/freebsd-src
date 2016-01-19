@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher.c,v 1.99 2014/06/24 01:13:21 djm Exp $ */
+/* $OpenBSD: cipher.c,v 1.100 2015/01/14 10:29:45 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -512,6 +512,8 @@ cipher_get_keyiv_len(const struct sshcipher_ctx *cc)
 		ivlen = 24;
 	else if ((cc->cipher->flags & CFLAG_CHACHAPOLY) != 0)
 		ivlen = 0;
+	else if ((cc->cipher->flags & CFLAG_AESCTR) != 0)
+		ivlen = sizeof(cc->ac_ctx.ctr);
 #ifdef WITH_OPENSSL
 	else
 		ivlen = EVP_CIPHER_CTX_iv_length(&cc->evp);
@@ -530,6 +532,12 @@ cipher_get_keyiv(struct sshcipher_ctx *cc, u_char *iv, u_int len)
 	if ((cc->cipher->flags & CFLAG_CHACHAPOLY) != 0) {
 		if (len != 0)
 			return SSH_ERR_INVALID_ARGUMENT;
+		return 0;
+	}
+	if ((cc->cipher->flags & CFLAG_AESCTR) != 0) {
+		if (len != sizeof(cc->ac_ctx.ctr))
+			return SSH_ERR_INVALID_ARGUMENT;
+		memcpy(iv, cc->ac_ctx.ctr, len);
 		return 0;
 	}
 	if ((cc->cipher->flags & CFLAG_NONE) != 0)

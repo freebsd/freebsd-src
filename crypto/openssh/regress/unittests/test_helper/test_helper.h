@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.h,v 1.3 2014/05/02 09:41:32 andre Exp $	*/
+/*	$OpenBSD: test_helper.h,v 1.6 2015/01/18 19:52:44 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -40,8 +40,11 @@ void tests(void);
 
 const char *test_data_file(const char *name);
 void test_start(const char *n);
+void test_info(char *s, size_t len);
 void set_onerror_func(test_onerror_func_t *f, void *ctx);
 void test_done(void);
+void test_subtest_info(const char *fmt, ...)
+    __attribute__((format(printf, 1, 2)));
 void ssl_err_check(const char *file, int line);
 void assert_bignum(const char *file, int line,
     const char *a1, const char *a2,
@@ -280,6 +283,13 @@ void fuzz_cleanup(struct fuzz *fuzz);
 /* Prepare the next fuzz case in the series */
 void fuzz_next(struct fuzz *fuzz);
 
+/*
+ * Check whether this fuzz case is identical to the original
+ * This is slow, but useful if the caller needs to ensure that all tests
+ * generated change the input (e.g. when fuzzing signatures).
+ */
+int fuzz_matches_original(struct fuzz *fuzz);
+
 /* Determine whether the current fuzz sequence is exhausted (nonzero = yes) */
 int fuzz_done(struct fuzz *fuzz);
 
@@ -289,4 +299,5 @@ u_char *fuzz_ptr(struct fuzz *fuzz);
 
 /* Dump the current fuzz case to stderr */
 void fuzz_dump(struct fuzz *fuzz);
+
 #endif /* _TEST_HELPER_H */

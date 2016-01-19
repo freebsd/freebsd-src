@@ -1,4 +1,4 @@
-/* $OpenBSD: digest-libc.c,v 1.3 2014/06/24 01:13:21 djm Exp $ */
+/* $OpenBSD: digest-libc.c,v 1.4 2014/12/21 22:27:56 djm Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
@@ -18,15 +18,19 @@
 
 #include "includes.h"
 
+#ifndef WITH_OPENSSL
+
 #include <sys/types.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
+#if 0
 #include <md5.h>
 #include <rmd160.h>
 #include <sha1.h>
 #include <sha2.h>
+#endif
 
 #include "ssherr.h"
 #include "sshbuf.h"
@@ -89,30 +93,30 @@ const struct ssh_digest digests[SSH_DIGEST_MAX] = {
 		"SHA256",
 		SHA256_BLOCK_LENGTH,
 		SHA256_DIGEST_LENGTH,
-		sizeof(SHA2_CTX),
-		(md_init_fn *) SHA256Init,
-		(md_update_fn *) SHA256Update,
-		(md_final_fn *) SHA256Final
+		sizeof(SHA256_CTX),
+		(md_init_fn *) SHA256_Init,
+		(md_update_fn *) SHA256_Update,
+		(md_final_fn *) SHA256_Final
 	},
 	{
 		SSH_DIGEST_SHA384,
 		"SHA384",
 		SHA384_BLOCK_LENGTH,
 		SHA384_DIGEST_LENGTH,
-		sizeof(SHA2_CTX),
-		(md_init_fn *) SHA384Init,
-		(md_update_fn *) SHA384Update,
-		(md_final_fn *) SHA384Final
+		sizeof(SHA384_CTX),
+		(md_init_fn *) SHA384_Init,
+		(md_update_fn *) SHA384_Update,
+		(md_final_fn *) SHA384_Final
 	},
 	{
 		SSH_DIGEST_SHA512,
 		"SHA512",
 		SHA512_BLOCK_LENGTH,
 		SHA512_DIGEST_LENGTH,
-		sizeof(SHA2_CTX),
-		(md_init_fn *) SHA512Init,
-		(md_update_fn *) SHA512Update,
-		(md_final_fn *) SHA512Final
+		sizeof(SHA512_CTX),
+		(md_init_fn *) SHA512_Init,
+		(md_update_fn *) SHA512_Update,
+		(md_final_fn *) SHA512_Final
 	}
 };
 
@@ -124,6 +128,26 @@ ssh_digest_by_alg(int alg)
 	if (digests[alg].id != alg) /* sanity */
 		return NULL;
 	return &(digests[alg]);
+}
+
+int
+ssh_digest_alg_by_name(const char *name)
+{
+	int alg;
+
+	for (alg = 0; alg < SSH_DIGEST_MAX; alg++) {
+		if (strcasecmp(name, digests[alg].name) == 0)
+			return digests[alg].id;
+	}
+	return -1;
+}
+
+const char *
+ssh_digest_alg_name(int alg)
+{
+	const struct ssh_digest *digest = ssh_digest_by_alg(alg);
+
+	return digest == NULL ? NULL : digest->name;
 }
 
 size_t
@@ -237,3 +261,4 @@ ssh_digest_buffer(int alg, const struct sshbuf *b, u_char *d, size_t dlen)
 {
 	return ssh_digest_memory(alg, sshbuf_ptr(b), sshbuf_len(b), d, dlen);
 }
+#endif /* !WITH_OPENSSL */

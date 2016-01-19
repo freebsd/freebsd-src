@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile.inc,v 1.1 2014/04/30 05:32:00 djm Exp $
+#	$OpenBSD: Makefile.inc,v 1.3 2015/01/23 21:21:23 miod Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>
@@ -21,7 +21,6 @@ CDIAGFLAGS+=	-Wmissing-declarations
 CDIAGFLAGS+=	-Wmissing-prototypes
 CDIAGFLAGS+=	-Wparentheses
 CDIAGFLAGS+=	-Wpointer-arith
-CDIAGFLAGS+=	-Wpointer-sign
 CDIAGFLAGS+=	-Wreturn-type
 CDIAGFLAGS+=	-Wshadow
 CDIAGFLAGS+=	-Wsign-compare
@@ -32,6 +31,7 @@ CDIAGFLAGS+=	-Wtrigraphs
 CDIAGFLAGS+=	-Wuninitialized
 CDIAGFLAGS+=	-Wunused
 .if ${COMPILER_VERSION} == "gcc4"
+CDIAGFLAGS+=	-Wpointer-sign
 CDIAGFLAGS+=	-Wold-style-definition
 .endif
 

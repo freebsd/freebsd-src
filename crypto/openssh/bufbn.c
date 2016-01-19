@@ -20,12 +20,15 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 
 #include "buffer.h"
 #include "log.h"
 #include "ssherr.h"
 
+#ifdef WITH_SSH1
 int
 buffer_put_bignum_ret(Buffer *buffer, const BIGNUM *value)
 {
@@ -63,6 +66,7 @@ buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 	if (buffer_get_bignum_ret(buffer, value) == -1)
 		fatal("%s: buffer error", __func__);
 }
+#endif /* WITH_SSH1 */
 
 int
 buffer_put_bignum2_ret(Buffer *buffer, const BIGNUM *value)
@@ -101,3 +105,5 @@ buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
 	if (buffer_get_bignum2_ret(buffer, value) == -1)
 		fatal("%s: buffer error", __func__);
 }
+
+#endif /* WITH_OPENSSL */
