@@ -18,6 +18,15 @@ libkey() {
 	return 0
 }
 
+usage() {
+	cat <<-EOF
+	usage: $0 [-Uv] file
+	       -U:       Skip looking for unresolved symbols.
+	       -v:       Show which library each symbol is resolved to.
+	EOF
+	exit 0
+}
+
 ret=0
 CHECK_UNRESOLVED=1
 VERBOSE_RESOLVED=0
@@ -25,6 +34,7 @@ while getopts "Uv" flag; do
 	case "${flag}" in
 		U) CHECK_UNRESOLVED=0 ;;
 		v) VERBOSE_RESOLVED=1 ;;
+		*) usage ;;
 	esac
 done
 shift $((OPTIND-1))
