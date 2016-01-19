@@ -270,6 +270,11 @@ mlx5e_decompress_cqe(struct mlx5e_cq *cq, struct mlx5_cqe64 *title,
     struct mlx5_mini_cqe8 *mini,
     u16 wqe_counter, int i)
 {
+	/*
+	 * NOTE: The fields which are not set here are copied from the
+	 * initial and common title. See memcpy() in
+	 * mlx5e_write_cqe_slot().
+	 */
 	title->byte_cnt = mini->byte_cnt;
 	title->wqe_counter = cpu_to_be16((wqe_counter + i) & cq->wq.sz_m1);
 	title->check_sum = mini->checksum;
