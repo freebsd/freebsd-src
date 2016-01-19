@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.62 2014/03/19 14:42:44 tedu Exp $
+.\" $OpenBSD: scp.1,v 1.66 2015/01/30 11:43:14 djm Exp $
 .\"
-.Dd $Mdocdate: March 19 2014 $
+.Dd $Mdocdate: January 30 2015 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -30,14 +30,14 @@
 .Sm off
 .Oo
 .Op Ar user No @
-.Ar host1 No :
+.Ar host1 :
 .Oc Ar file1
 .Sm on
 .Ar ...
 .Sm off
 .Oo
 .Op Ar user No @
-.Ar host2 No :
+.Ar host2 :
 .Oc Ar file2
 .Sm on
 .Ek
@@ -150,6 +150,7 @@ For full details of the options listed below, and their possible values, see
 .It HashKnownHosts
 .It Host
 .It HostbasedAuthentication
+.It HostbasedKeyTypes
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
@@ -178,6 +179,7 @@ For full details of the options listed below, and their possible values, see
 .It ServerAliveCountMax
 .It StrictHostKeyChecking
 .It TCPKeepAlive
+.It UpdateHostKeys
 .It UsePrivilegedPort
 .It User
 .It UserKnownHostsFile

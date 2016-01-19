@@ -1,4 +1,4 @@
-#	$OpenBSD: proxy-connect.sh,v 1.7 2014/05/03 18:46:14 dtucker Exp $
+#	$OpenBSD: proxy-connect.sh,v 1.8 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="proxy connect"
@@ -9,7 +9,7 @@ for ps in no yes; do
   cp $OBJ/sshd_proxy.orig $OBJ/sshd_proxy
   echo "UsePrivilegeSeparation $ps" >> $OBJ/sshd_proxy
 
-  for p in 1 2; do
+  for p in ${SSH_PROTOCOLS}; do
     for c in no yes; do
 	verbose "plain username protocol $p privsep=$ps comp=$c"
 	opts="-$p -oCompression=$c -F $OBJ/ssh_proxy"
@@ -24,7 +24,7 @@ for ps in no yes; do
   done
 done
 
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
 	verbose "username with style protocol $p"
 	${SSH} -$p -F $OBJ/ssh_proxy ${USER}:style@999.999.999.999 true || \
 		fail "ssh proxyconnect protocol $p failed"

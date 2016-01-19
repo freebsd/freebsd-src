@@ -1,4 +1,4 @@
-#	$OpenBSD: try-ciphers.sh,v 1.23 2014/04/21 22:15:37 djm Exp $
+#	$OpenBSD: try-ciphers.sh,v 1.24 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="try ciphers"
@@ -26,7 +26,11 @@ for c in `${SSH} -Q cipher`; do
 	done
 done
 
-ciphers="3des blowfish"
+if ssh_version 1; then
+	ciphers="3des blowfish"
+else
+	ciphers=""
+fi
 for c in $ciphers; do
 	trace "proto 1 cipher $c"
 	verbose "test $tid: proto 1 cipher $c"

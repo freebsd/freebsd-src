@@ -1,15 +1,10 @@
-/* $OpenBSD: cipher-3des1.c,v 1.11 2014/07/02 04:59:06 djm Exp $ */
+/* $OpenBSD: cipher-3des1.c,v 1.12 2015/01/14 10:24:42 markus Exp $ */
 /*
  * Copyright (c) 2003 Markus Friedl.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -26,13 +21,9 @@
 #include "includes.h"
 
 #include <sys/types.h>
-
+#include <string.h>
 #include <openssl/evp.h>
 
-#include <string.h>
-
-#include "xmalloc.h"
-#include "log.h"
 #include "ssherr.h"
 
 /*
@@ -151,7 +142,7 @@ evp_ssh1_3des(void)
 {
 	static EVP_CIPHER ssh1_3des;
 
-	memset(&ssh1_3des, 0, sizeof(EVP_CIPHER));
+	memset(&ssh1_3des, 0, sizeof(ssh1_3des));
 	ssh1_3des.nid = NID_undef;
 	ssh1_3des.block_size = 8;
 	ssh1_3des.iv_len = 0;
