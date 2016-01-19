@@ -3579,11 +3579,11 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_CTRL],
 			    0, t3_dump_txq_ctrl, "A", "dump of the transmit queue");
 
-			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_queued",
+			SYSCTL_ADD_U64(ctx, lropoidlist, OID_AUTO, "lro_queued",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_queued, 0, NULL);
-			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_flushed",
+			SYSCTL_ADD_U64(ctx, lropoidlist, OID_AUTO, "lro_flushed",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_flushed, 0, NULL);
-			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_bad_csum",
+			SYSCTL_ADD_U64(ctx, lropoidlist, OID_AUTO, "lro_bad_csum",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_bad_csum, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_cnt",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_cnt, 0, NULL);
