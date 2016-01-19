@@ -536,6 +536,9 @@ static struct {
 	{ "streamlocalbindunlink", sStreamLocalBindUnlink, SSHCFG_ALL },
 	{ "allowstreamlocalforwarding", sAllowStreamLocalForwarding, SSHCFG_ALL },
 	{ "fingerprinthash", sFingerprintHash, SSHCFG_GLOBAL },
+	{ "hpndisabled", sDeprecated, SSHCFG_ALL },
+	{ "hpnbuffersize", sDeprecated, SSHCFG_ALL },
+	{ "tcprcvbufpoll", sDeprecated, SSHCFG_ALL },
 	{ NULL, sBadOption, 0 }
 };
 
