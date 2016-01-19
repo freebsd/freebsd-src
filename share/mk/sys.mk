@@ -46,6 +46,9 @@ __ENV_ONLY_OPTIONS:= \
 .sinclude <meta.sys.mk>
 .elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
 .MAKE.MODE= meta verbose
+.if !exists(/dev/filemon)
+.MAKE.MODE+= nofilemon
+.endif
 .endif
 .MAKE.MODE?= normal
 
