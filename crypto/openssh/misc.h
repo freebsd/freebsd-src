@@ -40,7 +40,6 @@ time_t	 monotime(void);
 void	 lowercase(char *s);
 
 void	 sock_set_v6only(int);
-void	 sock_get_rcvbuf(int *, int);
 
 struct passwd *pwcopy(struct passwd *);
 const char *ssh_gai_strerror(int);

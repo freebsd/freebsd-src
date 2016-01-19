@@ -47,8 +47,6 @@ int	 buffer_get_ret(Buffer *, void *, u_int);
 int	 buffer_consume_ret(Buffer *, u_int);
 int	 buffer_consume_end_ret(Buffer *, u_int);
 
-u_int	 buffer_get_max_len(void);
-
 #include <openssl/bn.h>
 
 void    buffer_put_bignum(Buffer *, const BIGNUM *);

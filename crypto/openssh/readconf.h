@@ -153,17 +153,9 @@ typedef struct {
 	int	num_permitted_cnames;
 	struct allowed_cname permitted_cnames[MAX_CANON_DOMAINS];
 
-	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
-
 	char   *version_addendum;	/* Appended to SSH banner */
 
-	int	hpn_disabled;	/* Switch to disable HPN buffer management. */
-	int	hpn_buffer_size;	/* User definable size for HPN buffer
-					 * window. */
-	int	tcp_rcv_buf_poll;	/* Option to poll recv buf every window
-					 * transfer. */
-	int	tcp_rcv_buf;	/* User switch to set tcp recv buffer. */
-
+	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;
 
 #define SSH_CANONICALISE_NO	0

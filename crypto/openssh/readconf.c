@@ -152,9 +152,8 @@ typedef enum {
 	oKexAlgorithms, oIPQoS, oRequestTTY, oIgnoreUnknown, oProxyUseFdpass,
 	oCanonicalDomains, oCanonicalizeHostname, oCanonicalizeMaxDots,
 	oCanonicalizeFallbackLocal, oCanonicalizePermittedCNAMEs,
-	oIgnoredUnknownOption,
-	oHPNDisabled, oHPNBufferSize, oTcpRcvBufPoll, oTcpRcvBuf,
-	oVersionAddendum, oDeprecated, oUnsupported
+	oVersionAddendum,
+	oIgnoredUnknownOption, oDeprecated, oUnsupported
 } OpCodes;
 
 /* Textual representations of the tokens. */
@@ -267,10 +266,6 @@ static struct {
 	{ "canonicalizemaxdots", oCanonicalizeMaxDots },
 	{ "canonicalizepermittedcnames", oCanonicalizePermittedCNAMEs },
 	{ "ignoreunknown", oIgnoreUnknown },
-	{ "hpndisabled", oHPNDisabled },
-	{ "hpnbuffersize", oHPNBufferSize },
-	{ "tcprcvbufpoll", oTcpRcvBufPoll },
-	{ "tcprcvbuf", oTcpRcvBuf },
 	{ "versionaddendum", oVersionAddendum },
 
 	{ NULL, oBadOption }
@@ -1352,22 +1347,6 @@ parse_int:
 		multistate_ptr = multistate_requesttty;
 		goto parse_multistate;
 
-	case oHPNDisabled:
-		intptr = &options->hpn_disabled;
-		goto parse_flag;
-
-	case oHPNBufferSize:
-		intptr = &options->hpn_buffer_size;
-		goto parse_int;
-
-	case oTcpRcvBufPoll:
-		intptr = &options->tcp_rcv_buf_poll;
-		goto parse_flag;
-
-	case oTcpRcvBuf:
-		intptr = &options->tcp_rcv_buf;
-		goto parse_int;
-
 	case oVersionAddendum:
 		if (s == NULL)
 			fatal("%.200s line %d: Missing argument.", filename,
@@ -1623,10 +1602,6 @@ initialize_options(Options * options)
 	options->canonicalize_fallback_local = -1;
 	options->canonicalize_hostname = -1;
 	options->version_addendum = NULL;
-	options->hpn_disabled = -1;
-	options->hpn_buffer_size = -1;
-	options->tcp_rcv_buf_poll = -1;
-	options->tcp_rcv_buf = -1;
 }
 
 /*
@@ -1821,31 +1796,6 @@ fill_default_options(Options * options)
 	/* options->preferred_authentications will be set in ssh */
 	if (options->version_addendum == NULL)
 		options->version_addendum = xstrdup(SSH_VERSION_FREEBSD);
-	if (options->hpn_disabled == -1)
-		options->hpn_disabled = 0;
-	if (options->hpn_buffer_size > -1)
-	{
-		u_int maxlen;
-
-		/* If a user tries to set the size to 0 set it to 1KB. */
-		if (options->hpn_buffer_size == 0)
-			options->hpn_buffer_size = 1024;
-		/* Limit the buffer to BUFFER_MAX_LEN. */
-		maxlen = buffer_get_max_len();
-		if (options->hpn_buffer_size > (maxlen / 1024)) {
-			debug("User requested buffer larger than %ub: %ub. "
-			    "Request reverted to %ub", maxlen,
-			    options->hpn_buffer_size * 1024, maxlen);
-			options->hpn_buffer_size = maxlen;
-		}
-		debug("hpn_buffer_size set to %d", options->hpn_buffer_size);
-	}
-	if (options->tcp_rcv_buf == 0)
-		options->tcp_rcv_buf = 1;
-	if (options->tcp_rcv_buf > -1)
-		options->tcp_rcv_buf *= 1024;
-	if (options->tcp_rcv_buf_poll == -1)
-		options->tcp_rcv_buf_poll = 1;
 }
 
 /*
