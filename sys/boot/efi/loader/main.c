@@ -63,10 +63,10 @@ EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
-	char vendor[128];
+	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i;
+	int i, j, vargood;
 
 	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
@@ -75,6 +75,29 @@ main(int argc, CHAR16 *argv[])
 	 * printf() etc. once this is done.
 	 */
 	cons_probe();
+
+	/*
+	 * Loop through the args, and for each one that contains an '=' that is
+	 * not the first character, add it to the environment.  This allows
+	 * loader and kernel env vars to be passed on the command line.  Convert
+	 * args from UCS-2 to ASCII (16 to 8 bit) as they are copied.
+	 */
+	for (i = 1; i < argc; i++) {
+		vargood = 0;
+		for (j = 0; argv[i][j] != 0; j++) {
+			if (j == sizeof(var)) {
+				vargood = 0;
+				break;
+			}
+			if (j > 0 && argv[i][j] == '=')
+				vargood = 1;
+			var[j] = (char)argv[i][j];
+		}
+		if (vargood) {
+			var[j] = 0;
+			putenv(var);
+		}
+	}
 
 	if (efi_copy_init()) {
 		printf("failed to allocate staging area\n");
