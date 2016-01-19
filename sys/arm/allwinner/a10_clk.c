@@ -47,7 +47,6 @@ struct a10_ccm_softc {
 	struct resource		*res;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
-	int			pll2_enabled;
 	int			pll6_enabled;
 };
 
@@ -256,27 +255,48 @@ a10_clk_pll6_get_rate(void)
 	return ((CCM_CLK_REF_FREQ * n * k) / 2);
 }
 
-static void
-a10_clk_pll2_enable(void)
+static int
+a10_clk_pll2_set_rate(unsigned int freq)
 {
 	struct a10_ccm_softc *sc;
 	uint32_t reg_value;
+	unsigned int prediv, postdiv, n;
 
 	/*
-	 * Audio Codec (at 48KHz) needs PLL2 to be 24576000 Hz
+	 * Audio Codec needs PLL2 to be either 24576000 Hz or 22579200 Hz
 	 */
 	sc = a10_ccm_sc;
-	if (sc->pll2_enabled)
-		return;
+
 	reg_value = ccm_read_4(sc, CCM_PLL2_CFG);
 	reg_value &= ~(CCM_PLL2_CFG_PREDIV | CCM_PLL2_CFG_POSTDIV |
 	    CCM_PLL_CFG_FACTOR_N);
-	reg_value |= (21 << CCM_PLL2_CFG_PREDIV_SHIFT);
-	reg_value |= (86 << CCM_PLL_CFG_FACTOR_N_SHIFT);
-	reg_value |= (4 << CCM_PLL2_CFG_POSTDIV_SHIFT);
-	reg_value |= CCM_PLL_CFG_ENABLE;
+
+	prediv = 21;
+	postdiv = 4;
+
+	switch (freq) {
+	case 24576000:
+		n = 86;
+		reg_value |= CCM_PLL_CFG_ENABLE;
+		break;
+	case 22579200:
+		n = 79;
+		reg_value |= CCM_PLL_CFG_ENABLE;
+		break;
+	case 0:
+		n = 1;
+		reg_value &= ~CCM_PLL_CFG_ENABLE;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	reg_value |= (prediv << CCM_PLL2_CFG_PREDIV_SHIFT);
+	reg_value |= (postdiv << CCM_PLL2_CFG_POSTDIV_SHIFT);
+	reg_value |= (n << CCM_PLL_CFG_FACTOR_N_SHIFT);
 	ccm_write_4(sc, CCM_PLL2_CFG, reg_value);
-	sc->pll2_enabled = 1;
+
+	return (0);
 }
 
 int
@@ -391,7 +411,7 @@ a10_clk_dmac_activate(void)
 }
 
 int
-a10_clk_codec_activate(void)
+a10_clk_codec_activate(unsigned int freq)
 {
 	struct a10_ccm_softc *sc;
 	uint32_t reg_value;
@@ -400,7 +420,7 @@ a10_clk_codec_activate(void)
 	if (sc == NULL)
 		return (ENXIO);
 
-	a10_clk_pll2_enable();
+	a10_clk_pll2_set_rate(freq);
 
 	/* Gating APB clock for ADDA */
 	reg_value = ccm_read_4(sc, CCM_APB0_GATING);

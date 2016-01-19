@@ -70,13 +70,24 @@ __FBSDID("$FreeBSD$");
 #define  DAC_FIFOC_FS_SHIFT		29
 #define  DAC_FIFOC_FS_MASK		(7U << DAC_FIFOC_FS_SHIFT)
 #define   DAC_FS_48KHZ			0
+#define   DAC_FS_32KHZ			1
+#define   DAC_FS_24KHZ			2
+#define   DAC_FS_16KHZ			3
+#define   DAC_FS_12KHZ			4
+#define   DAC_FS_8KHZ			5
+#define   DAC_FS_192KHZ			6
+#define   DAC_FS_96KHZ			7
 #define  DAC_FIFOC_FIFO_MODE_SHIFT	24
 #define  DAC_FIFOC_FIFO_MODE_MASK	(3U << DAC_FIFOC_FIFO_MODE_SHIFT)
+#define   FIFO_MODE_24_31_8		0
+#define   FIFO_MODE_16_31_16		0
 #define   FIFO_MODE_16_15_0		1
 #define  DAC_FIFOC_DRQ_CLR_CNT_SHIFT	21
 #define  DAC_FIFOC_DRQ_CLR_CNT_MASK	(3U << DAC_FIFOC_DRQ_CLR_CNT_SHIFT)
 #define  DAC_FIFOC_TX_TRIG_LEVEL_SHIFT	8
 #define  DAC_FIFOC_TX_TRIG_LEVEL_MASK	(0x7f << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT)
+#define  DAC_FIFOC_MONO_EN		(1U << 6)
+#define  DAC_FIFOC_TX_BITS		(1U << 5)
 #define  DAC_FIFOC_DRQ_EN		(1U << 4)
 #define  DAC_FIFOC_FIFO_FLUSH		(1U << 0)
 #define AC_DAC_FIFOS	0x08
@@ -97,6 +108,8 @@ __FBSDID("$FreeBSD$");
 #define  ADC_FIFOC_RX_FIFO_MODE		(1U << 24)
 #define  ADC_FIFOC_RX_TRIG_LEVEL_SHIFT	8
 #define  ADC_FIFOC_RX_TRIG_LEVEL_MASK	(0x1f << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT)
+#define  ADC_FIFOC_MONO_EN		(1U << 7)
+#define  ADC_FIFOC_RX_BITS		(1U << 6)
 #define  ADC_FIFOC_DRQ_EN		(1U << 4)
 #define  ADC_FIFOC_FIFO_FLUSH		(1U << 1)
 #define AC_ADC_FIFOS	0x20
@@ -127,12 +140,14 @@ __FBSDID("$FreeBSD$");
 #define AC_DAC_CNT	0x30
 #define AC_ADC_CNT	0x34
 
-static uint32_t a10codec_format[] = {
+static uint32_t a10codec_fmt[] = {
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
 	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
-static struct pcmchan_caps a10codec_caps = { 48000, 48000, a10codec_format, 0 };
+static struct pcmchan_caps a10codec_pcaps = { 8000, 192000, a10codec_fmt, 0 };
+static struct pcmchan_caps a10codec_rcaps = { 8000, 48000, a10codec_fmt, 0 };
 
 struct a10codec_info;
 
@@ -382,6 +397,31 @@ a10codec_dmaintr(void *priv)
 	}
 }
 
+static unsigned
+a10codec_fs(struct a10codec_chinfo *ch)
+{
+	switch (ch->speed) {
+	case 48000:
+		return (DAC_FS_48KHZ);
+	case 24000:
+		return (DAC_FS_24KHZ);
+	case 12000:
+		return (DAC_FS_12KHZ);
+	case 192000:
+		return (DAC_FS_192KHZ);
+	case 32000:
+		return (DAC_FS_32KHZ);
+	case 16000:
+		return (DAC_FS_16KHZ);
+	case 8000:
+		return (DAC_FS_8KHZ);
+	case 96000:
+		return (DAC_FS_96KHZ);
+	default:
+		return (DAC_FS_48KHZ);
+	}
+}
+
 static void
 a10codec_start(struct a10codec_chinfo *ch)
 {
@@ -409,7 +449,8 @@ a10codec_start(struct a10codec_chinfo *ch)
 
 		/* Configure DAC FIFO */
 		CODEC_WRITE(sc, AC_DAC_FIFOC,
-		    (DAC_FS_48KHZ << DAC_FIFOC_FS_SHIFT) |
+		    (AFMT_CHANNEL(ch->format) == 1 ? DAC_FIFOC_MONO_EN : 0) |
+		    (a10codec_fs(ch) << DAC_FIFOC_FS_SHIFT) |
 		    (FIFO_MODE_16_15_0 << DAC_FIFOC_FIFO_MODE_SHIFT) |
 		    (DRQ_CLR_CNT << DAC_FIFOC_DRQ_CLR_CNT_SHIFT) |
 		    (TX_TRIG_LEVEL << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT));
@@ -438,7 +479,8 @@ a10codec_start(struct a10codec_chinfo *ch)
 		CODEC_WRITE(sc, AC_ADC_FIFOC,
 		    ADC_FIFOC_EN_AD |
 		    ADC_FIFOC_RX_FIFO_MODE |
-		    (ADC_FS_48KHZ << ADC_FIFOC_FS_SHIFT) |
+		    (AFMT_CHANNEL(ch->format) == 1 ? ADC_FIFOC_MONO_EN : 0) |
+		    (a10codec_fs(ch) << ADC_FIFOC_FS_SHIFT) |
 		    (RX_TRIG_LEVEL << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT));
 
 		/* Enable ADC DRQ */
@@ -558,7 +600,42 @@ a10codec_chan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct a10codec_chinfo *ch = data;
 
-	ch->speed = 48000;
+	/*
+	 * The codec supports full duplex operation but both DAC and ADC
+	 * use the same source clock (PLL2). Limit the available speeds to
+	 * those supported by a 24576000 Hz input.
+	 */
+	switch (speed) {
+	case 8000:
+	case 12000:
+	case 16000:
+	case 24000:
+	case 32000:
+	case 48000:
+		ch->speed = speed;
+		break;
+	case 96000:
+	case 192000:
+		/* 96 KHz / 192 KHz mode only supported for playback */
+		if (ch->dir == PCMDIR_PLAY) {
+			ch->speed = speed;
+		} else {
+			ch->speed = 48000;
+		}
+		break;
+	case 44100:
+		ch->speed = 48000;
+		break;
+	case 22050:
+		ch->speed = 24000;
+		break;
+	case 11025:
+		ch->speed = 12000;
+		break;
+	default:
+		ch->speed = 48000;
+		break;
+	}
 
 	return (ch->speed);
 }
@@ -612,7 +689,13 @@ a10codec_chan_getptr(kobj_t obj, void *data)
 static struct pcmchan_caps *
 a10codec_chan_getcaps(kobj_t obj, void *data)
 {
-	return (&a10codec_caps);
+	struct a10codec_chinfo *ch = data;
+
+	if (ch->dir == PCMDIR_PLAY) {
+		return (&a10codec_pcaps);
+	} else {
+		return (&a10codec_rcaps);
+	}
 }
 
 static kobj_method_t a10codec_chan_methods[] = {
@@ -703,7 +786,7 @@ a10codec_attach(device_t dev)
 	}
 
 	/* Activate audio codec clock */
-	a10_clk_codec_activate();
+	a10_clk_codec_activate(24576000);
 
 	/* Enable DAC */
 	val = CODEC_READ(sc, AC_DAC_DPC);

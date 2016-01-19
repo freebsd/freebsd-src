@@ -167,6 +167,6 @@ int a10_clk_ahci_activate(void);
 int a10_clk_mmc_activate(int);
 int a10_clk_mmc_cfg(int, int);
 int a10_clk_dmac_activate(void);
-int a10_clk_codec_activate(void);
+int a10_clk_codec_activate(unsigned int);
 
 #endif /* _A10_CLK_H_ */
