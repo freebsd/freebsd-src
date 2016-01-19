@@ -355,6 +355,18 @@ uart_tty_free(void *arg)
 	 */
 }
 
+static bool
+uart_tty_busy(struct tty *tp)
+{
+	struct uart_softc *sc;
+ 
+	sc = tty_softc(tp);
+	if (sc == NULL || sc->sc_leaving)
+                return (FALSE);
+
+	return (sc->sc_txbusy);
+}
+
 static struct ttydevsw uart_tty_class = {
 	.tsw_flags	= TF_INITLOCK|TF_CALLOUT,
 	.tsw_open	= uart_tty_open,
@@ -365,6 +377,7 @@ static struct ttydevsw uart_tty_class = {
 	.tsw_param	= uart_tty_param,
 	.tsw_modem	= uart_tty_modem,
 	.tsw_free	= uart_tty_free,
+	.tsw_busy	= uart_tty_busy,
 };
 
 int

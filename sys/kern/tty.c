@@ -132,11 +132,11 @@ tty_drain(struct tty *tp, int leaving)
 		/* buffer is inaccessible */
 		return (0);
 
-	while (ttyoutq_bytesused(&tp->t_outq) > 0) {
+	while (ttyoutq_bytesused(&tp->t_outq) > 0 || ttydevsw_busy(tp)) {
 		ttydevsw_outwakeup(tp);
 		/* Could be handled synchronously. */
 		bytesused = ttyoutq_bytesused(&tp->t_outq);
-		if (bytesused == 0)
+		if (bytesused == 0 && !ttydevsw_busy(tp))
 			return (0);
 
 		/* Wait for data to be drained. */
@@ -955,6 +955,13 @@ ttydevsw_deffree(void *softc)
 	panic("Terminal device freed without a free-handler");
 }
 
+static bool
+ttydevsw_defbusy(struct tty *tp __unused)
+{
+
+	return (FALSE);
+}
+
 /*
  * TTY allocation and deallocation. TTY devices can be deallocated when
  * the driver doesn't use it anymore, when the TTY isn't a session's
@@ -989,6 +996,7 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	PATCH_FUNC(mmap);
 	PATCH_FUNC(pktnotify);
 	PATCH_FUNC(free);
+	PATCH_FUNC(busy);
 #undef PATCH_FUNC
 
 	tp = malloc(sizeof(struct tty), M_TTY, M_WAITOK|M_ZERO);
