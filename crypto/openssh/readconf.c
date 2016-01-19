@@ -280,6 +280,10 @@ static struct {
 	{ "updatehostkeys", oUpdateHostkeys },
 	{ "hostbasedkeytypes", oHostbasedKeyTypes },
 	{ "ignoreunknown", oIgnoreUnknown },
+	{ "hpndisabled", oDeprecated },
+	{ "hpnbuffersize", oDeprecated },
+	{ "tcprcvbufpoll", oDeprecated },
+	{ "tcprcvbuf", oDeprecated },
 	{ "versionaddendum", oVersionAddendum },
 
 	{ NULL, oBadOption }
