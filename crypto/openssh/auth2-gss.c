@@ -40,6 +40,7 @@
 #include "log.h"
 #include "dispatch.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "packet.h"
 #include "ssh-gss.h"

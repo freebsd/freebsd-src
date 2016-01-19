@@ -16,7 +16,7 @@
 
 #old cvs stuff.  please update before use.  may be deprecated.
 %define use_stable	1
-%define version 	6.6p1
+%define version 	6.7p1
 %if %{use_stable}
   %define cvs		%{nil}
   %define release 	1
@@ -178,7 +178,6 @@ by Jim Knoble <jmknoble@pobox.com>.
 CFLAGS="$RPM_OPT_FLAGS" \
 %configure \
             --with-pam \
-            --with-tcp-wrappers \
 	    --with-privsep-path=%{_var}/empty/sshd \
 	    #leave this line for easy edits.
 
@@ -363,4 +362,4 @@ fi
 * Mon Jan 01 1998 ...
 Template Version: 1.31
 
-$Id: openssh.spec,v 1.83 2014/02/27 23:03:55 djm Exp $
+$Id: openssh.spec,v 1.85 2014/08/19 01:36:08 djm Exp $

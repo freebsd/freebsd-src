@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.77 2014/01/29 06:18:35 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.78 2014/07/03 11:16:55 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -154,6 +154,7 @@ void	auth_info(Authctxt *authctxt, const char *, ...)
 	    __attribute__((__format__ (printf, 2, 3)))
 	    __attribute__((__nonnull__ (2)));
 void	auth_log(Authctxt *, int, int, const char *, const char *);
+void	auth_maxtries_exceeded(Authctxt *) __attribute__((noreturn));
 void	userauth_finish(Authctxt *, int, const char *, const char *);
 int	auth_root_allowed(const char *);
 
@@ -209,8 +210,6 @@ void	 auth_debug_reset(void);
 struct passwd *fakepw(void);
 
 int	 sys_auth_passwd(Authctxt *, const char *);
-
-#define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
 
 #define SKEY_PROMPT "\nS/Key Password: "
 

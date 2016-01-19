@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.h,v 1.2 2010/02/24 06:12:53 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.h,v 1.3 2014/04/29 18:01:49 markus Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -18,3 +18,7 @@ int	pkcs11_init(int);
 void	pkcs11_terminate(void);
 int	pkcs11_add_provider(char *, char *, Key ***);
 int	pkcs11_del_provider(char *);
+
+#if !defined(WITH_OPENSSL) && defined(ENABLE_PKCS11)
+#undef ENABLE_PKCS11
+#endif

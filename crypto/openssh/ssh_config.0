@@ -1,4 +1,4 @@
-SSH_CONFIG(5)             OpenBSD Programmer's Manual            SSH_CONFIG(5)
+SSH_CONFIG(5)                 File Formats Manual                SSH_CONFIG(5)
 
 NAME
      ssh_config - OpenSSH SSH client configuration files
@@ -176,19 +176,30 @@ DESCRIPTION
              preference.  Multiple ciphers must be comma-separated.  The
              supported ciphers are:
 
-             ``3des-cbc'', ``aes128-cbc'', ``aes192-cbc'', ``aes256-cbc'',
-             ``aes128-ctr'', ``aes192-ctr'', ``aes256-ctr'',
-             ``aes128-gcm@openssh.com'', ``aes256-gcm@openssh.com'',
-             ``arcfour128'', ``arcfour256'', ``arcfour'', ``blowfish-cbc'',
-             ``cast128-cbc'', and ``chacha20-poly1305@openssh.com''.
+                   3des-cbc
+                   aes128-cbc
+                   aes192-cbc
+                   aes256-cbc
+                   aes128-ctr
+                   aes192-ctr
+                   aes256-ctr
+                   aes128-gcm@openssh.com
+                   aes256-gcm@openssh.com
+                   arcfour
+                   arcfour128
+                   arcfour256
+                   blowfish-cbc
+                   cast128-cbc
+                   chacha20-poly1305@openssh.com
 
              The default is:
 
-                aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
-                aes128-gcm@openssh.com,aes256-gcm@openssh.com,
-                chacha20-poly1305@openssh.com,
-                aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
-                aes256-cbc,arcfour
+                   aes128-ctr,aes192-ctr,aes256-ctr,
+                   aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+                   chacha20-poly1305@openssh.com,
+                   arcfour256,arcfour128,
+                   aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,
+                   aes192-cbc,aes256-cbc,arcfour
 
              The list of available ciphers may also be obtained using the -Q
              option of ssh(1).
@@ -261,10 +272,12 @@ DESCRIPTION
              any domain name), `%h' will be substituted by the target host
              name, `%n' will be substituted by the original target host name
              specified on the command line, `%p' the destination port, `%r' by
-             the remote login username, and `%u' by the username of the user
-             running ssh(1).  It is recommended that any ControlPath used for
-             opportunistic connection sharing include at least %h, %p, and %r.
-             This ensures that shared connections are uniquely identified.
+             the remote login username, `%u' by the username of the user
+             running ssh(1), and `%C' by a hash of the concatenation:
+             %l%h%p%r.  It is recommended that any ControlPath used for
+             opportunistic connection sharing include at least %h, %p, and %r
+             (or alternatively %C).  This ensures that shared connections are
+             uniquely identified.
 
      ControlPersist
              When used in conjunction with ControlMaster, specifies that the
@@ -437,10 +450,13 @@ DESCRIPTION
              specify nicknames or abbreviations for hosts.  If the hostname
              contains the character sequence `%h', then this will be replaced
              with the host name specified on the command line (this is useful
-             for manipulating unqualified names).  The default is the name
-             given on the command line.  Numeric IP addresses are also
-             permitted (both on the command line and in HostName
-             specifications).
+             for manipulating unqualified names).  The character sequence `%%'
+             will be replaced by a single `%' character, which may be used
+             when specifying IPv6 link-local addresses.
+
+             The default is the name given on the command line.  Numeric IP
+             addresses are also permitted (both on the command line and in
+             HostName specifications).
 
      IdentitiesOnly
              Specifies that ssh(1) should only use the authentication identity
@@ -517,8 +533,8 @@ DESCRIPTION
                    curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
                    diffie-hellman-group-exchange-sha256,
-                   diffie-hellman-group-exchange-sha1,
                    diffie-hellman-group14-sha1,
+                   diffie-hellman-group-exchange-sha1,
                    diffie-hellman-group1-sha1
 
      LocalCommand
@@ -529,7 +545,8 @@ DESCRIPTION
              performed: `%d' (local user's home directory), `%h' (remote host
              name), `%l' (local host name), `%n' (host name as provided on the
              command line), `%p' (remote port), `%r' (remote user name) or
-             `%u' (local user name).
+             `%u' (local user name) or `%C' by a hash of the concatenation:
+             %l%h%p%r.
 
              The command is run synchronously and does not have access to the
              session of the ssh(1) that spawned it.  It should not be used for
@@ -568,13 +585,14 @@ DESCRIPTION
              calculate the MAC after encryption (encrypt-then-mac).  These are
              considered safer and their use recommended.  The default is:
 
-                   hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
                    umac-64-etm@openssh.com,umac-128-etm@openssh.com,
                    hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
-                   hmac-ripemd160-etm@openssh.com,hmac-sha1-96-etm@openssh.com,
-                   hmac-md5-96-etm@openssh.com,
-                   hmac-md5,hmac-sha1,umac-64@openssh.com,umac-128@openssh.com,
-                   hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
+                   umac-64@openssh.com,umac-128@openssh.com,
+                   hmac-sha2-256,hmac-sha2-512,
+                   hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
+                   hmac-ripemd160-etm@openssh.com,
+                   hmac-sha1-96-etm@openssh.com,hmac-md5-96-etm@openssh.com,
+                   hmac-md5,hmac-sha1,hmac-ripemd160,
                    hmac-sha1-96,hmac-md5-96
 
      NoHostAuthenticationForLocalhost
@@ -628,17 +646,19 @@ DESCRIPTION
      ProxyCommand
              Specifies the command to use to connect to the server.  The
              command string extends to the end of the line, and is executed
-             with the user's shell.  In the command string, any occurrence of
-             `%h' will be substituted by the host name to connect, `%p' by the
-             port, and `%r' by the remote user name.  The command can be
-             basically anything, and should read from its standard input and
-             write to its standard output.  It should eventually connect an
-             sshd(8) server running on some machine, or execute sshd -i
-             somewhere.  Host key management will be done using the HostName
-             of the host being connected (defaulting to the name typed by the
-             user).  Setting the command to ``none'' disables this option
-             entirely.  Note that CheckHostIP is not available for connects
-             with a proxy command.
+             using the user's shell `exec' directive to avoid a lingering
+             shell process.
+
+             In the command string, any occurrence of `%h' will be substituted
+             by the host name to connect, `%p' by the port, and `%r' by the
+             remote user name.  The command can be basically anything, and
+             should read from its standard input and write to its standard
+             output.  It should eventually connect an sshd(8) server running
+             on some machine, or execute sshd -i somewhere.  Host key
+             management will be done using the HostName of the host being
+             connected (defaulting to the name typed by the user).  Setting
+             the command to ``none'' disables this option entirely.  Note that
+             CheckHostIP is not available for connects with a proxy command.
 
              This directive is useful in conjunction with nc(1) and its proxy
              support.  For example, the following directive would connect via
@@ -750,6 +770,27 @@ DESCRIPTION
              the encrypted channel to request a response from the server.  The
              default is 0, indicating that these messages will not be sent to
              the server.  This option applies to protocol version 2 only.
+
+     StreamLocalBindMask
+             Sets the octal file creation mode mask (umask) used when creating
+             a Unix-domain socket file for local or remote port forwarding.
+             This option is only used for port forwarding to a Unix-domain
+             socket file.
+
+             The default value is 0177, which creates a Unix-domain socket
+             file that is readable and writable only by the owner.  Note that
+             not all operating systems honor the file mode on Unix-domain
+             socket files.
+
+     StreamLocalBindUnlink
+             Specifies whether to remove an existing Unix-domain socket file
+             for local or remote port forwarding before creating a new one.
+             If the socket file already exists and StreamLocalBindUnlink is
+             not enabled, ssh will be unable to forward the port to the Unix-
+             domain socket file.  This option is only used for port forwarding
+             to a Unix-domain socket file.
+
+             The argument must be ``yes'' or ``no''.  The default is ``no''.
 
      StrictHostKeyChecking
              If this flag is set to ``yes'', ssh(1) will never automatically
@@ -886,4 +927,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.5                    February 23, 2014                   OpenBSD 5.5
+OpenBSD 5.6                      July 15, 2014                     OpenBSD 5.6
