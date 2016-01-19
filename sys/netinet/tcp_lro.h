@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2006, Myricom Inc.
  * Copyright (c) 2008, Intel Corporation.
+ * Copyright (c) 2016 Mellanox Technologies.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +32,14 @@
 #define _TCP_LRO_H_
 
 #include <sys/time.h>
+
+#ifndef TCP_LRO_ENTRIES
+/* Define default number of LRO entries per RX queue */
+#define	TCP_LRO_ENTRIES	8
+#endif
+
+#define	TCP_LRO_SEQUENCE(mb) \
+    (mb)->m_pkthdr.PH_loc.thirtytwo[0]
 
 struct lro_entry
 {
@@ -75,20 +84,26 @@ SLIST_HEAD(lro_head, lro_entry);
 /* NB: This is part of driver structs. */
 struct lro_ctrl {
 	struct ifnet	*ifp;
-	int		lro_queued;
-	int		lro_flushed;
-	int		lro_bad_csum;
-	int		lro_cnt;
+	struct mbuf	**lro_mbuf_data;
+	uint64_t	lro_queued;
+	uint64_t	lro_flushed;
+	uint64_t	lro_bad_csum;
+	unsigned	lro_cnt;
+	unsigned	lro_mbuf_count;
+	unsigned	lro_mbuf_max;
 
 	struct lro_head	lro_active;
 	struct lro_head	lro_free;
 };
 
 int tcp_lro_init(struct lro_ctrl *);
+int tcp_lro_init_args(struct lro_ctrl *, struct ifnet *, unsigned, unsigned);
 void tcp_lro_free(struct lro_ctrl *);
 void tcp_lro_flush_inactive(struct lro_ctrl *, const struct timeval *);
 void tcp_lro_flush(struct lro_ctrl *, struct lro_entry *);
+void tcp_lro_flush_all(struct lro_ctrl *);
 int tcp_lro_rx(struct lro_ctrl *, struct mbuf *, uint32_t);
+void tcp_lro_queue_mbuf(struct lro_ctrl *, struct mbuf *);
 
 #define	TCP_LRO_CANNOT		-1
 #define	TCP_LRO_NOT_SUPPORTED	1
