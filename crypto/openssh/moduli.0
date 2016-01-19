@@ -1,4 +1,4 @@
-MODULI(5)                 OpenBSD Programmer's Manual                MODULI(5)
+MODULI(5)                     File Formats Manual                    MODULI(5)
 
 NAME
      moduli - Diffie-Hellman moduli
@@ -71,4 +71,4 @@ STANDARDS
      the Secure Shell (SSH) Transport Layer Protocol, RFC 4419, March 2006,
      2006.
 
-OpenBSD 5.5                   September 26, 2012                   OpenBSD 5.5
+OpenBSD 5.6                   September 26, 2012                   OpenBSD 5.6

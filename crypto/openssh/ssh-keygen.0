@@ -1,11 +1,11 @@
-SSH-KEYGEN(1)              OpenBSD Reference Manual              SSH-KEYGEN(1)
+SSH-KEYGEN(1)               General Commands Manual              SSH-KEYGEN(1)
 
 NAME
      ssh-keygen - authentication key generation, management and conversion
 
 SYNOPSIS
-     ssh-keygen [-q] [-b bits] [-t type] [-N new_passphrase] [-C comment]
-                [-f output_keyfile]
+     ssh-keygen [-q] [-b bits] [-t dsa | ecdsa | ed25519 | rsa | rsa1]
+                [-N new_passphrase] [-C comment] [-f output_keyfile]
      ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]
      ssh-keygen -i [-m key_format] [-f input_keyfile]
      ssh-keygen -e [-m key_format] [-f input_keyfile]
@@ -164,7 +164,9 @@ DESCRIPTION
 
      -i      This option will read an unencrypted private (or public) key file
              in the format specified by the -m option and print an OpenSSH
-             compatible private (or public) key to stdout.
+             compatible private (or public) key to stdout.  This option allows
+             importing keys from other software, including several commercial
+             SSH implementations.  The default import format is ``RFC4716''.
 
      -J num_lines
              Exit after screening the specified number of lines while
@@ -178,9 +180,7 @@ DESCRIPTION
              Write the last line processed to the file checkpt while
              performing DH candidate screening using the -T option.  This will
              be used to skip lines in the input file that have already been
-             processed if the job is restarted.  This option allows importing
-             keys from other software, including several commercial SSH
-             implementations.  The default import format is ``RFC4716''.
+             processed if the job is restarted.
 
      -k      Generate a KRL file.  In this mode, ssh-keygen will generate a
              KRL file at the location specified via the -f flag that revokes
@@ -313,7 +313,7 @@ DESCRIPTION
              Test DH group exchange candidate primes (generated using the -G
              option) for safety.
 
-     -t type
+     -t dsa | ecdsa | ed25519 | rsa | rsa1
              Specifies the type of key to create.  The possible values are
              ``rsa1'' for protocol version 1 and ``dsa'', ``ecdsa'',
              ``ed25519'', or ``rsa'' for protocol version 2.
@@ -559,4 +559,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.5                    February 5, 2014                    OpenBSD 5.5
+OpenBSD 5.6                     March 31, 2014                     OpenBSD 5.6

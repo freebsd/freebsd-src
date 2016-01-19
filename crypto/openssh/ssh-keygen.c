@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.241 2014/02/05 20:13:25 naddy Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.249 2014/07/03 03:47:27 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -165,7 +165,7 @@ int rounds = 0;
 /* argv0 */
 extern char *__progname;
 
-char hostname[MAXHOSTNAMELEN];
+char hostname[NI_MAXHOST];
 
 /* moduli.c */
 int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
@@ -195,6 +195,7 @@ type_bits_valid(int type, u_int32_t *bitsp)
 		fprintf(stderr, "key bits exceeds maximum %d\n", maxbits);
 		exit(1);
 	}
+#ifdef WITH_OPENSSL
 	if (type == KEY_DSA && *bitsp != 1024)
 		fatal("DSA keys must be 1024 bits");
 	else if (type != KEY_ECDSA && type != KEY_ED25519 && *bitsp < 768)
@@ -202,6 +203,7 @@ type_bits_valid(int type, u_int32_t *bitsp)
 	else if (type == KEY_ECDSA && key_ecdsa_bits_to_nid(*bitsp) == -1)
 		fatal("Invalid ECDSA key length - valid lengths are "
 		    "256, 384 or 521 bits");
+#endif
 }
 
 static void
@@ -278,6 +280,7 @@ load_identity(char *filename)
 #define SSH_COM_PRIVATE_BEGIN		"---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----"
 #define	SSH_COM_PRIVATE_KEY_MAGIC	0x3f6ff9eb
 
+#ifdef WITH_OPENSSL
 static void
 do_convert_to_ssh2(struct passwd *pw, Key *k)
 {
@@ -408,7 +411,7 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 	Buffer b;
 	Key *key = NULL;
 	char *type, *cipher;
-	u_char *sig, data[] = "abcde12345";
+	u_char *sig = NULL, data[] = "abcde12345";
 	int magic, rlen, ktype, i1, i2, i3, i4;
 	u_int slen;
 	u_long e;
@@ -479,7 +482,9 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 		buffer_get_bignum_bits(&b, key->rsa->iqmp);
 		buffer_get_bignum_bits(&b, key->rsa->q);
 		buffer_get_bignum_bits(&b, key->rsa->p);
-		rsa_generate_additional_parameters(key->rsa);
+		if (rsa_generate_additional_parameters(key->rsa) != 0)
+			fatal("%s: rsa_generate_additional_parameters "
+			    "error", __func__);
 		break;
 	}
 	rlen = buffer_len(&b);
@@ -711,6 +716,7 @@ do_convert_from(struct passwd *pw)
 	key_free(k);
 	exit(0);
 }
+#endif
 
 static void
 do_print_public(struct passwd *pw)
@@ -981,7 +987,7 @@ do_gen_all_hostkeys(struct passwd *pw)
 }
 
 static void
-printhost(FILE *f, const char *name, Key *public, int ca, int hash)
+printhost(FILE *f, const char *name, Key *public, int ca, int revoked, int hash)
 {
 	if (print_fingerprint) {
 		enum fp_rep rep;
@@ -1001,7 +1007,8 @@ printhost(FILE *f, const char *name, Key *public, int ca, int hash)
 	} else {
 		if (hash && (name = host_hash(name, NULL, 0)) == NULL)
 			fatal("hash_host failed");
-		fprintf(f, "%s%s%s ", ca ? CA_MARKER : "", ca ? " " : "", name);
+		fprintf(f, "%s%s%s ", ca ? CA_MARKER " " : "",
+		    revoked ? REVOKE_MARKER " " : "" , name);
 		if (!key_write(public, f))
 			fatal("key_write failed");
 		fprintf(f, "\n");
@@ -1016,7 +1023,7 @@ do_known_hosts(struct passwd *pw, const char *name)
 	char *cp, *cp2, *kp, *kp2;
 	char line[16*1024], tmp[MAXPATHLEN], old[MAXPATHLEN];
 	int c, skip = 0, inplace = 0, num = 0, invalid = 0, has_unhashed = 0;
-	int ca;
+	int ca, revoked;
 	int found_key = 0;
 
 	if (!have_identity) {
@@ -1030,6 +1037,7 @@ do_known_hosts(struct passwd *pw, const char *name)
 	if ((in = fopen(identity_file, "r")) == NULL)
 		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
 
+	/* XXX this code is a mess; refactor -djm */
 	/*
 	 * Find hosts goes to stdout, hash and deletions happen in-place
 	 * A corner case is ssh-keygen -HF foo, which should go to stdout
@@ -1073,7 +1081,7 @@ do_known_hosts(struct passwd *pw, const char *name)
 				fprintf(out, "%s\n", cp);
 			continue;
 		}
-		/* Check whether this is a CA key */
+		/* Check whether this is a CA key or revocation marker */
 		if (strncasecmp(cp, CA_MARKER, sizeof(CA_MARKER) - 1) == 0 &&
 		    (cp[sizeof(CA_MARKER) - 1] == ' ' ||
 		    cp[sizeof(CA_MARKER) - 1] == '\t')) {
@@ -1081,6 +1089,14 @@ do_known_hosts(struct passwd *pw, const char *name)
 			cp += sizeof(CA_MARKER);
 		} else
 			ca = 0;
+		if (strncasecmp(cp, REVOKE_MARKER,
+		    sizeof(REVOKE_MARKER) - 1) == 0 &&
+		    (cp[sizeof(REVOKE_MARKER) - 1] == ' ' ||
+		    cp[sizeof(REVOKE_MARKER) - 1] == '\t')) {
+ 			revoked = 1;
+			cp += sizeof(REVOKE_MARKER);
+		} else
+			revoked = 0;
 
 		/* Find the end of the host name portion. */
 		for (kp = cp; *kp && *kp != ' ' && *kp != '\t'; kp++)
@@ -1124,20 +1140,23 @@ do_known_hosts(struct passwd *pw, const char *name)
 						printf("# Host %s found: "
 						    "line %d type %s%s\n", name,
 						    num, key_type(pub),
-						    ca ? " (CA key)" : "");
-					printhost(out, cp, pub, ca, 0);
+						    ca ? " (CA key)" :
+						    revoked? " (revoked)" : "");
+					printhost(out, cp, pub, ca, revoked, 0);
 					found_key = 1;
 				}
 				if (delete_host) {
-					if (!c && !ca)
-						printhost(out, cp, pub, ca, 0);
-					else
+					if (!c || ca || revoked) {
+						printhost(out, cp, pub,
+						    ca, revoked, 0);
+					} else {
 						printf("# Host %s found: "
 						    "line %d type %s\n", name,
 						    num, key_type(pub));
+					}
 				}
 			} else if (hash_hosts)
-				printhost(out, cp, pub, ca, 0);
+				printhost(out, cp, pub, ca, revoked, 0);
 		} else {
 			if (find_host || delete_host) {
 				c = (match_hostname(name, cp,
@@ -1148,38 +1167,43 @@ do_known_hosts(struct passwd *pw, const char *name)
 						    "line %d type %s%s\n", name,
 						    num, key_type(pub),
 						    ca ? " (CA key)" : "");
-					printhost(out, name, pub,
-					    ca, hash_hosts && !ca);
+					printhost(out, name, pub, ca, revoked,
+					    hash_hosts && !(ca || revoked));
 					found_key = 1;
 				}
 				if (delete_host) {
-					if (!c && !ca)
-						printhost(out, cp, pub, ca, 0);
-					else
+					if (!c || ca || revoked) {
+						printhost(out, cp, pub,
+						    ca, revoked, 0);
+					} else {
 						printf("# Host %s found: "
 						    "line %d type %s\n", name,
 						    num, key_type(pub));
+					}
 				}
+			} else if (hash_hosts && (ca || revoked)) {
+				/* Don't hash CA and revoked keys' hostnames */
+				printhost(out, cp, pub, ca, revoked, 0);
+				has_unhashed = 1;
 			} else if (hash_hosts) {
+				/* Hash each hostname separately */
 				for (cp2 = strsep(&cp, ",");
 				    cp2 != NULL && *cp2 != '\0';
 				    cp2 = strsep(&cp, ",")) {
-					if (ca) {
-						fprintf(stderr, "Warning: "
-						    "ignoring CA key for host: "
-						    "%.64s\n", cp2);
-						printhost(out, cp2, pub, ca, 0);
-					} else if (strcspn(cp2, "*?!") !=
+					if (strcspn(cp2, "*?!") !=
 					    strlen(cp2)) {
 						fprintf(stderr, "Warning: "
 						    "ignoring host name with "
 						    "metacharacters: %.64s\n",
 						    cp2);
-						printhost(out, cp2, pub, ca, 0);
-					} else
-						printhost(out, cp2, pub, ca, 1);
+						printhost(out, cp2, pub, ca,
+						    revoked, 0);
+						has_unhashed = 1;
+					} else {
+						printhost(out, cp2, pub, ca,
+						    revoked, 1);
+					}
 				}
-				has_unhashed = 1;
 			}
 		}
 		key_free(pub);
@@ -1589,7 +1613,9 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 		}
 	}
 
+#ifdef ENABLE_PKCS11
 	pkcs11_init(1);
+#endif
 	tmp = tilde_expand_filename(ca_key_path, pw->pw_uid);
 	if (pkcs11provider != NULL) {
 		if ((ca = load_pkcs11_key(tmp)) == NULL)
@@ -1631,12 +1657,12 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 		public->cert->valid_after = cert_valid_from;
 		public->cert->valid_before = cert_valid_to;
 		if (v00) {
-			prepare_options_buf(&public->cert->critical,
+			prepare_options_buf(public->cert->critical,
 			    OPTIONS_CRITICAL|OPTIONS_EXTENSIONS);
 		} else {
-			prepare_options_buf(&public->cert->critical,
+			prepare_options_buf(public->cert->critical,
 			    OPTIONS_CRITICAL);
-			prepare_options_buf(&public->cert->extensions,
+			prepare_options_buf(public->cert->extensions,
 			    OPTIONS_EXTENSIONS);
 		}
 		public->cert->signature_key = key_from_private(ca);
@@ -1672,7 +1698,9 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 		key_free(public);
 		free(out);
 	}
+#ifdef ENABLE_PKCS11
 	pkcs11_terminate();
+#endif
 	exit(0);
 }
 
@@ -1820,8 +1848,8 @@ add_cert_option(char *opt)
 static void
 show_options(const Buffer *optbuf, int v00, int in_critical)
 {
-	char *name;
-	u_char *data;
+	char *name, *arg;
+	const u_char *data;
 	u_int dlen;
 	Buffer options, option;
 
@@ -1844,9 +1872,9 @@ show_options(const Buffer *optbuf, int v00, int in_critical)
 		else if ((v00 || in_critical) &&
 		    (strcmp(name, "force-command") == 0 ||
 		    strcmp(name, "source-address") == 0)) {
-			data = buffer_get_string(&option, NULL);
-			printf(" %s\n", data);
-			free(data);
+			arg = buffer_get_cstring(&option, NULL);
+			printf(" %s\n", arg);
+			free(arg);
 		} else {
 			printf(" UNKNOWN OPTION (len %u)\n",
 			    buffer_len(&option));
@@ -1905,24 +1933,25 @@ do_show_cert(struct passwd *pw)
 		printf("\n");
 	}
 	printf("        Critical Options: ");
-	if (buffer_len(&key->cert->critical) == 0)
+	if (buffer_len(key->cert->critical) == 0)
 		printf("(none)\n");
 	else {
 		printf("\n");
-		show_options(&key->cert->critical, v00, 1);
+		show_options(key->cert->critical, v00, 1);
 	}
 	if (!v00) {
 		printf("        Extensions: ");
-		if (buffer_len(&key->cert->extensions) == 0)
+		if (buffer_len(key->cert->extensions) == 0)
 			printf("(none)\n");
 		else {
 			printf("\n");
-			show_options(&key->cert->extensions, v00, 0);
+			show_options(key->cert->extensions, v00, 0);
 		}
 	}
 	exit(0);
 }
 
+#ifdef WITH_OPENSSL
 static void
 load_krl(const char *path, struct ssh_krl **krlp)
 {
@@ -2145,60 +2174,40 @@ do_check_krl(struct passwd *pw, int argc, char **argv)
 	ssh_krl_free(krl);
 	exit(ret);
 }
+#endif
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [options]\n", __progname);
-	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "  -A          Generate non-existent host keys for all key types.\n");
-	fprintf(stderr, "  -a number   Number of KDF rounds for new key format or moduli primality tests.\n");
-	fprintf(stderr, "  -B          Show bubblebabble digest of key file.\n");
-	fprintf(stderr, "  -b bits     Number of bits in the key to create.\n");
-	fprintf(stderr, "  -C comment  Provide new comment.\n");
-	fprintf(stderr, "  -c          Change comment in private and public key files.\n");
+	fprintf(stderr,
+	    "usage: ssh-keygen [-q] [-b bits] [-t dsa | ecdsa | ed25519 | rsa | rsa1]\n"
+	    "                  [-N new_passphrase] [-C comment] [-f output_keyfile]\n"
+	    "       ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]\n"
+	    "       ssh-keygen -i [-m key_format] [-f input_keyfile]\n"
+	    "       ssh-keygen -e [-m key_format] [-f input_keyfile]\n"
+	    "       ssh-keygen -y [-f input_keyfile]\n"
+	    "       ssh-keygen -c [-P passphrase] [-C comment] [-f keyfile]\n"
+	    "       ssh-keygen -l [-f input_keyfile]\n"
+	    "       ssh-keygen -B [-f input_keyfile]\n");
 #ifdef ENABLE_PKCS11
-	fprintf(stderr, "  -D pkcs11   Download public key from pkcs11 token.\n");
+	fprintf(stderr,
+	    "       ssh-keygen -D pkcs11\n");
 #endif
-	fprintf(stderr, "  -e          Export OpenSSH to foreign format key file.\n");
-	fprintf(stderr, "  -F hostname Find hostname in known hosts file.\n");
-	fprintf(stderr, "  -f filename Filename of the key file.\n");
-	fprintf(stderr, "  -G file     Generate candidates for DH-GEX moduli.\n");
-	fprintf(stderr, "  -g          Use generic DNS resource record format.\n");
-	fprintf(stderr, "  -H          Hash names in known_hosts file.\n");
-	fprintf(stderr, "  -h          Generate host certificate instead of a user certificate.\n");
-	fprintf(stderr, "  -I key_id   Key identifier to include in certificate.\n");
-	fprintf(stderr, "  -i          Import foreign format to OpenSSH key file.\n");
-	fprintf(stderr, "  -J number   Screen this number of moduli lines.\n");
-	fprintf(stderr, "  -j number   Start screening moduli at specified line.\n");
-	fprintf(stderr, "  -K checkpt  Write checkpoints to this file.\n");
-	fprintf(stderr, "  -k          Generate a KRL file.\n");
-	fprintf(stderr, "  -L          Print the contents of a certificate.\n");
-	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
-	fprintf(stderr, "  -M memory   Amount of memory (MB) to use for generating DH-GEX moduli.\n");
-	fprintf(stderr, "  -m key_fmt  Conversion format for -e/-i (PEM|PKCS8|RFC4716).\n");
-	fprintf(stderr, "  -N phrase   Provide new passphrase.\n");
-	fprintf(stderr, "  -n name,... User/host principal names to include in certificate\n");
-	fprintf(stderr, "  -O option   Specify a certificate option.\n");
-	fprintf(stderr, "  -o          Enforce new private key format.\n");
-	fprintf(stderr, "  -P phrase   Provide old passphrase.\n");
-	fprintf(stderr, "  -p          Change passphrase of private key file.\n");
-	fprintf(stderr, "  -Q          Test whether key(s) are revoked in KRL.\n");
-	fprintf(stderr, "  -q          Quiet.\n");
-	fprintf(stderr, "  -R hostname Remove host from known_hosts file.\n");
-	fprintf(stderr, "  -r hostname Print DNS resource record.\n");
-	fprintf(stderr, "  -S start    Start point (hex) for generating DH-GEX moduli.\n");
-	fprintf(stderr, "  -s ca_key   Certify keys with CA key.\n");
-	fprintf(stderr, "  -T file     Screen candidates for DH-GEX moduli.\n");
-	fprintf(stderr, "  -t type     Specify type of key to create.\n");
-	fprintf(stderr, "  -u          Update KRL rather than creating a new one.\n");
-	fprintf(stderr, "  -V from:to  Specify certificate validity interval.\n");
-	fprintf(stderr, "  -v          Verbose.\n");
-	fprintf(stderr, "  -W gen      Generator to use for generating DH-GEX moduli.\n");
-	fprintf(stderr, "  -y          Read private key file and print public key.\n");
-	fprintf(stderr, "  -Z cipher   Specify a cipher for new private key format.\n");
-	fprintf(stderr, "  -z serial   Specify a serial number.\n");
-
+	fprintf(stderr,
+	    "       ssh-keygen -F hostname [-f known_hosts_file] [-l]\n"
+	    "       ssh-keygen -H [-f known_hosts_file]\n"
+	    "       ssh-keygen -R hostname [-f known_hosts_file]\n"
+	    "       ssh-keygen -r hostname [-f input_keyfile] [-g]\n"
+	    "       ssh-keygen -G output_file [-v] [-b bits] [-M memory] [-S start_point]\n"
+	    "       ssh-keygen -T output_file -f input_file [-v] [-a rounds] [-J num_lines]\n"
+	    "                  [-j start_line] [-K checkpt] [-W generator]\n"
+	    "       ssh-keygen -s ca_key -I certificate_identity [-h] [-n principals]\n"
+	    "                  [-O option] [-V validity_interval] [-z serial_number] file ...\n"
+	    "       ssh-keygen -L [-f input_keyfile]\n"
+	    "       ssh-keygen -A\n"
+	    "       ssh-keygen -k -f krl_file [-u] [-s ca_public] [-z version_number]\n"
+	    "                  file ...\n"
+	    "       ssh-keygen -Q -f krl_file file ...\n");
 	exit(1);
 }
 
@@ -2469,6 +2478,7 @@ main(int argc, char **argv)
 		printf("Cannot use -l with -H or -R.\n");
 		usage();
 	}
+#ifdef WITH_OPENSSL
 	if (gen_krl) {
 		do_gen_krl(pw, update_krl, argc, argv);
 		return (0);
@@ -2477,6 +2487,7 @@ main(int argc, char **argv)
 		do_check_krl(pw, argc, argv);
 		return (0);
 	}
+#endif
 	if (ca_key_path != NULL) {
 		if (cert_key_id == NULL)
 			fatal("Must specify key id (-I) when certifying");
@@ -2494,10 +2505,12 @@ main(int argc, char **argv)
 		do_change_passphrase(pw);
 	if (change_comment)
 		do_change_comment(pw);
+#ifdef WITH_OPENSSL
 	if (convert_to)
 		do_convert_to(pw);
 	if (convert_from)
 		do_convert_from(pw);
+#endif
 	if (print_public)
 		do_print_public(pw);
 	if (rr_hostname != NULL) {
@@ -2519,7 +2532,8 @@ main(int argc, char **argv)
 			    _PATH_HOST_DSA_KEY_FILE, rr_hostname);
 			n += do_print_resource_record(pw,
 			    _PATH_HOST_ECDSA_KEY_FILE, rr_hostname);
-
+			n += do_print_resource_record(pw,
+			    _PATH_HOST_ED25519_KEY_FILE, rr_hostname);
 			if (n == 0)
 				fatal("no keys found.");
 			exit(0);

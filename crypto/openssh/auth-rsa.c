@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.86 2014/01/27 19:18:54 markus Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.88 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,6 +35,7 @@
 #include "buffer.h"
 #include "pathnames.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 #include "key.h"
 #include "auth-options.h"
@@ -45,7 +46,6 @@
 #endif
 #include "monitor_wrap.h"
 #include "ssh.h"
-#include "misc.h"
 
 #include "digest.h"
 
@@ -144,7 +144,8 @@ auth_rsa_challenge_dialog(Key *key)
 	challenge = PRIVSEP(auth_rsa_generate_challenge(key));
 
 	/* Encrypt the challenge with the public key. */
-	rsa_public_encrypt(encrypted_challenge, challenge, key->rsa);
+	if (rsa_public_encrypt(encrypted_challenge, challenge, key->rsa) != 0)
+		fatal("%s: rsa_public_encrypt failed", __func__);
 
 	/* Send the encrypted challenge to the client. */
 	packet_start(SSH_SMSG_AUTH_RSA_CHALLENGE);

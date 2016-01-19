@@ -1,4 +1,4 @@
-SSH(1)                     OpenBSD Reference Manual                     SSH(1)
+SSH(1)                      General Commands Manual                     SSH(1)
 
 NAME
      ssh - OpenSSH SSH client (remote login program)
@@ -17,8 +17,9 @@ DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
      executing commands on a remote machine.  It is intended to replace rlogin
      and rsh, and provide secure encrypted communications between two
-     untrusted hosts over an insecure network.  X11 connections and arbitrary
-     TCP ports can also be forwarded over the secure channel.
+     untrusted hosts over an insecure network.  X11 connections, arbitrary TCP
+     ports and UNIX-domain sockets can also be forwarded over the secure
+     channel.
 
      ssh connects and logs into the specified hostname (with optional user
      name).  The user must prove his/her identity to the remote machine using
@@ -58,28 +59,21 @@ DESCRIPTION
              address.
 
      -C      Requests compression of all data (including stdin, stdout,
-             stderr, and data for forwarded X11 and TCP connections).  The
-             compression algorithm is the same used by gzip(1), and the
-             ``level'' can be controlled by the CompressionLevel option for
-             protocol version 1.  Compression is desirable on modem lines and
-             other slow connections, but will only slow down things on fast
-             networks.  The default value can be set on a host-by-host basis
-             in the configuration files; see the Compression option.
+             stderr, and data for forwarded X11, TCP and UNIX-domain
+             connections).  The compression algorithm is the same used by
+             gzip(1), and the ``level'' can be controlled by the
+             CompressionLevel option for protocol version 1.  Compression is
+             desirable on modem lines and other slow connections, but will
+             only slow down things on fast networks.  The default value can be
+             set on a host-by-host basis in the configuration files; see the
+             Compression option.
 
      -c cipher_spec
              Selects the cipher specification for encrypting the session.
 
              Protocol version 1 allows specification of a single cipher.  The
-             supported values are ``3des'', ``blowfish'', and ``des''.  3des
-             (triple-des) is an encrypt-decrypt-encrypt triple with three
-             different keys.  It is believed to be secure.  blowfish is a fast
-             block cipher; it appears very secure and is much faster than
-             3des.  des is only supported in the ssh client for
-             interoperability with legacy protocol 1 implementations that do
-             not support the 3des cipher.  Its use is strongly discouraged due
-             to cryptographic weaknesses.  The default is ``3des''.
-
-             For protocol version 2, cipher_spec is a comma-separated list of
+             supported values are ``3des'', ``blowfish'', and ``des''.  For
+             protocol version 2, cipher_spec is a comma-separated list of
              ciphers listed in order of preference.  See the Ciphers keyword
              in ssh_config(5) for more information.
 
@@ -133,7 +127,9 @@ DESCRIPTION
              port forwards to be successfully established before placing
              itself in the background.
 
-     -g      Allows remote hosts to connect to local forwarded ports.
+     -g      Allows remote hosts to connect to local forwarded ports.  If used
+             on a multiplexed connection, then this option must be specified
+             on the master process.
 
      -I pkcs11
              Specify the PKCS#11 shared library ssh should use to communicate
@@ -286,6 +282,8 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
+                   StreamLocalBindMask
+                   StreamLocalBindUnlink
                    StrictHostKeyChecking
                    TCPKeepAlive
                    Tunnel
@@ -890,7 +888,7 @@ EXIT STATUS
 
 SEE ALSO
      scp(1), sftp(1), ssh-add(1), ssh-agent(1), ssh-keygen(1), ssh-keyscan(1),
-     tun(4), hosts.equiv(5), ssh_config(5), ssh-keysign(8), sshd(8)
+     tun(4), ssh_config(5), ssh-keysign(8), sshd(8)
 
 STANDARDS
      S. Lehtinen and C. Lonvick, The Secure Shell (SSH) Protocol Assigned
@@ -943,4 +941,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5
+OpenBSD 5.6                      July 24, 2014                     OpenBSD 5.6

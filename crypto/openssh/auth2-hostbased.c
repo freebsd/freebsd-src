@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.17 2013/12/30 23:52:27 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.18 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -36,6 +36,7 @@
 #include "packet.h"
 #include "buffer.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 #include "compat.h"
 #include "key.h"

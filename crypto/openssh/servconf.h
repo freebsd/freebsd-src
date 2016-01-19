@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.112 2014/01/29 06:18:35 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.114 2014/07/15 15:54:14 millert Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -83,6 +83,7 @@ typedef struct {
 	int     x11_use_localhost;	/* If true, use localhost for fake X11 server. */
 	char   *xauth_location;	/* Location of xauth program */
 	int	permit_tty;	/* If false, deny pty allocation */
+	int	permit_user_rc;	/* If false, deny ~/.ssh/rc execution */
 	int     strict_modes;	/* If true, require string home dir modes. */
 	int     tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
 	int	ip_qos_interactive;	/* IP ToS/DSCP/class for interactive */
@@ -91,7 +92,7 @@ typedef struct {
 	char   *macs;		/* Supported SSH2 macs. */
 	char   *kex_algorithms;	/* SSH2 kex methods in order of preference. */
 	int	protocol;	/* Supported protocol versions. */
-	int     gateway_ports;	/* If true, allow remote connects to forwarded ports. */
+	struct ForwardOptions fwd_opts;	/* forwarding options */
 	SyslogFacility log_facility;	/* Facility for system logging. */
 	LogLevel log_level;	/* Level for system logging. */
 	int     rhosts_rsa_authentication;	/* If true, permit rhosts RSA
@@ -123,6 +124,7 @@ typedef struct {
 	int     use_login;	/* If true, login(1) is used */
 	int     compression;	/* If true, compression is allowed */
 	int	allow_tcp_forwarding; /* One of FORWARD_* */
+	int	allow_streamlocal_forwarding; /* One of FORWARD_* */
 	int	allow_agent_forwarding;
 	u_int num_allow_users;
 	char   *allow_users[MAX_ALLOW_USERS];
