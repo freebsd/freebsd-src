@@ -34,6 +34,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include "xmalloc.h"

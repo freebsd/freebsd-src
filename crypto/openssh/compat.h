@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.h,v 1.46 2015/01/19 20:20:20 markus Exp $ */
+/* $OpenBSD: compat.h,v 1.48 2015/05/26 23:23:40 dtucker Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -61,6 +61,8 @@
 #define SSH_NEW_OPENSSH		0x04000000
 #define SSH_BUG_DYNAMIC_RPORT	0x08000000
 #define SSH_BUG_CURVE25519PAD	0x10000000
+#define SSH_BUG_HOSTKEYS	0x20000000
+#define SSH_BUG_DHGEX_LARGE	0x40000000
 
 void     enable_compat13(void);
 void     enable_compat20(void);

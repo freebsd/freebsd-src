@@ -233,7 +233,9 @@ LOGIN PROCESS
                 authentication protocol and cookie in standard input.  See
                 SSHRC, below.
 
-           9.   Runs user's shell or command.
+           9.   Runs user's shell or command.  All commands are run under the
+                user's login shell as specified in the system password
+                database.
 
 SSHRC
      If the file ~/.ssh/rc exists, sh(1) runs it after reading the environment
@@ -636,4 +638,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.7                    November 15, 2014                   OpenBSD 5.7
+OpenBSD 5.7                       May 1, 2015                      OpenBSD 5.7
