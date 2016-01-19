@@ -108,7 +108,6 @@ extern char *nextopt_optptr;	/* used by nextopt */
 
 void procargs(int, char **);
 void optschanged(void);
-void setparam(char **);
 void freeparam(struct shparam *);
 int nextopt(const char *);
 void getoptsreset(const char *);
