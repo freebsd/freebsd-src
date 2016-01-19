@@ -2844,7 +2844,7 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 			} while (va % sz != 0);
 		}
 		if (bootverbose)
-			printf("Wiring VA=%lx to PA=%jx (size=%lx), "
+			printf("Wiring VA=%x to PA=%jx (size=%x), "
 			    "using TLB1[%d]\n", va, (uintmax_t)pa, sz, tlb1_idx);
 		tlb1_set_entry(va, pa, sz, tlb_calc_wimg(pa, ma));
 		size -= sz;
