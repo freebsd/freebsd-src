@@ -28,6 +28,8 @@ PROGS+=		h_dns_server
 DPADD.h_nsd_recurse+=	${LIBPTHREAD}
 LDADD.h_nsd_recurse+=	-lpthread
 
+__MAKE_SHELL?=	/bin/sh
+
 CLEANFILES+=	aton_ether_subr.c
 aton_ether_subr.c: gen_ether_subr ${.CURDIR:H:H:H:H}/sys/net/if_ethersubr.c
 	${__MAKE_SHELL} ${.ALLSRC} ${.TARGET}
