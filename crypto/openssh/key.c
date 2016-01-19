@@ -1,15 +1,15 @@
-/* $OpenBSD: key.c,v 1.122 2014/07/22 01:18:50 dtucker Exp $ */
+/* $OpenBSD: key.c,v 1.127 2015/01/28 22:36:00 djm Exp $ */
 /*
  * placed in the public domain
  */
 
 #include "includes.h"
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <limits.h>
 
 #define SSH_KEY_NO_DEFINE
 #include "key.h"
@@ -36,24 +36,6 @@ key_new_private(int type)
 
 	if ((ret = sshkey_new_private(type)) == NULL)
 		fatal("%s: failed", __func__);
-	return ret;
-}
-
-u_char*
-key_fingerprint_raw(const Key *k, enum fp_type dgst_type,
-    u_int *dgst_raw_length)
-{
-	u_char *ret = NULL;
-	size_t dlen;
-	int r;
-
-	if (dgst_raw_length != NULL)
-		*dgst_raw_length = 0;
-	if ((r = sshkey_fingerprint_raw(k, dgst_type, &ret, &dlen)) != 0)
-		fatal("%s: %s", __func__, ssh_err(r));
-	if (dlen > INT_MAX)
-		fatal("%s: giant len %zu", __func__, dlen);
-	*dgst_raw_length = dlen;
 	return ret;
 }
 
@@ -329,7 +311,7 @@ key_load_file(int fd, const char *filename, struct sshbuf *blob)
 {
 	int r;
 
-	if ((r = sshkey_load_file(fd, filename, blob)) != 0) {
+	if ((r = sshkey_load_file(fd, blob)) != 0) {
 		fatal_on_fatal_errors(r, __func__, SSH_ERR_LIBCRYPTO_ERROR);
 		error("%s: %s", __func__, ssh_err(r));
 		return 0;
@@ -436,44 +418,9 @@ key_load_private_type(int type, const char *filename, const char *passphrase,
 	return ret;
 }
 
-#ifdef WITH_OPENSSL
-Key *
-key_load_private_pem(int fd, int type, const char *passphrase,
-    char **commentp)
-{
-	int r;
-	Key *ret = NULL;
-
-	if ((r = sshkey_load_private_pem(fd, type, passphrase,
-	     &ret, commentp)) != 0) {
-		fatal_on_fatal_errors(r, __func__, SSH_ERR_LIBCRYPTO_ERROR);
-		if (r == SSH_ERR_KEY_WRONG_PASSPHRASE)
-			debug("%s: %s", __func__, ssh_err(r));
-		else
-			error("%s: %s", __func__, ssh_err(r));
-		return NULL;
-	}
-	return ret;
-}
-#endif /* WITH_OPENSSL */
-
 int
 key_perm_ok(int fd, const char *filename)
 {
 	return sshkey_perm_ok(fd, filename) == 0 ? 1 : 0;
 }
 
-int
-key_in_file(Key *key, const char *filename, int strict_type)
-{
-	int r;
-
-	if ((r = sshkey_in_file(key, filename, strict_type)) != 0) {
-		fatal_on_fatal_errors(r, __func__, SSH_ERR_LIBCRYPTO_ERROR);
-		if (r == SSH_ERR_SYSTEM_ERROR && errno == ENOENT)
-			return 0;
-		error("%s: %s", __func__, ssh_err(r));
-		return r == SSH_ERR_KEY_NOT_FOUND ? 0 : -1;
-	}
-	return 1;
-}

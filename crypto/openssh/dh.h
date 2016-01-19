@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.h,v 1.11 2013/10/08 11:42:13 dtucker Exp $ */
+/* $OpenBSD: dh.h,v 1.12 2015/01/19 20:16:15 markus Exp $ */
 
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
@@ -38,10 +38,10 @@ DH	*dh_new_group(BIGNUM *, BIGNUM *);
 DH	*dh_new_group1(void);
 DH	*dh_new_group14(void);
 
-void	 dh_gen_key(DH *, int);
+int	 dh_gen_key(DH *, int);
 int	 dh_pub_is_valid(DH *, BIGNUM *);
 
-int	 dh_estimate(int);
+u_int	 dh_estimate(int);
 
 /* Min and max values from RFC4419. */
 #define DH_GRP_MIN	1024

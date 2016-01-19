@@ -1,4 +1,4 @@
-/* 	$OpenBSD: common.c,v 1.1 2014/06/24 01:14:18 djm Exp $ */
+/* 	$OpenBSD: common.c,v 1.2 2015/01/08 13:10:58 djm Exp $ */
 /*
  * Helpers for key API tests
  *
@@ -44,7 +44,7 @@ load_file(const char *name)
 
 	ASSERT_PTR_NE(ret = sshbuf_new(), NULL);
 	ASSERT_INT_NE(fd = open(test_data_file(name), O_RDONLY), -1);
-	ASSERT_INT_EQ(sshkey_load_file(fd, name, ret), 0);
+	ASSERT_INT_EQ(sshkey_load_file(fd, ret), 0);
 	close(fd);
 	return ret;
 }
