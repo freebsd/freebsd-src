@@ -222,8 +222,8 @@ mlx5e_media_status(struct ifnet *dev, struct ifmediareq *ifmr)
 
 	ifmr->ifm_status = priv->media_status_last;
 	ifmr->ifm_active = priv->media_active_last |
-	    (priv->params_ethtool.rx_pauseframe_control ? IFM_ETH_RXPAUSE : 0) |
-	    (priv->params_ethtool.tx_pauseframe_control ? IFM_ETH_TXPAUSE : 0);
+	    (priv->params.rx_pauseframe_control ? IFM_ETH_RXPAUSE : 0) |
+	    (priv->params.tx_pauseframe_control ? IFM_ETH_TXPAUSE : 0);
 
 }
 
@@ -250,6 +250,7 @@ mlx5e_media_change(struct ifnet *dev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 eth_proto_cap;
 	u32 link_mode;
+	int was_opened;
 	int locked;
 	int error;
 
@@ -263,24 +264,45 @@ mlx5e_media_change(struct ifnet *dev)
 	}
 	link_mode = mlx5e_find_link_mode(IFM_SUBTYPE(priv->media.ifm_media));
 
+	/* query supported capabilities */
 	error = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
-	if (error) {
+	if (error != 0) {
 		if_printf(dev, "Query port media capability failed\n");
 		goto done;
 	}
-	if (IFM_SUBTYPE(priv->media.ifm_media) == IFM_AUTO)
+	/* check for autoselect */
+	if (IFM_SUBTYPE(priv->media.ifm_media) == IFM_AUTO) {
 		link_mode = eth_proto_cap;
-	else
+		if (link_mode == 0) {
+			if_printf(dev, "Port media capability is zero\n");
+			error = EINVAL;
+			goto done;
+		}
+	} else {
 		link_mode = link_mode & eth_proto_cap;
-
-	if (!link_mode) {
-		if_printf(dev, "Not supported link mode requested\n");
-		error = EINVAL;
-		goto done;
+		if (link_mode == 0) {
+			if_printf(dev, "Not supported link mode requested\n");
+			error = EINVAL;
+			goto done;
+		}
 	}
+	/* update pauseframe control bits */
+	priv->params.rx_pauseframe_control =
+	    (priv->media.ifm_media & IFM_ETH_RXPAUSE) ? 1 : 0;
+	priv->params.tx_pauseframe_control =
+	    (priv->media.ifm_media & IFM_ETH_TXPAUSE) ? 1 : 0;
+
+	/* check if device is opened */
+	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	/* reconfigure the hardware */
 	mlx5_set_port_status(mdev, MLX5_PORT_DOWN);
 	mlx5_set_port_proto(mdev, link_mode, MLX5_PTYS_EN);
-	mlx5_set_port_status(mdev, MLX5_PORT_UP);
+	mlx5_set_port_pause(mdev, 1,
+	    priv->params.rx_pauseframe_control,
+	    priv->params.tx_pauseframe_control);
+	if (was_opened)
+		mlx5_set_port_status(mdev, MLX5_PORT_UP);
 
 done:
 	if (!locked)
@@ -2749,6 +2771,56 @@ mlx5e_add_hw_stats(struct mlx5e_priv *priv)
 	    "Board ID");
 }
 
+static void
+mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
+{
+#if (__FreeBSD_version < 1100000)
+	char path[64];
+
+#endif
+	/* Only receiving pauseframes is enabled by default */
+	priv->params.tx_pauseframe_control = 0;
+	priv->params.rx_pauseframe_control = 1;
+
+#if (__FreeBSD_version < 1100000)
+	/* compute path for sysctl */
+	snprintf(path, sizeof(path), "dev.mce.%d.tx_pauseframe_control",
+	    device_get_unit(priv->mdev->pdev->dev.bsddev));
+
+	/* try to fetch tunable, if any */
+	TUNABLE_INT_FETCH(path, &priv->params.tx_pauseframe_control);
+
+	/* compute path for sysctl */
+	snprintf(path, sizeof(path), "dev.mce.%d.rx_pauseframe_control",
+	    device_get_unit(priv->mdev->pdev->dev.bsddev));
+
+	/* try to fetch tunable, if any */
+	TUNABLE_INT_FETCH(path, &priv->params.rx_pauseframe_control);
+#endif
+
+	/* register pausframe SYSCTLs */
+	SYSCTL_ADD_INT(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+	    OID_AUTO, "tx_pauseframe_control", CTLFLAG_RDTUN,
+	    &priv->params.tx_pauseframe_control, 0,
+	    "Set to enable TX pause frames. Clear to disable.");
+
+	SYSCTL_ADD_INT(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
+	    OID_AUTO, "rx_pauseframe_control", CTLFLAG_RDTUN,
+	    &priv->params.rx_pauseframe_control, 0,
+	    "Set to enable RX pause frames. Clear to disable.");
+
+	/* range check */
+	priv->params.tx_pauseframe_control =
+	    priv->params.tx_pauseframe_control ? 1 : 0;
+	priv->params.rx_pauseframe_control =
+	    priv->params.rx_pauseframe_control ? 1 : 0;
+
+	/* update firmware */
+	mlx5_set_port_pause(priv->mdev, 1,
+	    priv->params.rx_pauseframe_control,
+	    priv->params.tx_pauseframe_control);
+}
+
 static void *
 mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 {
@@ -2874,11 +2946,11 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	/* Set default media status */
 	priv->media_status_last = IFM_AVALID;
-	priv->media_active_last = IFM_ETHER | IFM_AUTO;
+	priv->media_active_last = IFM_ETHER | IFM_AUTO |
+	    IFM_ETH_RXPAUSE | IFM_FDX;
 
-	/* Pauseframes are enabled by default */
-	priv->params_ethtool.tx_pauseframe_control = 1;
-	priv->params_ethtool.rx_pauseframe_control = 1;
+	/* setup default pauseframes configuration */
+	mlx5e_setup_pauseframes(priv);
 
 	err = mlx5_query_port_proto_cap(mdev, &eth_proto_cap, MLX5_PTYS_EN);
 	if (err) {
@@ -2894,14 +2966,24 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
 		if (mlx5e_mode_table[i].baudrate == 0)
 			continue;
-		if (MLX5E_PROT_MASK(i) & eth_proto_cap)
+		if (MLX5E_PROT_MASK(i) & eth_proto_cap) {
 			ifmedia_add(&priv->media,
-			    IFM_ETHER | mlx5e_mode_table[i].subtype |
-			    IFM_FDX, 0, NULL);
+			    mlx5e_mode_table[i].subtype |
+			    IFM_ETHER, 0, NULL);
+			ifmedia_add(&priv->media,
+			    mlx5e_mode_table[i].subtype |
+			    IFM_ETHER | IFM_FDX |
+			    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+		}
 	}
 
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO);
+	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+
+	/* Set autoselect by default */
+	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE);
 	ether_ifattach(ifp, dev_addr);
 
 	/* Register for VLAN events */
