@@ -217,14 +217,14 @@ xdr_rpcb_entry_list_ptr(xdrs, rp)
 		 * the case of freeing we must remember the next object
 		 * before we free the current object ...
 		 */
-		if (freeing)
+		if (freeing && *rp)
 			next = (*rp)->rpcb_entry_next;
 		if (! xdr_reference(xdrs, (caddr_t *)rp,
 		    (u_int)sizeof (rpcb_entry_list),
 				    (xdrproc_t)xdr_rpcb_entry)) {
 			return (FALSE);
 		}
-		if (freeing && *rp) {
+		if (freeing) {
 			next_copy = next;
 			rp = &next_copy;
 			/*
