@@ -495,6 +495,18 @@ pci_msix_count(device_t dev)
     return (PCI_MSIX_COUNT(device_get_parent(dev), dev));
 }
 
+static __inline int
+pci_msix_pba_bar(device_t dev)
+{
+    return (PCI_MSIX_PBA_BAR(device_get_parent(dev), dev));
+}
+
+static __inline int
+pci_msix_table_bar(device_t dev)
+{
+    return (PCI_MSIX_TABLE_BAR(device_get_parent(dev), dev));
+}
+
 static __inline uint16_t
 pci_get_rid(device_t dev)
 {

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2015
+.Dd December 23, 2015
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -49,6 +49,8 @@
 .Nm pci_get_vpd_readonly ,
 .Nm pci_msi_count ,
 .Nm pci_msix_count ,
+.Nm pci_msix_pba_bar ,
+.Nm pci_msix_table_bar ,
 .Nm pci_pending_msix ,
 .Nm pci_read_config ,
 .Nm pci_release_msi ,
@@ -104,6 +106,10 @@
 .Fn pci_msi_count "device_t dev"
 .Ft int
 .Fn pci_msix_count "device_t dev"
+.Ft int
+.Fn pci_msix_pba_bar "device_t dev"
+.Ft int
+.Fn pci_msix_table_bar "device_t dev"
 .Ft int
 .Fn pci_pending_msix "device_t dev" "u_int index"
 .Ft uint32_t
@@ -618,6 +624,37 @@ then
 returns zero.
 .Pp
 The
+.Fn pci_msix_pba_bar
+function returns the offset in configuration space of the Base Address Register
+.Pq BAR
+containing the MSI-X Pending Bit Array (PBA) for device
+.Fa dev .
+The returned value can be used as the resource ID with
+.Xr bus_alloc_resource 9
+and
+.Xr bus_release_resource 9
+to allocate the BAR.
+If the device does not support MSI-X,
+then
+.Fn pci_msix_pba_bar
+returns -1.
+.Pp
+The
+.Fn pci_msix_table_bar
+function returns the offset in configuration space of the BAR
+containing the MSI-X vector table for device
+.Fa dev .
+The returned value can be used as the resource ID with
+.Xr bus_alloc_resource 9
+and
+.Xr bus_release_resource 9
+to allocate the BAR.
+If the device does not support MSI-X,
+then
+.Fn pci_msix_table_bar
+returns -1.
+.Pp
+The
 .Fn pci_alloc_msix
 function attempts to allocate
 .Fa *count
@@ -656,12 +693,21 @@ it returns an error.
 Unlike MSI,
 MSI-X does not require message counts that are powers of two.
 .Pp
+The BARs containing the MSI-X vector table and PBA must be
+allocated via
+.Xr bus_alloc_resource 9
+before calling
+.Fn pci_alloc_msix
+and must not be released until after calling
+.Fn pci_release_msi .
+Note that the vector table and PBA may be stored in the same BAR or in
+different BARs.
+.Pp
 The
 .Fn pci_pending_msix
 function examines the
 .Fa dev
-device's Pending Bit Array
-.Pq PBA
+device's PBA
 to determine the pending status of the MSI-X message at table index
 .Fa index .
 If the indicated message is pending,
@@ -776,3 +822,6 @@ These do not refer to the geographic location of PCI devices,
 but to the device number assigned by the combination of the PCI IDSEL
 mechanism and the platform firmware.
 This should be taken note of when working with the kernel PCI code.
+.Pp
+The PCI bus driver should allocate the MSI-X vector table and PBA internally
+as necessary rather than requiring the caller to do so.

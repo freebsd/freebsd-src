@@ -100,6 +100,8 @@ int		pci_remap_msix_method(device_t dev, device_t child,
 int		pci_release_msi_method(device_t dev, device_t child);
 int		pci_msi_count_method(device_t dev, device_t child);
 int		pci_msix_count_method(device_t dev, device_t child);
+int		pci_msix_pba_bar_method(device_t dev, device_t child);
+int		pci_msix_table_bar_method(device_t dev, device_t child);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
 		    int type, int *rid, u_long start, u_long end, u_long count,
 		    u_int flags);
