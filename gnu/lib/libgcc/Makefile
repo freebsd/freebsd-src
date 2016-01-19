@@ -206,7 +206,6 @@ CC_P =	${CC} -c ${CFLAGS} ${HIDE} -p -fPIC
 CC_S =	${CC} -c ${CFLAGS} ${PICFLAG} -DSHARED
 CXX_T =	${CXX} -c ${CXXFLAGS} ${HIDE} -fPIC
 CXX_P =	${CXX} -c ${CXXFLAGS} ${HIDE} -p -fPIC
-CXX_S =	${CXX} -c ${CXXFLAGS} ${PICFLAG} -DSHARED
 
 #-----------------------------------------------------------------------
 #
@@ -336,10 +335,6 @@ ${_src:R:S/$/.po/}: ${_src} ${COMMONHDRS}
 .for _src in ${LIB2ADDEHSHARED:M*.c}
 ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 	${CC_S} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
-.endfor
-.for _src in ${LIB2ADDEHSHARED:M*.cpp}
-${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
-	${CXX_S} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 
 
