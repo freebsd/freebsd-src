@@ -68,7 +68,7 @@ cygwin_ssh_privsep_user()
       if (cygwin_internal (CW_CYGNAME_FROM_WINNAME, "sshd", cyg_privsep_user,
 			   sizeof cyg_privsep_user) != 0)
 #endif
-	strcpy (cyg_privsep_user, "sshd");
+	strlcpy(cyg_privsep_user, "sshd", sizeof(cyg_privsep_user));
     }
   return cyg_privsep_user;
 }

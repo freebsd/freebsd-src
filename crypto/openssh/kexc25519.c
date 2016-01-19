@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519.c,v 1.8 2015/01/19 20:16:15 markus Exp $ */
+/* $OpenBSD: kexc25519.c,v 1.9 2015/03/26 07:00:04 djm Exp $ */
 /*
  * Copyright (c) 2001, 2013 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -65,6 +65,11 @@ kexc25519_shared_key(const u_char key[CURVE25519_SIZE],
 {
 	u_char shared_key[CURVE25519_SIZE];
 	int r;
+
+	/* Check for all-zero public key */
+	explicit_bzero(shared_key, CURVE25519_SIZE);
+	if (timingsafe_bcmp(pub, shared_key, CURVE25519_SIZE) == 0)
+		return SSH_ERR_KEY_INVALID_EC_VALUE;
 
 	crypto_scalarmult_curve25519(shared_key, key, pub);
 #ifdef DEBUG_KEXECDH

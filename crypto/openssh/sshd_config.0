@@ -20,14 +20,16 @@ DESCRIPTION
              Specifies what environment variables sent by the client will be
              copied into the session's environ(7).  See SendEnv in
              ssh_config(5) for how to configure the client.  Note that
-             environment passing is only supported for protocol 2.  Variables
-             are specified by name, which may contain the wildcard characters
-             M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y.  Multiple environment variables may be separated by
-             whitespace or spread across multiple AcceptEnv directives.  Be
-             warned that some environment variables could be used to bypass
-             restricted user environments.  For this reason, care should be
-             taken in the use of this directive.  The default is not to accept
-             any environment variables.
+             environment passing is only supported for protocol 2, and that
+             the TERM environment variable is always sent whenever the client
+             requests a pseudo-terminal as it is required by the protocol.
+             Variables are specified by name, which may contain the wildcard
+             characters M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y.  Multiple environment variables may be
+             separated by whitespace or spread across multiple AcceptEnv
+             directives.  Be warned that some environment variables could be
+             used to bypass restricted user environments.  For this reason,
+             care should be taken in the use of this directive.  The default
+             is not to accept any environment variables.
 
      AddressFamily
              Specifies which address family should be used by sshd(8).  Valid
@@ -122,15 +124,25 @@ DESCRIPTION
 
      AuthorizedKeysCommand
              Specifies a program to be used to look up the user's public keys.
-             The program must be owned by root and not writable by group or
-             others.  It will be invoked with a single argument of the
-             username being authenticated, and should produce on standard
-             output zero or more lines of authorized_keys output (see
-             AUTHORIZED_KEYS in sshd(8)).  If a key supplied by
-             AuthorizedKeysCommand does not successfully authenticate and
-             authorize the user then public key authentication continues using
-             the usual AuthorizedKeysFile files.  By default, no
-             AuthorizedKeysCommand is run.
+             The program must be owned by root, not writable by group or
+             others and specified by an absolute path.
+
+             Arguments to AuthorizedKeysCommand may be provided using the
+             following tokens, which will be expanded at runtime: %% is
+             replaced by a literal '%', %u is replaced by the username being
+             authenticated, %h is replaced by the home directory of the user
+             being authenticated, %t is replaced with the key type offered for
+             authentication, %f is replaced with the fingerprint of the key,
+             and %k is replaced with the key being offered for authentication.
+             If no arguments are specified then the username of the target
+             user will be supplied.
+
+             The program should produce on standard output zero or more lines
+             of authorized_keys output (see AUTHORIZED_KEYS in sshd(8)).  If a
+             key supplied by AuthorizedKeysCommand does not successfully
+             authenticate and authorize the user then public key
+             authentication continues using the usual AuthorizedKeysFile
+             files.  By default, no AuthorizedKeysCommand is run.
 
      AuthorizedKeysCommandUser
              Specifies the user under whose account the AuthorizedKeysCommand
@@ -152,6 +164,33 @@ DESCRIPTION
              relative to the user's home directory.  Multiple files may be
              listed, separated by whitespace.  The default is
              M-bM-^@M-^\.ssh/authorized_keys .ssh/authorized_keys2M-bM-^@M-^].
+
+     AuthorizedPrincipalsCommand
+             Specifies a program to be used to generate the list of allowed
+             certificate principals as per AuthorizedPrincipalsFile.  The
+             program must be owned by root, not writable by group or others
+             and specified by an absolute path.
+
+             Arguments to AuthorizedPrincipalsCommand may be provided using
+             the following tokens, which will be expanded at runtime: %% is
+             replaced by a literal '%', %u is replaced by the username being
+             authenticated and %h is replaced by the home directory of the
+             user being authenticated.
+
+             The program should produce on standard output zero or more lines
+             of AuthorizedPrincipalsFile output.  If either
+             AuthorizedPrincipalsCommand or AuthorizedPrincipalsFile is
+             specified, then certificates offered by the client for
+             authentication must contain a principal that is listed.  By
+             default, no AuthorizedPrincipalsCommand is run.
+
+     AuthorizedPrincipalsCommandUser
+             Specifies the user under whose account the
+             AuthorizedPrincipalsCommand is run.  It is recommended to use a
+             dedicated user that has no other role on the host than running
+             authorized principals commands.  If AuthorizedPrincipalsCommand
+             is specified but AuthorizedPrincipalsCommandUser is not, then
+             sshd(8) will refuse to start.
 
      AuthorizedPrincipalsFile
              Specifies a file that lists principal names that are accepted for
@@ -344,6 +383,15 @@ DESCRIPTION
              cache on logout.  The default is M-bM-^@M-^\yesM-bM-^@M-^].  Note that this option
              applies to protocol version 2 only.
 
+     GSSAPIStrictAcceptorCheck
+             Determines whether to be strict about the identity of the GSSAPI
+             acceptor a client authenticates against.  If set to M-bM-^@M-^\yesM-bM-^@M-^] then
+             the client must authenticate against the host service on the
+             current hostname.  If set to M-bM-^@M-^\noM-bM-^@M-^] then the client may
+             authenticate against any service key stored in the machine's
+             default store.  This facility is provided to assist with
+             operation on multi homed machines.  The default is M-bM-^@M-^\yesM-bM-^@M-^].
+
      HostbasedAcceptedKeyTypes
              Specifies the key types that will be accepted for hostbased
              authentication as a comma-separated pattern list.  The default
@@ -484,10 +532,8 @@ DESCRIPTION
                    ListenAddress [host|IPv6_addr]:port
 
              If port is not specified, sshd will listen on the address and all
-             prior Port options specified.  The default is to listen on all
-             local addresses.  Multiple ListenAddress options are permitted.
-             Additionally, any Port options must precede this option for non-
-             port qualified addresses.
+             Port options specified.  The default is to listen on all local
+             addresses.  Multiple ListenAddress options are permitted.
 
      LoginGraceTime
              The server disconnects after this time if the user has not
@@ -628,7 +674,7 @@ DESCRIPTION
      PermitRootLogin
              Specifies whether root can log in using ssh(1).  The argument
              must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\without-passwordM-bM-^@M-^], M-bM-^@M-^\forced-commands-onlyM-bM-^@M-^], or
-             M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\yesM-bM-^@M-^].
+             M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\noM-bM-^@M-^].
 
              If this option is set to M-bM-^@M-^\without-passwordM-bM-^@M-^], password
              authentication is disabled for root.
@@ -667,7 +713,8 @@ DESCRIPTION
 
      PidFile
              Specifies the file that contains the process ID of the SSH
-             daemon.  The default is /var/run/sshd.pid.
+             daemon, or M-bM-^@M-^\noneM-bM-^@M-^] to not write one.  The default is
+             /var/run/sshd.pid.
 
      Port    Specifies the port number that sshd(8) listens on.  The default
              is 22.  Multiple options of this type are permitted.  See also
@@ -718,13 +765,14 @@ DESCRIPTION
              applies to protocol version 2 only.
 
      RevokedKeys
-             Specifies revoked public keys.  Keys listed in this file will be
-             refused for public key authentication.  Note that if this file is
-             not readable, then public key authentication will be refused for
-             all users.  Keys may be specified as a text file, listing one
-             public key per line, or as an OpenSSH Key Revocation List (KRL)
-             as generated by ssh-keygen(1).  For more information on KRLs, see
-             the KEY REVOCATION LISTS section in ssh-keygen(1).
+             Specifies revoked public keys file, or M-bM-^@M-^\noneM-bM-^@M-^] to not use one.
+             Keys listed in this file will be refused for public key
+             authentication.  Note that if this file is not readable, then
+             public key authentication will be refused for all users.  Keys
+             may be specified as a text file, listing one public key per line,
+             or as an OpenSSH Key Revocation List (KRL) as generated by
+             ssh-keygen(1).  For more information on KRLs, see the KEY
+             REVOCATION LISTS section in ssh-keygen(1).
 
      RhostsRSAAuthentication
              Specifies whether rhosts or /etc/hosts.equiv authentication
@@ -810,14 +858,15 @@ DESCRIPTION
      TrustedUserCAKeys
              Specifies a file containing public keys of certificate
              authorities that are trusted to sign user certificates for
-             authentication.  Keys are listed one per line; empty lines and
-             comments starting with M-bM-^@M-^X#M-bM-^@M-^Y are allowed.  If a certificate is
-             presented for authentication and has its signing CA key listed in
-             this file, then it may be used for authentication for any user
-             listed in the certificate's principals list.  Note that
-             certificates that lack a list of principals will not be permitted
-             for authentication using TrustedUserCAKeys.  For more details on
-             certificates, see the CERTIFICATES section in ssh-keygen(1).
+             authentication, or M-bM-^@M-^\noneM-bM-^@M-^] to not use one.  Keys are listed one
+             per line; empty lines and comments starting with M-bM-^@M-^X#M-bM-^@M-^Y are allowed.
+             If a certificate is presented for authentication and has its
+             signing CA key listed in this file, then it may be used for
+             authentication for any user listed in the certificate's
+             principals list.  Note that certificates that lack a list of
+             principals will not be permitted for authentication using
+             TrustedUserCAKeys.  For more details on certificates, see the
+             CERTIFICATES section in ssh-keygen(1).
 
      UseDNS  Specifies whether sshd(8) should look up the remote host name and
              check that the resolved host name for the remote IP address maps
@@ -901,8 +950,8 @@ DESCRIPTION
              default is M-bM-^@M-^\yesM-bM-^@M-^].
 
      XAuthLocation
-             Specifies the full pathname of the xauth(1) program.  The default
-             is /usr/X11R6/bin/xauth.
+             Specifies the full pathname of the xauth(1) program, or M-bM-^@M-^\noneM-bM-^@M-^] to
+             not use one.  The default is /usr/X11R6/bin/xauth.
 
 TIME FORMATS
      sshd(8) command-line arguments and configuration file options that
@@ -943,4 +992,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.7                    February 20, 2015                   OpenBSD 5.7
+OpenBSD 5.7                      June 5, 2015                      OpenBSD 5.7

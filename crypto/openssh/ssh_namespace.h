@@ -1,6 +1,6 @@
 /*
  * Namespace munging inspired by an equivalent hack in NetBSD's tree: add
- * the "ssh_" prefix to every symbol in libssh which doesn't already have
+ * the "Fssh_" prefix to every symbol in libssh which doesn't already have
  * it.  This prevents collisions between symbols in libssh and symbols in
  * other libraries or applications which link with libssh, either directly
  * or indirectly (e.g. through PAM loading pam_ssh).
@@ -205,6 +205,7 @@
 #define channel_send_window_changes		Fssh_channel_send_window_changes
 #define channel_set_af				Fssh_channel_set_af
 #define channel_set_fds				Fssh_channel_set_fds
+#define channel_set_x11_refuse_time		Fssh_channel_set_x11_refuse_time
 #define channel_setup_fwd_listener_streamlocal	Fssh_channel_setup_fwd_listener_streamlocal
 #define channel_setup_fwd_listener_tcpip	Fssh_channel_setup_fwd_listener_tcpip
 #define channel_setup_local_fwd_listener	Fssh_channel_setup_local_fwd_listener
@@ -314,6 +315,7 @@
 #define dh_new_group1				Fssh_dh_new_group1
 #define dh_new_group14				Fssh_dh_new_group14
 #define dh_new_group_asc			Fssh_dh_new_group_asc
+#define dh_new_group_fallback			Fssh_dh_new_group_fallback
 #define dh_pub_is_valid				Fssh_dh_pub_is_valid
 #define dispatch_protocol_error			Fssh_dispatch_protocol_error
 #define dispatch_protocol_ignore		Fssh_dispatch_protocol_ignore
@@ -846,6 +848,7 @@
 #define sshkey_size				Fssh_sshkey_size
 #define sshkey_ssh_name				Fssh_sshkey_ssh_name
 #define sshkey_ssh_name_plain			Fssh_sshkey_ssh_name_plain
+#define sshkey_to_base64			Fssh_sshkey_to_base64
 #define sshkey_to_blob				Fssh_sshkey_to_blob
 #define sshkey_to_certified			Fssh_sshkey_to_certified
 #define sshkey_try_load_public			Fssh_sshkey_try_load_public
@@ -928,4 +931,5 @@
 #define xmalloc					Fssh_xmalloc
 #define xmmap					Fssh_xmmap
 #define xrealloc				Fssh_xrealloc
+#define xreallocarray				Fssh_xreallocarray
 #define xstrdup					Fssh_xstrdup

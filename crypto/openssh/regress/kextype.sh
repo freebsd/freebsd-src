@@ -1,4 +1,4 @@
-#	$OpenBSD: kextype.sh,v 1.5 2014/04/21 22:15:37 djm Exp $
+#	$OpenBSD: kextype.sh,v 1.6 2015/03/24 20:19:15 markus Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key exchange algorithms"
@@ -8,7 +8,7 @@ cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 cp $OBJ/ssh_proxy $OBJ/ssh_proxy_bak
 
 # Make server accept all key exchanges.
-ALLKEX=`ssh -Q kex`
+ALLKEX=`${SSH} -Q kex`
 KEXOPT=`echo $ALLKEX | tr ' ' ,`
 echo "KexAlgorithms=$KEXOPT" >> $OBJ/sshd_proxy
 

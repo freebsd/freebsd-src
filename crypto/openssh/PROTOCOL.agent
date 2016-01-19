@@ -413,7 +413,7 @@ It may be requested using this message:
 
 "rsa_e" and "rsa_n" are used to identify which private key to use.
 "encrypted_challenge" is a challenge blob that has (presumably)
-been encrypted with the public key and must be in the range 
+been encrypted with the public key and must be in the range
 1 <= encrypted_challenge < 2^256. "session_id" is the SSH protocol 1
 session ID (computed from the server host key, the server semi-ephemeral
 key and the session cookie).
@@ -557,4 +557,4 @@ Locking and unlocking affects both protocol 1 and protocol 2 keys.
 	SSH_AGENT_CONSTRAIN_LIFETIME			1
 	SSH_AGENT_CONSTRAIN_CONFIRM			2
 
-$OpenBSD: PROTOCOL.agent,v 1.7 2013/01/02 00:33:49 djm Exp $
+$OpenBSD: PROTOCOL.agent,v 1.8 2015/05/08 03:56:51 djm Exp $

@@ -175,7 +175,7 @@ whitelisted to receive this message upon request.
 
 OpenSSH supports layer 2 and layer 3 tunnelling via the "tun@openssh.com"
 channel type. This channel type supports forwarding of network packets
-with datagram boundaries intact between endpoints equipped with 
+with datagram boundaries intact between endpoints equipped with
 interfaces like the BSD tun(4) device. Tunnel forwarding channels are
 requested by the client with the following packet:
 
@@ -453,4 +453,4 @@ respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-$OpenBSD: PROTOCOL,v 1.27 2015/02/20 22:17:21 djm Exp $
+$OpenBSD: PROTOCOL,v 1.28 2015/05/08 03:56:51 djm Exp $

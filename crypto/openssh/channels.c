@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.341 2015/02/06 23:21:59 millert Exp $ */
+/* $OpenBSD: channels.c,v 1.347 2015/07/01 02:26:31 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -162,6 +162,9 @@ static char *x11_saved_proto = NULL;
 static char *x11_saved_data = NULL;
 static u_int x11_saved_data_len = 0;
 
+/* Deadline after which all X11 connections are refused */
+static u_int x11_refuse_time;
+
 /*
  * Fake X11 authentication data.  This is what the server will be sending us;
  * we should replace any occurrences of this by the real data.
@@ -307,7 +310,7 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 		if (channels_alloc > 10000)
 			fatal("channel_new: internal error: channels_alloc %d "
 			    "too big.", channels_alloc);
-		channels = xrealloc(channels, channels_alloc + 10,
+		channels = xreallocarray(channels, channels_alloc + 10,
 		    sizeof(Channel *));
 		channels_alloc += 10;
 		debug2("channel: expanding %d", channels_alloc);
@@ -913,6 +916,13 @@ x11_open_helper(Buffer *b)
 	u_char *ucp;
 	u_int proto_len, data_len;
 
+	/* Is this being called after the refusal deadline? */
+	if (x11_refuse_time != 0 && (u_int)monotime() >= x11_refuse_time) {
+		verbose("Rejected X11 connection after ForwardX11Timeout "
+		    "expired");
+		return -1;
+	}
+
 	/* Check if the fixed size part of the packet is in buffer. */
 	if (buffer_len(b) < 12)
 		return 0;
@@ -1482,6 +1492,12 @@ channel_set_reuseaddr(int fd)
 	 */
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
 		error("setsockopt SO_REUSEADDR fd %d: %s", fd, strerror(errno));
+}
+
+void
+channel_set_x11_refuse_time(u_int refuse_time)
+{
+	x11_refuse_time = refuse_time;
 }
 
 /*
@@ -2193,8 +2209,8 @@ channel_prepare_select(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 
 	/* perhaps check sz < nalloc/2 and shrink? */
 	if (*readsetp == NULL || sz > *nallocp) {
-		*readsetp = xrealloc(*readsetp, nfdset, sizeof(fd_mask));
-		*writesetp = xrealloc(*writesetp, nfdset, sizeof(fd_mask));
+		*readsetp = xreallocarray(*readsetp, nfdset, sizeof(fd_mask));
+		*writesetp = xreallocarray(*writesetp, nfdset, sizeof(fd_mask));
 		*nallocp = sz;
 	}
 	*maxfdp = n;
@@ -2271,7 +2287,7 @@ channel_output_poll(void)
 					packet_put_int(c->remote_id);
 					packet_put_string(data, dlen);
 					packet_send();
-					c->remote_window -= dlen + 4;
+					c->remote_window -= dlen;
 					free(data);
 				}
 				continue;
@@ -2642,7 +2658,7 @@ channel_input_window_adjust(int type, u_int32_t seq, void *ctxt)
 {
 	Channel *c;
 	int id;
-	u_int adjust;
+	u_int adjust, tmp;
 
 	if (!compat20)
 		return 0;
@@ -2658,7 +2674,10 @@ channel_input_window_adjust(int type, u_int32_t seq, void *ctxt)
 	adjust = packet_get_int();
 	packet_check_eom();
 	debug2("channel %d: rcvd adjust %u", id, adjust);
-	c->remote_window += adjust;
+	if ((tmp = c->remote_window + adjust) < c->remote_window)
+		fatal("channel %d: adjust %u overflows remote window %u",
+		    id, adjust, c->remote_window);
+	c->remote_window = tmp;
 	return 0;
 }
 
@@ -2806,17 +2825,21 @@ channel_setup_fwd_listener_tcpip(int type, struct Forward *fwd,
 	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 	in_port_t *lport_p;
 
-	host = (type == SSH_CHANNEL_RPORT_LISTENER) ?
-	    fwd->listen_host : fwd->connect_host;
 	is_client = (type == SSH_CHANNEL_PORT_LISTENER);
 
-	if (host == NULL) {
-		error("No forward host name.");
-		return 0;
-	}
-	if (strlen(host) >= NI_MAXHOST) {
-		error("Forward host name too long.");
-		return 0;
+	if (is_client && fwd->connect_path != NULL) {
+		host = fwd->connect_path;
+	} else {
+		host = (type == SSH_CHANNEL_RPORT_LISTENER) ?
+		    fwd->listen_host : fwd->connect_host;
+		if (host == NULL) {
+			error("No forward host name.");
+			return 0;
+		}
+		if (strlen(host) >= NI_MAXHOST) {
+			error("Forward host name too long.");
+			return 0;
+		}
 	}
 
 	/* Determine the bind address, cf. channel_fwd_bind_addr() comment */
@@ -3238,7 +3261,7 @@ channel_request_remote_forwarding(struct Forward *fwd)
 	}
 	if (success) {
 		/* Record that connection to this host/port is permitted. */
-		permitted_opens = xrealloc(permitted_opens,
+		permitted_opens = xreallocarray(permitted_opens,
 		    num_permitted_opens + 1, sizeof(*permitted_opens));
 		idx = num_permitted_opens++;
 		if (fwd->connect_path != NULL) {
@@ -3469,7 +3492,7 @@ channel_add_permitted_opens(char *host, int port)
 {
 	debug("allow port forwarding to host %s port %d", host, port);
 
-	permitted_opens = xrealloc(permitted_opens,
+	permitted_opens = xreallocarray(permitted_opens,
 	    num_permitted_opens + 1, sizeof(*permitted_opens));
 	permitted_opens[num_permitted_opens].host_to_connect = xstrdup(host);
 	permitted_opens[num_permitted_opens].port_to_connect = port;
@@ -3519,7 +3542,7 @@ channel_add_adm_permitted_opens(char *host, int port)
 {
 	debug("config allows port forwarding to host %s port %d", host, port);
 
-	permitted_adm_opens = xrealloc(permitted_adm_opens,
+	permitted_adm_opens = xreallocarray(permitted_adm_opens,
 	    num_adm_permitted_opens + 1, sizeof(*permitted_adm_opens));
 	permitted_adm_opens[num_adm_permitted_opens].host_to_connect
 	     = xstrdup(host);
@@ -3534,7 +3557,7 @@ void
 channel_disable_adm_local_opens(void)
 {
 	channel_clear_adm_permitted_opens();
-	permitted_adm_opens = xmalloc(sizeof(*permitted_adm_opens));
+	permitted_adm_opens = xcalloc(sizeof(*permitted_adm_opens), 1);
 	permitted_adm_opens[num_adm_permitted_opens].host_to_connect = NULL;
 	num_adm_permitted_opens = 1;
 }

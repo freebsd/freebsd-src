@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.116 2015/01/19 20:07:45 markus Exp $ */
+/* $OpenBSD: channels.h,v 1.118 2015/07/01 02:26:31 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -114,7 +114,7 @@ struct Channel {
 	time_t	notbefore;	/* Pause IO until deadline (time_t) */
 	int     delayed;	/* post-select handlers for newly created
 				 * channels are delayed until the first call
-				 * to a matching pre-select handler. 
+				 * to a matching pre-select handler.
 				 * this way post-select handlers are not
 				 * accidentally called if a FD gets reused */
 	Buffer  input;		/* data read from socket, to be sent over
@@ -285,6 +285,7 @@ int	 permitopen_port(const char *);
 
 /* x11 forwarding */
 
+void	 channel_set_x11_refuse_time(u_int);
 int	 x11_connect_display(void);
 int	 x11_create_display_inet(int, int, int, u_int *, int **);
 int      x11_input_open(int, u_int32_t, void *);

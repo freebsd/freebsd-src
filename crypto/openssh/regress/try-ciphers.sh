@@ -1,4 +1,4 @@
-#	$OpenBSD: try-ciphers.sh,v 1.24 2015/03/03 22:35:19 markus Exp $
+#	$OpenBSD: try-ciphers.sh,v 1.25 2015/03/24 20:22:17 markus Exp $
 #	Placed in the Public Domain.
 
 tid="try ciphers"
@@ -19,7 +19,7 @@ for c in `${SSH} -Q cipher`; do
 		fi
 		# No point trying all MACs for AEAD ciphers since they
 		# are ignored.
-		if ssh -Q cipher-auth | grep "^${c}\$" >/dev/null 2>&1 ; then
+		if ${SSH} -Q cipher-auth | grep "^${c}\$" >/dev/null 2>&1 ; then
 			break
 		fi
 		n=`expr $n + 1`

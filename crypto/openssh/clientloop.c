@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.272 2015/02/25 19:54:02 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.274 2015/07/01 02:26:31 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -164,7 +164,7 @@ static int connection_in;	/* Connection to server (input). */
 static int connection_out;	/* Connection to server (output). */
 static int need_rekeying;	/* Set to non-zero if rekeying is requested. */
 static int session_closed;	/* In SSH2: login session closed. */
-static int x11_refuse_time;	/* If >0, refuse x11 opens after this time. */
+static u_int x11_refuse_time;	/* If >0, refuse x11 opens after this time. */
 
 static void client_init_dispatch(void);
 int	session_ident = -1;
@@ -299,7 +299,8 @@ client_x11_display_valid(const char *display)
 	return 1;
 }
 
-#define SSH_X11_PROTO "MIT-MAGIC-COOKIE-1"
+#define SSH_X11_PROTO		"MIT-MAGIC-COOKIE-1"
+#define X11_TIMEOUT_SLACK	60
 void
 client_x11_get_proto(const char *display, const char *xauth_path,
     u_int trusted, u_int timeout, char **_proto, char **_data)
@@ -312,7 +313,7 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 	int got_data = 0, generated = 0, do_unlink = 0, i;
 	char *xauthdir, *xauthfile;
 	struct stat st;
-	u_int now;
+	u_int now, x11_timeout_real;
 
 	xauthdir = xauthfile = NULL;
 	*_proto = proto;
@@ -345,6 +346,15 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 			xauthdir = xmalloc(PATH_MAX);
 			xauthfile = xmalloc(PATH_MAX);
 			mktemp_proto(xauthdir, PATH_MAX);
+			/*
+			 * The authentication cookie should briefly outlive
+			 * ssh's willingness to forward X11 connections to
+			 * avoid nasty fail-open behaviour in the X server.
+			 */
+			if (timeout >= UINT_MAX - X11_TIMEOUT_SLACK)
+				x11_timeout_real = UINT_MAX;
+			else
+				x11_timeout_real = timeout + X11_TIMEOUT_SLACK;
 			if (mkdtemp(xauthdir) != NULL) {
 				do_unlink = 1;
 				snprintf(xauthfile, PATH_MAX, "%s/xauthfile",
@@ -352,17 +362,20 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 				snprintf(cmd, sizeof(cmd),
 				    "%s -f %s generate %s " SSH_X11_PROTO
 				    " untrusted timeout %u 2>" _PATH_DEVNULL,
-				    xauth_path, xauthfile, display, timeout);
+				    xauth_path, xauthfile, display,
+				    x11_timeout_real);
 				debug2("x11_get_proto: %s", cmd);
-				if (system(cmd) == 0)
-					generated = 1;
 				if (x11_refuse_time == 0) {
 					now = monotime() + 1;
 					if (UINT_MAX - timeout < now)
 						x11_refuse_time = UINT_MAX;
 					else
 						x11_refuse_time = now + timeout;
+					channel_set_x11_refuse_time(
+					    x11_refuse_time);
 				}
+				if (system(cmd) == 0)
+					generated = 1;
 			}
 		}
 
@@ -1890,7 +1903,7 @@ client_request_x11(const char *request_type, int rchan)
 		    "malicious server.");
 		return NULL;
 	}
-	if (x11_refuse_time != 0 && monotime() >= x11_refuse_time) {
+	if (x11_refuse_time != 0 && (u_int)monotime() >= x11_refuse_time) {
 		verbose("Rejected X11 connection after ForwardX11Timeout "
 		    "expired");
 		return NULL;
@@ -2353,8 +2366,7 @@ client_input_hostkeys(void)
 		/* Check that the key is accepted in HostkeyAlgorithms */
 		if (options.hostkeyalgorithms != NULL &&
 		    match_pattern_list(sshkey_ssh_name(key),
-		    options.hostkeyalgorithms,
-		    strlen(options.hostkeyalgorithms), 0) != 1) {
+		    options.hostkeyalgorithms, 0) != 1) {
 			debug3("%s: %s key not permitted by HostkeyAlgorithms",
 			    __func__, sshkey_ssh_name(key));
 			continue;

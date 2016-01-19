@@ -444,7 +444,7 @@ Host *
 EOF
 
 if [ ! -z "$TEST_SSH_SSH_CONFOPTS" ]; then
-	trace "adding ssh_config option $TEST_SSH_SSHD_CONFOPTS"
+	trace "adding ssh_config option $TEST_SSH_SSH_CONFOPTS"
 	echo "$TEST_SSH_SSH_CONFOPTS" >> $OBJ/ssh_config
 fi
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.232 2015/02/16 22:13:32 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.237 2015/06/26 05:13:20 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -317,7 +317,7 @@ add_local_forward(Options *options, const struct Forward *newfwd)
 	    newfwd->listen_path == NULL)
 		fatal("Privileged ports can only be forwarded by root.");
 #endif
-	options->local_forwards = xrealloc(options->local_forwards,
+	options->local_forwards = xreallocarray(options->local_forwards,
 	    options->num_local_forwards + 1,
 	    sizeof(*options->local_forwards));
 	fwd = &options->local_forwards[options->num_local_forwards++];
@@ -340,7 +340,7 @@ add_remote_forward(Options *options, const struct Forward *newfwd)
 {
 	struct Forward *fwd;
 
-	options->remote_forwards = xrealloc(options->remote_forwards,
+	options->remote_forwards = xreallocarray(options->remote_forwards,
 	    options->num_remote_forwards + 1,
 	    sizeof(*options->remote_forwards));
 	fwd = &options->remote_forwards[options->num_remote_forwards++];
@@ -514,7 +514,6 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 	char *arg, *oattrib, *attrib, *cmd, *cp = *condition, *host, *criteria;
 	const char *ruser;
 	int r, port, this_result, result = 1, attributes = 0, negate;
-	size_t len;
 	char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
 
 	/*
@@ -567,25 +566,24 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			result = -1;
 			goto out;
 		}
-		len = strlen(arg);
 		if (strcasecmp(attrib, "host") == 0) {
 			criteria = xstrdup(host);
-			r = match_hostname(host, arg, len) == 1;
+			r = match_hostname(host, arg) == 1;
 			if (r == (negate ? 1 : 0))
 				this_result = result = 0;
 		} else if (strcasecmp(attrib, "originalhost") == 0) {
 			criteria = xstrdup(original_host);
-			r = match_hostname(original_host, arg, len) == 1;
+			r = match_hostname(original_host, arg) == 1;
 			if (r == (negate ? 1 : 0))
 				this_result = result = 0;
 		} else if (strcasecmp(attrib, "user") == 0) {
 			criteria = xstrdup(ruser);
-			r = match_pattern_list(ruser, arg, len, 0) == 1;
+			r = match_pattern_list(ruser, arg, 0) == 1;
 			if (r == (negate ? 1 : 0))
 				this_result = result = 0;
 		} else if (strcasecmp(attrib, "localuser") == 0) {
 			criteria = xstrdup(pw->pw_name);
-			r = match_pattern_list(pw->pw_name, arg, len, 0) == 1;
+			r = match_pattern_list(pw->pw_name, arg, 0) == 1;
 			if (r == (negate ? 1 : 0))
 				this_result = result = 0;
 		} else if (strcasecmp(attrib, "exec") == 0) {
@@ -687,8 +685,8 @@ parse_token(const char *cp, const char *filename, int linenum,
 	for (i = 0; keywords[i].name; i++)
 		if (strcmp(cp, keywords[i].name) == 0)
 			return keywords[i].opcode;
-	if (ignored_unknown != NULL && match_pattern_list(cp, ignored_unknown,
-	    strlen(ignored_unknown), 1) == 1)
+	if (ignored_unknown != NULL &&
+	    match_pattern_list(cp, ignored_unknown, 1) == 1)
 		return oIgnoredUnknownOption;
 	error("%s: line %d: Bad configuration option: %s",
 	    filename, linenum, cp);
@@ -785,7 +783,9 @@ process_config_line(Options *options, struct passwd *pw, const char *host,
 	}
 
 	/* Strip trailing whitespace */
-	for (len = strlen(line) - 1; len > 0; len--) {
+	if ((len = strlen(line)) == 0)
+		return 0;
+	for (len--; len > 0; len--) {
 		if (strchr(WHITESPACE, line[len]) == NULL)
 			break;
 		line[len] = '\0';
@@ -1258,13 +1258,13 @@ parse_int:
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
-		if (arg[0] == '^' && arg[2] == 0 &&
+		if (strcmp(arg, "none") == 0)
+			value = SSH_ESCAPECHAR_NONE;
+		else if (arg[1] == '\0')
+			value = (u_char) arg[0];
+		else if (arg[0] == '^' && arg[2] == 0 &&
 		    (u_char) arg[1] >= 64 && (u_char) arg[1] < 128)
 			value = (u_char) arg[1] & 31;
-		else if (strlen(arg) == 1)
-			value = (u_char) arg[0];
-		else if (strcmp(arg, "none") == 0)
-			value = SSH_ESCAPECHAR_NONE;
 		else {
 			fatal("%.200s line %d: Bad escape character.",
 			    filename, linenum);
@@ -1973,7 +1973,8 @@ parse_fwd_field(char **p, struct fwdarg *fwd)
 		switch (*cp) {
 		case '\\':
 			memmove(cp, cp + 1, strlen(cp + 1) + 1);
-			cp++;
+			if (*cp == '\0')
+				return -1;
 			break;
 		case '/':
 			ispath = 1;

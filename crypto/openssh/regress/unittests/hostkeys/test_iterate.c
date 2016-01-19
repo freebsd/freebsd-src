@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_iterate.c,v 1.3 2015/03/07 04:41:48 djm Exp $ */
+/* 	$OpenBSD: test_iterate.c,v 1.4 2015/03/31 22:59:01 djm Exp $ */
 /*
  * Regress test for hostfile.h hostkeys_foreach()
  *
@@ -91,8 +91,8 @@ check(struct hostkey_foreach_line *l, void *_ctx)
 	    expected->l.keytype : expected->no_parse_keytype;
 
 #ifndef WITH_SSH1
-	if (expected->l.keytype == KEY_RSA1 ||
-	    expected->no_parse_keytype == KEY_RSA1) {
+	if (parse_key && (expected->l.keytype == KEY_RSA1 ||
+	    expected->no_parse_keytype == KEY_RSA1)) {
 		expected_status = HKF_STATUS_INVALID;
 		expected_keytype = KEY_UNSPEC;
 		parse_key = 0;

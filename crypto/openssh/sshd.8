@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.278 2014/11/15 14:41:03 bentley Exp $
+.\" $OpenBSD: sshd.8,v 1.279 2015/05/01 07:11:47 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: November 15 2014 $
+.Dd $Mdocdate: May 1 2015 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -427,6 +427,8 @@ See
 below.
 .It
 Runs user's shell or command.
+All commands are run under the user's login shell as specified in the
+system password database.
 .El
 .Sh SSHRC
 If the file

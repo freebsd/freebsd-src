@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.50 2015/01/20 23:14:00 deraadt Exp $ */
+/* $OpenBSD: mux.c,v 1.53 2015/05/01 04:03:20 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -351,7 +351,7 @@ process_mux_new_session(u_int rid, Channel *c, Buffer *m, Buffer *r)
 			free(cp);
 			continue;
 		}
-		cctx->env = xrealloc(cctx->env, env_len + 2,
+		cctx->env = xreallocarray(cctx->env, env_len + 2,
 		    sizeof(*cctx->env));
 		cctx->env[env_len++] = cp;
 		cctx->env[env_len] = NULL;
@@ -594,7 +594,9 @@ mux_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 		return;
 	}
 	buffer_init(&out);
-	if (fctx->fid >= options.num_remote_forwards) {
+	if (fctx->fid >= options.num_remote_forwards ||
+	    (options.remote_forwards[fctx->fid].connect_path == NULL &&
+	    options.remote_forwards[fctx->fid].connect_host == NULL)) {
 		xasprintf(&failmsg, "unknown forwarding id %d", fctx->fid);
 		goto fail;
 	}
@@ -606,7 +608,7 @@ mux_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 	if (type == SSH2_MSG_REQUEST_SUCCESS) {
 		if (rfwd->listen_port == 0) {
 			rfwd->allocated_port = packet_get_int();
-			logit("Allocated port %u for mux remote forward"
+			debug("Allocated port %u for mux remote forward"
 			    " to %s:%d", rfwd->allocated_port,
 			    rfwd->connect_host, rfwd->connect_port);
 			buffer_put_int(&out, MUX_S_REMOTE_PORT);
@@ -628,6 +630,17 @@ mux_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 		else
 			xasprintf(&failmsg, "remote port forwarding failed for "
 			    "listen port %d", rfwd->listen_port);
+
+                debug2("%s: clearing registered forwarding for listen %d, "
+		    "connect %s:%d", __func__, rfwd->listen_port,
+		    rfwd->connect_path ? rfwd->connect_path :
+		    rfwd->connect_host, rfwd->connect_port);
+
+		free(rfwd->listen_host);
+		free(rfwd->listen_path);
+		free(rfwd->connect_host);
+		free(rfwd->connect_path);
+		memset(rfwd, 0, sizeof(*rfwd));
 	}
  fail:
 	error("%s: %s", __func__, failmsg);
@@ -1723,7 +1736,7 @@ mux_client_forward(int fd, int cancel_flag, u_int ftype, struct Forward *fwd)
 		if (cancel_flag)
 			fatal("%s: got MUX_S_REMOTE_PORT for cancel", __func__);
 		fwd->allocated_port = buffer_get_int(&m);
-		logit("Allocated port %u for remote forward to %s:%d",
+		verbose("Allocated port %u for remote forward to %s:%d",
 		    fwd->allocated_port,
 		    fwd->connect_host ? fwd->connect_host : "",
 		    fwd->connect_port);

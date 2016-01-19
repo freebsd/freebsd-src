@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexc.c,v 1.20 2015/01/26 06:10:03 djm Exp $ */
+/* $OpenBSD: kexgexc.c,v 1.22 2015/05/26 23:23:40 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -28,6 +28,7 @@
 
 #ifdef WITH_OPENSSL
 
+#include <sys/param.h>
 #include <sys/types.h>
 
 #include <openssl/dh.h>
@@ -65,25 +66,17 @@ kexgex_client(struct ssh *ssh)
 	kex->min = DH_GRP_MIN;
 	kex->max = DH_GRP_MAX;
 	kex->nbits = nbits;
-	if (ssh->compat & SSH_OLD_DHGEX) {
-		/* Old GEX request */
-		if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_REQUEST_OLD))
-		    != 0 ||
-		    (r = sshpkt_put_u32(ssh, kex->nbits)) != 0 ||
-		    (r = sshpkt_send(ssh)) != 0)
-			goto out;
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST_OLD(%u) sent", kex->nbits);
-	} else {
-		/* New GEX request */
-		if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_REQUEST)) != 0 ||
-		    (r = sshpkt_put_u32(ssh, kex->min)) != 0 ||
-		    (r = sshpkt_put_u32(ssh, kex->nbits)) != 0 ||
-		    (r = sshpkt_put_u32(ssh, kex->max)) != 0 ||
-		    (r = sshpkt_send(ssh)) != 0)
-			goto out;
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST(%u<%u<%u) sent",
-		    kex->min, kex->nbits, kex->max);
-	}
+	if (datafellows & SSH_BUG_DHGEX_LARGE)
+		kex->nbits = MIN(kex->nbits, 4096);
+	/* New GEX request */
+	if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_REQUEST)) != 0 ||
+	    (r = sshpkt_put_u32(ssh, kex->min)) != 0 ||
+	    (r = sshpkt_put_u32(ssh, kex->nbits)) != 0 ||
+	    (r = sshpkt_put_u32(ssh, kex->max)) != 0 ||
+	    (r = sshpkt_send(ssh)) != 0)
+		goto out;
+	debug("SSH2_MSG_KEX_DH_GEX_REQUEST(%u<%u<%u) sent",
+	    kex->min, kex->nbits, kex->max);
 #ifdef DEBUG_KEXDH
 	fprintf(stderr, "\nmin = %d, nbits = %d, max = %d\n",
 	    kex->min, kex->nbits, kex->max);

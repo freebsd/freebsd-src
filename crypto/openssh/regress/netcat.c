@@ -42,7 +42,6 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netinet/ip.h>
-#include <arpa/telnet.h>
 
 #include <errno.h>
 #include <netdb.h>
@@ -62,6 +61,13 @@
 #  include <sys/poll.h>
 # endif
 #endif
+
+/* Telnet options from arpa/telnet.h */
+#define IAC	255
+#define DONT	254
+#define DO	253
+#define WONT	252
+#define WILL	251
 
 #ifndef SUN_LEN
 #define SUN_LEN(su) \

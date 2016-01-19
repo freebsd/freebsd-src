@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.194 2015/02/20 23:46:01 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.204 2015/06/05 03:44:14 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: February 20 2015 $
+.Dd $Mdocdate: June 5 2015 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -71,7 +71,11 @@ See
 in
 .Xr ssh_config 5
 for how to configure the client.
-Note that environment passing is only supported for protocol 2.
+Note that environment passing is only supported for protocol 2, and
+that the
+.Ev TERM
+environment variable is always sent whenever the client
+requests a pseudo-terminal as it is required by the protocol.
 Variables are specified by name, which may contain the wildcard characters
 .Ql *
 and
@@ -231,9 +235,21 @@ The default is not to require multiple authentication; successful completion
 of a single authentication method is sufficient.
 .It Cm AuthorizedKeysCommand
 Specifies a program to be used to look up the user's public keys.
-The program must be owned by root and not writable by group or others.
-It will be invoked with a single argument of the username
-being authenticated, and should produce on standard output zero or
+The program must be owned by root, not writable by group or others and
+specified by an absolute path.
+.Pp
+Arguments to
+.Cm AuthorizedKeysCommand
+may be provided using the following tokens, which will be expanded
+at runtime: %% is replaced by a literal '%', %u is replaced by the
+username being authenticated, %h is replaced by the home directory
+of the user being authenticated, %t is replaced with the key type
+offered for authentication, %f is replaced with the fingerprint of
+the key, and %k is replaced with the key being offered for authentication.
+If no arguments are specified then the username of the target user
+will be supplied.
+.Pp
+The program should produce on standard output zero or
 more lines of authorized_keys output (see AUTHORIZED_KEYS in
 .Xr sshd 8 ) .
 If a key supplied by AuthorizedKeysCommand does not successfully authenticate
@@ -272,6 +288,42 @@ directory.
 Multiple files may be listed, separated by whitespace.
 The default is
 .Dq .ssh/authorized_keys .ssh/authorized_keys2 .
+.It Cm AuthorizedPrincipalsCommand
+Specifies a program to be used to generate the list of allowed
+certificate principals as per
+.Cm AuthorizedPrincipalsFile .
+The program must be owned by root, not writable by group or others and
+specified by an absolute path.
+.Pp
+Arguments to
+.Cm AuthorizedPrincipalsCommand
+may be provided using the following tokens, which will be expanded
+at runtime: %% is replaced by a literal '%', %u is replaced by the
+username being authenticated and %h is replaced by the home directory
+of the user being authenticated.
+.Pp
+The program should produce on standard output zero or
+more lines of
+.Cm AuthorizedPrincipalsFile
+output.
+If either
+.Cm AuthorizedPrincipalsCommand
+or
+.Cm AuthorizedPrincipalsFile
+is specified, then certificates offered by the client for authentication
+must contain a principal that is listed.
+By default, no AuthorizedPrincipalsCommand is run.
+.It Cm AuthorizedPrincipalsCommandUser
+Specifies the user under whose account the AuthorizedPrincipalsCommand is run.
+It is recommended to use a dedicated user that has no other role on the host
+than running authorized principals commands.
+If
+.Cm AuthorizedPrincipalsCommand
+is specified but
+.Cm AuthorizedPrincipalsCommandUser
+is not, then
+.Xr sshd 8
+will refuse to start.
 .It Cm AuthorizedPrincipalsFile
 Specifies a file that lists principal names that are accepted for
 certificate authentication.
@@ -571,6 +623,21 @@ on logout.
 The default is
 .Dq yes .
 Note that this option applies to protocol version 2 only.
+.It Cm GSSAPIStrictAcceptorCheck
+Determines whether to be strict about the identity of the GSSAPI acceptor
+a client authenticates against.
+If set to
+.Dq yes
+then the client must authenticate against the
+.Pa host
+service on the current hostname.
+If set to
+.Dq no
+then the client may authenticate against any service key stored in the
+machine's default store.
+This facility is provided to assist with operation on multi homed machines.
+The default is
+.Dq yes .
 .It Cm HostbasedAcceptedKeyTypes
 Specifies the key types that will be accepted for hostbased authentication
 as a comma-separated pattern list.
@@ -827,16 +894,13 @@ The following forms may be used:
 If
 .Ar port
 is not specified,
-sshd will listen on the address and all prior
+sshd will listen on the address and all
 .Cm Port
 options specified.
 The default is to listen on all local addresses.
 Multiple
 .Cm ListenAddress
 options are permitted.
-Additionally, any
-.Cm Port
-options must precede this option for non-port qualified addresses.
 .It Cm LoginGraceTime
 The server disconnects after this time if the user has not
 successfully logged in.
@@ -1173,7 +1237,9 @@ The default is
 .Dq yes .
 .It Cm PidFile
 Specifies the file that contains the process ID of the
-SSH daemon.
+SSH daemon, or
+.Dq none
+to not write one.
 The default is
 .Pa /var/run/sshd.pid .
 .It Cm Port
@@ -1263,7 +1329,9 @@ which means that rekeying is performed after the cipher's default amount
 of data has been sent or received and no time based rekeying is done.
 This option applies to protocol version 2 only.
 .It Cm RevokedKeys
-Specifies revoked public keys.
+Specifies revoked public keys file, or
+.Dq none
+to not use one.
 Keys listed in this file will be refused for public key authentication.
 Note that if this file is not readable, then public key authentication will
 be refused for all users.
@@ -1378,7 +1446,9 @@ To disable TCP keepalive messages, the value should be set to
 .Dq no .
 .It Cm TrustedUserCAKeys
 Specifies a file containing public keys of certificate authorities that are
-trusted to sign user certificates for authentication.
+trusted to sign user certificates for authentication, or
+.Dq none
+to not use one.
 Keys are listed one per line; empty lines and comments starting with
 .Ql #
 are allowed.
@@ -1534,7 +1604,9 @@ The default is
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1
-program.
+program, or
+.Dq none
+to not use one.
 The default is
 .Pa /usr/local/bin/xauth .
 .El

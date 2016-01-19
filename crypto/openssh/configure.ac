@@ -30,7 +30,7 @@ AC_PROG_CPP
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PROG_EGREP
-AC_PATH_PROG([AR], [ar])
+AC_CHECK_TOOLS([AR], [ar])
 AC_PATH_PROG([CAT], [cat])
 AC_PATH_PROG([KILL], [kill])
 AC_PATH_PROGS([PERL], [perl5 perl])
@@ -140,12 +140,17 @@ else
 fi
 
 AC_ARG_WITH([ssh1],
-	[  --without-ssh1          Disable support for SSH protocol 1],
+	[  --without-ssh1          Enable support for SSH protocol 1],
 	[
-		if test "x$withval" = "xno" ; then
+		if test "x$withval" = "xyes" ; then
+			if test "x$openssl" = "xno" ; then
+				AC_MSG_ERROR([Cannot enable SSH protocol 1 with OpenSSL disabled])
+			fi
+			ssh1=yes
+		elif test "x$withval" = "xno" ; then
 			ssh1=no
-		elif test "x$openssl" = "xno" ; then
-			AC_MSG_ERROR([Cannot enable SSH protocol 1 with OpenSSL disabled])
+		else
+			AC_MSG_ERROR([unknown --with-ssh1 argument])
 		fi
 	]
 )
@@ -782,14 +787,17 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	i*86-*)
 		seccomp_audit_arch=AUDIT_ARCH_I386
 		;;
-        arm*-*)
+	arm*-*)
 		seccomp_audit_arch=AUDIT_ARCH_ARM
-                ;;
+		;;
+	aarch64*-*)
+		seccomp_audit_arch=AUDIT_ARCH_AARCH64
+		;;
 	esac
 	if test "x$seccomp_audit_arch" != "x" ; then
 		AC_MSG_RESULT(["$seccomp_audit_arch"])
-                AC_DEFINE_UNQUOTED([SECCOMP_AUDIT_ARCH], [$seccomp_audit_arch],
-                    [Specify the system call convention in use])
+		AC_DEFINE_UNQUOTED([SECCOMP_AUDIT_ARCH], [$seccomp_audit_arch],
+		    [Specify the system call convention in use])
 	else
 		AC_MSG_RESULT([architecture not supported])
 	fi
@@ -4413,7 +4421,7 @@ if test ! -z "$IPADDR_IN_DISPLAY" ; then
 else
 	DISPLAY_HACK_MSG="no"
 	AC_ARG_WITH([ipaddr-display],
-		[  --with-ipaddr-display   Use ip address instead of hostname in \$DISPLAY],
+		[  --with-ipaddr-display   Use ip address instead of hostname in $DISPLAY],
 		[
 			if test "x$withval" != "xno" ; then
 				AC_DEFINE([IPADDR_IN_DISPLAY])
@@ -4459,7 +4467,7 @@ fi
 # Whether to mess with the default path
 SERVER_PATH_MSG="(default)"
 AC_ARG_WITH([default-path],
-	[  --with-default-path=    Specify default \$PATH environment for server],
+	[  --with-default-path=    Specify default $PATH environment for server],
 	[
 		if test "x$external_path_file" = "x/etc/login.conf" ; then
 			AC_MSG_WARN([

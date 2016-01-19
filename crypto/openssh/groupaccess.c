@@ -1,4 +1,4 @@
-/* $OpenBSD: groupaccess.c,v 1.15 2015/01/20 23:14:00 deraadt Exp $ */
+/* $OpenBSD: groupaccess.c,v 1.16 2015/05/04 06:10:48 djm Exp $ */
 /*
  * Copyright (c) 2001 Kevin Steves.  All rights reserved.
  *
@@ -97,11 +97,9 @@ int
 ga_match_pattern_list(const char *group_pattern)
 {
 	int i, found = 0;
-	size_t len = strlen(group_pattern);
 
 	for (i = 0; i < ngroups; i++) {
-		switch (match_pattern_list(groups_byname[i],
-		    group_pattern, len, 0)) {
+		switch (match_pattern_list(groups_byname[i], group_pattern, 0)) {
 		case -1:
 			return 0;	/* Negated match wins */
 		case 0:

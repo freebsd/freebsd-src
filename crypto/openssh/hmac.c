@@ -1,4 +1,4 @@
-/* $OpenBSD: hmac.c,v 1.11 2015/01/15 21:37:14 markus Exp $ */
+/* $OpenBSD: hmac.c,v 1.12 2015/03/24 20:03:44 markus Exp $ */
 /*
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.
  *
@@ -154,7 +154,7 @@ hmac_test(void *key, size_t klen, void *m, size_t mlen, u_char *e, size_t elen)
 
 	if (memcmp(e, digest, elen)) {
 		for (i = 0; i < elen; i++)
-			printf("[%zd] %2.2x %2.2x\n", i, e[i], digest[i]);
+			printf("[%zu] %2.2x %2.2x\n", i, e[i], digest[i]);
 		printf("mismatch\n");
 	} else
 		printf("ok\n");

@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.28 2015/01/20 23:14:00 deraadt Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.29 2015/05/22 03:50:02 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -44,8 +44,11 @@
 #include "channels.h"
 #include "session.h"
 #include "misc.h"
+#include "servconf.h"
 
 #include "ssh-gss.h"
+
+extern ServerOptions options;
 
 static ssh_gssapi_client gssapi_client =
     { GSS_C_EMPTY_BUFFER, GSS_C_EMPTY_BUFFER,
@@ -99,25 +102,32 @@ ssh_gssapi_acquire_cred(Gssctxt *ctx)
 	char lname[NI_MAXHOST];
 	gss_OID_set oidset;
 
-	gss_create_empty_oid_set(&status, &oidset);
-	gss_add_oid_set_member(&status, ctx->oid, &oidset);
+	if (options.gss_strict_acceptor) {
+		gss_create_empty_oid_set(&status, &oidset);
+		gss_add_oid_set_member(&status, ctx->oid, &oidset);
 
-	if (gethostname(lname, sizeof(lname))) {
-		gss_release_oid_set(&status, &oidset);
-		return (-1);
-	}
+		if (gethostname(lname, MAXHOSTNAMELEN)) {
+			gss_release_oid_set(&status, &oidset);
+			return (-1);
+		}
 
-	if (GSS_ERROR(ssh_gssapi_import_name(ctx, lname))) {
+		if (GSS_ERROR(ssh_gssapi_import_name(ctx, lname))) {
+			gss_release_oid_set(&status, &oidset);
+			return (ctx->major);
+		}
+
+		if ((ctx->major = gss_acquire_cred(&ctx->minor,
+		    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds,
+		    NULL, NULL)))
+			ssh_gssapi_error(ctx);
+
 		gss_release_oid_set(&status, &oidset);
 		return (ctx->major);
+	} else {
+		ctx->name = GSS_C_NO_NAME;
+		ctx->creds = GSS_C_NO_CREDENTIAL;
 	}
-
-	if ((ctx->major = gss_acquire_cred(&ctx->minor,
-	    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds, NULL, NULL)))
-		ssh_gssapi_error(ctx);
-
-	gss_release_oid_set(&status, &oidset);
-	return (ctx->major);
+	return GSS_S_COMPLETE;
 }
 
 /* Privileged */

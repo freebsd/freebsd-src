@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.277 2015/01/16 06:40:12 deraadt Exp $ */
+/* $OpenBSD: session.c,v 1.278 2015/04/24 01:36:00 deraadt Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -998,7 +998,7 @@ child_set_env(char ***envp, u_int *envsizep, const char *name,
 			if (envsize >= 1000)
 				fatal("child_set_env: too many env vars");
 			envsize += 50;
-			env = (*envp) = xrealloc(env, envsize, sizeof(char *));
+			env = (*envp) = xreallocarray(env, envsize, sizeof(char *));
 			*envsizep = envsize;
 		}
 		/* Need to set the NULL pointer at end of array beyond the new slot. */
@@ -1926,7 +1926,7 @@ session_new(void)
 			return NULL;
 		debug2("%s: allocate (allocated %d max %d)",
 		    __func__, sessions_nalloc, options.max_sessions);
-		tmp = xrealloc(sessions, sessions_nalloc + 1,
+		tmp = xreallocarray(sessions, sessions_nalloc + 1,
 		    sizeof(*sessions));
 		if (tmp == NULL) {
 			error("%s: cannot allocate %d sessions",
@@ -2253,7 +2253,7 @@ session_env_req(Session *s)
 	for (i = 0; i < options.num_accept_env; i++) {
 		if (match_pattern(name, options.accept_env[i])) {
 			debug2("Setting env %d: %s=%s", s->num_env, name, val);
-			s->env = xrealloc(s->env, s->num_env + 1,
+			s->env = xreallocarray(s->env, s->num_env + 1,
 			    sizeof(*s->env));
 			s->env[s->num_env].name = name;
 			s->env[s->num_env].val = val;

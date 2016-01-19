@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshkey.c,v 1.3 2015/01/26 06:11:28 djm Exp $ */
+/* 	$OpenBSD: test_sshkey.c,v 1.4 2015/04/22 01:38:36 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -505,7 +505,7 @@ sshkey_tests(void)
 	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("rsa_1"), &k1), 0);
 	ASSERT_INT_EQ(sshkey_load_public(test_data_file("rsa_1.pub"), &k2,
 	    NULL), 0);
-	k3 = get_private("ed25519_2");
+	k3 = get_private("rsa_1");
 	build_cert(b, k2, "ssh-rsa-cert-v01@openssh.com", k3, k1);
 	ASSERT_INT_EQ(sshkey_from_blob(sshbuf_ptr(b), sshbuf_len(b), &k4),
 	    SSH_ERR_KEY_CERT_INVALID_SIGN_KEY);

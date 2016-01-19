@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.145 2015/02/20 22:17:21 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.150 2015/06/22 23:42:16 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -404,7 +404,7 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 		if (ent->flags & (MON_AUTHDECIDE|MON_ALOG)) {
 			auth_log(authctxt, authenticated, partial,
 			    auth_method, auth_submethod);
-			if (!authenticated)
+			if (!partial && !authenticated)
 				authctxt->failures++;
 		}
 	}
@@ -1185,7 +1185,7 @@ mm_answer_keyallowed(int sock, Buffer *m)
 	Key *key;
 	char *cuser, *chost;
 	u_char *blob;
-	u_int bloblen;
+	u_int bloblen, pubkey_auth_attempt;
 	enum mm_keytype type = 0;
 	int allowed = 0;
 
@@ -1195,6 +1195,7 @@ mm_answer_keyallowed(int sock, Buffer *m)
 	cuser = buffer_get_string(m, NULL);
 	chost = buffer_get_string(m, NULL);
 	blob = buffer_get_string(m, &bloblen);
+	pubkey_auth_attempt = buffer_get_int(m);
 
 	key = key_from_blob(blob, bloblen);
 
@@ -1215,19 +1216,19 @@ mm_answer_keyallowed(int sock, Buffer *m)
 			allowed = options.pubkey_authentication &&
 			    !auth2_userkey_already_used(authctxt, key) &&
 			    match_pattern_list(sshkey_ssh_name(key),
-			    options.pubkey_key_types,
-			    strlen(options.pubkey_key_types), 0) == 1 &&
-			    user_key_allowed(authctxt->pw, key);
+			    options.pubkey_key_types, 0) == 1 &&
+			    user_key_allowed(authctxt->pw, key,
+			    pubkey_auth_attempt);
 			pubkey_auth_info(authctxt, key, NULL);
 			auth_method = "publickey";
-			if (options.pubkey_authentication && allowed != 1)
+			if (options.pubkey_authentication &&
+			    (!pubkey_auth_attempt || allowed != 1))
 				auth_clear_options();
 			break;
 		case MM_HOSTKEY:
 			allowed = options.hostbased_authentication &&
 			    match_pattern_list(sshkey_ssh_name(key),
-			    options.hostbased_key_types,
-			    strlen(options.hostbased_key_types), 0) == 1 &&
+			    options.hostbased_key_types, 0) == 1 &&
 			    hostbased_key_allowed(authctxt->pw,
 			    cuser, chost, key);
 			pubkey_auth_info(authctxt, key,
@@ -1473,6 +1474,9 @@ mm_record_login(Session *s, struct passwd *pw)
 {
 	socklen_t fromlen;
 	struct sockaddr_storage from;
+
+	if (options.use_login)
+		return;
 
 	/*
 	 * Get IP address of client. If the connection is not a socket, let

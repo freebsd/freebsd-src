@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-rotate.sh,v 1.2 2015/03/03 17:53:40 djm Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.3 2015/03/24 20:22:17 markus Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"
@@ -15,7 +15,7 @@ rm $OBJ/known_hosts
 trace "prepare hostkeys"
 nkeys=0
 all_algs=""
-for k in `ssh -Q key-plain` ; do
+for k in `${SSH} -Q key-plain` ; do
 	${SSHKEYGEN} -qt $k -f $OBJ/hkr.$k -N '' || fatal "ssh-keygen $k"
 	echo "Hostkey $OBJ/hkr.${k}" >> $OBJ/sshd_proxy.orig
 	nkeys=`expr $nkeys + 1`
@@ -62,7 +62,7 @@ expect_nkeys $nkeys "learn hostkeys"
 check_key_present ssh-rsa || fail "didn't learn keys"
 
 # Check each key type
-for k in `ssh -Q key-plain` ; do
+for k in `${SSH} -Q key-plain` ; do
 	verbose "learn additional hostkeys, type=$k"
 	dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=$k,$all_algs
 	expect_nkeys $nkeys "learn hostkeys $k"
@@ -109,7 +109,7 @@ dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=ssh-rsa
 expect_nkeys 1 "learn hostkeys"
 check_key_present ssh-rsa || fail "didn't learn changed key"
 
-#	$OpenBSD: hostkey-rotate.sh,v 1.2 2015/03/03 17:53:40 djm Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.3 2015/03/24 20:22:17 markus Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"

@@ -67,7 +67,7 @@ DESCRIPTION
              require an argument.  Criteria may be negated by prepending an
              exclamation mark (M-bM-^@M-^X!M-bM-^@M-^Y).
 
-             The canonical keywork matches only when the configuration file is
+             The canonical keyword matches only when the configuration file is
              being re-parsed after hostname canonicalization (see the
              CanonicalizeHostname option.)  This may be useful to specify
              conditions that work with canonical host names only.  The exec
@@ -165,9 +165,11 @@ DESCRIPTION
      CheckHostIP
              If this flag is set to M-bM-^@M-^\yesM-bM-^@M-^], ssh(1) will additionally check the
              host IP address in the known_hosts file.  This allows ssh to
-             detect if a host key changed due to DNS spoofing.  If the option
-             is set to M-bM-^@M-^\noM-bM-^@M-^], the check will not be executed.  The default is
-             M-bM-^@M-^\yesM-bM-^@M-^].
+             detect if a host key changed due to DNS spoofing and will add
+             addresses of destination hosts to ~/.ssh/known_hosts in the
+             process, regardless of the setting of StrictHostKeyChecking.  If
+             the option is set to M-bM-^@M-^\noM-bM-^@M-^], the check will not be executed.  The
+             default is M-bM-^@M-^\yesM-bM-^@M-^].
 
      Cipher  Specifies the cipher to use for encrypting the session in
              protocol version 1.  Currently, M-bM-^@M-^\blowfishM-bM-^@M-^], M-bM-^@M-^\3desM-bM-^@M-^], and M-bM-^@M-^\desM-bM-^@M-^] are
@@ -252,9 +254,8 @@ DESCRIPTION
              or is not listening.
 
              Setting this to M-bM-^@M-^\askM-bM-^@M-^] will cause ssh to listen for control
-             connections, but require confirmation using the SSH_ASKPASS
-             program before they are accepted (see ssh-add(1) for details).
-             If the ControlPath cannot be opened, ssh will continue without
+             connections, but require confirmation using ssh-askpass(1).  If
+             the ControlPath cannot be opened, ssh will continue without
              connecting to a master instance.
 
              X11 and ssh-agent(1) forwarding is supported over these
@@ -552,8 +553,8 @@ DESCRIPTION
                    curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
                    diffie-hellman-group-exchange-sha256,
-                   diffie-hellman-group14-sha1,
                    diffie-hellman-group-exchange-sha1,
+                   diffie-hellman-group14-sha1,
                    diffie-hellman-group1-sha1
 
              The list of available key exchange algorithms may also be
@@ -768,12 +769,15 @@ DESCRIPTION
              Specifies what variables from the local environ(7) should be sent
              to the server.  Note that environment passing is only supported
              for protocol 2.  The server must also support it, and the server
-             must be configured to accept these environment variables.  Refer
-             to AcceptEnv in sshd_config(5) for how to configure the server.
-             Variables are specified by name, which may contain wildcard
-             characters.  Multiple environment variables may be separated by
-             whitespace or spread across multiple SendEnv directives.  The
-             default is not to send any environment variables.
+             must be configured to accept these environment variables.  Note
+             that the TERM environment variable is always sent whenever a
+             pseudo-terminal is requested as it is required by the protocol.
+             Refer to AcceptEnv in sshd_config(5) for how to configure the
+             server.  Variables are specified by name, which may contain
+             wildcard characters.  Multiple environment variables may be
+             separated by whitespace or spread across multiple SendEnv
+             directives.  The default is not to send any environment
+             variables.
 
              See PATTERNS for more information on patterns.
 
@@ -978,4 +982,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.7                    February 20, 2015                   OpenBSD 5.7
+OpenBSD 5.7                      June 2, 2015                      OpenBSD 5.7
