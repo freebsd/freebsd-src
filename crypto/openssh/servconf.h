@@ -181,10 +181,6 @@ typedef struct {
 
 	char   *version_addendum;	/* Appended to SSH banner */
 
-	int	hpn_disabled;		/* Disable HPN functionality. */
-	int	hpn_buffer_size;	/* Set HPN buffer size - default 2MB.*/
-	int	tcp_rcv_buf_poll;	/* Poll TCP rcv window in autotuning
-					 * kernels. */
 	u_int	num_auth_methods;
 	char   *auth_methods[MAX_AUTH_METHODS];
 }       ServerOptions;
