@@ -1,4 +1,4 @@
-#	$OpenBSD: integrity.sh,v 1.15 2015/01/19 20:42:31 markus Exp $
+#	$OpenBSD: integrity.sh,v 1.16 2015/03/24 20:22:17 markus Exp $
 #	Placed in the Public Domain.
 
 tid="integrity"
@@ -38,7 +38,7 @@ for m in $macs; do
 		cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
 		# modify output from sshd at offset $off
 		pxy="proxycommand=$cmd | $OBJ/modpipe -wm xor:$off:1"
-		if ssh -Q cipher-auth | grep "^${m}\$" >/dev/null 2>&1 ; then
+		if ${SSH} -Q cipher-auth | grep "^${m}\$" >/dev/null 2>&1 ; then
 			echo "Ciphers=$m" >> $OBJ/sshd_proxy
 			macopt="-c $m"
 		else

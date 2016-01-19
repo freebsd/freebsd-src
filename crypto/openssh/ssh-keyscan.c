@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.99 2015/01/30 10:44:49 djm Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.101 2015/04/10 00:08:55 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -94,7 +94,7 @@ typedef struct Connection {
 	int c_len;		/* Total bytes which must be read. */
 	int c_off;		/* Length of data read so far. */
 	int c_keytype;		/* Only one of KT_RSA1, KT_DSA, or KT_RSA */
-	int c_done;		/* SSH2 done */
+	sig_atomic_t c_done;	/* SSH2 done */
 	char *c_namebase;	/* Address to free for c_name and c_namelist */
 	char *c_name;		/* Hostname of connection for errors */
 	char *c_namelist;	/* Pointer to other possible addresses */
@@ -299,15 +299,18 @@ static void
 keyprint(con *c, struct sshkey *key)
 {
 	char *host = c->c_output_name ? c->c_output_name : c->c_name;
+	char *hostport = NULL;
 
 	if (!key)
 		return;
 	if (hash_hosts && (host = host_hash(host, NULL, 0)) == NULL)
 		fatal("host_hash failed");
 
-	fprintf(stdout, "%s ", host);
+	hostport = put_host_port(host, ssh_port);
+	fprintf(stdout, "%s ", hostport);
 	sshkey_write(key, stdout);
 	fputs("\n", stdout);
+	free(hostport);
 }
 
 static int
@@ -488,7 +491,7 @@ congreet(int s)
 		confree(s);
 		return;
 	}
-	fprintf(stderr, "# %s %s\n", c->c_name, chop(buf));
+	fprintf(stderr, "# %s:%d %s\n", c->c_name, ssh_port, chop(buf));
 	n = snprintf(buf, sizeof buf, "SSH-%d.%d-OpenSSH-keyscan\r\n",
 	    c->c_keytype == KT_RSA1? PROTOCOL_MAJOR_1 : PROTOCOL_MAJOR_2,
 	    c->c_keytype == KT_RSA1? PROTOCOL_MINOR_1 : PROTOCOL_MINOR_2);

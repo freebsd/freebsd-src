@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519s.c,v 1.8 2015/01/26 06:10:03 djm Exp $ */
+/* $OpenBSD: kexc25519s.c,v 1.9 2015/04/27 00:37:53 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -27,6 +27,7 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <string.h>
 #include <signal.h>
 

@@ -29,9 +29,9 @@ DESCRIPTION
 
      -c      Indicates that added identities should be subject to confirmation
              before being used for authentication.  Confirmation is performed
-             by the SSH_ASKPASS program mentioned below.  Successful
-             confirmation is signaled by a zero exit status from the
-             SSH_ASKPASS program, rather than text entered into the requester.
+             by ssh-askpass(1).  Successful confirmation is signaled by a zero
+             exit status from ssh-askpass(1), rather than text entered into
+             the requester.
 
      -D      Deletes all identities from the agent.
 
@@ -78,10 +78,11 @@ ENVIRONMENT
              the current terminal if it was run from a terminal.  If ssh-add
              does not have a terminal associated with it but DISPLAY and
              SSH_ASKPASS are set, it will execute the program specified by
-             SSH_ASKPASS and open an X11 window to read the passphrase.  This
-             is particularly useful when calling ssh-add from a .xsession or
-             related script.  (Note that on some machines it may be necessary
-             to redirect the input from /dev/null to make this work.)
+             SSH_ASKPASS (by default M-bM-^@M-^\ssh-askpassM-bM-^@M-^]) and open an X11 window to
+             read the passphrase.  This is particularly useful when calling
+             ssh-add from a .xsession or related script.  (Note that on some
+             machines it may be necessary to redirect the input from /dev/null
+             to make this work.)
 
      SSH_AUTH_SOCK
              Identifies the path of a UNIX-domain socket used to communicate
@@ -116,7 +117,7 @@ EXIT STATUS
      ssh-add is unable to contact the authentication agent.
 
 SEE ALSO
-     ssh(1), ssh-agent(1), ssh-keygen(1), sshd(8)
+     ssh(1), ssh-agent(1), ssh-askpass(1), ssh-keygen(1), sshd(8)
 
 AUTHORS
      OpenSSH is a derivative of the original and free ssh 1.2.12 release by
@@ -125,4 +126,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.7                    December 21, 2014                   OpenBSD 5.7
+OpenBSD 5.7                     March 30, 2015                     OpenBSD 5.7

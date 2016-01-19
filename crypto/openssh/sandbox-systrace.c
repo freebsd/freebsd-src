@@ -1,4 +1,4 @@
-/* $OpenBSD: sandbox-systrace.c,v 1.14 2015/01/20 23:14:00 deraadt Exp $ */
+/* $OpenBSD: sandbox-systrace.c,v 1.16 2015/06/29 22:35:12 djm Exp $ */
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -50,8 +50,9 @@ struct sandbox_policy {
 
 /* Permitted syscalls in preauth. Unlisted syscalls get SYSTR_POLICY_KILL */
 static const struct sandbox_policy preauth_policy[] = {
-	{ SYS_open, SYSTR_POLICY_NEVER },
-
+	{ SYS_clock_gettime, SYSTR_POLICY_PERMIT },
+	{ SYS_close, SYSTR_POLICY_PERMIT },
+	{ SYS_exit, SYSTR_POLICY_PERMIT },
 #ifdef SYS_getentropy
 	/* OpenBSD 5.6 and newer use getentropy(2) to seed arc4random(3). */
 	{ SYS_getentropy, SYSTR_POLICY_PERMIT },
@@ -59,23 +60,21 @@ static const struct sandbox_policy preauth_policy[] = {
 	/* Previous releases used sysctl(3)'s kern.arnd variable. */
 	{ SYS___sysctl, SYSTR_POLICY_PERMIT },
 #endif
-
-#ifdef SYS_sendsyslog
- 	{ SYS_sendsyslog, SYSTR_POLICY_PERMIT },
-#endif
-	{ SYS_close, SYSTR_POLICY_PERMIT },
-	{ SYS_exit, SYSTR_POLICY_PERMIT },
 	{ SYS_getpid, SYSTR_POLICY_PERMIT },
+	{ SYS_getpgid, SYSTR_POLICY_PERMIT },
 	{ SYS_gettimeofday, SYSTR_POLICY_PERMIT },
-	{ SYS_clock_gettime, SYSTR_POLICY_PERMIT },
 	{ SYS_madvise, SYSTR_POLICY_PERMIT },
 	{ SYS_mmap, SYSTR_POLICY_PERMIT },
 	{ SYS_mprotect, SYSTR_POLICY_PERMIT },
 	{ SYS_mquery, SYSTR_POLICY_PERMIT },
-	{ SYS_poll, SYSTR_POLICY_PERMIT },
 	{ SYS_munmap, SYSTR_POLICY_PERMIT },
+	{ SYS_open, SYSTR_POLICY_NEVER },
+	{ SYS_poll, SYSTR_POLICY_PERMIT },
 	{ SYS_read, SYSTR_POLICY_PERMIT },
 	{ SYS_select, SYSTR_POLICY_PERMIT },
+#ifdef SYS_sendsyslog
+ 	{ SYS_sendsyslog, SYSTR_POLICY_PERMIT },
+#endif
 	{ SYS_shutdown, SYSTR_POLICY_PERMIT },
 	{ SYS_sigprocmask, SYSTR_POLICY_PERMIT },
 	{ SYS_write, SYSTR_POLICY_PERMIT },

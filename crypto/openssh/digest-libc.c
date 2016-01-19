@@ -1,4 +1,4 @@
-/* $OpenBSD: digest-libc.c,v 1.4 2014/12/21 22:27:56 djm Exp $ */
+/* $OpenBSD: digest-libc.c,v 1.5 2015/05/05 02:48:17 jsg Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  * Copyright (c) 2014 Markus Friedl.  All rights reserved.

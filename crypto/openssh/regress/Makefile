@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.78 2015/01/26 06:12:18 djm Exp $
+#	$OpenBSD: Makefile,v 1.81 2015/05/21 06:44:25 djm Exp $
 
 REGRESS_TARGETS=	unit t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t-exec
 tests:		prep $(REGRESS_TARGETS)
@@ -54,6 +54,7 @@ LTESTS= 	connect \
 		multiplex \
 		reexec \
 		brokenkeys \
+		cfgparse \
 		cfgmatch \
 		addrmatch \
 		localcommand \
@@ -72,7 +73,8 @@ LTESTS= 	connect \
 		limit-keytype \
 		hostkey-agent \
 		keygen-knownhosts \
-		hostkey-rotate
+		hostkey-rotate \
+		principals-command
 
 
 #		dhgex \
@@ -180,10 +182,10 @@ t11:
 	${TEST_SSH_SSHKEYGEN} -E sha256 -lf ${.CURDIR}/rsa_openssh.pub |\
 		awk '{print $$2}' | diff - ${.CURDIR}/t11.ok
 
-t12.out:
-	${TEST_SSH_SSHKEYGEN} -q -t ed25519 -N '' -C 'test-comment-1234' -f $(OBJ)/$@
+$(OBJ)/t12.out:
+	${TEST_SSH_SSHKEYGEN} -q -t ed25519 -N '' -C 'test-comment-1234' -f $@
 
-t12: t12.out
+t12: $(OBJ)/t12.out
 	${TEST_SSH_SSHKEYGEN} -lf $(OBJ)/t12.out.pub | grep test-comment-1234 >/dev/null
 
 t-exec:	${LTESTS:=.sh}
