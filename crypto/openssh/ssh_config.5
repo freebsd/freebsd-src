@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.211 2015/06/02 09:10:40 djm Exp $
+.\" $OpenBSD: ssh_config.5,v 1.214 2015/07/30 00:01:34 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: June 2 2015 $
+.Dd $Mdocdate: July 30 2015 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -374,6 +374,11 @@ The default is
 Specifies the ciphers allowed for protocol version 2
 in order of preference.
 Multiple ciphers must be comma-separated.
+If the specified value begins with a
+.Sq +
+character, then the specified ciphers will be appended to the default set
+instead of replacing them.
+.Pp
 The supported ciphers are:
 .Pp
 .Bl -item -compact -offset indent
@@ -782,9 +787,21 @@ is similar to
 .It Cm HostbasedKeyTypes
 Specifies the key types that will be used for hostbased authentication
 as a comma-separated pattern list.
-The default
-.Dq *
-will allow all key types.
+Alternately if the specified value begins with a
+.Sq +
+character, then the specified key types will be appended to the default set
+instead of replacing them.
+The default for this option is:
+.Bd -literal -offset 3n
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-ed25519-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
+.Ed
+.Pp
 The
 .Fl Q
 option of
@@ -793,16 +810,19 @@ may be used to list supported key types.
 .It Cm HostKeyAlgorithms
 Specifies the protocol version 2 host key algorithms
 that the client wants to use in order of preference.
+Alternately if the specified value begins with a
+.Sq +
+character, then the specified key types will be appended to the default set
+instead of replacing them.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
-ssh-rsa-cert-v01@openssh.com,ssh-dss-cert-v01@openssh.com,
-ssh-rsa-cert-v00@openssh.com,ssh-dss-cert-v00@openssh.com,
+ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,ssh-rsa,ssh-dss
+ssh-ed25519,ssh-rsa
 .Ed
 .Pp
 If hostkeys are known for the destination host then this default is modified
@@ -975,14 +995,17 @@ and
 .It Cm KexAlgorithms
 Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
+Alternately if the specified value begins with a
+.Sq +
+character, then the specified methods will be appended to the default set
+instead of replacing them.
 The default is:
 .Bd -literal -offset indent
 curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group-exchange-sha1,
-diffie-hellman-group14-sha1,
-diffie-hellman-group1-sha1
+diffie-hellman-group14-sha1
 .Ed
 .Pp
 The list of available key exchange algorithms may also be obtained using the
@@ -1064,10 +1087,16 @@ in order of preference.
 The MAC algorithm is used in protocol version 2
 for data integrity protection.
 Multiple algorithms must be comma-separated.
+If the specified value begins with a
+.Sq +
+character, then the specified algorithms will be appended to the default set
+instead of replacing them.
+.Pp
 The algorithms that contain
 .Dq -etm
 calculate the MAC after encryption (encrypt-then-mac).
 These are considered safer and their use recommended.
+.Pp
 The default is:
 .Bd -literal -offset indent
 umac-64-etm@openssh.com,umac-128-etm@openssh.com,
@@ -1208,6 +1237,29 @@ will pass a connected file descriptor back to
 instead of continuing to execute and pass data.
 The default is
 .Dq no .
+.It Cm PubkeyAcceptedKeyTypes
+Specifies the key types that will be used for public key authentication
+as a comma-separated pattern list.
+Alternately if the specified value begins with a
+.Sq +
+character, then the key types after it will be appended to the default
+instead of replacing it.
+The default for this option is:
+.Bd -literal -offset 3n
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-ed25519-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
+.Ed
+.Pp
+The
+.Fl Q
+option of
+.Xr ssh 1
+may be used to list supported key types.
 .It Cm PubkeyAuthentication
 Specifies whether to try public key authentication.
 The argument to this keyword must be

@@ -116,6 +116,12 @@ A client may request the master to establish a port forward:
 
 forwarding type may be MUX_FWD_LOCAL, MUX_FWD_REMOTE, MUX_FWD_DYNAMIC.
 
+If listen port is (unsigned int) -2, then the listen host is treated as
+a unix socket path name.
+
+If connect port is (unsigned int) -2, then the connect host is treated
+as a unix socket path name.
+
 A server may reply with a MUX_S_OK, a MUX_S_REMOTE_PORT, a
 MUX_S_PERMISSION_DENIED or a MUX_S_FAILURE.
 
@@ -219,4 +225,4 @@ XXX inject packet (what about replies)
 XXX server->client error/warning notifications
 XXX send signals via mux
 
-$OpenBSD: PROTOCOL.mux,v 1.9 2012/06/01 00:49:35 djm Exp $
+$OpenBSD: PROTOCOL.mux,v 1.10 2015/07/17 03:04:27 djm Exp $
