@@ -319,6 +319,10 @@ static void		urtwn_scan_start(struct ieee80211com *);
 static void		urtwn_scan_end(struct ieee80211com *);
 static void		urtwn_set_channel(struct ieee80211com *);
 static int		urtwn_wme_update(struct ieee80211com *);
+static void		urtwn_update_slot(struct ieee80211com *);
+static void		urtwn_update_slot_cb(struct urtwn_softc *,
+			    union sec_param *);
+static void		urtwn_update_aifs(struct urtwn_softc *, uint8_t);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
@@ -540,6 +544,7 @@ urtwn_attach(device_t self)
 	ic->ic_vap_create = urtwn_vap_create;
 	ic->ic_vap_delete = urtwn_vap_delete;
 	ic->ic_wme.wme_update = urtwn_wme_update;
+	ic->ic_updateslot = urtwn_update_slot;
 	ic->ic_update_promisc = urtwn_update_promisc;
 	ic->ic_update_mcast = urtwn_update_mcast;
 	if (sc->chip & URTWN_CHIP_88E) {
@@ -4192,6 +4197,40 @@ urtwn_wme_update(struct ieee80211com *ic)
 	URTWN_UNLOCK(sc);
 
 	return 0;
+}
+
+static void
+urtwn_update_slot(struct ieee80211com *ic)
+{
+	urtwn_cmd_sleepable(ic->ic_softc, NULL, 0, urtwn_update_slot_cb);
+}
+
+static void
+urtwn_update_slot_cb(struct urtwn_softc *sc, union sec_param *data)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint8_t slottime;
+
+	slottime = IEEE80211_GET_SLOTTIME(ic);
+
+	DPRINTFN(10, "setting slot time to %uus\n", slottime);
+
+	urtwn_write_1(sc, R92C_SLOT, slottime);
+	urtwn_update_aifs(sc, slottime);
+}
+
+static void
+urtwn_update_aifs(struct urtwn_softc *sc, uint8_t slottime)
+{
+	const struct wmeParams *wmep =
+	    sc->sc_ic.ic_wme.wme_chanParams.cap_wmeParams;
+	uint8_t aifs, ac;
+
+	for (ac = WME_AC_BE; ac < WME_NUM_AC; ac++) {
+		/* AIFS[AC] = AIFSN[AC] * aSlotTime + aSIFSTime. */
+		aifs = wmep[ac].wmep_aifsn * slottime + IEEE80211_DUR_SIFS;
+		urtwn_write_1(sc, wme2queue[ac].reg, aifs);
+        }
 }
 
 static void
