@@ -59,7 +59,7 @@ struct jpeg_c_main_controller {
   JMETHOD(void, process_data, (j_compress_ptr cinfo,
 			       JSAMPARRAY input_buf, JDIMENSION *in_row_ctr,
 			       JDIMENSION in_rows_avail));
-} __aligned(sizeof(void *));
+};
 
 /* Compression preprocessing (downsampling input buffer control) */
 struct jpeg_c_prep_controller {
@@ -71,14 +71,14 @@ struct jpeg_c_prep_controller {
 				   JSAMPIMAGE output_buf,
 				   JDIMENSION *out_row_group_ctr,
 				   JDIMENSION out_row_groups_avail));
-} __aligned(sizeof(void *));
+};
 
 /* Coefficient buffer control */
 struct jpeg_c_coef_controller {
   JMETHOD(void, start_pass, (j_compress_ptr cinfo, J_BUF_MODE pass_mode));
   JMETHOD(boolean, compress_data, (j_compress_ptr cinfo,
 				   JSAMPIMAGE input_buf));
-} __aligned(sizeof(void *));
+};
 
 /* Colorspace conversion */
 struct jpeg_color_converter {
@@ -86,7 +86,7 @@ struct jpeg_color_converter {
   JMETHOD(void, color_convert, (j_compress_ptr cinfo,
 				JSAMPARRAY input_buf, JSAMPIMAGE output_buf,
 				JDIMENSION output_row, int num_rows));
-} __aligned(sizeof(void *));
+};
 
 /* Downsampling */
 struct jpeg_downsampler {
@@ -110,14 +110,14 @@ struct jpeg_forward_dct {
   JMETHOD(void, start_pass, (j_compress_ptr cinfo));
   /* It is useful to allow each component to have a separate FDCT method. */
   forward_DCT_ptr forward_DCT[MAX_COMPONENTS];
-} __aligned(sizeof(void *));
+};
 
 /* Entropy encoding */
 struct jpeg_entropy_encoder {
   JMETHOD(void, start_pass, (j_compress_ptr cinfo, boolean gather_statistics));
   JMETHOD(boolean, encode_mcu, (j_compress_ptr cinfo, JBLOCKROW *MCU_data));
   JMETHOD(void, finish_pass, (j_compress_ptr cinfo));
-} __aligned(sizeof(void *));
+};
 
 /* Marker writing */
 struct jpeg_marker_writer {
@@ -143,7 +143,7 @@ struct jpeg_decomp_master {
 
   /* State variables made visible to other modules */
   boolean is_dummy_pass;	/* True during 1st pass for 2-pass quant */
-} __aligned(sizeof(void *));
+};
 
 /* Input control module */
 struct jpeg_input_controller {
@@ -163,7 +163,7 @@ struct jpeg_d_main_controller {
   JMETHOD(void, process_data, (j_decompress_ptr cinfo,
 			       JSAMPARRAY output_buf, JDIMENSION *out_row_ctr,
 			       JDIMENSION out_rows_avail));
-} __aligned(sizeof(void *));
+};
 
 /* Coefficient buffer control */
 struct jpeg_d_coef_controller {
@@ -186,7 +186,7 @@ struct jpeg_d_post_controller {
 				    JSAMPARRAY output_buf,
 				    JDIMENSION *out_row_ctr,
 				    JDIMENSION out_rows_avail));
-} __aligned(sizeof(void *));
+};
 
 /* Marker reading & parsing */
 struct jpeg_marker_reader {
@@ -206,14 +206,14 @@ struct jpeg_marker_reader {
   boolean saw_SOF;		/* found SOF? */
   int next_restart_num;		/* next restart number expected (0-7) */
   unsigned int discarded_bytes;	/* # of bytes skipped looking for a marker */
-} __aligned(sizeof(void *));
+};
 
 /* Entropy decoding */
 struct jpeg_entropy_decoder {
   JMETHOD(void, start_pass, (j_decompress_ptr cinfo));
   JMETHOD(boolean, decode_mcu, (j_decompress_ptr cinfo,
 				JBLOCKROW *MCU_data));
-} __aligned(sizeof(void *));
+};
 
 /* Inverse DCT (also performs dequantization) */
 typedef JMETHOD(void, inverse_DCT_method_ptr,
@@ -239,7 +239,7 @@ struct jpeg_upsampler {
 			   JDIMENSION out_rows_avail));
 
   boolean need_context_rows;	/* TRUE if need rows above & below */
-} __aligned(sizeof(void *));
+};
 
 /* Colorspace conversion */
 struct jpeg_color_deconverter {
@@ -247,7 +247,7 @@ struct jpeg_color_deconverter {
   JMETHOD(void, color_convert, (j_decompress_ptr cinfo,
 				JSAMPIMAGE input_buf, JDIMENSION input_row,
 				JSAMPARRAY output_buf, int num_rows));
-} __aligned(sizeof(void *));
+};
 
 /* Color quantization or color precision reduction */
 struct jpeg_color_quantizer {
@@ -257,7 +257,7 @@ struct jpeg_color_quantizer {
 				 int num_rows));
   JMETHOD(void, finish_pass, (j_decompress_ptr cinfo));
   JMETHOD(void, new_color_map, (j_decompress_ptr cinfo));
-} __aligned(sizeof(void *));
+};
 
 
 /* Miscellaneous useful macros */

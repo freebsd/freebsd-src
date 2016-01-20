@@ -839,7 +839,7 @@ struct jpeg_memory_mgr {
 
   /* Maximum allocation request accepted by alloc_large. */
   long max_alloc_chunk;
-} __aligned(sizeof(void *));
+};
 
 
 /* Routine signature for application-supplied marker processing methods.

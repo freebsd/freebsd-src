@@ -31,7 +31,7 @@ struct parserutils_charset_codec {
 				uint8_t **dest, size_t *destlen);
 		parserutils_error (*reset)(parserutils_charset_codec *codec);
 	} handler; /**< Vtable for handler code */
-} __aligned(sizeof(void *));
+};
 
 /**
  * Codec factory component definition
