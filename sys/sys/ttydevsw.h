@@ -188,7 +188,8 @@ static __inline bool
 ttydevsw_busy(struct tty *tp)
 {
 
-	MPASS(tty_gone(tp));
+	tty_lock_assert(tp, MA_OWNED);
+	MPASS(!tty_gone(tp));
 
 	return (tp->t_devsw->tsw_busy(tp));
 }
