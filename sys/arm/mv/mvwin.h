@@ -305,6 +305,16 @@
 #define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x34)
 #define	MV_WIN_SATA_MAX			4
 
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_BOOTROM_MEM_ADDR	0xFFF00000
+#define	MV_BOOTROM_WIN_SIZE	0xF
+#define	MV_CPU_SUBSYS_REGS_LEN	0x100
+
+/* Internal Units Sync Barrier Control Register */
+#define	MV_SYNC_BARRIER_CTRL		0x84
+#define	MV_SYNC_BARRIER_CTRL_ALL	0xFFFF
+#endif
+
 #define WIN_REG_IDX_RD(pre,reg,off,base)					\
 	static __inline uint32_t						\
 	pre ## _ ## reg ## _read(int i)						\
