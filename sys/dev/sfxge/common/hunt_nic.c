@@ -920,6 +920,13 @@ ef10_get_datapath_caps(
 	else
 		encp->enc_fw_assisted_tso_enabled = B_FALSE;
 
+	/* Check if the firmware supports FATSOv2 */
+	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities_v2,
+				GET_CAPABILITIES_V2_OUT_TX_TSO_V2) == 1)
+		encp->enc_fw_assisted_tso_v2_enabled = B_TRUE;
+	else
+		encp->enc_fw_assisted_tso_v2_enabled = B_FALSE;
+
 	/* Check if the firmware has vadapter/vport/vswitch support */
 	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
 				GET_CAPABILITIES_OUT_EVB) == 1)

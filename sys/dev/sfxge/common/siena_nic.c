@@ -169,6 +169,7 @@ siena_board_cfg(
 
 	encp->enc_hw_tx_insert_vlan_enabled = B_FALSE;
 	encp->enc_fw_assisted_tso_enabled = B_FALSE;
+	encp->enc_fw_assisted_tso_v2_enabled = B_FALSE;
 	encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
 
 	return (0);
