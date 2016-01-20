@@ -238,39 +238,10 @@ __ElfType(Auxinfo);
 #define	R_MIPS_COPY		126
 #define	R_MIPS_JUMP_SLOT	127
 
-/* mips dynamic tags */
-
-#define	DT_MIPS_RLD_VERSION	0x70000001
-#define	DT_MIPS_TIME_STAMP	0x70000002
-#define	DT_MIPS_ICHECKSUM	0x70000003
-#define	DT_MIPS_IVERSION	0x70000004
-#define	DT_MIPS_FLAGS		0x70000005
-#define	DT_MIPS_BASE_ADDRESS	0x70000006
-#define	DT_MIPS_CONFLICT	0x70000008
-#define	DT_MIPS_LIBLIST		0x70000009
-#define	DT_MIPS_CONFLICTNO	0x7000000b
-#define	DT_MIPS_LOCAL_GOTNO	0x7000000a	/* number of local got ents */
-#define	DT_MIPS_LIBLISTNO	0x70000010
-#define	DT_MIPS_SYMTABNO	0x70000011	/* number of .dynsym entries */
-#define	DT_MIPS_UNREFEXTNO	0x70000012
-#define	DT_MIPS_GOTSYM		0x70000013	/* first dynamic sym in got */
-#define	DT_MIPS_HIPAGENO	0x70000014
-#define	DT_MIPS_RLD_MAP		0x70000016	/* address of loader map */
-#define	DT_MIPS_PLTGOT		0x70000032
-#define	DT_MIPS_RWPLT		0x70000034
-
 /*
  * ELF Flags
  */
-#define	EF_MIPS_PIC		0x00000002	/* Contains PIC code */
-#define	EF_MIPS_CPIC		0x00000004	/* STD PIC calling sequence */
-#define	EF_MIPS_ABI2		0x00000020	/* N32 */
 
-#define	EF_MIPS_ARCH_ASE	0x0f000000	/* Architectural extensions */
-#define	EF_MIPS_ARCH_MDMX	0x08000000	/* MDMX multimedia extension */
-#define	EF_MIPS_ARCH_M16	0x04000000	/* MIPS-16 ISA extensions */
-
-#define	EF_MIPS_ARCH		0xf0000000	/* Architecture field */
 #define	EF_MIPS_ARCH_1		0x00000000	/* -mips1 code */
 #define	EF_MIPS_ARCH_2		0x10000000	/* -mips2 code */
 #define	EF_MIPS_ARCH_3		0x20000000	/* -mips3 code */
