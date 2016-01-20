@@ -326,6 +326,13 @@ siena_vpd_verify(
 		if (dcont == 0)
 			break;
 
+		/*
+		 * Skip the RV keyword. It should be present in both the static
+		 * and dynamic cfg sectors.
+		 */
+		if (dtag == EFX_VPD_RO && dkey == EFX_VPD_KEYWORD('R', 'V'))
+			continue;
+
 		scont = 0;
 		_NOTE(CONSTANTCONDITION)
 		while (1) {
