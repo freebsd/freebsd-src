@@ -19,5 +19,6 @@ CFLAGS+= -I${.CURDIR}/../../common
  
 # Suppress warning from clang for FreeBSD %b and %D formats
 CFLAGS+= -fformat-extensions
+CFLAGS+= -DTERM_EMU
 
 .include <bsd.lib.mk>
