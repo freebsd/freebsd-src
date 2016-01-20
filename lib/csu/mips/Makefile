@@ -3,15 +3,21 @@
 .PATH: ${.CURDIR}/../common
 
 SRCS=		crti.S crtn.S
-FILES=		${SRCS:N*.h:R:S/$/.o/g} gcrt1.o crt1.o Scrt1.o
+OBJS=		${SRCS:N*.h:R:S/$/.o/g}
+OBJS+=		gcrt1.o crt1.o Scrt1.o
+CFLAGS+=	-I${.CURDIR}/../common \
+		-I${.CURDIR}/../../libc/include
+CFLAGS+=	-DCHERI # XXX: this should be a build system option
+
+FILES=		${OBJS}
+FILESMODE=	${LIBMODE}
 FILESOWN=	${LIBOWN}
 FILESGRP=	${LIBGRP}
-FILESMODE=	${LIBMODE}
 FILESDIR=	${LIBDIR}
-CFLAGS+=	-I${.CURDIR}/../common \
-		-I${.CURDIR}/../../libc/include \
-		-DCHERI # XXX: this should be a build system option
-CLEANFILES=	${FILES} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o
+# These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
+.undef LIBRARIES_ONLY
+
+CLEANFILES=	${OBJS} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o
 CLEANFILES+=	crt1_c.s gcrt1_c.s Scrt1_c.s
 
 .if defined(LIBCHERI)
@@ -49,7 +55,7 @@ gcrt1_c.o: gcrt1_c.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} gcrt1_c.s
 
 gcrt1.o: gcrt1_c.o crt1_s.o
-	${LD} ${LDFLAGS:S/^-Wl,//} -o gcrt1.o -r crt1_s.o gcrt1_c.o
+	${LD} ${_LDFLAGS} -o gcrt1.o -r crt1_s.o gcrt1_c.o
 
 # Compile crt1_c.c without -DGCRT
 crt1_c.s: crt1_c.c
@@ -59,8 +65,8 @@ crt1_c.s: crt1_c.c
 crt1_c.o: crt1_c.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} crt1_c.s
 
-crt1.o: crt1_c.o crt1_s.o
-	${LD} ${LDFLAGS:S/^-Wl,//} -o crt1.o -r crt1_s.o crt1_c.o
+crt1.o:	crt1_c.o crt1_s.o
+	${LD} ${_LDFLAGS} -o crt1.o -r crt1_s.o crt1_c.o
 
 # Compile crt1_c.c with -fPIC -DPIC
 Scrt1_c.s: crt1_c.c
@@ -71,9 +77,9 @@ Scrt1_c.o: Scrt1_c.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} Scrt1_c.s
 
 Scrt1.o: Scrt1_c.o crt1_s.o
-	${LD} ${LDFLAGS:S/^-Wl,//} -o Scrt1.o -r crt1_s.o Scrt1_c.o
+	${LD} ${_LDFLAGS} -o Scrt1.o -r crt1_s.o Scrt1_c.o
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>
 
 .if defined(LIBCHERI)
 CC:=	${CC:N-g}
