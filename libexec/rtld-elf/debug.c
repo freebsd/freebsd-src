@@ -62,7 +62,8 @@ dump_relocations (Obj_Entry *obj0)
 {
     Obj_Entry *obj;
 
-    for (obj = obj0; obj != NULL; obj = obj->next) {
+    for (obj = globallist_curr(obj0); obj != NULL;
+      obj = globallist_next(obj)) {
         dump_obj_relocations(obj);
     }
 }
