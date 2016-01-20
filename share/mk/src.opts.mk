@@ -119,7 +119,6 @@ __DEFAULT_YES_OPTIONS = \
     LIBCHERI_ALL \
     LIBPTHREAD \
     LIBTHR \
-    LINT \
     LOCALES \
     LOCATE \
     LPR \
