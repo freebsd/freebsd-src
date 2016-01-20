@@ -121,8 +121,10 @@ If a packet is dropped, the
 counter is incremented and the local sender receives ENOBUFS.
 The value must be greater than or equal to 0.
 .It Va hw.sfxge.tso_fw_assisted
-Enable/disable usage of FW-assisted TSO if supported by NIC firmware.
-Enabled by default.
+Bitmask to enable/disable usage of FW-assisted TSO version if supported
+by NIC firmware.
+FATSOv1 (bit 0) and FATSOv2 (bit 1) are supported.
+All enabled by default.
 .It Va hw.sfxge.N.max_rss_channels
 The maximum number of allocated RSS channels for the Nth adapter.
 If set to 0 or unset, the number of channels is determined by the number

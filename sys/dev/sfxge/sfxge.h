@@ -283,7 +283,10 @@ struct sfxge_softc {
 	unsigned int			rxq_count;
 	unsigned int			txq_count;
 
-	int				tso_fw_assisted;
+	unsigned int			tso_fw_assisted;
+#define	SFXGE_FATSOV1	(1 << 0)
+#define	SFXGE_FATSOV2	(1 << 1)
+
 #if EFSYS_OPT_MCDI_LOGGING
 	int				mcdi_logging;
 #endif
