@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.67 2015/05/01 03:20:54 djm Exp $ */
+/* $OpenBSD: auth-options.c,v 1.68 2015/07/03 03:43:18 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -588,35 +588,21 @@ auth_cert_options(struct sshkey *k, struct passwd *pw)
 	char *cert_forced_command = NULL;
 	int cert_source_address_done = 0;
 
-	if (sshkey_cert_is_legacy(k)) {
-		/* All options are in the one field for v00 certs */
-		if (parse_option_list(k->cert->critical, pw,
-		    OPTIONS_CRITICAL|OPTIONS_EXTENSIONS, 1,
-		    &cert_no_port_forwarding_flag,
-		    &cert_no_agent_forwarding_flag,
-		    &cert_no_x11_forwarding_flag,
-		    &cert_no_pty_flag,
-		    &cert_no_user_rc,
-		    &cert_forced_command,
-		    &cert_source_address_done) == -1)
-			return -1;
-	} else {
-		/* Separate options and extensions for v01 certs */
-		if (parse_option_list(k->cert->critical, pw,
-		    OPTIONS_CRITICAL, 1, NULL, NULL, NULL, NULL, NULL,
-		    &cert_forced_command,
-		    &cert_source_address_done) == -1)
-			return -1;
-		if (parse_option_list(k->cert->extensions, pw,
-		    OPTIONS_EXTENSIONS, 0,
-		    &cert_no_port_forwarding_flag,
-		    &cert_no_agent_forwarding_flag,
-		    &cert_no_x11_forwarding_flag,
-		    &cert_no_pty_flag,
-		    &cert_no_user_rc,
-		    NULL, NULL) == -1)
-			return -1;
-	}
+	/* Separate options and extensions for v01 certs */
+	if (parse_option_list(k->cert->critical, pw,
+	    OPTIONS_CRITICAL, 1, NULL, NULL, NULL, NULL, NULL,
+	    &cert_forced_command,
+	    &cert_source_address_done) == -1)
+		return -1;
+	if (parse_option_list(k->cert->extensions, pw,
+	    OPTIONS_EXTENSIONS, 0,
+	    &cert_no_port_forwarding_flag,
+	    &cert_no_agent_forwarding_flag,
+	    &cert_no_x11_forwarding_flag,
+	    &cert_no_pty_flag,
+	    &cert_no_user_rc,
+	    NULL, NULL) == -1)
+		return -1;
 
 	no_port_forwarding_flag |= cert_no_port_forwarding_flag;
 	no_agent_forwarding_flag |= cert_no_agent_forwarding_flag;

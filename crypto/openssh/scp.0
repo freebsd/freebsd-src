@@ -109,6 +109,7 @@ DESCRIPTION
                    PreferredAuthentications
                    Protocol
                    ProxyCommand
+                   PubkeyAcceptedKeyTypes
                    PubkeyAuthentication
                    RekeyLimit
                    RhostsRSAAuthentication
@@ -161,4 +162,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 5.7                    January 30, 2015                    OpenBSD 5.7
+OpenBSD 5.8                      July 10, 2015                     OpenBSD 5.8

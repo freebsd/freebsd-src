@@ -101,7 +101,7 @@ DESCRIPTION
 
      -b bits
              Specifies the number of bits in the key to create.  For RSA keys,
-             the minimum size is 768 bits and the default is 2048 bits.
+             the minimum size is 1024 bits and the default is 2048 bits.
              Generally, 2048 bits is considered sufficient.  DSA keys must be
              exactly 1024 bits as specified by FIPS 186-2.  For ECDSA keys,
              the -b flag determines the key length by selecting from one of
@@ -563,4 +563,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.7                    February 24, 2015                   OpenBSD 5.7
+OpenBSD 5.8                      July 3, 2015                      OpenBSD 5.8

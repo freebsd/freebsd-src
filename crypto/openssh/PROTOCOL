@@ -247,7 +247,6 @@ to request that the server make a connection to a Unix domain socket.
 	uint32		initial window size
 	uint32		maximum packet size
 	string		socket path
-	string		reserved for future use
 
 Similar to forwarded-tcpip, forwarded-streamlocal is sent by the
 server when the client has previously send the server a streamlocal-forward
@@ -453,4 +452,4 @@ respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-$OpenBSD: PROTOCOL,v 1.28 2015/05/08 03:56:51 djm Exp $
+$OpenBSD: PROTOCOL,v 1.29 2015/07/17 03:09:19 djm Exp $

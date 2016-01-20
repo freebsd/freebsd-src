@@ -87,12 +87,11 @@ DESCRIPTION
              files for the different protocol versions and host key
              algorithms.
 
-     -i      Specifies that sshd is being run from inetd(8).  sshd is normally
-             not run from inetd because it needs to generate the server key
-             before it can respond to the client, and this may take tens of
-             seconds.  Clients would have to wait too long if the key was
-             regenerated every time.  However, with small key sizes (e.g. 512)
-             using sshd from inetd may be feasible.
+     -i      Specifies that sshd is being run from inetd(8).  If SSH protocol
+             1 is enabled, sshd should not  normally be run from inetd because
+             it needs to generate the server key before it can respond to the
+             client, and this may take some time.  Clients may have to wait
+             too long if the key was regenerated every time.
 
      -k key_gen_time
              Specifies how often the ephemeral protocol version 1 server key
@@ -152,7 +151,7 @@ AUTHENTICATION
      host-specific key, normally 2048 bits, used to identify the host.
 
      Forward security for protocol 1 is provided through an additional server
-     key, normally 768 bits, generated when the server starts.  This key is
+     key, normally 1024 bits, generated when the server starts.  This key is
      normally regenerated every hour if it has been used, and is never stored
      on disk.  Whenever a client connects, the daemon responds with its public
      host and server keys.  The client compares the RSA host key against its
@@ -638,4 +637,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.7                       May 1, 2015                      OpenBSD 5.7
+OpenBSD 5.8                      July 3, 2015                      OpenBSD 5.8

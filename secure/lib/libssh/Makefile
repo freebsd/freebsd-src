@@ -29,8 +29,8 @@ SRCS+=	authfd.c authfile.c bufaux.c bufbn.c bufec.c buffer.c \
 
 # Portability layer
 SRCS+=	bcrypt_pbkdf.c blowfish.c bsd-misc.c explicit_bzero.c fmt_scaled.c \
-	glob.c openssl-compat.c port-tun.c strtonum.c timingsafe_bcmp.c \
-	vis.c xcrypt.c xmmap.c
+	glob.c openssl-compat.c port-tun.c realpath.c strtonum.c \
+	timingsafe_bcmp.c vis.c xcrypt.c xmmap.c
 
 .if ${MK_LDNS} == "no"
 SRCS+=	getrrsetbyname.c

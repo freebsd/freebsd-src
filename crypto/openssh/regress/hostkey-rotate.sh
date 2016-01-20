@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-rotate.sh,v 1.3 2015/03/24 20:22:17 markus Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.4 2015/07/10 06:23:25 markus Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"
@@ -56,7 +56,7 @@ check_key_present ssh-ed25519 || fail "unstrict didn't learn key"
 
 # Connect to sshd as usual
 verbose "learn additional hostkeys"
-dossh -oStrictHostKeyChecking=yes
+dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=$all_algs
 # Check that other keys learned
 expect_nkeys $nkeys "learn hostkeys"
 check_key_present ssh-rsa || fail "didn't learn keys"
@@ -74,7 +74,7 @@ verbose "learn changed non-primary hostkey"
 mv $OBJ/hkr.ssh-rsa.pub $OBJ/hkr.ssh-rsa.pub.old
 rm -f $OBJ/hkr.ssh-rsa
 ${SSHKEYGEN} -qt ssh-rsa -f $OBJ/hkr.ssh-rsa -N '' || fatal "ssh-keygen $k"
-dossh -oStrictHostKeyChecking=yes
+dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=$all_algs
 # Check that the key was replaced
 expect_nkeys $nkeys "learn hostkeys"
 check_key_present ssh-rsa $OBJ/hkr.ssh-rsa.pub.old && fail "old key present"
@@ -109,7 +109,7 @@ dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=ssh-rsa
 expect_nkeys 1 "learn hostkeys"
 check_key_present ssh-rsa || fail "didn't learn changed key"
 
-#	$OpenBSD: hostkey-rotate.sh,v 1.3 2015/03/24 20:22:17 markus Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.4 2015/07/10 06:23:25 markus Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"

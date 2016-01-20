@@ -21,6 +21,7 @@
 #define Blowfish_expandstate			Fssh_Blowfish_expandstate
 #define Blowfish_initstate			Fssh_Blowfish_initstate
 #define Blowfish_stream2word			Fssh_Blowfish_stream2word
+#define _ssh_compat_realpath			Fssh__ssh_compat_realpath
 #define _ssh_exchange_banner			Fssh__ssh_exchange_banner
 #define _ssh_host_key_sign			Fssh__ssh_host_key_sign
 #define _ssh_host_private_key			Fssh__ssh_host_private_key
@@ -379,10 +380,10 @@
 #define input_kex_ecdh_reply			Fssh_input_kex_ecdh_reply
 #define iptos2str				Fssh_iptos2str
 #define ipv64_normalise_mapped			Fssh_ipv64_normalise_mapped
-#define is_cert_revoked				Fssh_is_cert_revoked
 #define is_key_revoked				Fssh_is_key_revoked
 #define kex_alg_by_name				Fssh_kex_alg_by_name
 #define kex_alg_list				Fssh_kex_alg_list
+#define kex_assemble_names			Fssh_kex_assemble_names
 #define kex_buf2prop				Fssh_kex_buf2prop
 #define kex_c25519_hash				Fssh_kex_c25519_hash
 #define kex_derive_keys				Fssh_kex_derive_keys
@@ -393,6 +394,7 @@
 #define kex_free_newkeys			Fssh_kex_free_newkeys
 #define kex_input_kexinit			Fssh_kex_input_kexinit
 #define kex_input_newkeys			Fssh_kex_input_newkeys
+#define kex_names_cat				Fssh_kex_names_cat
 #define kex_names_valid				Fssh_kex_names_valid
 #define kex_new					Fssh_kex_new
 #define kex_prop2buf				Fssh_kex_prop2buf
@@ -600,18 +602,6 @@
 #define ssh_get_app_data			Fssh_ssh_get_app_data
 #define ssh_get_authentication_socket		Fssh_ssh_get_authentication_socket
 #define ssh_get_progname			Fssh_ssh_get_progname
-#define ssh_gssapi_build_ctx			Fssh_ssh_gssapi_build_ctx
-#define ssh_gssapi_buildmic			Fssh_ssh_gssapi_buildmic
-#define ssh_gssapi_check_mechanism		Fssh_ssh_gssapi_check_mechanism
-#define ssh_gssapi_check_oid			Fssh_ssh_gssapi_check_oid
-#define ssh_gssapi_delete_ctx			Fssh_ssh_gssapi_delete_ctx
-#define ssh_gssapi_error			Fssh_ssh_gssapi_error
-#define ssh_gssapi_import_name			Fssh_ssh_gssapi_import_name
-#define ssh_gssapi_init_ctx			Fssh_ssh_gssapi_init_ctx
-#define ssh_gssapi_last_error			Fssh_ssh_gssapi_last_error
-#define ssh_gssapi_set_oid			Fssh_ssh_gssapi_set_oid
-#define ssh_gssapi_set_oid_data			Fssh_ssh_gssapi_set_oid_data
-#define ssh_gssapi_sign				Fssh_ssh_gssapi_sign
 #define ssh_hmac_bytes				Fssh_ssh_hmac_bytes
 #define ssh_hmac_final				Fssh_ssh_hmac_final
 #define ssh_hmac_free				Fssh_ssh_hmac_free
@@ -788,7 +778,6 @@
 #define sshkey_add_private			Fssh_sshkey_add_private
 #define sshkey_cert_check_authority		Fssh_sshkey_cert_check_authority
 #define sshkey_cert_copy			Fssh_sshkey_cert_copy
-#define sshkey_cert_is_legacy			Fssh_sshkey_cert_is_legacy
 #define sshkey_cert_type			Fssh_sshkey_cert_type
 #define sshkey_certify				Fssh_sshkey_certify
 #define sshkey_check_revoked			Fssh_sshkey_check_revoked
@@ -930,6 +919,5 @@
 #define xcrypt					Fssh_xcrypt
 #define xmalloc					Fssh_xmalloc
 #define xmmap					Fssh_xmmap
-#define xrealloc				Fssh_xrealloc
 #define xreallocarray				Fssh_xreallocarray
 #define xstrdup					Fssh_xstrdup

@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile.inc,v 1.3 2015/01/23 21:21:23 miod Exp $
+#	$OpenBSD: Makefile.inc,v 1.6 2015/07/01 23:11:18 djm Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>

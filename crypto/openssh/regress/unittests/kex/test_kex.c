@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_kex.c,v 1.1 2015/01/15 23:41:29 markus Exp $ */
+/* 	$OpenBSD: test_kex.c,v 1.2 2015/07/10 06:23:25 markus Exp $ */
 /*
  * Regress test KEX
  *
@@ -85,6 +85,7 @@ do_kex_with_key(char *kex, int keytype, int bits)
 	struct sshbuf *state;
 	struct kex_params kex_params;
 	char *myproposal[PROPOSAL_MAX] = { KEX_CLIENT };
+	char *keyname = NULL;
 
 	TEST_START("sshkey_generate");
 	ASSERT_INT_EQ(sshkey_generate(keytype, bits, &private), 0);
@@ -98,6 +99,9 @@ do_kex_with_key(char *kex, int keytype, int bits)
 	memcpy(kex_params.proposal, myproposal, sizeof(myproposal));
 	if (kex != NULL)
 		kex_params.proposal[PROPOSAL_KEX_ALGS] = kex;
+	keyname = strdup(sshkey_ssh_name(private));
+	ASSERT_PTR_NE(keyname, NULL);
+	kex_params.proposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = keyname;
 	ASSERT_INT_EQ(ssh_init(&client, 0, &kex_params), 0);
 	ASSERT_INT_EQ(ssh_init(&server, 1, &kex_params), 0);
 	ASSERT_PTR_NE(client, NULL);
@@ -167,6 +171,7 @@ do_kex_with_key(char *kex, int keytype, int bits)
 	ssh_free(client);
 	ssh_free(server);
 	ssh_free(server2);
+	free(keyname);
 	TEST_DONE();
 }
 

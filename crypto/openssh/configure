@@ -10574,7 +10574,6 @@ for ac_func in  \
 	pstat \
 	readpassphrase \
 	reallocarray \
-	realpath \
 	recvmsg \
 	rresvport_af \
 	sendmsg \
@@ -11213,6 +11212,61 @@ $as_echo "#define BROKEN_SETRESGID 1" >>confdefs.h
 
 		 { $as_echo "$as_me:${as_lineno-$LINENO}: result: not implemented" >&5
 $as_echo "not implemented" >&6; }
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
+fi
+done
+
+
+for ac_func in realpath
+do :
+  ac_fn_c_check_func "$LINENO" "realpath" "ac_cv_func_realpath"
+if test "x$ac_cv_func_realpath" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_REALPATH 1
+_ACEOF
+
+					{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if realpath works with non-existent files" >&5
+$as_echo_n "checking if realpath works with non-existent files... " >&6; }
+	if test "$cross_compiling" = yes; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: assuming working" >&5
+$as_echo "$as_me: WARNING: cross compiling: assuming working" >&2;}
+
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <limits.h>
+#include <stdlib.h>
+#include <errno.h>
+
+int
+main ()
+{
+
+		char buf[PATH_MAX];
+		if (realpath("/opensshnonexistentfilename1234", buf) == NULL)
+			if (errno == ENOENT)
+				exit(1);
+		exit(0);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+
+$as_echo "#define BROKEN_REALPATH 1" >>confdefs.h
+
+		 { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 fi
 rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
   conftest.$ac_objext conftest.beam conftest.$ac_ext

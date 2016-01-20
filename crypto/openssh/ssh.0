@@ -6,12 +6,11 @@ NAME
 SYNOPSIS
      ssh [-1246AaCfGgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
          [-D [bind_address:]port] [-E log_file] [-e escape_char]
-         [-F configfile] [-I pkcs11] [-i identity_file]
-         [-L [bind_address:]port:host:hostport] [-l login_name] [-m mac_spec]
-         [-O ctl_cmd] [-o option] [-p port]
+         [-F configfile] [-I pkcs11] [-i identity_file] [-L address]
+         [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]
          [-Q cipher | cipher-auth | mac | kex | key | protocol-version]
-         [-R [bind_address:]port:host:hostport] [-S ctl_path] [-W host:port]
-         [-w local_tun[:remote_tun]] [user@]hostname [command]
+         [-R address] [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]]
+         [user@]hostname [command]
 
 DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
@@ -156,22 +155,29 @@ DESCRIPTION
              server.
 
      -L [bind_address:]port:host:hostport
-             Specifies that the given port on the local (client) host is to be
-             forwarded to the given host and port on the remote side.  This
-             works by allocating a socket to listen to port on the local side,
-             optionally bound to the specified bind_address.  Whenever a
-             connection is made to this port, the connection is forwarded over
-             the secure channel, and a connection is made to host port
-             hostport from the remote machine.  Port forwardings can also be
-             specified in the configuration file.  IPv6 addresses can be
-             specified by enclosing the address in square brackets.  Only the
-             superuser can forward privileged ports.  By default, the local
-             port is bound in accordance with the GatewayPorts setting.
-             However, an explicit bind_address may be used to bind the
-             connection to a specific address.  The bind_address of
-             M-bM-^@M-^\localhostM-bM-^@M-^] indicates that the listening port be bound for local
-             use only, while an empty address or M-bM-^@M-^X*M-bM-^@M-^Y indicates that the port
-             should be available from all interfaces.
+     -L [bind_address:]port:remote_socket
+     -L local_socket:host:hostport
+     -L local_socket:remote_socket
+             Specifies that connections to the given TCP port or Unix socket
+             on the local (client) host are to be forwarded to the given host
+             and port, or Unix socket, on the remote side.  This works by
+             allocating a socket to listen to either a TCP port on the local
+             side, optionally bound to the specified bind_address, or to a
+             Unix socket.  Whenever a connection is made to the local port or
+             socket, the connection is forwarded over the secure channel, and
+             a connection is made to either host port hostport, or the Unix
+             socket remote_socket, from the remote machine.
+
+             Port forwardings can also be specified in the configuration file.
+             Only the superuser can forward privileged ports.  IPv6 addresses
+             can be specified by enclosing the address in square brackets.
+
+             By default, the local port is bound in accordance with the
+             GatewayPorts setting.  However, an explicit bind_address may be
+             used to bind the connection to a specific address.  The
+             bind_address of M-bM-^@M-^\localhostM-bM-^@M-^] indicates that the listening port be
+             bound for local use only, while an empty address or M-bM-^@M-^X*M-bM-^@M-^Y indicates
+             that the port should be available from all interfaces.
 
      -l login_name
              Specifies the user to log in as on the remote machine.  This also
@@ -278,6 +284,7 @@ DESCRIPTION
                    Protocol
                    ProxyCommand
                    ProxyUseFdpass
+                   PubkeyAcceptedKeyTypes
                    PubkeyAuthentication
                    RekeyLimit
                    RemoteForward
@@ -317,19 +324,24 @@ DESCRIPTION
              suppressed.
 
      -R [bind_address:]port:host:hostport
-             Specifies that the given port on the remote (server) host is to
-             be forwarded to the given host and port on the local side.  This
-             works by allocating a socket to listen to port on the remote
-             side, and whenever a connection is made to this port, the
-             connection is forwarded over the secure channel, and a connection
-             is made to host port hostport from the local machine.
+     -R [bind_address:]port:local_socket
+     -R remote_socket:host:hostport
+     -R remote_socket:local_socket
+             Specifies that connections to the given TCP port or Unix socket
+             on the remote (server) host are to be forwarded to the given host
+             and port, or Unix socket, on the local side.  This works by
+             allocating a socket to listen to either a TCP port or to a Unix
+             socket on the remote side.  Whenever a connection is made to this
+             port or Unix socket, the connection is forwarded over the secure
+             channel, and a connection is made to either host port hostport,
+             or local_socket, from the local machine.
 
              Port forwardings can also be specified in the configuration file.
              Privileged ports can be forwarded only when logging in as root on
              the remote machine.  IPv6 addresses can be specified by enclosing
              the address in square brackets.
 
-             By default, the listening socket on the server will be bound to
+             By default, TCP listening sockets on the server will be bound to
              the loopback interface only.  This may be overridden by
              specifying a bind_address.  An empty bind_address, or the address
              M-bM-^@M-^X*M-bM-^@M-^Y, indicates that the remote socket should listen on all
@@ -957,4 +969,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.7                      May 22, 2015                      OpenBSD 5.7
+OpenBSD 5.8                      July 20, 2015                     OpenBSD 5.8

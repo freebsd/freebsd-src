@@ -51,7 +51,7 @@
    against it */
 #undef BROKEN_READ_COMPARISON
 
-/* Define if you have a broken realpath. */
+/* realpath does not work with nonexistent files */
 #undef BROKEN_REALPATH
 
 /* Needed for NeXT */

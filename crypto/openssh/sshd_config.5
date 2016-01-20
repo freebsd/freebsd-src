@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.204 2015/06/05 03:44:14 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.210 2015/08/06 14:53:21 deraadt Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: June 5 2015 $
+.Dd $Mdocdate: August 6 2015 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -435,6 +435,11 @@ The default is not to
 .It Cm Ciphers
 Specifies the ciphers allowed for protocol version 2.
 Multiple ciphers must be comma-separated.
+If the specified value begins with a
+.Sq +
+character, then the specified ciphers will be appended to the default set
+instead of replacing them.
+.Pp
 The supported ciphers are:
 .Pp
 .Bl -item -compact -offset indent
@@ -641,9 +646,21 @@ The default is
 .It Cm HostbasedAcceptedKeyTypes
 Specifies the key types that will be accepted for hostbased authentication
 as a comma-separated pattern list.
-The default
-.Dq *
-will allow all key types.
+Alternately if the specified value begins with a
+.Sq +
+character, then the specified key types will be appended to the default set
+instead of replacing them.
+The default for this option is:
+.Bd -literal -offset 3n
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-ed25519-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
+.Ed
+.Pp
 The
 .Fl Q
 option of
@@ -695,9 +712,15 @@ for protocol version 1, and
 and
 .Pa /etc/ssh/ssh_host_rsa_key
 for protocol version 2.
+.Pp
 Note that
 .Xr sshd 8
-will refuse to use a file if it is group/world-accessible.
+will refuse to use a file if it is group/world-accessible
+and that the
+.Cm HostKeyAlgorithms
+option restricts which of the keys are actually used by
+.Xr sshd 8 .
+.Pp
 It is possible to have multiple host key files.
 .Dq rsa1
 keys are used for version 1 and
@@ -719,6 +742,26 @@ If
 is specified, the location of the socket will be read from the
 .Ev SSH_AUTH_SOCK
 environment variable.
+.It Cm HostKeyAlgorithms
+Specifies the protocol version 2 host key algorithms
+that the server offers.
+The default for this option is:
+.Bd -literal -offset 3n
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-ed25519-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
+.Ed
+.Pp
+The list of available key types may also be obtained using the
+.Fl Q
+option of
+.Xr ssh 1
+with an argument of
+.Dq key .
 .It Cm IgnoreRhosts
 Specifies that
 .Pa .rhosts
@@ -822,6 +865,10 @@ The default is
 .It Cm KexAlgorithms
 Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
+Alternately if the specified value begins with a
+.Sq +
+character, then the specified methods will be appended to the default set
+instead of replacing them.
 The supported algorithms are:
 .Pp
 .Bl -item -compact -offset indent
@@ -920,6 +967,11 @@ Specifies the available MAC (message authentication code) algorithms.
 The MAC algorithm is used in protocol version 2
 for data integrity protection.
 Multiple algorithms must be comma-separated.
+If the specified value begins with a
+.Sq +
+character, then the specified algorithms will be appended to the default set
+instead of replacing them.
+.Pp
 The algorithms that contain
 .Dq -etm
 calculate the MAC after encryption (encrypt-then-mac).
@@ -1155,12 +1207,13 @@ Specifies whether root can log in using
 .Xr ssh 1 .
 The argument must be
 .Dq yes ,
+.Dq prohibit-password ,
 .Dq without-password ,
 .Dq forced-commands-only ,
 or
 .Dq no .
 The default is
-.Dq no .
+.Dq prohibit-password .
 Note that if
 .Cm ChallengeResponseAuthentication
 is
@@ -1170,8 +1223,10 @@ the root user may be allowed in with its password even if
 .Dq without-password .
 .Pp
 If this option is set to
+.Dq prohibit-password
+or
 .Dq without-password ,
-password authentication is disabled for root.
+password and keyboard-interactive authentication are disabled for root.
 .Pp
 If this option is set to
 .Dq forced-commands-only ,
@@ -1289,9 +1344,21 @@ is identical to
 .It Cm PubkeyAcceptedKeyTypes
 Specifies the key types that will be accepted for public key authentication
 as a comma-separated pattern list.
-The default
-.Dq *
-will allow all key types.
+Alternately if the specified value begins with a
+.Sq +
+character, then the specified key types will be appended to the default set
+instead of replacing them.
+The default for this option is:
+.Bd -literal -offset 3n
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+ssh-ed25519-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ssh-ed25519,ssh-rsa
+.Ed
+.Pp
 The
 .Fl Q
 option of
@@ -1355,7 +1422,7 @@ The default is
 This option applies to protocol version 1 only.
 .It Cm ServerKeyBits
 Defines the number of bits in the ephemeral protocol version 1 server key.
-The minimum value is 512, and the default is 1024.
+The default and minimum value is 1024.
 .It Cm StreamLocalBindMask
 Sets the octal file creation mode mask
 .Pq umask
@@ -1463,11 +1530,20 @@ For more details on certificates, see the CERTIFICATES section in
 .It Cm UseDNS
 Specifies whether
 .Xr sshd 8
-should look up the remote host name and check that
+should look up the remote host name, and to check that
 the resolved host name for the remote IP address maps back to the
 very same IP address.
-The default is
-.Dq no .
+.Pp
+If this option is set to
+.Dq no
+(the default) then only addresses and not host names may be used in
+.Pa ~/.ssh/known_hosts
+.Cm from
+and
+.Xr sshd_config 5
+.Cm Match
+.Cm Host
+directives.
 .It Cm UseLogin
 Specifies whether
 .Xr login 1
