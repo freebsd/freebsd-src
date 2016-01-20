@@ -336,9 +336,11 @@ gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 		 *   2 = high-to-low edge triggered
 		 *   4 = active high level-sensitive
 		 *   8 = active low level-sensitive
-		 * The hardware only supports active-high-level or rising-edge.
+		 * The hardware only supports active-high-level or rising-edge
+		 * for SPIs
 		 */
-		if (fdt32_to_cpu(intr[2]) & 0x0a) {
+		if (*interrupt >= GIC_FIRST_SPI &&
+		    fdt32_to_cpu(intr[2]) & 0x0a) {
 			printf("unsupported trigger/polarity configuration "
 			    "0x%02x\n", fdt32_to_cpu(intr[2]) & 0x0f);
 		}
