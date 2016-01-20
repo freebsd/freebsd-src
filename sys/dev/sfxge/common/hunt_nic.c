@@ -112,7 +112,10 @@ efx_mcdi_get_port_modes(
 		goto fail1;
 	}
 
-	/* Accept pre-Medford size (8 bytes - no CurrentMode field) */
+	/*
+	 * Require only Modes and DefaultMode fields.
+	 * (CurrentMode field was added for Medford)
+	 */
 	if (req.emr_out_length_used <
 	    MC_CMD_GET_PORT_MODES_OUT_CURRENT_MODE_OFST) {
 		rc = EMSGSIZE;
