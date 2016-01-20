@@ -123,7 +123,7 @@
 /*
  * System reset
  */
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define RSTOUTn_MASK		0x60
 #define SYSTEM_SOFT_RESET	0x64
 #define WD_RSTOUTn_MASK		0x4
@@ -346,6 +346,8 @@
 #define SAMPLE_AT_RESET		0x30
 #elif defined(SOC_MV_FREY)
 #define SAMPLE_AT_RESET		0x100
+#elif defined(SOC_MV_ARMADA38X)
+#define SAMPLE_AT_RESET		0x400
 #endif
 #if defined(SOC_MV_DISCOVERY)
 #define SAMPLE_AT_RESET_LO	0x30
@@ -370,6 +372,9 @@
 #elif defined(SOC_MV_LOKIPLUS)
 #define TCLK_MASK		0x0000F000
 #define TCLK_SHIFT		0x0C
+#elif defined(SOC_MV_ARMADA38X)
+#define TCLK_MASK		0x00008000
+#define TCLK_SHIFT		15
 #endif
 
 #define TCLK_100MHZ		100000000
@@ -415,6 +420,9 @@
 #define MV_DEV_88F6281		0x6281
 #define MV_DEV_88F6282		0x6282
 #define MV_DEV_88F6781		0x6781
+#define MV_DEV_88F6828		0x6828
+#define MV_DEV_88F6820		0x6820
+#define MV_DEV_88F6810		0x6810
 #define MV_DEV_MV78100_Z0	0x6381
 #define MV_DEV_MV78100		0x7810
 #define MV_DEV_MV78130		0x7813

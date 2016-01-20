@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #define INITIAL_TIMECOUNTER	(0xffffffff)
 #define MAX_WATCHDOG_TICKS	(0xffffffff)
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_CLOCK_SRC		25000000	/* Timers' 25MHz mode */
 #else
 #define MV_CLOCK_SRC		get_tclk()
@@ -124,7 +124,7 @@ mv_timer_attach(device_t dev)
 	int	error;
 	void	*ihl;
 	struct	mv_timer_softc *sc;
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	uint32_t irq_cause, irq_mask;
 #endif
 
@@ -155,7 +155,7 @@ mv_timer_attach(device_t dev)
 	}
 
 	mv_setup_timers();
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
         irq_cause &= IRQ_TIMER0_CLR;
 
@@ -294,7 +294,7 @@ static void
 mv_watchdog_enable(void)
 {
 	uint32_t val, irq_cause;
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	uint32_t irq_mask;
 #endif
 
@@ -302,7 +302,7 @@ mv_watchdog_enable(void)
 	irq_cause &= IRQ_TIMER_WD_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
 	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
@@ -318,7 +318,7 @@ mv_watchdog_enable(void)
 
 	val = mv_get_timer_control();
 	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO;
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 	val |= CPU_TIMER_WD_25MHZ_EN;
 #endif
 	mv_set_timer_control(val);
@@ -328,7 +328,7 @@ static void
 mv_watchdog_disable(void)
 {
 	uint32_t val, irq_cause;
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	uint32_t irq_mask;
 #endif
 
@@ -336,7 +336,7 @@ mv_watchdog_disable(void)
 	val &= ~(CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO);
 	mv_set_timer_control(val);
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
 	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
@@ -438,7 +438,7 @@ mv_setup_timers(void)
 	val = mv_get_timer_control();
 	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	val |= CPU_TIMER1_EN | CPU_TIMER1_AUTO;
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 	/* Enable 25MHz mode */
 	val |= CPU_TIMER0_25MHZ_EN | CPU_TIMER1_25MHZ_EN;
 #endif
