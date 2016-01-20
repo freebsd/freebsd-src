@@ -2362,7 +2362,13 @@ linux_ppoll(struct thread *td, struct linux_ppoll_args *args)
 #if defined(DEBUG) || defined(KTR)
 /* XXX: can be removed when every ldebug(...) and KTR stuff are removed. */
 
-u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
+#ifdef COMPAT_LINUX32
+#define	L_MAXSYSCALL	LINUX32_SYS_MAXSYSCALL
+#else
+#define	L_MAXSYSCALL	LINUX_SYS_MAXSYSCALL
+#endif
+
+u_char linux_debug_map[howmany(L_MAXSYSCALL, sizeof(u_char))];
 
 static int
 linux_debug(int syscall, int toggle, int global)
@@ -2374,7 +2380,7 @@ linux_debug(int syscall, int toggle, int global)
 		memset(linux_debug_map, c, sizeof(linux_debug_map));
 		return (0);
 	}
-	if (syscall < 0 || syscall >= LINUX_SYS_MAXSYSCALL)
+	if (syscall < 0 || syscall >= L_MAXSYSCALL)
 		return (EINVAL);
 	if (toggle)
 		clrbit(linux_debug_map, syscall);
@@ -2382,6 +2388,7 @@ linux_debug(int syscall, int toggle, int global)
 		setbit(linux_debug_map, syscall);
 	return (0);
 }
+#undef L_MAXSYSCALL
 
 /*
  * Usage: sysctl linux.debug=<syscall_nr>.<0/1>

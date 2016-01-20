@@ -410,6 +410,10 @@ s/\$//g
 					printf("\t\tuarg[%d] = (intptr_t) p->%s; /* %s */\n", \
 					     i - 1, \
 					     argname[i], arg) > systrace
+				else if (arg == "union l_semun")
+					printf("\t\tuarg[%d] = p->%s.buf; /* %s */\n", \
+					     i - 1, \
+					     argname[i], arg) > systrace
 				else if (substr(arg, 1, 1) == "u" || arg == "size_t")
 					printf("\t\tuarg[%d] = p->%s; /* %s */\n", \
 					     i - 1, \
