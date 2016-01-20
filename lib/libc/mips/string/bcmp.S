@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 
 LEAF(bcmp)
 	.set	noreorder
-	slt		v0, a2, 16	# is it worth any trouble?
-	bne		v0, zero, small
+	blt		a2, 16, small	# is it worth any trouble?
 	xor		v0, a0, a1	# compare low two bits of addresses
 	and		v0, v0, 3
 	PTR_SUBU	a3, zero, a1	# compute # bytes to word align address
@@ -111,8 +110,7 @@ unaligned:
 	bne		a0, a3, 3b
 	nop
 small:
-	sltu		v0, a2, zero
-	beq		v0, zero, match
+	ble		a2, zero, match
 	PTR_ADDU	a3, a2, a0		# compute ending address
 1:
 	lbu		v0, 0(a0)

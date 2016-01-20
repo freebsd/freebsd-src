@@ -54,8 +54,7 @@ __FBSDID("$FreeBSD$");
 
 LEAF(bzero)
 	.set	noreorder
-	slt		v0, a1, 3*SZREG	# small amount to clear?
-	bne		v0, zero, smallclr
+	blt		a1, 3*SZREG, smallclr # small amount to clear?
 	PTR_SUBU	a3, zero, a0	# compute # bytes to word align address
 	and		a3, a3, SZREG-1
 	beq		a3, zero, 1f	# skip if word aligned
@@ -72,8 +71,7 @@ LEAF(bzero)
 	bne		a0, a3, 2b	#  unrolling loop doesnt help
 	REG_S		zero, -SZREG(a0) # since we are limited by memory speed
 smallclr:
-	sltu		v0, a1, zero
-	beq		v0, zero, 2f
+	ble		a1, zero, 2f
 	PTR_ADDU	a3, a1, a0	# compute ending address
 1:
 	PTR_ADDU	a0, a0, 1	# clear bytes
