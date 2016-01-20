@@ -72,6 +72,10 @@ device		scbus
 device		pass
 device		da
 
+# I2C
+device		iic
+device		iicbus
+
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
