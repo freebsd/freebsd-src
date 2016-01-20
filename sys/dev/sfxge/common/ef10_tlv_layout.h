@@ -113,7 +113,11 @@ struct tlv_partition_header {
   uint32_t tag;
   uint32_t length;
   uint16_t type_id;
-  uint16_t reserved;
+/* 0 indicates the default segment (always located at offset 0), while other values
+ * are for RFID-selectable presets that should immediately follow the default segment.
+ * The default segment may also have preset > 0, which means that it is a preset
+ * selected through an RFID command and copied by FW to the location at offset 0. */
+  uint16_t preset;
   uint32_t generation;
   uint32_t total_length;
 };
