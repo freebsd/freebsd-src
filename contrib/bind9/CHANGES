@@ -1,3 +1,12 @@
+	--- 9.9.8-P3 released ---
+
+4288.	[bug]		Fixed a regression in resolver.c:possibly_mark()
+			which caused known-bogus servers to be queried
+			anyway. [RT #41321]
+
+4285.	[security]	Specific APL data could trigger a INSIST.
+			(CVE-2015-8704) [RT #41396]
+
 	--- 9.9.8-P2 released ---
 
 4270.	[security]	Update allowed OpenSSL versions as named is
