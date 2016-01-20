@@ -690,6 +690,9 @@
 #define	PCIR_VENDOR_LENGTH	0x2
 #define	PCIR_VENDOR_DATA	0x3
 
+/* PCI Device capability definitions */
+#define	PCIR_DEVICE_LENGTH	0x2
+
 /* PCI EHCI Debug Port definitions */
 #define	PCIR_DEBUG_PORT		0x2
 #define	PCIM_DEBUG_PORT_OFFSET		0x1FFF
