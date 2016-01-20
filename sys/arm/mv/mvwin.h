@@ -150,6 +150,8 @@
 
 #if defined(SOC_MV_FREY)
 #define MV_PCIE_BASE		(MV_BASE + 0x8000)
+#elif defined(SOC_MV_ARMADA38X)
+#define	MV_PCIE_BASE		(MV_BASE + 0x80000)
 #else
 #define MV_PCIE_BASE		(MV_BASE + 0x40000)
 #endif
@@ -170,7 +172,7 @@
 /*
  * Decode windows definitions and macros
  */
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_WIN_CPU_CTRL(n)		(((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8)))
 #define MV_WIN_CPU_BASE(n)		((((n) < 8) ? 0x10 * (n) :  0x90 + (0x8 * ((n) - 8))) + 0x4)
 #define MV_WIN_CPU_REMAP_LO(n)		(0x10 * (n) +  0x008)
@@ -184,7 +186,7 @@
 
 #if defined(SOC_MV_DISCOVERY)
 #define MV_WIN_CPU_MAX			14
-#elif defined(SOC_MV_ARMADAXP)
+#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_WIN_CPU_MAX			20
 #else
 #define MV_WIN_CPU_MAX			8
@@ -269,6 +271,10 @@
 #define MV_WIN_PCIE_TARGET(n)		(4 + (4 * ((n) % 2)))
 #define MV_WIN_PCIE_MEM_ATTR(n)		(0xE8 + (0x10 * ((n) / 2)))
 #define MV_WIN_PCIE_IO_ATTR(n)		(0xE0 + (0x10 * ((n) / 2)))
+#elif defined(SOC_MV_ARMADA38X)
+#define	MV_WIN_PCIE_TARGET(n)		((n) == 0 ? 8 : 4)
+#define	MV_WIN_PCIE_MEM_ATTR(n)		((n) < 2 ? 0xE8 : (0xD8 - (((n) % 2) * 0x20)))
+#define	MV_WIN_PCIE_IO_ATTR(n)		((n) < 2 ? 0xE0 : (0xD0 - (((n) % 2) * 0x20)))
 #elif defined(SOC_MV_ORION)
 #define MV_WIN_PCIE_TARGET(n)		4
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
