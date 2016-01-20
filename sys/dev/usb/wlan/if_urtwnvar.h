@@ -156,6 +156,7 @@ struct urtwn_softc {
 #define URTWN_FLAG_CCK_HIPWR	0x01
 #define URTWN_DETACHED		0x02
 #define	URTWN_RUNNING		0x04
+#define URTWN_TEMP_MEASURED	0x10
 
 	u_int				chip;
 #define	URTWN_CHIP_92C		0x01
@@ -180,8 +181,7 @@ struct urtwn_softc {
 	int8_t				ofdm_tx_pwr_diff;
 	int8_t				bw20_tx_pwr_diff;
 	int				avg_pwdb;
-	int				thcal_state;
-	int				thcal_lctemp;
+	uint8_t				thcal_lctemp;
 	int				ntxchains;
 	int				nrxchains;
 	int				ledlink;
@@ -203,7 +203,8 @@ struct urtwn_softc {
 
 	union urtwn_rom			rom;
 	uint16_t			last_rom_addr;
-		
+
+	struct callout			sc_calib_to;
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;
 	uint32_t			keys_bmap;

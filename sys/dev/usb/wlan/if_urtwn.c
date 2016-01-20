@@ -286,6 +286,9 @@ static void		urtwn_ibss_recv_mgmt(struct ieee80211_node *,
 			    const struct ieee80211_rx_stats *, int, int);
 static int		urtwn_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
+static void		urtwn_calib_to(void *);
+static void		urtwn_calib_cb(struct urtwn_softc *,
+			    union sec_param *);
 static void		urtwn_watchdog(void *);
 static void		urtwn_update_avgrssi(struct urtwn_softc *, int, int8_t);
 static int8_t		urtwn_get_rssi(struct urtwn_softc *, int, void *);
@@ -353,6 +356,7 @@ static void		urtwn_set_chan(struct urtwn_softc *,
 			    struct ieee80211_channel *);
 static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
+static void		urtwn_temp_calib(struct urtwn_softc *);
 static int		urtwn_init(struct urtwn_softc *);
 static void		urtwn_stop(struct urtwn_softc *);
 static void		urtwn_abort_xfers(struct urtwn_softc *);
@@ -481,6 +485,7 @@ urtwn_attach(device_t self)
 	    MTX_NETWORK_LOCK, MTX_DEF);
 	URTWN_CMDQ_LOCK_INIT(sc);
 	URTWN_NT_LOCK_INIT(sc);
+	callout_init(&sc->sc_calib_to, 0);
 	callout_init(&sc->sc_watchdog_ch, 0);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
@@ -626,6 +631,7 @@ urtwn_detach(device_t self)
 	urtwn_stop(sc);
 
 	callout_drain(&sc->sc_watchdog_ch);
+	callout_drain(&sc->sc_calib_to);
 
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, URTWN_N_TRANSFER);
@@ -2313,6 +2319,9 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	callout_stop(&sc->sc_watchdog_ch);
 
 	if (ostate == IEEE80211_S_RUN) {
+		/* Stop calibration. */
+		callout_stop(&sc->sc_calib_to);
+
 		/* Turn link LED off. */
 		urtwn_set_led(sc, URTWN_LED_LINK, 0);
 
@@ -2450,8 +2459,10 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		sc->avg_pwdb = -1;	/* Reset average RSSI. */
 		/* Reset temperature calibration state machine. */
-		sc->thcal_state = 0;
+		sc->sc_flags &= ~URTWN_TEMP_MEASURED;
 		sc->thcal_lctemp = 0;
+		/* Start periodic calibration. */
+		callout_reset(&sc->sc_calib_to, 2*hz, urtwn_calib_to, sc);
 
 end_run:
 		ieee80211_free_node(ni);
@@ -2463,6 +2474,25 @@ end_run:
 	URTWN_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (error != 0 ? error : uvp->newstate(vap, nstate, arg));
+}
+
+static void
+urtwn_calib_to(void *arg)
+{
+	struct urtwn_softc *sc = arg;
+
+	/* Do it in a process context. */
+	urtwn_cmd_sleepable(sc, NULL, 0, urtwn_calib_cb);
+}
+
+static void
+urtwn_calib_cb(struct urtwn_softc *sc, union sec_param *data)
+{
+	/* Do temperature compensation. */
+	urtwn_temp_calib(sc);
+
+	if ((urtwn_read_1(sc, R92C_MSR) & R92C_MSR_MASK) != R92C_MSR_NOLINK)
+		callout_reset(&sc->sc_calib_to, 2*hz, urtwn_calib_to, sc);
 }
 
 static void
@@ -4557,6 +4587,64 @@ urtwn_lc_calib(struct urtwn_softc *sc)
 	}
 }
 
+static void
+urtwn_temp_calib(struct urtwn_softc *sc)
+{
+	uint8_t temp;
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	if (!(sc->sc_flags & URTWN_TEMP_MEASURED)) {
+		/* Start measuring temperature. */
+		URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+		    "%s: start measuring temperature\n", __func__);
+		if (sc->chip & URTWN_CHIP_88E) {
+			urtwn_rf_write(sc, 0, R88E_RF_T_METER,
+			    R88E_RF_T_METER_START);
+		} else {
+			urtwn_rf_write(sc, 0, R92C_RF_T_METER,
+			    R92C_RF_T_METER_START);
+		}
+		sc->sc_flags |= URTWN_TEMP_MEASURED;
+		return;
+	}
+	sc->sc_flags &= ~URTWN_TEMP_MEASURED;
+
+	/* Read measured temperature. */
+	if (sc->chip & URTWN_CHIP_88E) {
+		temp = MS(urtwn_rf_read(sc, 0, R88E_RF_T_METER),
+		    R88E_RF_T_METER_VAL);
+	} else {
+		temp = MS(urtwn_rf_read(sc, 0, R92C_RF_T_METER),
+		    R92C_RF_T_METER_VAL);
+	}
+	if (temp == 0) {	/* Read failed, skip. */
+		URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+		    "%s: temperature read failed, skipping\n", __func__);
+		return;
+	}
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+	    "%s: temperature: previous %u, current %u\n",
+	    __func__, sc->thcal_lctemp, temp);
+
+	/*
+	 * Redo LC calibration if temperature changed significantly since
+	 * last calibration.
+	 */
+	if (sc->thcal_lctemp == 0) {
+		/* First LC calibration is performed in urtwn_init(). */
+		sc->thcal_lctemp = temp;
+	} else if (abs(temp - sc->thcal_lctemp) > 1) {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_TEMP,
+		    "%s: LC calib triggered by temp: %u -> %u\n",
+		    __func__, sc->thcal_lctemp, temp);
+		urtwn_lc_calib(sc);
+		/* Record temperature of last LC calibration. */
+		sc->thcal_lctemp = temp;
+	}
+}
+
 static int
 urtwn_init(struct urtwn_softc *sc)
 {
@@ -4804,7 +4892,8 @@ urtwn_stop(struct urtwn_softc *sc)
 		return;
 	}
 
-	sc->sc_flags &= ~URTWN_RUNNING;
+	sc->sc_flags &= ~(URTWN_RUNNING | URTWN_TEMP_MEASURED);
+	sc->thcal_lctemp = 0;
 	callout_stop(&sc->sc_watchdog_ch);
 	urtwn_abort_xfers(sc);
 

@@ -813,6 +813,7 @@
 #define R92C_RF_SYN_G(i)	(0x25 + (i))
 #define R92C_RF_RCK_OS		0x30
 #define R92C_RF_TXPA_G(i)	(0x31 + (i))
+#define R88E_RF_T_METER		0x42
 
 /* Bits for R92C_RF_AC. */
 #define R92C_RF_AC_MODE_M	0x70000
@@ -825,6 +826,16 @@
 #define R92C_RF_CHNLBW_BW20	0x00400
 #define R88E_RF_CHNLBW_BW20	0x00c00
 #define R92C_RF_CHNLBW_LCSTART	0x08000
+
+/* Bits for R92C_RF_T_METER. */
+#define R92C_RF_T_METER_START	0x60
+#define R92C_RF_T_METER_VAL_M	0x1f
+#define R92C_RF_T_METER_VAL_S	0
+
+/* Bits for R88E_RF_T_METER. */
+#define R88E_RF_T_METER_VAL_M	0x0fc00
+#define R88E_RF_T_METER_VAL_S	10
+#define R88E_RF_T_METER_START	0x30000
 
 
 /*
