@@ -204,7 +204,8 @@ FILES+=		iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
-FILES+=	jail
+FILESGROUPS+=	JAIL
+JAIL+=		jail
 .endif
 
 .if ${MK_LEGACY_CONSOLE} != "no"
@@ -306,5 +307,9 @@ SSHPACKAGE=	ssh
 BSNMPDIR=	/etc/rc.d
 BSNMPMODE=	${BINMODE}
 BSNMPPACKAGE=	bsnmp
+
+JAILDIR=	/etc/rc.d
+JAILMODE=	${BINMODE}
+JAILPACKAGE=	jail
 
 .include <bsd.prog.mk>
