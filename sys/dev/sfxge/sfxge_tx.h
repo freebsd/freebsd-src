@@ -170,6 +170,7 @@ struct sfxge_txq {
 	struct sfxge_softc		*sc;
 	enum sfxge_txq_state		init_state;
 	enum sfxge_flush_state		flush_state;
+	unsigned int			tso_fw_assisted;
 	enum sfxge_txq_type		type;
 	unsigned int			txq_index;
 	unsigned int			evq_index;
