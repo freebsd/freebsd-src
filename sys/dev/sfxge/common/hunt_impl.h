@@ -220,41 +220,41 @@ ef10_nic_unprobe(
 /* MAC */
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_poll(
+ef10_mac_poll(
 	__in		efx_nic_t *enp,
 	__out		efx_link_mode_t *link_modep);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_up(
+ef10_mac_up(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *mac_upp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_addr_set(
+ef10_mac_addr_set(
 	__in	efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_reconfigure(
+ef10_mac_reconfigure(
 	__in	efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_multicast_list_set(
+ef10_mac_multicast_list_set(
 	__in				efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_filter_default_rxq_set(
+ef10_mac_filter_default_rxq_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rxq_t *erp,
 	__in		boolean_t using_rss);
 
 extern			void
-hunt_mac_filter_default_rxq_clear(
+ef10_mac_filter_default_rxq_clear(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_LOOPBACK
 
 extern	__checkReturn	efx_rc_t
-hunt_mac_loopback_set(
+ef10_mac_loopback_set(
 	__in		efx_nic_t *enp,
 	__in		efx_link_mode_t link_mode,
 	__in		efx_loopback_type_t loopback_type);
@@ -264,7 +264,7 @@ hunt_mac_loopback_set(
 #if EFSYS_OPT_MAC_STATS
 
 extern	__checkReturn			efx_rc_t
-hunt_mac_stats_update(
+ef10_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
