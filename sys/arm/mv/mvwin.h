@@ -73,6 +73,8 @@
 #define MV_PCI_PORTS	2	/* 2x PCIE */
 #elif defined(SOC_MV_ARMADAXP)
 #define MV_PCI_PORTS	3	/* 3x PCIE */
+#elif defined(SOC_MV_ARMADA38X)
+#define MV_PCI_PORTS	4	/* 4x PCIE */
 #else
 #error "MV_PCI_PORTS not configured !"
 #endif
@@ -129,7 +131,7 @@
 #endif
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_MISC_BASE		(MV_BASE + 0x18200)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
