@@ -379,7 +379,9 @@ sh_types(uint64_t machine, uint64_t sht) {
 			break;
 		case EM_MIPS:
 			switch (sht) {
+			case SHT_MIPS_REGINFO: return "SHT_MIPS_REGINFO";
 			case SHT_MIPS_OPTIONS: return "SHT_MIPS_OPTIONS";
+			case SHT_MIPS_ABIFLAGS: return "SHT_MIPS_ABIFLAGS";
 			}
 			break;
 		}
