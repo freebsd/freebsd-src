@@ -455,16 +455,16 @@ ef10_nvram_partn_set_version(
 
 /* PHY */
 
-typedef struct hunt_link_state_s {
-	uint32_t		hls_adv_cap_mask;
-	uint32_t		hls_lp_cap_mask;
-	unsigned int 		hls_fcntl;
-	efx_link_mode_t		hls_link_mode;
+typedef struct ef10_link_state_s {
+	uint32_t		els_adv_cap_mask;
+	uint32_t		els_lp_cap_mask;
+	unsigned int		els_fcntl;
+	efx_link_mode_t		els_link_mode;
 #if EFSYS_OPT_LOOPBACK
-	efx_loopback_type_t	hls_loopback;
+	efx_loopback_type_t	els_loopback;
 #endif
-	boolean_t		hls_mac_up;
-} hunt_link_state_t;
+	boolean_t		els_mac_up;
+} ef10_link_state_t;
 
 extern			void
 hunt_phy_link_ev(
@@ -475,7 +475,7 @@ hunt_phy_link_ev(
 extern	__checkReturn	efx_rc_t
 hunt_phy_get_link(
 	__in		efx_nic_t *enp,
-	__out		hunt_link_state_t *hlsp);
+	__out		ef10_link_state_t *elsp);
 
 extern	__checkReturn	efx_rc_t
 hunt_phy_power(
