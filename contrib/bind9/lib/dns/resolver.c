@@ -3169,9 +3169,6 @@ possibly_mark(fetchctx_t *fctx, dns_adbaddrinfo_t *addr)
 	    bogus)
 		aborted = ISC_TRUE;
 
-	if (!isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(3)))
-		return;
-
 	if (aborted) {
 		addr->flags |= FCTX_ADDRINFO_MARK;
 		msg = "ignoring blackholed / bogus server: ";
@@ -3192,9 +3189,11 @@ possibly_mark(fetchctx_t *fctx, dns_adbaddrinfo_t *addr)
 	} else
 		return;
 
-	isc_netaddr_fromsockaddr(&na, sa);
-	isc_netaddr_format(&na, buf, sizeof(buf));
-	FCTXTRACE2(msg, buf);
+	if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(3))) {
+		isc_netaddr_fromsockaddr(&na, sa);
+		isc_netaddr_format(&na, buf, sizeof(buf));
+		FCTXTRACE2(msg, buf);
+	}
 }
 
 static inline dns_adbaddrinfo_t *
