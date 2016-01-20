@@ -148,6 +148,9 @@ device		pf
 device		pflog
 device		pfsync
 
+# GPIO
+device		gpio
+
 # ALTQ, required for PF
 options 	ALTQ			# Basic ALTQ support
 options 	ALTQ_CBQ		# Class Based Queueing

@@ -141,6 +141,12 @@ static struct resource_spec res_spec[] = {
 	{ -1, 0 }
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{ "mrvl,twsi",			true },
+	{ "marvell,mv64xxx-i2c",	true },
+	{ NULL,				false }
+};
+
 static device_method_t mv_twsi_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		mv_twsi_probe),
@@ -308,7 +314,7 @@ mv_twsi_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "mrvl,twsi"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Integrated I2C Bus Controller");
