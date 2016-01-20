@@ -291,6 +291,10 @@
 /* Define if your libraries define daemon() */
 #undef HAVE_DAEMON
 
+/* Define to 1 if you have the declaration of `AI_NUMERICSERV', and to 0 if
+   you don't. */
+#undef HAVE_DECL_AI_NUMERICSERV
+
 /* Define to 1 if you have the declaration of `authenticate', and to 0 if you
    don't. */
 #undef HAVE_DECL_AUTHENTICATE
@@ -419,6 +423,9 @@
 
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 #undef HAVE_EVP_MD_CTX_INIT
+
+/* Define to 1 if you have the `EVP_ripemd160' function. */
+#undef HAVE_EVP_RIPEMD160
 
 /* Define to 1 if you have the `EVP_sha256' function. */
 #undef HAVE_EVP_SHA256
@@ -768,6 +775,9 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
+/* Define to 1 if you have the `memset_s' function. */
+#undef HAVE_MEMSET_S
+
 /* Define to 1 if you have the `mkdtemp' function. */
 #undef HAVE_MKDTEMP
 
@@ -867,6 +877,9 @@
 
 /* Define to 1 if you have the <readpassphrase.h> header file. */
 #undef HAVE_READPASSPHRASE_H
+
+/* Define to 1 if you have the `reallocarray' function. */
+#undef HAVE_REALLOCARRAY
 
 /* Define to 1 if you have the `realpath' function. */
 #undef HAVE_REALPATH
@@ -1138,8 +1151,8 @@
 /* Define to 1 if you have the <sys/bsdtty.h> header file. */
 #undef HAVE_SYS_BSDTTY_H
 
-/* Define to 1 if you have the <sys/capability.h> header file. */
-#undef HAVE_SYS_CAPABILITY_H
+/* Define to 1 if you have the <sys/capsicum.h> header file. */
+#undef HAVE_SYS_CAPSICUM_H
 
 /* Define to 1 if you have the <sys/cdefs.h> header file. */
 #undef HAVE_SYS_CDEFS_H
@@ -1324,9 +1337,6 @@
 /* Define if va_copy exists */
 #undef HAVE_VA_COPY
 
-/* Define to 1 if you have the `vhangup' function. */
-#undef HAVE_VHANGUP
-
 /* Define to 1 if you have the <vis.h> header file. */
 #undef HAVE_VIS_H
 
@@ -1467,7 +1477,7 @@
 /* libcrypto is missing AES 192 and 256 bit functions */
 #undef OPENSSL_LOBOTOMISED_AES
 
-/* Define if you want OpenSSL's internally seeded PRNG only */
+/* Define if you want the OpenSSL internally seeded PRNG only */
 #undef OPENSSL_PRNG_ONLY
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -1662,8 +1672,14 @@
 /* Define if you want IRIX project management */
 #undef WITH_IRIX_PROJECT
 
+/* use libcrypto for cryptography */
+#undef WITH_OPENSSL
+
 /* Define if you want SELinux support. */
 #undef WITH_SELINUX
+
+/* include SSH protocol version 1 support */
+#undef WITH_SSH1
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -1679,6 +1695,11 @@
 
 /* Define if xauth is found in your path */
 #undef XAUTH_PATH
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

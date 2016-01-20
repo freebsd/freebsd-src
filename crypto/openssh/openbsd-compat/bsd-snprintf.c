@@ -538,7 +538,7 @@ fmtstr(char *buffer, size_t *currlen, size_t maxlen,
 	}
 	while (*value && (cnt < max)) {
 		DOPR_OUTCH(buffer, *currlen, maxlen, *value);
-		*value++;
+		value++;
 		++cnt;
 	}
 	while ((padlen < 0) && (cnt < max)) {
@@ -553,7 +553,7 @@ fmtstr(char *buffer, size_t *currlen, size_t maxlen,
 
 static int
 fmtint(char *buffer, size_t *currlen, size_t maxlen,
-		    LLONG value, int base, int min, int max, int flags)
+    intmax_t value, int base, int min, int max, int flags)
 {
 	int signvalue = 0;
 	unsigned LLONG uvalue;

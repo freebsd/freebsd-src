@@ -1,15 +1,15 @@
-SSH(1)                     OpenBSD Reference Manual                     SSH(1)
+SSH(1)                      General Commands Manual                     SSH(1)
 
 NAME
-     ssh - OpenSSH SSH client (remote login program)
+     ssh M-bM-^@M-^S OpenSSH SSH client (remote login program)
 
 SYNOPSIS
-     ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
+     ssh [-1246AaCfGgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
          [-D [bind_address:]port] [-E log_file] [-e escape_char]
          [-F configfile] [-I pkcs11] [-i identity_file]
          [-L [bind_address:]port:host:hostport] [-l login_name] [-m mac_spec]
          [-O ctl_cmd] [-o option] [-p port]
-         [-Q cipher | cipher-auth | mac | kex | key]
+         [-Q cipher | cipher-auth | mac | kex | key | protocol-version]
          [-R [bind_address:]port:host:hostport] [-S ctl_path] [-W host:port]
          [-w local_tun[:remote_tun]] [user@]hostname [command]
 
@@ -17,8 +17,9 @@ DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
      executing commands on a remote machine.  It is intended to replace rlogin
      and rsh, and provide secure encrypted communications between two
-     untrusted hosts over an insecure network.  X11 connections and arbitrary
-     TCP ports can also be forwarded over the secure channel.
+     untrusted hosts over an insecure network.  X11 connections, arbitrary TCP
+     ports and UNIX-domain sockets can also be forwarded over the secure
+     channel.
 
      ssh connects and logs into the specified hostname (with optional user
      name).  The user must prove his/her identity to the remote machine using
@@ -58,33 +59,26 @@ DESCRIPTION
              address.
 
      -C      Requests compression of all data (including stdin, stdout,
-             stderr, and data for forwarded X11 and TCP connections).  The
-             compression algorithm is the same used by gzip(1), and the
-             ``level'' can be controlled by the CompressionLevel option for
-             protocol version 1.  Compression is desirable on modem lines and
-             other slow connections, but will only slow down things on fast
-             networks.  The default value can be set on a host-by-host basis
-             in the configuration files; see the Compression option.
+             stderr, and data for forwarded X11, TCP and UNIX-domain
+             connections).  The compression algorithm is the same used by
+             gzip(1), and the M-bM-^@M-^\levelM-bM-^@M-^] can be controlled by the
+             CompressionLevel option for protocol version 1.  Compression is
+             desirable on modem lines and other slow connections, but will
+             only slow down things on fast networks.  The default value can be
+             set on a host-by-host basis in the configuration files; see the
+             Compression option.
 
      -c cipher_spec
              Selects the cipher specification for encrypting the session.
 
              Protocol version 1 allows specification of a single cipher.  The
-             supported values are ``3des'', ``blowfish'', and ``des''.  3des
-             (triple-des) is an encrypt-decrypt-encrypt triple with three
-             different keys.  It is believed to be secure.  blowfish is a fast
-             block cipher; it appears very secure and is much faster than
-             3des.  des is only supported in the ssh client for
-             interoperability with legacy protocol 1 implementations that do
-             not support the 3des cipher.  Its use is strongly discouraged due
-             to cryptographic weaknesses.  The default is ``3des''.
-
-             For protocol version 2, cipher_spec is a comma-separated list of
-             ciphers listed in order of preference.  See the Ciphers keyword
-             in ssh_config(5) for more information.
+             supported values are M-bM-^@M-^\3desM-bM-^@M-^], M-bM-^@M-^\blowfishM-bM-^@M-^], and M-bM-^@M-^\desM-bM-^@M-^].  For protocol
+             version 2, cipher_spec is a comma-separated list of ciphers
+             listed in order of preference.  See the Ciphers keyword in
+             ssh_config(5) for more information.
 
      -D [bind_address:]port
-             Specifies a local ``dynamic'' application-level port forwarding.
+             Specifies a local M-bM-^@M-^\dynamicM-bM-^@M-^] application-level port forwarding.
              This works by allocating a socket to listen to port on the local
              side, optionally bound to the specified bind_address.  Whenever a
              connection is made to this port, the connection is forwarded over
@@ -100,20 +94,20 @@ DESCRIPTION
              ports.  By default, the local port is bound in accordance with
              the GatewayPorts setting.  However, an explicit bind_address may
              be used to bind the connection to a specific address.  The
-             bind_address of ``localhost'' indicates that the listening port
-             be bound for local use only, while an empty address or `*'
-             indicates that the port should be available from all interfaces.
+             bind_address of M-bM-^@M-^\localhostM-bM-^@M-^] indicates that the listening port be
+             bound for local use only, while an empty address or M-bM-^@M-^X*M-bM-^@M-^Y indicates
+             that the port should be available from all interfaces.
 
      -E log_file
              Append debug logs to log_file instead of standard error.
 
      -e escape_char
-             Sets the escape character for sessions with a pty (default: `~').
+             Sets the escape character for sessions with a pty (default: M-bM-^@M-^X~M-bM-^@M-^Y).
              The escape character is only recognized at the beginning of a
-             line.  The escape character followed by a dot (`.') closes the
+             line.  The escape character followed by a dot (M-bM-^@M-^X.M-bM-^@M-^Y) closes the
              connection; followed by control-Z suspends the connection; and
              followed by itself sends the escape character once.  Setting the
-             character to ``none'' disables any escapes and makes the session
+             character to M-bM-^@M-^\noneM-bM-^@M-^] disables any escapes and makes the session
              fully transparent.
 
      -F configfile
@@ -128,12 +122,17 @@ DESCRIPTION
              implies -n.  The recommended way to start X11 programs at a
              remote site is with something like ssh -f host xterm.
 
-             If the ExitOnForwardFailure configuration option is set to
-             ``yes'', then a client started with -f will wait for all remote
-             port forwards to be successfully established before placing
-             itself in the background.
+             If the ExitOnForwardFailure configuration option is set to M-bM-^@M-^\yesM-bM-^@M-^],
+             then a client started with -f will wait for all remote port
+             forwards to be successfully established before placing itself in
+             the background.
 
-     -g      Allows remote hosts to connect to local forwarded ports.
+     -G      Causes ssh to print its configuration after evaluating Host and
+             Match blocks and exit.
+
+     -g      Allows remote hosts to connect to local forwarded ports.  If used
+             on a multiplexed connection, then this option must be specified
+             on the master process.
 
      -I pkcs11
              Specify the PKCS#11 shared library ssh should use to communicate
@@ -170,17 +169,17 @@ DESCRIPTION
              port is bound in accordance with the GatewayPorts setting.
              However, an explicit bind_address may be used to bind the
              connection to a specific address.  The bind_address of
-             ``localhost'' indicates that the listening port be bound for
-             local use only, while an empty address or `*' indicates that the
-             port should be available from all interfaces.
+             M-bM-^@M-^\localhostM-bM-^@M-^] indicates that the listening port be bound for local
+             use only, while an empty address or M-bM-^@M-^X*M-bM-^@M-^Y indicates that the port
+             should be available from all interfaces.
 
      -l login_name
              Specifies the user to log in as on the remote machine.  This also
              may be specified on a per-host basis in the configuration file.
 
-     -M      Places the ssh client into ``master'' mode for connection
-             sharing.  Multiple -M options places ssh into ``master'' mode
-             with confirmation required before slave connections are accepted.
+     -M      Places the ssh client into M-bM-^@M-^\masterM-bM-^@M-^] mode for connection sharing.
+             Multiple -M options places ssh into M-bM-^@M-^\masterM-bM-^@M-^] mode with
+             confirmation required before slave connections are accepted.
              Refer to the description of ControlMaster in ssh_config(5) for
              details.
 
@@ -205,10 +204,10 @@ DESCRIPTION
      -O ctl_cmd
              Control an active connection multiplexing master process.  When
              the -O option is specified, the ctl_cmd argument is interpreted
-             and passed to the master process.  Valid commands are: ``check''
-             (check that the master process is running), ``forward'' (request
-             forwardings without command execution), ``cancel'' (cancel
-             forwardings), ``exit'' (request the master to exit), and ``stop''
+             and passed to the master process.  Valid commands are: M-bM-^@M-^\checkM-bM-^@M-^]
+             (check that the master process is running), M-bM-^@M-^\forwardM-bM-^@M-^] (request
+             forwardings without command execution), M-bM-^@M-^\cancelM-bM-^@M-^] (cancel
+             forwardings), M-bM-^@M-^\exitM-bM-^@M-^] (request the master to exit), and M-bM-^@M-^\stopM-bM-^@M-^]
              (request the master to stop accepting further multiplexing
              requests).
 
@@ -242,6 +241,7 @@ DESCRIPTION
                    DynamicForward
                    EscapeChar
                    ExitOnForwardFailure
+                   FingerprintHash
                    ForwardAgent
                    ForwardX11
                    ForwardX11Timeout
@@ -253,6 +253,7 @@ DESCRIPTION
                    HashKnownHosts
                    Host
                    HostbasedAuthentication
+                   HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
                    HostName
@@ -286,10 +287,13 @@ DESCRIPTION
                    SendEnv
                    ServerAliveInterval
                    ServerAliveCountMax
+                   StreamLocalBindMask
+                   StreamLocalBindUnlink
                    StrictHostKeyChecking
                    TCPKeepAlive
                    Tunnel
                    TunnelDevice
+                   UpdateHostKeys
                    UsePrivilegedPort
                    User
                    UserKnownHostsFile
@@ -301,12 +305,13 @@ DESCRIPTION
              Port to connect to on the remote host.  This can be specified on
              a per-host basis in the configuration file.
 
-     -Q cipher | cipher-auth | mac | kex | key
+     -Q cipher | cipher-auth | mac | kex | key | protocol-version
              Queries ssh for the algorithms supported for the specified
              version 2.  The available features are: cipher (supported
              symmetric ciphers), cipher-auth (supported symmetric ciphers that
              support authenticated encryption), mac (supported message
-             integrity codes), kex (key exchange algorithms), key (key types).
+             integrity codes), kex (key exchange algorithms), key (key types)
+             and protocol-version (supported SSH protocol versions).
 
      -q      Quiet mode.  Causes most warning and diagnostic messages to be
              suppressed.
@@ -327,19 +332,19 @@ DESCRIPTION
              By default, the listening socket on the server will be bound to
              the loopback interface only.  This may be overridden by
              specifying a bind_address.  An empty bind_address, or the address
-             `*', indicates that the remote socket should listen on all
+             M-bM-^@M-^X*M-bM-^@M-^Y, indicates that the remote socket should listen on all
              interfaces.  Specifying a remote bind_address will only succeed
              if the server's GatewayPorts option is enabled (see
              sshd_config(5)).
 
-             If the port argument is `0', the listen port will be dynamically
+             If the port argument is M-bM-^@M-^X0M-bM-^@M-^Y, the listen port will be dynamically
              allocated on the server and reported to the client at run time.
              When used together with -O forward the allocated port will be
              printed to the standard output.
 
      -S ctl_path
              Specifies the location of a control socket for connection
-             sharing, or the string ``none'' to disable connection sharing.
+             sharing, or the string M-bM-^@M-^\noneM-bM-^@M-^] to disable connection sharing.
              Refer to the description of ControlPath and ControlMaster in
              ssh_config(5) for details.
 
@@ -349,9 +354,9 @@ DESCRIPTION
              applications (eg. sftp(1)).  The subsystem is specified as the
              remote command.
 
-     -T      Disable pseudo-tty allocation.
+     -T      Disable pseudo-terminal allocation.
 
-     -t      Force pseudo-tty allocation.  This can be used to execute
+     -t      Force pseudo-terminal allocation.  This can be used to execute
              arbitrary screen-based programs on a remote machine, which can be
              very useful, e.g. when implementing menu services.  Multiple -t
              options force tty allocation, even if ssh has no local tty.
@@ -375,11 +380,11 @@ DESCRIPTION
              (remote_tun).
 
              The devices may be specified by numerical ID or the keyword
-             ``any'', which uses the next available tunnel device.  If
-             remote_tun is not specified, it defaults to ``any''.  See also
-             the Tunnel and TunnelDevice directives in ssh_config(5).  If the
+             M-bM-^@M-^\anyM-bM-^@M-^], which uses the next available tunnel device.  If
+             remote_tun is not specified, it defaults to M-bM-^@M-^\anyM-bM-^@M-^].  See also the
+             Tunnel and TunnelDevice directives in ssh_config(5).  If the
              Tunnel directive is unset, it is set to the default tunnel mode,
-             which is ``point-to-point''.
+             which is M-bM-^@M-^\point-to-pointM-bM-^@M-^].
 
      -X      Enables X11 forwarding.  This can also be specified on a per-host
              basis in a configuration file.
@@ -446,7 +451,7 @@ AUTHENTICATION
      creates a public/private key pair for authentication purposes.  The
      server knows the public key, and only the user knows the private key.
      ssh implements public key authentication protocol automatically, using
-     one of the DSA, ECDSA, ED25519 or RSA algorithms.  Protocol 1 is
+     one of the DSA, ECDSA, Ed25519 or RSA algorithms.  Protocol 1 is
      restricted to using only RSA keys, but protocol 2 may use any.  The
      HISTORY section of ssl(8) contains a brief discussion of the DSA and RSA
      algorithms.
@@ -460,10 +465,10 @@ AUTHENTICATION
      The user creates his/her key pair by running ssh-keygen(1).  This stores
      the private key in ~/.ssh/identity (protocol 1), ~/.ssh/id_dsa (protocol
      2 DSA), ~/.ssh/id_ecdsa (protocol 2 ECDSA), ~/.ssh/id_ed25519 (protocol 2
-     ED25519), or ~/.ssh/id_rsa (protocol 2 RSA) and stores the public key in
+     Ed25519), or ~/.ssh/id_rsa (protocol 2 RSA) and stores the public key in
      ~/.ssh/identity.pub (protocol 1), ~/.ssh/id_dsa.pub (protocol 2 DSA),
      ~/.ssh/id_ecdsa.pub (protocol 2 ECDSA), ~/.ssh/id_ed25519.pub (protocol 2
-     ED25519), or ~/.ssh/id_rsa.pub (protocol 2 RSA) in the user's home
+     Ed25519), or ~/.ssh/id_rsa.pub (protocol 2 RSA) in the user's home
      directory.  The user should then copy the public key to
      ~/.ssh/authorized_keys in his/her home directory on the remote machine.
      The authorized_keys file corresponds to the conventional ~/.rhosts file,
@@ -505,17 +510,22 @@ AUTHENTICATION
      whose host key is not known or has changed.
 
      When the user's identity has been accepted by the server, the server
-     either executes the given command, or logs into the machine and gives the
-     user a normal shell on the remote machine.  All communication with the
+     either executes the given command in a non-interactive session or, if no
+     command has been specified, logs into the machine and gives the user a
+     normal shell as an interactive session.  All communication with the
      remote command or shell will be automatically encrypted.
 
-     If a pseudo-terminal has been allocated (normal login session), the user
-     may use the escape characters noted below.
+     If an interactive session is requested ssh by default will only request a
+     pseudo-terminal (pty) for interactive sessions when the client has one.
+     The flags -T and -t can be used to override this behaviour.
 
-     If no pseudo-tty has been allocated, the session is transparent and can
-     be used to reliably transfer binary data.  On most systems, setting the
-     escape character to ``none'' will also make the session transparent even
-     if a tty is used.
+     If a pseudo-terminal has been allocated the user may use the escape
+     characters noted below.
+
+     If no pseudo-terminal has been allocated, the session is transparent and
+     can be used to reliably transfer binary data.  On most systems, setting
+     the escape character to M-bM-^@M-^\noneM-bM-^@M-^] will also make the session transparent
+     even if a tty is used.
 
      The session terminates when the command or shell on the remote machine
      exits and all X11 and TCP connections have been closed.
@@ -530,7 +540,7 @@ ESCAPE CHARACTERS
      character can be changed in configuration files using the EscapeChar
      configuration directive or on the command line by the -e option.
 
-     The supported escapes (assuming the default `~') are:
+     The supported escapes (assuming the default M-bM-^@M-^X~M-bM-^@M-^Y) are:
 
      ~.      Disconnect.
 
@@ -579,26 +589,26 @@ TCP FORWARDING
      same local port, and ssh will encrypt and forward the connection.
 
      The following example tunnels an IRC session from client machine
-     ``127.0.0.1'' (localhost) to remote server ``server.example.com'':
+     M-bM-^@M-^\127.0.0.1M-bM-^@M-^] (localhost) to remote server M-bM-^@M-^\server.example.comM-bM-^@M-^]:
 
          $ ssh -f -L 1234:localhost:6667 server.example.com sleep 10
          $ irc -c '#users' -p 1234 pinky 127.0.0.1
 
-     This tunnels a connection to IRC server ``server.example.com'', joining
-     channel ``#users'', nickname ``pinky'', using port 1234.  It doesn't
-     matter which port is used, as long as it's greater than 1023 (remember,
-     only root can open sockets on privileged ports) and doesn't conflict with
-     any ports already in use.  The connection is forwarded to port 6667 on
-     the remote server, since that's the standard port for IRC services.
+     This tunnels a connection to IRC server M-bM-^@M-^\server.example.comM-bM-^@M-^], joining
+     channel M-bM-^@M-^\#usersM-bM-^@M-^], nickname M-bM-^@M-^\pinkyM-bM-^@M-^], using port 1234.  It doesn't matter
+     which port is used, as long as it's greater than 1023 (remember, only
+     root can open sockets on privileged ports) and doesn't conflict with any
+     ports already in use.  The connection is forwarded to port 6667 on the
+     remote server, since that's the standard port for IRC services.
 
-     The -f option backgrounds ssh and the remote command ``sleep 10'' is
+     The -f option backgrounds ssh and the remote command M-bM-^@M-^\sleep 10M-bM-^@M-^] is
      specified to allow an amount of time (10 seconds, in the example) to
      start the service which is to be tunnelled.  If no connections are made
      within the time specified, ssh will exit.
 
 X11 FORWARDING
-     If the ForwardX11 variable is set to ``yes'' (or see the description of
-     the -X, -x, and -Y options above) and the user is using X11 (the DISPLAY
+     If the ForwardX11 variable is set to M-bM-^@M-^\yesM-bM-^@M-^] (or see the description of the
+     -X, -x, and -Y options above) and the user is using X11 (the DISPLAY
      environment variable is set), the connection to the X11 display is
      automatically forwarded to the remote side in such a way that any X11
      programs started from the shell (or command) will go through the
@@ -609,7 +619,7 @@ X11 FORWARDING
 
      The DISPLAY value set by ssh will point to the server machine, but with a
      display number greater than zero.  This is normal, and happens because
-     ssh creates a ``proxy'' X server on the server machine for forwarding the
+     ssh creates a M-bM-^@M-^\proxyM-bM-^@M-^] X server on the server machine for forwarding the
      connections over the encrypted channel.
 
      ssh will also automatically set up Xauthority data on the server machine.
@@ -619,7 +629,7 @@ X11 FORWARDING
      is opened.  The real authentication cookie is never sent to the server
      machine (and no cookies are sent in the plain).
 
-     If the ForwardAgent variable is set to ``yes'' (or see the description of
+     If the ForwardAgent variable is set to M-bM-^@M-^\yesM-bM-^@M-^] (or see the description of
      the -A and -a options above) and the user is using an authentication
      agent, the connection to the agent is automatically forwarded to the
      remote side.
@@ -633,16 +643,20 @@ VERIFYING HOST KEYS
            $ ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key
 
      If the fingerprint is already known, it can be matched and the key can be
-     accepted or rejected.  Because of the difficulty of comparing host keys
-     just by looking at hex strings, there is also support to compare host
-     keys visually, using random art.  By setting the VisualHostKey option to
-     ``yes'', a small ASCII graphic gets displayed on every login to a server,
-     no matter if the session itself is interactive or not.  By learning the
-     pattern a known server produces, a user can easily find out that the host
-     key has changed when a completely different pattern is displayed.
-     Because these patterns are not unambiguous however, a pattern that looks
-     similar to the pattern remembered only gives a good probability that the
-     host key is the same, not guaranteed proof.
+     accepted or rejected.  If only legacy (MD5) fingerprints for the server
+     are available, the ssh-keygen(1) -E option may be used to downgrade the
+     fingerprint algorithm to match.
+
+     Because of the difficulty of comparing host keys just by looking at
+     fingerprint strings, there is also support to compare host keys visually,
+     using random art.  By setting the VisualHostKey option to M-bM-^@M-^\yesM-bM-^@M-^], a small
+     ASCII graphic gets displayed on every login to a server, no matter if the
+     session itself is interactive or not.  By learning the pattern a known
+     server produces, a user can easily find out that the host key has changed
+     when a completely different pattern is displayed.  Because these patterns
+     are not unambiguous however, a pattern that looks similar to the pattern
+     remembered only gives a good probability that the host key is the same,
+     not guaranteed proof.
 
      To get a listing of the fingerprints along with their random art for all
      known hosts, the following command line can be used:
@@ -655,8 +669,8 @@ VERIFYING HOST KEYS
      able to match the fingerprint with that of the key presented.
 
      In this example, we are connecting a client to a server,
-     ``host.example.com''.  The SSHFP resource records should first be added
-     to the zonefile for host.example.com:
+     M-bM-^@M-^\host.example.comM-bM-^@M-^].  The SSHFP resource records should first be added to
+     the zonefile for host.example.com:
 
            $ ssh-keygen -r host.example.com.
 
@@ -699,9 +713,9 @@ SSH-BASED VIRTUAL PRIVATE NETWORKS
 
      Client access may be more finely tuned via the /root/.ssh/authorized_keys
      file (see below) and the PermitRootLogin server option.  The following
-     entry would permit connections on tun(4) device 1 from user ``jane'' and
-     on tun device 2 from user ``john'', if PermitRootLogin is set to
-     ``forced-commands-only'':
+     entry would permit connections on tun(4) device 1 from user M-bM-^@M-^\janeM-bM-^@M-^] and on
+     tun device 2 from user M-bM-^@M-^\johnM-bM-^@M-^], if PermitRootLogin is set to
+     M-bM-^@M-^\forced-commands-onlyM-bM-^@M-^]:
 
        tunnel="1",command="sh /etc/netstart tun1" ssh-rsa ... jane
        tunnel="2",command="sh /etc/netstart tun2" ssh-rsa ... john
@@ -716,14 +730,14 @@ ENVIRONMENT
 
      DISPLAY               The DISPLAY variable indicates the location of the
                            X11 server.  It is automatically set by ssh to
-                           point to a value of the form ``hostname:n'', where
-                           ``hostname'' indicates the host where the shell
-                           runs, and `n' is an integer >= 1.  ssh uses this
-                           special value to forward X11 connections over the
-                           secure channel.  The user should normally not set
-                           DISPLAY explicitly, as that will render the X11
-                           connection insecure (and will require the user to
-                           manually copy any required authorization cookies).
+                           point to a value of the form M-bM-^@M-^\hostname:nM-bM-^@M-^], where
+                           M-bM-^@M-^\hostnameM-bM-^@M-^] indicates the host where the shell runs,
+                           and M-bM-^@M-^XnM-bM-^@M-^Y is an integer M-bM-^IM-% 1.  ssh uses this special
+                           value to forward X11 connections over the secure
+                           channel.  The user should normally not set DISPLAY
+                           explicitly, as that will render the X11 connection
+                           insecure (and will require the user to manually
+                           copy any required authorization cookies).
 
      HOME                  Set to the path of the user's home directory.
 
@@ -772,7 +786,7 @@ ENVIRONMENT
      USER                  Set to the name of the user logging in.
 
      Additionally, ssh reads ~/.ssh/environment, and adds lines of the format
-     ``VARNAME=value'' to the environment if the file exists and users are
+     M-bM-^@M-^\VARNAME=valueM-bM-^@M-^] to the environment if the file exists and users are
      allowed to change their environment.  For more information, see the
      PermitUserEnvironment option in sshd_config(5).
 
@@ -799,7 +813,7 @@ FILES
              for the user, and not accessible by others.
 
      ~/.ssh/authorized_keys
-             Lists the public keys (DSA, ECDSA, ED25519, RSA) that can be used
+             Lists the public keys (DSA, ECDSA, Ed25519, RSA) that can be used
              for logging in as this user.  The format of this file is
              described in the sshd(8) manual page.  This file is not highly
              sensitive, but the recommended permissions are read/write for the
@@ -890,7 +904,7 @@ EXIT STATUS
 
 SEE ALSO
      scp(1), sftp(1), ssh-add(1), ssh-agent(1), ssh-keygen(1), ssh-keyscan(1),
-     tun(4), hosts.equiv(5), ssh_config(5), ssh-keysign(8), sshd(8)
+     tun(4), ssh_config(5), ssh-keysign(8), sshd(8)
 
 STANDARDS
      S. Lehtinen and C. Lonvick, The Secure Shell (SSH) Protocol Assigned
@@ -943,4 +957,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5
+OpenBSD 5.7                      May 22, 2015                      OpenBSD 5.7

@@ -46,7 +46,13 @@ __FBSDID("$FreeBSD$");
  * descriptor without blocking.
  */
 #define	DMA_NO_WAIT	0x2
-#define	DMA_ALL_FLAGS	(DMA_INT_EN | DMA_NO_WAIT)
+/*
+ * Disallow prefetching the source of the following operation.  Ordinarily, DMA
+ * operations can be pipelined on some hardware.  E.g., operation 2's source
+ * may be prefetched before operation 1 completes.
+ */
+#define	DMA_FENCE	0x4
+#define	DMA_ALL_FLAGS	(DMA_INT_EN | DMA_NO_WAIT | DMA_FENCE)
 
 /*
  * Hardware revision number.  Different hardware revisions support different

@@ -61,6 +61,13 @@ static int vdev_geom_bio_delete_disable;
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_delete_disable, CTLFLAG_RWTUN,
     &vdev_geom_bio_delete_disable, 0, "Disable BIO_DELETE");
 
+/*
+ * Thread local storage used to indicate when a thread is probing geoms
+ * for their guids.  If NULL, this thread is not tasting geoms.  If non NULL,
+ * it is looking for a replacement for the vdev_t* that is its value.
+ */
+uint_t zfs_geom_probe_vdev_key;
+
 static void
 vdev_geom_set_rotation_rate(vdev_t *vd, struct g_consumer *cp)
 { 
@@ -160,7 +167,6 @@ vdev_geom_orphan(struct g_consumer *cp)
 	 * async removal support to invoke a close on this
 	 * vdev once it is safe to do so.
 	 */
-	zfs_post_remove(vd->vdev_spa, vd);
 	vd->vdev_remove_wanted = B_TRUE;
 	spa_async_request(vd->vdev_spa, SPA_ASYNC_REMOVE);
 }
@@ -285,8 +291,8 @@ static void
 nvlist_get_guids(nvlist_t *list, uint64_t *pguid, uint64_t *vguid)
 {
 
-	nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, vguid);
-	nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
+	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, vguid);
+	(void) nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
 }
 
 static int
@@ -327,9 +333,8 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 static void
 vdev_geom_taste_orphan(struct g_consumer *cp)
 {
-
-	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
-	    cp->provider->name));
+	ZFS_LOG(0, "WARNING: Orphan %s while tasting its VDev GUID.",
+	    cp->provider->name);
 }
 
 static int
@@ -576,7 +581,6 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 	g_topology_assert();
 
 	zgp = g_new_geomf(&zfs_vdev_class, "zfs::vdev::taste");
-	/* This orphan function should be never called. */
 	zgp->orphan = vdev_geom_taste_orphan;
 	zcp = g_new_consumer(zgp);
 
@@ -703,6 +707,9 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	size_t bufsize;
 	int error;
 
+	/* Set the TLS to indicate downstack that we should not access zvols*/
+	VERIFY(tsd_set(zfs_geom_probe_vdev_key, vd) == 0);
+
 	/*
 	 * We must have a pathname, and it must be absolute.
 	 */
@@ -751,6 +758,9 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 			cp = vdev_geom_open_by_guids(vd);
 		}
 	}
+
+	/* Clear the TLS now that tasting is done */
+	VERIFY(tsd_set(zfs_geom_probe_vdev_key, NULL) == 0);
 
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);

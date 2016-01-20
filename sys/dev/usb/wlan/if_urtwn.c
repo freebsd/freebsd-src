@@ -1707,27 +1707,22 @@ urtwn_read_rom(struct urtwn_softc *sc)
 static int
 urtwn_r88e_read_rom(struct urtwn_softc *sc)
 {
-	uint8_t *rom = sc->rom.r88e_rom;
-	uint16_t addr;
-	int error, i;
+	struct r88e_rom *rom = &sc->rom.r88e_rom;
+	int error;
 
-	error = urtwn_efuse_read(sc, rom, sizeof(sc->rom.r88e_rom));
+	error = urtwn_efuse_read(sc, (uint8_t *)rom, sizeof(sc->rom.r88e_rom));
 	if (error != 0)
 		return (error);
 
-	addr = 0x10;
-	for (i = 0; i < 6; i++)
-		sc->cck_tx_pwr[i] = rom[addr++];
-	for (i = 0; i < 5; i++)
-		sc->ht40_tx_pwr[i] = rom[addr++];
-	sc->bw20_tx_pwr_diff = (rom[addr] & 0xf0) >> 4;
+	sc->bw20_tx_pwr_diff = (rom->tx_pwr_diff >> 4);
 	if (sc->bw20_tx_pwr_diff & 0x08)
 		sc->bw20_tx_pwr_diff |= 0xf0;
-	sc->ofdm_tx_pwr_diff = (rom[addr] & 0xf);
+	sc->ofdm_tx_pwr_diff = (rom->tx_pwr_diff & 0xf);
 	if (sc->ofdm_tx_pwr_diff & 0x08)
 		sc->ofdm_tx_pwr_diff |= 0xf0;
-	sc->regulatory = MS(rom[0xc1], R92C_ROM_RF1_REGULATORY);
-	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, &rom[0xd7]);
+	sc->regulatory = MS(rom->rf_board_opt, R92C_ROM_RF1_REGULATORY);
+	DPRINTF("regulatory type=%d\n", sc->regulatory);
+	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, rom->macaddr);
 
 	sc->sc_rf_write = urtwn_r88e_rf_write;
 	sc->sc_power_on = urtwn_r88e_power_on;
@@ -3620,7 +3615,7 @@ urtwn_bb_init(struct urtwn_softc *sc)
 		urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), 0x69553420);
 		urtwn_ms_delay(sc);
 
-		crystalcap = sc->rom.r88e_rom[0xb9];
+		crystalcap = sc->rom.r88e_rom.crystalcap;
 		if (crystalcap == 0xff)
 			crystalcap = 0x20;
 		crystalcap &= 0x3f;
@@ -4002,6 +3997,7 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
     uint16_t power[URTWN_RIDX_COUNT])
 {
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct r88e_rom *rom = &sc->rom.r88e_rom;
 	uint16_t cckpow, ofdmpow, bw20pow, htpow;
 	const struct urtwn_r88e_txpwr *base;
 	int ridx, chan, group;
@@ -4040,14 +4036,14 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
 	}
 
 	/* Compute per-CCK rate Tx power. */
-	cckpow = sc->cck_tx_pwr[group];
+	cckpow = rom->cck_tx_pwr[group];
 	for (ridx = URTWN_RIDX_CCK1; ridx <= URTWN_RIDX_CCK11; ridx++) {
 		power[ridx] += cckpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
 	}
 
-	htpow = sc->ht40_tx_pwr[group];
+	htpow = rom->ht40_tx_pwr[group];
 
 	/* Compute per-OFDM rate Tx power. */
 	ofdmpow = htpow + sc->ofdm_tx_pwr_diff;

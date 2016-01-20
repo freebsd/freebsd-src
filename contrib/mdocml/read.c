@@ -1,16 +1,16 @@
-/*	$Id: read.c,v 1.131 2015/03/11 13:05:20 schwarze Exp $ */
+/*	$Id: read.c,v 1.148 2016/01/08 02:53:13 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2016 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2012 Joerg Sonnenberger <joerg@netbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -23,12 +23,13 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #endif
-#include <sys/wait.h>
 
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
+#if HAVE_ERR
 #include <err.h>
+#endif
+#include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -38,21 +39,19 @@
 #include <unistd.h>
 #include <zlib.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
-#include "libmandoc.h"
+#include "mandoc.h"
+#include "roff.h"
 #include "mdoc.h"
 #include "man.h"
+#include "libmandoc.h"
+#include "roff_int.h"
 
 #define	REPARSE_LIMIT	1000
 
 struct	mparse {
-	struct man	 *pman; /* persistent man parser */
-	struct mdoc	 *pmdoc; /* persistent mdoc parser */
-	struct man	 *man; /* man parser */
-	struct mdoc	 *mdoc; /* mdoc parser */
+	struct roff_man	 *man; /* man parser */
 	struct roff	 *roff; /* roff parser (!NULL) */
-	const struct mchars *mchars; /* character table */
 	char		 *sodest; /* filename pointed to by .so */
 	const char	 *file; /* filename of current input file */
 	struct buf	 *primary; /* buffer currently being parsed */
@@ -62,10 +61,10 @@ struct	mparse {
 	enum mandoclevel  file_status; /* status of current parse */
 	enum mandoclevel  wlevel; /* ignore messages below this */
 	int		  options; /* parser options */
+	int		  gzip; /* current input file is gzipped */
 	int		  filenc; /* encoding of the current file */
 	int		  reparse_count; /* finite interp. stack */
 	int		  line; /* line number in the file */
-	pid_t		  child; /* the gunzip(1) process */
 };
 
 static	void	  choose_parser(struct mparse *);
@@ -132,7 +131,6 @@ static	const char * const	mandocerrs[MANDOCERR_MAX] = {
 	"blocks badly nested",
 	"nested displays are not portable",
 	"moving content out of list",
-	".Vt block has child macro",
 	"fill mode already enabled, skipping",
 	"fill mode already disabled, skipping",
 	"line scope broken",
@@ -219,6 +217,7 @@ static	const char * const	mandocerrs[MANDOCERR_MAX] = {
 	/* related to request and macro arguments */
 	"escaped character not allowed in a name",
 	"NOT IMPLEMENTED: Bd -file",
+	"skipping display without arguments",
 	"missing list type, using -item",
 	"missing manual name, using \"\"",
 	"uname(3) system call failed, using UNKNOWN",
@@ -292,24 +291,22 @@ choose_parser(struct mparse *curp)
 		}
 	}
 
-	if (format == MPARSE_MDOC) {
-		if (NULL == curp->pmdoc)
-			curp->pmdoc = mdoc_alloc(
-			    curp->roff, curp, curp->defos,
-			    MPARSE_QUICK & curp->options ? 1 : 0);
-		assert(curp->pmdoc);
-		curp->mdoc = curp->pmdoc;
-		return;
+	if (curp->man == NULL) {
+		curp->man = roff_man_alloc(curp->roff, curp, curp->defos,
+		    curp->options & MPARSE_QUICK ? 1 : 0);
+		curp->man->macroset = MACROSET_MAN;
+		curp->man->first->tok = TOKEN_NONE;
 	}
 
-	/* Fall back to man(7) as a last resort. */
-
-	if (NULL == curp->pman)
-		curp->pman = man_alloc(
-		    curp->roff, curp, curp->defos,
-		    MPARSE_QUICK & curp->options ? 1 : 0);
-	assert(curp->pman);
-	curp->man = curp->pman;
+	if (format == MPARSE_MDOC) {
+		mdoc_hash_init();
+		curp->man->macroset = MACROSET_MDOC;
+		curp->man->first->tok = TOKEN_NONE;
+	} else {
+		man_hash_init();
+		curp->man->macroset = MACROSET_MAN;
+		curp->man->first->tok = TOKEN_NONE;
+	}
 }
 
 /*
@@ -331,7 +328,6 @@ mparse_buf_r(struct mparse *curp, struct buf blk, size_t i, int start)
 	int		 of;
 	int		 lnn; /* line number in the real file */
 	int		 fd;
-	pid_t		 save_child;
 	unsigned char	 c;
 
 	memset(&ln, 0, sizeof(ln));
@@ -543,10 +539,9 @@ rerun:
 			if (curp->secondary)
 				curp->secondary->sz -= pos + 1;
 			save_file = curp->file;
-			save_child = curp->child;
-			if (mparse_open(curp, &fd, ln.buf + of) ==
-			    MANDOCLEVEL_OK) {
+			if ((fd = mparse_open(curp, ln.buf + of)) != -1) {
 				mparse_readfd(curp, fd, ln.buf + of);
+				close(fd);
 				curp->file = save_file;
 			} else {
 				curp->file = save_file;
@@ -561,7 +556,6 @@ rerun:
 				of = 0;
 				mparse_buf_r(curp, ln, of, 0);
 			}
-			curp->child = save_child;
 			pos = 0;
 			continue;
 		default:
@@ -575,7 +569,8 @@ rerun:
 		 * parsers with each one.
 		 */
 
-		if ( ! (curp->man || curp->mdoc))
+		if (curp->man == NULL ||
+		    curp->man->macroset == MACROSET_NONE)
 			choose_parser(curp);
 
 		/*
@@ -587,19 +582,13 @@ rerun:
 		 * Do the same for ROFF_EQN.
 		 */
 
-		if (rr == ROFF_TBL) {
+		if (rr == ROFF_TBL)
 			while ((span = roff_span(curp->roff)) != NULL)
-				if (curp->man == NULL)
-					mdoc_addspan(curp->mdoc, span);
-				else
-					man_addspan(curp->man, span);
-		} else if (rr == ROFF_EQN) {
-			if (curp->man == NULL)
-				mdoc_addeqn(curp->mdoc, roff_eqn(curp->roff));
-			else
-				man_addeqn(curp->man, roff_eqn(curp->roff));
-		} else if ((curp->man == NULL ?
-		    mdoc_parseln(curp->mdoc, curp->line, ln.buf, of) :
+				roff_addtbl(curp->man, span);
+		else if (rr == ROFF_EQN)
+			roff_addeqn(curp->man, roff_eqn(curp->roff));
+		else if ((curp->man->macroset == MACROSET_MDOC ?
+		    mdoc_parseln(curp->man, curp->line, ln.buf, of) :
 		    man_parseln(curp->man, curp->line, ln.buf, of)) == 2)
 				break;
 
@@ -620,15 +609,15 @@ static int
 read_whole_file(struct mparse *curp, const char *file, int fd,
 		struct buf *fb, int *with_mmap)
 {
+	gzFile		 gz;
 	size_t		 off;
 	ssize_t		 ssz;
 
 #if HAVE_MMAP
 	struct stat	 st;
-	if (-1 == fstat(fd, &st)) {
-		perror(file);
-		exit((int)MANDOCLEVEL_SYSERR);
-	}
+
+	if (fstat(fd, &st) == -1)
+		err((int)MANDOCLEVEL_SYSERR, "%s", file);
 
 	/*
 	 * If we're a regular file, try just reading in the whole entry
@@ -637,18 +626,24 @@ read_whole_file(struct mparse *curp, const char *file, int fd,
 	 * concerned that this is going to tank any machines.
 	 */
 
-	if (S_ISREG(st.st_mode)) {
+	if (curp->gzip == 0 && S_ISREG(st.st_mode)) {
 		if (st.st_size > 0x7fffffff) {
 			mandoc_msg(MANDOCERR_TOOLARGE, curp, 0, 0, NULL);
-			return(0);
+			return 0;
 		}
 		*with_mmap = 1;
 		fb->sz = (size_t)st.st_size;
 		fb->buf = mmap(NULL, fb->sz, PROT_READ, MAP_SHARED, fd, 0);
 		if (fb->buf != MAP_FAILED)
-			return(1);
+			return 1;
 	}
 #endif
+
+	if (curp->gzip) {
+		if ((gz = gzdopen(fd, "rb")) == NULL)
+			err((int)MANDOCLEVEL_SYSERR, "%s", file);
+	} else
+		gz = NULL;
 
 	/*
 	 * If this isn't a regular file (like, say, stdin), then we must
@@ -668,43 +663,35 @@ read_whole_file(struct mparse *curp, const char *file, int fd,
 			}
 			resize_buf(fb, 65536);
 		}
-		ssz = read(fd, fb->buf + (int)off, fb->sz - off);
+		ssz = curp->gzip ?
+		    gzread(gz, fb->buf + (int)off, fb->sz - off) :
+		    read(fd, fb->buf + (int)off, fb->sz - off);
 		if (ssz == 0) {
 			fb->sz = off;
-			return(1);
+			return 1;
 		}
-		if (ssz == -1) {
-			perror(file);
-			exit((int)MANDOCLEVEL_SYSERR);
-		}
+		if (ssz == -1)
+			err((int)MANDOCLEVEL_SYSERR, "%s", file);
 		off += (size_t)ssz;
 	}
 
 	free(fb->buf);
 	fb->buf = NULL;
-	return(0);
+	return 0;
 }
 
 static void
 mparse_end(struct mparse *curp)
 {
 
-	if (curp->mdoc == NULL &&
-	    curp->man == NULL &&
-	    curp->sodest == NULL) {
-		if (curp->options & MPARSE_MDOC)
-			curp->mdoc = curp->pmdoc;
-		else {
-			if (curp->pman == NULL)
-				curp->pman = man_alloc(
-				    curp->roff, curp, curp->defos,
-				    curp->options & MPARSE_QUICK ? 1 : 0);
-			curp->man = curp->pman;
-		}
-	}
-	if (curp->mdoc)
-		mdoc_endparse(curp->mdoc);
-	if (curp->man)
+	if (curp->man == NULL && curp->sodest == NULL)
+		curp->man = roff_man_alloc(curp->roff, curp, curp->defos,
+		    curp->options & MPARSE_QUICK ? 1 : 0);
+	if (curp->man->macroset == MACROSET_NONE)
+		curp->man->macroset = MACROSET_MAN;
+	if (curp->man->macroset == MACROSET_MDOC)
+		mdoc_endparse(curp->man);
+	else
 		man_endparse(curp->man);
 	roff_endparse(curp->roff);
 }
@@ -759,7 +746,7 @@ mparse_readmem(struct mparse *curp, void *buf, size_t len,
 	blk.sz = len;
 
 	mparse_parse_buffer(curp, blk, file);
-	return(curp->file_status);
+	return curp->file_status;
 }
 
 /*
@@ -786,126 +773,48 @@ mparse_readfd(struct mparse *curp, int fd, const char *file)
 #endif
 			free(blk.buf);
 	}
-
-	if (fd != STDIN_FILENO && close(fd) == -1)
-		perror(file);
-
-	mparse_wait(curp);
-	return(curp->file_status);
+	return curp->file_status;
 }
 
-/*
- * hack to avoid depending on gnuzip(1) waiting for upstream proper
- * support
- */
-static int
-gunzip(const char *file)
+int
+mparse_open(struct mparse *curp, const char *file)
 {
-	gzFile		  gz;
-	char		  buf[8192];
-	int		  r;
-
-	gz = gzopen(file, "r");
-	if (gz == NULL)
-		err(EXIT_FAILURE, "cannot open %s", file);
-
-	while ((r = gzread(gz, buf, sizeof(buf))) > 0)
-		fwrite(buf, 1, r, stdout);
-
-	gzclose(gz);
-	return (EXIT_SUCCESS);
-}
-enum mandoclevel
-mparse_open(struct mparse *curp, int *fd, const char *file)
-{
-	int		  pfd[2];
-	int		  save_errno;
 	char		 *cp;
+	int		  fd;
 
 	curp->file = file;
+	cp = strrchr(file, '.');
+	curp->gzip = (cp != NULL && ! strcmp(cp + 1, "gz"));
 
-	/* Unless zipped, try to just open the file. */
+	/* First try to use the filename as it is. */
 
-	if ((cp = strrchr(file, '.')) == NULL ||
-	    strcmp(cp + 1, "gz")) {
-		curp->child = 0;
-		if ((*fd = open(file, O_RDONLY)) != -1)
-			return(MANDOCLEVEL_OK);
+	if ((fd = open(file, O_RDONLY)) != -1)
+		return fd;
 
-		/* Open failed; try to append ".gz". */
+	/*
+	 * If that doesn't work and the filename doesn't
+	 * already  end in .gz, try appending .gz.
+	 */
 
+	if ( ! curp->gzip) {
 		mandoc_asprintf(&cp, "%s.gz", file);
-		file = cp;
-	} else
-		cp = NULL;
-
-	/* Before forking, make sure the file can be read. */
-
-	save_errno = errno;
-	if (access(file, R_OK) == -1) {
-		if (cp != NULL)
-			errno = save_errno;
+		fd = open(file, O_RDONLY);
 		free(cp);
-		*fd = -1;
-		curp->child = 0;
-		mandoc_msg(MANDOCERR_FILE, curp, 0, 0, strerror(errno));
-		return(MANDOCLEVEL_ERROR);
-	}
-
-	/* Run gunzip(1). */
-
-	if (pipe(pfd) == -1) {
-		perror("pipe");
-		exit((int)MANDOCLEVEL_SYSERR);
-	}
-
-	switch (curp->child = fork()) {
-	case -1:
-		perror("fork");
-		exit((int)MANDOCLEVEL_SYSERR);
-	case 0:
-		close(pfd[0]);
-		if (dup2(pfd[1], STDOUT_FILENO) == -1) {
-			perror("dup");
-			exit((int)MANDOCLEVEL_SYSERR);
+		if (fd != -1) {
+			curp->gzip = 1;
+			return fd;
 		}
-		exit(gunzip(file));
-	default:
-		close(pfd[1]);
-		*fd = pfd[0];
-		return(MANDOCLEVEL_OK);
 	}
-}
 
-enum mandoclevel
-mparse_wait(struct mparse *curp)
-{
-	int	  status;
+	/* Neither worked, give up. */
 
-	if (curp->child == 0)
-		return(MANDOCLEVEL_OK);
-
-	if (waitpid(curp->child, &status, 0) == -1) {
-		perror("wait");
-		exit((int)MANDOCLEVEL_SYSERR);
-	}
-	curp->child = 0;
-	if (WIFSIGNALED(status)) {
-		mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0,
-		    "gunzip died from signal %d", WTERMSIG(status));
-		return(MANDOCLEVEL_ERROR);
-	}
-	if (WEXITSTATUS(status)) {
-		mandoc_vmsg(MANDOCERR_FILE, curp, 0, 0,
-		    "gunzip failed with code %d", WEXITSTATUS(status));
-		return(MANDOCLEVEL_ERROR);
-	}
-	return(MANDOCLEVEL_OK);
+	mandoc_msg(MANDOCERR_FILE, curp, 0, 0, strerror(errno));
+	return -1;
 }
 
 struct mparse *
 mparse_alloc(int options, enum mandoclevel wlevel, mandocmsg mmsg,
-    const struct mchars *mchars, const char *defos)
+    const char *defos)
 {
 	struct mparse	*curp;
 
@@ -916,18 +825,18 @@ mparse_alloc(int options, enum mandoclevel wlevel, mandocmsg mmsg,
 	curp->mmsg = mmsg;
 	curp->defos = defos;
 
-	curp->mchars = mchars;
-	curp->roff = roff_alloc(curp, curp->mchars, options);
-	if (curp->options & MPARSE_MDOC)
-		curp->pmdoc = mdoc_alloc(
-		    curp->roff, curp, curp->defos,
-		    curp->options & MPARSE_QUICK ? 1 : 0);
-	if (curp->options & MPARSE_MAN)
-		curp->pman = man_alloc(
-		    curp->roff, curp, curp->defos,
-		    curp->options & MPARSE_QUICK ? 1 : 0);
-
-	return(curp);
+	curp->roff = roff_alloc(curp, options);
+	curp->man = roff_man_alloc( curp->roff, curp, curp->defos,
+		curp->options & MPARSE_QUICK ? 1 : 0);
+	if (curp->options & MPARSE_MDOC) {
+		mdoc_hash_init();
+		curp->man->macroset = MACROSET_MDOC;
+	} else if (curp->options & MPARSE_MAN) {
+		man_hash_init();
+		curp->man->macroset = MACROSET_MAN;
+	}
+	curp->man->first->tok = TOKEN_NONE;
+	return curp;
 }
 
 void
@@ -936,16 +845,12 @@ mparse_reset(struct mparse *curp)
 
 	roff_reset(curp->roff);
 
-	if (curp->mdoc)
-		mdoc_reset(curp->mdoc);
-	if (curp->man)
-		man_reset(curp->man);
+	if (curp->man != NULL)
+		roff_man_reset(curp->man);
 	if (curp->secondary)
 		curp->secondary->sz = 0;
 
 	curp->file_status = MANDOCLEVEL_OK;
-	curp->mdoc = NULL;
-	curp->man = NULL;
 
 	free(curp->sodest);
 	curp->sodest = NULL;
@@ -955,10 +860,7 @@ void
 mparse_free(struct mparse *curp)
 {
 
-	if (curp->pmdoc)
-		mdoc_free(curp->pmdoc);
-	if (curp->pman)
-		man_free(curp->pman);
+	roff_man_free(curp->man);
 	if (curp->roff)
 		roff_free(curp->roff);
 	if (curp->secondary)
@@ -970,17 +872,14 @@ mparse_free(struct mparse *curp)
 }
 
 void
-mparse_result(struct mparse *curp,
-	struct mdoc **mdoc, struct man **man, char **sodest)
+mparse_result(struct mparse *curp, struct roff_man **man,
+	char **sodest)
 {
 
 	if (sodest && NULL != (*sodest = curp->sodest)) {
-		*mdoc = NULL;
 		*man = NULL;
 		return;
 	}
-	if (mdoc)
-		*mdoc = curp->mdoc;
 	if (man)
 		*man = curp->man;
 }
@@ -1023,13 +922,13 @@ const char *
 mparse_strerror(enum mandocerr er)
 {
 
-	return(mandocerrs[er]);
+	return mandocerrs[er];
 }
 
 const char *
 mparse_strlevel(enum mandoclevel lvl)
 {
-	return(mandoclevels[lvl]);
+	return mandoclevels[lvl];
 }
 
 void
@@ -1045,5 +944,5 @@ mparse_getkeep(const struct mparse *p)
 {
 
 	assert(p->secondary);
-	return(p->secondary->sz ? p->secondary->buf : NULL);
+	return p->secondary->sz ? p->secondary->buf : NULL;
 }

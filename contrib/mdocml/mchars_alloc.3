@@ -1,4 +1,4 @@
-.\"	$Id: mchars_alloc.3,v 1.2 2014/10/26 18:07:28 schwarze Exp $
+.\"	$Id: mchars_alloc.3,v 1.3 2015/10/13 22:59:54 schwarze Exp $
 .\"
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: October 26 2014 $
+.Dd $Mdocdate: October 13 2015 $
 .Dt MCHARS_ALLOC 3
 .Os
 .Sh NAME
@@ -25,17 +25,13 @@
 .Nm mchars_spec2cp ,
 .Nm mchars_spec2str
 .Nd character table for mandoc
-.Sh LIBRARY
-.Lb libmandoc
 .Sh SYNOPSIS
 .In sys/types.h
 .In mandoc.h
-.Ft "struct mchars *"
-.Fn mchars_alloc "void"
 .Ft void
-.Fo mchars_free
-.Fa "struct mchars *table"
-.Fc
+.Fn mchars_alloc void
+.Ft void
+.Fn mchars_free void
 .Ft char
 .Fo mchars_num2char
 .Fa "const char *decimal"
@@ -48,13 +44,11 @@
 .Fc
 .Ft int
 .Fo mchars_spec2cp
-.Fa "const struct mchars *table"
 .Fa "const char *name"
 .Fa "size_t sz"
 .Fc
 .Ft "const char *"
 .Fo mchars_spec2str
-.Fa "const struct mchars *table"
 .Fa "const char *name"
 .Fa "size_t sz"
 .Fa "size_t *rsz"
@@ -135,9 +129,9 @@ escape sequences.
 .Pp
 The function
 .Fn mchars_alloc
-allocates an opaque
-.Vt "struct mchars *"
-table object for subsequent use by the following two lookup functions.
+initializes a static
+.Vt "struct ohash"
+object for subsequent use by the following two lookup functions.
 When no longer needed, this object can be destroyed with
 .Fn mchars_free .
 .Pp
@@ -149,9 +143,7 @@ special character
 .Fa name
 consisting of
 .Fa sz
-characters in the
-.Fa table
-and returns the corresponding Unicode codepoint.
+characters and returns the corresponding Unicode codepoint.
 If the
 .Ar name
 is not recognized, \-1 is returned.
@@ -175,9 +167,7 @@ special character
 .Fa name
 consisting of
 .Fa sz
-characters in the
-.Fa table
-and returns an ASCII string representation.
+characters and returns an ASCII string representation.
 The length of the representation is returned in
 .Fa rsz .
 In many cases, the meaning of such ASCII representations
@@ -215,6 +205,7 @@ These funtions are implemented in the file
 .Sh SEE ALSO
 .Xr mandoc 1 ,
 .Xr mandoc_escape 3 ,
+.Xr ohash_init 3 ,
 .Xr mandoc_char 7 ,
 .Xr roff 7
 .Sh HISTORY

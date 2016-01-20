@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: cipher-chachapoly.c,v 1.4 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: cipher-chachapoly.c,v 1.7 2015/01/14 10:24:42 markus Exp $ */
 
 #include "includes.h"
 
@@ -24,16 +24,18 @@
 #include <stdio.h>  /* needed for misc.h */
 
 #include "log.h"
-#include "misc.h"
+#include "sshbuf.h"
+#include "ssherr.h"
 #include "cipher-chachapoly.h"
 
-void chachapoly_init(struct chachapoly_ctx *ctx,
+int chachapoly_init(struct chachapoly_ctx *ctx,
     const u_char *key, u_int keylen)
 {
 	if (keylen != (32 + 32)) /* 2 x 256 bit keys */
-		fatal("%s: invalid keylen %u", __func__, keylen);
+		return SSH_ERR_INVALID_ARGUMENT;
 	chacha_keysetup(&ctx->main_ctx, key, 256);
 	chacha_keysetup(&ctx->header_ctx, key + 32, 256);
+	return 0;
 }
 
 /*
@@ -52,33 +54,37 @@ chachapoly_crypt(struct chachapoly_ctx *ctx, u_int seqnr, u_char *dest,
 	u_char seqbuf[8];
 	const u_char one[8] = { 1, 0, 0, 0, 0, 0, 0, 0 }; /* NB little-endian */
 	u_char expected_tag[POLY1305_TAGLEN], poly_key[POLY1305_KEYLEN];
-	int r = -1;
+	int r = SSH_ERR_INTERNAL_ERROR;
 
 	/*
 	 * Run ChaCha20 once to generate the Poly1305 key. The IV is the
 	 * packet sequence number.
 	 */
 	memset(poly_key, 0, sizeof(poly_key));
-	put_u64(seqbuf, seqnr);
+	POKE_U64(seqbuf, seqnr);
 	chacha_ivsetup(&ctx->main_ctx, seqbuf, NULL);
 	chacha_encrypt_bytes(&ctx->main_ctx,
 	    poly_key, poly_key, sizeof(poly_key));
-	/* Set Chacha's block counter to 1 */
-	chacha_ivsetup(&ctx->main_ctx, seqbuf, one);
 
 	/* If decrypting, check tag before anything else */
 	if (!do_encrypt) {
 		const u_char *tag = src + aadlen + len;
 
 		poly1305_auth(expected_tag, src, aadlen + len, poly_key);
-		if (timingsafe_bcmp(expected_tag, tag, POLY1305_TAGLEN) != 0)
+		if (timingsafe_bcmp(expected_tag, tag, POLY1305_TAGLEN) != 0) {
+			r = SSH_ERR_MAC_INVALID;
 			goto out;
+		}
 	}
+
 	/* Crypt additional data */
 	if (aadlen) {
 		chacha_ivsetup(&ctx->header_ctx, seqbuf, NULL);
 		chacha_encrypt_bytes(&ctx->header_ctx, src, dest, aadlen);
 	}
+
+	/* Set Chacha's block counter to 1 */
+	chacha_ivsetup(&ctx->main_ctx, seqbuf, one);
 	chacha_encrypt_bytes(&ctx->main_ctx, src + aadlen,
 	    dest + aadlen, len);
 
@@ -88,7 +94,6 @@ chachapoly_crypt(struct chachapoly_ctx *ctx, u_int seqnr, u_char *dest,
 		    poly_key);
 	}
 	r = 0;
-
  out:
 	explicit_bzero(expected_tag, sizeof(expected_tag));
 	explicit_bzero(seqbuf, sizeof(seqbuf));
@@ -104,11 +109,10 @@ chachapoly_get_length(struct chachapoly_ctx *ctx,
 	u_char buf[4], seqbuf[8];
 
 	if (len < 4)
-		return -1; /* Insufficient length */
-	put_u64(seqbuf, seqnr);
+		return SSH_ERR_MESSAGE_INCOMPLETE;
+	POKE_U64(seqbuf, seqnr);
 	chacha_ivsetup(&ctx->header_ctx, seqbuf, NULL);
 	chacha_encrypt_bytes(&ctx->header_ctx, cp, buf, 4);
-	*plenp = get_u32(buf);
+	*plenp = PEEK_U32(buf);
 	return 0;
 }
-

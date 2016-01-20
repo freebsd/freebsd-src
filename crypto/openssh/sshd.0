@@ -1,7 +1,7 @@
-SSHD(8)                 OpenBSD System Manager's Manual                SSHD(8)
+SSHD(8)                     System Manager's Manual                    SSHD(8)
 
 NAME
-     sshd - OpenSSH SSH daemon
+     sshd M-bM-^@M-^S OpenSSH SSH daemon
 
 SYNOPSIS
      sshd [-46DdeiqTt] [-b bits] [-C connection_spec]
@@ -11,7 +11,7 @@ SYNOPSIS
 
 DESCRIPTION
      sshd (OpenSSH Daemon) is the daemon program for ssh(1).  Together these
-     programs replace rlogin(1) and rsh(1), and provide secure encrypted
+     programs replace rlogin and rsh, and provide secure encrypted
      communications between two untrusted hosts over an insecure network.
 
      sshd listens for connections from clients.  It is normally started at
@@ -41,10 +41,9 @@ DESCRIPTION
              file that would apply to the specified user, host, and address
              will be set before the configuration is written to standard
              output.  The connection parameters are supplied as keyword=value
-             pairs.  The keywords are ``user'', ``host'', ``laddr'',
-             ``lport'', and ``addr''.  All are required and may be supplied in
-             any order, either with multiple -C options or as a comma-
-             separated list.
+             pairs.  The keywords are M-bM-^@M-^\userM-bM-^@M-^], M-bM-^@M-^\hostM-bM-^@M-^], M-bM-^@M-^\laddrM-bM-^@M-^], M-bM-^@M-^\lportM-bM-^@M-^], and
+             M-bM-^@M-^\addrM-bM-^@M-^].  All are required and may be supplied in any order,
+             either with multiple -C options or as a comma-separated list.
 
      -c host_certificate_file
              Specifies a path to a certificate file to identify sshd during
@@ -148,7 +147,7 @@ DESCRIPTION
 AUTHENTICATION
      The OpenSSH SSH daemon supports SSH protocols 1 and 2.  The default is to
      use protocol 2 only, though this can be changed via the Protocol option
-     in sshd_config(5).  Protocol 2 supports DSA, ECDSA, ED25519 and RSA keys;
+     in sshd_config(5).  Protocol 2 supports DSA, ECDSA, Ed25519 and RSA keys;
      protocol 1 only supports RSA keys.  For both protocols, each host has a
      host-specific key, normally 2048 bits, used to identify the host.
 
@@ -185,11 +184,11 @@ AUTHENTICATION
      listed in DenyUsers or its group is listed in DenyGroups .  The
      definition of a locked account is system dependant. Some platforms have
      their own account database (eg AIX) and some modify the passwd field (
-     `*LK*' on Solaris and UnixWare, `*' on HP-UX, containing `Nologin' on
-     Tru64, a leading `*LOCKED*' on FreeBSD and a leading `!' on most
+     M-bM-^@M-^X*LK*M-bM-^@M-^Y on Solaris and UnixWare, M-bM-^@M-^X*M-bM-^@M-^Y on HP-UX, containing M-bM-^@M-^XNologinM-bM-^@M-^Y on
+     Tru64, a leading M-bM-^@M-^X*LOCKED*M-bM-^@M-^Y on FreeBSD and a leading M-bM-^@M-^X!M-bM-^@M-^Y on most
      Linuxes).  If there is a requirement to disable password authentication
      for the account while allowing still public-key, then the passwd field
-     should be set to something other than these values (eg `NP' or `*NP*' ).
+     should be set to something other than these values (eg M-bM-^@M-^XNPM-bM-^@M-^Y or M-bM-^@M-^X*NP*M-bM-^@M-^Y ).
 
      If the client successfully authenticates itself, a dialog for preparing
      the session is entered.  At this time the client may request things like
@@ -228,12 +227,15 @@ LOGIN PROCESS
 
            7.   Changes to user's home directory.
 
-           8.   If ~/.ssh/rc exists, runs it; else if /etc/ssh/sshrc exists,
-                runs it; otherwise runs xauth.  The ``rc'' files are given the
-                X11 authentication protocol and cookie in standard input.  See
+           8.   If ~/.ssh/rc exists and the sshd_config(5) PermitUserRC option
+                is set, runs it; else if /etc/ssh/sshrc exists, runs it;
+                otherwise runs xauth.  The M-bM-^@M-^\rcM-bM-^@M-^] files are given the X11
+                authentication protocol and cookie in standard input.  See
                 SSHRC, below.
 
-           9.   Runs user's shell or command.
+           9.   Runs user's shell or command.  All commands are run under the
+                user's login shell as specified in the system password
+                database.
 
 SSHRC
      If the file ~/.ssh/rc exists, sh(1) runs it after reading the environment
@@ -269,7 +271,7 @@ AUTHORIZED_KEYS FILE FORMAT
      AuthorizedKeysFile specifies the files containing public keys for public
      key authentication; if none is specified, the default is
      ~/.ssh/authorized_keys and ~/.ssh/authorized_keys2.  Each line of the
-     file contains one key (empty lines and lines starting with a `#' are
+     file contains one key (empty lines and lines starting with a M-bM-^@M-^X#M-bM-^@M-^Y are
      ignored as comments).  Protocol 1 public keys consist of the following
      space-separated fields: options, bits, exponent, modulus, comment.
      Protocol 2 public key consist of: options, keytype, base64-encoded key,
@@ -278,9 +280,9 @@ AUTHORIZED_KEYS FILE FORMAT
      starts with a number).  The bits, exponent, modulus, and comment fields
      give the RSA key for protocol version 1; the comment field is not used
      for anything (but may be convenient for the user to identify the key).
-     For protocol version 2 the keytype is ``ecdsa-sha2-nistp256'',
-     ``ecdsa-sha2-nistp384'', ``ecdsa-sha2-nistp521'', ``ssh-ed25519'',
-     ``ssh-dss'' or ``ssh-rsa''.
+     For protocol version 2 the keytype is M-bM-^@M-^\ecdsa-sha2-nistp256M-bM-^@M-^],
+     M-bM-^@M-^\ecdsa-sha2-nistp384M-bM-^@M-^], M-bM-^@M-^\ecdsa-sha2-nistp521M-bM-^@M-^], M-bM-^@M-^\ssh-ed25519M-bM-^@M-^], M-bM-^@M-^\ssh-dssM-bM-^@M-^] or
+     M-bM-^@M-^\ssh-rsaM-bM-^@M-^].
 
      Note that lines in this file are usually several hundred bytes long
      (because of the size of the public key encoding) up to a limit of 8
@@ -369,7 +371,7 @@ AUTHORIZED_KEYS FILE FORMAT
              Any X11 forward requests by the client will return an error.
 
      permitopen="host:port"
-             Limit local ``ssh -L'' port forwarding such that it may only
+             Limit local port forwarding with ssh(1) -L such that it may only
              connect to the specified host and port.  IPv6 addresses can be
              specified by enclosing the address in square brackets.  Multiple
              permitopen options may be applied separated by commas.  No
@@ -415,23 +417,23 @@ SSH_KNOWN_HOSTS FILE FORMAT
      separated by spaces.
 
      The marker is optional, but if it is present then it must be one of
-     ``@cert-authority'', to indicate that the line contains a certification
-     authority (CA) key, or ``@revoked'', to indicate that the key contained
-     on the line is revoked and must not ever be accepted.  Only one marker
+     M-bM-^@M-^\@cert-authorityM-bM-^@M-^], to indicate that the line contains a certification
+     authority (CA) key, or M-bM-^@M-^\@revokedM-bM-^@M-^], to indicate that the key contained on
+     the line is revoked and must not ever be accepted.  Only one marker
      should be used on a key line.
 
-     Hostnames is a comma-separated list of patterns (`*' and `?' act as
+     Hostnames is a comma-separated list of patterns (M-bM-^@M-^X*M-bM-^@M-^Y and M-bM-^@M-^X?M-bM-^@M-^Y act as
      wildcards); each pattern in turn is matched against the canonical host
      name (when authenticating a client) or against the user-supplied name
-     (when authenticating a server).  A pattern may also be preceded by `!' to
+     (when authenticating a server).  A pattern may also be preceded by M-bM-^@M-^X!M-bM-^@M-^Y to
      indicate negation: if the host name matches a negated pattern, it is not
      accepted (by that line) even if it matched another pattern on the line.
-     A hostname or address may optionally be enclosed within `[' and `]'
-     brackets then followed by `:' and a non-standard port number.
+     A hostname or address may optionally be enclosed within M-bM-^@M-^X[M-bM-^@M-^Y and M-bM-^@M-^X]M-bM-^@M-^Y
+     brackets then followed by M-bM-^@M-^X:M-bM-^@M-^Y and a non-standard port number.
 
      Alternately, hostnames may be stored in a hashed form which hides host
      names and addresses should the file's contents be disclosed.  Hashed
-     hostnames start with a `|' character.  Only one hashed hostname may
+     hostnames start with a M-bM-^@M-^X|M-bM-^@M-^Y character.  Only one hashed hostname may
      appear on a single line and none of the above negation or wildcard
      operators may be applied.
 
@@ -439,21 +441,21 @@ SSH_KNOWN_HOSTS FILE FORMAT
      they can be obtained, for example, from /etc/ssh/ssh_host_key.pub.  The
      optional comment field continues to the end of the line, and is not used.
 
-     Lines starting with `#' and empty lines are ignored as comments.
+     Lines starting with M-bM-^@M-^X#M-bM-^@M-^Y and empty lines are ignored as comments.
 
      When performing host authentication, authentication is accepted if any
      matching line has the proper key; either one that matches exactly or, if
      the server has presented a certificate for authentication, the key of the
      certification authority that signed the certificate.  For a key to be
-     trusted as a certification authority, it must use the ``@cert-authority''
+     trusted as a certification authority, it must use the M-bM-^@M-^\@cert-authorityM-bM-^@M-^]
      marker described above.
 
      The known hosts file also provides a facility to mark keys as revoked,
      for example when it is known that the associated private key has been
-     stolen.  Revoked keys are specified by including the ``@revoked'' marker
-     at the beginning of the key line, and are never accepted for
-     authentication or as certification authorities, but instead will produce
-     a warning from ssh(1) when they are encountered.
+     stolen.  Revoked keys are specified by including the M-bM-^@M-^\@revokedM-bM-^@M-^] marker at
+     the beginning of the key line, and are never accepted for authentication
+     or as certification authorities, but instead will produce a warning from
+     ssh(1) when they are encountered.
 
      It is permissible (but not recommended) to have several lines or
      different host keys for the same names.  This will inevitably happen when
@@ -513,7 +515,7 @@ FILES
              for the user, and not accessible by others.
 
      ~/.ssh/authorized_keys
-             Lists the public keys (DSA, ECDSA, ED25519, RSA) that can be used
+             Lists the public keys (DSA, ECDSA, Ed25519, RSA) that can be used
              for logging in as this user.  The format of this file is
              described above.  The content of the file is not highly
              sensitive, but the recommended permissions are read/write for the
@@ -523,12 +525,12 @@ FILES
              are writable by other users, then the file could be modified or
              replaced by unauthorized users.  In this case, sshd will not
              allow it to be used unless the StrictModes option has been set to
-             ``no''.
+             M-bM-^@M-^\noM-bM-^@M-^].
 
      ~/.ssh/environment
              This file is read into the environment at login (if it exists).
              It can only contain empty lines, comment lines (that start with
-             `#'), and assignment lines of the form name=value.  The file
+             M-bM-^@M-^X#M-bM-^@M-^Y), and assignment lines of the form name=value.  The file
              should be writable only by the user; it need not be readable by
              anyone else.  Environment processing is disabled by default and
              is controlled via the PermitUserEnvironment option.
@@ -636,8 +638,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-CAVEATS
-     System security is not improved unless rshd, rlogind, and rexecd are
-     disabled (thus completely disabling rlogin and rsh into the machine).
-
-OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5
+OpenBSD 5.7                       May 1, 2015                      OpenBSD 5.7

@@ -4,9 +4,6 @@ MAN=
 
 .include <src.opts.mk>
 
-# In-tree GCC does not support __attribute__((ms_abi)).
-.if ${COMPILER_TYPE} != "gcc"
-
 MK_SSP=		no
 
 PROG=		loader.sym
@@ -24,6 +21,16 @@ SRCS=	autoload.c \
 	smbios.c \
 	vers.c
 
+.if ${MK_ZFS} != "no"
+SRCS+=		zfs.c
+.PATH:		${.CURDIR}/../../zfs
+
+# Disable warnings that are currently incompatible with the zfs boot code
+CWARNFLAGS.zfs.c+=	-Wno-sign-compare
+CWARNFLAGS.zfs.c+=	-Wno-array-bounds
+CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
+.endif
+
 .PATH: ${.CURDIR}/arch/${MACHINE}
 # For smbios.c
 .PATH: ${.CURDIR}/../../i386/libi386
@@ -36,6 +43,11 @@ CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../i386/libi386
+.if ${MK_ZFS} != "no"
+CFLAGS+=	-I${.CURDIR}/../../zfs
+CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
+CFLAGS+=	-DEFI_ZFS_BOOT
+.endif
 CFLAGS+=	-DNO_PCI -DEFI
 
 # make buildenv doesn't set DESTDIR, this means LIBSTAND
@@ -112,8 +124,6 @@ LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND} \
 		${LDSCRIPT}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND}
-
-.endif # ${COMPILER_TYPE} != "gcc"
 
 .include <bsd.prog.mk>
 

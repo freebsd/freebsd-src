@@ -6,8 +6,6 @@ MDOCMLDIR=	${.CURDIR}/../../contrib/mdocml
 .PATH: ${MDOCMLDIR}
 
 PROG=	mandoc
-FILES=	example.style.css style.css
-FILESDIR=	${SHAREDIR}/mdocml
 MAN=	mandoc.1 eqn.7 mandoc_char.7 tbl.7 man.7 mdoc.7 # roff.7
 MLINKS=	mandoc.1 mdocml.1
 .if ${MK_MANDOCDB} != no
@@ -29,6 +27,7 @@ LIBMDOC_SRCS=	att.c \
 		mdoc_argv.c \
 		mdoc_hash.c \
 		mdoc_macro.c \
+		mdoc_state.c \
 		mdoc_validate.c \
 		st.c \
 
@@ -45,6 +44,7 @@ LIB_SRCS=	${LIBMAN_SRCS} \
 		chars.c \
 		mandoc.c \
 		mandoc_aux.c \
+		mandoc_ohash.c \
 		msec.c \
 		preconv.c \
 		read.c
@@ -68,6 +68,7 @@ TERM_SRCS=	eqn_term.c \
 DB_SRCS=	mandocdb.c \
 		mansearch.c \
 		mansearch_const.c \
+		tag.c \
 		manpath.c
 
 SRCS=		${LIB_SRCS} \
@@ -82,6 +83,7 @@ SRCS+=	${DB_SRCS}
 
 WARNS?=	2
 CFLAGS+= -DHAVE_CONFIG_H \
+	 -D_WITH_GETLINE \
 	 -I${.CURDIR}/../../lib/libopenbsd/ \
 	 -I${.CURDIR}/../../contrib/sqlite3
 LIBADD=	openbsd sqlite3 z
