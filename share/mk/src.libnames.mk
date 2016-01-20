@@ -522,12 +522,12 @@ LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 _NETSURF_LIBS=	css dom hubbub nsbmp nsfb nsgif parserutils rosprite svgtiny wapcaplet
 .for lib in ${_NETSURF_LIBS}
 LIB${lib:tu}DIR?=	${OBJTOP}/lib/netsurf/lib${lib}
+LIB${lib:tu}?=		${DESTDIR}${LIBDIR}/lib${lib}.a
 .endfor
 
 # Default other library directories to lib/libNAME.
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
-LIB${lib:tu}?=	${DESTDIR}${LIBDIR}/lib${lib:tu}.a
 .endfor
 
 # Validate that listed LIBADD are valid.
