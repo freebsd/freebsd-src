@@ -370,15 +370,44 @@ ef10_nvram_partn_write_segment_tlv(
 	__in			boolean_t all_segments);
 
 extern	__checkReturn		efx_rc_t
+ef10_nvram_partn_lock(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn);
+
+extern				void
+ef10_nvram_partn_unlock(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn);
+
+#endif /* EFSYS_OPT_NVRAM || EFSYS_OPT_VPD */
+
+#if EFSYS_OPT_NVRAM
+
+#if EFSYS_OPT_DIAG
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_test(
+	__in			efx_nic_t *enp);
+
+#endif	/* EFSYS_OPT_DIAG */
+
+extern	__checkReturn		efx_rc_t
+ef10_nvram_type_to_partn(
+	__in			efx_nic_t *enp,
+	__in			efx_nvram_type_t type,
+	__out			uint32_t *partnp);
+
+extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_size(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__out			size_t *sizep);
 
 extern	__checkReturn		efx_rc_t
-ef10_nvram_partn_lock(
+ef10_nvram_partn_rw_start(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out			size_t *chunk_sizep);
 
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_read(
@@ -404,84 +433,22 @@ ef10_nvram_partn_write(
 	__in			size_t size);
 
 extern				void
-ef10_nvram_partn_unlock(
+ef10_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
 
-#endif /* EFSYS_OPT_NVRAM || EFSYS_OPT_VPD */
-
-#if EFSYS_OPT_NVRAM
-
-#if EFSYS_OPT_DIAG
-
 extern	__checkReturn		efx_rc_t
-ef10_nvram_test(
-	__in			efx_nic_t *enp);
-
-#endif	/* EFSYS_OPT_DIAG */
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_size(
+ef10_nvram_partn_get_version(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			size_t *sizep);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_get_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
+	__in			uint32_t partn,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_rw_start(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			size_t *pref_chunkp);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_read_chunk(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in			unsigned int offset,
-	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
-
-extern	 __checkReturn		efx_rc_t
-ef10_nvram_erase(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_write_chunk(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in			unsigned int offset,
-	__in_bcount(size)	caddr_t data,
-	__in			size_t size);
-
-extern				void
-ef10_nvram_rw_finish(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type);
 
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_set_version(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_set_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
-ef10_nvram_type_to_partn(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			uint32_t *partnp);
 
 #endif	/* EFSYS_OPT_NVRAM */
 
