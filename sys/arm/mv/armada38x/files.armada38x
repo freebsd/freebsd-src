@@ -1,4 +1,5 @@
 # $FreeBSD$
 
 arm/mv/armada38x/armada38x.c	standard
+arm/mv/armada38x/armada38x_mp.c	optional smp
 arm/mv/armada38x/rtc.c		standard

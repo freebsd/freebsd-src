@@ -465,8 +465,28 @@
 #if defined(SOC_MV_ARMADA38X)
 #define	MV_SCU_BASE		(MV_BASE + 0xc000)
 #define	MV_SCU_REGS_LEN		0x100
-#define	MV_SCU_REG_CTRL		0
+#define	MV_SCU_REG_CTRL		0x00
+#define	MV_SCU_REG_CONFIG	0x04
 #define	MV_SCU_ENABLE		1
+#endif
+
+/*
+ * PMSU
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_PMSU_BASE		(MV_BASE + 0x22000)
+#define	MV_PMSU_REGS_LEN	0x1000
+#define	PMSU_BOOT_ADDR_REDIRECT_OFFSET(cpu)	(((cpu) * 0x100) + 0x124)
+#endif
+
+/*
+ * CPU RESET
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_CPU_RESET_BASE	(MV_BASE + 0x20800)
+#define	MV_CPU_RESET_REGS_LEN	0x8
+#define	CPU_RESET_OFFSET(cpu)	((cpu) * 0x8)
+#define	CPU_RESET_ASSERT	0x1
 #endif
 
 #endif /* _MVREG_H_ */
