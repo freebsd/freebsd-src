@@ -132,11 +132,6 @@ siena_mcdi_read_response(
 	__in			size_t offset,
 	__in			size_t length);
 
-extern			void
-siena_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp);
-
 extern			efx_rc_t
 siena_mcdi_poll_reboot(
 	__in		efx_nic_t *enp);
