@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2015 SRI International
+.\" Copyright (c) 2015-2016 SRI International
 .\" All rights reserved.
 .\"
 .\" This software was developed by SRI International and the University of
@@ -29,13 +29,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2015
+.Dd January 20, 2016
 .Dt CFI 4
 .Os
 .Sh NAME
 .Nm cfi ,
 .Nm cfid
-.Nd driver for the LEDs on the Terasic DE4.
+.Nd driver for Common Flash Interface (CFI) NOR flash
 .Sh SYNOPSIS
 .Cd "device cfi"
 .Cd "device cfid"
@@ -68,7 +68,7 @@ Special support for features of the Intel StrataFlash line are available
 with the
 .Cd CFI_SUPPORT_STRATAFLASH
 kernel option.
-Additional support for write-once bit to swithch part of Intel StrataFlash
+Additional support for write-once bits to switch part of Intel StrataFlash
 devices to read-only can be enabled by the
 .Cd CFI_ARMEDANDDANGEROUS
 kernel option.
