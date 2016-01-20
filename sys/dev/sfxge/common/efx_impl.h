@@ -559,7 +559,8 @@ efx_mcdi_nvram_read(
 	__in			uint32_t partn,
 	__in			uint32_t offset,
 	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
+	__in			size_t size,
+	__in			uint32_t mode);
 
 	__checkReturn		efx_rc_t
 efx_mcdi_nvram_erase(

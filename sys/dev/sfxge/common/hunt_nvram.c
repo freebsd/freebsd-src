@@ -598,8 +598,9 @@ ef10_nvram_read_tlv_segment(
 	}
 
 	/* Read initial chunk of the segment, starting at offset */
-	if ((rc = ef10_nvram_partn_read(enp, partn, seg_offset, seg_data,
-		    EF10_NVRAM_CHUNK)) != 0) {
+	if ((rc = ef10_nvram_partn_read_mode(enp, partn, seg_offset, seg_data,
+		    EF10_NVRAM_CHUNK,
+		    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT)) != 0) {
 		goto fail2;
 	}
 
@@ -624,10 +625,11 @@ ef10_nvram_read_tlv_segment(
 
 	/* Read the remaining segment content */
 	if (total_length > EF10_NVRAM_CHUNK) {
-		if ((rc = ef10_nvram_partn_read(enp, partn,
+		if ((rc = ef10_nvram_partn_read_mode(enp, partn,
 			    seg_offset + EF10_NVRAM_CHUNK,
 			    seg_data + EF10_NVRAM_CHUNK,
-			    total_length - EF10_NVRAM_CHUNK)) != 0)
+			    total_length - EF10_NVRAM_CHUNK,
+			    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT)) != 0)
 			goto fail6;
 	}
 
@@ -1321,12 +1323,13 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-ef10_nvram_partn_read(
+ef10_nvram_partn_read_mode(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
-	__in			size_t size)
+	__in			size_t size,
+	__in			uint32_t mode)
 {
 	size_t chunk;
 	efx_rc_t rc;
@@ -1335,7 +1338,7 @@ ef10_nvram_partn_read(
 		chunk = MIN(size, EF10_NVRAM_CHUNK);
 
 		if ((rc = efx_mcdi_nvram_read(enp, partn, offset,
-			    data, chunk)) != 0) {
+			    data, chunk, mode)) != 0) {
 			goto fail1;
 		}
 
@@ -1350,6 +1353,22 @@ fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_partn_read(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size)
+{
+	/*
+	 * Read requests which come in through the EFX API expect to
+	 * read the current, active partition.
+	 */
+	return ef10_nvram_partn_read_mode(enp, partn, offset, data, size,
+			    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT);
 }
 
 	__checkReturn		efx_rc_t
