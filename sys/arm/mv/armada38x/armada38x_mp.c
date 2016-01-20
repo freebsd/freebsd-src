@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/mv/mvreg.h>
 
+#include "pmsu.h"
+
 int cpu_reset_deassert(void);
 
 int

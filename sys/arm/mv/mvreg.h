@@ -468,6 +468,7 @@
 #define	MV_SCU_REG_CTRL		0x00
 #define	MV_SCU_REG_CONFIG	0x04
 #define	MV_SCU_ENABLE		1
+#define	SCU_CFG_REG_NCPU_MASK	0x3
 #endif
 
 /*
