@@ -438,6 +438,7 @@
 
 #define MV_DEV_FAMILY_MASK	0xff00
 #define MV_DEV_DISCOVERY	0x7800
+#define	MV_DEV_ARMADA38X	0x6800
 
 /*
  * Doorbell register control
