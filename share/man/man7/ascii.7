@@ -32,7 +32,7 @@
 .\"	@(#)ascii.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd January 20, 2016
 .Dt ASCII 7
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@ The
 set:
 .Bd -literal -offset left
 000 NUL  001 SOH  002 STX  003 ETX  004 EOT  005 ENQ  006 ACK  007 BEL
-010 BS   011 HT   012 NL   013 VT   014 NP   015 CR   016 SO   017 SI
+010 BS   011 HT   012 LF   013 VT   014 FF   015 CR   016 SO   017 SI
 020 DLE  021 DC1  022 DC2  023 DC3  024 DC4  025 NAK  026 SYN  027 ETB
 030 CAN  031 EM   032 SUB  033 ESC  034 FS   035 GS   036 RS   037 US
 040 SP   041  !   042  "   043  #   044  $   045  %   046  &   047  '
@@ -68,7 +68,7 @@ The
 set:
 .Bd -literal -offset left
 00 NUL   01 SOH   02 STX   03 ETX   04 EOT   05 ENQ   06 ACK   07 BEL
-08 BS    09 HT    0A NL    0B VT    0C NP    0D CR    0E SO    0F SI
+08 BS    09 HT    0A LF    0B VT    0C FF    0D CR    0E SO    0F SI
 10 DLE   11 DC1   12 DC2   13 DC3   14 DC4   15 NAK   16 SYN   17 ETB
 18 CAN   19 EM    1A SUB   1B ESC   1C FS    1D GS    1E RS    1F US
 20 SP    21  !    22  "    23  #    24  $    25  %    26  &    27  '
@@ -90,7 +90,7 @@ The
 set:
 .Bd -literal -offset left
   0 NUL    1 SOH    2 STX    3 ETX    4 EOT    5 ENQ    6 ACK    7 BEL
-  8 BS     9 HT    10 NL    11 VT    12 NP    13 CR    14 SO    15 SI
+  8 BS     9 HT    10 LF    11 VT    12 FF    13 CR    14 SO    15 SI
  16 DLE   17 DC1   18 DC2   19 DC3   20 DC4   21 NAK   22 SYN   23 ETB
  24 CAN   25 EM    26 SUB   27 ESC   28 FS    29 GS    30 RS    31 US
  32 SP    33  !    34  "    35  #    36  $    37  %    38  &    39  '
