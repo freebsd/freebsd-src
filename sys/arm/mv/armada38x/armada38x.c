@@ -32,9 +32,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
+#include <machine/fdt.h>
+
 #include <arm/mv/mvwin.h>
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+
+int armada38x_win_set_iosync_barrier(void);
 
 uint32_t
 get_tclk(void)
@@ -51,4 +55,26 @@ get_tclk(void)
 		return (TCLK_250MHZ);
 	else
 		return (TCLK_200MHZ);
+}
+
+int
+armada38x_win_set_iosync_barrier(void)
+{
+	bus_space_handle_t vaddr_iowind;
+	int rv;
+
+	rv = bus_space_map(fdtbus_bs_tag, (bus_addr_t)MV_MBUS_BRIDGE_BASE,
+	    MV_CPU_SUBSYS_REGS_LEN, 0, &vaddr_iowind);
+	if (rv != 0)
+		return (rv);
+
+	/* Set Sync Barrier flags for all Mbus internal units */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, MV_SYNC_BARRIER_CTRL,
+	    MV_SYNC_BARRIER_CTRL_ALL);
+
+	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0,
+	    MV_CPU_SUBSYS_REGS_LEN, BUS_SPACE_BARRIER_WRITE);
+	bus_space_unmap(fdtbus_bs_tag, vaddr_iowind, MV_CPU_SUBSYS_REGS_LEN);
+
+	return (rv);
 }
