@@ -84,6 +84,7 @@ extern "C" {
 #define	EFX_MOD_WOL		0x00000800
 #define	EFX_MOD_FILTER		0x00001000
 #define	EFX_MOD_PKTFILTER	0x00002000
+#define	EFX_MOD_LIC		0x00004000
 
 #define	EFX_RESET_MAC		0x00000001
 #define	EFX_RESET_PHY		0x00000002
@@ -591,6 +592,18 @@ efx_mcdi_nvram_test(
 
 #endif /* EFSYS_OPT_VPD || EFSYS_OPT_NVRAM */
 
+#if EFSYS_OPT_LICENSING
+
+typedef struct efx_lic_ops_s {
+	efx_rc_t	(*elo_update_licenses)(efx_nic_t *);
+	efx_rc_t	(*elo_get_key_stats)(efx_nic_t *, efx_key_stats_t *);
+	efx_rc_t	(*elo_app_state)(efx_nic_t *, uint64_t, boolean_t *);
+	efx_rc_t	(*elo_get_id)(efx_nic_t *, size_t, uint32_t *,
+				      size_t *, uint8_t *);
+} efx_lic_ops_t;
+
+#endif
+
 typedef struct efx_drv_cfg_s {
 	uint32_t		edc_min_vi_count;
 	uint32_t		edc_max_vi_count;
@@ -640,6 +653,9 @@ struct efx_nic_s {
 	uint32_t		en_rss_context;
 #endif	/* EFSYS_OPT_RX_SCALE */
 	uint32_t		en_vport_id;
+#if EFSYS_OPT_LICENSING
+	efx_lic_ops_t		*en_elop;
+#endif
 	union {
 #if EFSYS_OPT_FALCON
 		struct {

@@ -317,6 +317,7 @@ dev/sfxge/common/efx_ev.c	optional	sfxge pci
 dev/sfxge/common/efx_filter.c	optional	sfxge pci
 dev/sfxge/common/efx_hash.c	optional	sfxge pci
 dev/sfxge/common/efx_intr.c	optional	sfxge pci
+dev/sfxge/common/efx_lic.c	optional	sfxge pci
 dev/sfxge/common/efx_mac.c	optional	sfxge pci
 dev/sfxge/common/efx_mcdi.c	optional	sfxge pci
 dev/sfxge/common/efx_mon.c	optional	sfxge pci
