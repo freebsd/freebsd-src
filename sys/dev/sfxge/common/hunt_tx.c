@@ -87,12 +87,13 @@ efx_mcdi_init_txq(
 	MCDI_IN_SET_DWORD(req, INIT_TXQ_IN_LABEL, label);
 	MCDI_IN_SET_DWORD(req, INIT_TXQ_IN_INSTANCE, instance);
 
-	MCDI_IN_POPULATE_DWORD_6(req, INIT_TXQ_IN_FLAGS,
+	MCDI_IN_POPULATE_DWORD_7(req, INIT_TXQ_IN_FLAGS,
 	    INIT_TXQ_IN_FLAG_BUFF_MODE, 0,
 	    INIT_TXQ_IN_FLAG_IP_CSUM_DIS,
 	    (flags & EFX_TXQ_CKSUM_IPV4) ? 0 : 1,
 	    INIT_TXQ_IN_FLAG_TCP_CSUM_DIS,
 	    (flags & EFX_TXQ_CKSUM_TCPUDP) ? 0 : 1,
+	    INIT_TXQ_EXT_IN_FLAG_TSOV2_EN, (flags & EFX_TXQ_FATSOV2) ? 1 : 0,
 	    INIT_TXQ_IN_FLAG_TCP_UDP_ONLY, 0,
 	    INIT_TXQ_IN_CRC_MODE, 0,
 	    INIT_TXQ_IN_FLAG_TIMESTAMP, 0);
@@ -586,6 +587,38 @@ hunt_tx_qdesc_tso_create(
 			    ESF_DZ_TX_TSO_TCP_FLAGS, tcp_flags,
 			    ESF_DZ_TX_TSO_IP_ID, ipv4_id,
 			    ESF_DZ_TX_TSO_TCP_SEQNO, tcp_seq);
+}
+
+	void
+ef10_tx_qdesc_tso2_create(
+	__in			efx_txq_t *etp,
+	__in			uint16_t ipv4_id,
+	__in			uint32_t tcp_seq,
+	__in			uint16_t tcp_mss,
+	__out_ecount(count)	efx_desc_t *edp,
+	__in			int count)
+{
+	EFSYS_PROBE4(tx_desc_tso2_create, unsigned int, etp->et_index,
+		    uint16_t, ipv4_id, uint32_t, tcp_seq,
+		    uint16_t, tcp_mss);
+
+	EFSYS_ASSERT(count >= EFX_TX_FATSOV2_OPT_NDESCS);
+
+	EFX_POPULATE_QWORD_5(edp[0].ed_eq,
+			    ESF_DZ_TX_DESC_IS_OPT, 1,
+			    ESF_DZ_TX_OPTION_TYPE,
+			    ESE_DZ_TX_OPTION_DESC_TSO,
+			    ESF_DZ_TX_TSO_OPTION_TYPE,
+			    ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A,
+			    ESF_DZ_TX_TSO_IP_ID, ipv4_id,
+			    ESF_DZ_TX_TSO_TCP_SEQNO, tcp_seq);
+	EFX_POPULATE_QWORD_4(edp[1].ed_eq,
+			    ESF_DZ_TX_DESC_IS_OPT, 1,
+			    ESF_DZ_TX_OPTION_TYPE,
+			    ESE_DZ_TX_OPTION_DESC_TSO,
+			    ESF_DZ_TX_TSO_OPTION_TYPE,
+			    ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B,
+			    ESF_DZ_TX_TSO_TCP_MSS, tcp_mss);
 }
 
 	void

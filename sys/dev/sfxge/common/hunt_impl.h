@@ -674,6 +674,15 @@ hunt_tx_qdesc_tso_create(
 	__out	efx_desc_t *edp);
 
 extern	void
+ef10_tx_qdesc_tso2_create(
+	__in			efx_txq_t *etp,
+	__in			uint16_t ipv4_id,
+	__in			uint32_t tcp_seq,
+	__in			uint16_t tcp_mss,
+	__out_ecount(count)	efx_desc_t *edp,
+	__in			int count);
+
+extern	void
 ef10_tx_qdesc_vlantci_create(
 	__in	efx_txq_t *etp,
 	__in	uint16_t vlan_tci,
