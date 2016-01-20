@@ -733,6 +733,9 @@ win_cpu_can_remap(int i)
 	    (dev == MV_DEV_88F5281 && i < 4) ||
 	    (dev == MV_DEV_88F6281 && i < 4) ||
 	    (dev == MV_DEV_88F6282 && i < 4) ||
+	    (dev == MV_DEV_88F6828 && i < 20) ||
+	    (dev == MV_DEV_88F6820 && i < 20) ||
+	    (dev == MV_DEV_88F6810 && i < 20) ||
 	    (dev == MV_DEV_88RC8180 && i < 2) ||
 	    (dev == MV_DEV_88F6781 && i < 4) ||
 	    (dev == MV_DEV_MV78100_Z0 && i < 8) ||
