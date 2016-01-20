@@ -260,7 +260,7 @@ write_cpu_ctrl(uint32_t reg, uint32_t val)
 	bus_space_write_4(fdtbus_bs_tag, MV_CPU_CONTROL_BASE, reg, val);
 }
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 uint32_t
 read_cpu_mp_clocks(uint32_t reg)
 {
@@ -294,7 +294,7 @@ void
 cpu_reset(void)
 {
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined (SOC_MV_ARMADA38X)
 	write_cpu_misc(RSTOUTn_MASK, SOFT_RST_OUT_EN);
 	write_cpu_misc(SYSTEM_SOFT_RESET, SYS_SOFT_RST);
 #else
@@ -441,6 +441,15 @@ soc_identify(void)
 			rev = "A0";
 		else if (r == 1)
 			rev = "A1";
+		break;
+	case MV_DEV_88F6828:
+		dev = "Marvell 88F6828";
+		break;
+	case MV_DEV_88F6820:
+		dev = "Marvell 88F6820";
+		break;
+	case MV_DEV_88F6810:
+		dev = "Marvell 88F6810";
 		break;
 	case MV_DEV_MV78100_Z0:
 		dev = "Marvell MV78100 Z0";
@@ -2195,6 +2204,10 @@ get_sar_value(void)
 	    SAMPLE_AT_RESET_HI);
 	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
 	    SAMPLE_AT_RESET_LO);
+#elif defined(SOC_MV_ARMADA38X)
+	sar_high = 0;
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET);
 #else
 	/*
 	 * TODO: Add getting proper values for other SoC configurations
