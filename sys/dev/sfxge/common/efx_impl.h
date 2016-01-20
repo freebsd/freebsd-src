@@ -358,6 +358,7 @@ typedef struct efx_intr_s {
 
 typedef struct efx_nic_ops_s {
 	efx_rc_t	(*eno_probe)(efx_nic_t *);
+	efx_rc_t	(*eno_board_cfg)(efx_nic_t *);
 	efx_rc_t	(*eno_set_drv_limits)(efx_nic_t *, efx_drv_limits_t*);
 	efx_rc_t	(*eno_reset)(efx_nic_t *);
 	efx_rc_t	(*eno_init)(efx_nic_t *);
