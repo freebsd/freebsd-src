@@ -725,7 +725,7 @@ _C_LABEL(x):
 /* Only valid with the _JB_MAGIC_SETJMP magic */
 
 #define _JB_SIGMASK		13
-#define __JB_SIGMASK_REMAINDER	14	/* sigmask_t is 128-bits */
+#define	__JB_SIGMASK_REMAINDER	14	/* sigmask_t is 128-bits */
 
 #define _JB_FPREG_F20		15
 #define _JB_FPREG_F21		16
