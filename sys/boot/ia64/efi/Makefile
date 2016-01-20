@@ -37,7 +37,6 @@ FILESMODE_loader.efi= ${BINMODE}
 loader.efi: loader.sym
 	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
 		${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*'; \
-		rm ${.ALLSRC}; \
 		exit 1; \
 	fi
 	${OBJCOPY} -j .data -j .dynamic -j .dynstr -j .dynsym -j .hash \
