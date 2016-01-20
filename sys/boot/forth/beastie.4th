@@ -93,6 +93,7 @@ also support-functions
 	s" beastie_disable" getenv dup -1 <> if
 		s" YES" compare-insensitive 0= if
 			any_conf_read? if
+				load_xen_throw
 				load_kernel
 				load_modules
 			then
