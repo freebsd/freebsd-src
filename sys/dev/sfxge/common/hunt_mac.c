@@ -51,7 +51,7 @@ hunt_mac_poll(
 	ef10_link_state_t els;
 	efx_rc_t rc;
 
-	if ((rc = hunt_phy_get_link(enp, &els)) != 0)
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail1;
 
 	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
@@ -86,7 +86,7 @@ hunt_mac_up(
 	 * Because Huntington doesn't *require* polling, we can't rely on
 	 * hunt_mac_poll() being executed to populate epp->ep_mac_up.
 	 */
-	if ((rc = hunt_phy_get_link(enp, &els)) != 0)
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail1;
 
 	*mac_upp = els.els_mac_up;

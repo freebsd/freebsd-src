@@ -462,38 +462,38 @@ typedef struct ef10_link_state_s {
 } ef10_link_state_t;
 
 extern			void
-hunt_phy_link_ev(
+ef10_phy_link_ev(
 	__in		efx_nic_t *enp,
 	__in		efx_qword_t *eqp,
 	__out		efx_link_mode_t *link_modep);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_get_link(
+ef10_phy_get_link(
 	__in		efx_nic_t *enp,
 	__out		ef10_link_state_t *elsp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_power(
+ef10_phy_power(
 	__in		efx_nic_t *enp,
 	__in		boolean_t on);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_reconfigure(
+ef10_phy_reconfigure(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_verify(
+ef10_phy_verify(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_oui_get(
+ef10_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip);
 
 #if EFSYS_OPT_PHY_STATS
 
 extern	__checkReturn			efx_rc_t
-hunt_phy_stats_update(
+ef10_phy_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
@@ -505,21 +505,21 @@ hunt_phy_stats_update(
 #if EFSYS_OPT_NAMES
 
 extern		const char *
-hunt_phy_prop_name(
+ef10_phy_prop_name(
 	__in	efx_nic_t *enp,
 	__in	unsigned int id);
 
 #endif	/* EFSYS_OPT_NAMES */
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_prop_get(
+ef10_phy_prop_get(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t flags,
 	__out		uint32_t *valp);
 
 extern	__checkReturn	efx_rc_t
-hunt_phy_prop_set(
+ef10_phy_prop_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t val);
