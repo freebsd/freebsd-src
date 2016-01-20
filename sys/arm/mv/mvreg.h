@@ -34,6 +34,8 @@
 #ifndef _MVREG_H_
 #define _MVREG_H_
 
+#include <arm/mv/mvwin.h>
+
 #if defined(SOC_MV_DISCOVERY)
 #define IRQ_CAUSE_ERROR		0x0
 #define IRQ_CAUSE		0x4
@@ -452,4 +454,15 @@
 #define MV_DRBL_MASK(d,u)	(0x10 * (u) + 0x8 * (d) + 0x4)
 #define MV_DRBL_MSG(m,d,u)	(0x10 * (u) + 0x8 * (d) + 0x4 * (m) + 0x30)
 #endif
+
+/*
+ * SCU
+ */
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_SCU_BASE		(MV_BASE + 0xc000)
+#define	MV_SCU_REGS_LEN		0x100
+#define	MV_SCU_REG_CTRL		0
+#define	MV_SCU_ENABLE		1
+#endif
+
 #endif /* _MVREG_H_ */

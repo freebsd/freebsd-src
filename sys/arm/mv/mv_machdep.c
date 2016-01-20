@@ -68,6 +68,7 @@ void armadaxp_l2_init(void);
 #endif
 #if defined(SOC_MV_ARMADA38X)
 int armada38x_win_set_iosync_barrier(void);
+int armada38x_scu_enable(void);
 #endif
 
 #define MPP_PIN_MAX		68
@@ -257,6 +258,8 @@ platform_late_init(void)
 	/* Set IO Sync Barrier bit for all Mbus devices */
 	if (armada38x_win_set_iosync_barrier() != 0)
 		printf("WARNING: could not map CPU Subsystem registers\n");
+	if (armada38x_scu_enable() != 0)
+		printf("WARNING: could not enable SCU\n");
 #endif
 }
 
