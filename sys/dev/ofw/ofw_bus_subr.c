@@ -716,9 +716,10 @@ ofw_bus_find_string_index(phandle_t node, const char *list_name,
  */
 int
 ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
-   const char ***array)
+   const char ***out_array)
 {
 	char *elems, *tptr;
+	const char **array;
 	int i, cnt, nelems, len;
 
 	elems = NULL;
@@ -731,11 +732,11 @@ ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
 		i += strlen(elems + i) + 1;
 
 	/* Allocate space for arrays and all strings. */
-	*array = malloc((cnt + 1) * sizeof(char *) + nelems, M_OFWPROP,
+	array = malloc((cnt + 1) * sizeof(char *) + nelems, M_OFWPROP,
 	    M_WAITOK);
 
 	/* Get address of first string. */
-	tptr = (char *)(*array + cnt);
+	tptr = (char *)(array + cnt + 1);
 
 	/* Copy strings. */
 	memcpy(tptr, elems, nelems);
@@ -743,12 +744,13 @@ ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
 
 	/* Fill string pointers. */
 	for (i = 0, cnt = 0; i < nelems; cnt++) {
-		len = strlen(tptr + i) + 1;
-		*array[cnt] = tptr;
+		len = strlen(tptr) + 1;
+		array[cnt] = tptr;
 		i += len;
 		tptr += len;
 	}
-	*array[cnt] = 0;
+	array[cnt] = 0;
+	*out_array = array;
 
 	return (cnt);
 }
