@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/vmparam.h>
+#include <machine/intr.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
@@ -104,6 +105,10 @@ static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
 
 static int fdt_get_ranges(const char *, void *, int, int *, int *);
+#ifdef SOC_MV_ARMADA38X
+int gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
+    int *trig, int *pol);
+#endif
 
 static int win_cpu_from_dt(void);
 static int fdt_win_setup(void);
@@ -2190,6 +2195,9 @@ fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 }
 
 fdt_pic_decode_t fdt_pic_table[] = {
+#ifdef SOC_MV_ARMADA38X
+	&gic_decode_fdt,
+#endif
 	&fdt_pic_decode_ic,
 	NULL
 };
