@@ -462,15 +462,8 @@ efx_mcdi_read_response_header(
 	return;
 
 fail3:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail3);
 fail2:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail2);
 fail1:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
 	emrp->emr_rc = rc;
 	emrp->emr_out_length_used = 0;
 }
