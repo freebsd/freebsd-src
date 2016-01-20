@@ -262,7 +262,11 @@ DESCRIPTION
 
      Ciphers
              Specifies the ciphers allowed for protocol version 2.  Multiple
-             ciphers must be comma-separated.  The supported ciphers are:
+             ciphers must be comma-separated.  If the specified value begins
+             with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified ciphers will be appended
+             to the default set instead of replacing them.
+
+             The supported ciphers are:
 
                    3des-cbc
                    aes128-cbc
@@ -394,9 +398,20 @@ DESCRIPTION
 
      HostbasedAcceptedKeyTypes
              Specifies the key types that will be accepted for hostbased
-             authentication as a comma-separated pattern list.  The default
-             M-bM-^@M-^\*M-bM-^@M-^] will allow all key types.  The -Q option of ssh(1) may be
-             used to list supported key types.
+             authentication as a comma-separated pattern list.  Alternately if
+             the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
+             specified key types will be appended to the default set instead
+             of replacing them.  The default for this option is:
+
+                ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                ecdsa-sha2-nistp384-cert-v01@openssh.com,
+                ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                ssh-ed25519-cert-v01@openssh.com,
+                ssh-rsa-cert-v01@openssh.com,
+                ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                ssh-ed25519,ssh-rsa
+
+             The -Q option of ssh(1) may be used to list supported key types.
 
      HostbasedAuthentication
              Specifies whether rhosts or /etc/hosts.equiv authentication
@@ -425,19 +440,38 @@ DESCRIPTION
              default is /etc/ssh/ssh_host_key for protocol version 1, and
              /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_ecdsa_key,
              /etc/ssh/ssh_host_ed25519_key and /etc/ssh/ssh_host_rsa_key for
-             protocol version 2.  Note that sshd(8) will refuse to use a file
-             if it is group/world-accessible.  It is possible to have multiple
-             host key files.  M-bM-^@M-^\rsa1M-bM-^@M-^] keys are used for version 1 and M-bM-^@M-^\dsaM-bM-^@M-^],
-             M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^] or M-bM-^@M-^\rsaM-bM-^@M-^] are used for version 2 of the SSH
-             protocol.  It is also possible to specify public host key files
-             instead.  In this case operations on the private key will be
-             delegated to an ssh-agent(1).
+             protocol version 2.
+
+             Note that sshd(8) will refuse to use a file if it is group/world-
+             accessible and that the HostKeyAlgorithms option restricts which
+             of the keys are actually used by sshd(8).
+
+             It is possible to have multiple host key files.  M-bM-^@M-^\rsa1M-bM-^@M-^] keys are
+             used for version 1 and M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^] or M-bM-^@M-^\rsaM-bM-^@M-^] are
+             used for version 2 of the SSH protocol.  It is also possible to
+             specify public host key files instead.  In this case operations
+             on the private key will be delegated to an ssh-agent(1).
 
      HostKeyAgent
              Identifies the UNIX-domain socket used to communicate with an
              agent that has access to the private host keys.  If
              M-bM-^@M-^\SSH_AUTH_SOCKM-bM-^@M-^] is specified, the location of the socket will be
              read from the SSH_AUTH_SOCK environment variable.
+
+     HostKeyAlgorithms
+             Specifies the protocol version 2 host key algorithms that the
+             server offers.  The default for this option is:
+
+                ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                ecdsa-sha2-nistp384-cert-v01@openssh.com,
+                ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                ssh-ed25519-cert-v01@openssh.com,
+                ssh-rsa-cert-v01@openssh.com,
+                ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                ssh-ed25519,ssh-rsa
+
+             The list of available key types may also be obtained using the -Q
+             option of ssh(1) with an argument of M-bM-^@M-^\keyM-bM-^@M-^].
 
      IgnoreRhosts
              Specifies that .rhosts and .shosts files will not be used in
@@ -493,8 +527,10 @@ DESCRIPTION
 
      KexAlgorithms
              Specifies the available KEX (Key Exchange) algorithms.  Multiple
-             algorithms must be comma-separated.  The supported algorithms
-             are:
+             algorithms must be comma-separated.  Alternately if the specified
+             value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified methods
+             will be appended to the default set instead of replacing them.
+             The supported algorithms are:
 
                    curve25519-sha256@libssh.org
                    diffie-hellman-group1-sha1
@@ -551,9 +587,13 @@ DESCRIPTION
      MACs    Specifies the available MAC (message authentication code)
              algorithms.  The MAC algorithm is used in protocol version 2 for
              data integrity protection.  Multiple algorithms must be comma-
-             separated.  The algorithms that contain M-bM-^@M-^\-etmM-bM-^@M-^] calculate the MAC
-             after encryption (encrypt-then-mac).  These are considered safer
-             and their use recommended.  The supported MACs are:
+             separated.  If the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             then the specified algorithms will be appended to the default set
+             instead of replacing them.
+
+             The algorithms that contain M-bM-^@M-^\-etmM-bM-^@M-^] calculate the MAC after
+             encryption (encrypt-then-mac).  These are considered safer and
+             their use recommended.  The supported MACs are:
 
                    hmac-md5
                    hmac-md5-96
@@ -673,11 +713,13 @@ DESCRIPTION
 
      PermitRootLogin
              Specifies whether root can log in using ssh(1).  The argument
-             must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\without-passwordM-bM-^@M-^], M-bM-^@M-^\forced-commands-onlyM-bM-^@M-^], or
-             M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\prohibit-passwordM-bM-^@M-^], M-bM-^@M-^\without-passwordM-bM-^@M-^],
+             M-bM-^@M-^\forced-commands-onlyM-bM-^@M-^], or M-bM-^@M-^\noM-bM-^@M-^].  The default is
+             M-bM-^@M-^\prohibit-passwordM-bM-^@M-^].
 
-             If this option is set to M-bM-^@M-^\without-passwordM-bM-^@M-^], password
-             authentication is disabled for root.
+             If this option is set to M-bM-^@M-^\prohibit-passwordM-bM-^@M-^] or
+             M-bM-^@M-^\without-passwordM-bM-^@M-^], password and keyboard-interactive
+             authentication are disabled for root.
 
              If this option is set to M-bM-^@M-^\forced-commands-onlyM-bM-^@M-^], root login with
              public key authentication will be allowed, but only if the
@@ -740,9 +782,20 @@ DESCRIPTION
 
      PubkeyAcceptedKeyTypes
              Specifies the key types that will be accepted for public key
-             authentication as a comma-separated pattern list.  The default
-             M-bM-^@M-^\*M-bM-^@M-^] will allow all key types.  The -Q option of ssh(1) may be
-             used to list supported key types.
+             authentication as a comma-separated pattern list.  Alternately if
+             the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the
+             specified key types will be appended to the default set instead
+             of replacing them.  The default for this option is:
+
+                ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                ecdsa-sha2-nistp384-cert-v01@openssh.com,
+                ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                ssh-ed25519-cert-v01@openssh.com,
+                ssh-rsa-cert-v01@openssh.com,
+                ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                ssh-ed25519,ssh-rsa
+
+             The -Q option of ssh(1) may be used to list supported key types.
 
      PubkeyAuthentication
              Specifies whether public key authentication is allowed.  The
@@ -786,7 +839,7 @@ DESCRIPTION
 
      ServerKeyBits
              Defines the number of bits in the ephemeral protocol version 1
-             server key.  The minimum value is 512, and the default is 1024.
+             server key.  The default and minimum value is 1024.
 
      StreamLocalBindMask
              Sets the octal file creation mode mask (umask) used when creating
@@ -868,9 +921,13 @@ DESCRIPTION
              TrustedUserCAKeys.  For more details on certificates, see the
              CERTIFICATES section in ssh-keygen(1).
 
-     UseDNS  Specifies whether sshd(8) should look up the remote host name and
-             check that the resolved host name for the remote IP address maps
-             back to the very same IP address.  The default is M-bM-^@M-^\noM-bM-^@M-^].
+     UseDNS  Specifies whether sshd(8) should look up the remote host name,
+             and to check that the resolved host name for the remote IP
+             address maps back to the very same IP address.
+
+             If this option is set to M-bM-^@M-^\noM-bM-^@M-^] (the default) then only addresses
+             and not host names may be used in ~/.ssh/known_hosts from and
+             sshd_config(5) Match Host directives.
 
      UseLogin
              Specifies whether login(1) is used for interactive login
@@ -992,4 +1049,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.7                      June 5, 2015                      OpenBSD 5.7
+OpenBSD 5.8                     August 6, 2015                     OpenBSD 5.8

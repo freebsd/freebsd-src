@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.274 2015/07/01 02:26:31 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.275 2015/07/10 06:21:53 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -101,6 +101,7 @@ __RCSID("$FreeBSD$");
 #include "key.h"
 #include "cipher.h"
 #include "kex.h"
+#include "myproposal.h"
 #include "log.h"
 #include "misc.h"
 #include "readconf.h"
@@ -2363,10 +2364,11 @@ client_input_hostkeys(void)
 		debug3("%s: received %s key %s", __func__,
 		    sshkey_type(key), fp);
 		free(fp);
+
 		/* Check that the key is accepted in HostkeyAlgorithms */
-		if (options.hostkeyalgorithms != NULL &&
-		    match_pattern_list(sshkey_ssh_name(key),
-		    options.hostkeyalgorithms, 0) != 1) {
+		if (match_pattern_list(sshkey_ssh_name(key),
+		    options.hostkeyalgorithms ? options.hostkeyalgorithms :
+		    KEX_DEFAULT_PK_ALG, 0) != 1) {
 			debug3("%s: %s key not permitted by HostkeyAlgorithms",
 			    __func__, sshkey_ssh_name(key));
 			continue;
