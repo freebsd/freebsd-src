@@ -150,8 +150,9 @@ struct urtwn_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
+	uint32_t			sc_debug;
 	uint8_t				sc_iface_index;
-	u_int				sc_flags;
+	uint8_t				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
 #define URTWN_DETACHED		0x02
 #define	URTWN_RUNNING		0x04
