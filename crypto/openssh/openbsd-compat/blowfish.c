@@ -40,7 +40,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #if !defined(HAVE_BCRYPT_PBKDF) && (!defined(HAVE_BLOWFISH_INITSTATE) || \
     !defined(HAVE_BLOWFISH_EXPAND0STATE) || !defined(HAVE_BLF_ENC))

@@ -1,4 +1,5 @@
 # $Id: configure.ac,v 1.583 2014/08/26 20:32:01 djm Exp $
+# $FreeBSD$
 #
 # Copyright (c) 1999-2004 Damien Miller
 #

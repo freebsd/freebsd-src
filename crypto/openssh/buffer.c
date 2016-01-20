@@ -19,7 +19,6 @@
 /* Emulation wrappers for legacy OpenSSH buffer API atop sshbuf */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 

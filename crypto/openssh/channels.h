@@ -1,5 +1,4 @@
 /* $OpenBSD: channels.h,v 1.118 2015/07/01 02:26:31 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

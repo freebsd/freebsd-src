@@ -1,5 +1,4 @@
 /* $OpenBSD: buffer.h,v 1.25 2014/04/30 05:29:56 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 2012 Damien Miller <djm@mindrot.org>

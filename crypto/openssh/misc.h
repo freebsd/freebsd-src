@@ -1,5 +1,4 @@
 /* $OpenBSD: misc.h,v 1.54 2014/07/15 15:54:14 millert Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

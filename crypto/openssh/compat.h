@@ -1,5 +1,4 @@
 /* $OpenBSD: compat.h,v 1.48 2015/05/26 23:23:40 dtucker Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
