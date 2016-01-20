@@ -650,13 +650,11 @@ pgadjustjobc(pgrp, entering)
  * entering == 1 => p is entering specified group.
  */
 void
-fixjobc(p, pgrp, entering)
-	register struct proc *p;
-	register struct pgrp *pgrp;
-	int entering;
+fixjobc(struct proc *p, struct pgrp *pgrp, int entering)
 {
-	register struct pgrp *hispgrp;
-	register struct session *mysession;
+	struct pgrp *hispgrp;
+	struct session *mysession;
+	struct proc *q;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
@@ -677,17 +675,13 @@ fixjobc(p, pgrp, entering)
 	 * their process groups; if so, adjust counts for children's
 	 * process groups.
 	 */
-	LIST_FOREACH(p, &p->p_children, p_sibling) {
-		hispgrp = p->p_pgrp;
+	LIST_FOREACH(q, &p->p_children, p_sibling) {
+		hispgrp = q->p_pgrp;
 		if (hispgrp == pgrp ||
 		    hispgrp->pg_session != mysession)
 			continue;
-		PROC_LOCK(p);
-		if (p->p_state == PRS_ZOMBIE) {
-			PROC_UNLOCK(p);
+		if (q->p_state == PRS_ZOMBIE)
 			continue;
-		}
-		PROC_UNLOCK(p);
 		pgadjustjobc(hispgrp, entering);
 	}
 }
