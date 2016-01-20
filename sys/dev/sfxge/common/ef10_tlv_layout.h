@@ -113,7 +113,11 @@ struct tlv_partition_header {
   uint32_t tag;
   uint32_t length;
   uint16_t type_id;
-  uint16_t reserved;
+/* 0 indicates the default segment (always located at offset 0), while other values
+ * are for RFID-selectable presets that should immediately follow the default segment.
+ * The default segment may also have preset > 0, which means that it is a preset
+ * selected through an RFID command and copied by FW to the location at offset 0. */
+  uint16_t preset;
   uint32_t generation;
   uint32_t total_length;
 };
@@ -376,7 +380,7 @@ struct tlv_tmp_gubbins {
   int8_t with_rmon;             /* 0 -> off, 1 -> on, -1 -> leave alone */
   /* Consumed by clocks_hunt.c */
   int8_t clk_mode;             /* 0 -> off, 1 -> on, -1 -> leave alone */
-  /* Consumed by sram.c */
+  /* No longer used, superseded by TLV_TAG_DESCRIPTOR_CACHE_CONFIG. */
   int8_t rx_dc_size;           /* -1 -> leave alone */
   int8_t tx_dc_size;
   int16_t num_q_allocs;
@@ -690,7 +694,6 @@ struct tlv_mcast_filter_chaining {
 #define TLV_MCAST_FILTER_CHAINING_ENABLED  (1)
 };
 
-
 /* Pacer rate limit per PF */
 #define TLV_TAG_RATE_LIMIT(pf)    (0x101b0000 + (pf))
 
@@ -699,7 +702,6 @@ struct tlv_rate_limit {
   uint32_t length;
   uint32_t rate_mbps;
 };
-
 
 /* OCSD Enable/Disable
  *

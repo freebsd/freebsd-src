@@ -83,6 +83,7 @@ NOASM=
 .if ${LIBC_ARCH} != "aarch64" && \
     ${LIBC_ARCH} != "amd64" && \
     ${LIBC_ARCH} != "powerpc64" && \
+    ${LIBC_ARCH} != "riscv" && \
     ${LIBC_ARCH} != "sparc64" && \
     ${MACHINE_ARCH:Mmipsn32*} == "" && \
     ${MACHINE_ARCH:Mmips64*} == ""

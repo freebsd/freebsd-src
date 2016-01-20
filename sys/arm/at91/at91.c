@@ -54,54 +54,6 @@ __FBSDID("$FreeBSD$");
 
 uint32_t at91_master_clock;
 
-static int
-at91_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flags,
-    bus_space_handle_t *bshp)
-{
-	vm_paddr_t pa, endpa;
-
-	pa = trunc_page(bpa);
-	if (pa >= AT91_PA_BASE + 0xff00000) {
-		*bshp = bpa - AT91_PA_BASE + AT91_BASE;
-		return (0);
-	}
-	if (pa >= AT91_BASE + 0xff00000) {
-		*bshp = bpa;
-		return (0);
-	}
-	endpa = round_page(bpa + size);
-
-	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa) + (bpa - pa);
-
-	return (0);
-}
-
-static void
-at91_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
-{
-	vm_offset_t va;
-
-	va = (vm_offset_t)h;
-	if (va >= AT91_BASE && va <= AT91_BASE + 0xff00000)
-		return;
-	pmap_unmapdev(va, size);
-}
-
-static int
-at91_bs_subregion(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
-    bus_size_t size, bus_space_handle_t *nbshp)
-{
-
-	*nbshp = bsh + offset;
-	return (0);
-}
-
-static void
-at91_barrier(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size, bus_size_t b,
-    int a)
-{
-}
-
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -114,115 +66,6 @@ bus_dma_get_range_nb(void)
 {
 	return (0);
 }
-
-bs_protos(generic);
-
-struct bus_space at91_bs_tag = {
-	/* privdata is whatever the implementer wants; unused in base tag */
-	.bs_privdata	= NULL,
-
-	/* mapping/unmapping */
-	.bs_map		= at91_bs_map,
-	.bs_unmap	= at91_bs_unmap,
-	.bs_subregion	= at91_bs_subregion,
-
-	/* allocation/deallocation */
-	.bs_alloc	= generic_bs_alloc,
-	.bs_free	= generic_bs_free,
-
-	/* barrier */
-	.bs_barrier	= at91_barrier,
-
-	/* read (single) */
-	.bs_r_1		= NULL,	/* Use inline code in bus.h */
-	.bs_r_2		= NULL,	/* Use inline code in bus.h */
-	.bs_r_4		= NULL,	/* Use inline code in bus.h */
-	.bs_r_8		= NULL,	/* Use inline code in bus.h */
-
-	/* read multiple */
-	.bs_rm_1	= generic_bs_rm_1,
-	.bs_rm_2	= generic_bs_rm_2,
-	.bs_rm_4	= generic_bs_rm_4,
-	.bs_rm_8	= BS_UNIMPLEMENTED,
-
-	/* read region */
-	.bs_rr_1	= generic_bs_rr_1,
-	.bs_rr_2	= generic_bs_rr_2,
-	.bs_rr_4	= generic_bs_rr_4,
-	.bs_rr_8	= BS_UNIMPLEMENTED,
-
-	/* write (single) */
-	.bs_w_1		= NULL,	/* Use inline code in bus.h */
-	.bs_w_2		= NULL,	/* Use inline code in bus.h */
-	.bs_w_4		= NULL,	/* Use inline code in bus.h */
-	.bs_w_8		= NULL,	/* Use inline code in bus.h */
-
-	/* write multiple */
-	.bs_wm_1	= generic_bs_wm_1,
-	.bs_wm_2	= generic_bs_wm_2,
-	.bs_wm_4	= generic_bs_wm_4,
-	.bs_wm_8	= BS_UNIMPLEMENTED,
-
-	/* write region */
-	.bs_wr_1	= generic_bs_wr_1,
-	.bs_wr_2	= generic_bs_wr_2,
-	.bs_wr_4	= generic_bs_wr_4,
-	.bs_wr_8	= BS_UNIMPLEMENTED,
-
-	/* set multiple */
-	.bs_sm_1	= BS_UNIMPLEMENTED,
-	.bs_sm_2	= BS_UNIMPLEMENTED,
-	.bs_sm_4	= BS_UNIMPLEMENTED,
-	.bs_sm_8	= BS_UNIMPLEMENTED,
-
-	/* set region */
-	.bs_sr_1	= generic_bs_sr_1,
-	.bs_sr_2	= generic_bs_sr_2,
-	.bs_sr_4	= generic_bs_sr_4,
-	.bs_sr_8	= BS_UNIMPLEMENTED,
-
-	/* copy */
-	.bs_c_1		= BS_UNIMPLEMENTED,
-	.bs_c_2		= generic_bs_c_2,
-	.bs_c_4		= BS_UNIMPLEMENTED,
-	.bs_c_8		= BS_UNIMPLEMENTED,
-
-	/* read stream (single) */
-	.bs_r_1_s	= NULL,   /* Use inline code in bus.h */ 
-	.bs_r_2_s	= NULL,   /* Use inline code in bus.h */ 
-	.bs_r_4_s	= NULL,   /* Use inline code in bus.h */ 
-	.bs_r_8_s	= NULL,   /* Use inline code in bus.h */ 
-
-	/* read multiple stream */
-	.bs_rm_1_s	= generic_bs_rm_1,
-	.bs_rm_2_s	= generic_bs_rm_2,
-	.bs_rm_4_s	= generic_bs_rm_4,
-	.bs_rm_8_s	= BS_UNIMPLEMENTED,
-
-	/* read region stream */
-	.bs_rr_1_s	= generic_bs_rr_1,
-	.bs_rr_2_s	= generic_bs_rr_2,
-	.bs_rr_4_s	= generic_bs_rr_4,
-	.bs_rr_8_s	= BS_UNIMPLEMENTED,
-
-	/* write stream (single) */
-	.bs_w_1_s	= NULL,   /* Use inline code in bus.h */ 
-	.bs_w_2_s	= NULL,   /* Use inline code in bus.h */ 
-	.bs_w_4_s	= NULL,   /* Use inline code in bus.h */ 
-	.bs_w_8_s	= NULL,   /* Use inline code in bus.h */ 
-
-	/* write multiple stream */
-	.bs_wm_1_s	= generic_bs_wm_1,
-	.bs_wm_2_s	= generic_bs_wm_2,
-	.bs_wm_4_s	= generic_bs_wm_4,
-	.bs_wm_8_s	= BS_UNIMPLEMENTED,
-
-	/* write region stream */
-	.bs_wr_1_s	= generic_bs_wr_1,
-	.bs_wr_2_s	= generic_bs_wr_2,
-	.bs_wr_4_s	= generic_bs_wr_4,
-	.bs_wr_8_s	= BS_UNIMPLEMENTED,
-};
 
 #ifndef FDT
 
@@ -265,7 +108,7 @@ at91_attach(device_t dev)
 	arm_post_filter = at91_eoi;
 
 	at91_softc = sc;
-	sc->sc_st = &at91_bs_tag;
+	sc->sc_st = arm_base_bs_tag;
 	sc->sc_sh = AT91_BASE;
 	sc->sc_aic_sh = AT91_BASE + AT91_SYS_BASE;
 	sc->dev = dev;
@@ -336,9 +179,9 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rle->res = rman_reserve_resource(&sc->sc_mem_rman,
 		    start, end, count, flags, child);
 		if (rle->res != NULL) {
-			bus_space_map(&at91_bs_tag, start,
+			bus_space_map(arm_base_bs_tag, start,
 			    rman_get_size(rle->res), 0, &bsh);
-			rman_set_bustag(rle->res, &at91_bs_tag);
+			rman_set_bustag(rle->res, arm_base_bs_tag);
 			rman_set_bushandle(rle->res, bsh);
 		}
 		break;

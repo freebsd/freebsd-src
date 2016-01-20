@@ -454,7 +454,9 @@ ${_S:R}.po: ${_S}
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+.if !exists(${.OBJDIR}/${DEPENDFILE})
 ${SOBJS}: ${SRCS:M*.h}
+.endif
 .for _S in ${SRCS:N*.[hly]}
 ${_S:R}.So: ${_S}
 .endfor

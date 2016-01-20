@@ -117,10 +117,6 @@ static uint64_t jobseqno;
 #define MAX_BUF_AIO		16
 #endif
 
-#ifndef AIOD_TIMEOUT_DEFAULT
-#define	AIOD_TIMEOUT_DEFAULT	(10 * hz)
-#endif
-
 #ifndef AIOD_LIFETIME_DEFAULT
 #define AIOD_LIFETIME_DEFAULT	(30 * hz)
 #endif
@@ -164,10 +160,6 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio, CTLFLAG_RD, &num_buf_aio, 0,
 /* Number of async I/O thread in the process of being started */
 /* XXX This should be local to aio_aqueue() */
 static int num_aio_resv_start = 0;
-
-static int aiod_timeout;
-SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout, CTLFLAG_RW, &aiod_timeout, 0,
-    "Timeout value for synchronous aio operations");
 
 static int aiod_lifetime;
 SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime, CTLFLAG_RW, &aiod_lifetime, 0,
@@ -392,7 +384,7 @@ static struct filterops lio_filtops = {
 
 static eventhandler_tag exit_tag, exec_tag;
 
-TASKQUEUE_DEFINE_THREAD(aiod_bio);
+TASKQUEUE_DEFINE_THREAD(aiod_kick);
 
 /*
  * Main operations function for use as a kernel module.
@@ -504,7 +496,6 @@ aio_onceonly(void)
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiolio_zone = uma_zcreate("AIOLIO", sizeof(struct aioliojob), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
 	async_io_version = _POSIX_VERSION;
@@ -555,7 +546,7 @@ aio_unload(void)
 		return error;
 	async_io_version = 0;
 	aio_swake = NULL;
-	taskqueue_free(taskqueue_aiod_bio);
+	taskqueue_free(taskqueue_aiod_kick);
 	delete_unrhdr(aiod_unr);
 	uma_zdestroy(kaio_zone);
 	uma_zdestroy(aiop_zone);
@@ -802,7 +793,7 @@ restart:
 		}
 	}
 	AIO_UNLOCK(ki);
-	taskqueue_drain(taskqueue_aiod_bio, &ki->kaio_task);
+	taskqueue_drain(taskqueue_aiod_kick, &ki->kaio_task);
 	mtx_destroy(&ki->kaio_mtx);
 	uma_zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
@@ -1057,6 +1048,13 @@ notification_done:
 	}
 }
 
+static void
+aio_switch_vmspace(struct aiocblist *aiocbe)
+{
+
+	vmspace_switch_aio(aiocbe->userproc->p_vmspace);
+}
+
 /*
  * The AIO daemon, most of the actual work is done in aio_process_*,
  * but the setup (and address space mgmt) is done in this routine.
@@ -1067,18 +1065,20 @@ aio_daemon(void *_id)
 	struct aiocblist *aiocbe;
 	struct aiothreadlist *aiop;
 	struct kaioinfo *ki;
-	struct proc *curcp, *mycp, *userp;
-	struct vmspace *myvm, *tmpvm;
+	struct proc *p, *userp;
+	struct vmspace *myvm;
 	struct thread *td = curthread;
 	int id = (intptr_t)_id;
 
 	/*
-	 * Local copies of curproc (cp) and vmspace (myvm)
+	 * Grab an extra reference on the daemon's vmspace so that it
+	 * doesn't get freed by jobs that switch to a different
+	 * vmspace.
 	 */
-	mycp = td->td_proc;
-	myvm = mycp->p_vmspace;
+	p = td->td_proc;
+	myvm = vmspace_acquire_ref(p);
 
-	KASSERT(mycp->p_textvp == NULL, ("kthread has a textvp"));
+	KASSERT(p->p_textvp == NULL, ("kthread has a textvp"));
 
 	/*
 	 * Allocate and ready the aio control info.  There is one aiop structure
@@ -1088,9 +1088,6 @@ aio_daemon(void *_id)
 	aiop->aiothread = td;
 	aiop->aiothreadflags = 0;
 
-	/* The daemon resides in its own pgrp. */
-	sys_setsid(td, NULL);
-
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
 	 * and creating too many daemons.)
@@ -1099,12 +1096,6 @@ aio_daemon(void *_id)
 
 	mtx_lock(&aio_job_mtx);
 	for (;;) {
-		/*
-		 * curcp is the current daemon process context.
-		 * userp is the current user process context.
-		 */
-		curcp = mycp;
-
 		/*
 		 * Take daemon off of free queue
 		 */
@@ -1123,34 +1114,7 @@ aio_daemon(void *_id)
 			/*
 			 * Connect to process address space for user program.
 			 */
-			if (userp != curcp) {
-				/*
-				 * Save the current address space that we are
-				 * connected to.
-				 */
-				tmpvm = mycp->p_vmspace;
-
-				/*
-				 * Point to the new user address space, and
-				 * refer to it.
-				 */
-				mycp->p_vmspace = userp->p_vmspace;
-				atomic_add_int(&mycp->p_vmspace->vm_refcnt, 1);
-
-				/* Activate the new mapping. */
-				pmap_activate(FIRST_THREAD_IN_PROC(mycp));
-
-				/*
-				 * If the old address space wasn't the daemons
-				 * own address space, then we need to remove the
-				 * daemon's reference from the other process
-				 * that it was acting on behalf of.
-				 */
-				if (tmpvm != myvm) {
-					vmspace_free(tmpvm);
-				}
-				curcp = userp;
-			}
+			aio_switch_vmspace(aiocbe);
 
 			ki = userp->p_aioinfo;
 
@@ -1184,34 +1148,13 @@ aio_daemon(void *_id)
 		/*
 		 * Disconnect from user address space.
 		 */
-		if (curcp != mycp) {
-
+		if (p->p_vmspace != myvm) {
 			mtx_unlock(&aio_job_mtx);
-
-			/* Get the user address space to disconnect from. */
-			tmpvm = mycp->p_vmspace;
-
-			/* Get original address space for daemon. */
-			mycp->p_vmspace = myvm;
-
-			/* Activate the daemon's address space. */
-			pmap_activate(FIRST_THREAD_IN_PROC(mycp));
-#ifdef DIAGNOSTIC
-			if (tmpvm == myvm) {
-				printf("AIOD: vmspace problem -- %d\n",
-				    mycp->p_pid);
-			}
-#endif
-			/* Remove our vmspace reference. */
-			vmspace_free(tmpvm);
-
-			curcp = mycp;
-
+			vmspace_switch_aio(myvm);
 			mtx_lock(&aio_job_mtx);
 			/*
 			 * We have to restart to avoid race, we only sleep if
-			 * no job can be selected, that should be
-			 * curcp == mycp.
+			 * no job can be selected.
 			 */
 			continue;
 		}
@@ -1226,29 +1169,23 @@ aio_daemon(void *_id)
 		 * thereby freeing resources.
 		 */
 		if (msleep(aiop->aiothread, &aio_job_mtx, PRIBIO, "aiordy",
-		    aiod_lifetime)) {
-			if (TAILQ_EMPTY(&aio_jobs)) {
-				if ((aiop->aiothreadflags & AIOP_FREE) &&
-				    (num_aio_procs > target_aio_procs)) {
-					TAILQ_REMOVE(&aio_freeproc, aiop, list);
-					num_aio_procs--;
-					mtx_unlock(&aio_job_mtx);
-					uma_zfree(aiop_zone, aiop);
-					free_unr(aiod_unr, id);
-#ifdef DIAGNOSTIC
-					if (mycp->p_vmspace->vm_refcnt <= 1) {
-						printf("AIOD: bad vm refcnt for"
-						    " exiting daemon: %d\n",
-						    mycp->p_vmspace->vm_refcnt);
-					}
-#endif
-					kproc_exit(0);
-				}
-			}
-		}
+		    aiod_lifetime) == EWOULDBLOCK && TAILQ_EMPTY(&aio_jobs) &&
+		    (aiop->aiothreadflags & AIOP_FREE) &&
+		    num_aio_procs > target_aio_procs)
+			break;
 	}
+	TAILQ_REMOVE(&aio_freeproc, aiop, list);
+	num_aio_procs--;
 	mtx_unlock(&aio_job_mtx);
-	panic("shouldn't be here\n");
+	uma_zfree(aiop_zone, aiop);
+	free_unr(aiod_unr, id);
+	vmspace_free(myvm);
+
+	KASSERT(p->p_vmspace == myvm,
+	    ("AIOD: bad vmspace for exiting daemon"));
+	KASSERT(myvm->vm_refcnt > 1,
+	    ("AIOD: bad vm refcnt for exiting daemon: %d", myvm->vm_refcnt));
+	kproc_exit(0);
 }
 
 /*
@@ -1861,7 +1798,7 @@ aio_kick_nowait(struct proc *userp)
 	} else if (((num_aio_resv_start + num_aio_procs) < max_aio_procs) &&
 	    ((ki->kaio_active_count + num_aio_resv_start) <
 	    ki->kaio_maxactive_count)) {
-		taskqueue_enqueue(taskqueue_aiod_bio, &ki->kaio_task);
+		taskqueue_enqueue(taskqueue_aiod_kick, &ki->kaio_task);
 	}
 }
 

@@ -11,6 +11,10 @@ SRCS=	cc1_main.cpp \
 
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?= yes
+
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+= -mlong-calls
+.endif
 .endif
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \

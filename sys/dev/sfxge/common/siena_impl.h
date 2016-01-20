@@ -132,11 +132,6 @@ siena_mcdi_read_response(
 	__in			size_t offset,
 	__in			size_t length);
 
-extern			void
-siena_mcdi_request_copyout(
-	__in		efx_nic_t *enp,
-	__in		efx_mcdi_req_t *emrp);
-
 extern			efx_rc_t
 siena_mcdi_poll_reboot(
 	__in		efx_nic_t *enp);
@@ -159,29 +154,6 @@ extern	__checkReturn		efx_rc_t
 siena_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn);
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_partn_read(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__in			unsigned int offset,
-	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_partn_erase(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__in			unsigned int offset,
-	__in			size_t size);
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_partn_write(
-	__in			efx_nic_t *enp,
-	__in			uint32_t partn,
-	__in			unsigned int offset,
-	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
 
 extern				void
 siena_nvram_partn_unlock(
@@ -215,51 +187,6 @@ siena_nvram_get_subtype(
 	__out			uint32_t *subtypep);
 
 extern	__checkReturn		efx_rc_t
-siena_nvram_get_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			uint32_t *subtypep,
-	__out_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_rw_start(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__out			size_t *pref_chunkp);
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_read_chunk(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in			unsigned int offset,
-	__out_bcount(size)	caddr_t data,
-	__in			size_t size);
-
-extern	 __checkReturn		efx_rc_t
-siena_nvram_erase(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type);
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_write_chunk(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in			unsigned int offset,
-	__in_bcount(size)	caddr_t data,
-	__in			size_t size);
-
-extern				void
-siena_nvram_rw_finish(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type);
-
-extern	__checkReturn		efx_rc_t
-siena_nvram_set_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in_ecount(4)		uint16_t version[4]);
-
-extern	__checkReturn		efx_rc_t
 siena_nvram_type_to_partn(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -270,6 +197,53 @@ siena_nvram_partn_size(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__out			size_t *sizep);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_rw_start(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__out			size_t *chunk_sizep);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_read(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_erase(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__in			size_t size);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_write(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size);
+
+extern				void
+siena_nvram_partn_rw_finish(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_get_version(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__out			uint32_t *subtypep,
+	__out_ecount(4)		uint16_t version[4]);
+
+extern	__checkReturn		efx_rc_t
+siena_nvram_partn_set_version(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in_ecount(4)		uint16_t version[4]);
 
 #endif	/* EFSYS_OPT_NVRAM */
 

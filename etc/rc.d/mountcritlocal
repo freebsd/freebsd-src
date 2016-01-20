@@ -36,15 +36,15 @@ mountcritlocal_start()
 	done
 	mount_excludes=${mount_excludes%,}
 
-	# Originally, root mount hold had to be released before mounting the root
-	# filesystem.  This delayed the boot, so it was changed to only wait if
-	# the root device isn't readily available.  This can result in this script
-	# executing before all the devices - such as graid(8) - are available.
-	# Thus, should the mount fail, we will wait for the root mount hold release
-	# and retry.
+	# Originally, root mount hold had to be released before mounting
+	# the root filesystem.  This delayed the boot, so it was changed
+	# to only wait if the root device isn't readily available.  This
+	# can result in this script executing before all the devices - such
+	# as graid(8) - are available.  Thus, should the mount fail,
+	# we will wait for the root mount hold release and retry.
 	mount -a -t ${mount_excludes}
 	err=$?
-	if [ $? -ne 0 ]; then
+	if [ ${err} -ne 0 ]; then
 		echo
 		echo 'Mounting /etc/fstab filesystems failed,' \
 		    'will retry after root mount hold release'

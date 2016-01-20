@@ -486,17 +486,14 @@ ef10_ev_rx(
 {
 	efx_nic_t *enp = eep->ee_enp;
 	uint32_t size;
-#if 0
-	boolean_t parse_err;
-#endif
 	uint32_t label;
-	uint32_t mcast;
-	uint32_t eth_base_class;
+	uint32_t mac_class;
 	uint32_t eth_tag_class;
 	uint32_t l3_class;
 	uint32_t l4_class;
 	uint32_t next_read_lbits;
 	uint16_t flags;
+	boolean_t cont;
 	boolean_t should_abort;
 	efx_evq_rxq_state_t *eersp;
 	unsigned int desc_count;
@@ -508,10 +505,15 @@ ef10_ev_rx(
 	if (enp->en_reset_flags & (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR))
 		return (B_FALSE);
 
-	/*
-	 * FIXME: likely to be incomplete, incorrect and inefficient.
-	 * Improvements in all three areas are required.
-	 */
+	/* Basic packet information */
+	size = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_BYTES);
+	next_read_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
+	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
+	eth_tag_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_TAG_CLASS);
+	mac_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_MAC_CLASS);
+	l3_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L3_CLASS);
+	l4_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L4_CLASS);
+	cont = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DROP_EVENT) != 0) {
 		/* Drop this event */
@@ -519,9 +521,7 @@ ef10_ev_rx(
 	}
 	flags = 0;
 
-	size = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_BYTES);
-
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT) != 0) {
+	if (cont != 0) {
 		/*
 		 * This may be part of a scattered frame, or it may be a
 		 * truncated frame if scatter is disabled on this RXQ.
@@ -534,40 +534,8 @@ ef10_ev_rx(
 		flags |= EFX_PKT_CONT;
 	}
 
-#if 0
-	/* TODO What to do if the packet is flagged with parsing error */
-	parse_err = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_PARSE_INCOMPLETE) != 0);
-#endif
-	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
-
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECRC_ERR) != 0) {
-		/* Ethernet frame CRC bad */
-		flags |= EFX_DISCARD;
-	}
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CRC0_ERR) != 0) {
-		/* IP+TCP, bad CRC in iSCSI header */
-		flags |= EFX_DISCARD;
-	}
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CRC1_ERR) != 0) {
-		/* IP+TCP, bad CRC in iSCSI payload or FCoE or FCoIP */
-		flags |= EFX_DISCARD;
-	}
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECC_ERR) != 0) {
-		/* ECC memory error */
-		flags |= EFX_DISCARD;
-	}
-
-	mcast = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_MAC_CLASS);
-	if (mcast == ESE_DZ_MAC_CLASS_UCAST)
+	if (mac_class == ESE_DZ_MAC_CLASS_UCAST)
 		flags |= EFX_PKT_UNICAST;
-
-	eth_base_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_BASE_CLASS);
-	eth_tag_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_TAG_CLASS);
-	l3_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L3_CLASS);
-	l4_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L4_CLASS);
-
-	/* bottom 4 bits of incremented index (not last desc consumed) */
-	next_read_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
 
 	/* Increment the count of descriptors read */
 	eersp = &eep->ee_rxq_state[label];
@@ -587,88 +555,84 @@ ef10_ev_rx(
 	/* Calculate the index of the the last descriptor consumed */
 	last_used_id = (eersp->eers_rx_read_ptr - 1) & eersp->eers_rx_mask;
 
-	/* EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_OVERRIDE_HOLDOFF); */
-
-	switch (eth_base_class) {
-	case ESE_DZ_ETH_BASE_CLASS_LLC_SNAP:
-	case ESE_DZ_ETH_BASE_CLASS_LLC:
-	case ESE_DZ_ETH_BASE_CLASS_ETH2:
-	default:
-		break;
+	/* Check for errors that invalidate checksum and L3/L4 fields */
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECC_ERR) != 0) {
+		/* RX frame truncated (error flag is misnamed) */
+		EFX_EV_QSTAT_INCR(eep, EV_RX_FRM_TRUNC);
+		flags |= EFX_DISCARD;
+		goto deliver;
+	}
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECRC_ERR) != 0) {
+		/* Bad Ethernet frame CRC */
+		EFX_EV_QSTAT_INCR(eep, EV_RX_ETH_CRC_ERR);
+		flags |= EFX_DISCARD;
+		goto deliver;
+	}
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_PARSE_INCOMPLETE)) {
+		/*
+		 * Hardware parse failed, due to malformed headers
+		 * or headers that are too long for the parser.
+		 * Headers and checksums must be validated by the host.
+		 */
+		// TODO: EFX_EV_QSTAT_INCR(eep, EV_RX_PARSE_INCOMPLETE);
+		goto deliver;
 	}
 
-	switch (eth_tag_class) {
-	case ESE_DZ_ETH_TAG_CLASS_RSVD7:
-	case ESE_DZ_ETH_TAG_CLASS_RSVD6:
-	case ESE_DZ_ETH_TAG_CLASS_RSVD5:
-	case ESE_DZ_ETH_TAG_CLASS_RSVD4:
-		break;
-
-	case ESE_DZ_ETH_TAG_CLASS_RSVD3: /* Triple tagged */
-	case ESE_DZ_ETH_TAG_CLASS_VLAN2: /* Double tagged */
-	case ESE_DZ_ETH_TAG_CLASS_VLAN1: /* VLAN tagged */
+	if ((eth_tag_class == ESE_DZ_ETH_TAG_CLASS_VLAN1) ||
+	    (eth_tag_class == ESE_DZ_ETH_TAG_CLASS_VLAN2)) {
 		flags |= EFX_PKT_VLAN_TAGGED;
-		break;
-
-	case ESE_DZ_ETH_TAG_CLASS_NONE:
-	default:
-		break;
 	}
 
 	switch (l3_class) {
-	case ESE_DZ_L3_CLASS_RSVD7: /* Used by firmware for packet overrun */
-#if 0
-		parse_err = B_TRUE;
-#endif
-		flags |= EFX_DISCARD;
-		break;
-
-	case ESE_DZ_L3_CLASS_ARP:
-	case ESE_DZ_L3_CLASS_FCOE:
-		break;
-
-	case ESE_DZ_L3_CLASS_IP6_FRAG:
-	case ESE_DZ_L3_CLASS_IP6:
-		flags |= EFX_PKT_IPV6;
-		break;
-
-	case ESE_DZ_L3_CLASS_IP4_FRAG:
 	case ESE_DZ_L3_CLASS_IP4:
+	case ESE_DZ_L3_CLASS_IP4_FRAG:
 		flags |= EFX_PKT_IPV4;
-		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_IPCKSUM_ERR) == 0)
+		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_IPCKSUM_ERR)) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_IPV4_HDR_CHKSUM_ERR);
+		} else {
 			flags |= EFX_CKSUM_IPV4;
+		}
+
+		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV4);
+			flags |= EFX_PKT_TCP;
+		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV4);
+			flags |= EFX_PKT_UDP;
+		} else {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_OTHER_IPV4);
+		}
 		break;
 
-	case ESE_DZ_L3_CLASS_UNKNOWN:
+	case ESE_DZ_L3_CLASS_IP6:
+	case ESE_DZ_L3_CLASS_IP6_FRAG:
+		flags |= EFX_PKT_IPV6;
+
+		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV6);
+			flags |= EFX_PKT_TCP;
+		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV6);
+			flags |= EFX_PKT_UDP;
+		} else {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_OTHER_IPV6);
+		}
+		break;
+
 	default:
+		EFX_EV_QSTAT_INCR(eep, EV_RX_NON_IP);
 		break;
 	}
 
-	switch (l4_class) {
-	case ESE_DZ_L4_CLASS_RSVD7:
-	case ESE_DZ_L4_CLASS_RSVD6:
-	case ESE_DZ_L4_CLASS_RSVD5:
-	case ESE_DZ_L4_CLASS_RSVD4:
-	case ESE_DZ_L4_CLASS_RSVD3:
-		break;
-
-	case ESE_DZ_L4_CLASS_UDP:
-		flags |= EFX_PKT_UDP;
-		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TCPUDP_CKSUM_ERR) == 0)
+	if (flags & (EFX_PKT_TCP | EFX_PKT_UDP)) {
+		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TCPUDP_CKSUM_ERR)) {
+			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_UDP_CHKSUM_ERR);
+		} else {
 			flags |= EFX_CKSUM_TCPUDP;
-		break;
-
-	case ESE_DZ_L4_CLASS_TCP:
-		flags |= EFX_PKT_TCP;
-		if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TCPUDP_CKSUM_ERR) == 0)
-			flags |= EFX_CKSUM_TCPUDP;
-		break;
-
-	case ESE_DZ_L4_CLASS_UNKNOWN:
-	default:
-		break;
+		}
 	}
 
+deliver:
 	/* If we're not discarding the packet then it is ok */
 	if (~flags & EFX_DISCARD)
 		EFX_EV_QSTAT_INCR(eep, EV_RX_OK);
@@ -835,7 +799,7 @@ ef10_ev_mcdi(
 	case MCDI_EVENT_CODE_LINKCHANGE: {
 		efx_link_mode_t link_mode;
 
-		hunt_phy_link_ev(enp, eqp, &link_mode);
+		ef10_phy_link_ev(enp, eqp, &link_mode);
 		should_abort = eecp->eec_link_change(arg, link_mode);
 		break;
 	}

@@ -494,11 +494,12 @@ npxinitstate(void *arg __unused)
 
 		/*
 		 * The fninit instruction does not modify XMM
-		 * registers.  The fpusave call dumped the garbage
-		 * contained in the registers after reset to the
-		 * initial state saved.  Clear XMM registers file
-		 * image to make the startup program state and signal
-		 * handler XMM register content predictable.
+		 * registers or x87 registers (MM/ST).  The fpusave
+		 * call dumped the garbage contained in the registers
+		 * after reset to the initial state saved.  Clear XMM
+		 * and x87 registers file image to make the startup
+		 * program state and signal handler XMM/x87 register
+		 * content predictable.
 		 */
 		bzero(npx_initialstate->sv_xmm.sv_fp,
 		    sizeof(npx_initialstate->sv_xmm.sv_fp));

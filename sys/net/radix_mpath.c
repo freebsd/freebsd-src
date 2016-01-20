@@ -201,19 +201,20 @@ static struct rtentry *
 rt_mpath_selectrte(struct rtentry *rte, uint32_t hash)
 {
 	struct radix_node *rn0, *rn;
-	u_int32_t n;
+	uint32_t total_weight;
 	struct rtentry *rt;
 	int64_t weight;
 
 	/* beyond here, we use rn as the master copy */
 	rn0 = rn = (struct radix_node *)rte;
-	n = rn_mpath_count(rn0);
+	rt = rte;
 
 	/* gw selection by Modulo-N Hash (RFC2991) XXX need improvement? */
+	total_weight = rn_mpath_count(rn0);
 	hash += hashjitter;
-	hash %= n;
-	for (weight = abs((int32_t)hash), rt = rte;
-	     weight >= rt->rt_weight && rn; 
+	hash %= total_weight;
+	for (weight = abs((int32_t)hash);
+	     rt != NULL && weight >= rt->rt_weight; 
 	     weight -= rt->rt_weight) {
 		
 		/* stay within the multipath routes */

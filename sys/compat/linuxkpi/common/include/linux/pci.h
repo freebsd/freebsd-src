@@ -129,8 +129,9 @@ struct pci_driver {
 	const struct pci_device_id		*id_table;
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);
 	void (*remove)(struct pci_dev *dev);
-        int  (*suspend) (struct pci_dev *dev, pm_message_t state);      /* Device suspended */
-        int  (*resume) (struct pci_dev *dev);                   /* Device woken up */
+	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
+	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
+	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
 	driver_t			driver;
 	devclass_t			bsdclass;
         const struct pci_error_handlers       *err_handler;

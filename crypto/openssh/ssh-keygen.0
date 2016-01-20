@@ -1,17 +1,17 @@
-SSH-KEYGEN(1)              OpenBSD Reference Manual              SSH-KEYGEN(1)
+SSH-KEYGEN(1)               General Commands Manual              SSH-KEYGEN(1)
 
 NAME
-     ssh-keygen - authentication key generation, management and conversion
+     ssh-keygen M-bM-^@M-^S authentication key generation, management and conversion
 
 SYNOPSIS
-     ssh-keygen [-q] [-b bits] [-t type] [-N new_passphrase] [-C comment]
-                [-f output_keyfile]
+     ssh-keygen [-q] [-b bits] [-t dsa | ecdsa | ed25519 | rsa | rsa1]
+                [-N new_passphrase] [-C comment] [-f output_keyfile]
      ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]
      ssh-keygen -i [-m key_format] [-f input_keyfile]
      ssh-keygen -e [-m key_format] [-f input_keyfile]
      ssh-keygen -y [-f input_keyfile]
      ssh-keygen -c [-P passphrase] [-C comment] [-f keyfile]
-     ssh-keygen -l [-f input_keyfile]
+     ssh-keygen -l [-v] [-E fingerprint_hash] [-f input_keyfile]
      ssh-keygen -B [-f input_keyfile]
      ssh-keygen -D pkcs11
      ssh-keygen -F hostname [-f known_hosts_file] [-l]
@@ -32,7 +32,7 @@ SYNOPSIS
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
      ssh(1).  ssh-keygen can create RSA keys for use by SSH protocol version 1
-     and DSA, ECDSA, ED25519 or RSA keys for use by SSH protocol version 2.
+     and DSA, ECDSA, Ed25519 or RSA keys for use by SSH protocol version 2.
      The type of key to be generated is specified with the -t option.  If
      invoked without any arguments, ssh-keygen will generate an RSA key for
      use in SSH protocol 2 connections.
@@ -52,7 +52,7 @@ DESCRIPTION
 
      Normally this program generates the key and asks for a file in which to
      store the private key.  The public key is stored in a file with the same
-     name but ``.pub'' appended.  The program also asks for a passphrase.  The
+     name but M-bM-^@M-^\.pubM-bM-^@M-^] appended.  The program also asks for a passphrase.  The
      passphrase may be empty to indicate no passphrase (host keys must have an
      empty passphrase), or it may be a string of arbitrary length.  A
      passphrase is similar to a password, except it can be a phrase with a
@@ -71,7 +71,7 @@ DESCRIPTION
      For RSA1 keys, there is also a comment field in the key file that is only
      for convenience to the user to help identify the key.  The comment can
      tell what the key is for, or whatever is useful.  The comment is
-     initialized to ``user@host'' when the key is created, but can be changed
+     initialized to M-bM-^@M-^\user@hostM-bM-^@M-^] when the key is created, but can be changed
      using the -c option.
 
      After a key is generated, instructions below detail where the keys should
@@ -107,7 +107,7 @@ DESCRIPTION
              the -b flag determines the key length by selecting from one of
              three elliptic curve sizes: 256, 384 or 521 bits.  Attempting to
              use bit lengths other than these three values for ECDSA keys will
-             fail.  ED25519 keys have a fixed length and the -b flag will be
+             fail.  Ed25519 keys have a fixed length and the -b flag will be
              ignored.
 
      -C comment
@@ -124,9 +124,14 @@ DESCRIPTION
              indicates that a CA key resides in a PKCS#11 token (see the
              CERTIFICATES section for details).
 
+     -E fingerprint_hash
+             Specifies the hash algorithm used when displaying key
+             fingerprints.  Valid options are: M-bM-^@M-^\md5M-bM-^@M-^] and M-bM-^@M-^\sha256M-bM-^@M-^].  The
+             default is M-bM-^@M-^\sha256M-bM-^@M-^].
+
      -e      This option will read a private or public OpenSSH key file and
              print to stdout the key in one of the formats specified by the -m
-             option.  The default export format is ``RFC4716''.  This option
+             option.  The default export format is M-bM-^@M-^\RFC4716M-bM-^@M-^].  This option
              allows exporting OpenSSH keys for use by other programs,
              including several commercial SSH implementations.
 
@@ -164,7 +169,9 @@ DESCRIPTION
 
      -i      This option will read an unencrypted private (or public) key file
              in the format specified by the -m option and print an OpenSSH
-             compatible private (or public) key to stdout.
+             compatible private (or public) key to stdout.  This option allows
+             importing keys from other software, including several commercial
+             SSH implementations.  The default import format is M-bM-^@M-^\RFC4716M-bM-^@M-^].
 
      -J num_lines
              Exit after screening the specified number of lines while
@@ -178,9 +185,7 @@ DESCRIPTION
              Write the last line processed to the file checkpt while
              performing DH candidate screening using the -T option.  This will
              be used to skip lines in the input file that have already been
-             processed if the job is restarted.  This option allows importing
-             keys from other software, including several commercial SSH
-             implementations.  The default import format is ``RFC4716''.
+             processed if the job is restarted.
 
      -k      Generate a KRL file.  In this mode, ssh-keygen will generate a
              KRL file at the location specified via the -f flag that revokes
@@ -203,10 +208,10 @@ DESCRIPTION
 
      -m key_format
              Specify a key format for the -i (import) or -e (export)
-             conversion options.  The supported key formats are: ``RFC4716''
-             (RFC 4716/SSH2 public or private key), ``PKCS8'' (PEM PKCS8
-             public key) or ``PEM'' (PEM public key).  The default conversion
-             format is ``RFC4716''.
+             conversion options.  The supported key formats are: M-bM-^@M-^\RFC4716M-bM-^@M-^]
+             (RFC 4716/SSH2 public or private key), M-bM-^@M-^\PKCS8M-bM-^@M-^] (PEM PKCS8 public
+             key) or M-bM-^@M-^\PEMM-bM-^@M-^] (PEM public key).  The default conversion format is
+             M-bM-^@M-^\RFC4716M-bM-^@M-^].
 
      -N new_passphrase
              Provides the new passphrase.
@@ -313,10 +318,10 @@ DESCRIPTION
              Test DH group exchange candidate primes (generated using the -G
              option) for safety.
 
-     -t type
+     -t dsa | ecdsa | ed25519 | rsa | rsa1
              Specifies the type of key to create.  The possible values are
-             ``rsa1'' for protocol version 1 and ``dsa'', ``ecdsa'',
-             ``ed25519'', or ``rsa'' for protocol version 2.
+             M-bM-^@M-^\rsa1M-bM-^@M-^] for protocol version 1 and M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], or
+             M-bM-^@M-^\rsaM-bM-^@M-^] for protocol version 2.
 
      -u      Update a KRL.  When specified with -k, keys listed via the
              command line are added to the existing KRL rather than a new KRL
@@ -335,12 +340,11 @@ DESCRIPTION
              as a YYYYMMDD date, a YYYYMMDDHHMMSS time or a relative time
              starting with a plus character.
 
-             For example: ``+52w1d'' (valid from now to 52 weeks and one day
-             from now), ``-4w:+4w'' (valid from four weeks ago to four weeks
-             from now), ``20100101123000:20110101123000'' (valid from 12:30
-             PM, January 1st, 2010 to 12:30 PM, January 1st, 2011),
-             ``-1d:20110101'' (valid from yesterday to midnight, January 1st,
-             2011).
+             For example: M-bM-^@M-^\+52w1dM-bM-^@M-^] (valid from now to 52 weeks and one day
+             from now), M-bM-^@M-^\-4w:+4wM-bM-^@M-^] (valid from four weeks ago to four weeks
+             from now), M-bM-^@M-^\20100101123000:20110101123000M-bM-^@M-^] (valid from 12:30 PM,
+             January 1st, 2010 to 12:30 PM, January 1st, 2011), M-bM-^@M-^\-1d:20110101M-bM-^@M-^]
+             (valid from yesterday to midnight, January 1st, 2011).
 
      -v      Verbose mode.  Causes ssh-keygen to print debugging messages
              about its progress.  This is helpful for debugging moduli
@@ -524,7 +528,7 @@ FILES
      ~/.ssh/id_ecdsa
      ~/.ssh/id_ed25519
      ~/.ssh/id_rsa
-             Contains the protocol version 2 DSA, ECDSA, ED25519 or RSA
+             Contains the protocol version 2 DSA, ECDSA, Ed25519 or RSA
              authentication identity of the user.  This file should not be
              readable by anyone but the user.  It is possible to specify a
              passphrase when generating the key; that passphrase will be used
@@ -537,7 +541,7 @@ FILES
      ~/.ssh/id_ecdsa.pub
      ~/.ssh/id_ed25519.pub
      ~/.ssh/id_rsa.pub
-             Contains the protocol version 2 DSA, ECDSA, ED25519 or RSA public
+             Contains the protocol version 2 DSA, ECDSA, Ed25519 or RSA public
              key for authentication.  The contents of this file should be
              added to ~/.ssh/authorized_keys on all machines where the user
              wishes to log in using public key authentication.  There is no
@@ -559,4 +563,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.5                    February 5, 2014                    OpenBSD 5.5
+OpenBSD 5.7                    February 24, 2015                   OpenBSD 5.7

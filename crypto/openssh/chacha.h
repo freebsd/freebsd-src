@@ -1,4 +1,4 @@
-/* $OpenBSD: chacha.h,v 1.1 2013/11/21 00:45:44 djm Exp $ */
+/* $OpenBSD: chacha.h,v 1.3 2014/05/02 03:27:54 djm Exp $ */
 
 /*
 chacha-merged.c version 20080118

@@ -39,6 +39,64 @@ __FBSDID("$FreeBSD$");
 
 #include "ef10_tlv_layout.h"
 
+static	__checkReturn	efx_rc_t
+efx_mcdi_get_rxdp_config(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *end_paddingp)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_RXDP_CONFIG_IN_LEN,
+			    MC_CMD_GET_RXDP_CONFIG_OUT_LEN)];
+	uint32_t end_padding;
+	efx_rc_t rc;
+
+	memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_RXDP_CONFIG;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_RXDP_CONFIG_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_RXDP_CONFIG_OUT_LEN;
+
+	efx_mcdi_execute(enp, &req);
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
+				    GET_RXDP_CONFIG_OUT_PAD_HOST_DMA) == 0) {
+		/* RX DMA end padding is disabled */
+		end_padding = 0;
+	} else {
+		switch(MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
+					    GET_RXDP_CONFIG_OUT_PAD_HOST_LEN)) {
+		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_64:
+			end_padding = 64;
+			break;
+		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_128:
+			end_padding = 128;
+			break;
+		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_256:
+			end_padding = 256;
+			break;
+		default:
+			rc = ENOTSUP;
+			goto fail2;
+		}
+	}
+
+	*end_paddingp = end_padding;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 	__checkReturn	efx_rc_t
 medford_board_cfg(
 	__in		efx_nic_t *enp)
@@ -47,7 +105,7 @@ medford_board_cfg(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint8_t mac_addr[6] = { 0 };
 	uint32_t board_type = 0;
-	hunt_link_state_t hls;
+	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
 	uint32_t port;
 	uint32_t pf;
@@ -56,6 +114,7 @@ medford_board_cfg(
 	uint32_t flags;
 	uint32_t sysclk;
 	uint32_t base, nvec;
+	uint32_t end_padding;
 	efx_rc_t rc;
 
 	/*
@@ -126,10 +185,10 @@ medford_board_cfg(
 		goto fail6;
 
 	/* Obtain the default PHY advertised capabilities */
-	if ((rc = hunt_phy_get_link(enp, &hls)) != 0)
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail7;
-	epp->ep_default_adv_cap_mask = hls.hls_adv_cap_mask;
-	epp->ep_adv_cap_mask = hls.hls_adv_cap_mask;
+	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
+	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/*
@@ -161,8 +220,10 @@ medford_board_cfg(
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
 
-	/* FIXME: RX DMA end padding is configurable on Medford */
-	encp->enc_rx_buf_align_end = 64;
+	/* Get the RX DMA end padding alignment configuration */
+	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0)
+		goto fail10;
+	encp->enc_rx_buf_align_end = end_padding;
 
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
@@ -189,15 +250,14 @@ medford_board_cfg(
 	 * the privilege mask to check for sufficient privileges, as that
 	 * can result in time-of-check/time-of-use bugs.
 	 */
-	if ((rc = efx_mcdi_privilege_mask(enp, pf, vf, &mask)) != 0)
-		goto fail10;
-
+	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
+		goto fail11;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
 	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
 		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail11;
+			goto fail12;
 
 		/* Ignore error (cannot query vector limits from a VF). */
 		base = 0;
@@ -212,8 +272,16 @@ medford_board_cfg(
 	 */
 	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
+	/*
+	 * Medford stores a single global copy of VPD, not per-PF as on
+	 * Huntington.
+	 */
+	encp->enc_vpd_is_global = B_TRUE;
+
 	return (0);
 
+fail12:
+	EFSYS_PROBE(fail12);
 fail11:
 	EFSYS_PROBE(fail11);
 fail10:
