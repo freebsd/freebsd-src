@@ -315,6 +315,7 @@ typedef struct {
 #define	SHT_MIPS_REGINFO	0x70000006
 #define	SHT_MIPS_OPTIONS	0x7000000d
 #define	SHT_MIPS_DWARF		0x7000001e	/* MIPS gcc uses MIPS_DWARF */
+#define	SHT_MIPS_ABIFLAGS	0x7000002a
 #define	SHT_HIPROC		0x7fffffff	/* specific section header types */
 #define	SHT_LOUSER		0x80000000	/* reserved range for application */
 #define	SHT_HIUSER		0xffffffff	/* specific indexes */
