@@ -227,6 +227,8 @@ static siena_parttbl_entry_t siena_parttbl[] = {
 	{MC_CMD_NVRAM_TYPE_FC_FW,		2, EFX_NVRAM_FCFW},
 	{MC_CMD_NVRAM_TYPE_CPLD,		1, EFX_NVRAM_CPLD},
 	{MC_CMD_NVRAM_TYPE_CPLD,		2, EFX_NVRAM_CPLD},
+	{MC_CMD_NVRAM_TYPE_LICENSE,		1, EFX_NVRAM_LICENSE},
+	{MC_CMD_NVRAM_TYPE_LICENSE,		2, EFX_NVRAM_LICENSE}
 };
 
 	__checkReturn		efx_rc_t
