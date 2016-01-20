@@ -2064,7 +2064,7 @@ fdt_win_setup(void)
 		 */
 		child = OF_peer(child);
 		if ((child == 0) && (node == OF_finddevice("/"))) {
-			node = fdt_find_compatible(node, "simple-bus", 1);
+			node = fdt_find_compatible(node, "simple-bus", 0);
 			if (node == 0)
 				return (ENXIO);
 			child = OF_child(node);
