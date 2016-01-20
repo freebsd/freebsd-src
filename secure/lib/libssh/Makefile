@@ -6,7 +6,7 @@ LIB=	ssh
 PRIVATELIB=	true
 SHLIB_MAJOR=	5
 SRCS=	ssh_api.c ssherr.c sshbuf.c sshkey.c sshbuf-getput-basic.c \
-	sshbuf-misc.c sshbuf-getput-crypto.c krl.o bitmap.o
+	sshbuf-misc.c sshbuf-getput-crypto.c krl.c bitmap.c
 SRCS+=	authfd.c authfile.c bufaux.c bufbn.c bufec.c buffer.c \
 	canohost.c channels.c cipher.c cipher-aes.c cipher-aesctr.c \
 	cipher-bf1.c cipher-ctr.c cipher-3des1.c cleanup.c \
