@@ -316,6 +316,7 @@ weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
 whu [label="Wei Hu\nwhu@FreeBSD.org\n2015/02/11"]
 wkoszek [label="Wojciech A. Koszek\nwkoszek@FreeBSD.org\n2006/02/21"]
+wma [label="Wojciech Macek\nwma@FreeBSD.org\n2016/01/18"]
 wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
 yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
@@ -391,6 +392,7 @@ cognet -> jceel
 cognet -> kevlo
 cognet -> ian
 cognet -> wkoszek
+cognet -> wma
 cognet -> zbb
 
 cperciva -> eadler
