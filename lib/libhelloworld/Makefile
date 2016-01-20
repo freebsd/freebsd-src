@@ -10,7 +10,8 @@ INCSDIR=	${INCLUDEDIR}/cheri
 
 NEED_CHERI?=hybrid
 
-# XXX: don't include when (eventually) building for libcheri
+.ifndef LIBCHERI
 SUBDIR=	compartment
+.endif
 
 .include <bsd.lib.mk>
