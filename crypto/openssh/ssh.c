@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.418 2015/05/04 06:10:48 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.420 2015/07/30 00:01:34 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -109,6 +109,7 @@ __RCSID("$FreeBSD$");
 #include "roaming.h"
 #include "version.h"
 #include "ssherr.h"
+#include "myproposal.h"
 
 #ifdef ENABLE_PKCS11
 #include "ssh-pkcs11.h"
@@ -204,10 +205,10 @@ usage(void)
 "usage: ssh [-1246AaCfGgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]\n"
 "           [-D [bind_address:]port] [-E log_file] [-e escape_char]\n"
 "           [-F configfile] [-I pkcs11] [-i identity_file]\n"
-"           [-L [bind_address:]port:host:hostport] [-l login_name] [-m mac_spec]\n"
+"           [-L address] [-l login_name] [-m mac_spec]\n"
 "           [-O ctl_cmd] [-o option] [-p port]\n"
 "           [-Q cipher | cipher-auth | mac | kex | key]\n"
-"           [-R [bind_address:]port:host:hostport] [-S ctl_path] [-W host:port]\n"
+"           [-R address] [-S ctl_path] [-W host:port]\n"
 "           [-w local_tun[:remote_tun]] [user@]hostname [command]\n"
 	);
 	exit(255);
@@ -795,26 +796,26 @@ main(int ac, char **av)
 			}
 			break;
 		case 'c':
-			if (ciphers_valid(optarg)) {
+			if (ciphers_valid(*optarg == '+' ?
+			    optarg + 1 : optarg)) {
 				/* SSH2 only */
 				options.ciphers = xstrdup(optarg);
 				options.cipher = SSH_CIPHER_INVALID;
-			} else {
-				/* SSH1 only */
-				options.cipher = cipher_number(optarg);
-				if (options.cipher == -1) {
-					fprintf(stderr,
-					    "Unknown cipher type '%s'\n",
-					    optarg);
-					exit(255);
-				}
-				if (options.cipher == SSH_CIPHER_3DES)
-					options.ciphers = "3des-cbc";
-				else if (options.cipher == SSH_CIPHER_BLOWFISH)
-					options.ciphers = "blowfish-cbc";
-				else
-					options.ciphers = (char *)-1;
+				break;
 			}
+			/* SSH1 only */
+			options.cipher = cipher_number(optarg);
+			if (options.cipher == -1) {
+				fprintf(stderr, "Unknown cipher type '%s'\n",
+				    optarg);
+				exit(255);
+			}
+			if (options.cipher == SSH_CIPHER_3DES)
+				options.ciphers = xstrdup("3des-cbc");
+			else if (options.cipher == SSH_CIPHER_BLOWFISH)
+				options.ciphers = xstrdup("blowfish-cbc");
+			else
+				options.ciphers = xstrdup(KEX_CLIENT_ENCRYPT);
 			break;
 		case 'm':
 			if (mac_valid(optarg))

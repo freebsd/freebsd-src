@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.122 2015/03/26 12:32:38 naddy Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.123 2015/07/03 03:43:18 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -302,8 +302,7 @@ add_file(int agent_fd, const char *filename, int key_only)
 	} 
 
 	/* Graft with private bits */
-	if ((r = sshkey_to_certified(private,
-	    sshkey_cert_is_legacy(cert))) != 0) {
+	if ((r = sshkey_to_certified(private)) != 0) {
 		error("%s: sshkey_to_certified: %s", __func__, ssh_err(r));
 		sshkey_free(cert);
 		goto out;

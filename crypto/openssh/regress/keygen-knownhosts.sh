@@ -1,4 +1,4 @@
-#	$OpenBSD: keygen-knownhosts.sh,v 1.2 2015/01/27 12:01:36 djm Exp $
+#	$OpenBSD: keygen-knownhosts.sh,v 1.3 2015/07/17 03:34:27 djm Exp $
 #	Placed in the Public Domain.
 
 tid="ssh-keygen known_hosts"
@@ -57,7 +57,7 @@ check_find() {
 	_name=$2
 	_keygenopt=$3
 	${SSHKEYGEN} $_keygenopt -f $OBJ/kh.invalid -F $_host > $OBJ/kh.result
-	if ! diff -uw $OBJ/kh.expect $OBJ/kh.result ; then
+	if ! diff -w $OBJ/kh.expect $OBJ/kh.result ; then
 		fail "didn't find $_name"
 	fi
 }
@@ -95,7 +95,7 @@ check_hashed_find() {
 	test "x$_file" = "x" && _file=$OBJ/kh.invalid
 	${SSHKEYGEN} -f $_file -HF $_host | grep '|1|' | \
 	    sed "s/^[^ ]*/$_host/" > $OBJ/kh.result
-	if ! diff -uw $OBJ/kh.expect $OBJ/kh.result ; then
+	if ! diff -w $OBJ/kh.expect $OBJ/kh.result ; then
 		fail "didn't find $_name"
 	fi
 }
@@ -135,47 +135,47 @@ check_hashed_find host-h "find multiple hosts"
 # Attempt remove key on invalid file.
 cp $OBJ/kh.invalid.orig $OBJ/kh.invalid
 ${SSHKEYGEN} -qf $OBJ/kh.invalid -R host-a 2>/dev/null
-diff -u $OBJ/kh.invalid $OBJ/kh.invalid.orig || fail "remove on invalid succeeded"
+diff $OBJ/kh.invalid $OBJ/kh.invalid.orig || fail "remove on invalid succeeded"
 
 # Remove key
 cp $OBJ/kh.hosts.orig $OBJ/kh.hosts
 ${SSHKEYGEN} -qf $OBJ/kh.hosts -R host-a 2>/dev/null
 grep -v "^host-a " $OBJ/kh.hosts.orig > $OBJ/kh.expect
-diff -u $OBJ/kh.hosts $OBJ/kh.expect || fail "remove simple"
+diff $OBJ/kh.hosts $OBJ/kh.expect || fail "remove simple"
 
 # Remove CA key
 cp $OBJ/kh.hosts.orig $OBJ/kh.hosts
 ${SSHKEYGEN} -qf $OBJ/kh.hosts -R host-c 2>/dev/null
 # CA key should not be removed.
-diff -u $OBJ/kh.hosts $OBJ/kh.hosts.orig || fail "remove CA"
+diff $OBJ/kh.hosts $OBJ/kh.hosts.orig || fail "remove CA"
 
 # Remove revoked key
 cp $OBJ/kh.hosts.orig $OBJ/kh.hosts
 ${SSHKEYGEN} -qf $OBJ/kh.hosts -R host-d 2>/dev/null
 # revoked key should not be removed.
-diff -u $OBJ/kh.hosts $OBJ/kh.hosts.orig || fail "remove revoked"
+diff $OBJ/kh.hosts $OBJ/kh.hosts.orig || fail "remove revoked"
 
 # Remove wildcard
 cp $OBJ/kh.hosts.orig $OBJ/kh.hosts
 ${SSHKEYGEN} -qf $OBJ/kh.hosts -R host-e.blahblah 2>/dev/null
 grep -v "^host-e[*] " $OBJ/kh.hosts.orig > $OBJ/kh.expect
-diff -u $OBJ/kh.hosts $OBJ/kh.expect || fail "remove wildcard"
+diff $OBJ/kh.hosts $OBJ/kh.expect || fail "remove wildcard"
 
 # Remove multiple
 cp $OBJ/kh.hosts.orig $OBJ/kh.hosts
 ${SSHKEYGEN} -qf $OBJ/kh.hosts -R host-h 2>/dev/null
 grep -v "^host-f," $OBJ/kh.hosts.orig > $OBJ/kh.expect
-diff -u $OBJ/kh.hosts $OBJ/kh.expect || fail "remove wildcard"
+diff $OBJ/kh.hosts $OBJ/kh.expect || fail "remove wildcard"
 
 # Attempt hash on invalid file
 cp $OBJ/kh.invalid.orig $OBJ/kh.invalid
 ${SSHKEYGEN} -qf $OBJ/kh.invalid -H 2>/dev/null && fail "hash invalid succeeded"
-diff -u $OBJ/kh.invalid $OBJ/kh.invalid.orig || fail "invalid file modified"
+diff $OBJ/kh.invalid $OBJ/kh.invalid.orig || fail "invalid file modified"
 
 # Hash valid file
 cp $OBJ/kh.hosts.orig $OBJ/kh.hosts
 ${SSHKEYGEN} -qf $OBJ/kh.hosts -H 2>/dev/null || fail "hash failed"
-diff -u $OBJ/kh.hosts.old $OBJ/kh.hosts.orig || fail "backup differs"
+diff $OBJ/kh.hosts.old $OBJ/kh.hosts.orig || fail "backup differs"
 grep "^host-[abfgh]" $OBJ/kh.hosts && fail "original hostnames persist"
 
 cp $OBJ/kh.hosts $OBJ/kh.hashed.orig

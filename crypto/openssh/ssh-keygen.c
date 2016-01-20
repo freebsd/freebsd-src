@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.274 2015/05/28 07:37:31 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.276 2015/07/03 03:49:45 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -217,8 +217,8 @@ type_bits_valid(int type, const char *name, u_int32_t *bitsp)
 		fatal("key bits exceeds maximum %d", maxbits);
 	if (type == KEY_DSA && *bitsp != 1024)
 		fatal("DSA keys must be 1024 bits");
-	else if (type != KEY_ECDSA && type != KEY_ED25519 && *bitsp < 768)
-		fatal("Key must at least be 768 bits");
+	else if (type != KEY_ECDSA && type != KEY_ED25519 && *bitsp < 1024)
+		fatal("Key must at least be 1024 bits");
 	else if (type == KEY_ECDSA && sshkey_ecdsa_bits_to_nid(*bitsp) == -1)
 		fatal("Invalid ECDSA key length - valid lengths are "
 		    "256, 384 or 521 bits");
@@ -239,7 +239,6 @@ ask_filename(struct passwd *pw, const char *prompt)
 			name = _PATH_SSH_CLIENT_IDENTITY;
 			break;
 		case KEY_DSA_CERT:
-		case KEY_DSA_CERT_V00:
 		case KEY_DSA:
 			name = _PATH_SSH_CLIENT_ID_DSA;
 			break;
@@ -250,7 +249,6 @@ ask_filename(struct passwd *pw, const char *prompt)
 			break;
 #endif
 		case KEY_RSA_CERT:
-		case KEY_RSA_CERT_V00:
 		case KEY_RSA:
 			name = _PATH_SSH_CLIENT_ID_RSA;
 			break;
@@ -1575,25 +1573,6 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 	struct sshkey *ca, *public;
 	char *otmp, *tmp, *cp, *out, *comment, **plist = NULL;
 	FILE *f;
-	int v00 = 0; /* legacy keys */
-
-	if (key_type_name != NULL) {
-		switch (sshkey_type_from_name(key_type_name)) {
-		case KEY_RSA_CERT_V00:
-		case KEY_DSA_CERT_V00:
-			v00 = 1;
-			break;
-		case KEY_UNSPEC:
-			if (strcasecmp(key_type_name, "v00") == 0) {
-				v00 = 1;
-				break;
-			} else if (strcasecmp(key_type_name, "v01") == 0)
-				break;
-			/* FALLTHROUGH */
-		default:
-			fatal("unknown key type %s", key_type_name);
-		}
-	}
 
 #ifdef ENABLE_PKCS11
 	pkcs11_init(1);
@@ -1630,7 +1609,7 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 			    __func__, tmp, sshkey_type(public));
 
 		/* Prepare certificate to sign */
-		if ((r = sshkey_to_certified(public, v00)) != 0)
+		if ((r = sshkey_to_certified(public)) != 0)
 			fatal("Could not upgrade key %s to certificate: %s",
 			    tmp, ssh_err(r));
 		public->cert->type = cert_key_type;
@@ -1640,15 +1619,9 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 		public->cert->principals = plist;
 		public->cert->valid_after = cert_valid_from;
 		public->cert->valid_before = cert_valid_to;
-		if (v00) {
-			prepare_options_buf(public->cert->critical,
-			    OPTIONS_CRITICAL|OPTIONS_EXTENSIONS);
-		} else {
-			prepare_options_buf(public->cert->critical,
-			    OPTIONS_CRITICAL);
-			prepare_options_buf(public->cert->extensions,
-			    OPTIONS_EXTENSIONS);
-		}
+		prepare_options_buf(public->cert->critical, OPTIONS_CRITICAL);
+		prepare_options_buf(public->cert->extensions,
+		    OPTIONS_EXTENSIONS);
 		if ((r = sshkey_from_private(ca,
 		    &public->cert->signature_key)) != 0)
 			fatal("key_from_private (ca key): %s", ssh_err(r));
@@ -1833,7 +1806,7 @@ add_cert_option(char *opt)
 }
 
 static void
-show_options(struct sshbuf *optbuf, int v00, int in_critical)
+show_options(struct sshbuf *optbuf, int in_critical)
 {
 	char *name, *arg;
 	struct sshbuf *options, *option = NULL;
@@ -1848,14 +1821,14 @@ show_options(struct sshbuf *optbuf, int v00, int in_critical)
 		    (r = sshbuf_froms(options, &option)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 		printf("                %s", name);
-		if ((v00 || !in_critical) && 
+		if (!in_critical &&
 		    (strcmp(name, "permit-X11-forwarding") == 0 ||
 		    strcmp(name, "permit-agent-forwarding") == 0 ||
 		    strcmp(name, "permit-port-forwarding") == 0 ||
 		    strcmp(name, "permit-pty") == 0 ||
 		    strcmp(name, "permit-user-rc") == 0))
 			printf("\n");
-		else if ((v00 || in_critical) &&
+		else if (in_critical &&
 		    (strcmp(name, "force-command") == 0 ||
 		    strcmp(name, "source-address") == 0)) {
 			if ((r = sshbuf_get_cstring(option, &arg, NULL)) != 0)
@@ -1882,7 +1855,7 @@ do_show_cert(struct passwd *pw)
 	struct sshkey *key;
 	struct stat st;
 	char *key_fp, *ca_fp;
-	u_int i, v00;
+	u_int i;
 	int r;
 
 	if (!have_identity)
@@ -1894,7 +1867,6 @@ do_show_cert(struct passwd *pw)
 		    identity_file, ssh_err(r));
 	if (!sshkey_is_cert(key))
 		fatal("%s is not a certificate", identity_file);
-	v00 = key->type == KEY_RSA_CERT_V00 || key->type == KEY_DSA_CERT_V00;
 
 	key_fp = sshkey_fingerprint(key, fingerprint_hash, SSH_FP_DEFAULT);
 	ca_fp = sshkey_fingerprint(key->cert->signature_key,
@@ -1909,10 +1881,7 @@ do_show_cert(struct passwd *pw)
 	printf("        Signing CA: %s %s\n",
 	    sshkey_type(key->cert->signature_key), ca_fp);
 	printf("        Key ID: \"%s\"\n", key->cert->key_id);
-	if (!v00) {
-		printf("        Serial: %llu\n",
-		    (unsigned long long)key->cert->serial);
-	}
+	printf("        Serial: %llu\n", (unsigned long long)key->cert->serial);
 	printf("        Valid: %s\n",
 	    fmt_validity(key->cert->valid_after, key->cert->valid_before));
 	printf("        Principals: ");
@@ -1929,16 +1898,14 @@ do_show_cert(struct passwd *pw)
 		printf("(none)\n");
 	else {
 		printf("\n");
-		show_options(key->cert->critical, v00, 1);
+		show_options(key->cert->critical, 1);
 	}
-	if (!v00) {
-		printf("        Extensions: ");
-		if (sshbuf_len(key->cert->extensions) == 0)
-			printf("(none)\n");
-		else {
-			printf("\n");
-			show_options(key->cert->extensions, v00, 0);
-		}
+	printf("        Extensions: ");
+	if (sshbuf_len(key->cert->extensions) == 0)
+		printf("(none)\n");
+	else {
+		printf("\n");
+		show_options(key->cert->extensions, 0);
 	}
 	exit(0);
 }
