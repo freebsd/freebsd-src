@@ -51,6 +51,12 @@ device		uart_ns8250
 # Network
 device		ether
 device		vlan
+device		mii
+device		bpf
+device		re
+
+# PCI
+device		pci
 
 # Interrupt controllers
 device		gic
