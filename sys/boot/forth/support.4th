@@ -1460,6 +1460,20 @@ also builtins
   abort" Unable to load a kernel!"
 ;
 
+: load_xen ( -- )
+  s" xen_kernel" getenv dup -1 <> if
+    1 1 load
+  else
+    drop
+    0
+  then
+;
+
+: load_xen_throw ( -- ) ( throws: abort )
+  load_xen
+  abort" Unable to load Xen!"
+;
+
 : set_defaultoptions  ( -- )
   s" kernel_options" getenv dup -1 = if
     drop
@@ -1578,12 +1592,15 @@ also builtins
   else
     drop
   then
-  r> if ( a path was passed )
-    load_directory_or_file
-  else
-    standard_kernel_search
+  load_xen
+  ?dup 0= if ( success )
+    r> if ( a path was passed )
+      load_directory_or_file
+    else
+      standard_kernel_search
+    then
+    ?dup 0= if ['] load_modules catch then
   then
-  ?dup 0= if ['] load_modules catch then
 ;
 
 only forth definitions
