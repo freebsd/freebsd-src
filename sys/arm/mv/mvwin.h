@@ -124,7 +124,7 @@
 #define MV_DDR_CADR_BASE	(MV_AXI_BASE + 0x100)
 #elif defined(SOC_MV_LOKIPLUS)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0xF1500)
-#elif defined(SOC_MV_ARMADAXP)
+#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x20180)
 #else
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
