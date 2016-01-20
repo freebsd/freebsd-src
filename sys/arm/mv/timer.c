@@ -76,6 +76,7 @@ struct mv_timer_softc {
 	bus_space_handle_t	timer_bsh;
 	struct mtx		timer_mtx;
 	struct eventtimer	et;
+	boolean_t		has_wdt;
 };
 
 static struct resource_spec mv_timer_spec[] = {
@@ -160,9 +161,15 @@ mv_timer_attach(device_t dev)
 	sc->timer_bst = rman_get_bustag(sc->timer_res[0]);
 	sc->timer_bsh = rman_get_bushandle(sc->timer_res[0]);
 
+	sc->has_wdt = ofw_bus_has_prop(dev, "mrvl,has-wdt") ||
+	    ofw_bus_is_compatible(dev, "marvell,armada-380-wdt");
+
 	mtx_init(&timer_softc->timer_mtx, "watchdog", NULL, MTX_DEF);
-	mv_watchdog_disable();
-	EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
+
+	if (sc->has_wdt) {
+		mv_watchdog_disable();
+		EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
+	}
 
 	if (ofw_bus_search_compatible(dev, mv_timer_compat)->ocd_data
 	    == MV_WDT) {
