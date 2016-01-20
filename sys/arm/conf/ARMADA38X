@@ -22,6 +22,8 @@ options 	ROOTDEVNAME=\"/dev/da0s1a\"
 options 	SCHED_ULE		# ULE scheduler
 #options 	SCHED_4BSD		# 4BSD scheduler
 
+options 	SMP
+
 # Debugging
 #options 	DEBUG
 #options 	VERBOSE_SYSINIT
