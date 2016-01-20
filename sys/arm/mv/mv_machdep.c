@@ -69,6 +69,7 @@ void armadaxp_l2_init(void);
 #if defined(SOC_MV_ARMADA38X)
 int armada38x_win_set_iosync_barrier(void);
 int armada38x_scu_enable(void);
+int armada38x_open_bootrom_win(void);
 #endif
 
 #define MPP_PIN_MAX		68
@@ -260,6 +261,11 @@ platform_late_init(void)
 		printf("WARNING: could not map CPU Subsystem registers\n");
 	if (armada38x_scu_enable() != 0)
 		printf("WARNING: could not enable SCU\n");
+#ifdef SMP
+	/* Open window to bootROM memory - needed for SMP */
+	if (armada38x_open_bootrom_win() != 0)
+		printf("WARNING: could not open window to bootROM\n");
+#endif
 #endif
 }
 

@@ -38,8 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-int armada38x_win_set_iosync_barrier(void);
+int armada38x_open_bootrom_win(void);
 int armada38x_scu_enable(void);
+int armada38x_win_set_iosync_barrier(void);
 
 uint32_t
 get_tclk(void)
@@ -75,6 +76,39 @@ armada38x_win_set_iosync_barrier(void)
 
 	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0,
 	    MV_CPU_SUBSYS_REGS_LEN, BUS_SPACE_BARRIER_WRITE);
+	bus_space_unmap(fdtbus_bs_tag, vaddr_iowind, MV_CPU_SUBSYS_REGS_LEN);
+
+	return (rv);
+}
+
+int
+armada38x_open_bootrom_win(void)
+{
+	bus_space_handle_t vaddr_iowind;
+	uint32_t val;
+	int rv;
+
+	rv = bus_space_map(fdtbus_bs_tag, (bus_addr_t)MV_MBUS_BRIDGE_BASE,
+	    MV_CPU_SUBSYS_REGS_LEN, 0, &vaddr_iowind);
+	if (rv != 0)
+		return (rv);
+
+	val = (MV_BOOTROM_WIN_SIZE & IO_WIN_SIZE_MASK) << IO_WIN_SIZE_SHIFT;
+	val |= (MBUS_BOOTROM_ATTR & IO_WIN_ATTR_MASK) << IO_WIN_ATTR_SHIFT;
+	val |= (MBUS_BOOTROM_TGT_ID & IO_WIN_TGT_MASK) << IO_WIN_TGT_SHIFT;
+	/* Enable window and Sync Barrier */
+	val |= (0x1 & IO_WIN_SYNC_MASK) << IO_WIN_SYNC_SHIFT;
+	val |= (0x1 & IO_WIN_ENA_MASK) << IO_WIN_ENA_SHIFT;
+
+	/* Configure IO Window Control Register */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, IO_WIN_9_CTRL_OFFSET,
+	    val);
+	/* Configure IO Window Base Register */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, IO_WIN_9_BASE_OFFSET,
+	    MV_BOOTROM_MEM_ADDR);
+
+	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0, MV_CPU_SUBSYS_REGS_LEN,
+	    BUS_SPACE_BARRIER_WRITE);
 	bus_space_unmap(fdtbus_bs_tag, vaddr_iowind, MV_CPU_SUBSYS_REGS_LEN);
 
 	return (rv);
