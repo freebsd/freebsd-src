@@ -86,6 +86,7 @@ SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .PATH: ${.CURDIR}/../libc/ia64/string
 SRCS+=	bcmp.c bcopy.S bzero.S ffs.S memccpy.c memchr.c memcmp.c memcpy.S \
 	memmove.S memset.c strcat.c strchr.c strcmp.c strcpy.c strcspn.c \
+	strlcat.c strlcpy.c \
 	strlen.c strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
 	strspn.c strstr.c strtok.c swab.c
 
