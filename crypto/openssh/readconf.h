@@ -1,4 +1,5 @@
 /* $OpenBSD: readconf.h,v 1.110 2015/07/10 06:21:53 markus Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
