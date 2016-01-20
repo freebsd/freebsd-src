@@ -1,4 +1,4 @@
 # $FreeBSD$
 
 arm/mv/armada38x/armada38x.c	standard
-arm/mv/rtc.c			standard
+arm/mv/armada38x/rtc.c		standard
