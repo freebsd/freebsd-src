@@ -100,19 +100,6 @@
  * Do a syscall that cannot fail (sync, get{p,u,g,eu,eg)id)
  */
 #define RSYSCALL_NOERROR(x)						\
-	PSEUDO_NOERROR(x)
-
-/*
- * Do a normal syscall.
- */
-#define RSYSCALL(x)							\
-	PSEUDO(x)
-
-/*
- * Do a renamed or pseudo syscall (e.g., _exit()), where the entrypoint
- * and syscall name are not the same.
- */
-#define PSEUDO_NOERROR(x)						\
 LEAF(__sys_ ## x);							\
 	.weak _C_LABEL(x);						\
 	_C_LABEL(x) = _C_LABEL(__CONCAT(__sys_,x));			\
@@ -120,12 +107,39 @@ LEAF(__sys_ ## x);							\
 	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
 	SYSTRAP(x);							\
 	j ra;								\
-	END(__sys_ ## x)
+END(__sys_ ## x)
 
-#define PSEUDO(x)							\
+/*
+ * Do a normal syscall.
+ */
+#define RSYSCALL(x)							\
 LEAF(__sys_ ## x);							\
 	.weak _C_LABEL(x);						\
 	_C_LABEL(x) = _C_LABEL(__CONCAT(__sys_,x));			\
+	.weak _C_LABEL(__CONCAT(_,x));					\
+	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
+	PIC_PROLOGUE(__sys_ ## x);					\
+	SYSTRAP(x);							\
+	bne a3,zero,err;						\
+	PIC_RETURN();							\
+err:									\
+	PIC_TAILCALL(__cerror);						\
+END(__sys_ ## x)
+
+/*
+ * Do a renamed or pseudo syscall (e.g., _exit()), where the entrypoint
+ * and syscall name are not the same.
+ */
+#define PSEUDO_NOERROR(x)						\
+LEAF(__sys_ ## x);							\
+	.weak _C_LABEL(__CONCAT(_,x));					\
+	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
+	SYSTRAP(x);							\
+	j ra;								\
+END(__sys_ ## x)
+
+#define PSEUDO(x)							\
+LEAF(__sys_ ## x);							\
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
 	PIC_PROLOGUE(__sys_ ## x);					\
