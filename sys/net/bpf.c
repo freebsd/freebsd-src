@@ -2500,7 +2500,7 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 
 	bp->bif_hdrlen = hdrlen;
 
-	if (bootverbose)
+	if (bootverbose && IS_DEFAULT_VNET(curvnet))
 		if_printf(ifp, "bpf attached\n");
 }
 

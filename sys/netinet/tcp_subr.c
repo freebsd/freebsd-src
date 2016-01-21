@@ -341,7 +341,7 @@ tcp_init(void)
 		 */
 		if (hashsize < 512)
 			hashsize = 512;
-		if (bootverbose)
+		if (bootverbose && IS_DEFAULT_VNET(curvnet))
 			printf("%s: %s auto tuned to %d\n", __func__,
 			    tcbhash_tuneable, hashsize);
 	}
