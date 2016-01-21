@@ -50,10 +50,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
-
+#include <netinet/tcp_cc.h>
 #include <netinet/cc/cc_module.h>
 
 #define	CAST_PTR_INT(X)	(*((int*)(X)))
