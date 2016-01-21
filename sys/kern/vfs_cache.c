@@ -508,7 +508,6 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		return (0);
 	}
 retry:
-	CACHE_RLOCK();
 	wlocked = 0;
 	counter_u64_add(numcalls, 1);
 	error = 0;
@@ -525,8 +524,28 @@ retry_wlocked:
 				timespecclear(tsp);
 			if (ticksp != NULL)
 				*ticksp = ticks;
-			goto success;
+			VREF(*vpp);
+			/*
+			 * When we lookup "." we still can be asked to lock it
+			 * differently...
+			 */
+			ltype = cnp->cn_lkflags & LK_TYPE_MASK;
+			if (ltype != VOP_ISLOCKED(*vpp)) {
+				if (ltype == LK_EXCLUSIVE) {
+					vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
+					if ((*vpp)->v_iflag & VI_DOOMED) {
+						/* forced unmount */
+						vrele(*vpp);
+						*vpp = NULL;
+						return (ENOENT);
+					}
+				} else
+					vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
+			}
+			return (-1);
 		}
+		if (!wlocked)
+			CACHE_RLOCK();
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
 			counter_u64_add(dotdothits, 1);
 			if (dvp->v_cache_dd == NULL) {
@@ -562,7 +581,8 @@ retry_wlocked:
 				    nc_dotdottime;
 			goto success;
 		}
-	}
+	} else if (!wlocked)
+		CACHE_RLOCK();
 
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
@@ -652,31 +672,7 @@ success:
 	 * On success we return a locked and ref'd vnode as per the lookup
 	 * protocol.
 	 */
-	if (dvp == *vpp) {   /* lookup on "." */
-		VREF(*vpp);
-		if (wlocked)
-			CACHE_WUNLOCK();
-		else
-			CACHE_RUNLOCK();
-		/*
-		 * When we lookup "." we still can be asked to lock it
-		 * differently...
-		 */
-		ltype = cnp->cn_lkflags & LK_TYPE_MASK;
-		if (ltype != VOP_ISLOCKED(*vpp)) {
-			if (ltype == LK_EXCLUSIVE) {
-				vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
-				if ((*vpp)->v_iflag & VI_DOOMED) {
-					/* forced unmount */
-					vrele(*vpp);
-					*vpp = NULL;
-					return (ENOENT);
-				}
-			} else
-				vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
-		}
-		return (-1);
-	}
+	MPASS(dvp != *vpp);
 	ltype = 0;	/* silence gcc warning */
 	if (cnp->cn_flags & ISDOTDOT) {
 		ltype = VOP_ISLOCKED(dvp);
