@@ -154,8 +154,9 @@ AMD+=		amd
 .endif
 
 .if ${MK_APM} != "no"
-FILES+=	apm
-FILES+=	apmd
+FILESGROUPS+=	APM
+APM+=		apm
+APM+=		apmd
 .endif
 
 .if ${MK_AUTOFS} != "no"
@@ -321,5 +322,9 @@ JAILPACKAGE=	jail
 ACCTDIR=	/etc/rc.d
 ACCTMODE=	${BINMODE}
 ACCTPACKAGE=	acct
+
+APMDIR=		/etc/rc.d
+APMMODE=	${BINMODE}
+APMPACKAGE=	apm
 
 .include <bsd.prog.mk>
