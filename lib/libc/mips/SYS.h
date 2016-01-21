@@ -113,7 +113,7 @@ LEAF(__sys_ ## x);							\
 	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
 	SYSTRAP(x);							\
 	j ra;								\
-	END(__sys_ ## x)
+END(__sys_ ## x)
 
 /*
  * Do a normal syscall.
@@ -130,7 +130,7 @@ LEAF(__sys_ ## x);							\
 	PIC_RETURN();							\
 err:									\
 	PIC_TAILCALL(__cerror);						\
-	END(__sys_ ## x)
+END(__sys_ ## x)
 
 /*
  * Do a renamed or pseudo syscall (e.g., _exit()), where the entrypoint
@@ -142,7 +142,7 @@ LEAF(__sys_ ## x);							\
 	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
 	SYSTRAP(x);							\
 	j ra;								\
-	END(__sys_ ## x)
+END(__sys_ ## x)
 
 #define PSEUDO(x)							\
 LEAF(__sys_ ## x);							\
