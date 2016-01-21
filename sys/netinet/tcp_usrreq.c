@@ -1479,7 +1479,7 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 	u_int	ui;
 	struct	tcp_info ti;
 	struct cc_algo *algo;
-	char buf[TCP_CA_NAME_MAX];
+	char	*buf;
 	
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
@@ -1574,50 +1574,47 @@ unlock_and_done:
 
 		case TCP_CONGESTION:
 			INP_WUNLOCK(inp);
-			bzero(buf, sizeof(buf));
-			error = sooptcopyin(sopt, &buf, sizeof(buf), 1);
-			if (error)
+			buf = malloc(TCP_CA_NAME_MAX, M_TEMP, M_WAITOK|M_ZERO);
+			error = sooptcopyin(sopt, buf, TCP_CA_NAME_MAX, 1);
+			if (error) {
+				free(buf, M_TEMP);
 				break;
+			}
+			CC_LIST_RLOCK();
+			STAILQ_FOREACH(algo, &cc_list, entries)
+				if (strncmp(buf, algo->name,
+				    TCP_CA_NAME_MAX) == 0)
+					break;
+			CC_LIST_RUNLOCK();
+			free(buf, M_TEMP);
+			if (algo == NULL) {
+				error = EINVAL;
+				break;
+			}
 			INP_WLOCK_RECHECK(inp);
 			/*
-			 * Return EINVAL if we can't find the requested cc algo.
+			 * We hold a write lock over the tcb so it's safe to
+			 * do these things without ordering concerns.
 			 */
-			error = EINVAL;
-			CC_LIST_RLOCK();
-			STAILQ_FOREACH(algo, &cc_list, entries) {
-				if (strncmp(buf, algo->name, TCP_CA_NAME_MAX)
-				    == 0) {
-					/* We've found the requested algo. */
-					error = 0;
-					/*
-					 * We hold a write lock over the tcb
-					 * so it's safe to do these things
-					 * without ordering concerns.
-					 */
-					if (CC_ALGO(tp)->cb_destroy != NULL)
-						CC_ALGO(tp)->cb_destroy(tp->ccv);
-					CC_ALGO(tp) = algo;
-					/*
-					 * If something goes pear shaped
-					 * initialising the new algo,
-					 * fall back to newreno (which
-					 * does not require initialisation).
-					 */
-					if (algo->cb_init != NULL)
-						if (algo->cb_init(tp->ccv) > 0) {
-							CC_ALGO(tp) = &newreno_cc_algo;
-							/*
-							 * The only reason init
-							 * should fail is
-							 * because of malloc.
-							 */
-							error = ENOMEM;
-						}
-					break; /* Break the STAILQ_FOREACH. */
-				}
+			if (CC_ALGO(tp)->cb_destroy != NULL)
+				CC_ALGO(tp)->cb_destroy(tp->ccv);
+			CC_ALGO(tp) = algo;
+			/*
+			 * If something goes pear shaped initialising the new
+			 * algo, fall back to newreno (which does not
+			 * require initialisation).
+			 */
+			if (algo->cb_init != NULL &&
+			    algo->cb_init(tp->ccv) != 0) {
+				CC_ALGO(tp) = &newreno_cc_algo;
+				/*
+				 * The only reason init should fail is
+				 * because of malloc.
+				 */
+				error = ENOMEM;
 			}
-			CC_LIST_RUNLOCK();
-			goto unlock_and_done;
+			INP_WUNLOCK(inp);
+			break;
 
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
@@ -1763,10 +1760,9 @@ unlock_and_done:
 			error = sooptcopyout(sopt, &ti, sizeof ti);
 			break;
 		case TCP_CONGESTION:
-			bzero(buf, sizeof(buf));
-			strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
 			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
+			error = sooptcopyout(sopt, CC_ALGO(tp)->name,
+			    TCP_CA_NAME_MAX);
 			break;
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
