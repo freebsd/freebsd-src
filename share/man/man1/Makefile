@@ -5,6 +5,8 @@
 
 MAN=	builtin.1 intro.1
 
+PACKAGE=runtime-manuals
+
 .if ${MK_TESTS} != "no"
 ATF=	${.CURDIR}/../../../contrib/atf
 .PATH:	${ATF}/doc
