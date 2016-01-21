@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,21 +116,18 @@ idr_remove_all(struct idr *idr)
 	mtx_unlock(&idr->lock);
 }
 
-void
-idr_remove(struct idr *idr, int id)
+static void
+idr_remove_locked(struct idr *idr, int id)
 {
 	struct idr_layer *il;
 	int layer;
 	int idx;
 
 	id &= MAX_ID_MASK;
-	mtx_lock(&idr->lock);
 	il = idr->top;
 	layer = idr->layers - 1;
-	if (il == NULL || id > idr_max(idr)) {
-		mtx_unlock(&idr->lock);
+	if (il == NULL || id > idr_max(idr))
 		return;
-	}
 	/*
 	 * Walk down the tree to this item setting bitmaps along the way
 	 * as we know at least one item will be free along this path.
@@ -152,8 +149,14 @@ idr_remove(struct idr *idr, int id)
 		    id, idr, il);
 	il->ary[idx] = NULL;
 	il->bitmap |= 1 << idx;
+}
+
+void
+idr_remove(struct idr *idr, int id)
+{
+	mtx_lock(&idr->lock);
+	idr_remove_locked(idr, id);
 	mtx_unlock(&idr->lock);
-	return;
 }
 
 void *
@@ -278,8 +281,8 @@ idr_get(struct idr *idr)
  * Could be implemented as get_new_above(idr, ptr, 0, idp) but written
  * first for simplicity sake.
  */
-int
-idr_get_new(struct idr *idr, void *ptr, int *idp)
+static int
+idr_get_new_locked(struct idr *idr, void *ptr, int *idp)
 {
 	struct idr_layer *stack[MAX_LEVEL];
 	struct idr_layer *il;
@@ -288,8 +291,9 @@ idr_get_new(struct idr *idr, void *ptr, int *idp)
 	int idx;
 	int id;
 
+	mtx_assert(&idr->lock, MA_OWNED);
+
 	error = -EAGAIN;
-	mtx_lock(&idr->lock);
 	/*
 	 * Expand the tree until there is free space.
 	 */
@@ -350,12 +354,22 @@ out:
 		    idr, id, ptr);
 	}
 #endif
-	mtx_unlock(&idr->lock);
 	return (error);
 }
 
 int
-idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
+idr_get_new(struct idr *idr, void *ptr, int *idp)
+{
+	int retval;
+
+	mtx_lock(&idr->lock);
+	retval = idr_get_new_locked(idr, ptr, idp);
+	mtx_unlock(&idr->lock);
+	return (retval);
+}
+
+static int
+idr_get_new_above_locked(struct idr *idr, void *ptr, int starting_id, int *idp)
 {
 	struct idr_layer *stack[MAX_LEVEL];
 	struct idr_layer *il;
@@ -364,8 +378,9 @@ idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
 	int idx, sidx;
 	int id;
 
+	mtx_assert(&idr->lock, MA_OWNED);
+
 	error = -EAGAIN;
-	mtx_lock(&idr->lock);
 	/*
 	 * Compute the layers required to support starting_id and the mask
 	 * at the top layer.
@@ -457,6 +472,70 @@ out:
 		    idr, id, ptr);
 	}
 #endif
-	mtx_unlock(&idr->lock);
 	return (error);
+}
+
+int
+idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
+{
+	int retval;
+
+	mtx_lock(&idr->lock);
+	retval = idr_get_new_above_locked(idr, ptr, starting_id, idp);
+	mtx_unlock(&idr->lock);
+	return (retval);
+}
+
+static int
+idr_alloc_locked(struct idr *idr, void *ptr, int start, int end)
+{
+	int max = end > 0 ? end - 1 : INT_MAX;
+	int error;
+	int id;
+
+	mtx_assert(&idr->lock, MA_OWNED);
+
+	if (unlikely(start < 0))
+		return (-EINVAL);
+	if (unlikely(max < start))
+		return (-ENOSPC);
+
+	if (start == 0)
+		error = idr_get_new_locked(idr, ptr, &id);
+	else
+		error = idr_get_new_above_locked(idr, ptr, start, &id);
+
+	if (unlikely(error < 0))
+		return (error);
+	if (unlikely(id > max)) {
+		idr_remove_locked(idr, id);
+		return (-ENOSPC);
+	}
+	return (id);
+}
+
+int
+idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
+{
+	int retval;
+
+	mtx_lock(&idr->lock);
+	retval = idr_alloc_locked(idr, ptr, start, end);
+	mtx_unlock(&idr->lock);
+	return (retval);
+}
+
+int
+idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
+{
+	int retval;
+
+	mtx_lock(&idr->lock);
+	retval = idr_alloc_locked(idr, ptr, max(start, idr->next_cyclic_id), end);
+	if (unlikely(retval == -ENOSPC))
+		retval = idr_alloc_locked(idr, ptr, start, end);
+	if (likely(retval >= 0))
+		idr->next_cyclic_id = retval + 1;
+	mtx_unlock(&idr->lock);
+	return (retval);
 }
