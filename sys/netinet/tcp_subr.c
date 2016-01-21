@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
@@ -88,11 +87,13 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_RFC7413
 #include <netinet/tcp_fastopen.h>
 #endif
+#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
+#include <netinet/tcp_cc.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
