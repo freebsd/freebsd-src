@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.106 2015/04/24 01:36:01 deraadt Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.107 2015/08/20 22:32:42 deraadt Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -1632,8 +1632,8 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 		fatal("%s: sshbuf_new failed", __func__);
 
 	set_size = howmany(max + 1, NFDBITS) * sizeof(fd_mask);
-	rset = (fd_set *)xmalloc(set_size);
-	wset = (fd_set *)xmalloc(set_size);
+	rset = xmalloc(set_size);
+	wset = xmalloc(set_size);
 
 	if (homedir != NULL) {
 		if (chdir(homedir) != 0) {
