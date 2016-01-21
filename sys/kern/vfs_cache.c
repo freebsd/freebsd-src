@@ -310,6 +310,16 @@ static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
+static uint32_t
+cache_get_hash(char *name, u_char len, struct vnode *dvp)
+{
+	uint32_t hash;
+
+	hash = fnv_32_buf(name, len, FNV1_32_INIT);
+	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
+	return (hash);
+}
+
 static int
 sysctl_nchstats(SYSCTL_HANDLER_ARGS)
 {
@@ -554,8 +564,7 @@ retry_wlocked:
 		}
 	}
 
-	hash = fnv_32_buf(cnp->cn_nameptr, cnp->cn_namelen, FNV1_32_INIT);
-	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
+	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 	LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
@@ -799,9 +808,8 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		}
 	}
 	len = ncp->nc_nlen = cnp->cn_namelen;
-	hash = fnv_32_buf(cnp->cn_nameptr, len, FNV1_32_INIT);
+	hash = cache_get_hash(cnp->cn_nameptr, len, dvp);
 	strlcpy(nc_get_name(ncp), cnp->cn_nameptr, len + 1);
-	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
 	CACHE_WLOCK();
 
 	/*
@@ -980,10 +988,8 @@ cache_changesize(int newmaxvnodes)
 	nchash = new_nchash;
 	for (i = 0; i <= old_nchash; i++) {
 		while ((ncp = LIST_FIRST(&old_nchashtbl[i])) != NULL) {
-			hash = fnv_32_buf(nc_get_name(ncp), ncp->nc_nlen,
-			    FNV1_32_INIT);
-			hash = fnv_32_buf(&ncp->nc_dvp, sizeof(ncp->nc_dvp),
-			    hash);
+			hash = cache_get_hash(nc_get_name(ncp), ncp->nc_nlen,
+			    ncp->nc_dvp);
 			LIST_REMOVE(ncp, nc_hash);
 			LIST_INSERT_HEAD(NCHHASH(hash), ncp, nc_hash);
 		}
