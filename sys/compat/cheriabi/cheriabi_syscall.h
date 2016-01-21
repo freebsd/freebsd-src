@@ -314,15 +314,15 @@
 #define	CHERIABI_SYS_statfs	396
 #define	CHERIABI_SYS_fstatfs	397
 #define	CHERIABI_SYS_fhstatfs	398
-#define	CHERIABI_SYS_ksem_close	400
-#define	CHERIABI_SYS_ksem_post	401
-#define	CHERIABI_SYS_ksem_wait	402
-#define	CHERIABI_SYS_ksem_trywait	403
-#define	CHERIABI_SYS_ksem_init	404
-#define	CHERIABI_SYS_ksem_open	405
-#define	CHERIABI_SYS_ksem_unlink	406
-#define	CHERIABI_SYS_ksem_getvalue	407
-#define	CHERIABI_SYS_ksem_destroy	408
+				/* 400 is obsolete ksem_close */
+				/* 401 is obsolete ksem_post */
+				/* 402 is obsolete ksem_wait */
+				/* 403 is obsolete ksem_trywait */
+				/* 404 is obsolete ksem_init */
+				/* 405 is obsolete ksem_open */
+				/* 406 is obsolete ksem_unlink */
+				/* 407 is obsolete ksem_getvalue */
+				/* 408 is obsolete ksem_destroy */
 #define	CHERIABI_SYS_extattr_set_link	412
 #define	CHERIABI_SYS_extattr_get_link	413
 #define	CHERIABI_SYS_extattr_delete_link	414

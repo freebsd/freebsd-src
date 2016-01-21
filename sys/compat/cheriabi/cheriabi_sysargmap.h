@@ -607,28 +607,6 @@ struct {
 	[CHERIABI_SYS_fhstatfs] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
-	[CHERIABI_SYS_ksem_close] = {
-	},
-	[CHERIABI_SYS_ksem_post] = {
-	},
-	[CHERIABI_SYS_ksem_wait] = {
-	},
-	[CHERIABI_SYS_ksem_trywait] = {
-	},
-	[CHERIABI_SYS_ksem_init] = {
-		.sam_ptrmask = 0x1
-	},
-	[CHERIABI_SYS_ksem_open] = {
-		.sam_ptrmask = 0x1 | 0x2
-	},
-	[CHERIABI_SYS_ksem_unlink] = {
-		.sam_ptrmask = 0x1
-	},
-	[CHERIABI_SYS_ksem_getvalue] = {
-		.sam_ptrmask = 0x2
-	},
-	[CHERIABI_SYS_ksem_destroy] = {
-	},
 	[CHERIABI_SYS_extattr_set_link] = {
 		.sam_ptrmask = 0x1 | 0x4 | 0x8
 	},
