@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
-#include <sys/bus.h> 
+#include <sys/bus.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -60,7 +60,7 @@ iicbus_probe(device_t dev)
 }
 
 #if SCAN_IICBUS
-static int 
+static int
 iic_probe_device(device_t dev, u_char addr)
 {
 	int count;
@@ -126,7 +126,7 @@ iicbus_attach(device_t dev)
 	bus_generic_attach(dev);
         return (0);
 }
-  
+
 static int
 iicbus_detach(device_t dev)
 {
@@ -137,7 +137,7 @@ iicbus_detach(device_t dev)
 	mtx_destroy(&sc->lock);
 	return (0);
 }
-  
+
 static int
 iicbus_print_child(device_t dev, device_t child)
 {
