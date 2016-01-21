@@ -135,7 +135,8 @@ FILES=	DAEMON \
 	zvol
 
 .if ${MK_ACCT} != "no"
-FILES+=		accounting
+FILESGROUPS+=	ACCT
+ACCT+=		accounting
 .endif
 
 .if ${MK_ACPI} != "no"
@@ -148,7 +149,8 @@ FILES+=		powerd
 .endif
 
 .if ${MK_AMD} != "no"
-FILES+=		amd
+FILESGROUPS+=	AMD
+AMD+=		amd
 .endif
 
 .if ${MK_APM} != "no"
@@ -300,6 +302,10 @@ ACPIDIR=	/etc/rc.d
 ACPIMODE=	${BINMODE}
 ACPIPACKAGE=	acpi
 
+AMDDIR=		/etc/rc.d
+AMDMODE=	${BINMODE}
+AMDPACKAGE=	amd
+
 SSHDIR=		/etc/rc.d
 SSHMODE=	${BINMODE}
 SSHPACKAGE=	ssh
@@ -311,5 +317,9 @@ BSNMPPACKAGE=	bsnmp
 JAILDIR=	/etc/rc.d
 JAILMODE=	${BINMODE}
 JAILPACKAGE=	jail
+
+ACCTDIR=	/etc/rc.d
+ACCTMODE=	${BINMODE}
+ACCTPACKAGE=	acct
 
 .include <bsd.prog.mk>
