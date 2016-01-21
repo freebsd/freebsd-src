@@ -62,6 +62,9 @@
 # endif
 #endif
 
+#if defined(HAVE_SIGNALED_IO) && defined(DEBUG_TIMING)
+# undef DEBUG_TIMING
+#endif
 
 /*
  * setsockopt does not always have the same arg declaration
@@ -280,9 +283,12 @@ static int	addr_samesubnet	(const sockaddr_u *, const sockaddr_u *,
 				 const sockaddr_u *, const sockaddr_u *);
 static	int	create_sockets	(u_short);
 static	SOCKET	open_socket	(sockaddr_u *, int, int, endpt *);
-static	char *	fdbits		(int, fd_set *);
 static	void	set_reuseaddr	(int);
 static	isc_boolean_t	socket_broadcast_enable	 (struct interface *, SOCKET, sockaddr_u *);
+
+#if !defined(HAVE_IO_COMPLETION_PORT) && !defined(HAVE_SIGNALED_IO)
+static	char *	fdbits		(int, const fd_set *);
+#endif
 #ifdef  OS_MISSES_SPECIFIC_ROUTE_UPDATES
 static	isc_boolean_t	socket_broadcast_disable (struct interface *, sockaddr_u *);
 #endif
@@ -337,12 +343,15 @@ static int		cmp_addr_distance(const sockaddr_u *,
 #if !defined(HAVE_IO_COMPLETION_PORT)
 static inline int	read_network_packet	(SOCKET, struct interface *, l_fp);
 static void		ntpd_addremove_io_fd	(int, int, int);
-static input_handler_t  input_handler;
+static void 		input_handler_scan	(const l_fp*, const fd_set*);
+static int/*BOOL*/	sanitize_fdset		(int errc);
 #ifdef REFCLOCK
 static inline int	read_refclock_packet	(SOCKET, struct refclockio *, l_fp);
 #endif
+#ifdef HAVE_SIGNALED_IO
+static void 		input_handler		(l_fp*);
 #endif
-
+#endif
 
 
 #ifndef HAVE_IO_COMPLETION_PORT
@@ -455,11 +464,9 @@ init_io(void)
 	addremove_io_fd = &ntpd_addremove_io_fd;
 #endif
 
-#ifdef SYS_WINNT
+#if defined(SYS_WINNT)
 	init_io_completion_port();
-#endif
-
-#if defined(HAVE_SIGNALED_IO)
+#elif defined(HAVE_SIGNALED_IO)
 	(void) set_signal(input_handler);
 #endif
 }
@@ -475,7 +482,8 @@ ntpd_addremove_io_fd(
 	UNUSED_ARG(is_pipe);
 
 #ifdef HAVE_SIGNALED_IO
-	init_socket_sig(fd);
+	if (!remove_it)
+		init_socket_sig(fd);
 #endif /* not HAVE_SIGNALED_IO */
 
 	maintain_activefds(fd, remove_it);
@@ -713,78 +721,6 @@ addr_samesubnet(
 			return FALSE;
 
 	return TRUE;
-}
-
-
-/*
- * Code to tell if we have an IP address
- * If we have then return the sockaddr structure
- * and set the return value
- * see the bind9/getaddresses.c for details
- */
-int
-is_ip_address(
-	const char *	host,
-	u_short		af,
-	sockaddr_u *	addr
-	)
-{
-	struct in_addr in4;
-	struct addrinfo hints;
-	struct addrinfo *result;
-	struct sockaddr_in6 *resaddr6;
-	char tmpbuf[128];
-	char *pch;
-
-	REQUIRE(host != NULL);
-	REQUIRE(addr != NULL);
-
-	ZERO_SOCK(addr);
-
-	/*
-	 * Try IPv4, then IPv6.  In order to handle the extended format
-	 * for IPv6 scoped addresses (address%scope_ID), we'll use a local
-	 * working buffer of 128 bytes.  The length is an ad-hoc value, but
-	 * should be enough for this purpose; the buffer can contain a string
-	 * of at least 80 bytes for scope_ID in addition to any IPv6 numeric
-	 * addresses (up to 46 bytes), the delimiter character and the
-	 * terminating NULL character.
-	 */
-	if (AF_UNSPEC == af || AF_INET == af)
-		if (inet_pton(AF_INET, host, &in4) == 1) {
-			AF(addr) = AF_INET;
-			SET_ADDR4N(addr, in4.s_addr);
-
-			return TRUE;
-		}
-
-	if (AF_UNSPEC == af || AF_INET6 == af)
-		if (sizeof(tmpbuf) > strlen(host)) {
-			if ('[' == host[0]) {
-				strlcpy(tmpbuf, &host[1], sizeof(tmpbuf));
-				pch = strchr(tmpbuf, ']');
-				if (pch != NULL)
-					*pch = '\0';
-			} else {
-				strlcpy(tmpbuf, host, sizeof(tmpbuf));
-			}
-			ZERO(hints);
-			hints.ai_family = AF_INET6;
-			hints.ai_flags |= AI_NUMERICHOST;
-			if (getaddrinfo(tmpbuf, NULL, &hints, &result) == 0) {
-				AF(addr) = AF_INET6;
-				resaddr6 = UA_PTR(struct sockaddr_in6, result->ai_addr);
-				SET_ADDR6N(addr, resaddr6->sin6_addr);
-				SET_SCOPE(addr, resaddr6->sin6_scope_id);
-
-				freeaddrinfo(result);
-				return TRUE;
-			}
-		}
-	/*
-	 * If we got here it was not an IP address
-	 */
-	return FALSE;
 }
 
 
@@ -2354,6 +2290,7 @@ get_broadcastclient_flag(void)
 {
 	return (broadcast_client_enabled);
 }
+
 /*
  * Check to see if the address is a multicast address
  */
@@ -3204,15 +3141,15 @@ sendpkt(
 }
 
 
-#if !defined(HAVE_IO_COMPLETION_PORT)
+#if !defined(HAVE_IO_COMPLETION_PORT) && !defined(HAVE_SIGNALED_IO)
 /*
  * fdbits - generate ascii representation of fd_set (FAU debug support)
  * HFDF format - highest fd first.
  */
 static char *
 fdbits(
-	int count,
-	fd_set *set
+	int		count,
+	const fd_set*	set
 	)
 {
 	static char buffer[256];
@@ -3228,7 +3165,7 @@ fdbits(
 
 	return buffer;
 }
-
+#endif
 
 #ifdef REFCLOCK
 /*
@@ -3265,7 +3202,7 @@ read_refclock_packet(
 	/* TALOS-CAN-0064: avoid signed/unsigned clashes that can lead
 	 * to buffer overrun and memory corruption
 	 */
-	if (rp->datalen <= 0 || rp->datalen > sizeof(rb->recv_space))
+	if (rp->datalen <= 0 || (size_t)rp->datalen > sizeof(rb->recv_space))
 		read_count = sizeof(rb->recv_space);
 	else
 		read_count = (u_int)rp->datalen;
@@ -3582,6 +3519,7 @@ io_handler(void)
 	 * and - lacking a hardware reference clock - I have
 	 * yet to learn about anything else that is.
 	 */
+	++handler_calls;
 	rdfdes = activefds;
 #   if !defined(VMS) && !defined(SYS_VXWORKS)
 	nfound = select(maxactivefd + 1, &rdfdes, NULL,
@@ -3590,20 +3528,29 @@ io_handler(void)
 	/* make select() wake up after one second */
 	{
 		struct timeval t1;
-
-		t1.tv_sec = 1;
+		t1.tv_sec  = 1;
 		t1.tv_usec = 0;
 		nfound = select(maxactivefd + 1,
 				&rdfdes, NULL, NULL,
 				&t1);
 	}
 #   endif	/* VMS, VxWorks */
+	if (nfound < 0 && sanitize_fdset(errno)) {
+		struct timeval t1;
+		t1.tv_sec  = 0;
+		t1.tv_usec = 0;
+		rdfdes = activefds;
+		nfound = select(maxactivefd + 1,
+				&rdfdes, NULL, NULL,
+				&t1);
+	}
+
 	if (nfound > 0) {
 		l_fp ts;
 
 		get_systime(&ts);
 
-		input_handler(&ts);
+		input_handler_scan(&ts, &rdfdes);
 	} else if (nfound == -1 && errno != EINTR) {
 		msyslog(LOG_ERR, "select() error: %m");
 	}
@@ -3619,27 +3566,110 @@ io_handler(void)
 #  endif /* HAVE_SIGNALED_IO */
 }
 
+#ifdef HAVE_SIGNALED_IO
 /*
  * input_handler - receive packets asynchronously
+ *
+ * ALWAYS IN SIGNAL HANDLER CONTEXT -- only async-safe functions allowed!
  */
-static void
+static RETSIGTYPE
 input_handler(
 	l_fp *	cts
 	)
 {
-	int		buflen;
 	int		n;
+	struct timeval	tvzero;
+	fd_set		fds;
+	
+	++handler_calls;
+
+	/*
+	 * Do a poll to see who has data
+	 */
+
+	fds = activefds;
+	tvzero.tv_sec = tvzero.tv_usec = 0;
+
+	n = select(maxactivefd + 1, &fds, NULL, NULL, &tvzero);
+	if (n < 0 && sanitize_fdset(errno)) {
+		fds = activefds;
+		tvzero.tv_sec = tvzero.tv_usec = 0;
+		n = select(maxactivefd + 1, &fds, NULL, NULL, &tvzero);
+	}
+	if (n > 0)
+		input_handler_scan(cts, &fds);
+}
+#endif /* HAVE_SIGNALED_IO */
+
+
+/*
+ * Try to sanitize the global FD set
+ *
+ * SIGNAL HANDLER CONTEXT if HAVE_SIGNALED_IO, ordinary userspace otherwise
+ */
+static int/*BOOL*/
+sanitize_fdset(
+	int	errc
+	)
+{
+	int j, b, maxscan;
+
+#  ifndef HAVE_SIGNALED_IO
+	/*
+	 * extended FAU debugging output
+	 */
+	if (errc != EINTR) {
+		msyslog(LOG_ERR,
+			"select(%d, %s, 0L, 0L, &0.0) error: %m",
+			maxactivefd + 1,
+			fdbits(maxactivefd, &activefds));
+	}
+#   endif
+	
+	if (errc != EBADF)
+		return FALSE;
+
+	/* if we have oviously bad FDs, try to sanitize the FD set. */
+	for (j = 0, maxscan = 0; j <= maxactivefd; j++) {
+		if (FD_ISSET(j, &activefds)) {
+			if (-1 != read(j, &b, 0)) {
+				maxscan = j;
+				continue;
+			}
+#		    ifndef HAVE_SIGNALED_IO
+			msyslog(LOG_ERR,
+				"Removing bad file descriptor %d from select set",
+				j);
+#		    endif
+			FD_CLR(j, &activefds);
+		}
+	}
+	if (maxactivefd != maxscan)
+		maxactivefd = maxscan;
+	return TRUE;
+}
+
+/*
+ * scan the known FDs (clocks, servers, ...) for presence in a 'fd_set'. 
+ *
+ * SIGNAL HANDLER CONTEXT if HAVE_SIGNALED_IO, ordinary userspace otherwise
+ */
+static void
+input_handler_scan(
+	const l_fp *	cts,
+	const fd_set *	pfds
+	)
+{
+	int		buflen;
 	u_int		idx;
 	int		doing;
 	SOCKET		fd;
 	blocking_child *c;
-	struct timeval	tvzero;
 	l_fp		ts;	/* Timestamp at BOselect() gob */
-#ifdef DEBUG_TIMING
+
+#if defined(DEBUG_TIMING)
 	l_fp		ts_e;	/* Timestamp at EOselect() gob */
 #endif
-	fd_set		fds;
-	size_t		select_count;
 	endpt *		ep;
 #ifdef REFCLOCK
 	struct refclockio *rp;
@@ -3651,99 +3681,43 @@ input_handler(
 	struct asyncio_reader *	next_asyncio_reader;
 #endif
 
-	handler_calls++;
-	select_count = 0;
-
-	/*
-	 * If we have something to do, freeze a timestamp.
-	 * See below for the other cases (nothing left to do or error)
-	 */
-	ts = *cts;
-
-	/*
-	 * Do a poll to see who has data
-	 */
-
-	fds = activefds;
-	tvzero.tv_sec = tvzero.tv_usec = 0;
-
-	n = select(maxactivefd + 1, &fds, NULL, NULL, &tvzero);
-
-	/*
-	 * If there are no packets waiting just return
-	 */
-	if (n < 0) {
-		int err = errno;
-		int j, b, prior;
-		/*
-		 * extended FAU debugging output
-		 */
-		if (err != EINTR)
-			msyslog(LOG_ERR,
-				"select(%d, %s, 0L, 0L, &0.0) error: %m",
-				maxactivefd + 1,
-				fdbits(maxactivefd, &activefds));
-		if (err != EBADF)
-			goto ih_return;
-		for (j = 0, prior = 0; j <= maxactivefd; j++) {
-			if (FD_ISSET(j, &activefds)) {
-				if (-1 != read(j, &b, 0)) {
-					prior = j;
-					continue;
-				}
-				msyslog(LOG_ERR,
-					"Removing bad file descriptor %d from select set",
-					j);
-				FD_CLR(j, &activefds);
-				if (j == maxactivefd)
-					maxactivefd = prior;
-			}
-		}
-		goto ih_return;
-	}
-	else if (n == 0)
-		goto ih_return;
-
 	++handler_pkts;
+	ts = *cts;
 
 #ifdef REFCLOCK
 	/*
 	 * Check out the reference clocks first, if any
 	 */
-
-	if (refio != NULL) {
-		for (rp = refio; rp != NULL; rp = rp->next) {
-			fd = rp->fd;
-
-			if (!FD_ISSET(fd, &fds))
-				continue;
-			++select_count;
-			buflen = read_refclock_packet(fd, rp, ts);
-			/*
-			 * The first read must succeed after select()
-			 * indicates readability, or we've reached
-			 * a permanent EOF.  http://bugs.ntp.org/1732
-			 * reported ntpd munching CPU after a USB GPS
-			 * was unplugged because select was indicating
-			 * EOF but ntpd didn't remove the descriptor
-			 * from the activefds set.
-			 */
-			if (buflen < 0 && EAGAIN != errno) {
-				saved_errno = errno;
-				clk = refnumtoa(&rp->srcclock->srcadr);
-				errno = saved_errno;
-				msyslog(LOG_ERR, "%s read: %m", clk);
-				maintain_activefds(fd, TRUE);
-			} else if (0 == buflen) {
-				clk = refnumtoa(&rp->srcclock->srcadr);
-				msyslog(LOG_ERR, "%s read EOF", clk);
-				maintain_activefds(fd, TRUE);
-			} else {
-				/* drain any remaining refclock input */
-				do {
-					buflen = read_refclock_packet(fd, rp, ts);
-				} while (buflen > 0);
-			}
+	
+	for (rp = refio; rp != NULL; rp = rp->next) {
+		fd = rp->fd;
+		
+		if (!FD_ISSET(fd, pfds))
+			continue;
+		buflen = read_refclock_packet(fd, rp, ts);
+		/*
+		 * The first read must succeed after select() indicates
+		 * readability, or we've reached a permanent EOF.
+		 * http://bugs.ntp.org/1732 reported ntpd munching CPU
+		 * after a USB GPS was unplugged because select was
+		 * indicating EOF but ntpd didn't remove the descriptor
+		 * from the activefds set.
+		 */
+		if (buflen < 0 && EAGAIN != errno) {
+			saved_errno = errno;
+			clk = refnumtoa(&rp->srcclock->srcadr);
+			errno = saved_errno;
+			msyslog(LOG_ERR, "%s read: %m", clk);
+			maintain_activefds(fd, TRUE);
+		} else if (0 == buflen) {
+			clk = refnumtoa(&rp->srcclock->srcadr);
+			msyslog(LOG_ERR, "%s read EOF", clk);
+			maintain_activefds(fd, TRUE);
+		} else {
+			/* drain any remaining refclock input */
+			do {
+				buflen = read_refclock_packet(fd, rp, ts);
+			} while (buflen > 0);
 		}
 	}
 #endif /* REFCLOCK */
@@ -3762,9 +3736,8 @@ input_handler(
 			}
 			if (fd < 0)
 				continue;
-			if (FD_ISSET(fd, &fds))
+			if (FD_ISSET(fd, pfds))
 				do {
-					++select_count;
 					buflen = read_network_packet(
 							fd, ep, ts);
 				} while (buflen > 0);
@@ -3781,10 +3754,8 @@ input_handler(
 	while (asyncio_reader != NULL) {
 		/* callback may unlink and free asyncio_reader */
 		next_asyncio_reader = asyncio_reader->link;
-		if (FD_ISSET(asyncio_reader->fd, &fds)) {
-			++select_count;
+		if (FD_ISSET(asyncio_reader->fd, pfds))
 			(*asyncio_reader->receiver)(asyncio_reader);
-		}
 		asyncio_reader = next_asyncio_reader;
 	}
 #endif /* HAS_ROUTING_SOCKET */
@@ -3796,26 +3767,14 @@ input_handler(
 		c = blocking_children[idx];
 		if (NULL == c || -1 == c->resp_read_pipe)
 			continue;
-		if (FD_ISSET(c->resp_read_pipe, &fds)) {
-			select_count++;
-			process_blocking_resp(c);
+		if (FD_ISSET(c->resp_read_pipe, pfds)) {
+			++c->resp_ready_seen;
+			++blocking_child_ready_seen;
 		}
 	}
 
-	/*
-	 * Done everything from that select.
-	 * If nothing to do, just return.
-	 * If an error occurred, complain and return.
-	 */
-	if (select_count == 0) { /* We really had nothing to do */
-#ifdef DEBUG
-		if (debug)
-			msyslog(LOG_DEBUG, "input_handler: select() returned 0");
-#endif /* DEBUG */
-		goto ih_return;
-	}
 	/* We've done our work */
-#ifdef DEBUG_TIMING
+#if defined(DEBUG_TIMING)
 	get_systime(&ts_e);
 	/*
 	 * (ts_e - ts) is the amount of time we spent
@@ -3829,11 +3788,7 @@ input_handler(
 			"input_handler: Processed a gob of fd's in %s msec",
 			lfptoms(&ts_e, 6));
 #endif /* DEBUG_TIMING */
-	/* We're done... */
-    ih_return:
-	return;
 }
-#endif /* !HAVE_IO_COMPLETION_PORT */
 
 
 /*

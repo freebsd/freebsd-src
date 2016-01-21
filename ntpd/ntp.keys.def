@@ -43,7 +43,7 @@ The key file uses the same comment conventions
 as the configuration file.
 Key entries use a fixed format of the form
 .Pp
-.D1 Ar keyno type key
+.D1 Ar keyno type key opt_IP_list
 .Pp
 where
 .Ar keyno
@@ -52,7 +52,15 @@ is a positive integer (between 1 and 65534),
 is the message digest algorithm,
 and
 .Ar key
-is the key itself.
+is the key itself, and
+.Ar opt_IP_list
+is an optional comma-separated list of IPs
+that are allowed to serve time.
+If
+.Ar opt_IP_list
+is empty,
+any properly-authenticated server message will be
+accepted.
 .Pp
 The
 .Ar key

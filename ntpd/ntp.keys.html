@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the symmetric key file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p5 of <code>ntp.keys</code>.
+  <p>This document applies to version 4.2.8p6 of <code>ntp.keys</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -93,7 +93,7 @@ may be arbitrarily set in the keys file.
 as the configuration file. 
 Key entries use a fixed format of the form
 
-<pre class="example">     <kbd>keyno</kbd> <kbd>type</kbd> <kbd>key</kbd>
+<pre class="example">     <kbd>keyno</kbd> <kbd>type</kbd> <kbd>key</kbd> <kbd>opt_IP_list</kbd>
 </pre>
   <p>where
 <kbd>keyno</kbd>
@@ -102,7 +102,15 @@ is a positive integer (between 1 and 65534),
 is the message digest algorithm,
 and
 <kbd>key</kbd>
-is the key itself.
+is the key itself, and
+<kbd>opt_IP_list</kbd>
+is an optional comma-separated list of IPs
+that are allowed to serve time. 
+If
+<kbd>opt_IP_list</kbd>
+is empty,
+any properly-authenticated server message will be
+accepted.
 
   <p>The
 <kbd>key</kbd>

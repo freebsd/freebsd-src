@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  January  7, 2016 at 11:30:49 PM by AutoGen 5.18.5
+# It has been AutoGen-ed  January 20, 2016 at 04:17:59 AM by AutoGen 5.18.5
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -2294,8 +2294,8 @@ otherwise, should be avoided.
 @item @code{dscp} @kbd{value}
 This option specifies the Differentiated Services Control Point (DSCP) value,
 a 6-bit code.  The default value is 46, signifying Expedited Forwarding.
-@item @code{enable} @code{[@code{auth} | @code{bclient} | @code{calibrate} | @code{kernel} | @code{mode7} | @code{monitor} | @code{ntp} | @code{stats}]}
-@item @code{disable} @code{[@code{auth} | @code{bclient} | @code{calibrate} | @code{kernel} | @code{mode7} | @code{monitor} | @code{ntp} | @code{stats}]}
+@item @code{enable} @code{[@code{auth} | @code{bclient} | @code{calibrate} | @code{kernel} | @code{mode7} | @code{monitor} | @code{ntp} | @code{stats} | @code{unpeer_crypto_early} | @code{unpeer_crypto_nak_early} | @code{unpeer_digest_early}]}
+@item @code{disable} @code{[@code{auth} | @code{bclient} | @code{calibrate} | @code{kernel} | @code{mode7} | @code{monitor} | @code{ntp} | @code{stats} | @code{unpeer_crypto_early} | @code{unpeer_crypto_nak_early} | @code{unpeer_digest_early}]}
 Provides a way to enable or disable various server options.
 Flags not mentioned are unaffected.
 Note that all of these flags
@@ -2367,6 +2367,67 @@ See the
 section for further information.
 The default for this flag is
 @code{disable}.
+@item @code{unpeer_crypto_early}
+By default, if
+@code{ntpd(1ntpdmdoc)}
+receives an autokey packet that fails TEST9,
+a crypto failure,
+the association is immediately cleared.
+This is almost certainly a feature,
+but if, in spite of the current recommendation of not using autokey,
+you are
+.B still
+using autokey
+.B and
+you are seeing this sort of DoS attack
+disabling this flag will delay
+tearing down the association until the reachability counter
+becomes zero.
+You can check your
+@code{peerstats}
+file for evidence of any of these attacks.
+The
+default for this flag is
+@code{enable}.
+@item @code{unpeer_crypto_nak_early}
+By default, if
+@code{ntpd(1ntpdmdoc)}
+receives a crypto-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto-NAK packet
+can be used in a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+@code{peerstats}
+file for evidence of any of these attacks.
+The
+default for this flag is
+@code{enable}.
+@item @code{unpeer_digest_early}
+By default, if
+@code{ntpd(1ntpdmdoc)}
+receives what should be an authenticated packet
+that passes other packet sanity checks but
+contains an invalid digest
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery,
+if this type of packet is carefully forged and sent
+during an appropriate window it can be used for a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+@code{peerstats}
+file for evidence of any of these attacks.
+The
+default for this flag is
+@code{enable}.
 @end table
 @item @code{includefile} @kbd{includefile}
 This command allows additional configuration commands
