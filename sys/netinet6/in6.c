@@ -2003,7 +2003,7 @@ in6ifa_llaonifp(struct ifnet *ifp)
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
 		return (NULL);
-	if_addr_rlock(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2013,7 +2013,7 @@ in6ifa_llaonifp(struct ifnet *ifp)
 		    IN6_IS_ADDR_MC_NODELOCAL(&sin6->sin6_addr))
 			break;
 	}
-	if_addr_runlock(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
