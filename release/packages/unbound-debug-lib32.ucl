@@ -1,7 +1,7 @@
 name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
-comment = "Validating, recursive, and caching DNS resolver, 32bits libraries (debugging symbols)"
+comment = "Validating, recursive, and caching DNS resolver, 32-bit libraries (debugging symbols)"
 categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
