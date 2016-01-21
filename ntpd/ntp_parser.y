@@ -239,6 +239,9 @@
 %token	<Integer>	T_Ttl
 %token	<Integer>	T_Type
 %token	<Integer>	T_U_int			/* Not a token */
+%token	<Integer>	T_UEcrypto
+%token	<Integer>	T_UEcryptonak
+%token	<Integer>	T_UEdigest
 %token	<Integer>	T_Unconfig
 %token	<Integer>	T_Unpeer
 %token	<Integer>	T_Version
@@ -1083,6 +1086,9 @@ system_option_flag_keyword
 system_option_local_flag_keyword
 	:	T_Mode7
 	|	T_Stats
+	|	T_UEcrypto
+	|	T_UEcryptonak
+	|	T_UEdigest
 	;
 
 /* Tinker Commands
