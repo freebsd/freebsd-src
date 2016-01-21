@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <netinet/in.h>
-#include <netinet/ip.h>
 #include <netinet/cc.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
