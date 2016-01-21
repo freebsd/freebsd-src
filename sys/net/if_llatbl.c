@@ -62,10 +62,9 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_LLTABLE, "lltable", "link level address tables");
 
-static VNET_DEFINE(SLIST_HEAD(, lltable), lltables);
+static VNET_DEFINE(SLIST_HEAD(, lltable), lltables) =
+    SLIST_HEAD_INITIALIZER(lltables);
 #define	V_lltables	VNET(lltables)
-
-static void vnet_lltable_init(void);
 
 struct rwlock lltable_rwlock;
 RW_SYSINIT(lltable_rwlock, &lltable_rwlock, "lltable_rwlock");
@@ -366,15 +365,6 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	return (error);
 }
-
-static void
-vnet_lltable_init()
-{
-
-	SLIST_INIT(&V_lltables);
-}
-VNET_SYSINIT(vnet_lltable_init, SI_SUB_PSEUDO, SI_ORDER_FIRST,
-    vnet_lltable_init, NULL);
 
 #ifdef DDB
 struct llentry_sa {
