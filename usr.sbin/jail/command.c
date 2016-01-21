@@ -878,6 +878,7 @@ get_user_info(struct cfjail *j, const char *username,
 {
 	const struct passwd *pwd;
 
+	errno = 0;
 	*pwdp = pwd = username ? getpwnam(username) : getpwuid(getuid());
 	if (pwd == NULL) {
 		if (errno)
