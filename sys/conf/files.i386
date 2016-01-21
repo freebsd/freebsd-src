@@ -208,7 +208,6 @@ dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
 dev/fdc/fdc_isa.c		optional fdc isa
 dev/fdc/fdc_pccard.c		optional fdc pccard
-dev/fdt/fdt_x86.c		optional fdt
 dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb

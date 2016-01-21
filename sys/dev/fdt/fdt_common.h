@@ -48,12 +48,14 @@ struct fdt_sense_level {
 typedef int (*fdt_pic_decode_t)(phandle_t, pcell_t *, int *, int *, int *);
 extern fdt_pic_decode_t fdt_pic_table[];
 
+#if defined(__arm__) || defined(__powerpc__)
 typedef void (*fdt_fixup_t)(phandle_t);
 struct fdt_fixup_entry {
 	char		*model;
 	fdt_fixup_t	handler;
 };
 extern struct fdt_fixup_entry fdt_fixup_table[];
+#endif
 
 extern SLIST_HEAD(fdt_ic_list, fdt_ic) fdt_ic_list_head;
 struct fdt_ic {
