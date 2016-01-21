@@ -990,6 +990,7 @@ main(int ac, char **av)
 	    SYSLOG_FACILITY_USER, !use_syslog);
 
 	if (debug_flag)
+		/* version_addendum is always NULL at this point */
 		logit("%s, %s", SSH_RELEASE, OPENSSL_VERSION);
 
 	/* Parse the configuration files */
