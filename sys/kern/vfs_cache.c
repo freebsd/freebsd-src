@@ -723,8 +723,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	struct nchashhead *ncpp;
 	uint32_t hash;
 	int flag;
-	int hold;
-	int zap;
 	int len;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
@@ -781,9 +779,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 			flag = NCF_ISDOTDOT;
 		}
 	}
-
-	hold = 0;
-	zap = 0;
 
 	/*
 	 * Calculate the hash key and setup as much of the new
@@ -855,24 +850,22 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	}
 
 	numcache++;
-	if (vp == NULL) {
-		numneg++;
-		if (cnp->cn_flags & ISWHITEOUT)
-			ncp->nc_flag |= NCF_WHITE;
-	} else if (vp->v_type == VDIR) {
-		if (flag != NCF_ISDOTDOT) {
-			/*
-			 * For this case, the cache entry maps both the
-			 * directory name in it and the name ".." for the
-			 * directory's parent.
-			 */
-			if ((n2 = vp->v_cache_dd) != NULL &&
-			    (n2->nc_flag & NCF_ISDOTDOT) != 0)
-				cache_zap(n2);
-			vp->v_cache_dd = ncp;
+	if (vp != NULL) {
+		if (vp->v_type == VDIR) {
+			if (flag != NCF_ISDOTDOT) {
+				/*
+				 * For this case, the cache entry maps both the
+				 * directory name in it and the name ".." for the
+				 * directory's parent.
+				 */
+				if ((n2 = vp->v_cache_dd) != NULL &&
+				    (n2->nc_flag & NCF_ISDOTDOT) != 0)
+					cache_zap(n2);
+				vp->v_cache_dd = ncp;
+			}
+		} else {
+			vp->v_cache_dd = NULL;
 		}
-	} else {
-		vp->v_cache_dd = NULL;
 	}
 
 	/*
@@ -882,7 +875,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 	if (flag != NCF_ISDOTDOT) {
 		if (LIST_EMPTY(&dvp->v_cache_src)) {
-			hold = 1;
+			vhold(dvp);
 			numcachehv++;
 		}
 		LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
@@ -898,7 +891,10 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		SDT_PROBE3(vfs, namecache, enter, done, dvp, nc_get_name(ncp),
 		    vp);
 	} else {
+		if (cnp->cn_flags & ISWHITEOUT)
+			ncp->nc_flag |= NCF_WHITE;
 		TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+		numneg++;
 		SDT_PROBE2(vfs, namecache, enter_negative, done, dvp,
 		    nc_get_name(ncp));
 	}
@@ -906,12 +902,8 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		ncp = TAILQ_FIRST(&ncneg);
 		KASSERT(ncp->nc_vp == NULL, ("ncp %p vp %p on ncneg",
 		    ncp, ncp->nc_vp));
-		zap = 1;
-	}
-	if (hold)
-		vhold(dvp);
-	if (zap)
 		cache_zap(ncp);
+	}
 	CACHE_WUNLOCK();
 }
 
