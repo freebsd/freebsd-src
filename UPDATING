@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20160119:
+	The default configuration of ssh(1) no longer allows to use ssh-dss
+	keys.  To enable using them, add 'ssh-dss' to PubkeyAcceptedKeyTypes
+	option in the /etc/ssh/ssh_config.  Refer to ssh_config(5) for more
+	information.
 	The NONE and HPN patches has been removed from OpenSSH.  They are
 	still available in the security/openssh-portable port.
 
