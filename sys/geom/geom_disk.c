@@ -581,6 +581,23 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		    indent, dp->d_fwheads);
 		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n",
 		    indent, dp->d_fwsectors);
+
+		/*
+		 * "rotationrate" is a little complicated, because the value
+		 * returned by the drive might not be the RPM; 0 and 1 are
+		 * special cases, and there's also a valid range.
+		 */
+		sbuf_printf(sb, "%s<rotationrate>", indent);
+		if (dp->d_rotation_rate == 0)		/* Old drives don't */
+			sbuf_printf(sb, "unknown");	/* report RPM. */
+		else if (dp->d_rotation_rate == 1)	/* Since 0 is used */
+			sbuf_printf(sb, "0");		/* above, SSDs use 1. */
+		else if ((dp->d_rotation_rate >= 0x041) &&
+		    (dp->d_rotation_rate <= 0xfffe))
+			sbuf_printf(sb, "%u", dp->d_rotation_rate);
+		else
+			sbuf_printf(sb, "invalid");
+		sbuf_printf(sb, "</rotationrate>\n");
 		if (dp->d_getattr != NULL) {
 			buf = g_malloc(DISK_IDENT_SIZE, M_WAITOK);
 			bp = g_alloc_bio();
