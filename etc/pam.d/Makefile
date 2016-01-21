@@ -13,7 +13,6 @@ FILES=	README \
 	login \
 	other \
 	passwd pop3 \
-	rsh \
 	sshd su system \
 	telnetd \
 	xdm
@@ -24,6 +23,14 @@ AT+=	atrun
 ATPACKAGE+=	at
 ATDIR=	/etc/pam.d
 ATMODE=	644
+.endif
+
+.if ${MK_RCMDS} != "no"
+FILESGROUPS+=	RCMDS
+RCMDS+=		rsh
+RCMDSPACKAGE+=	rcmds
+RCMDSDIR=	/etc/pam.d
+RCMDSMODE=	644
 .endif
 
 FILESDIR=	/etc/pam.d

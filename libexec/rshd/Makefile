@@ -4,6 +4,8 @@
 PROG=	rshd
 MAN=	rshd.8
 
+PACKAGE=rcmds
+
 WARNS?=	3
 WFORMAT=0
 

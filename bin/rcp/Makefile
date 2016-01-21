@@ -5,6 +5,8 @@ PROG=	rcp
 SRCS=	rcp.c util.c
 CFLAGS+=-DBINDIR=${BINDIR}
 
+PACKAGE=rcmds
+
 BINOWN=	root
 BINMODE=4555
 

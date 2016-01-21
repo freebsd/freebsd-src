@@ -5,6 +5,7 @@
 
 PROG=	rlogind
 MAN=	rlogind.8
+PACKAGE=rcmds
 LIBADD=	util
 WARNS?=	2
 

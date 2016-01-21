@@ -3,6 +3,8 @@
 
 PROG=	rlogin
 
+PACKAGE=rcmds
+
 BINOWN=	root
 BINMODE=4555
 
