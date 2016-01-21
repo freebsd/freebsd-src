@@ -2,6 +2,8 @@
 
 TAP_TESTS_SH=	legacy_test
 
+PACKAGE=	tests
+
 FILESDIR=	${TESTSDIR}
 FILES=		v1-amd64-acct.in
 FILES+=		v1-amd64.out
