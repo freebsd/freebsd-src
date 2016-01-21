@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.53 2015/05/01 04:03:20 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.54 2015/08/19 23:18:26 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -666,6 +666,8 @@ process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	u_int lport, cport;
 	int i, ret = 0, freefwd = 1;
 
+	memset(&fwd, 0, sizeof(fwd));
+
 	/* XXX - lport/cport check redundant */
 	if (buffer_get_int_ret(&ftype, m) != 0 ||
 	    (listen_addr = buffer_get_string_ret(m, NULL)) == NULL ||
@@ -832,6 +834,8 @@ process_mux_close_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	u_int ftype;
 	int i, ret = 0;
 	u_int lport, cport;
+
+	memset(&fwd, 0, sizeof(fwd));
 
 	if (buffer_get_int_ret(&ftype, m) != 0 ||
 	    (listen_addr = buffer_get_string_ret(m, NULL)) == NULL ||

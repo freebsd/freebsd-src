@@ -53,7 +53,7 @@ void
 bitmap_free(struct bitmap *b)
 {
 	if (b != NULL && b->d != NULL) {
-		memset(b->d, 0, b->len);
+		explicit_bzero(b->d, b->len);
 		free(b->d);
 	}
 	free(b);

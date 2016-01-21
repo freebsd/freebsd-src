@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.276 2015/07/03 03:49:45 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.277 2015/08/19 23:17:51 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1201,7 +1201,8 @@ do_known_hosts(struct passwd *pw, const char *name)
 		exit(1);
 	} else if (delete_host && !ctx.found_key) {
 		logit("Host %s not found in %s", name, identity_file);
-		unlink(tmp);
+		if (inplace)
+			unlink(tmp);
 	} else if (inplace) {
 		/* Backup existing file */
 		if (unlink(old) == -1 && errno != ENOENT)
