@@ -2365,15 +2365,18 @@ static int fw6_cqe_handler(struct adapter *sc, const __be64 *rpl)
 
 static int terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
-
 	struct adapter *sc = iq->adapter;
-
-	const struct cpl_rdma_terminate *rpl = (const void *)(rss + 1);
-	unsigned int tid = GET_TID(rpl);
+	const struct cpl_rdma_terminate *cpl = mtod(m, const void *);
+	unsigned int tid = GET_TID(cpl);
 	struct c4iw_qp_attributes attrs;
 	struct toepcb *toep = lookup_tid(sc, tid);
-	struct socket *so = inp_inpcbtosocket(toep->inp);
-	struct c4iw_ep *ep = so->so_rcv.sb_upcallarg;
+	struct socket *so;
+	struct c4iw_ep *ep;
+
+	INP_WLOCK(toep->inp);
+	so = inp_inpcbtosocket(toep->inp);
+	ep = so->so_rcv.sb_upcallarg;
+	INP_WUNLOCK(toep->inp);
 
 	CTR2(KTR_IW_CXGBE, "%s:tB %p %d", __func__, ep);
 
