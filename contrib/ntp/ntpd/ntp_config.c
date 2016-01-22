@@ -53,6 +53,8 @@
 #include "ntp_parser.h"
 #include "ntpd-opts.h"
 
+extern int yyparse(void);
+
 /* Bug 2817 */
 #if defined(HAVE_SYS_MMAN_H)
 # include <sys/mman.h>
@@ -2979,6 +2981,18 @@ apply_enable_disable(
 
 		case T_Stats:
 			proto_config(PROTO_FILEGEN, enable, 0., NULL);
+			break;
+
+		case T_UEcrypto:
+			proto_config(PROTO_UECRYPTO, enable, 0., NULL);
+			break;
+
+		case T_UEcryptonak:
+			proto_config(PROTO_UECRYPTONAK, enable, 0., NULL);
+			break;
+
+		case T_UEdigest:
+			proto_config(PROTO_UEDIGEST, enable, 0., NULL);
 			break;
 
 #ifdef BC_LIST_FRAMEWORK_NOT_YET_USED
