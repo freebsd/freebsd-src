@@ -1480,7 +1480,33 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 	struct	tcp_info ti;
 	struct cc_algo *algo;
 	char	*buf;
-	
+
+	/*
+	 * For TCP_CCALGOOPT forward the control to CC module, for both
+	 * SOPT_SET and SOPT_GET.
+	 */
+	switch (sopt->sopt_name) {
+	case TCP_CCALGOOPT:
+		INP_WUNLOCK(inp);
+		buf = malloc(sopt->sopt_valsize, M_TEMP, M_WAITOK | M_ZERO);
+		error = sooptcopyin(sopt, buf, sopt->sopt_valsize,
+		    sopt->sopt_valsize);
+		if (error) {
+			free(buf, M_TEMP);
+			return (error);
+		}
+		INP_WLOCK_RECHECK(inp);
+		if (CC_ALGO(tp)->ctl_output != NULL)
+			error = CC_ALGO(tp)->ctl_output(tp->ccv, sopt, buf);
+		else
+			error = ENOENT;
+		INP_WUNLOCK(inp);
+		if (error == 0 && sopt->sopt_dir == SOPT_GET)
+			error = sooptcopyout(sopt, buf, sopt->sopt_valsize);
+		free(buf, M_TEMP);
+		return (error);
+	}
+
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
