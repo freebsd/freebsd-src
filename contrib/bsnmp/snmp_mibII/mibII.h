@@ -58,7 +58,7 @@
 #include "mibII_tree.h"
 
 /* maximum size of the interface alias */
-static const u_int MIBIF_ALIAS_SIZE = 64 + 1;
+#define	MIBIF_ALIAS_SIZE	(64 + 1)
 
 /*
  * Interface list and flags.
