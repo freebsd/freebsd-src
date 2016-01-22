@@ -47,6 +47,74 @@ mtx_system_init(void *arg)
 }
 SYSINIT(mtx_system_init, SI_SUB_LOCK, SI_ORDER_MIDDLE, mtx_system_init, NULL);
 
+int
+bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
+		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t highaddr, bus_dma_filter_t *filter,
+		   void *filterarg, bus_size_t maxsize, int nsegments,
+		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+		   void *lockfuncarg, bus_dma_tag_t *dmat)
+{
+	struct bus_dma_tag *ret;
+
+	ret = malloc(sizeof(struct bus_dma_tag), XXX, XXX);
+	if (*dmat == NULL)
+		return (ENOMEM);
+	ret->alignment = alignment;
+	ret->maxsize = maxsize;
+
+	*dmat = ret;
+
+	return (0);
+}
+
+int
+bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+    bus_dmamap_t *mapp)
+{
+	void *addr;
+
+	addr = malloc(dmat->maxsize + dmat->alignment, XXX, XXX);
+	if (addr == 0)
+		return (ENOMEM);
+
+	*mapp = addr;
+	addr = (void*)(((uintptr_t)addr + dmat->alignment - 1) & ~(dmat->alignment - 1));
+
+	*vaddr = addr;
+	return (0);
+}
+
+int
+bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, bus_dmamap_callback_t *callback,
+    void *callback_arg, int flags)
+{
+	bus_dma_segment_t segs[1];
+
+	segs[0].ds_addr = (uintptr_t)buf;
+	segs[0].ds_len = buflen;
+
+	(*callback)(callback_arg, segs, 1, 0);
+
+	return (0);
+}
+
+void
+bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
+{
+
+	free(map, XXX);
+}
+
+int
+bus_dma_tag_destroy(bus_dma_tag_t dmat)
+{
+
+	free(dmat, XXX);
+	return (0);
+}
+
 struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, unsigned int flags)
 {
