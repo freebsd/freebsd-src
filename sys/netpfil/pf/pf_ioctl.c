@@ -3789,5 +3789,5 @@ static moduledata_t pf_mod = {
 	0
 };
 
-DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);
+DECLARE_MODULE(pf, pf_mod, SI_SUB_FW, SI_ORDER_FIRST);
 MODULE_VERSION(pf, PF_MODVER);

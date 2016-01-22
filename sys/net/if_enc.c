@@ -369,7 +369,7 @@ vnet_enc_init(const void *unused __unused)
 	V_enc_cloner = if_clone_simple(encname, enc_clone_create,
 	    enc_clone_destroy, 1);
 }
-VNET_SYSINIT(vnet_enc_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_enc_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_enc_init, NULL);
 
 static void
@@ -378,7 +378,7 @@ vnet_enc_uninit(const void *unused __unused)
 
 	if_clone_detach(V_enc_cloner);
 }
-VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
     vnet_enc_uninit, NULL);
 
 static int
@@ -401,4 +401,4 @@ static moduledata_t enc_mod = {
 	0
 };
 
-DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

@@ -229,9 +229,6 @@ void	ip_fillid(struct ip *);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
 void	rip_init(void);
-#ifdef VIMAGE
-void	rip_destroy(void);
-#endif
 int	rip_input(struct mbuf **, int *, int);
 int	rip_output(struct mbuf *, struct socket *, ...);
 int	ipip_input(struct mbuf **, int *, int);

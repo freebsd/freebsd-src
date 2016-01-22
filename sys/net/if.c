@@ -384,6 +384,26 @@ vnet_if_uninit(const void *unused __unused)
 }
 VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     vnet_if_uninit, NULL);
+
+/*
+ * XXX-BZ VNET; probably along with dom stuff.
+ * This is very wrong but MC currently implies that interfaces are
+ * gone before we can free it.  This needs to be fied differently
+ * and this needs to be moved back to SI_SUB_INIT_IF.
+ */
+static void
+vnet_if_return(const void *unused __unused)
+{
+	struct ifnet *ifp, *nifp;
+
+	/* Return all inherited interfaces to their parent vnets. */
+	TAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
+		if (ifp->if_home_vnet != ifp->if_vnet)
+			if_vmove(ifp, ifp->if_home_vnet);
+	}
+}
+VNET_SYSUNINIT(vnet_if_return, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    vnet_if_return, NULL);
 #endif
 
 static void
@@ -821,6 +841,7 @@ if_purgeaddrs(struct ifnet *ifp)
 {
 	struct ifaddr *ifa, *next;
 
+	/* XXX IF_ADDR_R/WLOCK */
 	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
 		if (ifa->ifa_addr->sa_family == AF_LINK)
 			continue;
@@ -845,7 +866,9 @@ if_purgeaddrs(struct ifnet *ifp)
 			continue;
 		}
 #endif /* INET6 */
+		IF_ADDR_WLOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+		IF_ADDR_WUNLOCK(ifp);
 		ifa_free(ifa);
 	}
 }
@@ -979,7 +1002,9 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		/* We can now free link ifaddr. */
 		if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
 			ifa = TAILQ_FIRST(&ifp->if_addrhead);
+			IF_ADDR_WLOCK(ifp);
 			TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+			IF_ADDR_WUNLOCK(ifp);
 			ifa_free(ifa);
 		}
 	}
@@ -1285,7 +1310,7 @@ if_delgroups(struct ifnet *ifp)
 		strlcpy(groupname, ifgl->ifgl_group->ifg_group, IFNAMSIZ);
 
 		IF_ADDR_WLOCK(ifp);
-		TAILQ_REMOVE(&ifp->if_groups, ifgl, ifgl_next);
+		TAILQ_REMOVE(&ifp->if_groups, ifgl, ifgl_next);		// <<<<
 		IF_ADDR_WUNLOCK(ifp);
 
 		TAILQ_FOREACH(ifgm, &ifgl->ifgl_group->ifg_members, ifgm_next)
