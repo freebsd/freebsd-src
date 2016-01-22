@@ -5927,12 +5927,34 @@ sctp_pcb_finish(void)
 	int i;
 	struct sctp_iterator *it, *nit;
 
+	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
+		printf("%s: race condition on teardown.\n", __func__);
+		return;
+	}
+	SCTP_BASE_VAR(sctp_pcb_initialized) = 0;
+
 	/*
 	 * In FreeBSD the iterator thread never exits but we do clean up.
 	 * The only way FreeBSD reaches here is if we have VRF's but we
 	 * still add the ifdef to make it compile on old versions.
 	 */
+retry:
+	while (sctp_it_ctl.iterator_running != 0)
+		DELAY(1);
 	SCTP_IPI_ITERATOR_WQ_LOCK();
+	/*
+	 * sctp_iterator_worker() might be working on an it entry without
+	 * holding the lock.  We won't find it on the list either and
+	 * continue and free/destroy it.  While holding the lock, spin, to
+	 * avoid the race condition as sctp_iterator_worker() will have to
+	 * wait to re-aquire the lock.
+	 */
+	if (sctp_it_ctl.cur_it != NULL || sctp_it_ctl.iterator_running != 0) {
+		SCTP_IPI_ITERATOR_WQ_UNLOCK();
+		printf("%s: Iterator running while we held the lock. Retry.\n",
+		    __func__);
+		goto retry;
+	}
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
 		if (it->vn != curvnet) {
 			continue;
@@ -5950,7 +5972,7 @@ sctp_pcb_finish(void)
 		sctp_it_ctl.iterator_flags |= SCTP_ITERATOR_STOP_CUR_IT;
 	}
 	SCTP_ITERATOR_UNLOCK();
-	SCTP_OS_TIMER_STOP(&SCTP_BASE_INFO(addr_wq_timer.timer));
+	SCTP_OS_TIMER_STOP_DRAIN(&SCTP_BASE_INFO(addr_wq_timer.timer));
 	SCTP_WQ_ADDR_LOCK();
 	LIST_FOREACH_SAFE(wi, &SCTP_BASE_INFO(addr_wq), sctp_nxt_addr, nwi) {
 		LIST_REMOVE(wi, sctp_nxt_addr);

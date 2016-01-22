@@ -333,7 +333,6 @@ int sctp_input(struct mbuf **, int *, int);
 void sctp_pathmtu_adjustment(struct sctp_tcb *, uint16_t);
 void sctp_drain(void);
 void sctp_init(void);
-void sctp_finish(void);
 int sctp_flush(struct socket *, int);
 int sctp_shutdown(struct socket *);
 void 

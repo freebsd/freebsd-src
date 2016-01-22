@@ -269,7 +269,6 @@ vnet_alloc(void)
 void
 vnet_destroy(struct vnet *vnet)
 {
-	struct ifnet *ifp, *nifp;
 
 	SDT_PROBE2(vnet, functions, vnet_destroy, entry, __LINE__, vnet);
 	KASSERT(vnet->vnet_sockcnt == 0,
@@ -280,13 +279,6 @@ vnet_destroy(struct vnet *vnet)
 	VNET_LIST_WUNLOCK();
 
 	CURVNET_SET_QUIET(vnet);
-
-	/* Return all inherited interfaces to their parent vnets. */
-	TAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
-		if (ifp->if_home_vnet != ifp->if_vnet)
-			if_vmove(ifp, ifp->if_home_vnet);
-	}
-
 	vnet_sysuninit();
 	CURVNET_RESTORE();
 

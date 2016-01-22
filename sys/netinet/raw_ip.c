@@ -215,12 +215,13 @@ rip_init(void)
 }
 
 #ifdef VIMAGE
-void
+static void
 rip_destroy(void)
 {
 
 	in_pcbinfo_destroy(&V_ripcbinfo);
 }
+VNET_SYSUNINIT(raw_ip, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, rip_destroy, NULL);
 #endif
 
 #ifdef INET

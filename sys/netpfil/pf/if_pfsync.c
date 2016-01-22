@@ -2416,6 +2416,7 @@ static moduledata_t pfsync_mod = {
 
 #define PFSYNC_MODVER 1
 
+/* XXX-BZ recheck the r229853 comment once the shuffling is done. */
 DECLARE_MODULE(pfsync, pfsync_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(pfsync, PFSYNC_MODVER);
 MODULE_DEPEND(pfsync, pf, PF_MODVER, PF_MODVER, PF_MODVER);
