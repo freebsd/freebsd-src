@@ -165,6 +165,7 @@ struct tcphdr {
 #define TCP_MD5SIG	16	/* use MD5 digests (RFC2385) */
 #define	TCP_INFO	32	/* retrieve tcp_info structure */
 #define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
+#define	TCP_CCALGOOPT	65	/* get/set cc algorithm specific options */
 #define	TCP_KEEPINIT	128	/* N, time to establish connection */
 #define	TCP_KEEPIDLE	256	/* L,N,X start keeplives after this period */
 #define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */

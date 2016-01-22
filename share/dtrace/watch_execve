@@ -1,0 +1,227 @@
+#!/usr/sbin/dtrace -s
+/* -
+ * Copyright (c) 2014 Devin Teske <dteske@FreeBSD.org>
+ * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $Title: dtrace(1) script to log process(es) entering syscall::execve $
+ * $FreeBSD$
+ */
+
+#pragma D option quiet
+#pragma D option dynvarsize=16m
+#pragma D option switchrate=10hz
+
+/*********************************************************/
+
+syscall::execve:entry /* probe ID 1 */
+{
+	this->caller_execname = execname;
+}
+
+/*********************************************************/
+
+syscall::execve:return /execname != this->caller_execname/ /* probe ID 2 */
+{
+	/*
+	 * Examine process, parent process, and grandparent process details
+	 */
+
+	/******************* CURPROC *******************/
+
+	this->proc = curthread->td_proc;
+	this->pid0 = this->proc->p_pid;
+	this->uid0 = this->proc->p_ucred->cr_uid;
+	this->gid0 = this->proc->p_ucred->cr_rgid;
+	this->p_args = this->proc->p_args;
+	this->ar_length = this->p_args ? this->p_args->ar_length : 0;
+	this->ar_args = (char *)(this->p_args ? this->p_args->ar_args : 0);
+
+	this->arg0_0 = this->ar_length > 0 ?
+		this->ar_args : stringof(this->proc->p_comm);
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg0_1 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg0_2 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg0_3 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg0_4 = this->ar_length > 0 ? "..." : "";
+
+	/******************* PPARENT *******************/
+
+	this->proc = this->proc->p_pptr;
+	this->pid1 = this->proc->p_pid;
+	this->uid1 = this->proc->p_ucred->cr_uid;
+	this->gid1 = this->proc->p_ucred->cr_rgid;
+	this->p_args = this->proc ? this->proc->p_args : 0;
+	this->ar_length = this->p_args ? this->p_args->ar_length : 0;
+	this->ar_args = (char *)(this->p_args ? this->p_args->ar_args : 0);
+
+	this->arg1_0 = this->ar_length > 0 ?
+		this->ar_args : stringof(this->proc->p_comm);
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg1_1 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg1_2 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg1_3 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg1_4 = this->ar_length > 0 ? "..." : "";
+
+	/******************* GPARENT *******************/
+
+	this->proc = this->proc->p_pptr;
+	this->pid2 = this->proc->p_pid;
+	this->uid2 = this->proc->p_ucred->cr_uid;
+	this->gid2 = this->proc->p_ucred->cr_rgid;
+	this->p_args = this->proc ? this->proc->p_args : 0;
+	this->ar_length = this->p_args ? this->p_args->ar_length : 0;
+	this->ar_args = (char *)(this->p_args ? this->p_args->ar_args : 0);
+
+	this->arg2_0 = this->ar_length > 0 ?
+		this->ar_args : stringof(this->proc->p_comm);
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg2_1 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg2_2 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg2_3 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg2_4 = this->ar_length > 0 ? "..." : "";
+
+	/******************* APARENT *******************/
+
+	this->proc = this->proc->p_pptr;
+	this->pid3 = this->proc->p_pid;
+	this->uid3 = this->proc->p_ucred->cr_uid;
+	this->gid3 = this->proc->p_ucred->cr_rgid;
+	this->p_args = this->proc ? this->proc->p_args : 0;
+	this->ar_length = this->p_args ? this->p_args->ar_length : 0;
+	this->ar_args = (char *)(this->p_args ? this->p_args->ar_args : 0);
+
+	this->arg3_0 = this->ar_length > 0 ?
+		this->ar_args : stringof(this->proc->p_comm);
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg3_1 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg3_2 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg3_3 = this->ar_length > 0 ? this->ar_args : "";
+	this->len = this->ar_length > 0 ? strlen(this->ar_args) + 1 : 0;
+	this->ar_args += this->len;
+	this->ar_length -= this->len;
+
+	this->arg3_4 = this->ar_length > 0 ? "..." : "";
+
+	/***********************************************/
+
+	/*
+	 * Print process, parent, and grandparent details
+	 */
+
+	printf("%Y %s[%d]: ", timestamp + 1406598400000000000,
+		this->caller_execname, this->pid1);
+	printf("%s", this->arg0_0);
+	printf("%s%s", this->arg0_1 != "" ? " " : "", this->arg0_1);
+	printf("%s%s", this->arg0_2 != "" ? " " : "", this->arg0_2);
+	printf("%s%s", this->arg0_3 != "" ? " " : "", this->arg0_3);
+	printf("%s%s", this->arg0_4 != "" ? " " : "", this->arg0_4);
+	printf("\n");
+
+	printf(" -+= %05d %d.%d %s",
+		this->pid3, this->uid3, this->gid3, this->arg3_0);
+	printf("%s%s", this->arg3_1 != "" ? " " : "", this->arg3_1);
+	printf("%s%s", this->arg3_2 != "" ? " " : "", this->arg3_2);
+	printf("%s%s", this->arg3_3 != "" ? " " : "", this->arg3_3);
+	printf("%s%s", this->arg3_4 != "" ? " " : "", this->arg3_4);
+	printf("%s", this->arg3_0 != "" ? "\n" : "");
+
+	printf("  \-+= %05d %d.%d %s",
+		this->pid2, this->uid2, this->gid2, this->arg2_0);
+	printf("%s%s", this->arg2_1 != "" ? " " : "", this->arg2_1);
+	printf("%s%s", this->arg2_2 != "" ? " " : "", this->arg2_2);
+	printf("%s%s", this->arg2_3 != "" ? " " : "", this->arg2_3);
+	printf("%s%s", this->arg2_4 != "" ? " " : "", this->arg2_4);
+	printf("%s", this->arg2_0 != "" ? "\n" : "");
+
+	printf("    \-+= %05d %d.%d %s",
+		this->pid1, this->uid1, this->gid1, this->arg1_0);
+	printf("%s%s", this->arg1_1 != "" ? " " : "", this->arg1_1);
+	printf("%s%s", this->arg1_2 != "" ? " " : "", this->arg1_2);
+	printf("%s%s", this->arg1_3 != "" ? " " : "", this->arg1_3);
+	printf("%s%s", this->arg1_4 != "" ? " " : "", this->arg1_4);
+	printf("%s", this->arg1_0 != "" ? "\n" : "");
+
+	printf("      \-+= %05d %d.%d %s",
+		this->pid0, this->uid0, this->gid0, this->arg0_0);
+	printf("%s%s", this->arg0_1 != "" ? " " : "", this->arg0_1);
+	printf("%s%s", this->arg0_2 != "" ? " " : "", this->arg0_2);
+	printf("%s%s", this->arg0_3 != "" ? " " : "", this->arg0_3);
+	printf("%s%s", this->arg0_4 != "" ? " " : "", this->arg0_4);
+	printf("%s", this->arg0_0 != "" ? "\n" : "");
+}

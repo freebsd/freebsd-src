@@ -48,7 +48,7 @@ range_addr_is_pci(struct pcie_range *ranges, uint64_t addr, uint64_t size)
 	struct pcie_range *r;
 	int tuple;
 
-	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
+	for (tuple = 0; tuple < RANGES_TUPLES_MAX; tuple++) {
 		r = &ranges[tuple];
 		if (addr >= r->pci_base &&
 		    addr < (r->pci_base + r->size) &&
@@ -68,7 +68,7 @@ range_addr_is_phys(struct pcie_range *ranges, uint64_t addr, uint64_t size)
 	struct pcie_range *r;
 	int tuple;
 
-	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
+	for (tuple = 0; tuple < RANGES_TUPLES_MAX; tuple++) {
 		r = &ranges[tuple];
 		if (addr >= r->phys_base &&
 		    addr < (r->phys_base + r->size) &&
@@ -90,7 +90,7 @@ range_addr_pci_to_phys(struct pcie_range *ranges, uint64_t pci_addr)
 	int tuple;
 
 	/* Find physical address corresponding to given bus address */
-	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
+	for (tuple = 0; tuple < RANGES_TUPLES_MAX; tuple++) {
 		r = &ranges[tuple];
 		if (pci_addr >= r->pci_base &&
 		    pci_addr < (r->pci_base + r->size)) {

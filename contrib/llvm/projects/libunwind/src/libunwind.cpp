@@ -66,6 +66,9 @@ _LIBUNWIND_EXPORT int unw_init_local(unw_cursor_t *cursor,
                                  context, LocalAddressSpace::sThisAddressSpace);
 #elif defined(__mips__)
 #warning The MIPS architecture is not supported.
+#elif defined(__riscv__)
+  new ((void *)cursor) UnwindCursor<LocalAddressSpace, Registers_riscv>(
+                                 context, LocalAddressSpace::sThisAddressSpace);
 #else
 #error Architecture not supported
 #endif

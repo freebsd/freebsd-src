@@ -86,13 +86,6 @@ int platform_get_ncpus(void);
 #define COHER_FABRIC_CFU		0x28
 #define COHER_FABRIC_CIB_CTRL		0x80
 
-/* XXX Make gpio driver optional and remove it */
-struct resource_spec mv_gpio_res[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
-
 struct vco_freq_ratio {
 	uint8_t	vco_cpu;	/* VCO to CLK0(CPU) clock ratio */
 	uint8_t	vco_l2c;	/* VCO to NB(L2 cache) clock ratio */

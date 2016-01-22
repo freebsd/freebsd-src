@@ -397,6 +397,7 @@ struct uart_class uart_ns8250_class = {
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {
 	{"ns16550",		(uintptr_t)&uart_ns8250_class},
+	{"snps,dw-apb-uart",	(uintptr_t)&uart_ns8250_class},
 	{NULL,			(uintptr_t)NULL},
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
@@ -456,9 +457,12 @@ ns8250_bus_attach(struct uart_softc *sc)
 	 * Check whether uart requires to read USR reg when IIR_BUSY and 
 	 * has broken txfifo. 
 	 */
+	ns8250->busy_detect = ofw_bus_is_compatible(sc->sc_dev, "snps,dw-apb-uart");
 	node = ofw_bus_get_node(sc->sc_dev);
-	if ((OF_getencprop(node, "busy-detect", &cell, sizeof(cell))) > 0)
-		ns8250->busy_detect = cell ? 1 : 0;
+	/* XXX: This is kept for a short time for compatibility with older device trees */
+	if ((OF_getencprop(node, "busy-detect", &cell, sizeof(cell))) > 0
+	    && cell != 0)
+		ns8250->busy_detect = 1;
 	if ((OF_getencprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
 		broken_txfifo =  cell ? 1 : 0;
 #endif

@@ -15,21 +15,12 @@ enum DirectoryType {
 };
 
 #define SRCDIR_DEF "@abs_srcdir@/data/";
-//const char srcdir[] = "@abs_srcdir@/data/";
 
-const char *
-CreatePath(const char* filename, enum DirectoryType argument);
-
-
-int
-GetFileSize(FILE *file);
-
-
-bool
-CompareFileContent(FILE* expected, FILE* actual);
-
-void
-ClearFile(const char * filename) ;
-
+extern	const char * 	CreatePath(const char* filename,
+				   enum DirectoryType argument);
+extern	void		DestroyPath(const char* pathname);
+extern	int		GetFileSize(FILE *file);
+extern	bool		CompareFileContent(FILE* expected, FILE* actual);
+extern	void		ClearFile(const char * filename) ;
 
 #endif // FILE_HANDLING_TEST_H

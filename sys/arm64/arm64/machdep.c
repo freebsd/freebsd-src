@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
 

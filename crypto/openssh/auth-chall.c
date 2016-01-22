@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-chall.c,v 1.13 2013/05/17 00:13:13 djm Exp $ */
+/* $OpenBSD: auth-chall.c,v 1.14 2014/06/24 01:13:21 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -26,14 +26,16 @@
 #include "includes.h"
 
 #include <sys/types.h>
-
 #include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "xmalloc.h"
 #include "key.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "log.h"
+#include "misc.h"
 #include "servconf.h"
 
 /* limited protocol v1 interface to kbd-interactive authentication */

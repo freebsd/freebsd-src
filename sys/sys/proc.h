@@ -938,6 +938,7 @@ void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 void	kern_yield(int);
 void 	kick_proc0(void);
+void	killjobc(void);
 int	leavepgrp(struct proc *p);
 int	maybe_preempt(struct thread *td);
 void	maybe_yield(void);

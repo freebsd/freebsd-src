@@ -443,7 +443,7 @@ ctl_ha_connect(struct ha_softc *softc)
 
 	memcpy(&sa, &softc->ha_peer_in, sizeof(sa));
 	error = soconnect(so, (struct sockaddr *)&sa, td);
-	if (error != 0) {
+	if (error != 0 && bootverbose) {
 		printf("%s: soconnect() error %d\n", __func__, error);
 		goto out;
 	}

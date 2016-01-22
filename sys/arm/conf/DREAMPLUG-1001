@@ -122,6 +122,9 @@ device		u3g  			# USB-based 3G modems (Option, Huawei, Sierra)
 device		iic
 device		iicbus
 
+# GPIO
+device		gpio
+
 # SATA
 device		mvs
 device		ahci

@@ -1923,6 +1923,66 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 	return(0);
 }
 
+/*
+ * Modified based on scsi_print_inquiry which is responsible to
+ * print the detail information for scsi_inquiry_data.
+ *
+ * Return 1 if it is valid, 0 otherwise.
+ */
+static inline int
+is_inquiry_valid(const struct scsi_inquiry_data *inq_data)
+{
+	uint8_t type;
+	char vendor[16], product[48], revision[16];
+
+	/*
+	 * Check device type and qualifier
+	 */
+	if (!(SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ||
+	    SID_QUAL(inq_data) == SID_QUAL_LU_CONNECTED))
+		return (0);
+
+	type = SID_TYPE(inq_data);
+	switch (type) {
+	case T_DIRECT:
+	case T_SEQUENTIAL:
+	case T_PRINTER:
+	case T_PROCESSOR:
+	case T_WORM:
+	case T_CDROM:
+	case T_SCANNER:
+	case T_OPTICAL:
+	case T_CHANGER:
+	case T_COMM:
+	case T_STORARRAY:
+	case T_ENCLOSURE:
+	case T_RBC:
+	case T_OCRW:
+	case T_OSD:
+	case T_ADC:
+		break;
+	case T_NODEVICE:
+	default:
+		return (0);
+	}
+
+	/*
+	 * Check vendor, product, and revision
+	 */
+	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
+	    sizeof(vendor));
+	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
+	    sizeof(product));
+	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
+	    sizeof(revision));
+	if (strlen(vendor) == 0  ||
+	    strlen(product) == 0 ||
+	    strlen(revision) == 0)
+		return (0);
+
+	return (1);
+}
+
 /**
  * @brief completion function before returning to CAM
  *
@@ -1993,11 +2053,33 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
-		ccb->ccb_h.status |= CAM_REQ_CMP;
-	 } else {
+		const struct scsi_generic *cmd;
+
+		/*
+		 * Check whether the data for INQUIRY cmd is valid or
+		 * not.  Windows 10 and Windows 2016 send all zero
+		 * inquiry data to VM even for unpopulated slots.
+		 */
+		cmd = (const struct scsi_generic *)
+		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
+		if (cmd->opcode == INQUIRY &&
+		    is_inquiry_valid(
+		    (const struct scsi_inquiry_data *)csio->data_ptr) == 0) {
+			ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+			if (bootverbose) {
+				mtx_lock(&sc->hs_lock);
+				xpt_print(ccb->ccb_h.path,
+				    "storvsc uninstalled device\n");
+				mtx_unlock(&sc->hs_lock);
+			}
+		} else {
+			ccb->ccb_h.status |= CAM_REQ_CMP;
+		}
+	} else {
 		mtx_lock(&sc->hs_lock);
 		xpt_print(ccb->ccb_h.path,
-			"srovsc scsi_status = %d\n",
+			"storvsc scsi_status = %d\n",
 			vm_srb->scsi_status);
 		mtx_unlock(&sc->hs_lock);
 		ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
