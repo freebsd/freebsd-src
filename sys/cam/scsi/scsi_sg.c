@@ -300,7 +300,8 @@ sgregister(struct cam_periph *periph, void *arg)
 	struct sg_softc *softc;
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
-	int no_tags;
+	struct make_dev_args args;
+	int no_tags, error;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -361,9 +362,20 @@ sgregister(struct cam_periph *periph, void *arg)
 	}
 
 	/* Register the device */
-	softc->dev = make_dev(&sg_cdevsw, periph->unit_number,
-			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
-			      periph->periph_name, periph->unit_number);
+	make_dev_args_init(&args);
+	args.mda_devsw = &sg_cdevsw;
+	args.mda_unit = periph->unit_number;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = periph;
+	error = make_dev_s(&args, &softc->dev, "%s%d",
+	    periph->periph_name, periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		cam_periph_release_locked(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 	if (periph->unit_number < 26) {
 		(void)make_dev_alias(softc->dev, "sg%c",
 		    periph->unit_number + 'a');
@@ -373,7 +385,6 @@ sgregister(struct cam_periph *periph, void *arg)
 		    (periph->unit_number % 26) + 'a');
 	}
 	cam_periph_lock(periph);
-	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add as async callback so that we get
@@ -429,9 +440,6 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);
 
@@ -468,8 +476,6 @@ sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
 	mtx = cam_periph_mtx(periph);
 	mtx_lock(mtx);
 
@@ -506,9 +512,6 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	int dir, error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	cam_periph_lock(periph);
 
 	softc = (struct sg_softc *)periph->softc;

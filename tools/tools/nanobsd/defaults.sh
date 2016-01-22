@@ -500,10 +500,9 @@ fixup_before_diskimage ( ) (
 	if [ -n "${NANO_METALOG}" ]; then
 		pprint 2 "Fixing metalog"
 		cp ${NANO_METALOG} ${NANO_METALOG}.pre
-		(echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" &&
-			cat ${NANO_METALOG}.pre) | \
-		    ${NANO_TOOLS}/mtree-dedup.awk | \
-		    sed -e 's/ size=[0-9][0-9]*//' | sort > ${NANO_METALOG}
+		echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" > ${NANO_METALOG}
+		cat ${NANO_METALOG}.pre | ${NANO_TOOLS}/mtree-dedup.awk | \
+		    sed -e 's/ size=[0-9][0-9]*//' | sort >> ${NANO_METALOG}
 	fi	
 )
 

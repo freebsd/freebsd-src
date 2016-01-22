@@ -54,10 +54,20 @@ __FBSDID("$FreeBSD$");
 #define INITIAL_TIMECOUNTER	(0xffffffff)
 #define MAX_WATCHDOG_TICKS	(0xffffffff)
 
-#if defined(SOC_MV_ARMADAXP)
+#define	MV_TMR	0x1
+#define	MV_WDT	0x2
+#define	MV_NONE	0x0
+
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_CLOCK_SRC		25000000	/* Timers' 25MHz mode */
 #else
 #define MV_CLOCK_SRC		get_tclk()
+#endif
+
+#if defined(SOC_MV_ARMADA38X)
+#define	WATCHDOG_TIMER	4
+#else
+#define	WATCHDOG_TIMER	2
 #endif
 
 struct mv_timer_softc {
@@ -66,12 +76,20 @@ struct mv_timer_softc {
 	bus_space_handle_t	timer_bsh;
 	struct mtx		timer_mtx;
 	struct eventtimer	et;
+	boolean_t		has_wdt;
 };
 
 static struct resource_spec mv_timer_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_OPTIONAL },
 	{ -1, 0 }
+};
+
+/* Interrupt is not required by MV_WDT devices */
+static struct ofw_compat_data mv_timer_compat[] = {
+	{"mrvl,timer",			MV_TMR | MV_WDT },
+	{"marvell,armada-380-wdt",	MV_WDT },
+	{NULL,				MV_NONE }
 };
 
 static struct mv_timer_softc *timer_softc = NULL;
@@ -111,7 +129,7 @@ mv_timer_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "mrvl,timer"))
+	if (ofw_bus_search_compatible(dev, mv_timer_compat)->ocd_data == MV_NONE)
 		return (ENXIO);
 
 	device_set_desc(dev, "Marvell CPU Timer");
@@ -124,7 +142,7 @@ mv_timer_attach(device_t dev)
 	int	error;
 	void	*ihl;
 	struct	mv_timer_softc *sc;
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	uint32_t irq_cause, irq_mask;
 #endif
 
@@ -143,9 +161,26 @@ mv_timer_attach(device_t dev)
 	sc->timer_bst = rman_get_bustag(sc->timer_res[0]);
 	sc->timer_bsh = rman_get_bushandle(sc->timer_res[0]);
 
+	sc->has_wdt = ofw_bus_has_prop(dev, "mrvl,has-wdt") ||
+	    ofw_bus_is_compatible(dev, "marvell,armada-380-wdt");
+
 	mtx_init(&timer_softc->timer_mtx, "watchdog", NULL, MTX_DEF);
-	mv_watchdog_disable();
-	EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
+
+	if (sc->has_wdt) {
+		mv_watchdog_disable();
+		EVENTHANDLER_REGISTER(watchdog_list, mv_watchdog_event, sc, 0);
+	}
+
+	if (ofw_bus_search_compatible(dev, mv_timer_compat)->ocd_data
+	    == MV_WDT) {
+		/* Don't set timers for wdt-only entry. */
+		device_printf(dev, "only watchdog attached\n");
+		return (0);
+	} else if (sc->timer_res[1] == NULL) {
+		device_printf(dev, "no interrupt resource\n");
+		bus_release_resources(dev, mv_timer_spec, sc->timer_res);
+		return (ENXIO);
+	}
 
 	if (bus_setup_intr(dev, sc->timer_res[1], INTR_TYPE_CLK,
 	    mv_hardclock, NULL, sc, &ihl) != 0) {
@@ -155,7 +190,7 @@ mv_timer_attach(device_t dev)
 	}
 
 	mv_setup_timers();
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
         irq_cause &= IRQ_TIMER0_CLR;
 
@@ -294,7 +329,7 @@ static void
 mv_watchdog_enable(void)
 {
 	uint32_t val, irq_cause;
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	uint32_t irq_mask;
 #endif
 
@@ -302,10 +337,14 @@ mv_watchdog_enable(void)
 	irq_cause &= IRQ_TIMER_WD_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
 	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+
+	val = read_cpu_misc(RSTOUTn_MASK);
+	val &= ~RSTOUTn_MASK_WD;
+	write_cpu_misc(RSTOUTn_MASK, val);
 #else
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask |= IRQ_TIMER_WD_MASK;
@@ -317,9 +356,12 @@ mv_watchdog_enable(void)
 #endif
 
 	val = mv_get_timer_control();
-	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO;
-#if defined(SOC_MV_ARMADAXP)
-	val |= CPU_TIMER_WD_25MHZ_EN;
+#if defined(SOC_MV_ARMADA38X)
+	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO | CPU_TIMER_WD_25MHZ_EN;
+#elif defined(SOC_MV_ARMADAXP)
+	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO | CPU_TIMER_WD_25MHZ_EN;
+#else
+	val |= CPU_TIMER2_EN | CPU_TIMER2_AUTO;
 #endif
 	mv_set_timer_control(val);
 }
@@ -328,18 +370,26 @@ static void
 mv_watchdog_disable(void)
 {
 	uint32_t val, irq_cause;
-#if !defined(SOC_MV_ARMADAXP)
+#if !defined(SOC_MV_ARMADAXP) && !defined(SOC_MV_ARMADA38X)
 	uint32_t irq_mask;
 #endif
 
 	val = mv_get_timer_control();
+#if defined(SOC_MV_ARMADA38X)
 	val &= ~(CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO);
+#else
+	val &= ~(CPU_TIMER2_EN | CPU_TIMER2_AUTO);
+#endif
 	mv_set_timer_control(val);
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
 	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
 	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+
+	val = read_cpu_misc(RSTOUTn_MASK);
+	val |= RSTOUTn_MASK_WD;
+	write_cpu_misc(RSTOUTn_MASK, RSTOUTn_MASK_WD);
 #else
 	val = read_cpu_ctrl(RSTOUTn_MASK);
 	val &= ~WD_RST_OUT_EN;
@@ -378,8 +428,7 @@ mv_watchdog_event(void *arg, unsigned int cmd, int *error)
 		if (ticks > MAX_WATCHDOG_TICKS)
 			mv_watchdog_disable();
 		else {
-			/* Timer 2 is the watchdog */
-			mv_set_timer(2, ticks);
+			mv_set_timer(WATCHDOG_TIMER, ticks);
 			mv_watchdog_enable();
 			*error = 0;
 		}
@@ -438,7 +487,7 @@ mv_setup_timers(void)
 	val = mv_get_timer_control();
 	val &= ~(CPU_TIMER0_EN | CPU_TIMER0_AUTO);
 	val |= CPU_TIMER1_EN | CPU_TIMER1_AUTO;
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 	/* Enable 25MHz mode */
 	val |= CPU_TIMER0_25MHZ_EN | CPU_TIMER1_25MHZ_EN;
 #endif

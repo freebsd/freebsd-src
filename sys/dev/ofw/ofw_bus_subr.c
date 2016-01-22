@@ -361,10 +361,11 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	paddrsz = 0;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
-#ifdef OFW_EPAPR
+#ifndef OFW_IMAP_NO_IPARENT_ADDR_CELLS
 		/*
-		 * Find if we need to read the parent address data. Sparc64
-		 * uses a different encoding that doesn't include this data.
+		 * Find if we need to read the parent address data.
+		 * CHRP-derived OF bindings, including ePAPR-compliant FDTs,
+		 * use this as an optional part of the specifier.
 		 */
 		if (OF_getencprop(OF_node_from_xref(parent),
 		    "#address-cells", &paddrsz, sizeof(paddrsz)) == -1)
@@ -715,9 +716,10 @@ ofw_bus_find_string_index(phandle_t node, const char *list_name,
  */
 int
 ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
-   const char ***array)
+   const char ***out_array)
 {
 	char *elems, *tptr;
+	const char **array;
 	int i, cnt, nelems, len;
 
 	elems = NULL;
@@ -730,11 +732,11 @@ ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
 		i += strlen(elems + i) + 1;
 
 	/* Allocate space for arrays and all strings. */
-	*array = malloc((cnt + 1) * sizeof(char *) + nelems, M_OFWPROP,
+	array = malloc((cnt + 1) * sizeof(char *) + nelems, M_OFWPROP,
 	    M_WAITOK);
 
 	/* Get address of first string. */
-	tptr = (char *)(*array + cnt);
+	tptr = (char *)(array + cnt + 1);
 
 	/* Copy strings. */
 	memcpy(tptr, elems, nelems);
@@ -742,12 +744,13 @@ ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
 
 	/* Fill string pointers. */
 	for (i = 0, cnt = 0; i < nelems; cnt++) {
-		len = strlen(tptr + i) + 1;
-		*array[cnt] = tptr;
+		len = strlen(tptr) + 1;
+		array[cnt] = tptr;
 		i += len;
 		tptr += len;
 	}
-	*array[cnt] = 0;
+	array[cnt] = 0;
+	*out_array = array;
 
 	return (cnt);
 }

@@ -65,7 +65,6 @@ When your test loads, you register your tests with the kernel test framework.
 You do that through a call to
 .Fn kern_testframework_register .
 Usually this is done at the module load event as shown below:
-.Pp
 .Bd -literal -offset indent
 	switch (type) {
 	case MOD_LOAD:
@@ -122,7 +121,6 @@ field is a test-specific set of information that is an opaque blob.
 It is passed in from user space and has a maximum size of 256 bytes.
 You can pass arbitrary test input in the space.
 In the case of callout_test we reshape that to:
-.Pp
 .Bd -literal -offset indent
 struct callout_test {
 	int number_of_callouts;
@@ -133,7 +131,6 @@ struct callout_test {
 So the first lines of
 .Fn run_callout_test
 does the following to get at the user specific data:
-.Pp
 .\" This is a bad example and violates strict aliasing.  It should be replaced.
 .Bd -literal -offset indent
 	struct callout_test *u;

@@ -62,17 +62,16 @@ echo 'int (*const builtinfunc[])(int, char **) = {'
 awk '/^[^#]/ {	printf "\t%s,\n", $1}' $temp
 echo '};
 
-const struct builtincmd builtincmd[] = {'
+const unsigned char builtincmd[] = {'
 awk '{	for (i = 2 ; i <= NF ; i++) {
 		if ($i == "-s") {
 			spc = 1;
 		} else {
-			printf "\t{ \"%s\", %d, %d },\n",  $i, NR-1, spc
+			printf "\t\"\\%03o\\%03o%s\"\n", length($i), (spc ? 128 : 0) + NR-1, $i
 			spc = 0;
 		}
 	}}' $temp
-echo '	{ NULL, 0, 0 }
-};'
+echo '};'
 
 exec > builtins.h
 cat <<\!
@@ -85,14 +84,10 @@ cat <<\!
 tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ < $temp |
 	awk '{	printf "#define %s %d\n", $1, NR-1}'
 echo '
-struct builtincmd {
-      const char *name;
-      int code;
-      int special;
-};
+#define BUILTIN_SPECIAL 0x80
 
 extern int (*const builtinfunc[])(int, char **);
-extern const struct builtincmd builtincmd[];
+extern const unsigned char builtincmd[];
 '
 awk '{	printf "int %s(int, char **);\n", $1}' $temp
 rm -f $temp

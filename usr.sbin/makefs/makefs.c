@@ -116,7 +116,7 @@ main(int argc, char *argv[])
 	start_time.tv_sec = start.tv_sec;
 	start_time.tv_nsec = start.tv_usec * 1000;
 
-	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pr:s:S:t:xZ")) != -1) {
+	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pR:s:S:t:xZ")) != -1) {
 		switch (ch) {
 
 		case 'B':

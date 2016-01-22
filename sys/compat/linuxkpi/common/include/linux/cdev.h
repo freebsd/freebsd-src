@@ -41,6 +41,8 @@ struct inode;
 struct module;
 
 extern struct cdevsw linuxcdevsw;
+extern const struct kobj_type linux_cdev_ktype;
+extern const struct kobj_type linux_cdev_static_ktype;
 
 struct linux_cdev {
 	struct kobject	kobj;
@@ -51,39 +53,10 @@ struct linux_cdev {
 };
 
 static inline void
-cdev_release(struct kobject *kobj)
-{
-	struct linux_cdev *cdev;
-
-	cdev = container_of(kobj, struct linux_cdev, kobj);
-	if (cdev->cdev)
-		destroy_dev(cdev->cdev);
-	kfree(cdev);
-}
-
-static inline void
-cdev_static_release(struct kobject *kobj)
-{
-	struct linux_cdev *cdev;
-
-	cdev = container_of(kobj, struct linux_cdev, kobj);
-	if (cdev->cdev)
-		destroy_dev(cdev->cdev);
-}
-
-static struct kobj_type cdev_ktype = {
-	.release = cdev_release,
-};
-
-static struct kobj_type cdev_static_ktype = {
-	.release = cdev_static_release,
-};
-
-static inline void
 cdev_init(struct linux_cdev *cdev, const struct file_operations *ops)
 {
 
-	kobject_init(&cdev->kobj, &cdev_static_ktype);
+	kobject_init(&cdev->kobj, &linux_cdev_static_ktype);
 	cdev->ops = ops;
 }
 
@@ -94,7 +67,7 @@ cdev_alloc(void)
 
 	cdev = kzalloc(sizeof(struct linux_cdev), M_WAITOK);
 	if (cdev)
-		kobject_init(&cdev->kobj, &cdev_ktype);
+		kobject_init(&cdev->kobj, &linux_cdev_ktype);
 	return (cdev);
 }
 
@@ -114,6 +87,7 @@ cdev_add(struct linux_cdev *cdev, dev_t dev, unsigned count)
 	cdev->dev = dev;
 	cdev->cdev->si_drv1 = cdev;
 
+	kobject_get(cdev->kobj.parent);
 	return (0);
 }
 

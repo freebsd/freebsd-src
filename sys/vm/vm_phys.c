@@ -1372,12 +1372,12 @@ restartdom:
 		return (NULL);
 	}
 	m_run = NULL;
-	for (segind = 0; segind < vm_phys_nsegs; segind++) {
+	for (segind = vm_phys_nsegs - 1; segind >= 0; segind--) {
 		seg = &vm_phys_segs[segind];
-		if (seg->start >= high)
-			break;
-		if (low >= seg->end || seg->domain != domain)
+		if (seg->start >= high || seg->domain != domain)
 			continue;
+		if (low >= seg->end)
+			break;
 		if (low <= seg->start)
 			pa_start = seg->start;
 		else

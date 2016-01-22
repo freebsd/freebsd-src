@@ -81,19 +81,15 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
 #define TCPSTATES		/* for logging */
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
-#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>	/* required for icmp_var.h */
 #include <netinet/icmp_var.h>	/* for ICMP_BANDLIM */
@@ -103,7 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/nd6.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -111,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/tcp_syncache.h>
+#include <netinet/tcp_cc.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
@@ -158,13 +155,11 @@ static void	 tcp_do_segment_fastack(struct mbuf *, struct tcphdr *,
  *	  the ack that opens up a 0-sized window.
  *	- LRO wasn't used for this segment. We make sure by checking that the
  *	  segment size is not larger than the MSS.
- *	- Delayed acks are enabled or this is a half-synchronized T/TCP
- *	  connection.
  */
 #define DELAY_ACK(tp, tlen)						\
 	((!tcp_timer_active(tp, TT_DELACK) &&				\
 	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
-	    (tlen <= tp->t_maxopd) &&					\
+	    (tlen <= tp->t_maxseg) &&					\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
 /*

@@ -46,7 +46,7 @@ tohex(char **buf, int len, uint32_t val)
 	char *walker = *buf;
 	int i;
 
-	for (i = len - 1; i >= 0; i++) {
+	for (i = len - 1; i >= 0; i--) {
 		walker[i] = hexstr[val & 0xf];
 		val >>= 4;
 	}
@@ -107,5 +107,5 @@ uuid_to_string(const uuid_t *u, char **s, uint32_t *status)
 	tohex(&w, 2, u->node[3]);
 	tohex(&w, 2, u->node[4]);
 	tohex(&w, 2, u->node[5]);
-	*w++ - '\0';
+	*w++ = '\0';
 }

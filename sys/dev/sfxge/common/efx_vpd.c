@@ -31,10 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
 #if EFSYS_OPT_VPD
@@ -91,22 +88,22 @@ static efx_vpd_ops_t	__efx_vpd_siena_ops = {
 
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 
-static efx_vpd_ops_t	__efx_vpd_hunt_ops = {
-	hunt_vpd_init,		/* evpdo_init */
-	hunt_vpd_size,		/* evpdo_size */
-	hunt_vpd_read,		/* evpdo_read */
-	hunt_vpd_verify,	/* evpdo_verify */
-	hunt_vpd_reinit,	/* evpdo_reinit */
-	hunt_vpd_get,		/* evpdo_get */
-	hunt_vpd_set,		/* evpdo_set */
-	hunt_vpd_next,		/* evpdo_next */
-	hunt_vpd_write,		/* evpdo_write */
-	hunt_vpd_fini,		/* evpdo_fini */
+static efx_vpd_ops_t	__efx_vpd_ef10_ops = {
+	ef10_vpd_init,		/* evpdo_init */
+	ef10_vpd_size,		/* evpdo_size */
+	ef10_vpd_read,		/* evpdo_read */
+	ef10_vpd_verify,	/* evpdo_verify */
+	ef10_vpd_reinit,	/* evpdo_reinit */
+	ef10_vpd_get,		/* evpdo_get */
+	ef10_vpd_set,		/* evpdo_set */
+	ef10_vpd_next,		/* evpdo_next */
+	ef10_vpd_write,		/* evpdo_write */
+	ef10_vpd_fini,		/* evpdo_fini */
 };
 
-#endif	/* EFSYS_OPT_HUNTINGTON */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	__checkReturn		efx_rc_t
 efx_vpd_init(
@@ -134,9 +131,15 @@ efx_vpd_init(
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		evpdop = (efx_vpd_ops_t *)&__efx_vpd_hunt_ops;
+		evpdop = (efx_vpd_ops_t *)&__efx_vpd_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
+#if EFSYS_OPT_MEDFORD
+	case EFX_FAMILY_MEDFORD:
+		evpdop = (efx_vpd_ops_t *)&__efx_vpd_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -666,7 +669,7 @@ efx_vpd_hunk_next(
 	__in				size_t size,
 	__out				efx_vpd_tag_t *tagp,
 	__out				efx_vpd_keyword_t *keywordp,
-	__out_bcount_opt(*paylenp)	unsigned int *payloadp,
+	__out_opt			unsigned int *payloadp,
 	__out_opt			uint8_t *paylenp,
 	__inout				unsigned int *contp)
 {
@@ -686,12 +689,18 @@ efx_vpd_hunk_next(
 		if ((rc = efx_vpd_next_tag(data, size, &offset,
 		    &tag, &taglen)) != 0)
 			goto fail1;
-		if (tag == EFX_VPD_END)
+
+		if (tag == EFX_VPD_END) {
+			keyword = 0;
+			paylen = 0;
+			index = 0;
 			break;
+		}
 
 		if (tag == EFX_VPD_ID) {
-			if (index == *contp) {
+			if (index++ == *contp) {
 				EFSYS_ASSERT3U(taglen, <, 0x100);
+				keyword = 0;
 				paylen = (uint8_t)MIN(taglen, 0xff);
 
 				goto done;
@@ -702,7 +711,7 @@ efx_vpd_hunk_next(
 				    taglen, pos, &keyword, &keylen)) != 0)
 					goto fail2;
 
-				if (index == *contp) {
+				if (index++ == *contp) {
 					offset += pos + 3;
 					paylen = keylen;
 
@@ -714,9 +723,6 @@ efx_vpd_hunk_next(
 		offset += taglen;
 	}
 
-	*contp = 0;
-	return (0);
-
 done:
 	*tagp = tag;
 	*keywordp = keyword;
@@ -725,7 +731,7 @@ done:
 	if (paylenp != NULL)
 		*paylenp = paylen;
 
-	++(*contp);
+	*contp = index;
 	return (0);
 
 fail2:

@@ -68,6 +68,13 @@ set mainmenu_command[6]="2 goto_menu"
 set mainmenu_keycode[6]=111
 set mainansi_caption[6]="Configure Boot ^[1mO^[mptions..."
 
+s" currdev" getenv dup 0> [if] drop 4 s" zfs:" compare 0= [if]
+    set mainmenu_caption[7]="Select Boot [E]nvironment..."
+    set mainmenu_command[7]="3 goto_menu"
+    set mainmenu_keycode[7]=101
+    set mainansi_caption[7]="Select Boot ^[1mE^[37mnvironment..."
+[then] [else] drop [then]
+
 \ 
 \ BOOT OPTIONS MENU
 \ 
@@ -119,6 +126,37 @@ set optionsmenu_keycode[6]=118
 set optionsansi_caption[6]="^[1mV^[merbose..... ^[34;1mOff^[m"
 set optionstoggled_ansi[6]="^[1mV^[merbose..... ^[32;7mOn^[m"
 
+\ 
+\ BOOT ENVIRONMENT MENU
+\ 
+
+set menuset_name3="bootenv"
+
+set bemenu_current="Active: "
+set beansi_current="^[1m${bemenu_current}^[m"
+set bemenu_bootfs="bootfs: "
+set beansi_bootfs="^[1m${bemenu_bootfs}^[m"
+set bemenu_page="[P]age: "
+set beansi_page="^[1mP^[mage: "
+set bemenu_pageof=" of "
+set beansi_pageof="${bemenu_pageof}"
+set zfs_be_currpage=1
+
+set bootenvmenu_init="init_bootenv"
+
+set bootenvmenu_command[1]="be_draw_screen 1 goto_menu"
+set bootenvmenu_keycode[1]=8
+
+set bootenvmenu_command[2]="set_bootenv"
+set bootenvmenu_keycode[2]=97
+set bootenv_root[2]="${zfs_be_active}"
+
+set bootenvmenu_command[3]="set_be_page"
+set bootenvmenu_keycode[3]=112
+
+set bootenvmenu_options=4
+set bootenvmenu_optionstext="Boot Environments:"
+
 \ Enable automatic booting (add ``autoboot_delay=N'' to loader.conf(5) to
 \ customize the timeout; default is 10-seconds)
 \ 
@@ -127,6 +165,21 @@ set menu_timeout_command="boot"
 \ Include optional elements defined in a local file
 \ 
 try-include /boot/menu.rc.local
+
+\ Initialize boot environment variables
+\
+s" reloadbe" sfind ( xt|0 bool ) [if]
+    s" bootenv_autolist" getenv dup -1 = [if]
+	drop s" execute" evaluate		\ Use evaluate to avoid passing
+						\ reloadbe an optional parameter
+    [else]
+	s" YES" compare-insensitive 0= [if]
+	    s" execute" evaluate
+	[then]
+    [then]
+[else]
+    drop ( xt=0 )
+[then]
 
 \ Display the main menu (see `menu.4th')
 set menuset_initial=1

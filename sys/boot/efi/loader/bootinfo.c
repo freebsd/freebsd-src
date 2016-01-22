@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <fdt_platform.h>
 #endif
 
+int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
+
 extern EFI_SYSTEM_TABLE	*ST;
 
 static const char howto_switches[] = "aCdrgDmphsv";
@@ -122,7 +124,7 @@ bi_copyenv(vm_offset_t start)
 	/* Traverse the environment. */
 	for (ep = environ; ep != NULL; ep = ep->ev_next) {
 		len = strlen(ep->ev_name);
-		if (archsw.arch_copyin(ep->ev_name, addr, len) != len)
+		if ((size_t)archsw.arch_copyin(ep->ev_name, addr, len) != len)
 			break;
 		addr += len;
 		if (archsw.arch_copyin("=", addr, 1) != 1)
@@ -130,7 +132,7 @@ bi_copyenv(vm_offset_t start)
 		addr++;
 		if (ep->ev_value != NULL) {
 			len = strlen(ep->ev_value);
-			if (archsw.arch_copyin(ep->ev_value, addr, len) != len)
+			if ((size_t)archsw.arch_copyin(ep->ev_value, addr, len) != len)
 				break;
 			addr += len;
 		}
@@ -290,7 +292,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		     pages, &addr);
 		if (EFI_ERROR(status)) {
 			printf("%s: AllocatePages error %lu\n", __func__,
-			    (unsigned long)(status & ~EFI_ERROR_MASK));
+			    EFI_ERROR_CODE(status));
 			return (ENOMEM);
 		}
 
@@ -306,7 +308,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
 		if (EFI_ERROR(status)) {
 			printf("%s: GetMemoryMap error %lu\n", __func__,
-			    (unsigned long)(status & ~EFI_ERROR_MASK));
+			    EFI_ERROR_CODE(status));
 			return (EINVAL);
 		}
 		status = BS->ExitBootServices(IH, efi_mapkey);
@@ -320,8 +322,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		}
 		BS->FreePages(addr, pages);
 	}
-	printf("ExitBootServices error %lu\n",
-	    (unsigned long)(status & ~EFI_ERROR_MASK));
+	printf("ExitBootServices error %lu\n", EFI_ERROR_CODE(status));
 	return (EINVAL);
 }
 
@@ -352,7 +353,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 #endif
 #if defined(__arm__)
 	vm_offset_t vaddr;
-	int i;
+	size_t i;
 	/*
 	 * These metadata addreses must be converted for kernel after
 	 * relocation.

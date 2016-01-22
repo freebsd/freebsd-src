@@ -52,10 +52,10 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("statestr.c");
-  RUN_TEST(test_PeerRestart, 9);
-  RUN_TEST(test_SysUnspecified, 10);
-  RUN_TEST(test_ClockCodeExists, 11);
-  RUN_TEST(test_ClockCodeUnknown, 12);
+  RUN_TEST(test_PeerRestart, 10);
+  RUN_TEST(test_SysUnspecified, 11);
+  RUN_TEST(test_ClockCodeExists, 12);
+  RUN_TEST(test_ClockCodeUnknown, 13);
 
   return (UnityEnd());
 }

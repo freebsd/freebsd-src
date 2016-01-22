@@ -2245,6 +2245,9 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
+	char linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	int lladdr_off;
 
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
@@ -2265,7 +2268,12 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 	}
 	lle->la_flags = flags;
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
-		lltable_set_entry_addr(ifp, lle, IF_LLADDR(ifp));
+		linkhdrsize = LLE_MAX_LINKHDR;
+		if (lltable_calc_llheader(ifp, AF_INET6, IF_LLADDR(ifp),
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+			return (NULL);
+		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
+		    lladdr_off);
 		lle->la_flags |= LLE_STATIC;
 	}
 

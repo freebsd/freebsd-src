@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
@@ -71,12 +70,14 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_RFC7413
 #include <netinet/tcp_fastopen.h>
 #endif
+#include <netinet/tcp.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#include <netinet/tcp_cc.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -752,8 +753,8 @@ send:
 	 * segments.  Options for SYN-ACK segments are handled in TCP
 	 * syncache.
 	 */
+	to.to_flags = 0;
 	if ((tp->t_flags & TF_NOOPT) == 0) {
-		to.to_flags = 0;
 		/* Maximum segment size. */
 		if (flags & TH_SYN) {
 			tp->snd_nxt = tp->iss;
@@ -830,11 +831,11 @@ send:
 
 	/*
 	 * Adjust data length if insertion of options will
-	 * bump the packet length beyond the t_maxopd length.
+	 * bump the packet length beyond the t_maxseg length.
 	 * Clear the FIN bit because we cut off the tail of
 	 * the segment.
 	 */
-	if (len + optlen + ipoptlen > tp->t_maxopd) {
+	if (len + optlen + ipoptlen > tp->t_maxseg) {
 		flags &= ~TH_FIN;
 
 		if (tso) {
@@ -937,7 +938,7 @@ send:
 			 * fractional unless the send sockbuf can be
 			 * emptied:
 			 */
-			max_len = (tp->t_maxopd - optlen);
+			max_len = (tp->t_maxseg - optlen);
 			if ((off + len) < sbavail(&so->so_snd)) {
 				moff = len % max_len;
 				if (moff != 0) {
@@ -967,7 +968,7 @@ send:
 				sendalot = 1;
 
 		} else {
-			len = tp->t_maxopd - optlen - ipoptlen;
+			len = tp->t_maxseg - optlen - ipoptlen;
 			sendalot = 1;
 		}
 	} else
@@ -1233,7 +1234,7 @@ send:
 		tp->snd_up = tp->snd_una;		/* drag it along */
 
 #ifdef TCP_SIGNATURE
-	if (tp->t_flags & TF_SIGNATURE) {
+	if (to.to_flags & TOF_SIGNATURE) {
 		int sigoff = to.to_signature - opt;
 		tcp_signature_compute(m, 0, len, optlen,
 		    (u_char *)(th + 1) + sigoff, IPSEC_DIR_OUTBOUND);
@@ -1277,10 +1278,10 @@ send:
 	 * The TCP pseudo header checksum is always provided.
 	 */
 	if (tso) {
-		KASSERT(len > tp->t_maxopd - optlen,
+		KASSERT(len > tp->t_maxseg - optlen,
 		    ("%s: len <= tso_segsz", __func__));
 		m->m_pkthdr.csum_flags |= CSUM_TSO;
-		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
+		m->m_pkthdr.tso_segsz = tp->t_maxseg - optlen;
 	}
 
 #ifdef IPSEC
@@ -1348,7 +1349,7 @@ send:
 		 */
 		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
-		if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+		if (V_path_mtu_discovery && tp->t_maxseg > V_tcp_minmss)
 			tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 		else
 			tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
@@ -1394,7 +1395,7 @@ send:
 	 *
 	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
 	 */
-	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss) {
+	if (V_path_mtu_discovery && tp->t_maxseg > V_tcp_minmss) {
 		ip->ip_off |= htons(IP_DF);
 		tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 	} else {
@@ -1713,6 +1714,7 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 			bcopy((u_char *)&to->to_tsecr, optp, sizeof(to->to_tsecr));
 			optp += sizeof(to->to_tsecr);
 			break;
+#ifdef TCP_SIGNATURE
 		case TOF_SIGNATURE:
 			{
 			int siglen = TCPOLEN_SIGNATURE - 2;
@@ -1731,6 +1733,7 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 				 *optp++ = 0;
 			break;
 			}
+#endif
 		case TOF_SACK:
 			{
 			int sackblks = 0;

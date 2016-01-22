@@ -28,7 +28,7 @@ if [ "x$1" = "x-b" ]; then
 	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
 
 	# Make EFI system partition (should be done with makefs in the future)
-	dd if=/dev/zero of=efiboot.img bs=4k count=100
+	dd if=/dev/zero of=efiboot.img bs=4k count=200
 	device=`mdconfig -a -t vnode -f efiboot.img`
 	newfs_msdos -F 12 -m 0xf8 /dev/$device
 	mkdir efi
@@ -56,5 +56,5 @@ NAME="$1"; shift
 publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
 makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
-rm "$1/etc/fstab"
+rm -f "$1/etc/fstab"
 rm -f efiboot.img

@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160116: Update mandoc to cvs snapshot 20160116
+OLD_FILES+=usr/share/mdocml/example.style.css
+OLD_FILES+=usr/share/mdocml/style.css
+OLD_DIRS+=usr/share/mdocml
 # 20151225: new clang import which bumps version from 3.7.0 to 3.7.1.
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/asan_interface.h
@@ -105,6 +109,8 @@ OLD_FILES+=usr/lib/clang/3.7.0/include/xopintrin.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/xtestintrin.h
 OLD_DIRS+=usr/lib/clang/3.7.0/include
 OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-preinit-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-preinit-x86_64.a
 OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-x86_64.a
 OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
 OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a

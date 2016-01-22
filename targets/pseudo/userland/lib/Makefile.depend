@@ -136,6 +136,7 @@ DIRDEPS = \
 	lib/libstand \
 	lib/libstdbuf \
 	lib/libstdthreads \
+	lib/libsysdecode \
 	lib/libtacplus \
 	lib/libtelnet \
 	lib/libthr \

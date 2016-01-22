@@ -61,11 +61,17 @@ __FBSDID("$FreeBSD$");
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;
 static device_detach_t linux_pci_detach;
+static device_suspend_t linux_pci_suspend;
+static device_resume_t linux_pci_resume;
+static device_shutdown_t linux_pci_shutdown;
 
 static device_method_t pci_methods[] = {
 	DEVMETHOD(device_probe, linux_pci_probe),
 	DEVMETHOD(device_attach, linux_pci_attach),
 	DEVMETHOD(device_detach, linux_pci_detach),
+	DEVMETHOD(device_suspend, linux_pci_suspend),
+	DEVMETHOD(device_resume, linux_pci_resume),
+	DEVMETHOD(device_shutdown, linux_pci_shutdown),
 	DEVMETHOD_END
 };
 
@@ -119,16 +125,16 @@ linux_pci_attach(device_t dev)
 
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
-	pdev->dev.parent = &linux_rootdev;
+	pdev->dev.parent = &linux_root_device;
 	pdev->dev.bsddev = dev;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
 	pdev->dev.dma_mask = &pdev->dma_mask;
 	pdev->pdrv = pdrv;
-	kobject_init(&pdev->dev.kobj, &dev_ktype);
+	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
-	kobject_add(&pdev->dev.kobj, &linux_rootdev.kobj,
+	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
 	    kobject_name(&pdev->dev.kobj));
 	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 0);
 	if (rle)
@@ -166,6 +172,46 @@ linux_pci_detach(device_t dev)
 	spin_unlock(&pci_lock);
 	put_device(&pdev->dev);
 
+	return (0);
+}
+
+static int
+linux_pci_suspend(device_t dev)
+{
+	struct pm_message pm = { };
+	struct pci_dev *pdev;
+	int err;
+
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv->suspend != NULL)
+		err = -pdev->pdrv->suspend(pdev, pm);
+	else
+		err = 0;
+	return (err);
+}
+
+static int
+linux_pci_resume(device_t dev)
+{
+	struct pci_dev *pdev;
+	int err;
+
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv->resume != NULL)
+		err = -pdev->pdrv->resume(pdev);
+	else
+		err = 0;
+	return (err);
+}
+
+static int
+linux_pci_shutdown(device_t dev)
+{
+	struct pci_dev *pdev;
+
+	pdev = device_get_softc(dev);
+	if (pdev->pdrv->shutdown != NULL)
+		pdev->pdrv->shutdown(pdev);
 	return (0);
 }
 

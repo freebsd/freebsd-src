@@ -1,4 +1,4 @@
-/*	$Id: eqn.c,v 1.58 2015/03/04 12:19:49 schwarze Exp $ */
+/*	$Id: eqn.c,v 1.61 2016/01/08 00:50:45 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -302,10 +302,10 @@ eqn_read(struct eqn_node **epp, int ln,
 		while (' ' == *p || '\t' == *p)
 			p++;
 		if ('\0' == *p)
-			return(er);
+			return er;
 		mandoc_vmsg(MANDOCERR_ARG_SKIP, ep->parse,
 		    ln, pos, "EN %s", p);
-		return(er);
+		return er;
 	}
 
 	/*
@@ -324,7 +324,7 @@ eqn_read(struct eqn_node **epp, int ln,
 	ep->sz += sz;
 	strlcat(ep->data, p + pos, ep->sz + 1);
 	strlcat(ep->data, " ", ep->sz + 1);
-	return(ROFF_IGN);
+	return ROFF_IGN;
 }
 
 struct eqn_node *
@@ -339,7 +339,7 @@ eqn_alloc(int pos, int line, struct mparse *parse)
 	p->eqn.pos = pos;
 	p->gsize = EQN_DEFSIZE;
 
-	return(p);
+	return p;
 }
 
 /*
@@ -353,9 +353,9 @@ eqn_def_find(struct eqn_node *ep, const char *key, size_t sz)
 	for (i = 0; i < (int)ep->defsz; i++)
 		if (ep->defs[i].keysz && STRNEQ(ep->defs[i].key,
 		    ep->defs[i].keysz, key, sz))
-			return(&ep->defs[i]);
+			return &ep->defs[i];
 
-	return(NULL);
+	return NULL;
 }
 
 /*
@@ -382,7 +382,7 @@ again:
 	if (lim >= EQN_NEST_MAX) {
 		mandoc_msg(MANDOCERR_ROFFLOOP, ep->parse,
 		    ep->eqn.ln, ep->eqn.pos, NULL);
-		return(NULL);
+		return NULL;
 	}
 
 	ep->cur = ep->rew;
@@ -390,7 +390,7 @@ again:
 	q = 0;
 
 	if ('\0' == *start)
-		return(NULL);
+		return NULL;
 
 	if (quote == *start) {
 		ep->cur++;
@@ -432,7 +432,7 @@ again:
 	/* Quotes aren't expanded for values. */
 
 	if (q || ! repl)
-		return(start);
+		return start;
 
 	if (NULL != (def = eqn_def_find(ep, start, *sz))) {
 		diff = def->valsz - *sz;
@@ -448,10 +448,11 @@ again:
 		memmove(start + *sz + diff, start + *sz,
 		    (strlen(start) - *sz) + 1);
 		memcpy(start, def->val, def->valsz);
+		lim++;
 		goto again;
 	}
 
-	return(start);
+	return start;
 }
 
 /*
@@ -462,7 +463,7 @@ static const char *
 eqn_nexttok(struct eqn_node *ep, size_t *sz)
 {
 
-	return(eqn_next(ep, '"', sz, 1));
+	return eqn_next(ep, '"', sz, 1);
 }
 
 /*
@@ -472,7 +473,7 @@ static const char *
 eqn_nextrawtok(struct eqn_node *ep, size_t *sz)
 {
 
-	return(eqn_next(ep, '"', sz, 0));
+	return eqn_next(ep, '"', sz, 0);
 }
 
 /*
@@ -498,12 +499,12 @@ eqn_tok_parse(struct eqn_node *ep, char **p)
 	quoted = ep->data[ep->cur] == '"';
 
 	if (NULL == (start = eqn_nexttok(ep, &sz)))
-		return(EQN_TOK_EOF);
+		return EQN_TOK_EOF;
 
 	if (quoted) {
 		if (p != NULL)
 			*p = mandoc_strndup(start, sz);
-		return(EQN_TOK__MAX);
+		return EQN_TOK__MAX;
 	}
 
 	for (i = 0; i < EQN_TOK__MAX; i++) {
@@ -516,7 +517,7 @@ eqn_tok_parse(struct eqn_node *ep, char **p)
 	if (i == EQN_TOK__MAX && NULL != p)
 		*p = mandoc_strndup(start, sz);
 
-	return(i);
+	return i;
 }
 
 static void
@@ -557,7 +558,7 @@ eqn_box_alloc(struct eqn_node *ep, struct eqn_box *parent)
 		parent->first = bp;
 
 	parent->last = bp;
-	return(bp);
+	return bp;
 }
 
 /*
@@ -587,7 +588,7 @@ eqn_box_makebinary(struct eqn_node *ep,
 	newb->first = newb->last = b;
 	newb->first->next = NULL;
 	b->parent = newb;
-	return(newb);
+	return newb;
 }
 
 /*
@@ -712,7 +713,7 @@ eqn_parse(struct eqn_node *ep, struct eqn_box *parent)
 	 */
 
 	if (ep->data == NULL)
-		return(ROFF_IGN);
+		return ROFF_IGN;
 
 next_tok:
 	tok = eqn_tok_parse(ep, &p);
@@ -986,7 +987,7 @@ this_tok:
 				parent->right = mandoc_strndup(start, sz);
 		}
 		parent = parent->parent;
-		if (EQN_TOK_BRACE_CLOSE == tok && parent &&
+		if (tok == EQN_TOK_BRACE_CLOSE &&
 		    (parent->type == EQN_PILE ||
 		     parent->type == EQN_MATRIX))
 			parent = parent->parent;
@@ -1060,7 +1061,7 @@ this_tok:
 		 * End of file!
 		 * TODO: make sure we're not in an open subexpression.
 		 */
-		return(ROFF_EQN);
+		return ROFF_EQN;
 	default:
 		assert(tok == EQN_TOK__MAX);
 		assert(NULL != p);
@@ -1104,7 +1105,7 @@ eqn_end(struct eqn_node **epp)
 
 	ep->eqn.root = mandoc_calloc(1, sizeof(struct eqn_box));
 	ep->eqn.root->expectargs = UINT_MAX;
-	return(eqn_parse(ep, ep->eqn.root));
+	return eqn_parse(ep, ep->eqn.root);
 }
 
 void

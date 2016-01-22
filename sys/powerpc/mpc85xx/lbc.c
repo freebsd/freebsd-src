@@ -126,11 +126,11 @@ lbc_address_mask(uint32_t size)
 {
 	int n = 15;
 
-	if (size == ~0UL)
+	if (size == ~0)
 		return (0);
 
 	while (n < 32) {
-		if (size == (1UL << n))
+		if (size == (1U << n))
 			break;
 		n++;
 	}
@@ -267,7 +267,7 @@ lbc_banks_map(struct lbc_softc *sc)
 static int
 lbc_banks_enable(struct lbc_softc *sc)
 {
-	u_long size;
+	uint32_t size;
 	uint32_t regval;
 	int error, i;
 

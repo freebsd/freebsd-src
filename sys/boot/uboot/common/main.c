@@ -585,6 +585,10 @@ handle_uboot_env_var(enum ubenv_action action, const char * var)
 	 */
 	if (action == UBENV_IMPORT) { 
 		len = strcspn(var, "=");
+		if (len == 0) {
+			printf("name cannot start with '=': '%s'\n", var);
+			return;
+		}
 		if (var[len] == 0) {
 			strcpy(ldvar, "uboot.");
 			strncat(ldvar, var, sizeof(ldvar) - 7);
@@ -604,9 +608,11 @@ handle_uboot_env_var(enum ubenv_action action, const char * var)
 		var = &var[6];
 	}
 
-	/* If ldvar is malformed or there's no variable name left, punt. */
-	if (ldvar[0] == 0 || var[0] == 0)
+	/* If there is no variable name left, punt. */
+	if (var[0] == 0) {
+		printf("empty variable name\n");
 		return;
+	}
 
 	val = ub_env_get(var);
 	if (action == UBENV_SHOW) {
