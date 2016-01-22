@@ -1357,7 +1357,19 @@ packagekernel:
 .endif
 .endif
 
-create-world-packages:
+STAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/stage
+REPODIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
+
+_pkgbootstrap:
+	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
+
+packages:	_pkgbootstrap
+	@mkdir -p ${STAGEDIR} ${REPODIR}
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT -B stageworld ; \
+		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
+
+create-world-packages:	_pkgbootstrap
 	@rm -f ${DESTDIR}/*.plist 2>/dev/null || :
 	@cd ${DESTDIR} ; \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
@@ -1384,21 +1396,13 @@ create-world-packages:
 			/^name/ { printf("===> Creating %s-", $$2); next } \
 			/^version/ { print $$2; next } \
 			' ${DESTDIR}/$${pkgname}.ucl ; \
-		env ASSUME_ALWAYS_YES="YES" pkg -o ABI_FILE=${DESTDIR}/bin/sh \
+		pkg -o ABI_FILE=${DESTDIR}/bin/sh \
 			create -M ${DESTDIR}/$${pkgname}.ucl \
 			-p ${DESTDIR}/$${pkgname}.plist \
-			-r ${DESTDIR} -o ${DESTDIR} ; \
+			-r ${DESTDIR} -o ${REPODIR}/$$(pkg config ABI)/latest ; \
 	done
 
-STAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/stage
-
-packages:
-	@mkdir -p ${MAKEOBJDIRPREFIX}${.CURDIR}/stage
-	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT -B stageworld ; \
-		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
-
-create-kernel-packages:
+create-kernel-packages:	_pkgbootstrap
 	@cd ${DESTDIR}/${DISTDIR} ; \
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		${DESTDIR}/${DISTDIR}/kernel.meta
@@ -1415,7 +1419,7 @@ create-kernel-packages:
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
 	@awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@env ASSUME_ALWAYS_YES="YES" pkg create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
+	@pkg -o ABI_FILE=${DESTDIR}/bin/sh create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
 		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
 		-r ${DESTDIR}/${DISTDIR}/kernel \
 		-o ${DESTDIR}
@@ -1438,7 +1442,7 @@ create-kernel-packages:
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
 	@awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
 		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@env ASSUME_ALWAYS_YES="YES" pkg create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
+	@pkg -o ABI_FILE=${DESTDIR}/bin/sh create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
 		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
 		-r ${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
 		-o ${DESTDIR}
