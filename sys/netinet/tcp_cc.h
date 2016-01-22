@@ -151,6 +151,9 @@ struct cc_algo {
 	/* Called for an additional ECN processing apart from RFC3168. */
 	void	(*ecnpkt_handler)(struct cc_var *ccv);
 
+	/* Called for {get|set}sockopt() on a TCP socket with TCP_CCALGOOPT. */
+	int     (*ctl_output)(struct cc_var *, struct sockopt *, void *);
+
 	STAILQ_ENTRY (cc_algo) entries;
 };
 
