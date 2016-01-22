@@ -104,6 +104,7 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	v_init_counters(struct vnode *);
 static void	v_incr_usecount(struct vnode *);
+static void	v_incr_usecount_locked(struct vnode *);
 static void	v_incr_devcount(struct vnode *);
 static void	v_decr_devcount(struct vnode *);
 static void	vnlru_free(int);
@@ -2371,6 +2372,20 @@ v_init_counters(struct vnode *vp)
 	refcount_init(&vp->v_usecount, 1);
 }
 
+static void
+v_incr_usecount_locked(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	if ((vp->v_iflag & VI_OWEINACT) != 0) {
+		VNASSERT(vp->v_usecount == 0, vp,
+		    ("vnode with usecount and VI_OWEINACT set"));
+		vp->v_iflag &= ~VI_OWEINACT;
+	}
+	refcount_acquire(&vp->v_usecount);
+	v_incr_devcount(vp);
+}
+
 /*
  * Increment the use and hold counts on the vnode, taking care to reference
  * the driver's usecount if this is a chardev.  The _vhold() will remove
@@ -2383,29 +2398,13 @@ v_incr_usecount(struct vnode *vp)
 	ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 
-	if (vp->v_type == VCHR) {
-		VI_LOCK(vp);
-		_vhold(vp, true);
-		if (vp->v_iflag & VI_OWEINACT) {
-			VNASSERT(vp->v_usecount == 0, vp,
-			    ("vnode with usecount and VI_OWEINACT set"));
-			vp->v_iflag &= ~VI_OWEINACT;
-		}
-		refcount_acquire(&vp->v_usecount);
-		v_incr_devcount(vp);
-		VI_UNLOCK(vp);
-		return;
-	}
-
-	_vhold(vp, false);
-	if (vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
+	if (vp->v_type != VCHR &&
+	    vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 		    ("vnode with usecount and VI_OWEINACT set"));
 	} else {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_OWEINACT)
-			vp->v_iflag &= ~VI_OWEINACT;
-		refcount_acquire(&vp->v_usecount);
+		v_incr_usecount_locked(vp);
 		VI_UNLOCK(vp);
 	}
 }
@@ -2520,7 +2519,17 @@ vref(struct vnode *vp)
 {
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	_vhold(vp, false);
 	v_incr_usecount(vp);
+}
+
+void
+vrefl(struct vnode *vp)
+{
+
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	_vhold(vp, true);
+	v_incr_usecount_locked(vp);
 }
 
 /*

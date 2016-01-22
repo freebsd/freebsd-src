@@ -56,8 +56,6 @@ struct ofw_pci_softc {
 
 	int			sc_quirks;
 
-	struct ofw_pci_register	sc_pcir;
-
 	struct ofw_pci_range	*sc_range;
 	int			sc_nrange;
 

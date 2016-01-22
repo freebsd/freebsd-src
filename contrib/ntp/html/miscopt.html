@@ -11,7 +11,7 @@
 <img src="pic/boom3.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
 <p>We have three, now looking for more.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->17-Nov-2015  11:06<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->16-Jan-2016  13:08<!-- #EndDate -->
     UTC</p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -29,8 +29,9 @@
   <dd>The file format consists of a single line containing a single floating point number, which records the frequency offset measured in parts-per-million (PPM). The file is updated by first writing the current drift value into a temporary file and then renaming this file to replace the old version.</dd>
   <dt id="dscp"><tt>dscp <i>dscp</i></tt></dt>
   <dd>This command specifies the Differentiated Services Code Point (DSCP) value that is used in sent NTP packets.  The default value is 46 for Expedited Forwarding (EF).</dd>
-  <dt id="enable"><tt>enable [auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats]</tt><br>
-    <tt>disable [auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats]</tt></dt>
+  <dt id="enable"><tt>enable [auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</tt></dt>
+
+  <dt><tt>disable [auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</tt></dt>
   <dd>Provides a way to enable or disable various system options. Flags not mentioned are unaffected. Note that most of these flags can be modified remotely using <a href="ntpq.html"><tt>ntpq</tt></a> utility program's <tt>:config</tt> and <tt>config-from-file</tt> commands.
     <dl>
       <dt><tt>auth</tt></dt>
@@ -50,6 +51,13 @@
       <dd>Enables time and frequency discipline. In effect, this switch opens and closes the feedback loop, which is useful for testing. The default for this flag is enable.</dd>
       <dt><tt>stats</tt></dt>
       <dd>Enables the statistics facility. See the <a href="monopt.html">Monitoring Options</a> page for further information. The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
+| unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early
+      <dt><tt>unpeer_crypto_early</tt></dt>
+      <dd>Enables the early resetting of an association in case of a crypto failure.  This is generally a feature, but it can be used in a DoS attack.  If you are seeing these packets being used as a DoS attack against your server, you should disable this flag.  The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
+      <dt><tt>unpeer_crypto_nak_early</tt></dt>
+      <dd>Enables the early resetting of an association in case of a crypto_NAK message.  This is generally a feature, but it can be used in a DoS attack.  If you are seeing these packets being used as a DoS attack against your server, you should disable this flag.  The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
+      <dt><tt>unpeer_digest_early</tt></dt>
+      <dd>Enables the early resetting of an association in case of an autokey digest failur.  This is generally a feature, but it can be used in a DoS attack.  If you are seeing these packets being used as a DoS attack against your server, you should disable this flag.  The default for this flag is enabled. This flag is excluded from runtime configuration using <tt>ntpq</tt>.</dd>
     </dl>
   </dd>
   <dt id="includefile"><tt>includefile <i>includefile</i></tt></dt>

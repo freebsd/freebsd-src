@@ -598,8 +598,9 @@ ef10_nvram_read_tlv_segment(
 	}
 
 	/* Read initial chunk of the segment, starting at offset */
-	if ((rc = ef10_nvram_partn_read(enp, partn, seg_offset, seg_data,
-		    EF10_NVRAM_CHUNK)) != 0) {
+	if ((rc = ef10_nvram_partn_read_mode(enp, partn, seg_offset, seg_data,
+		    EF10_NVRAM_CHUNK,
+		    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT)) != 0) {
 		goto fail2;
 	}
 
@@ -624,10 +625,11 @@ ef10_nvram_read_tlv_segment(
 
 	/* Read the remaining segment content */
 	if (total_length > EF10_NVRAM_CHUNK) {
-		if ((rc = ef10_nvram_partn_read(enp, partn,
+		if ((rc = ef10_nvram_partn_read_mode(enp, partn,
 			    seg_offset + EF10_NVRAM_CHUNK,
 			    seg_data + EF10_NVRAM_CHUNK,
-			    total_length - EF10_NVRAM_CHUNK)) != 0)
+			    total_length - EF10_NVRAM_CHUNK,
+			    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT)) != 0)
 			goto fail6;
 	}
 
@@ -1321,12 +1323,13 @@ fail1:
 }
 
 	__checkReturn		efx_rc_t
-ef10_nvram_partn_read(
+ef10_nvram_partn_read_mode(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in			unsigned int offset,
 	__out_bcount(size)	caddr_t data,
-	__in			size_t size)
+	__in			size_t size,
+	__in			uint32_t mode)
 {
 	size_t chunk;
 	efx_rc_t rc;
@@ -1335,7 +1338,7 @@ ef10_nvram_partn_read(
 		chunk = MIN(size, EF10_NVRAM_CHUNK);
 
 		if ((rc = efx_mcdi_nvram_read(enp, partn, offset,
-			    data, chunk)) != 0) {
+			    data, chunk, mode)) != 0) {
 			goto fail1;
 		}
 
@@ -1350,6 +1353,22 @@ fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_partn_read(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size)
+{
+	/*
+	 * Read requests which come in through the EFX API expect to
+	 * read the current, active partition.
+	 */
+	return ef10_nvram_partn_read_mode(enp, partn, offset, data, size,
+			    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT);
 }
 
 	__checkReturn		efx_rc_t
@@ -1636,6 +1655,7 @@ ef10_nvram_type_to_partn(
 	return (ENOTSUP);
 }
 
+#if EFSYS_OPT_DIAG
 
 static	__checkReturn		efx_rc_t
 ef10_nvram_partn_to_type(
@@ -1664,9 +1684,6 @@ ef10_nvram_partn_to_type(
 
 	return (ENOTSUP);
 }
-
-
-#if EFSYS_OPT_DIAG
 
 	__checkReturn		efx_rc_t
 ef10_nvram_test(
@@ -1717,29 +1734,23 @@ fail1:
 #endif	/* EFSYS_OPT_DIAG */
 
 	__checkReturn		efx_rc_t
-ef10_nvram_get_version(
+ef10_nvram_partn_get_version(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
+	__in			uint32_t partn,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4])
 {
-	uint32_t partn;
 	efx_rc_t rc;
-
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
 
 	/* FIXME: get highest partn version from all ports */
 	/* FIXME: return partn description if available */
 
 	if ((rc = efx_mcdi_nvram_metadata(enp, partn, subtypep,
 		    version, NULL, 0)) != 0)
-		goto fail2;
+		goto fail1;
 
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -1768,98 +1779,12 @@ fail1:
 	return (rc);
 }
 
-	__checkReturn		efx_rc_t
-ef10_nvram_erase(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type)
-{
-	uint32_t partn;
-	size_t size;
-	efx_rc_t rc;
-
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
-	if ((rc = ef10_nvram_partn_size(enp, partn, &size)) != 0)
-		goto fail2;
-
-	if ((rc = ef10_nvram_partn_erase(enp, partn, 0, size)) != 0)
-		goto fail3;
-
-	return (0);
-
-fail3:
-	EFSYS_PROBE(fail3);
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
-	__checkReturn		efx_rc_t
-ef10_nvram_write_chunk(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in			unsigned int offset,
-	__in_bcount(size)	caddr_t data,
-	__in			size_t size)
-{
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
-	if ((rc = ef10_nvram_partn_write(enp, partn, offset, data, size)) != 0)
-		goto fail2;
-
-	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
 				void
-ef10_nvram_rw_finish(
+ef10_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type)
+	__in			uint32_t partn)
 {
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) == 0)
-		ef10_nvram_partn_unlock(enp, partn);
-}
-
-	__checkReturn		efx_rc_t
-ef10_nvram_set_version(
-	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type,
-	__in_ecount(4)		uint16_t version[4])
-{
-	uint32_t partn;
-	efx_rc_t rc;
-
-	if ((rc = ef10_nvram_type_to_partn(enp, type, &partn)) != 0)
-		goto fail1;
-
-	if ((rc = ef10_nvram_partn_set_version(enp, partn, version)) != 0)
-		goto fail2;
-
-	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
+	ef10_nvram_partn_unlock(enp, partn);
 }
 
 #endif	/* EFSYS_OPT_NVRAM */

@@ -68,93 +68,23 @@ dskread(void *buf, u_int64_t lba, int nblk)
 
 #include "ufsread.c"
 
-static ssize_t
-fsstat(ufs_ino_t inode)
-{
-#ifndef UFS2_ONLY
-	static struct ufs1_dinode dp1;
-#endif
-#ifndef UFS1_ONLY
-	static struct ufs2_dinode dp2;
-#endif
-	static struct fs fs;
-	static ufs_ino_t inomap;
-	char *blkbuf;
-	void *indbuf;
-	size_t n, size;
-	static ufs2_daddr_t blkmap, indmap;
-
-	blkbuf = dmadat->blkbuf;
-	indbuf = dmadat->indbuf;
-	if (!dsk_meta) {
-		inomap = 0;
-		for (n = 0; sblock_try[n] != -1; n++) {
-			if (dskread(dmadat->sbbuf, sblock_try[n] / DEV_BSIZE,
-			    SBLOCKSIZE / DEV_BSIZE))
-				return (-1);
-			memcpy(&fs, dmadat->sbbuf, sizeof(struct fs));
-			if ((
-#if defined(UFS1_ONLY)
-			    fs.fs_magic == FS_UFS1_MAGIC
-#elif defined(UFS2_ONLY)
-			    (fs.fs_magic == FS_UFS2_MAGIC &&
-			    fs.fs_sblockloc == sblock_try[n])
-#else
-			    fs.fs_magic == FS_UFS1_MAGIC ||
-			    (fs.fs_magic == FS_UFS2_MAGIC &&
-			    fs.fs_sblockloc == sblock_try[n])
-#endif
-			    ) &&
-			    fs.fs_bsize <= MAXBSIZE &&
-			    fs.fs_bsize >= (int32_t)sizeof(struct fs))
-				break;
-		}
-		if (sblock_try[n] == -1) {
-			return (-1);
-		}
-		dsk_meta++;
-	} else
-		memcpy(&fs, dmadat->sbbuf, sizeof(struct fs));
-	if (!inode)
-		return (0);
-	if (inomap != inode) {
-		n = IPERVBLK(&fs);
-		if (dskread(blkbuf, INO_TO_VBA(&fs, n, inode), DBPERVBLK))
-			return (-1);
-		n = INO_TO_VBO(n, inode);
-#if defined(UFS1_ONLY)
-		memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
-		    sizeof(struct ufs1_dinode));
-#elif defined(UFS2_ONLY)
-		memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
-		    sizeof(struct ufs2_dinode));
-#else
-		if (fs.fs_magic == FS_UFS1_MAGIC)
-			memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
-			    sizeof(struct ufs1_dinode));
-		else
-			memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
-			    sizeof(struct ufs2_dinode));
-#endif
-		inomap = inode;
-		fs_off = 0;
-		blkmap = indmap = 0;
-	}
-	size = DIP(di_size);
-	n = size - fs_off;
-
-	return (n);
-}
-
 static struct dmadat __dmadat;
+
+static int
+init_dev(dev_info_t* dev)
+{
+
+	devinfo = dev;
+	dmadat = &__dmadat;
+
+	return fsread(0, NULL, 0);
+}
 
 static EFI_STATUS
 probe(dev_info_t* dev)
 {
 
-	devinfo = dev;
-	dmadat = &__dmadat;
-	if (fsread(0, NULL, 0) < 0)
+	if (init_dev(dev) < 0)
 		return (EFI_UNSUPPORTED);
 
 	add_device(&devices, dev);
@@ -171,13 +101,15 @@ try_load(dev_info_t *dev, const char *loader_path, void **bufp, size_t *bufsize)
 	ssize_t read;
 	void *buf;
 
-	devinfo = dev;
+	if (init_dev(dev) < 0)
+		return (EFI_UNSUPPORTED);
+
 	if ((ino = lookup(loader_path)) == 0)
 		return (EFI_NOT_FOUND);
 
-	size = fsstat(ino);
-	if (size <= 0) {
-		printf("Failed to fsstat %s ino: %d\n", loader_path, ino);
+	if (fsread_size(ino, NULL, 0, &size) < 0 || size <= 0) {
+		printf("Failed to read size of '%s' ino: %d\n", loader_path,
+		    ino);
 		return (EFI_INVALID_PARAMETER);
 	}
 
@@ -190,7 +122,7 @@ try_load(dev_info_t *dev, const char *loader_path, void **bufp, size_t *bufsize)
 
 	read = fsread(ino, buf, size);
 	if ((size_t)read != size) {
-		printf("Failed to read %s (%zd != %zu)\n", loader_path, read,
+		printf("Failed to read '%s' (%zd != %zu)\n", loader_path, read,
 		    size);
 		(void)bs->FreePool(buf);
 		return (EFI_INVALID_PARAMETER);

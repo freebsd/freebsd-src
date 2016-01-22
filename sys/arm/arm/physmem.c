@@ -292,9 +292,13 @@ arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz)
 	 * than leave some folks with an unusable system while we investigate.
 	 */
 	if (pa == 0) {
+		if (sz <= PAGE_SIZE)
+			return;
 		pa  = PAGE_SIZE;
 		sz -= PAGE_SIZE;
 	} else if (pa + sz == 0) {
+		if (sz <= 1024 * 1024)
+			return;
 		sz -= 1024 * 1024;
 	}
 
@@ -306,7 +310,7 @@ arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz)
 	pa  = round_page(pa);
 	sz  = trunc_page(sz - adj);
 
-	if (hwcnt < nitems(hwregions))
+	if (sz > 0 && hwcnt < nitems(hwregions))
 		insert_region(hwregions, hwcnt++, pa, sz, 0);
 }
 

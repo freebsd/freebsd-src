@@ -1,9 +1,9 @@
-#	$OpenBSD: exit-status.sh,v 1.6 2002/03/15 13:08:56 markus Exp $
+#	$OpenBSD: exit-status.sh,v 1.7 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="remote exit status"
 
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
 	for s in 0 1 4 5 44; do
 		trace "proto $p status $s"
 		verbose "test $tid: proto $p status $s"

@@ -136,10 +136,6 @@ ofw_pci_init(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_initialized = 1;
 
-	if (OF_getencprop(node, "reg", (pcell_t *)&sc->sc_pcir,
-	    sizeof(sc->sc_pcir)) == -1)
-		return (ENXIO);
-
 	if (OF_getencprop(node, "bus-range", busrange, sizeof(busrange)) != 8)
 		busrange[0] = 0;
 

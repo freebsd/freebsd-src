@@ -405,9 +405,9 @@ netvsc_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "lro_queued",
+	SYSCTL_ADD_U64(ctx, child, OID_AUTO, "lro_queued",
 	    CTLFLAG_RW, &sc->hn_lro.lro_queued, 0, "LRO queued");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "lro_flushed",
+	SYSCTL_ADD_U64(ctx, child, OID_AUTO, "lro_flushed",
 	    CTLFLAG_RW, &sc->hn_lro.lro_flushed, 0, "LRO flushed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "lro_tried",
 	    CTLFLAG_RW, &sc->hn_lro_tried, "# of LRO tries");

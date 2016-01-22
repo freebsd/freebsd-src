@@ -3114,6 +3114,8 @@ fs/ext2fs/ext2_bmap.c		optional ext2fs
 fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
+fs/ext2fs/ext2_hash.c		optional ext2fs
+fs/ext2fs/ext2_htree.c		optional ext2fs
 fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs
@@ -3211,6 +3213,7 @@ kern/kern_rmlock.c		standard
 kern/kern_rwlock.c		standard
 kern/kern_sdt.c			optional kdtrace_hooks
 kern/kern_sema.c		standard
+kern/kern_sendfile.c		standard
 kern/kern_sharedpage.c		standard
 kern/kern_shutdown.c		standard
 kern/kern_sig.c			standard

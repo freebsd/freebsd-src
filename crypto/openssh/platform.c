@@ -1,4 +1,4 @@
-/* $Id: platform.c,v 1.21 2014/01/21 01:59:29 tim Exp $ */
+/* $Id: platform.c,v 1.22 2014/07/18 04:11:26 djm Exp $ */
 
 /*
  * Copyright (c) 2006 Darren Tucker.  All rights reserved.
@@ -25,6 +25,7 @@
 
 #include "log.h"
 #include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "key.h"
 #include "hostfile.h"

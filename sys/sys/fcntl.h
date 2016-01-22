@@ -142,6 +142,8 @@ typedef	__pid_t		pid_t;
 /* Only for devfs d_close() flags. */
 #define	FLASTCLOSE	O_DIRECTORY
 #define	FREVOKE		O_VERIFY
+/* Only for fo_close() from half-succeeded open */
+#define	FOPENFAILED	O_TTY_INIT
 
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)

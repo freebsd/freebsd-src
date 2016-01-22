@@ -299,10 +299,9 @@ int
 vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
     struct thread *td, struct file *fp)
 {
-	struct mount *mp;
 	accmode_t accmode;
 	struct flock lf;
-	int error, have_flock, lock_flags, type;
+	int error, lock_flags, type;
 
 	if (vp->v_type == VLNK)
 		return (EMLINK);
@@ -365,10 +364,12 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if ((fmode & FNONBLOCK) == 0)
 			type |= F_WAIT;
 		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type);
-		have_flock = (error == 0);
+		if (error == 0)
+			fp->f_flag |= FHASLOCK;
 		vn_lock(vp, lock_flags | LK_RETRY);
 		if (error == 0 && vp->v_iflag & VI_DOOMED)
 			error = ENOENT;
+
 		/*
 		 * Another thread might have used this vnode as an
 		 * executable while the vnode lock was dropped.
@@ -377,34 +378,24 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		 */
 		if (error == 0 && accmode & VWRITE)
 			error = vn_writechk(vp);
-		if (error) {
-			VOP_UNLOCK(vp, 0);
-			if (have_flock) {
-				lf.l_whence = SEEK_SET;
-				lf.l_start = 0;
-				lf.l_len = 0;
-				lf.l_type = F_UNLCK;
-				(void) VOP_ADVLOCK(vp, fp, F_UNLCK, &lf,
-				    F_FLOCK);
+
+		if (error != 0) {
+			fp->f_flag |= FOPENFAILED;
+			fp->f_vnode = vp;
+			if (fp->f_ops == &badfileops) {
+				fp->f_type = DTYPE_VNODE;
+				fp->f_ops = &vnops;
 			}
-			vn_start_write(vp, &mp, V_WAIT);
-			vn_lock(vp, lock_flags | LK_RETRY);
-			(void)VOP_CLOSE(vp, fmode, cred, td);
-			vn_finished_write(mp);
-			/* Prevent second close from fdrop()->vn_close(). */
-			if (fp != NULL)
-				fp->f_ops= &badfileops;
-			return (error);
+			vref(vp);
 		}
-		fp->f_flag |= FHASLOCK;
 	}
-	if (fmode & FWRITE) {
+	if (error == 0 && fmode & FWRITE) {
 		VOP_ADD_WRITECOUNT(vp, 1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
 	ASSERT_VOP_LOCKED(vp, "vn_open_vnode");
-	return (0);
+	return (error);
 }
 
 /*
@@ -449,7 +440,7 @@ vn_close(vp, flags, file_cred, td)
 
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, lock_flags | LK_RETRY);
-	if (flags & FWRITE) {
+	if ((flags & (FWRITE | FOPENFAILED)) == FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
 		VOP_ADD_WRITECOUNT(vp, -1);
@@ -752,12 +743,13 @@ get_advice(struct file *fp, struct uio *uio)
 	int ret;
 
 	ret = POSIX_FADV_NORMAL;
-	if (fp->f_advice == NULL)
+	if (fp->f_advice == NULL || fp->f_vnode->v_type != VREG)
 		return (ret);
 
 	mtxp = mtx_pool_find(mtxpool_sleep, fp);
 	mtx_lock(mtxp);
-	if (uio->uio_offset >= fp->f_advice->fa_start &&
+	if (fp->f_advice != NULL &&
+	    uio->uio_offset >= fp->f_advice->fa_start &&
 	    uio->uio_offset + uio->uio_resid <= fp->f_advice->fa_end)
 		ret = fp->f_advice->fa_advice;
 	mtx_unlock(mtxp);

@@ -458,6 +458,7 @@
 /* Bits for R92C_TDECTRL. */
 #define R92C_TDECTRL_BLK_DESC_NUM_M	0x000000f0
 #define R92C_TDECTRL_BLK_DESC_NUM_S	4
+#define R92C_TDECTRL_BCN_VALID		0x00010000
 
 /* Bits for R92C_FWHW_TXQ_CTRL. */
 #define R92C_FWHW_TXQ_CTRL_AMPDU_RTY_NEW	0x80
@@ -812,6 +813,7 @@
 #define R92C_RF_SYN_G(i)	(0x25 + (i))
 #define R92C_RF_RCK_OS		0x30
 #define R92C_RF_TXPA_G(i)	(0x31 + (i))
+#define R88E_RF_T_METER		0x42
 
 /* Bits for R92C_RF_AC. */
 #define R92C_RF_AC_MODE_M	0x70000
@@ -824,6 +826,16 @@
 #define R92C_RF_CHNLBW_BW20	0x00400
 #define R88E_RF_CHNLBW_BW20	0x00c00
 #define R92C_RF_CHNLBW_LCSTART	0x08000
+
+/* Bits for R92C_RF_T_METER. */
+#define R92C_RF_T_METER_START	0x60
+#define R92C_RF_T_METER_VAL_M	0x1f
+#define R92C_RF_T_METER_VAL_S	0
+
+/* Bits for R88E_RF_T_METER. */
+#define R88E_RF_T_METER_VAL_M	0x0fc00
+#define R88E_RF_T_METER_VAL_S	10
+#define R88E_RF_T_METER_START	0x30000
 
 
 /*
@@ -953,7 +965,7 @@ struct r92c_rom {
 	uint16_t	reserved3;
 	uint8_t		usb_phy;
 	uint8_t		reserved4[3];
-	uint8_t		macaddr[6];
+	uint8_t		macaddr[IEEE80211_ADDR_LEN];
 	uint8_t		string[61];	/* "Realtek" */
 	uint8_t		subcustomer_id;
 	uint8_t		cck_tx_pwr[R92C_MAX_CHAINS][3];
@@ -982,7 +994,37 @@ struct r92c_rom {
 	uint8_t		rf_opt4;
 	uint8_t		channel_plan;
 	uint8_t		version;
-	uint8_t		curstomer_id;
+	uint8_t		customer_id;
+} __packed;
+
+/*
+ * RTL8188EU ROM image.
+ */
+struct r88e_rom {
+	uint8_t		reserved1[16];
+	uint8_t		cck_tx_pwr[6];
+	uint8_t		ht40_tx_pwr[5];
+	uint8_t		tx_pwr_diff;
+	uint8_t		reserved2[156];
+	uint8_t		channel_plan;
+	uint8_t		crystalcap;
+	uint8_t		reserved3[7];
+	uint8_t		rf_board_opt;
+	uint8_t		rf_feature_opt;
+	uint8_t		rf_bt_opt;
+	uint8_t		version;
+	uint8_t		customer_id;
+	uint8_t		reserved4[3];
+	uint8_t		rf_ant_opt;
+	uint8_t		reserved5[6];
+	uint16_t	vid;
+	uint16_t	pid;
+	uint8_t		usb_opt;
+	uint8_t		reserved6[2];
+	uint8_t		macaddr[IEEE80211_ADDR_LEN];
+	uint8_t		reserved7[2];
+	uint8_t		string[33];	/* "realtek 802.11n NIC" */
+	uint8_t		reserved8[256];
 } __packed;
 
 #define	URTWN_EFUSE_MAX_LEN		512

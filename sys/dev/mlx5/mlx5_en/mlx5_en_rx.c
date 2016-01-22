@@ -100,20 +100,23 @@ mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 	/* TODO: consider vlans, ip options, ... */
 	struct ether_header *eh;
 	uint16_t eh_type;
+	uint16_t tot_len;
 	struct ip6_hdr *ip6 = NULL;
 	struct ip *ip4 = NULL;
 	struct tcphdr *th;
 	uint32_t *ts_ptr;
+	uint8_t l4_hdr_type;
+	int tcp_ack;
 
 	eh = mtod(mb, struct ether_header *);
 	eh_type = ntohs(eh->ether_type);
 
-	u8 l4_hdr_type = get_cqe_l4_hdr_type(cqe);
-	int tcp_ack = ((CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA == l4_hdr_type) ||
+	l4_hdr_type = get_cqe_l4_hdr_type(cqe);
+	tcp_ack = ((CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA == l4_hdr_type) ||
 	    (CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA == l4_hdr_type));
 
 	/* TODO: consider vlan */
-	u16 tot_len = be32_to_cpu(cqe->byte_cnt) - ETHER_HDR_LEN;
+	tot_len = be32_to_cpu(cqe->byte_cnt) - ETHER_HDR_LEN;
 
 	switch (eh_type) {
 	case ETHERTYPE_IP:
@@ -267,6 +270,11 @@ mlx5e_decompress_cqe(struct mlx5e_cq *cq, struct mlx5_cqe64 *title,
     struct mlx5_mini_cqe8 *mini,
     u16 wqe_counter, int i)
 {
+	/*
+	 * NOTE: The fields which are not set here are copied from the
+	 * initial and common title. See memcpy() in
+	 * mlx5e_write_cqe_slot().
+	 */
 	title->byte_cnt = mini->byte_cnt;
 	title->wqe_counter = cpu_to_be16((wqe_counter + i) & cq->wq.sz_m1);
 	title->check_sum = mini->checksum;

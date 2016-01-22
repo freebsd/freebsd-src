@@ -54,6 +54,7 @@ typedef int tsw_mmap_t(struct tty *tp, vm_ooffset_t offset,
     vm_paddr_t * paddr, int nprot, vm_memattr_t *memattr);
 typedef void tsw_pktnotify_t(struct tty *tp, char event);
 typedef void tsw_free_t(void *softc);
+typedef bool tsw_busy_t(struct tty *tp);
 
 struct ttydevsw {
 	unsigned int	tsw_flags;	/* Default TTY flags. */
@@ -74,7 +75,9 @@ struct ttydevsw {
 
 	tsw_free_t	*tsw_free;	/* Destructor. */
 
-	void		*tsw_spare[4];	/* For future use. */
+	tsw_busy_t	*tsw_busy;	/* Draining output. */
+
+	void		*tsw_spare[3];	/* For future use. */
 };
 
 static __inline int
@@ -179,6 +182,16 @@ ttydevsw_free(struct tty *tp)
 	MPASS(tty_gone(tp));
 
 	tp->t_devsw->tsw_free(tty_softc(tp));
+}
+
+static __inline bool
+ttydevsw_busy(struct tty *tp)
+{
+
+	tty_lock_assert(tp, MA_OWNED);
+	MPASS(!tty_gone(tp));
+
+	return (tp->t_devsw->tsw_busy(tp));
 }
 
 #endif /* !_SYS_TTYDEVSW_H_ */
