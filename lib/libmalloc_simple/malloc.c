@@ -277,8 +277,8 @@ free(void *cp)
 void *
 realloc(void *cp, size_t nbytes)
 {
-	u_int onb;
-	size_t i;
+	size_t cur_space;	/* Space in the current bucket */
+	size_t smaller_space;	/* Space in the next smaller bucket */
 	union overhead *op;
 	char *res;
 
@@ -287,21 +287,25 @@ realloc(void *cp, size_t nbytes)
 	op = find_overhead(cp);
 	if (op == NULL)
 		return (NULL);
-	i = op->ov_index;
-	onb = 1 << (i + 3);
-	onb -= sizeof (*op);
+	cur_space = (1 << (op->ov_index + 3)) - sizeof(*op);
 
 	/* avoid the copy if same size block */
-	if (i > 0) {
-		i = 1 << (i + 2);
-		if (i < pagesz)
-			i -= sizeof (*op);
-		else
-			i += pagesz - sizeof (*op);
-	}
-	if (nbytes <= onb && nbytes > (size_t)i) {
-		return(cheri_csetbounds(cp, nbytes));
-	}
+	/*
+	 * XXX-BD: Arguably we should be tracking the actual allocation
+	 * not just the bucket size so that we can do a full malloc+memcpy
+	 * when the caller has restricted the length of the pointer passed
+	 * realloc() but is growing the buffer within the current bucket.
+	 *
+	 * As it is, this code contains a leak where realloc recovers access
+	 * to the contents in foo:
+	 * char *foo = malloc(10);
+	 * strcpy(foo, "abcdefghi");
+	 * cheri_csetbouds(foo, 5);
+	 * foo = realloc(foo, 10);
+	 */
+	smaller_space = (1 << (op->ov_index + 2)) - sizeof(*op);
+	if (nbytes <= cur_space && nbytes > smaller_space)
+		return(cheri_csetbounds(op + 1, nbytes));
 
 	if ((res = malloc(nbytes)) == NULL)
 		return (NULL);
@@ -310,7 +314,7 @@ realloc(void *cp, size_t nbytes)
 	 * than the size of the original allocation.  This risks surprise
 	 * for some programmers, but to do otherwise risks information leaks.
 	 */
-	memcpy(res, cp, (nbytes < cheri_getlen(cp)) ? nbytes : cheri_getlen(cp));
+	memcpy(res, cp, (nbytes <= cheri_getlen(cp)) ? nbytes : cheri_getlen(cp));
 	free(cp);
 	return (res);
 }
