@@ -217,7 +217,7 @@ rip_init(void)
 
 #ifdef VIMAGE
 static void
-rip_destroy(void)
+rip_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_ripcbinfo);
