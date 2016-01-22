@@ -200,7 +200,7 @@ SRCF+=	stdatomic
 # -Wcapabilities warning while trying to decode a string to a pointer.
 # Easy to suppress, but the result is unlikely to work so leave the symbol
 # unimplemented for now.
-SRCF:=	${SRFC:Ngcc_personality_v0}
+SRCF:=	${SRCF:Ngcc_personality_v0}
 .endif
 
 .for file in ${SRCF}
