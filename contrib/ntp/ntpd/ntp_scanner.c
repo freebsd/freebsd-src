@@ -669,7 +669,7 @@ int
 yylex(void)
 {
 	static follby	followedby = FOLLBY_TOKEN;
-	int		i;
+	size_t		i;
 	int		instring;
 	int		yylval_was_set;
 	int		converted;

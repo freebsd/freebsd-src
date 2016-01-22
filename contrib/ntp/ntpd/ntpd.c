@@ -209,6 +209,11 @@ extern int syscall	(int, ...);
 
 
 #if !defined(SIM) && defined(SIGDIE1)
+static volatile int signalled	= 0;
+static volatile int signo	= 0;
+
+/* In an ideal world, 'finish_safe()' would declared as noreturn... */
+static	void		finish_safe	(int);
 static	RETSIGTYPE	finish		(int);
 #endif
 
@@ -298,11 +303,28 @@ my_pthread_warmup_worker(
 static void
 my_pthread_warmup(void)
 {
-	pthread_t thread;
-	int       rc;
+	pthread_t 	thread;
+	pthread_attr_t	thr_attr;
+	int       	rc;
+	
+	pthread_attr_init(&thr_attr);
+#if defined(HAVE_PTHREAD_ATTR_GETSTACKSIZE) && \
+    defined(HAVE_PTHREAD_ATTR_SETSTACKSIZE) && \
+    defined(PTHREAD_STACK_MIN)
+	rc = pthread_attr_setstacksize(&thr_attr, PTHREAD_STACK_MIN);
+	if (0 != rc)
+		msyslog(LOG_ERR,
+			"my_pthread_warmup: pthread_attr_setstacksize() -> %s",
+			strerror(rc));
+#endif
 	rc = pthread_create(
-		&thread, NULL, my_pthread_warmup_worker, NULL);
-	if (0 == rc) {
+		&thread, &thr_attr, my_pthread_warmup_worker, NULL);
+	pthread_attr_destroy(&thr_attr);
+	if (0 != rc) {
+		msyslog(LOG_ERR,
+			"my_pthread_warmup: pthread_create() -> %s",
+			strerror(rc));
+	} else {
 		pthread_cancel(thread);
 		pthread_join(thread, NULL);
 	}
@@ -1204,6 +1226,10 @@ int scmp_sc[] = {
 # ifdef HAVE_IO_COMPLETION_PORT
 
 	for (;;) {
+#if !defined(SIM) && defined(SIGDIE1)
+		if (signalled)
+			finish_safe(signo);
+#endif
 		GetReceivedBuffers();
 # else /* normal I/O */
 
@@ -1211,11 +1237,19 @@ int scmp_sc[] = {
 	was_alarmed = FALSE;
 
 	for (;;) {
+#if !defined(SIM) && defined(SIGDIE1)
+		if (signalled)
+			finish_safe(signo);
+#endif		
 		if (alarm_flag) {	/* alarmed? */
 			was_alarmed = TRUE;
 			alarm_flag = FALSE;
 		}
 
+		/* collect async name/addr results */
+		if (!was_alarmed)
+		    harvest_blocking_responses();
+		
 		if (!was_alarmed && !has_full_recv_buffer()) {
 			/*
 			 * Nothing to do.  Wait for something.
@@ -1330,9 +1364,9 @@ int scmp_sc[] = {
 /*
  * finish - exit gracefully
  */
-static RETSIGTYPE
-finish(
-	int sig
+static void
+finish_safe(
+	int	sig
 	)
 {
 	const char *sig_desc;
@@ -1353,6 +1387,16 @@ finish(
 	peer_cleanup();
 	exit(0);
 }
+
+static RETSIGTYPE
+finish(
+	int	sig
+	)
+{
+	signalled = 1;
+	signo = sig;
+}
+
 #endif	/* !SIM && SIGDIE1 */
 
 

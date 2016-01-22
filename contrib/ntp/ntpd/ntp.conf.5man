@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "07 Jan 2016" "4.2.8p5" "File Formats"
+.TH ntp.conf 5man "20 Jan 2016" "4.2.8p6" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-8qayqp/ag-Vraqpp)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-gsaOxR/ag-XsaGwR)
 .\"
-.\" It has been AutoGen-ed January 7, 2016 at 11:30:35 PM by AutoGen 5.18.5
+.\" It has been AutoGen-ed January 20, 2016 at 04:17:45 AM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -2573,9 +2573,9 @@ otherwise, should be avoided.
 This option specifies the Differentiated Services Control Point (DSCP) value,
 a 6-bit code.  The default value is 46, signifying Expedited Forwarding.
 .TP 7
-.NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[]]
+.NOP \f\*[B-Font]enable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
 .TP 7
-.NOP \f\*[B-Font]disable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[]]
+.NOP \f\*[B-Font]disable\f[] [\f\*[B-Font]auth\f[] | \f\*[B-Font]bclient\f[] | \f\*[B-Font]calibrate\f[] | \f\*[B-Font]kernel\f[] | \f\*[B-Font]mode7\f[] | \f\*[B-Font]monitor\f[] | \f\*[B-Font]ntp\f[] | \f\*[B-Font]stats\f[] | \f\*[B-Font]unpeer_crypto_early\f[] | \f\*[B-Font]unpeer_crypto_nak_early\f[] | \f\*[B-Font]unpeer_digest_early\f[]]
 Provides a way to enable or disable various server options.
 Flags not mentioned are unaffected.
 Note that all of these flags
@@ -2655,6 +2655,70 @@ See the
 section for further information.
 The default for this flag is
 \f\*[B-Font]disable\f[].
+.TP 7
+.NOP \f\*[B-Font]unpeer_crypto_early\f[]
+By default, if
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+receives an autokey packet that fails TEST9,
+a crypto failure,
+the association is immediately cleared.
+This is almost certainly a feature,
+but if, in spite of the current recommendation of not using autokey,
+you are
+.B still
+using autokey
+.B and
+you are seeing this sort of DoS attack
+disabling this flag will delay
+tearing down the association until the reachability counter
+becomes zero.
+You can check your
+\f\*[B-Font]peerstats\f[]
+file for evidence of any of these attacks.
+The
+default for this flag is
+\f\*[B-Font]enable\f[].
+.TP 7
+.NOP \f\*[B-Font]unpeer_crypto_nak_early\f[]
+By default, if
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+receives a crypto-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto-NAK packet
+can be used in a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+\f\*[B-Font]peerstats\f[]
+file for evidence of any of these attacks.
+The
+default for this flag is
+\f\*[B-Font]enable\f[].
+.TP 7
+.NOP \f\*[B-Font]unpeer_digest_early\f[]
+By default, if
+\fCntpd\f[]\fR(1ntpdmdoc)\f[]
+receives what should be an authenticated packet
+that passes other packet sanity checks but
+contains an invalid digest
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery,
+if this type of packet is carefully forged and sent
+during an appropriate window it can be used for a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+\f\*[B-Font]peerstats\f[]
+file for evidence of any of these attacks.
+The
+default for this flag is
+\f\*[B-Font]enable\f[].
 .RE
 .TP 7
 .NOP \f\*[B-Font]includefile\f[] \f\*[I-Font]includefile\f[]
@@ -3027,7 +3091,7 @@ RFC5905
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH BUGS
 The syntax checking is not picky; some combinations of
