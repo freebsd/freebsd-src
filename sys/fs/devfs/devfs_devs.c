@@ -304,6 +304,13 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 void
 devfs_dirent_free(struct devfs_dirent *de)
 {
+	struct vnode *vp;
+
+	vp = de->de_vnode;
+	mtx_lock(&devfs_de_interlock);
+	if (vp != NULL && vp->v_data == de)
+		vp->v_data = NULL;
+	mtx_unlock(&devfs_de_interlock);
 	free(de, M_DEVFS3);
 }
 
