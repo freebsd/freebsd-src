@@ -2,7 +2,7 @@
 
 LIB=    readline
 INTERNALLIB=	yes
-NO_MAN=	yes
+MAN=
 
 TILDESRC= tilde.c
 SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
