@@ -20,9 +20,9 @@ configtest_cmd="sshd_configtest"
 pidfile="/var/run/${name}.pid"
 extra_commands="configtest keygen reload"
 
-: ${sshd_rsa1_enable:="yes"}
+: ${sshd_rsa1_enable:="no"}
 : ${sshd_rsa_enable:="yes"}
-: ${sshd_dsa_enable:="yes"}
+: ${sshd_dsa_enable:="no"}
 : ${sshd_ecdsa_enable:="yes"}
 : ${sshd_ed25519_enable:="yes"}
 
