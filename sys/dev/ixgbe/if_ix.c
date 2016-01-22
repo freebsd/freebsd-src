@@ -1948,10 +1948,16 @@ ixgbe_media_change(struct ifnet * ifp)
 
 	hw->mac.autotry_restart = TRUE;
 	hw->mac.ops.setup_link(hw, speed, TRUE);
-	adapter->advertise =
-		((speed & IXGBE_LINK_SPEED_10GB_FULL) << 2) |
-		((speed & IXGBE_LINK_SPEED_1GB_FULL) << 1) |
-		((speed & IXGBE_LINK_SPEED_100_FULL) << 0);
+	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO) {
+		adapter->advertise = 0;
+	} else {
+		if ((speed & IXGBE_LINK_SPEED_10GB_FULL) != 0)
+			adapter->advertise |= 1 << 2;
+		if ((speed & IXGBE_LINK_SPEED_1GB_FULL) != 0)
+			adapter->advertise |= 1 << 1;
+		if ((speed & IXGBE_LINK_SPEED_100_FULL) != 0)
+			adapter->advertise |= 1 << 0;
+	}
 
 	return (0);
 
