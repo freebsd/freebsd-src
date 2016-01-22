@@ -811,7 +811,9 @@ div_modevent(module_t mod, int type, void *unused)
 		ip_divert_ptr = NULL;
 		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
 		INP_INFO_WUNLOCK(&V_divcbinfo);
-		div_destroy();
+#ifndef VIMAGE
+		div_destroy(NULL);
+#endif
 		EVENTHANDLER_DEREGISTER(maxsockets_change, ip_divert_event_tag);
 		break;
 	default:
