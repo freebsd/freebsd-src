@@ -361,8 +361,8 @@ ip_init(void)
 }
 
 #ifdef VIMAGE
-void
-ip_destroy(void)
+static void
+ip_destroy(void *unused __unused)
 {
 	int error;
 
@@ -388,6 +388,8 @@ ip_destroy(void)
 	/* Destroy IP reassembly queue. */
 	ipreass_destroy();
 }
+
+VNET_SYSUNINIT(ip, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip_destroy, NULL);
 #endif
 
 #ifdef	RSS

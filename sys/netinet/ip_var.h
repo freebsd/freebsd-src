@@ -209,9 +209,6 @@ int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	    u_long if_hwassist_flags);
 void	ip_forward(struct mbuf *m, int srcrt);
 void	ip_init(void);
-#ifdef VIMAGE
-void	ip_destroy(void);
-#endif
 extern int
 	(*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 	    struct ip_moptions *);
