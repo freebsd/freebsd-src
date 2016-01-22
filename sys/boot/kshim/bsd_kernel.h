@@ -579,4 +579,7 @@ extern int (*ofw_bus_is_compatible_cb)(device_t dev, char *name);
 #define	strlcpy(d,s,n) snprintf((d),(n),"%s",(s))
 #endif
 
+/* Should be defined in user application since it is machine-dependent */
+extern int delay(unsigned int);
+
 #endif					/* _BSD_KERNEL_H_ */
