@@ -163,7 +163,7 @@ div_init(void)
 }
 
 static void
-div_destroy(void)
+div_destroy(void *unused __unused)
 {
 
 	in_pcbinfo_destroy(&V_divcbinfo);
