@@ -81,8 +81,7 @@ LIB2ADDEH = gcc_personality_v0.c \
 	UnwindLevel1-gcc-ext.c \
 	UnwindLevel1.c \
 	UnwindRegistersRestore.S \
-	UnwindRegistersSave.S \
-	libunwind.cpp
+	UnwindRegistersSave.S
 
 CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR}
 .if empty(CXXFLAGS:M-std=*)
