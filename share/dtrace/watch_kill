@@ -40,11 +40,10 @@ syscall::execve:entry /* probe ID 1 */
 
 /*********************************************************/
 
-fbt::kill:entry /* probe ID 2 */
+syscall::kill:entry /* probe ID 2 */
 {
-	this->kill_args = (struct kill_args *)arg1;
-	this->pid_to_kill = this->kill_args->pid;
-	this->kill_signal = this->kill_args->signum;
+	this->pid_to_kill = (pid_t)arg0;
+	this->kill_signal = (int)arg1;
 
 	/*
 	 * Examine process, parent process, and grandparent process details
