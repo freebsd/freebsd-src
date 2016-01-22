@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.82 2013/12/30 23:52:27 djm Exp $ */
+/* $OpenBSD: compat.c,v 1.97 2015/08/19 23:21:42 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -24,7 +24,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -58,7 +57,7 @@ enable_compat13(void)
 	compat13 = 1;
 }
 /* datafellows bug compatibility */
-void
+u_int
 compat_datafellows(const char *version)
 {
 	int i;
@@ -153,6 +152,8 @@ compat_datafellows(const char *version)
 		  "1.2.22*",		SSH_BUG_IGNOREMSG },
 		{ "1.3.2*",		/* F-Secure */
 					SSH_BUG_IGNOREMSG },
+		{ "Cisco-1.*",		SSH_BUG_DHGEX_LARGE|
+					SSH_BUG_HOSTKEYS },
 		{ "*SSH Compatible Server*",			/* Netscreen */
 					SSH_BUG_PASSWORDPAD },
 		{ "*OSU_0*,"
@@ -166,32 +167,54 @@ compat_datafellows(const char *version)
 		  "OSU_1.5alpha3*",	SSH_BUG_PASSWORDPAD },
 		{ "*SSH_Version_Mapper*",
 					SSH_BUG_SCANNER },
+		{ "PuTTY_Local:*,"	/* dev versions < Sep 2014 */
+		  "PuTTY-Release-0.5*," /* 0.50-0.57, DH-GEX in >=0.52 */
+		  "PuTTY_Release_0.5*,"	/* 0.58-0.59 */
+		  "PuTTY_Release_0.60*,"
+		  "PuTTY_Release_0.61*,"
+		  "PuTTY_Release_0.62*,"
+		  "PuTTY_Release_0.63*,"
+		  "PuTTY_Release_0.64*",
+					SSH_OLD_DHGEX },
+		{ "FuTTY*",		SSH_OLD_DHGEX }, /* Putty Fork */
 		{ "Probe-*",
 					SSH_BUG_PROBE },
+		{ "TeraTerm SSH*,"
+		  "TTSSH/1.5.*,"
+		  "TTSSH/2.1*,"
+		  "TTSSH/2.2*,"
+		  "TTSSH/2.3*,"
+		  "TTSSH/2.4*,"
+		  "TTSSH/2.5*,"
+		  "TTSSH/2.6*,"
+		  "TTSSH/2.70*,"
+		  "TTSSH/2.71*,"
+		  "TTSSH/2.72*",	SSH_BUG_HOSTKEYS },
+		{ "WinSCP_release_4*,"
+		  "WinSCP_release_5.0*,"
+		  "WinSCP_release_5.1*,"
+		  "WinSCP_release_5.5*,"
+		  "WinSCP_release_5.6*,"
+		  "WinSCP_release_5.7,"
+		  "WinSCP_release_5.7.1,"
+		  "WinSCP_release_5.7.2,"
+		  "WinSCP_release_5.7.3,"
+		  "WinSCP_release_5.7.4",
+					SSH_OLD_DHGEX },
 		{ NULL,			0 }
 	};
 
 	/* process table, return first match */
 	for (i = 0; check[i].pat; i++) {
-		if (match_pattern_list(version, check[i].pat,
-		    strlen(check[i].pat), 0) == 1) {
-			datafellows = check[i].bugs;
+		if (match_pattern_list(version, check[i].pat, 0) == 1) {
 			debug("match: %s pat %s compat 0x%08x",
-			    version, check[i].pat, datafellows);
-			/*
-			 * Check to see if the remote side is OpenSSH and not
-			 * HPN.  It is utterly strange to check it from the
-			 * version string and expose the option that way.
-			 */
-			if (strstr(version,"OpenSSH") != NULL &&
-			    strstr(version,"hpn") == NULL) {
-				datafellows |= SSH_BUG_LARGEWINDOW;
-				debug("Remote is not HPN-aware");
-			}
-			return;
+			    version, check[i].pat, check[i].bugs);
+			datafellows = check[i].bugs;	/* XXX for now */
+			return check[i].bugs;
 		}
 	}
 	debug("no match: %s", version);
+	return 0;
 }
 
 #define	SEP	","
@@ -203,13 +226,17 @@ proto_spec(const char *spec)
 
 	if (spec == NULL)
 		return ret;
-	q = s = xstrdup(spec);
+	q = s = strdup(spec);
+	if (s == NULL)
+		return ret;
 	for ((p = strsep(&q, SEP)); p && *p != '\0'; (p = strsep(&q, SEP))) {
 		switch (atoi(p)) {
 		case 1:
+#ifdef WITH_SSH1
 			if (ret == SSH_PROTO_UNKNOWN)
 				ret |= SSH_PROTO_1_PREFERRED;
 			ret |= SSH_PROTO_1;
+#endif
 			break;
 		case 2:
 			ret |= SSH_PROTO_2;
@@ -237,7 +264,7 @@ filter_proposal(char *proposal, const char *filter)
 	buffer_init(&b);
 	tmp = orig_prop = xstrdup(proposal);
 	while ((cp = strsep(&tmp, ",")) != NULL) {
-		if (match_pattern_list(cp, filter, strlen(cp), 0) != 1) {
+		if (match_pattern_list(cp, filter, 0) != 1) {
 			if (buffer_len(&b) > 0)
 				buffer_append(&b, ",", 1);
 			buffer_append(&b, cp, strlen(cp));
@@ -245,7 +272,7 @@ filter_proposal(char *proposal, const char *filter)
 			debug2("Compat: skipping algorithm \"%s\"", cp);
 	}
 	buffer_append(&b, "\0", 1);
-	fix_prop = xstrdup(buffer_ptr(&b));
+	fix_prop = xstrdup((char *)buffer_ptr(&b));
 	buffer_free(&b);
 	free(orig_prop);
 
@@ -279,15 +306,20 @@ compat_pkalg_proposal(char *pkalg_prop)
 }
 
 char *
-compat_kex_proposal(char *kex_prop)
+compat_kex_proposal(char *p)
 {
-	if (!(datafellows & SSH_BUG_CURVE25519PAD))
-		return kex_prop;
-	debug2("%s: original KEX proposal: %s", __func__, kex_prop);
-	kex_prop = filter_proposal(kex_prop, "curve25519-sha256@libssh.org");
-	debug2("%s: compat KEX proposal: %s", __func__, kex_prop);
-	if (*kex_prop == '\0')
+	if ((datafellows & (SSH_BUG_CURVE25519PAD|SSH_OLD_DHGEX)) == 0)
+		return p;
+	debug2("%s: original KEX proposal: %s", __func__, p);
+	if ((datafellows & SSH_BUG_CURVE25519PAD) != 0)
+		p = filter_proposal(p, "curve25519-sha256@libssh.org");
+	if ((datafellows & SSH_OLD_DHGEX) != 0) {
+		p = filter_proposal(p, "diffie-hellman-group-exchange-sha256");
+		p = filter_proposal(p, "diffie-hellman-group-exchange-sha1");
+	}
+	debug2("%s: compat KEX proposal: %s", __func__, p);
+	if (*p == '\0')
 		fatal("No supported key exchange algorithms found");
-	return kex_prop;
+	return p;
 }
 

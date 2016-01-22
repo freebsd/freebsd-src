@@ -6,7 +6,6 @@ DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
 	include/arpa \
-	include/rpc \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
@@ -20,8 +19,6 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ioctl.o: ioctl.c
-ioctl.po: ioctl.c
 kdump.o: kdump_subr.h
 kdump.o: linux32_syscalls.c
 kdump.o: linux_syscalls.c

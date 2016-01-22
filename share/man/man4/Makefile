@@ -94,6 +94,7 @@ MAN=	aac.4 \
 	${_ccd.4} \
 	cd.4 \
 	cdce.4 \
+	cfi.4 \
 	ch.4 \
 	ciss.4 \
 	cloudabi.4 \
@@ -424,6 +425,8 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
+	rtwn.4 \
+	rtwnfw.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
@@ -590,6 +593,7 @@ MLINKS+=bwn.4 if_bwn.4
 MLINKS+=${_bxe.4} ${_if_bxe.4}
 MLINKS+=cas.4 if_cas.4
 MLINKS+=cdce.4 if_cdce.4
+MLINKS+=cfi.4 cfid.4
 MLINKS+=cloudabi.4 cloudabi64.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4

@@ -83,6 +83,7 @@ pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
 }
 
 #ifndef _KERNEL
+#ifndef _STAND
 /*
  * Return the number of microseconds needed for 'interations' iterations.
  */
@@ -120,4 +121,5 @@ pkcs5v2_calculate(int usecs)
 	}
 	return (((intmax_t)iterations * (intmax_t)usecs) / v);
 }
+#endif	/* !_STAND */
 #endif	/* !_KERNEL */

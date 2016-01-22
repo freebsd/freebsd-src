@@ -46,13 +46,13 @@ struct kobj_type {
 	struct attribute **default_attrs;
 };
 
-extern struct kobj_type kfree_type;
+extern const struct kobj_type linux_kfree_type;
 
 struct kobject {
 	struct kobject		*parent;
 	char			*name;
 	struct kref		kref;
-	struct kobj_type	*ktype;
+	const struct kobj_type	*ktype;
 	struct list_head	entry;
 	struct sysctl_oid	*oidp;
 };
@@ -74,7 +74,7 @@ struct kobj_attribute {
 };
 
 static inline void
-kobject_init(struct kobject *kobj, struct kobj_type *ktype)
+kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 {
 
 	kref_init(&kobj->kref);
@@ -83,15 +83,14 @@ kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 	kobj->oidp = NULL;
 }
 
-static inline void kobject_put(struct kobject *kobj);
-void kobject_release(struct kref *kref);
+void linux_kobject_release(struct kref *kref);
 
 static inline void
 kobject_put(struct kobject *kobj)
 {
 
 	if (kobj)
-		kref_put(&kobj->kref, kobject_release);
+		kref_put(&kobj->kref, linux_kobject_release);
 }
 
 static inline struct kobject *
@@ -115,7 +114,7 @@ kobject_create(void)
 	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
 	if (kobj == NULL)
 		return (NULL);
-	kobject_init(kobj, &kfree_type);
+	kobject_init(kobj, &linux_kfree_type);
 
 	return (kobj);
 }
@@ -135,7 +134,6 @@ kobject_create_and_add(const char *name, struct kobject *parent)
 	return (NULL);
 }
 
-
 static inline char *
 kobject_name(const struct kobject *kobj)
 {
@@ -144,7 +142,7 @@ kobject_name(const struct kobject *kobj)
 }
 
 int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
-int	kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
+int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	    struct kobject *parent, const char *fmt, ...);
 
 #endif /* _LINUX_KOBJECT_H_ */

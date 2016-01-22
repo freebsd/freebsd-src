@@ -2947,12 +2947,7 @@ ixgbe_config_link(struct adapter *adapter)
 	sfp = ixgbe_is_sfp(hw);
 
 	if (sfp) { 
-		if (hw->phy.multispeed_fiber) {
-			hw->mac.ops.setup_sfp(hw);
-			ixgbe_enable_tx_laser(hw);
-			taskqueue_enqueue(adapter->tq, &adapter->msf_task);
-		} else
-			taskqueue_enqueue(adapter->tq, &adapter->mod_task);
+		taskqueue_enqueue(adapter->tq, &adapter->mod_task);
 	} else {
 		if (hw->mac.ops.check_link)
 			err = ixgbe_check_link(hw, &adapter->link_speed,
@@ -3758,23 +3753,66 @@ ixgbe_handle_mod(void *context, int pending)
 {
 	struct adapter  *adapter = context;
 	struct ixgbe_hw *hw = &adapter->hw;
+	enum ixgbe_phy_type orig_type = hw->phy.type;
 	device_t	dev = adapter->dev;
 	u32 err;
+
+	IXGBE_CORE_LOCK(adapter);
+
+	/* Check to see if the PHY type changed */
+	if (hw->phy.ops.identify) {
+		hw->phy.type = ixgbe_phy_unknown;
+		hw->phy.ops.identify(hw);
+	}
+
+	if (hw->phy.type != orig_type) {
+		device_printf(dev, "Detected phy_type %d\n", hw->phy.type);
+
+		if (hw->phy.type == ixgbe_phy_none) {
+			hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+			goto out;
+		}
+
+		/* Try to do the initialization that was skipped before */
+		if (hw->phy.ops.init)
+			hw->phy.ops.init(hw);
+		if (hw->phy.ops.reset)
+			hw->phy.ops.reset(hw);
+	}
 
 	err = hw->phy.ops.identify_sfp(hw);
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 		device_printf(dev,
 		    "Unsupported SFP+ module type was detected.\n");
-		return;
+		goto out;
 	}
 
 	err = hw->mac.ops.setup_sfp(hw);
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 		device_printf(dev,
 		    "Setup failure - unsupported SFP+ module type.\n");
-		return;
+		goto out;
 	}
-	taskqueue_enqueue(adapter->tq, &adapter->msf_task);
+	if (hw->phy.multispeed_fiber)
+		taskqueue_enqueue(adapter->tq, &adapter->msf_task);
+out:
+	/* Update media type */
+	switch (hw->mac.ops.get_media_type(hw)) {
+		case ixgbe_media_type_fiber:
+			adapter->optics = IFM_10G_SR;
+			break;
+		case ixgbe_media_type_copper:
+			adapter->optics = IFM_10G_TWINAX;
+			break;
+		case ixgbe_media_type_cx4:
+			adapter->optics = IFM_10G_CX4;
+			break;
+		default:
+			adapter->optics = 0;
+			break;
+	}
+
+	IXGBE_CORE_UNLOCK(adapter);
 	return;
 }
 
@@ -3790,6 +3828,7 @@ ixgbe_handle_msf(void *context, int pending)
 	u32 autoneg;
 	bool negotiate;
 
+	IXGBE_CORE_LOCK(adapter);
 	/* get_supported_phy_layer will call hw->phy.ops.identify_sfp() */
 	adapter->phy_layer = ixgbe_get_supported_physical_layer(hw);
 
@@ -3802,6 +3841,7 @@ ixgbe_handle_msf(void *context, int pending)
 	/* Adjust media types shown in ifconfig */
 	ifmedia_removeall(&adapter->media);
 	ixgbe_add_media_types(adapter);
+	IXGBE_CORE_UNLOCK(adapter);
 	return;
 }
 
@@ -4436,10 +4476,10 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_copies",
 				CTLFLAG_RD, &rxr->rx_copies,
 				"Copied RX Frames");
-		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_queued",
+		SYSCTL_ADD_U64(ctx, queue_list, OID_AUTO, "lro_queued",
 				CTLFLAG_RD, &lro->lro_queued, 0,
 				"LRO Queued");
-		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_flushed",
+		SYSCTL_ADD_U64(ctx, queue_list, OID_AUTO, "lro_flushed",
 				CTLFLAG_RD, &lro->lro_flushed, 0,
 				"LRO Flushed");
 	}

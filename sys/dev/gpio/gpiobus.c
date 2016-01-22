@@ -184,7 +184,7 @@ gpiobus_init_softc(device_t dev)
 	if (GPIO_PIN_MAX(sc->sc_dev, &sc->sc_npins) != 0)
 		return (ENXIO);
 
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
+	KASSERT(sc->sc_npins >= 0, ("GPIO device with no pins"));
 
 	/* Pins = GPIO_PIN_MAX() + 1 */
 	sc->sc_npins++;

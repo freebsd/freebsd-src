@@ -173,7 +173,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct malo_hal *mh;
 	int error;
-	uint8_t bands;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 
 	MALO_LOCK_INIT(sc);
 	callout_init_mtx(&sc->malo_watchdog_timer, &sc->malo_mtx, 0);
@@ -222,10 +222,10 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	    sc->malo_hwspecs.wcbbase[2], sc->malo_hwspecs.wcbbase[3]);
 
 	/* NB: firmware looks that it does not export regdomain info API.  */
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	sc->malo_txantenna = 0x2;	/* h/w default */
 	sc->malo_rxantenna = 0xffff;	/* h/w default */

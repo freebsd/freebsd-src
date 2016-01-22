@@ -985,6 +985,7 @@ struct sysentvec linux_sysvec = {
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
+	.sv_trap	= NULL,
 };
 INIT_SYSENTVEC(aout_sysvec, &linux_sysvec);
 
@@ -1021,6 +1022,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
+	.sv_trap	= NULL,
 };
 
 static void

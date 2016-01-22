@@ -47,6 +47,8 @@ struct nvd_disk;
 static disk_ioctl_t nvd_ioctl;
 static disk_strategy_t nvd_strategy;
 
+static void nvd_done(void *arg, const struct nvme_completion *cpl);
+
 static void *nvd_new_disk(struct nvme_namespace *ns, void *ctrlr);
 static void destroy_geom_disk(struct nvd_disk *ndisk);
 
@@ -71,6 +73,7 @@ struct nvd_disk {
 	struct nvme_namespace	*ns;
 
 	uint32_t		cur_depth;
+	uint32_t		ordered_in_flight;
 
 	TAILQ_ENTRY(nvd_disk)	global_tailq;
 	TAILQ_ENTRY(nvd_disk)	ctrlr_tailq;
@@ -148,6 +151,28 @@ nvd_unload()
 	nvme_unregister_consumer(consumer_handle);
 }
 
+static int
+nvd_bio_submit(struct nvd_disk *ndisk, struct bio *bp)
+{
+	int err;
+
+	bp->bio_driver1 = NULL;
+	atomic_add_int(&ndisk->cur_depth, 1);
+	err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
+	if (err) {
+		atomic_add_int(&ndisk->cur_depth, -1);
+		if (__predict_false(bp->bio_flags & BIO_ORDERED))
+			atomic_add_int(&ndisk->ordered_in_flight, -1);
+		bp->bio_error = err;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_resid = bp->bio_bcount;
+		biodone(bp);
+		return (-1);
+	}
+
+	return (0);
+}
+
 static void
 nvd_strategy(struct bio *bp)
 {
@@ -155,6 +180,18 @@ nvd_strategy(struct bio *bp)
 
 	ndisk = (struct nvd_disk *)bp->bio_disk->d_drv1;
 
+	if (__predict_false(bp->bio_flags & BIO_ORDERED))
+		atomic_add_int(&ndisk->ordered_in_flight, 1);
+
+	if (__predict_true(ndisk->ordered_in_flight == 0)) {
+		nvd_bio_submit(ndisk, bp);
+		return;
+	}
+
+	/*
+	 * There are ordered bios in flight, so we need to submit
+	 *  bios through the task queue to enforce ordering.
+	 */
 	mtx_lock(&ndisk->bioqlock);
 	bioq_insert_tail(&ndisk->bioq, bp);
 	mtx_unlock(&ndisk->bioqlock);
@@ -186,6 +223,8 @@ nvd_done(void *arg, const struct nvme_completion *cpl)
 	ndisk = bp->bio_disk->d_drv1;
 
 	atomic_add_int(&ndisk->cur_depth, -1);
+	if (__predict_false(bp->bio_flags & BIO_ORDERED))
+		atomic_add_int(&ndisk->ordered_in_flight, -1);
 
 	biodone(bp);
 }
@@ -195,7 +234,6 @@ nvd_bioq_process(void *arg, int pending)
 {
 	struct nvd_disk *ndisk = arg;
 	struct bio *bp;
-	int err;
 
 	for (;;) {
 		mtx_lock(&ndisk->bioqlock);
@@ -204,30 +242,8 @@ nvd_bioq_process(void *arg, int pending)
 		if (bp == NULL)
 			break;
 
-#ifdef BIO_ORDERED
-		/*
-		 * BIO_ORDERED flag dictates that all outstanding bios
-		 *  must be completed before processing the bio with
-		 *  BIO_ORDERED flag set.
-		 */
-		if (bp->bio_flags & BIO_ORDERED) {
-			while (ndisk->cur_depth > 0) {
-				pause("nvd flush", 1);
-			}
-		}
-#endif
-
-		bp->bio_driver1 = NULL;
-		atomic_add_int(&ndisk->cur_depth, 1);
-
-		err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
-
-		if (err) {
-			atomic_add_int(&ndisk->cur_depth, -1);
-			bp->bio_error = err;
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_resid = bp->bio_bcount;
-			biodone(bp);
+		if (nvd_bio_submit(ndisk, bp) != 0) {
+			continue;
 		}
 
 #ifdef BIO_ORDERED
@@ -287,7 +303,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 		disk->d_unit =
 		    TAILQ_LAST(&disk_head, disk_list)->disk->d_unit + 1;
 
-	disk->d_flags = 0;
+	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
 
 	if (nvme_ns_get_flags(ns) & NVME_NS_DEALLOCATE_SUPPORTED)
 		disk->d_flags |= DISKFLAG_CANDELETE;
@@ -317,6 +333,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	ndisk->ns = ns;
 	ndisk->disk = disk;
 	ndisk->cur_depth = 0;
+	ndisk->ordered_in_flight = 0;
 
 	mtx_init(&ndisk->bioqlock, "NVD bioq lock", NULL, MTX_DEF);
 	bioq_init(&ndisk->bioq);

@@ -138,13 +138,23 @@ bf_command(FICL_VM *vm)
     } else {
 	result=BF_PARSE;
     }
+
+    switch (result) {
+    case CMD_CRIT:
+	printf("%s\n", command_errmsg);
+	break;
+    case CMD_FATAL:
+	panic("%s\n", command_errmsg);
+    }
+
     free(line);
     /*
      * If there was error during nested ficlExec(), we may no longer have
      * valid environment to return.  Throw all exceptions from here.
      */
-    if (result != 0)
+    if (result != CMD_OK)
 	vmThrow(vm, result);
+
     /* This is going to be thrown!!! */
     stackPushINT(vm->pStack,result);
 }

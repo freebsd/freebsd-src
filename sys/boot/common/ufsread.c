@@ -165,7 +165,7 @@ static int sblock_try[] = SBLOCKSEARCH;
 #endif
 
 static ssize_t
-fsread(ufs_ino_t inode, void *buf, size_t nbyte)
+fsread_size(ufs_ino_t inode, void *buf, size_t nbyte, size_t *fsizep)
 {
 #ifndef UFS2_ONLY
 	static struct ufs1_dinode dp1;
@@ -185,10 +185,21 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 	static ufs2_daddr_t blkmap, indmap;
 	u_int u;
 
+	/* Basic parameter validation. */
+	if ((buf == NULL && nbyte != 0) || dmadat == NULL)
+		return (-1);
+
 	blkbuf = dmadat->blkbuf;
 	indbuf = dmadat->indbuf;
-	if (!dsk_meta) {
+
+	/*
+	 * Force probe if inode is zero to ensure we have a valid fs, otherwise
+	 * when probing multiple paritions, reads from subsequent parititions
+	 * will incorrectly succeed.
+	 */
+	if (!dsk_meta || inode == 0) {
 		inomap = 0;
+		dsk_meta = 0;
 		for (n = 0; sblock_try[n] != -1; n++) {
 			if (dskread(dmadat->sbbuf, sblock_try[n] / DEV_BSIZE,
 			    SBLOCKSIZE / DEV_BSIZE))
@@ -207,11 +218,10 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 #endif
 			    ) &&
 			    fs.fs_bsize <= MAXBSIZE &&
-			    fs.fs_bsize >= sizeof(struct fs))
+			    fs.fs_bsize >= (int32_t)sizeof(struct fs))
 				break;
 		}
 		if (sblock_try[n] == -1) {
-			printf("Not ufs\n");
 			return -1;
 		}
 		dsk_meta++;
@@ -225,18 +235,18 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 			return -1;
 		n = INO_TO_VBO(n, inode);
 #if defined(UFS1_ONLY)
-		memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
-		    sizeof(struct ufs1_dinode));
+		memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
+		    sizeof(dp1));
 #elif defined(UFS2_ONLY)
-		memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
-		    sizeof(struct ufs2_dinode));
+		memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
+		    sizeof(dp2));
 #else
 		if (fs.fs_magic == FS_UFS1_MAGIC)
-			memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
-			    sizeof(struct ufs1_dinode));
+			memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
+			    sizeof(dp1));
 		else
-			memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
-			    sizeof(struct ufs2_dinode));
+			memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
+			    sizeof(dp2));
 #endif
 		inomap = inode;
 		fs_off = 0;
@@ -284,7 +294,7 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 			return -1;
 		vbaddr = fsbtodb(&fs, addr2) + (off >> VBLKSHIFT) * DBPERVBLK;
 		vboff = off & VBLKMASK;
-		n = sblksize(&fs, size, lbn) - (off & ~VBLKMASK);
+		n = sblksize(&fs, (off_t)size, lbn) - (off & ~VBLKMASK);
 		if (n > VBLKSIZE)
 			n = VBLKSIZE;
 		if (blkmap != vbaddr) {
@@ -300,5 +310,17 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 		fs_off += n;
 		nb -= n;
 	}
+
+	if (fsizep != NULL)
+		*fsizep = size;
+
 	return nbyte;
 }
+
+static ssize_t
+fsread(ufs_ino_t inode, void *buf, size_t nbyte)
+{
+
+	return fsread_size(inode, buf, nbyte, NULL);
+}
+

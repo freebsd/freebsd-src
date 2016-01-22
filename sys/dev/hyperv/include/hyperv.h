@@ -335,11 +335,6 @@ typedef enum {
 	HV_CHANNEL_MESSAGE_INITIATED_CONTACT		= 14,
 	HV_CHANNEL_MESSAGE_VERSION_RESPONSE		= 15,
 	HV_CHANNEL_MESSAGE_UNLOAD			= 16,
-
-#ifdef	HV_VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
-	HV_CHANNEL_MESSAGE_VIEW_RANGE_ADD		= 17,
-	HV_CHANNEL_MESSAGE_VIEW_RANGE_REMOVE		= 18,
-#endif
 	HV_CHANNEL_MESSAGE_COUNT
 } hv_vmbus_channel_msg_type;
 
@@ -759,7 +754,6 @@ typedef struct hv_vmbus_channel {
 	hv_vmbus_ring_buffer_info	inbound;
 
 	struct mtx			inbound_lock;
-	hv_vmbus_handle			control_work_queue;
 
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;

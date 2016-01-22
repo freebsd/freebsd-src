@@ -25,6 +25,8 @@
 # include <utmpx.h>
 #endif /* HAVE_UTMPX_H */
 
+int	allow_panic = FALSE;		/* allow panic correction (-g) */
+int	enable_panic_check = TRUE;	/* Can we check allow_panic's state? */
 
 #ifndef USE_COMPILETIME_PIVOT
 # define USE_COMPILETIME_PIVOT 1
@@ -295,8 +297,13 @@ adj_systime(
 	 * EVNT_NSET adjtime() can be aborted by a tiny adjtime()
 	 * triggered by sys_residual.
 	 */
-	if (0. == now)
+	if (0. == now) {
+		if (enable_panic_check && allow_panic) {
+			msyslog(LOG_ERR, "adj_systime: allow_panic is TRUE!");
+			INSIST(!allow_panic);
+		}
 		return TRUE;
+	}
 
 	/*
 	 * Most Unix adjtime() implementations adjust the system clock
@@ -316,9 +323,18 @@ adj_systime(
 	else
 		quant = 1e-6;
 	ticks = (long)(dtemp / quant + .5);
-	adjtv.tv_usec = (long)(ticks * quant * 1e6);
-	dtemp -= adjtv.tv_usec / 1e6;
-	sys_residual = dtemp;
+	adjtv.tv_usec = (long)(ticks * quant * 1.e6 + .5);
+	/* The rounding in the conversions could us push over the
+	 * limits: make sure the result is properly normalised!
+	 * note: sign comes later, all numbers non-negative here.
+	 */
+	if (adjtv.tv_usec >= 1000000) {
+		adjtv.tv_sec  += 1;
+		adjtv.tv_usec -= 1000000;
+		dtemp         -= 1.;
+	}
+	/* set the new residual with leftover from correction */
+	sys_residual = dtemp - adjtv.tv_usec * 1.e-6;
 
 	/*
 	 * Convert to signed seconds and microseconds for the Unix
@@ -333,8 +349,14 @@ adj_systime(
 	if (adjtv.tv_sec != 0 || adjtv.tv_usec != 0) {
 		if (adjtime(&adjtv, &oadjtv) < 0) {
 			msyslog(LOG_ERR, "adj_systime: %m");
+			if (enable_panic_check && allow_panic) {
+				msyslog(LOG_ERR, "adj_systime: allow_panic is TRUE!");
+			}
 			return FALSE;
 		}
+	}
+	if (enable_panic_check && allow_panic) {
+		msyslog(LOG_ERR, "adj_systime: allow_panic is TRUE!");
 	}
 	return TRUE;
 }
@@ -419,6 +441,9 @@ step_systime(
 	/* now set new system time */
 	if (ntp_set_tod(&timetv, NULL) != 0) {
 		msyslog(LOG_ERR, "step-systime: %m");
+		if (enable_panic_check && allow_panic) {
+			msyslog(LOG_ERR, "step_systime: allow_panic is TRUE!");
+		}
 		return FALSE;
 	}
 
@@ -445,7 +470,7 @@ step_systime(
 	 *	   long    ut_time;
 	 * };
 	 * and appends line="|", name="date", host="", time for the OLD
-	 * and appends line="{", name="date", host="", time for the NEW
+	 * and appends line="{", name="date", host="", time for the NEW // }
 	 * to _PATH_WTMP .
 	 *
 	 * Some OSes have utmp, some have utmpx.
@@ -563,6 +588,10 @@ step_systime(
 # endif /* not HAVE_PUTUTXLINE */
 #endif /* UPDATE_WTMPX */
 
+	}
+	if (enable_panic_check && allow_panic) {
+		msyslog(LOG_ERR, "step_systime: allow_panic is TRUE!");
+		INSIST(!allow_panic);
 	}
 	return TRUE;
 }

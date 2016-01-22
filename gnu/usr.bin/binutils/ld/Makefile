@@ -6,7 +6,8 @@ ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 
 .PATH: ${SRCDIR}/ld
 
-PROG=	ld
+PROG=	ld.bfd
+MAN=	ld.1
 SCRIPTDIR= /usr/libdata/ldscripts
 SRCS+=	ldcref.c \
 	ldctor.c \
@@ -48,7 +49,7 @@ CLEANFILES+=	ldemul-list.h stringify.sed
 
 FILES=		${LDSCRIPTS:S|^|ldscripts/|}
 FILESDIR=	${SCRIPTDIR}
-LINKS=		${BINDIR}/ld ${BINDIR}/ld.bfd
+LINKS=		${BINDIR}/ld.bfd ${BINDIR}/ld
 
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"=/lib\":\"=/usr/lib\"

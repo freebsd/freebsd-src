@@ -13,6 +13,9 @@ void
 setUp(void)
 {
 	init_recvbuff(RECV_INIT);
+	init_lib();
+
+	return;
 }
 
 void
@@ -36,7 +39,7 @@ test_GetAndFree(void) {
 
 void
 test_GetAndFill(void) {
-	int initial = free_recvbuffs();
+	// int initial = free_recvbuffs();
 	recvbuf_t* buf = get_free_recv_buffer();
 
 	add_full_recv_buffer(buf);

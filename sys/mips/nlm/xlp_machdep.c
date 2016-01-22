@@ -311,8 +311,6 @@ xlp_bootargs_init(__register_t arg)
 		while (1);
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
-	if (fdt_immr_addr(xlp_io_base) != 0)
-		while (1);
 	OF_interpret("perform-fixup", 0);
 
 	chosen = OF_finddevice("/chosen");

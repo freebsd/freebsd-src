@@ -932,6 +932,8 @@ printcpuinfo(void)
 				       "\005HLE"
 				       /* Advanced Vector Instructions 2 */
 				       "\006AVX2"
+				       /* FDP_EXCPTN_ONLY */
+				       "\007FDPEXC"
 				       /* Supervisor Mode Execution Prot. */
 				       "\010SMEP"
 				       /* Bit Manipulation Instructions */
@@ -1292,6 +1294,8 @@ identify_hypervisor(void)
 			hv_vendor[12] = '\0';
 			if (strcmp(hv_vendor, "VMwareVMware") == 0)
 				vm_guest = VM_GUEST_VMWARE;
+			else if (strcmp(hv_vendor, "Microsoft Hv") == 0)
+				vm_guest = VM_GUEST_HV;
 		}
 		return;
 	}

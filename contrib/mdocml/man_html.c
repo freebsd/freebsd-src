@@ -1,4 +1,4 @@
-/*	$Id: man_html.c,v 1.112 2015/03/03 21:11:34 schwarze Exp $ */
+/*	$Id: man_html.c,v 1.120 2016/01/08 17:48:09 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -7,9 +7,9 @@
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHORS DISCLAIM ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include "mandoc_aux.h"
+#include "roff.h"
 #include "man.h"
 #include "out.h"
 #include "html.h"
@@ -36,8 +37,8 @@
 
 #define	INDENT		  5
 
-#define	MAN_ARGS	  const struct man_meta *man, \
-			  const struct man_node *n, \
+#define	MAN_ARGS	  const struct roff_meta *man, \
+			  const struct roff_node *n, \
 			  struct mhtml *mh, \
 			  struct html *h
 
@@ -52,12 +53,11 @@ struct	htmlman {
 };
 
 static	void		  print_bvspace(struct html *,
-				const struct man_node *);
-static	void		  print_man(MAN_ARGS);
+				const struct roff_node *);
 static	void		  print_man_head(MAN_ARGS);
 static	void		  print_man_nodelist(MAN_ARGS);
 static	void		  print_man_node(MAN_ARGS);
-static	int		  a2width(const struct man_node *,
+static	int		  a2width(const struct roff_node *,
 				struct roffsu *);
 static	int		  man_B_pre(MAN_ARGS);
 static	int		  man_HP_pre(MAN_ARGS);
@@ -129,14 +129,14 @@ static	const struct htmlman mans[MAN_MAX] = {
  * first, print it.
  */
 static void
-print_bvspace(struct html *h, const struct man_node *n)
+print_bvspace(struct html *h, const struct roff_node *n)
 {
 
 	if (n->body && n->body->child)
-		if (MAN_TBL == n->body->child->type)
+		if (n->body->child->type == ROFFT_TBL)
 			return;
 
-	if (MAN_ROOT == n->parent->type || MAN_RS != n->parent->tok)
+	if (n->parent->type == ROFFT_ROOT || n->parent->tok != MAN_RS)
 		if (NULL == n->prev)
 			return;
 
@@ -144,36 +144,31 @@ print_bvspace(struct html *h, const struct man_node *n)
 }
 
 void
-html_man(void *arg, const struct man *man)
+html_man(void *arg, const struct roff_man *man)
 {
 	struct mhtml	 mh;
-
-	memset(&mh, 0, sizeof(struct mhtml));
-	print_man(man_meta(man), man_node(man), &mh, (struct html *)arg);
-	putchar('\n');
-}
-
-static void
-print_man(MAN_ARGS)
-{
-	struct tag	*t, *tt;
 	struct htmlpair	 tag;
+	struct html	*h;
+	struct tag	*t, *tt;
 
+	memset(&mh, 0, sizeof(mh));
 	PAIR_CLASS_INIT(&tag, "mandoc");
+	h = (struct html *)arg;
 
 	if ( ! (HTML_FRAGMENT & h->oflags)) {
 		print_gen_decls(h);
 		t = print_otag(h, TAG_HTML, 0, NULL);
 		tt = print_otag(h, TAG_HEAD, 0, NULL);
-		print_man_head(man, n, mh, h);
+		print_man_head(&man->meta, man->first, &mh, h);
 		print_tagq(h, tt);
 		print_otag(h, TAG_BODY, 0, NULL);
 		print_otag(h, TAG_DIV, 1, &tag);
 	} else
 		t = print_otag(h, TAG_DIV, 1, &tag);
 
-	print_man_nodelist(man, n, mh, h);
+	print_man_nodelist(&man->meta, man->first, &mh, h);
 	print_tagq(h, t);
+	putchar('\n');
 }
 
 static void
@@ -208,10 +203,10 @@ print_man_node(MAN_ARGS)
 	t = h->tags.head;
 
 	switch (n->type) {
-	case MAN_ROOT:
+	case ROFFT_ROOT:
 		man_root_pre(man, n, mh, h);
 		break;
-	case MAN_TEXT:
+	case ROFFT_TEXT:
 		if ('\0' == *n->string) {
 			print_paragraph(h);
 			return;
@@ -222,12 +217,12 @@ print_man_node(MAN_ARGS)
 			print_otag(h, TAG_BR, 0, NULL);
 		print_text(h, n->string);
 		return;
-	case MAN_EQN:
+	case ROFFT_EQN:
 		if (n->flags & MAN_LINE)
 			putchar('\n');
 		print_eqn(h, n->eqn);
 		break;
-	case MAN_TBL:
+	case ROFFT_TBL:
 		/*
 		 * This will take care of initialising all of the table
 		 * state data for the first table, then tearing it down
@@ -266,10 +261,10 @@ print_man_node(MAN_ARGS)
 	print_stagq(h, t);
 
 	switch (n->type) {
-	case MAN_ROOT:
+	case ROFFT_ROOT:
 		man_root_post(man, n, mh, h);
 		break;
-	case MAN_EQN:
+	case ROFFT_EQN:
 		break;
 	default:
 		if (mans[n->tok].post)
@@ -279,15 +274,15 @@ print_man_node(MAN_ARGS)
 }
 
 static int
-a2width(const struct man_node *n, struct roffsu *su)
+a2width(const struct roff_node *n, struct roffsu *su)
 {
 
-	if (MAN_TEXT != n->type)
-		return(0);
+	if (n->type != ROFFT_TEXT)
+		return 0;
 	if (a2roffsu(n->string, su, SCALE_EN))
-		return(1);
+		return 1;
 
-	return(0);
+	return 0;
 }
 
 static void
@@ -347,8 +342,8 @@ man_root_post(MAN_ARGS)
 	PAIR_CLASS_INIT(&tag, "foot-os");
 	print_otag(h, TAG_TD, 1, &tag);
 
-	if (man->source)
-		print_text(h, man->source);
+	if (man->os)
+		print_text(h, man->os);
 	print_tagq(h, t);
 }
 
@@ -376,7 +371,7 @@ man_br_pre(MAN_ARGS)
 	/* So the div isn't empty: */
 	print_text(h, "\\~");
 
-	return(0);
+	return 0;
 }
 
 static int
@@ -384,22 +379,22 @@ man_SH_pre(MAN_ARGS)
 {
 	struct htmlpair	 tag;
 
-	if (MAN_BLOCK == n->type) {
+	if (n->type == ROFFT_BLOCK) {
 		mh->fl &= ~MANH_LITERAL;
 		PAIR_CLASS_INIT(&tag, "section");
 		print_otag(h, TAG_DIV, 1, &tag);
-		return(1);
-	} else if (MAN_BODY == n->type)
-		return(1);
+		return 1;
+	} else if (n->type == ROFFT_BODY)
+		return 1;
 
 	print_otag(h, TAG_H1, 0, NULL);
-	return(1);
+	return 1;
 }
 
 static int
 man_alt_pre(MAN_ARGS)
 {
-	const struct man_node	*nn;
+	const struct roff_node	*nn;
 	int		 i, savelit;
 	enum htmltag	 fp;
 	struct tag	*t;
@@ -432,7 +427,6 @@ man_alt_pre(MAN_ARGS)
 			break;
 		default:
 			abort();
-			/* NOTREACHED */
 		}
 
 		if (i)
@@ -450,7 +444,7 @@ man_alt_pre(MAN_ARGS)
 	if (savelit)
 		mh->fl |= MANH_LITERAL;
 
-	return(0);
+	return 0;
 }
 
 static int
@@ -460,7 +454,7 @@ man_SM_pre(MAN_ARGS)
 	print_otag(h, TAG_SMALL, 0, NULL);
 	if (MAN_SB == n->tok)
 		print_otag(h, TAG_B, 0, NULL);
-	return(1);
+	return 1;
 }
 
 static int
@@ -468,41 +462,41 @@ man_SS_pre(MAN_ARGS)
 {
 	struct htmlpair	 tag;
 
-	if (MAN_BLOCK == n->type) {
+	if (n->type == ROFFT_BLOCK) {
 		mh->fl &= ~MANH_LITERAL;
 		PAIR_CLASS_INIT(&tag, "subsection");
 		print_otag(h, TAG_DIV, 1, &tag);
-		return(1);
-	} else if (MAN_BODY == n->type)
-		return(1);
+		return 1;
+	} else if (n->type == ROFFT_BODY)
+		return 1;
 
 	print_otag(h, TAG_H2, 0, NULL);
-	return(1);
+	return 1;
 }
 
 static int
 man_PP_pre(MAN_ARGS)
 {
 
-	if (MAN_HEAD == n->type)
-		return(0);
-	else if (MAN_BLOCK == n->type)
+	if (n->type == ROFFT_HEAD)
+		return 0;
+	else if (n->type == ROFFT_BLOCK)
 		print_bvspace(h, n);
 
-	return(1);
+	return 1;
 }
 
 static int
 man_IP_pre(MAN_ARGS)
 {
-	const struct man_node	*nn;
+	const struct roff_node	*nn;
 
-	if (MAN_BODY == n->type) {
+	if (n->type == ROFFT_BODY) {
 		print_otag(h, TAG_DD, 0, NULL);
-		return(1);
-	} else if (MAN_HEAD != n->type) {
+		return 1;
+	} else if (n->type != ROFFT_HEAD) {
 		print_otag(h, TAG_DL, 0, NULL);
-		return(1);
+		return 1;
 	}
 
 	/* FIXME: width specification. */
@@ -526,7 +520,7 @@ man_IP_pre(MAN_ARGS)
 		}
 	}
 
-	return(0);
+	return 0;
 }
 
 static int
@@ -534,12 +528,12 @@ man_HP_pre(MAN_ARGS)
 {
 	struct htmlpair	 tag[2];
 	struct roffsu	 su;
-	const struct man_node *np;
+	const struct roff_node *np;
 
-	if (MAN_HEAD == n->type)
-		return(0);
-	else if (MAN_BLOCK != n->type)
-		return(1);
+	if (n->type == ROFFT_HEAD)
+		return 0;
+	else if (n->type != ROFFT_BLOCK)
+		return 1;
 
 	np = n->head->child;
 
@@ -555,7 +549,7 @@ man_HP_pre(MAN_ARGS)
 	PAIR_STYLE_INIT(&tag[0], h);
 	PAIR_CLASS_INIT(&tag[1], "spacer");
 	print_otag(h, TAG_DIV, 2, tag);
-	return(1);
+	return 1;
 }
 
 static int
@@ -584,7 +578,7 @@ man_OP_pre(MAN_ARGS)
 	print_stagq(h, tt);
 	h->flags |= HTML_NOSPACE;
 	print_text(h, "]");
-	return(0);
+	return 0;
 }
 
 static int
@@ -592,7 +586,7 @@ man_B_pre(MAN_ARGS)
 {
 
 	print_otag(h, TAG_B, 0, NULL);
-	return(1);
+	return 1;
 }
 
 static int
@@ -600,7 +594,7 @@ man_I_pre(MAN_ARGS)
 {
 
 	print_otag(h, TAG_I, 0, NULL);
-	return(1);
+	return 1;
 }
 
 static int
@@ -613,7 +607,7 @@ man_literal_pre(MAN_ARGS)
 	} else
 		mh->fl |= MANH_LITERAL;
 
-	return(0);
+	return 0;
 }
 
 static int
@@ -621,14 +615,14 @@ man_in_pre(MAN_ARGS)
 {
 
 	print_otag(h, TAG_BR, 0, NULL);
-	return(0);
+	return 0;
 }
 
 static int
 man_ign_pre(MAN_ARGS)
 {
 
-	return(0);
+	return 0;
 }
 
 static int
@@ -637,10 +631,10 @@ man_RS_pre(MAN_ARGS)
 	struct htmlpair	 tag;
 	struct roffsu	 su;
 
-	if (MAN_HEAD == n->type)
-		return(0);
-	else if (MAN_BODY == n->type)
-		return(1);
+	if (n->type == ROFFT_HEAD)
+		return 0;
+	else if (n->type == ROFFT_BODY)
+		return 1;
 
 	SCALE_HS_INIT(&su, INDENT);
 	if (n->head->child)
@@ -650,7 +644,7 @@ man_RS_pre(MAN_ARGS)
 	bufcat_su(h, "margin-left", &su);
 	PAIR_STYLE_INIT(&tag, h);
 	print_otag(h, TAG_DIV, 1, &tag);
-	return(1);
+	return 1;
 }
 
 static int
@@ -659,19 +653,19 @@ man_UR_pre(MAN_ARGS)
 	struct htmlpair		 tag[2];
 
 	n = n->child;
-	assert(MAN_HEAD == n->type);
-	if (n->nchild) {
-		assert(MAN_TEXT == n->child->type);
+	assert(n->type == ROFFT_HEAD);
+	if (n->child != NULL) {
+		assert(n->child->type == ROFFT_TEXT);
 		PAIR_CLASS_INIT(&tag[0], "link-ext");
 		PAIR_HREF_INIT(&tag[1], n->child->string);
 		print_otag(h, TAG_A, 2, tag);
 	}
 
-	assert(MAN_BODY == n->next->type);
-	if (n->next->nchild)
+	assert(n->next->type == ROFFT_BODY);
+	if (n->next->child != NULL)
 		n = n->next;
 
 	print_man_nodelist(man, n->child, mh, h);
 
-	return(0);
+	return 0;
 }

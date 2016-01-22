@@ -1080,15 +1080,9 @@ vop_stdadvise(struct vop_advise_args *ap)
 		bsize = vp->v_bufobj.bo_bsize;
 		startn = ap->a_start / bsize;
 		endn = ap->a_end / bsize;
-		for (;;) {
-			error = bnoreuselist(&bo->bo_clean, bo, startn, endn);
-			if (error == EAGAIN)
-				continue;
+		error = bnoreuselist(&bo->bo_clean, bo, startn, endn);
+		if (error == 0)
 			error = bnoreuselist(&bo->bo_dirty, bo, startn, endn);
-			if (error == EAGAIN)
-				continue;
-			break;
-		}
 		BO_RUNLOCK(bo);
 		VOP_UNLOCK(vp, 0);
 		break;

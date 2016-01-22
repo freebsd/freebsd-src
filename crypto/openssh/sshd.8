@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.273 2013/12/07 11:58:46 naddy Exp $
+.\" $OpenBSD: sshd.8,v 1.280 2015/07/03 03:49:45 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: December 7 2013 $
+.Dd $Mdocdate: July 3 2015 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -61,10 +61,7 @@
 .Nm
 (OpenSSH Daemon) is the daemon program for
 .Xr ssh 1 .
-Together these programs replace
-.Xr rlogin 1
-and
-.Xr rsh 1 ,
+Together these programs replace rlogin and rsh,
 and provide secure encrypted communications between two untrusted hosts
 over an insecure network.
 .Pp
@@ -188,15 +185,12 @@ Specifies that
 .Nm
 is being run from
 .Xr inetd 8 .
+If SSH protocol 1 is enabled,
 .Nm
-is normally not run
+should not  normally be run
 from inetd because it needs to generate the server key before it can
-respond to the client, and this may take tens of seconds.
-Clients would have to wait too long if the key was regenerated every time.
-However, with small key sizes (e.g. 512) using
-.Nm
-from inetd may
-be feasible.
+respond to the client, and this may take some time.
+Clients may have to wait too long if the key was regenerated every time.
 .It Fl k Ar key_gen_time
 Specifies how often the ephemeral protocol version 1 server key is
 regenerated (default 3600 seconds, or one hour).
@@ -282,7 +276,7 @@ though this can be changed via the
 .Cm Protocol
 option in
 .Xr sshd_config 5 .
-Protocol 2 supports DSA, ECDSA, ED25519 and RSA keys;
+Protocol 2 supports DSA, ECDSA, Ed25519 and RSA keys;
 protocol 1 only supports RSA keys.
 For both protocols,
 each host has a host-specific key,
@@ -291,7 +285,7 @@ used to identify the host.
 .Pp
 Forward security for protocol 1 is provided through
 an additional server key,
-normally 768 bits,
+normally 1024 bits,
 generated when the server starts.
 This key is normally regenerated every hour if it has been used, and
 is never stored on disk.
@@ -413,7 +407,10 @@ Changes to user's home directory.
 .It
 If
 .Pa ~/.ssh/rc
-exists, runs it; else if
+exists and the
+.Xr sshd_config 5
+.Cm PermitUserRC
+option is set, runs it; else if
 .Pa /etc/ssh/sshrc
 exists, runs
 it; otherwise runs
@@ -427,6 +424,8 @@ See
 below.
 .It
 Runs user's shell or command.
+All commands are run under the user's login shell as specified in the
+system password database.
 .El
 .Sh SSHRC
 If the file
@@ -607,10 +606,10 @@ Disables execution of
 Forbids X11 forwarding when this key is used for authentication.
 Any X11 forward requests by the client will return an error.
 .It Cm permitopen="host:port"
-Limit local
-.Li ``ssh -L''
-port forwarding such that it may only connect to the specified host and
-port.
+Limit local port forwarding with
+.Xr ssh 1
+.Fl L
+such that it may only connect to the specified host and port.
 IPv6 addresses can be specified by enclosing the address in square brackets.
 Multiple
 .Cm permitopen
@@ -811,7 +810,7 @@ secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
 .It Pa ~/.ssh/authorized_keys
-Lists the public keys (DSA, ECDSA, ED25519, RSA)
+Lists the public keys (DSA, ECDSA, Ed25519, RSA)
 that can be used for logging in as this user.
 The format of this file is described above.
 The content of the file is not highly sensitive, but the recommended
@@ -980,14 +979,3 @@ Markus Friedl contributed the support for SSH
 protocol versions 1.5 and 2.0.
 Niels Provos and Markus Friedl contributed support
 for privilege separation.
-.Sh CAVEATS
-System security is not improved unless
-.Nm rshd ,
-.Nm rlogind ,
-and
-.Nm rexecd
-are disabled (thus completely disabling
-.Xr rlogin
-and
-.Xr rsh
-into the machine).

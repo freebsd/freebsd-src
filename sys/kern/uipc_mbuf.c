@@ -338,6 +338,9 @@ mb_free_ext(struct mbuf *m)
 	case EXT_SFBUF:
 		sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
 		break;
+	case EXT_SFBUF_NOCACHE:
+		sf_ext_free_nocache(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
+		break;
 	default:
 		KASSERT(m->m_ext.ext_cnt != NULL,
 		    ("%s: no refcounting pointer on %p", __func__, m));
@@ -404,6 +407,7 @@ mb_dupcl(struct mbuf *n, const struct mbuf *m)
 
 	switch (m->m_ext.ext_type) {
 	case EXT_SFBUF:
+	case EXT_SFBUF_NOCACHE:
 		sf_ext_ref(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
 		break;
 	default:

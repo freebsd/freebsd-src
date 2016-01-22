@@ -129,8 +129,8 @@ struct	sockbuf {
 #define	M_BLOCKED	M_PROTO2	/* M_NOTREADY in front of m */
 #define	M_NOTAVAIL	(M_NOTREADY | M_BLOCKED)
 
-void	sbappend(struct sockbuf *sb, struct mbuf *m);
-void	sbappend_locked(struct sockbuf *sb, struct mbuf *m);
+void	sbappend(struct sockbuf *sb, struct mbuf *m, int flags);
+void	sbappend_locked(struct sockbuf *sb, struct mbuf *m, int flags);
 void	sbappendstream(struct sockbuf *sb, struct mbuf *m, int flags);
 void	sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags);
 int	sbappendaddr(struct sockbuf *sb, const struct sockaddr *asa,

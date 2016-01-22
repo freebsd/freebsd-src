@@ -270,8 +270,6 @@ nvme_attach(device_t dev)
 		return (status);
 	}
 
-	nvme_sysctl_initialize_ctrlr(ctrlr);
-
 	pci_enable_busmaster(dev);
 
 	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -250,6 +251,19 @@ void
 cpu_reset()
 {
         PLATFORM_RESET(plat_obj);
+}
+
+int
+cpu_idle_wakeup(int cpu)
+{
+	return (PLATFORM_IDLE_WAKEUP(plat_obj, cpu));
+}
+
+void
+platform_cpu_idle(int cpu)
+{
+
+	PLATFORM_IDLE(plat_obj, cpu);
 }
 
 /*

@@ -3642,6 +3642,9 @@ setup_intr_handlers(struct adapter *sc)
 #ifdef DEV_NETMAP
 	struct sge_nm_rxq *nm_rxq;
 #endif
+#ifdef RSS
+	int nbuckets = rss_getnumbuckets();
+#endif
 
 	/*
 	 * Setup interrupts.
@@ -3700,6 +3703,10 @@ setup_intr_handlers(struct adapter *sc)
 					    t4_intr, rxq, s);
 					if (rc != 0)
 						return (rc);
+#ifdef RSS
+					bus_bind_intr(sc->dev, irq->res,
+					    rss_getcpu(q % nbuckets));
+#endif
 					irq++;
 					rid++;
 					vi->nintr++;

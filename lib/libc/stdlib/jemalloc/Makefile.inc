@@ -20,7 +20,7 @@ jemalloc_${src}: ${LIBC_SRCTOP}/../../contrib/jemalloc/src/${src} .NOMETA
 
 MAN+=jemalloc.3
 CLEANFILES+=jemalloc.3
-jemalloc.3: ${LIBC_SRCTOP}/../../contrib/jemalloc/doc/jemalloc.3
+jemalloc.3: ${LIBC_SRCTOP}/../../contrib/jemalloc/doc/jemalloc.3 .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 MLINKS+= \

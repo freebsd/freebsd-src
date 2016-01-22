@@ -18,7 +18,7 @@
   009   '8'    '*'    nop    nop    '8'    '*'    nop    nop     O
   010   '9'    '('    nop    nop    '9'    '('    nop    nop     O
   011   '0'    ')'    nop    nop    '0'    ')'    nop    nop     O
-  012   '-'    '_'    ns     ns     '-'    '_'    ns     ns      O
+  012   '-'    '_'    us     us     '-'    '_'    us     us      O
   013   '='    '+'    nop    nop    '='    '+'    nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
@@ -90,7 +90,7 @@
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
-  084   ns     ns     ns     ns     ns     ns     ns     ns      O
+  084   us     us     us     us     us     us     us     us      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   '\'    '|'    nop    nop    '\'    '|'    nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
@@ -148,7 +148,7 @@
   137   '8'    '*'    nop    nop    '8'    '*'    nop    nop     O
   138   '9'    '('    nop    nop    '9'    '('    nop    nop     O
   139   '0'    ')'    nop    nop    '0'    ')'    nop    nop     O
-  140   '-'    '_'    ns     ns     '-'    '_'    ns     ns      O
+  140   '-'    '_'    us     us     '-'    '_'    us     us      O
   141   '='    '+'    nop    nop    '='    '+'    nop    nop     O
   142   bs     bs     del    del    bs     bs     del    del     O
   143   ht     btab   nop    nop    ht     btab   nop    nop     O
@@ -220,7 +220,7 @@
   209   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   210   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
   211   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
-  212   ns     ns     ns     ns     ns     ns     ns     ns      O
+  212   us     us     us     us     us     us     us     us      O
   213   nop    nop    nop    nop    nop    nop    nop    nop     O
   214   '\'    '|'    nop    nop    '\'    '|'    nop    nop     O
   215   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
