@@ -58,6 +58,12 @@ typedef uint16_t hv_vmbus_status;
 #define HV_EVENT_FLAGS_BYTE_COUNT   (256)
 #define HV_EVENT_FLAGS_DWORD_COUNT  (256 / sizeof(uint32_t))
 
+/**
+ * max channel count <== event_flags_dword_count * bit_of_dword
+ */
+#define HV_CHANNEL_DWORD_LEN        (32)
+#define HV_CHANNEL_MAX_COUNT        \
+	((HV_EVENT_FLAGS_DWORD_COUNT) * HV_CHANNEL_DWORD_LEN)
 /*
  * MessageId: HV_STATUS_INSUFFICIENT_BUFFERS
  * MessageText:
@@ -355,6 +361,10 @@ typedef struct {
 	TAILQ_HEAD(, hv_vmbus_channel)		channel_anchor;
 	struct mtx				channel_lock;
 
+	/**
+	 * channel table for fast lookup through id.
+	 */
+	hv_vmbus_channel                        **channels;
 	hv_vmbus_handle				work_queue;
 	struct sema				control_sema;
 } hv_vmbus_connection;
@@ -699,7 +709,6 @@ int			hv_vmbus_child_device_register(
 					struct hv_device *child_dev);
 int			hv_vmbus_child_device_unregister(
 					struct hv_device *child_dev);
-hv_vmbus_channel*	hv_vmbus_get_channel_from_rel_id(uint32_t rel_id);
 
 /**
  * Connection interfaces
