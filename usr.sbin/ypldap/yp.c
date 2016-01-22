@@ -83,17 +83,14 @@ void
 yp_enable_events(void)
 {
 	int i;
-	extern fd_set svc_fdset;
 	struct yp_event	*ye;
 
-	for (i = 0; i < FD_SETSIZE; i++) {
-		if (FD_ISSET(i, &svc_fdset)) {
-			if ((ye = calloc(1, sizeof(*ye))) == NULL)
-				fatal(NULL);
-			event_set(&ye->ye_event, i, EV_READ, yp_fd_event, NULL);
-			event_add(&ye->ye_event, NULL);
-			TAILQ_INSERT_TAIL(&env->sc_yp->yd_events, ye, ye_entry);
-		}
+	for (i = 0; i < getdtablesize(); i++) {
+		if ((ye = calloc(1, sizeof(*ye))) == NULL)
+			fatal(NULL);
+		event_set(&ye->ye_event, i, EV_READ, yp_fd_event, NULL);
+		event_add(&ye->ye_event, NULL);
+		TAILQ_INSERT_TAIL(&env->sc_yp->yd_events, ye, ye_entry);
 	}
 }
 
