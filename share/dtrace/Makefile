@@ -22,7 +22,10 @@ SCRIPTS=	blocking \
 		tcpconn \
 		tcpstate \
 		tcptrack \
-		udptrack
+		udptrack \
+		watch_execve \
+		watch_kill \
+		watch_vop_remove
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 
