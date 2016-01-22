@@ -113,7 +113,7 @@ optionResetOpt(tOptions * pOpts, tOptDesc * pOD)
             assert(0 == 1);
         }
     } else {
-        succ = opt_find_long(pOpts, (char *)pzArg, &opt_state);
+        succ = opt_find_long(pOpts, pzArg, &opt_state);
         if (! SUCCESSFUL(succ)) {
             fprintf(stderr, zIllOptStr, pOpts->pzProgPath, pzArg);
             pOpts->pUsageProc(pOpts, EXIT_FAILURE);
