@@ -605,7 +605,11 @@ getresponse(
 	int seq;
 	fd_set fds;
 	ssize_t n;
-	size_t pad;
+	int pad;
+	/* absolute timeout checks. Not 'time_t' by intention! */
+	uint32_t tobase;	/* base value for timeout */
+	uint32_t tospan;	/* timeout span (max delay) */
+	uint32_t todiff;	/* current delay */
 
 	/*
 	 * This is pretty tricky.  We may get between 1 and many packets
@@ -622,12 +626,14 @@ getresponse(
 	lastseq = 999;	/* too big to be a sequence number */
 	ZERO(haveseq);
 	FD_ZERO(&fds);
+	tobase = (uint32_t)time(NULL);
 
     again:
 	if (firstpkt)
 		tvo = tvout;
 	else
 		tvo = tvsout;
+	tospan = (uint32_t)tvo.tv_sec + (tvo.tv_usec != 0);
 	
 	FD_SET(sockfd, &fds);
 	n = select(sockfd+1, &fds, NULL, NULL, &tvo);
@@ -635,6 +641,17 @@ getresponse(
 		warning("select fails");
 		return -1;
 	}
+	
+	/*
+	 * Check if this is already too late. Trash the data and fake a
+	 * timeout if this is so.
+	 */
+	todiff = (((uint32_t)time(NULL)) - tobase) & 0x7FFFFFFFu;
+	if ((n > 0) && (todiff > tospan)) {
+		n = recv(sockfd, (char *)&rpkt, sizeof(rpkt), 0);
+		n = 0; /* faked timeout return from 'select()'*/
+	}
+	
 	if (n == 0) {
 		/*
 		 * Timed out.  Return what we have
@@ -780,8 +797,10 @@ getresponse(
 	}
 
 	/*
-	 * So far, so good.  Copy this data into the output array.
+	 * So far, so good.  Copy this data into the output array. Bump
+	 * the timeout base, in case we expect more data.
 	 */
+	tobase = (uint32_t)time(NULL);
 	if ((datap + datasize + (pad * items)) > (pktdata + pktdatasize)) {
 		size_t offset = datap - pktdata;
 		growpktdata();
