@@ -193,7 +193,12 @@ LIB2_DIVMOD_FUNCS:= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
 .endif
 
 COMMONHDRS=	tm.h tconfig.h options.h gthr-default.h
-.if ${MK_LLVM_LIBUNWIND} == no
+.if ${MK_LLVM_LIBUNWIND} != "no"
+# unwind.h is a generated file when MK_LLVM_LIBUNWIND == "no", and a stale
+# copy may be left behind in OBJDIR when switching, so remove it explicitly.
+beforebuild:
+	@rm -f ${.OBJDIR}/unwind.h
+.else
 COMMONHDRS+=	unwind.h
 .endif
 
