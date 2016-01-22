@@ -717,7 +717,7 @@ tcp_init(void)
 
 #ifdef VIMAGE
 static void
-tcp_destroy(void)
+tcp_destroy(void *unused __unused)
 {
 	int error;
 
