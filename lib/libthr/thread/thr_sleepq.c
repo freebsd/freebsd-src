@@ -32,7 +32,7 @@
 #define HASHSHIFT	9
 #define HASHSIZE	(1 << HASHSHIFT)
 #define SC_HASH(wchan) ((unsigned)				\
-	((((uintptr_t)(wchan) >> 3)				\
+	((size_t)(((uintptr_t)(wchan) >> 3)				\
 	^ ((uintptr_t)(wchan) >> (HASHSHIFT + 3)))		\
 	& (HASHSIZE - 1)))
 #define SC_LOOKUP(wc)	&sc_table[SC_HASH(wc)]

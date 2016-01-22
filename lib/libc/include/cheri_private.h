@@ -37,12 +37,12 @@
 #endif
 #define	__CAPSUFFIX(func)	func ## _c
 #define	__CAPABILITY		__capability
-#define	__ptr2vaddr(p)		(__builtin_cheri_get_cap_base(p) +	\
-				    __builtin_cheri_cap_offset_get(p))
+#define	__ptr2vaddr(p)		((size_t)(__builtin_cheri_get_cap_base(p) +	\
+				    __builtin_cheri_cap_offset_get(p)))
 #else
 #define	__CAPSUFFIX(func)	func
 #define	__CAPABILITY
-#define	__ptr2vaddr(p)		((uintptr_t)(p))
+#define	__ptr2vaddr(p)		((size_t)(uintptr_t)(p))
 #endif
 
 #endif /* __LIBC_CHERI_PRIVATE_H__ */

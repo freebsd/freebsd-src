@@ -42,8 +42,8 @@
 #define	rb_left			rb_nodes[RB_DIR_LEFT]
 #define	rb_right		rb_nodes[RB_DIR_RIGHT]
 
-#define	RB_FLAG_POSITION	0x2
-#define	RB_FLAG_RED		0x1
+#define	RB_FLAG_POSITION	(uintptr_t)0x2
+#define	RB_FLAG_RED		(uintptr_t)0x1
 #define	RB_FLAG_MASK		(RB_FLAG_POSITION|RB_FLAG_RED)
 #define	RB_FATHER(rb) \
     ((struct archive_rb_node *)((rb)->rb_info & ~RB_FLAG_MASK))

@@ -74,11 +74,11 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 #if defined(__mips_o32) || defined(__mips_o64)
 	sp -= (argc >= 4 ? argc : 4);	/* Make room for >=4 arguments. */
 	sp  = (register_t *)
-	    ((uintptr_t)sp & ~0x7);	/* Align on double-word boundary. */
+	    ((uintptr_t)sp & (uintptr_t)~0x7);	/* Align on double-word boundary. */
 #elif defined(__mips_n32) || defined(__mips_n64)
 	sp -= (argc > 8 ? argc - 8 : 0); /* Make room for > 8 arguments. */
 	sp  = (register_t *)
-	    ((uintptr_t)sp & ~0xf);	/* Align on quad-word boundary. */
+	    ((uintptr_t)sp & (uintptr_t)~0xf);	/* Align on quad-word boundary. */
 #endif
 
 	mc->mc_regs[SP] = (intptr_t)sp;

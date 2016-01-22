@@ -196,6 +196,13 @@ CFLAGS+=	-DEMIT_SYNC_ATOMICS
 SRCF+=	stdatomic
 .endif
 
+.ifdef LIBCHERI
+# -Wcapabilities warning while trying to decode a string to a pointer.
+# Easy to suppress, but the result is unlikely to work so leave the symbol
+# unimplemented for now.
+SRCF:=	${SRFC:Ngcc_personality_v0}
+.endif
+
 .for file in ${SRCF}
 . if ${MACHINE_ARCH:Marm*hf*} != "" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
 SRCS+= ${file}vfp.S

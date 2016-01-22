@@ -501,7 +501,7 @@ struct sockcred {
  * sense and would be a major potential security hole.
  */
 #define	_CMSG_ALIGNBYTES	(sizeof(u_long) - 1)
-#define	_CMSG_ALIGN(n)	(((uintptr_t)(n) + _CMSG_ALIGNBYTES) &~ _CMSG_ALIGNBYTES)
+#define	_CMSG_ALIGN(n)	(((uintptr_t)(n) + _CMSG_ALIGNBYTES) &~ (uintptr_t)_CMSG_ALIGNBYTES)
 #endif
 
 /* given pointer to struct cmsghdr, return pointer to data */
