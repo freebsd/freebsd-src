@@ -260,7 +260,6 @@ alloc_ep(int size, int flags)
 void __free_ep(struct iwch_ep_common *epc)
 {
 	CTR3(KTR_IW_CXGB, "%s ep %p state %s", __FUNCTION__, epc, states[state_read(epc)]);
-	KASSERT(!epc->so, ("%s warning ep->so %p \n", __FUNCTION__, epc->so));
 	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list!\n", __FUNCTION__, epc));
 	free(epc, M_DEVBUF);
 }
@@ -1361,7 +1360,7 @@ out:
 }
 
 int
-iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
+iwch_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 {
 	int err = 0;
 	struct iwch_listen_ep *ep;
@@ -1381,35 +1380,22 @@ iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 	state_set(&ep->com, LISTEN);
 
 	ep->com.so = cm_id->so;
-	err = init_sock(&ep->com);
-	if (err)
-		goto fail;
-
-	err = solisten(ep->com.so, ep->backlog, ep->com.thread);
-	if (!err) {
-		cm_id->provider_data = ep;
-		goto out;
-	}
-	close_socket(&ep->com, 0);
-fail:
-	cm_id->rem_ref(cm_id);
-	put_ep(&ep->com);
+	cm_id->provider_data = ep;
 out:
 	return err;
 }
 
-int
-iwch_destroy_listen(struct iw_cm_id *cm_id)
+void
+iwch_destroy_listen_ep(struct iw_cm_id *cm_id)
 {
 	struct iwch_listen_ep *ep = to_listen_ep(cm_id);
 
 	CTR2(KTR_IW_CXGB, "%s ep %p", __FUNCTION__, ep);
 
 	state_set(&ep->com, DEAD);
-	close_socket(&ep->com, 0);
 	cm_id->rem_ref(cm_id);
 	put_ep(&ep->com);
-	return 0;
+	return;
 }
 
 int
@@ -1526,54 +1512,32 @@ process_connected(struct iwch_ep *ep)
 	}
 }
 
-static struct socket *
-dequeue_socket(struct socket *head, struct sockaddr_in **remote, struct iwch_ep *child_ep)
+void
+process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 {
-	struct socket *so;
-
-	ACCEPT_LOCK();
-	so = TAILQ_FIRST(&head->so_comp);
-	if (!so) {
-		ACCEPT_UNLOCK();
-		return NULL;
-	}
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	SOCK_LOCK(so);
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-	soref(so);
-	soupcall_set(so, SO_RCV, iwch_so_upcall, child_ep);
-	so->so_state |= SS_NBIO;
-	PANIC_IF(!(so->so_state & SS_ISCONNECTED));
-	PANIC_IF(so->so_error);
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
-	soaccept(so, (struct sockaddr **)remote);
-	return so;
-}
-
-static void
-process_newconn(struct iwch_ep *parent_ep)
-{
-	struct socket *child_so;
 	struct iwch_ep *child_ep;
+	struct sockaddr_in *local;
 	struct sockaddr_in *remote;
+	struct iwch_ep *parent_ep = parent_cm_id->provider_data;
 
 	CTR3(KTR_IW_CXGB, "%s parent ep %p so %p", __FUNCTION__, parent_ep, parent_ep->com.so);
+	if (!child_so) {
+		log(LOG_ERR, "%s - invalid child socket!\n", __func__);
+		return;
+	}
 	child_ep = alloc_ep(sizeof(*child_ep), M_NOWAIT);
 	if (!child_ep) {
 		log(LOG_ERR, "%s - failed to allocate ep entry!\n",
 		       __FUNCTION__);
 		return;
 	}
-	child_so = dequeue_socket(parent_ep->com.so, &remote, child_ep);
-	if (!child_so) {
-		log(LOG_ERR, "%s - failed to dequeue child socket!\n",
-		       __FUNCTION__);
-		__free_ep(&child_ep->com);
-		return;
-	}
+	SOCKBUF_LOCK(&child_so->so_rcv);
+	soupcall_set(child_so, SO_RCV, iwch_so_upcall, child_ep);
+	SOCKBUF_UNLOCK(&child_so->so_rcv);
+
+	in_getsockaddr(child_so, (struct sockaddr **)&local);
+	in_getpeeraddr(child_so, (struct sockaddr **)&remote);
+
 	CTR3(KTR_IW_CXGB, "%s remote addr %s port %d", __FUNCTION__, 
 		inet_ntoa(remote->sin_addr), ntohs(remote->sin_port));
 	child_ep->com.tdev = parent_ep->com.tdev;
@@ -1590,9 +1554,9 @@ process_newconn(struct iwch_ep *parent_ep)
 	child_ep->com.thread = parent_ep->com.thread;
 	child_ep->parent_ep = parent_ep;
 
+	free(local, M_SONAME);
 	free(remote, M_SONAME);
 	get_ep(&parent_ep->com);
-	child_ep->parent_ep = parent_ep;
 	callout_init(&child_ep->timer, 1);
 	state_set(&child_ep->com, MPA_REQ_WAIT);
 	start_ep_timer(child_ep);
@@ -1630,7 +1594,10 @@ process_socket_event(struct iwch_ep *ep)
 	}
 
 	if (state == LISTEN) {
-		process_newconn(ep);
+		/* socket listening events are handled at IWCM */
+		CTR3(KTR_IW_CXGB, "%s Invalid ep state:%u, ep:%p", __func__,
+			ep->com.state, ep);
+		BUG();
 		return;
 	}
 
