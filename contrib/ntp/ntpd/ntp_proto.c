@@ -153,6 +153,19 @@ u_long	sys_declined;		/* declined */
 u_long	sys_limitrejected;	/* rate exceeded */
 u_long	sys_kodsent;		/* KoD sent */
 
+/*
+ * Mechanism knobs: how soon do we unpeer()?
+ *
+ * The default way is "on-receipt".  If this was a packet from a
+ * well-behaved source, on-receipt will offer the fastest recovery.
+ * If this was from a DoS attack, the default way makes it easier
+ * for a bad-guy to DoS us.  So look and see what bites you harder
+ * and choose according to your environment.
+ */
+int unpeer_crypto_early		= 1;	/* bad crypto (TEST9) */
+int unpeer_crypto_nak_early	= 1;	/* crypto_NAK (TEST5) */
+int unpeer_digest_early		= 1;	/* bad digest (TEST5) */
+
 static int kiss_code_check(u_char hisleap, u_char hisstratum, u_char hismode, u_int32 refid);
 static	double	root_distance	(struct peer *);
 static	void	clock_combine	(peer_select *, int, int);
@@ -1157,6 +1170,7 @@ receive(
 
 			} else {
 				peer->delay = sys_bdelay;
+				peer->bxmt = p_xmt;
 			}
 			break;
 		}
@@ -1177,6 +1191,7 @@ receive(
 			sys_restricted++;
 			return;			/* ignore duplicate */
 		}
+		peer->bxmt = p_xmt;
 #ifdef AUTOKEY
 		if (skeyid > NTP_MAXKEY)
 			crypto_recv(peer, rbufp);
@@ -1286,6 +1301,73 @@ receive(
 			return;
 		}
 #endif /* AUTOKEY */
+
+		if (MODE_BROADCAST == hismode) {
+			u_char poll;
+			int bail = 0;
+			l_fp tdiff;
+
+			DPRINTF(2, ("receive: PROCPKT/BROADCAST: prev pkt %ld seconds ago, ppoll: %d, %d secs\n",
+				    (current_time - peer->timelastrec),
+				    peer->ppoll, (1 << peer->ppoll)
+				    ));
+			/* Things we can check:
+			 *
+			 * Did the poll interval change?
+			 * Is the poll interval in the packet in-range?
+			 * Did this packet arrive too soon?
+			 * Is the timestamp in this packet monotonic
+			 *  with respect to the previous packet?
+			 */
+
+			/* This is noteworthy, not error-worthy */
+			if (pkt->ppoll != peer->ppoll) {
+				msyslog(LOG_INFO, "receive: broadcast poll from %s changed from %ud to %ud",
+					stoa(&rbufp->recv_srcadr),
+					peer->ppoll, pkt->ppoll);
+			}
+
+			poll = min(peer->maxpoll,
+				   max(peer->minpoll, pkt->ppoll));
+
+			/* This is error-worthy */
+			if (pkt->ppoll != poll) {
+				msyslog(LOG_INFO, "receive: broadcast poll of %ud from %s is out-of-range (%d to %d)!",
+					pkt->ppoll, stoa(&rbufp->recv_srcadr),
+					peer->minpoll, peer->maxpoll);
+				++bail;
+			}
+
+			if (  (current_time - peer->timelastrec)
+			    < (1 << pkt->ppoll)) {
+				msyslog(LOG_INFO, "receive: broadcast packet from %s arrived after %ld, not %d seconds!",
+					stoa(&rbufp->recv_srcadr),
+					(current_time - peer->timelastrec),
+					(1 << pkt->ppoll)
+					);
+				++bail;
+			}
+
+			tdiff = p_xmt;
+			L_SUB(&tdiff, &peer->bxmt);
+			if (tdiff.l_i < 0) {
+				msyslog(LOG_INFO, "receive: broadcast packet from %s contains non-monotonic timestamp: %#010x.%08x -> %#010x.%08x",
+					stoa(&rbufp->recv_srcadr),
+					peer->bxmt.l_ui, peer->bxmt.l_uf,
+					p_xmt.l_ui, p_xmt.l_uf
+					);
+				++bail;
+			}
+
+			peer->bxmt = p_xmt;
+
+			if (bail) {
+				peer->timelastrec = current_time;
+				sys_declined++;
+				return;
+			}
+		}
+
 		break;
 
 	/*
@@ -1362,7 +1444,12 @@ receive(
 	/*
 	 * Basic mode checks:
 	 *
-	 * If there is no origin timestamp, it's an initial packet.
+	 * If there is no origin timestamp, it's either an initial packet
+	 * or we've already received a response to our query.  Of course,
+	 * should 'aorg' be all-zero because this really was the original
+	 * transmit timestamp, we'll drop the reply.  There is a window of
+	 * one nanosecond once every 136 years' time where this is possible.
+	 * We currently ignore this situation.
 	 *
 	 * Otherwise, check for bogus packet in basic mode.
 	 * If it is bogus, switch to interleaved mode and resynchronize,
@@ -1375,7 +1462,8 @@ receive(
 	} else if (peer->flip == 0) {
 		if (0 < hisstratum && L_ISZERO(&p_org)) {
 			L_CLR(&peer->aorg);
-		} else if (!L_ISEQU(&p_org, &peer->aorg)) {
+		} else if (    L_ISZERO(&peer->aorg)
+			   || !L_ISEQU(&p_org, &peer->aorg)) {
 			peer->bogusorg++;
 			peer->flash |= TEST2;	/* bogus */
 			msyslog(LOG_INFO,
@@ -1424,7 +1512,9 @@ receive(
 		peer->flash |= TEST5;		/* bad auth */
 		peer->badauth++;
 		if (peer->flags & FLAG_PREEMPT) {
-			unpeer(peer);
+			if (unpeer_crypto_nak_early) {
+				unpeer(peer);
+			}
 			return;
 		}
 #ifdef AUTOKEY
@@ -1450,7 +1540,9 @@ receive(
 		    && (hismode == MODE_ACTIVE || hismode == MODE_PASSIVE))
 			fast_xmit(rbufp, MODE_ACTIVE, 0, restrict_mask);
 		if (peer->flags & FLAG_PREEMPT) {
-			unpeer(peer);
+			if (unpeer_digest_early) {
+				unpeer(peer);
+			}
 			return;
 		}
 #ifdef AUTOKEY
@@ -1505,12 +1597,47 @@ receive(
 		return;		/* Drop any other kiss code packets */
 	}
 
+	/*
+	 * If:
+	 *	- this is a *cast (uni-, broad-, or m-) server packet
+	 *	- and it's authenticated
+	 * then see if the sender's IP is trusted for this keyid.
+	 * If it is, great - nothing special to do here.
+	 * Otherwise, we should report and bail.
+	 */
+
+	switch (hismode) {
+	    case MODE_SERVER:		/* server mode */
+	    case MODE_BROADCAST:	/* broadcast mode */
+	    case MODE_ACTIVE:		/* symmetric active mode */
+		if (   is_authentic == AUTH_OK
+		    && !authistrustedip(skeyid, &peer->srcadr)) {
+			report_event(PEVNT_AUTH, peer, "authIP");
+			peer->badauth++;
+			return;
+		}
+	    	break;
+
+	    case MODE_UNSPEC:		/* unspecified (old version) */
+	    case MODE_PASSIVE:		/* symmetric passive mode */
+	    case MODE_CLIENT:		/* client mode */
+#if 0		/* At this point, MODE_CONTROL is overloaded by MODE_BCLIENT */
+	    case MODE_CONTROL:		/* control mode */
+#endif
+	    case MODE_PRIVATE:		/* private mode */
+	    case MODE_BCLIENT:		/* broadcast client mode */
+	    	break;
+	    default:
+	    	break;
+	}
+
 
 	/*
 	 * That was hard and I am sweaty, but the packet is squeaky
 	 * clean. Get on with real work.
 	 */
 	peer->timereceived = current_time;
+	peer->timelastrec = current_time;
 	if (is_authentic == AUTH_OK)
 		peer->flags |= FLAG_AUTHENTIC;
 	else
@@ -1560,8 +1687,11 @@ receive(
 				    "crypto error");
 				peer_clear(peer, "CRYP");
 				peer->flash |= TEST9;	/* bad crypt */
-				if (peer->flags & FLAG_PREEMPT)
-					unpeer(peer);
+				if (peer->flags & FLAG_PREEMPT) {
+					if (unpeer_crypto_early) {
+						unpeer(peer);
+					}
+				}
 			}
 			return;
 		}
@@ -4356,6 +4486,22 @@ proto_config(
 	case PROTO_MULTICAST_DEL: /* delete group address */
 		if (svalue != NULL)
 			io_multicast_del(svalue);
+		break;
+
+	/*
+	 * Unpeer Early policy choices
+	 */
+
+	case PROTO_UECRYPTO:	/* Crypto */
+		unpeer_crypto_early = value;
+		break;
+
+	case PROTO_UECRYPTONAK:	/* Crypto_NAK */
+		unpeer_crypto_nak_early = value;
+		break;
+
+	case PROTO_UEDIGEST:	/* Digest */
+		unpeer_digest_early = value;
 		break;
 
 	default:

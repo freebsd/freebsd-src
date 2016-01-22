@@ -3,35 +3,52 @@
 #include "stdlib.h"
 #include "sntptest.h"
 
-#include "fileHandlingTest.h" //required because of the h.in thingy
+#include "fileHandlingTest.h" /* required because of the h.in thingy */
 
 #include <string.h>
 #include <unistd.h>
 
-/*
-enum DirectoryType {
-	INPUT_DIR = 0,
-	OUTPUT_DIR = 1
-};
-*/
-//extern const char srcdir[];
-
 const char *
-CreatePath(const char* filename, enum DirectoryType argument) {
-	const char srcdir[] = SRCDIR_DEF;//"@abs_srcdir@/data/";
-	char * path = emalloc (sizeof (char) * (strlen(srcdir) + 256));
+CreatePath(
+	const char *		filename,
+	enum DirectoryType 	argument
+	)
+{
+	const char 	srcdir[] = SRCDIR_DEF;//"@abs_srcdir@/data/";
+	size_t		plen = sizeof(srcdir) + strlen(filename) + 1;
+	char * 		path = emalloc(plen);
+	ssize_t		retc;
 
-	//char cwd[1024];
+	UNUSED_ARG(argument);
 
-	strcpy(path, srcdir);
-	strcat(path, filename);
-
+	retc = snprintf(path, plen, "%s%s", srcdir, filename);
+	if (retc <= 0 || (size_t)retc >= plen)
+		exit(1);
 	return path;
 }
 
 
+void
+DestroyPath(
+	const char *	pathname
+	)
+{
+	/* use a union to get terminally rid of the 'const' attribute */
+	union {
+		const char *ccp;
+		void       *vp;
+	} any;
+
+	any.ccp = pathname;
+	free(any.vp);
+}
+
+
 int
-GetFileSize(FILE *file) {
+GetFileSize(
+	FILE *	file
+	)
+{
 	fseek(file, 0L, SEEK_END);
 	int length = ftell(file);
 	fseek(file, 0L, SEEK_SET);
@@ -41,7 +58,11 @@ GetFileSize(FILE *file) {
 
 
 bool
-CompareFileContent(FILE* expected, FILE* actual) {
+CompareFileContent(
+	FILE *	expected,
+	FILE *	actual
+	)
+{
 	int currentLine = 1;
 
 	char actualLine[1024];
@@ -67,8 +88,10 @@ CompareFileContent(FILE* expected, FILE* actual) {
 
 
 void
-ClearFile(const char * filename) {
+ClearFile(
+	const char * filename
+	)
+{
 	if (!truncate(filename, 0))
 		exit(1);
 }
-
