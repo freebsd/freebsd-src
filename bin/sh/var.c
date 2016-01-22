@@ -802,6 +802,7 @@ poplocalvars(void)
 			ckfree(lvp->text);
 			optschanged();
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
+			vp->flags &= ~VREADONLY;
 			(void)unsetvar(vp->text);
 		} else {
 			islocalevar = (vp->flags | lvp->flags) & VEXPORT &&
