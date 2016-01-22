@@ -174,4 +174,5 @@ static inline void remove_handle(struct iwch_dev *rhp, struct idr *idr, u32 id)
 }
 
 void iwch_ev_dispatch(struct iwch_dev *, struct mbuf *);
+void process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so);
 #endif
