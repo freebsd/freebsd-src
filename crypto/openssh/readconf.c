@@ -286,6 +286,8 @@ static struct {
 	{ "hpnbuffersize", oDeprecated },
 	{ "tcprcvbufpoll", oDeprecated },
 	{ "tcprcvbuf", oDeprecated },
+	{ "noneenabled", oUnsupported },
+	{ "noneswitch", oUnsupported },
 	{ "versionaddendum", oVersionAddendum },
 
 	{ NULL, oBadOption }
