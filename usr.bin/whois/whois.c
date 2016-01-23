@@ -61,7 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #define	ABUSEHOST	"whois.abuse.net"
 #define	ANICHOST	"whois.arin.net"
-#define	DENICHOST	"de" QNICHOST_TAIL
+#define	DENICHOST	"whois.denic.de"
+#define	DKNICHOST	"whois.dk-hostmaster.dk"
 #define	FNICHOST	"whois.afrinic.net"
 #define	GNICHOST	"whois.nic.gov"
 #define	IANAHOST	"whois.iana.org"
@@ -415,17 +416,24 @@ done:
 		err(EX_OSERR, "fdopen()");
 
 	if (!(flags & WHOIS_SPAM_ME) &&
-	    strcmp(hostname, DENICHOST) == 0)
-		fprintf(fp, "-T dn,ace -C ISO-8859-1 %s\r\n", query);
-	else if (!(flags & WHOIS_SPAM_ME) &&
-		 strcmp(hostname, "dk" QNICHOST_TAIL) == 0)
+	    (strcasecmp(hostname, DENICHOST) == 0 ||
+	     strcasecmp(hostname, "de" QNICHOST_TAIL) == 0)) {
+		const char *q;
+		int idn = 0;
+		for (q = query; *q != '\0'; q++)
+			if (!isascii(*q))
+				idn = 1;
+		fprintf(fp, "-T dn%s %s\r\n", idn ? "" : ",ace", query);
+	} else if (!(flags & WHOIS_SPAM_ME) &&
+		   (strcasecmp(hostname, DKNICHOST) == 0 ||
+		    strcasecmp(hostname, "dk" QNICHOST_TAIL) == 0))
 		fprintf(fp, "--show-handles %s\r\n", query);
 	else if ((flags & WHOIS_SPAM_ME) ||
 		 strchr(query, ' ') != NULL)
 		fprintf(fp, "%s\r\n", query);
-	else if (strcmp(hostname, ANICHOST) == 0)
+	else if (strcasecmp(hostname, ANICHOST) == 0)
 		fprintf(fp, "+ %s\r\n", query);
-	else if (strcmp(hostres->ai_canonname, VNICHOST) == 0)
+	else if (strcasecmp(hostres->ai_canonname, VNICHOST) == 0)
 		fprintf(fp, "domain %s\r\n", query);
 	else
 		fprintf(fp, "%s\r\n", query);
