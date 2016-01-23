@@ -1485,7 +1485,7 @@ sctp_handle_addr_wq(void)
 			SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, EFAULT);
 			/* XXX-BZ Freeing if we are stopping or put back on the addr_wq. */
 			if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
-				sctp_asconf_iterator_end(asc);
+				sctp_asconf_iterator_end(asc, 0);
 			} else {
 				SCTP_WQ_ADDR_LOCK();
 				LIST_FOREACH(wi, &asc->list_of_work, sctp_nxt_addr) {
