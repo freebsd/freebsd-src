@@ -5524,7 +5524,7 @@ sctp_add_local_addr_restricted(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 /*
  * insert an laddr entry with the given ifa for the desired list
  */
-int
+/* static in FreeBSD */ int
 sctp_insert_laddr(struct sctpladdr *list, struct sctp_ifa *ifa, uint32_t act)
 {
 	struct sctp_laddr *laddr;
@@ -5550,7 +5550,7 @@ sctp_insert_laddr(struct sctpladdr *list, struct sctp_ifa *ifa, uint32_t act)
 /*
  * Remove an laddr entry from the local address list (on an assoc)
  */
-void
+/* static in FreeBSD */ void
 sctp_remove_laddr(struct sctp_laddr *laddr)
 {
 
@@ -6045,6 +6045,14 @@ retry:
 
 	SCTP_WQ_ADDR_DESTROY();
 
+	/* Get rid of other stuff too. */
+	if (SCTP_BASE_INFO(sctp_asochash) != NULL)
+		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_asochash), SCTP_BASE_INFO(hashasocmark));
+	if (SCTP_BASE_INFO(sctp_ephash) != NULL)
+		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_ephash), SCTP_BASE_INFO(hashmark));
+	if (SCTP_BASE_INFO(sctp_tcpephash) != NULL)
+		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_tcpephash), SCTP_BASE_INFO(hashtcpmark));
+
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_ep));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asoc));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_laddr));
@@ -6054,13 +6062,7 @@ retry:
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_strmoq));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf_ack));
-	/* Get rid of other stuff to */
-	if (SCTP_BASE_INFO(sctp_asochash) != NULL)
-		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_asochash), SCTP_BASE_INFO(hashasocmark));
-	if (SCTP_BASE_INFO(sctp_ephash) != NULL)
-		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_ephash), SCTP_BASE_INFO(hashmark));
-	if (SCTP_BASE_INFO(sctp_tcpephash) != NULL)
-		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_tcpephash), SCTP_BASE_INFO(hashtcpmark));
+
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_FREE(SCTP_BASE_STATS, SCTP_M_MCORE);
 #endif
