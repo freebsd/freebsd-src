@@ -3281,10 +3281,7 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 			if (ret)  {
 				SCTP_PRINTF("Failed to initiate iterator for addr_mgmt_ep_sa\n");
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EFAULT);
-				atomic_add_int(&ifa->refcount, -1);
-				SCTP_DECR_LADDR_COUNT();
-				SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), wi);	
-				SCTP_FREE(asc, SCTP_M_ASC_IT);
+				sctp_asconf_iterator_end(asc);
 				return (EFAULT);
 			}
 		}
