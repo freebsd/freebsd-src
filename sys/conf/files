@@ -1419,7 +1419,7 @@ dev/fdt/fdt_clock_if.m		optional fdt fdt_clock
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
 dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
-dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
+dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"$S/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE}"
 dev/fdt/simplebus.c		optional fdt
@@ -3010,7 +3010,7 @@ geom/geom_disk.c		standard
 geom/geom_dump.c		standard
 geom/geom_event.c		standard
 geom/geom_fox.c			optional geom_fox
-geom/geom_flashmap.c		optional fdt cfi | fdt nand
+geom/geom_flashmap.c		optional fdt cfi | fdt nand | fdt mx25l
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
 geom/geom_map.c			optional geom_map
