@@ -77,7 +77,7 @@ struct iterator_control sctp_it_ctl;
 void
 sctp_wakeup_iterator(void)
 {
-	wakeup(&sctp_it_ctl.iterator_running);
+	wakeup(&sctp_it_ctl.iterator_flags);
 }
 
 static void
@@ -86,7 +86,7 @@ sctp_iterator_thread(void *v SCTP_UNUSED)
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	/* In FreeBSD this thread never terminates. */
 	for (;;) {
-		msleep(&sctp_it_ctl.iterator_running,
+		msleep(&sctp_it_ctl.iterator_flags,
 		    &sctp_it_ctl.ipi_iterator_wq_mtx,
 		    0, "waiting_for_work", 0);
 		sctp_iterator_worker();
