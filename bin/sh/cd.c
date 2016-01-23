@@ -75,7 +75,6 @@ static char *getpwd(void);
 static char *getpwd2(void);
 
 static char *curdir = NULL;	/* current working directory */
-static char *prevdir;		/* previous working directory */
 static char *cdcomppath;
 
 int
@@ -112,11 +111,10 @@ cdcmd(int argc __unused, char **argv __unused)
 	if (*dest == '\0')
 		dest = ".";
 	if (dest[0] == '-' && dest[1] == '\0') {
-		dest = prevdir ? prevdir : curdir;
-		if (dest)
-			print = 1;
-		else
-			dest = ".";
+		dest = bltinlookup("OLDPWD", 1);
+		if (dest == NULL)
+			error("OLDPWD not set");
+		print = 1;
 	}
 	if (dest[0] == '/' ||
 	    (dest[0] == '.' && (dest[1] == '/' || dest[1] == '\0')) ||
@@ -311,14 +309,15 @@ findcwd(char *dir)
 static void
 updatepwd(char *dir)
 {
+	char *prevdir;
+
 	hashcd();				/* update command hash table */
 
-	if (prevdir)
-		ckfree(prevdir);
+	setvar("PWD", dir, VEXPORT);
+	setvar("OLDPWD", curdir, VEXPORT);
 	prevdir = curdir;
 	curdir = dir ? savestr(dir) : NULL;
-	setvar("PWD", curdir, VEXPORT);
-	setvar("OLDPWD", prevdir, VEXPORT);
+	ckfree(prevdir);
 }
 
 int
