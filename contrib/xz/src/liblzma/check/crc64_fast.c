@@ -36,7 +36,7 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
 #endif
 
 	if (size > 4) {
-		while ((size_t)(uintptr_t)(buf) & 3) {
+		while ((size_t)(buf) & 3) {
 			crc = lzma_crc64_table[0][*buf++ ^ A1(crc)] ^ S8(crc);
 			--size;
 		}

@@ -35,7 +35,7 @@ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
 	if (size > 8) {
 		// Fix the alignment, if needed. The if statement above
 		// ensures that this won't read past the end of buf[].
-		while ((size_t)(uintptr_t)(buf) & 7) {
+		while ((size_t)(buf) & 7) {
 			crc = lzma_crc32_table[0][*buf++ ^ A(crc)] ^ S8(crc);
 			--size;
 		}

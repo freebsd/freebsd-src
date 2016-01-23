@@ -62,11 +62,7 @@ bread(struct uufsd *disk, ufs2_daddr_t blockno, void *data, size_t size)
 	 * XXX: Bounce the buffer if not 64 byte aligned.
 	 * XXX: this can be removed if/when the kernel is fixed
 	 */
-	/*
-	 * XXX-CHERI: This assumes the underlying "data" object is 64
-	 * byte aligned.
-	 */
-	if (((size_t)(uintptr_t)data) & 0x3f) {
+	if (((size_t)data) & 0x3f) {
 		p2 = malloc(size);
 		if (p2 == NULL) {
 			ERROR(disk, "allocate bounce buffer");
@@ -119,11 +115,7 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 	 * XXX: Bounce the buffer if not 64 byte aligned.
 	 * XXX: this can be removed if/when the kernel is fixed
 	 */
-	/*
-	 * XXX-CHERI: This assumes the underlying "data" object is 64
-	 * byte aligned.
-	 */
-	if (((size_t)(intptr_t)data) & 0x3f) {
+	if (((size_t)data) & 0x3f) {
 		p2 = malloc(size);
 		if (p2 == NULL) {
 			ERROR(disk, "allocate bounce buffer");
