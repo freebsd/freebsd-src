@@ -297,9 +297,9 @@ void	setconf(void);
 
 #define	dev2unit(d)	((d)->si_drv0)
 
-typedef	void (*cdevpriv_dtr_t)(void *data);
+typedef void d_priv_dtor_t(void *data);
 int	devfs_get_cdevpriv(void **datap);
-int	devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t dtr);
+int	devfs_set_cdevpriv(void *priv, d_priv_dtor_t *dtr);
 void	devfs_clear_cdevpriv(void);
 void	devfs_fpdrop(struct file *fp);	/* XXX This is not public KPI */
 
