@@ -1421,7 +1421,7 @@ sctp_iterator_worker(void)
 
 	/* This function is called with the WQ lock in place */
 
-	sctp_it_ctl.iterator_running = 1;
+	atomic_store_rel_int(&sctp_it_ctl.iterator_running, 1);
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
 		sctp_it_ctl.cur_it = it;
 		/* now lets work on this one */
@@ -1434,7 +1434,7 @@ sctp_iterator_worker(void)
 		SCTP_IPI_ITERATOR_WQ_LOCK();
 		/* sa_ignore FREED_MEMORY */
 	}
-	sctp_it_ctl.iterator_running = 0;
+	atomic_store_rel_int(&sctp_it_ctl.iterator_running, 0);
 	return;
 }
 

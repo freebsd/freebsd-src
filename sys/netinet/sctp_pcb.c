@@ -5929,6 +5929,7 @@ sctp_pcb_finish(void)
 	struct sctp_tagblock *twait_block, *prev_twait_block;
 	struct sctp_laddr *wi, *nwi;
 	int i;
+	unsigned int r;
 	struct sctp_iterator *it, *nit;
 
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
@@ -5943,8 +5944,6 @@ sctp_pcb_finish(void)
 	 * still add the ifdef to make it compile on old versions.
 	 */
 retry:
-	while (sctp_it_ctl.iterator_running != 0)
-		DELAY(1);
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	/*
 	 * sctp_iterator_worker() might be working on an it entry without
@@ -5953,10 +5952,13 @@ retry:
 	 * avoid the race condition as sctp_iterator_worker() will have to
 	 * wait to re-aquire the lock.
 	 */
-	if (sctp_it_ctl.cur_it != NULL || sctp_it_ctl.iterator_running != 0) {
+	r = atomic_fetchadd_int(&sctp_it_ctl.iterator_running, 0);
+	if (r != 0 || sctp_it_ctl.cur_it != NULL) {
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
-		printf("%s: Iterator running while we held the lock. Retry.\n",
-		    __func__);
+		/* XXX-BZ make this a statistics variable. */
+		printf("%s: Iterator running while we held the lock. Retry. "
+		    "r=%u cur_it=%p\n", __func__, r, sctp_it_ctl.cur_it);
+		DELAY(10);
 		goto retry;
 	}
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
@@ -7022,6 +7024,11 @@ sctp_initiate_iterator(inp_func inpf,
 	if (af == NULL) {
 		return (-1);
 	}
+	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
+		printf("%s: abort on initialize being %d\n", __func__,
+		    SCTP_BASE_VAR(sctp_pcb_initialized));
+		return (-1);
+	}
 	SCTP_MALLOC(it, struct sctp_iterator *, sizeof(struct sctp_iterator),
 	    SCTP_M_ITER);
 	if (it == NULL) {
@@ -7060,9 +7067,16 @@ sctp_initiate_iterator(inp_func inpf,
 
 	}
 	SCTP_IPI_ITERATOR_WQ_LOCK();
+	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
+		SCTP_IPI_ITERATOR_WQ_UNLOCK();
+		printf("%s: rollback on initialize being %d it=%p\n", __func__,
+		    SCTP_BASE_VAR(sctp_pcb_initialized), it);
+		SCTP_FREE(it, SCTP_M_ITER);
+		return (-1);
+	}
 
 	TAILQ_INSERT_TAIL(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
-	if (sctp_it_ctl.iterator_running == 0) {
+	if (atomic_fetchadd_int(&sctp_it_ctl.iterator_running, 0) == 0) {
 		sctp_wakeup_iterator();
 	}
 	SCTP_IPI_ITERATOR_WQ_UNLOCK();
