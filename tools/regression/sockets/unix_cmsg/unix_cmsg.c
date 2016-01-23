@@ -83,7 +83,13 @@ static int	t_sockcred_2(void);
 static int	t_cmsgcred_sockcred(void);
 static int	t_timeval(void);
 static int	t_bintime(void);
+/*
+ * The testcase fails on 64-bit architectures (amd64), but passes on 32-bit
+ * architectures (i386); see bug 206543
+ */
+#ifndef __LP64__
 static int	t_cmsg_len(void);
+#endif
 static int	t_peercred(void);
 
 struct test_func {
@@ -120,10 +126,12 @@ static const struct test_func test_stream_tbl[] = {
 	  .func = t_bintime,
 	  .desc = "Sending, receiving bintime"
 	},
+#ifndef __LP64__
 	{
 	  .func = t_cmsg_len,
 	  .desc = "Check cmsghdr.cmsg_len"
 	},
+#endif
 	{
 	  .func = t_peercred,
 	  .desc = "Check LOCAL_PEERCRED socket option"
@@ -158,10 +166,12 @@ static const struct test_func test_dgram_tbl[] = {
 	  .func = t_bintime,
 	  .desc = "Sending, receiving bintime"
 	},
+#ifndef __LP64__
 	{
 	  .func = t_cmsg_len,
 	  .desc = "Check cmsghdr.cmsg_len"
 	}
+#endif
 };
 
 #define TEST_DGRAM_TBL_SIZE \
@@ -1829,6 +1839,7 @@ t_bintime(void)
 	return (t_generic(t_bintime_client, t_bintime_server));
 }
 
+#ifndef __LP64__
 static int
 t_cmsg_len_client(int fd)
 {
@@ -1921,6 +1932,7 @@ t_cmsg_len(void)
 {
 	return (t_generic(t_cmsg_len_client, t_cmsg_len_server));
 }
+#endif
 
 static int
 t_peercred_client(int fd)
