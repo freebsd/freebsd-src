@@ -106,7 +106,7 @@
 #define THREAD_LOCAL_after 2
 #define THREAD_LOCAL_declspec 3
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 #undef HAVE_THREAD_LOCAL
 #endif
 

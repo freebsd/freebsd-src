@@ -60,7 +60,7 @@ struct kevent {
 	short		filter;		/* filter for event */
 	u_short		flags;
 	u_int		fflags;
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	intptr_t	data;
 #else
 	int64_t		data;		/* All consumers use integers */

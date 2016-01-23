@@ -205,7 +205,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemcmp _fmemcmp
 #    define zmemzero(dest, len) _fmemset(dest, 0, len)
 #  else
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 #    define zmemcpy memcpy_c
 #    define zmemcmp memcmp_c
 #    define zmemzero(dest, len) memset_c(dest, 0, len)

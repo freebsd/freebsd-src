@@ -43,7 +43,7 @@
 #include "opt_compat.h"
 #endif
 
-#if defined(COMPAT_CHERIABI) || defined(__CHERI_SANDBOX__)
+#if defined(COMPAT_CHERIABI) || defined(__CHERI_PURE_CAPABILITY__)
 #include <machine/cheri.h>
 #endif
 
@@ -64,7 +64,7 @@ typedef struct	__mcontext {
 	void		*mc_tls;	/* pointer to TLS area */
 	__register_t	cause;		/* cause register */
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
         /*
          * Optional externally referenced storage for coprocessors.  Modeled
          * on the approach taken for extended FPU state on x86, which leaves
@@ -84,10 +84,10 @@ typedef struct	__mcontext {
 #else
         int             xxx[5];         /* XXX reserved */
 #endif
-#else /* defined(__CHERI_SANDBOX__) */
+#else /* defined(__CHERI_PURE_CAPABILITY__) */
 	struct cheri_frame	mc_cheriframe;	/* capability registers */
 	struct chericap	__spare__[8];
-#endif /* defined(__CHERI_SANDBOX__) */
+#endif /* defined(__CHERI_PURE_CAPABILITY__) */
 } mcontext_t;
 
 #if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)

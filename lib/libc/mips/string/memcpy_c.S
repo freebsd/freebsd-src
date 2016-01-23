@@ -40,7 +40,7 @@
 #define CAP_ALIGN_MASK (CAP_SIZE-1)
 
 .macro ret
-#if __CHERI_SANDBOX__ >= 2
+#ifdef __CHERI_PURE_CAPABILITY__
 	cjr	$c17
 #else
 	jr	$ra

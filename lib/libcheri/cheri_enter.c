@@ -77,7 +77,7 @@ cheri_enter_init(void)
 	 * In CheriABI, we use the capability returned by mmap(2), which $sp
 	 * will be relative to.  Otherwise, use $c0 and assume a global $sp.
 	 */
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	__cheri_enter_stack_cap = __cheri_enter_stack;
 	__cheri_enter_stack_sp = CHERI_ENTER_STACK_SIZE;
 #else

@@ -82,7 +82,7 @@ atomic_set_32(__volatile uint32_t *p, uint32_t v)
 {
 	uint32_t temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll	%0, %3\n\t"		/* load old value */
 		"or	%0, %2, %0\n\t"		/* calculate new value */
@@ -111,7 +111,7 @@ atomic_clear_32(__volatile uint32_t *p, uint32_t v)
 	uint32_t temp;
 	v = ~v;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll	%0, %3\n\t"		/* load old value */
 		"and	%0, %2, %0\n\t"		/* calculate new value */
@@ -138,7 +138,7 @@ atomic_add_32(__volatile uint32_t *p, uint32_t v)
 {
 	uint32_t temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll	%0, %3\n\t"		/* load old value */
 		"addu	%0, %2, %0\n\t"		/* calculate new value */
@@ -165,7 +165,7 @@ atomic_subtract_32(__volatile uint32_t *p, uint32_t v)
 {
 	uint32_t temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll	%0, %3\n\t"		/* load old value */
 		"subu	%0, %2\n\t"		/* calculate new value */
@@ -192,7 +192,7 @@ atomic_readandclear_32(__volatile uint32_t *addr)
 {
 	uint32_t result,temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll	 %0,%3\n\t"	/* load current value, asserting lock */
 		"li	 %1,0\n\t"		/* value to store */
@@ -221,7 +221,7 @@ atomic_readandset_32(__volatile uint32_t *addr, uint32_t value)
 {
 	uint32_t result,temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll	 %0,%3\n\t"	/* load current value, asserting lock */
 		"or      %1,$0,%4\n\t"
@@ -251,7 +251,7 @@ atomic_set_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -281,7 +281,7 @@ atomic_clear_64(__volatile uint64_t *p, uint64_t v)
 	uint64_t temp;
 	v = ~v;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -309,7 +309,7 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -337,7 +337,7 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -365,7 +365,7 @@ atomic_readandclear_64(__volatile uint64_t *addr)
 {
 	uint64_t result,temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	 %0, %3\n\t"		/* load old value */
@@ -395,7 +395,7 @@ atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
 {
 	uint64_t result,temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	 %0,%3\n\t"		/* Load old value*/
@@ -510,7 +510,7 @@ atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 {
 	uint32_t ret;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll	%0, %4\n\t"		/* load old value */
 		"bne %0, %2, 2f\n\t"		/* compare */
@@ -575,7 +575,7 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 {
 	uint32_t value, temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\tll %0, %1\n\t"		/* load old value */
 		"addu %2, %3, %0\n\t"		/* calculate new value */
@@ -607,7 +607,7 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 {
 	uint64_t ret;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %4\n\t"		/* load old value */
@@ -673,7 +673,7 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t value, temp;
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %1\n\t"		/* load old value */

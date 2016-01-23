@@ -145,7 +145,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	 * XXXRW: There are future questions to answer here about W^X and
 	 * mmap(2) in CheriABI.
 	 */
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	codecap = cheri_andperm(sbcp->sbc_codemem,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 #else
@@ -155,7 +155,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	codecap = cheri_setoffset(codecap, SANDBOX_RTLD_VECTOR);
 	sbcp->sbc_classcap_rtld = cheri_seal(codecap, sbcp->sbc_typecap);
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	codecap = cheri_andperm(sbcp->sbc_codemem,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 #else

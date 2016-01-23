@@ -143,7 +143,7 @@ cheri_stack_unwind(ucontext_t *uap, register_t ret, u_int op,
 	cs.cs_tsp += num_frames * CHERI_FRAME_SIZE;
 	assert(cs.cs_tsp <= cs.cs_tsize);
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	cfp = &uap->uc_mcontext.mc_cheriframe;
 #else
 	cfp = (struct cheri_frame *)uap->uc_mcontext.mc_cp2state;

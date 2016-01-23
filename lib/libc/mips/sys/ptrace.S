@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #endif /* LIBC_SCCS and not lint */
 
 NESTED_NOPROFILE(ptrace, CALLFRAME_SIZ, ra)
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	SETUP_GP
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ

@@ -76,7 +76,7 @@ typedef	__int32_t	__clock_t;		/* clock()... */
 typedef	double		__double_t;
 typedef	float		__float_t;
 #ifdef __mips_n64
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 typedef	__int64_t	__critical_t;
 typedef	__int64_t	__intfptr_t;
 typedef	__int64_t	__intptr_t;
@@ -111,7 +111,7 @@ typedef	__int64_t	__ptrdiff_t;
 typedef	__int64_t	__segsz_t;
 typedef	__uint64_t	__size_t;
 typedef	__int64_t	__ssize_t;
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 typedef	__uint64_t	__uintfptr_t;
 typedef	__uint64_t	__uintptr_t;
 #else

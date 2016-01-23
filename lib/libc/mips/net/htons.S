@@ -43,7 +43,7 @@ LEAF(htons)
 	and	v1, v1, 0xff00
 	or	v0, v0, v1
 #endif
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	j	ra
 #else
 	cjr     $c17

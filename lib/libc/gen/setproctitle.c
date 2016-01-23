@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 #include <assert.h>
 #endif
 #include <stdio.h>
@@ -83,7 +83,7 @@ setproctitle(const char *fmt, ...)
 	int i;
 	va_list ap;
 	size_t len;
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	unsigned long ul_ps_strings;
 #endif
 	int oid[4];
@@ -144,7 +144,7 @@ setproctitle(const char *fmt, ...)
 	if (ps_strings == NULL) {
 		if (__ps_strings != NULL) {
 			ps_strings = __ps_strings;
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 		} else {
 			len = sizeof(ul_ps_strings);
 			if (sysctlbyname("kern.ps_strings", &ul_ps_strings,

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 LEAF(strlen)
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	PTR_ADDU	v1, a0, 1
 1:
 	lb		v0, 0(a0)	# get byte from string
@@ -53,7 +53,7 @@ LEAF(strlen)
 	bne		v0, zero, 1b	# continue if not end
 	PTR_SUBU 	v0, a0, v1	# compute length - 1 for '\0' char
 	j		ra
-#else	/* defined(__CHERI_SANDBOX__) */
+#else	/* defined(__CHERI_PURE_CAPABILITY__) */
 	li		v0, 0
 1:
 	clb		v1, v0, 0($c3)	# get byte from string
@@ -62,5 +62,5 @@ LEAF(strlen)
 	nop				# delay slot
 	LONG_ADDU	v0, v0, -1	# Subtract 1 for '\0'
 	cjr		$c17
-#endif	/* defined(__CHERI_SANDBOX__) */
+#endif	/* defined(__CHERI_PURE_CAPABILITY__) */
 END(strlen)

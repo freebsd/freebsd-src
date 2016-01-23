@@ -266,7 +266,7 @@ __ujtoa(uintmax_t val, CHAR *endp, int base, int octzero, const char *xdigs)
 	return (cp);
 }
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 /*
  * Print the pointer details.  Format matches the kernel register dump format:
  * v:0 s:0 p:00000000 b:0000000000000000 l:0000000000000000 o:0 t:0
@@ -336,7 +336,7 @@ __cheri_ptr_alt(void *pointer, CHAR *cp, const char *xdigs)
 
 	return (cp);
 }
-#endif /* __CHERI_SANDBOX__ */
+#endif /* __CHERI_PURE_CAPABILITY__ */
 
 #ifndef NO_FLOATING_POINT
 

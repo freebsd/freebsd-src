@@ -36,7 +36,6 @@
 void	crt_init_globals(void);
 void	crt_sb_constructors(void);
 
-#if __CHERI_SANDBOX__ > 2
 /*
  * In version 3 of the CHERI sandbox ABI, function pointers are capabilities.
  * The CTORs list is the single exception: CTORs are used to set up globals
@@ -45,9 +44,6 @@ void	crt_sb_constructors(void);
  */
 typedef unsigned long long mips_function_ptr;
 typedef void (*cheri_function_ptr)(void);
-#else
-typedef void (*mips_function_ptr)(void);
-#endif
 
 struct capreloc
 {
@@ -102,14 +98,10 @@ crt_sb_constructors(void)
 	    func != &__CTOR_END__;
 	    func++) {
 		if (*func != (mips_function_ptr)-1) {
-#if __CHERI_SANDBOX__ > 2
 			cheri_function_ptr cheri_func =
 				(cheri_function_ptr)__builtin_memcap_offset_set(
 						__builtin_memcap_program_counter_get(), *func);
 			cheri_func();
-#else
-			(*func)();
-#endif
 		}
 	}
 }

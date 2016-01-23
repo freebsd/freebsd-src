@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 __weak_reference(__sys_open, __open);
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 __weak_reference(_open, open);
 #endif
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 #pragma weak open
 int
 open(const char *path, int flags, ...)

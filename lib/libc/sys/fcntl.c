@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include "libc_private.h"
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 #pragma weak fcntl
 int
 fcntl(int fd, int cmd, ...)

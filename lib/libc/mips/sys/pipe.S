@@ -48,7 +48,7 @@ LEAF(__sys_pipe)
 	li	v0, SYS_pipe	# pipe(fildes) int fildes[2];
 	syscall
 	bne	a3, zero, 1f
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	sw	v0, 0(a0)	# store the two file descriptors
 	sw	v1, 4(a0)
 #else

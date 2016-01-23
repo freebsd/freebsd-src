@@ -227,11 +227,7 @@ cheri_invoke_restore_regs:
 	# Return to C-language caller.
 	#
 cheri_invoke_return:
-#if __CHERI_SANDBOX__ >= 2
 	cjr	$c17
-#else
-	jr	$ra
-#endif
 	nop				# Branch-delay slot
 
 	.end	cheri_invoke

@@ -328,7 +328,7 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_bounds_stack_static_524288",
 	  .ct_desc = "Check bounds on a 524,288-byte static stack allocation",
 	  .ct_func = test_bounds_stack_static_524288,
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
@@ -340,7 +340,7 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_bounds_stack_static_1048576",
 	  .ct_desc = "Check bounds on a 1,048,576-byte static stack allocation",
 	  .ct_func = test_bounds_stack_static_1048576,
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
@@ -435,7 +435,7 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_bounds_stack_dynamic_524288",
 	  .ct_desc = "Check bounds on a 524,288-byte dynamic stack allocation",
 	  .ct_func = test_bounds_stack_dynamic_524288,
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
@@ -447,7 +447,7 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_bounds_stack_dynamic_1048576",
 	  .ct_desc = "Check bounds on a 1,048,576-byte dynamic stack allocation",
 	  .ct_func = test_bounds_stack_dynamic_1048576,
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
@@ -993,7 +993,7 @@ signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 		fprintf(stderr, "%s: missing UCONTEXT_MAGIC\n", __func__);
 		_exit(EX_OSERR);
 	}
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	cfp = &uap->uc_mcontext.mc_cheriframe;
 	if (cfp == NULL) {
 #else

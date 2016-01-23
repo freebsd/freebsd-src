@@ -180,7 +180,7 @@ struct __res_state {
 	union {
 		/* On an 32-bit arch this means 512b total. */
 		/* Evil nonsensical padding that breaks CHERI sandbox mode... */
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 		char    pad[72 - 4*sizeof (int) - 3*sizeof (void *)];
 #endif
 		struct {

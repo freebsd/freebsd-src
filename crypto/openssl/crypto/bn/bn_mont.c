@@ -241,7 +241,7 @@ static int BN_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
     rp = ret->d;
     ap = &(r->d[nl]);
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 # define BRANCH_FREE 1
 #endif
 # if BRANCH_FREE

@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 #include <sys/mman.h>
 #endif
 #include "namespace.h"
@@ -49,7 +49,7 @@ acl_free(void *obj_p)
 {
 
 	if (obj_p) {
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 		free(obj_p);
 #else
 		munmap(obj_p, sizeof(struct acl_t_struct));

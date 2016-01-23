@@ -19,7 +19,7 @@ typedef struct dom_string dom_string;
 struct dom_string {
 	uint32_t refcnt;
 }
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 __attribute__ ((aligned (32)));
 #else
 _ALIGNED;

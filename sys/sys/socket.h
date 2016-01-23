@@ -493,7 +493,7 @@ struct sockcred {
 
 #endif /* __BSD_VISIBLE */
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	_CMSG_ALIGN(n)	_ALIGN(n)
 #else
 /*

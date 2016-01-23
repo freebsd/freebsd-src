@@ -40,7 +40,7 @@
 
 #ifdef __mips_n64
 #define	__PRI64		"l"
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	__PRIptr	"l"
 #else
 #define	__PRIptr	"P"

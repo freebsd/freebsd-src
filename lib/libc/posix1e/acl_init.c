@@ -32,7 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 #include <sys/mman.h>
 #endif
 #include "namespace.h"
@@ -56,7 +56,7 @@ CTASSERT(1 << _ACL_T_ALIGNMENT_BITS > sizeof(struct acl_t_struct));
 acl_t
 acl_init(int count)
 {
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	int error;
 #endif
 	acl_t acl;
@@ -70,7 +70,7 @@ acl_init(int count)
 		return (NULL);
 	}
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	error = posix_memalign((void *)&acl, 1 << _ACL_T_ALIGNMENT_BITS,
 	    sizeof(struct acl_t_struct));
 	if (error) {

@@ -694,7 +694,7 @@ sandbox_make_vtable(void *dataptr, const char *class,
 		return (NULL);
 	}
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	/*
 	 * XXXRW: For system classes, a NULL dataptr is passed in, signifying
 	 * that bases are relative to virtual address 0x0.  This isn't really

@@ -35,7 +35,7 @@
 	#define TRAMPOLINE_SIZE 40
 #endif
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 static const char __enable_execute_stack_warning[]
     __attribute__((section(".gnu.warning.__enable_execute_stack"))) =
     "__enable_execute_stack is unimplemented for CheriABI";
@@ -53,7 +53,7 @@ COMPILER_RT_ABI void
 __enable_execute_stack(void* addr)
 {
 
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 #if _WIN32
 	MEMORY_BASIC_INFORMATION mbi;
 	if (!VirtualQuery (addr, &mbi, sizeof(mbi)))

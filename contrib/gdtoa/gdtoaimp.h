@@ -209,7 +209,7 @@ THIS SOFTWARE.
 #define Char void
 #endif
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 /*
  * XXX: wag based on smallest allocation for 64-bit pointers being 48-bytes,
  * replacing one 8-byte pointer with a 32-byte pointer and rounding up to

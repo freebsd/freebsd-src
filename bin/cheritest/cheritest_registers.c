@@ -233,7 +233,7 @@ test_initregs_default(const struct cheri_test *ctp __unused)
  */
 void
 test_initregs_stack(const struct cheri_test *ctp __unused)
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 {
 
 	check_initreg_data(cheri_getstack());

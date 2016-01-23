@@ -57,7 +57,7 @@ finalizer(void)
 		if ((uintptr_t)fn != 0 && (uintptr_t)fn != 1)
 			(fn)();
 	}
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	_fini();
 #endif
 }
@@ -79,7 +79,7 @@ handle_static_init(int argc, char **argv, char **env)
 		if ((uintptr_t)fn != 0 && (uintptr_t)fn != 1)
 			fn(argc, argv, env);
 	}
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 	_init();
 #endif
 	array_size = __init_array_end - __init_array_start;

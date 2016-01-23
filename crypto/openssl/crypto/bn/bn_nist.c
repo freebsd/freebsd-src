@@ -481,7 +481,7 @@ int BN_nist_mod_192(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         0 - (PTR_SIZE_INT) bn_sub_words(c_d, r_d, _nist_p_192[0],
                                         BN_NIST_192_TOP);
     mask &= 0 - (PTR_SIZE_INT) carry;
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
     res = c_d;
     res = (BN_ULONG *)
         (((PTR_SIZE_INT) res & ~mask) | ((PTR_SIZE_INT) r_d & mask));
@@ -658,7 +658,7 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         carry =
             (int)bn_add_words(r_d, r_d, _nist_p_224[-carry - 1],
                               BN_NIST_224_TOP);
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
         mask = 0 - (PTR_SIZE_INT) carry;
         u.p = ((PTR_SIZE_INT) bn_sub_words & mask) |
             ((PTR_SIZE_INT) bn_add_words & ~mask);
@@ -672,7 +672,7 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     mask =
         0 - (PTR_SIZE_INT) (*u.f) (c_d, r_d, _nist_p_224[0], BN_NIST_224_TOP);
     mask &= 0 - (PTR_SIZE_INT) carry;
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
     res = c_d;
     res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
                        ((PTR_SIZE_INT) r_d & mask));
@@ -909,7 +909,7 @@ int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         carry =
             (int)bn_add_words(r_d, r_d, _nist_p_256[-carry - 1],
                               BN_NIST_256_TOP);
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
         mask = 0 - (PTR_SIZE_INT) carry;
         u.p = ((PTR_SIZE_INT) bn_sub_words & mask) |
             ((PTR_SIZE_INT) bn_add_words & ~mask);
@@ -922,7 +922,7 @@ int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     mask =
         0 - (PTR_SIZE_INT) (*u.f) (c_d, r_d, _nist_p_256[0], BN_NIST_256_TOP);
     mask &= 0 - (PTR_SIZE_INT) carry;
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
     res = c_d;
     res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
                        ((PTR_SIZE_INT) r_d & mask));
@@ -1198,7 +1198,7 @@ int BN_nist_mod_384(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
         carry =
             (int)bn_add_words(r_d, r_d, _nist_p_384[-carry - 1],
                               BN_NIST_384_TOP);
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
         mask = 0 - (PTR_SIZE_INT) carry;
         u.p = ((PTR_SIZE_INT) bn_sub_words & mask) |
             ((PTR_SIZE_INT) bn_add_words & ~mask);
@@ -1211,7 +1211,7 @@ int BN_nist_mod_384(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     mask =
         0 - (PTR_SIZE_INT) (*u.f) (c_d, r_d, _nist_p_384[0], BN_NIST_384_TOP);
     mask &= 0 - (PTR_SIZE_INT) carry;
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
     res = c_d;
     res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
                        ((PTR_SIZE_INT) r_d & mask));
@@ -1279,7 +1279,7 @@ int BN_nist_mod_521(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
     mask =
         0 - (PTR_SIZE_INT) bn_sub_words(t_d, r_d, _nist_p_521,
                                         BN_NIST_521_TOP);
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
     res = t_d;
     res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
                        ((PTR_SIZE_INT) r_d & mask));

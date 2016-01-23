@@ -147,7 +147,7 @@ sandbox_stat_init(void)
 	 * XXXRW: It would be nice if these pointer assignments had release
 	 * semantics.
 	 */
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	ps_strings = (struct ps_strings *)cheri_setoffset(cheri_getdefault(),
 	    ul_ps_strings);
 #else

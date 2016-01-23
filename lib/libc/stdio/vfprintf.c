@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/types.h>
 
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 #endif
@@ -301,7 +301,7 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
  * write a uintmax_t in octal (plus one byte).
  */
 #if UINTMAX_MAX <= UINT64_MAX
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	BUF	32
 #else
 /* For the CHERI sandbox ABI we need enough space to print a capability dump */
@@ -374,7 +374,7 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 	int nextarg;            /* 1-based argument index */
 	va_list orgap;          /* original argument pointer */
 	char *convbuf;		/* wide to multibyte conversion result */
-#ifdef __CHERI_SANDBOX__
+#ifdef __CHERI_PURE_CAPABILITY__
 	void *pointer;
 #endif
 
@@ -831,7 +831,7 @@ fp_common:
 			 * defined manner.''
 			 *	-- ANSI X3J11
 			 */
-#ifndef __CHERI_SANDBOX__
+#ifndef __CHERI_PURE_CAPABILITY__
 			ujval = (uintmax_t)(uintptr_t)GETARG(void *);
 #else
 			pointer = GETARG(void *);
