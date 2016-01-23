@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -51,18 +52,27 @@ printmod(int modid)
 }
 
 static void
-printfile(int fileid, int verbose)
+printfile(int fileid, int verbose, int humanized)
 {
     struct kld_file_stat stat;
     int modid;
+    char buf[5];
 
     stat.version = sizeof(struct kld_file_stat);
-    if (kldstat(fileid, &stat) < 0)
+    if (kldstat(fileid, &stat) < 0) {
 	err(1, "can't stat file id %d", fileid);
-    else
-	printf("%2d %4d %p %-8zx %s",
-	       stat.id, stat.refs, stat.address, stat.size, 
-	       stat.name);
+    } else {
+	if (humanized) {
+	       humanize_number(buf, sizeof(buf), stat.size,
+	           "", HN_AUTOSCALE, HN_DECIMAL | HN_NOSPACE);
+
+	       printf("%2d %4d %p %5s %s",
+	           stat.id, stat.refs, stat.address, buf, stat.name);
+	} else {
+		printf("%2d %4d %p %-8zx %s",
+		    stat.id, stat.refs, stat.address, stat.size, stat.name);
+	}
+    }
 
     if (verbose) {
 	printf(" (%s)\n", stat.pathname);
@@ -78,7 +88,7 @@ printfile(int fileid, int verbose)
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldstat [-q] [-v] [-i id] [-n filename]\n");
+    fprintf(stderr, "usage: kldstat [-h] [-q] [-v] [-i id] [-n filename]\n");
     fprintf(stderr, "       kldstat [-q] [-m modname]\n");
     exit(1);
 }
@@ -87,6 +97,7 @@ int
 main(int argc, char** argv)
 {
     int c;
+    int humanized = 0;
     int verbose = 0;
     int fileid = 0;
     int quiet = 0;
@@ -94,8 +105,11 @@ main(int argc, char** argv)
     char* modname = NULL;
     char* p;
 
-    while ((c = getopt(argc, argv, "i:m:n:qv")) != -1)
+    while ((c = getopt(argc, argv, "hi:m:n:qv")) != -1)
 	switch (c) {
+	case 'h':
+	    humanized = 1;
+	    break;
 	case 'i':
 	    fileid = (int)strtoul(optarg, &p, 10);
 	    if (*p != '\0')
@@ -155,12 +169,15 @@ main(int argc, char** argv)
 	}
     }
 
-    printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
+    if (humanized)
+	    printf("Id Refs Address%*c  Size Name\n", POINTER_WIDTH - 7, ' ');
+    else
+	    printf("Id Refs Address%*c Size     Name\n", POINTER_WIDTH - 7, ' ');
     if (fileid != 0)
-	printfile(fileid, verbose);
+	printfile(fileid, verbose, humanized);
     else
 	for (fileid = kldnext(0); fileid > 0; fileid = kldnext(fileid))
-	    printfile(fileid, verbose);
+	    printfile(fileid, verbose, humanized);
 
     return 0;
 }
