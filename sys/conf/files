@@ -1417,6 +1417,8 @@ dev/extres/clk/clk_div.c	optional ext_resources clk
 dev/extres/clk/clk_fixed.c	optional ext_resources clk
 dev/extres/clk/clk_gate.c	optional ext_resources clk
 dev/extres/clk/clk_mux.c	optional ext_resources clk
+dev/extres/hwreset/hwreset.c	optional ext_resources hwreset
+dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
