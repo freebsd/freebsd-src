@@ -266,7 +266,6 @@ a10_clk_pll2_set_rate(unsigned int freq)
 	if (sc == NULL)
 		return (ENXIO);
 
-
 	reg_value = ccm_read_4(sc, CCM_PLL2_CFG);
 	reg_value &= ~(CCM_PLL2_CFG_PREDIV | CCM_PLL2_CFG_POSTDIV |
 	    CCM_PLL_CFG_FACTOR_N);
