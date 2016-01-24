@@ -216,10 +216,8 @@ a10dmac_intr(void *priv)
 }
 
 static uint32_t
-a10dmac_get_config(device_t dev, void *priv)
+a10dmac_read_ctl(struct a10dmac_channel *ch)
 {
-	struct a10dmac_channel *ch = priv;
-
 	if (ch->ch_type == CH_NDMA) {
 		return (DMACH_READ(ch, AWIN_NDMA_CTL_REG));
 	} else {
@@ -228,15 +226,95 @@ a10dmac_get_config(device_t dev, void *priv)
 }
 
 static void
-a10dmac_set_config(device_t dev, void *priv, uint32_t val)
+a10dmac_write_ctl(struct a10dmac_channel *ch, uint32_t val)
+{
+	if (ch->ch_type == CH_NDMA) {
+		DMACH_WRITE(ch, AWIN_NDMA_CTL_REG, val);
+	} else {
+		DMACH_WRITE(ch, AWIN_DDMA_CTL_REG, val);
+	}
+}
+
+static int
+a10dmac_set_config(device_t dev, void *priv, const struct sunxi_dma_config *cfg)
 {
 	struct a10dmac_channel *ch = priv;
+	uint32_t val;
+	unsigned int dst_dw, dst_bl, src_dw, src_bl;
+
+	switch (cfg->dst_width) {
+	case 8:
+		dst_dw = AWIN_DMA_CTL_DATA_WIDTH_8;
+		break;
+	case 16:
+		dst_dw = AWIN_DMA_CTL_DATA_WIDTH_16;
+		break;
+	case 32:
+		dst_dw = AWIN_DMA_CTL_DATA_WIDTH_32;
+		break;
+	default:
+		return (EINVAL);
+	}
+	switch (cfg->dst_burst_len) {
+	case 1:
+		dst_bl = AWIN_DMA_CTL_BURST_LEN_1;
+		break;
+	case 4:
+		dst_bl = AWIN_DMA_CTL_BURST_LEN_4;
+		break;
+	case 8:
+		dst_bl = AWIN_DMA_CTL_BURST_LEN_8;
+		break;
+	default:
+		return (EINVAL);
+	}
+	switch (cfg->src_width) {
+	case 8:
+		src_dw = AWIN_DMA_CTL_DATA_WIDTH_8;
+		break;
+	case 16:
+		src_dw = AWIN_DMA_CTL_DATA_WIDTH_16;
+		break;
+	case 32:
+		src_dw = AWIN_DMA_CTL_DATA_WIDTH_32;
+		break;
+	default:
+		return (EINVAL);
+	}
+	switch (cfg->src_burst_len) {
+	case 1:
+		src_bl = AWIN_DMA_CTL_BURST_LEN_1;
+		break;
+	case 4:
+		src_bl = AWIN_DMA_CTL_BURST_LEN_4;
+		break;
+	case 8:
+		src_bl = AWIN_DMA_CTL_BURST_LEN_8;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	val = (dst_dw << AWIN_DMA_CTL_DST_DATA_WIDTH_SHIFT) |
+	      (dst_bl << AWIN_DMA_CTL_DST_BURST_LEN_SHIFT) |
+	      (cfg->dst_drqtype << AWIN_DMA_CTL_DST_DRQ_TYPE_SHIFT) |
+	      (src_dw << AWIN_DMA_CTL_SRC_DATA_WIDTH_SHIFT) |
+	      (src_bl << AWIN_DMA_CTL_SRC_BURST_LEN_SHIFT) |
+	      (cfg->src_drqtype << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
+	if (cfg->dst_noincr) {
+		val |= AWIN_NDMA_CTL_DST_ADDR_NOINCR;
+	}
+	if (cfg->src_noincr) {
+		val |= AWIN_NDMA_CTL_SRC_ADDR_NOINCR;
+	}
 
 	if (ch->ch_type == CH_NDMA) {
 		DMACH_WRITE(ch, AWIN_NDMA_CTL_REG, val);
 	} else {
 		DMACH_WRITE(ch, AWIN_DDMA_CTL_REG, val);
 	}
+
+	return (0);
 }
 
 static void *
@@ -288,7 +366,7 @@ a10dmac_free(device_t dev, void *priv)
 	mtx_lock_spin(&sc->sc_mtx);
 
 	irqen = DMA_READ(sc, AWIN_DMA_IRQ_EN_REG);
-	cfg = a10dmac_get_config(dev, ch);
+	cfg = a10dmac_read_ctl(ch);
 	if (ch->ch_type == CH_NDMA) {
 		sta = AWIN_DMA_IRQ_NDMA_END(ch->ch_index);
 		cfg &= ~AWIN_NDMA_CTL_DMA_LOADING;
@@ -297,7 +375,7 @@ a10dmac_free(device_t dev, void *priv)
 		cfg &= ~AWIN_DDMA_CTL_DMA_LOADING;
 	}
 	irqen &= ~sta;
-	a10dmac_set_config(dev, ch, cfg);
+	a10dmac_write_ctl(ch, cfg);
 	DMA_WRITE(sc, AWIN_DMA_IRQ_EN_REG, irqen);
 	DMA_WRITE(sc, AWIN_DMA_IRQ_PEND_STA_REG, sta);
 
@@ -314,7 +392,7 @@ a10dmac_transfer(device_t dev, void *priv, bus_addr_t src, bus_addr_t dst,
 	struct a10dmac_channel *ch = priv;
 	uint32_t cfg;
 
-	cfg = a10dmac_get_config(dev, ch);
+	cfg = a10dmac_read_ctl(ch);
 	if (ch->ch_type == CH_NDMA) {
 		if (cfg & AWIN_NDMA_CTL_DMA_LOADING)
 			return (EBUSY);
@@ -324,7 +402,7 @@ a10dmac_transfer(device_t dev, void *priv, bus_addr_t src, bus_addr_t dst,
 		DMACH_WRITE(ch, AWIN_NDMA_BC_REG, nbytes);
 
 		cfg |= AWIN_NDMA_CTL_DMA_LOADING;
-		a10dmac_set_config(dev, ch, cfg);
+		a10dmac_write_ctl(ch, cfg);
 	} else {
 		if (cfg & AWIN_DDMA_CTL_DMA_LOADING)
 			return (EBUSY);
@@ -339,7 +417,7 @@ a10dmac_transfer(device_t dev, void *priv, bus_addr_t src, bus_addr_t dst,
 		    (7 << AWIN_DDMA_PARA_SRC_WAIT_CYC_SHIFT));
 
 		cfg |= AWIN_DDMA_CTL_DMA_LOADING;
-		a10dmac_set_config(dev, ch, cfg);
+		a10dmac_write_ctl(ch, cfg);
 	}
 
 	return (0);
@@ -351,13 +429,13 @@ a10dmac_halt(device_t dev, void *priv)
 	struct a10dmac_channel *ch = priv;
 	uint32_t cfg;
 
-	cfg = a10dmac_get_config(dev, ch);
+	cfg = a10dmac_read_ctl(ch);
 	if (ch->ch_type == CH_NDMA) {
 		cfg &= ~AWIN_NDMA_CTL_DMA_LOADING;
 	} else {
 		cfg &= ~AWIN_DDMA_CTL_DMA_LOADING;
 	}
-	a10dmac_set_config(dev, ch, cfg);
+	a10dmac_write_ctl(ch, cfg);
 }
 
 static device_method_t a10dmac_methods[] = {
@@ -368,7 +446,6 @@ static device_method_t a10dmac_methods[] = {
 	/* sunxi DMA interface */
 	DEVMETHOD(sunxi_dma_alloc,	a10dmac_alloc),
 	DEVMETHOD(sunxi_dma_free,	a10dmac_free),
-	DEVMETHOD(sunxi_dma_get_config,	a10dmac_get_config),
 	DEVMETHOD(sunxi_dma_set_config,	a10dmac_set_config),
 	DEVMETHOD(sunxi_dma_transfer,	a10dmac_transfer),
 	DEVMETHOD(sunxi_dma_halt,	a10dmac_halt),

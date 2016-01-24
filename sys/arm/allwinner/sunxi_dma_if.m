@@ -33,6 +33,17 @@ INTERFACE sunxi_dma;
 HEADER {
 	#include <machine/bus.h>
 
+	struct sunxi_dma_config {
+		unsigned int dst_width;
+		unsigned int dst_burst_len;
+		unsigned int dst_drqtype;
+		bool dst_noincr;
+		unsigned int src_width;
+		unsigned int src_burst_len;
+		unsigned int src_drqtype;
+		bool src_noincr;
+	};
+
 	typedef void (*sunxi_dma_callback)(void *);
 }
 
@@ -55,20 +66,12 @@ METHOD void free {
 };
 
 #
-# Get DMA channel configuration
-#
-METHOD uint32_t get_config {
-	device_t dev;
-	void *dmachan;
-};
-
-#
 # Set DMA channel configuration
 #
-METHOD void set_config {
+METHOD int set_config {
 	device_t dev;
 	void *dmachan;
-	uint32_t config;
+	const struct sunxi_dma_config *cfg;
 };
 
 #

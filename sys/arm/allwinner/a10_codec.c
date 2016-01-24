@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 
 #include "a10_clk.h"
-#include "a10_dmac.h"
 
 #define TX_TRIG_LEVEL	0xf
 #define RX_TRIG_LEVEL	0x7
@@ -358,25 +357,23 @@ static void
 a10codec_dmaconfig(struct a10codec_chinfo *ch)
 {
 	struct a10codec_info *sc = ch->parent;
-	uint32_t conf;
+	struct sunxi_dma_config conf;
 
-	conf = AWIN_DMA_CTL_BC_REMAINING |
-	    (AWIN_DMA_CTL_DATA_WIDTH_16 << AWIN_DMA_CTL_DST_DATA_WIDTH_SHIFT) |
-	    (AWIN_DMA_CTL_BURST_LEN_4 << AWIN_DMA_CTL_DST_BURST_LEN_SHIFT) |
-	    (AWIN_DMA_CTL_DATA_WIDTH_16 << AWIN_DMA_CTL_SRC_DATA_WIDTH_SHIFT) |
-	    (AWIN_DMA_CTL_BURST_LEN_4 << AWIN_DMA_CTL_SRC_BURST_LEN_SHIFT);
+	memset(&conf, 0, sizeof(conf));
+	conf.src_width = conf.dst_width = 16;
+	conf.src_burst_len = conf.dst_burst_len = 4;
 
 	if (ch->dir == PCMDIR_PLAY) {
-		conf |= AWIN_NDMA_CTL_DST_ADDR_NOINCR;
-		conf |= (sc->drqtype_sdram << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
-		conf |= (sc->drqtype_codec << AWIN_DMA_CTL_DST_DRQ_TYPE_SHIFT);
+		conf.dst_noincr = true;
+		conf.src_drqtype = sc->drqtype_sdram;
+		conf.dst_drqtype = sc->drqtype_codec;
 	} else {
-		conf |= AWIN_NDMA_CTL_SRC_ADDR_NOINCR;
-		conf |= (sc->drqtype_codec << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
-		conf |= (sc->drqtype_sdram << AWIN_DMA_CTL_DST_DRQ_TYPE_SHIFT);
+		conf.src_noincr = true;
+		conf.src_drqtype = sc->drqtype_codec;
+		conf.dst_drqtype = sc->drqtype_sdram;
 	}
 
-	SUNXI_DMA_SET_CONFIG(ch->dmac, ch->dmachan, conf);
+	SUNXI_DMA_SET_CONFIG(ch->dmac, ch->dmachan, &conf);
 }
 
 static void
@@ -760,6 +757,7 @@ a10codec_attach(device_t dev)
 		goto fail;
 	}
 
+	/* XXX DRQ types should come from FDT, but how? */
 	if (ofw_bus_is_compatible(dev, "allwinner,sun7i-a20-codec")) {
 		sc->drqtype_codec = 19;
 		sc->drqtype_sdram = 22;
