@@ -1847,7 +1847,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
+	init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE, 0);
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);

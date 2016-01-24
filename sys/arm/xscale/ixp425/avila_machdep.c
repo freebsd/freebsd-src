@@ -223,8 +223,8 @@ initarm(struct arm_boot_params *abp)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
-	if (envmode == 1)
-		kern_envp = static_env;
+	init_static_kenv(NULL, 0);
+
 	/* Do basic tuning, hz etc */
       	init_param1();
 		
@@ -419,10 +419,6 @@ initarm(struct arm_boot_params *abp)
 
 	init_param2(physmem);
 	kdb_init();
-
-	/* use static kernel environment if so configured */
-	if (envmode == 1)
-		kern_envp = static_env;
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
