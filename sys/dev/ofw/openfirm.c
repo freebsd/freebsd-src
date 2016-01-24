@@ -599,10 +599,9 @@ OF_xref_from_node(phandle_t node)
 		return (xi->xref);
 	}
 
-	if (OF_getencprop(node, "phandle", &xref, sizeof(xref)) ==
-	    -1 && OF_getencprop(node, "ibm,phandle", &xref,
-	    sizeof(xref)) == -1 && OF_getencprop(node,
-	    "linux,phandle", &xref, sizeof(xref)) == -1)
+	if (OF_getencprop(node, "phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getencprop(node, "ibm,phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getencprop(node, "linux,phandle", &xref, sizeof(xref)) == -1)
 		return (node);
 	return (xref);
 }
