@@ -932,8 +932,6 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			    ireq->i_len);
 		break;
 	case IEEE80211_IOC_WPAIE:
-		error = ieee80211_ioctl_getwpaie(vap, ireq, ireq->i_type);
-		break;
 	case IEEE80211_IOC_WPAIE2:
 		error = ieee80211_ioctl_getwpaie(vap, ireq, ireq->i_type);
 		break;
