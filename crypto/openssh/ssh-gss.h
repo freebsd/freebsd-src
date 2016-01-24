@@ -1,4 +1,5 @@
 /* $OpenBSD: ssh-gss.h,v 1.11 2014/02/26 20:28:44 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
  *

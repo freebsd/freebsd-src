@@ -202,6 +202,7 @@
 #define compat20				ssh_compat20
 #define compat_cipher_proposal			ssh_compat_cipher_proposal
 #define compat_datafellows			ssh_compat_datafellows
+#define compat_kex_proposal			ssh_compat_kex_proposal
 #define compat_pkalg_proposal			ssh_compat_pkalg_proposal
 #define convtime				ssh_convtime
 #define crypto_hash_sha512			ssh_crypto_hash_sha512
