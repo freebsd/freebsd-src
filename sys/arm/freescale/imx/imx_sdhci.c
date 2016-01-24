@@ -429,6 +429,7 @@ imx_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 		} else {
 			imx_sdhc_set_clock(sc, false);
 		}
+		return;
 	}
 
 	/*
@@ -522,11 +523,18 @@ imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable)
 	else
 		freq = sc->baseclk_hz / (2 * divisor);
 
-	for (prescale = 2; prescale < freq / prescale / 16;)
+	for (prescale = 2; freq < sc->baseclk_hz / (prescale * 16);)
 		prescale <<= 1;
 
-	for (divisor = 1; freq < freq / prescale / divisor;)
+	for (divisor = 1; freq < sc->baseclk_hz / (prescale * divisor);)
 		++divisor;
+
+#ifdef DEBUG	
+	device_printf(sc->dev,
+	    "desired SD freq: %d, actual: %d; base %d prescale %d divisor %d\n",
+	    freq, sc->baseclk_hz / (prescale * divisor), sc->baseclk_hz, 
+	    prescale, divisor);
+#endif	
 
 	prescale >>= 1;
 	divisor -= 1;
