@@ -786,10 +786,9 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		ba = coherent_allocator;
 	else
 		ba = standard_allocator;
-	uma_zfree(dmamap_zone, map);
 
 	free(map->slist, M_DEVBUF);
-	/* Be careful not to access map from here on. */
+	uma_zfree(dmamap_zone, map);
 
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
 
