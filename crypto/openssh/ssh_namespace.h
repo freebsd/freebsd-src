@@ -7,7 +7,11 @@
  *
  * A list of symbols which need munging is obtained as follows:
  *
- * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { printf("#define %-39s ssh_%s\n", $3, $3) }' | unexpand -a | sort -u
+ # nm libprivatessh.a | LC_ALL=C awk '
+     /^[0-9a-z]+ [Tt] [A-Za-z_][0-9A-Za-z_]*$/ && $3 !~ /^ssh_/ {
+         printf("#define %-39s ssh_%s\n", $3, $3)
+     }' | unexpand -a | LC_ALL=C sort -u
+ *
  * $FreeBSD$
  */
 
@@ -20,9 +24,13 @@
 #define a2port					ssh_a2port
 #define a2tun					ssh_a2tun
 #define add_host_to_hostfile			ssh_add_host_to_hostfile
+#define add_p1p1				ssh_add_p1p1
 #define addargs					ssh_addargs
 #define addr_match_cidr_list			ssh_addr_match_cidr_list
 #define addr_match_list				ssh_addr_match_list
+#define addr_netmatch				ssh_addr_netmatch
+#define addr_pton				ssh_addr_pton
+#define addr_pton_cidr				ssh_addr_pton_cidr
 #define ask_permission				ssh_ask_permission
 #define atomicio				ssh_atomicio
 #define atomicio6				ssh_atomicio6
@@ -31,7 +39,10 @@
 #define auth_request_forwarding			ssh_auth_request_forwarding
 #define bandwidth_limit				ssh_bandwidth_limit
 #define bandwidth_limit_init			ssh_bandwidth_limit_init
+#define barrett_reduce				ssh_barrett_reduce
+#define bcrypt_hash				ssh_bcrypt_hash
 #define bcrypt_pbkdf				ssh_bcrypt_pbkdf
+#define bf_ssh1_cipher				ssh_bf_ssh1_cipher
 #define blf_cbc_decrypt				ssh_blf_cbc_decrypt
 #define blf_cbc_encrypt				ssh_blf_cbc_encrypt
 #define blf_dec					ssh_blf_dec
@@ -70,7 +81,6 @@
 #define buffer_get_int64			ssh_buffer_get_int64
 #define buffer_get_int64_ret			ssh_buffer_get_int64_ret
 #define buffer_get_int_ret			ssh_buffer_get_int_ret
-#define buffer_get_max_len			ssh_buffer_get_max_len
 #define buffer_get_ret				ssh_buffer_get_ret
 #define buffer_get_short			ssh_buffer_get_short
 #define buffer_get_short_ret			ssh_buffer_get_short_ret
@@ -95,6 +105,7 @@
 #define buffer_put_short			ssh_buffer_put_short
 #define buffer_put_string			ssh_buffer_put_string
 #define buffer_uncompress			ssh_buffer_uncompress
+#define cert_free				ssh_cert_free
 #define chacha_encrypt_bytes			ssh_chacha_encrypt_bytes
 #define chacha_ivsetup				ssh_chacha_ivsetup
 #define chacha_keysetup				ssh_chacha_keysetup
@@ -109,6 +120,10 @@
 #define chan_rcvd_ieof				ssh_chan_rcvd_ieof
 #define chan_rcvd_oclose			ssh_chan_rcvd_oclose
 #define chan_read_failed			ssh_chan_read_failed
+#define chan_send_eof2				ssh_chan_send_eof2
+#define chan_send_oclose1			ssh_chan_send_oclose1
+#define chan_shutdown_read			ssh_chan_shutdown_read
+#define chan_shutdown_write			ssh_chan_shutdown_write
 #define chan_write_failed			ssh_chan_write_failed
 #define channel_add_adm_permitted_opens		ssh_channel_add_adm_permitted_opens
 #define channel_add_permitted_opens		ssh_channel_add_permitted_opens
@@ -121,6 +136,7 @@
 #define channel_clear_permitted_opens		ssh_channel_clear_permitted_opens
 #define channel_close_all			ssh_channel_close_all
 #define channel_close_fd			ssh_channel_close_fd
+#define channel_close_fds			ssh_channel_close_fds
 #define channel_connect_by_listen_address	ssh_channel_connect_by_listen_address
 #define channel_connect_stdio_fwd		ssh_channel_connect_stdio_fwd
 #define channel_connect_to			ssh_channel_connect_to
@@ -128,6 +144,8 @@
 #define channel_find_open			ssh_channel_find_open
 #define channel_free				ssh_channel_free
 #define channel_free_all			ssh_channel_free_all
+#define channel_fwd_bind_addr			ssh_channel_fwd_bind_addr
+#define channel_handler				ssh_channel_handler
 #define channel_input_close			ssh_channel_input_close
 #define channel_input_close_confirmation	ssh_channel_input_close_confirmation
 #define channel_input_data			ssh_channel_input_data
@@ -146,11 +164,28 @@
 #define channel_open_message			ssh_channel_open_message
 #define channel_output_poll			ssh_channel_output_poll
 #define channel_permit_all_opens		ssh_channel_permit_all_opens
-#define channel_post				ssh_channel_post
-#define channel_pre				ssh_channel_pre
+#define channel_post_auth_listener		ssh_channel_post_auth_listener
+#define channel_post_connecting			ssh_channel_post_connecting
+#define channel_post_mux_client			ssh_channel_post_mux_client
+#define channel_post_mux_listener		ssh_channel_post_mux_listener
+#define channel_post_open			ssh_channel_post_open
+#define channel_post_output_drain_13		ssh_channel_post_output_drain_13
+#define channel_post_port_listener		ssh_channel_post_port_listener
+#define channel_post_x11_listener		ssh_channel_post_x11_listener
+#define channel_pre_connecting			ssh_channel_pre_connecting
+#define channel_pre_dynamic			ssh_channel_pre_dynamic
+#define channel_pre_input_draining		ssh_channel_pre_input_draining
+#define channel_pre_listener			ssh_channel_pre_listener
+#define channel_pre_mux_client			ssh_channel_pre_mux_client
+#define channel_pre_open			ssh_channel_pre_open
+#define channel_pre_open_13			ssh_channel_pre_open_13
+#define channel_pre_output_draining		ssh_channel_pre_output_draining
+#define channel_pre_x11_open			ssh_channel_pre_x11_open
+#define channel_pre_x11_open_13			ssh_channel_pre_x11_open_13
 #define channel_prepare_select			ssh_channel_prepare_select
 #define channel_print_adm_permitted_opens	ssh_channel_print_adm_permitted_opens
 #define channel_register_cleanup		ssh_channel_register_cleanup
+#define channel_register_fds			ssh_channel_register_fds
 #define channel_register_filter			ssh_channel_register_filter
 #define channel_register_open_confirm		ssh_channel_register_open_confirm
 #define channel_register_status_confirm		ssh_channel_register_status_confirm
@@ -161,14 +196,17 @@
 #define channel_send_window_changes		ssh_channel_send_window_changes
 #define channel_set_af				ssh_channel_set_af
 #define channel_set_fds				ssh_channel_set_fds
-#define channel_set_hpn				ssh_channel_set_hpn
+#define channel_setup_fwd_listener		ssh_channel_setup_fwd_listener
 #define channel_setup_local_fwd_listener	ssh_channel_setup_local_fwd_listener
 #define channel_setup_remote_fwd_listener	ssh_channel_setup_remote_fwd_listener
 #define channel_still_open			ssh_channel_still_open
 #define channel_stop_listening			ssh_channel_stop_listening
 #define channel_update_permitted_opens		ssh_channel_update_permitted_opens
+#define check_crc				ssh_check_crc
+#define check_hostkeys_by_key_or_type		ssh_check_hostkeys_by_key_or_type
 #define check_key_in_hostkeys			ssh_check_key_in_hostkeys
 #define choose_dh				ssh_choose_dh
+#define choose_t				ssh_choose_t
 #define chop					ssh_chop
 #define cipher_alg_list				ssh_cipher_alg_list
 #define cipher_authlen				ssh_cipher_authlen
@@ -198,16 +236,17 @@
 #define cleanup_exit				ssh_cleanup_exit
 #define clear_cached_addr			ssh_clear_cached_addr
 #define colon					ssh_colon
-#define compat13				ssh_compat13
-#define compat20				ssh_compat20
+#define compare					ssh_compare
+#define compare_gps				ssh_compare_gps
 #define compat_cipher_proposal			ssh_compat_cipher_proposal
 #define compat_datafellows			ssh_compat_datafellows
 #define compat_kex_proposal			ssh_compat_kex_proposal
 #define compat_pkalg_proposal			ssh_compat_pkalg_proposal
+#define connect_next				ssh_connect_next
+#define connect_to				ssh_connect_to
 #define convtime				ssh_convtime
 #define crypto_hash_sha512			ssh_crypto_hash_sha512
 #define crypto_hashblocks_sha512		ssh_crypto_hashblocks_sha512
-#define crypto_scalarmult_curve25519		ssh_crypto_scalarmult_curve25519
 #define crypto_sign_ed25519			ssh_crypto_sign_ed25519
 #define crypto_sign_ed25519_keypair		ssh_crypto_sign_ed25519_keypair
 #define crypto_sign_ed25519_open		ssh_crypto_sign_ed25519_open
@@ -228,7 +267,6 @@
 #define crypto_sign_ed25519_ref_fe25519_square	ssh_crypto_sign_ed25519_ref_fe25519_square
 #define crypto_sign_ed25519_ref_fe25519_sub	ssh_crypto_sign_ed25519_ref_fe25519_sub
 #define crypto_sign_ed25519_ref_fe25519_unpack	ssh_crypto_sign_ed25519_ref_fe25519_unpack
-#define crypto_sign_ed25519_ref_ge25519_base	ssh_crypto_sign_ed25519_ref_ge25519_base
 #define crypto_sign_ed25519_ref_isneutral_vartime ssh_crypto_sign_ed25519_ref_isneutral_vartime
 #define crypto_sign_ed25519_ref_pack		ssh_crypto_sign_ed25519_ref_pack
 #define crypto_sign_ed25519_ref_sc25519_2interleave2 ssh_crypto_sign_ed25519_ref_sc25519_2interleave2
@@ -249,8 +287,7 @@
 #define crypto_sign_ed25519_ref_shortsc25519_from16bytes ssh_crypto_sign_ed25519_ref_shortsc25519_from16bytes
 #define crypto_sign_ed25519_ref_unpackneg_vartime ssh_crypto_sign_ed25519_ref_unpackneg_vartime
 #define crypto_verify_32			ssh_crypto_verify_32
-#define current_keys				ssh_current_keys
-#define datafellows				ssh_datafellows
+#define dbl_p1p1				ssh_dbl_p1p1
 #define debug					ssh_debug
 #define debug2					ssh_debug2
 #define debug3					ssh_debug3
@@ -265,8 +302,6 @@
 #define dh_new_group14				ssh_dh_new_group14
 #define dh_new_group_asc			ssh_dh_new_group_asc
 #define dh_pub_is_valid				ssh_dh_pub_is_valid
-#define digests					ssh_digests
-#define dispatch				ssh_dispatch
 #define dispatch_init				ssh_dispatch_init
 #define dispatch_protocol_error			ssh_dispatch_protocol_error
 #define dispatch_protocol_ignore		ssh_dispatch_protocol_ignore
@@ -284,6 +319,7 @@
 #define explicit_bzero				ssh_explicit_bzero
 #define export_dns_rr				ssh_export_dns_rr
 #define fatal					ssh_fatal
+#define filter_proposal				ssh_filter_proposal
 #define fmt_scaled				ssh_fmt_scaled
 #define free_hostkeys				ssh_free_hostkeys
 #define freeargs				ssh_freeargs
@@ -299,20 +335,27 @@
 #define get_remote_name_or_ip			ssh_get_remote_name_or_ip
 #define get_remote_port				ssh_get_remote_port
 #define get_sock_port				ssh_get_sock_port
+#define get_socket_address			ssh_get_socket_address
 #define get_u16					ssh_get_u16
 #define get_u32					ssh_get_u32
 #define get_u64					ssh_get_u64
 #define getrrsetbyname				ssh_getrrsetbyname
 #define glob					ssh_glob
+#define glob0					ssh_glob0
+#define glob2					ssh_glob2
+#define globexp1				ssh_globexp1
+#define globextend				ssh_globextend
 #define globfree				ssh_globfree
 #define host_hash				ssh_host_hash
 #define hostfile_read_key			ssh_hostfile_read_key
 #define hpdelim					ssh_hpdelim
-#define incoming_stream				ssh_incoming_stream
 #define init_hostkeys				ssh_init_hostkeys
 #define iptos2str				ssh_iptos2str
 #define ipv64_normalise_mapped			ssh_ipv64_normalise_mapped
+#define is_key_revoked				ssh_is_key_revoked
+#define kex_alg_by_name				ssh_kex_alg_by_name
 #define kex_alg_list				ssh_kex_alg_list
+#define kex_buf2prop				ssh_kex_buf2prop
 #define kex_c25519_hash				ssh_kex_c25519_hash
 #define kex_derive_keys				ssh_kex_derive_keys
 #define kex_derive_keys_bn			ssh_kex_derive_keys_bn
@@ -322,6 +365,8 @@
 #define kex_get_newkeys				ssh_kex_get_newkeys
 #define kex_input_kexinit			ssh_kex_input_kexinit
 #define kex_names_valid				ssh_kex_names_valid
+#define kex_prop_free				ssh_kex_prop_free
+#define kex_protocol_error			ssh_kex_protocol_error
 #define kex_send_kexinit			ssh_kex_send_kexinit
 #define kex_setup				ssh_kex_setup
 #define kexc25519_client			ssh_kexc25519_client
@@ -355,6 +400,7 @@
 #define key_fingerprint_raw			ssh_key_fingerprint_raw
 #define key_free				ssh_key_free
 #define key_from_blob				ssh_key_from_blob
+#define key_from_blob2				ssh_key_from_blob2
 #define key_from_private			ssh_key_from_private
 #define key_generate				ssh_key_generate
 #define key_in_file				ssh_key_in_file
@@ -371,9 +417,14 @@
 #define key_new					ssh_key_new
 #define key_new_private				ssh_key_new_private
 #define key_parse_private			ssh_key_parse_private
+#define key_parse_private2			ssh_key_parse_private2
+#define key_parse_private_pem			ssh_key_parse_private_pem
+#define key_parse_private_type			ssh_key_parse_private_type
+#define key_parse_public_rsa1			ssh_key_parse_public_rsa1
 #define key_perm_ok				ssh_key_perm_ok
 #define key_private_deserialize			ssh_key_private_deserialize
 #define key_private_serialize			ssh_key_private_serialize
+#define key_private_to_blob2			ssh_key_private_to_blob2
 #define key_read				ssh_key_read
 #define key_save_private			ssh_key_save_private
 #define key_sign				ssh_key_sign
@@ -382,6 +433,7 @@
 #define key_ssh_name_plain			ssh_key_ssh_name_plain
 #define key_to_blob				ssh_key_to_blob
 #define key_to_certified			ssh_key_to_certified
+#define key_try_load_public			ssh_key_try_load_public
 #define key_type				ssh_key_type
 #define key_type_from_name			ssh_key_type_from_name
 #define key_type_is_cert			ssh_key_type_is_cert
@@ -406,6 +458,7 @@
 #define mac_init				ssh_mac_init
 #define mac_setup				ssh_mac_setup
 #define mac_valid				ssh_mac_valid
+#define match					ssh_match
 #define match_host_and_ip			ssh_match_host_and_ip
 #define match_hostname				ssh_match_hostname
 #define match_list				ssh_match_list
@@ -418,13 +471,16 @@
 #define monotime				ssh_monotime
 #define ms_subtract_diff			ssh_ms_subtract_diff
 #define ms_to_timeval				ssh_ms_to_timeval
+#define mult					ssh_mult
 #define mysignal				ssh_mysignal
-#define outgoing_stream				ssh_outgoing_stream
+#define nh_aux					ssh_nh_aux
+#define nh_final				ssh_nh_final
 #define packet_add_padding			ssh_packet_add_padding
 #define packet_backup_state			ssh_packet_backup_state
 #define packet_close				ssh_packet_close
 #define packet_connection_is_on_socket		ssh_packet_connection_is_on_socket
 #define packet_disconnect			ssh_packet_disconnect
+#define packet_enable_delayed_compress		ssh_packet_enable_delayed_compress
 #define packet_get_bignum			ssh_packet_get_bignum
 #define packet_get_bignum2			ssh_packet_get_bignum2
 #define packet_get_char				ssh_packet_get_char
@@ -471,6 +527,7 @@
 #define packet_remaining			ssh_packet_remaining
 #define packet_restore_state			ssh_packet_restore_state
 #define packet_send				ssh_packet_send
+#define packet_send2_wrapped			ssh_packet_send2_wrapped
 #define packet_send_debug			ssh_packet_send_debug
 #define packet_send_ignore			ssh_packet_send_ignore
 #define packet_set_alive_timeouts		ssh_packet_set_alive_timeouts
@@ -489,20 +546,32 @@
 #define packet_set_timeout			ssh_packet_set_timeout
 #define packet_start				ssh_packet_start
 #define packet_start_compression		ssh_packet_start_compression
+#define packet_start_discard			ssh_packet_start_discard
+#define packet_stop_discard			ssh_packet_stop_discard
 #define packet_write_poll			ssh_packet_write_poll
 #define packet_write_wait			ssh_packet_write_wait
 #define parse_ipqos				ssh_parse_ipqos
+#define parse_prime				ssh_parse_prime
 #define percent_expand				ssh_percent_expand
 #define permanently_drop_suid			ssh_permanently_drop_suid
 #define permanently_set_uid			ssh_permanently_set_uid
 #define permitopen_port				ssh_permitopen_port
 #define pkcs11_add_provider			ssh_pkcs11_add_provider
 #define pkcs11_del_provider			ssh_pkcs11_del_provider
+#define pkcs11_fetch_keys_filter		ssh_pkcs11_fetch_keys_filter
+#define pkcs11_find				ssh_pkcs11_find
 #define pkcs11_init				ssh_pkcs11_init
-#define pkcs11_interactive			ssh_pkcs11_interactive
-#define pkcs11_providers			ssh_pkcs11_providers
+#define pkcs11_provider_finalize		ssh_pkcs11_provider_finalize
+#define pkcs11_provider_unref			ssh_pkcs11_provider_unref
+#define pkcs11_rsa_finish			ssh_pkcs11_rsa_finish
+#define pkcs11_rsa_private_decrypt		ssh_pkcs11_rsa_private_decrypt
+#define pkcs11_rsa_private_encrypt		ssh_pkcs11_rsa_private_encrypt
 #define pkcs11_terminate			ssh_pkcs11_terminate
+#define plain_key_blob				ssh_plain_key_blob
 #define poly1305_auth				ssh_poly1305_auth
+#define poly64					ssh_poly64
+#define poly_hash				ssh_poly_hash
+#define port_open_helper			ssh_port_open_helper
 #define prime_test				ssh_prime_test
 #define proto_spec				ssh_proto_spec
 #define put_host_port				ssh_put_host_port
@@ -510,11 +579,19 @@
 #define put_u32					ssh_put_u32
 #define put_u64					ssh_put_u64
 #define pwcopy					ssh_pwcopy
+#define qfileout				ssh_qfileout
 #define read_keyfile_line			ssh_read_keyfile_line
+#define read_mux				ssh_read_mux
 #define read_passphrase				ssh_read_passphrase
+#define reduce_add_sub				ssh_reduce_add_sub
 #define refresh_progress_meter			ssh_refresh_progress_meter
 #define replacearg				ssh_replacearg
 #define restore_uid				ssh_restore_uid
+#define revoke_blob				ssh_revoke_blob
+#define revoked_blob_tree_RB_REMOVE		ssh_revoked_blob_tree_RB_REMOVE
+#define revoked_certs_for_ca_key		ssh_revoked_certs_for_ca_key
+#define revoked_serial_tree_RB_REMOVE		ssh_revoked_serial_tree_RB_REMOVE
+#define rijndaelKeySetupEnc			ssh_rijndaelKeySetupEnc
 #define rijndael_decrypt			ssh_rijndael_decrypt
 #define rijndael_encrypt			ssh_rijndael_encrypt
 #define rijndael_set_key			ssh_rijndael_set_key
@@ -529,9 +606,14 @@
 #define set_nodelay				ssh_set_nodelay
 #define set_nonblock				ssh_set_nonblock
 #define shadow_pw				ssh_shadow_pw
+#define sieve_large				ssh_sieve_large
+#define sig_winch				ssh_sig_winch
 #define sigdie					ssh_sigdie
-#define sock_get_rcvbuf				ssh_sock_get_rcvbuf
 #define sock_set_v6only				ssh_sock_set_v6only
+#define square					ssh_square
+#define ssh1_3des_cbc				ssh_ssh1_3des_cbc
+#define ssh1_3des_cleanup			ssh_ssh1_3des_cleanup
+#define ssh1_3des_init				ssh_ssh1_3des_init
 #define ssh1_3des_iv				ssh_ssh1_3des_iv
 #define start_progress_meter			ssh_start_progress_meter
 #define stop_progress_meter			ssh_stop_progress_meter
@@ -543,21 +625,21 @@
 #define temporarily_use_uid			ssh_temporarily_use_uid
 #define tilde_expand_filename			ssh_tilde_expand_filename
 #define timingsafe_bcmp				ssh_timingsafe_bcmp
+#define to_blob					ssh_to_blob
 #define tohex					ssh_tohex
 #define tty_make_modes				ssh_tty_make_modes
 #define tty_parse_modes				ssh_tty_parse_modes
 #define tun_open				ssh_tun_open
-#define umac128_ctx				ssh_umac128_ctx
 #define umac128_delete				ssh_umac128_delete
 #define umac128_final				ssh_umac128_final
 #define umac128_new				ssh_umac128_new
 #define umac128_update				ssh_umac128_update
-#define umac_ctx				ssh_umac_ctx
 #define umac_delete				ssh_umac_delete
 #define umac_final				ssh_umac_final
 #define umac_new				ssh_umac_new
 #define umac_update				ssh_umac_update
 #define unset_nonblock				ssh_unset_nonblock
+#define update_progress_meter			ssh_update_progress_meter
 #define uudecode				ssh_uudecode
 #define uuencode				ssh_uuencode
 #define verbose					ssh_verbose
@@ -566,6 +648,7 @@
 #define x11_connect_display			ssh_x11_connect_display
 #define x11_create_display_inet			ssh_x11_create_display_inet
 #define x11_input_open				ssh_x11_input_open
+#define x11_open_helper				ssh_x11_open_helper
 #define x11_request_forwarding_with_spoofing	ssh_x11_request_forwarding_with_spoofing
 #define xasprintf				ssh_xasprintf
 #define xcalloc					ssh_xcalloc

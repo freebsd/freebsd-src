@@ -1,5 +1,4 @@
 /* $OpenBSD: servconf.h,v 1.112 2014/01/29 06:18:35 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -182,16 +181,8 @@ typedef struct {
 
 	char   *version_addendum;	/* Appended to SSH banner */
 
-	int	hpn_disabled;		/* Disable HPN functionality. */
-	int	hpn_buffer_size;	/* Set HPN buffer size - default 2MB.*/
-	int	tcp_rcv_buf_poll;	/* Poll TCP rcv window in autotuning
-					 * kernels. */
 	u_int	num_auth_methods;
 	char   *auth_methods[MAX_AUTH_METHODS];
-
-#ifdef	NONE_CIPHER_ENABLED
-	int	none_enabled;		/* Enable NONE cipher switch. */
-#endif
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */

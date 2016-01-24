@@ -52,10 +52,6 @@ LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lhx509 -lasn1 \
 	-lcom_err -lroken -lwind -lheimbase -lheimipcc
 .endif
 
-.if ${MK_OPENSSH_NONE_CIPHER} != "no"
-CFLAGS+= -DNONE_CIPHER_ENABLED
-.endif
-
 DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
 LDADD+= -lcrypt -lcrypto -lz
 

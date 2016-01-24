@@ -110,10 +110,6 @@
 	"chacha20-poly1305@openssh.com," \
 	"aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc," \
 	"aes192-cbc,aes256-cbc,arcfour,rijndael-cbc@lysator.liu.se"
-#ifdef	NONE_CIPHER_ENABLED
-#define KEX_ENCRYPT_INCLUDE_NONE KEX_DEFAULT_ENCRYPT \
-	",none"
-#endif
 
 #define	KEX_DEFAULT_MAC \
 	"hmac-md5-etm@openssh.com," \

@@ -24,7 +24,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -178,16 +177,6 @@ compat_datafellows(const char *version)
 			datafellows = check[i].bugs;
 			debug("match: %s pat %s compat 0x%08x",
 			    version, check[i].pat, datafellows);
-			/*
-			 * Check to see if the remote side is OpenSSH and not
-			 * HPN.  It is utterly strange to check it from the
-			 * version string and expose the option that way.
-			 */
-			if (strstr(version,"OpenSSH") != NULL &&
-			    strstr(version,"hpn") == NULL) {
-				datafellows |= SSH_BUG_LARGEWINDOW;
-				debug("Remote is not HPN-aware");
-			}
 			return;
 		}
 	}

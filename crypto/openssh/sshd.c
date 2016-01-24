@@ -446,9 +446,8 @@ sshd_exchange_identification(int sock_in, int sock_out)
 		minor = PROTOCOL_MINOR_1;
 	}
 
-	xasprintf(&server_version_string, "SSH-%d.%d-%.100s%s%s%s%s",
+	xasprintf(&server_version_string, "SSH-%d.%d-%.100s%s%s%s",
 	    major, minor, SSH_VERSION,
-	    options.hpn_disabled ? "" : SSH_VERSION_HPN,
 	    *options.version_addendum == '\0' ? "" : " ",
 	    options.version_addendum, newline);
 
@@ -950,13 +949,12 @@ static void
 usage(void)
 {
 	if (options.version_addendum && *options.version_addendum != '\0')
-		fprintf(stderr, "%s%s %s, %s\n",
-		    SSH_RELEASE, options.hpn_disabled ? "" : SSH_VERSION_HPN,
+		fprintf(stderr, "%s %s, %s\n",
+		    SSH_RELEASE,
 		    options.version_addendum, SSLeay_version(SSLEAY_VERSION));
 	else
-		fprintf(stderr, "%s%s, %s\n",
-		    SSH_RELEASE, options.hpn_disabled ? "" : SSH_VERSION_HPN,
-		    SSLeay_version(SSLEAY_VERSION));
+		fprintf(stderr, "%s, %s\n",
+		    SSH_RELEASE, SSLeay_version(SSLEAY_VERSION));
 	fprintf(stderr,
 "usage: sshd [-46DdeiqTt] [-b bits] [-C connection_spec] [-c host_cert_file]\n"
 "            [-E log_file] [-f config_file] [-g login_grace_time]\n"
@@ -1145,7 +1143,6 @@ server_listen(void)
 		len = sizeof(socksize);
 		getsockopt(listen_sock, SOL_SOCKET, SO_RCVBUF, &socksize, &len);
 		debug("Server TCP RWIN socket size: %d", socksize);
-		debug("HPN Buffer Size: %d", options.hpn_buffer_size);
 
 		/* Bind the socket to the desired port. */
 		if (bind(listen_sock, ai->ai_addr, ai->ai_addrlen) < 0) {
@@ -1679,11 +1676,7 @@ main(int ac, char **av)
 		exit(1);
 	}
 
-	debug("sshd version %.100s%.100s%s%.100s, %.100s",
-	    SSH_RELEASE,
-	    options.hpn_disabled ? "" : SSH_VERSION_HPN,
-	    *options.version_addendum == '\0' ? "" : " ",
-	    options.version_addendum,
+	debug("sshd version %s, %s", SSH_VERSION,
 	    SSLeay_version(SSLEAY_VERSION));
 
 	/* Store privilege separation user for later use if required. */
@@ -2114,9 +2107,6 @@ main(int ac, char **av)
 	    remote_ip, remote_port,
 	    get_local_ipaddr(sock_in), get_local_port());
 
-	/* Set HPN options for the child. */
-	channel_set_hpn(options.hpn_disabled, options.hpn_buffer_size);
-
 	/*
 	 * We don't want to listen forever unless the other side
 	 * successfully authenticates itself.  So we set up an alarm which is
@@ -2501,12 +2491,6 @@ do_ssh2_kex(void)
 	if (options.ciphers != NULL) {
 		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
 		myproposal[PROPOSAL_ENC_ALGS_STOC] = options.ciphers;
-#ifdef	NONE_CIPHER_ENABLED
-	} else if (options.none_enabled == 1) {
-		debug ("WARNING: None cipher enabled");
-		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
-		myproposal[PROPOSAL_ENC_ALGS_STOC] = KEX_ENCRYPT_INCLUDE_NONE;
-#endif
 	}
 	myproposal[PROPOSAL_ENC_ALGS_CTOS] =
 	    compat_cipher_proposal(myproposal[PROPOSAL_ENC_ALGS_CTOS]);
