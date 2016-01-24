@@ -176,20 +176,6 @@ macaddr_atoi(const char *str, uint8_t *mac)
 }
 
 #ifdef USE_GENERATED_MAC_ADDRESS
-static char *
-kernenv_next(char *cp)
-{
-
-	if (cp != NULL) {
-		while (*cp != 0)
-			cp++;
-		cp++;
-		if (*cp == 0)
-			cp = NULL;
-	}
-	return (cp);
-}
-
 /*
  * generate_mac(uin8_t *mac)
  * This is MAC address generator for cases when real device MAC address
@@ -208,14 +194,8 @@ generate_mac(uint8_t *mac)
 	uint32_t crc = 0xffffffff;
 
 	/* Generate CRC32 on kenv */
-	if (dynamic_kenv) {
-		for (cp = kenvp[0]; cp != NULL; cp = kenvp[++i]) {
-			crc = calculate_crc32c(crc, cp, strlen(cp) + 1);
-		}
-	} else {
-		for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
-			crc = calculate_crc32c(crc, cp, strlen(cp) + 1);
-		}
+	for (cp = kenvp[0]; cp != NULL; cp = kenvp[++i]) {
+		crc = calculate_crc32c(crc, cp, strlen(cp) + 1);
 	}
 	crc = ~crc;
 
