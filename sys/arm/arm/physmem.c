@@ -161,7 +161,7 @@ static size_t
 regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 {
 	size_t acnt, exi, hwi;
-	vm_paddr_t end, start, xend, xstart;
+	uint64_t end, start, xend, xstart;
 	long availmem;
 	const struct region *exp, *hwp;
 
@@ -171,7 +171,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 	for (hwi = 0, hwp = hwregions; hwi < hwcnt; ++hwi, ++hwp) {
 		start = hwp->addr;
 		end   = hwp->size + start;
-		realmem += arm32_btop(end - start);
+		realmem += arm32_btop((vm_offset_t)(end - start));
 		for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
 			/*
 			 * If the excluded region does not match given flags,
@@ -212,9 +212,10 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 			 * could affect the remainder of this hw region.
 			 */
 			if ((xstart > start) && (xend < end)) {
-				avail[acnt++] = start;
-				avail[acnt++] = xstart;
-				availmem += arm32_btop(xstart - start);
+				avail[acnt++] = (vm_paddr_t)start;
+				avail[acnt++] = (vm_paddr_t)xstart;
+				availmem += 
+				    arm32_btop((vm_offset_t)(xstart - start));
 				start = xend;
 				continue;
 			}
@@ -233,9 +234,9 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, long *pavail)
 		 * available entry for it.
 		 */
 		if (end > start) {
-			avail[acnt++] = start;
-			avail[acnt++] = end;
-			availmem += arm32_btop(end - start);
+			avail[acnt++] = (vm_paddr_t)start;
+			avail[acnt++] = (vm_paddr_t)end;
+			availmem += arm32_btop((vm_offset_t)(end - start));
 		}
 		if (acnt >= MAX_AVAIL_ENTRIES)
 			panic("Not enough space in the dump/phys_avail arrays");
@@ -279,10 +280,22 @@ arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz)
 	/*
 	 * Filter out the page at PA 0x00000000.  The VM can't handle it, as
 	 * pmap_extract() == 0 means failure.
+	 *
+	 * Also filter out the page at the end of the physical address space --
+	 * if addr is non-zero and addr+size is zero we wrapped to the next byte
+	 * beyond what vm_paddr_t can express.  That leads to a NULL pointer
+	 * deref early in startup; work around it by leaving the last page out.
+	 *
+	 * XXX This just in:  subtract out a whole megabyte, not just 1 page.
+	 * Reducing the size by anything less than 1MB results in the NULL
+	 * pointer deref in _vm_map_lock_read().  Better to give up a megabyte
+	 * than leave some folks with an unusable system while we investigate.
 	 */
 	if (pa == 0) {
 		pa  = PAGE_SIZE;
 		sz -= PAGE_SIZE;
+	} else if (pa + sz == 0) {
+		sz -= 1024 * 1024;
 	}
 
 	/*
