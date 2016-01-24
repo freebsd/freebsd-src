@@ -147,7 +147,11 @@ ofw_iicbus_attach(device_t dev)
 		    M_NOWAIT | M_ZERO);
 		if (dinfo == NULL)
 			continue;
-		dinfo->opd_dinfo.addr = paddr;
+		/*
+		 * OFW uses 7-bit I2C address format (see ePAPR),
+		 * but system expect 8-bit.
+		 */
+		dinfo->opd_dinfo.addr = paddr << 1;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
 		    0) {
 			free(dinfo, M_DEVBUF);
