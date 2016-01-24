@@ -1,5 +1,4 @@
 /* $OpenBSD: clientloop.c,v 1.258 2014/02/02 03:44:31 djm Exp $ */
-/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -61,6 +60,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

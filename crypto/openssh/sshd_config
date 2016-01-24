@@ -1,5 +1,4 @@
 #	$OpenBSD: sshd_config,v 1.93 2014/01/10 05:59:19 djm Exp $
-#	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -128,7 +127,7 @@
 # override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server
 
-# Disable HPN tuning improvements.
+# Change to yes to disable HPN tuning improvements.
 #HPNDisabled no
 
 # Buffer size for HPN to non-HPN connections.

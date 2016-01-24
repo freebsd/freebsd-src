@@ -1,5 +1,4 @@
 /* $OpenBSD: kex.c,v 1.98 2014/02/02 03:44:31 djm Exp $ */
-/* $FreeBSD$ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -25,6 +24,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/param.h>
 
