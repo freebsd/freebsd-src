@@ -402,14 +402,14 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	/* 
 	 * XXX:
-	 * (dmat->alignment < dmat->maxsize) is just a quick hack; the exact
+	 * (dmat->alignment <= dmat->maxsize) is just a quick hack; the exact
 	 * alignment guarantees of malloc need to be nailed down, and the
 	 * code below should be rewritten to take that into account.
 	 *
 	 * In the meantime, we'll warn the user if malloc gets it wrong.
 	 */
 	if ((dmat->common.maxsize <= PAGE_SIZE) &&
-	   (dmat->common.alignment < dmat->common.maxsize) &&
+	   (dmat->common.alignment <= dmat->common.maxsize) &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
 		*vaddr = malloc(dmat->common.maxsize, M_DEVBUF, mflags);
