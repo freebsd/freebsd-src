@@ -106,10 +106,14 @@
 #define	CCM_GMAC_CLK_EXT_RGMII	0x1
 #define	CCM_GMAC_CLK_RGMII	0x2
 
+/* APB0_GATING */
+#define	CCM_APB0_GATING_ADDA	(1 << 0)
+
 /* AHB_GATING_REG0 */
 #define	CCM_AHB_GATING_USB0	(1 << 0)
 #define	CCM_AHB_GATING_EHCI0	(1 << 1)
 #define	CCM_AHB_GATING_EHCI1	(1 << 3)
+#define	CCM_AHB_GATING_DMA	(1 << 6)
 #define	CCM_AHB_GATING_SDMMC0	(1 << 8)
 #define	CCM_AHB_GATING_EMAC	(1 << 17)
 #define	CCM_AHB_GATING_SATA	(1 << 25)
@@ -132,6 +136,11 @@
 #define	CCM_PLL_CFG_FACTOR_K_SHIFT	4
 #define	CCM_PLL_CFG_FACTOR_M		0x3
 
+#define	CCM_PLL2_CFG_POSTDIV		0x3c000000
+#define	CCM_PLL2_CFG_POSTDIV_SHIFT	26
+#define	CCM_PLL2_CFG_PREDIV		0x1f
+#define	CCM_PLL2_CFG_PREDIV_SHIFT	0
+
 #define	CCM_PLL6_CFG_SATA_CLKEN	(1U << 14)
 
 #define	CCM_SD_CLK_SRC_SEL		0x3000000
@@ -146,6 +155,8 @@
 #define	CCM_SD_CLK_OPHASE_CTR_SHIFT	8
 #define	CCM_SD_CLK_DIV_RATIO_M		0xf
 
+#define	CCM_AUDIO_CODEC_ENABLE	(1U << 31)
+
 #define	CCM_CLK_REF_FREQ	24000000U
 
 int a10_clk_usb_activate(void);
@@ -155,5 +166,7 @@ int a10_clk_gmac_activate(phandle_t);
 int a10_clk_ahci_activate(void);
 int a10_clk_mmc_activate(int);
 int a10_clk_mmc_cfg(int, int);
+int a10_clk_dmac_activate(void);
+int a10_clk_codec_activate(unsigned int);
 
 #endif /* _A10_CLK_H_ */
