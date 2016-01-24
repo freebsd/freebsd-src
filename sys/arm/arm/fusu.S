@@ -131,8 +131,8 @@ EENTRY_NP(fuword32)
 	str	r1, [r2, #PCB_ONFAULT]
 	mov	r0, r3
 	RET
-EEND(fuword32)
-END(fuword)
+EEND(fueword32)
+END(fueword)
 
 /*
  * fusword(caddr_t uaddr);
