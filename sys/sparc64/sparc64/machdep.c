@@ -383,7 +383,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		kmdp = preload_search_by_type("elf kernel");
 		if (kmdp != NULL) {
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+			init_static_kenv(MD_FETCH(kmdp, MODINFOMD_ENVP, char *),
+			    0);
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 			kernel_tlb_slots = MD_FETCH(kmdp, MODINFOMD_DTLB_SLOTS,
 			    int);
