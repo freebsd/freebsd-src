@@ -1,5 +1,4 @@
 .\" $OpenBSD: sftp.1,v 1.97 2013/10/20 09:51:26 djm Exp $
-.\" $FreeBSD$
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -262,8 +261,7 @@ diagnostic messages from
 Specify how many requests may be outstanding at any one time.
 Increasing this may slightly improve file transfer speed
 but will increase memory usage.
-The default is 256 outstanding requests providing for 8MB
-of outstanding data with a 32KB buffer.
+The default is 64 outstanding requests.
 .It Fl r
 Recursively copy entire directories when uploading and downloading.
 Note that

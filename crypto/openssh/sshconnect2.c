@@ -25,7 +25,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -80,16 +79,6 @@ __RCSID("$FreeBSD$");
 extern char *client_version_string;
 extern char *server_version_string;
 extern Options options;
-#ifdef	NONE_CIPHER_ENABLED
-extern Kex *xxx_kex;
-
-/*
- * tty_flag is set in ssh.c so we can use it here.  If set then prevent
- * the switch to the null cipher.
- */
-
-extern int tty_flag;
-#endif
 
 /*
  * SSH2 key exchange
@@ -422,29 +411,6 @@ ssh_userauth2(const char *local_user, const char *server_user, char *host,
 	pubkey_cleanup(&authctxt);
 	dispatch_range(SSH2_MSG_USERAUTH_MIN, SSH2_MSG_USERAUTH_MAX, NULL);
 
-#ifdef	NONE_CIPHER_ENABLED
-	/*
-	 * If the user explicitly requests to use the none cipher enable it
-	 * post authentication and only if the right conditions are met: both
-	 * of the NONE switches must be true and there must be no tty allocated.
-	 */
-	if (options.none_switch == 1 && options.none_enabled == 1) {
-		if (!tty_flag) {
-			debug("Requesting none cipher re-keying...");
-			myproposal[PROPOSAL_ENC_ALGS_STOC] = "none";
-			myproposal[PROPOSAL_ENC_ALGS_CTOS] = "none";
-			kex_prop2buf(&xxx_kex->my, myproposal);
-			packet_request_rekeying();
-			fprintf(stderr, "WARNING: enabled NONE cipher\n");
-		} else {
-			/* Requested NONE cipher on an interactive session. */
-			debug("Cannot switch to NONE cipher with tty "
-			    "allocated");
-			fprintf(stderr, "NONE cipher switch disabled given "
-			    "a TTY is allocated\n");
-		}
-	}
-#endif
 	debug("Authentication succeeded (%s).", authctxt.method->name);
 }
 

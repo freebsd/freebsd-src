@@ -49,10 +49,6 @@ DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${
 LDADD+=	-lgssapi -lkrb5 -lhx509 -lasn1 -lcom_err -lmd -lroken
 .endif
 
-.if ${MK_OPENSSH_NONE_CIPHER} != "no"
-CFLAGS+= -DNONE_CIPHER_ENABLED
-.endif
-
 NO_LINT=
 
 DPADD+=	${LIBCRYPTO} ${LIBCRYPT} ${LIBZ}

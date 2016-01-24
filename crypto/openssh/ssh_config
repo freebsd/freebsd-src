@@ -1,4 +1,5 @@
 #	$OpenBSD: ssh_config,v 1.28 2013/09/16 11:35:43 sthen Exp $
+#	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -47,4 +48,4 @@
 #   ProxyCommand ssh -q -W %h:%p gateway.example.com
 #   RekeyLimit 1G 1h
 #   VerifyHostKeyDNS yes
-#   VersionAddendum FreeBSD-20140420
+#   VersionAddendum FreeBSD-20160124

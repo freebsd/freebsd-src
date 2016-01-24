@@ -35,10 +35,6 @@ DPADD+=	 ${LIBGSSAPI}
 LDADD+=	 -lgssapi
 .endif
 
-.if ${MK_OPENSSH_NONE_CIPHER} != "no"
-CFLAGS+= -DNONE_CIPHER_ENABLED
-.endif
-
 DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
 LDADD+= -lcrypt -lcrypto -lz
 

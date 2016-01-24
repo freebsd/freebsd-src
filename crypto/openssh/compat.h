@@ -1,5 +1,4 @@
 /* $OpenBSD: compat.h,v 1.44 2013/12/30 23:52:27 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
@@ -61,8 +60,6 @@
 #define SSH_NEW_OPENSSH		0x04000000
 #define SSH_BUG_DYNAMIC_RPORT	0x08000000
 #define SSH_BUG_CURVE25519PAD	0x10000000
-
-#define SSH_BUG_LARGEWINDOW	0x80000000
 
 void     enable_compat13(void);
 void     enable_compat20(void);

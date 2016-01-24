@@ -40,7 +40,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -173,11 +172,6 @@ static void port_open_helper(Channel *c, char *rtype);
 /* non-blocking connect helpers */
 static int connect_next(struct channel_connect *);
 static void channel_connect_ctx_free(struct channel_connect *);
-
-/* -- HPN */
-
-static int hpn_disabled = 0;
-static u_int buffer_size = CHAN_HPN_MIN_WINDOW_DEFAULT;
 
 /* -- channel core */
 
@@ -325,7 +319,6 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 	c->self = found;
 	c->type = type;
 	c->ctype = ctype;
-	c->dynamic_window = 0;
 	c->local_window = window;
 	c->local_window_max = window;
 	c->local_consumed = 0;
@@ -826,45 +819,10 @@ channel_pre_open_13(Channel *c, fd_set *readset, fd_set *writeset)
 		FD_SET(c->sock, writeset);
 }
 
-static u_int
-channel_tcpwinsz(void)
-{
-	u_int32_t tcpwinsz;
-	socklen_t optsz;
-	int ret, sd;
-	u_int maxlen;
-
-	/* If we are not on a socket return 128KB. */
-	if (!packet_connection_is_on_socket())
-		return (128 * 1024);
-
-	tcpwinsz = 0;
-	optsz = sizeof(tcpwinsz);
-	sd = packet_get_connection_in();
-	ret = getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &tcpwinsz, &optsz);
-
-	/* Return no more than the maximum buffer size. */
-	maxlen = buffer_get_max_len();
-	if ((ret == 0) && tcpwinsz > maxlen)
-		tcpwinsz = maxlen;
-	/* In case getsockopt() failed return a minimum. */
-	if (tcpwinsz == 0)
-		tcpwinsz = CHAN_TCP_WINDOW_DEFAULT;
-	debug2("tcpwinsz: %d for connection: %d", tcpwinsz, sd);
-	return (tcpwinsz);
-}
-
 static void
 channel_pre_open(Channel *c, fd_set *readset, fd_set *writeset)
 {
-	u_int limit;
-
-	/* Check buffer limits. */
-	if (!c->tcpwinsz || c->dynamic_window > 0)
-		c->tcpwinsz = channel_tcpwinsz();
-
-	limit = MIN(compat20 ? c->remote_window : packet_get_maxsize(),
-	    2 * c->tcpwinsz);
+	u_int limit = compat20 ? c->remote_window : packet_get_maxsize();
 
 	if (c->istate == CHAN_INPUT_OPEN &&
 	    limit > 0 &&
@@ -1857,25 +1815,14 @@ channel_check_window(Channel *c)
 	    c->local_maxpacket*3) ||
 	    c->local_window < c->local_window_max/2) &&
 	    c->local_consumed > 0) {
-		u_int addition = 0;
-
-		/* Adjust max window size if we are in a dynamic environment. */
-		if (c->dynamic_window && c->tcpwinsz > c->local_window_max) {
-			/*
-			 * Grow the window somewhat aggressively to maintain
-			 * pressure.
-			 */
-			addition = 1.5 * (c->tcpwinsz - c->local_window_max);
-			c->local_window_max += addition;
-		}
 		packet_start(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 		packet_put_int(c->remote_id);
-		packet_put_int(c->local_consumed + addition);
+		packet_put_int(c->local_consumed);
 		packet_send();
 		debug2("channel %d: window %d sent adjust %d",
 		    c->self, c->local_window,
 		    c->local_consumed);
-		c->local_window += c->local_consumed + addition;
+		c->local_window += c->local_consumed;
 		c->local_consumed = 0;
 	}
 	return 1;
@@ -2739,14 +2686,6 @@ channel_set_af(int af)
 	IPv4or6 = af;
 }
 
-void
-channel_set_hpn(int disabled, u_int buf_size)
-{
-	hpn_disabled = disabled;
-	buffer_size = buf_size;
-	debug("HPN Disabled: %d, HPN Buffer Size: %d",
-	    hpn_disabled, buffer_size);
-}
 
 /*
  * Determine whether or not a port forward listens to loopback, the
@@ -2924,18 +2863,10 @@ channel_setup_fwd_listener(int type, const char *listen_addr,
 			    *allocated_listen_port);
 		}
 
-		/*
-		 * Allocate a channel number for the socket.  Explicitly test
-		 * for hpn disabled option.  If true use smaller window size.
-		 */
-		if (hpn_disabled)
-			c = channel_new("port listener", type, sock, sock, -1,
-			    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
-			    0, "port listener", 1);
-		else
-			c = channel_new("port listener", type, sock, sock, -1,
-			    buffer_size, CHAN_TCP_PACKET_DEFAULT,
-			    0, "port listener", 1);
+		/* Allocate a channel number for the socket. */
+		c = channel_new("port listener", type, sock, sock, -1,
+		    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
+		    0, "port listener", 1);
 		c->path = xstrdup(host);
 		c->host_port = port_to_connect;
 		c->listening_addr = addr == NULL ? NULL : xstrdup(addr);
@@ -3583,16 +3514,10 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 	*chanids = xcalloc(num_socks + 1, sizeof(**chanids));
 	for (n = 0; n < num_socks; n++) {
 		sock = socks[n];
-		if (hpn_disabled)
-			nc = channel_new("x11 listener",
-			    SSH_CHANNEL_X11_LISTENER, sock, sock, -1,
-			    CHAN_X11_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT,
-			    0, "X11 inet listener", 1);
-		else
-			nc = channel_new("x11 listener",
-			    SSH_CHANNEL_X11_LISTENER, sock, sock, -1,
-			    buffer_size, CHAN_X11_PACKET_DEFAULT,
-			    0, "X11 inet listener", 1);
+		nc = channel_new("x11 listener",
+		    SSH_CHANNEL_X11_LISTENER, sock, sock, -1,
+		    CHAN_X11_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT,
+		    0, "X11 inet listener", 1);
 		nc->single_connection = single_connection;
 		(*chanids)[n] = nc->self;
 	}

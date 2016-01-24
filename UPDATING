@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20160124:
+	The NONE and HPN patches has been removed from OpenSSH.  They are
+	still available in the security/openssh-portable port.
+
 20151214:
 	r292223 changed the internal interface between the nfsd.ko and
 	nfscommon.ko modules. As such, they must both be upgraded to-gether.

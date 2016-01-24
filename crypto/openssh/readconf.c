@@ -152,12 +152,8 @@ typedef enum {
 	oKexAlgorithms, oIPQoS, oRequestTTY, oIgnoreUnknown, oProxyUseFdpass,
 	oCanonicalDomains, oCanonicalizeHostname, oCanonicalizeMaxDots,
 	oCanonicalizeFallbackLocal, oCanonicalizePermittedCNAMEs,
-	oIgnoredUnknownOption,
-	oHPNDisabled, oHPNBufferSize, oTcpRcvBufPoll, oTcpRcvBuf,
-#ifdef NONE_CIPHER_ENABLED
-	oNoneEnabled, oNoneSwitch,
-#endif
-	oVersionAddendum, oDeprecated, oUnsupported
+	oVersionAddendum,
+	oIgnoredUnknownOption, oDeprecated, oUnsupported
 } OpCodes;
 
 /* Textual representations of the tokens. */
@@ -270,14 +266,10 @@ static struct {
 	{ "canonicalizemaxdots", oCanonicalizeMaxDots },
 	{ "canonicalizepermittedcnames", oCanonicalizePermittedCNAMEs },
 	{ "ignoreunknown", oIgnoreUnknown },
-	{ "hpndisabled", oHPNDisabled },
-	{ "hpnbuffersize", oHPNBufferSize },
-	{ "tcprcvbufpoll", oTcpRcvBufPoll },
-	{ "tcprcvbuf", oTcpRcvBuf },
-#ifdef	NONE_CIPHER_ENABLED
-	{ "noneenabled", oNoneEnabled },
-	{ "noneswitch", oNoneSwitch },
-#endif
+	{ "hpndisabled", oDeprecated },
+	{ "hpnbuffersize", oDeprecated },
+	{ "tcprcvbufpoll", oDeprecated },
+	{ "tcprcvbuf", oDeprecated },
 	{ "versionaddendum", oVersionAddendum },
 
 	{ NULL, oBadOption }
@@ -1359,47 +1351,6 @@ parse_int:
 		multistate_ptr = multistate_requesttty;
 		goto parse_multistate;
 
-	case oHPNDisabled:
-		intptr = &options->hpn_disabled;
-		goto parse_flag;
-
-	case oHPNBufferSize:
-		intptr = &options->hpn_buffer_size;
-		goto parse_int;
-
-	case oTcpRcvBufPoll:
-		intptr = &options->tcp_rcv_buf_poll;
-		goto parse_flag;
-
-	case oTcpRcvBuf:
-		intptr = &options->tcp_rcv_buf;
-		goto parse_int;
-
-#ifdef	NONE_CIPHER_ENABLED
-	case oNoneEnabled:
-		intptr = &options->none_enabled;
-		goto parse_flag;
-
-	/*
-	 * We check to see if the command comes from the command line or not.
-	 * If it does then enable it otherwise fail.  NONE must never be a
-	 * default configuration.
-	 */
-	case oNoneSwitch:
-		if (strcmp(filename,"command-line") == 0) {
-			intptr = &options->none_switch;
-			goto parse_flag;
-		} else {
-			debug("NoneSwitch directive found in %.200s.",
-			    filename);
-			error("NoneSwitch is found in %.200s.\n"
-			    "You may only use this configuration option "
-			    "from the command line", filename);
-			error("Continuing...");
-			return 0;
-		}
-#endif
-
 	case oVersionAddendum:
 		if (s == NULL)
 			fatal("%.200s line %d: Missing argument.", filename,
@@ -1655,14 +1606,6 @@ initialize_options(Options * options)
 	options->canonicalize_fallback_local = -1;
 	options->canonicalize_hostname = -1;
 	options->version_addendum = NULL;
-	options->hpn_disabled = -1;
-	options->hpn_buffer_size = -1;
-	options->tcp_rcv_buf_poll = -1;
-	options->tcp_rcv_buf = -1;
-#ifdef NONE_CIPHER_ENABLED
-	options->none_enabled = -1;
-	options->none_switch = -1;
-#endif
 }
 
 /*
@@ -1857,36 +1800,6 @@ fill_default_options(Options * options)
 	/* options->preferred_authentications will be set in ssh */
 	if (options->version_addendum == NULL)
 		options->version_addendum = xstrdup(SSH_VERSION_FREEBSD);
-	if (options->hpn_disabled == -1)
-		options->hpn_disabled = 0;
-	if (options->hpn_buffer_size > -1)
-	{
-		u_int maxlen;
-
-		/* If a user tries to set the size to 0 set it to 1KB. */
-		if (options->hpn_buffer_size == 0)
-			options->hpn_buffer_size = 1024;
-		/* Limit the buffer to BUFFER_MAX_LEN. */
-		maxlen = buffer_get_max_len();
-		if (options->hpn_buffer_size > (maxlen / 1024)) {
-			debug("User requested buffer larger than %ub: %ub. "
-			    "Request reverted to %ub", maxlen,
-			    options->hpn_buffer_size * 1024, maxlen);
-			options->hpn_buffer_size = maxlen;
-		}
-		debug("hpn_buffer_size set to %d", options->hpn_buffer_size);
-	}
-	if (options->tcp_rcv_buf == 0)
-		options->tcp_rcv_buf = 1;
-	if (options->tcp_rcv_buf > -1)
-		options->tcp_rcv_buf *= 1024;
-	if (options->tcp_rcv_buf_poll == -1)
-		options->tcp_rcv_buf_poll = 1;
-#ifdef	NONE_CIPHER_ENABLED
-	/* options->none_enabled must not be set by default */
-	if (options->none_switch == -1)
-		options->none_switch = 0;
-#endif
 }
 
 /*

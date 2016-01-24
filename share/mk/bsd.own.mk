@@ -405,7 +405,6 @@ __DEFAULT_NO_OPTIONS = \
     LLDB \
     NAND \
     OFED \
-    OPENSSH_NONE_CIPHER \
     PKGTOOLS \
     SHARED_TOOLCHAIN \
     SVN \
