@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  *
  * TODO: Fix the ARMv4/v5 case.
  */
-#if (defined(FLASHADDR) || defined(LOADERRAMADDR) || !defined(_ARM_ARCH_6)) && \
-    !defined(PHYSADDR)
+#ifndef PHYSADDR
 #error PHYSADDR must be defined for this configuration
 #endif
 
@@ -116,7 +115,7 @@ ASENTRY_NP(_start)
 	 * If we're running with MMU disabled, test against the
 	 * physical address instead.
 	 */
-	mrc     p15, 0, r2, c1, c0, 0
+	mrc	p15, 0, r2, c1, c0, 0
 	ands	r2, r2, #CPU_CONTROL_MMU_ENABLE
 	ldreq	r6, =PHYSADDR
 	ldrne	r6, =LOADERRAMADDR
@@ -125,7 +124,7 @@ ASENTRY_NP(_start)
 	cmp	r7, pc
 	bhi	from_ram
 	b	do_copy
-	
+
 flash_lower:
 	cmp	r6, pc
 	bls	from_ram
@@ -148,12 +147,12 @@ from_ram:
 
 disable_mmu:
 	/* Disable MMU for a while */
-	mrc     p15, 0, r2, c1, c0, 0
+	mrc	p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
 	    CPU_CONTROL_WBUF_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr     p15, 0, r2, c1, c0, 0
+	mcr	p15, 0, r2, c1, c0, 0
 
 	nop
 	nop
@@ -169,36 +168,16 @@ Lunmapped:
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
 
-#ifndef _ARM_ARCH_6
 	/*
 	 * Some of the older ports (the various XScale, mostly) assume
 	 * that the memory before the kernel is mapped, and use it for
-	 * the various stacks, page tables, etc. For those CPUs, map the 
-	 * 64 first MB of RAM, as it used to be. 
+	 * the various stacks, page tables, etc. For those CPUs, map the
+	 * 64 first MB of RAM, as it used to be.
 	 */
 	/*
 	 * Map PA == VA
-	 */    
-	ldr     r5, =PHYSADDR
-	mov     r1, r5
-	mov     r2, r5
-	/* Map 64MiB, preserved over calls to build_pagetables */
-	mov     r3, #64
-	bl      build_pagetables
-	
-	/* Create the kernel map to jump to */
-	mov     r1, r5
-	ldr     r2, =(KERNBASE)
-	bl      build_pagetables
-	ldr	r5, =(KERNPHYSADDR)
-#else
-	/*
-	 * Map PA == VA
-	 */    
-	/* Find the start kernels load address */
-	adr	r5, _start
-	ldr	r2, =(L1_S_OFFSET)
-	bic	r5, r2
+	 */
+	ldr	r5, =PHYSADDR
 	mov	r1, r5
 	mov	r2, r5
 	/* Map 64MiB, preserved over calls to build_pagetables */
@@ -207,10 +186,10 @@ Lunmapped:
 
 	/* Create the kernel map to jump to */
 	mov	r1, r5
-	ldr	r2, =(KERNVIRTADDR)
+	ldr	r2, =(KERNBASE)
 	bl	build_pagetables
-#endif
-	
+	ldr	r5, =(KERNPHYSADDR)
+
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */
 	ldr	r1, =SOCDEV_PA
@@ -218,32 +197,19 @@ Lunmapped:
 	bl	build_pagetables
 #endif
 
-#if defined(SMP)
-	orr 	r0, r0, #2		/* Set TTB shared memory flag */
-#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
-	mov	r0, #0
-	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-#endif
-
 	/* Set the Domain Access register.  Very important! */
-	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
-	/* 
+	/*
 	 * Enable MMU.
 	 * On armv6 enable extended page tables, and set alignment checking
 	 * to modulo-4 (CPU_CONTROL_UNAL_ENABLE) for the ldrd/strd
 	 * instructions emitted by clang.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
-#ifdef _ARM_ARCH_6
-	orr	r0, r0, #(CPU_CONTROL_V6_EXTPAGE | CPU_CONTROL_UNAL_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_AFLT_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_AF_ENABLE)
-#endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
@@ -283,7 +249,7 @@ virt_done:
 	/* init arm will return the new stack pointer. */
 	mov	sp, r0
 
-	bl	_C_LABEL(mi_startup)		/* call mi_startup()! */
+	bl	_C_LABEL(mi_startup)	/* call mi_startup()! */
 
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
@@ -338,9 +304,6 @@ translate_va_to_pa:
 build_pagetables:
 	/* Set the required page attributed */
 	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#if defined(SMP)
-	orr	r4, #(L1_SHARED)
-#endif
 	orr	r1, r4
 
 	/* Move the virtual address to the correct bit location */
@@ -394,98 +357,12 @@ pagetable:
 .Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
 
-#if defined(SMP)
-
-.Lmpvirt_done:
-	.word	mpvirt_done
-VA_TO_PA_POINTER(Lstartup_pagetable_secondary, temp_pagetable)
-
-ASENTRY_NP(mpentry)
-
-	/* Make sure interrupts are disabled. */
-	mrs	r7, cpsr
-	orr	r7, r7, #(PSR_I | PSR_F)
-	msr	cpsr_c, r7
-
-	/* Disable MMU.  It should be disabled already, but make sure. */
-	mrc	p15, 0, r2, c1, c0, 0
-	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
-	    CPU_CONTROL_WBUF_ENABLE)
-	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
-	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr	p15, 0, r2, c1, c0, 0
-	nop
-	nop
-	nop
-	CPWAIT(r0)
-
-#if ARM_MMU_V6
-	bl	armv6_idcache_inv_all	/* Modifies r0 only */
-#elif ARM_MMU_V7
-	bl	armv7_idcache_inv_all	/* Modifies r0-r3, ip */
-#endif
-
-	/* Load the page table physical address */
-	adr	r0, Lstartup_pagetable_secondary
-	bl	translate_va_to_pa
-	/* Load the address the secondary page table */
-	ldr	r0, [r0]
-
-	orr 	r0, r0, #2		/* Set TTB shared memory flag */
-	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
-	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
-
-	mov	r0, #0
-	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-
-	/* Set the Domain Access register.  Very important! */
-	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
-	mcr	p15, 0, r0, c3, c0, 0
-	/* Enable MMU */
-	mrc	p15, 0, r0, c1, c0, 0
-	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
-	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
-	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
-	    CPU_CONTROL_WBUF_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_IC_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr	p15, 0, r0, c1, c0, 0
-	nop
-	nop
-	nop
-	CPWAIT(r0)
-
-	adr	r1, .Lstart
-	ldmia	r1, {r1, r2, sp}	/* Set initial stack and */
-	mrc	p15, 0, r0, c0, c0, 5
-	and	r0, r0, #15
-	mov	r1, #2048
-	mul	r2, r1, r0
-	sub	sp, sp, r2
-	str	r1, [sp]
-	ldr	pc, .Lmpvirt_done
-
-mpvirt_done:
-
-	mov	fp, #0			/* trace back starts here */
-	bl	_C_LABEL(init_secondary)	/* Off we go */
-
-	adr	r0, .Lmpreturned
-	b	_C_LABEL(panic)
-	/* NOTREACHED */
-
-.Lmpreturned:
-	.asciz	"init_secondary() returned"
-	.align	2
-END(mpentry)
-#endif
-
 ENTRY_NP(cpu_halt)
-	mrs     r2, cpsr
+	mrs	r2, cpsr
 	bic	r2, r2, #(PSR_MODE)
-	orr     r2, r2, #(PSR_SVC32_MODE)
+	orr	r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(PSR_I | PSR_F)
-	msr     cpsr_fsxc, r2
+	msr	cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]
@@ -511,9 +388,9 @@ ENTRY_NP(cpu_halt)
 	 * Hurl ourselves into the ROM
 	 */
 	mov	r0, #(CPU_CONTROL_32BP_ENABLE | CPU_CONTROL_32BD_ENABLE)
-	mcr     p15, 0, r0, c1, c0, 0
-	mcrne   p15, 0, r2, c8, c7, 0 	/* nail I+D TLB on ARMv4 and greater */
-	mov     pc, r4
+	mcr	p15, 0, r0, c1, c0, 0
+	mcrne	p15, 0, r2, c8, c7, 0 	/* nail I+D TLB on ARMv4 and greater */
+	mov	pc, r4
 
 	/*
 	 * _cpu_reset_address contains the address to branch to, to complete
@@ -550,7 +427,7 @@ ENTRY(longjmp)
 END(longjmp)
 
 	.data
-	.global _C_LABEL(esym)
+	.global	_C_LABEL(esym)
 _C_LABEL(esym):	.word	_C_LABEL(end)
 
 ENTRY_NP(abort)
@@ -563,7 +440,7 @@ ENTRY_NP(sigcode)
 
 	/*
 	 * Call the sigreturn system call.
-	 * 
+	 *
 	 * We have to load r7 manually rather than using
 	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
 	 * correct. Using the alternative places esigcode at the address

@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
+#include <machine/acle-compat.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/machdep.h>
@@ -322,7 +323,7 @@ abort_handler(struct trapframe *tf, int type)
 	 * location, so we can deal with those quickly.  Otherwise we need to
 	 * disassemble the faulting instruction to determine if it was a write.
 	 */
-#if ARM_ARCH_6 || ARM_ARCH_7A
+#if __ARM_ARCH >= 6
 	ftype = (fsr & FAULT_WNR) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
 #else
 	if (IS_PERMISSION_FAULT(fsr))
