@@ -69,11 +69,11 @@ uint64_t
 uboot_loadaddr(u_int type, void *data, uint64_t addr)
 {
 	struct sys_info *si;
-	uintptr_t sblock, eblock, subldr, eubldr;
-	uintptr_t biggest_block, this_block;
-	size_t biggest_size, this_size;
+	uint64_t sblock, eblock, subldr, eubldr;
+	uint64_t biggest_block, this_block;
+	uint64_t biggest_size, this_size;
 	int i;
-	char * envstr;
+	char *envstr;
 
 	if (addr == 0) {
 		/*
@@ -101,13 +101,14 @@ uboot_loadaddr(u_int type, void *data, uint64_t addr)
 		biggest_block = 0;
 		biggest_size = 0;
 		subldr = rounddown2((uintptr_t)_start, KERN_ALIGN);
-		eubldr = roundup2(uboot_heap_end, KERN_ALIGN);
+		eubldr = roundup2((uint64_t)uboot_heap_end, KERN_ALIGN);
 		for (i = 0; i < si->mr_no; i++) {
 			if (si->mr[i].flags != MR_ATTR_DRAM)
 				continue;
-			sblock = roundup2(si->mr[i].start, KERN_ALIGN);
-			eblock = rounddown2(si->mr[i].start + si->mr[i].size,
+			sblock = roundup2((uint64_t)si->mr[i].start,
 			    KERN_ALIGN);
+			eblock = rounddown2((uint64_t)si->mr[i].start +
+			    si->mr[i].size, KERN_ALIGN);
 			if (biggest_size == 0)
 				sblock += KERN_MINADDR;
 			if (subldr >= sblock && subldr < eblock) {
@@ -127,9 +128,10 @@ uboot_loadaddr(u_int type, void *data, uint64_t addr)
 		if (biggest_size == 0)
 			panic("Not enough DRAM to load kernel\n");
 #if 0
-		printf("Loading kernel into region 0x%08x-0x%08x (%u MiB)\n",
-		    biggest_block, biggest_block + biggest_size - 1, 
-		    biggest_size / 1024 / 1024);
+		printf("Loading kernel into region 0x%08jx-0x%08jx (%ju MiB)\n",
+		    (uintmax_t)biggest_block, 
+		    (uintmax_t)biggest_block + biggest_size - 1,
+		    (uintmax_t)biggest_size / 1024 / 1024);
 #endif
 		return (biggest_block);
 	}
