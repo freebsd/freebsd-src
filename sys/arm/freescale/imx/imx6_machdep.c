@@ -99,7 +99,6 @@ initarm_lastaddr(void)
 void
 initarm_early_init(void)
 {
-
 	/* Inform the MPCore timer driver that its clock is variable. */
 	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
 }
@@ -113,6 +112,9 @@ initarm_gpio_init(void)
 void
 initarm_late_init(void)
 {
+	const uint32_t IMX6_WDOG_SR_PHYS = 0x020bc004;
+
+	imx_wdog_init_last_reset(IMX6_WDOG_SR_PHYS);
 
 	/* Cache the gpio1 node handle for imx6_decode_fdt() workaround code. */
 	gpio1_node = OF_node_from_xref(
