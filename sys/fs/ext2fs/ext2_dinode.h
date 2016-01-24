@@ -52,7 +52,7 @@
  * Inode flags
  * The system supports EXT2_IMMUTABLE, EXT2_APPEND and EXT2_NODUMP flags.
  * The current implementation also uses EXT3_INDEX, EXT4_EXTENTS and
- * EXT4_HUGE_FILE with some restrictions, imposed the lack of write
+ * EXT4_HUGE_FILE with some restrictions imposed by the lack of write
  * support.
  */
 #define	EXT2_SECRM		0x00000001	/* Secure deletion */
