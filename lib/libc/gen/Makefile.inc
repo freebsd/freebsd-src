@@ -147,7 +147,7 @@ SRCS+=	__getosreldate.c \
 	waitid.c \
 	wordexp.c
 
-.if !defined(LIBCHERI)
+.if !defined(LIBCHERI) || ${MK_LIBCHERI_JEMALLOC} == "yes"
 SRCS+=	tls.c
 .else
 SRCS+=	tls-stub.c

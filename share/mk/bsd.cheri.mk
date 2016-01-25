@@ -39,7 +39,9 @@ CFLAGS+=	-Wno-error
 .endif
 
 .if ${WANT_CHERI} == "pure" && defined(__BSD_PROG_MK)
+.if ${MK_LIBCHERI_JEMALLOC} == "no"
 LIBADD+=	c malloc_simple
+.endif
 .endif
 
 .if ${MK_CHERI128} == "yes"
