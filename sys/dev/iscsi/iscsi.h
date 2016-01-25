@@ -130,7 +130,8 @@ struct iscsi_softc {
 	TAILQ_HEAD(, iscsi_session)	sc_sessions;
 	struct cv			sc_cv;
 	unsigned int			sc_last_session_id;
-	eventhandler_tag		sc_shutdown_eh;
+	eventhandler_tag		sc_shutdown_pre_eh;
+	eventhandler_tag		sc_shutdown_post_eh;
 };
 
 #endif /* !ISCSI_H */

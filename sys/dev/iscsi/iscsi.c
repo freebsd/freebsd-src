@@ -102,6 +102,9 @@ static int fail_on_disconnection = 0;
 TUNABLE_INT("kern.iscsi.fail_on_disconnection", &fail_on_disconnection);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
     &fail_on_disconnection, 0, "Destroy CAM SIM on connection failure");
+static int fail_on_shutdown = 1;
+SYSCTL_INT(_kern_iscsi, OID_AUTO, fail_on_shutdown, CTLFLAG_RWTUN,
+    &fail_on_shutdown, 0, "Fail disconnected sessions on shutdown");
 
 static MALLOC_DEFINE(M_ISCSI, "iSCSI", "iSCSI initiator");
 static uma_zone_t iscsi_outstanding_zone;
@@ -421,8 +424,6 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 
 	sc = is->is_softc;
 	sx_xlock(&sc->sc_lock);
-	TAILQ_REMOVE(&sc->sc_sessions, is, is_next);
-	sx_xunlock(&sc->sc_lock);
 
 	icl_conn_close(is->is_conn);
 	callout_drain(&is->is_callout);
@@ -454,6 +455,9 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 #ifdef ICL_KERNEL_PROXY
 	cv_destroy(&is->is_login_cv);
 #endif
+	TAILQ_REMOVE(&sc->sc_sessions, is, is_next);
+	sx_xunlock(&sc->sc_lock);
+
 	ISCSI_SESSION_DEBUG(is, "terminated");
 	free(is, M_ISCSI);
 
@@ -477,17 +481,18 @@ iscsi_maintenance_thread(void *arg)
 		    STAILQ_EMPTY(&is->is_postponed))
 			cv_wait(&is->is_maintenance_cv, &is->is_lock);
 
-		if (is->is_reconnecting) {
-			ISCSI_SESSION_UNLOCK(is);
-			iscsi_maintenance_thread_reconnect(is);
-			continue;
-		}
-
+		/* Terminate supersedes reconnect. */
 		if (is->is_terminating) {
 			ISCSI_SESSION_UNLOCK(is);
 			iscsi_maintenance_thread_terminate(is);
 			kthread_exit();
 			return;
+		}
+
+		if (is->is_reconnecting) {
+			ISCSI_SESSION_UNLOCK(is);
+			iscsi_maintenance_thread_reconnect(is);
+			continue;
 		}
 
 		iscsi_session_send_postponed(is);
@@ -609,6 +614,11 @@ iscsi_callout(void *context)
 	return;
 
 out:
+	if (is->is_terminating) {
+		ISCSI_SESSION_UNLOCK(is);
+		return;
+	}
+
 	ISCSI_SESSION_UNLOCK(is);
 
 	if (reconnect_needed)
@@ -2320,28 +2330,60 @@ iscsi_poll(struct cam_sim *sim)
 }
 
 static void
-iscsi_shutdown(struct iscsi_softc *sc)
+iscsi_terminate_sessions(struct iscsi_softc *sc)
 {
 	struct iscsi_session *is;
 
-	/*
-	 * Trying to reconnect during system shutdown would lead to hang.
-	 */
-	fail_on_disconnection = 1;
+	sx_slock(&sc->sc_lock);
+	TAILQ_FOREACH(is, &sc->sc_sessions, is_next)
+		iscsi_session_terminate(is);
+	while(!TAILQ_EMPTY(&sc->sc_sessions)) {
+		ISCSI_DEBUG("waiting for sessions to terminate");
+		cv_wait(&sc->sc_cv, &sc->sc_lock);
+	}
+	ISCSI_DEBUG("all sessions terminated");
+	sx_sunlock(&sc->sc_lock);
+}
+
+static void
+iscsi_shutdown_pre(struct iscsi_softc *sc)
+{
+	struct iscsi_session *is;
+
+	if (!fail_on_shutdown)
+		return;
 
 	/*
 	 * If we have any sessions waiting for reconnection, request
 	 * maintenance thread to fail them immediately instead of waiting
 	 * for reconnect timeout.
+	 *
+	 * This prevents LUNs with mounted filesystems that are supported
+	 * by disconnected iSCSI sessions from hanging, however it will
+	 * fail all queued BIOs.
 	 */
+	ISCSI_DEBUG("forcing failing all disconnected sessions due to shutdown");
+
+	fail_on_disconnection = 1;
+
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
 		ISCSI_SESSION_LOCK(is);
-		if (is->is_waiting_for_iscsid)
+		if (!is->is_connected) {
+			ISCSI_SESSION_DEBUG(is, "force failing disconnected session early");
 			iscsi_session_reconnect(is);
+		}
 		ISCSI_SESSION_UNLOCK(is);
 	}
 	sx_sunlock(&sc->sc_lock);
+}
+
+static void
+iscsi_shutdown_post(struct iscsi_softc *sc)
+{
+
+	ISCSI_DEBUG("removing all sessions due to shutdown");
+	iscsi_terminate_sessions(sc);
 }
 
 static int
@@ -2366,8 +2408,16 @@ iscsi_load(void)
 	}
 	sc->sc_cdev->si_drv1 = sc;
 
-	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-	    iscsi_shutdown, sc, SHUTDOWN_PRI_FIRST);
+	sc->sc_shutdown_pre_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+	    iscsi_shutdown_pre, sc, SHUTDOWN_PRI_FIRST);
+	/*
+	 * shutdown_post_sync needs to run after filesystem shutdown and before
+	 * CAM shutdown - otherwise when rebooting with an iSCSI session that is
+	 * disconnected but has outstanding requests, dashutdown() will hang on
+	 * cam_periph_runccb().
+	 */
+	sc->sc_shutdown_post_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    iscsi_shutdown_post, sc, SHUTDOWN_PRI_DEFAULT - 1);
 
 	return (0);
 }
@@ -2375,7 +2425,6 @@ iscsi_load(void)
 static int
 iscsi_unload(void)
 {
-	struct iscsi_session *is, *tmp;
 
 	if (sc->sc_cdev != NULL) {
 		ISCSI_DEBUG("removing device node");
@@ -2383,18 +2432,12 @@ iscsi_unload(void)
 		ISCSI_DEBUG("device node removed");
 	}
 
-	if (sc->sc_shutdown_eh != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->sc_shutdown_eh);
+	if (sc->sc_shutdown_pre_eh != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->sc_shutdown_pre_eh);
+	if (sc->sc_shutdown_post_eh != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_post_eh);
 
-	sx_slock(&sc->sc_lock);
-	TAILQ_FOREACH_SAFE(is, &sc->sc_sessions, is_next, tmp)
-		iscsi_session_terminate(is);
-	while(!TAILQ_EMPTY(&sc->sc_sessions)) {
-		ISCSI_DEBUG("waiting for sessions to terminate");
-		cv_wait(&sc->sc_cv, &sc->sc_lock);
-	}
-	ISCSI_DEBUG("all sessions terminated");
-	sx_sunlock(&sc->sc_lock);
+	iscsi_terminate_sessions(sc);
 
 	uma_zdestroy(iscsi_outstanding_zone);
 	sx_destroy(&sc->sc_lock);
