@@ -83,15 +83,17 @@ struct ttydevsw {
 static __inline int
 ttydevsw_open(struct tty *tp)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
-	return tp->t_devsw->tsw_open(tp);
+	return (tp->t_devsw->tsw_open(tp));
 }
 
 static __inline void
 ttydevsw_close(struct tty *tp)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
@@ -101,6 +103,7 @@ ttydevsw_close(struct tty *tp)
 static __inline void
 ttydevsw_outwakeup(struct tty *tp)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
@@ -114,6 +117,7 @@ ttydevsw_outwakeup(struct tty *tp)
 static __inline void
 ttydevsw_inwakeup(struct tty *tp)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
@@ -127,49 +131,56 @@ ttydevsw_inwakeup(struct tty *tp)
 static __inline int
 ttydevsw_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
-	return tp->t_devsw->tsw_ioctl(tp, cmd, data, td);
+	return (tp->t_devsw->tsw_ioctl(tp, cmd, data, td));
 }
 
 static __inline int
-ttydevsw_cioctl(struct tty *tp, int unit, u_long cmd, caddr_t data, struct thread *td)
+ttydevsw_cioctl(struct tty *tp, int unit, u_long cmd, caddr_t data,
+    struct thread *td)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
-	return tp->t_devsw->tsw_cioctl(tp, unit, cmd, data, td);
+	return (tp->t_devsw->tsw_cioctl(tp, unit, cmd, data, td));
 }
 
 static __inline int
 ttydevsw_param(struct tty *tp, struct termios *t)
 {
+
 	MPASS(!tty_gone(tp));
 
-	return tp->t_devsw->tsw_param(tp, t);
+	return (tp->t_devsw->tsw_param(tp, t));
 }
 
 static __inline int
 ttydevsw_modem(struct tty *tp, int sigon, int sigoff)
 {
+
 	MPASS(!tty_gone(tp));
 
-	return tp->t_devsw->tsw_modem(tp, sigon, sigoff);
+	return (tp->t_devsw->tsw_modem(tp, sigon, sigoff));
 }
 
 static __inline int
 ttydevsw_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nprot, vm_memattr_t *memattr)
 {
+
 	MPASS(!tty_gone(tp));
 
-	return tp->t_devsw->tsw_mmap(tp, offset, paddr, nprot, memattr);
+	return (tp->t_devsw->tsw_mmap(tp, offset, paddr, nprot, memattr));
 }
 
 static __inline void
 ttydevsw_pktnotify(struct tty *tp, char event)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
@@ -179,6 +190,7 @@ ttydevsw_pktnotify(struct tty *tp, char event)
 static __inline void
 ttydevsw_free(struct tty *tp)
 {
+
 	MPASS(tty_gone(tp));
 
 	tp->t_devsw->tsw_free(tty_softc(tp));
