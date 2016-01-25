@@ -263,10 +263,10 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	/*
 	 * Make sure the "tty" and "cua" device cannot be opened at the
-	 * same time.
+	 * same time.  The console is a "tty" device.
 	 */
 	if (TTY_CALLOUT(tp, dev)) {
-		if (tp->t_flags & TF_OPENED_IN) {
+		if (tp->t_flags & (TF_OPENED_CONS | TF_OPENED_IN)) {
 			error = EBUSY;
 			goto done;
 		}
@@ -319,6 +319,8 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		tp->t_flags |= TF_OPENED_OUT;
 	else
 		tp->t_flags |= TF_OPENED_IN;
+	MPASS((tp->t_flags & (TF_OPENED_CONS | TF_OPENED_IN)) == 0 ||
+	    (tp->t_flags & TF_OPENED_OUT) == 0);
 
 done:	tp->t_flags &= ~TF_OPENCLOSE;
 	cv_broadcast(&tp->t_dcdwait);
@@ -338,7 +340,8 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	 * Don't actually close the device if it is being used as the
 	 * console.
 	 */
-	MPASS((tp->t_flags & TF_OPENED) != TF_OPENED);
+	MPASS((tp->t_flags & (TF_OPENED_CONS | TF_OPENED_IN)) == 0 ||
+	    (tp->t_flags & TF_OPENED_OUT) == 0);
 	if (dev == dev_console)
 		tp->t_flags &= ~TF_OPENED_CONS;
 	else
