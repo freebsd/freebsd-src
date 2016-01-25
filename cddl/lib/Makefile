@@ -47,5 +47,6 @@ SUBDIR:=
 SUBDIR:=	${SUBDIR:Nlibdtrace}
 .endif
 .endif
+.endif
 
 .include <bsd.subdir.mk>
