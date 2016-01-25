@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
+ * Copyright (c) 2015-2016 Emmanuel Vadot <manu@bidouilliste.com>
  * All rights reserved.
  *
  * This code is derived from software written for Brini by Mark Brinicombe
@@ -45,32 +46,41 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
 
 #include <arm/allwinner/a10_wdog.h>
+#include <arm/allwinner/allwinner_machdep.h>
 
-vm_offset_t
-platform_lastaddr(void)
+#include "platform_if.h"
+
+static u_int soc_type;
+static u_int soc_family;
+
+static int
+a10_attach(platform_t plat)
+{
+	soc_type = ALLWINNERSOC_A10;
+	soc_family = ALLWINNERSOC_SUN4I;
+	return (0);
+}
+
+static int
+a20_attach(platform_t plat)
+{
+	soc_type = ALLWINNERSOC_A20;
+	soc_family = ALLWINNERSOC_SUN7I;
+
+	return (0);
+}
+
+
+static vm_offset_t
+allwinner_lastaddr(platform_t plat)
 {
 
 	return (arm_devmap_lastaddr());
-}
-
-void
-platform_probe_and_attach(void)
-{
-}
-
-void
-platform_gpio_init(void)
-{
-}
-
-void
-platform_late_init(void)
-{
 }
 
 /*
@@ -83,8 +93,8 @@ platform_late_init(void)
  * shouldn't be device-mapped.  The original code mapped a 4MB block, but
  * perhaps a 1MB block would be more appropriate.
  */
-int
-platform_devmap_init(void)
+static int
+allwinner_devmap_init(platform_t plat)
 {
 
 	arm_devmap_add_entry(0x01C00000, 0x00400000); /* 4MB */
@@ -111,3 +121,34 @@ cpu_reset()
 	printf("Reset failed!\n");
 	while (1);
 }
+
+static platform_method_t a10_methods[] = {
+	PLATFORMMETHOD(platform_attach,         a10_attach),
+	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
+	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
+
+	PLATFORMMETHOD_END,
+};
+
+static platform_method_t a20_methods[] = {
+	PLATFORMMETHOD(platform_attach,         a20_attach),
+	PLATFORMMETHOD(platform_lastaddr,       allwinner_lastaddr),
+	PLATFORMMETHOD(platform_devmap_init,    allwinner_devmap_init),
+
+	PLATFORMMETHOD_END,
+};
+
+u_int
+allwinner_soc_type(void)
+{
+	return (soc_type);
+}
+
+u_int
+allwinner_soc_family(void)
+{
+	return (soc_family);
+}
+
+FDT_PLATFORM_DEF(a10, "a10", 0, "allwinner,sun4i-a10");
+FDT_PLATFORM_DEF(a20, "a20", 0, "allwinner,sun7i-a20");

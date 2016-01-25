@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.450 2015/05/24 23:39:16 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.458 2015/08/20 22:32:42 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -106,6 +106,7 @@ __RCSID("$FreeBSD$");
 #include "log.h"
 #include "buffer.h"
 #include "misc.h"
+#include "match.h"
 #include "servconf.h"
 #include "uidswap.h"
 #include "compat.h"
@@ -641,6 +642,8 @@ privsep_preauth_child(void)
 	arc4random_buf(rnd, sizeof(rnd));
 #ifdef WITH_OPENSSL
 	RAND_seed(rnd, sizeof(rnd));
+	if ((RAND_bytes((u_char *)rnd, 1)) != 1)
+		fatal("%s: RAND_bytes failed", __func__);
 #endif
 	explicit_bzero(rnd, sizeof(rnd));
 
@@ -784,6 +787,8 @@ privsep_postauth(Authctxt *authctxt)
 	arc4random_buf(rnd, sizeof(rnd));
 #ifdef WITH_OPENSSL
 	RAND_seed(rnd, sizeof(rnd));
+	if ((RAND_bytes((u_char *)rnd, 1)) != 1)
+		fatal("%s: RAND_bytes failed", __func__);
 #endif
 	explicit_bzero(rnd, sizeof(rnd));
 
@@ -815,8 +820,15 @@ list_hostkey_types(void)
 		key = sensitive_data.host_keys[i];
 		if (key == NULL)
 			key = sensitive_data.host_pubkeys[i];
-		if (key == NULL)
+		if (key == NULL || key->type == KEY_RSA1)
 			continue;
+		/* Check that the key is accepted in HostkeyAlgorithms */
+		if (match_pattern_list(sshkey_ssh_name(key),
+		    options.hostkeyalgorithms, 0) != 1) {
+			debug3("%s: %s key not permitted by HostkeyAlgorithms",
+			    __func__, sshkey_ssh_name(key));
+			continue;
+		}
 		switch (key->type) {
 		case KEY_RSA:
 		case KEY_DSA:
@@ -833,8 +845,6 @@ list_hostkey_types(void)
 		if (key == NULL)
 			continue;
 		switch (key->type) {
-		case KEY_RSA_CERT_V00:
-		case KEY_DSA_CERT_V00:
 		case KEY_RSA_CERT:
 		case KEY_DSA_CERT:
 		case KEY_ECDSA_CERT:
@@ -861,8 +871,6 @@ get_hostkey_by_type(int type, int nid, int need_private, struct ssh *ssh)
 
 	for (i = 0; i < options.num_host_key_files; i++) {
 		switch (type) {
-		case KEY_RSA_CERT_V00:
-		case KEY_DSA_CERT_V00:
 		case KEY_RSA_CERT:
 		case KEY_DSA_CERT:
 		case KEY_ECDSA_CERT:
@@ -1272,7 +1280,7 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 			sighup_restart();
 		if (fdset != NULL)
 			free(fdset);
-		fdset = (fd_set *)xcalloc(howmany(maxfd + 1, NFDBITS),
+		fdset = xcalloc(howmany(maxfd + 1, NFDBITS),
 		    sizeof(fd_mask));
 
 		for (i = 0; i < num_listen_socks; i++)
@@ -1455,6 +1463,8 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 			arc4random_buf(rnd, sizeof(rnd));
 #ifdef WITH_OPENSSL
 			RAND_seed(rnd, sizeof(rnd));
+			if ((RAND_bytes((u_char *)rnd, 1)) != 1)
+				fatal("%s: RAND_bytes failed", __func__);
 #endif
 			explicit_bzero(rnd, sizeof(rnd));
 		}
@@ -1901,8 +1911,8 @@ main(int ac, char **av)
 #ifdef WITH_SSH1
 	/* Check certain values for sanity. */
 	if (options.protocol & SSH_PROTO_1) {
-		if (options.server_key_bits < 512 ||
-		    options.server_key_bits > 32768) {
+		if (options.server_key_bits < SSH_RSA_MINIMUM_MODULUS_SIZE ||
+		    options.server_key_bits > OPENSSL_RSA_MAX_MODULUS_BITS) {
 			fprintf(stderr, "Bad server key size.\n");
 			exit(1);
 		}
@@ -2595,9 +2605,7 @@ sshd_hostkey_sign(Key *privkey, Key *pubkey, u_char **signature, size_t *slen,
 	return 0;
 }
 
-/*
- * SSH2 key exchange: diffie-hellman-group1-sha1
- */
+/* SSH2 key exchange */
 static void
 do_ssh2_kex(void)
 {
@@ -2605,19 +2613,15 @@ do_ssh2_kex(void)
 	struct kex *kex;
 	int r;
 
-	if (options.ciphers != NULL) {
-		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
-		myproposal[PROPOSAL_ENC_ALGS_STOC] = options.ciphers;
-	}
-	myproposal[PROPOSAL_ENC_ALGS_CTOS] =
-	    compat_cipher_proposal(myproposal[PROPOSAL_ENC_ALGS_CTOS]);
-	myproposal[PROPOSAL_ENC_ALGS_STOC] =
-	    compat_cipher_proposal(myproposal[PROPOSAL_ENC_ALGS_STOC]);
+	myproposal[PROPOSAL_KEX_ALGS] = compat_kex_proposal(
+	    options.kex_algorithms);
+	myproposal[PROPOSAL_ENC_ALGS_CTOS] = compat_cipher_proposal(
+	    options.ciphers);
+	myproposal[PROPOSAL_ENC_ALGS_STOC] = compat_cipher_proposal(
+	    options.ciphers);
+	myproposal[PROPOSAL_MAC_ALGS_CTOS] =
+	    myproposal[PROPOSAL_MAC_ALGS_STOC] = options.macs;
 
-	if (options.macs != NULL) {
-		myproposal[PROPOSAL_MAC_ALGS_CTOS] =
-		myproposal[PROPOSAL_MAC_ALGS_STOC] = options.macs;
-	}
 	if (options.compression == COMP_NONE) {
 		myproposal[PROPOSAL_COMP_ALGS_CTOS] =
 		myproposal[PROPOSAL_COMP_ALGS_STOC] = "none";
@@ -2625,11 +2629,6 @@ do_ssh2_kex(void)
 		myproposal[PROPOSAL_COMP_ALGS_CTOS] =
 		myproposal[PROPOSAL_COMP_ALGS_STOC] = "none,zlib@openssh.com";
 	}
-	if (options.kex_algorithms != NULL)
-		myproposal[PROPOSAL_KEX_ALGS] = options.kex_algorithms;
-
-	myproposal[PROPOSAL_KEX_ALGS] = compat_kex_proposal(
-	    myproposal[PROPOSAL_KEX_ALGS]);
 
 	if (options.rekey_limit || options.rekey_interval)
 		packet_set_rekey_limits((u_int32_t)options.rekey_limit,

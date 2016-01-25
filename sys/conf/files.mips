@@ -80,7 +80,6 @@ dev/syscons/scvtb.c			optional	sc
 mips/mips/sc_machdep.c			optional	sc
 
 # FDT support
-dev/fdt/fdt_mips.c			optional	fdt
 dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic

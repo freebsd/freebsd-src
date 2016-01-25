@@ -55,10 +55,10 @@ int main(int argc, char *argv[])
   UnityBegin("decodenetnum.c");
   RUN_TEST(test_IPv4AddressOnly, 8);
   RUN_TEST(test_IPv4AddressWithPort, 9);
-  RUN_TEST(test_IPv6AddressOnly, 11);
-  RUN_TEST(test_IPv6AddressWithPort, 12);
-  RUN_TEST(test_IllegalAddress, 14);
-  RUN_TEST(test_IllegalCharInPort, 15);
+  RUN_TEST(test_IPv6AddressOnly, 10);
+  RUN_TEST(test_IPv6AddressWithPort, 11);
+  RUN_TEST(test_IllegalAddress, 12);
+  RUN_TEST(test_IllegalCharInPort, 13);
 
   return (UnityEnd());
 }

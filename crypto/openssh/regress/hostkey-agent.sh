@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-agent.sh,v 1.5 2015/02/21 20:51:02 djm Exp $
+#	$OpenBSD: hostkey-agent.sh,v 1.6 2015/07/10 06:23:25 markus Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey agent"
@@ -31,10 +31,11 @@ cp $OBJ/known_hosts.orig $OBJ/known_hosts
 unset SSH_AUTH_SOCK
 
 for ps in no yes; do
-	cp $OBJ/sshd_proxy.orig $OBJ/sshd_proxy
-	echo "UsePrivilegeSeparation $ps" >> $OBJ/sshd_proxy
 	for k in `${SSH} -Q key-plain` ; do
 		verbose "key type $k privsep=$ps"
+		cp $OBJ/sshd_proxy.orig $OBJ/sshd_proxy
+		echo "UsePrivilegeSeparation $ps" >> $OBJ/sshd_proxy
+		echo "HostKeyAlgorithms $k" >> $OBJ/sshd_proxy
 		opts="-oHostKeyAlgorithms=$k -F $OBJ/ssh_proxy"
 		cp $OBJ/known_hosts.orig $OBJ/known_hosts
 		SSH_CONNECTION=`${SSH} $opts host 'echo $SSH_CONNECTION'`

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.6 2015/05/21 04:55:51 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.9 2015/08/04 05:23:06 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -62,8 +62,6 @@ enum sshkey_types {
 	KEY_DSA_CERT,
 	KEY_ECDSA_CERT,
 	KEY_ED25519_CERT,
-	KEY_RSA_CERT_V00,
-	KEY_DSA_CERT_V00,
 	KEY_UNSPEC
 };
 
@@ -137,13 +135,12 @@ int	 sshkey_type_from_name(const char *);
 int	 sshkey_is_cert(const struct sshkey *);
 int	 sshkey_type_is_cert(int);
 int	 sshkey_type_plain(int);
-int	 sshkey_to_certified(struct sshkey *, int);
+int	 sshkey_to_certified(struct sshkey *);
 int	 sshkey_drop_cert(struct sshkey *);
 int	 sshkey_certify(struct sshkey *, struct sshkey *);
 int	 sshkey_cert_copy(const struct sshkey *, struct sshkey *);
 int	 sshkey_cert_check_authority(const struct sshkey *, int, int,
     const char *, const char **);
-int	 sshkey_cert_is_legacy(const struct sshkey *);
 
 int		 sshkey_ecdsa_nid_from_name(const char *);
 int		 sshkey_curve_name_to_nid(const char *);

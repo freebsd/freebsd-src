@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright 2016 Michal Meloun <mmel@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,27 +22,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
+#ifndef _DEV_EXTRESF_CLK_MUX_H_
+#define _DEV_EXTRESF_CLK_MUX_H_
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#include <dev/extres/clk/clk.h>
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/bus.h>
-
-#include <machine/intr_machdep.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/openfirm.h>
-
-#include "ofw_bus_if.h"
-#include "fdt_common.h"
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
+struct clk_mux_def {
+	struct clknode_init_def clkdef;
+	uint32_t		offset;
+	uint32_t		shift;
+	uint32_t		width;
+	int			mux_flags;
 };
 
+int clknode_mux_register(struct clkdom *clkdom, struct clk_mux_def *clkdef);
+
+#endif /* _DEV_EXTRESF_CLK_MUX_H_ */

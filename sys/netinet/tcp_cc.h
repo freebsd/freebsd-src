@@ -48,11 +48,12 @@
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
-#ifndef _NETINET_CC_H_
-#define _NETINET_CC_H_
+#ifndef _NETINET_TCP_CC_H_
+#define _NETINET_TCP_CC_H_
 
-/* XXX: TCP_CA_NAME_MAX define lives in tcp.h for compat reasons. */
-#include <netinet/tcp.h>
+#if !defined(_KERNEL)
+#error "no user-servicable parts inside"
+#endif
 
 /* Global CC vars. */
 extern STAILQ_HEAD(cc_head, cc_algo) cc_list;
@@ -150,6 +151,9 @@ struct cc_algo {
 	/* Called for an additional ECN processing apart from RFC3168. */
 	void	(*ecnpkt_handler)(struct cc_var *ccv);
 
+	/* Called for {get|set}sockopt() on a TCP socket with TCP_CCALGOOPT. */
+	int     (*ctl_output)(struct cc_var *, struct sockopt *, void *);
+
 	STAILQ_ENTRY (cc_algo) entries;
 };
 
@@ -171,4 +175,4 @@ extern struct rwlock cc_list_lock;
 #define	CC_LIST_WUNLOCK()	rw_wunlock(&cc_list_lock)
 #define	CC_LIST_LOCK_ASSERT()	rw_assert(&cc_list_lock, RA_LOCKED)
 
-#endif /* _NETINET_CC_H_ */
+#endif /* _NETINET_TCP_CC_H_ */

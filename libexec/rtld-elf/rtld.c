@@ -2016,7 +2016,7 @@ initlist_add_neededs(Needed_Entry *needed, Objlist *list)
 
     /* Process the current needed object. */
     if (needed->obj != NULL)
-	initlist_add_objects(needed->obj, globallist_next(needed->obj), list);
+	initlist_add_objects(needed->obj, needed->obj, list);
 }
 
 /*
@@ -2039,7 +2039,7 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
 
     /* Recursively process the successor objects. */
     nobj = globallist_next(obj);
-    if (nobj != NULL && nobj != tail)
+    if (nobj != NULL && obj != tail)
 	initlist_add_objects(nobj, tail, list);
 
     /* Recursively process the needed objects. */
@@ -3140,7 +3140,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		 */
 	    } else {
 		/* Make list of init functions to call. */
-		initlist_add_objects(obj, globallist_next(obj), &initlist);
+		initlist_add_objects(obj, obj, &initlist);
 	    }
 	    /*
 	     * Process all no_delete or global objects here, given

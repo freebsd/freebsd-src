@@ -36,7 +36,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/param.h>	/* MIN MAX */
 #include <sys/types.h>

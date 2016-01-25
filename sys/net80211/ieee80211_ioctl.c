@@ -68,7 +68,7 @@ static struct ieee80211_channel *findchannel(struct ieee80211com *,
 static int ieee80211_scanreq(struct ieee80211vap *,
 		struct ieee80211_scan_req *);
 
-static __noinline int
+static int
 ieee80211_ioctl_getkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -124,7 +124,7 @@ ieee80211_ioctl_getkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return copyout(&ik, ireq->i_data, sizeof(ik));
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -134,7 +134,7 @@ ieee80211_ioctl_getchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return copyout(&ic->ic_chan_active, ireq->i_data, ireq->i_len);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getchaninfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -148,36 +148,40 @@ ieee80211_ioctl_getchaninfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return copyout(&ic->ic_nchans, ireq->i_data, space);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getwpaie(struct ieee80211vap *vap,
 	struct ieee80211req *ireq, int req)
 {
 	struct ieee80211_node *ni;
-	struct ieee80211req_wpaie2 wpaie;
+	struct ieee80211req_wpaie2 *wpaie;
 	int error;
 
 	if (ireq->i_len < IEEE80211_ADDR_LEN)
 		return EINVAL;
-	error = copyin(ireq->i_data, wpaie.wpa_macaddr, IEEE80211_ADDR_LEN);
+	wpaie = IEEE80211_MALLOC(sizeof(*wpaie), M_TEMP,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
+	if (wpaie == NULL)
+		return ENOMEM;
+	error = copyin(ireq->i_data, wpaie->wpa_macaddr, IEEE80211_ADDR_LEN);
 	if (error != 0)
-		return error;
-	ni = ieee80211_find_vap_node(&vap->iv_ic->ic_sta, vap, wpaie.wpa_macaddr);
-	if (ni == NULL)
-		return ENOENT;
-	memset(wpaie.wpa_ie, 0, sizeof(wpaie.wpa_ie));
+		goto bad;
+	ni = ieee80211_find_vap_node(&vap->iv_ic->ic_sta, vap, wpaie->wpa_macaddr);
+	if (ni == NULL) {
+		error = ENOENT;
+		goto bad;
+	}
 	if (ni->ni_ies.wpa_ie != NULL) {
 		int ielen = ni->ni_ies.wpa_ie[1] + 2;
-		if (ielen > sizeof(wpaie.wpa_ie))
-			ielen = sizeof(wpaie.wpa_ie);
-		memcpy(wpaie.wpa_ie, ni->ni_ies.wpa_ie, ielen);
+		if (ielen > sizeof(wpaie->wpa_ie))
+			ielen = sizeof(wpaie->wpa_ie);
+		memcpy(wpaie->wpa_ie, ni->ni_ies.wpa_ie, ielen);
 	}
 	if (req == IEEE80211_IOC_WPAIE2) {
-		memset(wpaie.rsn_ie, 0, sizeof(wpaie.rsn_ie));
 		if (ni->ni_ies.rsn_ie != NULL) {
 			int ielen = ni->ni_ies.rsn_ie[1] + 2;
-			if (ielen > sizeof(wpaie.rsn_ie))
-				ielen = sizeof(wpaie.rsn_ie);
-			memcpy(wpaie.rsn_ie, ni->ni_ies.rsn_ie, ielen);
+			if (ielen > sizeof(wpaie->rsn_ie))
+				ielen = sizeof(wpaie->rsn_ie);
+			memcpy(wpaie->rsn_ie, ni->ni_ies.rsn_ie, ielen);
 		}
 		if (ireq->i_len > sizeof(struct ieee80211req_wpaie2))
 			ireq->i_len = sizeof(struct ieee80211req_wpaie2);
@@ -186,18 +190,21 @@ ieee80211_ioctl_getwpaie(struct ieee80211vap *vap,
 		/* XXX check ic_flags? */
 		if (ni->ni_ies.rsn_ie != NULL) {
 			int ielen = ni->ni_ies.rsn_ie[1] + 2;
-			if (ielen > sizeof(wpaie.wpa_ie))
-				ielen = sizeof(wpaie.wpa_ie);
-			memcpy(wpaie.wpa_ie, ni->ni_ies.rsn_ie, ielen);
+			if (ielen > sizeof(wpaie->wpa_ie))
+				ielen = sizeof(wpaie->wpa_ie);
+			memcpy(wpaie->wpa_ie, ni->ni_ies.rsn_ie, ielen);
 		}
 		if (ireq->i_len > sizeof(struct ieee80211req_wpaie))
 			ireq->i_len = sizeof(struct ieee80211req_wpaie);
 	}
 	ieee80211_free_node(ni);
-	return copyout(&wpaie, ireq->i_data, ireq->i_len);
+	error = copyout(wpaie, ireq->i_data, ireq->i_len);
+bad:
+	IEEE80211_FREE(wpaie, M_TEMP);
+	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getstastats(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
@@ -252,7 +259,7 @@ get_scan_space(void *arg, const struct ieee80211_scan_entry *se)
 	req->space += scan_space(se, &ielen);
 }
 
-static __noinline void
+static void
 get_scan_result(void *arg, const struct ieee80211_scan_entry *se)
 {
 	struct scanreq *req = arg;
@@ -302,7 +309,7 @@ get_scan_result(void *arg, const struct ieee80211_scan_entry *se)
 	req->sr = (struct ieee80211req_scan_result *)(((uint8_t *)sr) + len);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getscanresults(struct ieee80211vap *vap,
 	struct ieee80211req *ireq)
 {
@@ -366,7 +373,7 @@ get_sta_space(void *arg, struct ieee80211_node *ni)
 	req->space += sta_space(ni, &ielen);
 }
 
-static __noinline void
+static void
 get_sta_info(void *arg, struct ieee80211_node *ni)
 {
 	struct stainforeq *req = arg;
@@ -452,7 +459,7 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	req->space -= len;
 }
 
-static __noinline int
+static int
 getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
 	struct ieee80211_node *ni, size_t off)
 {
@@ -496,7 +503,7 @@ bad:
 	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getstainfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
@@ -519,7 +526,7 @@ ieee80211_ioctl_getstainfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return getstainfo_common(vap, ireq, ni, off);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getstatxpow(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
@@ -540,7 +547,7 @@ ieee80211_ioctl_getstatxpow(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getwmeparam(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -583,7 +590,7 @@ ieee80211_ioctl_getwmeparam(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return 0;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getmaccmd(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	const struct ieee80211_aclator *acl = vap->iv_acl;
@@ -591,7 +598,7 @@ ieee80211_ioctl_getmaccmd(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return (acl == NULL ? EINVAL : acl->iac_getioctl(vap, ireq));
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getcurchan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -648,7 +655,7 @@ ieee80211_ioctl_getappie(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return EINVAL;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getregdomain(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -660,7 +667,7 @@ ieee80211_ioctl_getregdomain(struct ieee80211vap *vap,
 	    sizeof(ic->ic_regdomain));
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getroam(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -671,7 +678,7 @@ ieee80211_ioctl_getroam(struct ieee80211vap *vap,
 	return copyout(vap->iv_roamparms, ireq->i_data, len);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_gettxparams(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -682,7 +689,7 @@ ieee80211_ioctl_gettxparams(struct ieee80211vap *vap,
 	return copyout(vap->iv_txparms, ireq->i_data, len);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	const struct ieee80211req *ireq)
 {
@@ -716,7 +723,7 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_getstavlan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
@@ -765,23 +772,7 @@ ieee80211_ioctl_getdefault(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return EINVAL;
 }
 
-/*
- * When building the kernel with -O2 on the i386 architecture, gcc
- * seems to want to inline this function into ieee80211_ioctl()
- * (which is the only routine that calls it). When this happens,
- * ieee80211_ioctl() ends up consuming an additional 2K of stack
- * space. (Exactly why it needs so much is unclear.) The problem
- * is that it's possible for ieee80211_ioctl() to invoke other
- * routines (including driver init functions) which could then find
- * themselves perilously close to exhausting the stack.
- *
- * To avoid this, we deliberately prevent gcc from inlining this
- * routine. Another way to avoid this is to use less agressive
- * optimization when compiling this file (i.e. -O instead of -O2)
- * but special-casing the compilation of this one module in the
- * build system would be awkward.
- */
-static __noinline int
+static int
 ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
     struct ieee80211req *ireq)
 {
@@ -932,8 +923,6 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			    ireq->i_len);
 		break;
 	case IEEE80211_IOC_WPAIE:
-		error = ieee80211_ioctl_getwpaie(vap, ireq, ireq->i_type);
-		break;
 	case IEEE80211_IOC_WPAIE2:
 		error = ieee80211_ioctl_getwpaie(vap, ireq, ireq->i_type);
 		break;
@@ -1138,7 +1127,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 #undef MS
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211req_key ik;
@@ -1212,7 +1201,7 @@ ieee80211_ioctl_setkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_delkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211req_del_key dk;
@@ -1354,7 +1343,7 @@ setmlme_dropsta(struct ieee80211vap *vap,
 	return error;
 }
 
-static __noinline int
+static int
 setmlme_common(struct ieee80211vap *vap, int op,
 	const uint8_t mac[IEEE80211_ADDR_LEN], int reason)
 {
@@ -1515,7 +1504,7 @@ mlmelookup(void *arg, const struct ieee80211_scan_entry *se)
 	look->se = se;
 }
 
-static __noinline int
+static int
 setmlme_assoc_sta(struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN], int ssid_len,
 	const uint8_t ssid[IEEE80211_NWID_LEN])
@@ -1540,12 +1529,13 @@ setmlme_assoc_sta(struct ieee80211vap *vap,
 	return 0;
 }
 
-static __noinline int
+static int
 setmlme_assoc_adhoc(struct ieee80211vap *vap,
 	const uint8_t mac[IEEE80211_ADDR_LEN], int ssid_len,
 	const uint8_t ssid[IEEE80211_NWID_LEN])
 {
-	struct ieee80211_scan_req sr;
+	struct ieee80211_scan_req *sr;
+	int error;
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_IBSS ||
 	    vap->iv_opmode == IEEE80211_M_AHDEMO,
@@ -1555,23 +1545,30 @@ setmlme_assoc_adhoc(struct ieee80211vap *vap,
 	if (ssid_len == 0)
 		return EINVAL;
 
+	sr = IEEE80211_MALLOC(sizeof(*sr), M_TEMP,
+	     IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
+	if (sr == NULL)
+		return ENOMEM;
+
 	/* NB: IEEE80211_IOC_SSID call missing for ap_scan=2. */
 	memset(vap->iv_des_ssid[0].ssid, 0, IEEE80211_NWID_LEN);
 	vap->iv_des_ssid[0].len = ssid_len;
 	memcpy(vap->iv_des_ssid[0].ssid, ssid, ssid_len);
 	vap->iv_des_nssid = 1;
 
-	memset(&sr, 0, sizeof(sr));
-	sr.sr_flags = IEEE80211_IOC_SCAN_ACTIVE | IEEE80211_IOC_SCAN_ONCE;
-	sr.sr_duration = IEEE80211_IOC_SCAN_FOREVER;
-	memcpy(sr.sr_ssid[0].ssid, ssid, ssid_len);
-	sr.sr_ssid[0].len = ssid_len;
-	sr.sr_nssid = 1;
+	sr->sr_flags = IEEE80211_IOC_SCAN_ACTIVE | IEEE80211_IOC_SCAN_ONCE;
+	sr->sr_duration = IEEE80211_IOC_SCAN_FOREVER;
+	memcpy(sr->sr_ssid[0].ssid, ssid, ssid_len);
+	sr->sr_ssid[0].len = ssid_len;
+	sr->sr_nssid = 1;
 
-	return ieee80211_scanreq(vap, &sr);
+	error = ieee80211_scanreq(vap, sr);
+
+	IEEE80211_FREE(sr, M_TEMP);
+	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setmlme(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211req_mlme mlme;
@@ -1596,7 +1593,7 @@ ieee80211_ioctl_setmlme(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		    mlme.im_macaddr, mlme.im_reason);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_macmac(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	uint8_t mac[IEEE80211_ADDR_LEN];
@@ -1621,7 +1618,7 @@ ieee80211_ioctl_macmac(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return 0;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setmaccmd(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	const struct ieee80211_aclator *acl = vap->iv_acl;
@@ -1659,7 +1656,7 @@ ieee80211_ioctl_setmaccmd(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return 0;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -1705,7 +1702,7 @@ ieee80211_ioctl_setchanlist(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return ENETRESET;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setstastats(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
@@ -1731,7 +1728,7 @@ ieee80211_ioctl_setstastats(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return 0;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setstatxpow(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
@@ -1751,7 +1748,7 @@ ieee80211_ioctl_setstatxpow(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setwmeparam(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -1977,7 +1974,7 @@ setcurchan(struct ieee80211vap *vap, struct ieee80211_channel *c)
  * Old api for setting the current channel; this is
  * deprecated because channel numbers are ambiguous.
  */
-static __noinline int
+static int
 ieee80211_ioctl_setchannel(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -2056,7 +2053,7 @@ ieee80211_ioctl_setchannel(struct ieee80211vap *vap,
  * channel description is provide so there is no ambiguity in
  * identifying the channel.
  */
-static __noinline int
+static int
 ieee80211_ioctl_setcurchan(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -2080,7 +2077,7 @@ ieee80211_ioctl_setcurchan(struct ieee80211vap *vap,
 	return setcurchan(vap, c);
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setregdomain(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -2154,7 +2151,7 @@ checkmcs(int mcs)
 	return (mcs & 0x7f) <= 15;	/* XXX could search ht rate set */
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_settxparams(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -2275,7 +2272,7 @@ setwparsnie(struct ieee80211vap *vap, uint8_t *ie, int space)
 		vap->iv_rsn_ie = ie;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setappie_locked(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq, int fc0)
 {
@@ -2353,7 +2350,7 @@ ieee80211_ioctl_setappie_locked(struct ieee80211vap *vap,
 	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setappie(struct ieee80211vap *vap,
 	const struct ieee80211req *ireq)
 {
@@ -2371,7 +2368,7 @@ ieee80211_ioctl_setappie(struct ieee80211vap *vap,
 	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_chanswitch(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -2507,21 +2504,28 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 #undef IEEE80211_IOC_SCAN_FLAGS
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_scanreq(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
-	struct ieee80211_scan_req sr;		/* XXX off stack? */
+	struct ieee80211_scan_req *sr;
 	int error;
 
-	if (ireq->i_len != sizeof(sr))
+	if (ireq->i_len != sizeof(*sr))
 		return EINVAL;
-	error = copyin(ireq->i_data, &sr, sizeof(sr));
+	sr = IEEE80211_MALLOC(sizeof(*sr), M_TEMP,
+	     IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
+	if (sr == NULL)
+		return ENOMEM;
+	error = copyin(ireq->i_data, sr, sizeof(*sr));
 	if (error != 0)
-		return error;
-	return ieee80211_scanreq(vap, &sr);
+		goto bad;
+	error = ieee80211_scanreq(vap, sr);
+bad:
+	IEEE80211_FREE(sr, M_TEMP);
+	return error;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_setstavlan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
@@ -2585,7 +2589,7 @@ ieee80211_ioctl_setdefault(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return EINVAL;
 }
 
-static __noinline int
+static int
 ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;

@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/route_var.h>
 
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
@@ -409,7 +410,7 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
 		KEY_LEN(sa) = KEY_LEN_INET;
 		sa.sin_addr.s_addr = *((in_addr_t *)key);
 		rnh = (struct radix_node_head *)ti->state;
-		ent = (struct radix_addr_entry *)(rnh->rnh_matchaddr(&sa, rnh));
+		ent = (struct radix_addr_entry *)(rnh->rnh_matchaddr(&sa, &rnh->rh));
 		if (ent != NULL) {
 			*val = ent->value;
 			return (1);
@@ -420,7 +421,7 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
-		xent = (struct radix_addr_xentry *)(rnh->rnh_matchaddr(&sa6, rnh));
+		xent = (struct radix_addr_xentry *)(rnh->rnh_matchaddr(&sa6, &rnh->rh));
 		if (xent != NULL) {
 			*val = xent->value;
 			return (1);
@@ -461,7 +462,7 @@ flush_radix_entry(struct radix_node *rn, void *arg)
 	struct radix_addr_entry *ent;
 
 	ent = (struct radix_addr_entry *)
-	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
+	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, &rnh->rh);
 	if (ent != NULL)
 		free(ent, M_IPFW_TBL);
 	return (0);
@@ -476,11 +477,11 @@ ta_destroy_radix(void *ta_state, struct table_info *ti)
 	cfg = (struct radix_cfg *)ta_state;
 
 	rnh = (struct radix_node_head *)(ti->state);
-	rnh->rnh_walktree(rnh, flush_radix_entry, rnh);
+	rnh->rnh_walktree(&rnh->rh, flush_radix_entry, rnh);
 	rn_detachhead(&ti->state);
 
 	rnh = (struct radix_node_head *)(ti->xstate);
-	rnh->rnh_walktree(rnh, flush_radix_entry, rnh);
+	rnh->rnh_walktree(&rnh->rh, flush_radix_entry, rnh);
 	rn_detachhead(&ti->xstate);
 
 	free(cfg, M_IPFW);
@@ -548,13 +549,13 @@ ta_find_radix_tentry(void *ta_state, struct table_info *ti,
 		KEY_LEN(sa) = KEY_LEN_INET;
 		sa.sin_addr.s_addr = tent->k.addr.s_addr;
 		rnh = (struct radix_node_head *)ti->state;
-		e = rnh->rnh_matchaddr(&sa, rnh);
+		e = rnh->rnh_matchaddr(&sa, &rnh->rh);
 	} else {
 		struct sa_in6 sa6;
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, &tent->k.addr6, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
-		e = rnh->rnh_matchaddr(&sa6, rnh);
+		e = rnh->rnh_matchaddr(&sa6, &rnh->rh);
 	}
 
 	if (e != NULL) {
@@ -572,10 +573,10 @@ ta_foreach_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 	struct radix_node_head *rnh;
 
 	rnh = (struct radix_node_head *)(ti->state);
-	rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
+	rnh->rnh_walktree(&rnh->rh, (walktree_f_t *)f, arg);
 
 	rnh = (struct radix_node_head *)(ti->xstate);
-	rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
+	rnh->rnh_walktree(&rnh->rh, (walktree_f_t *)f, arg);
 }
 
 
@@ -722,7 +723,7 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	}
 
 	/* Search for an entry first */
-	rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, rnh);
+	rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, &rnh->rh);
 	if (rn != NULL) {
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
 			return (EEXIST);
@@ -746,7 +747,7 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
 		return (EFBIG);
 
-	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, rnh, tb->ent_ptr);
+	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, &rnh->rh,tb->ent_ptr);
 	if (rn == NULL) {
 		/* Unknown error */
 		return (EINVAL);
@@ -817,7 +818,7 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	else
 		rnh = ti->xstate;
 
-	rn = rnh->rnh_deladdr(tb->addr_ptr, tb->mask_ptr, rnh);
+	rn = rnh->rnh_deladdr(tb->addr_ptr, tb->mask_ptr, &rnh->rh);
 
 	if (rn == NULL)
 		return (ENOENT);
@@ -4042,21 +4043,21 @@ static void
 ta_foreach_kfib(void *ta_state, struct table_info *ti, ta_foreach_f *f,
     void *arg)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	int error;
 
-	rnh = rt_tables_get_rnh(ti->data, AF_INET);
-	if (rnh != NULL) {
-		RADIX_NODE_HEAD_RLOCK(rnh); 
-		error = rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
-		RADIX_NODE_HEAD_RUNLOCK(rnh);
+	rh = rt_tables_get_rnh(ti->data, AF_INET);
+	if (rh != NULL) {
+		RIB_RLOCK(rh); 
+		error = rh->rnh_walktree(&rh->head, (walktree_f_t *)f, arg);
+		RIB_RUNLOCK(rh);
 	}
 
-	rnh = rt_tables_get_rnh(ti->data, AF_INET6);
-	if (rnh != NULL) {
-		RADIX_NODE_HEAD_RLOCK(rnh); 
-		error = rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
-		RADIX_NODE_HEAD_RUNLOCK(rnh);
+	rh = rt_tables_get_rnh(ti->data, AF_INET6);
+	if (rh != NULL) {
+		RIB_RLOCK(rh); 
+		error = rh->rnh_walktree(&rh->head, (walktree_f_t *)f, arg);
+		RIB_RUNLOCK(rh); 
 	}
 }
 
