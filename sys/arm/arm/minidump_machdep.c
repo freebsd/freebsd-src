@@ -61,8 +61,6 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 uint32_t *vm_page_dump;
 int vm_page_dump_size;
 
-#ifndef ARM_NEW_PMAP
-
 static struct kerneldumpheader kdh;
 
 static off_t dumplo;
@@ -196,8 +194,9 @@ blk_write_cont(struct dumperinfo *di, vm_paddr_t pa, size_t sz)
 	return (0);
 }
 
-/* A fake page table page, to avoid having to handle both 4K and 2M pages */
-static pt_entry_t fakept[NPTEPG];
+/* A buffer for general use. Its size must be one page at least. */
+static char dumpbuf[PAGE_SIZE];
+CTASSERT(sizeof(dumpbuf) % sizeof(pt2_entry_t) == 0);
 
 int
 minidumpsys(struct dumperinfo *di)
@@ -208,9 +207,7 @@ minidumpsys(struct dumperinfo *di)
 	uint32_t bits;
 	uint32_t pa, prev_pa = 0, count = 0;
 	vm_offset_t va;
-	pd_entry_t *pdp;
-	pt_entry_t *pt, *ptp;
-	int i, k, bit, error;
+	int i, bit, error;
 	char *addr;
 
 	/*
@@ -228,48 +225,11 @@ minidumpsys(struct dumperinfo *di)
 	counter = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
 	ptesize = 0;
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
-		/*
-		 * We always write a page, even if it is zero. Each
-		 * page written corresponds to 2MB of space
-		 */
-		ptesize += L2_TABLE_SIZE_REAL;
-		pmap_get_pde_pte(pmap_kernel(), va, &pdp, &ptp);
-		if (pmap_pde_v(pdp) && pmap_pde_section(pdp)) {
-			/* This is a section mapping 1M page. */
-			pa = (*pdp & L1_S_ADDR_MASK) | (va & ~L1_S_ADDR_MASK);
-			for (k = 0; k < (L1_S_SIZE / PAGE_SIZE); k++) {
-				if (is_dumpable(pa))
-					dump_add_page(pa);
-				pa += PAGE_SIZE;
-			}
-			continue;
-		}
-		if (pmap_pde_v(pdp) && pmap_pde_page(pdp)) {
-			/* Set bit for each valid page in this 1MB block */
-			addr = pmap_kenter_temporary(*pdp & L1_C_ADDR_MASK, 0);
-			pt = (pt_entry_t*)(addr +
-			    (((uint32_t)*pdp  & L1_C_ADDR_MASK) & PAGE_MASK));
-			for (k = 0; k < 256; k++) {
-				if ((pt[k] & L2_TYPE_MASK) == L2_TYPE_L) {
-					pa = (pt[k] & L2_L_FRAME) |
-					    (va & L2_L_OFFSET);
-					for (i = 0; i < 16; i++) {
-						if (is_dumpable(pa))
-							dump_add_page(pa);
-						k++;
-						pa += PAGE_SIZE;
-					}
-				} else if ((pt[k] & L2_TYPE_MASK) == L2_TYPE_S) {
-					pa = (pt[k] & L2_S_FRAME) |
-					    (va & L2_S_OFFSET);
-					if (is_dumpable(pa))
-						dump_add_page(pa);
-				}
-			}
-		} else {
-			/* Nothing, we're going to dump a null page */
-		}
+	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
+		pa = pmap_dump_kextract(va, NULL);
+		if (pa != 0 && is_dumpable(pa))
+			dump_add_page(pa);
+		ptesize += sizeof(pt2_entry_t);
 	}
 
 	/* Calculate dump size. */
@@ -331,9 +291,9 @@ minidumpsys(struct dumperinfo *di)
 	dumplo += sizeof(kdh);
 
 	/* Dump my header */
-	bzero(&fakept, sizeof(fakept));
-	bcopy(&mdhdr, &fakept, sizeof(mdhdr));
-	error = blk_write(di, (char *)&fakept, 0, PAGE_SIZE);
+	bzero(dumpbuf, sizeof(dumpbuf));
+	bcopy(&mdhdr, dumpbuf, sizeof(mdhdr));
+	error = blk_write(di, dumpbuf, 0, PAGE_SIZE);
 	if (error)
 		goto fail;
 
@@ -349,81 +309,21 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump kernel page table pages */
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
-		/* We always write a page, even if it is zero */
-		pmap_get_pde_pte(pmap_kernel(), va, &pdp, &ptp);
-
-		if (pmap_pde_v(pdp) && pmap_pde_section(pdp))  {
-			if (count) {
-				error = blk_write_cont(di, prev_pa,
-				    count * L2_TABLE_SIZE_REAL);
-				if (error)
-					goto fail;
-				count = 0;
-				prev_pa = 0;
-			}
-			/* This is a single 2M block. Generate a fake PTP */
-			pa = (*pdp & L1_S_ADDR_MASK) | (va & ~L1_S_ADDR_MASK);
-			for (k = 0; k < (L1_S_SIZE / PAGE_SIZE); k++) {
-				fakept[k] = L2_S_PROTO | (pa + (k * PAGE_SIZE)) |
-				    L2_S_PROT(PTE_KERNEL,
-				    VM_PROT_READ | VM_PROT_WRITE);
-			}
-			error = blk_write(di, (char *)&fakept, 0,
-			    L2_TABLE_SIZE_REAL);
-			if (error)
+	addr = dumpbuf;
+	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
+		pmap_dump_kextract(va, (pt2_entry_t *)addr);
+		addr += sizeof(pt2_entry_t);
+		if (addr == dumpbuf + sizeof(dumpbuf)) {
+			error = blk_write(di, dumpbuf, 0, sizeof(dumpbuf));
+			if (error != 0)
 				goto fail;
-			/* Flush, in case we reuse fakept in the same block */
-			error = blk_flush(di);
-			if (error)
-				goto fail;
-			continue;
-		}
-		if (pmap_pde_v(pdp) && pmap_pde_page(pdp)) {
-			pa = *pdp & L1_C_ADDR_MASK;
-			if (!count) {
-				prev_pa = pa;
-				count++;
-			}
-			else {
-				if (pa == (prev_pa + count * L2_TABLE_SIZE_REAL))
-					count++;
-				else {
-					error = blk_write_cont(di, prev_pa,
-					    count * L2_TABLE_SIZE_REAL);
-					if (error)
-						goto fail;
-					count = 1;
-					prev_pa = pa;
-				}
-			}
-		} else {
-			if (count) {
-				error = blk_write_cont(di, prev_pa,
-				    count * L2_TABLE_SIZE_REAL);
-				if (error)
-					goto fail;
-				count = 0;
-				prev_pa = 0;
-			}
-			bzero(fakept, sizeof(fakept));
-			error = blk_write(di, (char *)&fakept, 0,
-			    L2_TABLE_SIZE_REAL);
-			if (error)
-				goto fail;
-			/* Flush, in case we reuse fakept in the same block */
-			error = blk_flush(di);
-			if (error)
-				goto fail;
+			addr = dumpbuf;
 		}
 	}
-
-	if (count) {
-		error = blk_write_cont(di, prev_pa, count * L2_TABLE_SIZE_REAL);
-		if (error)
+	if (addr != dumpbuf) {
+		error = blk_write(di, dumpbuf, 0, addr - dumpbuf);
+		if (error != 0)
 			goto fail;
-		count = 0;
-		prev_pa = 0;
 	}
 
 	/* Dump memory chunks */
@@ -483,17 +383,6 @@ fail:
 	return (error);
 	return (0);
 }
-
-#else /* ARM_NEW_PMAP */
-
-int
-minidumpsys(struct dumperinfo *di)
-{
-
-	return (0);
-}
-
-#endif
 
 void
 dump_add_page(vm_paddr_t pa)

@@ -3738,6 +3738,52 @@ retry:
 	return (m);
 }
 
+vm_paddr_t
+pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
+{
+	struct l2_dtable *l2;
+	pd_entry_t l1pd;
+	pt_entry_t *ptep, pte;
+	vm_paddr_t pa;
+	u_int l1idx;
+
+	l1idx = L1_IDX(va);
+	l1pd = kernel_pmap->pm_l1->l1_kva[l1idx];
+	if (l1pte_section_p(l1pd)) {
+		if (l1pd & L1_S_SUPERSEC)
+			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
+		else
+			pa = (l1pd & L1_S_FRAME) | (va & L1_S_OFFSET);
+		pte = L2_S_PROTO | pa |
+		    L2_S_PROT(PTE_KERNEL, VM_PROT_READ | VM_PROT_WRITE);
+	} else {
+		l2 = kernel_pmap->pm_l2[L2_IDX(l1idx)];
+		if (l2 == NULL ||
+		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL) {
+			pte = 0;
+			pa = 0;
+			goto out;
+		}
+		pte = ptep[l2pte_index(va)];
+		if (pte == 0) {
+			pa = 0;
+			goto out;
+		}
+		switch (pte & L2_TYPE_MASK) {
+		case L2_TYPE_L:
+			pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
+			break;
+		default:
+			pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
+			break;
+		}
+	}
+out:
+	if (pte2p != NULL)
+		*pte2p = pte;
+	return (pa);
+}
+
 /*
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
