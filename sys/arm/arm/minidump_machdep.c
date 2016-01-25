@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2006 Peter Wemm
  * Copyright (c) 2008 Semihalf, Grzegorz Bernacki
  * All rights reserved.
  *
@@ -66,7 +67,7 @@ static struct kerneldumpheader kdh;
 static off_t dumplo;
 
 /* Handle chunked writes. */
-static size_t fragsz, offset;
+static size_t fragsz;
 static void *dump_va;
 static uint64_t counter, progress;
 
@@ -94,10 +95,9 @@ blk_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = dump_write(di, (char*)dump_va + offset, 0, dumplo, fragsz - offset);
-	dumplo += (fragsz - offset);
+	error = dump_write(di, dump_va, 0, dumplo, fragsz);
+	dumplo += fragsz;
 	fragsz = 0;
-	offset = 0;
 	return (error);
 }
 
@@ -108,36 +108,36 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	int error, i, c;
 	u_int maxdumpsz;
 
-	maxdumpsz = di->maxiosize;
-
+	maxdumpsz = min(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
 	if (maxdumpsz == 0)	/* seatbelt */
 		maxdumpsz = PAGE_SIZE;
-
 	error = 0;
-
 	if (ptr != NULL && pa != 0) {
 		printf("cant have both va and pa!\n");
 		return (EINVAL);
 	}
-
+	if (pa != 0) {
+		if ((sz % PAGE_SIZE) != 0) {
+			printf("size not page aligned\n");
+			return (EINVAL);
+		}
+		if ((pa & PAGE_MASK) != 0) {
+			printf("address not page aligned\n");
+			return (EINVAL);
+		}
+	}
 	if (ptr != NULL) {
 		/* If we're doing a virtual dump, flush any pre-existing pa pages */
 		error = blk_flush(di);
 		if (error)
 			return (error);
 	}
-
 	while (sz) {
-		if (fragsz == 0) {
-			offset = pa & PAGE_MASK;
-			fragsz += offset;
-		}
 		len = maxdumpsz - fragsz;
 		if (len > sz)
 			len = sz;
 		counter += len;
 		progress -= len;
-
 		if (counter >> 22) {
 			printf(" %lld", PG2MB(progress >> PAGE_SHIFT));
 			counter &= (1<<22) - 1;
