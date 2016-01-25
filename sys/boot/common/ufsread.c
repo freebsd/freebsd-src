@@ -211,7 +211,6 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 				break;
 		}
 		if (sblock_try[n] == -1) {
-			printf("Not ufs\n");
 			return -1;
 		}
 		dsk_meta++;

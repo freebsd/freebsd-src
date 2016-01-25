@@ -249,7 +249,6 @@ fsstat(ufs_ino_t inode)
 				break;
 		}
 		if (sblock_try[n] == -1) {
-			printf("Not ufs\n");
 			return -1;
 		}
 		dsk_meta++;
