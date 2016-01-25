@@ -767,10 +767,10 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	 * Restrict the stack capability to the maximum region allowed for
 	 * this process and adjust sp accordingly.
 	 *
-	 * XXXBD: 512k should be the process stack limit.
+	 * XXXBD: 8MB should be the process stack limit.
 	 */
 	CTASSERT(CHERI_CAP_USER_DATA_BASE == 0);
-	stackbase = USRSTACK - (512 * 1024);
+	stackbase = USRSTACK - (1024 * 1024 * 8);
 	KASSERT(stack > stackbase,
 	    ("top of stack 0x%lx is below stack base 0x%lx", stack, stackbase));
 	stacklen = stack - stackbase;
