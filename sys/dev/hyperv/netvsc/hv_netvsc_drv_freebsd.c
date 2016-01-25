@@ -756,7 +756,6 @@ hn_start_locked(struct ifnet *ifp)
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	netvsc_dev *net_dev = sc->net_dev;
 	netvsc_packet *packet;
-	struct mbuf *m_head, *m;
 	struct ether_vlan_header *eh;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
@@ -767,8 +766,6 @@ hn_start_locked(struct ifnet *ifp)
 	int ether_len;
 	uint32_t rndis_msg_size = 0;
 	uint32_t trans_proto_type;
-	uint32_t send_buf_section_idx =
-	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
@@ -778,6 +775,7 @@ hn_start_locked(struct ifnet *ifp)
 		bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 		int error, nsegs, i, send_failed = 0;
 		struct hn_txdesc *txd;
+		struct mbuf *m_head;
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
@@ -940,24 +938,21 @@ pre_send:
 
 		/* send packet with send buffer */
 		if (packet->tot_data_buf_len < sc->hn_tx_chimney_size) {
+			uint32_t send_buf_section_idx;
+
 			send_buf_section_idx =
 			    hv_nv_get_next_send_section(net_dev);
 			if (send_buf_section_idx !=
 			    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
-				char *dest = ((char *)net_dev->send_buf +
-				    send_buf_section_idx *
-				    net_dev->send_section_size);
+				uint8_t *dest = ((uint8_t *)net_dev->send_buf +
+				    (send_buf_section_idx *
+				     net_dev->send_section_size));
 
 				memcpy(dest, rndis_mesg, rndis_msg_size);
 				dest += rndis_msg_size;
-				for (m = m_head; m != NULL; m = m->m_next) {
-					if (m->m_len) {
-						memcpy(dest,
-						    (void *)mtod(m, vm_offset_t),
-						    m->m_len);
-						dest += m->m_len;
-					}
-				}
+
+				m_copydata(m_head, 0, m_head->m_pkthdr.len,
+				    dest);
 
 				packet->send_buf_section_idx =
 				    send_buf_section_idx;
