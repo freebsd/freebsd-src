@@ -154,7 +154,7 @@ zfs_read(struct open_file *f, void *start, size_t size, size_t *resid	/* out */)
 	n = size;
 	if (fp->f_seekp + n > sb.st_size)
 		n = sb.st_size - fp->f_seekp;
-	
+
 	rc = dnode_read(spa, &fp->f_dnode, fp->f_seekp, start, n);
 	if (rc)
 		return (rc);
@@ -507,7 +507,7 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 		}
 	}
 	close(pa.fd);
-	return (0);
+	return (ret);
 }
 
 /*
