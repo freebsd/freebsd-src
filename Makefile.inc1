@@ -1359,6 +1359,7 @@ packagekernel:
 
 STAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/stage
 REPODIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
+PKGSIGNKEY?=	# empty
 
 _pkgbootstrap:
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
@@ -1449,6 +1450,9 @@ create-kernel-packages:	_pkgbootstrap
 .endif
 .endfor
 .endfor
+
+signpackages:	_pkgbootstrap
+	@pkg -o ABI_FILE=${STAGEDIR}/bin/sh repo ${REPODIR}/$$(pkg config ABI) ${PKGSIGNKEY}
 
 #
 # doxygen
