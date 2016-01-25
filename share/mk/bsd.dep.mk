@@ -126,7 +126,6 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 # Tell bmake not to look for generated files via .PATH
 .NOPATH: ${DEPENDFILE}
 
-.if ${MK_FAST_DEPEND} == "no"
 # Capture -include from CFLAGS.
 # This could be simpler with bmake :tW but needs to support fmake for MFC.
 _CFLAGS_INCLUDES= ${CFLAGS:Q:S/\\ /,/g:C/-include,/-include%/g:C/,/ /g:M-include*:C/%/ /g}
@@ -146,7 +145,6 @@ MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*} ${CFLAGS:M-std=*} \
 MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
 		${CXXFLAGS:M-std=*} ${CXXFLAGS:M-ansi} ${CXXFLAGS:M-stdlib=*} \
 		${_CXXFLAGS_INCLUDES}
-.endif	# ${MK_FAST_DEPEND} == "no"
 
 DPSRCS+= ${SRCS}
 ${DEPENDFILE}: ${DPSRCS}
