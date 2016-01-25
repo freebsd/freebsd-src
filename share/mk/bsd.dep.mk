@@ -160,12 +160,25 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 # Tell bmake not to look for generated files via .PATH
 .NOPATH: ${DEPENDFILE}
 
+# Capture -include from CFLAGS.
+# This could be simpler with bmake :tW but needs to support fmake for MFC.
+_CFLAGS_INCLUDES= ${CFLAGS:Q:S/\\ /,/g:C/-include,/-include%/g:C/,/ /g:M-include*:C/%/ /g}
+_CXXFLAGS_INCLUDES= ${CXXFLAGS:Q:S/\\ /,/g:C/-include,/-include%/g:C/,/ /g:M-include*:C/%/ /g}
+# XXX: Temporary hack to workaround .depend files not tracking -include
+.if !empty(_CFLAGS_INCLUDES)
+${OBJS} ${POBJS} ${SOBJS}: ${_CFLAGS_INCLUDES:M*.h}
+.endif
+.if !empty(_CXXFLAGS_INCLUDES)
+${OBJS} ${POBJS} ${SOBJS}: ${_CXXFLAGS_INCLUDES:M*.h}
+.endif
+
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
 MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*} ${CFLAGS:M-std=*} \
-		${CFLAGS:M-ansi}
+		${CFLAGS:M-ansi} ${_CFLAGS_INCLUDES}
 MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
-		${CXXFLAGS:M-std=*} ${CXXFLAGS:M-ansi} ${CXXFLAGS:M-stdlib=*}
+		${CXXFLAGS:M-std=*} ${CXXFLAGS:M-ansi} ${CXXFLAGS:M-stdlib=*} \
+		${_CXXFLAGS_INCLUDES}
 
 DPSRCS+= ${SRCS}
 ${DEPENDFILE}: ${DPSRCS}
