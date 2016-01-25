@@ -136,12 +136,15 @@ SRCS:=	${SRCS:S/^${_DSRC}$//}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
 ${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
+	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
 ${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
+	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
+	@rm -f ${.TARGET}
 	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
 .endif
 .endfor
