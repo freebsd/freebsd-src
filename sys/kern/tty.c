@@ -175,6 +175,7 @@ tty_drain(struct tty *tp, int leaving)
 static __inline int
 ttydev_enter(struct tty *tp)
 {
+
 	tty_lock(tp);
 
 	if (tty_gone(tp) || !tty_opened(tp)) {
@@ -189,6 +190,7 @@ ttydev_enter(struct tty *tp)
 static void
 ttydev_leave(struct tty *tp)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tty_opened(tp) || tp->t_flags & TF_OPENCLOSE) {
@@ -234,7 +236,8 @@ ttydev_leave(struct tty *tp)
  * Operations that are exposed through the character device in /dev.
  */
 static int
-ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
+    struct thread *td)
 {
 	struct tty *tp;
 	int error;
@@ -330,7 +333,8 @@ done:	tp->t_flags &= ~TF_OPENCLOSE;
 }
 
 static int
-ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
+    struct thread *td __unused)
 {
 	struct tty *tp = dev->si_drv1;
 
@@ -372,6 +376,7 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 static __inline int
 tty_is_ctty(struct tty *tp, struct proc *p)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	return (p->p_session == tp->t_session && p->p_flag & P_CONTROLT);
@@ -652,7 +657,7 @@ tty_kqops_read_detach(struct knote *kn)
 }
 
 static int
-tty_kqops_read_event(struct knote *kn, long hint)
+tty_kqops_read_event(struct knote *kn, long hint __unused)
 {
 	struct tty *tp = kn->kn_hook;
 
@@ -676,7 +681,7 @@ tty_kqops_write_detach(struct knote *kn)
 }
 
 static int
-tty_kqops_write_event(struct knote *kn, long hint)
+tty_kqops_write_event(struct knote *kn, long hint __unused)
 {
 	struct tty *tp = kn->kn_hook;
 
@@ -696,6 +701,7 @@ static struct filterops tty_kqops_read = {
 	.f_detach = tty_kqops_read_detach,
 	.f_event = tty_kqops_read_event,
 };
+
 static struct filterops tty_kqops_write = {
 	.f_isfd = 1,
 	.f_detach = tty_kqops_write_detach,
@@ -751,7 +757,8 @@ static struct cdevsw ttydev_cdevsw = {
  */
 
 static int
-ttyil_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+ttyil_open(struct cdev *dev, int oflags __unused, int devtype __unused,
+    struct thread *td)
 {
 	struct tty *tp;
 	int error;
@@ -767,14 +774,18 @@ ttyil_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-ttyil_close(struct cdev *dev, int flag, int mode, struct thread *td)
+ttyil_close(struct cdev *dev __unused, int flag __unused, int mode __unused,
+    struct thread *td __unused)
 {
+
 	return (0);
 }
 
 static int
-ttyil_rdwr(struct cdev *dev, struct uio *uio, int ioflag)
+ttyil_rdwr(struct cdev *dev __unused, struct uio *uio __unused,
+    int ioflag __unused)
 {
+
 	return (ENODEV);
 }
 
@@ -871,45 +882,49 @@ tty_init_console(struct tty *tp, speed_t s)
  */
 
 static int
-ttydevsw_defopen(struct tty *tp)
+ttydevsw_defopen(struct tty *tp __unused)
 {
 
 	return (0);
 }
 
 static void
-ttydevsw_defclose(struct tty *tp)
+ttydevsw_defclose(struct tty *tp __unused)
 {
+
 }
 
 static void
-ttydevsw_defoutwakeup(struct tty *tp)
+ttydevsw_defoutwakeup(struct tty *tp __unused)
 {
 
 	panic("Terminal device has output, while not implemented");
 }
 
 static void
-ttydevsw_definwakeup(struct tty *tp)
+ttydevsw_definwakeup(struct tty *tp __unused)
 {
+
 }
 
 static int
-ttydevsw_defioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
-{
-
-	return (ENOIOCTL);
-}
-
-static int
-ttydevsw_defcioctl(struct tty *tp, int unit, u_long cmd, caddr_t data, struct thread *td)
+ttydevsw_defioctl(struct tty *tp __unused, u_long cmd __unused,
+    caddr_t data __unused, struct thread *td __unused)
 {
 
 	return (ENOIOCTL);
 }
 
 static int
-ttydevsw_defparam(struct tty *tp, struct termios *t)
+ttydevsw_defcioctl(struct tty *tp __unused, int unit __unused,
+    u_long cmd __unused, caddr_t data __unused, struct thread *td __unused)
+{
+
+	return (ENOIOCTL);
+}
+
+static int
+ttydevsw_defparam(struct tty *tp __unused, struct termios *t)
 {
 
 	/*
@@ -931,7 +946,8 @@ ttydevsw_defparam(struct tty *tp, struct termios *t)
 }
 
 static int
-ttydevsw_defmodem(struct tty *tp, int sigon, int sigoff)
+ttydevsw_defmodem(struct tty *tp __unused, int sigon __unused,
+    int sigoff __unused)
 {
 
 	/* Simulate a carrier to make the TTY layer happy. */
@@ -939,20 +955,22 @@ ttydevsw_defmodem(struct tty *tp, int sigon, int sigoff)
 }
 
 static int
-ttydevsw_defmmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
+ttydevsw_defmmap(struct tty *tp __unused, vm_ooffset_t offset __unused,
+    vm_paddr_t *paddr __unused, int nprot __unused,
+    vm_memattr_t *memattr __unused)
 {
 
 	return (-1);
 }
 
 static void
-ttydevsw_defpktnotify(struct tty *tp, char event)
+ttydevsw_defpktnotify(struct tty *tp __unused, char event __unused)
 {
+
 }
 
 static void
-ttydevsw_deffree(void *softc)
+ttydevsw_deffree(void *softc __unused)
 {
 
 	panic("Terminal device freed without a free-handler");
@@ -1091,6 +1109,7 @@ tty_rel_free(struct tty *tp)
 void
 tty_rel_pgrp(struct tty *tp, struct pgrp *pg)
 {
+
 	MPASS(tp->t_sessioncnt > 0);
 	tty_lock_assert(tp, MA_OWNED);
 
@@ -1103,6 +1122,7 @@ tty_rel_pgrp(struct tty *tp, struct pgrp *pg)
 void
 tty_rel_sess(struct tty *tp, struct session *sess)
 {
+
 	MPASS(tp->t_sessioncnt > 0);
 
 	/* Current session has left. */
@@ -1117,6 +1137,7 @@ tty_rel_sess(struct tty *tp, struct session *sess)
 void
 tty_rel_gone(struct tty *tp)
 {
+
 	MPASS(!tty_gone(tp));
 
 	/* Simulate carrier removal. */
@@ -1138,6 +1159,7 @@ tty_rel_gone(struct tty *tp)
 static void
 tty_to_xtty(struct tty *tp, struct xtty *xt)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	xt->xt_size = sizeof(struct xtty);
@@ -1370,6 +1392,7 @@ tty_signal_pgrp(struct tty *tp, int sig)
 void
 tty_wakeup(struct tty *tp, int flags)
 {
+
 	if (tp->t_flags & TF_ASYNC && tp->t_sigio != NULL)
 		pgsigio(&tp->t_sigio, SIGIO, (tp->t_session != NULL));
 
@@ -1432,6 +1455,7 @@ tty_timedwait(struct tty *tp, struct cv *cv, int hz)
 void
 tty_flush(struct tty *tp, int flags)
 {
+
 	if (flags & FWRITE) {
 		tp->t_flags &= ~TF_HIWAT_OUT;
 		ttyoutq_flush(&tp->t_outq);
@@ -1822,10 +1846,11 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag, struct thread *td)
 dev_t
 tty_udev(struct tty *tp)
 {
+
 	if (tp->t_dev)
-		return dev2udev(tp->t_dev);
+		return (dev2udev(tp->t_dev));
 	else
-		return NODEV;
+		return (NODEV);
 }
 
 int
@@ -1894,8 +1919,8 @@ ttyhook_defrint(struct tty *tp, char c, int flags)
 }
 
 int
-ttyhook_register(struct tty **rtp, struct proc *p, int fd,
-    struct ttyhook *th, void *softc)
+ttyhook_register(struct tty **rtp, struct proc *p, int fd, struct ttyhook *th,
+    void *softc)
 {
 	struct tty *tp;
 	struct file *fp;
@@ -2046,7 +2071,7 @@ static struct cdevsw ttyconsdev_cdevsw = {
 };
 
 static void
-ttyconsdev_init(void *unused)
+ttyconsdev_init(void *unused __unused)
 {
 
 	dev_console = make_dev_credf(MAKEDEV_ETERNAL, &ttyconsdev_cdevsw, 0,
@@ -2071,7 +2096,7 @@ ttyconsdev_select(const char *name)
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
-static struct {
+static const struct {
 	int flag;
 	char val;
 } ttystates[] = {
@@ -2126,6 +2151,7 @@ static struct {
 static void
 _db_show_devsw(const char *sep, const struct ttydevsw *tsw)
 {
+
 	db_printf("%sdevsw: ", sep);
 	db_printsym((db_addr_t)tsw, DB_STGY_ANY);
 	db_printf(" (%p)\n", tsw);
@@ -2140,9 +2166,11 @@ _db_show_devsw(const char *sep, const struct ttydevsw *tsw)
 	DB_PRINTSYM(pktnotify, tsw->tsw_pktnotify);
 	DB_PRINTSYM(free, tsw->tsw_free);
 }
+
 static void
 _db_show_hooks(const char *sep, const struct ttyhook *th)
 {
+
 	db_printf("%shook: ", sep);
 	db_printsym((db_addr_t)th, DB_STGY_ANY);
 	db_printf(" (%p)\n", th);
@@ -2248,17 +2276,13 @@ DB_SHOW_ALL_COMMAND(ttys, db_show_all_ttys)
 		isiz = tp->t_inq.ti_nblocks * TTYINQ_DATASIZE;
 		osiz = tp->t_outq.to_nblocks * TTYOUTQ_DATASIZE;
 
-		db_printf("%p %10s %5zu %4u %4u %4zu %5zu %4u %4zu %5u %5d %5d ",
-		    tp,
-		    tty_devname(tp),
-		    isiz,
+		db_printf("%p %10s %5zu %4u %4u %4zu %5zu %4u %4zu %5u %5d "
+		    "%5d ", tp, tty_devname(tp), isiz,
 		    tp->t_inq.ti_linestart - tp->t_inq.ti_begin,
 		    tp->t_inq.ti_end - tp->t_inq.ti_linestart,
-		    isiz - tp->t_inlow,
-		    osiz,
+		    isiz - tp->t_inlow, osiz,
 		    tp->t_outq.to_end - tp->t_outq.to_begin,
-		    osiz - tp->t_outlow,
-		    MIN(tp->t_column, 99999),
+		    osiz - tp->t_outlow, MIN(tp->t_column, 99999),
 		    tp->t_session ? tp->t_session->s_sid : 0,
 		    tp->t_pgrp ? tp->t_pgrp->pg_id : 0);
 
