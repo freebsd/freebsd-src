@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.95 2015/04/27 21:42:48 djm Exp $
+#	$OpenBSD: sshd_config,v 1.97 2015/08/06 14:53:21 deraadt Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -45,7 +45,7 @@
 # Authentication:
 
 #LoginGraceTime 2m
-#PermitRootLogin no
+#PermitRootLogin prohibit-password
 #StrictModes yes
 #MaxAuthTries 6
 #MaxSessions 10
@@ -120,7 +120,7 @@
 #MaxStartups 10:30:100
 #PermitTunnel no
 #ChrootDirectory none
-#VersionAddendum FreeBSD-20160119
+#VersionAddendum FreeBSD-20160121
 
 # no default banner path
 #Banner none

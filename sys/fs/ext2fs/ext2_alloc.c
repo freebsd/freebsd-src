@@ -393,6 +393,7 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	 * Linux doesn't read the old inode in when it is allocating a
 	 * new one. I will set at least i_size and i_blocks to zero.
 	 */
+	ip->i_flag = 0;
 	ip->i_size = 0;
 	ip->i_blocks = 0;
 	ip->i_mode = 0;

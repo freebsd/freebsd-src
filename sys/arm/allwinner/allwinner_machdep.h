@@ -1,9 +1,8 @@
 /*-
- * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2015 Emmanuel Vadot <manu@bidouilliste.com>
  * All rights reserved.
  *
- * This software was developed by Semihalf under sponsorship from
- * the FreeBSD Foundation.
+ * This code is derived from software written for Brini by Mark Brinicombe
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -17,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,27 +24,24 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/bus.h>
-
-#include <machine/intr_machdep.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/openfirm.h>
-
-#include "ofw_bus_if.h"
-#include "fdt_common.h"
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
+#ifndef AW_MACHDEP_H
+#define	AW_MACHDEP_H
+ 
+#define	ALLWINNERSOC_A10	0x10000000
+#define	ALLWINNERSOC_A13	0x13000000
+#define	ALLWINNERSOC_A10S	0x10000001
+#define	ALLWINNERSOC_A20	0x20000000
+ 
+#define	ALLWINNERSOC_SUN4I	0x40000000
+#define	ALLWINNERSOC_SUN5I	0x50000000
+#define	ALLWINNERSOC_SUN7I	0x70000000
+ 
+u_int allwinner_soc_type(void);
+u_int allwinner_soc_family(void);
+ 
+#endif /* AW_MACHDEP_H */

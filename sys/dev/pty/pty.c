@@ -126,10 +126,8 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 	mda.mda_gid = GID_WHEEL;
 	mda.mda_mode = 0666;
 	error = make_dev_s(&mda, dev, "%s", name);
-	if (error != 0) {
-		printf("pty_clone: failed to create %s: %d\n", name, error);
+	if (error != 0)
 		*dev = NULL;
-	}
 }
 
 static int

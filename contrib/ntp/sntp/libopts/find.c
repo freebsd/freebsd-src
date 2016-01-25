@@ -80,7 +80,7 @@ parse_opt(char const ** nm_pp, char ** arg_pp, char * buf, size_t bufsz)
 
             buf[res] = NUL;
             *nm_pp   = buf;
-            *arg_pp  = (char *)p;
+            *arg_pp  = VOIDP(p);
             return res;
 
         default:

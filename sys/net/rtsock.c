@@ -59,6 +59,7 @@
 #include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -520,7 +521,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 	struct rt_addrinfo info;
 	struct sockaddr_storage ss;
 #ifdef INET6
@@ -706,7 +707,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 
-		RADIX_NODE_HEAD_RLOCK(rnh);
+		RIB_RLOCK(rnh);
 
 		if (info.rti_info[RTAX_NETMASK] == NULL &&
 		    rtm->rtm_type == RTM_GET) {
@@ -716,14 +717,14 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			 * 'route -n get addr'
 			 */
 			rt = (struct rtentry *) rnh->rnh_matchaddr(
-			    info.rti_info[RTAX_DST], rnh);
+			    info.rti_info[RTAX_DST], &rnh->head);
 		} else
 			rt = (struct rtentry *) rnh->rnh_lookup(
 			    info.rti_info[RTAX_DST],
-			    info.rti_info[RTAX_NETMASK], rnh);
+			    info.rti_info[RTAX_NETMASK], &rnh->head);
 
 		if (rt == NULL) {
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rnh);
 			senderr(ESRCH);
 		}
 #ifdef RADIX_MPATH
@@ -735,11 +736,11 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		 * if gate == NULL the first match is returned.
 		 * (no need to call rt_mpath_matchgate if gate == NULL)
 		 */
-		if (rn_mpath_capable(rnh) &&
+		if (rt_mpath_capable(rnh) &&
 		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
 			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
 			if (!rt) {
-				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				RIB_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		}
@@ -770,15 +771,16 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			/* 
 			 * refactor rt and no lock operation necessary
 			 */
-			rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr, rnh);
+			rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr,
+			    &rnh->head);
 			if (rt == NULL) {
-				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				RIB_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		} 
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
-		RADIX_NODE_HEAD_RUNLOCK(rnh);
+		RIB_RUNLOCK(rnh);
 
 report:
 		RT_LOCK_ASSERT(rt);
@@ -1803,7 +1805,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
-	struct radix_node_head *rnh = NULL; /* silence compiler. */
+	struct rib_head *rnh = NULL; /* silence compiler. */
 	int	i, lim, error = EINVAL;
 	int	fib = 0;
 	u_char	af;
@@ -1872,10 +1874,10 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		for (error = 0; error == 0 && i <= lim; i++) {
 			rnh = rt_tables_get_rnh(fib, i);
 			if (rnh != NULL) {
-				RADIX_NODE_HEAD_RLOCK(rnh); 
-			    	error = rnh->rnh_walktree(rnh,
+				RIB_RLOCK(rnh); 
+			    	error = rnh->rnh_walktree(&rnh->head,
 				    sysctl_dumpentry, &w);
-				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				RIB_RUNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
 		}
