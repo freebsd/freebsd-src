@@ -1482,7 +1482,7 @@ rt_flowtable_check_route(struct rib_head *rnh, struct rt_addrinfo *info)
 	case AF_INET:
 #endif
 #if defined(INET6) || defined(INET)
-		rn = rnh->rnh_matchaddr(dst, rnh);
+		rn = rnh->rnh_matchaddr(dst, &rnh->head);
 		if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
 			struct sockaddr *mask;
 			u_char *m, *n;
