@@ -127,7 +127,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		}
 	}
 	if (ptr != NULL) {
-		/* If we're doing a virtual dump, flush any pre-existing pa pages */
+		/* Flush any pre-existing pa pages before a virtual dump. */
 		error = blk_flush(di);
 		if (error)
 			return (error);
@@ -174,22 +174,6 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		if (c != -1)
 			printf(" (CTRL-C to abort) ");
 	}
-
-	return (0);
-}
-
-static int
-blk_write_cont(struct dumperinfo *di, vm_paddr_t pa, size_t sz)
-{
-	int error;
-
-	error = blk_write(di, 0, pa, sz);
-	if (error)
-		return (error);
-
-	error = blk_flush(di);
-	if (error)
-		return (error);
 
 	return (0);
 }
@@ -298,7 +282,8 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
+	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
+	    round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;
 
@@ -340,7 +325,7 @@ minidumpsys(struct dumperinfo *di)
 				if (pa == (prev_pa + count * PAGE_SIZE))
 					count++;
 				else {
-					error = blk_write_cont(di, prev_pa,
+					error = blk_write(di, NULL, prev_pa,
 					    count * PAGE_SIZE);
 					if (error)
 						goto fail;
@@ -352,12 +337,16 @@ minidumpsys(struct dumperinfo *di)
 		}
 	}
 	if (count) {
-		error = blk_write_cont(di, prev_pa, count * PAGE_SIZE);
+		error = blk_write(di, NULL, prev_pa, count * PAGE_SIZE);
 		if (error)
 			goto fail;
 		count = 0;
 		prev_pa = 0;
 	}
+
+	error = blk_flush(di);
+	if (error)
+		goto fail;
 
 	/* Dump trailer */
 	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
