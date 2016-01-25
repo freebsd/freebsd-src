@@ -57,6 +57,7 @@ _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
+.MAKE.DEPENDFILE= ${DEPENDFILE}
 DEPENDFILES=	${DEPENDFILE}
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
