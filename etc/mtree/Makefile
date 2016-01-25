@@ -6,12 +6,16 @@ FILES=	${_BSD.debug.dist} \
 	BSD.include.dist \
 	BSD.root.dist \
 	${_BSD.lib32.dist} \
+	${_BSD.libcheri.dist} \
 	${_BSD.libsoft.dist} \
 	${_BSD.sendmail.dist} \
 	${_BSD.tests.dist} \
 	BSD.usr.dist \
 	BSD.var.dist
 
+.if ${MK_CHERI} != "no"
+_BSD.libcheri.dist=	BSD.libcheri.dist
+.endif
 .if ${MK_DEBUG_FILES} != "no"
 _BSD.debug.dist=	BSD.debug.dist
 .endif

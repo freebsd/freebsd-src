@@ -633,6 +633,16 @@ _worldtmp: .PHONY
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
+.if ${MK_CHERI} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.libcheri.dist \
+	    -p ${WORLDTMP}/usr >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.libcheri.dist \
+	    -p ${WORLDTMP}/legacy/usr/lib/debug/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.libcheri.dist \
+	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
+.endif
+.endif
 .if ${MK_LIB32} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
 	    -p ${WORLDTMP}/usr >/dev/null

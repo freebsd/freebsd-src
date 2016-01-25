@@ -147,6 +147,9 @@ BIN1+= regdomain.xml
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.debug.dist BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+.if ${MK_CHERI} != "no"
+MTREE+=	BSD.libcheri.dist
+.endif
 .if ${MK_LIB32} != "no"
 MTREE+=	BSD.lib32.dist
 .endif
@@ -351,6 +354,10 @@ MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.usr.dist		/usr		\
 		mtree/BSD.include.dist		/usr/include	\
 		mtree/BSD.debug.dist		/usr/lib
+.if ${MK_CHERI} != "no"
+MTREE+=		mtree/BSD.libcheri.dist		/usr
+MTREE+=		mtree/BSD.libcheri.dist		/usr/lib/debug/usr
+.endif
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
