@@ -259,7 +259,7 @@ abort_debug(struct trapframe *tf, u_int fsr, u_int prefetch, bool usermode,
 		userret(td, tf);
 	} else {
 #ifdef KDB
-		kdb_trap(T_BREAKPOINT, 0, tf);
+		kdb_trap((prefetch) ? T_BREAKPOINT : T_WATCHPOINT, 0, tf);
 #else
 		printf("No debugger in kernel.\n");
 #endif
