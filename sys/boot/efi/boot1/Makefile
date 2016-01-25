@@ -38,6 +38,12 @@ LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 LDFLAGS+=	-Wl,-znocombreloc
 .endif
 
+#
+# Add libstand for required string and memory functions for all platforms.
+#
+DPADD+=		${LIBSTAND}
+LDADD+=		-lstand
+
 DPADD+=		${LDSCRIPT}
 
 OBJCOPY?=	objcopy
