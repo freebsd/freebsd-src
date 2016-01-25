@@ -23,9 +23,12 @@ ident		A20
 include 	"std.armv6"
 include 	"../allwinner/a20/std.a20"
 
+options 	ARM_INTRNG
+
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
+options 	PLATFORM
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
