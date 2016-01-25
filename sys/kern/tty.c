@@ -2109,9 +2109,11 @@ static struct {
 };
 
 #define	TTY_FLAG_BITS \
-	"\20\1NOPREFIX\2INITLOCK\3CALLOUT\4OPENED_IN\5OPENED_OUT\6GONE" \
-	"\7OPENCLOSE\10ASYNC\11LITERAL\12HIWAT_IN\13HIWAT_OUT\14STOPPED" \
-	"\15EXCLUDE\16BYPASS\17ZOMBIE\20HOOK"
+	"\20\1NOPREFIX\2INITLOCK\3CALLOUT\4OPENED_IN" \
+	"\5OPENED_OUT\6OPENED_CONS\7GONE\10OPENCLOSE" \
+	"\11ASYNC\12LITERAL\13HIWAT_IN\14HIWAT_OUT" \
+	"\15STOPPED\16EXCLUDE\17BYPASS\20ZOMBIE" \
+	"\21HOOK\22BUSY_IN\23BUSY_OUT"
 
 #define DB_PRINTSYM(name, addr) \
 	db_printf("%s  " #name ": ", sep); \
@@ -2174,9 +2176,9 @@ DB_SHOW_COMMAND(tty, db_show_tty)
 	}
 	tp = (struct tty *)addr;
 
-	db_printf("0x%p: %s\n", tp, tty_devname(tp));
+	db_printf("%p: %s\n", tp, tty_devname(tp));
 	db_printf("\tmtx: %p\n", tp->t_mtx);
-	db_printf("\tflags: %b\n", tp->t_flags, TTY_FLAG_BITS);
+	db_printf("\tflags: 0x%b\n", tp->t_flags, TTY_FLAG_BITS);
 	db_printf("\trevokecnt: %u\n", tp->t_revokecnt);
 
 	/* Buffering mechanisms. */
