@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -78,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
@@ -2205,27 +2207,20 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 u_long
 tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct route sro;
-	struct sockaddr_in *dst;
+	struct nhop4_extended nh4;
 	struct ifnet *ifp;
 	u_long maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu with NULL in_conninfo pointer"));
 
-	bzero(&sro, sizeof(sro));
 	if (inc->inc_faddr.s_addr != INADDR_ANY) {
-	        dst = (struct sockaddr_in *)&sro.ro_dst;
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = inc->inc_faddr;
-		in_rtalloc_ign(&sro, 0, inc->inc_fibnum);
-	}
-	if (sro.ro_rt != NULL) {
-		ifp = sro.ro_rt->rt_ifp;
-		if (sro.ro_rt->rt_mtu == 0)
-			maxmtu = ifp->if_mtu;
-		else
-			maxmtu = min(sro.ro_rt->rt_mtu, ifp->if_mtu);
+
+		if (fib4_lookup_nh_ext(inc->inc_fibnum, inc->inc_faddr,
+		    NHR_REF, 0, &nh4) != 0)
+			return (0);
+
+		ifp = nh4.nh_ifp;
+		maxmtu = nh4.nh_mtu;
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
@@ -2237,7 +2232,7 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
-		RTFREE(sro.ro_rt);
+		fib4_free_nh_ext(inc->inc_fibnum, &nh4);
 	}
 	return (maxmtu);
 }
@@ -2247,26 +2242,22 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 u_long
 tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct route_in6 sro6;
+	struct nhop6_extended nh6;
+	struct in6_addr dst6;
+	uint32_t scopeid;
 	struct ifnet *ifp;
 	u_long maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
-	bzero(&sro6, sizeof(sro6));
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
-		sro6.ro_dst.sin6_family = AF_INET6;
-		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		sro6.ro_dst.sin6_addr = inc->inc6_faddr;
-		in6_rtalloc_ign(&sro6, 0, inc->inc_fibnum);
-	}
-	if (sro6.ro_rt != NULL) {
-		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_mtu == 0)
-			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
-		else
-			maxmtu = min(sro6.ro_rt->rt_mtu,
-				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
+		in6_splitscope(&inc->inc6_faddr, &dst6, &scopeid);
+		if (fib6_lookup_nh_ext(inc->inc_fibnum, &dst6, scopeid, 0,
+		    0, &nh6) != 0)
+			return (0);
+
+		ifp = nh6.nh_ifp;
+		maxmtu = nh6.nh_mtu;
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
@@ -2278,7 +2269,7 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
-		RTFREE(sro6.ro_rt);
+		fib6_free_nh_ext(inc->inc_fibnum, &nh6);
 	}
 
 	return (maxmtu);
