@@ -755,7 +755,6 @@ hn_start_locked(struct ifnet *ifp)
 	hn_softc_t *sc = ifp->if_softc;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	netvsc_dev *net_dev = sc->net_dev;
-	netvsc_packet *packet;
 	struct ether_vlan_header *eh;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
@@ -775,6 +774,7 @@ hn_start_locked(struct ifnet *ifp)
 		bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
 		int error, nsegs, i, send_failed = 0;
 		struct hn_txdesc *txd;
+		netvsc_packet *packet;
 		struct mbuf *m_head;
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -790,11 +790,7 @@ hn_start_locked(struct ifnet *ifp)
 		}
 
 		packet = &txd->netvsc_pkt;
-		/* XXX not necessary */
-		memset(packet, 0, sizeof(*packet));
-
 		packet->is_data_pkt = TRUE;
-
 		/* Initialize it from the mbuf */
 		packet->tot_data_buf_len = m_head->m_pkthdr.len;
 
