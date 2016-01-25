@@ -355,8 +355,8 @@ MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.include.dist		/usr/include	\
 		mtree/BSD.debug.dist		/usr/lib
 .if ${MK_CHERI} != "no"
-MTREE+=		mtree/BSD.libcheri.dist		/usr
-MTREE+=		mtree/BSD.libcheri.dist		/usr/lib/debug/usr
+MTREES+=	mtree/BSD.libcheri.dist		/usr
+MTREES+=	mtree/BSD.libcheri.dist		/usr/lib/debug/usr
 .endif
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
