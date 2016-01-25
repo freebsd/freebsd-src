@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/route_var.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
@@ -102,13 +103,12 @@ extern int	in6_detachhead(void **head, int off);
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
-in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
+in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
     struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
 
-	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 		rt->rt_flags |= RTF_MULTICAST;
 
@@ -154,7 +154,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
  * Age old PMTUs.
  */
 struct mtuex_arg {
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 	time_t nextstop;
 };
 static VNET_DEFINE(struct callout, rtq_mtutimer);
@@ -179,7 +179,7 @@ in6_mtuexpire(struct rtentry *rt, void *rock)
 #define	MTUTIMO_DEFAULT	(60*1)
 
 static void
-in6_mtutimo_setwa(struct radix_node_head *rnh, uint32_t fibum, int af,
+in6_mtutimo_setwa(struct rib_head *rnh, uint32_t fibum, int af,
     void *_arg)
 {
 	struct mtuex_arg *arg;
@@ -213,15 +213,14 @@ static VNET_DEFINE(int, _in6_rt_was_here);
 int
 in6_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 
-	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
+	rh = rt_table_init(offsetof(struct sockaddr_in6, sin6_addr) << 3);
+	if (rh == NULL)
 		return (0);
 
-	rnh = *head;
-	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-
-	rnh->rnh_addaddr = in6_addroute;
+	rh->rnh_addaddr = in6_addroute;
+	*head = (void *)rh;
 
 	if (V__in6_rt_was_here == 0) {
 		callout_init(&V_rtq_mtutimer, 1);
