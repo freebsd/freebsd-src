@@ -44,11 +44,13 @@
 struct route;
 struct rtentry;
 struct sockaddr;
-int	rn_mpath_capable(struct radix_node_head *);
+struct rib_head;
+int	rt_mpath_capable(struct rib_head *);
+int	rn_mpath_capable(struct radix_head *);
 struct radix_node *rn_mpath_next(struct radix_node *);
 u_int32_t rn_mpath_count(struct radix_node *);
 struct rtentry *rt_mpath_matchgate(struct rtentry *, struct sockaddr *);
-int rt_mpath_conflict(struct radix_node_head *, struct rtentry *,
+int rt_mpath_conflict(struct rib_head *, struct rtentry *,
     struct sockaddr *);
 void rtalloc_mpath_fib(struct route *, u_int32_t, u_int);
 struct rtentry *rt_mpath_select(struct rtentry *, uint32_t);
