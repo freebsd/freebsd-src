@@ -355,22 +355,6 @@ DEFINE_CLASS_0(gic, arm_gic_driver, arm_gic_methods,
 #define	GICv2M_MSI_SETSPI_NS	0x040
 #define	GICV2M_MSI_IIDR		0xFCC
 
-struct gicv2m_softc {
-	struct resource	*sc_mem;
-	struct mtx	sc_mutex;
-	u_int		sc_spi_start;
-	u_int		sc_spi_count;
-	u_int		sc_spi_offset;
-};
-
-static int
-gicv2m_probe(device_t dev)
-{
-
-	device_set_desc(dev, "ARM Generic Interrupt Controller MSI/MSIX");
-	return (BUS_PROBE_DEFAULT);
-}
-
 static int
 gicv2m_attach(device_t dev)
 {
@@ -478,7 +462,6 @@ gicv2m_map_msi(device_t dev, device_t pci_dev, int irq, uint64_t *addr,
 
 static device_method_t arm_gicv2m_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		gicv2m_probe),
 	DEVMETHOD(device_attach,	gicv2m_attach),
 
 	/* MSI/MSI-X */
@@ -489,9 +472,5 @@ static device_method_t arm_gicv2m_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t arm_gicv2m_devclass;
-
 DEFINE_CLASS_0(gicv2m, arm_gicv2m_driver, arm_gicv2m_methods,
     sizeof(struct gicv2m_softc));
-EARLY_DRIVER_MODULE(gicv2m, gic, arm_gicv2m_driver, arm_gicv2m_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
