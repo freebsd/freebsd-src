@@ -206,7 +206,7 @@ struct hn_txdesc {
 int hv_promisc_mode = 0;    /* normal mode by default */
 
 /* Trust tcp segements verification on host side. */
-static int hn_trust_hosttcp = 0;
+static int hn_trust_hosttcp = 1;
 TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
 
 #if __FreeBSD_version >= 1100045
