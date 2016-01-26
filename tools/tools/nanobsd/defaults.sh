@@ -93,7 +93,7 @@ NANO_LATE_CUSTOMIZE=""
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
 
 # The drive name of the media at runtime
-NANO_DRIVE=ad0
+NANO_DRIVE=ada0
 
 # Target media size in 512 bytes sectors
 NANO_MEDIASIZE=2000000
