@@ -122,8 +122,7 @@ void usage(void);
 #define	TIMESTAMP_ELAPSED	0x2
 #define	TIMESTAMP_RELATIVE	0x4
 
-extern const char *signames[], *syscallnames[];
-extern int nsyscalls;
+extern const char *signames[];
 
 static int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
     resolv = 0, abiflag = 0, syscallno = 0;
@@ -145,11 +144,7 @@ static struct ktr_header ktr_header;
 
 #if defined(__amd64__) || defined(__i386__)
 
-void linux_ktrsyscall(struct ktr_syscall *, u_int);
 void linux_ktrsysret(struct ktr_sysret *, u_int);
-extern const char *linux_syscallnames[];
-
-#include <linux_syscalls.c>
 
 /*
  * from linux.h
@@ -167,12 +162,6 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 	-6,  -6, -43, -42, -75,-125, -84, -95, -16, -74,
 	-72, -67, -71
 };
-#endif
-
-#if defined(__amd64__)
-extern const char *linux32_syscallnames[];
-
-#include <linux32_syscalls.c>
 #endif
 
 struct proc_info
@@ -401,13 +390,7 @@ main(int argc, char *argv[])
 		drop_logged = 0;
 		switch (ktr_header.ktr_type) {
 		case KTR_SYSCALL:
-#if defined(__amd64__) || defined(__i386__)
-			if ((sv_flags & SV_ABI_MASK) == SV_ABI_LINUX)
-				linux_ktrsyscall((struct ktr_syscall *)m,
-				    sv_flags);
-			else
-#endif
-				ktrsyscall((struct ktr_syscall *)m, sv_flags);
+			ktrsyscall((struct ktr_syscall *)m, sv_flags);
 			break;
 		case KTR_SYSRET:
 #if defined(__amd64__) || defined(__i386__)
@@ -687,10 +670,6 @@ dumpheader(struct ktr_header *kth)
 }
 
 #include <sys/syscall.h>
-#define KTRACE
-#include <sys/kern/syscalls.c>
-#undef KTRACE
-int nsyscalls = sizeof (syscallnames) / sizeof (syscallnames[0]);
 
 static void
 ioctlname(unsigned long val)
@@ -706,26 +685,57 @@ ioctlname(unsigned long val)
 		printf("%#lx", val);
 }
 
+static enum sysdecode_abi
+syscallabi(u_int sv_flags)
+{
+
+	if (sv_flags == 0)
+		return (FREEBSD);
+	switch (sv_flags & SV_ABI_MASK) {
+	case SV_ABI_FREEBSD:
+		return (FREEBSD);
+#if defined(__amd64__) || defined(__i386__)
+	case SV_ABI_LINUX:
+#ifdef __amd64__
+		if (sv_flags & SV_ILP32)
+			return (LINUX32);
+#endif
+		return (LINUX);
+#endif
+	default:
+		return (UNKNOWN_ABI);
+	}
+}
+
+static void
+syscallname(u_int code, u_int sv_flags)
+{
+	const char *name;
+
+	name = sysdecode_syscallname(syscallabi(sv_flags), code);
+	if (name == NULL)
+		printf("[%d]", code);
+	else {
+		printf("%s", name);
+		if (syscallno)
+			printf("[%d]", code);
+	}
+}
+
 void
-ktrsyscall(struct ktr_syscall *ktr, u_int flags)
+ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 {
 	int narg = ktr->ktr_narg;
 	register_t *ip;
 	intmax_t arg;
 
-	if ((flags != 0 && ((flags & SV_ABI_MASK) != SV_ABI_FREEBSD)) ||
-	    (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0))
-		printf("[%d]", ktr->ktr_code);
-	else {
-		printf("%s", syscallnames[ktr->ktr_code]);
-		if (syscallno)
-			printf("[%d]", ktr->ktr_code);
-	}
+	syscallname(ktr->ktr_code, sv_flags);
 	ip = &ktr->ktr_args[0];
 	if (narg) {
 		char c = '(';
 		if (fancy &&
-		    (flags == 0 || (flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
+		    (sv_flags == 0 ||
+		    (sv_flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
 			switch (ktr->ktr_code) {
 			case SYS_bindat:
 			case SYS_connectat:
@@ -1332,21 +1342,13 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 }
 
 void
-ktrsysret(struct ktr_sysret *ktr, u_int flags)
+ktrsysret(struct ktr_sysret *ktr, u_int sv_flags)
 {
 	register_t ret = ktr->ktr_retval;
 	int error = ktr->ktr_error;
-	int code = ktr->ktr_code;
 
-	if ((flags != 0 && ((flags & SV_ABI_MASK) != SV_ABI_FREEBSD)) ||
-	    (code >= nsyscalls || code < 0))
-		printf("[%d] ", code);
-	else {
-		printf("%s", syscallnames[code]);
-		if (syscallno)
-			printf("[%d]", code);
-		printf(" ");
-	}
+	syscallname(ktr->ktr_code, sv_flags);
+	printf(" ");
 
 	if (error == 0) {
 		if (fancy) {
@@ -1851,56 +1853,14 @@ ktrfaultend(struct ktr_faultend *ktr)
 }
 
 #if defined(__amd64__) || defined(__i386__)
-
-#if defined(__amd64__)
-#define	NLINUX_SYSCALLS(v)		((v) & SV_ILP32 ?		\
-	    nitems(linux32_syscallnames) : nitems(linux_syscallnames))
-#define	LINUX_SYSCALLNAMES(v, i)	((v) & SV_ILP32 ?		\
-	    linux32_syscallnames[i] : linux_syscallnames[i])
-#else
-#define	NLINUX_SYSCALLS(v)		(nitems(linux_syscallnames))
-#define	LINUX_SYSCALLNAMES(v, i)	(linux_syscallnames[i])
-#endif
-
-void
-linux_ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
-{
-	int narg = ktr->ktr_narg;
-	unsigned code = ktr->ktr_code;
-	register_t *ip;
-
-	if (ktr->ktr_code < 0 || code >= NLINUX_SYSCALLS(sv_flags))
-		printf("[%d]", ktr->ktr_code);
-	else {
-		printf("%s", LINUX_SYSCALLNAMES(sv_flags, ktr->ktr_code));
-		if (syscallno)
-			printf("[%d]", ktr->ktr_code);
-	}
-	ip = &ktr->ktr_args[0];
-	if (narg) {
-		char c = '(';
-		while (narg > 0)
-			print_number(ip, narg, c);
-		putchar(')');
-	}
-	putchar('\n');
-}
-
 void
 linux_ktrsysret(struct ktr_sysret *ktr, u_int sv_flags)
 {
 	register_t ret = ktr->ktr_retval;
-	unsigned code = ktr->ktr_code;
 	int error = ktr->ktr_error;
 
-	if (ktr->ktr_code < 0 || code >= NLINUX_SYSCALLS(sv_flags))
-		printf("[%d] ", ktr->ktr_code);
-	else {
-		printf("%s ", LINUX_SYSCALLNAMES(sv_flags, code));
-		if (syscallno)
-			printf("[%d]", code);
-		printf(" ");
-	}
+	syscallname(ktr->ktr_code, sv_flags);
+	printf(" ");
 
 	if (error == 0) {
 		if (fancy) {
