@@ -594,9 +594,9 @@ controller(struct cfg_s *c)
 	int flow_id;
 
 	/* histeresis between max and min */
-	if (c->state == 0 && c->pending >= c->th_max)
+	if (c->state == 0 && c->pending >= (uint32_t)c->th_max)
 		c->state = 1;
-	else if (c->state == 1 && c->pending <= c->th_min)
+	else if (c->state == 1 && c->pending <= (uint32_t)c->th_min)
 		c->state = 0;
 	ND(1, "state %d pending %2d", c->state, c->pending);
 	c->can_dequeue = c->state;

@@ -15,6 +15,9 @@ m_freem(struct mbuf *m)
 int
 dn_sched_modevent(module_t mod, int cmd, void *arg)
 {
+	(void)mod;
+	(void)cmd;
+	(void)arg;
 	return 0;
 }
 
@@ -32,6 +35,8 @@ int
 dn_delete_queue(void *_q, void *do_free)
 {
 	struct dn_queue *q = _q;
+
+	(void)do_free;
         if (q->mq.head)
                 dn_free_pkts(q->mq.head);
         free(q);
@@ -66,6 +71,7 @@ drop:
 int
 ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
 {
+	(void)msg;
         if (*v < lo) {
                 *v = dflt;
         } else if (*v > hi) {
