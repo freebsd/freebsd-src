@@ -256,7 +256,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 }
 
 int
-elf_cpu_load_file(linker_file_t lf __unused)
+elf_cpu_load_file(linker_file_t lf)
 {
 
 	/*
@@ -265,13 +265,25 @@ elf_cpu_load_file(linker_file_t lf __unused)
 	 * that kernel memory allocations always have EXECUTABLE protection even
 	 * when the memory isn't going to hold executable code.  The only time
 	 * kernel memory holding instructions does need a sync is after loading
-	 * a kernel module, and that's when this function gets called.  Normal
-	 * data cache maintenance has already been done by the IO code, and TLB
-	 * maintenance has been done by the pmap code, so all we have to do here
-	 * is invalidate the instruction cache (which also invalidates the
-	 * branch predictor cache on platforms that have one).
+	 * a kernel module, and that's when this function gets called.
+	 *
+	 * This syncs data and instruction caches after loading a module.  We
+	 * don't worry about the kernel itself (lf->id is 1) as locore.S did
+	 * that on entry.  Even if data cache maintenance was done by IO code,
+	 * the relocation fixup process creates dirty cache entries that we must
+	 * write back before doing icache sync. The instruction cache sync also
+	 * invalidates the branch predictor cache on platforms that have one.
 	 */
+	if (lf->id == 1)
+		return (0);
+#if __ARM_ARCH >= 6
+	dcache_wb_pou((vm_offset_t)lf->address, (vm_size_t)lf->size);
+	icache_inv_all();
+#else
+	cpu_dcache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
+	cpu_l2cache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
 	cpu_icache_sync_all();
+#endif
 	return (0);
 }
 

@@ -56,6 +56,7 @@ _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
+.MAKE.DEPENDFILE= ${DEPENDFILE}
 DEPENDFILES=	${DEPENDFILE}
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
@@ -129,25 +130,26 @@ CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
-DHDRS+=	${_D}.h
+SRCS+=	${_D}.h
 ${_D}.h: ${_DSRC}
 	${DTRACE} ${DTRACEFLAGS} -h -s ${.ALLSRC}
 SRCS:=	${SRCS:S/^${_DSRC}$//}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
 ${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
-	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
+	@rm -f ${.TARGET}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
 ${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
-	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
+	@rm -f ${.TARGET}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
-	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
+	@rm -f ${.TARGET}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .endif
 .endfor
 .endfor
-beforedepend: ${DHDRS}
-beforebuild: ${DHDRS}
 
 
 .if ${MK_FAST_DEPEND} == "yes" && \

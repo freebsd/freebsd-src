@@ -38,11 +38,15 @@
 #ifndef __HV_NET_VSC_H__
 #define __HV_NET_VSC_H__
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
 #include <sys/sx.h>
+
+#include <machine/bus.h>
+#include <sys/bus.h>
+#include <sys/bus_dma.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
@@ -984,6 +988,9 @@ typedef struct {
 	hv_bool_uint8_t	link_state;
 } netvsc_device_info;
 
+struct hn_txdesc;
+SLIST_HEAD(hn_txdesc_list, hn_txdesc);
+
 /*
  * Device-specific softc structure
  */
@@ -1001,6 +1008,18 @@ typedef struct hn_softc {
 	struct hv_device  *hn_dev_obj;
 	netvsc_dev  	*net_dev;
 
+	int		hn_txdesc_cnt;
+	struct hn_txdesc *hn_txdesc;
+	bus_dma_tag_t	hn_tx_data_dtag;
+	bus_dma_tag_t	hn_tx_rndis_dtag;
+	int		hn_tx_chimney_size;
+	int		hn_tx_chimney_max;
+
+	struct mtx	hn_txlist_spin;
+	struct hn_txdesc_list hn_txlist;
+	int		hn_txdesc_avail;
+	int		hn_txeof;
+
 	struct lro_ctrl	hn_lro;
 	int		hn_lro_hiwat;
 
@@ -1012,6 +1031,11 @@ typedef struct hn_softc {
 	u_long		hn_csum_trusted;
 	u_long		hn_lro_tried;
 	u_long		hn_small_pkts;
+	u_long		hn_no_txdescs;
+	u_long		hn_send_failed;
+	u_long		hn_txdma_failed;
+	u_long		hn_tx_collapsed;
+	u_long		hn_tx_chimney;
 } hn_softc_t;
 
 

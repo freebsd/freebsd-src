@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	sysinit
-NO_MAN=
+MAN=
 
 CFLAGS+=	-I${.CURDIR}/../../kshim
 
