@@ -5,7 +5,7 @@
 PROG=	bhyvectl
 SRCS=	bhyvectl.c
 
-MAN=
+MAN=	bhyvectl.8
 
 DPADD=	${LIBVMMAPI} ${LIBUTIL}
 LDADD=	-lvmmapi -lutil
