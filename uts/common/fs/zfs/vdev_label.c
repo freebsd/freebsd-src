@@ -1177,15 +1177,16 @@ vdev_label_sync_list(spa_t *spa, int l, uint64_t txg, int flags)
  * at any time, you can just call it again, and it will resume its work.
  */
 int
-vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
+vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg)
 {
 	spa_t *spa = svd[0]->vdev_spa;
 	uberblock_t *ub = &spa->spa_uberblock;
 	vdev_t *vd;
 	zio_t *zio;
-	int error;
+	int error = 0;
 	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL;
 
+retry:
 	/*
 	 * Normally, we don't want to try too hard to write every label and
 	 * uberblock.  If there is a flaky disk, we don't want the rest of the
@@ -1193,8 +1194,11 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 * single label out, we should retry with ZIO_FLAG_TRYHARD before
 	 * bailing out and declaring the pool faulted.
 	 */
-	if (tryhard)
+	if (error != 0) {
+		if ((flags & ZIO_FLAG_TRYHARD) != 0)
+			return (error);
 		flags |= ZIO_FLAG_TRYHARD;
+	}
 
 	ASSERT(ub->ub_txg <= txg);
 
@@ -1238,7 +1242,7 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 * are committed to stable storage before the uberblock update.
 	 */
 	if ((error = vdev_label_sync_list(spa, 0, txg, flags)) != 0)
-		return (error);
+		goto retry;
 
 	/*
 	 * Sync the uberblocks to all vdevs in svd[].
@@ -1256,7 +1260,7 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 *	to the new uberblocks.
 	 */
 	if ((error = vdev_uberblock_sync_list(svd, svdcount, ub, flags)) != 0)
-		return (error);
+		goto retry;
 
 	/*
 	 * Sync out odd labels for every dirty vdev.  If the system dies
@@ -1268,5 +1272,8 @@ vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg, boolean_t tryhard)
 	 * to disk to ensure that all odd-label updates are committed to
 	 * stable storage before the next transaction group begins.
 	 */
-	return (vdev_label_sync_list(spa, 1, txg, flags));
+	if ((error = vdev_label_sync_list(spa, 1, txg, flags)) != 0)
+		goto retry;
+
+	return (0);
 }
