@@ -1305,8 +1305,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("Maxmem = 0x%08lx\n", Maxmem);
 	debugf("phys_avail_count = %d\n", phys_avail_count);
-	debugf("physsz = 0x%08x physmem = %ld (0x%08lx)\n", physsz, physmem,
-	    physmem);
+	debugf("physsz = 0x%09jx physmem = %jd (0x%09jx)\n",
+	    (uintmax_t)physsz, (uintmax_t)physmem, (uintmax_t)physmem);
 
 	/*******************************************************/
 	/* Initialize (statically allocated) kernel pmap. */
