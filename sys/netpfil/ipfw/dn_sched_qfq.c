@@ -60,6 +60,10 @@ typedef	unsigned long	bitmap;
 /*
  * bitmaps ops are critical. Some linux versions have __fls
  * and the bitmap ops. Some machines have ffs
+ * NOTE: fls() returns 1 for the least significant bit,
+ *       __fls() returns 0 for the same case.
+ * We use the base-0 version __fls() to match the description in
+ * the ToN QFQ paper
  */
 #if defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
 int fls(unsigned int n)
@@ -409,8 +413,8 @@ qfq_make_eligible(struct qfq_sched *q, uint64_t old_V)
 	old_vslot = old_V >> QFQ_MIN_SLOT_SHIFT;
 
 	if (vslot != old_vslot) {
-		/* should be 1ULL not 2ULL */
-		mask = (1ULL << (__fls(vslot ^ old_vslot))) - 1;
+		/* must be 2ULL, see ToN QFQ article fig.5, we use base-0 fls */
+		mask = (2ULL << (__fls(vslot ^ old_vslot))) - 1;
 		qfq_move_groups(q, mask, IR, ER);
 		qfq_move_groups(q, mask, IB, EB);
 	}
