@@ -58,6 +58,9 @@ extern struct net init_net;
 #define	dev_get_by_index(n, idx)	ifnet_byindex_ref((idx))
 #define	dev_hold(d)	if_ref((d))
 #define	dev_put(d)	if_rele((d))
+#define	dev_net(d)	(&init_net)
+
+#define	net_eq(a,b)	((a) == (b))
 
 #define	netif_running(dev)	!!((dev)->if_drv_flags & IFF_DRV_RUNNING)
 #define	netif_oper_up(dev)	!!((dev)->if_flags & IFF_UP)
@@ -67,6 +70,12 @@ static inline void *
 netdev_priv(const struct net_device *dev)
 {
 	return (dev->if_softc);
+}
+
+static inline struct net_device *
+netdev_notifier_info_to_dev(void *ifp)
+{
+	return (ifp);
 }
 
 int	register_netdevice_notifier(struct notifier_block *);
@@ -91,6 +100,12 @@ dev_mc_delete(struct net_device *dev, void *addr, int alen, int all)
 	memcpy(&sdl.sdl_data, addr, alen);
 
 	return -if_delmulti(dev, (struct sockaddr *)&sdl);
+}
+
+static inline int
+dev_mc_del(struct net_device *dev, void *addr)
+{
+	return (dev_mc_delete(dev, addr, 6, 0));
 }
 
 static inline int
