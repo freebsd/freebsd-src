@@ -185,7 +185,7 @@ static void	rtwn_iq_calib_write_results(struct rtwn_softc *, uint16_t[2],
 static void	rtwn_iq_calib(struct rtwn_softc *);
 static void	rtwn_lc_calib(struct rtwn_softc *);
 static void	rtwn_temp_calib(struct rtwn_softc *);
-static void	rtwn_init_locked(struct rtwn_softc *);
+static int	rtwn_init(struct rtwn_softc *);
 static void	rtwn_stop_locked(struct rtwn_softc *);
 static void	rtwn_stop(struct rtwn_softc *);
 static void	rtwn_intr(void *);
@@ -1845,19 +1845,15 @@ static void
 rtwn_parent(struct ieee80211com *ic)
 {
 	struct rtwn_softc *sc = ic->ic_softc;
-	int startall = 0;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	RTWN_LOCK(sc);
-	if (ic->ic_nrunning> 0) {
-		if (!(sc->sc_flags & RTWN_RUNNING)) {
-			rtwn_init_locked(sc);
-			startall = 1;
-		}
-	} else if (sc->sc_flags & RTWN_RUNNING)
-		 rtwn_stop_locked(sc);
-	RTWN_UNLOCK(sc);
-	if (startall)
-		ieee80211_start_all(ic);
+	if (ic->ic_nrunning > 0) {
+		if (rtwn_init(sc) == 0)
+			ieee80211_start_all(ic);
+		else
+			ieee80211_stop(vap);
+	} else
+		rtwn_stop(sc);
 }
 
 static void
@@ -3218,8 +3214,8 @@ rtwn_temp_calib(struct rtwn_softc *sc)
 	}
 }
 
-static void
-rtwn_init_locked(struct rtwn_softc *sc)
+static int
+rtwn_init(struct rtwn_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
@@ -3227,7 +3223,13 @@ rtwn_init_locked(struct rtwn_softc *sc)
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	int i, error;
 
-	RTWN_LOCK_ASSERT(sc);
+	RTWN_LOCK(sc);
+
+	if (sc->sc_flags & RTWN_RUNNING) {
+		RTWN_UNLOCK(sc);
+		return 0;
+	}
+	sc->sc_flags |= RTWN_RUNNING;
 
 	/* Init firmware commands ring. */
 	sc->fwcur = 0;
@@ -3347,13 +3349,15 @@ rtwn_init_locked(struct rtwn_softc *sc)
 	/* Enable interrupts. */
 	rtwn_write_4(sc, R92C_HIMR, RTWN_INT_ENABLE);
 
-	sc->sc_flags |= RTWN_RUNNING;
-
 	callout_reset(&sc->watchdog_to, hz, rtwn_watchdog, sc);
-	return;
 
 fail:
-	rtwn_stop_locked(sc);
+	if (error != 0)
+		rtwn_stop_locked(sc);
+
+	RTWN_UNLOCK(sc);
+
+	return error;
 }
 
 static void
@@ -3363,6 +3367,9 @@ rtwn_stop_locked(struct rtwn_softc *sc)
 	int i;
 
 	RTWN_LOCK_ASSERT(sc);
+
+	if (!(sc->sc_flags & RTWN_RUNNING))
+		return;
 
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
