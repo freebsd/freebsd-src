@@ -29,7 +29,17 @@
 #ifndef __SYSDECODE_H__
 #define	__SYSDECODE_H__
 
+enum sysdecode_abi {
+	UNKNOWN_ABI = 0,
+	FREEBSD,
+	FREEBSD32,
+	LINUX,
+	LINUX32,
+	CLOUDABI64
+};
+
 const char *sysdecode_ioctlname(unsigned long _val);
+const char *sysdecode_syscallname(enum sysdecode_abi _abi, unsigned int _code);
 int	sysdecode_utrace(FILE *_fp, void *_buf, size_t _len);
 
 #endif /* !__SYSDECODE_H__ */
