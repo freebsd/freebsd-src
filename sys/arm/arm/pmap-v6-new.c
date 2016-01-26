@@ -6151,7 +6151,7 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 			    __func__, pmap, pmap->pm_pt1, far);
 			panic("%s: pm_pt1 abort", __func__);
 		}
-		return (EFAULT);
+		return (KERN_INVALID_ADDRESS);
 	}
 	if (__predict_false(IN_RANGE2(far, PT2MAP, PT2MAP_SIZE))) {
 		/*
@@ -6167,7 +6167,7 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 			    __func__, pmap, PT2MAP, far);
 			panic("%s: PT2MAP abort", __func__);
 		}
-		return (EFAULT);
+		return (KERN_INVALID_ADDRESS);
 	}
 
 	/*
@@ -6187,7 +6187,7 @@ pte2_seta:
 			if (!pte2_cmpset(pte2p, pte2, pte2 | PTE2_A)) {
 				goto pte2_seta;
 			}
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 	if (idx == FAULT_ACCESS_L1) {
@@ -6198,7 +6198,7 @@ pte1_seta:
 			if (!pte1_cmpset(pte1p, pte1, pte1 | PTE1_A)) {
 				goto pte1_seta;
 			}
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 
@@ -6222,7 +6222,7 @@ pte2_setrw:
 				goto pte2_setrw;
 			}
 			tlb_flush(trunc_page(far));
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 	if ((fsr & FSR_WNR) && (idx == FAULT_PERM_L1)) {
@@ -6235,7 +6235,7 @@ pte1_setrw:
 				goto pte1_setrw;
 			}
 			tlb_flush(pte1_trunc(far));
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 
@@ -6274,7 +6274,7 @@ pte1_setrw:
 		}
 	}
 #endif
-	return (EAGAIN);
+	return (KERN_FAILURE);
 }
 
 /* !!!! REMOVE !!!! */
