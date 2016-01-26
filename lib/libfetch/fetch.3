@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2013
+.Dd November 29, 2015
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -440,13 +440,11 @@ By default
 .Nm libfetch
 allows SSLv3 and TLSv1 when negotiating the connecting with the remote
 peer.
-You can change this behavior by setting the environment variable
-.Ev SSL_ALLOW_SSL2
-to allow SSLv2 (not recommended) and
+You can change this behavior by setting the
 .Ev SSL_NO_SSL3
 or
 .Ev SSL_NO_TLS1
-to disable the respective methods.
+environment variables to disable the respective methods.
 .Sh AUTHENTICATION
 Apart from setting the appropriate environment variables and
 specifying the user name and password in the URL or the
@@ -631,11 +629,11 @@ If defined but empty, no User-Agent header is sent.
 .It Ev NETRC
 Specifies a file to use instead of
 .Pa ~/.netrc
-to look up login names and passwords for FTP sites.
+to look up login names and passwords for FTP and HTTP sites as well as
+HTTP proxies.
 See
 .Xr ftp 1
 for a description of the file format.
-This feature is experimental.
 .It Ev NO_PROXY
 Either a single asterisk, which disables the use of proxies
 altogether, or a comma- or whitespace-separated list of hosts for
@@ -644,8 +642,6 @@ which proxies should not be used.
 Same as
 .Ev NO_PROXY ,
 for compatibility.
-.It Ev SSL_ALLOW_SSL2
-Allow SSL version 2 when negotiating the connection (not recommended).
 .It Ev SSL_CA_CERT_FILE
 CA certificate bundle containing trusted CA certificates.
 Default value:
