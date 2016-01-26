@@ -692,9 +692,7 @@ int
 blockif_close(struct blockif_ctxt *bc)
 {
 	void *jval;
-	int err, i;
-
-	err = 0;
+	int i;
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
 
