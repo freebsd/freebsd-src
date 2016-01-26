@@ -675,6 +675,7 @@ extern int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 					     u_char spii[8], u_char spir[8],
 					     u_char *buf, u_char *end);
 
+
 extern void geonet_print(netdissect_options *ndo,const u_char *eth_hdr,const u_char *geo_pck, u_int len);
 extern void calm_fast_print(netdissect_options *ndo,const u_char *eth_hdr,const u_char *calm_pck, u_int len);
 
