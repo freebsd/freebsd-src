@@ -90,6 +90,7 @@ SUBDIR=	adduser \
 	tzsetup \
 	uefisign \
 	ugidfw \
+	vigr \
 	vipw \
 	wake \
 	watch \
