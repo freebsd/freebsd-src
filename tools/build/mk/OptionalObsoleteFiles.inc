@@ -3504,6 +3504,7 @@ OLD_FILES+=usr/include/c++/v1/unwind.h
 OLD_FILES+=usr/include/c++/v1/utility
 OLD_FILES+=usr/include/c++/v1/valarray
 OLD_FILES+=usr/include/c++/v1/vector
+OLD_DIRS+=usr/include/c++/v1/tr1
 OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
