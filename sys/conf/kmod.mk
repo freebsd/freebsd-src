@@ -31,6 +31,9 @@
 # MFILES	Optionally a list of interfaces used by the module.
 #		This file contains a default list of interfaces.
 #
+# KMODISLOADED	Command to check whether a kernel module is
+#		loaded [/sbin/kldstat -q -n]
+#
 # PROG		The name of the kernel module to build.
 #		If not supplied, ${KMOD}.ko is used.
 #
@@ -59,6 +62,9 @@
 # 	unload:
 #		Unload a module.
 #
+#	reload:
+#		Unload if loaded, then load.
+#
 
 # backwards compat option for older systems.
 MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
@@ -66,6 +72,7 @@ MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
+KMODISLOADED?=	/sbin/kldstat -q -n
 OBJCOPY?=	objcopy
 
 .if defined(KMODDEPS)
@@ -324,7 +331,11 @@ load: ${PROG}
 
 .if !target(unload)
 unload:
-	${KMODUNLOAD} -v ${PROG}
+	if ${KMODISLOADED} ${PROG} ; then ${KMODUNLOAD} -v ${PROG} ; fi
+.endif
+
+.if !target(reload)
+reload: unload load
 .endif
 
 .if defined(KERNBUILDDIR)
