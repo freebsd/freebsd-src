@@ -3799,14 +3799,19 @@ validate:
 		 * is set. Do it now, before the mapping is stored and made
 		 * valid for hardware table walk. If done later, there is a race
 		 * for other threads of current process in lazy loading case.
+		 * Don't do it for kernel memory which is mapped with exec
+		 * permission even if the memory isn't going to hold executable
+		 * code. The only time when icache sync is needed is after
+		 * kernel module is loaded and the relocation info is processed.
+		 * And it's done in elf_cpu_load_file().
 		 *
 		 * QQQ: (1) Does it exist any better way where
 		 *          or how to sync icache?
 		 *      (2) Now, we do it on a page basis.
 		 */
-		if ((prot & VM_PROT_EXECUTE) &&
-		    (m->md.pat_mode == PTE2_ATTR_WB_WA) &&
-		    ((opa != pa) || (opte2 & PTE2_NX)))
+		if ((prot & VM_PROT_EXECUTE) && pmap != kernel_pmap &&
+		    m->md.pat_mode == PTE2_ATTR_WB_WA &&
+		    (opa != pa || (opte2 & PTE2_NX)))
 			cache_icache_sync_fresh(va, pa, PAGE_SIZE);
 
 		npte2 |= PTE2_A;
@@ -4405,7 +4410,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l2prot |= PTE2_U | PTE2_NG;
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		l2prot |= PTE2_NX;
-	else if (m->md.pat_mode == PTE2_ATTR_WB_WA) {
+	else if (m->md.pat_mode == PTE2_ATTR_WB_WA && pmap != kernel_pmap) {
 		/*
 		 * Sync icache if exec permission and attribute PTE2_ATTR_WB_WA
 		 * is set. QQQ: For more info, see comments in pmap_enter().
@@ -4476,7 +4481,7 @@ pmap_enter_pte1(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		l1prot |= PTE1_U | PTE1_NG;
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		l1prot |= PTE1_NX;
-	else if (m->md.pat_mode == PTE2_ATTR_WB_WA) {
+	else if (m->md.pat_mode == PTE2_ATTR_WB_WA && pmap != kernel_pmap) {
 		/*
 		 * Sync icache if exec permission and attribute PTE2_ATTR_WB_WA
 		 * is set. QQQ: For more info, see comments in pmap_enter().
