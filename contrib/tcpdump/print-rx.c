@@ -2890,4 +2890,3 @@ trunc:
 	ND_PRINT((ndo, " [|ack]"));
 }
 #undef TRUNCRET
-

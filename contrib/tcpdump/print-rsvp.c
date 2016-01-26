@@ -1895,7 +1895,7 @@ _rsvp_print(netdissect_options *ndo,
             rsvp_com_header->checksum[0] = 0;
             rsvp_com_header->checksum[1] = 0;
 #endif
-            
+
             if (subtlen < sizeof(const struct rsvp_common_header)) {
                 ND_PRINT((ndo, "ERROR: common header too short %u < %lu", subtlen,
                        (unsigned long)sizeof(const struct rsvp_common_header)));
