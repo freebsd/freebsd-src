@@ -44,7 +44,7 @@ static CHAR16 *
 arg_skipsep(CHAR16 *argp)
 {
 
-	while (*argp == ' ' || *argp == '\t')
+	while (*argp == ' ' || *argp == '\t' || *argp == '\n')
 		argp++;
 	return (argp);
 }
@@ -53,7 +53,7 @@ static CHAR16 *
 arg_skipword(CHAR16 *argp)
 {
 
-	while (*argp && *argp != ' ' && *argp != '\t')
+	while (*argp && *argp != ' ' && *argp != '\t' && *argp != '\n')
 		argp++;
 	return (argp);
 }
