@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <mips.h>
 #include <sdcard.h>
 
+#include "paths.h"
+
 static int		 beri_argc;
 static const char	**beri_argv, **beri_envv;
 static uint64_t		 beri_memsize;
@@ -107,11 +109,6 @@ static uint64_t		 beri_memsize;
 			OPT_SET(RBX_SERIAL) | OPT_SET(RBX_CDROM) | \
 			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
 			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
-
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_BOOT3	"/boot/loader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		14

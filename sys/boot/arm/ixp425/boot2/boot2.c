@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 
 #include "lib.h"
+#include "paths.h"
 
 #define RBX_ASKNAME	0x0	/* -a */
 #define RBX_SINGLE	0x1	/* -s */
@@ -61,10 +62,6 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_DFLTROOT) | \
 			OPT_SET(RBX_VERBOSE) | \
 			OPT_SET(RBX_GDB))
-
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_KERNEL	"/boot/kernel/kernel"
 
 extern uint32_t _end;
 
