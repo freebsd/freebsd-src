@@ -18,6 +18,11 @@ ident		BERI_SOCKIT_MDROOT
 options         MD_ROOT                 # MD is a potential root device
 options         MD_ROOT_SIZE=26112      # 25.5MB
 options         ROOTDEVNAME=\"ufs:md0\"
+
+# XXX: MD_ROOT_SIZE and MFS_IMAGE are mutually exclusive.  When adding an
+# MFS_IMAGE entry comment out "options MD_ROOT_SIZE" or uncomment the
+# following line.
+#nooptions	MD_ROOT_SIZE
 #makeoptions    MFS_IMAGE=/foo/baz/baz/mdroot.img
 
 options         FDT
