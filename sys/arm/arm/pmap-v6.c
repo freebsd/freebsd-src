@@ -3446,14 +3446,10 @@ pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 		pte = ptep[l2pte_index(va)];
 		if (pte == 0)
 			return (0);
-		switch (pte & L2_TYPE_MASK) {
-		case L2_TYPE_L:
+		if ((pte & L2_TYPE_MASK) == L2_TYPE_L)
 			pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
-			break;
-		default:
+		else
 			pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-			break;
-		}
 	}
 	return (pa);
 }
@@ -3515,20 +3511,15 @@ retry:
 			PMAP_UNLOCK(pmap);
 			return (NULL);
 		} else {
-			switch (pte & L2_TYPE_MASK) {
-			case L2_TYPE_L:
+			if ((pte & L2_TYPE_MASK) == L2_TYPE_L)
 				panic("extract and hold section mapping");
-				break;
-			default:
+			else
 				pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-				break;
-			}
 			if (vm_page_pa_tryrelock(pmap, pa & PG_FRAME, &paddr))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
 			vm_page_hold(m);
 		}
-
 	}
 
 	PMAP_UNLOCK(pmap);
@@ -3567,14 +3558,10 @@ pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
 			pa = 0;
 			goto out;
 		}
-		switch (pte & L2_TYPE_MASK) {
-		case L2_TYPE_L:
+		if ((pte & L2_TYPE_MASK) == L2_TYPE_L)
 			pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
-			break;
-		default:
+		else
 			pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-			break;
-		}
 	}
 out:
 	if (pte2p != NULL)
