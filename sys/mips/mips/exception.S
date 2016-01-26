@@ -292,6 +292,12 @@ not_superpage:
 VECTOR(MipsException, unknown)
 /*
  * Find out what mode we came from and jump to the proper handler.
+ *
+ * Note: at turned off here because we cannot trash the at register
+ * in this exception code. Only k0 and k1 may be modified before
+ * we save registers. This is true of all functions called through
+ * the pointer magic: Mips{User,Kern}Intr, Mips{User,Kern}GenException
+ * and MipsTLBInvalidException
  */
 	.set	noat
 #ifdef CPU_CHERI
