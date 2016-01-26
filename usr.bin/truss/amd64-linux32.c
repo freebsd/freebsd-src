@@ -40,10 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 
 #include <stdio.h>
+#include <sysdecode.h>
 
 #include "truss.h"
-
-#include "amd64-linux32_syscalls.h"
 
 static int
 amd64_linux32_fetch_args(struct trussinfo *trussinfo, u_int narg)
@@ -132,8 +131,7 @@ amd64_linux32_fetch_retval(struct trussinfo *trussinfo, long *retval,
 
 static struct procabi amd64_linux32 = {
 	"Linux ELF32",
-	syscallnames,
-	nitems(syscallnames),
+	LINUX32,
 	amd64_linux32_fetch_args,
 	amd64_linux32_fetch_retval
 };
