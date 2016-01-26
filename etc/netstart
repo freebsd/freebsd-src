@@ -34,9 +34,6 @@
 # the network by hand, this script will do it for you).
 #
 
-. /etc/rc.subr
-
-load_rc_config 'XXX'
 _start=quietstart
 
 /etc/rc.d/devd ${_start}
