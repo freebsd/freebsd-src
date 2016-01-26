@@ -52,8 +52,8 @@
 struct rr_queue {
 	struct dn_queue q;		/* Standard queue */
 	int status;			/* 1: queue is in the list */
-	int credit;			/* Number of bytes to transmit */
-	int quantum;			/* quantum * C */
+	uint32_t credit;		/* max bytes we can transmit */
+	uint32_t quantum;		/* quantum * weight */
 	struct rr_queue *qnext;		/* */
 };
 
@@ -61,9 +61,9 @@ struct rr_queue {
  * and is right after dn_schk
  */
 struct rr_schk {
-	int min_q;		/* Min quantum */
-	int max_q;		/* Max quantum */
-	int q_bytes;		/* Bytes per quantum */
+	uint32_t min_q;		/* Min quantum */
+	uint32_t max_q;		/* Max quantum */
+	uint32_t q_bytes;	/* default quantum in bytes */
 };
 
 /* per-instance round robin list, right after dn_sch_inst */
@@ -227,6 +227,7 @@ rr_new_sched(struct dn_sch_inst *_si)
 static int
 rr_free_sched(struct dn_sch_inst *_si)
 {
+	(void)_si;
 	ND("called");
 	/* Nothing to do? */
 	return 0;
@@ -237,6 +238,7 @@ rr_new_fsk(struct dn_fsk *fs)
 {
 	struct rr_schk *schk = (struct rr_schk *)(fs->sched + 1);
 	/* par[0] is the weight, par[1] is the quantum step */
+	/* make sure the product fits an uint32_t */
 	ipdn_bound_var(&fs->fs.par[0], 1,
 		1, 65536, "RR weight");
 	ipdn_bound_var(&fs->fs.par[1], schk->q_bytes,
@@ -248,10 +250,16 @@ static int
 rr_new_queue(struct dn_queue *_q)
 {
 	struct rr_queue *q = (struct rr_queue *)_q;
+	uint64_t quantum;
 
 	_q->ni.oid.subtype = DN_SCHED_RR;
 
-	q->quantum = _q->fs->fs.par[0] * _q->fs->fs.par[1];
+	quantum = (uint64_t)_q->fs->fs.par[0] * _q->fs->fs.par[1];
+	if (quantum >= (1ULL<< 32)) {
+		D("quantum too large, truncating to 4G - 1");
+		quantum = (1ULL<< 32) - 1;
+	}
+	q->quantum = quantum;
 	ND("called, q->quantum %d", q->quantum);
 	q->credit = q->quantum;
 	q->status = 0;
