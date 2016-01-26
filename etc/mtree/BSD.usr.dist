@@ -47,8 +47,6 @@
             ..
         ..
     ..
-    libcheri
-    ..
     libdata
         gcc
         ..
