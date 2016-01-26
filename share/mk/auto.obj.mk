@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: auto.obj.mk,v 1.10 2015/04/16 16:59:00 sjg Exp $
+# $Id: auto.obj.mk,v 1.12 2015/12/16 01:57:06 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -41,12 +41,12 @@ MKOBJDIRS= auto
 .if !defined(NOOBJ) && !defined(NO_OBJ) && ${MKOBJDIRS:Uno} == auto
 # Use __objdir here so it is easier to tweak without impacting
 # the logic.
-.if !empty(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
+.if !empty(MAKEOBJDIRPREFIX)
 __objdir?= ${MAKEOBJDIRPREFIX}${.CURDIR}
 .endif
 __objdir?= ${MAKEOBJDIR:Uobj}
-__objdir:= ${__objdir:tA}
-.if ${.OBJDIR} != ${__objdir}
+__objdir:= ${__objdir}
+.if ${.OBJDIR:tA} != ${__objdir:tA}
 # We need to chdir, make the directory if needed
 .if !exists(${__objdir}/) && \
 	(${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
@@ -54,11 +54,10 @@ __objdir:= ${__objdir:tA}
 __objdir_made != echo ${__objdir}/; umask ${OBJDIR_UMASK:U002}; \
         ${ECHO_TRACE} "[Creating objdir ${__objdir}...]" >&2; \
         ${Mkdirs}; Mkdirs ${__objdir}
-__objdir:= ${__objdir:tA}
 .endif
 # This causes make to use the specified directory as .OBJDIR
 .OBJDIR: ${__objdir}
-.if ${.OBJDIR} != ${__objdir} && ${__objdir_made:Uno:M${__objdir}/*} != ""
+.if ${.OBJDIR:tA} != ${__objdir:tA} && ${__objdir_made:Uno:M${__objdir}/*} != ""
 .error could not use ${__objdir}: .OBJDIR=${.OBJDIR}
 .endif
 .endif

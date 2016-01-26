@@ -166,6 +166,8 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
 	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
 		mtx_unlock(&Giant);
 
+	KFAIL_POINT_ERROR(_debug_fail_point, sysctl_running, error);
+
 	if (tracker != NULL)
 		SYSCTL_RLOCK(tracker);
 	else
@@ -1837,8 +1839,6 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
 #endif
 	error = sysctl_root_handler_locked(oid, arg1, arg2, req, &tracker);
-
-	KFAIL_POINT_ERROR(_debug_fail_point, sysctl_running, error);
 
 out:
 	SYSCTL_RUNLOCK(&tracker);
