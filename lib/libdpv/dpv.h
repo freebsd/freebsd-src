@@ -97,6 +97,7 @@ struct dpv_file_node {
  * Anatomy of config option to pass as dpv() config argument
  */
 struct dpv_config {
+	uint8_t	keep_tite;		/* Prevent visually distracting exit */
 	enum dpv_display display_type;	/* Display (default TYPE_LIBDIALOG) */
 	enum dpv_output  output_type;	/* Output (default TYPE_NONE) */
 	int	debug;			/* Enable debugging output on stderr */
