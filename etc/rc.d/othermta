@@ -10,7 +10,7 @@
 #
 . /etc/rc.subr
 
-load_rc_config 'XXX'
+load_rc_config
 
 if [ -n "${mta_start_script}" ]; then
 	[ "${mta_start_script}" != "/etc/rc.sendmail" ] && \
