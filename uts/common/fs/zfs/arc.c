@@ -5234,10 +5234,12 @@ arc_fini(void)
 	multilist_destroy(&arc_mru_ghost->arcs_list[ARC_BUFC_METADATA]);
 	multilist_destroy(&arc_mfu->arcs_list[ARC_BUFC_METADATA]);
 	multilist_destroy(&arc_mfu_ghost->arcs_list[ARC_BUFC_METADATA]);
+	multilist_destroy(&arc_l2c_only->arcs_list[ARC_BUFC_METADATA]);
 	multilist_destroy(&arc_mru->arcs_list[ARC_BUFC_DATA]);
 	multilist_destroy(&arc_mru_ghost->arcs_list[ARC_BUFC_DATA]);
 	multilist_destroy(&arc_mfu->arcs_list[ARC_BUFC_DATA]);
 	multilist_destroy(&arc_mfu_ghost->arcs_list[ARC_BUFC_DATA]);
+	multilist_destroy(&arc_l2c_only->arcs_list[ARC_BUFC_DATA]);
 
 	buf_fini();
 
