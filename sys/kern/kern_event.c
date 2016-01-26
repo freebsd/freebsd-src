@@ -2406,7 +2406,7 @@ knote_free(struct knote *kn)
 {
 
 #ifdef CPU_CHERI
-	if (kn->kn_kevent.flags & EV_FREEUDATA)
+	if (kn && (kn->kn_kevent.flags & EV_FREEUDATA))
 		free(kn->kn_kevent.udata, M_KQUEUE);
 #endif
 	uma_zfree(knote_zone, kn);
