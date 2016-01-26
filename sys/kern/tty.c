@@ -201,7 +201,6 @@ ttydev_leave(struct tty *tp)
 		constty_clear();
 
 	/* Drain any output. */
-	MPASS((tp->t_flags & TF_STOPPED) == 0);
 	if (!tty_gone(tp))
 		tty_drain(tp, 1);
 
@@ -352,11 +351,7 @@ ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
 	if (fflag & FREVOKE)
 		tty_flush(tp, FWRITE);
 
-	/*
-	 * This can only be called once. The callin and the callout
-	 * devices cannot be opened at the same time.
-	 */
-	tp->t_flags &= ~(TF_EXCLUDE|TF_STOPPED);
+	tp->t_flags &= ~TF_EXCLUDE;
 
 	/* Properly wake up threads that are stuck - revoke(). */
 	tp->t_revokecnt++;
@@ -1456,12 +1451,15 @@ tty_flush(struct tty *tp, int flags)
 		tp->t_flags &= ~TF_HIWAT_OUT;
 		ttyoutq_flush(&tp->t_outq);
 		tty_wakeup(tp, FWRITE);
-		if (!tty_gone(tp))
+		if (!tty_gone(tp)) {
+			ttydevsw_outwakeup(tp);
 			ttydevsw_pktnotify(tp, TIOCPKT_FLUSHWRITE);
+		}
 	}
 	if (flags & FREAD) {
 		tty_hiwat_in_unblock(tp);
 		ttyinq_flush(&tp->t_inq);
+		tty_wakeup(tp, FREAD);
 		if (!tty_gone(tp)) {
 			ttydevsw_inwakeup(tp);
 			ttydevsw_pktnotify(tp, TIOCPKT_FLUSHREAD);
