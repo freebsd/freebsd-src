@@ -35,7 +35,8 @@ FILES+=	130.clean-msgs
 .endif
 
 .if ${MK_NTP} != "no"
-FILES+=	480.status-ntpd
+FILES+=	480.status-ntpd \
+	480.leapfile-ntpd
 .endif
 
 .if ${MK_RCMDS} != "no"
