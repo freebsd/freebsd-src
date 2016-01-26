@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2008 John Hay
- * Copyright (c) 2006 Warner Losh
+ * Copyright (c) 2006 M Warner Losh <imp@freebsd.org>
  * Copyright (c) 1998 Robert Nordier
  * All rights reserved.
  *
@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include "board.h"
+#include "paths.h"
 
 #define RBX_ASKNAME	0x0	/* -a */
 #define RBX_SINGLE	0x1	/* -s */
@@ -64,9 +65,7 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_VERBOSE) | \
 			OPT_SET(RBX_GDB))
 
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-//#define PATH_KERNEL	"/boot/kernel/kernel"
+#undef PATH_KERNEL
 #define PATH_KERNEL	"/boot/kernel/kernel.gz.tramp"
 
 extern uint32_t _end;
