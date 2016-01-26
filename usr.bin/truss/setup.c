@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysdecode.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -335,8 +336,7 @@ enter_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 		return;
 	}
 
-	if (t->cs.number >= 0 && t->cs.number < t->proc->abi->nsyscalls)
-		t->cs.name = t->proc->abi->syscallnames[t->cs.number];
+	t->cs.name = sysdecode_syscallname(t->proc->abi->abi, t->cs.number);
 	if (t->cs.name == NULL)
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
