@@ -2254,7 +2254,7 @@ mmu_booke_zero_page(mmu_t mmu, vm_page_t m)
 
 	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbzl 0,%0" :: "r"(va + off));
+		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
 	mmu_booke_kremove(mmu, va);
 
 	mtx_unlock(&zero_page_mutex);
