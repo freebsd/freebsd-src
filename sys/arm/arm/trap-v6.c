@@ -336,14 +336,10 @@ abort_handler(struct trapframe *tf, int prefetch)
 
 #ifdef ARM_NEW_PMAP
 	rv = pmap_fault(PCPU_GET(curpmap), far, fsr, idx, usermode);
-	if (rv == 0) {
+	if (rv == KERN_SUCCESS)
 		return;
-	} else if (rv == EFAULT) {
-
-		call_trapsignal(td, SIGSEGV, SEGV_MAPERR, far);
-		userret(td, tf);
-		return;
-	}
+	if (rv == KERN_INVALID_ADDRESS)
+		goto nogo;
 #endif
 	/*
 	 * Now, when we handled imprecise and debug aborts, the rest of
@@ -452,7 +448,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 	 */
 
 	/* fusubailout is used by [fs]uswintr to avoid page faulting. */
-	pcb = td->td_pcb;
 	if (__predict_false(pcb->pcb_onfault == fusubailout)) {
 		tf->tf_r0 = EFAULT;
 		tf->tf_pc = (register_t)pcb->pcb_onfault;
