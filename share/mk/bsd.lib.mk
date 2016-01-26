@@ -150,7 +150,7 @@ SHLIB_NAME_FULL=${SHLIB_NAME}.full
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
 .if ${_SHLIBDIR} == "/boot" ||\
     ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
-    ${SHLIBDIR:C%/usr/(tests/)?lib(32|exec)?(/.*)?%/usr/lib%} == "/usr/lib"
+    ${SHLIBDIR:C%/usr/(tests/)?lib(32|cheri|exec)?(/.*)?%/usr/lib%} == "/usr/lib"
 DEBUGFILEDIR=${DEBUGDIR}${_SHLIBDIR}
 .else
 DEBUGFILEDIR=${_SHLIBDIR}/.debug
