@@ -248,7 +248,7 @@ main(u_int argc, const char *argv[], const char *envv[], uint64_t memsize)
      */
 
     if (!kname) {
-	kname = PATH_BOOT3;
+	kname = PATH_LOADER;
 	if (autoboot && !keyhit(3*SECOND)) {
 	    boot_fromfs();
 	    kname = PATH_KERNEL;

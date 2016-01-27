@@ -374,7 +374,7 @@ main(void)
      */
 
     if (!kname) {
-	kname = PATH_BOOT3;
+	kname = PATH_LOADER;
 	if (autoboot && !keyhit(3*SECOND)) {
 	    load();
 	    kname = PATH_KERNEL;
