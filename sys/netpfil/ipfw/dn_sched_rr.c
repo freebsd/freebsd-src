@@ -294,7 +294,7 @@ static struct dn_alg rr_desc = {
 	_SI( .name = ) "RR",
 	_SI( .flags = ) DN_MULTIQUEUE,
 
-	_SI( .schk_datalen = ) 0,
+	_SI( .schk_datalen = ) sizeof(struct rr_schk),
 	_SI( .si_datalen = ) sizeof(struct rr_si),
 	_SI( .q_datalen = ) sizeof(struct rr_queue) - sizeof(struct dn_queue),
 
@@ -311,5 +311,6 @@ static struct dn_alg rr_desc = {
 	_SI( .free_queue = ) rr_free_queue,
 };
 
+_Static_assert(sizeof(struct dn_schk) < 193, "a");
 
 DECLARE_DNSCHED_MODULE(dn_rr, &rr_desc);
