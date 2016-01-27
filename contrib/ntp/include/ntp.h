@@ -350,6 +350,7 @@ struct peer {
 	l_fp	dst;		/* destination timestamp */
 	l_fp	aorg;		/* origin timestamp */
 	l_fp	borg;		/* alternate origin timestamp */
+	l_fp	bxmt;		/* most recent broadcast transmit timestamp */
 	double	offset;		/* peer clock offset */
 	double	delay;		/* peer roundtrip delay */
 	double	jitter;		/* peer jitter (squares) */
@@ -382,7 +383,8 @@ struct peer {
 	 * Statistic counters
 	 */
 	u_long	timereset;	/* time stat counters were reset */
-	u_long	timereceived;	/* last packet received time */
+	u_long	timelastrec;	/* last packet received time */
+	u_long	timereceived;	/* last (clean) packet received time */
 	u_long	timereachable;	/* last reachable/unreachable time */
 
 	u_long	sent;		/* packets sent */
@@ -708,6 +710,9 @@ struct pkt {
 #define	PROTO_ORPHAN		26
 #define	PROTO_ORPHWAIT		27
 #define	PROTO_MODE7		28
+#define	PROTO_UECRYPTO		29
+#define	PROTO_UECRYPTONAK	30
+#define	PROTO_UEDIGEST		31
 
 /*
  * Configuration items for the loop filter

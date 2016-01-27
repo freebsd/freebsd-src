@@ -189,12 +189,12 @@ find_name(char const * name, tOptions * pOpts, tOptDesc * pOD,
      *  The result gets stashed in a char * pointer.
      */
     uintptr_t   res = name_ct;
-    size_t      len = strlen((char *)name);
+    size_t      len = strlen(name);
     uintptr_t   idx;
 
     if (IS_DEC_DIGIT_CHAR(*name)) {
-        char * pz = VOIDP(name);
-        unsigned long val = strtoul(pz, &pz, 0);
+        char * pz;
+        unsigned long val = strtoul(name, &pz, 0);
         if ((*pz == NUL) && (val < name_ct))
             return (uintptr_t)val;
         pz_enum_err_fmt = znum_too_large;
@@ -215,7 +215,7 @@ find_name(char const * name, tOptions * pOpts, tOptDesc * pOD,
      *  Multiple partial matches means we have an ambiguous match.
      */
     for (idx = 0; idx < name_ct; idx++) {
-        if (strncmp((char *)paz_names[idx], (char *)name, len) == 0) {
+        if (strncmp(paz_names[idx], name, len) == 0) {
             if (paz_names[idx][len] == NUL)
                 return idx;  /* full match */
 
@@ -500,7 +500,7 @@ find_member_bit(tOptions * opts, tOptDesc * od, char const * pz, int len,
         if (shift_ct >= nm_ct)
             return 0UL;
 
-        return 1UL << shift_ct;
+        return (uintptr_t)1U << shift_ct;
     }
 }
 

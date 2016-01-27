@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpdc-opts.c)
  *
- *  It has been AutoGen-ed  January  7, 2016 at 11:31:12 PM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  January 20, 2016 at 04:18:22 AM by AutoGen 5.18.5
  *  From the definitions    ntpdc-opts.def
  *  and the template file   options
  *
@@ -18,7 +18,7 @@
  * The ntpdc program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -69,8 +69,8 @@ extern FILE * option_usage_fp;
  *  static const strings for ntpdc options
  */
 static char const ntpdc_opt_strs[1911] =
-/*     0 */ "ntpdc 4.2.8p5\n"
-            "Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.\n"
+/*     0 */ "ntpdc 4.2.8p6\n"
+            "Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation, all rights reserved.\n"
             "This is free software. It is licensed for use, modification and\n"
             "redistribution under the terms of the NTP License, copies of which\n"
             "can be seen at:\n"
@@ -128,14 +128,14 @@ static char const ntpdc_opt_strs[1911] =
 /*  1694 */ "no-load-opts\0"
 /*  1707 */ "no\0"
 /*  1710 */ "NTPDC\0"
-/*  1716 */ "ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p5\n"
+/*  1716 */ "ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p6\n"
             "Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n\0"
 /*  1846 */ "$HOME\0"
 /*  1852 */ ".\0"
 /*  1854 */ ".ntprc\0"
 /*  1861 */ "http://bugs.ntp.org, bugs@ntp.org\0"
 /*  1895 */ "\n\0"
-/*  1897 */ "ntpdc 4.2.8p5";
+/*  1897 */ "ntpdc 4.2.8p6";
 
 /**
  *  ipv4 option description with
@@ -796,8 +796,8 @@ static void bogus_function(void) {
      translate option names.
    */
   /* referenced via ntpdcOptions.pzCopyright */
-  puts(_("ntpdc 4.2.8p5\n\
-Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.\n\
+  puts(_("ntpdc 4.2.8p6\n\
+Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation, all rights reserved.\n\
 This is free software. It is licensed for use, modification and\n\
 redistribution under the terms of the NTP License, copies of which\n\
 can be seen at:\n"));
@@ -862,14 +862,14 @@ implied warranty.\n"));
   puts(_("load options from a config file"));
 
   /* referenced via ntpdcOptions.pzUsageTitle */
-  puts(_("ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p5\n\
+  puts(_("ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p6\n\
 Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]... [ host ...]\n"));
 
   /* referenced via ntpdcOptions.pzExplain */
   puts(_("\n"));
 
   /* referenced via ntpdcOptions.pzFullVersion */
-  puts(_("ntpdc 4.2.8p5"));
+  puts(_("ntpdc 4.2.8p6"));
 
   /* referenced via ntpdcOptions.pzFullUsage */
   puts(_("<<<NOT-FOUND>>>"));
