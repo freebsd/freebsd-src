@@ -1590,7 +1590,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * resource-intensive to repeat twice on every request.
 	 */
 	if (req->oldptr == NULL) {
-		n = V_tcbinfo.ipi_count + syncache_pcbcount();
+		n = V_tcbinfo.ipi_count +
+		    TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
@@ -1607,7 +1608,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_tcbinfo.ipi_count;
 	INP_LIST_RUNLOCK(&V_tcbinfo);
 
-	m = syncache_pcbcount();
+	m = TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ (n + m) * sizeof(struct xtcpcb));

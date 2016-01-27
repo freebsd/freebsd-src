@@ -2100,25 +2100,6 @@ syncookie_reseed(void *arg)
 }
 
 /*
- * Returns the current number of syncache entries.  This number
- * will probably change before you get around to calling 
- * syncache_pcblist.
- */
-int
-syncache_pcbcount(void)
-{
-	struct syncache_head *sch;
-	int count, i;
-
-	for (count = 0, i = 0; i < V_tcp_syncache.hashsize; i++) {
-		/* No need to lock for a read. */
-		sch = &V_tcp_syncache.hashbase[i];
-		count += sch->sch_length;
-	}
-	return count;
-}
-
-/*
  * Exports the syncache entries to userland so that netstat can display
  * them alongside the other sockets.  This function is intended to be
  * called only from tcp_pcblist.
