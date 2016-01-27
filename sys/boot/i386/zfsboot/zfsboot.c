@@ -546,12 +546,12 @@ main(void)
     }
 
     /*
-     * Try to exec stage 3 boot loader. If interrupted by a keypress,
+     * Try to exec /boot/loader. If interrupted by a keypress,
      * or in case of failure, try to load a kernel directly instead.
      */
 
     if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+	memcpy(kname, PATH_LOADER_ZFS, sizeof(PATH_LOADER_ZFS));
 	if (!keyhit(3)) {
 	    load();
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
