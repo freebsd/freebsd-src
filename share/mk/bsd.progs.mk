@@ -119,7 +119,7 @@ x.$p= PROG_CXX=$p
 $p ${p}_p: .PHONY .MAKE
 	(cd ${.CURDIR} && \
 	    DEPENDFILE=.depend.$p \
-	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
 	    PROG=$p ${x.$p})
 
 # Pseudo targets for PROG, such as 'install'.
@@ -127,7 +127,7 @@ $p ${p}_p: .PHONY .MAKE
 $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && \
 	    DEPENDFILE=.depend.$p \
-	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    NO_SUBDIR=1 ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS=t \
 	    PROG=$p ${x.$p} ${@:E})
 .endfor
 .endfor
