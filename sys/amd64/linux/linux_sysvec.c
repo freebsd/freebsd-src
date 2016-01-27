@@ -630,7 +630,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = td->td_sigstk.ss_sp + td->td_sigstk.ss_size -
+		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size -
 		    sizeof(struct l_rt_sigframe);
 	} else
 		sp = (caddr_t)regs->tf_rsp - sizeof(struct l_rt_sigframe) - 128;
