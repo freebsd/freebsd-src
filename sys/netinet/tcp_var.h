@@ -34,6 +34,7 @@
 #define _NETINET_TCP_VAR_H_
 
 #include <netinet/tcp.h>
+#include <netinet/tcp_fsm.h>
 
 #ifdef _KERNEL
 #include <net/vnet.h>
@@ -586,6 +587,9 @@ struct	tcpstat {
 	uint64_t tcps_sig_err_buildsig;	/* Mismatching signature received */
 	uint64_t tcps_sig_err_sigopt;	/* No signature expected by socket */
 	uint64_t tcps_sig_err_nosigopt;	/* No signature provided by segment */
+
+	/* Running connection count. */
+	uint64_t tcps_states[TCP_NSTATES];
 
 	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
