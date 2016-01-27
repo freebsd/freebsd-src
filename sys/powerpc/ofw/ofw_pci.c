@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 static int		ofw_pci_read_ivar(device_t, device_t, int,
 			    uintptr_t *);
 static struct		resource * ofw_pci_alloc_resource(device_t bus,
-			    device_t child, int type, int *rid, u_long start,
-			    u_long end, u_long count, u_int flags);
+			    device_t child, int type, int *rid, rman_res_t start,
+			    rman_res_t end, rman_res_t count, u_int flags);
 static int		ofw_pci_release_resource(device_t bus, device_t child,
     			    int type, int rid, struct resource *res);
 static int		ofw_pci_activate_resource(device_t bus, device_t child,
@@ -72,8 +72,8 @@ static int		ofw_pci_deactivate_resource(device_t bus,
     			    device_t child, int type, int rid,
     			    struct resource *res);
 static int		ofw_pci_adjust_resource(device_t bus, device_t child,
-			    int type, struct resource *res, u_long start,
-			    u_long end);
+			    int type, struct resource *res, rman_res_t start,
+			    rman_res_t end);
 
 /*
  * pcib interface.
@@ -304,7 +304,7 @@ ofw_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 static struct resource *
 ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct			ofw_pci_softc *sc;
 	struct			resource *rv;
@@ -450,7 +450,7 @@ ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 ofw_pci_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *res, u_long start, u_long end)
+    struct resource *res, rman_res_t start, rman_res_t end)
 {
 	struct rman *rm = NULL;
 	struct ofw_pci_softc *sc = device_get_softc(bus);

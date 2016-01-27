@@ -710,7 +710,7 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 static struct resource *
 sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct sbus_softc *sc;
 	struct rman *rm;
@@ -821,7 +821,7 @@ sbus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 sbus_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct sbus_softc *sc;
 	int i;

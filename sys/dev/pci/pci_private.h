@@ -105,8 +105,8 @@ int		pci_msix_count_method(device_t dev, device_t child);
 int		pci_msix_pba_bar_method(device_t dev, device_t child);
 int		pci_msix_table_bar_method(device_t dev, device_t child);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
-		    int type, int *rid, u_long start, u_long end, u_long count,
-		    u_int flags);
+		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_int flags);
 int		pci_release_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 int		pci_activate_resource(device_t dev, device_t child, int type,
@@ -151,8 +151,8 @@ struct pci_map *pci_add_bar(device_t dev, int reg, pci_addr_t value,
 		    pci_addr_t size);
 
 struct resource *pci_alloc_multi_resource(device_t dev, device_t child,
-		    int type, int *rid, u_long start, u_long end, u_long count,
-		    u_long num, u_int flags);
+		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_long num, u_int flags);
 
 int		pci_iov_attach_method(device_t bus, device_t dev,
 		    struct nvlist *pf_schema, struct nvlist *vf_schema);
@@ -162,8 +162,8 @@ device_t	pci_create_iov_child_method(device_t bus, device_t pf,
 		    uint16_t rid, uint16_t vid, uint16_t did);
 
 struct resource *pci_vf_alloc_mem_resource(device_t dev, device_t child,
-		    int *rid, u_long start, u_long end, u_long count,
-		    u_int flags);
+		    int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_int flags);
 int		pci_vf_release_mem_resource(device_t dev, device_t child,
 		    int rid, struct resource *r);
 #endif /* _PCI_PRIVATE_H_ */
