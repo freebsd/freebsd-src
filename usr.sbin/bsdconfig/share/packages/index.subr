@@ -1,6 +1,6 @@
 if [ ! "$_PACKAGES_INDEX_SUBR" ]; then _PACKAGES_INDEX_SUBR=1
 #
-# Copyright (c) 2013 Devin Teske
+# Copyright (c) 2013-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ _INDEX_INITTED=
 #
 # Default path to pkg(8) repo-packagesite.sqlite database
 #
-SQLITE_REPO="/var/db/pkg/repo-packagesite.sqlite"
+SQLITE_REPO="/var/db/pkg/repo-FreeBSD.sqlite"
 
 #
 # Default path to on-disk cache INDEX file
