@@ -29,6 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/reboot.h>
+#include <sys/boot.h>
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
@@ -83,13 +85,22 @@ print_str16(const CHAR16 *str)
 		printf("%c", (char)str[i]);
 }
 
+static void
+cp16to8(const CHAR16 *src, char *dst, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len && src[i]; i++)
+		dst[i] = (char)src[i];
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i, j, vargood, unit;
+	int i, j, vargood, unit, howto;
 	struct devsw *dev;
 	uint64_t pool_guid;
 	UINTN k;
@@ -113,26 +124,96 @@ main(int argc, CHAR16 *argv[])
 	cons_probe();
 
 	/*
+	 * Parse the args to set the console settings, etc
+	 * boot1.efi passes these in, if it can read /boot.config or /boot/config
+	 * or iPXE may be setup to pass these in.
+	 *
 	 * Loop through the args, and for each one that contains an '=' that is
 	 * not the first character, add it to the environment.  This allows
 	 * loader and kernel env vars to be passed on the command line.  Convert
 	 * args from UCS-2 to ASCII (16 to 8 bit) as they are copied.
 	 */
+	howto = 0;
 	for (i = 1; i < argc; i++) {
-		vargood = 0;
-		for (j = 0; argv[i][j] != 0; j++) {
-			if (j == sizeof(var)) {
-				vargood = 0;
-				break;
+		if (argv[i][0] == '-') {
+			for (j = 1; argv[i][j] != 0; j++) {
+				int ch;
+
+				ch = argv[i][j];
+				switch (ch) {
+				case 'a':
+					howto |= RB_ASKNAME;
+					break;
+				case 'd':
+					howto |= RB_KDB;
+					break;
+				case 'D':
+					howto |= RB_MULTIPLE;
+					break;
+				case 'm':
+					howto |= RB_MUTE;
+					break;
+				case 'h':
+					howto |= RB_SERIAL;
+					break;
+				case 'p':
+					howto |= RB_PAUSE;
+					break;
+				case 'r':
+					howto |= RB_DFLTROOT;
+					break;
+				case 's':
+					howto |= RB_SINGLE;
+					break;
+				case 'S':
+					if (argv[i][j + 1] == 0) {
+						if (i + 1 == argc) {
+							setenv("comconsole_speed", "115200", 1);
+						} else {
+							cp16to8(&argv[i + 1][0], var,
+							    sizeof(var));
+							setenv("comconsole_speedspeed", var, 1);
+						}
+						i++;
+						break;
+					} else {
+						cp16to8(&argv[i][j + 1], var,
+						    sizeof(var));
+						setenv("comconsole_speed", var, 1);
+						break;
+					}
+				case 'v':
+					howto |= RB_VERBOSE;
+					break;
+				}
 			}
-			if (j > 0 && argv[i][j] == '=')
-				vargood = 1;
-			var[j] = (char)argv[i][j];
+		} else {
+			vargood = 0;
+			for (j = 0; argv[i][j] != 0; j++) {
+				if (j == sizeof(var)) {
+					vargood = 0;
+					break;
+				}
+				if (j > 0 && argv[i][j] == '=')
+					vargood = 1;
+				var[j] = (char)argv[i][j];
+			}
+			if (vargood) {
+				var[j] = 0;
+				putenv(var);
+			}
 		}
-		if (vargood) {
-			var[j] = 0;
-			putenv(var);
-		}
+	}
+	for (i = 0; howto_names[i].ev != NULL; i++)
+		if (howto & howto_names[i].mask)
+			setenv(howto_names[i].ev, "YES", 1);
+	if (howto & RB_MULTIPLE) {
+		if (howto & RB_SERIAL)
+			setenv("console", "comconsole efi" , 1);
+		else
+			setenv("console", "efi comconsole" , 1);
+	} else if (howto & RB_SERIAL) {
+		setenv("console", "comconsole" , 1);
 	}
 
 	if (efi_copy_init()) {

@@ -675,6 +675,8 @@ tcp_init(void)
 	tcp_rexmit_min = TCPTV_MIN;
 	if (tcp_rexmit_min < 1)
 		tcp_rexmit_min = 1;
+	tcp_persmin = TCPTV_PERSMIN;
+	tcp_persmax = TCPTV_PERSMAX;
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
@@ -1466,6 +1468,7 @@ tcp_close(struct tcpcb *tp)
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
+	TCPSTAT_DEC(tcps_states[tp->t_state]);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
@@ -1587,7 +1590,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * resource-intensive to repeat twice on every request.
 	 */
 	if (req->oldptr == NULL) {
-		n = V_tcbinfo.ipi_count + syncache_pcbcount();
+		n = V_tcbinfo.ipi_count +
+		    TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
@@ -1604,7 +1608,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_tcbinfo.ipi_count;
 	INP_LIST_RUNLOCK(&V_tcbinfo);
 
-	m = syncache_pcbcount();
+	m = TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ (n + m) * sizeof(struct xtcpcb));
@@ -2908,6 +2912,8 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 	int pstate = tp->t_state;
 #endif
 
+	TCPSTAT_DEC(tcps_states[tp->t_state]);
+	TCPSTAT_INC(tcps_states[newstate]);
 	tp->t_state = newstate;
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }

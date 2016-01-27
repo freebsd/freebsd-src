@@ -54,7 +54,7 @@ static int gic_v3_fdt_probe(device_t);
 static int gic_v3_fdt_attach(device_t);
 
 static struct resource *gic_v3_ofw_bus_alloc_res(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static const struct ofw_bus_devinfo *gic_v3_ofw_get_devinfo(device_t, device_t);
 
 static device_method_t gic_v3_fdt_methods[] = {
@@ -78,7 +78,7 @@ static device_method_t gic_v3_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(gic_v3, gic_v3_fdt_driver, gic_v3_fdt_methods,
+DEFINE_CLASS_1(gic, gic_v3_fdt_driver, gic_v3_fdt_methods,
     sizeof(struct gic_v3_softc), gic_v3_driver);
 
 static devclass_t gic_v3_fdt_devclass;
@@ -174,7 +174,7 @@ gic_v3_ofw_get_devinfo(device_t bus __unused, device_t child)
 
 static struct resource *
 gic_v3_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct gic_v3_ofw_devinfo *di;
 	struct resource_list_entry *rle;
@@ -287,12 +287,12 @@ static device_method_t gic_v3_its_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(gic_v3_its, gic_v3_its_fdt_driver, gic_v3_its_fdt_methods,
+DEFINE_CLASS_1(its, gic_v3_its_fdt_driver, gic_v3_its_fdt_methods,
     sizeof(struct gic_v3_its_softc), gic_v3_its_driver);
 
 static devclass_t gic_v3_its_fdt_devclass;
 
-EARLY_DRIVER_MODULE(gic_v3_its, gic_v3, gic_v3_its_fdt_driver,
+EARLY_DRIVER_MODULE(its, gic, gic_v3_its_fdt_driver,
     gic_v3_its_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static int

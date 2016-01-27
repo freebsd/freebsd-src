@@ -388,7 +388,7 @@ wlprobe(device_t device)
     struct wl_softc	*sc;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
-    unsigned long	junk, sirq;
+    rman_res_t		junk, sirq;
     int			error, irq;
 
     error = ISA_PNP_PROBE(device_get_parent(device), device, wl_ids);

@@ -427,7 +427,7 @@ ebus_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ebus_softc *sc;
 	struct resource_list *rl;
@@ -544,8 +544,8 @@ ebus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 ebus_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *res __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *res __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);

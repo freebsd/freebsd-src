@@ -51,7 +51,7 @@ int
 atkbdc_print_child(device_t bus, device_t dev)
 {
 	atkbdc_device_t *kbdcdev;
-	u_long irq;
+	rman_res_t irq;
 	int flags;
 	int retval = 0;
 

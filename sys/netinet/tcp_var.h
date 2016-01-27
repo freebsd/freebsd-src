@@ -34,6 +34,7 @@
 #define _NETINET_TCP_VAR_H_
 
 #include <netinet/tcp.h>
+#include <netinet/tcp_fsm.h>
 
 #ifdef _KERNEL
 #include <net/vnet.h>
@@ -587,6 +588,9 @@ struct	tcpstat {
 	uint64_t tcps_sig_err_sigopt;	/* No signature expected by socket */
 	uint64_t tcps_sig_err_nosigopt;	/* No signature provided by segment */
 
+	/* Running connection count. */
+	uint64_t tcps_states[TCP_NSTATES];
+
 	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
@@ -605,6 +609,9 @@ VNET_PCPUSTAT_DECLARE(struct tcpstat, tcpstat);	/* tcp statistics */
 #define	TCPSTAT_ADD(name, val)	\
     VNET_PCPUSTAT_ADD(struct tcpstat, tcpstat, name, (val))
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
+#define	TCPSTAT_DEC(name)	TCPSTAT_ADD(name, -1)
+#define	TCPSTAT_FETCH(name)	VNET_PCPUSTAT_FETCH(struct tcpstat, tcpstat, \
+				    name)
 
 /*
  * Kernel module consumers must use this accessor macro.

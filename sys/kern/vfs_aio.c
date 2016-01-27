@@ -125,17 +125,16 @@ FEATURE(aio, "Asynchronous I/O");
 
 static MALLOC_DEFINE(M_LIO, "lio", "listio aio control block list");
 
-static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "Async IO management");
+static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0,
+    "Async IO management");
 
 static int max_aio_procs = MAX_AIO_PROCS;
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs,
-	CTLFLAG_RW, &max_aio_procs, 0,
-	"Maximum number of kernel processes to use for handling async IO ");
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs, CTLFLAG_RW, &max_aio_procs, 0,
+    "Maximum number of kernel processes to use for handling async IO ");
 
 static int num_aio_procs = 0;
-SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs,
-	CTLFLAG_RD, &num_aio_procs, 0,
-	"Number of presently active kernel processes for async IO");
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs, CTLFLAG_RD, &num_aio_procs, 0,
+    "Number of presently active kernel processes for async IO");
 
 /*
  * The code will adjust the actual number of AIO processes towards this
@@ -143,7 +142,8 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs,
  */
 static int target_aio_procs = TARGET_AIO_PROCS;
 SYSCTL_INT(_vfs_aio, OID_AUTO, target_aio_procs, CTLFLAG_RW, &target_aio_procs,
-	0, "Preferred number of ready kernel processes for async IO");
+    0,
+    "Preferred number of ready kernel processes for async IO");
 
 static int max_queue_count = MAX_AIO_QUEUE;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue, CTLFLAG_RW, &max_queue_count, 0,
@@ -172,7 +172,8 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
 
 static int max_aio_per_proc = MAX_AIO_PER_PROC;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_per_proc, CTLFLAG_RW, &max_aio_per_proc,
-    0, "Maximum active aio requests per process (stored in the process)");
+    0,
+    "Maximum active aio requests per process (stored in the process)");
 
 static int max_aio_queue_per_proc = MAX_AIO_QUEUE_PER_PROC;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc, CTLFLAG_RW,
@@ -231,7 +232,7 @@ struct aiocblist {
 	struct	vm_page *pages[btoc(MAXPHYS)+1]; /* BIO backend pages */
 	int	npages;			/* BIO backend number of pages */
 	struct	proc *userproc;		/* (*) user process */
-	struct  ucred *cred;		/* (*) active credential when created */
+	struct	ucred *cred;		/* (*) active credential when created */
 	struct	file *fd_file;		/* (*) pointer to file structure */
 	struct	aioliojob *lio;		/* (*) optional lio job */
 	struct	aiocb *uuaiocb;		/* (*) pointer in userspace of aiocb */
@@ -254,9 +255,9 @@ struct aiocblist {
 #define AIOP_FREE	0x1			/* proc on free queue */
 
 struct aioproc {
-	int aioprocflags;			/* (c) AIO proc flags */
+	int	aioprocflags;			/* (c) AIO proc flags */
 	TAILQ_ENTRY(aioproc) list;		/* (c) list of processes */
-	struct proc *aioproc;			/* (*) the AIO proc */
+	struct	proc *aioproc;			/* (*) the AIO proc */
 };
 
 /*
@@ -268,7 +269,7 @@ struct aioliojob {
 	int	lioj_finished_count;		/* (a) listio flags */
 	struct	sigevent lioj_signal;		/* (a) signal on all I/O done */
 	TAILQ_ENTRY(aioliojob) lioj_list;	/* (a) lio list */
-	struct  knlist klist;			/* (a) list of knotes */
+	struct	knlist klist;			/* (a) list of knotes */
 	ksiginfo_t lioj_ksi;			/* (a) Realtime signal info */
 };
 
@@ -280,7 +281,7 @@ struct aioliojob {
  * per process aio data structure
  */
 struct kaioinfo {
-	struct mtx	kaio_mtx;	/* the lock to protect this struct */
+	struct	mtx kaio_mtx;		/* the lock to protect this struct */
 	int	kaio_flags;		/* (a) per process kaio flags */
 	int	kaio_maxactive_count;	/* (*) maximum number of AIOs */
 	int	kaio_active_count;	/* (c) number of currently used AIOs */
@@ -288,13 +289,13 @@ struct kaioinfo {
 	int	kaio_count;		/* (a) size of AIO queue */
 	int	kaio_ballowed_count;	/* (*) maximum number of buffers */
 	int	kaio_buffer_count;	/* (a) number of physio buffers */
-	TAILQ_HEAD(,aiocblist) kaio_all;	/* (a) all AIOs in the process */
+	TAILQ_HEAD(,aiocblist) kaio_all;	/* (a) all AIOs in a process */
 	TAILQ_HEAD(,aiocblist) kaio_done;	/* (a) done queue for process */
 	TAILQ_HEAD(,aioliojob) kaio_liojoblist; /* (a) list of lio jobs */
 	TAILQ_HEAD(,aiocblist) kaio_jobqueue;	/* (a) job queue for process */
-	TAILQ_HEAD(,aiocblist) kaio_bufqueue;	/* (a) buffer job queue for process */
+	TAILQ_HEAD(,aiocblist) kaio_bufqueue;	/* (a) buffer job queue */
 	TAILQ_HEAD(,aiocblist) kaio_syncqueue;	/* (a) queue for aio_fsync */
-	struct	task	kaio_task;	/* (*) task to kick aio processes */
+	struct	task kaio_task;		/* (*) task to kick aio processes */
 };
 
 #define AIO_LOCK(ki)		mtx_lock(&(ki)->kaio_mtx)
@@ -303,7 +304,7 @@ struct kaioinfo {
 #define AIO_MTX(ki)		(&(ki)->kaio_mtx)
 
 #define KAIO_RUNDOWN	0x1	/* process is being run down */
-#define KAIO_WAKEUP	0x2	/* wakeup process when there is a significant event */
+#define KAIO_WAKEUP	0x2	/* wakeup process when AIO completes */
 
 /*
  * Operations used to interact with userland aio control blocks.
@@ -333,15 +334,17 @@ static void	aio_process_sync(struct aiocblist *aiocbe);
 static void	aio_process_mlock(struct aiocblist *aiocbe);
 static int	aio_newproc(int *);
 int		aio_aqueue(struct thread *td, struct aiocb *job,
-			struct aioliojob *lio, int type, struct aiocb_ops *ops);
+		    struct aioliojob *lio, int type, struct aiocb_ops *ops);
 static void	aio_physwakeup(struct bio *bp);
 static void	aio_proc_rundown(void *arg, struct proc *p);
-static void	aio_proc_rundown_exec(void *arg, struct proc *p, struct image_params *imgp);
+static void	aio_proc_rundown_exec(void *arg, struct proc *p,
+		    struct image_params *imgp);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *param);
 static void	aio_swake_cb(struct socket *, struct sockbuf *);
 static int	aio_unload(void);
-static void	aio_bio_done_notify(struct proc *userp, struct aiocblist *aiocbe, int type);
+static void	aio_bio_done_notify(struct proc *userp,
+		    struct aiocblist *aiocbe, int type);
 #define DONE_BUF	1
 #define DONE_QUEUE	2
 static int	aio_kick(struct proc *userp);
@@ -472,8 +475,8 @@ aio_onceonly(void)
 	aio_swake = &aio_swake_cb;
 	exit_tag = EVENTHANDLER_REGISTER(process_exit, aio_proc_rundown, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown_exec, NULL,
-	    EVENTHANDLER_PRI_ANY);
+	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown_exec,
+	    NULL, EVENTHANDLER_PRI_ANY);
 	kqueue_add_filteropts(EVFILT_AIO, &aio_filtops);
 	kqueue_add_filteropts(EVFILT_LIO, &lio_filtops);
 	TAILQ_INIT(&aio_freeproc);
@@ -700,7 +703,8 @@ aio_free_entry(struct aiocblist *aiocbe)
 }
 
 static void
-aio_proc_rundown_exec(void *arg, struct proc *p, struct image_params *imgp __unused)
+aio_proc_rundown_exec(void *arg, struct proc *p,
+    struct image_params *imgp __unused)
 {
    	aio_proc_rundown(arg, p);
 }
@@ -819,8 +823,8 @@ aio_selectjob(struct aioproc *aiop)
 }
 
 /*
- *  Move all data to a permanent storage device, this code
- *  simulates fsync syscall.
+ * Move all data to a permanent storage device.  This code
+ * simulates the fsync syscall.
  */
 static int
 aio_fsync_vnode(struct thread *td, struct vnode *vp)
@@ -1027,7 +1031,8 @@ notification_done:
 				if (--scb->pending == 0) {
 					mtx_lock(&aio_job_mtx);
 					scb->jobstate = JOBST_JOBQGLOBAL;
-					TAILQ_REMOVE(&ki->kaio_syncqueue, scb, list);
+					TAILQ_REMOVE(&ki->kaio_syncqueue, scb,
+					    list);
 					TAILQ_INSERT_TAIL(&aio_jobs, scb, list);
 					aio_kick_nowait(userp);
 					mtx_unlock(&aio_job_mtx);
@@ -1788,9 +1793,9 @@ aio_kick_nowait(struct proc *userp)
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
 		aiop->aioprocflags &= ~AIOP_FREE;
 		wakeup(aiop->aioproc);
-	} else if (((num_aio_resv_start + num_aio_procs) < max_aio_procs) &&
-	    ((ki->kaio_active_count + num_aio_resv_start) <
-	    ki->kaio_maxactive_count)) {
+	} else if (num_aio_resv_start + num_aio_procs < max_aio_procs &&
+	    ki->kaio_active_count + num_aio_resv_start <
+	    ki->kaio_maxactive_count) {
 		taskqueue_enqueue(taskqueue_aiod_kick, &ki->kaio_task);
 	}
 }
@@ -1808,9 +1813,9 @@ retryproc:
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
 		aiop->aioprocflags &= ~AIOP_FREE;
 		wakeup(aiop->aioproc);
-	} else if (((num_aio_resv_start + num_aio_procs) < max_aio_procs) &&
-	    ((ki->kaio_active_count + num_aio_resv_start) <
-	    ki->kaio_maxactive_count)) {
+	} else if (num_aio_resv_start + num_aio_procs < max_aio_procs &&
+	    ki->kaio_active_count + num_aio_resv_start <
+	    ki->kaio_maxactive_count) {
 		num_aio_resv_start++;
 		mtx_unlock(&aio_job_mtx);
 		error = aio_newproc(&num_aio_resv_start);
@@ -2643,8 +2648,8 @@ typedef struct aiocb32 {
 	uint32_t __spare2__;
 	int	aio_lio_opcode;		/* LIO opcode */
 	int	aio_reqprio;		/* Request priority -- ignored */
-	struct __aiocb_private32 _aiocb_private;
-	struct sigevent32 aio_sigevent;	/* Signal to deliver */
+	struct	__aiocb_private32 _aiocb_private;
+	struct	sigevent32 aio_sigevent;	/* Signal to deliver */
 } aiocb32_t;
 
 static int

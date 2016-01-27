@@ -124,8 +124,8 @@ static int generic_pcie_read_ivar(device_t dev, device_t child, int index,
 static int generic_pcie_write_ivar(device_t dev, device_t child, int index,
     uintptr_t value);
 static struct resource *generic_pcie_alloc_resource(device_t dev,
-    device_t child, int type, int *rid, u_long start, u_long end,
-    u_long count, u_int flags);
+    device_t child, int type, int *rid, rman_res_t start, rman_res_t end,
+    rman_res_t count, u_int flags);
 static int generic_pcie_release_resource(device_t dev, device_t child,
     int type, int rid, struct resource *res);
 
@@ -482,7 +482,7 @@ generic_pcie_release_resource(device_t dev, device_t child, int type,
 
 static struct resource *
 generic_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct generic_pcie_softc *sc;
 	struct resource *res;
@@ -527,7 +527,7 @@ fail:
 
 static int
 generic_pcie_adjust_resource(device_t dev, device_t child, int type,
-    struct resource *res, u_long start, u_long end)
+    struct resource *res, rman_res_t start, rman_res_t end)
 {
 	struct generic_pcie_softc *sc;
 	struct rman *rm;

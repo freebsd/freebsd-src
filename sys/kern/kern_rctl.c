@@ -1745,6 +1745,7 @@ again:
 	for (i = 0; i < rulecnt; i++) {
 		newlink = uma_zalloc(rctl_rule_link_zone, M_WAITOK);
 		newlink->rrl_rule = NULL;
+		newlink->rrl_exceeded = 0;
 		LIST_INSERT_HEAD(&newrules, newlink, rrl_next);
 	}
 
@@ -1761,6 +1762,7 @@ again:
 				goto goaround;
 			rctl_rule_acquire(link->rrl_rule);
 			newlink->rrl_rule = link->rrl_rule;
+			newlink->rrl_exceeded = link->rrl_exceeded;
 			newlink = LIST_NEXT(newlink, rrl_next);
 			rulecnt--;
 		}
@@ -1771,6 +1773,7 @@ again:
 			goto goaround;
 		rctl_rule_acquire(link->rrl_rule);
 		newlink->rrl_rule = link->rrl_rule;
+		newlink->rrl_exceeded = link->rrl_exceeded;
 		newlink = LIST_NEXT(newlink, rrl_next);
 		rulecnt--;
 	}
@@ -1780,6 +1783,7 @@ again:
 			goto goaround;
 		rctl_rule_acquire(link->rrl_rule);
 		newlink->rrl_rule = link->rrl_rule;
+		newlink->rrl_exceeded = link->rrl_exceeded;
 		newlink = LIST_NEXT(newlink, rrl_next);
 		rulecnt--;
 	}
@@ -1789,6 +1793,7 @@ again:
 			goto goaround;
 		rctl_rule_acquire(link->rrl_rule);
 		newlink->rrl_rule = link->rrl_rule;
+		newlink->rrl_exceeded = link->rrl_exceeded;
 		newlink = LIST_NEXT(newlink, rrl_next);
 		rulecnt--;
 	}

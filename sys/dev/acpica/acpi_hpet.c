@@ -322,7 +322,7 @@ hpet_find(ACPI_HANDLE handle, UINT32 level, void *context,
 static int
 hpet_find_irq_rid(device_t dev, u_long start, u_long end)
 {
-	u_long irq;
+	rman_res_t irq;
 	int error, rid;
 
 	for (rid = 0;; rid++) {

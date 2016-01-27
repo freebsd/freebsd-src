@@ -467,10 +467,40 @@ bitmap_release_region(unsigned long *bitmap, int pos, int order)
         __reg_op(bitmap, pos, order, REG_OP_RELEASE);
 }
 
-
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = find_first_bit((addr), (size));		\
 	     (bit) < (size);					\
 	     (bit) = find_next_bit((addr), (size), (bit) + 1))
+
+static inline unsigned
+bitmap_weight(unsigned long *bitmap, unsigned nbits)
+{
+	unsigned bit;
+	unsigned retval = 0;
+
+	for_each_set_bit(bit, bitmap, nbits)
+		retval++;
+	return (retval);
+}
+
+static inline int
+bitmap_equal(const unsigned long *pa,
+    const unsigned long *pb, unsigned bits)
+{
+	unsigned x;
+	unsigned y = bits / BITS_PER_LONG;
+ 
+	for (x = 0; x != y; x++) {
+		if (pa[x] != pb[x])
+			return (0);
+	}
+
+	y = bits % BITS_PER_LONG;
+	if (y != 0) {
+		if ((pa[x] ^ pb[x]) & BITMAP_LAST_WORD_MASK(y))
+			return (0);
+	}
+	return (1);
+}
 
 #endif	/* _LINUX_BITOPS_H_ */

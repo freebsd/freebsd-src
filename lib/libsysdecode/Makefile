@@ -4,11 +4,14 @@
 
 LIB=	sysdecode
 
-SRCS=	ioctl.c utrace.c
+SRCS=	ioctl.c syscallnames.c utrace.c
 INCS=	sysdecode.h
+
+CFLAGS+= -I${.CURDIR}/../../sys
 
 MAN+=	sysdecode.3 \
 	sysdecode_ioctlname.3 \
+	sysdecode_syscallnames.3 \
 	sysdecode_utrace.3
 
 CLEANFILES= ioctl.c
@@ -23,6 +26,10 @@ CFLAGS+=-DPF
 
 # Workaround duplicate declarations in <netinet/ip_compat.h>
 CFLAGS.gcc.ioctl.c+= -Wno-redundant-decls
+
+# Workaround warning for unused ssi_cables[] in <dev/lmc/if_lmc.h>
+CFLAGS.gcc.ioctl.c+= -Wno-unused
+
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
 ioctl.c: mkioctls

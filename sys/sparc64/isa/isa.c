@@ -273,7 +273,7 @@ isa_setup_children(device_t dev, phandle_t parent)
 
 struct resource *
 isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	/*
 	 * Consider adding a resource definition.

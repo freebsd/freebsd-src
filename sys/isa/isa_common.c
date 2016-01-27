@@ -928,7 +928,7 @@ isa_driver_added(device_t dev, driver_t *driver)
 
 static int
 isa_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;

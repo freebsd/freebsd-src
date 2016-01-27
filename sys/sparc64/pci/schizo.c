@@ -1196,7 +1196,7 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 static struct resource *
 schizo_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct schizo_softc *sc;
 

@@ -359,7 +359,7 @@ nexus_describe_intr(device_t bus __unused, device_t child __unused,
 
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct nexus_softc *sc;
 	struct rman *rm;
@@ -445,7 +445,7 @@ nexus_deactivate_resource(device_t bus __unused, device_t child __unused,
 
 static int
 nexus_adjust_resource(device_t bus, device_t child __unused, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct nexus_softc *sc;
 	struct rman *rm;

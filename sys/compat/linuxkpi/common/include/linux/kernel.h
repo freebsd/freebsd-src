@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * Copyright (c) 2014-2015 François Tigeot
  * All rights reserved.
  *
@@ -159,9 +159,10 @@
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
-#define	simple_strtoul	strtoul
-#define	simple_strtol	strtol
-#define kstrtol(a,b,c) ({*(c) = strtol(a,0,b);})
+#define	simple_strtoul(...) strtoul(__VA_ARGS__)
+#define	simple_strtol(...) strtol(__VA_ARGS__)
+#define	kstrtol(a,b,c) ({*(c) = strtol(a,0,b); 0;})
+#define	kstrtoint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))
@@ -185,6 +186,7 @@
 #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
 
+#define	smp_processor_id()	PCPU_GET(cpuid)
 #define	num_possible_cpus()	mp_ncpus
 #define	num_online_cpus()	mp_ncpus
 

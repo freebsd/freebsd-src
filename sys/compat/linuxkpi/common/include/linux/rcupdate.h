@@ -73,4 +73,25 @@ synchronize_rcu(void)
 	sx_xunlock(&linux_global_rcu_lock);
 }
 
+#define	hlist_add_head_rcu(n, h)		\
+do {						\
+  	sx_xlock(&linux_global_rcu_lock);	\
+	hlist_add_head(n, h);			\
+	sx_xunlock(&linux_global_rcu_lock);	\
+} while (0)
+
+#define	hlist_del_init_rcu(n)			\
+do {						\
+    	sx_xlock(&linux_global_rcu_lock);	\
+	hlist_del_init(n);			\
+	sx_xunlock(&linux_global_rcu_lock);	\
+} while (0)
+
+#define	hlist_del_rcu(n)			\
+do {						\
+    	sx_xlock(&linux_global_rcu_lock);	\
+	hlist_del(n);				\
+	sx_xunlock(&linux_global_rcu_lock);	\
+} while (0)
+
 #endif					/* _LINUX_RCUPDATE_H_ */

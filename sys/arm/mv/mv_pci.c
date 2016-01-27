@@ -332,7 +332,7 @@ static int mv_pcib_probe(device_t);
 static int mv_pcib_attach(device_t);
 
 static struct resource *mv_pcib_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static int mv_pcib_release_resource(device_t, device_t, int, int,
     struct resource *);
 static int mv_pcib_read_ivar(device_t, device_t, int, uintptr_t *);
@@ -830,7 +830,7 @@ mv_pcib_init_all_bars(struct mv_pcib_softc *sc, int bus, int slot,
 
 static struct resource *
 mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mv_pcib_softc *sc = device_get_softc(dev);
 	struct rman *rm = NULL;

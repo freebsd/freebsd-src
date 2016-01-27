@@ -78,7 +78,8 @@ static int  macio_attach(device_t);
 static int  macio_print_child(device_t dev, device_t child);
 static void macio_probe_nomatch(device_t, device_t);
 static struct   resource *macio_alloc_resource(device_t, device_t, int, int *,
-					       u_long, u_long, u_long, u_int);
+					       rman_res_t, rman_res_t, rman_res_t,
+					       u_int);
 static int  macio_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static int  macio_deactivate_resource(device_t, device_t, int, int,
@@ -479,7 +480,8 @@ macio_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count,
+		     u_int flags)
 {
 	struct		macio_softc *sc;
 	int		needactivate;
