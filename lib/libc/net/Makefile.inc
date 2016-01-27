@@ -36,7 +36,7 @@ LFLAGS+=-P_nsyy
 
 CLEANFILES+=nslexer.c nslexer.c.*
 
-nslexer.c: nslexer.l nsparser.h
+nslexer.c: nslexer.l
 	${LEX} ${LFLAGS} -o${.TARGET}.tmp1 ${.IMPSRC}
 	sed -e '/YY_BUF_SIZE/s/16384/1024/' ${.TARGET}.tmp1 >${.TARGET}.tmp2
 	rm -f ${.TARGET}.tmp1
