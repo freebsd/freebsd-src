@@ -126,14 +126,16 @@ filemon_dtr(void *data)
 	struct filemon *filemon = data;
 
 	if (filemon != NULL) {
-		struct file *fp = filemon->fp;
+		struct file *fp;
 
-		/* Get exclusive write access. */
+		/* Follow same locking order as filemon_pid_check. */
 		filemon_lock_write();
+		filemon_filemon_lock(filemon);
 
 		/* Remove from the in-use list. */
 		TAILQ_REMOVE(&filemons_inuse, filemon, link);
 
+		fp = filemon->fp;
 		filemon->fp = NULL;
 		filemon->pid = -1;
 
@@ -141,6 +143,7 @@ filemon_dtr(void *data)
 		TAILQ_INSERT_TAIL(&filemons_free, filemon, link);
 
 		/* Give up write access. */
+		filemon_filemon_unlock(filemon);
 		filemon_unlock_write();
 
 		if (fp != NULL)
