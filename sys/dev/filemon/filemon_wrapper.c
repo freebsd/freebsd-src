@@ -115,11 +115,7 @@ filemon_comment(struct filemon *filemon)
 	int len;
 	struct timeval now;
 
-	/* Load timestamp before locking.  Less accurate but less contention. */
 	getmicrotime(&now);
-
-	/* Lock the found filemon structure. */
-	filemon_filemon_lock(filemon);
 
 	len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr),
 	    "# filemon version %d\n# Target pid %d\n# Start %ju.%06ju\nV %d\n",
@@ -127,9 +123,6 @@ filemon_comment(struct filemon *filemon)
 	    (uintmax_t)now.tv_usec, FILEMON_VERSION);
 
 	filemon_output(filemon, filemon->msgbufr, len);
-
-	/* Unlock the found filemon structure. */
-	filemon_filemon_unlock(filemon);
 }
 
 static int
