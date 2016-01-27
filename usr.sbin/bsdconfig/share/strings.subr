@@ -70,17 +70,63 @@ f_substr()
 #
 f_snprintf()
 {
+	local __funcname=f_snprintf
 	local __var_to_set="$1" __size="$2"
 	shift 2 # var_to_set size
-	eval "$__var_to_set"=\$\( printf -- \"\$@\" \| \
-		awk -v max=\"\$__size\" \''
-	{
-		len = length($0)
-		max -= len
-		print substr($0,0,(max > 0 ? len : max + len))
-		if ( max < 0 ) exit
-		max--
-	}'\' \)
+
+	if [ "$__size" -eq 0 ] 2> /dev/null; then
+		setvar "$__var_to_set" ""
+		return ${SUCCESS:-0}
+	elif [ $? -ge 2 ] || [ $__size -lt 0 ]; then
+		setvar "$__var_to_set" ""
+		echo "$__funcname: invalid size argument \`__size'" >&2
+		return ${FAILURE:-1}
+	fi
+
+	local __f_snprintf_tmp
+	f_sprintf __f_snprintf_tmp "$@"
+
+	local __tmp_size=${#__f_snprintf_tmp}
+	local __trim=$(( $__tmp_size - $__size )) __trimq
+	local __tbuf __tbuf_len
+	local __mask __mask_len
+	while [ $__trim -gt 0 ]; do
+		__tbuf="?"
+		__tbuf_len=1
+		if [ $__trim -le $__size ]; then
+			while [ $__tbuf_len -lt $(( $__trim / $__tbuf_len )) ]
+			do
+				__tbuf="$__tbuf?"
+				__tbuf_len=$(( $__tbuf_len + 1 ))
+			done
+			__trimq=$(( $__trim / $__tbuf_len ))
+			__trim=$(( $__trim - $__tbuf_len * $__trimq ))
+			while [ $__trimq -gt 0 ]; do
+				__f_snprintf_tmp="${__f_snprintf_tmp%$__tbuf}"
+				__trimq=$(( $__trimq - 1 ))
+			done
+		else
+			__mask="$__f_snprintf_tmp"
+			while [ $__tbuf_len -lt $(( $__size / $__tbuf_len )) ]
+			do
+				__tbuf="$__tbuf?"
+				__tbuf_len=$(( $__tbuf_len + 1 ))
+			done
+			__trimq=$(( $__size / $__tbuf_len ))
+			if [ $(( $__trimq * $__tbuf_len )) -ne $__size ]; then
+				__tbuf="$__tbuf?"
+				__tbuf_len=$(( $__tbuf_len + 1 ))
+			fi
+			__mask_len=$(( $__tmp_size - $__tbuf_len * $__trimq ))
+			__trim=$(( $__tmp_size - $__mask_len - $__size ))
+			while [ $__trimq -gt 0 ]; do
+				__mask="${__mask#$__tbuf}"
+				__trimq=$(( $__trimq - 1 ))
+			done
+			__f_snprintf_tmp="${__f_snprintf_tmp%"$__mask"}"
+		fi
+	done
+	setvar "$__var_to_set" "$__f_snprintf_tmp"
 }
 
 # f_sprintf $var_to_set $format [$arguments ...]
