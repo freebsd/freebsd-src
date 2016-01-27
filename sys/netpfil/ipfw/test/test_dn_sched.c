@@ -61,6 +61,7 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
         mq_append(&q->mq, m);
         q->ni.length++;
         q->ni.tot_bytes += m->m_pkthdr.len;
+        q->ni.tot_pkts++;
         return 0;
 
 drop:
