@@ -173,7 +173,7 @@ CFLAGS+= -I${SRCTOP}/lib/libutil
 # Same issue with libm
 MSUN_ARCH_SUBDIR != ${MAKE} -B -C ${SRCTOP}/lib/msun -V ARCH_SUBDIR
 # unfortunately msun/src contains both private and public headers
-CFLAGS+= -I${SRCTOP}/lib/msun/${MSUN_ARCH_SUBDIR} 
+CFLAGS+= -I${SRCTOP}/lib/msun/${MSUN_ARCH_SUBDIR}
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+= -I${SRCTOP}/lib/msun/x86
 .endif
