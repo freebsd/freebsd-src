@@ -311,6 +311,5 @@ static struct dn_alg rr_desc = {
 	_SI( .free_queue = ) rr_free_queue,
 };
 
-_Static_assert(sizeof(struct dn_schk) < 193, "a");
 
 DECLARE_DNSCHED_MODULE(dn_rr, &rr_desc);
