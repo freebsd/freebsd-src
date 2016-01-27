@@ -193,7 +193,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = (vm_offset_t)(td->td_sigstk.ss_sp +
+		sp = (vm_offset_t)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 	} else {
 #ifdef CPU_CHERI
@@ -229,7 +229,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 #else
 	sp &= ~(sizeof(__int64_t) - 1);
 #endif
-	sfp = (void *)sp;
+	sfp = (struct sigframe *)sp;
 
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
