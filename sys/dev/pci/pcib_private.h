@@ -49,13 +49,13 @@ int		pcib_host_res_init(device_t pcib,
 int		pcib_host_res_free(device_t pcib,
 		    struct pcib_host_resources *hr);
 int		pcib_host_res_decodes(struct pcib_host_resources *hr, int type,
-		    u_long start, u_long end, u_int flags);
+		    rman_res_t start, rman_res_t end, u_int flags);
 struct resource *pcib_host_res_alloc(struct pcib_host_resources *hr,
-		    device_t dev, int type, int *rid, u_long start, u_long end,
-		    u_long count, u_int flags);
+		    device_t dev, int type, int *rid, rman_res_t start,
+		    rman_res_t end, rman_res_t count, u_int flags);
 int		pcib_host_res_adjust(struct pcib_host_resources *hr,
-		    device_t dev, int type, struct resource *r, u_long start,
-		    u_long end);
+		    device_t dev, int type, struct resource *r, rman_res_t start,
+		    rman_res_t end);
 #endif
 
 /*
@@ -132,13 +132,13 @@ int		host_pcib_get_busno(pci_read_config_fn read_config, int bus,
     int slot, int func, uint8_t *busnum);
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 struct resource *pci_domain_alloc_bus(int domain, device_t dev, int *rid,
-		    u_long start, u_long end, u_long count, u_int flags);
+		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int		pci_domain_adjust_bus(int domain, device_t dev,
-		    struct resource *r, u_long start, u_long end);
+		    struct resource *r, rman_res_t start, rman_res_t end);
 int		pci_domain_release_bus(int domain, device_t dev, int rid,
 		    struct resource *r);
 struct resource *pcib_alloc_subbus(struct pcib_secbus *bus, device_t child,
-		    int *rid, u_long start, u_long end, u_long count,
+		    int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
 		    u_int flags);
 void		pcib_setup_secbus(device_t dev, struct pcib_secbus *bus,
     int min_count);
@@ -152,10 +152,11 @@ const char	*pcib_child_name(device_t child);
 int		pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int		pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 struct resource *pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
-					    u_long start, u_long end, u_long count, u_int flags);
+					    rman_res_t start, rman_res_t end,
+					    rman_res_t count, u_int flags);
 #ifdef NEW_PCIB
 int		pcib_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end);
+    struct resource *r, rman_res_t start, rman_res_t end);
 int		pcib_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
 #endif

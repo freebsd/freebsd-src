@@ -56,7 +56,9 @@ _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
+.if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE= ${DEPENDFILE}
+.endif
 DEPENDFILES=	${DEPENDFILE}
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
@@ -108,8 +110,8 @@ ${_YC} y.tab.h: ${_YSRC}
 CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
-${_YH}: ${_YC}
-${_YC}: ${_YSRC}
+.ORDER: ${_YC} ${_YH}
+${_YC} ${_YH}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
 CLEANFILES+= ${_YH}

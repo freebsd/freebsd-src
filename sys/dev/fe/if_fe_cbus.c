@@ -298,7 +298,7 @@ fe_probe_re1000(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 	int i, n;
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 	u_char sum;
 
 	static struct fe_simple_probe_struct probe_table [] = {
@@ -398,7 +398,7 @@ fe_probe_jli(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 	int i, n, xirq, error;
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 	u_char eeprom [JLI_EEPROM_SIZE];
 	u_short const * irqmap;
 
@@ -524,7 +524,7 @@ static int
 fe_probe_cnet9ne (device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 
 	static struct fe_simple_probe_struct probe_table [] = {
 		{ FE_DLCR2, 0x58, 0x00 },
@@ -598,7 +598,7 @@ static int
 fe_probe_ssi(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 
 	u_char eeprom [SSI_EEPROM_SIZE];
 	static struct fe_simple_probe_struct probe_table [] = {
@@ -676,7 +676,7 @@ fe_probe_lnx(device_t dev)
 {
 	struct fe_softc *sc = device_get_softc(dev);
 
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 	u_char eeprom [LNX_EEPROM_SIZE];
 
 	static struct fe_simple_probe_struct probe_table [] = {
@@ -804,7 +804,7 @@ fe_probe_ubn(device_t dev)
 	struct fe_softc *sc = device_get_softc(dev);
 
 	u_char sum, save7;
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 	int i;
 	static struct fe_simple_probe_struct const probe_table [] = {
 		{ FE_DLCR2, 0x58, 0x00 },
@@ -949,7 +949,7 @@ fe_probe_rex(device_t dev)
 	struct fe_softc *sc = device_get_softc(dev);
 
 	int i;
-	u_long iobase, irq;
+	rman_res_t iobase, irq;
 	u_char eeprom [REX_EEPROM_SIZE];
 
 	static struct fe_simple_probe_struct probe_table [] = {

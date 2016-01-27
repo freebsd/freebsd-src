@@ -2787,18 +2787,14 @@ pmap_kremove(vm_offset_t va)
 	pte = &l2b->l2b_kva[l2pte_index(va)];
 	opte = *pte;
 	if (l2pte_valid(opte)) {
-			/* pa = vtophs(va) taken from pmap_extract() */
-		switch (opte & L2_TYPE_MASK) {
-		case L2_TYPE_L:
+		/* pa = vtophs(va) taken from pmap_extract() */
+		if ((opte & L2_TYPE_MASK) == L2_TYPE_L)
 			pa = (opte & L2_L_FRAME) | (va & L2_L_OFFSET);
-			break;
-		default:
+		else
 			pa = (opte & L2_S_FRAME) | (va & L2_S_OFFSET);
-			break;
-		}
-			/* note: should never have to remove an allocation
-			 * before the pvzone is initialized.
-			 */
+		/* note: should never have to remove an allocation
+		 * before the pvzone is initialized.
+		 */
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pmap_kernel());
 		if (pvzone != NULL && (m = vm_phys_paddr_to_vm_page(pa)) &&
@@ -3645,14 +3641,10 @@ pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 		pte = ptep[l2pte_index(va)];
 		if (pte == 0)
 			return (0);
-		switch (pte & L2_TYPE_MASK) {
-		case L2_TYPE_L:
+		if ((pte & L2_TYPE_MASK) == L2_TYPE_L)
 			pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
-			break;
-		default:
+		else
 			pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-			break;
-		}
 	}
 	return (pa);
 }
@@ -3717,15 +3709,10 @@ retry:
 			return (NULL);
 		}
 		if (pte & L2_S_PROT_W || (prot & VM_PROT_WRITE) == 0) {
-			switch (pte & L2_TYPE_MASK) {
-			case L2_TYPE_L:
+			if ((pte & L2_TYPE_MASK) == L2_TYPE_L)
 				pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
-				break;
-
-			default:
+			else
 				pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-				break;
-			}
 			if (vm_page_pa_tryrelock(pmap, pa & PG_FRAME, &paddr))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(pa);
@@ -3769,14 +3756,10 @@ pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
 			pa = 0;
 			goto out;
 		}
-		switch (pte & L2_TYPE_MASK) {
-		case L2_TYPE_L:
+		if ((pte & L2_TYPE_MASK) == L2_TYPE_L)
 			pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
-			break;
-		default:
+		else
 			pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-			break;
-		}
 	}
 out:
 	if (pte2p != NULL)

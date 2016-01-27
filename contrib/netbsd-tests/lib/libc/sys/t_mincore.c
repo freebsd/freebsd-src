@@ -206,7 +206,8 @@ ATF_TC_BODY(mincore_resid, tc)
 		    "might be low on memory");
 
 #ifdef __FreeBSD__
-	ATF_REQUIRE(mlock(addr, npgs * page) == 0);
+	ATF_REQUIRE_MSG(mlock(addr, npgs * page) == 0, "mlock failed: %s",
+	    strerror(errno));
 #endif
 	ATF_REQUIRE(check_residency(addr, npgs) == npgs);
 	ATF_REQUIRE(munmap(addr, npgs * page) == 0);

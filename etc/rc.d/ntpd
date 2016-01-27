@@ -105,7 +105,7 @@ ntpd_fetch_leapfile() {
 		$verbose Within ntp leapfile expiry limit, initiating fetch
 		for url in $ntp_leapfile_sources ; do
 			$verbose fetching $url
-			fetch -mqo $ntp_tmp_leapfile $url && break
+			fetch $ntp_leapfile_fetch_opts -o $ntp_tmp_leapfile $url && break
 		done
 		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $ntp_tmp_leapfile)
 		if [ "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" ]; then

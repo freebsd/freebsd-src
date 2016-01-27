@@ -126,7 +126,7 @@ static int
 tty_drain(struct tty *tp, int leaving)
 {
 	size_t bytesused;
-	int error, revokecnt;
+	int error;
 
 	if (ttyhook_hashook(tp, getc_inject))
 		/* buffer is inaccessible */
@@ -141,18 +141,10 @@ tty_drain(struct tty *tp, int leaving)
 
 		/* Wait for data to be drained. */
 		if (leaving) {
-			revokecnt = tp->t_revokecnt;
 			error = tty_timedwait(tp, &tp->t_outwait, hz);
-			switch (error) {
-			case ERESTART:
-				if (revokecnt != tp->t_revokecnt)
-					error = 0;
-				break;
-			case EWOULDBLOCK:
-				if (ttyoutq_bytesused(&tp->t_outq) < bytesused)
-					error = 0;
-				break;
-			}
+			if (error == EWOULDBLOCK &&
+			    ttyoutq_bytesused(&tp->t_outq) < bytesused)
+				error = 0;
 		} else
 			error = tty_wait(tp, &tp->t_outwait);
 
@@ -209,7 +201,6 @@ ttydev_leave(struct tty *tp)
 		constty_clear();
 
 	/* Drain any output. */
-	MPASS((tp->t_flags & TF_STOPPED) == 0);
 	if (!tty_gone(tp))
 		tty_drain(tp, 1);
 
@@ -356,11 +347,11 @@ ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
 		return (0);
 	}
 
-	/*
-	 * This can only be called once. The callin and the callout
-	 * devices cannot be opened at the same time.
-	 */
-	tp->t_flags &= ~(TF_EXCLUDE|TF_STOPPED);
+	/* If revoking, flush output now to avoid draining it later. */
+	if (fflag & FREVOKE)
+		tty_flush(tp, FWRITE);
+
+	tp->t_flags &= ~TF_EXCLUDE;
 
 	/* Properly wake up threads that are stuck - revoke(). */
 	tp->t_revokecnt++;
@@ -1460,13 +1451,19 @@ tty_flush(struct tty *tp, int flags)
 		tp->t_flags &= ~TF_HIWAT_OUT;
 		ttyoutq_flush(&tp->t_outq);
 		tty_wakeup(tp, FWRITE);
-		ttydevsw_pktnotify(tp, TIOCPKT_FLUSHWRITE);
+		if (!tty_gone(tp)) {
+			ttydevsw_outwakeup(tp);
+			ttydevsw_pktnotify(tp, TIOCPKT_FLUSHWRITE);
+		}
 	}
 	if (flags & FREAD) {
 		tty_hiwat_in_unblock(tp);
 		ttyinq_flush(&tp->t_inq);
-		ttydevsw_inwakeup(tp);
-		ttydevsw_pktnotify(tp, TIOCPKT_FLUSHREAD);
+		tty_wakeup(tp, FREAD);
+		if (!tty_gone(tp)) {
+			ttydevsw_inwakeup(tp);
+			ttydevsw_pktnotify(tp, TIOCPKT_FLUSHREAD);
+		}
 	}
 }
 

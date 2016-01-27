@@ -46,7 +46,6 @@ int	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     void *, void *);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
 void	 syncache_badack(struct in_conninfo *);
-int	 syncache_pcbcount(void);
 int	 syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported);
 
 struct syncache {

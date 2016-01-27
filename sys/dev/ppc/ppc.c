@@ -1674,7 +1674,7 @@ ppc_probe(device_t dev, int rid)
 #endif
 	struct ppc_data *ppc;
 	int error;
-	u_long port;
+	rman_res_t port;
 
 	/*
 	 * Allocate the ppc_data structure.
@@ -2015,7 +2015,7 @@ ppc_write_ivar(device_t bus, device_t dev, int index, uintptr_t val)
  */
 struct resource *
 ppc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(bus);
 

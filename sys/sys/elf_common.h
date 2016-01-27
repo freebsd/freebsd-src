@@ -771,8 +771,9 @@ typedef struct {
 #define	STT_LOOS	10	/* Reserved range for operating system */
 #define	STT_GNU_IFUNC	10
 #define	STT_HIOS	12	/*   specific semantics. */
-#define	STT_LOPROC	13	/* reserved range for processor */
-#define	STT_HIPROC	15	/*   specific semantics. */
+#define	STT_LOPROC	13	/* Start of processor reserved range. */
+#define	STT_SPARC_REGISTER 13	/* SPARC register information. */
+#define	STT_HIPROC	15	/* End of processor reserved range. */
 
 /* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
 #define	STV_DEFAULT	0x0	/* Default visibility (see binding). */

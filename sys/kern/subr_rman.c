@@ -90,8 +90,8 @@ struct resource_i {
 	TAILQ_ENTRY(resource_i)	r_link;
 	LIST_ENTRY(resource_i)	r_sharelink;
 	LIST_HEAD(, resource_i)	*r_sharehead;
-	u_long	r_start;	/* index of the first entry in this resource */
-	u_long	r_end;		/* index of the last entry (inclusive) */
+	rman_res_t	r_start;	/* index of the first entry in this resource */
+	rman_res_t	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
 	void	*r_virtual;	/* virtual address of this resource */
 	struct device *r_dev;	/* device which has allocated this resource */
@@ -154,7 +154,7 @@ rman_init(struct rman *rm)
 }
 
 int
-rman_manage_region(struct rman *rm, u_long start, u_long end)
+rman_manage_region(struct rman *rm, rman_res_t start, rman_res_t end)
 {
 	struct resource_i *r, *s, *t;
 	int rv = 0;
@@ -274,7 +274,7 @@ rman_fini(struct rman *rm)
 }
 
 int
-rman_first_free_region(struct rman *rm, u_long *start, u_long *end)
+rman_first_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end)
 {
 	struct resource_i *r;
 
@@ -292,7 +292,7 @@ rman_first_free_region(struct rman *rm, u_long *start, u_long *end)
 }
 
 int
-rman_last_free_region(struct rman *rm, u_long *start, u_long *end)
+rman_last_free_region(struct rman *rm, rman_res_t *start, rman_res_t *end)
 {
 	struct resource_i *r;
 
@@ -311,7 +311,7 @@ rman_last_free_region(struct rman *rm, u_long *start, u_long *end)
 
 /* Shrink or extend one or both ends of an allocated resource. */
 int
-rman_adjust_resource(struct resource *rr, u_long start, u_long end)
+rman_adjust_resource(struct resource *rr, rman_res_t start, rman_res_t end)
 {
 	struct resource_i *r, *s, *t, *new;
 	struct rman *rm;
@@ -434,13 +434,13 @@ rman_adjust_resource(struct resource *rr, u_long start, u_long end)
 #define	SHARE_TYPE(f)	(f & (RF_SHAREABLE | RF_PREFETCHABLE))
 
 struct resource *
-rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
-			    u_long count, u_long bound, u_int flags,
+rman_reserve_resource_bound(struct rman *rm, rman_res_t start, rman_res_t end,
+			    rman_res_t count, rman_res_t bound, u_int flags,
 			    struct device *dev)
 {
 	u_int new_rflags;
 	struct resource_i *r, *s, *rv;
-	u_long rstart, rend, amask, bmask;
+	rman_res_t rstart, rend, amask, bmask;
 
 	rv = NULL;
 
@@ -641,8 +641,8 @@ out:
 }
 
 struct resource *
-rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
-		      u_int flags, struct device *dev)
+rman_reserve_resource(struct rman *rm, rman_res_t start, rman_res_t end,
+		      rman_res_t count, u_int flags, struct device *dev)
 {
 
 	return (rman_reserve_resource_bound(rm, start, end, count, 0, flags,
@@ -803,13 +803,13 @@ rman_make_alignment_flags(uint32_t size)
 }
 
 void
-rman_set_start(struct resource *r, u_long start)
+rman_set_start(struct resource *r, rman_res_t start)
 {
 
 	r->__r_i->r_start = start;
 }
 
-u_long
+rman_res_t
 rman_get_start(struct resource *r)
 {
 
@@ -817,20 +817,20 @@ rman_get_start(struct resource *r)
 }
 
 void
-rman_set_end(struct resource *r, u_long end)
+rman_set_end(struct resource *r, rman_res_t end)
 {
 
 	r->__r_i->r_end = end;
 }
 
-u_long
+rman_res_t
 rman_get_end(struct resource *r)
 {
 
 	return (r->__r_i->r_end);
 }
 
-u_long
+rman_res_t
 rman_get_size(struct resource *r)
 {
 

@@ -185,12 +185,10 @@ static void	rtwn_iq_calib_write_results(struct rtwn_softc *, uint16_t[2],
 static void	rtwn_iq_calib(struct rtwn_softc *);
 static void	rtwn_lc_calib(struct rtwn_softc *);
 static void	rtwn_temp_calib(struct rtwn_softc *);
-static void	rtwn_init_locked(struct rtwn_softc *);
-static void	rtwn_init(struct rtwn_softc *);
+static int	rtwn_init(struct rtwn_softc *);
 static void	rtwn_stop_locked(struct rtwn_softc *);
 static void	rtwn_stop(struct rtwn_softc *);
 static void	rtwn_intr(void *);
-static void	rtwn_hw_reset(void *, int);
 
 /* Aliases. */
 #define	rtwn_bb_write	rtwn_write_4
@@ -295,7 +293,6 @@ rtwn_attach(device_t dev)
 	RTWN_LOCK_INIT(sc);
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
-	TASK_INIT(&sc->sc_reinit_task, 0, rtwn_hw_reset, sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	error = rtwn_read_chipid(sc);
@@ -406,7 +403,6 @@ rtwn_detach(device_t dev)
 	int i;
 
 	if (sc->sc_ic.ic_softc != NULL) {
-		ieee80211_draintask(&sc->sc_ic, &sc->sc_reinit_task);
 		rtwn_stop(sc);
 
 		callout_drain(&sc->calib_to);
@@ -1849,19 +1845,15 @@ static void
 rtwn_parent(struct ieee80211com *ic)
 {
 	struct rtwn_softc *sc = ic->ic_softc;
-	int startall = 0;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
-	RTWN_LOCK(sc);
-	if (ic->ic_nrunning> 0) {
-		if (!(sc->sc_flags & RTWN_RUNNING)) {
-			rtwn_init_locked(sc);
-			startall = 1;
-		}
-	} else if (sc->sc_flags & RTWN_RUNNING)
-		 rtwn_stop_locked(sc);
-	RTWN_UNLOCK(sc);
-	if (startall)
-		ieee80211_start_all(ic);
+	if (ic->ic_nrunning > 0) {
+		if (rtwn_init(sc) == 0)
+			ieee80211_start_all(ic);
+		else
+			ieee80211_stop(vap);
+	} else
+		rtwn_stop(sc);
 }
 
 static void
@@ -1899,7 +1891,7 @@ rtwn_watchdog(void *arg)
 
 	if (sc->sc_tx_timer != 0 && --sc->sc_tx_timer == 0) {
 		ic_printf(ic, "device timeout\n");
-		ieee80211_runtask(ic, &sc->sc_reinit_task);
+		ieee80211_restart_all(ic);
 		return;
 	}
 	callout_reset(&sc->watchdog_to, hz, rtwn_watchdog, sc);
@@ -3222,8 +3214,8 @@ rtwn_temp_calib(struct rtwn_softc *sc)
 	}
 }
 
-static void
-rtwn_init_locked(struct rtwn_softc *sc)
+static int
+rtwn_init(struct rtwn_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
@@ -3231,7 +3223,13 @@ rtwn_init_locked(struct rtwn_softc *sc)
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	int i, error;
 
-	RTWN_LOCK_ASSERT(sc);
+	RTWN_LOCK(sc);
+
+	if (sc->sc_flags & RTWN_RUNNING) {
+		RTWN_UNLOCK(sc);
+		return 0;
+	}
+	sc->sc_flags |= RTWN_RUNNING;
 
 	/* Init firmware commands ring. */
 	sc->fwcur = 0;
@@ -3351,25 +3349,15 @@ rtwn_init_locked(struct rtwn_softc *sc)
 	/* Enable interrupts. */
 	rtwn_write_4(sc, R92C_HIMR, RTWN_INT_ENABLE);
 
-	sc->sc_flags |= RTWN_RUNNING;
-
 	callout_reset(&sc->watchdog_to, hz, rtwn_watchdog, sc);
-	return;
 
 fail:
-	rtwn_stop_locked(sc);
-}
+	if (error != 0)
+		rtwn_stop_locked(sc);
 
-static void
-rtwn_init(struct rtwn_softc *sc)
-{
-
-	RTWN_LOCK(sc);
-	rtwn_init_locked(sc);
 	RTWN_UNLOCK(sc);
 
-	if (sc->sc_flags & RTWN_RUNNING)
-		ieee80211_start_all(&sc->sc_ic);
+	return error;
 }
 
 static void
@@ -3379,6 +3367,9 @@ rtwn_stop_locked(struct rtwn_softc *sc)
 	int i;
 
 	RTWN_LOCK_ASSERT(sc);
+
+	if (!(sc->sc_flags & RTWN_RUNNING))
+		return;
 
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
@@ -3480,15 +3471,4 @@ rtwn_intr(void *arg)
 	rtwn_write_4(sc, R92C_HIMR, RTWN_INT_ENABLE);
 
 	RTWN_UNLOCK(sc);
-}
-
-static void
-rtwn_hw_reset(void *arg0, int pending)
-{
-	struct rtwn_softc *sc = arg0;
-	struct ieee80211com *ic = &sc->sc_ic;
-
-	rtwn_stop(sc);
-	rtwn_init(sc);
-	ieee80211_notify_radio(ic, 1);
 }

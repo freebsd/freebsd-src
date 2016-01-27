@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_cc.h>
+#include <netinet/cc/cc.h>
 
 #include <netinet/cc/cc_module.h>
 

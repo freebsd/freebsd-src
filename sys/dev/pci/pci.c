@@ -3353,7 +3353,7 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 {
 	struct resource *res;
 	char *cp;
-	u_long start, end, count;
+	rman_res_t start, end, count;
 	int rid, sec_bus, sec_reg, sub_bus, sub_reg, sup_bus;
 
 	switch (cfg->hdrtype & PCIM_HDRTYPE) {
@@ -3453,8 +3453,8 @@ clear:
 }
 
 static struct resource *
-pci_alloc_secbus(device_t dev, device_t child, int *rid, u_long start,
-    u_long end, u_long count, u_int flags)
+pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
+    rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_devinfo *dinfo;
 	pcicfgregs *cfg;
@@ -4618,7 +4618,8 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 
 static struct resource *
 pci_reserve_map(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int num, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int num,
+    u_int flags)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
@@ -4716,7 +4717,8 @@ out:
 
 struct resource *
 pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_long num, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_long num,
+    u_int flags)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
@@ -4791,7 +4793,7 @@ pci_alloc_multi_resource(device_t dev, device_t child, int type, int *rid,
 
 struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #ifdef PCI_IOV
 	struct pci_devinfo *dinfo;

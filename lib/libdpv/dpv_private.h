@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2013-2016 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ extern uint8_t debug;
 extern unsigned int dpv_nfiles;
 
 /* Extra display information */
+extern uint8_t keep_tite;
 extern uint8_t no_labels;
 extern uint8_t wide;
 extern char *msg_done, *msg_fail, *msg_pending;

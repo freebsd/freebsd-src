@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2013-2016 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -271,7 +271,7 @@ main(int argc, char *argv[])
 	 * Process command-line options
 	 */
 	while ((ch = getopt(argc, argv,
-	    "a:b:dDhi:I:lL:mn:No:p:P:t:TU:wx:X")) != -1) {
+	    "a:b:dDhi:I:klL:mn:No:p:P:t:TU:wx:X")) != -1) {
 		switch(ch) {
 		case 'a': /* additional message text to append */
 			if (config->aprompt == NULL) {
@@ -306,6 +306,9 @@ main(int argc, char *argv[])
 			break;
 		case 'I': /* status line format string for many-files */
 			config->status_many = optarg;
+			break;
+		case 'k': /* keep tite */
+			config->keep_tite = TRUE;
 			break;
 		case 'l': /* Line mode */
 			line_mode = TRUE;
@@ -467,7 +470,8 @@ main(int argc, char *argv[])
 	if (dpv(config, file_list) != 0 && debug)
 		warnx("dpv(3) returned error!?");
 
-	end_dialog();
+	if (!config->keep_tite)
+		end_dialog();
 	dpv_free();
 
 	exit(EXIT_SUCCESS);

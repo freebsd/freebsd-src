@@ -109,29 +109,6 @@ filemon_pid_check(struct proc *p)
 	return (NULL);
 }
 
-static void
-filemon_comment(struct filemon *filemon)
-{
-	int len;
-	struct timeval now;
-
-	/* Load timestamp before locking.  Less accurate but less contention. */
-	getmicrotime(&now);
-
-	/* Lock the found filemon structure. */
-	filemon_filemon_lock(filemon);
-
-	len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr),
-	    "# filemon version %d\n# Target pid %d\n# Start %ju.%06ju\nV %d\n",
-	    FILEMON_VERSION, curproc->p_pid, (uintmax_t)now.tv_sec,
-	    (uintmax_t)now.tv_usec, FILEMON_VERSION);
-
-	filemon_output(filemon, filemon->msgbufr, len);
-
-	/* Unlock the found filemon structure. */
-	filemon_filemon_unlock(filemon);
-}
-
 static int
 filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 {
