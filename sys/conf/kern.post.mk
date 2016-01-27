@@ -186,11 +186,22 @@ genassym.o: $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
+# Normal files first
+CFILES_NORMAL=	${CFILES:N*/cddl/*:N*fs/nfsclient/nfs_clkdtrace*:N*/compat/linuxkpi/common/*:N*/ofed/*:N*/dev/mlx5/*}
+SFILES_NORMAL=	${SFILES:N*/cddl/*}
+
 # We have "special" -I include paths for zfs/dtrace files in 'depend'.
-CFILES_NOCDDL=	${CFILES:N*/cddl/*:N*fs/nfsclient/nfs_clkdtrace*}
-SFILES_NOCDDL=	${SFILES:N*/cddl/*}
 CFILES_CDDL=	${CFILES:M*/cddl/*}
 SFILES_CDDL=	${SFILES:M*/cddl/*}
+
+# We have "special" -I include paths for LinuxKPI.
+CFILES_LINUXKPI=${CFILES:M*/compat/linuxkpi/common/*}
+
+# We have "special" -I include paths for OFED.
+CFILES_OFED=${CFILES:M*/ofed/*}
+
+# We have "special" -I include paths for MLX5.
+CFILES_MLX5=${CFILES:M*/dev/mlx5/*}
 
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
@@ -220,12 +231,20 @@ DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .depend: .PRECIOUS ${SRCS}
 .if ${MK_FAST_DEPEND} == "no"
 	rm -f ${.TARGET}.tmp
-	${MAKE} -V CFILES_NOCDDL -V SYSTEM_CFILES -V GEN_CFILES | \
+# C files
+	${MAKE} -V CFILES_NORMAL -V SYSTEM_CFILES -V GEN_CFILES | \
 	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${CFLAGS}
 	${MAKE} -V CFILES_CDDL | \
 	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_CFLAGS} \
 	    ${FBT_CFLAGS} ${DTRACE_CFLAGS}
-	${MAKE} -V SFILES_NOCDDL | \
+	${MAKE} -V CFILES_LINUXKPI | \
+	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp \
+		${CFLAGS} ${LINUXKPI_INCLUDES}
+	${MAKE} -V CFILES_OFED -V CFILES_MLX5 | \
+	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp \
+		${CFLAGS} ${OFEDINCLUDES}
+# Assembly files
+	${MAKE} -V SFILES_NORMAL | \
 	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ASM_CFLAGS}
 	${MAKE} -V SFILES_CDDL | \
 	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_ASM_CFLAGS}
