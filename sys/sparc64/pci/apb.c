@@ -130,7 +130,7 @@ apb_probe(device_t dev)
 }
 
 static void
-apb_map_print(uint8_t map, u_long scale)
+apb_map_print(uint8_t map, rman_res_t scale)
 {
 	int i, first;
 
@@ -144,7 +144,7 @@ apb_map_print(uint8_t map, u_long scale)
 }
 
 static int
-apb_checkrange(uint8_t map, u_long scale, u_long start, u_long end)
+apb_checkrange(uint8_t map, rman_res_t scale, rman_res_t start, rman_res_t end)
 {
 	int i, ei;
 
@@ -227,7 +227,7 @@ apb_attach(device_t dev)
  */
 static struct resource *
 apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct apb_softc *sc;
 
@@ -287,7 +287,7 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 apb_adjust_resource(device_t dev, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct apb_softc *sc;
 

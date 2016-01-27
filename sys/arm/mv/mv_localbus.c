@@ -100,7 +100,7 @@ static int localbus_attach(device_t);
 static int localbus_print_child(device_t, device_t);
 
 static struct resource *localbus_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static struct resource_list *localbus_get_resource_list(device_t, device_t);
 
 static ofw_bus_get_devinfo_t localbus_get_devinfo;
@@ -332,7 +332,7 @@ localbus_print_child(device_t dev, device_t child)
 
 static struct resource *
 localbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct localbus_devinfo *di;
 	struct resource_list_entry *rle;

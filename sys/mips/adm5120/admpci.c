@@ -356,7 +356,7 @@ admpci_write_ivar(device_t dev, device_t child, int which, uintptr_t result)
 
 static struct resource *
 admpci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
 	return (NULL);

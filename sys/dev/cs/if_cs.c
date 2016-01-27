@@ -258,7 +258,7 @@ cs_cs89x0_probe(device_t dev)
 {
 	int i;
 	int error;
-	u_long irq, junk;
+	rman_res_t irq, junk;
 	struct cs_softc *sc = device_get_softc(dev);
 	unsigned rev_type = 0;
 	uint16_t id;

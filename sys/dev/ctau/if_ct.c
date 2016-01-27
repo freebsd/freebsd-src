@@ -317,8 +317,8 @@ static	short porttab [] = {
 static	char dmatab [] = { 7, 6, 5, 0 };
 static	char irqtab [] = { 5, 10, 11, 7, 3, 15, 12, 0 };
 
-static int ct_is_free_res (device_t dev, int rid, int type, u_long start,
-	u_long end, u_long count)
+static int ct_is_free_res (device_t dev, int rid, int type, rman_res_t start,
+	rman_res_t end, rman_res_t count)
 {
 	struct resource *res;
 	
@@ -332,7 +332,7 @@ static int ct_is_free_res (device_t dev, int rid, int type, u_long start,
 
 static void ct_identify (driver_t *driver, device_t dev)
 {
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 	int devcount;
 	device_t *devices;
 	device_t child;
@@ -440,7 +440,7 @@ static void ct_identify (driver_t *driver, device_t dev)
 static int ct_probe (device_t dev)
 {
 	int unit = device_get_unit (dev);
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 
 	if (!device_get_desc (dev) ||
 	    strcmp (device_get_desc (dev), "Cronyx Tau-ISA"))
@@ -529,7 +529,7 @@ ct_bus_dma_mem_free (ct_dma_mem_t *dmem)
 static int ct_attach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
-	u_long iobase, drq, irq, rescount;
+	rman_res_t iobase, drq, irq, rescount;
 	int unit = device_get_unit (dev);
 	char *ct_ln = CT_LOCK_NAME;
 	ct_board_t *b;

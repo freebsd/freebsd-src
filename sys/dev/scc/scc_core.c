@@ -103,7 +103,7 @@ scc_bfe_attach(device_t dev, u_int ipc)
 	struct scc_softc *sc, *sc0;
 	const char *sep;
 	bus_space_handle_t bh;
-	u_long base, size, start, sz;
+	rman_res_t base, size, start, sz;
 	int c, error, mode, sysdev;
 
 	/*
@@ -407,7 +407,7 @@ scc_bfe_probe(device_t dev, u_int regshft, u_int rclk, u_int rid)
 
 struct resource *
 scc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list_entry *rle;
 	struct scc_chan *ch;
@@ -431,7 +431,7 @@ scc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 int
 scc_bus_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct resource_list_entry *rle;
 	struct scc_chan *ch;

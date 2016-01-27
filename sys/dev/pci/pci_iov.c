@@ -320,7 +320,7 @@ pci_iov_alloc_bar(struct pci_devinfo *dinfo, int bar, pci_addr_t bar_shift)
 	struct resource *res;
 	struct pcicfg_iov *iov;
 	device_t dev, bus;
-	u_long start, end;
+	rman_res_t start, end;
 	pci_addr_t bar_size;
 	int rid;
 
@@ -890,15 +890,15 @@ pci_iov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 }
 
 struct resource *
-pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid, u_long start,
-    u_long end, u_long count, u_int flags)
+pci_vf_alloc_mem_resource(device_t dev, device_t child, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pci_devinfo *dinfo;
 	struct pcicfg_iov *iov;
 	struct pci_map *map;
 	struct resource *res;
 	struct resource_list_entry *rle;
-	u_long bar_start, bar_end;
+	rman_res_t bar_start, bar_end;
 	pci_addr_t bar_length;
 	int error;
 
