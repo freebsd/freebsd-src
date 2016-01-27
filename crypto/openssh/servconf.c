@@ -320,7 +320,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->max_sessions == -1)
 		options->max_sessions = DEFAULT_SESSIONS_MAX;
 	if (options->use_dns == -1)
-		options->use_dns = 0;
+		options->use_dns = 1;
 	if (options->client_alive_interval == -1)
 		options->client_alive_interval = 0;
 	if (options->client_alive_count_max == -1)
