@@ -266,7 +266,7 @@
 #define HW_DEBUGOUT1(S, A)          if (DEBUG_HW) printf(S "\n", A)
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
-#define EM_MAX_SCATTER		32
+#define EM_MAX_SCATTER		64
 #define EM_VFTA_SIZE		128
 #define EM_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
@@ -330,7 +330,7 @@ struct tx_ring {
         struct taskqueue        *tq;
         u32                     next_avail_desc;
         u32                     next_to_clean;
-        struct em_buffer	*tx_buffers;
+        struct em_txbuffer	*tx_buffers;
         volatile u16            tx_avail;
 	u32			tx_tso;		/* last tx was tso */
         u16			last_hw_offload;
@@ -362,11 +362,11 @@ struct rx_ring {
         u32                     payload;
         struct task             rx_task;
         struct taskqueue        *tq;
-        struct e1000_rx_desc	*rx_base;
+        union e1000_rx_desc_extended	*rx_base;
         struct em_dma_alloc	rxdma;
         u32			next_to_refresh;
         u32			next_to_check;
-        struct em_buffer	*rx_buffers;
+        struct em_rxbuffer	*rx_buffers;
 	struct mbuf		*fmp;
 	struct mbuf		*lmp;
 
@@ -473,13 +473,12 @@ struct adapter {
 
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
-	unsigned long	mbuf_alloc_failed;
-	unsigned long	mbuf_cluster_failed;
+	unsigned long	link_irq;
+	unsigned long	mbuf_defrag_failed;
+	unsigned long	no_tx_dma_setup;
 	unsigned long	no_tx_map_avail;
-        unsigned long	no_tx_dma_setup;
 	unsigned long	rx_overruns;
 	unsigned long	watchdog_events;
-	unsigned long	link_irq;
 
 	struct e1000_hw_stats stats;
 };
@@ -499,10 +498,17 @@ typedef struct _em_vendor_info_t {
 	unsigned int index;
 } em_vendor_info_t;
 
-struct em_buffer {
+struct em_txbuffer {
 	int		next_eop;  /* Index of the desc to watch */
         struct mbuf    *m_head;
         bus_dmamap_t    map;         /* bus_dma map for packet */
+};
+
+struct em_rxbuffer {
+	int		next_eop;  /* Index of the desc to watch */
+        struct mbuf    *m_head;
+        bus_dmamap_t    map;         /* bus_dma map for packet */
+	bus_addr_t	paddr;
 };
 
 
@@ -541,4 +547,9 @@ e1000_rx_unrefreshed(struct rx_ring *rxr)
 #define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 #define	EM_RX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->rx_mtx, MA_OWNED)
 
+#define EM_RSSRK_SIZE	4
+#define EM_RSSRK_VAL(key, i)		(key[(i) * EM_RSSRK_SIZE] | \
+					 key[(i) * EM_RSSRK_SIZE + 1] << 8 | \
+					 key[(i) * EM_RSSRK_SIZE + 2] << 16 | \
+					 key[(i) * EM_RSSRK_SIZE + 3] << 24)
 #endif /* _EM_H_DEFINED_ */

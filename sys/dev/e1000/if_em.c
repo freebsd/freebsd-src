@@ -258,7 +258,9 @@ static bool	em_rxeof(struct rx_ring *, int, int *);
 #ifndef __NO_STRICT_ALIGNMENT
 static int	em_fixup_rx(struct rx_ring *);
 #endif
-static void	em_receive_checksum(struct e1000_rx_desc *, struct mbuf *);
+static void	em_setup_rxdesc(union e1000_rx_desc_extended *,
+		    const struct em_rxbuffer *rxbuf);
+static void	em_receive_checksum(uint32_t status, struct mbuf *);
 static void	em_transmit_checksum_setup(struct tx_ring *, struct mbuf *, int,
 		    struct ip *, u32 *, u32 *);
 static void	em_tso_setup(struct tx_ring *, struct mbuf *, int, struct ip *,
@@ -359,7 +361,13 @@ MODULE_DEPEND(em, ether, 1, 1, 1);
 #define CSUM_TSO	0
 #endif
 
+#define TSO_WORKAROUND	4
+
 static SYSCTL_NODE(_hw, OID_AUTO, em, CTLFLAG_RD, 0, "EM driver parameters");
+
+static int em_disable_crc_stripping = 0;
+SYSCTL_INT(_hw_em, OID_AUTO, disable_crc_stripping, CTLFLAG_RDTUN,
+    &em_disable_crc_stripping, 0, "Disable CRC Stripping");
 
 static int em_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int em_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
@@ -632,7 +640,7 @@ em_attach(device_t dev)
 	} else
 		adapter->num_tx_desc = em_txd;
 
-	if (((em_rxd * sizeof(struct e1000_rx_desc)) % EM_DBA_ALIGN) != 0 ||
+	if (((em_rxd * sizeof(union e1000_rx_desc_extended)) % EM_DBA_ALIGN) != 0 ||
 	    (em_rxd > EM_MAX_RXD) || (em_rxd < EM_MIN_RXD)) {
 		device_printf(dev, "Using %d RX descriptors instead of %d!\n",
 		    EM_DEFAULT_RXD, em_rxd);
@@ -1873,20 +1881,21 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct adapter		*adapter = txr->adapter;
 	bus_dma_segment_t	segs[EM_MAX_SCATTER];
 	bus_dmamap_t		map;
-	struct em_buffer	*tx_buffer, *tx_buffer_mapped;
+	struct em_txbuffer	*tx_buffer, *tx_buffer_mapped;
 	struct e1000_tx_desc	*ctxd = NULL;
 	struct mbuf		*m_head;
 	struct ether_header	*eh;
 	struct ip		*ip = NULL;
 	struct tcphdr		*tp = NULL;
-	u32			txd_upper, txd_lower, txd_used, txd_saved;
+	u32			txd_upper = 0, txd_lower = 0;
 	int			ip_off, poff;
 	int			nsegs, i, j, first, last = 0;
-	int			error, do_tso, tso_desc = 0, remap = 1;
+	int			error;
+	bool			do_tso, tso_desc, remap = TRUE;
 
 	m_head = *m_headp;
-	txd_upper = txd_lower = txd_used = txd_saved = 0;
-	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
+	do_tso = (m_head->m_pkthdr.csum_flags & CSUM_TSO);
+	tso_desc = FALSE;
 	ip_off = poff = 0;
 
 	/*
@@ -1922,74 +1931,82 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		 * for IPv6 yet.
 		 */
 		ip_off = sizeof(struct ether_header);
-		m_head = m_pullup(m_head, ip_off);
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		eh = mtod(m_head, struct ether_header *);
-		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			ip_off = sizeof(struct ether_vlan_header);
+		if (m_head->m_len < ip_off) {
 			m_head = m_pullup(m_head, ip_off);
 			if (m_head == NULL) {
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
 		}
-		m_head = m_pullup(m_head, ip_off + sizeof(struct ip));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
+		eh = mtod(m_head, struct ether_header *);
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			if (m_head->m_len < ip_off) {
+				m_head = m_pullup(m_head, ip_off);
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
+			}
 		}
-		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
-		poff = ip_off + (ip->ip_hl << 2);
-		if (do_tso) {
-			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
+		if (m_head->m_len < ip_off + sizeof(struct ip)) {
+			m_head = m_pullup(m_head, ip_off + sizeof(struct ip));
 			if (m_head == NULL) {
 				*m_headp = NULL;
 				return (ENOBUFS);
+			}
+		}
+		ip = (struct ip *)(mtod(m_head, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
+
+		if (do_tso || (m_head->m_pkthdr.csum_flags & CSUM_TCP)) {
+			if (m_head->m_len < poff + sizeof(struct tcphdr)) {
+				m_head = m_pullup(m_head, poff +
+				    sizeof(struct tcphdr));
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
 			}
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			/*
 			 * TSO workaround:
 			 *   pull 4 more bytes of data into it.
 			 */
-			m_head = m_pullup(m_head, poff + (tp->th_off << 2) + 4);
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
-			ip->ip_len = 0;
-			ip->ip_sum = 0;
-			/*
-			 * The pseudo TCP checksum does not include TCP payload
-			 * length so driver should recompute the checksum here
-			 * what hardware expect to see. This is adherence of
-			 * Microsoft's Large Send specification.
-			 */
-			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
-			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
-			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
-			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
-			m_head = m_pullup(m_head, poff + (tp->th_off << 2));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
+			if (m_head->m_len < poff + (tp->th_off << 2)) {
+				m_head = m_pullup(m_head, poff +
+				                 (tp->th_off << 2) +
+				                 TSO_WORKAROUND);
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
 			}
 			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
+			if (do_tso) {
+				ip->ip_len = htons(m_head->m_pkthdr.tso_segsz +
+				                  (ip->ip_hl << 2) +
+				                  (tp->th_off << 2));
+				ip->ip_sum = 0;
+				/*
+				 * The pseudo TCP checksum does not include TCP
+				 * payload length so driver should recompute
+				 * the checksum here what hardware expect to
+				 * see. This is adherence of Microsoft's Large
+				 * Send specification.
+			 	*/
+				tp->th_sum = in_pseudo(ip->ip_src.s_addr,
+				    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+			}
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
-			m_head = m_pullup(m_head, poff + sizeof(struct udphdr));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
+			if (m_head->m_len < poff + sizeof(struct udphdr)) {
+				m_head = m_pullup(m_head, poff +
+				    sizeof(struct udphdr));
+				if (m_head == NULL) {
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
 			}
 			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 		}
@@ -2025,9 +2042,9 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_NOWAIT);
+		m = m_collapse(*m_headp, M_NOWAIT, EM_MAX_SCATTER);
 		if (m == NULL) {
-			adapter->mbuf_alloc_failed++;
+			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (ENOBUFS);
@@ -2035,11 +2052,8 @@ retry:
 		*m_headp = m;
 
 		/* Try it again, but only once */
-		remap = 0;
+		remap = FALSE;
 		goto retry;
-	} else if (error == ENOMEM) {
-		adapter->no_tx_dma_setup++;
-		return (error);
 	} else if (error != 0) {
 		adapter->no_tx_dma_setup++;
 		m_freem(*m_headp);
@@ -2053,13 +2067,13 @@ retry:
 	 * it follows a TSO burst, then we need to add a
 	 * sentinel descriptor to prevent premature writeback.
 	 */
-	if ((do_tso == 0) && (txr->tx_tso == TRUE)) {
+	if ((!do_tso) && (txr->tx_tso == TRUE)) {
 		if (nsegs == 1)
 			tso_desc = TRUE;
 		txr->tx_tso = FALSE;
 	}
 
-        if (nsegs > (txr->tx_avail - 2)) {
+        if (nsegs > (txr->tx_avail - EM_MAX_SCATTER)) {
                 txr->no_desc_avail++;
 		bus_dmamap_unload(txr->txtag, map);
 		return (ENOBUFS);
@@ -2100,23 +2114,23 @@ retry:
 		** If this is the last descriptor, we want to
 		** split it so we have a small final sentinel
 		*/
-		if (tso_desc && (j == (nsegs -1)) && (seg_len > 8)) {
-			seg_len -= 4;
+		if (tso_desc && (j == (nsegs - 1)) && (seg_len > 8)) {
+			seg_len -= TSO_WORKAROUND;
 			ctxd->buffer_addr = htole64(seg_addr);
 			ctxd->lower.data = htole32(
-			adapter->txd_cmd | txd_lower | seg_len);
-			ctxd->upper.data =
-			    htole32(txd_upper);
+				adapter->txd_cmd | txd_lower | seg_len);
+			ctxd->upper.data = htole32(txd_upper);
 			if (++i == adapter->num_tx_desc)
 				i = 0;
+
 			/* Now make the sentinel */	
-			++txd_used; /* using an extra txd */
+			txr->tx_avail--;
 			ctxd = &txr->tx_base[i];
 			tx_buffer = &txr->tx_buffers[i];
 			ctxd->buffer_addr =
 			    htole64(seg_addr + seg_len);
 			ctxd->lower.data = htole32(
-			adapter->txd_cmd | txd_lower | 4);
+			adapter->txd_cmd | txd_lower | TSO_WORKAROUND);
 			ctxd->upper.data =
 			    htole32(txd_upper);
 			last = i;
@@ -2126,8 +2140,7 @@ retry:
 			ctxd->buffer_addr = htole64(seg_addr);
 			ctxd->lower.data = htole32(
 			adapter->txd_cmd | txd_lower | seg_len);
-			ctxd->upper.data =
-			    htole32(txd_upper);
+			ctxd->upper.data = htole32(txd_upper);
 			last = i;
 			if (++i == adapter->num_tx_desc)
 				i = 0;
@@ -2138,8 +2151,6 @@ retry:
 
 	txr->next_avail_desc = i;
 	txr->tx_avail -= nsegs;
-	if (tso_desc) /* TSO used an extra for sentinel */
-		txr->tx_avail -= txd_used;
 
         tx_buffer->m_head = m_head;
 	/*
@@ -3078,6 +3089,11 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = em_ioctl;
+	/* TSO parameters */
+	ifp->if_hw_tsomax = IP_MAXPACKET;
+	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER;
+	ifp->if_hw_tsomaxsegsize = EM_TSO_SEG_SIZE;
+
 #ifdef EM_MULTIQUEUE
 	/* Multiqueue stack interface */
 	ifp->if_transmit = em_mq_start;
@@ -3223,7 +3239,6 @@ fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 
 	return (error);
@@ -3234,12 +3249,15 @@ em_dma_free(struct adapter *adapter, struct em_dma_alloc *dma)
 {
 	if (dma->dma_tag == NULL)
 		return;
-	if (dma->dma_map != NULL) {
+	if (dma->dma_paddr != 0) {
 		bus_dmamap_sync(dma->dma_tag, dma->dma_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(dma->dma_tag, dma->dma_map);
+		dma->dma_paddr = 0;
+	}
+	if (dma->dma_vaddr != NULL) {
 		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-		dma->dma_map = NULL;
+		dma->dma_vaddr = NULL;
 	}
 	bus_dma_tag_destroy(dma->dma_tag);
 	dma->dma_tag = NULL;
@@ -3325,7 +3343,7 @@ em_allocate_queues(struct adapter *adapter)
 	 * Next the RX queues...
 	 */ 
 	rsize = roundup2(adapter->num_rx_desc *
-	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
+	    sizeof(union e1000_rx_desc_extended), EM_DBA_ALIGN);
 	for (int i = 0; i < adapter->num_queues; i++, rxconf++) {
 		rxr = &adapter->rx_rings[i];
 		rxr->adapter = adapter;
@@ -3343,7 +3361,7 @@ em_allocate_queues(struct adapter *adapter)
 			error = ENOMEM;
 			goto err_rx_desc;
 		}
-		rxr->rx_base = (struct e1000_rx_desc *)rxr->rxdma.dma_vaddr;
+		rxr->rx_base = (union e1000_rx_desc_extended *)rxr->rxdma.dma_vaddr;
 		bzero((void *)rxr->rx_base, rsize);
 
         	/* Allocate receive buffers for the ring*/
@@ -3386,7 +3404,7 @@ em_allocate_transmit_buffers(struct tx_ring *txr)
 {
 	struct adapter *adapter = txr->adapter;
 	device_t dev = adapter->dev;
-	struct em_buffer *txbuf;
+	struct em_txbuffer *txbuf;
 	int error, i;
 
 	/*
@@ -3409,7 +3427,7 @@ em_allocate_transmit_buffers(struct tx_ring *txr)
 	}
 
 	if (!(txr->tx_buffers =
-	    (struct em_buffer *) malloc(sizeof(struct em_buffer) *
+	    (struct em_txbuffer *) malloc(sizeof(struct em_txbuffer) *
 	    adapter->num_tx_desc, M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate tx_buffer memory\n");
 		error = ENOMEM;
@@ -3442,7 +3460,7 @@ static void
 em_setup_transmit_ring(struct tx_ring *txr)
 {
 	struct adapter *adapter = txr->adapter;
-	struct em_buffer *txbuf;
+	struct em_txbuffer *txbuf;
 	int i;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(adapter->ifp);
@@ -3661,7 +3679,7 @@ static void
 em_free_transmit_buffers(struct tx_ring *txr)
 {
 	struct adapter		*adapter = txr->adapter;
-	struct em_buffer	*txbuf;
+	struct em_txbuffer	*txbuf;
 
 	INIT_DEBUGOUT("free_transmit_ring: begin");
 
@@ -3728,7 +3746,7 @@ em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
 {
 	struct adapter			*adapter = txr->adapter;
 	struct e1000_context_desc	*TXD = NULL;
-	struct em_buffer		*tx_buffer;
+	struct em_txbuffer		*tx_buffer;
 	int				cur, hdr_len;
 	u32				cmd = 0;
 	u16				offload = 0;
@@ -3762,29 +3780,38 @@ em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
  		offload |= CSUM_TCP;
  		tucss = hdr_len;
  		tucso = hdr_len + offsetof(struct tcphdr, th_sum);
- 		/*
- 		 * Setting up new checksum offload context for every frames
- 		 * takes a lot of processing time for hardware. This also
- 		 * reduces performance a lot for small sized frames so avoid
- 		 * it if driver can use previously configured checksum
- 		 * offload context.
- 		 */
- 		if (txr->last_hw_offload == offload) {
- 			if (offload & CSUM_IP) {
- 				if (txr->last_hw_ipcss == ipcss &&
- 				    txr->last_hw_ipcso == ipcso &&
- 				    txr->last_hw_tucss == tucss &&
- 				    txr->last_hw_tucso == tucso)
- 					return;
- 			} else {
- 				if (txr->last_hw_tucss == tucss &&
- 				    txr->last_hw_tucso == tucso)
- 					return;
- 			}
-  		}
- 		txr->last_hw_offload = offload;
- 		txr->last_hw_tucss = tucss;
- 		txr->last_hw_tucso = tucso;
+		/*
+		 * The 82574L can only remember the *last* context used
+		 * regardless of queue that it was use for.  We cannot reuse
+		 * contexts on this hardware platform and must generate a new
+		 * context every time.  82574L hardware spec, section 7.2.6,
+		 * second note.
+		 */
+		if (adapter->num_queues < 2) {
+ 			/*
+ 		 	* Setting up new checksum offload context for every
+			* frames takes a lot of processing time for hardware.
+			* This also reduces performance a lot for small sized
+			* frames so avoid it if driver can use previously
+			* configured checksum offload context.
+ 		 	*/
+ 			if (txr->last_hw_offload == offload) {
+ 				if (offload & CSUM_IP) {
+ 					if (txr->last_hw_ipcss == ipcss &&
+ 				    	txr->last_hw_ipcso == ipcso &&
+ 				    	txr->last_hw_tucss == tucss &&
+ 				    	txr->last_hw_tucso == tucso)
+ 						return;
+ 				} else {
+ 					if (txr->last_hw_tucss == tucss &&
+ 				    	txr->last_hw_tucso == tucso)
+ 						return;
+ 				}
+  			}
+ 			txr->last_hw_offload = offload;
+ 			txr->last_hw_tucss = tucss;
+ 			txr->last_hw_tucso = tucso;
+		}
  		/*
  		 * Start offset for payload checksum calculation.
  		 * End offset for payload checksum calculation.
@@ -3800,29 +3827,38 @@ em_transmit_checksum_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
  		*txd_upper |= E1000_TXD_POPTS_TXSM << 8;
  		tucss = hdr_len;
  		tucso = hdr_len + offsetof(struct udphdr, uh_sum);
- 		/*
- 		 * Setting up new checksum offload context for every frames
- 		 * takes a lot of processing time for hardware. This also
- 		 * reduces performance a lot for small sized frames so avoid
- 		 * it if driver can use previously configured checksum
- 		 * offload context.
- 		 */
- 		if (txr->last_hw_offload == offload) {
- 			if (offload & CSUM_IP) {
- 				if (txr->last_hw_ipcss == ipcss &&
- 				    txr->last_hw_ipcso == ipcso &&
- 				    txr->last_hw_tucss == tucss &&
- 				    txr->last_hw_tucso == tucso)
- 					return;
- 			} else {
- 				if (txr->last_hw_tucss == tucss &&
- 				    txr->last_hw_tucso == tucso)
- 					return;
+		/*
+		 * The 82574L can only remember the *last* context used
+		 * regardless of queue that it was use for.  We cannot reuse
+		 * contexts on this hardware platform and must generate a new
+		 * context every time.  82574L hardware spec, section 7.2.6,
+		 * second note.
+		 */
+		if (adapter->num_queues < 2) {
+ 			/*
+ 		 	* Setting up new checksum offload context for every
+			* frames takes a lot of processing time for hardware.
+			* This also reduces performance a lot for small sized
+			* frames so avoid it if driver can use previously
+			* configured checksum offload context.
+ 		 	*/
+ 			if (txr->last_hw_offload == offload) {
+ 				if (offload & CSUM_IP) {
+ 					if (txr->last_hw_ipcss == ipcss &&
+ 				    	txr->last_hw_ipcso == ipcso &&
+ 				    	txr->last_hw_tucss == tucss &&
+ 				    	txr->last_hw_tucso == tucso)
+ 						return;
+ 				} else {
+ 					if (txr->last_hw_tucss == tucss &&
+ 				    	txr->last_hw_tucso == tucso)
+ 						return;
+ 				}
  			}
- 		}
- 		txr->last_hw_offload = offload;
- 		txr->last_hw_tucss = tucss;
- 		txr->last_hw_tucso = tucso;
+ 			txr->last_hw_offload = offload;
+ 			txr->last_hw_tucss = tucss;
+ 			txr->last_hw_tucso = tucso;
+		}
  		/*
  		 * Start offset for header checksum calculation.
  		 * End offset for header checksum calculation.
@@ -3865,7 +3901,7 @@ em_tso_setup(struct tx_ring *txr, struct mbuf *mp, int ip_off,
 {
 	struct adapter			*adapter = txr->adapter;
 	struct e1000_context_desc	*TXD;
-	struct em_buffer		*tx_buffer;
+	struct em_txbuffer		*tx_buffer;
 	int cur, hdr_len;
 
 	/*
@@ -3943,7 +3979,7 @@ em_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
         int first, last, done, processed;
-        struct em_buffer *tx_buffer;
+        struct em_txbuffer *tx_buffer;
         struct e1000_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
 
@@ -4049,7 +4085,6 @@ em_txeof(struct tx_ring *txr)
 		txr->busy = EM_TX_IDLE;
 }
 
-
 /*********************************************************************
  *
  *  Refresh RX descriptor mbufs from system mbuf buffer pool.
@@ -4060,8 +4095,8 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 {
 	struct adapter		*adapter = rxr->adapter;
 	struct mbuf		*m;
-	bus_dma_segment_t	segs[1];
-	struct em_buffer	*rxbuf;
+	bus_dma_segment_t	segs;
+	struct em_rxbuffer	*rxbuf;
 	int			i, j, error, nsegs;
 	bool			cleaned = FALSE;
 
@@ -4096,7 +4131,7 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 
 		/* Use bus_dma machinery to setup the memory mapping  */
 		error = bus_dmamap_load_mbuf_sg(rxr->rxtag, rxbuf->map,
-		    m, segs, &nsegs, BUS_DMA_NOWAIT);
+		    m, &segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			printf("Refresh mbufs: hdr dmamap load"
 			    " failure - %d\n", error);
@@ -4105,9 +4140,10 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 			goto update;
 		}
 		rxbuf->m_head = m;
+		rxbuf->paddr = segs.ds_addr;
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
-		rxr->rx_base[i].buffer_addr = htole64(segs[0].ds_addr);
+		em_setup_rxdesc(&rxr->rx_base[i], rxbuf);
 		cleaned = TRUE;
 
 		i = j; /* Next is precalulated for us */
@@ -4142,10 +4178,10 @@ em_allocate_receive_buffers(struct rx_ring *rxr)
 {
 	struct adapter		*adapter = rxr->adapter;
 	device_t		dev = adapter->dev;
-	struct em_buffer	*rxbuf;
+	struct em_rxbuffer	*rxbuf;
 	int			error;
 
-	rxr->rx_buffers = malloc(sizeof(struct em_buffer) *
+	rxr->rx_buffers = malloc(sizeof(struct em_rxbuffer) *
 	    adapter->num_rx_desc, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rxr->rx_buffers == NULL) {
 		device_printf(dev, "Unable to allocate rx_buffer memory\n");
@@ -4198,7 +4234,7 @@ static int
 em_setup_receive_ring(struct rx_ring *rxr)
 {
 	struct	adapter 	*adapter = rxr->adapter;
-	struct em_buffer	*rxbuf;
+	struct em_rxbuffer	*rxbuf;
 	bus_dma_segment_t	seg[1];
 	int			rsize, nsegs, error = 0;
 #ifdef DEV_NETMAP
@@ -4210,7 +4246,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	/* Clear the ring contents */
 	EM_RX_LOCK(rxr);
 	rsize = roundup2(adapter->num_rx_desc *
-	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
+	    sizeof(union e1000_rx_desc_extended), EM_DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
 #ifdef DEV_NETMAP
 	slot = netmap_reset(na, NR_RX, 0, 0);
@@ -4241,8 +4277,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 
 			addr = PNMB(na, slot + si, &paddr);
 			netmap_load_map(na, rxr->rxtag, rxbuf->map, addr);
-			/* Update descriptor */
-			rxr->rx_base[j].buffer_addr = htole64(paddr);
+			em_setup_rxdesc(&rxr->rx_base[j], rxbuf);
 			continue;
 		}
 #endif /* DEV_NETMAP */
@@ -4268,8 +4303,8 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
 
-		/* Update descriptor */
-		rxr->rx_base[j].buffer_addr = htole64(seg[0].ds_addr);
+		rxbuf->paddr = seg[0].ds_addr;
+		em_setup_rxdesc(&rxr->rx_base[j], rxbuf);
 	}
 	rxr->next_to_check = 0;
 	rxr->next_to_refresh = 0;
@@ -4306,7 +4341,7 @@ fail:
 	for (int i = 0; i < q; ++i) {
 		rxr = &adapter->rx_rings[i];
 		for (int n = 0; n < adapter->num_rx_desc; n++) {
-			struct em_buffer *rxbuf;
+			struct em_rxbuffer *rxbuf;
 			rxbuf = &rxr->rx_buffers[n];
 			if (rxbuf->m_head != NULL) {
 				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
@@ -4353,7 +4388,7 @@ static void
 em_free_receive_buffers(struct rx_ring *rxr)
 {
 	struct adapter		*adapter = rxr->adapter;
-	struct em_buffer	*rxbuf = NULL;
+	struct em_rxbuffer	*rxbuf = NULL;
 
 	INIT_DEBUGOUT("free_receive_buffers: begin");
 
@@ -4395,11 +4430,10 @@ em_free_receive_buffers(struct rx_ring *rxr)
 static void
 em_initialize_receive_unit(struct adapter *adapter)
 {
-	struct rx_ring	*rxr = adapter->rx_rings;
+	struct rx_ring *rxr = adapter->rx_rings;
 	struct ifnet	*ifp = adapter->ifp;
 	struct e1000_hw	*hw = &adapter->hw;
-	u64	bus_addr;
-	u32	rctl, rxcsum;
+	u32	rctl, rxcsum, rfctl;
 
 	INIT_DEBUGOUT("em_initialize_receive_units: begin");
 
@@ -4412,6 +4446,25 @@ em_initialize_receive_unit(struct adapter *adapter)
 	if ((hw->mac.type != e1000_82574) && (hw->mac.type != e1000_82583))
 		E1000_WRITE_REG(hw, E1000_RCTL, rctl & ~E1000_RCTL_EN);
 
+	/* Setup the Receive Control Register */
+	rctl &= ~(3 << E1000_RCTL_MO_SHIFT);
+	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM |
+	    E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
+	    (hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
+
+	/* Do not store bad packets */
+	rctl &= ~E1000_RCTL_SBP;
+
+	/* Enable Long Packet receive */
+	if (ifp->if_mtu > ETHERMTU)
+		rctl |= E1000_RCTL_LPE;
+	else
+		rctl &= ~E1000_RCTL_LPE;
+
+        /* Strip the CRC */
+        if (!em_disable_crc_stripping)
+		rctl |= E1000_RCTL_SECRC;
+
 	E1000_WRITE_REG(&adapter->hw, E1000_RADV,
 	    adapter->rx_abs_int_delay.value);
 
@@ -4423,20 +4476,21 @@ em_initialize_receive_unit(struct adapter *adapter)
 	 */
 	E1000_WRITE_REG(hw, E1000_ITR, DEFAULT_ITR);
 
+	/* Use extended rx descriptor formats */
+	rfctl = E1000_READ_REG(hw, E1000_RFCTL);
+	rfctl |= E1000_RFCTL_EXTEN;
 	/*
 	** When using MSIX interrupts we need to throttle
 	** using the EITR register (82574 only)
 	*/
 	if (hw->mac.type == e1000_82574) {
-		u32 rfctl;
 		for (int i = 0; i < 4; i++)
 			E1000_WRITE_REG(hw, E1000_EITR_82574(i),
 			    DEFAULT_ITR);
 		/* Disable accelerated acknowledge */
-		rfctl = E1000_READ_REG(hw, E1000_RFCTL);
 		rfctl |= E1000_RFCTL_ACK_DIS;
-		E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 	}
+	E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 
 	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
 	if (ifp->if_capenable & IFCAP_RXCSUM) {
@@ -4453,38 +4507,44 @@ em_initialize_receive_unit(struct adapter *adapter)
 	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 
 #ifdef EM_MULTIQUEUE
+#define RSSKEYLEN 10
 	if (adapter->num_queues > 1) {
-		uint32_t rss_key[10];
-		uint32_t reta;
+		uint8_t  rss_key[4 * RSSKEYLEN];
+		uint32_t reta = 0;
 		int i;
 
 		/*
 		* Configure RSS key
 		*/
 		arc4rand(rss_key, sizeof(rss_key), 0);
-		for (i = 0; i < 10; ++i)
-			E1000_WRITE_REG_ARRAY(hw,E1000_RSSRK(0), i, rss_key[i]);
+		for (i = 0; i < RSSKEYLEN; ++i) {
+			uint32_t rssrk = 0;
+
+			rssrk = EM_RSSRK_VAL(rss_key, i);
+			E1000_WRITE_REG(hw,E1000_RSSRK(i), rssrk);
+		}
 
 		/*
 		* Configure RSS redirect table in following fashion:
 		* (hash & ring_cnt_mask) == rdr_table[(hash & rdr_table_mask)]
 		*/
-		reta = 0;
-		for (i = 0; i < 4; ++i) {
+		for (i = 0; i < sizeof(reta); ++i) {
 			uint32_t q;
+
 			q = (i % adapter->num_queues) << 7;
 			reta |= q << (8 * i);
 		}
-		for (i = 0; i < 32; ++i)
+
+		for (i = 0; i < 32; ++i) {
 			E1000_WRITE_REG(hw, E1000_RETA(i), reta);
+		}
 
 		E1000_WRITE_REG(hw, E1000_MRQC, E1000_MRQC_RSS_ENABLE_2Q | 
 				E1000_MRQC_RSS_FIELD_IPV4_TCP |
 				E1000_MRQC_RSS_FIELD_IPV4 |
 				E1000_MRQC_RSS_FIELD_IPV6_TCP_EX |
 				E1000_MRQC_RSS_FIELD_IPV6_EX |
-				E1000_MRQC_RSS_FIELD_IPV6 |
-				E1000_MRQC_RSS_FIELD_IPV6_TCP);
+				E1000_MRQC_RSS_FIELD_IPV6);
 	}
 #endif
 	/*
@@ -4499,11 +4559,11 @@ em_initialize_receive_unit(struct adapter *adapter)
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		/* Setup the Base and Length of the Rx Descriptor Ring */
+		u64 bus_addr = rxr->rxdma.dma_paddr;
 		u32 rdt = adapter->num_rx_desc - 1; /* default */
 
-		bus_addr = rxr->rxdma.dma_paddr;
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
-		    adapter->num_rx_desc * sizeof(struct e1000_rx_desc));
+		    adapter->num_rx_desc * sizeof(union e1000_rx_desc_extended));
 		E1000_WRITE_REG(hw, E1000_RDBAH(i), (u32)(bus_addr >> 32));
 		E1000_WRITE_REG(hw, E1000_RDBAL(i), (u32)bus_addr);
 		/* Setup the Head and Tail Descriptor Pointers */
@@ -4532,14 +4592,13 @@ em_initialize_receive_unit(struct adapter *adapter)
 	    (ifp->if_mtu > ETHERMTU)) {
 		u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
 		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
-	} else if ((adapter->hw.mac.type == e1000_82574) &&
-		  (ifp->if_mtu > ETHERMTU)) {
+	} else if (adapter->hw.mac.type == e1000_82574) {
 		for (int i = 0; i < adapter->num_queues; i++) {
 			u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
 
-                	rxdctl |= 0x20; /* PTHRESH */
-                	rxdctl |= 4 << 8; /* HTHRESH */
-                	rxdctl |= 4 << 16;/* WTHRESH */
+			rxdctl |= 0x20; /* PTHRESH */
+			rxdctl |= 4 << 8; /* HTHRESH */
+			rxdctl |= 4 << 16;/* WTHRESH */
 			rxdctl |= 1 << 24; /* Switch to granularity */
 			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
 		}
@@ -4552,18 +4611,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 			e1000_lv_jumbo_workaround_ich8lan(hw, FALSE);
 	}
 
-	/* Setup the Receive Control Register */
-	rctl &= ~(3 << E1000_RCTL_MO_SHIFT);
-	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM |
-	    E1000_RCTL_LBM_NO | E1000_RCTL_RDMTS_HALF |
-	    (hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
-
-        /* Strip the CRC */
-        rctl |= E1000_RCTL_SECRC;
-
         /* Make sure VLAN Filters are off */
         rctl &= ~E1000_RCTL_VFE;
-	rctl &= ~E1000_RCTL_SBP;
 
 	if (adapter->rx_mbuf_sz == MCLBYTES)
 		rctl |= E1000_RCTL_SZ_2048;
@@ -4572,11 +4621,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 	else if (adapter->rx_mbuf_sz > MJUMPAGESIZE)
 		rctl |= E1000_RCTL_SZ_8192 | E1000_RCTL_BSEX;
 
-	if (ifp->if_mtu > ETHERMTU)
-		rctl |= E1000_RCTL_LPE;
-	else
-		rctl &= ~E1000_RCTL_LPE;
-
+	/* ensure we clear use DTYPE of 00 here */
+	rctl &= ~0x00000C00;
 	/* Write out the settings */
 	E1000_WRITE_REG(hw, E1000_RCTL, rctl);
 
@@ -4601,11 +4647,11 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	struct adapter		*adapter = rxr->adapter;
 	struct ifnet		*ifp = adapter->ifp;
 	struct mbuf		*mp, *sendmp;
-	u8			status = 0;
+	u32			status = 0;
 	u16 			len;
 	int			i, processed, rxdone = 0;
 	bool			eop;
-	struct e1000_rx_desc	*cur;
+	union e1000_rx_desc_extended	*cur;
 
 	EM_RX_LOCK(rxr);
 
@@ -4622,21 +4668,20 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
-
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
 
 		cur = &rxr->rx_base[i];
-		status = cur->status;
+		status = le32toh(cur->wb.upper.status_error);
 		mp = sendmp = NULL;
 
 		if ((status & E1000_RXD_STAT_DD) == 0)
 			break;
 
-		len = le16toh(cur->length);
+		len = le16toh(cur->wb.upper.length);
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 
-		if ((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) ||
+		if ((status & E1000_RXDEXT_ERR_FRAME_ERR_MASK) ||
 		    (rxr->discard == TRUE)) {
 			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
@@ -4673,7 +4718,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 			sendmp = rxr->fmp;
 			sendmp->m_pkthdr.rcvif = ifp;
 			ifp->if_ipackets++;
-			em_receive_checksum(cur, sendmp);
+			em_receive_checksum(status, sendmp);
 #ifndef __NO_STRICT_ALIGNMENT
 			if (adapter->hw.mac.max_frame_size >
 			    (MCLBYTES - ETHER_ALIGN) &&
@@ -4682,7 +4727,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 #endif
 			if (status & E1000_RXD_STAT_VP) {
 				sendmp->m_pkthdr.ether_vtag =
-				    le16toh(cur->special);
+				    le16toh(cur->wb.upper.vlan);
 				sendmp->m_flags |= M_VLANTAG;
 			}
 #ifndef __NO_STRICT_ALIGNMENT
@@ -4696,7 +4741,7 @@ next_desc:
 	    		BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 		/* Zero out the receive descriptors status. */
-		cur->status = 0;
+		cur->wb.upper.status_error &= htole32(~0xFF);
 		++rxdone;	/* cumulative for POLL */
 		++processed;
 
@@ -4735,7 +4780,7 @@ next_desc:
 static __inline void
 em_rx_discard(struct rx_ring *rxr, int i)
 {
-	struct em_buffer	*rbuf;
+	struct em_rxbuffer	*rbuf;
 
 	rbuf = &rxr->rx_buffers[i];
 	bus_dmamap_unload(rxr->rxtag, rbuf->map);
@@ -4807,6 +4852,14 @@ em_fixup_rx(struct rx_ring *rxr)
 }
 #endif
 
+static void
+em_setup_rxdesc(union e1000_rx_desc_extended *rxd, const struct em_rxbuffer *rxbuf)
+{
+	rxd->read.buffer_addr = htole64(rxbuf->paddr);
+	/* DD bits must be cleared */
+	rxd->wb.upper.status_error= 0;
+}
+
 /*********************************************************************
  *
  *  Verify that the hardware indicated that the checksum is valid.
@@ -4815,23 +4868,27 @@ em_fixup_rx(struct rx_ring *rxr)
  *
  *********************************************************************/
 static void
-em_receive_checksum(struct e1000_rx_desc *rx_desc, struct mbuf *mp)
+em_receive_checksum(uint32_t status, struct mbuf *mp)
 {
 	mp->m_pkthdr.csum_flags = 0;
 
 	/* Ignore Checksum bit is set */
-	if (rx_desc->status & E1000_RXD_STAT_IXSM)
+	if (status & E1000_RXD_STAT_IXSM)
 		return;
 
-	if (rx_desc->errors & (E1000_RXD_ERR_TCPE | E1000_RXD_ERR_IPE))
-		return;
-
-	/* IP Checksum Good? */
-	if (rx_desc->status & E1000_RXD_STAT_IPCS)
+	/* If the IP checksum exists and there is no IP Checksum error */
+	if ((status & (E1000_RXD_STAT_IPCS | E1000_RXDEXT_STATERR_IPE)) ==
+		E1000_RXD_STAT_IPCS) {
 		mp->m_pkthdr.csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
+	}
 
 	/* TCP or UDP checksum */
-	if (rx_desc->status & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS)) {
+	if ((status & (E1000_RXD_STAT_TCPCS | E1000_RXDEXT_STATERR_TCPE)) ==
+	    E1000_RXD_STAT_TCPCS) {
+		mp->m_pkthdr.csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		mp->m_pkthdr.csum_data = htons(0xffff);
+	}
+	if (status & E1000_RXD_STAT_UDPCS) {
 		mp->m_pkthdr.csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 		mp->m_pkthdr.csum_data = htons(0xffff);
 	}
@@ -4933,8 +4990,8 @@ em_enable_intr(struct adapter *adapter)
 	u32 ims_mask = IMS_ENABLE_MASK;
 
 	if (hw->mac.type == e1000_82574) {
-		E1000_WRITE_REG(hw, EM_EIAC, EM_MSIX_MASK);
-		ims_mask |= EM_MSIX_MASK;
+		E1000_WRITE_REG(hw, EM_EIAC, adapter->ims);
+		ims_mask |= adapter->ims;
 	} 
 	E1000_WRITE_REG(hw, E1000_IMS, ims_mask);
 }
@@ -5470,18 +5527,15 @@ em_add_hw_stats(struct adapter *adapter)
 	char namebuf[QUEUE_NAME_LEN];
 	
 	/* Driver Statistics */
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
-			CTLFLAG_RD, &adapter->link_irq,
-			"Link MSIX IRQ Handled");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_alloc_fail", 
-			 CTLFLAG_RD, &adapter->mbuf_alloc_failed,
-			 "Std mbuf failed");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "cluster_alloc_fail", 
-			 CTLFLAG_RD, &adapter->mbuf_cluster_failed,
-			 "Std mbuf cluster failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped", 
 			CTLFLAG_RD, &adapter->dropped_pkts,
 			"Driver dropped packets");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
+			CTLFLAG_RD, &adapter->link_irq,
+			"Link MSIX IRQ Handled");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_fail", 
+			 CTLFLAG_RD, &adapter->mbuf_defrag_failed,
+			 "Defragmenting mbuf chain failed");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail", 
 			CTLFLAG_RD, &adapter->no_tx_dma_setup,
 			"Driver tx dma failure in xmit");
@@ -6030,7 +6084,9 @@ DB_COMMAND(em_reset_dev, em_ddb_reset_dev)
 		dev = devclass_get_device(dc, index);
 		if (device_get_driver(dev) == &em_driver) {
 			struct adapter *adapter = device_get_softc(dev);
+			EM_CORE_LOCK(adapter);
 			em_init_locked(adapter);
+			EM_CORE_UNLOCK(adapter);
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -302,6 +302,9 @@
 #define E1000_SVCR_OFF_TIMER_SHIFT	16
 #define E1000_SVT_OFF_HWM_MASK		0x0000001F
 
+#if defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT)
+#define E1000_PCI_REVISION_ID_REG	0x08
+#endif /* defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT) */
 void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
 void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);

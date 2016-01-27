@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -681,6 +681,9 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
+#if defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT)
+	u16 pci_cfg;
+#endif /* QV_RELEASE || !defined(NO_PCH_LPT_B0_SUPPORT) */
 
 	DEBUGFUNC("e1000_init_mac_params_ich8lan");
 
@@ -753,6 +756,11 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		mac->ops.update_mc_addr_list =
 			e1000_update_mc_addr_list_pch2lan;
 	case e1000_pchlan:
+#if defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT)
+		/* save PCH revision_id */
+		e1000_read_pci_cfg(hw, E1000_PCI_REVISION_ID_REG, &pci_cfg);
+		hw->revision_id = (u8)(pci_cfg &= 0x000F);
+#endif /* QV_RELEASE || !defined(NO_PCH_LPT_B0_SUPPORT) */
 		/* check management mode */
 		mac->ops.check_mng_mode = e1000_check_mng_mode_pchlan;
 		/* ID LED init */
@@ -1079,7 +1087,7 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 		u16 speed, duplex, scale = 0;
 		u16 max_snoop, max_nosnoop;
 		u16 max_ltr_enc;	/* max LTR latency encoded */
-		s64 lat_ns;		/* latency (ns) */
+		s64 lat_ns;
 		s64 value;
 		u32 rxa;
 
@@ -1111,8 +1119,8 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 			lat_ns = 0;
 		else
 			lat_ns /= speed;
-
 		value = lat_ns;
+
 		while (value > E1000_LTRV_VALUE_MASK) {
 			scale++;
 			value = E1000_DIVIDE_ROUND_UP(value, (1 << 5));
@@ -1297,9 +1305,9 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 release:
 	hw->phy.ops.release(hw);
 out:
-	if (ret_val) {
+	if (ret_val)
 		DEBUGOUT1("Error in ULP enable flow: %d\n", ret_val);
-	} else
+	else
 		hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_on;
 
 	return ret_val;
@@ -1440,9 +1448,9 @@ release:
 		msec_delay(50);
 	}
 out:
-	if (ret_val) {
+	if (ret_val)
 		DEBUGOUT1("Error in ULP disable flow: %d\n", ret_val);
-	} else
+	else
 		hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_off;
 
 	return ret_val;
@@ -2989,7 +2997,6 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 	u16 oem_reg;
 
 	DEBUGFUNC("e1000_set_lplu_state_pchlan");
-
 	ret_val = hw->phy.ops.read_reg(hw, HV_OEM_BITS, &oem_reg);
 	if (ret_val)
 		return ret_val;
@@ -4990,7 +4997,6 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_resume_workarounds_pchlan");
-
 	if (hw->mac.type < e1000_pch2lan)
 		return;
 
