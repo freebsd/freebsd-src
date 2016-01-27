@@ -116,7 +116,7 @@ totext_in_apl(ARGS_TOTEXT) {
 	isc_uint8_t len;
 	isc_boolean_t neg;
 	unsigned char buf[16];
-	char txt[sizeof(" !64000")];
+	char txt[sizeof(" !64000:")];
 	const char *sep = "";
 	int n;
 
@@ -140,7 +140,7 @@ totext_in_apl(ARGS_TOTEXT) {
 		isc_region_consume(&sr, 1);
 		INSIST(len <= sr.length);
 		n = snprintf(txt, sizeof(txt), "%s%s%u:", sep,
-			     neg ? "!": "", afi);
+			     neg ? "!" : "", afi);
 		INSIST(n < (int)sizeof(txt));
 		RETERR(str_totext(txt, target));
 		switch (afi) {

@@ -1,5 +1,258 @@
 ---
 
+NTP 4.2.8p6
+
+Focus: Security, Bug fixes, enhancements.
+
+Severity: MEDIUM
+
+In addition to bug fixes and enhancements, this release fixes the
+following X low- and Y medium-severity vulnerabilities:
+
+* Potential Infinite Loop in 'ntpq'
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2548 / CVE-2015-8158
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS2: (AV:N/AC:M/Au:N/C:N/I:N/A:P) Base Score: 4.3 - MEDIUM
+   CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N Base Score: 5.3 - MEDIUM
+   Summary: 'ntpq' processes incoming packets in a loop in 'getresponse()'.
+	The loop's only stopping conditions are receiving a complete and
+	correct response or hitting a small number of error conditions.
+	If the packet contains incorrect values that don't trigger one of
+	the error conditions, the loop continues to receive new packets.
+	Note well, this is an attack against an instance of 'ntpq', not
+	'ntpd', and this attack requires the attacker to do one of the
+	following:
+	* Own a malicious NTP server that the client trusts
+	* Prevent a legitimate NTP server from sending packets to
+	    the 'ntpq' client
+	* MITM the 'ntpq' communications between the 'ntpq' client
+	    and the NTP server
+   Mitigation:
+	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page
+	or the NTP Public Services Project Download Page
+   Credit: This weakness was discovered by Jonathan Gardner of Cisco ASIG.
+
+* 0rigin: Zero Origin Timestamp Bypass
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2945 / CVE-2015-8138
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS2: (AV:N/AC:L/Au:N/C:N/I:P/A:N) Base Score: 5.0 - MEDIUM
+   CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N Base Score: 5.3 - MEDIUM
+	(3.7 - LOW if you score AC:L)
+   Summary: To distinguish legitimate peer responses from forgeries, a
+	client attempts to verify a response packet by ensuring that the
+	origin timestamp in the packet matches the origin timestamp it
+	transmitted in its last request.  A logic error exists that
+	allows packets with an origin timestamp of zero to bypass this
+	check whenever there is not an outstanding request to the server.
+   Mitigation:
+	Configure 'ntpd' to get time from multiple sources.
+	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	Monitor your 'ntpd= instances.
+   Credit: This weakness was discovered by Jonathan Gardner of Cisco ASIG.
+
+* Stack exhaustion in recursive traversal of restriction list
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016
+   References: Sec 2940 / CVE-2015-7978
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS: (AV:N/AC:M/Au:N/C:N/I:N/A:P) Base Score: 4.3 - MEDIUM
+   Summary: An unauthenticated 'ntpdc reslist' command can cause a
+   	segmentation fault in ntpd by exhausting the call stack.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	If you are unable to upgrade:
+            In ntp-4.2.8, mode 7 is disabled by default. Don't enable it.
+	    If you must enable mode 7:
+		configure the use of a 'requestkey' to control who can
+		    issue mode 7 requests.
+		configure 'restrict noquery' to further limit mode 7
+		    requests to trusted sources.
+		Monitor your ntpd instances.
+   Credit: This weakness was discovered by Stephen Gray at Cisco ASIG.
+
+* Off-path Denial of Service (!DoS) attack on authenticated broadcast mode
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2942 / CVE-2015-7979
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS: (AV:N/AC:M/Au:N/C:N/I:P/A:P) Base Score: 5.8
+   Summary: An off-path attacker can send broadcast packets with bad
+	authentication (wrong key, mismatched key, incorrect MAC, etc)
+	to broadcast clients. It is observed that the broadcast client
+	tears down the association with the broadcast server upon
+	receiving just one bad packet.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page
+	or the NTP Public Services Project Download Page.
+	Monitor your 'ntpd' instances.
+	If this sort of attack is an active problem for you, you have
+	    deeper problems to investigate.  In this case also consider
+	    having smaller NTP broadcast domains.
+   Credit: This weakness was discovered by Aanchal Malhotra of Boston
+   	University.
+
+* reslist NULL pointer dereference
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2939 / CVE-2015-7977
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS: (AV:N/AC:M/Au:N/C:N/I:N/A:P) Base Score: 4.3 - MEDIUM
+   Summary: An unauthenticated 'ntpdc reslist' command can cause a
+	segmentation fault in ntpd by causing a NULL pointer dereference.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p6, or later, from NTP Project Download Page or
+	the NTP Public Services Project Download Page.
+	If you are unable to upgrade:
+	    mode 7 is disabled by default.  Don't enable it.
+	    If you must enable mode 7:
+		configure the use of a 'requestkey' to control who can
+		    issue mode 7 requests.
+		configure 'restrict noquery' to further limit mode 7
+		    requests to trusted sources. 
+	Monitor your ntpd instances.
+   Credit: This weakness was discovered by Stephen Gray of Cisco ASIG.
+
+* 'ntpq saveconfig' command allows dangerous characters in filenames.
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2938 / CVE-2015-7976
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS: (AV:N/AC:L/Au:S/C:N/I:P/A:N) Base Score: 4.0 - MEDIUM
+   Summary: The ntpq saveconfig command does not do adequate filtering
+   	of special characters from the supplied filename.
+	Note well: The ability to use the saveconfig command is controlled
+	by the 'restrict nomodify' directive, and the recommended default
+	configuration is to disable this capability.  If the ability to
+	execute a 'saveconfig' is required, it can easily (and should) be
+	limited and restricted to a known small number of IP addresses.
+   Mitigation:
+	Implement BCP-38.
+	use 'restrict default nomodify' in your 'ntp.conf' file.
+	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page.
+	If you are unable to upgrade:
+	    build NTP with 'configure --disable-saveconfig' if you will
+	    	never need this capability, or
+	    use 'restrict default nomodify' in your 'ntp.conf' file.  Be
+		careful about what IPs have the ability to send 'modify'
+		requests to 'ntpd'.
+	Monitor your ntpd instances.
+	'saveconfig' requests are logged to syslog - monitor your syslog files.
+   Credit: This weakness was discovered by Jonathan Gardner of Cisco ASIG.
+
+* nextvar() missing length check in ntpq
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2937 / CVE-2015-7975
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS: (AV:L/AC:H/Au:N/C:N/I:N/A:P) Base Score: 1.2 - LOW
+	If you score A:C, this becomes 4.0.
+   CVSSv3: (CVSS:3.0/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L) Base Score 2.9, LOW
+   Summary: ntpq may call nextvar() which executes a memcpy() into the
+	name buffer without a proper length check against its maximum
+	length of 256 bytes. Note well that we're taking about ntpq here.
+	The usual worst-case effect of this vulnerability is that the
+	specific instance of ntpq will crash and the person or process
+	that did this will have stopped themselves.
+   Mitigation:
+	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	If you are unable to upgrade:
+	    If you have scripts that feed input to ntpq make sure there are
+		some sanity checks on the input received from the "outside".
+	    This is potentially more dangerous if ntpq is run as root. 
+   Credit: This weakness was discovered by Jonathan Gardner at Cisco ASIG.
+
+* Skeleton Key: Any trusted key system can serve time
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2936 / CVE-2015-7974
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+	4.3.0 up to, but not including 4.3.90
+   CVSS: (AV:N/AC:H/Au:S/C:N/I:C/A:N) Base Score: 4.9
+   Summary: Symmetric key encryption uses a shared trusted key. The
+	reported title for this issue was "Missing key check allows
+	impersonation between authenticated peers" and the report claimed
+	"A key specified only for one server should only work to
+	authenticate that server, other trusted keys should be refused."
+	Except there has never been any correlation between this trusted
+	key and server v. clients machines and there has never been any
+	way to specify a key only for one server. We have treated this as
+	an enhancement request, and ntp-4.2.8p6 includes other checks and
+	tests to strengthen clients against attacks coming from broadcast
+	servers.
+   Mitigation:
+	Implement BCP-38.
+	If this scenario represents a real or a potential issue for you,
+	    upgrade to 4.2.8p6, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page, and
+	    use the new field in the ntp.keys file that specifies the list
+	    of IPs that are allowed to serve time. Note that this alone
+	    will not protect against time packets with forged source IP
+	    addresses, however other changes in ntp-4.2.8p6 provide
+	    significant mitigation against broadcast attacks. MITM attacks
+	    are a different story.
+	If you are unable to upgrade:
+	    Don't use broadcast mode if you cannot monitor your client
+	    	servers.
+	    If you choose to use symmetric keys to authenticate time
+	    	packets in a hostile environment where ephemeral time
+		servers can be created, or if it is expected that malicious
+		time servers will participate in an NTP broadcast domain,
+		limit the number of participating systems that participate
+		in the shared-key group. 
+	Monitor your ntpd instances. 
+   Credit: This weakness was discovered by Matt Street of Cisco ASIG. 
+
+* Deja Vu: Replay attack on authenticated broadcast mode
+   Date Resolved: Stable (4.2.8p6) 19 Jan 2016; Dev (4.3.90) 19 Jan 2016
+   References: Sec 2935 / CVE-2015-7973
+   Affects: All ntp-4 releases up to, but not including 4.2.8p6, and
+   	4.3.0 up to, but not including 4.3.90
+   CVSS: (AV:A/AC:M/Au:N/C:N/I:P/A:P) Base Score: 4.3 - MEDIUM
+   Summary: If an NTP network is configured for broadcast operations then
+   	either a man-in-the-middle attacker or a malicious participant
+	that has the same trusted keys as the victim can replay time packets.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p6, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	If you are unable to upgrade:
+	    Don't use broadcast mode if you cannot monitor your client servers.
+	Monitor your ntpd instances.
+   Credit: This weakness was discovered by Aanchal Malhotra of Boston
+	University.
+
+Other fixes:
+
+* [Bug 2772] adj_systime overflows tv_usec. perlinger@ntp.org
+* [Bug 2814] msyslog deadlock when signaled. perlinger@ntp.org
+  - applied patch by shenpeng11@huawei.com with minor adjustments
+* [Bug 2882] Look at ntp_request.c:list_peers_sum(). perlinger@ntp.org
+* [Bug 2891] Deadlock in deferred DNS lookup framework. perlinger@ntp.org
+* [Bug 2892] Several test cases assume IPv6 capabilities even when
+             IPv6 is disabled in the build. perlinger@ntp.org
+  - Found this already fixed, but validation led to cleanup actions.
+* [Bug 2905] DNS lookups broken. perlinger@ntp.org
+  - added limits to stack consumption, fixed some return code handling
+* [Bug 2971] ntpq bails on ^C: select fails: Interrupted system call
+  - changed stacked/nested handling of CTRL-C. perlinger@ntp.org
+  - make CTRL-C work for retrieval and printing od MRU list. perlinger@ntp.org
+* [Bug 2980] reduce number of warnings. perlinger@ntp.org
+  - integrated several patches from Havard Eidnes (he@uninett.no)
+* [Bug 2985] bogus calculation in authkeys.c perlinger@ntp.org
+  - implement 'auth_log2()' using integer bithack instead of float calculation
+* Make leapsec_query debug messages less verbose.  Harlan Stenn.
+
+---
+
 NTP 4.2.8p5
 
 Focus: Security, Bug fixes, enhancements.

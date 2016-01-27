@@ -11,6 +11,17 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160127	p35	FreeBSD-SA-16:08.bind
+			FreeBSD-SA-16:09.ntp
+			FreeBSD-SA-16:10.linux
+
+	Fix BIND remote denial of service vulnerability. [SA-16:08]
+
+	Fix multiple vulnerabilities of ntp. [SA-16:09]
+
+	Fix Linux compatibility layer issetugid(2) system call
+	vulnerability. [SA-16:10]
+
 20160114	p34	FreeBSD-SA-16:07.openssh
 
 	Fix OpenSSH client information leak. [SA-16:07]
