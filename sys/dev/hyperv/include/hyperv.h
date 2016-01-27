@@ -755,6 +755,8 @@ typedef struct hv_vmbus_channel {
 
 	struct mtx			inbound_lock;
 
+	struct taskqueue *		rxq;
+	struct task			channel_task;
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
 	void*				channel_callback_context;
 
