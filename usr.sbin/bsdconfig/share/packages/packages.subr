@@ -1,6 +1,6 @@
 if [ ! "$_PACKAGES_PACKAGES_SUBR" ]; then _PACKAGES_PACKAGES_SUBR=1
 #
-# Copyright (c) 2013 Devin Teske
+# Copyright (c) 2013-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -667,6 +667,8 @@ f_package_config()
 		# Creates following variables (indirectly via f_index_read())
 		#   CATEGORY_MENU_LIST _categories_{varpkg} _rundeps_{varpkg}
 		#   PACKAGE_CATEGORIES _npkgs
+
+	f_show_info "$msg_building_package_main_menu"
 
 	# Detect installed packages (updates marks/SELECTED_PACKAGES)
 	f_package_detect_installed
