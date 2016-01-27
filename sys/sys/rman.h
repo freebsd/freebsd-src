@@ -82,7 +82,7 @@ struct u_rman {
 	char		rm_descr[RM_TEXTLEN];	/* rman description */
 
 	rman_res_t	rm_start;		/* base of managed region */
-	bus_size_t	rm_size;		/* size of managed region */
+	rman_res_t	rm_size;		/* size of managed region */
 	enum rman_type	rm_type;		/* region type */
 };
 
