@@ -56,7 +56,9 @@ _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
+.if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE= ${DEPENDFILE}
+.endif
 DEPENDFILES=	${DEPENDFILE}
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
