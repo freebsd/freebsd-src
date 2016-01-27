@@ -113,10 +113,8 @@ loop:
 	     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 	     (int) fs->fs_bsize, 0, 0, 0, NOCRED, flags, &bp);
 	if (error != 0) {
-		if (error != EBUSY) {
-			brelse(bp);
+		if (error != EBUSY)
 			return (error);
-		}
 		KASSERT((IS_SNAPSHOT(ip)), ("EBUSY from non-snapshot"));
 		/*
 		 * Wait for our inode block to become available.
