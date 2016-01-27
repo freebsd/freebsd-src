@@ -1460,12 +1460,12 @@ also builtins
   abort" Unable to load a kernel!"
 ;
 
-: load_xen ( -- )
+: load_xen ( -- flag )
   s" xen_kernel" getenv dup -1 <> if
-    1 1 load
+    1 1 load ( c-addr/u flag N -- flag )
   else
     drop
-    0
+    0 ( -1 -- flag )
   then
 ;
 
