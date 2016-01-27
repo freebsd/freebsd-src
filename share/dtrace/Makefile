@@ -12,7 +12,10 @@ SUBDIR= ${_toolkit}
 _toolkit=	toolkit
 .endif
 
-SCRIPTS=	nfsclienttime hotopen
+SCRIPTS=	nfsclienttime hotopen \
+		watch_execve \
+		watch_kill \
+		watch_vop_remove
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 
