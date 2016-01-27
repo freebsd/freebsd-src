@@ -605,6 +605,9 @@ VNET_PCPUSTAT_DECLARE(struct tcpstat, tcpstat);	/* tcp statistics */
 #define	TCPSTAT_ADD(name, val)	\
     VNET_PCPUSTAT_ADD(struct tcpstat, tcpstat, name, (val))
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
+#define	TCPSTAT_DEC(name)	TCPSTAT_ADD(name, -1)
+#define	TCPSTAT_FETCH(name)	VNET_PCPUSTAT_FETCH(struct tcpstat, tcpstat, \
+				    name)
 
 /*
  * Kernel module consumers must use this accessor macro.
