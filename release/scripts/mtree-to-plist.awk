@@ -22,6 +22,12 @@
 			type="dir"
 		}
 	}
+	if (kernel != "") {
+		tags="package=kernel"
+		if (_kernconf != "") {
+			tags=tags""_kernconf
+		}
+	}
 	if (length(tags) == 0)
 		next
 	if (tags ~ /package=/) {
@@ -57,10 +63,22 @@
 			}
 		}
 	} else {
-		print "No packages specified in line: $0" > 2
+		print "No packages specified in line: $0"
 		next
 	}
-	output=pkgname".plist"
+	if (kernel != "") {
+		output="kernel"
+		if (_kernconf != "") {
+			output=output"."_kernconf
+		}
+		if ($1 ~ /^\/usr\/lib\/debug\/boot/) {
+			output=output"-debug.plist"
+		} else {
+			output=output"-release.plist"
+		}
+	} else {
+		output=pkgname".plist"
+	}
 
 	print "@"type"("uname","gname","mode","flags") " $1 > output
 }
