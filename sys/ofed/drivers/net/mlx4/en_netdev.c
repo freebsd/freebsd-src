@@ -606,13 +606,13 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 		mlx4_unregister_mac(dev, priv->port, mac);
 	} else {
 		struct mlx4_mac_entry *entry;
-		struct hlist_node *n, *tmp;
+		struct hlist_node *tmp;
 		struct hlist_head *bucket;
 		unsigned int i;
 
 		for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i) {
 			bucket = &priv->mac_hash[i];
-			hlist_for_each_entry_safe(entry, n, tmp, bucket, hlist) {
+			hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
 				mac = mlx4_mac_to_u64(entry->mac);
 				en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
 				       entry->mac);

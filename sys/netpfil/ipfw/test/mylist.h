@@ -6,6 +6,7 @@
 
 #ifndef _MYLIST_H
 #define _MYLIST_H
+/* not just a head, also the link field for a list entry */
 struct list_head {
         struct list_head *prev, *next;
 };

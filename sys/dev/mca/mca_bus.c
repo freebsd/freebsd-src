@@ -456,7 +456,7 @@ mca_read_ivar (device_t dev, device_t child, int which, uintptr_t * result)
 
 static struct resource *
 mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
-		    u_long start, u_long end, u_long count, u_int flags)
+		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mca_device *		m_dev = device_get_ivars(child);
 	struct resource_list_entry *	rle;

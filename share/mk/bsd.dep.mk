@@ -56,6 +56,9 @@ _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
+.if ${MK_DIRDEPS_BUILD} == "no"
+.MAKE.DEPENDFILE= ${DEPENDFILE}
+.endif
 DEPENDFILES=	${DEPENDFILE}
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
@@ -107,8 +110,8 @@ ${_YC} y.tab.h: ${_YSRC}
 CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
-${_YH}: ${_YC}
-${_YC}: ${_YSRC}
+.ORDER: ${_YC} ${_YH}
+${_YC} ${_YH}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 SRCS+=	${_YH}
 CLEANFILES+= ${_YH}
@@ -129,25 +132,26 @@ CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
-DHDRS+=	${_D}.h
+SRCS+=	${_D}.h
 ${_D}.h: ${_DSRC}
 	${DTRACE} ${DTRACEFLAGS} -h -s ${.ALLSRC}
 SRCS:=	${SRCS:S/^${_DSRC}$//}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
 ${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
-	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
+	@rm -f ${.TARGET}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
 ${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
-	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
+	@rm -f ${.TARGET}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
-	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC}
+	@rm -f ${.TARGET}
+	${DTRACE} ${DTRACEFLAGS} -G -o ${.TARGET} -s ${.ALLSRC:N*.h}
 .endif
 .endfor
 .endfor
-beforedepend: ${DHDRS}
-beforebuild: ${DHDRS}
 
 
 .if ${MK_FAST_DEPEND} == "yes" && \

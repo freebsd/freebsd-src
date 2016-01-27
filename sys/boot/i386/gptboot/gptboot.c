@@ -37,11 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "cons.h"
 #include "gpt.h"
-
-#define PATH_DOTCONFIG  "/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_BOOT3	"/boot/loader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
+#include "paths.h"
 
 #define ARGS		0x900
 #define NOPT		14

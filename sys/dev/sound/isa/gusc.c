@@ -91,7 +91,7 @@ static int gusc_attach(device_t dev);
 static int gusisa_probe(device_t dev);
 static void gusc_intr(void *);
 static struct resource *gusc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-					      u_long start, u_long end, u_long count, u_int flags);
+					    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 static int gusc_release_resource(device_t bus, device_t child, int type, int rid,
 				   struct resource *r);
 
@@ -350,7 +350,7 @@ gusc_intr(void *arg)
 
 static struct resource *
 gusc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		      u_long start, u_long end, u_long count, u_int flags)
+		    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	sc_p scp;
 	int *alloced, rid_max, alloced_max;

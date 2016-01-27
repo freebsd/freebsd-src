@@ -194,7 +194,7 @@ upa_attach(device_t dev)
 	int i, imr, j, rid;
 #if 1
 	device_t *children, schizo;
-	u_long scount, sstart, ucount, ustart;
+	rman_res_t scount, sstart, ucount, ustart;
 	int nchildren;
 #endif
 
@@ -403,7 +403,7 @@ upa_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -510,8 +510,8 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 static int
 upa_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *r __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);

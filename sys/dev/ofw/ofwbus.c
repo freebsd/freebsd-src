@@ -178,7 +178,7 @@ ofwbus_attach(device_t dev)
 
 static struct resource *
 ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ofwbus_softc *sc;
 	struct rman *rm;
@@ -239,7 +239,7 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 ofwbus_adjust_resource(device_t bus, device_t child __unused, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct ofwbus_softc *sc;
 	struct rman *rm;

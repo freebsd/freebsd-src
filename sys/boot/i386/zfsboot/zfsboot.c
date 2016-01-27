@@ -42,13 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "cons.h"
 #include "bootargs.h"
+#include "paths.h"
 
 #include "libzfs.h"
-
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_BOOT3	"/boot/zfsloader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		14
