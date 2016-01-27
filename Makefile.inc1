@@ -267,6 +267,11 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 .endif
 
+.if make(stagekernel) || make(distributekernel)
+TAGS+=		kernel
+PACKAGE=	kernel
+.endif
+
 #
 # Building a world goes through the following stages
 #
@@ -1305,7 +1310,7 @@ distributekernel distributekernel.debug:
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	sed -e 's|^./kernel|.|' \
+	sed -e "s|^./kernel.${_kernel}|.|" \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
@@ -1357,7 +1362,11 @@ packagekernel:
 .endif
 .endif
 
-STAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/stage
+stagekernel:
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
+
+WSTAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/worldstage
+KSTAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/kernelstage
 REPODIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
 PKGSIGNKEY?=	# empty
 
@@ -1365,10 +1374,12 @@ _pkgbootstrap:
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 
 packages:	_pkgbootstrap
-	@mkdir -p ${STAGEDIR} ${REPODIR}
+	@mkdir -p ${WSTAGEDIR} ${KSTAGEDIR} ${REPODIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT -B stageworld ; \
-		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
+		${MAKE} DESTDIR=${DESTDIR:U${WSTAGEDIR}} -DNO_ROOT -B stageworld ; \
+		${MAKE} DESTDIR=${DESTDIR:U${WSTAGEDIR}} create-world-packages ; \
+		${MAKE} DESTDIR=${DESTDIR:U${KSTAGEDIR}} -DNO_ROOT -B stagekernel ; \
+		${MAKE} DESTDIR=${DESTDIR:U${KSTAGEDIR}} DISTDIR=kernel create-kernel-packages
 
 create-world-packages:	_pkgbootstrap
 	@rm -f ${DESTDIR}/*.plist 2>/dev/null || :
@@ -1404,55 +1415,65 @@ create-world-packages:	_pkgbootstrap
 	done
 
 create-kernel-packages:	_pkgbootstrap
-	@cd ${DESTDIR}/${DISTDIR} ; \
-		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		${DESTDIR}/${DISTDIR}/kernel.meta
+.if exists(${DESTDIR}/kernel.meta)
 .for flavor in release debug
-.if exists(${DESTDIR}/${DISTDIR}/${flavor}.plist)
-	@rm -rf ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
-	@cp -r ${SRCDIR}/release/packages/kernel \
-		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
 	@cd ${DESTDIR}/${DISTDIR} ; \
-		sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
+	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		-v kernel=yes \
+		${DESTDIR}/kernel.meta ; \
+	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
+	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%PKGNAME%/kernel-${flavor}/" \
-		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
-		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
-		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@pkg -o ABI_FILE=${DESTDIR}/bin/sh create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
-		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
-		-r ${DESTDIR}/${DISTDIR}/kernel \
-		-o ${DESTDIR}
+		-e "s/%COMMENT%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
+		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
+		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		${SRCDIR}/release/packages/kernel.ucl \
+		> ${DESTDIR}/${DISTDIR}/kernel-${flavor}.ucl ; \
+	awk -F\" ' \
+		/name/ { printf("===> Creating %s-", $$2); next } \
+		/version/ {print $$2; next } ' \
+		${DESTDIR}/${DISTDIR}/kernel-${flavor}.ucl ; \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh \
+		create -M ${DESTDIR}/${DISTDIR}/kernel-${flavor}.ucl \
+		-p ${DESTDIR}/${DISTDIR}/kernel-${flavor}.plist \
+		-r ${DESTDIR}/${DISTDIR} -o ${REPODIR}/$$(pkg config ABI)/latest
+.endfor
+.endif
+.if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
+.for _kernel in ${BUILDKERNELS:[2..-1]}
+.if exists(${DESTDIR}/kernel.${_kernel}.meta)
+.for flavor in release debug
+	@cd ${DESTDIR}/kernel.${_kernel} ; \
+	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
+		-v kernel=yes -v _kernconf=${_kernel} \
+		${DESTDIR}/kernel.${_kernel}.meta ; \
+	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
+	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
+	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%PKGNAME%/kernel-${flavor}/" \
+		-e "s/%COMMENT%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
+		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
+		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		${SRCDIR}/release/packages/kernel.ucl \
+		> ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.ucl ; \
+	awk -F\" ' \
+		/name/ { printf("===> Creating %s-", $$2); next } \
+		/version/ {print $$2; next } ' \
+		${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.ucl ; \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh \
+		create -M ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.ucl \
+		-p ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.plist \
+		-r ${DESTDIR}/kernel.${_kernel} -o ${REPODIR}/$$(pkg config ABI)/latest
+.endfor
 .endif
 .endfor
-.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
-	@cd ${DESTDIR}/${DISTDIR} ; \
-		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		${DESTDIR}/${DISTDIR}/kernel${_kernel}.meta
-.for flavor in release debug
-.if exists(${DESTDIR}/${DISTDIR}/${flavor}.plist)
-	@rm -rf ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
-	@cp -r ${SRCDIR}/release/packages/kernel \
-		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir
-	@cd ${DESTDIR}/${DISTDIR} ; \
-		sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/kernel-${flavor}/" \
-		-e "s/%COMMENT%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${KERNCONF} kernel ${flavor}/" \
-		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@awk -F\" '/name/ { printf("===> Creating %s-", $$2) } /version/ {print $$2 }' \
-		${DESTDIR}/${DISTDIR}/${flavor}-manifestdir/+MANIFEST
-	@pkg -o ABI_FILE=${DESTDIR}/bin/sh create -m ${DESTDIR}/${DISTDIR}/${flavor}-manifestdir \
-		-p ${DESTDIR}/${DISTDIR}/${flavor}.plist \
-		-r ${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
-		-o ${DESTDIR}
 .endif
-.endfor
-.endfor
 
 signpackages:	_pkgbootstrap
-	@pkg -o ABI_FILE=${STAGEDIR}/bin/sh repo ${REPODIR}/$$(pkg config ABI) ${PKGSIGNKEY}
+	@pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo ${REPODIR}/$$(pkg config ABI) ${PKGSIGNKEY}
 
 #
 # doxygen
