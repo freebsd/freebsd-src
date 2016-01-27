@@ -2861,7 +2861,7 @@ collect_mru_list(
 				 ri, sptoa(&recent->addr), ri,
 				 recent->last.l_ui, recent->last.l_uf);
 			chars = strlen(buf);
-			if (REQ_ROOM <= chars)
+			if ((size_t)REQ_ROOM <= chars)
 				break;
 			memcpy(req, buf, chars + 1);
 			req += chars;
@@ -3173,6 +3173,7 @@ mrulist(
 		qsort(sorted, mru_count, sizeof(sorted[0]),
 		      mru_qcmp_table[order]);
 
+	mrulist_interrupted = FALSE;
 	printf(	"lstint avgint rstr r m v  count rport remote address\n"
 		"==============================================================================\n");
 		/* '=' x 78 */
@@ -3199,6 +3200,11 @@ mrulist(
 			nntohost(&recent->addr));
 		if (showhostnames)
 			fflush(fp);
+		if (mrulist_interrupted) {
+			fputs("\n --interrupted--\n", fp);
+			fflush(fp);
+			break;
+		}
 	}
 	fflush(fp);
 	if (debug) {

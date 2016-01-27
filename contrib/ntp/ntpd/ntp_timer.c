@@ -549,14 +549,16 @@ check_leapsec(
 #ifdef LEAP_SMEAR
 	leap_smear.enabled = leap_smear_intv != 0;
 #endif
-	if (reset)	{
+	if (reset) {
 		lsprox = LSPROX_NOWARN;
 		leapsec_reset_frame();
 		memset(&lsdata, 0, sizeof(lsdata));
 	} else {
-	  int fired = leapsec_query(&lsdata, now, tpiv);
+	  int fired;
 
-	  DPRINTF(1, ("*** leapsec_query: fired %i, now %u (0x%08X), tai_diff %i, ddist %u\n",
+	  fired = leapsec_query(&lsdata, now, tpiv);
+
+	  DPRINTF(3, ("*** leapsec_query: fired %i, now %u (0x%08X), tai_diff %i, ddist %u\n",
 		  fired, now, now, lsdata.tai_diff, lsdata.ddist));
 
 #ifdef LEAP_SMEAR
@@ -572,8 +574,7 @@ check_leapsec(
 				DPRINTF(1, ("*** leapsec_query: setting leap_smear interval %li, begin %.0f, end %.0f\n",
 					leap_smear.interval, leap_smear.intv_start, leap_smear.intv_end));
 			}
-		}
-		else {
+		} else {
 			if (leap_smear.interval)
 				DPRINTF(1, ("*** leapsec_query: clearing leap_smear interval\n"));
 			leap_smear.interval = 0;
@@ -655,10 +656,10 @@ check_leapsec(
 		sys_tai = lsdata.tai_offs;
 	  } else {
 #ifdef AUTOKEY
-		update_autokey = (sys_tai != lsdata.tai_offs);
+		  update_autokey = (sys_tai != (u_int)lsdata.tai_offs);
 #endif
-		lsprox  = lsdata.proximity;
-		sys_tai = lsdata.tai_offs;
+		  lsprox  = lsdata.proximity;
+		  sys_tai = lsdata.tai_offs;
 	  }
 	}
 

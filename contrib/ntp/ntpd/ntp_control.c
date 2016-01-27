@@ -75,6 +75,7 @@ static	void	ctl_putarray	(const char *, double *, int);
 static	void	ctl_putsys	(int);
 static	void	ctl_putpeer	(int, struct peer *);
 static	void	ctl_putfs	(const char *, tstamp_t);
+static	void	ctl_printf	(const char *, ...) NTP_PRINTF(1, 2);
 #ifdef REFCLOCK
 static	void	ctl_putclock	(int, struct refclockstat *, int);
 #endif	/* REFCLOCK */
@@ -110,6 +111,8 @@ static	void	req_nonce	(struct recvbuf *, int);
 static	void	unset_trap	(struct recvbuf *, int);
 static	struct ctl_trap *ctlfindtrap(sockaddr_u *,
 				     struct interface *);
+
+int/*BOOL*/ is_safe_filename(const char * name);
 
 static const struct ctl_proc control_codes[] = {
 	{ CTL_OP_UNSPEC,		NOAUTH,	control_unspec },
@@ -873,10 +876,66 @@ ctl_error(
 			CTL_HEADER_LEN);
 }
 
+int/*BOOL*/
+is_safe_filename(const char * name)
+{
+	/* We need a strict validation of filenames we should write: The
+	 * daemon might run with special permissions and is remote
+	 * controllable, so we better take care what we allow as file
+	 * name!
+	 *
+	 * The first character must be digit or a letter from the ASCII
+	 * base plane or a '_' ([_A-Za-z0-9]), the following characters
+	 * must be from [-._+A-Za-z0-9].
+	 *
+	 * We do not trust the character classification much here: Since
+	 * the NTP protocol makes no provisions for UTF-8 or local code
+	 * pages, we strictly require the 7bit ASCII code page.
+	 *
+	 * The following table is a packed bit field of 128 two-bit
+	 * groups. The LSB in each group tells us if a character is
+	 * acceptable at the first position, the MSB if the character is
+	 * accepted at any other position.
+	 *
+	 * This does not ensure that the file name is syntactically
+	 * correct (multiple dots will not work with VMS...) but it will
+	 * exclude potential globbing bombs and directory traversal. It
+	 * also rules out drive selection. (For systems that have this
+	 * notion, like Windows or VMS.)
+	 */
+	static const uint32_t chclass[8] = {
+		0x00000000, 0x00000000,
+		0x28800000, 0x000FFFFF,
+		0xFFFFFFFC, 0xC03FFFFF,
+		0xFFFFFFFC, 0x003FFFFF
+	};
+
+	u_int widx, bidx, mask;
+	if (!*name)
+		return FALSE;
+	
+	mask = 1u;
+	while (0 != (widx = (u_char)*name++)) {
+		bidx = (widx & 15) << 1;
+		widx = widx >> 4;
+		if (widx >= sizeof(chclass))
+			return FALSE;
+		if (0 == ((chclass[widx] >> bidx) & mask))
+			return FALSE;
+		mask |= 2u;
+	}
+	return TRUE;
+}
+
+
 /*
  * save_config - Implements ntpq -c "saveconfig <filename>"
  *		 Writes current configuration including any runtime
  *		 changes by ntpq's :config or config-from-file
+ *
+ * Note: There should be no buffer overflow or truncation in the
+ * processing of file names -- both cause security problems. This is bit
+ * painful to code but essential here.
  */
 void
 save_config(
@@ -904,24 +963,38 @@ save_config(
 	    "\\/"	/* separator and critical char for POSIX */
 #endif
 	    ;
-
-
 	char reply[128];
 #ifdef SAVECONFIG
+	static const char savedconfig_eq[] = "savedconfig=";
+
+	/* Build a safe open mode from the available mode flags. We want
+	 * to create a new file and write it in text mode (when
+	 * applicable -- only Windows does this...)
+	 */
+	static const int openmode = O_CREAT | O_TRUNC | O_WRONLY
+#  if defined(O_EXCL)		/* posix, vms */
+	    | O_EXCL
+#  elif defined(_O_EXCL)	/* windows is alway very special... */
+	    | _O_EXCL
+#  endif
+#  if defined(_O_TEXT)		/* windows, again */
+	    | _O_TEXT
+#endif
+	    ; 
+	
 	char filespec[128];
 	char filename[128];
 	char fullpath[512];
-	const char savedconfig_eq[] = "savedconfig=";
 	char savedconfig[sizeof(savedconfig_eq) + sizeof(filename)];
 	time_t now;
 	int fd;
 	FILE *fptr;
+	int prc;
+	size_t reqlen;
 #endif
 
 	if (RES_NOMODIFY & restrict_mask) {
-		snprintf(reply, sizeof(reply),
-			 "saveconfig prohibited by restrict ... nomodify");
-		ctl_putdata(reply, strlen(reply), 0);
+		ctl_printf("%s", "saveconfig prohibited by restrict ... nomodify");
 		ctl_flushpkt(0);
 		NLOG(NLOG_SYSINFO)
 			msyslog(LOG_NOTICE,
@@ -933,9 +1006,7 @@ save_config(
 
 #ifdef SAVECONFIG
 	if (NULL == saveconfigdir) {
-		snprintf(reply, sizeof(reply),
-			 "saveconfig prohibited, no saveconfigdir configured");
-		ctl_putdata(reply, strlen(reply), 0);
+		ctl_printf("%s", "saveconfig prohibited, no saveconfigdir configured");
 		ctl_flushpkt(0);
 		NLOG(NLOG_SYSINFO)
 			msyslog(LOG_NOTICE,
@@ -944,21 +1015,79 @@ save_config(
 		return;
 	}
 
-	if (0 == reqend - reqpt)
+	/* The length checking stuff gets serious. Do not assume a NUL
+	 * byte can be found, but if so, use it to calculate the needed
+	 * buffer size. If the available buffer is too short, bail out;
+	 * likewise if there is no file spec. (The latter will not
+	 * happen when using NTPQ, but there are other ways to craft a
+	 * network packet!)
+	 */
+	reqlen = (size_t)(reqend - reqpt);
+	if (0 != reqlen) {
+		char * nulpos = (char*)memchr(reqpt, 0, reqlen);
+		if (NULL != nulpos)
+			reqlen = (size_t)(nulpos - reqpt);
+	}
+	if (0 == reqlen)
 		return;
+	if (reqlen >= sizeof(filespec)) {
+		ctl_printf("saveconfig exceeded maximum raw name length (%u)",
+			   (u_int)sizeof(filespec));
+		ctl_flushpkt(0);
+		msyslog(LOG_NOTICE,
+			"saveconfig exceeded maximum raw name length from %s",
+			stoa(&rbufp->recv_srcadr));
+		return;
+	}
 
-	strlcpy(filespec, reqpt, sizeof(filespec));
-	time(&now);
-
+	/* copy data directly as we exactly know the size */
+	memcpy(filespec, reqpt, reqlen);
+	filespec[reqlen] = '\0';
+	
 	/*
 	 * allow timestamping of the saved config filename with
 	 * strftime() format such as:
 	 *   ntpq -c "saveconfig ntp-%Y%m%d-%H%M%S.conf"
 	 * XXX: Nice feature, but not too safe.
+	 * YYY: The check for permitted characters in file names should
+	 *      weed out the worst. Let's hope 'strftime()' does not
+	 *      develop pathological problems.
 	 */
+	time(&now);
 	if (0 == strftime(filename, sizeof(filename), filespec,
-			       localtime(&now)))
+			  localtime(&now)))
+	{
+		/*
+		 * If we arrive here, 'strftime()' balked; most likely
+		 * the buffer was too short. (Or it encounterd an empty
+		 * format, or just a format that expands to an empty
+		 * string.) We try to use the original name, though this
+		 * is very likely to fail later if there are format
+		 * specs in the string. Note that truncation cannot
+		 * happen here as long as both buffers have the same
+		 * size!
+		 */
 		strlcpy(filename, filespec, sizeof(filename));
+	}
+
+	/*
+	 * Check the file name for sanity. This might/will rule out file
+	 * names that would be legal but problematic, and it blocks
+	 * directory traversal.
+	 */
+	if (!is_safe_filename(filename)) {
+		ctl_printf("saveconfig rejects unsafe file name '%s'",
+			   filename);
+		ctl_flushpkt(0);
+		msyslog(LOG_NOTICE,
+			"saveconfig rejects unsafe file name from %s",
+			stoa(&rbufp->recv_srcadr));
+		return;
+	}
+
+	/*
+	 * XXX: This next test may not be needed with is_safe_filename()
+	 */
 
 	/* block directory/drive traversal */
 	/* TALOS-CAN-0062: block directory traversal for VMS, too */
@@ -968,38 +1097,49 @@ save_config(
 		ctl_putdata(reply, strlen(reply), 0);
 		ctl_flushpkt(0);
 		msyslog(LOG_NOTICE,
-			"saveconfig with path from %s rejected",
+			"saveconfig rejects unsafe file name from %s",
 			stoa(&rbufp->recv_srcadr));
 		return;
 	}
 
-	snprintf(fullpath, sizeof(fullpath), "%s%s",
-		 saveconfigdir, filename);
+	/* concatenation of directory and path can cause another
+	 * truncation...
+	 */
+	prc = snprintf(fullpath, sizeof(fullpath), "%s%s",
+		       saveconfigdir, filename);
+	if (prc < 0 || prc >= sizeof(fullpath)) {
+		ctl_printf("saveconfig exceeded maximum path length (%u)",
+			   (u_int)sizeof(fullpath));
+		ctl_flushpkt(0);
+		msyslog(LOG_NOTICE,
+			"saveconfig exceeded maximum path length from %s",
+			stoa(&rbufp->recv_srcadr));
+		return;
+	}
 
-	fd = open(fullpath, O_CREAT | O_TRUNC | O_WRONLY,
-		  S_IRUSR | S_IWUSR);
+	fd = open(fullpath, openmode, S_IRUSR | S_IWUSR);
 	if (-1 == fd)
 		fptr = NULL;
 	else
 		fptr = fdopen(fd, "w");
 
 	if (NULL == fptr || -1 == dump_all_config_trees(fptr, 1)) {
-		snprintf(reply, sizeof(reply),
-			 "Unable to save configuration to file %s",
-			 filename);
+		ctl_printf("Unable to save configuration to file '%s': %m",
+			   filename);
 		msyslog(LOG_ERR,
 			"saveconfig %s from %s failed", filename,
 			stoa(&rbufp->recv_srcadr));
 	} else {
-		snprintf(reply, sizeof(reply),
-			 "Configuration saved to %s", filename);
+		ctl_printf("Configuration saved to '%s'", filename);
 		msyslog(LOG_NOTICE,
-			"Configuration saved to %s (requested by %s)",
+			"Configuration saved to '%s' (requested by %s)",
 			fullpath, stoa(&rbufp->recv_srcadr));
 		/*
 		 * save the output filename in system variable
 		 * savedconfig, retrieved with:
 		 *   ntpq -c "rv 0 savedconfig"
+		 * Note: the way 'savedconfig' is defined makes overflow
+		 * checks unnecessary here.
 		 */
 		snprintf(savedconfig, sizeof(savedconfig), "%s%s",
 			 savedconfig_eq, filename);
@@ -1009,11 +1149,9 @@ save_config(
 	if (NULL != fptr)
 		fclose(fptr);
 #else	/* !SAVECONFIG follows */
-	snprintf(reply, sizeof(reply),
-		 "saveconfig unavailable, configured with --disable-saveconfig");
-#endif
-
-	ctl_putdata(reply, strlen(reply), 0);
+	ctl_printf("%s",
+		   "saveconfig unavailable, configured with --disable-saveconfig");
+#endif	
 	ctl_flushpkt(0);
 }
 
@@ -1755,6 +1893,29 @@ ctl_putarray(
 		cp += strlen(cp);
 	} while (i != start);
 	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+}
+
+/*
+ * ctl_printf - put a formatted string into the data buffer
+ */
+static void
+ctl_printf(
+	const char * fmt,
+	...
+	)
+{
+	static const char * ellipsis = "[...]";
+	va_list va;
+	char    fmtbuf[128];
+	int     rc;
+	
+	va_start(va, fmt);
+	rc = vsnprintf(fmtbuf, sizeof(fmtbuf), fmt, va);
+	va_end(va);
+	if (rc < 0 || rc >= sizeof(fmtbuf))
+		strcpy(fmtbuf + sizeof(fmtbuf) - strlen(ellipsis) - 1,
+		       ellipsis);
+	ctl_putdata(fmtbuf, strlen(fmtbuf), 0);
 }
 
 
