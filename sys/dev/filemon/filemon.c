@@ -143,7 +143,8 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	cap_rights_t rights;
 #endif
 
-	devfs_get_cdevpriv((void **) &filemon);
+	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
+		return (error);
 
 	switch (cmd) {
 	/* Set the output file descriptor. */
