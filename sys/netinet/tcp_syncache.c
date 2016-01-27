@@ -351,6 +351,7 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 
 	SCH_UNLOCK(sch);
 
+	TCPSTAT_INC(tcps_states[TCPS_SYN_RECEIVED]);
 	TCPSTAT_INC(tcps_sc_added);
 }
 
@@ -364,6 +365,7 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 
 	SCH_LOCK_ASSERT(sch);
 
+	TCPSTAT_DEC(tcps_states[TCPS_SYN_RECEIVED]);
 	TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 	sch->sch_length--;
 
@@ -992,7 +994,16 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			goto failed;
 		}
 	} else {
-		/* Pull out the entry to unlock the bucket row. */
+		/*
+		 * Pull out the entry to unlock the bucket row.
+		 * 
+		 * NOTE: We must decrease TCPS_SYN_RECEIVED count here, not
+		 * tcp_state_change().  The tcpcb is not existent at this
+		 * moment.  A new one will be allocated via syncache_socket->
+		 * sonewconn->tcp_usr_attach in TCPS_CLOSED state, then
+		 * syncache_socket() will change it to TCPS_SYN_RECEIVED.
+		 */
+		TCPSTAT_DEC(tcps_states[TCPS_SYN_RECEIVED]);
 		TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 		sch->sch_length--;
 #ifdef TCP_OFFLOAD

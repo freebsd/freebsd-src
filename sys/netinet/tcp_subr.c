@@ -1468,6 +1468,7 @@ tcp_close(struct tcpcb *tp)
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
+	TCPSTAT_DEC(tcps_states[tp->t_state]);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
@@ -2910,6 +2911,8 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 	int pstate = tp->t_state;
 #endif
 
+	TCPSTAT_DEC(tcps_states[tp->t_state]);
+	TCPSTAT_INC(tcps_states[newstate]);
 	tp->t_state = newstate;
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }
