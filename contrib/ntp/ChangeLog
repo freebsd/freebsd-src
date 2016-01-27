@@ -1,4 +1,38 @@
 ---
+(4.2.8p6) 2016/01/20 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 2935] Deja Vu: Replay attack on authenticated broadcast mode. HStenn.
+* [Sec 2936] Skeleton Key: Any trusted key system can serve time. HStenn.
+* [Sec 2937] ntpq: nextvar() missing length check. perlinger@ntp.org
+* [Sec 2938] ntpq saveconfig command allows dangerous characters
+  in filenames. perlinger@ntp.org
+* [Sec 2939] reslist NULL pointer dereference.  perlinger@ntp.org
+* [Sec 2940] Stack exhaustion in recursive traversal of restriction
+  list. perlinger@ntp.org
+* [Sec 2942]: Off-path DoS attack on auth broadcast mode.  HStenn.
+* [Sec 2945] Zero Origin Timestamp Bypass. perlinger@ntp.org
+* [Sec 2948] Potential Infinite Loop in ntpq ( and ntpdc) perlinger@ntp.org
+* [Bug 2772] adj_systime overflows tv_usec. perlinger@ntp.org
+* [Bug 2814] msyslog deadlock when signaled. perlinger@ntp.org
+  - applied patch by shenpeng11@huawei.com with minor adjustments
+* [Bug 2882] Look at ntp_request.c:list_peers_sum(). perlinger@ntp.org
+* [Bug 2891] Deadlock in deferred DNS lookup framework. perlinger@ntp.org
+* [Bug 2892] Several test cases assume IPv6 capabilities even when
+             IPv6 is disabled in the build. perlinger@ntp.org
+  - Found this already fixed, but validation led to cleanup actions.
+* [Bug 2905] DNS lookups broken. perlinger@ntp.org
+  - added limits to stack consumption, fixed some return code handling
+* [Bug 2971] ntpq bails on ^C: select fails: Interrupted system call
+  - changed stacked/nested handling of CTRL-C. perlinger@ntp.org
+  - make CTRL-C work for retrieval and printing od MRU list. perlinger@ntp.org
+* [Bug 2980] reduce number of warnings. perlinger@ntp.org
+  - integrated several patches from Havard Eidnes (he@uninett.no)
+* [Bug 2985] bogus calculation in authkeys.c perlinger@ntp.org
+  - implement 'auth_log2()' using integer bithack instead of float calculation
+* Make leapsec_query debug messages less verbose.  Harlan Stenn.
+* Disable incomplete t-ntp_signd.c test.  Harlan Stenn.
+
+---
 (4.2.8p5) 2016/01/07 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 2956] small-step/big-step.  Close the panic gate earlier.  HStenn.
@@ -47,6 +81,7 @@
               lots of clients. perlinger@ntp.org
 * [Bug 2971] ntpq bails on ^C: select fails: Interrupted system call
   - changed stacked/nested handling of CTRL-C. perlinger@ntp.org
+  - make CTRL-C work for retrieval and printing od MRU list. perlinger@ntp.org
 * Unity cleanup for FreeBSD-6.4.  Harlan Stenn.
 * Unity test cleanup.  Harlan Stenn.
 * Libevent autoconf pthread fixes for FreeBSD-10.  Harlan Stenn.
@@ -55,9 +90,8 @@
 * Quiet a warning from clang.  Harlan Stenn.
 * Update the NEWS file.  Harlan Stenn.
 * Update scripts/calc_tickadj/Makefile.am.  Harlan Stenn.
+
 ---
-(4.2.8p4) 2015/10/21 Released by Harlan Stenn <stenn@ntp.org>
-(4.2.8p4-RC1) 2015/10/06 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 2899] CVE-2014-9297  perlinger@ntp.org
 * [Sec 2901] Drop invalid packet before checking KoD. Check for all KoD's.

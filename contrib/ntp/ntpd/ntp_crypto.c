@@ -269,7 +269,7 @@ session_key(
 	memcpy(&keyid, dgst, 4);
 	keyid = ntohl(keyid);
 	if (lifetime != 0) {
-		MD5auth_setkey(keyno, crypto_nid, dgst, len);
+		MD5auth_setkey(keyno, crypto_nid, dgst, len, NULL);
 		authtrust(keyno, lifetime);
 	}
 	DPRINTF(2, ("session_key: %s > %s %08x %08x hash %08x life %lu\n",

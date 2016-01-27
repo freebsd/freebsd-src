@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p5 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p6 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -2288,7 +2288,7 @@ drift file is located in, and that file system links, symbolic or
 otherwise, should be avoided. 
 <br><dt><code>dscp</code> <kbd>value</kbd><dd>This option specifies the Differentiated Services Control Point (DSCP) value,
 a 6-bit code.  The default value is 46, signifying Expedited Forwarding. 
-<br><dt><code>enable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats]</code><br><dt><code>disable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats]</code><dd>Provides a way to enable or disable various server options. 
+<br><dt><code>enable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</code><br><dt><code>disable</code> <code>[auth | bclient | calibrate | kernel | mode7 | monitor | ntp | stats | unpeer_crypto_early | unpeer_crypto_nak_early | unpeer_digest_early]</code><dd>Provides a way to enable or disable various server options. 
 Flags not mentioned are unaffected. 
 Note that all of these flags
 can be controlled remotely using the
@@ -2351,6 +2351,64 @@ See the
 section for further information. 
 The default for this flag is
 <code>disable</code>. 
+<br><dt><code>unpeer_crypto_early</code><dd>By default, if
+<code>ntpd(1ntpdmdoc)</code>
+receives an autokey packet that fails TEST9,
+a crypto failure,
+the association is immediately cleared. 
+This is almost certainly a feature,
+but if, in spite of the current recommendation of not using autokey,
+you are
+.B still
+using autokey
+.B and
+you are seeing this sort of DoS attack
+disabling this flag will delay
+tearing down the association until the reachability counter
+becomes zero. 
+You can check your
+<code>peerstats</code>
+file for evidence of any of these attacks. 
+The
+default for this flag is
+<code>enable</code>. 
+<br><dt><code>unpeer_crypto_nak_early</code><dd>By default, if
+<code>ntpd(1ntpdmdoc)</code>
+receives a crypto-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the association is immediately cleared. 
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto-NAK packet
+can be used in a DoS attack. 
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option. 
+You can check your
+<code>peerstats</code>
+file for evidence of any of these attacks. 
+The
+default for this flag is
+<code>enable</code>. 
+<br><dt><code>unpeer_digest_early</code><dd>By default, if
+<code>ntpd(1ntpdmdoc)</code>
+receives what should be an authenticated packet
+that passes other packet sanity checks but
+contains an invalid digest
+the association is immediately cleared. 
+While this is generally a feature
+as it allows for quick recovery,
+if this type of packet is carefully forged and sent
+during an appropriate window it can be used for a DoS attack. 
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option. 
+You can check your
+<code>peerstats</code>
+file for evidence of any of these attacks. 
+The
+default for this flag is
+<code>enable</code>. 
 </dl>
      <br><dt><code>includefile</code> <kbd>includefile</kbd><dd>This command allows additional configuration commands
 to be included from a separate file. 

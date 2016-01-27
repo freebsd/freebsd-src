@@ -218,7 +218,7 @@ static	void	outputarr	(FILE *, char *, int, l_fp *);
 static	int	assoccmp	(const void *, const void *);
 static	void	on_ctrlc	(void);
 	u_short	varfmt		(const char *);
-
+static	int	my_easprintf	(char**, const char *, ...) NTP_PRINTF(2, 3);
 void	ntpq_custom_opt_handler	(tOptions *, tOptDesc *);
 
 #ifdef OPENSSL
@@ -472,7 +472,7 @@ ntpqmain(
 
 	{
 	    char *list;
-	    char *msg, *fmt;
+	    char *msg;
 
 	    list = list_digest_names();
 	    for (icmd = 0; icmd < sizeof(builtins)/sizeof(builtins[0]); icmd++) {
@@ -486,13 +486,15 @@ ntpqmain(
 
 #ifdef OPENSSL
 	    builtins[icmd].desc[0] = "digest-name";
-	    fmt = "set key type to use for authenticated requests, one of:%s";
+	    my_easprintf(&msg,
+			 "set key type to use for authenticated requests, one of:%s",
+			 list);
 #else
 	    builtins[icmd].desc[0] = "md5";
-	    fmt = "set key type to use for authenticated requests (%s)";
+	    my_easprintf(&msg,
+			 "set key type to use for authenticated requests (%s)",
+			 list);
 #endif
-	    msg = emalloc(strlen(fmt) + strlen(list) - strlen("%s") +1);
-	    sprintf(msg, fmt, list);
 	    builtins[icmd].comment = msg;
 	    free(list);
 	}
@@ -844,6 +846,10 @@ getresponse(
 	fd_set fds;
 	int n;
 	int errcode;
+	/* absolute timeout checks. Not 'time_t' by intention! */
+	uint32_t tobase;	/* base value for timeout */
+	uint32_t tospan;	/* timeout span (max delay) */
+	uint32_t todiff;	/* current delay */
 
 	/*
 	 * This is pretty tricky.  We may get between 1 and MAXFRAG packets
@@ -860,6 +866,8 @@ getresponse(
 	numfrags = 0;
 	seenlastfrag = 0;
 
+	tobase = (uint32_t)time(NULL);
+	
 	FD_ZERO(&fds);
 
 	/*
@@ -872,13 +880,40 @@ getresponse(
 			tvo = tvout;
 		else
 			tvo = tvsout;
+		tospan = (uint32_t)tvo.tv_sec + (tvo.tv_usec != 0);
 
 		FD_SET(sockfd, &fds);
 		n = select(sockfd+1, &fds, NULL, NULL, &tvo);
 		if (n == -1) {
+#if !defined(SYS_WINNT) && defined(EINTR)
+			/* Windows does not know about EINTR (until very
+			 * recently) and the handling of console events
+			 * is *very* different from POSIX/UNIX signal
+			 * handling anyway.
+			 *
+			 * Under non-windows targets we map EINTR as
+			 * 'last packet was received' and try to exit
+			 * the receive sequence.
+			 */
+			if (errno == EINTR) {
+				seenlastfrag = 1;
+				goto maybe_final;
+			}
+#endif
 			warning("select fails");
 			return -1;
 		}
+
+		/*
+		 * Check if this is already too late. Trash the data and
+		 * fake a timeout if this is so.
+		 */
+		todiff = (((uint32_t)time(NULL)) - tobase) & 0x7FFFFFFFu;
+		if ((n > 0) && (todiff > tospan)) {
+			n = recv(sockfd, (char *)&rpkt, sizeof(rpkt), 0);
+			n = 0; /* faked timeout return from 'select()'*/
+		}
+		
 		if (n == 0) {
 			/*
 			 * Timed out.  Return what we have
@@ -1141,14 +1176,17 @@ getresponse(
 		}
 
 		/*
-		 * Copy the data into the data buffer.
+		 * Copy the data into the data buffer, and bump the
+		 * timout base in case we need more.
 		 */
 		memcpy((char *)pktdata + offset, &rpkt.u, count);
-
+		tobase = (uint32_t)time(NULL);
+		
 		/*
 		 * If we've seen the last fragment, look for holes in the sequence.
 		 * If there aren't any, we're done.
 		 */
+	  maybe_final:
 		if (seenlastfrag && offsets[0] == 0) {
 			for (f = 1; f < numfrags; f++)
 				if (offsets[f-1] + counts[f-1] !=
@@ -2954,6 +2992,8 @@ nextvar(
 	len = srclen;
 	while (len > 0 && isspace((unsigned char)cp[len - 1]))
 		len--;
+	if (len >= sizeof(name))
+	    return 0;
 	if (len > 0)
 		memcpy(name, cp, len);
 	name[len] = '\0';
@@ -3614,4 +3654,42 @@ on_ctrlc(void)
 	while (size)
 		if ((*ctrlc_stack[--size])())
 			break;
+}
+
+static int
+my_easprintf(
+	char ** 	ppinto,
+	const char *	fmt   ,
+	...
+	)
+{
+	va_list	va;
+	int	prc;
+	size_t	len = 128;
+	char *	buf = emalloc(len);
+
+  again:
+	/* Note: we expect the memory allocation to fail long before the
+	 * increment in buffer size actually overflows.
+	 */
+	buf = (buf) ? erealloc(buf, len) : emalloc(len);
+
+	va_start(va, fmt);
+	prc = vsnprintf(buf, len, fmt, va);
+	va_end(va);
+
+	if (prc < 0) {
+		/* might be very old vsnprintf. Or actually MSVC... */
+		len += len >> 1;
+		goto again;
+	}
+	if ((size_t)prc >= len) {
+		/* at least we have the proper size now... */
+		len = (size_t)prc + 1;
+		goto again;
+	}
+	if ((size_t)prc < (len - 32))
+		buf = erealloc(buf, (size_t)prc + 1);
+	*ppinto = buf;
+	return prc;
 }

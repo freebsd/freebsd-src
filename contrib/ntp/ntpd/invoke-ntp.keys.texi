@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.keys.texi)
 #
-# It has been AutoGen-ed  January  7, 2016 at 11:30:52 PM by AutoGen 5.18.5
+# It has been AutoGen-ed  January 20, 2016 at 04:18:02 AM by AutoGen 5.18.5
 # From the definitions    ntp.keys.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -37,7 +37,7 @@ as the configuration file.
 Key entries use a fixed format of the form
 
 @example
-@kbd{keyno} @kbd{type} @kbd{key}
+@kbd{keyno} @kbd{type} @kbd{key} @kbd{opt_IP_list}
 @end example
 
 where
@@ -47,7 +47,15 @@ is a positive integer (between 1 and 65534),
 is the message digest algorithm,
 and
 @kbd{key}
-is the key itself.
+is the key itself, and
+@kbd{opt_IP_list}
+is an optional comma-separated list of IPs
+that are allowed to serve time.
+If
+@kbd{opt_IP_list}
+is empty,
+any properly-authenticated server message will be
+accepted.
 
 The
 @kbd{key}

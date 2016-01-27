@@ -182,7 +182,7 @@
 /* #undef C_ALLOCA */
 
 /* Enable debugging code? */
-#define DEBUG 1
+/* #undef DEBUG */
 
 /* Enable processing time debugging? */
 /* #undef DEBUG_TIMING */
@@ -1437,7 +1437,7 @@
 #define PACKAGE_NAME "ntp"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ntp 4.2.8p5"
+#define PACKAGE_STRING "ntp 4.2.8p6"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "ntp"
@@ -1446,7 +1446,7 @@
 #define PACKAGE_URL "http://www.ntp.org./"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.2.8p5"
+#define PACKAGE_VERSION "4.2.8p6"
 
 /* data dir */
 #define PERLLIBDIR "/usr/local/share/ntp/lib"
@@ -1627,7 +1627,7 @@ typedef unsigned int	uintptr_t;
 /* #undef USE_UDP_SIGPOLL */
 
 /* Version number of package */
-#define VERSION "4.2.8p5"
+#define VERSION "4.2.8p6"
 
 /* vsnprintf expands "%m" to strerror(errno) */
 /* #undef VSNPRINTF_PERCENT_M */
@@ -1804,5 +1804,5 @@ typedef union mpinfou {
 /*
  * FreeBSD specific: Explicitly specify date/time for reproducible build.
  */
-#define	MKREPRO_DATE "Jan 8 2016"
-#define	MKREPRO_TIME "12:37:48"
+#define	MKREPRO_DATE "Jan 21 2016"
+#define	MKREPRO_TIME "01:03:28"

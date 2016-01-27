@@ -1,8 +1,8 @@
-.TH ntp.keys 5man "07 Jan 2016" "4.2.8p5" "File Formats"
+.TH ntp.keys 5man "20 Jan 2016" "4.2.8p6" "File Formats"
 .\"
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.man)
 .\"
-.\"  It has been AutoGen-ed  January  7, 2016 at 11:30:41 PM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  January 20, 2016 at 04:17:51 AM by AutoGen 5.18.5
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agman-file.tpl
 .Sh NAME
@@ -66,7 +66,7 @@ Key entries use a fixed format of the form
 .ne 2
 
 .in +4
-\f\*[I-Font]keyno\f[] \f\*[I-Font]type\f[] \f\*[I-Font]key\f[]
+\f\*[I-Font]keyno\f[] \f\*[I-Font]type\f[] \f\*[I-Font]key\f[] \f\*[I-Font]opt_IP_list\f[]
 .in -4
 .sp \n(Ppu
 .ne 2
@@ -78,7 +78,15 @@ is a positive integer (between 1 and 65534),
 is the message digest algorithm,
 and
 \f\*[I-Font]key\f[]
-is the key itself.
+is the key itself, and
+\f\*[I-Font]opt_IP_list\f[]
+is an optional comma-separated list of IPs
+that are allowed to serve time.
+If
+\f\*[I-Font]opt_IP_list\f[]
+is empty,
+any properly-authenticated server message will be
+accepted.
 .sp \n(Ppu
 .ne 2
 
@@ -160,7 +168,7 @@ the default name of the configuration file
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
 Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
