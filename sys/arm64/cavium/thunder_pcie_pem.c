@@ -126,7 +126,7 @@ struct thunder_pem_softc {
 };
 
 static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pem_attach(device_t);
 static int thunder_pem_detach(device_t);
 static uint64_t thunder_pem_config_reg_read(struct thunder_pem_softc *, int);
@@ -230,7 +230,7 @@ static int
 thunder_pem_identify(device_t dev)
 {
 	struct thunder_pem_softc *sc;
-	u_long start;
+	rman_res_t start;
 
 	sc = device_get_softc(dev);
 	start = rman_get_start(sc->reg);
@@ -426,7 +426,7 @@ thunder_pem_write_config(device_t dev, u_int bus, u_int slot,
 
 static struct resource *
 thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct thunder_pem_softc *sc = device_get_softc(dev);
 	struct rman *rm = NULL;

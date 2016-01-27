@@ -656,7 +656,7 @@ static int
 attimer_attach(device_t dev)
 {
 	struct attimer_softc *sc;
-	u_long s;
+	rman_res_t s;
 	int i;
 
 	attimer_sc = sc = device_get_softc(dev);

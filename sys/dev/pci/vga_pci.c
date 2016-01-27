@@ -68,7 +68,8 @@ SYSCTL_DECL(_hw_pci);
 
 static struct vga_resource *lookup_res(struct vga_pci_softc *sc, int rid);
 static struct resource *vga_pci_alloc_resource(device_t dev, device_t child,
-    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+    int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count,
+    u_int flags);
 static int	vga_pci_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r);
 
@@ -333,7 +334,7 @@ lookup_res(struct vga_pci_softc *sc, int rid)
 
 static struct resource *
 vga_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct vga_resource *vr;
 

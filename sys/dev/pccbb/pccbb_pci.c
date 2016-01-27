@@ -783,7 +783,7 @@ cbb_pci_filt(void *arg)
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static struct resource *
 cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct cbb_softc *sc;
 
@@ -797,7 +797,7 @@ cbb_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 cbb_pci_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct cbb_softc *sc;
 
