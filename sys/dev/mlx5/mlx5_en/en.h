@@ -375,11 +375,11 @@ struct mlx5e_params {
 	bool	cqe_zipping_en;
 	u32	lro_wqe_sz;
 	u16	rx_hash_log_tbl_sz;
+	u32	tx_pauseframe_control;
+	u32	rx_pauseframe_control;
 };
 
 #define	MLX5E_PARAMS(m)							\
-  m(+1, u64 tx_pauseframe_control, "tx_pauseframe_control", "Set to enable TX pause frames. Clear to disable.") \
-  m(+1, u64 rx_pauseframe_control, "rx_pauseframe_control", "Set to enable RX pause frames. Clear to disable.") \
   m(+1, u64 tx_queue_size_max, "tx_queue_size_max", "Max send queue size") \
   m(+1, u64 rx_queue_size_max, "rx_queue_size_max", "Max receive queue size") \
   m(+1, u64 tx_queue_size, "tx_queue_size", "Default send queue size")	\

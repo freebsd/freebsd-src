@@ -113,21 +113,6 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 	}
 	priv->params.tx_cq_moderation_pkts = priv->params_ethtool.tx_coalesce_pkts;
 
-	if (&priv->params_ethtool.arg[arg2] == &priv->params_ethtool.rx_pauseframe_control ||
-	    &priv->params_ethtool.arg[arg2] == &priv->params_ethtool.tx_pauseframe_control) {
-		/* range check parameters */
-		priv->params_ethtool.rx_pauseframe_control =
-		    priv->params_ethtool.rx_pauseframe_control ? 1 : 0;
-		priv->params_ethtool.tx_pauseframe_control =
-		    priv->params_ethtool.tx_pauseframe_control ? 1 : 0;
-
-		/* update firmware */
-		error = -mlx5_set_port_pause(priv->mdev, 1,
-		    priv->params_ethtool.rx_pauseframe_control,
-		    priv->params_ethtool.tx_pauseframe_control);
-		goto done;
-	}
-
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (was_opened) {
 		u64 *xarg = priv->params_ethtool.arg + arg2;
