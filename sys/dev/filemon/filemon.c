@@ -146,6 +146,8 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
 		return (error);
 
+	filemon_filemon_lock(filemon);
+
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
@@ -177,6 +179,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		break;
 	}
 
+	filemon_filemon_unlock(filemon);
 	return (error);
 }
 
