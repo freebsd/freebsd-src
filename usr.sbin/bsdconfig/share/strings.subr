@@ -110,7 +110,7 @@ f_sprintf()
 # Example 2:
 #
 # 	limit=12 format="%s %s"
-# 	format_args="   'doghouse'      'foxhound'   "
+# 	format_args="   'doghouse'      'fox'   "
 # 		# even more spaces added to illustrate escape-method
 # 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[doghouse fox]
 #
