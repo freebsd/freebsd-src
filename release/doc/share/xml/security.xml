@@ -107,6 +107,21 @@
 	<entry><para><application>OpenSSH</application> client
 	    information leak</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:09.ntp.asc">FreeBSD-SA-16:09.ntp</link></entry>
+	<entry>27&nbsp;January&nbsp;2016</entry>
+	<entry><para>Multiple vulnerabilities.</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-16:10.linux.asc">FreeBSD-SA-16:10.linux</link></entry>
+	<entry>27&nbsp;January&nbsp;2016</entry>
+	<entry><para>&man.issetugid.2; system call
+	    vulnerability.</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
