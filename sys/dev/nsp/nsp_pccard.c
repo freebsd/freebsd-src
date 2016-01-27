@@ -115,7 +115,7 @@ static int
 nsp_alloc_resource(device_t dev)
 {
 	struct nsp_softc	*sc = device_get_softc(dev);
-	u_long			ioaddr, iosize, maddr, msize;
+	rman_res_t		ioaddr, iosize, maddr, msize;
 	int			error;
 
 	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &ioaddr, &iosize);

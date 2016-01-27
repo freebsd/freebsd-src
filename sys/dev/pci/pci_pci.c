@@ -212,9 +212,10 @@ pcib_write_windows(struct pcib_softc *sc, int mask)
  * ISA alias range.
  */
 static int
-pcib_is_isa_range(struct pcib_softc *sc, u_long start, u_long end, u_long count)
+pcib_is_isa_range(struct pcib_softc *sc, rman_res_t start, rman_res_t end,
+    rman_res_t count)
 {
-	u_long next_alias;
+	rman_res_t next_alias;
 
 	if (!(sc->bridgectl & PCIB_BCR_ISA_ENABLE))
 		return (0);
@@ -275,13 +276,13 @@ pcib_add_window_resources(struct pcib_window *w, struct resource **res,
 	}
 }
 
-typedef void (nonisa_callback)(u_long start, u_long end, void *arg);
+typedef void (nonisa_callback)(rman_res_t start, rman_res_t end, void *arg);
 
 static void
-pcib_walk_nonisa_ranges(u_long start, u_long end, nonisa_callback *cb,
+pcib_walk_nonisa_ranges(rman_res_t start, rman_res_t end, nonisa_callback *cb,
     void *arg)
 {
-	u_long next_end;
+	rman_res_t next_end;
 
 	/*
 	 * If start is within an ISA alias range, move up to the start
@@ -309,7 +310,7 @@ pcib_walk_nonisa_ranges(u_long start, u_long end, nonisa_callback *cb,
 }
 
 static void
-count_ranges(u_long start, u_long end, void *arg)
+count_ranges(rman_res_t start, rman_res_t end, void *arg)
 {
 	int *countp;
 
@@ -324,7 +325,7 @@ struct alloc_state {
 };
 
 static void
-alloc_ranges(u_long start, u_long end, void *arg)
+alloc_ranges(rman_res_t start, rman_res_t end, void *arg)
 {
 	struct alloc_state *as;
 	struct pcib_window *w;
@@ -348,7 +349,7 @@ alloc_ranges(u_long start, u_long end, void *arg)
 }
 
 static int
-pcib_alloc_nonisa_ranges(struct pcib_softc *sc, u_long start, u_long end)
+pcib_alloc_nonisa_ranges(struct pcib_softc *sc, rman_res_t start, rman_res_t end)
 {
 	struct alloc_state as;
 	int i, new_count;
@@ -609,7 +610,7 @@ pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
 
 static struct resource *
 pcib_suballoc_bus(struct pcib_secbus *bus, device_t child, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
 
@@ -633,9 +634,9 @@ pcib_suballoc_bus(struct pcib_secbus *bus, device_t child, int *rid,
  * subbus.
  */
 static int
-pcib_grow_subbus(struct pcib_secbus *bus, u_long new_end)
+pcib_grow_subbus(struct pcib_secbus *bus, rman_res_t new_end)
 {
-	u_long old_end;
+	rman_res_t old_end;
 	int error;
 
 	old_end = rman_get_end(bus->res);
@@ -658,10 +659,10 @@ pcib_grow_subbus(struct pcib_secbus *bus, u_long new_end)
 
 struct resource *
 pcib_alloc_subbus(struct pcib_secbus *bus, device_t child, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
-	u_long start_free, end_free, new_end;
+	rman_res_t start_free, end_free, new_end;
 
 	/*
 	 * First, see if the request can be satisified by the existing
@@ -1158,8 +1159,8 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
  */
 static struct resource *
 pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
-    device_t child, int type, int *rid, u_long start, u_long end, u_long count,
-    u_int flags)
+    device_t child, int type, int *rid, rman_res_t start, rman_res_t end,
+    rman_res_t count, u_int flags)
 {
 	struct resource *res;
 
@@ -1196,10 +1197,10 @@ pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
 /* Allocate a fresh resource range for an unconfigured window. */
 static int
 pcib_alloc_new_window(struct pcib_softc *sc, struct pcib_window *w, int type,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
-	u_long base, limit, wmask;
+	rman_res_t base, limit, wmask;
 	int rid;
 
 	/*
@@ -1269,7 +1270,7 @@ pcib_alloc_new_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 /* Try to expand an existing window to the requested base and limit. */
 static int
 pcib_expand_window(struct pcib_softc *sc, struct pcib_window *w, int type,
-    u_long base, u_long limit)
+    rman_res_t base, rman_res_t limit)
 {
 	struct resource *res;
 	int error, i, force_64k_base;
@@ -1367,9 +1368,9 @@ pcib_expand_window(struct pcib_softc *sc, struct pcib_window *w, int type,
  */
 static int
 pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	u_long align, start_free, end_free, front, back, wmask;
+	rman_res_t align, start_free, end_free, front, back, wmask;
 	int error;
 
 	/*
@@ -1534,7 +1535,7 @@ updatewin:
  */
 struct resource *
 pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pcib_softc *sc;
 	struct resource *r;
@@ -1623,7 +1624,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 int
 pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
-    u_long start, u_long end)
+    rman_res_t start, rman_res_t end)
 {
 	struct pcib_softc *sc;
 
@@ -1658,7 +1659,7 @@ pcib_release_resource(device_t dev, device_t child, int type, int rid,
  */
 struct resource *
 pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pcib_softc	*sc = device_get_softc(dev);
 	const char *name, *suffix;

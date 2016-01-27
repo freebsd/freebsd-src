@@ -74,7 +74,7 @@ ed_probe_3Com(device_t dev, int port_rid, int flags)
 	int     i;
 	u_int   memsize;
 	u_char  isa16bit;
-	u_long	conf_maddr, conf_msize, irq, junk, pmem;
+	rman_res_t	conf_maddr, conf_msize, irq, junk, pmem;
 
 	error = ed_alloc_port(dev, 0, ED_3COM_IO_PORTS);
 	if (error)
