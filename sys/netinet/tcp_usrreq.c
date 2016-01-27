@@ -90,7 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
-#include <netinet/tcp_cc.h>
+#include <netinet/cc/cc.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
