@@ -115,7 +115,7 @@ unaligned_start:
 
 	dsub     $a2, $a0, $a1        # $12 = amount left to copy
 aligned_copy:
-	addi    $at, $zero, (0xFFFF-CAP_ALIGN_MASK)
+	addi    $at, $zero, -CAP_SIZE
 	and     $a2, $a2, $at        # a2 = number of capability-aligned bytes to copy
 	dadd    $a2, $a2, $a1        # ...plus the number already copied.
 
