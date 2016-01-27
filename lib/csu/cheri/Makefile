@@ -13,6 +13,8 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBDIR}
+# These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
+.undef LIBRARIES_ONLY
 CLEANFILES=	${FILES}
 CFLAGS+=-mxgot
 
@@ -23,17 +25,25 @@ CFLAGS+=	-I${.CURDIR}/../common		\
 		-I${.CURDIR}/../../libc/include
 FILES+=	crt1.o					\
 	crtbegin.o				\
+	crtbeginS.o				\
 	crtbeginT.o				\
-	crtend.o
+	crtend.o				\
+	crtendS.o
 
 crtbegin.o:	crtbeginC.c
 	${CC} ${CFLAGS} -g0 -c -o ${.TARGET} ${.ALLSRC}
 
+crtbeginS.o:	crtbeginC.c
+	${CC} ${CFLAGS} ${PICFLAG} -g0 -c -o ${.TARGET} ${.ALLSRC}
+
 crtbeginT.o:	crtbeginC.c
 	${CC} ${CFLAGS} -g0 -c -o ${.TARGET} ${.ALLSRC}
+
+crtendS.o:	crtendC.c
+	${CC} ${CFLAGS} ${PICFLAG} -g0 -c -o ${.TARGET} ${.ALLSRC}
 
 crtend.o:	crtendC.c
 	${CC} ${CFLAGS} -g0 -c -o ${.TARGET} ${.ALLSRC}
 .endif
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>
