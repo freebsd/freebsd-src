@@ -1452,9 +1452,9 @@ create-kernel-packages:	_pkgbootstrap
 	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/kernel-${flavor}/" \
-		-e "s/%COMMENT%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
+		-e "s/%PKGNAME%/kernel-${_kernel:tl}-${flavor}/" \
+		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
 		${SRCDIR}/release/packages/kernel.ucl \
