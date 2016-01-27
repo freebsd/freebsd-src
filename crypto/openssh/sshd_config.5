@@ -1541,8 +1541,8 @@ the resolved host name for the remote IP address maps back to the
 very same IP address.
 .Pp
 If this option is set to
-.Dq no
-(the default) then only addresses and not host names may be used in
+.Dq no ,
+then only addresses and not host names may be used in
 .Pa ~/.ssh/known_hosts
 .Cm from
 and
@@ -1550,6 +1550,8 @@ and
 .Cm Match
 .Cm Host
 directives.
+The default is
+.Dq yes .
 .It Cm UseLogin
 Specifies whether
 .Xr login 1
