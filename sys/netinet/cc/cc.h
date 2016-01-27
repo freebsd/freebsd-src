@@ -48,8 +48,8 @@
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
-#ifndef _NETINET_TCP_CC_H_
-#define _NETINET_TCP_CC_H_
+#ifndef _NETINET_CC_CC_H_
+#define _NETINET_CC_CC_H_
 
 #if !defined(_KERNEL)
 #error "no user-servicable parts inside"
@@ -175,4 +175,4 @@ extern struct rwlock cc_list_lock;
 #define	CC_LIST_WUNLOCK()	rw_wunlock(&cc_list_lock)
 #define	CC_LIST_LOCK_ASSERT()	rw_assert(&cc_list_lock, RA_LOCKED)
 
-#endif /* _NETINET_TCP_CC_H_ */
+#endif /* _NETINET_CC_CC_H_ */

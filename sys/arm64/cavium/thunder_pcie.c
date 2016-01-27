@@ -110,7 +110,7 @@ SYSCTL_INT(_hw, OID_AUTO, thunder_pcie_max_vfs, CTLFLAG_RWTUN,
 
 /* Forward prototypes */
 static struct resource *thunder_pcie_alloc_resource(device_t,
-    device_t, int, int *, u_long, u_long, u_long, u_int);
+    device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pcie_attach(device_t);
 static int thunder_pcie_identify_pcib(device_t);
 static int thunder_pcie_maxslots(device_t);
@@ -431,7 +431,7 @@ thunder_pcie_release_resource(device_t dev, device_t child, int type, int rid,
 
 static struct resource *
 thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct thunder_pcie_softc *sc = device_get_softc(dev);
 	struct rman *rm = NULL;
@@ -519,7 +519,7 @@ static int
 thunder_pcie_identify_pcib(device_t dev)
 {
 	struct thunder_pcie_softc *sc;
-	u_long start;
+	rman_res_t start;
 
 	sc = device_get_softc(dev);
 	start = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);

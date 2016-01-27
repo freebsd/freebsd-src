@@ -132,7 +132,7 @@ static struct dsk {
 } dsk;
 static char cmd[512], cmddup[512], knamebuf[1024];
 static const char *kname;
-static uint32_t opts;
+uint32_t opts;
 #if 0
 static int comspeed = SIOSPD;
 #endif
@@ -248,7 +248,7 @@ main(u_int argc, const char *argv[], const char *envv[], uint64_t memsize)
      */
 
     if (!kname) {
-	kname = PATH_BOOT3;
+	kname = PATH_LOADER;
 	if (autoboot && !keyhit(3*SECOND)) {
 	    boot_fromfs();
 	    kname = PATH_KERNEL;

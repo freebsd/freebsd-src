@@ -33,9 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdio.h>
+#include <sysdecode.h>
 
 #include "cloudabi.h"
-#include "cloudabi64_syscalls.h"
 #include "truss.h"
 
 static int
@@ -81,8 +81,7 @@ aarch64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
 
 static struct procabi aarch64_cloudabi64 = {
 	"CloudABI ELF64",
-	syscallnames,
-	nitems(syscallnames),
+	CLOUDABI64,
 	aarch64_cloudabi64_fetch_args,
 	aarch64_cloudabi64_fetch_retval
 };

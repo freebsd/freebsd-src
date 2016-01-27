@@ -3533,11 +3533,9 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 		TAILQ_INSERT_AFTER(&obj_list, obj, &marker, next);
 		rtld_fill_dl_phdr_info(obj, &phdr_info);
 		lock_release(rtld_bind_lock, &bind_lockstate);
-		lock_release(rtld_phdr_lock, &phdr_lockstate);
 
 		error = callback(&phdr_info, sizeof phdr_info, param);
 
-		wlock_acquire(rtld_phdr_lock, &phdr_lockstate);
 		rlock_acquire(rtld_bind_lock, &bind_lockstate);
 		obj = globallist_next(&marker);
 		TAILQ_REMOVE(&obj_list, &marker, next);
@@ -3551,9 +3549,9 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 	if (error == 0) {
 		rtld_fill_dl_phdr_info(&obj_rtld, &phdr_info);
 		lock_release(rtld_bind_lock, &bind_lockstate);
-		lock_release(rtld_phdr_lock, &phdr_lockstate);
 		error = callback(&phdr_info, sizeof(phdr_info), param);
 	}
+	lock_release(rtld_phdr_lock, &phdr_lockstate);
 	return (error);
 }
 

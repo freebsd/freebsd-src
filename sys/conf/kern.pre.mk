@@ -64,7 +64,7 @@ NOSTDINC= -nostdinc
 
 INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
 
-.if make(depend) || make(kernel-depend)
+.if ${MK_FAST_DEPEND} == "no" && (make(depend) || make(kernel-depend))
 
 # This hack lets us use the ipfilter code without spamming a new
 # include path into contrib'ed source files.

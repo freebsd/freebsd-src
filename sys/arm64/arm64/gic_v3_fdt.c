@@ -54,7 +54,7 @@ static int gic_v3_fdt_probe(device_t);
 static int gic_v3_fdt_attach(device_t);
 
 static struct resource *gic_v3_ofw_bus_alloc_res(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static const struct ofw_bus_devinfo *gic_v3_ofw_get_devinfo(device_t, device_t);
 
 static device_method_t gic_v3_fdt_methods[] = {
@@ -174,7 +174,7 @@ gic_v3_ofw_get_devinfo(device_t bus __unused, device_t child)
 
 static struct resource *
 gic_v3_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct gic_v3_ofw_devinfo *di;
 	struct resource_list_entry *rle;

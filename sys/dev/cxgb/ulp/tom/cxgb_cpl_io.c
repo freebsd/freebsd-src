@@ -62,9 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 
 #include <netinet/ip.h>
-#include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>

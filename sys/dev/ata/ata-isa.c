@@ -60,7 +60,7 @@ static int
 ata_isa_probe(device_t dev)
 {
     struct resource *io = NULL, *ctlio = NULL;
-    u_long tmp;
+    rman_res_t tmp;
     int rid;
 
     /* check isapnp ids */
@@ -100,7 +100,7 @@ ata_isa_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct resource *io = NULL, *ctlio = NULL;
-    u_long tmp;
+    rman_res_t tmp;
     int i, rid;
 
     if (ch->attached)

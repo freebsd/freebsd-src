@@ -202,9 +202,8 @@ typedef struct {
 	 * Each cpu has its own software interrupt handler for channel
 	 * event and msg handling.
 	 */
-	struct intr_event		*hv_event_intr_event[MAXCPU];
+	struct taskqueue		*hv_event_queue[MAXCPU];
 	struct intr_event		*hv_msg_intr_event[MAXCPU];
-	void				*event_swintr[MAXCPU];
 	void				*msg_swintr[MAXCPU];
 	/*
 	 * Host use this vector to intrrupt guest for vmbus channel
@@ -717,7 +716,7 @@ int			hv_vmbus_connect(void);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-void			hv_vmbus_on_events(void *);
+void			hv_vmbus_on_events(int cpu);
 
 /**
  * Event Timer interfaces
