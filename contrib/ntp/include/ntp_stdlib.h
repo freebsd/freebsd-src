@@ -16,6 +16,7 @@
 #include "ntp_malloc.h"
 #include "ntp_string.h"
 #include "ntp_syslog.h"
+#include "ntp_keyacc.h"
 
 #ifdef __GNUC__
 #define NTP_PRINTF(fmt, args) __attribute__((__format__(__printf__, fmt, args)))
@@ -69,6 +70,7 @@ extern	int	authdecrypt	(keyid_t, u_int32 *, size_t, size_t);
 extern	size_t	authencrypt	(keyid_t, u_int32 *, size_t);
 extern	int	authhavekey	(keyid_t);
 extern	int	authistrusted	(keyid_t);
+extern	int	authistrustedip	(keyid_t, sockaddr_u *);
 extern	int	authreadkeys	(const char *);
 extern	void	authtrust	(keyid_t, u_long);
 extern	int	authusekey	(keyid_t, int, const u_char *);
@@ -97,7 +99,7 @@ extern	int	ymd2yd		(int, int, int);
 /* a_md5encrypt.c */
 extern	int	MD5authdecrypt	(int, const u_char *, u_int32 *, size_t, size_t);
 extern	size_t	MD5authencrypt	(int, const u_char *, u_int32 *, size_t);
-extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, size_t);
+extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, size_t, KeyAccT *c);
 extern	u_int32	addr2refid	(sockaddr_u *);
 
 /* emalloc.c */
@@ -141,6 +143,7 @@ extern	int	atouint		(const char *, u_long *);
 extern	int	hextoint	(const char *, u_long *);
 extern	const char *	humanlogtime	(void);
 extern	const char *	humantime	(time_t);
+extern int	is_ip_address	(const char *, u_short, sockaddr_u *);
 extern	char *	mfptoa		(u_int32, u_int32, short);
 extern	char *	mfptoms		(u_int32, u_int32, short);
 extern	const char * modetoa	(size_t);

@@ -81,8 +81,8 @@ static	void	do_unconf	(sockaddr_u *, endpt *, struct req_pkt *);
 static	void	set_sys_flag	(sockaddr_u *, endpt *, struct req_pkt *);
 static	void	clr_sys_flag	(sockaddr_u *, endpt *, struct req_pkt *);
 static	void	setclr_flags	(sockaddr_u *, endpt *, struct req_pkt *, u_long);
-static	void	list_restrict4	(restrict_u *, struct info_restrict **);
-static	void	list_restrict6	(restrict_u *, struct info_restrict **);
+static	void	list_restrict4	(const restrict_u *, struct info_restrict **);
+static	void	list_restrict6	(const restrict_u *, struct info_restrict **);
 static	void	list_restrict	(sockaddr_u *, endpt *, struct req_pkt *);
 static	void	do_resaddflags	(sockaddr_u *, endpt *, struct req_pkt *);
 static	void	do_ressubflags	(sockaddr_u *, endpt *, struct req_pkt *);
@@ -667,43 +667,35 @@ list_peers(
 	struct req_pkt *inpkt
 	)
 {
-	struct info_peer_list *ip;
-	struct peer *pp;
-	int skip = 0;
+	struct info_peer_list *	ip;
+	const struct peer *	pp;
 
 	ip = (struct info_peer_list *)prepare_pkt(srcadr, inter, inpkt,
 	    v6sizeof(struct info_peer_list));
 	for (pp = peer_list; pp != NULL && ip != NULL; pp = pp->p_link) {
 		if (IS_IPV6(&pp->srcadr)) {
-			if (client_v6_capable) {
-				ip->addr6 = SOCK_ADDR6(&pp->srcadr);
-				ip->v6_flag = 1;
-				skip = 0;
-			} else {
-				skip = 1;
-				break;
-			}
+			if (!client_v6_capable)
+				continue;			
+			ip->addr6 = SOCK_ADDR6(&pp->srcadr);
+			ip->v6_flag = 1;
 		} else {
 			ip->addr = NSRCADR(&pp->srcadr);
 			if (client_v6_capable)
 				ip->v6_flag = 0;
-			skip = 0;
 		}
 
-		if (!skip) {
-			ip->port = NSRCPORT(&pp->srcadr);
-			ip->hmode = pp->hmode;
-			ip->flags = 0;
-			if (pp->flags & FLAG_CONFIG)
-				ip->flags |= INFO_FLAG_CONFIG;
-			if (pp == sys_peer)
-				ip->flags |= INFO_FLAG_SYSPEER;
-			if (pp->status == CTL_PST_SEL_SYNCCAND)
-				ip->flags |= INFO_FLAG_SEL_CANDIDATE;
-			if (pp->status >= CTL_PST_SEL_SYSPEER)
-				ip->flags |= INFO_FLAG_SHORTLIST;
-			ip = (struct info_peer_list *)more_pkt();
-		}
+		ip->port = NSRCPORT(&pp->srcadr);
+		ip->hmode = pp->hmode;
+		ip->flags = 0;
+		if (pp->flags & FLAG_CONFIG)
+			ip->flags |= INFO_FLAG_CONFIG;
+		if (pp == sys_peer)
+			ip->flags |= INFO_FLAG_SYSPEER;
+		if (pp->status == CTL_PST_SEL_SYNCCAND)
+			ip->flags |= INFO_FLAG_SEL_CANDIDATE;
+		if (pp->status >= CTL_PST_SEL_SYSPEER)
+			ip->flags |= INFO_FLAG_SHORTLIST;
+		ip = (struct info_peer_list *)more_pkt();
 	}	/* for pp */
 
 	flush_pkt();
@@ -720,10 +712,9 @@ list_peers_sum(
 	struct req_pkt *inpkt
 	)
 {
-	register struct info_peer_summary *ips;
-	register struct peer *pp;
-	l_fp ltmp;
-	register int skip;
+	struct info_peer_summary *	ips;
+	const struct peer *		pp;
+	l_fp 				ltmp;
 
 	DPRINTF(3, ("wants peer list summary\n"));
 
@@ -736,18 +727,14 @@ list_peers_sum(
 		 * want only v4.
 		 */
 		if (IS_IPV6(&pp->srcadr)) {
-			if (client_v6_capable) {
-				ips->srcadr6 = SOCK_ADDR6(&pp->srcadr);
-				ips->v6_flag = 1;
-				if (pp->dstadr)
-					ips->dstadr6 = SOCK_ADDR6(&pp->dstadr->sin);
-				else
-					ZERO(ips->dstadr6);
-				skip = 0;
-			} else {
-				skip = 1;
-				break;
-			}
+			if (!client_v6_capable)
+				continue;
+			ips->srcadr6 = SOCK_ADDR6(&pp->srcadr);
+			ips->v6_flag = 1;
+			if (pp->dstadr)
+				ips->dstadr6 = SOCK_ADDR6(&pp->dstadr->sin);
+			else
+				ZERO(ips->dstadr6);
 		} else {
 			ips->srcadr = NSRCADR(&pp->srcadr);
 			if (client_v6_capable)
@@ -765,39 +752,37 @@ list_peers_sum(
 							ips->dstadr = NSRCADR(&pp->dstadr->bcast);
 					}
 				}
-			} else
+			} else {
 				ips->dstadr = 0;
-
-			skip = 0;
+			}
 		}
 		
-		if (!skip) { 
-			ips->srcport = NSRCPORT(&pp->srcadr);
-			ips->stratum = pp->stratum;
-			ips->hpoll = pp->hpoll;
-			ips->ppoll = pp->ppoll;
-			ips->reach = pp->reach;
-			ips->flags = 0;
-			if (pp == sys_peer)
-				ips->flags |= INFO_FLAG_SYSPEER;
-			if (pp->flags & FLAG_CONFIG)
-				ips->flags |= INFO_FLAG_CONFIG;
-			if (pp->flags & FLAG_REFCLOCK)
-				ips->flags |= INFO_FLAG_REFCLOCK;
-			if (pp->flags & FLAG_PREFER)
-				ips->flags |= INFO_FLAG_PREFER;
-			if (pp->flags & FLAG_BURST)
-				ips->flags |= INFO_FLAG_BURST;
-			if (pp->status == CTL_PST_SEL_SYNCCAND)
-				ips->flags |= INFO_FLAG_SEL_CANDIDATE;
-			if (pp->status >= CTL_PST_SEL_SYSPEER)
-				ips->flags |= INFO_FLAG_SHORTLIST;
-			ips->hmode = pp->hmode;
-			ips->delay = HTONS_FP(DTOFP(pp->delay));
-			DTOLFP(pp->offset, &ltmp);
-			HTONL_FP(&ltmp, &ips->offset);
-			ips->dispersion = HTONS_FP(DTOUFP(SQRT(pp->disp)));
-		}	
+		ips->srcport = NSRCPORT(&pp->srcadr);
+		ips->stratum = pp->stratum;
+		ips->hpoll = pp->hpoll;
+		ips->ppoll = pp->ppoll;
+		ips->reach = pp->reach;
+		ips->flags = 0;
+		if (pp == sys_peer)
+			ips->flags |= INFO_FLAG_SYSPEER;
+		if (pp->flags & FLAG_CONFIG)
+			ips->flags |= INFO_FLAG_CONFIG;
+		if (pp->flags & FLAG_REFCLOCK)
+			ips->flags |= INFO_FLAG_REFCLOCK;
+		if (pp->flags & FLAG_PREFER)
+			ips->flags |= INFO_FLAG_PREFER;
+		if (pp->flags & FLAG_BURST)
+			ips->flags |= INFO_FLAG_BURST;
+		if (pp->status == CTL_PST_SEL_SYNCCAND)
+			ips->flags |= INFO_FLAG_SEL_CANDIDATE;
+		if (pp->status >= CTL_PST_SEL_SYSPEER)
+			ips->flags |= INFO_FLAG_SHORTLIST;
+		ips->hmode = pp->hmode;
+		ips->delay = HTONS_FP(DTOFP(pp->delay));
+		DTOLFP(pp->offset, &ltmp);
+		HTONL_FP(&ltmp, &ips->offset);
+		ips->dispersion = HTONS_FP(DTOUFP(SQRT(pp->disp)));
+
 		ips = (struct info_peer_summary *)more_pkt();
 	}	/* for pp */
 
@@ -1197,7 +1182,7 @@ mem_stats(
 		ms->hashcount[i] = (u_char)
 		    max((u_int)peer_hash_count[i], UCHAR_MAX);
 
-	more_pkt();
+	(void) more_pkt();
 	flush_pkt();
 }
 
@@ -1285,7 +1270,7 @@ loop_info(
 	li->compliance = htonl((u_int32)(tc_counter));
 	li->watchdog_timer = htonl((u_int32)(current_time - sys_epoch));
 
-	more_pkt();
+	(void) more_pkt();
 	flush_pkt();
 }
 
@@ -1571,56 +1556,143 @@ setclr_flags(
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
 
+/* There have been some issues with the restrict list processing,
+ * ranging from problems with deep recursion (resulting in stack
+ * overflows) and overfull reply buffers.
+ *
+ * To avoid this trouble the list reversal is done iteratively using a
+ * scratch pad.
+ */
+typedef struct RestrictStack RestrictStackT;
+struct RestrictStack {
+	RestrictStackT   *link;
+	size_t            fcnt;
+	const restrict_u *pres[63];
+};
+
+static size_t
+getStackSheetSize(
+	RestrictStackT *sp
+	)
+{
+	if (sp)
+		return sizeof(sp->pres)/sizeof(sp->pres[0]);
+	return 0u;
+}
+
+static int/*BOOL*/
+pushRestriction(
+	RestrictStackT  **spp,
+	const restrict_u *ptr
+	)
+{
+	RestrictStackT *sp;
+
+	if (NULL == (sp = *spp) || 0 == sp->fcnt) {
+		/* need another sheet in the scratch pad */
+		sp = emalloc(sizeof(*sp));
+		sp->link = *spp;
+		sp->fcnt = getStackSheetSize(sp);
+		*spp = sp;
+	}
+	sp->pres[--sp->fcnt] = ptr;
+	return TRUE;
+}
+
+static int/*BOOL*/
+popRestriction(
+	RestrictStackT   **spp,
+	const restrict_u **opp
+	)
+{
+	RestrictStackT *sp;
+
+	if (NULL == (sp = *spp) || sp->fcnt >= getStackSheetSize(sp))
+		return FALSE;
+	
+	*opp = sp->pres[sp->fcnt++];
+	if (sp->fcnt >= getStackSheetSize(sp)) {
+		/* discard sheet from scratch pad */
+		*spp = sp->link;
+		free(sp);
+	}
+	return TRUE;
+}
+
+static void
+flushRestrictionStack(
+	RestrictStackT **spp
+	)
+{
+	RestrictStackT *sp;
+
+	while (NULL != (sp = *spp)) {
+		*spp = sp->link;
+		free(sp);
+	}
+}
+
 /*
- * list_restrict4 - recursive helper for list_restrict dumps IPv4
+ * list_restrict4 - iterative helper for list_restrict dumps IPv4
  *		    restriction list in reverse order.
  */
 static void
 list_restrict4(
-	restrict_u *		res,
+	const restrict_u *	res,
 	struct info_restrict **	ppir
 	)
 {
+	RestrictStackT *	rpad;
 	struct info_restrict *	pir;
 
-	if (res->link != NULL)
-		list_restrict4(res->link, ppir);
-
 	pir = *ppir;
-	pir->addr = htonl(res->u.v4.addr);
-	if (client_v6_capable) 
-		pir->v6_flag = 0;
-	pir->mask = htonl(res->u.v4.mask);
-	pir->count = htonl(res->count);
-	pir->flags = htons(res->flags);
-	pir->mflags = htons(res->mflags);
-	*ppir = (struct info_restrict *)more_pkt();
+	for (rpad = NULL; res; res = res->link)
+		if (!pushRestriction(&rpad, res))
+			break;
+	
+	while (pir && popRestriction(&rpad, &res)) {
+		pir->addr = htonl(res->u.v4.addr);
+		if (client_v6_capable) 
+			pir->v6_flag = 0;
+		pir->mask = htonl(res->u.v4.mask);
+		pir->count = htonl(res->count);
+		pir->flags = htons(res->flags);
+		pir->mflags = htons(res->mflags);
+		pir = (struct info_restrict *)more_pkt();
+	}
+	flushRestrictionStack(&rpad);
+	*ppir = pir;
 }
 
-
 /*
- * list_restrict6 - recursive helper for list_restrict dumps IPv6
+ * list_restrict6 - iterative helper for list_restrict dumps IPv6
  *		    restriction list in reverse order.
  */
 static void
 list_restrict6(
-	restrict_u *		res,
+	const restrict_u *	res,
 	struct info_restrict **	ppir
 	)
 {
+	RestrictStackT *	rpad;
 	struct info_restrict *	pir;
 
-	if (res->link != NULL)
-		list_restrict6(res->link, ppir);
-
 	pir = *ppir;
-	pir->addr6 = res->u.v6.addr; 
-	pir->mask6 = res->u.v6.mask;
-	pir->v6_flag = 1;
-	pir->count = htonl(res->count);
-	pir->flags = htons(res->flags);
-	pir->mflags = htons(res->mflags);
-	*ppir = (struct info_restrict *)more_pkt();
+	for (rpad = NULL; res; res = res->link)
+		if (!pushRestriction(&rpad, res))
+			break;
+
+	while (pir && popRestriction(&rpad, &res)) {
+		pir->addr6 = res->u.v6.addr; 
+		pir->mask6 = res->u.v6.mask;
+		pir->v6_flag = 1;
+		pir->count = htonl(res->count);
+		pir->flags = htons(res->flags);
+		pir->mflags = htons(res->mflags);
+		pir = (struct info_restrict *)more_pkt();
+	}
+	flushRestrictionStack(&rpad);
+	*ppir = pir;
 }
 
 
@@ -1644,8 +1716,7 @@ list_restrict(
 	/*
 	 * The restriction lists are kept sorted in the reverse order
 	 * than they were originally.  To preserve the output semantics,
-	 * dump each list in reverse order.  A recursive helper function
-	 * achieves that.
+	 * dump each list in reverse order. The workers take care of that.
 	 */
 	list_restrict4(restrictlist4, &ir);
 	if (client_v6_capable)
@@ -2010,7 +2081,7 @@ do_trustkey(
 	register int items;
 
 	items = INFO_NITEMS(inpkt->err_nitems);
-	kp = (uint32_t*)&inpkt->u;
+	kp = (uint32_t *)&inpkt->u;
 	while (items-- > 0) {
 		authtrust(*kp, trust);
 		kp++;
@@ -2089,7 +2160,7 @@ req_get_traps(
 	it = (struct info_trap *)prepare_pkt(srcadr, inter, inpkt,
 	    v6sizeof(struct info_trap));
 
-	for (i = 0, tr = ctl_traps; i < COUNTOF(ctl_traps); i++, tr++) {
+	for (i = 0, tr = ctl_traps; it && i < COUNTOF(ctl_traps); i++, tr++) {
 		if (tr->tr_flags & TRAP_INUSE) {
 			if (IS_IPV4(&tr->tr_addr)) {
 				if (tr->tr_localaddr == any_interface)
@@ -2405,7 +2476,7 @@ get_clock_info(
 	ic = (struct info_clock *)prepare_pkt(srcadr, inter, inpkt,
 					      sizeof(struct info_clock));
 
-	while (items-- > 0) {
+	while (items-- > 0 && ic) {
 		NSRCADR(&addr) = *clkaddr++;
 		if (!ISREFCLOCKADR(&addr) || NULL ==
 		    findexistingpeer(&addr, NULL, NULL, -1, 0)) {
@@ -2544,7 +2615,7 @@ get_clkbug_info(
 	ic = (struct info_clkbug *)prepare_pkt(srcadr, inter, inpkt,
 					       sizeof(struct info_clkbug));
 
-	while (items-- > 0) {
+	while (items-- > 0 && ic) {
 		NSRCADR(&addr) = *clkaddr++;
 		if (!ISREFCLOCKADR(&addr) || NULL ==
 		    findexistingpeer(&addr, NULL, NULL, -1, 0)) {
@@ -2592,13 +2663,15 @@ fill_info_if_stats(void *data, interface_info_t *interface_info)
 	struct info_if_stats **ifsp = (struct info_if_stats **)data;
 	struct info_if_stats *ifs = *ifsp;
 	endpt *ep = interface_info->ep;
+
+	if (NULL == ifs)
+		return;
 	
 	ZERO(*ifs);
 	
 	if (IS_IPV6(&ep->sin)) {
-		if (!client_v6_capable) {
+		if (!client_v6_capable)
 			return;
-		}
 		ifs->v6_flag = 1;
 		ifs->unaddr.addr6 = SOCK_ADDR6(&ep->sin);
 		ifs->unbcast.addr6 = SOCK_ADDR6(&ep->bcast);

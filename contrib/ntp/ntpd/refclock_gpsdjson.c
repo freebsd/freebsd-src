@@ -377,17 +377,6 @@ static int16_t clamped_precision(int rawprec);
  * local / static stuff
  */
 
-/* The logon string is actually the ?WATCH command of GPSD, using JSON
- * data and selecting the GPS device name we created from our unit
- * number. We have an old a newer version that request PPS (and TOFF)
- * transmission.
- * Note: These are actually format strings!
- */
-static const char * const s_req_watch[2] = {
-	"?WATCH={\"device\":\"%s\",\"enable\":true,\"json\":true};\r\n",
-	"?WATCH={\"device\":\"%s\",\"enable\":true,\"json\":true,\"pps\":true};\r\n"
-};
-
 static const char * const s_req_version =
     "?VERSION;\r\n";
 
@@ -1147,7 +1136,7 @@ json_token_skip(
 	const json_ctx * ctx,
 	tok_ref          tid)
 {
-	if (tid >= 0 && tid < ctx->ntok) {
+	if (tid >= 0 && (u_int)tid < ctx->ntok) {
 		int len = ctx->tok[tid].size;
 		/* For arrays and objects, the size is the number of
 		 * ITEMS in the compound. Thats the number of objects in
@@ -1172,7 +1161,10 @@ json_token_skip(
 			++tid;
 			break;
 		}
-		if (tid > ctx->ntok) /* Impossible? Paranoia rulez. */
+		/* The next condition should never be true, but paranoia
+		 * prevails...
+		 */
+		if (tid < 0 || (u_int)tid > ctx->ntok)
 			tid = ctx->ntok;
 	}
 	return tid;
@@ -1200,7 +1192,7 @@ json_object_lookup(
 			tid = json_token_skip(ctx, tid); /* skip val */
 		} else if (strcmp(key, ctx->buf + ctx->tok[tid].start)) {
 			tid = json_token_skip(ctx, tid+1); /* skip key+val */
-		} else if (what < 0 || what == ctx->tok[tid+1].type) {
+		} else if (what < 0 || (u_int)what == ctx->tok[tid+1].type) {
 			return tid + 1;
 		} else {
 			break;
@@ -1513,8 +1505,14 @@ process_version(
 	if (up->fl_watch)
 		return;
 
+	/* The logon string is actually the ?WATCH command of GPSD,
+	 * using JSON data and selecting the GPS device name we created
+	 * from our unit number. We have an old a newer version that
+	 * request PPS (and TOFF) transmission.
+	 */
 	snprintf(up->buffer, sizeof(up->buffer),
-		 s_req_watch[up->pf_toff != 0], up->device);
+		 "?WATCH={\"device\":\"%s\",\"enable\":true,\"json\":true%s};\r\n",
+		 up->device, (up->pf_toff ? ",\"pps\":true" : ""));
 	buf = up->buffer;
 	len = strlen(buf);
 	log_data(peer, "send", buf, len);

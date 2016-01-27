@@ -5,10 +5,12 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#include "ntpd.h"	/* Only for DPRINTF */
 #include "ntp_fp.h"
 #include "ntp.h"
 #include "ntp_syslog.h"
 #include "ntp_stdlib.h"
+#include "ntp_keyacc.h"
 
 #ifdef OPENSSL
 #include "openssl/objects.h"
@@ -85,6 +87,7 @@ static void log_maybe(u_int*, const char*, ...) NTP_PRINTF(2, 3);
 typedef struct keydata KeyDataT;
 struct keydata {
 	KeyDataT *next;		/* queue/stack link		*/
+	KeyAccT  *keyacclist;	/* key access list		*/
 	keyid_t   keyid;	/* stored key ID		*/
 	u_short   keytype;	/* stored key type		*/
 	u_short   seclen;	/* length of secret		*/
@@ -228,6 +231,7 @@ authreadkeys(
 		len = strlen(token);
 		if (len <= 20) {	/* Bug 2537 */
 			next = emalloc(sizeof(KeyDataT) + len);
+			next->keyacclist = NULL;
 			next->keyid   = keyno;
 			next->keytype = keytype;
 			next->seclen  = len;
@@ -257,11 +261,48 @@ authreadkeys(
 			}
 			len = jlim/2; /* hmmmm.... what about odd length?!? */
 			next = emalloc(sizeof(KeyDataT) + len);
+			next->keyacclist = NULL;
 			next->keyid   = keyno;
 			next->keytype = keytype;
 			next->seclen  = len;
 			memcpy(next->secbuf, keystr, len);
 		}
+
+		token = nexttok(&line);
+DPRINTF(0, ("authreadkeys: full access list <%s>\n", (token) ? token : "NULL"));
+		if (token != NULL) {	/* A comma-separated IP access list */
+			char *tp = token;
+
+			while (tp) {
+				char *i;
+				KeyAccT ka;
+
+				i = strchr(tp, (int)',');
+				if (i)
+					*i = '\0';
+DPRINTF(0, ("authreadkeys: access list:  <%s>\n", tp));
+
+				if (is_ip_address(tp, AF_UNSPEC, &ka.addr)) {
+					KeyAccT *kap;
+
+					kap = emalloc(sizeof(KeyAccT));
+					memcpy(kap, &ka, sizeof ka);
+					kap->next = next->keyacclist;
+					next->keyacclist = kap;
+				} else {
+					log_maybe(&nerr,
+						  "authreadkeys: invalid IP address <%s> for key %d",
+						  tp, keyno);
+				}
+
+				if (i) {
+					tp = i + 1;
+				} else {
+					tp = 0;
+				}
+			}
+		}
+
 		INSIST(NULL != next);
 		next->next = list;
 		list = next;
@@ -286,7 +327,7 @@ authreadkeys(
 	while (NULL != (next = list)) {
 		list = next->next;
 		MD5auth_setkey(next->keyid, next->keytype,
-			       next->secbuf, next->seclen);
+			       next->secbuf, next->seclen, next->keyacclist);
 		/* purge secrets from memory before free()ing it */
 		memset(next, 0, sizeof(*next) + next->seclen);
 		free(next);
@@ -297,6 +338,14 @@ authreadkeys(
 	/* Mop up temporary storage before bailing out. */
 	while (NULL != (next = list)) {
 		list = next->next;
+
+		while (next->keyacclist) {
+			KeyAccT *kap = next->keyacclist;
+
+			next->keyacclist = kap->next;
+			free(kap);
+		}
+
 		/* purge secrets from memory before free()ing it */
 		memset(next, 0, sizeof(*next) + next->seclen);
 		free(next);
