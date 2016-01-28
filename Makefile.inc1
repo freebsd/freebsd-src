@@ -1371,7 +1371,9 @@ REPODIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
 PKGSIGNKEY?=	# empty
 
 _pkgbootstrap:
+.if !exists(${LOCALBASE}/sbin/pkg)
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
+.endif
 
 packages:	_pkgbootstrap
 	@mkdir -p ${WSTAGEDIR} ${KSTAGEDIR} ${REPODIR}
