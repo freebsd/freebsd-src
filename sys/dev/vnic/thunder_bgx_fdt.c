@@ -244,7 +244,7 @@ bgx_fdt_find_node(struct bgx *bgx)
 	}
 
 	node = ofw_bus_get_node(root_pcib);
-	if (node == 0) {
+	if ((int)node <= 0) {
 		device_printf(bgx->dev, "No parent FDT node for BGX\n");
 		goto out;
 	}

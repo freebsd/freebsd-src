@@ -276,7 +276,7 @@ thunder_pcie_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
 	int i;
 
 	/* For PCIe devices that do not have FDT nodes, use PCIB method */
-	if (ofw_bus_get_node(child) == 0) {
+	if ((int)ofw_bus_get_node(child) <= 0) {
 		return (thunder_pcie_alloc_resource(bus, child, type, rid,
 		    start, end, count, flags));
 	}
@@ -329,7 +329,7 @@ thunder_pcie_ofw_bus_rel_res(device_t bus, device_t child, int type, int rid,
 {
 
 	/* For PCIe devices that do not have FDT nodes, use PCIB method */
-	if (ofw_bus_get_node(child) == 0) {
+	if ((int)ofw_bus_get_node(child) <= 0) {
 		return (thunder_pcie_release_resource(bus,
 		    child, type, rid, res));
 	}
