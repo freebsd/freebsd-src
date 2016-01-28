@@ -187,8 +187,15 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 
 	blkbuf = dmadat->blkbuf;
 	indbuf = dmadat->indbuf;
-	if (!dsk_meta) {
+
+	/*
+	 * Force probe if inode is zero to ensure we have a valid fs, otherwise
+	 * when probing multiple paritions, reads from subsequent parititions
+	 * will incorrectly succeed.
+	 */
+	if (!dsk_meta || inode == 0) {
 		inomap = 0;
+		dsk_meta = 0;
 		for (n = 0; sblock_try[n] != -1; n++) {
 			if (dskread(dmadat->sbbuf, sblock_try[n] / DEV_BSIZE,
 			    SBLOCKSIZE / DEV_BSIZE))
