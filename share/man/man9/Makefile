@@ -850,7 +850,8 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 make_dev_alias_p.9 \
 	make_dev.9 make_dev_cred.9 \
 	make_dev.9 make_dev_credf.9 \
-	make_dev.9 make_dev_p.9
+	make_dev.9 make_dev_p.9 \
+	make_dev.9 make_dev_s.9
 MLINKS+=malloc.9 free.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
