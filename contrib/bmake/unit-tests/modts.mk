@@ -12,9 +12,9 @@ all:   mod-ts
 # Use print or printf iff they are builtin.
 # XXX note that this causes problems, when make decides 
 # there is no need to use a shell, so avoid where possible.
-.if ${type print 2> /dev/null || echo:L:sh:Mbuiltin} != ""
+.if ${(type print) 2> /dev/null || echo:L:sh:Mbuiltin} != ""
 PRINT= print -r --
-.elif ${type printf 2> /dev/null || echo:L:sh:Mbuiltin} != ""
+.elif ${(type printf) 2> /dev/null || echo:L:sh:Mbuiltin} != ""
 PRINT= printf '%s\n'
 .else
 PRINT= echo

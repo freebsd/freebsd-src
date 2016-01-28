@@ -50,6 +50,7 @@ static const char rcsid[] = "@(#)$Id$";
 #  include <net/netisr.h>
 #include <net/route.h>
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -712,16 +713,15 @@ ipf_fastroute(m0, mpp, fin, fdp)
 {
 	register struct ip *ip, *mhip;
 	register struct mbuf *m = *mpp;
-	register struct route *ro;
 	int len, off, error = 0, hlen, code;
 	struct ifnet *ifp, *sifp;
-	struct sockaddr_in *dst;
-	struct route iproute;
+	struct sockaddr_in dst;
+	struct nhop4_extended nh4;
+	int has_nhop = 0;
+	u_long fibnum = 0;
 	u_short ip_off;
 	frdest_t node;
 	frentry_t *fr;
-
-	ro = NULL;
 
 #ifdef M_WRITABLE
 	/*
@@ -766,11 +766,10 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	/*
 	 * Route packet.
 	 */
-	ro = &iproute;
-	bzero(ro, sizeof (*ro));
-	dst = (struct sockaddr_in *)&ro->ro_dst;
-	dst->sin_family = AF_INET;
-	dst->sin_addr = ip->ip_dst;
+	bzero(&dst, sizeof (dst));
+	dst.sin_family = AF_INET;
+	dst.sin_addr = ip->ip_dst;
+	dst.sin_len = sizeof(dst);
 
 	fr = fin->fin_fr;
 	if ((fr != NULL) && !(fr->fr_flags & FR_KEEPSTATE) && (fdp != NULL) &&
@@ -790,25 +789,22 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	}
 
 	if ((fdp != NULL) && (fdp->fd_ip.s_addr != 0))
-		dst->sin_addr = fdp->fd_ip;
+		dst.sin_addr = fdp->fd_ip;
 
-	dst->sin_len = sizeof(*dst);
-	in_rtalloc(ro, M_GETFIB(m0));
-
-	if ((ifp == NULL) && (ro->ro_rt != NULL))
-		ifp = ro->ro_rt->rt_ifp;
-
-	if ((ro->ro_rt == NULL) || (ifp == NULL)) {
+	fibnum = M_GETFIB(m0);
+	if (fib4_lookup_nh_ext(fibnum, dst.sin_addr, NHR_REF, 0, &nh4) != 0) {
 		if (in_localaddr(ip->ip_dst))
 			error = EHOSTUNREACH;
 		else
 			error = ENETUNREACH;
 		goto bad;
 	}
-	if (ro->ro_rt->rt_flags & RTF_GATEWAY)
-		dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
-	if (ro->ro_rt)
-		counter_u64_add(ro->ro_rt->rt_pksent, 1);
+
+	has_nhop = 1;
+	if (ifp == NULL)
+		ifp = nh4.nh_ifp;
+	if (nh4.nh_flags & NHF_GATEWAY)
+		dst.sin_addr = nh4.nh_addr;
 
 	/*
 	 * For input packets which are being "fastrouted", they won't
@@ -852,8 +848,8 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	if (ntohs(ip->ip_len) <= ifp->if_mtu) {
 		if (!ip->ip_sum)
 			ip->ip_sum = in_cksum(m, hlen);
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
-			    ro
+		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)&dst,
+			    NULL
 			);
 		goto done;
 	}
@@ -935,8 +931,8 @@ sendorfree:
 		m->m_act = 0;
 		if (error == 0)
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst,
-			    ro
+			    (struct sockaddr *)&dst,
+			    NULL
 			    );
 		else
 			FREE_MB_T(m);
@@ -948,9 +944,9 @@ done:
 	else
 		ipfmain.ipf_frouteok[1]++;
 
-	if ((ro != NULL) && (ro->ro_rt != NULL)) {
-		RTFREE(ro->ro_rt);
-	}
+	if (has_nhop)
+		fib4_free_nh_ext(fibnum, &nh4);
+
 	return 0;
 bad:
 	if (error == EMSGSIZE) {
@@ -971,18 +967,11 @@ int
 ipf_verifysrc(fin)
 	fr_info_t *fin;
 {
-	struct sockaddr_in *dst;
-	struct route iproute;
+	struct nhop4_basic nh4;
 
-	bzero((char *)&iproute, sizeof(iproute));
-	dst = (struct sockaddr_in *)&iproute.ro_dst;
-	dst->sin_len = sizeof(*dst);
-	dst->sin_family = AF_INET;
-	dst->sin_addr = fin->fin_src;
-	in_rtalloc(&iproute, 0);
-	if (iproute.ro_rt == NULL)
-		return 0;
-	return (fin->fin_ifp == iproute.ro_rt->rt_ifp);
+	if (fib4_lookup_nh_basic(0, fin->fin_src, 0, 0, &nh4) != 0)
+		return (0);
+	return (fin->fin_ifp == nh4.nh_ifp);
 }
 
 

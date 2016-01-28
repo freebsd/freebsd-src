@@ -31,6 +31,7 @@
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
+extern void test_main(void);
 extern void test_main(void );
 
 
@@ -50,6 +51,7 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("bug-2803.c");
+  RUN_TEST(test_main, 18);
   RUN_TEST(test_main, 18);
 
   return (UnityEnd());

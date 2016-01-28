@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2014
+.Dd December 15, 2015
 .Dt CRYPTO 4
 .Os
 .Sh NAME
@@ -79,7 +79,7 @@ The
 .Nm
 driver gives user-mode applications access to hardware-accelerated
 cryptographic transforms, as implemented by the
-.Xr opencrypto 9
+.Xr crypto 9
 in-kernel interface.
 .Pp
 The
@@ -99,9 +99,6 @@ variables,
 .Ic kern.userasymcrypto
 and
 .Ic kern.cryptodevallowsoft .
-See
-.Xr sysctl 7
-for additional details.
 .Pp
 The
 .Nm

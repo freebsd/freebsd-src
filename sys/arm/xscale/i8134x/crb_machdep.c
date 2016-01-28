@@ -325,9 +325,9 @@ initarm(struct arm_boot_params *abp)
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
 	arm_physmem_hardware_region(SDRAM_START, memsize);
-	arm_physmem_exclude_region(freemem_pt, KERNPHYSADDR -
+	arm_physmem_exclude_region(freemem_pt, abp->abp_physaddr -
 	    freemem_pt, EXFLAG_NOALLOC);
-	arm_physmem_exclude_region(freemempos, KERNPHYSADDR - 0x100000 -
+	arm_physmem_exclude_region(freemempos, abp->abp_physaddr - 0x100000 -
 	    freemempos, EXFLAG_NOALLOC);
 	arm_physmem_exclude_region(abp->abp_physaddr, 
 	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);

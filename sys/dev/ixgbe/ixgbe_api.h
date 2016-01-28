@@ -148,10 +148,10 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);
 s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 fdirctrl);
 s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 fdirctrl,
 					bool cloud_mode);
-s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
-					  union ixgbe_atr_hash_dword input,
-					  union ixgbe_atr_hash_dword common,
-					  u8 queue);
+void ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
+					   union ixgbe_atr_hash_dword input,
+					   union ixgbe_atr_hash_dword common,
+					   u8 queue);
 s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 				    union ixgbe_atr_input *input_mask, bool cloud_mode);
 s32 ixgbe_fdir_write_perfect_filter_82599(struct ixgbe_hw *hw,
@@ -180,6 +180,7 @@ s32 ixgbe_read_i2c_combined_unlocked(struct ixgbe_hw *hw, u8 addr, u16 reg,
 				     u16 *val);
 s32 ixgbe_write_i2c_byte(struct ixgbe_hw *hw, u8 byte_offset, u8 dev_addr,
 			 u8 data);
+void ixgbe_set_fdir_drop_queue_82599(struct ixgbe_hw *hw, u8 dropqueue);
 s32 ixgbe_write_i2c_byte_unlocked(struct ixgbe_hw *hw, u8 byte_offset,
 				  u8 dev_addr, u8 data);
 s32 ixgbe_write_i2c_combined(struct ixgbe_hw *hw, u8 addr, u16 reg, u16 val);

@@ -133,7 +133,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	struct uart_class *class;
 	phandle_t node, chosen;
 	pcell_t shift, br, rclk;
-	u_long start, size, pbase, psize;
 	char *cp;
 	int err;
 
@@ -212,16 +211,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
-	di->bas.bst = uart_bus_space_mem;
 
-	err = fdt_regsize(node, &start, &size);
-	if (err)
-		return (ENXIO);
-	err = fdt_get_range(OF_parent(node), 0, &pbase, &psize);
-	if (err)
-		pbase = 0;
-
-	start += pbase;
-
-	return (bus_space_map(di->bas.bst, start, size, 0, &di->bas.bsh));
+	return (OF_decode_addr(node, 0, &di->bas.bst, &di->bas.bsh));
 }

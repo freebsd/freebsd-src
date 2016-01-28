@@ -36,12 +36,12 @@ int	arm_enable_intr(void);
 void	arm_mask_irq(u_int);
 void	arm_register_root_pic(device_t, u_int);
 void	arm_register_msi_pic(device_t);
-int	arm_alloc_msi(device_t, int, int *);
-int	arm_release_msi(device_t, int, int *);
-int	arm_alloc_msix(device_t, int *);
-int	arm_release_msix(device_t, int);
-int	arm_map_msi(device_t, int, uint64_t *, uint32_t *);
-int	arm_map_msix(device_t, int, uint64_t *, uint32_t *);
+int	arm_alloc_msi(device_t, device_t, int, int, int *);
+int	arm_release_msi(device_t, device_t, int, int *);
+int	arm_alloc_msix(device_t, device_t, int *);
+int	arm_release_msix(device_t, device_t, int);
+int	arm_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
+int	arm_map_msix(device_t, device_t, int, uint64_t *, uint32_t *);
 int	arm_setup_intr(const char *, driver_filter_t *, driver_intr_t,
 				void *, u_int, enum intr_type, void **);
 int	arm_teardown_intr(void *);

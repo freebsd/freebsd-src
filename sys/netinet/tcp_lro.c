@@ -2,6 +2,7 @@
  * Copyright (c) 2007, Myricom Inc.
  * Copyright (c) 2008, Intel Corporation.
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2016 Mellanox Technologies.
  * All rights reserved.
  *
  * Portions of this software were developed by Bjoern Zeeb
@@ -58,9 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-#ifndef LRO_ENTRIES
-#define	LRO_ENTRIES	8	/* # of LRO entries per RX queue. */
-#endif
+static MALLOC_DEFINE(M_LRO, "LRO", "LRO control structures");
 
 #define	TCP_LRO_UPDATE_CSUM	1
 #ifndef	TCP_LRO_UPDATE_CSUM
@@ -70,42 +69,73 @@ __FBSDID("$FreeBSD$");
 int
 tcp_lro_init(struct lro_ctrl *lc)
 {
+	return (tcp_lro_init_args(lc, NULL, TCP_LRO_ENTRIES, 0));
+}
+
+int
+tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
+    unsigned lro_entries, unsigned lro_mbufs)
+{
 	struct lro_entry *le;
-	int error, i;
+	size_t size;
+	unsigned i;
 
 	lc->lro_bad_csum = 0;
 	lc->lro_queued = 0;
 	lc->lro_flushed = 0;
 	lc->lro_cnt = 0;
+	lc->lro_mbuf_count = 0;
+	lc->lro_mbuf_max = lro_mbufs;
+	lc->lro_cnt = lro_entries;
+	lc->ifp = ifp;
 	SLIST_INIT(&lc->lro_free);
 	SLIST_INIT(&lc->lro_active);
 
-	error = 0;
-	for (i = 0; i < LRO_ENTRIES; i++) {
-		le = (struct lro_entry *)malloc(sizeof(*le), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
-                if (le == NULL) {
-			if (i == 0)
-				error = ENOMEM;
-                        break;
-                }
-		lc->lro_cnt = i + 1;
-		SLIST_INSERT_HEAD(&lc->lro_free, le, next);
-        }
+	/* compute size to allocate */
+	size = (lro_mbufs * sizeof(struct mbuf *)) +
+	    (lro_entries * sizeof(*le));
+	lc->lro_mbuf_data = (struct mbuf **)
+	    malloc(size, M_LRO, M_NOWAIT | M_ZERO);
 
-	return (error);
+	/* check for out of memory */
+	if (lc->lro_mbuf_data == NULL) {
+		memset(lc, 0, sizeof(*lc));
+		return (ENOMEM);
+	}
+	/* compute offset for LRO entries */
+	le = (struct lro_entry *)
+	    (lc->lro_mbuf_data + lro_mbufs);
+
+	/* setup linked list */
+	for (i = 0; i != lro_entries; i++)
+		SLIST_INSERT_HEAD(&lc->lro_free, le + i, next);
+
+	return (0);
 }
 
 void
 tcp_lro_free(struct lro_ctrl *lc)
 {
 	struct lro_entry *le;
+	unsigned x;
 
-	while (!SLIST_EMPTY(&lc->lro_free)) {
-		le = SLIST_FIRST(&lc->lro_free);
-		SLIST_REMOVE_HEAD(&lc->lro_free, next);
-		free(le, M_DEVBUF);
+	/* reset LRO free list */
+	SLIST_INIT(&lc->lro_free);
+
+	/* free active mbufs, if any */
+	while ((le = SLIST_FIRST(&lc->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lc->lro_active, next);
+		m_freem(le->m_head);
 	}
+
+	/* free mbuf array, if any */
+	for (x = 0; x != lc->lro_mbuf_count; x++)
+		m_freem(lc->lro_mbuf_data[x]);
+	lc->lro_mbuf_count = 0;
+	
+	/* free allocated memory, if any */
+	free(lc->lro_mbuf_data, M_LRO);
+	lc->lro_mbuf_data = NULL;
 }
 
 #ifdef TCP_LRO_UPDATE_CSUM
@@ -303,6 +333,83 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 	lc->lro_flushed++;
 	bzero(le, sizeof(*le));
 	SLIST_INSERT_HEAD(&lc->lro_free, le, next);
+}
+
+static int
+tcp_lro_mbuf_compare_header(const void *ppa, const void *ppb)
+{
+	const struct mbuf *ma = *((const struct mbuf * const *)ppa);
+	const struct mbuf *mb = *((const struct mbuf * const *)ppb);
+	int ret;
+
+	ret = M_HASHTYPE_GET(ma) - M_HASHTYPE_GET(mb);
+	if (ret != 0)
+		goto done;
+
+	ret = ma->m_pkthdr.flowid - mb->m_pkthdr.flowid;
+	if (ret != 0)
+		goto done;
+
+	ret = TCP_LRO_SEQUENCE(ma) - TCP_LRO_SEQUENCE(mb);
+done:
+	return (ret);
+}
+
+void
+tcp_lro_flush_all(struct lro_ctrl *lc)
+{
+	struct lro_entry *le;
+	uint32_t hashtype;
+	uint32_t flowid;
+	unsigned x;
+
+	/* check if no mbufs to flush */
+	if (__predict_false(lc->lro_mbuf_count == 0))
+		goto done;
+
+	/* sort all mbufs according to stream */
+	qsort(lc->lro_mbuf_data, lc->lro_mbuf_count, sizeof(struct mbuf *),
+	    &tcp_lro_mbuf_compare_header);
+
+	/* input data into LRO engine, stream by stream */
+	flowid = 0;
+	hashtype = M_HASHTYPE_NONE;
+	for (x = 0; x != lc->lro_mbuf_count; x++) {
+		struct mbuf *mb;
+
+		mb = lc->lro_mbuf_data[x];
+
+		/* check for new stream */
+		if (mb->m_pkthdr.flowid != flowid ||
+		    M_HASHTYPE_GET(mb) != hashtype) {
+			flowid = mb->m_pkthdr.flowid;
+			hashtype = M_HASHTYPE_GET(mb);
+
+			/* flush active streams */
+			while ((le = SLIST_FIRST(&lc->lro_active)) != NULL) {
+				SLIST_REMOVE_HEAD(&lc->lro_active, next);
+				tcp_lro_flush(lc, le);
+			}
+		}
+#ifdef TCP_LRO_RESET_SEQUENCE
+		/* reset sequence number */
+		TCP_LRO_SEQUENCE(mb) = 0;
+#endif
+		/* add packet to LRO engine */
+		if (tcp_lro_rx(lc, mb, 0) != 0) {
+			/* input packet to network layer */
+			(*lc->ifp->if_input)(lc->ifp, mb);
+			lc->lro_queued++;
+			lc->lro_flushed++;
+		}
+	}
+done:
+	/* flush active streams */
+	while ((le = SLIST_FIRST(&lc->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lc->lro_active, next);
+		tcp_lro_flush(lc, le);
+	}
+	lc->lro_mbuf_count = 0;
 }
 
 #ifdef INET6
@@ -631,6 +738,39 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	le->m_tail = m_last(m);
 
 	return (0);
+}
+
+void
+tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
+{
+	/* sanity checks */
+	if (__predict_false(lc->ifp == NULL || lc->lro_mbuf_data == NULL ||
+	    lc->lro_mbuf_max == 0)) {
+		/* packet drop */
+		m_freem(mb);
+		return;
+	}
+
+	/* check if packet is not LRO capable */
+	if (__predict_false(mb->m_pkthdr.csum_flags == 0 ||
+	    (lc->ifp->if_capenable & IFCAP_LRO) == 0)) {
+		lc->lro_flushed++;
+		lc->lro_queued++;
+
+		/* input packet to network layer */
+		(*lc->ifp->if_input) (lc->ifp, mb);
+		return;
+	}
+
+	/* check if array is full */
+	if (__predict_false(lc->lro_mbuf_count == lc->lro_mbuf_max))
+		tcp_lro_flush_all(lc);
+
+	/* store sequence number */
+	TCP_LRO_SEQUENCE(mb) = lc->lro_mbuf_count;
+
+	/* enter mbuf */
+	lc->lro_mbuf_data[lc->lro_mbuf_count++] = mb;
 }
 
 /* end */

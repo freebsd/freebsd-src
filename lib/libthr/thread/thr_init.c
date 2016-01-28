@@ -332,7 +332,7 @@ _libpthread_init(struct pthread *curthread)
 			PANIC("Can't set session ID");
 		if (revoke(_PATH_CONSOLE) != 0)
 			PANIC("Can't revoke console");
-		if ((fd = __sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
+		if ((fd = __sys_openat(AT_FDCWD, _PATH_CONSOLE, O_RDWR)) < 0)
 			PANIC("Can't open console");
 		if (setlogin("root") == -1)
 			PANIC("Can't set login to root");

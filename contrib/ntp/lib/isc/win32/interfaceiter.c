@@ -54,7 +54,7 @@ struct isc_interfaceiter {
 	IP_ADAPTER_ADDRESSES *	ipaaCur;	/* enumeration position */
 	IP_ADAPTER_UNICAST_ADDRESS *ipuaCur;	/* enumeration subposition */
 	/* fields used for the older address enumeration ioctls */
-	int			socket;
+	SOCKET			socket;
 	INTERFACE_INFO		IFData;		/* Current Interface Info */
 	int			numIF;		/* Current Interface count */
 	int			v4IF;		/* Number of IPv4 Interfaces */

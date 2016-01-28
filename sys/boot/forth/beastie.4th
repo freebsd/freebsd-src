@@ -85,11 +85,6 @@ variable logoY
 also support-functions
 
 : beastie-start ( -- ) \ starts the menu
-	s" console" getenv dup -1 <> if
-		s" efi" 2swap contains? if
-			s" set beastie_disable=YES" evaluate
-		then
-	else drop then
 	s" beastie_disable" getenv dup -1 <> if
 		s" YES" compare-insensitive 0= if
 			any_conf_read? if

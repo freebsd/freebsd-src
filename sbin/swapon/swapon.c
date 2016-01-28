@@ -642,6 +642,7 @@ run_cmd(int *ofd, const char *cmdline, ...)
 	rv = vasprintf(&cmd, cmdline, ap);
 	if (rv == -1) {
 		warn("%s", __func__);
+		va_end(ap);
 		return (rv);
 	}
 	va_end(ap);

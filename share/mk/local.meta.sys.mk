@@ -48,13 +48,14 @@ TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
 TARGET_ARCHES_powerpc?= powerpc powerpc64
 TARGET_ARCHES_pc98?=    i386
+TARGET_ARCHES_riscv?=   riscv64
 
 # some corner cases
 BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
-ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips pc98 powerpc sparc64
+ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips pc98 powerpc riscv sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
@@ -148,7 +149,11 @@ STAGE_MACHINE:= ${TARGET_OBJ_SPEC}
 .endif
 STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
 STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
+STAGE_TARGET_OBJTOP:= ${STAGE_ROOT}/${TARGET_OBJ_SPEC}
 STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
+# These are exported for hooking in out-of-tree builds.  They will always
+# be overridden in sub-makes above when building in-tree.
+.export STAGE_OBJTOP STAGE_TARGET_OBJTOP STAGE_HOST_OBJTOP
 
 # Use tools/install.sh which can avoid the need for xinstall for simple cases.
 INSTALL?=	sh ${SRCTOP}/tools/install.sh
@@ -215,6 +220,7 @@ TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
+    !make(showconfig) && \
     !defined(BOOTSTRAPPING_TOOLS) && !empty(TOOLSDIR) && ${.MAKE.LEVEL} == 0
 .for dir in /sbin /bin /usr/sbin /usr/bin
 PATH:= ${TOOLSDIR}${dir}:${PATH}

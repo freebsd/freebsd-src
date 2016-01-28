@@ -336,7 +336,8 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
 	close(fd);
 	return (mbr_size);
     }
-    *mbr = malloc(sizeof(buf));
+    if ((*mbr = malloc(sizeof(buf))) == NULL)
+	errx(1, "%s: unable to allocate MBR buffer", disk);
     memcpy(*mbr, buf, sizeof(buf));
     close(fd);
 

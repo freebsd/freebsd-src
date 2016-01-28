@@ -42,7 +42,6 @@ cc -g -O0 -pthread \
 	hash.c \
 	../../crypto/rijndael/rijndael-api-fst.c \
 	../../crypto/rijndael/rijndael-alg-fst.c \
-	../../crypto/sha2/sha2.c \
 	../../crypto/sha2/sha256c.c \
 	-lz \
 	-o yunit_test
@@ -53,7 +52,6 @@ cc -g -O0 -pthread \
 	hash.c \
 	../../crypto/rijndael/rijndael-api-fst.c \
 	../../crypto/rijndael/rijndael-alg-fst.c \
-	../../crypto/sha2/sha2.c \
 	../../crypto/sha2/sha256c.c \
 	-lz \
 	-o funit_test

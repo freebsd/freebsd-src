@@ -1,4 +1,4 @@
-/*	$OpenBSD: imsg.c,v 1.10 2015/07/19 07:18:59 nicm Exp $	*/
+/*	$OpenBSD: imsg.c,v 1.13 2015/12/09 11:54:12 tb Exp $	*/
 
 /*
  * Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
@@ -74,7 +74,7 @@ imsg_read(struct imsgbuf *ibuf)
 
 again:
 	if (getdtablecount() + imsg_fd_overhead +
-	    (CMSG_SPACE(sizeof(int))-CMSG_SPACE(0))/sizeof(int)
+	    (int)((CMSG_SPACE(sizeof(int))-CMSG_SPACE(0))/sizeof(int))
 	    >= getdtablesize()) {
 		errno = EAGAIN;
 		free(ifd);
@@ -82,11 +82,9 @@ again:
 	}
 
 	if ((n = recvmsg(ibuf->fd, &msg, 0)) == -1) {
-		if (errno == EMSGSIZE)
-			goto fail;
-		if (errno != EINTR && errno != EAGAIN)
-			goto fail;
-		goto again;
+		if (errno == EINTR)
+			goto again;
+		goto fail;
 	}
 
 	ibuf->r.wpos += n;
@@ -120,8 +118,7 @@ again:
 	}
 
 fail:
-	if (ifd)
-		free(ifd);
+	free(ifd);
 	return (n);
 }
 

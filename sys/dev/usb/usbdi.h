@@ -266,8 +266,38 @@ struct usb_config {
  */
 struct usb_device_id {
 
-	/* Hook for driver specific information */
-	unsigned long driver_info;
+	/* Select which fields to match against */
+#if BYTE_ORDER == LITTLE_ENDIAN
+	uint16_t
+		match_flag_vendor:1,
+		match_flag_product:1,
+		match_flag_dev_lo:1,
+		match_flag_dev_hi:1,
+
+		match_flag_dev_class:1,
+		match_flag_dev_subclass:1,
+		match_flag_dev_protocol:1,
+		match_flag_int_class:1,
+
+		match_flag_int_subclass:1,
+		match_flag_int_protocol:1,
+		match_flag_unused:6;
+#else
+	uint16_t
+		match_flag_unused:6,
+		match_flag_int_protocol:1,
+		match_flag_int_subclass:1,
+
+		match_flag_int_class:1,
+		match_flag_dev_protocol:1,
+		match_flag_dev_subclass:1,
+		match_flag_dev_class:1,
+
+		match_flag_dev_hi:1,
+		match_flag_dev_lo:1,
+		match_flag_product:1,
+		match_flag_vendor:1;
+#endif
 
 	/* Used for product specific matches; the BCD range is inclusive */
 	uint16_t idVendor;
@@ -285,21 +315,6 @@ struct usb_device_id {
 	uint8_t	bInterfaceSubClass;
 	uint8_t	bInterfaceProtocol;
 
-	/* Select which fields to match against */
-	uint8_t	match_flag_vendor:1;
-	uint8_t	match_flag_product:1;
-	uint8_t	match_flag_dev_lo:1;
-	uint8_t	match_flag_dev_hi:1;
-
-	uint8_t	match_flag_dev_class:1;
-	uint8_t	match_flag_dev_subclass:1;
-	uint8_t	match_flag_dev_protocol:1;
-	uint8_t	match_flag_int_class:1;
-
-	uint8_t	match_flag_int_subclass:1;
-	uint8_t	match_flag_int_protocol:1;
-	uint8_t match_flag_unused:6;
-
 #if USB_HAVE_COMPAT_LINUX
 	/* which fields to match against */
 	uint16_t match_flags;
@@ -314,7 +329,25 @@ struct usb_device_id {
 #define	USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
 #define	USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
 #endif
+
+	/* Hook for driver specific information */
+	unsigned long driver_info;
 } __aligned(32);
+
+#define USB_STD_PNP_INFO "M16:mask;U16:vendor;U16:product;L16:product;G16:product;" \
+	"U8:devclass;U8:devsubclass;U8:devprotocol;" \
+	"U8:intclass;U8:intsubclass;U8:intprotocol;"
+#define USB_STD_PNP_HOST_INFO USB_STD_PNP_INFO "T:mode=host;"
+#define USB_STD_PNP_DEVICE_INFO USB_STD_PNP_INFO "T:mode=device;"
+#define USB_PNP_HOST_INFO(table)					\
+	MODULE_PNP_INFO(USB_STD_PNP_HOST_INFO, usb, table, table, sizeof(table[0]), \
+	    sizeof(table) / sizeof(table[0]))
+#define USB_PNP_DEVICE_INFO(table)					\
+	MODULE_PNP_INFO(USB_STD_PNP_DEVICE_INFO, usb, table, table, sizeof(table[0]), \
+	    sizeof(table) / sizeof(table[0]))
+#define USB_PNP_DUAL_INFO(table)					\
+	MODULE_PNP_INFO(USB_STD_PNP_INFO, usb, table, table, sizeof(table[0]), \
+	    sizeof(table) / sizeof(table[0]))
 
 /* check that the size of the structure above is correct */
 extern char usb_device_id_assert[(sizeof(struct usb_device_id) == 32) ? 1 : -1];

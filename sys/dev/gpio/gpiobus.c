@@ -184,7 +184,7 @@ gpiobus_init_softc(device_t dev)
 	if (GPIO_PIN_MAX(sc->sc_dev, &sc->sc_npins) != 0)
 		return (ENXIO);
 
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
+	KASSERT(sc->sc_npins >= 0, ("GPIO device with no pins"));
 
 	/* Pins = GPIO_PIN_MAX() + 1 */
 	sc->sc_npins++;
@@ -488,7 +488,7 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 
 static int
 gpiobus_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
 	struct gpiobus_ivar *devi;
 	struct resource_list_entry *rle;
@@ -506,7 +506,7 @@ gpiobus_set_resource(device_t dev, device_t child, int type, int rid,
 
 static struct resource *
 gpiobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct gpiobus_softc *sc;
 	struct resource *rv;

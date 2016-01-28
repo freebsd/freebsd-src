@@ -1,4 +1,4 @@
-# $Id: configure.local.example,v 1.6 2015/02/16 14:56:22 schwarze Exp $
+# $Id: configure.local.example,v 1.10 2015/11/07 13:14:21 schwarze Exp $
 #
 # Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -48,6 +48,13 @@ HAVE_WCHAR=1
 
 HAVE_WCHAR=0
 
+# When man(1) or apropos(1) is called without -m and -M options,
+# MANPATH is not set in the environment, man.conf(5) is not available
+# and manpath(1) not used, manuals are searched for in the following
+# directory trees by default.
+
+MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
+
 # In manual pages written in the mdoc(7) language, the operating system
 # version is displayed in the page footer line.  If an operating system
 # is specified as an argument to the .Os macro, that is always used.
@@ -72,7 +79,6 @@ SBINDIR="${PREFIX}/sbin"
 INCLUDEDIR="${PREFIX}/include/mandoc"
 LIBDIR="${PREFIX}/lib/mandoc"
 MANDIR="${PREFIX}/man"
-EXAMPLEDIR="${PREFIX}/share/examples/mandoc"
 
 # The man(1) utility needs to know where the manuals reside.
 # We know of two ways to tell it: via manpath(1) or man.conf(5).
@@ -89,6 +95,11 @@ HAVE_MANPATH=1
 # man(1), makewhatis(8), and apropos(1) will not work properly.
 HAVE_MANPATH=0
 
+# Some distributions may want to avoid naming conflicts
+# with the configuration files of other man(1) implementations.
+# This changes the name of the installed section 5 manual page as well.
+MANM_MANCONF="mandoc.conf"	# default is "man.conf"
+
 # Some distributions may want to avoid naming conflicts among manuals.
 # If you want to change the names of installed section 7 manual pages,
 # the following alternative names are suggested.
@@ -103,13 +114,14 @@ MANM_EQN="mandoc_eqn"		# default is "eqn"
 MANM_TBL="mandoc_tbl"		# default is "tbl"
 
 # Some distributions may want to avoid naming conflicts
-# with another man(1) utility.
-# If you want to change the name of the binary program,
-# the following alternative name is suggested.
-# Using a different name is possible as well.
-# This changes the name of the installed section 1 manual page as well.
+# with other man(1) and soelim(1) utilities.
+# If you want to change the names of binary programs,
+# the following alternative names are suggested.
+# Using different names is possible as well.
+# This changes the names of the installed section 1 manual pages as well.
 
 BINM_MAN=mman			# default is "man"
+BINM_SOELIM=msoelim		# default is "soelim"
 
 # It is possible to change the utility program used for installation
 # and the modes files are installed with.  The defaults are:

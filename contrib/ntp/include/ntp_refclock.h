@@ -220,7 +220,7 @@ extern	void	refclock_buginfo(sockaddr_u *,
 extern	void	refclock_control(sockaddr_u *,
 				 const struct refclockstat *,
 				 struct refclockstat *);
-extern	int	refclock_open	(char *, u_int, u_int);
+extern	int	refclock_open	(const char *, u_int, u_int);
 extern	int	refclock_setup	(int, u_int, u_int);
 extern	void	refclock_timer	(struct peer *);
 extern	void	refclock_transmit(struct peer *);

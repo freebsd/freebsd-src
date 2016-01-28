@@ -96,12 +96,12 @@ test_IPv4Address(void) {
 
 void
 test_IPv6Address(void) {
-	const struct in6_addr address = {
+	const struct in6_addr address = { { {
 						0x20, 0x01, 0x0d, 0xb8,
 						0x85, 0xa3, 0x08, 0xd3, 
 						0x13, 0x19, 0x8a, 0x2e,
 						0x03, 0x70, 0x73, 0x34
-					};
+					} } };
 	const char * expected = "2001:db8:85a3:8d3:1319:8a2e:370:7334";
 	sockaddr_u	input;
 	struct addrinfo	inputA;

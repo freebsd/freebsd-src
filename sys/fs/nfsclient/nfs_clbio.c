@@ -100,7 +100,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	cred = curthread->td_ucred;		/* XXX */
 	nmp = VFSTONFS(vp->v_mount);
 	pages = ap->a_m;
-	count = ap->a_count;
+	npages = ap->a_count;
 
 	if ((object = vp->v_object) == NULL) {
 		ncl_printf("nfs_getpages: called with non-merged cache vnode??\n");
@@ -126,18 +126,17 @@ ncl_getpages(struct vop_getpages_args *ap)
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 
-	npages = btoc(count);
-
 	/*
 	 * If the requested page is partially valid, just return it and
 	 * allow the pager to zero-out the blanks.  Partially valid pages
 	 * can only occur at the file EOF.
+	 *
+	 * XXXGL: is that true for NFS, where short read can occur???
 	 */
-	if (pages[ap->a_reqpage]->valid != 0) {
-		vm_pager_free_nonreq(object, pages, ap->a_reqpage, npages,
-		    FALSE);
-		return (VM_PAGER_OK);
-	}
+	VM_OBJECT_WLOCK(object);
+	if (pages[npages - 1]->valid != 0 && --npages == 0)
+		goto out;
+	VM_OBJECT_WUNLOCK(object);
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
@@ -150,6 +149,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	PCPU_INC(cnt.v_vnodein);
 	PCPU_ADD(cnt.v_vnodepgsin, npages);
 
+	count = npages << PAGE_SHIFT;
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
 	uio.uio_iov = &iov;
@@ -167,8 +167,6 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		ncl_printf("nfs_getpages: error %d\n", error);
-		vm_pager_free_nonreq(object, pages, ap->a_reqpage, npages,
-		    FALSE);
 		return (VM_PAGER_ERROR);
 	}
 
@@ -212,11 +210,14 @@ ncl_getpages(struct vop_getpages_args *ap)
 			 */
 			;
 		}
-		if (i != ap->a_reqpage)
-			vm_page_readahead_finish(m);
 	}
+out:
 	VM_OBJECT_WUNLOCK(object);
-	return (0);
+	if (ap->a_rbehind)
+		*ap->a_rbehind = 0;
+	if (ap->a_rahead)
+		*ap->a_rahead = 0;
+	return (VM_PAGER_OK);
 }
 
 /*

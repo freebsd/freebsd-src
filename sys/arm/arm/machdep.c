@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atags.h>
 #include <machine/cpu.h>
 #include <machine/cpuinfo.h>
+#include <machine/debug_monitor.h>
 #include <machine/db_machdep.h>
 #include <machine/devmap.h>
 #include <machine/frame.h>
@@ -194,6 +195,8 @@ int _min_bzero_size = 0;
 extern int *end;
 
 #ifdef FDT
+static char *loader_envp;
+
 vm_paddr_t pmap_pa;
 
 #ifdef ARM_NEW_PMAP
@@ -293,7 +296,7 @@ sendsig(catcher, ksi, mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -598,41 +601,21 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 
 
 static int
-ptrace_read_int(struct thread *td, vm_offset_t addr, u_int32_t *v)
+ptrace_read_int(struct thread *td, vm_offset_t addr, uint32_t *v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) v;
-	iov.iov_len = sizeof(u_int32_t);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(u_int32_t);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_readmem(td, td->td_proc, addr, v, sizeof(*v)) != sizeof(*v))
+		return (ENOMEM);
+	return (0);
 }
 
 static int
-ptrace_write_int(struct thread *td, vm_offset_t addr, u_int32_t v)
+ptrace_write_int(struct thread *td, vm_offset_t addr, uint32_t v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) &v;
-	iov.iov_len = sizeof(u_int32_t);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(u_int32_t);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_WRITE;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_writemem(td, td->td_proc, addr, &v, sizeof(v)) != sizeof(v))
+		return (ENOMEM);
+	return (0);
 }
 
 static u_int
@@ -1022,6 +1005,8 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
 
+	init_static_kenv(NULL, 0);
+
 	return (lastaddr);
 }
 
@@ -1094,6 +1079,8 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 	bcopy(atag_list, atags,
 	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
 
+	init_static_kenv(NULL, 0);
+
 	return fake_preload_metadata(abp);
 }
 #endif
@@ -1126,7 +1113,8 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 		return 0;
 
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	init_static_kenv(loader_envp, 0);
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
@@ -1449,13 +1437,13 @@ print_kenv(void)
 	char *cp;
 
 	debugf("loader passed (static) kenv:\n");
-	if (kern_envp == NULL) {
+	if (loader_envp == NULL) {
 		debugf(" no env, null ptr\n");
 		return;
 	}
-	debugf(" kern_envp = 0x%08x\n", (uint32_t)kern_envp);
+	debugf(" loader_envp = 0x%08x\n", (uint32_t)loader_envp);
 
-	for (cp = kern_envp; cp != NULL; cp = kenv_next(cp))
+	for (cp = loader_envp; cp != NULL; cp = kenv_next(cp))
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
@@ -1723,6 +1711,7 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
+	dbg_monitor_init();
 	kdb_init();
 
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
@@ -1910,6 +1899,7 @@ initarm(struct arm_boot_params *abp)
 	init_param2(physmem);
 	/* Init message buffer. */
 	msgbufinit(msgbufp, msgbufsize);
+	dbg_monitor_init();
 	kdb_init();
 	return ((void *)STACKALIGN(thread0.td_pcb));
 

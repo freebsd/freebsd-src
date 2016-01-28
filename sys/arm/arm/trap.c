@@ -109,6 +109,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/dtrace_bsd.h>
 #endif
 
+#define ReadWord(a)	(*((volatile unsigned int *)(a)))
+
 extern char fusubailout[];
 
 #ifdef DEBUG

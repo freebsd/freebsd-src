@@ -282,7 +282,9 @@ do {									\
 #define RESTORE_FP_SUFFIX "_l"
 
 /* Type used for ptrdiff_t, as a string used in a declaration.  */
+#ifndef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "int"
+#endif
 
 /* Type used for wchar_t, as a string used in a declaration.  */
 /* Override svr4.h definition.  */

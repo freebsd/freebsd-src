@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 
 #include <dev/etherswitch/etherswitch.h>
-#include <dev/etherswitch/mdio.h>
+#include <dev/mdio/mdio.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/mge/if_mgevar.h>

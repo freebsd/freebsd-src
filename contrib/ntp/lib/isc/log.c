@@ -1146,7 +1146,7 @@ greatest_version(isc_logchannel_t *channel, int *greatestp) {
 	char *basenam, *digit_end;
 	const char *dirname;
 	int version, greatest = -1;
-	unsigned int basenamelen;
+	size_t basenamelen;
 	isc_dir_t dir;
 	isc_result_t result;
 	char sep = '/';

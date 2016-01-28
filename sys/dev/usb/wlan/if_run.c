@@ -704,8 +704,9 @@ run_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t ver;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index;
 	int ntries, error;
-	uint8_t iface_index, bands;
 
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
@@ -785,14 +786,14 @@ run_attach(device_t self)
 	ic->ic_flags |= IEEE80211_F_DATAPAD;
 	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if (sc->rf_rev == RT2860_RF_2750 || sc->rf_rev == RT2860_RF_2850 ||
 	    sc->rf_rev == RT3070_RF_3052 || sc->rf_rev == RT3593_RF_3053 ||
 	    sc->rf_rev == RT5592_RF_5592)
-		setbit(&bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, &bands);
+		setbit(bands, IEEE80211_MODE_11A);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 
@@ -5186,7 +5187,7 @@ run_updateslot_cb(void *arg)
 
 	run_read(sc, RT2860_BKOFF_SLOT_CFG, &tmp);
 	tmp &= ~0xff;
-	tmp |= (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	tmp |= IEEE80211_GET_SLOTTIME(ic);
 	run_write(sc, RT2860_BKOFF_SLOT_CFG, tmp);
 }
 
@@ -6236,3 +6237,4 @@ MODULE_DEPEND(run, wlan, 1, 1, 1);
 MODULE_DEPEND(run, usb, 1, 1, 1);
 MODULE_DEPEND(run, firmware, 1, 1, 1);
 MODULE_VERSION(run, 1);
+USB_PNP_HOST_INFO(run_devs);

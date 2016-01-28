@@ -61,6 +61,7 @@ typedef enum efx_family_e {
 	EFX_FAMILY_FALCON,
 	EFX_FAMILY_SIENA,
 	EFX_FAMILY_HUNTINGTON,
+	EFX_FAMILY_MEDFORD,
 	EFX_FAMILY_NTYPES
 } efx_family_t;
 
@@ -90,6 +91,9 @@ efx_infer_family(
 #define	EFX_PCI_DEVID_FARMINGDALE_VF		0x1903	/* SFC9120 VF */
 #define	EFX_PCI_DEVID_GREENPORT_VF		0x1923	/* SFC9140 VF */
 
+#define	EFX_PCI_DEVID_MEDFORD_PF_UNINIT		0x0913
+#define	EFX_PCI_DEVID_MEDFORD			0x0A03	/* SFC9240 PF */
+#define	EFX_PCI_DEVID_MEDFORD_VF		0x1A03	/* SFC9240 VF */
 
 #define	EFX_MEM_BAR	2
 
@@ -187,8 +191,8 @@ efx_nic_destroy(
 
 #if EFSYS_OPT_MCDI
 
-#if EFSYS_OPT_HUNTINGTON
-/* Huntington requires MCDIv2 commands */
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+/* Huntington and Medford require MCDIv2 commands */
 #define	WITH_MCDI_V2 1
 #endif
 
@@ -218,6 +222,9 @@ typedef struct efx_mcdi_transport_s {
 	void		(*emt_logger)(void *, efx_log_msg_t,
 					void *, size_t, void *, size_t);
 #endif /* EFSYS_OPT_MCDI_LOGGING */
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	void		(*emt_ev_proxy_response)(void *, uint32_t, efx_rc_t);
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
 } efx_mcdi_transport_t;
 
 extern	__checkReturn	efx_rc_t
@@ -498,38 +505,6 @@ efx_mac_fcntl_get(
 	__out		unsigned int *fcntl_wantedp,
 	__out		unsigned int *fcntl_linkp);
 
-#define	EFX_MAC_HASH_BITS	(1 << 8)
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_init(
-	__in				efx_nic_t *enp);
-
-extern					void
-efx_pktfilter_fini(
-	__in				efx_nic_t *enp);
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_set(
-	__in		efx_nic_t *enp,
-	__in		boolean_t unicst,
-	__in		boolean_t brdcst);
-
-extern	__checkReturn			efx_rc_t
-efx_mac_hash_set(
-	__in				efx_nic_t *enp,
-	__in_ecount(EFX_MAC_HASH_BITS)	unsigned int const *bucket);
-
-#if EFSYS_OPT_MCAST_FILTER_LIST
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_mcast_list_set(
-	__in				efx_nic_t *enp,
-	__in				uint8_t const *addrs,
-	__in				int count);
-#endif /* EFSYS_OPT_MCAST_FILTER_LIST */
-
-extern	__checkReturn			efx_rc_t
-efx_pktfilter_mcast_all(
-	__in				efx_nic_t *enp);
 
 #if EFSYS_OPT_MAC_STATS
 
@@ -587,6 +562,7 @@ typedef enum efx_mon_type_e {
 	EFX_MON_MAX6647,
 	EFX_MON_SFC90X0,
 	EFX_MON_SFC91X0,
+	EFX_MON_SFC92X0,
 	EFX_MON_NTYPES
 } efx_mon_type_t;
 
@@ -607,7 +583,7 @@ efx_mon_init(
 #define	EFX_MON_STATS_PAGE_SIZE 0x100
 #define	EFX_MON_MASK_ELEMENT_SIZE 32
 
-/* START MKCONFIG GENERATED MonitorHeaderStatsBlock c79c86b62a144846 */
+/* START MKCONFIG GENERATED MonitorHeaderStatsBlock c09b13f732431f23 */
 typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_2_5V,
 	EFX_MON_STAT_VCCP1,
@@ -678,6 +654,12 @@ typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_CONTROLLER_SLAVE_INTERNAL_TEMP,
 	EFX_MON_STAT_CONTROLLER_SLAVE_VPTAT_EXT_ADC,
 	EFX_MON_STAT_CONTROLLER_SLAVE_INTERNAL_TEMP_EXT_ADC,
+	EFX_MON_STAT_SODIMM_VOUT,
+	EFX_MON_STAT_SODIMM_0_TEMP,
+	EFX_MON_STAT_SODIMM_1_TEMP,
+	EFX_MON_STAT_PHY0_VCC,
+	EFX_MON_STAT_PHY1_VCC,
+	EFX_MON_STAT_CONTROLLER_TDIODE_TEMP,
 	EFX_MON_NSTATS
 } efx_mon_stat_t;
 
@@ -1089,6 +1071,7 @@ efx_bist_stop(
 #define	EFX_FEATURE_TX_SRC_FILTERS	0x00000400
 #define	EFX_FEATURE_PIO_BUFFERS		0x00000800
 #define	EFX_FEATURE_FW_ASSISTED_TSO	0x00001000
+#define	EFX_FEATURE_FW_ASSISTED_TSO_V2	0x00002000
 
 typedef struct efx_nic_cfg_s {
 	uint32_t		enc_board_type;
@@ -1114,6 +1097,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_buftbl_limit;
 	uint32_t		enc_piobuf_limit;
 	uint32_t		enc_piobuf_size;
+	uint32_t		enc_piobuf_min_alloc_size;
 	uint32_t		enc_evq_timer_quantum_ns;
 	uint32_t		enc_evq_timer_max_us;
 	uint32_t		enc_clk_mult;
@@ -1141,20 +1125,20 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_mcdi_phy_stat_mask;
 #endif	/* EFSYS_OPT_PHY_STATS */
 #endif /* EFSYS_OPT_SIENA */
-#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON)
+#if (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
 #if EFSYS_OPT_MON_STATS
 	uint32_t		*enc_mcdi_sensor_maskp;
 	uint32_t		enc_mcdi_sensor_mask_size;
 #endif	/* EFSYS_OPT_MON_STATS */
-#endif	/* (EFSYS_OPT_SIENA | EFSYS_OPT_HUNTINGTON) */
+#endif	/* (EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD) */
 #if EFSYS_OPT_BIST
 	uint32_t		enc_bist_mask;
 #endif	/* EFSYS_OPT_BIST */
-#if EFSYS_OPT_HUNTINGTON
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
 	uint32_t		enc_pf;
 	uint32_t		enc_vf;
 	uint32_t		enc_privilege_mask;
-#endif /* EFSYS_OPT_HUNTINGTON */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 	boolean_t		enc_bug26807_workaround;
 	boolean_t		enc_bug35388_workaround;
 	boolean_t		enc_bug41750_workaround;
@@ -1169,14 +1153,18 @@ typedef struct efx_nic_cfg_s {
 	 */
 	uint32_t                enc_tx_tso_tcp_header_offset_limit;
 	boolean_t               enc_fw_assisted_tso_enabled;
+	boolean_t               enc_fw_assisted_tso_v2_enabled;
 	boolean_t               enc_hw_tx_insert_vlan_enabled;
 	/* Datapath firmware vadapter/vport/vswitch support */
 	boolean_t		enc_datapath_cap_evb;
 	boolean_t               enc_rx_disable_scatter_supported;
 	boolean_t               enc_allow_set_mac_with_installed_filters;
+	boolean_t		enc_enhanced_set_mac_supported;
 	/* External port identifier */
 	uint8_t			enc_external_port;
 	uint32_t		enc_mcdi_max_payload_length;
+	/* VPD may be per-PF or global */
+	boolean_t		enc_vpd_is_global;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
@@ -1332,6 +1320,7 @@ typedef enum efx_nvram_type_e {
 	EFX_NVRAM_CPLD,
 	EFX_NVRAM_FPGA_BACKUP,
 	EFX_NVRAM_DYNAMIC_CFG,
+	EFX_NVRAM_LICENSE,
 	EFX_NVRAM_NTYPES,
 } efx_nvram_type_t;
 
@@ -1834,15 +1823,6 @@ extern		void
 efx_rx_fini(
 	__in		efx_nic_t *enp);
 
-#if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	efx_rc_t
-efx_rx_hdr_split_enable(
-	__in		efx_nic_t *enp,
-	__in		unsigned int hdr_buf_size,
-	__in		unsigned int pld_buf_size);
-
-#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
-
 #if EFSYS_OPT_RX_SCATTER
 	__checkReturn	efx_rc_t
 efx_rx_scatter_enable(
@@ -1909,7 +1889,7 @@ efx_rx_scale_key_set(
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
-extern uint32_t
+extern	__checkReturn	uint32_t
 efx_psuedo_hdr_hash_get(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t func,
@@ -1933,8 +1913,6 @@ efx_psuedo_hdr_pkt_length_get(
 
 typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_DEFAULT,
-	EFX_RXQ_TYPE_SPLIT_HEADER,
-	EFX_RXQ_TYPE_SPLIT_PAYLOAD,
 	EFX_RXQ_TYPE_SCATTER,
 	EFX_RXQ_NTYPES
 } efx_rxq_type_t;
@@ -2030,6 +2008,7 @@ efx_tx_fini(
 
 #define	EFX_TXQ_CKSUM_IPV4	0x0001
 #define	EFX_TXQ_CKSUM_TCPUDP	0x0002
+#define	EFX_TXQ_FATSOV2		0x0004
 
 extern	__checkReturn	efx_rc_t
 efx_tx_qcreate(
@@ -2116,6 +2095,21 @@ efx_tx_qdesc_tso_create(
 	__in	uint32_t tcp_seq,
 	__in	uint8_t  tcp_flags,
 	__out	efx_desc_t *edp);
+
+/* Number of FATSOv2 option descriptors */
+#define	EFX_TX_FATSOV2_OPT_NDESCS		2
+
+/* Maximum number of DMA segments per TSO packet (not superframe) */
+#define	EFX_TX_FATSOV2_DMA_SEGS_PER_PKT_MAX	24
+
+extern	void
+efx_tx_qdesc_tso2_create(
+	__in			efx_txq_t *etp,
+	__in			uint16_t ipv4_id,
+	__in			uint32_t tcp_seq,
+	__in			uint16_t tcp_mss,
+	__out_ecount(count)	efx_desc_t *edp,
+	__in			int count);
 
 extern	void
 efx_tx_qdesc_vlantci_create(
@@ -2263,14 +2257,14 @@ efx_filter_supported_filters(
 
 extern			void
 efx_filter_spec_init_rx(
-	__inout		efx_filter_spec_t *spec,
+	__out		efx_filter_spec_t *spec,
 	__in		efx_filter_priority_t priority,
 	__in		efx_filter_flag_t flags,
 	__in		efx_rxq_t *erp);
 
 extern			void
 efx_filter_spec_init_tx(
-	__inout		efx_filter_spec_t *spec,
+	__out		efx_filter_spec_t *spec,
 	__in		efx_txq_t *etp);
 
 extern	__checkReturn	efx_rc_t
@@ -2318,6 +2312,57 @@ efx_hash_bytes(
 	__in_ecount(length)	uint8_t const *input,
 	__in			size_t length,
 	__in			uint32_t init);
+
+#if EFSYS_OPT_LICENSING
+
+/* LICENSING */
+
+typedef struct efx_key_stats_s {
+	uint32_t	eks_valid;
+	uint32_t	eks_invalid;
+	uint32_t	eks_blacklisted;
+	uint32_t	eks_unverifiable;
+	uint32_t	eks_wrong_node;
+	uint32_t	eks_licensed_apps_lo;
+	uint32_t	eks_licensed_apps_hi;
+	uint32_t	eks_licensed_features_lo;
+	uint32_t	eks_licensed_features_hi;
+} efx_key_stats_t;
+
+extern	__checkReturn		efx_rc_t
+efx_lic_init(
+	__in			efx_nic_t *enp);
+
+extern				void
+efx_lic_fini(
+	__in			efx_nic_t *enp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_update_licenses(
+	__in		efx_nic_t *enp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_get_key_stats(
+	__in		efx_nic_t *enp,
+	__out		efx_key_stats_t *ksp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_app_state(
+	__in		efx_nic_t *enp,
+	__in		uint64_t app_id,
+	__out		boolean_t *licensedp);
+
+extern	__checkReturn	efx_rc_t
+efx_lic_get_id(
+	__in		efx_nic_t *enp,
+	__in		size_t buffer_size,
+	__out		uint32_t *typep,
+	__out		size_t *lengthp,
+	__out_opt	uint8_t *bufferp);
+
+
+#endif	/* EFSYS_OPT_LICENSING */
+
 
 
 #ifdef	__cplusplus

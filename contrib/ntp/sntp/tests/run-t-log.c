@@ -49,9 +49,9 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("t-log.c");
-  RUN_TEST(testChangePrognameInMysyslog, 9);
-  RUN_TEST(testOpenLogfileTest, 10);
-  RUN_TEST(testWriteInCustomLogfile, 35);
+  RUN_TEST(testChangePrognameInMysyslog, 10);
+  RUN_TEST(testOpenLogfileTest, 11);
+  RUN_TEST(testWriteInCustomLogfile, 12);
 
   return (UnityEnd());
 }

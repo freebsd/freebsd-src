@@ -190,6 +190,7 @@ MODULE_DEPEND(axge, usb, 1, 1, 1);
 MODULE_DEPEND(axge, ether, 1, 1, 1);
 MODULE_DEPEND(axge, miibus, 1, 1, 1);
 MODULE_VERSION(axge, 1);
+USB_PNP_HOST_INFO(axge_devs);
 
 static const struct usb_ether_methods axge_ue_methods = {
 	.ue_attach_post = axge_attach_post,

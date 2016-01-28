@@ -1,4 +1,4 @@
-/*	$Id: test-strtonum.c,v 1.1 2015/02/16 14:56:22 schwarze Exp $	*/
+/*	$Id: test-strtonum.c,v 1.2 2015/10/06 18:32:20 schwarze Exp $	*/
 /*
  * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -23,20 +23,20 @@ main(void)
 	const char *errstr;
 
 	if (strtonum("1", 0, 2, &errstr) != 1)
-		return(1);
+		return 1;
 	if (errstr != NULL)
-		return(2);
+		return 2;
 	if (strtonum("1x", 0, 2, &errstr) != 0)
-		return(3);
+		return 3;
 	if (errstr == NULL)
-		return(4);
+		return 4;
 	if (strtonum("2", 0, 1, &errstr) != 0)
-		return(5);
+		return 5;
 	if (errstr == NULL)
-		return(6);
+		return 6;
 	if (strtonum("0", 1, 2, &errstr) != 0)
-		return(7);
+		return 7;
 	if (errstr == NULL)
-		return(8);
-	return(0);
+		return 8;
+	return 0;
 }

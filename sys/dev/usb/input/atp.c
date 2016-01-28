@@ -2630,3 +2630,5 @@ static driver_t atp_driver = {
 DRIVER_MODULE(atp, uhub, atp_driver, atp_devclass, NULL, 0);
 MODULE_DEPEND(atp, usb, 1, 1, 1);
 MODULE_VERSION(atp, 1);
+USB_PNP_HOST_INFO(fg_devs);
+USB_PNP_HOST_INFO(wsp_devs);

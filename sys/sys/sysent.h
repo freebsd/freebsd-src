@@ -38,18 +38,18 @@ struct rlimit;
 struct sysent;
 struct thread;
 struct ksiginfo;
+struct syscall_args;
+
+enum systrace_probe_t {
+	SYSTRACE_ENTRY,
+	SYSTRACE_RETURN,
+};
 
 typedef	int	sy_call_t(struct thread *, void *);
 
-/* Used by the machine dependent syscall() code. */
-typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *,
-    int);
-
-/*
- * Used by loaded syscalls to convert arguments to a DTrace array
- * of 64-bit arguments.
- */
-typedef	void (*systrace_args_func_t)(int, void *, u_int64_t *, int *);
+typedef	void	(*systrace_probe_func_t)(struct syscall_args *,
+		    enum systrace_probe_t, int);
+typedef	void	(*systrace_args_func_t)(int, void *, uint64_t *, int *);
 
 extern systrace_probe_func_t	systrace_probe_func;
 
@@ -84,7 +84,6 @@ struct sysent {			/* system call table */
 
 struct image_params;
 struct __sigset;
-struct syscall_args;
 struct trapframe;
 struct vnode;
 
@@ -130,6 +129,7 @@ struct sysentvec {
 	void		*sv_shared_page_obj;
 	void		(*sv_schedtail)(struct thread *);
 	void		(*sv_thread_detach)(struct thread *);
+	int		(*sv_trap)(struct thread *);
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */

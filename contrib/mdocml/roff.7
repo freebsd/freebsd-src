@@ -1,7 +1,7 @@
-.\"	$Id: roff.7,v 1.70 2015/02/17 17:16:52 schwarze Exp $
+.\"	$Id: roff.7,v 1.75 2015/09/24 18:41:22 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2011, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2013-2015 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 17 2015 $
+.Dd $Mdocdate: September 24 2015 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -665,6 +665,8 @@ produces
 .D1 \efI\e^XtFree\e^\efP.
 .Pp
 in the input stream, and thus in the output: \fI\^XtFree\^\fP.
+Each occurrence of \e\e$* is replaced with all the arguments,
+joined together with single blank characters.
 .Pp
 Since macros and user-defined strings share a common string table,
 defining a macro
@@ -1057,14 +1059,17 @@ If the first character of COND is
 .Pq string defined ,
 .Sq e
 .Pq even page ,
-.Sq r
-.Pq register accessed ,
 .Sq t
 .Pq troff mode ,
 or
 .Sq v
 .Pq vroff mode ,
 COND evaluates to false.
+.It
+If the first character of COND is
+.Sq r ,
+it evaluates to true if the rest of COND is the name of an existing
+number register; otherwise, it evaluates to false.
 .It
 If COND starts with a parenthesis or with an optionally signed
 integer number, it is evaluated according to the rules of
@@ -1337,7 +1342,7 @@ Currently unsupported.
 Temporarily turn off line numbering.
 Currently unsupported.
 .Ss \&nop
-Exexute the rest of the input line as a request or macro line.
+Execute the rest of the input line as a request or macro line.
 Currently unsupported.
 .Ss \&nr
 Define or change a register.
@@ -1579,7 +1584,7 @@ Set tab stops.
 Takes an arbitrary number of arguments.
 Currently unsupported.
 .Ss \&tc
-Change tab repetion character.
+Change tab repetition character.
 Currently unsupported.
 .Ss \&TE
 End a table context.
@@ -1679,7 +1684,7 @@ Notify on change of string or macro.
 This is a Heirloom extension and currently ignored.
 .Ss \&watchlength
 On change, report the contents of macros and strings
-up to the sepcified length.
+up to the specified length.
 This is a Heirloom extension and currently ignored.
 .Ss \&watchn
 Notify on change of register.
@@ -1774,7 +1779,7 @@ minimum (not available in C)
 maximum (not available in C)
 .El
 .Pp
-There is no concept of precendence; evaluation proceeds from left to right,
+There is no concept of precedence; evaluation proceeds from left to right,
 except when subexpressions are enclosed in parantheses.
 Inside parentheses, whitespace is ignored.
 .Sh ESCAPE SEQUENCE REFERENCE
@@ -1834,9 +1839,15 @@ For short names, there are variants
 .No \e* Ns Ar c
 and
 .No \e*( Ns Ar cc .
+.Ss \e,
+Left italic correction (groff extension); ignored by
+.Xr mandoc 1 .
 .Ss \e-
 Special character
 .Dq mathematical minus sign .
+.Ss \e/
+Right italic correction (groff extension); ignored by
+.Xr mandoc 1 .
 .Ss \e[ Ns Ar name ]
 .Sx Special Characters
 with names of arbitrary length, see
@@ -2028,10 +2039,7 @@ Print
 with zero width and height; ignored by
 .Xr mandoc 1 .
 .Ss \ez
-Output the next character without advancing the cursor position;
-approximated in
-.Xr mandoc 1
-by simply skipping the next character.
+Output the next character without advancing the cursor position.
 .Sh COMPATIBILITY
 The
 .Xr mandoc 1

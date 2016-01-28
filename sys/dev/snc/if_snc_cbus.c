@@ -72,7 +72,7 @@ snc_isapnp_reconfig(device_t dev)
 {
 	struct isa_device *idev = DEVTOISA(dev);
         struct isa_config config;
-	u_long start, count;
+	rman_res_t start, count;
 	int rid;
 
 	bzero(&config, sizeof(config));

@@ -93,7 +93,7 @@ NANO_LATE_CUSTOMIZE=""
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -U"
 
 # The drive name of the media at runtime
-NANO_DRIVE=ad0
+NANO_DRIVE=ada0
 
 # Target media size in 512 bytes sectors
 NANO_MEDIASIZE=2000000
@@ -500,10 +500,9 @@ fixup_before_diskimage ( ) (
 	if [ -n "${NANO_METALOG}" ]; then
 		pprint 2 "Fixing metalog"
 		cp ${NANO_METALOG} ${NANO_METALOG}.pre
-		(echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" &&
-			cat ${NANO_METALOG}.pre) | \
-		    ${NANO_TOOLS}/mtree-dedup.awk | \
-		    sed -e 's/ size=[0-9][0-9]*//' | sort > ${NANO_METALOG}
+		echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" > ${NANO_METALOG}
+		cat ${NANO_METALOG}.pre | ${NANO_TOOLS}/mtree-dedup.awk | \
+		    sed -e 's/ size=[0-9][0-9]*//' | sort >> ${NANO_METALOG}
 	fi	
 )
 
@@ -1024,7 +1023,7 @@ export_var ( ) {		# Don't wawnt a subshell
 set_defaults_and_export ( ) {
 	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}}
 	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
-	: ${NANO_DISKIMGDIR=:${NANO_OBJ}}
+	: ${NANO_DISKIMGDIR:=${NANO_OBJ}}
 	NANO_WORLDDIR=${NANO_OBJ}/_.w
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install

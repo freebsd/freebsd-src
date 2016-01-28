@@ -1473,7 +1473,7 @@ zap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint64
  * the directory contents.
  */
 static int
-mzap_list(const dnode_phys_t *dnode)
+mzap_list(const dnode_phys_t *dnode, int (*callback)(const char *))
 {
 	const mzap_phys_t *mz;
 	const mzap_ent_phys_t *mze;
@@ -1492,7 +1492,7 @@ mzap_list(const dnode_phys_t *dnode)
 		mze = &mz->mz_chunk[i];
 		if (mze->mze_name[0])
 			//printf("%-32s 0x%jx\n", mze->mze_name, (uintmax_t)mze->mze_value);
-			printf("%s\n", mze->mze_name);
+			callback(mze->mze_name);
 	}
 
 	return (0);
@@ -1503,7 +1503,7 @@ mzap_list(const dnode_phys_t *dnode)
  * the directory header.
  */
 static int
-fzap_list(const spa_t *spa, const dnode_phys_t *dnode)
+fzap_list(const spa_t *spa, const dnode_phys_t *dnode, int (*callback)(const char *))
 {
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
@@ -1566,9 +1566,17 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode)
 			value = fzap_leaf_value(&zl, zc);
 
 			//printf("%s 0x%jx\n", name, (uintmax_t)value);
-			printf("%s\n", name);
+			callback((const char *)name);
 		}
 	}
+
+	return (0);
+}
+
+static int zfs_printf(const char *name)
+{
+
+	printf("%s\n", name);
 
 	return (0);
 }
@@ -1587,9 +1595,9 @@ zap_list(const spa_t *spa, const dnode_phys_t *dnode)
 
 	zap_type = *(uint64_t *) zap_scratch;
 	if (zap_type == ZBT_MICRO)
-		return mzap_list(dnode);
+		return mzap_list(dnode, zfs_printf);
 	else
-		return fzap_list(spa, dnode);
+		return fzap_list(spa, dnode, zfs_printf);
 }
 
 static int
@@ -1858,6 +1866,48 @@ zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
 
 	return (zap_list(spa, &child_dir_zap) != 0);
 }
+
+int
+zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const char *name))
+{
+	uint64_t dir_obj, child_dir_zapobj, zap_type;
+	dnode_phys_t child_dir_zap, dir, dataset;
+	dsl_dataset_phys_t *ds;
+	dsl_dir_phys_t *dd;
+	int err;
+
+	err = objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset);
+	if (err != 0) {
+		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
+		return (err);
+	}
+	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
+	dir_obj = ds->ds_dir_obj;
+
+	err = objset_get_dnode(spa, &spa->spa_mos, dir_obj, &dir);
+	if (err != 0) {
+		printf("ZFS: can't find dirobj %ju\n", (uintmax_t)dir_obj);
+		return (err);
+	}
+	dd = (dsl_dir_phys_t *)&dir.dn_bonus;
+
+	child_dir_zapobj = dd->dd_child_dir_zapobj;
+	err = objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap);
+	if (err != 0) {
+		printf("ZFS: can't find child zap %ju\n", (uintmax_t)dir_obj);
+		return (err);
+	}
+
+	err = dnode_read(spa, &child_dir_zap, 0, zap_scratch, child_dir_zap.dn_datablkszsec * 512);
+	if (err != 0)
+		return (err);
+
+	zap_type = *(uint64_t *) zap_scratch;
+	if (zap_type == ZBT_MICRO)
+		return mzap_list(&child_dir_zap, callback);
+	else
+		return fzap_list(spa, &child_dir_zap, callback);
+}
 #endif
 
 /*
@@ -2115,7 +2165,13 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 				strcpy(&path[sb.st_size], p);
 			else
 				path[sb.st_size] = 0;
-			if (sb.st_size + sizeof(znode_phys_t) <= dn.dn_bonuslen) {
+			/*
+			 * Second test is purely to silence bogus compiler
+			 * warning about accessing past the end of dn_bonus.
+			 */
+			if (sb.st_size + sizeof(znode_phys_t) <=
+			    dn.dn_bonuslen && sizeof(znode_phys_t) <=
+			    sizeof(dn.dn_bonus)) {
 				memcpy(path, &dn.dn_bonus[sizeof(znode_phys_t)],
 					sb.st_size);
 			} else {

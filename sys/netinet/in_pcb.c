@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>

@@ -18,7 +18,8 @@ void test_AlwaysFalseOnWindows(void);
 
 
 void
-test_ZeroBuffer(void) {
+test_ZeroBuffer(void)
+{
 #ifndef SYS_WINNT
 	const struct timeval input = {0, 0};
 	const l_fp expected = {{0 + JAN_1970}, 0};
@@ -30,10 +31,14 @@ test_ZeroBuffer(void) {
 #else
 	TEST_IGNORE_MESSAGE("Test only for Windows, skipping...");
 #endif
+
+	return;
 }
 
+
 void
-test_IntegerAndFractionalBuffer(void) {
+test_IntegerAndFractionalBuffer(void)
+{
 #ifndef SYS_WINNT
 	const struct timeval input = {5, 500000}; /* 5.5 */
 	const l_fp expected = {{5 + JAN_1970}, HALF};
@@ -53,24 +58,30 @@ test_IntegerAndFractionalBuffer(void) {
 #else
 	TEST_IGNORE_MESSAGE("Test only for Windows, skipping...");
 #endif
+
+	return;
 }
 
 void
-test_IllegalMicroseconds(void) {
+test_IllegalMicroseconds(void)
+{
 #ifndef SYS_WINNT
 	const struct timeval input = {0, 1100000}; /* > 999 999 microseconds. */
-	
+
 	l_fp actual;
 
 	TEST_ASSERT_FALSE(buftvtots((const char*)(&input), &actual));
 #else
 	TEST_IGNORE_MESSAGE("Test only for Windows, skipping...");
 #endif
+
+	return;
 }
 
 
 void
-test_AlwaysFalseOnWindows(void) {
+test_AlwaysFalseOnWindows(void)
+{
 #ifdef SYS_WINNT
 	/*
 	 * Under Windows, buftvtots will just return
@@ -81,5 +92,6 @@ test_AlwaysFalseOnWindows(void) {
 #else
 	TEST_IGNORE_MESSAGE("Non-Windows test, skipping...");
 #endif
-}
 
+	return;
+}

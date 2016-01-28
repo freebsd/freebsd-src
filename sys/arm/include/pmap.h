@@ -263,6 +263,7 @@ void	pmap_kremove_device(vm_offset_t, vm_size_t);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
+vm_paddr_t pmap_dump_kextract(vm_offset_t, pt2_entry_t *);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);

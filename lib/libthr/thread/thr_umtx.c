@@ -42,7 +42,7 @@ int _umtx_op_err(void *obj, int op, u_long val, void *uaddr, void *uaddr2)
 void
 _thr_umutex_init(struct umutex *mtx)
 {
-	static struct umutex default_mtx = DEFAULT_UMUTEX;
+	static const struct umutex default_mtx = DEFAULT_UMUTEX;
 
 	*mtx = default_mtx;
 }
@@ -50,7 +50,8 @@ _thr_umutex_init(struct umutex *mtx)
 void
 _thr_urwlock_init(struct urwlock *rwl)
 {
-	static struct urwlock default_rwl = DEFAULT_URWLOCK;
+	static const struct urwlock default_rwl = DEFAULT_URWLOCK;
+
 	*rwl = default_rwl;
 }
 

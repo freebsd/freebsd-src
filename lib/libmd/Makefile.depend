@@ -33,6 +33,9 @@ sha1hl.po: sha1hl.c
 sha256hl.So: sha256hl.c
 sha256hl.o: sha256hl.c
 sha256hl.po: sha256hl.c
+sha384hl.So: sha384hl.c
+sha384hl.o: sha384hl.c
+sha384hl.po: sha384hl.c
 sha512hl.So: sha512hl.c
 sha512hl.o: sha512hl.c
 sha512hl.po: sha512hl.c

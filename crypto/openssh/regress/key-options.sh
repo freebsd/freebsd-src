@@ -1,4 +1,4 @@
-#	$OpenBSD: key-options.sh,v 1.2 2008/06/30 08:07:34 djm Exp $
+#	$OpenBSD: key-options.sh,v 1.3 2015/03/03 22:35:19 markus Exp $
 #	Placed in the Public Domain.
 
 tid="key options"
@@ -8,7 +8,7 @@ authkeys="$OBJ/authorized_keys_${USER}"
 cp $authkeys $origkeys
 
 # Test command= forced command
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
     for c in 'command="echo bar"' 'no-pty,command="echo bar"'; do
 	sed "s/.*/$c &/" $origkeys >$authkeys
 	verbose "key option proto $p $c"
@@ -24,7 +24,7 @@ done
 
 # Test no-pty
 sed 's/.*/no-pty &/' $origkeys >$authkeys
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
 	verbose "key option proto $p no-pty"
 	r=`${SSH} -$p -q -F $OBJ/ssh_proxy somehost tty`
 	if [ -f "$r" ]; then
@@ -35,7 +35,7 @@ done
 # Test environment=
 echo 'PermitUserEnvironment yes' >> $OBJ/sshd_proxy
 sed 's/.*/environment="FOO=bar" &/' $origkeys >$authkeys
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
 	verbose "key option proto $p environment"
 	r=`${SSH} -$p -q -F $OBJ/ssh_proxy somehost 'echo $FOO'`
 	if [ "$r" != "bar" ]; then
@@ -45,7 +45,7 @@ done
 
 # Test from= restriction
 start_sshd
-for p in 1 2; do
+for p in ${SSH_PROTOCOLS}; do
     for f in 127.0.0.1 '127.0.0.0\/8'; do
 	cat  $origkeys >$authkeys
 	${SSH} -$p -q -F $OBJ/ssh_proxy somehost true

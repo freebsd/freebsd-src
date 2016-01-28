@@ -18,7 +18,6 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libsqlite3 \
-	lib/libthr \
 	secure/lib/libcrypto \
 
 

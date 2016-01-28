@@ -888,7 +888,7 @@ autoifprobe(void)
 			warnmsg(LOG_WARNING, __func__,
 				"multiple interfaces found");
 
-		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
+		a = realloc(argv, (n + 1) * sizeof(char *));
 		if (a == NULL) {
 			warnmsg(LOG_ERR, __func__, "realloc");
 			exit(1);
@@ -903,7 +903,7 @@ autoifprobe(void)
 	}
 
 	if (n) {
-		a = (char **)realloc(argv, (n + 1) * sizeof(char **));
+		a = realloc(argv, (n + 1) * sizeof(char *));
 		if (a == NULL) {
 			warnmsg(LOG_ERR, __func__, "realloc");
 			exit(1);

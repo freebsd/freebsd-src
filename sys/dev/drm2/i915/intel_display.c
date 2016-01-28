@@ -1382,9 +1382,8 @@ out_unlock:
 static u32
 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg)
 {
-	u32 value;
+	u32 value = 0;
 
-	value = 0;
 	mtx_lock(&dev_priv->dpio_lock);
 	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_READY) == 0, 100)) {
 		DRM_ERROR("timeout waiting for SBI to become ready\n");
@@ -1469,7 +1468,7 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 	/* PCH only available on ILK+ */
 	KASSERT(dev_priv->info->gen >= 5, ("Wrong device gen"));
 	if (pll == NULL)
-		return;
+	        return;
 
 	if (pll->refcount == 0) {
 		DRM_DEBUG_KMS("pll->refcount == 0\n");
@@ -1495,7 +1494,7 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 
 	/* Make sure transcoder isn't still depending on us */
 	assert_transcoder_disabled(dev_priv, intel_crtc->pipe);
- 
+
 	reg = pll->pll_reg;
 	val = I915_READ(reg);
 	val &= ~DPLL_VCO_ENABLE;
@@ -1507,7 +1506,7 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 }
 
 static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
-				    enum pipe pipe)
+					   enum pipe pipe)
 {
 	int reg;
 	u32 val, pipeconf_val;
@@ -1517,7 +1516,8 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 	KASSERT(dev_priv->info->gen >= 5, ("Wrong device gen"));
 
 	/* Make sure PCH DPLL is enabled */
-	assert_pch_pll_enabled(dev_priv, to_intel_crtc(crtc));
+	assert_pch_pll_enabled(dev_priv,
+			       to_intel_crtc(crtc));
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
@@ -1527,9 +1527,11 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 		DRM_ERROR("Attempting to enable transcoder on Haswell with pipe > 0\n");
 		return;
 	}
+
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
 	pipeconf_val = I915_READ(PIPECONF(pipe));
+
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/*
 		 * make the BPC in transcoder be consistent with
@@ -1886,6 +1888,7 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		DRM_ERROR("Unknown color depth %d\n", fb->bits_per_pixel);
 		return -EINVAL;
 	}
+
 	if (INTEL_INFO(dev)->gen >= 4) {
 		if (obj->tiling_mode != I915_TILING_NONE)
 			dspcntr |= DISPPLANE_TILED;
@@ -2525,7 +2528,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	DELAY(150);
 
-	for (i = 0; i < 4; i++ ) {
+	for (i = 0; i < 4; i++) {
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -7132,7 +7135,7 @@ int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 	else
 		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
 	pci_write_config(bridge_dev, INTEL_GMCH_CTRL, gmch_ctrl, 2);
-	return (0);
+	return 0;
 }
 
 struct intel_display_error_state {

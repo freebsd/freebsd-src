@@ -68,7 +68,7 @@ SRCS+=	zmod_subr.c
 SRCS+=	zutil.c
 
 .PATH:	${SYSDIR}/crypto/sha2
-SRCS+=	sha2.c sha256c.c
+SRCS+=	sha256c.c sha512c.c
 
 .PATH:	${SUNW}/common/zfs
 .include "${SUNW}/uts/common/Makefile.files"

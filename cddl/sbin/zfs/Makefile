@@ -22,6 +22,6 @@ CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 
-LIBADD=	geom jail nvpair umem util uutil zfs_core zfs
+LIBADD=	jail nvpair uutil zfs_core zfs
 
 .include <bsd.prog.mk>

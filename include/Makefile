@@ -53,6 +53,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
 	net/altq \
 	netgraph/atm netgraph/netflow \
+	netinet/cc \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \

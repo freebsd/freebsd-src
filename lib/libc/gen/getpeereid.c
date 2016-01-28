@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ucred.h>
@@ -34,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 int
 getpeereid(int s, uid_t *euid, gid_t *egid)
@@ -43,7 +45,7 @@ getpeereid(int s, uid_t *euid, gid_t *egid)
 	int error;
 
 	xuclen = sizeof(xuc);
-	error = getsockopt(s, 0, LOCAL_PEERCRED, &xuc, &xuclen);
+	error = _getsockopt(s, 0, LOCAL_PEERCRED, &xuc, &xuclen);
 	if (error != 0)
 		return (error);
 	if (xuc.cr_version != XUCRED_VERSION)

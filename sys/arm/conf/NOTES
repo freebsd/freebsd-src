@@ -26,7 +26,6 @@ files	"../xscale/ixp425/files.ixp425"
 files	"../xscale/pxa/files.pxa"
 
 options 	PHYSADDR=0x00000000
-options 	KERNPHYSADDR=0x00000000
 options 	KERNVIRTADDR=0xc0000000
 
 makeoptions	LDFLAGS="-zmuldefs"
@@ -58,6 +57,7 @@ nooptions	SMP
 nooptions	MAXCPU
 
 nooptions	COMPAT_FREEBSD4
+nooption	PPC_PROBE_CHIPSET
 
 nodevice	fdc
 nodevice	sym

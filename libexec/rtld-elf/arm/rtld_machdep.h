@@ -75,4 +75,9 @@ extern void *__tls_get_addr(tls_index *ti);
 #define	RTLD_DEFAULT_STACK_PF_EXEC	PF_X
 #define	RTLD_DEFAULT_STACK_EXEC		PROT_EXEC
 
+extern void arm_abi_variant_hook(Elf_Auxinfo **);
+
+#define md_abi_variant_hook(x)		arm_abi_variant_hook(x)
+#define RTLD_VARIANT_ENV_NAMES
+
 #endif

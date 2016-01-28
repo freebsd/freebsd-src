@@ -126,33 +126,25 @@ static int
 tty_drain(struct tty *tp, int leaving)
 {
 	size_t bytesused;
-	int error, revokecnt;
+	int error;
 
 	if (ttyhook_hashook(tp, getc_inject))
 		/* buffer is inaccessible */
 		return (0);
 
-	while (ttyoutq_bytesused(&tp->t_outq) > 0) {
+	while (ttyoutq_bytesused(&tp->t_outq) > 0 || ttydevsw_busy(tp)) {
 		ttydevsw_outwakeup(tp);
 		/* Could be handled synchronously. */
 		bytesused = ttyoutq_bytesused(&tp->t_outq);
-		if (bytesused == 0)
+		if (bytesused == 0 && !ttydevsw_busy(tp))
 			return (0);
 
 		/* Wait for data to be drained. */
 		if (leaving) {
-			revokecnt = tp->t_revokecnt;
 			error = tty_timedwait(tp, &tp->t_outwait, hz);
-			switch (error) {
-			case ERESTART:
-				if (revokecnt != tp->t_revokecnt)
-					error = 0;
-				break;
-			case EWOULDBLOCK:
-				if (ttyoutq_bytesused(&tp->t_outq) < bytesused)
-					error = 0;
-				break;
-			}
+			if (error == EWOULDBLOCK &&
+			    ttyoutq_bytesused(&tp->t_outq) < bytesused)
+				error = 0;
 		} else
 			error = tty_wait(tp, &tp->t_outwait);
 
@@ -175,6 +167,7 @@ tty_drain(struct tty *tp, int leaving)
 static __inline int
 ttydev_enter(struct tty *tp)
 {
+
 	tty_lock(tp);
 
 	if (tty_gone(tp) || !tty_opened(tp)) {
@@ -189,6 +182,7 @@ ttydev_enter(struct tty *tp)
 static void
 ttydev_leave(struct tty *tp)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tty_opened(tp) || tp->t_flags & TF_OPENCLOSE) {
@@ -207,13 +201,12 @@ ttydev_leave(struct tty *tp)
 		constty_clear();
 
 	/* Drain any output. */
-	MPASS((tp->t_flags & TF_STOPPED) == 0);
 	if (!tty_gone(tp))
 		tty_drain(tp, 1);
 
 	ttydisc_close(tp);
 
-	/* Destroy associated buffers already. */
+	/* Free i/o queues now since they might be large. */
 	ttyinq_free(&tp->t_inq);
 	tp->t_inlow = 0;
 	ttyoutq_free(&tp->t_outq);
@@ -234,17 +227,14 @@ ttydev_leave(struct tty *tp)
  * Operations that are exposed through the character device in /dev.
  */
 static int
-ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
+    struct thread *td)
 {
 	struct tty *tp;
-	int error = 0;
+	int error;
 
-	while ((tp = dev->si_drv1) == NULL) {
-		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
-		if (error != EWOULDBLOCK)
-			return (error);
-	}
-
+	tp = dev->si_drv1;
+	error = 0;
 	tty_lock(tp);
 	if (tty_gone(tp)) {
 		/* Device is already gone. */
@@ -267,10 +257,10 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	/*
 	 * Make sure the "tty" and "cua" device cannot be opened at the
-	 * same time.
+	 * same time.  The console is a "tty" device.
 	 */
 	if (TTY_CALLOUT(tp, dev)) {
-		if (tp->t_flags & TF_OPENED_IN) {
+		if (tp->t_flags & (TF_OPENED_CONS | TF_OPENED_IN)) {
 			error = EBUSY;
 			goto done;
 		}
@@ -323,6 +313,8 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		tp->t_flags |= TF_OPENED_OUT;
 	else
 		tp->t_flags |= TF_OPENED_IN;
+	MPASS((tp->t_flags & (TF_OPENED_CONS | TF_OPENED_IN)) == 0 ||
+	    (tp->t_flags & TF_OPENED_OUT) == 0);
 
 done:	tp->t_flags &= ~TF_OPENCLOSE;
 	cv_broadcast(&tp->t_dcdwait);
@@ -332,7 +324,8 @@ done:	tp->t_flags &= ~TF_OPENCLOSE;
 }
 
 static int
-ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
+    struct thread *td __unused)
 {
 	struct tty *tp = dev->si_drv1;
 
@@ -342,7 +335,8 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	 * Don't actually close the device if it is being used as the
 	 * console.
 	 */
-	MPASS((tp->t_flags & TF_OPENED) != TF_OPENED);
+	MPASS((tp->t_flags & (TF_OPENED_CONS | TF_OPENED_IN)) == 0 ||
+	    (tp->t_flags & TF_OPENED_OUT) == 0);
 	if (dev == dev_console)
 		tp->t_flags &= ~TF_OPENED_CONS;
 	else
@@ -353,11 +347,11 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 		return (0);
 	}
 
-	/*
-	 * This can only be called once. The callin and the callout
-	 * devices cannot be opened at the same time.
-	 */
-	tp->t_flags &= ~(TF_EXCLUDE|TF_STOPPED);
+	/* If revoking, flush output now to avoid draining it later. */
+	if (fflag & FREVOKE)
+		tty_flush(tp, FWRITE);
+
+	tp->t_flags &= ~TF_EXCLUDE;
 
 	/* Properly wake up threads that are stuck - revoke(). */
 	tp->t_revokecnt++;
@@ -373,6 +367,7 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 static __inline int
 tty_is_ctty(struct tty *tp, struct proc *p)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	return (p->p_session == tp->t_session && p->p_flag & P_CONTROLT);
@@ -653,7 +648,7 @@ tty_kqops_read_detach(struct knote *kn)
 }
 
 static int
-tty_kqops_read_event(struct knote *kn, long hint)
+tty_kqops_read_event(struct knote *kn, long hint __unused)
 {
 	struct tty *tp = kn->kn_hook;
 
@@ -677,7 +672,7 @@ tty_kqops_write_detach(struct knote *kn)
 }
 
 static int
-tty_kqops_write_event(struct knote *kn, long hint)
+tty_kqops_write_event(struct knote *kn, long hint __unused)
 {
 	struct tty *tp = kn->kn_hook;
 
@@ -697,6 +692,7 @@ static struct filterops tty_kqops_read = {
 	.f_detach = tty_kqops_read_detach,
 	.f_event = tty_kqops_read_event,
 };
+
 static struct filterops tty_kqops_write = {
 	.f_isfd = 1,
 	.f_detach = tty_kqops_write_detach,
@@ -752,16 +748,14 @@ static struct cdevsw ttydev_cdevsw = {
  */
 
 static int
-ttyil_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+ttyil_open(struct cdev *dev, int oflags __unused, int devtype __unused,
+    struct thread *td)
 {
 	struct tty *tp;
-	int error = 0;
+	int error;
 
-	while ((tp = dev->si_drv1) == NULL) {
-		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
-		if (error != EWOULDBLOCK)
-			return (error);
-	}
+	tp = dev->si_drv1;
+	error = 0;
 	tty_lock(tp);
 	if (tty_gone(tp))
 		error = ENODEV;
@@ -771,14 +765,18 @@ ttyil_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-ttyil_close(struct cdev *dev, int flag, int mode, struct thread *td)
+ttyil_close(struct cdev *dev __unused, int flag __unused, int mode __unused,
+    struct thread *td __unused)
 {
+
 	return (0);
 }
 
 static int
-ttyil_rdwr(struct cdev *dev, struct uio *uio, int ioflag)
+ttyil_rdwr(struct cdev *dev __unused, struct uio *uio __unused,
+    int ioflag __unused)
 {
+
 	return (ENODEV);
 }
 
@@ -875,45 +873,49 @@ tty_init_console(struct tty *tp, speed_t s)
  */
 
 static int
-ttydevsw_defopen(struct tty *tp)
+ttydevsw_defopen(struct tty *tp __unused)
 {
 
 	return (0);
 }
 
 static void
-ttydevsw_defclose(struct tty *tp)
+ttydevsw_defclose(struct tty *tp __unused)
 {
+
 }
 
 static void
-ttydevsw_defoutwakeup(struct tty *tp)
+ttydevsw_defoutwakeup(struct tty *tp __unused)
 {
 
 	panic("Terminal device has output, while not implemented");
 }
 
 static void
-ttydevsw_definwakeup(struct tty *tp)
+ttydevsw_definwakeup(struct tty *tp __unused)
 {
+
 }
 
 static int
-ttydevsw_defioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
-{
-
-	return (ENOIOCTL);
-}
-
-static int
-ttydevsw_defcioctl(struct tty *tp, int unit, u_long cmd, caddr_t data, struct thread *td)
+ttydevsw_defioctl(struct tty *tp __unused, u_long cmd __unused,
+    caddr_t data __unused, struct thread *td __unused)
 {
 
 	return (ENOIOCTL);
 }
 
 static int
-ttydevsw_defparam(struct tty *tp, struct termios *t)
+ttydevsw_defcioctl(struct tty *tp __unused, int unit __unused,
+    u_long cmd __unused, caddr_t data __unused, struct thread *td __unused)
+{
+
+	return (ENOIOCTL);
+}
+
+static int
+ttydevsw_defparam(struct tty *tp __unused, struct termios *t)
 {
 
 	/*
@@ -935,7 +937,8 @@ ttydevsw_defparam(struct tty *tp, struct termios *t)
 }
 
 static int
-ttydevsw_defmodem(struct tty *tp, int sigon, int sigoff)
+ttydevsw_defmodem(struct tty *tp __unused, int sigon __unused,
+    int sigoff __unused)
 {
 
 	/* Simulate a carrier to make the TTY layer happy. */
@@ -943,23 +946,32 @@ ttydevsw_defmodem(struct tty *tp, int sigon, int sigoff)
 }
 
 static int
-ttydevsw_defmmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
+ttydevsw_defmmap(struct tty *tp __unused, vm_ooffset_t offset __unused,
+    vm_paddr_t *paddr __unused, int nprot __unused,
+    vm_memattr_t *memattr __unused)
 {
 
 	return (-1);
 }
 
 static void
-ttydevsw_defpktnotify(struct tty *tp, char event)
+ttydevsw_defpktnotify(struct tty *tp __unused, char event __unused)
 {
+
 }
 
 static void
-ttydevsw_deffree(void *softc)
+ttydevsw_deffree(void *softc __unused)
 {
 
 	panic("Terminal device freed without a free-handler");
+}
+
+static bool
+ttydevsw_defbusy(struct tty *tp __unused)
+{
+
+	return (FALSE);
 }
 
 /*
@@ -996,6 +1008,7 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	PATCH_FUNC(mmap);
 	PATCH_FUNC(pktnotify);
 	PATCH_FUNC(free);
+	PATCH_FUNC(busy);
 #undef PATCH_FUNC
 
 	tp = malloc(sizeof(struct tty), M_TTY, M_WAITOK|M_ZERO);
@@ -1030,10 +1043,15 @@ tty_dealloc(void *arg)
 {
 	struct tty *tp = arg;
 
-	/* Make sure we haven't leaked buffers. */
-	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
-	MPASS(ttyoutq_getsize(&tp->t_outq) == 0);
-
+	/*
+	 * ttyydev_leave() usually frees the i/o queues earlier, but it is
+	 * not always called between queue allocation and here.  The queues
+	 * may be allocated by ioctls on a pty control device without the
+	 * corresponding pty slave device ever being open, or after it is
+	 * closed.
+	 */
+	ttyinq_free(&tp->t_inq);
+	ttyoutq_free(&tp->t_outq);
 	seldrain(&tp->t_inpoll);
 	seldrain(&tp->t_outpoll);
 	knlist_destroy(&tp->t_inpoll.si_note);
@@ -1082,6 +1100,7 @@ tty_rel_free(struct tty *tp)
 void
 tty_rel_pgrp(struct tty *tp, struct pgrp *pg)
 {
+
 	MPASS(tp->t_sessioncnt > 0);
 	tty_lock_assert(tp, MA_OWNED);
 
@@ -1094,6 +1113,7 @@ tty_rel_pgrp(struct tty *tp, struct pgrp *pg)
 void
 tty_rel_sess(struct tty *tp, struct session *sess)
 {
+
 	MPASS(tp->t_sessioncnt > 0);
 
 	/* Current session has left. */
@@ -1108,6 +1128,7 @@ tty_rel_sess(struct tty *tp, struct session *sess)
 void
 tty_rel_gone(struct tty *tp)
 {
+
 	MPASS(!tty_gone(tp));
 
 	/* Simulate carrier removal. */
@@ -1129,6 +1150,7 @@ tty_rel_gone(struct tty *tp)
 static void
 tty_to_xtty(struct tty *tp, struct xtty *xt)
 {
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	xt->xt_size = sizeof(struct xtty);
@@ -1189,6 +1211,7 @@ tty_makedevf(struct tty *tp, struct ucred *cred, int flags,
     const char *fmt, ...)
 {
 	va_list ap;
+	struct make_dev_args args;
 	struct cdev *dev, *init, *lock, *cua, *cinit, *clock;
 	const char *prefix = "tty";
 	char name[SPECNAMELEN - 3]; /* for "tty" and "cua". */
@@ -1221,71 +1244,72 @@ tty_makedevf(struct tty *tp, struct ucred *cred, int flags,
 	flags |= MAKEDEV_CHECKNAME;
 
 	/* Master call-in device. */
-	error = make_dev_p(flags, &dev, &ttydev_cdevsw, cred, uid, gid, mode,
-	    "%s%s", prefix, name);
-	if (error)
+	make_dev_args_init(&args);
+	args.mda_flags = flags;
+	args.mda_devsw = &ttydev_cdevsw;
+	args.mda_cr = cred;
+	args.mda_uid = uid;
+	args.mda_gid = gid;
+	args.mda_mode = mode;
+	args.mda_si_drv1 = tp;
+	error = make_dev_s(&args, &dev, "%s%s", prefix, name);
+	if (error != 0)
 		return (error);
-	dev->si_drv1 = tp;
-	wakeup(&dev->si_drv1);
 	tp->t_dev = dev;
 
 	init = lock = cua = cinit = clock = NULL;
 
 	/* Slave call-in devices. */
 	if (tp->t_flags & TF_INITLOCK) {
-		error = make_dev_p(flags, &init, &ttyil_cdevsw, cred, uid,
-		    gid, mode, "%s%s.init", prefix, name);
-		if (error)
+		args.mda_devsw = &ttyil_cdevsw;
+		args.mda_unit = TTYUNIT_INIT;
+		args.mda_si_drv1 = tp;
+		args.mda_si_drv2 = &tp->t_termios_init_in;
+		error = make_dev_s(&args, &init, "%s%s.init", prefix, name);
+		if (error != 0)
 			goto fail;
 		dev_depends(dev, init);
-		dev2unit(init) = TTYUNIT_INIT;
-		init->si_drv1 = tp;
-		wakeup(&init->si_drv1);
-		init->si_drv2 = &tp->t_termios_init_in;
 
-		error = make_dev_p(flags, &lock, &ttyil_cdevsw, cred, uid,
-		    gid, mode, "%s%s.lock", prefix, name);
-		if (error)
+		args.mda_unit = TTYUNIT_LOCK;
+		args.mda_si_drv2 = &tp->t_termios_lock_in;
+		error = make_dev_s(&args, &lock, "%s%s.lock", prefix, name);
+		if (error != 0)
 			goto fail;
 		dev_depends(dev, lock);
-		dev2unit(lock) = TTYUNIT_LOCK;
-		lock->si_drv1 = tp;
-		wakeup(&lock->si_drv1);
-		lock->si_drv2 = &tp->t_termios_lock_in;
 	}
 
 	/* Call-out devices. */
 	if (tp->t_flags & TF_CALLOUT) {
-		error = make_dev_p(flags, &cua, &ttydev_cdevsw, cred,
-		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
-		if (error)
+		make_dev_args_init(&args);
+		args.mda_flags = flags;
+		args.mda_devsw = &ttydev_cdevsw;
+		args.mda_cr = cred;
+		args.mda_uid = UID_UUCP;
+		args.mda_gid = GID_DIALER;
+		args.mda_mode = 0660;
+		args.mda_unit = TTYUNIT_CALLOUT;
+		args.mda_si_drv1 = tp;
+		error = make_dev_s(&args, &cua, "cua%s", name);
+		if (error != 0)
 			goto fail;
 		dev_depends(dev, cua);
-		dev2unit(cua) = TTYUNIT_CALLOUT;
-		cua->si_drv1 = tp;
-		wakeup(&cua->si_drv1);
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			error = make_dev_p(flags, &cinit, &ttyil_cdevsw, cred,
-			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
-			if (error)
+			args.mda_devsw = &ttyil_cdevsw;
+			args.mda_unit = TTYUNIT_CALLOUT | TTYUNIT_INIT;
+			args.mda_si_drv2 = &tp->t_termios_init_out;
+			error = make_dev_s(&args, &cinit, "cua%s.init", name);
+			if (error != 0)
 				goto fail;
 			dev_depends(dev, cinit);
-			dev2unit(cinit) = TTYUNIT_CALLOUT | TTYUNIT_INIT;
-			cinit->si_drv1 = tp;
-			wakeup(&cinit->si_drv1);
-			cinit->si_drv2 = &tp->t_termios_init_out;
 
-			error = make_dev_p(flags, &clock, &ttyil_cdevsw, cred,
-			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
-			if (error)
+			args.mda_unit = TTYUNIT_CALLOUT | TTYUNIT_LOCK;
+			args.mda_si_drv2 = &tp->t_termios_lock_out;
+			error = make_dev_s(&args, &clock, "cua%s.lock", name);
+			if (error != 0)
 				goto fail;
 			dev_depends(dev, clock);
-			dev2unit(clock) = TTYUNIT_CALLOUT | TTYUNIT_LOCK;
-			clock->si_drv1 = tp;
-			wakeup(&clock->si_drv1);
-			clock->si_drv2 = &tp->t_termios_lock_out;
 		}
 	}
 
@@ -1359,6 +1383,7 @@ tty_signal_pgrp(struct tty *tp, int sig)
 void
 tty_wakeup(struct tty *tp, int flags)
 {
+
 	if (tp->t_flags & TF_ASYNC && tp->t_sigio != NULL)
 		pgsigio(&tp->t_sigio, SIGIO, (tp->t_session != NULL));
 
@@ -1421,17 +1446,24 @@ tty_timedwait(struct tty *tp, struct cv *cv, int hz)
 void
 tty_flush(struct tty *tp, int flags)
 {
+
 	if (flags & FWRITE) {
 		tp->t_flags &= ~TF_HIWAT_OUT;
 		ttyoutq_flush(&tp->t_outq);
 		tty_wakeup(tp, FWRITE);
-		ttydevsw_pktnotify(tp, TIOCPKT_FLUSHWRITE);
+		if (!tty_gone(tp)) {
+			ttydevsw_outwakeup(tp);
+			ttydevsw_pktnotify(tp, TIOCPKT_FLUSHWRITE);
+		}
 	}
 	if (flags & FREAD) {
 		tty_hiwat_in_unblock(tp);
 		ttyinq_flush(&tp->t_inq);
-		ttydevsw_inwakeup(tp);
-		ttydevsw_pktnotify(tp, TIOCPKT_FLUSHREAD);
+		tty_wakeup(tp, FREAD);
+		if (!tty_gone(tp)) {
+			ttydevsw_inwakeup(tp);
+			ttydevsw_pktnotify(tp, TIOCPKT_FLUSHREAD);
+		}
 	}
 }
 
@@ -1811,10 +1843,11 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag, struct thread *td)
 dev_t
 tty_udev(struct tty *tp)
 {
+
 	if (tp->t_dev)
-		return dev2udev(tp->t_dev);
+		return (dev2udev(tp->t_dev));
 	else
-		return NODEV;
+		return (NODEV);
 }
 
 int
@@ -1883,8 +1916,8 @@ ttyhook_defrint(struct tty *tp, char c, int flags)
 }
 
 int
-ttyhook_register(struct tty **rtp, struct proc *p, int fd,
-    struct ttyhook *th, void *softc)
+ttyhook_register(struct tty **rtp, struct proc *p, int fd, struct ttyhook *th,
+    void *softc)
 {
 	struct tty *tp;
 	struct file *fp;
@@ -2035,7 +2068,7 @@ static struct cdevsw ttyconsdev_cdevsw = {
 };
 
 static void
-ttyconsdev_init(void *unused)
+ttyconsdev_init(void *unused __unused)
 {
 
 	dev_console = make_dev_credf(MAKEDEV_ETERNAL, &ttyconsdev_cdevsw, 0,
@@ -2060,7 +2093,7 @@ ttyconsdev_select(const char *name)
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
-static struct {
+static const struct {
 	int flag;
 	char val;
 } ttystates[] = {
@@ -2101,9 +2134,11 @@ static struct {
 };
 
 #define	TTY_FLAG_BITS \
-	"\20\1NOPREFIX\2INITLOCK\3CALLOUT\4OPENED_IN\5OPENED_OUT\6GONE" \
-	"\7OPENCLOSE\10ASYNC\11LITERAL\12HIWAT_IN\13HIWAT_OUT\14STOPPED" \
-	"\15EXCLUDE\16BYPASS\17ZOMBIE\20HOOK"
+	"\20\1NOPREFIX\2INITLOCK\3CALLOUT\4OPENED_IN" \
+	"\5OPENED_OUT\6OPENED_CONS\7GONE\10OPENCLOSE" \
+	"\11ASYNC\12LITERAL\13HIWAT_IN\14HIWAT_OUT" \
+	"\15STOPPED\16EXCLUDE\17BYPASS\20ZOMBIE" \
+	"\21HOOK\22BUSY_IN\23BUSY_OUT"
 
 #define DB_PRINTSYM(name, addr) \
 	db_printf("%s  " #name ": ", sep); \
@@ -2113,6 +2148,7 @@ static struct {
 static void
 _db_show_devsw(const char *sep, const struct ttydevsw *tsw)
 {
+
 	db_printf("%sdevsw: ", sep);
 	db_printsym((db_addr_t)tsw, DB_STGY_ANY);
 	db_printf(" (%p)\n", tsw);
@@ -2127,9 +2163,11 @@ _db_show_devsw(const char *sep, const struct ttydevsw *tsw)
 	DB_PRINTSYM(pktnotify, tsw->tsw_pktnotify);
 	DB_PRINTSYM(free, tsw->tsw_free);
 }
+
 static void
 _db_show_hooks(const char *sep, const struct ttyhook *th)
 {
+
 	db_printf("%shook: ", sep);
 	db_printsym((db_addr_t)th, DB_STGY_ANY);
 	db_printf(" (%p)\n", th);
@@ -2166,9 +2204,9 @@ DB_SHOW_COMMAND(tty, db_show_tty)
 	}
 	tp = (struct tty *)addr;
 
-	db_printf("0x%p: %s\n", tp, tty_devname(tp));
+	db_printf("%p: %s\n", tp, tty_devname(tp));
 	db_printf("\tmtx: %p\n", tp->t_mtx);
-	db_printf("\tflags: %b\n", tp->t_flags, TTY_FLAG_BITS);
+	db_printf("\tflags: 0x%b\n", tp->t_flags, TTY_FLAG_BITS);
 	db_printf("\trevokecnt: %u\n", tp->t_revokecnt);
 
 	/* Buffering mechanisms. */
@@ -2235,17 +2273,13 @@ DB_SHOW_ALL_COMMAND(ttys, db_show_all_ttys)
 		isiz = tp->t_inq.ti_nblocks * TTYINQ_DATASIZE;
 		osiz = tp->t_outq.to_nblocks * TTYOUTQ_DATASIZE;
 
-		db_printf("%p %10s %5zu %4u %4u %4zu %5zu %4u %4zu %5u %5d %5d ",
-		    tp,
-		    tty_devname(tp),
-		    isiz,
+		db_printf("%p %10s %5zu %4u %4u %4zu %5zu %4u %4zu %5u %5d "
+		    "%5d ", tp, tty_devname(tp), isiz,
 		    tp->t_inq.ti_linestart - tp->t_inq.ti_begin,
 		    tp->t_inq.ti_end - tp->t_inq.ti_linestart,
-		    isiz - tp->t_inlow,
-		    osiz,
+		    isiz - tp->t_inlow, osiz,
 		    tp->t_outq.to_end - tp->t_outq.to_begin,
-		    osiz - tp->t_outlow,
-		    MIN(tp->t_column, 99999),
+		    osiz - tp->t_outlow, MIN(tp->t_column, 99999),
 		    tp->t_session ? tp->t_session->s_sid : 0,
 		    tp->t_pgrp ? tp->t_pgrp->pg_id : 0);
 

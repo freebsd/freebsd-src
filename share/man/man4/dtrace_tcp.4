@@ -300,7 +300,7 @@ The following script logs TCP segments in real time:
 
 dtrace:::BEGIN
 {
-        printf(" %3s %15s:%-5s      %15s:%-5s %6s  %s\n", "CPU",
+        printf(" %3s %15s:%-5s      %15s:%-5s %6s  %s\\n", "CPU",
             "LADDR", "LPORT", "RADDR", "RPORT", "BYTES", "FLAGS");
 }
 
@@ -317,7 +317,7 @@ tcp:::send
         printf("%s", args[4]->tcp_flags & TH_ACK ? "ACK|" : "");
         printf("%s", args[4]->tcp_flags & TH_URG ? "URG|" : "");
         printf("%s", args[4]->tcp_flags == 0 ? "null " : "");
-        printf("\b)\n");
+        printf("\b)\\n");
 }
 
 tcp:::receive
@@ -333,7 +333,7 @@ tcp:::receive
         printf("%s", args[4]->tcp_flags & TH_ACK ? "ACK|" : "");
         printf("%s", args[4]->tcp_flags & TH_URG ? "URG|" : "");
         printf("%s", args[4]->tcp_flags == 0 ? "null " : "");
-        printf("\b)\n");
+        printf("\b)\\n");
 }
 .Ed
 The following script logs TCP connection state changes as they occur:
@@ -345,14 +345,14 @@ int last[int];
 
 dtrace:::BEGIN
 {
-        printf("   %12s %-20s    %-20s %s\n",
+        printf("   %12s %-20s    %-20s %s\\n",
             "DELTA(us)", "OLD", "NEW", "TIMESTAMP");
 }
 
 tcp:::state-change
 {
         this->elapsed = (timestamp - last[args[1]->cs_cid]) / 1000;
-        printf("   %12d %-20s -> %-20s %d\n", this->elapsed,
+        printf("   %12d %-20s -> %-20s %d\\n", this->elapsed,
             tcp_state_string[args[5]->tcps_state],
             tcp_state_string[args[3]->tcps_state], timestamp);
         last[args[1]->cs_cid] = timestamp;
@@ -361,7 +361,7 @@ tcp:::state-change
 tcp:::state-change
 /last[args[1]->cs_cid] == 0/
 {
-        printf("   %12s %-20s -> %-20s %d\n", "-",
+        printf("   %12s %-20s -> %-20s %d\\n", "-",
             tcp_state_string[args[5]->tcps_state],
             tcp_state_string[args[3]->tcps_state], timestamp);
         last[args[1]->cs_cid] = timestamp;

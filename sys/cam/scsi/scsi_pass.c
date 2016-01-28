@@ -548,7 +548,8 @@ passregister(struct cam_periph *periph, void *arg)
 	struct pass_softc *softc;
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
-	int    no_tags;
+	struct make_dev_args args;
+	int error, no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -648,9 +649,20 @@ passregister(struct cam_periph *periph, void *arg)
 	}
 
 	/* Register the device */
-	softc->dev = make_dev(&pass_cdevsw, periph->unit_number,
-			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
-			      periph->periph_name, periph->unit_number);
+	make_dev_args_init(&args);
+	args.mda_devsw = &pass_cdevsw;
+	args.mda_unit = periph->unit_number;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = periph;
+	error = make_dev_s(&args, &softc->dev, "%s%d", periph->periph_name,
+	    periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		cam_periph_release_locked(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 
 	/*
 	 * Hold a reference to the periph before we create the physical
@@ -664,7 +676,6 @@ passregister(struct cam_periph *periph, void *arg)
 	}
 
 	cam_periph_lock(periph);
-	softc->dev->si_drv1 = periph;
 
 	TASK_INIT(&softc->add_physpath_task, /*priority*/0,
 		  pass_add_physpath, periph);
@@ -754,8 +765,6 @@ passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
 	mtx = cam_periph_mtx(periph);
 	mtx_lock(mtx);
 
@@ -1759,9 +1768,6 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 	uint32_t priority;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return(ENXIO);
-
 	cam_periph_lock(periph);
 	softc = (struct pass_softc *)periph->softc;
 
@@ -2068,9 +2074,6 @@ passpoll(struct cdev *dev, int poll_events, struct thread *td)
 	int revents;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	softc = (struct pass_softc *)periph->softc;
 
 	revents = poll_events & (POLLOUT | POLLWRNORM);
@@ -2095,9 +2098,6 @@ passkqfilter(struct cdev *dev, struct knote *kn)
 	struct pass_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	softc = (struct pass_softc *)periph->softc;
 
 	kn->kn_hook = (caddr_t)periph;

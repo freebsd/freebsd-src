@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/counter.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/ethernet.h>
@@ -306,8 +308,9 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 	int plen, uint8_t flags, uint8_t tcp_flags)
 {
 	struct flow_entry *fle;
-	struct sockaddr_in sin;
-	struct rtentry *rt;
+	struct sockaddr_in sin, sin_mask;
+	struct sockaddr_dl rt_gateway;
+	struct rt_addrinfo info;
 
 	mtx_assert(&hsh->mtx, MA_OWNED);
 
@@ -338,23 +341,30 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_family = AF_INET;
 		sin.sin_addr = fle->f.r.r_dst;
-		rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
-		if (rt != NULL) {
-			fle->f.fle_o_ifx = rt->rt_ifp->if_index;
 
-			if (rt->rt_flags & RTF_GATEWAY &&
-			    rt->rt_gateway->sa_family == AF_INET)
+		rt_gateway.sdl_len = sizeof(rt_gateway);
+		sin_mask.sin_len = sizeof(struct sockaddr_in);
+		bzero(&info, sizeof(info));
+
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
+		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&sin_mask;
+
+		if (rib_lookup_info(r->fib, (struct sockaddr *)&sin, NHR_REF, 0,
+		    &info) == 0) {
+			fle->f.fle_o_ifx = info.rti_ifp->if_index;
+
+			if (info.rti_flags & RTF_GATEWAY &&
+			    rt_gateway.sdl_family == AF_INET)
 				fle->f.next_hop =
-				    ((struct sockaddr_in *)(rt->rt_gateway))->sin_addr;
+				    ((struct sockaddr_in *)&rt_gateway)->sin_addr;
 
-			if (rt_mask(rt))
-				fle->f.dst_mask =
-				    bitcount32(((struct sockaddr_in *)rt_mask(rt))->sin_addr.s_addr);
-			else if (rt->rt_flags & RTF_HOST)
+			if (info.rti_addrs & RTA_NETMASK)
+				fle->f.dst_mask = bitcount32(sin_mask.sin_addr.s_addr);
+			else if (info.rti_flags & RTF_HOST)
 				/* Give up. We can't determine mask :( */
 				fle->f.dst_mask = 32;
 
-			RTFREE_LOCKED(rt);
+			rib_free_info(&info);
 		}
 	}
 
@@ -364,16 +374,20 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_family = AF_INET;
 		sin.sin_addr = fle->f.r.r_src;
-		rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
-		if (rt != NULL) {
-			if (rt_mask(rt))
+
+		sin_mask.sin_len = sizeof(struct sockaddr_in);
+		bzero(&info, sizeof(info));
+
+		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&sin_mask;
+
+		if (rib_lookup_info(r->fib, (struct sockaddr *)&sin, 0, 0,
+		    &info) == 0) {
+			if (info.rti_addrs & RTA_NETMASK)
 				fle->f.src_mask =
-				    bitcount32(((struct sockaddr_in *)rt_mask(rt))->sin_addr.s_addr);
-			else if (rt->rt_flags & RTF_HOST)
+				    bitcount32(sin_mask.sin_addr.s_addr);
+			else if (info.rti_flags & RTF_HOST)
 				/* Give up. We can't determine mask :( */
 				fle->f.src_mask = 32;
-
-			RTFREE_LOCKED(rt);
 		}
 	}
 
@@ -389,15 +403,14 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 				bitcount32((x).__u6_addr.__u6_addr32[1]) + \
 				bitcount32((x).__u6_addr.__u6_addr32[2]) + \
 				bitcount32((x).__u6_addr.__u6_addr32[3])
-#define RT_MASK6(x)	(ipv6_masklen(((struct sockaddr_in6 *)rt_mask(x))->sin6_addr))
 static int
 hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	int plen, uint8_t flags, uint8_t tcp_flags)
 {
 	struct flow6_entry *fle6;
-	struct sockaddr_in6 *src, *dst;
-	struct rtentry *rt;
-	struct route_in6 rin6;
+	struct sockaddr_in6 sin6, sin6_mask;
+	struct sockaddr_dl rt_gateway;
+	struct rt_addrinfo info;
 
 	mtx_assert(&hsh6->mtx, MA_OWNED);
 
@@ -425,51 +438,56 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	 * fill in out_ifx, dst_mask, nexthop, and dst_as in future releases.
 	 */
 	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
-		bzero(&rin6, sizeof(struct route_in6));
-		dst = (struct sockaddr_in6 *)&rin6.ro_dst;
-		dst->sin6_len = sizeof(struct sockaddr_in6);
-		dst->sin6_family = AF_INET6;
-		dst->sin6_addr = r->dst.r_dst6;
+		bzero(&sin6, sizeof(struct sockaddr_in6));
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = r->dst.r_dst6;
 
-		rin6.ro_rt = rtalloc1_fib((struct sockaddr *)dst, 0, 0, r->fib);
+		rt_gateway.sdl_len = sizeof(rt_gateway);
+		sin6_mask.sin6_len = sizeof(struct sockaddr_in6);
+		bzero(&info, sizeof(info));
 
-		if (rin6.ro_rt != NULL) {
-			rt = rin6.ro_rt;
-			fle6->f.fle_o_ifx = rt->rt_ifp->if_index;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
+		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&sin6_mask;
 
-			if (rt->rt_flags & RTF_GATEWAY &&
-			    rt->rt_gateway->sa_family == AF_INET6)
+		if (rib_lookup_info(r->fib, (struct sockaddr *)&sin6, NHR_REF,
+		    0, &info) == 0) {
+			fle6->f.fle_o_ifx = info.rti_ifp->if_index;
+
+			if (info.rti_flags & RTF_GATEWAY &&
+			    rt_gateway.sdl_family == AF_INET6)
 				fle6->f.n.next_hop6 =
-				    ((struct sockaddr_in6 *)(rt->rt_gateway))->sin6_addr;
+				    ((struct sockaddr_in6 *)&rt_gateway)->sin6_addr;
 
-			if (rt_mask(rt))
-				fle6->f.dst_mask = RT_MASK6(rt);
+			if (info.rti_addrs & RTA_NETMASK)
+				fle6->f.dst_mask =
+				    ipv6_masklen(sin6_mask.sin6_addr);
 			else
 				fle6->f.dst_mask = 128;
 
-			RTFREE_LOCKED(rt);
+			rib_free_info(&info);
 		}
 	}
 
-	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
+	if ((flags & NG_NETFLOW_CONF_NOSRCLOOKUP) == 0) {
 		/* Do route lookup on source address, to fill in src_mask. */
-		bzero(&rin6, sizeof(struct route_in6));
-		src = (struct sockaddr_in6 *)&rin6.ro_dst;
-		src->sin6_len = sizeof(struct sockaddr_in6);
-		src->sin6_family = AF_INET6;
-		src->sin6_addr = r->src.r_src6;
+		bzero(&sin6, sizeof(struct sockaddr_in6));
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = r->src.r_src6;
 
-		rin6.ro_rt = rtalloc1_fib((struct sockaddr *)src, 0, 0, r->fib);
+		sin6_mask.sin6_len = sizeof(struct sockaddr_in6);
+		bzero(&info, sizeof(info));
 
-		if (rin6.ro_rt != NULL) {
-			rt = rin6.ro_rt;
+		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&sin6_mask;
 
-			if (rt_mask(rt))
-				fle6->f.src_mask = RT_MASK6(rt);
+		if (rib_lookup_info(r->fib, (struct sockaddr *)&sin6, 0, 0,
+		    &info) == 0) {
+			if (info.rti_addrs & RTA_NETMASK)
+				fle6->f.src_mask =
+				    ipv6_masklen(sin6_mask.sin6_addr);
 			else
 				fle6->f.src_mask = 128;
-
-			RTFREE_LOCKED(rt);
 		}
 	}
 
@@ -479,7 +497,6 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	return (0);
 }
 #undef ipv6_masklen
-#undef RT_MASK6
 #endif
 
 

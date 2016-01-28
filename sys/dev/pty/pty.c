@@ -97,6 +97,8 @@ static void
 pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
     struct cdev **dev)
 {
+	struct make_dev_args mda;
+	int error;
 
 	/* Cloning is already satisfied. */
 	if (*dev != NULL)
@@ -117,8 +119,15 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 		return;
 
 	/* Create the controller device node. */
-	*dev = make_dev_credf(MAKEDEV_REF, &ptydev_cdevsw, 0,
-	    NULL, UID_ROOT, GID_WHEEL, 0666, "%s", name);
+	make_dev_args_init(&mda);
+	mda.mda_flags =  MAKEDEV_CHECKNAME | MAKEDEV_REF;
+	mda.mda_devsw = &ptydev_cdevsw;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0666;
+	error = make_dev_s(&mda, dev, "%s", name);
+	if (error != 0)
+		*dev = NULL;
 }
 
 static int

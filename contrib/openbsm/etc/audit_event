@@ -1,5 +1,4 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#43 $
 # $FreeBSD$
 #
 # The mapping between event identifiers and values is also hard-coded in

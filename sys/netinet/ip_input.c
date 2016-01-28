@@ -878,33 +878,6 @@ ipproto_unregister(short ipproto)
 	return (0);
 }
 
-/*
- * Given address of next destination (final or next hop), return (referenced)
- * internet address info of interface to be used to get there.
- */
-struct in_ifaddr *
-ip_rtaddr(struct in_addr dst, u_int fibnum)
-{
-	struct route sro;
-	struct sockaddr_in *sin;
-	struct in_ifaddr *ia;
-
-	bzero(&sro, sizeof(sro));
-	sin = (struct sockaddr_in *)&sro.ro_dst;
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_addr = dst;
-	in_rtalloc_ign(&sro, 0, fibnum);
-
-	if (sro.ro_rt == NULL)
-		return (NULL);
-
-	ia = ifatoia(sro.ro_rt->rt_ifa);
-	ifa_ref(&ia->ia_ifa);
-	RTFREE(sro.ro_rt);
-	return (ia);
-}
-
 u_char inetctlerrmap[PRC_NCMDS] = {
 	0,		0,		0,		0,
 	0,		EMSGSIZE,	EHOSTDOWN,	EHOSTUNREACH,

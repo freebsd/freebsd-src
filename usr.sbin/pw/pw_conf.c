@@ -313,7 +313,7 @@ read_userconfig(char const * file)
 					? NULL : newstr(q);
 				break;
 			case _UC_EXTRAGROUPS:
-				for (i = 0; q != NULL; q = strtok(NULL, toks)) {
+				while ((q = strtok(NULL, toks)) != NULL) {
 					if (config.groups == NULL)
 						config.groups = sl_init();
 					sl_add(config.groups, newstr(q));

@@ -654,11 +654,5 @@ void
 
 #endif
 
-#ifdef INVARIANTS
-void
-     sctp_validate_no_locks(struct sctp_inpcb *inp);
-
-#endif
-
 #endif				/* _KERNEL */
 #endif				/* !__sctp_pcb_h__ */

@@ -8,6 +8,9 @@ LLDB_SRCS=${.CURDIR}/../../../contrib/llvm/tools/lldb
 
 CFLAGS+=	-I${LLDB_SRCS}/include
 CXXFLAGS+=	-std=c++11
+.if ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-mlong-calls
+.endif
 
 SRCDIR=	tools/lldb/tools/driver
 SRCS=	Driver.cpp \
@@ -161,6 +164,6 @@ LIBDEPS=\
 	llvmcore \
 	llvmsupport
 
-.include "../clang.prog.mk"
+LIBADD+=	pthread
 
-LDADD+=	-lpthread
+.include "../clang.prog.mk"

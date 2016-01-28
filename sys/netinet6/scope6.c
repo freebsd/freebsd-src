@@ -487,6 +487,22 @@ in6_getscopezone(const struct ifnet *ifp, int scope)
 }
 
 /*
+ * Extracts scope from adddress @dst, stores cleared address
+ * inside @dst and zone inside @scopeid
+ */
+void
+in6_splitscope(const struct in6_addr *src, struct in6_addr *dst,
+    uint32_t *scopeid)
+{
+	uint32_t zoneid;
+
+	*dst = *src;
+	zoneid = ntohs(in6_getscope(dst));
+	in6_clearscope(dst);
+	*scopeid = zoneid;
+}
+
+/*
  * This function is for checking sockaddr_in6 structure passed
  * from the application level (usually).
  *

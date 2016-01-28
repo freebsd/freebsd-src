@@ -386,3 +386,4 @@ static driver_t xe_pccard_driver = {
 devclass_t xe_devclass;
 
 DRIVER_MODULE(xe, pccard, xe_pccard_driver, xe_devclass, 0, 0);
+PCCARD_PNP_INFO(xe_pccard_products);

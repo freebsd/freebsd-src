@@ -104,6 +104,7 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	v_init_counters(struct vnode *);
 static void	v_incr_usecount(struct vnode *);
+static void	v_incr_usecount_locked(struct vnode *);
 static void	v_incr_devcount(struct vnode *);
 static void	v_decr_devcount(struct vnode *);
 static void	vnlru_free(int);
@@ -1652,13 +1653,55 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
 		BO_LOCK(bo);
-		if (nbp != NULL &&
-		    (nbp->b_bufobj != bo ||
-		     nbp->b_lblkno != lblkno ||
-		     (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) != xflags))
+		nbp = gbincore(bo, lblkno);
+		if (nbp == NULL || (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
+		    != xflags)
 			break;			/* nbp invalid */
 	}
 	return (retval);
+}
+
+int
+bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
+{
+	struct buf *bp;
+	int error;
+	daddr_t lblkno;
+
+	ASSERT_BO_LOCKED(bo);
+
+	for (lblkno = startn;;) {
+again:
+		bp = BUF_PCTRIE_LOOKUP_GE(&bufv->bv_root, lblkno);
+		if (bp == NULL || bp->b_lblkno >= endn)
+			break;
+		error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
+		    LK_INTERLOCK, BO_LOCKPTR(bo), "brlsfl", 0, 0);
+		if (error != 0) {
+			BO_RLOCK(bo);
+			if (error == ENOLCK)
+				goto again;
+			return (error);
+		}
+		KASSERT(bp->b_bufobj == bo,
+		    ("bp %p wrong b_bufobj %p should be %p",
+		    bp, bp->b_bufobj, bo));
+		lblkno = bp->b_lblkno + 1;
+		if ((bp->b_flags & B_MANAGED) == 0)
+			bremfree(bp);
+		bp->b_flags |= B_RELBUF;
+		/*
+		 * In the VMIO case, use the B_NOREUSE flag to hint that the
+		 * pages backing each buffer in the range are unlikely to be
+		 * reused.  Dirty buffers will have the hint applied once
+		 * they've been written.
+		 */
+		if (bp->b_vp->v_object != NULL)
+			bp->b_flags |= B_NOREUSE;
+		brelse(bp);
+		BO_RLOCK(bo);
+	}
+	return (0);
 }
 
 /*
@@ -2329,6 +2372,20 @@ v_init_counters(struct vnode *vp)
 	refcount_init(&vp->v_usecount, 1);
 }
 
+static void
+v_incr_usecount_locked(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	if ((vp->v_iflag & VI_OWEINACT) != 0) {
+		VNASSERT(vp->v_usecount == 0, vp,
+		    ("vnode with usecount and VI_OWEINACT set"));
+		vp->v_iflag &= ~VI_OWEINACT;
+	}
+	refcount_acquire(&vp->v_usecount);
+	v_incr_devcount(vp);
+}
+
 /*
  * Increment the use and hold counts on the vnode, taking care to reference
  * the driver's usecount if this is a chardev.  The _vhold() will remove
@@ -2341,29 +2398,13 @@ v_incr_usecount(struct vnode *vp)
 	ASSERT_VI_UNLOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 
-	if (vp->v_type == VCHR) {
-		VI_LOCK(vp);
-		_vhold(vp, true);
-		if (vp->v_iflag & VI_OWEINACT) {
-			VNASSERT(vp->v_usecount == 0, vp,
-			    ("vnode with usecount and VI_OWEINACT set"));
-			vp->v_iflag &= ~VI_OWEINACT;
-		}
-		refcount_acquire(&vp->v_usecount);
-		v_incr_devcount(vp);
-		VI_UNLOCK(vp);
-		return;
-	}
-
-	_vhold(vp, false);
-	if (vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
+	if (vp->v_type != VCHR &&
+	    vfs_refcount_acquire_if_not_zero(&vp->v_usecount)) {
 		VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 		    ("vnode with usecount and VI_OWEINACT set"));
 	} else {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_OWEINACT)
-			vp->v_iflag &= ~VI_OWEINACT;
-		refcount_acquire(&vp->v_usecount);
+		v_incr_usecount_locked(vp);
 		VI_UNLOCK(vp);
 	}
 }
@@ -2478,7 +2519,17 @@ vref(struct vnode *vp)
 {
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	_vhold(vp, false);
 	v_incr_usecount(vp);
+}
+
+void
+vrefl(struct vnode *vp)
+{
+
+	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	_vhold(vp, true);
+	v_incr_usecount_locked(vp);
 }
 
 /*

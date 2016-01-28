@@ -85,7 +85,7 @@ static int simplebus_teardown_intr(device_t, device_t, struct resource *,
 static int simplebus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static struct resource *simplebus_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int simplebus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
 static int simplebus_release_resource(device_t, device_t, int, int,
@@ -250,7 +250,7 @@ simplebus_print_child(device_t dev, device_t child)
 
 static struct resource *
 simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	device_t ic;
 	struct simplebus_devinfo *di;

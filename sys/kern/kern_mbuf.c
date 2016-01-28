@@ -32,11 +32,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/malloc.h>
+#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -272,6 +275,12 @@ uma_zone_t	zone_jumbo16;
 uma_zone_t	zone_ext_refcnt;
 
 /*
+ * Callout to assist us in freeing mbufs.
+ */
+static struct callout	mb_reclaim_callout;
+static struct mtx	mb_reclaim_callout_mtx;
+
+/*
  * Local prototypes.
  */
 static int	mb_ctor_mbuf(void *, int, void *, int);
@@ -285,6 +294,7 @@ static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
 static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
+static void	mb_maxaction(uma_zone_t);
 
 /* Ensure that MSIZE is a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -310,6 +320,7 @@ mbuf_init(void *dummy)
 	if (nmbufs > 0)
 		nmbufs = uma_zone_set_max(zone_mbuf, nmbufs);
 	uma_zone_set_warning(zone_mbuf, "kern.ipc.nmbufs limit reached");
+	uma_zone_set_maxaction(zone_mbuf, mb_maxaction);
 
 	zone_clust = uma_zcreate(MBUF_CLUSTER_MEM_NAME, MCLBYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -322,6 +333,7 @@ mbuf_init(void *dummy)
 	if (nmbclusters > 0)
 		nmbclusters = uma_zone_set_max(zone_clust, nmbclusters);
 	uma_zone_set_warning(zone_clust, "kern.ipc.nmbclusters limit reached");
+	uma_zone_set_maxaction(zone_clust, mb_maxaction);
 
 	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
 	    mb_dtor_pack, mb_zinit_pack, mb_zfini_pack, zone_mbuf);
@@ -338,6 +350,7 @@ mbuf_init(void *dummy)
 	if (nmbjumbop > 0)
 		nmbjumbop = uma_zone_set_max(zone_jumbop, nmbjumbop);
 	uma_zone_set_warning(zone_jumbop, "kern.ipc.nmbjumbop limit reached");
+	uma_zone_set_maxaction(zone_jumbop, mb_maxaction);
 
 	zone_jumbo9 = uma_zcreate(MBUF_JUMBO9_MEM_NAME, MJUM9BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -351,6 +364,7 @@ mbuf_init(void *dummy)
 	if (nmbjumbo9 > 0)
 		nmbjumbo9 = uma_zone_set_max(zone_jumbo9, nmbjumbo9);
 	uma_zone_set_warning(zone_jumbo9, "kern.ipc.nmbjumbo9 limit reached");
+	uma_zone_set_maxaction(zone_jumbo9, mb_maxaction);
 
 	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -364,6 +378,7 @@ mbuf_init(void *dummy)
 	if (nmbjumbo16 > 0)
 		nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 	uma_zone_set_warning(zone_jumbo16, "kern.ipc.nmbjumbo16 limit reached");
+	uma_zone_set_maxaction(zone_jumbo16, mb_maxaction);
 
 	zone_ext_refcnt = uma_zcreate(MBUF_EXTREFCNT_MEM_NAME, sizeof(u_int),
 	    NULL, NULL,
@@ -371,6 +386,11 @@ mbuf_init(void *dummy)
 	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 
 	/* uma_prealloc() goes here... */
+
+	/* Initialize the mb_reclaim() callout. */
+	mtx_init(&mb_reclaim_callout_mtx, "mb_reclaim_callout_mtx", NULL,
+	    MTX_DEF);
+	callout_init(&mb_reclaim_callout, 1);
 
 	/*
 	 * Hook event handler for low-memory situation, used to
@@ -677,4 +697,62 @@ mb_reclaim(void *junk)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_drain != NULL)
 				(*pr->pr_drain)();
+}
+
+/*
+ * This is the function called by the mb_reclaim_callout, which is
+ * used when we hit the maximum for a zone.
+ *
+ * (See mb_maxaction() below.)
+ */
+static void
+mb_reclaim_timer(void *junk __unused)
+{
+
+	mtx_lock(&mb_reclaim_callout_mtx);
+
+	/*
+	 * Avoid running this function extra times by skipping this invocation
+	 * if the callout has already been rescheduled.
+	 */
+	if (callout_pending(&mb_reclaim_callout) ||
+	    !callout_active(&mb_reclaim_callout)) {
+		mtx_unlock(&mb_reclaim_callout_mtx);
+		return;
+	}
+	mtx_unlock(&mb_reclaim_callout_mtx);
+
+	mb_reclaim(NULL);
+
+	mtx_lock(&mb_reclaim_callout_mtx);
+	callout_deactivate(&mb_reclaim_callout);
+	mtx_unlock(&mb_reclaim_callout_mtx);
+}
+
+/*
+ * This function is called when we hit the maximum for a zone.
+ *
+ * At that point, we want to call the protocol drain routine to free up some
+ * mbufs. However, we will use the callout routines to schedule this to
+ * occur in another thread. (The thread calling this function holds the
+ * zone lock.)
+ */
+static void
+mb_maxaction(uma_zone_t zone __unused)
+{
+
+	/*
+	 * If we can't immediately obtain the lock, either the callout
+	 * is currently running, or another thread is scheduling the
+	 * callout.
+	 */
+	if (!mtx_trylock(&mb_reclaim_callout_mtx))
+		return;
+
+	/* If not already scheduled/running, schedule the callout. */
+	if (!callout_active(&mb_reclaim_callout)) {
+		callout_reset(&mb_reclaim_callout, 1, mb_reclaim_timer, NULL);
+	}
+
+	mtx_unlock(&mb_reclaim_callout_mtx);
 }

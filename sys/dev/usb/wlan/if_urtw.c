@@ -785,7 +785,8 @@ urtw_attach(device_t dev)
 	struct urtw_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands, iface_index = URTW_IFACE_INDEX;		/* XXX */
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index = URTW_IFACE_INDEX;		/* XXX */
 	uint16_t n_setup;
 	uint32_t data;
 	usb_error_t error;
@@ -876,10 +877,10 @@ urtw_attach(device_t dev)
 	    IEEE80211_C_BGSCAN |	/* capable of bg scanning */
 	    IEEE80211_C_WPA;		/* 802.11i */
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = urtw_raw_xmit;
@@ -4291,18 +4292,18 @@ urtw_updateslottask(void *arg, int pending)
 	if (sc->sc_flags & URTW_RTL8187B) {
 		urtw_write8_m(sc, URTW_SIFS, 0x22);
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
-			urtw_write8_m(sc, URTW_SLOT, 0x9);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SHSLOT);
 		else
-			urtw_write8_m(sc, URTW_SLOT, 0x14);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SLOT);
 		urtw_write8_m(sc, URTW_8187B_EIFS, 0x5b);
 		urtw_write8_m(sc, URTW_CARRIER_SCOUNT, 0x5b);
 	} else {
 		urtw_write8_m(sc, URTW_SIFS, 0x22);
 		if (sc->sc_state == IEEE80211_S_ASSOC &&
 		    ic->ic_flags & IEEE80211_F_SHSLOT)
-			urtw_write8_m(sc, URTW_SLOT, 0x9);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SHSLOT);
 		else
-			urtw_write8_m(sc, URTW_SLOT, 0x14);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SLOT);
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan)) {
 			urtw_write8_m(sc, URTW_DIFS, 0x14);
 			urtw_write8_m(sc, URTW_EIFS, 0x5b - 0x14);
@@ -4382,3 +4383,4 @@ DRIVER_MODULE(urtw, uhub, urtw_driver, urtw_devclass, NULL, 0);
 MODULE_DEPEND(urtw, wlan, 1, 1, 1);
 MODULE_DEPEND(urtw, usb, 1, 1, 1);
 MODULE_VERSION(urtw, 1);
+USB_PNP_HOST_INFO(urtw_devs);

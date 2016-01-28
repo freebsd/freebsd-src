@@ -16,14 +16,25 @@ u_long current_time = 4;
  * Example packet with MD5 hash calculated manually.
  */
 const int keytype = KEY_TYPE_MD5;
-const char *key = "abcdefgh";
+const u_char *key = (const u_char*)"abcdefgh";
 const u_short keyLength = 8;
-const char *packet = "ijklmnopqrstuvwx";
+const u_char *packet = (const u_char*)"ijklmnopqrstuvwx";
 #define packetLength 16
 #define keyIdLength  4
 #define digestLength 16
-const int totalLength = packetLength + keyIdLength + digestLength;
-const char *expectedPacket = "ijklmnopqrstuvwx\0\0\0\0\x0c\x0e\x84\xcf\x0b\xb7\xa8\x68\x8e\x52\x38\xdb\xbc\x1c\x39\x53";
+#define totalLength (packetLength + keyIdLength + digestLength)
+union {
+	u_char		u8 [totalLength];
+	uint32_t	u32[1];
+} expectedPacket = {
+	"ijklmnopqrstuvwx\0\0\0\0\x0c\x0e\x84\xcf\x0b\xb7\xa8\x68\x8e\x52\x38\xdb\xbc\x1c\x39\x53"
+};
+union {
+	u_char		u8 [totalLength];
+	uint32_t	u32[1];
+} invalidPacket = {
+	"ijklmnopqrstuvwx\0\0\0\0\x0c\x0e\x84\xcf\x0b\xb7\xa8\x68\x8e\x52\x38\xdb\xbc\x1c\x39\x54"
+};
 
 
 void test_Encrypt(void);
@@ -35,7 +46,7 @@ void test_IPv6AddressToRefId(void);
 
 void
 test_Encrypt(void) {
-	char *packetPtr;
+	u_int32 *packetPtr;
 	int length;
 
 	packetPtr = emalloc(totalLength * sizeof(*packetPtr));
@@ -45,12 +56,12 @@ test_Encrypt(void) {
 
 	cache_secretsize = keyLength;
 
-	length = MD5authencrypt(keytype, (u_char*)key, (u_int32*)packetPtr, packetLength);
+	length = MD5authencrypt(keytype, key, packetPtr, packetLength);
 
-	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, (u_char*)key, (u_int32*)packetPtr, packetLength, length));
+	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, packetPtr, packetLength, length));
 
 	TEST_ASSERT_EQUAL(20, length);
-	TEST_ASSERT_EQUAL_MEMORY(expectedPacket, packetPtr, totalLength);
+	TEST_ASSERT_EQUAL_MEMORY(expectedPacket.u8, packetPtr, totalLength);
 
 	free(packetPtr);
 }
@@ -58,17 +69,13 @@ test_Encrypt(void) {
 void
 test_DecryptValid(void) {
 	cache_secretsize = keyLength;
-
-	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, (u_char*)key, (u_int32*)expectedPacket, packetLength, 20));
+	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, expectedPacket.u32, packetLength, 20));
 }
 
 void
 test_DecryptInvalid(void) {
 	cache_secretsize = keyLength;
-
-	const char *invalidPacket = "ijklmnopqrstuvwx\0\0\0\0\x0c\x0e\x84\xcf\x0b\xb7\xa8\x68\x8e\x52\x38\xdb\xbc\x1c\x39\x54";
-
-	TEST_ASSERT_FALSE(MD5authdecrypt(keytype, (u_char*)key, (u_int32*)invalidPacket, packetLength, 20));
+	TEST_ASSERT_FALSE(MD5authdecrypt(keytype, key, invalidPacket.u32, packetLength, 20));
 }
 
 void
@@ -87,23 +94,24 @@ test_IPv4AddressToRefId(void) {
 
 void
 test_IPv6AddressToRefId(void) {
-	const struct in6_addr address = {
+	const int expected = 0x75cffd52;
+	const struct in6_addr address = { { {
 		0x20, 0x01, 0x0d, 0xb8,
 		0x85, 0xa3, 0x08, 0xd3,
 		0x13, 0x19, 0x8a, 0x2e,
 		0x03, 0x70, 0x73, 0x34
-	};
+	} } };
 	sockaddr_u addr;
 
 	addr.sa6.sin6_family = AF_INET6;
 
 	addr.sa6.sin6_addr = address;
 
-	const int expected = 0x75cffd52;
 
 #if 0
 	TEST_ASSERT_EQUAL(expected, addr2refid(&addr));
 #else
+	(void)expected;
 	TEST_IGNORE_MESSAGE("Skipping because of big endian problem?");
 #endif
 }

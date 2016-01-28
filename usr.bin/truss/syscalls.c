@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysdecode.h>
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
@@ -74,9 +75,6 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 #include "extern.h"
 #include "syscall.h"
-
-/* usr.bin/kdump/utrace.c */
-int kdump_print_utrace(FILE *, void *, size_t, int);
 
 /* 64-bit alignment on 32-bit platforms. */
 #if !defined(__LP64__) && defined(__powerpc__)
@@ -1108,7 +1106,7 @@ print_utrace(FILE *fp, void *utrace_addr, size_t len)
 	unsigned char *utrace_buffer;
 
 	fprintf(fp, "{ ");
-	if (kdump_print_utrace(fp, utrace_addr, len, 0)) {
+	if (sysdecode_utrace(fp, utrace_addr, len)) {
 		fprintf(fp, " }");
 		return;
 	}
@@ -1317,7 +1315,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		unsigned long cmd;
 
 		cmd = args[sc->offset];
-		temp = ioctlname(cmd);
+		temp = sysdecode_ioctlname(cmd);
 		if (temp)
 			fputs(temp, fp);
 		else {

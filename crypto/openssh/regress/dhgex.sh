@@ -1,10 +1,11 @@
-#	$OpenBSD: dhgex.sh,v 1.1 2014/01/25 04:35:32 dtucker Exp $
+#	$OpenBSD: dhgex.sh,v 1.2 2014/04/21 22:15:37 djm Exp $
 #	Placed in the Public Domain.
 
 tid="dhgex"
 
 LOG=${TEST_SSH_LOGFILE}
 rm -f ${LOG}
+cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 kexs=`${SSH} -Q kex | grep diffie-hellman-group-exchange`
 
@@ -14,6 +15,9 @@ ssh_test_dhgex()
 	cipher="$1"; shift
 	kex="$1"; shift
 
+	cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+	echo "KexAlgorithms=$kex" >> $OBJ/sshd_proxy
+	echo "Ciphers=$cipher" >> $OBJ/sshd_proxy
 	rm -f ${LOG}
 	opts="-oKexAlgorithms=$kex -oCiphers=$cipher"
 	groupsz="1024<$bits<8192"

@@ -38,11 +38,23 @@
 #ifndef __HV_NET_VSC_H__
 #define __HV_NET_VSC_H__
 
-#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/sx.h>
+
+#include <machine/bus.h>
+#include <sys/bus.h>
+#include <sys/bus_dma.h>
+
+#include <netinet/in.h>
+#include <netinet/tcp_lro.h>
+
+#include <net/if.h>
+#include <net/if_media.h>
 
 #include <dev/hyperv/include/hyperv.h>
 
@@ -851,7 +863,7 @@ typedef struct nvsp_msg_ {
 #define NETVSC_SEND_BUFFER_SIZE			(1024*1024*15)   /* 15M */
 #define NETVSC_SEND_BUFFER_ID			0xface
 
-
+#define NETVSC_RECEIVE_BUFFER_SIZE_LEGACY	(1024*1024*15) /* 15MB */
 #define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*16) /* 16MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
@@ -978,11 +990,15 @@ typedef struct {
 	hv_bool_uint8_t	link_state;
 } netvsc_device_info;
 
+struct hn_txdesc;
+SLIST_HEAD(hn_txdesc_list, hn_txdesc);
+
 /*
  * Device-specific softc structure
  */
 typedef struct hn_softc {
 	struct ifnet    *hn_ifp;
+	struct ifmedia	hn_media;
 	device_t        hn_dev;
 	uint8_t         hn_unit;
 	int             hn_carrier;
@@ -993,6 +1009,40 @@ typedef struct hn_softc {
 	int             temp_unusable;
 	struct hv_device  *hn_dev_obj;
 	netvsc_dev  	*net_dev;
+
+	struct hn_txdesc *hn_txdesc;
+	bus_dma_tag_t	hn_tx_data_dtag;
+	bus_dma_tag_t	hn_tx_rndis_dtag;
+	int		hn_tx_chimney_size;
+	int		hn_tx_chimney_max;
+
+	struct mtx	hn_txlist_spin;
+	struct hn_txdesc_list hn_txlist;
+	int		hn_txdesc_cnt;
+	int		hn_txdesc_avail;
+	int		hn_txeof;
+
+	int		hn_direct_tx_size;
+	struct taskqueue *hn_tx_taskq;
+	struct task	hn_start_task;
+	struct task	hn_txeof_task;
+
+	struct lro_ctrl	hn_lro;
+	int		hn_lro_hiwat;
+
+	/* Trust tcp segments verification on host side */
+	int		hn_trust_hosttcp;
+
+	u_long		hn_csum_ip;
+	u_long		hn_csum_tcp;
+	u_long		hn_csum_trusted;
+	u_long		hn_lro_tried;
+	u_long		hn_small_pkts;
+	u_long		hn_no_txdescs;
+	u_long		hn_send_failed;
+	u_long		hn_txdma_failed;
+	u_long		hn_tx_collapsed;
+	u_long		hn_tx_chimney;
 } hn_softc_t;
 
 

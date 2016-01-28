@@ -90,7 +90,7 @@ static void init_dag(Obj_Entry *);
 static void init_pagesizes(Elf_Auxinfo **aux_info);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
-static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
+static void initlist_add_objects(Obj_Entry *, Obj_Entry *, Objlist *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static void load_filtees(Obj_Entry *, int flags, RtldLockState *);
@@ -180,12 +180,11 @@ static char *ld_preload;	/* Environment variable for libraries to
 static char *ld_elf_hints_path;	/* Environment variable for alternative hints path */
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
-static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
-static Obj_Entry **obj_tail;	/* Link field of last object in list */
+static struct obj_entry_q obj_list;	/* Queue of all loaded objects */
 static Obj_Entry *obj_main;	/* The main program shared object */
 static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
 static unsigned int obj_count;	/* Number of objects in obj_list */
-static unsigned int obj_loads;	/* Number of objects in obj_list */
+static unsigned int obj_loads;	/* Number of loads of objects (gen count) */
 
 static Objlist list_global =	/* Objects dlopened with RTLD_GLOBAL */
   STAILQ_HEAD_INITIALIZER(list_global);
@@ -257,7 +256,7 @@ bool ld_library_path_rpath = false;
 /*
  * Globals for path names, and such
  */
-char *ld_path_elf_hints = _PATH_ELF_HINTS;
+char *ld_elf_hints_default = _PATH_ELF_HINTS;
 char *ld_path_libmap_conf = _PATH_LIBMAP_CONF;
 char *ld_path_rtld = _PATH_RTLD;
 char *ld_standard_library_path = STANDARD_LIBRARY_PATH;
@@ -323,6 +322,24 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 	utrace(&ut, sizeof(ut));
 }
 
+#ifdef RTLD_VARIANT_ENV_NAMES
+/*
+ * construct the env variable based on the type of binary that's
+ * running.
+ */
+static inline const char *
+_LD(const char *var)
+{
+	static char buffer[128];
+
+	strlcpy(buffer, ld_env_prefix, sizeof(buffer));
+	strlcat(buffer, var, sizeof(buffer));
+	return (buffer);
+}
+#else
+#define _LD(x)	LD_ x
+#endif
+
 /*
  * Main entry point for dynamic linking.  The first argument is the
  * stack pointer.  The stack is expected to be laid out as described
@@ -352,7 +369,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     const char *argv0;
     Objlist_Entry *entry;
     Obj_Entry *obj;
-    Obj_Entry **preload_tail;
+    Obj_Entry *preload_tail;
     Obj_Entry *last_interposer;
     Objlist initlist;
     RtldLockState lockstate;
@@ -417,7 +434,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     trust = !issetugid();
 
-    ld_bind_now = getenv(LD_ "BIND_NOW");
+    md_abi_variant_hook(aux_info);
+
+    ld_bind_now = getenv(_LD("BIND_NOW"));
     /* 
      * If the process is tainted, then we un-set the dangerous environment
      * variables.  The process will be marked as tainted until setuid(2)
@@ -425,24 +444,24 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * future processes to honor the potentially un-safe variables.
      */
     if (!trust) {
-        if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "LIBMAP") ||
-	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBRARY_PATH_FDS") ||
-	    unsetenv(LD_ "LIBMAP_DISABLE") ||
-	    unsetenv(LD_ "DEBUG") || unsetenv(LD_ "ELF_HINTS_PATH") ||
-	    unsetenv(LD_ "LOADFLTR") || unsetenv(LD_ "LIBRARY_PATH_RPATH")) {
+	if (unsetenv(_LD("PRELOAD")) || unsetenv(_LD("LIBMAP")) ||
+	    unsetenv(_LD("LIBRARY_PATH")) || unsetenv(_LD("LIBRARY_PATH_FDS")) ||
+	    unsetenv(_LD("LIBMAP_DISABLE")) ||
+	    unsetenv(_LD("DEBUG")) || unsetenv(_LD("ELF_HINTS_PATH")) ||
+	    unsetenv(_LD("LOADFLTR")) || unsetenv(_LD("LIBRARY_PATH_RPATH"))) {
 		_rtld_error("environment corrupt; aborting");
 		rtld_die();
 	}
     }
-    ld_debug = getenv(LD_ "DEBUG");
-    libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
-    libmap_override = getenv(LD_ "LIBMAP");
-    ld_library_path = getenv(LD_ "LIBRARY_PATH");
-    ld_library_dirs = getenv(LD_ "LIBRARY_PATH_FDS");
-    ld_preload = getenv(LD_ "PRELOAD");
-    ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
-    ld_loadfltr = getenv(LD_ "LOADFLTR") != NULL;
-    library_path_rpath = getenv(LD_ "LIBRARY_PATH_RPATH");
+    ld_debug = getenv(_LD("DEBUG"));
+    libmap_disable = getenv(_LD("LIBMAP_DISABLE")) != NULL;
+    libmap_override = getenv(_LD("LIBMAP"));
+    ld_library_path = getenv(_LD("LIBRARY_PATH"));
+    ld_library_dirs = getenv(_LD("LIBRARY_PATH_FDS"));
+    ld_preload = getenv(_LD("PRELOAD"));
+    ld_elf_hints_path = getenv(_LD("ELF_HINTS_PATH"));
+    ld_loadfltr = getenv(_LD("LOADFLTR")) != NULL;
+    library_path_rpath = getenv(_LD("LIBRARY_PATH_RPATH"));
     if (library_path_rpath != NULL) {
 	    if (library_path_rpath[0] == 'y' ||
 		library_path_rpath[0] == 'Y' ||
@@ -454,11 +473,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
 	(ld_library_path != NULL) || (ld_preload != NULL) ||
 	(ld_elf_hints_path != NULL) || ld_loadfltr;
-    ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
-    ld_utrace = getenv(LD_ "UTRACE");
+    ld_tracing = getenv(_LD("TRACE_LOADED_OBJECTS"));
+    ld_utrace = getenv(_LD("UTRACE"));
 
     if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
-	ld_elf_hints_path = ld_path_elf_hints;
+	ld_elf_hints_path = ld_elf_hints_default;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -549,8 +568,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     linkmap_add(&obj_rtld);
 
     /* Link the main program into the list of objects. */
-    *obj_tail = obj_main;
-    obj_tail = &obj_main->next;
+    TAILQ_INSERT_HEAD(&obj_list, obj_main, next);
     obj_count++;
     obj_loads++;
 
@@ -565,7 +583,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
 	rtld_die();
-    preload_tail = obj_tail;
+    preload_tail = globallist_curr(TAILQ_LAST(&obj_list, obj_entry_q));
 
     dbg("loading needed objects");
     if (load_needed_objects(obj_main, 0) == -1)
@@ -573,7 +591,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     /* Make a list of all objects loaded at startup. */
     last_interposer = obj_main;
-    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
+    TAILQ_FOREACH(obj, &obj_list, next) {
+	if (obj->marker)
+	    continue;
 	if (obj->z_interpose && obj != obj_main) {
 	    objlist_put_after(&list_main, last_interposer, obj);
 	    last_interposer = obj;
@@ -592,7 +612,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	exit(0);
     }
 
-    if (getenv(LD_ "DUMP_REL_PRE") != NULL) {
+    if (getenv(_LD("DUMP_REL_PRE")) != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -620,7 +640,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (do_copy_relocations(obj_main) == -1)
 	rtld_die();
 
-    if (getenv(LD_ "DUMP_REL_POST") != NULL) {
+    if (getenv(_LD("DUMP_REL_POST")) != NULL) {
        dump_relocations(obj_main);
        exit (0);
     }
@@ -631,7 +651,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * might be the subject for relocations.
      */
     dbg("initializing initial thread local storage");
-    allocate_initial_tls(obj_list);
+    allocate_initial_tls(globallist_curr(TAILQ_FIRST(&obj_list)));
 
     dbg("initializing key program variables");
     set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");
@@ -640,7 +660,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     /* Make a list of init functions to call. */
     objlist_init(&initlist);
-    initlist_add_objects(obj_list, preload_tail, &initlist);
+    initlist_add_objects(globallist_curr(TAILQ_FIRST(&obj_list)),
+      preload_tail, &initlist);
 
     r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
 
@@ -670,7 +691,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     _r_debug_postinit(&obj_main->linkmap);
     objlist_clear(&initlist);
     dbg("loading filtees");
-    for (obj = obj_list->next; obj != NULL; obj = obj->next) {
+    TAILQ_FOREACH(obj, &obj_list, next) {
+	if (obj->marker)
+	    continue;
 	if (ld_loadfltr || obj->z_loadfltr)
 	    load_filtees(obj, 0, &lockstate);
     }
@@ -1126,7 +1149,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 #ifndef __mips__
 	case DT_DEBUG:
-	    /* XXX - not implemented yet */
 	    if (!early)
 		dbg("Filling in DT_DEBUG entry");
 	    ((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
@@ -1362,22 +1384,22 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 		if (note->n_namesz != sizeof(NOTE_FREEBSD_VENDOR) ||
 		    note->n_descsz != sizeof(int32_t))
 			continue;
-		if (note->n_type != ABI_NOTETYPE &&
-		    note->n_type != CRT_NOINIT_NOTETYPE)
+		if (note->n_type != NT_FREEBSD_ABI_TAG &&
+		    note->n_type != NT_FREEBSD_NOINIT_TAG)
 			continue;
 		note_name = (const char *)(note + 1);
 		if (strncmp(NOTE_FREEBSD_VENDOR, note_name,
 		    sizeof(NOTE_FREEBSD_VENDOR)) != 0)
 			continue;
 		switch (note->n_type) {
-		case ABI_NOTETYPE:
+		case NT_FREEBSD_ABI_TAG:
 			/* FreeBSD osrel note */
 			p = (uintptr_t)(note + 1);
 			p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
 			obj->osrel = *(const int32_t *)(p);
 			dbg("note osrel %d", obj->osrel);
 			break;
-		case CRT_NOINIT_NOTETYPE:
+		case NT_FREEBSD_NOINIT_TAG:
 			/* FreeBSD 'crt does not call init' note */
 			obj->crt_no_init = true;
 			dbg("note crt_no_init");
@@ -1391,9 +1413,10 @@ dlcheck(void *handle)
 {
     Obj_Entry *obj;
 
-    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+    TAILQ_FOREACH(obj, &obj_list, next) {
 	if (obj == (Obj_Entry *) handle)
 	    break;
+    }
 
     if (obj == NULL || obj->refcount == 0 || obj->dl_refcount == 0) {
 	_rtld_error("Invalid shared object handle %p", handle);
@@ -1804,6 +1827,32 @@ init_dag(Obj_Entry *root)
     root->dag_inited = true;
 }
 
+Obj_Entry *
+globallist_curr(const Obj_Entry *obj)
+{
+
+	for (;;) {
+		if (obj == NULL)
+			return (NULL);
+		if (!obj->marker)
+			return (__DECONST(Obj_Entry *, obj));
+		obj = TAILQ_PREV(obj, obj_entry_q, next);
+	}
+}
+
+Obj_Entry *
+globallist_next(const Obj_Entry *obj)
+{
+
+	for (;;) {
+		obj = TAILQ_NEXT(obj, next);
+		if (obj == NULL)
+			return (NULL);
+		if (!obj->marker)
+			return (__DECONST(Obj_Entry *, obj));
+	}
+}
+
 static void
 process_z(Obj_Entry *root)
 {
@@ -1886,7 +1935,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     }
 
     /* Initialize the object list. */
-    obj_tail = &obj_list;
+    TAILQ_INIT(&obj_list);
 
     /* Now that non-local variables can be accesses, copy out obj_rtld. */
     memcpy(&obj_rtld, &objtmp, sizeof(obj_rtld));
@@ -1967,7 +2016,7 @@ initlist_add_neededs(Needed_Entry *needed, Objlist *list)
 
     /* Process the current needed object. */
     if (needed->obj != NULL)
-	initlist_add_objects(needed->obj, &needed->obj->next, list);
+	initlist_add_objects(needed->obj, needed->obj, list);
 }
 
 /*
@@ -1980,16 +2029,18 @@ initlist_add_neededs(Needed_Entry *needed, Objlist *list)
  * held when this function is called.
  */
 static void
-initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
+initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
 {
+    Obj_Entry *nobj;
 
     if (obj->init_scanned || obj->init_done)
 	return;
     obj->init_scanned = true;
 
     /* Recursively process the successor objects. */
-    if (&obj->next != tail)
-	initlist_add_objects(obj->next, tail, list);
+    nobj = globallist_next(obj);
+    if (nobj != NULL && obj != tail)
+	initlist_add_objects(nobj, tail, list);
 
     /* Recursively process the needed objects. */
     if (obj->needed != NULL)
@@ -2092,7 +2143,10 @@ load_needed_objects(Obj_Entry *first, int flags)
 {
     Obj_Entry *obj;
 
-    for (obj = first;  obj != NULL;  obj = obj->next) {
+    obj = first;
+    TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+	if (obj->marker)
+	    continue;
 	if (process_needed(obj, obj->needed, flags) == -1)
 	    return (-1);
     }
@@ -2154,7 +2208,9 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 
     fd = -1;
     if (name != NULL) {
-	for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
+	TAILQ_FOREACH(obj, &obj_list, next) {
+	    if (obj->marker)
+		continue;
 	    if (object_match_name(obj, name))
 		return (obj);
 	}
@@ -2199,9 +2255,12 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 	free(path);
 	return NULL;
     }
-    for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
+    TAILQ_FOREACH(obj, &obj_list, next) {
+	if (obj->marker)
+	    continue;
 	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev)
 	    break;
+    }
     if (obj != NULL && name != NULL) {
 	object_add_name(obj, name);
 	free(path);
@@ -2269,8 +2328,7 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
     }
 
     obj->dlopened = (flags & RTLD_LO_DLOPEN) != 0;
-    *obj_tail = obj;
-    obj_tail = &obj->next;
+    TAILQ_INSERT_TAIL(&obj_list, obj, next);
     obj_count++;
     obj_loads++;
     linkmap_add(obj);	/* for GDB & dlinfo() */
@@ -2291,7 +2349,9 @@ obj_from_addr(const void *addr)
 {
     Obj_Entry *obj;
 
-    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
+    TAILQ_FOREACH(obj, &obj_list, next) {
+	if (obj->marker)
+	    continue;
 	if (addr < (void *) obj->mapbase)
 	    continue;
 	if (addr < (void *) (obj->mapbase + obj->mapsize))
@@ -2417,8 +2477,11 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
      * possibly initialized earlier if any of vectors called below
      * cause the change by using dlopen.
      */
-    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+    TAILQ_FOREACH(obj, &obj_list, next) {
+	if (obj->marker)
+	    continue;
 	obj->init_scanned = false;
+    }
 
     /*
      * Preserve the current error message since an init function might
@@ -2662,7 +2725,11 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	Obj_Entry *obj;
 	int error;
 
-	for (error = 0, obj = first;  obj != NULL;  obj = obj->next) {
+	error = 0;
+	obj = first;
+	TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+		if (obj->marker)
+			continue;
 		error = relocate_object(obj, bind_now, rtldobj, flags,
 		    lockstate);
 		if (error == -1)
@@ -2700,7 +2767,10 @@ resolve_objects_ifunc(Obj_Entry *first, bool bind_now, int flags,
 {
 	Obj_Entry *obj;
 
-	for (obj = first;  obj != NULL;  obj = obj->next) {
+	obj = first;
+	TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+		if (obj->marker)
+			continue;
 		if (resolve_object_ifunc(obj, bind_now, flags, lockstate) == -1)
 			return (-1);
 	}
@@ -3014,7 +3084,7 @@ static Obj_Entry *
 dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
     int mode, RtldLockState *lockstate)
 {
-    Obj_Entry **old_obj_tail;
+    Obj_Entry *old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
     RtldLockState mlockstate;
@@ -3028,7 +3098,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
     }
     GDB_STATE(RT_ADD,NULL);
 
-    old_obj_tail = obj_tail;
+    old_obj_tail = globallist_curr(TAILQ_LAST(&obj_list, obj_entry_q));
     obj = NULL;
     if (name == NULL && fd == -1) {
 	obj = obj_main;
@@ -3041,8 +3111,9 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	obj->dl_refcount++;
 	if (mode & RTLD_GLOBAL && objlist_find(&list_global, obj) == NULL)
 	    objlist_push_tail(&list_global, obj);
-	if (*old_obj_tail != NULL) {		/* We loaded something new. */
-	    assert(*old_obj_tail == obj);
+	if (globallist_next(old_obj_tail) != NULL) {
+	    /* We loaded something new. */
+	    assert(globallist_next(old_obj_tail) == obj);
 	    result = load_needed_objects(obj,
 		lo_flags & (RTLD_LO_DLOPEN | RTLD_LO_EARLY));
 	    init_dag(obj);
@@ -3069,7 +3140,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		 */
 	    } else {
 		/* Make list of init functions to call. */
-		initlist_add_objects(obj, &obj->next, &initlist);
+		initlist_add_objects(obj, obj, &initlist);
 	    }
 	    /*
 	     * Process all no_delete or global objects here, given
@@ -3175,8 +3246,10 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	} else if (handle == RTLD_NEXT || /* Objects after caller's */
 		   handle == RTLD_SELF) { /* ... caller included */
 	    if (handle == RTLD_NEXT)
-		obj = obj->next;
-	    for (; obj != NULL; obj = obj->next) {
+		obj = globallist_next(obj);
+	    TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+		if (obj->marker)
+		    continue;
 		res = symlook_obj(&req, obj);
 		if (res == 0) {
 		    if (def == NULL ||
@@ -3445,31 +3518,41 @@ rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 int
 dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 {
-    struct dl_phdr_info phdr_info;
-    const Obj_Entry *obj;
-    RtldLockState bind_lockstate, phdr_lockstate;
-    int error;
+	struct dl_phdr_info phdr_info;
+	Obj_Entry *obj, marker;
+	RtldLockState bind_lockstate, phdr_lockstate;
+	int error;
 
-    wlock_acquire(rtld_phdr_lock, &phdr_lockstate);
-    rlock_acquire(rtld_bind_lock, &bind_lockstate);
+	bzero(&marker, sizeof(marker));
+	marker.marker = true;
+	error = 0;
 
-    error = 0;
+	wlock_acquire(rtld_phdr_lock, &phdr_lockstate);
+	rlock_acquire(rtld_bind_lock, &bind_lockstate);
+	for (obj = globallist_curr(TAILQ_FIRST(&obj_list)); obj != NULL;) {
+		TAILQ_INSERT_AFTER(&obj_list, obj, &marker, next);
+		rtld_fill_dl_phdr_info(obj, &phdr_info);
+		lock_release(rtld_bind_lock, &bind_lockstate);
 
-    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	rtld_fill_dl_phdr_info(obj, &phdr_info);
-	if ((error = callback(&phdr_info, sizeof phdr_info, param)) != 0)
-		break;
+		error = callback(&phdr_info, sizeof phdr_info, param);
 
-    }
-    if (error == 0) {
-	rtld_fill_dl_phdr_info(&obj_rtld, &phdr_info);
-	error = callback(&phdr_info, sizeof(phdr_info), param);
-    }
+		rlock_acquire(rtld_bind_lock, &bind_lockstate);
+		obj = globallist_next(&marker);
+		TAILQ_REMOVE(&obj_list, &marker, next);
+		if (error != 0) {
+			lock_release(rtld_bind_lock, &bind_lockstate);
+			lock_release(rtld_phdr_lock, &phdr_lockstate);
+			return (error);
+		}
+	}
 
-    lock_release(rtld_bind_lock, &bind_lockstate);
-    lock_release(rtld_phdr_lock, &phdr_lockstate);
-
-    return (error);
+	if (error == 0) {
+		rtld_fill_dl_phdr_info(&obj_rtld, &phdr_info);
+		lock_release(rtld_bind_lock, &bind_lockstate);
+		error = callback(&phdr_info, sizeof(phdr_info), param);
+	}
+	lock_release(rtld_phdr_lock, &phdr_lockstate);
+	return (error);
 }
 
 static void *
@@ -4178,22 +4261,24 @@ trace_loaded_objects(Obj_Entry *obj)
     char	*fmt1, *fmt2, *fmt, *main_local, *list_containers;
     int		c;
 
-    if ((main_local = getenv(LD_ "TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
+    if ((main_local = getenv(_LD("TRACE_LOADED_OBJECTS_PROGNAME"))) == NULL)
 	main_local = "";
 
-    if ((fmt1 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT1")) == NULL)
+    if ((fmt1 = getenv(_LD("TRACE_LOADED_OBJECTS_FMT1"))) == NULL)
 	fmt1 = "\t%o => %p (%x)\n";
 
-    if ((fmt2 = getenv(LD_ "TRACE_LOADED_OBJECTS_FMT2")) == NULL)
+    if ((fmt2 = getenv(_LD("TRACE_LOADED_OBJECTS_FMT2"))) == NULL)
 	fmt2 = "\t%o (%x)\n";
 
-    list_containers = getenv(LD_ "TRACE_LOADED_OBJECTS_ALL");
+    list_containers = getenv(_LD("TRACE_LOADED_OBJECTS_ALL"));
 
-    for (; obj; obj = obj->next) {
+    TAILQ_FOREACH_FROM(obj, &obj_list, next) {
 	Needed_Entry		*needed;
 	char			*name, *path;
 	bool			is_lib;
 
+	if (obj->marker)
+	    continue;
 	if (list_containers && obj->needed != NULL)
 	    rtld_printf("%s:\n", obj->path);
 	for (needed = obj->needed; needed; needed = needed->next) {
@@ -4276,34 +4361,30 @@ trace_loaded_objects(Obj_Entry *obj)
 static void
 unload_object(Obj_Entry *root)
 {
-    Obj_Entry *obj;
-    Obj_Entry **linkp;
+	Obj_Entry *obj, *obj1;
 
-    assert(root->refcount == 0);
+	assert(root->refcount == 0);
 
-    /*
-     * Pass over the DAG removing unreferenced objects from
-     * appropriate lists.
-     */
-    unlink_object(root);
+	/*
+	 * Pass over the DAG removing unreferenced objects from
+	 * appropriate lists.
+	 */
+	unlink_object(root);
 
-    /* Unmap all objects that are no longer referenced. */
-    linkp = &obj_list->next;
-    while ((obj = *linkp) != NULL) {
-	if (obj->refcount == 0) {
-	    LD_UTRACE(UTRACE_UNLOAD_OBJECT, obj, obj->mapbase, obj->mapsize, 0,
-		obj->path);
-	    dbg("unloading \"%s\"", obj->path);
-	    unload_filtees(root);
-	    munmap(obj->mapbase, obj->mapsize);
-	    linkmap_delete(obj);
-	    *linkp = obj->next;
-	    obj_count--;
-	    obj_free(obj);
-	} else
-	    linkp = &obj->next;
-    }
-    obj_tail = linkp;
+	/* Unmap all objects that are no longer referenced. */
+	TAILQ_FOREACH_SAFE(obj, &obj_list, next, obj1) {
+		if (obj->marker || obj->refcount != 0)
+			continue;
+		LD_UTRACE(UTRACE_UNLOAD_OBJECT, obj, obj->mapbase,
+		    obj->mapsize, 0, obj->path);
+		dbg("unloading \"%s\"", obj->path);
+		unload_filtees(root);
+		munmap(obj->mapbase, obj->mapsize);
+		linkmap_delete(obj);
+		TAILQ_REMOVE(&obj_list, obj, next);
+		obj_count--;
+		obj_free(obj);
+	}
 }
 
 static void
@@ -4396,7 +4477,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 }
 
 #if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
-    defined(__powerpc__)
+    defined(__powerpc__) || defined(__riscv__)
 
 /*
  * Allocate Static TLS using the Variant I method.
@@ -4436,7 +4517,8 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	dtv[0] = tls_dtv_generation;
 	dtv[1] = tls_max_index;
 
-	for (obj = objs; obj; obj = obj->next) {
+	for (obj = globallist_curr(objs); obj != NULL;
+	  obj = globallist_next(obj)) {
 	    if (obj->tlsoffset > 0) {
 		addr = (Elf_Addr)tls + obj->tlsoffset;
 		if (obj->tlsinitsize > 0)
@@ -4535,15 +4617,16 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 	 */
 	free_tls(oldtls, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
     } else {
-	for (obj = objs; obj; obj = obj->next) {
-	    if (obj->tlsoffset) {
+	obj = objs;
+	TAILQ_FOREACH_FROM(obj, &obj_list, next) {
+		if (obj->marker || obj->tlsoffset == 0)
+			continue;
 		addr = segbase - obj->tlsoffset;
 		memset((void*) (addr + obj->tlsinitsize),
 		       0, obj->tlssize - obj->tlsinitsize);
 		if (obj->tlsinit)
 		    memcpy((void*) addr, obj->tlsinit, obj->tlsinitsize);
 		dtv[obj->tlsindex + 1] = addr;
-	    }
 	}
     }
 
@@ -4592,7 +4675,9 @@ allocate_module_tls(int index)
     Obj_Entry* obj;
     char* p;
 
-    for (obj = obj_list; obj; obj = obj->next) {
+    TAILQ_FOREACH(obj, &obj_list, next) {
+	if (obj->marker)
+	    continue;
 	if (obj->tlsindex == index)
 	    break;
     }
@@ -4671,7 +4756,8 @@ _rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
     RtldLockState lockstate;
 
     wlock_acquire(rtld_bind_lock, &lockstate);
-    ret = allocate_tls(obj_list, oldtls, tcbsize, tcbalign);
+    ret = allocate_tls(globallist_curr(TAILQ_FIRST(&obj_list)), oldtls,
+      tcbsize, tcbalign);
     lock_release(rtld_bind_lock, &lockstate);
     return (ret);
 }

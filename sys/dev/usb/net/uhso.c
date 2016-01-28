@@ -497,6 +497,7 @@ DRIVER_MODULE(uhso, uhub, uhso_driver, uhso_devclass, uhso_driver_loaded, 0);
 MODULE_DEPEND(uhso, ucom, 1, 1, 1);
 MODULE_DEPEND(uhso, usb, 1, 1, 1);
 MODULE_VERSION(uhso, 1);
+USB_PNP_HOST_INFO(uhso_devs);
 
 static struct ucom_callback uhso_ucom_callback = {
 	.ucom_cfg_get_status = &uhso_ucom_cfg_get_status,

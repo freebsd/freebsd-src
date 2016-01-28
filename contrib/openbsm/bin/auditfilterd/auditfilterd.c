@@ -24,8 +24,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.c#13 $
  */
 
 /*
@@ -131,7 +129,7 @@ present_rawrecord(struct timespec *ts, u_char *data, u_int len)
 }
 
 /*
- * Parse the BSM into a set of tokens, which will be pased to registered
+ * Parse the BSM into a set of tokens, which will be passed to registered
  * and interested filters.
  */
 #define	MAX_TOKENS	128	/* Maximum tokens we handle per record. */

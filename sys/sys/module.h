@@ -89,10 +89,19 @@ struct mod_version {
 struct mod_metadata {
 	int		md_version;	/* structure version MDTV_* */
 	int		md_type;	/* type of entry MDT_* */
-	void		*md_data;	/* specific data */
+	const void	*md_data;	/* specific data */
 	const char	*md_cval;	/* common string label */
 };
 
+struct mod_pnp_match_info 
+{
+	const char *descr;	/* Description of the table */
+	const char *bus;	/* Name of the bus for this table */
+	const void *table;	/* Pointer to pnp table */
+	int entry_len;		/* Length of each entry in the table (may be */
+				/*   longer than descr describes). */
+	int num_entry;		/* Number of entries in the table */
+};
 #ifdef	_KERNEL
 
 #include <sys/linker_set.h>
@@ -154,6 +163,44 @@ struct mod_metadata {
 	};								\
 	MODULE_METADATA(_##module##_version, MDT_VERSION,		\
 	    &_##module##_version, #module)
+
+/**
+ * Generic macros to create pnp info hints that modules may export
+ * to allow external tools to parse their intenral device tables
+ * to make an informed guess about what driver(s) to load.
+ */
+#define	MODULE_PNP_INFO(d, b, unique, t, l, n)				\
+	static const struct mod_pnp_match_info _module_pnp_##b##_##unique = {	\
+		.descr = d,						\
+		.bus = #b,						\
+		.table = t,						\
+		.entry_len = l,						\
+		.num_entry = n						\
+	};								\
+	MODULE_METADATA(_md_##b##_pnpinfo_##unique, MDT_PNP_INFO,	\
+	    &_module_pnp_##b##_##unique, #b);
+/**
+ * descr is a string that describes each entry in the table. The general
+ * form is (TYPE:pnp_name[/pnp_name];)*
+ * where TYPE is one of the following:
+ *	U8	uint8_t element
+ *	V8	like U8 and 0xff means match any
+ *	G16	uint16_t element, any value >= matches
+ *	L16	uint16_t element, any value <= matches
+ *	M16	uint16_t element, mask of which of the following fields to use.
+ *	U16	uint16_t element
+ *	V16	like U16 and 0xffff means match any
+ *	U32	uint32_t element
+ *	V32	like U32 and 0xffffffff means match any
+ *	W32	Two 16-bit values with first pnp_name in LSW and second in MSW.
+ *	Z	pointer to a string to match exactly
+ *	D	like Z, but is the string passed to device_set_descr()
+ *	P	A pointer that should be ignored
+ *	E	EISA PNP Identifier (in binary, but bus publishes string)
+ *	K	Key for whole table. pnp_name=value. must be last, if present.
+ *
+ * The pnp_name "#" is reserved for other fields that should be ignored.
+ */
 
 extern struct sx modules_sx;
 

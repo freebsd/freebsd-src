@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 static int		simplebus_probe(device_t dev);
 static int		simplebus_attach(device_t dev);
 static struct resource *simplebus_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static void		simplebus_probe_nomatch(device_t bus, device_t child);
 static int		simplebus_print_child(device_t bus, device_t child);
 static device_t		simplebus_add_child(device_t dev, u_int order,
@@ -304,6 +304,8 @@ simplebus_get_devinfo(device_t bus __unused, device_t child)
         struct simplebus_devinfo *ndi;
         
         ndi = device_get_ivars(child);
+	if (ndi == NULL)
+		return (NULL);
         return (&ndi->obdinfo);
 }
 
@@ -313,12 +315,14 @@ simplebus_get_resource_list(device_t bus __unused, device_t child)
 	struct simplebus_devinfo *ndi;
 
 	ndi = device_get_ivars(child);
+	if (ndi == NULL)
+		return (NULL);
 	return (&ndi->rl);
 }
 
 static struct resource *
 simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct simplebus_softc *sc;
 	struct simplebus_devinfo *di;
@@ -380,6 +384,8 @@ simplebus_print_res(struct simplebus_devinfo *di)
 {
 	int rv;
 
+	if (di == NULL)
+		return (0);
 	rv = 0;
 	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
 	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");

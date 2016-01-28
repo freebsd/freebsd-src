@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2010
+.Dd December 31, 2015
 .Dt SPLASH 4
 .Os
 .Sh NAME
@@ -130,6 +130,8 @@ the screen will also be powered off.
 Animated graphical
 .Fx
 logo.
+.It Pa plasma_saver.ko
+Draws an animated interference pattern.
 .It Pa rain_saver.ko
 Draws a shower on the screen.
 .It Pa snake_saver.ko
@@ -282,6 +284,14 @@ based on the
 code, with some additional inspiration from the
 .Pa daemon_saver
 code.
+The
+.Pa logo_saver ,
+.Pa plasma_saver ,
+.Pa rain_saver
+and
+.Pa warp_saver
+modules were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
 .Sh CAVEATS
 Both the splash screen and the screen saver work with
 .Xr syscons 4

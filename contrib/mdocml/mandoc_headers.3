@@ -54,7 +54,6 @@ require inclusion of the header where that type is defined.
 Each of the following headers can be included without including
 any other mandoc header.
 These headers should be included before any other mandoc headers.
-Afterwards, any other mandoc headers can be included as needed.
 .Bl -tag -width Ds
 .It Qq Pa mandoc_aux.h
 Requires
@@ -99,14 +98,10 @@ and the functions
 described in
 .Xr mandoc 3 .
 .Pp
-Uses the opaque types
+Uses the opaque type
 .Vt struct mparse
 from
 .Pa read.c
-and
-.Vt struct mchars
-from
-.Pa chars.c
 for function prototypes.
 Uses the types
 .Vt struct mdoc
@@ -117,23 +112,45 @@ and
 from
 .Pa libman.h
 as opaque types for function prototypes.
+.It Qq Pa roff.h
+Provides
+.Vt enum mdoc_endbody ,
+.Vt enum roff_sec ,
+.Vt enum roff_type ,
+.Vt struct roff_meta ,
+and
+.Vt struct roff_node .
+.Pp
+Uses pointers to the types
+.Vt struct mdoc_arg
+and
+.Vt union mdoc_data
+from
+.Qq Pa mdoc.h
+as opaque struct members.
+.El
+.Pp
+The following two require
+.Qq Pa roff.h
+but no other mandoc headers.
+Afterwards, any other mandoc headers can be included as needed.
+.Bl -tag -width Ds
 .It Qq Pa mdoc.h
 Requires
 .In sys/types.h
 for
-.Vt size_t .
+.Vt size_t
+and
+.Qq Pa roff.h
+for
+.Vt enum roff_type .
 .Pp
 Provides
-.Vt enum mdoct ,
 .Vt enum mdocargt ,
-.Vt enum mdoc_type ,
-.Vt enum mdoc_sec ,
-.Vt enum mdoc_endbody ,
 .Vt enum mdoc_disp ,
 .Vt enum mdoc_list ,
 .Vt enum mdoc_auth ,
 .Vt enum mdoc_font ,
-.Vt struct mdoc_meta ,
 .Vt struct mdoc_argv ,
 .Vt struct mdoc_arg ,
 .Vt struct mdoc_bd ,
@@ -141,7 +158,6 @@ Provides
 .Vt struct mdoc_an ,
 .Vt struct mdoc_bf ,
 .Vt struct mdoc_rs ,
-.Vt struct mdoc_node ,
 and the functions
 .Fn mdoc_*
 described in
@@ -163,12 +179,12 @@ When this header is included, the same file should not include
 or
 .Pa libroff.h .
 .It Qq Pa man.h
-Provides
-.Vt enum mant ,
-.Vt enum man_type ,
-.Vt struct man_meta ,
-.Vt struct man_node ,
-and the functions
+Requires
+.Qq Pa roff.h
+for
+.Vt enum roff_type .
+.Pp
+Provides the functions
 .Fn man_*
 described in
 .Xr mandoc 3 .
@@ -204,11 +220,16 @@ are included, the same file should not include any formatter headers.
 Requires
 .In sys/types.h
 for
-.Vt size_t
-and
+.Vt size_t ,
 .Qq Pa mandoc.h
 for
-.Vt enum mandocerr .
+.Vt enum mandocerr ,
+and
+.Qq Pa roff.h
+for
+.Vt struct roff_meta
+and
+.Vt struct roff_node .
 .Pp
 Provides
 .Vt enum rofferr ,
@@ -243,8 +264,7 @@ as opaque types for function prototypes.
 Requires
 .Qq Pa mdoc.h
 for
-.Vt enum mdoct ,
-.Vt enum mdoc_* ,
+.Vt enum mdoc_*
 and
 .Vt struct mdoc_* .
 .Pp
@@ -274,11 +294,11 @@ or
 .Pa libroff.h .
 .It Qq Pa libman.h
 Requires
-.Qq Pa man.h
+.Qq Pa roff.h
 for
-.Vt enum mant
+.Vt struct roff_meta
 and
-.Vt struct man_node.
+.Vt struct roff_node .
 .Pp
 Provides
 .Vt enum man_next ,
@@ -366,8 +386,6 @@ from
 as an opaque type for function prototypes.
 .Pp
 When this header is included, the same file should not include
-.Pa manpath.h
-or
 .Pa mansearch.h .
 .It Qq Pa term.h
 Requires
@@ -389,11 +407,7 @@ Provides
 .Vt struct termp ,
 and many terminal formatting functions.
 .Pp
-Uses the opaque types
-.Vt struct mchars
-from
-.Pa chars.c
-and
+Uses the opaque type
 .Vt struct termp_ps
 from
 .Pa term_ps.c .
@@ -403,11 +417,14 @@ and
 .Vt struct eqn
 from
 .Pa mandoc.h
+and
+.Vt struct roff_meta
+from
+.Qq Pa roff.h
 as opaque types for function prototypes.
 .Pp
 When this header is included, the same file should not include
-.Pa html.h ,
-.Pa manpath.h
+.Pa html.h
 or
 .Pa mansearch.h .
 .It Qq Pa html.h
@@ -435,23 +452,13 @@ Provides
 .Vt struct html ,
 and many HTML formatting functions.
 .Pp
-Uses the opaque type
-.Vt struct mchars
-from
-.Pa chars.c .
-.Pp
 When this header is included, the same file should not include
-.Pa term.h ,
-.Pa manpath.h
+.Pa term.h
 or
 .Pa mansearch.h .
 .It Qq Pa main.h
 Provides the top level steering functions for all formatters.
 .Pp
-Uses the opaque type
-.Vt struct mchars
-from
-.Pa chars.c .
 Uses the types
 .Vt struct mdoc
 from
@@ -461,25 +468,21 @@ and
 from
 .Pa libman.h
 as opaque types for function prototypes.
-.It Qq Pa manpath.h
+.It Qq Pa manconf.h
 Requires
 .In sys/types.h
 for
 .Vt size_t .
 .Pp
 Provides
-.Vt struct manpaths
+.Vt struct manconf ,
+.Vt struct manpaths ,
+.Vt struct manoutput ,
 and the functions
-.Fn manpath_manconf ,
-.Fn manpath_parse ,
+.Fn manconf_parse ,
+.Fn manconf_output ,
 and
-.Fn manpath_free .
-.Pp
-When this header is included, the same file should not include
-.Pa out.h ,
-.Pa term.h ,
-or
-.Pa html.h .
+.Fn manconf_free .
 .It Qq Pa mansearch.h
 Requires
 .In sys/types.h
@@ -503,7 +506,7 @@ and
 Uses
 .Vt struct manpaths
 from
-.Pa manpath.h
+.Pa manconf.h
 as an opaque type for function prototypes.
 .Pp
 When this header is included, the same file should not include

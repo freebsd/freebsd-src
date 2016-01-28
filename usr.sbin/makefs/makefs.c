@@ -66,9 +66,12 @@ typedef struct {
 } fstype_t;
 
 static fstype_t fstypes[] = {
-	{ "ffs", ffs_prep_opts,	ffs_parse_opts,	ffs_cleanup_opts, ffs_makefs },
-	{ "cd9660", cd9660_prep_opts, cd9660_parse_opts, cd9660_cleanup_opts,
-	  cd9660_makefs},
+#define ENTRY(name) { \
+	# name, name ## _prep_opts, name ## _parse_opts, \
+	name ## _cleanup_opts, name ## _makefs  \
+}
+	ENTRY(ffs),
+	ENTRY(cd9660),
 	{ .type = NULL	},
 };
 
@@ -113,7 +116,7 @@ main(int argc, char *argv[])
 	start_time.tv_sec = start.tv_sec;
 	start_time.tv_nsec = start.tv_usec * 1000;
 
-	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pr:s:S:t:xZ")) != -1) {
+	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:pR:s:S:t:xZ")) != -1) {
 		switch (ch) {
 
 		case 'B':

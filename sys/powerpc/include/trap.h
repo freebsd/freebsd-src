@@ -86,6 +86,7 @@
 #define	EXC_ITMISS	0x1200		/* Instruction TLB Miss */
 #define	EXC_APU		0x1300		/* Auxiliary Processing Unit */
 #define	EXC_DEBUG	0x2f10		/* Debug trap */
+#define	EXC_VECAST_E	0x2f20		/* Altivec Assist (Book-E) */
 
 #define	EXC_LAST	0x2f00		/* Last possible exception vector */
 

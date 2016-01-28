@@ -32,7 +32,7 @@
 .Nd Perform various studies on a system's overall PMCs.
 .Sh SYNOPSIS
 .Nm
-.Oo Fl i Ar inputfile | Fl T | Fl v | Fl m Ar max | Fl e exp | Fl Ar E | Fl h | fl H Oc
+.Oo Fl i Ar inputfile | Fl A |  Fl T | Fl v | Fl m Ar max | Fl e exp | Fl Ar E | Fl h | fl H Oc
 .Nm
 .Fl i Ar inputfile
 .Nm
@@ -59,8 +59,8 @@ PMCs and then run various formulas on the output information.
 These formulas can be found in Intel documentation "Using Intel Vtune
 amplifier xe on NNN Generation Intel Core Processors".
 The NNN is either
-2nd, 3rd or 4th generation i.e., Sandy Bridge, Ivy Bridge and Haswell.
-Currently the program only works on these three Intel processor types.
+2nd, 3rd, 4th or 5th generation i.e., Sandy Bridge, Ivy Bridge, Haswell and Broadwell.
+Currently the program only works on these four Intel processor types.
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
@@ -128,6 +128,8 @@ test like
 "UOPS_RETIRED.RETIRE_SLOTS / (4 * CPU_CLK_UNHALTED.THREAD_P)".
 .It Fl L
 This option will list all known PMCs and their abbreviation (%NNN).
+.It Fl A
+Run all canned tests.
 .El
 .Sh SEE ALSO
 .Xr pmc 3 ,

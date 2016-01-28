@@ -114,8 +114,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern struct bus_space at91_bs_tag;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Static device mappings. */

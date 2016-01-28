@@ -92,7 +92,7 @@ static char rcsid[] = "$Id: inet_aton.c,v 1.23 2008/12/01 23:47:45 tbox Exp $";
 int
 isc_net_aton(const char *cp, struct in_addr *addr) {
 	unsigned long val;
-	int base, n;
+	int base;
 	unsigned char c;
 	isc_uint8_t parts[4];
 	isc_uint8_t *pp = parts;
@@ -166,8 +166,7 @@ isc_net_aton(const char *cp, struct in_addr *addr) {
 	 * Concoct the address according to
 	 * the number of parts specified.
 	 */
-	n = pp - parts + 1;
-	switch (n) {
+	switch (pp - parts + 1) {
 	case 1:				/* a -- 32 bits */
 		break;
 

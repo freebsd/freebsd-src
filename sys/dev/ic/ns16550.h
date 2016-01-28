@@ -205,6 +205,7 @@
  * requires ACR[6].
  */
 #define	com_icr		5	/* index control register (R/W) */
+#define	REG_ICR		com_icr
 
 /*
  * 16950 register #7.  It is the same as com_scr except it has a different
@@ -220,6 +221,7 @@
  */
 
 #define	com_acr		0	/* additional control register (R/W) */
+#define	REG_ACR		com_acr
 #define	ACR_ASE		0x80	/* ASR/RFL/TFL enable */
 #define	ACR_ICRE	0x40	/* ICR enable */
 #define	ACR_TLE		0x20	/* TTL/RTL enable */

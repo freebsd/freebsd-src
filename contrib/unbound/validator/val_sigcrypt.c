@@ -57,7 +57,7 @@
 #include "sldns/wire2str.h"
 
 #include <ctype.h>
-#if !defined(HAVE_SSL) && !defined(HAVE_NSS)
+#if !defined(HAVE_SSL) && !defined(HAVE_NSS) && !defined(HAVE_NETTLE)
 #error "Need crypto library to do digital signature cryptography"
 #endif
 

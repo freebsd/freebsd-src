@@ -330,7 +330,7 @@ setvareq(char *s, int flags)
 		if (vp->flags & VREADONLY) {
 			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
 				ckfree(s);
-			error("%.*s: is read only", vp->name_len, s);
+			error("%.*s: is read only", vp->name_len, vp->text);
 		}
 		if (flags & VNOSET) {
 			if ((flags & (VTEXTFIXED|VSTACK)) == 0)
@@ -754,8 +754,8 @@ mklocal(char *name)
 	INTOFF;
 	lvp = ckmalloc(sizeof (struct localvar));
 	if (name[0] == '-' && name[1] == '\0') {
-		lvp->text = ckmalloc(sizeof optlist);
-		memcpy(lvp->text, optlist, sizeof optlist);
+		lvp->text = ckmalloc(sizeof optval);
+		memcpy(lvp->text, optval, sizeof optval);
 		vp = NULL;
 	} else {
 		vp = find_var(name, &vpp, NULL);
@@ -791,22 +791,34 @@ poplocalvars(void)
 {
 	struct localvar *lvp;
 	struct var *vp;
+	int islocalevar;
 
 	INTOFF;
 	while ((lvp = localvars) != NULL) {
 		localvars = lvp->next;
 		vp = lvp->vp;
 		if (vp == NULL) {	/* $- saved */
-			memcpy(optlist, lvp->text, sizeof optlist);
+			memcpy(optval, lvp->text, sizeof optval);
 			ckfree(lvp->text);
 			optschanged();
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
+			vp->flags &= ~VREADONLY;
 			(void)unsetvar(vp->text);
 		} else {
+			islocalevar = (vp->flags | lvp->flags) & VEXPORT &&
+			    localevar(lvp->text);
 			if ((vp->flags & VTEXTFIXED) == 0)
 				ckfree(vp->text);
 			vp->flags = lvp->flags;
 			vp->text = lvp->text;
+			if (vp->func)
+				(*vp->func)(vp->text + vp->name_len + 1);
+			if (islocalevar) {
+				change_env(vp->text, vp->flags & VEXPORT &&
+				    (vp->flags & VUNSET) == 0);
+				setlocale(LC_ALL, "");
+				updatecharset();
+			}
 		}
 		ckfree(lvp);
 	}

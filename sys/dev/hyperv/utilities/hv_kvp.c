@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/lock.h>
 #include <sys/taskqueue.h>
+#include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
@@ -113,6 +114,8 @@ static struct cdevsw hv_kvp_cdevsw =
 static struct cdev *hv_kvp_dev;
 static struct hv_kvp_msg *hv_kvp_dev_buf;
 struct proc *daemon_task;
+
+static struct selinfo hv_kvp_selinfo;
 
 /*
  * Global state to track and synchronize multiple
@@ -628,6 +631,9 @@ hv_kvp_send_msg_to_daemon(void)
 
 	/* Send the msg to user via function deamon_read - setting sema */
 	sema_post(&kvp_globals.dev_sema);
+
+	/* We should wake up the daemon, in case it's doing poll() */
+	selwakeup(&hv_kvp_selinfo);
 }
 
 
@@ -940,7 +946,7 @@ hv_kvp_dev_daemon_write(struct cdev *dev __unused, struct uio *uio, int ioflag _
  * for daemon to read.
  */
 static int
-hv_kvp_dev_daemon_poll(struct cdev *dev __unused, int events, struct thread *td  __unused)
+hv_kvp_dev_daemon_poll(struct cdev *dev __unused, int events, struct thread *td)
 {
 	int revents = 0;
 
@@ -953,6 +959,9 @@ hv_kvp_dev_daemon_poll(struct cdev *dev __unused, int events, struct thread *td 
 	 */
 	if (kvp_globals.daemon_busy == true)
 		revents = POLLIN;
+	else
+		selrecord(td, &hv_kvp_selinfo);
+
 	mtx_unlock(&kvp_globals.pending_mutex);
 
 	return (revents);

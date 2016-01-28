@@ -1,4 +1,4 @@
-/*	$Id: mandoc_aux.h,v 1.3 2014/12/01 04:05:32 schwarze Exp $ */
+/*	$Id: mandoc_aux.h,v 1.4 2015/11/07 14:01:16 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -16,8 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-__BEGIN_DECLS
-
 int		  mandoc_asprintf(char **, const char *, ...);
 void		 *mandoc_calloc(size_t, size_t);
 void		 *mandoc_malloc(size_t);
@@ -25,5 +23,3 @@ void		 *mandoc_realloc(void *, size_t);
 void		 *mandoc_reallocarray(void *, size_t, size_t);
 char		 *mandoc_strdup(const char *);
 char		 *mandoc_strndup(const char *, size_t);
-
-__END_DECLS

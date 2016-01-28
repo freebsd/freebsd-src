@@ -207,6 +207,7 @@ SQANY     [^\'\n\r\\]|\\.
 	/* note that flex makes the longest match and '.' is any but not nl */
 	LEXOUT(("comment(%s) ", ub_c_text)); /* ignore */ }
 server{COLON}			{ YDVAR(0, VAR_SERVER) }
+qname-minimisation{COLON}	{ YDVAR(1, VAR_QNAME_MINIMISATION) }
 num-threads{COLON}		{ YDVAR(1, VAR_NUM_THREADS) }
 verbosity{COLON}		{ YDVAR(1, VAR_VERBOSITY) }
 port{COLON}			{ YDVAR(1, VAR_PORT) }

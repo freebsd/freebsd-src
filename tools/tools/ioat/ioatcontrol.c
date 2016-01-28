@@ -48,10 +48,14 @@ static void
 usage(void)
 {
 
-	printf("Usage: %s [-fV] <channel #> <txns> [<bufsize> "
+	printf("Usage: %s [-E|-f|-m] OPTIONS <channel #> <txns> [<bufsize> "
 	    "[<chain-len> [duration]]]\n", getprogname());
-	printf("       %s -r [-vV] <channel #> <addr> [<bufsize>]\n",
+	printf("       %s -r [-v] OPTIONS <channel #> <addr> [<bufsize>]\n\n",
 	    getprogname());
+	printf("       OPTIONS:\n");
+	printf("           -c <period> - Enable interrupt coalescing (us)\n");
+	printf("           -V          - Enable verification\n");
+	printf("           -z          - Zero device stats before test\n");
 	exit(EX_USAGE);
 }
 
@@ -97,15 +101,32 @@ main(int argc, char **argv)
 {
 	struct ioat_test t;
 	int fd, ch;
-	bool fflag, rflag;
+	bool fflag, rflag, Eflag, mflag;
+	unsigned modeflags;
 
-	while ((ch = getopt(argc, argv, "rfvVw")) != -1) {
+	fflag = rflag = Eflag = mflag = false;
+	modeflags = 0;
+
+	while ((ch = getopt(argc, argv, "c:EfmrvVwz")) != -1) {
 		switch (ch) {
+		case 'c':
+			t.coalesce_period = atoi(optarg);
+			break;
+		case 'E':
+			Eflag = true;
+			modeflags++;
+			break;
 		case 'f':
 			fflag = true;
+			modeflags++;
+			break;
+		case 'm':
+			mflag = true;
+			modeflags++;
 			break;
 		case 'r':
 			rflag = true;
+			modeflags++;
 			break;
 		case 'v':
 			t.raw_is_virtual = true;
@@ -115,6 +136,9 @@ main(int argc, char **argv)
 			break;
 		case 'w':
 			t.raw_write = true;
+			break;
+		case 'z':
+			t.zero_stats = true;
 			break;
 		default:
 			usage();
@@ -126,8 +150,8 @@ main(int argc, char **argv)
 	if (argc < 2)
 		usage();
 
-	if (rflag && fflag) {
-		printf("Invalid: -r and -f\n");
+	if (modeflags > 1) {
+		printf("Invalid: Cannot use >1 mode flag (-E, -f, -m, or -r)\n");
 		usage();
 	}
 
@@ -139,6 +163,11 @@ main(int argc, char **argv)
 
 	if (fflag)
 		t.testkind = IOAT_TEST_FILL;
+	else if (Eflag) {
+		t.testkind = IOAT_TEST_DMA_8K;
+		t.buffer_size = 8 * 1024;
+	} else if (mflag)
+		t.testkind = IOAT_TEST_MEMCPY;
 
 	t.channel_index = atoi(argv[0]);
 	if (t.channel_index > 8) {

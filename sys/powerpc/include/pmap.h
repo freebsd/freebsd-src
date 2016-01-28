@@ -250,7 +250,7 @@ boolean_t	pmap_mmu_install(char *name, int prio);
 				 * For more Ram increase the lmb or this value.
 				 */
 
-extern	vm_offset_t phys_avail[PHYS_AVAIL_SZ];
+extern	vm_paddr_t phys_avail[PHYS_AVAIL_SZ];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
 

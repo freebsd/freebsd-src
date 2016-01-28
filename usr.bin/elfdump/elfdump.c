@@ -408,9 +408,27 @@ static const char *sh_flags[] = {
 	"SHF_WRITE|SHF_ALLOC|SHF_EXECINSTR"
 };
 
-static const char *st_types[] = {
-	"STT_NOTYPE", "STT_OBJECT", "STT_FUNC", "STT_SECTION", "STT_FILE"
-};
+static const char *
+st_type(unsigned int mach, unsigned int type)
+{
+        static char s_type[32];
+
+        switch (type) {
+        case STT_NOTYPE: return "STT_NOTYPE";
+        case STT_OBJECT: return "STT_OBJECT";
+        case STT_FUNC: return "STT_FUNC";
+        case STT_SECTION: return "STT_SECTION";
+        case STT_FILE: return "STT_FILE";
+        case STT_COMMON: return "STT_COMMON";
+        case STT_TLS: return "STT_TLS";
+        case 13:
+                if (mach == EM_SPARCV9)
+                        return "STT_SPARC_REGISTER";
+                break;
+        }
+        snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+        return (s_type);
+}
 
 static const char *st_bindings[] = {
 	"STB_LOCAL", "STB_GLOBAL", "STB_WEAK"
@@ -824,6 +842,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 static void
 elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 {
+	u_int64_t machine;
 	u_int64_t offset;
 	u_int64_t entsize;
 	u_int64_t size;
@@ -835,6 +854,7 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 	int len;
 	int i;
 
+	machine = elf_get_quarter(e, e, E_MACHINE);
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	entsize = elf_get_size(e, sh, SH_ENTSIZE);
 	size = elf_get_size(e, sh, SH_SIZE);
@@ -854,7 +874,7 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 		fprintf(out, "\tst_value: %#jx\n", value);
 		fprintf(out, "\tst_size: %jd\n", (intmax_t)size);
 		fprintf(out, "\tst_info: %s %s\n",
-		    st_types[ELF32_ST_TYPE(info)],
+		    st_type(machine, ELF32_ST_TYPE(info)),
 		    st_bindings[ELF32_ST_BIND(info)]);
 		fprintf(out, "\tst_shndx: %jd\n", (intmax_t)shndx);
 	}

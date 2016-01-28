@@ -27,6 +27,6 @@ CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/stat/common
 
-LIBADD=	avl geom nvpair umem util uutil zfs_core zfs
+LIBADD=	geom nvpair uutil zfs
 
 .include <bsd.prog.mk>

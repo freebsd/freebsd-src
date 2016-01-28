@@ -92,18 +92,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, "struct proc *", "int",
-    "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, ctor, return, "struct proc *", "int",
-    "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, "struct proc *", "int",
-    "void *", "struct thread *");
-SDT_PROBE_DEFINE3(proc, kernel, dtor, return, "struct proc *", "int",
-    "void *");
-SDT_PROBE_DEFINE3(proc, kernel, init, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, , ctor, entry, "struct proc *", "int", "void *",
     "int");
-SDT_PROBE_DEFINE3(proc, kernel, init, return, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, , ctor, return, "struct proc *", "int", "void *",
     "int");
+SDT_PROBE_DEFINE4(proc, , dtor, entry, "struct proc *", "int", "void *",
+    "struct thread *");
+SDT_PROBE_DEFINE3(proc, , dtor, return, "struct proc *", "int", "void *");
+SDT_PROBE_DEFINE3(proc, , init, entry, "struct proc *", "int", "int");
+SDT_PROBE_DEFINE3(proc, , init, return, "struct proc *", "int", "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -196,9 +193,9 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE4(proc, kernel, ctor , entry, p, size, arg, flags);
+	SDT_PROBE4(proc, , ctor , entry, p, size, arg, flags);
 	EVENTHANDLER_INVOKE(process_ctor, p);
-	SDT_PROBE4(proc, kernel, ctor , return, p, size, arg, flags);
+	SDT_PROBE4(proc, , ctor , return, p, size, arg, flags);
 	return (0);
 }
 
@@ -214,7 +211,7 @@ proc_dtor(void *mem, int size, void *arg)
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
 	td = FIRST_THREAD_IN_PROC(p);
-	SDT_PROBE4(proc, kernel, dtor, entry, p, size, arg, td);
+	SDT_PROBE4(proc, , dtor, entry, p, size, arg, td);
 	if (td != NULL) {
 #ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
@@ -227,7 +224,7 @@ proc_dtor(void *mem, int size, void *arg)
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
-	SDT_PROBE3(proc, kernel, dtor, return, p, size, arg);
+	SDT_PROBE3(proc, , dtor, return, p, size, arg);
 }
 
 /*
@@ -239,7 +236,7 @@ proc_init(void *mem, int size, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE3(proc, kernel, init, entry, p, size, flags);
+	SDT_PROBE3(proc, , init, entry, p, size, flags);
 	p->p_sched = (struct p_sched *)&p[1];
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_NEW);
@@ -251,7 +248,8 @@ proc_init(void *mem, int size, int flags)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
-	SDT_PROBE3(proc, kernel, init, return, p, size, flags);
+	p->p_pgrp = NULL;
+	SDT_PROBE3(proc, , init, return, p, size, flags);
 	return (0);
 }
 
@@ -652,13 +650,11 @@ pgadjustjobc(pgrp, entering)
  * entering == 1 => p is entering specified group.
  */
 void
-fixjobc(p, pgrp, entering)
-	register struct proc *p;
-	register struct pgrp *pgrp;
-	int entering;
+fixjobc(struct proc *p, struct pgrp *pgrp, int entering)
 {
-	register struct pgrp *hispgrp;
-	register struct session *mysession;
+	struct pgrp *hispgrp;
+	struct session *mysession;
+	struct proc *q;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
@@ -679,19 +675,88 @@ fixjobc(p, pgrp, entering)
 	 * their process groups; if so, adjust counts for children's
 	 * process groups.
 	 */
-	LIST_FOREACH(p, &p->p_children, p_sibling) {
-		hispgrp = p->p_pgrp;
+	LIST_FOREACH(q, &p->p_children, p_sibling) {
+		hispgrp = q->p_pgrp;
 		if (hispgrp == pgrp ||
 		    hispgrp->pg_session != mysession)
 			continue;
-		PROC_LOCK(p);
-		if (p->p_state == PRS_ZOMBIE) {
-			PROC_UNLOCK(p);
+		if (q->p_state == PRS_ZOMBIE)
 			continue;
-		}
-		PROC_UNLOCK(p);
 		pgadjustjobc(hispgrp, entering);
 	}
+}
+
+void
+killjobc(void)
+{
+	struct session *sp;
+	struct tty *tp;
+	struct proc *p;
+	struct vnode *ttyvp;
+
+	p = curproc;
+	MPASS(p->p_flag & P_WEXIT);
+	/*
+	 * Do a quick check to see if there is anything to do with the
+	 * proctree_lock held. pgrp and LIST_EMPTY checks are for fixjobc().
+	 */
+	PROC_LOCK(p);
+	if (!SESS_LEADER(p) &&
+	    (p->p_pgrp == p->p_pptr->p_pgrp) &&
+	    LIST_EMPTY(&p->p_children)) {
+		PROC_UNLOCK(p);
+		return;
+	}
+	PROC_UNLOCK(p);
+
+	sx_xlock(&proctree_lock);
+	if (SESS_LEADER(p)) {
+		sp = p->p_session;
+
+		/*
+		 * s_ttyp is not zero'd; we use this to indicate that
+		 * the session once had a controlling terminal. (for
+		 * logging and informational purposes)
+		 */
+		SESS_LOCK(sp);
+		ttyvp = sp->s_ttyvp;
+		tp = sp->s_ttyp;
+		sp->s_ttyvp = NULL;
+		sp->s_ttydp = NULL;
+		sp->s_leader = NULL;
+		SESS_UNLOCK(sp);
+
+		/*
+		 * Signal foreground pgrp and revoke access to
+		 * controlling terminal if it has not been revoked
+		 * already.
+		 *
+		 * Because the TTY may have been revoked in the mean
+		 * time and could already have a new session associated
+		 * with it, make sure we don't send a SIGHUP to a
+		 * foreground process group that does not belong to this
+		 * session.
+		 */
+
+		if (tp != NULL) {
+			tty_lock(tp);
+			if (tp->t_session == sp)
+				tty_signal_pgrp(tp, SIGHUP);
+			tty_unlock(tp);
+		}
+
+		if (ttyvp != NULL) {
+			sx_xunlock(&proctree_lock);
+			if (vn_lock(ttyvp, LK_EXCLUSIVE) == 0) {
+				VOP_REVOKE(ttyvp, REVOKEALL);
+				VOP_UNLOCK(ttyvp, 0);
+			}
+			vrele(ttyvp);
+			sx_xlock(&proctree_lock);
+		}
+	}
+	fixjobc(p, p->p_pgrp, 0);
+	sx_xunlock(&proctree_lock);
 }
 
 /*
@@ -1526,50 +1591,20 @@ pargs_drop(struct pargs *pa)
 }
 
 static int
-proc_read_mem(struct thread *td, struct proc *p, vm_offset_t offset, void* buf,
-    size_t len)
-{
-	struct iovec iov;
-	struct uio uio;
-
-	iov.iov_base = (caddr_t)buf;
-	iov.iov_len = len;
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = offset;
-	uio.uio_resid = (ssize_t)len;
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = td;
-
-	return (proc_rwmem(p, &uio));
-}
-
-static int
 proc_read_string(struct thread *td, struct proc *p, const char *sptr, char *buf,
     size_t len)
 {
-	size_t i;
-	int error;
+	ssize_t n;
 
-	error = proc_read_mem(td, p, (vm_offset_t)sptr, buf, len);
 	/*
-	 * Reading the chunk may validly return EFAULT if the string is shorter
-	 * than the chunk and is aligned at the end of the page, assuming the
-	 * next page is not mapped.  So if EFAULT is returned do a fallback to
-	 * one byte read loop.
+	 * This may return a short read if the string is shorter than the chunk
+	 * and is aligned at the end of the page, and the following page is not
+	 * mapped.
 	 */
-	if (error == EFAULT) {
-		for (i = 0; i < len; i++, buf++, sptr++) {
-			error = proc_read_mem(td, p, (vm_offset_t)sptr, buf, 1);
-			if (error != 0)
-				return (error);
-			if (*buf == '\0')
-				break;
-		}
-		error = 0;
-	}
-	return (error);
+	n = proc_readmem(td, p, (vm_offset_t)sptr, buf, len);
+	if (n <= 0)
+		return (ENOMEM);
+	return (0);
 }
 
 #define PROC_AUXV_MAX	256	/* Safety limit on auxv size. */
@@ -1593,10 +1628,10 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 	size_t vsize, size;
 	int i, error;
 
-	error = proc_read_mem(td, p, (vm_offset_t)(p->p_sysent->sv_psstrings),
-	    &pss, sizeof(pss));
-	if (error != 0)
-		return (error);
+	error = 0;
+	if (proc_readmem(td, p, (vm_offset_t)p->p_sysent->sv_psstrings, &pss,
+	    sizeof(pss)) != sizeof(pss))
+		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
 		vptr = (vm_offset_t)PTRIN(pss.ps_argvstr);
@@ -1618,9 +1653,9 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 		if (vptr % 4 != 0)
 			return (ENOEXEC);
 		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
-			error = proc_read_mem(td, p, ptr, &aux, sizeof(aux));
-			if (error != 0)
-				return (error);
+			if (proc_readmem(td, p, ptr, &aux, sizeof(aux)) !=
+			    sizeof(aux))
+				return (ENOMEM);
 			if (aux.a_type == AT_NULL)
 				break;
 			ptr += sizeof(aux);
@@ -1635,9 +1670,10 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 		return (EINVAL);
 	}
 	proc_vector32 = malloc(size, M_TEMP, M_WAITOK);
-	error = proc_read_mem(td, p, vptr, proc_vector32, size);
-	if (error != 0)
+	if (proc_readmem(td, p, vptr, proc_vector32, size) != size) {
+		error = ENOMEM;
 		goto done;
+	}
 	if (type == PROC_AUX) {
 		*proc_vectorp = (char **)proc_vector32;
 		*vsizep = vsize;
@@ -1663,16 +1699,15 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 	vm_offset_t vptr, ptr;
 	char **proc_vector;
 	size_t vsize, size;
-	int error, i;
+	int i;
 
 #ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(p, SV_ILP32) != 0)
 		return (get_proc_vector32(td, p, proc_vectorp, vsizep, type));
 #endif
-	error = proc_read_mem(td, p, (vm_offset_t)(p->p_sysent->sv_psstrings),
-	    &pss, sizeof(pss));
-	if (error != 0)
-		return (error);
+	if (proc_readmem(td, p, (vm_offset_t)p->p_sysent->sv_psstrings, &pss,
+	    sizeof(pss)) != sizeof(pss))
+		return (ENOMEM);
 	switch (type) {
 	case PROC_ARG:
 		vptr = (vm_offset_t)pss.ps_argvstr;
@@ -1709,9 +1744,9 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 		 * to the allocated proc_vector.
 		 */
 		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
-			error = proc_read_mem(td, p, ptr, &aux, sizeof(aux));
-			if (error != 0)
-				return (error);
+			if (proc_readmem(td, p, ptr, &aux, sizeof(aux)) !=
+			    sizeof(aux))
+				return (ENOMEM);
 			if (aux.a_type == AT_NULL)
 				break;
 			ptr += sizeof(aux);
@@ -1732,12 +1767,9 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 		return (EINVAL); /* In case we are built without INVARIANTS. */
 	}
 	proc_vector = malloc(size, M_TEMP, M_WAITOK);
-	if (proc_vector == NULL)
-		return (ENOMEM);
-	error = proc_read_mem(td, p, vptr, proc_vector, size);
-	if (error != 0) {
+	if (proc_readmem(td, p, vptr, proc_vector, size) != size) {
 		free(proc_vector, M_TEMP);
-		return (error);
+		return (ENOMEM);
 	}
 	*proc_vectorp = proc_vector;
 	*vsizep = vsize;

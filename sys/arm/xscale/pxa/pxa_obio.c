@@ -50,14 +50,14 @@ static int	pxa_read_ivar(device_t, device_t, int, uintptr_t *);
 
 static struct resource_list *	pxa_get_resource_list(device_t, device_t);
 static struct resource *	pxa_alloc_resource(device_t, device_t, int,
-				    int *, u_long, u_long, u_long, u_int);
+				    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int			pxa_release_resource(device_t, device_t, int,
 				    int, struct resource *);
 static int			pxa_activate_resource(device_t, device_t,
 				    int, int, struct resource *);
 
 static struct resource *	pxa_alloc_gpio_irq(device_t, device_t, int,
-				    int *, u_long, u_long, u_long, u_int);
+				    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 
 struct obio_device {
 	const char	*od_name;
@@ -224,7 +224,7 @@ pxa_get_resource_list(device_t dev, device_t child)
 
 static struct resource *
 pxa_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	obio_softc *sc;
 	struct	obio_device *od;
@@ -351,7 +351,7 @@ DRIVER_MODULE(pxa, nexus, pxa_driver, pxa_devclass, 0, 0);
 
 static struct resource *
 pxa_alloc_gpio_irq(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	obio_softc *sc;
 	struct	obio_device *od;

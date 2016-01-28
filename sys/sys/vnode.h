@@ -605,6 +605,8 @@ struct vnode;
 
 typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
 
+int	bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn,
+	    daddr_t endn);
 /* cache_* may belong in namei.h. */
 void	cache_changesize(int newhashsize);
 #define	cache_enter(dvp, vp, cnp)					\
@@ -821,6 +823,7 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
+void	vrefl(struct vnode *vp);
 int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 

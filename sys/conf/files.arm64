@@ -38,6 +38,7 @@ arm64/arm64/mem.c		standard
 arm64/arm64/minidump_machdep.c	standard
 arm64/arm64/mp_machdep.c	optional	smp
 arm64/arm64/nexus.c		standard
+arm64/arm64/ofw_machdep.c	optional	fdt
 arm64/arm64/pic_if.m		standard
 arm64/arm64/pmap.c		standard
 arm64/arm64/stack_machdep.c	optional	ddb | stack
@@ -58,7 +59,6 @@ crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
 dev/ahci/ahci_generic.c		optional ahci fdt
-dev/fdt/fdt_arm64.c		optional	fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
 dev/mmc/host/dwmmc.c		optional	dwmmc

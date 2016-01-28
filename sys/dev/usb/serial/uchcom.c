@@ -874,3 +874,4 @@ DRIVER_MODULE(uchcom, uhub, uchcom_driver, uchcom_devclass, NULL, 0);
 MODULE_DEPEND(uchcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uchcom, usb, 1, 1, 1);
 MODULE_VERSION(uchcom, 1);
+USB_PNP_HOST_INFO(uchcom_devs);

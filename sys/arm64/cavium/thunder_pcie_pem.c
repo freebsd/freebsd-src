@@ -114,7 +114,7 @@ struct thunder_pem_softc {
 	struct resource		*reg;
 	bus_space_tag_t		reg_bst;
 	bus_space_handle_t	reg_bsh;
-	struct pcie_range	ranges[MAX_RANGES_TUPLES];
+	struct pcie_range	ranges[RANGES_TUPLES_MAX];
 	struct rman		mem_rman;
 	struct rman		io_rman;
 	bus_space_handle_t	pem_sli_base;
@@ -126,7 +126,7 @@ struct thunder_pem_softc {
 };
 
 static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pem_attach(device_t);
 static int thunder_pem_detach(device_t);
 static uint64_t thunder_pem_config_reg_read(struct thunder_pem_softc *, int);
@@ -165,11 +165,12 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
-	DEVMETHOD(pcib_map_msi,			thunder_common_map_msi),
-	DEVMETHOD(pcib_alloc_msix,		thunder_common_alloc_msix),
-	DEVMETHOD(pcib_release_msix,		thunder_common_release_msix),
-	DEVMETHOD(pcib_alloc_msi,		thunder_common_alloc_msi),
-	DEVMETHOD(pcib_release_msi,		thunder_common_release_msi),
+
+	DEVMETHOD(pcib_map_msi,			arm_map_msi),
+	DEVMETHOD(pcib_alloc_msix,		arm_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		arm_release_msix),
+	DEVMETHOD(pcib_alloc_msi,		arm_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		arm_release_msi),
 	DEVMETHOD_END
 };
 
@@ -229,7 +230,7 @@ static int
 thunder_pem_identify(device_t dev)
 {
 	struct thunder_pem_softc *sc;
-	u_long start;
+	rman_res_t start;
 
 	sc = device_get_softc(dev);
 	start = rman_get_start(sc->reg);
@@ -425,7 +426,7 @@ thunder_pem_write_config(device_t dev, u_int bus, u_int slot,
 
 static struct resource *
 thunder_pem_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct thunder_pem_softc *sc = device_get_softc(dev);
 	struct rman *rm = NULL;

@@ -251,6 +251,7 @@ test_AppendQueues(void) {
 	free_node(e3_ptr);
 	free_node(e4_ptr);
 	free_node(e5_ptr);
+	free_node(e6_ptr);
 
 	TEST_ASSERT_EQUAL(0, get_no_of_elements(q4));
 

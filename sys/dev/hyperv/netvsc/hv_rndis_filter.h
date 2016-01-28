@@ -98,6 +98,8 @@ typedef struct rndis_device_ {
 
 int hv_rf_on_receive(netvsc_dev *net_dev,
     struct hv_device *device, netvsc_packet *pkt);
+void hv_rf_receive_rollup(netvsc_dev *net_dev);
+void hv_rf_channel_rollup(netvsc_dev *net_dev);
 int hv_rf_on_device_add(struct hv_device *device, void *additl_info);
 int hv_rf_on_device_remove(struct hv_device *device, boolean_t destroy_channel);
 int hv_rf_on_open(struct hv_device *device);

@@ -24,6 +24,7 @@
  * Be sure to escape strings.
  */
 
+LINE("lib80211",	"802.11 Wireless Network Management Library (lib80211, \\-l80211)")
 LINE("libarchive",	"Streaming Archive Library (libarchive, \\-larchive)")
 LINE("libarm",		"ARM Architecture Library (libarm, \\-larm)")
 LINE("libarm32",	"ARM32 Architecture Library (libarm32, \\-larm32)")
@@ -110,6 +111,7 @@ LINE("libsdp",		"Bluetooth Service Discovery Protocol User Library (libsdp, \\-l
 LINE("libssp",		"Buffer Overflow Protection Library (libssp, \\-lssp)")
 LINE("libstdthreads",	"C11 Threads Library (libstdthreads, \\-lstdthreads)")
 LINE("libSystem",	"System Library (libSystem, \\-lSystem)")
+LINE("libsysdecode",	"System Argument Decoding Library (libsysdecode, \\-lsysdecode)")
 LINE("libtacplus",	"TACACS+ Client Library (libtacplus, \\-ltacplus)")
 LINE("libtcplay",	"TrueCrypt-compatible API library (libtcplay, \\-ltcplay)")
 LINE("libtermcap",	"Termcap Access Library (libtermcap, \\-ltermcap)")

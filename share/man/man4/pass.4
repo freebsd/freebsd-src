@@ -102,7 +102,7 @@ Queue a CCB to the
 driver to be executed asynchronously.
 The caller may use
 .Xr select 2 ,
-.Xr poll 2 
+.Xr poll 2
 or
 .Xr kevent 2
 to receive notification when the CCB has completed.
@@ -120,11 +120,11 @@ Although the
 .Dv CAMIOQUEUE
 ioctl is not defined to take an argument, it does require a
 pointer to a union ccb.
-It is not defined to take an argument to avoid an extra malloc and copy 
-inside the generic 
+It is not defined to take an argument to avoid an extra malloc and copy
+inside the generic
 .Xr ioctl 2
 handler.
-.pp
+.Pp
 The completed CCB will be returned via the
 .Dv CAMIOGET
 ioctl.
@@ -171,7 +171,7 @@ ioctl if the
 driver fails to copy data to the user process or if there are no completed
 CCBs available to retrieve.
 If no CCBs are available to retrieve,
-errno will be set to 
+errno will be set to
 .Dv ENOENT .
 .Pp
 All other errors will be reported as standard CAM CCB status errors.
@@ -180,14 +180,14 @@ Although the
 .Dv CAMIOGET
 ioctl is not defined to take an argument, it does require a
 pointer to a union ccb.
-It is not defined to take an argument to avoid an extra malloc and copy 
-inside the generic 
+It is not defined to take an argument to avoid an extra malloc and copy
+inside the generic
 .Xr ioctl 2
 handler.
 .Pp
 The pass driver will report via
 .Xr select 2 ,
-.Xr poll 2 
+.Xr poll 2
 or
 .Xr kevent 2
 when a CCB has completed.

@@ -47,12 +47,14 @@ __FBSDID("$FreeBSD$");
 #include <fts.h>
 #include <langinfo.h>
 #include <libutil.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <wchar.h>
 #ifdef COLORLS
 #include <ctype.h>
 #include <termcap.h>
@@ -105,6 +107,9 @@ static struct {
 } colors[C_NUMCOLORS];
 #endif
 
+static size_t padding_for_month[12];
+static size_t month_max_size = 0;
+
 void
 printscol(const DISPLAY *dp)
 {
@@ -136,6 +141,70 @@ printname(const char *field, const char *name)
 	rc = xo_emit(fmt, s);
 	free(s);
 	return rc;
+}
+
+static const char *
+get_abmon(int mon)
+{
+
+	switch (mon) {
+	case 0: return (nl_langinfo(ABMON_1));
+	case 1: return (nl_langinfo(ABMON_2));
+	case 2: return (nl_langinfo(ABMON_3));
+	case 3: return (nl_langinfo(ABMON_4));
+	case 4: return (nl_langinfo(ABMON_5));
+	case 5: return (nl_langinfo(ABMON_6));
+	case 6: return (nl_langinfo(ABMON_7));
+	case 7: return (nl_langinfo(ABMON_8));
+	case 8: return (nl_langinfo(ABMON_9));
+	case 9: return (nl_langinfo(ABMON_10));
+	case 10: return (nl_langinfo(ABMON_11));
+	case 11: return (nl_langinfo(ABMON_12));
+	}
+
+	/* should never happen */
+	abort();
+}
+
+static size_t
+mbswidth(const char *month)
+{
+	wchar_t wc;
+	size_t width, donelen, clen, w;
+
+	width = donelen = 0;
+	while ((clen = mbrtowc(&wc, month + donelen, MB_LEN_MAX, NULL)) != 0) {
+		if (clen == (size_t)-1 || clen == (size_t)-2)
+			return (-1);
+		donelen += clen;
+		if ((w = wcwidth(wc)) == (size_t)-1)
+			return (-1);
+		width += w;
+	}
+
+	return (width);
+}
+
+static void
+compute_abbreviated_month_size(void)
+{
+	int i;
+	size_t width;
+	size_t months_width[12];
+
+	for (i = 0; i < 12; i++) {
+		width = mbswidth(get_abmon(i));
+		if (width == (size_t)-1) {
+			month_max_size = -1;
+			return;
+		}
+		months_width[i] = width;
+		if (width > month_max_size)
+			month_max_size = width;
+	}
+
+	for (i = 0; i < 12; i++)
+		padding_for_month[i] = month_max_size - months_width[i];
 }
 
 /*
@@ -425,6 +494,31 @@ printdev(size_t width, dev_t dev)
 	xo_emit("{:device/%#*jx} ", (u_int)width, (uintmax_t)dev);
 }
 
+static size_t
+ls_strftime(char *str, size_t len, const char *fmt, const struct tm *tm)
+{
+	char *posb, nfmt[BUFSIZ];
+	const char *format = fmt;
+	size_t ret;
+
+	if ((posb = strstr(fmt, "%b")) != NULL) {
+		if (month_max_size == 0) {
+			compute_abbreviated_month_size();
+		}
+		if (month_max_size > 0) {
+			snprintf(nfmt, sizeof(nfmt),  "%.*s%s%*s%s",
+			    (int)(posb - fmt), fmt,
+			    get_abmon(tm->tm_mon),
+			    (int)padding_for_month[tm->tm_mon],
+			    "",
+			    posb + 2);
+			format = nfmt;
+		}
+	}
+	ret = strftime(str, len, format, tm);
+	return (ret);
+}
+
 static void
 printtime(const char *field, time_t ftime)
 {
@@ -451,7 +545,7 @@ printtime(const char *field, time_t ftime)
 	else
 		/* mmm dd  yyyy || dd mmm  yyyy */
 		format = d_first ? "%e %b  %Y" : "%b %e  %Y";
-	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
+	ls_strftime(longstring, sizeof(longstring), format, localtime(&ftime));
 
 	snprintf(fmt, sizeof(fmt), "{d:%s/%%hs} ", field);
 	xo_attr("value", "%ld", (long) ftime);

@@ -134,6 +134,48 @@ struct ifnet_hw_tsomax {
 	u_int	tsomaxsegsize;	/* TSO maximum segment size in bytes */
 };
 
+/* Interface encap request types */
+typedef enum {
+	IFENCAP_LL = 1			/* pre-calculate link-layer header */
+} ife_type;
+
+/*
+ * The structure below allows to request various pre-calculated L2/L3 headers
+ * for different media. Requests varies by type (rtype field).
+ *
+ * IFENCAP_LL type: pre-calculates link header based on address family
+ *   and destination lladdr.
+ *
+ *   Input data fields:
+ *     buf: pointer to destination buffer
+ *     bufsize: buffer size
+ *     flags: IFENCAP_FLAG_BROADCAST if destination is broadcast
+ *     family: address family defined by AF_ constant.
+ *     lladdr: pointer to link-layer address
+ *     lladdr_len: length of link-layer address
+ *     hdata: pointer to L3 header (optional, used for ARP requests).
+ *   Output data fields:
+ *     buf: encap data is stored here
+ *     bufsize: resulting encap length is stored here
+ *     lladdr_off: offset of link-layer address from encap hdr start
+ *     hdata: L3 header may be altered if necessary
+ */
+
+struct if_encap_req {
+	u_char		*buf;		/* Destination buffer (w) */
+	size_t		bufsize;	/* size of provided buffer (r) */
+	ife_type	rtype;		/* request type (r) */
+	uint32_t	flags;		/* Request flags (r) */
+	int		family;		/* Address family AF_* (r) */
+	int		lladdr_off;	/* offset from header start (w) */
+	int		lladdr_len;	/* lladdr length (r) */
+	char		*lladdr;	/* link-level address pointer (r) */
+	char		*hdata;		/* Upper layer header data (rw) */
+};
+
+#define	IFENCAP_FLAG_BROADCAST	0x02	/* Destination is broadcast */
+
+
 /*
  * Structure defining a network interface.
  *
@@ -235,6 +277,8 @@ struct ifnet {
 	void	(*if_reassign)		/* reassign to vnet routine */
 		(struct ifnet *, struct vnet *, char *);
 	if_get_counter_t if_get_counter; /* get counter values */
+	int	(*if_requestencap)	/* make link header from request */
+		(struct ifnet *, struct if_encap_req *);
 
 	/* Statistics. */
 	counter_u64_t	if_counters[IFCOUNTERS];

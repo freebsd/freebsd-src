@@ -2841,6 +2841,7 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		int two_finger_scroll;
 		int len, weight_prev_x, weight_prev_y;
 		int div_max_x, div_max_y, div_x, div_y;
+		int exiting_scroll;
 
 		/* Read sysctl. */
 		/* XXX Verify values? */
@@ -2866,6 +2867,8 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		vscroll_hor_area = sc->syninfo.vscroll_hor_area;
 		vscroll_ver_area = sc->syninfo.vscroll_ver_area;
 		two_finger_scroll = sc->syninfo.two_finger_scroll;
+
+		exiting_scroll = 0;
 
 		/* Palm detection. */
 		if (!(
@@ -3068,8 +3071,10 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		 * Reset two finger scrolling when the number of fingers
 		 * is different from two.
 		 */
-		if (two_finger_scroll && w != 0)
+		if (two_finger_scroll && w != 0 && synaction->in_vscroll != 0) {
 			synaction->in_vscroll = 0;
+			exiting_scroll = 1;
+		}
 
 		VLOG(5, (LOG_DEBUG,
 			"synaptics: virtual scrolling: %s "
@@ -3177,6 +3182,10 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			/* The pointer is not moved. */
 			*x = *y = 0;
 		} else {
+			/* On exit the x/y pos may jump, ignore this */
+			if (exiting_scroll)
+				*x = *y = 0;
+
 			VLOG(3, (LOG_DEBUG, "synaptics: [%d, %d] -> [%d, %d]\n",
 			    dx, dy, *x, *y));
 		}

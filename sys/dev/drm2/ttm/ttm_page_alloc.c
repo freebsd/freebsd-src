@@ -166,13 +166,9 @@ ttm_vm_page_alloc_dma32(int req, vm_memattr_t memattr)
 		    PAGE_SIZE, 0, memattr);
 		if (p != NULL || tries > 2)
 			return (p);
-
-		/*
-		 * Before growing the cache see if this is just a normal
-		 * memory shortage.
-		 */
-		VM_WAIT;
-		vm_pageout_grow_cache(tries, 0, 0xffffffff);
+		if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
+		    PAGE_SIZE, 0))
+			VM_WAIT;
 	}
 }
 

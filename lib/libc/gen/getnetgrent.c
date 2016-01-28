@@ -512,6 +512,7 @@ parse_netgrp(const char *group)
 				    ng[NG_DOM] == NULL ? "" : ",",
 				    ng[NG_DOM] == NULL ? "" : ng[NG_DOM],
 				    lp->l_groupname);
+			}
 #endif
 		} else {
 			spos = strsep(&pos, ", \t");

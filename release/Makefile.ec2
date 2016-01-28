@@ -51,7 +51,7 @@ ec2ami: cw-ec2 ${CW_EC2_PORTINSTALL}
 	@echo "--------------------------------------------------------------"
 	@false
 .endif
-	/usr/local/bin/bsdec2-image-upload ${PUBLISH} \
+	/usr/local/bin/bsdec2-image-upload ${PUBLISH} --sriov \
 	    ${.OBJDIR}/ec2.raw \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}${AMINAMESUFFIX}" \
 	    "${TYPE} ${REVISION}-${BRANCH}-${TARGET}" \

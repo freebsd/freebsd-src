@@ -39,8 +39,8 @@
 #include <machine/pcpu.h>
 
 struct mem_region {
-	vm_offset_t	mr_start;
-	vm_size_t	mr_size;
+	uint64_t	mr_start;
+	uint64_t	mr_size;
 };
 
 void	mem_regions(struct mem_region **, int *, struct mem_region **, int *);
@@ -56,6 +56,8 @@ void	platform_smp_ap_init(void);
   
 const char *installed_platform(void);
 void platform_probe_and_attach(void);
+
+void	platform_cpu_idle(int);
 
 void platform_sleep(void);
   

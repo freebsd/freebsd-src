@@ -239,6 +239,7 @@ MAN=	accept_filter.9 \
 	printf.9 \
 	prison_check.9 \
 	priv.9 \
+	proc_rwmem.9 \
 	pseudofs.9 \
 	psignal.9 \
 	random.9 \
@@ -1012,7 +1013,8 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 make_dev_alias_p.9 \
 	make_dev.9 make_dev_cred.9 \
 	make_dev.9 make_dev_credf.9 \
-	make_dev.9 make_dev_p.9
+	make_dev.9 make_dev_p.9 \
+	make_dev.9 make_dev_s.9
 MLINKS+=malloc.9 free.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
@@ -1053,6 +1055,7 @@ MLINKS+=\
 	mbuf.9 m_cat.9 \
 	mbuf.9 MCHTYPE.9 \
 	mbuf.9 MCLGET.9 \
+	mbuf.9 m_collapse.9 \
 	mbuf.9 m_copyback.9 \
 	mbuf.9 m_copydata.9 \
 	mbuf.9 m_copym.9 \
@@ -1285,6 +1288,8 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_iov_detach.9 \
 	pci.9 pci_msi_count.9 \
 	pci.9 pci_msix_count.9 \
+	pci.9 pci_msix_pba_bar.9 \
+	pci.9 pci_msix_table_bar.9 \
 	pci.9 pci_pending_msix.9 \
 	pci.9 pci_read_config.9 \
 	pci.9 pci_release_msi.9 \
@@ -1339,6 +1344,8 @@ MLINKS+=printf.9 log.9 \
 	printf.9 uprintf.9
 MLINKS+=priv.9 priv_check.9 \
 	priv.9 priv_check_cred.9
+MLINKS+=proc_rwmem.9 proc_readmem.9 \
+	proc_rwmem.9 proc_writemem.9
 MLINKS+=psignal.9 gsignal.9 \
 	psignal.9 pgsignal.9 \
 	psignal.9 tdsignal.9
@@ -1908,6 +1915,7 @@ MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zone_get_cur.9 \
 	zone.9 uma_zone_get_max.9 \
 	zone.9 uma_zone_set_max.9 \
-	zone.9 uma_zone_set_warning.9
+	zone.9 uma_zone_set_warning.9 \
+	zone.9 uma_zone_set_maxaction.9
 
 .include <bsd.prog.mk>

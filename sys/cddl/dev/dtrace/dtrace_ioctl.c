@@ -32,25 +32,47 @@ static int
 dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     struct thread *td)
 {
-	dof_helper_t *dhp = NULL;
-	dof_hdr_t *dof = NULL;
+	struct proc *p;
+	dof_helper_t *dhp;
+	dof_hdr_t *dof;
 	int rval;
 
+	dhp = NULL;
+	dof = NULL;
+	rval = 0;
 	switch (cmd) {
 	case DTRACEHIOC_ADDDOF:
 		dhp = (dof_helper_t *)addr;
-		/* XXX all because dofhp_dof is 64 bit */
-		addr = (caddr_t)(vm_offset_t)dhp->dofhp_dof;
+		addr = (caddr_t)(uintptr_t)dhp->dofhp_dof;
 		/* FALLTHROUGH */
 	case DTRACEHIOC_ADD:
-		dof = dtrace_dof_copyin((intptr_t)addr, &rval);
+		p = curproc;
+		if (p->p_pid == dhp->dofhp_pid) {
+			dof = dtrace_dof_copyin((uintptr_t)addr, &rval);
+		} else {
+			p = pfind(dhp->dofhp_pid);
+			if (p == NULL)
+				return (EINVAL);
+			if (!P_SHOULDSTOP(p) ||
+			    (p->p_flag & P_TRACED|P_WEXIT) == 0 ||
+			    p->p_pptr != curproc) {
+				PROC_UNLOCK(p);
+				return (EINVAL);
+			}
+			_PHOLD(p);
+			PROC_UNLOCK(p);
+			dof = dtrace_dof_copyin_proc(p, (uintptr_t)addr, &rval);
+		}
 
-		if (dof == NULL)
-			return (rval);
+		if (dof == NULL) {
+			if (p != curproc)
+				PRELE(p);
+			break;
+		}
 
 		mutex_enter(&dtrace_lock);
-		if ((rval = dtrace_helper_slurp((dof_hdr_t *)dof, dhp)) != -1) {
-			if (dhp) {
+		if ((rval = dtrace_helper_slurp(dof, dhp, p)) != -1) {
+			if (dhp != NULL) {
 				dhp->dofhp_gen = rval;
 				copyout(dhp, addr, sizeof(*dhp));
 			}
@@ -59,19 +81,19 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			rval = EINVAL;
 		}
 		mutex_exit(&dtrace_lock);
-
-		return (rval);
+		if (p != curproc)
+			PRELE(p);
+		break;
 	case DTRACEHIOC_REMOVE:
 		mutex_enter(&dtrace_lock);
-		rval = dtrace_helper_destroygen(NULL, (int)*addr);
+		rval = dtrace_helper_destroygen(NULL, *(int *)(uintptr_t)addr);
 		mutex_exit(&dtrace_lock);
-
-		return (rval);
+		break;
 	default:
+		rval = ENOTTY;
 		break;
 	}
-
-	return (ENOTTY);
+	return (rval);
 }
 
 /* ARGSUSED */

@@ -5,7 +5,8 @@
 PROG=	rping
 MAN=
 SRCS=	rping.c
-LDADD+= -libverbs -lrdmacm -lpthread
-LDADD+= -lmlx4
+LIBADD+= ibverbs rdmacm pthread
+LIBADD+= mlx4
+LIBADD+= cxgb4
 
 .include <bsd.prog.mk>

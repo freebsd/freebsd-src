@@ -803,7 +803,6 @@ void 	_pthread_cancel_leave(int maycancel);
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
 int     __sys_fcntl(int, int, ...);
-int     __sys_open(const char *, int, ...);
 int     __sys_openat(int, const char *, int, ...);
 #endif
 

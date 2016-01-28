@@ -91,12 +91,12 @@ static int		acpi_pcib_alloc_msix(device_t pcib, device_t dev,
 			    int *irq);
 static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
 			    device_t child, int type, int *rid,
-			    u_long start, u_long end, u_long count,
+			    rman_res_t start, rman_res_t end, rman_res_t count,
 			    u_int flags);
 #ifdef NEW_PCIB
 static int		acpi_pcib_acpi_adjust_resource(device_t dev,
 			    device_t child, int type, struct resource *r,
-			    u_long start, u_long end);
+			    rman_res_t start, rman_res_t end);
 #ifdef PCI_RES_BUS
 static int		acpi_pcib_acpi_release_resource(device_t dev,
 			    device_t child, int type, int rid,
@@ -283,7 +283,7 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static int
-first_decoded_bus(struct acpi_hpcib_softc *sc, u_long *startp)
+first_decoded_bus(struct acpi_hpcib_softc *sc, rman_res_t *startp)
 {
 	struct resource_list_entry *rle;
 
@@ -304,7 +304,7 @@ acpi_pcib_acpi_attach(device_t dev)
     u_int slot, func, busok;
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
     struct resource *bus_res;
-    u_long start;
+    rman_res_t start;
     int rid;
 #endif
     uint8_t busno;
@@ -584,7 +584,7 @@ acpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 
 struct resource *
 acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #ifdef NEW_PCIB
     struct acpi_hpcib_softc *sc;
@@ -625,7 +625,7 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #ifdef NEW_PCIB
 int
 acpi_pcib_acpi_adjust_resource(device_t dev, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct acpi_hpcib_softc *sc;
 

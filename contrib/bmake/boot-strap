@@ -111,7 +111,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.45 2014/04/05 22:56:54 sjg Exp $
+#	$Id: boot-strap,v 1.48 2015/10/25 05:20:48 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -395,8 +395,15 @@ Bmake() {
     )
 }
 
+# there is actually a shell where type is not a builtin
+# if type is missing, which(1) had better exists!
+if (type cat) > /dev/null 2>&1; then
+which() {
+        type "$@" | sed 's,[()],,g;s,^[^/][^/]*,,;q'
+}
+fi
 # make sure test below uses the same diff that configure did
-TOOL_DIFF=`type diff | sed 's,[()],,g;s,^[^/][^/]*,,;q'`
+TOOL_DIFF=`which diff`
 export TOOL_DIFF
 
 op_configure() {

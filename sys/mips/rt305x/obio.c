@@ -98,8 +98,8 @@ static int	obio_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static device_t	obio_add_child(device_t, u_int, const char *, int);
 static struct resource *
-		obio_alloc_resource(device_t, device_t, int, int *, u_long,
-		    u_long, u_long, u_int);
+		obio_alloc_resource(device_t, device_t, int, int *, rman_res_t,
+		    rman_res_t, rman_res_t, u_int);
 static int	obio_attach(device_t);
 static int	obio_deactivate_resource(device_t, device_t, int, int,
 		    struct resource *);
@@ -221,10 +221,10 @@ obio_attach(device_t dev)
 	obio_add_res_child(dev, "pcm", 	0, 
 	    PCM_BASE, (PCM_END - PCM_BASE  + 1),
 	    IC_PCM);
+#endif
 	obio_add_res_child(dev, "uart", 0, 
 	    UART_BASE, (UART_END - UART_BASE + 1),
 	    IC_UART);
-#endif
 	obio_add_res_child(dev, "gpio", 0, 
 	    PIO_BASE, (PIO_END - PIO_BASE  + 1),
 	    IC_PIO);
@@ -241,19 +241,28 @@ obio_attach(device_t dev)
 	obio_add_res_child(dev, "i2s", 0,
 	    I2S_BASE, (I2S_END - I2S_BASE  + 1),
 	    IC_I2S);
+#endif
 	obio_add_res_child(dev, "spi", 0, 
 	    SPI_BASE, (SPI_END - SPI_BASE  + 1),
 	    -1);
-#endif
 	obio_add_res_child(dev, "uart", 1,
 	    UARTLITE_BASE, (UARTLITE_END - UARTLITE_BASE + 1),
 	    IC_UARTLITE);
+#if !defined(RT5350) && !defined(MT7620)
 	obio_add_res_child(dev, "cfi", 	0,
 	    FLASH_BASE, (FLASH_END - FLASH_BASE  + 1),
 	    -1);
-	obio_add_res_child(dev, "dotg", 0,
+	obio_add_res_child(dev, "dwcotg", 0,
 	    USB_OTG_BASE, (USB_OTG_END - USB_OTG_BASE  + 1),
 	    IC_OTG);
+#else
+	obio_add_res_child(dev, "ehci", 0,
+	    USB_OTG_BASE, (USB_OTG_END - USB_OTG_BASE  + 1),
+	    IC_OTG);
+	obio_add_res_child(dev, "ohci", 0,
+	    USB_OHCI_BASE, (USB_OHCI_END - USB_OHCI_BASE + 1),
+	    IC_OTG);
+#endif
 	obio_add_res_child(dev, "switch", 0,
 	    ETHSW_BASE, (ETHSW_END - ETHSW_BASE  + 1),
 	    IC_ETHSW);
@@ -269,7 +278,7 @@ obio_attach(device_t dev)
 
 static struct resource *
 obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct obio_softc		*sc = device_get_softc(bus);
 	struct obio_ivar		*ivar = device_get_ivars(child);

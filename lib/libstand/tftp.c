@@ -399,6 +399,8 @@ tftp_open(const char *path, struct open_file *f)
 	struct tftp_handle *tftpfile;
 	struct iodesc  *io;
 	int             res;
+	size_t          pathsize;
+	const char     *extraslash;
 
 	if (strcmp(f->f_dev->dv_name, "net") != 0) {
 #ifdef __i386__
@@ -424,10 +426,22 @@ tftp_open(const char *path, struct open_file *f)
 
 	io->destip = servip;
 	tftpfile->off = 0;
-	tftpfile->path = strdup(path);
+	pathsize = (strlen(rootpath) + 1 + strlen(path) + 1) * sizeof(char);
+	tftpfile->path = malloc(pathsize);
 	if (tftpfile->path == NULL) {
-	    free(tftpfile);
-	    return(ENOMEM);
+		free(tftpfile);
+		return(ENOMEM);
+	}
+	if (rootpath[strlen(rootpath) - 1] == '/' || path[0] == '/')
+		extraslash = "";
+	else
+		extraslash = "/";
+	res = snprintf(tftpfile->path, pathsize, "%s%s%s",
+	    rootpath, extraslash, path);
+	if (res < 0 || res > pathsize) {
+		free(tftpfile->path);
+		free(tftpfile);
+		return(ENOMEM);
 	}
 
 	res = tftp_makereq(tftpfile);

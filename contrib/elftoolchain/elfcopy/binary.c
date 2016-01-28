@@ -35,7 +35,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: binary.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: binary.c 3270 2015-12-11 18:48:56Z emaste $");
 
 /*
  * Convert ELF object to `binary'. Sections with SHF_ALLOC flag set
@@ -140,6 +140,7 @@ create_elf_from_binary(struct elfcopy *ecp, int ifd, const char *ifn)
 	GElf_Shdr sh;
 	void *content;
 	uint64_t off, data_start, data_end, data_size;
+	char *sym_basename, *p;
 
 	/* Reset internal section list. */
 	if (!TAILQ_EMPTY(&ecp->v_sec))
@@ -210,8 +211,13 @@ create_elf_from_binary(struct elfcopy *ecp, int ifd, const char *ifn)
 	/* Count in .symtab and .strtab section headers.  */
 	shtab->sz += gelf_fsize(ecp->eout, ELF_T_SHDR, 2, EV_CURRENT);
 
+	if ((sym_basename = strdup(ifn)) == NULL)
+		err(1, "strdup");
+	p = sym_basename;
+	while ((p = strchr(p, '.')) != NULL)
+		*p++ = '_';
 #define	_GEN_SYMNAME(S) do {						\
-	snprintf(name, sizeof(name), "%s%s%s", "_binary_", ifn, S);	\
+	snprintf(name, sizeof(name), "%s%s%s", "_binary_", sym_basename, S); \
 } while (0)
 
 	/*
@@ -233,6 +239,7 @@ create_elf_from_binary(struct elfcopy *ecp, int ifd, const char *ifn)
 	finalize_external_symtab(ecp);
 	create_symtab_data(ecp);
 #undef	_GEN_SYMNAME
+	free(sym_basename);
 
 	/*
 	 * Write the underlying ehdr. Note that it should be called

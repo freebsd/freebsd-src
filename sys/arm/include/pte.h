@@ -43,6 +43,7 @@
 #ifndef LOCORE
 typedef	uint32_t	pd_entry_t;		/* page directory entry */
 typedef	uint32_t	pt_entry_t;		/* page table entry */
+typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #endif
 
 #define PG_FRAME	0xfffff000

@@ -268,6 +268,7 @@ DRIVER_MODULE(uvscom, uhub, uvscom_driver, uvscom_devclass, NULL, 0);
 MODULE_DEPEND(uvscom, ucom, 1, 1, 1);
 MODULE_DEPEND(uvscom, usb, 1, 1, 1);
 MODULE_VERSION(uvscom, UVSCOM_MODVER);
+USB_PNP_HOST_INFO(uvscom_devs);
 
 static int
 uvscom_probe(device_t dev)

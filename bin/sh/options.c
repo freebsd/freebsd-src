@@ -74,6 +74,7 @@ static void options(int);
 static void minus_o(char *, int);
 static void setoption(int, int);
 static void setoptionbyindex(int, int);
+static void setparam(int, char **);
 static int getopts(char *, char *, char **, char ***, char **);
 
 
@@ -91,7 +92,7 @@ procargs(int argc, char **argv)
 	if (argc > 0)
 		argptr++;
 	for (i = 0; i < NOPTS; i++)
-		optlist[i].val = 2;
+		optval[i] = 2;
 	privileged = (getuid() != geteuid() || getgid() != getegid());
 	options(1);
 	if (*argptr == NULL && minusc == NULL)
@@ -104,8 +105,8 @@ procargs(int argc, char **argv)
 	if (mflag == 2)
 		mflag = iflag;
 	for (i = 0; i < NOPTS; i++)
-		if (optlist[i].val == 2)
-			optlist[i].val = 0;
+		if (optval[i] == 2)
+			optval[i] = 0;
 	arg0 = argv[0];
 	if (sflag == 0 && minusc == NULL) {
 		scriptname = *argptr++;
@@ -224,7 +225,7 @@ end_options1:
 end_options2:
 	if (!cmdline) {
 		if (*argptr == NULL)
-			setparam(argptr);
+			setparam(0, argptr);
 		return;
 	}
 
@@ -250,26 +251,29 @@ static void
 minus_o(char *name, int val)
 {
 	int i;
+	const unsigned char *on;
+	size_t len;
 
 	if (name == NULL) {
 		if (val) {
 			/* "Pretty" output. */
 			out1str("Current option settings\n");
-			for (i = 0; i < NOPTS; i++)
-				out1fmt("%-16s%s\n", optlist[i].name,
-					optlist[i].val ? "on" : "off");
+			for (i = 0, on = optname; i < NOPTS; i++, on += *on + 1)
+				out1fmt("%-16.*s%s\n", *on, on + 1,
+					optval[i] ? "on" : "off");
 		} else {
 			/* Output suitable for re-input to shell. */
-			for (i = 0; i < NOPTS; i++)
-				out1fmt("%s %co %s%s",
+			for (i = 0, on = optname; i < NOPTS; i++, on += *on + 1)
+				out1fmt("%s %co %.*s%s",
 				    i % 6 == 0 ? "set" : "",
-				    optlist[i].val ? '-' : '+',
-				    optlist[i].name,
+				    optval[i] ? '-' : '+',
+				    *on, on + 1,
 				    i % 6 == 5 || i == NOPTS - 1 ? "\n" : "");
 		}
 	} else {
-		for (i = 0; i < NOPTS; i++)
-			if (equal(name, optlist[i].name)) {
+		len = strlen(name);
+		for (i = 0, on = optname; i < NOPTS; i++, on += *on + 1)
+			if (*on == len && memcmp(on + 1, name, len) == 0) {
 				setoptionbyindex(i, val);
 				return;
 			}
@@ -281,18 +285,18 @@ minus_o(char *name, int val)
 static void
 setoptionbyindex(int idx, int val)
 {
-	if (optlist[idx].letter == 'p' && !val && privileged) {
+	if (optletter[idx] == 'p' && !val && privileged) {
 		if (setgid(getgid()) == -1)
 			error("setgid");
 		if (setuid(getuid()) == -1)
 			error("setuid");
 	}
-	optlist[idx].val = val;
+	optval[idx] = val;
 	if (val) {
 		/* #%$ hack for ksh semantics */
-		if (optlist[idx].letter == 'V')
+		if (optletter[idx] == 'V')
 			Eflag = 0;
-		else if (optlist[idx].letter == 'E')
+		else if (optletter[idx] == 'E')
 			Vflag = 0;
 	}
 }
@@ -303,7 +307,7 @@ setoption(int flag, int val)
 	int i;
 
 	for (i = 0; i < NSHORTOPTS; i++)
-		if (optlist[i].letter == flag) {
+		if (optletter[i] == flag) {
 			setoptionbyindex(i, val);
 			return;
 		}
@@ -315,22 +319,20 @@ setoption(int flag, int val)
  * Set the shell parameters.
  */
 
-void
-setparam(char **argv)
+static void
+setparam(int argc, char **argv)
 {
 	char **newparam;
 	char **ap;
-	int nparam;
 
-	for (nparam = 0 ; argv[nparam] ; nparam++);
-	ap = newparam = ckmalloc((nparam + 1) * sizeof *ap);
+	ap = newparam = ckmalloc((argc + 1) * sizeof *ap);
 	while (*argv) {
 		*ap++ = savestr(*argv++);
 	}
 	*ap = NULL;
 	freeparam(&shellparam);
 	shellparam.malloc = 1;
-	shellparam.nparam = nparam;
+	shellparam.nparam = argc;
 	shellparam.p = newparam;
 	shellparam.optp = NULL;
 	shellparam.reset = 1;
@@ -368,8 +370,7 @@ freeparam(struct shparam *param)
 int
 shiftcmd(int argc, char **argv)
 {
-	int n;
-	char **ap1, **ap2;
+	int i, n;
 
 	n = 1;
 	if (argc > 1)
@@ -378,12 +379,11 @@ shiftcmd(int argc, char **argv)
 		return 1;
 	INTOFF;
 	shellparam.nparam -= n;
-	for (ap1 = shellparam.p ; --n >= 0 ; ap1++) {
-		if (shellparam.malloc)
-			ckfree(*ap1);
-	}
-	ap2 = shellparam.p;
-	while ((*ap2++ = *ap1++) != NULL);
+	if (shellparam.malloc)
+		for (i = 0; i < n; i++)
+			ckfree(shellparam.p[i]);
+	memmove(shellparam.p, shellparam.p + n,
+	    (shellparam.nparam + 1) * sizeof(shellparam.p[0]));
 	shellparam.reset = 1;
 	INTON;
 	return 0;
@@ -404,7 +404,7 @@ setcmd(int argc, char **argv)
 	options(0);
 	optschanged();
 	if (*argptr != NULL) {
-		setparam(argptr);
+		setparam(argc - (argptr - argv), argptr);
 	}
 	INTON;
 	return 0;

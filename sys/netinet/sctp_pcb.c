@@ -2269,8 +2269,12 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 		}
 	}
 	find_tcp_pool = 0;
-	if ((ch->chunk_type != SCTP_INITIATION) &&
-	    (ch->chunk_type != SCTP_INITIATION_ACK) &&
+	/*
+	 * Don't consider INIT chunks since that breaks 1-to-1 sockets: When
+	 * a server closes the listener, incoming INIT chunks are not
+	 * responsed by an INIT-ACK chunk.
+	 */
+	if ((ch->chunk_type != SCTP_INITIATION_ACK) &&
 	    (ch->chunk_type != SCTP_COOKIE_ACK) &&
 	    (ch->chunk_type != SCTP_COOKIE_ECHO)) {
 		/* Other chunk types go to the tcp pool. */

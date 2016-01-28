@@ -63,7 +63,7 @@
 ŒßŒã
 #
 # date_fmt
-%Y”N%mŒŽ%e“ú %H:%M:%S %Z
+%Y”N%mŒŽ%e“ú %A %H:%M:%S %Z
 #
 # Long month names (without case ending)
 1ŒŽ

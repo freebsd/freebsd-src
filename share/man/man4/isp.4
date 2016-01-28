@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2015
+.Dd December 9, 2015
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -107,10 +107,12 @@ Optical 2Gb Fibre Channel PCIe cards.
 Dell branded version of the QLogic 2312.
 .It Qlogic 2422
 Optical 4Gb Fibre Channel PCI cards.
-.It Qlogic 2432
+.It Qlogic 246x (aka 2432)
 Optical 4Gb Fibre Channel PCIe cards.
-.It Qlogic 2532
+.It Qlogic 256x (aka 2532)
 Optical 8Gb Fibre Channel PCIe cards.
+.It Qlogic 267x/836x (aka 2031/8031)
+Optical 16Gb FC/FCoE PCIe cards.
 .El
 .Sh CONFIGURATION OPTIONS
 Target mode support for Fibre Channel adapters may be enabled with the
@@ -127,12 +129,6 @@ They are:
 .It Va hint.isp.0.fwload_disable
 A hint value to disable loading of firmware
 .Xr ispfw 4 .
-.It Va hint.isp.0.prefer_memmap
-A hint value to use PCI memory space instead of I/O space
-access for.
-.It Va hint.isp.0.prefer_iomap
-A hint value to use PCI I/O space instead of Memory space
-access for.
 .It Va hint.isp.0.ignore_nvram
 A hint value to ignore board NVRAM settings for.
 Otherwise use NVRAM settings.

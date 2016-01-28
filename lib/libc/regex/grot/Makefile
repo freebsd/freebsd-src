@@ -8,7 +8,7 @@
 PATHS= ${.CURDIR}/.. ${.CURDIR}/../../locale ${.CURDIR}/../../../../include
 .PATH: ${PATHS}
 
-CFLAGS+= -DPOSIX_MISTAKE -DREDEBUG $(REGCFLAGS)
+CFLAGS+= -static -DPOSIX_MISTAKE -DREDEBUG $(REGCFLAGS)
 .for incpath in ${PATHS}
 CFLAGS+= -I${incpath}
 .endfor

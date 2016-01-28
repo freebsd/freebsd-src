@@ -2721,8 +2721,7 @@ bwn_updateslot(struct ieee80211com *ic)
 	BWN_LOCK(sc);
 	if (sc->sc_flags & BWN_FLAG_RUNNING) {
 		mac = (struct bwn_mac *)sc->sc_curmac;
-		bwn_set_slot_time(mac,
-		    (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20);
+		bwn_set_slot_time(mac, IEEE80211_GET_SLOTTIME(ic));
 	}
 	BWN_UNLOCK(sc);
 }

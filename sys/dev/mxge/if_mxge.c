@@ -1637,15 +1637,15 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			       "rx_big_cnt",
 			       CTLFLAG_RD, &ss->rx_big.cnt,
 			       0, "rx_small_cnt");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		SYSCTL_ADD_U64(ctx, children, OID_AUTO,
 			       "lro_flushed", CTLFLAG_RD, &ss->lc.lro_flushed,
 			       0, "number of lro merge queues flushed");
 
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		SYSCTL_ADD_U64(ctx, children, OID_AUTO,
 			       "lro_bad_csum", CTLFLAG_RD, &ss->lc.lro_bad_csum,
 			       0, "number of bad csums preventing LRO");
 
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		SYSCTL_ADD_U64(ctx, children, OID_AUTO,
 			       "lro_queued", CTLFLAG_RD, &ss->lc.lro_queued,
 			       0, "number of frames appended to lro merge"
 			       "queues");

@@ -32,6 +32,7 @@ FILES+=		xo_01.XP.err
 FILES+=		xo_01.XP.out
 
 SCRIPTS+=	xo_01
+CLEANFILES+=	xo_01
 
 LIBADD+=	xo
 

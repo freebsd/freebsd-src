@@ -232,8 +232,8 @@ rt2860_attach(device_t dev, int id)
 	struct rt2860_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t tmp;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
 	int error, ntries, qid;
-	uint8_t bands;
 
 	sc->sc_dev = dev;
 	sc->sc_debug = 0;
@@ -319,12 +319,12 @@ rt2860_attach(device_t dev, int id)
 		| IEEE80211_C_WME		/* 802.11e */
 		;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if (sc->rf_rev == RT2860_RF_2750 || sc->rf_rev == RT2860_RF_2850)
-		setbit(&bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, &bands);
+		setbit(bands, IEEE80211_MODE_11A);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 
@@ -3048,7 +3048,7 @@ rt2860_updateslot(struct ieee80211com *ic)
 
 	tmp = RAL_READ(sc, RT2860_BKOFF_SLOT_CFG);
 	tmp &= ~0xff;
-	tmp |= (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	tmp |= IEEE80211_GET_SLOTTIME(ic);
 	RAL_WRITE(sc, RT2860_BKOFF_SLOT_CFG, tmp);
 }
 

@@ -101,34 +101,52 @@ struct radix_mask {
 #define	rm_mask rm_rmu.rmu_mask
 #define	rm_leaf rm_rmu.rmu_leaf		/* extra field would make 32 bytes */
 
+struct radix_head;
+
 typedef int walktree_f_t(struct radix_node *, void *);
+typedef struct radix_node *rn_matchaddr_f_t(void *v,
+    struct radix_head *head);
+typedef struct radix_node *rn_addaddr_f_t(void *v, void *mask,
+    struct radix_head *head, struct radix_node nodes[]);
+typedef struct radix_node *rn_deladdr_f_t(void *v, void *mask,
+    struct radix_head *head);
+typedef struct radix_node *rn_lookup_f_t(void *v, void *mask,
+    struct radix_head *head);
+typedef int rn_walktree_t(struct radix_head *head, walktree_f_t *f,
+    void *w);
+typedef int rn_walktree_from_t(struct radix_head *head,
+    void *a, void *m, walktree_f_t *f, void *w);
+typedef void rn_close_t(struct radix_node *rn, struct radix_head *head);
+
+struct radix_mask_head;
+
+struct radix_head {
+	struct	radix_node *rnh_treetop;
+	struct	radix_mask_head *rnh_masks;	/* Storage for our masks */
+};
 
 struct radix_node_head {
-	struct	radix_node *rnh_treetop;
-	u_int	rnh_gen;		/* generation counter */
-	int	rnh_multipath;		/* multipath capable ? */
-	struct	radix_node *(*rnh_addaddr)	/* add based on sockaddr */
-		(void *v, void *mask,
-		     struct radix_node_head *head, struct radix_node nodes[]);
-	struct	radix_node *(*rnh_deladdr)	/* remove based on sockaddr */
-		(void *v, void *mask, struct radix_node_head *head);
-	struct	radix_node *(*rnh_matchaddr)	/* longest match for sockaddr */
-		(void *v, struct radix_node_head *head);
-	struct	radix_node *(*rnh_lookup)	/*exact match for sockaddr*/
-		(void *v, void *mask, struct radix_node_head *head);
-	int	(*rnh_walktree)			/* traverse tree */
-		(struct radix_node_head *head, walktree_f_t *f, void *w);
-	int	(*rnh_walktree_from)		/* traverse tree below a */
-		(struct radix_node_head *head, void *a, void *m,
-		     walktree_f_t *f, void *w);
-	void	(*rnh_close)	/* do something when the last ref drops */
-		(struct radix_node *rn, struct radix_node_head *head);
+	struct radix_head rh;
+	rn_matchaddr_f_t	*rnh_matchaddr;	/* longest match for sockaddr */
+	rn_addaddr_f_t	*rnh_addaddr;	/* add based on sockaddr*/
+	rn_deladdr_f_t	*rnh_deladdr;	/* remove based on sockaddr */
+	rn_lookup_f_t	*rnh_lookup;	/* exact match for sockaddr */
+	rn_walktree_t	*rnh_walktree;	/* traverse tree */
+	rn_walktree_from_t	*rnh_walktree_from; /* traverse tree below a */
+	rn_close_t	*rnh_close;	/*do something when the last ref drops*/
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
-	struct	radix_node_head *rnh_masks;	/* Storage for our masks */
 #ifdef _KERNEL
 	struct	rwlock rnh_lock;		/* locks entire radix tree */
 #endif
 };
+
+struct radix_mask_head {
+	struct radix_head head;
+	struct radix_node mask_nodes[3];
+};
+
+void rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes,
+    int off);
 
 #ifndef _KERNEL
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned int)(n)))
@@ -156,13 +174,14 @@ struct radix_node_head {
 int	 rn_inithead(void **, int);
 int	 rn_detachhead(void **);
 int	 rn_refines(void *, void *);
-struct radix_node
-	 *rn_addmask(void *, struct radix_node_head *, int, int),
-	 *rn_addroute (void *, void *, struct radix_node_head *,
-			struct radix_node [2]),
-	 *rn_delete(void *, void *, struct radix_node_head *),
-	 *rn_lookup (void *v_arg, void *m_arg,
-		        struct radix_node_head *head),
-	 *rn_match(void *, struct radix_node_head *);
+struct radix_node *rn_addroute(void *, void *, struct radix_head *,
+    struct radix_node[2]);
+struct radix_node *rn_delete(void *, void *, struct radix_head *);
+struct radix_node *rn_lookup (void *v_arg, void *m_arg,
+    struct radix_head *head);
+struct radix_node *rn_match(void *, struct radix_head *);
+int rn_walktree_from(struct radix_head *h, void *a, void *m,
+    walktree_f_t *f, void *w);
+int rn_walktree(struct radix_head *, walktree_f_t *, void *);
 
 #endif /* _RADIX_H_ */

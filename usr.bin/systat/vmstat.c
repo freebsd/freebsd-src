@@ -108,6 +108,7 @@ static struct Info {
 	u_int v_active_count;	/* number of pages active */
 	u_int v_inactive_count;	/* number of pages inactive */
 	u_int v_cache_count;	/* number of pages on buffer cache queue */
+	u_long v_kmem_map_size;	/* Current kmem allocation size */
 	struct	vmtotal Total;
 	struct	nchstats nchstats;
 	long	nchcount;
@@ -118,6 +119,8 @@ static struct Info {
 	long	freevnodes;
 	int	numdirtybuffers;
 } s, s1, s2, z;
+static u_long kmem_size;
+static u_int v_page_count;
 
 struct statinfo cur, last, run;
 
@@ -278,6 +281,8 @@ initkre(void)
 		allocinfo(&s2);
 		allocinfo(&z);
 	}
+	GETSYSCTL("vm.kmem_size", kmem_size);
+	GETSYSCTL("vm.stats.vm.v_page_count", v_page_count);
 	getinfo(&s2);
 	copyinfo(&s2, &s1);
 	return(1);
@@ -307,7 +312,8 @@ labelkre(void)
 
 	clear();
 	mvprintw(STATROW, STATCOL + 6, "users    Load");
-	mvprintw(MEMROW, MEMCOL, "Mem:KB    REAL            VIRTUAL");
+	mvprintw(STATROW + 1, STATCOL + 3, "Mem usage:    %%Phy   %%Kmem");
+	mvprintw(MEMROW, MEMCOL, "Mem: KB    REAL            VIRTUAL");
 	mvprintw(MEMROW + 1, MEMCOL, "        Tot   Share      Tot    Share");
 	mvprintw(MEMROW + 2, MEMCOL, "Act");
 	mvprintw(MEMROW + 3, MEMCOL, "All");
@@ -478,6 +484,11 @@ showkre(void)
 	putfloat(avenrun[2], STATROW, STATCOL + 32, 5, 2, 0);
 	mvaddstr(STATROW, STATCOL + 55, buf);
 #define pgtokb(pg)	((pg) * (s.v_page_size / 1024))
+	putfloat(100.0 * (v_page_count - total.t_free) / v_page_count,
+	   STATROW + 1, STATCOL + 15, 2, 0, 1);
+	putfloat(100.0 * s.v_kmem_map_size / kmem_size,
+	   STATROW + 1, STATCOL + 22, 2, 0, 1);
+
 	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 4, 7);
 	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 12, 7);
 	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 20, 8);
@@ -790,6 +801,7 @@ getinfo(struct Info *ls)
 	GETSYSCTL("vfs.freevnodes", ls->freevnodes);
 	GETSYSCTL("vfs.cache.nchstats", ls->nchstats);
 	GETSYSCTL("vfs.numdirtybuffers", ls->numdirtybuffers);
+	GETSYSCTL("vm.kmem_map_size", ls->v_kmem_map_size);
 	getsysctl("hw.intrcnt", ls->intrcnt, nintr * sizeof(u_long));
 
 	size = sizeof(ls->Total);

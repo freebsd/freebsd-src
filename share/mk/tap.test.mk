@@ -26,7 +26,7 @@ TAP_TESTS_PERL?=
 TAP_TESTS_SH?=
 
 # Perl interpreter to use for test programs written in this language.
-TAP_PERL_INTERPRETER?= /usr/local/bin/perl
+TAP_PERL_INTERPRETER?=	${LOCALBASE}/bin/perl
 
 .if !empty(TAP_TESTS_C)
 PROGS+= ${TAP_TESTS_C}

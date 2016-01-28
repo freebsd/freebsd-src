@@ -55,6 +55,8 @@ static device_method_t uart_pccard_methods[] = {
 	{ 0, 0 }
 };
 
+static uint32_t uart_pccard_function = PCCARD_FUNCTION_SERIAL;
+
 static driver_t uart_pccard_driver = {
 	uart_driver_name,
 	uart_pccard_methods,
@@ -76,7 +78,7 @@ uart_pccard_probe(device_t dev)
 	 * some serial cards are better serviced by other drivers, so
 	 * allow other drivers to claim it, if they want.
 	 */
-	if (fcn == PCCARD_FUNCTION_SERIAL)
+	if (fcn == uart_pccard_function)
 		return (BUS_PROBE_GENERIC);
 
 	return (ENXIO);
@@ -98,3 +100,5 @@ uart_pccard_attach(device_t dev)
 }
 
 DRIVER_MODULE(uart, pccard, uart_pccard_driver, uart_devclass, 0, 0);
+MODULE_PNP_INFO("U32:function_type;", pccard, uart, &uart_pccard_function,
+    sizeof(uart_pccard_function), 1);

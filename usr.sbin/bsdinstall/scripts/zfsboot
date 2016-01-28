@@ -825,6 +825,7 @@ zfs_create_diskpart()
 	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
 		align_small="-a 4k"
 		align_big="-a 1m"
+		sysctl kern.geom.part.mbr.enforce_chs=0
 	fi
 
 	case "$ZFSBOOT_PARTITION_SCHEME" in
@@ -940,11 +941,12 @@ zfs_create_diskpart()
 
 		#
 		# Always prepare a boot pool on MBR
+		# Do not align this partition, there must not be a gap
 		#
 		ZFSBOOT_BOOT_POOL=1
 		f_eval_catch $funcname gpart \
 		             "$GPART_ADD_ALIGN_INDEX_WITH_SIZE" \
-		             "$align_small" 1 freebsd-zfs ${bootsize}b ${disk}s1 ||
+		             "" 1 freebsd-zfs ${bootsize}b ${disk}s1 ||
 		             return $FAILURE
 		# Pedantically nuke any old labels
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \

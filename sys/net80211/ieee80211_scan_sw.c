@@ -359,7 +359,7 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 		duration = IEEE80211_SCAN_OFFCHANNEL;
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: %s scan, ticks %u duration %lu\n", __func__,
+		    "%s: %s scan, ticks %u duration %u\n", __func__,
 		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ? "active" : "passive",
 		    ticks, duration);
 
@@ -641,7 +641,7 @@ scan_task(void *arg, int pending)
 			 * XXX Should use M_TXCB mechanism to eliminate this.
 			 */
 			cv_timedwait(&SCAN_PRIVATE(ss)->ss_scan_cv,
-			    IEEE80211_LOCK_OBJ(ic), hz / 1000);
+			    IEEE80211_LOCK_OBJ(ic), msecs_to_ticks(1));
 			if (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT)
 				goto done;
 		}

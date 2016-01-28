@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.234 2015/10/11 04:51:24 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.234 2015/10/11 04:51:24 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.234 2015/10/11 04:51:24 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1902,6 +1902,8 @@ PrintOnError(GNode *gn, const char *s)
 	    printf("%s", cp);
 	free(cp);
     }
+    fflush(stdout);
+
     /*
      * Finally, see if there is a .ERROR target, and run it if so.
      */

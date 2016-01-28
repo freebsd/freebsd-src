@@ -111,7 +111,7 @@ pid_t getpgid(pid_t);
 #endif
 
 #ifndef HAVE_ENDGRENT
-# define endgrent() do { } while (0)
+# define endgrent() do { } while(0)
 #endif
 
 #ifndef HAVE_KRB5_GET_ERROR_MESSAGE

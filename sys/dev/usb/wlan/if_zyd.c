@@ -334,7 +334,8 @@ zyd_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct zyd_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t iface_index, bands;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index;
 	int error;
 
 	if (uaa->info.bcdDevice < 0x4330) {
@@ -387,10 +388,10 @@ zyd_attach(device_t dev)
 	        | IEEE80211_C_WPA		/* 802.11i */
 		;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
-	ieee80211_init_channels(ic, NULL, &bands);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = zyd_raw_xmit;
@@ -2893,3 +2894,4 @@ DRIVER_MODULE(zyd, uhub, zyd_driver, zyd_devclass, NULL, 0);
 MODULE_DEPEND(zyd, usb, 1, 1, 1);
 MODULE_DEPEND(zyd, wlan, 1, 1, 1);
 MODULE_VERSION(zyd, 1);
+USB_PNP_HOST_INFO(zyd_devs);

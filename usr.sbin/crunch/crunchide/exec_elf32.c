@@ -187,6 +187,10 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	case /* EM_MIPS_RS3_LE */ EM_MIPS_RS4_BE: break;
 	case EM_PPC: break;
 	case EM_PPC64: break;
+#ifndef EM_RISCV
+#define	EM_RISCV	243
+#endif
+	case EM_RISCV: break;
 	case EM_SPARCV9: break;
 	case EM_X86_64: break;
 /*        ELFDEFNNAME(MACHDEP_ID_CASES) */

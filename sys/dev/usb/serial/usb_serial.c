@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kdb.h>
 
+#include <dev/uart/uart_ppstypes.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -99,7 +101,8 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
 static int ucom_pps_mode;
 
 SYSCTL_INT(_hw_usb_ucom, OID_AUTO, pps_mode, CTLFLAG_RWTUN,
-    &ucom_pps_mode, 0, "pulse capturing mode - 0/1/2 - disabled/CTS/DCD");
+    &ucom_pps_mode, 0, 
+    "pulse capture mode: 0/1/2=disabled/CTS/DCD; add 0x10 to invert");
 
 #ifdef USB_DEBUG
 static int ucom_debug = 0;
@@ -1071,10 +1074,12 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 	    (struct ucom_cfg_task *)_task;
 	struct ucom_softc *sc = task->sc;
 	struct tty *tp;
+	int onoff;
 	uint8_t new_msr;
 	uint8_t new_lsr;
 	uint8_t msr_delta;
 	uint8_t lsr_delta;
+	uint8_t pps_signal;
 
 	tp = sc->sc_tty;
 
@@ -1104,35 +1109,33 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 	sc->sc_lsr = new_lsr;
 
 	/*
-	 * Time pulse counting support. Note that both CTS and DCD are
-	 * active-low signals. The status bit is high to indicate that
-	 * the signal on the line is low, which corresponds to a PPS
-	 * clear event.
+	 * Time pulse counting support.
 	 */
-	switch(ucom_pps_mode) {
-	case 1:
-		if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
-		    (msr_delta & SER_CTS)) {
-			pps_capture(&sc->sc_pps);
-			pps_event(&sc->sc_pps, (sc->sc_msr & SER_CTS) ?
-			    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
-		}
+	switch(ucom_pps_mode & UART_PPS_SIGNAL_MASK) {
+	case UART_PPS_CTS:
+		pps_signal = SER_CTS;
 		break;
-	case 2:
-		if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
-		    (msr_delta & SER_DCD)) {
-			pps_capture(&sc->sc_pps);
-			pps_event(&sc->sc_pps, (sc->sc_msr & SER_DCD) ?
-			    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
-		}
+	case UART_PPS_DCD:
+		pps_signal = SER_DCD;
 		break;
 	default:
+		pps_signal = 0;
 		break;
+	}
+
+	if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
+	    (msr_delta & pps_signal)) {
+		pps_capture(&sc->sc_pps);
+		onoff = (sc->sc_msr & pps_signal) ? 1 : 0;
+		if (ucom_pps_mode & UART_PPS_INVERT_PULSE)
+			onoff = !onoff;
+		pps_event(&sc->sc_pps, onoff ? PPS_CAPTUREASSERT :
+		    PPS_CAPTURECLEAR);
 	}
 
 	if (msr_delta & SER_DCD) {
 
-		int onoff = (sc->sc_msr & SER_DCD) ? 1 : 0;
+		onoff = (sc->sc_msr & SER_DCD) ? 1 : 0;
 
 		DPRINTF("DCD changed to %d\n", onoff);
 

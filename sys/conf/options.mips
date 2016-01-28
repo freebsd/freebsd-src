@@ -31,6 +31,7 @@
 CPU_MIPS4KC	opt_global.h
 CPU_MIPS24KC	opt_global.h
 CPU_MIPS74KC	opt_global.h
+CPU_MIPS1004KC	opt_global.h
 CPU_MIPS32	opt_global.h
 CPU_MIPS64	opt_global.h
 CPU_SENTRY5	opt_global.h
@@ -118,6 +119,18 @@ AR71XX_ATH_EEPROM		opt_ar71xx.h
 IF_RT_DEBUG			opt_if_rt.h
 IF_RT_PHY_SUPPORT		opt_if_rt.h
 IF_RT_RING_DATA_COUNT		opt_if_rt.h
+
+#
+# Options that control the Ralink/Mediatek SoC type.
+#
+MT7620				opt_rt305x.h
+RT5350				opt_rt305x.h
+RT305XF				opt_rt305x.h
+RT3052F				opt_rt305x.h
+RT3050F				opt_rt305x.h
+RT305X				opt_rt305x.h
+RT305X_UBOOT			opt_rt305x.h
+RT305X_USE_UART			opt_rt305x.h
 
 #
 # Options that affect the pmap.

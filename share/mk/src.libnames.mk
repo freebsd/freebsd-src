@@ -148,7 +148,9 @@ _LIBRARIES=	\
 		ssp_nonshared \
 		stdthreads \
 		supcplusplus \
+		sysdecode \
 		tacplus \
+		termcap \
 		termcapw \
 		ufs \
 		ugidfw \
@@ -169,6 +171,23 @@ _LIBRARIES=	\
 		zfs \
 		zpool \
 
+.if ${MK_OFED} != "no"
+_LIBRARIES+= \
+		cxgb4 \
+		ibcm \
+		ibcommon \
+		ibmad \
+		ibsdp \
+		ibumad \
+		ibverbs \
+		mlx4 \
+		mthca \
+		opensm \
+		osmcomp \
+		osmvendor \
+		rdmacm \
+
+.endif
 
 # Each library's LIBADD needs to be duplicated here for static linkage of
 # 2nd+ order consumers.  Auto-generating this would be better.
@@ -329,8 +348,9 @@ DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
 # Detect LDADD/DPADD that should be LIBADD, before modifying LDADD here.
+_BADLDADD=
 .for _l in ${LDADD:M-l*:N-l*/*:C,^-l,,}
-.if ${_LIBRARIES:M${_l}}
+.if ${_LIBRARIES:M${_l}} && !${_PRIVATELIBS:M${_l}}
 _BADLDADD+=	${_l}
 .endif
 .endfor
@@ -416,6 +436,19 @@ LIBUUTILDIR=	${OBJTOP}/cddl/lib/libuutil
 LIBZFSDIR=	${OBJTOP}/cddl/lib/libzfs
 LIBZFS_COREDIR=	${OBJTOP}/cddl/lib/libzfs_core
 LIBZPOOLDIR=	${OBJTOP}/cddl/lib/libzpool
+LIBCXGB4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libcxgb4
+LIBIBCMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcm
+LIBIBCOMMONDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcommon
+LIBIBMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibmad
+LIBIBUMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibumad
+LIBIBVERBSDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibverbs
+LIBMLX4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libmlx4
+LIBMTHCADIR=	${OBJTOP}/contrib/ofed/usr.lib/libmthca
+LIBOPENSMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libopensm
+LIBOSMCOMPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmcomp
+LIBOSMVENDORDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmvendor
+LIBRDMACMDIR=	${OBJTOP}/contrib/ofed/usr.lib/librdmacm
+LIBIBSDPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libsdp
 LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
 LIBGCOVDIR=	${OBJTOP}/gnu/lib/libgcov
 LIBGOMPDIR=	${OBJTOP}/gnu/lib/libgomp
@@ -453,8 +486,6 @@ LIBMENUDIR=	${OBJTOP}/lib/ncurses/menu
 LIBMENULIBWDIR=	${OBJTOP}/lib/ncurses/menuw
 LIBNCURSESDIR=	${OBJTOP}/lib/ncurses/ncurses
 LIBNCURSESWDIR=	${OBJTOP}/lib/ncurses/ncursesw
-LIBTERMCAPDIR=	${LIBNCURSESDIR}
-LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 LIBPANELDIR=	${OBJTOP}/lib/ncurses/panel
 LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panelw
 LIBCRYPTODIR=	${OBJTOP}/secure/lib/libcrypto
@@ -463,6 +494,9 @@ LIBSSLDIR=	${OBJTOP}/secure/lib/libssl
 LIBTEKENDIR=	${OBJTOP}/sys/teken/libteken
 LIBEGACYDIR=	${OBJTOP}/tools/build
 LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
+
+LIBTERMCAPDIR=	${LIBNCURSESDIR}
+LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 
 # Default other library directories to lib/libNAME.
 .for lib in ${_LIBRARIES}
@@ -485,6 +519,8 @@ _BADLIBADD+= ${_l}
     (!defined(_DP_${LIB}) || ${LIBADD:O:u} != ${_DP_${LIB}:O:u})
 .error ${.CURDIR}: Missing or incorrect _DP_${LIB} entry in ${_this:T}.  Should match LIBADD for ${LIB} ('${LIBADD}' vs '${_DP_${LIB}}')
 .endif
+# Note that OBJTOP is not yet defined here but for the purpose of the check
+# it is fine as it resolves to the SRC directory.
 .if !defined(LIB${LIB:tu}DIR) || !exists(${SRCTOP}/${LIB${LIB:tu}DIR:S,^${OBJTOP}/,,})
 .error ${.CURDIR}: Missing or incorrect value for LIB${LIB:tu}DIR in ${_this:T}: ${LIB${LIB:tu}DIR:S,^${OBJTOP}/,,}
 .endif

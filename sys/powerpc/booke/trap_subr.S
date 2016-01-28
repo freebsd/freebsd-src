@@ -393,12 +393,19 @@
 	.globl CNAME(interrupt_vector_base)
 	.align 5
 interrupt_vector_base:
+/*****************************************************************************
+ * Catch-all handler to handle uninstalled IVORs
+ ****************************************************************************/
+INTERRUPT(int_unknown)
+	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
+	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_RSVD)
+	b	trap_common
 
 /*****************************************************************************
  * Critical input interrupt
  ****************************************************************************/
 INTERRUPT(int_critical_input)
-	STANDARD_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
+	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_CRIT)
 	addi	%r3, %r1, 8
 	bl	CNAME(powerpc_interrupt)
@@ -459,6 +466,12 @@ INTERRUPT(int_program)
 	b	trap_common
 
 
+INTERRUPT(int_fpu)
+	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
+	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_FPU)
+	b	trap_common
+
+
 /*****************************************************************************
  * System call
  ****************************************************************************/
@@ -494,6 +507,24 @@ INTERRUPT(int_fixed_interval_timer)
 INTERRUPT(int_watchdog)
 	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
 	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_WDOG)
+	b	trap_common
+
+
+/*****************************************************************************
+ * Altivec Unavailable interrupt
+ ****************************************************************************/
+INTERRUPT(int_vec)
+	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
+	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_VEC)
+	b	trap_common
+
+
+/*****************************************************************************
+ * Watchdog interrupt
+ ****************************************************************************/
+INTERRUPT(int_vecast)
+	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
+	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_VECAST_E)
 	b	trap_common
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2015  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -137,7 +137,7 @@ lsystem(cmd, donemsg)
 			char *esccmd = shell_quote(cmd);
 			if (esccmd != NULL)
 			{
-				int len = strlen(shell) + strlen(esccmd) + 5;
+				int len = (int) (strlen(shell) + strlen(esccmd) + 5);
 				p = (char *) ecalloc(len, sizeof(char));
 				SNPRINTF3(p, len, "%s %s %s", shell, shell_coption(), esccmd);
 				free(esccmd);

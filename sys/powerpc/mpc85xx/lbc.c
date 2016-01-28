@@ -69,7 +69,7 @@ static int lbc_probe(device_t);
 static int lbc_attach(device_t);
 static int lbc_shutdown(device_t);
 static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static int lbc_print_child(device_t, device_t);
 static int lbc_release_resource(device_t, device_t, int, int,
     struct resource *);
@@ -126,11 +126,11 @@ lbc_address_mask(uint32_t size)
 {
 	int n = 15;
 
-	if (size == ~0UL)
+	if (size == ~0)
 		return (0);
 
 	while (n < 32) {
-		if (size == (1UL << n))
+		if (size == (1U << n))
 			break;
 		n++;
 	}
@@ -267,7 +267,7 @@ lbc_banks_map(struct lbc_softc *sc)
 static int
 lbc_banks_enable(struct lbc_softc *sc)
 {
-	u_long size;
+	uint32_t size;
 	uint32_t regval;
 	int error, i;
 
@@ -663,7 +663,7 @@ lbc_shutdown(device_t dev)
 
 static struct resource *
 lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct lbc_softc *sc;
 	struct lbc_devinfo *di;

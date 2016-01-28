@@ -72,8 +72,8 @@
 #define	LIN_SDT_PROBE_DEFINE5(a, b, c, d, e, f, g, h)	_LIN_SDT_PROBE_DEFINE5(\
     LINUX_DTRACE, a, b, c, d, e, f, g, h)
 
-#define	LIN_SDT_PROBE0(a, b, c)			SDT_PROBE1(LINUX_DTRACE, a, b, \
-    c, 0)
+#define	LIN_SDT_PROBE0(a, b, c)			SDT_PROBE0(LINUX_DTRACE, a, b, \
+    c)
 #define	LIN_SDT_PROBE1(a, b, c, d)		SDT_PROBE1(LINUX_DTRACE, a, b, \
     c, d)
 #define	LIN_SDT_PROBE2(a, b, c, d, e)		SDT_PROBE2(LINUX_DTRACE, a, b, \

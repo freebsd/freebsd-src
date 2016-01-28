@@ -32,5 +32,6 @@
  * mjacob@feral.com
  */
 
-char * geteltnm(int);
-char * stat2ascii(int, u_char *);
+char *geteltnm(int);
+char *scode2ascii(u_char);
+struct sbuf *stat2sbuf(int, u_char *);

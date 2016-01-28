@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+extern int		nvme_max_optimal_sectorsize;
+
 static void		nvme_bio_child_inbed(struct bio *parent, int bio_error);
 static void		nvme_bio_child_done(void *arg,
 					    const struct nvme_completion *cpl);
@@ -215,6 +217,22 @@ nvme_ns_get_stripesize(struct nvme_namespace *ns)
 {
 
 	return (ns->stripesize);
+}
+
+uint32_t
+nvme_ns_get_optimal_sector_size(struct nvme_namespace *ns)
+{
+	uint32_t stripesize;
+
+	stripesize = nvme_ns_get_stripesize(ns);
+
+	if (stripesize == 0)
+		return nvme_ns_get_sector_size(ns);
+		
+	if (nvme_max_optimal_sectorsize == 0) 
+		return (stripesize);
+
+	return (MIN(stripesize, nvme_max_optimal_sectorsize));
 }
 
 static void

@@ -2,6 +2,9 @@
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+COMPILERRTDIR=	${.CURDIR}/../../../contrib/compiler-rt
+UNWINDINCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/include
+UNWINDSRCDIR=	${.CURDIR}/../../../contrib/llvm/projects/libunwind/src
 
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
@@ -55,8 +58,10 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm"
-# These are implemented in an ARM specific file but will not be filtered out
+.if ${TARGET_CPUARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm" && \
+    ${TARGET_CPUARCH} != "riscv64"
+# These are implemented in an ARM specific file but will not be filtered out.
+# RISCVTODO: can't compile
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
 LIB2FUNCS+= _floatdi${mode} _floatundi${mode}
@@ -67,8 +72,38 @@ LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
 
 # Additional sources to handle exceptions; overridden by targets as needed.
+.if ${MK_LLVM_LIBUNWIND} != "no"
+
+.PATH: ${COMPILERRTDIR}/lib/builtins
+.PATH: ${UNWINDSRCDIR}
+LIB2ADDEH = gcc_personality_v0.c \
+	int_util.c \
+	Unwind-EHABI.cpp \
+	Unwind-sjlj.c \
+	UnwindLevel1-gcc-ext.c \
+	UnwindLevel1.c \
+	UnwindRegistersRestore.S \
+	UnwindRegistersSave.S \
+	libunwind.cpp
+
+CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR}
+.if empty(CXXFLAGS:M-std=*)
+CXXFLAGS+=	-std=c++11
+.endif
+CXXFLAGS+=	-fno-rtti
+STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
+
+.else # MK_LLVM_LIBUNWIND
+
+.if ${TARGET_CPUARCH} == "arm"
+LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
+.else
 LIB2ADDEH = unwind-dw2.c unwind-dw2-fde-glibc.c unwind-sjlj.c gthr-gnat.c \
 	unwind-c.c
+.endif
+
+.endif # MK_LLVM_LIBUNWIND
+
 LIB2ADDEHSTATIC = $(LIB2ADDEH)
 LIB2ADDEHSHARED = $(LIB2ADDEH)
 
@@ -116,7 +151,6 @@ CFLAGS.clang+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
 LIBADD+=	compiler_rt
 .endif
@@ -160,7 +194,15 @@ LIB2_DIVMOD_FUNCS:= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
 .endfor
 .endif
 
-COMMONHDRS=	tm.h tconfig.h options.h unwind.h gthr-default.h
+COMMONHDRS=	tm.h tconfig.h options.h gthr-default.h
+.if ${MK_LLVM_LIBUNWIND} != "no"
+# unwind.h is a generated file when MK_LLVM_LIBUNWIND == "no", and a stale
+# copy may be left behind in OBJDIR when switching, so remove it explicitly.
+beforebuild:
+	@rm -f ${.OBJDIR}/unwind.h
+.else
+COMMONHDRS+=	unwind.h
+.endif
 
 #-----------------------------------------------------------------------
 #
@@ -169,7 +211,7 @@ COMMONHDRS=	tm.h tconfig.h options.h unwind.h gthr-default.h
 HIDE =  -fvisibility=hidden -DHIDE_EXPORTS
 CC_T =	${CC} -c ${CFLAGS} ${HIDE} -fPIC
 CC_P =	${CC} -c ${CFLAGS} ${HIDE} -p -fPIC
-CC_S =	${CC} -c ${CFLAGS} ${PICFLAG} -DSHARED
+CC_S =	${CC} -c ${CFLAGS} ${SHARED_CFLAGS} ${PICFLAG} -DSHARED
 
 #-----------------------------------------------------------------------
 #
@@ -282,15 +324,18 @@ EH_OBJS_T = ${LIB2ADDEHSTATIC:R:S/$/.o/}
 EH_OBJS_P = ${LIB2ADDEHSTATIC:R:S/$/.po/}
 EH_OBJS_S = ${LIB2ADDEHSHARED:R:S/$/.So/}
 EH_CFLAGS = -fexceptions -D__GLIBC__=3 -DElfW=__ElfN
+.if ${TARGET_CPUARCH} != "riscv64"
+# RISCVTODO: unwinding support
 SOBJS    += ${EH_OBJS_S}
+.endif
 
-.for _src in ${LIB2ADDEHSTATIC}
+.for _src in ${LIB2ADDEHSTATIC:M*.c}
 ${_src:R:S/$/.o/}: ${_src} ${COMMONHDRS}
 	${CC_T} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 ${_src:R:S/$/.po/}: ${_src} ${COMMONHDRS}
 	${CC_P} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
-.for _src in ${LIB2ADDEHSHARED}
+.for _src in ${LIB2ADDEHSHARED:M*.c}
 ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 	${CC_S} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor

@@ -178,7 +178,6 @@ void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
-void pmap_grow_direct_page_cache(void);
 void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 
 #endif				/* _KERNEL */

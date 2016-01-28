@@ -109,7 +109,7 @@ uint32_t get_l2clk(void);
 uint32_t read_cpu_ctrl(uint32_t);
 void write_cpu_ctrl(uint32_t, uint32_t);
 
-#if defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 uint32_t read_cpu_mp_clocks(uint32_t reg);
 void write_cpu_mp_clocks(uint32_t reg, uint32_t val);
 uint32_t read_cpu_misc(uint32_t reg);

@@ -12,11 +12,10 @@ SRCS+=	roaming_dummy.c
 
 WARNS?=	3
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
+SRCS+=	 ssh_namespace.h
 
 LIBADD=	ssh
 
 .include <bsd.lib.mk>
 
 .PATH: ${SSHDIR}
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h

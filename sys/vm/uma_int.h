@@ -303,9 +303,11 @@ struct uma_zone {
 	uint16_t	uz_count;	/* Amount of items in full bucket */
 	uint16_t	uz_count_min;	/* Minimal amount of items there */
 
-	/* The next three fields are used to print a rate-limited warnings. */
+	/* The next two fields are used to print a rate-limited warnings. */
 	const char	*uz_warning;	/* Warning to print on failure */
 	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
+
+	uma_maxaction_t	uz_maxaction;	/* Function to run when at limit */
 
 	/*
 	 * This HAS to be the last item because we adjust the zone size

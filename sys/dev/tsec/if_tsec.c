@@ -561,7 +561,7 @@ tsec_set_mac_address(struct tsec_softc *sc)
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 
 	KASSERT((ETHER_ADDR_LEN <= sizeof(macbuf)),
-	    ("tsec_set_mac_address: (%d <= %d", ETHER_ADDR_LEN,
+	    ("tsec_set_mac_address: (%d <= %zd", ETHER_ADDR_LEN,
 	    sizeof(macbuf)));
 
 	macbufp = (char *)macbuf;

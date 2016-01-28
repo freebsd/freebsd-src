@@ -1042,6 +1042,7 @@ enum {
 	MLX5_ESW_VPORT_ADMIN_STATE_UP    = 0x1,
 	MLX5_ESW_VPORT_ADMIN_STATE_AUTO  = 0x2,
 };
+
 /* MLX5 DEV CAPs */
 
 /* TODO: EAT.ME */
@@ -1219,4 +1220,36 @@ struct mlx5_ifc_mcia_reg_bits {
 };
 
 #define MLX5_CMD_OP_QUERY_EEPROM 0x93c
+
+struct mlx5_mini_cqe8 {
+	union {
+		u32 rx_hash_result;
+		u32 checksum;
+		struct {
+			u16 wqe_counter;
+			u8  s_wqe_opcode;
+			u8  reserved;
+		} s_wqe_info;
+	};
+	u32 byte_cnt;
+};
+
+enum {
+	MLX5_NO_INLINE_DATA,
+	MLX5_INLINE_DATA32_SEG,
+	MLX5_INLINE_DATA64_SEG,
+	MLX5_COMPRESSED,
+};
+
+enum mlx5_exp_cqe_zip_recv_type {
+	MLX5_CQE_FORMAT_HASH,
+	MLX5_CQE_FORMAT_CSUM,
+};
+
+#define MLX5E_CQE_FORMAT_MASK 0xc
+static inline int mlx5_get_cqe_format(const struct mlx5_cqe64 *cqe)
+{
+	return (cqe->op_own & MLX5E_CQE_FORMAT_MASK) >> 2;
+}
+
 #endif /* MLX5_DEVICE_H */

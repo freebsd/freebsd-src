@@ -413,6 +413,8 @@ do {									\
 #define	TDB_STOPATFORK	0x00000080 /* Stop at the return from fork (child
 				      only) */
 #define	TDB_CHILD	0x00000100 /* New child indicator for ptrace() */
+#define	TDB_BORN	0x00000200 /* New LWP indicator for ptrace() */
+#define	TDB_EXIT	0x00000400 /* Exiting LWP indicator for ptrace() */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -578,6 +580,7 @@ struct proc {
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 	u_int		p_treeflag;	/* (e) P_TREE flags */
+	int		p_pendingexits; /* (c) Count of pending thread exits. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -587,7 +590,6 @@ struct proc {
 	int		p_osrel;	/* (x) osreldate for the
 					       binary (from ELF note, if any) */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
-	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
@@ -600,6 +602,7 @@ struct proc {
 	u_int		p_xsig;		/* (c) Stop/kill sig. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xsig
+	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct knlist	p_klist;	/* (c) Knotes attached to this proc. */
 	int		p_numthreads;	/* (c) Number of threads. */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
@@ -696,6 +699,7 @@ struct proc {
 #define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
 #define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
 #define	P2_AST_SU	0x00000008	/* Handles SU ast for kthreads. */
+#define	P2_LWP_EVENTS	0x00000010	/* Report LWP events via ptrace(2). */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
@@ -935,6 +939,7 @@ void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 void	kern_yield(int);
 void 	kick_proc0(void);
+void	killjobc(void);
 int	leavepgrp(struct proc *p);
 int	maybe_preempt(struct thread *td);
 void	maybe_yield(void);

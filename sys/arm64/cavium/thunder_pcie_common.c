@@ -42,61 +42,13 @@ __FBSDID("$FreeBSD$");
 
 #include "thunder_pcie_common.h"
 
-
-int
-thunder_common_map_msi(device_t pcib, device_t child, int irq,
-    uint64_t *addr, uint32_t *data)
-{
-	int error;
-
-	error = arm_map_msix(child, irq, addr, data);
-	return (error);
-}
-
-int
-thunder_common_alloc_msix(device_t pcib, device_t child, int *irq)
-{
-	int error;
-
-	error = arm_alloc_msix(child, irq);
-	return (error);
-}
-
-int
-thunder_common_release_msix(device_t pcib, device_t child, int irq)
-{
-	int error;
-
-	error = arm_release_msix(child, irq);
-	return (error);
-}
-
-int
-thunder_common_alloc_msi(device_t pcib, device_t child, int count, int maxcount,
-    int *irqs)
-{
-	int error;
-
-	error = arm_alloc_msi(child, count, irqs);
-	return (error);
-}
-
-int
-thunder_common_release_msi(device_t pcib, device_t child, int count, int *irqs)
-{
-	int error;
-
-	error = arm_release_msi(child, count, irqs);
-	return (error);
-}
-
 uint32_t
 range_addr_is_pci(struct pcie_range *ranges, uint64_t addr, uint64_t size)
 {
 	struct pcie_range *r;
 	int tuple;
 
-	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
+	for (tuple = 0; tuple < RANGES_TUPLES_MAX; tuple++) {
 		r = &ranges[tuple];
 		if (addr >= r->pci_base &&
 		    addr < (r->pci_base + r->size) &&
@@ -116,7 +68,7 @@ range_addr_is_phys(struct pcie_range *ranges, uint64_t addr, uint64_t size)
 	struct pcie_range *r;
 	int tuple;
 
-	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
+	for (tuple = 0; tuple < RANGES_TUPLES_MAX; tuple++) {
 		r = &ranges[tuple];
 		if (addr >= r->phys_base &&
 		    addr < (r->phys_base + r->size) &&
@@ -138,7 +90,7 @@ range_addr_pci_to_phys(struct pcie_range *ranges, uint64_t pci_addr)
 	int tuple;
 
 	/* Find physical address corresponding to given bus address */
-	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
+	for (tuple = 0; tuple < RANGES_TUPLES_MAX; tuple++) {
 		r = &ranges[tuple];
 		if (pci_addr >= r->pci_base &&
 		    pci_addr < (r->pci_base + r->size)) {

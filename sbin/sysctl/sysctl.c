@@ -72,7 +72,7 @@ static const char rcsid[] =
 static const char *conffile;
 
 static int	aflag, bflag, Bflag, dflag, eflag, hflag, iflag;
-static int	Nflag, nflag, oflag, qflag, Tflag, Wflag, xflag;
+static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static int	parsefile(const char *);
@@ -120,6 +120,9 @@ static const char *ctl_typename[CTLTYPE+1] = {
 	[CTLTYPE_S16] = "int16_t",
 	[CTLTYPE_S32] = "int32_t",
 	[CTLTYPE_S64] = "int64_t",
+	[CTLTYPE_NODE] = "node",
+	[CTLTYPE_STRING] = "string",
+	[CTLTYPE_OPAQUE] = "opaque",
 };
 
 static void
@@ -127,8 +130,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehiNnoqTWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
-	    "       sysctl [-bdehNnoqTWx] [ -B <bufsize> ] -a");
+	    "usage: sysctl [-bdehiNnoqTtWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
+	    "       sysctl [-bdehNnoqTtWx] [ -B <bufsize> ] -a");
 	exit(1);
 }
 
@@ -142,7 +145,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabB:def:hiNnoqTwWxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabB:def:hiNnoqtTwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -183,6 +186,9 @@ main(int argc, char **argv)
 			break;
 		case 'q':
 			qflag = 1;
+			break;
+		case 't':
+			tflag = 1;
 			break;
 		case 'T':
 			Tflag = 1;
@@ -856,7 +862,7 @@ show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *oval, *p;
 	char name[BUFSIZ], fmt[BUFSIZ];
-	const char *sep, *sep1;
+	const char *sep, *sep1, *prntype;
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
 	intmax_t mv;
@@ -902,12 +908,23 @@ show_var(int *oid, int nlen)
 	else
 		sep = ": ";
 
-	if (dflag) {	/* just print description */
+	ctltype = (kind & CTLTYPE);
+	if (tflag || dflag) {
+		if (!nflag)
+			printf("%s%s", name, sep);
+        	if (ctl_typename[ctltype] != NULL)
+            		prntype = ctl_typename[ctltype];
+        	else
+            		prntype = "unknown";
+		if (tflag && dflag)
+			printf("%s%s", prntype, sep);
+		else if (tflag) {
+			printf("%s", prntype);
+			return (0);
+		}
 		qoid[1] = 5;
 		j = sizeof(buf);
 		i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
-		if (!nflag)
-			printf("%s%s", name, sep);
 		printf("%s", buf);
 		return (0);
 	}
@@ -925,7 +942,6 @@ show_var(int *oid, int nlen)
 		warnx("malloc failed");
 		return (1);
 	}
-	ctltype = (kind & CTLTYPE);
 	len = j;
 	i = sysctl(oid, nlen, val, &len, 0, 0);
 	if (i != 0 || (len == 0 && ctltype != CTLTYPE_STRING)) {

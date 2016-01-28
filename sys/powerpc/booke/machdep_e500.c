@@ -27,8 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/machdep.h>
 
@@ -42,6 +48,7 @@ extern void icache_enable(void);
 extern void icache_inval(void);
 extern void l2cache_enable(void);
 extern void l2cache_inval(void);
+extern void bpred_enable(void);
 
 void
 booke_init_tlb(vm_paddr_t fdt_immr_pa)
@@ -79,7 +86,6 @@ booke_enable_l1_cache(void)
 		    (csr & L1CSR1_ICE) ? "en" : "dis");
 }
 
-#if 0
 void
 booke_enable_l2_cache(void)
 {
@@ -102,55 +108,18 @@ booke_enable_l2_cache(void)
 }
 
 void
-booke_enable_l3_cache(void)
+booke_enable_bpred(void)
 {
-	uint32_t csr, size, ver;
+	uint32_t csr;
 
-	/* Enable L3 CoreNet Platform Cache (CPC) */
-	ver = SVR_VER(mfspr(SPR_SVR));
-	if (ver == SVR_P2041 || ver == SVR_P2041E || ver == SVR_P3041 ||
-	    ver == SVR_P3041E || ver == SVR_P5020 || ver == SVR_P5020E) {
-		csr = ccsr_read4(OCP85XX_CPC_CSR0);
-		if ((csr & OCP85XX_CPC_CSR0_CE) == 0) {
-			l3cache_inval();
-			l3cache_enable();
-		}
-
-		csr = ccsr_read4(OCP85XX_CPC_CSR0);
-		if ((boothowto & RB_VERBOSE) != 0 ||
-		    (csr & OCP85XX_CPC_CSR0_CE) == 0) {
-			size = OCP85XX_CPC_CFG0_SZ_K(ccsr_read4(OCP85XX_CPC_CFG0));
-			printf("L3 Corenet Platform Cache: %d KB %sabled\n",
-			    size, (csr & OCP85XX_CPC_CSR0_CE) == 0 ?
-			    "dis" : "en");
-		}
-	}
+	bpred_enable();
+	csr = mfspr(SPR_BUCSR);
+	if ((boothowto & RB_VERBOSE) != 0 || (csr & BUCSR_BPEN) == 0)
+		printf("Branch Predictor %sabled\n",
+		    (csr & BUCSR_BPEN) ? "en" : "dis");
 }
 
 void
 booke_disable_l2_cache(void)
 {
 }
-
-static void
-l3cache_inval(void)
-{
-
-	/* Flash invalidate the CPC and clear all the locks */
-	ccsr_write4(OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_FI |
-	    OCP85XX_CPC_CSR0_LFC);
-	while (ccsr_read4(OCP85XX_CPC_CSR0) & (OCP85XX_CPC_CSR0_FI |
-	    OCP85XX_CPC_CSR0_LFC))
-		;
-}
-
-static void
-l3cache_enable(void)
-{
-
-	ccsr_write4(OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_CE |
-	    OCP85XX_CPC_CSR0_PE);
-	/* Read back to sync write */
-	ccsr_read4(OCP85XX_CPC_CSR0);
-}
-#endif

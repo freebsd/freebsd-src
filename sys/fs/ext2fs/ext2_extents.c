@@ -66,13 +66,14 @@ static void
 ext4_ext_binsearch(struct inode *ip, struct ext4_extent_path *path, daddr_t lbn)
 {
 	struct ext4_extent_header *ehp = path->ep_header;
-	struct ext4_extent *l, *r, *m;
+	struct ext4_extent *first, *l, *r, *m;
 
 	if (ehp->eh_ecount == 0)
 		return;
 
-	l = (struct ext4_extent *)(char *)(ehp + 1);
-	r = (struct ext4_extent *)(char *)(ehp + 1) + ehp->eh_ecount - 1;
+	first = (struct ext4_extent *)(char *)(ehp + 1);
+	l = first;
+	r = first + ehp->eh_ecount - 1;
 	while (l <= r) {
 		m = l + (r - l) / 2;
 		if (lbn < m->e_blk)
@@ -81,7 +82,25 @@ ext4_ext_binsearch(struct inode *ip, struct ext4_extent_path *path, daddr_t lbn)
 			l = m + 1;
 	}
 
+	if (l == first) {
+		path->ep_sparse_ext.e_blk = lbn;
+		path->ep_sparse_ext.e_len = first->e_blk - lbn;
+		path->ep_sparse_ext.e_start_hi = 0;
+		path->ep_sparse_ext.e_start_lo = 0;
+		path->ep_is_sparse = 1;
+		return;
+	}
 	path->ep_ext = l - 1;
+	if (path->ep_ext->e_blk + path->ep_ext->e_len <= lbn) {
+		path->ep_sparse_ext.e_blk = lbn;
+		if (l <= (first + ehp->eh_ecount - 1))
+			path->ep_sparse_ext.e_len = l->e_blk - lbn;
+		else	// XXX: where does it end?
+			path->ep_sparse_ext.e_len = 1;
+		path->ep_sparse_ext.e_start_hi = 0;
+		path->ep_sparse_ext.e_start_lo = 0;
+		path->ep_is_sparse = 1;
+	}
 }
 
 /*
@@ -169,6 +188,7 @@ ext4_ext_find_extent(struct m_ext2fs *fs, struct inode *ip,
 	path->ep_depth = i;
 	path->ep_ext = NULL;
 	path->ep_index = NULL;
+	path->ep_is_sparse = 0;
 
 	ext4_ext_binsearch(ip, path, lbn);
 	return (path);

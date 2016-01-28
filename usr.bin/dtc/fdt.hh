@@ -36,6 +36,7 @@
 #include <unordered_set>
 #include <memory>
 #include <string>
+#include <functional>
 
 #include "util.hh"
 #include "string.hh"
@@ -402,11 +403,37 @@ class node
 	 * The type for the property vector.
 	 */
 	typedef std::vector<property_ptr> property_vector;
+	/**
+	 * Iterator type for child nodes.
+	 */
+	typedef std::vector<node_ptr>::iterator child_iterator;
 	private:
+	/**
+	 * Adaptor to use children in range-based for loops.
+	 */
+	struct child_range
+	{
+		child_range(node &nd) : n(nd) {}
+		child_iterator begin() { return n.child_begin(); }
+		child_iterator end() { return n.child_end(); }
+		private:
+		node &n;
+	};
+	/**
+	 * Adaptor to use properties in range-based for loops.
+	 */
+	struct property_range
+	{
+		property_range(node &nd) : n(nd) {}
+		property_vector::iterator begin() { return n.property_begin(); }
+		property_vector::iterator end() { return n.property_end(); }
+		private:
+		node &n;
+	};
 	/**
 	 * The properties contained within this node.
 	 */
-	property_vector properties;
+	property_vector props;
 	/**
 	 * The children of this node.
 	 */
@@ -458,10 +485,6 @@ class node
 	 */
 	void sort();
 	/**
-	 * Iterator type for child nodes.
-	 */
-	typedef std::vector<node_ptr>::iterator child_iterator;
-	/**
 	 * Returns an iterator for the first child of this node.
 	 */
 	inline child_iterator child_begin()
@@ -475,19 +498,27 @@ class node
 	{
 		return children.end();
 	}
+	inline child_range child_nodes()
+	{
+		return child_range(*this);
+	}
+	inline property_range properties()
+	{
+		return property_range(*this);
+	}
 	/**
 	 * Returns an iterator after the last property of this node.
 	 */
 	inline property_vector::iterator property_begin()
 	{
-		return properties.begin();
+		return props.begin();
 	}
 	/**
 	 * Returns an iterator for the first property of this node.
 	 */
 	inline property_vector::iterator property_end()
 	{
-		return properties.end();
+		return props.end();
 	}
 	/**
 	 * Factory method for constructing a new node.  Attempts to parse a
@@ -519,7 +550,7 @@ class node
 	 */
 	inline void add_property(property_ptr &p)
 	{
-		properties.push_back(p);
+		props.push_back(p);
 	}
 	/**
 	 * Merges a node into this one.  Any properties present in both are
@@ -539,6 +570,10 @@ class node
 	 * with this number of tabs.  
 	 */
 	void write_dts(FILE *file, int indent);
+	/**
+	 * Recursively visit this node and then its children.
+	 */
+	void visit(std::function<void(node&)>);
 };
 
 /**
@@ -683,6 +718,14 @@ class device_tree
 	 */
 	void resolve_cross_references();
 	/**
+	 * Parse a top-level include directive.
+	 */
+	bool parse_include(input_buffer &input,
+	                   const std::string &dir,
+	                   std::vector<node_ptr> &roots,
+	                   FILE *depfile,
+	                   bool &read_header);
+	/**
 	 * Parses a dts file in the given buffer and adds the roots to the parsed
 	 * set.  The `read_header` argument indicates whether the header has
 	 * already been read.  Some dts files place the header in an include,
@@ -698,7 +741,7 @@ class device_tree
 	 * object then keeps a reference to it, ensuring that it is not
 	 * deallocated until the device tree is destroyed.
 	 */
-	input_buffer *buffer_for_file(const char *path);
+	input_buffer *buffer_for_file(const char *path, bool warn=true);
 	/**
 	 * Template function that writes a dtb blob using the specified writer.
 	 * The writer defines the output format (assembly, blob).

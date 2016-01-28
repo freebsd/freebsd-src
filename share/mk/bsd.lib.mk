@@ -182,6 +182,7 @@ lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
+DEPENDOBJS+=	${POBJS}
 CLEANFILES+=	${POBJS}
 
 lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
@@ -194,6 +195,7 @@ lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 SOBJS+=		${OBJS:.o=.So}
+DEPENDOBJS+=	${SOBJS}
 CLEANFILES+=	${SOBJS}
 .endif
 
@@ -366,6 +368,9 @@ _libinstall:
 	${INSTALL} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
+	${INSTALL_SYMLINK} ${SHLIB_LINK} ${DESTDIR}${_LIBDIR}/${_SHLIB_LINK_LINK}
+.endfor
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
 	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
@@ -428,7 +433,9 @@ ${_S:R}.po: ${_S}
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
+.if !exists(${.OBJDIR}/${DEPENDFILE})
 ${SOBJS}: ${SRCS:M*.h}
+.endif
 .for _S in ${SRCS:N*.[hly]}
 ${_S:R}.So: ${_S}
 .endfor

@@ -3642,6 +3642,9 @@ setup_intr_handlers(struct adapter *sc)
 #ifdef DEV_NETMAP
 	struct sge_nm_rxq *nm_rxq;
 #endif
+#ifdef RSS
+	int nbuckets = rss_getnumbuckets();
+#endif
 
 	/*
 	 * Setup interrupts.
@@ -3700,6 +3703,10 @@ setup_intr_handlers(struct adapter *sc)
 					    t4_intr, rxq, s);
 					if (rc != 0)
 						return (rc);
+#ifdef RSS
+					bus_bind_intr(sc->dev, irq->res,
+					    rss_getcpu(q % nbuckets));
+#endif
 					irq++;
 					rid++;
 					vi->nintr++;
@@ -8801,11 +8808,8 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 
 #ifdef TCP_OFFLOAD
 void
-t4_iscsi_init(struct ifnet *ifp, unsigned int tag_mask,
-    const unsigned int *pgsz_order)
+t4_iscsi_init(struct adapter *sc, u_int tag_mask, const u_int *pgsz_order)
 {
-	struct vi_info *vi = ifp->if_softc;
-	struct adapter *sc = vi->pi->adapter;
 
 	t4_write_reg(sc, A_ULP_RX_ISCSI_TAGMASK, tag_mask);
 	t4_write_reg(sc, A_ULP_RX_ISCSI_PSZ, V_HPZ0(pgsz_order[0]) |

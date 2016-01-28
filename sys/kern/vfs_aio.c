@@ -117,10 +117,6 @@ static uint64_t jobseqno;
 #define MAX_BUF_AIO		16
 #endif
 
-#ifndef AIOD_TIMEOUT_DEFAULT
-#define	AIOD_TIMEOUT_DEFAULT	(10 * hz)
-#endif
-
 #ifndef AIOD_LIFETIME_DEFAULT
 #define AIOD_LIFETIME_DEFAULT	(30 * hz)
 #endif
@@ -129,17 +125,16 @@ FEATURE(aio, "Asynchronous I/O");
 
 static MALLOC_DEFINE(M_LIO, "lio", "listio aio control block list");
 
-static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "Async IO management");
+static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0,
+    "Async IO management");
 
 static int max_aio_procs = MAX_AIO_PROCS;
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs,
-	CTLFLAG_RW, &max_aio_procs, 0,
-	"Maximum number of kernel threads to use for handling async IO ");
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs, CTLFLAG_RW, &max_aio_procs, 0,
+    "Maximum number of kernel processes to use for handling async IO ");
 
 static int num_aio_procs = 0;
-SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs,
-	CTLFLAG_RD, &num_aio_procs, 0,
-	"Number of presently active kernel threads for async IO");
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs, CTLFLAG_RD, &num_aio_procs, 0,
+    "Number of presently active kernel processes for async IO");
 
 /*
  * The code will adjust the actual number of AIO processes towards this
@@ -147,7 +142,8 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs,
  */
 static int target_aio_procs = TARGET_AIO_PROCS;
 SYSCTL_INT(_vfs_aio, OID_AUTO, target_aio_procs, CTLFLAG_RW, &target_aio_procs,
-	0, "Preferred number of ready kernel threads for async IO");
+    0,
+    "Preferred number of ready kernel processes for async IO");
 
 static int max_queue_count = MAX_AIO_QUEUE;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue, CTLFLAG_RW, &max_queue_count, 0,
@@ -161,13 +157,9 @@ static int num_buf_aio = 0;
 SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio, CTLFLAG_RD, &num_buf_aio, 0,
     "Number of aio requests presently handled by the buf subsystem");
 
-/* Number of async I/O thread in the process of being started */
+/* Number of async I/O processes in the process of being started */
 /* XXX This should be local to aio_aqueue() */
 static int num_aio_resv_start = 0;
-
-static int aiod_timeout;
-SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout, CTLFLAG_RW, &aiod_timeout, 0,
-    "Timeout value for synchronous aio operations");
 
 static int aiod_lifetime;
 SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime, CTLFLAG_RW, &aiod_lifetime, 0,
@@ -180,7 +172,8 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
 
 static int max_aio_per_proc = MAX_AIO_PER_PROC;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_per_proc, CTLFLAG_RW, &max_aio_per_proc,
-    0, "Maximum active aio requests per process (stored in the process)");
+    0,
+    "Maximum active aio requests per process (stored in the process)");
 
 static int max_aio_queue_per_proc = MAX_AIO_QUEUE_PER_PROC;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc, CTLFLAG_RW,
@@ -218,8 +211,8 @@ typedef struct oaiocb {
  * Current, there is only two backends: BIO and generic file I/O.
  * socket I/O is served by generic file I/O, this is not a good idea, since
  * disk file I/O and any other types without O_NONBLOCK flag can block daemon
- * threads, if there is no thread to serve socket I/O, the socket I/O will be
- * delayed too long or starved, we should create some threads dedicated to
+ * processes, if there is no thread to serve socket I/O, the socket I/O will be
+ * delayed too long or starved, we should create some processes dedicated to
  * sockets to do non-blocking I/O, same for pipe and fifo, for these I/O
  * systems we really need non-blocking interface, fiddling O_NONBLOCK in file
  * structure is not safe because there is race between userland and aio
@@ -239,7 +232,7 @@ struct aiocblist {
 	struct	vm_page *pages[btoc(MAXPHYS)+1]; /* BIO backend pages */
 	int	npages;			/* BIO backend number of pages */
 	struct	proc *userproc;		/* (*) user process */
-	struct  ucred *cred;		/* (*) active credential when created */
+	struct	ucred *cred;		/* (*) active credential when created */
 	struct	file *fd_file;		/* (*) pointer to file structure */
 	struct	aioliojob *lio;		/* (*) optional lio job */
 	struct	aiocb *uuaiocb;		/* (*) pointer in userspace of aiocb */
@@ -261,10 +254,10 @@ struct aiocblist {
  */
 #define AIOP_FREE	0x1			/* proc on free queue */
 
-struct aiothreadlist {
-	int aiothreadflags;			/* (c) AIO proc flags */
-	TAILQ_ENTRY(aiothreadlist) list;	/* (c) list of processes */
-	struct thread *aiothread;		/* (*) the AIO thread */
+struct aioproc {
+	int	aioprocflags;			/* (c) AIO proc flags */
+	TAILQ_ENTRY(aioproc) list;		/* (c) list of processes */
+	struct	proc *aioproc;			/* (*) the AIO proc */
 };
 
 /*
@@ -276,7 +269,7 @@ struct aioliojob {
 	int	lioj_finished_count;		/* (a) listio flags */
 	struct	sigevent lioj_signal;		/* (a) signal on all I/O done */
 	TAILQ_ENTRY(aioliojob) lioj_list;	/* (a) lio list */
-	struct  knlist klist;			/* (a) list of knotes */
+	struct	knlist klist;			/* (a) list of knotes */
 	ksiginfo_t lioj_ksi;			/* (a) Realtime signal info */
 };
 
@@ -288,7 +281,7 @@ struct aioliojob {
  * per process aio data structure
  */
 struct kaioinfo {
-	struct mtx	kaio_mtx;	/* the lock to protect this struct */
+	struct	mtx kaio_mtx;		/* the lock to protect this struct */
 	int	kaio_flags;		/* (a) per process kaio flags */
 	int	kaio_maxactive_count;	/* (*) maximum number of AIOs */
 	int	kaio_active_count;	/* (c) number of currently used AIOs */
@@ -296,16 +289,13 @@ struct kaioinfo {
 	int	kaio_count;		/* (a) size of AIO queue */
 	int	kaio_ballowed_count;	/* (*) maximum number of buffers */
 	int	kaio_buffer_count;	/* (a) number of physio buffers */
-	TAILQ_HEAD(,aiocblist) kaio_all;	/* (a) all AIOs in the process */
+	TAILQ_HEAD(,aiocblist) kaio_all;	/* (a) all AIOs in a process */
 	TAILQ_HEAD(,aiocblist) kaio_done;	/* (a) done queue for process */
 	TAILQ_HEAD(,aioliojob) kaio_liojoblist; /* (a) list of lio jobs */
 	TAILQ_HEAD(,aiocblist) kaio_jobqueue;	/* (a) job queue for process */
-	TAILQ_HEAD(,aiocblist) kaio_bufqueue;	/* (a) buffer job queue for process */
-	TAILQ_HEAD(,aiocblist) kaio_sockqueue;  /* (a) queue for aios waiting on sockets,
-						 *  NOT USED YET.
-						 */
+	TAILQ_HEAD(,aiocblist) kaio_bufqueue;	/* (a) buffer job queue */
 	TAILQ_HEAD(,aiocblist) kaio_syncqueue;	/* (a) queue for aio_fsync */
-	struct	task	kaio_task;	/* (*) task to kick aio threads */
+	struct	task kaio_task;		/* (*) task to kick aio processes */
 };
 
 #define AIO_LOCK(ki)		mtx_lock(&(ki)->kaio_mtx)
@@ -314,7 +304,7 @@ struct kaioinfo {
 #define AIO_MTX(ki)		(&(ki)->kaio_mtx)
 
 #define KAIO_RUNDOWN	0x1	/* process is being run down */
-#define KAIO_WAKEUP	0x2	/* wakeup process when there is a significant event */
+#define KAIO_WAKEUP	0x2	/* wakeup process when AIO completes */
 
 /*
  * Operations used to interact with userland aio control blocks.
@@ -330,10 +320,9 @@ struct aiocb_ops {
 	int	(*store_aiocb)(struct aiocb **ujobp, struct aiocb *ujob);
 };
 
-static TAILQ_HEAD(,aiothreadlist) aio_freeproc;		/* (c) Idle daemons */
+static TAILQ_HEAD(,aioproc) aio_freeproc;		/* (c) Idle daemons */
 static struct sema aio_newproc_sem;
 static struct mtx aio_job_mtx;
-static struct mtx aio_sock_mtx;
 static TAILQ_HEAD(,aiocblist) aio_jobs;			/* (c) Async job list */
 static struct unrhdr *aiod_unr;
 
@@ -345,15 +334,17 @@ static void	aio_process_sync(struct aiocblist *aiocbe);
 static void	aio_process_mlock(struct aiocblist *aiocbe);
 static int	aio_newproc(int *);
 int		aio_aqueue(struct thread *td, struct aiocb *job,
-			struct aioliojob *lio, int type, struct aiocb_ops *ops);
+		    struct aioliojob *lio, int type, struct aiocb_ops *ops);
 static void	aio_physwakeup(struct bio *bp);
 static void	aio_proc_rundown(void *arg, struct proc *p);
-static void	aio_proc_rundown_exec(void *arg, struct proc *p, struct image_params *imgp);
+static void	aio_proc_rundown_exec(void *arg, struct proc *p,
+		    struct image_params *imgp);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *param);
 static void	aio_swake_cb(struct socket *, struct sockbuf *);
 static int	aio_unload(void);
-static void	aio_bio_done_notify(struct proc *userp, struct aiocblist *aiocbe, int type);
+static void	aio_bio_done_notify(struct proc *userp,
+		    struct aiocblist *aiocbe, int type);
 #define DONE_BUF	1
 #define DONE_QUEUE	2
 static int	aio_kick(struct proc *userp);
@@ -369,7 +360,7 @@ static int	filt_lio(struct knote *kn, long hint);
 /*
  * Zones for:
  * 	kaio	Per process async io info
- *	aiop	async io thread data
+ *	aiop	async io process data
  *	aiocb	async io jobs
  *	aiol	list io job pointer - internal to aio_suspend XXX
  *	aiolio	list io jobs
@@ -392,7 +383,7 @@ static struct filterops lio_filtops = {
 
 static eventhandler_tag exit_tag, exec_tag;
 
-TASKQUEUE_DEFINE_THREAD(aiod_bio);
+TASKQUEUE_DEFINE_THREAD(aiod_kick);
 
 /*
  * Main operations function for use as a kernel module.
@@ -484,19 +475,18 @@ aio_onceonly(void)
 	aio_swake = &aio_swake_cb;
 	exit_tag = EVENTHANDLER_REGISTER(process_exit, aio_proc_rundown, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown_exec, NULL,
-	    EVENTHANDLER_PRI_ANY);
+	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown_exec,
+	    NULL, EVENTHANDLER_PRI_ANY);
 	kqueue_add_filteropts(EVFILT_AIO, &aio_filtops);
 	kqueue_add_filteropts(EVFILT_LIO, &lio_filtops);
 	TAILQ_INIT(&aio_freeproc);
 	sema_init(&aio_newproc_sem, 0, "aio_new_proc");
 	mtx_init(&aio_job_mtx, "aio_job", NULL, MTX_DEF);
-	mtx_init(&aio_sock_mtx, "aio_sock", NULL, MTX_DEF);
 	TAILQ_INIT(&aio_jobs);
 	aiod_unr = new_unrhdr(1, INT_MAX, NULL);
 	kaio_zone = uma_zcreate("AIO", sizeof(struct kaioinfo), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	aiop_zone = uma_zcreate("AIOP", sizeof(struct aiothreadlist), NULL,
+	aiop_zone = uma_zcreate("AIOP", sizeof(struct aioproc), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiocb_zone = uma_zcreate("AIOCB", sizeof(struct aiocblist), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
@@ -504,7 +494,6 @@ aio_onceonly(void)
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	aiolio_zone = uma_zcreate("AIOLIO", sizeof(struct aioliojob), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
 	async_io_version = _POSIX_VERSION;
@@ -555,7 +544,7 @@ aio_unload(void)
 		return error;
 	async_io_version = 0;
 	aio_swake = NULL;
-	taskqueue_free(taskqueue_aiod_bio);
+	taskqueue_free(taskqueue_aiod_kick);
 	delete_unrhdr(aiod_unr);
 	uma_zdestroy(kaio_zone);
 	uma_zdestroy(aiop_zone);
@@ -565,7 +554,6 @@ aio_unload(void)
 	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
 	EVENTHANDLER_DEREGISTER(process_exec, exec_tag);
 	mtx_destroy(&aio_job_mtx);
-	mtx_destroy(&aio_sock_mtx);
 	sema_destroy(&aio_newproc_sem);
 	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);
 	p31b_setcfg(CTL_P1003_1B_AIO_MAX, -1);
@@ -596,7 +584,6 @@ aio_init_aioinfo(struct proc *p)
 	TAILQ_INIT(&ki->kaio_jobqueue);
 	TAILQ_INIT(&ki->kaio_bufqueue);
 	TAILQ_INIT(&ki->kaio_liojoblist);
-	TAILQ_INIT(&ki->kaio_sockqueue);
 	TAILQ_INIT(&ki->kaio_syncqueue);
 	TASK_INIT(&ki->kaio_task, 0, aio_kick_helper, p);
 	PROC_LOCK(p);
@@ -716,7 +703,8 @@ aio_free_entry(struct aiocblist *aiocbe)
 }
 
 static void
-aio_proc_rundown_exec(void *arg, struct proc *p, struct image_params *imgp __unused)
+aio_proc_rundown_exec(void *arg, struct proc *p,
+    struct image_params *imgp __unused)
 {
    	aio_proc_rundown(arg, p);
 }
@@ -802,7 +790,7 @@ restart:
 		}
 	}
 	AIO_UNLOCK(ki);
-	taskqueue_drain(taskqueue_aiod_bio, &ki->kaio_task);
+	taskqueue_drain(taskqueue_aiod_kick, &ki->kaio_task);
 	mtx_destroy(&ki->kaio_mtx);
 	uma_zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
@@ -812,7 +800,7 @@ restart:
  * Select a job to run (called by an AIO daemon).
  */
 static struct aiocblist *
-aio_selectjob(struct aiothreadlist *aiop)
+aio_selectjob(struct aioproc *aiop)
 {
 	struct aiocblist *aiocbe;
 	struct kaioinfo *ki;
@@ -835,8 +823,8 @@ aio_selectjob(struct aiothreadlist *aiop)
 }
 
 /*
- *  Move all data to a permanent storage device, this code
- *  simulates fsync syscall.
+ * Move all data to a permanent storage device.  This code
+ * simulates the fsync syscall.
  */
 static int
 aio_fsync_vnode(struct thread *td, struct vnode *vp)
@@ -1043,7 +1031,8 @@ notification_done:
 				if (--scb->pending == 0) {
 					mtx_lock(&aio_job_mtx);
 					scb->jobstate = JOBST_JOBQGLOBAL;
-					TAILQ_REMOVE(&ki->kaio_syncqueue, scb, list);
+					TAILQ_REMOVE(&ki->kaio_syncqueue, scb,
+					    list);
 					TAILQ_INSERT_TAIL(&aio_jobs, scb, list);
 					aio_kick_nowait(userp);
 					mtx_unlock(&aio_job_mtx);
@@ -1057,6 +1046,13 @@ notification_done:
 	}
 }
 
+static void
+aio_switch_vmspace(struct aiocblist *aiocbe)
+{
+
+	vmspace_switch_aio(aiocbe->userproc->p_vmspace);
+}
+
 /*
  * The AIO daemon, most of the actual work is done in aio_process_*,
  * but the setup (and address space mgmt) is done in this routine.
@@ -1065,31 +1061,30 @@ static void
 aio_daemon(void *_id)
 {
 	struct aiocblist *aiocbe;
-	struct aiothreadlist *aiop;
+	struct aioproc *aiop;
 	struct kaioinfo *ki;
-	struct proc *curcp, *mycp, *userp;
-	struct vmspace *myvm, *tmpvm;
+	struct proc *p, *userp;
+	struct vmspace *myvm;
 	struct thread *td = curthread;
 	int id = (intptr_t)_id;
 
 	/*
-	 * Local copies of curproc (cp) and vmspace (myvm)
+	 * Grab an extra reference on the daemon's vmspace so that it
+	 * doesn't get freed by jobs that switch to a different
+	 * vmspace.
 	 */
-	mycp = td->td_proc;
-	myvm = mycp->p_vmspace;
+	p = td->td_proc;
+	myvm = vmspace_acquire_ref(p);
 
-	KASSERT(mycp->p_textvp == NULL, ("kthread has a textvp"));
+	KASSERT(p->p_textvp == NULL, ("kthread has a textvp"));
 
 	/*
 	 * Allocate and ready the aio control info.  There is one aiop structure
 	 * per daemon.
 	 */
 	aiop = uma_zalloc(aiop_zone, M_WAITOK);
-	aiop->aiothread = td;
-	aiop->aiothreadflags = 0;
-
-	/* The daemon resides in its own pgrp. */
-	sys_setsid(td, NULL);
+	aiop->aioproc = p;
+	aiop->aioprocflags = 0;
 
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
@@ -1100,17 +1095,11 @@ aio_daemon(void *_id)
 	mtx_lock(&aio_job_mtx);
 	for (;;) {
 		/*
-		 * curcp is the current daemon process context.
-		 * userp is the current user process context.
-		 */
-		curcp = mycp;
-
-		/*
 		 * Take daemon off of free queue
 		 */
-		if (aiop->aiothreadflags & AIOP_FREE) {
+		if (aiop->aioprocflags & AIOP_FREE) {
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
-			aiop->aiothreadflags &= ~AIOP_FREE;
+			aiop->aioprocflags &= ~AIOP_FREE;
 		}
 
 		/*
@@ -1123,34 +1112,7 @@ aio_daemon(void *_id)
 			/*
 			 * Connect to process address space for user program.
 			 */
-			if (userp != curcp) {
-				/*
-				 * Save the current address space that we are
-				 * connected to.
-				 */
-				tmpvm = mycp->p_vmspace;
-
-				/*
-				 * Point to the new user address space, and
-				 * refer to it.
-				 */
-				mycp->p_vmspace = userp->p_vmspace;
-				atomic_add_int(&mycp->p_vmspace->vm_refcnt, 1);
-
-				/* Activate the new mapping. */
-				pmap_activate(FIRST_THREAD_IN_PROC(mycp));
-
-				/*
-				 * If the old address space wasn't the daemons
-				 * own address space, then we need to remove the
-				 * daemon's reference from the other process
-				 * that it was acting on behalf of.
-				 */
-				if (tmpvm != myvm) {
-					vmspace_free(tmpvm);
-				}
-				curcp = userp;
-			}
+			aio_switch_vmspace(aiocbe);
 
 			ki = userp->p_aioinfo;
 
@@ -1184,34 +1146,13 @@ aio_daemon(void *_id)
 		/*
 		 * Disconnect from user address space.
 		 */
-		if (curcp != mycp) {
-
+		if (p->p_vmspace != myvm) {
 			mtx_unlock(&aio_job_mtx);
-
-			/* Get the user address space to disconnect from. */
-			tmpvm = mycp->p_vmspace;
-
-			/* Get original address space for daemon. */
-			mycp->p_vmspace = myvm;
-
-			/* Activate the daemon's address space. */
-			pmap_activate(FIRST_THREAD_IN_PROC(mycp));
-#ifdef DIAGNOSTIC
-			if (tmpvm == myvm) {
-				printf("AIOD: vmspace problem -- %d\n",
-				    mycp->p_pid);
-			}
-#endif
-			/* Remove our vmspace reference. */
-			vmspace_free(tmpvm);
-
-			curcp = mycp;
-
+			vmspace_switch_aio(myvm);
 			mtx_lock(&aio_job_mtx);
 			/*
 			 * We have to restart to avoid race, we only sleep if
-			 * no job can be selected, that should be
-			 * curcp == mycp.
+			 * no job can be selected.
 			 */
 			continue;
 		}
@@ -1219,36 +1160,30 @@ aio_daemon(void *_id)
 		mtx_assert(&aio_job_mtx, MA_OWNED);
 
 		TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
-		aiop->aiothreadflags |= AIOP_FREE;
+		aiop->aioprocflags |= AIOP_FREE;
 
 		/*
 		 * If daemon is inactive for a long time, allow it to exit,
 		 * thereby freeing resources.
 		 */
-		if (msleep(aiop->aiothread, &aio_job_mtx, PRIBIO, "aiordy",
-		    aiod_lifetime)) {
-			if (TAILQ_EMPTY(&aio_jobs)) {
-				if ((aiop->aiothreadflags & AIOP_FREE) &&
-				    (num_aio_procs > target_aio_procs)) {
-					TAILQ_REMOVE(&aio_freeproc, aiop, list);
-					num_aio_procs--;
-					mtx_unlock(&aio_job_mtx);
-					uma_zfree(aiop_zone, aiop);
-					free_unr(aiod_unr, id);
-#ifdef DIAGNOSTIC
-					if (mycp->p_vmspace->vm_refcnt <= 1) {
-						printf("AIOD: bad vm refcnt for"
-						    " exiting daemon: %d\n",
-						    mycp->p_vmspace->vm_refcnt);
-					}
-#endif
-					kproc_exit(0);
-				}
-			}
-		}
+		if (msleep(p, &aio_job_mtx, PRIBIO, "aiordy",
+		    aiod_lifetime) == EWOULDBLOCK && TAILQ_EMPTY(&aio_jobs) &&
+		    (aiop->aioprocflags & AIOP_FREE) &&
+		    num_aio_procs > target_aio_procs)
+			break;
 	}
+	TAILQ_REMOVE(&aio_freeproc, aiop, list);
+	num_aio_procs--;
 	mtx_unlock(&aio_job_mtx);
-	panic("shouldn't be here\n");
+	uma_zfree(aiop_zone, aiop);
+	free_unr(aiod_unr, id);
+	vmspace_free(myvm);
+
+	KASSERT(p->p_vmspace == myvm,
+	    ("AIOD: bad vmspace for exiting daemon"));
+	KASSERT(myvm->vm_refcnt > 1,
+	    ("AIOD: bad vm refcnt for exiting daemon: %d", myvm->vm_refcnt));
+	kproc_exit(0);
 }
 
 /*
@@ -1851,17 +1786,17 @@ static void
 aio_kick_nowait(struct proc *userp)
 {
 	struct kaioinfo *ki = userp->p_aioinfo;
-	struct aiothreadlist *aiop;
+	struct aioproc *aiop;
 
 	mtx_assert(&aio_job_mtx, MA_OWNED);
 	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
-		aiop->aiothreadflags &= ~AIOP_FREE;
-		wakeup(aiop->aiothread);
-	} else if (((num_aio_resv_start + num_aio_procs) < max_aio_procs) &&
-	    ((ki->kaio_active_count + num_aio_resv_start) <
-	    ki->kaio_maxactive_count)) {
-		taskqueue_enqueue(taskqueue_aiod_bio, &ki->kaio_task);
+		aiop->aioprocflags &= ~AIOP_FREE;
+		wakeup(aiop->aioproc);
+	} else if (num_aio_resv_start + num_aio_procs < max_aio_procs &&
+	    ki->kaio_active_count + num_aio_resv_start <
+	    ki->kaio_maxactive_count) {
+		taskqueue_enqueue(taskqueue_aiod_kick, &ki->kaio_task);
 	}
 }
 
@@ -1869,18 +1804,18 @@ static int
 aio_kick(struct proc *userp)
 {
 	struct kaioinfo *ki = userp->p_aioinfo;
-	struct aiothreadlist *aiop;
+	struct aioproc *aiop;
 	int error, ret = 0;
 
 	mtx_assert(&aio_job_mtx, MA_OWNED);
 retryproc:
 	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
-		aiop->aiothreadflags &= ~AIOP_FREE;
-		wakeup(aiop->aiothread);
-	} else if (((num_aio_resv_start + num_aio_procs) < max_aio_procs) &&
-	    ((ki->kaio_active_count + num_aio_resv_start) <
-	    ki->kaio_maxactive_count)) {
+		aiop->aioprocflags &= ~AIOP_FREE;
+		wakeup(aiop->aioproc);
+	} else if (num_aio_resv_start + num_aio_procs < max_aio_procs &&
+	    ki->kaio_active_count + num_aio_resv_start <
+	    ki->kaio_maxactive_count) {
 		num_aio_resv_start++;
 		mtx_unlock(&aio_job_mtx);
 		error = aio_newproc(&num_aio_resv_start);
@@ -2713,8 +2648,8 @@ typedef struct aiocb32 {
 	uint32_t __spare2__;
 	int	aio_lio_opcode;		/* LIO opcode */
 	int	aio_reqprio;		/* Request priority -- ignored */
-	struct __aiocb_private32 _aiocb_private;
-	struct sigevent32 aio_sigevent;	/* Signal to deliver */
+	struct	__aiocb_private32 _aiocb_private;
+	struct	sigevent32 aio_sigevent;	/* Signal to deliver */
 } aiocb32_t;
 
 static int

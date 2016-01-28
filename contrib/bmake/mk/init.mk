@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.9 2013/07/18 05:46:24 sjg Exp $
+# $Id: init.mk,v 1.10 2015/12/07 04:28:31 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -47,4 +47,8 @@ PROFFLAGS?= -DGPROF -DPROF
 _SKIP_BUILD = not building at level 0
 .endif
 
+.if !empty(_SKIP_BUILD)
+all: .PHONY
+.warning ${_SKIP_BUILD}
+.endif
 .endif

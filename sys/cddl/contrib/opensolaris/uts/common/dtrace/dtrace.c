@@ -120,13 +120,17 @@
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/ptrace.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
+
 #include <sys/dtrace_bsd.h>
+
 #include <netinet/in.h>
+
 #include "dtrace_cddl.h"
 #include "dtrace_debug.c"
 #endif
@@ -13030,9 +13034,60 @@ dtrace_dof_copyin(uintptr_t uarg, int *errp)
 	return (dof);
 }
 
-#ifndef illumos
+#ifdef __FreeBSD__
+static dof_hdr_t *
+dtrace_dof_copyin_proc(struct proc *p, uintptr_t uarg, int *errp)
+{
+	dof_hdr_t hdr, *dof;
+	struct thread *td;
+	size_t loadsz;
+
+	ASSERT(!MUTEX_HELD(&dtrace_lock));
+
+	td = curthread;
+
+	/*
+	 * First, we're going to copyin() the sizeof (dof_hdr_t).
+	 */
+	if (proc_readmem(td, p, uarg, &hdr, sizeof(hdr)) != sizeof(hdr)) {
+		dtrace_dof_error(NULL, "failed to copyin DOF header");
+		*errp = EFAULT;
+		return (NULL);
+	}
+
+	/*
+	 * Now we'll allocate the entire DOF and copy it in -- provided
+	 * that the length isn't outrageous.
+	 */
+	if (hdr.dofh_loadsz >= dtrace_dof_maxsize) {
+		dtrace_dof_error(&hdr, "load size exceeds maximum");
+		*errp = E2BIG;
+		return (NULL);
+	}
+	loadsz = (size_t)hdr.dofh_loadsz;
+
+	if (loadsz < sizeof (hdr)) {
+		dtrace_dof_error(&hdr, "invalid load size");
+		*errp = EINVAL;
+		return (NULL);
+	}
+
+	dof = kmem_alloc(loadsz, KM_SLEEP);
+
+	if (proc_readmem(td, p, uarg, dof, loadsz) != loadsz ||
+	    dof->dofh_loadsz != loadsz) {
+		kmem_free(dof, hdr.dofh_loadsz);
+		*errp = EFAULT;
+		return (NULL);
+	}
+
+	return (dof);
+}
+
 static __inline uchar_t
-dtrace_dof_char(char c) {
+dtrace_dof_char(char c)
+{
+
 	switch (c) {
 	case '0':
 	case '1':
@@ -13063,7 +13118,7 @@ dtrace_dof_char(char c) {
 	/* Should not reach here. */
 	return (0);
 }
-#endif
+#endif /* __FreeBSD__ */
 
 static dof_hdr_t *
 dtrace_dof_property(const char *name)
@@ -15694,8 +15749,8 @@ dtrace_helper_provider_add(dof_helper_t *dofhp, dtrace_helpers_t *help, int gen)
 	 * Check to make sure this isn't a duplicate.
 	 */
 	for (i = 0; i < help->dthps_nprovs; i++) {
-		if (dofhp->dofhp_dof ==
-		    help->dthps_provs[i]->dthp_prov.dofhp_dof)
+		if (dofhp->dofhp_addr ==
+		    help->dthps_provs[i]->dthp_prov.dofhp_addr)
 			return (EALREADY);
 	}
 
@@ -15967,30 +16022,22 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 }
 
 static int
+#ifdef __FreeBSD__
+dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp, struct proc *p)
+#else
 dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
+#endif
 {
 	dtrace_helpers_t *help;
 	dtrace_vstate_t *vstate;
 	dtrace_enabling_t *enab = NULL;
+#ifndef __FreeBSD__
 	proc_t *p = curproc;
+#endif
 	int i, gen, rv, nhelpers = 0, nprovs = 0, destroy = 1;
 	uintptr_t daddr = (uintptr_t)dof;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
-
-#ifdef __FreeBSD__
-	if (dhp->dofhp_pid != p->p_pid) {
-		if ((p = pfind(dhp->dofhp_pid)) == NULL)
-			return (-1);
-		if (!P_SHOULDSTOP(p) ||
-		    (p->p_flag & P_TRACED) == 0 ||
-		    p->p_pptr->p_pid != curproc->p_pid) {
-			PROC_UNLOCK(p);
-			return (-1);
-		}
-		PROC_UNLOCK(p);
-	}
-#endif
 
 	if ((help = p->p_dtrace_helpers) == NULL)
 		help = dtrace_helpers_create(p);
@@ -16063,7 +16110,14 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 	dtrace_enabling_destroy(enab);
 
 	if (dhp != NULL && nprovs > 0) {
+		/*
+		 * Now that this is in-kernel, we change the sense of the
+		 * members:  dofhp_dof denotes the in-kernel copy of the DOF
+		 * and dofhp_addr denotes the address at user-level.
+		 */
+		dhp->dofhp_addr = dhp->dofhp_dof;
 		dhp->dofhp_dof = (uint64_t)(uintptr_t)dof;
+
 		if (dtrace_helper_provider_add(dhp, help, gen) == 0) {
 			mutex_exit(&dtrace_lock);
 			dtrace_helper_provider_register(p, help, dhp);

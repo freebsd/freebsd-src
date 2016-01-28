@@ -401,6 +401,7 @@ DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, NULL, 0);
 MODULE_DEPEND(ural, usb, 1, 1, 1);
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
 MODULE_VERSION(ural, 1);
+USB_PNP_HOST_INFO(ural_devs);
 
 static int
 ural_match(device_t self)
@@ -423,7 +424,8 @@ ural_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct ural_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t iface_index, bands;
+	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t iface_index;
 	int error;
 
 	device_set_usb_desc(self);
@@ -472,12 +474,12 @@ ural_attach(device_t self)
 	    | IEEE80211_C_WPA		/* 802.11i */
 	    ;
 
-	bands = 0;
-	setbit(&bands, IEEE80211_MODE_11B);
-	setbit(&bands, IEEE80211_MODE_11G);
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
 	if (sc->rf_rev == RAL_RF_5222)
-		setbit(&bands, IEEE80211_MODE_11A);
-	ieee80211_init_channels(ic, NULL, &bands);
+		setbit(bands, IEEE80211_MODE_11A);
+	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
 	ic->ic_update_promisc = ural_update_promisc;
@@ -1770,7 +1772,7 @@ ural_update_slot(struct ural_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t slottime, sifs, eifs;
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	/*
 	 * These settings may sound a bit inconsistent but this is what the

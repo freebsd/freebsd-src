@@ -6,7 +6,6 @@ DIRDEPS = \
 	include/arpa \
 	include/xlocale \
 	lib/libbz2 \
-	lib/libstand \
 
 
 .include <dirdeps.mk>

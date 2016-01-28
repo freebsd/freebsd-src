@@ -216,10 +216,17 @@ ipsec_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct ipsecstat ipsecstat;
 
-	if (off == 0)
-		return;
+	if (strcmp(name, "ipsec6") == 0) {
+		if (fetch_stats("net.inet6.ipsec6.ipsecstats", off,&ipsecstat,
+				sizeof(ipsecstat), kread_counters) != 0)
+			return;
+	} else {
+		if (fetch_stats("net.inet.ipsec.ipsecstats", off, &ipsecstat,
+				sizeof(ipsecstat), kread_counters) != 0)
+			return;
+	}
+
 	xo_emit("{T:/%s}:\n", name);
-	kread_counters(off, (char *)&ipsecstat, sizeof(ipsecstat));
 
 	print_ipsecstats(&ipsecstat);
 }
@@ -318,10 +325,11 @@ ah_stats(u_long off, const char *name, int family __unused, int proto __unused)
 {
 	struct ahstat ahstat;
 
-	if (off == 0)
+	if (fetch_stats("net.inet.ah.stats", off, &ahstat,
+	    sizeof(ahstat), kread_counters) != 0)
 		return;
+
 	xo_emit("{T:/%s}:\n", name);
-	kread_counters(off, (char *)&ahstat, sizeof(ahstat));
 
 	print_ahstats(&ahstat);
 }
@@ -377,10 +385,11 @@ esp_stats(u_long off, const char *name, int family __unused, int proto __unused)
 {
 	struct espstat espstat;
 
-	if (off == 0)
+	if (fetch_stats("net.inet.esp.stats", off, &espstat,
+	    sizeof(espstat), kread_counters) != 0)
 		return;
+
 	xo_emit("{T:/%s}:\n", name);
-	kread_counters(off, (char *)&espstat, sizeof(espstat));
 
 	print_espstats(&espstat);
 }
@@ -434,10 +443,11 @@ ipcomp_stats(u_long off, const char *name, int family __unused,
 {
 	struct ipcompstat ipcompstat;
 
-	if (off == 0)
+	if (fetch_stats("net.inet.ipcomp.stats", off, &ipcompstat,
+	    sizeof(ipcompstat), kread_counters) != 0)
 		return;
+
 	xo_emit("{T:/%s}:\n", name);
-	kread_counters(off, (char *)&ipcompstat, sizeof(ipcompstat));
 
 	print_ipcompstats(&ipcompstat);
 }

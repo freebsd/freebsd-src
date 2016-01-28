@@ -183,3 +183,4 @@ static driver_t ata_pccard_driver = {
 
 DRIVER_MODULE(ata, pccard, ata_pccard_driver, ata_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
+PCCARD_PNP_INFO(ata_pccard_products);

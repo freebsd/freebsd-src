@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
+#include <sys/refcount.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/mbuf.h>
@@ -68,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
@@ -81,11 +81,16 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
+#ifdef TCP_RFC7413
+#include <netinet/tcp_fastopen.h>
+#endif
+#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#include <netinet/cc/cc.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -404,6 +409,10 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	SOCK_UNLOCK(so);
 
+#ifdef TCP_RFC7413
+	if (tp->t_flags & TF_FASTOPEN)
+		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
+#endif
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
@@ -450,6 +459,10 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	SOCK_UNLOCK(so);
 
+#ifdef TCP_RFC7413
+	if (tp->t_flags & TF_FASTOPEN)
+		tp->t_tfo_pending = tcp_fastopen_alloc_counter();
+#endif
 out:
 	TCPDEBUG2(PRU_LISTEN);
 	TCP_PROBE2(debug__user, tp, PRU_LISTEN);
@@ -509,7 +522,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-	error = tcp_output(tp);
+	error = tp->t_fb->tfb_tcp_output(tp);
 out:
 	TCPDEBUG2(PRU_CONNECT);
 	INP_WUNLOCK(inp);
@@ -579,7 +592,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		    (error = tcp_offload_connect(so, nam)) == 0)
 			goto out;
 #endif
-		error = tcp_output(tp);
+		error = tp->t_fb->tfb_tcp_output(tp);
 		goto out;
 	}
 #endif
@@ -597,7 +610,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #endif
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-	error = tcp_output(tp);
+	error = tp->t_fb->tfb_tcp_output(tp);
 
 out:
 	TCPDEBUG2(PRU_CONNECT);
@@ -773,7 +786,7 @@ tcp_usr_shutdown(struct socket *so)
 	socantsendmore(so);
 	tcp_usrclosed(tp);
 	if (!(inp->inp_flags & INP_DROPPED))
-		error = tcp_output(tp);
+		error = tp->t_fb->tfb_tcp_output(tp);
 
 out:
 	TCPDEBUG2(PRU_SHUTDOWN);
@@ -804,12 +817,24 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
+#ifdef TCP_RFC7413
+	/*
+	 * For passively-created TFO connections, don't attempt a window
+	 * update while still in SYN_RECEIVED as this may trigger an early
+	 * SYN|ACK.  It is preferable to have the SYN|ACK be sent along with
+	 * application response data, or failing that, when the DELACK timer
+	 * expires.
+	 */
+	if ((tp->t_flags & TF_FASTOPEN) &&
+	    (tp->t_state == TCPS_SYN_RECEIVED))
+		goto out;
+#endif
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_rcvd(tp);
 	else
 #endif
-	tcp_output(tp);
+	tp->t_fb->tfb_tcp_output(tp);
 
 out:
 	TCPDEBUG2(PRU_RCVD);
@@ -880,8 +905,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			/*
 			 * Do implied connect if not yet connected,
 			 * initialize window to default value, and
-			 * initialize maxseg/maxopd using peer's cached
-			 * MSS.
+			 * initialize maxseg using peer's cached MSS.
 			 */
 #ifdef INET6
 			if (isipv6)
@@ -911,7 +935,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		    !(flags & PRUS_NOTREADY)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
-			error = tcp_output(tp);
+			error = tp->t_fb->tfb_tcp_output(tp);
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags &= ~TF_MORETOCOME;
 		}
@@ -940,8 +964,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			/*
 			 * Do implied connect if not yet connected,
 			 * initialize window to default value, and
-			 * initialize maxseg/maxopd using peer's cached
-			 * MSS.
+			 * initialize maxseg using peer's cached MSS.
 			 */
 #ifdef INET6
 			if (isipv6)
@@ -961,7 +984,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		tp->snd_up = tp->snd_una + sbavail(&so->so_snd);
 		if (!(flags & PRUS_NOTREADY)) {
 			tp->t_flags |= TF_FORCEDATA;
-			error = tcp_output(tp);
+			error = tp->t_fb->tfb_tcp_output(tp);
 			tp->t_flags &= ~TF_FORCEDATA;
 		}
 	}
@@ -997,7 +1020,7 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	error = sbready(&so->so_snd, m, count);
 	SOCKBUF_UNLOCK(&so->so_snd);
 	if (error == 0)
-		error = tcp_output(tp);
+		error = tp->t_fb->tfb_tcp_output(tp);
 	INP_WUNLOCK(inp);
 
 	return (error);
@@ -1349,13 +1372,11 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	int	error, opt, optval;
-	u_int	ui;
+	int	error;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
-	struct	tcp_info ti;
-	char buf[TCP_CA_NAME_MAX];
-	struct cc_algo *algo;
+	struct tcp_function_block *blk;
+	struct tcp_function_set fsn;
 
 	error = 0;
 	inp = sotoinpcb(so);
@@ -1382,6 +1403,109 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+	/*
+	 * Protect the TCP option TCP_FUNCTION_BLK so
+	 * that a sub-function can *never* overwrite this.
+	 */
+	if ((sopt->sopt_dir == SOPT_SET) && 
+	    (sopt->sopt_name == TCP_FUNCTION_BLK)) {
+		INP_WUNLOCK(inp);
+		error = sooptcopyin(sopt, &fsn, sizeof fsn,
+		    sizeof fsn);
+		if (error)
+			return (error);
+		INP_WLOCK_RECHECK(inp);
+		if (tp->t_state != TCPS_CLOSED) {
+			/* 
+			 * The user has advanced the state
+			 * past the initial point, we can't
+			 * switch since we are down the road
+			 * and a new set of functions may
+			 * not be compatibile.
+			 */
+			INP_WUNLOCK(inp);
+			return(EINVAL);
+		}
+		blk = find_and_ref_tcp_functions(&fsn);
+		if (blk == NULL) {
+			INP_WUNLOCK(inp);
+			return (ENOENT);
+		}
+		if (tp->t_fb != blk) {
+			if (blk->tfb_flags & TCP_FUNC_BEING_REMOVED) {
+				refcount_release(&blk->tfb_refcnt);
+				INP_WUNLOCK(inp);
+				return (ENOENT);
+			}
+			/* 
+			 * Release the old refcnt, the
+			 * lookup acquires a ref on the
+			 * new one.
+			 */
+			if (tp->t_fb->tfb_tcp_fb_fini)
+				(*tp->t_fb->tfb_tcp_fb_fini)(tp);
+			refcount_release(&tp->t_fb->tfb_refcnt);
+			tp->t_fb = blk;
+			if (tp->t_fb->tfb_tcp_fb_init) {
+				(*tp->t_fb->tfb_tcp_fb_init)(tp);
+			}
+		}
+#ifdef TCP_OFFLOAD
+		if (tp->t_flags & TF_TOE) {
+			tcp_offload_ctloutput(tp, sopt->sopt_dir,
+			     sopt->sopt_name);
+		}
+#endif
+		INP_WUNLOCK(inp);
+		return (error);
+	} else if ((sopt->sopt_dir == SOPT_GET) && 
+	    (sopt->sopt_name == TCP_FUNCTION_BLK)) {
+		strcpy(fsn.function_set_name, tp->t_fb->tfb_tcp_block_name);
+		fsn.pcbcnt = tp->t_fb->tfb_refcnt;
+		INP_WUNLOCK(inp);
+		error = sooptcopyout(sopt, &fsn, sizeof fsn);
+		return (error);
+	}
+	/* Pass in the INP locked, called must unlock it */
+	return (tp->t_fb->tfb_tcp_ctloutput(so, sopt, inp, tp));
+}
+
+int
+tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp)
+{
+	int	error, opt, optval;
+	u_int	ui;
+	struct	tcp_info ti;
+	struct cc_algo *algo;
+	char	*pbuf, buf[TCP_CA_NAME_MAX];
+	size_t	len;
+
+	/*
+	 * For TCP_CCALGOOPT forward the control to CC module, for both
+	 * SOPT_SET and SOPT_GET.
+	 */
+	switch (sopt->sopt_name) {
+	case TCP_CCALGOOPT:
+		INP_WUNLOCK(inp);
+		pbuf = malloc(sopt->sopt_valsize, M_TEMP, M_WAITOK | M_ZERO);
+		error = sooptcopyin(sopt, pbuf, sopt->sopt_valsize,
+		    sopt->sopt_valsize);
+		if (error) {
+			free(pbuf, M_TEMP);
+			return (error);
+		}
+		INP_WLOCK_RECHECK(inp);
+		if (CC_ALGO(tp)->ctl_output != NULL)
+			error = CC_ALGO(tp)->ctl_output(tp->ccv, sopt, pbuf);
+		else
+			error = ENOENT;
+		INP_WUNLOCK(inp);
+		if (error == 0 && sopt->sopt_dir == SOPT_GET)
+			error = sooptcopyout(sopt, pbuf, sopt->sopt_valsize);
+		free(pbuf, M_TEMP);
+		return (error);
 	}
 
 	switch (sopt->sopt_dir) {
@@ -1451,7 +1575,7 @@ unlock_and_done:
 			else if (tp->t_flags & TF_NOPUSH) {
 				tp->t_flags &= ~TF_NOPUSH;
 				if (TCPS_HAVEESTABLISHED(tp->t_state))
-					error = tcp_output(tp);
+					error = tp->t_fb->tfb_tcp_output(tp);
 			}
 			goto unlock_and_done;
 
@@ -1477,50 +1601,45 @@ unlock_and_done:
 
 		case TCP_CONGESTION:
 			INP_WUNLOCK(inp);
-			bzero(buf, sizeof(buf));
-			error = sooptcopyin(sopt, &buf, sizeof(buf), 1);
+			error = sooptcopyin(sopt, buf, TCP_CA_NAME_MAX - 1, 1);
 			if (error)
 				break;
+			buf[sopt->sopt_valsize] = '\0';
 			INP_WLOCK_RECHECK(inp);
-			/*
-			 * Return EINVAL if we can't find the requested cc algo.
-			 */
-			error = EINVAL;
 			CC_LIST_RLOCK();
-			STAILQ_FOREACH(algo, &cc_list, entries) {
-				if (strncmp(buf, algo->name, TCP_CA_NAME_MAX)
-				    == 0) {
-					/* We've found the requested algo. */
-					error = 0;
-					/*
-					 * We hold a write lock over the tcb
-					 * so it's safe to do these things
-					 * without ordering concerns.
-					 */
-					if (CC_ALGO(tp)->cb_destroy != NULL)
-						CC_ALGO(tp)->cb_destroy(tp->ccv);
-					CC_ALGO(tp) = algo;
-					/*
-					 * If something goes pear shaped
-					 * initialising the new algo,
-					 * fall back to newreno (which
-					 * does not require initialisation).
-					 */
-					if (algo->cb_init != NULL)
-						if (algo->cb_init(tp->ccv) > 0) {
-							CC_ALGO(tp) = &newreno_cc_algo;
-							/*
-							 * The only reason init
-							 * should fail is
-							 * because of malloc.
-							 */
-							error = ENOMEM;
-						}
-					break; /* Break the STAILQ_FOREACH. */
-				}
-			}
+			STAILQ_FOREACH(algo, &cc_list, entries)
+				if (strncmp(buf, algo->name,
+				    TCP_CA_NAME_MAX) == 0)
+					break;
 			CC_LIST_RUNLOCK();
-			goto unlock_and_done;
+			if (algo == NULL) {
+				INP_WUNLOCK(inp);
+				error = EINVAL;
+				break;
+			}
+			/*
+			 * We hold a write lock over the tcb so it's safe to
+			 * do these things without ordering concerns.
+			 */
+			if (CC_ALGO(tp)->cb_destroy != NULL)
+				CC_ALGO(tp)->cb_destroy(tp->ccv);
+			CC_ALGO(tp) = algo;
+			/*
+			 * If something goes pear shaped initialising the new
+			 * algo, fall back to newreno (which does not
+			 * require initialisation).
+			 */
+			if (algo->cb_init != NULL &&
+			    algo->cb_init(tp->ccv) != 0) {
+				CC_ALGO(tp) = &newreno_cc_algo;
+				/*
+				 * The only reason init should fail is
+				 * because of malloc.
+				 */
+				error = ENOMEM;
+			}
+			INP_WUNLOCK(inp);
+			break;
 
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
@@ -1599,6 +1718,29 @@ unlock_and_done:
 			goto unlock_and_done;
 #endif
 
+#ifdef TCP_RFC7413
+		case TCP_FASTOPEN:
+			INP_WUNLOCK(inp);
+			if (!V_tcp_fastopen_enabled)
+				return (EPERM);
+
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				return (error);
+
+			INP_WLOCK_RECHECK(inp);
+			if (optval) {
+				tp->t_flags |= TF_FASTOPEN;
+				if ((tp->t_state == TCPS_LISTEN) &&
+				    (tp->t_tfo_pending == NULL))
+					tp->t_tfo_pending =
+					    tcp_fastopen_alloc_counter();
+			} else
+				tp->t_flags &= ~TF_FASTOPEN;
+			goto unlock_and_done;
+#endif
+
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
@@ -1643,10 +1785,9 @@ unlock_and_done:
 			error = sooptcopyout(sopt, &ti, sizeof ti);
 			break;
 		case TCP_CONGESTION:
-			bzero(buf, sizeof(buf));
-			strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
+			len = strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
 			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
+			error = sooptcopyout(sopt, buf, len + 1);
 			break;
 		case TCP_KEEPIDLE:
 		case TCP_KEEPINTVL:
@@ -1674,6 +1815,14 @@ unlock_and_done:
 		case TCP_PCAP_IN:
 			optval = tcp_pcap_get_sock_max(TCP_PCAP_OUT ?
 					&(tp->t_outpkts) : &(tp->t_inpkts));
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
+#endif
+
+#ifdef TCP_RFC7413
+		case TCP_FASTOPEN:
+			optval = tp->t_flags & TF_FASTOPEN;
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
@@ -1733,6 +1882,7 @@ tcp_attach(struct socket *so)
 	tp->t_state = TCPS_CLOSED;
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
+	TCPSTAT_INC(tcps_states[TCPS_CLOSED]);
 	return (0);
 }
 
@@ -1770,7 +1920,7 @@ tcp_disconnect(struct tcpcb *tp)
 		sbflush(&so->so_rcv);
 		tcp_usrclosed(tp);
 		if (!(inp->inp_flags & INP_DROPPED))
-			tcp_output(tp);
+			tp->t_fb->tfb_tcp_output(tp);
 	}
 }
 
@@ -2001,6 +2151,10 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_ECN_PERMIT", comma ? ", " : "");
 		comma = 1;
 	}
+	if (t_flags & TF_FASTOPEN) {
+		db_printf("%sTF_FASTOPEN", comma ? ", " : "");
+		comma = 1;
+	}
 }
 
 static void
@@ -2075,8 +2229,8 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	    "0x%08x\n", tp->snd_ssthresh, tp->snd_recover);
 
 	db_print_indent(indent);
-	db_printf("t_maxopd: %u   t_rcvtime: %u   t_startime: %u\n",
-	    tp->t_maxopd, tp->t_rcvtime, tp->t_starttime);
+	db_printf("t_rcvtime: %u   t_startime: %u\n",
+	    tp->t_rcvtime, tp->t_starttime);
 
 	db_print_indent(indent);
 	db_printf("t_rttime: %u   t_rtsq: 0x%08x\n",

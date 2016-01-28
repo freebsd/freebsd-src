@@ -1,4 +1,4 @@
-/*	$Id: msec.c,v 1.14 2014/12/21 14:14:35 schwarze Exp $ */
+/*	$Id: msec.c,v 1.15 2015/10/06 18:32:19 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -32,5 +32,5 @@ mandoc_a2msec(const char *p)
 
 #include "msec.in"
 
-	return(NULL);
+	return NULL;
 }

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2014
+.Dd December 26, 2015
 .Dt HCREATE 3
 .Os
 .Sh NAME
@@ -76,8 +76,8 @@ The
 .Fa nel
 argument is an estimate of the maximum
 number of entries that the table should contain.
-This number may be adjusted upward by the
-algorithm in order to obtain certain mathematically favorable circumstances.
+As this implementation resizes the hash table dynamically,
+this argument is ignored.
 .Pp
 The
 .Fn hdestroy
@@ -274,8 +274,6 @@ functions will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 Insufficient memory is available.
-.It Bq Er EINVAL
-A table already exists.
 .El
 .Pp
 The

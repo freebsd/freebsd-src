@@ -1395,3 +1395,4 @@ static devclass_t wsp_devclass;
 DRIVER_MODULE(wsp, uhub, wsp_driver, wsp_devclass, NULL, 0);
 MODULE_DEPEND(wsp, usb, 1, 1, 1);
 MODULE_VERSION(wsp, 1);
+USB_PNP_HOST_INFO(wsp_devs);

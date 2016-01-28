@@ -1,5 +1,16 @@
 OpenBSM Version History
 
+OpenBSM 1.2 alpha 4
+
+- Fix praudit to emit correct XML.
+- Fix auditdistd bugs related to IPv6 support, locking, and a kqueue-related
+  descriptor leak.
+- Add audit event definitions for Capsicum-related syscalls, as well as
+  AUE_BINDAT and AUE_CONNECTAT.
+- Manpage symlinks for all libbsm functions are installed again after the
+  move to autotools in OpenBSM 1.0 Alpha 5.
+- A variety of minor documentation cleanups.
+
 OpenBSM 1.2 alpha 3
 
 - Various minor tweaks to the auditdistd build to make it fit the FreeBSD
@@ -494,5 +505,3 @@ OpenBSM 1.0 alpha 1
 - auditd(8), audit(8) added to the OpenBSM distribution.  auditd extended
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
-
-$P4: //depot/projects/trustedbsd/openbsm/NEWS#55 $

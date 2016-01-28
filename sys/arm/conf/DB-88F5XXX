@@ -88,6 +88,9 @@ device		da
 # SATA
 device		mvs
 
+# GPIO
+device		gpio
+
 # Flattened Device Tree
 options 	FDT
 makeoptions	FDT_DTS_FILE=db88f5281.dts

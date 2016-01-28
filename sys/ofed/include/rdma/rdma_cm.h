@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2016 Chelsio Communications.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -400,5 +401,7 @@ int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
  * @timeout: QP timeout
  */
 void rdma_set_timeout(struct rdma_cm_id *id, int timeout);
-
+int rdma_cma_any_addr(struct sockaddr *addr);
+int rdma_find_cmid_laddr(struct sockaddr_in *local_addr,
+		unsigned short dev_type, void **cm_id);
 #endif /* RDMA_CM_H */

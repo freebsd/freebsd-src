@@ -97,6 +97,7 @@ struct sysentvec aout_sysvec = {
 	.sv_syscallnames = syscallnames,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
+	.sv_trap	= NULL,
 };
 
 #elif defined(__amd64__)

@@ -248,37 +248,35 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/* (2) check. */
 	if (ifa == NULL) {
-		struct route_in6 ro;
-		int need_proxy;
+		struct sockaddr_dl rt_gateway;
+		struct rt_addrinfo info;
+		struct sockaddr_in6 dst6;
 
-		bzero(&ro, sizeof(ro));
-		ro.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		ro.ro_dst.sin6_family = AF_INET6;
-		ro.ro_dst.sin6_addr = taddr6;
+		bzero(&dst6, sizeof(dst6));
+		dst6.sin6_len = sizeof(struct sockaddr_in6);
+		dst6.sin6_family = AF_INET6;
+		dst6.sin6_addr = taddr6;
+
+		bzero(&rt_gateway, sizeof(rt_gateway));
+		rt_gateway.sdl_len = sizeof(rt_gateway);
+		bzero(&info, sizeof(info));
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&rt_gateway;
 
 		/* Always use the default FIB. */
-#ifdef RADIX_MPATH
-		rtalloc_mpath_fib((struct route *)&ro, ntohl(taddr6.s6_addr32[3]),
-		    RT_DEFAULT_FIB);
-#else
-		in6_rtalloc(&ro, RT_DEFAULT_FIB);
-#endif
-		need_proxy = (ro.ro_rt &&
-		    (ro.ro_rt->rt_flags & RTF_ANNOUNCE) != 0 &&
-		    ro.ro_rt->rt_gateway->sa_family == AF_LINK);
-		if (ro.ro_rt != NULL) {
-			if (need_proxy)
-				proxydl = *SDL(ro.ro_rt->rt_gateway);
-			RTFREE(ro.ro_rt);
-		}
-		if (need_proxy) {
-			/*
-			 * proxy NDP for single entry
-			 */
-			ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
-				IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
-			if (ifa)
-				proxy = 1;
+		if (rib_lookup_info(RT_DEFAULT_FIB, (struct sockaddr *)&dst6,
+		    0, 0, &info) == 0) {
+			if ((info.rti_flags & RTF_ANNOUNCE) != 0 &&
+			    rt_gateway.sdl_family == AF_LINK) {
+
+				/*
+				 * proxy NDP for single entry
+				 */
+				proxydl = *SDL(&rt_gateway);
+				ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(
+				    ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
+				if (ifa)
+					proxy = 1;
+			}
 		}
 	}
 	if (ifa == NULL) {
@@ -408,7 +406,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	int icmp6len;
 	int maxlen;
 	caddr_t mac;
-	struct route_in6 ro;
 
 	if (IN6_IS_ADDR_MULTICAST(taddr6))
 		return;
@@ -427,8 +424,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	if (m == NULL)
 		return;
 	M_SETFIB(m, fibnum);
-
-	bzero(&ro, sizeof(ro));
 
 	if (daddr6 == NULL || IN6_IS_ADDR_MULTICAST(daddr6)) {
 		m->m_flags |= M_MCAST;
@@ -486,27 +481,21 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 			ifa_free(ifa);
 		} else {
 			int error;
-			struct sockaddr_in6 dst_sa;
-			struct in6_addr src_in;
-			struct ifnet *oifp;
+			struct in6_addr dst6, src6;
+			uint32_t scopeid;
 
-			bzero(&dst_sa, sizeof(dst_sa));
-			dst_sa.sin6_family = AF_INET6;
-			dst_sa.sin6_len = sizeof(dst_sa);
-			dst_sa.sin6_addr = ip6->ip6_dst;
-
-			oifp = ifp;
-			error = in6_selectsrc(&dst_sa, NULL,
-			    NULL, &ro, NULL, &oifp, &src_in);
+			in6_splitscope(&ip6->ip6_dst, &dst6, &scopeid);
+			error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+			    scopeid, ifp, &src6, NULL);
 			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG, "%s: source can't be "
 				    "determined: dst=%s, error=%d\n", __func__,
-				    ip6_sprintf(ip6buf, &dst_sa.sin6_addr),
+				    ip6_sprintf(ip6buf, &dst6),
 				    error));
 				goto bad;
 			}
-			ip6->ip6_src = src_in;
+			ip6->ip6_src = src6;
 		}
 	} else {
 		/*
@@ -585,21 +574,15 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, (nonce != NULL) ? IPV6_UNSPECSRC : 0,
+	ip6_output(m, NULL, NULL, (nonce != NULL) ? IPV6_UNSPECSRC : 0,
 	    &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_SOLICIT]);
 
-	/* We don't cache this route. */
-	RO_RTFREE(&ro);
-
 	return;
 
   bad:
-	if (ro.ro_rt) {
-		RTFREE(ro.ro_rt);
-	}
 	m_freem(m);
 	return;
 }
@@ -643,6 +626,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	union nd_opts ndopts;
 	struct mbuf *chain = NULL;
 	struct sockaddr_in6 sin6;
+	u_char linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	int lladdr_off;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 	if (ip6->ip6_hlim != 255) {
@@ -765,7 +751,16 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		/*
 		 * Record link-layer address, and update the state.
 		 */
-		lltable_set_entry_addr(ifp, ln, lladdr);
+		linkhdrsize = sizeof(linkhdr);
+		if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+			return;
+
+		if (lltable_try_set_entry_addr(ifp, ln, linkhdr, linkhdrsize,
+		    lladdr_off) == 0) {
+			ln = NULL;
+			goto freeit;
+		}
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited)
 			nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
@@ -789,7 +784,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			llchange = 0;
 		else {
 			if (ln->la_flags & LLE_VALID) {
-				if (bcmp(lladdr, &ln->ll_addr, ifp->if_addrlen))
+				if (bcmp(lladdr, ln->ll_addr, ifp->if_addrlen))
 					llchange = 1;
 				else
 					llchange = 0;
@@ -831,7 +826,15 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Update link-local address, if any.
 			 */
 			if (lladdr != NULL) {
-				lltable_set_entry_addr(ifp, ln, lladdr);
+				linkhdrsize = sizeof(linkhdr);
+				if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
+				    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+					goto freeit;
+				if (lltable_try_set_entry_addr(ifp, ln, linkhdr,
+				    linkhdrsize, lladdr_off) == 0) {
+					ln = NULL;
+					goto freeit;
+				}
 				EVENTHANDLER_INVOKE(lle_event, ln,
 				    LLENTRY_RESOLVED);
 			}
@@ -857,6 +860,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 */
 			struct nd_defrouter *dr;
 			struct in6_addr *in6;
+			struct ifnet *nd6_ifp;
 
 			in6 = &ln->r_l3addr.addr6;
 
@@ -866,10 +870,11 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * is only called under the network software interrupt
 			 * context.  However, we keep it just for safety.
 			 */
-			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
+			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
+			dr = defrouter_lookup(in6, nd6_ifp);
 			if (dr)
 				defrtrlist_del(dr);
-			else if (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags &
+			else if (ND_IFINFO(nd6_ifp)->flags &
 			    ND6_IFF_ACCEPT_RTADV) {
 				/*
 				 * Even if the neighbor is not in the default
@@ -930,17 +935,14 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 {
 	struct mbuf *m;
 	struct m_tag *mtag;
-	struct ifnet *oifp;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
-	struct in6_addr src, daddr6;
-	struct sockaddr_in6 dst_sa;
+	struct in6_addr daddr6, dst6, src6;
+	uint32_t scopeid;
+
 	int icmp6len, maxlen, error;
 	caddr_t mac = NULL;
-	struct route_in6 ro;
-
-	bzero(&ro, sizeof(ro));
 
 	daddr6 = *daddr6_0;	/* make a local copy for modification */
 
@@ -990,25 +992,21 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		flags &= ~ND_NA_FLAG_SOLICITED;
 	}
 	ip6->ip6_dst = daddr6;
-	bzero(&dst_sa, sizeof(struct sockaddr_in6));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(struct sockaddr_in6);
-	dst_sa.sin6_addr = daddr6;
 
 	/*
 	 * Select a source whose scope is the same as that of the dest.
 	 */
-	bcopy(&dst_sa, &ro.ro_dst, sizeof(dst_sa));
-	oifp = ifp;
-	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, &oifp, &src);
+	in6_splitscope(&daddr6, &dst6, &scopeid);
+	error = in6_selectsrc_addr(RT_DEFAULT_FIB, &dst6,
+	    scopeid, ifp, &src6, NULL);
 	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_DEBUG, "nd6_na_output: source can't be "
 		    "determined: dst=%s, error=%d\n",
-		    ip6_sprintf(ip6buf, &dst_sa.sin6_addr), error));
+		    ip6_sprintf(ip6buf, &daddr6), error));
 		goto bad;
 	}
-	ip6->ip6_src = src;
+	ip6->ip6_src = src6;
 	nd_na = (struct nd_neighbor_advert *)(ip6 + 1);
 	nd_na->nd_na_type = ND_NEIGHBOR_ADVERT;
 	nd_na->nd_na_code = 0;
@@ -1071,20 +1069,14 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
+	ip6_output(m, NULL, NULL, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_ADVERT]);
 
-	/* We don't cache this route. */
-	RO_RTFREE(&ro);
-
 	return;
 
   bad:
-	if (ro.ro_rt) {
-		RTFREE(ro.ro_rt);
-	}
 	m_freem(m);
 	return;
 }

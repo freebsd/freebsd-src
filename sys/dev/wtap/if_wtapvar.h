@@ -32,7 +32,6 @@
 #ifndef _DEV_WTAP_WTAPVAR_H
 #define _DEV_WTAP_WTAPVAR_H
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/module.h>
@@ -44,7 +43,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <sys/types.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

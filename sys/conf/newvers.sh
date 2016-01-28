@@ -97,7 +97,10 @@ then
 fi
 
 touch version
-v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`}
+v=`cat version`
+u=${USER:-root}
+d=`pwd`
+h=${HOSTNAME:-`hostname`}
 if [ -n "$SOURCE_DATE_EPOCH" ]; then
 	if ! t=`date -r $SOURCE_DATE_EPOCH 2>/dev/null`; then
 		echo "Invalid SOURCE_DATE_EPOCH" >&2

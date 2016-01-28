@@ -13,7 +13,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/:C/riscv64/riscv/}
 .endif
 
 
@@ -44,11 +44,14 @@ __ENV_ONLY_OPTIONS:= \
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS)
-.if ${.MAKEFLAGS:M-B} == ""
+.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
 .MAKE.MODE= meta verbose
+.if !exists(/dev/filemon)
+.MAKE.MODE+= nofilemon
 .endif
 .endif
+.MAKE.MODE?= normal
+
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
 # Don't do this for 'make showconfig' as it enables all options where meta mode
@@ -69,6 +72,10 @@ __ENV_ONLY_OPTIONS:= \
 #
 # The rules below use this macro to distinguish between Posix-compliant
 # and default behaviour.
+#
+# This functionality is currently broken, since make(1) processes sys.mk
+# before reading any other files, and consequently has no opportunity to
+# set the %POSIX macro before we read this point.
 
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
@@ -406,6 +413,15 @@ __MAKE_SHELL?=/bin/sh
 	path=${__MAKE_SHELL}
 .endif
 
+# Hack for ports compatibility. Historically, ports makefiles have
+# assumed they can examine MACHINE_CPU without including anything
+# because this was automatically included in sys.mk. For /usr/src,
+# this file has moved to being included from bsd.opts.mk. Until all
+# the ports files are modernized, and a reasonable transition
+# period has passed, include it while we're in a ports tree here
+# to preserve historic behavior.
+.if exists(${.CURDIR}/../../Mk/bsd.port.mk)
 .include <bsd.cpu.mk>
+.endif
 
 .endif # ! Posix

@@ -92,7 +92,7 @@ static int	siba_pcib_activate_resource(device_t, device_t, int,
 		    int, struct resource *);
 static struct resource *
 		siba_pcib_alloc_resource(device_t, device_t, int, int *,
-		    u_long , u_long, u_long, u_int);
+		    rman_res_t , rman_res_t, rman_res_t, u_int);
 static int	siba_pcib_attach(device_t);
 static int	siba_pcib_deactivate_resource(device_t, device_t, int,
 		    int, struct resource *);
@@ -249,7 +249,7 @@ siba_pcib_teardown_intr(device_t dev, device_t child, struct resource *vec,
 
 static struct resource *
 siba_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 #if 1
 

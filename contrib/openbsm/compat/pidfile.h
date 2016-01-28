@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  *
  * Derived from FreeBSD head/lib/libutil/pidfile.c r231938
- * $P4: //depot/projects/trustedbsd/openbsm/compat/pidfile.h#1 $
  */
 
 #include <sys/param.h>

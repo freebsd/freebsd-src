@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
 {
   progname = argv[0];
   UnityBegin("modetoa.c");
-  RUN_TEST(test_KnownMode, 7);
-  RUN_TEST(test_UnknownMode, 8);
+  RUN_TEST(test_KnownMode, 8);
+  RUN_TEST(test_UnknownMode, 9);
 
   return (UnityEnd());
 }

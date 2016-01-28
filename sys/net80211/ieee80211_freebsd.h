@@ -246,9 +246,11 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 	(((_ifp)->if_flags & IFF_UP) && \
 	 ((_ifp)->if_drv_flags & IFF_DRV_RUNNING))
 
+/* XXX TODO: cap these at 1, as hz may not be 1000 */
 #define	msecs_to_ticks(ms)	(((ms)*hz)/1000)
 #define	ticks_to_msecs(t)	(1000*(t) / hz)
 #define	ticks_to_secs(t)	((t) / hz)
+
 #define time_after(a,b) 	((long)(b) - (long)(a) < 0)
 #define time_before(a,b)	time_after(b,a)
 #define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)

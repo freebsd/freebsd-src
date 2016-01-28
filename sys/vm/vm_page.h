@@ -474,6 +474,8 @@ vm_page_t vm_page_prev(vm_page_t m);
 boolean_t vm_page_ps_is_valid(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
+bool vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 int vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
@@ -482,6 +484,8 @@ vm_page_t vm_page_replace(vm_page_t mnew, vm_object_t object,
 void vm_page_requeue(vm_page_t m);
 void vm_page_requeue_locked(vm_page_t m);
 int vm_page_sbusied(vm_page_t m);
+vm_page_t vm_page_scan_contig(u_long npages, vm_page_t m_start,
+    vm_page_t m_end, u_long alignment, vm_paddr_t boundary, int options);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
@@ -514,37 +518,38 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #define	vm_page_assert_sbusied(m)					\
 	KASSERT(vm_page_sbusied(m),					\
 	    ("vm_page_assert_sbusied: page %p not shared busy @ %s:%d", \
-	    (void *)m, __FILE__, __LINE__));
+	    (m), __FILE__, __LINE__))
 
 #define	vm_page_assert_unbusied(m)					\
 	KASSERT(!vm_page_busied(m),					\
 	    ("vm_page_assert_unbusied: page %p busy @ %s:%d",		\
-	    (void *)m, __FILE__, __LINE__));
+	    (m), __FILE__, __LINE__))
 
 #define	vm_page_assert_xbusied(m)					\
 	KASSERT(vm_page_xbusied(m),					\
 	    ("vm_page_assert_xbusied: page %p not exclusive busy @ %s:%d", \
-	    (void *)m, __FILE__, __LINE__));
+	    (m), __FILE__, __LINE__))
 
 #define	vm_page_busied(m)						\
 	((m)->busy_lock != VPB_UNBUSIED)
 
 #define	vm_page_sbusy(m) do {						\
 	if (!vm_page_trysbusy(m))					\
-		panic("%s: page %p failed shared busing", __func__, m);	\
+		panic("%s: page %p failed shared busying", __func__,	\
+		    (m));						\
 } while (0)
 
 #define	vm_page_tryxbusy(m)						\
-	(atomic_cmpset_acq_int(&m->busy_lock, VPB_UNBUSIED,		\
+	(atomic_cmpset_acq_int(&(m)->busy_lock, VPB_UNBUSIED,		\
 	    VPB_SINGLE_EXCLUSIVER))
 
 #define	vm_page_xbusied(m)						\
-	((m->busy_lock & VPB_SINGLE_EXCLUSIVER) != 0)
+	(((m)->busy_lock & VPB_SINGLE_EXCLUSIVER) != 0)
 
 #define	vm_page_xbusy(m) do {						\
 	if (!vm_page_tryxbusy(m))					\
-		panic("%s: page %p failed exclusive busing", __func__,	\
-		    m);							\
+		panic("%s: page %p failed exclusive busying", __func__,	\
+		    (m));						\
 } while (0)
 
 #define	vm_page_xunbusy(m) do {						\
@@ -675,6 +680,21 @@ vm_page_undirty(vm_page_t m)
 
 	VM_PAGE_OBJECT_LOCK_ASSERT(m);
 	m->dirty = 0;
+}
+
+static inline void
+vm_page_replace_checked(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
+    vm_page_t mold)
+{
+	vm_page_t mret;
+
+	mret = vm_page_replace(mnew, object, pindex);
+	KASSERT(mret == mold,
+	    ("invalid page replacement, mold=%p, mret=%p", mold, mret));
+
+	/* Unused if !INVARIANTS. */
+	(void)mold;
+	(void)mret;
 }
 
 #endif				/* _KERNEL */

@@ -161,21 +161,6 @@ static driver_t urndis_driver = {
 
 static devclass_t urndis_devclass;
 
-DRIVER_MODULE(urndis, uhub, urndis_driver, urndis_devclass, NULL, NULL);
-MODULE_VERSION(urndis, 1);
-MODULE_DEPEND(urndis, uether, 1, 1, 1);
-MODULE_DEPEND(urndis, usb, 1, 1, 1);
-MODULE_DEPEND(urndis, ether, 1, 1, 1);
-
-static const struct usb_ether_methods urndis_ue_methods = {
-	.ue_attach_post = urndis_attach_post,
-	.ue_start = urndis_start,
-	.ue_init = urndis_init,
-	.ue_stop = urndis_stop,
-	.ue_setmulti = urndis_setmulti,
-	.ue_setpromisc = urndis_setpromisc,
-};
-
 static const STRUCT_USB_HOST_ID urndis_host_devs[] = {
 	/* Generic RNDIS class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
@@ -189,6 +174,22 @@ static const STRUCT_USB_HOST_ID urndis_host_devs[] = {
 	{USB_VENDOR(USB_VENDOR_PALM), USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
 		USB_IFACE_PROTOCOL(0xff)},
+};
+
+DRIVER_MODULE(urndis, uhub, urndis_driver, urndis_devclass, NULL, NULL);
+MODULE_VERSION(urndis, 1);
+MODULE_DEPEND(urndis, uether, 1, 1, 1);
+MODULE_DEPEND(urndis, usb, 1, 1, 1);
+MODULE_DEPEND(urndis, ether, 1, 1, 1);
+USB_PNP_HOST_INFO(urndis_host_devs);
+
+static const struct usb_ether_methods urndis_ue_methods = {
+	.ue_attach_post = urndis_attach_post,
+	.ue_start = urndis_start,
+	.ue_init = urndis_init,
+	.ue_stop = urndis_stop,
+	.ue_setmulti = urndis_setmulti,
+	.ue_setpromisc = urndis_setpromisc,
 };
 
 static int

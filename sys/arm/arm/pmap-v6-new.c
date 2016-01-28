@@ -1049,6 +1049,36 @@ pmap_kextract(vm_offset_t va)
 	return (pa);
 }
 
+/*
+ *  Extract from the kernel page table the physical address
+ *  that is mapped by the given virtual address "va". Also
+ *  return L2 page table entry which maps the address.
+ *
+ *  This is only intended to be used for panic dumps.
+ */
+vm_paddr_t
+pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
+{
+	vm_paddr_t pa;
+	pt1_entry_t pte1;
+	pt2_entry_t pte2;
+
+	pte1 = pte1_load(kern_pte1(va));
+	if (pte1_is_section(pte1)) {
+		pa = pte1_pa(pte1) | (va & PTE1_OFFSET);
+		pte2 = pa | ATTR_TO_L2(pte1) | PTE2_V;
+	} else if (pte1_is_link(pte1)) {
+		pte2 = pte2_load(pt2map_entry(va));
+		pa = pte2_pa(pte2);
+	} else {
+		pte2 = 0;
+		pa = 0;
+	}
+	if (pte2p != NULL)
+		*pte2p = pte2;
+	return (pa);
+}
+
 /*****************************************************************************
  *
  *	PMAP second stage initialization and utility functions
@@ -1109,7 +1139,7 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	 * mapping of pages.
 	 */
 #define	SYSMAP(c, p, v, n)  do {		\
-	v = (c)pmap_preboot_reserve_pages(1);	\
+	v = (c)pmap_preboot_reserve_pages(n);	\
 	p = pt2map_entry((vm_offset_t)v);	\
 	} while (0)
 
@@ -1378,14 +1408,6 @@ pmap_tlb_flush_range(pmap_t pmap, vm_offset_t sva, vm_size_t size)
 
 	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		tlb_flush_range(sva, size);
-}
-
-PMAP_INLINE void
-pmap_tlb_flush_ng(pmap_t pmap)
-{
-
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-		tlb_flush_all_ng();
 }
 
 /*
@@ -2508,8 +2530,13 @@ pmap_unwire_pt2pg(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		KASSERT(m->md.pt2_wirecount[i] == 0,
 		    ("%s: pmap %p PT2 %u (PG %p) wired", __func__, pmap, i, m));
 		opte1 = pte1_load(pte1p);
-		if (pte1_is_link(opte1))
+		if (pte1_is_link(opte1)) {
 			pte1_clear(pte1p);
+			/*
+			 * Flush intermediate TLB cache.
+			 */
+			pmap_tlb_flush(pmap, (m->pindex + i) << PTE1_SHIFT);
+		}
 #ifdef INVARIANTS
 		else
 			KASSERT((opte1 == 0) || pte1_is_section(opte1),
@@ -2743,7 +2770,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 		if (pmap != pc->pc_pmap) {
 			if (pmap != NULL) {
-				pmap_tlb_flush_ng(pmap);
 				if (pmap != locked_pmap)
 					PMAP_UNLOCK(pmap);
 			}
@@ -2781,8 +2807,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				KASSERT(tpte2 != 0,
 				    ("pmap_pv_reclaim: pmap %p va %#x zero pte",
 				    pmap, va));
-				if (pte2_is_global(tpte2))
-					tlb_flush(va);
+				pmap_tlb_flush(pmap, va);
 				m = PHYS_TO_VM_PAGE(pte2_pa(tpte2));
 				if (pte2_is_dirty(tpte2))
 					vm_page_dirty(m);
@@ -2840,7 +2865,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 out:
 	TAILQ_CONCAT(&pv_chunks, &newtail, pc_lru);
 	if (pmap != NULL) {
-		pmap_tlb_flush_ng(pmap);
 		if (pmap != locked_pmap)
 			PMAP_UNLOCK(pmap);
 	}
@@ -3200,7 +3224,7 @@ setpte1:
 		 * When page is not modified, PTE2_RO can be set without
 		 * a TLB invalidation.
 		 *
-		 * Note: When modified bit is being set, then in harware case,
+		 * Note: When modified bit is being set, then in hardware case,
 		 *       the TLB entry is re-read (updated) from PT2, and in
 		 *       software case (abort), the PTE2 is read from PT2 and
 		 *       TLB flushed if changed. The following cmpset() solves
@@ -3370,18 +3394,16 @@ pmap_remove_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t sva,
 	KASSERT((sva & PTE1_OFFSET) == 0,
 	    ("%s: sva is not 1mpage aligned", __func__));
 
+	/*
+	 * Clear and invalidate the mapping. It should occupy one and only TLB
+	 * entry. So, pmap_tlb_flush() called with aligned address should be
+	 * sufficient.
+	 */
 	opte1 = pte1_load_clear(pte1p);
+	pmap_tlb_flush(pmap, sva);
+
 	if (pte1_is_wired(opte1))
 		pmap->pm_stats.wired_count -= PTE1_SIZE / PAGE_SIZE;
-
-	/*
-	 * If the mapping was global, invalidate it even if given pmap
-	 * is not active (kernel_pmap is active always). The mapping should
-	 * occupy one and only TLB entry. So, pmap_tlb_flush() called
-	 * with aligned address should be sufficient.
-	 */
-	if (pte1_is_global(opte1))
-		tlb_flush(sva);
 	pmap->pm_stats.resident_count -= PTE1_SIZE / PAGE_SIZE;
 	if (pte1_is_managed(opte1)) {
 		pvh = pa_to_pvh(pte1_pa(opte1));
@@ -3465,7 +3487,6 @@ pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 		    VM_ALLOC_NORMAL | VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
 			pmap_remove_pte1(pmap, pte1p, pte1_trunc(va), &free);
-			pmap_tlb_flush(pmap, pte1_trunc(va));
 			pmap_free_zero_pages(&free);
 			CTR3(KTR_PMAP, "%s: failure for va %#x in pmap %p",
 			    __func__, va, pmap);
@@ -3778,14 +3799,19 @@ validate:
 		 * is set. Do it now, before the mapping is stored and made
 		 * valid for hardware table walk. If done later, there is a race
 		 * for other threads of current process in lazy loading case.
+		 * Don't do it for kernel memory which is mapped with exec
+		 * permission even if the memory isn't going to hold executable
+		 * code. The only time when icache sync is needed is after
+		 * kernel module is loaded and the relocation info is processed.
+		 * And it's done in elf_cpu_load_file().
 		 *
 		 * QQQ: (1) Does it exist any better way where
 		 *          or how to sync icache?
 		 *      (2) Now, we do it on a page basis.
 		 */
-		if ((prot & VM_PROT_EXECUTE) &&
-		    (m->md.pat_mode == PTE2_ATTR_WB_WA) &&
-		    ((opa != pa) || (opte2 & PTE2_NX)))
+		if ((prot & VM_PROT_EXECUTE) && pmap != kernel_pmap &&
+		    m->md.pat_mode == PTE2_ATTR_WB_WA &&
+		    (opa != pa || (opte2 & PTE2_NX)))
 			cache_icache_sync_fresh(va, pa, PAGE_SIZE);
 
 		npte2 |= PTE2_A;
@@ -3851,17 +3877,15 @@ pmap_remove_pte2(pmap_t pmap, pt2_entry_t *pte2p, vm_offset_t va,
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
+	/* Clear and invalidate the mapping. */
 	opte2 = pte2_load_clear(pte2p);
+	pmap_tlb_flush(pmap, va);
+
 	KASSERT(pte2_is_valid(opte2), ("%s: pmap %p va %#x not link pte2 %#x",
 	    __func__, pmap, va, opte2));
+
 	if (opte2 & PTE2_W)
 		pmap->pm_stats.wired_count -= 1;
-	/*
-	 * If the mapping was global, invalidate it even if given pmap
-	 * is not active (kernel_pmap is active always).
-	 */
-	if (pte2_is_global(opte2))
-		tlb_flush(va);
 	pmap->pm_stats.resident_count -= 1;
 	if (pte2_is_managed(opte2)) {
 		m = PHYS_TO_VM_PAGE(pte2_pa(opte2));
@@ -3890,7 +3914,6 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, struct spglist *free)
 	    !pte2_is_valid(pte2_load(pte2p)))
 		return;
 	pmap_remove_pte2(pmap, pte2p, va, free);
-	pmap_tlb_flush(pmap, va);
 }
 
 /*
@@ -3906,7 +3929,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, pte2;
 	struct spglist free;
-	int anyvalid;
 
 	/*
 	 * Perform an unsynchronized read. This is, however, safe.
@@ -3914,7 +3936,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
-	anyvalid = 0;
 	SLIST_INIT(&free);
 
 	rw_wlock(&pvh_global_lock);
@@ -3959,12 +3980,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 * demote the mapping and fall through.
 			 */
 			if (sva + PTE1_SIZE == nextva && eva >= nextva) {
-				/*
-				 * The TLB entry for global mapping is
-				 * invalidated by pmap_remove_pte1().
-				 */
-				if (!pte1_is_global(pte1))
-					anyvalid = 1;
 				pmap_remove_pte1(pmap, pte1p, sva, &free);
 				continue;
 			} else if (!pmap_demote_pte1(pmap, pte1p, sva)) {
@@ -3995,21 +4010,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			pte2 = pte2_load(pte2p);
 			if (!pte2_is_valid(pte2))
 				continue;
-
-			/*
-			 * The TLB entry for global mapping is invalidated
-			 * by pmap_remove_pte2().
-			 */
-			if (!pte2_is_global(pte2))
-				anyvalid = 1;
 			if (pmap_remove_pte2(pmap, pte2p, sva, &free))
 				break;
 		}
 	}
 out:
 	sched_unpin();
-	if (anyvalid)
-		pmap_tlb_flush_ng(pmap);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
@@ -4065,6 +4071,7 @@ small_mappings:
 		    "a 1mpage in page %p's pv list", __func__, m));
 		pte2p = pmap_pte2_quick(pmap, pv->pv_va);
 		opte2 = pte2_load_clear(pte2p);
+		pmap_tlb_flush(pmap, pv->pv_va);
 		KASSERT(pte2_is_valid(opte2), ("%s: pmap %p va %x zero pte2",
 		    __func__, pmap, pv->pv_va));
 		if (pte2_is_wired(opte2))
@@ -4078,7 +4085,6 @@ small_mappings:
 		if (pte2_is_dirty(opte2))
 			vm_page_dirty(m);
 		pmap_unuse_pt2(pmap, pv->pv_va, &free);
-		pmap_tlb_flush(pmap, pv->pv_va);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
@@ -4182,10 +4188,25 @@ pmap_remove_pages(pmap_t pmap)
 	uint32_t inuse, bitmask;
 	boolean_t allfree;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
-		printf("warning: %s called with non-current pmap\n", __func__);
-		return;
+	/*
+	 * Assert that the given pmap is only active on the current
+	 * CPU.  Unfortunately, we cannot block another CPU from
+	 * activating the pmap while this function is executing.
+	 */
+	KASSERT(pmap == vmspace_pmap(curthread->td_proc->p_vmspace),
+	    ("%s: non-current pmap %p", __func__, pmap));
+#if defined(SMP) && defined(INVARIANTS)
+	{
+		cpuset_t other_cpus;
+
+		sched_pin();
+		other_cpus = pmap->pm_active;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		sched_unpin();
+		KASSERT(CPU_EMPTY(&other_cpus),
+		    ("%s: pmap %p active on other cpus", __func__, pmap));
 	}
+#endif
 	SLIST_INIT(&free);
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -4254,8 +4275,8 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
+	tlb_flush_all_ng_local();
 	sched_unpin();
-	pmap_tlb_flush_ng(pmap);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
@@ -4389,7 +4410,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l2prot |= PTE2_U | PTE2_NG;
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		l2prot |= PTE2_NX;
-	else if (m->md.pat_mode == PTE2_ATTR_WB_WA) {
+	else if (m->md.pat_mode == PTE2_ATTR_WB_WA && pmap != kernel_pmap) {
 		/*
 		 * Sync icache if exec permission and attribute PTE2_ATTR_WB_WA
 		 * is set. QQQ: For more info, see comments in pmap_enter().
@@ -4460,7 +4481,7 @@ pmap_enter_pte1(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		l1prot |= PTE1_U | PTE1_NG;
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		l1prot |= PTE1_NX;
-	else if (m->md.pat_mode == PTE2_ATTR_WB_WA) {
+	else if (m->md.pat_mode == PTE2_ATTR_WB_WA && pmap != kernel_pmap) {
 		/*
 		 * Sync icache if exec permission and attribute PTE2_ATTR_WB_WA
 		 * is set. QQQ: For more info, see comments in pmap_enter().
@@ -4597,19 +4618,17 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 /*
  *  Do the things to protect a 1mpage in a process.
  */
-static boolean_t
+static void
 pmap_protect_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t sva,
     vm_prot_t prot)
 {
 	pt1_entry_t npte1, opte1;
 	vm_offset_t eva, va;
 	vm_page_t m;
-	boolean_t anychanged;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & PTE1_OFFSET) == 0,
 	    ("%s: sva is not 1mpage aligned", __func__));
-	anychanged = FALSE;
 retry:
 	opte1 = npte1 = pte1_load(pte1p);
 	if (pte1_is_managed(opte1)) {
@@ -4633,12 +4652,8 @@ retry:
 	if (npte1 != opte1) {
 		if (!pte1_cmpset(pte1p, opte1, npte1))
 			goto retry;
-		if (pte1_is_global(opte1))
-			tlb_flush(sva);
-		else
-			anychanged = TRUE;
+		pmap_tlb_flush(pmap, sva);
 	}
-	return (anychanged);
 }
 
 /*
@@ -4648,7 +4663,7 @@ retry:
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	boolean_t anychanged, pv_lists_locked;
+	boolean_t pv_lists_locked;
 	vm_offset_t nextva;
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, opte2, npte2;
@@ -4671,7 +4686,6 @@ resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
 	}
-	anychanged = FALSE;
 
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = nextva) {
@@ -4698,19 +4712,12 @@ resume:
 			 * demote the mapping and fall through.
 			 */
 			if (sva + PTE1_SIZE == nextva && eva >= nextva) {
-				/*
-				 * The TLB entry for global mapping is
-				 * invalidated by pmap_protect_pte1().
-				 */
-				if (pmap_protect_pte1(pmap, pte1p, sva, prot))
-					anychanged = TRUE;
+				pmap_protect_pte1(pmap, pte1p, sva, prot);
 				continue;
 			} else {
 				if (!pv_lists_locked) {
 					pv_lists_locked = TRUE;
 					if (!rw_try_wlock(&pvh_global_lock)) {
-						if (anychanged)
-							pmap_tlb_flush_ng(pmap);
 						PMAP_UNLOCK(pmap);
 						goto resume;
 					}
@@ -4773,16 +4780,10 @@ retry:
 
 				if (!pte2_cmpset(pte2p, opte2, npte2))
 					goto retry;
-
-				if (pte2_is_global(opte2))
-					tlb_flush(sva);
-				else
-					anychanged = TRUE;
+				pmap_tlb_flush(pmap, sva);
 			}
 		}
 	}
-	if (anychanged)
-		pmap_tlb_flush_ng(pmap);
 	if (pv_lists_locked) {
 		sched_unpin();
 		rw_wunlock(&pvh_global_lock);
@@ -5289,7 +5290,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	pt2_entry_t *pte2p, pte2;
 	vm_offset_t pdnxt;
 	vm_page_t m;
-	boolean_t anychanged, pv_lists_locked;
+	boolean_t pv_lists_locked;
 
 	if (advice != MADV_DONTNEED && advice != MADV_FREE)
 		return;
@@ -5301,7 +5302,6 @@ resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
 	}
-	anychanged = FALSE;
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = pdnxt) {
 		pdnxt = pte1_trunc(sva + PTE1_SIZE);
@@ -5317,8 +5317,6 @@ resume:
 			if (!pv_lists_locked) {
 				pv_lists_locked = TRUE;
 				if (!rw_try_wlock(&pvh_global_lock)) {
-					if (anychanged)
-						pmap_tlb_flush_ng(pmap);
 					PMAP_UNLOCK(pmap);
 					goto resume;
 				}
@@ -5343,7 +5341,6 @@ resume:
 				KASSERT(pte2_is_valid(pte2_load(pte2p)),
 				    ("%s: invalid PTE2", __func__));
 				pmap_remove_pte2(pmap, pte2p, sva, NULL);
-				anychanged = TRUE;
 			}
 		}
 		if (pdnxt > eva)
@@ -5369,14 +5366,9 @@ resume:
 				pte2_clear_bit(pte2p, PTE2_A);
 			else
 				continue;
-			if (pte2_is_global(pte2))
-				tlb_flush(sva);
-			else
-				anychanged = TRUE;
+			pmap_tlb_flush(pmap, sva);
 		}
 	}
-	if (anychanged)
-		pmap_tlb_flush_ng(pmap);
 	if (pv_lists_locked) {
 		sched_unpin();
 		rw_wunlock(&pvh_global_lock);
@@ -6159,7 +6151,7 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 			    __func__, pmap, pmap->pm_pt1, far);
 			panic("%s: pm_pt1 abort", __func__);
 		}
-		return (EFAULT);
+		return (KERN_INVALID_ADDRESS);
 	}
 	if (__predict_false(IN_RANGE2(far, PT2MAP, PT2MAP_SIZE))) {
 		/*
@@ -6175,7 +6167,7 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 			    __func__, pmap, PT2MAP, far);
 			panic("%s: PT2MAP abort", __func__);
 		}
-		return (EFAULT);
+		return (KERN_INVALID_ADDRESS);
 	}
 
 	/*
@@ -6195,7 +6187,7 @@ pte2_seta:
 			if (!pte2_cmpset(pte2p, pte2, pte2 | PTE2_A)) {
 				goto pte2_seta;
 			}
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 	if (idx == FAULT_ACCESS_L1) {
@@ -6206,14 +6198,14 @@ pte1_seta:
 			if (!pte1_cmpset(pte1p, pte1, pte1 | PTE1_A)) {
 				goto pte1_seta;
 			}
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 
 	/*
 	 * Handle modify bits for page and section. Note that the modify
 	 * bit is emulated by software. So PTEx_RO is software read only
-	 * bit and PTEx_NM flag is real harware read only bit.
+	 * bit and PTEx_NM flag is real hardware read only bit.
 	 *
 	 * QQQ: This is hardware emulation, we do not call userret()
 	 *      for aborts from user mode.
@@ -6230,7 +6222,7 @@ pte2_setrw:
 				goto pte2_setrw;
 			}
 			tlb_flush(trunc_page(far));
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 	if ((fsr & FSR_WNR) && (idx == FAULT_PERM_L1)) {
@@ -6243,7 +6235,7 @@ pte1_setrw:
 				goto pte1_setrw;
 			}
 			tlb_flush(pte1_trunc(far));
-			return (0);
+			return (KERN_SUCCESS);
 		}
 	}
 
@@ -6282,7 +6274,7 @@ pte1_setrw:
 		}
 	}
 #endif
-	return (EAGAIN);
+	return (KERN_FAILURE);
 }
 
 /* !!!! REMOVE !!!! */
