@@ -2165,7 +2165,13 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 				strcpy(&path[sb.st_size], p);
 			else
 				path[sb.st_size] = 0;
-			if (sb.st_size + sizeof(znode_phys_t) <= dn.dn_bonuslen) {
+			/*
+			 * Second test is purely to silence bogus compiler
+			 * warning about accessing past the end of dn_bonus.
+			 */
+			if (sb.st_size + sizeof(znode_phys_t) <=
+			    dn.dn_bonuslen && sizeof(znode_phys_t) <=
+			    sizeof(dn.dn_bonus)) {
 				memcpy(path, &dn.dn_bonus[sizeof(znode_phys_t)],
 					sb.st_size);
 			} else {
