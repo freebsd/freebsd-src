@@ -32,7 +32,7 @@ need_dad_wait=
 #	Extract value from ${jail_$jv_$name} or ${jail_$name} and
 #	set it to $param.  If not defined, $defval is used.
 #	When $num is [0-9]*, ${jail_$jv_$name$num} are looked up and
-#	$param is set by using +=.
+#	$param is set by using +=.  $num=0 is optional (params may start at 1).
 #	When $num is YN or NY, the value is interpret as boolean.
 extract_var()
 {
@@ -72,7 +72,7 @@ extract_var()
 			eval _tmpargs=\"\${$_name1:-\${$_name2:-$_def}}\"
 			if [ -n "$_tmpargs" ]; then 
 				echo "	$_param += \"$_tmpargs\";"
-			else
+			elif [ $i != 0 ]; then
 				break;
 			fi
 			i=$(($i + 1))
@@ -202,7 +202,7 @@ parse_options()
 		extract_var $_jv exec_poststop exec.poststop 0 ""
 
 		echo "	exec.start += \"$_exec_start\";"
-		extract_var $_jv exec_afterstart exec.start 1 ""
+		extract_var $_jv exec_afterstart exec.start 0 ""
 		echo "	exec.stop = \"$_exec_stop\";"
 
 		extract_var $_jv consolelog exec.consolelog - \
