@@ -240,14 +240,10 @@ ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
     struct thread *td)
 {
 	struct tty *tp;
-	int error = 0;
+	int error;
 
-	while ((tp = dev->si_drv1) == NULL) {
-		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
-		if (error != EWOULDBLOCK)
-			return (error);
-	}
-
+	tp = dev->si_drv1;
+	error = 0;
 	tty_lock(tp);
 	if (tty_gone(tp)) {
 		/* Device is already gone. */
@@ -762,13 +758,10 @@ ttyil_open(struct cdev *dev, int oflags __unused, int devtype __unused,
     struct thread *td)
 {
 	struct tty *tp;
-	int error = 0;
+	int error;
 
-	while ((tp = dev->si_drv1) == NULL) {
-		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
-		if (error != EWOULDBLOCK)
-			return (error);
-	}
+	tp = dev->si_drv1;
+	error = 0;
 	tty_lock(tp);
 	if (tty_gone(tp))
 		error = ENODEV;
@@ -1218,6 +1211,7 @@ static int
 tty_vmakedevf(struct tty *tp, struct ucred *cred, int flags,
     const char *fmt, va_list ap)
 {
+	struct make_dev_args args;
 	struct cdev *dev, *init, *lock, *cua, *cinit, *clock;
 	const char *prefix = "tty";
 	char name[SPECNAMELEN - 3]; /* for "tty" and "cua". */
@@ -1248,71 +1242,72 @@ tty_vmakedevf(struct tty *tp, struct ucred *cred, int flags,
 	flags |= MAKEDEV_CHECKNAME;
 
 	/* Master call-in device. */
-	error = make_dev_p(flags, &dev, &ttydev_cdevsw, cred, uid, gid, mode,
-	    "%s%s", prefix, name);
-	if (error)
+	make_dev_args_init(&args);
+	args.mda_flags = flags;
+	args.mda_devsw = &ttydev_cdevsw;
+	args.mda_cr = cred;
+	args.mda_uid = uid;
+	args.mda_gid = gid;
+	args.mda_mode = mode;
+	args.mda_si_drv1 = tp;
+	error = make_dev_s(&args, &dev, "%s%s", prefix, name);
+	if (error != 0)
 		return (error);
-	dev->si_drv1 = tp;
-	wakeup(&dev->si_drv1);
 	tp->t_dev = dev;
 
 	init = lock = cua = cinit = clock = NULL;
 
 	/* Slave call-in devices. */
 	if (tp->t_flags & TF_INITLOCK) {
-		error = make_dev_p(flags, &init, &ttyil_cdevsw, cred, uid,
-		    gid, mode, "%s%s.init", prefix, name);
-		if (error)
+		args.mda_devsw = &ttyil_cdevsw;
+		args.mda_unit = TTYUNIT_INIT;
+		args.mda_si_drv1 = tp;
+		args.mda_si_drv2 = &tp->t_termios_init_in;
+		error = make_dev_s(&args, &init, "%s%s.init", prefix, name);
+		if (error != 0)
 			goto fail;
 		dev_depends(dev, init);
-		dev2unit(init) = TTYUNIT_INIT;
-		init->si_drv1 = tp;
-		wakeup(&init->si_drv1);
-		init->si_drv2 = &tp->t_termios_init_in;
 
-		error = make_dev_p(flags, &lock, &ttyil_cdevsw, cred, uid,
-		    gid, mode, "%s%s.lock", prefix, name);
-		if (error)
+		args.mda_unit = TTYUNIT_LOCK;
+		args.mda_si_drv2 = &tp->t_termios_lock_in;
+		error = make_dev_s(&args, &lock, "%s%s.lock", prefix, name);
+		if (error != 0)
 			goto fail;
 		dev_depends(dev, lock);
-		dev2unit(lock) = TTYUNIT_LOCK;
-		lock->si_drv1 = tp;
-		wakeup(&lock->si_drv1);
-		lock->si_drv2 = &tp->t_termios_lock_in;
 	}
 
 	/* Call-out devices. */
 	if (tp->t_flags & TF_CALLOUT) {
-		error = make_dev_p(flags, &cua, &ttydev_cdevsw, cred,
-		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
-		if (error)
+		make_dev_args_init(&args);
+		args.mda_flags = flags;
+		args.mda_devsw = &ttydev_cdevsw;
+		args.mda_cr = cred;
+		args.mda_uid = UID_UUCP;
+		args.mda_gid = GID_DIALER;
+		args.mda_mode = 0660;
+		args.mda_unit = TTYUNIT_CALLOUT;
+		args.mda_si_drv1 = tp;
+		error = make_dev_s(&args, &cua, "cua%s", name);
+		if (error != 0)
 			goto fail;
 		dev_depends(dev, cua);
-		dev2unit(cua) = TTYUNIT_CALLOUT;
-		cua->si_drv1 = tp;
-		wakeup(&cua->si_drv1);
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			error = make_dev_p(flags, &cinit, &ttyil_cdevsw, cred,
-			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
-			if (error)
+			args.mda_devsw = &ttyil_cdevsw;
+			args.mda_unit = TTYUNIT_CALLOUT | TTYUNIT_INIT;
+			args.mda_si_drv2 = &tp->t_termios_init_out;
+			error = make_dev_s(&args, &cinit, "cua%s.init", name);
+			if (error != 0)
 				goto fail;
 			dev_depends(dev, cinit);
-			dev2unit(cinit) = TTYUNIT_CALLOUT | TTYUNIT_INIT;
-			cinit->si_drv1 = tp;
-			wakeup(&cinit->si_drv1);
-			cinit->si_drv2 = &tp->t_termios_init_out;
 
-			error = make_dev_p(flags, &clock, &ttyil_cdevsw, cred,
-			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
-			if (error)
+			args.mda_unit = TTYUNIT_CALLOUT | TTYUNIT_LOCK;
+			args.mda_si_drv2 = &tp->t_termios_lock_out;
+			error = make_dev_s(&args, &clock, "cua%s.lock", name);
+			if (error != 0)
 				goto fail;
 			dev_depends(dev, clock);
-			dev2unit(clock) = TTYUNIT_CALLOUT | TTYUNIT_LOCK;
-			clock->si_drv1 = tp;
-			wakeup(&clock->si_drv1);
-			clock->si_drv2 = &tp->t_termios_lock_out;
 		}
 	}
 
