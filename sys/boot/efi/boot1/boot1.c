@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 
 static const boot_module_t *boot_modules[] =
 {
+#ifdef EFI_ZFS_BOOT
+	&zfs_module,
+#endif
 #ifdef EFI_UFS_BOOT
 	&ufs_module
 #endif

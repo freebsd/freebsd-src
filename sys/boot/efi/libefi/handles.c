@@ -35,6 +35,7 @@ struct entry {
 	EFI_HANDLE alias;
 	struct devsw *dev;
 	int unit;
+	uint64_t extra;
 };
 
 struct entry *entry;
@@ -79,7 +80,7 @@ efi_find_handle(struct devsw *dev, int unit)
 }
 
 int
-efi_handle_lookup(EFI_HANDLE h, struct devsw **dev, int *unit)
+efi_handle_lookup(EFI_HANDLE h, struct devsw **dev, int *unit, uint64_t *extra)
 {
 	int idx;
 
@@ -90,7 +91,28 @@ efi_handle_lookup(EFI_HANDLE h, struct devsw **dev, int *unit)
 			*dev = entry[idx].dev;
 		if (unit != NULL)
 			*unit = entry[idx].unit;
+		if (extra != NULL)
+			*extra = entry[idx].extra;
 		return (0);
 	}
+	return (ENOENT);
+}
+
+int
+efi_handle_update_dev(EFI_HANDLE h, struct devsw *dev, int unit,
+    uint64_t guid)
+{
+	int idx;
+
+	for (idx = 0; idx < nentries; idx++) {
+		if (entry[idx].handle != h)
+			continue;
+		entry[idx].dev = dev;
+		entry[idx].unit = unit;
+		entry[idx].alias = NULL;
+		entry[idx].extra = guid;
+		return (0);
+	}
+
 	return (ENOENT);
 }

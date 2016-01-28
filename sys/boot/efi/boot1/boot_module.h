@@ -36,12 +36,9 @@
 #include <eficonsctl.h>
 
 #ifdef EFI_DEBUG
-#define DPRINTF(fmt, args...) \
-        do { \
-                printf(fmt, ##args) \
-        } while (0)
+#define DPRINTF(fmt, ...) printf(fmt, __VA_ARGS__)
 #else
-#define DPRINTF(fmt, args...) {}
+#define DPRINTF(fmt, ...) {}
 #endif
 
 /* EFI device info */
@@ -96,6 +93,9 @@ typedef struct boot_module_t
 /* Standard boot modules. */
 #ifdef EFI_UFS_BOOT
 extern const boot_module_t ufs_module;
+#endif
+#ifdef EFI_ZFS_BOOT
+extern const boot_module_t zfs_module;
 #endif
 
 /* Functions available to modules. */

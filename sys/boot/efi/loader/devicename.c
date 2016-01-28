@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/param.h>
 #include <bootstrap.h>
+#ifdef EFI_ZFS_BOOT
+#include <libzfs.h>
+#endif
 
 #include <efi.h>
 #include <efilib.h>
@@ -104,6 +107,23 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 
 	np = devspec + strlen(dv->dv_name);
 
+#ifdef EFI_ZFS_BOOT
+	if (dv->dv_type == DEVT_ZFS) {
+		int err;
+
+		idev = malloc(sizeof(struct zfs_devdesc));
+		if (idev == NULL)
+			return (ENOMEM);
+
+		err = zfs_parsedev((struct zfs_devdesc*)idev, np, path);
+		if (err != 0) {
+			free(idev);
+			return (err);
+		}
+		*dev = idev;
+		cp = strchr(np + 1, ':');
+	} else
+#endif
 	{
 		idev = malloc(sizeof(struct devdesc));
 		if (idev == NULL)
@@ -143,6 +163,10 @@ efi_fmtdev(void *vdev)
 	static char buf[SPECNAMELEN + 1];
 
 	switch(dev->d_type) {
+#ifdef EFI_ZFS_BOOT
+	case DEVT_ZFS:
+		return (zfs_fmtdev(dev));
+#endif
 	case DEVT_NONE:
 		strcpy(buf, "(no device)");
 		break;
