@@ -5,6 +5,8 @@
  * All rights reserved.
  * Copyright (c) 2014 Nathan Whitehorn
  * All rights reserved.
+ * Copyright (c) 2015 Eric McCorkle
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms are freely
  * permitted provided that the above copyright notice and this
@@ -21,7 +23,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/dirent.h>
 #include <machine/elf.h>
 #include <machine/stdarg.h>
 #include <stand.h>
@@ -29,19 +30,29 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <eficonsctl.h>
 
+#include "boot_module.h"
+
 #define _PATH_LOADER	"/boot/loader.efi"
-#define _PATH_KERNEL	"/boot/kernel/kernel"
 
-#define BSIZEMAX	16384
+static const boot_module_t *boot_modules[] =
+{
+#ifdef EFI_UFS_BOOT
+	&ufs_module
+#endif
+};
 
-void panic(const char *fmt, ...) __dead2;
+#define NUM_BOOT_MODULES (sizeof(boot_modules) / sizeof(boot_module_t*))
+/* The initial number of handles used to query EFI for partitions. */
+#define NUM_HANDLES_INIT	24
+
 void putchar(int c);
 EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
 
-static int domount(EFI_DEVICE_PATH *device, EFI_BLOCK_IO *blkio, int quiet);
-static void load(const char *fname);
+static void try_load(const boot_module_t* mod);
+static EFI_STATUS probe_handle(EFI_HANDLE h);
 
-static EFI_SYSTEM_TABLE *systab;
+EFI_SYSTEM_TABLE *systab;
+EFI_BOOT_SERVICES *bs;
 static EFI_HANDLE *image;
 
 static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
@@ -49,27 +60,92 @@ static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
 static EFI_GUID ConsoleControlGUID = EFI_CONSOLE_CONTROL_PROTOCOL_GUID;
 
-static EFI_BLOCK_IO *bootdev;
-static EFI_DEVICE_PATH *bootdevpath;
-static EFI_HANDLE *bootdevhandle;
-
-EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
+/*
+ * Provide Malloc / Free backed by EFIs AllocatePool / FreePool which ensures
+ * memory is correctly aligned avoiding EFI_INVALID_PARAMETER returns from
+ * EFI methods.
+ */
+void *
+Malloc(size_t len, const char *file __unused, int line __unused)
 {
-	EFI_HANDLE handles[128];
-	EFI_BLOCK_IO *blkio;
-	UINTN i, nparts = sizeof(handles), cols, rows, max_dim, best_mode;
+	void *out;
+
+	if (bs->AllocatePool(EfiLoaderData, len, &out) == EFI_SUCCESS)
+		return (out);
+
+	return (NULL);
+}
+
+void
+Free(void *buf, const char *file __unused, int line __unused)
+{
+	(void)bs->FreePool(buf);
+}
+
+/*
+ * This function only returns if it fails to load the kernel. If it
+ * succeeds, it simply boots the kernel.
+ */
+void
+try_load(const boot_module_t *mod)
+{
+	size_t bufsize;
+	void *buf;
+	dev_info_t *dev;
+	EFI_HANDLE loaderhandle;
+	EFI_LOADED_IMAGE *loaded_image;
 	EFI_STATUS status;
-	EFI_DEVICE_PATH *devpath;
-	EFI_BOOT_SERVICES *BS;
+
+	status = mod->load(_PATH_LOADER, &dev, &buf, &bufsize);
+	if (status == EFI_NOT_FOUND)
+		return;
+
+	if (status != EFI_SUCCESS) {
+		printf("%s failed to load %s (%lu)\n", mod->name, _PATH_LOADER,
+		    EFI_ERROR_CODE(status));
+		return;
+	}
+
+	if ((status = bs->LoadImage(TRUE, image, dev->devpath, buf, bufsize,
+	    &loaderhandle)) != EFI_SUCCESS) {
+		printf("Failed to load image provided by %s, size: %zu, (%lu)\n",
+		     mod->name, bufsize, EFI_ERROR_CODE(status));
+		return;
+	}
+
+	if ((status = bs->HandleProtocol(loaderhandle, &LoadedImageGUID,
+	    (VOID**)&loaded_image)) != EFI_SUCCESS) {
+		printf("Failed to query LoadedImage provided by %s (%lu)\n",
+		    mod->name, EFI_ERROR_CODE(status));
+		return;
+	}
+
+	loaded_image->DeviceHandle = dev->devhandle;
+
+	if ((status = bs->StartImage(loaderhandle, NULL, NULL)) !=
+	    EFI_SUCCESS) {
+		printf("Failed to start image provided by %s (%lu)\n",
+		    mod->name, EFI_ERROR_CODE(status));
+		return;
+	}
+}
+
+EFI_STATUS
+efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
+{
+	EFI_HANDLE *handles;
+	EFI_STATUS status;
 	EFI_CONSOLE_CONTROL_PROTOCOL *ConsoleControl = NULL;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout = NULL;
-	const char *path = _PATH_LOADER;
+	UINTN i, max_dim, best_mode, cols, rows, hsize, nhandles;
 
+	/* Basic initialization*/
 	systab = Xsystab;
 	image = Ximage;
+	bs = Xsystab->BootServices;
 
-	BS = systab->BootServices;
-	status = BS->LocateProtocol(&ConsoleControlGUID, NULL,
+	/* Set up the console, so printf works. */
+	status = bs->LocateProtocol(&ConsoleControlGUID, NULL,
 	    (VOID **)&ConsoleControl);
 	if (status == EFI_SUCCESS)
 		(void)ConsoleControl->SetMode(ConsoleControl,
@@ -94,199 +170,162 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 	conout->EnableCursor(conout, TRUE);
 	conout->ClearScreen(conout);
 
-	printf(" \n>> FreeBSD EFI boot block\n");
-	printf("   Loader path: %s\n", path);
-
-	status = systab->BootServices->LocateHandle(ByProtocol,
-	    &BlockIoProtocolGUID, NULL, &nparts, handles);
-	nparts /= sizeof(handles[0]);
-
-	for (i = 0; i < nparts; i++) {
-		status = systab->BootServices->HandleProtocol(handles[i],
-		    &DevicePathGUID, (void **)&devpath);
-		if (EFI_ERROR(status))
+	printf("\n>> FreeBSD EFI boot block\n");
+	printf("   Loader path: %s\n\n", _PATH_LOADER);
+	printf("   Initializing modules:");
+	for (i = 0; i < NUM_BOOT_MODULES; i++) {
+		if (boot_modules[i] == NULL)
 			continue;
 
-		while (!IsDevicePathEnd(NextDevicePathNode(devpath)))
-			devpath = NextDevicePathNode(devpath);
+		printf(" %s", boot_modules[i]->name);
+		if (boot_modules[i]->init != NULL)
+			boot_modules[i]->init();
+	}
+	putchar('\n');
 
-		status = systab->BootServices->HandleProtocol(handles[i],
-		    &BlockIoProtocolGUID, (void **)&blkio);
-		if (EFI_ERROR(status))
-			continue;
+	/* Get all the device handles */
+	hsize = (UINTN)NUM_HANDLES_INIT * sizeof(EFI_HANDLE);
+	if ((status = bs->AllocatePool(EfiLoaderData, hsize, (void **)&handles))
+	    != EFI_SUCCESS)
+		panic("Failed to allocate %d handles (%lu)", NUM_HANDLES_INIT,
+		    EFI_ERROR_CODE(status));
 
-		if (!blkio->Media->LogicalPartition)
-			continue;
+	status = bs->LocateHandle(ByProtocol, &BlockIoProtocolGUID, NULL,
+	    &hsize, handles);
+	switch (status) {
+	case EFI_SUCCESS:
+		break;
+	case EFI_BUFFER_TOO_SMALL:
+		(void)bs->FreePool(handles);
+		if ((status = bs->AllocatePool(EfiLoaderData, hsize,
+		    (void **)&handles) != EFI_SUCCESS)) {
+			panic("Failed to allocate %zu handles (%lu)", hsize /
+			    sizeof(*handles), EFI_ERROR_CODE(status));
+		}
+		status = bs->LocateHandle(ByProtocol, &BlockIoProtocolGUID,
+		    NULL, &hsize, handles);
+		if (status != EFI_SUCCESS)
+			panic("Failed to get device handles (%lu)\n",
+			    EFI_ERROR_CODE(status));
+		break;
+	default:
+		panic("Failed to get device handles (%lu)",
+		    EFI_ERROR_CODE(status));
+	}
 
-		if (domount(devpath, blkio, 1) >= 0)
+	/* Scan all partitions, probing with all modules. */
+	nhandles = hsize / sizeof(*handles);
+	printf("   Probing %zu block devices...", nhandles);
+	for (i = 0; i < nhandles; i++) {
+		status = probe_handle(handles[i]);
+		switch (status) {
+		case EFI_UNSUPPORTED:
+			printf(".");
 			break;
-	}
-
-	if (i == nparts)
-		panic("No bootable partition found");
-
-	bootdevhandle = handles[i];
-	load(path);
-
-	panic("Load failed");
-
-	return EFI_SUCCESS;
-}
-
-static int
-dskread(void *buf, u_int64_t lba, int nblk)
-{
-	EFI_STATUS status;
-	int size;
-
-	lba = lba / (bootdev->Media->BlockSize / DEV_BSIZE);
-	size = nblk * DEV_BSIZE;
-	status = bootdev->ReadBlocks(bootdev, bootdev->Media->MediaId, lba,
-	    size, buf);
-
-	if (EFI_ERROR(status))
-		return (-1);
-
-	return (0);
-}
-
-#include "ufsread.c"
-
-static ssize_t
-fsstat(ufs_ino_t inode)
-{
-#ifndef UFS2_ONLY
-	static struct ufs1_dinode dp1;
-#endif
-#ifndef UFS1_ONLY
-	static struct ufs2_dinode dp2;
-#endif
-	static struct fs fs;
-	static ufs_ino_t inomap;
-	char *blkbuf;
-	void *indbuf;
-	size_t n, size;
-	static ufs2_daddr_t blkmap, indmap;
-
-	blkbuf = dmadat->blkbuf;
-	indbuf = dmadat->indbuf;
-	if (!dsk_meta) {
-		inomap = 0;
-		for (n = 0; sblock_try[n] != -1; n++) {
-			if (dskread(dmadat->sbbuf, sblock_try[n] / DEV_BSIZE,
-			    SBLOCKSIZE / DEV_BSIZE))
-				return -1;
-			memcpy(&fs, dmadat->sbbuf, sizeof(struct fs));
-			if ((
-#if defined(UFS1_ONLY)
-			    fs.fs_magic == FS_UFS1_MAGIC
-#elif defined(UFS2_ONLY)
-			    (fs.fs_magic == FS_UFS2_MAGIC &&
-			    fs.fs_sblockloc == sblock_try[n])
-#else
-			    fs.fs_magic == FS_UFS1_MAGIC ||
-			    (fs.fs_magic == FS_UFS2_MAGIC &&
-			    fs.fs_sblockloc == sblock_try[n])
-#endif
-			    ) &&
-			    fs.fs_bsize <= MAXBSIZE &&
-			    fs.fs_bsize >= (int32_t)sizeof(struct fs))
-				break;
+		case EFI_SUCCESS:
+			printf("+");
+			break;
+		default:
+			printf("x");
+			break;
 		}
-		if (sblock_try[n] == -1) {
-			return -1;
+	}
+	printf(" done\n");
+
+	/* Status summary. */
+	for (i = 0; i < NUM_BOOT_MODULES; i++) {
+		if (boot_modules[i] != NULL) {
+			printf("    ");
+			boot_modules[i]->status();
 		}
-		dsk_meta++;
-	} else
-		memcpy(&fs, dmadat->sbbuf, sizeof(struct fs));
-	if (!inode)
-		return 0;
-	if (inomap != inode) {
-		n = IPERVBLK(&fs);
-		if (dskread(blkbuf, INO_TO_VBA(&fs, n, inode), DBPERVBLK))
-			return -1;
-		n = INO_TO_VBO(n, inode);
-#if defined(UFS1_ONLY)
-		memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
-		    sizeof(struct ufs1_dinode));
-#elif defined(UFS2_ONLY)
-		memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
-		    sizeof(struct ufs2_dinode));
-#else
-		if (fs.fs_magic == FS_UFS1_MAGIC)
-			memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
-			    sizeof(struct ufs1_dinode));
-		else
-			memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
-			    sizeof(struct ufs2_dinode));
-#endif
-		inomap = inode;
-		fs_off = 0;
-		blkmap = indmap = 0;
 	}
-	size = DIP(di_size);
-	n = size - fs_off;
-	return (n);
+
+	/* Select a partition to boot by trying each module in order. */
+	for (i = 0; i < NUM_BOOT_MODULES; i++)
+		if (boot_modules[i] != NULL)
+			try_load(boot_modules[i]);
+
+	/* If we get here, we're out of luck... */
+	panic("No bootable partitions found!");
 }
 
-static struct dmadat __dmadat;
-
-static int
-domount(EFI_DEVICE_PATH *device, EFI_BLOCK_IO *blkio, int quiet)
+static EFI_STATUS
+probe_handle(EFI_HANDLE h)
 {
-
-	dmadat = &__dmadat;
-	bootdev = blkio;
-	bootdevpath = device;
-	if (fsread(0, NULL, 0)) {
-		if (!quiet)
-			printf("domount: can't read superblock\n");
-		return (-1);
-	}
-	if (!quiet)
-		printf("Succesfully mounted UFS filesystem\n");
-	return (0);
-}
-
-static void
-load(const char *fname)
-{
-	ufs_ino_t ino;
+	dev_info_t *devinfo;
+	EFI_BLOCK_IO *blkio;
+	EFI_DEVICE_PATH *devpath;
 	EFI_STATUS status;
-	EFI_HANDLE loaderhandle;
-	EFI_LOADED_IMAGE *loaded_image;
-	void *buffer;
-	size_t bufsize;
+	UINTN i;
 
-	if ((ino = lookup(fname)) == 0) {
-		printf("File %s not found\n", fname);
+	/* Figure out if we're dealing with an actual partition. */
+	status = bs->HandleProtocol(h, &DevicePathGUID, (void **)&devpath);
+	if (status == EFI_UNSUPPORTED)
+		return (status);
+
+	if (status != EFI_SUCCESS) {
+		DPRINTF("\nFailed to query DevicePath (%lu)\n",
+		    EFI_ERROR_CODE(status));
+		return (status);
+	}
+
+	while (!IsDevicePathEnd(NextDevicePathNode(devpath)))
+		devpath = NextDevicePathNode(devpath);
+
+	status = bs->HandleProtocol(h, &BlockIoProtocolGUID, (void **)&blkio);
+	if (status == EFI_UNSUPPORTED)
+		return (status);
+
+	if (status != EFI_SUCCESS) {
+		DPRINTF("\nFailed to query BlockIoProtocol (%lu)\n",
+		    EFI_ERROR_CODE(status));
+		return (status);
+	}
+
+	if (!blkio->Media->LogicalPartition)
+		return (EFI_UNSUPPORTED);
+
+	/* Run through each module, see if it can load this partition */
+	for (i = 0; i < NUM_BOOT_MODULES; i++) {
+		if (boot_modules[i] == NULL)
+			continue;
+
+		if ((status = bs->AllocatePool(EfiLoaderData,
+		    sizeof(*devinfo), (void **)&devinfo)) !=
+		    EFI_SUCCESS) {
+			DPRINTF("\nFailed to allocate devinfo (%lu)\n",
+			    EFI_ERROR_CODE(status));
+			continue;
+		}
+		devinfo->dev = blkio;
+		devinfo->devpath = devpath;
+		devinfo->devhandle = h;
+		devinfo->devdata = NULL;
+		devinfo->next = NULL;
+
+		status = boot_modules[i]->probe(devinfo);
+		if (status == EFI_SUCCESS)
+			return (EFI_SUCCESS);
+		(void)bs->FreePool(devinfo);
+	}
+
+	return (EFI_UNSUPPORTED);
+}
+
+void
+add_device(dev_info_t **devinfop, dev_info_t *devinfo)
+{
+	dev_info_t *dev;
+
+	if (*devinfop == NULL) {
+		*devinfop = devinfo;
 		return;
 	}
 
-	bufsize = fsstat(ino);
-	status = systab->BootServices->AllocatePool(EfiLoaderData,
-	    bufsize, &buffer);
-	fsread(ino, buffer, bufsize);
+	for (dev = *devinfop; dev->next != NULL; dev = dev->next)
+		;
 
-	/* XXX: For secure boot, we need our own loader here */
-	status = systab->BootServices->LoadImage(TRUE, image, bootdevpath,
-	    buffer, bufsize, &loaderhandle);
-	if (EFI_ERROR(status))
-		printf("LoadImage failed with error %lu\n",
-		    EFI_ERROR_CODE(status));
-
-	status = systab->BootServices->HandleProtocol(loaderhandle,
-	    &LoadedImageGUID, (VOID**)&loaded_image);
-	if (EFI_ERROR(status))
-		printf("HandleProtocol failed with error %lu\n",
-		    EFI_ERROR_CODE(status));
-
-	loaded_image->DeviceHandle = bootdevhandle;
-
-	status = systab->BootServices->StartImage(loaderhandle, NULL, NULL);
-	if (EFI_ERROR(status))
-		printf("StartImage failed with error %lu\n",
-		    EFI_ERROR_CODE(status));
+	dev->next = devinfo;
 }
 
 void

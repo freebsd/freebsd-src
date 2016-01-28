@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <sys/disklabel.h>
+#include <sys/param.h>
 #include <bootstrap.h>
 
 #include <efi.h>
@@ -86,7 +87,7 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	struct devsw *dv;
 	char *cp;
 	const char *np;
-	int i, err;
+	int i;
 
 	/* minimum length check */
 	if (strlen(devspec) < 2)
@@ -101,24 +102,26 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	if (devsw[i] == NULL)
 		return (ENOENT);
 
-	idev = malloc(sizeof(struct devdesc));
-	if (idev == NULL)
-		return (ENOMEM);
-
-	idev->d_dev = dv;
-	idev->d_type = dv->dv_type;
-	idev->d_unit = -1;
-
-	err = 0;
 	np = devspec + strlen(dv->dv_name);
-	if (*np != '\0' && *np != ':') {
-		idev->d_unit = strtol(np, &cp, 0);
-		if (cp == np) {
-			idev->d_unit = -1;
-			free(idev);
-			return (EUNIT);
+
+	{
+		idev = malloc(sizeof(struct devdesc));
+		if (idev == NULL)
+			return (ENOMEM);
+
+		idev->d_dev = dv;
+		idev->d_type = dv->dv_type;
+		idev->d_unit = -1;
+		if (*np != '\0' && *np != ':') {
+			idev->d_unit = strtol(np, &cp, 0);
+			if (cp == np) {
+				idev->d_unit = -1;
+				free(idev);
+				return (EUNIT);
+			}
 		}
 	}
+
 	if (*cp != '\0' && *cp != ':') {
 		free(idev);
 		return (EINVAL);
@@ -137,7 +140,7 @@ char *
 efi_fmtdev(void *vdev)
 {
 	struct devdesc *dev = (struct devdesc *)vdev;
-	static char buf[32];	/* XXX device length constant? */
+	static char buf[SPECNAMELEN + 1];
 
 	switch(dev->d_type) {
 	case DEVT_NONE:
