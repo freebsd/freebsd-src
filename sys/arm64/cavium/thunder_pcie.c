@@ -268,7 +268,7 @@ thunder_pcie_release_resource(device_t dev, device_t child, int type, int rid,
 {
 
 	if (type != SYS_RES_MEMORY)
-		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+		return (bus_generic_release_resource(dev, child,
 		    type, rid, res));
 
 	return (rman_release_resource(res));
@@ -291,7 +291,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rm = &sc->mem_rman;
 		break;
 	default:
-		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+		return (bus_generic_alloc_resource(dev, child,
 		    type, rid, start, end, count, flags));
 	};
 
