@@ -5688,7 +5688,6 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 				if (net->port == 0) {
 					sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 				}
-printf("Changing remote encaps port from %u to %u.\n", ntohs(net->port), ntohs(port));
 				net->port = port;
 			}
 #endif
@@ -5720,7 +5719,6 @@ printf("Changing remote encaps port from %u to %u.\n", ntohs(net->port), ntohs(p
 		if (net->port == 0) {
 			sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 		}
-printf("Changing remote encaps port from %u to %u.\n", ntohs(net->port), ntohs(port));
 		net->port = port;
 	}
 #endif
@@ -5833,7 +5831,6 @@ printf("Changing remote encaps port from %u to %u.\n", ntohs(net->port), ntohs(p
 				if (net->port == 0) {
 					sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 				}
-printf("Changing remote encaps port from %u to %u.\n", ntohs(net->port), ntohs(port));
 				net->port = port;
 			}
 #endif
