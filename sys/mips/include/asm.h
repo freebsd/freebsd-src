@@ -706,20 +706,21 @@ _C_LABEL(x):
 /* Only valid with the _JB_MAGIC_SETJMP magic */
 
 #define _JB_SIGMASK		13
+#define	__JB_SIGMASK_REMAINDER	14	/* sigmask_t is 128-bits */
 
-#define _JB_FPREG_F20		14
-#define _JB_FPREG_F21		15
-#define _JB_FPREG_F22		16
-#define _JB_FPREG_F23		17
-#define _JB_FPREG_F24		18
-#define _JB_FPREG_F25		19
-#define _JB_FPREG_F26		20
-#define _JB_FPREG_F27		21
-#define _JB_FPREG_F28		22
-#define _JB_FPREG_F29		23
-#define _JB_FPREG_F30		24
-#define _JB_FPREG_F31		25
-#define _JB_FPREG_FCSR		26
+#define _JB_FPREG_F20		15
+#define _JB_FPREG_F21		16
+#define _JB_FPREG_F22		17
+#define _JB_FPREG_F23		18
+#define _JB_FPREG_F24		19
+#define _JB_FPREG_F25		20
+#define _JB_FPREG_F26		21
+#define _JB_FPREG_F27		22
+#define _JB_FPREG_F28		23
+#define _JB_FPREG_F29		24
+#define _JB_FPREG_F30		25
+#define _JB_FPREG_F31		26
+#define _JB_FPREG_FCSR		27
 
 /*
  * Various macros for dealing with TLB hazards
