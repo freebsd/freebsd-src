@@ -149,8 +149,9 @@ SSP_CFLAGS?=	-fstack-protector
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !IA64 && !ARM && !MIPS
 
-# Allow user-specified additional warning flags
-CFLAGS+=	${CWARNFLAGS}
+# Allow user-specified additional warning flags and file specific flag
+# overrides.
+CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
 
 
 # Tell bmake not to mistake standard targets for things to be searched for
