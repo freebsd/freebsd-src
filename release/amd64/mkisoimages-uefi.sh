@@ -28,7 +28,7 @@ if [ "x$1" = "x-b" ]; then
 	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
 
 	# Make EFI system partition (should be done with makefs in the future)
-	dd if=/dev/zero of=efiboot.img bs=4k count=100
+	dd if=/dev/zero of=efiboot.img bs=4k count=200
 	device=`mdconfig -a -t vnode -f efiboot.img`
 	newfs_msdos -F 12 -m 0xf8 /dev/$device
 	mkdir efi
