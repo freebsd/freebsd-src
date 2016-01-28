@@ -166,9 +166,8 @@ ENTRY(cpu_switch)
 	 */
 	str	x2, [x0, #TD_LOCK]
 #if defined(SCHED_ULE) && defined(SMP)
-	/* Read the value in blocked_lock */
-	ldr	x0, =_C_LABEL(blocked_lock)
-	ldr	x2, [x0]
+	/* Spin if TD_LOCK points to a blocked_lock */
+	ldr	x2, =_C_LABEL(blocked_lock)
 1:
 	ldar	x3, [x1, #TD_LOCK]
 	cmp	x3, x2
