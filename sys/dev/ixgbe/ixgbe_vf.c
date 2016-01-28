@@ -185,6 +185,8 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	hw->mac.ops.stop_adapter(hw);
 
+	/* reset the api version */
+	hw->api_version = ixgbe_mbox_api_10;
 
 	DEBUGOUT("Issuing a function level reset to MAC\n");
 
@@ -222,6 +224,8 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 			IXGBE_VF_PERMADDR_MSG_LEN, 0);
 	if (ret_val)
 		return ret_val;
+
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
 	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK) &&
 	    msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_NACK))
@@ -666,6 +670,57 @@ int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
 int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 		       unsigned int *default_tc)
 {
-	UNREFERENCED_3PARAMETER(hw, num_tcs, default_tc);
-	return IXGBE_SUCCESS;
+	int err;
+	u32 msg[5];
+
+	/* do nothing if API doesn't support ixgbevf_get_queues */
+	switch (hw->api_version) {
+	case ixgbe_mbox_api_11:
+		break;
+	default:
+		return 0;
+	}
+
+	/* Fetch queue configuration from the PF */
+	msg[0] = IXGBE_VF_GET_QUEUES;
+	msg[1] = msg[2] = msg[3] = msg[4] = 0;
+	err = hw->mbx.ops.write_posted(hw, msg, 5, 0);
+
+	if (!err)
+		err = hw->mbx.ops.read_posted(hw, msg, 5, 0);
+
+	if (!err) {
+		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+		/*
+		 * if we we didn't get an ACK there must have been
+		 * some sort of mailbox error so we should treat it
+		 * as such
+		 */
+		if (msg[0] != (IXGBE_VF_GET_QUEUES | IXGBE_VT_MSGTYPE_ACK))
+			return IXGBE_ERR_MBX;
+
+		/* record and validate values from message */
+		hw->mac.max_tx_queues = msg[IXGBE_VF_TX_QUEUES];
+		if (hw->mac.max_tx_queues == 0 ||
+		    hw->mac.max_tx_queues > IXGBE_VF_MAX_TX_QUEUES)
+			hw->mac.max_tx_queues = IXGBE_VF_MAX_TX_QUEUES;
+
+		hw->mac.max_rx_queues = msg[IXGBE_VF_RX_QUEUES];
+		if (hw->mac.max_rx_queues == 0 ||
+		    hw->mac.max_rx_queues > IXGBE_VF_MAX_RX_QUEUES)
+			hw->mac.max_rx_queues = IXGBE_VF_MAX_RX_QUEUES;
+
+		*num_tcs = msg[IXGBE_VF_TRANS_VLAN];
+		/* in case of unknown state assume we cannot tag frames */
+		if (*num_tcs > hw->mac.max_rx_queues)
+			*num_tcs = 1;
+
+		*default_tc = msg[IXGBE_VF_DEF_QUEUE];
+		/* default to queue 0 on out-of-bounds queue number */
+		if (*default_tc >= hw->mac.max_tx_queues)
+			*default_tc = 0;
+	}
+
+	return err;
 }
