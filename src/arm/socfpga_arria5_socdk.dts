@@ -22,7 +22,8 @@
 	compatible = "altr,socfpga-arria5", "altr,socfpga";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -78,6 +79,7 @@
 &mmc0 {
 	vmmc-supply = <&regulator_3_3v>;
 	vqmmc-supply = <&regulator_3_3v>;
+	status = "okay";
 };
 
 &usb1 {

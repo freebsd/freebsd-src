@@ -3,7 +3,10 @@
 set -e
 set -o pipefail
 
-git ls-files -s | tee /tmp/bar | sed -n -f ${SCRIPTS}/rewrite-paths.sed | tee /tmp/foo | \
+crumbs=/tmp/device-tree-export
+git ls-files -s | tee $crumbs-orig | \
+	${SCRIPTS}/flatten-symlinks.sh | tee $crumbs-flattened | \
+	sed -n -f ${SCRIPTS}/rewrite-paths.sed | tee $crumbs-rewritten | \
 	GIT_INDEX_FILE=$GIT_INDEX_FILE.new git update-index --index-info
 
 if [ -f "$GIT_INDEX_FILE.new" ] ; then
