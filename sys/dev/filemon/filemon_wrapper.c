@@ -523,7 +523,7 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 
 static void
 filemon_event_process_fork(void *arg __unused, struct proc *p1,
-    struct proc *p2, int flags)
+    struct proc *p2, int flags __unused)
 {
 	size_t len;
 	struct filemon *filemon;
