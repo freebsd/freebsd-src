@@ -1780,6 +1780,7 @@ ctl_ha_role_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 ctl_init(void)
 {
+	struct make_dev_args args;
 	struct ctl_softc *softc;
 	void *other_pool;
 	int i, error;
@@ -1787,9 +1788,17 @@ ctl_init(void)
 	softc = control_softc = malloc(sizeof(*control_softc), M_DEVBUF,
 			       M_WAITOK | M_ZERO);
 
-	softc->dev = make_dev(&ctl_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0600,
-			      "cam/ctl");
-	softc->dev->si_drv1 = softc;
+	make_dev_args_init(&args);
+	args.mda_devsw = &ctl_cdevsw;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = softc;
+	error = make_dev_s(&args, &softc->dev, "cam/ctl");
+	if (error != 0) {
+		free(control_softc, M_DEVBUF);
+		return (error);
+	}
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
