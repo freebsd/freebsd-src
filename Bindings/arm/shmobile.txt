@@ -7,8 +7,6 @@ SoCs:
     compatible = "renesas,emev2"
   - RZ/A1H (R7S72100)
     compatible = "renesas,r7s72100"
-  - SH-Mobile AP4 (R8A73720/SH7372)
-    compatible = "renesas,sh7372"
   - SH-Mobile AG5 (R8A73A00/SH73A0)
     compatible = "renesas,sh73a0"
   - R-Mobile APE6 (R8A73A40)
@@ -29,6 +27,8 @@ SoCs:
     compatible = "renesas,r8a7793"
   - R-Car E2 (R8A77940)
     compatible = "renesas,r8a7794"
+  - R-Car H3 (R8A77950)
+    compatible = "renesas,r8a7795"
 
 
 Boards:
@@ -37,14 +37,10 @@ Boards:
     compatible = "renesas,alt", "renesas,r8a7794"
   - APE6-EVM
     compatible = "renesas,ape6evm", "renesas,r8a73a4"
-  - APE6-EVM - Reference Device Tree Implementation
-    compatible = "renesas,ape6evm-reference", "renesas,r8a73a4"
   - Atmark Techno Armadillo-800 EVA
     compatible = "renesas,armadillo800eva"
   - BOCK-W
     compatible = "renesas,bockw", "renesas,r8a7778"
-  - BOCK-W - Reference Device Tree Implementation
-    compatible = "renesas,bockw-reference", "renesas,r8a7778"
   - Genmai (RTK772100BC00000BR)
     compatible = "renesas,genmai", "renesas,r7s72100"
   - Gose
@@ -57,15 +53,13 @@ Boards:
     compatible = "renesas,kzm9d", "renesas,emev2"
   - Kyoto Microcomputer Co. KZM-A9-GT
     compatible = "renesas,kzm9g", "renesas,sh73a0"
-  - Kyoto Microcomputer Co. KZM-A9-GT - Reference Device Tree Implementation
-    compatible = "renesas,kzm9g-reference", "renesas,sh73a0"
   - Lager (RTP0RC7790SEB00010S)
     compatible = "renesas,lager", "renesas,r8a7790"
-  - Mackerel (R0P7372LC0016RL, AP4 EVM 2nd)
-    compatible = "renesas,mackerel"
   - Marzen
     compatible = "renesas,marzen", "renesas,r8a7779"
-
-Note: Reference Device Tree Implementations are temporary implementations
-      to ease the migration from platform devices to Device Tree, and are
-      intended to be removed in the future.
+  - Porter (M2-LCDP)
+    compatible = "renesas,porter", "renesas,r8a7791"
+  - Salvator-X (RTP0RC7795SIPB0010S)
+    compatible = "renesas,salvator-x", "renesas,r8a7795";
+  - SILK (RTP0RC7794LCB00011S)
+    compatible = "renesas,silk", "renesas,r8a7794"

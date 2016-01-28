@@ -16,7 +16,7 @@ fi
 if [ -z "$LATEST_VERSION" ] ; then
     FINGER_BANNER="https://www.kernel.org/finger_banner"
     LATEST_VERSION=$(wget --quiet -O - "$FINGER_BANNER" |\
-        sed -n -e 's/^The latest mainline 3 version of the Linux kernel is:\s*\(.*\)$/\1/p')
+        sed -n -e '0,/^The latest mainline version of the Linux kernel is:\s*\(.*\)$/s//\1/p')
 fi
 
 if [ -z "$LATEST_VERSION" ] ; then
