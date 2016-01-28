@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "platform/acfreebsd.h"
 #include "acconfig.h"
 #define ACPI_SYSTEM_XFACE
+#define ACPI_USE_SYSTEM_INTTYPES
 #include "actypes.h"
 #include "actbl.h"
 
@@ -100,7 +101,6 @@ elf64_exec(struct preloaded_file *fp)
 	ACPI_TABLE_RSDP		*rsdp;
 	char			buf[24];
 	int			revision;
-	EFI_STATUS		status;
 
 	rsdp = efi_get_table(&acpi20_guid);
 	if (rsdp == NULL) {

@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include "framebuffer.h"
 #include "loader_efi.h"
 
+int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
+
 static const char howto_switches[] = "aCdrgDmphsv";
 static int howto_masks[] = {
 	RB_ASKNAME, RB_CDROM, RB_KDB, RB_DFLTROOT, RB_GDB, RB_MULTIPLE,
@@ -113,7 +115,7 @@ bi_copyenv(vm_offset_t start)
 	/* Traverse the environment. */
 	for (ep = environ; ep != NULL; ep = ep->ev_next) {
 		len = strlen(ep->ev_name);
-		if (archsw.arch_copyin(ep->ev_name, addr, len) != len)
+		if ((size_t)archsw.arch_copyin(ep->ev_name, addr, len) != len)
 			break;
 		addr += len;
 		if (archsw.arch_copyin("=", addr, 1) != 1)
@@ -121,7 +123,7 @@ bi_copyenv(vm_offset_t start)
 		addr++;
 		if (ep->ev_value != NULL) {
 			len = strlen(ep->ev_value);
-			if (archsw.arch_copyin(ep->ev_value, addr, len) != len)
+			if ((size_t)archsw.arch_copyin(ep->ev_value, addr, len) != len)
 				break;
 			addr += len;
 		}

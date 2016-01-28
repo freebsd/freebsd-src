@@ -179,7 +179,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	argv = malloc((argc + 1) * sizeof(CHAR16*));
 	argc = 0;
 	if (addprog)
-		argv[argc++] = L"loader.efi";
+		argv[argc++] = (CHAR16 *)L"loader.efi";
 	argp = args;
 	while (argp != NULL && *argp != 0) {
 		argp = arg_skipsep(argp);

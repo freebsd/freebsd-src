@@ -42,12 +42,15 @@ __FBSDID("$FreeBSD$");
 #define	ELFW_R_TYPE	ELF64_R_TYPE
 #endif
 
+EFI_STATUS _reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle __unused,
+    EFI_SYSTEM_TABLE *system_table __unused);
+
 /*
  * A simple relocator for IA32/AMD64 EFI binaries.
  */
 EFI_STATUS
-_reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
-    EFI_SYSTEM_TABLE *system_table)
+_reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle __unused,
+    EFI_SYSTEM_TABLE *system_table __unused)
 {
 	unsigned long relsz, relent;
 	unsigned long *newaddr;
@@ -100,7 +103,7 @@ _reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
 			/* XXX: do we need other relocations ? */
 			break;
 		}
-		rel = (ElfW_Rel *) ((caddr_t) rel + relent);
+		rel = (ElfW_Rel *)(void *) ((caddr_t) rel + relent);
 	}
 
 	return (EFI_SUCCESS);
