@@ -390,12 +390,14 @@ invoke_inflate(struct zstream_proxy *zspp)
 	return (0);
 }
 
-static volatile int zero = 0;
 int
 invoke_divzero(void)
 {
+	int one = 1, zero = 0, ret;
 
-	return (1/(zero));
+	__asm__ volatile ("div  %1, %2; mflo %0" :
+	    "=r"(ret) : "r"(one), "r"(zero) : "memory");
+	return (ret);
 }
 
 int
