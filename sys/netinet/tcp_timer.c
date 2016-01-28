@@ -71,6 +71,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif
 
+int    tcp_persmin;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmin, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_persmin, 0, sysctl_msec_to_ticks, "I", "minimum persistence interval");
+
+int    tcp_persmax;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, persmax, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_persmax, 0, sysctl_msec_to_ticks, "I", "maximum persistence interval");
+
 int	tcp_keepinit;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_keepinit, 0, sysctl_msec_to_ticks, "I", "time to establish connection");
