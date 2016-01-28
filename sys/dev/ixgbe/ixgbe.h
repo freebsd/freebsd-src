@@ -49,8 +49,10 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sockio.h>
+#include <sys/eventhandler.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -90,10 +92,21 @@
 #include <machine/smp.h>
 #include <sys/sbuf.h>
 
+#ifdef PCI_IOV
+#include <sys/nv.h>
+#include <sys/iov_schema.h>
+#include <dev/pci/pci_iov.h>
+#endif
+
 #include "ixgbe_api.h"
 #include "ixgbe_common.h"
 #include "ixgbe_phy.h"
 #include "ixgbe_vf.h"
+
+#ifdef PCI_IOV
+#include "ixgbe_common.h"
+#include "ixgbe_mbx.h"
+#endif
 
 /* Tunables */
 
@@ -242,6 +255,29 @@
 	 (_adapter->hw.mac.type == ixgbe_mac_X540_vf) || \
 	 (_adapter->hw.mac.type == ixgbe_mac_82599_vf))
 
+#ifdef PCI_IOV
+#define IXGBE_VF_INDEX(vmdq)  ((vmdq) / 32)
+#define IXGBE_VF_BIT(vmdq)    (1 << ((vmdq) % 32))
+
+#define IXGBE_VT_MSG_MASK	0xFFFF
+
+#define IXGBE_VT_MSGINFO(msg)	\
+	(((msg) & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT)
+
+#define IXGBE_VF_GET_QUEUES_RESP_LEN	5
+
+#define IXGBE_API_VER_1_0	0		
+#define IXGBE_API_VER_2_0	1	/* Solaris API.  Not supported. */
+#define IXGBE_API_VER_1_1	2
+#define IXGBE_API_VER_UNKNOWN	UINT16_MAX
+
+enum ixgbe_iov_mode {
+	IXGBE_64_VM,
+	IXGBE_32_VM,
+	IXGBE_NO_VM
+};
+#endif /* PCI_IOV */
+
 
 /*
  *****************************************************************************
@@ -259,6 +295,7 @@ typedef struct _ixgbe_vendor_info_t {
 	unsigned int    subdevice_id;
 	unsigned int    index;
 } ixgbe_vendor_info_t;
+
 
 struct ixgbe_tx_buf {
 	union ixgbe_adv_tx_desc	*eop;
@@ -286,6 +323,11 @@ struct ixgbe_dma_alloc {
 	bus_dma_segment_t	dma_seg;
 	bus_size_t		dma_size;
 	int			dma_nseg;
+};
+
+struct ixgbe_mc_addr {
+	u8 addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
+	u32 vmdq;
 };
 
 /*
@@ -383,6 +425,28 @@ struct rx_ring {
 #endif
 };
 
+#ifdef PCI_IOV
+#define IXGBE_VF_CTS		(1 << 0) /* VF is clear to send. */
+#define IXGBE_VF_CAP_MAC	(1 << 1) /* VF is permitted to change MAC. */
+#define IXGBE_VF_CAP_VLAN	(1 << 2) /* VF is permitted to join vlans. */
+#define IXGBE_VF_ACTIVE		(1 << 3) /* VF is active. */
+
+#define IXGBE_MAX_VF_MC 30  /* Max number of multicast entries */
+
+struct ixgbe_vf {
+	u_int		pool;
+	u_int		rar_index;
+	u_int		max_frame_size;
+	uint32_t	flags;
+	uint8_t		ether_addr[ETHER_ADDR_LEN];
+	uint16_t	mc_hash[IXGBE_MAX_VF_MC];
+	uint16_t	num_mc_hashes;
+	uint16_t	default_vlan;
+	uint16_t	vlan_tag;
+	uint16_t	api_ver;
+};
+#endif /* PCI_IOV */
+
 /* Our adapter structure */
 struct adapter {
 	struct ifnet		*ifp;
@@ -434,8 +498,8 @@ struct adapter {
 	bool			link_up;
 	u32 			vector;
 	u16			dmac;
-	bool			eee_support;
 	bool			eee_enabled;
+	u32			phy_layer;
 
 	/* Power management-related */
 	bool			wol_support;
@@ -449,6 +513,9 @@ struct adapter {
 	struct task     	link_task;  /* Link tasklet */
 	struct task     	mod_task;   /* SFP tasklet */
 	struct task     	msf_task;   /* Multispeed Fiber */
+#ifdef PCI_IOV
+	struct task		mbx_task;   /* VF -> PF mailbox interrupt */
+#endif /* PCI_IOV */
 #ifdef IXGBE_FDIR
 	int			fdir_reinit;
 	struct task     	fdir_task;
@@ -482,8 +549,12 @@ struct adapter {
 	u32			rx_process_limit;
 
 	/* Multicast array memory */
-	u8			*mta;
-
+	struct ixgbe_mc_addr	*mta;
+	int			num_vfs;
+	int			pool;
+#ifdef PCI_IOV
+	struct ixgbe_vf		*vfs;
+#endif
 
 	/* Misc stats maintained by the driver */
 	unsigned long   	dropped_pkts;
@@ -669,4 +740,150 @@ bool	ixgbe_rxeof(struct ix_queue *);
 int	ixgbe_dma_malloc(struct adapter *,
 	    bus_size_t, struct ixgbe_dma_alloc *, int);
 void	ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
+
+#ifdef PCI_IOV
+
+static inline boolean_t
+ixgbe_vf_mac_changed(struct ixgbe_vf *vf, const uint8_t *mac)
+{
+	return (bcmp(mac, vf->ether_addr, ETHER_ADDR_LEN) != 0);
+}
+
+static inline void
+ixgbe_send_vf_msg(struct adapter *adapter, struct ixgbe_vf *vf, u32 msg)
+{
+
+	if (vf->flags & IXGBE_VF_CTS)
+		msg |= IXGBE_VT_MSGTYPE_CTS;
+	
+	ixgbe_write_mbx(&adapter->hw, &msg, 1, vf->pool);
+}
+
+static inline void
+ixgbe_send_vf_ack(struct adapter *adapter, struct ixgbe_vf *vf, u32 msg)
+{
+	msg &= IXGBE_VT_MSG_MASK;
+	ixgbe_send_vf_msg(adapter, vf, msg | IXGBE_VT_MSGTYPE_ACK);
+}
+
+static inline void
+ixgbe_send_vf_nack(struct adapter *adapter, struct ixgbe_vf *vf, u32 msg)
+{
+	msg &= IXGBE_VT_MSG_MASK;
+	ixgbe_send_vf_msg(adapter, vf, msg | IXGBE_VT_MSGTYPE_NACK);
+}
+
+static inline void
+ixgbe_process_vf_ack(struct adapter *adapter, struct ixgbe_vf *vf)
+{
+	if (!(vf->flags & IXGBE_VF_CTS))
+		ixgbe_send_vf_nack(adapter, vf, 0);
+}
+
+static inline enum ixgbe_iov_mode
+ixgbe_get_iov_mode(struct adapter *adapter)
+{
+	if (adapter->num_vfs == 0)
+		return (IXGBE_NO_VM);
+	if (adapter->num_queues <= 2)
+		return (IXGBE_64_VM);
+	else if (adapter->num_queues <= 4)
+		return (IXGBE_32_VM);
+	else
+		return (IXGBE_NO_VM);
+}
+
+static inline u16
+ixgbe_max_vfs(enum ixgbe_iov_mode mode)
+{
+	/*
+	 * We return odd numbers below because we
+	 * reserve 1 VM's worth of queues for the PF.
+	 */
+	switch (mode) {
+	case IXGBE_64_VM:
+		return (63);
+	case IXGBE_32_VM:
+		return (31);
+	case IXGBE_NO_VM:
+	default:
+		return (0);
+	}
+}
+
+static inline int
+ixgbe_vf_queues(enum ixgbe_iov_mode mode)
+{
+	switch (mode) {
+	case IXGBE_64_VM:
+		return (2);
+	case IXGBE_32_VM:
+		return (4);
+	case IXGBE_NO_VM:
+	default:
+		return (0);
+	}
+}
+
+static inline int
+ixgbe_vf_que_index(enum ixgbe_iov_mode mode, u32 vfnum, int num)
+{
+	return ((vfnum * ixgbe_vf_queues(mode)) + num);
+}
+
+static inline int
+ixgbe_pf_que_index(enum ixgbe_iov_mode mode, int num)
+{
+	return (ixgbe_vf_que_index(mode, ixgbe_max_vfs(mode), num));
+}
+
+static inline void
+ixgbe_update_max_frame(struct adapter * adapter, int max_frame)
+{
+	if (adapter->max_frame_size < max_frame)
+		adapter->max_frame_size = max_frame;
+}
+
+static inline u32
+ixgbe_get_mrqc(enum ixgbe_iov_mode mode)
+{
+       u32 mrqc = 0;
+       switch (mode) {
+       case IXGBE_64_VM:
+               mrqc = IXGBE_MRQC_VMDQRSS64EN;
+               break;
+       case IXGBE_32_VM:
+               mrqc = IXGBE_MRQC_VMDQRSS32EN;
+               break;
+        case IXGBE_NO_VM:
+                mrqc = 0;
+                break;
+       default:
+            panic("Unexpected SR-IOV mode %d", mode);
+       }
+        return(mrqc);
+}
+
+
+static inline u32
+ixgbe_get_mtqc(enum ixgbe_iov_mode mode)
+{
+       uint32_t mtqc = 0;
+        switch (mode) {
+        case IXGBE_64_VM:
+               mtqc |= IXGBE_MTQC_64VF | IXGBE_MTQC_VT_ENA;
+                break;
+        case IXGBE_32_VM:
+               mtqc |= IXGBE_MTQC_32VF | IXGBE_MTQC_VT_ENA;
+                break;
+        case IXGBE_NO_VM:
+                mtqc = IXGBE_MTQC_64Q_1PB;
+                break;
+        default:
+                panic("Unexpected SR-IOV mode %d", mode);
+        }
+        return(mtqc);
+}
+#endif /* PCI_IOV */
+
 #endif /* _IXGBE_H_ */

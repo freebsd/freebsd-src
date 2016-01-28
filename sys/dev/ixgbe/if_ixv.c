@@ -43,7 +43,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixv_driver_version[] = "1.2.5";
+char ixv_driver_version[] = "1.4.0";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -126,6 +126,18 @@ static void	ixv_msix_mbx(void *);
 static void	ixv_handle_que(void *, int);
 static void	ixv_handle_mbx(void *, int);
 
+#ifdef DEV_NETMAP
+/*
+ * This is defined in <dev/netmap/ixgbe_netmap.h>, which is included by
+ * if_ix.c.
+ */
+extern void ixgbe_netmap_attach(struct adapter *adapter);
+
+#include <net/netmap.h>
+#include <sys/selinfo.h>
+#include <dev/netmap/netmap_kern.h>
+#endif /* DEV_NETMAP */
+
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
  *********************************************************************/
@@ -147,11 +159,18 @@ devclass_t ixv_devclass;
 DRIVER_MODULE(ixv, pci, ixv_driver, ixv_devclass, 0, 0);
 MODULE_DEPEND(ixv, pci, 1, 1, 1);
 MODULE_DEPEND(ixv, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(ix, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 /* XXX depend on 'ix' ? */
 
 /*
 ** TUNEABLE PARAMETERS:
 */
+
+/* Number of Queues - do not exceed MSIX vectors - 1 */
+static int ixv_num_queues = 1;
+TUNABLE_INT("hw.ixv.num_queues", &ixv_num_queues);
 
 /*
 ** AIM: Adaptive Interrupt Moderation
@@ -312,6 +331,15 @@ ixv_attach(device_t dev)
 	    "max number of tx packets to process",
 	    &adapter->tx_process_limit, ixv_tx_process_limit);
 
+	/* Sysctls for limiting the amount of work done in the taskqueues */
+	ixv_set_sysctl_value(adapter, "rx_processing_limit",
+	    "max number of rx packets to process",
+	    &adapter->rx_process_limit, ixv_rx_process_limit);
+
+	ixv_set_sysctl_value(adapter, "tx_processing_limit",
+	    "max number of tx packets to process",
+	    &adapter->tx_process_limit, ixv_tx_process_limit);
+
 	/* Do descriptor calc and sanity checks */
 	if (((ixv_txd * sizeof(union ixgbe_adv_tx_desc)) % DBA_ALIGN) != 0 ||
 	    ixv_txd < MIN_TXD || ixv_txd > MAX_TXD) {
@@ -349,6 +377,11 @@ ixv_attach(device_t dev)
 
 	ixgbe_reset_hw(hw);
 
+	/* Get the Mailbox API version */
+	device_printf(dev,"MBX API %d negotiation: %d\n",
+	    ixgbe_mbox_api_11,
+	    ixgbevf_negotiate_api_version(hw, ixgbe_mbox_api_11));
+
 	error = ixgbe_init_hw(hw);
 	if (error) {
 		device_printf(dev,"Hardware Initialization Failure\n");
@@ -383,6 +416,9 @@ ixv_attach(device_t dev)
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    ixv_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 
+#ifdef DEV_NETMAP
+	ixgbe_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("ixv_attach: end");
 	return (0);
 
@@ -446,6 +482,9 @@ ixv_detach(device_t dev)
 
 	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
+#ifdef DEV_NETMAP
+	netmap_detach(adapter->ifp);
+#endif /* DEV_NETMAP */
 	ixv_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(adapter->ifp);
@@ -1324,10 +1363,13 @@ static int
 ixv_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	int rid, want;
+	int rid, want, msgs;
 
 
-	/* First try MSI/X */
+	/* Must have at least 2 MSIX vectors */
+	msgs = pci_msix_count(dev);
+	if (msgs < 2)
+		goto out;
 	rid = PCIR_BAR(3);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -1338,11 +1380,16 @@ ixv_setup_msix(struct adapter *adapter)
 	}
 
 	/*
-	** Want two vectors: one for a queue,
+	** Want vectors for the queues,
 	** plus an additional for mailbox.
 	*/
-	want = 2;
-	if ((pci_alloc_msix(dev, &want) == 0) && (want == 2)) {
+	want = adapter->num_queues + 1;
+	if (want > msgs) {
+		want = msgs;
+		adapter->num_queues = msgs - 1;
+	} else
+		msgs = want;
+	if ((pci_alloc_msix(dev, &msgs) == 0) && (msgs == want)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", want);
 		return (want);
@@ -1381,7 +1428,9 @@ ixv_allocate_pci_resources(struct adapter *adapter)
 		rman_get_bushandle(adapter->pci_mem);
 	adapter->hw.hw_addr = (u8 *) &adapter->osdep.mem_bus_space_handle;
 
-	adapter->num_queues = 1;
+	/* Pick up the tuneable queues */
+	adapter->num_queues = ixv_num_queues;
+
 	adapter->hw.back = &adapter->osdep;
 
 	/*
@@ -1599,32 +1648,41 @@ ixv_initialize_receive_units(struct adapter *adapter)
 {
 	struct	rx_ring	*rxr = adapter->rx_rings;
 	struct ixgbe_hw	*hw = &adapter->hw;
-	struct ifnet   *ifp = adapter->ifp;
-	u32		bufsz, fctrl, rxcsum, hlreg;
+	struct ifnet	*ifp = adapter->ifp;
+	u32		bufsz, rxcsum, psrtype;
+	int		max_frame;
 
-
-	/* Enable broadcasts */
-	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
-	fctrl |= IXGBE_FCTRL_BAM;
-	fctrl |= IXGBE_FCTRL_DPF;
-	fctrl |= IXGBE_FCTRL_PMCF;
-	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
-
-	/* Set for Jumbo Frames? */
-	hlreg = IXGBE_READ_REG(hw, IXGBE_HLREG0);
-	if (ifp->if_mtu > ETHERMTU) {
-		hlreg |= IXGBE_HLREG0_JUMBOEN;
+	if (ifp->if_mtu > ETHERMTU)
 		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	} else {
-		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
+	else
 		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	}
-	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
+
+	psrtype = IXGBE_PSRTYPE_TCPHDR | IXGBE_PSRTYPE_UDPHDR |
+	    IXGBE_PSRTYPE_IPV4HDR | IXGBE_PSRTYPE_IPV6HDR |
+	    IXGBE_PSRTYPE_L2HDR;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, psrtype);
+
+	/* Tell PF our expected packet-size */
+	max_frame = ifp->if_mtu + IXGBE_MTU_HDR;
+	ixgbevf_rlpml_set_vf(hw, max_frame);
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
 		u32 reg, rxdctl;
 
+		/* Disable the queue */
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
+		rxdctl &= ~(IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME);
+		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), rxdctl);
+		for (int j = 0; j < 10; j++) {
+			if (IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i)) &
+			    IXGBE_RXDCTL_ENABLE)
+				msec_delay(1);
+			else
+				break;
+		}
+		wmb();
 		/* Setup the Base and Length of the Rx Descriptor Ring */
 		IXGBE_WRITE_REG(hw, IXGBE_VFRDBAL(i),
 		    (rdba & 0x00000000ffffffffULL));
@@ -1632,6 +1690,10 @@ ixv_initialize_receive_units(struct adapter *adapter)
 		    (rdba >> 32));
 		IXGBE_WRITE_REG(hw, IXGBE_VFRDLEN(i),
 		    adapter->num_rx_desc * sizeof(union ixgbe_adv_rx_desc));
+
+		/* Reset the ring indices */
+		IXGBE_WRITE_REG(hw, IXGBE_VFRDH(rxr->me), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me), 0);
 
 		/* Set up the SRRCTL register */
 		reg = IXGBE_READ_REG(hw, IXGBE_VFSRRCTL(i));
@@ -1661,6 +1723,35 @@ ixv_initialize_receive_units(struct adapter *adapter)
 				msec_delay(1);
 		}
 		wmb();
+
+		/* Set the Tail Pointer */
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, we must preserve the buffers made
+		 * available to userspace before the if_init()
+		 * (this is true by default on the TX side, because
+		 * init makes all buffers available to userspace).
+		 *
+		 * netmap_reset() and the device specific routines
+		 * (e.g. ixgbe_setup_receive_rings()) map these
+		 * buffers at the end of the NIC ring, so here we
+		 * must set the RDT (tail) register to make sure
+		 * they are not overwritten.
+		 *
+		 * In this driver the NIC ring starts at RDH = 0,
+		 * RDT points to the last slot available for reception (?),
+		 * so RDT = num_rx_desc - 1 means the whole ring is available.
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
+
+			IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me), t);
+		} else
+#endif /* DEV_NETMAP */
+			IXGBE_WRITE_REG(hw, IXGBE_VFRDT(rxr->me),
+			    adapter->num_rx_desc - 1);
 	}
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
