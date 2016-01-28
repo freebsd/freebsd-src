@@ -730,9 +730,6 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 	mode = SAMODE(dev);
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	cam_periph_lock(periph);
 
 	softc = (struct sa_softc *)periph->softc;
@@ -905,10 +902,6 @@ sastrategy(struct bio *bp)
 		return;
 	}
 	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
-	if (periph == NULL) {
-		biofinish(bp, NULL, ENXIO);
-		return;
-	}
 	cam_periph_lock(periph);
 
 	softc = (struct sa_softc *)periph->softc;
@@ -1516,9 +1509,6 @@ saioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	spaceop = 0;		/* shut up gcc */
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	cam_periph_lock(periph);
 	softc = (struct sa_softc *)periph->softc;
 
@@ -2284,7 +2274,7 @@ saasync(void *callback_arg, u_int32_t code,
 static void
 sasetupdev(struct sa_softc *softc, struct cdev *dev)
 {
-	dev->si_drv1 = softc->periph;
+
 	dev->si_iosize_max = softc->maxio;
 	dev->si_flags |= softc->si_flags;
 	/*
@@ -2346,8 +2336,10 @@ saregister(struct cam_periph *periph, void *arg)
 	struct sa_softc *softc;
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
+	struct make_dev_args args;
 	caddr_t match;
 	char tmpstr[80];
+	int error;
 	
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -2505,25 +2497,48 @@ saregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
-	    SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
-	    0660, "%s%d.ctl", periph->periph_name, periph->unit_number);
+	make_dev_args_init(&args);
+	args.mda_devsw = &sa_cdevsw;
+	args.mda_si_drv1 = softc->periph;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0660;
+
+	args.mda_unit = SAMINOR(SA_CTLDEV, SA_ATYPE_R);
+	error = make_dev_s(&args, &softc->devs.ctl_dev, "%s%d.ctl",
+	    periph->periph_name, periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 	sasetupdev(softc, softc->devs.ctl_dev);
 
-	softc->devs.r_dev = make_dev(&sa_cdevsw, SAMINOR(SA_NOT_CTLDEV,
-	    SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
-	    0660, "%s%d", periph->periph_name, periph->unit_number);
+	args.mda_unit = SAMINOR(SA_NOT_CTLDEV, SA_ATYPE_R);
+	error = make_dev_s(&args, &softc->devs.r_dev, "%s%d",
+	    periph->periph_name, periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 	sasetupdev(softc, softc->devs.r_dev);
 
-	softc->devs.nr_dev = make_dev(&sa_cdevsw, SAMINOR(SA_NOT_CTLDEV,
-	    SA_ATYPE_NR), UID_ROOT, GID_OPERATOR,
-	    0660, "n%s%d", periph->periph_name, periph->unit_number);
+	args.mda_unit = SAMINOR(SA_NOT_CTLDEV, SA_ATYPE_NR);
+	error = make_dev_s(&args, &softc->devs.nr_dev, "n%s%d",
+	    periph->periph_name, periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 	sasetupdev(softc, softc->devs.nr_dev);
 
-	softc->devs.er_dev = make_dev(&sa_cdevsw, SAMINOR(SA_NOT_CTLDEV,
-	    SA_ATYPE_ER), UID_ROOT, GID_OPERATOR,
-	    0660, "e%s%d", periph->periph_name, periph->unit_number);
-	sasetupdev(softc,  softc->devs.er_dev);
+	args.mda_unit = SAMINOR(SA_NOT_CTLDEV, SA_ATYPE_ER);
+	error = make_dev_s(&args, &softc->devs.er_dev, "e%s%d",
+	    periph->periph_name, periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
+	sasetupdev(softc, softc->devs.er_dev);
 
 	cam_periph_lock(periph);
 
