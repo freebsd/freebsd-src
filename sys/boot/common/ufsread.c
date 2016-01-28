@@ -165,7 +165,7 @@ static int sblock_try[] = SBLOCKSEARCH;
 #endif
 
 static ssize_t
-fsread(ufs_ino_t inode, void *buf, size_t nbyte)
+fsread_size(ufs_ino_t inode, void *buf, size_t nbyte, size_t *fsizep)
 {
 #ifndef UFS2_ONLY
 	static struct ufs1_dinode dp1;
@@ -184,6 +184,10 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 	ufs2_daddr_t addr2, vbaddr;
 	static ufs2_daddr_t blkmap, indmap;
 	u_int u;
+
+	/* Basic parameter validation. */
+	if ((buf == NULL && nbyte != 0) || dmadat == NULL)
+		return (-1);
 
 	blkbuf = dmadat->blkbuf;
 	indbuf = dmadat->indbuf;
@@ -231,18 +235,18 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 			return -1;
 		n = INO_TO_VBO(n, inode);
 #if defined(UFS1_ONLY)
-		memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
-		    sizeof(struct ufs1_dinode));
+		memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
+		    sizeof(dp1));
 #elif defined(UFS2_ONLY)
-		memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
-		    sizeof(struct ufs2_dinode));
+		memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
+		    sizeof(dp2));
 #else
 		if (fs.fs_magic == FS_UFS1_MAGIC)
 			memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
-			    sizeof(struct ufs1_dinode));
+			    sizeof(dp1));
 		else
 			memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
-			    sizeof(struct ufs2_dinode));
+			    sizeof(dp2));
 #endif
 		inomap = inode;
 		fs_off = 0;
@@ -306,5 +310,17 @@ fsread(ufs_ino_t inode, void *buf, size_t nbyte)
 		fs_off += n;
 		nb -= n;
 	}
+
+	if (fsizep != NULL)
+		*fsizep = size;
+
 	return nbyte;
 }
+
+static ssize_t
+fsread(ufs_ino_t inode, void *buf, size_t nbyte)
+{
+
+	return fsread_size(inode, buf, nbyte, NULL);
+}
+
