@@ -28,6 +28,7 @@
  */
 
 /* PCIe root complex driver for Cavium Thunder SOC */
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -89,15 +90,11 @@ SYSCTL_INT(_hw, OID_AUTO, thunder_pcie_max_vfs, CTLFLAG_RWTUN,
     &thunder_pcie_max_vfs, 0, "Max VFs supported by ThunderX internal PCIe");
 
 /* Forward prototypes */
-static struct resource *thunder_pcie_alloc_resource(device_t,
-    device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int thunder_pcie_identify_pcib(device_t);
 static int thunder_pcie_maxslots(device_t);
 static uint32_t thunder_pcie_read_config(device_t, u_int, u_int, u_int, u_int,
     int);
 static int thunder_pcie_read_ivar(device_t, device_t, int, uintptr_t *);
-static int thunder_pcie_release_resource(device_t, device_t, int, int,
-    struct resource *);
 static void thunder_pcie_write_config(device_t, u_int, u_int,
     u_int, u_int, uint32_t, int);
 static int thunder_pcie_write_ivar(device_t, device_t, int, uintptr_t);
@@ -262,7 +259,7 @@ thunder_pcie_write_ivar(device_t dev, device_t child, int index,
 	return (ENOENT);
 }
 
-static int
+int
 thunder_pcie_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *res)
 {
@@ -274,7 +271,7 @@ thunder_pcie_release_resource(device_t dev, device_t child, int type, int rid,
 	return (rman_release_resource(res));
 }
 
-static struct resource *
+struct resource *
 thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
