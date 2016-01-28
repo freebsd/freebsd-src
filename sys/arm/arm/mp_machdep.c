@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/debug_monitor.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
@@ -303,6 +304,9 @@ ipi_stop(void *dummy __unused)
 
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+#ifdef DDB
+	dbg_resume_dbreg();
+#endif
 	CTR0(KTR_SMP, "IPI_STOP (restart)");
 }
 
@@ -405,6 +409,9 @@ ipi_handler(void *arg)
 
 			CPU_CLR_ATOMIC(cpu, &started_cpus);
 			CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+#ifdef DDB
+			dbg_resume_dbreg();
+#endif
 			CTR0(KTR_SMP, "IPI_STOP (restart)");
 			break;
 		case IPI_PREEMPT:
