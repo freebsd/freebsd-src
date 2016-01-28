@@ -1,31 +1,6 @@
-FreeBSD/BERI is a port of the open-source FreeBSD operating system that
-extends support for the Bluespec Extensible RISC implementation (BERI).
-CheriBSD extends FreeBSD/BERI to implement memory protection and
-software compartmentalization features supported by the CHERI ISA.
-General crossbuild and use instructions for FreeBSD/BERI may be found in
-the BERI Software Reference. Procedures for building and using
-FreeBSD/BERI should entirely apply to CheriBSD, except as documented in
-the CHERI Users Guild.
-
-More information about BERI and CHERI can be found on
-http://beri-cpu.org, http://cheri-cpu.org, in the following
-Technical Reports:
-
-Bluespec Extensible RISC Implementation: BERI Hardware reference
-http://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-852.html
-
-Bluespec Extensible RISC Implementation: BERI Software reference
-http://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-853.html
-
-Capability Hardware Enhanced RISC Instructions: CHERI User's guide
-http://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-851.html
-
-Capability Hardware Enhanced RISC Instructions: CHERI Instruction-set
-architecture
-http://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-850.html
-
----------------------------------------------------------------------------
-This is the top level of the FreeBSD source directory.
+This is the top level of the FreeBSD source directory.  This file
+was last revised on:
+$FreeBSD$
 
 For copyright information, please see the file COPYRIGHT in this
 directory (additional copyright information also exists for some
