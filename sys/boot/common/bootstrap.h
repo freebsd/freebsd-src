@@ -56,7 +56,10 @@ typedef int	(bootblk_cmd_t)(int argc, char *argv[]);
 extern char	*command_errmsg;	
 extern char	command_errbuf[];	/* XXX blah, length */
 #define CMD_OK		0
-#define CMD_ERROR	1
+#define CMD_WARN	1
+#define CMD_ERROR	2
+#define CMD_CRIT	3
+#define CMD_FATAL	4
 
 /* interp.c */
 void	interact(void);
