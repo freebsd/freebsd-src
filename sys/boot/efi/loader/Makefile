@@ -4,13 +4,11 @@ MAN=
 
 .include <bsd.own.mk>
 
-# In-tree GCC does not support __attribute__((ms_abi)).
-.if ${COMPILER_TYPE} != "gcc"
-
 MK_SSP=		no
 
 PROG=		loader.sym
 INTERNALPROG=
+WARNS?=		3
 
 # architecture-specific loader code
 SRCS=	autoload.c \
@@ -93,8 +91,6 @@ LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND} ${LDSCRIPT}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
-
-.endif # ${COMPILER_TYPE} != "gcc"
 
 .include <bsd.prog.mk>
 

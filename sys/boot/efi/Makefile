@@ -1,9 +1,13 @@
 # $FreeBSD$
 
-SUBDIR=		libefi
+# In-tree GCC does not support __attribute__((ms_abi)).
+.if ${COMPILER_TYPE} != "gcc"
 
 .if ${MACHINE_CPUARCH} == "amd64"
-SUBDIR+=	loader boot1
+SUBDIR+=	libefi loader boot1
 .endif
 
+.endif # ${COMPILER_TYPE} != "gcc"
+
 .include <bsd.subdir.mk>
+

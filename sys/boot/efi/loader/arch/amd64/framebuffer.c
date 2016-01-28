@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 #include <machine/metadata.h>
 
+#include "framebuffer.h"
+
 static EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 
 int
