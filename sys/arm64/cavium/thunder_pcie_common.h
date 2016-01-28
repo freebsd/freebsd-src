@@ -34,6 +34,8 @@
 
 DECLARE_CLASS(thunder_pcie_driver);
 
+MALLOC_DECLARE(M_THUNDER_PCIE);
+
 struct pcie_range {
 	uint64_t	pci_base;
 	uint64_t	phys_base;
@@ -57,6 +59,11 @@ int thunder_common_alloc_msix(device_t, device_t, int *);
 int thunder_common_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 int thunder_common_release_msi(device_t, device_t, int, int *);
 int thunder_common_release_msix(device_t, device_t, int);
+
+struct resource *thunder_pcie_alloc_resource(device_t,
+    device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+int thunder_pcie_release_resource(device_t, device_t, int, int,
+    struct resource *);
 
 int thunder_pcie_attach(device_t);
 
