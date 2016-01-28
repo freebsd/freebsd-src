@@ -35,4 +35,11 @@ MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
 MLINKS+= chpass.1 ypchpass.1 chpass.1 ypchfn.1 chpass.1 ypchsh.1
 .endif
 
+beforeinstall:
+.for i in chpass chfn chsh ypchpass ypchfn ypchsh
+.if exists(${DESTDIR}${BINDIR}/$i)
+	-chflags noschg ${DESTDIR}${BINDIR}/$i
+.endif
+.endfor
+
 .include <bsd.prog.mk>
