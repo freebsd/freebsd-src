@@ -43,9 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/cpuset.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
@@ -82,23 +79,6 @@ __FBSDID("$FreeBSD$");
 #define	THUNDER_ECAM6_CFG_BASE	0x94a000000000UL
 #define	THUNDER_ECAM7_CFG_BASE	0x94b000000000UL
 
-#define	OFW_CELL_TO_UINT64(cell)	\
-    (((uint64_t)(*(cell)) << 32) | (uint64_t)(*((cell) + 1)))
-
-#define	SPACE_CODE_SHIFT	24
-#define	SPACE_CODE_MASK		0x3
-#define	SPACE_CODE_IO_SPACE	0x1
-#define	PROPS_CELL_SIZE		1
-#define	PCI_ADDR_CELL_SIZE	2
-
-struct thunder_pcie_softc {
-	struct pcie_range	ranges[RANGES_TUPLES_MAX];
-	struct rman		mem_rman;
-	struct resource		*res;
-	int			ecam;
-	device_t		dev;
-};
-
 /*
  * ThunderX supports up to 4 ethernet interfaces, so it's good
  * value to use as default for numbers of VFs, since each eth
@@ -111,11 +91,8 @@ SYSCTL_INT(_hw, OID_AUTO, thunder_pcie_max_vfs, CTLFLAG_RWTUN,
 /* Forward prototypes */
 static struct resource *thunder_pcie_alloc_resource(device_t,
     device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
-static int thunder_pcie_attach(device_t);
 static int thunder_pcie_identify_pcib(device_t);
 static int thunder_pcie_maxslots(device_t);
-static int parse_pci_mem_ranges(struct thunder_pcie_softc *);
-static int thunder_pcie_probe(device_t);
 static uint32_t thunder_pcie_read_config(device_t, u_int, u_int, u_int, u_int,
     int);
 static int thunder_pcie_read_ivar(device_t, device_t, int, uintptr_t *);
@@ -125,23 +102,7 @@ static void thunder_pcie_write_config(device_t, u_int, u_int,
     u_int, u_int, uint32_t, int);
 static int thunder_pcie_write_ivar(device_t, device_t, int, uintptr_t);
 
-static int
-thunder_pcie_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_is_compatible(dev, "cavium,thunder-pcie") ||
-	    ofw_bus_is_compatible(dev, "cavium,pci-host-thunder-ecam")) {
-		device_set_desc(dev, "Cavium Integrated PCI/PCI-E Controller");
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	return (ENXIO);
-}
-
-static int
+int
 thunder_pcie_attach(device_t dev)
 {
 	int rid;
@@ -167,13 +128,6 @@ thunder_pcie_attach(device_t dev)
 	sc->mem_rman.rm_type = RMAN_ARRAY;
 	sc->mem_rman.rm_descr = "PCIe Memory";
 
-	/* Retrieve 'ranges' property from FDT */
-	if (bootverbose)
-		device_printf(dev, "parsing FDT for ECAM%d:\n",
-		    sc->ecam);
-	if (parse_pci_mem_ranges(sc))
-		return (ENXIO);
-
 	/* Initialize rman and allocate memory regions */
 	error = rman_init(&sc->mem_rman);
 	if (error) {
@@ -197,115 +151,6 @@ thunder_pcie_attach(device_t dev)
 	device_add_child(dev, "pci", -1);
 
 	return (bus_generic_attach(dev));
-}
-
-static int
-parse_pci_mem_ranges(struct thunder_pcie_softc *sc)
-{
-	phandle_t node;
-	pcell_t pci_addr_cells, parent_addr_cells, size_cells;
-	pcell_t attributes;
-	pcell_t *ranges_buf, *cell_ptr;
-	int cells_count, tuples_count;
-	int tuple;
-	int rv;
-
-	node = ofw_bus_get_node(sc->dev);
-
-	/* Find address cells if present */
-	if (OF_getencprop(node, "#address-cells", &pci_addr_cells,
-	    sizeof(pci_addr_cells)) < sizeof(pci_addr_cells))
-		pci_addr_cells = 2;
-
-	/* Find size cells if present */
-	if (OF_getencprop(node, "#size-cells", &size_cells,
-	    sizeof(size_cells)) < sizeof(size_cells))
-		size_cells = 1;
-
-	/* Find parent address cells if present */
-	if (OF_getencprop(OF_parent(node), "#address-cells",
-	    &parent_addr_cells, sizeof(parent_addr_cells)) < sizeof(parent_addr_cells))
-		parent_addr_cells = 2;
-
-	/* Check if FDT format matches driver requirements */
-	if ((parent_addr_cells != 2) || (pci_addr_cells != 3) ||
-	    (size_cells != 2)) {
-		device_printf(sc->dev,
-		    "Unexpected number of address or size cells in FDT "
-		    " %d:%d:%d\n",
-		    parent_addr_cells, pci_addr_cells, size_cells);
-		return (ENXIO);
-	}
-
-	cells_count = OF_getencprop_alloc(node, "ranges",
-	    sizeof(pcell_t), (void **)&ranges_buf);
-	if (cells_count == -1) {
-		device_printf(sc->dev, "Error parsing FDT 'ranges' property\n");
-		return (ENXIO);
-	}
-
-	tuples_count = cells_count /
-	    (pci_addr_cells + parent_addr_cells + size_cells);
-	if (tuples_count > RANGES_TUPLES_MAX) {
-		device_printf(sc->dev,
-		    "Unexpected number of 'ranges' tuples in FDT\n");
-		rv = ENXIO;
-		goto out;
-	}
-
-	cell_ptr = ranges_buf;
-
-	for (tuple = 0; tuple < tuples_count; tuple++) {
-		/*
-		 * TUPLE FORMAT:
-		 *  attributes  - 32-bit attributes field
-		 *  PCI address - bus address combined of two cells in
-		 *                a following format:
-		 *                <ADDR MSB> <ADDR LSB>
-		 *  PA address  - physical address combined of two cells in
-		 *                a following format:
-		 *                <ADDR MSB> <ADDR LSB>
-		 *  size        - range size combined of two cells in
-		 *                a following format:
-		 *                <ADDR MSB> <ADDR LSB>
-		 */
-		attributes = *cell_ptr;
-		attributes = (attributes >> SPACE_CODE_SHIFT) & SPACE_CODE_MASK;
-		if (attributes == SPACE_CODE_IO_SPACE) {
-			/* Internal PCIe does not support IO space, ignore. */
-			sc->ranges[tuple].phys_base = 0;
-			sc->ranges[tuple].size = 0;
-			cell_ptr +=
-			    (pci_addr_cells + parent_addr_cells + size_cells);
-			continue;
-		}
-		cell_ptr += PROPS_CELL_SIZE;
-		sc->ranges[tuple].pci_base = OFW_CELL_TO_UINT64(cell_ptr);
-		cell_ptr += PCI_ADDR_CELL_SIZE;
-		sc->ranges[tuple].phys_base = OFW_CELL_TO_UINT64(cell_ptr);
-		cell_ptr += parent_addr_cells;
-		sc->ranges[tuple].size = OFW_CELL_TO_UINT64(cell_ptr);
-		cell_ptr += size_cells;
-
-		if (bootverbose) {
-			device_printf(sc->dev,
-			    "\tPCI addr: 0x%jx, CPU addr: 0x%jx, Size: 0x%jx\n",
-			    sc->ranges[tuple].pci_base,
-			    sc->ranges[tuple].phys_base,
-			    sc->ranges[tuple].size);
-		}
-
-	}
-	for (; tuple < RANGES_TUPLES_MAX; tuple++) {
-		/* zero-fill remaining tuples to mark empty elements in array */
-		sc->ranges[tuple].phys_base = 0;
-		sc->ranges[tuple].size = 0;
-	}
-
-	rv = 0;
-out:
-	free(ranges_buf, M_OFWPROP);
-	return (rv);
 }
 
 static uint32_t
@@ -558,8 +403,6 @@ thunder_pcie_identify_pcib(device_t dev)
 }
 
 static device_method_t thunder_pcie_methods[] = {
-	DEVMETHOD(device_probe,			thunder_pcie_probe),
-	DEVMETHOD(device_attach,		thunder_pcie_attach),
 	DEVMETHOD(pcib_maxslots,		thunder_pcie_maxslots),
 	DEVMETHOD(pcib_read_config,		thunder_pcie_read_config),
 	DEVMETHOD(pcib_write_config,		thunder_pcie_write_config),
@@ -581,15 +424,5 @@ static device_method_t thunder_pcie_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t thunder_pcie_driver = {
-	"pcib",
-	thunder_pcie_methods,
-	sizeof(struct thunder_pcie_softc),
-};
-
-static devclass_t thunder_pcie_devclass;
-
-DRIVER_MODULE(thunder_pcib, simplebus, thunder_pcie_driver,
-thunder_pcie_devclass, 0, 0);
-DRIVER_MODULE(thunder_pcib, ofwbus, thunder_pcie_driver,
-thunder_pcie_devclass, 0, 0);
+DEFINE_CLASS_0(pcib, thunder_pcie_driver, thunder_pcie_methods,
+    sizeof(struct thunder_pcie_softc));
