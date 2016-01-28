@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+FILESGROUPS=FILES
+
 FILES=	100.clean-disks \
 	110.clean-tmps \
 	120.clean-preserve \
@@ -23,8 +25,12 @@ FILES=	100.clean-disks \
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_ACCT} != "no"
-FILES+=	310.accounting
+FILESGROUPS+=	ACCT
+ACCT+=		310.accounting
 .endif
+ACCTDIR=	/etc/periodic/daily
+ACCTMODE=	${BINMODE}
+ACCTPACKAGE=	acct
 
 .if ${MK_CALENDAR} != "no"
 FILES+=	300.calendar
