@@ -29,7 +29,9 @@
 #ifndef _MACHINE_VM_H_
 #define	_MACHINE_VM_H_
 
-#ifdef ARM_NEW_PMAP
+#include <machine/acle-compat.h>
+
+#if __ARM_ARCH >= 6
 #include <machine/pte-v6.h>
 
 #define VM_MEMATTR_WB_WA		((vm_memattr_t)PTE2_ATTR_WB_WA)
@@ -40,9 +42,11 @@
 
 #define VM_MEMATTR_DEFAULT		VM_MEMATTR_WB_WA
 #define VM_MEMATTR_UNCACHEABLE		VM_MEMATTR_SO 	/* misused by DMA */
+#ifdef _KERNEL
+/* Don't export aliased VM_MEMATTR to userland */
 #define VM_MEMATTR_WRITE_COMBINING 	VM_MEMATTR_WT		/* for DRM */
 #define VM_MEMATTR_WRITE_BACK		VM_MEMATTR_WB_WA	/* for DRM */
-
+#endif
 #else
 /* Memory attribute configuration. */
 #define	VM_MEMATTR_DEFAULT	0

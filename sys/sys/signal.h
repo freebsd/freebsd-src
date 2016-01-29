@@ -362,7 +362,7 @@ typedef	struct sigaltstack {
 #else
 typedef	struct {
 #endif
-	char	*ss_sp;			/* signal stack base */
+	void	*ss_sp;			/* signal stack base */
 	__size_t ss_size;		/* signal stack length */
 	int	ss_flags;		/* SS_DISABLE and/or SS_ONSTACK */
 } stack_t;
@@ -406,8 +406,7 @@ struct osigcontext {
  * Structure used in sigstack call.
  */
 struct sigstack {
-	/* XXX ss_sp's type should be `void *'. */
-	char	*ss_sp;			/* signal stack pointer */
+	void	*ss_sp;			/* signal stack pointer */
 	int	ss_onstack;		/* current status */
 };
 #endif

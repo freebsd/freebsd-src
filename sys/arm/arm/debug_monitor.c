@@ -35,14 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/kdb.h>
 #include <sys/pcpu.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
 
+#include <machine/atomic.h>
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
 #include <machine/kdb.h>
 #include <machine/param.h>
 #include <machine/pcb.h>
+#include <machine/reg.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
@@ -80,7 +83,7 @@ static boolean_t dbg_ossr;	/* OS Save and Restore implemented */
 static uint32_t dbg_watchpoint_num;
 static uint32_t dbg_breakpoint_num;
 
-static int dbg_ref_count_mme[MAXCPU]; /* Times monitor mode was enabled */
+static int dbg_ref_count_mme; /* Times monitor mode was enabled */
 
 /* ID_DFR0 - Debug Feature Register 0 */
 #define	ID_DFR0_CP_DEBUG_M_SHIFT	0
@@ -542,11 +545,9 @@ dbg_enable_monitor(void)
 {
 	uint32_t dbg_dscr;
 
-	/* Already enabled? Just increment reference counter and return */
-	if (dbg_monitor_is_enabled()) {
-		dbg_ref_count_mme[PCPU_GET(cpuid)]++;
+	/* Already enabled? Just return */
+	if (dbg_monitor_is_enabled())
 		return (0);
-	}
 
 	dbg_dscr = cp14_dbgdscrint_get();
 
@@ -565,10 +566,8 @@ dbg_enable_monitor(void)
 	isb();
 
 	/* Verify that Monitor mode is set */
-	if (dbg_monitor_is_enabled()) {
-		dbg_ref_count_mme[PCPU_GET(cpuid)]++;
+	if (dbg_monitor_is_enabled())
 		return (0);
-	}
 
 	return (ENXIO);
 }
@@ -579,9 +578,6 @@ dbg_disable_monitor(void)
 	uint32_t dbg_dscr;
 
 	if (!dbg_monitor_is_enabled())
-		return (0);
-
-	if (--dbg_ref_count_mme[PCPU_GET(cpuid)] > 0)
 		return (0);
 
 	dbg_dscr = cp14_dbgdscrint_get();
@@ -607,11 +603,13 @@ dbg_disable_monitor(void)
 static int
 dbg_setup_xpoint(struct dbg_wb_conf *conf)
 {
+	struct pcpu *pcpu;
+	struct dbreg *d;
 	const char *typestr;
 	uint32_t cr_size, cr_priv, cr_access;
 	uint32_t reg_ctrl, reg_addr, ctrl, addr;
 	boolean_t is_bkpt;
-	u_int cpuid;
+	u_int cpuid, cpu;
 	u_int i;
 	int err;
 
@@ -705,19 +703,51 @@ dbg_setup_xpoint(struct dbg_wb_conf *conf)
 	dbg_wb_write_reg(reg_addr, i, addr);
 	dbg_wb_write_reg(reg_ctrl, i, ctrl);
 
-	return (dbg_enable_monitor());
+	err = dbg_enable_monitor();
+	if (err != 0)
+		return (err);
+
+	/* Increment monitor enable counter */
+	dbg_ref_count_mme++;
+
+	/*
+	 * Save watchpoint settings for all CPUs.
+	 * We don't need to do the same with breakpoints since HW breakpoints
+	 * are only used to perform single stepping.
+	 */
+	if (!is_bkpt) {
+		CPU_FOREACH(cpu) {
+			pcpu = pcpu_find(cpu);
+			/* Fill out the settings for watchpoint */
+			d = (struct dbreg *)pcpu->pc_dbreg;
+			d->dbg_wvr[i] = addr;
+			d->dbg_wcr[i] = ctrl;
+			/* Skip update command for the current CPU */
+			if (cpu != cpuid)
+				pcpu->pc_dbreg_cmd = PC_DBREG_CMD_LOAD;
+		}
+	}
+	/* Ensure all data is written before waking other CPUs */
+	atomic_thread_fence_rel();
+
+	return (0);
 }
 
 static int
 dbg_remove_xpoint(struct dbg_wb_conf *conf)
 {
+	struct pcpu *pcpu;
+	struct dbreg *d;
 	uint32_t reg_ctrl, reg_addr, addr;
-	u_int cpuid;
+	boolean_t is_bkpt;
+	u_int cpuid, cpu;
 	u_int i;
 	int err;
 
 	if (!dbg_capable)
 		return (ENXIO);
+
+	is_bkpt = (conf->type == DBG_TYPE_BREAKPOINT);
 
 	cpuid = PCPU_GET(cpuid);
 	if (!dbg_ready[cpuid]) {
@@ -729,7 +759,7 @@ dbg_remove_xpoint(struct dbg_wb_conf *conf)
 
 	addr = conf->address;
 
-	if (conf->type == DBG_TYPE_BREAKPOINT) {
+	if (is_bkpt) {
 		i = conf->slot;
 		reg_ctrl = DBG_REG_BASE_BCR;
 		reg_addr = DBG_REG_BASE_BVR;
@@ -746,7 +776,40 @@ dbg_remove_xpoint(struct dbg_wb_conf *conf)
 	dbg_wb_write_reg(reg_ctrl, i, 0);
 	dbg_wb_write_reg(reg_addr, i, 0);
 
-	return (dbg_disable_monitor());
+	/* Decrement monitor enable counter */
+	dbg_ref_count_mme--;
+	if (dbg_ref_count_mme < 0)
+		dbg_ref_count_mme = 0;
+
+	atomic_thread_fence_rel();
+
+	if (dbg_ref_count_mme == 0) {
+		err = dbg_disable_monitor();
+		if (err != 0)
+			return (err);
+	}
+
+	/*
+	 * Save watchpoint settings for all CPUs.
+	 * We don't need to do the same with breakpoints since HW breakpoints
+	 * are only used to perform single stepping.
+	 */
+	if (!is_bkpt) {
+		CPU_FOREACH(cpu) {
+			pcpu = pcpu_find(cpu);
+			/* Fill out the settings for watchpoint */
+			d = (struct dbreg *)pcpu->pc_dbreg;
+			d->dbg_wvr[i] = 0;
+			d->dbg_wcr[i] = 0;
+			/* Skip update command for the current CPU */
+			if (cpu != cpuid)
+				pcpu->pc_dbreg_cmd = PC_DBREG_CMD_LOAD;
+		}
+		/* Ensure all data is written before waking other CPUs */
+		atomic_thread_fence_rel();
+	}
+
+	return (0);
 }
 
 static __inline uint32_t
@@ -940,4 +1003,68 @@ dbg_monitor_init(void)
 
 	db_printf("HW Breakpoints/Watchpoints not enabled on CPU%d\n",
 	    PCPU_GET(cpuid));
+}
+
+CTASSERT(sizeof(struct dbreg) == sizeof(((struct pcpu *)NULL)->pc_dbreg));
+
+void
+dbg_resume_dbreg(void)
+{
+	struct dbreg *d;
+	u_int cpuid;
+	u_int i;
+	int err;
+
+	/*
+	 * This flag is set on the primary CPU
+	 * and its meaning is valid for other CPUs too.
+	 */
+	if (!dbg_capable)
+		return;
+
+	atomic_thread_fence_acq();
+
+	switch (PCPU_GET(dbreg_cmd)) {
+	case PC_DBREG_CMD_LOAD:
+		d = (struct dbreg *)PCPU_PTR(dbreg);
+		cpuid = PCPU_GET(cpuid);
+
+		/* Reset Debug Architecture State if not done earlier */
+		if (!dbg_ready[cpuid]) {
+			err = dbg_reset_state();
+			if (err != 0) {
+				/*
+				 * Something is very wrong.
+				 * WPs/BPs will not work correctly in this CPU.
+				 */
+				panic("%s: Failed to reset Debug Architecture "
+				    "state on CPU%d", __func__, cpuid);
+			}
+			dbg_ready[cpuid] = TRUE;
+		}
+
+		/* Restore watchpoints */
+		for (i = 0; i < dbg_watchpoint_num; i++) {
+			dbg_wb_write_reg(DBG_REG_BASE_WVR, i, d->dbg_wvr[i]);
+			dbg_wb_write_reg(DBG_REG_BASE_WCR, i, d->dbg_wcr[i]);
+		}
+
+		if ((dbg_ref_count_mme > 0) && !dbg_monitor_is_enabled()) {
+			err = dbg_enable_monitor();
+			if (err != 0) {
+				panic("%s: Failed to enable Debug Monitor "
+				    "on CPU%d", __func__, cpuid);
+			}
+		}
+		if ((dbg_ref_count_mme == 0) && dbg_monitor_is_enabled()) {
+			err = dbg_disable_monitor();
+			if (err != 0) {
+				panic("%s: Failed to disable Debug Monitor "
+				    "on CPU%d", __func__, cpuid);
+			}
+		}
+
+		PCPU_SET(dbreg_cmd, PC_DBREG_CMD_NONE);
+		break;
+	}
 }

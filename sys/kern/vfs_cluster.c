@@ -119,6 +119,8 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 	 * get the requested block
 	 */
 	*bpp = reqbp = bp = getblk(vp, lblkno, size, 0, 0, gbflags);
+	if (bp == NULL)
+		return (EBUSY);
 	origblkno = lblkno;
 
 	/*
@@ -295,10 +297,18 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 		curthread->td_ru.ru_inblock++;
 	}
 
-	if (reqbp)
-		return (bufwait(reqbp));
-	else
-		return (error);
+	if (reqbp) {
+		/*
+		 * Like bread, always brelse() the buffer when
+		 * returning an error.
+		 */
+		error = bufwait(reqbp);
+		if (error != 0) {
+			brelse(reqbp);
+			*bpp = NULL;
+		}
+	}
+	return (error);
 }
 
 /*
