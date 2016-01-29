@@ -3,6 +3,8 @@
 .include <src.opts.mk>
 
 FILESGROUPS=	FILES
+FILESDIR=	/etc/rc.d
+FILESMODE=	${BINMODE}
 
 FILES=	DAEMON \
 	FILESYSTEMS \
@@ -137,11 +139,17 @@ FILES=	DAEMON \
 FILESGROUPS+=	ACCT
 ACCT+=		accounting
 .endif
+ACCTDIR=	/etc/rc.d
+ACCTMODE=	${BINMODE}
+ACCTPACKAGE=	acct
 
 .if ${MK_ACPI} != "no"
 FILESGROUPS+=	ACPI
 ACPI=		power_profile
 .endif
+ACPIDIR=	/etc/rc.d
+ACPIMODE=	${BINMODE}
+ACPIPACKAGE=	acpi
 
 .if ${MK_ACPI} != "no" || ${MK_APM} != "no"
 FILES+=		powerd
@@ -151,12 +159,18 @@ FILES+=		powerd
 FILESGROUPS+=	AMD
 AMD+=		amd
 .endif
+AMDDIR=		/etc/rc.d
+AMDMODE=	${BINMODE}
+AMDPACKAGE=	amd
 
 .if ${MK_APM} != "no"
 FILESGROUPS+=	APM
 APM+=		apm
 APM+=		apmd
 .endif
+APMDIR=		/etc/rc.d
+APMMODE=	${BINMODE}
+APMPACKAGE=	apm
 
 .if ${MK_AUTOFS} != "no"
 FILES+=		automount
@@ -179,6 +193,9 @@ FILES+=		bootparams
 FILESGROUPS+=	BSNMP
 BSNMP+=		bsnmpd
 .endif
+BSNMPDIR=	/etc/rc.d
+BSNMPMODE=	${BINMODE}
+BSNMPPACKAGE=	bsnmp
 
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
@@ -209,6 +226,9 @@ FILES+=		iscsid
 FILESGROUPS+=	JAIL
 JAIL+=		jail
 .endif
+JAILDIR=	/etc/rc.d
+JAILMODE=	${BINMODE}
+JAILPACKAGE=	jail
 
 .if ${MK_LEGACY_CONSOLE} != "no"
 FILES+=		moused
@@ -252,6 +272,9 @@ FILES+=		keyserv
 FILESGROUPS+=	SSH
 SSH=		sshd
 .endif
+SSHDIR=		/etc/rc.d
+SSHMODE=	${BINMODE}
+SSHPACKAGE=	ssh
 
 .if ${MK_PF} != "no"
 FILES+=		ftp-proxy
@@ -277,6 +300,9 @@ FILES+=		timed
 FILESGROUPS+=	UNBOUND
 UNBOUND+=	local_unbound
 .endif
+UNBOUNDDIR=	/etc/rc.d
+UNBOUNDMODE=	${BINMODE}
+UNBOUNDPACKAGE=	unbound
 
 .if ${MK_UTMPX} != "no"
 _utx=		utx
@@ -290,40 +316,5 @@ FILES+=		virecover
 FILES+=		hostapd
 FILES+=		wpa_supplicant
 .endif
-
-FILESDIR=	/etc/rc.d
-FILESMODE=	${BINMODE}
-
-UNBOUNDDIR=	/etc/rc.d
-UNBOUNDMODE=	${BINMODE}
-UNBOUNDPACKAGE=	unbound
-
-ACPIDIR=	/etc/rc.d
-ACPIMODE=	${BINMODE}
-ACPIPACKAGE=	acpi
-
-AMDDIR=		/etc/rc.d
-AMDMODE=	${BINMODE}
-AMDPACKAGE=	amd
-
-SSHDIR=		/etc/rc.d
-SSHMODE=	${BINMODE}
-SSHPACKAGE=	ssh
-
-BSNMPDIR=	/etc/rc.d
-BSNMPMODE=	${BINMODE}
-BSNMPPACKAGE=	bsnmp
-
-JAILDIR=	/etc/rc.d
-JAILMODE=	${BINMODE}
-JAILPACKAGE=	jail
-
-ACCTDIR=	/etc/rc.d
-ACCTMODE=	${BINMODE}
-ACCTPACKAGE=	acct
-
-APMDIR=		/etc/rc.d
-APMMODE=	${BINMODE}
-APMPACKAGE=	apm
 
 .include <bsd.prog.mk>
