@@ -221,9 +221,8 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 		filemon = malloc(sizeof(struct filemon), M_FILEMON,
 		    M_WAITOK | M_ZERO);
 		sx_init(&filemon->lock, "filemon");
+		filemon->pid = -1;
 	}
-
-	filemon->pid = curproc->p_pid;
 
 	devfs_set_cdevpriv(filemon, filemon_dtr);
 
