@@ -455,7 +455,7 @@ cpu_startup(void *dummy)
 	vm_pager_bufferinit();
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
-	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
+	pmap_set_pcb_pagedir(kernel_pmap, pcb);
 #if __ARM_ARCH  < 6
 	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
