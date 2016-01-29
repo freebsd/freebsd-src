@@ -6508,7 +6508,6 @@ public:
     if (getTriple().getOS() == llvm::Triple::FreeBSD) {
       LongDoubleWidth = LongDoubleAlign = 64;
       LongDoubleFormat = &llvm::APFloat::IEEEdouble;
-      IntMaxType = SignedLong;
     }
     setN64ABITypes();
     SuitableAlign = 128;
