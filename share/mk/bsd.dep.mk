@@ -165,12 +165,13 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 _CFLAGS_INCLUDES= ${CFLAGS:Q:S/\\ /,/g:C/-include,/-include%/g:C/,/ /g:M-include*:C/%/ /g}
 _CXXFLAGS_INCLUDES= ${CXXFLAGS:Q:S/\\ /,/g:C/-include,/-include%/g:C/,/ /g:M-include*:C/%/ /g}
 # XXX: Temporary hack to workaround .depend files not tracking -include
-.if !empty(_CFLAGS_INCLUDES)
-${OBJS} ${POBJS} ${SOBJS}: ${_CFLAGS_INCLUDES:M*.h}
+_hdrincludes=${_CFLAGS_INCLUDES:M*.h} ${_CXXFLAGS_INCLUDES:M*.h}
+.for _hdr in ${_hdrincludes:O:u}
+.if exists(${_hdr})
+${OBJS} ${POBJS} ${SOBJS}: ${_hdr}
 .endif
-.if !empty(_CXXFLAGS_INCLUDES)
-${OBJS} ${POBJS} ${SOBJS}: ${_CXXFLAGS_INCLUDES:M*.h}
-.endif
+.endfor
+.undef _hdrincludes
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
