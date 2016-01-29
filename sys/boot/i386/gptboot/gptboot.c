@@ -178,7 +178,7 @@ main(void)
 
 		if (autoboot && keyhit(3)) {
 			if (*kname == '\0')
-				memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+				memcpy(kname, PATH_LOADER, sizeof(PATH_LOADER));
 			break;
 		}
 		autoboot = 0;
@@ -190,7 +190,7 @@ main(void)
 		 */
 		if (*kname != '\0')
 			load();
-		memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+		memcpy(kname, PATH_LOADER, sizeof(PATH_LOADER));
 		load();
 		memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
 		load();

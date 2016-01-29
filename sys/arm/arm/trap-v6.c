@@ -334,13 +334,11 @@ abort_handler(struct trapframe *tf, int prefetch)
 	 * they are not from KVA space. Thus, no action is needed here.
 	 */
 
-#ifdef ARM_NEW_PMAP
 	rv = pmap_fault(PCPU_GET(curpmap), far, fsr, idx, usermode);
 	if (rv == KERN_SUCCESS)
 		return;
 	if (rv == KERN_INVALID_ADDRESS)
 		goto nogo;
-#endif
 	/*
 	 * Now, when we handled imprecise and debug aborts, the rest of
 	 * aborts should be really related to mapping.
@@ -486,13 +484,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 
 #ifdef DEBUG
 	last_fault_code = fsr;
-#endif
-
-#ifndef ARM_NEW_PMAP
-	if (pmap_fault_fixup(vmspace_pmap(td->td_proc->p_vmspace), va, ftype,
-	    usermode)) {
-		goto out;
-	}
 #endif
 
 #ifdef INVARIANTS

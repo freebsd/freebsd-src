@@ -337,11 +337,8 @@ typedef struct ehci_softc {
 	uint16_t sc_intr_stat[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	uint16_t sc_id_vendor;		/* vendor ID for root hub */
 	uint16_t sc_flags;		/* chip specific flags */
-#define	EHCI_SCFLG_SETMODE	0x0001	/* set bridge mode again after init */
-#define	EHCI_SCFLG_FORCESPEED	0x0002	/* force speed */
 #define	EHCI_SCFLG_NORESTERM	0x0004	/* don't terminate reset sequence */
 #define	EHCI_SCFLG_BIGEDESC	0x0008	/* big-endian byte order descriptors */
-#define	EHCI_SCFLG_BIGEMMIO	0x0010	/* big-endian byte order MMIO */
 #define	EHCI_SCFLG_TT		0x0020	/* transaction translator present */
 #define	EHCI_SCFLG_LOSTINTRBUG	0x0040	/* workaround for VIA / ATI chipsets */
 #define	EHCI_SCFLG_IAADBUG	0x0080	/* workaround for nVidia chipsets */
@@ -357,6 +354,10 @@ typedef struct ehci_softc {
 	uint8_t	sc_hub_idata[8];
 
 	char	sc_vendor[16];		/* vendor string for root hub */
+
+	void	(*sc_vendor_post_reset)(struct ehci_softc *sc);
+	uint16_t (*sc_vendor_get_port_speed)(struct ehci_softc *sc,
+	    uint16_t index);
 
 } ehci_softc_t;
 
@@ -446,5 +447,7 @@ usb_error_t ehci_reset(ehci_softc_t *sc);
 usb_error_t ehci_init(ehci_softc_t *sc);
 void	ehci_detach(struct ehci_softc *sc);
 void	ehci_interrupt(ehci_softc_t *sc);
+uint16_t ehci_get_port_speed_portsc(struct ehci_softc *sc, uint16_t index);
+uint16_t ehci_get_port_speed_hostc(struct ehci_softc *sc, uint16_t index);
 
 #endif					/* _EHCI_H_ */

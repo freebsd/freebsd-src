@@ -1797,6 +1797,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
  *
  * Have to be really careful about stale file handles:
  * - check that the inode number is valid
+ * - for UFS2 check that the inode number is initialized
  * - call ffs_vget() to get the locked inode
  * - check for an unallocated inode (i_mode == 0)
  * - check that the given client host has export rights and return
@@ -1810,13 +1811,37 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	struct vnode **vpp;
 {
 	struct ufid *ufhp;
+	struct ufsmount *ump;
 	struct fs *fs;
+	struct cg *cgp;
+	struct buf *bp;
+	ino_t ino;
+	u_int cg;
+	int error;
 
 	ufhp = (struct ufid *)fhp;
-	fs = VFSTOUFS(mp)->um_fs;
-	if (ufhp->ufid_ino < ROOTINO ||
-	    ufhp->ufid_ino >= fs->fs_ncg * fs->fs_ipg)
+	ino = ufhp->ufid_ino;
+	ump = VFSTOUFS(mp);
+	fs = ump->um_fs;
+	if (ino < ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
+	/*
+	 * Need to check if inode is initialized because UFS2 does lazy
+	 * initialization and nfs_fhtovp can offer arbitrary inode numbers.
+	 */
+	if (fs->fs_magic != FS_UFS2_MAGIC)
+		return (ufs_fhtovp(mp, ufhp, flags, vpp));
+	cg = ino_to_cg(fs, ino);
+	error = bread(ump->um_devvp, fsbtodb(fs, cgtod(fs, cg)),
+		(int)fs->fs_cgsize, NOCRED, &bp);
+	if (error)
+		return (error);
+	cgp = (struct cg *)bp->b_data;
+	if (!cg_chkmagic(cgp) || ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
+		brelse(bp);
+		return (ESTALE);
+	}
+	brelse(bp);
 	return (ufs_fhtovp(mp, ufhp, flags, vpp));
 }
 

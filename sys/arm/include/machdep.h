@@ -4,8 +4,10 @@
 #ifndef _MACHDEP_BOOT_MACHDEP_H_
 #define _MACHDEP_BOOT_MACHDEP_H_
 
+#include <machine/acle-compat.h>
+
 /* Structs that need to be initialised by initarm */
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 extern vm_offset_t irqstack;
 extern vm_offset_t undstack;
 extern vm_offset_t abtstack;

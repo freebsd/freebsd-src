@@ -199,7 +199,7 @@ static char *loader_envp;
 
 vm_paddr_t pmap_pa;
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 vm_offset_t systempage;
 vm_offset_t irqstack;
 vm_offset_t undstack;
@@ -296,7 +296,7 @@ sendsig(catcher, ksi, mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -456,7 +456,7 @@ cpu_startup(void *dummy)
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH  < 6
 	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
 #endif
@@ -1283,7 +1283,7 @@ arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
 	}
 }
 
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 void
 set_stackptrs(int cpu)
 {
@@ -1447,7 +1447,7 @@ print_kenv(void)
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -1717,7 +1717,7 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
-#else /* !ARM_NEW_PMAP */
+#else /* __ARM_ARCH < 6 */
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -1905,7 +1905,7 @@ initarm(struct arm_boot_params *abp)
 
 }
 
-#endif /* !ARM_NEW_PMAP */
+#endif /* __ARM_ARCH < 6 */
 #endif /* FDT */
 
 uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
