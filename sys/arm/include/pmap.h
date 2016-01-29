@@ -176,7 +176,6 @@ typedef struct pmap *pmap_t;
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
 #define kernel_pmap	(&kernel_pmap_store)
-#define pmap_kernel() kernel_pmap
 
 #define	PMAP_ASSERT_LOCKED(pmap) \
 				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
@@ -247,7 +246,7 @@ vtopte(vm_offset_t va)
 	pd_entry_t *pdep;
 	pt_entry_t *ptep;
 
-	if (pmap_get_pde_pte(pmap_kernel(), va, &pdep, &ptep) == FALSE)
+	if (pmap_get_pde_pte(kernel_pmap, va, &pdep, &ptep) == FALSE)
 		return (NULL);
 	return (ptep);
 }
