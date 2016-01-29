@@ -61,16 +61,16 @@ __FBSDID("$FreeBSD$");
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(PCB_NOALIGNFLT, PCB_NOALIGNFLT);
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
 #endif
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 ASSYM(PCB_DACR, offsetof(struct pcb, pcb_dacr));
 #endif
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_PAGEDIR, offsetof(struct pcb, pcb_pagedir));
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 ASSYM(PCB_L1VEC, offsetof(struct pcb, pcb_l1vec));
 ASSYM(PCB_PL1VEC, offsetof(struct pcb, pcb_pl1vec));
 #endif
