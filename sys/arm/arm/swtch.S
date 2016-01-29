@@ -114,7 +114,7 @@ __FBSDID("$FreeBSD$");
 	.word	_C_LABEL(blocked_lock)
 
 
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 
 #define DOMAIN_CLIENT	0x01
 
@@ -418,7 +418,7 @@ ENTRY(cpu_switch)
 END(cpu_switch)
 
 
-#else /* !ARM_NEW_PMAP */
+#else /* __ARM_ARCH < 6 */
 #include <machine/sysreg.h>
 
 ENTRY(cpu_context_switch) /* QQQ: What about macro instead of function?	*/
@@ -789,7 +789,7 @@ sw4_panic_str:
 END(cpu_switch)
 
 
-#endif /* !ARM_NEW_PMAP */
+#endif /* __ARM_ARCH < 6 */
 
 ENTRY(savectx)
 	stmfd	sp!, {lr}
