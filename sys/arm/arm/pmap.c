@@ -394,7 +394,7 @@ int	pmap_needs_pte_sync;
 #define PMAP_SHPGPERPROC 200
 #endif
 
-#define pmap_is_current(pm)	((pm) == pmap_kernel() || \
+#define pmap_is_current(pm)	((pm) == kernel_pmap || \
             curproc->p_vmspace->vm_map.pmap == (pm))
 static uma_zone_t pvzone = NULL;
 uma_zone_t l2zone;
@@ -437,10 +437,10 @@ pmap_init_l1(struct l1_ttable *l1, pd_entry_t *l1pt)
 	/*
 	 * Copy the kernel's L1 entries to each new L1.
 	 */
-	if (l1pt != pmap_kernel()->pm_l1->l1_kva)
-		memcpy(l1pt, pmap_kernel()->pm_l1->l1_kva, L1_TABLE_SIZE);
+	if (l1pt != kernel_pmap->pm_l1->l1_kva)
+		memcpy(l1pt, kernel_pmap->pm_l1->l1_kva, L1_TABLE_SIZE);
 
-	if ((l1->l1_physaddr = pmap_extract(pmap_kernel(), (vm_offset_t)l1pt)) == 0)
+	if ((l1->l1_physaddr = pmap_extract(kernel_pmap, (vm_offset_t)l1pt)) == 0)
 		panic("pmap_init_l1: can't get PA of L1 at %p", l1pt);
 	SLIST_INSERT_HEAD(&l1_list, l1, l1_link);
 	TAILQ_INSERT_TAIL(&l1_lru_list, l1, l1_lru);
@@ -932,7 +932,7 @@ pmap_free_l2_bucket(pmap_t pm, struct l2_bucket *l2b, u_int count)
 	 * to a performance win over time as we don't need to continually
 	 * alloc/free.
 	 */
-	if (l2b->l2b_occupancy > 0 || pm == pmap_kernel())
+	if (l2b->l2b_occupancy > 0 || pm == kernel_pmap)
 		return;
 
 	/*
@@ -1002,7 +1002,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	 * page tables, we simply fix up the cache-mode here if it's not
 	 * correct.
 	 */
-		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+		l2b = pmap_get_l2_bucket(kernel_pmap, va);
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		pte = *ptep;
 
@@ -1077,9 +1077,9 @@ pmap_idcache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 	vm_size_t rest;
 
 	CTR4(KTR_PMAP, "pmap_dcache_wbinv_range: pmap %p is_kernel %d va 0x%08x"
-	    " len 0x%x ", pm, pm == pmap_kernel(), va, len);
+	    " len 0x%x ", pm, pm == kernel_pmap, va, len);
 
-	if (pmap_is_current(pm) || pm == pmap_kernel()) {
+	if (pmap_is_current(pm) || pm == kernel_pmap) {
 		rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
 		while (len > 0) {
 			if (pmap_has_valid_mapping(pm, va)) {
@@ -1100,7 +1100,7 @@ pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
 	vm_size_t rest;
 
 	CTR4(KTR_PMAP, "pmap_dcache_wb_range: pmap %p is_kernel %d va 0x%08x "
-	    "len 0x%x ", pm, pm == pmap_kernel(), va, len);
+	    "len 0x%x ", pm, pm == kernel_pmap, va, len);
 	CTR2(KTR_PMAP, " do_inv %d rd_only %d", do_inv, rd_only);
 
 	if (pmap_is_current(pm)) {
@@ -1230,13 +1230,13 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 	TAILQ_FOREACH(pv, &pg->md.pv_list, pv_list) {
 			/* generate a count of the pv_entry uses */
 		if (pv->pv_flags & PVF_WRITE) {
-			if (pv->pv_pmap == pmap_kernel())
+			if (pv->pv_pmap == kernel_pmap)
 				kwritable++;
 			else if (pv->pv_pmap == pm)
 				uwritable++;
 			writable++;
 		}
-		if (pv->pv_pmap == pmap_kernel())
+		if (pv->pv_pmap == kernel_pmap)
 			kentries++;
 		else {
 			if (pv->pv_pmap == pm)
@@ -1248,19 +1248,19 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		 * check if the user duplicate mapping has
 		 * been removed.
 		 */
-	if ((pm != pmap_kernel()) && (((uentries > 1) && uwritable) ||
+	if ((pm != kernel_pmap) && (((uentries > 1) && uwritable) ||
 	    (uwritable > 1)))
 			pmwc = 1;
 
 	TAILQ_FOREACH(pv, &pg->md.pv_list, pv_list) {
 		/* check for user uncachable conditions - order is important */
-		if (pm != pmap_kernel() &&
-		    (pv->pv_pmap == pm || pv->pv_pmap == pmap_kernel())) {
+		if (pm != kernel_pmap &&
+		    (pv->pv_pmap == pm || pv->pv_pmap == kernel_pmap)) {
 
 			if ((uentries > 1 && uwritable) || uwritable > 1) {
 
 				/* user duplicate mapping */
-				if (pv->pv_pmap != pmap_kernel())
+				if (pv->pv_pmap != kernel_pmap)
 					pv->pv_flags |= PVF_MWC;
 
 				if (!(pv->pv_flags & PVF_NC)) {
@@ -1279,7 +1279,7 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		if ((kwritable && (entries || kentries > 1)) ||
 		    (kwritable > 1) ||
 		    ((kwritable != writable) && kentries &&
-		     (pv->pv_pmap == pmap_kernel() ||
+		     (pv->pv_pmap == kernel_pmap ||
 		      (pv->pv_flags & PVF_WRITE) ||
 		      (pv->pv_flags & PVF_MWC)))) {
 
@@ -1291,7 +1291,7 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		}
 
 			/* kernel and user are cachable */
-		if ((pm == pmap_kernel()) && !(pv->pv_flags & PVF_MWC) &&
+		if ((pm == kernel_pmap) && !(pv->pv_flags & PVF_MWC) &&
 		    (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~PVF_NC;
@@ -1300,8 +1300,8 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 			continue;
 		}
 			/* user is no longer sharable and writable */
-		if (pm != pmap_kernel() &&
-		    (pv->pv_pmap == pm || pv->pv_pmap == pmap_kernel()) &&
+		if (pm != kernel_pmap &&
+		    (pv->pv_pmap == pm || pv->pv_pmap == kernel_pmap) &&
 		    !pmwc && (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~(PVF_NC | PVF_MWC);
@@ -1565,7 +1565,7 @@ vector_page_setprot(int prot)
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep;
 
-	l2b = pmap_get_l2_bucket(pmap_kernel(), vector_page);
+	l2b = pmap_get_l2_bucket(kernel_pmap, vector_page);
 
 	ptep = &l2b->l2b_kva[l2pte_index(vector_page)];
 
@@ -1603,7 +1603,7 @@ pmap_nuke_pv(struct vm_page *pg, pmap_t pm, struct pv_entry *pve)
 		pg->md.pvh_attrs &= ~PVF_REF;
        	else
 		vm_page_aflag_set(pg, PGA_REFERENCED);
-	if ((pve->pv_flags & PVF_NC) && ((pm == pmap_kernel()) ||
+	if ((pve->pv_flags & PVF_NC) && ((pm == kernel_pmap) ||
 	     (pve->pv_flags & PVF_WRITE) || !(pve->pv_flags & PVF_MWC)))
 		pmap_fix_cache(pg, pm, 0);
 	else if (pve->pv_flags & PVF_WRITE) {
@@ -1972,7 +1972,7 @@ pmap_postinit(void)
 		pl1pt = (pd_entry_t *)va;
 
 		while (va < eva) {
-				l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+				l2b = pmap_get_l2_bucket(kernel_pmap, va);
 				ptep = &l2b->l2b_kva[l2pte_index(va)];
 				pte = *ptep;
 				pte = (pte & ~L2_S_CACHE_MASK) | pte_l2_s_cache_mode_pt;
@@ -2122,7 +2122,7 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
 	struct l2_bucket *l2b;
 
 	if (ptep) {
-		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+		l2b = pmap_get_l2_bucket(kernel_pmap, va);
 		if (l2b == NULL)
 			panic("pmap_alloc_specials: no l2b for 0x%x", va);
 
@@ -2381,7 +2381,7 @@ pmap_grow_map(vm_offset_t va, pt_entry_t cache_mode, vm_paddr_t *pap)
 	if (pap)
 		*pap = pa;
 
-	l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+	l2b = pmap_get_l2_bucket(kernel_pmap, va);
 
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 	*ptep = L2_S_PROTO | pa | cache_mode |
@@ -2494,7 +2494,7 @@ pmap_grow_l2_bucket(pmap_t pm, vm_offset_t va)
 void
 pmap_growkernel(vm_offset_t addr)
 {
-	pmap_t kpm = pmap_kernel();
+	pmap_t kpm = kernel_pmap;
 
 	if (addr <= pmap_curmaxkvaddr)
 		return;		/* we are OK */
@@ -2654,9 +2654,9 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	    (uint32_t) va, (uint32_t) pa));
 
 
-	l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+	l2b = pmap_get_l2_bucket(kernel_pmap, va);
 	if (l2b == NULL)
-		l2b = pmap_grow_l2_bucket(pmap_kernel(), va);
+		l2b = pmap_grow_l2_bucket(kernel_pmap, va);
 	KASSERT(l2b != NULL, ("No L2 Bucket"));
 	pte = &l2b->l2b_kva[l2pte_index(va)];
 	opte = *pte;
@@ -2690,11 +2690,11 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 		if (!TAILQ_EMPTY(&m->md.pv_list) || m->md.pv_kva != 0) {
 			if ((pve = pmap_get_pv_entry()) == NULL)
 				panic("pmap_kenter_internal: no pv entries");
-			PMAP_LOCK(pmap_kernel());
-			pmap_enter_pv(m, pve, pmap_kernel(), va,
+			PMAP_LOCK(kernel_pmap);
+			pmap_enter_pv(m, pve, kernel_pmap, va,
 			    PVF_WRITE | PVF_UNMAN);
-			pmap_fix_cache(m, pmap_kernel(), va);
-			PMAP_UNLOCK(pmap_kernel());
+			pmap_fix_cache(m, kernel_pmap, va);
+			PMAP_UNLOCK(kernel_pmap);
 		} else {
 			m->md.pv_kva = va;
 		}
@@ -2758,7 +2758,7 @@ pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
 	 * at the first use of the new address, or bad things will happen,
 	 * as we use one of these addresses in the exception handlers.
 	 */
-	pmap_fault_fixup(pmap_kernel(), va, VM_PROT_READ|VM_PROT_WRITE, 1);
+	pmap_fault_fixup(kernel_pmap, va, VM_PROT_READ|VM_PROT_WRITE, 1);
 }
 
 vm_paddr_t
@@ -2780,7 +2780,7 @@ pmap_kremove(vm_offset_t va)
 	vm_page_t m;
 	vm_offset_t pa;
 
-	l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+	l2b = pmap_get_l2_bucket(kernel_pmap, va);
 	if (!l2b)
 		return;
 	KASSERT(l2b != NULL, ("No L2 Bucket"));
@@ -2796,11 +2796,11 @@ pmap_kremove(vm_offset_t va)
 		 * before the pvzone is initialized.
 		 */
 		rw_wlock(&pvh_global_lock);
-		PMAP_LOCK(pmap_kernel());
+		PMAP_LOCK(kernel_pmap);
 		if (pvzone != NULL && (m = vm_phys_paddr_to_vm_page(pa)) &&
-		    (pve = pmap_remove_pv(m, pmap_kernel(), va)))
+		    (pve = pmap_remove_pv(m, kernel_pmap, va)))
 			pmap_free_pv_entry(pve);
-		PMAP_UNLOCK(pmap_kernel());
+		PMAP_UNLOCK(kernel_pmap);
 		rw_wunlock(&pvh_global_lock);
 		va = va & ~PAGE_MASK;
 		cpu_dcache_wbinv_range(va, PAGE_SIZE);
@@ -3027,7 +3027,7 @@ pmap_remove_all(vm_page_t m)
 	curpm = vmspace_pmap(curproc->p_vmspace);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		if (flush == FALSE && (pv->pv_pmap == curpm ||
-		    pv->pv_pmap == pmap_kernel()))
+		    pv->pv_pmap == kernel_pmap))
 			flush = TRUE;
 
 		PMAP_LOCK(pv->pv_pmap);
@@ -3239,7 +3239,7 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	PDEBUG(1, printf("pmap_enter: pmap = %08x, va = %08x, m = %08x, prot = %x, "
 	    "flags = %x\n", (uint32_t) pmap, va, (uint32_t) m, prot, flags));
 
-	if (pmap == pmap_kernel()) {
+	if (pmap == kernel_pmap) {
 		l2b = pmap_get_l2_bucket(pmap, va);
 		if (l2b == NULL)
 			l2b = pmap_grow_l2_bucket(pmap, va);
@@ -3414,7 +3414,7 @@ do_l2b_alloc:
 	/*
 	 * Make sure userland mappings get the right permissions
 	 */
-	if (pmap != pmap_kernel() && va != vector_page) {
+	if (pmap != kernel_pmap && va != vector_page) {
 		npte |= L2_S_PROT_U;
 	}
 
@@ -3672,9 +3672,9 @@ retry:
 	l1pd = pmap->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
 		/*
-		 * These should only happen for pmap_kernel()
+		 * These should only happen for kernel_pmap
 		 */
-		KASSERT(pmap == pmap_kernel(), ("huh"));
+		KASSERT(pmap == kernel_pmap, ("huh"));
 		/* XXX: what to do about the bits > 32 ? */
 		if (l1pd & L1_S_SUPERSEC)
 			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
@@ -4034,7 +4034,7 @@ pmap_use_minicache(vm_offset_t va, vm_size_t size)
 		if (next_bucket > eva)
 			next_bucket = eva;
 
-		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
+		l2b = pmap_get_l2_bucket(kernel_pmap, va);
 
 		sptep = ptep = &l2b->l2b_kva[l2pte_index(va)];
 
@@ -4137,10 +4137,10 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
 	if (curthread)
 		pm = vmspace_pmap(curproc->p_vmspace);
 	else
-		pm = pmap_kernel();
+		pm = kernel_pmap;
 
 	for (npv = pv; npv; npv = TAILQ_NEXT(npv, pv_list)) {
-		if (npv->pv_pmap == pmap_kernel() || npv->pv_pmap == pm) {
+		if (npv->pv_pmap == kernel_pmap || npv->pv_pmap == pm) {
 			flags |= npv->pv_flags;
 			/*
 			 * The page is mapped non-cacheable in
