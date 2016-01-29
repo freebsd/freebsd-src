@@ -33,6 +33,8 @@
 #ifndef _MACHINE_ARMREG_H_
 #define	_MACHINE_ARMREG_H_
 
+#define	INSN_SIZE		4
+
 #define	READ_SPECIALREG(reg)						\
 ({	uint64_t val;							\
 	__asm __volatile("mrs	%0, " __STRING(reg) : "=&r" (val));	\

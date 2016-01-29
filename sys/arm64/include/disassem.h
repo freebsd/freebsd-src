@@ -1,9 +1,8 @@
 /*-
- * Copyright (c) 2015 The FreeBSD Foundation
+ * Copyright (c) 2016 Cavium
  * All rights reserved.
  *
- * This software was developed by Semihalf under
- * the sponsorship of the FreeBSD Foundation.
+ * This software was developed by Semihalf.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,46 +24,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-#include <sys/param.h>
-#include <ddb/ddb.h>
-#include <ddb/db_access.h>
-#include <ddb/db_sym.h>
+#ifndef __DISASSEM_H_
+#define	__DISASSEM_H_
 
-#include <machine/disassem.h>
-
-static u_int db_disasm_read_word(vm_offset_t);
-static void db_disasm_printaddr(vm_offset_t);
-
-/* Glue code to interface db_disasm to the generic ARM disassembler */
-static const struct disasm_interface db_disasm_interface = {
-	db_disasm_read_word,
-	db_disasm_printaddr,
-	db_printf
+struct disasm_interface {
+	u_int	(*di_readword)(vm_offset_t);
+	void	(*di_printaddr)(vm_offset_t);
+	int	(*di_printf)(const char *, ...) __printflike(1, 2);
 };
 
-static u_int
-db_disasm_read_word(vm_offset_t address)
-{
+vm_offset_t disasm(const struct disasm_interface *, vm_offset_t, int);
 
-	return (db_get_value(address, INSN_SIZE, 0));
-}
-
-static void
-db_disasm_printaddr(vm_offset_t address)
-{
-
-	db_printsym((db_addr_t)address, DB_STGY_ANY);
-}
-
-vm_offset_t
-db_disasm(vm_offset_t loc, bool altfmt)
-{
-
-	return (disasm(&db_disasm_interface, loc, altfmt));
-}
-
-/* End of db_disasm.c */
+#endif /* __DISASSEM_H_ */
