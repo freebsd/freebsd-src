@@ -1379,9 +1379,9 @@ packages:	_pkgbootstrap
 	@mkdir -p ${WSTAGEDIR} ${KSTAGEDIR} ${REPODIR}
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} DESTDIR=${DESTDIR:U${WSTAGEDIR}} -DNO_ROOT -B stageworld ; \
-		${MAKE} DESTDIR=${DESTDIR:U${WSTAGEDIR}} create-world-packages ; \
 		${MAKE} DESTDIR=${DESTDIR:U${KSTAGEDIR}} -DNO_ROOT -B stagekernel ; \
-		${MAKE} DESTDIR=${DESTDIR:U${KSTAGEDIR}} DISTDIR=kernel create-kernel-packages
+		${MAKE} DESTDIR=${DESTDIR:U${WSTAGEDIR}} PKG_VERSION=${PKG_VERSION} create-world-packages ; \
+		${MAKE} DESTDIR=${DESTDIR:U${KSTAGEDIR}} PKG_VERSION=${PKG_VERSION} DISTDIR=kernel create-kernel-packages
 
 create-world-packages:	_pkgbootstrap
 	@rm -f ${DESTDIR}/*.plist 2>/dev/null || :
