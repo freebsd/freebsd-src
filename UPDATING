@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20160129:
+	Building ZFS pools on top of zvols is prohibited by default.  That
+	feature has never worked safely; it's always been prone to deadlocks.
+	Using a zvol as the backing store for a VM guest's virtual disk will
+	still work, even if the guest is using ZFS.  Legacy behavior can be
+	restored by setting vfs.zfs.vol.recursive=1.
+
 20160119:
 	The NONE and HPN patches has been removed from OpenSSH.  They are
 	still available in the security/openssh-portable port.
