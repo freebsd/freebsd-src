@@ -1413,7 +1413,7 @@ create-world-packages:	_pkgbootstrap
 		pkg -o ABI_FILE=${DESTDIR}/bin/sh \
 			create -M ${DESTDIR}/$${pkgname}.ucl \
 			-p ${DESTDIR}/$${pkgname}.plist \
-			-r ${DESTDIR} -o ${REPODIR}/$$(pkg config ABI)/latest ; \
+			-r ${DESTDIR} -o ${REPODIR}/$$(pkg -o ABI_FILE=${DESTDIR}/bin/sh config ABI)/latest ; \
 	done
 
 create-kernel-packages:	_pkgbootstrap
@@ -1440,7 +1440,7 @@ create-kernel-packages:	_pkgbootstrap
 	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh \
 		create -M ${DESTDIR}/${DISTDIR}/kernel-${flavor}.ucl \
 		-p ${DESTDIR}/${DISTDIR}/kernel-${flavor}.plist \
-		-r ${DESTDIR}/${DISTDIR} -o ${REPODIR}/$$(pkg config ABI)/latest
+		-r ${DESTDIR}/${DISTDIR} -o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest
 .endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
@@ -1468,14 +1468,14 @@ create-kernel-packages:	_pkgbootstrap
 	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh \
 		create -M ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.ucl \
 		-p ${DESTDIR}/kernel.${_kernel}/kernel.${_kernel}-${flavor}.plist \
-		-r ${DESTDIR}/kernel.${_kernel} -o ${REPODIR}/$$(pkg config ABI)/latest
+		-r ${DESTDIR}/kernel.${_kernel} -o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest
 .endfor
 .endif
 .endfor
 .endif
 
 signpackages:	_pkgbootstrap
-	@pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo ${REPODIR}/$$(pkg config ABI) ${PKGSIGNKEY}
+	@pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI) ${PKGSIGNKEY}
 
 #
 # doxygen
