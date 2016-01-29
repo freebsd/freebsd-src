@@ -30,6 +30,7 @@
 
 #include "assym.s"
 #include <sys/syscall.h>
+#include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
@@ -39,11 +40,6 @@
 
 __FBSDID("$FreeBSD$");
 
-#ifndef ARM_NEW_PMAP
-#define	PTE1_OFFSET	L1_S_OFFSET
-#define	PTE1_SHIFT	L1_S_SHIFT
-#define	PTE1_SIZE	L1_S_SIZE
-#endif
 
 #if __ARM_ARCH >= 7
 #if defined(__ARM_ARCH_7VE__) || defined(__clang__)
@@ -287,7 +283,6 @@ ASENTRY_NP(init_mmu)
 	mov	r0, #((DOMAIN_CLIENT <<	(PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	CP15_DACR(r0)
 
-#ifdef ARM_NEW_PMAP
 	/*
 	 * Set TEX remap registers
 	 *  - All is set to uncacheable memory
@@ -296,7 +291,6 @@ ASENTRY_NP(init_mmu)
 	mcr	CP15_PRRR(r0)
 	mov	r0, #0
 	mcr	CP15_NMRR(r0)
-#endif
 	mcr	CP15_TLBIALL		/* Flush TLB */
 	DSB
 	ISB
@@ -305,9 +299,7 @@ ASENTRY_NP(init_mmu)
 	mrc	CP15_SCTLR(r0)
 	orr	r0, r0,	#CPU_CONTROL_MMU_ENABLE
 	orr	r0, r0,	#CPU_CONTROL_V6_EXTPAGE
-#ifdef ARM_NEW_PMAP
 	orr	r0, r0,	#CPU_CONTROL_TR_ENABLE
-#endif
 	orr	r0, r0,	#CPU_CONTROL_AF_ENABLE
 	mcr	CP15_SCTLR(r0)
 	DSB
@@ -398,23 +390,11 @@ END(reinit_mmu)
  * Addresses must be 1MiB aligned
  */
 build_device_pagetables:
-#if defined(ARM_NEW_PMAP)
 	ldr	r4, =PTE1_V|PTE1_A|PTE1_AP_KRW|TEX1_CLASS_0
-#elif defined(SMP)
-	ldr	r4, =(L1_TYPE_S|L1_S_AP(AP_KRW)|L1_SHARED)
-#else
-	ldr	r4, =(L1_TYPE_S|L1_S_AP(AP_KRW))
-#endif
 	b	1f
 build_pagetables:
 	/* Set the required page attributed */
-#if defined(ARM_NEW_PMAP)
 	ldr	r4, =PTE1_V|PTE1_A|PTE1_AP_KRW|TEX1_CLASS_0
-#elif defined(SMP)
-	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW)|L1_SHARED)
-#else
-	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#endif
 1:
 	orr	r1, r4
 
