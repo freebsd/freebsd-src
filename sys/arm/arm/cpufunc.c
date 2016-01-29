@@ -889,9 +889,6 @@ set_cpufuncs()
 		cpufuncs = arm1176_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
-
-		pmap_pte_init_mmu_v6();
-
 		goto out;
 	}
 #endif /* CPU_ARM1176 */
@@ -915,8 +912,6 @@ set_cpufuncs()
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
-
-		pmap_pte_init_mmu_v6();
 		goto out;
 	}
 #endif /* CPU_CORTEXA */
@@ -927,7 +922,6 @@ set_cpufuncs()
 	    cputype == CPU_ID_ARM_88SV581X_V7) {
 		cpufuncs = pj4bv7_cpufuncs;
 		get_cachetype_cp15();
-		pmap_pte_init_mmu_v6();
 		goto out;
 	}
 #endif /* CPU_MV_PJ4B */

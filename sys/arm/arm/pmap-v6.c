@@ -6278,11 +6278,6 @@ pte1_setrw:
 }
 
 /* !!!! REMOVE !!!! */
-void
-pmap_pte_init_mmu_v6(void)
-{
-}
-
 void vector_page_setprot(int p)
 {
 }
