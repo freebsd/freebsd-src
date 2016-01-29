@@ -98,7 +98,7 @@ filemon_pid_check(struct proc *p)
 	sx_slock(&proctree_lock);
 	while (p != initproc) {
 		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
-			if (p->p_pid == filemon->pid) {
+			if (p == filemon->p) {
 				sx_sunlock(&proctree_lock);
 				filemon_filemon_lock(filemon);
 				filemon_unlock_read();
@@ -452,14 +452,14 @@ filemon_event_process_exit(void *arg __unused, struct proc *p)
 		filemon_output(filemon, filemon->msgbufr, len);
 
 		/* Check if the monitored process is about to exit. */
-		if (filemon->pid == p->p_pid) {
+		if (filemon->p == p) {
 			len = snprintf(filemon->msgbufr,
 			    sizeof(filemon->msgbufr),
 			    "# Stop %ju.%06ju\n# Bye bye\n",
 			    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
 
 			filemon_output(filemon, filemon->msgbufr, len);
-			filemon->pid = -1;
+			filemon->p = NULL;
 		}
 
 		/* Unlock the found filemon structure. */
