@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -155,7 +156,7 @@ init_secondary(int cpu)
 #ifndef ARM_INTRNG
 	int start = 0, end = 0;
 #endif
-#ifdef ARM_NEW_PMAP
+#if __ARM_ARCH >= 6
 	uint32_t actlr_mask, actlr_set;
 
 	pmap_set_tex();
@@ -167,11 +168,11 @@ init_secondary(int cpu)
 	set_stackptrs(cpu);
 
 	enable_interrupts(PSR_A);
-#else /* ARM_NEW_PMAP */
+#else /* __ARM_ARCH >= 6 */
 	cpu_setup();
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
-#endif /* ARM_NEW_PMAP */
+#endif /* __ARM_ARCH >= 6 */
 	pc = &__pcpu[cpu];
 
 	/*
@@ -183,7 +184,7 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
-#ifndef ARM_NEW_PMAP
+#if __ARM_ARCH < 6
 	/* Provide stack pointers for other processor modes. */
 	set_stackptrs(cpu);
 #endif
