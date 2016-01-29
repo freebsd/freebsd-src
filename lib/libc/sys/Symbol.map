@@ -399,6 +399,8 @@ FBSD_1.4 {
 	utimensat;
 	numa_setaffinity;
 	numa_getaffinity;
+	sendmmsg;
+	recvmmsg;
 };
 
 FBSDprivate_1.0 {
