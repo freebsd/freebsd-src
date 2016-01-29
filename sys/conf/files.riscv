@@ -1,0 +1,44 @@
+# $FreeBSD$
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+kern/kern_clocksource.c		standard
+kern/subr_dummy_vdso_tc.c	standard
+libkern/bcmp.c			standard
+libkern/ffs.c			standard
+libkern/ffsl.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
+libkern/flsll.c			standard
+libkern/memmove.c		standard
+libkern/memset.c		standard
+riscv/htif/htif.c		standard
+riscv/htif/htif_block.c		standard
+riscv/htif/htif_console.c	standard
+riscv/riscv/autoconf.c		standard
+riscv/riscv/bcopy.c		standard
+riscv/riscv/bus_machdep.c	standard
+riscv/riscv/busdma_machdep.c	standard
+riscv/riscv/clock.c		standard
+riscv/riscv/copyinout.S		standard
+riscv/riscv/copystr.c		standard
+riscv/riscv/cpufunc_asm.S	standard
+riscv/riscv/devmap.c		standard
+riscv/riscv/dump_machdep.c	standard
+riscv/riscv/elf_machdep.c	standard
+riscv/riscv/intr_machdep.c	standard
+riscv/riscv/in_cksum.c		optional	inet | inet6
+riscv/riscv/identcpu.c		standard
+riscv/riscv/locore.S		standard	no-obj
+riscv/riscv/minidump_machdep.c	standard
+riscv/riscv/machdep.c		standard
+riscv/riscv/mem.c		standard
+riscv/riscv/nexus.c		standard
+riscv/riscv/pmap.c		standard
+riscv/riscv/sys_machdep.c	standard
+riscv/riscv/support.S		standard
+riscv/riscv/swtch.S		standard
+riscv/riscv/trap.c		standard
+riscv/riscv/timer.c		standard
+riscv/riscv/uio_machdep.c	standard
+riscv/riscv/uma_machdep.c	standard
+riscv/riscv/vm_machdep.c	standard
