@@ -58,7 +58,6 @@ static struct nvme_function {
 	{"reset",	reset,		RESET_USAGE},
 	{"logpage",	logpage,	LOGPAGE_USAGE},
 	{"firmware",	firmware,	FIRMWARE_USAGE},
-	{"power",	power,		POWER_USAGE},
 	{NULL,		NULL,		NULL},
 };
 
