@@ -281,8 +281,12 @@ FILES+=		ftp-proxy
 .endif
 
 .if ${MK_RCMDS} != "no"
-FILES+=		rwho
+FILESGROUPS+=	RCMDS
+RCMDS+=		rwho
 .endif
+RCMDSDIR=	/etc/rc.d
+RCMDSMODE=	${BINMODE}
+RCMDSPACKAGE=	rcmds
 
 .if ${MK_ROUTED} != "no"
 FILES+=		routed
