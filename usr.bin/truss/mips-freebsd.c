@@ -131,7 +131,7 @@ static struct procabi mips_freebsd = {
 #else
 	"FreeBSD ELF32",
 #endif
-	FREEBSD,
+	SYSDECODE_ABI_FREEBSD,
 	mips_fetch_args,
 	mips_fetch_retval
 };

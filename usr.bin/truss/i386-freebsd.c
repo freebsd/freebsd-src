@@ -110,7 +110,7 @@ i386_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 
 static struct procabi i386_freebsd = {
 	"FreeBSD ELF32",
-	FREEBSD,
+	SYSDECODE_ABI_FREEBSD,
 	i386_fetch_args,
 	i386_fetch_retval
 };
@@ -119,7 +119,7 @@ PROCABI(i386_freebsd);
 
 static struct procabi i386_freebsd_aout = {
 	"FreeBSD a.out",
-	FREEBSD,
+	SYSDECODE_ABI_FREEBSD,
 	i386_fetch_args,
 	i386_fetch_retval
 };
