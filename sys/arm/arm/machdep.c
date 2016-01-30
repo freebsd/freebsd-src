@@ -427,10 +427,8 @@ cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
 	const unsigned int mbyte = 1024 * 1024;
-#ifdef ARM_TP_ADDRESS
-#ifndef ARM_CACHE_LOCK_ENABLE
+#if __ARM_ARCH < 6 && !defined(ARM_CACHE_LOCK_ENABLE)
 	vm_page_t m;
-#endif
 #endif
 
 	identify_arm_cpu();
@@ -456,11 +454,9 @@ cpu_startup(void *dummy)
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	pmap_set_pcb_pagedir(kernel_pmap, pcb);
-#if __ARM_ARCH  < 6
+#if __ARM_ARCH < 6
 	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
-#endif
-#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
