@@ -99,7 +99,7 @@ aarch64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 
 static struct procabi aarch64_freebsd = {
 	"FreeBSD ELF64",
-	FREEBSD,
+	SYSDECODE_ABI_FREEBSD,
 	aarch64_fetch_args,
 	aarch64_fetch_retval
 };
