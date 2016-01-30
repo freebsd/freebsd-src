@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20160130	p36	FreeBSD-SA-16:11.openssl
+
+	Fix OpenSSL SSLv2 ciphersuite downgrade vulnerability. [SA-16:11]
+
 20160127	p35	FreeBSD-SA-16:08.bind
 			FreeBSD-SA-16:09.ntp
 			FreeBSD-SA-16:10.linux
