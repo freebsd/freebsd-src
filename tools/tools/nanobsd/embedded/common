@@ -76,6 +76,8 @@ fi
 NANO_SLICE_FAT_SIZE=32m
 NANO_SLICE_CFG_SIZE=32m
 
+NANO_BOOT2CFG="-D -h -S115200 comconsole_port=0x3e8"
+
 NANO_RAM_ETCSIZE=8192
 NANO_RAM_TMPVARSIZE=8192
 NANO_IMAGES=2
@@ -292,7 +294,7 @@ create_diskimage_mbr ( ) (
 	bootbsd=${NANO_BOOT_BSD:+-b ${NANO_BOOT_BSD}}
 	skiparg=${NANO_MBR_FIRST_SKIP:+-S ${NANO_MBR_FIRST_SKIP}}
 
-	for i in s1 s2 s3 s4 empty; do
+	for i in s1 s2 s3 s4 p1 p2 p3 p4 p5 empty; do
 		rm -fr ${NANO_OBJ}/_.${i}*
 	done
 
@@ -317,10 +319,10 @@ create_diskimage_mbr ( ) (
 	# bsd label
 	[ -z ${NANO_NOPRIV_BUILD} ] || extra="-F ${NANO_METALOG}"
 	sz=${NANO_SLICE_ROOT_SIZE:+-s ${NANO_SLICE_ROOT_SIZE}}
-	eval "${NANO_MAKEFS_UFS}" ${extra} $sz "${NANO_OBJ}/_.${NANO_SLICE_ROOT}a" \
+	eval "${NANO_MAKEFS_UFS}" ${extra} $sz "${NANO_OBJ}/_.${NANO_SLICE_ROOT}" \
 		"${NANO_WORLDDIR}"
-	mkimg -s bsd ${bootbsd} -p freebsd-ufs:=${NANO_OBJ}/_.${NANO_SLICE_ROOT}a \
-		-o ${NANO_OBJ}/_.${NANO_SLICE_ROOT}
+#	mkimg -s bsd ${bootbsd} -p freebsd-ufs:=${NANO_OBJ}/_.${NANO_SLICE_ROOT} \
+#		-o ${NANO_OBJ}/_.${NANO_SLICE_ROOT}
 
 	# Populate the /cfg partition, empty if none given
 	if [ -z "${NANO_CFGDIR}" ]; then
@@ -339,8 +341,18 @@ create_diskimage_mbr ( ) (
 	if [ -n "$NANO_SLICE_FAT" ]; then
 		eval $NANO_SLICE_FAT=fat16b
 	fi
-	eval $NANO_SLICE_CFG=freebsd
-	eval $NANO_SLICE_ROOT=freebsd
+	case ${NANO_SLICE_CFG} in
+	s*)
+	echo slice
+		eval $NANO_SLICE_CFG=freebsd
+		eval $NANO_SLICE_ROOT=freebsd
+		;;
+	p*)
+	echo part
+		eval $NANO_SLICE_CFG=freebsd-ufs
+		eval $NANO_SLICE_ROOT=freebsd-ufs
+		;;
+	esac
 	# below depends on https://reviews.freebsd.org/D4403 not yet in the tree
 	# but there's problems: it marks all partitions as active, so you have to
 	# boot off parittion 3 or 2 by hand if you're playing around with this WIP
@@ -356,6 +368,25 @@ create_diskimage_mbr ( ) (
 		# boot (marked as active) with mkimg yet
 		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
+			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		;;
+	std-uefi)
+		# s1 is boot, s2 is cfg, s3 is /, not sure how to make that
+		# boot (marked as active) with mkimg yet
+		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr \
+			-p efi:=${NANO_WORLDDIR}/boot/boot1.efifat \
+			-p ${s2}:=${NANO_OBJ}/_.s2 \
+			-p ${s3}:=${NANO_OBJ}/_.s3 \
+			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		;;
+	std-uefi-bios)
+		# p1 is boot for uefi, p2 is boot for gpt, p3 is cfg, p4 is /
+		# and p5 is alt-root (after resize)
+		mkimg -a 2 ${fmtarg} ${bootmbr} -s gpt \
+			-p efi:=${NANO_WORLDDIR}/boot/boot1.efifat \
+			-p freebsd-boot:=${NAANO_WORLDDIR}/boot/gptboot \
+			-p ${p3}:=${NANO_OBJ}/_.p3 \
+			-p ${p4}:=${NANO_OBJ}/_.p4 \
 			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
 		;;
 	powerpc64-ibm)
@@ -657,6 +688,19 @@ powerpc64-ibm)
 powerpc64-apple)
 	echo Not yet
 	exit 1
+	;;
+std-uefi)
+	NANO_SLICE_UEFI=s1
+	NANO_SLICE_CFG=s2
+	NANO_SLICE_ROOT=s3
+	NANO_SLICE_ALTROOT=s4
+	;;
+std-uefi-bios)
+	NANO_SLICE_UEFI=p1
+	NANO_SLICE_BOOT=p2
+	NANO_SLICE_CFG=p3
+	NANO_SLICE_ROOT=p4
+	NANO_SLICE_ALTROOT=p5
 	;;
 *)
 	echo Unknown Layout ${NANO_LAYOUT}
