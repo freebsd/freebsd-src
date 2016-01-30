@@ -14,8 +14,8 @@ enum {
 	IPI_STOP,
 	IPI_STOP_HARD = IPI_STOP, /* These are synonyms on arm. */
 	IPI_HARDCLOCK,
-	IPI_TLB,
-	IPI_CACHE,
+	IPI_TLB,		/* Not used now, but keep it reserved. */
+	IPI_CACHE,		/* Not used now, but keep it reserved. */
 	INTR_IPI_COUNT
 };
 #else
@@ -25,8 +25,8 @@ enum {
 #define IPI_STOP	4
 #define IPI_STOP_HARD	4
 #define IPI_HARDCLOCK	6
-#define IPI_TLB		7
-#define IPI_CACHE	8
+#define IPI_TLB		7	/* Not used now, but keep it reserved. */
+#define IPI_CACHE	8	/* Not used now, but keep it reserved. */
 #endif /* INTRNG */
 
 void	init_secondary(int cpu);

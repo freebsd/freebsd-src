@@ -184,59 +184,12 @@ extern u_int cputype;
 #define cpu_faultstatus()	cpufuncs.cf_faultstatus()
 #define cpu_faultaddress()	cpufuncs.cf_faultaddress()
 
-#ifndef SMP
-
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
 #define	cpu_tlb_flushID_SE(e)	cpufuncs.cf_tlb_flushID_SE(e)
 #define	cpu_tlb_flushI()	cpufuncs.cf_tlb_flushI()
 #define	cpu_tlb_flushI_SE(e)	cpufuncs.cf_tlb_flushI_SE(e)
 #define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
 #define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
-
-#else
-void tlb_broadcast(int);
-
-#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
-#define TLB_BROADCAST	/* No need to explicitely send an IPI */
-#else
-#define TLB_BROADCAST	tlb_broadcast(7)
-#endif
-
-#define	cpu_tlb_flushID() do { \
-	cpufuncs.cf_tlb_flushID(); \
-	TLB_BROADCAST; \
-} while(0)
-
-#define	cpu_tlb_flushID_SE(e) do { \
-	cpufuncs.cf_tlb_flushID_SE(e); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushI() do { \
-	cpufuncs.cf_tlb_flushI(); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushI_SE(e) do { \
-	cpufuncs.cf_tlb_flushI_SE(e); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushD() do { \
-	cpufuncs.cf_tlb_flushD(); \
-	TLB_BROADCAST; \
-} while(0)
-
-
-#define	cpu_tlb_flushD_SE(e) do { \
-	cpufuncs.cf_tlb_flushD_SE(e); \
-	TLB_BROADCAST; \
-} while(0)
-
-#endif
 
 #define	cpu_icache_sync_all()	cpufuncs.cf_icache_sync_all()
 #define	cpu_icache_sync_range(a, s) cpufuncs.cf_icache_sync_range((a), (s))
