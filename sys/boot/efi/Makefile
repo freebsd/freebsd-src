@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 # In-tree GCC does not support __attribute__((ms_abi)).
 .if ${COMPILER_TYPE} != "gcc"
 
