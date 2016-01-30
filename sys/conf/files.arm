@@ -74,6 +74,8 @@ arm/arm/stdatomic.c		standard \
 	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
+arm/arm/swtch-v4.S		optional	!armv6
+arm/arm/swtch-v6.S		optional	armv6
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
 arm/arm/trap.c			optional	!armv6
