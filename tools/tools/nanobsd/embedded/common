@@ -664,6 +664,11 @@ powerpc64-apple)
 	;;
 esac
 
+# For this config, no BSD labels so NANO_ROOT and NANO_ALTROOT need to be
+# adjusted
+NANO_ROOT=${NANO_SLICE_ROOT}
+NANO_ALTROOT=${NANO_SLICE_ALTROOT}
+
 NANO_SLICE_DATA=		# Not included
 
 # Each major disk scheme has its own routine. Generally
