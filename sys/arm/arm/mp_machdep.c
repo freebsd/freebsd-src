@@ -341,13 +341,6 @@ ipi_hardclock(void *arg)
 	critical_exit();
 }
 
-static void
-ipi_tlb(void *dummy __unused)
-{
-
-	CTR1(KTR_SMP, "%s: IPI_TLB", __func__);
-	cpufuncs.cf_tlb_flushID();
-}
 #else
 static int
 ipi_handler(void *arg)
@@ -413,10 +406,6 @@ ipi_handler(void *arg)
 			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
 			hardclockintr();
 			break;
-		case IPI_TLB:
-			CTR1(KTR_SMP, "%s: IPI_TLB", __func__);
-			cpufuncs.cf_tlb_flushID();
-			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
 		}
@@ -446,7 +435,6 @@ release_aps(void *dummy __unused)
 	intr_ipi_set_handler(IPI_STOP, "stop", ipi_stop, NULL, 0);
 	intr_ipi_set_handler(IPI_PREEMPT, "preempt", ipi_preempt, NULL, 0);
 	intr_ipi_set_handler(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL, 0);
-	intr_ipi_set_handler(IPI_TLB, "tlb", ipi_tlb, NULL, 0);
 
 #else
 #ifdef IPI_IRQ_START
@@ -538,10 +526,3 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	platform_ipi_send(cpus, ipi);
 }
 
-void
-tlb_broadcast(int ipi)
-{
-
-	if (smp_started)
-		ipi_all_but_self(ipi);
-}
