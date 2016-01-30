@@ -46,8 +46,12 @@ FILES+=	480.status-ntpd \
 .endif
 
 .if ${MK_RCMDS} != "no"
-FILES+=	140.clean-rwho
+FILESGROUPS+=	RCMDS
+RCMDS+=	140.clean-rwho
 .endif
+RCMDSDIR=	/etc/periodic/daily
+RCMDSMODE=	${BINMODE}
+RCMDSPACKAGE=	rcmds
 
 .if ${MK_SENDMAIL} != "no"
 FILES+=	150.clean-hoststat \
