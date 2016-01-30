@@ -10,8 +10,6 @@ and DHCPd.
 This is a work in progress. Generally, to build this you should
      cd tools/tools/nanobsd/embedded
      sudo sh ../nanobsd.sh -c foo.cfg
-but do be careful if things are interrupted. There may still be
-bugs lurking that cause your entire FreeBSD tree to disappear.
 
 Some features:
 
