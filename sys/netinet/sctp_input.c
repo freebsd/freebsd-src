@@ -85,7 +85,7 @@ static void
 sctp_handle_init(struct mbuf *m, int iphlen, int offset,
     struct sockaddr *src, struct sockaddr *dst, struct sctphdr *sh,
     struct sctp_init_chunk *cp, struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb, int *abort_no_unlock,
+    struct sctp_tcb *stcb, struct sctp_nets *net, int *abort_no_unlock,
     uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
@@ -198,8 +198,8 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 	} else {
 		SCTPDBG(SCTP_DEBUG_INPUT3, "sctp_handle_init: sending INIT-ACK\n");
-		sctp_send_initiate_ack(inp, stcb, m, iphlen, offset, src, dst,
-		    sh, cp,
+		sctp_send_initiate_ack(inp, stcb, net, m, iphlen, offset,
+		    src, dst, sh, cp,
 		    mflowtype, mflowid,
 		    vrf_id, port,
 		    ((stcb == NULL) ? SCTP_HOLDS_LOCK : SCTP_NOT_LOCKED));
@@ -4840,7 +4840,7 @@ process_control_chunks:
 			}
 			sctp_handle_init(m, iphlen, *offset, src, dst, sh,
 			    (struct sctp_init_chunk *)ch, inp,
-			    stcb, &abort_no_unlock,
+			    stcb, *netp, &abort_no_unlock,
 			    mflowtype, mflowid,
 			    vrf_id, port);
 			*offset = length;
