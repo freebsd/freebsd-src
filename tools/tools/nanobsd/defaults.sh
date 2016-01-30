@@ -156,6 +156,8 @@ NANO_SLICE_ROOT=s1
 NANO_SLICE_ALTROOT=s2
 NANO_SLICE_CFG=s3
 NANO_SLICE_DATA=s4
+NANO_ROOT=s1a
+NANO_ALTROOT=s2a
 
 # Default ownwership for nopriv build
 NANO_DEF_UNAME=root
@@ -569,7 +571,7 @@ setup_nanobsd_etc ( ) (
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
 
-	echo "/dev/${NANO_DRIVE}${NANO_SLICE_ROOT}a / ufs ro 1 1" > etc/fstab
+	echo "/dev/${NANO_DRIVE}${NANO_ROOT} / ufs ro 1 1" > etc/fstab
 	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
 	mkdir -p cfg
 	)
@@ -731,8 +733,8 @@ create_diskimage ( ) (
 	bsdlabel ${MD}${NANO_SLICE_ROOT}
 
 	# Create first image
-	populate_slice /dev/${MD}${NANO_SLICE_ROOT}a ${NANO_WORLDDIR} ${MNT} "${NANO_SLICE_ROOT}a"
-	mount /dev/${MD}${NANO_SLICE_ROOT}a ${MNT}
+	populate_slice /dev/${MD}${NANO_ROOT} ${NANO_WORLDDIR} ${MNT} "${NANO_ROOT}"
+	mount /dev/${MD}${NANO_ROOT} ${MNT}
 	echo "Generating mtree..."
 	( cd "${MNT}" && mtree -c ) > ${NANO_OBJ}/_.mtree
 	( cd "${MNT}" && du -k ) > ${NANO_OBJ}/_.du
@@ -742,7 +744,7 @@ create_diskimage ( ) (
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
 		dd conv=sparse if=/dev/${MD}${NANO_SLICE_ROOT} of=/dev/${MD}${NANO_SLICE_ALTROOT} bs=64k
-		mount /dev/${MD}${NANO_SLICE_ALTROOT}a ${MNT}
+		mount /dev/${MD}${NANO_ALTROOT} ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
 			sed -i "" "s=${NANO_DRIVE}${NANO_SLICE_ROOT}=${NANO_DRIVE}${NANO_SLICE_ALTROOT}=g" $f
@@ -751,7 +753,7 @@ create_diskimage ( ) (
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
 		if [ -n "${NANO_LABEL}" ]; then
-			tunefs -L ${NANO_LABEL}"${NANO_SLICE_ALTROOT}a" /dev/${MD}${NANO_SLICE_ALTROOT}a
+			tunefs -L ${NANO_LABEL}"${NANO_ALTROOT}" /dev/${MD}${NANO_ALTROOT}
 		fi
 	fi
 	
