@@ -105,16 +105,12 @@ int ctrl;
 struct cpu_functions arm9_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	arm9_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
@@ -164,16 +160,12 @@ struct cpu_functions arm9_cpufuncs = {
 struct cpu_functions armv5_ec_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	armv5_ec_setttb,		/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
@@ -222,16 +214,12 @@ struct cpu_functions armv5_ec_cpufuncs = {
 struct cpu_functions sheeva_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	sheeva_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
@@ -281,16 +269,12 @@ struct cpu_functions sheeva_cpufuncs = {
 struct cpu_functions pj4bv7_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	armv7_drain_writebuf,		/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	armv7_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
@@ -341,16 +325,12 @@ struct cpu_functions pj4bv7_cpufuncs = {
 struct cpu_functions xscale_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	xscale_cpwait,			/* cpwait		*/
 
 	/* MMU functions */
 
 	xscale_control,			/* control		*/
-	cpufunc_domains,		/* domain		*/
 	xscale_setttb,			/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
 
 	/* TLB functions */
 
@@ -401,16 +381,12 @@ struct cpu_functions xscale_cpufuncs = {
 struct cpu_functions xscalec3_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	xscale_cpwait,			/* cpwait		*/
 
 	/* MMU functions */
 
 	xscale_control,			/* control		*/
-	cpufunc_domains,		/* domain		*/
 	xscalec3_setttb,		/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
 
 	/* TLB functions */
 
@@ -460,16 +436,12 @@ struct cpu_functions xscalec3_cpufuncs = {
 struct cpu_functions fa526_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* domain		*/
 	fa526_setttb,			/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
 
 	/* TLB functions */
 
@@ -519,16 +491,12 @@ struct cpu_functions fa526_cpufuncs = {
 struct cpu_functions arm1176_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,                     /* id                   */
 	cpufunc_nullop,                 /* cpwait               */
 
 	/* MMU functions */
 
 	cpufunc_control,                /* control              */
-	cpufunc_domains,                /* Domain               */
 	arm11x6_setttb,                 /* Setttb               */
-	cpufunc_faultstatus,            /* Faultstatus          */
-	cpufunc_faultaddress,           /* Faultaddress         */
 
 	/* TLB functions */
 
@@ -578,16 +546,12 @@ struct cpu_functions arm1176_cpufuncs = {
 struct cpu_functions cortexa_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,                     /* id                   */
 	cpufunc_nullop,                 /* cpwait               */
 
 	/* MMU functions */
 
 	cpufunc_control,                /* control              */
-	cpufunc_domains,                /* Domain               */
 	armv7_setttb,                   /* Setttb               */
-	cpufunc_faultstatus,            /* Faultstatus          */
-	cpufunc_faultaddress,           /* Faultaddress         */
 
 	/*
 	 * TLB functions.  ARMv7 does all TLB ops based on a unified TLB model
@@ -681,7 +645,7 @@ get_cachetype_cp15()
 	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
 		: "=r" (ctype));
 
-	cpuid = cpufunc_id();
+	cpuid = cpu_ident();
 	/*
 	 * ...and thus spake the ARM ARM:
 	 *
@@ -788,7 +752,7 @@ get_cachetype_cp15()
 int
 set_cpufuncs()
 {
-	cputype = cpufunc_id();
+	cputype = cpu_ident();
 	cputype &= CPU_ID_CPU_MASK;
 
 #ifdef CPU_ARM9
@@ -1074,7 +1038,7 @@ arm11x6_setup(void)
 	uint32_t sbz=0;
 	uint32_t cpuid;
 
-	cpuid = cpufunc_id();
+	cpuid = cpu_ident();
 
 	cpuctrl =
 		CPU_CONTROL_MMU_ENABLE  |
