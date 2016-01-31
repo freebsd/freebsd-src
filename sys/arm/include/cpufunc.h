@@ -60,16 +60,12 @@ struct cpu_functions {
 
 	/* CPU functions */
 
-	u_int	(*cf_id)		(void);
 	void	(*cf_cpwait)		(void);
 
 	/* MMU functions */
 
 	u_int	(*cf_control)		(u_int bic, u_int eor);
-	void	(*cf_domains)		(u_int domains);
 	void	(*cf_setttb)		(u_int ttb);
-	u_int	(*cf_faultstatus)	(void);
-	u_int	(*cf_faultaddress)	(void);
 
 	/* TLB functions */
 
@@ -170,14 +166,10 @@ struct cpu_functions {
 extern struct cpu_functions cpufuncs;
 extern u_int cputype;
 
-#define cpu_ident()		cpufuncs.cf_id()
 #define	cpu_cpwait()		cpufuncs.cf_cpwait()
 
 #define cpu_control(c, e)	cpufuncs.cf_control(c, e)
-#define cpu_domains(d)		cpufuncs.cf_domains(d)
 #define cpu_setttb(t)		cpufuncs.cf_setttb(t)
-#define cpu_faultstatus()	cpufuncs.cf_faultstatus()
-#define cpu_faultaddress()	cpufuncs.cf_faultaddress()
 
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
 #define	cpu_tlb_flushID_SE(e)	cpufuncs.cf_tlb_flushID_SE(e)
@@ -214,12 +206,11 @@ int	set_cpufuncs		(void);
 #define ARCHITECTURE_NOT_SUPPORTED	2	/* not known */
 
 void	cpufunc_nullop		(void);
-u_int	cpufunc_id		(void);
-u_int	cpufunc_cpuid		(void);
+u_int	cpu_ident		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
-void	cpufunc_domains		(u_int domains);
-u_int	cpufunc_faultstatus	(void);
-u_int	cpufunc_faultaddress	(void);
+void	cpu_domains		(u_int domains);
+u_int	cpu_faultstatus		(void);
+u_int	cpu_faultaddress	(void);
 u_int	cpu_pfr			(int);
 
 #if defined(CPU_FA526)
