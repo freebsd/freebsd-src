@@ -592,6 +592,12 @@ ixgbe_attach(device_t dev)
 	if (error) 
 		goto err_late;
 
+	/* Enable the optics for 82599 SFP+ fiber */
+	ixgbe_enable_tx_laser(hw);
+
+	/* Enable power to the phy. */
+	ixgbe_set_phy_power(hw, TRUE);
+
 	/* Setup OS specific network interface */
 	if (ixgbe_setup_interface(dev, adapter) != 0)
 		goto err_late;
@@ -1259,6 +1265,9 @@ ixgbe_init_locked(struct adapter *adapter)
 		if (err)
 			device_printf(dev, "Error setting up EEE: %d\n", err);
 	}
+
+	/* Enable power to the phy. */
+	ixgbe_set_phy_power(hw, TRUE);
 
 	/* Config/Enable Link */
 	ixgbe_config_link(adapter);
@@ -3979,6 +3988,9 @@ ixgbe_setup_low_power_mode(struct adapter *adapter)
 	s32 error = 0;
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
+
+	if (!hw->wol_enabled)
+		ixgbe_set_phy_power(hw, FALSE);
 
 	/* Limit power management flow to X550EM baseT */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T
