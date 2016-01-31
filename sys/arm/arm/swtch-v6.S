@@ -109,7 +109,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 .Lcurpcpu:
-	.word   _C_LABEL(__pcpu)
+	.word	_C_LABEL(__pcpu)
 	.word	PCPU_SIZE
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
@@ -134,7 +134,7 @@ ENTRY(cpu_context_switch) /* QQQ: What about macro instead of function?	*/
 	*      it's the only place where standalone predictor flush must be
 	*      executed in kernel (except self modifying code case).
 	*/
-	mcr   CP15_BPIALL       /* and flush entire Branch Target Cache */
+	mcr	CP15_BPIALL		/* flush entire Branch Target Cache */
 	DSB
 	mov	pc, lr
 END(cpu_context_switch)
@@ -155,9 +155,9 @@ ENTRY(cpu_throw)
 	bl	_C_LABEL(vfp_discard)	/* VFP without preserving state. */
 #endif
 	GET_PCPU(r8, r9)		/* r8 = current pcpu */
-	ldr     r4, [r8, #PC_CPUID]	/* r4 = current cpu id */
+	ldr	r4, [r8, #PC_CPUID]	/* r4 = current cpu id */
 
-	cmp	r10, #0	/* old thread? */
+	cmp	r10, #0			/* old thread? */
 	beq	2f			/* no, skip */
 
 	/* Remove this CPU from the active list. */
@@ -206,7 +206,7 @@ ENTRY(cpu_throw)
 	 */
 
 	/* MMU switch to new thread. */
-	ldr     r0, [r7, #(PCB_PAGEDIR)]
+	ldr	r0, [r7, #(PCB_PAGEDIR)]
 #ifdef INVARIANTS
 	cmp	r0, #0			/* new thread? */
 	beq	badsw4			/* no, panic */
@@ -290,11 +290,11 @@ ENTRY(cpu_switch)
 	 * it is time to restore them for the new thread. However,
 	 * some registers are not safe over function call.
 	 */
-	mov	r9, r2			/* r9  = lock */
+	mov	r9, r2			/* r9 = lock */
 	mov	r10, r0			/* r10 = oldtd */
 	mov	r11, r1			/* r11 = newtd */
 
-	GET_PCPU(r8, r3)		/* r8  = current PCPU */
+	GET_PCPU(r8, r3)		/* r8 = current PCPU */
 	ldr	r7, [r11, #(TD_PCB)]	/* r7 = newtd->td_pcb */
 
 
@@ -341,8 +341,8 @@ ENTRY(cpu_switch)
 	ldr	r6, [r6, #P_VMSPACE]	/* newtd->proc->vmspace */
 	add	r6, #VM_PMAP		/* newtd->proc->vmspace->pmap */
 
-	ldr	r5, [r8, #PC_CURPMAP]   /* get old curpmap */
-	str	r6, [r8, #PC_CURPMAP]   /* and save new one */
+	ldr	r5, [r8, #PC_CURPMAP]	/* get old curpmap */
+	str	r6, [r8, #PC_CURPMAP]	/* and save new one */
 
 	mov	r0, #PM_ACTIVE
 	add	r5, r0			/* r5 = old pm_active */
@@ -376,7 +376,7 @@ ENTRY(cpu_switch)
 #endif
 	/* Set cpu to new active list. */
 #ifdef SMP
-1:      ldrex	r0, [r6]
+1:	ldrex	r0, [r6]
 	orr	r0, r2
 	strex	r1, r0, [r6]
 	teq	r1, #0
@@ -427,7 +427,7 @@ sw1:
 	beq	1b
 #endif
 	/* Set the new tls */
-	ldr     r0, [r11, #(TD_MD + MD_TP)]
+	ldr	r0, [r11, #(TD_MD + MD_TP)]
 	mcr	CP15_TPIDRURO(r0)	/* write tls thread reg 2 */
 
 	/* We have a new curthread now so make a note it */
@@ -450,7 +450,7 @@ badsw1:
 	ldr	r0, =sw1_panic_str
 	bl	_C_LABEL(panic)
 1:	nop
-	b       1b
+	b	1b
 
 badsw2:
 	ldr	r0, =sw2_panic_str
