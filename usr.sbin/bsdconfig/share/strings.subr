@@ -139,21 +139,6 @@ f_substr()
 	setvar "$__var_to_set" "$__tmp"
 }
 
-# f_snprintf $var_to_set $size $format [$arguments ...]
-#
-# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
-# using printf(1) syntax (`$format [$arguments ...]').
-#
-f_snprintf()
-{
-	local __var_to_set="$1" __size="$2"
-	shift 2 # var_to_set size
-
-	local __f_snprintf_tmp
-	f_sprintf __f_snprintf_tmp "$@"
-	f_substr "$__var_to_set" "$__f_snprintf_tmp" 1 "$__size"
-}
-
 # f_sprintf $var_to_set $format [$arguments ...]
 #
 # Similar to sprintf(3), write a string into $var_to_set using printf(1) syntax
@@ -172,6 +157,21 @@ f_sprintf()
 		;;
 	*) eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
 	esac
+}
+
+# f_snprintf $var_to_set $size $format [$arguments ...]
+#
+# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
+# using printf(1) syntax (`$format [$arguments ...]').
+#
+f_snprintf()
+{
+	local __var_to_set="$1" __size="$2"
+	shift 2 # var_to_set size
+
+	local __f_snprintf_tmp
+	f_sprintf __f_snprintf_tmp "$@"
+	f_substr "$__var_to_set" "$__f_snprintf_tmp" 1 "$__size"
 }
 
 # f_vsnprintf $var_to_set $size $format $format_args
