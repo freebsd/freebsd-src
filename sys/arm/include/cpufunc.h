@@ -164,9 +164,6 @@ struct cpu_functions {
 
 	/* Soft functions */
 
-	int	(*cf_dataabt_fixup)	(void *arg);
-	int	(*cf_prefetchabt_fixup)	(void *arg);
-
 	void	(*cf_context_switch)	(void);
 
 	void	(*cf_setup)		(void);
@@ -215,12 +212,6 @@ extern u_int cputype;
 
 #define cpu_sleep(m)		cpufuncs.cf_sleep(m)
 
-#define cpu_dataabt_fixup(a)		cpufuncs.cf_dataabt_fixup(a)
-#define cpu_prefetchabt_fixup(a)	cpufuncs.cf_prefetchabt_fixup(a)
-#define ABORT_FIXUP_OK		0	/* fixup succeeded */
-#define ABORT_FIXUP_FAILED	1	/* fixup failed */
-#define ABORT_FIXUP_RETURN	2	/* abort handler should return */
-
 #define cpu_setup()			cpufuncs.cf_setup()
 
 int	set_cpufuncs		(void);
@@ -228,9 +219,6 @@ int	set_cpufuncs		(void);
 #define ARCHITECTURE_NOT_SUPPORTED	2	/* not known */
 
 void	cpufunc_nullop		(void);
-int	cpufunc_null_fixup	(void *);
-int	early_abort_fixup	(void *);
-int	late_abort_fixup	(void *);
 u_int	cpufunc_id		(void);
 u_int	cpufunc_cpuid		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
