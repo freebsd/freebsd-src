@@ -159,6 +159,16 @@ f_sprintf()
 	esac
 }
 
+# f_vsprintf $var_to_set $format $format_args
+#
+# Similar to vsprintf(3), write a string into $var_to_set using printf(1)
+# syntax (`$format $format_args').
+#
+f_vsprintf()
+{
+	eval f_sprintf \"\$1\" \"\$2\" $3
+}
+
 # f_snprintf $var_to_set $size $format [$arguments ...]
 #
 # Similar to snprintf(3), write at most $size number of bytes into $var_to_set
@@ -207,16 +217,6 @@ f_snprintf()
 f_vsnprintf()
 {
 	eval f_snprintf \"\$1\" \"\$2\" \"\$3\" $4
-}
-
-# f_vsprintf $var_to_set $format $format_args
-#
-# Similar to vsprintf(3), write a string into $var_to_set using printf(1)
-# syntax (`$format $format_args').
-#
-f_vsprintf()
-{
-	eval f_sprintf \"\$1\" \"\$2\" $3
 }
 
 # f_longest_line_length
