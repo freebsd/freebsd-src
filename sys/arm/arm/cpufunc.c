@@ -148,8 +148,6 @@ struct cpu_functions arm9_cpufuncs = {
 
 	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
@@ -210,8 +208,6 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
@@ -270,8 +266,6 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	sheeva_cpu_sleep,		/* sleep		*/
 
@@ -330,8 +324,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 
 	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv7_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
@@ -392,8 +384,6 @@ struct cpu_functions xscale_cpufuncs = {
 
 	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	xscale_cpu_sleep,		/* sleep		*/
 
@@ -454,8 +444,6 @@ struct cpu_functions xscalec3_cpufuncs = {
 
 	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	xscale_cpu_sleep,		/* sleep		*/
 
@@ -515,8 +503,6 @@ struct cpu_functions fa526_cpufuncs = {
 
 	fa526_flush_prefetchbuf,	/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	fa526_flush_brnchtgt_E,		/* flush_brnchtgt_E	*/
 
 	fa526_cpu_sleep,		/* sleep		*/
 
@@ -577,8 +563,6 @@ struct cpu_functions arm1176_cpufuncs = {
 
 	arm11x6_flush_prefetchbuf,      /* flush_prefetchbuf    */
 	arm11_drain_writebuf,           /* drain_writebuf       */
-	cpufunc_nullop,                 /* flush_brnchtgt_C     */
-	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 
 	arm11x6_sleep,                  /* sleep                */
 
@@ -646,8 +630,6 @@ struct cpu_functions cortexa_cpufuncs = {
 
 	cpufunc_nullop,                 /* flush_prefetchbuf    */
 	armv7_drain_writebuf,           /* drain_writebuf       */
-	cpufunc_nullop,                 /* flush_brnchtgt_C     */
-	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 
 	armv7_cpu_sleep,                /* sleep                */
 

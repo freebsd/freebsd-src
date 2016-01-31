@@ -200,12 +200,6 @@ ENTRY(fa526_icache_sync_range)
 	mov	pc, lr
 END(fa526_icache_sync_range)
 
-ENTRY(fa526_flush_brnchtgt_E)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 6	/* invalidate BTB cache */
-	mov	pc, lr
-END(fa526_flush_brnchtgt_E)
-
 ENTRY(fa526_context_switch)
 	/*
 	 * CF_CACHE_PURGE_ID will *ALWAYS* be called prior to this.

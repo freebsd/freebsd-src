@@ -157,8 +157,6 @@ struct cpu_functions {
 
 	void	(*cf_flush_prefetchbuf)	(void);
 	void	(*cf_drain_writebuf)	(void);
-	void	(*cf_flush_brnchtgt_C)	(void);
-	void	(*cf_flush_brnchtgt_E)	(u_int va);
 
 	void	(*cf_sleep)		(int mode);
 
@@ -207,9 +205,6 @@ extern u_int cputype;
 
 #define	cpu_flush_prefetchbuf()	cpufuncs.cf_flush_prefetchbuf()
 #define	cpu_drain_writebuf()	cpufuncs.cf_drain_writebuf()
-#define	cpu_flush_brnchtgt_C()	cpufuncs.cf_flush_brnchtgt_C()
-#define	cpu_flush_brnchtgt_E(e)	cpufuncs.cf_flush_brnchtgt_E(e)
-
 #define cpu_sleep(m)		cpufuncs.cf_sleep(m)
 
 #define cpu_setup()			cpufuncs.cf_setup()
@@ -235,7 +230,6 @@ void	fa526_cpu_sleep		(int);
 void	fa526_tlb_flushI_SE	(u_int);
 void	fa526_tlb_flushID_SE	(u_int);
 void	fa526_flush_prefetchbuf	(void);
-void	fa526_flush_brnchtgt_E	(u_int);
 
 void	fa526_icache_sync_all	(void);
 void	fa526_icache_sync_range(vm_offset_t start, vm_size_t end);
