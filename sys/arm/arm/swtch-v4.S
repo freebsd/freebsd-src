@@ -99,7 +99,6 @@ __FBSDID("$FreeBSD$");
 
 .Lcurpcpu:
 	.word   _C_LABEL(__pcpu)
-	.word	PCPU_SIZE
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
 

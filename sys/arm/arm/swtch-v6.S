@@ -85,13 +85,14 @@
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
+#include <machine/sysreg.h>
 #include <machine/vfp.h>
 
 __FBSDID("$FreeBSD$");
 
-#if __ARM_ARCH >= 6 && defined(SMP)
+#if defined(SMP)
 #define GET_PCPU(tmp, tmp2) \
-	mrc 	p15, 0, tmp, c0, c0, 5;	\
+	mrc 	CP15_MPIDR(tmp);	\
 	and	tmp, tmp, #0xf;		\
 	ldr 	tmp2, .Lcurpcpu+4;	\
 	mul 	tmp, tmp, tmp2;		\
@@ -112,9 +113,6 @@ __FBSDID("$FreeBSD$");
 	.word	PCPU_SIZE
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
-
-
-#include <machine/sysreg.h>
 
 ENTRY(cpu_context_switch) /* QQQ: What about macro instead of function?	*/
 	DSB
