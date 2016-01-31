@@ -1,6 +1,6 @@
 if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
 #
-# Copyright (c) 2006-2013 Devin Teske
+# Copyright (c) 2006-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,44 +52,53 @@ VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 
 ############################################################ FUNCTIONS
 
-# f_substr "$string" $start [$length]
+# f_substr [-v $var_to_set] $string $start [$length]
 #
-# Simple wrapper to awk(1)'s `substr' function.
+# Similar to awk(1)'s substr(), return length substring of string that begins
+# at start position counted from 1. 
 #
 f_substr()
 {
-	local string="$1" start="${2:-0}" len="${3:-0}"
-	echo "$string" | awk "{ print substr(\$0, $start, $len) }"
-}
+	local OPTIND=1 OPTARG __flag __var_to_set=
+	while getopts v: __flag; do
+		case "$__flag" in
+		v) __var_to_set="$OPTARG" ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	
+	local __tmp="$1" __start="${2:-1}" __size="$3"
+	local __tbuf __tbuf_len __trim __trimq
 
-# f_snprintf $var_to_set $size $format [$arguments ...]
-#
-# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
-# using printf(1) syntax (`$format [$arguments ...]'). The value of $var_to_set
-# is NULL unless at-least one byte is stored from the output.
-#
-f_snprintf()
-{
-	local __funcname=f_snprintf
-	local __var_to_set="$1" __size="$2"
-	shift 2 # var_to_set size
-
-	if [ "$__size" -eq 0 ] 2> /dev/null; then
-		setvar "$__var_to_set" ""
+	if [ ! "$__tmp" ]; then
+		[ "$__var_to_set" ] && setvar "$__var_to_set" ""
 		return ${SUCCESS:-0}
-	elif [ $? -ge 2 ] || [ $__size -lt 0 ]; then
-		setvar "$__var_to_set" ""
-		echo "$__funcname: invalid size argument \`__size'" >&2
+	fi
+	[ "$__start" -ge 1 ] 2> /dev/null || __start=1
+	if ! [ "${__size:-1}" -ge 1 ] 2> /dev/null; then
+		[ "$__var_to_set" ] && setvar "$__var_to_set" ""
 		return ${FAILURE:-1}
 	fi
 
-	local __f_snprintf_tmp
-	f_sprintf __f_snprintf_tmp "$@"
+	__trim=$(( $__start - 1 ))
+	while [ $__trim -gt 0 ]; do
+		__tbuf="?"
+		__tbuf_len=1
+		while [ $__tbuf_len -lt $(( $__trim / $__tbuf_len )) ]; do
+			__tbuf="$__tbuf?"
+			__tbuf_len=$(( $__tbuf_len + 1 ))
+		done
+		__trimq=$(( $__trim / $__tbuf_len ))
+		__trim=$(( $__trim - $__tbuf_len * $__trimq ))
+		while [ $__trimq -gt 0 ]; do
+			__tmp="${__tmp#$__tbuf}"
+			__trimq=$(( $__trimq - 1 ))
+		done
+	done
 
-	local __tmp_size=${#__f_snprintf_tmp}
-	local __trim=$(( $__tmp_size - $__size )) __trimq
-	local __tbuf __tbuf_len
+	local __tmp_size=${#__tmp}
 	local __mask __mask_len
+	__trim=$(( $__tmp_size - ${__size:-$__tmp_size} ))
 	while [ $__trim -gt 0 ]; do
 		__tbuf="?"
 		__tbuf_len=1
@@ -102,11 +111,11 @@ f_snprintf()
 			__trimq=$(( $__trim / $__tbuf_len ))
 			__trim=$(( $__trim - $__tbuf_len * $__trimq ))
 			while [ $__trimq -gt 0 ]; do
-				__f_snprintf_tmp="${__f_snprintf_tmp%$__tbuf}"
+				__tmp="${__tmp%$__tbuf}"
 				__trimq=$(( $__trimq - 1 ))
 			done
 		else
-			__mask="$__f_snprintf_tmp"
+			__mask="$__tmp"
 			while [ $__tbuf_len -lt $(( $__size / $__tbuf_len )) ]
 			do
 				__tbuf="$__tbuf?"
@@ -123,10 +132,26 @@ f_snprintf()
 				__mask="${__mask#$__tbuf}"
 				__trimq=$(( $__trimq - 1 ))
 			done
-			__f_snprintf_tmp="${__f_snprintf_tmp%"$__mask"}"
+			__tmp="${__tmp%"$__mask"}"
 		fi
 	done
-	setvar "$__var_to_set" "$__f_snprintf_tmp"
+
+	setvar "$__var_to_set" "$__tmp"
+}
+
+# f_snprintf $var_to_set $size $format [$arguments ...]
+#
+# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
+# using printf(1) syntax (`$format [$arguments ...]').
+#
+f_snprintf()
+{
+	local __var_to_set="$1" __size="$2"
+	shift 2 # var_to_set size
+
+	local __f_snprintf_tmp
+	f_sprintf __f_snprintf_tmp "$@"
+	f_substr "$__var_to_set" "$__f_snprintf_tmp" 1 "$__size"
 }
 
 # f_sprintf $var_to_set $format [$arguments ...]
