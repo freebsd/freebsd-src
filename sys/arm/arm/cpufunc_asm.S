@@ -65,7 +65,7 @@ END(cpufunc_nullop)
 ENTRY(cpu_ident)
 	mrc	p15, 0, r0, c0, c0, 0
 	RET
-END(cpufunc_id)
+END(cpu_ident)
 
 ENTRY(cpu_get_control)
 	mrc	p15, 0, r0, c1, c0, 0
