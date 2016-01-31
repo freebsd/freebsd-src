@@ -62,15 +62,10 @@ END(cpufunc_nullop)
  *
  */
 
-ENTRY(cpufunc_id)
+ENTRY(cpu_ident)
 	mrc	p15, 0, r0, c0, c0, 0
 	RET
 END(cpufunc_id)
-
-ENTRY(cpufunc_cpuid)
-	mrc	p15, 0, r0, c0, c0, 0
-	RET
-END(cpufunc_cpuid)
 
 ENTRY(cpu_get_control)
 	mrc	p15, 0, r0, c1, c0, 0
@@ -82,15 +77,15 @@ ENTRY(cpu_read_cache_config)
 	RET
 END(cpu_read_cache_config)
 
-ENTRY(cpufunc_faultstatus)
+ENTRY(cpu_faultstatus)
 	mrc	p15, 0, r0, c5, c0, 0
 	RET
-END(cpufunc_faultstatus)
+END(cpu_faultstatus)
 
-ENTRY(cpufunc_faultaddress)
+ENTRY(cpu_faultaddress)
 	mrc	p15, 0, r0, c6, c0, 0
 	RET
-END(cpufunc_faultaddress)
+END(cpu_faultaddress)
 
 /*
  * Generic functions to write the internal coprocessor registers
@@ -110,10 +105,10 @@ ENTRY(cpufunc_control)
 END(cpufunc_control)
 #endif
 
-ENTRY(cpufunc_domains)
+ENTRY(cpu_domains)
 	mcr	p15, 0, r0, c3, c0, 0
 	RET
-END(cpufunc_domains)
+END(cpu_domains)
 
 /*
  * Generic functions to read/modify/write the internal coprocessor registers
