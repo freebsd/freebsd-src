@@ -52,6 +52,16 @@ VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 
 ############################################################ FUNCTIONS
 
+# f_isinteger $arg
+#
+# Returns true if argument is a positive/negative whole integer.
+#
+f_isinteger()
+{
+	local arg="${1#-}"
+	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
+}
+
 # f_substr [-v $var_to_set] $string $start [$length]
 #
 # Similar to awk(1)'s substr(), return length substring of string that begins
@@ -265,16 +275,6 @@ END { print num_lines }
 f_number_of_lines()
 {
 	awk "$f_number_of_lines_awk"
-}
-
-# f_isinteger $arg
-#
-# Returns true if argument is a positive/negative whole integer.
-#
-f_isinteger()
-{
-	local arg="${1#-}"
-	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
 }
 
 # f_uriencode [$text]
