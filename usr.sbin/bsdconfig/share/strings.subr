@@ -138,7 +138,15 @@ f_sprintf()
 {
 	local __var_to_set="$1"
 	shift 1 # var_to_set
-	eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
+
+	case "$BASH_VERSION" in
+	3.1*|4.*)
+		local __tmp
+		printf -v __tmp "$@"
+		eval "$__var_to_set"=\"\${__tmp%\$NL}\"
+		;;
+	*) eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
+	esac
 }
 
 # f_vsnprintf $var_to_set $size $format $format_args
