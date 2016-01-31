@@ -673,9 +673,9 @@ ixl_attach(device_t dev)
 	}
 
 	/* Limit phy interrupts to link and modules failure */
-	error = i40e_aq_set_phy_int_mask(hw,
-	    I40E_AQ_EVENT_LINK_UPDOWN | I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
-        if (error)
+	error = i40e_aq_set_phy_int_mask(hw, ~(I40E_AQ_EVENT_LINK_UPDOWN |
+		I40E_AQ_EVENT_MODULE_QUAL_FAIL), NULL);
+	if (error)
 		device_printf(dev, "set phy mask failed: %d\n", error);
 
 	/* Get the bus configuration and set the shared code */
