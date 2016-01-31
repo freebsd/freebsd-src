@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 .Lcurpcpu:
-	.word   _C_LABEL(__pcpu)
+	.word	_C_LABEL(__pcpu)
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
 
@@ -129,7 +129,7 @@ ENTRY(cpu_throw)
 #endif
 
 	GET_PCPU(r7, r9)
-	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
+	ldr	r7, [r5, #(TD_PCB)]	/* r7 = new thread's PCB */
 
 	/* Switch to lwp0 context */
 
@@ -275,25 +275,25 @@ ENTRY(cpu_switch)
 	/* rem: r2 = old PCB */
 	/* rem: r9 = new PCB */
 
-	ldr	r5, [r9, #(PCB_DACR)]		/* r5 = new DACR */
+	ldr	r5, [r9, #(PCB_DACR)]	/* r5 = new DACR */
 	mov	r2, #DOMAIN_CLIENT
-	cmp     r5, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
-	beq     .Lcs_context_switched        /* Yup. Don't flush cache */
-	mrc	p15, 0, r0, c3, c0, 0		/* r0 = old DACR */
+	cmp	r5, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
+	beq	.Lcs_context_switched	/* Yup. Don't flush cache */
+	mrc	p15, 0, r0, c3, c0, 0	/* r0 = old DACR */
 	/*
-	 * Get the new L1 table pointer into r11.  If we're switching to
+	 * Get the new L1 table pointer into r11. If we're switching to
 	 * an LWP with the same address space as the outgoing one, we can
 	 * skip the cache purge and the TTB load.
 	 *
 	 * To avoid data dep stalls that would happen anyway, we try
 	 * and get some useful work done in the mean time.
 	 */
-	mrc	p15, 0, r10, c2, c0, 0		/* r10 = old L1 */
-	ldr	r11, [r9, #(PCB_PAGEDIR)]	/* r11 = new L1 */
+	mrc	p15, 0, r10, c2, c0, 0	/* r10 = old L1 */
+	ldr	r11, [r9, #(PCB_PAGEDIR)] /* r11 = new L1 */
 
-	teq	r10, r11			/* Same L1? */
-	cmpeq	r0, r5				/* Same DACR? */
-	beq	.Lcs_context_switched		/* yes! */
+	teq	r10, r11		/* Same L1? */
+	cmpeq	r0, r5			/* Same DACR? */
+	beq	.Lcs_context_switched	/* yes! */
 
 	/*
 	 * Definately need to flush the cache.
@@ -375,6 +375,3 @@ ENTRY(cpu_switch)
 	add	r3, r9, #PCB_R4
 	ldmia	r3, {r4-r12, sp, pc}
 END(cpu_switch)
-
-
-
