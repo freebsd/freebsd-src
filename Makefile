@@ -348,7 +348,7 @@ bmake: .PHONY
 		${MMAKE} all; \
 		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
 
-tinderbox toolchains kernel-toolchains: upgrade_checks
+tinderbox toolchains kernel-toolchains kernels worlds: upgrade_checks
 
 tinderbox:
 	@cd ${.CURDIR}; ${SUB_MAKE} DOING_TINDERBOX=YES universe
@@ -358,6 +358,12 @@ toolchains:
 
 kernel-toolchains:
 	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
+
+kernels:
+	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildkernel universe
+
+worlds:
+	@cd ${.CURDIR}; ${SUB_MAKE} UNIVERSE_TARGET=buildworld universe
 
 #
 # universe
