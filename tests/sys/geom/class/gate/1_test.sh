@@ -10,6 +10,7 @@ us=0
 while [ -c /dev/ggate${us} ]; do
 	: $(( us += 1 ))
 done
+pidfile=ggated.$$.pid
 conf=`mktemp $base.XXXXXX` || exit 1
 port=33080
 
@@ -19,7 +20,7 @@ src=$(attach_md -t malloc -s 1M)
 test_cleanup()
 {
 	ggatec destroy -f -u $us
-	killall ggated
+	pkill -F $pidfile
 	geom_test_cleanup
 }
 trap test_cleanup ABRT EXIT INT TERM
@@ -30,7 +31,7 @@ src_checksum=$(md5 -q /dev/$src)
 
 echo "127.0.0.1 RW /dev/$work" > $conf
 
-if ! ggated -p $port $conf; then
+if ! ggated -p $port -F $pidfile $conf; then
 	echo 'ggated failed to start'
 	echo 'Bail out!'
 	exit 1
