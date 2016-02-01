@@ -64,14 +64,6 @@ ENTRY(fa526_tlb_flushID_SE)
 	mov	pc, lr
 END(fa526_tlb_flushID_SE)
 
-/*
- * TLB functions
- */
-ENTRY(fa526_tlb_flushI_SE)
-	mcr	p15, 0, r0, c8, c5, 1	/* flush Itlb single entry */
-	mov	pc, lr
-END(fa526_tlb_flushI_SE)
-
 ENTRY(fa526_cpu_sleep)
 	mov	r0, #0
 /*	nop
