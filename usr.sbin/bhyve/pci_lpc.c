@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "acpi.h"
+#include "bootrom.h"
 #include "inout.h"
 #include "pci_emul.h"
 #include "pci_irq.h"
@@ -62,6 +63,8 @@ SYSRES_IO(NMISC_PORT, 1);
 
 static struct pci_devinst *lpc_bridge;
 
+static const char *romfile;
+
 #define	LPC_UART_NUM	2
 static struct lpc_uart_softc {
 	struct uart_softc *uart_softc;
@@ -76,7 +79,7 @@ static const char *lpc_uart_names[LPC_UART_NUM] = { "COM1", "COM2" };
 /*
  * LPC device configuration is in the following form:
  * <lpc_device_name>[,<options>]
- * For e.g. "com1,stdio"
+ * For e.g. "com1,stdio" or "bootrom,/var/romfile"
  */
 int
 lpc_device_parse(const char *opts)
@@ -88,6 +91,11 @@ lpc_device_parse(const char *opts)
 	str = cpy = strdup(opts);
 	lpcdev = strsep(&str, ",");
 	if (lpcdev != NULL) {
+		if (strcasecmp(lpcdev, "bootrom") == 0) {
+			romfile = str;
+			error = 0;
+			goto done;
+		}
 		for (unit = 0; unit < LPC_UART_NUM; unit++) {
 			if (strcasecmp(lpcdev, lpc_uart_names[unit]) == 0) {
 				lpc_uart_softc[unit].opts = str;
@@ -102,6 +110,13 @@ done:
 		free(cpy);
 
 	return (error);
+}
+
+const char *
+lpc_bootrom(void)
+{
+
+	return (romfile);
 }
 
 static void
@@ -156,12 +171,18 @@ lpc_uart_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 }
 
 static int
-lpc_init(void)
+lpc_init(struct vmctx *ctx)
 {
 	struct lpc_uart_softc *sc;
 	struct inout_port iop;
 	const char *name;
 	int unit, error;
+
+	if (romfile != NULL) {
+		error = bootrom_init(ctx, romfile);
+		if (error)
+			return (error);
+	}
 
 	/* COM1 and COM2 */
 	for (unit = 0; unit < LPC_UART_NUM; unit++) {
@@ -379,7 +400,7 @@ pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		return (-1);
 	}
 
-	if (lpc_init() != 0)
+	if (lpc_init(ctx) != 0)
 		return (-1);
 
 	/* initialize config space */

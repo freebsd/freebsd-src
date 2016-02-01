@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2012
+.Dd October 7, 2015
 .Dt BHYVELOAD 8
 .Os
 .Sh NAME
@@ -35,10 +35,12 @@
 guest inside a bhyve virtual machine
 .Sh SYNOPSIS
 .Nm
+.Op Fl S
 .Op Fl c Ar cons-dev
 .Op Fl d Ar disk-path
 .Op Fl e Ar name=value
 .Op Fl h Ar host-path
+.Op Fl l Ar os-loader
 .Op Fl m Ar mem-size
 .Ar vmname
 .Sh DESCRIPTION
@@ -55,6 +57,7 @@ is based on
 and will present an interface identical to the
 .Fx
 loader on the user's terminal.
+This behavior can be changed by specifying a different OS loader.
 .Pp
 The virtual machine is identified as
 .Ar vmname
@@ -77,7 +80,9 @@ The
 .Ar disk-path
 is the pathname of the guest's boot disk image.
 .It Fl e Ar name=value
-Set the FreeBSD loader environment variable
+Set the
+.Fx
+loader environment variable
 .Ar name
 to
 .Ar value .
@@ -88,6 +93,15 @@ variable.
 The
 .Ar host-path
 is the directory at the top of the guest's boot filesystem.
+.It Fl l Ar os-loader
+Specify a different OS loader.
+By default
+.Nm
+will use
+.Pa /boot/userboot.so ,
+which presents a standard
+.Fx
+loader.
 .It Fl m Ar mem-size Xo
 .Sm off
 .Op Cm K | k | M | m | G | g | T | t
@@ -111,8 +125,10 @@ respectively.
 The default value of
 .Ar mem-size
 is 256M.
-.El
+.It Fl S
+Wire guest memory.
 .Sh EXAMPLES
+.El
 To create a virtual machine named
 .Ar freebsd-vm
 that boots off the ISO image

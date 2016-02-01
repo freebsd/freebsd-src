@@ -2426,7 +2426,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * this must be an instruction that accesses MMIO space.
 		 */
 		gpa = vmcs_gpa();
-		if (vm_mem_allocated(vmx->vm, gpa) ||
+		if (vm_mem_allocated(vmx->vm, vcpu, gpa) ||
 		    apic_access_fault(vmx, vcpu, gpa)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->inst_length = 0;

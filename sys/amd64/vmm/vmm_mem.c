@@ -114,38 +114,6 @@ vmm_mmio_free(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
 	vm_map_remove(&vmspace->vm_map, gpa, gpa + len);
 }
 
-vm_object_t
-vmm_mem_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
-{
-	int error;
-	vm_object_t obj;
-
-	if (gpa & PAGE_MASK)
-		panic("vmm_mem_alloc: invalid gpa %#lx", gpa);
-
-	if (len == 0 || (len & PAGE_MASK) != 0)
-		panic("vmm_mem_alloc: invalid allocation size %lu", len);
-
-	obj = vm_object_allocate(OBJT_DEFAULT, len >> PAGE_SHIFT);
-	if (obj != NULL) {
-		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len, 0,
-				    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
-		if (error != KERN_SUCCESS) {
-			vm_object_deallocate(obj);
-			obj = NULL;
-		}
-	}
-
-	return (obj);
-}
-
-void
-vmm_mem_free(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
-{
-
-	vm_map_remove(&vmspace->vm_map, gpa, gpa + len);
-}
-
 vm_paddr_t
 vmm_mem_maxaddr(void)
 {
