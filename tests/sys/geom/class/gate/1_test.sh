@@ -41,6 +41,7 @@ if ! ggatec create -p $port -u $us 127.0.0.1 /dev/$work; then
 	echo 'Bail out!'
 	exit 1
 fi
+sleep 1
 
 dd if=/dev/${src} of=/dev/ggate${us} bs=1m count=1
 sleep 1
