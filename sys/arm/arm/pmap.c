@@ -561,7 +561,7 @@ pmap_pte_init_xscale(void)
 	{
 		uint32_t id, type;
 
-		id = cpufunc_id();
+		id = cpu_ident();
 		type = id & ~(CPU_ID_XSCALE_COREREV_MASK|CPU_ID_REVISION_MASK);
 
 		if (type == CPU_ID_PXA250 || type == CPU_ID_PXA210) {

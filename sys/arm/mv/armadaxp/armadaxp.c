@@ -128,7 +128,7 @@ get_tclk(void)
 {
  	uint32_t cputype;
 
-	cputype = cpufunc_id();
+	cputype = cpu_ident();
 	cputype &= CPU_ID_CPU_MASK;
 
 	if (cputype == CPU_ID_MV88SV584X_V7)
