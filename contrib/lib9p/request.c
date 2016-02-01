@@ -117,7 +117,7 @@ l9p_respond(struct l9p_request *req, int errnum)
 	struct l9p_connection *conn = req->lr_conn;
 	size_t iosize;
 #if defined(L9P_DEBUG)
-	struc sbuf *sb;
+	struct sbuf *sb;
 #endif
 
 	switch (req->lr_req.hdr.type) {
