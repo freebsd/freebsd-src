@@ -36,6 +36,7 @@ static const char rcsid[] = "@(#)$Id$";
 #if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
 #include <sys/jail.h>
 #endif
+# include <sys/malloc.h>
 # include <sys/mbuf.h>
 # include <sys/sockopt.h>
 #if !defined(__hpux)

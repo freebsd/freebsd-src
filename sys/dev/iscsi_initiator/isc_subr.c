@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
 #include <sys/libkern.h>
+#include <vm/uma.h>
 
 #include <dev/iscsi_initiator/iscsi.h>
 #include <dev/iscsi_initiator/iscsivar.h>

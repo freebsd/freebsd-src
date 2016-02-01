@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>

@@ -147,6 +147,7 @@ struct  ether_addr {
 
 #  include <sys/selinfo.h>
 #  include <sys/lock.h>
+#  include <sys/malloc.h>
 #  include <sys/mutex.h>
 #    define	KRWLOCK_FILL_SZ		56
 #    define	KMUTEX_FILL_SZ		56

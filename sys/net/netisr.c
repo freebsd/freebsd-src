@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/malloc.h>
 #include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
