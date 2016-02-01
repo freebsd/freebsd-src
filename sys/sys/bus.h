@@ -31,6 +31,7 @@
 
 #include <machine/_limits.h>
 #include <sys/_bus_dma.h>
+#include <sys/ioccom.h>
 
 /**
  * @defgroup NEWBUS newbus - a generic framework for managing devices
@@ -75,9 +76,43 @@ struct u_device {
 	/* XXX more driver info? */
 };
 
+/**
+ * @brief Device request structure used for ioctl's.
+ *
+ * Used for ioctl's on /dev/devctl2.  All device ioctl's
+ * must have parameter definitions which begin with dr_name.
+ */
+struct devreq_buffer {
+	void	*buffer;
+	size_t	length;
+};
+
+struct devreq {
+	char		dr_name[128];
+	int		dr_flags;		/* request-specific flags */
+	union {
+		struct devreq_buffer dru_buffer;
+		void	*dru_data;
+	} dr_dru;
+#define	dr_buffer	dr_dru.dru_buffer	/* variable-sized buffer */
+#define	dr_data		dr_dru.dru_data		/* fixed-size buffer */
+};
+
+#define	DEV_ATTACH	_IOW('D', 1, struct devreq)
+#define	DEV_DETACH	_IOW('D', 2, struct devreq)
+#define	DEV_ENABLE	_IOW('D', 3, struct devreq)
+#define	DEV_DISABLE	_IOW('D', 4, struct devreq)
+#define	DEV_SET_DRIVER	_IOW('D', 7, struct devreq)
+
+/* Flags for DEV_DETACH and DEV_DISABLE. */
+#define	DEVF_FORCE_DETACH	0x0000001
+
+/* Flags for DEV_SET_DRIVER. */
+#define	DEVF_SET_DRIVER_DETACH	0x0000001	/* Detach existing driver. */
+
 #ifdef _KERNEL
 
-#include <sys/queue.h>
+#include <sys/eventhandler.h>
 #include <sys/kobj.h>
 
 /**
@@ -92,6 +127,14 @@ void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
+
+/**
+ * Device name parsers.  Hook to allow device enumerators to map
+ * scheme-specific names to a device.
+ */
+typedef void (*dev_lookup_fn)(void *arg, const char *name,
+    device_t *result);
+EVENTHANDLER_DECLARE(dev_lookup, dev_lookup_fn);
 
 /**
  * @brief A device driver (included mainly for compatibility with
@@ -454,6 +497,7 @@ struct sysctl_oid *device_get_sysctl_tree(device_t dev);
 int	device_is_alive(device_t dev);	/* did probe succeed? */
 int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
+int	device_is_suspended(device_t dev);
 int	device_is_quiet(device_t dev);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
@@ -517,6 +561,8 @@ int	resource_set_long(const char *name, int unit, const char *resname,
 			  long value);
 int	resource_set_string(const char *name, int unit, const char *resname,
 			    const char *value);
+int	resource_unset_value(const char *name, int unit, const char *resname);
+
 /*
  * Functions for maintaining and checking consistency of
  * bus information exported to userspace.

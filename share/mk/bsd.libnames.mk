@@ -38,6 +38,7 @@ LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
 LIBCRYPTO?=	${DESTDIR}${LIBDIR}/libcrypto.a
 LIBCTF?=	${DESTDIR}${LIBDIR}/libctf.a
 LIBCURSES?=	${DESTDIR}${LIBDIR}/libcurses.a
+LIBDEVCTL?=	${DESTDIR}${LIBDIR}/libdevctl.a
 LIBDEVINFO?=	${DESTDIR}${LIBDIR}/libdevinfo.a
 LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
