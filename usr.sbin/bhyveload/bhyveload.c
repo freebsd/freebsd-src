@@ -629,7 +629,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-c <console-device>] [-d <disk-path>] [-e <name=value>]\n"
+	    "usage: %s [-S][-c <console-device>] [-d <disk-path>] [-e <name=value>]\n"
 	    "       %*s [-h <host-path>] [-m mem-size] <vmname>\n",
 	    progname,
 	    (int)strlen(progname), "");
@@ -639,19 +639,23 @@ usage(void)
 int
 main(int argc, char** argv)
 {
+	char *loader;
 	void *h;
 	void (*func)(struct loader_callbacks *, void *, int, int);
 	uint64_t mem_size;
-	int opt, error, need_reinit;
+	int opt, error, need_reinit, memflags;
 
 	progname = basename(argv[0]);
 
+	loader = NULL;
+
+	memflags = 0;
 	mem_size = 256 * MB;
 
 	consin_fd = STDIN_FILENO;
 	consout_fd = STDOUT_FILENO;
 
-	while ((opt = getopt(argc, argv, "c:d:e:h:m:")) != -1) {
+	while ((opt = getopt(argc, argv, "Sc:d:e:h:l:m:")) != -1) {
 		switch (opt) {
 		case 'c':
 			error = altcons_open(optarg);
@@ -673,10 +677,21 @@ main(int argc, char** argv)
 			host_base = optarg;
 			break;
 
+		case 'l':
+			if (loader != NULL)
+				errx(EX_USAGE, "-l can only be given once");
+			loader = strdup(optarg);
+			if (loader == NULL)
+				err(EX_OSERR, "malloc");
+			break;
+
 		case 'm':
 			error = vm_parse_memsize(optarg, &mem_size);
 			if (error != 0)
 				errx(EX_USAGE, "Invalid memsize '%s'", optarg);
+			break;
+		case 'S':
+			memflags |= VM_MEM_F_WIRED;
 			break;
 		case '?':
 			usage();
@@ -715,32 +730,43 @@ main(int argc, char** argv)
 		}
 	}
 
+	vm_set_memflags(ctx, memflags);
 	error = vm_setup_memory(ctx, mem_size, VM_MMAP_ALL);
 	if (error) {
 		perror("vm_setup_memory");
 		exit(1);
 	}
 
-	tcgetattr(consout_fd, &term);
-	oldterm = term;
-	cfmakeraw(&term);
-	term.c_cflag |= CLOCAL;
-	
-	tcsetattr(consout_fd, TCSAFLUSH, &term);
-
-	h = dlopen("/boot/userboot.so", RTLD_LOCAL);
+	if (loader == NULL) {
+		loader = strdup("/boot/userboot.so");
+		if (loader == NULL)
+			err(EX_OSERR, "malloc");
+	}
+	h = dlopen(loader, RTLD_LOCAL);
 	if (!h) {
 		printf("%s\n", dlerror());
+		free(loader);
 		return (1);
 	}
 	func = dlsym(h, "loader_main");
 	if (!func) {
 		printf("%s\n", dlerror());
+		free(loader);
 		return (1);
 	}
+
+	tcgetattr(consout_fd, &term);
+	oldterm = term;
+	cfmakeraw(&term);
+	term.c_cflag |= CLOCAL;
+
+	tcsetattr(consout_fd, TCSAFLUSH, &term);
 
 	addenv("smbios.bios.vendor=BHYVE");
 	addenv("boot_serial=1");
 
 	func(&cb, NULL, USERBOOT_VERSION_3, ndisks);
+
+	free(loader);
+	return (0);
 }

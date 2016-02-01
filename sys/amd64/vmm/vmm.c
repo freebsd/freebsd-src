@@ -120,12 +120,21 @@ struct vcpu {
 #define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
 
 struct mem_seg {
+	size_t	len;
+	bool	sysmem;
+	struct vm_object *object;
+};
+#define	VM_MAX_MEMSEGS	2
+
+struct mem_map {
 	vm_paddr_t	gpa;
 	size_t		len;
-	boolean_t	wired;
-	vm_object_t	object;
+	vm_ooffset_t	segoff;
+	int		segid;
+	int		prot;
+	int		flags;
 };
-#define	VM_MAX_MEMORY_SEGMENTS	2
+#define	VM_MAX_MEMMAPS	4
 
 /*
  * Initialization:
@@ -151,8 +160,8 @@ struct vm {
 	void		*rendezvous_arg;	/* (x) rendezvous func/arg */
 	vm_rendezvous_func_t rendezvous_func;
 	struct mtx	rendezvous_mtx;		/* (o) rendezvous lock */
-	int		num_mem_segs;		/* (o) guest memory segments */
-	struct mem_seg	mem_segs[VM_MAX_MEMORY_SEGMENTS];
+	struct mem_map	mem_maps[VM_MAX_MEMMAPS]; /* (i) guest address space */
+	struct mem_seg	mem_segs[VM_MAX_MEMSEGS]; /* (o) guest memory regions */
 	struct vmspace	*vmspace;		/* (o) guest's address space */
 	char		name[VM_MAX_NAMELEN];	/* (o) virtual machine name */
 	struct vcpu	vcpu[VM_MAXCPU];	/* (i) guest vcpus */
@@ -224,6 +233,8 @@ TUNABLE_INT("hw.vmm.force_iommu", &vmm_force_iommu);
 SYSCTL_INT(_hw_vmm, OID_AUTO, force_iommu, CTLFLAG_RDTUN, &vmm_force_iommu, 0,
     "Force use of I/O MMU even if no passthrough devices were found.");
 
+static void vm_free_memmap(struct vm *vm, int ident);
+static bool sysmem_mapping(struct vm *vm, struct mem_map *mm);
 static void vcpu_notify_event_locked(struct vcpu *vcpu, bool lapic_intr);
 
 #ifdef KTR
@@ -444,7 +455,6 @@ vm_create(const char *name, struct vm **retvm)
 
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
-	vm->num_mem_segs = 0;
 	vm->vmspace = vmspace;
 	mtx_init(&vm->rendezvous_mtx, "vm rendezvous lock", 0, MTX_DEF);
 
@@ -455,18 +465,9 @@ vm_create(const char *name, struct vm **retvm)
 }
 
 static void
-vm_free_mem_seg(struct vm *vm, struct mem_seg *seg)
-{
-
-	if (seg->object != NULL)
-		vmm_mem_free(vm->vmspace, seg->gpa, seg->len);
-
-	bzero(seg, sizeof(*seg));
-}
-
-static void
 vm_cleanup(struct vm *vm, bool destroy)
 {
+	struct mem_map *mm;
 	int i;
 
 	ppt_unassign_all(vm);
@@ -489,11 +490,23 @@ vm_cleanup(struct vm *vm, bool destroy)
 
 	VMCLEANUP(vm->cookie);
 
-	if (destroy) {
-		for (i = 0; i < vm->num_mem_segs; i++)
-			vm_free_mem_seg(vm, &vm->mem_segs[i]);
+	/*
+	 * System memory is removed from the guest address space only when
+	 * the VM is destroyed. This is because the mapping remains the same
+	 * across VM reset.
+	 *
+	 * Device memory can be relocated by the guest (e.g. using PCI BARs)
+	 * so those mappings are removed on a VM reset.
+	 */
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (destroy || !sysmem_mapping(vm, mm))
+			vm_free_memmap(vm, i);
+	}
 
-		vm->num_mem_segs = 0;
+	if (destroy) {
+		for (i = 0; i < VM_MAX_MEMSEGS; i++)
+			vm_free_memseg(vm, i);
 
 		VMSPACE_FREE(vm->vmspace);
 		vm->vmspace = NULL;
@@ -551,146 +564,243 @@ vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 	return (0);
 }
 
-boolean_t
-vm_mem_allocated(struct vm *vm, vm_paddr_t gpa)
+/*
+ * Return 'true' if 'gpa' is allocated in the guest address space.
+ *
+ * This function is called in the context of a running vcpu which acts as
+ * an implicit lock on 'vm->mem_maps[]'.
+ */
+bool
+vm_mem_allocated(struct vm *vm, int vcpuid, vm_paddr_t gpa)
 {
+	struct mem_map *mm;
 	int i;
-	vm_paddr_t gpabase, gpalimit;
 
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		gpabase = vm->mem_segs[i].gpa;
-		gpalimit = gpabase + vm->mem_segs[i].len;
-		if (gpa >= gpabase && gpa < gpalimit)
-			return (TRUE);		/* 'gpa' is regular memory */
+#ifdef INVARIANTS
+	int hostcpu, state;
+	state = vcpu_get_state(vm, vcpuid, &hostcpu);
+	KASSERT(state == VCPU_RUNNING && hostcpu == curcpu,
+	    ("%s: invalid vcpu state %d/%d", __func__, state, hostcpu));
+#endif
+
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (mm->len != 0 && gpa >= mm->gpa && gpa < mm->gpa + mm->len)
+			return (true);		/* 'gpa' is sysmem or devmem */
 	}
 
 	if (ppt_is_mmio(vm, gpa))
-		return (TRUE);			/* 'gpa' is pci passthru mmio */
+		return (true);			/* 'gpa' is pci passthru mmio */
 
-	return (FALSE);
+	return (false);
 }
 
 int
-vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
+vm_alloc_memseg(struct vm *vm, int ident, size_t len, bool sysmem)
 {
-	int available, allocated;
 	struct mem_seg *seg;
-	vm_object_t object;
-	vm_paddr_t g;
+	vm_object_t obj;
 
-	if ((gpa & PAGE_MASK) || (len & PAGE_MASK) || len == 0)
+	if (ident < 0 || ident >= VM_MAX_MEMSEGS)
 		return (EINVAL);
-	
-	available = allocated = 0;
-	g = gpa;
-	while (g < gpa + len) {
-		if (vm_mem_allocated(vm, g))
-			allocated++;
-		else
-			available++;
 
-		g += PAGE_SIZE;
+	if (len == 0 || (len & PAGE_MASK))
+		return (EINVAL);
+
+	seg = &vm->mem_segs[ident];
+	if (seg->object != NULL) {
+		if (seg->len == len && seg->sysmem == sysmem)
+			return (EEXIST);
+		else
+			return (EINVAL);
 	}
 
-	/*
-	 * If there are some allocated and some available pages in the address
-	 * range then it is an error.
-	 */
-	if (allocated && available)
-		return (EINVAL);
-
-	/*
-	 * If the entire address range being requested has already been
-	 * allocated then there isn't anything more to do.
-	 */
-	if (allocated && available == 0)
-		return (0);
-
-	if (vm->num_mem_segs >= VM_MAX_MEMORY_SEGMENTS)
-		return (E2BIG);
-
-	seg = &vm->mem_segs[vm->num_mem_segs];
-
-	if ((object = vmm_mem_alloc(vm->vmspace, gpa, len)) == NULL)
+	obj = vm_object_allocate(OBJT_DEFAULT, len >> PAGE_SHIFT);
+	if (obj == NULL)
 		return (ENOMEM);
 
-	seg->gpa = gpa;
 	seg->len = len;
-	seg->object = object;
-	seg->wired = FALSE;
-
-	vm->num_mem_segs++;
-
+	seg->object = obj;
+	seg->sysmem = sysmem;
 	return (0);
 }
 
-static vm_paddr_t
-vm_maxmem(struct vm *vm)
+int
+vm_get_memseg(struct vm *vm, int ident, size_t *len, bool *sysmem,
+    vm_object_t *objptr)
 {
-	int i;
-	vm_paddr_t gpa, maxmem;
+	struct mem_seg *seg;
 
-	maxmem = 0;
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		gpa = vm->mem_segs[i].gpa + vm->mem_segs[i].len;
-		if (gpa > maxmem)
-			maxmem = gpa;
+	if (ident < 0 || ident >= VM_MAX_MEMSEGS)
+		return (EINVAL);
+
+	seg = &vm->mem_segs[ident];
+	if (len)
+		*len = seg->len;
+	if (sysmem)
+		*sysmem = seg->sysmem;
+	if (objptr)
+		*objptr = seg->object;
+	return (0);
+}
+
+void
+vm_free_memseg(struct vm *vm, int ident)
+{
+	struct mem_seg *seg;
+
+	KASSERT(ident >= 0 && ident < VM_MAX_MEMSEGS,
+	    ("%s: invalid memseg ident %d", __func__, ident));
+
+	seg = &vm->mem_segs[ident];
+	if (seg->object != NULL) {
+		vm_object_deallocate(seg->object);
+		bzero(seg, sizeof(struct mem_seg));
 	}
-	return (maxmem);
+}
+
+int
+vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
+    size_t len, int prot, int flags)
+{
+	struct mem_seg *seg;
+	struct mem_map *m, *map;
+	vm_ooffset_t last;
+	int i, error;
+
+	if (prot == 0 || (prot & ~(VM_PROT_ALL)) != 0)
+		return (EINVAL);
+
+	if (flags & ~VM_MEMMAP_F_WIRED)
+		return (EINVAL);
+
+	if (segid < 0 || segid >= VM_MAX_MEMSEGS)
+		return (EINVAL);
+
+	seg = &vm->mem_segs[segid];
+	if (seg->object == NULL)
+		return (EINVAL);
+
+	last = first + len;
+	if (first < 0 || first >= last || last > seg->len)
+		return (EINVAL);
+
+	if ((gpa | first | last) & PAGE_MASK)
+		return (EINVAL);
+
+	map = NULL;
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		m = &vm->mem_maps[i];
+		if (m->len == 0) {
+			map = m;
+			break;
+		}
+	}
+
+	if (map == NULL)
+		return (ENOSPC);
+
+	error = vm_map_find(&vm->vmspace->vm_map, seg->object, first, &gpa,
+	    len, 0, VMFS_NO_SPACE, prot, prot, 0);
+	if (error != KERN_SUCCESS)
+		return (EFAULT);
+
+	vm_object_reference(seg->object);
+
+	if (flags & VM_MEMMAP_F_WIRED) {
+		error = vm_map_wire(&vm->vmspace->vm_map, gpa, gpa + len,
+		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+		if (error != KERN_SUCCESS) {
+			vm_map_remove(&vm->vmspace->vm_map, gpa, gpa + len);
+			return (EFAULT);
+		}
+	}
+
+	map->gpa = gpa;
+	map->len = len;
+	map->segoff = first;
+	map->segid = segid;
+	map->prot = prot;
+	map->flags = flags;
+	return (0);
+}
+
+int
+vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
+    vm_ooffset_t *segoff, size_t *len, int *prot, int *flags)
+{
+	struct mem_map *mm, *mmnext;
+	int i;
+
+	mmnext = NULL;
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (mm->len == 0 || mm->gpa < *gpa)
+			continue;
+		if (mmnext == NULL || mm->gpa < mmnext->gpa)
+			mmnext = mm;
+	}
+
+	if (mmnext != NULL) {
+		*gpa = mmnext->gpa;
+		if (segid)
+			*segid = mmnext->segid;
+		if (segoff)
+			*segoff = mmnext->segoff;
+		if (len)
+			*len = mmnext->len;
+		if (prot)
+			*prot = mmnext->prot;
+		if (flags)
+			*flags = mmnext->flags;
+		return (0);
+	} else {
+		return (ENOENT);
+	}
 }
 
 static void
-vm_gpa_unwire(struct vm *vm)
+vm_free_memmap(struct vm *vm, int ident)
 {
-	int i, rv;
-	struct mem_seg *seg;
+	struct mem_map *mm;
+	int error;
 
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		seg = &vm->mem_segs[i];
-		if (!seg->wired)
-			continue;
-
-		rv = vm_map_unwire(&vm->vmspace->vm_map,
-				   seg->gpa, seg->gpa + seg->len,
-				   VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
-		KASSERT(rv == KERN_SUCCESS, ("vm(%s) memory segment "
-		    "%#lx/%ld could not be unwired: %d",
-		    vm_name(vm), seg->gpa, seg->len, rv));
-
-		seg->wired = FALSE;
+	mm = &vm->mem_maps[ident];
+	if (mm->len) {
+		error = vm_map_remove(&vm->vmspace->vm_map, mm->gpa,
+		    mm->gpa + mm->len);
+		KASSERT(error == KERN_SUCCESS, ("%s: vm_map_remove error %d",
+		    __func__, error));
+		bzero(mm, sizeof(struct mem_map));
 	}
 }
 
-static int
-vm_gpa_wire(struct vm *vm)
+static __inline bool
+sysmem_mapping(struct vm *vm, struct mem_map *mm)
 {
-	int i, rv;
-	struct mem_seg *seg;
 
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		seg = &vm->mem_segs[i];
-		if (seg->wired)
-			continue;
+	if (mm->len != 0 && vm->mem_segs[mm->segid].sysmem)
+		return (true);
+	else
+		return (false);
+}
 
-		/* XXX rlimits? */
-		rv = vm_map_wire(&vm->vmspace->vm_map,
-				 seg->gpa, seg->gpa + seg->len,
-				 VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
-		if (rv != KERN_SUCCESS)
-			break;
+static vm_paddr_t
+sysmem_maxaddr(struct vm *vm)
+{
+	struct mem_map *mm;
+	vm_paddr_t maxaddr;
+	int i;
 
-		seg->wired = TRUE;
+	maxaddr = 0;
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (sysmem_mapping(vm, mm)) {
+			if (maxaddr < mm->gpa + mm->len)
+				maxaddr = mm->gpa + mm->len;
+		}
 	}
-
-	if (i < vm->num_mem_segs) {
-		/*
-		 * Undo the wiring before returning an error.
-		 */
-		vm_gpa_unwire(vm);
-		return (EAGAIN);
-	}
-
-	return (0);
+	return (maxaddr);
 }
 
 static void
@@ -698,20 +808,36 @@ vm_iommu_modify(struct vm *vm, boolean_t map)
 {
 	int i, sz;
 	vm_paddr_t gpa, hpa;
-	struct mem_seg *seg;
+	struct mem_map *mm;
 	void *vp, *cookie, *host_domain;
 
 	sz = PAGE_SIZE;
 	host_domain = iommu_host_domain();
 
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		seg = &vm->mem_segs[i];
-		KASSERT(seg->wired, ("vm(%s) memory segment %#lx/%ld not wired",
-		    vm_name(vm), seg->gpa, seg->len));
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (!sysmem_mapping(vm, mm))
+			continue;
 
-		gpa = seg->gpa;
-		while (gpa < seg->gpa + seg->len) {
-			vp = vm_gpa_hold(vm, gpa, PAGE_SIZE, VM_PROT_WRITE,
+		if (map) {
+			KASSERT((mm->flags & VM_MEMMAP_F_IOMMU) == 0,
+			    ("iommu map found invalid memmap %#lx/%#lx/%#x",
+			    mm->gpa, mm->len, mm->flags));
+			if ((mm->flags & VM_MEMMAP_F_WIRED) == 0)
+				continue;
+			mm->flags |= VM_MEMMAP_F_IOMMU;
+		} else {
+			if ((mm->flags & VM_MEMMAP_F_IOMMU) == 0)
+				continue;
+			mm->flags &= ~VM_MEMMAP_F_IOMMU;
+			KASSERT((mm->flags & VM_MEMMAP_F_WIRED) != 0,
+			    ("iommu unmap found invalid memmap %#lx/%#lx/%#x",
+			    mm->gpa, mm->len, mm->flags));
+		}
+
+		gpa = mm->gpa;
+		while (gpa < mm->gpa + mm->len) {
+			vp = vm_gpa_hold(vm, -1, gpa, PAGE_SIZE, VM_PROT_WRITE,
 					 &cookie);
 			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
 			    vm_name(vm), gpa));
@@ -753,10 +879,9 @@ vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (error)
 		return (error);
 
-	if (ppt_assigned_devices(vm) == 0) {
+	if (ppt_assigned_devices(vm) == 0)
 		vm_iommu_unmap(vm);
-		vm_gpa_unwire(vm);
-	}
+
 	return (0);
 }
 
@@ -766,23 +891,12 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	int error;
 	vm_paddr_t maxaddr;
 
-	/*
-	 * Virtual machines with pci passthru devices get special treatment:
-	 * - the guest physical memory is wired
-	 * - the iommu is programmed to do the 'gpa' to 'hpa' translation
-	 *
-	 * We need to do this before the first pci passthru device is attached.
-	 */
+	/* Set up the IOMMU to do the 'gpa' to 'hpa' translation */
 	if (ppt_assigned_devices(vm) == 0) {
 		KASSERT(vm->iommu == NULL,
 		    ("vm_assign_pptdev: iommu must be NULL"));
-		maxaddr = vm_maxmem(vm);
+		maxaddr = sysmem_maxaddr(vm);
 		vm->iommu = iommu_create_domain(maxaddr);
-
-		error = vm_gpa_wire(vm);
-		if (error)
-			return (error);
-
 		vm_iommu_map(vm);
 	}
 
@@ -791,18 +905,43 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 }
 
 void *
-vm_gpa_hold(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
+vm_gpa_hold(struct vm *vm, int vcpuid, vm_paddr_t gpa, size_t len, int reqprot,
 	    void **cookie)
 {
-	int count, pageoff;
+	int i, count, pageoff;
+	struct mem_map *mm;
 	vm_page_t m;
-
+#ifdef INVARIANTS
+	/*
+	 * All vcpus are frozen by ioctls that modify the memory map
+	 * (e.g. VM_MMAP_MEMSEG). Therefore 'vm->memmap[]' stability is
+	 * guaranteed if at least one vcpu is in the VCPU_FROZEN state.
+	 */
+	int state;
+	KASSERT(vcpuid >= -1 || vcpuid < VM_MAXCPU, ("%s: invalid vcpuid %d",
+	    __func__, vcpuid));
+	for (i = 0; i < VM_MAXCPU; i++) {
+		if (vcpuid != -1 && vcpuid != i)
+			continue;
+		state = vcpu_get_state(vm, i, NULL);
+		KASSERT(state == VCPU_FROZEN, ("%s: invalid vcpu state %d",
+		    __func__, state));
+	}
+#endif
 	pageoff = gpa & PAGE_MASK;
 	if (len > PAGE_SIZE - pageoff)
 		panic("vm_gpa_hold: invalid gpa/len: 0x%016lx/%lu", gpa, len);
 
-	count = vm_fault_quick_hold_pages(&vm->vmspace->vm_map,
-	    trunc_page(gpa), PAGE_SIZE, reqprot, &m, 1);
+	count = 0;
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		mm = &vm->mem_maps[i];
+		if (sysmem_mapping(vm, mm) && gpa >= mm->gpa &&
+		    gpa < mm->gpa + mm->len) {
+			count = vm_fault_quick_hold_pages(&vm->vmspace->vm_map,
+			    trunc_page(gpa), PAGE_SIZE, reqprot, &m, 1);
+			break;
+		}
+	}
 
 	if (count == 1) {
 		*cookie = m;
@@ -821,50 +960,6 @@ vm_gpa_release(void *cookie)
 	vm_page_lock(m);
 	vm_page_unhold(m);
 	vm_page_unlock(m);
-}
-
-int
-vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
-		  struct vm_memory_segment *seg)
-{
-	int i;
-
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		if (gpabase == vm->mem_segs[i].gpa) {
-			seg->gpa = vm->mem_segs[i].gpa;
-			seg->len = vm->mem_segs[i].len;
-			seg->wired = vm->mem_segs[i].wired;
-			return (0);
-		}
-	}
-	return (-1);
-}
-
-int
-vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
-	      vm_offset_t *offset, struct vm_object **object)
-{
-	int i;
-	size_t seg_len;
-	vm_paddr_t seg_gpa;
-	vm_object_t seg_obj;
-
-	for (i = 0; i < vm->num_mem_segs; i++) {
-		if ((seg_obj = vm->mem_segs[i].object) == NULL)
-			continue;
-
-		seg_gpa = vm->mem_segs[i].gpa;
-		seg_len = vm->mem_segs[i].len;
-
-		if (gpa >= seg_gpa && gpa < seg_gpa + seg_len) {
-			*offset = gpa - seg_gpa;
-			*object = seg_obj;
-			vm_object_reference(seg_obj);
-			return (0);
-		}
-	}
-
-	return (EINVAL);
 }
 
 int
@@ -2425,8 +2520,8 @@ vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
 	}
 
 	for (idx = 0; idx < nused; idx++) {
-		hva = vm_gpa_hold(vm, copyinfo[idx].gpa, copyinfo[idx].len,
-		    prot, &cookie);
+		hva = vm_gpa_hold(vm, vcpuid, copyinfo[idx].gpa,
+		    copyinfo[idx].len, prot, &cookie);
 		if (hva == NULL)
 			break;
 		copyinfo[idx].hva = hva;

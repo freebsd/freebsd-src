@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <pthread_np.h>
 #include <sysexits.h>
+#include <stdbool.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
+#include "fwctl.h"
 #include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
@@ -122,7 +124,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-abehuwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+                "Usage: %s [-abehuwxACHPSWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
 		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
@@ -137,6 +139,7 @@ usage(int code)
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -S: guest memory cannot be swapped\n"
 		"       -u: RTC keeps UTC time\n"
 		"       -U: uuid\n"
 		"       -w: ignore unimplemented MSRs\n"
@@ -698,26 +701,82 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
 }
 
+static struct vmctx *
+do_open(const char *vmname)
+{
+	struct vmctx *ctx;
+	int error;
+	bool reinit, romboot;
+
+	reinit = romboot = false;
+
+	if (lpc_bootrom())
+		romboot = true;
+
+	error = vm_create(vmname);
+	if (error) {
+		if (errno == EEXIST) {
+			if (romboot) {
+				reinit = true;
+			} else {
+				/*
+				 * The virtual machine has been setup by the
+				 * userspace bootloader.
+				 */
+			}
+		} else {
+			perror("vm_create");
+			exit(1);
+		}
+	} else {
+		if (!romboot) {
+			/*
+			 * If the virtual machine was just created then a
+			 * bootrom must be configured to boot it.
+			 */
+			fprintf(stderr, "virtual machine cannot be booted\n");
+			exit(1);
+		}
+	}
+
+	ctx = vm_open(vmname);
+	if (ctx == NULL) {
+		perror("vm_open");
+		exit(1);
+	}
+
+	if (reinit) {
+		error = vm_reinit(ctx);
+		if (error) {
+			perror("vm_reinit");
+			exit(1);
+		}
+	}
+	return (ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int c, error, gdb_port, err, bvmcons;
-	int dump_guest_memory, max_vcpus, mptgen;
+	int max_vcpus, mptgen, memflags;
 	int rtc_localtime;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
+	char *optstr;
 
 	bvmcons = 0;
-	dump_guest_memory = 0;
 	progname = basename(argv[0]);
 	gdb_port = 0;
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 	mptgen = 1;
 	rtc_localtime = 1;
+	memflags = 0;
 
-	while ((c = getopt(argc, argv, "abehuwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
+	optstr = "abehuwxACHIPSWYp:g:c:s:m:l:U:";
+	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -738,7 +797,7 @@ main(int argc, char *argv[])
 			guest_ncpus = atoi(optarg);
 			break;
 		case 'C':
-			dump_guest_memory = 1;
+			memflags |= VM_MEM_F_INCORE;
 			break;
 		case 'g':
 			gdb_port = atoi(optarg);
@@ -754,6 +813,9 @@ main(int argc, char *argv[])
 				exit(1);
 			else
 				break;
+		case 'S':
+			memflags |= VM_MEM_F_WIRED;
+			break;
                 case 'm':
 			error = vm_parse_memsize(optarg, &memsize);
 			if (error)
@@ -808,12 +870,7 @@ main(int argc, char *argv[])
 		usage(1);
 
 	vmname = argv[0];
-
-	ctx = vm_open(vmname);
-	if (ctx == NULL) {
-		perror("vm_open");
-		exit(1);
-	}
+	ctx = do_open(vmname);
 
 	if (guest_ncpus < 1) {
 		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
@@ -829,11 +886,10 @@ main(int argc, char *argv[])
 
 	fbsdrun_set_capabilities(ctx, BSP);
 
-	if (dump_guest_memory)
-		vm_set_memflags(ctx, VM_MEM_F_INCORE);
+	vm_set_memflags(ctx, memflags);
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {
-		fprintf(stderr, "Unable to setup memory (%d)\n", err);
+		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
 		exit(1);
 	}
 
@@ -863,6 +919,16 @@ main(int argc, char *argv[])
 	if (bvmcons)
 		init_bvmcons();
 
+	if (lpc_bootrom()) {
+		if (vm_set_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, 1)) {
+			fprintf(stderr, "ROM boot failed: unrestricted guest "
+			    "capability not available\n");
+			exit(1);
+		}
+		error = vcpu_reset(ctx, BSP);
+		assert(error == 0);
+	}
+
 	error = vm_get_register(ctx, BSP, VM_REG_GUEST_RIP, &rip);
 	assert(error == 0);
 
@@ -882,6 +948,9 @@ main(int argc, char *argv[])
 		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
+
+	if (lpc_bootrom())
+		fwctl_init();
 
 	/*
 	 * Change the proc title to include the VM name.

@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #define VTNET_RINGSZ	1024
 
-#define VTNET_MAXSEGS	32
+#define VTNET_MAXSEGS	256
 
 /*
  * Host capabilities.  Note that we only offer a few of these.
@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #define VTNET_S_HOSTCAPS      \
   ( VIRTIO_NET_F_MAC | VIRTIO_NET_F_MRG_RXBUF | VIRTIO_NET_F_STATUS | \
-    VIRTIO_F_NOTIFY_ON_EMPTY)
+    VIRTIO_F_NOTIFY_ON_EMPTY | VIRTIO_RING_F_INDIRECT_DESC)
 
 /*
  * PCI config-space "registers"
