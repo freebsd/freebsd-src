@@ -773,9 +773,6 @@ passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 	if (softc->open_count == 0) {
 		struct pass_io_req *io_req, *io_req2;
-		int need_unlock;
-
-		need_unlock = 0;
 
 		TAILQ_FOREACH_SAFE(io_req, &softc->done_queue, links, io_req2) {
 			TAILQ_REMOVE(&softc->done_queue, io_req, links);

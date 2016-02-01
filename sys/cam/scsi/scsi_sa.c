@@ -4961,10 +4961,6 @@ sasetpos(struct cam_periph *periph, int hard, struct mtlocate *locate_info)
 			       /*sense_len*/ SSD_FULL_SIZE,
 			       /*timeout*/ SPACE_TIMEOUT);
 	} else {
-		uint32_t blk_pointer;
-
-		blk_pointer = locate_info->logical_id;
-
 		scsi_locate_10(&ccb->csio,
 			       /*retries*/ 1,
 			       /*cbfcnp*/ sadone,
