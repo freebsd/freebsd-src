@@ -441,7 +441,7 @@ f_dialog_menu_nameservers()
 
 			for ns in $nameservers; do
 				[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
-				tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+				f_substr -v tag "$DIALOG_MENU_TAGS" $index 1
 				echo "'$tag nameserver' '$ns'"
 				index=$(( $index + 1 ))
 			done
