@@ -23,6 +23,7 @@ SUBDIR_ORDERED=	csu \
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	.WAIT \
+	lib9p \
 	libalias \
 	libarchive \
 	${_libatm} \
