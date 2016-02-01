@@ -100,6 +100,7 @@ int		acpi_quirks;
 /* Supported sleep states. */
 static BOOLEAN	acpi_sleep_states[ACPI_S_STATE_COUNT];
 
+static void	acpi_lookup(void *arg, const char *name, device_t *dev);
 static int	acpi_modevent(struct module *mod, int event, void *junk);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
@@ -670,8 +671,10 @@ acpi_attach(device_t dev)
     /* Register ACPI again to pass the correct argument of pm_func. */
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc);
 
-    if (!acpi_disabled("bus"))
+    if (!acpi_disabled("bus")) {
+	EVENTHANDLER_REGISTER(dev_lookup, acpi_lookup, NULL, 1000);
 	acpi_probe_children(dev);
+    }
 
     /* Update all GPEs and enable runtime GPEs. */
     status = AcpiUpdateAllGpes();
@@ -3402,6 +3405,31 @@ acpi_disabled(char *subsys)
     freeenv(env);
 
     return (0);
+}
+
+static void
+acpi_lookup(void *arg, const char *name, device_t *dev)
+{
+    ACPI_HANDLE handle;
+
+    if (*dev != NULL)
+	return;
+
+    /*
+     * Allow any handle name that is specified as an absolute path and
+     * starts with '\'.  We could restrict this to \_SB and friends,
+     * but see acpi_probe_children() for notes on why we scan the entire
+     * namespace for devices.
+     *
+     * XXX: The pathname argument to AcpiGetHandle() should be fixed to
+     * be const.
+     */
+    if (name[0] != '\\')
+	return;
+    if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, __DECONST(char *, name),
+	&handle)))
+	return;
+    *dev = acpi_get_device(handle);
 }
 
 /*
