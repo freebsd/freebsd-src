@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include <sys/socket.h>
 #include <sys/sockio.h>
