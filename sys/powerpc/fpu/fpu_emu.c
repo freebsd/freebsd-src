@@ -183,7 +183,7 @@ fpu_dumpfpn(struct fpn *fp)
  * (Typically: zero, SIGFPE, SIGILL, SIGSEGV)
  */
 int
-fpu_emulate(struct trapframe *frame, struct fpreg *fpf)
+fpu_emulate(struct trapframe *frame, struct fpu *fpf)
 {
 	static union instr insn;
 	static struct fpemu fe;
