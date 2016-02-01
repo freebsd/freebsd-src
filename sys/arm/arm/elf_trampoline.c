@@ -49,7 +49,7 @@ void _start(void);
 void __start(void);
 void __startC(void);
 
-extern unsigned int cpufunc_id(void);
+extern unsigned int cpu_ident(void);
 extern void armv6_idcache_wbinv_all(void);
 extern void armv7_idcache_wbinv_all(void);
 extern void do_call(void *, void *, void *, int);
@@ -248,7 +248,7 @@ _startC(void)
 #ifndef KZIP
 #ifdef CPU_ARM9
 	/* So that idcache_wbinv works; */
-	if ((cpufunc_id() & 0x0000f000) == 0x00009000)
+	if ((cpu_ident() & 0x0000f000) == 0x00009000)
 		arm9_setup();
 #endif
 #endif
@@ -266,7 +266,7 @@ get_cachetype_cp15()
 	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
 		: "=r" (ctype));
 
-	cpuid = cpufunc_id();
+	cpuid = cpu_ident();
 	/*
 	 * ...and thus spake the ARM ARM:
 	 *
@@ -683,7 +683,7 @@ __start(void)
 
 #ifdef CPU_ARM9
 		/* So that idcache_wbinv works; */
-		if ((cpufunc_id() & 0x0000f000) == 0x00009000)
+		if ((cpu_ident() & 0x0000f000) == 0x00009000)
 			arm9_setup();
 #endif
 		setup_pagetables(pt_addr, (vm_paddr_t)curaddr,

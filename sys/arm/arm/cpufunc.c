@@ -221,8 +221,6 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
 	arm10_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	arm10_tlb_flushI_SE,		/* tlb_flushI_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
