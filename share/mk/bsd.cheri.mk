@@ -48,7 +48,9 @@ _CHERI_CFLAGS+=	-Qunused-arguments
 .endif
 
 .if ${WANT_CHERI} != "variables"
+.if ${MK_CHERI_SHARED} == "no"
 NO_SHARED=	yes
+.endif
 CC:=	${_CHERI_CC}
 COMPILER_TYPE=	clang
 CFLAGS+=	${_CHERI_CFLAGS}
