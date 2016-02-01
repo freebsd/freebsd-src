@@ -44,11 +44,6 @@ ENTRY(arm10_tlb_flushID_SE)
 	bx	lr
 END(arm10_tlb_flushID_SE)
 
-ENTRY(arm10_tlb_flushI_SE)
-	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
-	bx	lr
-END(arm10_tlb_flushI_SE)
-
 
 /*
  * Context switch.

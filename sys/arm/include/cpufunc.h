@@ -71,8 +71,6 @@ struct cpu_functions {
 
 	void	(*cf_tlb_flushID)	(void);
 	void	(*cf_tlb_flushID_SE)	(u_int va);
-	void	(*cf_tlb_flushI)	(void);
-	void	(*cf_tlb_flushI_SE)	(u_int va);
 	void	(*cf_tlb_flushD)	(void);
 	void	(*cf_tlb_flushD_SE)	(u_int va);
 
@@ -173,8 +171,6 @@ extern u_int cputype;
 
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
 #define	cpu_tlb_flushID_SE(e)	cpufuncs.cf_tlb_flushID_SE(e)
-#define	cpu_tlb_flushI()	cpufuncs.cf_tlb_flushI()
-#define	cpu_tlb_flushI_SE(e)	cpufuncs.cf_tlb_flushI_SE(e)
 #define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
 #define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
 
@@ -218,7 +214,6 @@ void	fa526_setup		(void);
 void	fa526_setttb		(u_int ttb);
 void	fa526_context_switch	(void);
 void	fa526_cpu_sleep		(int);
-void	fa526_tlb_flushI_SE	(u_int);
 void	fa526_tlb_flushID_SE	(u_int);
 void	fa526_flush_prefetchbuf	(void);
 
@@ -261,7 +256,6 @@ extern unsigned arm9_dcache_index_inc;
 
 #if defined(CPU_ARM9E)
 void	arm10_tlb_flushID_SE	(u_int);
-void	arm10_tlb_flushI_SE	(u_int);
 
 void	arm10_context_switch	(void);
 
@@ -316,8 +310,6 @@ void	pj4bv7_setup			(void);
 #if defined(CPU_ARM1176)
 void	arm11_tlb_flushID	(void);
 void	arm11_tlb_flushID_SE	(u_int);
-void	arm11_tlb_flushI	(void);
-void	arm11_tlb_flushI_SE	(u_int);
 void	arm11_tlb_flushD	(void);
 void	arm11_tlb_flushD_SE	(u_int va);
 
@@ -364,7 +356,6 @@ void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 
 void	armv4_tlb_flushID	(void);
-void	armv4_tlb_flushI	(void);
 void	armv4_tlb_flushD	(void);
 void	armv4_tlb_flushD_SE	(u_int va);
 
