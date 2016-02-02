@@ -645,7 +645,7 @@ pt2map_pt2pg(vm_offset_t va)
  *  vm_offset_t pmap_preboot_reserve_pages(u_int num);
  *  vm_offset_t pmap_preboot_get_vpages(u_int num);
  *  void pmap_preboot_map_attr(vm_paddr_t pa, vm_offset_t va, vm_size_t size,
- *      int prot, int attr);
+ *      vm_prot_t prot, vm_memattr_t attr);
  *
  *  (2) for all stages:
  *
@@ -984,15 +984,16 @@ pmap_preboot_get_vpages(u_int num)
  *  Pre-bootstrap epoch page mapping(s) with attributes.
  */
 void
-pmap_preboot_map_attr(vm_paddr_t pa, vm_offset_t va, vm_size_t size, int prot,
-    int attr)
+pmap_preboot_map_attr(vm_paddr_t pa, vm_offset_t va, vm_size_t size,
+    vm_prot_t prot, vm_memattr_t attr)
 {
 	u_int num;
-	u_int l1_attr, l1_prot;
+	u_int l1_attr, l1_prot, l2_prot;
 	pt1_entry_t *pte1p;
 	pt2_entry_t *pte2p;
 
-	l1_prot = ATTR_TO_L1(prot);
+	l2_prot = prot & VM_PROT_WRITE ? PTE2_AP_KRW : PTE2_AP_KR;
+	l1_prot = ATTR_TO_L1(l2_prot);
 	l1_attr = ATTR_TO_L1(attr);
 
 	/* Map all the pages. */
@@ -1006,13 +1007,12 @@ pmap_preboot_map_attr(vm_paddr_t pa, vm_offset_t va, vm_size_t size, int prot,
 			num -= PTE1_SIZE;
 		} else {
 			pte2p = pmap_preboot_vtopte2(va);
-			pte2_store(pte2p, PTE2_KERN(pa, prot, attr));
+			pte2_store(pte2p, PTE2_KERN(pa, l2_prot, attr));
 			va += PAGE_SIZE;
 			pa += PAGE_SIZE;
 			num -= PAGE_SIZE;
 		}
 	}
-
 }
 
 /*
