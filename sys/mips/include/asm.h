@@ -796,7 +796,7 @@ _C_LABEL(x):
 #elif defined(CPU_RMI)
 #define	HAZARD_DELAY
 #define	ITLBNOPFIX
-#elif defined(CPU_MIPS74KC)
+#elif defined(CPU_MIPS74K)
 #define	HAZARD_DELAY	sll $0,$0,3
 #define	ITLBNOPFIX	sll $0,$0,3
 #else
