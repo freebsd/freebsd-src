@@ -530,6 +530,7 @@ negative_success:
 	nchstats.ncs_neghits++;
 	if (ncp->nc_flag & NCF_WHITE)
 		cnp->cn_flags |= ISWHITEOUT;
+	cache_out_ts(ncp, tsp, ticksp);
 	CACHE_UNLOCK();
 	return (ENOENT);
 
