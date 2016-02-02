@@ -158,12 +158,17 @@ arm_gic_fdt_attach(device_t dev)
 	OF_getencprop(root, "#size-cells", &sc->sc_size_cells,
 	    sizeof(sc->sc_size_cells));
 
+	/* If we have no children don't probe for them */
+	child = OF_child(root);
+	if (child == 0)
+		return (0);
+
 	if (gic_fill_ranges(root, sc) < 0) {
 		device_printf(dev, "could not get ranges\n");
 		return (ENXIO);
 	}
 
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+	for (; child != 0; child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 
 		if (ofw_bus_gen_setup_devinfo(&dinfo->obdinfo, child) != 0) {
