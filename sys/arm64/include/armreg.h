@@ -101,6 +101,7 @@
 #define	 EXCP_SP_ALIGN		0x26	/* SP slignment fault */
 #define	 EXCP_TRAP_FP		0x2c	/* Trapped FP exception */
 #define	 EXCP_SERROR		0x2f	/* SError interrupt */
+#define	 EXCP_SOFTSTP_EL0	0x32	/* Software Step, from lower EL */
 #define	 EXCP_SOFTSTP_EL1	0x33	/* Software Step, from same EL */
 #define	 EXCP_WATCHPT_EL1	0x35	/* Watchpoint, from same EL */
 #define	 EXCP_BRK		0x3c	/* Breakpoint */

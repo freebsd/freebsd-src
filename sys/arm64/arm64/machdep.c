@@ -233,7 +233,8 @@ int
 ptrace_single_step(struct thread *td)
 {
 
-	/* TODO; */
+	td->td_frame->tf_spsr |= PSR_SS;
+	td->td_pcb->pcb_flags |= PCB_SINGLE_STEP;
 	return (0);
 }
 
@@ -241,7 +242,8 @@ int
 ptrace_clear_single_step(struct thread *td)
 {
 
-	/* TODO; */
+	td->td_frame->tf_spsr &= ~PSR_SS;
+	td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
 	return (0);
 }
 
