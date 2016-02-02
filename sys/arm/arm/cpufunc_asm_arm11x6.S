@@ -138,11 +138,6 @@ ENTRY_NP(arm11x6_icache_sync_all)
 	RET
 END(arm11x6_icache_sync_all)
 
-ENTRY_NP(arm11x6_flush_prefetchbuf)
-	mcr	p15, 0, r0, c7, c5, 4	/* Flush Prefetch Buffer */
-	RET
-END(arm11x6_flush_prefetchbuf)
-
 ENTRY_NP(arm11x6_icache_sync_range)
 	add	r1, r1, r0
 	sub	r1, r1, #1
