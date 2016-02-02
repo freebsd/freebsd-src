@@ -890,7 +890,7 @@ _mapping_get_dev_info(struct mps_softc *sc,
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t sas_device_pg0;
-	u8 entry, enc_idx, phy_idx, sata_end_device;
+	u8 entry, enc_idx, phy_idx;
 	u32 map_idx, index, device_info;
 	struct _map_phy_change *phy_change, *tmp_phy_change;
 	uint64_t sas_address;
@@ -920,10 +920,8 @@ _mapping_get_dev_info(struct mps_softc *sc,
 		sas_address = sas_device_pg0.SASAddress.High;
 		sas_address = (sas_address << 32) |
 		    sas_device_pg0.SASAddress.Low;
-		sata_end_device = 0;
 		if ((device_info & MPI2_SAS_DEVICE_INFO_END_DEVICE) &&
 		    (device_info & MPI2_SAS_DEVICE_INFO_SATA_DEVICE)) {
-			sata_end_device = 1;
 			rc = mpssas_get_sas_address_for_sata_disk(sc,
 			    &sas_address, phy_change->dev_handle, device_info,
 			    &phy_change->is_SATA_SSD);

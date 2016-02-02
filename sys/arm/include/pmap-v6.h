@@ -216,28 +216,8 @@ vm_paddr_t pmap_preboot_get_pages(u_int );
 void pmap_preboot_map_pages(vm_paddr_t , vm_offset_t , u_int );
 vm_offset_t pmap_preboot_reserve_pages(u_int );
 vm_offset_t pmap_preboot_get_vpages(u_int );
-void pmap_preboot_map_attr(vm_paddr_t , vm_offset_t , vm_size_t ,
-	int , int );
-static __inline void
-pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
-    vm_size_t size, int prot, int cache)
-{
-	pmap_preboot_map_attr(pa, va, size, prot, cache);
-}
-
-/*
- * This structure is used by machine-dependent code to describe
- * static mappings of devices, created at bootstrap time.
- */
-struct pmap_devmap {
-	vm_offset_t	pd_va;		/* virtual address */
-	vm_paddr_t	pd_pa;		/* physical address */
-	vm_size_t	pd_size;	/* size of region */
-	vm_prot_t	pd_prot;	/* protection code */
-	int		pd_cache;	/* cache attributes */
-};
-
-void pmap_devmap_bootstrap(const struct pmap_devmap *);
+void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
+    vm_memattr_t);
 
 #endif	/* _KERNEL */
 
@@ -268,40 +248,7 @@ void pmap_devmap_bootstrap(const struct pmap_devmap *);
 /*
  * sys/arm/arm/cpufunc.c
  */
-void pmap_pte_init_mmu_v6(void);
 void vector_page_setprot(int);
-
-
-/*
- * sys/arm/arm/db_interface.c
- * sys/arm/arm/machdep.c
- * sys/arm/arm/minidump_machdep.c
- * sys/arm/arm/pmap.c
- */
-#define pmap_kernel() kernel_pmap
-
-/*
- * sys/arm/arm/bus_space_generic.c (just comment)
- * sys/arm/arm/devmap.c
- * sys/arm/arm/pmap.c (just comment)
- * sys/arm/at91/at91_machdep.c
- * sys/arm/cavium/cns11xx/econa_machdep.c
- * sys/arm/freescale/imx/imx6_machdep.c (just comment)
- * sys/arm/mv/orion/db88f5xxx.c
- * sys/arm/mv/mv_localbus.c
- * sys/arm/mv/mv_machdep.c
- * sys/arm/mv/mv_pci.c
- * sys/arm/s3c2xx0/s3c24x0_machdep.c
- * sys/arm/versatile/versatile_machdep.c
- * sys/arm/xscale/ixp425/avila_machdep.c
- * sys/arm/xscale/i8134x/crb_machdep.c
- * sys/arm/xscale/i80321/ep80219_machdep.c
- * sys/arm/xscale/i80321/iq31244_machdep.c
- * sys/arm/xscale/pxa/pxa_machdep.c
- */
-#define PTE_DEVICE	PTE2_ATTR_DEVICE
-
-
 
 #endif	/* _KERNEL */
 // -----------------------------------------------------------------------------

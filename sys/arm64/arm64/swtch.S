@@ -37,10 +37,37 @@
 
 __FBSDID("$FreeBSD$");
 
+.macro clear_step_flag pcbflags, tmp
+	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
+	mrs	\tmp, mdscr_el1
+	bic	\tmp, \tmp, #1
+	msr	mdscr_el1, \tmp
+	isb
+999:
+.endm
+
+.macro set_step_flag pcbflags, tmp
+	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
+	mrs	\tmp, mdscr_el1
+	orr	\tmp, \tmp, #1
+	msr	mdscr_el1, \tmp
+	isb
+999:
+.endm
+
 /*
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
+	/* Of old == NULL skip disabling stepping */
+	cbz	x0, 1f
+
+	/* If we were single stepping, disable it */
+	ldr	x4, [x0, #TD_PCB]
+	ldr	w5, [x4, #PCB_FLAGS]
+	clear_step_flag w5, x6
+1:
+
 #ifdef VFP
 	/* Backup the new thread pointer around a call to C code */
 	mov	x19, x1
@@ -68,6 +95,10 @@ ENTRY(cpu_throw)
 	tlbi	vmalle1is
 	dsb	sy
 	isb
+
+	/* If we are single stepping, enable it */
+	ldr	w5, [x4, #PCB_FLAGS]
+	set_step_flag w5, x6
 
 	/* Restore the registers */
 	ldp	x5, x6, [x4, #PCB_SP]
@@ -127,6 +158,10 @@ ENTRY(cpu_switch)
 	mrs	x6, tpidr_el0
 	stp	x5, x6, [x4, #PCB_SP]
 
+	/* If we were single stepping, disable it */
+	ldr	w5, [x4, #PCB_FLAGS]
+	clear_step_flag w5, x6
+
 #ifdef VFP
 	mov	x19, x0
 	mov	x20, x1
@@ -173,6 +208,10 @@ ENTRY(cpu_switch)
 	cmp	x3, x2
 	b.eq	1b
 #endif
+
+	/* If we are single stepping, enable it */
+	ldr	w5, [x4, #PCB_FLAGS]
+	set_step_flag w5, x6
 
 	/* Restore the registers */
 	ldp	x5, x6, [x4, #PCB_SP]

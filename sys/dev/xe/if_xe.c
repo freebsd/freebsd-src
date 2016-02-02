@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>

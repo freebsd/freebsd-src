@@ -70,6 +70,11 @@
 .Op Fl f Ar path_to_firmware
 .Op Fl a
 .Aq device id
+.Nm
+.Ic power
+.Op Fl l
+.Op Fl p power_state
+.Op fl w workload_hint
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
@@ -120,6 +125,18 @@ Activate the firmware in slot 4 of the nvme0 controller on the next reset.
 .Pp
 Download the firmware image contained in "/tmp/nvme_firmware" to slot 7 of the
 nvme0 controller and activate it on the next reset.
+.Pp
+.Dl nvmecontrol power -l nvme0
+.Pp
+List all the current power modes.
+.Pp
+.Dl nvmecontrol power -p 3 nvme0
+.Pp
+Set the current power mode.
+.Pp
+.Dl nvmecontrol power nvme0
+.Pp
+Get the current power mode.
 .Sh AUTHORS
 .An -nosplit
 .Nm

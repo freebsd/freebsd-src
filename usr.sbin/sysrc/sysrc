@@ -790,7 +790,7 @@ while [ $# -gt 0 ]; do
 			delim="${add%"${add#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new="$before"
@@ -812,7 +812,7 @@ while [ $# -gt 0 ]; do
 			delim="${remove%"${remove#?}"}" # first character
 			oldIFS="$IFS"
 			case "$delim" in
-			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			""|[$IFS]|[a-zA-Z0-9./]) delim=" " ;;
 			*) IFS="$delim"
 			esac
 			new=

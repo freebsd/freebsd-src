@@ -189,13 +189,13 @@ nexus_activate_resource(device_t bus __unused, device_t child __unused,
 {
 
 	if (type == SYS_RES_MEMORY) {
-		vm_offset_t start;
+		vm_paddr_t start;
 		void *p;
 
-		start = (vm_offset_t) rman_get_start(r);
+		start = (vm_paddr_t) rman_get_start(r);
 		if (bootverbose)
-			printf("nexus mapdev: start %zx, len %ld\n", start,
-			    rman_get_size(r));
+			printf("nexus mapdev: start %jx, len %ld\n",
+			    (uintmax_t)start, rman_get_size(r));
 
 		p = pmap_mapdev(start, (vm_size_t) rman_get_size(r));
 		if (p == NULL)

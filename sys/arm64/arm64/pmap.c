@@ -596,7 +596,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	 * up to the physical address KERNBASE points at.
 	 */
 	map_slot = avail_slot = 0;
-	for (; map_slot < (physmap_idx * 2); map_slot += 2) {
+	for (; map_slot < (physmap_idx * 2) &&
+	    avail_slot < (PHYS_AVAIL_SIZE - 2); map_slot += 2) {
 		if (physmap[map_slot] == physmap[map_slot + 1])
 			continue;
 
@@ -612,7 +613,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	}
 
 	/* Add the memory before the kernel */
-	if (physmap[avail_slot] < pa) {
+	if (physmap[avail_slot] < pa && avail_slot < (PHYS_AVAIL_SIZE - 2)) {
 		phys_avail[avail_slot] = physmap[map_slot];
 		phys_avail[avail_slot + 1] = pa;
 		physmem += (phys_avail[avail_slot + 1] -
