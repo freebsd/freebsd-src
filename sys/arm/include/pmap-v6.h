@@ -225,20 +225,6 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 	pmap_preboot_map_attr(pa, va, size, prot, cache);
 }
 
-/*
- * This structure is used by machine-dependent code to describe
- * static mappings of devices, created at bootstrap time.
- */
-struct pmap_devmap {
-	vm_offset_t	pd_va;		/* virtual address */
-	vm_paddr_t	pd_pa;		/* physical address */
-	vm_size_t	pd_size;	/* size of region */
-	vm_prot_t	pd_prot;	/* protection code */
-	int		pd_cache;	/* cache attributes */
-};
-
-void pmap_devmap_bootstrap(const struct pmap_devmap *);
-
 #endif	/* _KERNEL */
 
 // ----------------- TO BE DELETED ---------------------------------------------
