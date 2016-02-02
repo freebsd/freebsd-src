@@ -184,11 +184,16 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	EFI_HANDLE h;
 	EFI_STATUS status;
 
+	if (nif->nif_driver->netif_ifs[nif->nif_unit].dif_unit < 0) {
+		printf("Invalid network interface %d\n", nif->nif_unit);
+		return;
+	}
+
 	h = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
 	status = BS->HandleProtocol(h, &sn_guid, (VOID **)&nif->nif_devdata);
 	if (status != EFI_SUCCESS) {
-		printf("net%d: cannot start interface (status=%ld)\n",
-		    nif->nif_unit, (long)status);
+		printf("net%d: cannot start interface (status=%lu)\n",
+		    nif->nif_unit, EFI_ERROR_CODE(status));
 		return;
 	}
 
@@ -288,11 +293,30 @@ efinet_dev_init()
 	stats = calloc(nifs, sizeof(struct netif_stats));
 
 	for (i = 0; i < nifs; i++) {
+		EFI_SIMPLE_NETWORK *net;
+		EFI_HANDLE h;
+
 		dif = &efinetif.netif_ifs[i];
+		dif->dif_unit = -1;
+
+		h = efi_find_handle(&efinet_dev, i);
+
+		/*
+		 * Open the network device in exclusive mode. Without this
+		 * we will be racing with the UEFI network stack. It will
+		 * pull packets off the network leading to lost packets.
+		 */
+		status = BS->OpenProtocol(h, &sn_guid, (void **)&net,
+		    IH, 0, EFI_OPEN_PROTOCOL_EXCLUSIVE);
+		if (status != EFI_SUCCESS) {
+			printf("Unable to open network interface %d\n", i);
+			continue;
+		}
+
 		dif->dif_unit = i;
 		dif->dif_nsel = 1;
 		dif->dif_stats = &stats[i];
-		dif->dif_private = efi_find_handle(&efinet_dev, i);
+		dif->dif_private = h;
 	}
 
 	return (0);
