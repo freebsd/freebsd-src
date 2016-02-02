@@ -130,6 +130,9 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
+.if !empty(MD_ROOT_SIZE_CONFIGURED) && defined(MFS_IMAGE)
+	@sh ${S}/tools/embed_mfs.sh ${.TARGET} ${MFS_IMAGE}
+.endif
 .if ${MK_CTF} != "no"
 	@echo ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ...
 	@${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
@@ -357,6 +360,7 @@ vnode_if_typedef.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -q
 
 .if ${MFS_IMAGE:Uno} != "no"
+.if empty(MD_ROOT_SIZE_CONFIGURED)
 # Generate an object file from the file system image to embed in the kernel
 # via linking. Make sure the contents are in the mfs section and rename the
 # start/end/size variables to __start_mfs, __stop_mfs, and mfs_size,
@@ -375,6 +379,7 @@ embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
 	    --redefine-sym \
 		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_end=mfs_root_end \
 	    ${.TARGET}
+.endif
 .endif
 
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
