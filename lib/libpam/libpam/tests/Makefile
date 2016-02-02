@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 OPENPAM=	${SRCTOP}/contrib/openpam
 .PATH: ${OPENPAM}/t
 

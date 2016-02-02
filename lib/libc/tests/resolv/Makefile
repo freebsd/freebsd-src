@@ -1,6 +1,10 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/lib/libc/resolv
+
 BINDIR=		${TESTSDIR}
 
 FILES+=		mach

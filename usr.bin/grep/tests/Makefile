@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 NETBSD_ATF_TESTS_SH=	grep_test
 
 FILESDIR=	${TESTSDIR}

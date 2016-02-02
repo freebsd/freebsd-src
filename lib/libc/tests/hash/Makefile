@@ -2,6 +2,10 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 NETBSD_ATF_TESTS_C=
 
 .if ${MK_OPENSSL} != "no"

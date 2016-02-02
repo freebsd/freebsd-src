@@ -2,6 +2,10 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTS=		${FILESDIR}/${FILES}
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
 
 .PATH: ${.CURDIR:H}
