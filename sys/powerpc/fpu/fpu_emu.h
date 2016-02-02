@@ -138,7 +138,7 @@ struct fpn {
  * Emulator state.
  */
 struct fpemu {
-	struct	fpreg *fe_fpstate;	/* registers, etc */
+	struct	fpu *fe_fpstate;	/* registers, etc */
 	int	fe_fpscr;		/* fpscr copy (modified during op) */
 	int	fe_cx;			/* keep track of exceptions */
 	struct	fpn fe_f1;		/* operand 1 */

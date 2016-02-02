@@ -608,13 +608,18 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	struct pcb *pcb;
+	int i;
 
 	pcb = td->td_pcb;
 
 	if ((pcb->pcb_flags & PCB_FPREGS) == 0)
 		memset(fpregs, 0, sizeof(struct fpreg));
-	else
-		memcpy(fpregs, &pcb->pcb_fpu, sizeof(struct fpreg));
+	else {
+		memcpy(&fpregs->fpscr, &pcb->pcb_fpu.fpscr, sizeof(double));
+		for (i = 0; i < 32; i++)
+			memcpy(&fpregs->fpreg[i], &pcb->pcb_fpu.fpr[i].fpr,
+			    sizeof(double));
+	}
 
 	return (0);
 }
@@ -641,10 +646,15 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 	struct pcb *pcb;
+	int i;
 
 	pcb = td->td_pcb;
 	pcb->pcb_flags |= PCB_FPREGS;
-	memcpy(&pcb->pcb_fpu, fpregs, sizeof(struct fpreg));
+	memcpy(&pcb->pcb_fpu.fpscr, &fpregs->fpscr, sizeof(double));
+	for (i = 0; i < 32; i++) {
+		memcpy(&pcb->pcb_fpu.fpr[i].fpr, &fpregs->fpreg[i],
+		    sizeof(double));
+	}
 
 	return (0);
 }
@@ -1060,7 +1070,7 @@ ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
 		bzero(&pcb->pcb_fpu, sizeof(pcb->pcb_fpu));
 		pcb->pcb_flags |= PCB_FPREGS;
 	}
-	sig = fpu_emulate(frame, (struct fpreg *)&pcb->pcb_fpu);
+	sig = fpu_emulate(frame, &pcb->pcb_fpu);
 #endif
 
 	return (sig);

@@ -170,7 +170,7 @@ db_validate_address(vm_offset_t addr)
 	    addr >= VM_MIN_KERNEL_ADDRESS
 #endif
 	   )
-		pmap = pmap_kernel();
+		pmap = kernel_pmap;
 	else
 		pmap = p->p_vmspace->vm_map.pmap;
 

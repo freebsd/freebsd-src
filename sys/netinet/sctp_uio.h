@@ -1170,13 +1170,15 @@ struct xsctp_inpcb {
 	uint32_t total_nospaces;
 	uint32_t fragmentation_point;
 	uint16_t local_port;
-	uint16_t qlen;
-	uint16_t maxqlen;
+	uint16_t qlen_old;
+	uint16_t maxqlen_old;
 	void *socket;
+	uint32_t qlen;
+	uint32_t maxqlen;
 #if defined(__LP64__)
-	uint32_t extra_padding[29];	/* future */
+	uint32_t extra_padding[27];	/* future */
 #else
-	uint32_t extra_padding[30];	/* future */
+	uint32_t extra_padding[28];	/* future */
 #endif
 };
 

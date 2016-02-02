@@ -50,7 +50,6 @@ elif [ -d "$SYSCONFDIR/resolvconf" ]; then
 		interface_order="$(cat "$SYSCONFDIR"/interface-order)"
 	fi
 fi
-TMPDIR="$VARDIR/tmp"
 IFACEDIR="$VARDIR/interfaces"
 METRICDIR="$VARDIR/metrics"
 PRIVATEDIR="$VARDIR/private"
