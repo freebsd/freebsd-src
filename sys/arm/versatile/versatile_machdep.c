@@ -88,7 +88,7 @@ static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 
 
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Construct devmap table with DT-derived config data.
  */
 int
 platform_devmap_init(void)
