@@ -72,7 +72,7 @@ SRCDIR?=	${.CURDIR}
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
 SUBDIR=	lib libexec
-.if make(install*)
+.if !defined(NO_ROOT) && (make(installworld) || make(install))
 # Ensure libraries are installed before progressing.
 SUBDIR+=.WAIT
 .endif
@@ -127,7 +127,7 @@ SUBDIR+=	${_DIR}
 # by calling 'makedb' in share/man.  This is only relevant for
 # install/distribute so they build the whatis file after every manpage is
 # installed.
-.if make(install*)
+.if make(installworld) || make(install)
 SUBDIR+=.WAIT
 .endif
 SUBDIR+=etc
