@@ -4,6 +4,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	vi
 SRCDIR=		${.CURDIR}/../../contrib/nvi
 SUBDIR+=	catalog
 
