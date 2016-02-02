@@ -216,8 +216,8 @@ vm_paddr_t pmap_preboot_get_pages(u_int );
 void pmap_preboot_map_pages(vm_paddr_t , vm_offset_t , u_int );
 vm_offset_t pmap_preboot_reserve_pages(u_int );
 vm_offset_t pmap_preboot_get_vpages(u_int );
-void pmap_preboot_map_attr(vm_paddr_t , vm_offset_t , vm_size_t ,
-	int , int );
+void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
+    vm_memattr_t);
 static __inline void
 pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
     vm_size_t size, int prot, int cache)
