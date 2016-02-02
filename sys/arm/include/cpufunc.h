@@ -225,11 +225,13 @@ void	fa526_idcache_wbinv_range(vm_offset_t start, vm_size_t end);
 #endif
 
 
-#ifdef CPU_ARM9
+#if defined(CPU_ARM9) || defined(CPU_ARM9E)
 void	arm9_setttb		(u_int);
-
 void	arm9_tlb_flushID_SE	(u_int va);
+void	arm9_context_switch	(void);
+#endif
 
+#if defined(CPU_ARM9) 
 void	arm9_icache_sync_all	(void);
 void	arm9_icache_sync_range	(vm_offset_t, vm_size_t);
 
@@ -241,8 +243,6 @@ void	arm9_dcache_wb_range	(vm_offset_t, vm_size_t);
 void	arm9_idcache_wbinv_all	(void);
 void	arm9_idcache_wbinv_range (vm_offset_t, vm_size_t);
 
-void	arm9_context_switch	(void);
-
 void	arm9_setup		(void);
 
 extern unsigned arm9_dcache_sets_max;
@@ -252,10 +252,6 @@ extern unsigned arm9_dcache_index_inc;
 #endif
 
 #if defined(CPU_ARM9E)
-void	arm10_tlb_flushID_SE	(u_int);
-
-void	arm10_context_switch	(void);
-
 void	arm10_setup		(void);
 
 u_int	sheeva_control_ext 		(u_int, u_int);

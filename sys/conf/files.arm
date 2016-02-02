@@ -11,8 +11,7 @@ arm/arm/busdma_machdep-v6.c 	optional	armv6
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
-arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9
-arm/arm/cpufunc_asm_arm10.S 	optional	cpu_arm9e
+arm/arm/cpufunc_asm_arm9.S 	optional	cpu_arm9 | cpu_arm9e
 arm/arm/cpufunc_asm_arm11.S	optional	cpu_arm1176
 arm/arm/cpufunc_asm_arm11x6.S	optional	cpu_arm1176
 arm/arm/cpufunc_asm_armv4.S 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80321 | cpu_xscale_pxa2x0 | cpu_xscale_ixp425 | cpu_xscale_80219 | cpu_xscale_81342

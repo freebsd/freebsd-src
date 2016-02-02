@@ -167,7 +167,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
-	arm10_tlb_flushID_SE,		/* tlb_flushID_SE	*/
+	arm9_tlb_flushID_SE,		/* tlb_flushID_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -199,7 +199,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 	/* Soft functions */
 
-	arm10_context_switch,		/* context_switch	*/
+	arm9_context_switch,		/* context_switch	*/
 
 	arm10_setup			/* cpu setup		*/
 
@@ -218,7 +218,7 @@ struct cpu_functions sheeva_cpufuncs = {
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
-	arm10_tlb_flushID_SE,		/* tlb_flushID_SE	*/
+	arm9_tlb_flushID_SE,		/* tlb_flushID_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -250,7 +250,7 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	/* Soft functions */
 
-	arm10_context_switch,		/* context_switch	*/
+	arm9_context_switch,		/* context_switch	*/
 
 	arm10_setup			/* cpu setup		*/
 };
