@@ -72,12 +72,6 @@ ENTRY(fa526_cpu_sleep)
 	mov	pc, lr
 END(fa526_cpu_sleep)
 
-ENTRY(fa526_flush_prefetchbuf)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 4	/* Pre-fetch flush */
-	mov	pc, lr
-END(fa526_flush_prefetchbuf)
-
 /*
  * Cache functions
  */

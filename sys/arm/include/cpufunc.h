@@ -149,7 +149,6 @@ struct cpu_functions {
 
 	/* Other functions */
 
-	void	(*cf_flush_prefetchbuf)	(void);
 	void	(*cf_drain_writebuf)	(void);
 
 	void	(*cf_sleep)		(int mode);
@@ -191,7 +190,6 @@ extern u_int cputype;
 #define cpu_l2cache_wbinv_range(a, s) cpufuncs.cf_l2cache_wbinv_range((a), (s))
 #define cpu_l2cache_drain_writebuf() cpufuncs.cf_l2cache_drain_writebuf()
 
-#define	cpu_flush_prefetchbuf()	cpufuncs.cf_flush_prefetchbuf()
 #define	cpu_drain_writebuf()	cpufuncs.cf_drain_writebuf()
 #define cpu_sleep(m)		cpufuncs.cf_sleep(m)
 
@@ -215,7 +213,6 @@ void	fa526_setttb		(u_int ttb);
 void	fa526_context_switch	(void);
 void	fa526_cpu_sleep		(int);
 void	fa526_tlb_flushID_SE	(u_int);
-void	fa526_flush_prefetchbuf	(void);
 
 void	fa526_icache_sync_all	(void);
 void	fa526_icache_sync_range(vm_offset_t start, vm_size_t end);
@@ -327,7 +324,6 @@ void    arm11x6_setttb                  (u_int);
 void    arm11x6_idcache_wbinv_all       (void);
 void    arm11x6_dcache_wbinv_all        (void);
 void    arm11x6_icache_sync_all         (void);
-void    arm11x6_flush_prefetchbuf       (void);
 void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
 void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
 void    arm11x6_setup                   (void);
