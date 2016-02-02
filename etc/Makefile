@@ -3,6 +3,8 @@
 
 .include <src.opts.mk>
 
+FILESGROUPS=	FILES
+
 SUBDIR=	\
 	newsyslog.conf.d
 
@@ -79,8 +81,13 @@ BIN1+= apmd.conf
 .endif
 
 .if ${MK_AUTOFS} != "no"
-BIN1+= auto_master
+FILESGROUPS+=	AUTOFS
+AUTOFS+=	auto_master
 .endif
+AUTOFSDIR=	/etc
+AUTOFSMODE=	${BINMODE}
+AUTOFSPACKAGE=	autofs
+AUTOFSTAGS=	config
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 BIN1+= freebsd-update.conf
