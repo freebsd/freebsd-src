@@ -313,8 +313,12 @@ _utx=		utx
 .endif
 
 .if ${MK_VI} != "no"
-FILES+=		virecover
+FILESGROUPS+=	VI
+VI+=		virecover
 .endif
+VIDIR=		/etc/rc.d
+VIMODE=		${BINMODE}
+VIPACKAGE=	vi
 
 .if ${MK_WIRELESS} != "no"
 FILES+=		hostapd
