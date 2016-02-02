@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	cheritest
+PROG?=	cheritest
 SRCS=	cheritest.c
 
 .ifndef BOOTSTRAPPING
@@ -24,7 +24,11 @@ SRCS+=	cheritest_bounds_stack.c					\
 MAN=
 
 .ifndef BOOTSTRAPPING
+.if ${PROG} == cheritest
 NEED_CHERI=	hybrid
+.elif ${PROG} == cheriabitest
+WANT_CHERI=	pure
+.endif
 WANT_DUMP=	yes
 LIBADD= 	cheri z
 .endif
