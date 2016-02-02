@@ -218,12 +218,6 @@ vm_offset_t pmap_preboot_reserve_pages(u_int );
 vm_offset_t pmap_preboot_get_vpages(u_int );
 void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
     vm_memattr_t);
-static __inline void
-pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
-    vm_size_t size, int prot, int cache)
-{
-	pmap_preboot_map_attr(pa, va, size, prot, cache);
-}
 
 #endif	/* _KERNEL */
 
@@ -255,29 +249,6 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
  * sys/arm/arm/cpufunc.c
  */
 void vector_page_setprot(int);
-
-/*
- * sys/arm/arm/bus_space_generic.c (just comment)
- * sys/arm/arm/devmap.c
- * sys/arm/arm/pmap.c (just comment)
- * sys/arm/at91/at91_machdep.c
- * sys/arm/cavium/cns11xx/econa_machdep.c
- * sys/arm/freescale/imx/imx6_machdep.c (just comment)
- * sys/arm/mv/orion/db88f5xxx.c
- * sys/arm/mv/mv_localbus.c
- * sys/arm/mv/mv_machdep.c
- * sys/arm/mv/mv_pci.c
- * sys/arm/s3c2xx0/s3c24x0_machdep.c
- * sys/arm/versatile/versatile_machdep.c
- * sys/arm/xscale/ixp425/avila_machdep.c
- * sys/arm/xscale/i8134x/crb_machdep.c
- * sys/arm/xscale/i80321/ep80219_machdep.c
- * sys/arm/xscale/i80321/iq31244_machdep.c
- * sys/arm/xscale/pxa/pxa_machdep.c
- */
-#define PTE_DEVICE	PTE2_ATTR_DEVICE
-
-
 
 #endif	/* _KERNEL */
 // -----------------------------------------------------------------------------
