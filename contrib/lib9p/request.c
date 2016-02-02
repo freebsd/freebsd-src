@@ -121,6 +121,11 @@ l9p_respond(struct l9p_request *req, int errnum)
 #endif
 
 	switch (req->lr_req.hdr.type) {
+		case L9P_TATTACH:
+			if (errnum != 0)
+				l9p_connection_remove_fid(conn, req->lr_fid);
+
+			break;
 		case L9P_TCLUNK:
 		case L9P_TREMOVE:
 			if (req->lr_fid != NULL)
