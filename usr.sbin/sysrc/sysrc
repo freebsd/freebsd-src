@@ -595,7 +595,7 @@ fi
 if [ "$SHOW_ALL" ]; then
 	#
 	# Get a list of variables that are currently set in the rc.conf(5)
-	# files (included `/etc/defaults/rc.conf') by performing a call to
+	# files (including `/etc/defaults/rc.conf') by performing a call to
 	# source_rc_confs() in a clean environment.
 	#
 	( # Operate in a sub-shell to protect the parent environment
