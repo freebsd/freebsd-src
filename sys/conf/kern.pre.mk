@@ -195,8 +195,12 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
+
+MD_ROOT_SIZE_CONFIGURED!=	grep MD_ROOT_SIZE opt_md.h || true ; echo
 .if ${MFS_IMAGE:Uno} != "no"
+.if empty(MD_ROOT_SIZE_CONFIGURED)
 SYSTEM_OBJS+= embedfs_${MFS_IMAGE:T:R}.o
+.endif
 .endif
 SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} --no-warn-mismatch \
 	--warn-common --export-dynamic --dynamic-linker /red/herring \
@@ -230,8 +234,9 @@ MKMODULESENV+=	__MPATH="${__MPATH}"
 
 # Architecture and output format arguments for objdump to convert image to
 # object file
-.if ${MFS_IMAGE:Uno} != "no"
 
+.if ${MFS_IMAGE:Uno} != "no"
+.if empty(MD_ROOT_SIZE_CONFIGURED)
 .if !defined(EMBEDFS_FORMAT.${MACHINE_ARCH})
 EMBEDFS_FORMAT.${MACHINE_ARCH}!= awk -F'"' '/OUTPUT_FORMAT/ {print $$2}' ${LDSCRIPT}
 .if empty(EMBEDFS_FORMAT.${MACHINE_ARCH})
@@ -253,6 +258,7 @@ EMBEDFS_FORMAT.mipsel?=		elf32-tradlittlemips
 EMBEDFS_FORMAT.mips64?=		elf64-tradbigmips
 EMBEDFS_FORMAT.mips64el?=	elf64-tradlittlemips
 EMBEDFS_FORMAT.riscv?=		elf64-littleriscv
+.endif
 .endif
 
 # Detect kernel config options that force stack frames to be turned on.
