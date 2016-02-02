@@ -3,10 +3,14 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=vi
 V=	${.CURDIR}/../../../contrib/nvi
 
-CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
+FILESGROUPS+=VICAT
+VICAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
 	uk_UA.KOI8-U zh_CN.GB2312
+VICATDIR=	${FILESDIR}
+VICATPACKAGE=	${PACKAGE}
 
 SCAN=	${V}/cl/*.c ${V}/common/*.c ${V}/ex/*.c ${V}/vi/*.c
 
