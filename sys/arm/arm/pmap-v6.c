@@ -1325,7 +1325,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	PDEBUG(1, printf("%s: virt = %#x, start = %#x, end = %#x (size = %#x),"
 	    " prot = %d\n", __func__, *virt, start, end, end - start,  prot));
 
-	l2prot = (prot & VM_PROT_WRITE) ? PTE2_AP_KRW : PTE1_AP_KR;
+	l2prot = (prot & VM_PROT_WRITE) ? PTE2_AP_KRW : PTE2_AP_KR;
 	l2prot |= (prot & VM_PROT_EXECUTE) ? PTE2_X : PTE2_NX;
 	l1prot = ATTR_TO_L1(l2prot);
 
