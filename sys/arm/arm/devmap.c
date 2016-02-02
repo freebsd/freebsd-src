@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/devmap.h>
 #include <machine/vmparam.h>
@@ -52,6 +53,9 @@ static boolean_t devmap_bootstrap_done = false;
 #define	PTE_DEVICE	VM_MEMATTR_DEVICE
 #elif defined(__arm__)
 #define	MAX_VADDR	ARM_VECTORS_HIGH
+#if __ARM_ARCH >= 6
+#define	PTE_DEVICE	VM_MEMATTR_DEVICE
+#endif
 #endif
 
 /*
@@ -204,8 +208,13 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 #if defined(__arm__)
+#if __ARM_ARCH >= 6
+		pmap_preboot_map_attr(pd->pd_pa, pd->pd_va, pd->pd_size,
+		    pd->pd_prot, pd->pd_cache);
+#else
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
-		    pd->pd_prot,pd->pd_cache);
+		    pd->pd_prot, pd->pd_cache);
+#endif
 #elif defined(__aarch64__)
 		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
 #endif
