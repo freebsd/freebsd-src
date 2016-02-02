@@ -140,7 +140,6 @@ struct cpu_functions arm9_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
@@ -194,7 +193,6 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
@@ -246,7 +244,6 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
 
 	sheeva_cpu_sleep,		/* sleep		*/
@@ -298,7 +295,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv7_drain_writebuf,		/* drain_writebuf	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
@@ -352,7 +348,6 @@ struct cpu_functions xscale_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
 
 	xscale_cpu_sleep,		/* sleep		*/
@@ -406,7 +401,6 @@ struct cpu_functions xscalec3_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
 
 	xscale_cpu_sleep,		/* sleep		*/
@@ -459,7 +453,6 @@ struct cpu_functions fa526_cpufuncs = {
 
 	/* Other functions */
 
-	fa526_flush_prefetchbuf,	/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
 
 	fa526_cpu_sleep,		/* sleep		*/
@@ -513,7 +506,6 @@ struct cpu_functions arm1176_cpufuncs = {
 
 	/* Other functions */
 
-	arm11x6_flush_prefetchbuf,      /* flush_prefetchbuf    */
 	arm11_drain_writebuf,           /* drain_writebuf       */
 
 	arm11x6_sleep,                  /* sleep                */
@@ -574,7 +566,6 @@ struct cpu_functions cortexa_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,                 /* flush_prefetchbuf    */
 	armv7_drain_writebuf,           /* drain_writebuf       */
 
 	armv7_cpu_sleep,                /* sleep                */
