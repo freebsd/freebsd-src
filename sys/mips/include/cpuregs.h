@@ -149,12 +149,12 @@
 #define	MIPS_CCA_CC	0x05	/* Cacheable Coherent. */
 #endif
 
-#if defined(CPU_MIPS74KC)
+#if defined(CPU_MIPS74K)
 #define	MIPS_CCA_UNCACHED	0x02
 #define	MIPS_CCA_CACHED		0x03
 #endif
 
-#if defined(CPU_MIPS1004KC)
+#if defined(CPU_MIPS1004K)
 #define	MIPS_CCA_UNCACHED	0x02
 #define	MIPS_CCA_CACHED		0x05
 #endif
@@ -214,7 +214,7 @@
 #define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
-#elif defined(CPU_MIPS74KC) || defined(CPU_MIPS1004KC)
+#elif defined(CPU_MIPS74K) || defined(CPU_MIPS1004K)
 #define	COP0_SYNC	 .word 0xc0	/* ehb */
 #else
 /*
