@@ -56,6 +56,6 @@ copystr(const void * __restrict kfaddr, void * __restrict kdaddr, size_t len,
 	if (lencopied != NULL)
 		*lencopied = pos;
 
-	return (0);
+	return (error);
 }
 
