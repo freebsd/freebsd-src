@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 ATF_TESTS_C+=		btowc_test
 ATF_TESTS_C+=		c16rtomb_test
 ATF_TESTS_C+=		iswctype_test

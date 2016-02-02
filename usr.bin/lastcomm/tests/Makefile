@@ -1,8 +1,10 @@
 # $FreeBSD$
 
-TAP_TESTS_SH=	legacy_test
-
 PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
+TAP_TESTS_SH=	legacy_test
 
 FILESDIR=	${TESTSDIR}
 FILES=		v1-amd64-acct.in

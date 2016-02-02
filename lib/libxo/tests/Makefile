@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 
 # Override the default suffix transformation rules for .c/.o -> .out

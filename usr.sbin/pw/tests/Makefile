@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 ATF_TESTS_SH=	pw_etcdir \
 		pw_lock \
 		pw_config \

@@ -2,6 +2,10 @@
 
 .include <bsd.init.mk>
 
+PACKAGE=tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
+
 TESTS_SUBDIRS=	detail
 
 ATF=		${SRCTOP}/contrib/atf
