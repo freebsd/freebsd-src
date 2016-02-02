@@ -121,7 +121,7 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
-#define	PHYS_AVAIL_SIZE	10
+#define	PHYS_AVAIL_SIZE	32
 extern vm_paddr_t phys_avail[];
 extern vm_paddr_t dump_avail[];
 extern vm_offset_t virtual_avail;
