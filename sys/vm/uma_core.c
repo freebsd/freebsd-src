@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -439,8 +440,9 @@ zone_log_warning(uma_zone_t zone)
 static inline void
 zone_maxaction(uma_zone_t zone)
 {
-	if (zone->uz_maxaction)
-		(*zone->uz_maxaction)(zone);
+
+	if (zone->uz_maxaction.ta_func != NULL)
+		taskqueue_enqueue(taskqueue_thread, &zone->uz_maxaction);
 }
 
 static void
@@ -1590,7 +1592,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_flags = 0;
 	zone->uz_warning = NULL;
 	timevalclear(&zone->uz_ratecheck);
-	zone->uz_maxaction = NULL;
 	keg = arg->keg;
 
 	ZONE_LOCK_INIT(zone, (arg->flags & UMA_ZONE_MTXCLASS));
@@ -3027,7 +3028,7 @@ uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t maxaction)
 {
 
 	ZONE_LOCK(zone);
-	zone->uz_maxaction = maxaction;
+	TASK_INIT(&zone->uz_maxaction, 0, (task_fn_t *)maxaction, zone);
 	ZONE_UNLOCK(zone);
 }
 
