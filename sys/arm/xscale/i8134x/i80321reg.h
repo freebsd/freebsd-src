@@ -331,12 +331,12 @@
 #define	ICU_INT_bit26		26
 
 /* CPU_XSCALE_80321 */
-//#define	ICU_INT_SSP		25	/* SSP serial port */
+#define	ICU_INT_SSP		25	/* SSP serial port */
 
 #define	ICU_INT_MUE		24	/* msg unit error */
 
 /* CPU_XSCALE_80321 */
-//#define	ICU_INT_AAUE		23	/* AAU error */
+#define	ICU_INT_AAUE		23	/* AAU error */
 
 #define	ICU_INT_bit22		22
 #define	ICU_INT_DMA1E		21	/* DMA Ch 1 error */
@@ -355,8 +355,8 @@
 #define	ICU_INT_CPPM		8	/* core processor PMU */
 
 /* CPU_XSCALE_80321 */
-//#define	ICU_INT_AAU_EOC		7	/* AAU end-of-chain */
-//#define	ICU_INT_AAU_EOT		6	/* AAU end-of-transfer */
+#define	ICU_INT_AAU_EOC		7	/* AAU end-of-chain */
+#define	ICU_INT_AAU_EOT		6	/* AAU end-of-transfer */
 
 #define	ICU_INT_bit5		5
 #define	ICU_INT_bit4		4
@@ -366,11 +366,11 @@
 #define	ICU_INT_DMA0_EOT	0	/* DMA0 end-of-transfer */
 
 /* CPU_XSCALE_80321 */
-//#define	ICU_INT_HWMASK		(0xffffffff & \
-//					~((1 << ICU_INT_bit26) | \
-//					  (1 << ICU_INT_bit22) | \
-//					  (1 << ICU_INT_bit5)  | \
-//					  (1 << ICU_INT_bit4)))
+#define	ICU_INT_HWMASK		(0xffffffff & \
+					~((1 << ICU_INT_bit26) | \
+					  (1 << ICU_INT_bit22) | \
+					  (1 << ICU_INT_bit5)  | \
+					  (1 << ICU_INT_bit4)))
 
 /*
  * Peripheral Bus Interface Unit
