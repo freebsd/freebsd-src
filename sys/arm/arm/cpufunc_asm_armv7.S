@@ -252,16 +252,6 @@ ENTRY(armv7_idcache_wbinv_range)
 	RET
 END(armv7_idcache_wbinv_range)
 
-ENTRY_NP(armv7_icache_sync_all)
-#ifdef SMP
-	mcr	CP15_ICIALLUIS
-#else
-	mcr	CP15_ICIALLU
-#endif
-	dsb				/* data synchronization barrier */
-	isb				/* instruction synchronization barrier */
-	RET
-END(armv7_icache_sync_all)
 
 ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_icache_line_size
