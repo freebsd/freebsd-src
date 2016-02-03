@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/uma.h>
-#include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
 
 /*
