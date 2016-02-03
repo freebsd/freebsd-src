@@ -12,3 +12,10 @@ desc = <<EOD
 Unbound is a recursive-only caching DNS server which can perform DNSSEC
 validation of results
 EOD
+deps: {
+    FreeBSD-unbound-lib32: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+

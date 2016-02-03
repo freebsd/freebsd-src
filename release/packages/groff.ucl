@@ -11,3 +11,10 @@ licenses = [ GPLv2 ]
 desc = <<EOD
 %DESC%
 EOD
+deps: {
+    FreeBSD-runtime: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+

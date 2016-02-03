@@ -13,3 +13,10 @@ bhyve, the "BSD hypervisor" is a hypervisor/virtual machine manager developed on
 FreeBSD and relies on modern CPU features such as Extended Page Tables (EPT) and
 VirtIO network and storage drivers
 EOD
+deps: {
+    FreeBSD-bhyve: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+
