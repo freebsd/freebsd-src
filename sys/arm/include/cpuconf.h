@@ -53,7 +53,6 @@
 #define	CPU_NTYPES	(defined(CPU_ARM9) +				\
 			 defined(CPU_ARM9E) +				\
 			 defined(CPU_ARM1176) +				\
-			 defined(CPU_XSCALE_80321) +			\
 			 defined(CPU_XSCALE_PXA2X0) +			\
 			 defined(CPU_FA526) +				\
 			 defined(CPU_XSCALE_IXP425)) +			\
@@ -71,8 +70,7 @@
 #endif
 
 #if (defined(CPU_ARM9E) ||						\
-     defined(CPU_XSCALE_80321) ||					\
-     defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) ||		\
+     defined(CPU_XSCALE_81342) ||					\
      defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425))
 #define	ARM_ARCH_5	1
 #else
@@ -163,9 +161,8 @@
 #define ARM_MMU_V7		0
 #endif
 
-#if (defined(CPU_XSCALE_80321) ||					\
-     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
-     defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342))
+#if (defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
+     defined(CPU_XSCALE_81342))
 #define	ARM_MMU_XSCALE		1
 #else
 #define	ARM_MMU_XSCALE		0
@@ -180,11 +177,10 @@
 /*
  * Step 4: Define features that may be present on a subset of CPUs
  *
- *	ARM_XSCALE_PMU		Performance Monitoring Unit on 80200 and 80321
+ *	ARM_XSCALE_PMU		Performance Monitoring Unit on 81342
  */
 
-#if (defined(CPU_XSCALE_80321) || \
-     defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342))
+#if (defined(CPU_XSCALE_81342))
 #define ARM_XSCALE_PMU	1
 #else
 #define ARM_XSCALE_PMU	0
