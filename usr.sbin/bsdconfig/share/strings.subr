@@ -146,7 +146,11 @@ f_substr()
 		fi
 	done
 
-	setvar "$__var_to_set" "$__tmp"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__tmp"
+	else
+		echo "$__tmp"
+	fi
 }
 
 # f_sprintf $var_to_set $format [$arguments ...]
