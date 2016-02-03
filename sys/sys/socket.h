@@ -431,6 +431,7 @@ struct msghdr {
 #define	MSG_NBIO	0x4000		/* FIONBIO mode, used by fifofs */
 #define	MSG_COMPAT      0x8000		/* used in sendit() */
 #define	MSG_CMSG_CLOEXEC 0x40000	/* make received fds close-on-exec */
+#define	MSG_WAITFORONE	0x80000		/* for recvmmsg() */
 #endif
 #ifdef _KERNEL
 #define	MSG_SOCALLBCK   0x10000		/* for use by socket callbacks - soreceive (TCP) */
@@ -596,6 +597,14 @@ struct sf_hdtr {
 #define	SFK_COMPAT	0x00000001
 #define	SF_READAHEAD(flags)	((flags) >> 16)
 #endif /* _KERNEL */
+
+/*
+ * Sendmmsg/recvmmsg specific structure(s)
+ */
+struct mmsghdr {
+	struct msghdr	msg_hdr;		/* message header */
+	ssize_t		msg_len;		/* message length */
+};
 #endif /* __BSD_VISIBLE */
 
 #ifndef	_KERNEL
@@ -618,12 +627,18 @@ int	listen(int, int);
 ssize_t	recv(int, void *, size_t, int);
 ssize_t	recvfrom(int, void *, size_t, int, struct sockaddr * __restrict, socklen_t * __restrict);
 ssize_t	recvmsg(int, struct msghdr *, int);
+#if __BSD_VISIBLE
+struct timespec;
+ssize_t	recvmmsg(int, struct mmsghdr * __restrict, size_t, int,
+    const struct timespec * __restrict);
+#endif
 ssize_t	send(int, const void *, size_t, int);
 ssize_t	sendto(int, const void *,
 	    size_t, int, const struct sockaddr *, socklen_t);
 ssize_t	sendmsg(int, const struct msghdr *, int);
 #if __BSD_VISIBLE
 int	sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+ssize_t	sendmmsg(int, struct mmsghdr * __restrict, size_t, int);
 int	setfib(int);
 #endif
 int	setsockopt(int, int, int, const void *, socklen_t);

@@ -54,6 +54,7 @@
 #define	GFP_HIGHUSER	M_WAITOK
 #define	GFP_HIGHUSER_MOVABLE	M_WAITOK
 #define	GFP_IOFS	M_NOWAIT
+#define	GFP_NOIO	M_NOWAIT
 
 static inline void *
 page_address(struct page *page)

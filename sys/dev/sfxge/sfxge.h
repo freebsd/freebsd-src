@@ -273,7 +273,7 @@ struct sfxge_softc {
 	size_t				rx_prefix_size;
 	size_t				rx_buffer_size;
 	size_t				rx_buffer_align;
-	uma_zone_t			rx_buffer_zone;
+	int				rx_cluster_size;
 
 	unsigned int			evq_max;
 	unsigned int			evq_count;

@@ -14,6 +14,8 @@ name="ntpd"
 rcvar="ntpd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
+extra_commands="fetch"
+fetch_cmd="ntpd_fetch_leapfile"
 start_precmd="ntpd_precmd"
 
 load_rc_config $name
@@ -30,6 +32,10 @@ ntpd_precmd()
 		return 0;
 	fi
 
+	if [ ! -f $ntp_db_leapfile ]; then
+		ntpd_fetch_leapfile
+	fi
+
 	# If running in a chroot cage, ensure that the appropriate files
 	# exist inside the cage, as well as helper symlinks into the cage
 	# from outside.
@@ -44,10 +50,71 @@ ntpd_precmd()
 		( cd /dev ; /bin/pax -rw -pe clockctl "${ntpd_chrootdir}/dev" )
 	fi
 	ln -fs "${ntpd_chrootdir}/var/db/ntp.drift" /var/db/ntp.drift
+	ln -fs "${ntpd_chrootdir}${ntp_tmp_leapfile}" ${ntp_tmp_leapfile}
 
 	#	Change run_rc_commands()'s internal copy of $ntpd_flags
 	#
 	rc_flags="-u ntpd:ntpd -i ${ntpd_chrootdir} $rc_flags"
+}
+
+current_ntp_ts() {
+	# Seconds between 1900-01-01 and 1970-01-01
+	# echo $(((70*365+17)*86400))
+	ntp_to_unix=2208988800
+
+	echo $(($(date -u +%s)+$ntp_to_unix))
+}
+	
+get_ntp_leapfile_ver() {
+	expr "$(awk '$1 == "#$" { print $2 }' "$1" 2>/dev/null)" : \
+		'^\([1-9][0-9]*\)$' \| 0
+}
+
+get_ntp_leapfile_expiry() {
+	expr "$(awk '$1 == "#@" { print $2 }' "$1" 2>/dev/null)" : \
+		'^\([1-9][0-9]*\)$' \| 0
+}
+
+ntpd_fetch_leapfile() {
+	local ntp_tmp_leapfile rc verbose
+	
+	if checkyesno ntp_leapfile_fetch_verbose; then
+		verbose=echo
+	else
+		verbose=:
+	fi
+
+	ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
+
+	ntp_ver_no_src=$(get_ntp_leapfile_ver $ntp_src_leapfile)
+	ntp_ver_no_db=$(get_ntp_leapfile_ver $ntp_db_leapfile)
+	$verbose ntp_src_leapfile version is $ntp_ver_no_src
+	$verbose ntp_db_leapfile version is $ntp_ver_no_db
+
+	if [ "$ntp_ver_no_src" -gt "$ntp_ver_no_db" ]; then
+		$verbose replacing $ntp_db_leapfile with $ntp_src_leapfile 
+		cp -p $ntp_src_leapfile $ntp_db_leapfile
+		ntp_ver_no_db=$ntp_ver_no_src
+	else
+		$verbose not replacing $ntp_db_leapfile with $ntp_src_leapfile 
+	fi
+	ntp_leap_expiry=$(get_ntp_leapfile_expiry $ntp_db_leapfile)
+	ntp_leapfile_expiry_seconds=$((ntp_leapfile_expiry_days*86400))
+	ntp_leap_fetch_date=$((ntp_leap_expiry-ntp_leapfile_expiry_seconds))
+	if [ $(current_ntp_ts) -ge $ntp_leap_fetch_date ]; then
+		$verbose Within ntp leapfile expiry limit, initiating fetch
+		for url in $ntp_leapfile_sources ; do
+			$verbose fetching $url
+			fetch $ntp_leapfile_fetch_opts -o $ntp_tmp_leapfile $url && break
+		done
+		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $ntp_tmp_leapfile)
+		if [ "$ntp_ver_no_tmp" -gt "$ntp_ver_no_db" ]; then
+			$verbose using $url as $ntp_db_leapfile
+			mv $ntp_tmp_leapfile $ntp_db_leapfile
+		else
+			$verbose using existing $ntp_db_leapfile
+		fi
+	fi
 }
 
 run_rc_command "$1"

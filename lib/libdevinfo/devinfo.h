@@ -56,8 +56,8 @@ struct devinfo_dev {
 struct devinfo_rman {
 	devinfo_handle_t	dm_handle;	/* resource manager handle */
 
-	unsigned long		dm_start;	/* resource start */
-	unsigned long		dm_size;	/* resource size */
+	rman_res_t		dm_start;	/* resource start */
+	rman_res_t		dm_size;	/* resource size */
     
 	char			*dm_desc;	/* resource description */
 };
@@ -67,8 +67,8 @@ struct devinfo_res {
 	devinfo_handle_t	dr_rman;	/* resource manager handle */
 	devinfo_handle_t	dr_device;	/* owning device */
 
-	unsigned long		dr_start;	/* region start */
-	unsigned long		dr_size;	/* region size */
+	rman_res_t		dr_start;	/* region start */
+	rman_res_t		dr_size;	/* region size */
 	/* XXX add flags */
 };
 

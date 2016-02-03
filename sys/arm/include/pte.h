@@ -33,9 +33,11 @@
  *
  * $FreeBSD$
  */
-#ifdef ARM_NEW_PMAP
+#include <machine/acle-compat.h>
+
+#if __ARM_ARCH >= 6
 #include <machine/pte-v6.h>
-#else /* ARM_NEW_PMAP */
+#else /* __ARM_ARCH >= 6 */
 
 #ifndef _MACHINE_PTE_H_
 #define _MACHINE_PTE_H_
@@ -43,6 +45,7 @@
 #ifndef LOCORE
 typedef	uint32_t	pd_entry_t;		/* page directory entry */
 typedef	uint32_t	pt_entry_t;		/* page table entry */
+typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #endif
 
 #define PG_FRAME	0xfffff000
@@ -355,6 +358,6 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * 1 X 1 1 1	Y	  Y		WT	Y		Y
  */
 #endif /* !_MACHINE_PTE_H_ */
-#endif /* !ARM_NEW_PMAP */
+#endif /* __ARM_ARCH >= 6 */
 
 /* End of pte.h */

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -57,13 +58,12 @@ extern int	in_detachhead(void **head, int off);
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
-in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
+in_addroute(void *v_arg, void *n_arg, struct radix_head *head,
     struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
 
-	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	/*
 	 * A little bit of help for both IP output and input:
 	 *   For host routes, we make sure that RTF_BROADCAST
@@ -113,15 +113,15 @@ static int _in_rt_was_here;
 int
 in_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 
-	if (!rn_inithead(head, 32))
-		return 0;
+	rh = rt_table_init(32);
+	if (rh == NULL)
+		return (0);
 
-	rnh = *head;
-	RADIX_NODE_HEAD_LOCK_INIT(rnh);
+	rh->rnh_addaddr = in_addroute;
+	*head = (void *)rh;
 
-	rnh->rnh_addaddr = in_addroute;
 	if (_in_rt_was_here == 0 ) {
 		_in_rt_was_here = 1;
 	}

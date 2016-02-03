@@ -231,8 +231,8 @@ iwch_wakeup(struct cv *cv, struct mtx *lock, int *rpl_done)
 /* CM prototypes */
 
 int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
-int iwch_create_listen(struct iw_cm_id *cm_id, int backlog);
-int iwch_destroy_listen(struct iw_cm_id *cm_id);
+int iwch_create_listen_ep(struct iw_cm_id *cm_id, int backlog);
+void iwch_destroy_listen_ep(struct iw_cm_id *cm_id);
 int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, int flags);

@@ -60,18 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuconf.h>
 #include <machine/cpufunc.h>
 
-#if defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219)
-#include <arm/xscale/i80321/i80321reg.h>
-#include <arm/xscale/i80321/i80321var.h>
-#endif
-
-/*
- * Some definitions in i81342reg.h clash with i80321reg.h.
- * This only happens for the LINT kernel. As it happens,
- * we don't need anything from i81342reg.h that we already
- * got from somewhere else during a LINT compile.
- */
-#if defined(CPU_XSCALE_81342) && !defined(COMPILING_LINT)
+#if defined(CPU_XSCALE_81342)
 #include <arm/xscale/i8134x/i81342reg.h>
 #endif
 
@@ -105,23 +94,17 @@ int ctrl;
 struct cpu_functions arm9_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	arm9_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
 	arm9_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	(void *)armv4_tlb_flushI,	/* tlb_flushI_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -146,17 +129,11 @@ struct cpu_functions arm9_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
 	/* Soft functions */
-
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
 
 	arm9_context_switch,		/* context_switch	*/
 
@@ -169,23 +146,17 @@ struct cpu_functions arm9_cpufuncs = {
 struct cpu_functions armv5_ec_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	armv5_ec_setttb,		/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
-	arm10_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	arm10_tlb_flushI_SE,		/* tlb_flushI_SE	*/
+	arm9_tlb_flushID_SE,		/* tlb_flushID_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -211,19 +182,13 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
 	/* Soft functions */
 
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
-	arm10_context_switch,		/* context_switch	*/
+	arm9_context_switch,		/* context_switch	*/
 
 	arm10_setup			/* cpu setup		*/
 
@@ -232,23 +197,17 @@ struct cpu_functions armv5_ec_cpufuncs = {
 struct cpu_functions sheeva_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	sheeva_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
-	arm10_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	arm10_tlb_flushI_SE,		/* tlb_flushI_SE	*/
+	arm9_tlb_flushID_SE,		/* tlb_flushID_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -274,19 +233,13 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	sheeva_cpu_sleep,		/* sleep		*/
 
 	/* Soft functions */
 
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
-	arm10_context_switch,		/* context_switch	*/
+	arm9_context_switch,		/* context_switch	*/
 
 	arm10_setup			/* cpu setup		*/
 };
@@ -296,23 +249,17 @@ struct cpu_functions sheeva_cpufuncs = {
 struct cpu_functions pj4bv7_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	armv7_drain_writebuf,		/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
 	armv7_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
 
 	/* TLB functions */
 
 	armv7_tlb_flushID,		/* tlb_flushID		*/
 	armv7_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv7_tlb_flushID,		/* tlb_flushI		*/
-	armv7_tlb_flushID_SE,		/* tlb_flushI_SE	*/
 	armv7_tlb_flushID,		/* tlb_flushD		*/
 	armv7_tlb_flushID_SE,		/* tlb_flushD_SE	*/
 
@@ -337,48 +284,33 @@ struct cpu_functions pj4bv7_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv7_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
 	/* Soft functions */
-
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
 	armv7_context_switch,		/* context_switch	*/
 
 	pj4bv7_setup			/* cpu setup		*/
 };
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_XSCALE_80321) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_80219)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
 
 struct cpu_functions xscale_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	xscale_cpwait,			/* cpwait		*/
 
 	/* MMU functions */
 
 	xscale_control,			/* control		*/
-	cpufunc_domains,		/* domain		*/
 	xscale_setttb,			/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
 
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
 	xscale_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	(void *)armv4_tlb_flushI,	/* tlb_flushI_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -403,47 +335,34 @@ struct cpu_functions xscale_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	xscale_cpu_sleep,		/* sleep		*/
 
 	/* Soft functions */
-
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
 
 	xscale_context_switch,		/* context_switch	*/
 
 	xscale_setup			/* cpu setup		*/
 };
 #endif
-/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-   CPU_XSCALE_80219 */
+/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
 
 #ifdef CPU_XSCALE_81342
 struct cpu_functions xscalec3_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	xscale_cpwait,			/* cpwait		*/
 
 	/* MMU functions */
 
 	xscale_control,			/* control		*/
-	cpufunc_domains,		/* domain		*/
 	xscalec3_setttb,		/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
 
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
 	xscale_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	(void *)armv4_tlb_flushI,	/* tlb_flushI_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -468,17 +387,11 @@ struct cpu_functions xscalec3_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,			/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	xscale_cpu_sleep,		/* sleep		*/
 
 	/* Soft functions */
-
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
 
 	xscalec3_context_switch,	/* context_switch	*/
 
@@ -491,23 +404,17 @@ struct cpu_functions xscalec3_cpufuncs = {
 struct cpu_functions fa526_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,			/* id			*/
 	cpufunc_nullop,			/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* domain		*/
 	fa526_setttb,			/* setttb		*/
-	cpufunc_faultstatus,		/* faultstatus		*/
-	cpufunc_faultaddress,		/* faultaddress		*/
 
 	/* TLB functions */
 
 	armv4_tlb_flushID,		/* tlb_flushID		*/
 	fa526_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushI,		/* tlb_flushI		*/
-	fa526_tlb_flushI_SE,		/* tlb_flushI_SE	*/
 	armv4_tlb_flushD,		/* tlb_flushD		*/
 	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
 
@@ -532,17 +439,12 @@ struct cpu_functions fa526_cpufuncs = {
 
 	/* Other functions */
 
-	fa526_flush_prefetchbuf,	/* flush_prefetchbuf	*/
 	armv4_drain_writebuf,		/* drain_writebuf	*/
-	cpufunc_nullop,			/* flush_brnchtgt_C	*/
-	fa526_flush_brnchtgt_E,		/* flush_brnchtgt_E	*/
 
 	fa526_cpu_sleep,		/* sleep		*/
 
 	/* Soft functions */
 
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
 
 	fa526_context_switch,		/* context_switch	*/
 
@@ -554,23 +456,17 @@ struct cpu_functions fa526_cpufuncs = {
 struct cpu_functions arm1176_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,                     /* id                   */
 	cpufunc_nullop,                 /* cpwait               */
 
 	/* MMU functions */
 
 	cpufunc_control,                /* control              */
-	cpufunc_domains,                /* Domain               */
 	arm11x6_setttb,                 /* Setttb               */
-	cpufunc_faultstatus,            /* Faultstatus          */
-	cpufunc_faultaddress,           /* Faultaddress         */
 
 	/* TLB functions */
 
 	arm11_tlb_flushID,              /* tlb_flushID          */
 	arm11_tlb_flushID_SE,           /* tlb_flushID_SE       */
-	arm11_tlb_flushI,               /* tlb_flushI           */
-	arm11_tlb_flushI_SE,            /* tlb_flushI_SE        */
 	arm11_tlb_flushD,               /* tlb_flushD           */
 	arm11_tlb_flushD_SE,            /* tlb_flushD_SE        */
 
@@ -596,17 +492,11 @@ struct cpu_functions arm1176_cpufuncs = {
 
 	/* Other functions */
 
-	arm11x6_flush_prefetchbuf,      /* flush_prefetchbuf    */
 	arm11_drain_writebuf,           /* drain_writebuf       */
-	cpufunc_nullop,                 /* flush_brnchtgt_C     */
-	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 
 	arm11x6_sleep,                  /* sleep                */
 
 	/* Soft functions */
-
-	cpufunc_null_fixup,             /* dataabt_fixup        */
-	cpufunc_null_fixup,             /* prefetchabt_fixup    */
 
 	arm11_context_switch,           /* context_switch       */
 
@@ -618,16 +508,12 @@ struct cpu_functions arm1176_cpufuncs = {
 struct cpu_functions cortexa_cpufuncs = {
 	/* CPU functions */
 
-	cpufunc_id,                     /* id                   */
 	cpufunc_nullop,                 /* cpwait               */
 
 	/* MMU functions */
 
 	cpufunc_control,                /* control              */
-	cpufunc_domains,                /* Domain               */
 	armv7_setttb,                   /* Setttb               */
-	cpufunc_faultstatus,            /* Faultstatus          */
-	cpufunc_faultaddress,           /* Faultaddress         */
 
 	/*
 	 * TLB functions.  ARMv7 does all TLB ops based on a unified TLB model
@@ -637,8 +523,6 @@ struct cpu_functions cortexa_cpufuncs = {
 
 	armv7_tlb_flushID,              /* tlb_flushID          */
 	armv7_tlb_flushID_SE,           /* tlb_flushID_SE       */
-	armv7_tlb_flushID,              /* tlb_flushI           */
-	armv7_tlb_flushID_SE,           /* tlb_flushI_SE        */
 	armv7_tlb_flushID,              /* tlb_flushD           */
 	armv7_tlb_flushID_SE,           /* tlb_flushD_SE        */
 
@@ -668,17 +552,11 @@ struct cpu_functions cortexa_cpufuncs = {
 
 	/* Other functions */
 
-	cpufunc_nullop,                 /* flush_prefetchbuf    */
 	armv7_drain_writebuf,           /* drain_writebuf       */
-	cpufunc_nullop,                 /* flush_brnchtgt_C     */
-	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 
 	armv7_cpu_sleep,                /* sleep                */
 
 	/* Soft functions */
-
-	cpufunc_null_fixup,             /* dataabt_fixup        */
-	cpufunc_null_fixup,             /* prefetchabt_fixup    */
 
 	armv7_context_switch,           /* context_switch       */
 
@@ -696,10 +574,10 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
 
 #if defined(CPU_ARM9) ||	\
   defined (CPU_ARM9E) ||	\
-  defined(CPU_ARM1176) || defined(CPU_XSCALE_80321) ||		\
+  defined(CPU_ARM1176) ||	\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
+  defined(CPU_XSCALE_81342) || \
   defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 /* Global cache line sizes, use 32 as default */
@@ -726,7 +604,7 @@ get_cachetype_cp15()
 	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
 		: "=r" (ctype));
 
-	cpuid = cpufunc_id();
+	cpuid = cpu_ident();
 	/*
 	 * ...and thus spake the ARM ARM:
 	 *
@@ -833,7 +711,7 @@ get_cachetype_cp15()
 int
 set_cpufuncs()
 {
-	cputype = cpufunc_id();
+	cputype = cpu_ident();
 	cputype &= CPU_ID_CPU_MASK;
 
 #ifdef CPU_ARM9
@@ -889,9 +767,6 @@ set_cpufuncs()
 		cpufuncs = arm1176_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
-
-		pmap_pte_init_mmu_v6();
-
 		goto out;
 	}
 #endif /* CPU_ARM1176 */
@@ -915,8 +790,6 @@ set_cpufuncs()
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
-
-		pmap_pte_init_mmu_v6();
 		goto out;
 	}
 #endif /* CPU_CORTEXA */
@@ -927,7 +800,6 @@ set_cpufuncs()
 	    cputype == CPU_ID_ARM_88SV581X_V7) {
 		cpufuncs = pj4bv7_cpufuncs;
 		get_cachetype_cp15();
-		pmap_pte_init_mmu_v6();
 		goto out;
 	}
 #endif /* CPU_MV_PJ4B */
@@ -942,18 +814,6 @@ set_cpufuncs()
 		goto out;
 	}
 #endif	/* CPU_FA526 */
-
-#if defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219)
-	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
-	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0 ||
-	    cputype == CPU_ID_80219_400 || cputype == CPU_ID_80219_600) {
-		cpufuncs = xscale_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
-		get_cachetype_cp15();
-		pmap_pte_init_xscale();
-		goto out;
-	}
-#endif /* CPU_XSCALE_80321 */
 
 #if defined(CPU_XSCALE_81342)
 	if (cputype == CPU_ID_81342) {
@@ -998,27 +858,6 @@ set_cpufuncs()
 out:
 	uma_set_align(arm_dcache_align_mask);
 	return (0);
-}
-
-/*
- * Fixup routines for data and prefetch aborts.
- *
- * Several compile time symbols are used
- *
- * DEBUG_FAULT_CORRECTION - Print debugging information during the
- * correction of registers after a fault.
- */
-
-
-/*
- * Null abort fixup routine.
- * For use when no fixup is required.
- */
-int
-cpufunc_null_fixup(arg)
-	void *arg;
-{
-	return(ABORT_FIXUP_OK);
 }
 
 /*
@@ -1146,7 +985,7 @@ arm11x6_setup(void)
 	uint32_t sbz=0;
 	uint32_t cpuid;
 
-	cpuid = cpufunc_id();
+	cpuid = cpu_ident();
 
 	cpuctrl =
 		CPU_CONTROL_MMU_ENABLE  |
@@ -1342,9 +1181,8 @@ fa526_setup(void)
 }
 #endif	/* CPU_FA526 */
 
-#if defined(CPU_XSCALE_80321) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
+  defined(CPU_XSCALE_81342)
 void
 xscale_setup(void)
 {
@@ -1411,5 +1249,4 @@ xscale_setup(void)
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
 		: : "r" (auxctl));
 }
-#endif	/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-	   CPU_XSCALE_80219 */
+#endif	/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */

@@ -463,4 +463,9 @@ DEFINE_LIBUNWIND_FUNCTION(unw_getcontext)
   l.sw     116(r3), r29
   l.sw     120(r3), r30
   l.sw     124(r3), r31
+
+#elif defined(__riscv__)
+
+/* RISCVTODO */
+
 #endif

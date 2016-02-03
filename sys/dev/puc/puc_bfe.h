@@ -85,9 +85,9 @@ int puc_bfe_probe(device_t, const struct puc_cfg *);
 
 int puc_bus_child_location_str(device_t, device_t, char *, size_t);
 int puc_bus_child_pnpinfo_str(device_t, device_t, char *, size_t);
-struct resource *puc_bus_alloc_resource(device_t, device_t, int, int *, u_long,
-    u_long, u_long, u_int);
-int puc_bus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
+struct resource *puc_bus_alloc_resource(device_t, device_t, int, int *,
+    rman_res_t, rman_res_t, rman_res_t, u_int);
+int puc_bus_get_resource(device_t, device_t, int, int, rman_res_t *, rman_res_t *);
 int puc_bus_print_child(device_t, device_t);
 int puc_bus_read_ivar(device_t, device_t, int, uintptr_t *);
 int puc_bus_release_resource(device_t, device_t, int, int, struct resource *);

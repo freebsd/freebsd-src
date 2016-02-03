@@ -35,12 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
 #include "thunder_pcie_common.h"
+
+MALLOC_DEFINE(M_THUNDER_PCIE, "Thunder PCIe driver", "Thunder PCIe driver memory");
 
 uint32_t
 range_addr_is_pci(struct pcie_range *ranges, uint64_t addr, uint64_t size)

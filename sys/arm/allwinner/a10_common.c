@@ -42,6 +42,8 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef ARM_INTRNG
+
 static int
 fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
@@ -66,3 +68,5 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&fdt_aintc_decode_ic,
 	NULL
 };
+
+#endif /* ARM_INTRNG */

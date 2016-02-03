@@ -117,6 +117,7 @@
       - PasswordAuthentication defaults to "no".
       - VersionAddendum defaults to "FreeBSD-YYYYMMDD".
       - PrivilegeSeparation defaults to "sandbox".
+      - UseDNS defaults to "yes".
 
 2) Modified client-side defaults
 

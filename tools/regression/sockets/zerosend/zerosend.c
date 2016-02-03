@@ -74,7 +74,7 @@ try_0write(const char *test, int fd)
 }
 
 static void
-setup_udp(const char *test, int *fdp)
+setup_udp(const char *test, int *fdp, int port1, int port2)
 {
 	struct sockaddr_in sin;
 	int sock1, sock2;
@@ -84,14 +84,14 @@ setup_udp(const char *test, int *fdp)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	sin.sin_port = htons(PORT1);
+	sin.sin_port = htons(port1);
 	sock1 = socket(PF_INET, SOCK_DGRAM, 0);
 	if (sock1 < 0)
 		err(1, "%s: setup_udp: socket", test);
 	if (bind(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
 		err(1, "%s: setup_udp: bind(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT1);
-	sin.sin_port = htons(PORT2);
+	sin.sin_port = htons(port2);
 	if (connect(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
 		err(1, "%s: setup_udp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT2);
@@ -102,7 +102,7 @@ setup_udp(const char *test, int *fdp)
 	if (bind(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
 		err(1, "%s: setup_udp: bind(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT2);
-	sin.sin_port = htons(PORT1);
+	sin.sin_port = htons(port1);
 	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
 		err(1, "%s: setup_udp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT1);
@@ -112,7 +112,7 @@ setup_udp(const char *test, int *fdp)
 }
 
 static void
-setup_tcp(const char *test, int *fdp)
+setup_tcp(const char *test, int *fdp, int port)
 {
 	fd_set writefds, exceptfds;
 	struct sockaddr_in sin;
@@ -127,7 +127,7 @@ setup_tcp(const char *test, int *fdp)
 	/*
 	 * First set up the listen socket.
 	 */
-	sin.sin_port = htons(PORT1);
+	sin.sin_port = htons(port);
 	sock1 = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock1 < 0)
 		err(1, "%s: setup_tcp: socket", test);
@@ -246,19 +246,19 @@ main(void)
 {
 	int fd[2];
 
-	setup_udp("udp_0send", fd);
+	setup_udp("udp_0send", fd, PORT1, PORT2);
 	try_0send("udp_0send", fd[0]);
 	close_both(fd);
 
-	setup_udp("udp_0write", fd);
+	setup_udp("udp_0write", fd, PORT1 + 10, PORT2 + 10);
 	try_0write("udp_0write", fd[0]);
 	close_both(fd);
 
-	setup_tcp("tcp_0send", fd);
+	setup_tcp("tcp_0send", fd, PORT1);
 	try_0send("tcp_0send", fd[0]);
 	close_both(fd);
 
-	setup_tcp("tcp_0write", fd);
+	setup_tcp("tcp_0write", fd, PORT1 + 10);
 	try_0write("tcp_0write", fd[0]);
 	close_both(fd);
 

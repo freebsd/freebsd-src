@@ -28,14 +28,15 @@
 .\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2009
+.Dd January 29, 2016
 .Dt SEND 2
 .Os
 .Sh NAME
 .Nm send ,
 .Nm sendto ,
-.Nm sendmsg
-.Nd send a message from a socket
+.Nm sendmsg ,
+.Nm sendmmsg
+.Nd send message(s) from a socket
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -47,25 +48,33 @@
 .Fn sendto "int s" "const void *msg" "size_t len" "int flags" "const struct sockaddr *to" "socklen_t tolen"
 .Ft ssize_t
 .Fn sendmsg "int s" "const struct msghdr *msg" "int flags"
+.Ft ssize_t
+.Fn sendmmsg "int s" "struct mmsghdr * restrict msgvec" "size_t vlen" "int flags"
 .Sh DESCRIPTION
 The
 .Fn send
-function,
+and
+.Fn sendmmsg
+functions,
 and
 .Fn sendto
 and
 .Fn sendmsg
 system calls
-are used to transmit a message to another socket.
+are used to transmit one or more messages (with the
+.Fn sendmmsg
+call) to
+another socket.
 The
 .Fn send
 function
 may be used only when the socket is in a
 .Em connected
 state, while
-.Fn sendto
-and
+.Fn sendto ,
 .Fn sendmsg
+and
+.Fn sendmmsg
 may be used at any time.
 .Pp
 The address of the target is given by
@@ -80,6 +89,18 @@ underlying protocol, the error
 .Er EMSGSIZE
 is returned, and
 the message is not transmitted.
+.Pp
+The
+.Fn sendmmsg
+function sends multiple messages at a call.
+They are given by the
+.Fa msgvec
+vector along with
+.Fa vlen
+specifying the vector size.
+The number of octets sent per each message is placed in the
+.Fa msg_len
+field of each processed element of the vector after transmission.
 .Pp
 No indication of failure to deliver is implicit in a
 .Fn send .
@@ -138,14 +159,27 @@ See
 .Xr recv 2
 for a description of the
 .Fa msghdr
+structure and the
+.Fa mmsghdr
 structure.
 .Sh RETURN VALUES
-The call returns the number of characters sent, or -1
-if an error occurred.
+The
+.Fn send ,
+.Fn sendto
+and
+.Fn sendmsg
+calls
+return the number of octets sent.
+The
+.Fn sendmmsg
+call returns the number of messages sent.
+If an error occurred a value of -1 is returned.
 .Sh ERRORS
 The
 .Fn send
-function and
+and
+.Fn sendmmsg
+functions and
 .Fn sendto
 and
 .Fn sendmsg
@@ -215,6 +249,10 @@ The
 .Fn send
 function appeared in
 .Bx 4.2 .
+The
+.Fn sendmmsg
+function appeared in
+.Fx 11.0 .
 .Sh BUGS
 Because
 .Fn sendmsg

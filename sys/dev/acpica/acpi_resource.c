@@ -671,7 +671,7 @@ acpi_sysres_attach(device_t dev)
     struct resource_list_entry *bus_rle, *dev_rle;
     struct resource_list *bus_rl, *dev_rl;
     int done, type;
-    u_long start, end, count;
+    rman_res_t start, end, count;
 
     /*
      * Loop through all current resources to see if the new one overlaps

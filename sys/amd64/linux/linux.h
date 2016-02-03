@@ -530,8 +530,8 @@ struct l_pollfd {
 
 #define LINUX_ARCH_SET_GS		0x1001
 #define LINUX_ARCH_SET_FS		0x1002
-#define LINUX_ARCH_GET_GS		0x1003
-#define LINUX_ARCH_GET_FS		0x1004
+#define LINUX_ARCH_GET_FS		0x1003
+#define LINUX_ARCH_GET_GS		0x1004
 
 #define	linux_copyout_rusage(r, u)	copyout(r, u, sizeof(*r))
 

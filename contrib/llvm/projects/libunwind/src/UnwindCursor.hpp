@@ -562,6 +562,10 @@ private:
   compact_unwind_encoding_t dwarfEncoding(Registers_or1k &) const {
     return 0;
   }
+
+  compact_unwind_encoding_t dwarfEncoding(Registers_riscv &) const {
+    return 0;
+  }
 #endif // _LIBUNWIND_SUPPORT_DWARF_UNWIND
 
 

@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
 
@@ -234,7 +233,8 @@ int
 ptrace_single_step(struct thread *td)
 {
 
-	/* TODO; */
+	td->td_frame->tf_spsr |= PSR_SS;
+	td->td_pcb->pcb_flags |= PCB_SINGLE_STEP;
 	return (0);
 }
 
@@ -242,7 +242,8 @@ int
 ptrace_clear_single_step(struct thread *td)
 {
 
-	/* TODO; */
+	td->td_frame->tf_spsr &= ~PSR_SS;
+	td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
 	return (0);
 }
 
@@ -528,7 +529,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !onstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
+		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;

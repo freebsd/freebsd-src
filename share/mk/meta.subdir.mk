@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $Id: meta.subdir.mk,v 1.10 2012/07/03 05:26:46 sjg Exp $
+# $Id: meta.subdir.mk,v 1.11 2015/11/24 22:26:51 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -63,7 +63,7 @@ _subdeps != cd ${.CURDIR} && \
 DIRDEPS =
 .else
 # clean up if needed
-DIRDEPS := ${DIRDEPS:S,^./,,:S,/./,/,g:${SUBDIREPS_FILTER:Uu}}
+DIRDEPS := ${DIRDEPS:S,^./,,:S,/./,/,g:${SUBDIRDEPS_FILTER:Uu}}
 .endif
 # we just dealt with it, if we leave it defined,
 # dirdeps.mk will compute some interesting combinations.

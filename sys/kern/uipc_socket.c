@@ -196,7 +196,7 @@ VNET_DEFINE(struct hhook_head *, socket_hhh[HHOOK_SOCKET_LAST + 1]);
  * NB: The orginal sysctl somaxconn is still available but hidden
  * to prevent confusion about the actual purpose of this number.
  */
-static int somaxconn = SOMAXCONN;
+static u_int somaxconn = SOMAXCONN;
 
 static int
 sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
@@ -209,7 +209,13 @@ sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr )
 		return (error);
 
-	if (val < 1 || val > USHRT_MAX)
+	/*
+	 * The purpose of the UINT_MAX / 3 limit, is so that the formula
+	 *   3 * so_qlimit / 2
+	 * below, will not overflow.
+         */
+
+	if (val < 1 || val > UINT_MAX / 3)
 		return (EINVAL);
 
 	somaxconn = val;

@@ -97,9 +97,9 @@ static void	pccard_print_resources(struct resource_list *rl,
 		    const char *name, int type, int count, const char *format);
 static int	pccard_print_child(device_t dev, device_t child);
 static int	pccard_set_resource(device_t dev, device_t child, int type,
-		    int rid, u_long start, u_long count);
+		    int rid, rman_res_t start, rman_res_t count);
 static int	pccard_get_resource(device_t dev, device_t child, int type,
-		    int rid, u_long *startp, u_long *countp);
+		    int rid, rman_res_t *startp, rman_res_t *countp);
 static void	pccard_delete_resource(device_t dev, device_t child, int type,
 		    int rid);
 static int	pccard_set_res_flags(device_t dev, device_t child, int type,
@@ -113,8 +113,8 @@ static int	pccard_read_ivar(device_t bus, device_t child, int which,
 		    uintptr_t *result);
 static void	pccard_driver_added(device_t dev, driver_t *driver);
 static struct resource *pccard_alloc_resource(device_t dev,
-		    device_t child, int type, int *rid, u_long start,
-		    u_long end, u_long count, u_int flags);
+		    device_t child, int type, int *rid, rman_res_t start,
+		    rman_res_t end, rman_res_t count, u_int flags);
 static int	pccard_release_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 static void	pccard_child_detached(device_t parent, device_t dev);
@@ -474,7 +474,7 @@ pccard_function_init(struct pccard_function *pf, int entry)
 	struct pccard_ce_iospace *ios;
 	struct pccard_ce_memspace *mems;
 	device_t bus;
-	u_long start, end, len;
+	rman_res_t start, end, len;
 	int i, rid, spaces;
 
 	if (pf->pf_flags & PFF_ENABLED) {
@@ -614,8 +614,8 @@ pccard_function_free(struct pccard_function *pf)
 }
 
 static void
-pccard_mfc_adjust_iobase(struct pccard_function *pf, bus_addr_t addr,
-    bus_addr_t offset, bus_size_t size)
+pccard_mfc_adjust_iobase(struct pccard_function *pf, rman_res_t addr,
+    rman_res_t offset, rman_res_t size)
 {
 	bus_size_t iosize, tmp;
 
@@ -923,7 +923,7 @@ pccard_print_child(device_t dev, device_t child)
 
 static int
 pccard_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
@@ -952,7 +952,7 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 
 static int
 pccard_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
@@ -1132,7 +1132,7 @@ pccard_driver_added(device_t dev, driver_t *driver)
 
 static struct resource *
 pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pccard_ivar *dinfo;
 	struct resource_list_entry *rle = 0;

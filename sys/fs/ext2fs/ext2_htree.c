@@ -90,7 +90,7 @@ int
 ext2_htree_has_idx(struct inode *ip)
 {
 	if (EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_DIRHASHINDEX) &&
-	    ip->i_flag & IN_E4INDEX)
+	    ip->i_flag & IN_E3INDEX)
 		return (1);
 	else
 		return (0);
@@ -653,7 +653,7 @@ ext2_htree_create_index(struct vnode *vp, struct componentname *cnp,
 		    ((char *)ep + ep->e2d_reclen);
 	ep->e2d_reclen = buf1 + blksize - (char *)ep;
 
-	dp->i_flag |= IN_E4INDEX;
+	dp->i_flag |= IN_E3INDEX;
 
 	/*
 	 * Initialize index root.

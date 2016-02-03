@@ -42,13 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "cons.h"
 #include "bootargs.h"
+#include "paths.h"
 
 #include "libzfs.h"
-
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_BOOT3	"/boot/zfsloader"
-#define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		14
@@ -550,12 +546,12 @@ main(void)
     }
 
     /*
-     * Try to exec stage 3 boot loader. If interrupted by a keypress,
+     * Try to exec /boot/loader. If interrupted by a keypress,
      * or in case of failure, try to load a kernel directly instead.
      */
 
     if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+	memcpy(kname, PATH_LOADER_ZFS, sizeof(PATH_LOADER_ZFS));
 	if (!keyhit(3)) {
 	    load();
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));

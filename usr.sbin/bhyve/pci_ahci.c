@@ -1201,10 +1201,9 @@ atapi_read_toc(struct ahci_port *p, int slot, uint8_t *cfis)
 	{
 		int msf, size;
 		uint64_t sectors;
-		uint8_t start_track, *bp, buf[50];
+		uint8_t *bp, buf[50];
 
 		msf = (acmd[1] >> 1) & 1;
-		start_track = acmd[6];
 		bp = buf + 2;
 		*bp++ = 1;
 		*bp++ = 1;
@@ -1312,13 +1311,11 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done)
 	struct ahci_cmd_hdr *hdr;
 	struct ahci_prdt_entry *prdt;
 	struct blockif_req *breq;
-	struct pci_ahci_softc *sc;
 	uint8_t *acmd;
 	uint64_t lba;
 	uint32_t len;
 	int err;
 
-	sc = p->pr_sc;
 	acmd = cfis + 0x40;
 	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);

@@ -3,5 +3,5 @@
 
 files	"../rt305x/files.rt305x"
 
-cpu		CPU_MIPS4KC
+cpu		CPU_MIPS24K
 
