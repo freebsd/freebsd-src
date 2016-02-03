@@ -1206,16 +1206,14 @@ redistribute: .MAKE .PHONY
 	    DISTRIBUTION=libcheri
 .endif
 
-distrib-dirs: .MAKE .PHONY
+distrib-dirs distribution: .MAKE .PHONY
 	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
-
-distribution: .MAKE .PHONY
-	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
+.if make(distribution)
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
 		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
 		METALOG=${METALOG} installconfig
+.endif
 
 #
 # buildkernel and installkernel
