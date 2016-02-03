@@ -1,6 +1,10 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
+TESTS+=		${FILES}
 
 TAP_TESTS_SH+= attach_d_test
 TAP_TESTS_SH+= configure_b_B_test

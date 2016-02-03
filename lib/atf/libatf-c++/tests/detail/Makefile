@@ -3,6 +3,8 @@
 .include <bsd.init.mk>
 
 PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/lib/atf/libatf-c++/detail
 
 ATF=		${SRCTOP}/contrib/atf
