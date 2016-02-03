@@ -17,3 +17,10 @@ scripts: {
 	pwd_mkdb %PWD_MKDB_ENDIAN% -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
 EOD
 }
+deps: {
+    FreeBSD-runtime: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+

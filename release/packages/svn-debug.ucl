@@ -11,3 +11,10 @@ licenses = [ APACHE20 ]
 desc = <<EOD
 Lite version of the Subversion version control system
 EOD
+deps: {
+    FreeBSD-svn: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+

@@ -11,3 +11,10 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
+deps: {
+    FreeBSD-bsdinstall: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+

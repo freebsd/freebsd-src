@@ -11,3 +11,10 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 syscons(4) support files such as keyboard maps, fonts and screen output maps.
 EOD
+deps: {
+    FreeBSD-runtime: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+

@@ -12,3 +12,10 @@ desc = <<EOD
 The DragonFly Mail Agent, a small Mail Transport Agent (MTA), designed for
 home and office use.
 EOD
+deps: {
+    FreeBSD-runtime: {
+        origin: "base",
+        version: "%VERSION%"
+    }
+}
+
