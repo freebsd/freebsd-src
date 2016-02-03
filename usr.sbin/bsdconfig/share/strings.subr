@@ -154,20 +154,25 @@ f_substr()
 # Similar to sprintf(3), write a string into $var_to_set using printf(1) syntax
 # (`$format [$arguments ...]').
 #
-f_sprintf()
-{
-	local __var_to_set="$1"
-	shift 1 # var_to_set
-
-	case "$BASH_VERSION" in
-	3.1*|4.*)
-		local __tmp
+case "$BASH_VERSION" in
+3.1*|4.*)
+	f_sprintf()
+	{
+		local __var_to_set="$1" __tmp
+		shift 1 # var_to_set
 		printf -v __tmp "$@"
 		eval "$__var_to_set"=\"\${__tmp%\$NL}\"
-		;;
-	*) eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
-	esac
-}
+	}
+	;;
+*)
+	# NB: On FreeBSD, sh(1) runs this faster than bash(1) runs the above
+	f_sprintf()
+	{
+		local __var_to_set="$1"
+		shift 1 # var_to_set
+		eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
+	}
+esac
 
 # f_vsprintf $var_to_set $format $format_args
 #
