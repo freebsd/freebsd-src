@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 
 
-#include <arm/xscale/i80321/i80321var.h> /* For i80321_calibrate_delay() */
+#include <arm/xscale/i8134x/i80321var.h> /* For i80321_calibrate_delay() */
 
 #include <arm/xscale/i8134x/i81342reg.h>
 #include <arm/xscale/i8134x/i81342var.h>
