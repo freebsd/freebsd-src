@@ -83,12 +83,6 @@ ENTRY(fa526_idcache_wbinv_all)
 	mov	pc, lr
 END(fa526_idcache_wbinv_all)
 
-ENTRY(fa526_icache_sync_all)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 0	/* invalidate I$ */
-	mov	pc, lr
-END(fa526_icache_sync_all)
-
 ENTRY(fa526_dcache_wbinv_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c14, 0	/* clean and invalidate D$ */
@@ -170,7 +164,7 @@ END(fa526_idcache_wbinv_range)
 
 ENTRY(fa526_icache_sync_range)
 	cmp	r1, #0x4000
-	bhs	_C_LABEL(fa526_icache_sync_all)
+	bhs	.Lfa526_icache_sync_all
 
 	and	r2, r0, #(CACHELINE_SIZE - 1)
 	add	r1, r1, r2
@@ -183,6 +177,11 @@ ENTRY(fa526_icache_sync_range)
 	bhi	1b
 
 2:	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
+	mov	pc, lr
+
+.Lfa526_icache_sync_all:
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0	/* invalidate I$ */
 	mov	pc, lr
 END(fa526_icache_sync_range)
 

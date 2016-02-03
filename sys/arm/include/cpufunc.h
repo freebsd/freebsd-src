@@ -79,7 +79,6 @@ struct cpu_functions {
 	 *
 	 * We define the following primitives:
 	 *
-	 *	icache_sync_all		Synchronize I-cache
 	 *	icache_sync_range	Synchronize I-cache range
 	 *
 	 *	dcache_wbinv_all	Write-back and Invalidate D-cache
@@ -104,7 +103,7 @@ struct cpu_functions {
 	 *		state (such as when it may have lines tagged as valid
 	 *		that belong to a previous set of mappings).
 	 *
-	 *	I-cache Synch (all or range):
+	 *	I-cache Sync range:
 	 *		The goal is to synchronize the instruction stream,
 	 *		so you may beed to write-back dirty D-cache blocks
 	 *		first.  If a range is requested, and you can't
@@ -130,7 +129,6 @@ struct cpu_functions {
 	 *		Valid virtual addresses must be passed to each
 	 *		cache operation.
 	 */
-	void	(*cf_icache_sync_all)	(void);
 	void	(*cf_icache_sync_range)	(vm_offset_t, vm_size_t);
 
 	void	(*cf_dcache_wbinv_all)	(void);
@@ -173,7 +171,6 @@ extern u_int cputype;
 #define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
 #define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
 
-#define	cpu_icache_sync_all()	cpufuncs.cf_icache_sync_all()
 #define	cpu_icache_sync_range(a, s) cpufuncs.cf_icache_sync_range((a), (s))
 
 #define	cpu_dcache_wbinv_all()	cpufuncs.cf_dcache_wbinv_all()
@@ -214,7 +211,6 @@ void	fa526_context_switch	(void);
 void	fa526_cpu_sleep		(int);
 void	fa526_tlb_flushID_SE	(u_int);
 
-void	fa526_icache_sync_all	(void);
 void	fa526_icache_sync_range(vm_offset_t start, vm_size_t end);
 void	fa526_dcache_wbinv_all	(void);
 void	fa526_dcache_wbinv_range(vm_offset_t start, vm_size_t end);
@@ -231,8 +227,7 @@ void	arm9_tlb_flushID_SE	(u_int va);
 void	arm9_context_switch	(void);
 #endif
 
-#if defined(CPU_ARM9) 
-void	arm9_icache_sync_all	(void);
+#if defined(CPU_ARM9)
 void	arm9_icache_sync_range	(vm_offset_t, vm_size_t);
 
 void	arm9_dcache_wbinv_all	(void);
@@ -275,7 +270,6 @@ void	armv6_idcache_wbinv_all		(void);
 void	armv7_setttb			(u_int);
 void	armv7_tlb_flushID		(void);
 void	armv7_tlb_flushID_SE		(u_int);
-void	armv7_icache_sync_all		(void);
 void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
 void	armv7_idcache_wbinv_range	(vm_offset_t, vm_size_t);
 void	armv7_idcache_inv_all		(void);
@@ -319,7 +313,6 @@ void	armv6_idcache_inv_all		(void);
 void    arm11x6_setttb                  (u_int);
 void    arm11x6_idcache_wbinv_all       (void);
 void    arm11x6_dcache_wbinv_all        (void);
-void    arm11x6_icache_sync_all         (void);
 void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
 void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
 void    arm11x6_setup                   (void);
@@ -329,7 +322,6 @@ void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #if defined(CPU_ARM9E)
 void	armv5_ec_setttb(u_int);
 
-void	armv5_ec_icache_sync_all(void);
 void	armv5_ec_icache_sync_range(vm_offset_t, vm_size_t);
 
 void	armv5_ec_dcache_wbinv_all(void);
