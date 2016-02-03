@@ -309,8 +309,8 @@ efinet_dev_init()
 		status = BS->OpenProtocol(h, &sn_guid, (void **)&net,
 		    IH, 0, EFI_OPEN_PROTOCOL_EXCLUSIVE);
 		if (status != EFI_SUCCESS) {
-			printf("Unable to open network interface %d\n", i);
-			continue;
+			printf("Unable to open network interface %d for "
+			    "exclusive access\n", i);
 		}
 
 		dif->dif_unit = i;
