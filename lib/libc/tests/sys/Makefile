@@ -72,13 +72,15 @@ WARNS?=			3
 WARNS?=			4
 .endif
 
-FILESGROUPS=		FILES truncate_test_FILES
+FILESGROUPS+=		FILES truncate_test_FILES
 
 truncate_test_FILES=	truncate_test.root_owned
 truncate_test_FILESDIR=	${TESTSDIR}
 truncate_test_FILESMODE= 0600
 truncate_test_FILESOWNER= root
 truncate_test_FILESGRP= wheel
+truncate_test_FILESPACKAGE=	${PACKAGE}
+FILESPACKAGE=		${PACKAGE}
 
 CLEANFILES=	truncate_test.root_owned
 truncate_test.root_owned:

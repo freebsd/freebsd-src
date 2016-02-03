@@ -4,7 +4,11 @@
 # Regression test for geom_uzip.
 #
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
+TESTS+=		${FILES}
 
 IMAGE=		1.img
 ZIMAGE=		${IMAGE}.uzip
