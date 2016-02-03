@@ -67,52 +67,58 @@ f_isinteger()
 # Similar to awk(1)'s substr(), return length substring of string that begins
 # at start position counted from 1.
 #
-f_substr()
-{
-	local OPTIND=1 OPTARG __flag __var_to_set=
-	while getopts v: __flag; do
-		case "$__flag" in
-		v) __var_to_set="$OPTARG" ;;
+case "$BASH_VERSION" in
+*?*)
+	f_substr()
+	{
+		local __var_to_set=
+		case "$1" in
+		-v) __var_to_set="$2"; shift 2 ;;
+		-v?*) __var_to_set="${2#-v}"; shift 1 ;;
 		esac
-	done
-	shift $(( $OPTIND - 1 ))
-
-	local __tmp="$1" __start="${2:-1}" __size="$3"
-	local __tbuf __tbuf_len __trim __trimq
-
-	if [ ! "$__tmp" ]; then
-		[ "$__var_to_set" ] && setvar "$__var_to_set" ""
-		return ${SUCCESS:-0}
-	fi
-	[ "$__start" -ge 1 ] 2> /dev/null || __start=1
-	if ! [ "${__size:-1}" -ge 1 ] 2> /dev/null; then
-		[ "$__var_to_set" ] && setvar "$__var_to_set" ""
-		return ${FAILURE:-1}
-	fi
-
-	__trim=$(( $__start - 1 ))
-	while [ $__trim -gt 0 ]; do
-		__tbuf="?"
-		__tbuf_len=1
-		while [ $__tbuf_len -lt $(( $__trim / $__tbuf_len )) ]; do
-			__tbuf="$__tbuf?"
-			__tbuf_len=$(( $__tbuf_len + 1 ))
+		local __tmp="$1" __start="${2:-1}"  __len="$3"
+		[ "$__start" -gt 0 ] 2> /dev/null &&
+			__start=$(( $__start - 1 ))
+		if [ ! "$__var_to_set" ]; then
+			eval echo \"\${__tmp:\$__start${__len:+:\$__len}}\"
+			return $?
+		fi
+		if [ "$__len" ]; then
+			eval $__var_to_set=\"\${__tmp:\$__start:\$__len}\"
+		else
+			eval $__var_to_set=\"\${__tmp:\$__start}\"
+		fi
+	}
+	;;
+*)
+	# NB: On FreeBSD, sh(1) runs this faster than bash(1) runs the above
+	f_substr()
+	{
+		local OPTIND=1 OPTARG __flag __var_to_set=
+		while getopts v: __flag; do
+			case "$__flag" in
+			v) __var_to_set="$OPTARG" ;;
+			esac
 		done
-		__trimq=$(( $__trim / $__tbuf_len ))
-		__trim=$(( $__trim - $__tbuf_len * $__trimq ))
-		while [ $__trimq -gt 0 ]; do
-			__tmp="${__tmp#$__tbuf}"
-			__trimq=$(( $__trimq - 1 ))
-		done
-	done
+		shift $(( $OPTIND - 1 ))
 
-	local __tmp_size=${#__tmp}
-	local __mask __mask_len
-	__trim=$(( $__tmp_size - ${__size:-$__tmp_size} ))
-	while [ $__trim -gt 0 ]; do
-		__tbuf="?"
-		__tbuf_len=1
-		if [ $__trim -le $__size ]; then
+		local __tmp="$1" __start="${2:-1}" __size="$3"
+		local __tbuf __tbuf_len __trim __trimq
+
+		if [ ! "$__tmp" ]; then
+			[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+			return ${SUCCESS:-0}
+		fi
+		[ "$__start" -ge 1 ] 2> /dev/null || __start=1
+		if ! [ "${__size:-1}" -ge 1 ] 2> /dev/null; then
+			[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+			return ${FAILURE:-1}
+		fi
+
+		__trim=$(( $__start - 1 ))
+		while [ $__trim -gt 0 ]; do
+			__tbuf="?"
+			__tbuf_len=1
 			while [ $__tbuf_len -lt $(( $__trim / $__tbuf_len )) ]
 			do
 				__tbuf="$__tbuf?"
@@ -121,37 +127,66 @@ f_substr()
 			__trimq=$(( $__trim / $__tbuf_len ))
 			__trim=$(( $__trim - $__tbuf_len * $__trimq ))
 			while [ $__trimq -gt 0 ]; do
-				__tmp="${__tmp%$__tbuf}"
+				__tmp="${__tmp#$__tbuf}"
 				__trimq=$(( $__trimq - 1 ))
 			done
-		else
-			__mask="$__tmp"
-			while [ $__tbuf_len -lt $(( $__size / $__tbuf_len )) ]
-			do
-				__tbuf="$__tbuf?"
-				__tbuf_len=$(( $__tbuf_len + 1 ))
-			done
-			__trimq=$(( $__size / $__tbuf_len ))
-			if [ $(( $__trimq * $__tbuf_len )) -ne $__size ]; then
-				__tbuf="$__tbuf?"
-				__tbuf_len=$(( $__tbuf_len + 1 ))
-			fi
-			__mask_len=$(( $__tmp_size - $__tbuf_len * $__trimq ))
-			__trim=$(( $__tmp_size - $__mask_len - $__size ))
-			while [ $__trimq -gt 0 ]; do
-				__mask="${__mask#$__tbuf}"
-				__trimq=$(( $__trimq - 1 ))
-			done
-			__tmp="${__tmp%"$__mask"}"
-		fi
-	done
+		done
 
-	if [ "$__var_to_set" ]; then
-		setvar "$__var_to_set" "$__tmp"
-	else
-		echo "$__tmp"
-	fi
-}
+		local __tmp_size=${#__tmp}
+		local __mask __mask_len
+		__trim=$(( $__tmp_size - ${__size:-$__tmp_size} ))
+		while [ $__trim -gt 0 ]; do
+			__tbuf="?"
+			__tbuf_len=1
+			if [ $__trim -le $__size ]; then
+				while [ $__tbuf_len -lt $((
+					$__trim / $__tbuf_len
+				)) ]; do
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				done
+				__trimq=$(( $__trim / $__tbuf_len ))
+				__trim=$(( $__trim - $__tbuf_len * $__trimq ))
+				while [ $__trimq -gt 0 ]; do
+					__tmp="${__tmp%$__tbuf}"
+					__trimq=$(( $__trimq - 1 ))
+				done
+			else
+				__mask="$__tmp"
+				while [ $__tbuf_len -lt $((
+					$__size / $__tbuf_len
+				)) ]; do
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				done
+				__trimq=$(( $__size / $__tbuf_len ))
+				if [ $__size -ne $((
+					$__trimq * $__tbuf_len
+				)) ]; then
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				fi
+				__mask_len=$((
+					$__tmp_size - $__tbuf_len * $__trimq
+				))
+				__trim=$((
+					$__tmp_size - $__mask_len - $__size
+				))
+				while [ $__trimq -gt 0 ]; do
+					__mask="${__mask#$__tbuf}"
+					__trimq=$(( $__trimq - 1 ))
+				done
+				__tmp="${__tmp%"$__mask"}"
+			fi
+		done
+
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$__tmp"
+		else
+			echo "$__tmp"
+		fi
+	}
+esac
 
 # f_sprintf $var_to_set $format [$arguments ...]
 #
