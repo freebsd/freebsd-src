@@ -60,18 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuconf.h>
 #include <machine/cpufunc.h>
 
-#if defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219)
-#include <arm/xscale/i80321/i80321reg.h>
-#include <arm/xscale/i80321/i80321var.h>
-#endif
-
-/*
- * Some definitions in i81342reg.h clash with i80321reg.h.
- * This only happens for the LINT kernel. As it happens,
- * we don't need anything from i81342reg.h that we already
- * got from somewhere else during a LINT compile.
- */
-#if defined(CPU_XSCALE_81342) && !defined(COMPILING_LINT)
+#if defined(CPU_XSCALE_81342)
 #include <arm/xscale/i8134x/i81342reg.h>
 #endif
 
@@ -306,9 +295,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 };
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_XSCALE_80321) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_80219)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
 
 struct cpu_functions xscale_cpufuncs = {
 	/* CPU functions */
@@ -359,8 +346,7 @@ struct cpu_functions xscale_cpufuncs = {
 	xscale_setup			/* cpu setup		*/
 };
 #endif
-/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-   CPU_XSCALE_80219 */
+/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
 
 #ifdef CPU_XSCALE_81342
 struct cpu_functions xscalec3_cpufuncs = {
@@ -588,10 +574,10 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
 
 #if defined(CPU_ARM9) ||	\
   defined (CPU_ARM9E) ||	\
-  defined(CPU_ARM1176) || defined(CPU_XSCALE_80321) ||		\
+  defined(CPU_ARM1176) ||	\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
+  defined(CPU_XSCALE_81342) || \
   defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 /* Global cache line sizes, use 32 as default */
@@ -828,18 +814,6 @@ set_cpufuncs()
 		goto out;
 	}
 #endif	/* CPU_FA526 */
-
-#if defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219)
-	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
-	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0 ||
-	    cputype == CPU_ID_80219_400 || cputype == CPU_ID_80219_600) {
-		cpufuncs = xscale_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
-		get_cachetype_cp15();
-		pmap_pte_init_xscale();
-		goto out;
-	}
-#endif /* CPU_XSCALE_80321 */
 
 #if defined(CPU_XSCALE_81342)
 	if (cputype == CPU_ID_81342) {
@@ -1207,9 +1181,8 @@ fa526_setup(void)
 }
 #endif	/* CPU_FA526 */
 
-#if defined(CPU_XSCALE_80321) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
+  defined(CPU_XSCALE_81342)
 void
 xscale_setup(void)
 {
@@ -1276,5 +1249,4 @@ xscale_setup(void)
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
 		: : "r" (auxctl));
 }
-#endif	/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-	   CPU_XSCALE_80219 */
+#endif	/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
