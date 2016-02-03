@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 PJDFSTEST_SRCDIR=	${SRCTOP}/contrib/pjdfstest
 
 TESTSDIR=	${TESTSBASE}/sys/pjdfstest

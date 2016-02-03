@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TOP=		${.CURDIR:H:H:H:H}
 
 .PATH: ${TOP}/contrib/pjdfstest
