@@ -5307,6 +5307,7 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 	uint16_t ptype, plen;
 	uint8_t fnd;
 	struct sctp_nets *net;
+	int check_src;
 
 #ifdef INET
 	struct sockaddr_in sin4, *sa4;
@@ -5328,39 +5329,61 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 	sin6.sin6_len = sizeof(sin6);
 #endif
 	/* First what about the src address of the pkt ? */
-	fnd = 0;
-	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		sa = (struct sockaddr *)&net->ro._l_addr;
-		if (sa->sa_family == src->sa_family) {
+	check_src = 0;
+	switch (src->sa_family) {
 #ifdef INET
-			if (sa->sa_family == AF_INET) {
-				struct sockaddr_in *src4;
-
-				sa4 = (struct sockaddr_in *)sa;
-				src4 = (struct sockaddr_in *)src;
-				if (sa4->sin_addr.s_addr == src4->sin_addr.s_addr) {
-					fnd = 1;
-					break;
-				}
-			}
+	case AF_INET:
+		if (asoc->scope.ipv4_addr_legal) {
+			check_src = 1;
+		}
+		break;
 #endif
 #ifdef INET6
-			if (sa->sa_family == AF_INET6) {
-				struct sockaddr_in6 *src6;
-
-				sa6 = (struct sockaddr_in6 *)sa;
-				src6 = (struct sockaddr_in6 *)src;
-				if (SCTP6_ARE_ADDR_EQUAL(sa6, src6)) {
-					fnd = 1;
-					break;
-				}
-			}
-#endif
+	case AF_INET6:
+		if (asoc->scope.ipv6_addr_legal) {
+			check_src = 1;
 		}
+		break;
+#endif
+	default:
+		/* TSNH */
+		break;
 	}
-	if (fnd == 0) {
-		/* New address added! no need to look futher. */
-		return (1);
+	if (check_src) {
+		fnd = 0;
+		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+			sa = (struct sockaddr *)&net->ro._l_addr;
+			if (sa->sa_family == src->sa_family) {
+#ifdef INET
+				if (sa->sa_family == AF_INET) {
+					struct sockaddr_in *src4;
+
+					sa4 = (struct sockaddr_in *)sa;
+					src4 = (struct sockaddr_in *)src;
+					if (sa4->sin_addr.s_addr == src4->sin_addr.s_addr) {
+						fnd = 1;
+						break;
+					}
+				}
+#endif
+#ifdef INET6
+				if (sa->sa_family == AF_INET6) {
+					struct sockaddr_in6 *src6;
+
+					sa6 = (struct sockaddr_in6 *)sa;
+					src6 = (struct sockaddr_in6 *)src;
+					if (SCTP6_ARE_ADDR_EQUAL(sa6, src6)) {
+						fnd = 1;
+						break;
+					}
+				}
+#endif
+			}
+		}
+		if (fnd == 0) {
+			/* New address added! no need to look futher. */
+			return (1);
+		}
 	}
 	/* Ok so far lets munge through the rest of the packet */
 	offset += sizeof(struct sctp_init_chunk);
@@ -5381,9 +5404,11 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 				    phdr == NULL) {
 					return (1);
 				}
-				p4 = (struct sctp_ipv4addr_param *)phdr;
-				sin4.sin_addr.s_addr = p4->addr;
-				sa_touse = (struct sockaddr *)&sin4;
+				if (asoc->scope.ipv4_addr_legal) {
+					p4 = (struct sctp_ipv4addr_param *)phdr;
+					sin4.sin_addr.s_addr = p4->addr;
+					sa_touse = (struct sockaddr *)&sin4;
+				}
 				break;
 			}
 #endif
@@ -5398,10 +5423,12 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 				    phdr == NULL) {
 					return (1);
 				}
-				p6 = (struct sctp_ipv6addr_param *)phdr;
-				memcpy((caddr_t)&sin6.sin6_addr, p6->addr,
-				    sizeof(p6->addr));
-				sa_touse = (struct sockaddr *)&sin6;
+				if (asoc->scope.ipv6_addr_legal) {
+					p6 = (struct sctp_ipv6addr_param *)phdr;
+					memcpy((caddr_t)&sin6.sin6_addr, p6->addr,
+					    sizeof(p6->addr));
+					sa_touse = (struct sockaddr *)&sin6;
+				}
 				break;
 			}
 #endif
@@ -5457,7 +5484,8 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
  */
 void
 sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct mbuf *init_pkt, int iphlen, int offset,
+    struct sctp_nets *src_net, struct mbuf *init_pkt,
+    int iphlen, int offset,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_init_chunk *init_chk,
     uint8_t mflowtype, uint32_t mflowid,
@@ -5501,20 +5529,39 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		asoc = NULL;
 	}
 	if ((asoc != NULL) &&
-	    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT) &&
-	    (sctp_are_there_new_addresses(asoc, init_pkt, offset, src))) {
-		/* new addresses, out of here in non-cookie-wait states */
-		/*
-		 * Send a ABORT, we don't add the new address error clause
-		 * though we even set the T bit and copy in the 0 tag.. this
-		 * looks no different than if no listener was present.
-		 */
-		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
-		    "Address added");
-		sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, op_err,
-		    mflowtype, mflowid, inp->fibnum,
-		    vrf_id, port);
-		return;
+	    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT)) {
+		if (sctp_are_there_new_addresses(asoc, init_pkt, offset, src)) {
+			/*
+			 * new addresses, out of here in non-cookie-wait
+			 * states
+			 * 
+			 * Send an ABORT, without the new address error cause.
+			 * This looks no different than if no listener was
+			 * present.
+			 */
+			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+			    "Address added");
+			sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, op_err,
+			    mflowtype, mflowid, inp->fibnum,
+			    vrf_id, port);
+			return;
+		}
+		if (src_net != NULL && (src_net->port != port)) {
+			/*
+			 * change of remote encapsulation port, out of here
+			 * in non-cookie-wait states
+			 * 
+			 * Send an ABORT, without an specific error cause. This
+			 * looks no different than if no listener was
+			 * present.
+			 */
+			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+			    "Remote encapsulation port changed");
+			sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, op_err,
+			    mflowtype, mflowid, inp->fibnum,
+			    vrf_id, port);
+			return;
+		}
 	}
 	abort_flag = 0;
 	op_err = sctp_arethere_unrecognized_parameters(init_pkt,
