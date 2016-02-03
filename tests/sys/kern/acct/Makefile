@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/sys/kern/acct
 
 ATF_TESTS_C=	acct_test

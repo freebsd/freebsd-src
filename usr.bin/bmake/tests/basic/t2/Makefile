@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=	tests
+FILESGROUPS=	TESTS
+TESTSPACKAGE=	${PACKAGE}
 TESTSDIR=	${TESTSBASE}/usr.bin/bmake/basic/t2
 
 TAP_TESTS_SH=	legacy_test
