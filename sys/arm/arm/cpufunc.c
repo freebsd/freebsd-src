@@ -110,7 +110,6 @@ struct cpu_functions arm9_cpufuncs = {
 
 	/* Cache operations */
 
-	arm9_icache_sync_all,		/* icache_sync_all	*/
 	arm9_icache_sync_range,		/* icache_sync_range	*/
 
 	arm9_dcache_wbinv_all,		/* dcache_wbinv_all	*/
@@ -162,7 +161,6 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 	/* Cache operations */
 
-	armv5_ec_icache_sync_all,	/* icache_sync_all	*/
 	armv5_ec_icache_sync_range,	/* icache_sync_range	*/
 
 	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
@@ -213,7 +211,6 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	/* Cache operations */
 
-	armv5_ec_icache_sync_all,	/* icache_sync_all	*/
 	armv5_ec_icache_sync_range,	/* icache_sync_range	*/
 
 	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
@@ -264,7 +261,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	armv7_tlb_flushID_SE,		/* tlb_flushD_SE	*/
 
 	/* Cache operations */
-	armv7_idcache_wbinv_all,	/* icache_sync_all	*/
 	armv7_icache_sync_range,	/* icache_sync_range	*/
 
 	armv7_dcache_wbinv_all,		/* dcache_wbinv_all	*/
@@ -316,7 +312,6 @@ struct cpu_functions xscale_cpufuncs = {
 
 	/* Cache operations */
 
-	xscale_cache_syncI,		/* icache_sync_all	*/
 	xscale_cache_syncI_rng,		/* icache_sync_range	*/
 
 	xscale_cache_purgeD,		/* dcache_wbinv_all	*/
@@ -368,7 +363,6 @@ struct cpu_functions xscalec3_cpufuncs = {
 
 	/* Cache operations */
 
-	xscalec3_cache_syncI,		/* icache_sync_all	*/
 	xscalec3_cache_syncI_rng,	/* icache_sync_range	*/
 
 	xscalec3_cache_purgeD,		/* dcache_wbinv_all	*/
@@ -420,7 +414,6 @@ struct cpu_functions fa526_cpufuncs = {
 
 	/* Cache operations */
 
-	fa526_icache_sync_all,		/* icache_sync_all	*/
 	fa526_icache_sync_range,	/* icache_sync_range	*/
 
 	fa526_dcache_wbinv_all,		/* dcache_wbinv_all	*/
@@ -472,7 +465,6 @@ struct cpu_functions arm1176_cpufuncs = {
 
 	/* Cache operations */
 
-	arm11x6_icache_sync_all,        /* icache_sync_all      */
 	arm11x6_icache_sync_range,      /* icache_sync_range    */
 
 	arm11x6_dcache_wbinv_all,       /* dcache_wbinv_all     */
@@ -528,7 +520,6 @@ struct cpu_functions cortexa_cpufuncs = {
 
 	/* Cache operations */
 
-	armv7_icache_sync_all, 	        /* icache_sync_all      */
 	armv7_icache_sync_range,        /* icache_sync_range    */
 
 	armv7_dcache_wbinv_all,         /* dcache_wbinv_all     */

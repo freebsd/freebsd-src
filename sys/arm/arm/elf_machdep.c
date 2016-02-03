@@ -282,7 +282,7 @@ elf_cpu_load_file(linker_file_t lf)
 #else
 	cpu_dcache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
 	cpu_l2cache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
-	cpu_icache_sync_all();
+	cpu_icache_sync_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
 #endif
 	return (0);
 }

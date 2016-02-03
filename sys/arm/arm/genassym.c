@@ -101,7 +101,6 @@ ASSYM(CF_L2CACHE_WB_RANGE, offsetof(struct cpu_functions, cf_l2cache_wb_range));
 ASSYM(CF_IDCACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_idcache_wbinv_all));
 ASSYM(CF_L2CACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_l2cache_wbinv_all));
 ASSYM(CF_TLB_FLUSHID_SE, offsetof(struct cpu_functions, cf_tlb_flushID_SE));
-ASSYM(CF_ICACHE_SYNC, offsetof(struct cpu_functions, cf_icache_sync_all));
 
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SOFT, offsetof(struct vmmeter, v_soft));

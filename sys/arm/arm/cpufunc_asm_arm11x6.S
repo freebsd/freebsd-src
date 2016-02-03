@@ -132,12 +132,6 @@ ENTRY_NP(arm11x6_dcache_wbinv_all)
 	RET
 END(arm11x6_dcache_wbinv_all)
 
-ENTRY_NP(arm11x6_icache_sync_all)
-	Flush_D_cache(r0)
-	Invalidate_I_cache(r0, r1)
-	RET
-END(arm11x6_icache_sync_all)
-
 ENTRY_NP(arm11x6_icache_sync_range)
 	add	r1, r1, r0
 	sub	r1, r1, #1
