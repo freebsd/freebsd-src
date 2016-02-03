@@ -65,7 +65,7 @@ f_isinteger()
 # f_substr [-v $var_to_set] $string $start [$length]
 #
 # Similar to awk(1)'s substr(), return length substring of string that begins
-# at start position counted from 1. 
+# at start position counted from 1.
 #
 f_substr()
 {
@@ -76,7 +76,7 @@ f_substr()
 		esac
 	done
 	shift $(( $OPTIND - 1 ))
-	
+
 	local __tmp="$1" __start="${2:-1}" __size="$3"
 	local __tbuf __tbuf_len __trim __trimq
 
