@@ -412,9 +412,6 @@ void	xscalec3_context_switch	(void);
 
 #endif /* CPU_XSCALE_81342 */
 
-#define setttb		cpu_setttb
-#define drain_writebuf	cpu_drain_writebuf
-
 /*
  * Macros for manipulating CPU interrupts
  */
