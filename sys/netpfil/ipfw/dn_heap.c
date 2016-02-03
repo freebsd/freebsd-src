@@ -81,7 +81,7 @@ heap_resize(struct dn_heap *h, unsigned int new_size)
 {
 	struct dn_heap_entry *p;
 
-	if (h->size >= new_size )	/* have enough room */
+	if ((unsigned int)h->size >= new_size )	/* have enough room */
 		return 0;
 #if 1  /* round to the next power of 2 */
 	new_size |= new_size >> 1;
@@ -419,6 +419,8 @@ dn_ht_init(struct dn_ht *ht, int buckets, int ofs,
 static int
 do_del(void *obj, void *arg)
 {
+	(void)obj;
+	(void)arg;
 	return DNHT_SCAN_DEL;
 }
 

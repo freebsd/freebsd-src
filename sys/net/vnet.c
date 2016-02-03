@@ -171,7 +171,6 @@ static MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
  */
 #define	VNET_MODMIN	8192
 #define	VNET_SIZE	roundup2(VNET_BYTES, PAGE_SIZE)
-#define	VNET_MODSIZE	(VNET_SIZE - (VNET_BYTES - VNET_MODMIN))
 
 /*
  * Space to store virtualized global variables from loadable kernel modules,

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,12 +29,13 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_CLOCKSOURCE_H
-#define _LINUX_CLOCKSOURCE_H
+#define	_LINUX_CLOCKSOURCE_H
 
 #include <asm/types.h>
+
+#define	CLOCKSOURCE_MASK(x) ((cycle_t)(-1ULL >> ((-(x)) & 63)))
 
 /* clocksource cycle base type */
 typedef u64 cycle_t;
 
-
-#endif /* _LINUX_CLOCKSOURCE_H */
+#endif					/* _LINUX_CLOCKSOURCE_H */

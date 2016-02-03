@@ -420,7 +420,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 
 static struct resource *
 fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -479,8 +479,8 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 fhc_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *r __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);

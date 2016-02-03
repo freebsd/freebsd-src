@@ -36,8 +36,10 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/counter.h>
+#include <sys/malloc.h>
 #include <sys/refcount.h>
 #include <sys/tree.h>
+#include <vm/uma.h>
 
 #include <net/radix.h>
 #include <netinet/in.h>

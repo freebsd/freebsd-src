@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
  */
 static int		xlp_simplebus_probe(device_t dev);
 static struct resource *xlp_simplebus_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static int		xlp_simplebus_activate_resource(device_t, device_t, int,
     int, struct resource *);
 static int		xlp_simplebus_setup_intr(device_t, device_t,
@@ -174,7 +174,7 @@ xlp_simplebus_probe(device_t dev)
 
 static struct resource *
 xlp_simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct rman			*rm;
 	struct resource			*rv;

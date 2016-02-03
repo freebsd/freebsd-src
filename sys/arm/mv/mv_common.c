@@ -377,7 +377,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * Notice: system identifiers are available in the registers range of
 	 * PCIE controller, so using this function is only allowed (and
 	 * possible) after the internal registers range has been mapped in via
-	 * pmap_devmap_bootstrap().
+	 * arm_devmap_bootstrap().
 	 */
 	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
 	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;

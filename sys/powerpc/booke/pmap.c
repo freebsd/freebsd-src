@@ -1305,8 +1305,8 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("Maxmem = 0x%08lx\n", Maxmem);
 	debugf("phys_avail_count = %d\n", phys_avail_count);
-	debugf("physsz = 0x%08x physmem = %ld (0x%08lx)\n", physsz, physmem,
-	    physmem);
+	debugf("physsz = 0x%09jx physmem = %jd (0x%09jx)\n",
+	    (uintmax_t)physsz, (uintmax_t)physmem, (uintmax_t)physmem);
 
 	/*******************************************************/
 	/* Initialize (statically allocated) kernel pmap. */
@@ -2254,7 +2254,7 @@ mmu_booke_zero_page(mmu_t mmu, vm_page_t m)
 
 	mmu_booke_kenter(mmu, va, VM_PAGE_TO_PHYS(m));
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbzl 0,%0" :: "r"(va + off));
+		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
 	mmu_booke_kremove(mmu, va);
 
 	mtx_unlock(&zero_page_mutex);

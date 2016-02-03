@@ -259,7 +259,7 @@ abort_debug(struct trapframe *tf, u_int fsr, u_int prefetch, bool usermode,
 		userret(td, tf);
 	} else {
 #ifdef KDB
-		kdb_trap(T_BREAKPOINT, 0, tf);
+		kdb_trap((prefetch) ? T_BREAKPOINT : T_WATCHPOINT, 0, tf);
 #else
 		printf("No debugger in kernel.\n");
 #endif
@@ -334,17 +334,11 @@ abort_handler(struct trapframe *tf, int prefetch)
 	 * they are not from KVA space. Thus, no action is needed here.
 	 */
 
-#ifdef ARM_NEW_PMAP
 	rv = pmap_fault(PCPU_GET(curpmap), far, fsr, idx, usermode);
-	if (rv == 0) {
+	if (rv == KERN_SUCCESS)
 		return;
-	} else if (rv == EFAULT) {
-
-		call_trapsignal(td, SIGSEGV, SEGV_MAPERR, far);
-		userret(td, tf);
-		return;
-	}
-#endif
+	if (rv == KERN_INVALID_ADDRESS)
+		goto nogo;
 	/*
 	 * Now, when we handled imprecise and debug aborts, the rest of
 	 * aborts should be really related to mapping.
@@ -452,7 +446,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 	 */
 
 	/* fusubailout is used by [fs]uswintr to avoid page faulting. */
-	pcb = td->td_pcb;
 	if (__predict_false(pcb->pcb_onfault == fusubailout)) {
 		tf->tf_r0 = EFAULT;
 		tf->tf_pc = (register_t)pcb->pcb_onfault;
@@ -491,13 +484,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 
 #ifdef DEBUG
 	last_fault_code = fsr;
-#endif
-
-#ifndef ARM_NEW_PMAP
-	if (pmap_fault_fixup(vmspace_pmap(td->td_proc->p_vmspace), va, ftype,
-	    usermode)) {
-		goto out;
-	}
 #endif
 
 #ifdef INVARIANTS

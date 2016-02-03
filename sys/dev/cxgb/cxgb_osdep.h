@@ -231,7 +231,9 @@ static const int debug_flags = DBG_RX;
 #define le16_to_cpu(x) le16toh(x)
 #define cpu_to_le32(x) htole32(x)
 #define swab32(x) bswap32(x)
-#define simple_strtoul strtoul
+#ifndef simple_strtoul
+#define simple_strtoul(...) strtoul(__VA_ARGS__)
+#endif
 
 
 #ifndef LINUX_TYPES_DEFINED

@@ -101,6 +101,9 @@ struct vnet {
 #define	VNET_PCPUSTAT_ADD(type, name, f, v)	\
     counter_u64_add(VNET(name)[offsetof(type, f) / sizeof(uint64_t)], (v))
 
+#define	VNET_PCPUSTAT_FETCH(type, name, f)	\
+    counter_u64_fetch(VNET(name)[offsetof(type, f) / sizeof(uint64_t)])
+
 #define	VNET_PCPUSTAT_SYSINIT(name)	\
 static void				\
 vnet_##name##_init(const void *unused)	\

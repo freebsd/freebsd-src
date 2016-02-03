@@ -123,7 +123,7 @@ platform_late_init(void)
 }
 
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Construct devmap table with DT-derived config data.
  */
 int
 platform_devmap_init(void)

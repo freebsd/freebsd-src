@@ -351,7 +351,6 @@ inm_acquire_locked(struct in_multi *inm)
 struct	rtentry;
 struct	route;
 struct	ip_moptions;
-struct radix_node_head;
 
 struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);
 struct in_multi *inm_lookup(struct ifnet *, const struct in_addr);

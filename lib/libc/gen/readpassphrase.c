@@ -46,7 +46,7 @@ char *
 readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 {
 	ssize_t nr;
-	int input, output, save_errno, i, need_restart;
+	int input, output, save_errno, i, need_restart, input_is_tty;
 	char ch, *p, *end;
 	struct termios term, oterm;
 	struct sigaction sa, savealrm, saveint, savehup, savequit, saveterm;
@@ -68,12 +68,20 @@ restart:
 	 * Read and write to /dev/tty if available.  If not, read from
 	 * stdin and write to stderr unless a tty is required.
 	 */
-	if ((flags & RPP_STDIN) ||
-	    (input = output = _open(_PATH_TTY, O_RDWR | O_CLOEXEC)) == -1) {
-		if (flags & RPP_REQUIRE_TTY) {
-			errno = ENOTTY;
-			return(NULL);
+	input_is_tty = 0;
+	if (!(flags & RPP_STDIN)) {
+        	input = output = _open(_PATH_TTY, O_RDWR | O_CLOEXEC);
+		if (input == -1) {
+			if (flags & RPP_REQUIRE_TTY) {
+				errno = ENOTTY;
+				return(NULL);
+			}
+			input = STDIN_FILENO;
+			output = STDERR_FILENO;
+		} else {
+			input_is_tty = 1;
 		}
+	} else {
 		input = STDIN_FILENO;
 		output = STDERR_FILENO;
 	}
@@ -83,7 +91,7 @@ restart:
 	 * If we are using a tty but are not the foreground pgrp this will
 	 * generate SIGTTOU, so do it *before* installing the signal handlers.
 	 */
-	if (input != STDIN_FILENO && tcgetattr(input, &oterm) == 0) {
+	if (input_is_tty && tcgetattr(input, &oterm) == 0) {
 		memcpy(&term, &oterm, sizeof(term));
 		if (!(flags & RPP_ECHO_ON))
 			term.c_lflag &= ~(ECHO | ECHONL);
@@ -152,7 +160,7 @@ restart:
 	(void)__libc_sigaction(SIGTSTP, &savetstp, NULL);
 	(void)__libc_sigaction(SIGTTIN, &savettin, NULL);
 	(void)__libc_sigaction(SIGTTOU, &savettou, NULL);
-	if (input != STDIN_FILENO)
+	if (input_is_tty)
 		(void)_close(input);
 
 	/*

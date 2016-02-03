@@ -721,9 +721,10 @@ sv_probe(device_t dev)
 static int
 sv_attach(device_t dev) {
 	struct sc_info	*sc;
+	rman_res_t	count, midi_start, games_start;
 	u_int32_t	data;
 	char		status[SND_STATUSLEN];
-	u_long		midi_start, games_start, count, sdmaa, sdmac, ml, mu;
+	u_long		sdmaa, sdmac, ml, mu;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->dev = dev;

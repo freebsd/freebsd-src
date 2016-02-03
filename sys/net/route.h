@@ -204,21 +204,6 @@ struct rtentry {
 /* Control plane route request flags */
 #define	NHR_COPY		0x100	/* Copy rte data */
 
-/* rte<>nhop translation */
-static inline uint16_t
-fib_rte_to_nh_flags(int rt_flags)
-{
-	uint16_t res;
-
-	res = (rt_flags & RTF_REJECT) ? NHF_REJECT : 0;
-	res |= (rt_flags & RTF_BLACKHOLE) ? NHF_BLACKHOLE : 0;
-	res |= (rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) ? NHF_REDIRECT : 0;
-	res |= (rt_flags & RTF_BROADCAST) ? NHF_BROADCAST : 0;
-	res |= (rt_flags & RTF_GATEWAY) ? NHF_GATEWAY : 0;
-
-	return (res);
-}
-
 #ifdef _KERNEL
 /* rte<>ro_flags translation */
 static inline void
@@ -413,9 +398,8 @@ struct rt_addrinfo {
 	}							\
 } while (0)
 
-struct radix_node_head *rt_tables_get_rnh(int, int);
-
 struct ifmultiaddr;
+struct rib_head;
 
 void	 rt_ieee80211msg(struct ifnet *, int, void *, size_t);
 void	 rt_ifannouncemsg(struct ifnet *, int);
@@ -429,6 +413,8 @@ int	 rt_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
+struct rib_head *rt_table_init(int);
+void	rt_table_destroy(struct rib_head *);
 
 int	rtsock_addrmsg(int, struct ifaddr *, int);
 int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
@@ -447,7 +433,7 @@ void	 rtfree(struct rtentry *);
 void	rt_updatemtu(struct ifnet *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);
-typedef void rt_setwarg_t(struct radix_node_head *, uint32_t, int, void *);
+typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
 void	rt_flushifroutes(struct ifnet *ifp);

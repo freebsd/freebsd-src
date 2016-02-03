@@ -1028,4 +1028,6 @@ hv_nv_on_channel_callback(void *context)
 
 	if (bufferlen > NETVSC_PACKET_SIZE)
 		free(buffer, M_NETVSC);
+
+	hv_rf_channel_rollup(net_dev);
 }

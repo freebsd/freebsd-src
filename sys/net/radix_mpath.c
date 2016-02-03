@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/radix.h>
 #include <net/radix_mpath.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
@@ -57,10 +58,17 @@ __FBSDID("$FreeBSD$");
 static uint32_t hashjitter;
 
 int
-rn_mpath_capable(struct radix_node_head *rnh)
+rt_mpath_capable(struct rib_head *rnh)
 {
 
 	return rnh->rnh_multipath;
+}
+
+int
+rn_mpath_capable(struct radix_head *rh)
+{
+
+	return (rt_mpath_capable((struct rib_head *)rh));
 }
 
 struct radix_node *
@@ -159,14 +167,14 @@ rt_mpath_deldup(struct rtentry *headrt, struct rtentry *rt)
  * Assume @rt rt_key host bits are cleared according to @netmask
  */
 int
-rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
+rt_mpath_conflict(struct rib_head *rnh, struct rtentry *rt,
     struct sockaddr *netmask)
 {
 	struct radix_node *rn, *rn1;
 	struct rtentry *rt1;
 
 	rn = (struct radix_node *)rt;
-	rn1 = rnh->rnh_lookup(rt_key(rt), netmask, rnh);
+	rn1 = rnh->rnh_lookup(rt_key(rt), netmask, &rnh->head);
 	if (!rn1 || rn1->rn_flags & RNF_ROOT)
 		return (0);
 
@@ -284,11 +292,11 @@ extern int	in_inithead(void **head, int off);
 int
 rn4_mpath_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 
 	hashjitter = arc4random();
 	if (in_inithead(head, off) == 1) {
-		rnh = (struct radix_node_head *)*head;
+		rnh = (struct rib_head *)*head;
 		rnh->rnh_multipath = 1;
 		return 1;
 	} else
@@ -300,11 +308,11 @@ rn4_mpath_inithead(void **head, int off)
 int
 rn6_mpath_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 
 	hashjitter = arc4random();
 	if (in6_inithead(head, off) == 1) {
-		rnh = (struct radix_node_head *)*head;
+		rnh = (struct rib_head *)*head;
 		rnh->rnh_multipath = 1;
 		return 1;
 	} else

@@ -965,7 +965,7 @@ void ixgbe_restore_mdd_vf_X550(struct ixgbe_hw *hw, u32 vf)
 		num_qs = 4;  /* 32 VFs / pools */
 		bitmask = 0x0000000F;
 		break;
-	default:            /* 64 VFs / pools */
+	default:	    /* 64 VFs / pools */
 		num_qs = 2;
 		bitmask = 0x00000003;
 		break;
@@ -1264,7 +1264,7 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 	    IXGBE_MDIO_GLOBAL_ALARM_1_INT)))
 		return status;
 
-	/* High temperature failure alarm triggered */
+	/* Global alarm triggered */
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_ALARM_1,
 				      IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
 				      &reg);
@@ -1277,6 +1277,21 @@ static s32 ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc)
 		/* power down the PHY in case the PHY FW didn't already */
 		ixgbe_set_copper_phy_power(hw, FALSE);
 		return IXGBE_ERR_OVERTEMP;
+	} else if (reg & IXGBE_MDIO_GLOBAL_ALM_1_DEV_FAULT) {
+		/*  device fault alarm triggered */
+		status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_GLOBAL_FAULT_MSG,
+					  IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
+					  &reg);
+
+		if (status != IXGBE_SUCCESS)
+			return status;
+
+		/* if device fault was due to high temp alarm handle and exit */
+		if (reg == IXGBE_MDIO_GLOBAL_FAULT_MSG_HI_TMP) {
+			/* power down the PHY in case the PHY FW didn't */
+			ixgbe_set_copper_phy_power(hw, FALSE);
+			return IXGBE_ERR_OVERTEMP;
+		}
 	}
 
 	/* Vendor alarm 2 triggered */

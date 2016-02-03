@@ -51,6 +51,16 @@ struct arm_gic_softc {
 	uint32_t		nirqs;
 };
 
+DECLARE_CLASS(arm_gicv2m_driver);
+
+struct gicv2m_softc {
+	struct resource	*sc_mem;
+	struct mtx	sc_mutex;
+	u_int		sc_spi_start;
+	u_int		sc_spi_count;
+	u_int		sc_spi_offset;
+};
+
 int arm_gic_attach(device_t);
 
 #endif

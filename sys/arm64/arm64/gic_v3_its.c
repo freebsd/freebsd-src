@@ -82,7 +82,7 @@ static device_method_t gic_v3_its_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(gic_v3_its, gic_v3_its_driver, gic_v3_its_methods,
+DEFINE_CLASS_0(its, gic_v3_its_driver, gic_v3_its_methods,
     sizeof(struct gic_v3_its_softc));
 
 MALLOC_DEFINE(M_GIC_V3_ITS, "GICv3 ITS", GIC_V3_ITS_DEVSTR);

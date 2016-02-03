@@ -459,8 +459,9 @@ main(int argc, char *argv[])
     int c;
     int run_batch;
 #ifdef __FreeBSD__
-    size_t ncpu, ncpusz;
+    size_t ncpusz;
     double load_avg = -1;
+    int ncpu;
 #else
     double load_avg = LOADAVG_MX;
 #endif

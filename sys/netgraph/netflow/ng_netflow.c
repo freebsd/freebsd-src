@@ -40,10 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/ctype.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/ethernet.h>

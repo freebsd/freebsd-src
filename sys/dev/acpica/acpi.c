@@ -121,12 +121,12 @@ static struct resource_list *acpi_get_rlist(device_t dev, device_t child);
 static void	acpi_reserve_resources(device_t dev);
 static int	acpi_sysres_alloc(device_t dev);
 static int	acpi_set_resource(device_t dev, device_t child, int type,
-			int rid, u_long start, u_long count);
+			int rid, rman_res_t start, rman_res_t count);
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
-			int type, int *rid, u_long start, u_long end,
-			u_long count, u_int flags);
+			int type, int *rid, rman_res_t start, rman_res_t end,
+			rman_res_t count, u_int flags);
 static int	acpi_adjust_resource(device_t bus, device_t child, int type,
-			struct resource *r, u_long start, u_long end);
+			struct resource *r, rman_res_t start, rman_res_t end);
 static int	acpi_release_resource(device_t bus, device_t child, int type,
 			int rid, struct resource *r);
 static void	acpi_delete_resource(device_t bus, device_t child, int type,
@@ -1247,13 +1247,13 @@ acpi_reserve_resources(device_t dev)
 
 static int
 acpi_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
     struct acpi_softc *sc = device_get_softc(dev);
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
     ACPI_DEVICE_INFO *devinfo;
-    u_long end;
+    rman_res_t end;
     
     /* Ignore IRQ resources for PCI link devices. */
     if (type == SYS_RES_IRQ && ACPI_ID_PROBE(dev, child, pcilink_ids) != NULL)
@@ -1323,7 +1323,7 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 
 static struct resource *
 acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
     ACPI_RESOURCE ares;
     struct acpi_device *ad;
@@ -1399,8 +1399,8 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
  * system resources.
  */
 struct resource *
-acpi_alloc_sysres(device_t child, int type, int *rid, u_long start, u_long end,
-    u_long count, u_int flags)
+acpi_alloc_sysres(device_t child, int type, int *rid, rman_res_t start,
+    rman_res_t end, rman_res_t count, u_int flags)
 {
     struct rman *rm;
     struct resource *res;
@@ -1450,7 +1450,7 @@ acpi_is_resource_managed(int type, struct resource *r)
 
 static int
 acpi_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
-    u_long start, u_long end)
+    rman_res_t start, rman_res_t end)
 {
 
     if (acpi_is_resource_managed(type, r))

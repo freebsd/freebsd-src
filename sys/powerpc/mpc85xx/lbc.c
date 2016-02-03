@@ -69,7 +69,7 @@ static int lbc_probe(device_t);
 static int lbc_attach(device_t);
 static int lbc_shutdown(device_t);
 static struct resource *lbc_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+    rman_res_t, rman_res_t, rman_res_t, u_int);
 static int lbc_print_child(device_t, device_t);
 static int lbc_release_resource(device_t, device_t, int, int,
     struct resource *);
@@ -113,7 +113,8 @@ static driver_t lbc_driver = {
 
 devclass_t lbc_devclass;
 
-DRIVER_MODULE(lbc, ofwbus, lbc_driver, lbc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(lbc, ofwbus, lbc_driver, lbc_devclass,
+    0, 0, BUS_PASS_BUS);
 
 /*
  * Calculate address mask used by OR(n) registers. Use memory region size to
@@ -663,7 +664,7 @@ lbc_shutdown(device_t dev)
 
 static struct resource *
 lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct lbc_softc *sc;
 	struct lbc_devinfo *di;

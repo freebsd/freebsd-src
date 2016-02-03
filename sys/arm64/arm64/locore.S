@@ -369,8 +369,8 @@ create_pagetables:
 	sub	x8, x7, x6
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)
-	/* Add 4 MiB for any rounding above and the module data */
-	add	x10, x10, #2
+	/* Add 8 MiB for any rounding above and the module data */
+	add	x10, x10, #4
 
 	/* Create the kernel space L2 table */
 	mov	x6, x26

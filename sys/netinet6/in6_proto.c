@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>

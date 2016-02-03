@@ -34,6 +34,7 @@
 #define	__THUNDER_MDIO_VAR_H__
 
 #define	THUNDER_MDIO_DEVSTR	"Cavium ThunderX SMI/MDIO driver"
+MALLOC_DECLARE(M_THUNDER_MDIO);
 DECLARE_CLASS(thunder_mdio_driver);
 
 enum thunder_mdio_mode {

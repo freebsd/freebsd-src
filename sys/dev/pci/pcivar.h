@@ -397,7 +397,7 @@ pci_get_vpd_readonly(device_t dev, const char *kw, const char **vptr)
  * Check if the address range falls within the VGA defined address range(s)
  */
 static __inline int
-pci_is_vga_ioport_range(u_long start, u_long end)
+pci_is_vga_ioport_range(rman_res_t start, rman_res_t end)
 {
  
 	return (((start >= 0x3b0 && end <= 0x3bb) ||
@@ -405,7 +405,7 @@ pci_is_vga_ioport_range(u_long start, u_long end)
 }
 
 static __inline int
-pci_is_vga_memory_range(u_long start, u_long end)
+pci_is_vga_memory_range(rman_res_t start, rman_res_t end)
 {
 
 	return ((start >= 0xa0000 && end <= 0xbffff) ? 1 : 0);

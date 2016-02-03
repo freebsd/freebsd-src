@@ -3,7 +3,7 @@
 /*
  * Copyright (c) 2005, 2006 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 2007 Andrew Thompson <thompsa@FreeBSD.org>
- * Copyright (c) 2014 Marcelo Araujo <araujo@FreeBSD.org>
+ * Copyright (c) 2014, 2016 Marcelo Araujo <araujo@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1291,10 +1291,17 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 				ro->ro_active += LAGG_PORTACTIVE(lp);
 		}
+		ro->ro_bkt = sc->sc_bkt;
 		ro->ro_flapping = sc->sc_flapping;
 		ro->ro_flowid_shift = sc->flowid_shift;
 		break;
 	case SIOCSLAGGOPTS:
+		if (sc->sc_proto == LAGG_PROTO_ROUNDROBIN) {
+			if (ro->ro_bkt == 0)
+				sc->sc_bkt = 1; // Minimum 1 packet per iface.
+			else
+				sc->sc_bkt = ro->ro_bkt;
+		}
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
@@ -1329,6 +1336,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		LAGG_WLOCK(sc);
+
 		if (valid == 0 ||
 		    (lacp == 1 && sc->sc_proto != LAGG_PROTO_LACP)) {
 			/* Invalid combination of options specified. */
@@ -1879,6 +1887,7 @@ lagg_rr_attach(struct lagg_softc *sc)
 {
 	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
 	sc->sc_seq = 0;
+	sc->sc_bkt_count = sc->sc_bkt;
 }
 
 static int
@@ -1887,9 +1896,21 @@ lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp;
 	uint32_t p;
 
-	p = atomic_fetchadd_32(&sc->sc_seq, 1);
+	if (sc->sc_bkt_count == 0 && sc->sc_bkt > 0)
+		sc->sc_bkt_count = sc->sc_bkt;
+
+	if (sc->sc_bkt > 0) {
+		atomic_subtract_int(&sc->sc_bkt_count, 1);
+	if (atomic_cmpset_int(&sc->sc_bkt_count, 0, sc->sc_bkt))
+		p = atomic_fetchadd_32(&sc->sc_seq, 1);
+	else
+		p = sc->sc_seq; 
+	} else
+		p = atomic_fetchadd_32(&sc->sc_seq, 1);
+
 	p %= sc->sc_count;
 	lp = SLIST_FIRST(&sc->sc_ports);
+
 	while (p--)
 		lp = SLIST_NEXT(lp, lp_entries);
 

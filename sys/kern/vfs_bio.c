@@ -1809,6 +1809,8 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
  * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
  * is set, the buffer is valid and we do not have to do anything, see
  * getblk(). Also starts asynchronous I/O on read-ahead blocks.
+ *
+ * Always return a NULL buffer pointer (in bpp) when returning an error.
  */
 int
 breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
@@ -1844,6 +1846,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 
 	if (readwait) {
 		rv = bufwait(bp);
+		if (rv != 0) {
+			brelse(bp);
+			*bpp = NULL;
+		}
 	}
 	return (rv);
 }
@@ -2238,6 +2244,12 @@ brelse(struct buf *bp)
 {
 	int qindex;
 
+	/*
+	 * Many function erroneously call brelse with a NULL bp under rare
+	 * error conditions. Simply return when called with a NULL bp.
+	 */
+	if (bp == NULL)
+		return;
 	CTR3(KTR_BUF, "brelse(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),

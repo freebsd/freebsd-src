@@ -1,6 +1,6 @@
 if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
 #
-# Copyright (c) 2006-2013 Devin Teske
+# Copyright (c) 2006-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,47 +52,190 @@ VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 
 ############################################################ FUNCTIONS
 
-# f_substr "$string" $start [$length]
+# f_isinteger $arg
 #
-# Simple wrapper to awk(1)'s `substr' function.
+# Returns true if argument is a positive/negative whole integer.
 #
-f_substr()
+f_isinteger()
 {
-	local string="$1" start="${2:-0}" len="${3:-0}"
-	echo "$string" | awk "{ print substr(\$0, $start, $len) }"
+	local arg="${1#-}"
+	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
 }
 
-# f_snprintf $var_to_set $size $format [$arguments ...]
+# f_substr [-v $var_to_set] $string $start [$length]
 #
-# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
-# using printf(1) syntax (`$format [$arguments ...]'). The value of $var_to_set
-# is NULL unless at-least one byte is stored from the output.
+# Similar to awk(1)'s substr(), return length substring of string that begins
+# at start position counted from 1.
 #
-f_snprintf()
-{
-	local __var_to_set="$1" __size="$2"
-	shift 2 # var_to_set size
-	eval "$__var_to_set"=\$\( printf -- \"\$@\" \| \
-		awk -v max=\"\$__size\" \''
+case "$BASH_VERSION" in
+*?*)
+	f_substr()
 	{
-		len = length($0)
-		max -= len
-		print substr($0,0,(max > 0 ? len : max + len))
-		if ( max < 0 ) exit
-		max--
-	}'\' \)
-}
+		local __var_to_set=
+		case "$1" in
+		-v) __var_to_set="$2"; shift 2 ;;
+		-v?*) __var_to_set="${2#-v}"; shift 1 ;;
+		esac
+		local __tmp="$1" __start="${2:-1}"  __len="$3"
+		[ "$__start" -gt 0 ] 2> /dev/null &&
+			__start=$(( $__start - 1 ))
+		if [ ! "$__var_to_set" ]; then
+			eval echo \"\${__tmp:\$__start${__len:+:\$__len}}\"
+			return $?
+		fi
+		if [ "$__len" ]; then
+			eval $__var_to_set=\"\${__tmp:\$__start:\$__len}\"
+		else
+			eval $__var_to_set=\"\${__tmp:\$__start}\"
+		fi
+	}
+	;;
+*)
+	# NB: On FreeBSD, sh(1) runs this faster than bash(1) runs the above
+	f_substr()
+	{
+		local OPTIND=1 OPTARG __flag __var_to_set=
+		while getopts v: __flag; do
+			case "$__flag" in
+			v) __var_to_set="$OPTARG" ;;
+			esac
+		done
+		shift $(( $OPTIND - 1 ))
+
+		local __tmp="$1" __start="${2:-1}" __size="$3"
+		local __tbuf __tbuf_len __trim __trimq
+
+		if [ ! "$__tmp" ]; then
+			[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+			return ${SUCCESS:-0}
+		fi
+		[ "$__start" -ge 1 ] 2> /dev/null || __start=1
+		if ! [ "${__size:-1}" -ge 1 ] 2> /dev/null; then
+			[ "$__var_to_set" ] && setvar "$__var_to_set" ""
+			return ${FAILURE:-1}
+		fi
+
+		__trim=$(( $__start - 1 ))
+		while [ $__trim -gt 0 ]; do
+			__tbuf="?"
+			__tbuf_len=1
+			while [ $__tbuf_len -lt $(( $__trim / $__tbuf_len )) ]
+			do
+				__tbuf="$__tbuf?"
+				__tbuf_len=$(( $__tbuf_len + 1 ))
+			done
+			__trimq=$(( $__trim / $__tbuf_len ))
+			__trim=$(( $__trim - $__tbuf_len * $__trimq ))
+			while [ $__trimq -gt 0 ]; do
+				__tmp="${__tmp#$__tbuf}"
+				__trimq=$(( $__trimq - 1 ))
+			done
+		done
+
+		local __tmp_size=${#__tmp}
+		local __mask __mask_len
+		__trim=$(( $__tmp_size - ${__size:-$__tmp_size} ))
+		while [ $__trim -gt 0 ]; do
+			__tbuf="?"
+			__tbuf_len=1
+			if [ $__trim -le $__size ]; then
+				while [ $__tbuf_len -lt $((
+					$__trim / $__tbuf_len
+				)) ]; do
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				done
+				__trimq=$(( $__trim / $__tbuf_len ))
+				__trim=$(( $__trim - $__tbuf_len * $__trimq ))
+				while [ $__trimq -gt 0 ]; do
+					__tmp="${__tmp%$__tbuf}"
+					__trimq=$(( $__trimq - 1 ))
+				done
+			else
+				__mask="$__tmp"
+				while [ $__tbuf_len -lt $((
+					$__size / $__tbuf_len
+				)) ]; do
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				done
+				__trimq=$(( $__size / $__tbuf_len ))
+				if [ $__size -ne $((
+					$__trimq * $__tbuf_len
+				)) ]; then
+					__tbuf="$__tbuf?"
+					__tbuf_len=$(( $__tbuf_len + 1 ))
+				fi
+				__mask_len=$((
+					$__tmp_size - $__tbuf_len * $__trimq
+				))
+				__trim=$((
+					$__tmp_size - $__mask_len - $__size
+				))
+				while [ $__trimq -gt 0 ]; do
+					__mask="${__mask#$__tbuf}"
+					__trimq=$(( $__trimq - 1 ))
+				done
+				__tmp="${__tmp%"$__mask"}"
+			fi
+		done
+
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$__tmp"
+		else
+			echo "$__tmp"
+		fi
+	}
+esac
 
 # f_sprintf $var_to_set $format [$arguments ...]
 #
 # Similar to sprintf(3), write a string into $var_to_set using printf(1) syntax
 # (`$format [$arguments ...]').
 #
-f_sprintf()
+case "$BASH_VERSION" in
+3.1*|4.*)
+	f_sprintf()
+	{
+		local __var_to_set="$1" __tmp
+		shift 1 # var_to_set
+		printf -v __tmp "$@"
+		eval "$__var_to_set"=\"\${__tmp%\$NL}\"
+	}
+	;;
+*)
+	# NB: On FreeBSD, sh(1) runs this faster than bash(1) runs the above
+	f_sprintf()
+	{
+		local __var_to_set="$1"
+		shift 1 # var_to_set
+		eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
+	}
+esac
+
+# f_vsprintf $var_to_set $format $format_args
+#
+# Similar to vsprintf(3), write a string into $var_to_set using printf(1)
+# syntax (`$format $format_args').
+#
+f_vsprintf()
 {
-	local __var_to_set="$1"
-	shift 1 # var_to_set
-	eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
+	eval f_sprintf \"\$1\" \"\$2\" $3
+}
+
+# f_snprintf $var_to_set $size $format [$arguments ...]
+#
+# Similar to snprintf(3), write at most $size number of bytes into $var_to_set
+# using printf(1) syntax (`$format [$arguments ...]').
+#
+f_snprintf()
+{
+	local __var_to_set="$1" __size="$2"
+	shift 2 # var_to_set size
+
+	local __f_snprintf_tmp
+	f_sprintf __f_snprintf_tmp "$@"
+	f_substr "$__var_to_set" "$__f_snprintf_tmp" 1 "$__size"
 }
 
 # f_vsnprintf $var_to_set $size $format $format_args
@@ -110,7 +253,7 @@ f_sprintf()
 # Example 2:
 #
 # 	limit=12 format="%s %s"
-# 	format_args="   'doghouse'      'foxhound'   "
+# 	format_args="   'doghouse'      'fox'   "
 # 		# even more spaces added to illustrate escape-method
 # 	f_vsnprintf foo $limit "$format" "$format_args" # foo=[doghouse fox]
 #
@@ -128,140 +271,6 @@ f_sprintf()
 f_vsnprintf()
 {
 	eval f_snprintf \"\$1\" \"\$2\" \"\$3\" $4
-}
-
-# f_vsprintf $var_to_set $format $format_args
-#
-# Similar to vsprintf(3), write a string into $var_to_set using printf(1)
-# syntax (`$format $format_args').
-#
-f_vsprintf()
-{
-	eval f_sprintf \"\$1\" \"\$2\" $3
-}
-
-# f_longest_line_length
-#
-# Simple wrapper to an awk(1) script to print the length of the longest line of
-# input (read from stdin). Supports the newline escape-sequence `\n' for
-# splitting a single line into multiple lines.
-#
-f_longest_line_length_awk='
-BEGIN { longest = 0 }
-{
-	if (split($0, lines, /\\n/) > 1)
-	{
-		for (n in lines)
-		{
-			len = length(lines[n])
-			longest = ( len > longest ? len : longest )
-		}
-	}
-	else
-	{
-		len = length($0)
-		longest = ( len > longest ? len : longest )
-	}
-}
-END { print longest }
-'
-f_longest_line_length()
-{
-	awk "$f_longest_line_length_awk"
-}
-
-# f_number_of_lines
-#
-# Simple wrapper to an awk(1) script to print the number of lines read from
-# stdin. Supports newline escape-sequence `\n' for splitting a single line into
-# multiple lines.
-#
-f_number_of_lines_awk='
-BEGIN { num_lines = 0 }
-{
-	num_lines += split(" "$0, unused, /\\n/)
-}
-END { print num_lines }
-'
-f_number_of_lines()
-{
-	awk "$f_number_of_lines_awk"
-}
-
-# f_isinteger $arg
-#
-# Returns true if argument is a positive/negative whole integer.
-#
-f_isinteger()
-{
-	local arg="${1#-}"
-	[ "${arg:-x}" = "${arg%[!0-9]*}" ]
-}
-
-# f_uriencode [$text]
-#
-# Encode $text for the purpose of embedding safely into a URL. Non-alphanumeric
-# characters are converted to `%XX' sequence where XX represents the hexa-
-# decimal ordinal of the non-alphanumeric character. If $text is missing, data
-# is instead read from standard input.
-#
-f_uriencode_awk='
-BEGIN {
-	output = ""
-	for (n = 0; n < 256; n++) pack[sprintf("%c", n)] = sprintf("%%%02x", n)
-}
-{
-	sline = ""
-	slen = length($0)
-	for (n = 1; n <= slen; n++) {
-		char = substr($0, n, 1)
-		if ( char !~ /^[[:alnum:]_]$/ ) char = pack[char]
-		sline = sline char
-	}
-	output = output ( output ? "%0a" : "" ) sline
-}
-END { print output }
-'
-f_uriencode()
-{
-	if [ $# -gt 0 ]; then
-		echo "$1" | awk "$f_uriencode_awk"
-	else
-		awk "$f_uriencode_awk"
-	fi
-}
-
-# f_uridecode [$text]
-#
-# Decode $text from a URI. Encoded characters are converted from their `%XX'
-# sequence into original unencoded ASCII sequences. If $text is missing, data
-# is instead read from standard input.
-#
-f_uridecode_awk='
-BEGIN { for (n = 0; n < 256; n++) chr[n] = sprintf("%c", n) }
-{
-	sline = ""
-	slen = length($0)
-	for (n = 1; n <= slen; n++)
-	{
-		seq = substr($0, n, 3)
-		if ( seq ~ /^%[[:xdigit:]][[:xdigit:]]$/ ) {
-			hex = substr(seq, 2, 2)
-			sline = sline chr[sprintf("%u", "0x"hex)]
-			n += 2
-		} else
-			sline = sline substr(seq, 1, 1)
-	}
-	print sline
-}
-'
-f_uridecode()
-{
-	if [ $# -gt 0 ]; then
-		echo "$1" | awk "$f_uridecode_awk"
-	else
-		awk "$f_uridecode_awk"
-	fi
 }
 
 # f_replaceall $string $find $replace [$var_to_set]
@@ -444,6 +453,120 @@ f_expand_number()
 		setvar "$__var_to_set" $__num
 	else
 		echo $__num
+	fi
+}
+
+# f_longest_line_length
+#
+# Simple wrapper to an awk(1) script to print the length of the longest line of
+# input (read from stdin). Supports the newline escape-sequence `\n' for
+# splitting a single line into multiple lines.
+#
+f_longest_line_length_awk='
+BEGIN { longest = 0 }
+{
+	if (split($0, lines, /\\n/) > 1)
+	{
+		for (n in lines)
+		{
+			len = length(lines[n])
+			longest = ( len > longest ? len : longest )
+		}
+	}
+	else
+	{
+		len = length($0)
+		longest = ( len > longest ? len : longest )
+	}
+}
+END { print longest }
+'
+f_longest_line_length()
+{
+	awk "$f_longest_line_length_awk"
+}
+
+# f_number_of_lines
+#
+# Simple wrapper to an awk(1) script to print the number of lines read from
+# stdin. Supports newline escape-sequence `\n' for splitting a single line into
+# multiple lines.
+#
+f_number_of_lines_awk='
+BEGIN { num_lines = 0 }
+{
+	num_lines += split(" "$0, unused, /\\n/)
+}
+END { print num_lines }
+'
+f_number_of_lines()
+{
+	awk "$f_number_of_lines_awk"
+}
+
+# f_uriencode [$text]
+#
+# Encode $text for the purpose of embedding safely into a URL. Non-alphanumeric
+# characters are converted to `%XX' sequence where XX represents the hexa-
+# decimal ordinal of the non-alphanumeric character. If $text is missing, data
+# is instead read from standard input.
+#
+f_uriencode_awk='
+BEGIN {
+	output = ""
+	for (n = 0; n < 256; n++) pack[sprintf("%c", n)] = sprintf("%%%02x", n)
+}
+{
+	sline = ""
+	slen = length($0)
+	for (n = 1; n <= slen; n++) {
+		char = substr($0, n, 1)
+		if ( char !~ /^[[:alnum:]_]$/ ) char = pack[char]
+		sline = sline char
+	}
+	output = output ( output ? "%0a" : "" ) sline
+}
+END { print output }
+'
+f_uriencode()
+{
+	if [ $# -gt 0 ]; then
+		echo "$1" | awk "$f_uriencode_awk"
+	else
+		awk "$f_uriencode_awk"
+	fi
+}
+
+# f_uridecode [$text]
+#
+# Decode $text from a URI. Encoded characters are converted from their `%XX'
+# sequence into original unencoded ASCII sequences. If $text is missing, data
+# is instead read from standard input.
+#
+f_uridecode_awk='
+BEGIN { for (n = 0; n < 256; n++) chr[n] = sprintf("%c", n) }
+{
+	sline = ""
+	slen = length($0)
+	for (n = 1; n <= slen; n++)
+	{
+		seq = substr($0, n, 3)
+		if ( seq ~ /^%[[:xdigit:]][[:xdigit:]]$/ ) {
+			hex = substr(seq, 2, 2)
+			sline = sline chr[sprintf("%u", "0x"hex)]
+			n += 2
+		} else
+			sline = sline substr(seq, 1, 1)
+	}
+	print sline
+}
+'
+f_uridecode()
+{
+	if [ $# -gt 0 ]; then
+		echo "$1" | awk "$f_uridecode_awk"
+	else
+		awk "$f_uridecode_awk"
 	fi
 }
 
