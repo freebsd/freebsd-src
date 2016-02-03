@@ -55,9 +55,6 @@ static boolean_t devmap_bootstrap_done = false;
 #define	PTE_DEVICE	VM_MEMATTR_DEVICE
 #elif defined(__arm__)
 #define	MAX_VADDR	ARM_VECTORS_HIGH
-#if __ARM_ARCH >= 6
-#define	PTE_DEVICE	VM_MEMATTR_DEVICE
-#endif
 #endif
 
 /*

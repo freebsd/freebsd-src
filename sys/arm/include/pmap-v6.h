@@ -250,6 +250,8 @@ void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
  */
 void vector_page_setprot(int);
 
+#define PTE_DEVICE	VM_MEMATTR_DEVICE
+
 #endif	/* _KERNEL */
 // -----------------------------------------------------------------------------
 
