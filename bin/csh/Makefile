@@ -62,7 +62,7 @@ CATALOGS=	et:et_EE.UTF-8 \
 		spanish:es_ES.UTF-8 \
 		ukrainian:uk_UA.UTF-8
 
-NLSLINKS_de_DE.UTF-8 = de_AT.UTF-8 de_CH.UTF-8 de_DE.UTF-8
+NLSLINKS_de_DE.UTF-8 = de_AT.UTF-8 de_CH.UTF-8
 NLSLINKS_fr_FR.UTF-8 = fr_BE.UTF-8 fr_CA.UTF-8 fr_CH.UTF-8
 NLSLINKS_it_IT.UTF-8 = it_CH.UTF-8
 
