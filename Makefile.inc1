@@ -1210,7 +1210,9 @@ distrib-dirs: .MAKE .PHONY
 	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
-distribution: distrib-dirs .MAKE .PHONY
+distribution: .MAKE .PHONY
+	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
 		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
 		METALOG=${METALOG} installconfig
