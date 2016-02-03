@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#ifdef __arm__
 #include <machine/acle-compat.h>
+#endif
 #include <machine/armreg.h>
 #include <machine/devmap.h>
 #include <machine/vmparam.h>
