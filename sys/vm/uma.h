@@ -538,7 +538,7 @@ void uma_zone_set_warning(uma_zone_t zone, const char *warning);
  * Returns:
  *	Nothing
  */
-typedef void (*uma_maxaction_t)(uma_zone_t);
+typedef void (*uma_maxaction_t)(uma_zone_t, int);
 void uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t);
 
 /*
