@@ -88,8 +88,6 @@ u_int	arm_cache_level;
 u_int	arm_cache_type[14];
 u_int	arm_cache_loc;
 
-int ctrl;
-
 #ifdef CPU_ARM9
 struct cpu_functions arm9_cpufuncs = {
 	/* CPU functions */
@@ -889,7 +887,6 @@ arm9_setup(void)
 
 	/* Set the control register */
 	cpu_control(cpuctrlmask, cpuctrl);
-	ctrl = cpuctrl;
 
 }
 #endif	/* CPU_ARM9 */
@@ -928,7 +925,6 @@ arm10_setup(void)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
 
 	/* Set the control register */
-	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 
 	/* And again. */
@@ -1032,7 +1028,6 @@ arm11x6_setup(void)
 	cp15_cpacr_set(0x0fffffff);
 
 	/* Set the control register */
-	ctrl = cpuctrl;
 	cpu_control(~cpuctrl_wax, cpuctrl);
 
 	tmp = cp15_actlr_get();
@@ -1074,7 +1069,6 @@ pj4bv7_setup(void)
 	cpu_idcache_wbinv_all();
 
 	/* Set the control register */
-	ctrl = cpuctrl;
 	cpu_control(0xFFFFFFFF, cpuctrl);
 
 	/* And again. */
@@ -1120,7 +1114,6 @@ cortexa_setup(void)
 	cpu_idcache_wbinv_all();
 
 	/* Set the control register */
-	ctrl = cpuctrl;
 	cpu_control(cpuctrlmask, cpuctrl);
 
 	/* And again. */
@@ -1167,7 +1160,6 @@ fa526_setup(void)
 	cpu_idcache_wbinv_all();
 
 	/* Set the control register */
-	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 }
 #endif	/* CPU_FA526 */
@@ -1221,7 +1213,6 @@ xscale_setup(void)
 	 * Set the control register.  Note that bits 6:3 must always
 	 * be set to 1.
 	 */
-	ctrl = cpuctrl;
 /*	cpu_control(cpuctrlmask, cpuctrl);*/
 	cpu_control(0xffffffff, cpuctrl);
 
