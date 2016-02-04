@@ -966,46 +966,11 @@ cpu_scc_setup_ccnt(void)
 void
 arm11x6_setup(void)
 {
-	int cpuctrl, cpuctrl_wax;
 	uint32_t auxctrl, auxctrl_wax;
 	uint32_t tmp, tmp2;
-	uint32_t sbz=0;
 	uint32_t cpuid;
 
 	cpuid = cpu_ident();
-
-	cpuctrl =
-		CPU_CONTROL_MMU_ENABLE  |
-		CPU_CONTROL_DC_ENABLE   |
-		CPU_CONTROL_WBUF_ENABLE |
-		CPU_CONTROL_32BP_ENABLE |
-		CPU_CONTROL_32BD_ENABLE |
-		CPU_CONTROL_LABT_ENABLE |
-		CPU_CONTROL_SYST_ENABLE |
-		CPU_CONTROL_IC_ENABLE   |
-		CPU_CONTROL_UNAL_ENABLE;
-
-	/*
-	 * "write as existing" bits
-	 * inverse of this is mask
-	 */
-	cpuctrl_wax =
-		(3 << 30) | /* SBZ */
-		(1 << 29) | /* FA */
-		(1 << 28) | /* TR */
-		(3 << 26) | /* SBZ */
-		(3 << 19) | /* SBZ */
-		(1 << 17);  /* SBZ */
-
-	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
-	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
-
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
 
 	auxctrl = 0;
 	auxctrl_wax = ~0;
@@ -1018,27 +983,12 @@ arm11x6_setup(void)
 		auxctrl_wax = ~ARM1176_AUXCTL_PHD;
 	}
 
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Now really make sure they are clean.  */
-	__asm volatile ("mcr\tp15, 0, %0, c7, c7, 0" : : "r"(sbz));
-
-	/* Allow detection code to find the VFP if it's fitted.  */
-	cp15_cpacr_set(0x0fffffff);
-
-	/* Set the control register */
-	cpu_control(~cpuctrl_wax, cpuctrl);
-
 	tmp = cp15_actlr_get();
 	tmp2 = tmp;
 	tmp &= auxctrl_wax;
 	tmp |= auxctrl;
 	if (tmp != tmp2)
 		cp15_actlr_set(tmp);
-
-	/* And again. */
-	cpu_idcache_wbinv_all();
 
 	cpu_scc_setup_ccnt();
 }
@@ -1048,32 +998,8 @@ arm11x6_setup(void)
 void
 pj4bv7_setup(void)
 {
-	int cpuctrl;
 
 	pj4b_config();
-
-	cpuctrl = CPU_CONTROL_MMU_ENABLE;
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-	cpuctrl |= CPU_CONTROL_DC_ENABLE;
-	cpuctrl |= (0xf << 3);
-	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
-	cpuctrl |= CPU_CONTROL_IC_ENABLE;
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
-	cpuctrl |= (0x5 << 16) | (1 < 22);
-	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
-
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Set the control register */
-	cpu_control(0xFFFFFFFF, cpuctrl);
-
-	/* And again. */
-	cpu_idcache_wbinv_all();
-
 	cpu_scc_setup_ccnt();
 }
 #endif /* CPU_MV_PJ4B */
@@ -1083,44 +1009,6 @@ pj4bv7_setup(void)
 void
 cortexa_setup(void)
 {
-	int cpuctrl, cpuctrlmask;
-
-	cpuctrlmask = CPU_CONTROL_MMU_ENABLE |     /* MMU enable         [0] */
-	    CPU_CONTROL_AFLT_ENABLE |    /* Alignment fault    [1] */
-	    CPU_CONTROL_DC_ENABLE |      /* DCache enable      [2] */
-	    CPU_CONTROL_BPRD_ENABLE |    /* Branch prediction [11] */
-	    CPU_CONTROL_IC_ENABLE |      /* ICache enable     [12] */
-	    CPU_CONTROL_VECRELOC;        /* Vector relocation [13] */
-
-	cpuctrl = CPU_CONTROL_MMU_ENABLE |
-	    CPU_CONTROL_IC_ENABLE |
-	    CPU_CONTROL_DC_ENABLE |
-	    CPU_CONTROL_BPRD_ENABLE;
-
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-
-	/* Switch to big endian */
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-
-	/* Check if the vector page is at the high address (0xffff0000) */
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
-
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Set the control register */
-	cpu_control(cpuctrlmask, cpuctrl);
-
-	/* And again. */
-	cpu_idcache_wbinv_all();
-#if defined(SMP) && !defined(ARM_NEW_PMAP)
-	armv7_auxctrl((1 << 6) | (1 << 0), (1 << 6) | (1 << 0)); /* Enable SMP + TLB broadcasting  */
-#endif
 
 	cpu_scc_setup_ccnt();
 }
