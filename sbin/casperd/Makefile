@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=casper
 PROG=	casperd
 
 SRCS=	casperd.c zygote.c
