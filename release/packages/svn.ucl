@@ -1,3 +1,7 @@
+#
+# $FreeBSD$
+#
+
 name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
