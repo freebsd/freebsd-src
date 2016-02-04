@@ -240,8 +240,6 @@ ef_inputEII(struct mbuf *m, struct ether_header *eh, u_short ether_type)
 #endif
 #ifdef INET
 	case ETHERTYPE_IP:
-		if ((m = ip_fastforward(m)) == NULL)
-			return (0);
 		isr = NETISR_IP;
 		break;
 
