@@ -115,7 +115,7 @@ struct	pv_chunk;
 struct	md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 	uint16_t		pt2_wirecount[4];
-	int			pat_mode;
+	vm_memattr_t		pat_mode;
 };
 
 struct	pmap {
@@ -173,7 +173,7 @@ struct pv_chunk {
 struct pcb;
 extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
 
-#define	pmap_page_get_memattr(m)	((vm_memattr_t)(m)->md.pat_mode)
+#define	pmap_page_get_memattr(m)	((m)->md.pat_mode)
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 
 /*
