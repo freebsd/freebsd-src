@@ -80,7 +80,7 @@ _${group}INS: ${_${group}INCS}
 .if defined(INCSLINKS) && !empty(INCSLINKS)
 installincludes:
 .for s t in ${INCSLINKS}
-	${INSTALL_SYMLINK} $s ${DESTDIR}$t
+	${INSTALL_SYMLINK} ${s} ${DESTDIR}${t}
 .endfor
 .endif
 .endif # !target(installincludes)
