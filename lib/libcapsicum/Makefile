@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	lib${LIB}
 LIB=	capsicum
 
 SHLIB_MAJOR=	0

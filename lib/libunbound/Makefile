@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 # Vendor sources and generated files
 LDNSDIR= ${.CURDIR}/../../contrib/ldns
 UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound

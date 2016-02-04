@@ -2,6 +2,7 @@
 #
 # $FreeBSD$
 #
+PACKAGE=lib${LIB}
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}
 SHLIB_MAJOR=    8

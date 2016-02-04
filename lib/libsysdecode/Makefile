@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=	sysdecode
 
 SRCS=	ioctl.c syscallnames.c utrace.c

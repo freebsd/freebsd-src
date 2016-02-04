@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	lib${LIB}
 LIB=	calendar
 
 SRCS=	calendar.c easter.c

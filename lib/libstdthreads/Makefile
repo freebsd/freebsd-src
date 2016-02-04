@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	stdthreads
 SHLIB_MAJOR= 0
 
