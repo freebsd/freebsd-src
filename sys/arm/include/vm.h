@@ -34,11 +34,11 @@
 #if __ARM_ARCH >= 6
 #include <machine/pte-v6.h>
 
-#define VM_MEMATTR_WB_WA		((vm_memattr_t)PTE2_ATTR_WB_WA)
-#define VM_MEMATTR_NOCACHE		((vm_memattr_t)PTE2_ATTR_NOCACHE)
-#define VM_MEMATTR_DEVICE		((vm_memattr_t)PTE2_ATTR_DEVICE)
-#define VM_MEMATTR_SO			((vm_memattr_t)PTE2_ATTR_SO)
-#define VM_MEMATTR_WRITE_THROUGH	((vm_memattr_t)PTE2_ATTR_WT)
+#define VM_MEMATTR_WB_WA		((vm_memattr_t)0)
+#define VM_MEMATTR_NOCACHE		((vm_memattr_t)1)
+#define VM_MEMATTR_DEVICE		((vm_memattr_t)2)
+#define VM_MEMATTR_SO			((vm_memattr_t)3)
+#define VM_MEMATTR_WRITE_THROUGH	((vm_memattr_t)4)
 
 #define VM_MEMATTR_DEFAULT		VM_MEMATTR_WB_WA
 #define VM_MEMATTR_UNCACHEABLE		VM_MEMATTR_SO 	/* misused by DMA */
