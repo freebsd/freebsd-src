@@ -828,12 +828,15 @@ start_init(void *dummy)
 static void
 create_init(const void *udata __unused)
 {
+	struct fork_req fr;
 	struct ucred *newcred, *oldcred;
 	struct thread *td;
 	int error;
 
-	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc,
-	    NULL, 0, NULL);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;
+	fr.fr_procp = &initproc;
+	error = fork1(&thread0, &fr);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));

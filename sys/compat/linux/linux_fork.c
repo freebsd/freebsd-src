@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 int
 linux_fork(struct thread *td, struct linux_fork_args *args)
 {
+	struct fork_req fr;
 	int error;
 	struct proc *p2;
 	struct thread *td2;
@@ -73,8 +74,10 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 		printf(ARGS(fork, ""));
 #endif
 
-	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2, NULL, 0,
-	    NULL)) != 0)
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;
+	fr.fr_procp = &p2;
+	if ((error = fork1(td, &fr)) != 0)
 		return (error);
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
@@ -97,6 +100,7 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 int
 linux_vfork(struct thread *td, struct linux_vfork_args *args)
 {
+	struct fork_req fr;
 	int error;
 	struct proc *p2;
 	struct thread *td2;
@@ -106,8 +110,10 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 		printf(ARGS(vfork, ""));
 #endif
 
-	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFPPWAIT | RFSTOPPED,
-	    0, &p2, NULL, 0, NULL)) != 0)
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFMEM | RFPPWAIT | RFSTOPPED;
+	fr.fr_procp = &p2;
+	if ((error = fork1(td, &fr)) != 0)
 		return (error);
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
@@ -130,6 +136,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 static int
 linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 {
+	struct fork_req fr;
 	int error, ff = RFPROC | RFSTOPPED;
 	struct proc *p2;
 	struct thread *td2;
@@ -170,7 +177,10 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_VFORK)
 		ff |= RFPPWAIT;
 
-	error = fork1(td, ff, 0, &p2, NULL, 0, NULL);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = ff;
+	fr.fr_procp = &p2;
+	error = fork1(td, &fr);
 	if (error)
 		return (error);
 

@@ -101,10 +101,14 @@ struct fork_args {
 int
 sys_fork(struct thread *td, struct fork_args *uap)
 {
+	struct fork_req fr;
 	int error;
 	struct proc *p2;
 
-	error = fork1(td, RFFDG | RFPROC, 0, &p2, NULL, 0, NULL);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC;
+	fr.fr_procp = &p2;
+	error = fork1(td, &fr);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -118,16 +122,21 @@ sys_pdfork(td, uap)
 	struct thread *td;
 	struct pdfork_args *uap;
 {
+	struct fork_req fr;
 	int error, fd;
 	struct proc *p2;
 
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFPROCDESC;
+	fr.fr_procp = &p2;
+	fr.fr_pd_fd = &fd;
+	fr.fr_pd_flags = uap->flags;
 	/*
 	 * It is necessary to return fd by reference because 0 is a valid file
 	 * descriptor number, and the child needs to be able to distinguish
 	 * itself from the parent using the return value.
 	 */
-	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2,
-	    &fd, uap->flags, NULL);
+	error = fork1(td, &fr);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -140,11 +149,14 @@ sys_pdfork(td, uap)
 int
 sys_vfork(struct thread *td, struct vfork_args *uap)
 {
-	int error, flags;
+	struct fork_req fr;
+	int error;
 	struct proc *p2;
 
-	flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
-	error = fork1(td, flags, 0, &p2, NULL, 0, NULL);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
+	fr.fr_procp = &p2;
+	error = fork1(td, &fr);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
@@ -155,6 +167,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 int
 sys_rfork(struct thread *td, struct rfork_args *uap)
 {
+	struct fork_req fr;
 	struct proc *p2;
 	int error;
 
@@ -163,7 +176,10 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 		return (EINVAL);
 
 	AUDIT_ARG_FFLAGS(uap->flags);
-	error = fork1(td, uap->flags, 0, &p2, NULL, 0, NULL);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = uap->flags;
+	fr.fr_procp = &p2;
+	error = fork1(td, &fr);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
 		td->td_retval[1] = 0;
@@ -761,8 +777,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 }
 
 int
-fork1(struct thread *td, int flags, int pages, struct proc **procp,
-    int *procdescp, int pdflags, struct filecaps *fcaps)
+fork1(struct thread *td, struct fork_req *fr)
 {
 	struct proc *p1, *newproc;
 	struct thread *td2;
@@ -772,6 +787,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	int error, nprocs_new, ok;
 	static int curfail;
 	static struct timeval lastfail;
+	int flags, pages;
+
+	flags = fr->fr_flags;
+	pages = fr->fr_pages;
 
 	/* Check for the undefined or unimplemented flags. */
 	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
@@ -795,7 +814,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 			return (EINVAL);
 
 		/* Must provide a place to put a procdesc if creating one. */
-		if (procdescp == NULL)
+		if (fr->fr_pd_fd == NULL)
 			return (EINVAL);
 	}
 
@@ -806,7 +825,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		*procp = NULL;
+		*fr->fr_procp = NULL;
 		return (fork_norfproc(td, flags));
 	}
 
@@ -845,7 +864,8 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * later.
 	 */
 	if (flags & RFPROCDESC) {
-		error = falloc_caps(td, &fp_procdesc, procdescp, 0, fcaps);
+		error = falloc_caps(td, &fp_procdesc, fr->fr_pd_fd, 0,
+		    fr->fr_pd_fcaps);
 		if (error != 0)
 			goto fail2;
 	}
@@ -933,12 +953,12 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		    lim_cur(td, RLIMIT_NPROC));
 	}
 	if (ok) {
-		do_fork(td, flags, newproc, td2, vm2, pdflags);
+		do_fork(td, flags, newproc, td2, vm2, fr->fr_pd_flags);
 
 		/*
 		 * Return child proc pointer to parent.
 		 */
-		*procp = newproc;
+		*fr->fr_procp = newproc;
 		if (flags & RFPROCDESC) {
 			procdesc_finit(newproc->p_procdesc, fp_procdesc);
 			fdrop(fp_procdesc, td);
@@ -962,7 +982,7 @@ fail2:
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
-		fdclose(td, fp_procdesc, *procdescp);
+		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);
 	}
 	atomic_add_int(&nprocs, -1);
