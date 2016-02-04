@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 SRCDIR=		${.CURDIR}/../../contrib/libcxxrt
 
 SHLIB_MAJOR=	1

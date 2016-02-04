@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=		figpar
 SHLIB_MAJOR=	0
 INCS=		figpar.h string_m.h

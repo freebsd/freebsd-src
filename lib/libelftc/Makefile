@@ -1,6 +1,7 @@
 # $FreeBSD$
 .include <bsd.own.mk>
 
+PACKAGE=lib${LIB}
 INTERNALLIB=
 
 ELFTCDIR=	${.CURDIR}/../../contrib/elftoolchain

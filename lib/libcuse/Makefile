@@ -24,6 +24,7 @@
 # SUCH DAMAGE.
 #
 
+PACKAGE=lib${LIB}
 LIB=		cuse
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0

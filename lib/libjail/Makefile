@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	jail
 SHLIBDIR?= /lib
 SHLIB_MAJOR= 1
