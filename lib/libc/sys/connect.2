@@ -28,7 +28,7 @@
 .\"     @(#)connect.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2014
+.Dd February 4, 2016
 .Dt CONNECT 2
 .Os
 .Sh NAME
@@ -58,6 +58,14 @@ another socket.
 The other socket is specified by
 .Fa name ,
 which is an address in the communications space of the socket.
+.Fa namelen
+indicates the amount of space pointed to by
+.Fa name ,
+in bytes; the
+.Fa sa_len
+member of
+.Fa name
+is ignored.
 Each communications space interprets the
 .Fa name
 argument in its own way.
