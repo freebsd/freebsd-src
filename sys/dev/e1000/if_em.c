@@ -1377,8 +1377,15 @@ em_init_locked(struct adapter *adapter)
 	ifp->if_hwassist = 0;
 	if (ifp->if_capenable & IFCAP_TXCSUM)
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
-	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_TSO;
+	/* 
+	** There have proven to be problems with TSO when not
+	** at full gigabit speed, so disable the assist automatically
+	** when at lower speeds.  -jfv
+	*/
+	if (ifp->if_capenable & IFCAP_TSO4) {
+		if (adapter->link_speed == SPEED_1000)
+			ifp->if_hwassist |= CSUM_TSO;
+	}
 
 	/* Configure for OS presence */
 	em_init_manageability(adapter);
