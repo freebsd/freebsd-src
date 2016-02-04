@@ -15,15 +15,11 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
-scripts: {
-	post-install = <<EOD
-	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
-	pwd_mkdb %PWD_MKDB_ENDIAN% -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
-EOD
-}
+shlibs_required: [
+    "librtld_db.so.2"
+]
 deps: {
-    # For sh(1).
-    "FreeBSD-libedit": {
+    "FreeBSD-librtld_db": {
         origin: "base"
         version: "%VERSION%"
     }
