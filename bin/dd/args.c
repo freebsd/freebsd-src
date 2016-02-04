@@ -360,6 +360,38 @@ c_conv(const void *a, const void *b)
 	    ((const struct conv *)b)->name));
 }
 
+static uintmax_t
+postfix_to_mult(const char expr)
+{
+	uintmax_t mult;
+
+	mult = 0;
+	switch (expr) {
+	case 'B':
+	case 'b':
+		mult = 512;
+		break;
+	case 'K':
+	case 'k':
+		mult = 1 << 10;
+		break;
+	case 'M':
+	case 'm':
+		mult = 1 << 20;
+		break;
+	case 'G':
+	case 'g':
+		mult = 1 << 30;
+		break;
+	case 'W':
+	case 'w':
+		mult = sizeof(int);
+		break;
+	}
+
+	return (mult);
+}
+
 /*
  * Convert an expression of the following forms to a uintmax_t.
  * 	1) A positive decimal number.
@@ -386,31 +418,7 @@ get_num(const char *val)
 	if (expr == val)			/* No valid digits. */
 		errx(1, "%s: illegal numeric value", oper);
 
-	mult = 0;
-	switch (*expr) {
-	case 'B':
-	case 'b':
-		mult = 512;
-		break;
-	case 'K':
-	case 'k':
-		mult = 1 << 10;
-		break;
-	case 'M':
-	case 'm':
-		mult = 1 << 20;
-		break;
-	case 'G':
-	case 'g':
-		mult = 1 << 30;
-		break;
-	case 'W':
-	case 'w':
-		mult = sizeof(int);
-		break;
-	default:
-		;
-	}
+	mult = postfix_to_mult(*expr);
 
 	if (mult != 0) {
 		prevnum = num;
@@ -460,29 +468,7 @@ get_off_t(const char *val)
 	if (expr == val)			/* No valid digits. */
 		errx(1, "%s: illegal numeric value", oper);
 
-	mult = 0;
-	switch (*expr) {
-	case 'B':
-	case 'b':
-		mult = 512;
-		break;
-	case 'K':
-	case 'k':
-		mult = 1 << 10;
-		break;
-	case 'M':
-	case 'm':
-		mult = 1 << 20;
-		break;
-	case 'G':
-	case 'g':
-		mult = 1 << 30;
-		break;
-	case 'W':
-	case 'w':
-		mult = sizeof(int);
-		break;
-	}
+	mult = postfix_to_mult(*expr);
 
 	if (mult != 0) {
 		prevnum = num;
