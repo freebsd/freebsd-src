@@ -15,6 +15,7 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
+# XXX: Temporary.
 shlibs_required: [
     "librtld_db.so.2"
 ]
