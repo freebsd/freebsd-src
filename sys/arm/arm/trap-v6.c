@@ -293,7 +293,10 @@ abort_handler(struct trapframe *tf, int prefetch)
 #ifdef INVARIANTS
 	void *onfault;
 #endif
+
+	PCPU_INC(cnt.v_trap);
 	td = curthread;
+
 	fsr = (prefetch) ? cp15_ifsr_get(): cp15_dfsr_get();
 #if __ARM_ARCH >= 7
 	far = (prefetch) ? cp15_ifar_get() : cp15_dfar_get();
@@ -334,24 +337,23 @@ abort_handler(struct trapframe *tf, int prefetch)
 	 * they are not from KVA space. Thus, no action is needed here.
 	 */
 
+	/*
+	 * (1) Handle access and R/W hardware emulation aborts.
+	 * (2) Check that abort is not on pmap essential address ranges.
+	 *     There is no way how to fix it, so we don't even try.
+	 */
 	rv = pmap_fault(PCPU_GET(curpmap), far, fsr, idx, usermode);
 	if (rv == KERN_SUCCESS)
 		return;
-	if (rv == KERN_INVALID_ADDRESS)
-		goto nogo;
-	/*
-	 * Now, when we handled imprecise and debug aborts, the rest of
-	 * aborts should be really related to mapping.
-	 */
-
-	PCPU_INC(cnt.v_trap);
-
 #ifdef KDB
 	if (kdb_active) {
 		kdb_reenter();
 		goto out;
 	}
 #endif
+	if (rv == KERN_INVALID_ADDRESS)
+		goto nogo;
+
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
 		 * Due to both processor errata and lazy TLB invalidation when
@@ -418,6 +420,14 @@ abort_handler(struct trapframe *tf, int prefetch)
 	}
 
 	/*
+	 * At this point, we're dealing with one of the following aborts:
+	 *
+	 *  FAULT_ICACHE   - I-cache maintenance
+	 *  FAULT_TRAN_xx  - Translation
+	 *  FAULT_PERM_xx  - Permission
+	 */
+
+	/*
 	 * Don't pass faulting cache operation to vm_fault(). We don't want
 	 * to handle all vm stuff at this moment.
 	 */
@@ -434,16 +444,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 			goto do_trapsignal;
 		goto out;
 	}
-
-	/*
-	 * At this point, we're dealing with one of the following aborts:
-	 *
-	 *  FAULT_TRAN_xx  - Translation
-	 *  FAULT_PERM_xx  - Permission
-	 *
-	 * These are the main virtual memory-related faults signalled by
-	 * the MMU.
-	 */
 
 	/* fusubailout is used by [fs]uswintr to avoid page faulting. */
 	if (__predict_false(pcb->pcb_onfault == fusubailout)) {
