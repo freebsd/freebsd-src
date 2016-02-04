@@ -182,9 +182,7 @@ __FBSDID("$FreeBSD$");
 1:
 	csrci	sstatus, SSTATUS_IE
 
-	la	a1, pcpup
-	ld	a1, 0(a1)
-	ld	a1, PC_CURTHREAD(a1)
+	ld	a1, PC_CURTHREAD(gp)
 	lw	a2, TD_FLAGS(a1)
 
 	li	a3, (TDF_ASTPENDING|TDF_NEEDRESCHED)

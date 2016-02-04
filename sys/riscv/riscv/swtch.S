@@ -46,14 +46,11 @@ __FBSDID("$FreeBSD$");
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-	/* Load pcpu */
-	la	x14, pcpup
-	ld	x14, 0(x14)
 	/* Store the new curthread */
-	sd	a1, PC_CURTHREAD(x14)
+	sd	a1, PC_CURTHREAD(gp)
 	/* And the new pcb */
 	ld	x13, TD_PCB(a1)
-	sd	x13, PC_CURPCB(x14)
+	sd	x13, PC_CURPCB(gp)
 
 	sfence.vm
 
@@ -103,14 +100,11 @@ END(cpu_throw)
  * x3 to x7, x16 and x17 are caller saved
  */
 ENTRY(cpu_switch)
-	/* Load pcpu */
-	la	x14, pcpup
-	ld	x14, 0(x14)
 	/* Store the new curthread */
-	sd	a1, PC_CURTHREAD(x14)
+	sd	a1, PC_CURTHREAD(gp)
 	/* And the new pcb */
 	ld	x13, TD_PCB(a1)
-	sd	x13, PC_CURPCB(x14)
+	sd	x13, PC_CURPCB(gp)
 
 	/* Save the old context. */
 	ld	x13, TD_PCB(a0)
