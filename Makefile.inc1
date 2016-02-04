@@ -1393,22 +1393,13 @@ create-world-packages:	_pkgbootstrap
 		${DESTDIR}/METALOG
 	@for plist in ${DESTDIR}/*.plist; do \
 		plist=$${plist##*/} ; \
-		test -f ${SRCDIR}/release/packages/$${plist%.plist}.ucl || \
-			( echo "Unkown package FreeBSD-$${plist%.plist}" ; false ) ; \
+		pkgname=$${plist%.plist} ; \
+		sh ${SRCDIR}/release/packages/generate-ucl.sh -o $${pkgname} \
+			-s ${SRCDIR} -u ${DESTDIR}/$${pkgname}.ucl ; \
 	done
-	@cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
-	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
-	for plist in ${DESTDIR}/*.plist; do \
+	@for plist in ${DESTDIR}/*.plist; do \
 		plist=$${plist##*/} ; \
 		pkgname=$${plist%.plist} ; \
-		sed -e "s/%VERSION%/${PKG_VERSION}/" \
-			-e "s/%PKGNAME%/$${pkgname}/" \
-			-e "s/%COMMENT%/Generic comment for $${pkgname}/" \
-			-e "s/%DESC%/Generic description for $${pkgname}/" \
-			-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
-			-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
-			${SRCDIR}/release/packages/$${pkgname}.ucl \
-			> ${DESTDIR}/$${pkgname}.ucl ; \
 		awk -F\" ' \
 			/^name/ { printf("===> Creating %s-", $$2); next } \
 			/^version/ { print $$2; next } \
