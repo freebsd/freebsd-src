@@ -777,7 +777,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	/*
 	 * Wait until debugger is attached to child.
 	 */
-	while ((td2->td_dbgflags & TDB_STOPATFORK) != 0)
+	while (td2->td_proc == p2 && (td2->td_dbgflags & TDB_STOPATFORK) != 0)
 		cv_wait(&p2->p_dbgwait, &p2->p_mtx);
 	_PRELE(p2);
 	racct_proc_fork_done(p2);
