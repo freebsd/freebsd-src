@@ -24,7 +24,6 @@ FILES=	DAEMON \
 	${_bluetooth} \
 	bridge \
 	${_bthidd} \
-	${_casperd} \
 	cleanvar \
 	cleartmp \
 	cron \
@@ -198,8 +197,12 @@ BSNMPMODE=	${BINMODE}
 BSNMPPACKAGE=	bsnmp
 
 .if ${MK_CASPER} != "no"
-_casperd=	casperd
+FILESGROUPS+=	CASPER
+CASPER+=	casperd
 .endif
+CASPERDIR=	/etc/rc.d
+CASPERMODE=	${BINMODE}
+CASPERPACKAGE=	casper
 
 .if ${MK_CCD} != "no"
 FILES+=		ccd
