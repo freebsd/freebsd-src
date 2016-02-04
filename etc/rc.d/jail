@@ -563,7 +563,7 @@ jail_warn()
 	# To relieve confusion, show a warning message.
 	case $_confwarn in
 	1)	warn "Per-jail configuration via jail_* variables " \
-		    "is obsolete.  Please consider to migrate to $jail_conf."
+		    "is obsolete.  Please consider migrating to $jail_conf."
 	;;
 	esac
 }
