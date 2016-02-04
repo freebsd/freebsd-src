@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/dtrace_bsd.h>
 #endif
 
-extern char fusubailout[];
 extern char cachebailout[];
 
 #ifdef DEBUG
@@ -443,13 +442,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 		if (abort_icache(tf, idx, fsr, far, prefetch, td, &ksig))
 			goto do_trapsignal;
 		goto out;
-	}
-
-	/* fusubailout is used by [fs]uswintr to avoid page faulting. */
-	if (__predict_false(pcb->pcb_onfault == fusubailout)) {
-		tf->tf_r0 = EFAULT;
-		tf->tf_pc = (register_t)pcb->pcb_onfault;
-		return;
 	}
 
 	va = trunc_page(far);
