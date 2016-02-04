@@ -109,7 +109,12 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # Default partitioning scheme to use on disks
 #
-: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
+: ${ZFSBOOT_PARTITION_SCHEME:=}
+
+#
+# Default partitioning scheme to use on disks
+#
+: ${ZFSBOOT_BOOT_TYPE:=}
 
 #
 # How much swap to put on each block device in the boot zpool
@@ -193,6 +198,7 @@ GPART_ADD_ALIGN_LABEL='gpart add %s -l %s -t %s "%s"'
 GPART_ADD_ALIGN_LABEL_WITH_SIZE='gpart add %s -l %s -t %s -s %s "%s"'
 GPART_BOOTCODE='gpart bootcode -b "%s" "%s"'
 GPART_BOOTCODE_PART='gpart bootcode -b "%s" -p "%s" -i %s "%s"'
+GPART_BOOTCODE_PARTONLY='gpart bootcode -p "%s" -i %s "%s"'
 GPART_CREATE='gpart create -s %s "%s"'
 GPART_DESTROY_F='gpart destroy -F "%s"'
 GPART_SET_ACTIVE='gpart set -a active -i %s "%s"'
@@ -297,7 +303,6 @@ msg_swap_size="Swap Size"
 msg_swap_size_help="Customize how much swap space is allocated to each selected disk"
 msg_swap_toosmall="The selected swap size (%s) is to small. Please enter a value greater than 100MB or enter 0 for no swap"
 msg_these_disks_are_too_small="These disks are too small given the amount of requested\nswap (%s) and/or geli(8) (%s) partitions, which would\ntake 50%% or more of each of the following selected disk\ndevices (not recommended):\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of devices."
-msg_uefi_not_supported="The FreeBSD UEFI loader does not currently support booting root-on-ZFS. Your system will need to boot in legacy (CSM) mode.\nDo you want to continue?"
 msg_unable_to_get_disk_capacity="Unable to get disk capacity of \`%s'"
 msg_unsupported_partition_scheme="%s is an unsupported partition scheme"
 msg_user_cancelled="User Cancelled."
@@ -345,7 +350,7 @@ dialog_menu_main()
 		'E $msg_encrypt_disks'  '$usegeli'
 		                        '$msg_encrypt_disks_help'
 		'P $msg_partition_scheme'
-		                        '$ZFSBOOT_PARTITION_SCHEME'
+		                        '$ZFSBOOT_PARTITION_SCHEME ($ZFSBOOT_BOOT_TYPE)'
 		                        '$msg_partition_scheme_help'
 		'S $msg_swap_size'      '$ZFSBOOT_SWAP_SIZE'
 		                        '$msg_swap_size_help'
@@ -695,48 +700,6 @@ dialog_menu_layout()
 	return $DIALOG_OK
 }
 
-# dialog_uefi_prompt
-#
-# Confirm that the user wants to continue with the installation on a BIOS
-# system when they have booted with UEFI
-#
-dialog_uefi_prompt()
-{
-	local title="$DIALOG_TITLE"
-	local btitle="$DIALOG_BACKTITLE"
-	local prompt # Calculated below
-	local hline="$hline_arrows_tab_enter"
-
-	local height=8 width=50 prefix="   "
-	local plen=${#prefix} list= line=
-	local max_width=$(( $width - 3 - $plen ))
-
-	local yes no defaultno extra_args format
-	if [ "$USE_XDIALOG" ]; then
-		yes=ok no=cancel defaultno=default-no
-		extra_args="--wrap --left"
-		format="$msg_uefi_not_supported"
-	else
-		yes=yes no=no defaultno=defaultno
-		extra_args="--cr-wrap"
-		format="$msg_uefi_not_supported"
-	fi
-
-	# Add height for Xdialog(1)
-	[ "$USE_XDIALOG" ] && height=$(( $height + $height / 5 + 3 ))
-
-	prompt=$( printf "$format" )
-	f_dprintf "%s: UEFI prompt" "$0"
-	$DIALOG \
-		--title "$title"        \
-		--backtitle "$btitle"   \
-		--hline "$hline"        \
-		--$yes-label "$msg_yes" \
-		--$no-label "$msg_no"   \
-		$extra_args             \
-		--yesno "$prompt" $height $width
-}
-
 # zfs_create_diskpart $disk $index
 #
 # For each block device to be used in the zpool, rather than just create the
@@ -848,14 +811,25 @@ zfs_create_diskpart()
 		fi
 
 		#
-		# 2. Add small freebsd-boot partition labeled `boot#'
+		# 2. Add small freebsd-boot or efi partition
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
-		             "$align_small" gptboot$index freebsd-boot 512k $disk ||
-		             return $FAILURE
-		f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
-		             /boot/pmbr /boot/gptzfsboot 1 $disk ||
-		             return $FAILURE
+		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" ]; then
+			f_eval_catch $funcname gpart \
+			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
+			             "$align_small" efiboot$index efi 800k $disk ||
+			             return $FAILURE
+			f_eval_catch $funcname gpart "$GPART_BOOTCODE_PARTONLY" \
+			             /boot/boot1.efifat 1 $disk ||
+			             return $FAILURE
+		else
+			f_eval_catch $funcname gpart \
+			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
+			             "$align_small" gptboot$index freebsd-boot \
+			             512k $disk || return $FAILURE
+			f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
+			             /boot/pmbr /boot/gptzfsboot 1 $disk ||
+			             return $FAILURE
+		fi
 
 		# NB: zpool will use the `zfs#' GPT labels
 		bootpart=p2 swappart=p2 targetpart=p2
@@ -1460,18 +1434,16 @@ f_dprintf "BSDINSTALL_TMPETC=[%s]" "$BSDINSTALL_TMPETC"
 f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 
 #
-# If the system was booted with UEFI, warn the user that FreeBSD can't do
-# ZFS with UEFI yet
+# If the system was booted with UEFI, set the default boot type to UEFI
 #
-if f_interactive; then
-	bootmethod=$( sysctl -n machdep.bootmethod )
-	f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
-	if [ "$bootmethod" != "BIOS" ]; then
-		dialog_uefi_prompt
-		retval=$?
-		f_dprintf "uefi_prompt=[%s]" "$retval"
-		[ $retval -eq $DIALOG_OK ] || f_die
-	fi
+bootmethod=$( sysctl -n machdep.bootmethod )
+f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
+if [ "$bootmethod" = "UEFI" ]; then
+	: ${ZFSBOOT_BOOT_TYPE:=UEFI}
+	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
+else
+	: ${ZFSBOOT_BOOT_TYPE:=BIOS}
+	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
 fi
 
 #
@@ -1593,15 +1565,22 @@ while :; do
 		fi
 		;;
 	?" $msg_partition_scheme")
-		# Toggle between GPT and MBR
-		if [ "$ZFSBOOT_PARTITION_SCHEME" = GPT ]; then
-			ZFSBOOT_PARTITION_SCHEME=MBR
-		elif [ "$ZFSBOOT_PARTITION_SCHEME" = MBR ]; then
+		# Toggle between GPT (BIOS), GPT (UEFI) and MBR
+		if [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" -a "$ZFSBOOT_BOOT_TYPE" = "BIOS" ]; then
+			ZFSBOOT_PARTITION_SCHEME="GPT"
+			ZFSBOOT_BOOT_TYPE="UEFI"
+		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT" ]; then
+			ZFSBOOT_PARTITION_SCHEME="MBR"
+			ZFSBOOT_BOOT_TYPE="BIOS"
+		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
 			ZFSBOOT_PARTITION_SCHEME="GPT + Active"
+			ZFSBOOT_BOOT_TYPE="BIOS"
 		elif [ "$ZFSBOOT_PARTITION_SCHEME" = "GPT + Active" ]; then
 			ZFSBOOT_PARTITION_SCHEME="GPT + Lenovo Fix"
+			ZFSBOOT_BOOT_TYPE="BIOS"
 		else
-			ZFSBOOT_PARTITION_SCHEME=GPT
+			ZFSBOOT_PARTITION_SCHEME="GPT"
+			ZFSBOOT_BOOT_TYPE="BIOS"
 		fi
 		;;
 	?" $msg_swap_size")
