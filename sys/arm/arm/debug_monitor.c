@@ -845,8 +845,10 @@ dbg_arch_supported(void)
 {
 
 	switch (dbg_model) {
+#ifdef not_yet
 	case ID_DFR0_CP_DEBUG_M_V6:
 	case ID_DFR0_CP_DEBUG_M_V6_1:
+#endif
 	case ID_DFR0_CP_DEBUG_M_V7:
 	case ID_DFR0_CP_DEBUG_M_V7_1:	/* fall through */
 		return (TRUE);
