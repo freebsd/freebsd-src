@@ -12,7 +12,7 @@ desc = <<EOD
 %DESC%
 EOD
 deps: {
-    FreeBSD-runtime: {
+    FreeBSD-%PKGDEPS%: {
         origin: "base",
         version: "%VERSION%"
     }

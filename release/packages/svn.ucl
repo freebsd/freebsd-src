@@ -1,7 +1,7 @@
 name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
-comment = "Version control system"
+comment = "%COMMENT%"
 categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
@@ -9,10 +9,10 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ APACHE20 ]
 desc = <<EOD
-Lite version of the Subversion version control system
+%DESC%
 EOD
 deps: {
-    FreeBSD-runtime: {
+    FreeBSD-%PKGDEPS%: {
         origin: "base",
         version: "%VERSION%"
     }

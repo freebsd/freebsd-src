@@ -1,7 +1,7 @@
 name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
-comment = "syscons(4) support files"
+comment = "%COMMENT%"
 categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
@@ -9,10 +9,10 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
-syscons(4) support files such as keyboard maps, fonts and screen output maps.
+%DESC%
 EOD
 deps: {
-    FreeBSD-runtime: {
+    FreeBSD-%PKGDEPS%: {
         origin: "base",
         version: "%VERSION%"
     }

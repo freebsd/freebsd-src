@@ -1,7 +1,7 @@
 name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
-comment = "Validating, recursive, and caching DNS resolver"
+comment = "%COMMENT%"
 categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
@@ -9,11 +9,10 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ BSD4CLAUSE ]
 desc = <<EOD
-Unbound is a recursive-only caching DNS server which can perform DNSSEC
-validation of results
+%DESC%
 EOD
 deps: {
-    FreeBSD-runtime: {
+    FreeBSD-%PKGDEPS%: {
         origin: "base",
         version: "%VERSION%"
     }

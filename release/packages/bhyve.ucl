@@ -1,7 +1,7 @@
 name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
-comment = "The BSD Hypervisor"
+comment = "%COMMENT%"
 categories = [ base ]
 maintainer = "re@FreeBSD.org"
 www = "https://www.FreeBSD.org"
@@ -9,12 +9,10 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
-bhyve, the "BSD hypervisor" is a hypervisor/virtual machine manager developed on
-FreeBSD and relies on modern CPU features such as Extended Page Tables (EPT) and
-VirtIO network and storage drivers
+%DESC%
 EOD
 deps: {
-    FreeBSD-runtime: {
+    FreeBSD-%PKGDEPS%: {
         origin: "base",
         version: "%VERSION%"
     }
