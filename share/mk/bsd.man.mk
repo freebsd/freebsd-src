@@ -226,8 +226,8 @@ _maninstall: ${MAN}
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for _oname _osect _dname _dsect in ${MLINKS:C/\.([^.]*)$/.\1 \1/}
-	@l=${DESTDIR}${MANDIR}${_osect}${MANSUBDIR}/${_oname}; \
-	t=${DESTDIR}${MANDIR}${_dsect}${MANSUBDIR}/${_dname}; \
+	@l=${DESTDIR}${CATDIR}${_osect}${MANSUBDIR}/${_oname}; \
+	t=${DESTDIR}${CATDIR}${_dsect}${MANSUBDIR}/${_dname}; \
 	${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
 	rm -f $${t} $${t}${MCOMPRESS_EXT}; \
 	${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}
