@@ -80,6 +80,7 @@ int
 kproc_create(void (*func)(void *), void *arg,
     struct proc **newpp, int flags, int pages, const char *fmt, ...)
 {
+	struct fork_req fr;
 	int error;
 	va_list ap;
 	struct thread *td;
@@ -88,8 +89,11 @@ kproc_create(void (*func)(void *), void *arg,
 	if (!proc0.p_stats)
 		panic("kproc_create called too soon");
 
-	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags,
-	    pages, &p2, NULL, 0, NULL);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFMEM | RFFDG | RFPROC | RFSTOPPED | flags;
+	fr.fr_pages = pages;
+	fr.fr_procp = &p2;
+	error = fork1(&thread0, &fr);
 	if (error)
 		return error;
 

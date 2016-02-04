@@ -907,6 +907,15 @@ struct	proc *pfind_locked(pid_t pid);
 struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 
+struct	fork_req {
+	int		fr_flags;
+	int		fr_pages;
+	struct proc 	**fr_procp;
+	int 		*fr_pd_fd;
+	int 		fr_pd_flags;
+	struct filecaps	*fr_pd_fcaps;
+};
+
 /*
  * pget() flags.
  */
@@ -930,8 +939,7 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, int, struct proc **, int *, int,
-	    struct filecaps *);
+int	fork1(struct thread *, struct fork_req *);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
