@@ -218,7 +218,7 @@ cpu_thread_alloc(struct thread *td)
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)STACKALIGN(
-	    td->td_pcb - 1);
+	    (caddr_t)td->td_pcb - 8 - sizeof(struct trapframe));
 }
 
 void
