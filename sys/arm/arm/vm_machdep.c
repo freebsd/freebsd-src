@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
+#include <sys/taskqueue.h>
 
 #include <machine/acle-compat.h>
 #include <machine/cpu.h>
