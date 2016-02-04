@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 
 ASSYM(KERNBASE, KERNBASE);
-ASSYM(PCB_NOALIGNFLT, PCB_NOALIGNFLT);
 #if __ARM_ARCH >= 6
 ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
 #endif
@@ -67,7 +66,6 @@ ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 #if __ARM_ARCH < 6
 ASSYM(PCB_DACR, offsetof(struct pcb, pcb_dacr));
 #endif
-ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_PAGEDIR, offsetof(struct pcb, pcb_pagedir));
 #if __ARM_ARCH < 6
 ASSYM(PCB_L1VEC, offsetof(struct pcb, pcb_l1vec));
@@ -93,23 +91,15 @@ ASSYM(M_DATA, offsetof(struct mbuf, m_data));
 ASSYM(M_NEXT, offsetof(struct mbuf, m_next));
 ASSYM(IP_SRC, offsetof(struct ip, ip_src));
 ASSYM(IP_DST, offsetof(struct ip, ip_dst));
-ASSYM(CF_SETTTB, offsetof(struct cpu_functions, cf_setttb));
-ASSYM(CF_CONTROL, offsetof(struct cpu_functions, cf_control));
 ASSYM(CF_CONTEXT_SWITCH, offsetof(struct cpu_functions, cf_context_switch));
 ASSYM(CF_DCACHE_WB_RANGE, offsetof(struct cpu_functions, cf_dcache_wb_range));
-ASSYM(CF_L2CACHE_WB_RANGE, offsetof(struct cpu_functions, cf_l2cache_wb_range));
 ASSYM(CF_IDCACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_idcache_wbinv_all));
 ASSYM(CF_L2CACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_l2cache_wbinv_all));
 ASSYM(CF_TLB_FLUSHID_SE, offsetof(struct cpu_functions, cf_tlb_flushID_SE));
 
-ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
-ASSYM(V_SOFT, offsetof(struct vmmeter, v_soft));
-ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
-
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
-ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
@@ -146,10 +136,6 @@ ASSYM(PMAP_INCLUDE_PTE_SYNC, 1);
 #endif
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
-ASSYM(P_TRACED, P_TRACED);
-ASSYM(P_SIGEVENT, P_SIGEVENT);
-ASSYM(P_PROFIL, P_PROFIL);
-ASSYM(TRAPFRAMESIZE, sizeof(struct trapframe));
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXCPU, MAXCPU);
