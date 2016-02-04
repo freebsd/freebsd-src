@@ -31,6 +31,7 @@ OBJCOPY:=	elfcopy
 _CHERI_CC+=	-mabi=sandbox -mxgot
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
+CFLAGS+=	-O0
 .if ${MK_CHERI_LINKER} == "yes"
 _CHERI_CC+=	-cheri-linker
 CFLAGS+=	-Wno-error
