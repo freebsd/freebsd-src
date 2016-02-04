@@ -102,15 +102,14 @@ int
 sys_fork(struct thread *td, struct fork_args *uap)
 {
 	struct fork_req fr;
-	int error;
-	struct proc *p2;
+	int error, pid;
 
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = RFFDG | RFPROC;
-	fr.fr_procp = &p2;
+	fr.fr_pidp = &pid;
 	error = fork1(td, &fr);
 	if (error == 0) {
-		td->td_retval[0] = p2->p_pid;
+		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
 	}
 	return (error);
@@ -123,12 +122,11 @@ sys_pdfork(td, uap)
 	struct pdfork_args *uap;
 {
 	struct fork_req fr;
-	int error, fd;
-	struct proc *p2;
+	int error, fd, pid;
 
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = RFFDG | RFPROC | RFPROCDESC;
-	fr.fr_procp = &p2;
+	fr.fr_pidp = &pid;
 	fr.fr_pd_fd = &fd;
 	fr.fr_pd_flags = uap->flags;
 	/*
@@ -138,7 +136,7 @@ sys_pdfork(td, uap)
 	 */
 	error = fork1(td, &fr);
 	if (error == 0) {
-		td->td_retval[0] = p2->p_pid;
+		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
 		error = copyout(&fd, uap->fdp, sizeof(fd));
 	}
@@ -150,15 +148,14 @@ int
 sys_vfork(struct thread *td, struct vfork_args *uap)
 {
 	struct fork_req fr;
-	int error;
-	struct proc *p2;
+	int error, pid;
 
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
-	fr.fr_procp = &p2;
+	fr.fr_pidp = &pid;
 	error = fork1(td, &fr);
 	if (error == 0) {
-		td->td_retval[0] = p2->p_pid;
+		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
 	}
 	return (error);
@@ -168,8 +165,7 @@ int
 sys_rfork(struct thread *td, struct rfork_args *uap)
 {
 	struct fork_req fr;
-	struct proc *p2;
-	int error;
+	int error, pid;
 
 	/* Don't allow kernel-only flags. */
 	if ((uap->flags & RFKERNELONLY) != 0)
@@ -178,10 +174,10 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 	AUDIT_ARG_FFLAGS(uap->flags);
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = uap->flags;
-	fr.fr_procp = &p2;
+	fr.fr_pidp = &pid;
 	error = fork1(td, &fr);
 	if (error == 0) {
-		td->td_retval[0] = p2 ? p2->p_pid : 0;
+		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
 	}
 	return (error);
@@ -382,11 +378,11 @@ fail:
 }
 
 static void
-do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
-    struct vmspace *vm2, int pdflags)
+do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *td2,
+    struct vmspace *vm2, struct file *fp_procdesc)
 {
 	struct proc *p1, *pptr;
-	int p2_held, trypid;
+	int trypid;
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
 	struct sigacts *newsigacts;
@@ -394,10 +390,9 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	sx_assert(&proctree_lock, SX_SLOCKED);
 	sx_assert(&allproc_lock, SX_XLOCKED);
 
-	p2_held = 0;
 	p1 = td->td_proc;
 
-	trypid = fork_findpid(flags);
+	trypid = fork_findpid(fr->fr_flags);
 
 	sx_sunlock(&proctree_lock);
 
@@ -430,7 +425,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Malloc things while we don't hold any locks.
 	 */
-	if (flags & RFSIGSHARE)
+	if (fr->fr_flags & RFSIGSHARE)
 		newsigacts = NULL;
 	else
 		newsigacts = sigacts_alloc();
@@ -438,10 +433,10 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Copy filedesc.
 	 */
-	if (flags & RFCFDG) {
+	if (fr->fr_flags & RFCFDG) {
 		fd = fdinit(p1->p_fd, false);
 		fdtol = NULL;
-	} else if (flags & RFFDG) {
+	} else if (fr->fr_flags & RFFDG) {
 		fd = fdcopy(p1->p_fd);
 		fdtol = NULL;
 	} else {
@@ -449,7 +444,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		if (p1->p_fdtol == NULL)
 			p1->p_fdtol = filedesc_to_leader_alloc(NULL, NULL,
 			    p1->p_leader);
-		if ((flags & RFTHREAD) != 0) {
+		if ((fr->fr_flags & RFTHREAD) != 0) {
 			/*
 			 * Shared file descriptor table, and shared
 			 * process leaders.
@@ -517,16 +512,16 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	vm_domain_policy_localcopy(&p2->p_vm_dom_policy,
 	    &p1->p_vm_dom_policy);
 
-	if (flags & RFSIGSHARE) {
+	if (fr->fr_flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
 	} else {
 		sigacts_copy(newsigacts, p1->p_sigacts);
 		p2->p_sigacts = newsigacts;
 	}
 
-	if (flags & RFTSIGZMB)
-	        p2->p_sigparent = RFTSIGNUM(flags);
-	else if (flags & RFLINUXTHPN)
+	if (fr->fr_flags & RFTSIGZMB)
+	        p2->p_sigparent = RFTSIGNUM(fr->fr_flags);
+	else if (fr->fr_flags & RFLINUXTHPN)
 	        p2->p_sigparent = SIGUSR1;
 	else
 	        p2->p_sigparent = SIGCHLD;
@@ -559,7 +554,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Set up linkage for kernel based threading.
 	 */
-	if ((flags & RFTHREAD) != 0) {
+	if ((fr->fr_flags & RFTHREAD) != 0) {
 		mtx_lock(&ppeers_lock);
 		p2->p_peers = p1->p_peers;
 		p1->p_peers = p2;
@@ -606,7 +601,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
 	SESS_UNLOCK(p1->p_session);
-	if (flags & RFPPWAIT)
+	if (fr->fr_flags & RFPPWAIT)
 		p2->p_flag |= P_PPWAIT;
 
 	p2->p_pgrp = p1->p_pgrp;
@@ -640,7 +635,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * of init.  This effectively disassociates the child from the
 	 * parent.
 	 */
-	if ((flags & RFNOWAIT) != 0) {
+	if ((fr->fr_flags & RFNOWAIT) != 0) {
 		pptr = p1->p_reaper;
 		p2->p_reaper = pptr;
 	} else {
@@ -668,13 +663,13 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
 	 */
-	vm_forkproc(td, p2, td2, vm2, flags);
+	vm_forkproc(td, p2, td2, vm2, fr->fr_flags);
 
-	if (flags == (RFFDG | RFPROC)) {
+	if (fr->fr_flags == (RFFDG | RFPROC)) {
 		PCPU_INC(cnt.v_forks);
 		PCPU_ADD(cnt.v_forkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
-	} else if (flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
+	} else if (fr->fr_flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
 		PCPU_INC(cnt.v_vforks);
 		PCPU_ADD(cnt.v_vforkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
@@ -693,14 +688,14 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * can happen that might cause that process to need the descriptor.
 	 * However, don't do this until after fork(2) can no longer fail.
 	 */
-	if (flags & RFPROCDESC)
-		procdesc_new(p2, pdflags);
+	if (fr->fr_flags & RFPROCDESC)
+		procdesc_new(p2, fr->fr_pd_flags);
 
 	/*
 	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
 	 */
-	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
+	EVENTHANDLER_INVOKE(process_fork, p1, p2, fr->fr_flags);
 
 	/*
 	 * Set the child start time and mark the process as being complete.
@@ -719,9 +714,14 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * this only after p_state is PRS_NORMAL since the fasttrap module will
 	 * use pfind() later on.
 	 */
-	if ((flags & RFMEM) == 0 && dtrace_fasttrap_fork)
+	if ((fr->fr_flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
+	/*
+	 * Hold the process so that it cannot exit after we make it runnable,
+	 * but before we wait for the debugger.
+	 */
+	_PHOLD(p2);
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
 	    P_FOLLOWFORK)) {
 		/*
@@ -734,24 +734,12 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		td->td_dbgflags |= TDB_FORK;
 		td->td_dbg_forked = p2->p_pid;
 		td2->td_dbgflags |= TDB_STOPATFORK;
-		_PHOLD(p2);
-		p2_held = 1;
 	}
-	if (flags & RFPPWAIT) {
+	if (fr->fr_flags & RFPPWAIT) {
 		td->td_pflags |= TDP_RFPPWAIT;
 		td->td_rfppwait_p = p2;
 	}
 	PROC_UNLOCK(p2);
-	if ((flags & RFSTOPPED) == 0) {
-		/*
-		 * If RFSTOPPED not requested, make child runnable and
-		 * add to run queue.
-		 */
-		thread_lock(td2);
-		TD_SET_CAN_RUN(td2);
-		sched_add(td2, SRQ_BORING);
-		thread_unlock(td2);
-	}
 
 	/*
 	 * Now can be swapped.
@@ -763,16 +751,36 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Tell any interested parties about the new process.
 	 */
 	knote_fork(&p1->p_klist, p2->p_pid);
-	SDT_PROBE3(proc, , , create, p2, p1, flags);
+	SDT_PROBE3(proc, , , create, p2, p1, fr->fr_flags);
 
+	if (fr->fr_flags & RFPROCDESC) {
+		procdesc_finit(p2->p_procdesc, fp_procdesc);
+		fdrop(fp_procdesc, td);
+	}
+
+	if ((fr->fr_flags & RFSTOPPED) == 0) {
+		/*
+		 * If RFSTOPPED not requested, make child runnable and
+		 * add to run queue.
+		 */
+		thread_lock(td2);
+		TD_SET_CAN_RUN(td2);
+		sched_add(td2, SRQ_BORING);
+		thread_unlock(td2);
+		if (fr->fr_pidp != NULL)
+			*fr->fr_pidp = p2->p_pid;
+	} else {
+		*fr->fr_procp = p2;
+	}
+
+	PROC_LOCK(p2);
 	/*
 	 * Wait until debugger is attached to child.
 	 */
-	PROC_LOCK(p2);
 	while ((td2->td_dbgflags & TDB_STOPATFORK) != 0)
 		cv_wait(&p2->p_dbgwait, &p2->p_mtx);
-	if (p2_held)
-		_PRELE(p2);
+	_PRELE(p2);
+	racct_proc_fork_done(p2);
 	PROC_UNLOCK(p2);
 }
 
@@ -791,6 +799,11 @@ fork1(struct thread *td, struct fork_req *fr)
 
 	flags = fr->fr_flags;
 	pages = fr->fr_pages;
+
+	if ((flags & RFSTOPPED) != 0)
+		MPASS(fr->fr_procp != NULL && fr->fr_pidp == NULL);
+	else
+		MPASS(fr->fr_procp == NULL);
 
 	/* Check for the undefined or unimplemented flags. */
 	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
@@ -825,7 +838,10 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		*fr->fr_procp = NULL;
+		if (fr->fr_procp != NULL)
+			*fr->fr_procp = NULL;
+		else if (fr->fr_pidp != NULL)
+			*fr->fr_pidp = 0;
 		return (fork_norfproc(td, flags));
 	}
 
@@ -953,17 +969,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		    lim_cur(td, RLIMIT_NPROC));
 	}
 	if (ok) {
-		do_fork(td, flags, newproc, td2, vm2, fr->fr_pd_flags);
-
-		/*
-		 * Return child proc pointer to parent.
-		 */
-		*fr->fr_procp = newproc;
-		if (flags & RFPROCDESC) {
-			procdesc_finit(newproc->p_procdesc, fp_procdesc);
-			fdrop(fp_procdesc, td);
-		}
-		racct_proc_fork_done(newproc);
+		do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
 		return (0);
 	}
 
