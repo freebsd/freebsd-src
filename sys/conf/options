@@ -921,6 +921,7 @@ VNET_DEBUG		opt_global.h
 # Common Flash Interface (CFI) options
 CFI_SUPPORT_STRATAFLASH	opt_cfi.h
 CFI_ARMEDANDDANGEROUS	opt_cfi.h
+CFI_HARDWAREBYTESWAP	opt_cfi.h
 
 # Sound options
 SND_DEBUG		opt_snd.h
