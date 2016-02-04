@@ -74,8 +74,6 @@ ENTRY(cpu_throw)
 	/* Load registers */
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
-	ld	gp, (PCB_GP)(x13)
-	ld	tp, (PCB_TP)(x13)
 
 	/* s[0-11] */
 	ld	s0, (PCB_S + 0 * 8)(x13)
@@ -120,8 +118,6 @@ ENTRY(cpu_switch)
 	/* Store the callee-saved registers */
 	sd	ra, (PCB_RA)(x13)
 	sd	sp, (PCB_SP)(x13)
-	sd	gp, (PCB_GP)(x13)
-	sd	tp, (PCB_TP)(x13)
 
 	/* We use these in fork_trampoline */
 	sd	t0, (PCB_T + 0 * 8)(x13)
@@ -176,8 +172,6 @@ ENTRY(cpu_switch)
 	/* Restore the registers */
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
-	ld	gp, (PCB_GP)(x13)
-	ld	tp, (PCB_TP)(x13)
 
 	/* We use these in fork_trampoline */
 	ld	t0, (PCB_T + 0 * 8)(x13)
@@ -254,12 +248,23 @@ ENTRY(fork_trampoline)
 	ld	a6, (TF_A + 6 * 8)(sp)
 	ld	a7, (TF_A + 7 * 8)(sp)
 
+	/* Load user ra and sp */
+	ld	tp, (TF_TP)(sp)
+	ld	ra, (TF_RA)(sp)
+
+	/*
+	 * Store our pcpup on stack, we will load it back
+	 * on kernel mode trap.
+	 */
+	sd	gp, (TF_SIZE)(sp)
+	ld	gp, (TF_GP)(sp)
+
 	/* Save kernel stack so we can use it doing a user trap */
+	addi	sp, sp, TF_SIZE
 	csrw	sscratch, sp
 
-	/* Load user ra and sp */
-	ld	ra, (TF_RA)(sp)
-	ld	sp, (TF_SP)(sp)
+	/* Load user stack */
+	ld	sp, (TF_SP - TF_SIZE)(sp)
 
 	eret
 END(fork_trampoline)

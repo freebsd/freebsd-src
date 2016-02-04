@@ -41,11 +41,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/riscvreg.h>
 
 .macro save_registers el
-	addi	sp, sp, -280
+	addi	sp, sp, -(TF_SIZE)
 
 	sd	ra, (TF_RA)(sp)
-	sd	gp, (TF_GP)(sp)
 	sd	tp, (TF_TP)(sp)
+
+.if \el == 0	/* We came from userspace. Load our pcpu */
+	sd	gp, (TF_GP)(sp)
+	ld	gp, (TF_SIZE)(sp)
+.endif
 
 	sd	t0, (TF_T + 0 * 8)(sp)
 	sd	t1, (TF_T + 1 * 8)(sp)
@@ -127,13 +131,16 @@ __FBSDID("$FreeBSD$");
 	csrw	sepc, t0
 
 .if \el == 0
-	/* Load user sp */
+	/* We go to userspace. Load user sp */
 	ld	t0, (TF_SP)(sp)
 	csrw	sscratch, t0
+
+	/* And store our pcpu */
+	sd	gp, (TF_SIZE)(sp)
+	ld	gp, (TF_GP)(sp)
 .endif
 
 	ld	ra, (TF_RA)(sp)
-	ld	gp, (TF_GP)(sp)
 	ld	tp, (TF_TP)(sp)
 
 	ld	t0, (TF_T + 0 * 8)(sp)
@@ -166,7 +173,7 @@ __FBSDID("$FreeBSD$");
 	ld	a6, (TF_A + 6 * 8)(sp)
 	ld	a7, (TF_A + 7 * 8)(sp)
 
-	addi	sp, sp, 280
+	addi	sp, sp, (TF_SIZE)
 .endm
 
 .macro	do_ast
