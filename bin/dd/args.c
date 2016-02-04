@@ -383,6 +383,14 @@ postfix_to_mult(const char expr)
 	case 'g':
 		mult = 1 << 30;
 		break;
+	case 'T':
+	case 't':
+		mult = (uintmax_t)1 << 40;
+		break;
+	case 'P':
+	case 'p':
+		mult = (uintmax_t)1 << 50;
+		break;
 	case 'W':
 	case 'w':
 		mult = sizeof(int);
