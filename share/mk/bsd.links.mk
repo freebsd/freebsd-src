@@ -8,8 +8,8 @@ afterinstall: _installlinks
 .ORDER: realinstall _installlinks
 _installlinks:
 .for s t in ${LINKS}
-	${INSTALL_LINK} ${DESTDIR}$s ${DESTDIR}$t
+	${INSTALL_LINK} ${DESTDIR}${s} ${DESTDIR}${t}
 .endfor
 .for s t in ${SYMLINKS}
-	${INSTALL_SYMLINK} $s ${DESTDIR}/$t
+	${INSTALL_SYMLINK} ${s} ${DESTDIR}${t}
 .endfor
