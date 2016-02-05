@@ -52,6 +52,8 @@ static void hv_heartbeat_cb(void *context);
 static void hv_timesync_cb(void *context);
 
 static int hv_timesync_init(hv_vmbus_service *serv);
+static int hv_timesync_uninit(hv_vmbus_service *serv);
+static void hv_set_host_time(void *context, int pending);
 
 /*
  * Note: GUID codes below are predefined by the host hypervisor
@@ -73,6 +75,7 @@ hv_vmbus_service service_table[] = {
 	  .enabled = TRUE,
 	  .init = hv_timesync_init,
 	  .callback = hv_timesync_cb,
+	  .uninit = hv_timesync_uninit,
 	},
 
         /* Heartbeat Service */
@@ -111,10 +114,16 @@ struct hv_ictimesync_data {
 static int
 hv_timesync_init(hv_vmbus_service *serv)
 {
+	void *time_msg = malloc(sizeof(time_sync_data), M_DEVBUF, M_WAITOK);
+	TASK_INIT(&serv->task, 1, hv_set_host_time, time_msg);
+	return (0);
+}
 
-	serv->work_queue = hv_work_queue_create("Time Sync");
-	if (serv->work_queue == NULL)
-		return (ENOMEM);
+static int
+hv_timesync_uninit(hv_vmbus_service *serv)
+{
+	taskqueue_drain(taskqueue_thread, &serv->task);
+	free(serv->task.ta_context, M_DEVBUF);
 	return (0);
 }
 
@@ -152,9 +161,9 @@ hv_negotiate_version(
  * Set host time based on time sync message from host
  */
 static void
-hv_set_host_time(void *context)
+hv_set_host_time(void *context, int pending)
 {
- 	time_sync_data* time_msg = (time_sync_data*) context;	
+	time_sync_data* time_msg = (time_sync_data*) context;
 	uint64_t hosttime = time_msg->data;
 	struct timespec guest_ts, host_ts;
 	uint64_t host_tns;
@@ -166,7 +175,7 @@ hv_set_host_time(void *context)
 	host_ts.tv_nsec = (long)(host_tns%HV_NANO_SEC_PER_SEC);
 
 	nanotime(&guest_ts);
-	
+
 	diff = (int64_t)host_ts.tv_sec - (int64_t)guest_ts.tv_sec;
 
 	/*
@@ -175,12 +184,7 @@ hv_set_host_time(void *context)
 	if (diff > 5 || diff < -5) {
 		error = kern_clock_settime(curthread, CLOCK_REALTIME,
 		    &host_ts);
-	} 
-
-	/*
-	 * Free the hosttime that was allocated in hv_adj_guesttime()
-	 */
-	free(time_msg, M_DEVBUF);
+	}
 }
 
 /**
@@ -197,23 +201,13 @@ hv_set_host_time(void *context)
 static inline
 void hv_adj_guesttime(uint64_t hosttime, uint8_t flags)
 {
-	time_sync_data* time_msg;
+	time_sync_data* time_msg = service_table[HV_TIME_SYNCH].task.ta_context;
 
-	time_msg = malloc(sizeof(time_sync_data), M_DEVBUF, M_NOWAIT);
-
-	if (time_msg == NULL)
-		return;
-	
 	time_msg->data = hosttime;
 
-	if ((flags & HV_ICTIMESYNCFLAG_SYNC) != 0) {
-		hv_queue_work_item(service_table[HV_TIME_SYNCH].work_queue,
-		    hv_set_host_time, time_msg);
-	} else if ((flags & HV_ICTIMESYNCFLAG_SAMPLE) != 0) {
-		hv_queue_work_item(service_table[HV_TIME_SYNCH].work_queue,
-		    hv_set_host_time, time_msg);
-	} else {
-		free(time_msg, M_DEVBUF);
+	if (((flags & HV_ICTIMESYNCFLAG_SYNC) != 0) ||
+		((flags & HV_ICTIMESYNCFLAG_SAMPLE) != 0)) {
+		taskqueue_enqueue(taskqueue_thread, &service_table[HV_TIME_SYNCH].task);
 	}
 }
 
@@ -452,17 +446,12 @@ hv_util_detach(device_t dev)
 	service = device_get_softc(dev);
 	receive_buffer_offset = service - &service_table[0];
 
-	if (service->work_queue != NULL)
-	    hv_work_queue_close(service->work_queue);
+	if (service->uninit != NULL)
+	    service->uninit(service);
 
 	free(receive_buffer[receive_buffer_offset], M_DEVBUF);
 	receive_buffer[receive_buffer_offset] = NULL;
 	return (0);
-}
-
-static void
-hv_util_init(void)
-{
 }
 
 static int
@@ -495,6 +484,3 @@ static devclass_t util_devclass;
 DRIVER_MODULE(hv_utils, vmbus, util_driver, util_devclass, hv_util_modevent, 0);
 MODULE_VERSION(hv_utils, 1);
 MODULE_DEPEND(hv_utils, vmbus, 1, 1, 1);
-
-SYSINIT(hv_util_initx, SI_SUB_KTHREAD_IDLE, SI_ORDER_MIDDLE + 1,
-	hv_util_init, NULL);
