@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -104,8 +105,7 @@ platform_mp_start_ap(void)
 	 * magic location, 0xfffffff0, isn't in the SCU's filtering range so it
 	 * needs a write-back too.
 	 */
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* Wake up CPU1. */
 	armv7_sev();

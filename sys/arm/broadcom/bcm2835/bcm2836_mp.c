@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/bus.h>
 #include <machine/fdt.h>
@@ -123,8 +124,7 @@ platform_mp_start_ap(void)
 		BSWR4(MBOX3CLR_CORE(i), 0xffffffff);
 	}
 	wmb();
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* boot secondary CPUs */
 	for (i = 1; i < mp_ncpus; i++) {
