@@ -208,4 +208,13 @@
 #define	xfail_swap_required				NULL
 #define	xfail_need_writable_tmp				NULL
 
+#ifdef CHERI_C_TESTS
+#define DECLARE_TEST(name, desc)				\
+    inline void cheri_c_test_ ## name( 			\
+	const struct cheri_test *ctp __unused) {}
+#include <cheri_c_testdecls.h>
+#undef DECLARE_TEST
+#endif
+
+
 #endif /* !_CHERITEST_LIST_ONLY_H_ */

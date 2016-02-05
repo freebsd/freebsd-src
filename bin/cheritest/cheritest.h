@@ -323,4 +323,12 @@ const char	*xfail_need_writable_tmp(const char *name);
 void	cheritest_vm_swap(const struct cheri_test *ctp __unused);
 const char	*xfail_swap_required(const char *name);
 
+#ifdef CHERI_C_TESTS
+#define DECLARE_TEST(name, desc) \
+    void	cheri_c_test_ ## name(const struct cheri_test *ctp __unused);
+#define	DECLARE_TEST_FAULT(name, desc)	/* Not supported */
+#include <cheri_c_testdecls.h>
+#undef DECLARE_TEST
+#endif
+
 #endif /* !_CHERITEST_H_ */

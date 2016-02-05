@@ -21,6 +21,27 @@ SRCS+=	cheritest_bounds_stack.c					\
 	cheritest_vm_swap.c
 .endif
 
+CHERITEST_DIR:=	${.PARSEDIR}
+
+.ifdef CHERI_C_TESTS
+CHERI_C_TESTS_DIR=	${SRCTOP}/contrib/cheri-c-tests
+.if exists(${CHERI_C_TESTS_DIR}/Makefile)
+.PATH: ${CHERI_C_TESTS_DIR}
+CFLAGS+=	-DCHERI_C_TESTS \
+		-I${CHERI_C_TESTS_DIR}
+
+.ifndef BOOTSTRAPPING
+
+CFLAGS+=	-DTEST_CUSTOM_FRAMEWORK -I${CHERITEST_DIR}
+.warning PARSEDIR=${.PARSEDIR}
+TEST_SRCS!=	grep ^DECLARE_TEST ${CHERI_C_TESTS_DIR}/cheri_c_testdecls.h | \
+		    sed -e 's/.*(\([^,]*\),.*/\1.c/'
+SRCS+=	test_runtime.c	\
+	${TEST_SRCS}
+.endif
+.endif
+.endif
+
 MAN=
 
 .ifndef BOOTSTRAPPING
@@ -41,8 +62,8 @@ NO_WERROR=	YES
 
 .ifdef BOOTSTRAPPING
 CFLAGS+=	-DLIST_ONLY \
-		-I${.CURDIR}/../../libexec/cheritest-helper \
-		-I${.CURDIR}/../../contrib/libxo
+		-I${SRCTOP}/libexec/cheritest-helper \
+		-I${SRCTOP}/contrib/libxo
 LDFLAGS+=	-L${.OBJDIR}/../../lib/libxo
 .endif
 

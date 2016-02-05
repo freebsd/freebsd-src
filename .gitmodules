@@ -1,0 +1,3 @@
+[submodule "contrib/cheri-c-tests"]
+	path = contrib/cheri-c-tests
+	url = https://github.com/CTSRD-CHERI/cheri-c-tests.git

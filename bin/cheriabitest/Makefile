@@ -5,4 +5,6 @@ SRCDIR=	${.CURDIR}/../cheritest
 
 PROG=	cheriabitest
 
-.include <${SRCDIR}/Makefile>
+CHERI_C_TESTS=	yes
+
+.include	<${SRCDIR}/Makefile>

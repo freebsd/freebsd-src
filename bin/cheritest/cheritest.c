@@ -859,6 +859,15 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_string_memmove_c",
 	  .ct_desc = "Test explicit capability memmove",
 	  .ct_func = test_string_memmove_c },
+#ifdef CHERI_C_TESTS
+#define	DECLARE_TEST(name, desc)			\
+	{ .ct_name = "cheri_c_test_" #name, 		\
+	  .ct_desc = desc,				\
+	  .ct_func = cheri_c_test_ ## name },
+#define	DECLARE_TEST_FAULT(name, desc)	/* No supported */
+#include <cheri_c_testdecls.h>
+#undef DECLARE_TEST
+#endif
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);
