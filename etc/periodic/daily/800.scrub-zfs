@@ -78,10 +78,13 @@ case "$daily_scrub_zfs_enable" in
 			continue
 		fi
 
-		_status="$(zpool status ${pool} | grep scrub:)"
+		_status="$(zpool status ${pool} | grep scan:)"
 		case "${_status}" in
 			*"scrub in progress"*)
 				echo "   scrubbing of pool '${pool}' already in progress, skipping:"
+				;;
+			*"resilver in progress"*)
+				echo "   resilvering of pool '${pool}' is in progress, skipping:"
 				;;
 			*"none requested"*)
 				echo "   starting first scrub (since reboot) of pool '${pool}':"
