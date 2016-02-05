@@ -179,7 +179,6 @@ SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 TARGET=		mips
 TARGET_ARCH=	mips64
 CHERI_FLAGS=	-DDB_FROM_SRC \
-		-DWITHOUT_TESTS \
 		-DMALLOC_PRODUCTION \
 		LOCAL_DIRS="ctsrd tools/tools/atsectl" \
 		LOCAL_LIB_DIRS=ctsrd/lib \
