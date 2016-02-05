@@ -764,6 +764,15 @@ void
 netvsc_channel_rollup(struct hv_device *device_ctx)
 {
 	struct hn_softc *sc = device_get_softc(device_ctx->device);
+#if defined(INET) || defined(INET6)
+	struct lro_ctrl *lro = &sc->hn_lro;
+	struct lro_entry *queued;
+
+	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lro->lro_active, next);
+		tcp_lro_flush(lro, queued);
+	}
+#endif
 
 	if (!sc->hn_txeof)
 		return;
@@ -1338,18 +1347,8 @@ skip:
 }
 
 void
-netvsc_recv_rollup(struct hv_device *device_ctx)
+netvsc_recv_rollup(struct hv_device *device_ctx __unused)
 {
-#if defined(INET) || defined(INET6)
-	hn_softc_t *sc = device_get_softc(device_ctx->device);
-	struct lro_ctrl *lro = &sc->hn_lro;
-	struct lro_entry *queued;
-
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
-#endif
 }
 
 /*
