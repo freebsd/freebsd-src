@@ -12,7 +12,7 @@
 #
 #
 
-PACKAGE=lib${LIB}
+PACKAGE=	clibs
 .if ${MACHINE_CPUARCH} == "i386"
 ARCH_SUBDIR= i387
 .else

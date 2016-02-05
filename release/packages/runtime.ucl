@@ -22,8 +22,7 @@ scripts: {
 EOD
 }
 deps: {
-    # For sh(1).
-    "FreeBSD-libedit": {
+    "FreeBSD-clibs": {
         origin: "base"
         version: "%VERSION%"
     }
