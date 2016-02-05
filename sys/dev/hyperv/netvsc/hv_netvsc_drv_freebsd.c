@@ -167,16 +167,6 @@ struct hn_txdesc {
 #define HN_TXD_FLAG_DMAMAP	0x2
 
 /*
- * A unified flag for all outbound check sum flags is useful,
- * and it helps avoiding unnecessary check sum calculation in
- * network forwarding scenario.
- */
-#define HV_CSUM_FOR_OUTBOUND						\
-    (CSUM_IP|CSUM_IP_UDP|CSUM_IP_TCP|CSUM_IP_SCTP|CSUM_IP_TSO|		\
-    CSUM_IP_ISCSI|CSUM_IP6_UDP|CSUM_IP6_TCP|CSUM_IP6_SCTP|		\
-    CSUM_IP6_TSO|CSUM_IP6_ISCSI)
-
-/*
  * Only enable UDP checksum offloading when it is on 2012R2 or
  * later.  UDP checksum offloading doesn't work on earlier
  * Windows releases.
@@ -263,62 +253,6 @@ hn_set_lro_hiwat(struct hn_softc *sc, int hiwat)
 #ifdef HN_LRO_HIWAT
 	sc->hn_lro.lro_hiwat = sc->hn_lro_hiwat;
 #endif
-}
-
-/*
- * NetVsc get message transport protocol type 
- */
-static uint32_t get_transport_proto_type(struct mbuf *m_head)
-{
-	uint32_t ret_val = TRANSPORT_TYPE_NOT_IP;
-	uint16_t ether_type = 0;
-	int ether_len = 0;
-	struct ether_vlan_header *eh;
-#ifdef INET
-	struct ip *iph;
-#endif
-#ifdef INET6
-	struct ip6_hdr *ip6;
-#endif
-
-	eh = mtod(m_head, struct ether_vlan_header*);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-		ether_type = eh->evl_proto;
-	} else {
-		ether_len = ETHER_HDR_LEN;
-		ether_type = eh->evl_encap_proto;
-	}
-
-	switch (ntohs(ether_type)) {
-#ifdef INET6
-	case ETHERTYPE_IPV6:
-		ip6 = (struct ip6_hdr *)(m_head->m_data + ether_len);
-
-		if (IPPROTO_TCP == ip6->ip6_nxt) {
-			ret_val = TRANSPORT_TYPE_IPV6_TCP;
-		} else if (IPPROTO_UDP == ip6->ip6_nxt) {
-			ret_val = TRANSPORT_TYPE_IPV6_UDP;
-		}
-		break;
-#endif
-#ifdef INET
-	case ETHERTYPE_IP:
-		iph = (struct ip *)(m_head->m_data + ether_len);
-
-		if (IPPROTO_TCP == iph->ip_p) {
-			ret_val = TRANSPORT_TYPE_IPV4_TCP;
-		} else if (IPPROTO_UDP == iph->ip_p) {
-			ret_val = TRANSPORT_TYPE_IPV4_UDP;
-		}
-		break;
-#endif
-	default:
-		ret_val = TRANSPORT_TYPE_NOT_IP;
-		break;
-	}
-
-	return (ret_val);
 }
 
 static int
@@ -783,16 +717,13 @@ hn_start_locked(struct ifnet *ifp, int len)
 	hn_softc_t *sc = ifp->if_softc;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	netvsc_dev *net_dev = sc->net_dev;
-	struct ether_vlan_header *eh;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
 	rndis_per_packet_info *rppi;
 	ndis_8021q_info *rppi_vlan_info;
 	rndis_tcp_ip_csum_info *csum_info;
 	rndis_tcp_tso_info *tso_info;	
-	int ether_len;
 	uint32_t rndis_msg_size = 0;
-	uint32_t trans_proto_type;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
@@ -872,101 +803,78 @@ hn_start_locked(struct ifnet *ifp, int len)
 			    m_head->m_pkthdr.ether_vtag & 0xfff;
 		}
 
-		/* Only check the flags for outbound and ignore the ones for inbound */
-		if (0 == (m_head->m_pkthdr.csum_flags & HV_CSUM_FOR_OUTBOUND)) {
-			goto pre_send;
-		}
-
-		eh = mtod(m_head, struct ether_vlan_header*);
-		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-			ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-		} else {
-			ether_len = ETHER_HDR_LEN;
-		}
-
-		trans_proto_type = get_transport_proto_type(m_head);
-		if (TRANSPORT_TYPE_NOT_IP == trans_proto_type) {
-			goto pre_send;
-		}
-
-		/*
-		 * TSO packet needless to setup the send side checksum
-		 * offload.
-		 */
 		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-			goto do_tso;
-		}
+			struct ether_vlan_header *eh;
+			int ether_len;
 
-		/* setup checksum offload */
-		rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
-		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
-		    tcpip_chksum_info);
-		csum_info = (rndis_tcp_ip_csum_info *)((char*)rppi +
-		    rppi->per_packet_info_offset);
+			eh = mtod(m_head, struct ether_vlan_header*);
+			if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+				ether_len = ETHER_HDR_LEN +
+				    ETHER_VLAN_ENCAP_LEN;
+			} else {
+				ether_len = ETHER_HDR_LEN;
+			}
 
-		if (trans_proto_type & (TYPE_IPV4 << 16)) {
-			csum_info->xmit.is_ipv4 = 1;
-		} else {
-			csum_info->xmit.is_ipv6 = 1;
-		}
+			rndis_msg_size += RNDIS_TSO_PPI_SIZE;
+			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
+			    tcp_large_send_info);
 
-		if (trans_proto_type & TYPE_TCP) {
-			csum_info->xmit.tcp_csum = 1;
-			csum_info->xmit.tcp_header_offset = 0;
-		} else if (trans_proto_type & TYPE_UDP) {
-			csum_info->xmit.udp_csum = 1;
-		}
+			tso_info = (rndis_tcp_tso_info *)((char *)rppi +
+			    rppi->per_packet_info_offset);
+			tso_info->lso_v2_xmit.type =
+			    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
 
-		goto pre_send;
-
-do_tso:
-		/* setup TCP segmentation offload */
-		rndis_msg_size += RNDIS_TSO_PPI_SIZE;
-		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
-		    tcp_large_send_info);
-		
-		tso_info = (rndis_tcp_tso_info *)((char *)rppi +
-		    rppi->per_packet_info_offset);
-		tso_info->lso_v2_xmit.type =
-		    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
-		
 #ifdef INET
-		if (trans_proto_type & (TYPE_IPV4 << 16)) {
-			struct ip *ip =
-			    (struct ip *)(m_head->m_data + ether_len);
-			unsigned long iph_len = ip->ip_hl << 2;
-			struct tcphdr *th =
-			    (struct tcphdr *)((caddr_t)ip + iph_len);
-		
-			tso_info->lso_v2_xmit.ip_version =
-			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
-			ip->ip_len = 0;
-			ip->ip_sum = 0;
-		
-			th->th_sum = in_pseudo(ip->ip_src.s_addr,
-			    ip->ip_dst.s_addr,
-			    htons(IPPROTO_TCP));
-		}
+			if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
+				struct ip *ip =
+				    (struct ip *)(m_head->m_data + ether_len);
+				unsigned long iph_len = ip->ip_hl << 2;
+				struct tcphdr *th =
+				    (struct tcphdr *)((caddr_t)ip + iph_len);
+			
+				tso_info->lso_v2_xmit.ip_version =
+				    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
+				ip->ip_len = 0;
+				ip->ip_sum = 0;
+			
+				th->th_sum = in_pseudo(ip->ip_src.s_addr,
+				    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+			}
 #endif
 #if defined(INET6) && defined(INET)
-		else
+			else
 #endif
 #ifdef INET6
-		{
-			struct ip6_hdr *ip6 =
-			    (struct ip6_hdr *)(m_head->m_data + ether_len);
-			struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
+			{
+				struct ip6_hdr *ip6 = (struct ip6_hdr *)
+				    (m_head->m_data + ether_len);
+				struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
 
-			tso_info->lso_v2_xmit.ip_version =
-			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
-			ip6->ip6_plen = 0;
-			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
-		}
+				tso_info->lso_v2_xmit.ip_version =
+				    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
+				ip6->ip6_plen = 0;
+				th->th_sum =
+				    in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+			}
 #endif
-		tso_info->lso_v2_xmit.tcp_header_offset = 0;
-		tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
+			tso_info->lso_v2_xmit.tcp_header_offset = 0;
+			tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
+		} else if (m_head->m_pkthdr.csum_flags & sc->hn_csum_assist) {
+			rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
+			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
+			    tcpip_chksum_info);
+			csum_info = (rndis_tcp_ip_csum_info *)((char*)rppi +
+			    rppi->per_packet_info_offset);
 
-pre_send:
+			csum_info->xmit.is_ipv4 = 1;
+			if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
+				csum_info->xmit.tcp_csum = 1;
+				csum_info->xmit.tcp_header_offset = 0;
+			} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
+				csum_info->xmit.udp_csum = 1;
+			}
+		}
+
 		rndis_mesg->msg_len = packet->tot_data_buf_len + rndis_msg_size;
 		packet->tot_data_buf_len = rndis_mesg->msg_len;
 
