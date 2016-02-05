@@ -456,6 +456,8 @@ netvsc_attach(device_t dev)
 	    CTLFLAG_RW, &sc->hn_csum_ip, "RXCSUM IP");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_tcp",
 	    CTLFLAG_RW, &sc->hn_csum_tcp, "RXCSUM TCP");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_udp",
+	    CTLFLAG_RW, &sc->hn_csum_udp, "RXCSUM UDP");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_trusted",
 	    CTLFLAG_RW, &sc->hn_csum_trusted,
 	    "# of TCP segements that we trust host's csum verification");
@@ -1156,7 +1158,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 	m_new->m_pkthdr.rcvif = ifp;
 
 	/* receive side checksum offload */
-	if (NULL != csum_info) {
+	if (csum_info != NULL) {
 		/* IP csum offload */
 		if (csum_info->receive.ip_csum_succeeded) {
 			m_new->m_pkthdr.csum_flags |=
@@ -1164,12 +1166,16 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 			sc->hn_csum_ip++;
 		}
 
-		/* TCP csum offload */
-		if (csum_info->receive.tcp_csum_succeeded) {
+		/* TCP/UDP csum offload */
+		if (csum_info->receive.tcp_csum_succeeded ||
+		    csum_info->receive.udp_csum_succeeded) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
-			sc->hn_csum_tcp++;
+			if (csum_info->receive.tcp_csum_succeeded)
+				sc->hn_csum_tcp++;
+			else
+				sc->hn_csum_udp++;
 		}
 
 		if (csum_info->receive.ip_csum_succeeded &&
