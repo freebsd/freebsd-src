@@ -35,6 +35,7 @@
 #
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 OPENPAM=	${.CURDIR}/../../../contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
