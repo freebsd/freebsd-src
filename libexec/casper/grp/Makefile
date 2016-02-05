@@ -2,6 +2,7 @@
 
 .PATH:	${.CURDIR} ${.CURDIR}/../../../sbin/casper
 
+PACKAGE=casper
 PROG=	grp
 
 SRCS=	grp.c

@@ -2,6 +2,7 @@
 
 .PATH:	${.CURDIR} ${.CURDIR}/../../../sbin/casper
 
+PACKAGE=casper
 PROG=	random
 
 SRCS=	random.c
