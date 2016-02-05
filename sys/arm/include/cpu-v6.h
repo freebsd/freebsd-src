@@ -44,10 +44,9 @@
 #error Only include this file for ARMv6
 #else
 
-
-
 #define CPU_ASID_KERNEL 0
 
+void dcache_wbinv_poc_all(void); /* !!! NOT SMP coherent function !!! */
 vm_offset_t dcache_wb_pou_checked(vm_offset_t, vm_size_t);
 vm_offset_t icache_inv_pou_checked(vm_offset_t, vm_size_t);
 

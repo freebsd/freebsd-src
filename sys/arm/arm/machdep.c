@@ -396,7 +396,7 @@ arm_vector_init(vm_offset_t va, int which)
 	}
 
 	/* Now sync the vectors. */
-	cpu_icache_sync_range(va, (ARM_NVEC * 2) * sizeof(u_int));
+	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
 
@@ -478,12 +478,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	cpu_dcache_wb_range((uintptr_t)ptr, len);
-#ifdef ARM_L2_PIPT
-	cpu_l2cache_wb_range((uintptr_t)vtophys(ptr), len);
-#else
-	cpu_l2cache_wb_range((uintptr_t)ptr, len);
-#endif
+	dcache_wb_poc((vm_offset_t)ptr, (vm_paddr_t)vtophys(ptr), len);
 }
 
 /* Get current clock frequency for the given cpu id. */

@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
+#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/fdt.h>
 #include <machine/smp.h>
 
@@ -143,8 +145,7 @@ pmsu_boot_secondary_cpu(void)
 	bus_space_write_4(fdtbus_bs_tag, vaddr, PMSU_BOOT_ADDR_REDIRECT_OFFSET(1),
 	    pmap_kextract((vm_offset_t)mpentry));
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 	armv7_sev();
 
 	bus_space_unmap(fdtbus_bs_tag, vaddr, MV_PMSU_REGS_LEN);

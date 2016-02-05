@@ -81,8 +81,8 @@ fiq_installhandler(void *func, size_t size)
 
 #if !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ);
-	cpu_icache_sync_range((vm_offset_t) fiqvector, size);
 #endif
+	icache_sync((vm_offset_t) fiqvector, size);
 }
 
 /*
