@@ -164,8 +164,6 @@ hv_vmbus_connect(void) {
 	 * Initialize the vmbus connection
 	 */
 	hv_vmbus_g_connection.connect_state = HV_CONNECTING;
-	hv_vmbus_g_connection.work_queue = hv_work_queue_create("vmbusQ");
-	sema_init(&hv_vmbus_g_connection.control_sema, 1, "control_sema");
 
 	TAILQ_INIT(&hv_vmbus_g_connection.channel_msg_anchor);
 	mtx_init(&hv_vmbus_g_connection.channel_msg_lock, "vmbus channel msg",
@@ -269,8 +267,6 @@ hv_vmbus_connect(void) {
 
 	hv_vmbus_g_connection.connect_state = HV_DISCONNECTED;
 
-	hv_work_queue_close(hv_vmbus_g_connection.work_queue);
-	sema_destroy(&hv_vmbus_g_connection.control_sema);
 	mtx_destroy(&hv_vmbus_g_connection.channel_lock);
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
@@ -322,9 +318,6 @@ hv_vmbus_disconnect(void) {
 	contigfree(hv_vmbus_g_connection.interrupt_page, PAGE_SIZE, M_DEVBUF);
 
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
-
-	hv_work_queue_close(hv_vmbus_g_connection.work_queue);
-	sema_destroy(&hv_vmbus_g_connection.control_sema);
 
 	free(hv_vmbus_g_connection.channels, M_DEVBUF);
 	hv_vmbus_g_connection.connect_state = HV_DISCONNECTED;
