@@ -222,14 +222,14 @@ int pmap_debug_level = 1;
 /*
  *  PTE2 descriptors creation macros.
  */
-#define PTE2_TEX_DEFAULT	memattr_to_tex2(VM_MEMATTR_DEFAULT)
-#define PTE2_TEX_PT		memattr_to_tex2(pt_memattr)
+#define PTE2_ATTR_DEFAULT	vm_memattr_to_pte2(VM_MEMATTR_DEFAULT)
+#define PTE2_ATTR_PT		vm_memattr_to_pte2(pt_memattr)
 
-#define PTE2_KPT(pa)	PTE2_KERN(pa, PTE2_AP_KRW, PTE2_TEX_PT)
-#define PTE2_KPT_NG(pa)	PTE2_KERN_NG(pa, PTE2_AP_KRW, PTE2_TEX_PT)
+#define PTE2_KPT(pa)	PTE2_KERN(pa, PTE2_AP_KRW, PTE2_ATTR_PT)
+#define PTE2_KPT_NG(pa)	PTE2_KERN_NG(pa, PTE2_AP_KRW, PTE2_ATTR_PT)
 
-#define PTE2_KRW(pa)	PTE2_KERN(pa, PTE2_AP_KRW, PTE2_TEX_DEFAULT)
-#define PTE2_KRO(pa)	PTE2_KERN(pa, PTE2_AP_KR, PTE2_TEX_DEFAULT)
+#define PTE2_KRW(pa)	PTE2_KERN(pa, PTE2_AP_KRW, PTE2_ATTR_DEFAULT)
+#define PTE2_KRO(pa)	PTE2_KERN(pa, PTE2_AP_KR, PTE2_ATTR_DEFAULT)
 
 #define PV_STATS
 #ifdef PV_STATS
@@ -397,7 +397,7 @@ static uint32_t tex_class[8] = {
 };
 #undef TEX
 
-static uint32_t tex_attr2[8] = {
+static uint32_t pte2_attr_tab[8] = {
 	PTE2_ATTR_WB_WA,	/* 0 - VM_MEMATTR_WB_WA */
 	PTE2_ATTR_NOCACHE,	/* 1 - VM_MEMATTR_NOCACHE */
 	PTE2_ATTR_DEVICE,	/* 2 - VM_MEMATTR_DEVICE */
@@ -414,18 +414,18 @@ CTASSERT(VM_MEMATTR_SO == 3);
 CTASSERT(VM_MEMATTR_WRITE_THROUGH == 4);
 
 static inline uint32_t
-memattr_to_tex2(vm_memattr_t ma)
+vm_memattr_to_pte2(vm_memattr_t ma)
 {
 
-	KASSERT(ma < 5, ("%s: bad vm_memattr_t %d", __func__, ma));
-	return (tex_attr2[(u_int)ma]);
+	KASSERT((u_int)ma < 5, ("%s: bad vm_memattr_t %d", __func__, ma));
+	return (pte2_attr_tab[(u_int)ma]);
 }
 
 static inline uint32_t
-page_tex2(vm_page_t m)
+vm_page_pte2_attr(vm_page_t m)
 {
 
-	return (memattr_to_tex2(m->md.pat_mode));
+	return (vm_memattr_to_pte2(m->md.pat_mode));
 }
 
 /*
@@ -805,7 +805,7 @@ pmap_bootstrap_prepare(vm_paddr_t last)
 		pte1_store(pte1p++, PTE1_LINK(pa));
 
 	/* Make section mappings for kernel. */
-	l1_attr = ATTR_TO_L1(PTE2_TEX_DEFAULT);
+	l1_attr = ATTR_TO_L1(PTE2_ATTR_DEFAULT);
 	pte1p = kern_pte1(KERNBASE);
 	for (pa = KERNEL_V2P(KERNBASE); pa < last; pa += PTE1_SIZE)
 		pte1_store(pte1p++, PTE1_KERN(pa, PTE1_AP_KRW, l1_attr));
@@ -1022,7 +1022,7 @@ pmap_preboot_map_attr(vm_paddr_t pa, vm_offset_t va, vm_size_t size,
 	pt2_entry_t *pte2p;
 
 	l2_prot = prot & VM_PROT_WRITE ? PTE2_AP_KRW : PTE2_AP_KR;
-	l2_attr = memattr_to_tex2(attr);
+	l2_attr = vm_memattr_to_pte2(attr);
 	l1_prot = ATTR_TO_L1(l2_prot);
 	l1_attr = ATTR_TO_L1(l2_attr);
 
@@ -1277,7 +1277,7 @@ PMAP_INLINE void
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 
-	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_TEX_DEFAULT);
+	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_ATTR_DEFAULT);
 }
 
 /*
@@ -1360,7 +1360,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	l2prot |= (prot & VM_PROT_EXECUTE) ? PTE2_X : PTE2_NX;
 	l1prot = ATTR_TO_L1(l2prot);
 
-	l2attr = PTE2_TEX_DEFAULT;
+	l2attr = PTE2_ATTR_DEFAULT;
 	l1attr = ATTR_TO_L1(l2attr);
 
 	va = *virt;
@@ -1594,7 +1594,8 @@ pmap_pt2pg_zero(vm_page_t m)
 	mtx_lock(&sysmaps->lock);
 	if (pte2_load(sysmaps->CMAP2) != 0)
 		panic("%s: CMAP2 busy", __func__);
-	pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(pa, PTE2_AP_KRW, page_tex2(m)));
+	pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(pa, PTE2_AP_KRW,
+	    vm_page_pte2_attr(m)));
 	/*  Even VM_ALLOC_ZERO request is only advisory. */
 	if ((m->flags & PG_ZERO) == 0)
 		pagezero(sysmaps->CADDR2);
@@ -1749,10 +1750,10 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pa = VM_PAGE_TO_PHYS(m);
 		pte2 = pte2_load(pte2p);
 		if ((pte2_pa(pte2) != pa) ||
-		    (pte2_attr(pte2) != page_tex2(m))) {
+		    (pte2_attr(pte2) != vm_page_pte2_attr(m))) {
 			anychanged++;
 			pte2_store(pte2p, PTE2_KERN(pa, PTE2_AP_KRW,
-			    page_tex2(m)));
+			    vm_page_pte2_attr(m)));
 		}
 		pte2p++;
 	}
@@ -3802,7 +3803,7 @@ validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	npte2 = PTE2(pa, PTE2_NM, page_tex2(m));
+	npte2 = PTE2(pa, PTE2_NM, vm_page_pte2_attr(m));
 	if (prot & VM_PROT_WRITE) {
 		if (pte2_is_managed(npte2))
 			vm_page_aflag_set(m, PGA_WRITEABLE);
@@ -4449,7 +4450,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 */
 		cache_icache_sync_fresh(va, pa, PAGE_SIZE);
 	}
-	pte2_store(pte2p, PTE2(pa, l2prot, page_tex2(m)));
+	pte2_store(pte2p, PTE2(pa, l2prot, vm_page_pte2_attr(m)));
 
 	return (mpt2pg);
 }
@@ -4520,7 +4521,7 @@ pmap_enter_pte1(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		 */
 		cache_icache_sync_fresh(va, pa, PTE1_SIZE);
 	}
-	pte1_store(pte1p, PTE1(pa, l1prot, ATTR_TO_L1(page_tex2(m))));
+	pte1_store(pte1p, PTE1(pa, l1prot, ATTR_TO_L1(vm_page_pte2_attr(m))));
 
 	pmap_pte1_mappings++;
 	CTR3(KTR_PMAP, "%s: success for va %#lx in pmap %p", __func__, va,
@@ -4630,7 +4631,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		 * is done here, so readonly mapping must be done elsewhere.
 		 */
 		l1prot = PTE1_U | PTE1_NG | PTE1_RW | PTE1_M | PTE1_A;
-		l1attr = ATTR_TO_L1(memattr_to_tex2(pat_mode));
+		l1attr = ATTR_TO_L1(vm_memattr_to_pte2(pat_mode));
 		PMAP_LOCK(pmap);
 		for (pa = pte2_pa; pa < pte2_pa + size; pa += PTE1_SIZE) {
 			pte1p = pmap_pte1(pmap, addr);
@@ -5525,7 +5526,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 		if (*sysmaps->CMAP2)
 			panic("%s: CMAP2 busy", __func__);
 		pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(pa, PTE2_AP_KRW,
-		    memattr_to_tex2(ma)));
+		    vm_memattr_to_pte2(ma)));
 		dcache_wbinv_poc((vm_offset_t)sysmaps->CADDR2, pa, PAGE_SIZE);
 		pte2_clear(sysmaps->CMAP2);
 		tlb_flush((vm_offset_t)sysmaps->CADDR2);
@@ -5616,7 +5617,7 @@ pmap_zero_page(vm_page_t m)
 	if (pte2_load(sysmaps->CMAP2) != 0)
 		panic("%s: CMAP2 busy", __func__);
 	pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
-	    page_tex2(m)));
+	    vm_page_pte2_attr(m)));
 	pagezero(sysmaps->CADDR2);
 	pte2_clear(sysmaps->CMAP2);
 	tlb_flush((vm_offset_t)sysmaps->CADDR2);
@@ -5641,7 +5642,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	if (pte2_load(sysmaps->CMAP2) != 0)
 		panic("%s: CMAP2 busy", __func__);
 	pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
-	    page_tex2(m)));
+	    vm_page_pte2_attr(m)));
 	if (off == 0 && size == PAGE_SIZE)
 		pagezero(sysmaps->CADDR2);
 	else
@@ -5666,7 +5667,7 @@ pmap_zero_page_idle(vm_page_t m)
 		panic("%s: CMAP3 busy", __func__);
 	sched_pin();
 	pte2_store(CMAP3, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
-	    page_tex2(m)));
+	    vm_page_pte2_attr(m)));
 	pagezero(CADDR3);
 	pte2_clear(CMAP3);
 	tlb_flush((vm_offset_t)CADDR3);
@@ -5692,9 +5693,9 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	if (pte2_load(sysmaps->CMAP2) != 0)
 		panic("%s: CMAP2 busy", __func__);
 	pte2_store(sysmaps->CMAP1, PTE2_KERN_NG(VM_PAGE_TO_PHYS(src),
-	    PTE2_AP_KR | PTE2_NM, page_tex2(src)));
+	    PTE2_AP_KR | PTE2_NM, vm_page_pte2_attr(src)));
 	pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(VM_PAGE_TO_PHYS(dst),
-	    PTE2_AP_KRW, page_tex2(dst)));
+	    PTE2_AP_KRW, vm_page_pte2_attr(dst)));
 	bcopy(sysmaps->CADDR1, sysmaps->CADDR2, PAGE_SIZE);
 	pte2_clear(sysmaps->CMAP1);
 	tlb_flush((vm_offset_t)sysmaps->CADDR1);
@@ -5731,10 +5732,10 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
 		pte2_store(sysmaps->CMAP1, PTE2_KERN_NG(VM_PAGE_TO_PHYS(a_pg),
-		    PTE2_AP_KR | PTE2_NM, page_tex2(a_pg)));
+		    PTE2_AP_KR | PTE2_NM, vm_page_pte2_attr(a_pg)));
 		tlb_flush_local((vm_offset_t)sysmaps->CADDR1);
 		pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(VM_PAGE_TO_PHYS(b_pg),
-		    PTE2_AP_KRW, page_tex2(b_pg)));
+		    PTE2_AP_KRW, vm_page_pte2_attr(b_pg)));
 		tlb_flush_local((vm_offset_t)sysmaps->CADDR2);
 		a_cp = sysmaps->CADDR1 + a_pg_offset;
 		b_cp = sysmaps->CADDR2 + b_pg_offset;
@@ -5764,7 +5765,7 @@ pmap_quick_enter_page(vm_page_t m)
 	KASSERT(pte2_load(pte2p) == 0, ("%s: PTE2 busy", __func__));
 
 	pte2_store(pte2p, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
-	    page_tex2(m)));
+	    vm_page_pte2_attr(m)));
 	return (qmap_addr);
 }
 
@@ -6032,7 +6033,7 @@ pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 	    ("%s: device mapping not page-sized", __func__));
 
 	sva = va;
-	l2attr = memattr_to_tex2(VM_MEMATTR_DEVICE);
+	l2attr = vm_memattr_to_pte2(VM_MEMATTR_DEVICE);
 	while (size != 0) {
 		pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, l2attr);
 		va += PAGE_SIZE;
@@ -6108,7 +6109,7 @@ cache_icache_sync_fresh(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 		m = PHYS_TO_VM_PAGE(pa);
 		KASSERT(m != NULL, ("%s: vm_page_t is null for %#x",
 		  __func__, pa));
-		pmap_dcache_wb_pou(pa, len, page_tex2(m));
+		pmap_dcache_wb_pou(pa, len, vm_page_pte2_attr(m));
 	}
 	/*
 	 * I-cache is VIPT. Only way how to flush all virtual mappings
@@ -6136,7 +6137,7 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t size)
 			m = PHYS_TO_VM_PAGE(pa);
 			KASSERT(m != NULL, ("%s: vm_page_t is null for %#x",
 				__func__, pa));
-			pmap_dcache_wb_pou(pa, len, page_tex2(m));
+			pmap_dcache_wb_pou(pa, len, vm_page_pte2_attr(m));
 		}
 	}
 	/*
@@ -6333,7 +6334,7 @@ pmap_zero_page_check(vm_page_t m)
 	if (pte2_load(sysmaps->CMAP2) != 0)
 		panic("%s: CMAP2 busy", __func__);
 	pte2_store(sysmaps->CMAP2, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
-	    page_tex2(m)));
+	    vm_page_pte2_attr(m)));
 	end = (uint32_t*)(sysmaps->CADDR2 + PAGE_SIZE);
 	for (p = (uint32_t*)sysmaps->CADDR2; p < end; p++)
 		if (*p != 0)
