@@ -5,6 +5,7 @@
 # make DEBUG_FLAGS=-g DEBUG=-DDEBUG MK_TESTS=no all
 
 .include <src.opts.mk>
+PACKAGE=	librtld_db
 MK_SSP=		no
 
 PROG?=		ld-elf.so.1
