@@ -1146,6 +1146,16 @@ r_type(unsigned int mach, unsigned int type)
 		case 311: return "R_AARCH64_ADR_GOT_PAGE";
 		case 312: return "R_AARCH64_LD64_GOT_LO12_NC";
 		case 313: return "R_AARCH64_LD64_GOTPAGE_LO15";
+		case 560: return "R_AARCH64_TLSDESC_LD_PREL19";
+		case 561: return "R_AARCH64_TLSDESC_ADR_PREL21";
+		case 562: return "R_AARCH64_TLSDESC_ADR_PAGE21";
+		case 563: return "R_AARCH64_TLSDESC_LD64_LO12";
+		case 564: return "R_AARCH64_TLSDESC_ADD_LO12";
+		case 565: return "R_AARCH64_TLSDESC_OFF_G1";
+		case 566: return "R_AARCH64_TLSDESC_OFF_G0_NC";
+		case 567: return "R_AARCH64_TLSDESC_LDR";
+		case 568: return "R_AARCH64_TLSDESC_ADD";
+		case 569: return "R_AARCH64_TLSDESC_CALL";
 		case 1024: return "R_AARCH64_COPY";
 		case 1025: return "R_AARCH64_GLOB_DAT";
 		case 1026: return "R_AARCH64_JUMP_SLOT";
