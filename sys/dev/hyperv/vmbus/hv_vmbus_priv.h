@@ -350,7 +350,8 @@ typedef struct {
 	 * notification and 2nd is child->parent
 	 * notification
 	 */
-	void					*monitor_pages;
+	void					*monitor_page_1;
+	void					*monitor_page_2;
 	TAILQ_HEAD(, hv_vmbus_channel_msg_info)	channel_msg_anchor;
 	struct mtx				channel_msg_lock;
 	/**
