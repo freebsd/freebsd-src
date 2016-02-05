@@ -86,11 +86,10 @@ hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
 		hv_vmbus_g_connection.interrupt_page);
 
 	msg->monitor_page_1 = hv_get_phys_addr(
-		hv_vmbus_g_connection.monitor_pages);
+		hv_vmbus_g_connection.monitor_page_1);
 
 	msg->monitor_page_2 = hv_get_phys_addr(
-			((uint8_t *) hv_vmbus_g_connection.monitor_pages
-			+ PAGE_SIZE));
+		hv_vmbus_g_connection.monitor_page_2);
 
 	/**
 	 * Add to list before we send the request since we may receive the
@@ -176,11 +175,9 @@ hv_vmbus_connect(void) {
 	 * Setup the vmbus event connection for channel interrupt abstraction
 	 * stuff
 	 */
-	hv_vmbus_g_connection.interrupt_page = contigmalloc(
+	hv_vmbus_g_connection.interrupt_page = malloc(
 					PAGE_SIZE, M_DEVBUF,
-					M_WAITOK | M_ZERO, 0UL,
-					BUS_SPACE_MAXADDR,
-					PAGE_SIZE, 0);
+					M_WAITOK | M_ZERO);
 
 	hv_vmbus_g_connection.recv_interrupt_page =
 		hv_vmbus_g_connection.interrupt_page;
@@ -193,14 +190,14 @@ hv_vmbus_connect(void) {
 	 * Set up the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	hv_vmbus_g_connection.monitor_pages = contigmalloc(
-		2 * PAGE_SIZE,
-		M_DEVBUF,
-		M_WAITOK | M_ZERO,
-		0UL,
-		BUS_SPACE_MAXADDR,
+	hv_vmbus_g_connection.monitor_page_1 = malloc(
 		PAGE_SIZE,
-		0);
+		M_DEVBUF,
+		M_WAITOK | M_ZERO);
+	hv_vmbus_g_connection.monitor_page_2 = malloc(
+		PAGE_SIZE,
+		M_DEVBUF,
+		M_WAITOK | M_ZERO);
 
 	msg_info = (hv_vmbus_channel_msg_info*)
 		malloc(sizeof(hv_vmbus_channel_msg_info) +
@@ -258,13 +255,8 @@ hv_vmbus_connect(void) {
 		hv_vmbus_g_connection.interrupt_page = NULL;
 	}
 
-	if (hv_vmbus_g_connection.monitor_pages != NULL) {
-		contigfree(
-			hv_vmbus_g_connection.monitor_pages,
-			2 * PAGE_SIZE,
-			M_DEVBUF);
-		hv_vmbus_g_connection.monitor_pages = NULL;
-	}
+	free(hv_vmbus_g_connection.monitor_page_1, M_DEVBUF);
+	free(hv_vmbus_g_connection.monitor_page_2, M_DEVBUF);
 
 	if (msg_info) {
 		sema_destroy(&msg_info->wait_sema);
