@@ -63,6 +63,11 @@ case "$daily_scrub_zfs_enable" in
 			_last_scrub=$(zpool history ${pool} | \
 			    sed -ne '2s/ .*$//p')
 		fi
+		if [ -z "${_last_scrub}" ]; then
+			echo "   skipping scrubbing of pool '${pool}':"
+			echo "      can't get last scrubbing date"
+			continue
+		fi
 
 		# Now minus last scrub (both in seconds) converted to days.
 		_scrub_diff=$(expr -e \( $(date +%s) - \
