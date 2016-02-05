@@ -227,7 +227,7 @@ struct knote {
 	union {
 		struct		file *p_fp;	/* file data pointer */
 		struct		proc *p_proc;	/* proc pointer */
-		struct		aiocblist *p_aio;	/* AIO job pointer */
+		struct		kaiocb *p_aio;	/* AIO job pointer */
 		struct		aioliojob *p_lio;	/* LIO job pointer */
 		sbintime_t	*p_nexttime;	/* next timer event fires at */
 		void		*p_v;		/* generic other pointer */

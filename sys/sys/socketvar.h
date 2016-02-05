@@ -104,7 +104,7 @@ struct socket {
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
 	u_long	so_oobmark;		/* (c) chars to oob mark */
-	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
+	TAILQ_HEAD(, kaiocb) so_aiojobq; /* AIO ops waiting on socket */
 
 	struct sockbuf so_rcv, so_snd;
 
