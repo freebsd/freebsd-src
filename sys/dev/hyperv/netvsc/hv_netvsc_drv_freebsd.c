@@ -1142,7 +1142,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 	struct mbuf *m_new;
 	struct ifnet *ifp;
 	device_t dev = device_ctx->device;
-	int size, do_lro = 0;
+	int size, do_lro = 0, do_csum = 1;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
@@ -1190,18 +1190,21 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 	}
 	m_new->m_pkthdr.rcvif = ifp;
 
+	if (__predict_false((ifp->if_capenable & IFCAP_RXCSUM) == 0))
+		do_csum = 0;
+
 	/* receive side checksum offload */
 	if (csum_info != NULL) {
 		/* IP csum offload */
-		if (csum_info->receive.ip_csum_succeeded) {
+		if (csum_info->receive.ip_csum_succeeded && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			sc->hn_csum_ip++;
 		}
 
 		/* TCP/UDP csum offload */
-		if (csum_info->receive.tcp_csum_succeeded ||
-		    csum_info->receive.udp_csum_succeeded) {
+		if ((csum_info->receive.tcp_csum_succeeded ||
+		     csum_info->receive.udp_csum_succeeded) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
@@ -1239,7 +1242,8 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 
 			pr = hn_check_iplen(m_new, hoff);
 			if (pr == IPPROTO_TCP) {
-				if (sc->hn_trust_hcsum & HN_TRUST_HCSUM_TCP) {
+				if (do_csum &&
+				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_TCP)) {
 					sc->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
@@ -1249,14 +1253,15 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 				/* Rely on SW csum verification though... */
 				do_lro = 1;
 			} else if (pr == IPPROTO_UDP) {
-				if (sc->hn_trust_hcsum & HN_TRUST_HCSUM_UDP) {
+				if (do_csum &&
+				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_UDP)) {
 					sc->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
-			} else if (pr != IPPROTO_DONE &&
+			} else if (pr != IPPROTO_DONE && do_csum &&
 			    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
 				sc->hn_csum_trusted++;
 				m_new->m_pkthdr.csum_flags |=
