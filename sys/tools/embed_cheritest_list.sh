@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2014 (holder)
+# Copyright (c) 2014 SRI International
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of
