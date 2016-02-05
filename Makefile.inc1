@@ -1719,7 +1719,8 @@ _btxld=		usr.sbin/btxld
 .endif
 .if ${TARGET_ARCH} == "mips64"
 _cheritest=	lib/libxo \
-		bin/cheritest
+		bin/cheritest \
+		bin/cheriabitest
 .endif
 .endif
 

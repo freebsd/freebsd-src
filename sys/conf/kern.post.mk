@@ -140,6 +140,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${SYSTEM_LD_TAIL}
 .if defined(EMBED_CHERITEST_LIST)
 	sh ${S}/tools/embed_cheritest_list.sh ${FULLKERNEL}
+	sh ${S}/tools/embed_cheriabitest_list.sh ${FULLKERNEL}
 .endif
 
 .if !exists(${.OBJDIR}/.depend)
