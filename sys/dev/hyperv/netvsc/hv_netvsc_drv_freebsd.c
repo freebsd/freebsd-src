@@ -176,6 +176,14 @@ struct hn_txdesc {
     CSUM_IP_ISCSI|CSUM_IP6_UDP|CSUM_IP6_TCP|CSUM_IP6_SCTP|		\
     CSUM_IP6_TSO|CSUM_IP6_ISCSI)
 
+/*
+ * Only enable UDP checksum offloading when it is on 2012R2 or
+ * later.  UDP checksum offloading doesn't work on earlier
+ * Windows releases.
+ */
+#define HN_CSUM_ASSIST_WIN8	(CSUM_TCP)
+#define HN_CSUM_ASSIST		(CSUM_UDP | CSUM_TCP)
+
 /* XXX move to netinet/tcp_lro.h */
 #define HN_LRO_HIWAT_MAX				65535
 #define HN_LRO_HIWAT_DEF				HN_LRO_HIWAT_MAX
@@ -444,15 +452,12 @@ netvsc_attach(device_t dev)
 	ifp->if_capenable |=
 	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_TSO |
 	    IFCAP_LRO;
-	/*
-	 * Only enable UDP checksum offloading when it is on 2012R2 or
-	 * later. UDP checksum offloading doesn't work on earlier
-	 * Windows releases.
-	 */
+
 	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
-		ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+		sc->hn_csum_assist = HN_CSUM_ASSIST;
 	else
-		ifp->if_hwassist = CSUM_TCP | CSUM_TSO;
+		sc->hn_csum_assist = HN_CSUM_ASSIST_WIN8;
+	ifp->if_hwassist = sc->hn_csum_assist | CSUM_TSO;
 
 	error = hv_rf_on_device_add(device_ctx, &device_info);
 	if (error)
@@ -1506,47 +1511,40 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = 0;
 		break;
 	case SIOCSIFCAP:
+		NV_LOCK(sc);
+
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
-			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_TXCSUM;
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
-			} else {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				/*
-				 * Only enable UDP checksum offloading on
-				 * Windows Server 2012R2 or later releases.
-				 */
-				if (hv_vmbus_protocal_version >=
-				    HV_VMBUS_VERSION_WIN8_1) {
-					ifp->if_hwassist |=
-					    (CSUM_TCP | CSUM_UDP);
-				} else {
-					ifp->if_hwassist |= CSUM_TCP;
-				}
-			}
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if (ifp->if_capenable & IFCAP_TXCSUM)
+				ifp->if_hwassist |= sc->hn_csum_assist;
+			else
+				ifp->if_hwassist &= ~sc->hn_csum_assist;
 		}
 
-		if (mask & IFCAP_RXCSUM) {
-			if (IFCAP_RXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_RXCSUM;
-			} else {
-				ifp->if_capenable |= IFCAP_RXCSUM;
-			}
-		}
+		if (mask & IFCAP_RXCSUM)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+
 		if (mask & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
 
 		if (mask & IFCAP_TSO4) {
 			ifp->if_capenable ^= IFCAP_TSO4;
-			ifp->if_hwassist ^= CSUM_IP_TSO;
+			if (ifp->if_capenable & IFCAP_TSO4)
+				ifp->if_hwassist |= CSUM_IP_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_IP_TSO;
 		}
 
 		if (mask & IFCAP_TSO6) {
 			ifp->if_capenable ^= IFCAP_TSO6;
-			ifp->if_hwassist ^= CSUM_IP6_TSO;
+			if (ifp->if_capenable & IFCAP_TSO6)
+				ifp->if_hwassist |= CSUM_IP6_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_IP6_TSO;
 		}
 
+		NV_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
