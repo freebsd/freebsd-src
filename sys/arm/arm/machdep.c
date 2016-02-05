@@ -123,7 +123,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #if __ARM_ARCH >= 6
-#include <machine/cpu-v6.h>
 
 DB_SHOW_COMMAND(cp15, db_show_cp15)
 {

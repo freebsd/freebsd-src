@@ -32,18 +32,32 @@
 /* There are no user serviceable parts here, they may change without notice */
 #ifndef _KERNEL
 #error Only include this file in the kernel
-#else
+#endif
 
 #include <machine/acle-compat.h>
-#include "machine/atomic.h"
-#include "machine/cpufunc.h"
-#include "machine/cpuinfo.h"
-#include "machine/sysreg.h"
+#include <machine/atomic.h>
+#include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
+#include <machine/sysreg.h>
+
+#if __ARM_ARCH < 6
+#error Only include this file for ARMv6
+#else
+
+
 
 #define CPU_ASID_KERNEL 0
 
 vm_offset_t dcache_wb_pou_checked(vm_offset_t, vm_size_t);
 vm_offset_t icache_inv_pou_checked(vm_offset_t, vm_size_t);
+
+#ifdef DEV_PMU
+#include <sys/pcpu.h>
+#define	PMU_OVSR_C		0x80000000	/* Cycle Counter */
+extern uint32_t	ccnt_hi[MAXCPU];
+extern int pmu_attched;
+#endif /* DEV_PMU */
+
 
 /*
  * Macros to generate CP15 (system control processor) read/write functions.
@@ -276,12 +290,6 @@ _W64F1(cp15_cnthp_cval_set, CP15_CNTHP_CVAL(%Q0, %R0))
 #undef	_RF0
 #undef	_WF0
 #undef	_WF1
-
-#if __ARM_ARCH >= 6
-/*
- * Cache and TLB maintenance operations for armv6+ code.  The #else block
- * provides armv4/v5 implementations for a few of these used in common code.
- */
 
 /*
  * TLB maintenance operations.
@@ -577,48 +585,6 @@ cp15_ttbr_set(uint32_t reg)
 	isb();
 	tlb_flush_all_ng_local();
 }
-
-#else /* ! __ARM_ARCH >= 6 */
-
-/*
- * armv4/5 compatibility shims.
- *
- * These functions provide armv4 cache maintenance using the new armv6 names.
- * Included here are just the functions actually used now in common code; it may
- * be necessary to add things here over time.
- *
- * The callers of the dcache functions expect these routines to handle address
- * and size values which are not aligned to cacheline boundaries; the armv4 and
- * armv5 asm code handles that.
- */
-
-static __inline void
-dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
-{
-
-	cpu_dcache_inv_range(va, size);
-	cpu_l2cache_inv_range(va, size);
-}
-
-static __inline void
-dcache_inv_poc_dma(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
-{
-
-	/* See armv6 code, above, for why we do L2 before L1 in this case. */
-	cpu_l2cache_inv_range(va, size);
-	cpu_dcache_inv_range(va, size);
-}
-
-static __inline void
-dcache_wb_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
-{
-
-	cpu_dcache_wb_range(va, size);
-	cpu_l2cache_wb_range(va, size);
-}
-
-#endif /* __ARM_ARCH >= 6 */
-
 #endif /* _KERNEL */
 
 #endif /* !MACHINE_CPU_V6_H */
