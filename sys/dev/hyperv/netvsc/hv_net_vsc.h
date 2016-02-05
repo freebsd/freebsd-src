@@ -1043,6 +1043,8 @@ typedef struct hn_softc {
 	u_long		hn_txdma_failed;
 	u_long		hn_tx_collapsed;
 	u_long		hn_tx_chimney;
+
+	uint64_t	hn_csum_assist;
 } hn_softc_t;
 
 
