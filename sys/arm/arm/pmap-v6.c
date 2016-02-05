@@ -141,7 +141,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pmap_var.h>
 #include <machine/cpu.h>
-#include <machine/cpu-v6.h>
 #include <machine/pcb.h>
 #include <machine/sf_buf.h>
 #ifdef SMP

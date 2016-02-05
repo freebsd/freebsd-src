@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/acle-compat.h>
-#include <machine/cpu-v6.h>
+#include <machine/cpu.h>
 #include <machine/sysarch.h>
 #include <machine/vmparam.h>
 
