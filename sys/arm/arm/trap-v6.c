@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/acle-compat.h>
 #include <machine/cpu.h>
-#include <machine/cpu-v6.h>
 #include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
