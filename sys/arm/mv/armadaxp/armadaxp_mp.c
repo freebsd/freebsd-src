@@ -40,6 +40,7 @@
 
 #include <dev/fdt/fdt_common.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/armreg.h>
@@ -174,7 +175,7 @@ platform_mp_start_ap(void)
 		bus_space_write_4(fdtbus_bs_tag, CPU_PMU(cpu_num), CPU_PMU_BOOT,
 		    pmap_kextract((vm_offset_t)mpentry));
 
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
 		bus_space_write_4(fdtbus_bs_tag, MP, MP_SW_RESET(cpu_num), 0);
