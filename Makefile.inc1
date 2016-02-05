@@ -1286,7 +1286,7 @@ distributekernel distributekernel.debug:
 .endif
 	mkdir -p ${DESTDIR}/${DISTDIR}
 .if defined(NO_ROOT)
-	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
+	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
 .endif
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
@@ -1294,14 +1294,14 @@ distributekernel distributekernel.debug:
 	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
+	@sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && !defined(NO_INSTALLEXTRAKERNELS)
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if defined(NO_ROOT)
-	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
+	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
@@ -1310,7 +1310,7 @@ distributekernel distributekernel.debug:
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	sed -e "s|^./kernel.${_kernel}|.|" \
+	@sed -e "s|^./kernel.${_kernel}|.|" \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
