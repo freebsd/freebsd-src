@@ -1452,6 +1452,7 @@ r_type(unsigned int mach, unsigned int type)
 		case 43: return "R_RISCV_ALIGN";
 		case 44: return "R_RISCV_RVC_BRANCH";
 		case 45: return "R_RISCV_RVC_JUMP";
+		default: return "";
 		}
 	case EM_SPARC:
 	case EM_SPARCV9:
