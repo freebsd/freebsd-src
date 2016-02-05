@@ -291,12 +291,7 @@ hv_vmbus_child_device_create(
 	 * Allocate the new child device
 	 */
 	child_dev = malloc(sizeof(hv_device), M_DEVBUF,
-			M_NOWAIT |  M_ZERO);
-	KASSERT(child_dev != NULL,
-	    ("Error VMBUS: malloc failed to allocate hv_device!"));
-
-	if (child_dev == NULL)
-		return (NULL);
+			M_WAITOK |  M_ZERO);
 
 	child_dev->channel = channel;
 	memcpy(&child_dev->class_id, &type, sizeof(hv_guid));
@@ -548,12 +543,7 @@ vmbus_bus_init(void)
 		 */
 		for(i = 0; i < 2; i++) {
 			setup_args.page_buffers[2 * j + i] =
-				malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (setup_args.page_buffers[2 * j + i] == NULL) {
-				KASSERT(setup_args.page_buffers[2 * j + i] != NULL,
-					("Error VMBUS: malloc failed!"));
-				goto cleanup1;
-			}
+				malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 		}
 	}
 

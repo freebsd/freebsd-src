@@ -189,11 +189,7 @@ hv_vmbus_init(void)
 	 * See if the hypercall page is already set
 	 */
 	hypercall_msr.as_uint64_t = rdmsr(HV_X64_MSR_HYPERCALL);
-	virt_addr = malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
-	KASSERT(virt_addr != NULL,
-	    ("Error VMBUS: malloc failed to allocate page during init!"));
-	if (virt_addr == NULL)
-	    goto cleanup;
+	virt_addr = malloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	hypercall_msr.u.enable = 1;
 	hypercall_msr.u.guest_physical_address =
