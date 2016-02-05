@@ -3,8 +3,8 @@
  * Copyright (c) 1994 John S. Dyson
  * Copyright (c) 1994 David Greenman
  * Copyright (c) 2005-2010 Alan L. Cox <alc@cs.rice.edu>
- * Copyright (c) 2014 Svatopluk Kraus <onwahe@gmail.com>
- * Copyright (c) 2014 Michal Meloun <meloun@miracle.cz>
+ * Copyright (c) 2014-2016 Svatopluk Kraus <skra@FreeBSD.org>
+ * Copyright (c) 2014-2016 Michal Meloun <mmel@FreeBSD.org>
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -223,9 +223,10 @@ int pmap_debug_level = 1;
  *  PTE2 descriptors creation macros.
  */
 #define PTE2_TEX_DEFAULT	memattr_to_tex2(VM_MEMATTR_DEFAULT)
+#define PTE2_TEX_PT		memattr_to_tex2(pt_memattr)
 
-#define PTE2_KPT(pa)	PTE2_KERN(pa, PTE2_AP_KRW, pt_memattr)
-#define PTE2_KPT_NG(pa)	PTE2_KERN_NG(pa, PTE2_AP_KRW, pt_memattr)
+#define PTE2_KPT(pa)	PTE2_KERN(pa, PTE2_AP_KRW, PTE2_TEX_PT)
+#define PTE2_KPT_NG(pa)	PTE2_KERN_NG(pa, PTE2_AP_KRW, PTE2_TEX_PT)
 
 #define PTE2_KRW(pa)	PTE2_KERN(pa, PTE2_AP_KRW, PTE2_TEX_DEFAULT)
 #define PTE2_KRO(pa)	PTE2_KERN(pa, PTE2_AP_KR, PTE2_TEX_DEFAULT)
@@ -6071,7 +6072,7 @@ pmap_set_pcb_pagedir(pmap_t pmap, struct pcb *pcb)
  *  The range must be within a single page.
  */
 static void
-pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
+pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, uint32_t attr)
 {
 	struct sysmaps *sysmaps;
 
@@ -6083,7 +6084,7 @@ pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	mtx_lock(&sysmaps->lock);
 	if (*sysmaps->CMAP3)
 		panic("%s: CMAP3 busy", __func__);
-	pte2_store(sysmaps->CMAP3, PTE2_KERN_NG(pa, PTE2_AP_KRW, ma));
+	pte2_store(sysmaps->CMAP3, PTE2_KERN_NG(pa, PTE2_AP_KRW, attr));
 	dcache_wb_pou((vm_offset_t)sysmaps->CADDR3 + (pa & PAGE_MASK), size);
 	pte2_clear(sysmaps->CMAP3);
 	tlb_flush((vm_offset_t)sysmaps->CADDR3);
