@@ -534,6 +534,10 @@ netvsc_attach(device_t dev)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "direct_tx_size",
 	    CTLFLAG_RW, &sc->hn_direct_tx_size, 0,
 	    "Size of the packet for direct transmission");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "sched_tx",
+	    CTLFLAG_RW, &sc->hn_sched_tx, 0,
+	    "Always schedule transmission "
+	    "instead of doing direct transmission");
 
 	if (unit == 0) {
 		struct sysctl_ctx_list *dc_ctx;
@@ -1602,9 +1606,11 @@ hn_stop(hn_softc_t *sc)
 static void
 hn_start(struct ifnet *ifp)
 {
-	hn_softc_t *sc;
+	struct hn_softc *sc = ifp->if_softc;
 
-	sc = ifp->if_softc;
+	if (sc->hn_sched_tx)
+		goto do_sched;
+
 	if (NV_TRYLOCK(sc)) {
 		int sched;
 
@@ -1613,15 +1619,18 @@ hn_start(struct ifnet *ifp)
 		if (!sched)
 			return;
 	}
+do_sched:
 	taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_start_task);
 }
 
 static void
 hn_start_txeof(struct ifnet *ifp)
 {
-	hn_softc_t *sc;
+	struct hn_softc *sc = ifp->if_softc;
 
-	sc = ifp->if_softc;
+	if (sc->hn_sched_tx)
+		goto do_sched;
+
 	if (NV_TRYLOCK(sc)) {
 		int sched;
 
@@ -1633,6 +1642,7 @@ hn_start_txeof(struct ifnet *ifp)
 			    &sc->hn_start_task);
 		}
 	} else {
+do_sched:
 		/*
 		 * Release the OACTIVE earlier, with the hope, that
 		 * others could catch up.  The task will clear the
