@@ -41,7 +41,7 @@
 #include <machine/sysreg.h>
 
 #if __ARM_ARCH >= 6
-#error Newer include this file for ARMv6
+#error Never include this file for ARMv6
 #else
 
 #define CPU_ASID_KERNEL 0
@@ -125,11 +125,28 @@ _RF0(cp15_tlbtr_get, CP15_TLBTR(%0))
  */
 
 static __inline void
+tlb_flush_all(void)
+{
+	cpu_tlb_flushID();
+	cpu_cpwait();
+}
+
+static __inline void
+icache_sync(vm_offset_t va, vm_size_t size)
+{
+	cpu_icache_sync_range(va, size);
+}
+
+static __inline void
 dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 {
 
 	cpu_dcache_inv_range(va, size);
+#ifdef ARM_L2_PIPT
+	cpu_l2cache_inv_range(pa, size);
+#else
 	cpu_l2cache_inv_range(va, size);
+#endif
 }
 
 static __inline void
@@ -137,7 +154,11 @@ dcache_inv_poc_dma(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 {
 
 	/* See armv6 code, above, for why we do L2 before L1 in this case. */
+#ifdef ARM_L2_PIPT
+	cpu_l2cache_inv_range(pa, size);
+#else
 	cpu_l2cache_inv_range(va, size);
+#endif
 	cpu_dcache_inv_range(va, size);
 }
 
@@ -146,7 +167,18 @@ dcache_wb_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 {
 
 	cpu_dcache_wb_range(va, size);
+#ifdef ARM_L2_PIPT
+	cpu_l2cache_wb_range(pa, size);
+#else
 	cpu_l2cache_wb_range(va, size);
+#endif
+}
+
+static __inline void
+dcache_wbinv_poc_all(void)
+{
+	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 }
 
 #endif /* _KERNEL */

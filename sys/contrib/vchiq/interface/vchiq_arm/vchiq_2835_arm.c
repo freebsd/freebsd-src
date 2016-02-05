@@ -48,6 +48,7 @@
 #include <vm/vm_phys.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
@@ -411,6 +412,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	int run, addridx, actual_pages;
 	int err;
 	vm_paddr_t pagelist_phys;
+	vm_paddr_t pa;
 
 	offset = (vm_offset_t)buf & (PAGE_SIZE - 1);
 	num_pages = (count + offset + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -533,7 +535,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 			 (fragments - g_fragments_base)/g_fragment_size;
 	}
 
-	cpu_dcache_wbinv_range((vm_offset_t)buf, count);
+	pa = pmap_extract(PCPU_GET(curpmap), (vm_offset_t)buf);
+	dcache_wbinv_poc((vm_offset_t)buf, pa, count);
 
 	bus_dmamap_sync(bi->pagelist_dma_tag, bi->pagelist_dma_map, BUS_DMASYNC_PREWRITE);
 
