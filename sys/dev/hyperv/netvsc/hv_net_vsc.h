@@ -1031,8 +1031,8 @@ typedef struct hn_softc {
 	struct lro_ctrl	hn_lro;
 	int		hn_lro_hiwat;
 
-	/* Trust tcp segments verification on host side */
-	int		hn_trust_hosttcp;
+	/* Trust csum verification on host side */
+	int		hn_trust_hcsum;	/* HN_TRUST_HCSUM_ */
 
 	u_long		hn_csum_ip;
 	u_long		hn_csum_tcp;
@@ -1047,6 +1047,9 @@ typedef struct hn_softc {
 	u_long		hn_tx_chimney;
 } hn_softc_t;
 
+#define HN_TRUST_HCSUM_IP	0x0001
+#define HN_TRUST_HCSUM_TCP	0x0002
+#define HN_TRUST_HCSUM_UDP	0x0004
 
 /*
  * Externs
