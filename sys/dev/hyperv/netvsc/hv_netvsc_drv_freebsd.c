@@ -172,7 +172,7 @@ struct hn_txdesc {
  * Windows releases.
  */
 #define HN_CSUM_ASSIST_WIN8	(CSUM_TCP)
-#define HN_CSUM_ASSIST		(CSUM_UDP | CSUM_TCP)
+#define HN_CSUM_ASSIST		(CSUM_IP | CSUM_UDP | CSUM_TCP)
 
 /* XXX move to netinet/tcp_lro.h */
 #define HN_LRO_HIWAT_MAX				65535
@@ -867,6 +867,9 @@ hn_start_locked(struct ifnet *ifp, int len)
 			    rppi->per_packet_info_offset);
 
 			csum_info->xmit.is_ipv4 = 1;
+			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+				csum_info->xmit.ip_header_csum = 1;
+
 			if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
 				csum_info->xmit.tcp_csum = 1;
 				csum_info->xmit.tcp_header_offset = 0;
