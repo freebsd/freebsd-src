@@ -210,6 +210,14 @@ int hv_promisc_mode = 0;    /* normal mode by default */
 static int hn_trust_hosttcp = 1;
 TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
 
+/* Trust udp datagrams verification on host side. */
+static int hn_trust_hostudp = 1;
+TUNABLE_INT("dev.hn.trust_hostudp", &hn_trust_hostudp);
+
+/* Trust ip packets verification on host side. */
+static int hn_trust_hostip = 1;
+TUNABLE_INT("dev.hn.trust_hostip", &hn_trust_hostip);
+
 #if __FreeBSD_version >= 1100045
 /* Limit TSO burst size */
 static int hn_tso_maxlen = 0;
@@ -239,6 +247,7 @@ static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 #ifdef HN_LRO_HIWAT
 static int hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
+static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *sc);
@@ -335,8 +344,13 @@ netvsc_attach(device_t dev)
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
 	sc->hn_lro_hiwat = HN_LRO_HIWAT_DEF;
-	sc->hn_trust_hosttcp = hn_trust_hosttcp;
 	sc->hn_direct_tx_size = hn_direct_tx_size;
+	if (hn_trust_hosttcp)
+		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
+	if (hn_trust_hostudp)
+		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
+	if (hn_trust_hostip)
+		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
 
 	sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
@@ -448,9 +462,20 @@ netvsc_attach(device_t dev)
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_hiwat_sysctl,
 	    "I", "LRO high watermark");
 #endif
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "trust_hosttcp",
-	    CTLFLAG_RW, &sc->hn_trust_hosttcp, 0,
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
+	    hn_trust_hcsum_sysctl, "I",
 	    "Trust tcp segement verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_UDP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust udp datagram verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostip",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_IP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust ip packet verification on host side, "
 	    "when csum info is missing");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_ip",
 	    CTLFLAG_RW, &sc->hn_csum_ip, "RXCSUM IP");
@@ -460,7 +485,7 @@ netvsc_attach(device_t dev)
 	    CTLFLAG_RW, &sc->hn_csum_udp, "RXCSUM UDP");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_trusted",
 	    CTLFLAG_RW, &sc->hn_csum_trusted,
-	    "# of TCP segements that we trust host's csum verification");
+	    "# of packets that we trust host's csum verification");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "small_pkts",
 	    CTLFLAG_RW, &sc->hn_small_pkts, "# of small packets received");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_txdescs",
@@ -502,6 +527,14 @@ netvsc_attach(device_t dev)
 		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hosttcp",
 		    CTLFLAG_RD, &hn_trust_hosttcp, 0,
 		    "Trust tcp segement verification on host side, "
+		    "when csum info is missing (global setting)");
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostudp",
+		    CTLFLAG_RD, &hn_trust_hostudp, 0,
+		    "Trust udp datagram verification on host side, "
+		    "when csum info is missing (global setting)");
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostip",
+		    CTLFLAG_RD, &hn_trust_hostip, 0,
+		    "Trust ip packet verification on host side, "
 		    "when csum info is missing (global setting)");
 		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tx_chimney_size",
 		    CTLFLAG_RD, &hn_tx_chimney_size, 0,
@@ -1206,7 +1239,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 
 			pr = hn_check_iplen(m_new, hoff);
 			if (pr == IPPROTO_TCP) {
-				if (sc->hn_trust_hosttcp) {
+				if (sc->hn_trust_hcsum & HN_TRUST_HCSUM_TCP) {
 					sc->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
@@ -1215,6 +1248,19 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 				}
 				/* Rely on SW csum verification though... */
 				do_lro = 1;
+			} else if (pr == IPPROTO_UDP) {
+				if (sc->hn_trust_hcsum & HN_TRUST_HCSUM_UDP) {
+					sc->hn_csum_trusted++;
+					m_new->m_pkthdr.csum_flags |=
+					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
+					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+					m_new->m_pkthdr.csum_data = 0xffff;
+				}
+			} else if (pr != IPPROTO_DONE &&
+			    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
+				sc->hn_csum_trusted++;
+				m_new->m_pkthdr.csum_flags |=
+				    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			}
 		}
 	}
@@ -1648,6 +1694,30 @@ hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 #endif	/* HN_LRO_HIWAT */
+
+static int
+hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int hcsum = arg2;
+	int on, error;
+
+	on = 0;
+	if (sc->hn_trust_hcsum & hcsum)
+		on = 1;
+
+	error = sysctl_handle_int(oidp, &on, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	NV_LOCK(sc);
+	if (on)
+		sc->hn_trust_hcsum |= hcsum;
+	else
+		sc->hn_trust_hcsum &= ~hcsum;
+	NV_UNLOCK(sc);
+	return 0;
+}
 
 static int
 hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS)
