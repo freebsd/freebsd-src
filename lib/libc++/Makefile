@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-PACKAGE=	lib${LIB}
+PACKAGE=	clibs
 _LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
 HDRDIR=		${.CURDIR}/../../contrib/libc++/include
 SRCDIR=		${.CURDIR}/../../contrib/libc++/src

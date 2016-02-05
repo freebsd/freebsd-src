@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	clibs
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 COMPILERRTDIR=	${.CURDIR}/../../../contrib/compiler-rt

@@ -15,13 +15,3 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
-# XXX: Temporary.
-shlibs_required: [
-    "libc.so.7"
-]
-deps: {
-    "FreeBSD-libc": {
-        origin: "base"
-        version: "%VERSION%"
-    }
-}

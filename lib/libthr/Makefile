@@ -8,7 +8,7 @@
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
 
-PACKAGE=lib${LIB}
+PACKAGE=	clibs
 SHLIBDIR?= /lib
 
 .include <src.opts.mk>
