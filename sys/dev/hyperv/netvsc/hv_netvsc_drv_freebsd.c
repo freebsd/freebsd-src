@@ -254,6 +254,7 @@ static int hn_create_tx_ring(struct hn_softc *sc);
 static void hn_destroy_tx_ring(struct hn_softc *sc);
 static void hn_start_taskfunc(void *xsc, int pending);
 static void hn_txeof_taskfunc(void *xsc, int pending);
+static int hn_encap(struct hn_softc *, struct hn_txdesc *, struct mbuf **);
 
 static __inline void
 hn_set_lro_hiwat(struct hn_softc *sc, int hiwat)
@@ -744,31 +745,235 @@ netvsc_channel_rollup(struct hv_device *device_ctx)
 }
 
 /*
+ * NOTE:
+ * This this function fails, then both txd and m_head0 will be freed
+ */
+static int
+hn_encap(struct hn_softc *sc, struct hn_txdesc *txd, struct mbuf **m_head0)
+{
+	bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
+	int error, nsegs, i;
+	struct mbuf *m_head = *m_head0;
+	netvsc_packet *packet;
+	rndis_msg *rndis_mesg;
+	rndis_packet *rndis_pkt;
+	rndis_per_packet_info *rppi;
+	uint32_t rndis_msg_size;
+
+	packet = &txd->netvsc_pkt;
+	packet->is_data_pkt = TRUE;
+	packet->tot_data_buf_len = m_head->m_pkthdr.len;
+
+	/*
+	 * extension points to the area reserved for the
+	 * rndis_filter_packet, which is placed just after
+	 * the netvsc_packet (and rppi struct, if present;
+	 * length is updated later).
+	 */
+	rndis_mesg = txd->rndis_msg;
+	/* XXX not necessary */
+	memset(rndis_mesg, 0, HN_RNDIS_MSG_LEN);
+	rndis_mesg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
+
+	rndis_pkt = &rndis_mesg->msg.packet;
+	rndis_pkt->data_offset = sizeof(rndis_packet);
+	rndis_pkt->data_length = packet->tot_data_buf_len;
+	rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
+
+	rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
+
+	if (m_head->m_flags & M_VLANTAG) {
+		ndis_8021q_info *rppi_vlan_info;
+
+		rndis_msg_size += RNDIS_VLAN_PPI_SIZE;
+		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_VLAN_PPI_SIZE,
+		    ieee_8021q_info);
+
+		rppi_vlan_info = (ndis_8021q_info *)((uint8_t *)rppi +
+		    rppi->per_packet_info_offset);
+		rppi_vlan_info->u1.s1.vlan_id =
+		    m_head->m_pkthdr.ether_vtag & 0xfff;
+	}
+
+	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+		rndis_tcp_tso_info *tso_info;	
+		struct ether_vlan_header *eh;
+		int ether_len;
+
+		/*
+		 * XXX need m_pullup and use mtodo
+		 */
+		eh = mtod(m_head, struct ether_vlan_header*);
+		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN))
+			ether_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		else
+			ether_len = ETHER_HDR_LEN;
+
+		rndis_msg_size += RNDIS_TSO_PPI_SIZE;
+		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
+		    tcp_large_send_info);
+
+		tso_info = (rndis_tcp_tso_info *)((uint8_t *)rppi +
+		    rppi->per_packet_info_offset);
+		tso_info->lso_v2_xmit.type =
+		    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
+
+#ifdef INET
+		if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
+			struct ip *ip =
+			    (struct ip *)(m_head->m_data + ether_len);
+			unsigned long iph_len = ip->ip_hl << 2;
+			struct tcphdr *th =
+			    (struct tcphdr *)((caddr_t)ip + iph_len);
+
+			tso_info->lso_v2_xmit.ip_version =
+			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
+			ip->ip_len = 0;
+			ip->ip_sum = 0;
+
+			th->th_sum = in_pseudo(ip->ip_src.s_addr,
+			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+		}
+#endif
+#if defined(INET6) && defined(INET)
+		else
+#endif
+#ifdef INET6
+		{
+			struct ip6_hdr *ip6 = (struct ip6_hdr *)
+			    (m_head->m_data + ether_len);
+			struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
+
+			tso_info->lso_v2_xmit.ip_version =
+			    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
+			ip6->ip6_plen = 0;
+			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+		}
+#endif
+		tso_info->lso_v2_xmit.tcp_header_offset = 0;
+		tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
+	} else if (m_head->m_pkthdr.csum_flags & sc->hn_csum_assist) {
+		rndis_tcp_ip_csum_info *csum_info;
+
+		rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
+		rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
+		    tcpip_chksum_info);
+		csum_info = (rndis_tcp_ip_csum_info *)((uint8_t *)rppi +
+		    rppi->per_packet_info_offset);
+
+		csum_info->xmit.is_ipv4 = 1;
+		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+			csum_info->xmit.ip_header_csum = 1;
+
+		if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
+			csum_info->xmit.tcp_csum = 1;
+			csum_info->xmit.tcp_header_offset = 0;
+		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
+			csum_info->xmit.udp_csum = 1;
+		}
+	}
+
+	rndis_mesg->msg_len = packet->tot_data_buf_len + rndis_msg_size;
+	packet->tot_data_buf_len = rndis_mesg->msg_len;
+
+	/*
+	 * Chimney send, if the packet could fit into one chimney buffer.
+	 */
+	if (packet->tot_data_buf_len < sc->hn_tx_chimney_size) {
+		netvsc_dev *net_dev = sc->net_dev;
+		uint32_t send_buf_section_idx;
+
+		send_buf_section_idx =
+		    hv_nv_get_next_send_section(net_dev);
+		if (send_buf_section_idx !=
+		    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
+			uint8_t *dest = ((uint8_t *)net_dev->send_buf +
+			    (send_buf_section_idx *
+			     net_dev->send_section_size));
+
+			memcpy(dest, rndis_mesg, rndis_msg_size);
+			dest += rndis_msg_size;
+			m_copydata(m_head, 0, m_head->m_pkthdr.len, dest);
+
+			packet->send_buf_section_idx = send_buf_section_idx;
+			packet->send_buf_section_size =
+			    packet->tot_data_buf_len;
+			packet->page_buf_count = 0;
+			sc->hn_tx_chimney++;
+			goto done;
+		}
+	}
+
+	error = hn_txdesc_dmamap_load(sc, txd, &m_head, segs, &nsegs);
+	if (error) {
+		int freed;
+
+		/*
+		 * This mbuf is not linked w/ the txd yet, so free it now.
+		 */
+		m_freem(m_head);
+		*m_head0 = NULL;
+
+		freed = hn_txdesc_put(sc, txd);
+		KASSERT(freed != 0,
+		    ("fail to free txd upon txdma error"));
+
+		sc->hn_txdma_failed++;
+		if_inc_counter(sc->hn_ifp, IFCOUNTER_OERRORS, 1);
+		return error;
+	}
+	*m_head0 = m_head;
+
+	packet->page_buf_count = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
+
+	/* send packet with page buffer */
+	packet->page_buffers[0].pfn = atop(txd->rndis_msg_paddr);
+	packet->page_buffers[0].offset = txd->rndis_msg_paddr & PAGE_MASK;
+	packet->page_buffers[0].length = rndis_msg_size;
+
+	/*
+	 * Fill the page buffers with mbuf info starting at index
+	 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
+	 */
+	for (i = 0; i < nsegs; ++i) {
+		hv_vmbus_page_buffer *pb = &packet->page_buffers[
+		    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
+
+		pb->pfn = atop(segs[i].ds_addr);
+		pb->offset = segs[i].ds_addr & PAGE_MASK;
+		pb->length = segs[i].ds_len;
+	}
+
+	packet->send_buf_section_idx =
+	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
+	packet->send_buf_section_size = 0;
+done:
+	txd->m = m_head;
+
+	/* Set the completion routine */
+	packet->compl.send.on_send_completion = netvsc_xmit_completion;
+	packet->compl.send.send_completion_context = packet;
+	packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)txd;
+
+	return 0;
+}
+
+/*
  * Start a transmit of one or more packets
  */
 static int
 hn_start_locked(struct ifnet *ifp, int len)
 {
-	hn_softc_t *sc = ifp->if_softc;
+	struct hn_softc *sc = ifp->if_softc;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
-	netvsc_dev *net_dev = sc->net_dev;
-	rndis_msg *rndis_mesg;
-	rndis_packet *rndis_pkt;
-	rndis_per_packet_info *rppi;
-	ndis_8021q_info *rppi_vlan_info;
-	rndis_tcp_ip_csum_info *csum_info;
-	rndis_tcp_tso_info *tso_info;	
-	uint32_t rndis_msg_size = 0;
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return 0;
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
-		int error, nsegs, i, send_failed = 0;
+		int error, send_failed = 0;
 		struct hn_txdesc *txd;
-		netvsc_packet *packet;
 		struct mbuf *m_head;
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -793,216 +998,17 @@ hn_start_locked(struct ifnet *ifp, int len)
 			break;
 		}
 
-		packet = &txd->netvsc_pkt;
-		packet->is_data_pkt = TRUE;
-		/* Initialize it from the mbuf */
-		packet->tot_data_buf_len = m_head->m_pkthdr.len;
-
-		/*
-		 * extension points to the area reserved for the
-		 * rndis_filter_packet, which is placed just after
-		 * the netvsc_packet (and rppi struct, if present;
-		 * length is updated later).
-		 */
-		rndis_mesg = txd->rndis_msg;
-		/* XXX not necessary */
-		memset(rndis_mesg, 0, HN_RNDIS_MSG_LEN);
-		rndis_mesg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
-
-		rndis_pkt = &rndis_mesg->msg.packet;
-		rndis_pkt->data_offset = sizeof(rndis_packet);
-		rndis_pkt->data_length = packet->tot_data_buf_len;
-		rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
-
-		rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
-
-		/*
-		 * If the Hyper-V infrastructure needs to embed a VLAN tag,
-		 * initialize netvsc_packet and rppi struct values as needed.
-		 */
-		if (m_head->m_flags & M_VLANTAG) {
-			/*
-			 * set up some additional fields so the Hyper-V infrastructure will stuff the VLAN tag
-			 * into the frame.
-			 */
-			rndis_msg_size += RNDIS_VLAN_PPI_SIZE;
-
-			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_VLAN_PPI_SIZE,
-			    ieee_8021q_info);
-		
-			/* VLAN info immediately follows rppi struct */
-			rppi_vlan_info = (ndis_8021q_info *)((char*)rppi + 
-			    rppi->per_packet_info_offset);
-			/* FreeBSD does not support CFI or priority */
-			rppi_vlan_info->u1.s1.vlan_id =
-			    m_head->m_pkthdr.ether_vtag & 0xfff;
-		}
-
-		if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-			struct ether_vlan_header *eh;
-			int ether_len;
-
-			eh = mtod(m_head, struct ether_vlan_header*);
-			if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-				ether_len = ETHER_HDR_LEN +
-				    ETHER_VLAN_ENCAP_LEN;
-			} else {
-				ether_len = ETHER_HDR_LEN;
-			}
-
-			rndis_msg_size += RNDIS_TSO_PPI_SIZE;
-			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_TSO_PPI_SIZE,
-			    tcp_large_send_info);
-
-			tso_info = (rndis_tcp_tso_info *)((char *)rppi +
-			    rppi->per_packet_info_offset);
-			tso_info->lso_v2_xmit.type =
-			    RNDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
-
-#ifdef INET
-			if (m_head->m_pkthdr.csum_flags & CSUM_IP_TSO) {
-				struct ip *ip =
-				    (struct ip *)(m_head->m_data + ether_len);
-				unsigned long iph_len = ip->ip_hl << 2;
-				struct tcphdr *th =
-				    (struct tcphdr *)((caddr_t)ip + iph_len);
-			
-				tso_info->lso_v2_xmit.ip_version =
-				    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV4;
-				ip->ip_len = 0;
-				ip->ip_sum = 0;
-			
-				th->th_sum = in_pseudo(ip->ip_src.s_addr,
-				    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-			}
-#endif
-#if defined(INET6) && defined(INET)
-			else
-#endif
-#ifdef INET6
-			{
-				struct ip6_hdr *ip6 = (struct ip6_hdr *)
-				    (m_head->m_data + ether_len);
-				struct tcphdr *th = (struct tcphdr *)(ip6 + 1);
-
-				tso_info->lso_v2_xmit.ip_version =
-				    RNDIS_TCP_LARGE_SEND_OFFLOAD_IPV6;
-				ip6->ip6_plen = 0;
-				th->th_sum =
-				    in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
-			}
-#endif
-			tso_info->lso_v2_xmit.tcp_header_offset = 0;
-			tso_info->lso_v2_xmit.mss = m_head->m_pkthdr.tso_segsz;
-		} else if (m_head->m_pkthdr.csum_flags & sc->hn_csum_assist) {
-			rndis_msg_size += RNDIS_CSUM_PPI_SIZE;
-			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_CSUM_PPI_SIZE,
-			    tcpip_chksum_info);
-			csum_info = (rndis_tcp_ip_csum_info *)((char*)rppi +
-			    rppi->per_packet_info_offset);
-
-			csum_info->xmit.is_ipv4 = 1;
-			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-				csum_info->xmit.ip_header_csum = 1;
-
-			if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
-				csum_info->xmit.tcp_csum = 1;
-				csum_info->xmit.tcp_header_offset = 0;
-			} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
-				csum_info->xmit.udp_csum = 1;
-			}
-		}
-
-		rndis_mesg->msg_len = packet->tot_data_buf_len + rndis_msg_size;
-		packet->tot_data_buf_len = rndis_mesg->msg_len;
-
-		/* send packet with send buffer */
-		if (packet->tot_data_buf_len < sc->hn_tx_chimney_size) {
-			uint32_t send_buf_section_idx;
-
-			send_buf_section_idx =
-			    hv_nv_get_next_send_section(net_dev);
-			if (send_buf_section_idx !=
-			    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
-				uint8_t *dest = ((uint8_t *)net_dev->send_buf +
-				    (send_buf_section_idx *
-				     net_dev->send_section_size));
-
-				memcpy(dest, rndis_mesg, rndis_msg_size);
-				dest += rndis_msg_size;
-
-				m_copydata(m_head, 0, m_head->m_pkthdr.len,
-				    dest);
-
-				packet->send_buf_section_idx =
-				    send_buf_section_idx;
-				packet->send_buf_section_size =
-				    packet->tot_data_buf_len;
-				packet->page_buf_count = 0;
-				sc->hn_tx_chimney++;
-				goto do_send;
-			}
-		}
-
-		error = hn_txdesc_dmamap_load(sc, txd, &m_head, segs, &nsegs);
+		error = hn_encap(sc, txd, &m_head);
 		if (error) {
-			int freed;
-
-			/*
-			 * This mbuf is not linked w/ the txd yet, so free
-			 * it now.
-			 */
-			m_freem(m_head);
-			freed = hn_txdesc_put(sc, txd);
-			KASSERT(freed != 0,
-			    ("fail to free txd upon txdma error"));
-
-			sc->hn_txdma_failed++;
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			/* Both txd and m_head are freed */
 			continue;
 		}
-
-		packet->page_buf_count = nsegs +
-		    HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
-
-		/* send packet with page buffer */
-		packet->page_buffers[0].pfn = atop(txd->rndis_msg_paddr);
-		packet->page_buffers[0].offset =
-		    txd->rndis_msg_paddr & PAGE_MASK;
-		packet->page_buffers[0].length = rndis_msg_size;
-
-		/*
-		 * Fill the page buffers with mbuf info starting at index
-		 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
-		 */
-		for (i = 0; i < nsegs; ++i) {
-			hv_vmbus_page_buffer *pb = &packet->page_buffers[
-			    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
-
-			pb->pfn = atop(segs[i].ds_addr);
-			pb->offset = segs[i].ds_addr & PAGE_MASK;
-			pb->length = segs[i].ds_len;
-		}
-
-		packet->send_buf_section_idx = 
-		    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
-		packet->send_buf_section_size = 0;
-
-do_send:
-		txd->m = m_head;
-
-		/* Set the completion routine */
-		packet->compl.send.on_send_completion = netvsc_xmit_completion;
-		packet->compl.send.send_completion_context = packet;
-		packet->compl.send.send_completion_tid =
-		    (uint64_t)(uintptr_t)txd;
-
 again:
 		/*
 		 * Make sure that txd is not freed before ETHER_BPF_MTAP.
 		 */
 		hn_txdesc_hold(txd);
-		error = hv_nv_on_send(device_ctx, packet);
+		error = hv_nv_on_send(device_ctx, &txd->netvsc_pkt);
 		if (!error) {
 			ETHER_BPF_MTAP(ifp, m_head);
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
