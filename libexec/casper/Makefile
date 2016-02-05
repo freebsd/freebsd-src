@@ -2,6 +2,7 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=casper
 SUBDIR=	dns
 SUBDIR+=grp
 SUBDIR+=pwd
