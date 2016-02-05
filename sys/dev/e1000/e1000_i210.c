@@ -883,6 +883,35 @@ static s32 e1000_pll_workaround_i210(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_get_cfg_done_i210 - Read config done bit
+ *  @hw: pointer to the HW structure
+ *
+ *  Read the management control register for the config done bit for
+ *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
+ *  to read the config done bit, so an error is *ONLY* logged and returns
+ *  E1000_SUCCESS.  If we were to return with error, EEPROM-less silicon
+ *  would not be able to be reset or change link.
+ **/
+static s32 e1000_get_cfg_done_i210(struct e1000_hw *hw)
+{
+	s32 timeout = PHY_CFG_TIMEOUT;
+	u32 mask = E1000_NVM_CFG_DONE_PORT_0;
+
+	DEBUGFUNC("e1000_get_cfg_done_i210");
+
+	while (timeout) {
+		if (E1000_READ_REG(hw, E1000_EEMNGCTL_I210) & mask)
+			break;
+		msec_delay(1);
+		timeout--;
+	}
+	if (!timeout)
+		DEBUGOUT("MNG configuration cycle has not completed.\n");
+
+	return E1000_SUCCESS;
+}
+
+/**
  *  e1000_init_hw_i210 - Init hw for I210/I211
  *  @hw: pointer to the HW structure
  *
@@ -899,6 +928,7 @@ s32 e1000_init_hw_i210(struct e1000_hw *hw)
 		if (ret_val != E1000_SUCCESS)
 			return ret_val;
 	}
+	hw->phy.ops.get_cfg_done = e1000_get_cfg_done_i210;
 	ret_val = e1000_init_hw_82575(hw);
 	return ret_val;
 }
