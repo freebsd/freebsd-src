@@ -65,6 +65,7 @@ void InitializeFlags() {
     cf.external_symbolizer_path = GetEnv("ASAN_SYMBOLIZER_PATH");
     cf.malloc_context_size = kDefaultMallocContextSize;
     cf.intercept_tls_get_addr = true;
+    cf.exitcode = 1;
     OverrideCommonFlags(cf);
   }
   Flags *f = flags();
@@ -114,14 +115,6 @@ void InitializeFlags() {
 #if CAN_SANITIZE_UB
   ubsan_parser.ParseString(GetEnv("UBSAN_OPTIONS"));
 #endif
-
-  // Let activation flags override current settings. On Android they come
-  // from a system property. On other platforms this is no-op.
-  if (!flags()->start_deactivated) {
-    char buf[100];
-    GetExtraActivationFlags(buf, sizeof(buf));
-    asan_parser.ParseString(buf);
-  }
 
   SetVerbosity(common_flags()->verbosity);
 

@@ -71,7 +71,7 @@ INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
     CHECK(allocated < kCallocPoolSize);
     return mem;
   }
-  if (CallocShouldReturnNullDueToOverflow(size, nmemb)) return 0;
+  if (CallocShouldReturnNullDueToOverflow(size, nmemb)) return nullptr;
   ENSURE_LSAN_INITED;
   GET_STACK_TRACE_MALLOC;
   size *= nmemb;
@@ -164,9 +164,9 @@ void *operator new[](uptr size, std::nothrow_t const&) { OPERATOR_NEW_BODY; }
   Deallocate(ptr);
 
 INTERCEPTOR_ATTRIBUTE
-void operator delete(void *ptr) throw() { OPERATOR_DELETE_BODY; }
+void operator delete(void *ptr) NOEXCEPT { OPERATOR_DELETE_BODY; }
 INTERCEPTOR_ATTRIBUTE
-void operator delete[](void *ptr) throw() { OPERATOR_DELETE_BODY; }
+void operator delete[](void *ptr) NOEXCEPT { OPERATOR_DELETE_BODY; }
 INTERCEPTOR_ATTRIBUTE
 void operator delete(void *ptr, std::nothrow_t const&) { OPERATOR_DELETE_BODY; }
 INTERCEPTOR_ATTRIBUTE
@@ -226,7 +226,7 @@ INTERCEPTOR(int, pthread_create, void *th, void *attr,
   ENSURE_LSAN_INITED;
   EnsureMainThreadIDIsCorrect();
   __sanitizer_pthread_attr_t myattr;
-  if (attr == 0) {
+  if (!attr) {
     pthread_attr_init(&myattr);
     attr = &myattr;
   }
@@ -284,4 +284,4 @@ void InitializeInterceptors() {
   }
 }
 
-}  // namespace __lsan
+} // namespace __lsan
