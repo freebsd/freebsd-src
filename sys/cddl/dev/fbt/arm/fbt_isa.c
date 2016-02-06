@@ -83,7 +83,7 @@ fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 {
 
 	*fbt->fbtp_patchpoint = val;
-	cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, sizeof(val));
+	icache_sync((vm_offset_t)fbt->fbtp_patchpoint, sizeof(val));
 }
 
 int
