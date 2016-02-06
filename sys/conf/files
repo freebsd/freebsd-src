@@ -3646,128 +3646,91 @@ nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
 # OpenFabrics Enterprise Distribution (Infiniband)
 ofed/include/linux/linux_compat.c		optional ofed | compat_linuxkpi	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/include/linux/linux_idr.c			optional ofed | compat_linuxkpi	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/include/linux/linux_radix.c		optional ofed | compat_linuxkpi \
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/agent.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/cache.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 # XXX Mad.c must be ordered before cm.c for sysinit sets to occur in
 # the correct order.
 ofed/drivers/infiniband/core/mad.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/cm.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/ -Wno-unused-function"
 ofed/drivers/infiniband/core/cma.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/device.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/fmr_pool.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/iwcm.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/local_sa.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/mad_rmpp.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/multicast.c	optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/notice.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/packer.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/sa_query.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/smi.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/sysfs.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/ucm.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/ucma.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/ud_header.c	optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/umem.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/user_mad.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/uverbs_cmd.c	optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/uverbs_main.c	optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/uverbs_marshall.c	optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/verbs.c		optional ofed		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 
 ofed/drivers/infiniband/ulp/ipoib/ipoib_cm.c	optional ipoib		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 #ofed/drivers/infiniband/ulp/ipoib/ipoib_fs.c	optional ipoib		\
-#	no-depend							\
 #	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 ofed/drivers/infiniband/ulp/ipoib/ipoib_ib.c	optional ipoib		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 ofed/drivers/infiniband/ulp/ipoib/ipoib_main.c	optional ipoib		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 ofed/drivers/infiniband/ulp/ipoib/ipoib_multicast.c	optional ipoib	\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 ofed/drivers/infiniband/ulp/ipoib/ipoib_verbs.c	optional ipoib		\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 #ofed/drivers/infiniband/ulp/ipoib/ipoib_vlan.c	optional ipoib		\
-#	no-depend							\
 #	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 
 ofed/drivers/infiniband/ulp/sdp/sdp_bcopy.c	optional sdp inet	\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 ofed/drivers/infiniband/ulp/sdp/sdp_main.c	optional sdp inet 	\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 ofed/drivers/infiniband/ulp/sdp/sdp_rx.c	optional sdp inet 	\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp inet 	\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
-	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 
 ofed/drivers/infiniband/hw/mlx4/alias_GUID.c    optional mlx4ib         \
@@ -3897,95 +3860,95 @@ ofed/drivers/net/mlx4/en_tx.c			optional mlxen		\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 
 dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_cmd.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_cq.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_flow_table.c		optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fw.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_health.c		optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_mad.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_main.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_mcg.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_mr.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_pagealloc.c		optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_pd.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_port.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_qp.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_srq.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_transobj.c		optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_uar.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_vport.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 
 dev/mlx5/mlx5_en/mlx5_en_ethtool.c		optional mlx5en pci inet inet6	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_main.c			optional mlx5en pci inet inet6	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_tx.c			optional mlx5en pci inet inet6	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_flow_table.c		optional mlx5en pci inet inet6	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_rx.c			optional mlx5en pci inet inet6	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 dev/mlx5/mlx5_en/mlx5_en_txrx.c			optional mlx5en pci inet inet6	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 
 ofed/drivers/infiniband/hw/mthca/mthca_allocator.c	optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_av.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_catas.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_cmd.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_cq.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_eq.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mad.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_main.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mcg.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_memfree.c	optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_mr.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_pd.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_profile.c	optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_provider.c	optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_qp.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_reset.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_srq.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/hw/mthca/mthca_uar.c		optional mthca	\
-	no-depend compile-with "${OFED_C}"
+	compile-with "${OFED_C}"
 
 # crypto support
 opencrypto/cast.c		optional crypto | ipsec

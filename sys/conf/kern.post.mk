@@ -183,11 +183,19 @@ genassym.o: $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
-# We have "special" -I include paths for opensolaris/zfs files in 'depend'.
-CFILES_NOZFS=	${CFILES:N*/opensolaris/*}
-SFILES_NOZFS=	${SFILES:N*/opensolaris/*}
+# Normal files first
+CFILES_NORMAL=	${CFILES:N*/opensolaris/*:N*/ofed/*:N*/dev/mlx5/*}
+SFILES_NORMAL=	${SFILES:N*/opensolaris/*}
+
+# We have "special" -I include paths for zfs/dtrace files in 'depend'.
 CFILES_ZFS=	${CFILES:M*/opensolaris/*}
 SFILES_ZFS=	${SFILES:M*/opensolaris/*}
+
+# We have "special" -I include paths for OFED.
+CFILES_OFED=${CFILES:M*/ofed/*}
+
+# We have "special" -I include paths for MLX5.
+CFILES_MLX5=${CFILES:M*/dev/mlx5/*}
 
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
@@ -196,17 +204,21 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
 .depend: .PRECIOUS ${SRCS}
-	rm -f .newdep
-	${MAKE} -V CFILES_NOZFS -V SYSTEM_CFILES -V GEN_CFILES | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
+	rm -f ${.TARGET}.tmp
+# C files
+	${MAKE} -V CFILES_NORMAL -V SYSTEM_CFILES -V GEN_CFILES | \
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${CFLAGS}
 	${MAKE} -V CFILES_ZFS | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS}
-	${MAKE} -V SFILES_NOZFS | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_CFLAGS}
+	${MAKE} -V CFILES_OFED -V CFILES_MLX5 | \
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp \
+		${CFLAGS} ${OFEDINCLUDES}
+# Assembly files
+	${MAKE} -V SFILES_NORMAL | \
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${ASM_CFLAGS}
 	${MAKE} -V SFILES_ZFS | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
-	rm -f .depend
-	mv .newdep .depend
+	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_ASM_CFLAGS}
+	mv ${.TARGET}.tmp ${.TARGET}
 
 _ILINKS= machine
 .if ${MACHINE} != ${MACHINE_CPUARCH}
