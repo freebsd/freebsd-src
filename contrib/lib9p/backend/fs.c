@@ -141,9 +141,9 @@ dostat(struct l9p_stat *s, char *name, struct stat *buf, bool dotu)
 	if (!dotu) {
 		user = getpwuid(buf->st_uid);
 		group = getgrgid(buf->st_gid);
-		s->uid = user != NULL ? user->pw_name : NULL;
-		s->gid = group != NULL ? group->gr_name : NULL;
-		s->muid = user != NULL ? user->pw_name : NULL;
+		s->uid = user != NULL ? strdup(user->pw_name) : NULL;
+		s->gid = group != NULL ? strdup(group->gr_name) : NULL;
+		s->muid = user != NULL ? strdup(user->pw_name) : NULL;
 	} else {
 		/*
 		 * When using 9P2000.u, we don't need to bother about
@@ -250,6 +250,7 @@ fs_attach(void *softc, struct l9p_request *req)
 {
 	struct fs_softc *sc = (struct fs_softc *)softc;
 	struct openfile *file;
+	struct passwd *pwd;
 	uid_t uid;
 
 	assert(req->lr_fid != NULL);
@@ -261,17 +262,18 @@ fs_attach(void *softc, struct l9p_request *req)
 	req->lr_resp.rattach.qid = req->lr_fid->lo_qid;
 
 	uid = req->lr_req.tattach.n_uname;
-	if (req->lr_conn->lc_version >= L9P_2000U && uid != (uid_t)-1) {
-		struct passwd *pwd = getpwuid(uid);
-		if (pwd == NULL) {
-			l9p_respond(req, EPERM);
-			return;
-		}
+	if (req->lr_conn->lc_version >= L9P_2000U && uid != (uid_t)-1)
+		pwd = getpwuid(uid);
+	else
+		pwd = getpwnam(req->lr_req.tattach.uname);
 
-		file->uid = pwd->pw_uid;
-		file->gid = pwd->pw_gid;
+	if (pwd == NULL) {
+		l9p_respond(req, EPERM);
+		return;
 	}
 
+	file->uid = pwd->pw_uid;
+	file->gid = pwd->pw_gid;
 	l9p_respond(req, 0);
 }
 
@@ -534,9 +536,16 @@ fs_remove(void *softc, struct l9p_request *req)
 		return;
 	}
 
-	if (unlink(file->name) != 0) {
-		l9p_respond(req, errno);
-		return;
+	if (S_ISDIR(st.st_mode)) {
+		if (rmdir(file->name) != 0) {
+			l9p_respond(req, errno);
+			return;
+		}
+	} else {
+		if (unlink(file->name) != 0) {
+			l9p_respond(req, errno);
+			return;
+		}
 	}
 
 	l9p_respond(req, 0);
@@ -582,6 +591,7 @@ fs_walk(void *softc __unused, struct l9p_request *req)
 
 	newfile = open_fid(name);
 	newfile->uid = file->uid;
+	newfile->gid = file->gid;
 	req->lr_newfid->lo_aux = newfile;
 	req->lr_resp.rwalk.nwqid = i;
 	l9p_respond(req, 0);
@@ -680,15 +690,8 @@ fs_wstat(void *softc, struct l9p_request *req)
 		}
 	}
 
-	if (l9stat->n_uid != (uid_t)~0) {
-		if (lchown(file->name, l9stat->n_uid, (gid_t)-1) != 0) {
-			l9p_respond(req, errno);
-			return;
-		}
-	}
-
-	if (l9stat->n_gid != (uid_t)~0) {
-		if (lchown(file->name, (uid_t)-1, l9stat->n_gid) != 0) {
+	if (req->lr_conn->lc_version >= L9P_2000U) {
+		if (lchown(file->name, l9stat->n_uid, l9stat->n_gid) != 0) {
 			l9p_respond(req, errno);
 			return;
 		}
