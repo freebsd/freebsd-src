@@ -12,7 +12,7 @@
 WANT_CHERI:= ${NEED_CHERI}
 .endif
 
-.if ${MK_CHERI} != "no" && defined(WANT_CHERI)
+.if ${MK_CHERI} != "no" && defined(WANT_CHERI) && ${WANT_CHERI} != "none"
 .if !defined(CHERI_CC)
 .error CHERI is enabled and request, but CHERI_CC is undefined
 .endif
