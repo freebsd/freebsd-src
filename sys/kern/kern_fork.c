@@ -117,9 +117,7 @@ sys_fork(struct thread *td, struct fork_args *uap)
 
 /* ARGUSED */
 int
-sys_pdfork(td, uap)
-	struct thread *td;
-	struct pdfork_args *uap;
+sys_pdfork(struct thread *td, struct pdfork_args *uap)
 {
 	struct fork_req fr;
 	int error, fd, pid;
