@@ -54,6 +54,7 @@ uptr internal_ptrace(int request, int pid, void *addr, void *data);
 uptr internal_waitpid(int pid, int *status, int options);
 
 int internal_fork();
+int internal_forkpty(int *amaster);
 
 // These functions call appropriate pthread_ functions directly, bypassing
 // the interceptor. They are weak and may not be present in some tools.
@@ -73,6 +74,8 @@ int real_pthread_join(void *th, void **ret);
     return REAL(pthread_join(th, ret));                                        \
   }                                                                            \
   }  // namespace __sanitizer
+
+int my_pthread_attr_getstack(void *attr, void **addr, uptr *size);
 
 int internal_sigaction(int signum, const void *act, void *oldact);
 
