@@ -486,11 +486,11 @@ protopr(u_long off, const char *name, int af1, int proto)
 		else
 			xo_emit("{:protocol/%-3.3s%-2.2s/%s%s} ", name, vchar);
 		if (Lflag) {
-			char buf1[15];
+			char buf1[33];
 
-			snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
+			snprintf(buf1, sizeof buf1, "%u/%u/%u", so->so_qlen,
 			    so->so_incqlen, so->so_qlimit);
-			xo_emit("{:listen-queue-sizes/%-14.14s} ", buf1);
+			xo_emit("{:listen-queue-sizes/%-32.32s} ", buf1);
 		} else if (Tflag) {
 			if (istcp)
 				xo_emit("{:sent-retransmit-packets/%6u} "

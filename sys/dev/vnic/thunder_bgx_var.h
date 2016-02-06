@@ -30,6 +30,8 @@
 #ifndef __THUNDER_BGX_VAR_H__
 #define	__THUNDER_BGX_VAR_H__
 
+MALLOC_DECLARE(M_BGX);
+
 struct lmac {
 	struct bgx		*bgx;
 	int			dmac;

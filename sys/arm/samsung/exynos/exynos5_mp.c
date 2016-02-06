@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -135,8 +136,7 @@ platform_mp_start_ap(void)
 	bus_space_write_4(fdtbus_bs_tag, sysram, 0x0,
 	    pmap_kextract((vm_offset_t)mpentry));
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, sysram, 0x100);

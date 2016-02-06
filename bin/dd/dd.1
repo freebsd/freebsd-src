@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2014
+.Dd February 4, 2016
 .Dt DD 1
 .Os
 .Sh NAME
@@ -332,10 +332,13 @@ If the number ends with a
 .Dq Li k ,
 .Dq Li m ,
 .Dq Li g ,
+.Dq Li t ,
+.Dq Li p ,
 or
 .Dq Li w ,
 the
-number is multiplied by 512, 1024 (1K), 1048576 (1M), 1073741824 (1G)
+number is multiplied by 512, 1024 (1K), 1048576 (1M), 1073741824 (1G),
+1099511627776 (1T), 1125899906842624 (1P)
 or the number of bytes in an integer, respectively.
 Two or more numbers may be separated by an
 .Dq Li x

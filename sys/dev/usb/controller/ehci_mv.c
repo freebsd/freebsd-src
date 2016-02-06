@@ -105,6 +105,18 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,			false}
 };
 
+static void
+mv_ehci_post_reset(struct ehci_softc *ehci_softc)
+{
+	uint32_t usbmode;
+
+	/* Force HOST mode */
+	usbmode = EOREAD4(ehci_softc, EHCI_USBMODE_NOLPM);
+	usbmode &= ~EHCI_UM_CM;
+	usbmode |= EHCI_UM_CM_HOST;
+	EOWRITE4(ehci_softc, EHCI_USBMODE_NOLPM, usbmode);
+}
+
 static int
 mv_ehci_probe(device_t self)
 {
@@ -226,13 +238,13 @@ mv_ehci_attach(device_t self)
 	 * Refer to errata document MV-S500832-00D.pdf (p. 5.24 GL USB-2) for
 	 * details.
 	 */
-	sc->sc_flags |= EHCI_SCFLG_SETMODE;
+	sc->sc_vendor_post_reset = mv_ehci_post_reset;
 	if (bootverbose)
 		device_printf(self, "5.24 GL USB-2 workaround enabled\n");
 
 	/* XXX all MV chips need it? */
-	sc->sc_flags |= EHCI_SCFLG_FORCESPEED | EHCI_SCFLG_NORESTERM;
-
+	sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+	sc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
 	err = ehci_init(sc);
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_bus.bdev);

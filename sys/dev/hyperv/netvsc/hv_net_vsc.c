@@ -74,10 +74,7 @@ hv_nv_alloc_net_device(struct hv_device *device)
 	netvsc_dev *net_dev;
 	hn_softc_t *sc = device_get_softc(device->device);
 
-	net_dev = malloc(sizeof(netvsc_dev), M_NETVSC, M_NOWAIT | M_ZERO);
-	if (net_dev == NULL) {
-		return (NULL);
-	}
+	net_dev = malloc(sizeof(netvsc_dev), M_NETVSC, M_WAITOK | M_ZERO);
 
 	net_dev->dev = device;
 	net_dev->destroy = FALSE;
@@ -136,15 +133,15 @@ hv_nv_get_next_send_section(netvsc_dev *net_dev)
 	int i;
 
 	for (i = 0; i < bitsmap_words; i++) {
-		idx = ffs(~bitsmap[i]);
+		idx = ffsl(~bitsmap[i]);
 		if (0 == idx)
 			continue;
 
 		idx--;
-		if (i * BITS_PER_LONG + idx >= net_dev->send_section_count)
-			return (ret);
+		KASSERT(i * BITS_PER_LONG + idx < net_dev->send_section_count,
+		    ("invalid i %d and idx %lu", i, idx));
 
-		if (synch_test_and_set_bit(idx, &bitsmap[i]))
+		if (atomic_testandset_long(&bitsmap[i], idx))
 			continue;
 
 		ret = i * BITS_PER_LONG + idx;
@@ -224,11 +221,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hv_device *device)
 	    init_pkt->msgs.vers_1_msgs.send_rx_buf_complete.num_sections;
 
 	net_dev->rx_sections = malloc(net_dev->rx_section_count *
-	    sizeof(nvsp_1_rx_buf_section), M_NETVSC, M_NOWAIT);
-	if (net_dev->rx_sections == NULL) {
-		ret = EINVAL;
-		goto cleanup;
-	}
+	    sizeof(nvsp_1_rx_buf_section), M_NETVSC, M_WAITOK);
 	memcpy(net_dev->rx_sections, 
 	    init_pkt->msgs.vers_1_msgs.send_rx_buf_complete.sections,
 	    net_dev->rx_section_count * sizeof(nvsp_1_rx_buf_section));
@@ -326,11 +319,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hv_device *device)
 	    BITS_PER_LONG);
 	net_dev->send_section_bitsmap =
 	    malloc(net_dev->bitsmap_words * sizeof(long), M_NETVSC,
-	    M_NOWAIT | M_ZERO);
-	if (NULL == net_dev->send_section_bitsmap) {
-		ret = ENOMEM;
-		goto cleanup;
-	}
+	    M_WAITOK | M_ZERO);
 
 	goto exit;
 
@@ -789,8 +778,27 @@ hv_nv_on_send_completion(netvsc_dev *net_dev,
 		if (NULL != net_vsc_pkt) {
 			if (net_vsc_pkt->send_buf_section_idx !=
 			    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX) {
-				synch_change_bit(net_vsc_pkt->send_buf_section_idx,
-				    net_dev->send_section_bitsmap);
+				u_long mask;
+				int idx;
+
+				idx = net_vsc_pkt->send_buf_section_idx /
+				    BITS_PER_LONG;
+				KASSERT(idx < net_dev->bitsmap_words,
+				    ("invalid section index %u",
+				     net_vsc_pkt->send_buf_section_idx));
+				mask = 1UL <<
+				    (net_vsc_pkt->send_buf_section_idx %
+				     BITS_PER_LONG);
+
+				KASSERT(net_dev->send_section_bitsmap[idx] &
+				    mask,
+				    ("index bitmap 0x%lx, section index %u, "
+				     "bitmap idx %d, bitmask 0x%lx",
+				     net_dev->send_section_bitsmap[idx],
+				     net_vsc_pkt->send_buf_section_idx,
+				     idx, mask));
+				atomic_clear_long(
+				    &net_dev->send_section_bitsmap[idx], mask);
 			}
 			
 			/* Notify the layer above us */

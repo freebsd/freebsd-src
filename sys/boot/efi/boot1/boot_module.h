@@ -36,9 +36,11 @@
 #include <eficonsctl.h>
 
 #ifdef EFI_DEBUG
-#define DPRINTF(fmt, ...) printf(fmt, __VA_ARGS__)
+#define DPRINTF(fmt, args...) printf(fmt, ##args)
+#define DSTALL(d) bs->Stall(d)
 #else
 #define DPRINTF(fmt, ...) {}
+#define DSTALL(d) {}
 #endif
 
 /* EFI device info */
@@ -48,6 +50,7 @@ typedef struct dev_info
 	EFI_DEVICE_PATH *devpath;
 	EFI_HANDLE *devhandle;
 	void *devdata;
+	BOOLEAN preferred;
 	struct dev_info *next;
 } dev_info_t;
 
@@ -75,19 +78,21 @@ typedef struct boot_module_t
 
 	/*
 	 * load should select the best out of a set of devices that probe
-	 * indicated were loadable and load it.
+	 * indicated were loadable and load the specified file.
 	 *
 	 * Return codes:
 	 * EFI_SUCCESS = The module can handle the device.
 	 * EFI_NOT_FOUND = The module can not handle the device.
 	 * Other = The module encountered an error.
 	 */
-	EFI_STATUS (*load)(const char *loader_path, dev_info_t **devinfo,
+	EFI_STATUS (*load)(const char *filepath, dev_info_t *devinfo,
 	    void **buf, size_t *bufsize);
 
 	/* status outputs information about the probed devices. */
 	void (*status)();
 
+	/* valid devices as found by probe. */
+	dev_info_t *(*devices)();
 } boot_module_t;
 
 /* Standard boot modules. */
@@ -107,4 +112,6 @@ extern int vsnprintf(char *str, size_t sz, const char *fmt, va_list ap);
 extern EFI_SYSTEM_TABLE *systab;
 extern EFI_BOOT_SERVICES *bs;
 
+extern int devpath_strlcat(char *buf, size_t size, EFI_DEVICE_PATH *devpath);
+extern char *devpath_str(EFI_DEVICE_PATH *devpath);
 #endif

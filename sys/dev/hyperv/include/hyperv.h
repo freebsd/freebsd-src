@@ -908,30 +908,6 @@ int		hv_vmbus_channel_teardown_gpdal(
 
 struct hv_vmbus_channel* vmbus_select_outgoing_channel(struct hv_vmbus_channel *promary);
 
-/*
- * Work abstraction defines
- */
-typedef struct hv_work_queue {
-	struct taskqueue*	queue;
-	struct proc*		proc;
-	struct sema*		work_sema;
-} hv_work_queue;
-
-typedef struct hv_work_item {
-	struct task	work;
-	void		(*callback)(void *);
-	void*		context;
-	hv_work_queue*	wq;
-} hv_work_item;
-
-struct hv_work_queue*	hv_work_queue_create(char* name);
-
-void			hv_work_queue_close(struct hv_work_queue* wq);
-
-int			hv_queue_work_item(
-				hv_work_queue*	wq,
-				void		(*callback)(void *),
-				void*		context);
 /**
  * @brief Get physical address from virtual
  */
@@ -952,8 +928,8 @@ typedef struct hv_vmbus_service {
         hv_guid       guid;             /* Hyper-V GUID */
         char          *name;            /* name of service */
         boolean_t     enabled;          /* service enabled */
-        hv_work_queue *work_queue;      /* background work queue */
-
+	void*		context;
+	struct task	task;
         /*
          * function to initialize service
          */
@@ -963,6 +939,11 @@ typedef struct hv_vmbus_service {
          * function to process Hyper-V messages
          */
         void (*callback)(void *);
+
+	/*
+	 * function to uninitilize service
+	 */
+	int (*uninit)(struct hv_vmbus_service *);
 } hv_vmbus_service;
 
 extern uint8_t* receive_buffer[];

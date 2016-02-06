@@ -2256,7 +2256,6 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
     struct sctphdr *sh, struct sctp_chunkhdr *ch,
     struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint32_t vrf_id)
 {
-	int find_tcp_pool;
 	struct sctp_tcb *stcb;
 	struct sctp_inpcb *inp;
 
@@ -2268,25 +2267,13 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 			return (stcb);
 		}
 	}
-	find_tcp_pool = 0;
-	/*
-	 * Don't consider INIT chunks since that breaks 1-to-1 sockets: When
-	 * a server closes the listener, incoming INIT chunks are not
-	 * responsed by an INIT-ACK chunk.
-	 */
-	if ((ch->chunk_type != SCTP_INITIATION_ACK) &&
-	    (ch->chunk_type != SCTP_COOKIE_ACK) &&
-	    (ch->chunk_type != SCTP_COOKIE_ECHO)) {
-		/* Other chunk types go to the tcp pool. */
-		find_tcp_pool = 1;
-	}
 	if (inp_p) {
 		stcb = sctp_findassociation_addr_sa(src, dst, inp_p, netp,
-		    find_tcp_pool, vrf_id);
+		    1, vrf_id);
 		inp = *inp_p;
 	} else {
 		stcb = sctp_findassociation_addr_sa(src, dst, &inp, netp,
-		    find_tcp_pool, vrf_id);
+		    1, vrf_id);
 	}
 	SCTPDBG(SCTP_DEBUG_PCB1, "stcb:%p inp:%p\n", (void *)stcb, (void *)inp);
 	if (stcb == NULL && inp) {

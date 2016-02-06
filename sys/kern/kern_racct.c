@@ -957,16 +957,15 @@ void
 racct_proc_fork_done(struct proc *child)
 {
 
+	PROC_LOCK_ASSERT(child, MA_OWNED);
 #ifdef RCTL
 	if (!racct_enable)
 		return;
 
-	PROC_LOCK(child);
 	mtx_lock(&racct_lock);
 	rctl_enforce(child, RACCT_NPROC, 0);
 	rctl_enforce(child, RACCT_NTHR, 0);
 	mtx_unlock(&racct_lock);
-	PROC_UNLOCK(child);
 #endif
 }
 

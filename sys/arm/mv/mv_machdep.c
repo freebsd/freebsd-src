@@ -337,7 +337,7 @@ __weak_reference(mv_default_fdt_pci_devmap, mv_pci_devmap);
  */
 
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Construct devmap table with DT-derived config data.
  */
 int
 platform_devmap_init(void)

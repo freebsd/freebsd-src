@@ -22,8 +22,14 @@ TAP_TESTS_SH+=	04
 TEST_METADATA.$t+=	required_user="root"
 .endfor
 
+_ACL_PROGS=		getfacl setfacl
+
 .for t in 01 03 04
-TEST_METADATA.$t+=	required_programs="/sbin/zpool"
+TEST_METADATA.$t+=	required_programs="zpool ${_ACL_PROGS}"
+.endfor
+
+.for t in 00 02
+TEST_METADATA.$t+=	required_programs="${_ACL_PROGS}"
 .endfor
 
 .include <bsd.test.mk>
