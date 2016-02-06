@@ -180,18 +180,18 @@ f_dialog_menu_media_options()
 		f_ifconfig_media $interface | \
 		( index=1
 
-		  echo "'$( f_substr "$DIALOG_MENU_TAGS" $index 1 )'"
-		  echo "'$opt_none'" 
+		  f_substr -v tagn "$DIALOG_MENU_TAGS" $index 1
+		  echo "'$tagn' '$opt_none'"
 		  index=$(( $index + 1 ))
 
-		  echo "'$( f_substr "$DIALOG_MENU_TAGS" $index 1 )'"
-		  echo "'$opt_cust'" 
+		  f_substr -v tagn "$DIALOG_MENU_TAGS" $index 1
+		  echo "'$tagn' '$opt_cust'"
 		  index=$(( $index + 1 ))
 
 		  while read media_options; do
 		  	[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
-		  	echo "'$( f_substr "$DIALOG_MENU_TAGS" $index 1 )'"
-		  	echo "'$media_options'"
+		  	f_substr -v tagn "$DIALOG_MENU_TAGS" $index 1
+		  	echo "'$tagn' '$media_options'"
 		  	index=$(( $index + 1 ))
 		  done
 		)

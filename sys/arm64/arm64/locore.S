@@ -369,8 +369,8 @@ create_pagetables:
 	sub	x8, x7, x6
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)
-	/* Add 4 MiB for any rounding above and the module data */
-	add	x10, x10, #2
+	/* Add 8 MiB for any rounding above and the module data */
+	add	x10, x10, #4
 
 	/* Create the kernel space L2 table */
 	mov	x6, x26
@@ -628,11 +628,11 @@ tcr_early:
 sctlr_set:
 	/* Bits to set */
 	.quad (SCTLR_UCI | SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
-	    SCTLR_I | SCTLR_SED | SCTLR_C | SCTLR_M)
+	    SCTLR_I | SCTLR_SED | SCTLR_SA0 | SCTLR_SA | SCTLR_C | SCTLR_M)
 sctlr_clear:
 	/* Bits to clear */
 	.quad (SCTLR_EE | SCTLR_EOE | SCTLR_WXN | SCTLR_UMA | SCTLR_ITD | \
-	    SCTLR_THEE | SCTLR_CP15BEN | SCTLR_SA0 | SCTLR_SA | SCTLR_A)
+	    SCTLR_THEE | SCTLR_CP15BEN | SCTLR_A)
 
 	.globl abort
 abort:

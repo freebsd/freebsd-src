@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/taskqueue.h>
 
 #include <machine/cache.h>
 #include <machine/clock.h>

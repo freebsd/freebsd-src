@@ -63,6 +63,11 @@ case "$daily_scrub_zfs_enable" in
 			_last_scrub=$(zpool history ${pool} | \
 			    sed -ne '2s/ .*$//p')
 		fi
+		if [ -z "${_last_scrub}" ]; then
+			echo "   skipping scrubbing of pool '${pool}':"
+			echo "      can't get last scrubbing date"
+			continue
+		fi
 
 		# Now minus last scrub (both in seconds) converted to days.
 		_scrub_diff=$(expr -e \( $(date +%s) - \
@@ -73,10 +78,13 @@ case "$daily_scrub_zfs_enable" in
 			continue
 		fi
 
-		_status="$(zpool status ${pool} | grep scrub:)"
+		_status="$(zpool status ${pool} | grep scan:)"
 		case "${_status}" in
 			*"scrub in progress"*)
 				echo "   scrubbing of pool '${pool}' already in progress, skipping:"
+				;;
+			*"resilver in progress"*)
+				echo "   resilvering of pool '${pool}' is in progress, skipping:"
 				;;
 			*"none requested"*)
 				echo "   starting first scrub (since reboot) of pool '${pool}':"

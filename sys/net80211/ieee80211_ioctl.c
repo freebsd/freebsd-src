@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>

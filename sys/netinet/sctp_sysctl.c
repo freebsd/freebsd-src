@@ -426,7 +426,11 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 			xinpcb.maxqlen = 0;
 		} else {
 			xinpcb.qlen = so->so_qlen;
+			xinpcb.qlen_old = so->so_qlen > USHRT_MAX ? 
+				USHRT_MAX : (uint16_t) so->so_qlen;
 			xinpcb.maxqlen = so->so_qlimit;
+			xinpcb.maxqlen_old = so->so_qlimit > USHRT_MAX ? 
+				USHRT_MAX : (uint16_t) so->so_qlimit;
 		}
 		SCTP_INP_INCR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);

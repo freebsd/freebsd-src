@@ -89,7 +89,7 @@ struct filemon {
 	TAILQ_ENTRY(filemon) link;	/* Link into the in-use list. */
 	struct sx	lock;		/* Lock mutex for this filemon. */
 	struct file	*fp;		/* Output file pointer. */
-	pid_t		pid;		/* The process ID being monitored. */
+	struct proc     *p;		/* The process being monitored. */
 	char		fname1[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		fname2[MAXPATHLEN]; /* Temporary filename buffer. */
 	char		msgbufr[1024];	/* Output message buffer. */
@@ -137,7 +137,7 @@ filemon_dtr(void *data)
 
 		fp = filemon->fp;
 		filemon->fp = NULL;
-		filemon->pid = -1;
+		filemon->p = NULL;
 
 		/* Add to the free list. */
 		TAILQ_INSERT_TAIL(&filemons_free, filemon, link);
@@ -188,7 +188,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 		error = pget(*((pid_t *)data), PGET_CANDEBUG | PGET_NOTWEXIT,
 		    &p);
 		if (error == 0) {
-			filemon->pid = p->p_pid;
+			filemon->p = p;
 			PROC_UNLOCK(p);
 		}
 		break;
@@ -222,8 +222,6 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 		    M_WAITOK | M_ZERO);
 		sx_init(&filemon->lock, "filemon");
 	}
-
-	filemon->pid = curproc->p_pid;
 
 	devfs_set_cdevpriv(filemon, filemon_dtr);
 

@@ -738,7 +738,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 		    cl, q->buf_size, refill_fl_cb, &cb_arg, 0);
 		
 		if (err != 0 || cb_arg.error) {
-			if (q->zone == zone_pack)
+			if (q->zone != zone_pack)
 				uma_zfree(q->zone, cl);
 			m_free(m);
 			goto done;

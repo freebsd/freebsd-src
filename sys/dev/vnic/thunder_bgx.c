@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #define	THUNDER_BGX_DEVSTR	"ThunderX BGX Ethernet I/O Interface"
 
-static MALLOC_DEFINE(M_BGX, "thunder_bgx", "ThunderX BGX dynamic memory");
+MALLOC_DEFINE(M_BGX, "thunder_bgx", "ThunderX BGX dynamic memory");
 
 #define BGX_NODE_ID_MASK	0x1
 #define BGX_NODE_ID_SHIFT	24
