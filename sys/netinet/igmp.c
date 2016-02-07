@@ -654,16 +654,12 @@ igmp_ifdetach(struct ifnet *ifp)
 void
 igmp_domifdetach(struct ifnet *ifp)
 {
-	struct igmp_ifinfo *igi;
 
 	CTR3(KTR_IGMPV3, "%s: called for ifp %p(%s)",
 	    __func__, ifp, ifp->if_xname);
 
 	IGMP_LOCK();
-
-	igi = ((struct in_ifinfo *)ifp->if_afdata[AF_INET])->ii_igmp;
 	igi_delete_locked(ifp);
-
 	IGMP_UNLOCK();
 }
 
