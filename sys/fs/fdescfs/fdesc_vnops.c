@@ -465,7 +465,7 @@ fdesc_setattr(ap)
 {
 	struct vattr *vap = ap->a_vap;
 	struct vnode *vp;
-	struct mount *mp = NULL;
+	struct mount *mp;
 	struct file *fp;
 	struct thread *td = curthread;
 	cap_rights_t rights;
