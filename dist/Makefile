@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.52 2014/06/14 20:49:37 mrg Exp $
+#	$NetBSD: Makefile,v 1.53 2015/01/29 20:30:02 joerg Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 USE_SHLIBDIR=	yes
@@ -13,6 +13,7 @@ LIBDPLIBS+=     terminfo ${.CURDIR}/../libterminfo
 
 COPTS+=	-Wunused-parameter
 CWARNFLAGS.gcc+=	-Wconversion
+CWARNFLAGS.clang+=	-Wno-cast-qual
 
 OSRCS=	chared.c common.c el.c emacs.c fcns.c filecomplete.c help.c \
 	hist.c keymacro.c map.c chartype.c \

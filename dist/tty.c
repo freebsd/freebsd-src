@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.46 2014/06/18 18:52:49 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.49 2015/12/08 16:53:27 gson Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.46 2014/06/18 18:52:49 christos Exp $");
+__RCSID("$NetBSD: tty.c,v 1.49 2015/12/08 16:53:27 gson Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -580,6 +580,9 @@ protected void
 /*ARGSUSED*/
 tty_end(EditLine *el)
 {
+	if (el->el_flags & EDIT_DISABLED)
+		return;
+
 	if (tty_setty(el, TCSAFLUSH, &el->el_tty.t_or) == -1) {
 #ifdef DEBUG_TTY
 		(void) fprintf(el->el_errfile,
@@ -1171,8 +1174,8 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 			break;
 		default:
 			(void) fprintf(el->el_errfile,
-			    "%s: Unknown switch `%c'.\n",
-			    name, argv[0][1]);
+			    "%s: Unknown switch `" FCHAR "'.\n",
+			    name, (Int)argv[0][1]);
 			return -1;
 		}
 
