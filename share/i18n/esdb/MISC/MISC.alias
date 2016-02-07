@@ -29,10 +29,10 @@ JISX0208:1990		x0208
 
 JOHAB			cp1361
 
-SHIFT_JIS		csshiftjis
-SHIFT_JIS		ms_kanji
-SHIFT_JIS		sjis
+Shift_JIS		csshiftjis
+Shift_JIS		ms_kanji
+Shift_JIS		sjis
 
-SHIFT_JIS-2004		shift_jisx0213
+Shift_JIS-2004		shift_jisx0213
 
 TDS565			iso-ir-230
