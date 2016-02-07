@@ -722,8 +722,6 @@ init_zfs_bootenv(char *currdev)
 	currdev[strlen(currdev) - 1] = '\0';
 	setenv("zfs_be_active", currdev, 1);
 	setenv("zfs_be_currpage", "1", 1);
-	/* Do not overwrite if already set */
-	setenv("vfs.root.mountfrom", currdev, 0);
 	/* Forward past zfs: */
 	currdev = strchr(currdev, ':');
 	currdev++;
