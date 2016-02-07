@@ -60,11 +60,15 @@ _TESTS=
 .include <plain.test.mk>
 .include <tap.test.mk>
 
+# kyua automatically descends directories; only run make check on the
+# top-level directory
+.if !make(check)
 .for ts in ${TESTS_SUBDIRS}
 .if empty(SUBDIR:M${ts})
 SUBDIR+= ${ts}
 .endif
 .endfor
+.endif
 
 # it is rare for test cases to have man pages
 .if !defined(MAN)
@@ -79,19 +83,14 @@ PROGS_TARGETS+= install
 .include <suite.test.mk>
 .endif
 
-.if !target(realtest)
-realtest: .PHONY
+.if !target(realcheck)
+realcheck: .PHONY
 	@echo "$@ not defined; skipping"
 .endif
 
-test: .PHONY
-.ORDER: beforetest realtest
-test: beforetest realtest
-
-.if target(aftertest)
-.ORDER: realtest aftertest
-test: aftertest
-.endif
+beforecheck realcheck aftercheck check: .PHONY
+.ORDER: beforecheck realcheck aftercheck
+check: beforecheck realcheck aftercheck
 
 .ifdef PROG
 # we came here via bsd.progs.mk below
