@@ -2245,7 +2245,7 @@ brelse(struct buf *bp)
 	int qindex;
 
 	/*
-	 * Many function erroneously call brelse with a NULL bp under rare
+	 * Many functions erroneously call brelse with a NULL bp under rare
 	 * error conditions. Simply return when called with a NULL bp.
 	 */
 	if (bp == NULL)
