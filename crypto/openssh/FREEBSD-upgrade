@@ -1,5 +1,4 @@
 
-
 	    FreeBSD maintainer's guide to OpenSSH-portable
 	    ==============================================
 
@@ -34,10 +33,11 @@
 07) Tag:
 
     $ svn copy -m "Tag OpenSSH X.YpZ." \
-        svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist \
-        svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/X.YpZ
+	svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/dist \
+	svn+ssh://svn.freebsd.org/base/vendor-crypto/openssh/X.YpZ
 
-08) Check out head and run the pre-merge script:
+08) Check out head and run the pre-merge script, which strips our RCS
+    tags from files that have them:
 
     $ svn co svn+ssh://svn.freebsd.org/base/head
     $ cd head/crypto/openssh
@@ -53,14 +53,16 @@
 
 0B) Diff against the vendor branch:
 
-    $ svn diff \^/vendor-crypto/openssh/dist .
+    $ svn diff --no-diff-deleted --no-diff-added \
+	--ignore-properties \^/vendor-crypto/openssh/X.YpZ .
 
     Files that have modifications relative to the vendor code, and
     only those files, must have the svn:keywords property set to
     FreeBSD=%H and be listed in the 'keywords' file created by the
     pre-merge script.
 
-0C) Run the post-merge script:
+0C) Run the post-merge script, which re-adds RCS tags to files that
+    need them:
 
     $ sh freebsd-post-merge.sh
 
@@ -68,7 +70,7 @@
 
     $ sh freebsd-configure.sh
 
-0E) Check config.h very carefully.
+0E) Review changes to config.h very carefully.
 
 0F) If source files have been added or removed, update the appropriate
     makefiles to reflect changes in the vendor's Makefile.in.
@@ -92,8 +94,6 @@
 	  An overview of FreeBSD changes to OpenSSH-portable
 	  ==================================================
 
-XXX This section is out of date
-
 0) VersionAddendum
 
    The SSH protocol allows for a human-readable version string of up
@@ -103,26 +103,29 @@ XXX This section is out of date
    is vulnerable when an OpenSSH advisory goes out.  Some people,
    however, dislike advertising their patch level in the protocol
    handshake, so we've added a VersionAddendum configuration variable
-   to allow them to change or disable it.
+   to allow them to change or disable it.  Upstream added support for
+   VersionAddendum on the server side, but we also support it on the
+   client side.
 
 1) Modified server-side defaults
 
    We've modified some configuration defaults in sshd:
 
-      - PasswordAuthentication defaults to "no".
-
-      - LoginGraceTime defaults to 120 seconds instead of 600.
-
+      - UsePAM defaults to "yes".
       - PermitRootLogin defaults to "no".
-
-      - X11Forwarding defaults to "yes" (it's a threat to the client,
-        not to the server.)
+      - X11Forwarding defaults to "yes".
+      - PasswordAuthentication defaults to "no".
+      - VersionAddendum defaults to "FreeBSD-YYYYMMDD".
+      - PrivilegeSeparation defaults to "sandbox".
+      - UseDNS defaults to "yes".
 
 2) Modified client-side defaults
 
    We've modified some configuration defaults in ssh:
 
       - CheckHostIP defaults to "no".
+      - VerifyHostKeyDNS defaults to "yes" if built with LDNS.
+      - VersionAddendum defaults to "FreeBSD-YYYYMMDD".
 
 3) Canonic host names
 
@@ -134,6 +137,34 @@ XXX This section is out of date
 
    Our setusercontext(3) can set environment variables, which we must
    take care to transfer to the child's environment.
+
+5) TCP wrappers
+
+   Support for TCP wrappers was removed in upstream 6.7p1.  We've
+   added it back by porting the 6.6p1 code forward.
+
+6) DSA keys
+
+   DSA keys were disabled by default in upstream 6.9p1.  We've added
+   them back.
+
+7) Agent client reference counting
+
+   We've added code to ssh-agent.c to implement client reference
+   counting; the agent will automatically exit when the last client
+   disconnects.
+
+8) Class-based login restrictions
+
+   We've added code to auth2.c to enforce the host.allow, host.deny,
+   times.allow and times.deny login class capabilities.
+
+9) HPN
+
+   We no longer have the HPN patches (adaptive buffer size for
+   increased throughput on high-BxD links), but we recognize and
+   ignore HPN-related configuration options to avoid breaking existing
+   configurations.
 
 
 

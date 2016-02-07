@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ssh-host-config, Copyright 2000-2011 Red Hat Inc.
+# ssh-host-config, Copyright 2000-2014 Red Hat Inc.
 #
 # This file is part of the Cygwin port of OpenSSH.
 #
@@ -34,9 +34,9 @@ declare -a csih_required_commands=(
   /usr/bin/mv coreutils
   /usr/bin/rm coreutils
   /usr/bin/cygpath cygwin
+  /usr/bin/mkpasswd cygwin
   /usr/bin/mount cygwin
   /usr/bin/ps cygwin
-  /usr/bin/setfacl cygwin
   /usr/bin/umount cygwin
   /usr/bin/cmp diffutils
   /usr/bin/grep grep
@@ -59,8 +59,10 @@ PREFIX=/usr
 SYSCONFDIR=/etc
 LOCALSTATEDIR=/var
 
+sshd_config_configured=no
 port_number=22
-privsep_configured=no
+service_name=sshd
+strictmodes=yes
 privsep_used=yes
 cygwin_value=""
 user_account=
@@ -89,28 +91,8 @@ update_services_file() {
   # Depends on the above mount
   _wservices=`cygpath -w "${_services}"`
 
-  # Remove sshd 22/port from services
-  if [ `/usr/bin/grep -q 'sshd[ \t][ \t]*22' "${_services}"; echo $?` -eq 0 ]
-  then
-    /usr/bin/grep -v 'sshd[ \t][ \t]*22' "${_services}" > "${_serv_tmp}"
-    if [ -f "${_serv_tmp}" ]
-    then
-      if /usr/bin/mv "${_serv_tmp}" "${_services}"
-      then
-	csih_inform "Removing sshd from ${_wservices}"
-      else
-	csih_warning "Removing sshd from ${_wservices} failed!"
-	let ++ret
-      fi
-      /usr/bin/rm -f "${_serv_tmp}"
-    else
-      csih_warning "Removing sshd from ${_wservices} failed!"
-      let ++ret
-    fi
-  fi
-
   # Add ssh 22/tcp  and ssh 22/udp to services
-  if [ `/usr/bin/grep -q 'ssh[ \t][ \t]*22' "${_services}"; echo $?` -ne 0 ]
+  if [ `/usr/bin/grep -q 'ssh[[:space:]][[:space:]]*22' "${_services}"; echo $?` -ne 0 ]
   then
     if /usr/bin/awk '{ if ( $2 ~ /^23\/tcp/ ) print "ssh                22/tcp'"${_spaces}"'SSH Remote Login Protocol\nssh                22/udp'"${_spaces}"'SSH Remote Login Protocol"; print $0; }' < "${_services}" > "${_serv_tmp}"
     then
@@ -132,17 +114,45 @@ update_services_file() {
 } # --- End of update_services_file --- #
 
 # ======================================================================
+# Routine: sshd_strictmodes
+#  MODIFIES: strictmodes
+# ======================================================================
+sshd_strictmodes() {
+  if [ "${sshd_config_configured}" != "yes" ]
+  then
+    echo
+    csih_inform "StrictModes is set to 'yes' by default."
+    csih_inform "This is the recommended setting, but it requires that the POSIX"
+    csih_inform "permissions of the user's home directory, the user's .ssh"
+    csih_inform "directory, and the user's ssh key files are tight so that"
+    csih_inform "only the user has write permissions."
+    csih_inform "On the other hand, StrictModes don't work well with default"
+    csih_inform "Windows permissions of a home directory mounted with the"
+    csih_inform "'noacl' option, and they don't work at all if the home"
+    csih_inform "directory is on a FAT or FAT32 partition."
+    if ! csih_request "Should StrictModes be used?"
+    then
+      strictmodes=no
+    fi
+  fi
+  return 0
+}
+
+# ======================================================================
 # Routine: sshd_privsep
-#  MODIFIES: privsep_configured  privsep_used
+#  MODIFIES: privsep_used
 # ======================================================================
 sshd_privsep() {
-  local sshdconfig_tmp
   local ret=0
 
-  if [ "${privsep_configured}" != "yes" ]
+  if [ "${sshd_config_configured}" != "yes" ]
   then
-    csih_inform "Privilege separation is set to yes by default since OpenSSH 3.3."
-    csih_inform "However, this requires a non-privileged account called 'sshd'."
+    echo
+    csih_inform "Privilege separation is set to 'sandbox' by default since"
+    csih_inform "OpenSSH 6.1.  This is unsupported by Cygwin and has to be set"
+    csih_inform "to 'yes' or 'no'."
+    csih_inform "However, using privilege separation requires a non-privileged account"
+    csih_inform "called 'sshd'."
     csih_inform "For more info on privilege separation read /usr/share/doc/openssh/README.privsep."
     if csih_request "Should privilege separation be used?"
     then
@@ -159,36 +169,53 @@ sshd_privsep() {
       privsep_used=no
     fi
   fi
+  return $ret
+} # --- End of sshd_privsep --- #
 
-  # Create default sshd_config from skeleton files in /etc/defaults/etc or
-  # modify to add the missing privsep configuration option
-  if /usr/bin/cmp "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults/${SYSCONFDIR}/sshd_config" >/dev/null 2>&1
+# ======================================================================
+# Routine: sshd_config_tweak
+# ======================================================================
+sshd_config_tweak() {
+  local ret=0
+
+  # Modify sshd_config
+  csih_inform "Updating ${SYSCONFDIR}/sshd_config file"
+  if [ "${port_number}" -ne 22 ]
   then
-    csih_inform "Updating ${SYSCONFDIR}/sshd_config file"
-    sshdconfig_tmp=${SYSCONFDIR}/sshd_config.$$
-    /usr/bin/sed -e "s/^#UsePrivilegeSeparation yes/UsePrivilegeSeparation ${privsep_used}/
-  	  s/^#Port 22/Port ${port_number}/
-  	  s/^#StrictModes yes/StrictModes no/" \
-	< ${SYSCONFDIR}/sshd_config \
-	> "${sshdconfig_tmp}"
-    if ! /usr/bin/mv "${sshdconfig_tmp}" ${SYSCONFDIR}/sshd_config
+    /usr/bin/sed -i -e "s/^#\?[[:space:]]*Port[[:space:]].*/Port ${port_number}/" \
+      ${SYSCONFDIR}/sshd_config
+    if [ $? -ne 0 ]
     then
-	csih_warning "Setting privilege separation to 'yes' failed!"
-	csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
-	let ++ret
+      csih_warning "Setting listening port to ${port_number} failed!"
+      csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
+      let ++ret
     fi
-  elif [ "${privsep_configured}" != "yes" ]
+  fi
+  if [ "${strictmodes}" = "no" ]
   then
-    echo >> ${SYSCONFDIR}/sshd_config
-    if ! echo "UsePrivilegeSeparation ${privsep_used}" >> ${SYSCONFDIR}/sshd_config
+    /usr/bin/sed -i -e "s/^#\?[[:space:]]*StrictModes[[:space:]].*/StrictModes no/" \
+      ${SYSCONFDIR}/sshd_config
+    if [ $? -ne 0 ]
     then
-	csih_warning "Setting privilege separation to 'yes' failed!"
-	csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
-	let ++ret
+      csih_warning "Setting StrictModes to 'no' failed!"
+      csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
+      let ++ret
+    fi
+  fi
+  if [ "${sshd_config_configured}" != "yes" ]
+  then
+    /usr/bin/sed -i -e "
+      s/^#\?UsePrivilegeSeparation .*/UsePrivilegeSeparation ${privsep_used}/" \
+      ${SYSCONFDIR}/sshd_config
+    if [ $? -ne 0 ]
+    then
+      csih_warning "Setting privilege separation failed!"
+      csih_warning "Check your ${SYSCONFDIR}/sshd_config file!"
+      let ++ret
     fi
   fi
   return $ret
-} # --- End of sshd_privsep --- #
+} # --- End of sshd_config_tweak --- #
 
 # ======================================================================
 # Routine: update_inetd_conf
@@ -207,11 +234,11 @@ update_inetd_conf() {
     # we have inetutils-1.5 inetd.d support
     if [ -f "${_inetcnf}" ]
     then
-      /usr/bin/grep -q '^[ \t]*ssh' "${_inetcnf}" && _with_comment=0
+      /usr/bin/grep -q '^[[:space:]]*ssh' "${_inetcnf}" && _with_comment=0
 
       # check for sshd OR ssh in top-level inetd.conf file, and remove
       # will be replaced by a file in inetd.d/
-      if [ `/usr/bin/grep -q '^[# \t]*ssh' "${_inetcnf}"; echo $?` -eq 0 ]
+      if [ $(/usr/bin/grep -q '^[# \t]*ssh' "${_inetcnf}"; echo $?) -eq 0 ]
       then
 	/usr/bin/grep -v '^[# \t]*ssh' "${_inetcnf}" >> "${_inetcnf_tmp}"
 	if [ -f "${_inetcnf_tmp}" ]
@@ -236,9 +263,9 @@ update_inetd_conf() {
     then
       if [ "${_with_comment}" -eq 0 ]
       then
-	/usr/bin/sed -e 's/@COMMENT@[ \t]*//' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
+	/usr/bin/sed -e 's/@COMMENT@[[:space:]]*//' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
       else
-	/usr/bin/sed -e 's/@COMMENT@[ \t]*/# /' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
+	/usr/bin/sed -e 's/@COMMENT@[[:space:]]*/# /' < "${_sshd_inetd_conf}" > "${_sshd_inetd_conf_tmp}"
       fi
       if /usr/bin/mv "${_sshd_inetd_conf_tmp}" "${_sshd_inetd_conf}"
       then
@@ -251,13 +278,13 @@ update_inetd_conf() {
 
   elif [ -f "${_inetcnf}" ]
   then
-    /usr/bin/grep -q '^[ \t]*sshd' "${_inetcnf}" && _with_comment=0
+    /usr/bin/grep -q '^[[:space:]]*sshd' "${_inetcnf}" && _with_comment=0
 
     # check for sshd in top-level inetd.conf file, and remove
     # will be replaced by a file in inetd.d/
-    if [ `/usr/bin/grep -q '^[# \t]*sshd' "${_inetcnf}"; echo $?` -eq 0 ]
+    if [ `/usr/bin/grep -q '^#\?[[:space:]]*sshd' "${_inetcnf}"; echo $?` -eq 0 ]
     then
-      /usr/bin/grep -v '^[# \t]*sshd' "${_inetcnf}" >> "${_inetcnf_tmp}"
+      /usr/bin/grep -v '^#\?[[:space:]]*sshd' "${_inetcnf}" >> "${_inetcnf_tmp}"
       if [ -f "${_inetcnf_tmp}" ]
       then
 	if /usr/bin/mv "${_inetcnf_tmp}" "${_inetcnf}"
@@ -305,24 +332,31 @@ check_service_files_ownership() {
 
   if [ -z "${run_service_as}" ]
   then
-    accnt_name=$(/usr/bin/cygrunsrv -VQ sshd | /usr/bin/sed -ne 's/^Account *: *//gp')
+    accnt_name=$(/usr/bin/cygrunsrv -VQ sshd |
+    		 /usr/bin/sed -ne 's/^Account *: *//gp')
     if [ "${accnt_name}" = "LocalSystem" ]
     then
       # Convert "LocalSystem" to "SYSTEM" as is the correct account name
-      accnt_name="SYSTEM:"
-    elif [[ "${accnt_name}" =~ ^\.\\ ]]
-    then
-      # Convert "." domain to local machine name
-      accnt_name="U-${COMPUTERNAME}${accnt_name#.},"
+      run_service_as="SYSTEM"
+    else
+      dom="${accnt_name%%\\*}"
+      accnt_name="${accnt_name#*\\}"
+      if [ "${dom}" = '.' ]
+      then
+	# Check local account
+	run_service_as=$(/usr/bin/mkpasswd -l -u "${accnt_name}" |
+			 /usr/bin/awk -F: '{print $1;}')
+      else
+      	# Check domain
+	run_service_as=$(/usr/bin/mkpasswd -d "${dom}" -u "${accnt_name}" |
+			 /usr/bin/awk -F: '{print $1;}')
+      fi
     fi
-    run_service_as=$(/usr/bin/grep -Fi "${accnt_name}" /etc/passwd | /usr/bin/awk -F: '{print $1;}')
     if [ -z "${run_service_as}" ]
     then
-      csih_warning "Couldn't determine name of user running sshd service from /etc/passwd!"
+      csih_warning "Couldn't determine name of user running sshd service from account database!"
       csih_warning "As a result, this script cannot make sure that the files used"
       csih_warning "by the sshd service belong to the user running the service."
-      csih_warning "Please re-run the mkpasswd tool to make sure the /etc/passwd"
-      csih_warning "file is in a good shape."
       return 1
     fi
   fi
@@ -375,7 +409,7 @@ install_service() {
   local ret=0
 
   echo
-  if /usr/bin/cygrunsrv -Q sshd >/dev/null 2>&1
+  if /usr/bin/cygrunsrv -Q ${service_name} >/dev/null 2>&1
   then
     csih_inform "Sshd service is already installed."
     check_service_files_ownership "" || let ret+=$?
@@ -431,7 +465,7 @@ install_service() {
       fi
       if [ -z "${password}" ]
       then
-	if /usr/bin/cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd \
+	if /usr/bin/cygrunsrv -I ${service_name} -d "CYGWIN ${service_name}" -p /usr/sbin/sshd \
 			      -a "-D" -y tcpip "${cygwin_env[@]}"
 	then
 	  echo
@@ -441,20 +475,20 @@ install_service() {
 	  csih_inform "will start automatically after the next reboot."
 	fi
       else
-	if /usr/bin/cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd \
+	if /usr/bin/cygrunsrv -I ${service_name} -d "CYGWIN ${service_name}" -p /usr/sbin/sshd \
 			      -a "-D" -y tcpip "${cygwin_env[@]}" \
 			      -u "${run_service_as}" -w "${password}"
 	then
 	  /usr/bin/editrights -u "${run_service_as}" -a SeServiceLogonRight
 	  echo
 	  csih_inform "The sshd service has been installed under the '${run_service_as}'"
-	  csih_inform "account.  To start the service now, call \`net start sshd' or"
-	  csih_inform "\`cygrunsrv -S sshd'.  Otherwise, it will start automatically"
+	  csih_inform "account.  To start the service now, call \`net start ${service_name}' or"
+	  csih_inform "\`cygrunsrv -S ${service_name}'.  Otherwise, it will start automatically"
 	  csih_inform "after the next reboot."
 	fi
       fi
 
-      if /usr/bin/cygrunsrv -Q sshd >/dev/null 2>&1
+      if /usr/bin/cygrunsrv -Q ${service_name} >/dev/null 2>&1
       then
 	check_service_files_ownership "${run_service_as}" || let ret+=$?
       else
@@ -528,6 +562,11 @@ do
     shift
     ;;
 
+  -N | --name )
+    service_name=$1
+    shift
+    ;;
+
   -p | --port )
     port_number=$1
     shift
@@ -557,6 +596,7 @@ do
     echo "  --yes    -y            Answer all questions with \"yes\" automatically."
     echo "  --no     -n            Answer all questions with \"no\" automatically."
     echo "  --cygwin -c <options>  Use \"options\" as value for CYGWIN environment var."
+    echo "  --name   -N <name>     sshd windows service name."
     echo "  --port   -p <n>        sshd listens on port n."
     echo "  --user   -u <account>  privileged user for service, default 'cyg_server'."
     echo "  --pwd    -w <passwd>   Use \"pwd\" as password for privileged user."
@@ -590,10 +630,7 @@ then
   csih_warning "However, it seems your account does not have these privileges."
   csih_warning "Here's the list of groups in your user token:"
   echo
-  for i in $(/usr/bin/id -G)
-  do
-    /usr/bin/awk -F: "/[^:]*:[^:]*:$i:/{ print \"    \" \$1; }" /etc/group
-  done
+  /usr/bin/id -Gnz | xargs -0n1 echo "   "
   echo
   csih_warning "This usually means you're running this script from a non-admin"
   csih_warning "desktop session, or in a non-elevated shell under UAC control."
@@ -614,32 +651,6 @@ fi
 echo
 
 warning_cnt=0
-
-# Check for ${SYSCONFDIR} directory
-csih_make_dir "${SYSCONFDIR}" "Cannot create global configuration files."
-if ! /usr/bin/chmod 775 "${SYSCONFDIR}" >/dev/null 2>&1
-then
-  csih_warning "Can't set permissions on ${SYSCONFDIR}!"
-  let ++warning_cnt
-fi
-if ! /usr/bin/setfacl -m u:system:rwx "${SYSCONFDIR}" >/dev/null 2>&1
-then
-  csih_warning "Can't set extended permissions on ${SYSCONFDIR}!"
-  let ++warning_cnt
-fi
-
-# Check for /var/log directory
-csih_make_dir "${LOCALSTATEDIR}/log" "Cannot create log directory."
-if ! /usr/bin/chmod 775 "${LOCALSTATEDIR}/log" >/dev/null 2>&1
-then
-  csih_warning "Can't set permissions on ${LOCALSTATEDIR}/log!"
-  let ++warning_cnt
-fi
-if ! /usr/bin/setfacl -m u:system:rwx "${LOCALSTATEDIR}/log" >/dev/null 2>&1
-then
-  csih_warning "Can't set extended permissions on ${LOCALSTATEDIR}/log!"
-  let ++warning_cnt
-fi
 
 # Create /var/log/lastlog if not already exists
 if [ -e ${LOCALSTATEDIR}/log/lastlog -a ! -f ${LOCALSTATEDIR}/log/lastlog ]
@@ -665,13 +676,9 @@ then
   csih_warning "Can't set permissions on ${LOCALSTATEDIR}/empty!"
   let ++warning_cnt
 fi
-if ! /usr/bin/setfacl -m u:system:rwx "${LOCALSTATEDIR}/empty" >/dev/null 2>&1
-then
-  csih_warning "Can't set extended permissions on ${LOCALSTATEDIR}/empty!"
-  let ++warning_cnt
-fi
 
 # generate missing host keys
+csih_inform "Generating missing SSH host keys"
 /usr/bin/ssh-keygen -A || let warning_cnt+=$?
 
 # handle ssh_config
@@ -690,10 +697,11 @@ fi
 csih_install_config "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults" || let ++warning_cnt
 if ! /usr/bin/cmp "${SYSCONFDIR}/sshd_config" "${SYSCONFDIR}/defaults/${SYSCONFDIR}/sshd_config" >/dev/null 2>&1
 then
-  /usr/bin/grep -q UsePrivilegeSeparation ${SYSCONFDIR}/sshd_config && privsep_configured=yes
+  sshd_config_configured=yes
 fi
+sshd_strictmodes || let warning_cnt+=$?
 sshd_privsep || let warning_cnt+=$?
-
+sshd_config_tweak || let warning_cnt+=$?
 update_services_file || let warning_cnt+=$?
 update_inetd_conf || let warning_cnt+=$?
 install_service || let warning_cnt+=$?

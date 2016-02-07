@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.93 2014/01/10 05:59:19 djm Exp $
+#	$OpenBSD: sshd_config,v 1.97 2015/08/06 14:53:21 deraadt Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -120,7 +120,7 @@
 #MaxStartups 10:30:100
 #PermitTunnel no
 #ChrootDirectory none
-#VersionAddendum FreeBSD-20160124
+#VersionAddendum FreeBSD-20160125
 
 # no default banner path
 #Banner none

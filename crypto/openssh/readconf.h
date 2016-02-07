@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.101 2014/02/23 20:11:36 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.110 2015/07/10 06:21:53 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -17,21 +17,12 @@
 #ifndef READCONF_H
 #define READCONF_H
 
-/* Data structure for representing a forwarding request. */
-
-typedef struct {
-	char	 *listen_host;		/* Host (address) to listen on. */
-	int	  listen_port;		/* Port to forward. */
-	char	 *connect_host;		/* Host to connect. */
-	int	  connect_port;		/* Port to connect on connect_host. */
-	int	  allocated_port;	/* Dynamically allocated listen port */
-	int	  handle;		/* Handle for dynamic listen ports */
-}       Forward;
 /* Data structure for representing option data. */
 
 #define MAX_SEND_ENV		256
 #define SSH_MAX_HOSTS_FILES	32
 #define MAX_CANON_DOMAINS	32
+#define PATH_MAX_SUN		(sizeof((struct sockaddr_un *)0)->sun_path)
 
 struct allowed_cname {
 	char *source_list;
@@ -45,7 +36,7 @@ typedef struct {
 	int     forward_x11_trusted;	/* Trust Forward X11 display. */
 	int     exit_on_forward_failure;	/* Exit if bind(2) fails for -L/-R */
 	char   *xauth_location;	/* Location for xauth program */
-	int     gateway_ports;	/* Allow remote connects to forwarded ports. */
+	struct ForwardOptions fwd_opts;	/* forwarding options */
 	int     use_privileged_port;	/* Don't use privileged port if false. */
 	int     rhosts_rsa_authentication;	/* Try rhosts with RSA
 						 * authentication. */
@@ -103,15 +94,15 @@ typedef struct {
 	int     num_identity_files;	/* Number of files for RSA/DSA identities. */
 	char   *identity_files[SSH_MAX_IDENTITY_FILES];
 	int    identity_file_userprovided[SSH_MAX_IDENTITY_FILES];
-	Key    *identity_keys[SSH_MAX_IDENTITY_FILES];
+	struct sshkey *identity_keys[SSH_MAX_IDENTITY_FILES];
 
 	/* Local TCP/IP forward requests. */
 	int     num_local_forwards;
-	Forward *local_forwards;
+	struct Forward *local_forwards;
 
 	/* Remote TCP/IP forward requests. */
 	int     num_remote_forwards;
-	Forward *remote_forwards;
+	struct Forward *remote_forwards;
 	int	clear_forwardings;
 
 	int	enable_ssh_keysign;
@@ -154,7 +145,16 @@ typedef struct {
 	int	num_permitted_cnames;
 	struct allowed_cname permitted_cnames[MAX_CANON_DOMAINS];
 
-	char   *version_addendum;	/* Appended to SSH banner */
+	char	*revoked_host_keys;
+
+	int	 fingerprint_hash;
+
+	int	 update_hostkeys; /* one of SSH_UPDATE_HOSTKEYS_* */
+
+	char   *hostbased_key_types;
+	char   *pubkey_key_types;
+
+	char	*version_addendum; /* Appended to SSH banner */
 
 	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;
@@ -176,20 +176,26 @@ typedef struct {
 
 #define SSHCONF_CHECKPERM	1  /* check permissions on config file */
 #define SSHCONF_USERCONF	2  /* user provided config file not system */
+#define SSHCONF_POSTCANON	4  /* After hostname canonicalisation */
+
+#define SSH_UPDATE_HOSTKEYS_NO	0
+#define SSH_UPDATE_HOSTKEYS_YES	1
+#define SSH_UPDATE_HOSTKEYS_ASK	2
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
 void	 fill_default_options_for_canonicalization(Options *);
-int	 process_config_line(Options *, struct passwd *, const char *, char *,
-    const char *, int, int *, int);
+int	 process_config_line(Options *, struct passwd *, const char *,
+    const char *, char *, const char *, int, int *, int);
 int	 read_config_file(const char *, struct passwd *, const char *,
-    Options *, int);
-int	 parse_forward(Forward *, const char *, int, int);
+    const char *, Options *, int);
+int	 parse_forward(struct Forward *, const char *, int, int);
 int	 default_ssh_port(void);
 int	 option_clear_or_none(const char *);
+void	 dump_client_config(Options *o, const char *host);
 
-void	 add_local_forward(Options *, const Forward *);
-void	 add_remote_forward(Options *, const Forward *);
+void	 add_local_forward(Options *, const struct Forward *);
+void	 add_remote_forward(Options *, const struct Forward *);
 void	 add_identity_file(Options *, const char *, const char *, int);
 
 #endif				/* READCONF_H */
