@@ -969,7 +969,7 @@ handle_rtmsg(struct rt_msghdr *rtm)
 {
 	struct sockaddr *addrs[RTAX_MAX];
 	struct if_msghdr *ifm;
-	struct ifa_msghdr ifam;
+	struct ifa_msghdr ifam, *ifamp;
 	struct ifma_msghdr *ifmam;
 #ifdef RTM_IFANNOUNCE
 	struct if_announcemsghdr *ifan;
@@ -989,8 +989,9 @@ handle_rtmsg(struct rt_msghdr *rtm)
 	switch (rtm->rtm_type) {
 
 	  case RTM_NEWADDR:
-		memcpy(&ifam, rtm, sizeof(ifam));
-		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(&ifam + 1), addrs);
+		ifamp = (struct ifa_msghdr *)rtm;
+		memcpy(&ifam, ifamp, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(ifamp + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL || addrs[RTAX_NETMASK] == NULL)
 			break;
 
@@ -1016,8 +1017,9 @@ handle_rtmsg(struct rt_msghdr *rtm)
 		break;
 
 	  case RTM_DELADDR:
-		memcpy(&ifam, rtm, sizeof(ifam));
-		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(&ifam + 1), addrs);
+		ifamp = (struct ifa_msghdr *)rtm;
+		memcpy(&ifam, ifamp, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(ifamp + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL)
 			break;
 
