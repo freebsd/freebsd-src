@@ -1,4 +1,4 @@
-/*	$NetBSD: search.c,v 1.30 2011/10/04 15:27:04 christos Exp $	*/
+/*	$NetBSD: search.c,v 1.31 2016/01/30 04:02:51 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)search.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: search.c,v 1.30 2011/10/04 15:27:04 christos Exp $");
+__RCSID("$NetBSD: search.c,v 1.31 2016/01/30 04:02:51 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -149,7 +149,7 @@ el_match(const Char *str, const Char *pat)
 	if (re_comp(ct_encode_string(pat, &conv)) != NULL)
 		return 0;
 	else
-		return re_exec(ct_encode_string(str, &conv) == 1);
+		return re_exec(ct_encode_string(str, &conv)) == 1;
 #endif
 }
 
