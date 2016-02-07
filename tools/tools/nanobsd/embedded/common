@@ -110,6 +110,8 @@ mkdir -p ${NANO_IMAGES}
 NANO_IMAGES=$(realpath ${NANO_IMAGES})
 mkdir -p ${NANO_WORLDDIR}
 NANO_WORLDDIR=$(realpath ${NANO_WORLDDIR})
+mkdir -p ${NANO_DISKIMGDIR}
+NANO_DISKIMGDIR=$(realpath ${NANO_DISKIMGDIR})
 
 NANO_FAT_DIR=${NANO_LOG}/_.fat
 
