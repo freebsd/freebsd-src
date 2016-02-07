@@ -1,4 +1,4 @@
-/* $OpenBSD: digest.h,v 1.2 2014/01/27 18:58:14 markus Exp $ */
+/* $OpenBSD: digest.h,v 1.7 2014/12/21 22:27:56 djm Exp $ */
 /*
  * Copyright (c) 2013 Damien Miller <djm@mindrot.org>
  *
@@ -30,7 +30,14 @@
 #define SSH_DIGEST_SHA512	5
 #define SSH_DIGEST_MAX		6
 
+struct sshbuf;
 struct ssh_digest_ctx;
+
+/* Looks up a digest algorithm by name */
+int ssh_digest_alg_by_name(const char *name);
+
+/* Returns the algorithm name for a digest identifier */
+const char *ssh_digest_alg_name(int alg);
 
 /* Returns the algorithm's digest length in bytes or 0 for invalid algorithm */
 size_t ssh_digest_bytes(int alg);
@@ -47,14 +54,15 @@ int ssh_digest_memory(int alg, const void *m, size_t mlen,
     u_char *d, size_t dlen)
 	__attribute__((__bounded__(__buffer__, 2, 3)))
 	__attribute__((__bounded__(__buffer__, 4, 5)));
-int ssh_digest_buffer(int alg, const Buffer *b, u_char *d, size_t dlen)
+int ssh_digest_buffer(int alg, const struct sshbuf *b, u_char *d, size_t dlen)
 	__attribute__((__bounded__(__buffer__, 3, 4)));
 
 /* Update API */
 struct ssh_digest_ctx *ssh_digest_start(int alg);
 int ssh_digest_update(struct ssh_digest_ctx *ctx, const void *m, size_t mlen)
 	__attribute__((__bounded__(__buffer__, 2, 3)));
-int ssh_digest_update_buffer(struct ssh_digest_ctx *ctx, const Buffer *b);
+int ssh_digest_update_buffer(struct ssh_digest_ctx *ctx,
+    const struct sshbuf *b);
 int ssh_digest_final(struct ssh_digest_ctx *ctx, u_char *d, size_t dlen)
 	__attribute__((__bounded__(__buffer__, 2, 3)));
 void ssh_digest_free(struct ssh_digest_ctx *ctx);

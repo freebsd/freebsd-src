@@ -1,4 +1,4 @@
-/* $OpenBSD: msg.c,v 1.15 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: msg.c,v 1.16 2015/01/15 09:40:00 djm Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -34,17 +34,18 @@
 #include <unistd.h>
 #include <stdarg.h>
 
-#include "buffer.h"
+#include "sshbuf.h"
+#include "ssherr.h"
 #include "log.h"
 #include "atomicio.h"
 #include "msg.h"
 #include "misc.h"
 
 int
-ssh_msg_send(int fd, u_char type, Buffer *m)
+ssh_msg_send(int fd, u_char type, struct sshbuf *m)
 {
 	u_char buf[5];
-	u_int mlen = buffer_len(m);
+	u_int mlen = sshbuf_len(m);
 
 	debug3("ssh_msg_send: type %u", (unsigned int)type & 0xff);
 
@@ -54,7 +55,7 @@ ssh_msg_send(int fd, u_char type, Buffer *m)
 		error("ssh_msg_send: write");
 		return (-1);
 	}
-	if (atomicio(vwrite, fd, buffer_ptr(m), mlen) != mlen) {
+	if (atomicio(vwrite, fd, (u_char *)sshbuf_ptr(m), mlen) != mlen) {
 		error("ssh_msg_send: write");
 		return (-1);
 	}
@@ -62,10 +63,11 @@ ssh_msg_send(int fd, u_char type, Buffer *m)
 }
 
 int
-ssh_msg_recv(int fd, Buffer *m)
+ssh_msg_recv(int fd, struct sshbuf *m)
 {
-	u_char buf[4];
+	u_char buf[4], *p;
 	u_int msg_len;
+	int r;
 
 	debug3("ssh_msg_recv entering");
 
@@ -79,9 +81,12 @@ ssh_msg_recv(int fd, Buffer *m)
 		error("ssh_msg_recv: read: bad msg_len %u", msg_len);
 		return (-1);
 	}
-	buffer_clear(m);
-	buffer_append_space(m, msg_len);
-	if (atomicio(read, fd, buffer_ptr(m), msg_len) != msg_len) {
+	sshbuf_reset(m);
+	if ((r = sshbuf_reserve(m, msg_len, &p)) != 0) {
+		error("%s: buffer error: %s", __func__, ssh_err(r));
+		return -1;
+	}
+	if (atomicio(read, fd, p, msg_len) != msg_len) {
 		error("ssh_msg_recv: read: %s", strerror(errno));
 		return (-1);
 	}

@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.4 2006/08/19 09:12:14 dtucker Exp $
+# $Id: Makefile.in,v 1.5 2014/06/17 13:06:08 dtucker Exp $
 
 sysconfdir=@sysconfdir@
 piddir=@piddir@
@@ -16,11 +16,11 @@ LIBS=@LIBS@
 LDFLAGS=@LDFLAGS@ $(LIBCOMPAT)
 
 TESTPROGS=closefromtest$(EXEEXT) snprintftest$(EXEEXT) strduptest$(EXEEXT) \
-	strtonumtest$(EXEEXT)
+	strtonumtest$(EXEEXT) opensslvertest$(EXEEXT)
 
 all:	t-exec ${OTHERTESTS}
 
-%$(EXEEXT):	%.c
+%$(EXEEXT):	%.c $(LIBCOMPAT)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $< $(LIBCOMPAT) $(LIBS)
 
 t-exec:	$(TESTPROGS)

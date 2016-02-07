@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp-server.8,v 1.25 2013/10/14 14:18:56 jmc Exp $
+.\" $OpenBSD: sftp-server.8,v 1.27 2014/12/11 04:16:14 djm Exp $
 .\"
 .\" Copyright (c) 2000 Markus Friedl.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: October 14 2013 $
+.Dd $Mdocdate: December 11 2014 $
 .Dt SFTP-SERVER 8
 .Os
 .Sh NAME
@@ -67,7 +67,7 @@ Valid options are:
 specifies an alternate starting directory for users.
 The pathname may contain the following tokens that are expanded at runtime:
 %% is replaced by a literal '%',
-%h is replaced by the home directory of the user being authenticated,
+%d is replaced by the home directory of the user being authenticated,
 and %u is replaced by the username of that user.
 The default is to use the user's home directory.
 This option is useful in conjunction with the
@@ -140,11 +140,11 @@ to be applied to newly-created files and directories, instead of the
 user's default mask.
 .El
 .Pp
-For logging to work,
+On some systems,
 .Nm
 must be able to access
-.Pa /dev/log .
-Use of
+.Pa /dev/log
+for logging to work, and use of
 .Nm
 in a chroot configuration therefore requires that
 .Xr syslogd 8

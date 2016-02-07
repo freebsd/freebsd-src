@@ -52,8 +52,8 @@
    against it */
 /* #undef BROKEN_READ_COMPARISON */
 
-/* Define if you have a broken realpath. */
-/* #undef BROKEN_REALPATH */
+/* realpath does not work with nonexistent files */
+#define BROKEN_REALPATH 1
 
 /* Needed for NeXT */
 /* #undef BROKEN_SAVED_UIDS */
@@ -292,6 +292,10 @@
 /* Define if your libraries define daemon() */
 #define HAVE_DAEMON 1
 
+/* Define to 1 if you have the declaration of `AI_NUMERICSERV', and to 0 if
+   you don't. */
+#define HAVE_DECL_AI_NUMERICSERV 1
+
 /* Define to 1 if you have the declaration of `authenticate', and to 0 if you
    don't. */
 /* #undef HAVE_DECL_AUTHENTICATE */
@@ -420,6 +424,9 @@
 
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 #define HAVE_EVP_MD_CTX_INIT 1
+
+/* Define to 1 if you have the `EVP_ripemd160' function. */
+#define HAVE_EVP_RIPEMD160 1
 
 /* Define to 1 if you have the `EVP_sha256' function. */
 #define HAVE_EVP_SHA256 1
@@ -769,6 +776,9 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
+/* Define to 1 if you have the `memset_s' function. */
+/* #undef HAVE_MEMSET_S */
+
 /* Define to 1 if you have the `mkdtemp' function. */
 #define HAVE_MKDTEMP 1
 
@@ -868,6 +878,9 @@
 
 /* Define to 1 if you have the <readpassphrase.h> header file. */
 #define HAVE_READPASSPHRASE_H 1
+
+/* Define to 1 if you have the `reallocarray' function. */
+/* #undef HAVE_REALLOCARRAY */
 
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
@@ -1139,8 +1152,8 @@
 /* Define to 1 if you have the <sys/bsdtty.h> header file. */
 /* #undef HAVE_SYS_BSDTTY_H */
 
-/* Define to 1 if you have the <sys/capability.h> header file. */
-#define HAVE_SYS_CAPABILITY_H 1
+/* Define to 1 if you have the <sys/capsicum.h> header file. */
+#define HAVE_SYS_CAPSICUM_H 1
 
 /* Define to 1 if you have the <sys/cdefs.h> header file. */
 #define HAVE_SYS_CDEFS_H 1
@@ -1325,9 +1338,6 @@
 /* Define if va_copy exists */
 #define HAVE_VA_COPY 1
 
-/* Define to 1 if you have the `vhangup' function. */
-/* #undef HAVE_VHANGUP */
-
 /* Define to 1 if you have the <vis.h> header file. */
 #define HAVE_VIS_H 1
 
@@ -1468,7 +1478,7 @@
 /* libcrypto is missing AES 192 and 256 bit functions */
 /* #undef OPENSSL_LOBOTOMISED_AES */
 
-/* Define if you want OpenSSL's internally seeded PRNG only */
+/* Define if you want the OpenSSL internally seeded PRNG only */
 #define OPENSSL_PRNG_ONLY 1
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -1663,8 +1673,14 @@
 /* Define if you want IRIX project management */
 /* #undef WITH_IRIX_PROJECT */
 
+/* use libcrypto for cryptography */
+#define WITH_OPENSSL 1
+
 /* Define if you want SELinux support. */
 /* #undef WITH_SELINUX */
+
+/* include SSH protocol version 1 support */
+#define WITH_SSH1 1
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

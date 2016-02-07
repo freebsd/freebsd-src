@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.29 2013/11/20 20:54:10 deraadt Exp $ */
+/* $OpenBSD: match.c,v 1.30 2015/05/04 06:10:48 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -115,15 +115,13 @@ match_pattern(const char *s, const char *pattern)
  * indicate negation).  Returns -1 if negation matches, 1 if there is
  * a positive match, 0 if there is no match at all.
  */
-
 int
-match_pattern_list(const char *string, const char *pattern, u_int len,
-    int dolower)
+match_pattern_list(const char *string, const char *pattern, int dolower)
 {
 	char sub[1024];
 	int negated;
 	int got_positive;
-	u_int i, subi;
+	u_int i, subi, len = strlen(pattern);
 
 	got_positive = 0;
 	for (i = 0; i < len;) {
@@ -177,9 +175,9 @@ match_pattern_list(const char *string, const char *pattern, u_int len,
  * a positive match, 0 if there is no match at all.
  */
 int
-match_hostname(const char *host, const char *pattern, u_int len)
+match_hostname(const char *host, const char *pattern)
 {
-	return match_pattern_list(host, pattern, len, 1);
+	return match_pattern_list(host, pattern, 1);
 }
 
 /*
@@ -200,7 +198,7 @@ match_host_and_ip(const char *host, const char *ipaddr,
 		return 0;
 
 	/* negative hostname match */
-	if ((mhost = match_hostname(host, patterns, strlen(patterns))) == -1)
+	if ((mhost = match_hostname(host, patterns)) == -1)
 		return 0;
 	/* no match at all */
 	if (mhost == 0 && mip == 0)

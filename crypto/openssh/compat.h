@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.h,v 1.44 2013/12/30 23:52:27 djm Exp $ */
+/* $OpenBSD: compat.h,v 1.48 2015/05/26 23:23:40 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999, 2000, 2001 Markus Friedl.  All rights reserved.
@@ -60,10 +60,12 @@
 #define SSH_NEW_OPENSSH		0x04000000
 #define SSH_BUG_DYNAMIC_RPORT	0x08000000
 #define SSH_BUG_CURVE25519PAD	0x10000000
+#define SSH_BUG_HOSTKEYS	0x20000000
+#define SSH_BUG_DHGEX_LARGE	0x40000000
 
 void     enable_compat13(void);
 void     enable_compat20(void);
-void     compat_datafellows(const char *);
+u_int    compat_datafellows(const char *);
 int	 proto_spec(const char *);
 char	*compat_cipher_proposal(char *);
 char	*compat_pkalg_proposal(char *);
