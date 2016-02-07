@@ -37,6 +37,7 @@
 # The intended user-driven targets are:
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
+# checkworld  - run test suite on installed world
 # doxygen     - build API documentation of the kernel
 # update      - convenient way to update your source tree (eg: svn/svnup)
 #
@@ -1445,6 +1446,20 @@ packagekernel:
 .endif
 .endif
 
+#
+#
+# checkworld
+#
+# Run test suite on installed world.
+#
+checkworld: .PHONY
+	@if [ ! -x ${LOCALBASE}/bin/kyua ]; then \
+		echo "You need kyua (devel/kyua) to run the test suite." | /usr/bin/fmt; \
+		exit 1; \
+	fi
+	${_+_}${LOCALBASE}/bin/kyua test -k ${TESTSBASE}/Kyuafile
+
+#
 #
 # doxygen
 #

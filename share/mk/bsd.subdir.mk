@@ -43,11 +43,11 @@ SUBDIR_TARGETS+= \
 		checkdpadd clean cleandepend cleandir cleanilinks \
 		cleanobj depend distribute files includes installconfig \
 		installfiles installincludes realinstall lint maninstall \
-		manlint obj objlink regress tags \
+		manlint obj objlink tags \
 
 # Described above.
 STANDALONE_SUBDIR_TARGETS+= \
-		obj checkdpadd clean cleandepend cleandir \
+		obj check checkdpadd clean cleandepend cleandir \
 		cleanilinks cleanobj installconfig \
 
 .include <bsd.init.mk>
