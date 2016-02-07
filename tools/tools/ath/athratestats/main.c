@@ -310,7 +310,7 @@ main(int argc, char *argv[])
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
-		ifname = "ath0";
+		ifname = ATH_DEFAULT;
 
 	while ((c = getopt(argc, argv, "ahi:m:s:")) != -1) {
 		switch (c) {

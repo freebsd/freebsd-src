@@ -30,10 +30,6 @@
 #include "ah.h"
 #include "ah_internal.h"
 
-#ifndef	ATH_DEFAULT
-#define	ATH_DEFAULT	"ath0"
-#endif
-
 #include <getopt.h>
 #include <errno.h>
 #include <err.h>
