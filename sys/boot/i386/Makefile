@@ -8,6 +8,10 @@ SUBDIR=		mbr pmbr boot0 boot0sio btx boot2 cdboot gptboot \
 # special boot programs, 'self-extracting boot2+loader'
 SUBDIR+=	pxeldr
 
+.if ${MACHINE_CPUARCH} == "i386"
+SUBDIR+=	kgzldr
+.endif
+
 .if ${MK_ZFS} != "no"
 SUBDIR+=	zfsboot gptzfsboot zfsloader
 .endif
