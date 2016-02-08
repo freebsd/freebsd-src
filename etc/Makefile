@@ -139,8 +139,12 @@ BIN1+= pf.os
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-BIN1+=	rc.sendmail
+FILESGROUPS+=	SENDMAILRC
+SENDMAILRC=	rc.sendmail
 .endif
+SENDMAILRCDIR=	/etc
+SENDMAILRCMODE=	${BINMODE}
+SENDMAILRCPACKAGE=sendmail
 
 .if ${MK_TCSH} != "no"
 BIN1+= csh.cshrc csh.login csh.logout

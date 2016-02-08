@@ -296,8 +296,12 @@ FILES+=		routed
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-FILES+=		sendmail
+FILESGROUPS+=	SMRCD
+SMRCD=		sendmail
 .endif
+SMRCDDIR=	/etc/rc.d
+SMRCDDIRMODE=	${BINMODE}
+SMRCDPACKAGE=	sendmail
 
 .if ${MK_TIMED} != "no"
 FILES+=		timed
