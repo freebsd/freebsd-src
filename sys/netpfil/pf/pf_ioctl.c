@@ -350,7 +350,9 @@ pf_empty_pool(struct pf_palist *poola)
 			pfi_dynaddr_remove(pa->addr.p.dyn);
 			break;
 		case PF_ADDR_TABLE:
-			pfr_detach_table(pa->addr.p.tbl);
+			/* XXX: this could be unfinished pooladdr on pabuf */
+			if (pa->addr.p.tbl != NULL)
+				pfr_detach_table(pa->addr.p.tbl);
 			break;
 		}
 		if (pa->kif)
