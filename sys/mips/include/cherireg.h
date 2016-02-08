@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2015 Robert N. M. Watson
+ * Copyright (c) 2011-2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -62,20 +62,29 @@
 #define	CHERI_PERM_SEAL				(1 << 7)	/* 0x00000080 */
 #define	CHERI_PERM_RESERVED0			(1 << 8)	/* 0x00000100 */
 #define	CHERI_PERM_RESERVED1			(1 << 9)	/* 0x00000200 */
+
+/*
+ * 256-bit CHERI has multiple exception-handling permissions, whereas 128-bit
+ * CHERI has a single exception-handling permission.
+ */
+#if (CHERICAP_SIZE == 32)
 #define	CHERI_PERM_ACCESS_EPCC			(1 << 10)	/* 0x00000400 */
 #define	CHERI_PERM_ACCESS_KDC			(1 << 11)	/* 0x00000800 */
 #define	CHERI_PERM_ACCESS_KCC			(1 << 12)	/* 0x00001000 */
 #define	CHERI_PERM_ACCESS_KR1C			(1 << 13)	/* 0x00002000 */
 #define	CHERI_PERM_ACCESS_KR2C			(1 << 14)	/* 0x00004000 */
+#else /* (!(CHERICAP_SIZE == 32)) */
+#define	CHERI_PERM_ACCESS_SYSTEM_REGISTERS	(1 << 10)	/* 0x00000400 */
+#endif /* (!(CHERICAP_SIZE == 32)) */
 
 /*
- * User-defined permission bits.  The kernel actually snags one for the
- * purposes of authorising system calls from $pcc.  This is a bit of an
- * oddity: normally, we check permissions on data capabilities, not code
- * capabilities, but aligns with 'privilege' checks: e.g., $epcc access.
+ * User-defined permission bits.
+ *
+ * 256-bit CHERI has a substantially larger number of user-defined
+ * permissions.
  */
+#if (CHERICAP_SIZE == 32)
 #define	CHERI_PERM_USER0			(1 << 15)	/* 0x00008000 */
-#define	CHERI_PERM_SYSCALL			CHERI_PERM_USER0
 #define	CHERI_PERM_USER1			(1 << 16)	/* 0x00010000 */
 #define	CHERI_PERM_USER2			(1 << 17)	/* 0x00020000 */
 #define	CHERI_PERM_USER3			(1 << 18)	/* 0x00040000 */
@@ -83,21 +92,6 @@
 #define	CHERI_PERM_USER5			(1 << 20)	/* 0x00100000 */
 #define	CHERI_PERM_USER6			(1 << 21)	/* 0x00200000 */
 #define	CHERI_PERM_USER7			(1 << 22)	/* 0x00400000 */
-
-#if defined(CPU_CHERI128) || (defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 128))
-/*
- * 128-bit CHERI supports only 8 user-defined permissions for memory
- * capabilities.
- */
-#define	CHERI_PERM_USER_PRIVS						\
-	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
-	CHERI_PERM_USER3 | CHERI_PERM_USER4 | CHERI_PERM_USER5 |	\
-	CHERI_PERM_USER6 | CHERI_PERM_USER7)
-#else /* !CPU_CHERI128 */
-
-/*
- * 256-bit CHERI supports a further 7 user-defined permissions.
- */
 #define	CHERI_PERM_USER8			(1 << 23)	/* 0x00800000 */
 #define	CHERI_PERM_USER9			(1 << 24)	/* 0x01000000 */
 #define	CHERI_PERM_USER10			(1 << 25)	/* 0x02000000 */
@@ -106,6 +100,31 @@
 #define	CHERI_PERM_USER13			(1 << 28)	/* 0x10000000 */
 #define	CHERI_PERM_USER14			(1 << 29)	/* 0x20000000 */
 #define	CHERI_PERM_USER15			(1 << 30)	/* 0x40000000 */
+#else /* (!(CHERICAP_SIZE == 32)) */
+#define	CHERI_PERM_USER0			(1 << 11)	/* 0x00000800 */
+#define	CHERI_PERM_USER1			(1 << 12)	/* 0x00001000 */
+#define	CHERI_PERM_USER2			(1 << 13)	/* 0x00002000 */
+#define	CHERI_PERM_USER3			(1 << 14)	/* 0x00004000 */
+#endif /* (!(CHERICAP_SIZE == 32)) */
+
+/*
+ * The kernel snags one for the user-defined permissions for the purposes of
+ * authorising system calls from $pcc.  This is a bit of an oddity: normally,
+ * we check permissions on data capabilities, not code capabilities, but
+ * aligns with 'privilege' checks: e.g., $epcc access.  We may wish to switch
+ * to another model, such as having userspace register one or more class
+ * capabilities as suitable for privilege.
+ */
+#define	CHERI_PERM_SYSCALL			CHERI_PERM_USER0
+
+/*
+ * Macros defining initial permission sets for various scenarios; details
+ * depend on the permissions available on 256-bit or 128-bit CHERI:
+ *
+ * CHERI_PERM_USER_PRIVS: Mask of all available user-defined permissions
+ * CHERI_PERM_PRIV: Mask of all available hardware-defined permissions
+ */
+#if (CHERICAP_SIZE == 32)
 #define	CHERI_PERM_USER_PRIVS						\
 	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
 	CHERI_PERM_USER3 | CHERI_PERM_USER4 | CHERI_PERM_USER5 |	\
@@ -113,7 +132,6 @@
 	CHERI_PERM_USER9 | CHERI_PERM_USER10 | CHERI_PERM_USER11 |	\
 	CHERI_PERM_USER12 | CHERI_PERM_USER13 | CHERI_PERM_USER14 |	\
 	CHERI_PERM_USER15)
-#endif /* !CPU_CHERI128 */
 
 #define	CHERI_PERM_PRIV							\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
@@ -123,11 +141,24 @@
 	CHERI_PERM_ACCESS_EPCC | CHERI_PERM_ACCESS_KDC |		\
 	CHERI_PERM_ACCESS_KCC | CHERI_PERM_ACCESS_KR1C |		\
 	CHERI_PERM_ACCESS_KR2C | CHERI_PERM_USER_PRIVS)
+#else /* (!(CHERICAP_SIZE == 32)) */
+#define	CHERI_PERM_USER_PRIVS						\
+	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
+	CHERI_PERM_USER3)
+
+#define	CHERI_PERM_PRIV							\
+	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
+	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
+	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
+	CHERI_PERM_SEAL | CHERI_PERM_RESERVED0 | CHERI_PERM_RESERVED1)
+#endif /* (!(CHERICAP_SIZE == 32)) */
 
 /*
  * Basic userspace permission mask; CHERI_PERM_EXECUTE will be added for
  * executable capabilities ($pcc); CHERI_PERM_STORE, CHERI_PERM_STORE_CAP,
  * and CHERI_PERM_STORE_LOCAL_CAP will be added for data permissions ($c0).
+ *
+ * No variation required between 256-bit and 128-bit CHERI.
  */
 #define	CHERI_PERM_USER							\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |	\
@@ -141,12 +172,16 @@
 /*
  * Root "object-type" capability -- queried via sysarch(2) when libcheri needs
  * to allocate types.  This can be used neither as a data nor code capability.
+ *
+ * No variation required between 256-bit and 128-bit CHERI.
  */
 #define	CHERI_PERM_USER_TYPE	(CHERI_PERM_GLOBAL | CHERI_PERM_SEAL)
 
 /*
  * Definition for kernel "privileged" capability able to name the entire
  * address space.
+ *
+ * No variation required between 256-bit and 128-bit CHERI.
  */
 #define	CHERI_CAP_PRIV_PERMS		CHERI_PERM_PRIV
 #define	CHERI_CAP_PRIV_OTYPE		0x0
@@ -157,6 +192,8 @@
 /*
  * Definition for userspace "unprivileged" capability able to name the user
  * portion of the address space.
+ *
+ * No variation required between 256-bit and 128-bit CHERI.
  */
 #define	CHERI_CAP_USER_CODE_PERMS	CHERI_PERM_USER_CODE
 #define	CHERI_CAP_USER_CODE_OTYPE	0x0
