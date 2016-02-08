@@ -295,8 +295,6 @@ FBSDprivate_1.0 {
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
-
-	__pthread_map_stacks_exec;
 };
 
 FBSD_1.1 {
