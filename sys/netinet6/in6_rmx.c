@@ -290,7 +290,7 @@ in6_detachhead(void **head, int off)
 {
 
 	callout_drain(&V_rtq_mtutimer);
-	return (1);
+	return (rn_detachhead(head));
 }
 #endif
 
