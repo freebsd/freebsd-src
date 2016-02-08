@@ -213,8 +213,12 @@ FILES+=		ftpd
 .endif
 
 .if ${MK_HAST} != "no"
-FILES+=		hastd
+FILESGROUPS+=	HAST
+HAST=		hastd
 .endif
+HASTDIR=	/etc/rc.d
+HASTMODE=	${BINMODE}
+HASTPACKAGE=	hast
 
 .if ${MK_INETD} != "no"
 FILES+=		inetd

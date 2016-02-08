@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=hast
 PROG=	hastd
 SRCS=	activemap.c
 SRCS+=	control.c crc32.c
