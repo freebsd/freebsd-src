@@ -256,7 +256,9 @@ ptrace_clear_single_step(struct thread *td)
 void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
-	struct trapframe *tf = td->td_frame;
+	struct trapframe *tf;
+
+	tf = td->td_frame;
 
 	memset(tf, 0, sizeof(struct trapframe));
 
@@ -563,6 +565,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 static void
 init_proc0(vm_offset_t kstack)
 {
+
 	pcpup = &__pcpu[0];
 
 	proc_linkup0(&proc0, &thread0);
@@ -760,11 +763,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 
 	/* Set the pcpu pointer */
-#if 0
-	/* SMP TODO: try re-use gp for pcpu pointer */
-	__asm __volatile(
-	    "mv gp, %0" :: "r"(pcpup));
-#endif
+	__asm __volatile("mv gp, %0" :: "r"(pcpup));
 
 	PCPU_SET(curthread, &thread0);
 

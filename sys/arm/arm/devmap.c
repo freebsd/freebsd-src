@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#ifdef __arm__
 #include <machine/acle-compat.h>
+#endif
 #include <machine/armreg.h>
 #include <machine/devmap.h>
 #include <machine/vmparam.h>
@@ -53,9 +55,6 @@ static boolean_t devmap_bootstrap_done = false;
 #define	PTE_DEVICE	VM_MEMATTR_DEVICE
 #elif defined(__arm__)
 #define	MAX_VADDR	ARM_VECTORS_HIGH
-#if __ARM_ARCH >= 6
-#define	PTE_DEVICE	VM_MEMATTR_DEVICE
-#endif
 #endif
 
 /*

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -149,7 +150,7 @@ platform_mp_start_ap(void)
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG);
 	bus_space_write_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG, 
 	    val | SCU_CONTROL_ENABLE);
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/*
 	 * For each AP core, set the entry point address and argument registers,

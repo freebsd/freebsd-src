@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -162,8 +163,7 @@ platform_mp_start_ap(void)
 	bus_space_write_region_4(fdtbus_bs_tag, ram, 0,
 	    (uint32_t *)&socfpga_trampoline, 8);
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* Put CPU1 out from reset */
 	bus_space_write_4(fdtbus_bs_tag, rst, MPUMODRST, 0);

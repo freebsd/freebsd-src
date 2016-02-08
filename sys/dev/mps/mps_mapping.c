@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/sysctl.h>
+#include <sys/sbuf.h>
 #include <sys/eventhandler.h>
 #include <sys/uio.h>
 #include <machine/bus.h>
@@ -2262,4 +2263,62 @@ out:
 	free(wwid_table, M_MPT2);
 	if (sc->pending_map_events)
 		sc->pending_map_events--;
+}
+
+int
+mps_mapping_dump(SYSCTL_HANDLER_ARGS)
+{
+	struct mps_softc *sc;
+	struct dev_mapping_table *mt_entry;
+	struct sbuf sbuf;
+	int i, error;
+
+	sc = (struct mps_softc *)arg1;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
+	sbuf_printf(&sbuf, "\nindex physical_id       handle id\n");
+	for (i = 0; i < sc->max_devices; i++) {
+		mt_entry = &sc->mapping_table[i];
+		if (mt_entry->physical_id == 0)
+			continue;
+		sbuf_printf(&sbuf, "%4d  %jx  %04x   %hd\n",
+		    i, mt_entry->physical_id, mt_entry->dev_handle,
+		    mt_entry->id);
+	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+
+int
+mps_mapping_encl_dump(SYSCTL_HANDLER_ARGS)
+{
+	struct mps_softc *sc;
+	struct enc_mapping_table *enc_entry;
+	struct sbuf sbuf;
+	int i, error;
+
+	sc = (struct mps_softc *)arg1;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
+	sbuf_printf(&sbuf, "\nindex enclosure_id      handle map_index\n");
+	for (i = 0; i < sc->max_enclosures; i++) {
+		enc_entry = &sc->enclosure_table[i];
+		if (enc_entry->enclosure_id == 0)
+			continue;
+		sbuf_printf(&sbuf, "%4d  %jx  %04x   %d\n",
+		    i, enc_entry->enclosure_id, enc_entry->enc_handle,
+		    enc_entry->start_index);
+	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
 }

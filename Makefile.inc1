@@ -37,6 +37,7 @@
 # The intended user-driven targets are:
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
+# checkworld  - run test suite on installed world
 # doxygen     - build API documentation of the kernel
 # update      - convenient way to update your source tree (eg: svn/svnup)
 #
@@ -1121,16 +1122,14 @@ redistribute: .MAKE .PHONY
 	    DISTRIBUTION=lib32
 .endif
 
-distrib-dirs: .MAKE .PHONY
+distrib-dirs distribution: .MAKE .PHONY
 	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
-
-distribution: .MAKE .PHONY
-	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
+.if make(distribution)
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
 		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
 		METALOG=${METALOG} installconfig
+.endif
 
 #
 # buildkernel and installkernel
@@ -1474,6 +1473,20 @@ create-kernel-packages:	_pkgbootstrap
 signpackages:	_pkgbootstrap
 	@pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI) ${PKGSIGNKEY}
 
+#
+#
+# checkworld
+#
+# Run test suite on installed world.
+#
+checkworld: .PHONY
+	@if [ ! -x ${LOCALBASE}/bin/kyua ]; then \
+		echo "You need kyua (devel/kyua) to run the test suite." | /usr/bin/fmt; \
+		exit 1; \
+	fi
+	${_+_}${LOCALBASE}/bin/kyua test -k ${TESTSBASE}/Kyuafile
+
+#
 #
 # doxygen
 #

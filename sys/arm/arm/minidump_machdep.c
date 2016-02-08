@@ -45,11 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/atomic.h>
+#include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 #include <machine/minidump.h>
-#include <machine/cpufunc.h>
+#include <machine/vmparam.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
@@ -203,8 +203,7 @@ minidumpsys(struct dumperinfo *di)
 	 * by time we get to here, all that remains is to flush the L1 for the
 	 * current CPU, then the L2.
 	 */
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	counter = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
