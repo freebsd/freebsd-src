@@ -33,7 +33,11 @@
 ############################################################ INFORMATION
 #
 # Use this tool with jail.conf(5) (or rc.conf(5) ``legacy'' configuration) to
-# manage `vnet' interfaces. In jail.conf(5) format:
+# manage `vnet' interfaces for jails. Designed to automate the creation of vnet
+# interface(s) during jail `prestart' and destroy said interface(s) during jail
+# `poststop'.
+#
+# In jail.conf(5) format:
 #
 # ### BEGIN EXCERPT ###
 #
