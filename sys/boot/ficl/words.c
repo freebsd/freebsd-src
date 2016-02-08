@@ -4822,7 +4822,7 @@ WORDKIND ficlWordClassify(FICL_WORD *pFW)
 **************************************************************************/
 static void ficlRandom(FICL_VM *pVM)
 {
-    PUSHINT(rand());
+    PUSHINT(random());
 }
 
 
@@ -4832,7 +4832,7 @@ static void ficlRandom(FICL_VM *pVM)
 **************************************************************************/
 static void ficlSeedRandom(FICL_VM *pVM)
 {
-    srand(POPINT());
+    srandom(POPUNS());
 }
 #endif
 
