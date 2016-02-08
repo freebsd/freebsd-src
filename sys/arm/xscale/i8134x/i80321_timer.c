@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
-#include <arm/xscale/i80321/i80321reg.h>
-#include <arm/xscale/i80321/i80321var.h>
+#include <arm/xscale/i8134x/i80321reg.h>
+#include <arm/xscale/i8134x/i80321var.h>
 
 #ifdef CPU_XSCALE_81342
 #define ICU_INT_TIMER0	(8) /* XXX: Can't include i81342reg.h because

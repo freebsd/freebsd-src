@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -72,8 +73,8 @@ platform_mp_start_ap(void)
 	/* Enable the SCU */
 	*(volatile unsigned int *)scu_addr |= 1;
 	//*(volatile unsigned int *)(scu_addr + 0x30) |= 1;
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
+
 	ti_smc0(0x200, 0xfffffdff, MODIFY_AUX_CORE_0);
 	ti_smc0(pmap_kextract((vm_offset_t)mpentry), 0, WRITE_AUX_CORE_1);
 	armv7_sev();

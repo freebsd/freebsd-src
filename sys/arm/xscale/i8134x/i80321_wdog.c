@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/machdep.h>
 
-#include <arm/xscale/i80321/i80321reg.h>
-#include <arm/xscale/i80321/i80321var.h>
+#include <arm/xscale/i8134x/i80321reg.h>
+#include <arm/xscale/i8134x/i80321var.h>
 
 
 struct iopwdog_softc {

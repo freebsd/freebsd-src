@@ -111,8 +111,6 @@ __FBSDID("$FreeBSD$");
 
 #define ReadWord(a)	(*((volatile unsigned int *)(a)))
 
-extern char fusubailout[];
-
 #ifdef DEBUG
 int last_fault_code;	/* For the benefit of pmap_fault_fixup() */
 #endif
@@ -254,13 +252,6 @@ abort_handler(struct trapframe *tf, int type)
 	 * These are the main virtual memory-related faults signalled by
 	 * the MMU.
 	 */
-
-	/* fusubailout is used by [fs]uswintr to avoid page faulting */
-	if (__predict_false(pcb->pcb_onfault == fusubailout)) {
-		tf->tf_r0 = EFAULT;
-		tf->tf_pc = (register_t)(intptr_t) pcb->pcb_onfault;
-		return;
-	}
 
 	/*
 	 * Make sure the Program Counter is sane. We could fall foul of

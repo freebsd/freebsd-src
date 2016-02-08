@@ -67,9 +67,7 @@ extern void fa526_idcache_wbinv_all(void);
 extern void armv5_ec_idcache_wbinv_all(void);
 #elif defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_XSCALE_80321) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
-  defined(CPU_XSCALE_80219)
+#elif defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 extern void xscale_cache_purgeID(void);
 #elif defined(CPU_XSCALE_81342)
@@ -127,7 +125,6 @@ static int      arm_dcache_l2_assoc;
 static int      arm_dcache_l2_linesize;
 
 
-int block_userspace_access = 0;
 extern int arm9_dcache_sets_inc;
 extern int arm9_dcache_sets_max;
 extern int arm9_dcache_index_max;

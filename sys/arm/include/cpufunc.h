@@ -79,7 +79,6 @@ struct cpu_functions {
 	 *
 	 * We define the following primitives:
 	 *
-	 *	icache_sync_all		Synchronize I-cache
 	 *	icache_sync_range	Synchronize I-cache range
 	 *
 	 *	dcache_wbinv_all	Write-back and Invalidate D-cache
@@ -104,7 +103,7 @@ struct cpu_functions {
 	 *		state (such as when it may have lines tagged as valid
 	 *		that belong to a previous set of mappings).
 	 *
-	 *	I-cache Synch (all or range):
+	 *	I-cache Sync range:
 	 *		The goal is to synchronize the instruction stream,
 	 *		so you may beed to write-back dirty D-cache blocks
 	 *		first.  If a range is requested, and you can't
@@ -130,7 +129,6 @@ struct cpu_functions {
 	 *		Valid virtual addresses must be passed to each
 	 *		cache operation.
 	 */
-	void	(*cf_icache_sync_all)	(void);
 	void	(*cf_icache_sync_range)	(vm_offset_t, vm_size_t);
 
 	void	(*cf_dcache_wbinv_all)	(void);
@@ -163,9 +161,12 @@ struct cpu_functions {
 extern struct cpu_functions cpufuncs;
 extern u_int cputype;
 
+#if __ARM_ARCH < 6
 #define	cpu_cpwait()		cpufuncs.cf_cpwait()
+#endif
 
 #define cpu_control(c, e)	cpufuncs.cf_control(c, e)
+#if __ARM_ARCH < 6
 #define cpu_setttb(t)		cpufuncs.cf_setttb(t)
 
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
@@ -173,7 +174,6 @@ extern u_int cputype;
 #define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
 #define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
 
-#define	cpu_icache_sync_all()	cpufuncs.cf_icache_sync_all()
 #define	cpu_icache_sync_range(a, s) cpufuncs.cf_icache_sync_range((a), (s))
 
 #define	cpu_dcache_wbinv_all()	cpufuncs.cf_dcache_wbinv_all()
@@ -184,13 +184,16 @@ extern u_int cputype;
 #define	cpu_idcache_inv_all()	cpufuncs.cf_idcache_inv_all()
 #define	cpu_idcache_wbinv_all()	cpufuncs.cf_idcache_wbinv_all()
 #define	cpu_idcache_wbinv_range(a, s) cpufuncs.cf_idcache_wbinv_range((a), (s))
+#endif
 #define cpu_l2cache_wbinv_all()	cpufuncs.cf_l2cache_wbinv_all()
 #define cpu_l2cache_wb_range(a, s) cpufuncs.cf_l2cache_wb_range((a), (s))
 #define cpu_l2cache_inv_range(a, s) cpufuncs.cf_l2cache_inv_range((a), (s))
 #define cpu_l2cache_wbinv_range(a, s) cpufuncs.cf_l2cache_wbinv_range((a), (s))
 #define cpu_l2cache_drain_writebuf() cpufuncs.cf_l2cache_drain_writebuf()
 
+#if __ARM_ARCH < 6
 #define	cpu_drain_writebuf()	cpufuncs.cf_drain_writebuf()
+#endif
 #define cpu_sleep(m)		cpufuncs.cf_sleep(m)
 
 #define cpu_setup()			cpufuncs.cf_setup()
@@ -205,6 +208,7 @@ u_int	cpufunc_control		(u_int clear, u_int bic);
 void	cpu_domains		(u_int domains);
 u_int	cpu_faultstatus		(void);
 u_int	cpu_faultaddress	(void);
+u_int	cpu_get_control		(void);
 u_int	cpu_pfr			(int);
 
 #if defined(CPU_FA526)
@@ -214,7 +218,6 @@ void	fa526_context_switch	(void);
 void	fa526_cpu_sleep		(int);
 void	fa526_tlb_flushID_SE	(u_int);
 
-void	fa526_icache_sync_all	(void);
 void	fa526_icache_sync_range(vm_offset_t start, vm_size_t end);
 void	fa526_dcache_wbinv_all	(void);
 void	fa526_dcache_wbinv_range(vm_offset_t start, vm_size_t end);
@@ -231,8 +234,7 @@ void	arm9_tlb_flushID_SE	(u_int va);
 void	arm9_context_switch	(void);
 #endif
 
-#if defined(CPU_ARM9) 
-void	arm9_icache_sync_all	(void);
+#if defined(CPU_ARM9)
 void	arm9_icache_sync_range	(vm_offset_t, vm_size_t);
 
 void	arm9_dcache_wbinv_all	(void);
@@ -275,7 +277,6 @@ void	armv6_idcache_wbinv_all		(void);
 void	armv7_setttb			(u_int);
 void	armv7_tlb_flushID		(void);
 void	armv7_tlb_flushID_SE		(u_int);
-void	armv7_icache_sync_all		(void);
 void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
 void	armv7_idcache_wbinv_range	(vm_offset_t, vm_size_t);
 void	armv7_idcache_inv_all		(void);
@@ -319,7 +320,6 @@ void	armv6_idcache_inv_all		(void);
 void    arm11x6_setttb                  (u_int);
 void    arm11x6_idcache_wbinv_all       (void);
 void    arm11x6_dcache_wbinv_all        (void);
-void    arm11x6_icache_sync_all         (void);
 void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
 void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
 void    arm11x6_setup                   (void);
@@ -329,7 +329,6 @@ void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #if defined(CPU_ARM9E)
 void	armv5_ec_setttb(u_int);
 
-void	armv5_ec_icache_sync_all(void);
 void	armv5_ec_icache_sync_range(vm_offset_t, vm_size_t);
 
 void	armv5_ec_dcache_wbinv_all(void);
@@ -342,10 +341,9 @@ void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
 #endif
 
 #if defined(CPU_ARM9) || defined(CPU_ARM9E) ||				\
-  defined(CPU_XSCALE_80321) ||						\
   defined(CPU_FA526) ||							\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+  defined(CPU_XSCALE_81342)
 
 void	armv4_tlb_flushID	(void);
 void	armv4_tlb_flushD	(void);
@@ -355,9 +353,8 @@ void	armv4_drain_writebuf	(void);
 void	armv4_idcache_inv_all	(void);
 #endif
 
-#if defined(CPU_XSCALE_80321) ||				\
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
+  defined(CPU_XSCALE_81342)
 void	xscale_cpwait		(void);
 
 void	xscale_cpu_sleep	(int mode);
@@ -395,8 +392,7 @@ void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
 void	xscale_context_switch	(void);
 
 void	xscale_setup		(void);
-#endif	/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-	   CPU_XSCALE_80219 */
+#endif	/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
 
 #ifdef	CPU_XSCALE_81342
 
@@ -422,9 +418,6 @@ void	xscalec3_setttb		(u_int ttb);
 void	xscalec3_context_switch	(void);
 
 #endif /* CPU_XSCALE_81342 */
-
-#define setttb		cpu_setttb
-#define drain_writebuf	cpu_drain_writebuf
 
 /*
  * Macros for manipulating CPU interrupts

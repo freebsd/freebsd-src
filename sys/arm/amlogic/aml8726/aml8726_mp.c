@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/bus.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
@@ -485,7 +486,7 @@ platform_mp_start_ap(void)
 	value |= AML_SCU_CONTROL_ENABLE;
 	SCU_WRITE_4(AML_SCU_CONTROL_REG, value);
 	SCU_BARRIER(AML_SCU_CONTROL_REG);
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* Set the boot address and power on each AP. */
 	paddr = pmap_kextract((vm_offset_t)mpentry);

@@ -350,7 +350,8 @@ typedef struct {
 	 * notification and 2nd is child->parent
 	 * notification
 	 */
-	void					*monitor_pages;
+	void					*monitor_page_1;
+	void					*monitor_page_2;
 	TAILQ_HEAD(, hv_vmbus_channel_msg_info)	channel_msg_anchor;
 	struct mtx				channel_msg_lock;
 	/**
@@ -362,10 +363,8 @@ typedef struct {
 
 	/**
 	 * channel table for fast lookup through id.
-	 */
+	*/
 	hv_vmbus_channel                        **channels;
-	hv_vmbus_handle				work_queue;
-	struct sema				control_sema;
 } hv_vmbus_connection;
 
 typedef union {
@@ -632,7 +631,6 @@ typedef void (*vmbus_msg_handler)(hv_vmbus_channel_msg_header *msg);
 typedef struct hv_vmbus_channel_msg_table_entry {
 	hv_vmbus_channel_msg_type    messageType;
 
-	bool   handler_no_sleep; /* true: the handler doesn't sleep */
 	vmbus_msg_handler   messageHandler;
 } hv_vmbus_channel_msg_table_entry;
 
@@ -682,7 +680,6 @@ uint32_t		hv_ring_buffer_read_end(
 
 hv_vmbus_channel*	hv_vmbus_allocate_channel(void);
 void			hv_vmbus_free_vmbus_channel(hv_vmbus_channel *channel);
-void			hv_vmbus_on_channel_message(void *context);
 int			hv_vmbus_request_channel_offers(void);
 void			hv_vmbus_release_unattached_channels(void);
 int			hv_vmbus_init(void);

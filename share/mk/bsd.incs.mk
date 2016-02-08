@@ -87,8 +87,8 @@ _${group}INS: ${_${group}INCS}
 .if defined(INCSLINKS) && !empty(INCSLINKS)
 installincludes:
 .for s t in ${INCSLINKS}
-	@${ECHO} "$t -> $s" ; \
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} $s ${DESTDIR}$t
+	@${ECHO} "${DESTDIR}${t} -> ${s}" ; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${s} ${DESTDIR}${t}
 .endfor
 .endif
 .endif # !target(installincludes)

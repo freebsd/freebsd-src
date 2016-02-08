@@ -1,4 +1,4 @@
-/*	$NetBSD: keymacro.h,v 1.2 2011/07/28 03:44:36 christos Exp $	*/
+/*	$NetBSD: keymacro.h,v 1.3 2016/01/29 19:59:11 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -48,7 +48,7 @@ typedef union keymacro_value_t {
 
 typedef struct keymacro_node_t keymacro_node_t;
 
-typedef struct el_keymacromacro_t {
+typedef struct el_keymacro_t {
 	Char		*buf;	/* Key print buffer		*/
 	keymacro_node_t	*map;	/* Key map			*/
 	keymacro_value_t val;	/* Local conversion buffer	*/

@@ -60,18 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuconf.h>
 #include <machine/cpufunc.h>
 
-#if defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219)
-#include <arm/xscale/i80321/i80321reg.h>
-#include <arm/xscale/i80321/i80321var.h>
-#endif
-
-/*
- * Some definitions in i81342reg.h clash with i80321reg.h.
- * This only happens for the LINT kernel. As it happens,
- * we don't need anything from i81342reg.h that we already
- * got from somewhere else during a LINT compile.
- */
-#if defined(CPU_XSCALE_81342) && !defined(COMPILING_LINT)
+#if defined(CPU_XSCALE_81342)
 #include <arm/xscale/i8134x/i81342reg.h>
 #endif
 
@@ -99,8 +88,6 @@ u_int	arm_cache_level;
 u_int	arm_cache_type[14];
 u_int	arm_cache_loc;
 
-int ctrl;
-
 #ifdef CPU_ARM9
 struct cpu_functions arm9_cpufuncs = {
 	/* CPU functions */
@@ -121,7 +108,6 @@ struct cpu_functions arm9_cpufuncs = {
 
 	/* Cache operations */
 
-	arm9_icache_sync_all,		/* icache_sync_all	*/
 	arm9_icache_sync_range,		/* icache_sync_range	*/
 
 	arm9_dcache_wbinv_all,		/* dcache_wbinv_all	*/
@@ -173,7 +159,6 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 	/* Cache operations */
 
-	armv5_ec_icache_sync_all,	/* icache_sync_all	*/
 	armv5_ec_icache_sync_range,	/* icache_sync_range	*/
 
 	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
@@ -224,7 +209,6 @@ struct cpu_functions sheeva_cpufuncs = {
 
 	/* Cache operations */
 
-	armv5_ec_icache_sync_all,	/* icache_sync_all	*/
 	armv5_ec_icache_sync_range,	/* icache_sync_range	*/
 
 	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
@@ -275,7 +259,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	armv7_tlb_flushID_SE,		/* tlb_flushD_SE	*/
 
 	/* Cache operations */
-	armv7_idcache_wbinv_all,	/* icache_sync_all	*/
 	armv7_icache_sync_range,	/* icache_sync_range	*/
 
 	armv7_dcache_wbinv_all,		/* dcache_wbinv_all	*/
@@ -306,9 +289,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 };
 #endif /* CPU_MV_PJ4B */
 
-#if defined(CPU_XSCALE_80321) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_80219)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
 
 struct cpu_functions xscale_cpufuncs = {
 	/* CPU functions */
@@ -329,7 +310,6 @@ struct cpu_functions xscale_cpufuncs = {
 
 	/* Cache operations */
 
-	xscale_cache_syncI,		/* icache_sync_all	*/
 	xscale_cache_syncI_rng,		/* icache_sync_range	*/
 
 	xscale_cache_purgeD,		/* dcache_wbinv_all	*/
@@ -359,8 +339,7 @@ struct cpu_functions xscale_cpufuncs = {
 	xscale_setup			/* cpu setup		*/
 };
 #endif
-/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-   CPU_XSCALE_80219 */
+/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
 
 #ifdef CPU_XSCALE_81342
 struct cpu_functions xscalec3_cpufuncs = {
@@ -382,7 +361,6 @@ struct cpu_functions xscalec3_cpufuncs = {
 
 	/* Cache operations */
 
-	xscalec3_cache_syncI,		/* icache_sync_all	*/
 	xscalec3_cache_syncI_rng,	/* icache_sync_range	*/
 
 	xscalec3_cache_purgeD,		/* dcache_wbinv_all	*/
@@ -434,7 +412,6 @@ struct cpu_functions fa526_cpufuncs = {
 
 	/* Cache operations */
 
-	fa526_icache_sync_all,		/* icache_sync_all	*/
 	fa526_icache_sync_range,	/* icache_sync_range	*/
 
 	fa526_dcache_wbinv_all,		/* dcache_wbinv_all	*/
@@ -486,7 +463,6 @@ struct cpu_functions arm1176_cpufuncs = {
 
 	/* Cache operations */
 
-	arm11x6_icache_sync_all,        /* icache_sync_all      */
 	arm11x6_icache_sync_range,      /* icache_sync_range    */
 
 	arm11x6_dcache_wbinv_all,       /* dcache_wbinv_all     */
@@ -542,7 +518,6 @@ struct cpu_functions cortexa_cpufuncs = {
 
 	/* Cache operations */
 
-	armv7_icache_sync_all, 	        /* icache_sync_all      */
 	armv7_icache_sync_range,        /* icache_sync_range    */
 
 	armv7_dcache_wbinv_all,         /* dcache_wbinv_all     */
@@ -588,10 +563,10 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
 
 #if defined(CPU_ARM9) ||	\
   defined (CPU_ARM9E) ||	\
-  defined(CPU_ARM1176) || defined(CPU_XSCALE_80321) ||		\
+  defined(CPU_ARM1176) ||	\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_MV_PJ4B) ||			\
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
+  defined(CPU_XSCALE_81342) || \
   defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 /* Global cache line sizes, use 32 as default */
@@ -829,18 +804,6 @@ set_cpufuncs()
 	}
 #endif	/* CPU_FA526 */
 
-#if defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219)
-	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
-	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0 ||
-	    cputype == CPU_ID_80219_400 || cputype == CPU_ID_80219_600) {
-		cpufuncs = xscale_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
-		get_cachetype_cp15();
-		pmap_pte_init_xscale();
-		goto out;
-	}
-#endif /* CPU_XSCALE_80321 */
-
 #if defined(CPU_XSCALE_81342)
 	if (cputype == CPU_ID_81342) {
 		cpufuncs = xscalec3_cpufuncs;
@@ -924,7 +887,6 @@ arm9_setup(void)
 
 	/* Set the control register */
 	cpu_control(cpuctrlmask, cpuctrl);
-	ctrl = cpuctrl;
 
 }
 #endif	/* CPU_ARM9 */
@@ -963,7 +925,6 @@ arm10_setup(void)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
 
 	/* Set the control register */
-	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 
 	/* And again. */
@@ -1005,46 +966,11 @@ cpu_scc_setup_ccnt(void)
 void
 arm11x6_setup(void)
 {
-	int cpuctrl, cpuctrl_wax;
 	uint32_t auxctrl, auxctrl_wax;
 	uint32_t tmp, tmp2;
-	uint32_t sbz=0;
 	uint32_t cpuid;
 
 	cpuid = cpu_ident();
-
-	cpuctrl =
-		CPU_CONTROL_MMU_ENABLE  |
-		CPU_CONTROL_DC_ENABLE   |
-		CPU_CONTROL_WBUF_ENABLE |
-		CPU_CONTROL_32BP_ENABLE |
-		CPU_CONTROL_32BD_ENABLE |
-		CPU_CONTROL_LABT_ENABLE |
-		CPU_CONTROL_SYST_ENABLE |
-		CPU_CONTROL_IC_ENABLE   |
-		CPU_CONTROL_UNAL_ENABLE;
-
-	/*
-	 * "write as existing" bits
-	 * inverse of this is mask
-	 */
-	cpuctrl_wax =
-		(3 << 30) | /* SBZ */
-		(1 << 29) | /* FA */
-		(1 << 28) | /* TR */
-		(3 << 26) | /* SBZ */
-		(3 << 19) | /* SBZ */
-		(1 << 17);  /* SBZ */
-
-	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
-	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
-
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
 
 	auxctrl = 0;
 	auxctrl_wax = ~0;
@@ -1057,28 +983,12 @@ arm11x6_setup(void)
 		auxctrl_wax = ~ARM1176_AUXCTL_PHD;
 	}
 
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Now really make sure they are clean.  */
-	__asm volatile ("mcr\tp15, 0, %0, c7, c7, 0" : : "r"(sbz));
-
-	/* Allow detection code to find the VFP if it's fitted.  */
-	cp15_cpacr_set(0x0fffffff);
-
-	/* Set the control register */
-	ctrl = cpuctrl;
-	cpu_control(~cpuctrl_wax, cpuctrl);
-
 	tmp = cp15_actlr_get();
 	tmp2 = tmp;
 	tmp &= auxctrl_wax;
 	tmp |= auxctrl;
 	if (tmp != tmp2)
 		cp15_actlr_set(tmp);
-
-	/* And again. */
-	cpu_idcache_wbinv_all();
 
 	cpu_scc_setup_ccnt();
 }
@@ -1088,33 +998,8 @@ arm11x6_setup(void)
 void
 pj4bv7_setup(void)
 {
-	int cpuctrl;
 
 	pj4b_config();
-
-	cpuctrl = CPU_CONTROL_MMU_ENABLE;
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-	cpuctrl |= CPU_CONTROL_DC_ENABLE;
-	cpuctrl |= (0xf << 3);
-	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
-	cpuctrl |= CPU_CONTROL_IC_ENABLE;
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
-	cpuctrl |= (0x5 << 16) | (1 < 22);
-	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
-
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Set the control register */
-	ctrl = cpuctrl;
-	cpu_control(0xFFFFFFFF, cpuctrl);
-
-	/* And again. */
-	cpu_idcache_wbinv_all();
-
 	cpu_scc_setup_ccnt();
 }
 #endif /* CPU_MV_PJ4B */
@@ -1124,45 +1009,6 @@ pj4bv7_setup(void)
 void
 cortexa_setup(void)
 {
-	int cpuctrl, cpuctrlmask;
-
-	cpuctrlmask = CPU_CONTROL_MMU_ENABLE |     /* MMU enable         [0] */
-	    CPU_CONTROL_AFLT_ENABLE |    /* Alignment fault    [1] */
-	    CPU_CONTROL_DC_ENABLE |      /* DCache enable      [2] */
-	    CPU_CONTROL_BPRD_ENABLE |    /* Branch prediction [11] */
-	    CPU_CONTROL_IC_ENABLE |      /* ICache enable     [12] */
-	    CPU_CONTROL_VECRELOC;        /* Vector relocation [13] */
-
-	cpuctrl = CPU_CONTROL_MMU_ENABLE |
-	    CPU_CONTROL_IC_ENABLE |
-	    CPU_CONTROL_DC_ENABLE |
-	    CPU_CONTROL_BPRD_ENABLE;
-
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-
-	/* Switch to big endian */
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-
-	/* Check if the vector page is at the high address (0xffff0000) */
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
-
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Set the control register */
-	ctrl = cpuctrl;
-	cpu_control(cpuctrlmask, cpuctrl);
-
-	/* And again. */
-	cpu_idcache_wbinv_all();
-#if defined(SMP) && !defined(ARM_NEW_PMAP)
-	armv7_auxctrl((1 << 6) | (1 << 0), (1 << 6) | (1 << 0)); /* Enable SMP + TLB broadcasting  */
-#endif
 
 	cpu_scc_setup_ccnt();
 }
@@ -1202,14 +1048,12 @@ fa526_setup(void)
 	cpu_idcache_wbinv_all();
 
 	/* Set the control register */
-	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 }
 #endif	/* CPU_FA526 */
 
-#if defined(CPU_XSCALE_80321) || \
-  defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
+#if defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
+  defined(CPU_XSCALE_81342)
 void
 xscale_setup(void)
 {
@@ -1257,7 +1101,6 @@ xscale_setup(void)
 	 * Set the control register.  Note that bits 6:3 must always
 	 * be set to 1.
 	 */
-	ctrl = cpuctrl;
 /*	cpu_control(cpuctrlmask, cpuctrl);*/
 	cpu_control(0xffffffff, cpuctrl);
 
@@ -1276,5 +1119,4 @@ xscale_setup(void)
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
 		: : "r" (auxctl));
 }
-#endif	/* CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
-	   CPU_XSCALE_80219 */
+#endif	/* CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 */
