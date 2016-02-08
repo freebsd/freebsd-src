@@ -1040,7 +1040,7 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	if (p->p_flag & P_KTHREAD) {
 		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
 		    td->td_name, p->p_pid);
-		kproc_exit(0);
+		kthread_exit();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
 
