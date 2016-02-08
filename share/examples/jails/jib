@@ -267,8 +267,15 @@ jib_addm()
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
-		eiface_devid_a=2:$quad$eiface_devid_a
-		eiface_devid_b=6:$quad$eiface_devid_b
+		case "$iface_devid" in
+		?2:*|?6:*)
+			eiface_devid_a=a:$quad$eiface_devid_a
+			eiface_devid_b=e:$quad$eiface_devid_b
+			;;
+		*)
+			eiface_devid_a=2:$quad$eiface_devid_a
+			eiface_devid_b=6:$quad$eiface_devid_b
+		esac
 		num=$(( $num >> 4 ))
 		quad=$(( $num & 15 ))
 		case "$quad" in
