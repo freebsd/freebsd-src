@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-PACKAGE=lib${LIB}
+PACKAGE=sendmail
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libmilter ${SENDMAIL_DIR}/libsm
 
