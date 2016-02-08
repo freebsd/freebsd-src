@@ -276,14 +276,14 @@ jib_addm()
 		ifconfig "e${i}a_$name" ether $eiface_devid_a > /dev/null 2>&1
 		ifconfig "e${i}b_$name" ether $eiface_devid_b > /dev/null 2>&1
 
-		i=$(( $i + 1 )) # on to next ng{i}_name
+		i=$(( $i + 1 )) # on to next e{i}b_name
 	done # for iface
 }
 
 jib_show_usage="show"
 jib_show_descr="List possible NAME values for \`show NAME'"
 jib_show1_usage="show NAME"
-jib_show1_descr="Lists ng0_NAME [ng1_NAME ...]"
+jib_show1_descr="Lists e0b_NAME [e1b_NAME ...]"
 jib_show2_usage="show [NAME]"
 jib_show()
 {
