@@ -1374,7 +1374,7 @@ _pkgbootstrap:
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
-packages:	stage-packages create-packages
+packages:	stage-packages create-packages sign-packages
 
 stage-packages:
 	@mkdir -p ${WSTAGEDIR} ${KSTAGEDIR}
@@ -1476,7 +1476,7 @@ create-kernel-packages:	_pkgbootstrap
 .endfor
 .endif
 
-signpackages:	_pkgbootstrap
+sign-packages:	_pkgbootstrap
 	@pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI) ${PKGSIGNKEY}
 
 #

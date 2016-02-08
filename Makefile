@@ -128,7 +128,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
 	xdev-links native-xtools stageworld stagekernel stage-packages \
 	create-world-packages create-kernel-packages create-packages \
-	packages installconfig signpackages
+	packages installconfig sign-packages
 
 TGTS+=	${SUBDIR_TARGETS}
 
