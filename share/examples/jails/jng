@@ -297,7 +297,10 @@ jng_bridge()
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
-		eiface_devid=2:$quad$eiface_devid
+		case "$iface_devid" in
+		?2:*) eiface_devid=a:$quad$eiface_devid ;;
+		*) eiface_devid=2:$quad$eiface_devid
+		esac
 		num=$(( $num >> 4 ))
 		quad=$(( $num & 15 ))
 		case "$quad" in
