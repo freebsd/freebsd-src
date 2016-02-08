@@ -249,7 +249,8 @@ _ILINKS+=x86
 .endif
 CLEANFILES+=${_ILINKS}
 
-all: objwarn ${PROG}
+all: beforebuild .WAIT ${PROG}
+beforebuild: objwarn
 
 beforedepend: ${_ILINKS}
 
