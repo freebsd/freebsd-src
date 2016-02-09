@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	expr
 SRCS=	expr.y
 YFLAGS=
