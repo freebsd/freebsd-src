@@ -37,77 +37,51 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 #define	SS_TYPE_MODULE		0
-#define	SS_TYPE_FIRST		1
 #define	SS_TYPE_PCM		1
 #define	SS_TYPE_MIDI		2
 #define	SS_TYPE_SEQUENCER	3
-#define	SS_TYPE_LAST		3
 
 static d_open_t sndstat_open;
-static d_close_t sndstat_close;
+static void sndstat_close(void *);
 static d_read_t sndstat_read;
+static d_write_t sndstat_write;
 
 static struct cdevsw sndstat_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	sndstat_open,
-	.d_close =	sndstat_close,
 	.d_read =	sndstat_read,
+	.d_write =	sndstat_write,
 	.d_name =	"sndstat",
 	.d_flags =	D_TRACKCLOSE,
 };
 
 struct sndstat_entry {
-	SLIST_ENTRY(sndstat_entry) link;
+	TAILQ_ENTRY(sndstat_entry) link;
 	device_t dev;
 	char *str;
 	sndstat_handler handler;
 	int type, unit;
 };
 
+struct sndstat_file {
+	TAILQ_ENTRY(sndstat_file) entry;
+	struct sbuf sbuf;
+	int out_offset;
+  	int in_offset;
+};
+
 static struct sx sndstat_lock;
-static struct sbuf sndstat_sbuf;
-static struct cdev *sndstat_dev = NULL;
-static int sndstat_bufptr = -1;
-static int sndstat_maxunit = -1;
-static int sndstat_files = 0;
+static struct cdev *sndstat_dev;
 
-#define SNDSTAT_PID(x)		((pid_t)((intptr_t)((x)->si_drv1)))
-#define SNDSTAT_PID_SET(x, y)	(x)->si_drv1 = (void *)((intptr_t)(y))
-#define SNDSTAT_FLUSH()		do {					\
-	if (sndstat_bufptr != -1) {					\
-		sbuf_delete(&sndstat_sbuf);				\
-		sndstat_bufptr = -1;					\
-	}								\
-} while (0)
+#define	SNDSTAT_LOCK() sx_xlock(&sndstat_lock)
+#define	SNDSTAT_UNLOCK() sx_xunlock(&sndstat_lock)
 
-static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(sndstat_devlist);
+static TAILQ_HEAD(, sndstat_entry) sndstat_devlist = TAILQ_HEAD_INITIALIZER(sndstat_devlist);
+static TAILQ_HEAD(, sndstat_file) sndstat_filelist = TAILQ_HEAD_INITIALIZER(sndstat_filelist);
 
 int snd_verbose = 0;
 
-#ifdef SND_DEBUG
-static int
-sysctl_hw_snd_sndstat_pid(SYSCTL_HANDLER_ARGS)
-{
-	int err, val;
-
-	if (sndstat_dev == NULL)
-		return (EINVAL);
-
-	sx_xlock(&sndstat_lock);
-	val = (int)SNDSTAT_PID(sndstat_dev);
-	err = sysctl_handle_int(oidp, &val, 0, req);
-	if (err == 0 && req->newptr != NULL && val == 0) {
-		SNDSTAT_FLUSH();
-		SNDSTAT_PID_SET(sndstat_dev, 0);
-	}
-	sx_unlock(&sndstat_lock);
-	return (err);
-}
-SYSCTL_PROC(_hw_snd, OID_AUTO, sndstat_pid, CTLTYPE_INT | CTLFLAG_RWTUN,
-    0, sizeof(int), sysctl_hw_snd_sndstat_pid, "I", "sndstat busy pid");
-#endif
-
-static int sndstat_prepare(struct sbuf *s);
+static int sndstat_prepare(struct sndstat_file *);
 
 static int
 sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
@@ -122,7 +96,7 @@ sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
 		else
 			snd_verbose = verbose;
 	}
-	return error;
+	return (error);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, verbose, CTLTYPE_INT | CTLFLAG_RWTUN,
             0, sizeof(int), sysctl_hw_sndverbose, "I", "verbosity level");
@@ -130,128 +104,135 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, verbose, CTLTYPE_INT | CTLFLAG_RWTUN,
 static int
 sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
-	if (sndstat_dev == NULL || i_dev != sndstat_dev)
-		return EBADF;
+	struct sndstat_file *pf;
 
-	sx_xlock(&sndstat_lock);
-	if (SNDSTAT_PID(i_dev) != 0) {
-		sx_unlock(&sndstat_lock);
-		return EBUSY;
+	pf = malloc(sizeof(*pf), M_DEVBUF, M_WAITOK | M_ZERO);
+
+	SNDSTAT_LOCK();
+	if (sbuf_new(&pf->sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
+	  	SNDSTAT_UNLOCK();
+		free(pf, M_DEVBUF);
+		return (ENOMEM);
 	}
-	SNDSTAT_PID_SET(i_dev, td->td_proc->p_pid);
-	if (sbuf_new(&sndstat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
-		SNDSTAT_PID_SET(i_dev, 0);
-		sx_unlock(&sndstat_lock);
-		return ENXIO;
-	}
-	sndstat_bufptr = 0;
-	sx_unlock(&sndstat_lock);
-	return 0;
+	TAILQ_INSERT_TAIL(&sndstat_filelist, pf, entry);
+	SNDSTAT_UNLOCK();
+
+	devfs_set_cdevpriv(pf, &sndstat_close);
+
+	return (0);
 }
 
-static int
-sndstat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
+static void
+sndstat_close(void *sndstat_file)
 {
-	if (sndstat_dev == NULL || i_dev != sndstat_dev)
-		return EBADF;
+	struct sndstat_file *pf = (struct sndstat_file *)sndstat_file;
 
-	sx_xlock(&sndstat_lock);
-	if (SNDSTAT_PID(i_dev) == 0) {
-		sx_unlock(&sndstat_lock);
-		return EBADF;
-	}
+	SNDSTAT_LOCK();
+	sbuf_delete(&pf->sbuf);
+	TAILQ_REMOVE(&sndstat_filelist, pf, entry);
+	SNDSTAT_UNLOCK();
 
-	SNDSTAT_FLUSH();
-	SNDSTAT_PID_SET(i_dev, 0);
-
-	sx_unlock(&sndstat_lock);
-
-	return 0;
+	free(pf, M_DEVBUF);
 }
 
 static int
 sndstat_read(struct cdev *i_dev, struct uio *buf, int flag)
 {
-	int l, err;
+	struct sndstat_file *pf;
+	int err;
+	int len;
 
-	if (sndstat_dev == NULL || i_dev != sndstat_dev)
-		return EBADF;
+	err = devfs_get_cdevpriv((void **)&pf);
+	if (err != 0)
+		return (err);
 
-	sx_xlock(&sndstat_lock);
-	if (SNDSTAT_PID(i_dev) != buf->uio_td->td_proc->p_pid ||
-	    sndstat_bufptr == -1) {
-		sx_unlock(&sndstat_lock);
-		return EBADF;
-	}
+	/* skip zero-length reads */
+	if (buf->uio_resid == 0)
+		return (0);
 
-	if (sndstat_bufptr == 0) {
-		err = (sndstat_prepare(&sndstat_sbuf) > 0) ? 0 : ENOMEM;
-		if (err) {
-			SNDSTAT_FLUSH();
-			sx_unlock(&sndstat_lock);
-			return err;
+	SNDSTAT_LOCK();
+	if (pf->out_offset != 0) {
+		/* don't allow both reading and writing */
+		err = EINVAL;
+		goto done;
+	} else if (pf->in_offset == 0) {
+		err = sndstat_prepare(pf);
+		if (err <= 0) {
+			err = ENOMEM;
+			goto done;
 		}
 	}
+	len = sbuf_len(&pf->sbuf) - pf->in_offset;
+	if (len > buf->uio_resid)
+		len = buf->uio_resid;
+	if (len > 0)
+		err = uiomove(sbuf_data(&pf->sbuf) + pf->in_offset, len, buf);
+	pf->in_offset += len;
+done:
+	SNDSTAT_UNLOCK();
+	return (err);
+}
 
-    	l = min(buf->uio_resid, sbuf_len(&sndstat_sbuf) - sndstat_bufptr);
-	err = (l > 0)? uiomove(sbuf_data(&sndstat_sbuf) + sndstat_bufptr, l, buf) : 0;
-	sndstat_bufptr += l;
-	sx_unlock(&sndstat_lock);
+static int
+sndstat_write(struct cdev *i_dev, struct uio *buf, int flag)
+{
+	struct sndstat_file *pf;
+	uint8_t temp[64];
+	int err;
+	int len;
 
-	return err;
+	err = devfs_get_cdevpriv((void **)&pf);
+	if (err != 0)
+		return (err);
+
+	/* skip zero-length writes */
+	if (buf->uio_resid == 0)
+		return (0);
+
+	/* don't allow writing more than 64Kbytes */
+	if (buf->uio_resid > 65536)
+		return (ENOMEM);
+
+	SNDSTAT_LOCK();
+	if (pf->in_offset != 0) {
+		/* don't allow both reading and writing */
+		err = EINVAL;
+	} else {
+		/* only remember the last write - allows for updates */
+		sbuf_clear(&pf->sbuf);
+		while (1) {
+			len = sizeof(temp);
+			if (len > buf->uio_resid)
+				len = buf->uio_resid;
+			if (len > 0) {
+				err = uiomove(temp, len, buf);
+				if (err)
+					break;
+			} else {
+				break;
+			}
+			if (sbuf_bcat(&pf->sbuf, temp, len) < 0) {
+				err = ENOMEM;
+				break;
+			}
+		}
+		sbuf_finish(&pf->sbuf);
+		if (err == 0)
+			pf->out_offset = sbuf_len(&pf->sbuf);
+		else
+			pf->out_offset = 0;
+	}
+	SNDSTAT_UNLOCK();
+	return (err);
 }
 
 /************************************************************************/
-
-static struct sndstat_entry *
-sndstat_find(int type, int unit)
-{
-	struct sndstat_entry *ent;
-
-	SLIST_FOREACH(ent, &sndstat_devlist, link) {
-		if (ent->type == type && ent->unit == unit)
-			return ent;
-	}
-
-	return NULL;
-}
-
-int
-sndstat_acquire(struct thread *td)
-{
-	if (sndstat_dev == NULL)
-		return EBADF;
-
-	sx_xlock(&sndstat_lock);
-	if (SNDSTAT_PID(sndstat_dev) != 0) {
-		sx_unlock(&sndstat_lock);
-		return EBUSY;
-	}
-	SNDSTAT_PID_SET(sndstat_dev, td->td_proc->p_pid);
-	sx_unlock(&sndstat_lock);
-	return 0;
-}
-
-int
-sndstat_release(struct thread *td)
-{
-	if (sndstat_dev == NULL)
-		return EBADF;
-
-	sx_xlock(&sndstat_lock);
-	if (SNDSTAT_PID(sndstat_dev) != td->td_proc->p_pid) {
-		sx_unlock(&sndstat_lock);
-		return EBADF;
-	}
-	SNDSTAT_PID_SET(sndstat_dev, 0);
-	sx_unlock(&sndstat_lock);
-	return 0;
-}
 
 int
 sndstat_register(device_t dev, char *str, sndstat_handler handler)
 {
 	struct sndstat_entry *ent;
+	struct sndstat_entry *pre;
 	const char *devtype;
 	int type, unit;
 
@@ -265,7 +246,7 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 		else if (!strcmp(devtype, "sequencer"))
 			type = SS_TYPE_SEQUENCER;
 		else
-			return EINVAL;
+			return (EINVAL);
 	} else {
 		type = SS_TYPE_MODULE;
 		unit = -1;
@@ -278,168 +259,167 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 	ent->unit = unit;
 	ent->handler = handler;
 
-	sx_xlock(&sndstat_lock);
-	SLIST_INSERT_HEAD(&sndstat_devlist, ent, link);
-	if (type == SS_TYPE_MODULE)
-		sndstat_files++;
-	sndstat_maxunit = (unit > sndstat_maxunit)? unit : sndstat_maxunit;
-	sx_unlock(&sndstat_lock);
+	SNDSTAT_LOCK();
+	/* sorted list insertion */
+	TAILQ_FOREACH(pre, &sndstat_devlist, link) {
+		if (pre->unit > unit)
+			break;
+		else if (pre->unit < unit)
+			continue;
+		if (pre->type > type)
+			break;
+		else if (pre->type < unit)
+			continue;
+	}
+	if (pre == NULL) {
+		TAILQ_INSERT_TAIL(&sndstat_devlist, ent, link);
+	} else {
+		TAILQ_INSERT_BEFORE(pre, ent, link);
+	}
+	SNDSTAT_UNLOCK();
 
-	return 0;
+	return (0);
 }
 
 int
 sndstat_registerfile(char *str)
 {
-	return sndstat_register(NULL, str, NULL);
+	return (sndstat_register(NULL, str, NULL));
 }
 
 int
 sndstat_unregister(device_t dev)
 {
 	struct sndstat_entry *ent;
+	int error = ENXIO;
 
-	sx_xlock(&sndstat_lock);
-	SLIST_FOREACH(ent, &sndstat_devlist, link) {
+	SNDSTAT_LOCK();
+	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == dev) {
-			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
-			sx_unlock(&sndstat_lock);
+			TAILQ_REMOVE(&sndstat_devlist, ent, link);
 			free(ent, M_DEVBUF);
-
-			return 0;
+			error = 0;
+			break;
 		}
 	}
-	sx_unlock(&sndstat_lock);
+	SNDSTAT_UNLOCK();
 
-	return ENXIO;
+	return (error);
 }
 
 int
 sndstat_unregisterfile(char *str)
 {
 	struct sndstat_entry *ent;
+	int error = ENXIO;
 
-	sx_xlock(&sndstat_lock);
-	SLIST_FOREACH(ent, &sndstat_devlist, link) {
+	SNDSTAT_LOCK();
+	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == NULL && ent->str == str) {
-			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
-			sndstat_files--;
-			sx_unlock(&sndstat_lock);
+			TAILQ_REMOVE(&sndstat_devlist, ent, link);
 			free(ent, M_DEVBUF);
-
-			return 0;
+			error = 0;
+			break;
 		}
 	}
-	sx_unlock(&sndstat_lock);
+	SNDSTAT_UNLOCK();
 
-	return ENXIO;
+	return (error);
 }
 
 /************************************************************************/
 
 static int
-sndstat_prepare(struct sbuf *s)
+sndstat_prepare(struct sndstat_file *pf_self)
 {
+	struct sbuf *s = &pf_self->sbuf;
 	struct sndstat_entry *ent;
 	struct snddev_info *d;
-    	int i, j;
+	struct sndstat_file *pf;
+    	int k;
 
+	/* make sure buffer is reset */
+	sbuf_clear(s);
+	
 	if (snd_verbose > 0) {
 		sbuf_printf(s, "FreeBSD Audio Driver (%ubit %d/%s)\n",
 		    (u_int)sizeof(intpcm32_t) << 3, SND_DRV_VERSION,
 		    MACHINE_ARCH);
 	}
 
-	if (SLIST_EMPTY(&sndstat_devlist)) {
-		sbuf_printf(s, "No devices installed.\n");
-		sbuf_finish(s);
-    		return sbuf_len(s);
-	}
-
-	sbuf_printf(s, "Installed devices:\n");
-
-    	for (i = 0; i <= sndstat_maxunit; i++) {
-		for (j = SS_TYPE_FIRST; j <= SS_TYPE_LAST; j++) {
-			ent = sndstat_find(j, i);
-			if (!ent)
-				continue;
-			d = device_get_softc(ent->dev);
-			if (!PCM_REGISTERED(d))
-				continue;
+	/* generate list of installed devices */
+	k = 0;
+	TAILQ_FOREACH(ent, &sndstat_devlist, link) {
+		if (ent->dev == NULL)
+			continue;
+		d = device_get_softc(ent->dev);
+		if (!PCM_REGISTERED(d))
+			continue;
+		if (!k++)
+			sbuf_printf(s, "Installed devices:\n");
+		sbuf_printf(s, "%s:", device_get_nameunit(ent->dev));
+		sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
+		if (snd_verbose > 0)
+			sbuf_printf(s, " %s", ent->str);
+		if (ent->handler) {
 			/* XXX Need Giant magic entry ??? */
 			PCM_ACQUIRE_QUICK(d);
-			sbuf_printf(s, "%s:", device_get_nameunit(ent->dev));
-			sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
-			if (snd_verbose > 0)
-				sbuf_printf(s, " %s", ent->str);
-			if (ent->handler)
-				ent->handler(s, ent->dev, snd_verbose);
-			sbuf_printf(s, "\n");
+			ent->handler(s, ent->dev, snd_verbose);
 			PCM_RELEASE_QUICK(d);
 		}
-    	}
+		sbuf_printf(s, "\n");
+	}
+	if (k == 0)
+		sbuf_printf(s, "No devices installed.\n");
 
-	if (snd_verbose >= 3 && sndstat_files > 0) {
-		sbuf_printf(s, "\nFile Versions:\n");
+	/* append any input from userspace */
+	k = 0;
+	TAILQ_FOREACH(pf, &sndstat_filelist, entry) {
+		if (pf == pf_self)
+			continue;
+		if (pf->out_offset == 0)
+			continue;
+		if (!k++)
+			sbuf_printf(s, "Installed devices from userspace:\n");
+		sbuf_bcat(s, sbuf_data(&pf->sbuf),
+		    sbuf_len(&pf->sbuf));
+	}
+	if (k == 0)
+		sbuf_printf(s, "No devices installed from userspace.\n");
 
-		SLIST_FOREACH(ent, &sndstat_devlist, link) {
-			if (ent->dev == NULL && ent->str != NULL)
+	/* append any file versions */
+	if (snd_verbose >= 3) {
+		k = 0;
+		TAILQ_FOREACH(ent, &sndstat_devlist, link) {
+			if (ent->dev == NULL && ent->str != NULL) {
+				if (!k++)
+					sbuf_printf(s, "\nFile Versions:\n");
 				sbuf_printf(s, "%s\n", ent->str);
+			}
 		}
+		if (k == 0)
+			sbuf_printf(s, "\nNo file versions.\n");
 	}
-
 	sbuf_finish(s);
-    	return sbuf_len(s);
-}
-
-static int
-sndstat_init(void)
-{
-	if (sndstat_dev != NULL)
-		return EINVAL;
-	sx_init(&sndstat_lock, "sndstat lock");
-	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS,
-	    UID_ROOT, GID_WHEEL, 0444, "sndstat");
-	return 0;
-}
-
-static int
-sndstat_uninit(void)
-{
-	if (sndstat_dev == NULL)
-		return EINVAL;
-
-	sx_xlock(&sndstat_lock);
-	if (SNDSTAT_PID(sndstat_dev) != curthread->td_proc->p_pid) {
-		sx_unlock(&sndstat_lock);
-		return EBUSY;
-	}
-
-	/* XXXPHO: use destroy_dev_sched() */
-	destroy_dev(sndstat_dev);
-	sndstat_dev = NULL;
-
-	SNDSTAT_FLUSH();
-
-	sx_unlock(&sndstat_lock);
-	sx_destroy(&sndstat_lock);
-	return 0;
+    	return (sbuf_len(s));
 }
 
 static void
 sndstat_sysinit(void *p)
 {
-	sndstat_init();
+	sx_init(&sndstat_lock, "sndstat lock");
+	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS,
+	    UID_ROOT, GID_WHEEL, 0644, "sndstat");
 }
+SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);
 
 static void
 sndstat_sysuninit(void *p)
 {
-	int error;
-
-	error = sndstat_uninit();
-	KASSERT(error == 0, ("%s: error = %d", __func__, error));
+	if (sndstat_dev != NULL) {
+		/* destroy_dev() will wait for all references to go away */
+		destroy_dev(sndstat_dev);
+	}
+	sx_destroy(&sndstat_lock);
 }
-
-SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);
 SYSUNINIT(sndstat_sysuninit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysuninit, NULL);
