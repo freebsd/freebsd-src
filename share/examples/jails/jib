@@ -122,7 +122,7 @@
 # 	add include $devfsrules_hide_all
 # 	add include $devfsrules_unhide_basic
 # 	add include $devfsrules_unhide_login
-# 	add include $devfsrules_unhide_bpf
+# 	add path 'bpf*' unhide
 #
 # And set ether devfs.ruleset="11" (jail.conf(5)) or
 # jail_{name}_devfs_ruleset="11" (rc.conf(5)).
