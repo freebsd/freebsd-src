@@ -104,7 +104,7 @@ kproc_create(void (*func)(void *), void *arg,
 	/* this is a non-swapped system process */
 	PROC_LOCK(p2);
 	td = FIRST_THREAD_IN_PROC(p2);
-	p2->p_flag |= P_SYSTEM | P_KTHREAD;
+	p2->p_flag |= P_SYSTEM | P_KPROC;
 	td->td_pflags |= TDP_KTHREAD;
 	mtx_lock(&p2->p_sigacts->ps_mtx);
 	p2->p_sigacts->ps_flag |= PS_NOCLDWAIT;
@@ -181,7 +181,7 @@ kproc_suspend(struct proc *p, int timo)
 	 * use the p_siglist field.
 	 */
 	PROC_LOCK(p);
-	if ((p->p_flag & P_KTHREAD) == 0) {
+	if ((p->p_flag & P_KPROC) == 0) {
 		PROC_UNLOCK(p);
 		return (EINVAL);
 	}
@@ -198,7 +198,7 @@ kproc_resume(struct proc *p)
 	 * use the p_siglist field.
 	 */
 	PROC_LOCK(p);
-	if ((p->p_flag & P_KTHREAD) == 0) {
+	if ((p->p_flag & P_KPROC) == 0) {
 		PROC_UNLOCK(p);
 		return (EINVAL);
 	}
@@ -411,7 +411,7 @@ kthread_resume(struct thread *td)
  * and notify the caller that is has happened.
  */
 void
-kthread_suspend_check()
+kthread_suspend_check(void)
 {
 	struct proc *p;
 	struct thread *td;
