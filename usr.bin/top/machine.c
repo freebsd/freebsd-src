@@ -1160,7 +1160,7 @@ format_nice(const struct kinfo_proc *pp)
 	static char nicebuf[4 + 1];
 
 	fifo = PRI_NEED_RR(pp->ki_pri.pri_class) ? "" : "F";
-	kthread = (pp->ki_flag & P_KTHREAD) ? "k" : "";
+	kthread = (pp->ki_flag & P_KPROC) ? "k" : "";
 	switch (PRI_BASE(pp->ki_pri.pri_class)) {
 	case PRI_ITHD:
 		return ("-");
@@ -1185,19 +1185,19 @@ format_nice(const struct kinfo_proc *pp)
 		 * values like "kr31F", but such values shouldn't occur,
 		 * and if they do then the tailing "F" is not displayed.
 		 */
-		rtpri = ((pp->ki_flag & P_KTHREAD) ? pp->ki_pri.pri_native :
+		rtpri = ((pp->ki_flag & P_KPROC) ? pp->ki_pri.pri_native :
 		    pp->ki_pri.pri_user) - PRI_MIN_REALTIME;
 		snprintf(nicebuf, sizeof(nicebuf), "%sr%d%s",
 		    kthread, rtpri, fifo);
 		break;
 	case PRI_TIMESHARE:
-		if (pp->ki_flag & P_KTHREAD)
+		if (pp->ki_flag & P_KPROC)
 			return ("-");
 		snprintf(nicebuf, sizeof(nicebuf), "%d", pp->ki_nice - NZERO);
 		break;
 	case PRI_IDLE:
 		/* XXX: as above. */
-		rtpri = ((pp->ki_flag & P_KTHREAD) ? pp->ki_pri.pri_native :
+		rtpri = ((pp->ki_flag & P_KPROC) ? pp->ki_pri.pri_native :
 		    pp->ki_pri.pri_user) - PRI_MIN_IDLE;
 		snprintf(nicebuf, sizeof(nicebuf), "%si%d%s",
 		    kthread, rtpri, fifo);
