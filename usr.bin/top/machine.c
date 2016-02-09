@@ -1155,12 +1155,12 @@ getsysctl(const char *name, void *ptr, size_t len)
 static const char *
 format_nice(const struct kinfo_proc *pp)
 {
-	const char *fifo, *kthread;
+	const char *fifo, *kproc;
 	int rtpri;
 	static char nicebuf[4 + 1];
 
 	fifo = PRI_NEED_RR(pp->ki_pri.pri_class) ? "" : "F";
-	kthread = (pp->ki_flag & P_KPROC) ? "k" : "";
+	kproc = (pp->ki_flag & P_KPROC) ? "k" : "";
 	switch (PRI_BASE(pp->ki_pri.pri_class)) {
 	case PRI_ITHD:
 		return ("-");
@@ -1188,7 +1188,7 @@ format_nice(const struct kinfo_proc *pp)
 		rtpri = ((pp->ki_flag & P_KPROC) ? pp->ki_pri.pri_native :
 		    pp->ki_pri.pri_user) - PRI_MIN_REALTIME;
 		snprintf(nicebuf, sizeof(nicebuf), "%sr%d%s",
-		    kthread, rtpri, fifo);
+		    kproc, rtpri, fifo);
 		break;
 	case PRI_TIMESHARE:
 		if (pp->ki_flag & P_KPROC)
@@ -1200,7 +1200,7 @@ format_nice(const struct kinfo_proc *pp)
 		rtpri = ((pp->ki_flag & P_KPROC) ? pp->ki_pri.pri_native :
 		    pp->ki_pri.pri_user) - PRI_MIN_IDLE;
 		snprintf(nicebuf, sizeof(nicebuf), "%si%d%s",
-		    kthread, rtpri, fifo);
+		    kproc, rtpri, fifo);
 		break;
 	default:
 		return ("?");
