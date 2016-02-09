@@ -257,12 +257,6 @@ struct {
 	[CHERIABI_SYS_rtprio] = {
 		.sam_ptrmask = 0x4
 	},
-	[CHERIABI_SYS_semsys] = {
-	},
-	[CHERIABI_SYS_msgsys] = {
-	},
-	[CHERIABI_SYS_shmsys] = {
-	},
 	[CHERIABI_SYS_ntp_adjtime] = {
 		.sam_ptrmask = 0x1
 	},

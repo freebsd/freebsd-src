@@ -837,39 +837,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* semsys */
-	case 169: {
-		struct semsys_args *p = params;
-		iarg[0] = p->which; /* int */
-		iarg[1] = p->a2; /* int */
-		iarg[2] = p->a3; /* int */
-		iarg[3] = p->a4; /* int */
-		iarg[4] = p->a5; /* int */
-		*n_args = 5;
-		break;
-	}
-	/* msgsys */
-	case 170: {
-		struct msgsys_args *p = params;
-		iarg[0] = p->which; /* int */
-		iarg[1] = p->a2; /* int */
-		iarg[2] = p->a3; /* int */
-		iarg[3] = p->a4; /* int */
-		iarg[4] = p->a5; /* int */
-		iarg[5] = p->a6; /* int */
-		*n_args = 6;
-		break;
-	}
-	/* shmsys */
-	case 171: {
-		struct shmsys_args *p = params;
-		iarg[0] = p->which; /* int */
-		iarg[1] = p->a2; /* int */
-		iarg[2] = p->a3; /* int */
-		iarg[3] = p->a4; /* int */
-		*n_args = 4;
-		break;
-	}
 	/* ntp_adjtime */
 	case 176: {
 		struct ntp_adjtime_args *p = params;
@@ -4381,72 +4348,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "struct rtprio *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* semsys */
-	case 169:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "int";
-			break;
-		case 4:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* msgsys */
-	case 170:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "int";
-			break;
-		case 4:
-			p = "int";
-			break;
-		case 5:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* shmsys */
-	case 171:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "int";
 			break;
 		default:
 			break;
@@ -8613,21 +8514,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rtprio */
 	case 166:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* semsys */
-	case 169:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* msgsys */
-	case 170:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* shmsys */
-	case 171:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

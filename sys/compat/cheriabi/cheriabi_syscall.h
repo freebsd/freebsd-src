@@ -163,9 +163,9 @@
 				/* 164 is obsolete uname */
 #define	CHERIABI_SYS_cheriabi_sysarch	165
 #define	CHERIABI_SYS_rtprio	166
-#define	CHERIABI_SYS_semsys	169
-#define	CHERIABI_SYS_msgsys	170
-#define	CHERIABI_SYS_shmsys	171
+				/* 169 is obsolete semsys */
+				/* 170 is obsolete msgsys */
+				/* 171 is obsolete shmsys */
 				/* 173 is obsolete pread */
 				/* 174 is obsolete pwrite */
 #define	CHERIABI_SYS_ntp_adjtime	176

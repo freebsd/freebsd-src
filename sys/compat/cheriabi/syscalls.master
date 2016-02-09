@@ -298,12 +298,9 @@
 				    struct rtprio *rtp); }
 167	AUE_NULL	UNIMPL	nosys
 168	AUE_NULL	UNIMPL	nosys
-169	AUE_SEMSYS	NOSTD|NOPROTO	{ int semsys(int which, int a2, \
-				    int a3, int a4, int a5); }
-170	AUE_MSGSYS	NOSTD|NOPROTO	{ int msgsys(int which, int a2, \
-				    int a3, int a4, int a5, int a6); }
-171	AUE_SHMSYS	NOSTD|NOPROTO	{ int shmsys(int which, int a2, \
-				    int a3, int a4); }
+169	AUE_SEMSYS	OBSOL	semsys
+170	AUE_MSGSYS	OBSOL	msgsys
+171	AUE_SHMSYS	OBSOL	shmsys
 172	AUE_NULL	UNIMPL	nosys
 173	AUE_PREAD	OBSOL	pread
 174	AUE_PWRITE	OBSOL	pwrite
