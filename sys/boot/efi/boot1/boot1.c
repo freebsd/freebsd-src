@@ -31,8 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <eficonsctl.h>
 
 #include "boot_module.h"
-
-#define _PATH_LOADER	"/boot/loader.efi"
+#include "paths.h"
 
 static const boot_module_t *boot_modules[] =
 {
@@ -99,13 +98,13 @@ try_load(const boot_module_t *mod)
 	EFI_LOADED_IMAGE *loaded_image;
 	EFI_STATUS status;
 
-	status = mod->load(_PATH_LOADER, &dev, &buf, &bufsize);
+	status = mod->load(PATH_LOADER_EFI, &dev, &buf, &bufsize);
 	if (status == EFI_NOT_FOUND)
 		return;
 
 	if (status != EFI_SUCCESS) {
-		printf("%s failed to load %s (%lu)\n", mod->name, _PATH_LOADER,
-		    EFI_ERROR_CODE(status));
+		printf("%s failed to load %s (%lu)\n", mod->name,
+		    PATH_LOADER_EFI, EFI_ERROR_CODE(status));
 		return;
 	}
 
@@ -174,7 +173,7 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	conout->ClearScreen(conout);
 
 	printf("\n>> FreeBSD EFI boot block\n");
-	printf("   Loader path: %s\n\n", _PATH_LOADER);
+	printf("   Loader path: %s\n\n", PATH_LOADER_EFI);
 	printf("   Initializing modules:");
 	for (i = 0; i < NUM_BOOT_MODULES; i++) {
 		if (boot_modules[i] == NULL)
