@@ -419,7 +419,7 @@ get_num(const char *val)
 	char *expr;
 
 	errno = 0;
-	num = strtouq(val, &expr, 0);
+	num = strtoumax(val, &expr, 0);
 	if (errno != 0)				/* Overflow or underflow. */
 		err(1, "%s", oper);
 	
@@ -469,7 +469,7 @@ get_off_t(const char *val)
 	char *expr;
 
 	errno = 0;
-	num = strtoq(val, &expr, 0);
+	num = strtoimax(val, &expr, 0);
 	if (errno != 0)				/* Overflow or underflow. */
 		err(1, "%s", oper);
 	
