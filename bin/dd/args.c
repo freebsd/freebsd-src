@@ -407,8 +407,10 @@ postfix_to_mult(const char expr)
  *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
  *	4) A positive decimal number followed by a 'm' or 'M' (mult by 1 << 20).
  *	5) A positive decimal number followed by a 'g' or 'G' (mult by 1 << 30).
- *	5) A positive decimal number followed by a 'w' or 'W' (mult by sizeof int).
- *	6) Two or more positive decimal numbers (with/without [BbKkMmGgWw])
+ *	6) A positive decimal number followed by a 't' or 'T' (mult by 1 << 40).
+ *	7) A positive decimal number followed by a 'p' or 'P' (mult by 1 << 50).
+ *	8) A positive decimal number followed by a 'w' or 'W' (mult by sizeof int).
+ *	9) Two or more positive decimal numbers (with/without [BbKkMmGgWw])
  *	   separated by 'x' or 'X' (also '*' for backwards compatibility),
  *	   specifying the product of the indicated values.
  */
