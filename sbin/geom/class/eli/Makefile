@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH: ${.CURDIR}/../../misc ${.CURDIR}/../../../../sys/geom/eli ${.CURDIR}/../../../../sys/crypto/sha2
 
 GEOM_CLASS=	eli

@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	reboot
 MAN=	reboot.8 nextboot.8
 MLINKS=	reboot.8 halt.8 reboot.8 fastboot.8 reboot.8 fasthalt.8

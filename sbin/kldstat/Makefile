@@ -26,6 +26,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=runtime
 PROG=	kldstat
 MAN=	kldstat.8
 

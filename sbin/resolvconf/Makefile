@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 DIST=		${.CURDIR}/../../contrib/openresolv
 .PATH:		${DIST}
 
