@@ -260,30 +260,35 @@ jng_bridge()
 		# 6. Set the MAC address of the new interface using a sensible
 		# algorithm to prevent conflicts on the network.
 		#
-		# The formula I'm using is ``SP:SS:SI:II:II:II'' where:
-		# + S denotes 16 bits of sum(1) data, split because P (below).
+		# The formula I'm using is ``NP:SS:SS:II:II:II'' where:
+		# + N denotes 4 bits used as a counter to support branching
+		#   each parent interface up to 15 times under the same jail
+		#   name (see S below).
 		# + P denotes the special nibble whose value, if one of
 		#   2, 6, A, or E (but usually 2) denotes a privately
 		#   administered MAC address (while remaining routable).
+		# + S denotes 16 bits, the sum(1) value of the jail name.
 		# + I denotes bits that are inherited from parent interface.
 		#
 		# The S bits are a CRC-16 checksum of NAME, allowing the jail
 		# to change link numbers in ng_bridge(4) without affecting the
-		# MAC address. Meanwhile, if the jail NAME changes (e.g., it
-		# was duplicated and given a new name with no other changes),
-		# the underlying network interface changes, or the jail is
-		# moved to another host, the MAC address will be recalculated
-		# to a new, similarly unique value preventing conflict.
+		# MAC address. Meanwhile, if...
+		#   + the jail NAME changes (e.g., it was duplicated and given
+		#     a new name with no other changes)
+		#   + the underlying network interface changes
+		#   + the jail is moved to another host
+		# the MAC address will be recalculated to a new, similarly
+		# unique value preventing conflict.
 		#
 		iface_devid=$( ifconfig $iface ether | awk '/ether/,$0=$2' )
-		eiface_devid=${iface_devid#??:??:?}
+		eiface_devid=${iface_devid#??:??:??}
 		num=$( set -- `echo -n $name | sum` && echo $1 )
 		quad=$(( $num & 15 ))
 		case "$quad" in
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
-		eiface_devid=:$quad$eiface_devid
+		eiface_devid=$quad$eiface_devid
 		num=$(( $num >> 4 ))
 		quad=$(( $num & 15 ))
 		case "$quad" in
@@ -297,11 +302,25 @@ jng_bridge()
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
+		eiface_devid=$quad:$eiface_devid
+		num=$(( $num >> 4 ))
+		quad=$(( $num & 15 ))
+		case "$quad" in
+		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
+		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
+		esac
 		case "$iface_devid" in
 		?2:*) eiface_devid=a:$quad$eiface_devid ;;
 		*) eiface_devid=2:$quad$eiface_devid
 		esac
-		num=$(( $num >> 4 ))
+		eval num=\$_${iface}_num
+		if [ "$num" ]; then
+			num=$(( $num + 1 ))
+			eval _${iface}_num=$num
+		else
+			num=0
+			local _${iface}_num=$num
+		fi
 		quad=$(( $num & 15 ))
 		case "$quad" in
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
