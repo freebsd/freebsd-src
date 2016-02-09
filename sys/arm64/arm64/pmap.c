@@ -3074,7 +3074,11 @@ retry:
 	l1p = pmap_l1(pmap, addr);
 	if (l1p == NULL) /* No l1 */
 		goto done;
+
 	l1 = pmap_load(l1p);
+	if ((l1 & ATTR_DESCR_MASK) == L1_INVAL)
+		goto done;
+
 	if ((l1 & ATTR_DESCR_MASK) == L1_BLOCK) {
 		pa = (l1 & ~ATTR_MASK) | (addr & L1_OFFSET);
 		managed = (l1 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
@@ -3089,7 +3093,11 @@ retry:
 	l2p = pmap_l1_to_l2(l1p, addr);
 	if (l2p == NULL) /* No l2 */
 		goto done;
+
 	l2 = pmap_load(l2p);
+	if ((l2 & ATTR_DESCR_MASK) == L2_INVAL)
+		goto done;
+
 	if ((l2 & ATTR_DESCR_MASK) == L2_BLOCK) {
 		pa = (l2 & ~ATTR_MASK) | (addr & L2_OFFSET);
 		managed = (l2 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
@@ -3104,7 +3112,11 @@ retry:
 	l3p = pmap_l2_to_l3(l2p, addr);
 	if (l3p == NULL) /* No l3 */
 		goto done;
+
 	l3 = pmap_load(l2p);
+	if ((l3 & ATTR_DESCR_MASK) == L3_INVAL)
+		goto done;
+
 	if ((l3 & ATTR_DESCR_MASK) == L3_PAGE) {
 		pa = (l3 & ~ATTR_MASK) | (addr & L3_OFFSET);
 		managed = (l3 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
