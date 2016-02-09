@@ -255,6 +255,7 @@ jng_bridge()
 			echo $2 ) || return
 		ngctl name "$iface$bridge:link$num" $eiface || return
 		ifconfig $new name $eiface || return
+		ifconfig $eiface up || return
 
 		#
 		# 6. Set the MAC address of the new interface using a sensible
