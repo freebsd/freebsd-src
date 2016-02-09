@@ -1482,12 +1482,11 @@ create-kernel-packages:	_pkgbootstrap
 sign-packages:	_pkgbootstrap
 	@[ -L "${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
-	env PKG_VERSION=${PKG_VERSION} pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
+	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
 		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
 		${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
 		${PKGSIGNKEY} ; \
-	env PKG_VERSION=${PKG_VERSION} \
-		ln -s ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+	ln -s ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
 		${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest
 
 #
