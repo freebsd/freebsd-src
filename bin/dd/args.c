@@ -360,10 +360,10 @@ c_conv(const void *a, const void *b)
 	    ((const struct conv *)b)->name));
 }
 
-static uintmax_t
+static intmax_t
 postfix_to_mult(const char expr)
 {
-	uintmax_t mult;
+	intmax_t mult;
 
 	mult = 0;
 	switch (expr) {
