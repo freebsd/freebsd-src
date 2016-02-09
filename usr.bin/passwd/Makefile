@@ -1,6 +1,9 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 # $FreeBSD$
 
+# relocation errors when linking
+WANT_CHERI=none
+
 .include <src.opts.mk>
 
 PROG	 = passwd

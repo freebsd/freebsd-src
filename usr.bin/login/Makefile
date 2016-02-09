@@ -1,6 +1,9 @@
 # 	@(#)Makefile	8.1 (Berkeley) 7/19/93
 # $FreeBSD$
 
+# openpam_static
+WANT_CHERI=none
+
 .include <src.opts.mk>
 
 PROG=	login

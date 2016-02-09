@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# C++
+WANT_CHERI=none
+
 .include <src.opts.mk>
 
 PACKAGE=runtime

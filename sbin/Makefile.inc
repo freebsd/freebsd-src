@@ -6,6 +6,10 @@
 BINDIR?=	/sbin
 WARNS?=	6
 
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI?=pure
+.endif
+
 .if ${MK_DYNAMICROOT} == "no"
 NO_SHARED?=	YES
 .endif

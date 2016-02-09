@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# multiple definition of `vwarn'
+WANT_CHERI=none
+
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/common
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/dump
 

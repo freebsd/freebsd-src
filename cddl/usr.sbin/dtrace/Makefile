@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# linker
+WANT_CHERI=none
+
 .include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/dtrace

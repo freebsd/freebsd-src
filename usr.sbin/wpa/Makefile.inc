@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI?=	pure
+.endif
+
 BINDIR?=	/usr/sbin
 
 WPA_DISTDIR?= 		${.CURDIR}/../../../contrib/wpa/

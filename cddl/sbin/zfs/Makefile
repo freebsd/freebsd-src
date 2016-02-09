@@ -2,6 +2,9 @@
 
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/zfs
 
+# linker crash
+WANT_CHERI=none
+
 PROG=	zfs
 MAN=	zfs.8
 SRCS=	zfs_main.c zfs_iter.c

@@ -1,6 +1,9 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
 # $FreeBSD$
 
+# linker error
+WANT_CHERI=none
+
 .include <src.opts.mk>
 
 PACKAGE=sendmail
