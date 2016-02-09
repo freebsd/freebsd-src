@@ -29,6 +29,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	setkey
 MAN=	setkey.8
 SRCS=	setkey.c parse.y token.l

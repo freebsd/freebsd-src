@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 .PATH:	${.CURDIR}/../../misc
 
 GEOM_CLASS=	raid3

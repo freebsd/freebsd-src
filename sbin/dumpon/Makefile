@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	dumpon
 MAN=	dumpon.8
 

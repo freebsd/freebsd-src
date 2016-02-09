@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	recoverdisk
 
 .include <bsd.prog.mk>
