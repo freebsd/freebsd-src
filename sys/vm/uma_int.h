@@ -28,6 +28,8 @@
  *
  */
 
+#include <sys/_task.h>
+
 /* 
  * This file includes definitions, structures, prototypes, and inlines that
  * should not be used outside of the actual implementation of UMA.
