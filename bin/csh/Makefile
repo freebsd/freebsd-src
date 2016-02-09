@@ -8,6 +8,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}
 

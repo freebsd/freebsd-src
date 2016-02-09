@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 SCRIPTS = freebsd-version
 MAN = freebsd-version.1
 CLEANFILES = freebsd-version freebsd-version.sh
