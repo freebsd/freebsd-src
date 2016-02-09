@@ -29,7 +29,6 @@
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include <sys/sysctl.h>
-#include <sys/_task.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
