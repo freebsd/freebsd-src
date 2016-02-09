@@ -1009,7 +1009,7 @@ pmc_attach_one_process(struct proc *p, struct pmc *pm)
 
 	/* issue an attach event to a configured log file */
 	if (pm->pm_owner->po_flags & PMC_PO_OWNS_LOGFILE) {
-		if (p->p_flag & P_KTHREAD) {
+		if (p->p_flag & P_KPROC) {
 			fullpath = kernelname;
 			freepath = NULL;
 		} else {
