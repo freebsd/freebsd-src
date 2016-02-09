@@ -214,6 +214,7 @@ jib_addm()
 			new=$( ifconfig bridge create ) || return
 			ifconfig $new addm $iface || return
 			ifconfig $new name "$iface$bridge" || return
+			ifconfig "$iface$bridge" up || return
 		fi
 
 		# 4. Create a new interface to the bridge
@@ -223,6 +224,8 @@ jib_addm()
 		# 5. Rename the new interface
 		ifconfig $new name "e${i}a_$name" || return
 		ifconfig ${new%a}b name "e${i}b_$name" || return
+		ifconfig "e${i}a_$name" up || return
+		ifconfig "e${i}b_$name" up || return
 
 		#
 		# 6. Set the MAC address of the new interface using a sensible
