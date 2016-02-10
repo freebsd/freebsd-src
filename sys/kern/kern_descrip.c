@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/domain.h>
+#include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -3299,6 +3300,7 @@ struct export_fd_buf {
 	struct sbuf 		*sb;
 	ssize_t			remainder;
 	struct kinfo_file	kif;
+	int			flags;
 };
 
 static int
@@ -3385,9 +3387,12 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
 	kif->kf_type = type;
 	kif->kf_ref_count = refcnt;
 	kif->kf_offset = offset;
-	/* Pack record size down */
-	kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
-	    strlen(kif->kf_path) + 1;
+	if ((efbuf->flags & KERN_FILEDESC_PACK_KINFO) != 0)
+		/* Pack record size down */
+		kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
+		    strlen(kif->kf_path) + 1;
+	else
+		kif->kf_structsize = sizeof(*kif);
 	kif->kf_structsize = roundup(kif->kf_structsize, sizeof(uint64_t));
 	if (efbuf->remainder != -1) {
 		if (efbuf->remainder < kif->kf_structsize) {
@@ -3413,7 +3418,8 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
  * Takes a locked proc as argument, and returns with the proc unlocked.
  */
 int
-kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
+kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
+    int flags)
 {
 	struct file *fp;
 	struct filedesc *fdp;
@@ -3448,6 +3454,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 	efbuf->fdp = NULL;
 	efbuf->sb = sb;
 	efbuf->remainder = maxlen;
+	efbuf->flags = flags;
 	if (tracevp != NULL)
 		export_fd_to_sb(tracevp, KF_TYPE_VNODE, KF_FD_TYPE_TRACE,
 		    FREAD | FWRITE, -1, -1, NULL, efbuf);
@@ -3597,7 +3604,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	maxlen = req->oldptr != NULL ? req->oldlen : -1;
-	error = kern_proc_filedesc_out(p, &sb, maxlen);
+	error = kern_proc_filedesc_out(p, &sb, maxlen,
+	    KERN_FILEDESC_PACK_KINFO);
 	error2 = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (error != 0 ? error : error2);
@@ -3635,6 +3643,24 @@ vntype_to_kinfo(int vtype)
 	return (KF_VTYPE_UNKNOWN);
 }
 
+static inline void
+vn_fill_junk(struct kinfo_file *kif)
+{
+	size_t len, olen;
+
+	/*
+	 * Simulate vn_fullpath returning changing values for a given
+	 * vp during e.g. coredump.
+	 */
+	len = (arc4random() % (sizeof(kif->kf_path) - 2)) + 1;
+	olen = strlen(kif->kf_path);
+	if (len < olen)
+		strcpy(&kif->kf_path[len - 1], "$");
+	else
+		for (; olen < len; olen++)
+			strcpy(&kif->kf_path[olen], "A");
+}
+
 static int
 fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 {
@@ -3653,6 +3679,10 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	}
 	if (freepath != NULL)
 		free(freepath, M_TEMP);
+
+	KFAIL_POINT_CODE(DEBUG_FP, fill_kinfo_vnode__random_path,
+		vn_fill_junk(kif);
+	);
 
 	/*
 	 * Retrieve vnode attributes.
