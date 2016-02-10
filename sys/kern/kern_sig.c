@@ -957,9 +957,11 @@ siginit(p)
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
-	for (i = 1; i <= NSIG; i++)
-		if (sigprop(i) & SIGPROP_IGNORE && i != SIGCONT)
+	for (i = 1; i <= NSIG; i++) {
+		if (sigprop(i) & SIGPROP_IGNORE && i != SIGCONT) {
 			SIGADDSET(ps->ps_sigignore, i);
+		}
+	}
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
 }
@@ -2002,7 +2004,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	    cheri_stack_unwind(td, td->td_frame, sig)) {
 		if (log_cheri_unwind)
 			printf("Sandbox unwind on uncaught signal %d, pid %d, "
-                	"tid %d\n", sig, p->p_pid, td->td_tid);
+			    "tid %d\n", sig, p->p_pid, td->td_tid);
 		mtx_unlock(&ps->ps_mtx);
 	} else
 #endif
