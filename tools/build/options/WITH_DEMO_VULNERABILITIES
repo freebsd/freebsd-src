@@ -1,0 +1,6 @@
+.\" $FreeBSD$
+Set to build assorted componentent with vulnerabilities required for CHERI
+demos.
+.Bf Em
+Do not enable in production.
+.Ef

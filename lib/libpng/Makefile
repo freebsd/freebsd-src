@@ -9,7 +9,7 @@ SRCDIR?=	${.CURDIR}/../../contrib/libpng
 CFLAGS+=	-I${BUILDDIR}
 
 .PATH: ${SRCDIR}
-SRCS=	\
+SRCS+=	\
 	png.c \
 	pngerror.c \
 	pngget.c \

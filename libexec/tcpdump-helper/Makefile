@@ -20,7 +20,6 @@ INCS=	tcpdump-helper.h
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-DTCPDUMP_PRINT_ONLY \
 		-DTCPDUMP_HELPER \
-		-DCHERI_TCPDUMP_VULNERABILITY \
 		-DCHERI_TCPDUMP_INTERNAL \
 		-D_U_="__attribute__((unused))" \
 		-I${.CURDIR}/../../contrib/tcpdump \
@@ -28,6 +27,9 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/cheri_tcpdump \
 		-mxgot
+.if ${MK_DEMO_VULNERABILITIES} != "no"
+CFLAGS+=	-DCHERI_TCPDUMP_VULNERABILITY
+.endif
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 WARNS=	3
