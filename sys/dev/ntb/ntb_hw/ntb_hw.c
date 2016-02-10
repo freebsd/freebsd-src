@@ -369,6 +369,32 @@ ntb_pat_flags(void)
 	}
 }
 
+/*
+ * Well, this obviously doesn't belong here, but it doesn't seem to exist
+ * anywhere better yet.
+ */
+static inline const char *
+ntb_vm_memattr_to_str(vm_memattr_t pat)
+{
+
+	switch (pat) {
+	case VM_MEMATTR_WRITE_COMBINING:
+		return ("WRITE_COMBINING");
+	case VM_MEMATTR_WRITE_THROUGH:
+		return ("WRITE_THROUGH");
+	case VM_MEMATTR_WRITE_PROTECTED:
+		return ("WRITE_PROTECTED");
+	case VM_MEMATTR_WRITE_BACK:
+		return ("WRITE_BACK");
+	case VM_MEMATTR_WEAK_UNCACHEABLE:
+		return ("UNCACHED");
+	case VM_MEMATTR_UNCACHEABLE:
+		return ("UNCACHEABLE");
+	default:
+		return ("UNKNOWN");
+	}
+}
+
 static int g_ntb_mw_idx = -1;
 SYSCTL_INT(_hw_ntb, OID_AUTO, b2b_mw_idx, CTLFLAG_RDTUN, &g_ntb_mw_idx,
     0, "Use this memory window to access the peer NTB registers.  A "
@@ -828,8 +854,7 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 		    (char *)bar->vbase + bar->size - 1,
 		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
-		    (mapmode == VM_MEMATTR_WRITE_COMBINING) ? "WRITE_COMBINING"
-		    : "WRITE_BACK");
+		    ntb_vm_memattr_to_str(mapmode));
 	} else
 		device_printf(ntb->device,
 		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
@@ -837,8 +862,7 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 		    (char *)bar->vbase + bar->size - 1,
 		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
-		    (mapmode == VM_MEMATTR_WRITE_COMBINING) ? "WRITE_COMBINING"
-		    : "WRITE_BACK", rc);
+		    ntb_vm_memattr_to_str(mapmode), rc);
 		/* Proceed anyway */
 	return (0);
 }
