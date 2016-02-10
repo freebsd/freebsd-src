@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -66,13 +67,42 @@ struct icl_softc {
 	TAILQ_HEAD(, icl_module)	sc_modules;
 };
 
+static int sysctl_kern_icl_drivers(SYSCTL_HANDLER_ARGS);
+static MALLOC_DEFINE(M_ICL, "icl", "iSCSI Common Layer");
+static struct icl_softc	*sc;
+
 SYSCTL_NODE(_kern, OID_AUTO, icl, CTLFLAG_RD, 0, "iSCSI Common Layer");
 int icl_debug = 1;
 SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RWTUN,
     &icl_debug, 0, "Enable debug messages");
+SYSCTL_PROC(_kern_icl, OID_AUTO, drivers,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_kern_icl_drivers, "A",
+    "List of ICL drivers");
 
-static MALLOC_DEFINE(M_ICL, "icl", "iSCSI Common Layer");
-static struct icl_softc	*sc;
+static int
+sysctl_kern_icl_drivers(SYSCTL_HANDLER_ARGS)
+{
+	const struct icl_module *im;
+	struct sbuf sb;
+	int error;
+
+	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+
+	sx_slock(&sc->sc_lock);
+	TAILQ_FOREACH(im, &sc->sc_modules, im_next) {
+		if (im != TAILQ_FIRST(&sc->sc_modules))
+			sbuf_putc(&sb, ' ');
+		sbuf_printf(&sb, "%s", im->im_name);
+	}
+	sx_sunlock(&sc->sc_lock);
+
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	sbuf_delete(&sb);
+	return (error);
+}
 
 static struct icl_module *
 icl_find(const char *name)
