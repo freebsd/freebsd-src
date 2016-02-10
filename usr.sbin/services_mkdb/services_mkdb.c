@@ -141,7 +141,7 @@ main(int argc, char *argv[])
 		err(1, "Cannot install exit handler");
 
 	(void)snprintf(tname, sizeof(tname), "%s.tmp", dbname);
-	db = dbopen(tname, O_RDWR | O_CREAT | O_EXCL | O_SYNC,
+	db = dbopen(tname, O_RDWR | O_CREAT | O_EXCL,
 	    (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH), DB_HASH, &hinfo);
 	if (!db)
 		err(1, "Error opening temporary database `%s'", tname);
