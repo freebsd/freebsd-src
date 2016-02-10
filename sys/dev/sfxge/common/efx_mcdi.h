@@ -228,6 +228,14 @@ efx_mcdi_get_loopback_modes(
 	__in		efx_nic_t *enp);
 #endif /* EFSYS_OPT_LOOPBACK */
 
+extern	__checkReturn	efx_rc_t
+efx_mcdi_phy_module_get_info(
+	__in			efx_nic_t *enp,
+	__in			uint8_t dev_addr,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data);
+
 #define	MCDI_IN(_emr, _type, _ofst)					\
 	((_type *)((_emr).emr_in_buf + (_ofst)))
 
