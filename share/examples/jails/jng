@@ -154,6 +154,7 @@ usage()
 		show		\
 		show1		\
 		shutdown	\
+		stats		\
 	; do
 		eval usage=\"\$jng_${action}_usage\"
 		[ "$usage" ] || continue
@@ -412,6 +413,39 @@ jng_shutdown()
 		action_usage shutdown # NOTREACHED
 	mustberoot_to_continue
 	jng_show "$name" | xargs -rn1 -I eiface ngctl shutdown eiface:
+}
+
+jng_stats_usage="stats NAME"
+jng_stats_descr="Show ng_bridge link statistics for NAME interfaces"
+jng_stats()
+{
+	local OPTIND=1 OPTARG flag
+	while getopts "" flag; do
+		case "$flag" in
+		*) action_usage stats # NOTREACHED
+		esac
+	done
+	shift $(( $OPTIND -1 ))
+	local name="$1"
+	[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" -a $# -eq 1 ] ||
+		action_usage stats # NOTREACHED
+	mustberoot_to_continue
+	for eiface in $( jng_show "$name" ); do
+		echo "$eiface:"
+		ngctl show $eiface: | awk '
+		$3 == "bridge" && $5 ~ /^link/ {
+			bridge = $2
+			link = substr($5, 5)
+			system(sprintf("ngctl msg %s: getstats %u",
+				bridge, link))
+		}' | fmt 2 | awk '
+			/=/ && fl = index($0, "=") {
+				printf "%20s = %s\n",
+					substr($0, 0, fl-1),
+					substr($0, 0, fl+1)
+			}
+		' # END-QUOTE
+	done
 }
 
 ############################################################ MAIN
