@@ -34,7 +34,7 @@
 #include "ld_utils.h"
 #include "i386.h"
 
-ELFTC_VCSID("$Id: i386.c 2967 2013-10-12 23:58:13Z kaiwang27 $");
+ELFTC_VCSID("$Id: i386.c 3391 2016-02-05 19:43:01Z emaste $");
 
 static void _create_plt_reloc(struct ld *ld, struct ld_symbol *lsb,
     uint64_t offset);
@@ -93,7 +93,7 @@ _reloc2str(uint64_t r)
 		case 4: return "R_386_PLT32";
 		case 5: return "R_386_COPY";
 		case 6: return "R_386_GLOB_DAT";
-		case 7: return "R_386_JMP_SLOT";
+		case 7: return "R_386_JUMP_SLOT";
 		case 8: return "R_386_RELATIVE";
 		case 9: return "R_386_GOTOFF";
 		case 10: return "R_386_GOTPC";
@@ -119,7 +119,7 @@ _reloc2str(uint64_t r)
 		case 37: return "R_386_TLS_TPOFF32";
 
 	default:
-		snprintf(s, sizeof(s), "<unkown: %ju>", r);
+		snprintf(s, sizeof(s), "<unkown: %ju>", (uintmax_t) r);
 		return (s);
 	}
 }
@@ -253,15 +253,14 @@ static void
 _reserve_gotplt_entry(struct ld *ld, struct ld_symbol *lsb)
 {
 	struct ld_input_section *is;
-	uint64_t off;
 
 	is = _find_and_create_gotplt_section(ld, 1);
 
 	/* Reserve a GOT entry for PLT. */
-	off = ld_input_reserve_ibuf(is, 1);
+	(void) ld_input_reserve_ibuf(is, 1);
 
 	/*
-	 * Record a R_386_JMP_SLOT entry for this symbol. Note that
+	 * Record a R_386_JUMP_SLOT entry for this symbol. Note that
 	 * we don't need to record the offset (relative to the GOT section)
 	 * here, since the PLT relocations will be sorted later and we
 	 * will generate GOT section according to the new order.
@@ -284,7 +283,7 @@ static void
 _create_plt_reloc(struct ld *ld, struct ld_symbol *lsb, uint64_t offset)
 {
 
-	ld_reloc_create_entry(ld, ".rel.plt", NULL, R_386_JMP_SLOT,
+	ld_reloc_create_entry(ld, ".rel.plt", NULL, R_386_JUMP_SLOT,
 	    lsb, offset, 0);
 
 	lsb->lsb_dynrel = 1;

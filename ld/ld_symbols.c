@@ -34,7 +34,7 @@
 #include "ld_script.h"
 #include "ld_strtab.h"
 
-ELFTC_VCSID("$Id: ld_symbols.c 2965 2013-09-10 02:46:29Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_symbols.c 3281 2015-12-11 21:39:23Z kaiwang27 $");
 
 #define	_INIT_SYMTAB_SIZE	128
 
@@ -171,6 +171,9 @@ ld_symbols_add_variable(struct ld *ld, struct ld_script_variable *ldv,
 	if (hidden)
 		lsb->lsb_other = STV_HIDDEN;
 	lsb->lsb_ref_ndso = 1;
+	ldv->ldv_symbol = lsb;
+	ldv->ldv_os_ref = ld->ld_scp->lds_last_os_name;
+	ldv->ldv_os_base = ld->ld_scp->lds_base_os_name;
 
 	if (ld->ld_var_symbols == NULL) {
 		ld->ld_var_symbols = malloc(sizeof(*ld->ld_var_symbols));

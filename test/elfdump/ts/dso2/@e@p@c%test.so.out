@@ -1,7 +1,7 @@
 
 elf header:
 
-	e_ident: ELFCLASS64 ELFDATA2LSB ELFOSABI_SYSV
+	e_ident: ELFCLASS64 ELFDATA2LSB ELFOSABI_NONE
 	e_type: ET_DYN
 	e_machine: EM_X86_64
 	e_version: EV_CURRENT

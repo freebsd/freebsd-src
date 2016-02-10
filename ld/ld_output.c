@@ -36,7 +36,7 @@
 #include "ld_strtab.h"
 #include "ld_symbols.h"
 
-ELFTC_VCSID("$Id: ld_output.c 2965 2013-09-10 02:46:29Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_output.c 3281 2015-12-11 21:39:23Z kaiwang27 $");
 
 static void _alloc_input_section_data(struct ld *ld, Elf_Scn *scn,
     struct ld_input_section *is);
@@ -113,7 +113,7 @@ ld_output_init(struct ld *ld)
 
 	eh.e_ident[EI_CLASS] = lo->lo_ec;
 	eh.e_ident[EI_DATA] = lo->lo_endian;
-	eh.e_flags = 0;		/* TODO */
+	eh.e_flags = ld->ld_arch->flags;
 	eh.e_machine = elftc_bfd_target_machine(ld->ld_otgt);
 	if (ld->ld_dso || ld->ld_pie)
 		eh.e_type = ET_DYN;
@@ -916,7 +916,8 @@ ld_output_create(struct ld *ld)
 	ld_input_alloc_internal_section_buffers(ld);
 
 	/* Finalize PLT and GOT sections. */
-	ld->ld_arch->finalize_got_and_plt(ld);
+	if (ld->ld_arch->finalize_got_and_plt)
+		ld->ld_arch->finalize_got_and_plt(ld);
 
 	/* Join and sort dynamic relocation sections. */
 	_join_and_finalize_dynamic_reloc_sections(ld, lo);

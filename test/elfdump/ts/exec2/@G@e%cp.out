@@ -16,7 +16,7 @@ elf header:
 	e_shnum: 25
 	e_shstrndx: 24
 
-global offset table:
+global offset table: .got
 
 entry: 0
 	0x804c4f0

@@ -26,9 +26,9 @@
  */
 
 #include "ld.h"
-#include "y.tab.h"
+#include "ld_script_parser.h"
 
-ELFTC_VCSID("$Id: ld_script_lexer.l 2875 2013-01-09 22:46:03Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_script_lexer.l 3385 2016-01-31 14:26:26Z jkoshy $");
 
 #define	YY_NO_UNPUT
 int lineno = 1;
@@ -51,6 +51,7 @@ MATTR		\(!?[rRwWxXaAiIlL]+\)
 
 %option noyywrap
 %option never-interactive
+%option nounput
 
 %%
 

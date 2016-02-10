@@ -1,7 +1,7 @@
 #
 # Rules for building programs.
 #
-# $Id: elftoolchain.prog.mk 2985 2014-03-06 03:24:35Z jkoshy $
+# $Id: elftoolchain.prog.mk 3352 2016-01-18 21:50:10Z jkoshy $
 
 .if !defined(TOP)
 .error	Make variable \"TOP\" has not been defined.
@@ -36,6 +36,18 @@ _LDADD_LIBELFTC=${LDADD:M-lelftc}
 CFLAGS+= -I${TOP}/libelftc
 LDFLAGS+= -L${TOP}/libelftc
 .endif
+
+_LDADD_LIBPE=${LDADD:M-lpe}
+.if !empty(_LDADD_LIBPE)
+CFLAGS+= -I${TOP}/libpe
+LDFLAGS+= -L${TOP}/libpe
+.endif
+.endif
+
+_LDADD_LIBARCHIVE=${LDADD:M-larchive}
+.if !empty(_LDADD_LIBARCHIVE) && ${OS_HOST} == NetBSD
+CFLAGS+=	-I/usr/pkg/include
+LDFLAGS+=	-L/usr/pkg/lib
 .endif
 
 #

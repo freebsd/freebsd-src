@@ -9,12 +9,12 @@ Relocation Section:  .rela.dyn
 
 Relocation Section:  .rela.plt
         type                          offset     addend  section        with respect to
-        R_X86_64_JMP_SLOT           0x200e18          0  .rela.plt      printf
-        R_X86_64_JMP_SLOT           0x200e20          0  .rela.plt      puts
-        R_X86_64_JMP_SLOT           0x200e28          0  .rela.plt      toupper
-        R_X86_64_JMP_SLOT           0x200e30          0  .rela.plt      cos
-        R_X86_64_JMP_SLOT           0x200e38          0  .rela.plt      cosh
-        R_X86_64_JMP_SLOT           0x200e40          0  .rela.plt      __cxa_finalize
-        R_X86_64_JMP_SLOT           0x200e48          0  .rela.plt      gets
-        R_X86_64_JMP_SLOT           0x200e50          0  .rela.plt      tolower
-        R_X86_64_JMP_SLOT           0x200e58          0  .rela.plt      acos
+        R_X86_64_JUMP_SLOT          0x200e18          0  .rela.plt      printf
+        R_X86_64_JUMP_SLOT          0x200e20          0  .rela.plt      puts
+        R_X86_64_JUMP_SLOT          0x200e28          0  .rela.plt      toupper
+        R_X86_64_JUMP_SLOT          0x200e30          0  .rela.plt      cos
+        R_X86_64_JUMP_SLOT          0x200e38          0  .rela.plt      cosh
+        R_X86_64_JUMP_SLOT          0x200e40          0  .rela.plt      __cxa_finalize
+        R_X86_64_JUMP_SLOT          0x200e48          0  .rela.plt      gets
+        R_X86_64_JUMP_SLOT          0x200e50          0  .rela.plt      tolower
+        R_X86_64_JUMP_SLOT          0x200e58          0  .rela.plt      acos

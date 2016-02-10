@@ -34,7 +34,7 @@
 #include "ld_path.h"
 #include "ld_exp.h"
 
-ELFTC_VCSID("$Id: ld_script_parser.y 2924 2013-03-17 22:53:36Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_script_parser.y 3281 2015-12-11 21:39:23Z kaiwang27 $");
 
 struct yy_buffer_state;
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
@@ -756,7 +756,10 @@ sections_sub_command
 	;
 
 output_sections_desc
-	: ident output_section_addr_and_type ':'
+	: ident output_section_addr_and_type ':' {
+		/* Remember the name of last output section, needed later for assignment. */
+		ld->ld_scp->lds_base_os_name = $1;
+	}
 	output_section_lma
 	output_section_align
 	output_section_subalign
@@ -772,16 +775,18 @@ output_sections_desc
 		$$->ldso_name = $1;
 		$$->ldso_vma = $2->ldl_entry;
 		$$->ldso_type = $2->ldl_next->ldl_entry;
-		$$->ldso_lma = $4;
-		$$->ldso_align = $5;
-		$$->ldso_subalign = $6;
-		$$->ldso_constraint = $7;
+		$$->ldso_lma = $5;
+		$$->ldso_align = $6;
+		$$->ldso_subalign = $7;
+		$$->ldso_constraint = $8;
 		memcpy(&$$->ldso_c, &ldso_c, sizeof(ldso_c));
-		$$->ldso_region = $11;
-		$$->ldso_lma_region = $12;
-		$$->ldso_phdr = ld_script_list_reverse($13);
-		$$->ldso_fill = $14;
+		$$->ldso_region = $12;
+		$$->ldso_lma_region = $13;
+		$$->ldso_phdr = ld_script_list_reverse($14);
+		$$->ldso_fill = $15;
 		STAILQ_INIT(&ldso_c);
+		ld->ld_scp->lds_base_os_name = 0;
+		ld->ld_scp->lds_last_os_name = $1;
 	}
 	;
 

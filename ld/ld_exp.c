@@ -30,7 +30,7 @@
 #include "ld_exp.h"
 #include "ld_layout.h"
 
-ELFTC_VCSID("$Id: ld_exp.c 2526 2012-07-17 17:43:30Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_exp.c 3278 2015-12-11 21:39:13Z kaiwang27 $");
 
 /*
  * Support routines for ldscript expression.
@@ -202,7 +202,7 @@ ld_exp_eval(struct ld* ld, struct ld_exp *le)
 	assert(le != NULL);
 	switch (le->le_op) {
 	case LEOP_ABS:
-		return (abs(_EXP_EVAL(le->le_e1)));
+		return (llabs(_EXP_EVAL(le->le_e1)));
 	case LEOP_ADD:
 		return (_EXP_EVAL(le->le_e1) + _EXP_EVAL(le->le_e2));
 	case LEOP_ADDR:
@@ -569,7 +569,8 @@ static int64_t
 _func_data_segment_align(struct ld *ld, struct ld_exp *le)
 {
 	struct ld_state *ls; 
-	uint64_t maxpagesize, commonpagesize;
+	uint64_t maxpagesize;
+	/* uint64_t commonpagesize; */
 
 	/*
 	 * TODO: test if align to common page size use less number
@@ -577,7 +578,7 @@ _func_data_segment_align(struct ld *ld, struct ld_exp *le)
 	 */
 	ls = &ld->ld_state;
 	maxpagesize = _EXP_EVAL(le->le_e1);
-	commonpagesize = _EXP_EVAL(le->le_e2);
+	/* commonpagesize = _EXP_EVAL(le->le_e2); */
 
 	return (roundup(ls->ls_loc_counter, maxpagesize) +
 	    (ls->ls_loc_counter & (maxpagesize - 1)));

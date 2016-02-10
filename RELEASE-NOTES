@@ -1,4 +1,4 @@
-.. $Id: RELEASE-NOTES 2599 2012-09-25 06:25:51Z jkoshy $
+.. $Id: RELEASE-NOTES 3353 2016-01-18 21:50:13Z jkoshy $
 
 .. This file contains a template for use when writing release notes.
 .. It needs to be updated with release-specific content prior to
@@ -96,11 +96,11 @@ systems:
   **Operating System**  **Version**  **Supported Architectures**
   --------------------  -----------  ---------------------------
   `DragonFly BSD`_      2.10.1       i386
-  FreeBSD_              v8.2         amd64 & i386
+  FreeBSD_              10.2         amd64 & i386
   Minix_                3.2.0        i386
-  NetBSD_               v5.0.2       i386
+  NetBSD_               7.0          i386
   OpenBSD_              v5.0         i386
-  Ubuntu_ GNU/Linux     10.04LTS     i386 & x86_64
+  Ubuntu_ GNU/Linux     14.04LTS     x86_64
   ====================  ===========  ===========================
 
 

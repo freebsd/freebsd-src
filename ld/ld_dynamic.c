@@ -37,7 +37,7 @@
 #include "ld_symver.h"
 #include "ld_strtab.h"
 
-ELFTC_VCSID("$Id: ld_dynamic.c 2965 2013-09-10 02:46:29Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_dynamic.c 3384 2016-01-31 13:12:41Z jkoshy $");
 
 static void _check_dso_needed(struct ld *ld, struct ld_output *lo);
 static void _create_dynamic(struct ld *ld, struct ld_output *lo);
@@ -253,7 +253,7 @@ _create_interp(struct ld *ld, struct ld_output *lo)
 
 	if ((odb->odb_buf = calloc(odb->odb_size, 1)) == NULL)
 		ld_fatal_std(ld, "calloc");
-	strncpy(odb->odb_buf, interp, strlen(interp));
+	strncpy((char*) odb->odb_buf, interp, strlen(interp));
 	odb->odb_buf[strlen(interp)] = '\0';
 
 	(void) ld_output_create_section_element(ld, os, OET_DATA_BUFFER, odb,

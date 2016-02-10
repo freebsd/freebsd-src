@@ -28,8 +28,9 @@
 #include "ld_arch.h"
 #include "i386.h"
 #include "amd64.h"
+#include "mips.h"
 
-ELFTC_VCSID("$Id: ld_arch.c 2515 2012-06-06 23:05:00Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_arch.c 3281 2015-12-11 21:39:23Z kaiwang27 $");
 
 #define	LD_DEFAULT_ARCH		"amd64"
 
@@ -48,6 +49,7 @@ ld_arch_init(struct ld *ld)
 
 	i386_register(ld);
 	amd64_register(ld);
+	mips_register(ld);
 
 	/*
 	 * Find out default arch for output object.
@@ -112,7 +114,8 @@ ld_arch_equal(struct ld_arch *a1, struct ld_arch *a2)
 }
 
 void
-ld_arch_verify(struct ld *ld, const char *name, int mach)
+ld_arch_verify(struct ld *ld, const char *name, int mach, int endian,
+	unsigned flags)
 {
 	struct ld_arch *la;
 	struct ld_state *ls;
@@ -120,7 +123,7 @@ ld_arch_verify(struct ld *ld, const char *name, int mach)
 	assert(ld->ld_arch != NULL);
 	ls = &ld->ld_state;
 
-	if ((la = ld_arch_guess_arch_name(ld, mach)) == NULL)
+	if ((la = ld_arch_guess_arch_name(ld, mach, endian)) == NULL)
 		ld_fatal(ld, "%s: ELF object architecture %#x not supported",
 		    name, mach);
 
@@ -133,11 +136,17 @@ ld_arch_verify(struct ld *ld, const char *name, int mach)
 		ld->ld_arch = la;
 	}
 
+	if (ls->ls_first_elf_object) {
+		la->flags = flags;
+	} else if (la->merge_flags) {
+		la->merge_flags(ld, flags);
+	}
+
 	ls->ls_first_elf_object = 0;
 }
 
 struct ld_arch *
-ld_arch_guess_arch_name(struct ld *ld, int mach)
+ld_arch_guess_arch_name(struct ld *ld, int mach, int endian)
 {
 	char arch[MAX_ARCH_NAME_LEN + 1];
 
@@ -152,7 +161,8 @@ ld_arch_guess_arch_name(struct ld *ld, int mach)
 		break;
 	case EM_MIPS:
 	case EM_MIPS_RS3_LE:
-		snprintf(arch, sizeof(arch), "%s", "mips");
+		snprintf(arch, sizeof(arch), "%s",
+		    endian==ELFDATA2MSB ? "bigmips" : "littlemips");
 		break;
 	case EM_PPC:
 	case EM_PPC64:

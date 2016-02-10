@@ -38,7 +38,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: findtextrel.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: findtextrel.c 3359 2016-01-24 17:06:20Z jkoshy $");
 
 static struct option longopts[] = {
 	{"help", no_argument, NULL, 'H'},
@@ -70,11 +70,11 @@ version(void)
 static const char *
 find_symbol(const char *fn, Elf *e, Elf_Data *d, GElf_Shdr *sh, uintmax_t off)
 {
-	GElf_Sym sym;
 	const char *name;
+	GElf_Sym sym;
 	int i, len;
 
-	len = d->d_size / sh->sh_entsize;
+	len = (int) (d->d_size / sh->sh_entsize);
 	for (i = 0; i < len; i++) {
 		if (gelf_getsym(d, i, &sym) != &sym) {
 			warnx("%s: gelf_getsym() failed: %s", fn,
@@ -215,7 +215,7 @@ report_textrel(const char *fn, Elf *e, Dwarf_Debug dbg, uintmax_t off,
 
 out:
 	if (found)
-		printf(", file: %s, line: %ju", file, lineno);
+		printf(", file: %s, line: %ju", file, (uintmax_t) lineno);
 
 	/*
 	 * Reset internal CU pointer, so we will start from the first CU
@@ -236,11 +236,11 @@ static void
 examine_reloc(const char *fn, Elf *e, Elf_Data *d, GElf_Shdr *sh, GElf_Phdr *ph,
     int phnum, Dwarf_Debug dbg, int *textrel)
 {
-	GElf_Rel rel;
 	GElf_Rela rela;
 	int i, j, len;
+	GElf_Rel rel;
 
-	len = d->d_size / sh->sh_entsize;
+	len = (int) (d->d_size / sh->sh_entsize);
 	for (i = 0; i < len; i++) {
 		if (sh->sh_type == SHT_REL) {
 			if (gelf_getrel(d, i, &rel) != &rel) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfcopy.h 3221 2015-05-24 23:42:43Z kaiwang27 $
+ * $Id: elfcopy.h 3310 2016-01-10 09:10:54Z kaiwang27 $
  */
 
 #include <sys/queue.h>
@@ -287,6 +287,7 @@ struct section *create_external_section(struct elfcopy *_ecp, const char *_name,
     int _loadable);
 void	create_external_symtab(struct elfcopy *_ecp);
 void	create_ihex(int _ifd, int _ofd);
+void	create_pe(struct elfcopy *_ecp, int _ifd, int _ofd);
 void	create_scn(struct elfcopy *_ecp);
 void	create_srec(struct elfcopy *_ecp, int _ifd, int _ofd, const char *_ofn);
 void	create_symtab(struct elfcopy *_ecp);

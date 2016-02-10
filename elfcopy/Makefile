@@ -1,10 +1,13 @@
-# $Id: Makefile 2290 2011-12-04 07:20:46Z jkoshy $
+# $Id: Makefile 3381 2016-01-30 19:39:47Z jkoshy $
 
 TOP=	..
 
+.include "${TOP}/mk/elftoolchain.components.mk"
+
 PROG=	elfcopy
 
-SRCS=	archive.c ascii.c binary.c main.c sections.c segments.c symbols.c
+SRCS=	archive.c ascii.c binary.c main.c sections.c segments.c \
+	symbols.c
 
 WARNS?=	5
 
@@ -15,14 +18,24 @@ LDADD=	-lelf -lelftc
 LDADD+= -larchive
 .endif
 
+.if defined(WITH_PE) && ${WITH_PE:tl} == "yes"
+SRCS+=	pe.c
+CFLAGS+= -DWITH_PE=1
+
+DPADD+=	${LIBPE}
+LDADD+=	-lpe
+.endif
+
 MAN=	elfcopy.1 mcs.1 strip.1
+MLINKS=	elfcopy.1 objcopy.1
 
 NO_SHARED?=	yes
 
-LINKS=	${BINDIR}/elfcopy ${BINDIR}/strip 	\
-	${BINDIR}/elfcopy ${BINDIR}/mcs
+LINKS=	${BINDIR}/elfcopy ${BINDIR}/mcs		\
+	${BINDIR}/elfcopy ${BINDIR}/objcopy 	\
+	${BINDIR}/elfcopy ${BINDIR}/strip
 
-EXTRA_TARGETS=	strip mcs
+EXTRA_TARGETS=	mcs strip objcopy
 
 CLEANFILES+=	${EXTRA_TARGETS}
 

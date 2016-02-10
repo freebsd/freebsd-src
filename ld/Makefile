@@ -1,9 +1,9 @@
-# $Id: Makefile 2910 2013-02-03 06:06:23Z kaiwang27 $
+# $Id: Makefile 3385 2016-01-31 14:26:26Z jkoshy $
 
 TOP=	..
 
 PROG=	ld
-WARNS?=	6
+WARNS?=	5
 
 SRCS=	amd64.c			\
 	amd64_script.c		\
@@ -24,26 +24,31 @@ SRCS=	amd64.c			\
 	ld_path.c		\
 	ld_reloc.c		\
 	ld_script.c		\
-	ld_script_lexer.l	\
-	ld_script_parser.y	\
 	ld_strtab.c		\
 	ld_symbols.c		\
 	ld_symver.c		\
-	y.tab.h
+	mips.c			\
+	littlemips_script.c	\
+	bigmips_script.c
 
-.SUFFIXES:	.ld .c
-.ld.c:
-	awk -f ld_script.awk ${.ALLSRC} > ${.TARGET}
+LSRC= ld_script_lexer.l
+YSRC= ld_script_parser.y
 
-GENSRCS=	amd64_script.c i386_script.c
+GENSRCS=	amd64_script.c i386_script.c littlemips_script.c \
+		bigmips_script.c
 
-CLEANFILES+=	y.tab.h ${GENSRCS}
+CLEANFILES+=	${GENSRCS}
 
 DPADD=	${LIBELFTC} ${LIBELF} ${LIBDWARF}
 LDADD=	-lelftc -ldwarf -lelf
 
 CFLAGS+= -I. -I${.CURDIR}
+YFLAGS=	-d
 
 NOMAN=
+
+.SUFFIXES:	.ld .c
+.ld.c:
+	awk -f ld_script.awk ${.ALLSRC} > ${.TARGET}
 
 .include "${TOP}/mk/elftoolchain.prog.mk"

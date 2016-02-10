@@ -39,7 +39,7 @@
 #include "ld_symbols.h"
 #include "ld_strtab.h"
 
-ELFTC_VCSID("$Id: ld_layout.c 2965 2013-09-10 02:46:29Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_layout.c 3276 2015-12-11 21:39:06Z kaiwang27 $");
 
 struct ld_wildcard_match {
 	char *wm_name;
@@ -89,10 +89,8 @@ ld_layout_sections(struct ld *ld)
 	struct ld_output *lo;
 	struct ld_script *lds;
 	struct ld_script_cmd *ldc;
-	struct ld_state *ls;
 	int sections_cmd_exist;
 
-	ls = &ld->ld_state;
 	lo = ld->ld_output;
 	lds = ld->ld_scp;
 
@@ -270,10 +268,10 @@ _print_section_layout(struct ld *ld, struct ld_output_section *os)
 				printf(" %-14s", is->is_name);
 				if (lo->lo_ec == ELFCLASS32)
 					printf(" 0x%08jx", (uintmax_t)
-					    os->os_addr + is->is_reloff);
+					    (os->os_addr + is->is_reloff));
 				else
 					printf(" 0x%016jx", (uintmax_t)
-					    os->os_addr + is->is_reloff);
+					    (os->os_addr + is->is_reloff));
 				if (is->is_size == 0)
 					printf(" %10s", "0x0");
 				else
@@ -885,7 +883,7 @@ ld_layout_insert_output_section(struct ld *ld, const char *name,
 		}
 
 		_os = STAILQ_NEXT(os, os_next);
-		if (_os == NULL &&
+		if (_os != NULL &&
 		    (_os->os_flags & SHF_ALLOC) != (flags & SHF_ALLOC))
 			break;
 	}
