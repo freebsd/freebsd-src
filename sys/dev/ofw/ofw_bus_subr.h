@@ -118,6 +118,8 @@ device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
 int ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
     const char *cells_name, int idx, phandle_t *producer, int *ncells,
     pcell_t **cells);
+int ofw_bus_parse_xref_list_get_length(phandle_t node, const char *list_name,
+    const char *cells_name, int *count);
 int ofw_bus_find_string_index(phandle_t node, const char *list_name,
     const char *name, int *idx);
 int ofw_bus_string_list_to_array(phandle_t node, const char *list_name,

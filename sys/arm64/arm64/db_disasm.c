@@ -41,9 +41,9 @@ static void db_disasm_printaddr(vm_offset_t);
 
 /* Glue code to interface db_disasm to the generic ARM disassembler */
 static const struct disasm_interface db_disasm_interface = {
-	db_disasm_read_word,
-	db_disasm_printaddr,
-	db_printf
+	.di_readword = db_disasm_read_word,
+	.di_printaddr = db_disasm_printaddr,
+	.di_printf = db_printf,
 };
 
 static u_int

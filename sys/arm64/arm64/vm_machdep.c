@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 #include <sys/signal.h>
 #include <sys/unistd.h>
-#include <sys/taskqueue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
