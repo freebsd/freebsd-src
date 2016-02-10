@@ -5694,7 +5694,7 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 	 */
 	if ((byte2 & SWS_NDOB) == 0 &&
 	    (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
-		ctsio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);;
+		ctsio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);
 		ctsio->kern_data_len = len;
 		ctsio->kern_total_len = len;
 		ctsio->kern_data_resid = 0;
@@ -5742,7 +5742,7 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 	 * malloc it and tell the caller the data buffer is here.
 	 */
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
-		ctsio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);;
+		ctsio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);
 		ctsio->kern_data_len = len;
 		ctsio->kern_total_len = len;
 		ctsio->kern_data_resid = 0;
