@@ -30,8 +30,9 @@
 #include "ld_script.h"
 #include "ld_file.h"
 #include "ld_symbols.h"
+#include "ld_output.h"
 
-ELFTC_VCSID("$Id: ld_script.c 2881 2013-01-09 22:46:54Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_script.c 3281 2015-12-11 21:39:23Z kaiwang27 $");
 
 static void _input_file_add(struct ld *ld, struct ld_script_input_file *ldif);
 static void _overlay_section_free(void *ptr);
@@ -145,6 +146,40 @@ ld_script_assign_free(struct ld_script_assign *lda)
 	free(lda);
 }
 
+static void
+_update_variable_section(struct ld *ld, struct ld_script_variable *ldv)
+{
+	struct ld_output_section *os, *last;
+
+	if (ldv->ldv_os_base) {
+		/* Get base address of the section. */
+		STAILQ_FOREACH(os, &ld->ld_output->lo_oslist, os_next) {
+			if (strcmp(os->os_name, ldv->ldv_os_base) == 0) {
+				ldv->ldv_base = os->os_addr;
+				ldv->ldv_os_ref = ldv->ldv_os_base;
+				ldv->ldv_os_base = 0;
+				break;
+			}
+		}
+	}
+
+	if (ldv->ldv_os_ref) {
+		/* Bind the symbol to the last section. */
+		last = 0;
+		STAILQ_FOREACH(os, &ld->ld_output->lo_oslist, os_next) {
+			if (! os->os_empty)
+				last = os;
+			if (strcmp(os->os_name, ldv->ldv_os_ref) == 0) {
+				if (last) {
+					ldv->ldv_symbol->lsb_shndx = elf_ndxscn(last->os_scn);
+				}
+				ldv->ldv_os_ref = 0;
+				break;
+			}
+		}
+	}
+}
+
 void
 ld_script_process_assign(struct ld *ld, struct ld_script_assign *lda)
 {
@@ -170,6 +205,10 @@ ld_script_process_assign(struct ld *ld, struct ld_script_assign *lda)
 			    (uintmax_t) ls->ls_loc_counter,
 			    (uintmax_t) ldv->ldv_val);
 		ls->ls_loc_counter = (uint64_t) ldv->ldv_val;
+
+	} else if (ldv->ldv_symbol != NULL) {
+		_update_variable_section(ld, ldv);
+		ldv->ldv_symbol->lsb_value = ldv->ldv_val + ldv->ldv_base;
 	}
 	lda->lda_res = ldv->ldv_val;
 }

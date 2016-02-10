@@ -1,5 +1,5 @@
 
-global offset table:
+global offset table: .got
 
 entry: 0
 	0
@@ -9,3 +9,41 @@ entry: 1
 
 entry: 2
 	0
+
+global offset table: .got.plt
+
+entry: 0
+	0x200c58
+
+entry: 1
+	0
+
+entry: 2
+	0
+
+entry: 3
+	0x69e
+
+entry: 4
+	0x6ae
+
+entry: 5
+	0x6be
+
+entry: 6
+	0x6ce
+
+entry: 7
+	0x6de
+
+entry: 8
+	0x6ee
+
+entry: 9
+	0x6fe
+
+entry: 10
+	0x70e
+
+entry: 11
+	0x71e

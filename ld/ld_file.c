@@ -29,7 +29,7 @@
 #include "ld_file.h"
 #include "ld_path.h"
 
-ELFTC_VCSID("$Id: ld_file.c 2930 2013-03-17 22:54:26Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_file.c 3281 2015-12-11 21:39:23Z kaiwang27 $");
 
 /*
  * Support routines for input file handling.
@@ -156,7 +156,8 @@ ld_file_load(struct ld *ld, struct ld_file *lf)
 		ld_fatal(ld, "%s: unknown ELF type %u", ehdr.e_type);
 	}
 
-	ld_arch_verify(ld, lf->lf_name, ehdr.e_machine);
+	ld_arch_verify(ld, lf->lf_name, ehdr.e_machine, ehdr.e_ident[EI_DATA],
+	    ehdr.e_flags);
 }
 
 void

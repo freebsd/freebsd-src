@@ -1,5 +1,5 @@
 
-global offset table:
+global offset table: .got
 
 entry: 0
 	0x118208

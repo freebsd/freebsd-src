@@ -27,7 +27,7 @@
 #include "ld.h"
 #include "ld_strtab.h"
 
-ELFTC_VCSID("$Id: ld_strtab.c 2965 2013-09-10 02:46:29Z kaiwang27 $");
+ELFTC_VCSID("$Id: ld_strtab.c 3279 2015-12-11 21:39:16Z kaiwang27 $");
 
 #define	_DEFAULT_STRTAB_SIZE	512
 
@@ -78,9 +78,6 @@ ld_strtab_free(struct ld_strtab *st)
 	if (st == NULL)
 		return;
 
-	free(st->st_buf);
-	free(st);
-
 	if (st->st_pool != NULL) {
 		HASH_ITER(hh, st->st_pool, str, tmp) {
 			HASH_DELETE(hh, st->st_pool, str);
@@ -88,6 +85,9 @@ ld_strtab_free(struct ld_strtab *st)
 			free(str);
 		}
 	}
+
+	free(st->st_buf);
+	free(st);
 }
 
 char *

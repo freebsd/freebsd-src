@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ld_script.h 2881 2013-01-09 22:46:54Z kaiwang27 $
+ * $Id: ld_script.h 3281 2015-12-11 21:39:23Z kaiwang27 $
  */
 
 enum ld_script_cmd_type {
@@ -198,8 +198,11 @@ struct ld_script_sections {
 
 struct ld_script_variable {
 	char *ldv_name;			/* variable name */
+	char *ldv_os_base;		/* add base address of this section */
+	char *ldv_os_ref;		/* link symbol to this section */
 	struct ld_symbol *ldv_symbol;	/* assoicated symbol */
 	int64_t ldv_val;		/* variable value */
+	int64_t ldv_base;		/* base value */
 	UT_hash_handle hh;		/* hash handle */
 };
 
@@ -242,6 +245,8 @@ struct ld_script {
 	unsigned char lds_vn_name_omitted; /* version node w/o name exists */
 	struct ld_script_cmd_head lds_c; /* other ldscript cmd list */
 	struct ld_script_variable *lds_v; /* variable table */
+	char *lds_last_os_name;		/* last output section */
+	char *lds_base_os_name;		/* current output section */
 };
 
 struct ld_script_cmd *ld_script_assert(struct ld *, struct ld_exp *, char *);

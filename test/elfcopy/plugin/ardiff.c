@@ -12,7 +12,7 @@
  * By default, it compares nothing and consider the test "not ok"
  * iff it encounters errors while reading archive.
  *
- * $Id: ardiff.c 3102 2014-10-29 21:09:01Z jkoshy $
+ * $Id: ardiff.c 3366 2016-01-24 21:33:06Z jkoshy $
  */
 
 #include <archive.h>
@@ -48,10 +48,9 @@ main(int argc, char **argv)
 	char checksize;
 	char checktime;
 	char a1end;
-	ssize_t size1;
-	ssize_t size2;
-	char opt;
-	int r;
+	size_t size1;
+	size_t size2;
+	int opt, r;
 
 	/*
 	 * Parse command line options.
@@ -170,8 +169,8 @@ main(int argc, char **argv)
 		 * Compare member size if required.
 		 */
 		if (checksize || checkcont) {
-			size1 = archive_entry_size(e1);
-			size2 = archive_entry_size(e2);
+			size1 = (size_t) archive_entry_size(e1);
+			size2 = (size_t) archive_entry_size(e2);
 			if (size1 != size2)
 				filediff(tc, "member size differ",
 				    archive_entry_pathname(e1));
@@ -185,10 +184,12 @@ main(int argc, char **argv)
 				filediff(tc, "not enough memory", NULL);
 			if ((buf2 = malloc(size2)) == NULL)
 				filediff(tc, "not enough memory", NULL);
-			if (archive_read_data(a1, buf1, size1) != size1)
+			if ((size_t) archive_read_data(a1, buf1, size1) !=
+			    size1)
 				filediff(tc, "archive_read_data failed",
 				    archive_entry_pathname(e1));
-			if (archive_read_data(a2, buf2, size2) != size2)
+			if ((size_t) archive_read_data(a2, buf2, size2) !=
+			    size2)
 				filediff(tc, "archive_read_data failed",
 				    archive_entry_pathname(e1));
 			if (memcmp(buf1, buf2, size1) != 0)

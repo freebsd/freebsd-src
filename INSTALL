@@ -14,13 +14,11 @@ operating systems.
   Operating System    Version    Supported Architectures
   -----------------   --------   -----------------------
   `DragonFly BSD`_    2.10.1     i386
-  FreeBSD_            v8.2       amd64 & i386
-  FreeBSD_            v10.1      i386
+  FreeBSD_            10.2       amd64 & i386
   Minix_              3.0.2      i386
-  NetBSD_             v5.0.2     i386
+  NetBSD_             7.0        i386
   OpenBSD_            v5.0       i386
-  Ubuntu_ GNU/Linux   10.04LTS   i386 & x86_64
-  Ubuntu_ GNU/Linux   12.04LTS   i386 & x86_64
+  Ubuntu_ GNU/Linux   14.04LTS   x86_64
   =================   ========   =======================
 
 .. _DragonFly BSD: http://www.dragonflybsd.org/
@@ -35,9 +33,9 @@ Building the Source Tree
 
 The core libraries and utilities that make up the software release are
 always built by default.  Builds of the project's test suites (in the
-``test/`` subdirectory), and of additional documentation (in the
-directory ``documentation/``) are optional and will only be attempted
-if these directories are present.
+``test/`` subdirectory), and of additional documentation (in the directory
+``documentation/``) are optional, and will only be attempted if these
+directories are present.
 
 Prerequisites
 -------------
@@ -58,39 +56,24 @@ Prerequisites
     - Building additional documentation is not currently supported
       under DragonFly BSD.
 
-:FreeBSD 8.2:
+:FreeBSD 10.2:
     - The core libraries and utilities should build out of the box on
       a stock install of FreeBSD.
 
     - To build and run the test suite:
 
       #. The current release of the `Test Execution Toolkit`_ needs to
-         be downloaded and unpacked into the ``test/tet/`` directory.
+         be downloaded and unpacked into the ``test/tet/`` directory::
 
-      #. The ``py-yaml`` package needs to be installed::
-
-            % sudo pkg_add -r py-yaml
-
-    - To build additional documentation, the ``latex-pgf`` package is
-      needed::
-
-            % sudo pkg_add -r latex-pgf
-
-:FreeBSD 10.1:
-    - The core libraries and utilities should build out of the box on
-      a stock install of FreeBSD.
-
-    - To build and run the test suite:
-
-      #. The current release of the `Test Execution Toolkit`_ needs to
-         be downloaded and unpacked into the ``test/tet/`` directory.
+            % cd <SRCDIR>/test/tet
+            % tar -xf /PATH/TO/DOWNLOADED/TET-3.8-SOURCES
 
       #. The ``python`` and ``py27-yaml`` packages need to be installed::
 
             % sudo pkg install python py27-yaml
 
     - Building additional documentation is not currently supported under
-      FreeBSD 10.1.
+      FreeBSD 10.2.
 
 :Minix 3.2.0:
     - The following packages are pre-requisites for building the
@@ -152,9 +135,20 @@ Prerequisites
     - Building additional documentation is not currently supported
       under OpenBSD.
 
-:NetBSD 5.0.2:
-    - The core libraries and utilities should build out of the box
-      on a stock install of NetBSD.
+:NetBSD 7.0:
+    - The following packages are pre-requisites for building the
+      sources on NetBSD 7.0:
+
+      ===================     =====================================
+      **Package**             **Description**
+      ===================     =====================================
+      ``libarchive``          An archive access library.
+      ===================     =====================================
+
+      The following command line may be used to install the necessary
+      pre-requisites::
+
+          # pkg_add libarchive
 
     - To build and run the test suite:
 
@@ -165,7 +159,7 @@ Prerequisites
       #. The following additional package needs to be installed, as
          listed in the example command line below ::
 
-            % sudo pkg_add py26-yaml
+            % sudo pkg_add py27-yaml
 
     - Building additional documentation is not currently supported
       under NetBSD.
@@ -213,9 +207,9 @@ Prerequisites
 
           % sudo apt-get install pgf
 
-:Ubuntu GNU/Linux 12.04:
+:Ubuntu GNU/Linux 14.04:
     - The following packages are pre-requisites for building the
-      sources on Ubuntu GNU/Linux 12.04:
+      sources on Ubuntu GNU/Linux 14.04:
 
       ===================     =====================================
       **Package**             **Description**
@@ -226,7 +220,7 @@ Prerequisites
       ``libarchive-dev``      Archive access library.
       ``libexpat1-dev``       An XML processing library.
       ``m4``                  Macro processor.
-      ``pmake``               A ``make`` that uses BSD-make syntax.
+      ``bmake``               NetBSD ``make``.
       ``python-yaml``         A YAML library for Python.
       ``sharutils``           For ``uudecode``.
       ``zlib1g-dev``          Compression library.
@@ -236,7 +230,7 @@ Prerequisites
       pre-requisites::
 
           % sudo apt-get install bison build-essential flex libarchive-dev \
-            m4 pmake zlib1g-dev
+            m4 bmake zlib1g-dev
 
     - To build and run the test suite:
 
@@ -250,7 +244,7 @@ Prerequisites
             % sudo apt-get install libexpat1-dev python-yaml sharutils
 
     - Builds of additional documentation are not currently supported
-      under Ubuntu GNU/Linux 12.04.
+      under Ubuntu GNU/Linux 14.04.
 
 .. _Test Execution Toolkit: http://tetworks.opengroup.org/
 .. _OpenGroup: http://www.opengroup.org/
@@ -316,7 +310,7 @@ website`_.
 
 .. _project website:  http://elftoolchain.sourceforge.net/
 
-.. $Id: INSTALL 3193 2015-05-04 17:47:14Z jkoshy $
+.. $Id: INSTALL 3353 2016-01-18 21:50:13Z jkoshy $
 
 .. Local Variables:
 .. mode: rst

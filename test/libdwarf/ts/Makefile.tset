@@ -1,4 +1,4 @@
-# $Id: Makefile.tset 3122 2014-12-21 05:46:10Z kaiwang27 $
+# $Id: Makefile.tset 3290 2016-01-03 21:02:06Z jkoshy $
 
 # libdwarf test suite uses libdwarf in /usr/local (i.e. SGI libdwarf),
 # if TCGEN is defined.
@@ -49,8 +49,8 @@ ${f}:	${TS_OBJROOT}/common/object/${f}.gz
 .endif
 .endfor
 
-# NetBSD turns on -Wstrict-prototypes for WARNS>0; however
-# TET 3.8's headers do not compile with -Wstrict-prototypes.
-.if ${OS_HOST} != NetBSD
+# TET 3.8's headers do not compile with -Wstrict-prototypes, so restrict the
+# OSes for which we use a non-zero WARNS value.
+.if ${OS_HOST} == FreeBSD || ${OS_HOST} == DragonFly || ${OS_HOST} == Minix
 WARNS?=		2
 .endif

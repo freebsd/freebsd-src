@@ -2,7 +2,7 @@
  * make it easy to `diff'.  (option -e)
  * 2. Check the sanity of timestamp. (option -c)
  *
- * $Id: teraser.c 3102 2014-10-29 21:09:01Z jkoshy $
+ * $Id: teraser.c 3366 2016-01-24 21:33:06Z jkoshy $
  */
 
 #include <errno.h>
@@ -25,14 +25,14 @@ static void	usage(void);
 int
 main(int argc, char **argv)
 {
-	char opt;
+	int opt;
 	char checktime;
 	char erasetime;
 	char buf[TSLEN + 1];
 	char *tc;
 	int fd;
 	int ts;
-	int now;
+	time_t now;
 	FILE *ct, *ps;
 
 

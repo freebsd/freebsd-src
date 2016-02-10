@@ -30,3 +30,4 @@ Usage: ar <command> [options] archive file...
   -F FORMAT | --flavor=FORMAT
                 Create archives with the specified format.
   -S            Do not generate an archive symbol table.
+  -U            Use original metadata for archive members.
