@@ -331,9 +331,43 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 	}							\
 } while (0)
 
-static unsigned g_ntb_enable_wc = 1;
-SYSCTL_UINT(_hw_ntb, OID_AUTO, enable_writecombine, CTLFLAG_RDTUN,
-    &g_ntb_enable_wc, 0, "Set to 1 to map memory windows write combining");
+#define	_NTB_PAT_UC	0
+#define	_NTB_PAT_WC	1
+#define	_NTB_PAT_WT	4
+#define	_NTB_PAT_WP	5
+#define	_NTB_PAT_WB	6
+#define	_NTB_PAT_UCM	7
+static unsigned g_ntb_mw_pat = _NTB_PAT_UC;
+SYSCTL_UINT(_hw_ntb, OID_AUTO, default_mw_pat, CTLFLAG_RDTUN,
+    &g_ntb_mw_pat, 0, "Configure the default memory window cache flags (PAT): "
+    "UC: "  __XSTRING(_NTB_PAT_UC) ", "
+    "WC: "  __XSTRING(_NTB_PAT_WC) ", "
+    "WT: "  __XSTRING(_NTB_PAT_WT) ", "
+    "WP: "  __XSTRING(_NTB_PAT_WP) ", "
+    "WB: "  __XSTRING(_NTB_PAT_WB) ", "
+    "UC-: " __XSTRING(_NTB_PAT_UCM));
+
+static inline vm_memattr_t
+ntb_pat_flags(void)
+{
+
+	switch (g_ntb_mw_pat) {
+	case _NTB_PAT_WC:
+		return (VM_MEMATTR_WRITE_COMBINING);
+	case _NTB_PAT_WT:
+		return (VM_MEMATTR_WRITE_THROUGH);
+	case _NTB_PAT_WP:
+		return (VM_MEMATTR_WRITE_PROTECTED);
+	case _NTB_PAT_WB:
+		return (VM_MEMATTR_WRITE_BACK);
+	case _NTB_PAT_UCM:
+		return (VM_MEMATTR_WEAK_UNCACHEABLE);
+	case _NTB_PAT_UC:
+		/* FALLTHROUGH */
+	default:
+		return (VM_MEMATTR_UNCACHEABLE);
+	}
+}
 
 static int g_ntb_mw_idx = -1;
 SYSCTL_INT(_hw_ntb, OID_AUTO, b2b_mw_idx, CTLFLAG_RDTUN, &g_ntb_mw_idx,
@@ -777,10 +811,13 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 	bar->map_mode = VM_MEMATTR_UNCACHEABLE;
 	print_map_success(ntb, bar, "mw");
 
-	/* Mark bar region as write combining to improve performance. */
-	mapmode = VM_MEMATTR_WRITE_COMBINING;
-	if (g_ntb_enable_wc == 0)
-		mapmode = VM_MEMATTR_WRITE_BACK;
+	/*
+	 * Optionally, mark MW BARs as anything other than UC to improve
+	 * performance.
+	 */
+	mapmode = ntb_pat_flags();
+	if (mapmode == bar->map_mode)
+		return (0);
 
 	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mapmode);
 	if (rc == 0) {
@@ -2727,10 +2764,6 @@ ntb_mw_set_wc_internal(struct ntb_softc *ntb, unsigned idx, vm_memattr_t mode)
 	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
 	if (bar->map_mode == mode)
 		return (0);
-
-	if (mode != VM_MEMATTR_UNCACHEABLE && mode != VM_MEMATTR_DEFAULT &&
-	    mode != VM_MEMATTR_WRITE_COMBINING)
-		return (EINVAL);
 
 	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mode);
 	if (rc == 0)
