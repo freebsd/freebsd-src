@@ -618,8 +618,7 @@ m_getzone(int size)
  * should go away with constant propagation for !MGETHDR.
  */
 static __inline int
-m_init(struct mbuf *m, uma_zone_t zone __unused, int size __unused, int how,
-    short type, int flags)
+m_init(struct mbuf *m, int how, short type, int flags)
 {
 	int error;
 
