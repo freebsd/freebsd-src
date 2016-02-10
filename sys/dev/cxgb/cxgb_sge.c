@@ -795,12 +795,10 @@ free_rx_bufs(adapter_t *sc, struct sge_fl *q)
 			bus_dmamap_unload(q->entry_tag, d->map);
 			bus_dmamap_destroy(q->entry_tag, d->map);
 			if (q->zone == zone_pack) {
-				m_init(d->m, zone_pack, MCLBYTES,
-				    M_NOWAIT, MT_DATA, M_EXT);
+				m_init(d->m, M_NOWAIT, MT_DATA, M_EXT);
 				uma_zfree(zone_pack, d->m);
 			} else {
-				m_init(d->m, zone_mbuf, MLEN,
-				    M_NOWAIT, MT_DATA, 0);
+				m_init(d->m, M_NOWAIT, MT_DATA, 0);
 				uma_zfree(zone_mbuf, d->m);
 				uma_zfree(q->zone, d->rxsd_cl);
 			}			
@@ -2725,7 +2723,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		if ((sopeop == RSPQ_SOP_EOP) ||
 		    (sopeop == RSPQ_SOP))
 			flags |= M_PKTHDR;
-		m_init(m, fl->zone, fl->buf_size, M_NOWAIT, MT_DATA, flags);
+		m_init(m, M_NOWAIT, MT_DATA, flags);
 		if (fl->zone == zone_pack) {
 			/*
 			 * restore clobbered data pointer
