@@ -240,6 +240,9 @@ distribution:
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
+.if ${MK_NTP} != "no"
+	${_+_}cd ${.CURDIR}/ntp; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
 .if ${MK_PKGBOOTSTRAP} != "no"
 	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
