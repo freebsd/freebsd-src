@@ -50,7 +50,7 @@ fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 {
 	int offset;
 
-	if (fdt_is_compatible(node, "allwinner,sun4i-ic"))
+	if (fdt_is_compatible(node, "allwinner,sun4i-a10-ic"))
 		offset = 0;
 	else if (fdt_is_compatible(node, "arm,gic"))
 		offset = 32;
