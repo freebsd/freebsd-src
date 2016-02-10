@@ -28,7 +28,8 @@
 
 /dts-v1/;
 
-/include/ "sun7i-a20.dtsi"
+#include "sun7i-a20.dtsi"
+
 
 #include <dt-bindings/gpio/gpio.h>
 
@@ -65,7 +66,7 @@
 		};
 
 		gmac@01c50000 {
-			phy-type = "rgmii-bpi";
+			phy-mode = "rgmii-bpi";
 			status = "okay";
 		};
 

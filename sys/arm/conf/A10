@@ -1,5 +1,5 @@
 #
-# A20 -- Custom configuration for the Allwinner A20 ARM SoC
+# A10 -- Custom configuration for the AllWinner A10 SoC
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -18,16 +18,13 @@
 #
 # $FreeBSD$
 
-ident		A20
+ident		A10
 
 include 	"std.armv6"
-include 	"../allwinner/a20/std.a20"
-
-options 	ARM_INTRNG
+include 	"../allwinner/std.a10"
 
 options 	HZ=100
-options 	SCHED_ULE		# ULE scheduler
-options 	SMP			# Enable multiple cores
+options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
 
 # Debugging for use in -current
@@ -50,13 +47,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSV3
-#options 	BOOTP_WIRED_TO=dwc0
-
-# Interrupt controller
-device		gic
-
-# ARM Generic Timer
-device		generic_timer
+#options 	BOOTP_WIRED_TO=emac0
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
@@ -104,8 +95,7 @@ device		ether
 device		mii
 device		bpf
 
-#device		emac			# 10/100 integrated EMAC controller
-device		dwc			# 10/100/1000 integrated GMAC controller
+device		emac
 
 # USB ethernet support, requires miibus
 device		miibus
