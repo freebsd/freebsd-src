@@ -817,9 +817,6 @@ make_dev_sv(struct make_dev_args *args1, struct cdev **dres,
 	dev->si_gid = args.mda_gid;
 	dev->si_mode = args.mda_mode;
 
-	dev->si_drv1 = args.mda_si_drv1;
-	dev->si_drv2 = args.mda_si_drv2;
-
 	devfs_create(dev);
 	clean_unrhdrl(devfs_inos);
 	dev_unlock_and_free();
