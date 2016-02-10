@@ -41,7 +41,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
-#ifdef ARM_INTRNG
+#ifndef ARM_INTRNG
 fdt_pic_decode_t fdt_pic_table[] = {
 	&gic_decode_fdt,
 	NULL
