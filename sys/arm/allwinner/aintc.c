@@ -79,6 +79,12 @@ __FBSDID("$FreeBSD$");
 #define SW_INT_ENABLE_REG(_b)		(0x40 + ((_b) * 4))
 #define SW_INT_MASK_REG(_b)		(0x50 + ((_b) * 4))
 
+static struct ofw_compat_data compat_data[] = {
+	{"allwinner,sun4i-a10-ic", 1},
+	{"allwinner,sun7i-a20-sc-nmi", 1},
+	{NULL,             0}
+};
+
 struct a10_aintc_softc {
 	device_t		sc_dev;
 	struct resource *	aintc_res;
@@ -101,7 +107,7 @@ a10_aintc_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-ic"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 	device_set_desc(dev, "A10 AINTC Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
@@ -158,7 +164,8 @@ static driver_t a10_aintc_driver = {
 
 static devclass_t a10_aintc_devclass;
 
-DRIVER_MODULE(aintc, simplebus, a10_aintc_driver, a10_aintc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(aintc, simplebus, a10_aintc_driver, a10_aintc_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_FIRST);
 
 int
 arm_get_next_irq(int last_irq)

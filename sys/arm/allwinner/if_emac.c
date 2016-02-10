@@ -756,7 +756,7 @@ static int
 emac_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-emac"))
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-emac"))
 		return (ENXIO);
 
 	device_set_desc(dev, "A10/A20 EMAC ethernet controller");

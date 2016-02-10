@@ -62,6 +62,12 @@ static int a10_mmc_pio_mode = 0;
 
 TUNABLE_INT("hw.a10.mmc.pio_mode", &a10_mmc_pio_mode);
 
+static struct ofw_compat_data compat_data[] = {
+	{"allwinner,sun4i-a10-mmc", 1},
+	{"allwinner,sun5i-a13-mmc", 1},
+	{NULL,             0}
+};
+
 struct a10_mmc_softc {
 	bus_space_handle_t	a10_bsh;
 	bus_space_tag_t		a10_bst;
@@ -123,8 +129,9 @@ a10_mmc_probe(device_t dev)
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-mmc"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
+
 	device_set_desc(dev, "Allwinner Integrated MMC/SD controller");
 
 	return (BUS_PROBE_DEFAULT);
