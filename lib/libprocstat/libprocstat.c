@@ -767,6 +767,8 @@ kinfo_getfile_core(struct procstat_core *core, int *cntp)
 	eb = buf + len;
 	while (bp < eb) {
 		kf = (struct kinfo_file *)(uintptr_t)bp;
+		if (kf->kf_structsize == 0)
+			break;
 		bp += kf->kf_structsize;
 		cnt++;
 	}
@@ -782,6 +784,8 @@ kinfo_getfile_core(struct procstat_core *core, int *cntp)
 	/* Pass 2: unpack */
 	while (bp < eb) {
 		kf = (struct kinfo_file *)(uintptr_t)bp;
+		if (kf->kf_structsize == 0)
+			break;
 		/* Copy/expand into pre-zeroed buffer */
 		memcpy(kp, kf, kf->kf_structsize);
 		/* Advance to next packed record */
@@ -1863,6 +1867,8 @@ kinfo_getvmmap_core(struct procstat_core *core, int *cntp)
 	eb = buf + len;
 	while (bp < eb) {
 		kv = (struct kinfo_vmentry *)(uintptr_t)bp;
+		if (kv->kve_structsize == 0)
+			break;
 		bp += kv->kve_structsize;
 		cnt++;
 	}
@@ -1878,6 +1884,8 @@ kinfo_getvmmap_core(struct procstat_core *core, int *cntp)
 	/* Pass 2: unpack */
 	while (bp < eb) {
 		kv = (struct kinfo_vmentry *)(uintptr_t)bp;
+		if (kv->kve_structsize == 0)
+			break;
 		/* Copy/expand into pre-zeroed buffer */
 		memcpy(kp, kv, kv->kve_structsize);
 		/* Advance to next packed record */
