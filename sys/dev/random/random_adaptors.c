@@ -233,9 +233,9 @@ random_adaptors_init(void *unused)
 
 SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0, "Random Number Generator");
 
-SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST, random_adaptors_init,
+SYSINIT(random_adaptors, SI_SUB_RANDOM, SI_ORDER_FIRST, random_adaptors_init,
     NULL);
-SYSUNINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+SYSUNINIT(random_adaptors, SI_SUB_RANDOM, SI_ORDER_FIRST,
     random_adaptors_deinit, NULL);
 
 static void

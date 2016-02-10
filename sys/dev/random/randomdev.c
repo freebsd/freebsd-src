@@ -175,15 +175,24 @@ random_initialize(void *p, struct random_adaptor *s)
 
 	printf("random: <%s> initialized\n", s->ident);
 
+	/* mark random(4) as initialized, to avoid being called again */
+	random_inited = 1;
+}
+
+static void
+random_makedev(void *arg __unused)
+{
+
+	if (random_adaptor == NULL)
+		return;
+
 	/* Use an appropriately evil mode for those who are concerned
 	 * with daemons */
 	random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
 	    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0666, "random");
 	make_dev_alias(random_dev, "urandom"); /* compatibility */
-
-	/* mark random(4) as initialized, to avoid being called again */
-	random_inited = 1;
 }
+SYSINIT(random_makedev, SI_SUB_DRIVERS, SI_ORDER_ANY, random_makedev, NULL);
 
 /* ARGSUSED */
 static int
@@ -229,5 +238,11 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 	return (error);
 }
 
-DEV_MODULE(random, random_modevent, NULL);
+static moduledata_t random_mod = {
+    "random",
+    random_modevent,
+    NULL
+};
+
+DECLARE_MODULE(random, random_mod, SI_SUB_RANDOM, SI_ORDER_MIDDLE);
 MODULE_VERSION(random, 1);

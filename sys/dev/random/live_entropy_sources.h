@@ -52,7 +52,7 @@ void live_entropy_sources_feed(int, event_proc_f);
 	modevent,						\
 	0							\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS,		\
+    DECLARE_MODULE(name, name##_mod, SI_SUB_RANDOM,		\
 		   SI_ORDER_SECOND);				\
     MODULE_VERSION(name, ver);					\
     MODULE_DEPEND(name, random, 1, 1, 1);

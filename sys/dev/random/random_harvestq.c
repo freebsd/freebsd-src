@@ -81,6 +81,8 @@ int random_kthread_control = 0;
 
 static struct proc *random_kthread_proc;
 
+static event_proc_f random_cb;
+
 #ifdef RANDOM_RWFILE
 static const char *entropy_files[] = {
 	"/entropy",
@@ -219,7 +221,7 @@ random_kthread(void *arg)
 void
 random_harvestq_init(event_proc_f cb)
 {
-	int error, i;
+	int i;
 	struct harvest *np;
 
 	/* Initialise the harvest fifos */
@@ -238,13 +240,26 @@ random_harvestq_init(event_proc_f cb)
 
 	mtx_init(&harvest_mtx, "entropy harvest mutex", NULL, MTX_SPIN);
 
+	random_cb = cb;
+}
+
+static void
+random_harvestq_start_kproc(void *arg __unused)
+{
+	int error;
+
+	if (random_cb == NULL)
+		return;
+
 	/* Start the hash/reseed thread */
-	error = kproc_create(random_kthread, cb,
+	error = kproc_create(random_kthread, random_cb,
 	    &random_kthread_proc, RFHIGHPID, 0, "rand_harvestq"); /* RANDOM_CSPRNG_NAME */
 
 	if (error != 0)
 		panic("Cannot create entropy maintenance thread.");
 }
+SYSINIT(random_kthread, SI_SUB_DRIVERS, SI_ORDER_ANY,
+    random_harvestq_start_kproc, NULL);
 
 void
 random_harvestq_deinit(void)
@@ -264,6 +279,17 @@ random_harvestq_deinit(void)
 		free(np, M_ENTROPY);
 	}
 	harvestfifo.count = 0;
+
+	/*
+	 * Command the hash/reseed thread to end and wait for it to finish
+	 */
+	mtx_lock_spin(&harvest_mtx);
+	if (random_kthread_proc != NULL) {
+		random_kthread_control = -1;
+		msleep_spin((void *)&random_kthread_control, &harvest_mtx,
+		    "term", 0);
+	}
+	mtx_unlock_spin(&harvest_mtx);
 
 	mtx_destroy(&harvest_mtx);
 }
