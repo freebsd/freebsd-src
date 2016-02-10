@@ -1099,7 +1099,7 @@ racct_proc_throttle(struct proc *p)
 	 * Do not block kernel processes.  Also do not block processes with
 	 * low %cpu utilization to improve interactivity.
 	 */
-	if (((p->p_flag & (P_SYSTEM | P_KTHREAD)) != 0) ||
+	if (((p->p_flag & (P_SYSTEM | P_KPROC)) != 0) ||
 	    (p->p_racct->r_resources[RACCT_PCTCPU] <= pcpu_threshold))
 		return;
 	p->p_throttled = 1;

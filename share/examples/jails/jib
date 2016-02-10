@@ -122,7 +122,7 @@
 # 	add include $devfsrules_hide_all
 # 	add include $devfsrules_unhide_basic
 # 	add include $devfsrules_unhide_login
-# 	add include $devfsrules_unhide_bpf
+# 	add path 'bpf*' unhide
 #
 # And set ether devfs.ruleset="11" (jail.conf(5)) or
 # jail_{name}_devfs_ruleset="11" (rc.conf(5)).
@@ -198,7 +198,8 @@ jib_addm()
 
 	mustberoot_to_continue
 
-	local iface iface_devid eiface_devid_a eiface_devid_b
+	local iface iface_devid eiface_devid
+	local eiface_devid_a eiface_devid_b
 	local new num quad i=0
 	for iface in $*; do
 
@@ -213,6 +214,7 @@ jib_addm()
 			new=$( ifconfig bridge create ) || return
 			ifconfig $new addm $iface || return
 			ifconfig $new name "$iface$bridge" || return
+			ifconfig "$iface$bridge" up || return
 		fi
 
 		# 4. Create a new interface to the bridge
@@ -222,6 +224,8 @@ jib_addm()
 		# 5. Rename the new interface
 		ifconfig $new name "e${i}a_$name" || return
 		ifconfig ${new%a}b name "e${i}b_$name" || return
+		ifconfig "e${i}a_$name" up || return
+		ifconfig "e${i}b_$name" up || return
 
 		#
 		# 6. Set the MAC address of the new interface using a sensible
@@ -248,32 +252,28 @@ jib_addm()
 		# unique value preventing conflict.
 		#
 		iface_devid=$( ifconfig $iface ether | awk '/ether/,$0=$2' )
-		eiface_devid_a=${iface_devid#??:??:??}
-		eiface_devid_b=${iface_devid#??:??:??}
+		eiface_devid=${iface_devid#??:??:??}
 		num=$( set -- `echo -n $name | sum` && echo $1 )
 		quad=$(( $num & 15 ))
 		case "$quad" in
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
-		eiface_devid_a=$quad$eiface_devid_a
-		eiface_devid_b=$quad$eiface_devid_b
+		eiface_devid=$quad$eiface_devid
 		num=$(( $num >> 4 ))
 		quad=$(( $num & 15 ))
 		case "$quad" in
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
-		eiface_devid_a=$quad$eiface_devid_a
-		eiface_devid_b=$quad$eiface_devid_b
+		eiface_devid=$quad$eiface_devid
 		num=$(( $num >> 4 ))
 		quad=$(( $num & 15 ))
 		case "$quad" in
 		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
-		eiface_devid_a=$quad:$eiface_devid_a
-		eiface_devid_b=$quad:$eiface_devid_b
+		eiface_devid=$quad:$eiface_devid
 		num=$(( $num >> 4 ))
 		quad=$(( $num & 15 ))
 		case "$quad" in
@@ -281,13 +281,13 @@ jib_addm()
 		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
 		esac
 		case "$iface_devid" in
-		?2:*|?6:*)
-			eiface_devid_a=a:$quad$eiface_devid_a
-			eiface_devid_b=e:$quad$eiface_devid_b
+		?[Ee]:*)
+			eiface_devid_a=2:$quad$eiface_devid
+			eiface_devid_b=6:$quad$eiface_devid
 			;;
 		*)
-			eiface_devid_a=2:$quad$eiface_devid_a
-			eiface_devid_b=6:$quad$eiface_devid_b
+			eiface_devid_a=2:$quad$eiface_devid
+			eiface_devid_b=e:$quad$eiface_devid
 		esac
 		eval num=\$_${iface}_num
 		if [ "$num" ]; then

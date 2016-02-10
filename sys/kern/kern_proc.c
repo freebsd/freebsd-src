@@ -3010,8 +3010,7 @@ allproc_loop:
 		LIST_REMOVE(cp, p_list);
 		LIST_INSERT_AFTER(p, cp, p_list);
 		PROC_LOCK(p);
-		if ((p->p_flag & (P_KTHREAD | P_SYSTEM |
-		    P_TOTAL_STOP)) != 0) {
+		if ((p->p_flag & (P_KPROC | P_SYSTEM | P_TOTAL_STOP)) != 0) {
 			PROC_UNLOCK(p);
 			continue;
 		}

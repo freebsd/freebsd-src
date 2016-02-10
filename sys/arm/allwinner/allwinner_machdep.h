@@ -2,8 +2,6 @@
  * Copyright (c) 2015 Emmanuel Vadot <manu@bidouilliste.com>
  * All rights reserved.
  *
- * This code is derived from software written for Brini by Mark Brinicombe
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,17 +29,17 @@
 
 #ifndef AW_MACHDEP_H
 #define	AW_MACHDEP_H
- 
+
 #define	ALLWINNERSOC_A10	0x10000000
 #define	ALLWINNERSOC_A13	0x13000000
 #define	ALLWINNERSOC_A10S	0x10000001
 #define	ALLWINNERSOC_A20	0x20000000
- 
+
 #define	ALLWINNERSOC_SUN4I	0x40000000
 #define	ALLWINNERSOC_SUN5I	0x50000000
 #define	ALLWINNERSOC_SUN7I	0x70000000
- 
+
 u_int allwinner_soc_type(void);
 u_int allwinner_soc_family(void);
- 
+
 #endif /* AW_MACHDEP_H */
