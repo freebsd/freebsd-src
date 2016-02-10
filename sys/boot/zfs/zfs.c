@@ -709,6 +709,30 @@ zfs_list(const char *name)
 	return (zfs_list_dataset(spa, objid));
 }
 
+void
+init_zfs_bootenv(char *currdev)
+{
+	char *beroot;
+
+	if (strlen(currdev) == 0)
+		return;
+	if(strncmp(currdev, "zfs:", 4) != 0)
+		return;
+	/* Remove the trailing : */
+	currdev[strlen(currdev) - 1] = '\0';
+	setenv("zfs_be_active", currdev, 1);
+	setenv("zfs_be_currpage", "1", 1);
+	/* Forward past zfs: */
+	currdev = strchr(currdev, ':');
+	currdev++;
+	/* Remove the last element (current bootenv) */
+	beroot = strrchr(currdev, '/');
+	if (beroot != NULL)
+		beroot[0] = '\0';
+	beroot = currdev;
+	setenv("zfs_be_root", beroot, 1);
+}
+
 int
 zfs_bootenv(const char *name)
 {
@@ -779,8 +803,15 @@ int
 zfs_belist_add(const char *name)
 {
 
+	/* Skip special datasets that start with a $ character */
+	if (strncmp(name, "$", 1) == 0) {
+		return (0);
+	}
 	/* Add the boot environment to the head of the SLIST */
 	zfs_be = malloc(sizeof(struct zfs_be_entry));
+	if (zfs_be == NULL) {
+		return (ENOMEM);
+	}
 	zfs_be->name = name;
 	SLIST_INSERT_HEAD(&zfs_be_head, zfs_be, entries);
 	zfs_env_count++;
