@@ -189,7 +189,7 @@ live_entropy_sources_deinit(void *unused)
 	sx_destroy(&les_lock);
 }
 
-SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+SYSINIT(random_adaptors, SI_SUB_RANDOM, SI_ORDER_FIRST,
     live_entropy_sources_init, NULL);
-SYSUNINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+SYSUNINIT(random_adaptors, SI_SUB_RANDOM, SI_ORDER_FIRST,
     live_entropy_sources_deinit, NULL);

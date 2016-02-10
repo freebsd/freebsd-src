@@ -182,12 +182,6 @@ randomdev_deinit(void)
 	/* Deregister the randomness harvesting routine */
 	randomdev_deinit_harvester();
 
-	/*
-	 * Command the hash/reseed thread to end and wait for it to finish
-	 */
-	random_kthread_control = -1;
-	tsleep((void *)&random_kthread_control, 0, "term", 0);
-
 #if defined(RANDOM_YARROW)
 	random_yarrow_deinit_alg();
 #endif

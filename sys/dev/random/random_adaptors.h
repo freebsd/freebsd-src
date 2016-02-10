@@ -47,7 +47,7 @@ extern struct random_adaptor *random_adaptor;
 
 /*
  * random_adaptor's should be registered prior to
- * random module (SI_SUB_DRIVERS/SI_ORDER_MIDDLE)
+ * random module (SI_SUB_RANDOM/SI_ORDER_MIDDLE)
  */
 #define RANDOM_ADAPTOR_MODULE(name, modevent, ver)		\
     static moduledata_t name##_mod = {				\
@@ -55,7 +55,7 @@ extern struct random_adaptor *random_adaptor;
 	modevent,						\
 	0							\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS,		\
+    DECLARE_MODULE(name, name##_mod, SI_SUB_RANDOM,		\
 		   SI_ORDER_SECOND);				\
     MODULE_VERSION(name, ver);					\
     MODULE_DEPEND(name, random, 1, 1, 1);
