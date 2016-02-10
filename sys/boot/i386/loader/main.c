@@ -69,7 +69,6 @@ static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
 void			exit(int code);
 #ifdef LOADER_ZFS_SUPPORT
-static void		init_zfs_bootenv(char *currdev);
 static void		i386_zfs_probe(void);
 #endif
 
@@ -302,34 +301,6 @@ extract_currdev(void)
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
 	       env_nounset);
 }
-
-#ifdef LOADER_ZFS_SUPPORT
-static void
-init_zfs_bootenv(char *currdev)
-{
-	char *beroot;
-
-	if (strlen(currdev) == 0)
-		return;
-	if(strncmp(currdev, "zfs:", 4) != 0)
-		return;
-	/* Remove the trailing : */
-	currdev[strlen(currdev) - 1] = '\0';
-	setenv("zfs_be_active", currdev, 1);
-	setenv("zfs_be_currpage", "1", 1);
-	/* Do not overwrite if already set */
-	setenv("vfs.root.mountfrom", currdev, 0);
-	/* Forward past zfs: */
-	currdev = strchr(currdev, ':');
-	currdev++;
-	/* Remove the last element (current bootenv) */
-	beroot = strrchr(currdev, '/');
-	if (beroot != NULL)
-		beroot[0] = '\0';
-	beroot = currdev;
-	setenv("zfs_be_root", beroot, 1);
-}
-#endif
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
 
