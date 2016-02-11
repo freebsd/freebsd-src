@@ -565,7 +565,7 @@ gic_v3_dist_init(struct gic_v3_softc *sc)
 	/*
 	 * 4. Route all interrupts to boot CPU.
 	 */
-	aff = CPU_AFFINITY(PCPU_GET(cpuid));
+	aff = CPU_AFFINITY(0);
 	for (i = GIC_FIRST_SPI; i < sc->gic_nirqs; i++)
 		gic_d_write(sc, 4, GICD_IROUTER(i), aff);
 

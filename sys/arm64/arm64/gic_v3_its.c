@@ -1430,10 +1430,10 @@ its_device_alloc_locked(struct gic_v3_its_softc *sc, device_t pci_dev,
 	}
 
 	/*
-	 * XXX ARM64TODO: Currently all interrupts are going
-	 * to be bound to the CPU that performs the configuration.
+	 * Initially all interrupts go to CPU0 but can be moved
+	 * to another CPU by bus_bind_intr() or interrupts shuffling.
 	 */
-	cpuid = PCPU_GET(cpuid);
+	cpuid = 0;
 	newdev->col = sc->its_cols[cpuid];
 
 	TAILQ_INSERT_TAIL(&sc->its_dev_list, newdev, entry);
