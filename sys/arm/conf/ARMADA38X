@@ -62,6 +62,7 @@ device		pci
 
 # Interrupt controllers
 device		gic
+options 	ARM_INTRNG
 
 # Timers
 device		mpcore_timer
