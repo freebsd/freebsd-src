@@ -2280,11 +2280,9 @@ netif_free(struct netfront_info *np)
 	netif_disconnect_backend(np);
 	free(np->rxq, M_DEVBUF);
 	free(np->txq, M_DEVBUF);
-	if (np->xn_ifp != NULL) {
-		ether_ifdetach(np->xn_ifp);
-		if_free(np->xn_ifp);
-		np->xn_ifp = NULL;
-	}
+	ether_ifdetach(np->xn_ifp);
+	if_free(np->xn_ifp);
+	np->xn_ifp = NULL;
 	ifmedia_removeall(&np->sc_media);
 }
 
