@@ -210,6 +210,7 @@ config_create(void)
 	cfg->local_zones_nodefault = NULL;
 	cfg->local_data = NULL;
 	cfg->unblock_lan_zones = 0;
+	cfg->insecure_lan_zones = 0;
 	cfg->python_script = NULL;
 	cfg->remote_control_enable = 0;
 	cfg->control_ifs = NULL;
@@ -458,6 +459,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("rrset-roundrobin:", rrset_roundrobin)
 	else S_STRLIST("local-data:", local_data)
 	else S_YNO("unblock-lan-zones:", unblock_lan_zones)
+	else S_YNO("insecure-lan-zones:", insecure_lan_zones)
 	else S_YNO("control-enable:", remote_control_enable)
 	else S_STRLIST("control-interface:", control_ifs)
 	else S_NUMBER_NONZERO("control-port:", control_port)
@@ -739,6 +741,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "minimal-responses", minimal_responses)
 	else O_YNO(opt, "rrset-roundrobin", rrset_roundrobin)
 	else O_YNO(opt, "unblock-lan-zones", unblock_lan_zones)
+	else O_YNO(opt, "insecure-lan-zones", insecure_lan_zones)
 	else O_DEC(opt, "max-udp-size", max_udp_size)
 	else O_STR(opt, "python-script", python_script)
 	else O_DEC(opt, "ratelimit", ratelimit)
