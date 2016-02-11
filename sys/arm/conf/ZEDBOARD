@@ -22,7 +22,7 @@
 ident		ZEDBOARD
 
 include 	"std.armv6"
-include 	"../xilinx/zedboard/std.zedboard"
+include 	"../xilinx/std.zynq7"
 
 options 	SCHED_ULE		# ULE scheduler
 #options 	NFSSD			# Network Filesystem Server
