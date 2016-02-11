@@ -64,10 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #endif
 
-#include "opt_platform.h"
-
 #ifdef FDT
-#include <machine/fdt.h>
+#include <dev/ofw/openfirm.h>
 #include "ofw_bus_if.h"
 #endif
 
