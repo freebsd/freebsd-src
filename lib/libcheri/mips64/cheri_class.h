@@ -88,6 +88,7 @@
 #define	CHERI_CLASS_ASM(class)						\
 	.text;								\
 	.global __cheri_ ## class ## _entry;				\
+	.type __cheri_ ## class ## _entry,@function;			\
 	.ent __cheri_ ## class ## _entry;				\
 __cheri_ ## class ## _entry:						\
 									\
@@ -134,10 +135,12 @@ __cheri_ ## class ## _entry:						\
 	 */								\
 0:									\
 	creturn;							\
-	.end __cheri_## class ## _entry;
+$__cheri_ ## class ## _entry_end:					\
+	.end __cheri_## class ## _entry;				\
+	.size __cheri_ ## class ## _entry,$__cheri_ ## class ## _entry_end - __cheri_ ## class ## _entry
 
 #define	CHERI_CLASS_DECL(class)						\
-	extern void __cheri_## class ## _entry;
+	extern void (__cheri_## class ## _entry)(void);
 
 #define	CHERI_CLASS_ENTRY(class)					\
-	(&__cheri_## class ## _entry)
+	(__cheri_## class ## _entry)

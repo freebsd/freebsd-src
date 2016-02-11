@@ -47,6 +47,7 @@
 
 	.text
 	.global __rtld_vector
+	.type __rtld_vector,@function
 	.ent __rtld_vector
 __rtld_vector:
 

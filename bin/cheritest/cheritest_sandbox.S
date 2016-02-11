@@ -76,6 +76,7 @@ sandbox_nop_creturn_end:
 	 * register before returning.
 	 */
 	.text
+	.type sandbox_dli_creturn,@function
 	.global sandbox_dli_creturn
 	.ent sandbox_dli_creturn
 sandbox_dli_creturn:
@@ -86,3 +87,4 @@ sandbox_dli_creturn:
 
 	.global sandbox_dli_creturn_end
 sandbox_dli_creturn_end:
+	.size sandbox_dli_creturn, sandbox_dli_creturn_end - sandbox_dli_creturn
