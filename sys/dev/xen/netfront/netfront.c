@@ -906,11 +906,9 @@ setup_txqs(device_t dev, struct netfront_info *info,
 fail_bind_port:
 	taskqueue_drain_all(txq->tq);
 fail_start_thread:
-	gnttab_free_grant_references(txq->gref_head);
-	free(txq->ring.sring, M_DEVBUF);
-	gnttab_end_foreign_access_ref(txq->ring_ref);
 	buf_ring_free(txq->br, M_DEVBUF);
 	taskqueue_free(txq->tq);
+	gnttab_end_foreign_access_ref(txq->ring_ref);
 fail_grant_ring:
 	gnttab_free_grant_references(txq->gref_head);
 	free(txq->ring.sring, M_DEVBUF);
