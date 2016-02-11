@@ -183,9 +183,8 @@ htif_enumerate(struct htif_softc *sc)
 		}
 
 		len = strnlen(id, sizeof(id));
-		if (len <= 0) {
-			continue;
-		}
+		if (len <= 0)
+			break;
 
 		if (bootverbose)
 			printf(" %d %s\n", i, id);
