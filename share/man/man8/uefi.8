@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2015
+.Dd February 11, 2016
 .Dt UEFI 8
 .Os
 .Sh NAME
@@ -73,6 +73,16 @@ as
 .Pa /EFI/BOOT/BOOTX64.EFI .
 .It
 .Pa boot1.efi
+reads boot configuration from
+.Pa /boot.config
+or
+.Pa /boot/config .
+Unlike other first-stage boot loaders,
+.Pa boot1.efi
+passes the configuration to the next stage boot loader and does not
+itself act on the contents of the file.
+.It
+.Pa boot1.efi
 locates the first partition with the type
 .Li freebsd-ufs ,
 and from it loads
@@ -112,6 +122,7 @@ typical non-default kernel (optional)
 .El
 .Sh SEE ALSO
 .Xr vt 4 ,
+.Xr boot.config 5 ,
 .Xr msdosfs 5 ,
 .Xr boot 8 ,
 .Xr gpart 8 ,
