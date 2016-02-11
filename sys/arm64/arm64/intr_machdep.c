@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -84,6 +85,7 @@ struct arm64_intr_entry {
 	u_int			i_hw_irq;	/* Physical interrupt number */
 	u_int			i_cntidx;	/* Index in intrcnt table */
 	u_int			i_handlers;	/* Allocated handlers */
+	u_int			i_cpu;		/* Assigned CPU */
 	u_long			*i_cntp;	/* Interrupt hit counter */
 };
 
@@ -162,6 +164,8 @@ intr_allocate(u_int hw_irq)
 	if (intr == NULL)
 		return (NULL);
 
+	/* The default CPU is 0 but can be changed later by bind or shuffle */
+	intr->i_cpu = 0;
 	intr->i_event = NULL;
 	intr->i_handlers = 0;
 	intr->i_trig = INTR_TRIGGER_CONFORM;
@@ -174,6 +178,44 @@ intr_allocate(u_int hw_irq)
 	mtx_unlock_spin(&intr_list_lock);
 
 	return intr;
+}
+
+static int
+intr_assign_cpu(void *arg, int cpu)
+{
+#ifdef SMP
+	struct arm64_intr_entry *intr;
+	int error;
+
+	if (root_pic == NULL)
+		panic("Cannot assing interrupt to CPU. No PIC configured");
+	/*
+	 * Set the interrupt to CPU affinity.
+	 * Do not configure this in hardware during early boot.
+	 * We will pick up the assignment once the APs are started.
+	 */
+	if (cpu != NOCPU) {
+		intr = arg;
+		if (!cold && smp_started) {
+			/*
+			 * Bind the interrupt immediately
+			 * if SMP is up and running.
+			 */
+			error = PIC_BIND(root_pic, intr->i_hw_irq, cpu);
+			if (error == 0)
+				intr->i_cpu = cpu;
+		} else {
+			/* Postpone binding until SMP is operational */
+			intr->i_cpu = cpu;
+			error = 0;
+		}
+	} else
+		error = 0;
+
+	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 static void
@@ -339,7 +381,7 @@ arm_setup_intr(const char *name, driver_filter_t *filt, driver_intr_t handler,
 	if (intr->i_event == NULL) {
 		error = intr_event_create(&intr->i_event, (void *)intr, 0,
 		    hw_irq, intr_pre_ithread, intr_post_ithread,
-		    intr_post_filter, NULL, "irq%u", hw_irq);
+		    intr_post_filter, intr_assign_cpu, "irq%u", hw_irq);
 		if (error)
 			return (error);
 	}
@@ -447,6 +489,42 @@ arm_cpu_intr(struct trapframe *tf)
 }
 
 #ifdef SMP
+static void
+arm_intr_smp_init(void *dummy __unused)
+{
+	struct arm64_intr_entry *intr;
+	int error;
+
+	if (root_pic == NULL)
+		panic("Cannot assing interrupts to CPUs. No PIC configured");
+
+	mtx_lock_spin(&intr_list_lock);
+	SLIST_FOREACH(intr, &irq_slist_head, entries) {
+		mtx_unlock_spin(&intr_list_lock);
+		error = PIC_BIND(root_pic, intr->i_hw_irq, intr->i_cpu);
+		if (error != 0)
+			intr->i_cpu = 0;
+		mtx_lock_spin(&intr_list_lock);
+	}
+	mtx_unlock_spin(&intr_list_lock);
+}
+SYSINIT(arm_intr_smp_init, SI_SUB_SMP, SI_ORDER_ANY, arm_intr_smp_init, NULL);
+
+/* Attempt to bind the specified IRQ to the specified CPU. */
+int
+arm_intr_bind(u_int hw_irq, int cpu)
+{
+	struct arm64_intr_entry *intr;
+
+	mtx_lock_spin(&intr_list_lock);
+	intr = intr_lookup_locked(hw_irq);
+	mtx_unlock_spin(&intr_list_lock);
+	if (intr == NULL)
+		return (EINVAL);
+
+	return (intr_event_bind(intr->i_event, cpu));
+}
+
 void
 arm_setup_ipihandler(driver_filter_t *filt, u_int ipi)
 {
