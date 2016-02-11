@@ -1863,7 +1863,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		sc->xn_if_flags = ifp->if_flags;
 		XN_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
@@ -1898,7 +1897,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_LRO;
 
 		}
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
