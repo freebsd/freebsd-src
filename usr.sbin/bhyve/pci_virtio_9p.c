@@ -52,7 +52,8 @@ __FBSDID("$FreeBSD: head/usr.sbin/bhyve/pci_virtio_rnd.c 282865 2015-05-13 17:38
 #include "virtio.h"
 
 #define VT9P_RINGSZ	64
-#define	VT9P_MAXTAGSZ	128
+#define	VT9P_MAXTAGSZ	256
+#define	VT9P_CONFIGSPACESZ	(VT9P_MAXTAGSZ + sizeof(uint16_t))
 
 static int pci_vt9p_debug;
 #define DPRINTF(params) if (pci_vt9p_debug) printf params
@@ -94,7 +95,7 @@ static void pci_vt9p_neg_features(void *, uint64_t);
 static struct virtio_consts vt9p_vi_consts = {
 	"vt9p",			/* our name */
 	1,			/* we support 1 virtqueue */
-	0,			/* config reg size */
+	VT9P_CONFIGSPACESZ,	/* config reg size */
 	pci_vt9p_reset,		/* reset */
 	pci_vt9p_notify,	/* device-wide qnotify */
 	pci_vt9p_cfgread,	/* read virtio config */
