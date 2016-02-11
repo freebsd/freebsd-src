@@ -46,7 +46,7 @@ MTX_SYSINIT(atomic, &atomic_mtx, "atomic", MTX_DEF);
 static pthread_mutex_t atomic_mtx;
 
 static __attribute__((constructor)) void
-atomic_init(void)
+atomic_init_fn(void)
 {
 	pthread_mutex_init(&atomic_mtx, NULL);
 }
