@@ -412,14 +412,15 @@ gic_v3_ipi_send(device_t dev, cpuset_t cpuset, u_int ipi)
 			}
 		}
 		if (tlist) {
-			KASSERT((tlist & ~GICI_SGI_TLIST_MASK) == 0,
+			KASSERT((tlist & ~ICC_SGI1R_EL1_TL_MASK) == 0,
 			    ("Target list too long for GICv3 IPI"));
 			/* Send SGI to CPUs in target list */
 			val = tlist;
-			val |= (uint64_t)CPU_AFF3(aff) << GICI_SGI_AFF3_SHIFT;
-			val |= (uint64_t)CPU_AFF2(aff) << GICI_SGI_AFF2_SHIFT;
-			val |= (uint64_t)CPU_AFF1(aff) << GICI_SGI_AFF1_SHIFT;
-			val |= (uint64_t)(ipi & GICI_SGI_IPI_MASK) << GICI_SGI_IPI_SHIFT;
+			val |= (uint64_t)CPU_AFF3(aff) << ICC_SGI1R_EL1_AFF3_SHIFT;
+			val |= (uint64_t)CPU_AFF2(aff) << ICC_SGI1R_EL1_AFF2_SHIFT;
+			val |= (uint64_t)CPU_AFF1(aff) << ICC_SGI1R_EL1_AFF1_SHIFT;
+			val |= (uint64_t)(ipi & ICC_SGI1R_EL1_SGIID_MASK) <<
+			    ICC_SGI1R_EL1_SGIID_SHIFT;
 			gic_icc_write(SGI1R, val);
 		}
 	}
