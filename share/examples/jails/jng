@@ -265,7 +265,7 @@ mustberoot_to_continue()
 	fi
 }
 
-jng_bridge_usage="bridge [-b BRIDGE_NAME] NAME interface0 [interface1 ...]"
+jng_bridge_usage="bridge [-b BRIDGE_NAME] NAME [=]iface0 [[=]iface1 ...]"
 jng_bridge_descr="Create ng0_NAME [ng1_NAME ...]"
 jng_bridge()
 {
@@ -286,9 +286,14 @@ jng_bridge()
 
 	mustberoot_to_continue
 
-	local iface eiface eiface_devid
-	local new num quad i=0
+	local iface parent eiface eiface_devid
+	local new clone_mac num quad i=0
 	for iface in $*; do
+
+		clone_mac=
+		case "$iface" in
+		=*) iface=${iface#=} clone_mac=1 ;;
+		esac
 
 		# 0. Make sure the interface doesn't exist already
 		eiface=ng${i}_$name
@@ -347,7 +352,23 @@ jng_bridge()
 		# 6. Set the MAC address of the new interface using a sensible
 		# algorithm to prevent conflicts on the network.
 		#
-		derive_mac $iface "$name" eiface_devid
+		case "$iface" in
+		wlan[0-9]*)
+			parent=$( sysctl -n net.wlan.${iface#wlan}.%parent )
+			case "$parent" in
+			iwn[0-9]*)
+				# iwn(4) supports only 1 virtual net at a time
+				# NB: Cloning MAC allows new interface to work
+				clone_mac=1 ;;
+			esac
+		esac
+		if [ "$clone_mac" ]; then
+			eiface_devid=$(
+				ifconfig $iface ether | awk '/ether/,$0=$2'
+			)
+		else
+			derive_mac $iface "$name" eiface_devid
+		fi
 		ifconfig $eiface ether $eiface_devid
 
 		i=$(( $i + 1 )) # on to next ng{i}_name
