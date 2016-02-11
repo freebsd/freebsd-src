@@ -618,8 +618,7 @@ m_getzone(int size)
  * should go away with constant propagation for !MGETHDR.
  */
 static __inline int
-m_init(struct mbuf *m, uma_zone_t zone __unused, int size __unused, int how,
-    short type, int flags)
+m_init(struct mbuf *m, int how, short type, int flags)
 {
 	int error;
 
@@ -645,23 +644,6 @@ m_get(int how, short type)
 	args.flags = 0;
 	args.type = type;
 	return (uma_zalloc_arg(zone_mbuf, &args, how));
-}
-
-/*
- * XXX This should be deprecated, very little use.
- */
-static __inline struct mbuf *
-m_getclr(int how, short type)
-{
-	struct mbuf *m;
-	struct mb_args args;
-
-	args.flags = 0;
-	args.type = type;
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m != NULL)
-		bzero(m->m_data, MLEN);
-	return (m);
 }
 
 static __inline struct mbuf *

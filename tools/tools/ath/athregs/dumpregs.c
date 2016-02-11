@@ -155,7 +155,7 @@ main(int argc, char *argv[])
 	atd.ad_out_data = (caddr_t) &state.revs;
 	atd.ad_out_size = sizeof(state.revs);
 	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+		err(1, "%s", atd.ad_name);
 
 	if (ath_hal_setupregs(&atd, what) == 0)
 		errx(-1, "no registers are known for this part "
@@ -173,7 +173,7 @@ main(int argc, char *argv[])
 	}
 	atd.ad_id = HAL_DIAG_REGS | ATH_DIAG_IN | ATH_DIAG_DYN;
 	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+		err(1, "%s", atd.ad_name);
 
 	/*
 	 * Expand register data into global space that can be

@@ -31,7 +31,7 @@
 
 /*
  * athdebug [-i interface] flags
- * (default interface is ath0).
+ * (default interface is wlan0).
  */
 
 #include <sys/param.h>
@@ -156,7 +156,7 @@ main(int argc, char *argv[])
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
-		ifname = "ath0";
+		ifname = ATH_DEFAULT;
 	progname = argv[0];
 	if (argc > 1) {
 		if (strcmp(argv[1], "-i") == 0) {

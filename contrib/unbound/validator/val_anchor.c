@@ -48,6 +48,7 @@
 #include "util/log.h"
 #include "util/net_help.h"
 #include "util/config_file.h"
+#include "util/as112.h"
 #include "sldns/sbuffer.h"
 #include "sldns/rrdef.h"
 #include "sldns/str2wire.h"
@@ -1044,8 +1045,18 @@ int
 anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 {
 	struct config_strlist* f;
+	const char** zstr;
 	char* nm;
 	sldns_buffer* parsebuf = sldns_buffer_new(65535);
+	if(cfg->insecure_lan_zones) {
+		for(zstr = as112_zones; *zstr; zstr++) {
+			if(!anchor_insert_insecure(anchors, *zstr)) {
+				log_err("error in insecure-lan-zones: %s", *zstr);
+				sldns_buffer_free(parsebuf);
+				return 0;
+			}
+		}
+	}
 	for(f = cfg->domain_insecure; f; f = f->next) {
 		if(!f->str || f->str[0] == 0) /* empty "" */
 			continue;

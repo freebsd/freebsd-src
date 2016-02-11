@@ -98,7 +98,4 @@ device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
 
-# RISCVTODO: This needs to be done via loader (when it's available).
 options 	FDT
-options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=spike.dts
