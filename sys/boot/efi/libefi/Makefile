@@ -1,11 +1,17 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	efi
 INTERNALLIB=
 WARNS?=	2
 
 SRCS=	delay.c efi_console.c efinet.c efipart.c errno.c handles.c \
 	libefi.c time.c
+
+.if ${MACHINE_CPUARCH} == "ia64"
+IGNORE_PRAGMA=	1
+.endif
 
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone

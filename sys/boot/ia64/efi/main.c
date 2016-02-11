@@ -179,7 +179,8 @@ main(int argc, CHAR16 *argv[])
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
 	bzero(&currdev, sizeof(currdev));
-	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev, &currdev.d_unit);
+	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev,
+	    &currdev.d_unit, NULL);
 	currdev.d_type = currdev.d_dev->dv_type;
 
 	env_setenv("loaddev", EV_VOLATILE, ia64_fmtdev(&currdev), env_noset,
