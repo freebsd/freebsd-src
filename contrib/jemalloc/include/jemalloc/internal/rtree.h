@@ -145,7 +145,7 @@ rtree_subkey(rtree_t *rtree, uintptr_t key, unsigned level)
 {
 
 	return ((key >> ((ZU(1) << (LG_SIZEOF_PTR+3)) -
-	    rtree->levels[level].cumbits)) & ((ZU(1) <<
+	    rtree->levels[level].cumbits)) & (uintptr_t)((ZU(1) <<
 	    rtree->levels[level].bits) - 1));
 }
 

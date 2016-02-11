@@ -19,8 +19,13 @@ chunk_alloc_mmap_slow(size_t size, size_t alignment, bool *zero, bool *commit)
 		pages = pages_map(NULL, alloc_size);
 		if (pages == NULL)
 			return (NULL);
+#ifndef __CHERI_PURE_CAPABILITY__
 		leadsize = ALIGNMENT_CEILING((uintptr_t)pages, alignment) -
 		    (uintptr_t)pages;
+#else
+		leadsize = ALIGNMENT_CEILING((size_t)pages, alignment) -
+		    (size_t)pages;
+#endif
 		ret = pages_trim(pages, alloc_size, leadsize, size);
 	} while (ret == NULL);
 

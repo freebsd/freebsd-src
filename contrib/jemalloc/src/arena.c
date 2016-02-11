@@ -33,13 +33,13 @@ static void	arena_bin_lower_run(arena_t *arena, arena_chunk_t *chunk,
 
 /******************************************************************************/
 
-#define	CHUNK_MAP_KEY		((uintptr_t)0x1U)
+#define	CHUNK_MAP_KEY		((size_t)0x1U)
 
 JEMALLOC_INLINE_C arena_chunk_map_misc_t *
 arena_miscelm_key_create(size_t size)
 {
 
-	return ((arena_chunk_map_misc_t *)(arena_mapbits_size_encode(size) |
+	return ((arena_chunk_map_misc_t *)(uintptr_t)(arena_mapbits_size_encode(size) |
 	    CHUNK_MAP_KEY));
 }
 
@@ -47,7 +47,7 @@ JEMALLOC_INLINE_C bool
 arena_miscelm_is_key(const arena_chunk_map_misc_t *miscelm)
 {
 
-	return (((uintptr_t)miscelm & CHUNK_MAP_KEY) != 0);
+	return (((size_t)miscelm & CHUNK_MAP_KEY) != 0);
 }
 
 #undef CHUNK_MAP_KEY
@@ -2292,8 +2292,13 @@ arena_palloc_large(tsd_t *tsd, arena_t *arena, size_t usize, size_t alignment,
 	miscelm = arena_run_to_miscelm(run);
 	rpages = arena_miscelm_to_rpages(miscelm);
 
+#ifndef __CHERI_PURE_CAPABILITY__
 	leadsize = ALIGNMENT_CEILING((uintptr_t)rpages, alignment) -
 	    (uintptr_t)rpages;
+#else
+	leadsize = ALIGNMENT_CEILING((size_t)rpages, alignment) -
+	    (size_t)rpages;
+#endif
 	assert(alloc_size >= leadsize + usize);
 	trailsize = alloc_size - leadsize - usize - large_pad;
 	if (leadsize != 0) {
@@ -2366,7 +2371,7 @@ arena_palloc(tsd_t *tsd, arena_t *arena, size_t usize, size_t alignment,
 		 */
 		ret = arena_malloc(tsd, arena, usize, zero, tcache);
 		if (config_cache_oblivious)
-			ret = (void *)((uintptr_t)ret & ~PAGE_MASK);
+			ret = (void *)((uintptr_t)ret & (uintptr_t)~PAGE_MASK);
 	} else {
 		if (likely(usize <= large_maxclass)) {
 			ret = arena_palloc_large(tsd, arena, usize, alignment,

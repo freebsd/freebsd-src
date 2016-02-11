@@ -157,7 +157,14 @@ static const bool config_cache_oblivious =
 #include <malloc/malloc.h>
 #endif
 
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <machine/cheric.h>
+#endif
+
+#ifndef __CHERI_PURE_CAPABILITY__
+/* XXX-CHERI: optimize later */
 #define	RB_COMPACT
+#endif
 #include "jemalloc/internal/rb.h"
 #include "jemalloc/internal/qr.h"
 #include "jemalloc/internal/ql.h"
@@ -323,20 +330,38 @@ typedef unsigned szind_t;
 #define	PAGE_MASK	((size_t)(PAGE - 1))
 
 /* Return the page base address for the page containing address a. */
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	PAGE_ADDR2BASE(a)						\
 	((void *)((uintptr_t)(a) & ~PAGE_MASK))
+#else
+#define	PAGE_ADDR2BASE(a)						\
+	((void *)((uintptr_t)cheri_setoffset(cheri_getdefault(),	\
+	    (vaddr_t)(a)) & (uintptr_t)~PAGE_MASK))
+#endif
 
 /* Return the smallest pagesize multiple that is >= s. */
 #define	PAGE_CEILING(s)							\
 	(((s) + PAGE_MASK) & ~PAGE_MASK)
 
 /* Return the nearest aligned address at or below a. */
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	ALIGNMENT_ADDR2BASE(a, alignment)				\
 	((void *)((uintptr_t)(a) & (-(alignment))))
+#else
+/* XXX-CHERI: Rederive from $ddc. */
+#define	ALIGNMENT_ADDR2BASE(a, alignment)				\
+	((void *)((uintptr_t)cheri_setoffset(cheri_getdefault(),	\
+	    (vaddr_t)(a)) & (uintptr_t)(-(alignment))))
+#endif
 
 /* Return the offset between a and the nearest aligned address at or below a. */
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	ALIGNMENT_ADDR2OFFSET(a, alignment)				\
 	((size_t)((uintptr_t)(a) & (alignment - 1)))
+#else
+#define	ALIGNMENT_ADDR2OFFSET(a, alignment)				\
+	((size_t)((size_t)(a) & (alignment - 1)))
+#endif
 
 /* Return the smallest alignment multiple that is >= s. */
 #define	ALIGNMENT_CEILING(s, alignment)					\

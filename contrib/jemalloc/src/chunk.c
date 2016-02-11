@@ -235,8 +235,13 @@ chunk_recycle(arena_t *arena, chunk_hooks_t *chunk_hooks,
 		malloc_mutex_unlock(&arena->chunks_mtx);
 		return (NULL);
 	}
+#ifndef __CHERI_PURE_CAPABILITY__
 	leadsize = ALIGNMENT_CEILING((uintptr_t)extent_node_addr_get(node),
 	    alignment) - (uintptr_t)extent_node_addr_get(node);
+#else
+	leadsize = ALIGNMENT_CEILING((size_t)extent_node_addr_get(node),
+	    alignment) - (size_t)extent_node_addr_get(node);
+#endif
 	assert(new_addr == NULL || leadsize == 0);
 	assert(extent_node_size_get(node) >= leadsize + size);
 	trailsize = extent_node_size_get(node) - leadsize - size;

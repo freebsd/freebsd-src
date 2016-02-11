@@ -1224,8 +1224,12 @@ arena_salloc(const void *ptr, bool demote)
 			 * end up looking at binind to determine that ptr is a
 			 * small allocation.
 			 */
-			assert(config_cache_oblivious || ((uintptr_t)ptr &
-			    PAGE_MASK) == 0);
+			assert(config_cache_oblivious ||
+#ifndef __CHERI_PURE_CAPABILITY__
+			    ((uintptr_t)ptr & PAGE_MASK) == 0);
+#else
+			    ((size_t)ptr & PAGE_MASK) == 0);
+#endif
 			ret = arena_mapbits_large_size_get(chunk, pageind) -
 			    large_pad;
 			assert(ret != 0);
@@ -1277,8 +1281,12 @@ arena_dalloc(tsd_t *tsd, void *ptr, tcache_t *tcache)
 			size_t size = arena_mapbits_large_size_get(chunk,
 			    pageind);
 
-			assert(config_cache_oblivious || ((uintptr_t)ptr &
-			    PAGE_MASK) == 0);
+			assert(config_cache_oblivious ||
+#ifndef __CHERI_PURE_CAPABILITY__
+			    ((uintptr_t)ptr & PAGE_MASK) == 0);
+#else
+			    ((size_t)ptr & PAGE_MASK) == 0);
+#endif
 
 			if (likely(tcache != NULL) && size - large_pad <=
 			    tcache_maxclass) {
@@ -1327,8 +1335,12 @@ arena_sdalloc(tsd_t *tsd, void *ptr, size_t size, tcache_t *tcache)
 				    &chunk->node), chunk, ptr, pageind);
 			}
 		} else {
-			assert(config_cache_oblivious || ((uintptr_t)ptr &
-			    PAGE_MASK) == 0);
+			assert(config_cache_oblivious ||
+#ifndef __CHERI_PURE_CAPABILITY__
+			    ((uintptr_t)ptr & PAGE_MASK) == 0);
+#else
+			    ((size_t)ptr & PAGE_MASK) == 0);
+#endif
 
 			if (likely(tcache != NULL) && size <= tcache_maxclass)
 				tcache_dalloc_large(tsd, tcache, ptr, size);
