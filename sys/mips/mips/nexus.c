@@ -576,4 +576,5 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	}
 }
 
-DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);
