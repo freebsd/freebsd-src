@@ -95,7 +95,7 @@ PYUNBOUND_SRC=
 # libunbound_wrap.lo if python libunbound wrapper enabled.
 PYUNBOUND_OBJ=@PYUNBOUND_OBJ@
 COMMON_SRC=services/cache/dns.c services/cache/infra.c services/cache/rrset.c \
-util/data/dname.c util/data/msgencode.c util/data/msgparse.c \
+util/as112.c util/data/dname.c util/data/msgencode.c util/data/msgparse.c \
 util/data/msgreply.c util/data/packed_rrset.c iterator/iterator.c \
 iterator/iter_delegpt.c iterator/iter_donotq.c iterator/iter_fwd.c \
 iterator/iter_hints.c iterator/iter_priv.c iterator/iter_resptype.c \
@@ -113,7 +113,7 @@ validator/val_neg.c validator/val_nsec3.c validator/val_nsec.c \
 validator/val_secalgo.c validator/val_sigcrypt.c \
 validator/val_utils.c dns64/dns64.c $(CHECKLOCK_SRC) $(DNSTAP_SRC)
 COMMON_OBJ_WITHOUT_NETCALL=dns.lo infra.lo rrset.lo dname.lo msgencode.lo \
-msgparse.lo msgreply.lo packed_rrset.lo iterator.lo iter_delegpt.lo \
+as112.lo msgparse.lo msgreply.lo packed_rrset.lo iterator.lo iter_delegpt.lo \
 iter_donotq.lo iter_fwd.lo iter_hints.lo iter_priv.lo iter_resptype.lo \
 iter_scrub.lo iter_utils.lo localzone.lo mesh.lo modstack.lo \
 outbound_list.lo alloc.lo config_file.lo configlexer.lo configparser.lo \
@@ -595,6 +595,7 @@ depend:
 	rm -f $(DEPEND_TMP) $(DEPEND_TMP2)
 
 # Dependencies
+as112.lo as112.o: $(srcdir)/util/as112.c $(srcdir)/util/as112.h
 dns.lo dns.o: $(srcdir)/services/cache/dns.c config.h $(srcdir)/iterator/iter_delegpt.h $(srcdir)/util/log.h \
  $(srcdir)/validator/val_nsec.h $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/storage/lruhash.h \
  $(srcdir)/util/locks.h $(srcdir)/services/cache/dns.h $(srcdir)/util/data/msgreply.h \
@@ -702,7 +703,7 @@ localzone.lo localzone.o: $(srcdir)/services/localzone.c config.h $(srcdir)/serv
  $(srcdir)/sldns/sbuffer.h $(srcdir)/util/regional.h $(srcdir)/util/config_file.h $(srcdir)/util/data/dname.h \
  $(srcdir)/util/storage/lruhash.h $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/msgencode.h \
  $(srcdir)/util/net_help.h $(srcdir)/util/netevent.h $(srcdir)/util/data/msgreply.h \
- $(srcdir)/util/data/msgparse.h $(srcdir)/sldns/pkthdr.h
+ $(srcdir)/util/data/msgparse.h $(srcdir)/sldns/pkthdr.h $(srcdir)/util/as112.h
 mesh.lo mesh.o: $(srcdir)/services/mesh.c config.h $(srcdir)/services/mesh.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util/netevent.h $(srcdir)/util/data/msgparse.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h \
  $(srcdir)/util/log.h $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/util/module.h \
@@ -821,7 +822,7 @@ val_anchor.lo val_anchor.o: $(srcdir)/validator/val_anchor.c config.h $(srcdir)/
  $(srcdir)/util/rbtree.h $(srcdir)/util/locks.h $(srcdir)/util/log.h $(srcdir)/validator/val_sigcrypt.h \
  $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/storage/lruhash.h $(srcdir)/validator/autotrust.h \
  $(srcdir)/util/data/dname.h $(srcdir)/util/net_help.h $(srcdir)/util/config_file.h $(srcdir)/sldns/sbuffer.h \
- $(srcdir)/sldns/rrdef.h $(srcdir)/sldns/str2wire.h
+ $(srcdir)/sldns/rrdef.h $(srcdir)/sldns/str2wire.h $(srcdir)/util/as112.h
 validator.lo validator.o: $(srcdir)/validator/validator.c config.h $(srcdir)/validator/validator.h \
  $(srcdir)/util/module.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/log.h \
  $(srcdir)/util/data/msgreply.h $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/msgparse.h \
