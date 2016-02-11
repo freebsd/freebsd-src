@@ -7970,7 +7970,6 @@ OLD_FILES+=usr/sbin/unbound
 OLD_FILES+=usr/sbin/unbound-anchor
 OLD_FILES+=usr/sbin/unbound-checkconf
 OLD_FILES+=usr/sbin/unbound-control
-OLD_FILES+=usr/sbin/unbound-control-setup
 OLD_FILES+=usr/share/man/man5/unbound.conf.5.gz
 OLD_FILES+=usr/share/man/man8/unbound-anchor.8.gz
 OLD_FILES+=usr/share/man/man8/unbound-checkconf.8.gz
