@@ -230,8 +230,8 @@ struct gic_v3_its_softc {
 	unsigned long *		its_lpi_bitmap;
 	uint32_t		its_lpi_maxid;
 
-	struct mtx		its_mtx;
-	struct mtx		its_spin_mtx;
+	struct mtx		its_dev_lock;
+	struct mtx		its_cmd_lock;
 
 	uint32_t		its_socket;	/* Socket number ITS is attached to */
 };
