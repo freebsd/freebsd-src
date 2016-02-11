@@ -448,9 +448,11 @@ static driver_t mips_pic_driver = {
 static devclass_t mips_pic_devclass;
 
 #ifdef FDT
-DRIVER_MODULE(cpupic, ofwbus, mips_pic_driver, mips_pic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(cpupic, ofwbus, mips_pic_driver, mips_pic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT);
 #else
-DRIVER_MODULE(cpupic, nexus, mips_pic_driver, mips_pic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(cpupic, nexus, mips_pic_driver, mips_pic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT);
 #endif
 
 void
