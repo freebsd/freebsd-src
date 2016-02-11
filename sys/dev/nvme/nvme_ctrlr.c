@@ -725,15 +725,17 @@ nvme_ctrlr_start(void *ctrlr_arg)
 	 *  explicit specify how many queues it will use.  This value should
 	 *  never change between resets, so panic if somehow that does happen.
 	 */
-	old_num_io_queues = ctrlr->num_io_queues;
-	if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
-		nvme_ctrlr_fail(ctrlr);
-		return;
-	}
+	if (ctrlr->is_resetting) {
+		old_num_io_queues = ctrlr->num_io_queues;
+		if (nvme_ctrlr_set_num_qpairs(ctrlr) != 0) {
+			nvme_ctrlr_fail(ctrlr);
+			return;
+		}
 
-	if (old_num_io_queues != ctrlr->num_io_queues) {
-		panic("num_io_queues changed from %u to %u", old_num_io_queues,
-		    ctrlr->num_io_queues);
+		if (old_num_io_queues != ctrlr->num_io_queues) {
+			panic("num_io_queues changed from %u to %u",
+			      old_num_io_queues, ctrlr->num_io_queues);
+		}
 	}
 
 	if (nvme_ctrlr_create_qpairs(ctrlr) != 0) {
