@@ -169,7 +169,7 @@ ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
 		op = "Clamp";
 	} else
 		return *v;
-	if (op && msg)
+	if (op && msg && bootverbose)
 		printf("%s %s to %d (was %d)\n", op, msg, *v, oldv);
 	return *v;
 }
