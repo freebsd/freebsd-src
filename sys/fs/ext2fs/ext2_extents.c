@@ -43,7 +43,7 @@
 #include <fs/ext2fs/ext2_extents.h>
 #include <fs/ext2fs/ext2_extern.h>
 
-static int
+static bool
 ext4_ext_binsearch_index(struct inode *ip, struct ext4_extent_path *path,
 		daddr_t lbn, daddr_t *first_lbn, daddr_t *last_lbn)
 {
@@ -67,14 +67,14 @@ ext4_ext_binsearch_index(struct inode *ip, struct ext4_extent_path *path,
 		path->ep_sparse_ext.e_len = first->ei_blk - *first_lbn;
 		path->ep_sparse_ext.e_start_hi = 0;
 		path->ep_sparse_ext.e_start_lo = 0;
-		path->ep_is_sparse = 1;
-		return (1);
+		path->ep_is_sparse = true;
+		return (true);
 	}
 	path->ep_index = l - 1;
 	*first_lbn = path->ep_index->ei_blk;
 	if (path->ep_index < last)
 		*last_lbn = l->ei_blk - 1;
-	return (0);
+	return (false);
 }
 
 static void
@@ -103,7 +103,7 @@ ext4_ext_binsearch(struct inode *ip, struct ext4_extent_path *path, daddr_t lbn,
 		path->ep_sparse_ext.e_len = first->e_blk - first_lbn;
 		path->ep_sparse_ext.e_start_hi = 0;
 		path->ep_sparse_ext.e_start_lo = 0;
-		path->ep_is_sparse = 1;
+		path->ep_is_sparse = true;
 		return;
 	}
 	path->ep_ext = l - 1;
@@ -118,7 +118,7 @@ ext4_ext_binsearch(struct inode *ip, struct ext4_extent_path *path, daddr_t lbn,
 			    path->ep_sparse_ext.e_blk + 1;
 		path->ep_sparse_ext.e_start_hi = 0;
 		path->ep_sparse_ext.e_start_lo = 0;
-		path->ep_is_sparse = 1;
+		path->ep_is_sparse = true;
 	}
 }
 
@@ -213,7 +213,7 @@ ext4_ext_find_extent(struct m_ext2fs *fs, struct inode *ip,
 	path->ep_depth = i;
 	path->ep_ext = NULL;
 	path->ep_index = NULL;
-	path->ep_is_sparse = 0;
+	path->ep_is_sparse = false;
 
 	ext4_ext_binsearch(ip, path, lbn, first_lbn, last_lbn);
 	return (path);

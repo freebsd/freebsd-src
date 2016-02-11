@@ -84,7 +84,7 @@ struct ext4_extent_cache {
 struct ext4_extent_path {
 	uint16_t ep_depth;
 	struct buf *ep_bp;
-	int ep_is_sparse;
+	bool ep_is_sparse;
 	union {
 		struct ext4_extent ep_sparse_ext;
 		struct ext4_extent *ep_ext;
