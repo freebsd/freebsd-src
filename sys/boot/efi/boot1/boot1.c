@@ -91,12 +91,40 @@ Free(void *buf, const char *file __unused, int line __unused)
 void
 try_load(const boot_module_t *mod)
 {
-	size_t bufsize;
+	size_t bufsize, cmdsize;
 	void *buf;
+	char *cmd;
 	dev_info_t *dev;
 	EFI_HANDLE loaderhandle;
 	EFI_LOADED_IMAGE *loaded_image;
 	EFI_STATUS status;
+
+	/*
+	 * Read in and parse the command line from /boot.config or /boot/config,
+	 * if present. We'll pass it the next stage via a simple ASCII
+	 * string. loader.efi has a hack for ASCII strings, so we'll use that to
+	 * keep the size down here. We only try to read the alternate file if
+	 * we get EFI_NOT_FOUND because all other errors mean that the boot_module
+	 * had troubles with the filesystem. We could return early, but we'll let
+	 * loading the actual kernel sort all that out. Since these files are
+	 * optional, we don't report errors in trying to read them.
+	 */
+	cmd = NULL;
+	cmdsize = 0;
+	status = mod->load(PATH_DOTCONFIG, &dev, &buf, &bufsize);
+	if (status == EFI_NOT_FOUND)
+		status = mod->load(PATH_CONFIG, &dev, &buf, &bufsize);
+	if (status == EFI_SUCCESS) {
+		cmdsize = bufsize + 1;
+		cmd = malloc(cmdsize);
+		if (cmd == NULL) {
+			free(buf);
+			return;
+		}
+		memcpy(cmd, buf, bufsize);
+		cmd[bufsize] = '\0';
+		free(buf);
+	}
 
 	status = mod->load(PATH_LOADER_EFI, &dev, &buf, &bufsize);
 	if (status == EFI_NOT_FOUND)
@@ -115,6 +143,9 @@ try_load(const boot_module_t *mod)
 		return;
 	}
 
+	if (cmd != NULL)
+		printf("    command args: %s\n", cmd);
+
 	if ((status = bs->HandleProtocol(loaderhandle, &LoadedImageGUID,
 	    (VOID**)&loaded_image)) != EFI_SUCCESS) {
 		printf("Failed to query LoadedImage provided by %s (%lu)\n",
@@ -123,11 +154,16 @@ try_load(const boot_module_t *mod)
 	}
 
 	loaded_image->DeviceHandle = dev->devhandle;
+	loaded_image->LoadOptionsSize = cmdsize;
+	loaded_image->LoadOptions = cmd;
 
 	if ((status = bs->StartImage(loaderhandle, NULL, NULL)) !=
 	    EFI_SUCCESS) {
 		printf("Failed to start image provided by %s (%lu)\n",
 		    mod->name, EFI_ERROR_CODE(status));
+		free(cmd);
+		loaded_image->LoadOptionsSize = 0;
+		loaded_image->LoadOptions = NULL;
 		return;
 	}
 }
