@@ -49,6 +49,7 @@ void	arm_unmask_irq(u_int);
 
 #ifdef SMP
 void	arm_init_secondary(void);
+int	arm_intr_bind(u_int, int);
 void	arm_setup_ipihandler(driver_filter_t *, u_int);
 void	arm_unmask_ipi(u_int);
 #endif
