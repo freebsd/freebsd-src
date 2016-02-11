@@ -29,6 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/reboot.h>
+#include <sys/boot.h>
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
@@ -63,6 +65,7 @@ EFI_GUID dxe = DXE_SERVICES_TABLE_GUID;
 EFI_GUID hoblist = HOB_LIST_TABLE_GUID;
 EFI_GUID memtype = MEMORY_TYPE_INFORMATION_TABLE_GUID;
 EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
+EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
 #ifdef EFI_ZFS_BOOT
 static void efi_zfs_probe(void);
@@ -82,16 +85,108 @@ print_str16(const CHAR16 *str)
 		printf("%c", (char)str[i]);
 }
 
+static void
+cp16to8(const CHAR16 *src, char *dst, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len && src[i]; i++)
+		dst[i] = (char)src[i];
+}
+
+static int
+has_keyboard(void)
+{
+	EFI_STATUS status;
+	EFI_DEVICE_PATH *path;
+	EFI_HANDLE *hin, *hin_end, *walker;
+	UINTN sz;
+	int retval = 0;
+	
+	/*
+	 * Find all the handles that support the SIMPLE_TEXT_INPUT_PROTOCOL and
+	 * do the typical dance to get the right sized buffer.
+	 */
+	sz = 0;
+	hin = NULL;
+	status = BS->LocateHandle(ByProtocol, &inputid, 0, &sz, 0);
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		hin = (EFI_HANDLE *)malloc(sz);
+		status = BS->LocateHandle(ByProtocol, &inputid, 0, &sz,
+		    hin);
+		if (EFI_ERROR(status))
+			free(hin);
+	}
+	if (EFI_ERROR(status))
+		return retval;
+
+	/*
+	 * Look at each of the handles. If it supports the device path protocol,
+	 * use it to get the device path for this handle. Then see if that
+	 * device path matches either the USB device path for keyboards or the
+	 * legacy device path for keyboards.
+	 */
+	hin_end = &hin[sz / sizeof(*hin)];
+	for (walker = hin; walker < hin_end; walker++) {
+		status = BS->HandleProtocol(*walker, &devid, (VOID **)&path);
+		if (EFI_ERROR(status))
+			continue;
+
+		while (!IsDevicePathEnd(path)) {
+			/*
+			 * Check for the ACPI keyboard node. All PNP3xx nodes
+			 * are keyboards of different flavors. Note: It is
+			 * unclear of there's always a keyboard node when
+			 * there's a keyboard controller, or if there's only one
+			 * when a keyboard is detected at boot.
+			 */
+			if (DevicePathType(path) == ACPI_DEVICE_PATH &&
+			    (DevicePathSubType(path) == ACPI_DP ||
+				DevicePathSubType(path) == ACPI_EXTENDED_DP)) {
+				ACPI_HID_DEVICE_PATH  *acpi;
+
+				acpi = (ACPI_HID_DEVICE_PATH *)(void *)path;
+				if ((EISA_ID_TO_NUM(acpi->HID) & 0xff00) == 0x300 &&
+				    (acpi->HID & 0xffff) == PNP_EISA_ID_CONST) {
+					retval = 1;
+					goto out;
+				}
+			/*
+			 * Check for USB keyboard node, if present. Unlike a
+			 * PS/2 keyboard, these definitely only appear when
+			 * connected to the system.
+			 */
+			} else if (DevicePathType(path) == MESSAGING_DEVICE_PATH &&
+			    DevicePathSubType(path) == MSG_USB_CLASS_DP) {
+				USB_CLASS_DEVICE_PATH *usb;
+			       
+				usb = (USB_CLASS_DEVICE_PATH *)(void *)path;
+				if (usb->DeviceClass == 3 && /* HID */
+				    usb->DeviceSubClass == 1 && /* Boot devices */
+				    usb->DeviceProtocol == 1) { /* Boot keyboards */
+					retval = 1;
+					goto out;
+				}
+			}
+			path = NextDevicePathNode(path);
+		}
+	}
+out:
+	free(hin);
+	return retval;
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i, j, vargood, unit;
+	int i, j, vargood, unit, howto;
 	struct devsw *dev;
 	uint64_t pool_guid;
 	UINTN k;
+	int has_kbd;
 
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
@@ -103,6 +198,8 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_zfs_probe = efi_zfs_probe;
 #endif
 
+	has_kbd = has_keyboard();
+
 	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
 	 * early, but some console attributes may depend on reading from
@@ -112,26 +209,100 @@ main(int argc, CHAR16 *argv[])
 	cons_probe();
 
 	/*
+	 * Parse the args to set the console settings, etc
+	 * boot1.efi passes these in, if it can read /boot.config or /boot/config
+	 * or iPXE may be setup to pass these in.
+	 *
 	 * Loop through the args, and for each one that contains an '=' that is
 	 * not the first character, add it to the environment.  This allows
 	 * loader and kernel env vars to be passed on the command line.  Convert
 	 * args from UCS-2 to ASCII (16 to 8 bit) as they are copied.
 	 */
+	howto = 0;
 	for (i = 1; i < argc; i++) {
-		vargood = 0;
-		for (j = 0; argv[i][j] != 0; j++) {
-			if (j == sizeof(var)) {
-				vargood = 0;
-				break;
+		if (argv[i][0] == '-') {
+			for (j = 1; argv[i][j] != 0; j++) {
+				int ch;
+
+				ch = argv[i][j];
+				switch (ch) {
+				case 'a':
+					howto |= RB_ASKNAME;
+					break;
+				case 'd':
+					howto |= RB_KDB;
+					break;
+				case 'D':
+					howto |= RB_MULTIPLE;
+					break;
+				case 'h':
+					howto |= RB_SERIAL;
+					break;
+				case 'm':
+					howto |= RB_MUTE;
+					break;
+				case 'p':
+					howto |= RB_PAUSE;
+					break;
+				case 'P':
+					if (!has_kbd)
+						howto |= RB_SERIAL | RB_MULTIPLE;
+					break;
+				case 'r':
+					howto |= RB_DFLTROOT;
+					break;
+				case 's':
+					howto |= RB_SINGLE;
+					break;
+				case 'S':
+					if (argv[i][j + 1] == 0) {
+						if (i + 1 == argc) {
+							setenv("comconsole_speed", "115200", 1);
+						} else {
+							cp16to8(&argv[i + 1][0], var,
+							    sizeof(var));
+							setenv("comconsole_speedspeed", var, 1);
+						}
+						i++;
+						break;
+					} else {
+						cp16to8(&argv[i][j + 1], var,
+						    sizeof(var));
+						setenv("comconsole_speed", var, 1);
+						break;
+					}
+				case 'v':
+					howto |= RB_VERBOSE;
+					break;
+				}
 			}
-			if (j > 0 && argv[i][j] == '=')
-				vargood = 1;
-			var[j] = (char)argv[i][j];
+		} else {
+			vargood = 0;
+			for (j = 0; argv[i][j] != 0; j++) {
+				if (j == sizeof(var)) {
+					vargood = 0;
+					break;
+				}
+				if (j > 0 && argv[i][j] == '=')
+					vargood = 1;
+				var[j] = (char)argv[i][j];
+			}
+			if (vargood) {
+				var[j] = 0;
+				putenv(var);
+			}
 		}
-		if (vargood) {
-			var[j] = 0;
-			putenv(var);
-		}
+	}
+	for (i = 0; howto_names[i].ev != NULL; i++)
+		if (howto & howto_names[i].mask)
+			setenv(howto_names[i].ev, "YES", 1);
+	if (howto & RB_MULTIPLE) {
+		if (howto & RB_SERIAL)
+			setenv("console", "comconsole efi" , 1);
+		else
+			setenv("console", "efi comconsole" , 1);
+	} else if (howto & RB_SERIAL) {
+		setenv("console", "comconsole" , 1);
 	}
 
 	if (efi_copy_init()) {
