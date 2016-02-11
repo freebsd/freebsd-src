@@ -8,8 +8,6 @@ CFLAGS+=-I${.CURDIR}/../../contrib/lib9p
 
 PROG=	bhyve
 
-DEBUG_FLAGS= -g -O0
-
 MAN=	bhyve.8
 
 SRCS=	\
