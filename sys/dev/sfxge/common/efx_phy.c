@@ -560,6 +560,38 @@ efx_phy_media_type_get(
 		*typep = epp->ep_fixed_port_type;
 }
 
+	__checkReturn	efx_rc_t
+efx_phy_module_get_info(
+	__in			efx_nic_t *enp,
+	__in			uint8_t dev_addr,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data)
+{
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT(data != NULL);
+
+	if ((uint32_t)offset + len > 0xff) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	if ((rc = efx_mcdi_phy_module_get_info(enp, dev_addr,
+	    offset, len, data)) != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 #if EFSYS_OPT_PHY_STATS
 
 #if EFSYS_OPT_NAMES
