@@ -507,6 +507,30 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, command);
 		break;
+#ifdef SIOCGI2C
+	case SIOCGI2C:
+	{
+		struct ifi2creq i2c;
+
+		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		if (error != 0)
+			break;
+
+		if (i2c.len > sizeof(i2c.data)) {
+			error = EINVAL;
+			break;
+		}
+
+		SFXGE_ADAPTER_LOCK(sc);
+		error = efx_phy_module_get_info(sc->enp, i2c.dev_addr,
+						i2c.offset, i2c.len,
+						&i2c.data[0]);
+		SFXGE_ADAPTER_UNLOCK(sc);
+		if (error == 0)
+			error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		break;
+	}
+#endif
 	case SIOCGPRIVATE_0:
 		error = priv_check(curthread, PRIV_DRIVER);
 		if (error != 0)
