@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_var.h"
 
 /* Device and PIC methods */
+static int gic_v3_bind(device_t, u_int, u_int);
 static void gic_v3_dispatch(device_t, struct trapframe *);
 static void gic_v3_eoi(device_t, u_int);
 static void gic_v3_mask_irq(device_t, u_int);
@@ -72,6 +73,7 @@ static device_method_t gic_v3_methods[] = {
 	DEVMETHOD(device_detach,	gic_v3_detach),
 
 	/* PIC interface */
+	DEVMETHOD(pic_bind,		gic_v3_bind),
 	DEVMETHOD(pic_dispatch,		gic_v3_dispatch),
 	DEVMETHOD(pic_eoi,		gic_v3_eoi),
 	DEVMETHOD(pic_mask,		gic_v3_mask_irq),
@@ -244,6 +246,28 @@ gic_v3_detach(device_t dev)
 /*
  * PIC interface.
  */
+
+static int
+gic_v3_bind(device_t dev, u_int irq, u_int cpuid)
+{
+	uint64_t aff;
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (irq <= GIC_LAST_PPI) {
+		/* Can't bind PPI to another CPU but it's not an error */
+		return (0);
+	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) {
+		aff = CPU_AFFINITY(cpuid);
+		gic_d_write(sc, 4, GICD_IROUTER(irq), aff);
+		return (0);
+	} else if (irq >= GIC_FIRST_LPI)
+		return (lpi_migrate(dev, irq, cpuid));
+
+	return (EINVAL);
+}
+
 static void
 gic_v3_dispatch(device_t dev, struct trapframe *frame)
 {
