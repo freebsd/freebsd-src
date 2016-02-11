@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_var.h"
 
 /* Device and PIC methods */
+static int gic_v3_bind(device_t, u_int, u_int);
 static void gic_v3_dispatch(device_t, struct trapframe *);
 static void gic_v3_eoi(device_t, u_int);
 static void gic_v3_mask_irq(device_t, u_int);
@@ -72,6 +73,7 @@ static device_method_t gic_v3_methods[] = {
 	DEVMETHOD(device_detach,	gic_v3_detach),
 
 	/* PIC interface */
+	DEVMETHOD(pic_bind,		gic_v3_bind),
 	DEVMETHOD(pic_dispatch,		gic_v3_dispatch),
 	DEVMETHOD(pic_eoi,		gic_v3_eoi),
 	DEVMETHOD(pic_mask,		gic_v3_mask_irq),
@@ -244,6 +246,28 @@ gic_v3_detach(device_t dev)
 /*
  * PIC interface.
  */
+
+static int
+gic_v3_bind(device_t dev, u_int irq, u_int cpuid)
+{
+	uint64_t aff;
+	struct gic_v3_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (irq <= GIC_LAST_PPI) {
+		/* Can't bind PPI to another CPU but it's not an error */
+		return (0);
+	} else if (irq >= GIC_FIRST_SPI && irq <= GIC_LAST_SPI) {
+		aff = CPU_AFFINITY(cpuid);
+		gic_d_write(sc, 4, GICD_IROUTER(irq), aff);
+		return (0);
+	} else if (irq >= GIC_FIRST_LPI)
+		return (lpi_migrate(dev, irq, cpuid));
+
+	return (EINVAL);
+}
+
 static void
 gic_v3_dispatch(device_t dev, struct trapframe *frame)
 {
@@ -412,14 +436,15 @@ gic_v3_ipi_send(device_t dev, cpuset_t cpuset, u_int ipi)
 			}
 		}
 		if (tlist) {
-			KASSERT((tlist & ~GICI_SGI_TLIST_MASK) == 0,
+			KASSERT((tlist & ~ICC_SGI1R_EL1_TL_MASK) == 0,
 			    ("Target list too long for GICv3 IPI"));
 			/* Send SGI to CPUs in target list */
 			val = tlist;
-			val |= (uint64_t)CPU_AFF3(aff) << GICI_SGI_AFF3_SHIFT;
-			val |= (uint64_t)CPU_AFF2(aff) << GICI_SGI_AFF2_SHIFT;
-			val |= (uint64_t)CPU_AFF1(aff) << GICI_SGI_AFF1_SHIFT;
-			val |= (uint64_t)(ipi & GICI_SGI_IPI_MASK) << GICI_SGI_IPI_SHIFT;
+			val |= (uint64_t)CPU_AFF3(aff) << ICC_SGI1R_EL1_AFF3_SHIFT;
+			val |= (uint64_t)CPU_AFF2(aff) << ICC_SGI1R_EL1_AFF2_SHIFT;
+			val |= (uint64_t)CPU_AFF1(aff) << ICC_SGI1R_EL1_AFF1_SHIFT;
+			val |= (uint64_t)(ipi & ICC_SGI1R_EL1_SGIID_MASK) <<
+			    ICC_SGI1R_EL1_SGIID_SHIFT;
 			gic_icc_write(SGI1R, val);
 		}
 	}
@@ -564,7 +589,7 @@ gic_v3_dist_init(struct gic_v3_softc *sc)
 	/*
 	 * 4. Route all interrupts to boot CPU.
 	 */
-	aff = CPU_AFFINITY(PCPU_GET(cpuid));
+	aff = CPU_AFFINITY(0);
 	for (i = GIC_FIRST_SPI; i < sc->gic_nirqs; i++)
 		gic_d_write(sc, 4, GICD_IROUTER(i), aff);
 

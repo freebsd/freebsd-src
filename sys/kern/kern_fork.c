@@ -1037,10 +1037,10 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	 * Check if a kernel thread misbehaved and returned from its main
 	 * function.
 	 */
-	if (p->p_flag & P_KTHREAD) {
+	if (p->p_flag & P_KPROC) {
 		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
 		    td->td_name, p->p_pid);
-		kproc_exit(0);
+		kthread_exit();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
 

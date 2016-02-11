@@ -741,8 +741,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		if (off + isonum_711(isodir->length) >
 		    imp->logical_block_size) {
 			vput(vp);
-			if (bp != 0)
-				brelse(bp);
+			brelse(bp);
 			printf("fhtovp: directory crosses block boundary %d[off=%d/len=%d]\n",
 			       off +isonum_711(isodir->length), off,
 			       isonum_711(isodir->length));

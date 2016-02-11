@@ -73,6 +73,12 @@ __FBSDID("$FreeBSD$");
 #define A10_GPIO_INPUT		0
 #define A10_GPIO_OUTPUT		1
 
+static struct ofw_compat_data compat_data[] = {
+	{"allwinner,sun4i-a10-pinctrl", 1},
+	{"allwinner,sun7i-a20-pinctrl", 1},
+	{NULL,             0}
+};
+
 struct a10_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
@@ -373,7 +379,7 @@ a10_gpio_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-gpio"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Allwinner GPIO controller");
@@ -493,7 +499,9 @@ static driver_t a10_gpio_driver = {
 	sizeof(struct a10_gpio_softc),
 };
 
-DRIVER_MODULE(a10_gpio, simplebus, a10_gpio_driver, a10_gpio_devclass, 0, 0);
+EARLY_DRIVER_MODULE(a10_gpio, simplebus, a10_gpio_driver, a10_gpio_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+
 
 int
 a10_gpio_ethernet_activate(uint32_t func)

@@ -121,6 +121,8 @@ OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.7.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.7.1/lib
 OLD_DIRS+=usr/lib/clang/3.7.1
+# 20160211: Remove obsolete unbound-control-setup
+OLD_FILES+=usr/sbin/unbound-control-setup
 # 20160116: Update mandoc to cvs snapshot 20160116
 OLD_FILES+=usr/share/mdocml/example.style.css
 OLD_FILES+=usr/share/mdocml/style.css
