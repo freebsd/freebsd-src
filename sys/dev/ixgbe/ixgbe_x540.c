@@ -82,8 +82,7 @@ s32 ixgbe_init_ops_X540(struct ixgbe_hw *hw)
 	/* PHY */
 	phy->ops.init = ixgbe_init_phy_ops_generic;
 	phy->ops.reset = NULL;
-	if (!ixgbe_mng_present(hw))
-		phy->ops.set_phy_power = ixgbe_set_copper_phy_power;
+	phy->ops.set_phy_power = ixgbe_set_copper_phy_power;
 
 	/* MAC */
 	mac->ops.reset_hw = ixgbe_reset_hw_X540;
