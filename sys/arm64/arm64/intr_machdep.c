@@ -473,10 +473,6 @@ stray:
 
 	if (intr != NULL)
 		PIC_MASK(root_pic, intr->i_hw_irq);
-#ifdef HWPMC_HOOKS
-	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
-		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
-#endif
 }
 
 void
@@ -486,6 +482,10 @@ arm_cpu_intr(struct trapframe *tf)
 	critical_enter();
 	PIC_DISPATCH(root_pic, tf);
 	critical_exit();
+#ifdef HWPMC_HOOKS
+	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
+#endif
 }
 
 #ifdef SMP
