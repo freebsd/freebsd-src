@@ -415,6 +415,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	void *vaddr;
 	vm_paddr_t paddr;
 	vm_size_t psize;
+	int err;
 
 	/*
 	 * If this is a memory resource, use pmap_mapdev to map it.
@@ -422,10 +423,14 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 		paddr = rman_get_start(r);
 		psize = rman_get_size(r);
-		vaddr = pmap_mapdev(paddr, psize);
-
-		rman_set_virtual(r, vaddr);
 		rman_set_bustag(r, mips_bus_space_generic);
+		err = bus_space_map(rman_get_bustag(r), paddr, psize, 0,
+		    (bus_space_handle_t *)&vaddr);
+		if (err != 0) {
+			rman_deactivate_resource(r);
+			return (err);
+		}
+		rman_set_virtual(r, vaddr);
 		rman_set_bushandle(r, (bus_space_handle_t)(uintptr_t)vaddr);
 	}
 
@@ -436,11 +441,16 @@ static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *r)
 {
-	vm_offset_t va;
-	
-	if (type == SYS_RES_MEMORY) {
-		va = (vm_offset_t)rman_get_virtual(r);
-		pmap_unmapdev(va, rman_get_size(r));
+	bus_space_handle_t vaddr;
+	bus_size_t psize;
+
+	vaddr = rman_get_bushandle(r);
+
+	if (type == SYS_RES_MEMORY && vaddr != 0) {
+		psize = (bus_size_t)rman_get_size(r);
+		bus_space_unmap(rman_get_bustag(r), vaddr, psize);
+		rman_set_virtual(r, NULL);
+		rman_set_bushandle(r, 0);
 	}
 
 	return (rman_deactivate_resource(r));
