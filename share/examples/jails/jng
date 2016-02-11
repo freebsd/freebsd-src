@@ -172,6 +172,91 @@ action_usage()
 	exit $FAILURE
 }
 
+derive_mac()
+{
+	local OPTIND=1 OPTARG __flag
+	local __mac_num= __make_pair=
+	while getopts 2n: __flag; do
+		case "$__flag" in
+		2) __make_pair=1 ;;
+		n) __mac_num=${OPTARG%%[^0-9]*} ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	if [ ! "$__mac_num" ]; then
+		eval __mac_num=\${_${iface}_num:--1}
+		__mac_num=$(( $__mac_num + 1 ))
+		eval _${iface}_num=\$__mac_num
+	fi
+
+	local __iface="$1" __name="$2" __var_to_set="$3" __var_to_set_b="$4"
+	local __iface_devid __new_devid __num __new_devid_b
+	#
+	# Calculate MAC address derived from given iface.
+	#
+	# The formula I'm using is ``NP:SS:SS:II:II:II'' where:
+	# + N denotes 4 bits used as a counter to support branching
+	#   each parent interface up to 15 times under the same jail
+	#   name (see S below).
+	# + P denotes the special nibble whose value, if one of
+	#   2, 6, A, or E (but usually 2) denotes a privately
+	#   administered MAC address (while remaining routable).
+	# + S denotes 16 bits, the sum(1) value of the jail name.
+	# + I denotes bits that are inherited from parent interface.
+	#
+	# The S bits are a CRC-16 checksum of NAME, allowing the jail
+	# to change link numbers in ng_bridge(4) without affecting the
+	# MAC address. Meanwhile, if...
+	#   + the jail NAME changes (e.g., it was duplicated and given
+	#     a new name with no other changes)
+	#   + the underlying network interface changes
+	#   + the jail is moved to another host
+	# the MAC address will be recalculated to a new, similarly
+	# unique value preventing conflict.
+	#
+	__iface_devid=$( ifconfig $__iface ether | awk '/ether/,$0=$2' )
+	__new_devid=${__iface_devid#??:??:??}
+	# :II:II:II => S:II:II:II
+	__num=$( set -- `echo -n "$__name" | sum` && echo $1 )
+	__new_devid=$( printf %x $(( $__num & 15 )) )$__new_devid
+	# S:II:II:II => :SS:II:II:II
+	__num=$(( $__num >> 4 ))
+	__new_devid=:$( printf %x $(( $__num & 15 )) )$__new_devid
+	# :SS:II:II:II => S:SS:II:II:II
+	__num=$(( $__num >> 4 ))
+	__new_devid=$( printf %x $(( $__num & 15 )) )$__new_devid
+	# S:SS:II:II:II => :SS:SS:II:II:II
+	__new_devid=:$( printf %x $(( $__num & 15 )) )$__new_devid
+	# :SS:SS:II:II:II => P:SS:SS:II:II:II
+	case "$__iface_devid" in
+	   ?2:*) __new_devid=a$__new_devid __new_devid_b=e$__new_devid ;;
+	?[Ee]:*) __new_devid=2$__new_devid __new_devid_b=6$__new_devid ;;
+	      *) __new_devid=2$__new_devid __new_devid_b=e$__new_devid
+	esac
+	# P:SS:SS:II:II:II => NP:SS:SS:II:II:II
+	__new_devid=$( printf %x $(( $__mac_num & 15 )) )$__new_devid
+	__new_devid_b=$( printf %x $(( $__mac_num & 15 )) )$__new_devid_b
+
+	#
+	# Return derivative MAC address(es)
+	#
+	if [ "$__make_pair" ]; then
+		if [ "$__var_to_set" -a "$__var_to_set_b" ]; then
+			eval $__var_to_set=\$__new_devid
+			eval $__var_to_set_b=\$__new_devid_b
+		else
+			echo $__new_devid $__new_devid_b
+		fi
+	else
+		if [ "$__var_to_set" ]; then
+			eval $__var_to_set=\$__new_devid
+		else
+			echo $__new_devid
+		fi
+	fi
+}
+
 mustberoot_to_continue()
 {
 	if [ "$( id -u )" -ne 0 ]; then
@@ -201,7 +286,7 @@ jng_bridge()
 
 	mustberoot_to_continue
 
-	local iface iface_devid eiface eiface_devid
+	local iface eiface eiface_devid
 	local new num quad i=0
 	for iface in $*; do
 
@@ -262,74 +347,8 @@ jng_bridge()
 		# 6. Set the MAC address of the new interface using a sensible
 		# algorithm to prevent conflicts on the network.
 		#
-		# The formula I'm using is ``NP:SS:SS:II:II:II'' where:
-		# + N denotes 4 bits used as a counter to support branching
-		#   each parent interface up to 15 times under the same jail
-		#   name (see S below).
-		# + P denotes the special nibble whose value, if one of
-		#   2, 6, A, or E (but usually 2) denotes a privately
-		#   administered MAC address (while remaining routable).
-		# + S denotes 16 bits, the sum(1) value of the jail name.
-		# + I denotes bits that are inherited from parent interface.
-		#
-		# The S bits are a CRC-16 checksum of NAME, allowing the jail
-		# to change link numbers in ng_bridge(4) without affecting the
-		# MAC address. Meanwhile, if...
-		#   + the jail NAME changes (e.g., it was duplicated and given
-		#     a new name with no other changes)
-		#   + the underlying network interface changes
-		#   + the jail is moved to another host
-		# the MAC address will be recalculated to a new, similarly
-		# unique value preventing conflict.
-		#
-		iface_devid=$( ifconfig $iface ether | awk '/ether/,$0=$2' )
-		eiface_devid=${iface_devid#??:??:??}
-		num=$( set -- `echo -n $name | sum` && echo $1 )
-		quad=$(( $num & 15 ))
-		case "$quad" in
-		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
-		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
-		esac
-		eiface_devid=$quad$eiface_devid
-		num=$(( $num >> 4 ))
-		quad=$(( $num & 15 ))
-		case "$quad" in
-		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
-		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
-		esac
-		eiface_devid=$quad$eiface_devid
-		num=$(( $num >> 4 ))
-		quad=$(( $num & 15 ))
-		case "$quad" in
-		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
-		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
-		esac
-		eiface_devid=$quad:$eiface_devid
-		num=$(( $num >> 4 ))
-		quad=$(( $num & 15 ))
-		case "$quad" in
-		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
-		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
-		esac
-		case "$iface_devid" in
-		?2:*) eiface_devid=a:$quad$eiface_devid ;;
-		*) eiface_devid=2:$quad$eiface_devid
-		esac
-		eval num=\$_${iface}_num
-		if [ "$num" ]; then
-			num=$(( $num + 1 ))
-			eval _${iface}_num=$num
-		else
-			num=0
-			local _${iface}_num=$num
-		fi
-		quad=$(( $num & 15 ))
-		case "$quad" in
-		10) quad=a ;; 11) quad=b ;; 12) quad=c ;;
-		13) quad=d ;; 14) quad=e ;; 15) quad=f ;;
-		esac
-		eiface_devid=$quad$eiface_devid
-		ifconfig $eiface ether $eiface_devid > /dev/null 2>&1
+		derive_mac $iface "$name" eiface_devid
+		ifconfig $eiface ether $eiface_devid
 
 		i=$(( $i + 1 )) # on to next ng{i}_name
 	done # for iface
