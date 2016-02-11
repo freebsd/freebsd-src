@@ -11,5 +11,9 @@ SUBDIR+=	libefi loader boot1
 
 .endif # ${COMPILER_TYPE} != "gcc"
 
+.if ${MACHINE_CPUARCH} == "ia64"
+SUBDIR+=	libefi
+.endif
+
 .include <bsd.subdir.mk>
 
