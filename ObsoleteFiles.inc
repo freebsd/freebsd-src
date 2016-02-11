@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160211: Remove obsolete unbound-control-setup
+OLD_FILES+=usr/sbin/unbound-control-setup
 # 20160116: Update mandoc to cvs snapshot 20160116
 OLD_FILES+=usr/share/mdocml/example.style.css
 OLD_FILES+=usr/share/mdocml/style.css
