@@ -114,6 +114,8 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 		if (runp != NULL)
 			*runp = path.ep_sparse_ext.e_len -
 			    (lbn - path.ep_sparse_ext.e_blk) - 1;
+		if (runb != NULL)
+			*runb = lbn - path.ep_sparse_ext.e_blk;
 	} else {
 		ep = path.ep_ext;
 		if (ep == NULL)
@@ -127,6 +129,8 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 
 			if (runp != NULL)
 				*runp = ep->e_len - (lbn - ep->e_blk) - 1;
+			if (runb != NULL)
+				*runb = lbn - ep->e_blk;
 		}
 	}
 
