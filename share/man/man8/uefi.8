@@ -92,6 +92,13 @@ for
 The search begins with partitions on the device from which
 .Pa boot1.efi
 was loaded, and continues with other available partitions.
+If both
+.Li freebsd-ufs
+and
+.Li freebsd-zfs
+partitions exist on the same device the
+.Li freebsd-zfs
+partition is preferred.
 .Pa boot1.efi
 then loads and executes
 .Pa loader.efi .
