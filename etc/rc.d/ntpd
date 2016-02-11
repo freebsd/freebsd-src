@@ -28,12 +28,12 @@ ntpd_precmd()
 		rc_flags="-g $rc_flags"
 	fi
 
-	if [ -z "$ntpd_chrootdir" ]; then
-		return 0;
-	fi
-
 	if [ ! -f $ntp_db_leapfile ]; then
 		ntpd_fetch_leapfile
+	fi
+
+	if [ -z "$ntpd_chrootdir" ]; then
+		return 0;
 	fi
 
 	# If running in a chroot cage, ensure that the appropriate files
