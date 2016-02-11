@@ -353,9 +353,23 @@ rt_table_init(int offset)
 	return (rh);
 }
 
+static int
+rt_freeentry(struct radix_node *rn, void *arg)
+{
+	struct radix_head * const rnh = arg;
+	struct radix_node *x;
+
+	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);
+	if (x != NULL)
+		R_Free(x);
+	return (0);
+}
+
 void
 rt_table_destroy(struct rib_head *rh)
 {
+
+	rn_walktree(&rh->rmhead.head, rt_freeentry, &rh->rmhead.head);
 
 	/* Assume table is already empty */
 	rw_destroy(&rh->rib_lock);
