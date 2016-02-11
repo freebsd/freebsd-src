@@ -1,5 +1,13 @@
 # $FreeBSD$
 
+The below 4 samples require a VIMAGE enabled kernel:
+
+	# (as root)
+	$ cp VIMAGE /usr/src/sys/amd64/conf/
+	$ cd /usr/src
+	$ make KERNCONF=VIMAGE kernel
+	$ reboot
+
 Sample 1: jail.conf(5)
 
 	$ cp jib jng /usr/sbin/
