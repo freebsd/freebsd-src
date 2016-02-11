@@ -303,29 +303,6 @@ gic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
 
 	gic_d_write_4(sc, GICD_SGIR(0), val | ipi);
 }
-
-static int
-arm_gic_ipi_read(device_t dev, int i)
-{
-
-	if (i != -1) {
-		/*
-		 * The intr code will automagically give the frame pointer
-		 * if the interrupt argument is 0.
-		 */
-		if ((unsigned int)i > 16)
-			return (0);
-		return (i);
-	}
-
-	return (0x3ff);
-}
-
-static void
-arm_gic_ipi_clear(device_t dev, int ipi)
-{
-	/* no-op */
-}
 #endif
 
 static device_method_t arm_gic_methods[] = {
