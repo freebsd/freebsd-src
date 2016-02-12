@@ -36,6 +36,8 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/signal.h>
+#include <machine/ucontext.h>
+#include <sys/_ucontext.h>
 
 #if __BSD_VISIBLE
 /*
@@ -114,7 +116,6 @@ void	psignal(unsigned int, const char *);
 
 #if __BSD_VISIBLE
 int	sigblock(int);
-struct __ucontext;		/* XXX spec requires a complete declaration. */
 int	sigreturn(const struct __ucontext *);
 int	sigsetmask(int);
 int	sigstack(const struct sigstack *, struct sigstack *);
