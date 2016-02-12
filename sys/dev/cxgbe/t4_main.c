@@ -708,7 +708,7 @@ t4_attach(device_t dev)
 		sc->fw_msg_handler[i] = fw_msg_not_handled;
 	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
 	t4_register_cpl_handler(sc, CPL_TRACE_PKT, t4_trace_pkt);
-	t4_register_cpl_handler(sc, CPL_TRACE_PKT_T5, t5_trace_pkt);
+	t4_register_cpl_handler(sc, CPL_T5_TRACE_PKT, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
 
 	/* Prepare the adapter for operation */
