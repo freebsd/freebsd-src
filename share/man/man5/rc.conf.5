@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2015
+.Dd February 12, 2016
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3853,20 +3853,22 @@ for every jail in
 .Va jail_list .
 .It Va jail_list
 .Pq Vt str
-A space separated list of names for jails.
-If this variable is empty,
-all of
+A space-delimited list of jail names.
+When left empty, all of the
 .Xr jail 8
-instances in the configuration file will be configured.
-This is purely a configuration aid to help identify and
-configure multiple jails.
-The names specified in this list will be used to
-identify settings common to an instance of a jail,
-and should contain alphanumeric characters only.
-The literal jail name of
-.Dq Li 0
-.Pq zero
-is not allowed.
+instances defined in the configuration file are started.
+The names specified in this list control the jail startup order.
+.Xr jail 8
+instances missing from
+.Va jail_list
+must be started manually.
+.It Va jail_reverse_stop
+.Pq Vt bool
+When set to
+.Dq Li YES ,
+all configured jails in
+.Va jail_list
+are stopped in reverse order.
 .It Va jail_* variables
 Note that older releases supported per-jail configuration via
 .Xr rc.conf 5
