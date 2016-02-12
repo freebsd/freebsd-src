@@ -1033,7 +1033,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	KTR_PMC			KTR_SUBSYS
 
 #define	PMC_DEBUG_STRSIZE		128
-#define	PMC_DEBUG_DEFAULT_FLAGS		{ 0, 0, 0, 0, 0, 0, 0, 0 }
+#define	PMC_DEBUG_DEFAULT_FLAGS		{ 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 #define	PMCDBG0(M, N, L, F) do {					\
 	if (pmc_debugflags.pdb_ ## M & (1 << PMC_DEBUG_MIN_ ## N))	\
