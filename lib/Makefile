@@ -87,6 +87,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libopie \
 	libpam \
 	libpcap \
+	${_libpe} \
 	libpjdlog \
 	${_libpmc} \
 	libpng \
@@ -212,6 +213,7 @@ _cuse=		libcuse
 
 .if ${MK_TOOLCHAIN} != "no"
 _libelftc=	libelftc
+_libpe=		libpe
 .endif
 
 .if ${MK_FILE} != "no"
