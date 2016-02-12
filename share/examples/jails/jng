@@ -216,25 +216,19 @@ derive_mac()
 	# unique value preventing conflict.
 	#
 	__iface_devid=$( ifconfig $__iface ether | awk '/ether/,$0=$2' )
-	__new_devid=${__iface_devid#??:??:??}
-	# :II:II:II => S:II:II:II
+	# ??:??:??:II:II:II
+	__new_devid=${__iface_devid#??:??:??} # => :II:II:II
+	# => :SS:SS:II:II:II
 	__num=$( set -- `echo -n "$__name" | sum` && echo $1 )
-	__new_devid=$( printf %x $(( $__num & 15 )) )$__new_devid
-	# S:II:II:II => :SS:II:II:II
-	__num=$(( $__num >> 4 ))
-	__new_devid=:$( printf %x $(( $__num & 15 )) )$__new_devid
-	# :SS:II:II:II => S:SS:II:II:II
-	__num=$(( $__num >> 4 ))
-	__new_devid=$( printf %x $(( $__num & 15 )) )$__new_devid
-	# S:SS:II:II:II => :SS:SS:II:II:II
-	__new_devid=:$( printf %x $(( $__num & 15 )) )$__new_devid
-	# :SS:SS:II:II:II => P:SS:SS:II:II:II
+	__new_devid=$( printf :%02x:%02x \
+		$(( $__num >> 8 & 255 )) $(( $__num & 255 )) )$__new_devid
+	# => P:SS:SS:II:II:II
 	case "$__iface_devid" in
 	   ?2:*) __new_devid=a$__new_devid __new_devid_b=e$__new_devid ;;
 	?[Ee]:*) __new_devid=2$__new_devid __new_devid_b=6$__new_devid ;;
 	      *) __new_devid=2$__new_devid __new_devid_b=e$__new_devid
 	esac
-	# P:SS:SS:II:II:II => NP:SS:SS:II:II:II
+	# => NP:SS:SS:II:II:II
 	__new_devid=$( printf %x $(( $__mac_num & 15 )) )$__new_devid
 	__new_devid_b=$( printf %x $(( $__mac_num & 15 )) )$__new_devid_b
 
