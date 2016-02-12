@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3250 2015-10-06 13:56:15Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3391 2016-02-05 19:43:01Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -155,77 +155,82 @@ le32dec(const void *pp)
 static const char *
 d_tags(uint64_t tag)
 {
+	static char unknown_buf[64];
+
 	switch (tag) {
-	case 0: return "DT_NULL";
-	case 1: return "DT_NEEDED";
-	case 2: return "DT_PLTRELSZ";
-	case 3: return "DT_PLTGOT";
-	case 4: return "DT_HASH";
-	case 5: return "DT_STRTAB";
-	case 6: return "DT_SYMTAB";
-	case 7: return "DT_RELA";
-	case 8: return "DT_RELASZ";
-	case 9: return "DT_RELAENT";
-	case 10: return "DT_STRSZ";
-	case 11: return "DT_SYMENT";
-	case 12: return "DT_INIT";
-	case 13: return "DT_FINI";
-	case 14: return "DT_SONAME";
-	case 15: return "DT_RPATH";
-	case 16: return "DT_SYMBOLIC";
-	case 17: return "DT_REL";
-	case 18: return "DT_RELSZ";
-	case 19: return "DT_RELENT";
-	case 20: return "DT_PLTREL";
-	case 21: return "DT_DEBUG";
-	case 22: return "DT_TEXTREL";
-	case 23: return "DT_JMPREL";
-	case 24: return "DT_BIND_NOW";
-	case 25: return "DT_INIT_ARRAY";
-	case 26: return "DT_FINI_ARRAY";
-	case 27: return "DT_INIT_ARRAYSZ";
-	case 28: return "DT_FINI_ARRAYSZ";
-	case 29: return "DT_RUNPATH";
-	case 30: return "DT_FLAGS";
-	case 32: return "DT_PREINIT_ARRAY"; /* XXX: DT_ENCODING */
-	case 33: return "DT_PREINIT_ARRAYSZ";
+	case DT_NULL:		return "DT_NULL";
+	case DT_NEEDED:		return "DT_NEEDED";
+	case DT_PLTRELSZ:	return "DT_PLTRELSZ";
+	case DT_PLTGOT:		return "DT_PLTGOT";
+	case DT_HASH:		return "DT_HASH";
+	case DT_STRTAB:		return "DT_STRTAB";
+	case DT_SYMTAB:		return "DT_SYMTAB";
+	case DT_RELA:		return "DT_RELA";
+	case DT_RELASZ:		return "DT_RELASZ";
+	case DT_RELAENT:	return "DT_RELAENT";
+	case DT_STRSZ:		return "DT_STRSZ";
+	case DT_SYMENT:		return "DT_SYMENT";
+	case DT_INIT:		return "DT_INIT";
+	case DT_FINI:		return "DT_FINI";
+	case DT_SONAME:		return "DT_SONAME";
+	case DT_RPATH:		return "DT_RPATH";
+	case DT_SYMBOLIC:	return "DT_SYMBOLIC";
+	case DT_REL:		return "DT_REL";
+	case DT_RELSZ:		return "DT_RELSZ";
+	case DT_RELENT:		return "DT_RELENT";
+	case DT_PLTREL:		return "DT_PLTREL";
+	case DT_DEBUG:		return "DT_DEBUG";
+	case DT_TEXTREL:	return "DT_TEXTREL";
+	case DT_JMPREL:		return "DT_JMPREL";
+	case DT_BIND_NOW:	return "DT_BIND_NOW";
+	case DT_INIT_ARRAY:	return "DT_INIT_ARRAY";
+	case DT_FINI_ARRAY:	return "DT_FINI_ARRAY";
+	case DT_INIT_ARRAYSZ:	return "DT_INIT_ARRAYSZ";
+	case DT_FINI_ARRAYSZ:	return "DT_FINI_ARRAYSZ";
+	case DT_RUNPATH:	return "DT_RUNPATH";
+	case DT_FLAGS:		return "DT_FLAGS";
+	case DT_PREINIT_ARRAY:	return "DT_PREINIT_ARRAY"; /* XXX DT_ENCODING */
+	case DT_PREINIT_ARRAYSZ:return "DT_PREINIT_ARRAYSZ";
 	/* 0x6000000D - 0x6ffff000 operating system-specific semantics */
-	case 0x6ffffdf5: return "DT_GNU_PRELINKED";
-	case 0x6ffffdf6: return "DT_GNU_CONFLICTSZ";
-	case 0x6ffffdf7: return "DT_GNU_LIBLISTSZ";
-	case 0x6ffffdf8: return "DT_SUNW_CHECKSUM";
-	case 0x6ffffdf9: return "DT_PLTPADSZ";
-	case 0x6ffffdfa: return "DT_MOVEENT";
-	case 0x6ffffdfb: return "DT_MOVESZ";
-	case 0x6ffffdfc: return "DT_FEATURE";
-	case 0x6ffffdfd: return "DT_POSFLAG_1";
-	case 0x6ffffdfe: return "DT_SYMINSZ";
-	case 0x6ffffdff: return "DT_SYMINENT (DT_VALRNGHI)";
-	case 0x6ffffe00: return "DT_ADDRRNGLO";
-	case 0x6ffffef5: return "DT_GNU_HASH";
-	case 0x6ffffef8: return "DT_GNU_CONFLICT";
-	case 0x6ffffef9: return "DT_GNU_LIBLIST";
-	case 0x6ffffefa: return "DT_CONFIG";
-	case 0x6ffffefb: return "DT_DEPAUDIT";
-	case 0x6ffffefc: return "DT_AUDIT";
-	case 0x6ffffefd: return "DT_PLTPAD";
-	case 0x6ffffefe: return "DT_MOVETAB";
-	case 0x6ffffeff: return "DT_SYMINFO (DT_ADDRRNGHI)";
-	case 0x6ffffff9: return "DT_RELACOUNT";
-	case 0x6ffffffa: return "DT_RELCOUNT";
-	case 0x6ffffffb: return "DT_FLAGS_1";
-	case 0x6ffffffc: return "DT_VERDEF";
-	case 0x6ffffffd: return "DT_VERDEFNUM";
-	case 0x6ffffffe: return "DT_VERNEED";
-	case 0x6fffffff: return "DT_VERNEEDNUM";
-	case 0x6ffffff0: return "DT_GNU_VERSYM";
+	case 0x6ffffdf5:	return "DT_GNU_PRELINKED";
+	case 0x6ffffdf6:	return "DT_GNU_CONFLICTSZ";
+	case 0x6ffffdf7:	return "DT_GNU_LIBLISTSZ";
+	case 0x6ffffdf8:	return "DT_SUNW_CHECKSUM";
+	case DT_PLTPADSZ:	return "DT_PLTPADSZ";
+	case DT_MOVEENT:	return "DT_MOVEENT";
+	case DT_MOVESZ:		return "DT_MOVESZ";
+	case 0x6ffffdfc:	return "DT_FEATURE";
+	case DT_POSFLAG_1:	return "DT_POSFLAG_1";
+	case DT_SYMINSZ:	return "DT_SYMINSZ";
+	case DT_SYMINENT:	return "DT_SYMINENT (DT_VALRNGHI)";
+	case DT_ADDRRNGLO:	return "DT_ADDRRNGLO";
+	case DT_GNU_HASH:	return "DT_GNU_HASH";
+	case 0x6ffffef8:	return "DT_GNU_CONFLICT";
+	case 0x6ffffef9:	return "DT_GNU_LIBLIST";
+	case 0x6ffffefa:	return "DT_CONFIG";
+	case 0x6ffffefb:	return "DT_DEPAUDIT";
+	case 0x6ffffefc:	return "DT_AUDIT";
+	case 0x6ffffefd:	return "DT_PLTPAD";
+	case 0x6ffffefe:	return "DT_MOVETAB";
+	case DT_SYMINFO:	return "DT_SYMINFO (DT_ADDRRNGHI)";
+	case DT_RELACOUNT:	return "DT_RELACOUNT";
+	case DT_RELCOUNT:	return "DT_RELCOUNT";
+	case DT_FLAGS_1:	return "DT_FLAGS_1";
+	case DT_VERDEF:		return "DT_VERDEF";
+	case DT_VERDEFNUM:	return "DT_VERDEFNUM";
+	case DT_VERNEED:	return "DT_VERNEED";
+	case DT_VERNEEDNUM:	return "DT_VERNEEDNUM";
+	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe: return "DT_SUNW_USED";
-	case 0x7fffffff: return "DT_SUNW_FILTER";
-	default: return "ERROR: TAG NOT DEFINED";
+	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
+	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
+	case 0x7ffffffe:	return "DT_SUNW_USED";
+	case 0x7fffffff:	return "DT_SUNW_FILTER";
 	}
+
+	snprintf(unknown_buf, sizeof(unknown_buf),
+		"<unknown: %#llx>", (unsigned long long)tag);
+	return (unknown_buf);
 }
 
 static const char *
@@ -313,42 +318,79 @@ sh_name(struct elfdump *ed, int ndx)
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
-sh_types(u_int64_t sht) {
-	switch (sht) {
-	case 0:	return "SHT_NULL";
-	case 1: return "SHT_PROGBITS";
-	case 2: return "SHT_SYMTAB";
-	case 3: return "SHT_STRTAB";
-	case 4: return "SHT_RELA";
-	case 5: return "SHT_HASH";
-	case 6: return "SHT_DYNAMIC";
-	case 7: return "SHT_NOTE";
-	case 8: return "SHT_NOBITS";
-	case 9: return "SHT_REL";
-	case 10: return "SHT_SHLIB";
-	case 11: return "SHT_DYNSYM";
-	case 14: return "SHT_INIT_ARRAY";
-	case 15: return "SHT_FINI_ARRAY";
-	case 16: return "SHT_PREINIT_ARRAY";
-	case 17: return "SHT_GROUP";
-	case 18: return "SHT_SYMTAB_SHNDX";
-	/* 0x60000000 - 0x6fffffff operating system-specific semantics */
-	case 0x6ffffff0: return "XXX:VERSYM";
-	case 0x6ffffff4: return "SHT_SUNW_dof";
-	case 0x6ffffff6: return "SHT_GNU_HASH";
-	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
-	case 0x6ffffffc: return "XXX:VERDEF";
-	case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
-	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
-	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
-	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "SHT_IA_64_EXT";
-	case 0x70000001: return "SHT_IA_64_UNWIND";
-	case 0x7ffffffd: return "XXX:AUXILIARY";
-	case 0x7fffffff: return "XXX:FILTER";
-	/* 0x80000000 - 0xffffffff application programs */
-	default: return "ERROR: SHT NOT DEFINED";
+sh_types(uint64_t mach, uint64_t sht) {
+	static char unknown_buf[64];
+
+	if (sht < 0x60000000) {
+		switch (sht) {
+		case SHT_NULL:		return "SHT_NULL";
+		case SHT_PROGBITS:	return "SHT_PROGBITS";
+		case SHT_SYMTAB:	return "SHT_SYMTAB";
+		case SHT_STRTAB:	return "SHT_STRTAB";
+		case SHT_RELA:		return "SHT_RELA";
+		case SHT_HASH:		return "SHT_HASH";
+		case SHT_DYNAMIC:	return "SHT_DYNAMIC";
+		case SHT_NOTE:		return "SHT_NOTE";
+		case SHT_NOBITS:	return "SHT_NOBITS";
+		case SHT_REL:		return "SHT_REL";
+		case SHT_SHLIB:		return "SHT_SHLIB";
+		case SHT_DYNSYM:	return "SHT_DYNSYM";
+		case SHT_INIT_ARRAY:	return "SHT_INIT_ARRAY";
+		case SHT_FINI_ARRAY:	return "SHT_FINI_ARRAY";
+		case SHT_PREINIT_ARRAY:	return "SHT_PREINIT_ARRAY";
+		case SHT_GROUP:		return "SHT_GROUP";
+		case SHT_SYMTAB_SHNDX:	return "SHT_SYMTAB_SHNDX";
+		}
+	} else if (sht < 0x70000000) {
+		/* 0x60000000-0x6fffffff operating system-specific semantics */
+		switch (sht) {
+		case 0x6ffffff0:	return "XXX:VERSYM";
+		case SHT_SUNW_dof:	return "SHT_SUNW_dof";
+		case SHT_GNU_HASH:	return "SHT_GNU_HASH";
+		case 0x6ffffff7:	return "SHT_GNU_LIBLIST";
+		case 0x6ffffffc:	return "XXX:VERDEF";
+		case SHT_SUNW_verdef:	return "SHT_SUNW(GNU)_verdef";
+		case SHT_SUNW_verneed:	return "SHT_SUNW(GNU)_verneed";
+		case SHT_SUNW_versym:	return "SHT_SUNW(GNU)_versym";
+		}
+	} else if (sht < 0x80000000) {
+		/* 0x70000000 - 0x7fffffff processor-specific semantics */
+		switch (mach) {
+		case EM_ARM:
+			switch (sht) {
+			case SHT_ARM_EXIDX: return "SHT_ARM_EXIDX";
+			case SHT_ARM_PREEMPTMAP: return "SHT_ARM_PREEMPTMAP";
+			case SHT_ARM_ATTRIBUTES: return "SHT_ARM_ATTRIBUTES";
+			case SHT_ARM_DEBUGOVERLAY:
+			    return "SHT_ARM_DEBUGOVERLAY";
+			case SHT_ARM_OVERLAYSECTION:
+			    return "SHT_ARM_OVERLAYSECTION";
+			}
+			break;
+		case EM_IA_64:
+			switch (sht) {
+			case 0x70000000: return "SHT_IA_64_EXT";
+			case 0x70000001: return "SHT_IA_64_UNWIND";
+			}
+			break;
+		case EM_MIPS:
+			switch (sht) {
+			case SHT_MIPS_REGINFO: return "SHT_MIPS_REGINFO";
+			case SHT_MIPS_OPTIONS: return "SHT_MIPS_OPTIONS";
+			case SHT_MIPS_ABIFLAGS: return "SHT_MIPS_ABIFLAGS";
+			}
+			break;
+		}
+		switch (sht) {
+		case 0x7ffffffd: return "XXX:AUXILIARY";
+		case 0x7fffffff: return "XXX:FILTER";
+		}
 	}
+	/* 0x80000000 - 0xffffffff application programs */
+
+	snprintf(unknown_buf, sizeof(unknown_buf),
+		"<unknown: %#llx>", (unsigned long long)sht);
+	return (unknown_buf);
 }
 
 /*
@@ -390,22 +432,87 @@ sh_flags(uint64_t shf)
 	return (flg);
 }
 
-static const char *st_types[] = {
-	"STT_NOTYPE", "STT_OBJECT", "STT_FUNC", "STT_SECTION", "STT_FILE",
-	"STT_COMMON", "STT_TLS"
-};
+static const char *
+st_type(unsigned int mach, unsigned int type)
+{
+	static char s_type[32];
 
-static const char *st_types_S[] = {
-	"NOTY", "OBJT", "FUNC", "SECT", "FILE"
-};
+	switch (type) {
+	case STT_NOTYPE: return "STT_NOTYPE";
+	case STT_OBJECT: return "STT_OBJECT";
+	case STT_FUNC: return "STT_FUNC";
+	case STT_SECTION: return "STT_SECTION";
+	case STT_FILE: return "STT_FILE";
+	case STT_COMMON: return "STT_COMMON";
+	case STT_TLS: return "STT_TLS";
+	case 13:
+		if (mach == EM_SPARCV9)
+			return "STT_SPARC_REGISTER";
+		break;
+	}
+	snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+	return (s_type);
+}
 
-static const char *st_bindings[] = {
-	"STB_LOCAL", "STB_GLOBAL", "STB_WEAK"
-};
+static const char *
+st_type_S(unsigned int type)
+{
+	static char s_type[32];
 
-static const char *st_bindings_S[] = {
-	"LOCL", "GLOB", "WEAK"
-};
+	switch (type) {
+	case STT_NOTYPE: return "NOTY";
+	case STT_OBJECT: return "OBJT";
+	case STT_FUNC: return "FUNC";
+	case STT_SECTION: return "SECT";
+	case STT_FILE: return "FILE";
+	}
+	snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+	return (s_type);
+}
+
+static const char *
+st_bindings(unsigned int sbind)
+{
+	static char s_sbind[32];
+
+	switch (sbind) {
+	case STB_LOCAL: return "STB_LOCAL";
+	case STB_GLOBAL: return "STB_GLOBAL";
+	case STB_WEAK: return "STB_WEAK";
+	case STB_GNU_UNIQUE: return "STB_GNU_UNIQUE";
+	default:
+		if (sbind >= STB_LOOS && sbind <= STB_HIOS)
+			return "OS";
+		else if (sbind >= STB_LOPROC && sbind <= STB_HIPROC)
+			return "PROC";
+		else
+			snprintf(s_sbind, sizeof(s_sbind), "<unknown: %#x>",
+			    sbind);
+		return (s_sbind);
+	}
+}
+
+static const char *
+st_bindings_S(unsigned int sbind)
+{
+	static char s_sbind[32];
+
+	switch (sbind) {
+	case STB_LOCAL: return "LOCL";
+	case STB_GLOBAL: return "GLOB";
+	case STB_WEAK: return "WEAK";
+	case STB_GNU_UNIQUE: return "UNIQ";
+	default:
+		if (sbind >= STB_LOOS && sbind <= STB_HIOS)
+			return "OS";
+		else if (sbind >= STB_LOPROC && sbind <= STB_HIPROC)
+			return "PROC";
+		else
+			snprintf(s_sbind, sizeof(s_sbind), "<%#x>",
+			    sbind);
+		return (s_sbind);
+	}
+}
 
 static unsigned char st_others[] = {
 	'D', 'I', 'H', 'P'
@@ -426,7 +533,7 @@ r_type(unsigned int mach, unsigned int type)
 		case 4: return "R_386_PLT32";
 		case 5: return "R_386_COPY";
 		case 6: return "R_386_GLOB_DAT";
-		case 7: return "R_386_JMP_SLOT";
+		case 7: return "R_386_JUMP_SLOT";
 		case 8: return "R_386_RELATIVE";
 		case 9: return "R_386_GOTOFF";
 		case 10: return "R_386_GOTPC";
@@ -769,7 +876,7 @@ r_type(unsigned int mach, unsigned int type)
 		case 4: return "R_X86_64_PLT32";
 		case 5: return "R_X86_64_COPY";
 		case 6: return "R_X86_64_GLOB_DAT";
-		case 7: return "R_X86_64_JMP_SLOT";
+		case 7: return "R_X86_64_JUMP_SLOT";
 		case 8: return "R_X86_64_RELATIVE";
 		case 9: return "R_X86_64_GOTPCREL";
 		case 10: return "R_X86_64_32";
@@ -1608,7 +1715,8 @@ elf_print_shdr(struct elfdump *ed)
 			else
 				PRT("  sh_flags:   0\n");
 			PRT("    sh_size:      %#-14jx", (uintmax_t)s->sz);
-			PRT("  sh_type:    [ %s ]\n", sh_types(s->type));
+			PRT("  sh_type:    [ %s ]\n",
+			    sh_types(ed->ehdr.e_machine, s->type));
 			PRT("    sh_offset:    %#-14jx", (uintmax_t)s->off);
 			PRT("  sh_entsize: %#jx\n", (uintmax_t)s->entsize);
 			PRT("    sh_link:      %-14u", s->link);
@@ -1618,7 +1726,8 @@ elf_print_shdr(struct elfdump *ed)
 			PRT("\n");
 			PRT("entry: %ju\n", (uintmax_t)i);
 			PRT("\tsh_name: %s\n", s->name);
-			PRT("\tsh_type: %s\n", sh_types(s->type));
+			PRT("\tsh_type: %s\n",
+			    sh_types(ed->ehdr.e_machine, s->type));
 			PRT("\tsh_flags: %s\n", sh_flags(s->flags));
 			PRT("\tsh_addr: %#jx\n", (uintmax_t)s->addr);
 			PRT("\tsh_offset: %ju\n", (uintmax_t)s->off);
@@ -1745,8 +1854,8 @@ elf_print_symtab(struct elfdump *ed, int i)
 				PRT("0x%8.8jx  ", (uintmax_t)sym.st_size);
 			else
 				PRT("0x%12.12jx  ", (uintmax_t)sym.st_size);
-			PRT("%s ", st_types_S[GELF_ST_TYPE(sym.st_info)]);
-			PRT("%s  ", st_bindings_S[GELF_ST_BIND(sym.st_info)]);
+			PRT("%s ", st_type_S(GELF_ST_TYPE(sym.st_info)));
+			PRT("%s  ", st_bindings_S(GELF_ST_BIND(sym.st_info)));
 			PRT("%c  ", st_others[sym.st_other]);
 			PRT("%3u ", (vs == NULL ? 0 : vs[j]));
 			PRT("%-11.11s ", sh_name(ed, sym.st_shndx));
@@ -1757,8 +1866,9 @@ elf_print_symtab(struct elfdump *ed, int i)
 			PRT("\tst_value: %#jx\n", (uintmax_t)sym.st_value);
 			PRT("\tst_size: %ju\n", (uintmax_t)sym.st_size);
 			PRT("\tst_info: %s %s\n",
-			    st_types[GELF_ST_TYPE(sym.st_info)],
-			    st_bindings[GELF_ST_BIND(sym.st_info)]);
+			    st_type(ed->ehdr.e_machine,
+			    GELF_ST_TYPE(sym.st_info)),
+			    st_bindings(GELF_ST_BIND(sym.st_info)));
 			PRT("\tst_shndx: %ju\n", (uintmax_t)sym.st_shndx);
 		}
 	}
@@ -2173,11 +2283,14 @@ elf_print_got_section(struct elfdump *ed, struct section *s)
 		for(i = 0; i < len; i++) {
 			PRT("[%5.5d]  ", i);
 			if (ed->ec == ELFCLASS32) {
-				PRT("%-8.8jx  ", s->addr + i * s->entsize);
+				PRT("%-8.8jx  ",
+				    (uintmax_t) (s->addr + i * s->entsize));
 				PRT("%-8.8x ", *((uint32_t *)dst.d_buf + i));
 			} else {
-				PRT("%-16.16jx  ", s->addr + i * s->entsize);
-				PRT("%-16.16jx  ", *((uint64_t *)dst.d_buf + i));
+				PRT("%-16.16jx  ",
+				    (uintmax_t) (s->addr + i * s->entsize));
+				PRT("%-16.16jx  ",
+				    (uintmax_t) *((uint64_t *)dst.d_buf + i));
 			}
 			PRT("%-18s ", r_type(ed->ehdr.e_machine,
 				GELF_R_TYPE(got[i].u_r.rel.r_info)));
@@ -2198,7 +2311,8 @@ elf_print_got_section(struct elfdump *ed, struct section *s)
 			if (ed->ec == ELFCLASS32)
 				PRT("\t%#x\n", *((uint32_t *)dst.d_buf + i));
 			else
-				PRT("\t%#jx\n", *((uint64_t *)dst.d_buf + i));
+				PRT("\t%#jx\n",
+				    (uintmax_t) *((uint64_t *)dst.d_buf + i));
 		}
 	}
 }

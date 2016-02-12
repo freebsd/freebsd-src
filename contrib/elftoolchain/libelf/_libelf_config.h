@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf_config.h 3168 2015-02-24 19:17:47Z emaste $
+ * $Id: _libelf_config.h 3396 2016-02-10 21:50:05Z emaste $
  */
 
 #if defined(__APPLE__) || defined(__DragonFly__)
