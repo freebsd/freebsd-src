@@ -39,6 +39,7 @@ _INTERNALLIBS=	\
 		openbsd \
 		opts \
 		parse \
+		pe \
 		readline \
 		sl \
 		sm \
@@ -366,6 +367,9 @@ LDADD+=		${LDADD_${_l}}
 # INTERNALLIB definitions.
 LIBELFTCDIR=	${OBJTOP}/lib/libelftc
 LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
+
+LIBPEDIR=	${OBJTOP}/lib/libpe
+LIBPE?=		${LIBPEDIR}/libpe.a
 
 LIBREADLINEDIR=	${OBJTOP}/gnu/lib/libreadline/readline
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
