@@ -734,42 +734,37 @@ static struct nd_defrouter *
 defrtrlist_update(struct nd_defrouter *new)
 {
 	struct nd_defrouter *dr, *n;
+	int oldpref;
 
 	if ((dr = defrouter_lookup(&new->rtaddr, new->ifp)) != NULL) {
 		/* entry exists */
 		if (new->rtlifetime == 0) {
 			defrtrlist_del(dr);
-			dr = NULL;
-		} else {
-			int oldpref = rtpref(dr);
-
-			/* override */
-			dr->flags = new->flags; /* xxx flag check */
-			dr->rtlifetime = new->rtlifetime;
-			dr->expire = new->expire;
-
-			/*
-			 * If the preference does not change, there's no need
-			 * to sort the entries. Also make sure the selected
-			 * router is still installed in the kernel.
-			 */
-			if (dr->installed && rtpref(new) == oldpref)
-				return (dr);
-
-			/*
-			 * preferred router may be changed, so relocate
-			 * this router.
-			 * XXX: calling TAILQ_REMOVE directly is a bad manner.
-			 * However, since defrtrlist_del() has many side
-			 * effects, we intentionally do so here.
-			 * defrouter_select() below will handle routing
-			 * changes later.
-			 */
-			TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
-			n = dr;
-			goto insert;
+			return (NULL);
 		}
-		return (dr);
+
+		oldpref = rtpref(dr);
+
+		/* override */
+		dr->flags = new->flags; /* xxx flag check */
+		dr->rtlifetime = new->rtlifetime;
+		dr->expire = new->expire;
+
+		/*
+		 * If the preference does not change, there's no need
+		 * to sort the entries. Also make sure the selected
+		 * router is still installed in the kernel.
+		 */
+		if (dr->installed && rtpref(new) == oldpref)
+			return (dr);
+
+		/*
+		 * The preferred router may have changed, so relocate this
+		 * router.
+		 */
+		TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
+		n = dr;
+		goto insert;
 	}
 
 	/* entry does not exist */
