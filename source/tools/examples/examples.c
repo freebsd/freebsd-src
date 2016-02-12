@@ -149,7 +149,7 @@ main (
 
     /* Example warning and error output */
 
-    ACPI_INFO        ((AE_INFO, "Example ACPICA info message"));
+    ACPI_INFO        (("Example ACPICA info message"));
     ACPI_WARNING     ((AE_INFO, "Example ACPICA warning message"));
     ACPI_ERROR       ((AE_INFO, "Example ACPICA error message"));
     ACPI_EXCEPTION   ((AE_INFO, AE_AML_OPERAND_TYPE,
@@ -176,7 +176,6 @@ InitializeFullAcpica (void)
 
     /* Initialize the ACPICA subsystem */
 
-    AcpiGbl_OverrideDefaultRegionHandlers = TRUE;
     Status = AcpiInitializeSubsystem ();
     if (ACPI_FAILURE (Status))
     {
@@ -186,7 +185,7 @@ InitializeFullAcpica (void)
 
     /* Initialize the ACPICA Table Manager and get all ACPI tables */
 
-    ACPI_INFO ((AE_INFO, "Loading ACPI tables"));
+    ACPI_INFO (("Loading ACPI tables"));
 
     Status = AcpiInitializeTables (NULL, 16, FALSE);
     if (ACPI_FAILURE (Status))
@@ -284,7 +283,6 @@ InitializeAcpi (
 
     /* Initialize the ACPICA subsystem */
 
-    AcpiGbl_OverrideDefaultRegionHandlers = TRUE;
     Status = AcpiInitializeSubsystem ();
     if (ACPI_FAILURE (Status))
     {
@@ -349,7 +347,7 @@ NotifyHandler (
     void                        *Context)
 {
 
-    ACPI_INFO ((AE_INFO, "Received a notify 0x%X", Value));
+    ACPI_INFO (("Received a notify 0x%X", Value));
 }
 
 
@@ -384,7 +382,7 @@ RegionHandler (
     void                        *RegionContext)
 {
 
-    ACPI_INFO ((AE_INFO, "Received a region access"));
+    ACPI_INFO (("Received a region access"));
 
     return (AE_OK);
 }
@@ -444,7 +442,7 @@ ExecuteOSI (void)
     ACPI_OBJECT             *Object;
 
 
-    ACPI_INFO ((AE_INFO, "Executing _OSI reserved method"));
+    ACPI_INFO (("Executing _OSI reserved method"));
 
     /* Setup input argument */
 
@@ -483,7 +481,7 @@ ExecuteOSI (void)
         AcpiOsPrintf ("Invalid return type from _OSI, %.2X\n", Object->Type);
     }
 
-    ACPI_INFO ((AE_INFO, "_OSI returned 0x%8.8X",
+    ACPI_INFO (("_OSI returned 0x%8.8X",
         (UINT32) Object->Integer.Value));
 
 
@@ -511,7 +509,7 @@ ExecuteMAIN (void)
     ACPI_OBJECT             *Object;
 
 
-    ACPI_INFO ((AE_INFO, "Executing MAIN method"));
+    ACPI_INFO (("Executing MAIN method"));
 
     /* Setup input argument */
 

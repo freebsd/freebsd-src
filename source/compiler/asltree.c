@@ -982,7 +982,7 @@ TrCreateNode (
     {
     case PARSEOP_ASL_CODE:
 
-        RootNode = Op;
+        Gbl_ParseTreeRoot = Op;
         Op->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
         DbgPrint (ASL_PARSE_OUTPUT, "ASLCODE (Tree Completed)->");
         break;
@@ -1111,7 +1111,7 @@ TrLinkChildren (
     {
     case PARSEOP_ASL_CODE:
 
-        RootNode = Op;
+        Gbl_ParseTreeRoot = Op;
         Op->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
         DbgPrint (ASL_PARSE_OUTPUT, "ASLCODE (Tree Completed)->");
         break;
@@ -1417,7 +1417,7 @@ TrWalkParseTree (
     ACPI_STATUS             Status;
 
 
-    if (!RootNode)
+    if (!Gbl_ParseTreeRoot)
     {
         return (AE_OK);
     }

@@ -145,6 +145,11 @@ AdCreateTableHeader (
     UINT8                   Checksum;
 
 
+    /* Reset globals for External statements */
+
+    AcpiGbl_NumExternalMethods = 0;
+    AcpiGbl_ResolvedExternalMethods = 0;
+
     /*
      * Print file header and dump original table header
      */

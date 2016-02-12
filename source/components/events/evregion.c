@@ -99,7 +99,6 @@ AcpiEvInitializeOpRegions (
 
     /* Run the _REG methods for OpRegions in each default address space */
 
-    AcpiGbl_RegMethodsEnabled = TRUE;
     for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++)
     {
         /*
@@ -637,7 +636,7 @@ AcpiEvExecuteRegMethod (
 
     if (RegionObj2->Extra.Method_REG == NULL ||
         RegionObj->Region.Handler == NULL ||
-        !AcpiGbl_RegMethodsEnabled)
+        !AcpiGbl_NamespaceInitialized)
     {
         return_ACPI_STATUS (AE_OK);
     }

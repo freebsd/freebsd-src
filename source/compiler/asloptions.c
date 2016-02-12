@@ -490,6 +490,13 @@ AslDoOptions (
             Gbl_SourceOutputFlag = TRUE;
             break;
 
+        case 'x':
+
+            /* Produce cross-reference file */
+
+            Gbl_CrossReferenceOutput = TRUE;
+            break;
+
         default:
 
             printf ("Unknown option: -l%s\n", AcpiGbl_Optarg);

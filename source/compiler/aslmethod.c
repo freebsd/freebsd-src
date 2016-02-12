@@ -53,7 +53,7 @@
 
 /* Local prototypes */
 
-void
+static void
 MtCheckNamedObjectInMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo);
@@ -92,6 +92,13 @@ MtMethodAnalysisWalkBegin (
     ACPI_PARSE_OBJECT       *NextParamType;
     UINT8                   ActualArgs = 0;
 
+
+    /* Build cross-reference output file if requested */
+
+    if (Gbl_CrossReferenceOutput)
+    {
+        OtXrefWalkPart1 (Op, Level, MethodInfo);
+    }
 
     switch (Op->Asl.ParseOpcode)
     {
@@ -493,7 +500,7 @@ MtMethodAnalysisWalkBegin (
  *
  ******************************************************************************/
 
-void
+static void
 MtCheckNamedObjectInMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo)

@@ -122,7 +122,7 @@ AslPruneParseTree (
 
     AcpiOsPrintf ("\nRemoving Objects:\n");
 
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
+    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         PrTreePruneWalk, NULL, ACPI_CAST_PTR (void, &PruneObj));
 
     AcpiOsPrintf ("\n%u Total Objects Removed\n", PruneObj.Count);

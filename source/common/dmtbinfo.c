@@ -163,6 +163,7 @@
 #define ACPI_HEST7_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_AER,f)
 #define ACPI_HEST8_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_AER_BRIDGE,f)
 #define ACPI_HEST9_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_GENERIC,f)
+#define ACPI_HEST10_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_HEST_GENERIC_V2,f)
 #define ACPI_HESTN_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_NOTIFY,f)
 #define ACPI_HESTB_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_HEST_IA_ERROR_BANK,f)
 #define ACPI_IORT0_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_ITS_GROUP,f)
@@ -1342,6 +1343,26 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHest9[] =
     ACPI_DMT_TERMINATOR
 };
 
+/* 10: Generic Hardware Error Source - Version 2 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHest10[] =
+{
+    ACPI_DM_HEST_HEADER,
+    {ACPI_DMT_UINT16,   ACPI_HEST10_OFFSET (RelatedSourceId),       "Related Source Id", 0},
+    {ACPI_DMT_UINT8,    ACPI_HEST10_OFFSET (Reserved),              "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_HEST10_OFFSET (Enabled),               "Enabled", 0},
+    {ACPI_DMT_UINT32,   ACPI_HEST10_OFFSET (RecordsToPreallocate),  "Records To Preallocate", 0},
+    {ACPI_DMT_UINT32,   ACPI_HEST10_OFFSET (MaxSectionsPerRecord),  "Max Sections Per Record", 0},
+    {ACPI_DMT_UINT32,   ACPI_HEST10_OFFSET (MaxRawDataLength),      "Max Raw Data Length", 0},
+    {ACPI_DMT_GAS,      ACPI_HEST10_OFFSET (ErrorStatusAddress),    "Error Status Address", 0},
+    {ACPI_DMT_HESTNTFY, ACPI_HEST10_OFFSET (Notify),                "Notify", 0},
+    {ACPI_DMT_UINT32,   ACPI_HEST10_OFFSET (ErrorBlockLength),      "Error Status Block Length", 0},
+    {ACPI_DMT_GAS,      ACPI_HEST10_OFFSET (ReadAckRegister),       "Read Ack Register", 0},
+    {ACPI_DMT_UINT64,   ACPI_HEST10_OFFSET (ReadAckPreserve),       "Read Ack Preserve", 0},
+    {ACPI_DMT_UINT64,   ACPI_HEST10_OFFSET (ReadAckWrite),          "Read Ack Write", 0},
+    ACPI_DMT_TERMINATOR
+};
+
 ACPI_DMTABLE_INFO           AcpiDmTableInfoHestNotify[] =
 {
     {ACPI_DMT_HESTNTYP, ACPI_HESTN_OFFSET (Type),                   "Notify Type", 0},
@@ -2141,6 +2162,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoNfit1[] =
     {ACPI_DMT_FLAG3,    ACPI_NFIT1_FLAG_OFFSET (Flags,0),           "Device not armed", 0},
     {ACPI_DMT_FLAG4,    ACPI_NFIT1_FLAG_OFFSET (Flags,0),           "Health events observed", 0},
     {ACPI_DMT_FLAG5,    ACPI_NFIT1_FLAG_OFFSET (Flags,0),           "Health events enabled", 0},
+    {ACPI_DMT_FLAG6,    ACPI_NFIT1_FLAG_OFFSET (Flags,0),           "Mapping failed", 0},
     {ACPI_DMT_UINT16,   ACPI_NFIT1_OFFSET (Reserved),               "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };

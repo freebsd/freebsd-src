@@ -1049,15 +1049,12 @@ OpnAttachNameToNode (
     ACPI_PARSE_OBJECT       *Child = NULL;
 
 
-    if (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL)
-    {
-        Child = UtGetArg (Op, 0);
-    }
-    else switch (Op->Asl.AmlOpcode)
+    switch (Op->Asl.AmlOpcode)
     {
     case AML_DATA_REGION_OP:
     case AML_DEVICE_OP:
     case AML_EVENT_OP:
+    case AML_EXTERNAL_OP:
     case AML_METHOD_OP:
     case AML_MUTEX_OP:
     case AML_REGION_OP:
@@ -1188,9 +1185,6 @@ OpnGenerateAmlOperands (
     case PARSEOP_NAMESTRING:
     case PARSEOP_METHODCALL:
     case PARSEOP_STRING_LITERAL:
-
-        break;
-
     default:
 
         break;

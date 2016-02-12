@@ -308,6 +308,12 @@ AnCheckMethodReturnValue (
 
     Node = ArgOp->Asl.Node;
 
+    if (!Node)
+    {
+        /* No error message, this can happen and is OK */
+
+        return;
+    }
 
     /* Examine the parent op of this method */
 

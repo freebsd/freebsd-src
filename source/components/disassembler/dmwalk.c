@@ -410,6 +410,7 @@ AcpiDmDescendingOp (
     const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  Name;
     ACPI_PARSE_OBJECT       *NextOp;
+    ACPI_PARSE_OBJECT       *NextOp2;
     UINT32                  AmlOffset;
 
 
@@ -436,8 +437,7 @@ AcpiDmDescendingOp (
                     AcpiUtDumpBuffer (
                         (Info->StartAml + Info->AmlOffset),
                         (Op->Common.Aml - Info->PreviousAml),
-                        DB_BYTE_DISPLAY,
-                        Info->AmlOffset);
+                        DB_BYTE_DISPLAY, Info->AmlOffset);
                     AcpiOsPrintf ("\n");
                 }
 
@@ -453,6 +453,33 @@ AcpiDmDescendingOp (
         /* Ignore this op -- it was handled elsewhere */
 
         return (AE_CTRL_DEPTH);
+    }
+
+    if (Op->Common.AmlOpcode == AML_IF_OP)
+    {
+        NextOp = AcpiPsGetDepthNext (NULL, Op);
+        if (NextOp)
+        {
+            NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+        }
+
+        /*
+         * A Zero predicate indicates the possibility of one or more
+         * External() opcodes within the If() block.
+         */
+        if (NextOp->Common.AmlOpcode == AML_ZERO_OP)
+        {
+            NextOp2 = NextOp->Common.Next;
+
+            if (NextOp2 &&
+                (NextOp2->Common.AmlOpcode == AML_EXTERNAL_OP))
+            {
+                /* Ignore the If 0 block and all children */
+
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                return (AE_CTRL_DEPTH);
+            }
+        }
     }
 
     /* Level 0 is at the Definition Block level */
@@ -788,8 +815,8 @@ AcpiDmDescendingOp (
             NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
             return (AE_OK);
 
-        case AML_VAR_PACKAGE_OP:
         case AML_IF_OP:
+        case AML_VAR_PACKAGE_OP:
         case AML_WHILE_OP:
 
             /* The next op is the size or predicate parameter */

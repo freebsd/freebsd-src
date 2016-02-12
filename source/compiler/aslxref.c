@@ -133,8 +133,6 @@ XfCrossReferenceNamespace (
     ACPI_WALK_STATE         *WalkState;
 
 
-    DbgPrint (ASL_DEBUG_OUTPUT, "\nCross referencing namespace\n\n");
-
     /*
      * Create a new walk state for use when looking up names
      * within the namespace (Passed as context to the callbacks)
@@ -147,8 +145,8 @@ XfCrossReferenceNamespace (
 
     /* Walk the entire parse tree */
 
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE, XfNamespaceLocateBegin,
-        XfNamespaceLocateEnd, WalkState);
+    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
+        XfNamespaceLocateBegin, XfNamespaceLocateEnd, WalkState);
 
     ACPI_FREE (WalkState);
     return (AE_OK);
@@ -880,7 +878,8 @@ XfNamespaceLocateBegin (
             NextOp = NextOp->Asl.Next;
         }
 
-        if (Node->Value != ASL_EXTERNAL_METHOD)
+        if (Node->Value != ASL_EXTERNAL_METHOD &&
+            Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_EXTERNAL)
         {
             /*
              * Check the parsed arguments with the number expected by the

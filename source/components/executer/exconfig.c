@@ -276,7 +276,7 @@ AcpiExLoadTableOp (
     Status = AcpiGetTableByIndex (TableIndex, &Table);
     if (ACPI_SUCCESS (Status))
     {
-        ACPI_INFO ((AE_INFO, "Dynamic OEM Table Load:"));
+        ACPI_INFO (("Dynamic OEM Table Load:"));
         AcpiTbPrintTableHeader (0, Table);
     }
 
@@ -516,7 +516,7 @@ AcpiExLoadOp (
 
     /* Install the new table into the local data structures */
 
-    ACPI_INFO ((AE_INFO, "Dynamic OEM Table Load:"));
+    ACPI_INFO (("Dynamic OEM Table Load:"));
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     Status = AcpiTbInstallStandardTable (ACPI_PTR_TO_PHYSADDR (Table),

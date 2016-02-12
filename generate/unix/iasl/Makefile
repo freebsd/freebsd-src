@@ -56,7 +56,9 @@ OBJECTS = \
 	$(OBJDIR)/aslbtypes.o\
 	$(OBJDIR)/aslcodegen.o\
 	$(OBJDIR)/aslcompile.o\
+	$(OBJDIR)/asldebug.o\
 	$(OBJDIR)/aslerror.o\
+	$(OBJDIR)/aslexternal.o\
 	$(OBJDIR)/aslfiles.o\
 	$(OBJDIR)/aslfileio.o\
 	$(OBJDIR)/aslfold.o\
@@ -100,6 +102,7 @@ OBJECTS = \
 	$(OBJDIR)/asluuid.o\
 	$(OBJDIR)/aslwalks.o\
 	$(OBJDIR)/aslxref.o\
+	$(OBJDIR)/aslxrefout.o\
 	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/dbfileio.o\
 	$(OBJDIR)/dmbuffer.o\

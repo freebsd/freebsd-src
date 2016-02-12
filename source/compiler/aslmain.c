@@ -73,36 +73,6 @@ static void
 AslInitialize (
     void);
 
-UINT8
-AcpiIsBigEndianMachine (
-    void);
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiIsBigEndianMachine
- *
- * PARAMETERS:  None
- *
- * RETURN:      TRUE if machine is big endian
- *              FALSE if machine is little endian
- *
- * DESCRIPTION: Detect whether machine is little endian or big endian.
- *
- ******************************************************************************/
-
-UINT8
-AcpiIsBigEndianMachine (
-    void)
-{
-    union {
-        UINT32              Integer;
-        UINT8               Bytes[4];
-    } Overlay = {0xFF000000};
-
-    return (Overlay.Bytes[0]); /* Returns 0xFF (TRUE) for big endian */
-}
-
 
 /*******************************************************************************
  *
@@ -177,6 +147,7 @@ Usage (
     ACPI_OPTION ("-lm",             "Create hardware summary map file (*.map)");
     ACPI_OPTION ("-ln",             "Create namespace file (*.nsp)");
     ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
+    ACPI_OPTION ("-lx",             "Create cross-reference file (*.xrf)");
 
     printf ("\nData Table Compiler:\n");
     ACPI_OPTION ("-G",              "Compile custom table that contains generic operators");
@@ -303,6 +274,12 @@ AslInitialize (
 
     AcpiGbl_DmOpt_Verbose = FALSE;
 
+    /* Default integer width is 64 bits */
+
+    AcpiGbl_IntegerBitWidth = 64;
+    AcpiGbl_IntegerNybbleWidth = 16;
+    AcpiGbl_IntegerByteWidth = 8;
+
     for (i = 0; i < ASL_NUM_FILES; i++)
     {
         Gbl_Files[i].Handle = NULL;
@@ -346,7 +323,7 @@ main (
      * be little-endian, and support for big-endian machines needs to
      * be implemented.
      */
-    if (AcpiIsBigEndianMachine ())
+    if (UtIsBigEndianMachine ())
     {
         fprintf (stderr,
             "iASL is not currently supported on big-endian machines.\n");

@@ -754,6 +754,46 @@ AcpiDmAddPathToExternalList (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmEternalIsMatch
+ *
+ * PARAMETERS:  NamePath            - Path to match to External Name
+ *              ExternalPath        - External NamePath to be matched
+ *
+ * RETURN:      BOOLEAN
+ *
+ * DESCRIPTION: Returns TRUE if NamePath matches the last NamePath-length
+ *              characters of ExternalPath.
+ *
+ *              External (_SB_.DEV0.ABCD) will match:
+ *                  _SB_.DEV0.ABCD
+ *                  DEV0.ABCD
+ *                  ABCD
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+AcpiDmExternalIsMatch (
+    const char *            NamePath,
+    const char *            ListNamePath)
+{
+    BOOLEAN                 Match = FALSE;
+
+
+    if (strlen (ListNamePath) >= strlen (NamePath))
+    {
+        if (!strcmp (ListNamePath +
+            (strlen (ListNamePath) - strlen (NamePath)), NamePath))
+        {
+            return (TRUE);
+        }
+    }
+
+    return (Match);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmCreateNewExternal
  *
  * PARAMETERS:  ExternalPath        - External path to the object
@@ -808,11 +848,14 @@ AcpiDmCreateNewExternal (
     NextExternal = AcpiGbl_ExternalList;
     while (NextExternal)
     {
-        if (!strcmp (ExternalPath, NextExternal->Path))
+        /* Check for duplicates */
+
+        if (AcpiDmExternalIsMatch (ExternalPath, NextExternal->Path))
         {
             /* Duplicate method, check that the Value (ArgCount) is the same */
 
             if ((NextExternal->Type == ACPI_TYPE_METHOD) &&
+                (NextExternal->Flags & ANOBJ_IS_EXTERNAL) &&
                 (NextExternal->Value != Value) &&
                 (Value > 0))
             {
@@ -829,6 +872,11 @@ AcpiDmCreateNewExternal (
                 NextExternal->Type = Type;
                 NextExternal->Value = Value;
             }
+
+            /* Update flags. */
+
+            NextExternal->Flags |= Flags;
+            NextExternal->Flags &= ~ACPI_EXT_INTERNAL_PATH_ALLOCATED;
 
             return_ACPI_STATUS (AE_ALREADY_EXISTS);
         }
@@ -1266,15 +1314,68 @@ appearing in an SSDT, the disassembler does not know what to do unless
 the owning SSDT has been loaded via the -e option.
 #endif
 
+static char             ExternalWarningPart1[600];
+static char             ExternalWarningPart2[400];
+static char             ExternalWarningPart3[400];
+static char             ExternalWarningPart4[200];
+
 void
 AcpiDmUnresolvedWarning (
     UINT8                   Type)
 {
+    char                    *Format;
+    char                    Pad[] = "     *";
+    char                    NoPad[] = "";
+
 
     if (!AcpiGbl_NumExternalMethods)
     {
         return;
     }
+
+    if (AcpiGbl_NumExternalMethods == AcpiGbl_ResolvedExternalMethods)
+    {
+        return;
+    }
+
+    Format = Type ? Pad : NoPad;
+
+    sprintf (ExternalWarningPart1,
+        "%s iASL Warning: There were %u external control methods found during\n"
+        "%s disassembly, but only %u %s resolved (%u unresolved). Additional\n"
+        "%s ACPI tables may be required to properly disassemble the code. This\n"
+        "%s resulting disassembler output file may not compile because the\n"
+        "%s disassembler did not know how many arguments to assign to the\n"
+        "%s unresolved methods. Note: SSDTs can be dynamically loaded at\n"
+        "%s runtime and may or may not be available via the host OS.\n",
+        Format, AcpiGbl_NumExternalMethods, Format, AcpiGbl_ResolvedExternalMethods,
+        (AcpiGbl_ResolvedExternalMethods > 1 ? "were" : "was"),
+        (AcpiGbl_NumExternalMethods - AcpiGbl_ResolvedExternalMethods),
+        Format, Format, Format, Format, Format);
+
+    sprintf (ExternalWarningPart2,
+        "%s To specify the tables needed to resolve external control method\n"
+        "%s references, the -e option can be used to specify the filenames.\n"
+        "%s Example iASL invocations:\n"
+        "%s     iasl -e ssdt1.aml ssdt2.aml ssdt3.aml -d dsdt.aml\n"
+        "%s     iasl -e dsdt.aml ssdt2.aml -d ssdt1.aml\n"
+        "%s     iasl -e ssdt*.aml -d dsdt.aml\n",
+        Format, Format, Format, Format, Format, Format);
+
+    sprintf (ExternalWarningPart3,
+        "%s In addition, the -fe option can be used to specify a file containing\n"
+        "%s control method external declarations with the associated method\n"
+        "%s argument counts. Each line of the file must be of the form:\n"
+        "%s     External (<method pathname>, MethodObj, <argument count>)\n"
+        "%s Invocation:\n"
+        "%s     iasl -fe refs.txt -d dsdt.aml\n",
+        Format, Format, Format, Format, Format, Format);
+
+    sprintf (ExternalWarningPart4,
+        "%s The following methods were unresolved and many not compile properly\n"
+        "%s because the disassembler had to guess at the number of arguments\n"
+        "%s required for each:\n",
+        Format, Format, Format);
 
     if (Type)
     {
@@ -1282,60 +1383,16 @@ AcpiDmUnresolvedWarning (
         {
             /* The -e option was not specified */
 
-           AcpiOsPrintf ("    /*\n"
-                "     * iASL Warning: There were %u external control methods found during\n"
-                "     * disassembly, but additional ACPI tables to resolve these externals\n"
-                "     * were not specified. This resulting disassembler output file may not\n"
-                "     * compile because the disassembler did not know how many arguments\n"
-                "     * to assign to these methods. To specify the tables needed to resolve\n"
-                "     * external control method references, the -e option can be used to\n"
-                "     * specify the filenames. Note: SSDTs can be dynamically loaded at\n"
-                "     * runtime and may or may not be available via the host OS.\n"
-                "     * Example iASL invocations:\n"
-                "     *     iasl -e ssdt1.aml ssdt2.aml ssdt3.aml -d dsdt.aml\n"
-                "     *     iasl -e dsdt.aml ssdt2.aml -d ssdt1.aml\n"
-                "     *     iasl -e ssdt*.aml -d dsdt.aml\n"
-                "     *\n"
-                "     * In addition, the -fe option can be used to specify a file containing\n"
-                "     * control method external declarations with the associated method\n"
-                "     * argument counts. Each line of the file must be of the form:\n"
-                "     *     External (<method pathname>, MethodObj, <argument count>)\n"
-                "     * Invocation:\n"
-                "     *     iasl -fe refs.txt -d dsdt.aml\n"
-                "     *\n"
-                "     * The following methods were unresolved and many not compile properly\n"
-                "     * because the disassembler had to guess at the number of arguments\n"
-                "     * required for each:\n"
-                "     */\n",
-               AcpiGbl_NumExternalMethods);
+           AcpiOsPrintf ("    /*\n%s     *\n%s     *\n%s     *\n%s     */\n",
+               ExternalWarningPart1, ExternalWarningPart2, ExternalWarningPart3,
+               ExternalWarningPart4);
         }
-        else if (AcpiGbl_NumExternalMethods != AcpiGbl_ResolvedExternalMethods)
+        else
         {
             /* The -e option was specified, but there are still some unresolved externals */
 
-            AcpiOsPrintf ("    /*\n"
-                "     * iASL Warning: There were %u external control methods found during\n"
-                "     * disassembly, but only %u %s resolved (%u unresolved). Additional\n"
-                "     * ACPI tables may be required to properly disassemble the code. This\n"
-                "     * resulting disassembler output file may not compile because the\n"
-                "     * disassembler did not know how many arguments to assign to the\n"
-                "     * unresolved methods. Note: SSDTs can be dynamically loaded at\n"
-                "     * runtime and may or may not be available via the host OS.\n"
-                "     *\n"
-                "     * If necessary, the -fe option can be used to specify a file containing\n"
-                "     * control method external declarations with the associated method\n"
-                "     * argument counts. Each line of the file must be of the form:\n"
-                "     *     External (<method pathname>, MethodObj, <argument count>)\n"
-                "     * Invocation:\n"
-                "     *     iasl -fe refs.txt -d dsdt.aml\n"
-                "     *\n"
-                "     * The following methods were unresolved and many not compile properly\n"
-                "     * because the disassembler had to guess at the number of arguments\n"
-                "     * required for each:\n"
-                "     */\n",
-                AcpiGbl_NumExternalMethods, AcpiGbl_ResolvedExternalMethods,
-                (AcpiGbl_ResolvedExternalMethods > 1 ? "were" : "was"),
-                (AcpiGbl_NumExternalMethods - AcpiGbl_ResolvedExternalMethods));
+            AcpiOsPrintf ("    /*\n%s     *\n     *\n     */\n",
+               ExternalWarningPart1, ExternalWarningPart3, ExternalWarningPart4);
         }
     }
     else
@@ -1344,50 +1401,15 @@ AcpiDmUnresolvedWarning (
         {
             /* The -e option was not specified */
 
-            fprintf (stderr, "\n"
-                "iASL Warning: There were %u external control methods found during\n"
-                "disassembly, but additional ACPI tables to resolve these externals\n"
-                "were not specified. The resulting disassembler output file may not\n"
-                "compile because the disassembler did not know how many arguments\n"
-                "to assign to these methods. To specify the tables needed to resolve\n"
-                "external control method references, the -e option can be used to\n"
-                "specify the filenames. Note: SSDTs can be dynamically loaded at\n"
-                "runtime and may or may not be available via the host OS.\n"
-                "Example iASL invocations:\n"
-                "    iasl -e ssdt1.aml ssdt2.aml ssdt3.aml -d dsdt.aml\n"
-                "    iasl -e dsdt.aml ssdt2.aml -d ssdt1.aml\n"
-                "    iasl -e ssdt*.aml -d dsdt.aml\n"
-                "\n"
-                "In addition, the -fe option can be used to specify a file containing\n"
-                "control method external declarations with the associated method\n"
-                "argument counts. Each line of the file must be of the form:\n"
-                "    External (<method pathname>, MethodObj, <argument count>)\n"
-                "Invocation:\n"
-                "    iasl -fe refs.txt -d dsdt.aml\n",
-                AcpiGbl_NumExternalMethods);
+            fprintf (stderr, "\n%s\n%s\n%s\n",
+               ExternalWarningPart1, ExternalWarningPart2, ExternalWarningPart3);
         }
-        else if (AcpiGbl_NumExternalMethods != AcpiGbl_ResolvedExternalMethods)
+        else
         {
             /* The -e option was specified, but there are still some unresolved externals */
 
-            fprintf (stderr, "\n"
-                "iASL Warning: There were %u external control methods found during\n"
-                "disassembly, but only %u %s resolved (%u unresolved). Additional\n"
-                "ACPI tables may be required to properly disassemble the code. The\n"
-                "resulting disassembler output file may not compile because the\n"
-                "disassembler did not know how many arguments to assign to the\n"
-                "unresolved methods. Note: SSDTs can be dynamically loaded at\n"
-                "runtime and may or may not be available via the host OS.\n"
-                "\n"
-                "If necessary, the -fe option can be used to specify a file containing\n"
-                "control method external declarations with the associated method\n"
-                "argument counts. Each line of the file must be of the form:\n"
-                "    External (<method pathname>, MethodObj, <argument count>)\n"
-                "Invocation:\n"
-                "    iasl -fe refs.txt -d dsdt.aml\n",
-                AcpiGbl_NumExternalMethods, AcpiGbl_ResolvedExternalMethods,
-                (AcpiGbl_ResolvedExternalMethods > 1 ? "were" : "was"),
-                (AcpiGbl_NumExternalMethods - AcpiGbl_ResolvedExternalMethods));
+            fprintf (stderr, "\n%s\n%s\n",
+               ExternalWarningPart1, ExternalWarningPart3);
         }
     }
 }

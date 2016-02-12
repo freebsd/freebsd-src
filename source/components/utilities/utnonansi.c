@@ -164,6 +164,82 @@ AcpiUtStricmp (
 }
 
 
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtSafeStrcpy, AcpiUtSafeStrcat, AcpiUtSafeStrncat
+ *
+ * PARAMETERS:  Adds a "DestSize" parameter to each of the standard string
+ *              functions. This is the size of the Destination buffer.
+ *
+ * RETURN:      TRUE if the operation would overflow the destination buffer.
+ *
+ * DESCRIPTION: Safe versions of standard Clib string functions. Ensure that
+ *              the result of the operation will not overflow the output string
+ *              buffer.
+ *
+ * NOTE:        These functions are typically only helpful for processing
+ *              user input and command lines. For most ACPICA code, the
+ *              required buffer length is precisely calculated before buffer
+ *              allocation, so the use of these functions is unnecessary.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiUtSafeStrcpy (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source)
+{
+
+    if (strlen (Source) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    strcpy (Dest, Source);
+    return (FALSE);
+}
+
+BOOLEAN
+AcpiUtSafeStrcat (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source)
+{
+
+    if ((strlen (Dest) + strlen (Source)) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    strcat (Dest, Source);
+    return (FALSE);
+}
+
+BOOLEAN
+AcpiUtSafeStrncat (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source,
+    ACPI_SIZE               MaxTransferLength)
+{
+    ACPI_SIZE               ActualTransferLength;
+
+
+    ActualTransferLength = ACPI_MIN (MaxTransferLength, strlen (Source));
+
+    if ((strlen (Dest) + ActualTransferLength) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    strncat (Dest, Source, MaxTransferLength);
+    return (FALSE);
+}
+#endif
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtStrtoul64
@@ -179,7 +255,15 @@ AcpiUtStricmp (
  *              32-bit or 64-bit conversion, depending on the current mode
  *              of the interpreter.
  *
- * NOTE:        Does not support Octal strings, not needed.
+ * NOTES:       AcpiGbl_IntegerByteWidth should be set to the proper width.
+ *              For the core ACPICA code, this width depends on the DSDT
+ *              version. For iASL, the default byte width is always 8.
+ *
+ *              Does not support Octal strings, not needed at this time.
+ *
+ *              There is an earlier version of the function after this one,
+ *              below. It is slightly different than this one, and the two
+ *              may eventually may need to be merged. (01/2016).
  *
  ******************************************************************************/
 
@@ -200,7 +284,7 @@ AcpiUtStrtoul64 (
     UINT8                   Term = 0;
 
 
-    ACPI_FUNCTION_TRACE_STR (UtStroul64, String);
+    ACPI_FUNCTION_TRACE_STR (UtStrtoul64, String);
 
 
     switch (Base)
@@ -376,78 +460,201 @@ ErrorExit:
     }
 }
 
+#ifdef _OBSOLETE_FUNCTIONS
+/* TBD: use version in ACPICA main code base? */
+/* DONE: 01/2016 */
 
-#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
 /*******************************************************************************
  *
- * FUNCTION:    AcpiUtSafeStrcpy, AcpiUtSafeStrcat, AcpiUtSafeStrncat
+ * FUNCTION:    strtoul64
  *
- * PARAMETERS:  Adds a "DestSize" parameter to each of the standard string
- *              functions. This is the size of the Destination buffer.
+ * PARAMETERS:  String              - Null terminated string
+ *              Terminater          - Where a pointer to the terminating byte
+ *                                    is returned
+ *              Base                - Radix of the string
  *
- * RETURN:      TRUE if the operation would overflow the destination buffer.
+ * RETURN:      Converted value
  *
- * DESCRIPTION: Safe versions of standard Clib string functions. Ensure that
- *              the result of the operation will not overflow the output string
- *              buffer.
- *
- * NOTE:        These functions are typically only helpful for processing
- *              user input and command lines. For most ACPICA code, the
- *              required buffer length is precisely calculated before buffer
- *              allocation, so the use of these functions is unnecessary.
+ * DESCRIPTION: Convert a string into an unsigned value.
  *
  ******************************************************************************/
 
-BOOLEAN
-AcpiUtSafeStrcpy (
-    char                    *Dest,
-    ACPI_SIZE               DestSize,
-    char                    *Source)
+ACPI_STATUS
+strtoul64 (
+    char                    *String,
+    UINT32                  Base,
+    UINT64                  *RetInteger)
 {
+    UINT32                  Index;
+    UINT32                  Sign;
+    UINT64                  ReturnValue = 0;
+    ACPI_STATUS             Status = AE_OK;
 
-    if (strlen (Source) >= DestSize)
+
+    *RetInteger = 0;
+
+    switch (Base)
     {
-        return (TRUE);
+    case 0:
+    case 8:
+    case 10:
+    case 16:
+
+        break;
+
+    default:
+        /*
+         * The specified Base parameter is not in the domain of
+         * this function:
+         */
+        return (AE_BAD_PARAMETER);
     }
 
-    strcpy (Dest, Source);
-    return (FALSE);
-}
+    /* Skip over any white space in the buffer: */
 
-BOOLEAN
-AcpiUtSafeStrcat (
-    char                    *Dest,
-    ACPI_SIZE               DestSize,
-    char                    *Source)
-{
-
-    if ((strlen (Dest) + strlen (Source)) >= DestSize)
+    while (isspace ((int) *String) || *String == '\t')
     {
-        return (TRUE);
+        ++String;
     }
 
-    strcat (Dest, Source);
-    return (FALSE);
-}
-
-BOOLEAN
-AcpiUtSafeStrncat (
-    char                    *Dest,
-    ACPI_SIZE               DestSize,
-    char                    *Source,
-    ACPI_SIZE               MaxTransferLength)
-{
-    ACPI_SIZE               ActualTransferLength;
-
-
-    ActualTransferLength = ACPI_MIN (MaxTransferLength, strlen (Source));
-
-    if ((strlen (Dest) + ActualTransferLength) >= DestSize)
+    /*
+     * The buffer may contain an optional plus or minus sign.
+     * If it does, then skip over it but remember what is was:
+     */
+    if (*String == '-')
     {
-        return (TRUE);
+        Sign = ACPI_SIGN_NEGATIVE;
+        ++String;
+    }
+    else if (*String == '+')
+    {
+        ++String;
+        Sign = ACPI_SIGN_POSITIVE;
+    }
+    else
+    {
+        Sign = ACPI_SIGN_POSITIVE;
     }
 
-    strncat (Dest, Source, MaxTransferLength);
-    return (FALSE);
+    /*
+     * If the input parameter Base is zero, then we need to
+     * determine if it is octal, decimal, or hexadecimal:
+     */
+    if (Base == 0)
+    {
+        if (*String == '0')
+        {
+            if (tolower ((int) *(++String)) == 'x')
+            {
+                Base = 16;
+                ++String;
+            }
+            else
+            {
+                Base = 8;
+            }
+        }
+        else
+        {
+            Base = 10;
+        }
+    }
+
+    /*
+     * For octal and hexadecimal bases, skip over the leading
+     * 0 or 0x, if they are present.
+     */
+    if (Base == 8 && *String == '0')
+    {
+        String++;
+    }
+
+    if (Base == 16 &&
+        *String == '0' &&
+        tolower ((int) *(++String)) == 'x')
+    {
+        String++;
+    }
+
+    /* Main loop: convert the string to an unsigned long */
+
+    while (*String)
+    {
+        if (isdigit ((int) *String))
+        {
+            Index = ((UINT8) *String) - '0';
+        }
+        else
+        {
+            Index = (UINT8) toupper ((int) *String);
+            if (isupper ((int) Index))
+            {
+                Index = Index - 'A' + 10;
+            }
+            else
+            {
+                goto ErrorExit;
+            }
+        }
+
+        if (Index >= Base)
+        {
+            goto ErrorExit;
+        }
+
+        /* Check to see if value is out of range: */
+
+        if (ReturnValue > ((ACPI_UINT64_MAX - (UINT64) Index) /
+            (UINT64) Base))
+        {
+            goto ErrorExit;
+        }
+        else
+        {
+            ReturnValue *= Base;
+            ReturnValue += Index;
+        }
+
+        ++String;
+    }
+
+
+    /* If a minus sign was present, then "the conversion is negated": */
+
+    if (Sign == ACPI_SIGN_NEGATIVE)
+    {
+        ReturnValue = (ACPI_UINT32_MAX - ReturnValue) + 1;
+    }
+
+    *RetInteger = ReturnValue;
+    return (Status);
+
+
+ErrorExit:
+    switch (Base)
+    {
+    case 8:
+
+        Status = AE_BAD_OCTAL_CONSTANT;
+        break;
+
+    case 10:
+
+        Status = AE_BAD_DECIMAL_CONSTANT;
+        break;
+
+    case 16:
+
+        Status = AE_BAD_HEX_CONSTANT;
+        break;
+
+    default:
+
+        /* Base validated above */
+
+        break;
+    }
+
+    return (Status);
 }
 #endif

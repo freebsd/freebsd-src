@@ -468,7 +468,6 @@ main (
 
     /* Init ACPICA and start debugger thread */
 
-    AcpiGbl_OverrideDefaultRegionHandlers = TRUE;
     Status = AcpiInitializeSubsystem ();
     ACPI_CHECK_OK (AcpiInitializeSubsystem, Status);
     if (ACPI_FAILURE (Status))

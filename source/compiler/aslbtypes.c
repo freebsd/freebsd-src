@@ -408,12 +408,25 @@ AnGetBtype (
         Node = Op->Asl.Node;
         if (!Node)
         {
+            /* These are not expected to have a node at this time */
+
+            if ((Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CREATEWORDFIELD) ||
+                (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CREATEDWORDFIELD) ||
+                (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CREATEQWORDFIELD) ||
+                (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CREATEBYTEFIELD) ||
+                (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CREATEBITFIELD) ||
+                (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CREATEFIELD)    ||
+                (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONDREFOF))
+            {
+                return (ACPI_UINT32_MAX - 1);
+            }
+
             DbgPrint (ASL_DEBUG_OUTPUT,
                 "No attached Nsnode: [%s] at line %u name [%s], "
-                "ignoring typecheck\n",
+                "ignoring typecheck. Parent [%s]\n",
                 Op->Asl.ParseOpName, Op->Asl.LineNumber,
-                Op->Asl.ExternalName);
-            return (ACPI_UINT32_MAX);
+                Op->Asl.ExternalName, Op->Asl.Parent->Asl.ParseOpName);
+            return (ACPI_UINT32_MAX - 1);
         }
 
         ThisNodeBtype = AnMapEtypeToBtype (Node->Type);
