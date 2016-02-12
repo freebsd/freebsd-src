@@ -39,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3381 2016-01-30 19:39:47Z jkoshy $");
+ELFTC_VCSID("$Id: main.c 3399 2016-02-12 18:07:56Z emaste $");
 
 enum options
 {
@@ -316,6 +316,7 @@ create_elf(struct elfcopy *ecp)
 	oeh.e_entry	      = ieh.e_entry;
 	oeh.e_version	      = ieh.e_version;
 
+	ecp->flags &= ~(EXECUTABLE | DYNAMIC | RELOCATABLE);
 	if (ieh.e_type == ET_EXEC)
 		ecp->flags |= EXECUTABLE;
 	else if (ieh.e_type == ET_DYN)
@@ -1485,6 +1486,7 @@ Usage: %s [options] file...\n\
   Options:\n\
   -d | -g | -S | --strip-debug    Remove debugging symbols.\n\
   -h | --help                     Print a help message.\n\
+  -o FILE | --output-file FILE    Write output to FILE.\n\
   --only-keep-debug               Keep debugging information only.\n\
   -p | --preserve-dates           Preserve access and modification times.\n\
   -s | --strip-all                Remove all symbols.\n\

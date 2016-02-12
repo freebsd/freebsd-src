@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf_config.h 3168 2015-02-24 19:17:47Z emaste $
+ * $Id: _libelf_config.h 3396 2016-02-10 21:50:05Z emaste $
  */
 
 #if defined(__APPLE__) || defined(__DragonFly__)
@@ -96,6 +96,12 @@
 #define	LIBELF_ARCH		EM_PPC
 #define	LIBELF_BYTEORDER	ELFDATA2MSB
 #define	LIBELF_CLASS		ELFCLASS32
+
+#elif	defined(__riscv64)
+
+#define	LIBELF_ARCH		EM_RISCV                                
+#define	LIBELF_BYTEORDER	ELFDATA2LSB                             
+#define	LIBELF_CLASS		ELFCLASS64                              
 
 #elif	defined(__sparc__)
 

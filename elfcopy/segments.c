@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3340 2016-01-17 15:00:56Z kaiwang27 $");
+ELFTC_VCSID("$Id: segments.c 3397 2016-02-12 14:35:19Z emaste $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -489,7 +489,7 @@ copy_phdr(struct elfcopy *ecp)
 		ophdr.p_filesz = seg->fsz;
 		ophdr.p_memsz = seg->msz;
 		if (!gelf_update_phdr(ecp->eout, i, &ophdr))
-			err(EXIT_FAILURE, "gelf_update_phdr failed :%s",
+			errx(EXIT_FAILURE, "gelf_update_phdr failed: %s",
 			    elf_errmsg(-1));
 
 		i++;
