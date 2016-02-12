@@ -129,12 +129,6 @@ END(cpu_throw)
  * x3 to x7, x16 and x17 are caller saved
  */
 ENTRY(cpu_switch)
-	/* Store the new curthread */
-	str	x1, [x18, #PC_CURTHREAD]
-	/* And the new pcb */
-	ldr	x4, [x1, #TD_PCB]
-	str	x4, [x18, #PC_CURPCB]
-
 	/*
 	 * Save the old context.
 	 */
@@ -174,10 +168,14 @@ ENTRY(cpu_switch)
 	mov	x0, x19
 #endif
 
+	/* Store the new curthread */
+	str	x1, [x18, #PC_CURTHREAD]
+
 	/*
-	 * Restore the saved context.
+	 * Restore the saved context and set it as curpcb.
 	 */
 	ldr	x4, [x1, #TD_PCB]
+	str	x4, [x18, #PC_CURPCB]
 
 	/*
 	 * TODO: We may need to flush the cache here if switching
