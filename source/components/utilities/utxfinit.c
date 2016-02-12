@@ -132,25 +132,6 @@ AcpiInitializeSubsystem (
         return_ACPI_STATUS (Status);
     }
 
-    if (!AcpiGbl_OverrideDefaultRegionHandlers)
-    {
-        /*
-         * Install the default operation region handlers. These are the
-         * handlers that are defined by the ACPI specification to be
-         * "always accessible" -- namely, SystemMemory, SystemIO, and
-         * PCI_Config. This also means that no _REG methods need to be
-         * run for these address spaces. We need to have these handlers
-         * installed before any AML code can be executed, especially any
-         * module-level code (11/2015).
-         */
-        Status = AcpiEvInstallRegionHandlers ();
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_EXCEPTION ((AE_INFO, Status, "During Region initialization"));
-            return_ACPI_STATUS (Status);
-        }
-    }
-
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -187,17 +168,17 @@ AcpiEnableSubsystem (
      */
     AcpiGbl_EarlyInitialization = FALSE;
 
-    if (AcpiGbl_OverrideDefaultRegionHandlers)
+    /*
+     * Install the default operation region handlers. These are the
+     * handlers that are defined by the ACPI specification to be
+     * "always accessible" -- namely, SystemMemory, SystemIO, and
+     * PCI_Config. This also means that no _REG methods need to be
+     * run for these address spaces. We need to have these handlers
+     * installed before any AML code can be executed, especially any
+     * module-level code (11/2015).
+     */
+    if (!AcpiGbl_GroupModuleLevelCode)
     {
-        /*
-         * Install the default operation region handlers. These are the
-         * handlers that are defined by the ACPI specification to be
-         * "always accessible" -- namely, SystemMemory, SystemIO, and
-         * PCI_Config. This also means that no _REG methods need to be
-         * run for these address spaces. We need to have these handlers
-         * installed before any AML code can be executed, especially any
-         * module-level code (11/2015).
-         */
         Status = AcpiEvInstallRegionHandlers ();
         if (ACPI_FAILURE (Status))
         {
@@ -205,7 +186,6 @@ AcpiEnableSubsystem (
             return_ACPI_STATUS (Status);
         }
     }
-
 
 #if (!ACPI_REDUCED_HARDWARE)
 
@@ -312,25 +292,6 @@ AcpiInitializeObjects (
     ACPI_FUNCTION_TRACE (AcpiInitializeObjects);
 
 
-    /*
-     * Run all _REG methods
-     *
-     * Note: Any objects accessed by the _REG methods will be automatically
-     * initialized, even if they contain executable AML (see the call to
-     * AcpiNsInitializeObjects below).
-     */
-    if (!(Flags & ACPI_NO_ADDRESS_SPACE_INIT))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "[Init] Executing _REG OpRegion methods\n"));
-
-        Status = AcpiEvInitializeOpRegions ();
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-    }
-
 #ifdef ACPI_EXEC_APP
     /*
      * This call implements the "initialization file" option for AcpiExec.
@@ -373,16 +334,15 @@ AcpiInitializeObjects (
         }
     }
 
-    /*
-     * Initialize all device objects in the namespace. This runs the device
-     * _STA and _INI methods.
-     */
-    if (!(Flags & ACPI_NO_DEVICE_INIT))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "[Init] Initializing ACPI Devices\n"));
+    AcpiGbl_NamespaceInitialized = TRUE;
 
-        Status = AcpiNsInitializeDevices ();
+    /*
+     * Initialize all device/region objects in the namespace. This runs
+     * the device _STA and _INI methods and region _REG methods.
+     */
+    if (!(Flags & (ACPI_NO_DEVICE_INIT | ACPI_NO_ADDRESS_SPACE_INIT)))
+    {
+        Status = AcpiNsInitializeDevices (Flags);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);

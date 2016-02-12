@@ -760,6 +760,7 @@ AcpiDmXrefDescendingOp (
     ACPI_OPERAND_OBJECT     *Object;
     UINT32                  ParamCount = 0;
     char                    *Pathname;
+    UINT16                  Flags = 0;
 
 
     WalkState = Info->WalkState;
@@ -774,7 +775,24 @@ AcpiDmXrefDescendingOp (
     {
         goto Exit;
     }
+    else if (Op->Common.Parent &&
+             Op->Common.Parent->Common.AmlOpcode == AML_EXTERNAL_OP)
+    {
+        /* External() NamePath */
 
+        Path = Op->Common.Value.String;
+        ObjectType = (ACPI_OBJECT_TYPE) Op->Common.Next->Common.Value.Integer;
+        if (ObjectType == ACPI_TYPE_METHOD)
+        {
+            ParamCount = (UINT32)
+                Op->Common.Next->Common.Next->Common.Value.Integer;
+        }
+
+        AcpiDmAddOpToExternalList (Op, Path,
+            (UINT8) ObjectType, ParamCount, Flags);
+
+        goto Exit;
+    }
 
     /* Get the NamePath from the appropriate place */
 
@@ -842,6 +860,7 @@ AcpiDmXrefDescendingOp (
         /* Node was created by an External() statement */
 
         Status = AE_NOT_FOUND;
+        Flags = ACPI_EXT_RESOLVED_REFERENCE;
     }
 
     if (ACPI_FAILURE (Status))
@@ -861,12 +880,12 @@ AcpiDmXrefDescendingOp (
                 if (Node)
                 {
                     AcpiDmAddNodeToExternalList (Node,
-                        (UINT8) ObjectType, 0, 0);
+                        (UINT8) ObjectType, 0, Flags);
                 }
                 else
                 {
                     AcpiDmAddOpToExternalList (Op, Path,
-                        (UINT8) ObjectType, 0, 0);
+                        (UINT8) ObjectType, 0, Flags);
                 }
             }
         }

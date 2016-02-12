@@ -86,8 +86,6 @@ ACPI_GLOBAL (UINT8,                     AcpiGbl_IntegerBitWidth);
 ACPI_GLOBAL (UINT8,                     AcpiGbl_IntegerByteWidth);
 ACPI_GLOBAL (UINT8,                     AcpiGbl_IntegerNybbleWidth);
 
-ACPI_INIT_GLOBAL (UINT8,                AcpiGbl_GroupModuleLevelCode, FALSE);
-
 
 /*****************************************************************************
  *
@@ -170,7 +168,7 @@ ACPI_GLOBAL (UINT8,                     AcpiGbl_NextOwnerIdOffset);
 
 /* Initialization sequencing */
 
-ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_RegMethodsEnabled, FALSE);
+ACPI_INIT_GLOBAL (BOOLEAN,              AcpiGbl_NamespaceInitialized, FALSE);
 
 /* Misc */
 

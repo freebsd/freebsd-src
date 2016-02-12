@@ -533,7 +533,7 @@ MpXrefDevices (
 
     /* Walk the entire parse tree */
 
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
+    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         MpNamespaceXrefBegin, NULL, Info);
 
     if (!Info->References)

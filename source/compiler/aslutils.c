@@ -67,6 +67,33 @@ UtAttachNameseg (
     char                    *Name);
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    UtIsBigEndianMachine
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      TRUE if machine is big endian
+ *              FALSE if machine is little endian
+ *
+ * DESCRIPTION: Detect whether machine is little endian or big endian.
+ *
+ ******************************************************************************/
+
+UINT8
+UtIsBigEndianMachine (
+    void)
+{
+    union {
+        UINT32              Integer;
+        UINT8               Bytes[4];
+    } Overlay =                 {0xFF000000};
+
+
+    return (Overlay.Bytes[0]); /* Returns 0xFF (TRUE) for big endian */
+}
+
+
 /******************************************************************************
  *
  * FUNCTION:    UtQueryForOverwrite
@@ -269,63 +296,6 @@ UtEndEvent (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtConvertByteToHex
- *
- * PARAMETERS:  RawByte             - Binary data
- *              Buffer              - Pointer to where the hex bytes will be
- *                                    stored
- *
- * RETURN:      Ascii hex byte is stored in Buffer.
- *
- * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
- *              with "0x"
- *
- ******************************************************************************/
-
-void
-UtConvertByteToHex (
-    UINT8                   RawByte,
-    UINT8                   *Buffer)
-{
-
-    Buffer[0] = '0';
-    Buffer[1] = 'x';
-
-    Buffer[2] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 4);
-    Buffer[3] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 0);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtConvertByteToAsmHex
- *
- * PARAMETERS:  RawByte             - Binary data
- *              Buffer              - Pointer to where the hex bytes will be
- *                                    stored
- *
- * RETURN:      Ascii hex byte is stored in Buffer.
- *
- * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
- *              with '0', and a trailing 'h' is added.
- *
- ******************************************************************************/
-
-void
-UtConvertByteToAsmHex (
-    UINT8                   RawByte,
-    UINT8                   *Buffer)
-{
-
-    Buffer[0] = '0';
-    Buffer[1] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 4);
-    Buffer[2] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 0);
-    Buffer[3] = 'h';
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    DbgPrint
  *
  * PARAMETERS:  Type                - Type of output
@@ -363,43 +333,6 @@ DbgPrint (
     (void) vfprintf (stderr, Fmt, Args);
     va_end (Args);
     return;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtPrintFormattedName
- *
- * PARAMETERS:  ParseOpcode         - Parser keyword ID
- *              Level               - Indentation level
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print the ascii name of the parse opcode.
- *
- ******************************************************************************/
-
-#define TEXT_OFFSET 10
-
-void
-UtPrintFormattedName (
-    UINT16                  ParseOpcode,
-    UINT32                  Level)
-{
-
-    if (Level)
-    {
-        DbgPrint (ASL_TREE_OUTPUT,
-            "%*s", (3 * Level), " ");
-    }
-    DbgPrint (ASL_TREE_OUTPUT,
-        " %-20.20s", UtGetOpName (ParseOpcode));
-
-    if (Level < TEXT_OFFSET)
-    {
-        DbgPrint (ASL_TREE_OUTPUT,
-            "%*s", (TEXT_OFFSET - Level) * 3, " ");
-    }
 }
 
 
@@ -973,7 +906,7 @@ UtDoConstant (
     char                    ErrBuf[64];
 
 
-    Status = stroul64 (String, 0, &Converted);
+    Status = AcpiUtStrtoul64 (String, 0, &Converted);
     if (ACPI_FAILURE (Status))
     {
         sprintf (ErrBuf, "%s %s\n", "Conversion error:",
@@ -985,198 +918,62 @@ UtDoConstant (
 }
 
 
-/* TBD: use version in ACPICA main code base? */
+#ifdef _OBSOLETE_FUNCTIONS
+/* Removed 01/2016 */
 
 /*******************************************************************************
  *
- * FUNCTION:    stroul64
+ * FUNCTION:    UtConvertByteToHex
  *
- * PARAMETERS:  String              - Null terminated string
- *              Terminater          - Where a pointer to the terminating byte
- *                                    is returned
- *              Base                - Radix of the string
+ * PARAMETERS:  RawByte             - Binary data
+ *              Buffer              - Pointer to where the hex bytes will be
+ *                                    stored
  *
- * RETURN:      Converted value
+ * RETURN:      Ascii hex byte is stored in Buffer.
  *
- * DESCRIPTION: Convert a string into an unsigned value.
+ * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
+ *              with "0x"
  *
  ******************************************************************************/
 
-ACPI_STATUS
-stroul64 (
-    char                    *String,
-    UINT32                  Base,
-    UINT64                  *RetInteger)
+void
+UtConvertByteToHex (
+    UINT8                   RawByte,
+    UINT8                   *Buffer)
 {
-    UINT32                  Index;
-    UINT32                  Sign;
-    UINT64                  ReturnValue = 0;
-    ACPI_STATUS             Status = AE_OK;
 
+    Buffer[0] = '0';
+    Buffer[1] = 'x';
 
-    *RetInteger = 0;
-
-    switch (Base)
-    {
-    case 0:
-    case 8:
-    case 10:
-    case 16:
-
-        break;
-
-    default:
-        /*
-         * The specified Base parameter is not in the domain of
-         * this function:
-         */
-        return (AE_BAD_PARAMETER);
-    }
-
-    /* Skip over any white space in the buffer: */
-
-    while (isspace ((int) *String) || *String == '\t')
-    {
-        ++String;
-    }
-
-    /*
-     * The buffer may contain an optional plus or minus sign.
-     * If it does, then skip over it but remember what is was:
-     */
-    if (*String == '-')
-    {
-        Sign = ACPI_SIGN_NEGATIVE;
-        ++String;
-    }
-    else if (*String == '+')
-    {
-        ++String;
-        Sign = ACPI_SIGN_POSITIVE;
-    }
-    else
-    {
-        Sign = ACPI_SIGN_POSITIVE;
-    }
-
-    /*
-     * If the input parameter Base is zero, then we need to
-     * determine if it is octal, decimal, or hexadecimal:
-     */
-    if (Base == 0)
-    {
-        if (*String == '0')
-        {
-            if (tolower ((int) *(++String)) == 'x')
-            {
-                Base = 16;
-                ++String;
-            }
-            else
-            {
-                Base = 8;
-            }
-        }
-        else
-        {
-            Base = 10;
-        }
-    }
-
-    /*
-     * For octal and hexadecimal bases, skip over the leading
-     * 0 or 0x, if they are present.
-     */
-    if (Base == 8 && *String == '0')
-    {
-        String++;
-    }
-
-    if (Base == 16 &&
-        *String == '0' &&
-        tolower ((int) *(++String)) == 'x')
-    {
-        String++;
-    }
-
-    /* Main loop: convert the string to an unsigned long */
-
-    while (*String)
-    {
-        if (isdigit ((int) *String))
-        {
-            Index = ((UINT8) *String) - '0';
-        }
-        else
-        {
-            Index = (UINT8) toupper ((int) *String);
-            if (isupper ((int) Index))
-            {
-                Index = Index - 'A' + 10;
-            }
-            else
-            {
-                goto ErrorExit;
-            }
-        }
-
-        if (Index >= Base)
-        {
-            goto ErrorExit;
-        }
-
-        /* Check to see if value is out of range: */
-
-        if (ReturnValue > ((ACPI_UINT64_MAX - (UINT64) Index) /
-            (UINT64) Base))
-        {
-            goto ErrorExit;
-        }
-        else
-        {
-            ReturnValue *= Base;
-            ReturnValue += Index;
-        }
-
-        ++String;
-    }
-
-
-    /* If a minus sign was present, then "the conversion is negated": */
-
-    if (Sign == ACPI_SIGN_NEGATIVE)
-    {
-        ReturnValue = (ACPI_UINT32_MAX - ReturnValue) + 1;
-    }
-
-    *RetInteger = ReturnValue;
-    return (Status);
-
-
-ErrorExit:
-    switch (Base)
-    {
-    case 8:
-
-        Status = AE_BAD_OCTAL_CONSTANT;
-        break;
-
-    case 10:
-
-        Status = AE_BAD_DECIMAL_CONSTANT;
-        break;
-
-    case 16:
-
-        Status = AE_BAD_HEX_CONSTANT;
-        break;
-
-    default:
-
-        /* Base validated above */
-
-        break;
-    }
-
-    return (Status);
+    Buffer[2] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 4);
+    Buffer[3] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 0);
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtConvertByteToAsmHex
+ *
+ * PARAMETERS:  RawByte             - Binary data
+ *              Buffer              - Pointer to where the hex bytes will be
+ *                                    stored
+ *
+ * RETURN:      Ascii hex byte is stored in Buffer.
+ *
+ * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
+ *              with '0', and a trailing 'h' is added.
+ *
+ ******************************************************************************/
+
+void
+UtConvertByteToAsmHex (
+    UINT8                   RawByte,
+    UINT8                   *Buffer)
+{
+
+    Buffer[0] = '0';
+    Buffer[1] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 4);
+    Buffer[2] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 0);
+    Buffer[3] = 'h';
+}
+#endif /* OBSOLETE_FUNCTIONS */

@@ -633,6 +633,24 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_DEBUG_OUTPUT);
     }
 
+    /* Create/Open a cross-reference output file if asked */
+
+    if (Gbl_CrossReferenceOutput)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_XREF);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_DEBUG_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        FlOpenFile (ASL_FILE_XREF_OUTPUT, Filename, "w+t");
+
+        AslCompilerSignon (ASL_FILE_XREF_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_XREF_OUTPUT);
+    }
+
     /* Create/Open a listing output file if asked */
 
     if (Gbl_ListingFlag)

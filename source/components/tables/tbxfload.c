@@ -47,6 +47,7 @@
 #include "accommon.h"
 #include "acnamesp.h"
 #include "actables.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_TABLES
         ACPI_MODULE_NAME    ("tbxfload")
@@ -73,6 +74,28 @@ AcpiLoadTables (
 
     ACPI_FUNCTION_TRACE (AcpiLoadTables);
 
+
+    /*
+     * Install the default operation region handlers. These are the
+     * handlers that are defined by the ACPI specification to be
+     * "always accessible" -- namely, SystemMemory, SystemIO, and
+     * PCI_Config. This also means that no _REG methods need to be
+     * run for these address spaces. We need to have these handlers
+     * installed before any AML code can be executed, especially any
+     * module-level code (11/2015).
+     * Note that we allow OSPMs to install their own region handlers
+     * between AcpiInitializeSubsystem() and AcpiLoadTables() to use
+     * their customized default region handlers.
+     */
+    if (AcpiGbl_GroupModuleLevelCode)
+    {
+        Status = AcpiEvInstallRegionHandlers ();
+        if (ACPI_FAILURE (Status) && Status != AE_ALREADY_EXISTS)
+        {
+            ACPI_EXCEPTION ((AE_INFO, Status, "During Region initialization"));
+            return_ACPI_STATUS (Status);
+        }
+    }
 
     /* Load the namespace from the tables */
 
@@ -227,7 +250,7 @@ AcpiTbLoadNamespace (
 
     if (!TablesFailed)
     {
-        ACPI_INFO ((AE_INFO,
+        ACPI_INFO ((
             "%u ACPI AML tables successfully acquired and loaded\n",
             TablesLoaded));
     }
@@ -340,7 +363,7 @@ AcpiLoadTable (
 
     /* Install the table and load it into the namespace */
 
-    ACPI_INFO ((AE_INFO, "Host-directed Dynamic ACPI Table Load:"));
+    ACPI_INFO (("Host-directed Dynamic ACPI Table Load:"));
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     Status = AcpiTbInstallStandardTable (ACPI_PTR_TO_PHYSADDR (Table),

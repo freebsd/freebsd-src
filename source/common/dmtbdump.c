@@ -1616,6 +1616,12 @@ AcpiDmDumpHest (
             SubTableLength = sizeof (ACPI_HEST_GENERIC);
             break;
 
+        case ACPI_HEST_TYPE_GENERIC_ERROR_V2:
+
+            InfoTable = AcpiDmTableInfoHest10;
+            SubTableLength = sizeof (ACPI_HEST_GENERIC_V2);
+            break;
+
         default:
 
             /* Cannot continue on unknown type - no length */

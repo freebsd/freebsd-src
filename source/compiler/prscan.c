@@ -334,8 +334,7 @@ PrPreprocessInputFile (
         Gbl_CurrentLineNumber++;
         Gbl_LogicalLineNumber++;
 
-        if ((Status == ASL_WITHIN_COMMENT) ||
-            (Status == ASL_BLANK_LINE))
+        if (Status == ASL_IGNORE_LINE)
         {
             goto WriteEntireLine;
         }
@@ -870,7 +869,8 @@ SyntaxError:
  *
  * RETURN:      Status of the GetLine operation:
  *              AE_OK               - Normal line, OK status
- *              ASL_WITHIN_COMMENT  - Line is part of a multi-line comment
+ *              ASL_IGNORE_LINE     - Line is blank or part of a multi-line
+ *                                      comment
  *              ASL_EOF             - End-of-file reached
  *
  * DESCRIPTION: Get the next text line from the input file. Does not strip
@@ -986,7 +986,7 @@ PrGetNextLine (
 
             if (AcpiGbl_LineScanState == PR_MULTI_LINE_COMMENT)
             {
-                return (ASL_WITHIN_COMMENT);
+                return (ASL_IGNORE_LINE);
             }
 
             /* End of single-line comment */
@@ -1001,7 +1001,7 @@ PrGetNextLine (
 
             if (i == 1)
             {
-                return (ASL_BLANK_LINE);
+                return (ASL_IGNORE_LINE);
             }
 
             return (AE_OK);

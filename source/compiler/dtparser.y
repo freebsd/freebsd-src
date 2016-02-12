@@ -169,15 +169,15 @@ Expression
 
       /* Default base for a non-prefixed integer is 16 */
 
-    | EXPOP_NUMBER                                  { stroul64 (DtParsertext, 16, &$$);}
+    | EXPOP_NUMBER                                  { AcpiUtStrtoul64 (DtParsertext, 16, &$$);}
 
       /* Standard hex number (0x1234) */
 
-    | EXPOP_HEX_NUMBER                              { stroul64 (DtParsertext, 16, &$$);}
+    | EXPOP_HEX_NUMBER                              { AcpiUtStrtoul64 (DtParsertext, 16, &$$);}
 
-      /* TBD: Decimal number with prefix (0d1234) - Not supported by stroul64 at this time */
+      /* TBD: Decimal number with prefix (0d1234) - Not supported by strtoul64 at this time */
 
-    | EXPOP_DECIMAL_NUMBER                          { stroul64 (DtParsertext, 10, &$$);}
+    | EXPOP_DECIMAL_NUMBER                          { AcpiUtStrtoul64 (DtParsertext, 10, &$$);}
     ;
 %%
 

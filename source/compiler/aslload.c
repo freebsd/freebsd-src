@@ -104,8 +104,6 @@ LdLoadNamespace (
     ACPI_WALK_STATE         *WalkState;
 
 
-    DbgPrint (ASL_DEBUG_OUTPUT, "\nCreating namespace\n\n");
-
     /* Create a new walk state */
 
     WalkState = AcpiDsCreateWalkState (0, NULL, NULL, NULL);

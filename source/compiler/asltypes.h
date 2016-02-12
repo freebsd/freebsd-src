@@ -81,6 +81,7 @@
 typedef struct asl_method_info
 {
     ACPI_PARSE_OBJECT       *Op;
+    ACPI_PARSE_OBJECT       *CurrentOp;
     struct asl_method_info  *Next;
     UINT32                  ValidArgTypes[ACPI_METHOD_NUM_ARGS];
     UINT32                  ValidReturnTypes;
@@ -171,12 +172,13 @@ typedef enum
     ASL_FILE_ASM_INCLUDE_OUTPUT,/* .inc */
     ASL_FILE_C_INCLUDE_OUTPUT,  /* .h   */
     ASL_FILE_C_OFFSET_OUTPUT,   /* .offset.h */
-    ASL_FILE_MAP_OUTPUT         /* .map */
+    ASL_FILE_MAP_OUTPUT,        /* .map */
+    ASL_FILE_XREF_OUTPUT        /* .xrf */
 
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       16
+#define ASL_MAX_FILE_TYPE       17
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 /* Name suffixes used to create filenames for output files */
@@ -196,6 +198,7 @@ typedef enum
 #define FILE_SUFFIX_C_INCLUDE       "h"
 #define FILE_SUFFIX_C_OFFSET        "offset.h"
 #define FILE_SUFFIX_MAP             "map"
+#define FILE_SUFFIX_XREF            "xrf"
 
 
 /* Cache block structure for ParseOps and Strings */
@@ -315,5 +318,22 @@ typedef struct asl_method_local
 #define ASL_ARG_IS_LOCAL        (1<<2)
 #define ASL_ARG_INITIALIZED     (1<<3)
 #define ASL_ARG_REFERENCED      (1<<4)
+
+/* Info used to track method counts for cross reference output file */
+
+typedef struct asl_xref_info
+{
+    UINT32                  ThisMethodInvocations;
+    UINT32                  TotalPredefinedMethods;
+    UINT32                  TotalUserMethods;
+    UINT32                  TotalUnreferenceUserMethods;
+    UINT32                  ThisObjectReferences;
+    UINT32                  TotalObjects;
+    UINT32                  TotalUnreferencedObjects;
+    ACPI_PARSE_OBJECT       *MethodOp;
+    ACPI_PARSE_OBJECT       *CurrentMethodOp;
+
+} ASL_XREF_INFO;
+
 
 #endif  /* __ASLTYPES_H */

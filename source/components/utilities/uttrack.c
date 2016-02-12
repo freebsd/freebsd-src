@@ -775,7 +775,7 @@ AcpiUtDumpAllocations (
 
     if (!NumOutstanding)
     {
-        ACPI_INFO ((AE_INFO, "No outstanding allocations"));
+        ACPI_INFO (("No outstanding allocations"));
     }
     else
     {

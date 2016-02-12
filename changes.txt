@@ -1,4 +1,66 @@
 ----------------------------------------
+12 February 2016. Summary of changes for version 20160212:
+
+This release is available at https://acpica.org/downloads
+
+1) ACPICA kernel-resident subsystem:
+
+Implemented full support for the ACPI 6.1 specification (released in 
+January). This version of the specification is available at:  
+http://www.uefi.org/specifications
+
+Only a relatively small number of changes were required in ACPICA to 
+support ACPI 6.1, in these areas:
+- New predefined names
+- New _HID values
+- A new subtable for HEST
+- A few other header changes for new values
+
+Ensure \_SB_._INI is executed before any _REG methods are executed. There 
+appears to be existing BIOS code that relies on this behavior. Lv Zheng.
+
+Reverted a change made in version 20151218 which enabled method 
+invocations to be targets of various ASL operators (SuperName and Target 
+grammar elements). While the new behavior is supported by the ACPI 
+specification, other AML interpreters do not support this behavior and 
+never will. The ACPI specification will be updated for ACPI 6.2 to remove 
+this support. Therefore, the change was reverted to the original ACPICA 
+behavior.
+
+ACPICA now supports the GCC 6 compiler.
+
+Current Release: (Note: build changes increased sizes)
+    Non-Debug Version: 136.2K Code, 51.5K Data, 187.7K Total
+    Debug Version:     200.4K Code, 82.0K Data, 282.4K Total
+Previous Release:
+    Non-Debug Version: 102.7K Code, 28.4K Data, 131.1K Total
+    Debug Version:     200.4K Code, 81.9K Data, 282.3K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Completed full support for the ACPI 6.0 External() AML opcode. The 
+compiler emits an external AML opcode for each ASL External statement. 
+This opcode is used by the disassembler to assist with the disassembly of 
+external control methods by specifying the required number of arguments 
+for the method. AML interpreters do not use this opcode. To ensure that 
+interpreters do not even see the opcode, a block of one or more external 
+opcodes is surrounded by an "If(0)" construct. As this feature becomes 
+commonly deployed in BIOS code, the ability of disassemblers to correctly 
+disassemble AML code will be greatly improved. David Box.
+
+iASL: Implemented support for an optional cross-reference output file. 
+The -lx option will create a the cross-reference file with the suffix 
+"xrf". Three different types of cross-reference are created in this file:
+- List of object references made from within each control method
+- Invocation (caller) list for each user-defined control method
+- List of references to each non-method object in the namespace
+
+iASL: Method invocations as ASL Target operands are now disallowed and 
+flagged as errors in preparation for ACPI 6.2 (see the description of the 
+problem above).
+
+----------------------------------------
 8 January 2016. Summary of changes for version 20160108:
 
 1) ACPICA kernel-resident subsystem:

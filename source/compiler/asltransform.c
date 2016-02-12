@@ -249,7 +249,7 @@ TrAmlInsertPeer (
 
 /*******************************************************************************
  *
- * FUNCTION:    TrAmlTransformWalk
+ * FUNCTION:    TrAmlTransformWalkBegin
  *
  * PARAMETERS:  ASL_WALK_CALLBACK
  *
@@ -261,13 +261,45 @@ TrAmlInsertPeer (
  ******************************************************************************/
 
 ACPI_STATUS
-TrAmlTransformWalk (
+TrAmlTransformWalkBegin (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context)
 {
 
     TrTransformSubtree (Op);
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    TrAmlTransformWalkEnd
+ *
+ * PARAMETERS:  ASL_WALK_CALLBACK
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Parse tree walk to generate both the AML opcodes and the AML
+ *              operands.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+TrAmlTransformWalkEnd (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context)
+{
+
+    /* Save possible Externals list in the DefintionBlock Op */
+
+    if (Op->Asl.ParseOpcode == PARSEOP_DEFINITION_BLOCK)
+    {
+        Op->Asl.Value.Arg = Gbl_ExternalsListHead;
+        Gbl_ExternalsListHead = NULL;
+    }
+
     return (AE_OK);
 }
 
@@ -316,6 +348,11 @@ TrTransformSubtree (
         Gbl_TempCount = 0;
         break;
 
+    case PARSEOP_EXTERNAL:
+
+        ExDoExternal (Op);
+        break;
+
     default:
 
         /* Nothing to do here for other opcodes */
@@ -346,6 +383,10 @@ TrDoDefinitionBlock (
     ACPI_PARSE_OBJECT       *Next;
     UINT32                  i;
 
+
+    /* Reset external list when starting a definition block */
+
+    Gbl_ExternalsListHead = NULL;
 
     Next = Op->Asl.Child;
     for (i = 0; i < 5; i++)

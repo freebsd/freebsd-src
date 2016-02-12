@@ -969,6 +969,10 @@ AcpiDmDisassembleOneOp (
         AcpiDmConvertToElseIf (Op);
         break;
 
+    case AML_EXTERNAL_OP:
+
+        break;
+
     default:
 
         /* Just get the opcode name and print it */
