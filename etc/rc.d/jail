@@ -33,7 +33,8 @@ need_dad_wait=
 #	set it to $param.  If not defined, $defval is used.
 #	When $num is [0-9]*, ${jail_$jv_$name$num} are looked up and
 #	$param is set by using +=.  $num=0 is optional (params may start at 1).
-#	When $num is YN or NY, the value is interpret as boolean.
+#	When $num is YN or NY, the value is interpreted as boolean.
+#	When $num is @, the value is interpreted as an array separted by IFS.
 extract_var()
 {
 	local i _jv _name _param _num _def _name1 _name2
@@ -77,6 +78,20 @@ extract_var()
 			fi
 			i=$(($i + 1))
 		done
+	;;
+	@)
+		_name1=jail_${_jv}_${_name}
+		_name2=jail_${_name}
+		eval _tmpargs=\"\${$_name1:-\${$_name2:-$_def}}\"
+		set -- $_tmpargs
+		if [ $# -gt 0 ]; then
+			echo -n "	$_param = "
+			while [ $# -gt 1 ]; do
+				echo -n "\"$1\", "
+				shift
+			done
+			echo "\"$1\";"
+		fi
 	;;
 	*)
 		_name1=jail_${_jv}_${_name}
@@ -190,7 +205,7 @@ parse_options()
 			    allow.raw_sockets NY YES
 		else
 			echo "	vnet;"
-			extract_var $_jv vnet_interface vnet.interface - ""
+			extract_var $_jv vnet_interface vnet.interface @ ""
 		fi
 
 		echo "	exec.clean;"
