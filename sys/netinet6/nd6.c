@@ -2512,7 +2512,6 @@ clear_llinfo_pqueue(struct llentry *ln)
 	}
 
 	ln->la_hold = NULL;
-	return;
 }
 
 static int nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS);
