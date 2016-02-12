@@ -113,11 +113,6 @@ VNET_DEFINE(int, nd6_debug) = 0;
 
 static eventhandler_tag lle_event_eh, iflladdr_event_eh;
 
-/* for debugging? */
-#if 0
-static int nd6_inuse, nd6_allocated;
-#endif
-
 VNET_DEFINE(struct nd_drhead, nd_defrouter);
 VNET_DEFINE(struct nd_prhead, nd_prefix);
 
