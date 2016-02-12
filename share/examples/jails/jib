@@ -286,13 +286,16 @@ jib_addm()
 		!*) iface=${iface#!} no_derive=1 ;;
 		esac
 
-		# 1. Make sure the interface doesn't exist already
-		ifconfig "e${i}a_$name" > /dev/null 2>&1 && continue
+		# Make sure the interface doesn't exist already
+		if ifconfig "e${i}a_$name" > /dev/null 2>&1; then
+			i=$(( $i + 1 ))
+			continue
+		fi
 
-		# 2. Bring the interface up
+		# Bring the interface up
 		ifconfig $iface up || return
 
-		# 3. Make sure the interface has been bridged
+		# Make sure the interface has been bridged
 		if ! ifconfig "$iface$bridge" > /dev/null 2>&1; then
 			new=$( ifconfig bridge create ) || return
 			ifconfig $new addm $iface || return
@@ -300,18 +303,18 @@ jib_addm()
 			ifconfig "$iface$bridge" up || return
 		fi
 
-		# 4. Create a new interface to the bridge
+		# Create a new interface to the bridge
 		new=$( ifconfig epair create ) || return
 		ifconfig "$iface$bridge" addm $new || return
 
-		# 5. Rename the new interface
+		# Rename the new interface
 		ifconfig $new name "e${i}a_$name" || return
 		ifconfig ${new%a}b name "e${i}b_$name" || return
 		ifconfig "e${i}a_$name" up || return
 		ifconfig "e${i}b_$name" up || return
 
 		#
-		# 6. Set the MAC address of the new interface using a sensible
+		# Set the MAC address of the new interface using a sensible
 		# algorithm to prevent conflicts on the network.
 		#
 		eiface_devid_a= eiface_devid_b=
@@ -322,7 +325,7 @@ jib_addm()
 			ifconfig "e${i}b_$name" ether $eiface_devid_b
 		fi > /dev/null 2>&1
 
-		i=$(( $i + 1 )) # on to next e{i}b_name
+		i=$(( $i + 1 ))
 	done # for iface
 }
 
