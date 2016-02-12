@@ -584,7 +584,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 
   bad:
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
@@ -1078,7 +1077,6 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 
   bad:
 	m_freem(m);
-	return;
 }
 
 #ifndef BURN_BRIDGES
