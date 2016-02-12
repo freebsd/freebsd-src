@@ -3,7 +3,7 @@
 # This script generates a project-wide version identifier for use by
 # the `elftc_version()' API.
 #
-# $Id: make-toolchain-version 2583 2012-09-14 09:49:25Z jkoshy $
+# $Id: make-toolchain-version 3299 2016-01-09 19:58:46Z jkoshy $
 
 #
 # Defaults.
@@ -64,7 +64,7 @@ done
 curdir=`pwd`
 cd ${top} || usage "ERROR: Cannot change directory to \"${top}\"."
 
-if [ -d .svn ]; then		# FreeBSD and SF.Net sources.
+if [ -d .svn -o -d ../.svn ]; then	# FreeBSD and SF.Net sources.
     versionstring=" svn:"$(svnversion)
 elif [ -d CVS ]; then		# NetBSD.
     versionstring=" cvs:unknown"

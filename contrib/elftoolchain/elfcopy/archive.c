@@ -38,7 +38,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: archive.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: archive.c 3287 2015-12-31 16:58:48Z emaste $");
 
 #define _ARMAG_LEN 8		/* length of ar magic string */
 #define _ARHDR_LEN 60		/* length of ar header */
@@ -382,7 +382,7 @@ ac_read_objs(struct elfcopy *ecp, int ifd)
 	if (lseek(ifd, 0, SEEK_SET) == -1)
 		err(EXIT_FAILURE, "lseek failed");
 	if ((a = archive_read_new()) == NULL)
-		errx(EXIT_FAILURE, "%s", archive_error_string(a));
+		errx(EXIT_FAILURE, "archive_read_new failed");
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_fd(a, ifd, 10240));
 	for(;;) {
@@ -443,7 +443,7 @@ ac_write_objs(struct elfcopy *ecp, int ofd)
 	int			 nr;
 
 	if ((a = archive_write_new()) == NULL)
-		errx(EXIT_FAILURE, "%s", archive_error_string(a));
+		errx(EXIT_FAILURE, "archive_write_new failed");
 	archive_write_set_format_ar_svr4(a);
 	AC(archive_write_open_fd(a, ofd));
 

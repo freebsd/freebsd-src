@@ -44,7 +44,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: brandelf.c 3234 2015-07-31 12:35:09Z emaste $");
+ELFTC_VCSID("$Id: brandelf.c 3354 2016-01-18 21:50:15Z jkoshy $");
 
 static int elftype(const char *);
 static const char *iselftype(int);
@@ -212,7 +212,7 @@ main(int argc, char **argv)
 			/*
 			 * Update the ABI type.
 			 */
-			ehdr.e_ident[EI_OSABI] = type;
+			ehdr.e_ident[EI_OSABI] = (unsigned char) type;
 			if (gelf_update_ehdr(elf, &ehdr) == 0) {
 				warnx("gelf_update_ehdr error: %s",
 				    elf_errmsg(-1));

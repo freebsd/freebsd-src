@@ -21,7 +21,7 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_bfd_find_target.3 2251 2011-11-30 16:50:06Z jkoshy $
+.\" $Id: elftc_bfd_find_target.3 3348 2016-01-18 14:18:50Z emaste $
 .\"
 .Dd November 30, 2011
 .Os
@@ -58,9 +58,11 @@ Binary object descriptors encapsulate properties of an object format
 such as its file representation, ELF class, and byte endianness.
 .Pp
 Known descriptor names and their properties include:
-.Bl -column -offset "XXXX" ".Li elf32-x86-64-freebsd" "Object format" "Byte Order" "ELF Class"
-.It Em Name Ta Em "Object Format" Ta Em "Byte Order" Ta Em "ELF Class"
+.Bl -column -offset "XXXX" ".Li elf32-x86-64-freebsd" "Object format" "Byte Order" "Bit Width"
+.It Em Name Ta Em "Object Format" Ta Em "Byte Order" Ta Em "Bit Width"
 .It Li binary Ta Binary Ta - Ta -
+.It Li efi-app-ia32 Ta PE Ta LSB Ta 32
+.It Li efi-app-x86_64 Ta PE Ta LSB Ta 64
 .It Li elf32-avr Ta ELF Ta LSB Ta 32
 .It Li elf32-big Ta ELF Ta MSB Ta 32
 .It Li elf32-bigarm Ta ELF Ta MSB Ta 32
@@ -101,6 +103,8 @@ Known descriptor names and their properties include:
 .It Li elf64-x86-64 Ta ELF Ta LSB Ta 64
 .It Li elf64-x86-64-freebsd Ta ELF Ta LSB Ta 64
 .It Li ihex Ta IHEX Ta - Ta -
+.It Li pei-i386 Ta PE Ta LSB Ta 32
+.It Li pei-x86-64 Ta PE Ta LSB Ta 64
 .It Li srec Ta SREC Ta - Ta -
 .It Li symbolsrec Ta SREC Ta - Ta -
 .El
