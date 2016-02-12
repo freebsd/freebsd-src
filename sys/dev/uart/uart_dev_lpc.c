@@ -659,6 +659,7 @@ lpc_ns8250_bus_ipend(struct uart_softc *sc)
 		if (iir & IIR_TXRDY) {
 			ipend |= SER_INT_TXIDLE;
 			uart_setreg(bas, REG_IER, lpc_ns8250->ier);
+			uart_barrier(bas);
 		} else
 			ipend |= SER_INT_SIGCHG;
 	}
@@ -892,12 +893,12 @@ lpc_ns8250_bus_transmit(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0)
 		;
-	uart_setreg(bas, REG_IER, lpc_ns8250->ier | IER_ETXRDY);
-	uart_barrier(bas);
 	for (i = 0; i < sc->sc_txdatasz; i++) {
 		uart_setreg(bas, REG_DATA, sc->sc_txbuf[i]);
 		uart_barrier(bas);
 	}
+	uart_setreg(bas, REG_IER, lpc_ns8250->ier | IER_ETXRDY);
+	uart_barrier(bas);
 	sc->sc_txbusy = 1;
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
