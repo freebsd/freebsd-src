@@ -50,13 +50,13 @@ typedef struct	__mcontext {
 	 * struct sigcontext and ucontext_t at the same time.
 	 */
 	int		mc_onstack;	/* sigstack state to restore */
-	register_t	mc_pc;		/* pc at time of signal */
-	register_t	mc_regs[32];	/* processor regs 0 to 31 */
-	register_t	sr;		/* status register */
-	register_t	mullo, mulhi;	/* mullo and mulhi registers... */
+	__register_t	mc_pc;		/* pc at time of signal */
+	__register_t	mc_regs[32];	/* processor regs 0 to 31 */
+	__register_t	sr;		/* status register */
+	__register_t	mullo, mulhi;	/* mullo and mulhi registers... */
 	int		mc_fpused;	/* fp has been used */
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
-	register_t	mc_fpc_eir;	/* fp exception instruction reg */
+	__register_t	mc_fpc_eir;	/* fp exception instruction reg */
 	void		*mc_tls;	/* pointer to TLS area */
 	int		__spare__[8];	/* XXX reserved */ 
 } mcontext_t;
