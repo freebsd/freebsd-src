@@ -863,12 +863,6 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 
 			in6 = &ln->r_l3addr.addr6;
 
-			/*
-			 * Lock to protect the default router list.
-			 * XXX: this might be unnecessary, since this function
-			 * is only called under the network software interrupt
-			 * context.  However, we keep it just for safety.
-			 */
 			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
 			dr = defrouter_lookup(in6, nd6_ifp);
 			if (dr)
