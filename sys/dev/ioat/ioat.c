@@ -630,8 +630,14 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	CTR0(KTR_IOAT, __func__);
 
-	if (status == ioat->last_seen)
+	if (status == ioat->last_seen) {
+		/*
+		 * If we landed in process_events and nothing has been
+		 * completed, check for a timeout due to channel halt.
+		 */
+		comp_update = ioat_get_chansts(ioat);
 		goto out;
+	}
 
 	while (1) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
@@ -661,8 +667,10 @@ out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	mtx_unlock(&ioat->cleanup_lock);
 
-	ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
-	wakeup(&ioat->tail);
+	if (completed != 0) {
+		ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
+		wakeup(&ioat->tail);
+	}
 
 	if (!is_ioat_halted(comp_update))
 		return;
