@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 #ifndef __IOAT_INTERNAL_H__
 #define __IOAT_INTERNAL_H__
 
+#include <sys/_task.h>
+
 #define	DEVICE2SOFTC(dev)	((struct ioat_softc *) device_get_softc(dev))
 #define	KTR_IOAT		KTR_SPARE3
 
@@ -405,6 +407,7 @@ struct ioat_softc {
 	bus_addr_t		comp_update_bus_addr;
 
 	struct callout		timer;
+	struct task		reset_task;
 
 	boolean_t		quiescing;
 	boolean_t		is_resize_pending;
