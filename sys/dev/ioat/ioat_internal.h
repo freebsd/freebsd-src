@@ -346,6 +346,22 @@ struct ioat_descriptor {
 	bus_addr_t		hw_desc_bus_addr;
 };
 
+/* Unsupported by this driver at this time. */
+#define	IOAT_OP_MOVECRC		0x41
+#define	IOAT_OP_MOVECRC_TEST	0x42
+#define	IOAT_OP_MOVECRC_STORE	0x43
+#define	IOAT_OP_CRC		0x81
+#define	IOAT_OP_CRC_TEST	0x82
+#define	IOAT_OP_CRC_STORE	0x83
+#define	IOAT_OP_MARKER		0x84
+
+/*
+ * Deprecated OPs -- v3 DMA generates an abort if given these.  And this driver
+ * doesn't support anything older than v3.
+ */
+#define	IOAT_OP_OLD_XOR		0x85
+#define	IOAT_OP_OLD_XOR_VAL	0x86
+
 enum ioat_ref_kind {
 	IOAT_DMAENGINE_REF = 0,
 	IOAT_ACTIVE_DESCR_REF,
