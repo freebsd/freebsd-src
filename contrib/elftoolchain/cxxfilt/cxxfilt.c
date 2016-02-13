@@ -35,7 +35,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: cxxfilt.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: cxxfilt.c 3356 2016-01-22 22:31:38Z jkoshy $");
 
 #define	STRBUFSZ	8192
 
@@ -112,11 +112,11 @@ find_format(const char *fstr)
 }
 
 static char *
-demangle(char *name, int strict, int *pos)
+demangle(char *name, int strict, size_t *pos)
 {
 	static char dem[STRBUFSZ];
 	char nb[STRBUFSZ];
-	int p, t;
+	size_t p, t;
 
 	if (stripus && *name == '_') {
 		strncpy(nb, name + 1, sizeof(nb) - 1);
@@ -128,10 +128,10 @@ demangle(char *name, int strict, int *pos)
 	nb[sizeof(nb) - 1] = '\0';
 
 	p = strlen(nb);
-	if (p <= 0)
+	if (p == 0)
 		return NULL;
 
-	while (elftc_demangle(nb, dem, sizeof(dem), format) < 0) {
+	while (elftc_demangle(nb, dem, sizeof(dem), (unsigned) format) < 0) {
 		if (!strict && p > 1) {
 			nb[--p] = '\0';
 			continue;
@@ -149,7 +149,8 @@ int
 main(int argc, char **argv)
 {
 	char *dem, buf[STRBUFSZ];
-	int c, i, p, s, opt;
+	size_t i, p, s;
+	int c, n, opt;
 
 	while ((opt = getopt_long(argc, argv, "_nps:V", longopts, NULL)) !=
 	    -1) {
@@ -182,9 +183,9 @@ main(int argc, char **argv)
 	argc -= optind;
 
 	if (*argv != NULL) {
-		for (i = 0; i < argc; i++) {
-			if ((dem = demangle(argv[i], 1, NULL)) == NULL)
-				fprintf(stderr, "Failed: %s\n", argv[i]);
+		for (n = 0; n < argc; n++) {
+			if ((dem = demangle(argv[n], 1, NULL)) == NULL)
+				fprintf(stderr, "Failed: %s\n", argv[n]);
 			else
 				printf("%s\n", dem);
 		}
@@ -213,7 +214,7 @@ main(int argc, char **argv)
 				if ((size_t) p >= sizeof(buf) - 1)
 					warnx("buffer overflowed");
 				else
-					buf[p++] = c;
+					buf[p++] = (char) c;
 			}
 
 		}
