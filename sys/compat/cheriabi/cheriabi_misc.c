@@ -1317,7 +1317,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 
 	/* end of vector table is a null pointer */
 	/* XXX: suword clears the tag */
-	suword(vectp, 0);
+	suword(vectp++, 0);
 
 	cheri_capability_set(&ce.ce_auxargs, CHERI_CAP_USER_DATA_PERMS, NULL,
 	    vectp, imgp->auxarg_size * sizeof(struct chericap), 0);
