@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD: head/lib/csu/mips/crt1_c.c 245133 2013-01-07 17:58:27Z kib $
 #include <sys/types.h>
 #include <sys/cheriabi.h>
 
+#include <machine/elf.h>
+
 #include <stdlib.h>
 #include "libc_private.h"
 #include "crtbrand.c"
@@ -70,6 +72,7 @@ extern int etext;
 #endif
 
 struct ps_strings *__ps_strings;
+Elf64_Auxinfo *__auxargs;
 
 struct capreloc
 {
@@ -142,6 +145,7 @@ __start(struct cheriabi_execdata *ce,
 	argc = ce->ce_argc;
 	argv = ce->ce_argv;
 	env = ce->ce_envp;
+	__auxargs = (Elf64_Auxinfo *)ce->ce_auxargs;
 	__ps_strings = ce->ce_ps_strings;
 	handle_argv(argc, argv, env);
 
