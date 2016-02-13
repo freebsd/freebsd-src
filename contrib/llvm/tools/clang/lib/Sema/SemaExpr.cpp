@@ -3748,6 +3748,128 @@ bool Sema::CheckVecStepExpr(Expr *E) {
   return CheckUnaryExprOrTypeTraitOperand(E, UETT_VecStep);
 }
 
+static void captureVariablyModifiedType(ASTContext &Context, QualType T,
+                                        CapturingScopeInfo *CSI) {
+  assert(T->isVariablyModifiedType());
+  assert(CSI != nullptr);
+
+  // We're going to walk down into the type and look for VLA expressions.
+  do {
+    const Type *Ty = T.getTypePtr();
+    switch (Ty->getTypeClass()) {
+#define TYPE(Class, Base)
+#define ABSTRACT_TYPE(Class, Base)
+#define NON_CANONICAL_TYPE(Class, Base)
+#define DEPENDENT_TYPE(Class, Base) case Type::Class:
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base)
+#include "clang/AST/TypeNodes.def"
+      T = QualType();
+      break;
+    // These types are never variably-modified.
+    case Type::Builtin:
+    case Type::Complex:
+    case Type::Vector:
+    case Type::ExtVector:
+    case Type::Record:
+    case Type::Enum:
+    case Type::Elaborated:
+    case Type::TemplateSpecialization:
+    case Type::ObjCObject:
+    case Type::ObjCInterface:
+    case Type::ObjCObjectPointer:
+    case Type::Pipe:
+      llvm_unreachable("type class is never variably-modified!");
+    case Type::Adjusted:
+      T = cast<AdjustedType>(Ty)->getOriginalType();
+      break;
+    case Type::Decayed:
+      T = cast<DecayedType>(Ty)->getPointeeType();
+      break;
+    case Type::Pointer:
+      T = cast<PointerType>(Ty)->getPointeeType();
+      break;
+    case Type::BlockPointer:
+      T = cast<BlockPointerType>(Ty)->getPointeeType();
+      break;
+    case Type::LValueReference:
+    case Type::RValueReference:
+      T = cast<ReferenceType>(Ty)->getPointeeType();
+      break;
+    case Type::MemberPointer:
+      T = cast<MemberPointerType>(Ty)->getPointeeType();
+      break;
+    case Type::ConstantArray:
+    case Type::IncompleteArray:
+      // Losing element qualification here is fine.
+      T = cast<ArrayType>(Ty)->getElementType();
+      break;
+    case Type::VariableArray: {
+      // Losing element qualification here is fine.
+      const VariableArrayType *VAT = cast<VariableArrayType>(Ty);
+
+      // Unknown size indication requires no size computation.
+      // Otherwise, evaluate and record it.
+      if (auto Size = VAT->getSizeExpr()) {
+        if (!CSI->isVLATypeCaptured(VAT)) {
+          RecordDecl *CapRecord = nullptr;
+          if (auto LSI = dyn_cast<LambdaScopeInfo>(CSI)) {
+            CapRecord = LSI->Lambda;
+          } else if (auto CRSI = dyn_cast<CapturedRegionScopeInfo>(CSI)) {
+            CapRecord = CRSI->TheRecordDecl;
+          }
+          if (CapRecord) {
+            auto ExprLoc = Size->getExprLoc();
+            auto SizeType = Context.getSizeType();
+            // Build the non-static data member.
+            auto Field =
+                FieldDecl::Create(Context, CapRecord, ExprLoc, ExprLoc,
+                                  /*Id*/ nullptr, SizeType, /*TInfo*/ nullptr,
+                                  /*BW*/ nullptr, /*Mutable*/ false,
+                                  /*InitStyle*/ ICIS_NoInit);
+            Field->setImplicit(true);
+            Field->setAccess(AS_private);
+            Field->setCapturedVLAType(VAT);
+            CapRecord->addDecl(Field);
+
+            CSI->addVLATypeCapture(ExprLoc, SizeType);
+          }
+        }
+      }
+      T = VAT->getElementType();
+      break;
+    }
+    case Type::FunctionProto:
+    case Type::FunctionNoProto:
+      T = cast<FunctionType>(Ty)->getReturnType();
+      break;
+    case Type::Paren:
+    case Type::TypeOf:
+    case Type::UnaryTransform:
+    case Type::Attributed:
+    case Type::SubstTemplateTypeParm:
+    case Type::PackExpansion:
+      // Keep walking after single level desugaring.
+      T = T.getSingleStepDesugaredType(Context);
+      break;
+    case Type::Typedef:
+      T = cast<TypedefType>(Ty)->desugar();
+      break;
+    case Type::Decltype:
+      T = cast<DecltypeType>(Ty)->desugar();
+      break;
+    case Type::Auto:
+      T = cast<AutoType>(Ty)->getDeducedType();
+      break;
+    case Type::TypeOfExpr:
+      T = cast<TypeOfExprType>(Ty)->getUnderlyingExpr()->getType();
+      break;
+    case Type::Atomic:
+      T = cast<AtomicType>(Ty)->getValueType();
+      break;
+    }
+  } while (!T.isNull() && T->isVariablyModifiedType());
+}
+
 /// \brief Build a sizeof or alignof expression given a type operand.
 ExprResult
 Sema::CreateUnaryExprOrTypeTraitExpr(TypeSourceInfo *TInfo,
@@ -3762,6 +3884,20 @@ Sema::CreateUnaryExprOrTypeTraitExpr(TypeSourceInfo *TInfo,
   if (!T->isDependentType() &&
       CheckUnaryExprOrTypeTraitOperand(T, OpLoc, R, ExprKind))
     return ExprError();
+
+  if (T->isVariablyModifiedType() && FunctionScopes.size() > 1) {
+    if (auto *TT = T->getAs<TypedefType>()) {
+      if (auto *CSI = dyn_cast<CapturingScopeInfo>(FunctionScopes.back())) {
+        DeclContext *DC = nullptr;
+        if (auto LSI = dyn_cast<LambdaScopeInfo>(CSI))
+          DC = LSI->CallOperator;
+        else if (auto CRSI = dyn_cast<CapturedRegionScopeInfo>(CSI))
+          DC = CRSI->TheCapturedDecl;
+        if (DC && TT->getDecl()->getDeclContext() != DC)
+          captureVariablyModifiedType(Context, T, CSI);
+      }
+    }
+  }
 
   // C99 6.5.3.4p4: the type (an unsigned integer type) is size_t.
   return new (Context) UnaryExprOrTypeTraitExpr(
@@ -7354,11 +7490,14 @@ Sema::CheckSingleAssignmentConstraints(QualType LHSType, ExprResult &CallerRHS,
        LHSType->isBlockPointerType()) &&
       RHS.get()->isNullPointerConstant(Context,
                                        Expr::NPC_ValueDependentIsNull)) {
-    CastKind Kind;
-    CXXCastPath Path;
-    CheckPointerConversion(RHS.get(), LHSType, Kind, Path, false);
-    if (ConvertRHS)
-      RHS = ImpCastExprToType(RHS.get(), LHSType, Kind, VK_RValue, &Path);
+    if (Diagnose || ConvertRHS) {
+      CastKind Kind;
+      CXXCastPath Path;
+      CheckPointerConversion(RHS.get(), LHSType, Kind, Path,
+                             /*IgnoreBaseAccess=*/false, Diagnose);
+      if (ConvertRHS)
+        RHS = ImpCastExprToType(RHS.get(), LHSType, Kind, VK_RValue, &Path);
+    }
     return Compatible;
   }
 
@@ -7376,8 +7515,8 @@ Sema::CheckSingleAssignmentConstraints(QualType LHSType, ExprResult &CallerRHS,
   }
 
   Expr *PRE = RHS.get()->IgnoreParenCasts();
-  if (ObjCProtocolExpr *OPE = dyn_cast<ObjCProtocolExpr>(PRE)) {
-    ObjCProtocolDecl *PDecl = OPE->getProtocol();
+  if (Diagnose && isa<ObjCProtocolExpr>(PRE)) {
+    ObjCProtocolDecl *PDecl = cast<ObjCProtocolExpr>(PRE)->getProtocol();
     if (PDecl && !PDecl->hasDefinition()) {
       Diag(PRE->getExprLoc(), diag::warn_atprotocol_protocol) << PDecl->getName();
       Diag(PDecl->getLocation(), diag::note_entity_declared_at) << PDecl;
@@ -7399,11 +7538,11 @@ Sema::CheckSingleAssignmentConstraints(QualType LHSType, ExprResult &CallerRHS,
     Expr *E = RHS.get();
     if (getLangOpts().ObjCAutoRefCount)
       CheckObjCARCConversion(SourceRange(), Ty, E, CCK_ImplicitConversion,
-                             DiagnoseCFAudited);
+                             Diagnose, DiagnoseCFAudited);
     if (getLangOpts().ObjC1 &&
-        (CheckObjCBridgeRelatedConversions(E->getLocStart(),
-                                          LHSType, E->getType(), E) ||
-         ConversionToObjCStringLiteralCheck(LHSType, E))) {
+        (CheckObjCBridgeRelatedConversions(E->getLocStart(), LHSType,
+                                           E->getType(), E, Diagnose) ||
+         ConversionToObjCStringLiteralCheck(LHSType, E, Diagnose))) {
       RHS = E;
       return Compatible;
     }
@@ -8961,8 +9100,9 @@ QualType Sema::CheckCompareOperands(ExprResult &LHS, ExprResult &RHS,
       else {
         Expr *E = RHS.get();
         if (getLangOpts().ObjCAutoRefCount)
-          CheckObjCARCConversion(SourceRange(), LHSType, E, CCK_ImplicitConversion, false,
-                                 Opc);
+          CheckObjCARCConversion(SourceRange(), LHSType, E,
+                                 CCK_ImplicitConversion, /*Diagnose=*/true,
+                                 /*DiagnoseCFAudited=*/false, Opc);
         RHS = ImpCastExprToType(E, LHSType,
                                 LPT ? CK_BitCast :CK_CPointerToObjCPointerCast);
       }
@@ -11830,8 +11970,8 @@ ExprResult Sema::ActOnGNUNullExpr(SourceLocation TokenLoc) {
   return new (Context) GNUNullExpr(Ty, TokenLoc);
 }
 
-bool
-Sema::ConversionToObjCStringLiteralCheck(QualType DstType, Expr *&Exp) {
+bool Sema::ConversionToObjCStringLiteralCheck(QualType DstType, Expr *&Exp,
+                                              bool Diagnose) {
   if (!getLangOpts().ObjC1)
     return false;
 
@@ -11857,8 +11997,9 @@ Sema::ConversionToObjCStringLiteralCheck(QualType DstType, Expr *&Exp) {
   StringLiteral *SL = dyn_cast<StringLiteral>(SrcExpr);
   if (!SL || !SL->isAscii())
     return false;
-  Diag(SL->getLocStart(), diag::err_missing_atsign_prefix)
-    << FixItHint::CreateInsertion(SL->getLocStart(), "@");
+  if (Diagnose)
+    Diag(SL->getLocStart(), diag::err_missing_atsign_prefix)
+      << FixItHint::CreateInsertion(SL->getLocStart(), "@");
   Exp = BuildObjCStringLiteral(SL->getLocStart(), SL).get();
   return true;
 }
@@ -13139,120 +13280,7 @@ bool Sema::tryCaptureVariable(
       QualType QTy = Var->getType();
       if (ParmVarDecl *PVD = dyn_cast_or_null<ParmVarDecl>(Var))
         QTy = PVD->getOriginalType();
-      do {
-        const Type *Ty = QTy.getTypePtr();
-        switch (Ty->getTypeClass()) {
-#define TYPE(Class, Base)
-#define ABSTRACT_TYPE(Class, Base)
-#define NON_CANONICAL_TYPE(Class, Base)
-#define DEPENDENT_TYPE(Class, Base) case Type::Class:
-#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base)
-#include "clang/AST/TypeNodes.def"
-          QTy = QualType();
-          break;
-        // These types are never variably-modified.
-        case Type::Builtin:
-        case Type::Complex:
-        case Type::Vector:
-        case Type::ExtVector:
-        case Type::Record:
-        case Type::Enum:
-        case Type::Elaborated:
-        case Type::TemplateSpecialization:
-        case Type::ObjCObject:
-        case Type::ObjCInterface:
-        case Type::ObjCObjectPointer:
-        case Type::Pipe:
-          llvm_unreachable("type class is never variably-modified!");
-        case Type::Adjusted:
-          QTy = cast<AdjustedType>(Ty)->getOriginalType();
-          break;
-        case Type::Decayed:
-          QTy = cast<DecayedType>(Ty)->getPointeeType();
-          break;
-        case Type::Pointer:
-          QTy = cast<PointerType>(Ty)->getPointeeType();
-          break;
-        case Type::BlockPointer:
-          QTy = cast<BlockPointerType>(Ty)->getPointeeType();
-          break;
-        case Type::LValueReference:
-        case Type::RValueReference:
-          QTy = cast<ReferenceType>(Ty)->getPointeeType();
-          break;
-        case Type::MemberPointer:
-          QTy = cast<MemberPointerType>(Ty)->getPointeeType();
-          break;
-        case Type::ConstantArray:
-        case Type::IncompleteArray:
-          // Losing element qualification here is fine.
-          QTy = cast<ArrayType>(Ty)->getElementType();
-          break;
-        case Type::VariableArray: {
-          // Losing element qualification here is fine.
-          const VariableArrayType *VAT = cast<VariableArrayType>(Ty);
-
-          // Unknown size indication requires no size computation.
-          // Otherwise, evaluate and record it.
-          if (auto Size = VAT->getSizeExpr()) {
-            if (!CSI->isVLATypeCaptured(VAT)) {
-              RecordDecl *CapRecord = nullptr;
-              if (auto LSI = dyn_cast<LambdaScopeInfo>(CSI)) {
-                CapRecord = LSI->Lambda;
-              } else if (auto CRSI = dyn_cast<CapturedRegionScopeInfo>(CSI)) {
-                CapRecord = CRSI->TheRecordDecl;
-              }
-              if (CapRecord) {
-                auto ExprLoc = Size->getExprLoc();
-                auto SizeType = Context.getSizeType();
-                // Build the non-static data member.
-                auto Field = FieldDecl::Create(
-                    Context, CapRecord, ExprLoc, ExprLoc,
-                    /*Id*/ nullptr, SizeType, /*TInfo*/ nullptr,
-                    /*BW*/ nullptr, /*Mutable*/ false,
-                    /*InitStyle*/ ICIS_NoInit);
-                Field->setImplicit(true);
-                Field->setAccess(AS_private);
-                Field->setCapturedVLAType(VAT);
-                CapRecord->addDecl(Field);
-
-                CSI->addVLATypeCapture(ExprLoc, SizeType);
-              }
-            }
-          }
-          QTy = VAT->getElementType();
-          break;
-        }
-        case Type::FunctionProto:
-        case Type::FunctionNoProto:
-          QTy = cast<FunctionType>(Ty)->getReturnType();
-          break;
-        case Type::Paren:
-        case Type::TypeOf:
-        case Type::UnaryTransform:
-        case Type::Attributed:
-        case Type::SubstTemplateTypeParm:
-        case Type::PackExpansion:
-          // Keep walking after single level desugaring.
-          QTy = QTy.getSingleStepDesugaredType(getASTContext());
-          break;
-        case Type::Typedef:
-          QTy = cast<TypedefType>(Ty)->desugar();
-          break;
-        case Type::Decltype:
-          QTy = cast<DecltypeType>(Ty)->desugar();
-          break;
-        case Type::Auto:
-          QTy = cast<AutoType>(Ty)->getDeducedType();
-          break;
-        case Type::TypeOfExpr:
-          QTy = cast<TypeOfExprType>(Ty)->getUnderlyingExpr()->getType();
-          break;
-        case Type::Atomic:
-          QTy = cast<AtomicType>(Ty)->getValueType();
-          break;
-        }
-      } while (!QTy.isNull() && QTy->isVariablyModifiedType());
+      captureVariablyModifiedType(Context, QTy, CSI);
     }
 
     if (getLangOpts().OpenMP) {
