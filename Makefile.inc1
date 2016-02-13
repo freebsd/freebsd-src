@@ -1638,6 +1638,7 @@ _binutils=	gnu/usr.bin/binutils
 .endif
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 _elftctools=	lib/libelftc \
+		lib/libpe \
 		usr.bin/elfcopy \
 		usr.bin/nm \
 		usr.bin/size \
@@ -1650,6 +1651,7 @@ _elftctools+=	usr.bin/addr2line
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
 _elftctools=	lib/libelftc \
+		lib/libpe \
 		usr.bin/elfcopy
 .endif
 
