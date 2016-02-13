@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pipe.h>		/* Must come after sys/selinfo.h */
 #include <sys/signal.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
@@ -82,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/ucontext.h>
 #include <sys/vnode.h>
+#include <sys/vdso.h>
 #include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -1360,22 +1362,86 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 	return (0);
 }
 
+#define	AUXARGS_ENTRY_CAP(pos, id, base, len, perm)	\
+		{suword(pos++, id); sucap(pos++, (void *)(intptr_t)base, len, perm);}
+
+/*
+ * Write out ELF auxilery arguments.  In CheriABI, Elf64_Auxinfo pads out to:
+ * typedef struct {
+ *	uint64_t	a_type;
+ *	uint64_t	[(sizeof(struct chericap)/sizeof(uint64_t)) - 1];
+ *	union {
+ *		long		a_val;
+ *		struct chericap	a_ptr;
+ *		struct chericap	a_fcn;
+ *	};
+ * } Elf64_Auxinfo;
+ *
+ * As a result, the AUXARGS_ENTRY macro works so long as "pos" is
+ * a pointer to something capability sized.
+ */
+static void
+cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
+{
+	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
+
+printf("%s writing auxargs from %p\n", __func__, pos);
+	if (args->execfd != -1)
+		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY_CAP(pos, AT_PHDR, args->phdr, args->phent * args->phnum,
+	    CHERI_CAP_USER_DATA_PERMS);
+	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
+	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
+	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
+	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
+	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);	/* XXX: pcc relative? */
+	AUXARGS_ENTRY(pos, AT_BASE, args->base);	/* XXX: cap? */
+#ifdef AT_EHDRFLAGS
+	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
+#endif
+	if (imgp->execpathp != 0)
+		AUXARGS_ENTRY_CAP(pos, AT_EXECPATH, imgp->execpathp,
+		    strlen(imgp->execpath) + 1,
+		    CHERI_CAP_USER_DATA_PERMS);
+	AUXARGS_ENTRY(pos, AT_OSRELDATE,
+	    imgp->proc->p_ucred->cr_prison->pr_osreldate);
+	if (imgp->canary != 0) {
+		AUXARGS_ENTRY_CAP(pos, AT_CANARY, imgp->canary,
+		    imgp->canarylen, CHERI_CAP_USER_DATA_PERMS);
+		AUXARGS_ENTRY(pos, AT_CANARYLEN, imgp->canarylen);
+	}
+	AUXARGS_ENTRY(pos, AT_NCPUS, mp_ncpus);
+	if (imgp->pagesizes != 0) {
+		AUXARGS_ENTRY_CAP(pos, AT_PAGESIZES, imgp->pagesizes,
+		   imgp->pagesizeslen, CHERI_CAP_USER_DATA_PERMS);
+		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
+	}
+	if (imgp->sysent->sv_timekeep_base != 0) {
+		AUXARGS_ENTRY_CAP(pos, AT_TIMEKEEP,
+		    imgp->sysent->sv_timekeep_base,
+		    sizeof(struct vdso_timekeep) +
+		    sizeof(struct vdso_timehands) * VDSO_TH_NUM,
+		    CHERI_CAP_USER_DATA_PERMS); /* XXX: readonly? */
+	}
+	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
+	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
+	    imgp->sysent->sv_stackprot);
+	AUXARGS_ENTRY(pos, AT_NULL, 0);
+
+	free(imgp->auxargs, M_TEMP);
+	imgp->auxargs = NULL;
+}
+
 int
 cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 {
-#if 0
-	Elf_Addr *pos;
+	struct chericap *base;
 
-	base = (struct cheriabi_execdata *)*stack_base;
-	/*
-	 * XXXBD: correct computation of the location and writing out
-	 * the right data required.  The standard set_auxargs won't work
-	 * as Elf_Auxargs contain pointers.
-	 */
-	pos = (Elf_Addr *)(base + (imgp->args->argc + imgp->args->envc + 2));
+	base = (struct chericap *)*stack_base;
+	base += sizeof(struct cheriabi_execdata) / sizeof(*base);
+	base += imgp->args->argc + imgp->args->envc + 2;
 
-	__elfN(set_auxargs)(pos, imgp);
-#endif
+	cheriabi_set_auxargs(base, imgp);
 
 	return (0);
 }
