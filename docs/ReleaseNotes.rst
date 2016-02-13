@@ -1,18 +1,12 @@
-=====================================
-Clang 3.8 (In-Progress) Release Notes
-=====================================
+=======================
+Clang 3.8 Release Notes
+=======================
 
 .. contents::
    :local:
    :depth: 2
 
 Written by the `LLVM Team <http://llvm.org/>`_
-
-.. warning::
-
-   These are in-progress notes for the upcoming Clang 3.8 release. You may
-   prefer the `Clang 3.7 Release Notes
-   <http://llvm.org/releases/3.7.0/tools/clang/docs/ReleaseNotes.html>`_.
 
 Introduction
 ============
@@ -30,11 +24,6 @@ For more information about Clang or LLVM, including information about
 the latest release, please check out the main please see the `Clang Web
 Site <http://clang.llvm.org>`_ or the `LLVM Web
 Site <http://llvm.org>`_.
-
-Note that if you are reading this file from a Subversion checkout or the
-main Clang web page, this document applies to the *next* release, not
-the current one. To see the release notes for a specific release, please
-see the `releases page <http://llvm.org/releases/>`_.
 
 What's New in Clang 3.8?
 ========================
@@ -93,7 +82,40 @@ Clang's support for building native Windows programs ...
 C Language Changes in Clang
 ---------------------------
 
+Better support for ``__builtin_object_size``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Clang 3.8 has expanded support for the ``__builtin_object_size`` intrinsic.
+Specifically, ``__builtin_object_size`` will now fail less often when you're
+trying to get the size of a subobject. Additionally, the ``pass_object_size``
+attribute was added, which allows ``__builtin_object_size`` to successfully
+report the size of function parameters, without requiring that the function be
+inlined.
+
+
+``overloadable`` attribute relaxations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Previously, functions marked ``overloadable`` in C would strictly use C++'s
+type conversion rules, so the following code would not compile:
+
+.. code-block:: c
+
+  void foo(char *bar, char *baz) __attribute__((overloadable));
+  void foo(char *bar) __attribute__((overloadable));
+
+  void callFoo() {
+    int a;
+    foo(&a);
+  }
+
+Now, Clang is able to selectively use C's type conversion rules during overload
+resolution in C, which allows the above example to compile (albeit potentially
+with a warning about an implicit conversion from ``int*`` to ``char*``).
+
+
 ...
+
 
 C11 Feature Support
 ^^^^^^^^^^^^^^^^^^^
@@ -127,7 +149,9 @@ These are major API changes that have happened since the 3.7 release of
 Clang. If upgrading an external codebase that uses Clang as a library,
 this section should help get you past the largest hurdles of upgrading.
 
--  ...
+* With this release, the autoconf build system is deprecated. It will be removed
+  in the 3.9 release. Please migrate to using CMake. For more information see:
+  `Building LLVM with CMake <http://llvm.org/docs/CMake.html>`_
 
 AST Matchers
 ------------
@@ -182,7 +206,26 @@ libclang
 Static Analyzer
 ---------------
 
-...
+The scan-build and scan-view tools will now be installed with clang. Use these
+tools to run the static analyzer on projects and view the produced results.
+
+Static analysis of C++ lambdas has been greatly improved, including
+interprocedural analysis of lambda applications.
+
+Several new checks were added:
+
+- The analyzer now checks for misuse of ``vfork()``.
+- The analyzer can now detect excessively-padded structs. This check can be
+  enabled by passing the following command to scan-build:
+  ``-enable-checker optin.performance.Padding``.
+- The checks to detect misuse of ``_Nonnull`` type qualifiers as well as checks
+  to detect misuse of Objective-C generics were added.
+- The analyzer now has opt in checks to detect localization errors in Coca
+  applications. The checks warn about uses of non-localized ``NSStrings``
+  passed to UI methods expecting localized strings and on ``NSLocalizedString``
+  macros that are missing the comment argument. These can be enabled by passing
+  the following command to scan-build:
+  ``-enable-checker optin.osx.cocoa.localizability``.
 
 Core Analysis Improvements
 ==========================
