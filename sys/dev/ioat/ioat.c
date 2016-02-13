@@ -672,7 +672,7 @@ out:
 		wakeup(&ioat->tail);
 	}
 
-	if (!is_ioat_halted(comp_update))
+	if (!is_ioat_halted(comp_update) && !is_ioat_suspended(comp_update))
 		return;
 
 	ioat->stats.channel_halts++;
