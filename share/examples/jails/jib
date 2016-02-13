@@ -164,9 +164,11 @@ usage()
 
 action_usage()
 {
-	local usage action="$1"
+	local usage descr action="$1"
 	eval usage=\"\$jib_${action}_usage\"
 	echo "Usage: $pgm $usage" >&2
+	eval descr=\"\$jib_${action}_descr\"
+	printf "\t%s\n" "$descr"
 	exit $FAILURE
 }
 
