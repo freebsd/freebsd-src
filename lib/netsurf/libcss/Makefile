@@ -293,6 +293,3 @@ CFLAGS+=	${OFLAG.${.IMPSRC:T}}
 
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>
-
-CFLAGS:=	${CFLAGS:S/-O/-O2/}
-OFLAG.detect.c=	-O0
