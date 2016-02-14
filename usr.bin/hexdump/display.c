@@ -374,7 +374,7 @@ doskip(const char *fname, int statok)
 	if (statok) {
 		if (fstat(fileno(stdin), &sb))
 			err(1, "%s", fname);
-		if (S_ISREG(sb.st_mode) && skip >= sb.st_size) {
+		if (S_ISREG(sb.st_mode) && skip > sb.st_size) {
 			address += sb.st_size;
 			skip -= sb.st_size;
 			return;
