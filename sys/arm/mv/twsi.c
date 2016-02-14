@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
 #include "iicbus_if.h"
