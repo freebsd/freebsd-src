@@ -1362,7 +1362,7 @@ smsc_chip_init(struct smsc_softc *sc)
 	/* Reset the PHY */
 	smsc_write_reg(sc, SMSC_PM_CTRL, SMSC_PM_CTRL_PHY_RST);
 
-	if ((err = smsc_wait_for_bits(sc, SMSC_PM_CTRL, SMSC_PM_CTRL_PHY_RST) != 0)) {
+	if ((err = smsc_wait_for_bits(sc, SMSC_PM_CTRL, SMSC_PM_CTRL_PHY_RST)) != 0) {
 		smsc_warn_printf(sc, "timed-out waiting for phy reset to complete\n");
 		goto init_failed;
 	}
