@@ -2732,7 +2732,7 @@ rum_pair_key_del_cb(struct rum_softc *sc, union sec_param *data,
 	DPRINTF("%s: removing key %d\n", __func__, k->wk_keyix);
 	rum_clrbits(sc, (k->wk_keyix < 32) ? RT2573_SEC_CSR2 : RT2573_SEC_CSR3,
 	    1 << (k->wk_keyix % 32));
-	sc->keys_bmap &= ~(1 << k->wk_keyix);
+	sc->keys_bmap &= ~(1ULL << k->wk_keyix);
 	if (--sc->vap_key_count[rvp_id] == 0)
 		rum_clrbits(sc, RT2573_SEC_CSR4, 1 << rvp_id);
 }
@@ -2749,8 +2749,8 @@ rum_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 		if (!(k->wk_flags & IEEE80211_KEY_SWCRYPT)) {
 			RUM_LOCK(sc);
 			for (i = 0; i < RT2573_ADDR_MAX; i++) {
-				if ((sc->keys_bmap & (1 << i)) == 0) {
-					sc->keys_bmap |= 1 << i;
+				if ((sc->keys_bmap & (1ULL << i)) == 0) {
+					sc->keys_bmap |= (1ULL << i);
 					*keyix = i;
 					break;
 				}
