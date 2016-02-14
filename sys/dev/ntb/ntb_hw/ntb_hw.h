@@ -86,6 +86,7 @@ int ntb_mw_get_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t *mode);
 int ntb_mw_set_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t mode);
 
 uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
+void ntb_spad_clear(struct ntb_softc *ntb);
 int ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
 int ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
 int ntb_peer_spad_write(struct ntb_softc *ntb, unsigned int idx,
