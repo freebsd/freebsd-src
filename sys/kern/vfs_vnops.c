@@ -733,12 +733,13 @@ get_advice(struct file *fp, struct uio *uio)
 	int ret;
 
 	ret = POSIX_FADV_NORMAL;
-	if (fp->f_advice == NULL)
+	if (fp->f_advice == NULL || fp->f_vnode->v_type != VREG)
 		return (ret);
 
 	mtxp = mtx_pool_find(mtxpool_sleep, fp);
 	mtx_lock(mtxp);
-	if (uio->uio_offset >= fp->f_advice->fa_start &&
+	if (fp->f_advice != NULL &&
+	    uio->uio_offset >= fp->f_advice->fa_start &&
 	    uio->uio_offset + uio->uio_resid <= fp->f_advice->fa_end)
 		ret = fp->f_advice->fa_advice;
 	mtx_unlock(mtxp);
