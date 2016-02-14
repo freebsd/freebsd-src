@@ -985,10 +985,10 @@ abortit:
 		dp = VTOI(fdvp);
 	} else {
 		/*
-		 * From name has disappeared.
+		 * From name has disappeared.  IN_RENAME is not sufficient
+		 * to protect against directory races due to timing windows,
+		 * so we can't panic here.
 		 */
-		if (doingdirectory)
-			panic("ext2_rename: lost dir entry");
 		vrele(ap->a_fvp);
 		return (0);
 	}
@@ -1003,8 +1003,11 @@ abortit:
 	 * rename.
 	 */
 	if (xp != ip) {
-		if (doingdirectory)
-			panic("ext2_rename: lost dir entry");
+		/*
+		 * From name resolves to a different inode.  IN_RENAME is
+		 * not sufficient protection against timing window races
+		 * so we can't panic here.
+		 */
 	} else {
 		/*
 		 * If the source is a directory with a
