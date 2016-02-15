@@ -12,4 +12,5 @@ arm/allwinner/a10_wdog.c		standard
 arm/allwinner/a20/a20_cpu_cfg.c 	standard
 arm/allwinner/allwinner_machdep.c	standard
 arm/allwinner/if_emac.c			optional	emac
+dev/iicbus/twsi/a10_twsi.c		optional	twsi
 #arm/allwinner/console.c		standard
