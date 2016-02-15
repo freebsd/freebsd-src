@@ -31,7 +31,7 @@
 
 /*
  * Driver for the TWSI (aka I2C, aka IIC) bus controller found on Marvell
- * SoCs. Supports master operation only, and works in polling mode.
+ * and Allwinner SoCs. Supports master operation only, and works in polling mode.
  *
  * Calls to DELAY() are needed per Application Note AN-179 "TWSI Software
  * Guidelines for Discovery(TM), Horizon (TM) and Feroceon(TM) Devices".
@@ -62,156 +62,75 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/mv/mvvar.h>
+#include <dev/iicbus/twsi/twsi.h>
 
 #include "iicbus_if.h"
 
-#define MV_TWSI_NAME		"twsi"
-#define	IICBUS_DEVNAME		"iicbus"
+#define	TWSI_CONTROL_ACK	(1 << 2)
+#define	TWSI_CONTROL_IFLG	(1 << 3)
+#define	TWSI_CONTROL_STOP	(1 << 4)
+#define	TWSI_CONTROL_START	(1 << 5)
+#define	TWSI_CONTROL_TWSIEN	(1 << 6)
+#define	TWSI_CONTROL_INTEN	(1 << 7)
 
-#define TWSI_SLAVE_ADDR		0x00
-#define TWSI_EXT_SLAVE_ADDR	0x10
-#define TWSI_DATA		0x04
+#define	TWSI_STATUS_START		0x08
+#define	TWSI_STATUS_RPTD_START		0x10
+#define	TWSI_STATUS_ADDR_W_ACK		0x18
+#define	TWSI_STATUS_DATA_WR_ACK		0x28
+#define	TWSI_STATUS_ADDR_R_ACK		0x40
+#define	TWSI_STATUS_DATA_RD_ACK		0x50
+#define	TWSI_STATUS_DATA_RD_NOACK	0x58
 
-#define TWSI_CONTROL		0x08
-#define TWSI_CONTROL_ACK	(1 << 2)
-#define TWSI_CONTROL_IFLG	(1 << 3)
-#define TWSI_CONTROL_STOP	(1 << 4)
-#define TWSI_CONTROL_START	(1 << 5)
-#define TWSI_CONTROL_TWSIEN	(1 << 6)
-#define TWSI_CONTROL_INTEN	(1 << 7)
-
-#define TWSI_STATUS			0x0c
-#define TWSI_STATUS_START		0x08
-#define TWSI_STATUS_RPTD_START		0x10
-#define TWSI_STATUS_ADDR_W_ACK		0x18
-#define TWSI_STATUS_DATA_WR_ACK		0x28
-#define TWSI_STATUS_ADDR_R_ACK		0x40
-#define TWSI_STATUS_DATA_RD_ACK		0x50
-#define TWSI_STATUS_DATA_RD_NOACK	0x58
-
-#define TWSI_BAUD_RATE		0x0c
-#define	TWSI_BAUD_RATE_PARAM(M,N)	((((M) << 3) | ((N) & 0x7)) & 0x7f)
-#define	TWSI_BAUD_RATE_RAW(C,M,N)	((C)/((10*(M+1))<<(N+1)))
-#define	TWSI_BAUD_RATE_SLOW		50000	/* 50kHz */
-#define	TWSI_BAUD_RATE_FAST		100000	/* 100kHz */
-
-#define TWSI_SOFT_RESET		0x1c
-
-#define TWSI_DEBUG
+#define	TWSI_DEBUG
 #undef TWSI_DEBUG
 
-#ifdef  TWSI_DEBUG
-#define debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
+#ifdef TWSI_DEBUG
+#define	debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
 #else
-#define debugf(fmt, args...)
+#define	debugf(fmt, args...)
 #endif
-
-struct mv_twsi_softc {
-	device_t	dev;
-	struct resource	*res[1];	/* SYS_RES_MEMORY */
-	struct mtx	mutex;
-	device_t	iicbus;
-};
-
-static struct mv_twsi_baud_rate {
-	uint32_t	raw;
-	int		param;
-	int		m;
-	int		n;
-} baud_rate[IIC_FASTEST + 1];
-
-static int mv_twsi_probe(device_t);
-static int mv_twsi_attach(device_t);
-static int mv_twsi_detach(device_t);
-
-static int mv_twsi_reset(device_t dev, u_char speed, u_char addr,
-    u_char *oldaddr);
-static int mv_twsi_repeated_start(device_t dev, u_char slave, int timeout);
-static int mv_twsi_start(device_t dev, u_char slave, int timeout);
-static int mv_twsi_stop(device_t dev);
-static int mv_twsi_read(device_t dev, char *buf, int len, int *read, int last,
-    int delay);
-static int mv_twsi_write(device_t dev, const char *buf, int len, int *sent,
-    int timeout);
 
 static struct resource_spec res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
 	{ -1, 0 }
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "mrvl,twsi",			true },
-	{ "marvell,mv64xxx-i2c",	true },
-	{ NULL,				false }
-};
-
-static device_method_t mv_twsi_methods[] = {
-	/* device interface */
-	DEVMETHOD(device_probe,		mv_twsi_probe),
-	DEVMETHOD(device_attach,	mv_twsi_attach),
-	DEVMETHOD(device_detach,	mv_twsi_detach),
-
-	/* iicbus interface */
-	DEVMETHOD(iicbus_callback, iicbus_null_callback),
-	DEVMETHOD(iicbus_repeated_start, mv_twsi_repeated_start),
-	DEVMETHOD(iicbus_start,		mv_twsi_start),
-	DEVMETHOD(iicbus_stop,		mv_twsi_stop),
-	DEVMETHOD(iicbus_write,		mv_twsi_write),
-	DEVMETHOD(iicbus_read,		mv_twsi_read),
-	DEVMETHOD(iicbus_reset,		mv_twsi_reset),
-	DEVMETHOD(iicbus_transfer,	iicbus_transfer_gen),
-	{ 0, 0 }
-};
-
-static devclass_t mv_twsi_devclass;
-
-static driver_t mv_twsi_driver = {
-	MV_TWSI_NAME,
-	mv_twsi_methods,
-	sizeof(struct mv_twsi_softc),
-};
-
-DRIVER_MODULE(twsi, simplebus, mv_twsi_driver, mv_twsi_devclass, 0, 0);
-DRIVER_MODULE(iicbus, twsi, iicbus_driver, iicbus_devclass, 0, 0);
-MODULE_DEPEND(twsi, iicbus, 1, 1, 1);
-
 static __inline uint32_t
-TWSI_READ(struct mv_twsi_softc *sc, bus_size_t off)
+TWSI_READ(struct twsi_softc *sc, bus_size_t off)
 {
 
 	return (bus_read_4(sc->res[0], off));
 }
 
 static __inline void
-TWSI_WRITE(struct mv_twsi_softc *sc, bus_size_t off, uint32_t val)
+TWSI_WRITE(struct twsi_softc *sc, bus_size_t off, uint32_t val)
 {
 
 	bus_write_4(sc->res[0], off, val);
 }
 
 static __inline void
-twsi_control_clear(struct mv_twsi_softc *sc, uint32_t mask)
+twsi_control_clear(struct twsi_softc *sc, uint32_t mask)
 {
 	uint32_t val;
 
-	val = TWSI_READ(sc, TWSI_CONTROL);
+	val = TWSI_READ(sc, sc->reg_control);
 	val &= ~mask;
-	TWSI_WRITE(sc, TWSI_CONTROL, val);
+	TWSI_WRITE(sc, sc->reg_control, val);
 }
 
 static __inline void
-twsi_control_set(struct mv_twsi_softc *sc, uint32_t mask)
+twsi_control_set(struct twsi_softc *sc, uint32_t mask)
 {
 	uint32_t val;
 
-	val = TWSI_READ(sc, TWSI_CONTROL);
+	val = TWSI_READ(sc, sc->reg_control);
 	val |= mask;
-	TWSI_WRITE(sc, TWSI_CONTROL, val);
+	TWSI_WRITE(sc, sc->reg_control, val);
 }
 
 static __inline void
-twsi_clear_iflg(struct mv_twsi_softc *sc)
+twsi_clear_iflg(struct twsi_softc *sc)
 {
 
 	DELAY(1000);
@@ -227,11 +146,11 @@ twsi_clear_iflg(struct mv_twsi_softc *sc)
  *   non-zero on timeout
  */
 static int
-twsi_poll_ctrl(struct mv_twsi_softc *sc, int timeout, uint32_t mask)
+twsi_poll_ctrl(struct twsi_softc *sc, int timeout, uint32_t mask)
 {
 
 	timeout /= 10;
-	while (!(TWSI_READ(sc, TWSI_CONTROL) & mask)) {
+	while (!(TWSI_READ(sc, sc->reg_control) & mask)) {
 		DELAY(10);
 		if (--timeout < 0)
 			return (timeout);
@@ -247,7 +166,7 @@ twsi_poll_ctrl(struct mv_twsi_softc *sc, int timeout, uint32_t mask)
  * or TWSI_STATUS_RPTD_START
  */
 static int
-twsi_locked_start(device_t dev, struct mv_twsi_softc *sc, int32_t mask,
+twsi_locked_start(device_t dev, struct twsi_softc *sc, int32_t mask,
     u_char slave, int timeout)
 {
 	int read_access, iflg_set = 0;
@@ -257,7 +176,7 @@ twsi_locked_start(device_t dev, struct mv_twsi_softc *sc, int32_t mask,
 
 	if (mask == TWSI_STATUS_RPTD_START)
 		/* read IFLG to know if it should be cleared later; from NBSD */
-		iflg_set = TWSI_READ(sc, TWSI_CONTROL) & TWSI_CONTROL_IFLG;
+		iflg_set = TWSI_READ(sc, sc->reg_control) & TWSI_CONTROL_IFLG;
 
 	twsi_control_set(sc, TWSI_CONTROL_START);
 
@@ -278,14 +197,14 @@ twsi_locked_start(device_t dev, struct mv_twsi_softc *sc, int32_t mask,
 		return (IIC_ETIMEOUT);
 	}
 
-	status = TWSI_READ(sc, TWSI_STATUS);
+	status = TWSI_READ(sc, sc->reg_status);
 	if (status != mask) {
 		debugf("wrong status (%02x) after sending %sSTART condition\n",
 		    status, mask == TWSI_STATUS_START ? "" : "repeated ");
 		return (IIC_ESTATUS);
 	}
 
-	TWSI_WRITE(sc, TWSI_DATA, slave);
+	TWSI_WRITE(sc, sc->reg_data, slave);
 	DELAY(1000);
 	twsi_clear_iflg(sc);
 
@@ -295,7 +214,7 @@ twsi_locked_start(device_t dev, struct mv_twsi_softc *sc, int32_t mask,
 	}
 	
 	read_access = (slave & 0x1) ? 1 : 0;
-	status = TWSI_READ(sc, TWSI_STATUS);
+	status = TWSI_READ(sc, sc->reg_status);
 	if (status != (read_access ?
 	    TWSI_STATUS_ADDR_R_ACK : TWSI_STATUS_ADDR_W_ACK)) {
 		debugf("no ACK (status: %02x) after sending slave address\n",
@@ -306,172 +225,13 @@ twsi_locked_start(device_t dev, struct mv_twsi_softc *sc, int32_t mask,
 	return (IIC_NOERR);
 }
 
-static int
-mv_twsi_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
-		return (ENXIO);
-
-	device_set_desc(dev, "Marvell Integrated I2C Bus Controller");
-	return (BUS_PROBE_DEFAULT);
-}
-
-#define	ABSSUB(a,b)	(((a) > (b)) ? (a) - (b) : (b) - (a))
-static void
-mv_twsi_cal_baud_rate(const uint32_t target, struct mv_twsi_baud_rate *rate)
-{
-	uint32_t clk, cur, diff, diff0;
-	int m, n, m0, n0;
-
-	/* Calculate baud rate. */
-	m0 = n0 = 4;	/* Default values on reset */
-	diff0 = 0xffffffff;
-	clk = get_tclk();
-
-	for (n = 0; n < 8; n++) {
-		for (m = 0; m < 16; m++) {
-			cur = TWSI_BAUD_RATE_RAW(clk,m,n);
-			diff = ABSSUB(target, cur);
-			if (diff < diff0) {
-				m0 = m;
-				n0 = n;
-				diff0 = diff;
-			}
-		}
-	}
-	rate->raw = TWSI_BAUD_RATE_RAW(clk, m0, n0);
-	rate->param = TWSI_BAUD_RATE_PARAM(m0, n0);
-	rate->m = m0;
-	rate->n = n0;
-}
-
-static int
-mv_twsi_attach(device_t dev)
-{
-	struct mv_twsi_softc *sc;
-	phandle_t child, iicbusnode;
-	device_t childdev;
-	struct iicbus_ivar *devi;
-	char dname[32];	/* 32 is taken from struct u_device */
-	uint32_t paddr;
-	int len, error;
-
-	sc = device_get_softc(dev);
-	sc->dev = dev;
-	bzero(baud_rate, sizeof(baud_rate));
-
-	mtx_init(&sc->mutex, device_get_nameunit(dev), MV_TWSI_NAME, MTX_DEF);
-
-	/* Allocate IO resources */
-	if (bus_alloc_resources(dev, res_spec, sc->res)) {
-		device_printf(dev, "could not allocate resources\n");
-		mv_twsi_detach(dev);
-		return (ENXIO);
-	}
-
-	mv_twsi_cal_baud_rate(TWSI_BAUD_RATE_SLOW, &baud_rate[IIC_SLOW]);
-	mv_twsi_cal_baud_rate(TWSI_BAUD_RATE_FAST, &baud_rate[IIC_FAST]);
-	if (bootverbose)
-		device_printf(dev, "calculated baud rates are:\n"
-		    " %" PRIu32 " kHz (M=%d, N=%d) for slow,\n"
-		    " %" PRIu32 " kHz (M=%d, N=%d) for fast.\n",
-		    baud_rate[IIC_SLOW].raw / 1000,
-		    baud_rate[IIC_SLOW].m,
-		    baud_rate[IIC_SLOW].n,
-		    baud_rate[IIC_FAST].raw / 1000,
-		    baud_rate[IIC_FAST].m,
-		    baud_rate[IIC_FAST].n);
-
-	sc->iicbus = device_add_child(dev, IICBUS_DEVNAME, -1);
-	if (sc->iicbus == NULL) {
-		device_printf(dev, "could not add iicbus child\n");
-		mv_twsi_detach(dev);
-		return (ENXIO);
-	}
-	/* Attach iicbus. */
-	bus_generic_attach(dev);
-
-	iicbusnode = 0;
-	/* Find iicbus as the child devices in the device tree. */
-	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
-		len = OF_getproplen(child, "model");
-		if (len <= 0 || len > sizeof(dname))
-			continue;
-		error = OF_getprop(child, "model", &dname, len);
-		if (error == -1)
-			continue;
-		len = strlen(dname);
-		if (len == strlen(IICBUS_DEVNAME) &&
-		    strncasecmp(dname, IICBUS_DEVNAME, len) == 0) {
-			iicbusnode = child;
-			break; 
-		}
-	}
-	if (iicbusnode == 0)
-		goto attach_end;
-
-	/* Attach child devices onto iicbus. */
-	for (child = OF_child(iicbusnode); child != 0; child = OF_peer(child)) {
-		/* Get slave address. */
-		error = OF_getprop(child, "i2c-address", &paddr, sizeof(paddr));
-		if (error == -1)
-			error = OF_getprop(child, "reg", &paddr, sizeof(paddr));
-		if (error == -1)
-			continue;
-
-		/* Get device driver name. */
-		len = OF_getproplen(child, "model");
-		if (len <= 0 || len > sizeof(dname))
-			continue;
-		OF_getprop(child, "model", &dname, len);
-
-		if (bootverbose)
-			device_printf(dev, "adding a device %s at %d.\n",
-			    dname, fdt32_to_cpu(paddr));
-		childdev = BUS_ADD_CHILD(sc->iicbus, 0, dname, -1);
-		devi = IICBUS_IVAR(childdev);
-		devi->addr = fdt32_to_cpu(paddr);
-	}
-
-attach_end:
-	bus_generic_attach(sc->iicbus);
-
-	return (0);
-}
-
-static int
-mv_twsi_detach(device_t dev)
-{
-	struct mv_twsi_softc *sc;
-	int rv;
-
-	sc = device_get_softc(dev);
-
-	if ((rv = bus_generic_detach(dev)) != 0)
-		return (rv);
-
-	if (sc->iicbus != NULL)
-		if ((rv = device_delete_child(dev, sc->iicbus)) != 0)
-			return (rv);
-
-	bus_release_resources(dev, res_spec, sc->res);
-
-	mtx_destroy(&sc->mutex);
-	return (0);
-}
-
 /*
  * Only slave mode supported, disregard [old]addr
  */
 static int
-mv_twsi_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
+twsi_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
-	struct mv_twsi_softc *sc;
+	struct twsi_softc *sc;
 	uint32_t param;
 
 	sc = device_get_softc(dev);
@@ -479,75 +239,30 @@ mv_twsi_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	switch (speed) {
 	case IIC_SLOW:
 	case IIC_FAST:
-		param = baud_rate[speed].param;
+		param = sc->baud_rate[speed].param;
 		break;
 	case IIC_FASTEST:
 	case IIC_UNKNOWN:
 	default:
-		param = baud_rate[IIC_FAST].param;
+		param = sc->baud_rate[IIC_FAST].param;
 		break;
 	}
 
 	mtx_lock(&sc->mutex);
-	TWSI_WRITE(sc, TWSI_SOFT_RESET, 0x0);
+	TWSI_WRITE(sc, sc->reg_soft_reset, 0x0);
 	DELAY(2000);
-	TWSI_WRITE(sc, TWSI_BAUD_RATE, param);
-	TWSI_WRITE(sc, TWSI_CONTROL, TWSI_CONTROL_TWSIEN | TWSI_CONTROL_ACK);
+	TWSI_WRITE(sc, sc->reg_baud_rate, param);
+	TWSI_WRITE(sc, sc->reg_control, TWSI_CONTROL_TWSIEN | TWSI_CONTROL_ACK);
 	DELAY(1000);
 	mtx_unlock(&sc->mutex);
 
 	return (0);
 }
 
-/*
- * timeout is given in us
- */
 static int
-mv_twsi_repeated_start(device_t dev, u_char slave, int timeout)
+twsi_stop(device_t dev)
 {
-	struct mv_twsi_softc *sc;
-	int rv;
-
-	sc = device_get_softc(dev);
-
-	mtx_lock(&sc->mutex);
-	rv = twsi_locked_start(dev, sc, TWSI_STATUS_RPTD_START, slave,
-	    timeout);
-	mtx_unlock(&sc->mutex);
-
-	if (rv) {
-		mv_twsi_stop(dev);
-		return (rv);
-	} else
-		return (IIC_NOERR);
-}
-
-/*
- * timeout is given in us
- */
-static int
-mv_twsi_start(device_t dev, u_char slave, int timeout)
-{
-	struct mv_twsi_softc *sc;
-	int rv;
-
-	sc = device_get_softc(dev);
-
-	mtx_lock(&sc->mutex);
-	rv = twsi_locked_start(dev, sc, TWSI_STATUS_START, slave, timeout);
-	mtx_unlock(&sc->mutex);
-
-	if (rv) {
-		mv_twsi_stop(dev);
-		return (rv);
-	} else
-		return (IIC_NOERR);
-}
-
-static int
-mv_twsi_stop(device_t dev)
-{
-	struct mv_twsi_softc *sc;
+	struct twsi_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -560,10 +275,55 @@ mv_twsi_stop(device_t dev)
 	return (IIC_NOERR);
 }
 
+/*
+ * timeout is given in us
+ */
 static int
-mv_twsi_read(device_t dev, char *buf, int len, int *read, int last, int delay)
+twsi_repeated_start(device_t dev, u_char slave, int timeout)
 {
-	struct mv_twsi_softc *sc;
+	struct twsi_softc *sc;
+	int rv;
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->mutex);
+	rv = twsi_locked_start(dev, sc, TWSI_STATUS_RPTD_START, slave,
+	    timeout);
+	mtx_unlock(&sc->mutex);
+
+	if (rv) {
+		twsi_stop(dev);
+		return (rv);
+	} else
+		return (IIC_NOERR);
+}
+
+/*
+ * timeout is given in us
+ */
+static int
+twsi_start(device_t dev, u_char slave, int timeout)
+{
+	struct twsi_softc *sc;
+	int rv;
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->mutex);
+	rv = twsi_locked_start(dev, sc, TWSI_STATUS_START, slave, timeout);
+	mtx_unlock(&sc->mutex);
+
+	if (rv) {
+		twsi_stop(dev);
+		return (rv);
+	} else
+		return (IIC_NOERR);
+}
+
+static int
+twsi_read(device_t dev, char *buf, int len, int *read, int last, int delay)
+{
+	struct twsi_softc *sc;
 	uint32_t status;
 	int last_byte, rv;
 
@@ -591,7 +351,7 @@ mv_twsi_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 			goto out;
 		}
 
-		status = TWSI_READ(sc, TWSI_STATUS);
+		status = TWSI_READ(sc, sc->reg_status);
 		if (status != (last_byte ?
 		    TWSI_STATUS_DATA_RD_NOACK : TWSI_STATUS_DATA_RD_ACK)) {
 			debugf("wrong status (%02x) while reading\n", status);
@@ -599,7 +359,7 @@ mv_twsi_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 			goto out;
 		}
 
-		*buf++ = TWSI_READ(sc, TWSI_DATA);
+		*buf++ = TWSI_READ(sc, sc->reg_data);
 		(*read)++;
 	}
 	rv = IIC_NOERR;
@@ -609,9 +369,9 @@ out:
 }
 
 static int
-mv_twsi_write(device_t dev, const char *buf, int len, int *sent, int timeout)
+twsi_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 {
-	struct mv_twsi_softc *sc;
+	struct twsi_softc *sc;
 	uint32_t status;
 	int rv;
 
@@ -620,7 +380,7 @@ mv_twsi_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 	mtx_lock(&sc->mutex);
 	*sent = 0;
 	while (*sent < len) {
-		TWSI_WRITE(sc, TWSI_DATA, *buf++);
+		TWSI_WRITE(sc, sc->reg_data, *buf++);
 
 		twsi_clear_iflg(sc);
 		if (twsi_poll_ctrl(sc, timeout, TWSI_CONTROL_IFLG)) {
@@ -629,7 +389,7 @@ mv_twsi_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 			goto out;
 		}
 
-		status = TWSI_READ(sc, TWSI_STATUS);
+		status = TWSI_READ(sc, sc->reg_status);
 		if (status != TWSI_STATUS_DATA_WR_ACK) {
 			debugf("wrong status (%02x) while writing\n", status);
 			rv = IIC_ESTATUS;
@@ -642,3 +402,81 @@ out:
 	mtx_unlock(&sc->mutex);
 	return (rv);
 }
+
+int
+twsi_attach(device_t dev)
+{
+	struct twsi_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+
+	mtx_init(&sc->mutex, device_get_nameunit(dev), "twsi", MTX_DEF);
+
+	if (bus_alloc_resources(dev, res_spec, sc->res)) {
+		device_printf(dev, "could not allocate resources\n");
+		twsi_detach(dev);
+		return (ENXIO);
+	}
+
+	/* Attach the iicbus. */
+	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL) {
+		device_printf(dev, "could not allocate iicbus instance\n");
+		twsi_detach(dev);
+		return (ENXIO);
+	}
+	bus_generic_attach(dev);
+
+	return (0);
+}
+
+int
+twsi_detach(device_t dev)
+{
+	struct twsi_softc *sc;
+	int rv;
+
+	sc = device_get_softc(dev);
+
+	if ((rv = bus_generic_detach(dev)) != 0)
+		return (rv);
+
+	if (sc->iicbus != NULL)
+		if ((rv = device_delete_child(dev, sc->iicbus)) != 0)
+			return (rv);
+
+	bus_release_resources(dev, res_spec, sc->res);
+
+	mtx_destroy(&sc->mutex);
+	return (0);
+}
+
+static device_method_t twsi_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_detach,	twsi_detach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+
+	/* iicbus interface */
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_repeated_start, twsi_repeated_start),
+	DEVMETHOD(iicbus_start,		twsi_start),
+	DEVMETHOD(iicbus_stop,		twsi_stop),
+	DEVMETHOD(iicbus_write,		twsi_write),
+	DEVMETHOD(iicbus_read,		twsi_read),
+	DEVMETHOD(iicbus_reset,		twsi_reset),
+	DEVMETHOD(iicbus_transfer,	iicbus_transfer_gen),
+	{ 0, 0 }
+};
+
+DEFINE_CLASS_0(twsi, twsi_driver, twsi_methods,
+    sizeof(struct twsi_softc));

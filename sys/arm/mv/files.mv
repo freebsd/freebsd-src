@@ -21,6 +21,7 @@ arm/mv/mv_ts.c			standard
 arm/mv/timer.c			standard
 
 dev/cesa/cesa.c			optional	cesa
+dev/iicbus/twsi/mv_twsi.c	optional	twsi
 dev/mge/if_mge.c		optional	mge
 dev/nand/nfc_mv.c		optional	nand
 dev/mvs/mvs_soc.c		optional	mvs

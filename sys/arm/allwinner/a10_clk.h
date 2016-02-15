@@ -121,6 +121,9 @@
 /* AHB_GATING_REG1 */
 #define	CCM_AHB_GATING_GMAC	(1 << 17)
 
+/* APB1_GATING_REG */
+#define CCM_APB1_GATING_TWI	(1 << 0)
+
 #define	CCM_USB_PHY		(1 << 8)
 #define	CCM_USB0_RESET		(1 << 0)
 #define	CCM_USB1_RESET		(1 << 1)
@@ -166,6 +169,7 @@ int a10_clk_gmac_activate(phandle_t);
 int a10_clk_ahci_activate(void);
 int a10_clk_mmc_activate(int);
 int a10_clk_mmc_cfg(int, int);
+int a10_clk_i2c_activate(int);
 int a10_clk_dmac_activate(void);
 int a10_clk_codec_activate(unsigned int);
 
