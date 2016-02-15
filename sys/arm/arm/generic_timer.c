@@ -363,6 +363,8 @@ arm_tmr_attach(device_t dev)
 	if (node > 0) {
 		error = OF_getencprop(node, "clock-frequency", &clock,
 		    sizeof(clock));
+		if (error > 0)
+			sc->clkfreq = clock;
 	}
 #endif
 
