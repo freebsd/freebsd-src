@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -225,9 +224,9 @@ mv_twsi_attach(device_t dev)
 	/* Attach child devices onto iicbus. */
 	for (child = OF_child(iicbusnode); child != 0; child = OF_peer(child)) {
 		/* Get slave address. */
-		error = OF_getprop(child, "i2c-address", &paddr, sizeof(paddr));
+		error = OF_getencprop(child, "i2c-address", &paddr, sizeof(paddr));
 		if (error == -1)
-			error = OF_getprop(child, "reg", &paddr, sizeof(paddr));
+			error = OF_getencprop(child, "reg", &paddr, sizeof(paddr));
 		if (error == -1)
 			continue;
 
@@ -239,10 +238,10 @@ mv_twsi_attach(device_t dev)
 
 		if (bootverbose)
 			device_printf(dev, "adding a device %s at %d.\n",
-			    dname, fdt32_to_cpu(paddr));
+			    dname, paddr);
 		childdev = BUS_ADD_CHILD(sc->iicbus, 0, dname, -1);
 		devi = IICBUS_IVAR(childdev);
-		devi->addr = fdt32_to_cpu(paddr);
+		devi->addr = paddr;
 	}
 
 attach_end:
