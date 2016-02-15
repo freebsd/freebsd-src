@@ -94,9 +94,9 @@ static int drm_minor_get_id(struct drm_device *dev, int type)
 
 	if (type == DRM_MINOR_CONTROL) {
 		new_id += 64;
-        } else if (type == DRM_MINOR_RENDER) {
-                new_id += 128;
-        }
+	} else if (type == DRM_MINOR_RENDER) {
+		new_id += 128;
+	}
 
 	return new_id;
 }

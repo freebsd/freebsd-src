@@ -1458,6 +1458,8 @@ i915_driver_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
+	pci_enable_busmaster(dev->dev);
+
 	intel_opregion_init(dev);
 
 	callout_init(&dev_priv->hangcheck_timer, 1);
