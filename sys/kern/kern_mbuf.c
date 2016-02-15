@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
-#include <security/mac/mac_framework.h>
-
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -284,7 +282,6 @@ static void	mb_dtor_clust(void *, int, void *);
 static void	mb_dtor_pack(void *, int, void *);
 static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
-
 static void	mb_reclaim(uma_zone_t, int);
 static void    *mbuf_jumbo_alloc(uma_zone_t, vm_size_t, uint8_t *, int);
 
@@ -435,7 +432,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 	m = (struct mbuf *)mem;
 	flags = args->flags;
 
-	error = m_init(m, NULL, size, how, type, flags);
+	error = m_init(m, how, type, flags);
 
 	return (error);
 }
@@ -635,31 +632,13 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
 #endif
 
-	error = m_init(m, NULL, size, how, type, flags);
+	error = m_init(m, how, type, flags);
 
 	/* m_ext is already initialized. */
 	m->m_data = m->m_ext.ext_buf;
  	m->m_flags = (flags | M_EXT);
 
 	return (error);
-}
-
-int
-m_pkthdr_init(struct mbuf *m, int how)
-{
-#ifdef MAC
-	int error;
-#endif
-	m->m_data = m->m_pktdat;
-	bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
-#ifdef MAC
-	/* If the label init fails, fail the alloc */
-	error = mac_mbuf_init(m, how);
-	if (error)
-		return (error);
-#endif
-
-	return (0);
 }
 
 /*
@@ -682,4 +661,324 @@ mb_reclaim(uma_zone_t zone __unused, int pending __unused)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_drain != NULL)
 				(*pr->pr_drain)();
+}
+
+/*
+ * Clean up after mbufs with M_EXT storage attached to them if the
+ * reference count hits 1.
+ */
+void
+mb_free_ext(struct mbuf *m)
+{
+	int freembuf;
+
+	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
+
+	/*
+	 * Check if the header is embedded in the cluster.
+	 */
+	freembuf = (m->m_flags & M_NOFREE) ? 0 : 1;
+
+	switch (m->m_ext.ext_type) {
+	case EXT_SFBUF:
+		sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
+		break;
+	case EXT_SFBUF_NOCACHE:
+		sf_ext_free_nocache(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
+		break;
+	default:
+		KASSERT(m->m_ext.ext_cnt != NULL,
+		    ("%s: no refcounting pointer on %p", __func__, m));
+		/* 
+		 * Free attached storage if this mbuf is the only
+		 * reference to it.
+		 */
+		if (*(m->m_ext.ext_cnt) != 1) {
+			if (atomic_fetchadd_int(m->m_ext.ext_cnt, -1) != 1)
+				break;
+		}
+
+		switch (m->m_ext.ext_type) {
+		case EXT_PACKET:	/* The packet zone is special. */
+			if (*(m->m_ext.ext_cnt) == 0)
+				*(m->m_ext.ext_cnt) = 1;
+			uma_zfree(zone_pack, m);
+			return;		/* Job done. */
+		case EXT_CLUSTER:
+			uma_zfree(zone_clust, m->m_ext.ext_buf);
+			break;
+		case EXT_JUMBOP:
+			uma_zfree(zone_jumbop, m->m_ext.ext_buf);
+			break;
+		case EXT_JUMBO9:
+			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
+			break;
+		case EXT_JUMBO16:
+			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
+			break;
+		case EXT_NET_DRV:
+		case EXT_MOD_TYPE:
+		case EXT_DISPOSABLE:
+			*(m->m_ext.ext_cnt) = 0;
+			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
+				m->m_ext.ext_cnt));
+			/* FALLTHROUGH */
+		case EXT_EXTREF:
+			KASSERT(m->m_ext.ext_free != NULL,
+				("%s: ext_free not set", __func__));
+			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
+			    m->m_ext.ext_arg2);
+			break;
+		default:
+			KASSERT(m->m_ext.ext_type == 0,
+				("%s: unknown ext_type", __func__));
+		}
+	}
+
+	if (freembuf)
+		uma_zfree(zone_mbuf, m);
+}
+
+/*
+ * Official mbuf(9) allocation KPI for stack and drivers:
+ *
+ * m_get()	- a single mbuf without any attachments, sys/mbuf.h.
+ * m_gethdr()	- a single mbuf initialized as M_PKTHDR, sys/mbuf.h.
+ * m_getcl()	- an mbuf + 2k cluster, sys/mbuf.h.
+ * m_clget()	- attach cluster to already allocated mbuf.
+ * m_cljget()	- attach jumbo cluster to already allocated mbuf.
+ * m_get2()	- allocate minimum mbuf that would fit size argument.
+ * m_getm2()	- allocate a chain of mbufs/clusters.
+ * m_extadd()	- attach external cluster to mbuf.
+ *
+ * m_free()	- free single mbuf with its tags and ext, sys/mbuf.h.
+ * m_freem()	- free chain of mbufs.
+ */
+
+int
+m_clget(struct mbuf *m, int how)
+{
+
+	KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
+	    __func__, m));
+	m->m_ext.ext_buf = (char *)NULL;
+	uma_zalloc_arg(zone_clust, m, how);
+	/*
+	 * On a cluster allocation failure, drain the packet zone and retry,
+	 * we might be able to loosen a few clusters up on the drain.
+	 */
+	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
+		zone_drain(zone_pack);
+		uma_zalloc_arg(zone_clust, m, how);
+	}
+	return (m->m_flags & M_EXT);
+}
+
+/*
+ * m_cljget() is different from m_clget() as it can allocate clusters without
+ * attaching them to an mbuf.  In that case the return value is the pointer
+ * to the cluster of the requested size.  If an mbuf was specified, it gets
+ * the cluster attached to it and the return value can be safely ignored.
+ * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
+ */
+void *
+m_cljget(struct mbuf *m, int how, int size)
+{
+	uma_zone_t zone;
+
+	if (m != NULL) {
+		KASSERT((m->m_flags & M_EXT) == 0, ("%s: mbuf %p has M_EXT",
+		    __func__, m));
+		m->m_ext.ext_buf = NULL;
+	}
+
+	zone = m_getzone(size);
+	return (uma_zalloc_arg(zone, m, how));
+}
+
+/*
+ * m_get2() allocates minimum mbuf that would fit "size" argument.
+ */
+struct mbuf *
+m_get2(int size, int how, short type, int flags)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+
+	args.flags = flags;
+	args.type = type;
+
+	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
+		return (uma_zalloc_arg(zone_mbuf, &args, how));
+	if (size <= MCLBYTES)
+		return (uma_zalloc_arg(zone_pack, &args, how));
+
+	if (size > MJUMPAGESIZE)
+		return (NULL);
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return (NULL);
+
+	n = uma_zalloc_arg(zone_jumbop, m, how);
+	if (n == NULL) {
+		uma_zfree(zone_mbuf, m);
+		return (NULL);
+	}
+
+	return (m);
+}
+
+/*
+ * m_getjcl() returns an mbuf with a cluster of the specified size attached.
+ * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
+ */
+struct mbuf *
+m_getjcl(int how, short type, int flags, int size)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+	uma_zone_t zone;
+
+	if (size == MCLBYTES)
+		return m_getcl(how, type, flags);
+
+	args.flags = flags;
+	args.type = type;
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return (NULL);
+
+	zone = m_getzone(size);
+	n = uma_zalloc_arg(zone, m, how);
+	if (n == NULL) {
+		uma_zfree(zone_mbuf, m);
+		return (NULL);
+	}
+	return (m);
+}
+
+/*
+ * Allocate a given length worth of mbufs and/or clusters (whatever fits
+ * best) and return a pointer to the top of the allocated chain.  If an
+ * existing mbuf chain is provided, then we will append the new chain
+ * to the existing one but still return the top of the newly allocated
+ * chain.
+ */
+struct mbuf *
+m_getm2(struct mbuf *m, int len, int how, short type, int flags)
+{
+	struct mbuf *mb, *nm = NULL, *mtail = NULL;
+
+	KASSERT(len >= 0, ("%s: len is < 0", __func__));
+
+	/* Validate flags. */
+	flags &= (M_PKTHDR | M_EOR);
+
+	/* Packet header mbuf must be first in chain. */
+	if ((flags & M_PKTHDR) && m != NULL)
+		flags &= ~M_PKTHDR;
+
+	/* Loop and append maximum sized mbufs to the chain tail. */
+	while (len > 0) {
+		if (len > MCLBYTES)
+			mb = m_getjcl(how, type, (flags & M_PKTHDR),
+			    MJUMPAGESIZE);
+		else if (len >= MINCLSIZE)
+			mb = m_getcl(how, type, (flags & M_PKTHDR));
+		else if (flags & M_PKTHDR)
+			mb = m_gethdr(how, type);
+		else
+			mb = m_get(how, type);
+
+		/* Fail the whole operation if one mbuf can't be allocated. */
+		if (mb == NULL) {
+			if (nm != NULL)
+				m_freem(nm);
+			return (NULL);
+		}
+
+		/* Book keeping. */
+		len -= M_SIZE(mb);
+		if (mtail != NULL)
+			mtail->m_next = mb;
+		else
+			nm = mb;
+		mtail = mb;
+		flags &= ~M_PKTHDR;	/* Only valid on the first mbuf. */
+	}
+	if (flags & M_EOR)
+		mtail->m_flags |= M_EOR;  /* Only valid on the last mbuf. */
+
+	/* If mbuf was supplied, append new chain to the end of it. */
+	if (m != NULL) {
+		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next)
+			;
+		mtail->m_next = nm;
+		mtail->m_flags &= ~M_EOR;
+	} else
+		m = nm;
+
+	return (m);
+}
+
+/*-
+ * Configure a provided mbuf to refer to the provided external storage
+ * buffer and setup a reference count for said buffer.  If the setting
+ * up of the reference count fails, the M_EXT bit will not be set.  If
+ * successfull, the M_EXT bit is set in the mbuf's flags.
+ *
+ * Arguments:
+ *    mb     The existing mbuf to which to attach the provided buffer.
+ *    buf    The address of the provided external storage buffer.
+ *    size   The size of the provided buffer.
+ *    freef  A pointer to a routine that is responsible for freeing the
+ *           provided external storage buffer.
+ *    args   A pointer to an argument structure (of any type) to be passed
+ *           to the provided freef routine (may be NULL).
+ *    flags  Any other flags to be passed to the provided mbuf.
+ *    type   The type that the external storage buffer should be
+ *           labeled with.
+ *
+ * Returns:
+ *    Nothing.
+ */
+int
+m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
+    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
+    int flags, int type, int wait)
+{
+	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
+
+	if (type != EXT_EXTREF)
+		mb->m_ext.ext_cnt = uma_zalloc(zone_ext_refcnt, wait);
+
+	if (mb->m_ext.ext_cnt == NULL)
+		return (ENOMEM);
+
+	*(mb->m_ext.ext_cnt) = 1;
+	mb->m_flags |= (M_EXT | flags);
+	mb->m_ext.ext_buf = buf;
+	mb->m_data = mb->m_ext.ext_buf;
+	mb->m_ext.ext_size = size;
+	mb->m_ext.ext_free = freef;
+	mb->m_ext.ext_arg1 = arg1;
+	mb->m_ext.ext_arg2 = arg2;
+	mb->m_ext.ext_type = type;
+	mb->m_ext.ext_flags = 0;
+
+	return (0);
+}
+
+/*
+ * Free an entire chain of mbufs and associated external buffers, if
+ * applicable.
+ */
+void
+m_freem(struct mbuf *mb)
+{
+
+	while (mb != NULL)
+		mb = m_free(mb);
 }

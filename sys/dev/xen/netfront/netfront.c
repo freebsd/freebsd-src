@@ -906,11 +906,9 @@ setup_txqs(device_t dev, struct netfront_info *info,
 fail_bind_port:
 	taskqueue_drain_all(txq->tq);
 fail_start_thread:
-	gnttab_free_grant_references(txq->gref_head);
-	free(txq->ring.sring, M_DEVBUF);
-	gnttab_end_foreign_access_ref(txq->ring_ref);
 	buf_ring_free(txq->br, M_DEVBUF);
 	taskqueue_free(txq->tq);
+	gnttab_end_foreign_access_ref(txq->ring_ref);
 fail_grant_ring:
 	gnttab_free_grant_references(txq->gref_head);
 	free(txq->ring.sring, M_DEVBUF);
@@ -1863,7 +1861,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		sc->xn_if_flags = ifp->if_flags;
 		XN_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
@@ -1898,7 +1895,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_LRO;
 
 		}
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -2284,11 +2280,9 @@ netif_free(struct netfront_info *np)
 	netif_disconnect_backend(np);
 	free(np->rxq, M_DEVBUF);
 	free(np->txq, M_DEVBUF);
-	if (np->xn_ifp != NULL) {
-		ether_ifdetach(np->xn_ifp);
-		if_free(np->xn_ifp);
-		np->xn_ifp = NULL;
-	}
+	ether_ifdetach(np->xn_ifp);
+	if_free(np->xn_ifp);
+	np->xn_ifp = NULL;
 	ifmedia_removeall(&np->sc_media);
 }
 

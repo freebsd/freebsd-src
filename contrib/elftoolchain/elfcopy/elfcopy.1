@@ -21,13 +21,14 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elfcopy.1 3266 2015-12-07 15:38:26Z emaste $
+.\" $Id: elfcopy.1 3381 2016-01-30 19:39:47Z jkoshy $
 .\"
-.Dd December 7, 2015
+.Dd January 29, 2016
 .Os
 .Dt ELFCOPY 1
 .Sh NAME
-.Nm elfcopy
+.Nm elfcopy ,
+.Nm objcopy
 .Nd copy and translate object files
 .Sh SYNOPSIS
 .Nm
@@ -85,7 +86,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility copies the content of the ELF object named by argument
+utility copies the content of the binary object named by argument
 .Ar infile
 to that named by argument
 .Ar outfile ,
@@ -121,6 +122,10 @@ to the output.
 .It Fl O Ar objformat | Fl -output-target= Ns Ar objformat
 Write the output file using the object format specified in argument
 .Ar objformat .
+The argument
+.Ar objformat
+should be one of the target names recognized by
+.Xr elftc_bfd_find_target 3 .
 .It Fl R Ar sectionname | Fl -remove-section= Ns Ar sectionname
 Remove any section with name
 .Ar sectionname
@@ -330,8 +335,14 @@ Do not copy symbols that are not needed for relocation processing.
 .Xr mcs 1 ,
 .Xr strip 1 ,
 .Xr elf 3 ,
+.Xr elftc_bfd_find_target 3 ,
 .Xr ar 5 ,
 .Xr elf 5
+.Sh COMPATIBILITY
+The
+.Nm
+utility is expected to be option compatible with GNU
+.Nm objcopy .
 .Sh HISTORY
 .Nm
 has been implemented by

@@ -1,3 +1,4 @@
 # $FreeBSD$
 
 arm/allwinner/aintc.c			standard
+arm/allwinner/timer.c			standard
