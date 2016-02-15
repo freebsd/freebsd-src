@@ -272,7 +272,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 
 	bzero(&dr0, sizeof(dr0));
 	dr0.rtaddr = saddr6;
-	dr0.flags  = nd_ra->nd_ra_flags_reserved;
+	dr0.raflags = nd_ra->nd_ra_flags_reserved;
 	/*
 	 * Effectively-disable routes from RA messages when
 	 * ND6_IFF_NO_RADR enabled on the receiving interface or
@@ -503,7 +503,6 @@ defrouter_addreq(struct nd_defrouter *new)
 	}
 	if (error == 0)
 		new->installed = 1;
-	return;
 }
 
 struct nd_defrouter *
@@ -702,8 +701,6 @@ defrouter_select(void)
 			defrouter_delreq(installed_dr);
 		defrouter_addreq(selected_dr);
 	}
-
-	return;
 }
 
 /*
@@ -713,7 +710,7 @@ defrouter_select(void)
 static int
 rtpref(struct nd_defrouter *dr)
 {
-	switch (dr->flags & ND_RA_FLAG_RTPREF_MASK) {
+	switch (dr->raflags & ND_RA_FLAG_RTPREF_MASK) {
 	case ND_RA_FLAG_RTPREF_HIGH:
 		return (RTPREF_HIGH);
 	case ND_RA_FLAG_RTPREF_MEDIUM:
@@ -727,7 +724,7 @@ rtpref(struct nd_defrouter *dr)
 		 * serious bug of kernel internal.  We thus always bark here.
 		 * Or, can we even panic?
 		 */
-		log(LOG_ERR, "rtpref: impossible RA flag %x\n", dr->flags);
+		log(LOG_ERR, "rtpref: impossible RA flag %x\n", dr->raflags);
 		return (RTPREF_INVALID);
 	}
 	/* NOTREACHED */
@@ -737,53 +734,47 @@ static struct nd_defrouter *
 defrtrlist_update(struct nd_defrouter *new)
 {
 	struct nd_defrouter *dr, *n;
+	int oldpref;
 
 	if ((dr = defrouter_lookup(&new->rtaddr, new->ifp)) != NULL) {
 		/* entry exists */
 		if (new->rtlifetime == 0) {
 			defrtrlist_del(dr);
-			dr = NULL;
-		} else {
-			int oldpref = rtpref(dr);
-
-			/* override */
-			dr->flags = new->flags; /* xxx flag check */
-			dr->rtlifetime = new->rtlifetime;
-			dr->expire = new->expire;
-
-			/*
-			 * If the preference does not change, there's no need
-			 * to sort the entries. Also make sure the selected
-			 * router is still installed in the kernel.
-			 */
-			if (dr->installed && rtpref(new) == oldpref)
-				return (dr);
-
-			/*
-			 * preferred router may be changed, so relocate
-			 * this router.
-			 * XXX: calling TAILQ_REMOVE directly is a bad manner.
-			 * However, since defrtrlist_del() has many side
-			 * effects, we intentionally do so here.
-			 * defrouter_select() below will handle routing
-			 * changes later.
-			 */
-			TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
-			n = dr;
-			goto insert;
+			return (NULL);
 		}
-		return (dr);
+
+		oldpref = rtpref(dr);
+
+		/* override */
+		dr->raflags = new->raflags; /* XXX flag check */
+		dr->rtlifetime = new->rtlifetime;
+		dr->expire = new->expire;
+
+		/*
+		 * If the preference does not change, there's no need
+		 * to sort the entries. Also make sure the selected
+		 * router is still installed in the kernel.
+		 */
+		if (dr->installed && rtpref(new) == oldpref)
+			return (dr);
+
+		/*
+		 * The preferred router may have changed, so relocate this
+		 * router.
+		 */
+		TAILQ_REMOVE(&V_nd_defrouter, dr, dr_entry);
+		n = dr;
+		goto insert;
 	}
 
 	/* entry does not exist */
 	if (new->rtlifetime == 0)
 		return (NULL);
 
-	n = (struct nd_defrouter *)malloc(sizeof(*n), M_IP6NDP, M_NOWAIT);
+	n = malloc(sizeof(*n), M_IP6NDP, M_NOWAIT | M_ZERO);
 	if (n == NULL)
 		return (NULL);
-	bzero(n, sizeof(*n));
-	*n = *new;
+	memcpy(n, new, sizeof(*n));
 
 insert:
 	/*
@@ -826,10 +817,9 @@ pfxrtr_add(struct nd_prefix *pr, struct nd_defrouter *dr)
 {
 	struct nd_pfxrouter *new;
 
-	new = (struct nd_pfxrouter *)malloc(sizeof(*new), M_IP6NDP, M_NOWAIT);
+	new = malloc(sizeof(*new), M_IP6NDP, M_NOWAIT | M_ZERO);
 	if (new == NULL)
 		return;
-	bzero(new, sizeof(*new));
 	new->router = dr;
 
 	LIST_INSERT_HEAD(&pr->ndpr_advrtrs, new, pfr_entry);
@@ -869,10 +859,9 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 	int error = 0;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	new = (struct nd_prefix *)malloc(sizeof(*new), M_IP6NDP, M_NOWAIT);
+	new = malloc(sizeof(*new), M_IP6NDP, M_NOWAIT | M_ZERO);
 	if (new == NULL)
-		return(ENOMEM);
-	bzero(new, sizeof(*new));
+		return (ENOMEM);
 	new->ndpr_ifp = pr->ndpr_ifp;
 	new->ndpr_prefix = pr->ndpr_prefix;
 	new->ndpr_plen = pr->ndpr_plen;

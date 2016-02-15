@@ -36,6 +36,7 @@
  * this code implements the core resource managers for interrupt
  * requests and memory address space.
  */
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -53,12 +54,20 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
 #include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
-#include "opt_platform.h"
+#ifdef MIPS_INTRNG
+#include <machine/intr.h>
+#else
+#include <machine/intr_machdep.h>
+#endif
+
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#include "ofw_bus_if.h"
+#endif
 
 #undef NEXUS_DEBUG
 #ifdef NEXUS_DEBUG
@@ -107,6 +116,19 @@ static int	nexus_setup_intr(device_t dev, device_t child,
 		    driver_intr_t *intr, void *arg, void **cookiep);
 static int	nexus_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
+#ifdef MIPS_INTRNG
+#ifdef SMP
+static int	nexus_bind_intr(device_t, device_t, struct resource *, int);
+#endif
+#ifdef FDT
+static int	nexus_ofw_map_intr(device_t dev, device_t child,
+		    phandle_t iparent, int icells, pcell_t *intr);
+#endif
+static int	nexus_describe_intr(device_t dev, device_t child,
+		    struct resource *irq, void *cookie, const char *descr);
+static int	nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+		    enum intr_polarity pol);
+#endif
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -127,6 +149,16 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_activate_resource,nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_hinted_child,	nexus_hinted_child),
+#ifdef MIPS_INTRNG
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
+#endif
+#ifdef FDT
+	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
+#endif
+#endif
 
 	{ 0, 0 }
 };
@@ -381,6 +413,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	void *vaddr;
 	vm_paddr_t paddr;
 	vm_size_t psize;
+	int err;
 
 	/*
 	 * If this is a memory resource, use pmap_mapdev to map it.
@@ -388,10 +421,14 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 		paddr = rman_get_start(r);
 		psize = rman_get_size(r);
-		vaddr = pmap_mapdev(paddr, psize);
-
-		rman_set_virtual(r, vaddr);
 		rman_set_bustag(r, mips_bus_space_generic);
+		err = bus_space_map(rman_get_bustag(r), paddr, psize, 0,
+		    (bus_space_handle_t *)&vaddr);
+		if (err != 0) {
+			rman_deactivate_resource(r);
+			return (err);
+		}
+		rman_set_virtual(r, vaddr);
 		rman_set_bushandle(r, (bus_space_handle_t)(uintptr_t)vaddr);
 	}
 
@@ -402,11 +439,16 @@ static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *r)
 {
-	vm_offset_t va;
-	
-	if (type == SYS_RES_MEMORY) {
-		va = (vm_offset_t)rman_get_virtual(r);
-		pmap_unmapdev(va, rman_get_size(r));
+	bus_space_handle_t vaddr;
+	bus_size_t psize;
+
+	vaddr = rman_get_bushandle(r);
+
+	if (type == SYS_RES_MEMORY && vaddr != 0) {
+		psize = (bus_size_t)rman_get_size(r);
+		bus_space_unmap(rman_get_bustag(r), vaddr, psize);
+		rman_set_virtual(r, NULL);
+		rman_set_bushandle(r, 0);
 	}
 
 	return (rman_deactivate_resource(r));
@@ -416,8 +458,15 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	register_t s;
 	int irq;
+
+#ifdef MIPS_INTRNG
+	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
+		intr_irq_add_handler(child, filt, intr, arg, irq, flags,
+		    cookiep);
+	}
+#else
+	register_t s;
 
 	s = intr_disable();
 	irq = rman_get_start(res);
@@ -429,6 +478,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	cpu_establish_hardintr(device_get_nameunit(child), filt, intr, arg,
 	    irq, flags, cookiep);
 	intr_restore(s);
+#endif
 	return (0);
 }
 
@@ -436,9 +486,50 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
+#ifdef MIPS_INTRNG
+	return (intr_irq_remove_handler(child, rman_get_start(r), ih));
+#else
 	printf("Unimplemented %s at %s:%d\n", __func__, __FILE__, __LINE__);
 	return (0);
+#endif
 }
+
+#ifdef MIPS_INTRNG
+static int
+nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+	return (intr_irq_config(irq, trig, pol));
+}
+
+static int
+nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie, const char *descr)
+{
+
+	return (intr_irq_describe(rman_get_start(irq), cookie, descr));
+}
+
+#ifdef SMP
+static int
+nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
+{
+
+	return (intr_irq_bind(rman_get_start(irq), cpu));
+}
+#endif
+
+#ifdef FDT
+static int
+nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
+    pcell_t *intr)
+{
+
+	return (intr_fdt_map_irq(iparent, intr, icells));
+}
+#endif
+#endif /* MIPS_INTRNG */
 
 static void
 nexus_hinted_child(device_t bus, const char *dname, int dunit)
@@ -493,4 +584,5 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	}
 }
 
-DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);

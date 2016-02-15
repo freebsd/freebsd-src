@@ -133,7 +133,8 @@ int
 in_detachhead(void **head, int off)
 {
 
-	return (rn_detachhead(head));
+	rt_table_destroy((struct rib_head *)(*head));
+	return (1);
 }
 #endif
 

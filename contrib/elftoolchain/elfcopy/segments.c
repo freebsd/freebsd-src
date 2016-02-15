@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3269 2015-12-11 18:38:43Z kaiwang27 $");
+ELFTC_VCSID("$Id: segments.c 3397 2016-02-12 14:35:19Z emaste $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -107,11 +107,11 @@ adjust_addr(struct elfcopy *ecp)
 	TAILQ_FOREACH(s, &ecp->v_sec, sec_list) {
 
 		/* Only adjust loadable section's address. */
-		if (!s->loadable || s->seg == NULL)
+		if (!s->loadable)
 			continue;
 
 		/* Apply global LMA adjustment. */
-		if (ecp->change_addr != 0)
+		if (ecp->change_addr != 0 && s->seg != NULL)
 			s->lma += ecp->change_addr;
 
 		if (!s->pseudo) {
@@ -135,7 +135,10 @@ adjust_addr(struct elfcopy *ecp)
 	 */
 	TAILQ_FOREACH(s, &ecp->v_sec, sec_list) {
 
-		/* Only adjust loadable section's LMA. */
+		/*
+		 * Only loadable section that's inside a segment can have
+		 * LMA adjusted.
+		 */
 		if (!s->loadable || s->seg == NULL)
 			continue;
 
@@ -173,7 +176,7 @@ adjust_addr(struct elfcopy *ecp)
 		if (lma % s->align != 0)
 			errx(EXIT_FAILURE, "The load address %#jx for "
 			    "section %s is not aligned to %ju",
-			    (uintmax_t) lma, s->name, s->align);
+			    (uintmax_t) lma, s->name, (uintmax_t) s->align);
 
 		if (lma < s->lma) {
 			/* Move section to lower address. */
@@ -214,7 +217,8 @@ adjust_addr(struct elfcopy *ecp)
 				continue;
 			errx(EXIT_FAILURE, "The extent of segment containing "
 			    "section %s overlaps with segment(%#jx,%#jx)",
-			    s->name, seg->addr, seg->addr + seg->msz);
+			    s->name, (uintmax_t) seg->addr,
+			    (uintmax_t) (seg->addr + seg->msz));
 		}
 
 		/*
@@ -485,7 +489,7 @@ copy_phdr(struct elfcopy *ecp)
 		ophdr.p_filesz = seg->fsz;
 		ophdr.p_memsz = seg->msz;
 		if (!gelf_update_phdr(ecp->eout, i, &ophdr))
-			err(EXIT_FAILURE, "gelf_update_phdr failed :%s",
+			errx(EXIT_FAILURE, "gelf_update_phdr failed: %s",
 			    elf_errmsg(-1));
 
 		i++;

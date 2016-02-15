@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/time.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -92,6 +93,7 @@ static void ioat_submit_single(struct ioat_softc *ioat);
 static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
     int error);
 static int ioat_reset_hw(struct ioat_softc *ioat);
+static void ioat_reset_hw_task(void *, int);
 static void ioat_setup_sysctl(device_t device);
 static int sysctl_handle_reset(SYSCTL_HANDLER_ARGS);
 static inline struct ioat_softc *ioat_get(struct ioat_softc *,
@@ -308,6 +310,7 @@ ioat_detach(device_t device)
 	ioat = DEVICE2SOFTC(device);
 
 	ioat_test_detach();
+	taskqueue_drain(taskqueue_thread, &ioat->reset_task);
 
 	mtx_lock(IOAT_REFLK);
 	ioat->quiescing = TRUE;
@@ -414,6 +417,7 @@ ioat3_attach(device_t device)
 	mtx_init(&ioat->submit_lock, "ioat_submit", NULL, MTX_DEF);
 	mtx_init(&ioat->cleanup_lock, "ioat_cleanup", NULL, MTX_DEF);
 	callout_init(&ioat->timer, 1);
+	TASK_INIT(&ioat->reset_task, 0, ioat_reset_hw_task, ioat);
 
 	/* Establish lock order for Witness */
 	mtx_lock(&ioat->submit_lock);
@@ -630,8 +634,14 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	CTR0(KTR_IOAT, __func__);
 
-	if (status == ioat->last_seen)
+	if (status == ioat->last_seen) {
+		/*
+		 * If we landed in process_events and nothing has been
+		 * completed, check for a timeout due to channel halt.
+		 */
+		comp_update = ioat_get_chansts(ioat);
 		goto out;
+	}
 
 	while (1) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
@@ -661,10 +671,12 @@ out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	mtx_unlock(&ioat->cleanup_lock);
 
-	ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
-	wakeup(&ioat->tail);
+	if (completed != 0) {
+		ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
+		wakeup(&ioat->tail);
+	}
 
-	if (!is_ioat_halted(comp_update))
+	if (!is_ioat_halted(comp_update) && !is_ioat_suspended(comp_update))
 		return;
 
 	ioat->stats.channel_halts++;
@@ -704,8 +716,23 @@ out:
 	mtx_unlock(&ioat->submit_lock);
 
 	ioat_log_message(0, "Resetting channel to recover from error\n");
+	error = taskqueue_enqueue(taskqueue_thread, &ioat->reset_task);
+	KASSERT(error == 0,
+	    ("%s: taskqueue_enqueue failed: %d", __func__, error));
+}
+
+static void
+ioat_reset_hw_task(void *ctx, int pending __unused)
+{
+	struct ioat_softc *ioat;
+	int error;
+
+	ioat = ctx;
+	ioat_log_message(1, "%s: Resetting channel\n", __func__);
+
 	error = ioat_reset_hw(ioat);
 	KASSERT(error == 0, ("%s: reset failed: %d", __func__, error));
+	(void)error;
 }
 
 /*

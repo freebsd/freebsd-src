@@ -62,6 +62,7 @@ device		pci
 
 # Interrupt controllers
 device		gic
+options 	ARM_INTRNG
 
 # Timers
 device		mpcore_timer
@@ -77,6 +78,7 @@ device		da
 # I2C
 device		iic
 device		iicbus
+device		twsi
 
 #FDT
 options 	FDT

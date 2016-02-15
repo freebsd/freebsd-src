@@ -106,7 +106,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_IGNORE_CD_FLAG VAR_LOG_QUERIES VAR_TCP_UPSTREAM VAR_SSL_UPSTREAM
 %token VAR_SSL_SERVICE_KEY VAR_SSL_SERVICE_PEM VAR_SSL_PORT VAR_FORWARD_FIRST
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
-%token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE VAR_UNBLOCK_LAN_ZONES
+%token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE
+%token VAR_UNBLOCK_LAN_ZONES VAR_INSECURE_LAN_ZONES
 %token VAR_INFRA_CACHE_MIN_RTT
 %token VAR_DNS64_PREFIX VAR_DNS64_SYNTHALL
 %token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH
@@ -180,7 +181,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_log_queries | server_tcp_upstream | server_ssl_upstream |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
 	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
-	server_so_reuseport | server_delay_close | server_unblock_lan_zones |
+	server_so_reuseport | server_delay_close |
+	server_unblock_lan_zones | server_insecure_lan_zones |
 	server_dns64_prefix | server_dns64_synthall |
 	server_infra_cache_min_rtt | server_harden_algo_downgrade |
 	server_ip_transparent | server_ratelimit | server_ratelimit_slabs |
@@ -718,6 +720,16 @@ server_unblock_lan_zones: VAR_UNBLOCK_LAN_ZONES STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->unblock_lan_zones = 
+			(strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_insecure_lan_zones: VAR_INSECURE_LAN_ZONES STRING_ARG
+	{
+		OUTYY(("P(server_insecure_lan_zones:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->insecure_lan_zones = 
 			(strcmp($2, "yes")==0);
 		free($2);
 	}

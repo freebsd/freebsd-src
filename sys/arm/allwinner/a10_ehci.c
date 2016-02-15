@@ -43,10 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/gpio.h>
 
 #include <machine/bus.h>
-#include <dev/ofw/ofw_bus.h> 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/usb/usb.h> 
+#include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
@@ -90,6 +90,12 @@ static device_detach_t a10_ehci_detach;
 bs_r_1_proto(reversed);
 bs_w_1_proto(reversed);
 
+static struct ofw_compat_data compat_data[] = {
+	{"allwinner,sun4i-a10-ehci", 1},
+	{"allwinner,sun7i-a20-ehci", 1},
+	{NULL,             0}
+};
+
 static int
 a10_ehci_probe(device_t self)
 {
@@ -97,7 +103,7 @@ a10_ehci_probe(device_t self)
 	if (!ofw_bus_status_okay(self))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(self, "allwinner,usb-ehci")) 
+	if (ofw_bus_search_compatible(self, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(self, EHCI_HC_DEVSTR);

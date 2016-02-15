@@ -119,8 +119,12 @@ ASSYM(USER_SR, USER_SR);
 #endif
 #elif defined(BOOKE)
 ASSYM(PM_PDIR, offsetof(struct pmap, pm_pdir));
-ASSYM(PTE_RPN, offsetof(struct pte, rpn));
-ASSYM(PTE_FLAGS, offsetof(struct pte, flags));
+/*
+ * With pte_t being a bitfield struct, these fields cannot be addressed via
+ * offsetof().
+ */
+ASSYM(PTE_RPN, 0);
+ASSYM(PTE_FLAGS, sizeof(uint32_t));
 #if defined(BOOKE_E500)
 ASSYM(TLB0_ENTRY_SIZE, sizeof(struct tlb_entry));
 #endif
