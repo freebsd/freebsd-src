@@ -64,6 +64,6 @@ fputs(const char * __restrict s, FILE * __restrict fp)
 	retval = __sfvwrite(fp, &uio);
 	FUNLOCKFILE(fp);
 	if (retval == 0)
-		return (iov.iov_len > INT_MAX ? INT_MAX : uio.uio_resid);
+		return (iov.iov_len > INT_MAX ? INT_MAX : iov.iov_len);
 	return (retval);
 }
