@@ -180,7 +180,7 @@ struct iterator_control {
 	SCTP_PROCESS_STRUCT thread_proc;
 	struct sctpiterators iteratorhead;
 	struct sctp_iterator *cur_it;
-	volatile uint32_t iterator_running;
+	uint32_t iterator_running;
 	uint32_t iterator_flags;
 };
 

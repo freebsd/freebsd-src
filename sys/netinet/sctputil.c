@@ -1421,7 +1421,7 @@ sctp_iterator_worker(void)
 
 	/* This function is called with the WQ lock in place */
 
-	atomic_store_rel_int(&sctp_it_ctl.iterator_running, 1);
+	sctp_it_ctl.iterator_running = 1;
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
 		sctp_it_ctl.cur_it = it;
 		/* now lets work on this one */
@@ -1434,7 +1434,7 @@ sctp_iterator_worker(void)
 		SCTP_IPI_ITERATOR_WQ_LOCK();
 		/* sa_ignore FREED_MEMORY */
 	}
-	atomic_store_rel_int(&sctp_it_ctl.iterator_running, 0);
+	sctp_it_ctl.iterator_running = 0;
 	return;
 }
 
@@ -1483,7 +1483,7 @@ sctp_handle_addr_wq(void)
 		if (ret) {
 			SCTP_PRINTF("Failed to initiate iterator for handle_addr_wq\n");
 			SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, EFAULT);
-			/* XXX-BZ Freeing if we are stopping or put back on the addr_wq. */
+			/* Freeing if we are stopping; putting back on the addr_wq otherwise. */
 			if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
 				sctp_asconf_iterator_end(asc, 0);
 			} else {

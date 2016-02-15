@@ -5920,7 +5920,7 @@ sctp_pcb_finish(void)
 	struct sctp_iterator *it, *nit;
 
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
-		printf("%s: race condition on teardown.\n", __func__);
+		SCTP_PRINTF("%s: race condition on teardown.\n", __func__);
 		return;
 	}
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 0;
@@ -5942,8 +5942,7 @@ retry:
 	r = atomic_fetchadd_int(&sctp_it_ctl.iterator_running, 0);
 	if (r != 0 || sctp_it_ctl.cur_it != NULL) {
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
-		/* XXX-BZ make this a statistics variable. */
-		printf("%s: Iterator running while we held the lock. Retry. "
+		SCTP_PRINTF("%s: Iterator running while we held the lock. Retry. "
 		    "r=%u cur_it=%p\n", __func__, r, sctp_it_ctl.cur_it);
 		DELAY(10);
 		goto retry;
@@ -7014,7 +7013,7 @@ sctp_initiate_iterator(inp_func inpf,
 		return (-1);
 	}
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
-		printf("%s: abort on initialize being %d\n", __func__,
+		SCTP_PRINTF("%s: abort on initialize being %d\n", __func__,
 		    SCTP_BASE_VAR(sctp_pcb_initialized));
 		return (-1);
 	}
@@ -7058,14 +7057,14 @@ sctp_initiate_iterator(inp_func inpf,
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
-		printf("%s: rollback on initialize being %d it=%p\n", __func__,
-		    SCTP_BASE_VAR(sctp_pcb_initialized), it);
+		SCTP_PRINTF("%s: rollback on initialize being %d it=%p\n",
+		     __func__, SCTP_BASE_VAR(sctp_pcb_initialized), it);
 		SCTP_FREE(it, SCTP_M_ITER);
 		return (-1);
 	}
 
 	TAILQ_INSERT_TAIL(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
-	if (atomic_fetchadd_int(&sctp_it_ctl.iterator_running, 0) == 0) {
+	if (sctp_it_ctl.iterator_running == 0) {
 		sctp_wakeup_iterator();
 	}
 	SCTP_IPI_ITERATOR_WQ_UNLOCK();
