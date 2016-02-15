@@ -66,8 +66,9 @@ device		md
 device		random			# Entropy device
 
 # I2C support
-#device		iicbus
-#device		iic
+device		iicbus
+device		iic
+device		twsi
 
 # GPIO
 device		gpio
