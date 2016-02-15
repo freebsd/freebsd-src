@@ -538,10 +538,69 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 }
 
 #ifdef CPU_CHERI
+#define CHERI_CAP_ADDTAG(dst, src, crn) do {			\
+	uint64_t tag;						\
+								\
+	CHERI_CGETTAG(tag, (crn));				\
+	*dst = (*src & ~(1ULL << 63)) | (tag << 63);		\
+	dst++; src++;						\
+	*dst = *src;	/* cursor */				\
+	dst++; src++;						\
+	*dst = *src;	/* base */				\
+	dst++; src++;						\
+	*dst = *src;	/* length */				\
+	dst++; src++;						\
+} while(0)
+
 int
 fill_capregs(struct thread *td, void *_capregs)
 {
+#ifdef CPU_CHERI128
 	memcpy(_capregs, &td->td_pcb->pcb_cheriframe, sizeof(struct cheri_frame));
+#else
+	uint64_t *dst = _capregs;
+	uint64_t *src = (uint64_t *)&td->td_pcb->pcb_cheriframe;
+
+	/*
+	 * Merge the tag bit into the cap register state that is
+	 * written out in the core file.  We currently use one of
+	 * reserved bits.  We may need to do something else for
+	 * compressed capabilities given the limited reserved space.
+	 *
+	 * XXXSS This needs to match 'struct cheri_frame' in cheri.h.
+	 */
+	CHERI_CAP_ADDTAG(dst, src,  0);
+	CHERI_CAP_ADDTAG(dst, src,  1);
+	CHERI_CAP_ADDTAG(dst, src,  2);
+	CHERI_CAP_ADDTAG(dst, src,  3);
+	CHERI_CAP_ADDTAG(dst, src,  4);
+	CHERI_CAP_ADDTAG(dst, src,  5);
+	CHERI_CAP_ADDTAG(dst, src,  6);
+	CHERI_CAP_ADDTAG(dst, src,  7);
+	CHERI_CAP_ADDTAG(dst, src,  8);
+	CHERI_CAP_ADDTAG(dst, src,  9);
+	CHERI_CAP_ADDTAG(dst, src, 10);
+	CHERI_CAP_ADDTAG(dst, src, 11);
+	CHERI_CAP_ADDTAG(dst, src, 12);
+	CHERI_CAP_ADDTAG(dst, src, 13);
+	CHERI_CAP_ADDTAG(dst, src, 14);
+	CHERI_CAP_ADDTAG(dst, src, 15);
+	CHERI_CAP_ADDTAG(dst, src, 16);
+	CHERI_CAP_ADDTAG(dst, src, 17);
+	CHERI_CAP_ADDTAG(dst, src, 18);
+	CHERI_CAP_ADDTAG(dst, src, 19);
+	CHERI_CAP_ADDTAG(dst, src, 20);
+	CHERI_CAP_ADDTAG(dst, src, 21);
+	CHERI_CAP_ADDTAG(dst, src, 22);
+	CHERI_CAP_ADDTAG(dst, src, 23);
+	CHERI_CAP_ADDTAG(dst, src, 24);		/* RCC */
+	CHERI_CAP_ADDTAG(dst, src, 25);
+	CHERI_CAP_ADDTAG(dst, src, 26);		/* IDC */
+	CHERI_CAP_ADDTAG(dst, src, 31);		/* PCC (from EPCC) */
+
+	*dst = *src; /* capcause register */
+
+#endif /* ! CPU_CHERI128 */
 	return (0);
 }
 
