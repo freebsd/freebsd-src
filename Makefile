@@ -482,7 +482,8 @@ _THINNER=cat
 _THINNER=xargs grep -L "^.NO_UNIVERSE" || true
 .endif
 KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
-		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
+		find [[:upper:][:digit:]]*[[:upper:][:digit:]] \
+		-type f -maxdepth 0 \
 		! -name DEFAULTS ! -name NOTES | \
 		${_THINNER}
 universe_kernconfs:
