@@ -9,13 +9,13 @@
 
 .include <src.opts.mk>
 
-HDRS=	config_local.h
+SRCS=	config_local.h
 .if ${MK_NIS} == "no"
-HDRS+=	localconfig.h
+SRCS+=	localconfig.h
 .endif
-CLEANFILES=	${HDRS}
+CLEANFILES=	${SRCS}
 
-all: ${HDRS}
+all depend: ${SRCS}
 
 config_local.h: newvers.sh ${.CURDIR}/../../../sys/conf/newvers.sh
 	@rm -f ${.TARGET}
