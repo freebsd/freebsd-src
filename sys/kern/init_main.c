@@ -479,7 +479,7 @@ proc0_init(void *dummy __unused)
 	session0.s_leader = p;
 
 	p->p_sysent = &null_sysvec;
-	p->p_flag = P_SYSTEM | P_INMEM;
+	p->p_flag = P_SYSTEM | P_INMEM | P_KTHREAD;
 	p->p_flag2 = 0;
 	p->p_state = PRS_NORMAL;
 	knlist_init_mtx(&p->p_klist, &p->p_mtx);
