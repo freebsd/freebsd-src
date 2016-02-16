@@ -58,8 +58,8 @@ static int	ps3bus_print_child(device_t dev, device_t child);
 static int	ps3bus_read_ivar(device_t bus, device_t child, int which,
 		    uintptr_t *result);
 static struct resource *ps3bus_alloc_resource(device_t bus, device_t child,
-		    int type, int *rid, u_long start, u_long end,
-		    u_long count, u_int flags);
+		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_int flags);
 static int	ps3bus_activate_resource(device_t bus, device_t child, int type,
 		    int rid, struct resource *res);
 static bus_dma_tag_t ps3bus_get_dma_tag(device_t dev, device_t child);
@@ -523,14 +523,14 @@ ps3bus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 
 static struct resource *
 ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	ps3bus_devinfo *dinfo;
 	struct	ps3bus_softc *sc;
 	int	needactivate;
         struct	resource *rv;
         struct	rman *rm;
-        u_long	adjstart, adjend, adjcount;
+        rman_res_t	adjstart, adjend, adjcount;
         struct	resource_list_entry *rle;
 
 	sc = device_get_softc(bus);
@@ -628,7 +628,7 @@ ps3bus_activate_resource(device_t bus, device_t child, int type, int rid,
 			return (ENOMEM);
 		rman_set_virtual(res, p);
 		rman_set_bustag(res, &bs_be_tag);
-		rman_set_bushandle(res, (u_long)p);
+		rman_set_bushandle(res, (rman_res_t)p);
 	}
 
 	return (rman_activate_resource(res));
