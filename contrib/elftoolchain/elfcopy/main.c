@@ -641,6 +641,18 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 	 * ELF object before processing.
 	 */
 	if (ecp->itf != ETF_ELF) {
+		/*
+		 * If the output object is not an ELF file, choose an arbitrary
+		 * ELF format for the intermediate file. srec, ihex and binary
+		 * formats are independent of class, endianness and machine
+		 * type so these choices do not affect the output.
+		 */
+		if (ecp->otf != ETF_ELF) {
+			if (ecp->oec == ELFCLASSNONE)
+				ecp->oec = ELFCLASS64;
+			if (ecp->oed == ELFDATANONE)
+				ecp->oed = ELFDATA2LSB;
+		}
 		create_tempfile(&elftemp, &efd);
 		if ((ecp->eout = elf_begin(efd, ELF_C_WRITE, NULL)) == NULL)
 			errx(EXIT_FAILURE, "elf_begin() failed: %s",
