@@ -77,33 +77,36 @@ struct	xsockbuf {
 
 /*
  * Variables for socket buffering.
+ *
+ * Locking key to struct sockbuf:
+ * (a) locked by SOCKBUF_LOCK().
  */
 struct	sockbuf {
 	struct	selinfo sb_sel;	/* process selecting read/write */
 	struct	mtx sb_mtx;	/* sockbuf lock */
 	struct	sx sb_sx;	/* prevent I/O interlacing */
-	short	sb_state;	/* (c/d) socket state on sockbuf */
+	short	sb_state;	/* (a) socket state on sockbuf */
 #define	sb_startzero	sb_mb
-	struct	mbuf *sb_mb;	/* (c/d) the mbuf chain */
-	struct	mbuf *sb_mbtail; /* (c/d) the last mbuf in the chain */
-	struct	mbuf *sb_lastrecord;	/* (c/d) first mbuf of last
+	struct	mbuf *sb_mb;	/* (a) the mbuf chain */
+	struct	mbuf *sb_mbtail; /* (a) the last mbuf in the chain */
+	struct	mbuf *sb_lastrecord;	/* (a) first mbuf of last
 					 * record in socket buffer */
-	struct	mbuf *sb_sndptr; /* (c/d) pointer into mbuf chain */
-	struct	mbuf *sb_fnrdy;	/* (c/d) pointer to first not ready buffer */
-	u_int	sb_sndptroff;	/* (c/d) byte offset of ptr into chain */
-	u_int	sb_acc;		/* (c/d) available chars in buffer */
-	u_int	sb_ccc;		/* (c/d) claimed chars in buffer */
-	u_int	sb_hiwat;	/* (c/d) max actual char count */
-	u_int	sb_mbcnt;	/* (c/d) chars of mbufs used */
-	u_int   sb_mcnt;        /* (c/d) number of mbufs in buffer */
-	u_int   sb_ccnt;        /* (c/d) number of clusters in buffer */
-	u_int	sb_mbmax;	/* (c/d) max chars of mbufs to use */
-	u_int	sb_ctl;		/* (c/d) non-data chars in buffer */
-	int	sb_lowat;	/* (c/d) low water mark */
-	sbintime_t	sb_timeo;	/* (c/d) timeout for read/write */
-	short	sb_flags;	/* (c/d) flags, see below */
-	int	(*sb_upcall)(struct socket *, void *, int); /* (c/d) */
-	void	*sb_upcallarg;	/* (c/d) */
+	struct	mbuf *sb_sndptr; /* (a) pointer into mbuf chain */
+	struct	mbuf *sb_fnrdy;	/* (a) pointer to first not ready buffer */
+	u_int	sb_sndptroff;	/* (a) byte offset of ptr into chain */
+	u_int	sb_acc;		/* (a) available chars in buffer */
+	u_int	sb_ccc;		/* (a) claimed chars in buffer */
+	u_int	sb_hiwat;	/* (a) max actual char count */
+	u_int	sb_mbcnt;	/* (a) chars of mbufs used */
+	u_int   sb_mcnt;        /* (a) number of mbufs in buffer */
+	u_int   sb_ccnt;        /* (a) number of clusters in buffer */
+	u_int	sb_mbmax;	/* (a) max chars of mbufs to use */
+	u_int	sb_ctl;		/* (a) non-data chars in buffer */
+	int	sb_lowat;	/* (a) low water mark */
+	sbintime_t	sb_timeo;	/* (a) timeout for read/write */
+	short	sb_flags;	/* (a) flags, see below */
+	int	(*sb_upcall)(struct socket *, void *, int); /* (a) */
+	void	*sb_upcallarg;	/* (a) */
 };
 
 #ifdef _KERNEL
