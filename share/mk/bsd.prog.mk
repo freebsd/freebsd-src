@@ -167,8 +167,7 @@ MAN1=	${MAN}
 .if defined(_SKIP_BUILD)
 all:
 .else
-all: beforebuild .WAIT ${PROG_INSTALL} ${SCRIPTS}
-beforebuild: objwarn
+all: ${PROG_INSTALL} ${SCRIPTS}
 .if ${MK_MAN} != "no"
 all: _manpages
 .endif
