@@ -2821,6 +2821,8 @@ sctp_remove_laddr(struct sctp_laddr *laddr)
 	SCTP_DECR_LADDR_COUNT();
 }
 
+
+
 /* sctp_ifap is used to bypass normal local address validation checks */
 int
 sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
@@ -5920,7 +5922,6 @@ sctp_pcb_finish(void)
 		return;
 	}
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 0;
-
 	/*
 	 * In FreeBSD the iterator thread never exits but we do clean up.
 	 * The only way FreeBSD reaches here is if we have VRF's but we
@@ -6043,7 +6044,6 @@ retry:
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_strmoq));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf_ack));
-
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_FREE(SCTP_BASE_STATS, SCTP_M_MCORE);
 #endif
@@ -7057,7 +7057,6 @@ sctp_initiate_iterator(inp_func inpf,
 		SCTP_FREE(it, SCTP_M_ITER);
 		return (-1);
 	}
-
 	TAILQ_INSERT_TAIL(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
 	if (sctp_it_ctl.iterator_running == 0) {
 		sctp_wakeup_iterator();
