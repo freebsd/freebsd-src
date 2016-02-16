@@ -50,7 +50,7 @@ modules-${target}:
 LOCALBASE?=	/usr/local
 # SRC_BASE is how the ports tree refers to the location of the base source files
 .if !defined(SRC_BASE)
-SRC_BASE!=	realpath "${SYSDIR:H}/"
+SRC_BASE=	${SYSDIR:H:tA}
 .endif
 # OSVERSION is used by some ports to determine build options
 .if !defined(OSRELDATE)
