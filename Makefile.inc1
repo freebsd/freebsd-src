@@ -1424,25 +1424,25 @@ create-kernel-packages:	_pkgbootstrap
 .for flavor in release debug
 	@cd ${DESTDIR}/${DISTDIR} ; \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		-v kernel=yes \
+		-v kernel=yes -v _kernconf=${INSTALLKERNEL} \
 		${DESTDIR}/kernel.meta ; \
 	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%PKGNAME%/kernel-${flavor}/" \
-		-e "s/%COMMENT%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
-		-e "s/%DESC%/FreeBSD ${INSTKERNNAME} kernel ${flavor}/" \
+		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}-${flavor}/" \
+		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
+		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
 		${SRCDIR}/release/packages/kernel.ucl \
-		> ${DESTDIR}/${DISTDIR}/kernel-${flavor}.ucl ; \
+		> ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}-${flavor}.ucl ; \
 	awk -F\" ' \
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
-		${DESTDIR}/${DISTDIR}/kernel-${flavor}.ucl ; \
+		${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}-${flavor}.ucl ; \
 	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh \
-		create -M ${DESTDIR}/${DISTDIR}/kernel-${flavor}.ucl \
-		-p ${DESTDIR}/${DISTDIR}/kernel-${flavor}.plist \
+		create -M ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}-${flavor}.ucl \
+		-p ${DESTDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}-${flavor}.plist \
 		-r ${DESTDIR}/${DISTDIR} \
 		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
