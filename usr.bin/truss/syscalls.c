@@ -2059,7 +2059,6 @@ print_syscall_ret(struct trussinfo *trussinfo, int errorp, long *retval)
 	struct timespec timediff;
 	struct threadinfo *t;
 	struct syscall *sc;
-	int error;
 
 	t = trussinfo->curthread;
 	sc = t->cs.sc;
