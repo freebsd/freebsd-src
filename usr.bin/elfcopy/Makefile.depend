@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libelftc \
 	lib/libexpat \
 	lib/liblzma \
+	lib/libpe \
 	lib/libthr \
 	lib/libz \
 	secure/lib/libcrypto \
