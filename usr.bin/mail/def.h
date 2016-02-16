@@ -270,5 +270,5 @@ struct ignoretab {
  */
 #define trunc(stream) {							\
 	(void)fflush(stream); 						\
-	(void)ftruncate(fileno(stream), (off_t)ftell(stream));		\
+	(void)ftruncate(fileno(stream), ftello(stream));		\
 }
