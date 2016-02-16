@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
@@ -62,9 +63,21 @@ __FBSDID("$FreeBSD$");
 #define	AXP209_SHUTBAT		0x32
 #define	AXP209_SHUTBAT_SHUTDOWN	0x80
 
+/* Temperature monitor */
+#define	AXP209_TEMPMON		0x5e
+#define	AXP209_TEMPMON_H(a)	((a) << 4)
+#define	AXP209_TEMPMON_L(a)	((a) & 0xf)
+#define	AXP209_TEMPMON_MIN	1447	/* -144.7C */
+
+#define	AXP209_0C_TO_K		2732
+
 struct axp209_softc {
 	uint32_t		addr;
 	struct intr_config_hook enum_hook;
+};
+
+enum axp209_sensor {
+	AXP209_TEMP
 };
 
 static int
@@ -102,6 +115,28 @@ axp209_write(device_t dev, uint8_t reg, uint8_t data)
 	msg.buf = buffer;
 
 	return (iicbus_transfer(dev, &msg, 1));
+}
+
+static int
+axp209_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = arg1;
+	enum axp209_sensor sensor = arg2;
+	uint8_t data[2];
+	int val, error;
+
+	if (sensor != AXP209_TEMP)
+		return (ENOENT);
+
+	error = axp209_read(dev, AXP209_TEMPMON, data, 2);
+	if (error != 0)
+		return (error);
+
+	/* Temperature is between -144.7C and 264.8C, step +0.1C */
+	val = (AXP209_TEMPMON_H(data[0]) | AXP209_TEMPMON_L(data[1])) -
+	    AXP209_TEMPMON_MIN + AXP209_0C_TO_K;
+
+	return sysctl_handle_opaque(oidp, &val, sizeof(val), req);
 }
 
 static void
@@ -162,6 +197,12 @@ axp209_attach(device_t dev)
 
 	EVENTHANDLER_REGISTER(shutdown_final, axp209_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "temp",
+	    CTLTYPE_INT | CTLFLAG_RD,
+	    dev, AXP209_TEMP, axp209_sysctl, "IK", "Internal temperature");
 
 	return (0);
 }
