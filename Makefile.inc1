@@ -1090,7 +1090,7 @@ distrib-dirs distribution: .MAKE .PHONY
 .if make(distribution)
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
 		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
-		METALOG=${METALOG} installconfig
+		METALOG=${METALOG} MK_TESTS=no installconfig
 .endif
 
 #
