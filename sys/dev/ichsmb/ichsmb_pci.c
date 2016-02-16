@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #define ID_WCPT				0x8ca28086
 #define ID_WCPTLP			0x9ca28086
 #define	ID_WELLSBURG			0x8d228086
+#define	ID_SRPT				0xa1238086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -215,6 +216,9 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_WELLSBURG:
 		device_set_desc(dev, "Intel Wellsburg SMBus controller");
+		break;
+	case ID_SRPT:
+		device_set_desc(dev, "Intel Sunrise Point-H SMBus controller");
 		break;
 	default:
 		return (ENXIO);
