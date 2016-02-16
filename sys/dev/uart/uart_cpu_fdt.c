@@ -212,5 +212,5 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 
-	return (OF_decode_addr(node, 0, &di->bas.bst, &di->bas.bsh));
+	return (OF_decode_addr(node, 0, &di->bas.bst, &di->bas.bsh, NULL));
 }
