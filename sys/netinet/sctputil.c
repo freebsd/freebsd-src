@@ -1482,7 +1482,10 @@ sctp_handle_addr_wq(void)
 		    sctp_asconf_iterator_end, NULL, 0);
 		if (ret) {
 			SCTP_PRINTF("Failed to initiate iterator for handle_addr_wq\n");
-			/* Freeing if we are stopping or put back on the addr_wq. */
+			/*
+			 * Freeing if we are stopping or put back on the
+			 * addr_wq.
+			 */
 			if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
 				sctp_asconf_iterator_end(asc, 0);
 			} else {

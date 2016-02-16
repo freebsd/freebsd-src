@@ -3278,7 +3278,7 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 			    SCTP_ASOC_ANY_STATE,
 			    (void *)asc, 0,
 			    sctp_asconf_iterator_end, inp, 0);
-			if (ret)  {
+			if (ret) {
 				SCTP_PRINTF("Failed to initiate iterator for addr_mgmt_ep_sa\n");
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EFAULT);
 				sctp_asconf_iterator_end(asc, 0);
