@@ -54,7 +54,9 @@ __FBSDID("$FreeBSD$");
 /* Power State Register */
 #define	AXP209_PSR		0x00
 #define	AXP209_PSR_ACIN		0x80
+#define	AXP209_PSR_ACIN_SHIFT	7
 #define	AXP209_PSR_VBUS		0x20
+#define	AXP209_PSR_VBUS_SHIFT	5
 
 /* Shutdown and battery control */
 #define	AXP209_SHUTBAT		0x32
@@ -136,26 +138,27 @@ static int
 axp209_attach(device_t dev)
 {
 	struct axp209_softc *sc;
+	const char *pwr_name[] = {"Battery", "AC", "USB", "AC and USB"};
 	uint8_t data;
 	uint8_t pwr_src;
-	char pwr_name[4][11] = {"Battery", "AC", "USB", "AC and USB"};
 
 	sc = device_get_softc(dev);
 
 	sc->addr = iicbus_get_addr(dev);
 
-	/*
-	 * Read the Power State register
-	 * bit 7 is AC presence, bit 5 is VBUS presence.
-	 * If none are set then we are running from battery (obviously).
-	 */
-	axp209_read(dev, AXP209_PSR, &data, 1);
-	pwr_src = ((data & AXP209_PSR_ACIN) >> 7) |
-		  ((data & AXP209_PSR_VBUS) >> 4);
+	if (bootverbose) {
+		/*
+		 * Read the Power State register.
+		 * Shift the AC presence into bit 0.
+		 * Shift the Battery presence into bit 1.
+		 */
+		axp209_read(dev, AXP209_PSR, &data, 1);
+		pwr_src = ((data & AXP209_PSR_ACIN) >> AXP209_PSR_ACIN_SHIFT) |
+		    ((data & AXP209_PSR_VBUS) >> (AXP209_PSR_VBUS_SHIFT - 1));
 
-	if (bootverbose)
 		device_printf(dev, "AXP209 Powered by %s\n",
 		    pwr_name[pwr_src]);
+	}
 
 	EVENTHANDLER_REGISTER(shutdown_final, axp209_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
