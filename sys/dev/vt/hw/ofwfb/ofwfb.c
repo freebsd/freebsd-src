@@ -480,7 +480,8 @@ ofwfb_init(struct vt_device *vd)
 			return (CN_DEAD);
 
 	#if defined(__powerpc__)
-		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase);
+		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase,
+		    NULL);
 		sc->fb.fb_pbase = sc->fb.fb_vbase; /* 1:1 mapped */
 		#ifdef __powerpc64__
 		/* Real mode under a hypervisor probably doesn't cover FB */
