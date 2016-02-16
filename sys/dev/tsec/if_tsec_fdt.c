@@ -167,7 +167,7 @@ tsec_fdt_attach(device_t dev)
 	}
 
 	phy = OF_node_from_xref(phy);
-	OF_decode_addr(OF_parent(phy), 0, &sc->phy_bst, &sc->phy_bsh);
+	OF_decode_addr(OF_parent(phy), 0, &sc->phy_bst, &sc->phy_bsh, NULL);
 	OF_getencprop(phy, "reg", &sc->phyaddr, sizeof(sc->phyaddr));
 
 	/* Init timer */
