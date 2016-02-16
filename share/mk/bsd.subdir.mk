@@ -89,6 +89,7 @@ ${__stage}install:
 install:	beforeinstall realinstall afterinstall
 .ORDER:		beforeinstall realinstall afterinstall
 .endif
+.ORDER: all install
 
 # SUBDIR recursing may be disabled for MK_DIRDEPS_BUILD
 .if !target(_SUBDIR)
