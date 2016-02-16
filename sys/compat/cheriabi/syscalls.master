@@ -552,7 +552,7 @@
 337	AUE_NULL	NOPROTO	{ int kldsym(int fileid, int cmd, \
 				    void *data); }
 338	AUE_JAIL	STD	{ int cheriabi_jail(struct jail_c *jail); }
-339	AUE_NULL	UNIMPL	pioctl
+339	AUE_NULL	UNIMPL	nnpfs_syscall
 340	AUE_SIGPROCMASK	NOPROTO	{ int sigprocmask(int how, \
 				    const sigset_t *set, sigset_t *oset); }
 341	AUE_SIGSUSPEND	NOPROTO	{ int sigsuspend(const sigset_t *sigmask); }
@@ -628,7 +628,7 @@
 374	AUE_NULL	NOPROTO	{ int __setugid(int flag); }
 375	AUE_NULL	UNIMPL	nfsclnt
 376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int amode); }
-377	AUE_NULL	UNIMPL	afs_syscall
+377	AUE_NULL	UNIMPL	afs3_syscall
 378	AUE_NMOUNT	STD	{ int cheriabi_nmount(struct iovec_c *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	UNIMPL	kse_exit
