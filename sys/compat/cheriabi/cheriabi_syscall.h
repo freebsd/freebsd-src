@@ -311,6 +311,11 @@
 #define	CHERIABI_SYS___setugid	374
 #define	CHERIABI_SYS_eaccess	376
 #define	CHERIABI_SYS_cheriabi_nmount	378
+				/* 379 is obsolete kse_exit */
+				/* 380 is obsolete kse_wakeup */
+				/* 381 is obsolete kse_create */
+				/* 382 is obsolete kse_thr_interrupt */
+				/* 383 is obsolete kse_release */
 #define	CHERIABI_SYS_cheriabi___mac_get_proc	384
 #define	CHERIABI_SYS_cheriabi___mac_set_proc	385
 #define	CHERIABI_SYS_cheriabi___mac_get_fd	386
@@ -361,6 +366,7 @@
 #define	CHERIABI_SYS_extattr_list_fd	437
 #define	CHERIABI_SYS_extattr_list_file	438
 #define	CHERIABI_SYS_extattr_list_link	439
+				/* 440 is obsolete kse_switchin */
 #define	CHERIABI_SYS_ksem_timedwait	441
 #define	CHERIABI_SYS_thr_suspend	442
 #define	CHERIABI_SYS_thr_wake	443

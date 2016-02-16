@@ -633,11 +633,11 @@
 377	AUE_NULL	UNIMPL	afs3_syscall
 378	AUE_NMOUNT	STD	{ int cheriabi_nmount(struct iovec_c *iovp, \
 				    unsigned int iovcnt, int flags); }
-379	AUE_NULL	UNIMPL	kse_exit
-380	AUE_NULL	UNIMPL	kse_wakeup
-381	AUE_NULL	UNIMPL	kse_create
-382	AUE_NULL	UNIMPL	kse_thr_interrupt
-383	AUE_NULL	UNIMPL	kse_release
+379	AUE_NULL	OBSOL	kse_exit
+380	AUE_NULL	OBSOL	kse_wakeup
+381	AUE_NULL	OBSOL	kse_create
+382	AUE_NULL	OBSOL	kse_thr_interrupt
+383	AUE_NULL	OBSOL	kse_release
 384	AUE_NULL	STD	{ int cheriabi___mac_get_proc( \
 				    struct mac_c *mac_p); }
 385	AUE_NULL	STD	{ int cheriabi___mac_set_proc( \
@@ -742,7 +742,7 @@
 439	AUE_EXTATTR_LIST_LINK	NOPROTO	{ ssize_t extattr_list_link( \
 				    const char *path, int attrnamespace, \
 				    void *data, size_t nbytes); }
-440	AUE_NULL	UNIMPL	kse_switchin
+440	AUE_NULL	OBSOL	kse_switchin
 441	AUE_NULL	NOSTD|NOPROTO	{ int ksem_timedwait(semid_t id, \
 				    const struct timespec *abstime); }
 442	AUE_NULL	NOPROTO	{ int thr_suspend( \
