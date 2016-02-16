@@ -112,6 +112,9 @@ device		dwc			# 10/100/1000 integrated GMAC controller
 # USB ethernet support, requires miibus
 device		miibus
 
+# Sound support
+device		sound
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 makeoptions	MODULES_EXTRA=dtb/allwinner
