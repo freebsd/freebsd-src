@@ -1759,7 +1759,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		tlb_miss_lock();
 
 		tlb0_flush_entry(va);
-		*pte = flags;
+		*pte &= ~PTE_FLAGS_MASK;
+		*pte |= flags;
 
 		tlb_miss_unlock();
 		mtx_unlock_spin(&tlbivax_mutex);

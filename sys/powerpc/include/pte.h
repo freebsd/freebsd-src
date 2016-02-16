@@ -270,6 +270,7 @@ typedef uint64_t pte_t;
 
 /* Macro argument must of pte_t type. */
 #define	PTE_ARPN_SHIFT		12
+#define	PTE_FLAGS_MASK		0x00ffffff
 #define PTE_RPN_FROM_PA(pa)	(((pa) & ~PAGE_MASK) << PTE_ARPN_SHIFT)
 #define PTE_PA(pte)		((vm_paddr_t)(*pte >> PTE_ARPN_SHIFT) & ~PAGE_MASK)
 #define PTE_ISVALID(pte)	((*pte) & PTE_VALID)
