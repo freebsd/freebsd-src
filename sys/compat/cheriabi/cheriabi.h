@@ -112,4 +112,9 @@ struct thr_param_c {
 	struct chericap	spare[3];
 };
 
+struct mac_c {
+	size_t		m_buflen;
+	struct chericap	m_string;
+};
+
 #endif /* !_COMPAT_CHERIABI_CHERIABI_H_ */

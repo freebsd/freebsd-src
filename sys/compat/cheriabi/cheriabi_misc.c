@@ -965,6 +965,13 @@ int cheriabi_ktimer_create(struct thread *td,
 }
 
 int
+cheriabi_thr_create(struct thread *td, struct cheriabi_thr_create_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
 cheriabi_thr_new(struct thread *td,
 		  struct cheriabi_thr_new_args *uap)
 {

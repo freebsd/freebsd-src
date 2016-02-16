@@ -154,9 +154,12 @@
 #define	CHERIABI_SYS_quotactl	148
 				/* 149 is obsolete oquota */
 				/* 150 is obsolete ogetsockname */
+#define	CHERIABI_SYS_cheriabi_nlm_syscall	154
+#define	CHERIABI_SYS_nfssvc	155
 				/* 156 is obsolete getdirentries */
 				/* 157 is obsolete statfs */
 				/* 158 is obsolete fstatfs */
+#define	CHERIABI_SYS_lgetfh	160
 #define	CHERIABI_SYS_getfh	161
 				/* 162 is obsolete getdomainname */
 				/* 163 is obsolete setdomainname */
@@ -168,6 +171,7 @@
 				/* 171 is obsolete shmsys */
 				/* 173 is obsolete pread */
 				/* 174 is obsolete pwrite */
+#define	CHERIABI_SYS_setfib	175
 #define	CHERIABI_SYS_ntp_adjtime	176
 #define	CHERIABI_SYS_setgid	181
 #define	CHERIABI_SYS_setegid	182
@@ -216,6 +220,7 @@
 #define	CHERIABI_SYS_ffclock_setestimate	242
 #define	CHERIABI_SYS_ffclock_getestimate	243
 #define	CHERIABI_SYS_clock_getcpuclockid2	247
+#define	CHERIABI_SYS_ntp_gettime	248
 #define	CHERIABI_SYS_minherit	250
 #define	CHERIABI_SYS_rfork	251
 #define	CHERIABI_SYS_openbsd_poll	252
@@ -306,10 +311,17 @@
 #define	CHERIABI_SYS___setugid	374
 #define	CHERIABI_SYS_eaccess	376
 #define	CHERIABI_SYS_cheriabi_nmount	378
+#define	CHERIABI_SYS_cheriabi___mac_get_proc	384
+#define	CHERIABI_SYS_cheriabi___mac_set_proc	385
+#define	CHERIABI_SYS_cheriabi___mac_get_fd	386
+#define	CHERIABI_SYS_cheriabi___mac_get_file	387
+#define	CHERIABI_SYS_cheriabi___mac_set_fd	388
+#define	CHERIABI_SYS_cheriabi___mac_set_file	389
 #define	CHERIABI_SYS_kenv	390
 #define	CHERIABI_SYS_lchflags	391
 #define	CHERIABI_SYS_uuidgen	392
 #define	CHERIABI_SYS_cheriabi_sendfile	393
+#define	CHERIABI_SYS_mac_syscall	394
 #define	CHERIABI_SYS_getfsstat	395
 #define	CHERIABI_SYS_statfs	396
 #define	CHERIABI_SYS_fstatfs	397
@@ -323,19 +335,25 @@
 				/* 406 is obsolete ksem_unlink */
 				/* 407 is obsolete ksem_getvalue */
 				/* 408 is obsolete ksem_destroy */
+#define	CHERIABI_SYS_cheriabi___mac_get_pid	409
+#define	CHERIABI_SYS_cheriabi___mac_get_link	410
+#define	CHERIABI_SYS_cheriabi___mac_set_link	411
 #define	CHERIABI_SYS_extattr_set_link	412
 #define	CHERIABI_SYS_extattr_get_link	413
 #define	CHERIABI_SYS_extattr_delete_link	414
+#define	CHERIABI_SYS_cheriabi___mac_execve	415
 #define	CHERIABI_SYS_cheriabi_sigaction	416
 #define	CHERIABI_SYS_cheriabi_sigreturn	417
 #define	CHERIABI_SYS_cheriabi_getcontext	421
 #define	CHERIABI_SYS_cheriabi_setcontext	422
 #define	CHERIABI_SYS_cheriabi_swapcontext	423
+#define	CHERIABI_SYS_swapoff	424
 #define	CHERIABI_SYS___acl_get_link	425
 #define	CHERIABI_SYS___acl_set_link	426
 #define	CHERIABI_SYS___acl_delete_link	427
 #define	CHERIABI_SYS___acl_aclcheck_link	428
 #define	CHERIABI_SYS_sigwait	429
+#define	CHERIABI_SYS_cheriabi_thr_create	430
 #define	CHERIABI_SYS_thr_exit	431
 #define	CHERIABI_SYS_thr_self	432
 #define	CHERIABI_SYS_thr_kill	433
@@ -403,6 +421,7 @@
 #define	CHERIABI_SYS_symlinkat	502
 #define	CHERIABI_SYS_unlinkat	503
 #define	CHERIABI_SYS_posix_openpt	504
+#define	CHERIABI_SYS_gssd_syscall	505
 #define	CHERIABI_SYS_cheriabi_jail_get	506
 #define	CHERIABI_SYS_cheriabi_jail_set	507
 #define	CHERIABI_SYS_jail_remove	508

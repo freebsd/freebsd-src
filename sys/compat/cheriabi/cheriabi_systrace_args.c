@@ -812,6 +812,32 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
+	/* cheriabi_nlm_syscall */
+	case 154: {
+		struct cheriabi_nlm_syscall_args *p = params;
+		iarg[0] = p->debug_level; /* int */
+		iarg[1] = p->grace_period; /* int */
+		iarg[2] = p->addr_count; /* int */
+		uarg[3] = (intptr_t) p->addrs; /* char ** */
+		*n_args = 4;
+		break;
+	}
+	/* nfssvc */
+	case 155: {
+		struct nfssvc_args *p = params;
+		iarg[0] = p->flag; /* int */
+		uarg[1] = (intptr_t) p->argp; /* caddr_t */
+		*n_args = 2;
+		break;
+	}
+	/* lgetfh */
+	case 160: {
+		struct lgetfh_args *p = params;
+		uarg[0] = (intptr_t) p->fname; /* char * */
+		uarg[1] = (intptr_t) p->fhp; /* struct fhandle * */
+		*n_args = 2;
+		break;
+	}
 	/* getfh */
 	case 161: {
 		struct getfh_args *p = params;
@@ -835,6 +861,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[1] = p->pid; /* pid_t */
 		uarg[2] = (intptr_t) p->rtp; /* struct rtprio * */
 		*n_args = 3;
+		break;
+	}
+	/* setfib */
+	case 175: {
+		struct setfib_args *p = params;
+		iarg[0] = p->fibnum; /* int */
+		*n_args = 1;
 		break;
 	}
 	/* ntp_adjtime */
@@ -1218,6 +1251,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[1] = p->which; /* int */
 		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
 		*n_args = 3;
+		break;
+	}
+	/* ntp_gettime */
+	case 248: {
+		struct ntp_gettime_args *p = params;
+		uarg[0] = (intptr_t) p->ntvp; /* struct ntptimeval * */
+		*n_args = 1;
 		break;
 	}
 	/* minherit */
@@ -1872,6 +1912,52 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* cheriabi___mac_get_proc */
+	case 384: {
+		struct cheriabi___mac_get_proc_args *p = params;
+		uarg[0] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 1;
+		break;
+	}
+	/* cheriabi___mac_set_proc */
+	case 385: {
+		struct cheriabi___mac_set_proc_args *p = params;
+		uarg[0] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 1;
+		break;
+	}
+	/* cheriabi___mac_get_fd */
+	case 386: {
+		struct cheriabi___mac_get_fd_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 2;
+		break;
+	}
+	/* cheriabi___mac_get_file */
+	case 387: {
+		struct cheriabi___mac_get_file_args *p = params;
+		uarg[0] = (intptr_t) p->path_p; /* const char * */
+		uarg[1] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 2;
+		break;
+	}
+	/* cheriabi___mac_set_fd */
+	case 388: {
+		struct cheriabi___mac_set_fd_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 2;
+		break;
+	}
+	/* cheriabi___mac_set_file */
+	case 389: {
+		struct cheriabi___mac_set_file_args *p = params;
+		uarg[0] = (intptr_t) p->path_p; /* const char * */
+		uarg[1] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 2;
+		break;
+	}
 	/* kenv */
 	case 390: {
 		struct kenv_args *p = params;
@@ -1911,6 +1997,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 7;
 		break;
 	}
+	/* mac_syscall */
+	case 394: {
+		struct mac_syscall_args *p = params;
+		uarg[0] = (intptr_t) p->policy; /* const char * */
+		iarg[1] = p->call; /* int */
+		uarg[2] = (intptr_t) p->arg; /* void * */
+		*n_args = 3;
+		break;
+	}
 	/* getfsstat */
 	case 395: {
 		struct getfsstat_args *p = params;
@@ -1944,6 +2039,30 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* cheriabi___mac_get_pid */
+	case 409: {
+		struct cheriabi___mac_get_pid_args *p = params;
+		iarg[0] = p->pid; /* pid_t */
+		uarg[1] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 2;
+		break;
+	}
+	/* cheriabi___mac_get_link */
+	case 410: {
+		struct cheriabi___mac_get_link_args *p = params;
+		uarg[0] = (intptr_t) p->path_p; /* const char * */
+		uarg[1] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 2;
+		break;
+	}
+	/* cheriabi___mac_set_link */
+	case 411: {
+		struct cheriabi___mac_set_link_args *p = params;
+		uarg[0] = (intptr_t) p->path_p; /* const char * */
+		uarg[1] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 2;
+		break;
+	}
 	/* extattr_set_link */
 	case 412: {
 		struct extattr_set_link_args *p = params;
@@ -1973,6 +2092,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[1] = p->attrnamespace; /* int */
 		uarg[2] = (intptr_t) p->attrname; /* const char * */
 		*n_args = 3;
+		break;
+	}
+	/* cheriabi___mac_execve */
+	case 415: {
+		struct cheriabi___mac_execve_args *p = params;
+		uarg[0] = (intptr_t) p->fname; /* char * */
+		uarg[1] = (intptr_t) p->argv; /* char ** */
+		uarg[2] = (intptr_t) p->envv; /* char ** */
+		uarg[3] = (intptr_t) p->mac_p; /* struct mac_c * */
+		*n_args = 4;
 		break;
 	}
 	/* cheriabi_sigaction */
@@ -2011,6 +2140,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->oucp; /* struct ucontext_c * */
 		uarg[1] = (intptr_t) p->ucp; /* const struct ucontext_c * */
 		*n_args = 2;
+		break;
+	}
+	/* swapoff */
+	case 424: {
+		struct swapoff_args *p = params;
+		uarg[0] = (intptr_t) p->name; /* const char * */
+		*n_args = 1;
 		break;
 	}
 	/* __acl_get_link */
@@ -2054,6 +2190,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->set; /* const sigset_t * */
 		uarg[1] = (intptr_t) p->sig; /* int * */
 		*n_args = 2;
+		break;
+	}
+	/* cheriabi_thr_create */
+	case 430: {
+		struct cheriabi_thr_create_args *p = params;
+		uarg[0] = (intptr_t) p->ctx; /* ucontext_t * */
+		uarg[1] = (intptr_t) p->id; /* long * */
+		iarg[2] = p->flags; /* int */
+		*n_args = 3;
 		break;
 	}
 	/* thr_exit */
@@ -2659,6 +2804,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 504: {
 		struct posix_openpt_args *p = params;
 		iarg[0] = p->flags; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* gssd_syscall */
+	case 505: {
+		struct gssd_syscall_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* char * */
 		*n_args = 1;
 		break;
 	}
@@ -4311,6 +4463,51 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* cheriabi_nlm_syscall */
+	case 154:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "char **";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* nfssvc */
+	case 155:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "caddr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lgetfh */
+	case 160:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "struct fhandle *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* getfh */
 	case 161:
 		switch(ndx) {
@@ -4348,6 +4545,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "struct rtprio *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setfib */
+	case 175:
+		switch(ndx) {
+		case 0:
+			p = "int";
 			break;
 		default:
 			break;
@@ -4925,6 +5132,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "clockid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ntp_gettime */
+	case 248:
+		switch(ndx) {
+		case 0:
+			p = "struct ntptimeval *";
 			break;
 		default:
 			break;
@@ -6001,6 +6218,78 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* cheriabi___mac_get_proc */
+	case 384:
+		switch(ndx) {
+		case 0:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_set_proc */
+	case 385:
+		switch(ndx) {
+		case 0:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_get_fd */
+	case 386:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_get_file */
+	case 387:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_set_fd */
+	case 388:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_set_file */
+	case 389:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* kenv */
 	case 390:
 		switch(ndx) {
@@ -6074,6 +6363,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* mac_syscall */
+	case 394:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* getfsstat */
 	case 395:
 		switch(ndx) {
@@ -6124,6 +6429,45 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "struct statfs *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_get_pid */
+	case 409:
+		switch(ndx) {
+		case 0:
+			p = "pid_t";
+			break;
+		case 1:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_get_link */
+	case 410:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi___mac_set_link */
+	case 411:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
+			break;
+		case 1:
+			p = "struct mac_c *";
 			break;
 		default:
 			break;
@@ -6189,6 +6533,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* cheriabi___mac_execve */
+	case 415:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "char **";
+			break;
+		case 2:
+			p = "char **";
+			break;
+		case 3:
+			p = "struct mac_c *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* cheriabi_sigaction */
 	case 416:
 		switch(ndx) {
@@ -6243,6 +6606,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "const struct ucontext_c *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* swapoff */
+	case 424:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
 			break;
 		default:
 			break;
@@ -6317,6 +6690,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cheriabi_thr_create */
+	case 430:
+		switch(ndx) {
+		case 0:
+			p = "ucontext_t *";
+			break;
+		case 1:
+			p = "long *";
+			break;
+		case 2:
+			p = "int";
 			break;
 		default:
 			break;
@@ -7398,6 +7787,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* gssd_syscall */
+	case 505:
+		switch(ndx) {
+		case 0:
+			p = "char *";
 			break;
 		default:
 			break;
@@ -8502,6 +8901,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* cheriabi_nlm_syscall */
+	case 154:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* nfssvc */
+	case 155:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* lgetfh */
+	case 160:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* getfh */
 	case 161:
 		if (ndx == 0 || ndx == 1)
@@ -8514,6 +8928,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* rtprio */
 	case 166:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setfib */
+	case 175:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -8736,6 +9155,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* clock_getcpuclockid2 */
 	case 247:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ntp_gettime */
+	case 248:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -9124,6 +9548,36 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* cheriabi___mac_get_proc */
+	case 384:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_set_proc */
+	case 385:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_get_fd */
+	case 386:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_get_file */
+	case 387:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_set_fd */
+	case 388:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_set_file */
+	case 389:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* kenv */
 	case 390:
 		if (ndx == 0 || ndx == 1)
@@ -9141,6 +9595,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* cheriabi_sendfile */
 	case 393:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mac_syscall */
+	case 394:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -9164,6 +9623,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* cheriabi___mac_get_pid */
+	case 409:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_get_link */
+	case 410:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_set_link */
+	case 411:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* extattr_set_link */
 	case 412:
 		if (ndx == 0 || ndx == 1)
@@ -9176,6 +9650,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* extattr_delete_link */
 	case 414:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi___mac_execve */
+	case 415:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -9204,6 +9683,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* swapoff */
+	case 424:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* __acl_get_link */
 	case 425:
 		if (ndx == 0 || ndx == 1)
@@ -9226,6 +9710,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* sigwait */
 	case 429:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cheriabi_thr_create */
+	case 430:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -9561,6 +10050,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* posix_openpt */
 	case 504:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* gssd_syscall */
+	case 505:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

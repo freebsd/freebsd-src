@@ -248,6 +248,15 @@ struct {
 	[CHERIABI_SYS_quotactl] = {
 		.sam_ptrmask = 0x1 | 0x8
 	},
+	[CHERIABI_SYS_cheriabi_nlm_syscall] = {
+		.sam_ptrmask = 0x8
+	},
+	[CHERIABI_SYS_nfssvc] = {
+		.sam_ptrmask = 0x2
+	},
+	[CHERIABI_SYS_lgetfh] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
 	[CHERIABI_SYS_getfh] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
@@ -256,6 +265,8 @@ struct {
 	},
 	[CHERIABI_SYS_rtprio] = {
 		.sam_ptrmask = 0x4
+	},
+	[CHERIABI_SYS_setfib] = {
 	},
 	[CHERIABI_SYS_ntp_adjtime] = {
 		.sam_ptrmask = 0x1
@@ -366,6 +377,9 @@ struct {
 	},
 	[CHERIABI_SYS_clock_getcpuclockid2] = {
 		.sam_ptrmask = 0x4
+	},
+	[CHERIABI_SYS_ntp_gettime] = {
+		.sam_ptrmask = 0x1
 	},
 	[CHERIABI_SYS_minherit] = {
 		.sam_ptrmask = 0x1
@@ -577,6 +591,24 @@ struct {
 	[CHERIABI_SYS_cheriabi_nmount] = {
 		.sam_ptrmask = 0x1
 	},
+	[CHERIABI_SYS_cheriabi___mac_get_proc] = {
+		.sam_ptrmask = 0x1
+	},
+	[CHERIABI_SYS_cheriabi___mac_set_proc] = {
+		.sam_ptrmask = 0x1
+	},
+	[CHERIABI_SYS_cheriabi___mac_get_fd] = {
+		.sam_ptrmask = 0x2
+	},
+	[CHERIABI_SYS_cheriabi___mac_get_file] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
+	[CHERIABI_SYS_cheriabi___mac_set_fd] = {
+		.sam_ptrmask = 0x2
+	},
+	[CHERIABI_SYS_cheriabi___mac_set_file] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
 	[CHERIABI_SYS_kenv] = {
 		.sam_ptrmask = 0x2 | 0x4
 	},
@@ -588,6 +620,9 @@ struct {
 	},
 	[CHERIABI_SYS_cheriabi_sendfile] = {
 		.sam_ptrmask = 0x10 | 0x20
+	},
+	[CHERIABI_SYS_mac_syscall] = {
+		.sam_ptrmask = 0x1 | 0x4
 	},
 	[CHERIABI_SYS_getfsstat] = {
 		.sam_ptrmask = 0x1
@@ -601,6 +636,15 @@ struct {
 	[CHERIABI_SYS_fhstatfs] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
+	[CHERIABI_SYS_cheriabi___mac_get_pid] = {
+		.sam_ptrmask = 0x2
+	},
+	[CHERIABI_SYS_cheriabi___mac_get_link] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
+	[CHERIABI_SYS_cheriabi___mac_set_link] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
 	[CHERIABI_SYS_extattr_set_link] = {
 		.sam_ptrmask = 0x1 | 0x4 | 0x8
 	},
@@ -609,6 +653,9 @@ struct {
 	},
 	[CHERIABI_SYS_extattr_delete_link] = {
 		.sam_ptrmask = 0x1 | 0x4
+	},
+	[CHERIABI_SYS_cheriabi___mac_execve] = {
+		.sam_ptrmask = 0x1 | 0x2 | 0x4 | 0x8
 	},
 	[CHERIABI_SYS_cheriabi_sigaction] = {
 		.sam_ptrmask = 0x2 | 0x4
@@ -625,6 +672,9 @@ struct {
 	[CHERIABI_SYS_cheriabi_swapcontext] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
+	[CHERIABI_SYS_swapoff] = {
+		.sam_ptrmask = 0x1
+	},
 	[CHERIABI_SYS___acl_get_link] = {
 		.sam_ptrmask = 0x1 | 0x4
 	},
@@ -638,6 +688,9 @@ struct {
 		.sam_ptrmask = 0x1 | 0x4
 	},
 	[CHERIABI_SYS_sigwait] = {
+		.sam_ptrmask = 0x1 | 0x2
+	},
+	[CHERIABI_SYS_cheriabi_thr_create] = {
 		.sam_ptrmask = 0x1 | 0x2
 	},
 	[CHERIABI_SYS_thr_exit] = {
@@ -831,6 +884,9 @@ struct {
 		.sam_ptrmask = 0x2
 	},
 	[CHERIABI_SYS_posix_openpt] = {
+	},
+	[CHERIABI_SYS_gssd_syscall] = {
+		.sam_ptrmask = 0x1
 	},
 	[CHERIABI_SYS_cheriabi_jail_get] = {
 		.sam_ptrmask = 0x1

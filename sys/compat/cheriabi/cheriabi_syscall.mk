@@ -103,9 +103,13 @@ MIASM =  \
 	adjtime.o \
 	setsid.o \
 	quotactl.o \
+	cheriabi_nlm_syscall.o \
+	nfssvc.o \
+	lgetfh.o \
 	getfh.o \
 	cheriabi_sysarch.o \
 	rtprio.o \
+	setfib.o \
 	ntp_adjtime.o \
 	setgid.o \
 	setegid.o \
@@ -147,6 +151,7 @@ MIASM =  \
 	ffclock_setestimate.o \
 	ffclock_getestimate.o \
 	clock_getcpuclockid2.o \
+	ntp_gettime.o \
 	minherit.o \
 	rfork.o \
 	openbsd_poll.o \
@@ -227,27 +232,40 @@ MIASM =  \
 	__setugid.o \
 	eaccess.o \
 	cheriabi_nmount.o \
+	cheriabi___mac_get_proc.o \
+	cheriabi___mac_set_proc.o \
+	cheriabi___mac_get_fd.o \
+	cheriabi___mac_get_file.o \
+	cheriabi___mac_set_fd.o \
+	cheriabi___mac_set_file.o \
 	kenv.o \
 	lchflags.o \
 	uuidgen.o \
 	cheriabi_sendfile.o \
+	mac_syscall.o \
 	getfsstat.o \
 	statfs.o \
 	fstatfs.o \
 	fhstatfs.o \
+	cheriabi___mac_get_pid.o \
+	cheriabi___mac_get_link.o \
+	cheriabi___mac_set_link.o \
 	extattr_set_link.o \
 	extattr_get_link.o \
 	extattr_delete_link.o \
+	cheriabi___mac_execve.o \
 	cheriabi_sigaction.o \
 	cheriabi_sigreturn.o \
 	cheriabi_getcontext.o \
 	cheriabi_setcontext.o \
 	cheriabi_swapcontext.o \
+	swapoff.o \
 	__acl_get_link.o \
 	__acl_set_link.o \
 	__acl_delete_link.o \
 	__acl_aclcheck_link.o \
 	sigwait.o \
+	cheriabi_thr_create.o \
 	thr_exit.o \
 	thr_self.o \
 	thr_kill.o \
@@ -315,6 +333,7 @@ MIASM =  \
 	symlinkat.o \
 	unlinkat.o \
 	posix_openpt.o \
+	gssd_syscall.o \
 	cheriabi_jail_get.o \
 	cheriabi_jail_set.o \
 	jail_remove.o \
