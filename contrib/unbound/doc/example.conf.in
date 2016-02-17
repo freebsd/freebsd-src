@@ -508,12 +508,16 @@ server:
 	# local-zone: "8.b.d.0.1.0.0.2.ip6.arpa." nodefault
 	# And for 64.100.in-addr.arpa. to 127.100.in-addr.arpa.
 
-	# if unbound is running service for the local host then it is useful
+	# If unbound is running service for the local host then it is useful
 	# to perform lan-wide lookups to the upstream, and unblock the
 	# long list of local-zones above.  If this unbound is a dns server
 	# for a network of computers, disabled is better and stops information
 	# leakage of local lan information.
 	# unblock-lan-zones: no
+
+	# The insecure-lan-zones option disables validation for
+	# these zones, as if they were all listed as domain-insecure.
+	# insecure-lan-zones: no
 
 	# a number of locally served zones can be configured.
 	# 	local-zone: <zone> <type>
