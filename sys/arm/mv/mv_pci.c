@@ -233,15 +233,11 @@ mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va
 	devmap->pd_va = (io_va ? io_va : io_space.base_parent);
 	devmap->pd_pa = io_space.base_parent;
 	devmap->pd_size = io_space.len;
-	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_DEVICE;
 	devmap++;
 
 	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
 	devmap->pd_pa = mem_space.base_parent;
 	devmap->pd_size = mem_space.len;
-	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	devmap->pd_cache = PTE_DEVICE;
 	return (0);
 }
 

@@ -52,7 +52,6 @@ static boolean_t devmap_bootstrap_done = false;
 
 #if defined(__aarch64__)
 #define	MAX_VADDR	VM_MAX_KERNEL_ADDRESS
-#define	PTE_DEVICE	VM_MEMATTR_DEVICE
 #elif defined(__arm__)
 #define	MAX_VADDR	ARM_VECTORS_HIGH
 #endif
@@ -165,8 +164,6 @@ arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 	m->pd_va    = akva_devmap_vaddr;
 	m->pd_pa    = pa;
 	m->pd_size  = sz;
-	m->pd_prot  = VM_PROT_READ | VM_PROT_WRITE;
-	m->pd_cache = PTE_DEVICE;
 }
 
 /*
@@ -209,10 +206,10 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 #if defined(__arm__)
 #if __ARM_ARCH >= 6
 		pmap_preboot_map_attr(pd->pd_pa, pd->pd_va, pd->pd_size,
-		    pd->pd_prot, pd->pd_cache);
+		    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
 #else
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
-		    pd->pd_prot, pd->pd_cache);
+		    VM_PROT_READ | VM_PROT_WRITE, PTE_DEVICE);
 #endif
 #elif defined(__aarch64__)
 		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
@@ -270,7 +267,8 @@ arm_devmap_vtop(void * vpva, vm_size_t size)
  * range, otherwise it allocates kva space and maps the physical pages into it.
  *
  * This routine is intended to be used for mapping device memory, NOT real
- * memory; the mapping type is inherently PTE_DEVICE in pmap_kenter_device().
+ * memory; the mapping type is inherently VM_MEMATTR_DEVICE in
+ * pmap_kenter_device().
  */
 void *
 pmap_mapdev(vm_offset_t pa, vm_size_t size)
