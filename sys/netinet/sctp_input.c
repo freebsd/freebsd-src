@@ -909,7 +909,9 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 			return;
 		}
 #endif
-		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
+		if (stcb->sctp_socket) {
+			sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
+		}
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
@@ -4858,7 +4860,7 @@ process_control_chunks:
 				if ((stcb) && (stcb->asoc.total_output_queue_size)) {
 					;
 				} else {
-					if (locked_tcb != stcb) {
+					if ((locked_tcb != NULL) && (locked_tcb != stcb)) {
 						/* Very unlikely */
 						SCTP_TCB_UNLOCK(locked_tcb);
 					}
