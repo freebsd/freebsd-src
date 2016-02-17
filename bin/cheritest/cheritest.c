@@ -126,9 +126,7 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "test_nofault_cfromptr",
 	  .ct_desc = "Exercise CFromPtr success",
-	  .ct_func = test_nofault_cfromptr,
-	  .ct_flags = CT_FLAG_SIGNAL,
-	  .ct_signum = 0 },
+	  .ct_func = test_nofault_cfromptr, },
 
 	{ .ct_name = "test_fault_bounds",
 	  .ct_desc = "Exercise capability bounds check failure",
@@ -578,7 +576,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise sandboxed CP2 bounds-check failure; caught",
 	  .ct_func = test_sandbox_cp2_bound_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
+		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH },
@@ -591,7 +589,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise sandboxed CP2 load-perm-check failure; caught",
 	  .ct_func = test_sandbox_cp2_perm_load_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
+		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_LOAD },
@@ -604,7 +602,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise sandboxed CP2 store-perm-check failure; caught",
 	  .ct_func = test_sandbox_cp2_perm_store_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
+		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_STORE },
@@ -617,7 +615,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise sandboxed CP2 tag-check failure; caught",
 	  .ct_func = test_sandbox_cp2_tag_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
+		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
@@ -630,7 +628,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise sandboxed CP2 seal failure; caught",
 	  .ct_func = test_sandbox_cp2_seal_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
+		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_SEAL },
@@ -642,7 +640,8 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_divzero_catch",
 	  .ct_desc = "Exercise sandboxed divide-by-zero exception; caught",
 	  .ct_func = test_sandbox_divzero_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGEMT,
 	  .ct_mips_exccode = T_TRAP },
 
@@ -653,7 +652,8 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_vm_rfault_catch",
 	  .ct_desc = "Exercise sandboxed VM read fault; caught",
 	  .ct_func = test_sandbox_vm_rfault_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGBUS,
 	  .ct_mips_exccode = T_TLB_LD_MISS },
 
@@ -664,7 +664,8 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_vm_wfault_catch",
 	  .ct_desc = "Exercise sandboxed VM write fault; caught",
 	  .ct_func = test_sandbox_vm_wfault_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGBUS,
 	  .ct_mips_exccode = T_TLB_ST_MISS },
 
@@ -675,7 +676,8 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_vm_xfault_catch",
 	  .ct_desc = "Exercise sandboxed VM exec fault; caught",
 	  .ct_func = test_sandbox_vm_xfault_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGBUS,
 	  .ct_mips_exccode = T_TLB_LD_MISS },
 
@@ -816,7 +818,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Try to save local argument to sandbox heap",
 	  .ct_func = test_sandbox_save_local,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
+		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_STORE_LOCALCAP },
@@ -1003,6 +1005,7 @@ signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 			    __func__);
 			_exit(EX_SOFTWARE);
 		}
+		ccsp->ccs_unwound = 1;
 		return;
 	} else {
 		/*
@@ -1150,6 +1153,16 @@ cheritest_run_test(const struct cheri_test *ctp)
 	    ccsp->ccs_signum != ctp->ct_signum) {
 		snprintf(reason, sizeof(reason), "Expected signal %d, got %d",
 		    ctp->ct_signum, ccsp->ccs_signum);
+		goto fail;
+	}
+	if ((ctp->ct_flags & CT_FLAG_SIGNAL_UNWIND) && !ccsp->ccs_unwound) {
+		snprintf(reason, sizeof(reason), "Expected trusted stack "
+		   "unwind, but none seen");
+		goto fail;
+	}
+	if (!(ctp->ct_flags & CT_FLAG_SIGNAL_UNWIND) && ccsp->ccs_unwound) {
+		snprintf(reason, sizeof(reason), "Unexpected trusted stack "
+		    "unwind");
 		goto fail;
 	}
 	if (ctp->ct_flags & CT_FLAG_MIPS_EXCCODE) {

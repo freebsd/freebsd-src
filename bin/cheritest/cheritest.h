@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -69,6 +69,7 @@ struct cheritest_child_state {
 	int		ccs_signum;
 	register_t	ccs_mips_cause;
 	register_t	ccs_cp2_cause;
+	int		ccs_unwound;  /* If any trusted-stack frames unwound. */
 
 	/* Fields filled in by the test itself. */
 	int		ccs_testresult;
