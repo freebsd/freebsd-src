@@ -243,11 +243,6 @@ void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
  */
 #define	PMAP_DOMAIN_KERNEL	0	/* The kernel uses domain #0 */
 
-/*
- * sys/arm/arm/cpufunc.c
- */
-void vector_page_setprot(int);
-
 #endif	/* _KERNEL */
 // -----------------------------------------------------------------------------
 

@@ -6314,11 +6314,6 @@ pte1_setrw:
 	return (KERN_FAILURE);
 }
 
-/* !!!! REMOVE !!!! */
-void vector_page_setprot(int p)
-{
-}
-
 #if defined(PMAP_DEBUG)
 /*
  *  Reusing of KVA used in pmap_zero_page function !!!
