@@ -64,15 +64,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
-	uint64_t val;
 
 	if ((flags & RFPROC) == 0)
 		return;
-
-	if (td1 == curthread) {
-		__asm __volatile("mv	%0, tp" : "=&r"(val));
-		td1->td_pcb->pcb_tp = val;
-	}
 
 	pcb2 = (struct pcb *)(td2->td_kstack +
 	    td2->td_kstack_pages * PAGE_SIZE) - 1;
