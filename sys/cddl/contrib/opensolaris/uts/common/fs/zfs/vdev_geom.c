@@ -314,7 +314,7 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 	error = 0;
 
 	for (; off < offset; off += maxio, p += maxio, size -= maxio) {
-		bzero(bp, sizeof(*bp));
+		g_reset_bio(bp);
 		bp->bio_cmd = cmd;
 		bp->bio_done = NULL;
 		bp->bio_offset = off;

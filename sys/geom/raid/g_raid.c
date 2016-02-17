@@ -1011,7 +1011,7 @@ g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
 	vol = tr->tro_volume;
 	sc = vol->v_softc;
 
-	bzero(&bp, sizeof(bp));
+	g_reset_bio(&bp);
 	bp.bio_cmd = BIO_WRITE;
 	bp.bio_done = g_raid_tr_kerneldump_common_done;
 	bp.bio_attribute = NULL;

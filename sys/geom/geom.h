@@ -324,6 +324,7 @@ void g_unregister_classifier(struct g_classifier_hook *hook);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
 struct bio *g_new_bio(void);
 struct bio *g_alloc_bio(void);
+void g_reset_bio(struct bio *);
 void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error);
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 int g_delete_data(struct g_consumer *cp, off_t offset, off_t length);
