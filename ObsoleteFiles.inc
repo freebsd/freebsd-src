@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160216: Remove obsolete unbound-control-setup
+OLD_FILES+=usr/sbin/unbound-control-setup
 # 20151222: liblzma header
 OLD_FILES+=usr/include/lzma/lzma.h
 # 20151115: added missing _test suffix on multiple tests in lib/libc
