@@ -477,8 +477,6 @@ fdt_localbus_devmap(phandle_t dt_node, struct arm_devmap_entry *fdt_devmap,
 		fdt_devmap[j].pd_va = localbus_virtmap[va_index].va;
 		fdt_devmap[j].pd_pa = offset;
 		fdt_devmap[j].pd_size = size;
-		fdt_devmap[j].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-		fdt_devmap[j].pd_cache = PTE_DEVICE;
 
 		/* Copy data to structure used by localbus driver */
 		localbus_banks[bank].va = fdt_devmap[j].pd_va;

@@ -37,8 +37,6 @@ struct arm_devmap_entry {
 	vm_offset_t	pd_va;		/* virtual address */
 	vm_paddr_t	pd_pa;		/* physical address */
 	vm_size_t	pd_size;	/* size of region */
-	vm_prot_t	pd_prot;	/* protection code */
-	int		pd_cache;	/* cache attributes */
 };
 
 /*
