@@ -31,6 +31,7 @@
 #define _MACHINE_PMAP_VAR_H_
 
 #include <machine/cpu-v6.h>
+#include <machine/pte-v6.h>
 /*
  *  Various PMAP defines, exports, and inline functions
  *  definitions also usable in other MD code.
