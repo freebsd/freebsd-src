@@ -31,13 +31,13 @@
 #ifndef _CHERITEST_SANDBOX_H_
 #define	_CHERITEST_SANDBOX_H_
 
-extern void	(*sandbox_creturn)(void);
+extern void	sandbox_creturn(void);
 extern void	sandbox_creturn_end;
 
-extern void	(*sandbox_nop_creturn)(void);
+extern void	sandbox_nop_creturn(void);
 extern void	sandbox_nop_creturn_end;
 
-extern void	(*sandbox_dli_creturn)(void);
+extern void	sandbox_dli_creturn(void);
 extern void	sandbox_dli_creturn_end;
 
 #endif /* !_CHERITEST_SANDBOX_H_ */

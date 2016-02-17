@@ -86,7 +86,7 @@ static __capability void *sandbox_dli_creturn_codecap;
 static __capability void *sandbox_dli_creturn_datacap;
 
 static __capability void *
-codecap_create(void *sandbox_base, void *sandbox_end)
+codecap_create(void (*sandbox_base)(void), void *sandbox_end)
 {
 	__capability void *codecap;
 
