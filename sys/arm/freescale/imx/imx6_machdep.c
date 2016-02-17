@@ -136,7 +136,7 @@ imx6_late_init(platform_t plat)
  * Notably not mapped right now are HDMI, GPU, and other devices below ARMMP in
  * the memory map.  When we get support for graphics it might make sense to
  * static map some of that area.  Be careful with other things in that area such
- * as OCRAM that probably shouldn't be mapped as PTE_DEVICE memory.
+ * as OCRAM that probably shouldn't be mapped as VM_MEMATTR_DEVICE memory.
  */
 static int
 imx6_devmap_init(platform_t plat)
