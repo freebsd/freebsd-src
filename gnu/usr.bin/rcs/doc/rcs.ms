@@ -16,7 +16,7 @@
 .R
 ..
 .de Id
-.ND \\$4
+.ND 1 June 1995
 ..
 .Id $FreeBSD$
 .RP
