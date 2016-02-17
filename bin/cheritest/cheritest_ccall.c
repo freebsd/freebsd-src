@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -90,10 +90,14 @@ codecap_create(void *sandbox_base, void *sandbox_end)
 {
 	__capability void *codecap;
 
-	codecap = cheri_codeptr(sandbox_base,
-	    (uintptr_t)sandbox_end - (uintptr_t)sandbox_base);
-	codecap = cheri_andperm(codecap, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD |
-	    CHERI_PERM_EXECUTE);
+#ifdef __CHERI_PURE_CAPABILITY__
+	codecap = cheri_andperm(sandbox_base,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
+#else
+	codecap = cheri_codeptrperm(sandbox_base,
+	    (size_t)sandbox_end - (size_t)sandbox_base,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
+#endif
 	return (codecap);
 }
 
@@ -102,11 +106,18 @@ datacap_create(void *sandbox_base, void *sandbox_end)
 {
 	__capability void *datacap;
 
-	datacap = cheri_ptr(sandbox_base,
-	    (uintptr_t)sandbox_end - (uintptr_t)sandbox_base);
-	datacap = cheri_andperm(datacap, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD |
-	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+#ifdef __CHERI_PURE_CAPABILITY__
+	datacap = cheri_andperm(sandbox_base,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_STORE |
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
+#else
+	datacap = cheri_ptrperm(sandbox_base,
+	    (size_t)sandbox_end - (size_t)sandbox_base,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_STORE |
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_LOCAL_CAP);
+#endif
 	return (datacap);
 }
 
