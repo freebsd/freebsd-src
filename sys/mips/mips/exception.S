@@ -197,7 +197,9 @@ VECTOR(MipsException, unknown)
 	PTR_SLL	k1, k1, 1			# shift to get 8-byte offset
 #endif
 1:
+	.set	at
 	PTR_LA	k0, _C_LABEL(machExceptionTable)  # get base of the jump table
+	.set	noat
 	PTR_ADDU k0, k0, k1			# Get the address of the
 						#  function entry.  Note that
 						#  the cause is already

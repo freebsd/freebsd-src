@@ -115,7 +115,7 @@ NESTED(MipsEmulateFP, CALLFRAME_SIZ, ra)
 	ctc1	a1, MIPS_FPU_CSR
 	j	a3
 
-	.rdata
+	.section .rdata
 func_fmt_tbl:
 	.word	add_s		# 0
 	.word	add_d		# 0
@@ -2272,7 +2272,7 @@ LEAF(get_fs_int)
 	lw	a3, get_fs_int_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 get_fs_int_tbl:
 	.word	get_fs_int_f0
 	.word	get_fs_int_f2
@@ -2370,7 +2370,7 @@ LEAF(get_ft_fs_s)
 	lw	a3, get_ft_s_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 get_ft_s_tbl:
 	.word	get_ft_s_f0
 	.word	get_ft_s_f2
@@ -2468,7 +2468,7 @@ XLEAF(get_fs_s)
 	lw	a3, get_fs_s_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 get_fs_s_tbl:
 	.word	get_fs_s_f0
 	.word	get_fs_s_f2
@@ -2572,7 +2572,7 @@ LEAF(get_ft_fs_d)
 	lw	a3, get_ft_d_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 get_ft_d_tbl:
 	.word	get_ft_d_f0
 	.word	get_ft_d_f2
@@ -2687,7 +2687,7 @@ XLEAF(get_fs_d)
 	lw	a3, get_fs_d_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 get_fs_d_tbl:
 	.word	get_fs_d_f0
 	.word	get_fs_d_f2
@@ -2805,7 +2805,7 @@ LEAF(get_cmp_s)
 	lw	a3, cmp_fs_s_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 cmp_fs_s_tbl:
 	.word	cmp_fs_s_f0
 	.word	cmp_fs_s_f2
@@ -2883,7 +2883,7 @@ cmp_fs_s_done:
 	lw	a3, cmp_ft_s_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 cmp_ft_s_tbl:
 	.word	cmp_ft_s_f0
 	.word	cmp_ft_s_f2
@@ -2983,7 +2983,7 @@ LEAF(get_cmp_d)
 	lw	a3, cmp_fs_d_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 cmp_fs_d_tbl:
 	.word	cmp_fs_d_f0
 	.word	cmp_fs_d_f2
@@ -3077,7 +3077,7 @@ cmp_fs_d_done:
 	lw	a3, cmp_ft_d_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 cmp_ft_d_tbl:
 	.word	cmp_ft_d_f0
 	.word	cmp_ft_d_f2
@@ -3202,7 +3202,7 @@ XLEAF(set_fd_word)
 	lw	a3, set_fd_s_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 set_fd_s_tbl:
 	.word	set_fd_s_f0
 	.word	set_fd_s_f2
@@ -3297,7 +3297,7 @@ LEAF(set_fd_d)
 	lw	a3, set_fd_d_tbl(a3)		# switch on register number
 	j	a3
 
-	.rdata
+	.section .rdata
 set_fd_d_tbl:
 	.word	set_fd_d_f0
 	.word	set_fd_d_f2
