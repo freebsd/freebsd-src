@@ -281,7 +281,8 @@ SUBDIR.${MK_TOOLCHAIN}+=	rpcgen
 SUBDIR.${MK_TOOLCHAIN}+=	unifdef
 SUBDIR.${MK_TOOLCHAIN}+=	size
 SUBDIR.${MK_TOOLCHAIN}+=	strings
-.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
+.if ${MACHINE_ARCH} != "aarch64" && \ # ARM64TODO xlint does not build
+    (${MACHINE_ARCH} == "mips64" && ${COMPILER_TYPE} == "gcc") # mips64 clang doesn't build this yet
 SUBDIR.${MK_TOOLCHAIN}+=	xlint
 .endif
 SUBDIR.${MK_TOOLCHAIN}+=	xstr
