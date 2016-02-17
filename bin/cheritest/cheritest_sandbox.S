@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Robert N. M. Watson
+ * Copyright (c) 2013-2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -41,6 +41,7 @@
 	 * Position-independent, no memory access.
 	 */
 	.text
+	.type sandbox_creturn,@function
 	.global sandbox_creturn
 	.ent sandbox_creturn
 sandbox_creturn:
@@ -50,6 +51,7 @@ sandbox_creturn:
 
 	.global sandbox_creturn_end
 sandbox_creturn_end:
+	.size sandbox_creturn, sandbox_creturn_end - sandbox_creturn
 
 
 	/*
@@ -57,6 +59,7 @@ sandbox_creturn_end:
 	 * Position-independent, no memory access.
 	 */
 	.text
+	.type sandbox_nop_creturn,@function
 	.global sandbox_nop_creturn
 	.ent sandbox_nop_creturn
 sandbox_nop_creturn:
@@ -69,6 +72,7 @@ sandbox_nop_creturn:
 
 	.global sandbox_nop_creturn_end
 sandbox_nop_creturn_end:
+	.size sandbox_nop_creturn, sandbox_nop_creturn_end - sandbox_nop_creturn
 
 
 	/*
