@@ -841,6 +841,11 @@ as a (DHCP-) DNS network resolver for a group of machines, where such
 lookups should be filtered (RFC compliance), this also stops potential
 data leakage about the local network to the upstream DNS servers.
 .TP
+.B insecure\-lan\-zones: \fI<yesno>
+Default is disabled.  If enabled, then reverse lookups in private
+address space are not validated.  This is usually required whenever
+\fIunblock\-lan\-zones\fR is used.
+.TP
 .B local\-zone: \fI<zone> <type>
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
