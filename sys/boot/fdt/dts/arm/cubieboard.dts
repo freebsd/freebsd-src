@@ -28,7 +28,7 @@
 
 /dts-v1/;
 
-/include/ "sun4i-a10.dtsi"
+#include "sun4i-a10.dtsi"
 
 / {
 	model = "Cubietech Cubieboard";
@@ -63,6 +63,8 @@
 
 		emac@01c0b000 {
 			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&emac_pins>;
 		};
 
 		ahci: sata@01c18000 {

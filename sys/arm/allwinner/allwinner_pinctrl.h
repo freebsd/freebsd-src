@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,72 +22,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
-/dts-v1/;
+#ifndef _ALLWINNER_PINCTRL_H_
+#define	_ALLWINNER_PINCTRL_H_
 
-#include "sun7i-a20.dtsi"
+#define AW_MAX_FUNC_BY_PIN	8
 
-#include <dt-bindings/gpio/gpio.h>
-
-/ {
-	model = "LeMaker Banana Pi";
-	compatible = "lemaker,bananapi", "allwinner,sun7i-a20";
-
-	memory {
-		device_type = "memory";
-		reg = < 0x40000000 0x40000000 >;	/* 1GB RAM */
-	};
-
-	aliases {
-		soc = &SOC;
-		UART0 = &UART0;
-	};
-
-	SOC: a20 {
-
-		usb1: usb@01c14000 {
-			status = "okay";
-		};
-
-		usb2: usb@01c1c000 {
-			status = "okay";
-		};
-
-		UART0: serial@01c28000 {
-			status = "okay";
-		};
-
-		mmc0: mmc@01c0f000 {
-			status = "okay";
-		};
-
-		gmac@01c50000 {
-			phy-mode = "rgmii-bpi";
-			status = "okay";
-			pinctrl-names = "default";
-			pinctrl-0 = <&gmac_pins_rgmii>;
-		};
-
-		ahci: sata@01c18000 {
-			status = "okay";
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-
-		green {
-			label = "bananapi:green:usr";
-			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	chosen {
-		bootargs = "-v";
-		stdin = "UART0";
-		stdout = "UART0";
-	};
+struct allwinner_pins {
+	const char *name;
+	uint8_t port;
+	uint8_t pin;
+	const char *functions[8];
 };
+
+struct allwinner_padconf {
+	uint32_t			npins;
+	const struct allwinner_pins *	pins;
+};
+
+#endif /* _ALLWINNER_PINCTRL_H_ */
