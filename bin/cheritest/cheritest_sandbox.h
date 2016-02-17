@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Robert N. M. Watson
+ * Copyright (c) 2013-2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -31,13 +31,13 @@
 #ifndef _CHERITEST_SANDBOX_H_
 #define	_CHERITEST_SANDBOX_H_
 
-extern void	sandbox_creturn;
+extern void	(*sandbox_creturn)(void);
 extern void	sandbox_creturn_end;
 
-extern void	sandbox_nop_creturn;
+extern void	(*sandbox_nop_creturn)(void);
 extern void	sandbox_nop_creturn_end;
 
-extern void	sandbox_dli_creturn;
+extern void	(*sandbox_dli_creturn)(void);
 extern void	sandbox_dli_creturn_end;
 
 #endif /* !_CHERITEST_SANDBOX_H_ */
