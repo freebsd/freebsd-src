@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/a10_clk.h>
-#include <arm/allwinner/a10_gpio.h>
 
 #include "if_dwc_if.h"
 
@@ -63,8 +62,7 @@ a20_if_dwc_init(device_t dev)
 {
 
 	/* Activate GMAC clock and set the pin mux to rgmii. */
-	if (a10_clk_gmac_activate(ofw_bus_get_node(dev)) != 0 ||
-	    a10_gpio_ethernet_activate(A10_GPIO_FUNC_RGMII)) {
+	if (a10_clk_gmac_activate(ofw_bus_get_node(dev)) != 0) {
 		device_printf(dev, "could not activate gmac module\n");
 		return (ENXIO);
 	}

@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 
 #include "a10_clk.h"
 #include "a10_sramc.h"
-#include "a10_gpio.h"
 
 struct emac_softc {
 	struct ifnet		*emac_ifp;
@@ -145,8 +144,6 @@ emac_sys_setup(void)
 
 	/* Activate EMAC clock. */
 	a10_clk_emac_activate();
-	/* Set the pin mux to EMAC (mii). */
-	a10_gpio_ethernet_activate(A10_GPIO_FUNC_MII);
 	/* Map sram. */
 	a10_map_to_emac();
 }
