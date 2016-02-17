@@ -936,9 +936,9 @@ prelist_remove(struct nd_prefix *pr)
 	/* unlink ndpr_entry from nd_prefix list */
 	LIST_REMOVE(pr, ndpr_entry);
 
-	/* free list of routers that adversed the prefix */
+	/* free list of routers that advertised the prefix */
 	LIST_FOREACH_SAFE(pfr, &pr->ndpr_advrtrs, pfr_entry, next) {
-		free(pfr, M_IP6NDP);
+		pfxrtr_del(pfr);
 	}
 	free(pr, M_IP6NDP);
 
