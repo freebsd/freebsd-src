@@ -1,4 +1,5 @@
 # $FreeBSD$
 
+arm/allwinner/a10_padconf.c		standard
 arm/allwinner/aintc.c			standard
 arm/allwinner/timer.c			standard
