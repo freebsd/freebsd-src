@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/acle-compat.h>
 #include <machine/armreg.h>
 #include <machine/cpufunc.h>
 #include <machine/fiq.h>
@@ -73,13 +74,13 @@ fiq_installhandler(void *func, size_t size)
 {
 	const uint32_t fiqvector = 7 * sizeof(uint32_t);
 
-#if !defined(__ARM_FIQ_INDIRECT)
+#if __ARM_ARCH < 6 && !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ|VM_PROT_WRITE);
 #endif
 
 	memcpy((void *)(vector_page + fiqvector), func, size);
 
-#if !defined(__ARM_FIQ_INDIRECT)
+#if __ARM_ARCH < 6 && !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ);
 #endif
 	icache_sync((vm_offset_t) fiqvector, size);
