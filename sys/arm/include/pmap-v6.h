@@ -222,8 +222,6 @@ void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
 #endif	/* _KERNEL */
 
 // ----------------- TO BE DELETED ---------------------------------------------
-#include <machine/pte-v6.h>
-
 #ifdef _KERNEL
 
 /*
