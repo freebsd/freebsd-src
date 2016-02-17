@@ -256,8 +256,27 @@ ENTRY(fork_trampoline)
 END(fork_trampoline)
 
 ENTRY(savectx)
-	la	a0, .Lsavectx_panic_str
-	call	panic
-.Lsavectx_panic_str:
-	.asciz "savectx_panic: %p\0"
+	/* Store ra, sp and the callee-saved registers */
+	sd	ra, (PCB_RA)(a0)
+	sd	sp, (PCB_SP)(a0)
+
+	/* s[0-11] */
+	sd	s0, (PCB_S + 0 * 8)(a0)
+	sd	s1, (PCB_S + 1 * 8)(a0)
+	sd	s2, (PCB_S + 2 * 8)(a0)
+	sd	s3, (PCB_S + 3 * 8)(a0)
+	sd	s4, (PCB_S + 4 * 8)(a0)
+	sd	s5, (PCB_S + 5 * 8)(a0)
+	sd	s6, (PCB_S + 6 * 8)(a0)
+	sd	s7, (PCB_S + 7 * 8)(a0)
+	sd	s8, (PCB_S + 8 * 8)(a0)
+	sd	s9, (PCB_S + 9 * 8)(a0)
+	sd	s10, (PCB_S + 10 * 8)(a0)
+	sd	s11, (PCB_S + 11 * 8)(a0)
+
+	/* Store the VFP registers */
+#ifdef VFP
+	/* TODO */
+#endif
+	ret
 END(savectx)
