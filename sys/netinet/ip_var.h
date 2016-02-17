@@ -75,7 +75,7 @@ struct ipq {
 
 struct ipoption {
 	struct	in_addr ipopt_dst;	/* first-hop dst if source routed */
-	char	ipopt_list[MAX_IPOPTLEN];	/* options proper */
+	uint8_t	ipopt_list[MAX_IPOPTLEN];	/* options proper */
 };
 
 /*
