@@ -265,6 +265,13 @@ g_duplicate_bio(struct bio *bp)
 }
 
 void
+g_reset_bio(struct bio *bp)
+{
+
+	bzero(bp, sizeof(bp));
+}
+
+void
 g_io_init()
 {
 
