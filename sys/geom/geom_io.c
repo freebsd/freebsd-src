@@ -268,7 +268,7 @@ void
 g_reset_bio(struct bio *bp)
 {
 
-	bzero(bp, sizeof(bp));
+	bzero(bp, sizeof(*bp));
 }
 
 void
