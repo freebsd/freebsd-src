@@ -1011,6 +1011,38 @@ struct hn_rx_ring {
 #define HN_TRUST_HCSUM_TCP	0x0002
 #define HN_TRUST_HCSUM_UDP	0x0004
 
+struct hn_tx_ring {
+	struct mtx	hn_txlist_spin;
+	struct hn_txdesc_list hn_txlist;
+	int		hn_txdesc_cnt;
+	int		hn_txdesc_avail;
+	int		hn_txeof;
+
+	int		hn_sched_tx;
+	struct taskqueue *hn_tx_taskq;
+	struct task	hn_start_task;
+	struct task	hn_txeof_task;
+
+	struct mtx	hn_tx_lock;
+	struct hn_softc	*hn_sc;
+
+	int		hn_direct_tx_size;
+	int		hn_tx_chimney_size;
+	bus_dma_tag_t	hn_tx_data_dtag;
+	uint64_t	hn_csum_assist;
+
+	u_long		hn_no_txdescs;
+	u_long		hn_send_failed;
+	u_long		hn_txdma_failed;
+	u_long		hn_tx_collapsed;
+	u_long		hn_tx_chimney;
+
+	/* Rarely used stuffs */
+	struct hn_txdesc *hn_txdesc;
+	bus_dma_tag_t	hn_tx_rndis_dtag;
+	struct sysctl_oid *hn_tx_sysctl_tree;
+} __aligned(CACHE_LINE_SIZE);
+
 /*
  * Device-specific softc structure
  */
@@ -1028,33 +1060,14 @@ typedef struct hn_softc {
 	struct hv_device  *hn_dev_obj;
 	netvsc_dev  	*net_dev;
 
-	struct hn_txdesc *hn_txdesc;
-	bus_dma_tag_t	hn_tx_data_dtag;
-	bus_dma_tag_t	hn_tx_rndis_dtag;
-	int		hn_tx_chimney_size;
-	int		hn_tx_chimney_max;
-	uint64_t	hn_csum_assist;
-
-	struct mtx	hn_txlist_spin;
-	struct hn_txdesc_list hn_txlist;
-	int		hn_txdesc_cnt;
-	int		hn_txdesc_avail;
-	int		hn_txeof;
-
-	int		hn_sched_tx;
-	int		hn_direct_tx_size;
-	struct taskqueue *hn_tx_taskq;
-	struct task	hn_start_task;
-	struct task	hn_txeof_task;
-
 	int		hn_rx_ring_cnt;
 	struct hn_rx_ring *hn_rx_ring;
 
-	u_long		hn_no_txdescs;
-	u_long		hn_send_failed;
-	u_long		hn_txdma_failed;
-	u_long		hn_tx_collapsed;
-	u_long		hn_tx_chimney;
+	int		hn_tx_ring_cnt;
+	struct hn_tx_ring *hn_tx_ring;
+	int		hn_tx_chimney_max;
+	struct taskqueue *hn_tx_taskq;
+	struct sysctl_oid *hn_tx_sysctl_tree;
 } hn_softc_t;
 
 /*
