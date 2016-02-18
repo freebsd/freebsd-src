@@ -296,11 +296,6 @@
  */
 #define	AP_KRW		0x01		/* kernel read/write */
 
-/*
- * lib/libkvm/kvm_arm.c
- */
-#define	L2_ADDR_BITS	0x000ff000	/* L2 PTE address bits */
-
 // -----------------------------------------------------------------------------
 
 #endif /* !_MACHINE_PTE_H_ */
