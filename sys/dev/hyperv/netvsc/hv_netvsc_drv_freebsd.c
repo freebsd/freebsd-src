@@ -205,41 +205,57 @@ struct hn_txdesc {
 
 int hv_promisc_mode = 0;    /* normal mode by default */
 
+SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD, NULL, "Hyper-V network interface");
+
 /* Trust tcp segements verification on host side. */
 static int hn_trust_hosttcp = 1;
-TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
+SYSCTL_INT(_hw_hn, OID_AUTO, trust_hosttcp, CTLFLAG_RDTUN,
+    &hn_trust_hosttcp, 0,
+    "Trust tcp segement verification on host side, "
+    "when csum info is missing (global setting)");
 
 /* Trust udp datagrams verification on host side. */
 static int hn_trust_hostudp = 1;
-TUNABLE_INT("dev.hn.trust_hostudp", &hn_trust_hostudp);
+SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostudp, CTLFLAG_RDTUN,
+    &hn_trust_hostudp, 0,
+    "Trust udp datagram verification on host side, "
+    "when csum info is missing (global setting)");
 
 /* Trust ip packets verification on host side. */
 static int hn_trust_hostip = 1;
-TUNABLE_INT("dev.hn.trust_hostip", &hn_trust_hostip);
+SYSCTL_INT(_hw_hn, OID_AUTO, trust_hostip, CTLFLAG_RDTUN,
+    &hn_trust_hostip, 0,
+    "Trust ip packet verification on host side, "
+    "when csum info is missing (global setting)");
 
 #if __FreeBSD_version >= 1100045
 /* Limit TSO burst size */
 static int hn_tso_maxlen = 0;
-TUNABLE_INT("dev.hn.tso_maxlen", &hn_tso_maxlen);
+SYSCTL_INT(_hw_hn, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
+    &hn_tso_maxlen, 0, "TSO burst limit");
 #endif
 
 /* Limit chimney send size */
 static int hn_tx_chimney_size = 0;
-TUNABLE_INT("dev.hn.tx_chimney_size", &hn_tx_chimney_size);
+SYSCTL_INT(_hw_hn, OID_AUTO, tx_chimney_size, CTLFLAG_RDTUN,
+    &hn_tx_chimney_size, 0, "Chimney send packet size limit");
 
 /* Limit the size of packet for direct transmission */
 static int hn_direct_tx_size = HN_DIRECT_TX_SIZE_DEF;
-TUNABLE_INT("dev.hn.direct_tx_size", &hn_direct_tx_size);
+SYSCTL_INT(_hw_hn, OID_AUTO, direct_tx_size, CTLFLAG_RDTUN,
+    &hn_direct_tx_size, 0, "Size of the packet for direct transmission");
 
 #if defined(INET) || defined(INET6)
 #if __FreeBSD_version >= 1100095
 static int hn_lro_entry_count = HN_LROENT_CNT_DEF;
-TUNABLE_INT("dev.hn.lro_entry_count", &hn_lro_entry_count);
+SYSCTL_INT(_hw_hn, OID_AUTO, lro_entry_count, CTLFLAG_RDTUN,
+    &hn_lro_entry_count, 0, "LRO entry count");
 #endif
 #endif
 
 static int hn_share_tx_taskq = 0;
-TUNABLE_INT("hw.hn.share_tx_taskq", &hn_share_tx_taskq);
+SYSCTL_INT(_hw_hn, OID_AUTO, share_tx_taskq, CTLFLAG_RDTUN,
+    &hn_share_tx_taskq, 0, "Enable shared TX taskqueue");
 
 static struct taskqueue	*hn_tx_taskq;
 
@@ -540,48 +556,6 @@ netvsc_attach(device_t dev)
 	    CTLFLAG_RW, &sc->hn_sched_tx, 0,
 	    "Always schedule transmission "
 	    "instead of doing direct transmission");
-
-	if (unit == 0) {
-		struct sysctl_ctx_list *dc_ctx;
-		struct sysctl_oid_list *dc_child;
-		devclass_t dc;
-
-		/*
-		 * Add sysctl nodes for devclass
-		 */
-		dc = device_get_devclass(dev);
-		dc_ctx = devclass_get_sysctl_ctx(dc);
-		dc_child = SYSCTL_CHILDREN(devclass_get_sysctl_tree(dc));
-
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hosttcp",
-		    CTLFLAG_RD, &hn_trust_hosttcp, 0,
-		    "Trust tcp segement verification on host side, "
-		    "when csum info is missing (global setting)");
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostudp",
-		    CTLFLAG_RD, &hn_trust_hostudp, 0,
-		    "Trust udp datagram verification on host side, "
-		    "when csum info is missing (global setting)");
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "trust_hostip",
-		    CTLFLAG_RD, &hn_trust_hostip, 0,
-		    "Trust ip packet verification on host side, "
-		    "when csum info is missing (global setting)");
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tx_chimney_size",
-		    CTLFLAG_RD, &hn_tx_chimney_size, 0,
-		    "Chimney send packet size limit");
-#if __FreeBSD_version >= 1100045
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tso_maxlen",
-		    CTLFLAG_RD, &hn_tso_maxlen, 0, "TSO burst limit");
-#endif
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "direct_tx_size",
-		    CTLFLAG_RD, &hn_direct_tx_size, 0,
-		    "Size of the packet for direct transmission");
-#if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
-		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "lro_entry_count",
-		    CTLFLAG_RD, &hn_lro_entry_count, 0, "LRO entry count");
-#endif
-#endif
-	}
 
 	return (0);
 failed:
