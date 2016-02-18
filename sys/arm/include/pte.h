@@ -148,8 +148,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
  * So, we allocate L2 tables 4 at a time, thus yielding a 4K L2
  * table.
  */
-#define	L2_ADDR_BITS	0x000ff000	/* L2 PTE address bits */
-
 #define	L1_TABLE_SIZE	0x4000		/* 16K */
 #define	L2_TABLE_SIZE	0x1000		/* 4K */
 /*
