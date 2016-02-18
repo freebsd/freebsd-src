@@ -368,7 +368,7 @@ netvsc_attach(device_t dev)
 	sc->hn_direct_tx_size = hn_direct_tx_size;
 
 	if (hn_tx_taskq == NULL) {
-		sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
 		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
 		taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
 		    device_get_nameunit(dev));
@@ -2178,7 +2178,7 @@ hn_tx_taskq_create(void *arg __unused)
 	if (!hn_share_tx_taskq)
 		return;
 
-	hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+	hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &hn_tx_taskq);
 	taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
 }
