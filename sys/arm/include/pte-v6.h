@@ -299,30 +299,8 @@
 /*
  * lib/libkvm/kvm_arm.c
  */
-#define	L1_ADDR_MASK	0xfffffc00
-
-/*
- * lib/libkvm/kvm_arm.c
- */
 #define	L2_ADDR_BITS	0x000ff000	/* L2 PTE address bits */
 
-#ifndef LOCORE
-/*
- * sys/arm/arm/minidump_machdep.c
- * sys/arm/arm/pmap.c
- * sys/arm/arm/pmap.h (hack for our hack in pmap.h )
- * lib/libkvm/kvm_arm.c
- */
-typedef	uint32_t	pd_entry_t;		/* page directory entry */
-
-/*
- * sys/arm/arm/minidump_machdep.c
- * sys/arm/arm/pmap.c
- * sys/arm/arm/pmap.h (hack for our hack in pmap.h )
- * sys/arm/include/param.h
- */
-typedef	uint32_t	pt_entry_t;		/* page table entry */
-#endif
 // -----------------------------------------------------------------------------
 
 #endif /* !_MACHINE_PTE_H_ */
