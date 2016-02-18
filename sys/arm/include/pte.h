@@ -72,9 +72,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define L2_MASK		0x03	/* Mask for L2 entry type */
 #define L2_INVAL	0x00	/* L2 invalid type */
 
-/* L1 and L2 address masks */
-#define L2_ADDR_MASK		0xfffff000
-
 /*
  * The ARM MMU architecture was introduced with ARM v3 (previous ARM
  * architecture versions used an optional off-CPU memory controller
