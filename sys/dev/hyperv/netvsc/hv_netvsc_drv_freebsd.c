@@ -238,6 +238,11 @@ TUNABLE_INT("dev.hn.lro_entry_count", &hn_lro_entry_count);
 #endif
 #endif
 
+static int hn_share_tx_taskq = 0;
+TUNABLE_INT("hw.hn.share_tx_taskq", &hn_share_tx_taskq);
+
+static struct taskqueue	*hn_tx_taskq;
+
 /*
  * Forward declarations
  */
@@ -353,10 +358,14 @@ netvsc_attach(device_t dev)
 	if (hn_trust_hostip)
 		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
 
-	sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
-	    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
-	taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
-	    device_get_nameunit(dev));
+	if (hn_tx_taskq == NULL) {
+		sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
+		taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
+		    device_get_nameunit(dev));
+	} else {
+		sc->hn_tx_taskq = hn_tx_taskq;
+	}
 	TASK_INIT(&sc->hn_start_task, 0, hn_start_taskfunc, sc);
 	TASK_INIT(&sc->hn_txeof_task, 0, hn_txeof_taskfunc, sc);
 
@@ -602,7 +611,8 @@ netvsc_detach(device_t dev)
 
 	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_start_task);
 	taskqueue_drain(sc->hn_tx_taskq, &sc->hn_txeof_task);
-	taskqueue_free(sc->hn_tx_taskq);
+	if (sc->hn_tx_taskq != hn_tx_taskq)
+		taskqueue_free(sc->hn_tx_taskq);
 
 	ifmedia_removeall(&sc->hn_media);
 #if defined(INET) || defined(INET6)
@@ -2038,6 +2048,28 @@ hn_txeof_taskfunc(void *xsc, int pending __unused)
 	hn_start_locked(ifp, 0);
 	NV_UNLOCK(sc);
 }
+
+static void
+hn_tx_taskq_create(void *arg __unused)
+{
+	if (!hn_share_tx_taskq)
+		return;
+
+	hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
+	    taskqueue_thread_enqueue, &hn_tx_taskq);
+	taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
+}
+SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+    hn_tx_taskq_create, NULL);
+
+static void
+hn_tx_taskq_destroy(void *arg __unused)
+{
+	if (hn_tx_taskq != NULL)
+		taskqueue_free(hn_tx_taskq);
+}
+SYSUNINIT(hn_txtq_destroy, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+    hn_tx_taskq_destroy, NULL);
 
 static device_method_t netvsc_methods[] = {
         /* Device interface */
