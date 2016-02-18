@@ -105,6 +105,7 @@ CFLAGS += -ffixed-x18
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
+CFLAGS.gcc+=	-mcmodel=medany
 INLINE_LIMIT?=	8000
 .endif
 
