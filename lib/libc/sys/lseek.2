@@ -28,7 +28,7 @@
 .\"     @(#)lseek.2	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2012
+.Dd February 18, 2016
 .Dt LSEEK 2
 .Os
 .Sh NAME
@@ -134,9 +134,9 @@ find all such ranges in a file.
 Each file is presented as having a zero-size virtual hole at the very
 end of the file.
 The existence of a hole at the end of every data region allows for easy
-programming and also provides compatibility to the original imlementation
+programming and also provides compatibility to the original implementation
 in Solaris.
-It also causes the current file size (i.e. end-of-file offset) to be returned
+It also causes the current file size (i.e., end-of-file offset) to be returned
 to indicate that there are no more holes past the supplied
 .Fa offset .
 Applications should use
