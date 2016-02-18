@@ -993,6 +993,24 @@ typedef struct {
 struct hn_txdesc;
 SLIST_HEAD(hn_txdesc_list, hn_txdesc);
 
+struct hn_rx_ring {
+	struct lro_ctrl	hn_lro;
+
+	/* Trust csum verification on host side */
+	int		hn_trust_hcsum;	/* HN_TRUST_HCSUM_ */
+
+	u_long		hn_csum_ip;
+	u_long		hn_csum_tcp;
+	u_long		hn_csum_udp;
+	u_long		hn_csum_trusted;
+	u_long		hn_lro_tried;
+	u_long		hn_small_pkts;
+} __aligned(CACHE_LINE_SIZE);
+
+#define HN_TRUST_HCSUM_IP	0x0001
+#define HN_TRUST_HCSUM_TCP	0x0002
+#define HN_TRUST_HCSUM_UDP	0x0004
+
 /*
  * Device-specific softc structure
  */
@@ -1029,27 +1047,15 @@ typedef struct hn_softc {
 	struct task	hn_start_task;
 	struct task	hn_txeof_task;
 
-	struct lro_ctrl	hn_lro;
+	int		hn_rx_ring_cnt;
+	struct hn_rx_ring *hn_rx_ring;
 
-	/* Trust csum verification on host side */
-	int		hn_trust_hcsum;	/* HN_TRUST_HCSUM_ */
-
-	u_long		hn_csum_ip;
-	u_long		hn_csum_tcp;
-	u_long		hn_csum_udp;
-	u_long		hn_csum_trusted;
-	u_long		hn_lro_tried;
-	u_long		hn_small_pkts;
 	u_long		hn_no_txdescs;
 	u_long		hn_send_failed;
 	u_long		hn_txdma_failed;
 	u_long		hn_tx_collapsed;
 	u_long		hn_tx_chimney;
 } hn_softc_t;
-
-#define HN_TRUST_HCSUM_IP	0x0001
-#define HN_TRUST_HCSUM_TCP	0x0002
-#define HN_TRUST_HCSUM_UDP	0x0004
 
 /*
  * Externs
