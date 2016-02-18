@@ -1549,7 +1549,7 @@ hn_start(struct ifnet *ifp)
 			return;
 	}
 do_sched:
-	taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_start_task);
+	taskqueue_enqueue(sc->hn_tx_taskq, &sc->hn_start_task);
 }
 
 static void
@@ -1566,10 +1566,8 @@ hn_start_txeof(struct ifnet *ifp)
 		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 		sched = hn_start_locked(ifp, sc->hn_direct_tx_size);
 		NV_UNLOCK(sc);
-		if (sched) {
-			taskqueue_enqueue_fast(sc->hn_tx_taskq,
-			    &sc->hn_start_task);
-		}
+		if (sched)
+			taskqueue_enqueue(sc->hn_tx_taskq, &sc->hn_start_task);
 	} else {
 do_sched:
 		/*
@@ -1579,7 +1577,7 @@ do_sched:
 		 * races.
 		 */
 		atomic_clear_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-		taskqueue_enqueue_fast(sc->hn_tx_taskq, &sc->hn_txeof_task);
+		taskqueue_enqueue(sc->hn_tx_taskq, &sc->hn_txeof_task);
 	}
 }
 
