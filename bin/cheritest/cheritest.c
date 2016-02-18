@@ -642,7 +642,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_divzero_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_SIGNAL_UNWIND,
-	  .ct_signum = SIGEMT,
+	  .ct_signum = SIGTRAP,
 	  .ct_mips_exccode = T_TRAP },
 
 	{ .ct_name = "test_sandbox_divzero_nocatch",
@@ -650,7 +650,7 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_divzero_nocatch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_SIGNAL_UNWIND,
-	  .ct_signum = SIGEMT,
+	  .ct_signum = SIGTRAP,
 	  .ct_mips_exccode = T_TRAP },
 
 	{ .ct_name = "test_sandbox_vm_rfault_catch",
