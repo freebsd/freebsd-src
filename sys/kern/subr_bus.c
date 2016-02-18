@@ -4114,6 +4114,22 @@ bus_generic_get_dma_tag(device_t dev, device_t child)
 }
 
 /**
+ * @brief Helper function for implementing BUS_GET_BUS_TAG().
+ *
+ * This simple implementation of BUS_GET_BUS_TAG() simply calls the
+ * BUS_GET_BUS_TAG() method of the parent of @p dev.
+ */
+bus_space_tag_t
+bus_generic_get_bus_tag(device_t dev, device_t child)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent != NULL)
+		return (BUS_GET_BUS_TAG(dev->parent, child));
+	return (NULL);
+}
+
+/**
  * @brief Helper function for implementing BUS_GET_RESOURCE().
  *
  * This implementation of BUS_GET_RESOURCE() uses the
@@ -4592,6 +4608,23 @@ bus_get_dma_tag(device_t dev)
 	if (parent == NULL)
 		return (NULL);
 	return (BUS_GET_DMA_TAG(parent, dev));
+}
+
+/**
+ * @brief Wrapper function for BUS_GET_BUS_TAG().
+ *
+ * This function simply calls the BUS_GET_BUS_TAG() method of the
+ * parent of @p dev.
+ */
+bus_space_tag_t
+bus_get_bus_tag(device_t dev)
+{
+	device_t parent;
+
+	parent = device_get_parent(dev);
+	if (parent == NULL)
+		return (NULL);
+	return (BUS_GET_BUS_TAG(parent, dev));
 }
 
 /**

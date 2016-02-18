@@ -637,6 +637,17 @@ METHOD bus_dma_tag_t get_dma_tag {
 } DEFAULT bus_generic_get_dma_tag;
 
 /**
+ * @brief Returns bus_space_tag_t for use w/ devices on the bus.
+ *
+ * @param _dev		the parent device of @p _child
+ * @param _child	the device to which the tag will belong
+ */
+METHOD bus_space_tag_t get_bus_tag {
+	device_t	_dev;
+	device_t	_child;
+} DEFAULT bus_generic_get_bus_tag;
+
+/**
  * @brief Allow the bus to determine the unit number of a device.
  *
  * @param _dev		the parent device of @p _child
