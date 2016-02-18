@@ -465,6 +465,13 @@ netvsc_attach(device_t dev)
 	    hn_tx_chimney_size < sc->hn_tx_chimney_max)
 		sc->hn_tx_chimney_size = hn_tx_chimney_size;
 
+	/*
+	 * Always schedule transmission instead of trying
+	 * to do direct transmission.  This one gives the
+	 * best performance so far.
+	 */
+	sc->hn_sched_tx = 1;
+
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
