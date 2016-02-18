@@ -489,7 +489,7 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	l1pte_page_p(pde)	(((pde) & L1_TYPE_MASK) == L1_TYPE_C)
 #define	l1pte_fpage_p(pde)	(((pde) & L1_TYPE_MASK) == L1_TYPE_F)
 
-#define l2pte_index(v)		(((v) & L2_ADDR_BITS) >> L2_S_SHIFT)
+#define l2pte_index(v)		(((v) & L1_S_OFFSET) >> L2_S_SHIFT)
 #define	l2pte_valid(pte)	((pte) != 0)
 #define	l2pte_pa(pte)		((pte) & L2_S_FRAME)
 #define l2pte_minidata(pte)	(((pte) & \
