@@ -67,7 +67,7 @@ struct pci_vendor_info
     char				*desc;
 };
 
-TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
+static TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
 static struct pcisel getsel(const char *str);
 static void list_bridge(int fd, struct pci_conf *p);
@@ -896,16 +896,18 @@ getdevice(const char *name)
 static struct pcisel
 parsesel(const char *str)
 {
-	char *ep = strchr(str, '@');
-	char *epbase;
+	const char *ep;
+	const char *epbase;
+	char *eppos;
 	struct pcisel sel;
 	unsigned long selarr[4];
 	int i;
 
-	if (ep == NULL)
-		ep = (char *)str;
-	else
+	ep = strchr(str, '@');
+	if (ep != NULL)
 		ep++;
+	else
+		ep = str;
 
 	epbase = ep;
 
@@ -913,7 +915,8 @@ parsesel(const char *str)
 		ep += 3;
 		i = 0;
 		do {
-			selarr[i++] = strtoul(ep, &ep, 10);
+		  selarr[i++] = strtoul(ep, &eppos, 10);
+		  ep = eppos;
 		} while ((*ep == ':' || *ep == '.') && *++ep != '\0' && i < 4);
 
 		if (i > 2)

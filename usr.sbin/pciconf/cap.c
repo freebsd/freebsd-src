@@ -120,6 +120,9 @@ static void
 cap_vpd(int fd, struct pci_conf *p, uint8_t ptr)
 {
 
+	(void)fd;	/* UNUSED */
+	(void)p;	/* UNUSED */
+	(void)ptr;	/* UNUSED */
 	printf("VPD");
 }
 
@@ -172,6 +175,7 @@ cap_pcix(int fd, struct pci_conf *p, uint8_t ptr)
 	}
 	if ((p->pc_hdr & PCIM_HDRTYPE) == 1)
 		return;
+	max_burst_read = 0;
 	switch (status & PCIXM_STATUS_MAX_READ) {
 	case PCIXM_STATUS_MAX_READ_512:
 		max_burst_read = 512;
@@ -186,6 +190,7 @@ cap_pcix(int fd, struct pci_conf *p, uint8_t ptr)
 		max_burst_read = 4096;
 		break;
 	}
+	max_splits = 0;
 	switch (status & PCIXM_STATUS_MAX_SPLITS) {
 	case PCIXM_STATUS_MAX_SPLITS_1:
 		max_splits = 1;
@@ -518,6 +523,9 @@ static void
 cap_sata(int fd, struct pci_conf *p, uint8_t ptr)
 {
 
+	(void)fd;	/* UNUSED */
+	(void)p;	/* UNUSED */
+	(void)ptr;	/* UNUSED */
 	printf("SATA Index-Data Pair");
 }
 
@@ -759,7 +767,7 @@ ecap_sriov(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 		print_bar(fd, p, "iov bar  ", ptr + PCIR_SRIOV_BAR(i));
 }
 
-struct {
+static struct {
 	uint16_t id;
 	const char *name;
 } ecap_names[] = {
