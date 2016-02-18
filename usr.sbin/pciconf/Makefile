@@ -5,6 +5,4 @@ PROG=	pciconf
 SRCS=	pciconf.c cap.c err.c
 MAN=	pciconf.8
 
-WARNS?=	3
-
 .include <bsd.prog.mk>
