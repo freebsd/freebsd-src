@@ -117,12 +117,9 @@ cap_agp(int fd, struct pci_conf *p, uint8_t ptr)
 }
 
 static void
-cap_vpd(int fd, struct pci_conf *p, uint8_t ptr)
+cap_vpd(int fd __unused, struct pci_conf *p __unused, uint8_t ptr __unused)
 {
 
-	(void)fd;	/* UNUSED */
-	(void)p;	/* UNUSED */
-	(void)ptr;	/* UNUSED */
 	printf("VPD");
 }
 
@@ -520,12 +517,9 @@ cap_msix(int fd, struct pci_conf *p, uint8_t ptr)
 }
 
 static void
-cap_sata(int fd, struct pci_conf *p, uint8_t ptr)
+cap_sata(int fd __unused, struct pci_conf *p __unused, uint8_t ptr __unused)
 {
 
-	(void)fd;	/* UNUSED */
-	(void)p;	/* UNUSED */
-	(void)ptr;	/* UNUSED */
 	printf("SATA Index-Data Pair");
 }
 

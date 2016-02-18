@@ -915,8 +915,8 @@ parsesel(const char *str)
 		ep += 3;
 		i = 0;
 		do {
-		  selarr[i++] = strtoul(ep, &eppos, 10);
-		  ep = eppos;
+			selarr[i++] = strtoul(ep, &eppos, 10);
+			ep = eppos;
 		} while ((*ep == ':' || *ep == '.') && *++ep != '\0' && i < 4);
 
 		if (i > 2)
