@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/buf_ring.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -151,7 +152,9 @@ __FBSDID("$FreeBSD$");
 #define HN_DIRECT_TX_SIZE_DEF		128
 
 struct hn_txdesc {
+#ifndef HN_USE_TXDESC_BUFRING
 	SLIST_ENTRY(hn_txdesc) link;
+#endif
 	struct mbuf	*m;
 	struct hn_tx_ring *txr;
 	int		refs;
@@ -257,6 +260,14 @@ SYSCTL_INT(_hw_hn, OID_AUTO, share_tx_taskq, CTLFLAG_RDTUN,
     &hn_share_tx_taskq, 0, "Enable shared TX taskqueue");
 
 static struct taskqueue	*hn_tx_taskq;
+
+#ifndef HN_USE_TXDESC_BUFRING
+static int hn_use_txdesc_bufring = 0;
+#else
+static int hn_use_txdesc_bufring = 1;
+#endif
+SYSCTL_INT(_hw_hn, OID_AUTO, use_txdesc_bufring, CTLFLAG_RD,
+    &hn_use_txdesc_bufring, 0, "Use buf_ring for TX descriptors");
 
 /*
  * Forward declarations
@@ -570,6 +581,7 @@ hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 
 	txd->flags |= HN_TXD_FLAG_ONLIST;
 
+#ifndef HN_USE_TXDESC_BUFRING
 	mtx_lock_spin(&txr->hn_txlist_spin);
 	KASSERT(txr->hn_txdesc_avail >= 0 &&
 	    txr->hn_txdesc_avail < txr->hn_txdesc_cnt,
@@ -577,6 +589,10 @@ hn_txdesc_put(struct hn_tx_ring *txr, struct hn_txdesc *txd)
 	txr->hn_txdesc_avail++;
 	SLIST_INSERT_HEAD(&txr->hn_txlist, txd, link);
 	mtx_unlock_spin(&txr->hn_txlist_spin);
+#else
+	atomic_add_int(&txr->hn_txdesc_avail, 1);
+	buf_ring_enqueue(txr->hn_txdesc_br, txd);
+#endif
 
 	return 1;
 }
@@ -586,6 +602,7 @@ hn_txdesc_get(struct hn_tx_ring *txr)
 {
 	struct hn_txdesc *txd;
 
+#ifndef HN_USE_TXDESC_BUFRING
 	mtx_lock_spin(&txr->hn_txlist_spin);
 	txd = SLIST_FIRST(&txr->hn_txlist);
 	if (txd != NULL) {
@@ -595,8 +612,14 @@ hn_txdesc_get(struct hn_tx_ring *txr)
 		SLIST_REMOVE_HEAD(&txr->hn_txlist, link);
 	}
 	mtx_unlock_spin(&txr->hn_txlist_spin);
+#else
+	txd = buf_ring_dequeue_sc(txr->hn_txdesc_br);
+#endif
 
 	if (txd != NULL) {
+#ifdef HN_USE_TXDESC_BUFRING
+		atomic_subtract_int(&txr->hn_txdesc_avail, 1);
+#endif
 		KASSERT(txd->m == NULL && txd->refs == 0 &&
 		    (txd->flags & HN_TXD_FLAG_ONLIST), ("invalid txd"));
 		txd->flags &= ~HN_TXD_FLAG_ONLIST;
@@ -2048,13 +2071,20 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 
 	txr->hn_sc = sc;
 
+#ifndef HN_USE_TXDESC_BUFRING
 	mtx_init(&txr->hn_txlist_spin, "hn txlist", NULL, MTX_SPIN);
+#endif
 	mtx_init(&txr->hn_tx_lock, "hn tx", NULL, MTX_DEF);
 
 	txr->hn_txdesc_cnt = HN_TX_DESC_CNT;
 	txr->hn_txdesc = malloc(sizeof(struct hn_txdesc) * txr->hn_txdesc_cnt,
 	    M_NETVSC, M_WAITOK | M_ZERO);
+#ifndef HN_USE_TXDESC_BUFRING
 	SLIST_INIT(&txr->hn_txlist);
+#else
+	txr->hn_txdesc_br = buf_ring_alloc(txr->hn_txdesc_cnt, M_NETVSC,
+	    M_WAITOK, &txr->hn_tx_lock);
+#endif
 
 	txr->hn_tx_taskq = sc->hn_tx_taskq;
 	TASK_INIT(&txr->hn_start_task, 0, hn_start_taskfunc, txr);
@@ -2158,7 +2188,11 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 
 		/* All set, put it to list */
 		txd->flags |= HN_TXD_FLAG_ONLIST;
+#ifndef HN_USE_TXDESC_BUFRING
 		SLIST_INSERT_HEAD(&txr->hn_txlist, txd, link);
+#else
+		buf_ring_enqueue(txr->hn_txdesc_br, txd);
+#endif
 	}
 	txr->hn_txdesc_avail = txr->hn_txdesc_cnt;
 
@@ -2191,6 +2225,20 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 }
 
 static void
+hn_txdesc_dmamap_destroy(struct hn_txdesc *txd)
+{
+	struct hn_tx_ring *txr = txd->txr;
+
+	KASSERT(txd->m == NULL, ("still has mbuf installed"));
+	KASSERT((txd->flags & HN_TXD_FLAG_DMAMAP) == 0, ("still dma mapped"));
+
+	bus_dmamap_unload(txr->hn_tx_rndis_dtag, txd->rndis_msg_dmap);
+	bus_dmamem_free(txr->hn_tx_rndis_dtag, txd->rndis_msg,
+	    txd->rndis_msg_dmap);
+	bus_dmamap_destroy(txr->hn_tx_data_dtag, txd->data_dmap);
+}
+
+static void
 hn_destroy_tx_ring(struct hn_tx_ring *txr)
 {
 	struct hn_txdesc *txd;
@@ -2198,19 +2246,15 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 	if (txr->hn_txdesc == NULL)
 		return;
 
+#ifndef HN_USE_TXDESC_BUFRING
 	while ((txd = SLIST_FIRST(&txr->hn_txlist)) != NULL) {
-		KASSERT(txd->m == NULL, ("still has mbuf installed"));
-		KASSERT((txd->flags & HN_TXD_FLAG_DMAMAP) == 0,
-		    ("still dma mapped"));
 		SLIST_REMOVE_HEAD(&txr->hn_txlist, link);
-
-		bus_dmamap_unload(txr->hn_tx_rndis_dtag,
-		    txd->rndis_msg_dmap);
-		bus_dmamem_free(txr->hn_tx_rndis_dtag,
-		    txd->rndis_msg, txd->rndis_msg_dmap);
-
-		bus_dmamap_destroy(txr->hn_tx_data_dtag, txd->data_dmap);
+		hn_txdesc_dmamap_destroy(txd);
 	}
+#else
+	while ((txd = buf_ring_dequeue_sc(txr->hn_txdesc_br)) != NULL)
+		hn_txdesc_dmamap_destroy(txd);
+#endif
 
 	if (txr->hn_tx_data_dtag != NULL)
 		bus_dma_tag_destroy(txr->hn_tx_data_dtag);
@@ -2219,7 +2263,9 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 	free(txr->hn_txdesc, M_NETVSC);
 	txr->hn_txdesc = NULL;
 
+#ifndef HN_USE_TXDESC_BUFRING
 	mtx_destroy(&txr->hn_txlist_spin);
+#endif
 	mtx_destroy(&txr->hn_tx_lock);
 }
 
