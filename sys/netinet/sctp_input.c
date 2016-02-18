@@ -365,8 +365,10 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 	}
 	SCTP_TCB_SEND_UNLOCK(stcb);
 	asoc->streamoutcnt = asoc->pre_open_streams;
-	for (i = 0; i < asoc->streamoutcnt; i++) {
-		asoc->strmout[i].state = SCTP_STREAM_OPEN;
+	if (asoc->strmout) {
+		for (i = 0; i < asoc->streamoutcnt; i++) {
+			asoc->strmout[i].state = SCTP_STREAM_OPEN;
+		}
 	}
 	/* EY - nr_sack: initialize highest tsn in nr_mapping_array */
 	asoc->highest_tsn_inside_nr_map = asoc->highest_tsn_inside_map;
