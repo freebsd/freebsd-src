@@ -275,12 +275,16 @@ static int hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
+static int hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
 static int hn_create_tx_ring(struct hn_softc *sc);
 static void hn_destroy_tx_ring(struct hn_softc *sc);
 static void hn_start_taskfunc(void *xsc, int pending);
 static void hn_txeof_taskfunc(void *xsc, int pending);
 static int hn_encap(struct hn_softc *, struct hn_txdesc *, struct mbuf **);
+static void hn_create_rx_data(struct hn_softc *sc);
+static void hn_destroy_rx_data(struct hn_softc *sc);
 
 static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
@@ -352,11 +356,6 @@ netvsc_attach(device_t dev)
 #if __FreeBSD_version >= 1100045
 	int tso_maxlen;
 #endif
-#if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
-	int lroent_cnt;
-#endif
-#endif
 
 	sc = device_get_softc(dev);
 	if (sc == NULL) {
@@ -367,12 +366,6 @@ netvsc_attach(device_t dev)
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
 	sc->hn_direct_tx_size = hn_direct_tx_size;
-	if (hn_trust_hosttcp)
-		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
-	if (hn_trust_hostudp)
-		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
-	if (hn_trust_hostip)
-		sc->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
 
 	if (hn_tx_taskq == NULL) {
 		sc->hn_tx_taskq = taskqueue_create_fast("hn_tx", M_WAITOK,
@@ -395,6 +388,8 @@ netvsc_attach(device_t dev)
 
 	ifp = sc->hn_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
+
+	hn_create_rx_data(sc);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_dunit = unit;
@@ -441,22 +436,6 @@ netvsc_attach(device_t dev)
 		sc->hn_carrier = 1;
 	}
 
-#if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
-	lroent_cnt = hn_lro_entry_count;
-	if (lroent_cnt < TCP_LRO_ENTRIES)
-		lroent_cnt = TCP_LRO_ENTRIES;
-	tcp_lro_init_args(&sc->hn_lro, ifp, lroent_cnt, 0);
-	device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
-#else
-	tcp_lro_init(&sc->hn_lro);
-	/* Driver private LRO settings */
-	sc->hn_lro.ifp = ifp;
-#endif
-	sc->hn_lro.lro_length_lim = HN_LRO_LENLIM_DEF;
-	sc->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
-#endif	/* INET || INET6 */
-
 #if __FreeBSD_version >= 1100045
 	tso_maxlen = hn_tso_maxlen;
 	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
@@ -491,44 +470,6 @@ netvsc_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 
-	SYSCTL_ADD_U64(ctx, child, OID_AUTO, "lro_queued",
-	    CTLFLAG_RW, &sc->hn_lro.lro_queued, 0, "LRO queued");
-	SYSCTL_ADD_U64(ctx, child, OID_AUTO, "lro_flushed",
-	    CTLFLAG_RW, &sc->hn_lro.lro_flushed, 0, "LRO flushed");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "lro_tried",
-	    CTLFLAG_RW, &sc->hn_lro_tried, "# of LRO tries");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
-	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_lro_lenlim_sysctl, "IU",
-	    "Max # of data bytes to be aggregated by LRO");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_ackcnt_lim",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_ackcnt_sysctl, "I",
-	    "Max # of ACKs to be aggregated by LRO");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
-	    hn_trust_hcsum_sysctl, "I",
-	    "Trust tcp segement verification on host side, "
-	    "when csum info is missing");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_UDP,
-	    hn_trust_hcsum_sysctl, "I",
-	    "Trust udp datagram verification on host side, "
-	    "when csum info is missing");
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostip",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_IP,
-	    hn_trust_hcsum_sysctl, "I",
-	    "Trust ip packet verification on host side, "
-	    "when csum info is missing");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_ip",
-	    CTLFLAG_RW, &sc->hn_csum_ip, "RXCSUM IP");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_tcp",
-	    CTLFLAG_RW, &sc->hn_csum_tcp, "RXCSUM TCP");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_udp",
-	    CTLFLAG_RW, &sc->hn_csum_udp, "RXCSUM UDP");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "csum_trusted",
-	    CTLFLAG_RW, &sc->hn_csum_trusted,
-	    "# of packets that we trust host's csum verification");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "small_pkts",
-	    CTLFLAG_RW, &sc->hn_small_pkts, "# of small packets received");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_txdescs",
 	    CTLFLAG_RW, &sc->hn_no_txdescs, "# of times short of TX descs");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "send_failed",
@@ -596,9 +537,7 @@ netvsc_detach(device_t dev)
 		taskqueue_free(sc->hn_tx_taskq);
 
 	ifmedia_removeall(&sc->hn_media);
-#if defined(INET) || defined(INET6)
-	tcp_lro_free(&sc->hn_lro);
-#endif
+	hn_destroy_rx_data(sc);
 	hn_destroy_tx_ring(sc);
 
 	return (0);
@@ -746,7 +685,8 @@ netvsc_channel_rollup(struct hv_device *device_ctx)
 {
 	struct hn_softc *sc = device_get_softc(device_ctx->device);
 #if defined(INET) || defined(INET6)
-	struct lro_ctrl *lro = &sc->hn_lro;
+	struct hn_rx_ring *rxr = &sc->hn_rx_ring[0]; /* TODO: vRSS */
+	struct lro_ctrl *lro = &rxr->hn_lro;
 	struct lro_entry *queued;
 
 	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
@@ -1162,10 +1102,10 @@ int
 netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
     rndis_tcp_ip_csum_info *csum_info)
 {
-	hn_softc_t *sc = (hn_softc_t *)device_get_softc(device_ctx->device);
+	struct hn_softc *sc = device_get_softc(device_ctx->device);
+	struct hn_rx_ring *rxr = &sc->hn_rx_ring[0]; /* TODO: vRSS */
 	struct mbuf *m_new;
 	struct ifnet *ifp;
-	device_t dev = device_ctx->device;
 	int size, do_lro = 0, do_csum = 1;
 
 	if (sc == NULL) {
@@ -1190,7 +1130,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 		memcpy(mtod(m_new, void *), packet->data,
 		    packet->tot_data_buf_len);
 		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
-		sc->hn_small_pkts++;
+		rxr->hn_small_pkts++;
 	} else {
 		/*
 		 * Get an mbuf with a cluster.  For packets 2K or less,
@@ -1206,7 +1146,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 
 		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (m_new == NULL) {
-			device_printf(dev, "alloc mbuf failed.\n");
+			if_printf(ifp, "alloc mbuf failed.\n");
 			return (0);
 		}
 
@@ -1223,7 +1163,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 		if (csum_info->receive.ip_csum_succeeded && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
-			sc->hn_csum_ip++;
+			rxr->hn_csum_ip++;
 		}
 
 		/* TCP/UDP csum offload */
@@ -1233,9 +1173,9 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
 			if (csum_info->receive.tcp_csum_succeeded)
-				sc->hn_csum_tcp++;
+				rxr->hn_csum_tcp++;
 			else
-				sc->hn_csum_udp++;
+				rxr->hn_csum_udp++;
 		}
 
 		if (csum_info->receive.ip_csum_succeeded &&
@@ -1267,8 +1207,9 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 			pr = hn_check_iplen(m_new, hoff);
 			if (pr == IPPROTO_TCP) {
 				if (do_csum &&
-				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_TCP)) {
-					sc->hn_csum_trusted++;
+				    (rxr->hn_trust_hcsum &
+				     HN_TRUST_HCSUM_TCP)) {
+					rxr->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
@@ -1278,16 +1219,17 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
 				do_lro = 1;
 			} else if (pr == IPPROTO_UDP) {
 				if (do_csum &&
-				    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_UDP)) {
-					sc->hn_csum_trusted++;
+				    (rxr->hn_trust_hcsum &
+				     HN_TRUST_HCSUM_UDP)) {
+					rxr->hn_csum_trusted++;
 					m_new->m_pkthdr.csum_flags |=
 					   (CSUM_IP_CHECKED | CSUM_IP_VALID |
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
 			} else if (pr != IPPROTO_DONE && do_csum &&
-			    (sc->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
-				sc->hn_csum_trusted++;
+			    (rxr->hn_trust_hcsum & HN_TRUST_HCSUM_IP)) {
+				rxr->hn_csum_trusted++;
 				m_new->m_pkthdr.csum_flags |=
 				    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			}
@@ -1309,10 +1251,10 @@ skip:
 
 	if ((ifp->if_capenable & IFCAP_LRO) && do_lro) {
 #if defined(INET) || defined(INET6)
-		struct lro_ctrl *lro = &sc->hn_lro;
+		struct lro_ctrl *lro = &rxr->hn_lro;
 
 		if (lro->lro_cnt) {
-			sc->hn_lro_tried++;
+			rxr->hn_lro_tried++;
 			if (tcp_lro_rx(lro, m_new, 0) == 0) {
 				/* DONE! */
 				return 0;
@@ -1392,8 +1334,17 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * Make sure that LRO aggregation length limit is still
 		 * valid, after the MTU change.
 		 */
-		if (sc->hn_lro.lro_length_lim < HN_LRO_LENLIM_MIN(ifp))
-			sc->hn_lro.lro_length_lim = HN_LRO_LENLIM_MIN(ifp);
+		NV_LOCK(sc);
+		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
+		    HN_LRO_LENLIM_MIN(ifp)) {
+			int i;
+
+			for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+				sc->hn_rx_ring[i].hn_lro.lro_length_lim =
+				    HN_LRO_LENLIM_MIN(ifp);
+			}
+		}
+		NV_UNLOCK(sc);
 
 		do {
 			NV_LOCK(sc);
@@ -1705,9 +1656,9 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	unsigned int lenlim;
-	int error;
+	int error, i;
 
-	lenlim = sc->hn_lro.lro_length_lim;
+	lenlim = sc->hn_rx_ring[0].hn_lro.lro_length_lim;
 	error = sysctl_handle_int(oidp, &lenlim, 0, req);
 	if (error || req->newptr == NULL)
 		return error;
@@ -1716,7 +1667,10 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 	    lenlim > TCP_LRO_LENGTH_MAX)
 		return EINVAL;
 
-	sc->hn_lro.lro_length_lim = lenlim;
+	NV_LOCK(sc);
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
+	NV_UNLOCK(sc);
 	return 0;
 }
 
@@ -1724,13 +1678,13 @@ static int
 hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
-	int ackcnt, error;
+	int ackcnt, error, i;
 
 	/*
 	 * lro_ackcnt_lim is append count limit,
 	 * +1 to turn it into aggregation limit.
 	 */
-	ackcnt = sc->hn_lro.lro_ackcnt_lim + 1;
+	ackcnt = sc->hn_rx_ring[0].hn_lro.lro_ackcnt_lim + 1;
 	error = sysctl_handle_int(oidp, &ackcnt, 0, req);
 	if (error || req->newptr == NULL)
 		return error;
@@ -1742,7 +1696,11 @@ hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 	 * Convert aggregation limit back to append
 	 * count limit.
 	 */
-	sc->hn_lro.lro_ackcnt_lim = ackcnt - 1;
+	--ackcnt;
+	NV_LOCK(sc);
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		sc->hn_rx_ring[i].hn_lro.lro_ackcnt_lim = ackcnt;
+	NV_UNLOCK(sc);
 	return 0;
 }
 
@@ -1751,10 +1709,10 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	int hcsum = arg2;
-	int on, error;
+	int on, error, i;
 
 	on = 0;
-	if (sc->hn_trust_hcsum & hcsum)
+	if (sc->hn_rx_ring[0].hn_trust_hcsum & hcsum)
 		on = 1;
 
 	error = sysctl_handle_int(oidp, &on, 0, req);
@@ -1762,10 +1720,14 @@ hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	NV_LOCK(sc);
-	if (on)
-		sc->hn_trust_hcsum |= hcsum;
-	else
-		sc->hn_trust_hcsum &= ~hcsum;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
+
+		if (on)
+			rxr->hn_trust_hcsum |= hcsum;
+		else
+			rxr->hn_trust_hcsum &= ~hcsum;
+	}
 	NV_UNLOCK(sc);
 	return 0;
 }
@@ -1786,6 +1748,58 @@ hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS)
 
 	if (sc->hn_tx_chimney_size != chimney_size)
 		sc->hn_tx_chimney_size = chimney_size;
+	return 0;
+}
+
+static int
+hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_rx_ring *rxr;
+	u_long stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		stat += *((u_long *)((uint8_t *)rxr + ofs));
+	}
+
+	error = sysctl_handle_long(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		*((u_long *)((uint8_t *)rxr + ofs)) = 0;
+	}
+	return 0;
+}
+
+static int
+hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int ofs = arg2, i, error;
+	struct hn_rx_ring *rxr;
+	uint64_t stat;
+
+	stat = 0;
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		stat += *((uint64_t *)((uint8_t *)rxr + ofs));
+	}
+
+	error = sysctl_handle_64(oidp, &stat, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	/* Zero out this stat. */
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		rxr = &sc->hn_rx_ring[i];
+		*((uint64_t *)((uint8_t *)rxr + ofs)) = 0;
+	}
 	return 0;
 }
 
@@ -1874,6 +1888,136 @@ hn_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	KASSERT(nseg == 1, ("too many segments %d!", nseg));
 	*paddr = segs->ds_addr;
+}
+
+static void
+hn_create_rx_data(struct hn_softc *sc)
+{
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx;
+	device_t dev = sc->hn_dev;
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+	int lroent_cnt;
+#endif
+#endif
+	int i;
+
+	sc->hn_rx_ring_cnt = 1; /* TODO: vRSS */
+	sc->hn_rx_ring = malloc(sizeof(struct hn_rx_ring) * sc->hn_rx_ring_cnt,
+	    M_NETVSC, M_WAITOK | M_ZERO);
+
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+	lroent_cnt = hn_lro_entry_count;
+	if (lroent_cnt < TCP_LRO_ENTRIES)
+		lroent_cnt = TCP_LRO_ENTRIES;
+	device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
+#endif
+#endif	/* INET || INET6 */
+
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
+
+		if (hn_trust_hosttcp)
+			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_TCP;
+		if (hn_trust_hostudp)
+			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_UDP;
+		if (hn_trust_hostip)
+			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
+
+		/*
+		 * Initialize LRO.
+		 */
+#if defined(INET) || defined(INET6)
+#if __FreeBSD_version >= 1100095
+		tcp_lro_init_args(&rxr->hn_lro, sc->hn_ifp, lroent_cnt, 0);
+#else
+		tcp_lro_init(&rxr->hn_lro);
+		rxr->hn_lro.ifp = sc->hn_ifp;
+#endif
+		rxr->hn_lro.lro_length_lim = HN_LRO_LENLIM_DEF;
+		rxr->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
+#endif	/* INET || INET6 */
+	}
+
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
+	    CTLTYPE_U64 | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_lro.lro_queued),
+	    hn_rx_stat_u64_sysctl, "LU", "LRO queued");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_flushed",
+	    CTLTYPE_U64 | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_lro.lro_flushed),
+	    hn_rx_stat_u64_sysctl, "LU", "LRO flushed");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_tried",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_lro_tried),
+	    hn_rx_stat_ulong_sysctl, "LU", "# of LRO tries");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_lro_lenlim_sysctl, "IU",
+	    "Max # of data bytes to be aggregated by LRO");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_ackcnt_lim",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_ackcnt_sysctl, "I",
+	    "Max # of ACKs to be aggregated by LRO");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust tcp segement verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostudp",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_UDP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust udp datagram verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hostip",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_IP,
+	    hn_trust_hcsum_sysctl, "I",
+	    "Trust ip packet verification on host side, "
+	    "when csum info is missing");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_ip",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_ip),
+	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM IP");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_tcp",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_tcp),
+	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM TCP");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_udp",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_udp),
+	    hn_rx_stat_ulong_sysctl, "LU", "RXCSUM UDP");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "csum_trusted",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_csum_trusted),
+	    hn_rx_stat_ulong_sysctl, "LU",
+	    "# of packets that we trust host's csum verification");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "small_pkts",
+	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
+	    __offsetof(struct hn_rx_ring, hn_small_pkts),
+	    hn_rx_stat_ulong_sysctl, "LU", "# of small packets received");
+}
+
+static void
+hn_destroy_rx_data(struct hn_softc *sc)
+{
+#if defined(INET) || defined(INET6)
+	int i;
+#endif
+
+	if (sc->hn_rx_ring_cnt == 0)
+		return;
+
+#if defined(INET) || defined(INET6)
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
+		tcp_lro_free(&sc->hn_rx_ring[i].hn_lro);
+#endif
+	free(sc->hn_rx_ring, M_NETVSC);
+	sc->hn_rx_ring = NULL;
+
+	sc->hn_rx_ring_cnt = 0;
 }
 
 static int
