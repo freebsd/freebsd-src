@@ -102,7 +102,6 @@ _start:
 	/* finish building ring */
 
 	la	t0, hardstack_end
-	sub	t0, t0, s11
 	csrw	mscratch, t0
 
 	la	t0, mentry
