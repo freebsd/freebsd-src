@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
@@ -54,15 +55,29 @@ __FBSDID("$FreeBSD$");
 /* Power State Register */
 #define	AXP209_PSR		0x00
 #define	AXP209_PSR_ACIN		0x80
+#define	AXP209_PSR_ACIN_SHIFT	7
 #define	AXP209_PSR_VBUS		0x20
+#define	AXP209_PSR_VBUS_SHIFT	5
 
 /* Shutdown and battery control */
 #define	AXP209_SHUTBAT		0x32
 #define	AXP209_SHUTBAT_SHUTDOWN	0x80
 
+/* Temperature monitor */
+#define	AXP209_TEMPMON		0x5e
+#define	AXP209_TEMPMON_H(a)	((a) << 4)
+#define	AXP209_TEMPMON_L(a)	((a) & 0xf)
+#define	AXP209_TEMPMON_MIN	1447	/* -144.7C */
+
+#define	AXP209_0C_TO_K		2732
+
 struct axp209_softc {
 	uint32_t		addr;
 	struct intr_config_hook enum_hook;
+};
+
+enum axp209_sensor {
+	AXP209_TEMP
 };
 
 static int
@@ -102,6 +117,28 @@ axp209_write(device_t dev, uint8_t reg, uint8_t data)
 	return (iicbus_transfer(dev, &msg, 1));
 }
 
+static int
+axp209_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = arg1;
+	enum axp209_sensor sensor = arg2;
+	uint8_t data[2];
+	int val, error;
+
+	if (sensor != AXP209_TEMP)
+		return (ENOENT);
+
+	error = axp209_read(dev, AXP209_TEMPMON, data, 2);
+	if (error != 0)
+		return (error);
+
+	/* Temperature is between -144.7C and 264.8C, step +0.1C */
+	val = (AXP209_TEMPMON_H(data[0]) | AXP209_TEMPMON_L(data[1])) -
+	    AXP209_TEMPMON_MIN + AXP209_0C_TO_K;
+
+	return sysctl_handle_opaque(oidp, &val, sizeof(val), req);
+}
+
 static void
 axp209_shutdown(void *devp, int howto)
 {
@@ -136,29 +173,36 @@ static int
 axp209_attach(device_t dev)
 {
 	struct axp209_softc *sc;
+	const char *pwr_name[] = {"Battery", "AC", "USB", "AC and USB"};
 	uint8_t data;
 	uint8_t pwr_src;
-	char pwr_name[4][11] = {"Battery", "AC", "USB", "AC and USB"};
 
 	sc = device_get_softc(dev);
 
 	sc->addr = iicbus_get_addr(dev);
 
-	/*
-	 * Read the Power State register
-	 * bit 7 is AC presence, bit 5 is VBUS presence.
-	 * If none are set then we are running from battery (obviously).
-	 */
-	axp209_read(dev, AXP209_PSR, &data, 1);
-	pwr_src = ((data & AXP209_PSR_ACIN) >> 7) |
-		  ((data & AXP209_PSR_VBUS) >> 4);
+	if (bootverbose) {
+		/*
+		 * Read the Power State register.
+		 * Shift the AC presence into bit 0.
+		 * Shift the Battery presence into bit 1.
+		 */
+		axp209_read(dev, AXP209_PSR, &data, 1);
+		pwr_src = ((data & AXP209_PSR_ACIN) >> AXP209_PSR_ACIN_SHIFT) |
+		    ((data & AXP209_PSR_VBUS) >> (AXP209_PSR_VBUS_SHIFT - 1));
 
-	if (bootverbose)
 		device_printf(dev, "AXP209 Powered by %s\n",
 		    pwr_name[pwr_src]);
+	}
 
 	EVENTHANDLER_REGISTER(shutdown_final, axp209_shutdown, dev,
 	    SHUTDOWN_PRI_LAST);
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "temp",
+	    CTLTYPE_INT | CTLFLAG_RD,
+	    dev, AXP209_TEMP, axp209_sysctl, "IK", "Internal temperature");
 
 	return (0);
 }

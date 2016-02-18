@@ -565,7 +565,7 @@ OF_getetheraddr(device_t dev, u_char *addr)
  */
 int
 OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
-    bus_space_handle_t *handle)
+    bus_space_handle_t *handle, bus_size_t *sz)
 {
 	bus_addr_t addr;
 	bus_size_t size;
@@ -584,6 +584,9 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		flags = (pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) ? 
 		    BUS_SPACE_MAP_PREFETCHABLE: 0;
 	}
+
+	if (sz != NULL)
+		*sz = size;
 
 	return (bus_space_map(*tag, addr, size, flags, handle));
 }

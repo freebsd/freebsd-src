@@ -128,8 +128,6 @@ const struct arm_devmap_entry at91_devmap[] = {
 		0xdff00000,
 		0xfff00000,
 		0x00100000,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_DEVICE,
 	},
 	/* There's a notion that we should do the rest of these lazily. */
 	/*
@@ -152,16 +150,12 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91RM92_OHCI_VA_BASE,
 		AT91RM92_OHCI_BASE,
 		0x00100000,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_DEVICE,
 	},
 	{
 		/* CompactFlash controller. Portion of EBI CS4 1MB */
 		AT91RM92_CF_VA_BASE,
 		AT91RM92_CF_BASE,
 		0x00100000,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_DEVICE,
 	},
 	/*
 	 * The next two should be good for the 9260, 9261 and 9G20 since
@@ -172,16 +166,12 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G20_OHCI_VA_BASE,
 		AT91SAM9G20_OHCI_BASE,
 		0x00100000,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_DEVICE,
 	},
 	{
 		/* EBI CS3 256MB */
 		AT91SAM9G20_NAND_VA_BASE,
 		AT91SAM9G20_NAND_BASE,
 		AT91SAM9G20_NAND_SIZE,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_DEVICE,
 	},
 	/*
 	 * The next should be good for the 9G45.
@@ -191,10 +181,8 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G45_OHCI_VA_BASE,
 		AT91SAM9G45_OHCI_BASE,
 		0x00100000,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_DEVICE,
 	},
-	{ 0, 0, 0, 0, 0, }
+	{ 0, 0, 0, }
 };
 
 #ifdef LINUX_BOOT_ABI

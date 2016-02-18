@@ -25,6 +25,4 @@ TESTS_SUBDIRS+=		vm
 # Items not integrated into kyua runs by default
 SUBDIR+=		pjdfstest
 
-SUBDIR_PARALLEL=
-
 .include <bsd.test.mk>

@@ -180,7 +180,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (class == NULL)
 		return (ENXIO);
 
-	error = OF_decode_addr(input, 0, &di->bas.bst, &di->bas.bsh);
+	error = OF_decode_addr(input, 0, &di->bas.bst, &di->bas.bsh, NULL);
 	if (error)
 		return (error);
 

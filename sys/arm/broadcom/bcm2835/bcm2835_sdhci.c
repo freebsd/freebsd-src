@@ -214,11 +214,7 @@ bcm_sdhci_attach(device_t dev)
  
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
 
-	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST1);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_FAST2);
-	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
-		sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
+	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
 	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
 		goto fail;
 

@@ -50,7 +50,7 @@ struct gpregs {
 };
 
 struct fpregs {
-	__uint64_t	fp_x[64] __aligned(16);
+	__uint64_t	fp_x[32][2];
 	__uint64_t	fp_fcsr;
 	int		fp_flags;
 	int		pad;

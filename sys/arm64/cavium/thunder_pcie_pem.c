@@ -49,12 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/intr.h>
 
-#include "thunder_pcie_common.h"
+#include <arm64/cavium/thunder_pcie_common.h>
+#include <arm64/cavium/thunder_pcie_pem.h>
 #include "pcib_if.h"
 
 #define	THUNDER_PEM_DEVICE_ID		0xa020
 #define	THUNDER_PEM_VENDOR_ID		0x177d
-#define	THUNDER_PEM_DESC		"ThunderX PEM"
 
 /* ThunderX specific defines */
 #define	THUNDER_PEMn_REG_BASE(unit)	(0x87e0c0000000UL | ((unit) << 24))
@@ -109,21 +109,7 @@ __FBSDID("$FreeBSD$");
 #define	PCI_MEMORY_BASE		PCI_IO_SIZE
 #define	PCI_MEMORY_SIZE		0xFFF00000UL
 
-struct thunder_pem_softc {
-	device_t		dev;
-	struct resource		*reg;
-	bus_space_tag_t		reg_bst;
-	bus_space_handle_t	reg_bsh;
-	struct pcie_range	ranges[RANGES_TUPLES_MAX];
-	struct rman		mem_rman;
-	struct rman		io_rman;
-	bus_space_handle_t	pem_sli_base;
-	uint32_t		node;
-	uint32_t		id;
-	uint32_t		sli;
-	uint32_t		sli_group;
-	uint64_t		sli_window_base;
-};
+#define	RID_PEM_SPACE		1
 
 static struct resource * thunder_pem_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
@@ -174,11 +160,13 @@ static device_method_t thunder_pem_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t thunder_pem_driver = {
-	"pcib",
-	thunder_pem_methods,
-	sizeof(struct thunder_pem_softc),
-};
+DEFINE_CLASS_0(pcib, thunder_pem_driver, thunder_pem_methods,
+    sizeof(struct thunder_pem_softc));
+
+static devclass_t thunder_pem_devclass;
+
+DRIVER_MODULE(thunder_pem, pci, thunder_pem_driver, thunder_pem_devclass, 0, 0);
+MODULE_DEPEND(thunder_pem, pci, 1, 1, 1);
 
 static int
 thunder_pem_maxslots(device_t dev)
@@ -526,6 +514,8 @@ thunder_pem_probe(device_t dev)
 static int
 thunder_pem_attach(device_t dev)
 {
+	devclass_t pci_class;
+	device_t parent;
 	struct thunder_pem_softc *sc;
 	int error;
 	int rid;
@@ -533,8 +523,14 @@ thunder_pem_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	/* Allocate memory for BAR(0) */
-	rid = PCIR_BAR(0);
+	/* Allocate memory for resource */
+	pci_class = devclass_find("pci");
+	parent = device_get_parent(dev);
+	if (device_get_devclass(parent) == pci_class)
+		rid = PCIR_BAR(0);
+	else
+		rid = RID_PEM_SPACE;
+
 	sc->reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE);
 	if (sc->reg == NULL) {
@@ -583,6 +579,13 @@ thunder_pem_attach(device_t dev)
 		goto fail_mem;
 	}
 
+	/*
+	 * We ignore the values that may have been provided in FDT
+	 * and configure ranges according to the below formula
+	 * for all types of devices. This is because some DTBs provided
+	 * by EFI do not have proper ranges property or don't have them
+	 * at all.
+	 */
 	/* Fill memory window */
 	sc->ranges[0].pci_base = PCI_MEMORY_BASE;
 	sc->ranges[0].size = PCI_MEMORY_SIZE;
@@ -639,8 +642,3 @@ thunder_pem_detach(device_t dev)
 
 	return (0);
 }
-
-static devclass_t thunder_pem_devclass;
-
-DRIVER_MODULE(thunder_pem, pci, thunder_pem_driver, thunder_pem_devclass, 0, 0);
-MODULE_DEPEND(thunder_pem, pci, 1, 1, 1);
