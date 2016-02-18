@@ -73,7 +73,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define L2_INVAL	0x00	/* L2 invalid type */
 
 /* L1 and L2 address masks */
-#define L1_ADDR_MASK		0xfffffc00
 #define L2_ADDR_MASK		0xfffff000
 
 /*
@@ -152,7 +151,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
  * So, we allocate L2 tables 4 at a time, thus yielding a 4K L2
  * table.
  */
-#define	L1_ADDR_BITS	0xfff00000	/* L1 PTE address bits */
 #define	L2_ADDR_BITS	0x000ff000	/* L2 PTE address bits */
 
 #define	L1_TABLE_SIZE	0x4000		/* 16K */
