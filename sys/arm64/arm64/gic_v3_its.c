@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
-#define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	144
+#define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	88
 
 #include "pic_if.h"
 
