@@ -271,7 +271,7 @@ platform_late_init(void)
 
 #define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
 static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
+	{ 0, 0, 0, }
 };
 
 static int
@@ -302,8 +302,6 @@ moveon:
 	map->pd_va = MV_CESA_SRAM_BASE; /* XXX */
 	map->pd_pa = base;
 	map->pd_size = size;
-	map->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	map->pd_cache = PTE_DEVICE;
 
 	return (0);
 out:
@@ -368,8 +366,6 @@ platform_devmap_init(void)
 	fdt_devmap[i].pd_va = fdt_immr_va;
 	fdt_devmap[i].pd_pa = fdt_immr_pa;
 	fdt_devmap[i].pd_size = fdt_immr_size;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_DEVICE;
 	i++;
 
 	/*

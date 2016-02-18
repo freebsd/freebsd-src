@@ -422,8 +422,7 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 		}
 	}
 
-	print_syscall_ret(info, t->cs.name, t->cs.nargs, t->cs.s_args,
-	    errorp, retval, sc);
+	print_syscall_ret(info, errorp, retval);
 	free_syscall(t);
 
 	/*

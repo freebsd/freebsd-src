@@ -10,6 +10,7 @@ SUBDIR=	${_atf} \
 	${_dma} \
 	getty \
 	${_mail.local} \
+	${_makewhatis.local} \
 	${_mknetid} \
 	${_pppoed} \
 	revnetgroup \
@@ -86,6 +87,10 @@ _rshd=		rshd
 .if ${MK_SENDMAIL} != "no"
 _mail.local=	mail.local
 _smrsh=		smrsh
+.endif
+
+.if ${MK_MAN_UTILS} != "no"
+_makewhatis.local=	makewhatis.local
 .endif
 
 .if ${MK_TALK} != "no"

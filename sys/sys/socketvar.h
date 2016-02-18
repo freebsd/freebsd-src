@@ -64,7 +64,6 @@ struct socket;
  * (a) constant after allocation, no locking required.
  * (b) locked by SOCK_LOCK(so).
  * (c) locked by SOCKBUF_LOCK(&so->so_rcv).
- * (d) locked by SOCKBUF_LOCK(&so->so_snd).
  * (e) locked by ACCEPT_LOCK().
  * (f) not locked since integer reads/writes are atomic.
  * (g) used only as a sleep/wakeup address, no value.

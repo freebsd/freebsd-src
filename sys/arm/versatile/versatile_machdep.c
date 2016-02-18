@@ -82,8 +82,8 @@ platform_late_init(void)
 
 #define FDT_DEVMAP_MAX	(2)		/* FIXME */
 static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, },
-	{ 0, 0, 0, 0, 0, }
+	{ 0, 0, 0, },
+	{ 0, 0, 0, }
 };
 
 
@@ -97,8 +97,6 @@ platform_devmap_init(void)
 	fdt_devmap[i].pd_va = 0xf0100000;
 	fdt_devmap[i].pd_pa = 0x10100000;
 	fdt_devmap[i].pd_size = 0x01000000;       /* 1 MB */
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_DEVICE;
 
 	arm_devmap_register_table(&fdt_devmap[0]);
 	return (0);

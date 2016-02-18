@@ -1022,6 +1022,7 @@ pmap_preboot_map_attr(vm_paddr_t pa, vm_offset_t va, vm_size_t size,
 	pt2_entry_t *pte2p;
 
 	l2_prot = prot & VM_PROT_WRITE ? PTE2_AP_KRW : PTE2_AP_KR;
+	l2_prot |= (prot & VM_PROT_EXECUTE) ? PTE2_X : PTE2_NX;
 	l2_attr = vm_memattr_to_pte2(attr);
 	l1_prot = ATTR_TO_L1(l2_prot);
 	l1_attr = ATTR_TO_L1(l2_attr);
@@ -6311,11 +6312,6 @@ pte1_setrw:
 	}
 #endif
 	return (KERN_FAILURE);
-}
-
-/* !!!! REMOVE !!!! */
-void vector_page_setprot(int p)
-{
 }
 
 #if defined(PMAP_DEBUG)

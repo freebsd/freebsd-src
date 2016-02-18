@@ -220,39 +220,4 @@ void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
     vm_memattr_t);
 
 #endif	/* _KERNEL */
-
-// ----------------- TO BE DELETED ---------------------------------------------
-#include <machine/pte-v6.h>
-
-#ifdef _KERNEL
-
-/*
- * sys/arm/arm/elf_trampoline.c
- * sys/arm/arm/genassym.c
- * sys/arm/arm/machdep.c
- * sys/arm/arm/mp_machdep.c
- * sys/arm/arm/locore.S
- * sys/arm/arm/pmap.c
- * sys/arm/arm/swtch.S
- * sys/arm/at91/at91_machdep.c
- * sys/arm/cavium/cns11xx/econa_machdep.c
- * sys/arm/s3c2xx0/s3c24x0_machdep.c
- * sys/arm/xscale/ixp425/avila_machdep.c
- * sys/arm/xscale/i8134x/crb_machdep.c
- * sys/arm/xscale/i80321/ep80219_machdep.c
- * sys/arm/xscale/i80321/iq31244_machdep.c
- * sys/arm/xscale/pxa/pxa_machdep.c
- */
-#define	PMAP_DOMAIN_KERNEL	0	/* The kernel uses domain #0 */
-
-/*
- * sys/arm/arm/cpufunc.c
- */
-void vector_page_setprot(int);
-
-#define PTE_DEVICE	VM_MEMATTR_DEVICE
-
-#endif	/* _KERNEL */
-// -----------------------------------------------------------------------------
-
 #endif	/* !_MACHINE_PMAP_H_ */

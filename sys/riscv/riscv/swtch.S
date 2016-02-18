@@ -109,13 +109,9 @@ ENTRY(cpu_switch)
 	/* Save the old context. */
 	ld	x13, TD_PCB(a0)
 
-	/* Store the callee-saved registers */
+	/* Store ra, sp and the callee-saved registers */
 	sd	ra, (PCB_RA)(x13)
 	sd	sp, (PCB_SP)(x13)
-
-	/* We use these in fork_trampoline */
-	sd	t0, (PCB_T + 0 * 8)(x13)
-	sd	t1, (PCB_T + 1 * 8)(x13)
 
 	/* s[0-11] */
 	sd	s0, (PCB_S + 0 * 8)(x13)
@@ -167,10 +163,6 @@ ENTRY(cpu_switch)
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
 
-	/* We use these in fork_trampoline */
-	ld	t0, (PCB_T + 0 * 8)(x13)
-	ld	t1, (PCB_T + 1 * 8)(x13)
-
 	/* s[0-11] */
 	ld	s0, (PCB_S + 0 * 8)(x13)
 	ld	s1, (PCB_S + 1 * 8)(x13)
@@ -195,8 +187,8 @@ END(cpu_switch)
  */
 
 ENTRY(fork_trampoline)
-	mv	a0, x5
-	mv	a1, x6
+	mv	a0, s0
+	mv	a1, s1
 	mv	a2, sp
 	call	_C_LABEL(fork_exit)
 
@@ -264,8 +256,27 @@ ENTRY(fork_trampoline)
 END(fork_trampoline)
 
 ENTRY(savectx)
-	la	a0, .Lsavectx_panic_str
-	call	panic
-.Lsavectx_panic_str:
-	.asciz "savectx_panic: %p\0"
+	/* Store ra, sp and the callee-saved registers */
+	sd	ra, (PCB_RA)(a0)
+	sd	sp, (PCB_SP)(a0)
+
+	/* s[0-11] */
+	sd	s0, (PCB_S + 0 * 8)(a0)
+	sd	s1, (PCB_S + 1 * 8)(a0)
+	sd	s2, (PCB_S + 2 * 8)(a0)
+	sd	s3, (PCB_S + 3 * 8)(a0)
+	sd	s4, (PCB_S + 4 * 8)(a0)
+	sd	s5, (PCB_S + 5 * 8)(a0)
+	sd	s6, (PCB_S + 6 * 8)(a0)
+	sd	s7, (PCB_S + 7 * 8)(a0)
+	sd	s8, (PCB_S + 8 * 8)(a0)
+	sd	s9, (PCB_S + 9 * 8)(a0)
+	sd	s10, (PCB_S + 10 * 8)(a0)
+	sd	s11, (PCB_S + 11 * 8)(a0)
+
+	/* Store the VFP registers */
+#ifdef VFP
+	/* TODO */
+#endif
+	ret
 END(savectx)
