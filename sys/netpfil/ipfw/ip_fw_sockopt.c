@@ -2890,7 +2890,7 @@ compare_sh(const void *_a, const void *_b)
 
 	if ((uintptr_t)a->handler < (uintptr_t)b->handler)
 		return (-1);
-	else if ((uintptr_t)b->handler > (uintptr_t)b->handler)
+	else if ((uintptr_t)a->handler > (uintptr_t)b->handler)
 		return (1);
 
 	return (0);
