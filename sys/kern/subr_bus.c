@@ -4126,7 +4126,7 @@ bus_generic_get_bus_tag(device_t dev, device_t child)
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent != NULL)
 		return (BUS_GET_BUS_TAG(dev->parent, child));
-	return (NULL);
+	return ((bus_space_tag_t)0);
 }
 
 /**
@@ -4623,7 +4623,7 @@ bus_get_bus_tag(device_t dev)
 
 	parent = device_get_parent(dev);
 	if (parent == NULL)
-		return (NULL);
+		return ((bus_space_tag_t)0);
 	return (BUS_GET_BUS_TAG(parent, dev));
 }
 
