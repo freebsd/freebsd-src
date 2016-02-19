@@ -73,6 +73,7 @@ FILES+=		line-cont10.0
 FILES+=		line-cont11.0
 FILES+=		no-space1.0
 FILES+=		no-space2.0
+FILES+=		nul1.0
 FILES+=		only-redir1.0
 FILES+=		only-redir2.0
 FILES+=		only-redir3.0
