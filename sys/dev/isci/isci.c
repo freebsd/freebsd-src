@@ -138,8 +138,8 @@ isci_allocate_pci_memory(struct isci_softc *isci)
 		struct ISCI_PCI_BAR *pci_bar = &isci->pci_bar[i];
 
 		pci_bar->resource_id = PCIR_BAR(i*2);
-		pci_bar->resource = bus_alloc_resource(isci->device,
-		    SYS_RES_MEMORY, &pci_bar->resource_id, 0, ~0, 1,
+		pci_bar->resource = bus_alloc_resource_any(isci->device,
+		    SYS_RES_MEMORY, &pci_bar->resource_id,
 		    RF_ACTIVE);
 
 		if(pci_bar->resource == NULL)
