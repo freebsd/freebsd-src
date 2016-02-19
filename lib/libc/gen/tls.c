@@ -268,23 +268,33 @@ __libc_free_tls(void *tcb __unused, size_t tcbsize __unused,
 
 #endif /* PIC */
 
+#ifndef __CHERI_PURE_CAPABILITY__
 extern char **environ;
+#else
+extern Elf_Auxinfo *__auxargs;
+#endif
 
 void
 _init_tls(void)
 {
 #ifndef PIC
+#ifndef __CHERI_PURE_CAPABILITY__
 	Elf_Addr *sp;
+#endif
 	Elf_Auxinfo *aux, *auxp;
 	Elf_Phdr *phdr;
 	size_t phent, phnum;
 	int i;
 	void *tls;
 
+#ifndef __CHERI_PURE_CAPABILITY__
 	sp = (Elf_Addr *) environ;
 	while (*sp++ != 0)
 		;
 	aux = (Elf_Auxinfo *) sp;
+#else
+	aux = __auxargs;
+#endif
 	phdr = 0;
 	phent = phnum = 0;
 	for (auxp = aux; auxp->a_type != AT_NULL; auxp++) {
