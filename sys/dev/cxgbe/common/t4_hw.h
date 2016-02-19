@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Chelsio Communications, Inc.
+ * Copyright (c) 2011, 2016 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -266,11 +266,22 @@ enum {
 	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
 
 	/*
+	 * We don't support FLASH devices which can't support the full
+	 * standard set of sections which we need for normal operations.
+	 */
+	FLASH_MIN_SIZE = FLASH_CFG_START + FLASH_CFG_MAX_SIZE,
+
+	/*
 	 * Sectors 32-63 are reserved for FLASH failover.
 	 */
 };
 
 #undef FLASH_START
 #undef FLASH_MAX_SIZE
+
+#define S_SGE_TIMESTAMP 0
+#define M_SGE_TIMESTAMP 0xfffffffffffffffULL
+#define V_SGE_TIMESTAMP(x) ((__u64)(x) << S_SGE_TIMESTAMP)
+#define G_SGE_TIMESTAMP(x) (((__u64)(x) >> S_SGE_TIMESTAMP) & M_SGE_TIMESTAMP)
 
 #endif /* __T4_HW_H */

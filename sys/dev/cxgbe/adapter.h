@@ -813,7 +813,7 @@ struct adapter {
 	struct mtx regwin_lock;	/* for indirect reads and memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
+	fw_msg_handler_t fw_msg_handler[7];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
 
 #ifdef INVARIANTS
