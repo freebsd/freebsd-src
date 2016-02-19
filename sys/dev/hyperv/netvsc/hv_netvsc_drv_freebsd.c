@@ -176,7 +176,7 @@ struct hn_txdesc {
  * later.  UDP checksum offloading doesn't work on earlier
  * Windows releases.
  */
-#define HN_CSUM_ASSIST_WIN8	(CSUM_TCP)
+#define HN_CSUM_ASSIST_WIN8	(CSUM_IP | CSUM_TCP)
 #define HN_CSUM_ASSIST		(CSUM_IP | CSUM_UDP | CSUM_TCP)
 
 #define HN_LRO_LENLIM_DEF		(25 * ETHERMTU)
