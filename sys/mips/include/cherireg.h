@@ -101,10 +101,10 @@
 #define	CHERI_PERM_USER14			(1 << 29)	/* 0x20000000 */
 #define	CHERI_PERM_USER15			(1 << 30)	/* 0x40000000 */
 #else /* (!(CHERICAP_SIZE == 32)) */
-#define	CHERI_PERM_USER0			(1 << 11)	/* 0x00000800 */
-#define	CHERI_PERM_USER1			(1 << 12)	/* 0x00001000 */
-#define	CHERI_PERM_USER2			(1 << 13)	/* 0x00002000 */
-#define	CHERI_PERM_USER3			(1 << 14)	/* 0x00004000 */
+#define	CHERI_PERM_USER0			(1 << 15)	/* 0x00008000 */
+#define	CHERI_PERM_USER1			(1 << 16)	/* 0x00010000 */
+#define	CHERI_PERM_USER2			(1 << 17)	/* 0x00020000 */
+#define	CHERI_PERM_USER3			(1 << 18)	/* 0x00040000 */
 #endif /* (!(CHERICAP_SIZE == 32)) */
 
 /*
