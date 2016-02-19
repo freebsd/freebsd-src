@@ -245,8 +245,8 @@ tws_attach(device_t dev)
 
     /* allocate MMIO register space */ 
     sc->reg_res_id = TWS_PCI_BAR1; /* BAR1 offset */
-    if ((sc->reg_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-                                &(sc->reg_res_id), 0, ~0, 1, RF_ACTIVE))
+    if ((sc->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+                                &(sc->reg_res_id), RF_ACTIVE))
                                 == NULL) {
         tws_log(sc, ALLOC_MEMORY_RES);
         goto attach_fail_1;
