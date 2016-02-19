@@ -62,14 +62,9 @@ static void morecore(int);
 static void init_pagebucket(void);
 
 /*
- * The overhead on a block is at least 4 bytes.  When free, this space
- * contains a pointer to the next free block, and the bottom two bits must
- * be zero.  When in use, the first byte is set to MAGIC, and the second
- * byte is the size index.  The remaining bytes are for alignment.
- * If range checking is enabled then a second word holds the size of the
- * requested block, less 1, rounded up to a multiple of sizeof(RMAGIC).
- * The order of elements is critical: ov_magic must overlay the low order
- * bits of ov_next, and ov_magic can not be a valid ov_next bit pattern.
+ * The overhead on a block is one pointer. When free, this space
+ * contains a pointer to the next free block. When in use, the first
+ * byte is set to MAGIC, and the second byte is the size index.
  */
 union	overhead {
 	union	overhead *ov_next;	/* when free */
@@ -79,12 +74,10 @@ union	overhead {
 	} ovu;
 #define	ov_magic	ovu.ovu_magic
 #define	ov_index	ovu.ovu_index
-#define	ov_rmagic	ovu.ovu_rmagic
 #define	ov_size		ovu.ovu_size
 };
 
 #define	MAGIC		0xef		/* magic # on accounting info */
-#define RMAGIC		0x5555		/* magic # on range info */
 
 /*
  * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
