@@ -1342,27 +1342,24 @@ findkn:
 	 * kn_knlist.
 	 */
 done_ev_add:
-	if ((kev->flags & EV_DISABLE) &&
-	    ((kn->kn_status & KN_DISABLED) == 0)) {
+	if ((kev->flags & EV_ENABLE) != 0)
+		kn->kn_status &= ~KN_DISABLED;
+	else if ((kev->flags & EV_DISABLE) != 0)
 		kn->kn_status |= KN_DISABLED;
-	}
 
 	if ((kn->kn_status & KN_DISABLED) == 0)
 		event = kn->kn_fop->f_event(kn, 0);
 	else
 		event = 0;
+
 	KQ_LOCK(kq);
 	if (event)
-		KNOTE_ACTIVATE(kn, 1);
+		kn->kn_status |= KN_ACTIVE;
+	if ((kn->kn_status & (KN_ACTIVE | KN_DISABLED | KN_QUEUED)) ==
+	    KN_ACTIVE)
+		knote_enqueue(kn);
 	kn->kn_status &= ~(KN_INFLUX | KN_SCAN);
 	KN_LIST_UNLOCK(kn);
-
-	if ((kev->flags & EV_ENABLE) && (kn->kn_status & KN_DISABLED)) {
-		kn->kn_status &= ~KN_DISABLED;
-		if ((kn->kn_status & KN_ACTIVE) &&
-		    ((kn->kn_status & KN_QUEUED) == 0))
-			knote_enqueue(kn);
-	}
 	KQ_UNLOCK_FLUX(kq);
 
 done:
