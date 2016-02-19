@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PTE_H_
-#define	_MACHINE_PTE_H_
+#ifndef _MACHINE_PTE_V6_H_
+#define _MACHINE_PTE_V6_H_
 
 /*
  * Domain Types	for the	Domain Access Control Register.
@@ -288,14 +288,4 @@
 #define	PTE2_KERN(pa, ap, attr)		PTE2(pa, (ap) |	PTE2_A | PTE2_G, attr)
 #define	PTE2_KERN_NG(pa, ap, attr)	PTE2(pa, (ap) |	PTE2_A | PTE2_NG, attr)
 
-
-// ----------------- TO BE DELETED ---------------------------------------------
-
-/*
- * sys/arm/arm/elf_trampoline.c
- */
-#define	AP_KRW		0x01		/* kernel read/write */
-
-// -----------------------------------------------------------------------------
-
-#endif /* !_MACHINE_PTE_H_ */
+#endif /* !_MACHINE_PTE_V6_H_ */

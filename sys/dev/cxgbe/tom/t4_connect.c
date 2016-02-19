@@ -144,16 +144,6 @@ done:
 	return (0);
 }
 
-static inline int
-act_open_has_tid(unsigned int status)
-{
-
-	return (status != CPL_ERR_TCAM_FULL &&
-	    status != CPL_ERR_TCAM_PARITY &&
-	    status != CPL_ERR_CONN_EXIST &&
-	    status != CPL_ERR_ARP_MISS);
-}
-
 /*
  * Convert an ACT_OPEN_RPL status to an errno.
  */
@@ -257,7 +247,7 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 		opt2 |= F_RX_COALESCE_VALID;
 	else {
 		opt2 |= F_T5_OPT_2_VALID;
-		opt2 |= F_CONG_CNTRL_VALID; /* OPT_2_ISS really, for T5 */
+		opt2 |= F_T5_ISS;
 	}
 	if (sc->tt.rx_coalesce)
 		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
