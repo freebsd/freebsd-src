@@ -61,8 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
