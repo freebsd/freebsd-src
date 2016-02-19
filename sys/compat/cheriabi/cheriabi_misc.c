@@ -1392,7 +1392,6 @@ cheriabi_set_auxargs(struct chericap *pos, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 
-printf("%s writing auxargs from %p\n", __func__, pos);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY_CAP(pos, AT_PHDR, args->phdr, args->phent * args->phnum,
