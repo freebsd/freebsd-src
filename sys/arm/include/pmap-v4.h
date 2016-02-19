@@ -80,16 +80,8 @@ enum mem_type {
 #define PDESIZE		sizeof(pd_entry_t)	/* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t)	/* for assembly files */
 
-#ifdef _KERNEL
-
-#define vtophys(va)	pmap_kextract((vm_offset_t)(va))
-
-#endif
-
 #define	pmap_page_get_memattr(m)	((m)->md.pv_memattr)
-#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
-void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 
 /*
  * Pmap stuff
@@ -163,7 +155,6 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 #endif
 
-
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_list.
@@ -208,9 +199,6 @@ boolean_t pmap_get_pde_pte(pmap_t, vm_offset_t, pd_entry_t **, pt_entry_t **);
  */
 extern vm_offset_t pmap_curmaxkvaddr;
 
-struct pcb;
-
-void	pmap_set_pcb_pagedir(pmap_t, struct pcb *);
 /* Virtual address to page table entry */
 static __inline pt_entry_t *
 vtopte(vm_offset_t va)
@@ -223,23 +211,13 @@ vtopte(vm_offset_t va)
 	return (ptep);
 }
 
-extern vm_paddr_t phys_avail[];
-extern vm_offset_t virtual_avail;
-extern vm_offset_t virtual_end;
-
 void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
-void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
-void	pmap_kremove_device(vm_offset_t, vm_size_t);
-void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
-vm_paddr_t pmap_kextract(vm_offset_t va);
 vm_paddr_t pmap_dump_kextract(vm_offset_t, pt2_entry_t *);
 void	pmap_kremove(vm_offset_t);
-void	*pmap_mapdev(vm_offset_t, vm_size_t);
-void	pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_page_t	pmap_use_pt(pmap_t, vm_offset_t);
 void	pmap_debug(int);
 void	pmap_map_section(vm_offset_t, vm_offset_t, vm_offset_t, int, int);
@@ -529,11 +507,8 @@ void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
 void	pmap_kenter_supersection(vm_offset_t, uint64_t, int flags);
 #endif
 
-extern char *_tmppt;
-
 void	pmap_postinit(void);
 
-extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
