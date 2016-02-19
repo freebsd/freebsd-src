@@ -208,8 +208,7 @@ cheri_capability_clear(struct chericap *cp)
 
 /*
  * Functions to store a common set of capability values to in-memory
- * capabilities used in various aspects of user context.
- * contexts.
+ * capabilities used in various aspects of user contexts.
  */
 #ifdef _UNUSED
 static void
