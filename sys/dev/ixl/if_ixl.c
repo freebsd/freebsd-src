@@ -6311,7 +6311,7 @@ ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf,
 		return;
 	}
 
-	if (!vf->vf_flags & VF_FLAG_PROMISC_CAP) {
+	if (!(vf->vf_flags & VF_FLAG_PROMISC_CAP)) {
 		i40e_send_vf_nack(pf, vf,
 		    I40E_VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE, I40E_ERR_PARAM);
 		return;
