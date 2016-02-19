@@ -88,12 +88,19 @@ tlb_write_indexed(void)
 	mips_cp0_sync();
 }
 
+/*
+ * Appears to be unused as reported by clang.  Leave it here
+ * commented out until such time as we decide that we don't want
+ * it anymore.
+ */
+#if 0
 static inline void
 tlb_write_random(void)
 {
 	__asm __volatile ("tlbwr" : : : "memory");
 	mips_cp0_sync();
 }
+#endif
 
 static void tlb_invalidate_one(unsigned);
 
