@@ -140,7 +140,6 @@ __start(struct cheriabi_execdata *ce,
 	char **env;
 
 	crt_init_globals();
-	crt_sb_constructors();
 
 	argc = ce->ce_argc;
 	argv = ce->ce_argv;
@@ -153,6 +152,8 @@ __start(struct cheriabi_execdata *ce,
 		atexit(cleanup);
 	else
 		_init_tls();
+
+	crt_sb_constructors();
 
 #ifdef GCRT
 	/* Set up profiling support for the program, if we're being compiled
