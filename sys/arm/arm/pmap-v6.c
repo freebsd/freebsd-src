@@ -1267,13 +1267,6 @@ pmap_kenter_prot_attr(vm_offset_t va, vm_paddr_t pa, uint32_t prot,
 	pte2_store(pte2p, PTE2_KERN(pa, prot, attr));
 }
 
-static __inline void
-pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
-{
-
-	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, attr);
-}
-
 PMAP_INLINE void
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
