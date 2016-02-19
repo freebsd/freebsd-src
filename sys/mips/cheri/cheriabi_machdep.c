@@ -61,10 +61,12 @@
 #include <sys/ucontext.h>
 
 #include <machine/cheri.h>
+#include <machine/cpuinfo.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/sysarch.h>
+#include <machine/tls.h>
 
 #include <sys/cheriabi.h>
 
@@ -820,8 +822,25 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 	switch (uap->op) {
 	case MIPS_SET_TLS:
 		cheri_capability_copy(&td->td_md.md_tls_cap, &capreg->cf_c3);
+		td->td_md.md_tls = uap->parms;
 
-		/* XXX: no user local register (rdhwr) support. */
+		/* XXX: should support a crdhwr version */
+		if (cpuinfo.userlocal_reg == true) {
+			/*
+			 * If there is an user local register implementation
+			 * (ULRI) update it as well.  Add the TLS and TCB
+			 * offsets so the value in this register is
+			 * adjusted like in the case of the rdhwr trap()
+			 * instruction handler.
+			 *
+			 * XXXSS For more information why this offset is
+			 * required see: 'git show \
+			 * c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
+			 */
+			mips_wr_userlocal((unsigned long)(uap->parms +
+				    TLS_TP_OFFSET + TLS_TCB_SIZE_C));
+		}
+
 		return (0);
 
 	case MIPS_GET_TLS:
