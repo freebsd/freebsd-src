@@ -89,12 +89,6 @@ typedef uint32_t	ttb_entry_t;		/* TTB entry */
 #define NKPT2PG		32
 #endif
 
-extern vm_paddr_t phys_avail[];
-extern vm_paddr_t dump_avail[];
-extern char *_tmppt;      /* poor name! */
-extern vm_offset_t virtual_avail;
-extern vm_offset_t virtual_end;
-
 /*
  * Pmap stuff
  */
@@ -170,11 +164,9 @@ struct pv_chunk {
 };
 
 #ifdef _KERNEL
-struct pcb;
 extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
 
 #define	pmap_page_get_memattr(m)	((m)->md.pat_mode)
-#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 
 /*
  * Only the following functions or macros may be used before pmap_bootstrap()
@@ -183,27 +175,18 @@ extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
  */
 void pmap_bootstrap(vm_offset_t );
 void pmap_kenter(vm_offset_t , vm_paddr_t );
-void *pmap_kenter_temporary(vm_paddr_t , int );
 void pmap_kremove(vm_offset_t);
-void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void *pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
 boolean_t pmap_page_is_mapped(vm_page_t );
-void pmap_page_set_memattr(vm_page_t , vm_memattr_t );
-void pmap_unmapdev(vm_offset_t, vm_size_t);
-void pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
-void pmap_kremove_device(vm_offset_t, vm_size_t);
-void pmap_set_pcb_pagedir(pmap_t , struct pcb *);
 
 void pmap_tlb_flush(pmap_t , vm_offset_t );
 void pmap_tlb_flush_range(pmap_t , vm_offset_t , vm_size_t );
 
 void pmap_dcache_wb_range(vm_paddr_t , vm_size_t , vm_memattr_t );
 
-vm_paddr_t pmap_kextract(vm_offset_t );
 vm_paddr_t pmap_dump_kextract(vm_offset_t, pt2_entry_t *);
 
 int pmap_fault(pmap_t , vm_offset_t , uint32_t , int , bool);
-#define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 void pmap_set_tex(void);
 void reinit_mmu(ttb_entry_t ttb, u_int aux_clr, u_int aux_set);
