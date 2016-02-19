@@ -269,6 +269,10 @@ static int hn_use_txdesc_bufring = 1;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_txdesc_bufring, CTLFLAG_RD,
     &hn_use_txdesc_bufring, 0, "Use buf_ring for TX descriptors");
 
+static int hn_bind_tx_taskq = -1;
+SYSCTL_INT(_hw_hn, OID_AUTO, bind_tx_taskq, CTLFLAG_RDTUN,
+    &hn_bind_tx_taskq, 0, "Bind TX taskqueue to the specified cpu");
+
 /*
  * Forward declarations
  */
@@ -383,8 +387,20 @@ netvsc_attach(device_t dev)
 	if (hn_tx_taskq == NULL) {
 		sc->hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
 		    taskqueue_thread_enqueue, &sc->hn_tx_taskq);
-		taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET, "%s tx",
-		    device_get_nameunit(dev));
+		if (hn_bind_tx_taskq >= 0) {
+			int cpu = hn_bind_tx_taskq;
+			cpuset_t cpu_set;
+
+			if (cpu > mp_ncpus - 1)
+				cpu = mp_ncpus - 1;
+			CPU_SETOF(cpu, &cpu_set);
+			taskqueue_start_threads_cpuset(&sc->hn_tx_taskq, 1,
+			    PI_NET, &cpu_set, "%s tx",
+			    device_get_nameunit(dev));
+		} else {
+			taskqueue_start_threads(&sc->hn_tx_taskq, 1, PI_NET,
+			    "%s tx", device_get_nameunit(dev));
+		}
 	} else {
 		sc->hn_tx_taskq = hn_tx_taskq;
 	}
@@ -2409,7 +2425,18 @@ hn_tx_taskq_create(void *arg __unused)
 
 	hn_tx_taskq = taskqueue_create("hn_tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &hn_tx_taskq);
-	taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
+	if (hn_bind_tx_taskq >= 0) {
+		int cpu = hn_bind_tx_taskq;
+		cpuset_t cpu_set;
+
+		if (cpu > mp_ncpus - 1)
+			cpu = mp_ncpus - 1;
+		CPU_SETOF(cpu, &cpu_set);
+		taskqueue_start_threads_cpuset(&hn_tx_taskq, 1, PI_NET,
+		    &cpu_set, "hn tx");
+	} else {
+		taskqueue_start_threads(&hn_tx_taskq, 1, PI_NET, "hn tx");
+	}
 }
 SYSINIT(hn_txtq_create, SI_SUB_DRIVERS, SI_ORDER_FIRST,
     hn_tx_taskq_create, NULL);
