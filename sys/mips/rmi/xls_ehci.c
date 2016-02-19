@@ -73,7 +73,7 @@ static device_attach_t ehci_xls_attach;
 static device_detach_t ehci_xls_detach;
 
 static const char *xlr_usb_dev_desc = "RMI XLR USB 2.0 controller";
-static const char *xlr_vendor_desc = "RMI Corp";
+#define XLR_VENDOR_DESC "RMI Corp";
 
 static int
 ehci_xls_probe(device_t self)
@@ -130,7 +130,7 @@ ehci_xls_attach(device_t self)
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 	device_set_desc(sc->sc_bus.bdev, xlr_usb_dev_desc);
 
-	sprintf(sc->sc_vendor, xlr_vendor_desc);
+	sprintf(sc->sc_vendor, XLR_VENDOR_DESC);
 
 	err = bus_setup_intr(self, sc->sc_irq_res,
 	    INTR_TYPE_BIO | INTR_MPSAFE, NULL,
