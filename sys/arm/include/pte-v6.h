@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PTE_H_
-#define	_MACHINE_PTE_H_
+#ifndef _MACHINE_PTE_V6_H_
+#define _MACHINE_PTE_V6_H_
 
 /*
  * Domain Types	for the	Domain Access Control Register.
@@ -298,4 +298,4 @@
 
 // -----------------------------------------------------------------------------
 
-#endif /* !_MACHINE_PTE_H_ */
+#endif /* !_MACHINE_PTE_V6_H_ */
