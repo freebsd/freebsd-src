@@ -2276,6 +2276,11 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 		bus_dma_tag_destroy(txr->hn_tx_data_dtag);
 	if (txr->hn_tx_rndis_dtag != NULL)
 		bus_dma_tag_destroy(txr->hn_tx_rndis_dtag);
+
+#ifdef HN_USE_TXDESC_BUFRING
+	buf_ring_free(txr->hn_txdesc_br, M_NETVSC);
+#endif
+
 	free(txr->hn_txdesc, M_NETVSC);
 	txr->hn_txdesc = NULL;
 
