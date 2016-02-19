@@ -1251,6 +1251,8 @@ identify_hypervisor(void)
 			hv_vendor[12] = '\0';
 			if (strcmp(hv_vendor, "VMwareVMware") == 0)
 				vm_guest = VM_GUEST_VMWARE;
+			else if (strcmp(hv_vendor, "Microsoft Hv") == 0)
+				vm_guest = VM_GUEST_HV;
 		}
 		return;
 	}
