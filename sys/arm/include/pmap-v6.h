@@ -88,21 +88,11 @@ typedef uint32_t	ttb_entry_t;		/* TTB entry */
  */
 #define NKPT2PG		32
 #endif
+#endif	/* _KERNEL */
 
 /*
  * Pmap stuff
  */
-
-/*
- * This structure is used to hold a virtual<->physical address
- * association and is used mostly by bootstrap code
- */
-struct pv_addr {
-	SLIST_ENTRY(pv_addr) pv_list;
-	vm_offset_t	pv_va;
-	vm_paddr_t	pv_pa;
-};
-#endif
 struct	pv_entry;
 struct	pv_chunk;
 
@@ -173,20 +163,18 @@ extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
  * is called: pmap_kenter(), pmap_kextract(), pmap_kremove(), vtophys(), and
  * vtopte2().
  */
-void pmap_bootstrap(vm_offset_t );
-void pmap_kenter(vm_offset_t , vm_paddr_t );
+void pmap_bootstrap(vm_offset_t);
+void pmap_kenter(vm_offset_t, vm_paddr_t);
 void pmap_kremove(vm_offset_t);
 void *pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
-boolean_t pmap_page_is_mapped(vm_page_t );
+boolean_t pmap_page_is_mapped(vm_page_t);
 
-void pmap_tlb_flush(pmap_t , vm_offset_t );
-void pmap_tlb_flush_range(pmap_t , vm_offset_t , vm_size_t );
-
-void pmap_dcache_wb_range(vm_paddr_t , vm_size_t , vm_memattr_t );
+void pmap_tlb_flush(pmap_t, vm_offset_t);
+void pmap_tlb_flush_range(pmap_t, vm_offset_t, vm_size_t);
 
 vm_paddr_t pmap_dump_kextract(vm_offset_t, pt2_entry_t *);
 
-int pmap_fault(pmap_t , vm_offset_t , uint32_t , int , bool);
+int pmap_fault(pmap_t, vm_offset_t, uint32_t, int, bool);
 
 void pmap_set_tex(void);
 void reinit_mmu(ttb_entry_t ttb, u_int aux_clr, u_int aux_set);
@@ -194,11 +182,11 @@ void reinit_mmu(ttb_entry_t ttb, u_int aux_clr, u_int aux_set);
 /*
  * Pre-bootstrap epoch functions set.
  */
-void pmap_bootstrap_prepare(vm_paddr_t );
-vm_paddr_t pmap_preboot_get_pages(u_int );
-void pmap_preboot_map_pages(vm_paddr_t , vm_offset_t , u_int );
-vm_offset_t pmap_preboot_reserve_pages(u_int );
-vm_offset_t pmap_preboot_get_vpages(u_int );
+void pmap_bootstrap_prepare(vm_paddr_t);
+vm_paddr_t pmap_preboot_get_pages(u_int);
+void pmap_preboot_map_pages(vm_paddr_t, vm_offset_t, u_int);
+vm_offset_t pmap_preboot_reserve_pages(u_int);
+vm_offset_t pmap_preboot_get_vpages(u_int);
 void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
     vm_memattr_t);
 
