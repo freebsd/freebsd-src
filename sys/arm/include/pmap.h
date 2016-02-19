@@ -38,4 +38,31 @@
 #include <machine/pmap-v4.h>
 #endif
 
+#ifdef _KERNEL
+
+extern vm_paddr_t dump_avail[];
+extern vm_paddr_t phys_avail[];
+
+extern char *_tmppt;	/* poor name! */
+
+extern vm_offset_t virtual_avail;
+extern vm_offset_t virtual_end;
+
+void *pmap_kenter_temporary(vm_paddr_t, int);
+#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
+void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
+
+void *pmap_mapdev(vm_paddr_t, vm_size_t);
+void pmap_unmapdev(vm_offset_t, vm_size_t);
+
+struct pcb;
+void pmap_set_pcb_pagedir(pmap_t, struct pcb *);
+
+void pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
+void pmap_kremove_device(vm_offset_t, vm_size_t);
+
+vm_paddr_t pmap_kextract(vm_offset_t);
+#define vtophys(va)	pmap_kextract((vm_offset_t)(va))
+
+#endif	/* _KERNEL */
 #endif	/* !_MACHINE_PMAP_H_ */
