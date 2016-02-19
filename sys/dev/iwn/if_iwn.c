@@ -417,7 +417,7 @@ iwn_is_3stream_device(struct iwn_softc *sc)
 static int
 iwn_attach(device_t dev)
 {
-	struct iwn_softc *sc = (struct iwn_softc *)device_get_softc(dev);
+	struct iwn_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic;
 	int i, error, rid;
 
