@@ -1131,6 +1131,9 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 	int error, filt, event;
 	int haskqglobal, filedesc_unlock;
 
+	if ((kev->flags & (EV_ENABLE | EV_DISABLE)) == (EV_ENABLE | EV_DISABLE))
+		return (EINVAL);
+
 	fp = NULL;
 	kn = NULL;
 	error = 0;
