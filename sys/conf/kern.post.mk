@@ -232,7 +232,14 @@ DEPENDFILES=	.depend
 DEPENDFILES+=	.depend.*
 DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
+.if defined(.PARSEDIR)
+# Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
+# as those are the only ones we will include.
+DEPEND_CFLAGS_CONDITION= !empty(DEPENDOBJS:M${.TARGET})
+CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
+.else
 CFLAGS+=	${DEPEND_CFLAGS}
+.endif
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if !defined(_SKIP_READ_DEPEND)
