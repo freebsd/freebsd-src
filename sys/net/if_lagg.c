@@ -1260,7 +1260,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
-		if (ra->ra_proto < 1 || ra->ra_proto >= LAGG_PROTO_MAX) {
+		if (ra->ra_proto >= LAGG_PROTO_MAX) {
 			error = EPROTONOSUPPORT;
 			break;
 		}
