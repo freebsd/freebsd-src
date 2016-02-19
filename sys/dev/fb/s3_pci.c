@@ -478,8 +478,8 @@ s3pci_attach(device_t dev)
 	/* Allocate resources
 	 */
 	rid = 0;
-	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0ul, ~0ul, 0, RF_ACTIVE | RF_SHAREABLE))) {
+	if (!(sc->port_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+				RF_ACTIVE | RF_SHAREABLE))) {
 		printf("%s: port resource allocation failed!\n", __func__);
 		goto error;
 	}
@@ -487,8 +487,8 @@ s3pci_attach(device_t dev)
 	sc->sh = rman_get_bushandle(sc->port_res);
 
 	rid = 1;
-	if (!(sc->enh_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				0ul, ~0ul, 0, RF_ACTIVE | RF_SHAREABLE))) {
+	if (!(sc->enh_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+				RF_ACTIVE | RF_SHAREABLE))) {
 		printf("%s: enhanced port resource allocation failed!\n",
 			__func__);
 		goto error;

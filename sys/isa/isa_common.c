@@ -150,8 +150,8 @@ isa_find_memory(device_t child, struct isa_config *config,
 		     start += MAX(align, 1)) {
 			bus_set_resource(child, SYS_RES_MEMORY, i,
 					 start, size);
-			res[i] = bus_alloc_resource(child,
-			    SYS_RES_MEMORY, &i, 0, ~0, 1,
+			res[i] = bus_alloc_resource_any(child,
+			    SYS_RES_MEMORY, &i,
 			    rman_make_alignment_flags(align) /* !RF_ACTIVE */);
 			if (res[i]) {
 				result->ic_mem[i].ir_start = start;
@@ -224,8 +224,8 @@ isa_find_port(device_t child, struct isa_config *config,
 		     start += align) {
 			bus_set_resource(child, SYS_RES_IOPORT, i,
 					 start, size);
-			res[i] = bus_alloc_resource(child,
-			    SYS_RES_IOPORT, &i, 0, ~0, 1,
+			res[i] = bus_alloc_resource_any(child,
+			    SYS_RES_IOPORT, &i,
 			    rman_make_alignment_flags(align) /* !RF_ACTIVE */);
 			if (res[i]) {
 				result->ic_port[i].ir_start = start;

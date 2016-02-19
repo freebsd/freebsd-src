@@ -195,11 +195,11 @@ isavga_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				  0, ~0, 0, RF_ACTIVE | RF_SHAREABLE);
+	bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
+				  RF_ACTIVE | RF_SHAREABLE);
 	rid = 0;
-	bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				 0, ~0, 0, RF_ACTIVE | RF_SHAREABLE);
+	bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+				 RF_ACTIVE | RF_SHAREABLE);
 
 	error = vga_attach_unit(unit, sc, device_get_flags(dev));
 	if (error)
