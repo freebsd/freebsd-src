@@ -73,12 +73,13 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		 */
 		if (cpuinfo.userlocal_reg == true) {
 #if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
-			mips_wr_userlocal((unsigned long)(uap->parms +
-			    TLS_TP_OFFSET + TLS_TCB_SIZE32));
-#else
+			if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
+				mips_wr_userlocal((unsigned long)(uap->parms +
+				    TLS_TP_OFFSET + TLS_TCB_SIZE32));
+			else
+#endif
 			mips_wr_userlocal((unsigned long)(uap->parms +
 			    TLS_TP_OFFSET + TLS_TCB_SIZE));
-#endif
 		}
 		return (0);
 
