@@ -1175,6 +1175,7 @@ ixl_init_locked(struct ixl_pf *pf)
 #ifdef IXL_FDIR
 	filter.enable_fdir = TRUE;
 #endif
+	filter.hash_lut_size = I40E_HASH_LUT_SIZE_512;
 	if (i40e_set_filter_control(hw, &filter))
 		device_printf(dev, "set_filter_control() failed\n");
 
@@ -2758,8 +2759,17 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 	*/
 	ctxt.info.valid_sections = I40E_AQ_VSI_PROP_QUEUE_MAP_VALID;
 	ctxt.info.mapping_flags |= I40E_AQ_VSI_QUE_MAP_CONTIG;
-	ctxt.info.queue_mapping[0] = 0; 
-	ctxt.info.tc_mapping[0] = 0x0800; 
+	/* In contig mode, que_mapping[0] is first queue index used by this VSI */
+	ctxt.info.queue_mapping[0] = 0;
+	/*
+	 * This VSI will only use traffic class 0; start traffic class 0's
+	 * queue allocation at queue 0, and assign it 64 (2^6) queues (though
+	 * the driver may not use all of them).
+	 */
+	ctxt.info.tc_mapping[0] = ((0 << I40E_AQ_VSI_TC_QUE_OFFSET_SHIFT)
+	    & I40E_AQ_VSI_TC_QUE_OFFSET_MASK) |
+	    ((6 << I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT)
+	    & I40E_AQ_VSI_TC_QUE_NUMBER_MASK);
 
 	/* Set VLAN receive stripping mode */
 	ctxt.info.valid_sections |= I40E_AQ_VSI_PROP_VLAN_VALID;
