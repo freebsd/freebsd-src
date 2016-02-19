@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -60,12 +61,14 @@ __FBSDID("$FreeBSD$");
 
 #include "hv_vmbus_priv.h"
 
-
-#define VMBUS_IRQ	0x5
+#include <contrib/dev/acpica/include/acpi.h>
+#include "acpi_if.h"
 
 static device_t vmbus_devp;
 static int vmbus_inited;
 static hv_setup_args setup_args; /* only CPU 0 supported at this time */
+
+static char *vmbus_ids[] = { "VMBUS", NULL };
 
 /**
  * @brief Software interrupt thread routine to handle channel messages from
@@ -151,7 +154,7 @@ handled:
  * message to process - an event or a channel message.
  */
 static inline int
-hv_vmbus_isr(void *unused) 
+hv_vmbus_isr(struct trapframe *frame)
 {
 	int				cpu;
 	hv_vmbus_message*		msg;
@@ -191,41 +194,57 @@ hv_vmbus_isr(void *unused)
 	page_addr = hv_vmbus_g_context.syn_ic_msg_page[cpu];
 	msg = (hv_vmbus_message*) page_addr + HV_VMBUS_MESSAGE_SINT;
 
+	/* we call eventtimer process the message */
+	if (msg->header.message_type == HV_MESSAGE_TIMER_EXPIRED) {
+		msg->header.message_type = HV_MESSAGE_TYPE_NONE;
+
+		/*
+		 * Make sure the write to message_type (ie set to
+		 * HV_MESSAGE_TYPE_NONE) happens before we read the
+		 * message_pending and EOMing. Otherwise, the EOMing will
+		 * not deliver any more messages
+		 * since there is no empty slot
+		 */
+		wmb();
+
+		if (msg->header.message_flags.u.message_pending) {
+			/*
+			 * This will cause message queue rescan to possibly
+			 * deliver another msg from the hypervisor
+			 */
+			wrmsr(HV_X64_MSR_EOM, 0);
+		}
+		hv_et_intr(frame);
+		return (FILTER_HANDLED);
+	}
+
 	if (msg->header.message_type != HV_MESSAGE_TYPE_NONE) {
 		swi_sched(hv_vmbus_g_context.msg_swintr[cpu], 0);
 	}
 
-	return FILTER_HANDLED;
+	return (FILTER_HANDLED);
 }
 
-#ifdef HV_DEBUG_INTR 
-uint32_t hv_intr_count = 0;
-#endif
 uint32_t hv_vmbus_swintr_event_cpu[MAXCPU];
-uint32_t hv_vmbus_intr_cpu[MAXCPU];
+u_long *hv_vmbus_intr_cpu[MAXCPU];
 
 void
 hv_vector_handler(struct trapframe *trap_frame)
 {
-#ifdef HV_DEBUG_INTR
 	int cpu;
-#endif
 
 	/*
 	 * Disable preemption.
 	 */
 	critical_enter();
 
-#ifdef HV_DEBUG_INTR
 	/*
 	 * Do a little interrupt counting.
 	 */
 	cpu = PCPU_GET(cpuid);
-	hv_vmbus_intr_cpu[cpu]++;
-	hv_intr_count++;
-#endif
+	(*hv_vmbus_intr_cpu[cpu])++;
 
-	hv_vmbus_isr(NULL); 
+	hv_vmbus_isr(trap_frame);
 
 	/*
 	 * Enable preemption.
@@ -350,25 +369,15 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 	return(ret);
 }
 
-static void
-vmbus_identify(driver_t *driver, device_t parent)
-{
-	if (!hv_vmbus_query_hypervisor_presence())
-		return;
-
-	vm_guest = VM_GUEST_HV;
-
-	BUS_ADD_CHILD(parent, 0, "vmbus", 0);
-}
-
 static int
 vmbus_probe(device_t dev) {
-	if(bootverbose)
-		device_printf(dev, "VMBUS: probe\n");
+	if (ACPI_ID_PROBE(device_get_parent(dev), dev, vmbus_ids) == NULL ||
+	    device_get_unit(dev) != 0)
+		return (ENXIO);
 
 	device_set_desc(dev, "Vmbus Devices");
 
-	return (BUS_PROBE_NOWILDCARD);
+	return (BUS_PROBE_DEFAULT);
 }
 
 #ifdef HYPERV
@@ -462,6 +471,7 @@ static int
 vmbus_bus_init(void)
 {
 	int i, j, n, ret;
+	char buf[MAXCOMLEN + 1];
 
 	if (vmbus_inited)
 		return (0);
@@ -498,12 +508,14 @@ vmbus_bus_init(void)
 	setup_args.vector = hv_vmbus_g_context.hv_cb_vector;
 
 	CPU_FOREACH(j) {
-		hv_vmbus_intr_cpu[j] = 0;
 		hv_vmbus_swintr_event_cpu[j] = 0;
 		hv_vmbus_g_context.hv_event_intr_event[j] = NULL;
 		hv_vmbus_g_context.hv_msg_intr_event[j] = NULL;
 		hv_vmbus_g_context.event_swintr[j] = NULL;
 		hv_vmbus_g_context.msg_swintr[j] = NULL;
+
+		snprintf(buf, sizeof(buf), "cpu%d:hyperv", j);
+		intrcnt_add(buf, &hv_vmbus_intr_cpu[j]);
 
 		for (i = 0; i < 2; i++)
 			setup_args.page_buffers[2 * j + i] = NULL;
@@ -723,7 +735,6 @@ vmbus_modevent(module_t mod, int what, void *arg)
 
 static device_method_t vmbus_methods[] = {
 	/** Device interface */
-	DEVMETHOD(device_identify, vmbus_identify),
 	DEVMETHOD(device_probe, vmbus_probe),
 	DEVMETHOD(device_attach, vmbus_attach),
 	DEVMETHOD(device_detach, vmbus_detach),
@@ -745,8 +756,9 @@ static driver_t vmbus_driver = { driver_name, vmbus_methods,0, };
 
 devclass_t vmbus_devclass;
 
-DRIVER_MODULE(vmbus, nexus, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
-MODULE_VERSION(vmbus,1);
+DRIVER_MODULE(vmbus, acpi, vmbus_driver, vmbus_devclass, vmbus_modevent, 0);
+MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
+MODULE_VERSION(vmbus, 1);
 
 /* We want to be started after SMP is initialized */
 SYSINIT(vmb_init, SI_SUB_SMP + 1, SI_ORDER_FIRST, vmbus_init, NULL);
