@@ -50,7 +50,7 @@
 #ifndef _MACHINE_PMAP_V4_H_
 #define _MACHINE_PMAP_V4_H_
 
-#include <machine/pte.h>
+#include <machine/pte-v4.h>
 #include <machine/cpuconf.h>
 /*
  * Pte related macros

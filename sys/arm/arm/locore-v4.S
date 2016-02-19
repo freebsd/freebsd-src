@@ -38,7 +38,7 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/cpuconf.h>
-#include <machine/pte.h>
+#include <machine/pte-v4.h>
 
 __FBSDID("$FreeBSD$");
 
