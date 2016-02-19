@@ -797,7 +797,8 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 			}
 
 			if ((*tcp_opt != 0x01) || (*(tcp_opt + 1) != 0x01) ||
-				(*(tcp_opt + 2) != 0x08) || (*(tcp_opt + 2) != 10)) {
+				(*(tcp_opt + 2) != 0x08) ||
+				(*(tcp_opt + 3) != 10)) {
 				return -1;
 			}
 		}
