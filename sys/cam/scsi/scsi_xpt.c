@@ -1521,7 +1521,7 @@ out:
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA,
 					    &softc->saved_ccb) == ERESTART) {
-			return;
+			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
