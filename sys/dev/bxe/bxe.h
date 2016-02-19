@@ -1833,7 +1833,6 @@ struct bxe_softc {
 
     struct cdev *ioctl_dev;
     void *grc_dump;
-    int trigger_grcdump;
     int grcdump_done;
 }; /* struct bxe_softc */
 
@@ -2301,7 +2300,6 @@ void ecore_storm_memset_struct(struct bxe_softc *sc, uint32_t addr,
                           "ERROR: " format,           \
                           ## args);                   \
         }                                             \
-        sc->trigger_grcdump |= 0x1;                   \
     } while(0)
 
 #ifdef ECORE_STOP_ON_ERROR
