@@ -1032,6 +1032,11 @@ dofault:
 							frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE32;
 						else
 #endif
+#if defined (COMPAT_CHERIABI)
+						if (SV_PROC_FLAG(td->td_proc, SV_CHERI))
+							frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE_C;
+						else
+#endif
 						frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE;
 						trapframe->pc += sizeof(int);
 						goto out;

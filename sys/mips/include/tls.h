@@ -48,6 +48,9 @@
 #ifdef COMPAT_FREEBSD32
 #define TLS_TCB_SIZE32	8
 #endif
+#ifdef COMPAT_CHERIABI
+#define	TLS_TCB_SIZE_C	(2*sizeof(struct chericap))
+#endif
 #else
 #define TLS_TCB_SIZE	8
 #endif

@@ -592,6 +592,12 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 			    TLS_TCB_SIZE32);
 		else
 #endif
+#ifdef COMPAT_CHERIABI
+		if (SV_PROC_FLAG(td->td_proc, SV_CHERI))
+			mips_wr_userlocal((unsigned long)tls_base +
+			    TLS_TP_OFFSET + TLS_TCB_SIZE_C);
+		else
+#endif
 		mips_wr_userlocal((unsigned long)tls_base + TLS_TP_OFFSET +
 		    TLS_TCB_SIZE);
 	}
