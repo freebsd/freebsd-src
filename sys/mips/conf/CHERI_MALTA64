@@ -12,6 +12,8 @@ makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
  
 makeoptions 	KERNLOADADDR=0xffffffff80100000
 
+options 	KTRACE
+
 #
 # Features required for CHERI CPU and CheriBSD support.
 #
