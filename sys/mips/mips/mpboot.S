@@ -70,20 +70,26 @@ GLOBAL(mpentry)
 	/*
 	 * Initialize stack and call machine startup
 	 */
+	.set at
 	PTR_LA	sp, _C_LABEL(pcpu_space)
+	.set noat
 	addiu	sp, (PAGE_SIZE * 2) - CALLFRAME_SIZ
 	sll	t0, s0, PAGE_SHIFT + 1
 	addu	sp, sp, t0
 
 	/* Zero out old ra and old fp for debugger */
-	sw      zero, CALLFRAME_SIZ - 4(sp)
-	sw      zero, CALLFRAME_SIZ - 8(sp)
+	sw      zero, ((CALLFRAME_SIZ) - 4)(sp)
+	sw      zero, ((CALLFRAME_SIZ) - 8)(sp)
 
+	.set at
 	PTR_LA	gp, _C_LABEL(_gp)
+	.set noat
 
 	jal	platform_init_ap
 	move	a0, s0
 	jal	smp_init_secondary
 	move	a0, s0
 
+	.set at
 	PANIC("AP startup failed!")
+	.set noat
