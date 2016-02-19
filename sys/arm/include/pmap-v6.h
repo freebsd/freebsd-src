@@ -45,8 +45,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PMAP_H_
-#define _MACHINE_PMAP_H_
+#ifndef _MACHINE_PMAP_V6_H_
+#define _MACHINE_PMAP_V6_H_
 
 #include <sys/queue.h>
 #include <sys/_cpuset.h>
@@ -220,4 +220,4 @@ void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
     vm_memattr_t);
 
 #endif	/* _KERNEL */
-#endif	/* !_MACHINE_PMAP_H_ */
+#endif	/* !_MACHINE_PMAP_V6_H_ */
