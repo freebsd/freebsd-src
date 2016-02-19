@@ -82,6 +82,16 @@ tags: ${SRCS}
 .endif
 .endif
 
+# Skip reading .depend when not needed to speed up tree-walks
+# and simple lookups.
+.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
+    make(install*)
+_SKIP_READ_DEPEND=	1
+.if ${MK_DIRDEPS_BUILD} == "no"
+.MAKE.DEPENDFILE=	/dev/null
+.endif
+.endif
+
 .if defined(SRCS)
 CLEANFILES?=
 
@@ -182,7 +192,7 @@ DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
 .endif
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
-.if ${.MAKEFLAGS:M-V} == ""
+.if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .sinclude "${__depend_obj}"
 .endfor

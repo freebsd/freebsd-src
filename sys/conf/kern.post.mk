@@ -210,6 +210,15 @@ CFILES_OFED=${CFILES:M*/ofed/*}
 # We have "special" -I include paths for MLX5.
 CFILES_MLX5=${CFILES:M*/dev/mlx5/*}
 
+# Skip reading .depend when not needed to speed up tree-walks
+# and simple lookups.
+.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
+    make(install*) || make(kernel-obj) || make(kernel-clean*) || \
+    make(kernel-install*)
+_SKIP_READ_DEPEND=	1
+.MAKE.DEPENDFILE=	/dev/null
+.endif
+
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
@@ -226,7 +235,7 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 CFLAGS+=	${DEPEND_CFLAGS}
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
-.if ${.MAKEFLAGS:M-V} == ""
+.if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .sinclude "${__depend_obj}"
 .endfor
