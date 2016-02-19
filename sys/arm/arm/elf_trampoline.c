@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/elf32.h>
 #include <sys/inflate.h>
 #include <machine/elf.h>
-#include <machine/pte.h>
+#include <machine/pte-v4.h>
 #include <machine/cpufunc.h>
 #include <machine/armreg.h>
 

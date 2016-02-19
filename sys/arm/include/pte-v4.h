@@ -33,14 +33,9 @@
  *
  * $FreeBSD$
  */
-#include <machine/acle-compat.h>
 
-#if __ARM_ARCH >= 6
-#include <machine/pte-v6.h>
-#else /* __ARM_ARCH >= 6 */
-
-#ifndef _MACHINE_PTE_H_
-#define _MACHINE_PTE_H_
+#ifndef _MACHINE_PTE_V4_H_
+#define _MACHINE_PTE_V4_H_
 
 #ifndef LOCORE
 typedef	uint32_t	pd_entry_t;		/* page directory entry */
@@ -350,7 +345,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
  * 1 X 1 1 0	Y	  Y		WT	Y		Y
  * 1 X 1 1 1	Y	  Y		WT	Y		Y
  */
-#endif /* !_MACHINE_PTE_H_ */
-#endif /* __ARM_ARCH >= 6 */
+#endif /* !_MACHINE_PTE_V4_H_ */
 
 /* End of pte.h */
