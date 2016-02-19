@@ -320,13 +320,6 @@ struct bxe_device_type
 #define RX_BD_USABLE          (RX_BD_USABLE_PER_PAGE * RX_BD_NUM_PAGES)
 #define RX_BD_MAX             (RX_BD_TOTAL - 1)
 
-#if 0
-#define NUM_RX_RINGS RX_BD_NUM_PAGES
-#define NUM_RX_BD    RX_BD_TOTAL
-#define MAX_RX_BD    RX_BD_MAX
-#define MAX_RX_AVAIL RX_BD_USABLE
-#endif
-
 #define RX_BD_NEXT(x)                                               \
     ((((x) & RX_BD_PER_PAGE_MASK) == (RX_BD_USABLE_PER_PAGE - 1)) ? \
      ((x) + 3) : ((x) + 1))
@@ -385,13 +378,6 @@ struct bxe_device_type
 #define RCQ(x)      ((x) & RCQ_MAX)
 #define RCQ_PAGE(x) (((x) & ~RCQ_USABLE_PER_PAGE) >> 7)
 #define RCQ_IDX(x)  ((x) & RCQ_USABLE_PER_PAGE)
-
-#if 0
-#define NUM_RCQ_RINGS RCQ_NUM_PAGES
-#define NUM_RCQ_BD    RCQ_TOTAL
-#define MAX_RCQ_BD    RCQ_MAX
-#define MAX_RCQ_AVAIL RCQ_USABLE
-#endif
 
 /*
  * dropless fc calculations for RCQs
@@ -627,14 +613,6 @@ struct bxe_fastpath {
     struct bxe_sw_tpa_info rx_tpa_info[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
     bus_dmamap_t           rx_tpa_info_mbuf_spare_map;
     uint64_t               rx_tpa_queue_used;
-#if 0
-    bus_dmamap_t      rx_tpa_mbuf_map[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-    bus_dmamap_t      rx_tpa_mbuf_spare_map;
-    struct mbuf       *rx_tpa_mbuf_ptr[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-    bus_dma_segment_t rx_tpa_mbuf_segs[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-
-    uint8_t tpa_state[ETH_MAX_AGGREGATION_QUEUES_E1H_E2];
-#endif
 
     uint16_t *sb_index_values;
     uint16_t *sb_running_index;
@@ -687,16 +665,6 @@ struct bxe_fastpath {
     /* Transmit buffer descriptor producer index. */
     uint16_t tx_bd_prod;
     uint16_t tx_bd_cons;
-
-#if 0
-    /* status block number in hardware */
-    uint8_t sb_id;
-#define FP_SB_ID(fp) (fp->sb_id)
-
-    /* driver copy of the fastpath CSTORM/USTORM indices */
-    uint16_t fp_c_idx;
-    uint16_t fp_u_idx;
-#endif
 
     uint64_t sge_mask[RX_SGE_MASK_LEN];
     uint16_t rx_sge_prod;
@@ -963,19 +931,6 @@ struct bxe_fw_stats_data {
  * aligned.
  */
 struct bxe_slowpath {
-
-#if 0
-    /*
-     * The cdu_context array MUST be the first element in this
-     * structure. It is used during the leading edge ramrod
-     * operation.
-     */
-    union cdu_context context[MAX_CONTEXT];
-
-    /* Used as a DMA source for MAC configuration. */
-    struct mac_configuration_cmd    mac_config;
-    struct mac_configuration_cmd    mcast_config;
-#endif
 
     /* used by the DMAE command executer */
     struct dmae_command dmae[MAX_DMAE_C];
@@ -1754,10 +1709,6 @@ struct bxe_softc {
 
     uint8_t dropless_fc;
 
-#if 0
-    struct bxe_dma *t2;
-#endif
-
     /* total number of FW statistics requests */
     uint8_t fw_stats_num;
     /*
@@ -1952,13 +1903,6 @@ void bxe_reg_write32(struct bxe_softc *sc, bus_size_t offset, uint32_t val);
 
 #define BXE_FP(sc, nr, var) ((sc)->fp[(nr)].var)
 #define BXE_SP_OBJ(sc, fp) ((sc)->sp_objs[(fp)->index])
-
-#if 0
-#define bxe_fp(sc, nr, var)   ((sc)->fp[nr].var)
-#define bxe_sp_obj(sc, fp)    ((sc)->sp_objs[(fp)->index])
-#define bxe_fp_stats(sc, fp)  (&(sc)->fp_stats[(fp)->index])
-#define bxe_fp_qstats(sc, fp) (&(sc)->fp_stats[(fp)->index].eth_q_stats)
-#endif
 
 #define REG_RD_DMAE(sc, offset, valp, len32)               \
     do {                                                   \
@@ -2487,12 +2431,6 @@ bxe_stats_id(struct bxe_fastpath *fp)
     struct bxe_softc *sc = fp->sc;
 
     if (!CHIP_IS_E1x(sc)) {
-#if 0
-        /* there are special statistics counters for FCoE 136..140 */
-        if (IS_FCOE_FP(fp)) {
-            return (sc->cnic_base_cl_id + (sc->pf_num >> 1));
-        }
-#endif
         return (fp->cl_id);
     }
 
