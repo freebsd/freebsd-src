@@ -395,6 +395,7 @@ static int
 cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp)
 {
 	struct trapframe *tp;
+	int tag;
 
 	if (mcp->mc_regs[0] != UCONTEXT_MAGIC) {
 		printf("mcp->mc_regs[0] != UCONTEXT_MAGIC\n");
@@ -415,10 +416,15 @@ cheriabi_set_mcontext(struct thread *td, mcontext_c_t *mcp)
 	td->td_frame->pc = mcp->mc_pc;
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
-#if 0
-	/* XXX-BD: what actually makes sense here? */
-	td->td_md.md_tls = mcp->mc_tls;
-#endif
+
+	cheri_capability_copy(&td->td_md.md_tls_cap, &mcp->mc_tls);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &mcp->mc_tls, 0);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(td->td_md.md_tls, CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		td->td_md.md_tls = NULL;
+
 	/* Dont let user to set any bits in status and cause registers.  */
 
 	return (0);
@@ -584,10 +590,8 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_pc = regs->pc;
 	sf.sf_uc.uc_mcontext.mullo = regs->mullo;
 	sf.sf_uc.uc_mcontext.mulhi = regs->mulhi;
-#if 0
-	/* XXX-BD: what actually makes sense here? */
-	sf.sf_uc.uc_mcontext.mc_tls = td->td_md.md_tls;
-#endif
+	cheri_capability_copy(&sf.sf_uc.uc_mcontext.mc_tls,
+	    &td->td_md.md_tls_cap);
 	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
 	bcopy((void *)&regs->ast, (void *)&sf.sf_uc.uc_mcontext.mc_regs[1],
 	    sizeof(sf.sf_uc.uc_mcontext.mc_regs) - sizeof(register_t));
