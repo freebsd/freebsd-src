@@ -897,7 +897,6 @@ static struct pcisel
 parsesel(const char *str)
 {
 	const char *ep;
-	const char *epbase;
 	char *eppos;
 	struct pcisel sel;
 	unsigned long selarr[4];
@@ -909,30 +908,27 @@ parsesel(const char *str)
 	else
 		ep = str;
 
-	epbase = ep;
-
 	if (strncmp(ep, "pci", 3) == 0) {
 		ep += 3;
 		i = 0;
-		do {
+		while (isdigit(*ep) && i < 4) {
 			selarr[i++] = strtoul(ep, &eppos, 10);
 			ep = eppos;
-		} while ((*ep == ':' || *ep == '.') && *++ep != '\0' && i < 4);
-
-		if (i > 2)
-			sel.pc_func = selarr[--i];
-		else
-			sel.pc_func = 0;
-		sel.pc_dev = selarr[--i];
-		sel.pc_bus = selarr[--i];
-		if (i > 0)
-			sel.pc_domain = selarr[--i];
-		else
-			sel.pc_domain = 0;
+			if (*ep == ':') {
+				ep++;
+				if (*ep  == '\0')
+					i = 0;
+			}
+		}
+		if (i > 0 && *ep == '\0') {
+			sel.pc_func = (i > 2) ? selarr[--i] : 0;
+			sel.pc_dev = (i > 0) ? selarr[--i] : 0;
+			sel.pc_bus = (i > 0) ? selarr[--i] : 0;
+			sel.pc_domain = (i > 0) ? selarr[--i] : 0;
+			return (sel);
+		}
 	}
-	if (*ep != '\x0' || ep == epbase)
-		errx(1, "cannot parse selector %s", str);
-	return sel;
+	errx(1, "cannot parse selector %s", str);
 }
 
 static struct pcisel
