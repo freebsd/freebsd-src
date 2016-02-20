@@ -844,7 +844,7 @@ mv_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    type, rid, start, end, count, flags));
 	};
 
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		start = sc->sc_mem_base;
 		end = sc->sc_mem_base + sc->sc_mem_size - 1;
 		count = sc->sc_mem_size;

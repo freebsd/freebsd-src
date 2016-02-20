@@ -359,7 +359,7 @@ eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource *rv, **rvp = 0;
 
 	isdefault = (device_get_parent(child) == dev &&
-	     start == 0UL && end == ~0UL && count == 1);
+	    RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 
 	switch (type) {
 	case SYS_RES_IRQ:
