@@ -238,7 +238,7 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 * out where it's coming from (we should actually never see these) so
 	 * we just have to punt.
 	 */
-	if (start == 0 && end == ~0) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		device_printf(dev, "can't decode default resource id %d for "
 		    "%s, bypassing\n", *rid, device_get_nameunit(child));
 		goto passup;

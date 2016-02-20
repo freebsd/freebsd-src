@@ -192,7 +192,7 @@ xlp_simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	bustag = NULL;
 
 	if (!passthrough) {
-		isdefault = (start == 0UL && end == ~0UL);
+		isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 		if (isdefault) {
 			rle = resource_list_find(&di->rl, type, *rid);
 			if (rle == NULL)
