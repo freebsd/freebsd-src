@@ -6,7 +6,7 @@ arm/arm/blockio.S		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/bus_space_base.c	optional	fdt
 arm/arm/bus_space_generic.c	standard
-arm/arm/busdma_machdep.c 	optional	!armv6
+arm/arm/busdma_machdep-v4.c 	optional	!armv6
 arm/arm/busdma_machdep-v6.c 	optional	armv6
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
@@ -62,7 +62,7 @@ arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
-arm/arm/pmap.c			optional	!armv6
+arm/arm/pmap-v4.c		optional	!armv6
 arm/arm/pmap-v6.c		optional	armv6
 arm/arm/pmu.c			optional	pmu | fdt hwpmc
 arm/arm/sc_machdep.c		optional	sc
@@ -77,7 +77,7 @@ arm/arm/swtch-v4.S		optional	!armv6
 arm/arm/swtch-v6.S		optional	armv6
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap.c			optional	!armv6
+arm/arm/trap-v4.c		optional	!armv6
 arm/arm/trap-v6.c		optional	armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
