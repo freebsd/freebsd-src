@@ -94,7 +94,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Consider adding a resource definition.
 	 */
 	int passthrough = (device_get_parent(child) != bus);
-	int isdefault = (start == 0UL && end == ~0UL);
+	int isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
 	struct resource_list_entry *rle;

@@ -63,6 +63,8 @@ enum	rman_type { RMAN_UNINIT = 0, RMAN_GAUGE, RMAN_ARRAY };
 
 #define	RM_MAX_END	((rman_res_t)~0)
 
+#define	RMAN_IS_DEFAULT_RANGE(s,e)	((s) == 0 && (e) == RM_MAX_END)
+
 /*
  * Userspace-exported structures.
  */

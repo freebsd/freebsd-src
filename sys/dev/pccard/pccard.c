@@ -1137,7 +1137,7 @@ pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct pccard_ivar *dinfo;
 	struct resource_list_entry *rle = 0;
 	int passthrough = (device_get_parent(child) != dev);
-	int isdefault = (start == 0 && end == ~0UL && count == 1);
+	int isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	struct resource *r = NULL;
 
 	/* XXX I'm no longer sure this is right */
