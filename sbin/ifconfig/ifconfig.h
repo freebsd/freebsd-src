@@ -133,6 +133,7 @@ extern	int supmedia;
 extern	int printkeys;
 extern	int newaddr;
 extern	int verbose;
+extern	int printifname;
 
 void	setifcap(const char *, int value, int s, const struct afswtch *);
 
