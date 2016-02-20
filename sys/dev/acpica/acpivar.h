@@ -441,6 +441,8 @@ int		acpi_wakeup_machdep(struct acpi_softc *sc, int state,
 int		acpi_table_quirks(int *quirks);
 int		acpi_machdep_quirks(int *quirks);
 
+uint32_t	hpet_get_uid(device_t dev);
+
 /* Battery Abstraction. */
 struct acpi_battinfo;
 

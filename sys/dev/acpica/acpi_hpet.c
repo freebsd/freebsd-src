@@ -85,6 +85,7 @@ struct hpet_softc {
 	struct resource		*intr_res;
 	void			*intr_handle;
 	ACPI_HANDLE		handle;
+	uint32_t		acpi_uid;
 	uint64_t		freq;
 	uint32_t		caps;
 	struct timecounter	tc;
@@ -293,6 +294,15 @@ hpet_intr(void *arg)
 		return (FILTER_HANDLED);
 	}
 	return (FILTER_STRAY);
+}
+
+uint32_t
+hpet_get_uid(device_t dev)
+{
+	struct hpet_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->acpi_uid);
 }
 
 static ACPI_STATUS
@@ -746,6 +756,7 @@ hpet_attach(device_t dev)
 			maxhpetet++;
 		}
 	}
+	acpi_GetInteger(sc->handle, "_UID", &sc->acpi_uid);
 
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &hpet_cdevsw;
