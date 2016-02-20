@@ -292,7 +292,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    type, rid, start, end, count, flags));
 	};
 
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 
 		/* Read BAR manually to get resource address and size */
 		pci_read_bar(child, *rid, &map, &testval, NULL);

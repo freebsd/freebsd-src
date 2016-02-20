@@ -412,7 +412,7 @@ upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	bus_addr_t cend, cstart;
 	int i, isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != dev);
 	sc = device_get_softc(dev);
 	rl = BUS_GET_RESOURCE_LIST(dev, child);

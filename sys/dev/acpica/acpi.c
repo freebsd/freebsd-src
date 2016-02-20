@@ -1334,7 +1334,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     struct resource_list_entry *rle;
     struct resource_list *rl;
     struct resource *res;
-    int isdefault = (start == 0UL && end == ~0UL);
+    int isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 
     /*
      * First attempt at allocating the resource.  For direct children,
