@@ -55,12 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_pci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
+
+#include <powerpc/ofw/ofw_pci.h>
 
 #include "ofw_bus_if.h"
 #include "pcib_if.h"

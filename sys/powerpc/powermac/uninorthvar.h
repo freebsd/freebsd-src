@@ -30,6 +30,7 @@
 
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_pci.h>
+#include <powerpc/ofw/ofw_pci.h>
 
 struct uninorth_softc {
 	struct ofw_pci_softc	pci_sc;

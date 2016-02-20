@@ -2108,7 +2108,6 @@ dev/ofw/ofw_subr.c		optional fdt
 dev/ofw/ofwbus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
-dev/ofw/ofw_pci.c		optional fdt pci
 dev/ow/ow.c			optional ow				\
 	dependency	"owll_if.h"					\
 	dependency	"own_if.h"
