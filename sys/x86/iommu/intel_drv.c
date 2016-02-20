@@ -826,13 +826,9 @@ dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
 struct dmar_unit *
 dmar_find_hpet(device_t dev, uint16_t *rid)
 {
-	ACPI_HANDLE handle;
-	uint32_t hpet_id;
 
-	handle = acpi_get_handle(dev);
-	if (ACPI_FAILURE(acpi_GetInteger(handle, "_UID", &hpet_id)))
-		return (NULL);
-	return (dmar_find_nonpci(hpet_id, ACPI_DMAR_SCOPE_TYPE_HPET, rid));
+	return (dmar_find_nonpci(hpet_get_uid(dev), ACPI_DMAR_SCOPE_TYPE_HPET,
+	    rid));
 }
 
 struct dmar_unit *
