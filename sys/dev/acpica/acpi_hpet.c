@@ -422,8 +422,9 @@ hpet_attach(device_t dev)
 {
 	struct hpet_softc *sc;
 	struct hpet_timer *t;
+	struct make_dev_args mda;
 	int i, j, num_msi, num_timers, num_percpu_et, num_percpu_t, cur_cpu;
-	int pcpu_master;
+	int pcpu_master, error;
 	static int maxhpetet = 0;
 	uint32_t val, val2, cvectors, dvectors;
 	uint16_t vendor, rev;
@@ -746,10 +747,14 @@ hpet_attach(device_t dev)
 		}
 	}
 
-	sc->pdev = make_dev(&hpet_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "hpet%d", device_get_unit(dev));
-	if (sc->pdev) {
-		sc->pdev->si_drv1 = sc;
+	make_dev_args_init(&mda);
+	mda.mda_devsw = &hpet_cdevsw;
+	mda.mda_uid = UID_ROOT;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
+	mda.mda_si_drv1 = sc;
+	error = make_dev_s(&mda, &sc->pdev, "hpet%d", device_get_unit(dev));
+	if (error == 0) {
 		sc->mmap_allow = 1;
 		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow",
 		    &sc->mmap_allow);
@@ -766,9 +771,10 @@ hpet_attach(device_t dev)
 		    OID_AUTO, "mmap_allow_write",
 		    CTLFLAG_RW, &sc->mmap_allow_write, 0,
 		    "Allow userland write to the HPET register space");
-	} else
-		device_printf(dev, "could not create /dev/hpet%d\n",
-		    device_get_unit(dev));
+	} else {
+		device_printf(dev, "could not create /dev/hpet%d, error %d\n",
+		    device_get_unit(dev), error);
+	}
 
 	return (0);
 }
