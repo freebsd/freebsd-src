@@ -1,0 +1,23 @@
+# MALTA64 -- 64-bit kernel config for MALTA boards
+#
+# $FreeBSD$
+ 
+ident		MALTA64
+
+include		"std.MALTA"
+ 
+machine		mips mips64el	# Malta supports both, so it isn't in std.malta
+ 
+makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
+ 
+makeoptions 	KERNLOADADDR=0xffffffff80100000
+
+options 	KTRACE
+
+#
+# Features required for CHERI CPU and CheriBSD support.
+#
+options 	CPU_CHERI128
+options 	CPU_CHERI
+options 	COMPAT_CHERIABI
+options 	KSTACK_LARGE_PAGE
