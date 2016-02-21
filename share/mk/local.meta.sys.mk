@@ -204,6 +204,7 @@ CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 .if !empty(TIME_STAMP)
 TRACER= ${TIME_STAMP} ${:U}
 .endif
+WITH_META_STATS= t
 
 # toolchains can be a pain - especially bootstrappping them
 .if ${MACHINE} == "host"

@@ -388,7 +388,7 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	char buf[64];
 	int error, rid;
 
-	if (max_address != (u_long)max_address)
+	if (max_address != (rman_res_t)max_address)
 		max_address = ~0ul;
 	w->rman.rm_start = 0;
 	w->rman.rm_end = max_address;
@@ -1247,14 +1247,14 @@ pcib_alloc_new_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		return (ENOSPC);
 	}
 
-	wmask = (1ul << w->step) - 1;
+	wmask = ((rman_res_t)1 << w->step) - 1;
 	if (RF_ALIGNMENT(flags) < w->step) {
 		flags &= ~RF_ALIGNMENT_MASK;
 		flags |= RF_ALIGNMENT_LOG2(w->step);
 	}
 	start &= ~wmask;
 	end |= wmask;
-	count = roundup2(count, 1ul << w->step);
+	count = roundup2(count, (rman_res_t)1 << w->step);
 	rid = w->reg;
 	res = bus_alloc_resource(sc->dev, type, &rid, start, end, count,
 	    flags & ~RF_ACTIVE);
@@ -1389,7 +1389,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		end = w->rman.rm_end;
 	if (start + count - 1 > end || start + count < start)
 		return (EINVAL);
-	wmask = (1ul << w->step) - 1;
+	wmask = ((rman_res_t)1 << w->step) - 1;
 
 	/*
 	 * If there is no resource at all, just try to allocate enough
@@ -1435,7 +1435,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		device_printf(sc->dev,
 		    "attempting to grow %s window for (%#lx-%#lx,%#lx)\n",
 		    w->name, start, end, count);
-	align = 1ul << RF_ALIGNMENT(flags);
+	align = (rman_res_t)1 << RF_ALIGNMENT(flags);
 	if (start < w->base) {
 		if (rman_first_free_region(&w->rman, &start_free, &end_free) !=
 		    0 || start_free != w->base)

@@ -148,8 +148,7 @@ MAN1=	${MAN}
 .if defined(_SKIP_BUILD)
 all:
 .else
-all: beforebuild .WAIT ${PROG} ${SCRIPTS}
-beforebuild: objwarn
+all: ${PROG} ${SCRIPTS}
 .if ${MK_MAN} != "no"
 all: _manpages
 .endif

@@ -33,6 +33,7 @@
 #define	RANGES_TUPLES_INVALID (RANGES_TUPLES_MAX + 1)
 
 DECLARE_CLASS(thunder_pcie_driver);
+DECLARE_CLASS(thunder_pem_driver);
 
 MALLOC_DECLARE(M_THUNDER_PCIE);
 

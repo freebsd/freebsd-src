@@ -139,7 +139,7 @@ mrmlb_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	int i;
 
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 		if (type == SYS_RES_IOPORT)

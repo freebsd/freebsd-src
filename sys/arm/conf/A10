@@ -23,6 +23,8 @@ ident		A10
 include 	"std.armv6"
 include 	"../allwinner/std.a10"
 
+options 	SOC_ALLWINNER_A10
+
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
@@ -66,8 +68,10 @@ device		md
 device		random			# Entropy device
 
 # I2C support
-#device		iicbus
-#device		iic
+device		iicbus
+device		iic
+device		twsi
+device		axp209			# AXP209 Power Management Unit
 
 # GPIO
 device		gpio
@@ -99,6 +103,9 @@ device		emac
 
 # USB ethernet support, requires miibus
 device		miibus
+
+# Pinmux
+device		fdt_pinctrl
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

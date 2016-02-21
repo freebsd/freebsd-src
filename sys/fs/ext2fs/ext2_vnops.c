@@ -464,16 +464,14 @@ ext2_setattr(struct vop_setattr_args *ap)
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
 			return (error);
-		if (vap->va_atime.tv_sec != VNOVAL)
-			ip->i_flag |= IN_ACCESS;
-		if (vap->va_mtime.tv_sec != VNOVAL)
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		ext2_itimes(vp);
+		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
 		if (vap->va_atime.tv_sec != VNOVAL) {
+			ip->i_flag &= ~IN_ACCESS;
 			ip->i_atime = vap->va_atime.tv_sec;
 			ip->i_atimensec = vap->va_atime.tv_nsec;
 		}
 		if (vap->va_mtime.tv_sec != VNOVAL) {
+			ip->i_flag &= ~IN_UPDATE;
 			ip->i_mtime = vap->va_mtime.tv_sec;
 			ip->i_mtimensec = vap->va_mtime.tv_nsec;
 		}
@@ -985,10 +983,10 @@ abortit:
 		dp = VTOI(fdvp);
 	} else {
 		/*
-		 * From name has disappeared.
+		 * From name has disappeared.  IN_RENAME is not sufficient
+		 * to protect against directory races due to timing windows,
+		 * so we can't panic here.
 		 */
-		if (doingdirectory)
-			panic("ext2_rename: lost dir entry");
 		vrele(ap->a_fvp);
 		return (0);
 	}
@@ -1003,8 +1001,11 @@ abortit:
 	 * rename.
 	 */
 	if (xp != ip) {
-		if (doingdirectory)
-			panic("ext2_rename: lost dir entry");
+		/*
+		 * From name resolves to a different inode.  IN_RENAME is
+		 * not sufficient protection against timing window races
+		 * so we can't panic here.
+		 */
 	} else {
 		/*
 		 * If the source is a directory with a

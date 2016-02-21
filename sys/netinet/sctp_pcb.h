@@ -598,10 +598,6 @@ void
 
 void sctp_add_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *, uint32_t);
 
-int sctp_insert_laddr(struct sctpladdr *, struct sctp_ifa *, uint32_t);
-
-void sctp_remove_laddr(struct sctp_laddr *);
-
 void sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
 
 int sctp_add_remote_addr(struct sctp_tcb *, struct sockaddr *, struct sctp_nets **, int, int);

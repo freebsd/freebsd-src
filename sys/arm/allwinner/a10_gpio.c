@@ -47,12 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/allwinner/allwinner_machdep.h>
+#include <arm/allwinner/allwinner_pinctrl.h>
+
 #include "gpio_if.h"
-#include "a10_gpio.h"
 
 /*
  * A10 have 9 banks of gpio.
@@ -62,7 +65,6 @@ __FBSDID("$FreeBSD$");
  * PG0 - PG9 | PH0 - PH27 | PI0 - PI12
  */
 
-#define	A10_GPIO_PINS		288
 #define	A10_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
     GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
 
@@ -72,6 +74,9 @@ __FBSDID("$FreeBSD$");
 
 #define A10_GPIO_INPUT		0
 #define A10_GPIO_OUTPUT		1
+
+#define AW_GPIO_DRV_MASK	0x3
+#define AW_GPIO_PUD_MASK	0x3
 
 static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-pinctrl", 1},
@@ -88,7 +93,18 @@ struct a10_gpio_softc {
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
+	const struct allwinner_padconf *	padconf;
 };
+
+/* Defined in a10_padconf.c */
+#ifdef SOC_ALLWINNER_A10
+extern const struct allwinner_padconf a10_padconf;
+#endif
+
+/* Defined in a20_padconf.c */
+#ifdef SOC_ALLWINNER_A20
+extern const struct allwinner_padconf a20_padconf;
+#endif
 
 #define	A10_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
 #define	A10_GPIO_UNLOCK(_sc)		mtx_unlock_spin(&(_sc)->sc_mtx)
@@ -123,8 +139,10 @@ a10_gpio_get_function(struct a10_gpio_softc *sc, uint32_t pin)
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
 
-	bank = pin / 32;
-	pin = pin % 32;
+	if (pin > sc->padconf->npins)
+		return (0);
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
 	offset = ((pin & 0x07) << 2);
 
 	func = A10_GPIO_READ(sc, A10_GPIO_GP_CFG(bank, pin >> 3));
@@ -146,8 +164,8 @@ a10_gpio_set_function(struct a10_gpio_softc *sc, uint32_t pin, uint32_t f)
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
 
-	bank = pin / 32;
-	pin = pin % 32;
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
 	offset = ((pin & 0x07) << 2);
 
 	data = A10_GPIO_READ(sc, A10_GPIO_GP_CFG(bank, pin >> 3));
@@ -164,8 +182,8 @@ a10_gpio_get_pud(struct a10_gpio_softc *sc, uint32_t pin)
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
 
-	bank = pin / 32;
-	pin = pin % 32;
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
 	offset = ((pin & 0x0f) << 1);
 
 	val = A10_GPIO_READ(sc, A10_GPIO_GP_PUL(bank, pin >> 4));
@@ -187,14 +205,32 @@ a10_gpio_set_pud(struct a10_gpio_softc *sc, uint32_t pin, uint32_t state)
 	/* Must be called with lock held. */
 	A10_GPIO_LOCK_ASSERT(sc);
 
-	bank = pin / 32;
-	pin = pin % 32;
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
 	offset = ((pin & 0x0f) << 1);
 
 	val = A10_GPIO_READ(sc, A10_GPIO_GP_PUL(bank, pin >> 4));
-	val &= ~(0x03 << offset);
+	val &= ~(AW_GPIO_PUD_MASK << offset);
 	val |= (state << offset);
 	A10_GPIO_WRITE(sc, A10_GPIO_GP_PUL(bank, pin >> 4), val);
+}
+
+static void
+a10_gpio_set_drv(struct a10_gpio_softc *sc, uint32_t pin, uint32_t drive)
+{
+	uint32_t bank, offset, val;
+
+	/* Must be called with lock held. */
+	A10_GPIO_LOCK_ASSERT(sc);
+
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
+	offset = ((pin & 0x0f) << 1);
+
+	val = A10_GPIO_READ(sc, A10_GPIO_GP_DRV(bank, pin >> 4));
+	val &= ~(AW_GPIO_DRV_MASK << offset);
+	val |= (drive << offset);
+	A10_GPIO_WRITE(sc, A10_GPIO_GP_DRV(bank, pin >> 4), val);
 }
 
 static void
@@ -218,7 +254,7 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, uint32_t pin, uint32_t flags)
 			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLUP);
 		else
 			a10_gpio_set_pud(sc, pin, A10_GPIO_PULLDOWN);
-	} else 
+	} else
 		a10_gpio_set_pud(sc, pin, A10_GPIO_NONE);
 }
 
@@ -235,16 +271,21 @@ a10_gpio_get_bus(device_t dev)
 static int
 a10_gpio_pin_max(device_t dev, int *maxpin)
 {
+	struct a10_gpio_softc *sc;
 
-	*maxpin = A10_GPIO_PINS - 1;
+	sc = device_get_softc(dev);
+
+	*maxpin = sc->padconf->npins - 1;
 	return (0);
 }
 
 static int
 a10_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
+	struct a10_gpio_softc *sc;
 
-	if (pin >= A10_GPIO_PINS)
+	sc = device_get_softc(dev);
+	if (pin >= sc->padconf->npins)
 		return (EINVAL);
 
 	*caps = A10_GPIO_DEFAULT_CAPS;
@@ -257,10 +298,10 @@ a10_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct a10_gpio_softc *sc;
 
-	if (pin >= A10_GPIO_PINS)
+	sc = device_get_softc(dev);
+	if (pin >= sc->padconf->npins)
 		return (EINVAL);
 
-	sc = device_get_softc(dev);
 	A10_GPIO_LOCK(sc);
 	*flags = a10_gpio_get_function(sc, pin);
 	*flags |= a10_gpio_get_pud(sc, pin);
@@ -272,14 +313,14 @@ a10_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 static int
 a10_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
-	uint32_t bank;
+	struct a10_gpio_softc *sc;
 
-	if (pin >= A10_GPIO_PINS)
+	sc = device_get_softc(dev);
+	if (pin >= sc->padconf->npins)
 		return (EINVAL);
 
-	bank = pin / 32;
-	snprintf(name, GPIOMAXNAME - 1, "pin %d (P%c%d)",
-	    pin, bank + 'A', pin % 32);
+	snprintf(name, GPIOMAXNAME - 1, "%s",
+	    sc->padconf->pins[pin].name);
 	name[GPIOMAXNAME - 1] = '\0';
 
 	return (0);
@@ -290,10 +331,10 @@ a10_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct a10_gpio_softc *sc;
 
-	if (pin >= A10_GPIO_PINS)
+	sc = device_get_softc(dev);
+	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
-	sc = device_get_softc(dev);
 	A10_GPIO_LOCK(sc);
 	a10_gpio_pin_configure(sc, pin, flags);
 	A10_GPIO_UNLOCK(sc);
@@ -307,13 +348,13 @@ a10_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	struct a10_gpio_softc *sc;
 	uint32_t bank, data;
 
-	if (pin >= A10_GPIO_PINS)
+	sc = device_get_softc(dev);
+	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
-	bank = pin / 32;
-	pin = pin % 32;
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
 
-	sc = device_get_softc(dev);
 	A10_GPIO_LOCK(sc);
 	data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
 	if (value)
@@ -332,13 +373,13 @@ a10_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	struct a10_gpio_softc *sc;
 	uint32_t bank, reg_data;
 
-	if (pin >= A10_GPIO_PINS)
+	sc = device_get_softc(dev);
+	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
-	bank = pin / 32;
-	pin = pin % 32;
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
 
-	sc = device_get_softc(dev);
 	A10_GPIO_LOCK(sc);
 	reg_data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
 	A10_GPIO_UNLOCK(sc);
@@ -353,13 +394,13 @@ a10_gpio_pin_toggle(device_t dev, uint32_t pin)
 	struct a10_gpio_softc *sc;
 	uint32_t bank, data;
 
-	if (pin >= A10_GPIO_PINS)
+	sc = device_get_softc(dev);
+	if (pin > sc->padconf->npins)
 		return (EINVAL);
 
-	bank = pin / 32;
-	pin = pin % 32;
+	bank = sc->padconf->pins[pin].port;
+	pin = sc->padconf->pins[pin].pin;
 
-	sc = device_get_softc(dev);
 	A10_GPIO_LOCK(sc);
 	data = A10_GPIO_READ(sc, A10_GPIO_GP_DAT(bank));
 	if (data & (1 << pin))
@@ -373,6 +414,92 @@ a10_gpio_pin_toggle(device_t dev, uint32_t pin)
 }
 
 static int
+aw_find_pinnum_by_name(struct a10_gpio_softc *sc, const char *pinname)
+{
+	int i;
+
+	for (i = 0; i < sc->padconf->npins; i++)
+		if (!strcmp(pinname, sc->padconf->pins[i].name))
+			return i;
+
+	return (-1);
+}
+
+static int
+aw_find_pin_func(struct a10_gpio_softc *sc, int pin, const char *func)
+{
+	int i;
+
+	for (i = 0; i < AW_MAX_FUNC_BY_PIN; i++)
+		if (sc->padconf->pins[pin].functions[i] &&
+		    !strcmp(func, sc->padconf->pins[pin].functions[i]))
+			return (i);
+
+	return (-1);
+}
+
+static int
+aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
+{
+	struct a10_gpio_softc *sc;
+	phandle_t node;
+	const char **pinlist = NULL;
+	char *pin_function = NULL;
+	uint32_t pin_drive, pin_pull;
+	int pins_nb, pin_num, pin_func, i, ret;
+
+	sc = device_get_softc(dev);
+	node = OF_node_from_xref(cfgxref);
+	ret = 0;
+
+	/* Getting all prop for configuring pins */
+	pins_nb = ofw_bus_string_list_to_array(node, "allwinner,pins", &pinlist);
+	if (pins_nb <= 0)
+		return (ENOENT);
+	if (OF_getprop_alloc(node, "allwinner,function",
+			     sizeof(*pin_function),
+			     (void **)&pin_function) == -1) {
+		ret = ENOENT;
+		goto out;
+	}
+	if (OF_getencprop(node, "allwinner,drive",
+			  &pin_drive, sizeof(pin_drive)) == -1) {
+		ret = ENOENT;
+		goto out;
+	}
+	if (OF_getencprop(node, "allwinner,pull",
+			  &pin_pull, sizeof(pin_pull)) == -1) {
+		ret = ENOENT;
+		goto out;
+	}
+
+	/* Configure each pin to the correct function, drive and pull */
+	for (i = 0; i < pins_nb; i++) {
+		pin_num = aw_find_pinnum_by_name(sc, pinlist[i]);
+		if (pin_num == -1) {
+			ret = ENOENT;
+			goto out;
+		}
+		pin_func = aw_find_pin_func(sc, pin_num, pin_function);
+		if (pin_func == -1) {
+			ret = ENOENT;
+			goto out;
+		}
+
+		A10_GPIO_LOCK(sc);
+		a10_gpio_set_function(sc, pin_num, pin_func);
+		a10_gpio_set_drv(sc, pin_num, pin_drive);
+		a10_gpio_set_pud(sc, pin_num, pin_pull);
+		A10_GPIO_UNLOCK(sc);
+	}
+
+ out:
+	free(pinlist, M_OFWPROP);
+	free(pin_function, M_OFWPROP);
+	return (ret);
+}
+
+static int
 a10_gpio_probe(device_t dev)
 {
 
@@ -382,7 +509,7 @@ a10_gpio_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Allwinner GPIO controller");
+	device_set_desc(dev, "Allwinner GPIO/Pinmux controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -428,6 +555,29 @@ a10_gpio_attach(device_t dev)
 	if (sc->sc_busdev == NULL)
 		goto fail;
 
+
+	/* Use the right pin data for the current SoC */
+	switch (allwinner_soc_type()) {
+#ifdef SOC_ALLWINNER_A10
+	case ALLWINNERSOC_A10:
+		sc->padconf = &a10_padconf;
+		break;
+#endif
+#ifdef SOC_ALLWINNER_A20
+	case ALLWINNERSOC_A20:
+		sc->padconf = &a20_padconf;
+		break;
+#endif
+	default:
+		return (ENOENT);
+	}
+
+	/*
+	 * Register as a pinctrl device
+	 */
+	fdt_pinctrl_register(dev, "allwinner,pins");
+	fdt_pinctrl_configure_tree(dev);
+
 	return (0);
 
 fail:
@@ -459,9 +609,18 @@ static int
 a10_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
     pcell_t *gpios, uint32_t *pin, uint32_t *flags)
 {
+	struct a10_gpio_softc *sc;
+	int i;
+
+	sc = device_get_softc(bus);
 
 	/* The GPIO pins are mapped as: <gpio-phandle bank pin flags>. */
-	*pin = gpios[0] * 32 + gpios[1];
+	for (i = 0; i < sc->padconf->npins; i++)
+		if (sc->padconf->pins[i].port == gpios[0] &&
+		    sc->padconf->pins[i].pin == gpios[1]) {
+			*pin = i;
+			break;
+		}
 	*flags = gpios[gcells - 1];
 
 	return (0);
@@ -488,6 +647,9 @@ static device_method_t a10_gpio_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	a10_gpio_get_node),
 
+        /* fdt_pinctrl interface */
+	DEVMETHOD(fdt_pinctrl_configure,aw_fdt_configure_pins),
+
 	DEVMETHOD_END
 };
 
@@ -501,22 +663,3 @@ static driver_t a10_gpio_driver = {
 
 EARLY_DRIVER_MODULE(a10_gpio, simplebus, a10_gpio_driver, a10_gpio_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-
-
-int
-a10_gpio_ethernet_activate(uint32_t func)
-{
-	int i;
-	struct a10_gpio_softc *sc = a10_gpio_sc;
-
-	if (sc == NULL)
-		return (ENXIO);
-
-	/* Configure pin mux settings for MII. */
-	A10_GPIO_LOCK(sc);
-	for (i = 0; i <= 17; i++)
-		a10_gpio_set_function(sc, i, func);
-	A10_GPIO_UNLOCK(sc);
-
-	return (0);
-}

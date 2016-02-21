@@ -4661,8 +4661,8 @@ mxge_add_single_irq(mxge_softc_t *sc)
 		rid = 0;
 		sc->legacy_irq = 1;
 	}
-	sc->irq_res = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &rid, 0, ~0,
-					 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
+					     RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(sc->dev, "could not alloc interrupt\n");
 		return ENXIO;
@@ -4813,8 +4813,8 @@ mxge_attach(device_t dev)
 	
 	/* Map the board into the kernel */
 	rid = PCIR_BARS;
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0,
-					 ~0, 1, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+					     RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not map memory\n");
 		err = ENXIO;

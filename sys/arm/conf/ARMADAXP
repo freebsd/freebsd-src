@@ -90,6 +90,7 @@ device		uart
 # I2C (TWSI)
 device		iic
 device		iicbus
+device		twsi
 
 #Network
 device		ether

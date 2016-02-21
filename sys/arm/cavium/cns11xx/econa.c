@@ -425,7 +425,7 @@ econa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 	if (rle->res)
 		panic("Resource rid %d type %d already in use", *rid, type);
-	if (start == 0UL && end == ~0UL) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		start = rle->start;
 		count = ulmax(count, rle->count);
 		end = ulmax(rle->end, start + count - 1);

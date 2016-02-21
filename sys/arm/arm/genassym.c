@@ -129,7 +129,9 @@ ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 #endif
 
 ASSYM(PAGE_SIZE, PAGE_SIZE);
+#if __ARM_ARCH < 6
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);
+#endif
 #ifdef PMAP_INCLUDE_PTE_SYNC
 ASSYM(PMAP_INCLUDE_PTE_SYNC, 1);
 #endif

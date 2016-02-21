@@ -64,15 +64,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
-	uint64_t val;
 
 	if ((flags & RFPROC) == 0)
 		return;
-
-	if (td1 == curthread) {
-		__asm __volatile("mv	%0, tp" : "=&r"(val));
-		td1->td_pcb->pcb_tp = val;
-	}
 
 	pcb2 = (struct pcb *)(td2->td_kstack +
 	    td2->td_kstack_pages * PAGE_SIZE) - 1;
@@ -97,8 +91,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_frame = tf;
 
 	/* Set the return value registers for fork() */
-	td2->td_pcb->pcb_t[0] = (uintptr_t)fork_return;
-	td2->td_pcb->pcb_t[1] = (uintptr_t)td2;
+	td2->td_pcb->pcb_s[0] = (uintptr_t)fork_return;
+	td2->td_pcb->pcb_s[1] = (uintptr_t)td2;
 	td2->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td2->td_pcb->pcb_sp = (uintptr_t)td2->td_frame;
 
@@ -165,8 +159,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 	bcopy(td0->td_pcb, td->td_pcb, sizeof(struct pcb));
 
-	td->td_pcb->pcb_t[0] = (uintptr_t)fork_return;
-	td->td_pcb->pcb_t[1] = (uintptr_t)td;
+	td->td_pcb->pcb_s[0] = (uintptr_t)fork_return;
+	td->td_pcb->pcb_s[1] = (uintptr_t)td;
 	td->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
 
@@ -240,8 +234,8 @@ void
 cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 
-	td->td_pcb->pcb_t[0] = (uintptr_t)func;
-	td->td_pcb->pcb_t[1] = (uintptr_t)arg;
+	td->td_pcb->pcb_s[0] = (uintptr_t)func;
+	td->td_pcb->pcb_s[1] = (uintptr_t)arg;
 	td->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
 }

@@ -80,7 +80,6 @@ acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size)
     obj = &res->Package.Elements[idx];
     if (obj == NULL)
 	return (EINVAL);
-    bzero(dst, sizeof(dst));
 
     switch (obj->Type) {
     case ACPI_TYPE_STRING:

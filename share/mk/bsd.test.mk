@@ -68,6 +68,7 @@ _TESTS=
 SUBDIR+= ${ts}
 .endif
 .endfor
+SUBDIR_PARALLEL= t
 .endif
 
 # it is rare for test cases to have man pages
