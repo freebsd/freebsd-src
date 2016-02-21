@@ -1316,7 +1316,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
 	if ((ia->ia_flags & IFA_ROUTE) && plen == 128) {
 		error = rtinit(&(ia->ia_ifa), RTM_DELETE, ia->ia_flags |
-		    (ia->ia_dstaddr.sin6_family == AF_INET6) ? RTF_HOST : 0);
+		    (ia->ia_dstaddr.sin6_family == AF_INET6 ? RTF_HOST : 0));
 		if (error != 0)
 			log(LOG_INFO, "%s: err=%d, destination address delete "
 			    "failed\n", __func__, error);

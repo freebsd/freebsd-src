@@ -74,6 +74,7 @@ options 	HZ=1000
 # I2C (TWSI)
 device		iic
 device		iicbus
+device		twsi
 device		ds133x
 
 # USB

@@ -32,8 +32,6 @@
 #include <machine/acle-compat.h>
 
 #if __ARM_ARCH >= 6
-#include <machine/pte-v6.h>
-
 #define VM_MEMATTR_WB_WA		((vm_memattr_t)0)
 #define VM_MEMATTR_NOCACHE		((vm_memattr_t)1)
 #define VM_MEMATTR_DEVICE		((vm_memattr_t)2)

@@ -128,11 +128,6 @@ PO_FLAG=-pg
 	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-.if !defined(_SKIP_BUILD)
-all: beforebuild .WAIT
-beforebuild: objwarn
-.endif
-
 _LIBDIR:=${LIBDIR}
 _SHLIBDIR:=${SHLIBDIR}
 

@@ -4323,7 +4323,7 @@ static int arcmsr_attach(device_t dev)
 	}
 	/* After setting up the adapter, map our interrupt */
 	rid = 0;
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1, RF_SHAREABLE | RF_ACTIVE);
+	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 	if(irqres == NULL || 
 #if __FreeBSD_version >= 700025
 		bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE, NULL, arcmsr_intr_handler, acb, &acb->ih)) {

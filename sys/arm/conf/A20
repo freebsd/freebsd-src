@@ -25,6 +25,8 @@ include 	"../allwinner/a20/std.a20"
 
 options 	ARM_INTRNG
 
+options 	SOC_ALLWINNER_A20
+
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
@@ -75,8 +77,10 @@ device		md
 device		random			# Entropy device
 
 # I2C support
-#device		iicbus
-#device		iic
+device		iicbus
+device		iic
+device		twsi
+device		axp209			# AXP209 Power Management Unit
 
 # GPIO
 device		gpio
@@ -109,6 +113,12 @@ device		dwc			# 10/100/1000 integrated GMAC controller
 
 # USB ethernet support, requires miibus
 device		miibus
+
+# Sound support
+device		sound
+
+# Pinmux
+device		fdt_pinctrl
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

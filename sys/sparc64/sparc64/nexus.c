@@ -98,6 +98,7 @@ static bus_bind_intr_t nexus_bind_intr;
 #endif
 static bus_describe_intr_t nexus_describe_intr;
 static bus_get_dma_tag_t nexus_get_dma_tag;
+static bus_get_bus_tag_t nexus_get_bus_tag;
 static ofw_bus_get_devinfo_t nexus_get_devinfo;
 
 static int nexus_inlist(const char *, const char *const *);
@@ -135,6 +136,7 @@ static device_method_t nexus_methods[] = {
 #endif
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
+	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	nexus_get_devinfo),
@@ -368,7 +370,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	device_t nexus;
 	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	nexus = bus;
 	while (strcmp(device_get_name(device_get_parent(nexus)), "root") != 0)
@@ -500,6 +502,13 @@ nexus_get_dma_tag(device_t bus __unused, device_t child __unused)
 {
 
 	return (&nexus_dmatag);
+}
+
+static bus_space_tag_t
+nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
+{
+
+	return (&nexus_bustag);
 }
 
 static const struct ofw_bus_devinfo *

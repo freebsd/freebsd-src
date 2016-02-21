@@ -1717,7 +1717,7 @@ g_raid3_sync_request(struct bio *bp)
 
 		/* Send next synchronization request. */
 		data = bp->bio_data;
-		bzero(bp, sizeof(*bp));
+		g_reset_bio(bp);
 		bp->bio_cmd = BIO_READ;
 		bp->bio_offset = sync->ds_offset * (sc->sc_ndisks - 1);
 		bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);

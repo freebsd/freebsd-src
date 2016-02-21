@@ -558,16 +558,20 @@ acpi_attach(device_t dev)
 			       device_get_name(dev), CTLFLAG_RD, 0, "");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "supported_sleep_state", CTLTYPE_STRING | CTLFLAG_RD,
-	0, 0, acpi_supported_sleep_state_sysctl, "A", "");
+	0, 0, acpi_supported_sleep_state_sysctl, "A",
+	"List supported ACPI sleep states.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "power_button_state", CTLTYPE_STRING | CTLFLAG_RW,
-	&sc->acpi_power_button_sx, 0, acpi_sleep_state_sysctl, "A", "");
+	&sc->acpi_power_button_sx, 0, acpi_sleep_state_sysctl, "A",
+	"Power button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_button_state", CTLTYPE_STRING | CTLFLAG_RW,
-	&sc->acpi_sleep_button_sx, 0, acpi_sleep_state_sysctl, "A", "");
+	&sc->acpi_sleep_button_sx, 0, acpi_sleep_state_sysctl, "A",
+	"Sleep button ACPI sleep state.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "lid_switch_state", CTLTYPE_STRING | CTLFLAG_RW,
-	&sc->acpi_lid_switch_sx, 0, acpi_sleep_state_sysctl, "A", "");
+	&sc->acpi_lid_switch_sx, 0, acpi_sleep_state_sysctl, "A",
+	"Lid ACPI sleep state. Set to S3 if you want to suspend your laptop when close the Lid.");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "standby_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_standby_sx, 0, acpi_sleep_state_sysctl, "A", "");
@@ -1330,7 +1334,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     struct resource_list_entry *rle;
     struct resource_list *rl;
     struct resource *res;
-    int isdefault = (start == 0UL && end == ~0UL);
+    int isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 
     /*
      * First attempt at allocating the resource.  For direct children,

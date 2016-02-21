@@ -113,6 +113,7 @@ static	int nexus_deactivate_resource(device_t, device_t, int, int,
 static int nexus_setup_intr(device_t dev, device_t child, struct resource *res,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep);
 static int nexus_teardown_intr(device_t, device_t, struct resource *, void *);
+static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
 #ifdef SMP
 static int nexus_bind_intr(device_t, device_t, struct resource *, int);
 #endif
@@ -134,6 +135,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 #endif
@@ -221,7 +223,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * (ie. they aren't maintained by a child bus), then work out
 	 * the start/end values.
 	 */
-	if ((start == 0UL) && (end == ~0UL) && (count == 1)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end) && (count == 1)) {
 		if (device_get_parent(child) != bus || ndev == NULL)
 			return(NULL);
 		rle = resource_list_find(&ndev->nx_resources, type, *rid);
@@ -306,6 +308,13 @@ nexus_bind_intr(device_t dev, device_t child, struct resource *irq, int cpu)
 	return (arm_intr_bind(rman_get_start(irq), cpu));
 }
 #endif
+
+static bus_space_tag_t
+nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
+{
+
+	return(&memmap_bus);
+}
 
 static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,

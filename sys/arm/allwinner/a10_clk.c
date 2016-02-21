@@ -401,6 +401,29 @@ a10_clk_mmc_cfg(int devid, int freq)
 }
 
 int
+a10_clk_i2c_activate(int devid)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	a10_clk_pll6_enable();
+
+	/* Gating APB clock for I2C/TWI */
+	reg_value = ccm_read_4(sc, CCM_APB1_GATING);
+	if (devid == 4)
+		reg_value |= CCM_APB1_GATING_TWI << 15;
+	else
+		reg_value |= CCM_APB1_GATING_TWI << devid;
+	ccm_write_4(sc, CCM_APB1_GATING, reg_value);
+
+	return (0);
+}
+
+int
 a10_clk_dmac_activate(void)
 {
 	struct a10_ccm_softc *sc;

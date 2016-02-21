@@ -36,7 +36,7 @@
 #include <machine/armreg.h>
 #include <machine/sysreg.h>
 #include <machine/cpuconf.h>
-#include <machine/pte.h>
+#include <machine/pte-v6.h>
 
 __FBSDID("$FreeBSD$");
 
@@ -280,7 +280,7 @@ ASENTRY_NP(init_mmu)
 	mcr	CP15_CONTEXTIDR(r0)	/* Set ASID to 0 */
 
 	/* Set the Domain Access register */
-	mov	r0, #((DOMAIN_CLIENT <<	(PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
+	mov	r0, #DOMAIN_CLIENT	/* Only domain #0 is used */
 	mcr	CP15_DACR(r0)
 
 	/*

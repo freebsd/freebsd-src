@@ -96,7 +96,7 @@ filemon_pid_check(struct proc *p)
 		return (NULL);
 	}
 	sx_slock(&proctree_lock);
-	while (p != initproc) {
+	while (p->p_pid != 0) {
 		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
 			if (p == filemon->p) {
 				sx_sunlock(&proctree_lock);

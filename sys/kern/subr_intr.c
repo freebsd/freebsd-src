@@ -60,11 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
+#ifdef FDT
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/fdt/fdt_common.h>
+#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>

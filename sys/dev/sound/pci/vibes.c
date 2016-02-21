@@ -759,8 +759,8 @@ sv_attach(device_t dev) {
 
 	/* Register IRQ handler */
 	sc->irqid = 0;
-        sc->irq   = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
-				       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+        sc->irq   = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
+					   RF_ACTIVE | RF_SHAREABLE);
         if (!sc->irq ||
 	    snd_setup_intr(dev, sc->irq, 0, sv_intr, sc, &sc->ih)) {
                 device_printf(dev, "sv_attach: Unable to map interrupt\n");

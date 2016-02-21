@@ -186,7 +186,7 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	sc = device_get_softc(bus);
 	rle = NULL;
@@ -271,12 +271,17 @@ ofwbus_release_resource(device_t bus, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct resource_list_entry *rle;
+	int passthrough;
 	int error;
 
-	/* Clean resource list entry */
-	rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child), type, rid);
-	if (rle != NULL)
-		rle->res = NULL;
+	passthrough = (device_get_parent(child) != bus);
+	if (!passthrough) {
+		/* Clean resource list entry */
+		rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child),
+		    type, rid);
+		if (rle != NULL)
+			rle->res = NULL;
+	}
 
 	if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
 		error = bus_deactivate_resource(child, type, rid, r);

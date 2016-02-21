@@ -50,7 +50,7 @@ modules-${target}:
 LOCALBASE?=	/usr/local
 # SRC_BASE is how the ports tree refers to the location of the base source files
 .if !defined(SRC_BASE)
-SRC_BASE!=	realpath "${SYSDIR:H}/"
+SRC_BASE=	${SYSDIR:H:tA}
 .endif
 # OSVERSION is used by some ports to determine build options
 .if !defined(OSRELDATE)
@@ -206,6 +206,15 @@ CFILES_OFED=${CFILES:M*/ofed/*}
 # We have "special" -I include paths for MLX5.
 CFILES_MLX5=${CFILES:M*/dev/mlx5/*}
 
+# Skip reading .depend when not needed to speed up tree-walks
+# and simple lookups.
+.if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
+    make(install*) || make(kernel-obj) || make(kernel-clean*) || \
+    make(kernel-install*)
+_SKIP_READ_DEPEND=	1
+.MAKE.DEPENDFILE=	/dev/null
+.endif
+
 kernel-depend: .depend
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
@@ -219,10 +228,17 @@ DEPENDFILES=	.depend
 DEPENDFILES+=	.depend.*
 DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
+.if defined(.PARSEDIR)
+# Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
+# as those are the only ones we will include.
+DEPEND_CFLAGS_CONDITION= !empty(DEPENDOBJS:M${.TARGET})
+CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
+.else
 CFLAGS+=	${DEPEND_CFLAGS}
+.endif
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
-.if ${.MAKEFLAGS:M-V} == ""
+.if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .sinclude "${__depend_obj}"
 .endfor
