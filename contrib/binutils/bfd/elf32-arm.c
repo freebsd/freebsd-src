@@ -59,13 +59,6 @@
 #define elf_info_to_howto               0
 #define elf_info_to_howto_rel           elf32_arm_info_to_howto
 
-#define ARM_ELF_ABI_VERSION		0
-#ifdef __FreeBSD__
-#define ARM_ELF_OS_ABI_VERSION		ELFOSABI_FREEBSD
-#else
-#define ARM_ELF_OS_ABI_VERSION		ELFOSABI_ARM
-#endif
-
 static struct elf_backend_data elf32_arm_vxworks_bed;
 
 /* Note: code such as elf32_arm_reloc_type_lookup expect to use e.g.
@@ -9377,11 +9370,8 @@ elf32_arm_post_process_headers (bfd * abfd, struct bfd_link_info * link_info ATT
 
   i_ehdrp = elf_elfheader (abfd);
 
-  if (EF_ARM_EABI_VERSION (i_ehdrp->e_flags) == EF_ARM_EABI_UNKNOWN)
-    i_ehdrp->e_ident[EI_OSABI] = ARM_ELF_OS_ABI_VERSION;
-  else
-    i_ehdrp->e_ident[EI_OSABI] = 0;
-  i_ehdrp->e_ident[EI_ABIVERSION] = ARM_ELF_ABI_VERSION;
+  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
+  i_ehdrp->e_ident[EI_ABIVERSION] = 0;
 
   if (link_info)
     {
