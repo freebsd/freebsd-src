@@ -2463,8 +2463,8 @@ init386(first)
 		metadata_missing = 1;
 	}
 
-	if (bootinfo.bi_envp)
-		init_static_kenv((caddr_t)bootinfo.bi_envp + KERNBASE, 0);
+	if (bootinfo.bi_envp != 0)
+		init_static_kenv((char *)bootinfo.bi_envp + KERNBASE, 0);
 	else
 		init_static_kenv(NULL, 0);
 
