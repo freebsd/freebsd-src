@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #define SECSPERHOUR ( 60*60 )
 #define SECSPERDAY	(24 * SECSPERHOUR)
 
-time_t
+static time_t
 efi_time(EFI_TIME *ETime)
 {
     /*
@@ -164,7 +164,7 @@ efi_time(EFI_TIME *ETime)
     return UTime;
 }
 
-int
+static int
 EFI_GetTimeOfDay(
 	OUT struct timeval *tp,
 	OUT struct timezone *tzp
