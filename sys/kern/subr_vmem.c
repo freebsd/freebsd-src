@@ -502,7 +502,8 @@ qc_import(void *arg, void **store, int cnt, int flags)
 	int i;
 
 	qc = arg;
-	flags |= M_BESTFIT;
+	if ((flags & VMEM_FITMASK) == 0)
+		flags |= M_BESTFIT;
 	for (i = 0; i < cnt; i++) {
 		if (vmem_xalloc(qc->qc_vmem, qc->qc_size, 0, 0, 0,
 		    VMEM_ADDR_MIN, VMEM_ADDR_MAX, flags, &addr) != 0)
@@ -1407,6 +1408,8 @@ vmem_dump(const vmem_t *vm , int (*pr)(const char *, ...) __printflike(1, 2))
 #endif /* defined(DDB) || defined(DIAGNOSTIC) */
 
 #if defined(DDB)
+#include <ddb/ddb.h>
+
 static bt_t *
 vmem_whatis_lookup(vmem_t *vm, vmem_addr_t addr)
 {
@@ -1459,6 +1462,78 @@ vmem_print(vmem_addr_t addr, const char *modif, int (*pr)(const char *, ...))
 	const vmem_t *vm = (const void *)addr;
 
 	vmem_dump(vm, pr);
+}
+
+DB_SHOW_COMMAND(vmemdump, vmemdump)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show vmemdump <addr>\n");
+		return;
+	}
+
+	vmem_dump((const vmem_t *)addr, db_printf);
+}
+
+DB_SHOW_ALL_COMMAND(vmemdump, vmemdumpall)
+{
+	const vmem_t *vm;
+
+	LIST_FOREACH(vm, &vmem_list, vm_alllist)
+		vmem_dump(vm, db_printf);
+}
+
+DB_SHOW_COMMAND(vmem, vmem_summ)
+{
+	const vmem_t *vm = (const void *)addr;
+	const bt_t *bt;
+	size_t ft[VMEM_MAXORDER], ut[VMEM_MAXORDER];
+	size_t fs[VMEM_MAXORDER], us[VMEM_MAXORDER];
+	int ord;
+
+	if (!have_addr) {
+		db_printf("usage: show vmem <addr>\n");
+		return;
+	}
+
+	db_printf("vmem %p '%s'\n", vm, vm->vm_name);
+	db_printf("\tquantum:\t%zu\n", vm->vm_quantum_mask + 1);
+	db_printf("\tsize:\t%zu\n", vm->vm_size);
+	db_printf("\tinuse:\t%zu\n", vm->vm_inuse);
+	db_printf("\tfree:\t%zu\n", vm->vm_size - vm->vm_inuse);
+	db_printf("\tbusy tags:\t%d\n", vm->vm_nbusytag);
+	db_printf("\tfree tags:\t%d\n", vm->vm_nfreetags);
+
+	memset(&ft, 0, sizeof(ft));
+	memset(&ut, 0, sizeof(ut));
+	memset(&fs, 0, sizeof(fs));
+	memset(&us, 0, sizeof(us));
+	TAILQ_FOREACH(bt, &vm->vm_seglist, bt_seglist) {
+		ord = SIZE2ORDER(bt->bt_size >> vm->vm_quantum_shift);
+		if (bt->bt_type == BT_TYPE_BUSY) {
+			ut[ord]++;
+			us[ord] += bt->bt_size;
+		} else if (bt->bt_type == BT_TYPE_FREE) {
+			ft[ord]++;
+			fs[ord] += bt->bt_size;
+		}
+	}
+	db_printf("\t\t\tinuse\tsize\t\tfree\tsize\n");
+	for (ord = 0; ord < VMEM_MAXORDER; ord++) {
+		if (ut[ord] == 0 && ft[ord] == 0)
+			continue;
+		db_printf("\t%-15zu %zu\t%-15zu %zu\t%-16zu\n",
+		    ORDER2SIZE(ord) << vm->vm_quantum_shift,
+		    ut[ord], us[ord], ft[ord], fs[ord]);
+	}
+}
+
+DB_SHOW_ALL_COMMAND(vmem, vmem_summall)
+{
+	const vmem_t *vm;
+
+	LIST_FOREACH(vm, &vmem_list, vm_alllist)
+		vmem_summ((db_expr_t)vm, TRUE, count, modif);
 }
 #endif /* defined(DDB) */
 
