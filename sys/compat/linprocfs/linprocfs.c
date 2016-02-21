@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/resourcevar.h>
+#include <sys/resource.h>
 #include <sys/sbuf.h>
 #include <sys/sem.h>
 #include <sys/smp.h>
@@ -1366,6 +1367,67 @@ linprocfs_dofdescfs(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/pid/limits
+ */
+
+#define RLIM_NONE -1
+
+static const struct limit_info {
+	const char	*desc;
+	const char	*unit;
+	unsigned long long	rlim_id;
+} limits_info[] = {
+	{ "Max cpu time",		"seconds",	RLIMIT_CPU },
+	{ "Max file size",		"bytes",	RLIMIT_FSIZE },
+	{ "Max data size",		"bytes", 	RLIMIT_DATA },
+	{ "Max stack size",		"bytes", 	RLIMIT_STACK },
+	{ "Max core file size",		"bytes",	RLIMIT_CORE },
+	{ "Max resident set",		"bytes",	RLIMIT_RSS },
+	{ "Max processes",		"processes",	RLIMIT_NPROC },
+	{ "Max open files",		"files",	RLIMIT_NOFILE },
+	{ "Max locked memory",		"bytes",	RLIMIT_MEMLOCK },
+	{ "Max address space",		"bytes",	RLIMIT_AS },
+	{ "Max file locks",		"locks",	RLIM_INFINITY },
+	{ "Max pending signals",	"signals",	RLIM_INFINITY },
+	{ "Max msgqueue size",		"bytes",	RLIM_NONE },
+	{ "Max nice priority", 		"",		RLIM_NONE },
+	{ "Max realtime priority",	"",		RLIM_NONE },
+	{ "Max realtime timeout",	"us",		RLIM_INFINITY },
+	{ 0, 0, 0 }
+};
+
+static int
+linprocfs_doproclimits(PFS_FILL_ARGS)
+{
+	const struct limit_info	*li;
+	struct rlimit li_rlimits;
+	struct plimit *cur_proc_lim;
+
+	cur_proc_lim = lim_alloc();
+	lim_copy(cur_proc_lim, p->p_limit);
+	sbuf_printf(sb, "%-26s%-21s%-21s%-10s\n", "Limit", "Soft Limit",
+			"Hard Limit", "Units");
+	for (li = limits_info; li->desc != NULL; ++li) {
+		if (li->rlim_id != RLIM_INFINITY && li->rlim_id != RLIM_NONE)
+			li_rlimits = cur_proc_lim->pl_rlimit[li->rlim_id];
+		else {
+			li_rlimits.rlim_cur = 0;
+			li_rlimits.rlim_max = 0;
+		}
+		if (li->rlim_id == RLIM_INFINITY ||
+		    li_rlimits.rlim_cur == RLIM_INFINITY)
+			sbuf_printf(sb, "%-26s%-21s%-21s%-10s\n",
+			    li->desc, "unlimited", "unlimited", li->unit);
+		else
+			sbuf_printf(sb, "%-26s%-21ld%-21ld%-10s\n",
+			    li->desc, (long)li_rlimits.rlim_cur,
+			    (long)li_rlimits.rlim_max, li->unit);
+	}
+	lim_free(cur_proc_lim);
+	return (0);
+}
+
 
 /*
  * Filler function for proc/sys/kernel/random/uuid
@@ -1504,6 +1566,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "auxv", &linprocfs_doauxv,
 	    NULL, &procfs_candebug, NULL, PFS_RD|PFS_RAWRD);
+	pfs_create_file(dir, "limits", &linprocfs_doproclimits,
+	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/scsi/... */
 	dir = pfs_create_dir(root, "scsi", NULL, NULL, NULL, 0);
