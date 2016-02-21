@@ -212,8 +212,6 @@ preadbuffer(void)
 	}
 	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
 		return PEOF;
-	flushout(&output);
-	flushout(&errout);
 
 again:
 	if (parselleft <= 0) {
