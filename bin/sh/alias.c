@@ -144,9 +144,11 @@ rmaliases(void)
 struct alias *
 lookupalias(const char *name, int check)
 {
-	struct alias *ap = *hashalias(name);
+	struct alias *ap;
 
-	for (; ap; ap = ap->next) {
+	if (aliases == 0)
+		return (NULL);
+	for (ap = *hashalias(name); ap; ap = ap->next) {
 		if (equal(name, ap->name)) {
 			if (check && (ap->flag & ALIASINUSE))
 				return (NULL);
