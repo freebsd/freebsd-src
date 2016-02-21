@@ -341,7 +341,7 @@ localbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Request for the default allocation with a given rid: use resource
 	 * list stored in the local device info.
 	 */
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 
@@ -477,8 +477,6 @@ fdt_localbus_devmap(phandle_t dt_node, struct arm_devmap_entry *fdt_devmap,
 		fdt_devmap[j].pd_va = localbus_virtmap[va_index].va;
 		fdt_devmap[j].pd_pa = offset;
 		fdt_devmap[j].pd_size = size;
-		fdt_devmap[j].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-		fdt_devmap[j].pd_cache = PTE_DEVICE;
 
 		/* Copy data to structure used by localbus driver */
 		localbus_banks[bank].va = fdt_devmap[j].pd_va;

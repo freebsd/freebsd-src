@@ -110,7 +110,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	error = 0;
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 		while (uio->uio_iov[i].iov_len) {
-			bzero(bp, sizeof(*bp));
+			g_reset_bio(bp);
 			if (uio->uio_rw == UIO_READ) {
 				bp->bio_cmd = BIO_READ;
 				curthread->td_ru.ru_inblock++;

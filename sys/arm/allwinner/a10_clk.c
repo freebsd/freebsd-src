@@ -109,7 +109,8 @@ static driver_t a10_ccm_driver = {
 
 static devclass_t a10_ccm_devclass;
 
-DRIVER_MODULE(a10_ccm, simplebus, a10_ccm_driver, a10_ccm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(a10_ccm, simplebus, a10_ccm_driver, a10_ccm_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 int
 a10_clk_usb_activate(void)
@@ -200,7 +201,7 @@ a10_clk_gmac_activate(phandle_t node)
 
 	/* Set GMAC mode. */
 	reg_value = CCM_GMAC_CLK_MII;
-	if (OF_getprop_alloc(node, "phy-type", 1, (void **)&phy_type) > 0) {
+	if (OF_getprop_alloc(node, "phy-mode", 1, (void **)&phy_type) > 0) {
 		if (strcasecmp(phy_type, "rgmii") == 0)
 			reg_value = CCM_GMAC_CLK_RGMII | CCM_GMAC_MODE_RGMII;
 		else if (strcasecmp(phy_type, "rgmii-bpi") == 0) {
@@ -395,6 +396,29 @@ a10_clk_mmc_cfg(int devid, int freq)
 	reg_value |= m;
 	reg_value |= CCM_PLL_CFG_ENABLE;
 	ccm_write_4(sc, CCM_MMC0_SCLK_CFG + (devid * 4), reg_value);
+
+	return (0);
+}
+
+int
+a10_clk_i2c_activate(int devid)
+{
+	struct a10_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a10_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	a10_clk_pll6_enable();
+
+	/* Gating APB clock for I2C/TWI */
+	reg_value = ccm_read_4(sc, CCM_APB1_GATING);
+	if (devid == 4)
+		reg_value |= CCM_APB1_GATING_TWI << 15;
+	else
+		reg_value |= CCM_APB1_GATING_TWI << devid;
+	ccm_write_4(sc, CCM_APB1_GATING, reg_value);
 
 	return (0);
 }

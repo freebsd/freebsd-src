@@ -2781,6 +2781,45 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	SCTP_INP_WUNLOCK(old_inp);
 }
 
+/*
+ * insert an laddr entry with the given ifa for the desired list
+ */
+static int
+sctp_insert_laddr(struct sctpladdr *list, struct sctp_ifa *ifa, uint32_t act)
+{
+	struct sctp_laddr *laddr;
+
+	laddr = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_laddr), struct sctp_laddr);
+	if (laddr == NULL) {
+		/* out of memory? */
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+		return (EINVAL);
+	}
+	SCTP_INCR_LADDR_COUNT();
+	bzero(laddr, sizeof(*laddr));
+	(void)SCTP_GETTIME_TIMEVAL(&laddr->start_time);
+	laddr->ifa = ifa;
+	laddr->action = act;
+	atomic_add_int(&ifa->refcount, 1);
+	/* insert it */
+	LIST_INSERT_HEAD(list, laddr, sctp_nxt_addr);
+
+	return (0);
+}
+
+/*
+ * Remove an laddr entry from the local address list (on an assoc)
+ */
+static void
+sctp_remove_laddr(struct sctp_laddr *laddr)
+{
+
+	/* remove from the list */
+	LIST_REMOVE(laddr, sctp_nxt_addr);
+	sctp_free_ifa(laddr->ifa);
+	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), laddr);
+	SCTP_DECR_LADDR_COUNT();
+}
 
 
 
@@ -5393,7 +5432,7 @@ sctp_select_primary_destination(struct sctp_tcb *stcb)
 
 
 /*
- * Delete the address from the endpoint local address list There is nothing
+ * Delete the address from the endpoint local address list. There is nothing
  * to be done if we are bound to all addresses
  */
 void
@@ -5444,8 +5483,7 @@ sctp_del_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa)
 			 * to laddr
 			 */
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-				if (net->ro._s_addr &&
-				    (net->ro._s_addr->ifa == laddr->ifa)) {
+				if (net->ro._s_addr == laddr->ifa) {
 					/* Yep, purge src address selected */
 					sctp_rtentry_t *rt;
 
@@ -5506,46 +5544,6 @@ sctp_add_local_addr_restricted(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 	/* add to the list */
 	(void)sctp_insert_laddr(list, ifa, 0);
 	return;
-}
-
-/*
- * insert an laddr entry with the given ifa for the desired list
- */
-/* static in FreeBSD */ int
-sctp_insert_laddr(struct sctpladdr *list, struct sctp_ifa *ifa, uint32_t act)
-{
-	struct sctp_laddr *laddr;
-
-	laddr = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_laddr), struct sctp_laddr);
-	if (laddr == NULL) {
-		/* out of memory? */
-		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-		return (EINVAL);
-	}
-	SCTP_INCR_LADDR_COUNT();
-	bzero(laddr, sizeof(*laddr));
-	(void)SCTP_GETTIME_TIMEVAL(&laddr->start_time);
-	laddr->ifa = ifa;
-	laddr->action = act;
-	atomic_add_int(&ifa->refcount, 1);
-	/* insert it */
-	LIST_INSERT_HEAD(list, laddr, sctp_nxt_addr);
-
-	return (0);
-}
-
-/*
- * Remove an laddr entry from the local address list (on an assoc)
- */
-/* static in FreeBSD */ void
-sctp_remove_laddr(struct sctp_laddr *laddr)
-{
-
-	/* remove from the list */
-	LIST_REMOVE(laddr, sctp_nxt_addr);
-	sctp_free_ifa(laddr->ifa);
-	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), laddr);
-	SCTP_DECR_LADDR_COUNT();
 }
 
 /*
@@ -5924,7 +5922,6 @@ sctp_pcb_finish(void)
 		return;
 	}
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 0;
-
 	/*
 	 * In FreeBSD the iterator thread never exits but we do clean up.
 	 * The only way FreeBSD reaches here is if we have VRF's but we
@@ -5939,11 +5936,10 @@ retry:
 	 * avoid the race condition as sctp_iterator_worker() will have to
 	 * wait to re-aquire the lock.
 	 */
-	r = atomic_fetchadd_int(&sctp_it_ctl.iterator_running, 0);
-	if (r != 0 || sctp_it_ctl.cur_it != NULL) {
+	if (sctp_it_ctl.iterator_running != 0 || sctp_it_ctl.cur_it != NULL) {
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
 		SCTP_PRINTF("%s: Iterator running while we held the lock. Retry. "
-		    "r=%u cur_it=%p\n", __func__, r, sctp_it_ctl.cur_it);
+		    "cur_it=%p\n", __func__, sctp_it_ctl.cur_it);
 		DELAY(10);
 		goto retry;
 	}
@@ -6048,7 +6044,6 @@ retry:
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_strmoq));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf_ack));
-
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_FREE(SCTP_BASE_STATS, SCTP_M_MCORE);
 #endif
@@ -7057,12 +7052,11 @@ sctp_initiate_iterator(inp_func inpf,
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
-		SCTP_PRINTF("%s: rollback on initialize being %d it=%p\n",
-		     __func__, SCTP_BASE_VAR(sctp_pcb_initialized), it);
+		SCTP_PRINTF("%s: rollback on initialize being %d it=%p\n", __func__,
+		    SCTP_BASE_VAR(sctp_pcb_initialized), it);
 		SCTP_FREE(it, SCTP_M_ITER);
 		return (-1);
 	}
-
 	TAILQ_INSERT_TAIL(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
 	if (sctp_it_ctl.iterator_running == 0) {
 		sctp_wakeup_iterator();

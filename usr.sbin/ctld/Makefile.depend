@@ -13,7 +13,9 @@ DIRDEPS = \
 	lib/libexpat \
 	lib/libmd \
 	lib/libsbuf \
+	lib/libucl \
 	lib/libutil \
+	lib/msun \
 	usr.bin/lex/lib \
 	usr.bin/yacc.host \
 

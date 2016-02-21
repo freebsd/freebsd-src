@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.47 2015/05/14 10:44:15 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.49 2015/12/08 16:53:27 gson Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.47 2015/05/14 10:44:15 christos Exp $");
+__RCSID("$NetBSD: tty.c,v 1.49 2015/12/08 16:53:27 gson Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -582,6 +582,9 @@ protected void
 /*ARGSUSED*/
 tty_end(EditLine *el)
 {
+	if (el->el_flags & EDIT_DISABLED)
+		return;
+
 	if (tty_setty(el, TCSAFLUSH, &el->el_tty.t_or) == -1) {
 #ifdef DEBUG_TTY
 		(void) fprintf(el->el_errfile,

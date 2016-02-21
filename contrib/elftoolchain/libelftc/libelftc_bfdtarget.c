@@ -30,7 +30,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3309 2016-01-10 09:10:51Z kaiwang27 $");
 
 struct _Elftc_Bfd_Target _libelftc_targets[] = {
 
@@ -372,6 +372,30 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 	{
 		.bt_name = "symbolsrec",
 		.bt_type = ETF_SREC,
+	},
+
+	{
+		.bt_name    = "efi-app-ia32",
+		.bt_type    = ETF_EFI,
+		.bt_machine = EM_386,
+	},
+
+	{
+		.bt_name    = "efi-app-x86_64",
+		.bt_type    = ETF_EFI,
+		.bt_machine = EM_X86_64,
+	},
+
+	{
+		.bt_name    = "pei-i386",
+		.bt_type    = ETF_PE,
+		.bt_machine = EM_386,
+	},
+
+	{
+		.bt_name    = "pei-x86-64",
+		.bt_type    = ETF_PE,
+		.bt_machine = EM_X86_64,
 	},
 
 	{

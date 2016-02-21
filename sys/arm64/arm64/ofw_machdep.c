@@ -39,7 +39,7 @@ extern struct bus_space memmap_bus;
 
 int
 OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
-    bus_space_handle_t *handle)
+    bus_space_handle_t *handle, bus_size_t *sz)
 {
 	bus_addr_t addr;
 	bus_size_t size;
@@ -50,5 +50,9 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		return (err);
 
 	*tag = &memmap_bus;
+
+	if (sz != NULL)
+		*sz = size;
+
 	return (bus_space_map(*tag, addr, size, 0, handle));
 }

@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/elf32.h>
 #include <sys/inflate.h>
 #include <machine/elf.h>
-#include <machine/pte.h>
+#include <machine/pte-v4.h>
 #include <machine/cpufunc.h>
 #include <machine/armreg.h>
 
@@ -125,7 +125,6 @@ static int      arm_dcache_l2_assoc;
 static int      arm_dcache_l2_linesize;
 
 
-int block_userspace_access = 0;
 extern int arm9_dcache_sets_inc;
 extern int arm9_dcache_sets_max;
 extern int arm9_dcache_index_max;

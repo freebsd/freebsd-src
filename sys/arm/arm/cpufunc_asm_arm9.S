@@ -85,9 +85,7 @@ ENTRY_NP(arm9_icache_sync_range)
 	subs	r1, r1, ip
 	bhi	.Larm9_sync_next
 	mov	pc, lr
-END(arm9_icache_sync_range)
 
-ENTRY_NP(arm9_icache_sync_all)
 .Larm9_icache_sync_all:
 	/*
 	 * We assume that the code here can never be out of sync with the
@@ -109,7 +107,7 @@ ENTRY_NP(arm9_icache_sync_all)
 	subs	s_max, s_max, s_inc
 	bhs	.Lnext_set		/* Next set */
 	mov	pc, lr
-END(arm9_icache_sync_all)
+END(arm9_icache_sync_range)
 
 .Larm9_line_size:
 	.word	_C_LABEL(arm_pdcache_line_size)

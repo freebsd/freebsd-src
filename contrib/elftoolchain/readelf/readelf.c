@@ -47,7 +47,16 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3271 2015-12-11 18:53:08Z kaiwang27 $");
+ELFTC_VCSID("$Id: readelf.c 3395 2016-02-10 16:29:44Z emaste $");
+
+/* Backwards compatability for older FreeBSD releases. */
+#ifndef	STB_GNU_UNIQUE
+#define	STB_GNU_UNIQUE 10
+#endif
+#ifndef	STT_SPARC_REGISTER
+#define	STT_SPARC_REGISTER 13
+#endif
+
 
 /*
  * readelf(1) options.
@@ -338,7 +347,7 @@ static const char *phdr_type(unsigned int ptype);
 static const char *ppc_abi_fp(uint64_t fp);
 static const char *ppc_abi_vector(uint64_t vec);
 static const char *r_type(unsigned int mach, unsigned int type);
-static void readelf_usage(void);
+static void readelf_usage(int status);
 static void readelf_version(void);
 static void search_loclist_at(struct readelf *re, Dwarf_Die die,
     Dwarf_Unsigned lowpc);
@@ -348,7 +357,7 @@ static void set_cu_context(struct readelf *re, Dwarf_Half psize,
     Dwarf_Half osize, Dwarf_Half ver);
 static const char *st_bind(unsigned int sbind);
 static const char *st_shndx(unsigned int shndx);
-static const char *st_type(unsigned int stype);
+static const char *st_type(unsigned int mach, unsigned int stype);
 static const char *st_vis(unsigned int svis);
 static const char *top_tag(unsigned int tag);
 static void unload_sections(struct readelf *re);
@@ -958,6 +967,7 @@ st_bind(unsigned int sbind)
 	case STB_LOCAL: return "LOCAL";
 	case STB_GLOBAL: return "GLOBAL";
 	case STB_WEAK: return "WEAK";
+	case STB_GNU_UNIQUE: return "UNIQUE";
 	default:
 		if (sbind >= STB_LOOS && sbind <= STB_HIOS)
 			return "OS";
@@ -971,7 +981,7 @@ st_bind(unsigned int sbind)
 }
 
 static const char *
-st_type(unsigned int stype)
+st_type(unsigned int mach, unsigned int stype)
 {
 	static char s_stype[32];
 
@@ -987,10 +997,12 @@ st_type(unsigned int stype)
 		if (stype >= STT_LOOS && stype <= STT_HIOS)
 			snprintf(s_stype, sizeof(s_stype), "OS+%#x",
 			    stype - STT_LOOS);
-		else if (stype >= STT_LOPROC && stype <= STT_HIPROC)
+		else if (stype >= STT_LOPROC && stype <= STT_HIPROC) {
+			if (mach == EM_SPARCV9 && stype == STT_SPARC_REGISTER)
+				return "REGISTER";
 			snprintf(s_stype, sizeof(s_stype), "PROC+%#x",
 			    stype - STT_LOPROC);
-		else
+		} else
 			snprintf(s_stype, sizeof(s_stype), "<unknown: %#x>",
 			    stype);
 		return (s_stype);
@@ -1053,8 +1065,9 @@ static struct {
 static const char *
 r_type(unsigned int mach, unsigned int type)
 {
+	static char s_type[32];
+
 	switch(mach) {
-	case EM_NONE: return "";
 	case EM_386:
 	case EM_IAMCU:
 		switch(type) {
@@ -1065,7 +1078,7 @@ r_type(unsigned int mach, unsigned int type)
 		case 4: return "R_386_PLT32";
 		case 5: return "R_386_COPY";
 		case 6: return "R_386_GLOB_DAT";
-		case 7: return "R_386_JMP_SLOT";
+		case 7: return "R_386_JUMP_SLOT";
 		case 8: return "R_386_RELATIVE";
 		case 9: return "R_386_GOTOFF";
 		case 10: return "R_386_GOTPC";
@@ -1089,8 +1102,8 @@ r_type(unsigned int mach, unsigned int type)
 		case 35: return "R_386_TLS_DTPMOD32";
 		case 36: return "R_386_TLS_DTPOFF32";
 		case 37: return "R_386_TLS_TPOFF32";
-		default: return "";
 		}
+		break;
 	case EM_AARCH64:
 		switch(type) {
 		case 0: return "R_AARCH64_NONE";
@@ -1145,6 +1158,16 @@ r_type(unsigned int mach, unsigned int type)
 		case 311: return "R_AARCH64_ADR_GOT_PAGE";
 		case 312: return "R_AARCH64_LD64_GOT_LO12_NC";
 		case 313: return "R_AARCH64_LD64_GOTPAGE_LO15";
+		case 560: return "R_AARCH64_TLSDESC_LD_PREL19";
+		case 561: return "R_AARCH64_TLSDESC_ADR_PREL21";
+		case 562: return "R_AARCH64_TLSDESC_ADR_PAGE21";
+		case 563: return "R_AARCH64_TLSDESC_LD64_LO12";
+		case 564: return "R_AARCH64_TLSDESC_ADD_LO12";
+		case 565: return "R_AARCH64_TLSDESC_OFF_G1";
+		case 566: return "R_AARCH64_TLSDESC_OFF_G0_NC";
+		case 567: return "R_AARCH64_TLSDESC_LDR";
+		case 568: return "R_AARCH64_TLSDESC_ADD";
+		case 569: return "R_AARCH64_TLSDESC_CALL";
 		case 1024: return "R_AARCH64_COPY";
 		case 1025: return "R_AARCH64_GLOB_DAT";
 		case 1026: return "R_AARCH64_JUMP_SLOT";
@@ -1154,8 +1177,8 @@ r_type(unsigned int mach, unsigned int type)
 		case 1030: return "R_AARCH64_TLS_TPREL64";
 		case 1031: return "R_AARCH64_TLSDESC";
 		case 1032: return "R_AARCH64_IRELATIVE";
-		default: return "";
 		}
+		break;
 	case EM_ARM:
 		switch(type) {
 		case 0: return "R_ARM_NONE";
@@ -1206,8 +1229,8 @@ r_type(unsigned int mach, unsigned int type)
 		case 253: return "R_ARM_RABS32";
 		case 254: return "R_ARM_RPC24";
 		case 255: return "R_ARM_RBASE";
-		default: return "";
 		}
+		break;
 	case EM_IA_64:
 		switch(type) {
 		case 0: return "R_IA_64_NONE";
@@ -1290,8 +1313,8 @@ r_type(unsigned int mach, unsigned int type)
 		case 182: return "R_IA_64_DTPREL64MSB";
 		case 183: return "R_IA_64_DTPREL64LSB";
 		case 186: return "R_IA_64_LTOFF_DTPREL22";
-		default: return "";
 		}
+		break;
 	case EM_MIPS:
 		switch(type) {
 		case 0: return "R_MIPS_NONE";
@@ -1324,9 +1347,8 @@ r_type(unsigned int mach, unsigned int type)
 		case 48: return "R_MIPS_TLS_TPREL64";
 		case 49: return "R_MIPS_TLS_TPREL_HI16";
 		case 50: return "R_MIPS_TLS_TPREL_LO16";
-
-		default: return "";
 		}
+		break;
 	case EM_PPC:
 		switch(type) {
 		case 0: return "R_PPC_NONE";
@@ -1406,8 +1428,8 @@ r_type(unsigned int mach, unsigned int type)
 		case 114: return "R_PPC_EMB_RELST_HA";
 		case 115: return "R_PPC_EMB_BIT_FLD";
 		case 116: return "R_PPC_EMB_RELSDA";
-		default: return "";
 		}
+		break;
 	case EM_RISCV:
 		switch(type) {
 		case 0: return "R_RISCV_NONE";
@@ -1453,6 +1475,7 @@ r_type(unsigned int mach, unsigned int type)
 		case 44: return "R_RISCV_RVC_BRANCH";
 		case 45: return "R_RISCV_RVC_JUMP";
 		}
+		break;
 	case EM_SPARC:
 	case EM_SPARCV9:
 		switch(type) {
@@ -1536,8 +1559,8 @@ r_type(unsigned int mach, unsigned int type)
 		case 77: return "R_SPARC_TLS_DTPOFF64";
 		case 78: return "R_SPARC_TLS_TPOFF32";
 		case 79: return "R_SPARC_TLS_TPOFF64";
-		default: return "";
 		}
+		break;
 	case EM_X86_64:
 		switch(type) {
 		case 0: return "R_X86_64_NONE";
@@ -1547,7 +1570,7 @@ r_type(unsigned int mach, unsigned int type)
 		case 4: return "R_X86_64_PLT32";
 		case 5: return "R_X86_64_COPY";
 		case 6: return "R_X86_64_GLOB_DAT";
-		case 7: return "R_X86_64_JMP_SLOT";
+		case 7: return "R_X86_64_JUMP_SLOT";
 		case 8: return "R_X86_64_RELATIVE";
 		case 9: return "R_X86_64_GOTPCREL";
 		case 10: return "R_X86_64_32";
@@ -1578,10 +1601,12 @@ r_type(unsigned int mach, unsigned int type)
 		case 35: return "R_X86_64_TLSDESC_CALL";
 		case 36: return "R_X86_64_TLSDESC";
 		case 37: return "R_X86_64_IRELATIVE";
-		default: return "";
 		}
-	default: return "";
+		break;
 	}
+
+	snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+	return (s_type);
 }
 
 static const char *
@@ -3452,9 +3477,10 @@ dump_symtab(struct readelf *re, int i)
 			continue;
 		}
 		printf("%6d:", j);
-		printf(" %16.16jx", (uintmax_t)sym.st_value);
-		printf(" %5ju", sym.st_size);
-		printf(" %-7s", st_type(GELF_ST_TYPE(sym.st_info)));
+		printf(" %16.16jx", (uintmax_t) sym.st_value);
+		printf(" %5ju", (uintmax_t) sym.st_size);
+		printf(" %-7s", st_type(re->ehdr.e_machine,
+		    GELF_ST_TYPE(sym.st_info)));
 		printf(" %-6s", st_bind(GELF_ST_BIND(sym.st_info)));
 		printf(" %-8s", st_vis(GELF_ST_VISIBILITY(sym.st_other)));
 		printf(" %3s", st_shndx(sym.st_shndx));
@@ -4290,7 +4316,7 @@ dump_compatibility_tag(uint8_t *p, uint8_t *pe)
 	uint64_t val;
 
 	val = _decode_uleb128(&p, pe);
-	printf("flag = %ju, vendor = %s\n", val, p);
+	printf("flag = %ju, vendor = %s\n", (uintmax_t) val, p);
 	p += strlen((char *) p) + 1;
 
 	return (p);
@@ -4984,7 +5010,8 @@ dump_dwarf_line(struct readelf *re)
 					break;
 				case DW_LNS_set_isa:
 					isa = _decode_uleb128(&p, pe);
-					printf("  Set isa to %ju\n", isa);
+					printf("  Set isa to %ju\n",
+					    (uintmax_t) isa);
 					break;
 				default:
 					/* Unrecognized extended opcodes. */
@@ -5736,12 +5763,12 @@ dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die, Dwarf_Addr base)
 			}
 			if (re->ec == ELFCLASS32)
 				printf("%08jx %08jx\n",
-				    ranges[j].dwr_addr1 + base0,
-				    ranges[j].dwr_addr2 + base0);
+				    (uintmax_t) (ranges[j].dwr_addr1 + base0),
+				    (uintmax_t) (ranges[j].dwr_addr2 + base0));
 			else
 				printf("%016jx %016jx\n",
-				    ranges[j].dwr_addr1 + base0,
-				    ranges[j].dwr_addr2 + base0);
+				    (uintmax_t) (ranges[j].dwr_addr1 + base0),
+				    (uintmax_t) (ranges[j].dwr_addr2 + base0));
 		}
 	}
 
@@ -6715,7 +6742,7 @@ dump_dwarf_loclist(struct readelf *re)
 		set_cu_context(re, la->la_cu_psize, la->la_cu_osize,
 		    la->la_cu_ver);
 		for (i = 0; i < lcnt; i++) {
-			printf("    %8.8jx ", la->la_off);
+			printf("    %8.8jx ", (uintmax_t) la->la_off);
 			if (llbuf[i]->ld_lopc == 0 && llbuf[i]->ld_hipc == 0) {
 				printf("<End of list>\n");
 				continue;
@@ -6837,13 +6864,15 @@ hex_dump(struct readelf *re)
 		if (find_dumpop(re, (size_t) i, s->name, HEX_DUMP, -1) == NULL)
 			continue;
 		(void) elf_errno();
-		if ((d = elf_getdata(s->scn, NULL)) == NULL) {
+		if ((d = elf_getdata(s->scn, NULL)) == NULL &&
+		    (d = elf_rawdata(s->scn, NULL)) == NULL) {
 			elferr = elf_errno();
 			if (elferr != 0)
 				warnx("elf_getdata failed: %s",
 				    elf_errmsg(elferr));
 			continue;
 		}
+		(void) elf_errno();
 		if (d->d_size <= 0 || d->d_buf == NULL) {
 			printf("\nSection '%s' has no data to dump.\n",
 			    s->name);
@@ -6892,13 +6921,15 @@ str_dump(struct readelf *re)
 		if (find_dumpop(re, (size_t) i, s->name, STR_DUMP, -1) == NULL)
 			continue;
 		(void) elf_errno();
-		if ((d = elf_getdata(s->scn, NULL)) == NULL) {
+		if ((d = elf_getdata(s->scn, NULL)) == NULL &&
+		    (d = elf_rawdata(s->scn, NULL)) == NULL) {
 			elferr = elf_errno();
 			if (elferr != 0)
 				warnx("elf_getdata failed: %s",
 				    elf_errmsg(elferr));
 			continue;
 		}
+		(void) elf_errno();
 		if (d->d_size <= 0 || d->d_buf == NULL) {
 			printf("\nSection '%s' has no data to dump.\n",
 			    s->name);
@@ -7357,10 +7388,13 @@ _read_lsb(Elf_Data *d, uint64_t *offsetp, int bytes_to_read)
 	case 8:
 		ret |= ((uint64_t) src[4]) << 32 | ((uint64_t) src[5]) << 40;
 		ret |= ((uint64_t) src[6]) << 48 | ((uint64_t) src[7]) << 56;
+		/* FALLTHROUGH */
 	case 4:
 		ret |= ((uint64_t) src[2]) << 16 | ((uint64_t) src[3]) << 24;
+		/* FALLTHROUGH */
 	case 2:
 		ret |= ((uint64_t) src[1]) << 8;
+		/* FALLTHROUGH */
 	case 1:
 		ret |= src[0];
 		break;
@@ -7420,10 +7454,13 @@ _decode_lsb(uint8_t **data, int bytes_to_read)
 	case 8:
 		ret |= ((uint64_t) src[4]) << 32 | ((uint64_t) src[5]) << 40;
 		ret |= ((uint64_t) src[6]) << 48 | ((uint64_t) src[7]) << 56;
+		/* FALLTHROUGH */
 	case 4:
 		ret |= ((uint64_t) src[2]) << 16 | ((uint64_t) src[3]) << 24;
+		/* FALLTHROUGH */
 	case 2:
 		ret |= ((uint64_t) src[1]) << 8;
+		/* FALLTHROUGH */
 	case 1:
 		ret |= src[0];
 		break;
@@ -7545,6 +7582,10 @@ Usage: %s [options] file...\n\
   -s | --syms | --symbols  Print symbol tables.\n\
   -t | --section-details   Print additional information about sections.\n\
   -v | --version           Print a version identifier and exit.\n\
+  -w[afilmoprsFLR] | --debug-dump={abbrev,aranges,decodedline,frames,\n\
+                               frames-interp,info,loc,macro,pubnames,\n\
+                               ranges,Ranges,rawline,str}\n\
+                           Display DWARF information.\n\
   -x INDEX | --hex-dump=INDEX\n\
                            Display contents of a section as hexadecimal.\n\
   -A | --arch-specific     (accepted, but ignored)\n\
@@ -7561,10 +7602,10 @@ Usage: %s [options] file...\n\
 
 
 static void
-readelf_usage(void)
+readelf_usage(int status)
 {
 	fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
-	exit(EXIT_FAILURE);
+	exit(status);
 }
 
 int
@@ -7583,7 +7624,7 @@ main(int argc, char **argv)
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case '?':
-			readelf_usage();
+			readelf_usage(EXIT_SUCCESS);
 			break;
 		case 'A':
 			re->options |= RE_AA;
@@ -7608,7 +7649,7 @@ main(int argc, char **argv)
 			re->options |= RE_G;
 			break;
 		case 'H':
-			readelf_usage();
+			readelf_usage(EXIT_SUCCESS);
 			break;
 		case 'h':
 			re->options |= RE_H;
@@ -7686,7 +7727,7 @@ main(int argc, char **argv)
 	argc -= optind;
 
 	if (argc == 0 || re->options == 0)
-		readelf_usage();
+		readelf_usage(EXIT_FAILURE);
 
 	if (argc > 1)
 		re->flags |= DISPLAY_FILENAME;

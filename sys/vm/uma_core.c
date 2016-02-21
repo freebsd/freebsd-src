@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -275,6 +276,11 @@ void uma_print_stats(void);
 static int sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS);
 static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
 
+#ifdef INVARIANTS
+static void uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item);
+static void uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item);
+#endif
+
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 
 SYSCTL_PROC(_vm, OID_AUTO, zone_count, CTLFLAG_RD|CTLTYPE_INT,
@@ -434,8 +440,9 @@ zone_log_warning(uma_zone_t zone)
 static inline void
 zone_maxaction(uma_zone_t zone)
 {
-	if (zone->uz_maxaction)
-		(*zone->uz_maxaction)(zone);
+
+	if (zone->uz_maxaction.ta_func != NULL)
+		taskqueue_enqueue(taskqueue_thread, &zone->uz_maxaction);
 }
 
 static void
@@ -1585,7 +1592,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_flags = 0;
 	zone->uz_warning = NULL;
 	timevalclear(&zone->uz_ratecheck);
-	zone->uz_maxaction = NULL;
 	keg = arg->keg;
 
 	ZONE_LOCK_INIT(zone, (arg->flags & UMA_ZONE_MTXCLASS));
@@ -3022,7 +3028,7 @@ uma_zone_set_maxaction(uma_zone_t zone, uma_maxaction_t maxaction)
 {
 
 	ZONE_LOCK(zone);
-	zone->uz_maxaction = maxaction;
+	TASK_INIT(&zone->uz_maxaction, 0, (task_fn_t *)maxaction, zone);
 	ZONE_UNLOCK(zone);
 }
 
@@ -3607,6 +3613,102 @@ sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &cur, 0, req));
 }
 
+#ifdef INVARIANTS
+static uma_slab_t
+uma_dbg_getslab(uma_zone_t zone, void *item)
+{
+	uma_slab_t slab;
+	uma_keg_t keg;
+	uint8_t *mem;
+
+	mem = (uint8_t *)((uintptr_t)item & (~UMA_SLAB_MASK));
+	if (zone->uz_flags & UMA_ZONE_VTOSLAB) {
+		slab = vtoslab((vm_offset_t)mem);
+	} else {
+		/*
+		 * It is safe to return the slab here even though the
+		 * zone is unlocked because the item's allocation state
+		 * essentially holds a reference.
+		 */
+		ZONE_LOCK(zone);
+		keg = LIST_FIRST(&zone->uz_kegs)->kl_keg;
+		if (keg->uk_flags & UMA_ZONE_HASH)
+			slab = hash_sfind(&keg->uk_hash, mem);
+		else
+			slab = (uma_slab_t)(mem + keg->uk_pgoff);
+		ZONE_UNLOCK(zone);
+	}
+
+	return (slab);
+}
+
+/*
+ * Set up the slab's freei data such that uma_dbg_free can function.
+ *
+ */
+static void
+uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
+{
+	uma_keg_t keg;
+	int freei;
+
+	if (zone_first_keg(zone) == NULL)
+		return;
+	if (slab == NULL) {
+		slab = uma_dbg_getslab(zone, item);
+		if (slab == NULL) 
+			panic("uma: item %p did not belong to zone %s\n",
+			    item, zone->uz_name);
+	}
+	keg = slab->us_keg;
+	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
+
+	if (BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
+		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+	BIT_SET_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
+
+	return;
+}
+
+/*
+ * Verifies freed addresses.  Checks for alignment, valid slab membership
+ * and duplicate frees.
+ *
+ */
+static void
+uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
+{
+	uma_keg_t keg;
+	int freei;
+
+	if (zone_first_keg(zone) == NULL)
+		return;
+	if (slab == NULL) {
+		slab = uma_dbg_getslab(zone, item);
+		if (slab == NULL) 
+			panic("uma: Freed item %p did not belong to zone %s\n",
+			    item, zone->uz_name);
+	}
+	keg = slab->us_keg;
+	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
+
+	if (freei >= keg->uk_ipers)
+		panic("Invalid free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+
+	if (((freei * keg->uk_rsize) + slab->us_data) != item) 
+		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+
+	if (!BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
+		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+
+	BIT_CLR_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
+}
+#endif /* INVARIANTS */
+
 #ifdef DDB
 DB_SHOW_COMMAND(uma, db_show_uma)
 {
@@ -3664,4 +3766,4 @@ DB_SHOW_COMMAND(umacache, db_show_umacache)
 			return;
 	}
 }
-#endif
+#endif	/* DDB */

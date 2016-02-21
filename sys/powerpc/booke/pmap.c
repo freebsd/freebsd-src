@@ -412,13 +412,13 @@ tlb_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 	if (ma != VM_MEMATTR_DEFAULT) {
 		switch (ma) {
 		case VM_MEMATTR_UNCACHEABLE:
-			return (PTE_I | PTE_G);
+			return (MAS2_I | MAS2_G);
 		case VM_MEMATTR_WRITE_COMBINING:
 		case VM_MEMATTR_WRITE_BACK:
 		case VM_MEMATTR_PREFETCHABLE:
-			return (PTE_I);
+			return (MAS2_I);
 		case VM_MEMATTR_WRITE_THROUGH:
-			return (PTE_W | PTE_M);
+			return (MAS2_W | MAS2_M);
 		}
 	}
 
@@ -900,8 +900,7 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
-	pte->flags = 0;
-	pte->rpn = 0;
+	*pte = 0;
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
@@ -984,8 +983,8 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 		pmap->pm_pdir[pdir_idx] = ptbl;
 	}
 	pte = &(pmap->pm_pdir[pdir_idx][ptbl_idx]);
-	pte->rpn = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
-	pte->flags |= (PTE_VALID | flags);
+	*pte = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
+	*pte |= (PTE_VALID | flags | PTE_PS_4KB); /* 4KB pages only */
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
@@ -1041,9 +1040,9 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr, vm_offset_t pdir)
 	 */
 	for (va = addr; va < data_end; va += PAGE_SIZE) {
 		pte = &(kernel_pmap->pm_pdir[PDIR_IDX(va)][PTBL_IDX(va)]);
-		pte->rpn = kernload + (va - kernstart);
-		pte->flags = PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
-		    PTE_VALID;
+		*pte = PTE_RPN_FROM_PA(kernload + (va - kernstart));
+		*pte |= PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
+		    PTE_VALID | PTE_PS_4KB;
 	}
 }
 
@@ -1525,7 +1524,8 @@ mmu_booke_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 	    (va <= VM_MAX_KERNEL_ADDRESS)), ("mmu_booke_kenter: invalid va"));
 
 	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
-	flags |= tlb_calc_wimg(pa, ma);
+	flags |= tlb_calc_wimg(pa, ma) << PTE_MAS2_SHIFT;
+	flags |= PTE_PS_4KB;
 
 	pte = pte_find(mmu, kernel_pmap, va);
 
@@ -1540,17 +1540,15 @@ mmu_booke_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 		tlb0_flush_entry(va);
 	}
 
-	pte->rpn = PTE_RPN_FROM_PA(pa);
-	pte->flags = flags;
+	*pte = PTE_RPN_FROM_PA(pa) | flags;
 
 	//debugf("mmu_booke_kenter: pdir_idx = %d ptbl_idx = %d va=0x%08x "
 	//		"pa=0x%08x rpn=0x%08x flags=0x%08x\n",
 	//		pdir_idx, ptbl_idx, va, pa, pte->rpn, pte->flags);
 
 	/* Flush the real memory from the instruction cache. */
-	if ((flags & (PTE_I | PTE_G)) == 0) {
+	if ((flags & (PTE_I | PTE_G)) == 0)
 		__syncicache((void *)va, PAGE_SIZE);
-	}
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
@@ -1584,8 +1582,7 @@ mmu_booke_kremove(mmu_t mmu, vm_offset_t va)
 
 	/* Invalidate entry in TLB0, update PTE. */
 	tlb0_flush_entry(va);
-	pte->flags = 0;
-	pte->rpn = 0;
+	*pte = 0;
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
@@ -1700,7 +1697,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 * Before actually updating pte->flags we calculate and
 		 * prepare its new value in a helper var.
 		 */
-		flags = pte->flags;
+		flags = *pte;
 		flags &= ~(PTE_UW | PTE_UX | PTE_SW | PTE_SX | PTE_MODIFIED);
 
 		/* Wiring change, just update stats. */
@@ -1748,7 +1745,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * are turning execute permissions on, icache should
 			 * be flushed.
 			 */
-			if ((pte->flags & (PTE_UX | PTE_SX)) == 0)
+			if ((*pte & (PTE_UX | PTE_SX)) == 0)
 				sync++;
 		}
 
@@ -1762,7 +1759,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		tlb_miss_lock();
 
 		tlb0_flush_entry(va);
-		pte->flags = flags;
+		*pte &= ~PTE_FLAGS_MASK;
+		*pte |= flags;
 
 		tlb_miss_unlock();
 		mtx_unlock_spin(&tlbivax_mutex);
@@ -2069,7 +2067,7 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 					vm_page_dirty(m);
 
 				tlb0_flush_entry(va);
-				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
+				*pte &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
 
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
@@ -2114,7 +2112,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 					vm_page_dirty(m);
 
 				/* Flush mapping from TLB0. */
-				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
+				*pte &= ~(PTE_UW | PTE_SW | PTE_MODIFIED);
 
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
@@ -2194,7 +2192,7 @@ retry:
 		else
 			pte_wbit = PTE_UW;
 
-		if ((pte->flags & pte_wbit) || ((prot & VM_PROT_WRITE) == 0)) {
+		if ((*pte & pte_wbit) || ((prot & VM_PROT_WRITE) == 0)) {
 			if (vm_page_pa_tryrelock(pmap, PTE_PA(pte), &pa))
 				goto retry;
 			m = PHYS_TO_VM_PAGE(PTE_PA(pte));
@@ -2340,14 +2338,15 @@ mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 	paddr = VM_PAGE_TO_PHYS(m);
 
 	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
-	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m));
+	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m)) << PTE_MAS2_SHIFT;
+	flags |= PTE_PS_4KB;
 
 	critical_enter();
 	qaddr = PCPU_GET(qmap_addr);
 
 	pte = pte_find(mmu, kernel_pmap, qaddr);
 
-	KASSERT(pte->flags == 0, ("mmu_booke_quick_enter_page: PTE busy"));
+	KASSERT(*pte == 0, ("mmu_booke_quick_enter_page: PTE busy"));
 
 	/* 
 	 * XXX: tlbivax is broadcast to other cores, but qaddr should
@@ -2357,8 +2356,7 @@ mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m)
 	__asm __volatile("tlbivax 0, %0" :: "r"(qaddr & MAS2_EPN_MASK));
 	__asm __volatile("isync; msync");
 
-	pte->rpn = paddr & ~PTE_PA_MASK;
-	pte->flags = flags;
+	*pte = PTE_RPN_FROM_PA(paddr) | flags;
 
 	/* Flush the real memory from the instruction cache. */
 	if ((flags & (PTE_I | PTE_G)) == 0)
@@ -2376,11 +2374,10 @@ mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 
 	KASSERT(PCPU_GET(qmap_addr) == addr,
 	    ("mmu_booke_quick_remove_page: invalid address"));
-	KASSERT(pte->flags != 0,
+	KASSERT(*pte != 0,
 	    ("mmu_booke_quick_remove_page: PTE not in use"));
 
-	pte->flags = 0;
-	pte->rpn = 0;
+	*pte = 0;
 	critical_exit();
 }
 
@@ -2494,9 +2491,9 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 			mtx_lock_spin(&tlbivax_mutex);
 			tlb_miss_lock();
 			
-			if (pte->flags & (PTE_SW | PTE_UW | PTE_MODIFIED)) {
+			if (*pte & (PTE_SW | PTE_UW | PTE_MODIFIED)) {
 				tlb0_flush_entry(pv->pv_va);
-				pte->flags &= ~(PTE_SW | PTE_UW | PTE_MODIFIED |
+				*pte &= ~(PTE_SW | PTE_UW | PTE_MODIFIED |
 				    PTE_REFERENCED);
 			}
 
@@ -2538,7 +2535,7 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 				tlb_miss_lock();
 
 				tlb0_flush_entry(pv->pv_va);
-				pte->flags &= ~PTE_REFERENCED;
+				*pte &= ~PTE_REFERENCED;
 
 				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
@@ -2577,7 +2574,7 @@ mmu_booke_unwire(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			if (!PTE_ISWIRED(pte))
 				panic("mmu_booke_unwire: pte %p isn't wired",
 				    pte);
-			pte->flags &= ~PTE_WIRED;
+			*pte &= ~PTE_WIRED;
 			pmap->pm_stats.wired_count--;
 		}
 	}

@@ -987,7 +987,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	}
 
 	/*
-	 * Allocate the file descriptor, but don't install a descriptor yet.
+	 * Allocate a file structure. The descriptor to reference it
+	 * is allocated and set by finstall() below.
 	 */
 	error = falloc_noinstall(td, &fp);
 	if (error != 0)

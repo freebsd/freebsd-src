@@ -64,14 +64,14 @@ __FBSDID("$FreeBSD$");
 
 const char *ieee80211_mgt_subtype_name[] = {
 	"assoc_req",	"assoc_resp",	"reassoc_req",	"reassoc_resp",
-	"probe_req",	"probe_resp",	"reserved#6",	"reserved#7",
+	"probe_req",	"probe_resp",	"timing_adv",	"reserved#7",
 	"beacon",	"atim",		"disassoc",	"auth",
 	"deauth",	"action",	"action_noack",	"reserved#15"
 };
 const char *ieee80211_ctl_subtype_name[] = {
 	"reserved#0",	"reserved#1",	"reserved#2",	"reserved#3",
-	"reserved#3",	"reserved#5",	"reserved#6",	"reserved#7",
-	"reserved#8",	"reserved#9",	"ps_poll",	"rts",
+	"reserved#4",	"reserved#5",	"reserved#6",	"control_wrap",
+	"bar",		"ba",		"ps_poll",	"rts",
 	"cts",		"ack",		"cf_end",	"cf_end_ack"
 };
 const char *ieee80211_opmode_name[IEEE80211_OPMODE_MAX] = {

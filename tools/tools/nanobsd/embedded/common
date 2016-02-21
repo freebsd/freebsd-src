@@ -76,7 +76,7 @@ fi
 NANO_SLICE_FAT_SIZE=32m
 NANO_SLICE_CFG_SIZE=32m
 
-NANO_BOOT2CFG="-D -h -S115200 comconsole_port=0x3e8"
+NANO_BOOT2CFG="-P -S115200"
 
 NANO_RAM_ETCSIZE=8192
 NANO_RAM_TMPVARSIZE=8192
@@ -88,23 +88,32 @@ NANO_CFG_BASE=$(pwd)
 NANO_CFG_BASE=$(realpath ${NANO_CFG_BASE}/..)
 NANO_SRC=$(realpath ${NANO_CFG_BASE}/../../..)
 #### XXX share obj 
-NANO_OBJ=${NANO_SRC}/../$NANO_NAME/obj
-# Where cust_pkg() finds packages to install
-#XXX: Is this the right place?
-#NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
-NANO_PORTS=/usr/ports
-NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
+if [ -z ${NANO_CPUTYPE} ]; then
+	NANO_OBJ=${NANO_SRC}/../embedded/obj
+else
+	# Alas, I can't set OBJTREE to ${MACHINE}.${MACHINE_ARCH}.${CPUTYPE}
+	# so this will have to do until I can.
+	NANO_OBJ=${NANO_SRC}/../embedded/obj.${NANO_CPUTYPE}
+fi
+NANO_LOG=${NANO_OBJ}/../${NANO_NAME}
+NANO_DISKIMGDIR=${NANO_OBJ}/../images
+NANO_WORLDDIR=${NANO_LOG}/_.w
 NANO_INIT_IMG2=0
 NANO_NOPRIV_BUILD=t
 unset MAKEOBJDIRPREFIX
 
-# this to go into nanobsd.sh
-NANO_PORTS=${NANO_PORTS:-/usr/ports}
-
 mkdir -p ${NANO_OBJ}
 NANO_OBJ=$(realpath ${NANO_OBJ})
+mkdir -p ${NANO_LOG}
+NANO_LOG=$(realpath ${NANO_LOG})
+mkdir -p ${NANO_IMAGES}
+NANO_IMAGES=$(realpath ${NANO_IMAGES})
+mkdir -p ${NANO_WORLDDIR}
+NANO_WORLDDIR=$(realpath ${NANO_WORLDDIR})
+mkdir -p ${NANO_DISKIMGDIR}
+NANO_DISKIMGDIR=$(realpath ${NANO_DISKIMGDIR})
 
-NANO_FAT_DIR=${NANO_OBJ}/_.fat
+NANO_FAT_DIR=${NANO_LOG}/_.fat
 
 customize_cmd cust_allow_ssh_root
 
@@ -180,109 +189,18 @@ WITHOUT_RCS=true
 
 NANO_PACKAGE_ONLY=1
 
-# install a package from a pre-built binary
-do_add_pkg ( ) (
-	# Need to create ${NANO_OBJ}/ports in this add_pkg_${port} function
-	set -x
-	mkdir -p ${NANO_OBJ}/ports/distfiles
-	mkdir -p ${NANO_OBJ}/ports/packages
-	mkdir -p ${NANO_WORLDDIR}/usr/ports/packages
-	mkdir -p ${NANO_WORLDDIR}/usr/ports/distfiles
-	mount -t nullfs -o noatime ${NANO_OBJ}/ports/packages \
-	    ${NANO_WORLDDIR}/usr/ports/packages
-	mount -t nullfs -o noatime ${NANO_OBJ}/ports/distfiles \
-	    ${NANO_WORLDDIR}/usr/ports/distfiles
-	CR env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /usr/ports/packages/All/$1.txz
-	umount ${NANO_WORLDDIR}/usr/ports/distfiles
-	umount ${NANO_WORLDDIR}/usr/ports/packages
-	rmdir ${NANO_WORLDDIR}/usr/ports/packages
-	rmdir ${NANO_WORLDDIR}/usr/ports/distfiles
-	rmdir ${NANO_WORLDDIR}/usr/ports
-	set +x
+# Creates images for all the formats that use MBR / GPT
+# split later if the #ifdef soup gets too bad.
+create_diskimage_gpt ( ) (
+	pprint 2 "build diskimage gpt ${NANO_NAME}"
+
+	create_diskimage_mbr $*
 )
 
-# Build a port (with the side effect of creating a package)
-do_add_port ( ) (
-	local port_path
-	port_path=$1
-	shift
-	set -x
-	# Need to create ${NANO_OBJ}/ports in this add_port_${port} function
-	mkdir -p ${NANO_OBJ}/ports/distfiles
-	mkdir -p ${NANO_OBJ}/ports/packages
-	mkdir -p ${NANO_PORTS}/packages
-	mkdir -p ${NANO_PORTS}/distfiles
-	mkdir -p ${NANO_WORLDDIR}/usr/src
-	mkdir -p ${NANO_WORLDDIR}/usr/ports
-      	mount -t nullfs -o noatime ${NANO_SRC} ${NANO_WORLDDIR}/usr/src
-	mount -t nullfs -o noatime ${NANO_PORTS} ${NANO_WORLDDIR}/usr/ports
-	mount -t nullfs -o noatime ${NANO_OBJ}/ports/packages \
-	    ${NANO_WORLDDIR}/usr/ports/packages
-	mount -t nullfs -o noatime ${NANO_OBJ}/ports/distfiles \
-	    ${NANO_WORLDDIR}/usr/ports/distfiles
-	mkdir -p ${NANO_WORLDDIR}/dev
-	mount -t devfs devfs ${NANO_WORLDDIR}/dev
-	mkdir -p ${NANO_WORLDDIR}/usr/workdir
-	cp /etc/resolv.conf ${NANO_WORLDDIR}/etc/resolv.conf
-	# OK, a little inefficient, but likely not enough to worry about.
-	CR ldconfig /lib /usr/lib /usr/local/lib
-	CR ldconfig -R
-	CR ldconfig -r
-# Improvement: Don't know why package-recursive don't works here
-	CR "env UNAME_p=${NANO_ARCH} TARGET=${NANO_ARCH} \
-	    TARGET_ARCH=${NANO_ARCH} PORTSDIR=${NANO_PORTS} make \
-	    __MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
-	    WRKDIRPREFIX=/usr/workdir -C /usr/ports/$port_path \
-	    package-recursive BATCH=yes $* clean FORCE_PKG_REGISTER=t"
-	rm ${NANO_WORLDDIR}/etc/resolv.conf
-	rm -rf ${NANO_WORLDDIR}/usr/obj
-	rm -rf ${NANO_WORLDDIR}/usr/workdir
-	umount ${NANO_WORLDDIR}/dev
-	umount ${NANO_WORLDDIR}/usr/ports/packages
-	umount ${NANO_WORLDDIR}/usr/ports/distfiles
-	umount ${NANO_WORLDDIR}/usr/ports
-	umount ${NANO_WORLDDIR}/usr/src
-	set +x
-)
-
-# Need to check if this function works with cross-compiling architecture!!!!
-# Recursive complex fonction: Generate one function for each ports
-# writes shell functions called later, so don't do in subshell.
-add_port ( ) {
-    local port_path=$1
-    local port=`echo $1 | sed -e 's/\//_/'`
-    shift
-    # Check if package allready exist
-    # Need to:
-    # 1. check ARCH of this package!
-    # 2. Add a trap
-    cd ${NANO_PORTS}/${port_path}
-    PKG_NAME=`env PORTSDIR=${NANO_PORTS} make __MAKE_CONF=${NANO_MAKE_CONF_BUILD} package-name` 
-    if [ -f ${NANO_OBJ}/ports/packages/All/${PKG_NAME}.txz ]; then
-	# Pkg file found: Generate add_pkg_NAME function
-	eval "
-	    add_pkg_${port} ( ) {
-	        do_add_pkg ${PKG_NAME}
-	    }
-            customize_cmd add_pkg_${port}
-            "
-    else
-	# No pkg file: Generate add_port_NAME function
-        eval "
-            add_port_${port} ( ) {
-	        do_add_port ${port_path} $*
-	    }
-	    customize_cmd add_port_${port}
-	"
-	NANO_PACKAGE_ONLY=0
-    fi
-}
-
-# Creates images for all the formats that use MBR
 create_diskimage_mbr ( ) (
 
 	pprint 2 "build diskimage ${NANO_NAME}"
-	pprint 3 "log: ${NANO_OBJ}/_.di"
+	pprint 3 "log: ${NANO_LOG}/_.di"
 
 	(
 	local extra i sz fmt fmtarg bootmbr bootbsd skiparg
@@ -295,44 +213,54 @@ create_diskimage_mbr ( ) (
 	skiparg=${NANO_MBR_FIRST_SKIP:+-S ${NANO_MBR_FIRST_SKIP}}
 
 	for i in s1 s2 s3 s4 p1 p2 p3 p4 p5 empty; do
-		rm -fr ${NANO_OBJ}/_.${i}*
+		rm -fr ${NANO_LOG}/_.${i}*
 	done
 
 	# Populate the FAT partition, if needed
 	if [ -n "${NANO_SLICE_FAT}" ]; then
 		echo Creating MSDOS partition for kernel
 		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F 16 -L ${NANO_NAME} \
-			${NANO_OBJ}/_.${NANO_SLICE_FAT}
+			${NANO_LOG}/_.${NANO_SLICE_FAT}
 		if [ -d ${NANO_FAT_DIR} ]; then
 			# Need to copy files from ${NANO_FATDIR} with mtools, or use
 			# makefs -t msdos once that's supported
-			mcopy -i ${NANO_OBJ}/_.${NANO_SLICE_FAT} ${NANO_FAT_DIR}/* ::
+			mcopy -i ${NANO_LOG}/_.${NANO_SLICE_FAT} ${NANO_FAT_DIR}/* ::
 		fi
 	fi
 
 	# Populate the Powerpc boot image, if needed
 	if [ "${NANO_LAYOUT}" = powerpc64-ibm ]; then
-		dd if=${NANO_WORLDDIR}/boot/boot1.elf of=${NANO_OBJ}/_.s1 bs=800k count=1 conv=sync
+		dd if=${NANO_WORLDDIR}/boot/boot1.elf of=${NANO_LOG}/_.s1 bs=800k count=1 conv=sync
 	fi
 
 	# Populate the / partition, and place it into a slice with a
 	# bsd label
 	[ -z ${NANO_NOPRIV_BUILD} ] || extra="-F ${NANO_METALOG}"
 	sz=${NANO_SLICE_ROOT_SIZE:+-s ${NANO_SLICE_ROOT_SIZE}}
-	eval "${NANO_MAKEFS_UFS}" ${extra} $sz "${NANO_OBJ}/_.${NANO_SLICE_ROOT}" \
+	eval "${NANO_MAKEFS_UFS}" ${extra} $sz "${NANO_LOG}/_.${NANO_ROOT}" \
 		"${NANO_WORLDDIR}"
-#	mkimg -s bsd ${bootbsd} -p freebsd-ufs:=${NANO_OBJ}/_.${NANO_SLICE_ROOT} \
-#		-o ${NANO_OBJ}/_.${NANO_SLICE_ROOT}
+	case ${NANO_DISK_SCHEME} in
+	mbr)
+		mkimg -s bsd ${bootbsd} -p freebsd-ufs:=${NANO_LOG}/_.${NANO_ROOT} \
+			-o ${NANO_LOG}/_.${NANO_SLICE_ROOT}
+		eval $NANO_SLICE_CFG=freebsd
+		eval $NANO_SLICE_ROOT=freebsd
+		;;
+	gpt)
+		eval $NANO_SLICE_CFG=freebsd-ufs
+		eval $NANO_SLICE_ROOT=freebsd-ufs
+		;;
+	esac
 
 	# Populate the /cfg partition, empty if none given
 	if [ -z "${NANO_CFGDIR}" ]; then
 		echo "Faking cfg dir, it's empty"
-		NANO_CFGDIR=${NANO_OBJ}/_.empty
+		NANO_CFGDIR=${NANO_LOG}/_.empty
 		mkdir -p ${NANO_CFGDIR}
 	fi
 	# XXX -F cfg-mtree
 	eval "${NANO_MAKEFS_UFS}" -s ${NANO_SLICE_CFG_SIZE} \
-		"${NANO_OBJ}/_.${NANO_SLICE_CFG}" "${NANO_CFGDIR}"
+		"${NANO_LOG}/_.${NANO_SLICE_CFG}" "${NANO_CFGDIR}"
 
 	# data slice not supported since we need the part for FAT for 
 	# booting
@@ -341,43 +269,33 @@ create_diskimage_mbr ( ) (
 	if [ -n "$NANO_SLICE_FAT" ]; then
 		eval $NANO_SLICE_FAT=fat16b
 	fi
-	case ${NANO_SLICE_CFG} in
-	s*)
-	echo slice
-		eval $NANO_SLICE_CFG=freebsd
-		eval $NANO_SLICE_ROOT=freebsd
-		;;
-	p*)
-	echo part
-		eval $NANO_SLICE_CFG=freebsd-ufs
-		eval $NANO_SLICE_ROOT=freebsd-ufs
-		;;
-	esac
+
+	out=${NANO_DISKIMGDIR}/_.disk.image.${NANO_NAME}${fmt}
 	# below depends on https://reviews.freebsd.org/D4403 not yet in the tree
 	# but there's problems: it marks all partitions as active, so you have to
 	# boot off parittion 3 or 2 by hand if you're playing around with this WIP
 	case ${NANO_LAYOUT} in
 	std-embedded)
-		mkimg -a 3 ${skiparg} ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
-			-p ${s2}:=${NANO_OBJ}/_.s2 \
-			-p ${s3}:=${NANO_OBJ}/_.s3 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		mkimg -a 3 ${skiparg} ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \
+			-p ${s2}:=${NANO_LOG}/_.s2 \
+			-p ${s3}:=${NANO_LOG}/_.s3 \
+			-o ${out}
 		;;
 	std-x86)
 		# s1 is cfg, s2 is /, not sure how to make that
 		# boot (marked as active) with mkimg yet
-		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
-			-p ${s2}:=${NANO_OBJ}/_.s2 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_LOG}/_.s1 \
+			-p ${s2}:=${NANO_LOG}/_.s2 \
+			-o ${out}
 		;;
 	std-uefi)
 		# s1 is boot, s2 is cfg, s3 is /, not sure how to make that
 		# boot (marked as active) with mkimg yet
 		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr \
 			-p efi:=${NANO_WORLDDIR}/boot/boot1.efifat \
-			-p ${s2}:=${NANO_OBJ}/_.s2 \
-			-p ${s3}:=${NANO_OBJ}/_.s3 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+			-p ${s2}:=${NANO_LOG}/_.s2 \
+			-p ${s3}:=${NANO_LOG}/_.s3 \
+			-o ${out}
 		;;
 	std-uefi-bios)
 		# p1 is boot for uefi, p2 is boot for gpt, p3 is cfg, p4 is /
@@ -385,9 +303,9 @@ create_diskimage_mbr ( ) (
 		mkimg -a 2 ${fmtarg} ${bootmbr} -s gpt \
 			-p efi:=${NANO_WORLDDIR}/boot/boot1.efifat \
 			-p freebsd-boot:=${NAANO_WORLDDIR}/boot/gptboot \
-			-p ${p3}:=${NANO_OBJ}/_.p3 \
-			-p ${p4}:=${NANO_OBJ}/_.p4 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+			-p ${p3}:=${NANO_LOG}/_.p3 \
+			-p ${p4}:=${NANO_LOG}/_.p4 \
+			-o ${out}
 		;;
 	powerpc64-ibm)
 		# A lie to make the boot loader work, it boots the first BSD partition
@@ -396,13 +314,14 @@ create_diskimage_mbr ( ) (
 		# boot image is on a special partition, ala std-embedded, but that
 		# partition isn't FAT with special files, but a copy of the boot
 		# loader itself.
-		mkimg -a 1 ${fmtarg} -s mbr -p prepboot:=${NANO_OBJ}/_.s1 \
-			-p ${s2}:=${NANO_OBJ}/_.s2 \
-			-p ${s3}:=${NANO_OBJ}/_.s3a \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		mkimg -a 1 ${fmtarg} -s mbr -p prepboot:=${NANO_LOG}/_.s1 \
+			-p ${s2}:=${NANO_LOG}/_.s2 \
+			-p ${s3}:=${NANO_LOG}/_.s3a \
+			-o ${out}
 		;;
 	esac
-	) > ${NANO_OBJ}/_.di 2>&1
+	xz -9 --keep ${out}
+	) > ${NANO_LOG}/_.di 2>&1
 )
 
 die( ) {
@@ -662,11 +581,21 @@ eval std_${NANO_ARCH}
 # off the top. We also resize the 'a' partion on first boot
 # to the size of the partition for the ping/pong upgrade.
 # This feature needs support in the rc.d bootup script.
+#
+# Ideally, we'd not put BSD labels on the MBR disks.
+# However, we can't boot off raw MBR disks. First,
+# boot2 defaults to 'a' partition, and freaks out
+# unless you tell it to use 'c'. But even if we
+# hack that, then /boot/loader wants to load off
+# of 'c' partition. If you fix that, then we'll
+# try to mount root, but sanity checks prevent
+# slices from working.
+#
 
 : ${NANO_ENDIAN:=little}	# make -V something to figure it out?
 : ${NANO_LAYOUT:=std-embedded}
 : ${NANO_MAKEFS_UFS:=makefs -t ffs -B ${NANO_ENDIAN}}
-: ${NANO_DISK_SCHEME:=mbr}  	# No others really supported ATM
+: ${NANO_DISK_SCHEME:=mbr}  	# No others really supported ATM (well, gpt)
 case ${NANO_LAYOUT} in
 std-embedded)
 	NANO_SLICE_FAT=s1
@@ -696,11 +625,15 @@ std-uefi)
 	NANO_SLICE_ALTROOT=s4
 	;;
 std-uefi-bios)
+	NANO_DISK_SCHEME=gpt
 	NANO_SLICE_UEFI=p1
 	NANO_SLICE_BOOT=p2
 	NANO_SLICE_CFG=p3
 	NANO_SLICE_ROOT=p4
 	NANO_SLICE_ALTROOT=p5
+	# override root name
+	NANO_ROOT=${NANO_SLICE_ROOT}
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}
 	;;
 *)
 	echo Unknown Layout ${NANO_LAYOUT}
@@ -708,10 +641,6 @@ std-uefi-bios)
 	;;
 esac
 
-# For this config, no BSD labels so NANO_ROOT and NANO_ALTROOT need to be
-# adjusted
-NANO_ROOT=${NANO_SLICE_ROOT}
-NANO_ALTROOT=${NANO_SLICE_ALTROOT}
 
 NANO_SLICE_DATA=		# Not included
 

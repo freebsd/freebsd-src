@@ -46,14 +46,11 @@ __FBSDID("$FreeBSD$");
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-	/* Load pcpu */
-	la	x14, pcpup
-	ld	x14, 0(x14)
 	/* Store the new curthread */
-	sd	a1, PC_CURTHREAD(x14)
+	sd	a1, PC_CURTHREAD(gp)
 	/* And the new pcb */
 	ld	x13, TD_PCB(a1)
-	sd	x13, PC_CURPCB(x14)
+	sd	x13, PC_CURPCB(gp)
 
 	sfence.vm
 
@@ -74,8 +71,6 @@ ENTRY(cpu_throw)
 	/* Load registers */
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
-	ld	gp, (PCB_GP)(x13)
-	ld	tp, (PCB_TP)(x13)
 
 	/* s[0-11] */
 	ld	s0, (PCB_S + 0 * 8)(x13)
@@ -105,27 +100,18 @@ END(cpu_throw)
  * x3 to x7, x16 and x17 are caller saved
  */
 ENTRY(cpu_switch)
-	/* Load pcpu */
-	la	x14, pcpup
-	ld	x14, 0(x14)
 	/* Store the new curthread */
-	sd	a1, PC_CURTHREAD(x14)
+	sd	a1, PC_CURTHREAD(gp)
 	/* And the new pcb */
 	ld	x13, TD_PCB(a1)
-	sd	x13, PC_CURPCB(x14)
+	sd	x13, PC_CURPCB(gp)
 
 	/* Save the old context. */
 	ld	x13, TD_PCB(a0)
 
-	/* Store the callee-saved registers */
+	/* Store ra, sp and the callee-saved registers */
 	sd	ra, (PCB_RA)(x13)
 	sd	sp, (PCB_SP)(x13)
-	sd	gp, (PCB_GP)(x13)
-	sd	tp, (PCB_TP)(x13)
-
-	/* We use these in fork_trampoline */
-	sd	t0, (PCB_T + 0 * 8)(x13)
-	sd	t1, (PCB_T + 1 * 8)(x13)
 
 	/* s[0-11] */
 	sd	s0, (PCB_S + 0 * 8)(x13)
@@ -176,12 +162,6 @@ ENTRY(cpu_switch)
 	/* Restore the registers */
 	ld	ra, (PCB_RA)(x13)
 	ld	sp, (PCB_SP)(x13)
-	ld	gp, (PCB_GP)(x13)
-	ld	tp, (PCB_TP)(x13)
-
-	/* We use these in fork_trampoline */
-	ld	t0, (PCB_T + 0 * 8)(x13)
-	ld	t1, (PCB_T + 1 * 8)(x13)
 
 	/* s[0-11] */
 	ld	s0, (PCB_S + 0 * 8)(x13)
@@ -207,8 +187,8 @@ END(cpu_switch)
  */
 
 ENTRY(fork_trampoline)
-	mv	a0, x5
-	mv	a1, x6
+	mv	a0, s0
+	mv	a1, s1
 	mv	a2, sp
 	call	_C_LABEL(fork_exit)
 
@@ -254,19 +234,49 @@ ENTRY(fork_trampoline)
 	ld	a6, (TF_A + 6 * 8)(sp)
 	ld	a7, (TF_A + 7 * 8)(sp)
 
+	/* Load user ra and sp */
+	ld	tp, (TF_TP)(sp)
+	ld	ra, (TF_RA)(sp)
+
+	/*
+	 * Store our pcpup on stack, we will load it back
+	 * on kernel mode trap.
+	 */
+	sd	gp, (TF_SIZE)(sp)
+	ld	gp, (TF_GP)(sp)
+
 	/* Save kernel stack so we can use it doing a user trap */
+	addi	sp, sp, TF_SIZE
 	csrw	sscratch, sp
 
-	/* Load user ra and sp */
-	ld	ra, (TF_RA)(sp)
-	ld	sp, (TF_SP)(sp)
+	/* Load user stack */
+	ld	sp, (TF_SP - TF_SIZE)(sp)
 
 	eret
 END(fork_trampoline)
 
 ENTRY(savectx)
-	la	a0, .Lsavectx_panic_str
-	call	panic
-.Lsavectx_panic_str:
-	.asciz "savectx_panic: %p\0"
+	/* Store ra, sp and the callee-saved registers */
+	sd	ra, (PCB_RA)(a0)
+	sd	sp, (PCB_SP)(a0)
+
+	/* s[0-11] */
+	sd	s0, (PCB_S + 0 * 8)(a0)
+	sd	s1, (PCB_S + 1 * 8)(a0)
+	sd	s2, (PCB_S + 2 * 8)(a0)
+	sd	s3, (PCB_S + 3 * 8)(a0)
+	sd	s4, (PCB_S + 4 * 8)(a0)
+	sd	s5, (PCB_S + 5 * 8)(a0)
+	sd	s6, (PCB_S + 6 * 8)(a0)
+	sd	s7, (PCB_S + 7 * 8)(a0)
+	sd	s8, (PCB_S + 8 * 8)(a0)
+	sd	s9, (PCB_S + 9 * 8)(a0)
+	sd	s10, (PCB_S + 10 * 8)(a0)
+	sd	s11, (PCB_S + 11 * 8)(a0)
+
+	/* Store the VFP registers */
+#ifdef VFP
+	/* TODO */
+#endif
+	ret
 END(savectx)

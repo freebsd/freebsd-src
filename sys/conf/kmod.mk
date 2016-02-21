@@ -249,9 +249,10 @@ _ILINKS+=x86
 .endif
 CLEANFILES+=${_ILINKS}
 
-all: objwarn ${PROG}
+all: ${PROG}
 
 beforedepend: ${_ILINKS}
+beforebuild: ${_ILINKS}
 
 # Ensure that the links exist without depending on it when it exists which
 # causes all the modules to be rebuilt when the directory pointed to changes.

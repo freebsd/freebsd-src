@@ -7,7 +7,6 @@
 # Arch dependent files
 mips/mips/autoconf.c			standard
 mips/mips/bus_space_generic.c		standard
-mips/mips/bus_space_fdt.c		optional	fdt
 mips/mips/busdma_machdep.c		standard
 mips/mips/cache.c			standard
 mips/mips/cache_mipsNN.c		standard

@@ -88,6 +88,8 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	lc->lro_mbuf_count = 0;
 	lc->lro_mbuf_max = lro_mbufs;
 	lc->lro_cnt = lro_entries;
+	lc->lro_ackcnt_lim = TCP_LRO_ACKCNT_MAX;
+	lc->lro_length_lim = TCP_LRO_LENGTH_MAX;
 	lc->ifp = ifp;
 	SLIST_INIT(&lc->lro_free);
 	SLIST_INIT(&lc->lro_active);
@@ -347,9 +349,10 @@ tcp_lro_mbuf_compare_header(const void *ppa, const void *ppb)
 	if (ret != 0)
 		goto done;
 
-	ret = ma->m_pkthdr.flowid - mb->m_pkthdr.flowid;
-	if (ret != 0)
-		goto done;
+	if (ma->m_pkthdr.flowid > mb->m_pkthdr.flowid)
+		return (1);
+	else if (ma->m_pkthdr.flowid < mb->m_pkthdr.flowid)
+		return (-1);
 
 	ret = TCP_LRO_SEQUENCE(ma) - TCP_LRO_SEQUENCE(mb);
 done:
@@ -609,7 +612,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		}
 
 		/* Flush now if appending will result in overflow. */
-		if (le->p_len > (65535 - tcp_data_len)) {
+		if (le->p_len > (lc->lro_length_lim - tcp_data_len)) {
 			SLIST_REMOVE(&lc->lro_active, le, lro_entry, next);
 			tcp_lro_flush(lc, le);
 			break;
@@ -647,6 +650,15 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 
 		if (tcp_data_len == 0) {
 			m_freem(m);
+			/*
+			 * Flush this LRO entry, if this ACK should not
+			 * be further delayed.
+			 */
+			if (le->append_cnt >= lc->lro_ackcnt_lim) {
+				SLIST_REMOVE(&lc->lro_active, le, lro_entry,
+				    next);
+				tcp_lro_flush(lc, le);
+			}
 			return (0);
 		}
 
@@ -667,7 +679,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		 * If a possible next full length packet would cause an
 		 * overflow, pro-actively flush now.
 		 */
-		if (le->p_len > (65535 - lc->ifp->if_mtu)) {
+		if (le->p_len > (lc->lro_length_lim - lc->ifp->if_mtu)) {
 			SLIST_REMOVE(&lc->lro_active, le, lro_entry, next);
 			tcp_lro_flush(lc, le);
 		} else

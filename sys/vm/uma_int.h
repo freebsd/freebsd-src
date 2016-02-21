@@ -28,6 +28,8 @@
  *
  */
 
+#include <sys/_task.h>
+
 /* 
  * This file includes definitions, structures, prototypes, and inlines that
  * should not be used outside of the actual implementation of UMA.
@@ -307,7 +309,7 @@ struct uma_zone {
 	const char	*uz_warning;	/* Warning to print on failure */
 	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
 
-	uma_maxaction_t	uz_maxaction;	/* Function to run when at limit */
+	struct task	uz_maxaction;	/* Task to run when at limit */
 
 	/*
 	 * This HAS to be the last item because we adjust the zone size

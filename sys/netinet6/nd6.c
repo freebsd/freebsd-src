@@ -113,11 +113,6 @@ VNET_DEFINE(int, nd6_debug) = 0;
 
 static eventhandler_tag lle_event_eh, iflladdr_event_eh;
 
-/* for debugging? */
-#if 0
-static int nd6_inuse, nd6_allocated;
-#endif
-
 VNET_DEFINE(struct nd_drhead, nd_defrouter);
 VNET_DEFINE(struct nd_prhead, nd_prefix);
 
@@ -252,7 +247,7 @@ nd6_ifattach(struct ifnet *ifp)
 {
 	struct nd_ifinfo *nd;
 
-	nd = (struct nd_ifinfo *)malloc(sizeof(*nd), M_IP6NDP, M_WAITOK|M_ZERO);
+	nd = malloc(sizeof(*nd), M_IP6NDP, M_WAITOK | M_ZERO);
 	nd->initialized = 1;
 
 	nd->chlim = IPV6_DEFHLIM;
@@ -2521,7 +2516,6 @@ clear_llinfo_pqueue(struct llentry *ln)
 	}
 
 	ln->la_hold = NULL;
-	return;
 }
 
 static int nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS);
@@ -2560,7 +2554,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 		error = sa6_recoverscope(&d.rtaddr);
 		if (error != 0)
 			return (error);
-		d.flags = dr->flags;
+		d.flags = dr->raflags;
 		d.rtlifetime = dr->rtlifetime;
 		d.expire = dr->expire + (time_second - time_uptime);
 		d.if_index = dr->ifp->if_index;

@@ -7946,6 +7946,10 @@ OLD_FILES+=usr/share/man/man1/readelf.1.gz
 OLD_FILES+=usr/share/man/man1/size.1.gz
 OLD_FILES+=usr/share/man/man1/strings.1.gz
 OLD_FILES+=usr/share/man/man1/strip.1.gz
+.if ${MK_ELFCOPY_AS_OBJCOPY} != no
+OLD_FILES+=usr/bin/objcopy
+OLD_FILES+=usr/share/man/man1/objcopy.1.gz
+.endif
 .endif
 .if ${MK_TOOLCHAIN} == no || ${MK_ELFCOPY_AS_OBJCOPY} != no
 OLD_FILES+=usr/bin/elfcopy
@@ -7970,7 +7974,6 @@ OLD_FILES+=usr/sbin/unbound
 OLD_FILES+=usr/sbin/unbound-anchor
 OLD_FILES+=usr/sbin/unbound-checkconf
 OLD_FILES+=usr/sbin/unbound-control
-OLD_FILES+=usr/sbin/unbound-control-setup
 OLD_FILES+=usr/share/man/man5/unbound.conf.5.gz
 OLD_FILES+=usr/share/man/man8/unbound-anchor.8.gz
 OLD_FILES+=usr/share/man/man8/unbound-checkconf.8.gz

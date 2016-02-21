@@ -129,10 +129,8 @@ static const struct arm_devmap_entry pxa_devmap[] = {
 		PXA2X0_PERIPH_START + PXA2X0_PERIPH_OFFSET,
 		PXA2X0_PERIPH_START,
 		PXA250_PERIPH_END - PXA2X0_PERIPH_START,
-		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_DEVICE,
 	},
-	{ 0, 0, 0, 0, 0, }
+	{ 0, 0, 0, }
 };
 
 #define SDRAM_START 0xa0000000
@@ -267,7 +265,7 @@ initarm(struct arm_boot_params *abp)
 	xscale_cache_clean_addr = 0xff000000U;
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 
@@ -284,7 +282,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.

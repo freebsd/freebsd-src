@@ -2078,5 +2078,217 @@ fail1:
 	return (rc);
 }
 
+/*
+ * Size of media information page in accordance with SFF-8472 and SFF-8436.
+ * It is used in MCDI interface as well.
+ */
+#define	EFX_PHY_MEDIA_INFO_PAGE_SIZE		0x80
+
+static	__checkReturn		efx_rc_t
+efx_mcdi_get_phy_media_info(
+	__in			efx_nic_t *enp,
+	__in			uint32_t mcdi_page,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN,
+			    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(
+				EFX_PHY_MEDIA_INFO_PAGE_SIZE))];
+	efx_rc_t rc;
+
+	EFSYS_ASSERT((uint32_t)offset + len <= EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_PHY_MEDIA_INFO;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_PHY_MEDIA_INFO_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length =
+	    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+
+	MCDI_IN_SET_DWORD(req, GET_PHY_MEDIA_INFO_IN_PAGE, mcdi_page);
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used !=
+	    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(EFX_PHY_MEDIA_INFO_PAGE_SIZE)) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	if (MCDI_OUT_DWORD(req, GET_PHY_MEDIA_INFO_OUT_DATALEN) !=
+	    EFX_PHY_MEDIA_INFO_PAGE_SIZE) {
+		rc = EIO;
+		goto fail3;
+	}
+
+	memcpy(data,
+	    MCDI_OUT2(req, uint8_t, GET_PHY_MEDIA_INFO_OUT_DATA) + offset,
+	    len);
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+/*
+ * 2-wire device address of the base information in accordance with SFF-8472
+ * Diagnostic Monitoring Interface for Optical Transceivers section
+ * 4 Memory Organization.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_BASE	0xA0
+
+/*
+ * 2-wire device address of the digital diagnostics monitoring interface
+ * in accordance with SFF-8472 Diagnostic Monitoring Interface for Optical
+ * Transceivers section 4 Memory Organization.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_DDM	0xA2
+
+/*
+ * Hard wired 2-wire device address for QSFP+ in accordance with SFF-8436
+ * QSFP+ 10 Gbs 4X PLUGGABLE TRANSCEIVER section 7.4 Device Addressing and
+ * Operation.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_QSFP	0xA0
+
+	__checkReturn		efx_rc_t
+efx_mcdi_phy_module_get_info(
+	__in			efx_nic_t *enp,
+	__in			uint8_t dev_addr,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data)
+{
+	efx_port_t *epp = &(enp->en_port);
+	efx_rc_t rc;
+	uint32_t mcdi_lower_page;
+	uint32_t mcdi_upper_page;
+
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
+
+	/*
+	 * Map device address to MC_CMD_GET_PHY_MEDIA_INFO pages.
+	 * Offset plus length interface allows to access page 0 only.
+	 * I.e. non-zero upper pages are not accessible.
+	 * See SFF-8472 section 4 Memory Organization and SFF-8436 section 7.6
+	 * QSFP+ Memory Map for details on how information is structured
+	 * and accessible.
+	 */
+	switch (epp->ep_fixed_port_type) {
+	case EFX_PHY_MEDIA_SFP_PLUS:
+		/*
+		 * In accordance with SFF-8472 Diagnostic Monitoring
+		 * Interface for Optical Transceivers section 4 Memory
+		 * Organization two 2-wire addresses are defined.
+		 */
+		switch (dev_addr) {
+		/* Base information */
+		case EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_BASE:
+			/*
+			 * MCDI page 0 should be used to access lower
+			 * page 0 (0x00 - 0x7f) at the device address 0xA0.
+			 */
+			mcdi_lower_page = 0;
+			/*
+			 * MCDI page 1 should be used to access  upper
+			 * page 0 (0x80 - 0xff) at the device address 0xA0.
+			 */
+			mcdi_upper_page = 1;
+			break;
+		/* Diagnostics */
+		case EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_DDM:
+			/*
+			 * MCDI page 2 should be used to access lower
+			 * page 0 (0x00 - 0x7f) at the device address 0xA2.
+			 */
+			mcdi_lower_page = 2;
+			/*
+			 * MCDI page 3 should be used to access upper
+			 * page 0 (0x80 - 0xff) at the device address 0xA2.
+			 */
+			mcdi_upper_page = 3;
+			break;
+		default:
+			rc = ENOTSUP;
+			goto fail1;
+		}
+		break;
+	case EFX_PHY_MEDIA_QSFP_PLUS:
+		switch (dev_addr) {
+		case EFX_PHY_MEDIA_INFO_DEV_ADDR_QSFP:
+			/*
+			 * MCDI page -1 should be used to access lower page 0
+			 * (0x00 - 0x7f).
+			 */
+			mcdi_lower_page = (uint32_t)-1;
+			/*
+			 * MCDI page 0 should be used to access upper page 0
+			 * (0x80h - 0xff).
+			 */
+			mcdi_upper_page = 0;
+			break;
+		default:
+			rc = ENOTSUP;
+			goto fail1;
+		}
+		break;
+	default:
+		rc = ENOTSUP;
+		goto fail1;
+	}
+
+	if (offset < EFX_PHY_MEDIA_INFO_PAGE_SIZE) {
+		uint8_t read_len =
+		    MIN(len, EFX_PHY_MEDIA_INFO_PAGE_SIZE - offset);
+
+		rc = efx_mcdi_get_phy_media_info(enp,
+		    mcdi_lower_page, offset, read_len, data);
+		if (rc != 0)
+			goto fail2;
+
+		data += read_len;
+		len -= read_len;
+
+		offset = 0;
+	} else {
+		offset -= EFX_PHY_MEDIA_INFO_PAGE_SIZE;
+	}
+
+	if (len > 0) {
+		EFSYS_ASSERT3U(len, <=, EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+		EFSYS_ASSERT3U(offset, <, EFX_PHY_MEDIA_INFO_PAGE_SIZE);
+
+		rc = efx_mcdi_get_phy_media_info(enp,
+		    mcdi_upper_page, offset, len, data);
+		if (rc != 0)
+			goto fail3;
+	}
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
 
 #endif	/* EFSYS_OPT_MCDI */

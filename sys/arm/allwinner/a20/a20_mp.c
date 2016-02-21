@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -101,8 +102,7 @@ platform_mp_start_ap(void)
 	    &cpucfg) != 0)
 		panic("Couldn't map the CPUCFG\n");
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	bus_space_write_4(fdtbus_bs_tag, cpucfg, CPUCFG_P_REG0,
 	    pmap_kextract((vm_offset_t)mpentry));

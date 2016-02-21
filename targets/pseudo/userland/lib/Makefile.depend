@@ -46,6 +46,7 @@ DIRDEPS = \
 	lib/libdwarf \
 	lib/libedit/edit/readline \
 	lib/libelf \
+	lib/libelftc \
 	lib/libevent \
 	lib/libexecinfo \
 	lib/libexpat \
@@ -118,6 +119,7 @@ DIRDEPS = \
 	lib/libpam/modules/pam_tacplus \
 	lib/libpam/modules/pam_unix \
 	lib/libpcap \
+	lib/libpe \
 	lib/libpjdlog \
 	lib/libpmc \
 	lib/libproc \

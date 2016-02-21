@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set build binutils (as, ld, objcopy and objdump)
+as part of the bootstrap process.
