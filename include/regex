@@ -976,7 +976,12 @@ public:
     typedef locale                  locale_type;
     typedef ctype_base::mask        char_class_type;
 
+#if defined(__mips__) && defined(__GLIBC__)
+    static const char_class_type __regex_word = static_cast<char_class_type>(_ISbit(15));
+#else
     static const char_class_type __regex_word = 0x80;
+#endif
+
 private:
     locale __loc_;
     const ctype<char_type>* __ct_;
@@ -4265,6 +4270,9 @@ basic_regex<_CharT, _Traits>::__parse_atom_escape(_ForwardIterator __first,
     if (__first != __last && *__first == '\\')
     {
         _ForwardIterator __t1 = _VSTD::next(__first);
+        if (__t1 == __last)
+            __throw_regex_error<regex_constants::error_escape>();
+
         _ForwardIterator __t2 = __parse_decimal_escape(__t1, __last);
         if (__t2 != __t1)
             __first = __t2;
@@ -5384,8 +5392,8 @@ match_results<_BidirectionalIterator, _Allocator>::format(_OutputIter __out,
                 if ('0' <= *__fmt_first && *__fmt_first <= '9')
                 {
                     size_t __i = *__fmt_first - '0';
-                    __out = _VSTD::copy(__matches_[__i].first,
-                                       __matches_[__i].second, __out);
+                    __out = _VSTD::copy((*this)[__i].first,
+                                        (*this)[__i].second, __out);
                 }
                 else
                 {
@@ -5436,8 +5444,8 @@ match_results<_BidirectionalIterator, _Allocator>::format(_OutputIter __out,
                             ++__fmt_first;
                             __i = 10 * __i + *__fmt_first - '0';
                         }
-                        __out = _VSTD::copy(__matches_[__i].first,
-                                           __matches_[__i].second, __out);
+                        __out = _VSTD::copy((*this)[__i].first,
+                                            (*this)[__i].second, __out);
                     }
                     else
                     {
