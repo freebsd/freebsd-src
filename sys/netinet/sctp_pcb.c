@@ -5914,7 +5914,6 @@ sctp_pcb_finish(void)
 	struct sctp_tagblock *twait_block, *prev_twait_block;
 	struct sctp_laddr *wi, *nwi;
 	int i;
-	unsigned int r;
 	struct sctp_iterator *it, *nit;
 
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
