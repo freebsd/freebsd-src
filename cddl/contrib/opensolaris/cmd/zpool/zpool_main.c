@@ -5431,7 +5431,7 @@ zpool_do_get(int argc, char **argv)
 				default:
 					(void) fprintf(stderr,
 					    gettext("invalid column name "
-					    "'%s'\n"), value);
+					    "'%s'\n"), suboptarg);
 					usage(B_FALSE);
 				}
 			}
