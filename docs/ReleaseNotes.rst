@@ -89,6 +89,30 @@ Non-comprehensive list of changes in this release
   the node ``N`` is guaranteed not to be the last in the list, it is safe to
   call ``&*++N->getIterator()`` directly.
 
+* The `Kaleidoscope tutorials <tutorial/index.html>`_ have been updated to use
+  the ORC JIT APIs.
+
+* ORC now has a basic set of C bindings.
+
+* Optional support for linking clang and the LLVM tools with a single libLLVM
+  shared library. To enable this, pass ``-DLLVM_LINK_LLVM_DYLIB=ON`` to CMake.
+  See `Building LLVM with CMake`_ for more details.
+
+* The optimization to move the prologue and epilogue of functions in colder
+  code path (shrink-wrapping) is now enabled by default.
+
+* A new target-independent gcc-compatible emulated Thread Local Storage mode
+  is added.  When ``-femultated-tls`` flag is used, all accesses to TLS
+  variables are converted to calls to ``__emutls_get_address`` in the runtime
+  library.
+
+* MSVC compatible exception handling has been completely overhauled. New
+  instructions have been introduced to facilitate this:
+  `New exception handling instructions <ExceptionHandling.html#new-exception-handling-instructions>`_. 
+  While we have done our best to test this feature thoroughly, it would
+  not be completely surprising if there were a few lingering issues that
+  early adopters might bump into.
+
 .. NOTE
    For small 1-3 sentence descriptions, just add an entry at the end of
    this list. If your description won't fit comfortably in one bullet
@@ -115,7 +139,7 @@ Changes to the ARM Backends
 During this release the AArch64 target has:
 
 * Added support for more sanitizers (MSAN, TSAN) and made them compatible with
-  all VMA kernel configurations (kurrently tested on 39 and 42 bits).
+  all VMA kernel configurations (currently tested on 39 and 42 bits).
 * Gained initial LLD support in the new ELF back-end
 * Extended the Load/Store optimiser and cleaned up some of the bad decisions
   made earlier.
@@ -218,8 +242,15 @@ Changes to the X86 Target
 * More efficient code for wide integer compares. (E.g. 64-bit compares
   on 32-bit targets.)
 
-* Tail call support for ``thiscall``, ``stdcall`, ``vectorcall``, and
+* Tail call support for ``thiscall``, ``stdcall``, ``vectorcall``, and
   ``fastcall`` functions.
+
+Changes to the Hexagon Target
+-----------------------------
+
+In addition to general code size and performance improvements, Hexagon target
+now has basic support for Hexagon V60 architecture and Hexagon Vector
+Extensions (HVX).
 
 Changes to the AVR Target
 -------------------------
