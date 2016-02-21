@@ -422,11 +422,10 @@ get_num(const char *val)
 
 	errno = 0;
 	num = strtoumax(val, &expr, 0);
-	if (errno != 0)				/* Overflow or underflow. */
-		err(1, "%s", oper);
-	
 	if (expr == val)			/* No valid digits. */
-		errx(1, "%s: illegal numeric value", oper);
+		errx(1, "%s: invalid numeric value", oper);
+	if (errno != 0)
+		err(1, "%s", oper);
 
 	mult = postfix_to_mult(*expr);
 
@@ -472,11 +471,10 @@ get_off_t(const char *val)
 
 	errno = 0;
 	num = strtoimax(val, &expr, 0);
-	if (errno != 0)				/* Overflow or underflow. */
-		err(1, "%s", oper);
-	
 	if (expr == val)			/* No valid digits. */
-		errx(1, "%s: illegal numeric value", oper);
+		errx(1, "%s: invalid numeric value", oper);
+	if (errno != 0)
+		err(1, "%s", oper);
 
 	mult = postfix_to_mult(*expr);
 
