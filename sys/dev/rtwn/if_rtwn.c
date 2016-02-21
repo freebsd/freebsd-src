@@ -168,6 +168,8 @@ static void	rtwn_get_txpower(struct rtwn_softc *, int,
 		    uint16_t[]);
 static void	rtwn_set_txpower(struct rtwn_softc *,
 		    struct ieee80211_channel *, struct ieee80211_channel *);
+static void	rtwn_set_rx_bssid_all(struct rtwn_softc *, int);
+static void	rtwn_set_gain(struct rtwn_softc *, uint8_t);
 static void	rtwn_scan_start(struct ieee80211com *);
 static void	rtwn_scan_end(struct ieee80211com *);
 static void	rtwn_set_channel(struct ieee80211com *);
@@ -1237,22 +1239,6 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		rtwn_set_led(sc, RTWN_LED_LINK, 0);
 		break;
 	case IEEE80211_S_SCAN:
-		if (vap->iv_state != IEEE80211_S_SCAN) {
-			/* Allow Rx from any BSSID. */
-			rtwn_write_4(sc, R92C_RCR,
-			    rtwn_read_4(sc, R92C_RCR) &
-			    ~(R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN));
-
-			/* Set gain for scanning. */
-			reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
-			reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x20);
-			rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
-
-			reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
-			reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x20);
-			rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
-		}
-
 		/* Make link LED blink during scan. */
 		rtwn_set_led(sc, RTWN_LED_LINK, !sc->ledlink);
 
@@ -1261,14 +1247,6 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		    rtwn_read_1(sc, R92C_TXPAUSE) | 0x0f);
 		break;
 	case IEEE80211_S_AUTH:
-		/* Set initial gain under link. */
-		reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
-		reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x32);
-		rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
-
-		reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
-		reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x32);
-		rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
 		rtwn_set_chan(sc, ic->ic_curchan, NULL);
 		break;
 	case IEEE80211_S_RUN:
@@ -2684,17 +2662,56 @@ rtwn_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c,
 }
 
 static void
+rtwn_set_rx_bssid_all(struct rtwn_softc *sc, int enable)
+{
+	uint32_t reg;
+
+	reg = rtwn_read_4(sc, R92C_RCR);
+	if (enable)
+		reg &= ~R92C_RCR_CBSSID_BCN;
+	else
+		reg |= R92C_RCR_CBSSID_BCN;
+	rtwn_write_4(sc, R92C_RCR, reg);
+}
+
+static void
+rtwn_set_gain(struct rtwn_softc *sc, uint8_t gain)
+{
+	uint32_t reg;
+
+	reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
+	reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, gain);
+	rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
+
+	reg = rtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
+	reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, gain);
+	rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
+}
+
+static void
 rtwn_scan_start(struct ieee80211com *ic)
 {
+	struct rtwn_softc *sc = ic->ic_softc;
 
-	/* XXX do nothing?  */
+	RTWN_LOCK(sc);
+	/* Receive beacons / probe responses from any BSSID. */
+	rtwn_set_rx_bssid_all(sc, 1);
+	/* Set gain for scanning. */
+	rtwn_set_gain(sc, 0x20);
+	RTWN_UNLOCK(sc);
 }
 
 static void
 rtwn_scan_end(struct ieee80211com *ic)
 {
+	struct rtwn_softc *sc = ic->ic_softc;
 
-	/* XXX do nothing?  */
+	RTWN_LOCK(sc);
+	/* Restore limitations. */
+	rtwn_set_rx_bssid_all(sc, 0);
+	/* Set gain under link. */
+	rtwn_set_gain(sc, 0x32);
+	RTWN_UNLOCK(sc);
 }
 
 static void
