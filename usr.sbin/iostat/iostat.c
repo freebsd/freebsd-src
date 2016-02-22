@@ -797,7 +797,7 @@ devstats(int perf_select, long double etime, int havelast)
 	long double total_mb, blocks_per_second, total_duration;
 	long double ms_per_other, ms_per_read, ms_per_write, ms_per_transaction;
 	int firstline = 1;
-	char *devname;
+	char *devicename;
 
 	if (xflag > 0) {
 		printf("                        extended device statistics  ");
@@ -871,7 +871,7 @@ devstats(int perf_select, long double etime, int havelast)
 		}
 
 		if (xflag > 0) {
-			if (asprintf(&devname, "%s%d",
+			if (asprintf(&devicename, "%s%d",
 			    cur.dinfo->devices[di].device_name,
 			    cur.dinfo->devices[di].unit_number) == -1)
 				err(1, "asprintf");
@@ -887,7 +887,7 @@ devstats(int perf_select, long double etime, int havelast)
 					printf("%-8.8s %5d %5d %8.1Lf "
 					    "%8.1Lf %5d %5d %5d %5d "
 					    "%4" PRIu64 " %3.0Lf ",
-					    devname,
+					    devicename,
 					    (int)transfers_per_second_read,
 					    (int)transfers_per_second_write,
 					    mb_per_second_read * 1024,
@@ -900,7 +900,7 @@ devstats(int perf_select, long double etime, int havelast)
 					printf("%-8.8s %11.1Lf %11.1Lf "
 					    "%12.1Lf %12.1Lf %4" PRIu64
 					    " %10.1Lf %9.1Lf ",
-					    devname,
+					    devicename,
 					    (long double)total_transfers_read,
 					    (long double)total_transfers_write,
 					    (long double)
@@ -925,7 +925,7 @@ devstats(int perf_select, long double etime, int havelast)
 				}
 				printf("\n");
 			}
-			free(devname);
+			free(devicename);
 		} else if (oflag > 0) {
 			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
 
@@ -979,15 +979,15 @@ static void
 cpustats(void)
 {
 	int state;
-	double time;
+	double cptime;
 
-	time = 0.0;
+	cptime = 0.0;
 
 	for (state = 0; state < CPUSTATES; ++state)
-		time += cur.cp_time[state];
+		cptime += cur.cp_time[state];
 	for (state = 0; state < CPUSTATES; ++state)
 		printf(" %2.0f",
-		       rint(100. * cur.cp_time[state] / (time ? time : 1)));
+		       rint(100. * cur.cp_time[state] / (cptime ? cptime : 1)));
 }
 
 static int
