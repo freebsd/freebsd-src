@@ -7,5 +7,3 @@ options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 makeoptions	KERNVIRTADDR=0xc0200000
 
 options		SOC_OMAP4
-
-options		ARM_L2_PIPT
