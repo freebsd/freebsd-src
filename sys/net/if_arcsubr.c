@@ -557,11 +557,15 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET
 	case ARCTYPE_IP:
 		m_adj(m, ARC_HDRNEWLEN);
+		if ((m = ip_fastforward(m)) == NULL)
+			return;
 		isr = NETISR_IP;
 		break;
 
 	case ARCTYPE_IP_OLD:
 		m_adj(m, ARC_HDRLEN);
+		if ((m = ip_fastforward(m)) == NULL)
+			return;
 		isr = NETISR_IP;
 		break;
 
