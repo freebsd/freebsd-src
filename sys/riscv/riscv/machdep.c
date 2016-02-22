@@ -555,7 +555,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		tf->tf_ra = (register_t)(sysent->sv_psstrings -
 		    *(sysent->sv_szsigcode));
 
-	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_elr,
+	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_sepc,
 	    tf->tf_sp);
 
 	PROC_LOCK(p);
