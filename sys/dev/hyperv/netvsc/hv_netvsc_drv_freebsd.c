@@ -653,17 +653,10 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 	atomic_add_int(&txd->refs, 1);
 }
 
-/*
- * Send completion processing
- *
- * Note:  It looks like offset 0 of buf is reserved to hold the softc
- * pointer.  The sc pointer is not currently needed in this function, and
- * it is not presently populated by the TX function.
- */
-void
-netvsc_xmit_completion(void *context)
+static void
+hn_tx_done(void *xpkt)
 {
-	netvsc_packet *packet = context;
+	netvsc_packet *packet = xpkt;
 	struct hn_txdesc *txd;
 	struct hn_tx_ring *txr;
 
@@ -905,7 +898,7 @@ done:
 	txd->m = m_head;
 
 	/* Set the completion routine */
-	packet->compl.send.on_send_completion = netvsc_xmit_completion;
+	packet->compl.send.on_send_completion = hn_tx_done;
 	packet->compl.send.send_completion_context = packet;
 	packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)txd;
 
