@@ -1187,8 +1187,11 @@ tmpfs_readdir(struct vop_readdir_args *v)
 	if (error == EJUSTRETURN)
 		error = (uio->uio_resid != startresid) ? 0 : EINVAL;
 
-	if (error != 0 && cookies != NULL)
+	if (error != 0 && cookies != NULL && ncookies != NULL) {
 		free(*cookies, M_TEMP);
+		*cookies = NULL;
+		*ncookies = 0;
+	}
 
 	if (eofflag != NULL)
 		*eofflag =
