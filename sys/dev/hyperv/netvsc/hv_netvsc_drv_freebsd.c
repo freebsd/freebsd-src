@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/frame.h>
-#include <machine/vmparam.h>
 
 #include <sys/bus.h>
 #include <sys/rman.h>
@@ -298,8 +297,8 @@ static int hn_create_tx_ring(struct hn_softc *, int);
 static void hn_destroy_tx_ring(struct hn_tx_ring *);
 static int hn_create_tx_data(struct hn_softc *);
 static void hn_destroy_tx_data(struct hn_softc *);
-static void hn_start_taskfunc(void *xsc, int pending);
-static void hn_txeof_taskfunc(void *xsc, int pending);
+static void hn_start_taskfunc(void *, int);
+static void hn_start_txeof_taskfunc(void *, int);
 static void hn_stop_tx_tasks(struct hn_softc *);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static void hn_create_rx_data(struct hn_softc *sc);
@@ -653,17 +652,10 @@ hn_txdesc_hold(struct hn_txdesc *txd)
 	atomic_add_int(&txd->refs, 1);
 }
 
-/*
- * Send completion processing
- *
- * Note:  It looks like offset 0 of buf is reserved to hold the softc
- * pointer.  The sc pointer is not currently needed in this function, and
- * it is not presently populated by the TX function.
- */
-void
-netvsc_xmit_completion(void *context)
+static void
+hn_tx_done(void *xpkt)
 {
-	netvsc_packet *packet = context;
+	netvsc_packet *packet = xpkt;
 	struct hn_txdesc *txd;
 	struct hn_tx_ring *txr;
 
@@ -671,7 +663,7 @@ netvsc_xmit_completion(void *context)
 	    packet->compl.send.send_completion_tid;
 
 	txr = txd->txr;
-	txr->hn_txeof = 1;
+	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
 }
 
@@ -691,11 +683,11 @@ netvsc_channel_rollup(struct hv_device *device_ctx)
 	}
 #endif
 
-	if (!txr->hn_txeof)
+	if (!txr->hn_has_txeof)
 		return;
 
-	txr->hn_txeof = 0;
-	hn_start_txeof(txr);
+	txr->hn_has_txeof = 0;
+	txr->hn_txeof(txr);
 }
 
 /*
@@ -905,7 +897,7 @@ done:
 	txd->m = m_head;
 
 	/* Set the completion routine */
-	packet->compl.send.on_send_completion = netvsc_xmit_completion;
+	packet->compl.send.on_send_completion = hn_tx_done;
 	packet->compl.send.send_completion_context = packet;
 	packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)txd;
 
@@ -983,12 +975,12 @@ again:
 			 * commands to run?  Ask netvsc_channel_rollup()
 			 * to kick start later.
 			 */
-			txr->hn_txeof = 1;
+			txr->hn_has_txeof = 1;
 			if (!send_failed) {
 				txr->hn_send_failed++;
 				send_failed = 1;
 				/*
-				 * Try sending again after set hn_txeof;
+				 * Try sending again after set hn_has_txeof;
 				 * in case that we missed the last
 				 * netvsc_channel_rollup().
 				 */
@@ -1555,7 +1547,7 @@ hn_start(struct ifnet *ifp)
 			return;
 	}
 do_sched:
-	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_start_task);
+	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_tx_task);
 }
 
 static void
@@ -1577,7 +1569,7 @@ hn_start_txeof(struct hn_tx_ring *txr)
 		mtx_unlock(&txr->hn_tx_lock);
 		if (sched) {
 			taskqueue_enqueue(txr->hn_tx_taskq,
-			    &txr->hn_start_task);
+			    &txr->hn_tx_task);
 		}
 	} else {
 do_sched:
@@ -2103,8 +2095,8 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 #endif
 
 	txr->hn_tx_taskq = sc->hn_tx_taskq;
-	TASK_INIT(&txr->hn_start_task, 0, hn_start_taskfunc, txr);
-	TASK_INIT(&txr->hn_txeof_task, 0, hn_txeof_taskfunc, txr);
+	TASK_INIT(&txr->hn_tx_task, 0, hn_start_taskfunc, txr);
+	TASK_INIT(&txr->hn_txeof_task, 0, hn_start_txeof_taskfunc, txr);
 
 	txr->hn_direct_tx_size = hn_direct_tx_size;
 	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
@@ -2117,6 +2109,8 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	 * transmission.  This one gives the best performance so far.
 	 */
 	txr->hn_sched_tx = 1;
+
+	txr->hn_txeof = hn_start_txeof; /* TODO: if_transmit */
 
 	parent_dtag = bus_get_dma_tag(sc->hn_dev);
 
@@ -2399,7 +2393,7 @@ hn_start_taskfunc(void *xtxr, int pending __unused)
 }
 
 static void
-hn_txeof_taskfunc(void *xtxr, int pending __unused)
+hn_start_txeof_taskfunc(void *xtxr, int pending __unused)
 {
 	struct hn_tx_ring *txr = xtxr;
 
@@ -2417,7 +2411,7 @@ hn_stop_tx_tasks(struct hn_softc *sc)
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
 		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
 
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_start_task);
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
 		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
 }

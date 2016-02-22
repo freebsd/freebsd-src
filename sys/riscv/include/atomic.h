@@ -399,10 +399,6 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 	*p = val;
 }
 
-#define	atomic_add_acq_int	atomic_add_acq_32
-#define	atomic_clear_acq_int	atomic_clear_acq_32
-#define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
-
 #define	atomic_add_acq_long		atomic_add_acq_64
 #define	atomic_clear_acq_long		atomic_add_acq_64
 #define	atomic_cmpset_acq_long		atomic_cmpset_acq_64
