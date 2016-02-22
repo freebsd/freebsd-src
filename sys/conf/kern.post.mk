@@ -226,10 +226,9 @@ _MKDEPCC:= ${CC:N${CCACHE_BIN}}
 SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
-DEPENDFILES=	.depend
+DEPENDFILES=	.depend .depend.*
 .if ${MK_FAST_DEPEND} == "yes" && \
     (${.MAKE.MODE:Unormal:Mmeta} == "" || ${.MAKE.MODE:Unormal:Mnofilemon} != "")
-DEPENDFILES+=	.depend.*
 DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 .if defined(.PARSEDIR)
