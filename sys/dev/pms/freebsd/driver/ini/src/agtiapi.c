@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <vm/vm.h>          // 1. for vtophys
 #include <vm/pmap.h>        // 2. for vtophys
-#include <machine/pmap.h>   // 3. for vtophys (yes, three)
 #include <dev/pci/pcivar.h> // For pci_get macros
 #include <dev/pci/pcireg.h>
 #include <sys/endian.h>

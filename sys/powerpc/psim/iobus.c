@@ -50,7 +50,6 @@
 #include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
 #include <machine/resource.h>
 

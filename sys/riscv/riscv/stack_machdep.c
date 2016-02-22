@@ -1,7 +1,14 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
- * Copyright (c) 2006 Marcel Moolenaar
+ * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by the University of Cambridge
+ * Computer Laboratory as part of the CTSRD Project, with support from the
+ * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,30 +30,34 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <stand.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-extern EFI_HANDLE		IH;
-extern EFI_SYSTEM_TABLE		*ST;
-extern EFI_BOOT_SERVICES	*BS;
-extern EFI_RUNTIME_SERVICES	*RS;
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/stack.h>
 
-extern struct devsw efipart_dev;
-extern struct devsw efinet_dev;
-extern struct netif_driver efinetif;
+#include <machine/vmparam.h>
+#include <machine/pcb.h>
 
-void *efi_get_table(EFI_GUID *tbl);
+void
+stack_save_td(struct stack *st, struct thread *td)
+{
 
-int efi_register_handles(struct devsw *, EFI_HANDLE *, EFI_HANDLE *, int);
-EFI_HANDLE efi_find_handle(struct devsw *, int);
-int efi_handle_lookup(EFI_HANDLE, struct devsw **, int *,  uint64_t *);
-int efi_handle_update_dev(EFI_HANDLE, struct devsw *, int, uint64_t);
+}
 
-int efi_status_to_errno(EFI_STATUS);
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
 
-EFI_STATUS main(int argc, CHAR16 *argv[]);
-void exit(EFI_STATUS status);
-void delay(int usecs);
+	return (EOPNOTSUPP);
+}
+
+void
+stack_save(struct stack *st)
+{
+
+}
