@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_wlan.h"
+#include "opt_urtwn.h"
 
 #include <sys/param.h>
 #include <sys/sockio.h>
@@ -308,11 +309,13 @@ static void		urtwn_parent(struct ieee80211com *);
 static int		urtwn_r92c_power_on(struct urtwn_softc *);
 static int		urtwn_r88e_power_on(struct urtwn_softc *);
 static int		urtwn_llt_init(struct urtwn_softc *);
+#ifndef URTWN_WITHOUT_UCODE
 static void		urtwn_fw_reset(struct urtwn_softc *);
 static void		urtwn_r88e_fw_reset(struct urtwn_softc *);
 static int		urtwn_fw_loadpage(struct urtwn_softc *, int,
 			    const uint8_t *, int);
 static int		urtwn_load_firmware(struct urtwn_softc *);
+#endif
 static int		urtwn_dma_init(struct urtwn_softc *);
 static int		urtwn_mac_init(struct urtwn_softc *);
 static void		urtwn_bb_init(struct urtwn_softc *);
@@ -1375,6 +1378,13 @@ urtwn_fw_cmd(struct urtwn_softc *sc, uint8_t id, const void *buf, int len)
 	struct r92c_fw_cmd cmd;
 	usb_error_t error;
 	int ntries;
+
+	if (!(sc->sc_flags & URTWN_FW_LOADED)) {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_FIRMWARE, "%s: firmware "
+		    "was not loaded; command (id %d) will be discarded\n",
+		    __func__, id);
+		return (0);
+	}
 
 	/* Wait for current FW box to be empty. */
 	for (ntries = 0; ntries < 100; ntries++) {
@@ -3275,6 +3285,7 @@ urtwn_llt_init(struct urtwn_softc *sc)
 	return (error);
 }
 
+#ifndef URTWN_WITHOUT_UCODE
 static void
 urtwn_fw_reset(struct urtwn_softc *sc)
 {
@@ -3457,6 +3468,7 @@ fail:
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	return (error);
 }
+#endif
 
 static int
 urtwn_dma_init(struct urtwn_softc *sc)
@@ -4786,10 +4798,12 @@ urtwn_init(struct urtwn_softc *sc)
 		urtwn_write_1(sc, R92C_BCN_MAX_ERR, 0xff);
 	}
 
+#ifndef URTWN_WITHOUT_UCODE
 	/* Load 8051 microcode. */
 	error = urtwn_load_firmware(sc);
-	if (error != 0)
-		goto fail;
+	if (error == 0)
+		sc->sc_flags |= URTWN_FW_LOADED;
+#endif
 
 	/* Initialize MAC/BB/RF blocks. */
 	error = urtwn_mac_init(sc);
@@ -4892,7 +4906,8 @@ urtwn_stop(struct urtwn_softc *sc)
 		return;
 	}
 
-	sc->sc_flags &= ~(URTWN_RUNNING | URTWN_TEMP_MEASURED);
+	sc->sc_flags &= ~(URTWN_RUNNING | URTWN_FW_LOADED |
+	    URTWN_TEMP_MEASURED);
 	sc->thcal_lctemp = 0;
 	callout_stop(&sc->sc_watchdog_ch);
 	urtwn_abort_xfers(sc);
@@ -4991,6 +5006,8 @@ static devclass_t urtwn_devclass;
 DRIVER_MODULE(urtwn, uhub, urtwn_driver, urtwn_devclass, NULL, NULL);
 MODULE_DEPEND(urtwn, usb, 1, 1, 1);
 MODULE_DEPEND(urtwn, wlan, 1, 1, 1);
+#ifndef URTWN_WITHOUT_UCODE
 MODULE_DEPEND(urtwn, firmware, 1, 1, 1);
+#endif
 MODULE_VERSION(urtwn, 1);
 USB_PNP_HOST_INFO(urtwn_devs);
