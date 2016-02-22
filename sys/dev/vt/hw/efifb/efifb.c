@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <machine/metadata.h>
-#include <machine/vm.h>
 #include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
