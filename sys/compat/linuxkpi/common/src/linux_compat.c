@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/stdarg.h>
-#include <machine/pmap.h>
 
 #include <linux/kobject.h>
 #include <linux/device.h>
