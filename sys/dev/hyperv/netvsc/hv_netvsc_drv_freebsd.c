@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/frame.h>
-#include <machine/vmparam.h>
 
 #include <sys/bus.h>
 #include <sys/rman.h>

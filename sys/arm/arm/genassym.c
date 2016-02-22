@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #include <machine/acle-compat.h>
-#include <machine/vmparam.h>
 #include <machine/armreg.h>
 #include <machine/frame.h>
 #include <machine/pcb.h>
