@@ -44,7 +44,6 @@
 #include <machine/db_machdep.h>
 #include <machine/md_var.h>
 #include <machine/mips_opcode.h>
-#include <machine/vmparam.h>
 #include <ddb/db_sym.h>
 #include <ddb/ddb.h>
 #include <sys/kdb.h>

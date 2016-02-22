@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <x86/psl.h>
 #include <x86/apicreg.h>
-#include <machine/vmparam.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
