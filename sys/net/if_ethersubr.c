@@ -784,6 +784,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
+		if ((m = ip_fastforward(m)) == NULL)
+			return;
 		isr = NETISR_IP;
 		break;
 
