@@ -286,7 +286,7 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_collapse(*m_headp, M_NOWAIT, maxsegs);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			que->mbuf_defrag_failed++;
 			m_freem(*m_headp);

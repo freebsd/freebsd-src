@@ -3222,12 +3222,14 @@ plan_d:
 		}
 	}
 #ifdef INET
-	if ((retried == 0) && (stcb->asoc.scope.ipv4_local_scope == 0)) {
-		stcb->asoc.scope.ipv4_local_scope = 1;
-		retried = 1;
-		goto again_with_private_addresses_allowed;
-	} else if (retried == 1) {
-		stcb->asoc.scope.ipv4_local_scope = 0;
+	if (stcb) {
+		if ((retried == 0) && (stcb->asoc.scope.ipv4_local_scope == 0)) {
+			stcb->asoc.scope.ipv4_local_scope = 1;
+			retried = 1;
+			goto again_with_private_addresses_allowed;
+		} else if (retried == 1) {
+			stcb->asoc.scope.ipv4_local_scope = 0;
+		}
 	}
 #endif
 out:

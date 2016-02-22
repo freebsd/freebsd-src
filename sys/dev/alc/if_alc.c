@@ -1532,7 +1532,7 @@ alc_attach(device_t dev)
 	/* Create device sysctl node. */
 	alc_sysctl_node(sc);
 
-	if ((error = alc_dma_alloc(sc) != 0))
+	if ((error = alc_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/* Load station address. */

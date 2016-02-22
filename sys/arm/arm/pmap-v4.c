@@ -2549,7 +2549,7 @@ pmap_remove_pages(pmap_t pmap)
 		l2b = pmap_get_l2_bucket(pmap, pv->pv_va);
 		KASSERT(l2b != NULL, ("No L2 bucket in pmap_remove_pages"));
 		pt = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
-		m = PHYS_TO_VM_PAGE(*pt & L2_ADDR_MASK);
+		m = PHYS_TO_VM_PAGE(*pt & L2_S_FRAME);
 		KASSERT((vm_offset_t)m >= KERNBASE, ("Trying to access non-existent page va %x pte %x", pv->pv_va, *pt));
 		*pt = 0;
 		PTE_SYNC(pt);
