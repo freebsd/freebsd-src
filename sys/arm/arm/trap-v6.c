@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/pcb.h>
-#include <machine/vmparam.h>
 
 #ifdef KDB
 #include <sys/kdb.h>
