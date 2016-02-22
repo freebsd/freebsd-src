@@ -298,8 +298,8 @@ static int hn_create_tx_ring(struct hn_softc *, int);
 static void hn_destroy_tx_ring(struct hn_tx_ring *);
 static int hn_create_tx_data(struct hn_softc *);
 static void hn_destroy_tx_data(struct hn_softc *);
-static void hn_start_taskfunc(void *xsc, int pending);
-static void hn_txeof_taskfunc(void *xsc, int pending);
+static void hn_start_taskfunc(void *, int);
+static void hn_start_txeof_taskfunc(void *, int);
 static void hn_stop_tx_tasks(struct hn_softc *);
 static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static void hn_create_rx_data(struct hn_softc *sc);
@@ -1555,7 +1555,7 @@ hn_start(struct ifnet *ifp)
 			return;
 	}
 do_sched:
-	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_start_task);
+	taskqueue_enqueue(txr->hn_tx_taskq, &txr->hn_tx_task);
 }
 
 static void
@@ -1577,7 +1577,7 @@ hn_start_txeof(struct hn_tx_ring *txr)
 		mtx_unlock(&txr->hn_tx_lock);
 		if (sched) {
 			taskqueue_enqueue(txr->hn_tx_taskq,
-			    &txr->hn_start_task);
+			    &txr->hn_tx_task);
 		}
 	} else {
 do_sched:
@@ -2103,8 +2103,8 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 #endif
 
 	txr->hn_tx_taskq = sc->hn_tx_taskq;
-	TASK_INIT(&txr->hn_start_task, 0, hn_start_taskfunc, txr);
-	TASK_INIT(&txr->hn_txeof_task, 0, hn_txeof_taskfunc, txr);
+	TASK_INIT(&txr->hn_tx_task, 0, hn_start_taskfunc, txr);
+	TASK_INIT(&txr->hn_txeof_task, 0, hn_start_txeof_taskfunc, txr);
 
 	txr->hn_direct_tx_size = hn_direct_tx_size;
 	if (hv_vmbus_protocal_version >= HV_VMBUS_VERSION_WIN8_1)
@@ -2399,7 +2399,7 @@ hn_start_taskfunc(void *xtxr, int pending __unused)
 }
 
 static void
-hn_txeof_taskfunc(void *xtxr, int pending __unused)
+hn_start_txeof_taskfunc(void *xtxr, int pending __unused)
 {
 	struct hn_tx_ring *txr = xtxr;
 
@@ -2417,7 +2417,7 @@ hn_stop_tx_tasks(struct hn_softc *sc)
 	for (i = 0; i < sc->hn_tx_ring_cnt; ++i) {
 		struct hn_tx_ring *txr = &sc->hn_tx_ring[i];
 
-		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_start_task);
+		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_tx_task);
 		taskqueue_drain(txr->hn_tx_taskq, &txr->hn_txeof_task);
 	}
 }
