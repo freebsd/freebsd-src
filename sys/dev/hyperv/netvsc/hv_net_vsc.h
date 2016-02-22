@@ -1030,7 +1030,7 @@ struct hn_tx_ring {
 
 	int		hn_sched_tx;
 	struct taskqueue *hn_tx_taskq;
-	struct task	hn_start_task;
+	struct task	hn_tx_task;
 	struct task	hn_txeof_task;
 
 	struct mtx	hn_tx_lock;
