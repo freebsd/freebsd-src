@@ -664,7 +664,7 @@ hn_tx_done(void *xpkt)
 	    packet->compl.send.send_completion_tid;
 
 	txr = txd->txr;
-	txr->hn_txeof = 1;
+	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
 }
 
@@ -684,11 +684,11 @@ netvsc_channel_rollup(struct hv_device *device_ctx)
 	}
 #endif
 
-	if (!txr->hn_txeof)
+	if (!txr->hn_has_txeof)
 		return;
 
-	txr->hn_txeof = 0;
-	hn_start_txeof(txr);
+	txr->hn_has_txeof = 0;
+	txr->hn_txeof(txr);
 }
 
 /*
@@ -976,12 +976,12 @@ again:
 			 * commands to run?  Ask netvsc_channel_rollup()
 			 * to kick start later.
 			 */
-			txr->hn_txeof = 1;
+			txr->hn_has_txeof = 1;
 			if (!send_failed) {
 				txr->hn_send_failed++;
 				send_failed = 1;
 				/*
-				 * Try sending again after set hn_txeof;
+				 * Try sending again after set hn_has_txeof;
 				 * in case that we missed the last
 				 * netvsc_channel_rollup().
 				 */
@@ -2110,6 +2110,8 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	 * transmission.  This one gives the best performance so far.
 	 */
 	txr->hn_sched_tx = 1;
+
+	txr->hn_txeof = hn_start_txeof; /* TODO: if_transmit */
 
 	parent_dtag = bus_get_dma_tag(sc->hn_dev);
 
