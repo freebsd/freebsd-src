@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/md_var.h>
-#include <machine/pmap.h>
 #include <machine/pte.h>
 #include <machine/vmparam.h>
 #include <machine/minidump.h>

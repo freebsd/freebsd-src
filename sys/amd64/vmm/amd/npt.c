@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#include <machine/pmap.h>
-
 #include "npt.h"
 
 SYSCTL_DECL(_hw_vmm);
