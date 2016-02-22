@@ -2059,11 +2059,11 @@ msk_detach(device_t dev)
 	msk_txrx_dma_free(sc_if);
 	bus_generic_detach(dev);
 
-	if (ifp)
-		if_free(ifp);
 	sc = sc_if->msk_softc;
 	sc->msk_if[sc_if->msk_port] = NULL;
 	MSK_IF_UNLOCK(sc_if);
+	if (ifp)
+		if_free(ifp);
 
 	return (0);
 }
