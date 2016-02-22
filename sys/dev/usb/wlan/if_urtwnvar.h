@@ -172,6 +172,7 @@ struct urtwn_softc {
 	void				(*sc_rf_write)(struct urtwn_softc *,
 					    int, uint8_t, uint32_t);
 	int				(*sc_power_on)(struct urtwn_softc *);
+	void				(*sc_power_off)(struct urtwn_softc *);
 
 	struct ieee80211_node		*node_list[R88E_MACID_MAX + 1];
 	struct mtx			nt_mtx;
