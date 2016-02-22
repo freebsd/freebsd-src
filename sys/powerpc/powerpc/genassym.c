@@ -52,7 +52,6 @@
 #include <vm/vm_map.h>
 
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/psl.h>
 #include <machine/sigframe.h>
 

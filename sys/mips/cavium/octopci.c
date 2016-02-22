@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/pmap.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
 #include <mips/cavium/octeon_irq.h>

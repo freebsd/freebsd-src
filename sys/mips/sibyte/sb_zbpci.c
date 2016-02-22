@@ -44,7 +44,6 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcib_private.h>
 
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 
