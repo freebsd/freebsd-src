@@ -56,8 +56,7 @@ fdc_pccard_alloc_resources(device_t dev, struct fdc_data *fdc)
 	int rid, i;
 
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0ul, ~0ul, 1,
-	    RF_ACTIVE);
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(dev, "cannot alloc I/O port range\n");
 		return (ENXIO);

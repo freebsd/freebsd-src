@@ -3228,7 +3228,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					softc->state = DA_STATE_PROBE_RC;
 					xpt_schedule(periph, priority);
 					return;
-				} else
+				}
+
 				/*
 				 * Attach to anything that claims to be a
 				 * direct access or optical disk device,

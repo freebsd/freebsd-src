@@ -101,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus_private.h>
 #include <machine/iommureg.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/ver.h>
 

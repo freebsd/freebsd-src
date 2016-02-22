@@ -70,6 +70,10 @@
 #define R92C_GPIO_IO_SEL		0x042
 #define R92C_MAC_PINMUX_CFG		0x043
 #define R92C_GPIO_PIN_CTRL		0x044
+#define R92C_GPIO_IN			0x044
+#define R92C_GPIO_OUT			0x045
+#define R92C_GPIO_IOSEL			0x046
+#define R92C_GPIO_MOD			0x047
 #define R92C_GPIO_INTM			0x048
 #define R92C_LEDCFG0			0x04c
 #define R92C_LEDCFG1			0x04d
@@ -79,6 +83,7 @@
 #define R92C_FSISR			0x054
 #define R92C_HSIMR			0x058
 #define R92C_HSISR			0x05c
+#define R88E_BB_PAD_CTRL		0x064
 #define R92C_MCUFWDL			0x080
 #define R92C_HMEBOX_EXT(idx)		(0x088 + (idx) * 2)
 #define R88E_HIMR			0x0b0
@@ -117,6 +122,7 @@
 #define R92C_MBIST_START		0x174
 #define R92C_MBIST_DONE			0x178
 #define R92C_MBIST_FAIL			0x17c
+#define R88E_32K_CTRL			0x194
 #define R92C_C2HEVT_MSG_NORMAL		0x1a0
 #define R92C_C2HEVT_MSG_TEST		0x1b8
 #define R92C_C2HEVT_CLEAR		0x1bf
@@ -204,6 +210,7 @@
 #define R92C_BE_ADMTIME			0x5c8
 #define R92C_EDCA_RANDOM_GEN		0x5cc
 #define R92C_SCH_TXCMD			0x5d0
+#define R88E_SCH_TXCMD			0x5f8
 /* WMAC Configuration. */
 #define R92C_APSD_CTRL			0x600
 #define R92C_BWOPMODE			0x603
@@ -303,12 +310,29 @@
 #define R92C_RF_CTRL_RSTB	0x02
 #define R92C_RF_CTRL_SDMRSTB	0x04
 
+/* Bits for R92C_LDOA15_CTRL. */
+#define R92C_LDOA15_CTRL_EN		0x01
+#define R92C_LDOA15_CTRL_STBY		0x02
+#define R92C_LDOA15_CTRL_OBUF		0x04
+#define R92C_LDOA15_CTRL_REG_VOS	0x08
+
 /* Bits for R92C_LDOV12D_CTRL. */
 #define R92C_LDOV12D_CTRL_LDV12_EN	0x01
+
+/* Bits for R92C_LPLDO_CTRL. */
+#define R92C_LPLDO_CTRL_SLEEP		0x10
 
 /* Bits for R92C_AFE_XTAL_CTRL. */
 #define R92C_AFE_XTAL_CTRL_ADDR_M	0x007ff800
 #define R92C_AFE_XTAL_CTRL_ADDR_S	11
+
+/* Bits for R92C_AFE_PLL_CTRL. */
+#define R92C_AFE_PLL_CTRL_EN		0x0001
+#define R92C_AFE_PLL_CTRL_320_EN	0x0002
+#define R92C_AFE_PLL_CTRL_FREF_SEL	0x0004
+#define R92C_AFE_PLL_CTRL_EDGE_SEL	0x0008
+#define R92C_AFE_PLL_CTRL_WDOGB		0x0010
+#define R92C_AFE_PLL_CTRL_LPFEN		0x0020
 
 /* Bits for R92C_EFUSE_CTRL. */
 #define R92C_EFUSE_CTRL_DATA_M	0x000000ff
@@ -748,6 +772,7 @@
 /*
  * USB registers.
  */
+#define R92C_USB_SUSPEND		0xfe10
 #define R92C_USB_INFO			0xfe17
 #define R92C_USB_SPECIAL_OPTION		0xfe55
 #define R92C_USB_HCPWM			0xfe57

@@ -91,10 +91,15 @@ struct lro_ctrl {
 	unsigned	lro_cnt;
 	unsigned	lro_mbuf_count;
 	unsigned	lro_mbuf_max;
+	unsigned short	lro_ackcnt_lim;		/* max # of aggregated ACKs */
+	unsigned 	lro_length_lim;		/* max len of aggregated data */
 
 	struct lro_head	lro_active;
 	struct lro_head	lro_free;
 };
+
+#define	TCP_LRO_LENGTH_MAX	65535
+#define	TCP_LRO_ACKCNT_MAX	65535		/* unlimited */
 
 int tcp_lro_init(struct lro_ctrl *);
 int tcp_lro_init_args(struct lro_ctrl *, struct ifnet *, unsigned, unsigned);

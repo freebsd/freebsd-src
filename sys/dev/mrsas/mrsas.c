@@ -833,8 +833,8 @@ mrsas_attach(device_t dev)
 	bar = pci_read_config(dev, MRSAS_PCI_BAR1, 4);
 
 	sc->reg_res_id = MRSAS_PCI_BAR1;/* BAR1 offset */
-	if ((sc->reg_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &(sc->reg_res_id), 0, ~0, 1, RF_ACTIVE))
+	if ((sc->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &(sc->reg_res_id), RF_ACTIVE))
 	    == NULL) {
 		device_printf(dev, "Cannot allocate PCI registers\n");
 		goto attach_fail;

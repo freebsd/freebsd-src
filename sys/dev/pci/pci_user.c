@@ -709,9 +709,9 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		 * that match the user's criteria.
 		 */
 		for (cio->num_matches = 0, error = 0, i = 0,
-		     dinfo = STAILQ_FIRST(devlist_head);
-		     (dinfo != NULL) && (cio->num_matches < ionum)
-		     && (error == 0) && (i < pci_numdevs) && (dinfo != NULL);
+				 dinfo = STAILQ_FIRST(devlist_head);
+		     (dinfo != NULL) && (cio->num_matches < ionum) &&
+				 (error == 0) && (i < pci_numdevs);
 		     dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
 
 			if (i < cio->offset)

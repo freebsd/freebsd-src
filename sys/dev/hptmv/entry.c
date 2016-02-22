@@ -1990,7 +1990,7 @@ hpt_attach(device_t dev)
 		return rid;
 
 	rid = 0;
-	if ((pAdapter->hpt_irq = bus_alloc_resource(pAdapter->hpt_dev, SYS_RES_IRQ, &rid, 0, ~0ul, 1, RF_SHAREABLE | RF_ACTIVE)) == NULL)
+	if ((pAdapter->hpt_irq = bus_alloc_resource_any(pAdapter->hpt_dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE)) == NULL)
 	{
 		hpt_printk(("can't allocate interrupt\n"));
 		return(ENXIO);

@@ -128,8 +128,8 @@ hdspe_alloc_resources(struct sc_info *sc)
 
 	/* Allocate resource. */
 	sc->csid = PCIR_BAR(0);
-	sc->cs = bus_alloc_resource(sc->dev, SYS_RES_MEMORY,
-	    &sc->csid, 0, ~0, 1, RF_ACTIVE);
+	sc->cs = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
+	    &sc->csid, RF_ACTIVE);
 
 	if (!sc->cs) {
 		device_printf(sc->dev, "Unable to map SYS_RES_MEMORY.\n");
@@ -141,8 +141,8 @@ hdspe_alloc_resources(struct sc_info *sc)
 
 	/* Allocate interrupt resource. */
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irqid,
-	    0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &sc->irqid,
+	    RF_ACTIVE | RF_SHAREABLE);
 
 	if (!sc->irq ||
 	    bus_setup_intr(sc->dev, sc->irq, INTR_MPSAFE | INTR_TYPE_AV,

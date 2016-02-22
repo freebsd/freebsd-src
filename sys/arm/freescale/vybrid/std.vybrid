@@ -7,6 +7,4 @@ makeoptions	CONF_CFLAGS="-march=armv7a"
 makeoptions	KERNVIRTADDR=0xc0100000
 options		KERNVIRTADDR=0xc0100000
 
-options		ARM_L2_PIPT
-
 files		"../freescale/vybrid/files.vybrid"

@@ -50,7 +50,6 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/pmap.h>
 #include <machine/stdarg.h>
 
 #define	asm		__asm

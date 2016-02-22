@@ -33,14 +33,9 @@
  *
  * $FreeBSD$
  */
-#include <machine/acle-compat.h>
 
-#if __ARM_ARCH >= 6
-#include <machine/pte-v6.h>
-#else /* __ARM_ARCH >= 6 */
-
-#ifndef _MACHINE_PTE_H_
-#define _MACHINE_PTE_H_
+#ifndef _MACHINE_PTE_V4_H_
+#define _MACHINE_PTE_V4_H_
 
 #ifndef LOCORE
 typedef	uint32_t	pd_entry_t;		/* page directory entry */
@@ -71,10 +66,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
 #define L2_SPAGE	0x02	/* L2 small page (4KB) */
 #define L2_MASK		0x03	/* Mask for L2 entry type */
 #define L2_INVAL	0x00	/* L2 invalid type */
-
-/* L1 and L2 address masks */
-#define L1_ADDR_MASK		0xfffffc00
-#define L2_ADDR_MASK		0xfffff000
 
 /*
  * The ARM MMU architecture was introduced with ARM v3 (previous ARM
@@ -152,9 +143,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
  * So, we allocate L2 tables 4 at a time, thus yielding a 4K L2
  * table.
  */
-#define	L1_ADDR_BITS	0xfff00000	/* L1 PTE address bits */
-#define	L2_ADDR_BITS	0x000ff000	/* L2 PTE address bits */
-
 #define	L1_TABLE_SIZE	0x4000		/* 16K */
 #define	L2_TABLE_SIZE	0x1000		/* 4K */
 /*
@@ -357,7 +345,6 @@ typedef	pt_entry_t	pt2_entry_t;		/* compatibility with v6 */
  * 1 X 1 1 0	Y	  Y		WT	Y		Y
  * 1 X 1 1 1	Y	  Y		WT	Y		Y
  */
-#endif /* !_MACHINE_PTE_H_ */
-#endif /* __ARM_ARCH >= 6 */
+#endif /* !_MACHINE_PTE_V4_H_ */
 
 /* End of pte.h */

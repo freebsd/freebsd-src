@@ -516,7 +516,7 @@ gpiobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	if (type != SYS_RES_IRQ)
 		return (NULL);
-	isdefault = (start == 0UL && end == ~0UL && count == 1);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	rle = NULL;
 	if (isdefault) {
 		rl = BUS_GET_RESOURCE_LIST(bus, child);
