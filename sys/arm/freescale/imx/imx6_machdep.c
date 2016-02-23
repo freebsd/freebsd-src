@@ -94,6 +94,74 @@ fdt_pic_decode_t fdt_pic_table[] = {
 };
 #endif
 
+/*
+ * Fix FDT data related to interrupts.
+ *
+ * Driven by the needs of linux and its drivers (as always), the published FDT
+ * data for imx6 now sets the interrupt parent for most devices to the GPC
+ * interrupt controller, which is for use when the chip is in deep-sleep mode.
+ * We don't support deep sleep or have a GPC-PIC driver; we need all interrupts
+ * to be handled by the GIC.
+ *
+ * Luckily, the change to the FDT data was to assign the GPC as the interrupt
+ * parent for the soc node and letting that get inherited by all other devices
+ * (except a few that directly name GIC as their interrupt parent).  So we can
+ * set the world right by just changing the interrupt-parent property of the soc
+ * node to refer to GIC instead of GPC.  This will get us by until we write our
+ * own GPC driver (or until linux changes its mind and the FDT data again).
+ *
+ * We validate that we have data that looks like we expect before changing it:
+ *  - SOC node exists and has GPC as its interrupt parent.
+ *  - GPC node exists and has GIC as its interrupt parent.
+ *  - GIC node exists and is its own interrupt parent.
+ *
+ * This applies to all models of imx6.  Luckily all of them have the devices
+ * involved at the same addresses on the same busses, so we don't need any
+ * per-soc logic.  We handle this at platform attach time rather than via the
+ * fdt_fixup_table, because the latter requires matching on the FDT "model"
+ * property, and this applies to all boards including those not yet invented.
+ */
+static void
+fix_fdt_interrupt_data(void)
+{
+	phandle_t gicipar, gicnode, gicxref;
+	phandle_t gpcipar, gpcnode, gpcxref;
+	phandle_t socipar, socnode;
+	int result;
+
+	socnode = OF_finddevice("/soc");
+	if (socnode == -1)
+	    return;
+	result = OF_getencprop(socnode, "interrupt-parent", &socipar,
+	    sizeof(socipar));
+	if (result <= 0)
+		return;
+
+	gicnode = OF_finddevice("/soc/interrupt-controller@00a01000");
+	if (gicnode == -1)
+		return;
+	result = OF_getencprop(gicnode, "interrupt-parent", &gicipar,
+	    sizeof(gicipar));
+	if (result <= 0)
+		return;
+	gicxref = OF_xref_from_node(gicnode);
+
+	gpcnode = OF_finddevice("/soc/aips-bus@02000000/gpc@020dc000");
+	if (gpcnode == -1)
+		return;
+	result = OF_getencprop(gpcnode, "interrupt-parent", &gpcipar,
+	    sizeof(gpcipar));
+	if (result <= 0)
+		return;
+	gpcxref = OF_xref_from_node(gpcnode);
+
+	if (socipar != gpcxref || gpcipar != gicxref || gicipar != gicxref)
+		return;
+
+	gicxref = cpu_to_fdt32(gicxref);
+	OF_setprop(socnode, "interrupt-parent", &gicxref, sizeof(gicxref));
+}
+
 static vm_offset_t
 imx6_lastaddr(platform_t plat)
 {
@@ -104,6 +172,10 @@ imx6_lastaddr(platform_t plat)
 static int
 imx6_attach(platform_t plat)
 {
+
+	/* Fix soc interrupt-parent property. */
+	fix_fdt_interrupt_data();
+
 	/* Inform the MPCore timer driver that its clock is variable. */
 	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
 
