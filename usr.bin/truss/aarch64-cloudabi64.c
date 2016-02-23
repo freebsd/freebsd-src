@@ -31,11 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 
-#include <errno.h>
 #include <stdio.h>
 #include <sysdecode.h>
 
-#include "cloudabi.h"
 #include "truss.h"
 
 static int
@@ -74,8 +72,6 @@ aarch64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
 	retval[0] = regs.x[0];
 	retval[1] = regs.x[1];
 	*errorp = (regs.spsr & PSR_C) != 0;
-	if (*errorp)
-		retval[0] = cloudabi_convert_errno(retval[0]);
 	return (0);
 }
 
