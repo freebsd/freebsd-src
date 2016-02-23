@@ -54,10 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
 
-#ifdef __aarch64__
-extern bus_space_tag_t fdtbus_bs_tag;
-#endif
-
 /*
  * UART console routines.
  */
