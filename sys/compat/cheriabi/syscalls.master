@@ -374,7 +374,7 @@
 ; The following were introduced with NetBSD/4.4Lite-2
 ; They are initialized by their respective modules/sysinits
 ; XXX PROBLEM!!
-220	AUE_SEMCTL	OBSOL	semctl
+220	AUE_SEMCTL	OBSOL	__semctl
 221	AUE_SEMGET	NOSTD|NOPROTO	{ int semget(key_t key, int nsems, \
 				    int semflg); }
 222	AUE_SEMOP	NOSTD|NOPROTO	{ int semop(int semid, \
@@ -881,11 +881,11 @@
 				    unsigned int iovcnt, int flags); }
 508	AUE_NULL	NOPROTO	{ int jail_remove(int jid); }
 509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
-510	AUE_SEMCTL	NOSTD { int cheriabi_semctl(int semid, int semnum, \
+510	AUE_SEMCTL	STD { int cheriabi___semctl(int semid, int semnum, \
 				    int cmd, union semun_c *arg); }
-511	AUE_MSGCTL	NOSTD	{ int cheriabi_msgctl(int msqid, int cmd, \
+511	AUE_MSGCTL	STD	{ int cheriabi_msgctl(int msqid, int cmd, \
 				    struct msqid_ds_c *buf); }
-512	AUE_SHMCTL	NOSTD|NOPROTO	{ int shmctl(int shmid, int cmd, \
+512	AUE_SHMCTL	STD|NOPROTO	{ int shmctl(int shmid, int cmd, \
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
 514	AUE_NULL	OBSOL	cap_new
@@ -961,3 +961,9 @@
 546	AUE_FUTIMES	NOPROTO	{ int futimens(int fd, struct timespec *times); }
 547	AUE_FUTIMESAT	NOPROTO	{ int utimensat(int fd, char *path, \
 				    struct timespec *times, int flag); }
+548	AUE_NULL	NOPROTO	{ int numa_getaffinity(cpuwhich_t which, \
+				    id_t id, \
+				    struct vm_domain_policy_entry *policy); }
+549	AUE_NULL	NOPROTO	{ int numa_setaffinity(cpuwhich_t which, \
+				    id_t id, \
+				    const struct vm_domain_policy_entry *policy); }

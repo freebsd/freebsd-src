@@ -898,7 +898,7 @@ struct {
 	},
 	[CHERIABI_SYS_closefrom] = {
 	},
-	[CHERIABI_SYS_cheriabi_semctl] = {
+	[CHERIABI_SYS_cheriabi___semctl] = {
 		.sam_ptrmask = 0x8
 	},
 	[CHERIABI_SYS_cheriabi_msgctl] = {
@@ -998,6 +998,12 @@ struct {
 	},
 	[CHERIABI_SYS_utimensat] = {
 		.sam_ptrmask = 0x2 | 0x4
+	},
+	[CHERIABI_SYS_numa_getaffinity] = {
+		.sam_ptrmask = 0x4
+	},
+	[CHERIABI_SYS_numa_setaffinity] = {
+		.sam_ptrmask = 0x4
 	},
 };
 #endif /* !_CHERIABI_SYSARGMAP_H_ */

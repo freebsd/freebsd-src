@@ -196,7 +196,7 @@
 #define	CHERIABI_SYS_futimes	206
 #define	CHERIABI_SYS_getpgid	207
 #define	CHERIABI_SYS_poll	209
-				/* 220 is obsolete semctl */
+				/* 220 is obsolete __semctl */
 #define	CHERIABI_SYS_semget	221
 #define	CHERIABI_SYS_semop	222
 				/* 224 is obsolete msgctl */
@@ -432,7 +432,7 @@
 #define	CHERIABI_SYS_cheriabi_jail_set	507
 #define	CHERIABI_SYS_jail_remove	508
 #define	CHERIABI_SYS_closefrom	509
-#define	CHERIABI_SYS_cheriabi_semctl	510
+#define	CHERIABI_SYS_cheriabi___semctl	510
 #define	CHERIABI_SYS_cheriabi_msgctl	511
 #define	CHERIABI_SYS_shmctl	512
 #define	CHERIABI_SYS_lpathconf	513
@@ -469,4 +469,6 @@
 #define	CHERIABI_SYS_ppoll	545
 #define	CHERIABI_SYS_futimens	546
 #define	CHERIABI_SYS_utimensat	547
-#define	CHERIABI_SYS_MAXSYSCALL	548
+#define	CHERIABI_SYS_numa_getaffinity	548
+#define	CHERIABI_SYS_numa_setaffinity	549
+#define	CHERIABI_SYS_MAXSYSCALL	550

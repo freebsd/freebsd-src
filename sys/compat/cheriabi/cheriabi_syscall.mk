@@ -338,7 +338,7 @@ MIASM =  \
 	cheriabi_jail_set.o \
 	jail_remove.o \
 	closefrom.o \
-	cheriabi_semctl.o \
+	cheriabi___semctl.o \
 	cheriabi_msgctl.o \
 	shmctl.o \
 	lpathconf.o \
@@ -373,4 +373,6 @@ MIASM =  \
 	procctl.o \
 	ppoll.o \
 	futimens.o \
-	utimensat.o
+	utimensat.o \
+	numa_getaffinity.o \
+	numa_setaffinity.o
