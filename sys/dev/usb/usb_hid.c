@@ -354,7 +354,8 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					/* range check usage count */
 					if (c->loc.count > 255) {
 						DPRINTFN(0, "Number of "
-						    "items truncated to 255\n");
+						    "items(%u) truncated to 255\n",
+						    (unsigned)(c->loc.count));
 						s->ncount = 255;
 					} else
 						s->ncount = c->loc.count;
