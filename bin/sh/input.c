@@ -242,7 +242,8 @@ again:
 		parsenleft = parselleft;
 		parselleft = 0;
 	} else /* *q == '\n' */ {
-		parsenleft = q - parsenextc + 1;
+		q++;
+		parsenleft = q - parsenextc;
 		parselleft -= parsenleft;
 	}
 	parsenleft--;
