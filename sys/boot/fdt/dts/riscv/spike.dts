@@ -49,7 +49,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x8000000>; /* 128MB at 0x0 */
+		reg = <0x0 0x40000000>; /* 1GB at 0x0 */
 	};
 
 	soc {

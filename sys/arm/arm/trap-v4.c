@@ -94,7 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
-#include <machine/acle-compat.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/machdep.h>
@@ -312,16 +311,13 @@ abort_handler(struct trapframe *tf, int type)
 	}
 
 	/*
-	 * We need to know whether the page should be mapped as R or R/W.  On
-	 * armv6 and later the fault status register indicates whether the
-	 * access was a read or write.  Prior to armv6, we know that a
-	 * permission fault can only be the result of a write to a read-only
-	 * location, so we can deal with those quickly.  Otherwise we need to
-	 * disassemble the faulting instruction to determine if it was a write.
+	 * We need to know whether the page should be mapped as R or R/W.
+	 * On armv4, the fault status register does not indicate whether
+	 * the access was a read or write.  We know that a permission fault
+	 * can only be the result of a write to a read-only location, so we
+	 * can deal with those quickly.  Otherwise we need to disassemble
+	 * the faulting instruction to determine if it was a write.
 	 */
-#if __ARM_ARCH >= 6
-	ftype = (fsr & FAULT_WNR) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
-#else
 	if (IS_PERMISSION_FAULT(fsr))
 		ftype = VM_PROT_WRITE;
 	else {
@@ -338,7 +334,6 @@ abort_handler(struct trapframe *tf, int type)
 				ftype = VM_PROT_READ;
 		}
 	}
-#endif
 
 	/*
 	 * See if the fault is as a result of ref/mod emulation,
