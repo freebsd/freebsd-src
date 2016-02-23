@@ -608,7 +608,7 @@ acpi_video_vo_bind(struct acpi_video_output *vo, ACPI_HANDLE handle)
 			vo->vo_fullpower = vo->vo_levels[BCL_FULLPOWER];
 		}
 		if (vo->vo_economy == -1 ||
-			acpi_video_vo_check_level(vo, vo->vo_economy) != 0) {
+		    acpi_video_vo_check_level(vo, vo->vo_economy) != 0) {
 			/* XXX - see above. */
 			vo->vo_economy = vo->vo_levels[BCL_ECONOMY];
 		}
