@@ -268,7 +268,7 @@ struct tcp_funchead t_functions;
 static struct tcp_function_block *tcp_func_set_ptr = &tcp_def_funcblk;
 
 static void
-init_tcp_functions()
+init_tcp_functions(void)
 {
 	if (t_functions_inited == 0) {
 		TAILQ_INIT(&t_functions);
