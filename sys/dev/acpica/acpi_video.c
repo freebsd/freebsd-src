@@ -602,14 +602,16 @@ acpi_video_vo_bind(struct acpi_video_output *vo, ACPI_HANDLE handle)
 	vo->handle = handle;
 	vo->vo_numlevels = vo_get_brightness_levels(handle, &vo->vo_levels);
 	if (vo->vo_numlevels >= 2) {
-		if (vo->vo_fullpower == -1
-		    || acpi_video_vo_check_level(vo, vo->vo_fullpower) != 0)
+		if (vo->vo_fullpower == -1 ||
+		    acpi_video_vo_check_level(vo, vo->vo_fullpower) != 0) {
 			/* XXX - can't deal with rebinding... */
 			vo->vo_fullpower = vo->vo_levels[BCL_FULLPOWER];
-		if (vo->vo_economy == -1
-		    || acpi_video_vo_check_level(vo, vo->vo_economy) != 0)
+		}
+		if (vo->vo_economy == -1 ||
+			acpi_video_vo_check_level(vo, vo->vo_economy) != 0) {
 			/* XXX - see above. */
 			vo->vo_economy = vo->vo_levels[BCL_ECONOMY];
+		}
 	}
 	if (vo->vo_levels != NULL)
 		AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
