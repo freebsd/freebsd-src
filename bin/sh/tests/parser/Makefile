@@ -79,6 +79,7 @@ FILES+=		only-redir2.0
 FILES+=		only-redir3.0
 FILES+=		only-redir4.0
 FILES+=		pipe-not1.0
+FILES+=		set-v1.0 set-v1.0.stderr
 FILES+=		var-assign1.0
 
 .include <bsd.test.mk>
