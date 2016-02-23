@@ -998,14 +998,14 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 			 * dispatch this packet sending (and sending of any
 			 * following up packets) to tx taskqueue.
 			 */
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			return 1;
 		}
 
 		txd = hn_txdesc_get(txr);
 		if (txd == NULL) {
 			txr->hn_no_txdescs++;
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 			break;
 		}
@@ -1019,7 +1019,7 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 		error = hn_send_pkt(ifp, device_ctx, txr, txd);
 		if (__predict_false(error)) {
 			/* txd is freed, but m_head is not */
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 			break;
 		}
