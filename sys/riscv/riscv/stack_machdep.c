@@ -30,63 +30,34 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/dts-v1/;
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/ {
-	model = "QEMU RV64I";
-	compatible = "riscv,rv64i";
-	#address-cells = <1>;
-	#size-cells = <1>;
-	#interrupt-cells = <1>;
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/stack.h>
 
-	aliases {
-		console0 = &console0;
-	};
+#include <machine/vmparam.h>
+#include <machine/pcb.h>
 
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x40000000>; /* 1GB at 0x0 */
-	};
+void
+stack_save_td(struct stack *st, struct thread *td)
+{
 
-	soc {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		#interrupt-cells = <1>;
+}
 
-		compatible = "simple-bus";
-		ranges;
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
 
-		pic0: pic@0 {
-			compatible = "riscv,pic";
-			interrupt-controller;
-		};
+	return (EOPNOTSUPP);
+}
 
-		timer0: timer@0 {
-			compatible = "riscv,timer";
-			interrupts = < 1 >;
-			interrupt-parent = < &pic0 >;
-			clock-frequency = < 400000000 >;
-		};
+void
+stack_save(struct stack *st)
+{
 
-		htif0: htif@0 {
-			compatible = "riscv,htif";
-			interrupts = < 0 >;
-			interrupt-parent = < &pic0 >;
-
-			console0: console@0 {
-				compatible = "htif,console";
-				status = "okay";
-			};
-		};
-	};
-
-	chosen {
-		bootargs = "-v";
-		stdin = "console0";
-		stdout = "console0";
-	};
-};
+}

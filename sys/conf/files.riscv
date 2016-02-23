@@ -34,9 +34,10 @@ riscv/riscv/machdep.c		standard
 riscv/riscv/mem.c		standard
 riscv/riscv/nexus.c		standard
 riscv/riscv/pmap.c		standard
-riscv/riscv/sys_machdep.c	standard
+riscv/riscv/stack_machdep.c	optional	ddb | stack
 riscv/riscv/support.S		standard
 riscv/riscv/swtch.S		standard
+riscv/riscv/sys_machdep.c	standard
 riscv/riscv/trap.c		standard
 riscv/riscv/timer.c		standard
 riscv/riscv/uio_machdep.c	standard
