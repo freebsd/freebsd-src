@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2015
+.Dd February 23, 2016
 .Dt TRUSS 1
 .Os
 .Sh NAME
@@ -8,12 +8,12 @@
 .Nd trace system calls
 .Sh SYNOPSIS
 .Nm
-.Op Fl facedDS
+.Op Fl facedDHS
 .Op Fl o Ar file
 .Op Fl s Ar strsize
 .Fl p Ar pid
 .Nm
-.Op Fl facedDS
+.Op Fl facedDHS
 .Op Fl o Ar file
 .Op Fl s Ar strsize
 .Ar command Op Ar args
@@ -32,6 +32,10 @@ Trace descendants of the original traced process created by
 .Xr fork 2 ,
 .Xr vfork 2 ,
 etc.
+To distinguish events between processes,
+the process ID
+.Pq PID
+of the process is included in the output of each event.
 .It Fl a
 Show the argument strings that are passed in each
 .Xr execve 2
@@ -52,6 +56,8 @@ since the trace was started.
 .It Fl D
 Include timestamps in the output showing the time elapsed
 since the last recorded event.
+.It Fl H
+Include the thread ID of in the output of each event.
 .It Fl S
 Do not display information about signals received by the process.
 (Normally,
