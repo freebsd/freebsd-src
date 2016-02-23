@@ -905,6 +905,68 @@ done:
 }
 
 /*
+ * NOTE:
+ * If this function fails, then txd will be freed, but the mbuf
+ * associated w/ the txd will _not_ be freed.
+ */
+static int
+hn_send_pkt(struct ifnet *ifp, struct hv_device *device_ctx,
+    struct hn_tx_ring *txr, struct hn_txdesc *txd)
+{
+	int error, send_failed = 0;
+
+again:
+	/*
+	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
+	 */
+	hn_txdesc_hold(txd);
+	error = hv_nv_on_send(device_ctx, &txd->netvsc_pkt);
+	if (!error) {
+		ETHER_BPF_MTAP(ifp, txd->m);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	}
+	hn_txdesc_put(txr, txd);
+
+	if (__predict_false(error)) {
+		int freed;
+
+		/*
+		 * This should "really rarely" happen.
+		 *
+		 * XXX Too many RX to be acked or too many sideband
+		 * commands to run?  Ask netvsc_channel_rollup()
+		 * to kick start later.
+		 */
+		txr->hn_has_txeof = 1;
+		if (!send_failed) {
+			txr->hn_send_failed++;
+			send_failed = 1;
+			/*
+			 * Try sending again after set hn_has_txeof;
+			 * in case that we missed the last
+			 * netvsc_channel_rollup().
+			 */
+			goto again;
+		}
+		if_printf(ifp, "send failed\n");
+
+		/*
+		 * Caller will perform further processing on the
+		 * associated mbuf, so don't free it in hn_txdesc_put();
+		 * only unload it from the DMA map in hn_txdesc_put(),
+		 * if it was loaded.
+		 */
+		txd->m = NULL;
+		freed = hn_txdesc_put(txr, txd);
+		KASSERT(freed != 0,
+		    ("fail to free txd upon send error"));
+
+		txr->hn_send_failed++;
+	}
+	return error;
+}
+
+/*
  * Start a transmit of one or more packets
  */
 static int
@@ -922,9 +984,9 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 		return 0;
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		int error, send_failed = 0;
 		struct hn_txdesc *txd;
 		struct mbuf *m_head;
+		int error;
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
@@ -953,52 +1015,10 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 			/* Both txd and m_head are freed */
 			continue;
 		}
-again:
-		/*
-		 * Make sure that txd is not freed before ETHER_BPF_MTAP.
-		 */
-		hn_txdesc_hold(txd);
-		error = hv_nv_on_send(device_ctx, &txd->netvsc_pkt);
-		if (!error) {
-			ETHER_BPF_MTAP(ifp, m_head);
-			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		}
-		hn_txdesc_put(txr, txd);
 
+		error = hn_send_pkt(ifp, device_ctx, txr, txd);
 		if (__predict_false(error)) {
-			int freed;
-
-			/*
-			 * This should "really rarely" happen.
-			 *
-			 * XXX Too many RX to be acked or too many sideband
-			 * commands to run?  Ask netvsc_channel_rollup()
-			 * to kick start later.
-			 */
-			txr->hn_has_txeof = 1;
-			if (!send_failed) {
-				txr->hn_send_failed++;
-				send_failed = 1;
-				/*
-				 * Try sending again after set hn_has_txeof;
-				 * in case that we missed the last
-				 * netvsc_channel_rollup().
-				 */
-				goto again;
-			}
-			if_printf(ifp, "send failed\n");
-
-			/*
-			 * This mbuf will be prepended, don't free it
-			 * in hn_txdesc_put(); only unload it from the
-			 * DMA map in hn_txdesc_put(), if it was loaded.
-			 */
-			txd->m = NULL;
-			freed = hn_txdesc_put(txr, txd);
-			KASSERT(freed != 0,
-			    ("fail to free txd upon send error"));
-
-			txr->hn_send_failed++;
+			/* txd is freed, but m_head is not */
 			IF_PREPEND(&ifp->if_snd, m_head);
 			atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
 			break;
