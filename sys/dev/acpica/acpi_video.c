@@ -597,8 +597,12 @@ acpi_video_vo_bind(struct acpi_video_output *vo, ACPI_HANDLE handle)
 {
 
 	ACPI_SERIAL_BEGIN(video_output);
-	if (vo->vo_levels != NULL)
+	if (vo->vo_levels != NULL) {
+		AcpiRemoveNotifyHandler(vo->handle, ACPI_DEVICE_NOTIFY,
+		    acpi_video_vo_notify_handler);
 		AcpiOsFree(vo->vo_levels);
+		vo->vo_levels = NULL;
+	}
 	vo->handle = handle;
 	vo->vo_numlevels = vo_get_brightness_levels(handle, &vo->vo_levels);
 	if (vo->vo_numlevels >= 2) {
