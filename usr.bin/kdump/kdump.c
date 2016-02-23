@@ -142,28 +142,6 @@ static struct ktr_header ktr_header;
 	c = ',';							\
 } while (0)
 
-#if defined(__amd64__) || defined(__i386__)
-
-void linux_ktrsysret(struct ktr_sysret *, u_int);
-
-/*
- * from linux.h
- * Linux syscalls return negative errno's, we do positive and map them
- */
-static int bsd_to_linux_errno[ELAST + 1] = {
-	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
-	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
-	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
-	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
-	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
-	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
-	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
-	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-	-6,  -6, -43, -42, -75,-125, -84, -95, -16, -74,
-	-72, -67, -71
-};
-#endif
-
 struct proc_info
 {
 	TAILQ_ENTRY(proc_info)	info;
@@ -393,13 +371,7 @@ main(int argc, char *argv[])
 			ktrsyscall((struct ktr_syscall *)m, sv_flags);
 			break;
 		case KTR_SYSRET:
-#if defined(__amd64__) || defined(__i386__)
-			if ((sv_flags & SV_ABI_MASK) == SV_ABI_LINUX)
-				linux_ktrsysret((struct ktr_sysret *)m, 
-				    sv_flags);
-			else
-#endif
-				ktrsysret((struct ktr_sysret *)m, sv_flags);
+			ktrsysret((struct ktr_sysret *)m, sv_flags);
 			break;
 		case KTR_NAMEI:
 		case KTR_SYSCTL:
@@ -1366,7 +1338,8 @@ ktrsysret(struct ktr_sysret *ktr, u_int sv_flags)
 	else if (error == EJUSTRETURN)
 		printf("JUSTRETURN");
 	else {
-		printf("-1 errno %d", ktr->ktr_error);
+		printf("-1 errno %d", sysdecode_freebsd_to_abi_errno(
+		    syscallabi(sv_flags), error));
 		if (fancy)
 			printf(" %s", strerror(ktr->ktr_error));
 	}
@@ -1851,44 +1824,6 @@ ktrfaultend(struct ktr_faultend *ktr)
 	vmresultname(ktr->result);
 	printf("\n");
 }
-
-#if defined(__amd64__) || defined(__i386__)
-void
-linux_ktrsysret(struct ktr_sysret *ktr, u_int sv_flags)
-{
-	register_t ret = ktr->ktr_retval;
-	int error = ktr->ktr_error;
-
-	syscallname(ktr->ktr_code, sv_flags);
-	printf(" ");
-
-	if (error == 0) {
-		if (fancy) {
-			printf("%ld", (long)ret);
-			if (ret < 0 || ret > 9)
-				printf("/%#lx", (unsigned long)ret);
-		} else {
-			if (decimal)
-				printf("%ld", (long)ret);
-			else
-				printf("%#lx", (unsigned long)ret);
-		}
-	} else if (error == ERESTART)
-		printf("RESTART");
-	else if (error == EJUSTRETURN)
-		printf("JUSTRETURN");
-	else {
-		if (ktr->ktr_error <= ELAST + 1)
-			error = abs(bsd_to_linux_errno[ktr->ktr_error]);
-		else
-			error = 999;
-		printf("-1 errno %d", error);
-		if (fancy)
-			printf(" %s", strerror(ktr->ktr_error));
-	}
-	putchar('\n');
-}
-#endif
 
 void
 usage(void)

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2015 John Baldwin <jhb@FreeBSD.org>
+.\" Copyright (c) 2016 John Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,51 +25,70 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2016
-.Dt SYSDECODE 3
+.Dd February 23, 2016
+.Dt sysdecode_abi_to_freebsd_errno 3
 .Os
 .Sh NAME
-.Nm sysdecode
-.Nd system argument decoding library
+.Nm sysdecode_abi_to_freebsd_errno ,
+.Nm sysdecode_freebsd_to_abi_errno
+.Nd translate error numbers between process ABIs
 .Sh LIBRARY
 .Lb libsysdecode
+.Sh SYNOPSIS
+.Ft int
+.Fn sysdecode_abi_to_freebsd_errno "enum sysdecode_abi abi" "int error"
+.Ft int
+.Fn sysdecode_freebsd_to_abi_errno "enum sysdecode_abi abi" "int error"
 .Sh DESCRIPTION
 The
-.Nm
-library includes several functions that provide descriptive names of
-values associated with system calls.
-.Ss Supported ABIs
-Some functions in this library provide ABI-specific descriptions.
-The supported ABIs are named by the
-.Vt enum sysdecode_abi
-enumeration.
+.Fn sysdecode_abi_to_freebsd_errno
+function returns the native
+.Xr errno 3
+value that corresponds to the error indicated by
+.Fa error
+for the process ABI
+.Fa abi .
+If
+.Fa error
+does not identify a valid error for
+.Fa abi ,
+.Dv INT_MAX
+is returned.
 .Pp
-.Bl -tag -width "Li SYSDECODE_ABI_CLOUDABI64" -compact
-.It Li SYSDECODE_ABI_FREEBSD
-Native FreeBSD binaries.
-Supported on all platforms.
-.It Li SYSDECODE_ABI_FREEBSD32
-32-bit FreeBSD binaries.
-Supported on amd64 and powerpc64.
-.It Li SYSDECODE_ABI_LINUX
-Linux binaries of the same platform.
-Supported on amd64 and i386.
-.It Li SYSDECODE_ABI_LINUX32
-32-bit Linux binaries.
-Supported on amd64.
-.It Li SYSDECODE_ABI_CLOUDABI64
-64-bit CloudABI binaries.
-Supported on aarch64 and amd64.
-.It Li SYSDECODE_ABI_UNKNOWN
-A placeholder for use when the ABI is not known.
-.El
-.Sh SEE ALSO
-.Xr sysdecode_abi_to_freebsd_errno 3 ,
-.Xr sysdecode_ioctlname 3 ,
-.Xr sysdecode_syscallnames 3 ,
-.Xr sysdecode_utrace 3
-.Sh HISTORY
 The
-.Nm
-library first appeared in
-.Fx 11.0 .
+.Fn sysdecode_freebsd_to_abi_errno
+function the error value for the process ABI
+.Fa abi
+that corresponds to the native
+.Xr errno 3
+value
+.Fa error .
+If
+.Fa error
+does not identify a valid
+.Xr errno 3
+error,
+.Dv INT_MAX
+is returned.
+.Pp
+Note that the mappings between native
+.Xr errno 3
+values and errors for other ABIs are not exhaustive.
+If a mapping does not exist,
+these functions return
+.Dv INT_MAX .
+In addition, multiple error values in one ABI may map to a single
+error in another ABI.
+.Sh RETURN VALUES
+These functions return an error value on success or
+.Dv INT_MAX
+if
+.Fa error
+is not valid.
+.Pp
+For the list of supported ABIs,
+see
+.Xr sysdecode 3 .
+.Sh SEE ALSO
+.Xr sysdecode 3 ,
+.Xr sysdecode_syscallnames 3
