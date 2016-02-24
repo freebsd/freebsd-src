@@ -43,6 +43,23 @@
 	#size-cells = <1>;
 	#interrupt-cells = <1>;
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "riscv,rv64i";
+			reg = <0x40002000>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "riscv,rv64i";
+			reg = <0x4000a000>;
+		};
+	};
+
 	aliases {
 		console0 = &console0;
 	};

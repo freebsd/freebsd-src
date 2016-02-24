@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -38,12 +38,16 @@
 #define	_MACHINE_RISCVREG_H_
 
 /* Machine mode requests */
-#define	ECALL_MTIMECMP		0x1
-#define	ECALL_CLEAR_PENDING	0x2
-#define	ECALL_HTIF_CMD		0x3
-#define	ECALL_HTIF_GET_ENTRY	0x4
-#define	ECALL_MCPUID_GET	0x5
-#define	ECALL_MIMPID_GET	0x6
+#define	ECALL_MTIMECMP		0x01
+#define	ECALL_CLEAR_PENDING	0x02
+#define	ECALL_HTIF_CMD		0x03
+#define	ECALL_HTIF_GET_ENTRY	0x04
+#define	ECALL_MCPUID_GET	0x05
+#define	ECALL_MIMPID_GET	0x06
+#define	ECALL_SEND_IPI		0x07
+#define	ECALL_CLEAR_IPI		0x08
+#define	ECALL_HTIF_LOWPUTC	0x09
+#define	ECALL_MIE_SET		0x10
 
 #define	EXCP_SHIFT			0
 #define	EXCP_MASK			(0xf << EXCP_SHIFT)
@@ -109,8 +113,13 @@
 #define	SIE_SSIE	(1 << 1)
 #define	SIE_STIE	(1 << 5)
 
-/* Note: sip register is not yet implement in Spike simulator */
+/* Note: sip register has no SIP_STIP bit in Spike simulator */
+#define	SIP_SSIP	(1 << 1)
 #define	SIP_STIP	(1 << 5)
+
+#define	NCSRS	4096
+#define	CSR_IPI	0x783
+#define	XLEN	8
 
 #define	CSR_ZIMM(val)							\
 	(__builtin_constant_p(val) && ((u_long)(val) < 32))

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -229,6 +229,7 @@ bad_trap:
 	j bad_trap
 
 user_trap:
+	/* Save state */
 	csrrw	sp, mscratch, sp
 	addi	sp, sp, -64
 	sd	t0, (8 * 0)(sp)
@@ -282,7 +283,31 @@ machine_interrupt:
 	j	1b
 
 software_interrupt:
-	/* Redirect to supervisor */
+	li	t0, MIP_MSIP
+	csrc	mip, t0
+	li	t0, MIP_SSIP
+	csrs	mip, t0
+
+	/* If PRV1 is PRV_U (user) then serve the trap */
+	csrr	t0, mstatus
+	li	t1, (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT)
+	and	t0, t0, t1
+	beqz	t0, 1f
+
+	/*
+	 * If PRV1 is supervisor and interrupts were enabled,
+	 * then serve the trap.
+	 */
+	csrr	t0, mstatus
+	li	t1, (SR_IE1 | (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT))
+	and	t0, t0, t1
+	li	t1, (SR_IE1 | (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT))
+	beq	t0, t1, 1f
+
+	j	exit
+
+1:
+	/* Serve a trap in supervisor mode */
 	j	exit_mrts
 
 timer_interrupt:
@@ -294,17 +319,20 @@ timer_interrupt:
 	li	t0, MIP_MTIP
 	csrc	mip, t0
 
-	/* Post supervisor software interrupt */
+	/* Post supervisor timer interrupt */
 	li	t0, MIP_STIP
 	csrs	mip, t0
 
-	/* If PRV1 is PRV_U (user) then serve a trap */
+	/* If PRV1 is PRV_U (user) then serve the trap */
 	csrr	t0, mstatus
 	li	t1, (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT)
 	and	t0, t0, t1
 	beqz	t0, 1f
 
-	/* If PRV1 is supervisor and interrupts were enabled, then serve a trap */
+	/*
+	 * If PRV1 is supervisor and interrupts were enabled,
+	 * then serve the trap.
+	 */
 	csrr	t0, mstatus
 	li	t1, (SR_IE1 | (MSTATUS_PRV_M << MSTATUS_PRV1_SHIFT))
 	and	t0, t0, t1
@@ -332,24 +360,34 @@ htif_interrupt:
 	la	t0, console_intr
 	li	t1, 1
 	sd	t1, 0(t0)
-	j	3f
+
+	/* Check if there is any other pending event */
+	j	1b
 
 2:
 	/* Save entry */
-	la	t0, htif_ring_cursor
-	beqz	t0, 3f		/* not initialized */
-	ld	t0, 0(t0)	/* load struct */
-	sd	t5, 0(t0)	/* put entry */
+	la	t0, htif_ring
+	csrr	t1, mhartid
+	li	t4, (HTIF_RING_SIZE + 16)
+	mulw	t4, t4, t1
+	add	t0, t0, t4
+	li	t4, (HTIF_RING_SIZE)
+	add	t0, t0, t4	/* t0 == htif_ring_cursor */
+
+	ld	t1, 0(t0)	/* load ptr to cursor */
+	sd	t5, 0(t1)	/* put entry */
 	li	t4, 1
-	sd	t4, 8(t0)	/* mark used */
-	ld	t4, 16(t0)	/* take next */
+	sd	t4, 8(t1)	/* mark used */
+	ld	t4, 16(t1)	/* take next */
 	/* Update cursor */
-	la	t0, htif_ring_cursor
 	sd	t4, 0(t0)
 
 	/* Post supervisor software interrupt */
 	li	t0, MIP_SSIP
 	csrs	mip, t0
+
+	/* Check if there is any other pending event */
+	j	1b
 
 3:
 	j	exit
@@ -369,6 +407,18 @@ supervisor_call:
 	beq	t5, t4, mcpuid_get
 	li	t4, ECALL_MIMPID_GET
 	beq	t5, t4, mimpid_get
+	li	t4, ECALL_SEND_IPI
+	beq	t5, t4, send_ipi
+	li	t4, ECALL_CLEAR_IPI
+	beq	t5, t4, clear_ipi
+	li	t4, ECALL_HTIF_LOWPUTC
+	beq	t5, t4, htif_lowputc
+	li	t4, ECALL_MIE_SET
+	beq	t5, t4, mie_set
+	j	exit_next_instr
+
+mie_set:
+	csrs	mie, t6
 	j	exit_next_instr
 
 mcpuid_get:
@@ -379,28 +429,111 @@ mimpid_get:
 	csrr	t6, mimpid
 	j	exit_next_instr
 
+send_ipi:
+	/* CPU mmio base in t6 */
+	mv	t0, t6
+	li	t2, (CSR_IPI * XLEN)
+	add	t0, t0, t2	/* t0 = CSR_IPI */
+	li	t2, 1
+	sd	t2, 0(t0)
+	j	exit_next_instr
+
+clear_ipi:
+	/* Do only clear if there are no new entries in HTIF ring */
+	la	t0, htif_ring
+	csrr	t2, mhartid
+	li	t4, (HTIF_RING_SIZE + 16)
+	mulw	t4, t4, t2
+	add	t0, t0, t4
+	li	t4, (HTIF_RING_SIZE)
+	add	t0, t0, t4	/* t0  == ptr to htif_ring_cursor */
+	ld	t2, 8(t0)	/* load htif_ring_last */
+	ld	t2, 8(t2)	/* load used */
+	bnez	t2, 1f
+
+	/* Clear supervisor software interrupt pending bit */
+	li	t0, MIP_SSIP
+	csrc	mip, t0
+
+1:
+	j	exit_next_instr
+
 htif_get_entry:
+	/* Get a htif_ring for current core */
+	la	t0, htif_ring
+	csrr	t2, mhartid
+	li	t4, (HTIF_RING_SIZE + 16)
+	mulw	t4, t4, t2
+	add	t0, t0, t4
+	li	t4, (HTIF_RING_SIZE + 8)
+	add	t0, t0, t4	/* t0 == htif_ring_last */
+
+	/* Check for new entries */
 	li	t6, 0		/* preset return value */
-	la	t0, htif_ring_last
-	ld	t0, 0(t0)	/* load struct */
-	ld	t4, 8(t0)	/* get used */
-	beqz	t4, 1f
-	ld	t6, 0(t0)	/* get entry */
+	ld	t2, 0(t0)	/* load ptr to last */
+	ld	t4, 8(t2)	/* get used */
+	beqz	t4, 1f		/* No new entries. Exit */
+
+	/* Get one */
+	ld	t6, 0(t2)	/* get entry */
 	li	t4, 0
-	sd	t4, 8(t0)	/* mark free */
-	sd	t4, 0(t0)	/* free entry, just in case */
-	ld	t4, 16(t0)	/* take next */
-	la	t0, htif_ring_last
-	sd	t4, 0(t0)
+	sd	t4, 8(t2)	/* mark free */
+	sd	t4, 0(t2)	/* free entry, just in case */
+	ld	t4, 16(t2)	/* take next */
+	sd	t4, 0(t0)	/* update ptr to last */
 1:
 	/* Exit. Result is stored in t6 */
 	j	exit_next_instr
 
 htif_cmd:
-	mv	t0, t6
 1:
+	mv	t0, t6
 	csrrw	t0, mtohost, t0
 	bnez	t0, 1b
+	j	exit_next_instr
+
+htif_lowputc:
+1:
+	mv	t0, t6
+	csrrw	t0, mtohost, t0
+	bnez	t0, 1b
+
+2:
+	li	t4, 0
+	csrrw	t5, mfromhost, t4
+	beqz	t5, 2b
+
+	/* Console PUT intr ? */
+	mv	t2, t5
+	srli	t2, t2, 48
+	li	t3, 0x0101
+	beq	t2, t3, 3f
+
+	/* Not a console PUT, so save entry */
+	la	t0, htif_ring
+	csrr	t2, mhartid
+	li	t4, (HTIF_RING_SIZE + 16)
+	mulw	t4, t4, t2
+	add	t0, t0, t4
+	li	t4, (HTIF_RING_SIZE)
+	add	t0, t0, t4	/* t0 == htif_ring_cursor */
+
+	ld	t2, 0(t0)	/* load ptr to cursor */
+	sd	t5, 0(t2)	/* put entry */
+	li	t4, 1
+	sd	t4, 8(t2)	/* mark used */
+	ld	t4, 16(t2)	/* take next */
+	/* Update cursor */
+	sd	t4, 0(t0)
+
+	/* Post supervisor software interrupt */
+	li	t0, MIP_SSIP
+	csrs	mip, t0
+
+	/* Wait for console intr again */
+	j	2b
+
+3:
 	j	exit_next_instr
 
 set_mtimecmp:
