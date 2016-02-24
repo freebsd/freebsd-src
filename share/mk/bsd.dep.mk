@@ -247,23 +247,22 @@ MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
 .endif	# ${MK_FAST_DEPEND} == "no"
 
 DPSRCS+= ${SRCS}
-DPFILES+=	${DPSRCS:M*.[cS]:S/.c$/.dep_c/:S/.S$/.dep_S/} \
-		${DPSRCS:M*.cc:S/.cc$/.dep_cc/} \
-		${DPSRCS:M*.C:S/.C$/.dep_C/} \
-		${DPSRCS:M*.cpp:S/.cpp$/.dep_cpp/} \
-		${DPSRCS:M*.cxx:S/.cxx$/.dep_cxx/}
-.SUFFIXES:	.dep_c .dep_S .dep_cc .dep_C .dep_cpp .dep_cxx
-.c.dep_c .S.dep_S: ${DPSRCS}
-	${MKDEPCMD} -f ${.TARGET} ${MKDEP} ${MKDEP_CFLAGS} ${.IMPSRC}
-.cc.dep_cc .C.dep_C .cpp.dep_cpp .cxx.dep_cxx: ${DPSRCS}
-	${MKDEPCMD} -f ${.TARGET} ${MKDEP} ${MKDEP_CXXFLAGS} ${.IMPSRC}
-
-.if ${MK_FAST_DEPEND} == "no"
-${DEPENDFILE}: ${DPFILES}
-	cat ${.ALLSRC} > ${DEPENDFILE}
-.else
+# FAST_DEPEND will only generate a .depend if _EXTRADEPEND is used but
+# the target is created to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
-	: > ${.TARGET}
+.if ${MK_FAST_DEPEND} == "no"
+	rm -f ${DEPENDFILE}
+.if !empty(DPSRCS:M*.[cS])
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${MKDEP_CFLAGS} ${.ALLSRC:M*.[cS]}
+.endif
+.if !empty(DPSRCS:M*.cc) || !empty(DPSRCS:M*.C) || !empty(DPSRCS:M*.cpp) || \
+    !empty(DPSRCS:M*.cxx)
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${MKDEP_CXXFLAGS} \
+	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
+.else
+.endif
 .endif	# ${MK_FAST_DEPEND} == "no"
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE

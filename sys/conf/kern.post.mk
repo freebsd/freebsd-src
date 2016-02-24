@@ -282,8 +282,6 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 	${MAKE} -V SFILES_CDDL | \
 	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_ASM_CFLAGS}
 	mv ${.TARGET}.tmp ${.TARGET}
-.else
-	: > ${.TARGET}
 .endif
 
 _ILINKS= machine
