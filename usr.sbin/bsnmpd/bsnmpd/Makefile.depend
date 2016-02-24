@@ -20,32 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-action.o: oid.h
-action.o: tree.h
-action.po: oid.h
-action.po: tree.h
-config.o: tree.h
-config.po: tree.h
-export.o: tree.h
-export.po: tree.h
-main.o: oid.h
-main.o: tree.h
-main.po: oid.h
-main.po: tree.h
-trans_lsock.o: oid.h
-trans_lsock.o: tree.h
-trans_lsock.po: oid.h
-trans_lsock.po: tree.h
-trans_udp.o: oid.h
-trans_udp.o: tree.h
-trans_udp.po: oid.h
-trans_udp.po: tree.h
-trap.o: oid.h
-trap.o: tree.h
-trap.po: oid.h
-trap.po: tree.h
-tree.o: tree.c
-tree.o: tree.h
-tree.po: tree.c
-tree.po: tree.h
 .endif

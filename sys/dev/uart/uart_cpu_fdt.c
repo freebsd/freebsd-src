@@ -54,10 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
 
-#ifdef __aarch64__
-extern bus_space_tag_t fdtbus_bs_tag;
-#endif
-
 /*
  * UART console routines.
  */
@@ -136,9 +132,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	char *cp;
 	int err;
 
-	uart_bus_space_mem = fdtbus_bs_tag;
-	uart_bus_space_io = NULL;
-
 	/* Allow overriding the FDT using the environment. */
 	class = &uart_ns8250_class;
 	err = uart_getenv(devtype, di, class);
@@ -195,10 +188,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (uart_fdt_get_shift(node, &shift) != 0)
 		shift = uart_getregshift(class);
 
-	if (OF_getprop(node, "current-speed", &br, sizeof(br)) <= 0)
+	if (OF_getencprop(node, "current-speed", &br, sizeof(br)) <= 0)
 		br = 0;
-	else
-		br = fdt32_to_cpu(br);
 
 	/*
 	 * Finalize configuration.
@@ -212,5 +203,9 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 
-	return (OF_decode_addr(node, 0, &di->bas.bst, &di->bas.bsh, NULL));
+	err = OF_decode_addr(node, 0, &di->bas.bst, &di->bas.bsh, NULL);
+	uart_bus_space_mem = di->bas.bst;
+	uart_bus_space_io = NULL;
+
+	return (err);
 }

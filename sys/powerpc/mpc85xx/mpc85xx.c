@@ -157,7 +157,8 @@ law_find_free(void)
 	return (i);
 }
 
-#define	_LAW_SR(trgt,size)	(0x80000000 | (trgt << 20) | (ffsl(size) - 2))
+#define	_LAW_SR(trgt,size)	(0x80000000 | (trgt << 20) | \
+				(flsl(size + (size - 1)) - 2))
 
 int
 law_enable(int trgt, uint64_t bar, uint32_t size)

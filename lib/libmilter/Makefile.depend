@@ -16,40 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-comm.So: sm_os.h
-comm.o: sm_os.h
-comm.po: sm_os.h
-engine.So: sm_os.h
-engine.o: sm_os.h
-engine.po: sm_os.h
-errstring.So: sm_os.h
-errstring.o: sm_os.h
-errstring.po: sm_os.h
-handler.So: sm_os.h
-handler.o: sm_os.h
-handler.po: sm_os.h
-listener.So: sm_os.h
-listener.o: sm_os.h
-listener.po: sm_os.h
-main.So: sm_os.h
-main.o: sm_os.h
-main.po: sm_os.h
-monitor.So: sm_os.h
-monitor.o: sm_os.h
-monitor.po: sm_os.h
-signal.So: sm_os.h
-signal.o: sm_os.h
-signal.po: sm_os.h
-sm_gethost.So: sm_os.h
-sm_gethost.o: sm_os.h
-sm_gethost.po: sm_os.h
-smfi.So: sm_os.h
-smfi.o: sm_os.h
-smfi.po: sm_os.h
-strl.So: sm_os.h
-strl.o: sm_os.h
-strl.po: sm_os.h
-worker.So: sm_os.h
-worker.o: sm_os.h
-worker.po: sm_os.h
 .endif

@@ -208,7 +208,7 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 	int error;
 
 	error = getsock_cap(td, uap->fd, cap_rights_init(&rights,
-	    CAP_GETSOCKOPT | CAP_GETPEERNAME | CAP_GETSOCKNAME), &fp, NULL);
+	    CAP_GETSOCKOPT, CAP_GETPEERNAME, CAP_GETSOCKNAME), &fp, NULL);
 	if (error != 0)
 		return (error);
 	so = fp->f_data;

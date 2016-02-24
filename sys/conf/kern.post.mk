@@ -86,7 +86,8 @@ ports-${__target}:
 
 .ORDER: kernel-install modules-install
 
-kernel-all: ${KERNEL_KO} ${KERNEL_EXTRA}
+beforebuild: .PHONY
+kernel-all: beforebuild .WAIT ${KERNEL_KO} ${KERNEL_EXTRA}
 
 kernel-cleandir: kernel-clean kernel-cleandepend
 
@@ -142,8 +143,10 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 
-.if !exists(${.OBJDIR}/.depend)
-${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
+OBJS_DEPEND_GUESS+=	assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} \
+			${MFILES:T:S/.m$/.h/}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/.depend)
+${SYSTEM_OBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 
 LNFILES=	${CFILES:T:S/.c$/.ln/}
@@ -177,9 +180,6 @@ hack.So: Makefile
 	:> hack.c
 	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.So
 	rm -f hack.c
-
-# This rule stops ./assym.s in .depend from causing problems.
-./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
 	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
@@ -223,10 +223,17 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
 DEPENDFILES=	.depend .depend.*
-.if ${MK_FAST_DEPEND} == "yes" && \
-    (${.MAKE.MODE:Unormal:Mmeta} == "" || ${.MAKE.MODE:Unormal:Mnofilemon} != "")
+# Skip generating or including .depend.* files if in meta+filemon mode since
+# it will track dependencies itself.  OBJS_DEPEND_GUESS is still used though.
+.if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
+_meta_filemon=	1
+.endif
+.if ${MK_FAST_DEPEND} == "yes"
+DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
+DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
+.if !defined(_meta_filemon)
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
@@ -235,14 +242,34 @@ CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
 .endif
-DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
-DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .sinclude "${__depend_obj}"
 .endfor
-.endif
+.endif	# !defined(_SKIP_READ_DEPEND)
+.endif	# !defined(_meta_filemon)
+
+# Always run 'make depend' to generate dependencies early and to avoid the
+# need for manually running it.  For the kernel this is mostly a NOP since
+# all dependencies are correctly added or accounted for.  This is mostly to
+# ensure downstream uses of kernel-depend are handled.
+beforebuild: kernel-depend
 .endif	# ${MK_FAST_DEPEND} == "yes"
+
+# Guess some dependencies for when no ${DEPENDFILE}.OBJ is generated yet.
+# For meta+filemon the .meta file is checked for since it is the dependency
+# file used.
+.if ${MK_FAST_DEPEND} == "yes"
+.for __obj in ${DEPENDOBJS:O:u}
+.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${__obj}.meta)) || \
+    (!defined(_meta_filemon) && !exists(${.OBJDIR}/.depend.${__obj}))
+.if ${SYSTEM_OBJS:M${__obj}}
+${__obj}: ${OBJS_DEPEND_GUESS}
+.endif
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.endif
+.endfor
+.endif
 
 .NOPATH: .depend ${DEPENDFILES_OBJS}
 
@@ -267,8 +294,6 @@ DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 	${MAKE} -V SFILES_CDDL | \
 	    CC="${_MKDEPCC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_ASM_CFLAGS}
 	mv ${.TARGET}.tmp ${.TARGET}
-.else
-	: > ${.TARGET}
 .endif
 
 _ILINKS= machine

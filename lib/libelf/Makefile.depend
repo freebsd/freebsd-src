@@ -15,13 +15,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-libelf_convert.So: libelf_convert.c
-libelf_convert.o: libelf_convert.c
-libelf_convert.po: libelf_convert.c
-libelf_fsize.So: libelf_fsize.c
-libelf_fsize.o: libelf_fsize.c
-libelf_fsize.po: libelf_fsize.c
-libelf_msize.So: libelf_msize.c
-libelf_msize.o: libelf_msize.c
-libelf_msize.po: libelf_msize.c
 .endif

@@ -20,10 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-crypt_server.o: crypt.h
-crypt_server.po: crypt.h
-crypt_svc.o: crypt.h
-crypt_svc.o: crypt_svc.c
-crypt_svc.po: crypt.h
-crypt_svc.po: crypt_svc.c
 .endif

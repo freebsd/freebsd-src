@@ -20,10 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-parser.o: parser.c
-parser.po: parser.c
-tokenizer.o: parser.h
-tokenizer.o: tokenizer.c
-tokenizer.po: parser.h
-tokenizer.po: tokenizer.c
 .endif
