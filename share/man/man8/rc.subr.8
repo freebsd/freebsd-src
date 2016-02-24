@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2014
+.Dd February 4, 2016
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -604,6 +604,16 @@ as.
 Only supported after
 .Pa /usr
 is mounted.
+.It Va ${name}_oomprotect
+.Xr protect 1
+.Va command
+from being killed when swap space is exhausted.
+If
+.Em YES
+is used, no child processes are protected.
+If
+.Em ALL ,
+protect all child processes.
 .It Va ${name}_program
 Full path to the command.
 Overrides
