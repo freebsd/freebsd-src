@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2013
+.Dd January 28, 2016
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -48,6 +48,18 @@ The device
 responds to two
 .Xr ioctl 2
 calls.
+.Pp
+.Nm
+is not intended to be a security auditing tool.
+Many syscalls are not tracked and binaries of foreign ABI will not be fully
+audited.
+It is intended for auditing of processes for the purpose of determining its
+dependencies in an efficient and easily parsable format.
+An example of this is
+.Xr make 1
+which uses this module with
+.Sy .MAKE.MODE=meta
+to handle incremental builds more smartly.
 .Pp
 System calls are denoted using the following single letters:
 .Pp
@@ -172,3 +184,12 @@ A
 .Nm
 device appeared in
 .Fx 9.1 .
+.Sh BUGS
+Loading
+.Nm
+may reduce system performance for the noted syscalls.
+.Pp
+Only children of the set process are logged.
+Processes can escape being traced by double forking.
+This is not seen as a problem as the intended use is build monitoring, which
+does not make sense to have daemons for.
