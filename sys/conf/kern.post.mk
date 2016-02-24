@@ -147,8 +147,10 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	sh ${S}/tools/embed_cheriabitest_list.sh ${FULLKERNEL}
 .endif
 
-.if !exists(${.OBJDIR}/.depend)
-${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
+OBJS_DEPEND_GUESS+=	assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} \
+			${MFILES:T:S/.m$/.h/}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/.depend)
+${SYSTEM_OBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 
 LNFILES=	${CFILES:T:S/.c$/.ln/}
@@ -243,10 +245,18 @@ CFLAGS+=	${DEPEND_CFLAGS}
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
 DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if !defined(_SKIP_READ_DEPEND)
-.for __depend_obj in ${DEPENDFILES_OBJS}
-.sinclude "${__depend_obj}"
-.endfor
+.for __obj in ${DEPENDOBJS}
+.if exists(${.OBJDIR}/.depend.${__obj})
+.include ".depend.${__obj}"
+.else
+# Guess some dependencies for when no .depend.OBJ is generated yet.
+.if ${SYSTEM_OBJS:M${__obj}}
+${__obj}: ${OBJS_DEPEND_GUESS}
 .endif
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.endif
+.endfor
+.endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# ${MK_FAST_DEPEND} == "yes"
 
 .NOPATH: .depend ${DEPENDFILES_OBJS}

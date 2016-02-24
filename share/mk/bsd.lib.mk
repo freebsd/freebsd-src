@@ -448,28 +448,31 @@ lint: ${SRCS:M*.c}
 .include <bsd.man.mk>
 .endif
 
-.include <bsd.dep.mk>
-
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .if defined(LIB) && !empty(LIB)
-.if !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
+OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${OBJS} ${STATICOBJS} ${POBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 .for _S in ${SRCS:N*.[hly]}
-${_S:R}.po: ${_S}
+OBJS_DEPEND_GUESS.${_S:R}.po=	${_S}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_S:R}.po: ${OBJS_DEPEND_GUESS.${_S:R}.po}
+.endif
 .endfor
 .endif
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
-.if !exists(${.OBJDIR}/${DEPENDFILE})
-${SOBJS}: ${SRCS:M*.h}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${SOBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 .for _S in ${SRCS:N*.[hly]}
-${_S:R}.So: ${_S}
+OBJS_DEPEND_GUESS.${_S:R}.So=	${_S}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_S:R}.So: ${OBJS_DEPEND_GUESS.${_S:R}.So}
+.endif
 .endfor
 .endif
-.endif
 
+.include <bsd.dep.mk>
 .include <bsd.obj.mk>
-
 .include <bsd.sys.mk>

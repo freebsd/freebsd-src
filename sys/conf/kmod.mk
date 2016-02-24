@@ -450,16 +450,16 @@ lint: ${SRCS}
 ${OBJS}: opt_global.h
 .endif
 
-.include <bsd.dep.mk>
-
 CLEANDEPENDFILES+=	${_ILINKS}
 # .depend needs include links so we remove them only together.
 cleanilinks:
 	rm -f ${_ILINKS}
 
-.if !exists(${.OBJDIR}/${DEPENDFILE})
-${OBJS}: ${SRCS:M*.h}
+OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${OBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 
+.include <bsd.dep.mk>
 .include <bsd.obj.mk>
 .include "kern.mk"

@@ -95,19 +95,21 @@ _SKIP_READ_DEPEND=	1
 .if defined(SRCS)
 CLEANFILES?=
 
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .for _S in ${SRCS:N*.[dhly]}
-${_S:R}.o: ${_S}
-.endfor
+OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_S:R}.o: ${OBJS_DEPEND_GUESS.${_S:R}.o}
 .endif
+.endfor
 
 # Lexical analyzers
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
-${_LC:R}.o: ${_LC}
+OBJS_DEPEND_GUESS.${_LC:R}.o=	${_LC}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_LC:R}.o: ${OBJS_DEPEND_GUESS.${_LC:R}.o}
 .endif
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
 CLEANFILES+= ${_LC}
@@ -137,8 +139,9 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
-${_YC:R}.o: ${_YC}
+OBJS_DEPEND_GUESS.${_YC:R}.o=	${_YC}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_YC:R}.o: ${OBJS_DEPEND_GUESS.${_YC:R}.o}
 .endif
 .endfor
 .endfor
@@ -196,7 +199,7 @@ DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .sinclude "${__depend_obj}"
 .endfor
-.endif
+.endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# ${MK_FAST_DEPEND} == "yes"
 .endif	# defined(SRCS)
 
@@ -207,6 +210,18 @@ DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 depend: beforedepend ${DPSRCS} ${SRCS} afterdepend
 beforedepend:
 afterdepend: beforedepend
+.endif
+
+# Guess some dependencies for when no ${DEPENDFILE}.OBJ is generated yet.
+# Done here to support meta mode as well which does not always need
+# the CFLAGS modifications or .depend.* included.
+.if ${MK_FAST_DEPEND} == "yes"
+.for __obj in ${DEPENDOBJS:O:u}
+.if !exists(${.OBJDIR}/${DEPENDFILE}.${__obj})
+${__obj}: ${OBJS_DEPEND_GUESS}
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.endif
+.endfor
 .endif
 
 .if !target(depend)
