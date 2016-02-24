@@ -130,7 +130,7 @@ i386_linux_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 }
 
 static struct procabi i386_linux = {
-	"Linux ELF32",
+	"Linux ELF",
 	linux_syscallnames,
 	nitems(linux_syscallnames),
 	i386_linux_fetch_args,
