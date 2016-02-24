@@ -20,18 +20,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-hast_snmp.So: hast_oid.h
-hast_snmp.So: hast_tree.h
-hast_snmp.po: hast_oid.h
-hast_snmp.po: hast_tree.h
-hast_tree.So: hast_tree.c
-hast_tree.So: hast_tree.h
-hast_tree.po: hast_tree.c
-hast_tree.po: hast_tree.h
-parse.So: parse.c
-parse.po: parse.c
-token.So: token.c
-token.So: y.tab.h
-token.po: token.c
-token.po: y.tab.h
 .endif

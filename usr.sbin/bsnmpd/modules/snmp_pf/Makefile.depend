@@ -17,12 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-pf_snmp.So: pf_oid.h
-pf_snmp.So: pf_tree.h
-pf_snmp.po: pf_oid.h
-pf_snmp.po: pf_tree.h
-pf_tree.So: pf_tree.c
-pf_tree.So: pf_tree.h
-pf_tree.po: pf_tree.c
-pf_tree.po: pf_tree.h
 .endif

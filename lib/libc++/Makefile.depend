@@ -17,22 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-cxxrt_auxhelper.o: cxxrt_auxhelper.cc
-cxxrt_auxhelper.po: cxxrt_auxhelper.cc
-cxxrt_dynamic_cast.o: cxxrt_dynamic_cast.cc
-cxxrt_dynamic_cast.po: cxxrt_dynamic_cast.cc
-cxxrt_exception.o: cxxrt_exception.cc
-cxxrt_exception.po: cxxrt_exception.cc
-cxxrt_guard.o: cxxrt_guard.cc
-cxxrt_guard.po: cxxrt_guard.cc
-cxxrt_libelftc_dem_gnu3.o: cxxrt_libelftc_dem_gnu3.c
-cxxrt_libelftc_dem_gnu3.po: cxxrt_libelftc_dem_gnu3.c
-cxxrt_memory.o: cxxrt_memory.cc
-cxxrt_memory.po: cxxrt_memory.cc
-cxxrt_stdexcept.o: cxxrt_stdexcept.cc
-cxxrt_stdexcept.po: cxxrt_stdexcept.cc
-cxxrt_terminate.o: cxxrt_terminate.cc
-cxxrt_terminate.po: cxxrt_terminate.cc
-cxxrt_typeinfo.o: cxxrt_typeinfo.cc
-cxxrt_typeinfo.po: cxxrt_typeinfo.cc
 .endif

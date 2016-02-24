@@ -29,16 +29,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-gssd.o: gssd.h
-gssd.po: gssd.h
-gssd_prot.o: gssd.h
-gssd_prot.po: gssd.h
-gssd_svc.o: gssd.h
-gssd_svc.o: gssd_svc.c
-gssd_svc.po: gssd.h
-gssd_svc.po: gssd_svc.c
-gssd_xdr.o: gssd.h
-gssd_xdr.o: gssd_xdr.c
-gssd_xdr.po: gssd.h
-gssd_xdr.po: gssd_xdr.c
 .endif
