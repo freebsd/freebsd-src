@@ -372,6 +372,8 @@ struct vattr {
 MALLOC_DECLARE(M_VNODE);
 #endif
 
+extern u_int ncsizefactor;
+
 /*
  * Convert between vnode types and inode formats (since POSIX.1
  * defines mode word of stat structure in terms of inode formats).
