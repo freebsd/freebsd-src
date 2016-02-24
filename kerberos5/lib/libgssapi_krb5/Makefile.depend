@@ -19,6 +19,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libgssapi \
 	secure/lib/libcrypto \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>

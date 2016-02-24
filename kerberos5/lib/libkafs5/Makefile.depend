@@ -14,6 +14,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	secure/lib/libcrypto \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>
