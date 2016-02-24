@@ -48,7 +48,7 @@ options		AR71XX_ENV_UBOOT
 device          geom_map
 
 # uzip - to boot natively from flash
-options 	GEOM_UNCOMPRESS
+options 	GEOM_UZIP
 options         GEOM_PART_GPT
 
 # yes, this board has a PCI connected atheros device
