@@ -1364,6 +1364,7 @@ packagekernel:
 stagekernel:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
 
+PORTSDIR?=	/usr/ports
 WSTAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/worldstage
 KSTAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/${TARGET}.${TARGET_ARCH}/kernelstage
 REPODIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/repo
