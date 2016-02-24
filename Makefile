@@ -317,11 +317,9 @@ kernel: buildkernel installkernel
 # Perform a few tests to determine if the installed tools are adequate
 # for building the world.
 #
-# Note: if we ever need to care about the version of bmake, simply testing
-# MAKE_VERSION against a required version should suffice.
-#
 upgrade_checks:
-.if ${HAVE_MAKE} != ${WANT_MAKE}
+.if ${HAVE_MAKE} != ${WANT_MAKE} || \
+    (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
 	@(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
 .endif
 
