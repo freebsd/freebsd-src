@@ -47,8 +47,15 @@ SUBDIR_TARGETS+= \
 
 # Described above.
 STANDALONE_SUBDIR_TARGETS+= \
-		obj check checkdpadd clean cleandepend cleandir \
-		cleanilinks cleanobj installconfig \
+		all-man buildconfig buildfiles buildincludes check checkdpadd \
+		clean cleandepend cleandir cleanilinks cleanobj files includes \
+		installconfig installincludes installfiles maninstall manlint \
+		obj objlink \
+
+# It is safe to install in parallel when staging.
+.if defined(NO_ROOT)
+STANDALONE_SUBDIR_TARGETS+= realinstall
+.endif
 
 .include <bsd.init.mk>
 
