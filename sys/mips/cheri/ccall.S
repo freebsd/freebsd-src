@@ -581,7 +581,7 @@ CCall_c1_range:
 #else /* CPU_CHERI_HW_CCALL_CHECKS */
 
 CCall_wrong_regs:
-	dli	k0, ((CHERI_EXCCODE_CCALL_WRONGREGS <<8) | 0)
+	dli	k0, ((CHERI_EXCCODE_CCALL_CCALLREGS << 8) | 0)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
