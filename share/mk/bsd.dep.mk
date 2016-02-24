@@ -246,6 +246,8 @@ MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
 .endif	# ${MK_FAST_DEPEND} == "no"
 
 DPSRCS+= ${SRCS}
+# FAST_DEPEND will only generate a .depend if _EXTRADEPEND is used but
+# the target is created to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
 .if ${MK_FAST_DEPEND} == "no"
 	rm -f ${DEPENDFILE}
@@ -260,8 +262,6 @@ ${DEPENDFILE}: ${DPSRCS}
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
 .else
 .endif
-.else
-	: > ${.TARGET}
 .endif	# ${MK_FAST_DEPEND} == "no"
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
