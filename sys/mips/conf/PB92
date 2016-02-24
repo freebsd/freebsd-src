@@ -54,9 +54,9 @@ options         FFS                     #Berkeley Fast Filesystem
 #options         UFS_DIRHASH             #Improve performance on big directories
 
 # Support uncompress lzma rootfs
-device		geom_uncompress
-options 	GEOM_UNCOMPRESS
-options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+device		geom_uzip
+options 	GEOM_UZIP
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
 
 # PCI bus
 device		pci
