@@ -807,6 +807,11 @@ cheri_get_cyclecount(void)
 	return (_time & 0xffffffff);
 }
 
+/* Special marker nops recognised by analyse_trace.py to start / stop 
+   region of interest in trace */
+#define CHERI_START_TRACE do {asm volatile("li $0, 0xbeef");} while(0)
+#define CHERI_STOP_TRACE do {asm volatile("li $0, 0xdead");} while(0)
+
 #ifdef _KERNEL
 #define	CHERI_CAP_PRINT(crn) do {					\
 	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\

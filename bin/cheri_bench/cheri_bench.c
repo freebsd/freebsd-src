@@ -264,7 +264,9 @@ int benchmark(memcpy_t *memcpy_func, __capability char *dataout, __capability ch
 	  insts   = get_inst_count();
 	  instTLB = get_tlb_inst_count();
 	  dataTLB = get_tlb_data_count();
+	  CHERI_START_TRACE;
 	  memcpy_func(dataout, datain, size, data);
+	  CHERI_STOP_TRACE;
 	  cycles2  = get_cycle_count();
 	  insts2   = get_inst_count();
 	  instTLB2 = get_tlb_inst_count();
