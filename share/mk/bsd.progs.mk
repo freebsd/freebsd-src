@@ -27,18 +27,6 @@ UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 .export UPDATE_DEPENDFILE_PROG
 .endif
 
-.ifndef PROG
-# They may have asked us to build just one
-.for t in ${PROGS}
-.if make($t)
-.if ${PROGS_CXX:U:M${t}}
-PROG_CXX ?= $t
-.endif
-PROG ?= $t
-.endif
-.endfor
-.endif
-
 .if defined(PROG)
 # just one of many
 PROG_OVERRIDE_VARS +=	BINDIR BINGRP BINOWN BINMODE DPSRCS MAN NO_WERROR \
