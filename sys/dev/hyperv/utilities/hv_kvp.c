@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/netvsc/hv_net_vsc.h>
 
+#include "hv_util.h"
 #include "unicode.h"
 #include "hv_kvp.h"
 
@@ -74,8 +75,6 @@ __FBSDID("$FreeBSD$");
 
 /* hv_kvp debug control */
 static int hv_kvp_log = 0;
-SYSCTL_INT(_dev, OID_AUTO, hv_kvp_log, CTLFLAG_RW, &hv_kvp_log, 0,
-	"hv_kvp log");
 
 #define	hv_kvp_log_error(...)	do {				\
 	if (hv_kvp_log > 0)				\
@@ -87,18 +86,16 @@ SYSCTL_INT(_dev, OID_AUTO, hv_kvp_log, CTLFLAG_RW, &hv_kvp_log, 0,
 		log(LOG_INFO, "hv_kvp: " __VA_ARGS__);		\
 } while (0)
 
+static hv_guid service_guid = { .data =
+	{0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+	0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6} };
+
 /* character device prototypes */
 static d_open_t		hv_kvp_dev_open;
 static d_close_t	hv_kvp_dev_close;
 static d_read_t		hv_kvp_dev_daemon_read;
 static d_write_t	hv_kvp_dev_daemon_write;
 static d_poll_t		hv_kvp_dev_daemon_poll;
-
-/* hv_kvp prototypes */
-static int	hv_kvp_req_in_progress(void);
-static void	hv_kvp_transaction_init(uint32_t, hv_vmbus_channel *, uint64_t, uint8_t *);
-static void	hv_kvp_send_msg_to_daemon(void);
-static void	hv_kvp_process_request(void *context, int pending);
 
 /* hv_kvp character device structure */
 static struct cdevsw hv_kvp_cdevsw =
@@ -111,67 +108,67 @@ static struct cdevsw hv_kvp_cdevsw =
 	.d_poll		= hv_kvp_dev_daemon_poll,
 	.d_name		= "hv_kvp_dev",
 };
-static struct cdev *hv_kvp_dev;
-static struct hv_kvp_msg *hv_kvp_dev_buf;
-struct proc *daemon_task;
 
-static struct selinfo hv_kvp_selinfo;
 
 /*
  * Global state to track and synchronize multiple
  * KVP transaction requests from the host.
  */
-static struct {
+typedef struct hv_kvp_sc {
+	struct hv_util_sc	util_sc;
 
-	/* Unless specified the pending mutex should be 
+	/* Unless specified the pending mutex should be
 	 * used to alter the values of the following paramters:
 	 * 1. req_in_progress
 	 * 2. req_timed_out
-	 * 3. pending_reqs.
 	 */
-	struct mtx		pending_mutex;	  
-	
+	struct mtx		pending_mutex;
+
+	struct task		task;
+
 	/* To track if transaction is active or not */
-	boolean_t		req_in_progress;    
+	boolean_t		req_in_progress;
 	/* Tracks if daemon did not reply back in time */
-	boolean_t		req_timed_out;	  
+	boolean_t		req_timed_out;
 	/* Tracks if daemon is serving a request currently */
 	boolean_t		daemon_busy;
-	/* Count of KVP requests from Hyper-V. */
-	uint64_t		pending_reqs;       
-	
-	
-	/* Length of host message */
-	uint32_t		host_msg_len;	    
 
-	/* Pointer to channel */
-	hv_vmbus_channel	*channelp;	    
+	/* Length of host message */
+	uint32_t		host_msg_len;
 
 	/* Host message id */
-	uint64_t		host_msg_id;	   
-	
-	/* Current kvp message from the host */
-	struct hv_kvp_msg	*host_kvp_msg;      
-	
-	 /* Current kvp message for daemon */
-	struct hv_kvp_msg	daemon_kvp_msg;    
-	
-	/* Rcv buffer for communicating with the host*/
-	uint8_t			*rcv_buf;	    
-	
-	/* Device semaphore to control communication */
-	struct sema		dev_sema;	   
-	
-	/* Indicates if daemon registered with driver */
-	boolean_t		register_done;      
-	
-	/* Character device status */
-	boolean_t		dev_accessed;	    
-} kvp_globals;
+	uint64_t		host_msg_id;
 
-/* global vars */
-MALLOC_DECLARE(M_HV_KVP_DEV_BUF);
-MALLOC_DEFINE(M_HV_KVP_DEV_BUF, "hv_kvp_dev buffer", "buffer for hv_kvp_dev module");
+	/* Current kvp message from the host */
+	struct hv_kvp_msg	*host_kvp_msg;
+
+	 /* Current kvp message for daemon */
+	struct hv_kvp_msg	daemon_kvp_msg;
+
+	/* Rcv buffer for communicating with the host*/
+	uint8_t			*rcv_buf;
+
+	/* Device semaphore to control communication */
+	struct sema		dev_sema;
+
+	/* Indicates if daemon registered with driver */
+	boolean_t		register_done;
+
+	/* Character device status */
+	boolean_t		dev_accessed;
+
+	struct cdev *hv_kvp_dev;
+
+	struct proc *daemon_task;
+
+	struct selinfo hv_kvp_selinfo;
+} hv_kvp_sc;
+
+/* hv_kvp prototypes */
+static int	hv_kvp_req_in_progress(hv_kvp_sc *sc);
+static void	hv_kvp_transaction_init(hv_kvp_sc *sc, uint32_t, uint64_t, uint8_t *);
+static void	hv_kvp_send_msg_to_daemon(hv_kvp_sc *sc);
+static void	hv_kvp_process_request(void *context, int pending);
 
 /*
  * hv_kvp low level functions
@@ -181,10 +178,10 @@ MALLOC_DEFINE(M_HV_KVP_DEV_BUF, "hv_kvp_dev buffer", "buffer for hv_kvp_dev modu
  * Check if kvp transaction is in progres
  */
 static int
-hv_kvp_req_in_progress(void)
+hv_kvp_req_in_progress(hv_kvp_sc *sc)
 {
 
-	return (kvp_globals.req_in_progress);
+	return (sc->req_in_progress);
 }
 
 
@@ -192,18 +189,17 @@ hv_kvp_req_in_progress(void)
  * This routine is called whenever a message is received from the host
  */
 static void
-hv_kvp_transaction_init(uint32_t rcv_len, hv_vmbus_channel *rcv_channel,
+hv_kvp_transaction_init(hv_kvp_sc *sc, uint32_t rcv_len,
 			uint64_t request_id, uint8_t *rcv_buf)
 {
-	
+
 	/* Store all the relevant message details in the global structure */
 	/* Do not need to use mutex for req_in_progress here */
-	kvp_globals.req_in_progress = true;
-	kvp_globals.host_msg_len = rcv_len;
-	kvp_globals.channelp = rcv_channel;
-	kvp_globals.host_msg_id = request_id;
-	kvp_globals.rcv_buf = rcv_buf;
-	kvp_globals.host_kvp_msg = (struct hv_kvp_msg *)&rcv_buf[
+	sc->req_in_progress = true;
+	sc->host_msg_len = rcv_len;
+	sc->host_msg_id = request_id;
+	sc->rcv_buf = rcv_buf;
+	sc->host_kvp_msg = (struct hv_kvp_msg *)&rcv_buf[
 		sizeof(struct hv_vmbus_pipe_hdr) +
 		sizeof(struct hv_vmbus_icmsg_hdr)];
 }
@@ -255,12 +251,12 @@ hv_kvp_negotiate_version(struct hv_vmbus_icmsg_hdr *icmsghdrp,
  * Convert ip related info in umsg from utf8 to utf16 and store in hmsg
  */
 static int
-hv_kvp_convert_utf8_ipinfo_to_utf16(struct hv_kvp_msg *umsg, 
+hv_kvp_convert_utf8_ipinfo_to_utf16(struct hv_kvp_msg *umsg,
 				    struct hv_kvp_ip_msg *host_ip_msg)
 {
 	int err_ip, err_subnet, err_gway, err_dns, err_adap;
 	int UNUSED_FLAG = 1;
- 		
+
 	utf8_to_utf16((uint16_t *)host_ip_msg->kvp_ip_val.ip_addr,
 	    MAX_IP_ADDR_SIZE,
 	    (char *)umsg->body.kvp_ip_val.ip_addr,
@@ -291,7 +287,7 @@ hv_kvp_convert_utf8_ipinfo_to_utf16(struct hv_kvp_msg *umsg,
 	    strlen((char *)umsg->body.kvp_ip_val.adapter_id),
 	    UNUSED_FLAG,
 	    &err_adap);
-	
+
 	host_ip_msg->kvp_ip_val.dhcp_enabled = umsg->body.kvp_ip_val.dhcp_enabled;
 	host_ip_msg->kvp_ip_val.addr_family = umsg->body.kvp_ip_val.addr_family;
 
@@ -386,7 +382,7 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
 	    MAX_IP_ADDR_SIZE,
 	    UNUSED_FLAG,
 	    &err_subnet);
-	
+
 	utf16_to_utf8((char *)umsg->body.kvp_ip_val.gate_way, MAX_GATEWAY_SIZE,
 	    (uint16_t *)host_ip_msg->kvp_ip_val.gate_way,
 	    MAX_GATEWAY_SIZE,
@@ -408,16 +404,13 @@ hv_kvp_convert_utf16_ipinfo_to_utf8(struct hv_kvp_ip_msg *host_ip_msg,
  * Ensure utf16_utf8 takes care of the additional string terminating char!!
  */
 static void
-hv_kvp_convert_hostmsg_to_usermsg(void)
+hv_kvp_convert_hostmsg_to_usermsg(struct hv_kvp_msg *hmsg, struct hv_kvp_msg *umsg)
 {
 	int utf_err = 0;
 	uint32_t value_type;
-	struct hv_kvp_ip_msg *host_ip_msg = (struct hv_kvp_ip_msg *)
-		kvp_globals.host_kvp_msg;
+	struct hv_kvp_ip_msg *host_ip_msg;
 
-	struct hv_kvp_msg *hmsg = kvp_globals.host_kvp_msg;
-	struct hv_kvp_msg *umsg = &kvp_globals.daemon_kvp_msg;
-
+	host_ip_msg = (struct hv_kvp_ip_msg*)hmsg;
 	memset(umsg, 0, sizeof(struct hv_kvp_msg));
 
 	umsg->kvp_hdr.operation = hmsg->kvp_hdr.operation;
@@ -522,14 +515,12 @@ hv_kvp_convert_hostmsg_to_usermsg(void)
  * Prepare a host kvp msg based on user kvp msg (utf8 to utf16)
  */
 static int
-hv_kvp_convert_usermsg_to_hostmsg(void)
+hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hmsg)
 {
 	int hkey_len = 0, hvalue_len = 0, utf_err = 0;
 	struct hv_kvp_exchg_msg_value *host_exchg_data;
 	char *key_name, *value;
 
-	struct hv_kvp_msg *umsg = &kvp_globals.daemon_kvp_msg;
-	struct hv_kvp_msg *hmsg = kvp_globals.host_kvp_msg;
 	struct hv_kvp_ip_msg *host_ip_msg = (struct hv_kvp_ip_msg *)hmsg;
 
 	switch (hmsg->kvp_hdr.operation) {
@@ -561,7 +552,7 @@ hv_kvp_convert_usermsg_to_hostmsg(void)
 
 		if ((hkey_len < 0) || (hvalue_len < 0))
 			return (HV_KVP_E_FAIL);
-			
+
 		return (KVP_SUCCESS);
 
 	case HV_KVP_OP_GET:
@@ -577,9 +568,9 @@ hv_kvp_convert_usermsg_to_hostmsg(void)
 		/* Use values by string */
 		host_exchg_data->value_type = HV_REG_SZ;
 
-		if ((hkey_len < 0) || (hvalue_len < 0)) 
+		if ((hkey_len < 0) || (hvalue_len < 0))
 			return (HV_KVP_E_FAIL);
-			
+
 		return (KVP_SUCCESS);
 
 	default:
@@ -592,22 +583,22 @@ hv_kvp_convert_usermsg_to_hostmsg(void)
  * Send the response back to the host.
  */
 static void
-hv_kvp_respond_host(int error)
+hv_kvp_respond_host(hv_kvp_sc *sc, int error)
 {
 	struct hv_vmbus_icmsg_hdr *hv_icmsg_hdrp;
 
 	hv_icmsg_hdrp = (struct hv_vmbus_icmsg_hdr *)
-	    &kvp_globals.rcv_buf[sizeof(struct hv_vmbus_pipe_hdr)];
+	    &sc->rcv_buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
 	if (error)
 		error = HV_KVP_E_FAIL;
 
 	hv_icmsg_hdrp->status = error;
 	hv_icmsg_hdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION | HV_ICMSGHDRFLAG_RESPONSE;
-	
-	error = hv_vmbus_channel_send_packet(kvp_globals.channelp,
-			kvp_globals.rcv_buf,
-			kvp_globals.host_msg_len, kvp_globals.host_msg_id,
+
+	error = hv_vmbus_channel_send_packet(sc->util_sc.hv_dev->channel,
+			sc->rcv_buf,
+			sc->host_msg_len, sc->host_msg_id,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
 
 	if (error)
@@ -621,16 +612,19 @@ hv_kvp_respond_host(int error)
  * and the host
  */
 static void
-hv_kvp_send_msg_to_daemon(void)
+hv_kvp_send_msg_to_daemon(hv_kvp_sc *sc)
 {
+	struct hv_kvp_msg *hmsg = sc->host_kvp_msg;
+	struct hv_kvp_msg *umsg = &sc->daemon_kvp_msg;
+
 	/* Prepare kvp_msg to be sent to user */
-	hv_kvp_convert_hostmsg_to_usermsg();
+	hv_kvp_convert_hostmsg_to_usermsg(hmsg, umsg);
 
 	/* Send the msg to user via function deamon_read - setting sema */
-	sema_post(&kvp_globals.dev_sema);
+	sema_post(&sc->dev_sema);
 
 	/* We should wake up the daemon, in case it's doing poll() */
-	selwakeup(&hv_kvp_selinfo);
+	selwakeup(&sc->hv_kvp_selinfo);
 }
 
 
@@ -642,95 +636,80 @@ static void
 hv_kvp_process_request(void *context, int pending)
 {
 	uint8_t *kvp_buf;
-	hv_vmbus_channel *channel = context;
+	hv_vmbus_channel *channel;
 	uint32_t recvlen = 0;
 	uint64_t requestid;
 	struct hv_vmbus_icmsg_hdr *icmsghdrp;
 	int ret = 0;
-	uint64_t pending_cnt = 1;
-	
+	hv_kvp_sc		*sc;
+
 	hv_kvp_log_info("%s: entering hv_kvp_process_request\n", __func__);
-	kvp_buf = receive_buffer[HV_KVP];
+
+	sc = (hv_kvp_sc*)context;
+	kvp_buf = sc->util_sc.receive_buffer;;
+	channel = sc->util_sc.hv_dev->channel;
+
 	ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
 		&recvlen, &requestid);
 
-	/*
-	 * We start counting only after the daemon registers
-	 * and therefore there could be requests pending in 
-	 * the VMBus that are not reflected in pending_cnt.
-	 * Therefore we continue reading as long as either of
-	 * the below conditions is true.
-	 */
+	while ((ret == 0) && (recvlen > 0)) {
 
-	while ((pending_cnt>0) || ((ret == 0) && (recvlen > 0))) {
+		icmsghdrp = (struct hv_vmbus_icmsg_hdr *)
+			&kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
 
-		if ((ret == 0) && (recvlen>0)) {
-			
-			icmsghdrp = (struct hv_vmbus_icmsg_hdr *)
-					&kvp_buf[sizeof(struct hv_vmbus_pipe_hdr)];
-	
-			hv_kvp_transaction_init(recvlen, channel, requestid, kvp_buf);
-			if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
-				hv_kvp_negotiate_version(icmsghdrp, NULL, kvp_buf);
-				hv_kvp_respond_host(ret);
-					
-				/*
-				 * It is ok to not acquire the mutex before setting 
-				 * req_in_progress here because negotiation is the
-				 * first thing that happens and hence there is no
-				 * chance of a race condition.
-				 */
-				
-				kvp_globals.req_in_progress = false;
-				hv_kvp_log_info("%s :version negotiated\n", __func__);
+		hv_kvp_transaction_init(sc, recvlen, requestid, kvp_buf);
+		if (icmsghdrp->icmsgtype == HV_ICMSGTYPE_NEGOTIATE) {
+			hv_kvp_negotiate_version(icmsghdrp, NULL, kvp_buf);
+			hv_kvp_respond_host(sc, ret);
 
-			} else {
-				if (!kvp_globals.daemon_busy) {
+			/*
+			 * It is ok to not acquire the mutex before setting
+			 * req_in_progress here because negotiation is the
+			 * first thing that happens and hence there is no
+			 * chance of a race condition.
+			 */
 
-					hv_kvp_log_info("%s: issuing qury to daemon\n", __func__);
-					mtx_lock(&kvp_globals.pending_mutex);
-					kvp_globals.req_timed_out = false;
-					kvp_globals.daemon_busy = true;
-					mtx_unlock(&kvp_globals.pending_mutex);
+			sc->req_in_progress = false;
+			hv_kvp_log_info("%s :version negotiated\n", __func__);
 
-					hv_kvp_send_msg_to_daemon();
-					hv_kvp_log_info("%s: waiting for daemon\n", __func__);
-				}
-				
-				/* Wait 5 seconds for daemon to respond back */
-				tsleep(&kvp_globals, 0, "kvpworkitem", 5 * hz);
-				hv_kvp_log_info("%s: came out of wait\n", __func__);
+		} else {
+			if (!sc->daemon_busy) {
+
+				hv_kvp_log_info("%s: issuing qury to daemon\n", __func__);
+				mtx_lock(&sc->pending_mutex);
+				sc->req_timed_out = false;
+				sc->daemon_busy = true;
+				mtx_unlock(&sc->pending_mutex);
+
+				hv_kvp_send_msg_to_daemon(sc);
+				hv_kvp_log_info("%s: waiting for daemon\n", __func__);
 			}
+
+			/* Wait 5 seconds for daemon to respond back */
+			tsleep(sc, 0, "kvpworkitem", 5 * hz);
+			hv_kvp_log_info("%s: came out of wait\n", __func__);
 		}
 
-		mtx_lock(&kvp_globals.pending_mutex);
-		
+		mtx_lock(&sc->pending_mutex);
+
 		/* Notice that once req_timed_out is set to true
 		 * it will remain true until the next request is
 		 * sent to the daemon. The response from daemon
-		 * is forwarded to host only when this flag is 
-		 * false. 
+		 * is forwarded to host only when this flag is
+		 * false.
 		 */
-		kvp_globals.req_timed_out = true;
+		sc->req_timed_out = true;
 
 		/*
 		 * Cancel request if so need be.
 		 */
-		if (hv_kvp_req_in_progress()) {
+		if (hv_kvp_req_in_progress(sc)) {
 			hv_kvp_log_info("%s: request was still active after wait so failing\n", __func__);
-			hv_kvp_respond_host(HV_KVP_E_FAIL);
-			kvp_globals.req_in_progress = false;	
+			hv_kvp_respond_host(sc, HV_KVP_E_FAIL);
+			sc->req_in_progress = false;
 		}
-	
-		/*
-		* Decrement pending request count and
-		*/
-		if (kvp_globals.pending_reqs>0) {
-			kvp_globals.pending_reqs = kvp_globals.pending_reqs - 1;
-		}
-		pending_cnt = kvp_globals.pending_reqs;
-		
-		mtx_unlock(&kvp_globals.pending_mutex);
+
+		mtx_unlock(&sc->pending_mutex);
 
 		/*
 		 * Try reading next buffer
@@ -738,104 +717,43 @@ hv_kvp_process_request(void *context, int pending)
 		recvlen = 0;
 		ret = hv_vmbus_channel_recv_packet(channel, kvp_buf, 2 * PAGE_SIZE,
 			&recvlen, &requestid);
-		hv_kvp_log_info("%s: read: context %p, pending_cnt %llu ret =%d, recvlen=%d\n",
-			__func__, context, (unsigned long long)pending_cnt, ret, recvlen);
-	} 
+		hv_kvp_log_info("%s: read: context %p, ret =%d, recvlen=%d\n",
+			__func__, context, ret, recvlen);
+	}
 }
 
 
 /*
  * Callback routine that gets called whenever there is a message from host
  */
-void
+static void
 hv_kvp_callback(void *context)
 {
-	uint64_t pending_cnt = 0;
-
-	if (kvp_globals.register_done == false) {
-		kvp_globals.channelp = context;
-		TASK_INIT(&service_table[HV_KVP].task, 0, hv_kvp_process_request, context);
-	} else {
-		mtx_lock(&kvp_globals.pending_mutex);
-		kvp_globals.pending_reqs = kvp_globals.pending_reqs + 1;
-		pending_cnt = kvp_globals.pending_reqs;
-		mtx_unlock(&kvp_globals.pending_mutex);
-		if (pending_cnt == 1) {
-			hv_kvp_log_info("%s: Queuing work item\n", __func__);
-			taskqueue_enqueue(taskqueue_thread, &service_table[HV_KVP].task);
-		}
-	}
-}
-
-
-/*
- * This function is called by the hv_kvp_init -
- * creates character device hv_kvp_dev 
- * allocates memory to hv_kvp_dev_buf
- *
- */
-static int
-hv_kvp_dev_init(void)
-{
-	int error = 0;
-
-	/* initialize semaphore */
-	sema_init(&kvp_globals.dev_sema, 0, "hv_kvp device semaphore");
-	/* create character device */
-	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
-			&hv_kvp_dev,
-			&hv_kvp_cdevsw,
-			0,
-			UID_ROOT,
-			GID_WHEEL,
-			0640,
-			"hv_kvp_dev");
-					   
-	if (error != 0)
-		return (error);
-
+	hv_kvp_sc *sc = (hv_kvp_sc*)context;
 	/*
-	 * Malloc with M_WAITOK flag will never fail.
-	 */
-	hv_kvp_dev_buf = malloc(sizeof(*hv_kvp_dev_buf), M_HV_KVP_DEV_BUF, M_WAITOK |
-				M_ZERO);
-
-	return (0);
-}
-
-
-/*
- * This function is called by the hv_kvp_deinit -
- * destroy character device
- */
-static void
-hv_kvp_dev_destroy(void)
-{
-
-	if (daemon_task != NULL) {
-		PROC_LOCK(daemon_task);
-		kern_psignal(daemon_task, SIGKILL);
-		PROC_UNLOCK(daemon_task);
+	 The first request from host will not be handled until daemon is registered.
+	 when callback is triggered without a registered daemon, callback just return.
+	 When a new daemon gets regsitered, this callbcak is trigged from _write op.
+	*/
+	if (sc->register_done) {
+		hv_kvp_log_info("%s: Queuing work item\n", __func__);
+		taskqueue_enqueue(taskqueue_thread, &sc->task);
 	}
-	
-	destroy_dev(hv_kvp_dev);
-	free(hv_kvp_dev_buf, M_HV_KVP_DEV_BUF);
-	return;
 }
-
 
 static int
 hv_kvp_dev_open(struct cdev *dev, int oflags, int devtype,
 				struct thread *td)
 {
-	
+	hv_kvp_sc *sc = (hv_kvp_sc*)dev->si_drv1;
+
 	hv_kvp_log_info("%s: Opened device \"hv_kvp_device\" successfully.\n", __func__);
-	if (kvp_globals.dev_accessed)
+	if (sc->dev_accessed)
 		return (-EBUSY);
-	
-	daemon_task = curproc;
-	kvp_globals.dev_accessed = true;
-	kvp_globals.daemon_busy = false;
+
+	sc->daemon_task = curproc;
+	sc->dev_accessed = true;
+	sc->daemon_busy = false;
 	return (0);
 }
 
@@ -844,10 +762,11 @@ static int
 hv_kvp_dev_close(struct cdev *dev __unused, int fflag __unused, int devtype __unused,
 				 struct thread *td __unused)
 {
+	hv_kvp_sc *sc = (hv_kvp_sc*)dev->si_drv1;
 
 	hv_kvp_log_info("%s: Closing device \"hv_kvp_device\".\n", __func__);
-	kvp_globals.dev_accessed = false;
-	kvp_globals.register_done = false;
+	sc->dev_accessed = false;
+	sc->register_done = false;
 	return (0);
 }
 
@@ -857,18 +776,21 @@ hv_kvp_dev_close(struct cdev *dev __unused, int fflag __unused, int devtype __un
  * acts as a send to daemon
  */
 static int
-hv_kvp_dev_daemon_read(struct cdev *dev __unused, struct uio *uio, int ioflag __unused)
+hv_kvp_dev_daemon_read(struct cdev *dev, struct uio *uio, int ioflag __unused)
 {
 	size_t amt;
 	int error = 0;
+	struct hv_kvp_msg *hv_kvp_dev_buf;
+	hv_kvp_sc *sc = (hv_kvp_sc*)dev->si_drv1;
 
 	/* Check hv_kvp daemon registration status*/
-	if (!kvp_globals.register_done)
+	if (!sc->register_done)
 		return (KVP_ERROR);
 
-	sema_wait(&kvp_globals.dev_sema);
+	sema_wait(&sc->dev_sema);
 
-	memcpy(hv_kvp_dev_buf, &kvp_globals.daemon_kvp_msg, sizeof(struct hv_kvp_msg));
+	hv_kvp_dev_buf = malloc(sizeof(*hv_kvp_dev_buf), M_TEMP, M_WAITOK);
+	memcpy(hv_kvp_dev_buf, &sc->daemon_kvp_msg, sizeof(struct hv_kvp_msg));
 
 	amt = MIN(uio->uio_resid, uio->uio_offset >= BUFFERSIZE + 1 ? 0 :
 		BUFFERSIZE + 1 - uio->uio_offset);
@@ -876,6 +798,7 @@ hv_kvp_dev_daemon_read(struct cdev *dev __unused, struct uio *uio, int ioflag __
 	if ((error = uiomove(hv_kvp_dev_buf, amt, uio)) != 0)
 		hv_kvp_log_info("%s: hv_kvp uiomove read failed!\n", __func__);
 
+	free(hv_kvp_dev_buf, M_TEMP);
 	return (error);
 }
 
@@ -885,29 +808,30 @@ hv_kvp_dev_daemon_read(struct cdev *dev __unused, struct uio *uio, int ioflag __
  * acts as a recieve from daemon
  */
 static int
-hv_kvp_dev_daemon_write(struct cdev *dev __unused, struct uio *uio, int ioflag __unused)
+hv_kvp_dev_daemon_write(struct cdev *dev, struct uio *uio, int ioflag __unused)
 {
 	size_t amt;
 	int error = 0;
+	struct hv_kvp_msg *hv_kvp_dev_buf;
+	hv_kvp_sc *sc = (hv_kvp_sc*)dev->si_drv1;
 
 	uio->uio_offset = 0;
+	hv_kvp_dev_buf = malloc(sizeof(*hv_kvp_dev_buf), M_TEMP, M_WAITOK);
 
 	amt = MIN(uio->uio_resid, BUFFERSIZE);
 	error = uiomove(hv_kvp_dev_buf, amt, uio);
 
-	if (error != 0)
+	if (error != 0) {
+		free(hv_kvp_dev_buf, M_TEMP);
 		return (error);
+	}
+	memcpy(&sc->daemon_kvp_msg, hv_kvp_dev_buf, sizeof(struct hv_kvp_msg));
 
-	memcpy(&kvp_globals.daemon_kvp_msg, hv_kvp_dev_buf, sizeof(struct hv_kvp_msg));
-
-	if (kvp_globals.register_done == false) {
-		if (kvp_globals.daemon_kvp_msg.kvp_hdr.operation == HV_KVP_OP_REGISTER) {
-
-			kvp_globals.register_done = true;
-			if (kvp_globals.channelp) {
-			
-				hv_kvp_callback(kvp_globals.channelp);
-			}
+	free(hv_kvp_dev_buf, M_TEMP);
+	if (sc->register_done == false) {
+		if (sc->daemon_kvp_msg.kvp_hdr.operation == HV_KVP_OP_REGISTER) {
+			sc->register_done = true;
+			hv_kvp_callback(dev->si_drv1);
 		}
 		else {
 			hv_kvp_log_info("%s, KVP Registration Failed\n", __func__);
@@ -915,18 +839,20 @@ hv_kvp_dev_daemon_write(struct cdev *dev __unused, struct uio *uio, int ioflag _
 		}
 	} else {
 
-		mtx_lock(&kvp_globals.pending_mutex);
+		mtx_lock(&sc->pending_mutex);
 
-		if(!kvp_globals.req_timed_out) {
+		if(!sc->req_timed_out) {
+			struct hv_kvp_msg *hmsg = sc->host_kvp_msg;
+			struct hv_kvp_msg *umsg = &sc->daemon_kvp_msg;
 
-			hv_kvp_convert_usermsg_to_hostmsg();
-			hv_kvp_respond_host(KVP_SUCCESS);
-			wakeup(&kvp_globals);
-			kvp_globals.req_in_progress = false;
+			hv_kvp_convert_usermsg_to_hostmsg(umsg, hmsg);
+			hv_kvp_respond_host(sc, KVP_SUCCESS);
+			wakeup(sc);
+			sc->req_in_progress = false;
 		}
 
-		kvp_globals.daemon_busy = false;
-		mtx_unlock(&kvp_globals.pending_mutex);
+		sc->daemon_busy = false;
+		mtx_unlock(&sc->pending_mutex);
 	}
 
 	return (error);
@@ -938,53 +864,106 @@ hv_kvp_dev_daemon_write(struct cdev *dev __unused, struct uio *uio, int ioflag _
  * for daemon to read.
  */
 static int
-hv_kvp_dev_daemon_poll(struct cdev *dev __unused, int events, struct thread *td)
+hv_kvp_dev_daemon_poll(struct cdev *dev, int events, struct thread *td)
 {
 	int revents = 0;
+	hv_kvp_sc *sc = (hv_kvp_sc*)dev->si_drv1;
 
-	mtx_lock(&kvp_globals.pending_mutex);
+	mtx_lock(&sc->pending_mutex);
 	/*
 	 * We check global flag daemon_busy for the data availiability for
 	 * userland to read. Deamon_busy is set to true before driver has data
 	 * for daemon to read. It is set to false after daemon sends
 	 * then response back to driver.
 	 */
-	if (kvp_globals.daemon_busy == true)
+	if (sc->daemon_busy == true)
 		revents = POLLIN;
 	else
-		selrecord(td, &hv_kvp_selinfo);
+		selrecord(td, &sc->hv_kvp_selinfo);
 
-	mtx_unlock(&kvp_globals.pending_mutex);
+	mtx_unlock(&sc->pending_mutex);
 
 	return (revents);
 }
 
-
-/* 
- * hv_kvp initialization function 
- * called from hv_util service.
- *
- */
-int
-hv_kvp_init(hv_vmbus_service *srv)
+static int
+hv_kvp_probe(device_t dev)
 {
-	int error = 0;
+	const char *p = vmbus_get_type(dev);
+	if (!memcmp(p, &service_guid, sizeof(hv_guid))) {
+		device_set_desc(dev, "Hyper-V KVP Service");
+		return BUS_PROBE_DEFAULT;
+	}
 
-	memset(&kvp_globals, 0, sizeof(kvp_globals));
+	return ENXIO;
+}
 
-	error = hv_kvp_dev_init();
-	mtx_init(&kvp_globals.pending_mutex, "hv-kvp pending mutex",
+static int
+hv_kvp_attach(device_t dev)
+{
+	int error;
+	struct sysctl_oid_list *child;
+	struct sysctl_ctx_list *ctx;
+
+	hv_kvp_sc *sc = (hv_kvp_sc*)device_get_softc(dev);
+
+	sc->util_sc.callback = hv_kvp_callback;
+	sema_init(&sc->dev_sema, 0, "hv_kvp device semaphore");
+	mtx_init(&sc->pending_mutex, "hv-kvp pending mutex",
 		NULL, MTX_DEF);
 
-	return (error);
+	ctx = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "hv_kvp_log",
+	    CTLFLAG_RW, &hv_kvp_log, 0, "Hyperv KVP service log level");
+
+	TASK_INIT(&sc->task, 0, hv_kvp_process_request, sc);
+
+	/* create character device */
+	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
+			&sc->hv_kvp_dev,
+			&hv_kvp_cdevsw,
+			0,
+			UID_ROOT,
+			GID_WHEEL,
+			0640,
+			"hv_kvp_dev");
+
+	if (error != 0)
+		return (error);
+	sc->hv_kvp_dev->si_drv1 = sc;
+
+	return hv_util_attach(dev);
 }
 
-
-void
-hv_kvp_deinit(void)
+static int
+hv_kvp_detach(device_t dev)
 {
-	hv_kvp_dev_destroy();
-	mtx_destroy(&kvp_globals.pending_mutex);
+	hv_kvp_sc *sc = (hv_kvp_sc*)device_get_softc(dev);
 
-	return;
+	if (sc->daemon_task != NULL) {
+		PROC_LOCK(sc->daemon_task);
+		kern_psignal(sc->daemon_task, SIGKILL);
+		PROC_UNLOCK(sc->daemon_task);
+	}
+
+	destroy_dev(sc->hv_kvp_dev);
+	return hv_util_detach(dev);
 }
+
+static device_method_t kvp_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, hv_kvp_probe),
+	DEVMETHOD(device_attach, hv_kvp_attach),
+	DEVMETHOD(device_detach, hv_kvp_detach),
+	{ 0, 0 }
+};
+
+static driver_t kvp_driver = { "hvkvp", kvp_methods, sizeof(hv_kvp_sc)};
+
+static devclass_t kvp_devclass;
+
+DRIVER_MODULE(hv_kvp, vmbus, kvp_driver, kvp_devclass, NULL, NULL);
+MODULE_VERSION(hv_kvp, 1);
+MODULE_DEPEND(hv_kvp, vmbus, 1, 1, 1);

@@ -238,17 +238,4 @@ struct hv_kvp_ip_msg {
 	struct hv_kvp_ipaddr_value      kvp_ip_val;
 } __attribute__((packed));
 
-
-#define HV_SHUT_DOWN                0
-#define HV_TIME_SYNCH               1
-#define HV_HEART_BEAT               2
-#define HV_KVP                      3
-#define HV_MAX_UTIL_SERVICES        4
-
-#define HV_WLTIMEDELTA              116444736000000000L     /* in 100ns unit */
-#define HV_ICTIMESYNCFLAG_PROBE     0
-#define HV_ICTIMESYNCFLAG_SYNC      1
-#define HV_ICTIMESYNCFLAG_SAMPLE    2
-#define HV_NANO_SEC_PER_SEC         1000000000
-
 #endif /* _KVP_H */
