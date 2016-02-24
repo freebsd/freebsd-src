@@ -1,8 +1,9 @@
 /*
- * Copyright (C) 2016 Cavium Inc.
+ * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
  *
- * Developed by Semihalf.
+ * This software was developed by Semihalf.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -16,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,29 +26,46 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *
  * $FreeBSD$
  *
  */
 
-#ifndef __THUNDER_PCIE_PEM_H__
-#define	__THUNDER_PCIE_PEM_H__
+#ifndef __PCI_HOST_GENERIC_H_
+#define	__PCI_HOST_GENERIC_H_
 
-#define	THUNDER_PEM_DESC		"ThunderX PEM"
+#define	MAX_RANGES_TUPLES	16
+#define	MIN_RANGES_TUPLES	2
 
-struct thunder_pem_softc {
-	device_t		dev;
-	struct resource		*reg;
-	bus_space_tag_t		reg_bst;
-	bus_space_handle_t	reg_bsh;
-	struct pcie_range	ranges[MAX_RANGES_TUPLES];
-	struct rman		mem_rman;
-	struct rman		io_rman;
-	bus_space_handle_t	pem_sli_base;
-	uint32_t		node;
-	uint32_t		id;
-	uint32_t		sli;
-	uint32_t		sli_group;
-	uint64_t		sli_window_base;
+struct pcie_range {
+	uint64_t	pci_base;
+	uint64_t	phys_base;
+	uint64_t	size;
+	uint64_t	flags;
+#define	FLAG_IO		(1 << 0)
+#define	FLAG_MEM	(1 << 1)
 };
 
+struct generic_pcie_softc {
+	struct pcie_range	ranges[MAX_RANGES_TUPLES];
+	int			nranges;
+	struct rman		mem_rman;
+	struct rman		io_rman;
+	struct resource		*res;
+	struct resource		*res1;
+	int			ecam;
+	bus_space_tag_t		bst;
+	bus_space_handle_t	bsh;
+	device_t		dev;
+	bus_space_handle_t	ioh;
+#ifdef FDT
+	struct ofw_bus_iinfo	pci_iinfo;
 #endif
+};
+
+extern devclass_t generic_pcie_devclass;
+DECLARE_CLASS(generic_pcie_driver);
+
+int pci_host_generic_attach(device_t);
+
+#endif /* __PCI_HOST_GENERIC_H_ */
