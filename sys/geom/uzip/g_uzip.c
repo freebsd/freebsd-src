@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 
-MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
-
 #include <geom/uzip/g_uzip.h>
 #include <geom/uzip/g_uzip_cloop.h>
 #include <geom/uzip/g_uzip_softc.h>
@@ -52,6 +50,8 @@ MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
 #include <geom/uzip/g_uzip_zlib.h>
 #include <geom/uzip/g_uzip_lzma.h>
 #include <geom/uzip/g_uzip_wrkthr.h>
+
+MALLOC_DEFINE(M_GEOM_UZIP, "geom_uzip", "GEOM UZIP data structures");
 
 FEATURE(geom_uzip, "GEOM read-only compressed disks support");
 
