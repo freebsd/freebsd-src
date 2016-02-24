@@ -380,7 +380,7 @@ CLEANFILES +=	libgcc.map
 libgcc_eh.a:	${EH_OBJS_T}
 	@${ECHO} building static gcc_eh library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
+	${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
 _LIBS+= libgcc_eh.a
@@ -389,7 +389,7 @@ _LIBS+= libgcc_eh.a
 libgcc_eh_p.a:	${EH_OBJS_P}
 	@${ECHO} building profiled gcc_eh library
 	@rm -f ${.TARGET}
-	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
+	${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
 _LIBS+= libgcc_eh_p.a
