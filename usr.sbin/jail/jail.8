@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2015
+.Dd July 6, 2015
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -558,6 +558,22 @@ is set to a value lower than 2.
 .It Va allow.mount.procfs
 privileged users inside the jail will be able to mount and unmount the
 procfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.linprocfs
+privileged users inside the jail will be able to mount and unmount the
+linprocfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.linsysfs
+privileged users inside the jail will be able to mount and unmount the
+linsysfs file system.
 This permission is effective only together with
 .Va allow.mount
 and only when
@@ -1210,6 +1226,8 @@ environment of the first jail.
 .Xr fdescfs 5 ,
 .Xr jail.conf 5 ,
 .Xr procfs 5 ,
+.Xr linprocfs 5 ,
+.Xr linsysfs 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr chroot 8 ,
