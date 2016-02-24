@@ -269,8 +269,10 @@ DPSRCS+= ${SRCS}
 # FAST_DEPEND will only generate a .depend if _EXTRADEPEND is used but
 # the target is created to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
-.if ${MK_FAST_DEPEND} == "no"
+.if exists(${.OBJDIR}/${DEPENDFILE})
 	rm -f ${DEPENDFILE}
+.endif
+.if ${MK_FAST_DEPEND} == "no"
 .if !empty(DPSRCS:M*.[cS])
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${MKDEP_CFLAGS} ${.ALLSRC:M*.[cS]}
