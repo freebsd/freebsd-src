@@ -248,10 +248,7 @@ hv_vmbus_connect(void) {
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
 	if (hv_vmbus_g_connection.interrupt_page != NULL) {
-		contigfree(
-			hv_vmbus_g_connection.interrupt_page,
-			PAGE_SIZE,
-			M_DEVBUF);
+		free(hv_vmbus_g_connection.interrupt_page, M_DEVBUF);
 		hv_vmbus_g_connection.interrupt_page = NULL;
 	}
 
@@ -279,7 +276,7 @@ hv_vmbus_disconnect(void) {
 
 	ret = hv_vmbus_post_message(&msg, sizeof(hv_vmbus_channel_unload));
 
-	contigfree(hv_vmbus_g_connection.interrupt_page, PAGE_SIZE, M_DEVBUF);
+	free(hv_vmbus_g_connection.interrupt_page, M_DEVBUF);
 
 	mtx_destroy(&hv_vmbus_g_connection.channel_msg_lock);
 
