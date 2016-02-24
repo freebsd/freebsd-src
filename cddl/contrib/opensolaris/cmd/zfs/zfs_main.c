@@ -1678,7 +1678,7 @@ zfs_do_get(int argc, char **argv)
 				default:
 					(void) fprintf(stderr,
 					    gettext("invalid column name "
-					    "'%s'\n"), value);
+					    "'%s'\n"), suboptarg);
 					usage(B_FALSE);
 				}
 			}
@@ -1715,7 +1715,7 @@ zfs_do_get(int argc, char **argv)
 				default:
 					(void) fprintf(stderr,
 					    gettext("invalid source "
-					    "'%s'\n"), value);
+					    "'%s'\n"), suboptarg);
 					usage(B_FALSE);
 				}
 			}
@@ -1751,7 +1751,7 @@ zfs_do_get(int argc, char **argv)
 				default:
 					(void) fprintf(stderr,
 					    gettext("invalid type '%s'\n"),
-					    value);
+					    suboptarg);
 					usage(B_FALSE);
 				}
 			}
@@ -3115,7 +3115,7 @@ zfs_do_list(int argc, char **argv)
 				default:
 					(void) fprintf(stderr,
 					    gettext("invalid type '%s'\n"),
-					    value);
+					    suboptarg);
 					usage(B_FALSE);
 				}
 			}
