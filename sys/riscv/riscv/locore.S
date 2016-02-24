@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -43,8 +43,55 @@
 #include <machine/riscvreg.h>
 #include <machine/pte.h>
 
-#define	HTIF_RING_SIZE	(64)
-#define	HTIF_RING_LAST	(24 * (HTIF_RING_SIZE - 1))
+#define	HTIF_RING_NENTRIES	(512)
+#define	HTIF_RING_ENTRY_SZ	(24)
+#define	HTIF_RING_SIZE		(HTIF_RING_ENTRY_SZ * HTIF_RING_NENTRIES)
+#define	HW_STACK_SIZE		(96)
+
+/*
+ * Event queue for each CPU core:
+ *
+ * struct htif_ring {
+ *     uint64_t data;
+ *     uint64_t used;
+ *     uint64_t next;
+ * } htif_ring[HTIF_RING_NENTRIES];
+ * uint64_t htif_ring_cursor;
+ * uint64_t htif_ring_last;
+ */
+
+.macro build_ring
+	la	t0, htif_ring
+#ifdef SMP
+	csrr	a0, mhartid
+	li	s0, (HTIF_RING_SIZE + 16)
+	mulw	s0, a0, s0
+	add	t0, t0, s0
+#endif
+	li	t1, 0
+	sd	t1, 0(t0)	/* zero data */
+	sd	t1, 8(t0)	/* zero used */
+	mv	t2, t0
+	mv	t3, t0
+	li	t5, (HTIF_RING_SIZE - HTIF_RING_ENTRY_SZ)
+	li	t6, 0
+	add	t4, t0, t5
+1:
+	addi	t3, t3, 24	/* pointer to next */
+	beq	t3, t4, 2f	/* finish */
+	sd	t3, 16(t2)	/* store pointer */
+	addi	t2, t2, 24	/* next entry */
+	addi	t6, t6, 1	/* counter */
+	j	1b
+2:
+	sd	t0, 16(t3)	/* last -> first */
+
+	li	t2, (HTIF_RING_SIZE)
+	add	s0, t0, t2
+	sd	t0, 0(s0)	/* cursor */
+	sd	t0, 8(s0)	/* last */
+	/* finish building ring */
+.endm
 
 	.globl	kernbase
 	.set	kernbase, KERNBASE
@@ -74,33 +121,14 @@ mentry:
 	.align 8
 	.globl _start
 _start:
-	li	s11, KERNBASE
+	/* Direct secondary cores to mpentry */
+	csrr	a0, mhartid
+	bnez	a0, mpentry
 
-	/* Build ring */
-	la	t0, htif_ring
-	li	t1, 0
-	sd	t1, 0(t0)	/* zero data */
-	sd	t1, 8(t0)	/* zero used */
-	mv	t2, t0
-	mv	t3, t0
-	li	t5, HTIF_RING_LAST
-	li	t6, 0
-	add	t4, t0, t5
-1:
-	addi	t3, t3, 24	/* pointer to next */
-	beq	t3, t4, 2f	/* finish */
-	sd	t3, 16(t2)	/* store pointer */
-	addi	t2, t2, 24	/* next entry */
-	addi	t6, t6, 1	/* counter */
-	j	1b
-2:
-	sd	t0, 16(t3)	/* last -> first */
-	la	t1, htif_ring_cursor
-	sd	t0, 0(t1)
-	la	t1, htif_ring_last
-	sd	t0, 0(t1)
-	/* finish building ring */
+	/* Build event queue for current core */
+	build_ring
 
+	/* Setup machine-mode stack for CPU 0 */
 	la	t0, hardstack_end
 	csrw	mscratch, t0
 
@@ -129,7 +157,14 @@ _start:
 	li	a6, PTE_SIZE
 	mulw	a5, a5, a6
 	add	t0, s1, a5
+	/* Store it to pagetable_l0 for each cpu */
+	li	t1, MAXCPU
+	li	t2, PAGE_SIZE
+1:
 	sd	t6, 0(t0)
+	add	t0, t0, t2
+	addi	t1, t1, -1
+	bnez	t1, 1b
 
 	/* Level 1 */
 	la	s1, pagetable_l1
@@ -177,8 +212,16 @@ _start:
 		     (MSTATUS_PRV_U << MSTATUS_PRV2_SHIFT));
 	csrw	mstatus, s0
 
+	/*
+	 * Enable machine-mode software interrupts
+	 * so we can deliver IPI to this core.
+	 */
+	li	t0, MIE_MSIE
+	csrs	mie, t0
+
 	/* Exit from machine mode */
 	la	t0, .Lmmu_on
+	li	s11, KERNBASE
 	add	t0, t0, s11
 	csrw	mepc, t0
 	eret
@@ -213,24 +256,16 @@ initstack:
 	.space  (PAGE_SIZE * KSTACK_PAGES)
 initstack_end:
 hardstack:
-	.space  (PAGE_SIZE)
+	.space  (HW_STACK_SIZE * MAXCPU)
 hardstack_end:
 
 	.globl htif_ring
 htif_ring:
-	.space  (24 * 1024)
-
-	.globl htif_ring_cursor
-htif_ring_cursor:
-	.space  (8)
-
-	.globl htif_ring_last
-htif_ring_last:
-	.space  (8)
+	.space ((HTIF_RING_SIZE + 16) * MAXCPU)
 
 	.globl console_intr
 console_intr:
-	.space  (8)
+	.space (8)
 
 ENTRY(sigcode)
 	mv	a0, sp
@@ -259,7 +294,7 @@ szsigcode:
 	.align	12
 	.globl pagetable_l0
 pagetable_l0:
-	.space	PAGE_SIZE
+	.space (PAGE_SIZE * MAXCPU)
 pagetable_l1:
 	.space	PAGE_SIZE
 pagetable_l2:
@@ -269,5 +304,96 @@ pagetable_end:
 	.globl init_pt_va
 init_pt_va:
 	.quad pagetable_l2	/* XXX: Keep page tables VA */
+
+#ifndef SMP
+ENTRY(mpentry)
+1:
+	wfi
+	j	1b
+END(mpentry)
+#else
+/*
+ * mpentry(unsigned long)
+ *
+ * Called by a core when it is being brought online.
+ * The data in x0 is passed straight to init_secondary.
+ */
+ENTRY(mpentry)
+	/*
+	 * Calculate the offset to __riscv_boot_ap
+	 * for current core, cpuid in a0.
+	 */
+	li	t1, 4
+	mulw	t1, t1, a0
+	/* Get pointer */
+	la	t0, __riscv_boot_ap
+	add	t0, t0, t1
+
+1:
+	/* Wait the kernel to be ready */
+	lw	t1, 0(t0)
+	beqz	t1, 1b
+
+	/* Setup machine exception vector */
+	la	t0, mentry
+	csrw	mtvec, t0
+
+	/* Build event queue ring for this core */
+	build_ring
+
+	/* Set page tables base register */
+	la	t0, pagetable_l0
+	li	t1, PAGE_SIZE
+	mulw	t1, t1, a0
+	add	t0, t0, t1
+	csrw	sptbr, t0
+	/* Page tables END */
+
+	/* Configure mstatus */
+	li	s0, ((MSTATUS_VM_SV48 << MSTATUS_VM_SHIFT) | \
+		     (MSTATUS_PRV_M << MSTATUS_PRV_SHIFT) | \
+		     (MSTATUS_PRV_S << MSTATUS_PRV1_SHIFT) | \
+		     (MSTATUS_PRV_U << MSTATUS_PRV2_SHIFT));
+	csrw	mstatus, s0
+
+	/* Setup stack for machine mode exceptions */
+	la	t0, hardstack_end
+	li	t1, HW_STACK_SIZE
+	mulw	t1, t1, a0
+	sub	t0, t0, t1
+	csrw	mscratch, t0
+
+	li	t0, 0
+	csrw	sscratch, t0
+
+	/*
+	 * Enable machine-mode software interrupts
+	 * so we can deliver IPI to this core.
+	 */
+	li	t0, MIE_MSIE
+	csrs	mie, t0
+
+	/*
+	 * Exit from machine mode and go to
+	 * the virtual address space.
+	 */
+	la	t0, mp_virtdone
+	li	s11, KERNBASE
+	add	t0, t0, s11
+	csrw	mepc, t0
+	eret
+
+mp_virtdone:
+	/* We are now in virtual address space */
+
+	/* Setup stack pointer */
+	la	t0, secondary_stacks
+	li	t1, (PAGE_SIZE * KSTACK_PAGES)
+	mulw	t1, t1, a0
+	add	sp, t0, t1
+
+	call	init_secondary
+END(mpentry)
+#endif
 
 #include "exception.S"
