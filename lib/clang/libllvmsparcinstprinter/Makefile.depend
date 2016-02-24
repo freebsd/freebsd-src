@@ -13,12 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-SparcInstPrinter.o: SparcGenAsmWriter.inc.h
-SparcInstPrinter.o: SparcGenInstrInfo.inc.h
-SparcInstPrinter.o: SparcGenRegisterInfo.inc.h
-SparcInstPrinter.o: SparcGenSubtargetInfo.inc.h
-SparcInstPrinter.po: SparcGenAsmWriter.inc.h
-SparcInstPrinter.po: SparcGenInstrInfo.inc.h
-SparcInstPrinter.po: SparcGenRegisterInfo.inc.h
-SparcInstPrinter.po: SparcGenSubtargetInfo.inc.h
 .endif

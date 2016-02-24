@@ -36,12 +36,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-iprop-commands.o: iprop-commands.c
-iprop-commands.o: iprop-commands.h
-iprop-commands.po: iprop-commands.c
-iprop-commands.po: iprop-commands.h
-iprop-log.o: iprop-commands.h
-iprop-log.o: kadm5_err.h
-iprop-log.po: iprop-commands.h
-iprop-log.po: kadm5_err.h
 .endif
