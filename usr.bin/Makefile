@@ -99,7 +99,6 @@ SUBDIR=	alias \
 	mkimg \
 	mklocale \
 	mktemp \
-	mkulzma \
 	mkuzip \
 	mt \
 	ncal \

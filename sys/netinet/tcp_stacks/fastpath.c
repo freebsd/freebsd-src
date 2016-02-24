@@ -2453,4 +2453,4 @@ static moduledata_t new_tcp_fastpaths = {
 };
 
 MODULE_VERSION(kern_tcpfastpaths, 1);
-DECLARE_MODULE(kern_tcpfastpaths, new_tcp_fastpaths, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(kern_tcpfastpaths, new_tcp_fastpaths, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);

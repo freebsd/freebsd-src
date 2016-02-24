@@ -19,16 +19,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-atm_sys.So: atm_oid.h
-atm_sys.So: atm_tree.h
-atm_sys.po: atm_oid.h
-atm_sys.po: atm_tree.h
-atm_tree.So: atm_tree.c
-atm_tree.So: atm_tree.h
-atm_tree.po: atm_tree.c
-atm_tree.po: atm_tree.h
-snmp_atm.So: atm_oid.h
-snmp_atm.So: atm_tree.h
-snmp_atm.po: atm_oid.h
-snmp_atm.po: atm_tree.h
 .endif

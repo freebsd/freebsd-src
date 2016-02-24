@@ -1009,6 +1009,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			stcb = LIST_FIRST(&inp->sctp_asoc_list);
 			if (stcb == NULL) {
 				SCTP_INP_RUNLOCK(inp);
+				SCTP_FREE_SONAME(sin6);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
 				return (ENOENT);
 			}
@@ -1028,6 +1029,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			if ((!fnd) || (sin_a6 == NULL)) {
 				/* punt */
 				SCTP_INP_RUNLOCK(inp);
+				SCTP_FREE_SONAME(sin6);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
 				return (ENOENT);
 			}
