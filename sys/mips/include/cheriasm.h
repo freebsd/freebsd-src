@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -83,6 +83,8 @@
 /*
  * Where to save the user $c0 during low-level exception handling.  Possibly
  * this should be an argument to macros rather than hard-coded in the macros.
+ *
+ * Ensure this is kept in sync with CHERI_CLEAR_CAPHI_SEC0.
  */
 #define	CHERI_REG_SEC0	CHERI_REG_KR2C	/* Saved $c0 in exception handling. */
 
@@ -476,3 +478,5 @@
 #define CHERI_CLEAR_CAPHI_KDC  (1 << (30 - 16))
 #define CHERI_CLEAR_CAPHI_EPCC (1 << (31 - 16))
 
+/* Ensure that this is kept in sync with CHERI_REG_SEC0. */
+#define	CHERI_CLEAR_CAPHI_SEC0	CHERI_CLEAR_CAPHI_KR2C

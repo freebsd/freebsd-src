@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2012-2014 Michael Roe
  * All rights reserved.
  *
@@ -476,7 +476,9 @@ ccall_clear_regs:
 ccall_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-argument capability registers. */
-	cfromptr	$c0, $c0, zero
+
+	/* $c0 has been set aside in $kr2c, so clear it there. */
+	cfromptr	CHERI_REG_SEC0, CHERI_REG_SEC0, zero
 	/* $c1 preserved as the passed code capability. */
 	/* $c2 preserved as the passed data capability. */
 	/* $c3 handled by compiler; global bit checked earlier. */
@@ -510,8 +512,8 @@ ccall_clear_caps:
 #endif
 
 #else /* CPU_CHERI_HW_CCLEAR */
+	/* $c0 has been set aside in $kr2c, so clear it there. */
 	CHERI_CLEAR_CAPLO16( \
-		CHERI_CLEAR_CAPLO_C0  | \
 		CHERI_CLEAR_CAPLO_C11 | \
 		CHERI_CLEAR_CAPLO_C12 | \
 		CHERI_CLEAR_CAPLO_C13 | \
@@ -527,7 +529,8 @@ ccall_clear_caps:
 		CHERI_CLEAR_CAPHI_C22 | \
 		CHERI_CLEAR_CAPHI_C23 | \
 		CHERI_CLEAR_CAPHI_RCC | \
-		CHERI_CLEAR_CAPHI_C25 )
+		CHERI_CLEAR_CAPHI_C25 | \
+		CHERI_CLEAR_CAPHI_SEC0 )
 #endif /* CPU_CHERI_HW_CCLEAR */
 ccall_exception_return:
 	CHERI_EXCEPTION_RETURN(k0)
@@ -770,7 +773,9 @@ creturn_clear_regs:
 creturn_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-return-value capability registers. */
-	cfromptr	$c0, $c0, zero
+
+	/* $c0 has been set aside in $kr2c, so clear it there. */
+	cfromptr	CHERI_REG_SEC0, CHERI_REG_SEC0, zero
 	cfromptr	$c1, $c1, zero
 	cfromptr	$c2, $c2, zero
 	/* $c3 handled by compiler; global bit checked earlier. */
@@ -807,8 +812,8 @@ creturn_clear_caps:
 	cfromptr	$c25, $c25, zero
 #endif
 #else
+	/* $c0 has been set aside in $kr2c, so clear it there. */
 	CHERI_CLEAR_CAPLO16( \
-		CHERI_CLEAR_CAPLO_C0  | \
 		CHERI_CLEAR_CAPLO_C1  | \
 		CHERI_CLEAR_CAPLO_C2  | \
 		CHERI_CLEAR_CAPLO_C4  | \
@@ -833,7 +838,8 @@ creturn_clear_caps:
 		CHERI_CLEAR_CAPHI_C22 | \
 		CHERI_CLEAR_CAPHI_C23 | \
 		CHERI_CLEAR_CAPHI_RCC | \
-		CHERI_CLEAR_CAPHI_C25 )
+		CHERI_CLEAR_CAPHI_C25 | \
+		CHERI_CLEAR_CAPHI_SEC0 )
 #endif
 creturn_exception_return:
 	CHERI_EXCEPTION_RETURN(k0)
