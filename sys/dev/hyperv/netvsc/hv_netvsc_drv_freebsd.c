@@ -129,6 +129,41 @@ __FBSDID("$FreeBSD$");
 #define HV_NV_SC_PTR_OFFSET_IN_BUF         0
 #define HV_NV_PACKET_OFFSET_IN_BUF         16
 
+/* YYY should get it from the underlying channel */
+#define HN_TX_DESC_CNT			512
+
+#define HN_RNDIS_MSG_LEN		\
+    (sizeof(rndis_msg) +		\
+     RNDIS_VLAN_PPI_SIZE +		\
+     RNDIS_TSO_PPI_SIZE +		\
+     RNDIS_CSUM_PPI_SIZE)
+#define HN_RNDIS_MSG_BOUNDARY		PAGE_SIZE
+#define HN_RNDIS_MSG_ALIGN		CACHE_LINE_SIZE
+
+#define HN_TX_DATA_BOUNDARY		PAGE_SIZE
+#define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
+#define HN_TX_DATA_SEGSIZE		PAGE_SIZE
+#define HN_TX_DATA_SEGCNT_MAX		\
+    (NETVSC_PACKET_MAXPAGE - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
+
+struct hn_txdesc {
+	SLIST_ENTRY(hn_txdesc) link;
+	struct mbuf	*m;
+	struct hn_softc	*sc;
+	int		refs;
+	uint32_t	flags;		/* HN_TXD_FLAG_ */
+	netvsc_packet	netvsc_pkt;	/* XXX to be removed */
+
+	bus_dmamap_t	data_dmap;
+
+	bus_addr_t	rndis_msg_paddr;
+	rndis_msg	*rndis_msg;
+	bus_dmamap_t	rndis_msg_dmap;
+};
+
+#define HN_TXD_FLAG_ONLIST	0x1
+#define HN_TXD_FLAG_DMAMAP	0x2
+
 /*
  * A unified flag for all outbound check sum flags is useful,
  * and it helps avoiding unnecessary check sum calculation in
@@ -174,6 +209,16 @@ int hv_promisc_mode = 0;    /* normal mode by default */
 static int hn_trust_hosttcp = 0;
 TUNABLE_INT("dev.hn.trust_hosttcp", &hn_trust_hosttcp);
 
+#if __FreeBSD_version >= 1100045
+/* Limit TSO burst size */
+static int hn_tso_maxlen = 0;
+TUNABLE_INT("dev.hn.tso_maxlen", &hn_tso_maxlen);
+#endif
+
+/* Limit chimney send size */
+static int hn_tx_chimney_size = 0;
+TUNABLE_INT("dev.hn.tx_chimney_size", &hn_tx_chimney_size);
+
 /*
  * Forward declarations
  */
@@ -181,14 +226,17 @@ static void hn_stop(hn_softc_t *sc);
 static void hn_ifinit_locked(hn_softc_t *sc);
 static void hn_ifinit(void *xsc);
 static int  hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-static int  hn_start_locked(struct ifnet *ifp);
+static void hn_start_locked(struct ifnet *ifp);
 static void hn_start(struct ifnet *ifp);
 static int hn_ifmedia_upd(struct ifnet *ifp);
 static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 #ifdef HN_LRO_HIWAT
 static int hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS);
 #endif
+static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_check_iplen(const struct mbuf *, int);
+static int hn_create_tx_ring(struct hn_softc *sc);
+static void hn_destroy_tx_ring(struct hn_softc *sc);
 
 static __inline void
 hn_set_lro_hiwat(struct hn_softc *sc, int hiwat)
@@ -318,10 +366,13 @@ netvsc_attach(device_t dev)
 	netvsc_device_info device_info;
 	hn_softc_t *sc;
 	int unit = device_get_unit(dev);
-	struct ifnet *ifp;
+	struct ifnet *ifp = NULL;
 	struct sysctl_oid_list *child;
 	struct sysctl_ctx_list *ctx;
-	int ret;
+	int error;
+#if __FreeBSD_version >= 1100045
+	int tso_maxlen;
+#endif
 
 	sc = device_get_softc(dev);
 	if (sc == NULL) {
@@ -333,6 +384,10 @@ netvsc_attach(device_t dev)
 	sc->hn_dev = dev;
 	sc->hn_lro_hiwat = HN_LRO_HIWAT_DEF;
 	sc->hn_trust_hosttcp = hn_trust_hosttcp;
+
+	error = hn_create_tx_ring(sc);
+	if (error)
+		goto failed;
 
 	NV_LOCK_INIT(sc, "NetVSCLock");
 
@@ -381,12 +436,10 @@ netvsc_attach(device_t dev)
 	else
 		ifp->if_hwassist = CSUM_TCP | CSUM_TSO;
 
-	ret = hv_rf_on_device_add(device_ctx, &device_info);
-	if (ret != 0) {
-		if_free(ifp);
+	error = hv_rf_on_device_add(device_ctx, &device_info);
+	if (error)
+		goto failed;
 
-		return (ret);
-	}
 	if (device_info.link_state == 0) {
 		sc->hn_carrier = 1;
 	}
@@ -400,7 +453,29 @@ netvsc_attach(device_t dev)
 #endif
 #endif	/* INET || INET6 */
 
+#if __FreeBSD_version >= 1100045
+	tso_maxlen = hn_tso_maxlen;
+	if (tso_maxlen <= 0 || tso_maxlen > IP_MAXPACKET)
+		tso_maxlen = IP_MAXPACKET;
+
+	ifp->if_hw_tsomaxsegcount = HN_TX_DATA_SEGCNT_MAX;
+	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
+	ifp->if_hw_tsomax = tso_maxlen -
+	    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+#endif
+
 	ether_ifattach(ifp, device_info.mac_addr);
+
+#if __FreeBSD_version >= 1100045
+	if_printf(ifp, "TSO: %u/%u/%u\n", ifp->if_hw_tsomax,
+	    ifp->if_hw_tsomaxsegcount, ifp->if_hw_tsomaxsegsize);
+#endif
+
+	sc->hn_tx_chimney_max = sc->net_dev->send_section_size;
+	sc->hn_tx_chimney_size = sc->hn_tx_chimney_max;
+	if (hn_tx_chimney_size > 0 &&
+	    hn_tx_chimney_size < sc->hn_tx_chimney_max)
+		sc->hn_tx_chimney_size = hn_tx_chimney_size;
 
 	ctx = device_get_sysctl_ctx(dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
@@ -429,6 +504,26 @@ netvsc_attach(device_t dev)
 	    "# of TCP segements that we trust host's csum verification");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "small_pkts",
 	    CTLFLAG_RW, &sc->hn_small_pkts, "# of small packets received");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_txdescs",
+	    CTLFLAG_RW, &sc->hn_no_txdescs, "# of times short of TX descs");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "send_failed",
+	    CTLFLAG_RW, &sc->hn_send_failed, "# of hyper-v sending failure");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "txdma_failed",
+	    CTLFLAG_RW, &sc->hn_txdma_failed, "# of TX DMA failure");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_collapsed",
+	    CTLFLAG_RW, &sc->hn_tx_collapsed, "# of TX mbuf collapsed");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_chimney",
+	    CTLFLAG_RW, &sc->hn_tx_chimney, "# of chimney send");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_cnt",
+	    CTLFLAG_RD, &sc->hn_txdesc_cnt, 0, "# of total TX descs");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "txdesc_avail",
+	    CTLFLAG_RD, &sc->hn_txdesc_avail, 0, "# of available TX descs");
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "tx_chimney_max",
+	    CTLFLAG_RD, &sc->hn_tx_chimney_max, 0,
+	    "Chimney send packet size upper boundary");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_chimney_size",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_tx_chimney_size_sysctl,
+	    "I", "Chimney send packet size limit");
 
 	if (unit == 0) {
 		struct sysctl_ctx_list *dc_ctx;
@@ -446,9 +541,21 @@ netvsc_attach(device_t dev)
 		    CTLFLAG_RD, &hn_trust_hosttcp, 0,
 		    "Trust tcp segement verification on host side, "
 		    "when csum info is missing (global setting)");
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tx_chimney_size",
+		    CTLFLAG_RD, &hn_tx_chimney_size, 0,
+		    "Chimney send packet size limit");
+#if __FreeBSD_version >= 1100045
+		SYSCTL_ADD_INT(dc_ctx, dc_child, OID_AUTO, "tso_maxlen",
+		    CTLFLAG_RD, &hn_tso_maxlen, 0, "TSO burst limit");
+#endif
 	}
 
 	return (0);
+failed:
+	hn_destroy_tx_ring(sc);
+	if (ifp != NULL)
+		if_free(ifp);
+	return (error);
 }
 
 /*
@@ -480,6 +587,7 @@ netvsc_detach(device_t dev)
 #if defined(INET) || defined(INET6)
 	tcp_lro_free(&sc->hn_lro);
 #endif
+	hn_destroy_tx_ring(sc);
 
 	return (0);
 }
@@ -493,6 +601,112 @@ netvsc_shutdown(device_t dev)
 	return (0);
 }
 
+static __inline int
+hn_txdesc_dmamap_load(struct hn_softc *sc, struct hn_txdesc *txd,
+    struct mbuf **m_head, bus_dma_segment_t *segs, int *nsegs)
+{
+	struct mbuf *m = *m_head;
+	int error;
+
+	error = bus_dmamap_load_mbuf_sg(sc->hn_tx_data_dtag, txd->data_dmap,
+	    m, segs, nsegs, BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		struct mbuf *m_new;
+
+		m_new = m_collapse(m, M_NOWAIT, HN_TX_DATA_SEGCNT_MAX);
+		if (m_new == NULL)
+			return ENOBUFS;
+		else
+			*m_head = m = m_new;
+		sc->hn_tx_collapsed++;
+
+		error = bus_dmamap_load_mbuf_sg(sc->hn_tx_data_dtag,
+		    txd->data_dmap, m, segs, nsegs, BUS_DMA_NOWAIT);
+	}
+	if (!error) {
+		bus_dmamap_sync(sc->hn_tx_data_dtag, txd->data_dmap,
+		    BUS_DMASYNC_PREWRITE);
+		txd->flags |= HN_TXD_FLAG_DMAMAP;
+	}
+	return error;
+}
+
+static __inline void
+hn_txdesc_dmamap_unload(struct hn_softc *sc, struct hn_txdesc *txd)
+{
+
+	if (txd->flags & HN_TXD_FLAG_DMAMAP) {
+		bus_dmamap_sync(sc->hn_tx_data_dtag,
+		    txd->data_dmap, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->hn_tx_data_dtag,
+		    txd->data_dmap);
+		txd->flags &= ~HN_TXD_FLAG_DMAMAP;
+	}
+}
+
+static __inline int
+hn_txdesc_put(struct hn_softc *sc, struct hn_txdesc *txd)
+{
+
+	KASSERT((txd->flags & HN_TXD_FLAG_ONLIST) == 0,
+	    ("put an onlist txd %#x", txd->flags));
+
+	KASSERT(txd->refs > 0, ("invalid txd refs %d", txd->refs));
+	if (atomic_fetchadd_int(&txd->refs, -1) != 1)
+		return 0;
+
+	hn_txdesc_dmamap_unload(sc, txd);
+	if (txd->m != NULL) {
+		m_freem(txd->m);
+		txd->m = NULL;
+	}
+
+	txd->flags |= HN_TXD_FLAG_ONLIST;
+
+	mtx_lock_spin(&sc->hn_txlist_spin);
+	KASSERT(sc->hn_txdesc_avail >= 0 &&
+	    sc->hn_txdesc_avail < sc->hn_txdesc_cnt,
+	    ("txdesc_put: invalid txd avail %d", sc->hn_txdesc_avail));
+	sc->hn_txdesc_avail++;
+	SLIST_INSERT_HEAD(&sc->hn_txlist, txd, link);
+	mtx_unlock_spin(&sc->hn_txlist_spin);
+
+	return 1;
+}
+
+static __inline struct hn_txdesc *
+hn_txdesc_get(struct hn_softc *sc)
+{
+	struct hn_txdesc *txd;
+
+	mtx_lock_spin(&sc->hn_txlist_spin);
+	txd = SLIST_FIRST(&sc->hn_txlist);
+	if (txd != NULL) {
+		KASSERT(sc->hn_txdesc_avail > 0,
+		    ("txdesc_get: invalid txd avail %d", sc->hn_txdesc_avail));
+		sc->hn_txdesc_avail--;
+		SLIST_REMOVE_HEAD(&sc->hn_txlist, link);
+	}
+	mtx_unlock_spin(&sc->hn_txlist_spin);
+
+	if (txd != NULL) {
+		KASSERT(txd->m == NULL && txd->refs == 0 &&
+		    (txd->flags & HN_TXD_FLAG_ONLIST), ("invalid txd"));
+		txd->flags &= ~HN_TXD_FLAG_ONLIST;
+		txd->refs = 1;
+	}
+	return txd;
+}
+
+static __inline void
+hn_txdesc_hold(struct hn_txdesc *txd)
+{
+
+	/* 0->1 transition will never work */
+	KASSERT(txd->refs > 0, ("invalid refs %d", txd->refs));
+	atomic_add_int(&txd->refs, 1);
+}
+
 /*
  * Send completion processing
  *
@@ -503,34 +717,46 @@ netvsc_shutdown(device_t dev)
 void
 netvsc_xmit_completion(void *context)
 {
-	netvsc_packet *packet = (netvsc_packet *)context;
-	struct mbuf *mb;
-	uint8_t *buf;
+	netvsc_packet *packet = context;
+	struct hn_txdesc *txd;
+	struct hn_softc *sc;
 
-	mb = (struct mbuf *)(uintptr_t)packet->compl.send.send_completion_tid;
-	buf = ((uint8_t *)packet) - HV_NV_PACKET_OFFSET_IN_BUF;
+	txd = (struct hn_txdesc *)(uintptr_t)
+	    packet->compl.send.send_completion_tid;
 
-	free(buf, M_NETVSC);
+	sc = txd->sc;
+	sc->hn_txeof = 1;
+	hn_txdesc_put(sc, txd);
+}
 
-	if (mb != NULL) {
-		m_freem(mb);
-	}
+void
+netvsc_channel_rollup(struct hv_device *device_ctx)
+{
+	struct hn_softc *sc = device_get_softc(device_ctx->device);
+	struct ifnet *ifp;
+
+	if (!sc->hn_txeof)
+		return;
+
+	sc->hn_txeof = 0;
+	ifp = sc->hn_ifp;
+	NV_LOCK(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	hn_start_locked(ifp);
+	NV_UNLOCK(sc);
 }
 
 /*
  * Start a transmit of one or more packets
  */
-static int
+static void
 hn_start_locked(struct ifnet *ifp)
 {
 	hn_softc_t *sc = ifp->if_softc;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	netvsc_dev *net_dev = sc->net_dev;
-	device_t dev = device_ctx->device;
-	uint8_t *buf;
 	netvsc_packet *packet;
 	struct mbuf *m_head, *m;
-	struct mbuf *mc_head = NULL;
 	struct ether_vlan_header *eh;
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
@@ -539,84 +765,40 @@ hn_start_locked(struct ifnet *ifp)
 	rndis_tcp_ip_csum_info *csum_info;
 	rndis_tcp_tso_info *tso_info;	
 	int ether_len;
-	int i;
-	int num_frags;
-	int len;
-	int retries = 0;
-	int ret = 0;	
 	uint32_t rndis_msg_size = 0;
 	uint32_t trans_proto_type;
 	uint32_t send_buf_section_idx =
 	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
 
-	while (!IFQ_DRV_IS_EMPTY(&sc->hn_ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&sc->hn_ifp->if_snd, m_head);
-		if (m_head == NULL) {
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return;
+
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		bus_dma_segment_t segs[HN_TX_DATA_SEGCNT_MAX];
+		int error, nsegs, i, send_failed = 0;
+		struct hn_txdesc *txd;
+
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		if (m_head == NULL)
+			break;
+
+		txd = hn_txdesc_get(sc);
+		if (txd == NULL) {
+			sc->hn_no_txdescs++;
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
-		len = 0;
-		num_frags = 0;
-
-		/* Walk the mbuf list computing total length and num frags */
-		for (m = m_head; m != NULL; m = m->m_next) {
-			if (m->m_len != 0) {
-				num_frags++;
-				len += m->m_len;
-			}
-		}
-
-		/*
-		 * Reserve the number of pages requested.  Currently,
-		 * one page is reserved for the message in the RNDIS
-		 * filter packet
-		 */
-		num_frags += HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
-
-		/* If exceeds # page_buffers in netvsc_packet */
-		if (num_frags > NETVSC_PACKET_MAXPAGE) {
-			device_printf(dev, "exceed max page buffers,%d,%d\n",
-			    num_frags, NETVSC_PACKET_MAXPAGE);
-			m_freem(m_head);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			return (EINVAL);
-		}
-
-		/*
-		 * Allocate a buffer with space for a netvsc packet plus a
-		 * number of reserved areas.  First comes a (currently 16
-		 * bytes, currently unused) reserved data area.  Second is
-		 * the netvsc_packet. Third is an area reserved for an 
-		 * rndis_filter_packet struct. Fourth (optional) is a 
-		 * rndis_per_packet_info struct.
-		 * Changed malloc to M_NOWAIT to avoid sleep under spin lock.
-		 * No longer reserving extra space for page buffers, as they
-		 * are already part of the netvsc_packet.
-		 */
-		buf = malloc(HV_NV_PACKET_OFFSET_IN_BUF +
-			sizeof(netvsc_packet) + 
-			sizeof(rndis_msg) +
-			RNDIS_VLAN_PPI_SIZE +
-			RNDIS_TSO_PPI_SIZE +
-			RNDIS_CSUM_PPI_SIZE,
-			M_NETVSC, M_ZERO | M_NOWAIT);
-		if (buf == NULL) {
-			device_printf(dev, "hn:malloc packet failed\n");
-			m_freem(m_head);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			return (ENOMEM);
-		}
-
-		packet = (netvsc_packet *)(buf + HV_NV_PACKET_OFFSET_IN_BUF);
-		*(vm_offset_t *)buf = HV_NV_SC_PTR_OFFSET_IN_BUF;
+		packet = &txd->netvsc_pkt;
+		/* XXX not necessary */
+		memset(packet, 0, sizeof(*packet));
 
 		packet->is_data_pkt = TRUE;
 
-		/* Set up the rndis header */
-		packet->page_buf_count = num_frags;
-
 		/* Initialize it from the mbuf */
-		packet->tot_data_buf_len = len;
+		packet->tot_data_buf_len = m_head->m_pkthdr.len;
 
 		/*
 		 * extension points to the area reserved for the
@@ -624,8 +806,9 @@ hn_start_locked(struct ifnet *ifp)
 		 * the netvsc_packet (and rppi struct, if present;
 		 * length is updated later).
 		 */
-		packet->rndis_mesg = packet + 1;
-		rndis_mesg = (rndis_msg *)packet->rndis_mesg;
+		rndis_mesg = txd->rndis_msg;
+		/* XXX not necessary */
+		memset(rndis_mesg, 0, HN_RNDIS_MSG_LEN);
 		rndis_mesg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
 
 		rndis_pkt = &rndis_mesg->msg.packet;
@@ -644,8 +827,6 @@ hn_start_locked(struct ifnet *ifp)
 			 * set up some additional fields so the Hyper-V infrastructure will stuff the VLAN tag
 			 * into the frame.
 			 */
-			packet->vlan_tci = m_head->m_pkthdr.ether_vtag;
-
 			rndis_msg_size += RNDIS_VLAN_PPI_SIZE;
 
 			rppi = hv_set_rppi_data(rndis_mesg, RNDIS_VLAN_PPI_SIZE,
@@ -656,7 +837,7 @@ hn_start_locked(struct ifnet *ifp)
 			    rppi->per_packet_info_offset);
 			/* FreeBSD does not support CFI or priority */
 			rppi_vlan_info->u1.s1.vlan_id =
-			    packet->vlan_tci & 0xfff;
+			    m_head->m_pkthdr.ether_vtag & 0xfff;
 		}
 
 		/* Only check the flags for outbound and ignore the ones for inbound */
@@ -758,7 +939,7 @@ pre_send:
 		packet->tot_data_buf_len = rndis_mesg->msg_len;
 
 		/* send packet with send buffer */
-		if (packet->tot_data_buf_len < net_dev->send_section_size) {
+		if (packet->tot_data_buf_len < sc->hn_tx_chimney_size) {
 			send_buf_section_idx =
 			    hv_nv_get_next_send_section(net_dev);
 			if (send_buf_section_idx !=
@@ -783,33 +964,49 @@ pre_send:
 				packet->send_buf_section_size =
 				    packet->tot_data_buf_len;
 				packet->page_buf_count = 0;
+				sc->hn_tx_chimney++;
 				goto do_send;
 			}
 		}
 
+		error = hn_txdesc_dmamap_load(sc, txd, &m_head, segs, &nsegs);
+		if (error) {
+			int freed;
+
+			/*
+			 * This mbuf is not linked w/ the txd yet, so free
+			 * it now.
+			 */
+			m_freem(m_head);
+			freed = hn_txdesc_put(sc, txd);
+			KASSERT(freed != 0,
+			    ("fail to free txd upon txdma error"));
+
+			sc->hn_txdma_failed++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			continue;
+		}
+
+		packet->page_buf_count = nsegs +
+		    HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
+
 		/* send packet with page buffer */
-		packet->page_buffers[0].pfn =
-		    atop(hv_get_phys_addr(rndis_mesg));
+		packet->page_buffers[0].pfn = atop(txd->rndis_msg_paddr);
 		packet->page_buffers[0].offset =
-		    (unsigned long)rndis_mesg & PAGE_MASK;
+		    txd->rndis_msg_paddr & PAGE_MASK;
 		packet->page_buffers[0].length = rndis_msg_size;
 
 		/*
 		 * Fill the page buffers with mbuf info starting at index
 		 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
 		 */
-		i = HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
-		for (m = m_head; m != NULL; m = m->m_next) {
-			if (m->m_len) {
-				vm_offset_t paddr =
-				    vtophys(mtod(m, vm_offset_t));
-				packet->page_buffers[i].pfn =
-				    paddr >> PAGE_SHIFT;
-				packet->page_buffers[i].offset =
-				    paddr & (PAGE_SIZE - 1);
-				packet->page_buffers[i].length = m->m_len;
-				i++;
-			}
+		for (i = 0; i < nsegs; ++i) {
+			hv_vmbus_page_buffer *pb = &packet->page_buffers[
+			    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
+
+			pb->pfn = atop(segs[i].ds_addr);
+			pb->offset = segs[i].ds_addr & PAGE_MASK;
+			pb->length = segs[i].ds_len;
 		}
 
 		packet->send_buf_section_idx = 
@@ -817,63 +1014,65 @@ pre_send:
 		packet->send_buf_section_size = 0;
 
 do_send:
+		txd->m = m_head;
 
-		/*
-		 * If bpf, copy the mbuf chain.  This is less expensive than
-		 * it appears; the mbuf clusters are not copied, only their
-		 * reference counts are incremented.
-		 * Needed to avoid a race condition where the completion
-		 * callback is invoked, freeing the mbuf chain, before the
-		 * bpf_mtap code has a chance to run.
-		 */
-		if (ifp->if_bpf) {
-			mc_head = m_copypacket(m_head, M_DONTWAIT);
-		}
-retry_send:
 		/* Set the completion routine */
 		packet->compl.send.on_send_completion = netvsc_xmit_completion;
 		packet->compl.send.send_completion_context = packet;
-		packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)m_head;
+		packet->compl.send.send_completion_tid =
+		    (uint64_t)(uintptr_t)txd;
 
-		/* Removed critical_enter(), does not appear necessary */
-		ret = hv_nv_on_send(device_ctx, packet);
-		if (ret == 0) {
-			ifp->if_opackets++;
-			/* if bpf && mc_head, call bpf_mtap code */
-			if (mc_head) {
-				ETHER_BPF_MTAP(ifp, mc_head);
-			}
-		} else {
-			retries++;
-			if (retries < 4) {
-				goto retry_send;
-			}
+again:
+		/*
+		 * Make sure that txd is not freed before ETHER_BPF_MTAP.
+		 */
+		hn_txdesc_hold(txd);
+		error = hv_nv_on_send(device_ctx, packet);
+		if (!error) {
+			ETHER_BPF_MTAP(ifp, m_head);
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		}
+		hn_txdesc_put(sc, txd);
 
+		if (__predict_false(error)) {
+			int freed;
+
+			/*
+			 * This should "really rarely" happen.
+			 *
+			 * XXX Too many RX to be acked or too many sideband
+			 * commands to run?  Ask netvsc_channel_rollup()
+			 * to kick start later.
+			 */
+			sc->hn_txeof = 1;
+			if (!send_failed) {
+				sc->hn_send_failed++;
+				send_failed = 1;
+				/*
+				 * Try sending again after set hn_txeof;
+				 * in case that we missed the last
+				 * netvsc_channel_rollup().
+				 */
+				goto again;
+			}
+			if_printf(ifp, "send failed\n");
+
+			/*
+			 * This mbuf will be prepended, don't free it
+			 * in hn_txdesc_put(); only unload it from the
+			 * DMA map in hn_txdesc_put(), if it was loaded.
+			 */
+			txd->m = NULL;
+			freed = hn_txdesc_put(sc, txd);
+			KASSERT(freed != 0,
+			    ("fail to free txd upon send error"));
+
+			sc->hn_send_failed++;
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-
-			/*
-			 * Null the mbuf pointer so the completion function
-			 * does not free the mbuf chain.  We just pushed the
-			 * mbuf chain back on the if_snd queue.
-			 */
-			packet->compl.send.send_completion_tid = 0;
-
-			/*
-			 * Release the resources since we will not get any
-			 * send completion
-			 */
-			netvsc_xmit_completion(packet);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		}
-
-		/* if bpf && mc_head, free the mbuf chain copy */
-		if (mc_head) {
-			m_freem(mc_head);
+			break;
 		}
 	}
-
-	return (ret);
 }
 
 /*
@@ -1222,6 +1421,9 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		sc->hn_tx_chimney_max = sc->net_dev->send_section_size;
+		if (sc->hn_tx_chimney_size > sc->hn_tx_chimney_max)
+			sc->hn_tx_chimney_size = sc->hn_tx_chimney_max;
 		hn_ifinit_locked(sc);
 
 		NV_LOCK(sc);
@@ -1479,6 +1681,25 @@ hn_lro_hiwat_sysctl(SYSCTL_HANDLER_ARGS)
 #endif	/* HN_LRO_HIWAT */
 
 static int
+hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	int chimney_size, error;
+
+	chimney_size = sc->hn_tx_chimney_size;
+	error = sysctl_handle_int(oidp, &chimney_size, 0, req);
+	if (error || req->newptr == NULL)
+		return error;
+
+	if (chimney_size > sc->hn_tx_chimney_max || chimney_size <= 0)
+		return EINVAL;
+
+	if (sc->hn_tx_chimney_size != chimney_size)
+		sc->hn_tx_chimney_size = chimney_size;
+	return 0;
+}
+
+static int
 hn_check_iplen(const struct mbuf *m, int hoff)
 {
 	const struct ip *ip;
@@ -1551,6 +1772,150 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 		break;
 	}
 	return ip->ip_p;
+}
+
+static void
+hn_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	bus_addr_t *paddr = arg;
+
+	if (error)
+		return;
+
+	KASSERT(nseg == 1, ("too many segments %d!", nseg));
+	*paddr = segs->ds_addr;
+}
+
+static int
+hn_create_tx_ring(struct hn_softc *sc)
+{
+	bus_dma_tag_t parent_dtag;
+	int error, i;
+
+	sc->hn_txdesc_cnt = HN_TX_DESC_CNT;
+	sc->hn_txdesc = malloc(sizeof(struct hn_txdesc) * sc->hn_txdesc_cnt,
+	    M_NETVSC, M_WAITOK | M_ZERO);
+	SLIST_INIT(&sc->hn_txlist);
+	mtx_init(&sc->hn_txlist_spin, "hn txlist", NULL, MTX_SPIN);
+
+	parent_dtag = bus_get_dma_tag(sc->hn_dev);
+
+	/* DMA tag for RNDIS messages. */
+	error = bus_dma_tag_create(parent_dtag, /* parent */
+	    HN_RNDIS_MSG_ALIGN,		/* alignment */
+	    HN_RNDIS_MSG_BOUNDARY,	/* boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    HN_RNDIS_MSG_LEN,		/* maxsize */
+	    1,				/* nsegments */
+	    HN_RNDIS_MSG_LEN,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL,			/* lockfunc */
+	    NULL,			/* lockfuncarg */
+	    &sc->hn_tx_rndis_dtag);
+	if (error) {
+		device_printf(sc->hn_dev, "failed to create rndis dmatag\n");
+		return error;
+	}
+
+	/* DMA tag for data. */
+	error = bus_dma_tag_create(parent_dtag, /* parent */
+	    1,				/* alignment */
+	    HN_TX_DATA_BOUNDARY,	/* boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    HN_TX_DATA_MAXSIZE,		/* maxsize */
+	    HN_TX_DATA_SEGCNT_MAX,	/* nsegments */
+	    HN_TX_DATA_SEGSIZE,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL,			/* lockfunc */
+	    NULL,			/* lockfuncarg */
+	    &sc->hn_tx_data_dtag);
+	if (error) {
+		device_printf(sc->hn_dev, "failed to create data dmatag\n");
+		return error;
+	}
+
+	for (i = 0; i < sc->hn_txdesc_cnt; ++i) {
+		struct hn_txdesc *txd = &sc->hn_txdesc[i];
+
+		txd->sc = sc;
+
+		/*
+		 * Allocate and load RNDIS messages.
+		 */
+        	error = bus_dmamem_alloc(sc->hn_tx_rndis_dtag,
+		    (void **)&txd->rndis_msg,
+		    BUS_DMA_WAITOK | BUS_DMA_COHERENT,
+		    &txd->rndis_msg_dmap);
+		if (error) {
+			device_printf(sc->hn_dev,
+			    "failed to allocate rndis_msg, %d\n", i);
+			return error;
+		}
+
+		error = bus_dmamap_load(sc->hn_tx_rndis_dtag,
+		    txd->rndis_msg_dmap,
+		    txd->rndis_msg, HN_RNDIS_MSG_LEN,
+		    hn_dma_map_paddr, &txd->rndis_msg_paddr,
+		    BUS_DMA_NOWAIT);
+		if (error) {
+			device_printf(sc->hn_dev,
+			    "failed to load rndis_msg, %d\n", i);
+			bus_dmamem_free(sc->hn_tx_rndis_dtag,
+			    txd->rndis_msg, txd->rndis_msg_dmap);
+			return error;
+		}
+
+		/* DMA map for TX data. */
+		error = bus_dmamap_create(sc->hn_tx_data_dtag, 0,
+		    &txd->data_dmap);
+		if (error) {
+			device_printf(sc->hn_dev,
+			    "failed to allocate tx data dmamap\n");
+			bus_dmamap_unload(sc->hn_tx_rndis_dtag,
+			    txd->rndis_msg_dmap);
+			bus_dmamem_free(sc->hn_tx_rndis_dtag,
+			    txd->rndis_msg, txd->rndis_msg_dmap);
+			return error;
+		}
+
+		/* All set, put it to list */
+		txd->flags |= HN_TXD_FLAG_ONLIST;
+		SLIST_INSERT_HEAD(&sc->hn_txlist, txd, link);
+	}
+	sc->hn_txdesc_avail = sc->hn_txdesc_cnt;
+
+	return 0;
+}
+
+static void
+hn_destroy_tx_ring(struct hn_softc *sc)
+{
+	struct hn_txdesc *txd;
+
+	while ((txd = SLIST_FIRST(&sc->hn_txlist)) != NULL) {
+		KASSERT(txd->m == NULL, ("still has mbuf installed"));
+		KASSERT((txd->flags & HN_TXD_FLAG_DMAMAP) == 0,
+		    ("still dma mapped"));
+		SLIST_REMOVE_HEAD(&sc->hn_txlist, link);
+
+		bus_dmamap_unload(sc->hn_tx_rndis_dtag,
+		    txd->rndis_msg_dmap);
+		bus_dmamem_free(sc->hn_tx_rndis_dtag,
+		    txd->rndis_msg, txd->rndis_msg_dmap);
+
+		bus_dmamap_destroy(sc->hn_tx_data_dtag, txd->data_dmap);
+	}
+
+	if (sc->hn_tx_data_dtag != NULL)
+		bus_dma_tag_destroy(sc->hn_tx_data_dtag);
+	if (sc->hn_tx_rndis_dtag != NULL)
+		bus_dma_tag_destroy(sc->hn_tx_rndis_dtag);
+	free(sc->hn_txdesc, M_NETVSC);
+	mtx_destroy(&sc->hn_txlist_spin);
 }
 
 static device_method_t netvsc_methods[] = {
