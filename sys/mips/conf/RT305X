@@ -64,7 +64,7 @@ options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=rt0
 options 	BOOTP_COMPAT
 options 	CD9660			# ISO 9660 Filesystem
-options 	ROOTDEVNAME=\"cd9660:/dev/map/rootfs.uncompress\"
+options 	ROOTDEVNAME=\"cd9660:/dev/map/rootfs.uzip\"
 options 	TMPFS			# TMP Memory Filesystem
 
 #options 	FFS			#Berkeley Fast Filesystem
