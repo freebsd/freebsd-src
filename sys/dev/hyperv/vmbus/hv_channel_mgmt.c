@@ -274,14 +274,16 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 	boolean_t		f_new;
 	hv_vmbus_channel*	channel;
 	int			ret;
+	uint32_t                relid;
 
 	f_new = TRUE;
 	channel = NULL;
-
+	relid = new_channel->offer_msg.child_rel_id;
 	/*
 	 * Make sure this is a new offer
 	 */
 	mtx_lock(&hv_vmbus_g_connection.channel_lock);
+	hv_vmbus_g_connection.channels[relid] = new_channel;
 
 	TAILQ_FOREACH(channel, &hv_vmbus_g_connection.channel_anchor,
 	    list_entry)
@@ -325,16 +327,18 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			mtx_unlock(&channel->sc_lock);
 
 			/* Insert new channel into channel_anchor. */
-			printf("Storvsc get multi-channel offer, rel=%u.\n",
-			    new_channel->offer_msg.child_rel_id);	
+			printf("VMBUS get multi-channel offer, rel=%u,sub=%u\n",
+			    new_channel->offer_msg.child_rel_id,
+			    new_channel->offer_msg.offer.sub_channel_index);	
 			mtx_lock(&hv_vmbus_g_connection.channel_lock);
 			TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_anchor,
 			    new_channel, list_entry);				
 			mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 
 			if(bootverbose)
-				printf("VMBUS: new multi-channel offer <%p>.\n",
-				    new_channel);
+				printf("VMBUS: new multi-channel offer <%p>, "
+				    "its primary channel is <%p>.\n",
+				    new_channel, new_channel->primary_channel);
 
 			/*XXX add it to percpu_list */
 
@@ -524,11 +528,14 @@ vmbus_channel_on_offer_rescind(hv_vmbus_channel_msg_header* hdr)
 
 	rescind = (hv_vmbus_channel_rescind_offer*) hdr;
 
-	channel = hv_vmbus_get_channel_from_rel_id(rescind->child_rel_id);
+	channel = hv_vmbus_g_connection.channels[rescind->child_rel_id];
 	if (channel == NULL) 
 	    return;
 
 	hv_vmbus_child_device_unregister(channel->device);
+	mtx_lock(&hv_vmbus_g_connection.channel_lock);
+	hv_vmbus_g_connection.channels[rescind->child_rel_id] = NULL;
+	mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 }
 
 /**
@@ -782,6 +789,8 @@ hv_vmbus_release_unattached_channels(void)
 	    hv_vmbus_child_device_unregister(channel->device);
 	    hv_vmbus_free_vmbus_channel(channel);
 	}
+	bzero(hv_vmbus_g_connection.channels, 
+		sizeof(hv_vmbus_channel*) * HV_CHANNEL_MAX_COUNT);
 	mtx_unlock(&hv_vmbus_g_connection.channel_lock);
 }
 
