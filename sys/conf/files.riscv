@@ -1,6 +1,7 @@
 # $FreeBSD$
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+dev/ofw/ofw_cpu.c		optional	fdt
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard
@@ -29,8 +30,9 @@ riscv/riscv/intr_machdep.c	standard
 riscv/riscv/in_cksum.c		optional	inet | inet6
 riscv/riscv/identcpu.c		standard
 riscv/riscv/locore.S		standard	no-obj
-riscv/riscv/minidump_machdep.c	standard
 riscv/riscv/machdep.c		standard
+riscv/riscv/minidump_machdep.c	standard
+riscv/riscv/mp_machdep.c	optional	smp
 riscv/riscv/mem.c		standard
 riscv/riscv/nexus.c		standard
 riscv/riscv/pmap.c		standard
