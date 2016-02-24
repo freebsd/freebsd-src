@@ -138,14 +138,14 @@ __subdir_targets=
 .if ${__dir} == .WAIT
 __subdir_targets+= .WAIT
 .else
-__subdir_targets+= ${__target}_subdir_${__dir}
+__subdir_targets+= ${__target}_subdir_${DIRPRFX}${__dir}
 __deps=
 .if ${_is_standalone_target} == 0
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
-__deps+= ${__target}_subdir_${__dep}
+__deps+= ${__target}_subdir_${DIRPRFX}${__dep}
 .endfor
 .endif
-${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
+${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}target=${__target:realinstall=install}; \
 	    dir=${__dir}; \
