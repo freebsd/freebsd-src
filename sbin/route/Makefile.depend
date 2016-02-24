@@ -16,6 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-route.o: keywords.h
-route.po: keywords.h
 .endif

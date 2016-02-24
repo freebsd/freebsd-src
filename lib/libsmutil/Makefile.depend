@@ -11,16 +11,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-cf.o: sm_os.h
-cf.po: sm_os.h
-debug.o: sm_os.h
-debug.po: sm_os.h
-err.o: sm_os.h
-err.po: sm_os.h
-lockfile.o: sm_os.h
-lockfile.po: sm_os.h
-safefile.o: sm_os.h
-safefile.po: sm_os.h
-snprintf.o: sm_os.h
-snprintf.po: sm_os.h
 .endif

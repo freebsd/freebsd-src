@@ -17,10 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-lex.o: lex.c
-lex.o: y.tab.h
-lex.po: lex.c
-lex.po: y.tab.h
-yacc.o: yacc.c
-yacc.po: yacc.c
 .endif

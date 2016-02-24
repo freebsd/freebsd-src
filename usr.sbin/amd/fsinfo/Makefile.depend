@@ -22,12 +22,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-fsi_gram.o: fsi_gram.c
-fsi_gram.po: fsi_gram.c
-fsi_lex.o: fsi_gram.h
-fsi_lex.o: fsi_lex.c
-fsi_lex.po: fsi_gram.h
-fsi_lex.po: fsi_lex.c
-fsinfo.o: fsi_gram.h
-fsinfo.po: fsi_gram.h
 .endif

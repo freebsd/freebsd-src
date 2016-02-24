@@ -10,12 +10,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-smdb.o: sm_os.h
-smdb.po: sm_os.h
-smdb1.o: sm_os.h
-smdb1.po: sm_os.h
-smdb2.o: sm_os.h
-smdb2.po: sm_os.h
-smndbm.o: sm_os.h
-smndbm.po: sm_os.h
 .endif

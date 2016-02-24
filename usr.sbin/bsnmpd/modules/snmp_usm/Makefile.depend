@@ -16,12 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-usm_snmp.So: usm_oid.h
-usm_snmp.So: usm_tree.h
-usm_snmp.po: usm_oid.h
-usm_snmp.po: usm_tree.h
-usm_tree.So: usm_tree.c
-usm_tree.So: usm_tree.h
-usm_tree.po: usm_tree.c
-usm_tree.po: usm_tree.h
 .endif

@@ -13,6 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-LibDriver.o: Options.inc.h
-LibDriver.po: Options.inc.h
 .endif

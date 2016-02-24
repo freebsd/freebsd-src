@@ -84,12 +84,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AnalysisWrappers.o: Intrinsics.inc.h
-AnalysisWrappers.po: Intrinsics.inc.h
-PassPrinters.o: Intrinsics.inc.h
-PassPrinters.po: Intrinsics.inc.h
-PrintSCC.o: Intrinsics.inc.h
-PrintSCC.po: Intrinsics.inc.h
-opt.o: Intrinsics.inc.h
-opt.po: Intrinsics.inc.h
 .endif

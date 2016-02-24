@@ -100,26 +100,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-cc1_main.o: DiagnosticCommonKinds.inc.h
-cc1_main.o: DiagnosticDriverKinds.inc.h
-cc1_main.o: DiagnosticFrontendKinds.inc.h
-cc1_main.o: Options.inc.h
-cc1_main.po: DiagnosticCommonKinds.inc.h
-cc1_main.po: DiagnosticDriverKinds.inc.h
-cc1_main.po: DiagnosticFrontendKinds.inc.h
-cc1_main.po: Options.inc.h
-cc1as_main.o: DiagnosticCommonKinds.inc.h
-cc1as_main.o: DiagnosticDriverKinds.inc.h
-cc1as_main.o: DiagnosticFrontendKinds.inc.h
-cc1as_main.o: Options.inc.h
-cc1as_main.po: DiagnosticCommonKinds.inc.h
-cc1as_main.po: DiagnosticDriverKinds.inc.h
-cc1as_main.po: DiagnosticFrontendKinds.inc.h
-cc1as_main.po: Options.inc.h
-driver.o: DiagnosticCommonKinds.inc.h
-driver.o: DiagnosticDriverKinds.inc.h
-driver.o: Options.inc.h
-driver.po: DiagnosticCommonKinds.inc.h
-driver.po: DiagnosticDriverKinds.inc.h
-driver.po: Options.inc.h
 .endif

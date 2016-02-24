@@ -13,38 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-FixItRewriter.o: DiagnosticCommonKinds.inc.h
-FixItRewriter.o: DiagnosticFrontendKinds.inc.h
-FixItRewriter.po: DiagnosticCommonKinds.inc.h
-FixItRewriter.po: DiagnosticFrontendKinds.inc.h
-FrontendActions.o: AttrList.inc.h
-FrontendActions.o: AttrParsedAttrList.inc.h
-FrontendActions.o: Attrs.inc.h
-FrontendActions.o: CommentCommandList.inc.h
-FrontendActions.o: DeclNodes.inc.h
-FrontendActions.o: DiagnosticCommonKinds.inc.h
-FrontendActions.o: DiagnosticFrontendKinds.inc.h
-FrontendActions.o: StmtNodes.inc.h
-FrontendActions.po: AttrList.inc.h
-FrontendActions.po: AttrParsedAttrList.inc.h
-FrontendActions.po: Attrs.inc.h
-FrontendActions.po: CommentCommandList.inc.h
-FrontendActions.po: DeclNodes.inc.h
-FrontendActions.po: DiagnosticCommonKinds.inc.h
-FrontendActions.po: DiagnosticFrontendKinds.inc.h
-FrontendActions.po: StmtNodes.inc.h
-HTMLPrint.o: CommentCommandList.inc.h
-HTMLPrint.o: DeclNodes.inc.h
-HTMLPrint.o: DiagnosticCommonKinds.inc.h
-HTMLPrint.o: StmtNodes.inc.h
-HTMLPrint.po: CommentCommandList.inc.h
-HTMLPrint.po: DeclNodes.inc.h
-HTMLPrint.po: DiagnosticCommonKinds.inc.h
-HTMLPrint.po: StmtNodes.inc.h
-InclusionRewriter.o: DiagnosticCommonKinds.inc.h
-InclusionRewriter.po: DiagnosticCommonKinds.inc.h
-RewriteMacros.o: DiagnosticCommonKinds.inc.h
-RewriteMacros.po: DiagnosticCommonKinds.inc.h
-RewriteTest.o: DiagnosticCommonKinds.inc.h
-RewriteTest.po: DiagnosticCommonKinds.inc.h
 .endif

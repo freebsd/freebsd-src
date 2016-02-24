@@ -19,16 +19,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-yp_main.o: yp.h
-yp_main.po: yp.h
-yp_server.o: yp.h
-yp_server.po: yp.h
-yp_svc.o: yp.h
-yp_svc.o: yp_svc.c
-yp_svc.po: yp.h
-yp_svc.po: yp_svc.c
-ypxfr_clnt.o: yp.h
-ypxfr_clnt.o: ypxfr_clnt.c
-ypxfr_clnt.po: yp.h
-ypxfr_clnt.po: ypxfr_clnt.c
 .endif

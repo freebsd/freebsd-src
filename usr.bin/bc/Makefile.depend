@@ -18,10 +18,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-bc.o: bc.c
-bc.po: bc.c
-scan.o: bc.h
-scan.o: scan.c
-scan.po: bc.h
-scan.po: scan.c
 .endif

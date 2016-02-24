@@ -10,34 +10,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-crtbegin.o: options.h
-crtbegin.o: tconfig.h
-crtbegin.o: tm.h
-crtbegin.po: options.h
-crtbegin.po: tconfig.h
-crtbegin.po: tm.h
-crtbeginS.o: options.h
-crtbeginS.o: tconfig.h
-crtbeginS.o: tm.h
-crtbeginS.po: options.h
-crtbeginS.po: tconfig.h
-crtbeginS.po: tm.h
-crtbeginT.o: options.h
-crtbeginT.o: tconfig.h
-crtbeginT.o: tm.h
-crtbeginT.po: options.h
-crtbeginT.po: tconfig.h
-crtbeginT.po: tm.h
-crtend.o: options.h
-crtend.o: tconfig.h
-crtend.o: tm.h
-crtend.po: options.h
-crtend.po: tconfig.h
-crtend.po: tm.h
-crtendS.o: options.h
-crtendS.o: tconfig.h
-crtendS.o: tm.h
-crtendS.po: options.h
-crtendS.po: tconfig.h
-crtendS.po: tm.h
 .endif

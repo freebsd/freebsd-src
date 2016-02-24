@@ -15,6 +15,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-crunched_skel.o: crunched_skel.c
-crunched_skel.po: crunched_skel.c
 .endif

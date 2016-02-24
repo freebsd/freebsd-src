@@ -17,12 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-lm75_tree.So: lm75_tree.c
-lm75_tree.So: lm75_tree.h
-lm75_tree.po: lm75_tree.c
-lm75_tree.po: lm75_tree.h
-snmp_lm75.So: lm75_oid.h
-snmp_lm75.So: lm75_tree.h
-snmp_lm75.po: lm75_oid.h
-snmp_lm75.po: lm75_tree.h
 .endif

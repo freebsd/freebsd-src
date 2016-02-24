@@ -16,24 +16,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-charmap.o: parser.h
-charmap.po: parser.h
-collate.o: parser.h
-collate.po: parser.h
-ctype.o: parser.h
-ctype.po: parser.h
-localedef.o: parser.h
-localedef.po: parser.h
-messages.o: parser.h
-messages.po: parser.h
-monetary.o: parser.h
-monetary.po: parser.h
-numeric.o: parser.h
-numeric.po: parser.h
-parser.o: parser.c
-parser.po: parser.c
-scanner.o: parser.h
-scanner.po: parser.h
-time.o: parser.h
-time.po: parser.h
 .endif

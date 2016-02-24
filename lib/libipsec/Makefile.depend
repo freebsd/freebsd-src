@@ -17,13 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-policy_parse.So: policy_parse.c
-policy_parse.o: policy_parse.c
-policy_parse.po: policy_parse.c
-policy_token.So: policy_token.c
-policy_token.So: y.tab.h
-policy_token.o: policy_token.c
-policy_token.o: y.tab.h
-policy_token.po: policy_token.c
-policy_token.po: y.tab.h
 .endif

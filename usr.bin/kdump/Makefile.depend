@@ -19,10 +19,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-kdump.o: kdump_subr.h
-kdump.po: kdump_subr.h
-kdump_subr.o: kdump_subr.c
-kdump_subr.o: kdump_subr.h
-kdump_subr.po: kdump_subr.c
-kdump_subr.po: kdump_subr.h
 .endif

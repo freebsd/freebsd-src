@@ -34,10 +34,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-kdigest-commands.o: kdigest-commands.c
-kdigest-commands.o: kdigest-commands.h
-kdigest-commands.po: kdigest-commands.c
-kdigest-commands.po: kdigest-commands.h
-kdigest.o: kdigest-commands.h
-kdigest.po: kdigest-commands.h
 .endif
