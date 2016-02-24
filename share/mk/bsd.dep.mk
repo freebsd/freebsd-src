@@ -268,6 +268,7 @@ afterdepend:
 .endif
 .endif
 
+.if defined(SRCS)
 .if ${CTAGS:T} == "gtags"
 CLEANDEPENDFILES+=	GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
@@ -276,13 +277,14 @@ CLEANDEPENDDIRS+=	HTML
 .else
 CLEANDEPENDFILES+=	tags
 .endif
+.endif
 .if !target(cleandepend)
 cleandepend:
-.if defined(SRCS)
+.if !empty(CLEANDEPENDFILES)
 	rm -f ${CLEANDEPENDFILES}
+.endif
 .if !empty(CLEANDEPENDDIRS)
 	rm -rf ${CLEANDEPENDDIRS}
-.endif
 .endif
 .endif
 
