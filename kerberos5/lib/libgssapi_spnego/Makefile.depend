@@ -11,6 +11,7 @@ DIRDEPS = \
 	kerberos5/lib/libheimbase \
 	kerberos5/lib/libkrb5 \
 	kerberos5/lib/libroken \
+	kerberos5/tools/asn1_compile.host \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \

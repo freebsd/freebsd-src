@@ -25,6 +25,7 @@ DIRDEPS = \
 	lib/libsqlite3 \
 	lib/libthr \
 	secure/lib/libcrypto \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>

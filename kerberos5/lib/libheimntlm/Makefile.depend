@@ -15,6 +15,7 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	secure/lib/libcrypto \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>
