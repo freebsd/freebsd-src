@@ -29,6 +29,9 @@ no-default:
 .if make(show-valid-targets)
 OTHER_TARGETS = \
 	destroy \
+	destroy-arch \
+	destroy-host \
+	destroy-stage \
 
 BUILD_TARGETS != cd ${_here} && \
 	find . \( -name Makefile.depend -o -name ${.MAKE.DEPENDFILE:T} \) | \
