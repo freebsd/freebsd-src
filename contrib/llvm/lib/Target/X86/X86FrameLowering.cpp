@@ -2592,9 +2592,6 @@ bool X86FrameLowering::canUseAsEpilogue(const MachineBasicBlock &MBB) const {
 bool X86FrameLowering::enableShrinkWrapping(const MachineFunction &MF) const {
   // If we may need to emit frameless compact unwind information, give
   // up as this is currently broken: PR25614.
-#if 1
-  return false;
-#else
   return (MF.getFunction()->hasFnAttribute(Attribute::NoUnwind) || hasFP(MF)) &&
          // The lowering of segmented stack and HiPE only support entry blocks
          // as prologue blocks: PR26107.
@@ -2603,7 +2600,6 @@ bool X86FrameLowering::enableShrinkWrapping(const MachineFunction &MF) const {
          // - adjustForHiPEPrologue
          MF.getFunction()->getCallingConv() != CallingConv::HiPE &&
          !MF.shouldSplitStack();
-#endif
 }
 
 MachineBasicBlock::iterator X86FrameLowering::restoreWin32EHStackPointers(
