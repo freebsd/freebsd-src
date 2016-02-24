@@ -624,11 +624,7 @@ creturn_check_global:
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-#if defined(NOTYET)
 	beqz		k1, CReturn_local_retval
-#else
-	nop
-#endif
 	nop
 
 	/* Increment the exception counter for creturn, if enabled. */
