@@ -184,7 +184,7 @@ ffs_truncate(vp, length, flags, cred)
 	struct inode *ip;
 	ufs2_daddr_t bn, lbn, lastblock, lastiblock[NIADDR], indir_lbn[NIADDR];
 	ufs2_daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
-	ufs2_daddr_t count, blocksreleased = 0, datablocks;
+	ufs2_daddr_t count, blocksreleased = 0, datablocks, blkno;
 	struct bufobj *bo;
 	struct fs *fs;
 	struct buf *bp;
@@ -192,7 +192,7 @@ ffs_truncate(vp, length, flags, cred)
 	int softdeptrunc, journaltrunc;
 	int needextclean, extblocks;
 	int offset, size, level, nblocks;
-	int i, error, allerror;
+	int i, error, allerror, indiroff;
 	off_t osize;
 
 	ip = VTOI(vp);
@@ -329,16 +329,57 @@ ffs_truncate(vp, length, flags, cred)
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (ffs_update(vp, !DOINGASYNC(vp)));
 	}
-	if (DOINGSOFTDEP(vp)) {
+	/*
+	 * Lookup block number for a given offset. Zero length files
+	 * have no blocks, so return a blkno of -1.
+	 */
+	lbn = lblkno(fs, length - 1);
+	if (length == 0) {
+		blkno = -1;
+	} else if (lbn < NDADDR) {
+		blkno = DIP(ip, i_db[lbn]);
+	} else {
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn), fs->fs_bsize,
+		    cred, BA_METAONLY, &bp);
+		if (error)
+			return (error);
+		indiroff = (lbn - NDADDR) % NINDIR(fs);
+		if (ip->i_ump->um_fstype == UFS1)
+			blkno = ((ufs1_daddr_t *)(bp->b_data))[indiroff];
+		else
+			blkno = ((ufs2_daddr_t *)(bp->b_data))[indiroff];
+		/*
+		 * If the block number is non-zero, then the indirect block
+		 * must have been previously allocated and need not be written.
+		 * If the block number is zero, then we may have allocated
+		 * the indirect block and hence need to write it out.
+		 */
+		if (blkno != 0)
+			brelse(bp);
+		else if (DOINGSOFTDEP(vp) || DOINGASYNC(vp))
+			bdwrite(bp);
+		else
+			bwrite(bp);
+	}
+	/*
+	 * If the block number at the new end of the file is zero,
+	 * then we must allocate it to ensure that the last block of 
+	 * the file is allocated. Soft updates does not handle this
+	 * case, so here we have to clean up the soft updates data
+	 * structures describing the allocation past the truncation
+	 * point. Finding and deallocating those structures is a lot of
+	 * work. Since partial truncation with a hole at the end occurs
+	 * rarely, we solve the problem by syncing the file so that it
+	 * will have no soft updates data structures left.
+	 */
+	if (blkno == 0 && (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
+		return (error);
+	if (blkno != 0 && DOINGSOFTDEP(vp)) {
 		if (softdeptrunc == 0 && journaltrunc == 0) {
 			/*
-			 * If a file is only partially truncated, then
-			 * we have to clean up the data structures
-			 * describing the allocation past the truncation
-			 * point. Finding and deallocating those structures
-			 * is a lot of work. Since partial truncation occurs
-			 * rarely, we solve the problem by syncing the file
-			 * so that it will have no data structures left.
+			 * If soft updates cannot handle this truncation,
+			 * clean up soft dependency data structures and
+			 * fall through to the synchronous truncation.
 			 */
 			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 				return (error);
@@ -358,15 +399,17 @@ ffs_truncate(vp, length, flags, cred)
 		}
 	}
 	/*
-	 * Shorten the size of the file. If the file is not being
-	 * truncated to a block boundary, the contents of the
-	 * partial block following the end of the file must be
-	 * zero'ed in case it ever becomes accessible again because
-	 * of subsequent file growth. Directories however are not
+	 * Shorten the size of the file. If the last block of the
+	 * shortened file is unallocated, we must allocate it.
+	 * Additionally, if the file is not being truncated to a
+	 * block boundary, the contents of the partial block
+	 * following the end of the file must be zero'ed in
+	 * case it ever becomes accessible again because of
+	 * subsequent file growth. Directories however are not
 	 * zero'ed as they should grow back initialized to empty.
 	 */
 	offset = blkoff(fs, length);
-	if (offset == 0) {
+	if (blkno != 0 && offset == 0) {
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 	} else {
@@ -390,7 +433,7 @@ ffs_truncate(vp, length, flags, cred)
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 		size = blksize(fs, ip, lbn);
-		if (vp->v_type != VDIR)
+		if (vp->v_type != VDIR && offset != 0)
 			bzero((char *)bp->b_data + offset,
 			    (u_int)(size - offset));
 		/* Kirk's code has reallocbuf(bp, size, 1) here */
