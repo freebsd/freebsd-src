@@ -116,6 +116,8 @@ amd64_linux32_fetch_retval(struct trussinfo *trussinfo, long *retval,
 	retval[0] = regs.r_rax & 0xffffffff;
 	retval[1] = regs.r_rdx & 0xffffffff;
 	*errorp = !!(regs.r_rflags & PSL_C);
+	if (*errorp)
+		retval[0] = (int)retval[0];
 
 	if (*errorp) {
 		for (i = 0; i < nitems(bsd_to_linux_errno); i++) {
