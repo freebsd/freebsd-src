@@ -297,7 +297,6 @@ DIRDEPS+= \
 	usr.bin/mklocale \
 	usr.bin/mkstr \
 	usr.bin/mktemp \
-	usr.bin/mkulzma \
 	usr.bin/mkuzip \
 	usr.bin/msgs \
 	usr.bin/mt \
