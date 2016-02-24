@@ -134,6 +134,8 @@ $p.$t: .PHONY .MAKE
 
 # Depend main pseudo targets on all PROG.pseudo targets too.
 .for t in ${PROGS_TARGETS:O:u}
+.if make(${t})
 $t: ${PROGS:%=%.$t}
+.endif
 .endfor
 .endif	# !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)
