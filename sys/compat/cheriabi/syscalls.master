@@ -881,11 +881,11 @@
 				    unsigned int iovcnt, int flags); }
 508	AUE_NULL	NOPROTO	{ int jail_remove(int jid); }
 509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
-510	AUE_SEMCTL	STD { int cheriabi___semctl(int semid, int semnum, \
+510	AUE_SEMCTL	NOSTD { int cheriabi___semctl(int semid, int semnum, \
 				    int cmd, union semun_c *arg); }
-511	AUE_MSGCTL	STD	{ int cheriabi_msgctl(int msqid, int cmd, \
+511	AUE_MSGCTL	NOSTD	{ int cheriabi_msgctl(int msqid, int cmd, \
 				    struct msqid_ds_c *buf); }
-512	AUE_SHMCTL	STD|NOPROTO	{ int shmctl(int shmid, int cmd, \
+512	AUE_SHMCTL	NOSTD|NOPROTO	{ int shmctl(int shmid, int cmd, \
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
 514	AUE_NULL	OBSOL	cap_new
