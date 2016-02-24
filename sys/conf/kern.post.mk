@@ -255,6 +255,12 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endfor
 .endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# !defined(_meta_filemon)
+
+# Always run 'make depend' to generate dependencies early and to avoid the
+# need for manually running it.  For the kernel this is mostly a NOP since
+# all dependencies are correctly added or accounted for.  This is mostly to
+# ensure downstream uses of kernel-depend are handled.
+beforebuild: kernel-depend
 .endif	# ${MK_FAST_DEPEND} == "yes"
 
 # Guess some dependencies for when no ${DEPENDFILE}.OBJ is generated yet.
