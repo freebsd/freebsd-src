@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -41,8 +43,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/endian.h>
 
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
+#endif
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pci_host_generic.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
