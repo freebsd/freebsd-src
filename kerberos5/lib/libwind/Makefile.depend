@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcom_err \
 	lib/libcompiler_rt \
+	usr.bin/compile_et.host \
 
 
 .include <dirdeps.mk>
