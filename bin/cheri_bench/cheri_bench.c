@@ -90,6 +90,13 @@ struct cheri_object cheri_bench;
 
 #endif
 
+#ifndef CHERI_START_TRACE
+#define CHERI_START_TRACE
+#endif
+#ifndef CHERI_STOP_TRACE
+#define CHERI_STOP_TRACE
+#endif
+
 static useconds_t console_usleep = 100000;
 
 DEFINE_RDHWR_COUNTER_GETTER(cycle,2)
