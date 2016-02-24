@@ -230,10 +230,17 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
 DEPENDFILES=	.depend .depend.*
-.if ${MK_FAST_DEPEND} == "yes" && \
-    (${.MAKE.MODE:Unormal:Mmeta} == "" || ${.MAKE.MODE:Unormal:Mnofilemon} != "")
+# Skip generating or including .depend.* files if in meta+filemon mode since
+# it will track dependencies itself.  OBJS_DEPEND_GUESS is still used though.
+.if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
+_meta_filemon=	1
+.endif
+.if ${MK_FAST_DEPEND} == "yes"
+DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
+DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
+.if !defined(_meta_filemon)
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
@@ -242,22 +249,28 @@ CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
 .endif
-DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o
-DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:C/^/.depend./}
 .if !defined(_SKIP_READ_DEPEND)
-.for __obj in ${DEPENDOBJS}
-.if exists(${.OBJDIR}/.depend.${__obj})
-.include ".depend.${__obj}"
-.else
-# Guess some dependencies for when no .depend.OBJ is generated yet.
+.for __depend_obj in ${DEPENDFILES_OBJS}
+.sinclude "${__depend_obj}"
+.endfor
+.endif	# !defined(_SKIP_READ_DEPEND)
+.endif	# !defined(_meta_filemon)
+.endif	# ${MK_FAST_DEPEND} == "yes"
+
+# Guess some dependencies for when no ${DEPENDFILE}.OBJ is generated yet.
+# For meta+filemon the .meta file is checked for since it is the dependency
+# file used.
+.if ${MK_FAST_DEPEND} == "yes"
+.for __obj in ${DEPENDOBJS:O:u}
+.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${__obj}.meta)) || \
+    (!defined(_meta_filemon) && !exists(${.OBJDIR}/.depend.${__obj}))
 .if ${SYSTEM_OBJS:M${__obj}}
 ${__obj}: ${OBJS_DEPEND_GUESS}
 .endif
 ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 .endif
 .endfor
-.endif	# !defined(_SKIP_READ_DEPEND)
-.endif	# ${MK_FAST_DEPEND} == "yes"
+.endif
 
 .NOPATH: .depend ${DEPENDFILES_OBJS}
 

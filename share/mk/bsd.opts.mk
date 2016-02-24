@@ -88,6 +88,12 @@ __DEFAULT_DEPENDENT_OPTIONS = \
     STAGING_MAN/STAGING \
     STAGING_PROG/STAGING \
     
+# Enable FAST_DEPEND by default for the meta build.
+.if !empty(.MAKE.MODE:Mmeta)
+__DEFAULT_YES_OPTIONS+=	FAST_DEPEND
+__DEFAULT_NO_OPTIONS:=	${__DEFAULT_NO_OPTIONS:NFAST_DEPEND}
+.endif
+
 .if defined(WITH_CHERI)
 .warning WITH_CHERI should not be set directly.
 .warning Use WITH_CHERI128 or WITH_CHERI256 instead.

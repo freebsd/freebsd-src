@@ -49,6 +49,12 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED
 
+# Enable FAST_DEPEND by default for the meta build.
+.if !empty(.MAKE.MODE:Unormal:Mmeta)
+__DEFAULT_YES_OPTIONS+=	FAST_DEPEND
+__DEFAULT_NO_OPTIONS:=	${__DEFAULT_NO_OPTIONS:NFAST_DEPEND}
+.endif
+
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
 # must change this code.
