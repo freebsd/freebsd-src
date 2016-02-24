@@ -14,7 +14,6 @@ ${KERNCONF}.config: .MAKE .META
 	mkdir -p ${KERN_OBJDIR:H}
 	(cd ${KERN_CONFDIR} && \
 	${CONFIG} ${CONFIGARGS} -d ${KERN_OBJDIR} ${KERNCONF})
-	(cd ${KERN_OBJDIR} && ${.MAKE} depend)
 	@touch $@
 
 # we need to pass curdirOk=yes to meta mode, since we want .meta files
