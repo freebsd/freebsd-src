@@ -27,9 +27,11 @@
  *
  * $FreeBSD$
  */
+#ifndef	__GEOM_G_UZIP_H__
+#define	__GEOM_G_UZIP_H__
 
-#if !defined(M_GEOM_UZIP)
 MALLOC_DECLARE(M_GEOM_UZIP);
-#endif
 
 #define DEFINE_RAW_METHOD(func, rval, args...) typedef rval (*func##_t)(args)
+
+#endif	/* __GEOM_G_UZIP_H__ */
