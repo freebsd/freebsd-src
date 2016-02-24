@@ -9,6 +9,9 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/liblzma \
+	lib/libmd \
+	lib/libthr \
 	lib/libz \
 
 
