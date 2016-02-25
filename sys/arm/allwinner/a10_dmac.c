@@ -222,8 +222,8 @@ a10dmac_set_config(device_t dev, void *priv, const struct sunxi_dma_config *cfg)
 {
 	struct a10dmac_channel *ch = priv;
 	uint32_t val;
-	unsigned int dst_dw, dst_bl, dst_bs, dst_wc;
-	unsigned int src_dw, src_bl, src_bs, src_wc;
+	unsigned int dst_dw, dst_bl, dst_bs, dst_wc, dst_am;
+	unsigned int src_dw, src_bl, src_bs, src_wc, src_am;
 
 	switch (cfg->dst_width) {
 	case 8:
@@ -284,16 +284,23 @@ a10dmac_set_config(device_t dev, void *priv, const struct sunxi_dma_config *cfg)
 	      (src_dw << AWIN_DMA_CTL_SRC_DATA_WIDTH_SHIFT) |
 	      (src_bl << AWIN_DMA_CTL_SRC_BURST_LEN_SHIFT) |
 	      (cfg->src_drqtype << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
-	if (cfg->dst_noincr) {
-		val |= AWIN_NDMA_CTL_DST_ADDR_NOINCR;
-	}
-	if (cfg->src_noincr) {
-		val |= AWIN_NDMA_CTL_SRC_ADDR_NOINCR;
-	}
 
 	if (ch->ch_type == CH_NDMA) {
+		if (cfg->dst_noincr)
+			val |= AWIN_NDMA_CTL_DST_ADDR_NOINCR;
+		if (cfg->src_noincr)
+			val |= AWIN_NDMA_CTL_SRC_ADDR_NOINCR;
+
 		DMACH_WRITE(ch, AWIN_NDMA_CTL_REG, val);
 	} else {
+		dst_am = cfg->dst_noincr ? AWIN_DDMA_CTL_DMA_ADDR_IO :
+		    AWIN_DDMA_CTL_DMA_ADDR_LINEAR;
+		src_am = cfg->src_noincr ? AWIN_DDMA_CTL_DMA_ADDR_IO :
+		    AWIN_DDMA_CTL_DMA_ADDR_LINEAR;
+
+		val |= (dst_am << AWIN_DDMA_CTL_DST_ADDR_MODE_SHIFT);
+		val |= (src_am << AWIN_DDMA_CTL_SRC_ADDR_MODE_SHIFT);
+
 		DMACH_WRITE(ch, AWIN_DDMA_CTL_REG, val);
 
 		dst_bs = cfg->dst_blksize - 1;
