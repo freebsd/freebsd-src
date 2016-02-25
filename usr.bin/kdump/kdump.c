@@ -520,6 +520,9 @@ abidump(struct ktr_header *kth)
 	case SV_ABI_FREEBSD:
 		abi = "F";
 		break;
+	case SV_ABI_CLOUDABI:
+		abi = "C";
+		break;
 	default:
 		abi = "U";
 		break;
@@ -673,6 +676,10 @@ syscallabi(u_int sv_flags)
 			return (SYSDECODE_ABI_LINUX32);
 #endif
 		return (SYSDECODE_ABI_LINUX);
+#endif
+#if defined(__aarch64__) || defined(__amd64__)
+	case SV_ABI_CLOUDABI:
+		return (SYSDECODE_ABI_CLOUDABI64);
 #endif
 	default:
 		return (SYSDECODE_ABI_UNKNOWN);
