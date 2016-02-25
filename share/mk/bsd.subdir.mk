@@ -152,7 +152,7 @@ __deps=
 __deps+= ${__target}_subdir_${DIRPRFX}${__dep}
 .endfor
 .endif
-${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE ${__deps}
+${__target}_subdir_${DIRPRFX}${__dir}: .PHONY .MAKE .SILENT ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}target=${__target:realinstall=install}; \
 	    dir=${__dir}; \
