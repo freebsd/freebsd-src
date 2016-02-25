@@ -42,6 +42,9 @@
 #define	PCI_CFG_REG_BAR_NUM		0
 #define	PCI_MSIX_REG_BAR_NUM		4
 
+/* PCI revision IDs */
+#define	PCI_REVID_PASS2			8
+
 /* NIC SRIOV VF count */
 #define	MAX_NUM_VFS_SUPPORTED		128
 #define	DEFAULT_NUM_VF_ENABLED		8
@@ -481,6 +484,14 @@ nic_get_node_id(struct resource *res)
 
 	addr = rman_get_start(res);
 	return ((addr >> NIC_NODE_ID_SHIFT) & NIC_NODE_ID_MASK);
+}
+
+static __inline boolean_t
+pass1_silicon(device_t dev)
+{
+
+	/* Check if the chip revision is < Pass2 */
+	return (pci_get_revid(dev) < PCI_REVID_PASS2);
 }
 
 int nicvf_send_msg_to_pf(struct nicvf *vf, union nic_mbx *mbx);
