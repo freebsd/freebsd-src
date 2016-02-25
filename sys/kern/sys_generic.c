@@ -1910,3 +1910,19 @@ selectinit(void *dummy __unused)
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtxpool_select = mtx_pool_create("select mtxpool", 128, MTX_DEF);
 }
+
+/*
+ * Set up a syscall return value that follows the convention specified for
+ * posix_* functions.
+ */
+int
+kern_posix_error(struct thread *td, int error)
+{
+
+	if (error <= 0)
+		return (error);
+	td->td_errno = error;
+	td->td_pflags |= TDP_NERRNO;
+	td->td_retval[0] = error;
+	return (0);
+}

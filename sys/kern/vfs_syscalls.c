@@ -4528,10 +4528,10 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 int
 sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
 {
+	int error;
 
-	td->td_retval[0] = kern_posix_fallocate(td, uap->fd, uap->offset,
-	    uap->len);
-	return (0);
+	error = kern_posix_fallocate(td, uap->fd, uap->offset, uap->len);
+	return (kern_posix_error(td, error));
 }
 
 /*
@@ -4663,8 +4663,9 @@ out:
 int
 sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
 {
+	int error;
 
-	td->td_retval[0] = kern_posix_fadvise(td, uap->fd, uap->offset,
-	    uap->len, uap->advice);
-	return (0);
+	error = kern_posix_fadvise(td, uap->fd, uap->offset, uap->len,
+	    uap->advice);
+	return (kern_posix_error(td, error));
 }
