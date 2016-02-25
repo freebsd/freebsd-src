@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #include <netinet/tcp_lro.h>
 
@@ -194,6 +195,9 @@ nicvf_attach(device_t dev)
 	nic->pnicvf = nic;
 
 	NICVF_CORE_LOCK_INIT(nic);
+	/* Enable HW TSO on Pass2 */
+	if (!pass1_silicon(dev))
+		nic->hw_tso = TRUE;
 
 	rid = VNIC_VF_REG_RID;
 	nic->reg_base = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -356,6 +360,14 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	/* Set the default values */
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
+	if (nic->hw_tso) {
+		/* TSO */
+		if_setcapabilitiesbit(ifp, IFCAP_TSO4, 0);
+		/* TSO parameters */
+		ifp->if_hw_tsomax = NICVF_TSO_MAXSIZE;
+		ifp->if_hw_tsomaxsegcount = NICVF_TSO_NSEGS;
+		ifp->if_hw_tsomaxsegsize = MCLBYTES;
+	}
 	/* IP/TCP/UDP HW checksums */
 	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
@@ -364,7 +376,8 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	 */
 	if_clearhwassist(ifp);
 	if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP), 0);
-
+	if (nic->hw_tso)
+		if_sethwassistbits(ifp, (CSUM_TSO), 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	return (0);
@@ -513,6 +526,8 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_TXCSUM;
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_TSO4) && nic->hw_tso)
+			ifp->if_capenable ^= IFCAP_TSO4;
 		if (mask & IFCAP_LRO) {
 			/*
 			 * Lock the driver for a moment to avoid
