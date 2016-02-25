@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -121,7 +122,7 @@ hv_vmbus_negotiate_version(hv_vmbus_channel_msg_info *msg_info,
 	/**
 	 * Wait for the connection response
 	 */
-	ret = sema_timedwait(&msg_info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_REMOVE(
