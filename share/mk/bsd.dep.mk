@@ -62,7 +62,6 @@ _MKDEPCC=	${CC.${.IMPSRC:T}:U${CC}:N${CCACHE_BIN}}
 _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
-DEPENDFILE?=	.depend
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE= ${DEPENDFILE}
 .endif
