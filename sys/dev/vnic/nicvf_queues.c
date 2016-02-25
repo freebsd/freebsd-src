@@ -768,6 +768,8 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 		cq_desc = (struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head);
 		cqe_head++;
 		cqe_head &= (cq->dmem.q_len - 1);
+		/* Prefetch next CQ descriptor */
+		__builtin_prefetch((struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head));
 
 		dprintf(nic->dev, "CQ%d cq_desc->cqe_type %d\n", cq_idx,
 		    cq_desc->cqe_type);
