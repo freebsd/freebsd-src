@@ -1051,7 +1051,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 			}
 		}
-		if (proto->ti_proto == LAGG_PROTO_NONE) {
+		if (proto->ti_proto >= LAGG_PROTO_MAX) {
 			error = EPROTONOSUPPORT;
 			break;
 		}
@@ -1081,7 +1081,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				LAGG_WUNLOCK(sc);
 		} else
 			LAGG_WUNLOCK(sc);
-		proto->ti_attach(sc);
+		if (proto->ti_proto != LAGG_PROTO_NONE)
+			proto->ti_attach(sc);
 		LAGG_WLOCK(sc);
 		sc->sc_proto = proto->ti_proto;
 		LAGG_WUNLOCK(sc);
