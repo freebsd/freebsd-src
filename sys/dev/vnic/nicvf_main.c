@@ -353,6 +353,13 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	if_setmtu(ifp, ETHERMTU);
 
 	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
+	/*
+	 * HW offload capabilities
+	 */
+	/* IP/TCP/UDP HW checksums */
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
+	if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP), 0);
+
 #ifdef DEVICE_POLLING
 #error "DEVICE_POLLING not supported in VNIC driver yet"
 	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
@@ -500,6 +507,10 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* No work to do except acknowledge the change took. */
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
 		}
+		if (mask & IFCAP_TXCSUM)
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+		if (mask & IFCAP_RXCSUM)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 		break;
 
 	default:
@@ -591,6 +602,7 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 	struct nicvf *nic = if_getsoftc(ifp);
 	struct queue_set *qs = nic->qs;
 	struct snd_queue *sq;
+	struct mbuf *mtmp;
 	int qidx;
 	int err = 0;
 
@@ -610,16 +622,24 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 
 	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING) {
-		if (mbuf != NULL)
-			err = drbr_enqueue(ifp, sq->br, mbuf);
+		err = drbr_enqueue(ifp, sq->br, mbuf);
 		return (err);
 	}
 
-	if (mbuf != NULL) {
+	if (mbuf->m_next != NULL &&
+	    (mbuf->m_pkthdr.csum_flags &
+	    (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)) != 0) {
+		if (M_WRITABLE(mbuf) == 0) {
+			mtmp = m_dup(mbuf, M_NOWAIT);
+			m_freem(mbuf);
+			if (mtmp == NULL)
+				return (ENOBUFS);
+			mbuf = mtmp;
+		}
+	}
 		err = drbr_enqueue(ifp, sq->br, mbuf);
 		if (err != 0)
 			return (err);
-	}
 
 	taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
 
