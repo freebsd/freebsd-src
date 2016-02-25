@@ -1024,6 +1024,7 @@ static void
 ixgbe_set_if_hwassist(struct adapter *adapter)
 {
 	struct ifnet *ifp = adapter->ifp;
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	ifp->if_hwassist = 0;
 #if __FreeBSD_version >= 1000000
@@ -1031,18 +1032,21 @@ ixgbe_set_if_hwassist(struct adapter *adapter)
 		ifp->if_hwassist |= CSUM_IP_TSO;
 	if (ifp->if_capenable & IFCAP_TSO6)
 		ifp->if_hwassist |= CSUM_IP6_TSO;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= (CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP |
-		    CSUM_IP_SCTP);
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= (CSUM_IP6_UDP | CSUM_IP6_TCP |
-		    CSUM_IP6_SCTP);
+	if (ifp->if_capenable & IFCAP_TXCSUM) {
+		ifp->if_hwassist |= (CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP);
+		if (hw->mac.type != ixgbe_mac_82598EB)
+			ifp->if_hwassist |= CSUM_IP_SCTP;
+	}
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6) {
+		ifp->if_hwassist |= (CSUM_IP6_UDP | CSUM_IP6_TCP);
+		if (hw->mac.type != ixgbe_mac_82598EB)
+			ifp->if_hwassist |= CSUM_IP6_SCTP;
+	}
 #else
 	if (ifp->if_capenable & IFCAP_TSO)
 		ifp->if_hwassist |= CSUM_TSO;
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
-		struct ixgbe_hw *hw = &adapter->hw;
 		if (hw->mac.type != ixgbe_mac_82598EB)
 			ifp->if_hwassist |= CSUM_SCTP;
 	}
