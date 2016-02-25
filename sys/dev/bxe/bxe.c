@@ -749,6 +749,7 @@ static void bxe_handle_fp_tq(void *context, int pending);
 
 static int bxe_add_cdev(struct bxe_softc *sc);
 static void bxe_del_cdev(struct bxe_softc *sc);
+static int bxe_grc_dump(struct bxe_softc *sc);
 
 /* calculate crc32 on a buffer (NOTE: crc32_length MUST be aligned to 8) */
 uint32_t
@@ -7939,6 +7940,16 @@ bxe_chk_parity_attn(struct bxe_softc *sc,
     attn.sig[1] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_2_FUNC_0 + port*4);
     attn.sig[2] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_3_FUNC_0 + port*4);
     attn.sig[3] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 + port*4);
+
+    /*
+     * Since MCP attentions can't be disabled inside the block, we need to
+     * read AEU registers to see whether they're currently disabled
+     */
+    attn.sig[3] &= ((REG_RD(sc, (!port ? MISC_REG_AEU_ENABLE4_FUNC_0_OUT_0
+                                      : MISC_REG_AEU_ENABLE4_FUNC_1_OUT_0)) &
+                         MISC_AEU_ENABLE_MCP_PRTY_BITS) |
+                        ~MISC_AEU_ENABLE_MCP_PRTY_BITS);
+
 
     if (!CHIP_IS_E1x(sc))
         attn.sig[4] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_5_FUNC_0 + port*4);
@@ -16180,6 +16191,30 @@ bxe_sysctl_state(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+bxe_sysctl_trigger_grcdump(SYSCTL_HANDLER_ARGS)
+{
+    struct bxe_softc *sc;
+    int error, result;
+
+    result = 0;
+    error = sysctl_handle_int(oidp, &result, 0, req);
+
+    if (error || !req->newptr) {
+        return (error);
+    }
+
+    if (result == 1) {
+        sc = (struct bxe_softc *)arg1;
+
+        BLOGI(sc, "... grcdump start ...\n");
+        bxe_grc_dump(sc);
+        BLOGI(sc, "... grcdump done ...\n");
+    }
+
+    return (error);
+}
+
+static int
 bxe_sysctl_eth_stat(SYSCTL_HANDLER_ARGS)
 {
     struct bxe_softc *sc = (struct bxe_softc *)arg1;
@@ -16311,11 +16346,15 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     CTLFLAG_RW, &sc->debug,
                     "debug logging mode");
 
-    sc->trigger_grcdump = 0;
-    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "trigger_grcdump",
-                    CTLFLAG_RW, &sc->trigger_grcdump, 0,
+    SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "trigger_grcdump",
+                    CTLTYPE_UINT | CTLFLAG_RW, sc, 0,
+                    bxe_sysctl_trigger_grcdump, "IU",
                     "set by driver when a grcdump is needed");
 
+    sc->grcdump_done = 0;
+    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "grcdump_done",
+                   CTLFLAG_RW, &sc->grcdump_done, 0,
+                   "set by driver when grcdump is done");
 
     sc->rx_budget = bxe_rx_budget;
     SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "rx_budget",
@@ -18933,26 +18972,6 @@ bxe_get_preset_regs_len(struct bxe_softc *sc, uint32_t preset)
 }
 
 static int
-bxe_get_max_regs_len(struct bxe_softc *sc)
-{
-    uint32_t preset_idx;
-    int regdump_len32, len32;
-
-    regdump_len32 = bxe_get_preset_regs_len(sc, 1);
-
-    /* Calculate the total preset regs length */
-    for (preset_idx = 2; preset_idx <= DUMP_MAX_PRESETS; preset_idx++) {
-
-        len32 = bxe_get_preset_regs_len(sc, preset_idx);
-
-        if (regdump_len32 < len32)
-            regdump_len32 = len32;
-    }
-
-    return regdump_len32;
-}
-
-static int
 bxe_get_total_regs_len32(struct bxe_softc *sc)
 {
     uint32_t preset_idx;
@@ -19179,18 +19198,21 @@ bxe_get_preset_regs(struct bxe_softc *sc, uint32_t *p, uint32_t preset)
 }
 
 static int
-bxe_grc_dump(struct bxe_softc *sc, bxe_grcdump_t *dump)
+bxe_grc_dump(struct bxe_softc *sc)
 {
     int rval = 0;
     uint32_t preset_idx;
     uint8_t *buf;
     uint32_t size;
     struct  dump_header *d_hdr;
+
+    if (sc->grcdump_done)
+	return (rval);
     
     ecore_disable_blocks_parity(sc);
 
-    buf = dump->grcdump;
-    d_hdr = dump->grcdump;
+    buf = sc->grc_dump;
+    d_hdr = sc->grc_dump;
 
     d_hdr->header_size = (sizeof(struct  dump_header) >> 2) - 1;
     d_hdr->version = BNX2X_DUMP_VERSION;
@@ -19211,7 +19233,6 @@ bxe_grc_dump(struct bxe_softc *sc, bxe_grcdump_t *dump)
                 (BXE_PATH(sc) ? DUMP_PATH_1 : DUMP_PATH_0);
     }
 
-    dump->grcdump_dwords = sizeof(struct  dump_header) >> 2;
     buf += sizeof(struct  dump_header);
 
     for (preset_idx = 1; preset_idx <= DUMP_MAX_PRESETS; preset_idx++) {
@@ -19228,13 +19249,6 @@ bxe_grc_dump(struct bxe_softc *sc, bxe_grcdump_t *dump)
 
         size = bxe_get_preset_regs_len(sc, preset_idx) * (sizeof (uint32_t));
 
-        rval = copyout(sc->grc_dump, buf, size);
-
-        if (rval)
-	    break;
-
-	dump->grcdump_dwords += (size / (sizeof (uint32_t)));
-
         buf += size;
     }
 
@@ -19248,11 +19262,12 @@ bxe_grc_dump(struct bxe_softc *sc, bxe_grcdump_t *dump)
 static int
 bxe_add_cdev(struct bxe_softc *sc)
 {
-    int max_preset_size;
+    int grc_dump_size;
 
-    max_preset_size = bxe_get_max_regs_len(sc) * (sizeof (uint32_t));
+    grc_dump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
+				sizeof(struct  dump_header);
 
-    sc->grc_dump = malloc(max_preset_size, M_DEVBUF, M_NOWAIT);
+    sc->grc_dump = malloc(grc_dump_size, M_DEVBUF, M_NOWAIT);
 
     if (sc->grc_dump == NULL)
         return (-1);
@@ -19320,12 +19335,13 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 				sizeof(struct  dump_header);
 
             if ((sc->grc_dump == NULL) || (dump->grcdump == NULL) ||
-                (dump->grcdump_size < grc_dump_size)) {
+                (dump->grcdump_size < grc_dump_size) || (!sc->grcdump_done)) {
                 rval = EINVAL;
                 break;
             }
-
-            rval = bxe_grc_dump(sc, dump);
+	    dump->grcdump_dwords = grc_dump_size >> 2;
+            rval = copyout(sc->grc_dump, dump->grcdump, grc_dump_size);
+            sc->grcdump_done = 0;
 
             break;
 
