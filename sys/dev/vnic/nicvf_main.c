@@ -663,11 +663,18 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 			mbuf = mtmp;
 		}
 	}
+
+	if (NICVF_TX_TRYLOCK(sq) != 0) {
+		err = nicvf_tx_mbuf_locked(sq, mbuf);
+		NICVF_TX_UNLOCK(sq);
+		return (err);
+	} else {
 		err = drbr_enqueue(ifp, sq->br, mbuf);
 		if (err != 0)
 			return (err);
 
-	taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
+		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
+	}
 
 	return (0);
 }

@@ -98,7 +98,6 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_NICVF);
 
 static void nicvf_free_snd_queue(struct nicvf *, struct snd_queue *);
-static int nicvf_tx_mbuf_locked(struct snd_queue *, struct mbuf *);
 static struct mbuf * nicvf_get_rcv_mbuf(struct nicvf *, struct cqe_rx_t *);
 static void nicvf_sq_disable(struct nicvf *, int);
 static void nicvf_sq_enable(struct nicvf *, struct snd_queue *, int);
@@ -1856,7 +1855,7 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 }
 
 /* Put an mbuf to a SQ for packet transfer. */
-static int
+int
 nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 {
 	bus_dma_segment_t segs[256];
