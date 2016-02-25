@@ -26,10 +26,10 @@
  * $FreeBSD$
  *
  */
-#ifndef	__A10_WDOG_H__
-#define	__A10_WDOG_H__
+#ifndef __AW_WDOG_H__
+#define	__AW_WDOG_H__
 
-void a10wd_watchdog_reset(void);
+void aw_wdog_watchdog_reset(void);
 
-#endif /*__A10_WDOG_H__*/
+#endif /*__AW_WDOG_H__*/
 
