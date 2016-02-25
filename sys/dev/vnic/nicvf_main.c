@@ -360,6 +360,7 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	 */
 	/* IP/TCP/UDP HW checksums */
 	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
 	if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP), 0);
 
 #ifdef DEVICE_POLLING
