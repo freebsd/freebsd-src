@@ -38,6 +38,25 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160225: Remove casperd and libcapsicum.
+OLD_FILES+=sbin/casperd
+OLD_FILES+=etc/rc.d/casperd
+OLD_FILES+=usr/share/man/man8/casperd.8.gz
+OLD_FILES+=usr/include/libcapsicum.h
+OLD_FILES+=usr/include/libcapsicum_service.h
+OLD_FILES+=usr/include/libcapsicum.h
+OLD_FILES+=usr/share/man/man3/libcapsicum.3.gz
+OLD_FILES+=usr/include/libcapsicum_dns.h
+OLD_FILES+=usr/include/libcapsicum_grp.h
+OLD_FILES+=usr/include/libcapsicum_impl.h
+OLD_FILES+=usr/include/libcapsicum_pwd.h
+OLD_FILES+=usr/include/libcapsicum_random.h
+OLD_FILES+=usr/include/libcapsicum_sysctl.h
+OLD_FILES+=libexec/casper/dns
+OLD_FILES+=libexec/casper/grp
+OLD_FILES+=libexec/casper/pwd
+OLD_FILES+=libexec/casper/random
+OLD_FILES+=libexec/casper/sysctl
 # 20160223: functionality from mkulzma(1) merged into mkuzip(1)
 OLD_FILES+=usr/bin/mkulzma
 # 20160211: Remove obsolete unbound-control-setup

@@ -624,7 +624,7 @@ _worldtmp: .PHONY
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
 .endif
 .for _dir in \
-    bin lib usr legacy/bin legacy/usr
+    bin lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -2002,7 +2002,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libfigpar \
 		${_lib_libgssapi} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
-		${_lib_libcapsicum} \
+		${_lib_casper} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
@@ -2046,11 +2046,11 @@ _ofed_lib=	contrib/ofed/usr.lib/
 .endif
 
 .if ${MK_CASPER} != "no"
-_lib_libcapsicum=lib/libcapsicum
+_lib_casper=	lib/libcasper
 .endif
 
-lib/libcapsicum__L: lib/libnv__L
 lib/libpjdlog__L: lib/libutil__L
+lib/libcasper__L: lib/libnv__L
 lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}

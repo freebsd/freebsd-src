@@ -894,10 +894,6 @@ DIRDEPS.powerpc= \
 DIRDEPS+= usr.bin/dtc
 .endif
 
-.if ${MK_CASPER} == "yes"
-DIRDEPS+= sbin/casperd
-.endif
-
 DIRDEPS+= ${DIRDEPS.${MACHINE}:U}
 
 

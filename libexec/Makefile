@@ -5,7 +5,6 @@
 
 SUBDIR=	${_atf} \
 	${_atrun} \
-	${_casper} \
 	${_cheritest_helper} \
 	${_cheri_bench_helper} \
 	${_comsat} \
@@ -41,10 +40,6 @@ _atrun=		atrun
 
 .if ${MK_BOOTPD} != "no"
 SUBDIR+=	bootpd
-.endif
-
-.if ${MK_CASPER} != "no"
-_casper=	casper
 .endif
 
 .if ${MK_CHERI} != "no"

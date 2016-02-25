@@ -31,7 +31,6 @@ LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_NOSYSCALLS?=	${DESTDIR}${LIBDIR}/libc_nosyscalls.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
-LIBCAPSICUM?=	${DESTDIR}${LIBDIR}/libcapsicum.a
 LIBCASPER?=	${DESTDIR}${LIBDIR}/libcasper.a
 LIBCHERI?=	${DESTDIR}${LIBDIR}/libcheri.a
 LIBCHERI_SUPPORT?=	${DESTDIR}${LIBDIR}/libcheri_support.a
