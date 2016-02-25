@@ -131,10 +131,13 @@
 #define	NICVF_RCV_BUF_ALIGN_LEN(addr)		\
     (NICVF_ALIGNED_ADDR((addr), NICVF_RCV_BUF_ALIGN_BYTES) - (addr))
 
-#define	NICVF_TXBUF_MAXSIZE	9212	/* Total max payload without TSO */
+#define	NICVF_TXBUF_MAXSIZE	NIC_HW_MAX_FRS	/* Total max payload without TSO */
 #define	NICVF_TXBUF_NSEGS	256	/* Single command is at most 256 buffers
 					   (hdr + 255 subcmds) */
-
+/* TSO-related definitions */
+#define	NICVF_TSO_MAXSIZE	IP_MAXPACKET
+#define	NICVF_TSO_NSEGS		NICVF_TXBUF_NSEGS
+#define	NICVF_TSO_HEADER_SIZE	128
 
 /* Queue enable/disable */
 #define	NICVF_SQ_EN		(1UL << 19)
