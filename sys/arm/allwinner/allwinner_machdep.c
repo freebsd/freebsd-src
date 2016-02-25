@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
-#include <arm/allwinner/a10_wdog.h>
+#include <arm/allwinner/aw_wdog.h>
 #include <arm/allwinner/allwinner_machdep.h>
 
 #include "platform_if.h"
@@ -134,7 +134,7 @@ bus_dma_get_range_nb(void)
 void
 cpu_reset()
 {
-	a10wd_watchdog_reset();
+	aw_wdog_watchdog_reset();
 	printf("Reset failed!\n");
 	while (1);
 }
