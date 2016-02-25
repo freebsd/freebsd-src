@@ -114,7 +114,7 @@ cy_pci_attach(dev)
 	mem_res = NULL;
 
 	ioport_rid = CY_PCI_BASE_ADDR1;
-	ioport_res = bus_alloc_resource_(dev, SYS_RES_IOPORT, &ioport_rid,
+	ioport_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &ioport_rid,
 	    RF_ACTIVE);
 	if (ioport_res == NULL) {
 		device_printf(dev, "ioport resource allocation failed\n");
