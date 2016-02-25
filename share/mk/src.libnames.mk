@@ -68,8 +68,12 @@ _LIBRARIES=	\
 		c_pic \
 		calendar \
 		cam \
-		capsicum \
 		casper \
+		cap_dns \
+		cap_grp \
+		cap_pwd \
+		cap_random \
+		cap_sysctl \
 		com_err \
 		compiler_rt \
 		crypt \
@@ -211,9 +215,13 @@ _DP_bsnmp=	crypto
 .endif
 _DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf
-_DP_casper=	capsicum nv pjdlog
-_DP_capsicum=	nv
 _DP_kvm=	elf
+_DP_casper=	nv
+_DP_cap_dns=	nv
+_DP_cap_grp=	nv
+_DP_cap_pwd=	nv
+_DP_cap_random=	nv
+_DP_cap_sysctl=	nv
 _DP_pjdlog=	util
 _DP_opie=	md
 _DP_usb=	pthread
@@ -506,6 +514,25 @@ LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
 .endfor
+
+# Casper exception.
+LIBCAP_CASPERDIR=	${OBJTOP}/lib/libcasper/libcasper
+LIBCAP_CASPER=		${DESTDIR}${LIBDIR}/libcasper.a
+
+LIBCAP_DNSDIR=		${OBJTOP}/lib/libcasper/services/cap_dns
+LIBCAP_DNS?=		${DESTDIR}${LIBDIR}/libcap_dns.a
+
+LIBCAP_GRPDIR=		${OBJTOP}/lib/libcasper/services/cap_grp
+LIBCAP_GRP?=		${DESTDIR}${LIBDIR}/libcap_grp.a
+
+LIBCAP_PWDDIR=		${OBJTOP}/lib/libcasper/services/cap_pwd
+LIBCAP_PWD?=		${DESTDIR}${LIBDIR}/libcap_pwd.a
+
+LIBCAP_RANDOMDIR=	${OBJTOP}/lib/libcasper/services/cap_random
+LIBCAP_RANDOM?=		${DESTDIR}${LIBDIR}/libcap_random.a
+
+LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
+LIBCAP_SYSCTL?=		${DESTDIR}${LIBDIR}/libcap_sysctl.a
 
 # Validate that listed LIBADD are valid.
 .for _l in ${LIBADD}
