@@ -120,9 +120,14 @@
 
 /* AHB_GATING_REG1 */
 #define	CCM_AHB_GATING_GMAC	(1 << 17)
+#define	CCM_AHB_GATING_DE_BE1	(1 << 13)
+#define	CCM_AHB_GATING_DE_BE0	(1 << 12)
+#define	CCM_AHB_GATING_HDMI	(1 << 11)
+#define	CCM_AHB_GATING_LCD1	(1 << 5)
+#define	CCM_AHB_GATING_LCD0	(1 << 4)
 
 /* APB1_GATING_REG */
-#define CCM_APB1_GATING_TWI	(1 << 0)
+#define	CCM_APB1_GATING_TWI	(1 << 0)
 
 #define	CCM_USB_PHY		(1 << 8)
 #define	CCM_USB0_RESET		(1 << 0)
@@ -144,6 +149,17 @@
 #define	CCM_PLL2_CFG_PREDIV		0x1f
 #define	CCM_PLL2_CFG_PREDIV_SHIFT	0
 
+#define	CCM_PLL3_CFG_MODE_SEL_SHIFT	15
+#define	CCM_PLL3_CFG_MODE_SEL_FRACT	(0 << CCM_PLL3_CFG_MODE_SEL_SHIFT)
+#define	CCM_PLL3_CFG_MODE_SEL_INT	(1 << CCM_PLL3_CFG_MODE_SEL_SHIFT)
+#define	CCM_PLL3_CFG_FUNC_SET_SHIFT	14
+#define	CCM_PLL3_CFG_FUNC_SET_270MHZ	(0 << CCM_PLL3_CFG_FUNC_SET_SHIFT)
+#define	CCM_PLL3_CFG_FUNC_SET_297MHZ	(1 << CCM_PLL3_CFG_FUNC_SET_SHIFT)
+#define	CCM_PLL3_CFG_FACTOR_M		0x7f
+
+#define	CCM_PLL5_CFG_OUT_EXT_DIV_P		0x30000
+#define	CCM_PLL5_CFG_OUT_EXT_DIV_P_SHIFT	16
+
 #define	CCM_PLL6_CFG_SATA_CLKEN	(1U << 14)
 
 #define	CCM_SD_CLK_SRC_SEL		0x3000000
@@ -160,6 +176,49 @@
 
 #define	CCM_AUDIO_CODEC_ENABLE	(1U << 31)
 
+#define	CCM_LCD_CH0_SCLK_GATING			(1U << 31)
+#define	CCM_LCD_CH0_RESET			(1U << 30)
+#define	CCM_LCD_CH0_SRC_SEL			0x03000000
+#define	CCM_LCD_CH0_SRC_SEL_SHIFT		24
+#define	CCM_LCD_CH0_SRC_SEL_PLL3		0
+#define	CCM_LCD_CH0_SRC_SEL_PLL7		1
+#define	CCM_LCD_CH0_SRC_SEL_PLL3_2X		2
+#define	CCM_LCD_CH0_SRC_SEL_PLL6_2X		3
+
+#define	CCM_LCD_CH1_SCLK2_GATING		(1U << 31)
+#define	CCM_LCD_CH1_SRC_SEL			0x03000000
+#define	CCM_LCD_CH1_SRC_SEL_SHIFT		24
+#define	CCM_LCD_CH1_SRC_SEL_PLL3		0
+#define	CCM_LCD_CH1_SRC_SEL_PLL7		1
+#define	CCM_LCD_CH1_SRC_SEL_PLL3_2X		2
+#define	CCM_LCD_CH1_SRC_SEL_PLL7_2X		3
+#define	CCM_LCD_CH1_SCLK1_GATING		(1U << 15)
+#define	CCM_LCD_CH1_SCLK1_SRC_SEL_SHIFT		11
+#define	CCM_LCD_CH1_SCLK1_SRC_SEL_SCLK2		0
+#define	CCM_LCD_CH1_SCLK1_SRC_SEL_SCLK2_DIV2	1
+#define	CCM_LCD_CH1_CLK_DIV_RATIO_M		0xf
+
+#define	CCM_DRAM_CLK_BE1_CLK_ENABLE	(1U << 27)
+#define	CCM_DRAM_CLK_BE0_CLK_ENABLE	(1U << 26)
+
+#define	CCM_BE_CLK_SCLK_GATING		(1U << 31)
+#define	CCM_BE_CLK_RESET		(1U << 30)
+#define	CCM_BE_CLK_SRC_SEL		0x03000000
+#define	CCM_BE_CLK_SRC_SEL_SHIFT	24
+#define	CCM_BE_CLK_SRC_SEL_PLL3		0
+#define	CCM_BE_CLK_SRC_SEL_PLL7		1
+#define	CCM_BE_CLK_SRC_SEL_PLL5		2
+#define	CCM_BE_CLK_DIV_RATIO_M		0xf
+
+#define	CCM_HDMI_CLK_SCLK_GATING	(1U << 31)
+#define	CCM_HDMI_CLK_SRC_SEL		0x03000000
+#define	CCM_HDMI_CLK_SRC_SEL_SHIFT	24
+#define	CCM_HDMI_CLK_SRC_SEL_PLL3	0
+#define	CCM_HDMI_CLK_SRC_SEL_PLL7	1
+#define	CCM_HDMI_CLK_SRC_SEL_PLL3_2X	2
+#define	CCM_HDMI_CLK_SRC_SEL_PLL7_2X	3
+#define	CCM_HDMI_CLK_DIV_RATIO_M	0xf
+
 #define	CCM_CLK_REF_FREQ	24000000U
 
 int a10_clk_usb_activate(void);
@@ -172,5 +231,10 @@ int a10_clk_mmc_cfg(int, int);
 int a10_clk_i2c_activate(int);
 int a10_clk_dmac_activate(void);
 int a10_clk_codec_activate(unsigned int);
+int a10_clk_debe_activate(void);
+int a10_clk_lcd_activate(void);
+int a10_clk_tcon_activate(unsigned int);
+int a10_clk_tcon_get_config(int *, int *);
+int a10_clk_hdmi_activate(void);
 
 #endif /* _A10_CLK_H_ */
