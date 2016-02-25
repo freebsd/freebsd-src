@@ -200,6 +200,7 @@ jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jkoshy [label="A. Joseph Koshy\njkoshy@FreeBSD.org\n1998/05/13"]
 jlh [label="Jeremie Le Hen\njlh@FreeBSD.org\n2012/04/22"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
+jmcneill [label="Jared McNeill\njmcneill@FreeBSD.org\n2016/02/24"]
 jmg [label="John-Mark Gurney\njmg@FreeBSD.org\n1997/02/13"]
 jmmv [label="Julio Merino\njmmv@FreeBSD.org\n2013/11/02"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
@@ -340,6 +341,7 @@ day1 -> alm
 day1 -> dg
 
 adrian -> avos
+adrian -> jmcneill
 adrian -> lidl
 adrian -> loos
 adrian -> monthadar
@@ -469,6 +471,8 @@ gnn -> arybchik
 gnn -> erj
 gnn -> kp
 gnn -> jtl
+
+gonzo -> jmcneill
 
 grehan -> bryanv
 
