@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+#include <netinet/tcp_lro.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -353,6 +354,7 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	if_setmtu(ifp, ETHERMTU);
 
 	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
+	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
 	/*
 	 * HW offload capabilities
 	 */
@@ -404,9 +406,11 @@ static int
 nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct nicvf *nic;
+	struct rcv_queue *rq;
 	struct ifreq *ifr;
 	uint32_t flags;
 	int mask, err;
+	int rq_idx;
 #if defined(INET) || defined(INET6)
 	struct ifaddr *ifa;
 	boolean_t avoid_reset = FALSE;
@@ -511,6 +515,30 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_TXCSUM;
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if (mask & IFCAP_LRO) {
+			/*
+			 * Lock the driver for a moment to avoid
+			 * mismatch in per-queue settings.
+			 */
+			NICVF_CORE_LOCK(nic);
+			ifp->if_capenable ^= IFCAP_LRO;
+			if ((if_getdrvflags(nic->ifp) & IFF_DRV_RUNNING) != 0) {
+				/*
+				 * Now disable LRO for subsequent packets.
+				 * Atomicity of this change is not necessary
+				 * as we don't need precise toggle of this
+				 * feature for all threads processing the
+				 * completion queue.
+				 */
+				for (rq_idx = 0;
+				    rq_idx < nic->qs->rq_cnt; rq_idx++) {
+					rq = &nic->qs->rq[rq_idx];
+					rq->lro_enabled = !rq->lro_enabled;
+				}
+			}
+			NICVF_CORE_UNLOCK(nic);
+		}
+
 		break;
 
 	default:

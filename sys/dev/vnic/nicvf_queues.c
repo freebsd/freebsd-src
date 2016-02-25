@@ -637,10 +637,12 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
     struct cqe_rx_t *cqe_rx, int cqe_type)
 {
 	struct mbuf *mbuf;
+	struct rcv_queue *rq;
 	int rq_idx;
 	int err = 0;
 
 	rq_idx = cqe_rx->rq_idx;
+	rq = &nic->qs->rq[rq_idx];
 
 	/* Check for errors */
 	err = nicvf_check_cqe_rx_errs(nic, cq, cqe_rx);
@@ -659,6 +661,19 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 		return (0);
 	}
 
+	if (rq->lro_enabled &&
+	    ((cqe_rx->l3_type == L3TYPE_IPV4) && (cqe_rx->l4_type == L4TYPE_TCP)) &&
+	    (mbuf->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) ==
+            (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) {
+		/*
+		 * At this point it is known that there are no errors in the
+		 * packet. Attempt to LRO enqueue. Send to stack if no resources
+		 * or enqueue error.
+		 */
+		if ((rq->lro.lro_cnt != 0) &&
+		    (tcp_lro_rx(&rq->lro, mbuf, 0) == 0))
+			return (0);
+	}
 	/*
 	 * Push this packet to the stack later to avoid
 	 * unlocking completion task in the middle of work.
@@ -726,7 +741,11 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 	int cqe_count, cqe_head;
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
+	struct rcv_queue *rq;
 	struct cqe_rx_t *cq_desc;
+	struct lro_ctrl	*lro;
+	struct lro_entry *queued;
+	int rq_idx;
 	int cmp_err;
 
 	NICVF_CMP_LOCK(cq);
@@ -801,6 +820,17 @@ done:
 		if_setdrvflagbits(nic->ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	}
 out:
+	/*
+	 * Flush any outstanding LRO work
+	 */
+	rq_idx = cq_idx;
+	rq = &nic->qs->rq[rq_idx];
+	lro = &rq->lro;
+	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lro->lro_active, next);
+		tcp_lro_flush(lro, queued);
+	}
+
 	NICVF_CMP_UNLOCK(cq);
 
 	ifp = nic->ifp;
@@ -1241,16 +1271,37 @@ nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	union nic_mbx mbx = {};
 	struct rcv_queue *rq;
 	struct rq_cfg rq_cfg;
+	struct ifnet *ifp;
+	struct lro_ctrl	*lro;
+
+	ifp = nic->ifp;
 
 	rq = &qs->rq[qidx];
 	rq->enable = enable;
+
+	lro = &rq->lro;
 
 	/* Disable receive queue */
 	nicvf_queue_reg_write(nic, NIC_QSET_RQ_0_7_CFG, qidx, 0);
 
 	if (!rq->enable) {
 		nicvf_reclaim_rcv_queue(nic, qs, qidx);
+		/* Free LRO memory */
+		tcp_lro_free(lro);
+		rq->lro_enabled = FALSE;
 		return;
+	}
+
+	/* Configure LRO if enabled */
+	rq->lro_enabled = FALSE;
+	if ((if_getcapenable(ifp) & IFCAP_LRO) != 0) {
+		if (tcp_lro_init(lro) != 0) {
+			device_printf(nic->dev,
+			    "Failed to initialize LRO for RXQ%d\n", qidx);
+		} else {
+			rq->lro_enabled = TRUE;
+			lro->ifp = nic->ifp;
+		}
 	}
 
 	rq->cq_qs = qs->vnic_id;
