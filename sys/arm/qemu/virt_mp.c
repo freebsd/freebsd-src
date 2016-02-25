@@ -103,11 +103,5 @@ platform_mp_init_secondary(void)
 {
 
 	intr_pic_init_secondary();
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
 	pic_ipi_send(cpus, ipi);
 }

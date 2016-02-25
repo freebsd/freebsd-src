@@ -157,10 +157,3 @@ platform_mp_start_ap(void)
 	/* Release CPU1 from reset */
 	cpu_reset_deassert();
 }
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}

@@ -324,10 +324,3 @@ alpine_serdes_resource_get(uint32_t group, bus_space_tag_t *tag, bus_addr_t *bad
 
 	return (0);
 }
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}
