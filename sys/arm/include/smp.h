@@ -49,8 +49,6 @@ int	platform_mp_probe(void);
 void	platform_mp_start_ap(void);
 void	platform_mp_init_secondary(void);
 
-void	platform_ipi_send(cpuset_t cpus, u_int ipi);
-
 /* global data in mp_machdep.c */
 extern struct pcb               stoppcbs[];
 

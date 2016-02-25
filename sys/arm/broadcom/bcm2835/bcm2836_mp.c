@@ -193,10 +193,3 @@ void
 pic_ipi_clear(int ipi)
 {
 }
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}

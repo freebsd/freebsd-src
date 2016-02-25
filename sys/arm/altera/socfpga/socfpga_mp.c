@@ -174,10 +174,3 @@ platform_mp_start_ap(void)
 	bus_space_unmap(fdtbus_bs_tag, rst, RSTMGR_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, ram, RAM_SIZE);
 }
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}
