@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2007-2017 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
@@ -750,9 +750,9 @@ static inline void ecore_set_mcp_parity(struct bxe_softc *sc, uint8_t enable)
 		reg_val = REG_RD(sc, mcp_attn_ctl_regs[i].addr);
 
 		if (enable)
-			reg_val |= mcp_attn_ctl_regs[i].bits;
+			reg_val |= MISC_AEU_ENABLE_MCP_PRTY_BITS; /* Linux is using mcp_attn_ctl_regs[i].bits */
 		else
-			reg_val &= ~mcp_attn_ctl_regs[i].bits;
+			reg_val &= ~MISC_AEU_ENABLE_MCP_PRTY_BITS; /* Linux is using mcp_attn_ctl_regs[i].bits */
 
 		REG_WR(sc, mcp_attn_ctl_regs[i].addr, reg_val);
 	}
