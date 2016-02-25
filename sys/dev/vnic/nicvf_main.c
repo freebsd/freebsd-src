@@ -348,27 +348,24 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	if_setinitfn(ifp, nicvf_if_init);
 	if_setgetcounterfn(ifp, nicvf_if_getcounter);
 
-	/* Set send queue len to number to default maximum */
-	if_setsendqlen(ifp, IFQ_MAXLEN);
-	if_setsendqready(ifp);
 	if_setmtu(ifp, ETHERMTU);
 
-	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
+	/* Reset caps */
+	if_setcapabilities(ifp, 0);
+
+	/* Set the default values */
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
-	/*
-	 * HW offload capabilities
-	 */
 	/* IP/TCP/UDP HW checksums */
 	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
-	if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP), 0);
+	/*
+	 * HW offload enable
+	 */
+	if_clearhwassist(ifp);
+	if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP), 0);
 
-#ifdef DEVICE_POLLING
-#error "DEVICE_POLLING not supported in VNIC driver yet"
-	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
-#endif
 	if_setcapenable(ifp, if_getcapabilities(ifp));
-	if_setmtu(ifp, ETHERMTU);
 
 	return (0);
 }
