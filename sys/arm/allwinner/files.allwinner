@@ -18,3 +18,8 @@ arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/sunxi_dma_if.m		standard
 dev/iicbus/twsi/a10_twsi.c		optional	twsi
 #arm/allwinner/console.c		standard
+
+arm/allwinner/a10_fb.c			optional	vt
+arm/allwinner/a10_hdmi.c		optional	hdmi
+arm/allwinner/a10_hdmiaudio.c		optional	hdmi sound
+arm/arm/hdmi_if.m			optional	hdmi
