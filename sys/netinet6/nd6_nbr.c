@@ -858,25 +858,28 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * update the Destination Cache entries.
 			 */
 			struct nd_defrouter *dr;
-			struct in6_addr *in6;
 			struct ifnet *nd6_ifp;
 
-			in6 = &ln->r_l3addr.addr6;
-
 			nd6_ifp = lltable_get_ifp(ln->lle_tbl);
-			dr = defrouter_lookup(in6, nd6_ifp);
-			if (dr)
-				defrtrlist_del(dr);
-			else if (ND_IFINFO(nd6_ifp)->flags &
-			    ND6_IFF_ACCEPT_RTADV) {
-				/*
-				 * Even if the neighbor is not in the default
-				 * router list, the neighbor may be used
-				 * as a next hop for some destinations
-				 * (e.g. redirect case). So we must
-				 * call rt6_flush explicitly.
-				 */
-				rt6_flush(&ip6->ip6_src, ifp);
+			ND6_WLOCK();
+			dr = defrouter_lookup_locked(&ln->r_l3addr.addr6,
+			    nd6_ifp);
+			if (dr != NULL) {
+				/* releases the ND lock */
+				defrouter_remove(dr);
+				dr = NULL;
+			} else {
+				ND6_WUNLOCK();
+				if ((ND_IFINFO(nd6_ifp)->flags & ND6_IFF_ACCEPT_RTADV) != 0) {
+					/*
+					 * Even if the neighbor is not in the default
+					 * router list, the neighbor may be used
+					 * as a next hop for some destinations
+					 * (e.g. redirect case). So we must
+					 * call rt6_flush explicitly.
+					 */
+					rt6_flush(&ip6->ip6_src, ifp);
+				}
 			}
 		}
 		ln->ln_router = is_router;
