@@ -2326,8 +2326,10 @@ hn_destroy_tx_ring(struct hn_tx_ring *txr)
 		hn_txdesc_dmamap_destroy(txd);
 	}
 #else
+	mtx_lock(&txr->hn_tx_lock);
 	while ((txd = buf_ring_dequeue_sc(txr->hn_txdesc_br)) != NULL)
 		hn_txdesc_dmamap_destroy(txd);
+	mtx_unlock(&txr->hn_tx_lock);
 #endif
 
 	if (txr->hn_tx_data_dtag != NULL)
