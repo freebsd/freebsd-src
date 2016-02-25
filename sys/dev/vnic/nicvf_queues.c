@@ -1070,8 +1070,8 @@ nicvf_init_snd_queue(struct nicvf *nic, struct snd_queue *sq, int q_len,
 	    BUS_SPACE_MAXADDR,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL, NULL,				/* filtfunc, filtfuncarg */
-	    NICVF_TXBUF_MAXSIZE,		/* maxsize */
-	    NICVF_TXBUF_NSEGS,			/* nsegments */
+	    NICVF_TSO_MAXSIZE,			/* maxsize */
+	    NICVF_TSO_NSEGS,			/* nsegments */
 	    MCLBYTES,				/* maxsegsize */
 	    0,					/* flags */
 	    NULL, NULL,				/* lockfunc, lockfuncarg */
@@ -1727,13 +1727,17 @@ static __inline int
 nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 			 int subdesc_cnt, struct mbuf *mbuf, int len)
 {
+	struct nicvf *nic;
 	struct sq_hdr_subdesc *hdr;
 	struct ether_vlan_header *eh;
 #ifdef INET
 	struct ip *ip;
+	struct tcphdr *th;
 #endif
 	uint16_t etype;
 	int ehdrlen, iphlen, poff;
+
+	nic = sq->nic;
 
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
 	sq->snd_buff[qentry].mbuf = mbuf;
@@ -1746,18 +1750,25 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 	hdr->subdesc_cnt = subdesc_cnt;
 	hdr->tot_len = len;
 
-	if (mbuf->m_pkthdr.csum_flags != 0) {
-		hdr->csum_l3 = 1; /* Enable IP csum calculation */
+	eh = mtod(mbuf, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		etype = ntohs(eh->evl_proto);
+	} else {
+		ehdrlen = ETHER_HDR_LEN;
+		etype = ntohs(eh->evl_encap_proto);
+	}
 
-		eh = mtod(mbuf, struct ether_vlan_header *);
-		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-			ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-			etype = ntohs(eh->evl_proto);
-		} else {
-			ehdrlen = ETHER_HDR_LEN;
-			etype = ntohs(eh->evl_encap_proto);
-		}
-
+	switch (etype) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		/* ARM64TODO: Add support for IPv6 */
+		hdr->csum_l3 = 0;
+		sq->snd_buff[qentry].mbuf = NULL;
+		return (ENXIO);
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
 		if (mbuf->m_len < ehdrlen + sizeof(struct ip)) {
 			mbuf = m_pullup(mbuf, ehdrlen + sizeof(struct ip));
 			sq->snd_buff[qentry].mbuf = mbuf;
@@ -1765,21 +1776,13 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 				return (ENOBUFS);
 		}
 
-		switch (etype) {
-#ifdef INET6
-		case ETHERTYPE_IPV6:
-			/* ARM64TODO: Add support for IPv6 */
-			hdr->csum_l3 = 0;
-			sq->snd_buff[qentry].mbuf = NULL;
-			return (ENXIO);
-#endif
-#ifdef INET
-		case ETHERTYPE_IP:
-			ip = (struct ip *)(mbuf->m_data + ehdrlen);
-			ip->ip_sum = 0;
-			iphlen = ip->ip_hl << 2;
-			poff = ehdrlen + iphlen;
+		ip = (struct ip *)(mbuf->m_data + ehdrlen);
+		ip->ip_sum = 0;
+		iphlen = ip->ip_hl << 2;
+		poff = ehdrlen + iphlen;
 
+		if (mbuf->m_pkthdr.csum_flags != 0) {
+			hdr->csum_l3 = 1; /* Enable IP csum calculation */
 			switch (ip->ip_p) {
 			case IPPROTO_TCP:
 				if ((mbuf->m_pkthdr.csum_flags & CSUM_TCP) == 0)
@@ -1820,17 +1823,28 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 			default:
 				break;
 			}
-			break;
-#endif
-		default:
-			hdr->csum_l3 = 0;
-			return (0);
+			hdr->l3_offset = ehdrlen;
+			hdr->l4_offset = ehdrlen + iphlen;
 		}
 
-		hdr->l3_offset = ehdrlen;
-		hdr->l4_offset = ehdrlen + iphlen;
-	} else
+		if ((mbuf->m_pkthdr.tso_segsz != 0) && nic->hw_tso) {
+			/*
+			 * Extract ip again as m_data could have been modified.
+			 */
+			ip = (struct ip *)(mbuf->m_data + ehdrlen);
+			th = (struct tcphdr *)((caddr_t)ip + iphlen);
+
+			hdr->tso = 1;
+			hdr->tso_start = ehdrlen + iphlen + (th->th_off * 4);
+			hdr->tso_max_paysize = mbuf->m_pkthdr.tso_segsz;
+			hdr->inner_l3_offset = ehdrlen - 2;
+			nic->drv_stats.tx_tso++;
+		}
+		break;
+#endif
+	default:
 		hdr->csum_l3 = 0;
+	}
 
 	return (0);
 }
@@ -1859,10 +1873,11 @@ int
 nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 {
 	bus_dma_segment_t segs[256];
+	struct nicvf *nic;
 	struct snd_buff *snd_buff;
 	size_t seg;
 	int nsegs, qentry;
-	int subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT - 1;
+	int subdesc_cnt;
 	int err;
 
 	NICVF_TX_LOCK_ASSERT(sq);
@@ -1880,7 +1895,11 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 	}
 
 	/* Set how many subdescriptors is required */
-	subdesc_cnt += nsegs;
+	nic = sq->nic;
+	if (mbuf->m_pkthdr.tso_segsz != 0 && nic->hw_tso)
+		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT;
+	else
+		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT + nsegs - 1;
 
 	if (subdesc_cnt > sq->free_cnt) {
 		/* ARM64TODO: Add mbuf defragmentation if we lack descriptors */
