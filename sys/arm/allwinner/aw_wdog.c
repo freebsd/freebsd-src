@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2016 Emmanuel Vadot <manu@bidouilliste.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,24 +46,30 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/machdep.h>
 
-#include <arm/allwinner/a10_wdog.h>
+#include <arm/allwinner/aw_wdog.h>
 
 #define	READ(_sc, _r) bus_read_4((_sc)->res, (_r))
 #define	WRITE(_sc, _r, _v) bus_write_4((_sc)->res, (_r), (_v))
 
-#define	WDOG_CTRL		0x00
-#define		WDOG_CTRL_RESTART	(1 << 0)
-#define	WDOG_MODE		0x04
-#define		WDOG_MODE_INTVL_SHIFT	3
-#define		WDOG_MODE_RST_EN	(1 << 1)
-#define		WDOG_MODE_EN		(1 << 0)
+#define	A10_WDOG_CTRL		0x00
+#define	A31_WDOG_CTRL		0x10
+#define	 WDOG_CTRL_RESTART	(1 << 0)
+#define	A10_WDOG_MODE		0x04
+#define	A31_WDOG_MODE		0x18
+#define	 A10_WDOG_MODE_INTVL_SHIFT	3
+#define	 A31_WDOG_MODE_INTVL_SHIFT	4
+#define	 A10_WDOG_MODE_RST_EN	(1 << 1)
+#define	 WDOG_MODE_EN		(1 << 0)
+#define	A31_WDOG_CONFIG		0x14
+#define	 A31_WDOG_CONFIG_RST_EN_SYSTEM	(1 << 0)
+#define	 A31_WDOG_CONFIG_RST_EN_INT	(2 << 0)
 
-struct a10wd_interval {
+struct aw_wdog_interval {
 	uint64_t	milliseconds;
 	unsigned int	value;
 };
 
-struct a10wd_interval wd_intervals[] = {
+struct aw_wdog_interval wd_intervals[] = {
 	{   500,	 0 },
 	{  1000,	 1 },
 	{  2000,	 2 },
@@ -78,38 +85,58 @@ struct a10wd_interval wd_intervals[] = {
 	{ 0,		 0 } /* sentinel */
 };
 
-static struct a10wd_softc *a10wd_sc = NULL;
+static struct aw_wdog_softc *aw_wdog_sc = NULL;
 
-struct a10wd_softc {
+struct aw_wdog_softc {
 	device_t		dev;
 	struct resource *	res;
 	struct mtx		mtx;
+	uint8_t			wdog_ctrl;
+	uint8_t			wdog_mode;
+	uint8_t			wdog_mode_intvl_shift;
+	uint8_t			wdog_mode_en;
+	uint8_t			wdog_config;
+	uint8_t			wdog_config_value;
 };
 
-static void a10wd_watchdog_fn(void *private, u_int cmd, int *error);
+#define	A10_WATCHDOG	1
+#define	A31_WATCHDOG	2
+
+static struct ofw_compat_data compat_data[] = {
+	{"allwinner,sun4i-a10-wdt", A10_WATCHDOG},
+	{"allwinner,sun6i-a31-wdt", A31_WATCHDOG},
+	{NULL,             0}
+};
+
+static void aw_wdog_watchdog_fn(void *private, u_int cmd, int *error);
 
 static int
-a10wd_probe(device_t dev)
+aw_wdog_probe(device_t dev)
 {
+	struct aw_wdog_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-
-	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-a10-wdt")) {
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
+	case A10_WATCHDOG:
 		device_set_desc(dev, "Allwinner A10 Watchdog");
 		return (BUS_PROBE_DEFAULT);
+	case A31_WATCHDOG:
+		device_set_desc(dev, "Allwinner A31 Watchdog");
+		return (BUS_PROBE_DEFAULT);
 	}
-
 	return (ENXIO);
 }
 
 static int
-a10wd_attach(device_t dev)
+aw_wdog_attach(device_t dev)
 {
-	struct a10wd_softc *sc;
+	struct aw_wdog_softc *sc;
 	int rid;
 
-	if (a10wd_sc != NULL)
+	if (aw_wdog_sc != NULL)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
@@ -122,17 +149,37 @@ a10wd_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	a10wd_sc = sc;
-	mtx_init(&sc->mtx, "A10 Watchdog", "a10wd", MTX_DEF);
-	EVENTHANDLER_REGISTER(watchdog_list, a10wd_watchdog_fn, sc, 0);
+	aw_wdog_sc = sc;
 
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
+	case A10_WATCHDOG:
+		sc->wdog_ctrl = A10_WDOG_CTRL;
+		sc->wdog_mode = A10_WDOG_MODE;
+		sc->wdog_mode_intvl_shift = A10_WDOG_MODE_INTVL_SHIFT;
+		sc->wdog_mode_en = A10_WDOG_MODE_RST_EN | WDOG_MODE_EN;
+		break;
+	case A31_WATCHDOG:
+		sc->wdog_ctrl = A31_WDOG_CTRL;
+		sc->wdog_mode = A31_WDOG_MODE;
+		sc->wdog_mode_intvl_shift = A31_WDOG_MODE_INTVL_SHIFT;
+		sc->wdog_mode_en = WDOG_MODE_EN;
+		sc->wdog_config = A31_WDOG_CONFIG;
+		sc->wdog_config_value = A31_WDOG_CONFIG_RST_EN_SYSTEM;
+		break;
+	default:
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res);
+		return (ENXIO);
+	}
+
+	mtx_init(&sc->mtx, "AW Watchdog", "aw_wdog", MTX_DEF);
+	EVENTHANDLER_REGISTER(watchdog_list, aw_wdog_watchdog_fn, sc, 0);
 	return (0);
 }
 
 static void
-a10wd_watchdog_fn(void *private, u_int cmd, int *error)
+aw_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 {
-	struct a10wd_softc *sc;
+	struct aw_wdog_softc *sc;
 	uint64_t ms;
 	int i;
 
@@ -144,64 +191,69 @@ a10wd_watchdog_fn(void *private, u_int cmd, int *error)
 	if (cmd > 0) {
 		ms = ((uint64_t)1 << (cmd & WD_INTERVAL)) / 1000000;
 		i = 0;
-		while (wd_intervals[i].milliseconds && 
+		while (wd_intervals[i].milliseconds &&
 		    (ms > wd_intervals[i].milliseconds))
 			i++;
 		if (wd_intervals[i].milliseconds) {
-			WRITE(sc, WDOG_MODE, 
-			    (wd_intervals[i].value << WDOG_MODE_INTVL_SHIFT) |
-			    WDOG_MODE_EN | WDOG_MODE_RST_EN);
-			WRITE(sc, WDOG_CTRL, WDOG_CTRL_RESTART);
+			WRITE(sc, sc->wdog_mode,
+			  (wd_intervals[i].value << sc->wdog_mode_intvl_shift) |
+			    sc->wdog_mode_en);
+			WRITE(sc, sc->wdog_ctrl, WDOG_CTRL_RESTART);
+			if (sc->wdog_config)
+				WRITE(sc, sc->wdog_config,
+				    sc->wdog_config_value);
 			*error = 0;
 		}
 		else {
-			/* 
+			/*
 			 * Can't arm
 			 * disable watchdog as watchdog(9) requires
 			 */
 			device_printf(sc->dev,
 			    "Can't arm, timeout is more than 16 sec\n");
 			mtx_unlock(&sc->mtx);
-			WRITE(sc, WDOG_MODE, 0);
+			WRITE(sc, sc->wdog_mode, 0);
 			return;
 		}
 	}
 	else
-		WRITE(sc, WDOG_MODE, 0);
+		WRITE(sc, sc->wdog_mode, 0);
 
 	mtx_unlock(&sc->mtx);
 }
 
 void
-a10wd_watchdog_reset()
+aw_wdog_watchdog_reset()
 {
 
-	if (a10wd_sc == NULL) {
+	if (aw_wdog_sc == NULL) {
 		printf("Reset: watchdog device has not been initialized\n");
 		return;
 	}
 
-	WRITE(a10wd_sc, WDOG_MODE, 
-	    (wd_intervals[0].value << WDOG_MODE_INTVL_SHIFT) |
-	    WDOG_MODE_EN | WDOG_MODE_RST_EN);
-
+	WRITE(aw_wdog_sc, aw_wdog_sc->wdog_mode,
+	    (wd_intervals[0].value << aw_wdog_sc->wdog_mode_intvl_shift) |
+	    aw_wdog_sc->wdog_mode_en);
+	if (aw_wdog_sc->wdog_config)
+		WRITE(aw_wdog_sc, aw_wdog_sc->wdog_config,
+		      aw_wdog_sc->wdog_config_value);
 	while(1)
 		;
 
 }
 
-static device_method_t a10wd_methods[] = {
-	DEVMETHOD(device_probe, a10wd_probe),
-	DEVMETHOD(device_attach, a10wd_attach),
+static device_method_t aw_wdog_methods[] = {
+	DEVMETHOD(device_probe, aw_wdog_probe),
+	DEVMETHOD(device_attach, aw_wdog_attach),
 
 	DEVMETHOD_END
 };
 
-static driver_t a10wd_driver = {
-	"a10wd",
-	a10wd_methods,
-	sizeof(struct a10wd_softc),
+static driver_t aw_wdog_driver = {
+	"aw_wdog",
+	aw_wdog_methods,
+	sizeof(struct aw_wdog_softc),
 };
-static devclass_t a10wd_devclass;
+static devclass_t aw_wdog_devclass;
 
-DRIVER_MODULE(a10wd, simplebus, a10wd_driver, a10wd_devclass, 0, 0);
+DRIVER_MODULE(aw_wdog, simplebus, aw_wdog_driver, aw_wdog_devclass, 0, 0);
