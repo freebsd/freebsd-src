@@ -1012,7 +1012,10 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 
 			stcb = LIST_FIRST(&inp->sctp_asoc_list);
 			if (stcb == NULL) {
-				goto notConn6;
+				SCTP_INP_RUNLOCK(inp);
+				SCTP_FREE_SONAME(sin6);
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
+				return (ENOENT);
 			}
 			fnd = 0;
 			sin_a6 = NULL;
@@ -1029,7 +1032,10 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			}
 			if ((!fnd) || (sin_a6 == NULL)) {
 				/* punt */
-				goto notConn6;
+				SCTP_INP_RUNLOCK(inp);
+				SCTP_FREE_SONAME(sin6);
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOENT);
+				return (ENOENT);
 			}
 			vrf_id = inp->def_vrf_id;
 			sctp_ifa = sctp_source_address_selection(inp, stcb, (sctp_route_t *) & net->ro, net, 0, vrf_id);
@@ -1038,7 +1044,6 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			}
 		} else {
 			/* For the bound all case you get back 0 */
-	notConn6:
 			memset(&sin6->sin6_addr, 0, sizeof(sin6->sin6_addr));
 		}
 	} else {
@@ -1139,10 +1144,6 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 static int
 sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 {
-#ifdef INET
-	struct sockaddr *addr;
-
-#endif
 	struct in6pcb *inp6 = sotoin6pcb(so);
 	int error;
 
@@ -1154,19 +1155,21 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 	error = sctp6_getaddr(so, nam);
 #ifdef INET
 	if (error) {
+		struct sockaddr_in6 *sin6;
+
 		/* try v4 next if v6 failed */
 		error = sctp_ingetaddr(so, nam);
 		if (error) {
 			return (error);
 		}
-		addr = *nam;
-		/* if I'm V6ONLY, convert it to v4-mapped */
-		if (SCTP_IPV6_V6ONLY(inp6)) {
-			struct sockaddr_in6 sin6;
-
-			in6_sin_2_v4mapsin6((struct sockaddr_in *)addr, &sin6);
-			memcpy(addr, &sin6, sizeof(struct sockaddr_in6));
+		SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
+		if (sin6 == NULL) {
+			SCTP_FREE_SONAME(*nam);
+			return (ENOMEM);
 		}
+		in6_sin_2_v4mapsin6((struct sockaddr_in *)*nam, sin6);
+		SCTP_FREE_SONAME(*nam);
+		*nam = (struct sockaddr *)sin6;
 	}
 #endif
 	return (error);
@@ -1176,10 +1179,6 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 static int
 sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 {
-#ifdef INET
-	struct sockaddr *addr;
-
-#endif
 	struct in6pcb *inp6 = sotoin6pcb(so);
 	int error;
 
@@ -1191,19 +1190,21 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	error = sctp6_peeraddr(so, nam);
 #ifdef INET
 	if (error) {
+		struct sockaddr_in6 *sin6;
+
 		/* try v4 next if v6 failed */
 		error = sctp_peeraddr(so, nam);
 		if (error) {
 			return (error);
 		}
-		addr = *nam;
-		/* if I'm V6ONLY, convert it to v4-mapped */
-		if (SCTP_IPV6_V6ONLY(inp6)) {
-			struct sockaddr_in6 sin6;
-
-			in6_sin_2_v4mapsin6((struct sockaddr_in *)addr, &sin6);
-			memcpy(addr, &sin6, sizeof(struct sockaddr_in6));
+		SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
+		if (sin6 == NULL) {
+			SCTP_FREE_SONAME(*nam);
+			return (ENOMEM);
 		}
+		in6_sin_2_v4mapsin6((struct sockaddr_in *)*nam, sin6);
+		SCTP_FREE_SONAME(*nam);
+		*nam = (struct sockaddr *)sin6;
 	}
 #endif
 	return (error);
