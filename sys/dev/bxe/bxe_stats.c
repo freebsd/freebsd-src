@@ -1558,23 +1558,6 @@ bxe_prep_fw_stats_req(struct bxe_softc *sc)
     cur_query_entry->address.hi = htole32(U64_HI(cur_data_offset));
     cur_query_entry->address.lo = htole32(U64_LO(cur_data_offset));
 
-#if 0
-    /**** FCoE FW statistics data ****/
-    if (!NO_FCOE(sc)) {
-        cur_data_offset = (sc->fw_stats_data_mapping +
-                           offsetof(struct bxe_fw_stats_data, fcoe));
-
-        cur_query_entry = &sc->fw_stats_req->query[BXE_FCOE_QUERY_IDX];
-
-        cur_query_entry->kind = STATS_TYPE_FCOE;
-        /* For FCoE query index is a DONT CARE */
-        cur_query_entry->index = SC_PORT(sc);
-        cur_query_entry->funcID = cpu_to_le16(SC_FUNC(sc));
-        cur_query_entry->address.hi = htole32(U64_HI(cur_data_offset));
-        cur_query_entry->address.lo = htole32(U64_LO(cur_data_offset));
-    }
-#endif
-
     /**** Clients' queries ****/
     cur_data_offset = (sc->fw_stats_data_mapping +
                        offsetof(struct bxe_fw_stats_data, queue_stats));
@@ -1583,12 +1566,7 @@ bxe_prep_fw_stats_req(struct bxe_softc *sc)
      * First queue query index depends whether FCoE offloaded request will
      * be included in the ramrod
      */
-#if 0
-    if (!NO_FCOE(sc))
-        first_queue_query_index = BXE_FIRST_QUEUE_QUERY_IDX;
-    else
-#endif
-        first_queue_query_index = (BXE_FIRST_QUEUE_QUERY_IDX - 1);
+    first_queue_query_index = (BXE_FIRST_QUEUE_QUERY_IDX - 1);
 
     for (i = 0; i < sc->num_queues; i++) {
         cur_query_entry =
@@ -1602,20 +1580,6 @@ bxe_prep_fw_stats_req(struct bxe_softc *sc)
 
         cur_data_offset += sizeof(struct per_queue_stats);
     }
-
-#if 0
-    /* add FCoE queue query if needed */
-    if (!NO_FCOE(sc)) {
-        cur_query_entry =
-            &sc->fw_stats_req->query[first_queue_query_index + i];
-
-        cur_query_entry->kind = STATS_TYPE_QUEUE;
-        cur_query_entry->index = bxe_stats_id(&sc->fp[FCOE_IDX(sc)]);
-        cur_query_entry->funcID = htole16(SC_FUNC(sc));
-        cur_query_entry->address.hi = htole32(U64_HI(cur_data_offset));
-        cur_query_entry->address.lo = htole32(U64_LO(cur_data_offset));
-    }
-#endif
 }
 
 void
@@ -1769,22 +1733,6 @@ bxe_afex_collect_stats(struct bxe_softc *sc,
     int i;
     struct afex_stats *afex_stats = (struct afex_stats *)void_afex_stats;
     struct bxe_eth_stats *estats = &sc->eth_stats;
-#if 0
-    struct per_queue_stats *fcoe_q_stats =
-        &sc->fw_stats_data->queue_stats[FCOE_IDX(sc)];
-
-    struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
-        &fcoe_q_stats->tstorm_queue_statistics;
-
-    struct ustorm_per_queue_stats *fcoe_q_ustorm_stats =
-        &fcoe_q_stats->ustorm_queue_statistics;
-
-    struct xstorm_per_queue_stats *fcoe_q_xstorm_stats =
-        &fcoe_q_stats->xstorm_queue_statistics;
-
-    struct fcoe_statistics_params *fw_fcoe_stat =
-        &sc->fw_stats_data->fcoe;
-#endif
 
     memset(afex_stats, 0, sizeof(struct afex_stats));
 
@@ -1880,144 +1828,6 @@ bxe_afex_collect_stats(struct bxe_softc *sc,
                afex_stats->tx_frames_dropped_lo,
                qstats->total_transmitted_dropped_packets_error_lo);
     }
-
-#if 0
-    /*
-     * Now add FCoE statistics which are collected separately
-     * (both offloaded and non offloaded)
-     */
-    if (!NO_FCOE(sc)) {
-        ADD_64_LE(afex_stats->rx_unicast_bytes_hi,
-                  LE32_0,
-                  afex_stats->rx_unicast_bytes_lo,
-                  fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
-
-        ADD_64_LE(afex_stats->rx_unicast_bytes_hi,
-                  fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
-                  afex_stats->rx_unicast_bytes_lo,
-                  fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
-
-        ADD_64_LE(afex_stats->rx_broadcast_bytes_hi,
-                  fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
-                  afex_stats->rx_broadcast_bytes_lo,
-                  fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
-
-        ADD_64_LE(afex_stats->rx_multicast_bytes_hi,
-                  fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
-                  afex_stats->rx_multicast_bytes_lo,
-                  fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
-
-        ADD_64_LE(afex_stats->rx_unicast_frames_hi,
-                  LE32_0,
-                  afex_stats->rx_unicast_frames_lo,
-                  fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
-
-        ADD_64_LE(afex_stats->rx_unicast_frames_hi,
-                  LE32_0,
-                  afex_stats->rx_unicast_frames_lo,
-                  fcoe_q_tstorm_stats->rcv_ucast_pkts);
-
-        ADD_64_LE(afex_stats->rx_broadcast_frames_hi,
-                  LE32_0,
-                  afex_stats->rx_broadcast_frames_lo,
-                  fcoe_q_tstorm_stats->rcv_bcast_pkts);
-
-        ADD_64_LE(afex_stats->rx_multicast_frames_hi,
-                  LE32_0,
-                  afex_stats->rx_multicast_frames_lo,
-                  fcoe_q_tstorm_stats->rcv_ucast_pkts);
-
-        ADD_64_LE(afex_stats->rx_frames_discarded_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_discarded_lo,
-                  fcoe_q_tstorm_stats->checksum_discard);
-
-        ADD_64_LE(afex_stats->rx_frames_discarded_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_discarded_lo,
-                  fcoe_q_tstorm_stats->pkts_too_big_discard);
-
-        ADD_64_LE(afex_stats->rx_frames_discarded_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_discarded_lo,
-                  fcoe_q_tstorm_stats->ttl0_discard);
-
-        ADD_64_LE16(afex_stats->rx_frames_dropped_hi,
-                    LE16_0,
-                    afex_stats->rx_frames_dropped_lo,
-                    fcoe_q_tstorm_stats->no_buff_discard);
-
-        ADD_64_LE(afex_stats->rx_frames_dropped_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_dropped_lo,
-                  fcoe_q_ustorm_stats->ucast_no_buff_pkts);
-
-        ADD_64_LE(afex_stats->rx_frames_dropped_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_dropped_lo,
-                  fcoe_q_ustorm_stats->mcast_no_buff_pkts);
-
-        ADD_64_LE(afex_stats->rx_frames_dropped_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_dropped_lo,
-                  fcoe_q_ustorm_stats->bcast_no_buff_pkts);
-
-        ADD_64_LE(afex_stats->rx_frames_dropped_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_dropped_lo,
-                  fw_fcoe_stat->rx_stat1.fcoe_rx_drop_pkt_cnt);
-
-        ADD_64_LE(afex_stats->rx_frames_dropped_hi,
-                  LE32_0,
-                  afex_stats->rx_frames_dropped_lo,
-                  fw_fcoe_stat->rx_stat2.fcoe_rx_drop_pkt_cnt);
-
-        ADD_64_LE(afex_stats->tx_unicast_bytes_hi,
-                  LE32_0,
-                  afex_stats->tx_unicast_bytes_lo,
-                  fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
-
-        ADD_64_LE(afex_stats->tx_unicast_bytes_hi,
-                  fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
-                  afex_stats->tx_unicast_bytes_lo,
-                  fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
-
-        ADD_64_LE(afex_stats->tx_broadcast_bytes_hi,
-                  fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
-                  afex_stats->tx_broadcast_bytes_lo,
-                  fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
-
-        ADD_64_LE(afex_stats->tx_multicast_bytes_hi,
-                  fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
-                  afex_stats->tx_multicast_bytes_lo,
-                  fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
-
-        ADD_64_LE(afex_stats->tx_unicast_frames_hi,
-                  LE32_0,
-                  afex_stats->tx_unicast_frames_lo,
-                  fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
-
-        ADD_64_LE(afex_stats->tx_unicast_frames_hi,
-                  LE32_0,
-                  afex_stats->tx_unicast_frames_lo,
-                  fcoe_q_xstorm_stats->ucast_pkts_sent);
-
-        ADD_64_LE(afex_stats->tx_broadcast_frames_hi,
-                  LE32_0,
-                  afex_stats->tx_broadcast_frames_lo,
-                  fcoe_q_xstorm_stats->bcast_pkts_sent);
-
-        ADD_64_LE(afex_stats->tx_multicast_frames_hi,
-                  LE32_0,
-                  afex_stats->tx_multicast_frames_lo,
-                  fcoe_q_xstorm_stats->mcast_pkts_sent);
-
-        ADD_64_LE(afex_stats->tx_frames_dropped_hi,
-                  LE32_0,
-                  afex_stats->tx_frames_dropped_lo,
-                  fcoe_q_xstorm_stats->error_drop_pkts);
-    }
-#endif
 
     /*
      * If port stats are requested, add them to the PMF
