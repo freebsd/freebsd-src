@@ -5499,6 +5499,9 @@ cxgbe_sysctls(struct port_info *pi)
 	    CTLTYPE_STRING | CTLFLAG_RW, pi, PAUSE_TX, sysctl_pause_settings,
 	    "A", "PAUSE settings (bit 0 = rx_pause, bit 1 = tx_pause)");
 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "max_speed", CTLFLAG_RD, NULL,
+	    port_top_speed(pi), "max speed (in Gbps)");
+
 	/*
 	 * dev.cxgbe.X.stats.
 	 */
