@@ -40,6 +40,8 @@ PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
 SOC_ALLWINNER_A10	opt_global.h
 SOC_ALLWINNER_A20	opt_global.h
+SOC_ALLWINNER_A31	opt_global.h
+SOC_ALLWINNER_A31S	opt_global.h
 SOC_BCM2835		opt_global.h
 SOC_BCM2836		opt_global.h
 SOC_IMX51		opt_global.h
