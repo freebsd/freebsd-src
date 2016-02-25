@@ -292,6 +292,7 @@ struct nicvf {
 	uint8_t			max_queues;
 	struct resource		*reg_base;
 	boolean_t		link_up;
+	boolean_t		hw_tso;
 	uint8_t			duplex;
 	uint32_t		speed;
 	uint8_t			cpi_alg;
