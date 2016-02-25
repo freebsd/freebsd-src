@@ -110,10 +110,3 @@ platform_mp_start_ap(void)
 	/* Wake up CPU1. */
 	armv7_sev();
 }
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}

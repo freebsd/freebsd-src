@@ -499,7 +499,7 @@ ipi_all_but_self(u_int ipi)
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(other_cpus, ipi);
+	pic_ipi_send(other_cpus, ipi);
 }
 
 void
@@ -511,7 +511,7 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
-	platform_ipi_send(cpus, ipi);
+	pic_ipi_send(cpus, ipi);
 }
 
 void
@@ -519,6 +519,6 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(cpus, ipi);
+	pic_ipi_send(cpus, ipi);
 }
 

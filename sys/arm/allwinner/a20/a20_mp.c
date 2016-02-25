@@ -153,10 +153,3 @@ platform_mp_start_ap(void)
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, cpucfg, CPUCFG_SIZE);
 }
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}

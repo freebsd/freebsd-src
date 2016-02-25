@@ -534,13 +534,6 @@ platform_mp_start_ap(void)
 	memset(&aml8726_smp, 0, sizeof(aml8726_smp));
 }
 
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}
-
 /*
  * Stub drivers for cosmetic purposes.
  */
