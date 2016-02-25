@@ -1034,6 +1034,9 @@ struct hn_tx_ring {
 	struct task	hn_tx_task;
 	struct task	hn_txeof_task;
 
+	struct buf_ring	*hn_mbuf_br;
+	int		hn_oactive;
+
 	struct mtx	hn_tx_lock;
 	struct hn_softc	*hn_sc;
 
