@@ -186,10 +186,3 @@ platform_mp_start_ap(void)
 
 	armadaxp_init_coher_fabric();
 }
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
-}
