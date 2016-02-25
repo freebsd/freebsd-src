@@ -73,7 +73,6 @@ FILES+=	${MAPS}
 CLEANFILES+= ${MAPS}
 .endif
 
-realall: all
 all: ${FILES} mapper.dir.${ESUBDIR} charset.pivot.${ESUBDIR}
 
 .include "./Makefile.inc"
