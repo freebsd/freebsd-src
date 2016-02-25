@@ -124,14 +124,6 @@ static struct bxe_device_type bxe_devs[] = {
         PCI_ANY_ID, PCI_ANY_ID,
         "QLogic NetXtreme II BCM57712 MF 10GbE"
     },
-#if 0
-    {
-        BRCM_VENDORID,
-        CHIP_NUM_57712_VF,
-        PCI_ANY_ID, PCI_ANY_ID,
-        "QLogic NetXtreme II BCM57712 VF 10GbE"
-    },
-#endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57800,
@@ -144,14 +136,6 @@ static struct bxe_device_type bxe_devs[] = {
         PCI_ANY_ID, PCI_ANY_ID,
         "QLogic NetXtreme II BCM57800 MF 10GbE"
     },
-#if 0
-    {
-        BRCM_VENDORID,
-        CHIP_NUM_57800_VF,
-        PCI_ANY_ID, PCI_ANY_ID,
-        "QLogic NetXtreme II BCM57800 VF 10GbE"
-    },
-#endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57810,
@@ -164,14 +148,6 @@ static struct bxe_device_type bxe_devs[] = {
         PCI_ANY_ID, PCI_ANY_ID,
         "QLogic NetXtreme II BCM57810 MF 10GbE"
     },
-#if 0
-    {
-        BRCM_VENDORID,
-        CHIP_NUM_57810_VF,
-        PCI_ANY_ID, PCI_ANY_ID,
-        "QLogic NetXtreme II BCM57810 VF 10GbE"
-    },
-#endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57811,
@@ -184,42 +160,18 @@ static struct bxe_device_type bxe_devs[] = {
         PCI_ANY_ID, PCI_ANY_ID,
         "QLogic NetXtreme II BCM57811 MF 10GbE"
     },
-#if 0
-    {
-        BRCM_VENDORID,
-        CHIP_NUM_57811_VF,
-        PCI_ANY_ID, PCI_ANY_ID,
-        "QLogic NetXtreme II BCM57811 VF 10GbE"
-    },
-#endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_4_10,
         PCI_ANY_ID, PCI_ANY_ID,
         "QLogic NetXtreme II BCM57840 4x10GbE"
     },
-#if 0
-    {
-        BRCM_VENDORID,
-        CHIP_NUM_57840_2_20,
-        PCI_ANY_ID, PCI_ANY_ID,
-        "QLogic NetXtreme II BCM57840 2x20GbE"
-    },
-#endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_MF,
         PCI_ANY_ID, PCI_ANY_ID,
         "QLogic NetXtreme II BCM57840 MF 10GbE"
     },
-#if 0
-    {
-        BRCM_VENDORID,
-        CHIP_NUM_57840_VF,
-        PCI_ANY_ID, PCI_ANY_ID,
-        "QLogic NetXtreme II BCM57840 VF 10GbE"
-    },
-#endif
     {
         0, 0, 0, 0, NULL
     }
@@ -245,10 +197,6 @@ static device_method_t bxe_methods[] = {
     DEVMETHOD(device_attach,    bxe_attach),
     DEVMETHOD(device_detach,    bxe_detach),
     DEVMETHOD(device_shutdown,  bxe_shutdown),
-#if 0
-    DEVMETHOD(device_suspend,   bxe_suspend),
-    DEVMETHOD(device_resume,    bxe_resume),
-#endif
     /* Bus interface (bus_if.h) */
     DEVMETHOD(bus_print_child,  bus_generic_print_child),
     DEVMETHOD(bus_driver_added, bus_generic_driver_added),
@@ -469,12 +417,6 @@ static const struct {
                 8, STATS_FLAGS_FUNC, "tpa_aggregated_frames"},
     { STATS_OFFSET32(total_tpa_bytes_hi),
                 8, STATS_FLAGS_FUNC, "tpa_bytes"},
-#if 0
-    { STATS_OFFSET32(recoverable_error),
-                4, STATS_FLAGS_FUNC, "recoverable_errors" },
-    { STATS_OFFSET32(unrecoverable_error),
-                4, STATS_FLAGS_FUNC, "unrecoverable_errors" },
-#endif
     { STATS_OFFSET32(eee_tx_lpi),
                 4, STATS_FLAGS_PORT, "eee_tx_lpi"},
     { STATS_OFFSET32(rx_calls),
@@ -527,12 +469,6 @@ static const struct {
                 4, STATS_FLAGS_FUNC, "tx_window_violation_std"},
     { STATS_OFFSET32(tx_window_violation_tso),
                 4, STATS_FLAGS_FUNC, "tx_window_violation_tso"},
-#if 0
-    { STATS_OFFSET32(tx_unsupported_tso_request_ipv6),
-                4, STATS_FLAGS_FUNC, "tx_unsupported_tso_request_ipv6"},
-    { STATS_OFFSET32(tx_unsupported_tso_request_not_tcp),
-                4, STATS_FLAGS_FUNC, "tx_unsupported_tso_request_not_tcp"},
-#endif
     { STATS_OFFSET32(tx_chain_lost_mbuf),
                 4, STATS_FLAGS_FUNC, "tx_chain_lost_mbuf"},
     { STATS_OFFSET32(tx_frames_deferred),
@@ -644,12 +580,6 @@ static const struct {
                 4, "tx_window_violation_std"},
     { Q_STATS_OFFSET32(tx_window_violation_tso),
                 4, "tx_window_violation_tso"},
-#if 0
-    { Q_STATS_OFFSET32(tx_unsupported_tso_request_ipv6),
-                4, "tx_unsupported_tso_request_ipv6"},
-    { Q_STATS_OFFSET32(tx_unsupported_tso_request_not_tcp),
-                4, "tx_unsupported_tso_request_not_tcp"},
-#endif
     { Q_STATS_OFFSET32(tx_chain_lost_mbuf),
                 4, "tx_chain_lost_mbuf"},
     { Q_STATS_OFFSET32(tx_frames_deferred),
@@ -917,12 +847,6 @@ bxe_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
     } else {
         dma->paddr = segs->ds_addr;
         dma->nseg  = nseg;
-#if 0
-        BLOGD(dma->sc, DBG_LOAD,
-              "DMA alloc '%s': vaddr=%p paddr=%p nseg=%d size=%lu\n",
-              dma->msg, dma->vaddr, (void *)dma->paddr,
-              dma->nseg, dma->size);
-#endif
     }
 }
 
@@ -1007,13 +931,6 @@ bxe_dma_free(struct bxe_softc *sc,
              struct bxe_dma   *dma)
 {
     if (dma->size > 0) {
-#if 0
-        BLOGD(sc, DBG_LOAD,
-              "DMA free '%s': vaddr=%p paddr=%p nseg=%d size=%lu\n",
-              dma->msg, dma->vaddr, (void *)dma->paddr,
-              dma->nseg, dma->size);
-#endif
-
         DBASSERT(sc, (dma->tag != NULL), ("dma tag is NULL"));
 
         bus_dmamap_sync(dma->tag, dma->map,
@@ -1054,69 +971,6 @@ bxe_reg_rd_ind(struct bxe_softc *sc,
     return (val);
 }
 
-#if 0
-void bxe_dp_dmae(struct bxe_softc *sc, struct dmae_command *dmae, int msglvl)
-{
-    uint32_t src_type = dmae->opcode & DMAE_COMMAND_SRC;
-
-    switch (dmae->opcode & DMAE_COMMAND_DST) {
-    case DMAE_CMD_DST_PCI:
-        if (src_type == DMAE_CMD_SRC_PCI)
-            DP(msglvl, "DMAE: opcode 0x%08x\n"
-               "src [%x:%08x], len [%d*4], dst [%x:%08x]\n"
-               "comp_addr [%x:%08x], comp_val 0x%08x\n",
-               dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
-               dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo,
-               dmae->comp_addr_hi, dmae->comp_addr_lo,
-               dmae->comp_val);
-        else
-            DP(msglvl, "DMAE: opcode 0x%08x\n"
-               "src [%08x], len [%d*4], dst [%x:%08x]\n"
-               "comp_addr [%x:%08x], comp_val 0x%08x\n",
-               dmae->opcode, dmae->src_addr_lo >> 2,
-               dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo,
-               dmae->comp_addr_hi, dmae->comp_addr_lo,
-               dmae->comp_val);
-        break;
-    case DMAE_CMD_DST_GRC:
-        if (src_type == DMAE_CMD_SRC_PCI)
-            DP(msglvl, "DMAE: opcode 0x%08x\n"
-               "src [%x:%08x], len [%d*4], dst_addr [%08x]\n"
-               "comp_addr [%x:%08x], comp_val 0x%08x\n",
-               dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
-               dmae->len, dmae->dst_addr_lo >> 2,
-               dmae->comp_addr_hi, dmae->comp_addr_lo,
-               dmae->comp_val);
-        else
-            DP(msglvl, "DMAE: opcode 0x%08x\n"
-               "src [%08x], len [%d*4], dst [%08x]\n"
-               "comp_addr [%x:%08x], comp_val 0x%08x\n",
-               dmae->opcode, dmae->src_addr_lo >> 2,
-               dmae->len, dmae->dst_addr_lo >> 2,
-               dmae->comp_addr_hi, dmae->comp_addr_lo,
-               dmae->comp_val);
-        break;
-    default:
-        if (src_type == DMAE_CMD_SRC_PCI)
-            DP(msglvl, "DMAE: opcode 0x%08x\n"
-               "src_addr [%x:%08x]  len [%d * 4]  dst_addr [none]\n"
-               "comp_addr [%x:%08x]  comp_val 0x%08x\n",
-               dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
-               dmae->len, dmae->comp_addr_hi, dmae->comp_addr_lo,
-               dmae->comp_val);
-        else
-            DP(msglvl, "DMAE: opcode 0x%08x\n"
-               "src_addr [%08x]  len [%d * 4]  dst_addr [none]\n"
-               "comp_addr [%x:%08x]  comp_val 0x%08x\n",
-               dmae->opcode, dmae->src_addr_lo >> 2,
-               dmae->len, dmae->comp_addr_hi, dmae->comp_addr_lo,
-               dmae->comp_val);
-        break;
-    }
-
-}
-#endif
-
 static int
 bxe_acquire_hw_lock(struct bxe_softc *sc,
                     uint32_t         resource)
@@ -1129,7 +983,8 @@ bxe_acquire_hw_lock(struct bxe_softc *sc,
 
     /* validate the resource is within range */
     if (resource > HW_LOCK_MAX_RESOURCE_VALUE) {
-        BLOGE(sc, "resource 0x%x > HW_LOCK_MAX_RESOURCE_VALUE\n", resource);
+        BLOGE(sc, "(resource 0x%x > HW_LOCK_MAX_RESOURCE_VALUE)"
+            " resource_bit 0x%x\n", resource, resource_bit);
         return (-1);
     }
 
@@ -1143,8 +998,8 @@ bxe_acquire_hw_lock(struct bxe_softc *sc,
     /* validate the resource is not already taken */
     lock_status = REG_RD(sc, hw_lock_control_reg);
     if (lock_status & resource_bit) {
-        BLOGE(sc, "resource in use (status 0x%x bit 0x%x)\n",
-              lock_status, resource_bit);
+        BLOGE(sc, "resource (0x%x) in use (status 0x%x bit 0x%x)\n",
+              resource, lock_status, resource_bit);
         return (-1);
     }
 
@@ -1158,7 +1013,8 @@ bxe_acquire_hw_lock(struct bxe_softc *sc,
         DELAY(5000);
     }
 
-    BLOGE(sc, "Resource lock timeout!\n");
+    BLOGE(sc, "Resource 0x%x resource_bit 0x%x lock timeout!\n",
+        resource, resource_bit);
     return (-1);
 }
 
@@ -1173,7 +1029,8 @@ bxe_release_hw_lock(struct bxe_softc *sc,
 
     /* validate the resource is within range */
     if (resource > HW_LOCK_MAX_RESOURCE_VALUE) {
-        BLOGE(sc, "resource 0x%x > HW_LOCK_MAX_RESOURCE_VALUE\n", resource);
+        BLOGE(sc, "(resource 0x%x > HW_LOCK_MAX_RESOURCE_VALUE)"
+            " resource_bit 0x%x\n", resource, resource_bit);
         return (-1);
     }
 
@@ -1187,8 +1044,8 @@ bxe_release_hw_lock(struct bxe_softc *sc,
     /* validate the resource is currently taken */
     lock_status = REG_RD(sc, hw_lock_control_reg);
     if (!(lock_status & resource_bit)) {
-        BLOGE(sc, "resource not in use (status 0x%x bit 0x%x)\n",
-              lock_status, resource_bit);
+        BLOGE(sc, "resource (0x%x) not in use (status 0x%x bit 0x%x)\n",
+              resource, lock_status, resource_bit);
         return (-1);
     }
 
@@ -1250,7 +1107,9 @@ bxe_acquire_nvram_lock(struct bxe_softc *sc)
     }
 
     if (!(val & (MCPR_NVM_SW_ARB_ARB_ARB1 << port))) {
-        BLOGE(sc, "Cannot get access to nvram interface\n");
+        BLOGE(sc, "Cannot get access to nvram interface "
+            "port %d val 0x%x (MCPR_NVM_SW_ARB_ARB_ARB1 << port)\n",
+            port, val);
         return (-1);
     }
 
@@ -1284,7 +1143,9 @@ bxe_release_nvram_lock(struct bxe_softc *sc)
     }
 
     if (val & (MCPR_NVM_SW_ARB_ARB_ARB1 << port)) {
-        BLOGE(sc, "Cannot free access to nvram interface\n");
+        BLOGE(sc, "Cannot free access to nvram interface "
+            "port %d val 0x%x (MCPR_NVM_SW_ARB_ARB_ARB1 << port)\n",
+            port, val);
         return (-1);
     }
 
@@ -1367,7 +1228,9 @@ bxe_nvram_read_dword(struct bxe_softc *sc,
     }
 
     if (rc == -1) {
-        BLOGE(sc, "nvram read timeout expired\n");
+        BLOGE(sc, "nvram read timeout expired "
+            "(offset 0x%x cmd_flags 0x%x val 0x%x)\n",
+            offset, cmd_flags, val);
     }
 
     return (rc);
@@ -1473,7 +1336,9 @@ bxe_nvram_write_dword(struct bxe_softc *sc,
     }
 
     if (rc == -1) {
-        BLOGE(sc, "nvram write timeout expired\n");
+        BLOGE(sc, "nvram write timeout expired "
+            "(offset 0x%x cmd_flags 0x%x val 0x%x)\n",
+            offset, cmd_flags, val);
     }
 
     return (rc);
@@ -1707,7 +1572,8 @@ bxe_issue_dmae_with_comp(struct bxe_softc    *sc,
         if (!timeout ||
             (sc->recovery_state != BXE_RECOVERY_DONE &&
              sc->recovery_state != BXE_RECOVERY_NIC_LOADING)) {
-            BLOGE(sc, "DMAE timeout!\n");
+            BLOGE(sc, "DMAE timeout! *wb_comp 0x%x recovery_state 0x%x\n",
+                *wb_comp, sc->recovery_state);
             BXE_DMAE_UNLOCK(sc);
             return (DMAE_TIMEOUT);
         }
@@ -1717,7 +1583,8 @@ bxe_issue_dmae_with_comp(struct bxe_softc    *sc,
     }
 
     if (*wb_comp & DMAE_PCI_ERR_FLAG) {
-        BLOGE(sc, "DMAE PCI error!\n");
+        BLOGE(sc, "DMAE PCI error! *wb_comp 0x%x recovery_state 0x%x\n",
+                *wb_comp, sc->recovery_state);
         BXE_DMAE_UNLOCK(sc);
         return (DMAE_PCI_ERROR);
     }
@@ -1952,12 +1819,6 @@ elink_cb_event_log(struct bxe_softc     *sc,
                    ...)
 {
     /* XXX */
-#if 0
-    //va_list ap;
-    va_start(ap, elink_log_id);
-    _XXX_(sc, lm_log_id, ap);
-    va_end(ap);
-#endif
     BLOGI(sc, "ELINK EVENT LOG (%d)\n", elink_log_id);
 }
 
@@ -1970,7 +1831,7 @@ bxe_set_spio(struct bxe_softc *sc,
 
     /* Only 2 SPIOs are configurable */
     if ((spio != MISC_SPIO_SPIO4) && (spio != MISC_SPIO_SPIO5)) {
-        BLOGE(sc, "Invalid SPIO 0x%x\n", spio);
+        BLOGE(sc, "Invalid SPIO 0x%x mode 0x%x\n", spio, mode);
         return (-1);
     }
 
@@ -2024,7 +1885,9 @@ bxe_gpio_read(struct bxe_softc *sc,
     uint32_t gpio_reg;
 
     if (gpio_num > MISC_REGISTERS_GPIO_3) {
-        BLOGE(sc, "Invalid GPIO %d\n", gpio_num);
+        BLOGE(sc, "Invalid GPIO %d port 0x%x gpio_port %d gpio_shift %d"
+            " gpio_mask 0x%x\n", gpio_num, port, gpio_port, gpio_shift,
+            gpio_mask);
         return (-1);
     }
 
@@ -2050,7 +1913,9 @@ bxe_gpio_write(struct bxe_softc *sc,
     uint32_t gpio_reg;
 
     if (gpio_num > MISC_REGISTERS_GPIO_3) {
-        BLOGE(sc, "Invalid GPIO %d\n", gpio_num);
+        BLOGE(sc, "Invalid GPIO %d mode 0x%x port 0x%x gpio_port %d"
+            " gpio_shift %d gpio_mask 0x%x\n",
+            gpio_num, mode, port, gpio_port, gpio_shift, gpio_mask);
         return (-1);
     }
 
@@ -2133,7 +1998,8 @@ bxe_gpio_mult_write(struct bxe_softc *sc,
         break;
 
     default:
-        BLOGE(sc, "Invalid GPIO mode assignment %d\n", mode);
+        BLOGE(sc, "Invalid GPIO mode assignment pins 0x%x mode 0x%x"
+            " gpio_reg 0x%x\n", pins, mode, gpio_reg);
         bxe_release_hw_lock(sc, HW_LOCK_RESOURCE_GPIO);
         return (-1);
     }
@@ -2159,7 +2025,9 @@ bxe_gpio_int_write(struct bxe_softc *sc,
     uint32_t gpio_reg;
 
     if (gpio_num > MISC_REGISTERS_GPIO_3) {
-        BLOGE(sc, "Invalid GPIO %d\n", gpio_num);
+        BLOGE(sc, "Invalid GPIO %d mode 0x%x port 0x%x gpio_port %d"
+            " gpio_shift %d gpio_mask 0x%x\n",
+            gpio_num, mode, port, gpio_port, gpio_shift, gpio_mask);
         return (-1);
     }
 
@@ -2578,29 +2446,6 @@ bxe_sp_post(struct bxe_softc *sc,
  * @sc: driver hanlde
  * @p:  pointer to rss configuration
  */
-#if 0
-static void
-bxe_debug_print_ind_table(struct bxe_softc               *sc,
-                          struct ecore_config_rss_params *p)
-{
-    int i;
-
-    BLOGD(sc, DBG_LOAD, "Setting indirection table to:\n");
-    BLOGD(sc, DBG_LOAD, "    0x0000: ");
-    for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
-        BLOGD(sc, DBG_LOAD, "0x%02x ", p->ind_table[i]);
-
-        /* Print 4 bytes in a line */
-        if ((i + 1 < T_ETH_INDIRECTION_TABLE_SIZE) &&
-            (((i + 1) & 0x3) == 0)) {
-            BLOGD(sc, DBG_LOAD, "\n");
-            BLOGD(sc, DBG_LOAD, "0x%04x: ", i + 1);
-        }
-    }
-
-    BLOGD(sc, DBG_LOAD, "\n");
-}
-#endif
 
 /*
  * FreeBSD Device probe function.
@@ -2775,13 +2620,6 @@ bxe_tx_avail(struct bxe_softc *sc,
 
     used = SUB_S16(prod, cons);
 
-#if 0
-    KASSERT((used < 0), ("used tx bds < 0"));
-    KASSERT((used > sc->tx_ring_size), ("used tx bds > tx_ring_size"));
-    KASSERT(((sc->tx_ring_size - used) > MAX_TX_AVAIL),
-            ("invalid number of tx bds used"));
-#endif
-
     return (int16_t)(sc->tx_ring_size) - used;
 }
 
@@ -2826,16 +2664,6 @@ bxe_sp_event(struct bxe_softc    *sc,
 
     BLOGD(sc, DBG_SP, "fp=%d cid=%d got ramrod #%d state is %x type is %d\n",
           fp->index, cid, command, sc->state, rr_cqe->ramrod_cqe.ramrod_type);
-
-#if 0
-    /*
-     * If cid is within VF range, replace the slowpath object with the
-     * one corresponding to this VF
-     */
-    if ((cid >= BXE_FIRST_VF_CID) && (cid < BXE_FIRST_VF_CID + BXE_VF_CIDS)) {
-        bxe_iov_set_queue_sp_obj(sc, cid, &q_obj);
-    }
-#endif
 
     switch (command) {
     case (RAMROD_CMD_ID_ETH_CLIENT_UPDATE):
@@ -2888,34 +2716,10 @@ bxe_sp_event(struct bxe_softc    *sc,
         return;
     }
 
-#if 0
-    /* SRIOV: reschedule any 'in_progress' operations */
-    bxe_iov_sp_event(sc, cid, TRUE);
-#endif
-
     atomic_add_acq_long(&sc->cq_spq_left, 1);
 
     BLOGD(sc, DBG_SP, "sc->cq_spq_left 0x%lx\n",
           atomic_load_acq_long(&sc->cq_spq_left));
-
-#if 0
-    if ((drv_cmd == ECORE_Q_CMD_UPDATE) && (IS_FCOE_FP(fp)) &&
-        (!!bxe_test_bit(ECORE_AFEX_FCOE_Q_UPDATE_PENDING, &sc->sp_state))) {
-        /*
-         * If Queue update ramrod is completed for last Queue in AFEX VIF set
-         * flow, then ACK MCP at the end. Mark pending ACK to MCP bit to
-         * prevent case that both bits are cleared. At the end of load/unload
-         * driver checks that sp_state is cleared and this order prevents
-         * races.
-         */
-        bxe_set_bit(ECORE_AFEX_PENDING_VIFSET_MCP_ACK, &sc->sp_state);
-        wmb();
-        bxe_clear_bit(ECORE_AFEX_FCOE_Q_UPDATE_PENDING, &sc->sp_state);
-
-        /* schedule the sp task as MCP ack is required */
-        bxe_schedule_sp_task(sc);
-    }
-#endif
 }
 
 /*
@@ -2956,8 +2760,15 @@ bxe_tpa_start(struct bxe_softc            *sc,
     tmp_bd = tpa_info->bd;
 
     if (tmp_bd.m == NULL) {
-        BLOGE(sc, "fp[%02d].tpa[%02d] mbuf not allocated!\n",
-              fp->index, queue);
+        uint32_t *tmp;
+
+        tmp = (uint32_t *)cqe;
+
+        BLOGE(sc, "fp[%02d].tpa[%02d] cons[%d] prod[%d]mbuf not allocated!\n",
+              fp->index, queue, cons, prod);
+        BLOGE(sc, "cqe [0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x]\n",
+            *tmp, *(tmp+1), *(tmp+2), *(tmp+3), *(tmp+4), *(tmp+5), *(tmp+6), *(tmp+7)); 
+            
         /* XXX Error handling? */
         return;
     }
@@ -3038,10 +2849,17 @@ bxe_fill_frag_mbuf(struct bxe_softc          *sc,
 
     /* make sure the aggregated frame is not too big to handle */
     if (pages > 8 * PAGES_PER_SGE) {
+
+        uint32_t *tmp = (uint32_t *)cqe;
+
         BLOGE(sc, "fp[%02d].sge[0x%04x] has too many pages (%d)! "
                   "pkt_len=%d len_on_bd=%d frag_size=%d\n",
               fp->index, cqe_idx, pages, le16toh(cqe->pkt_len),
               tpa_info->len_on_bd, frag_size);
+
+        BLOGE(sc, "cqe [0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x]\n",
+            *tmp, *(tmp+1), *(tmp+2), *(tmp+3), *(tmp+4), *(tmp+5), *(tmp+6), *(tmp+7)); 
+
         bxe_panic(sc, ("sge page count error\n"));
         return (EINVAL);
     }
@@ -3402,15 +3220,6 @@ bxe_rxeof(struct bxe_softc    *sc,
             uint16_t frag_size, pages;
             uint8_t queue;
 
-#if 0
-            /* sanity check */
-            if (!fp->tpa_enable &&
-                (CQE_TYPE_START(cqe_fp_type) || CQE_TYPE_STOP(cqe_fp_type))) {
-                BLOGE(sc, "START/STOP packet while !tpa_enable type (0x%x)\n",
-                      CQE_TYPE(cqe_fp_type));
-            }
-#endif
-
             if (CQE_TYPE_START(cqe_fp_type)) {
                 bxe_tpa_start(sc, fp, cqe_fp->queue_index,
                               bd_cons, bd_prod, cqe_fp);
@@ -3616,43 +3425,7 @@ bxe_free_tx_pkt(struct bxe_softc    *sc,
     tx_start_bd = &fp->tx_chain[bd_idx].start_bd;
     nbd = le16toh(tx_start_bd->nbd) - 1;
 
-#if 0
-    if ((nbd - 1) > (MAX_MBUF_FRAGS + 2)) {
-        bxe_panic(sc, ("BAD nbd!\n"));
-    }
-#endif
-
     new_cons = (tx_buf->first_bd + nbd);
-
-#if 0
-    struct eth_tx_bd *tx_data_bd;
-
-    /*
-     * The following code doesn't do anything but is left here
-     * for clarity on what the new value of new_cons skipped.
-     */
-
-    /* get the next bd */
-    bd_idx = TX_BD(TX_BD_NEXT(bd_idx));
-
-    /* skip the parse bd */
-    --nbd;
-    bd_idx = TX_BD(TX_BD_NEXT(bd_idx));
-
-    /* skip the TSO split header bd since they have no mapping */
-    if (tx_buf->flags & BXE_TSO_SPLIT_BD) {
-        --nbd;
-        bd_idx = TX_BD(TX_BD_NEXT(bd_idx));
-    }
-
-    /* now free frags */
-    while (nbd > 0) {
-        tx_data_bd = &fp->tx_chain[bd_idx].reg_bd;
-        if (--nbd) {
-            bd_idx = TX_BD(TX_BD_NEXT(bd_idx));
-        }
-    }
-#endif
 
     /* free the mbuf */
     if (__predict_true(tx_buf->m != NULL)) {
@@ -3798,7 +3571,8 @@ bxe_del_all_macs(struct bxe_softc          *sc,
 
     rc = mac_obj->delete_all(sc, mac_obj, &vlan_mac_flags, &ramrod_flags);
     if (rc < 0) {
-        BLOGE(sc, "Failed to delete MACs (%d)\n", rc);
+        BLOGE(sc, "Failed to delete MACs (%d) mac_type %d wait_for_comp 0x%x\n",
+            rc, mac_type, wait_for_comp);
     }
 
     return (rc);
@@ -3870,7 +3644,7 @@ bxe_fill_accept_flags(struct bxe_softc *sc,
         break;
 
     default:
-        BLOGE(sc, "Unknown rx_mode (%d)\n", rx_mode);
+        BLOGE(sc, "Unknown rx_mode (0x%x)\n", rx_mode);
         return (-1);
     }
 
@@ -3918,7 +3692,11 @@ bxe_set_q_rx_mode(struct bxe_softc *sc,
 
     rc = ecore_config_rx_mode(sc, &ramrod_param);
     if (rc < 0) {
-        BLOGE(sc, "Set rx_mode %d failed\n", sc->rx_mode);
+        BLOGE(sc, "Set rx_mode %d cli_id 0x%x rx_mode_flags 0x%x "
+            "rx_accept_flags 0x%x tx_accept_flags 0x%x "
+            "ramrod_flags 0x%x rc %d failed\n", sc->rx_mode, cl_id,
+            (uint32_t)rx_mode_flags, (uint32_t)rx_accept_flags,
+            (uint32_t)tx_accept_flags, (uint32_t)ramrod_flags, rc);
         return (rc);
     }
 
@@ -4001,52 +3779,11 @@ bxe_send_unload_req(struct bxe_softc *sc,
                     int              unload_mode)
 {
     uint32_t reset_code = 0;
-#if 0
-    int port = SC_PORT(sc);
-    int path = SC_PATH(sc);
-#endif
 
     /* Select the UNLOAD request mode */
     if (unload_mode == UNLOAD_NORMAL) {
         reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
-    }
-#if 0
-    else if (sc->flags & BXE_NO_WOL_FLAG) {
-        reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP;
-    } else if (sc->wol) {
-        uint32_t emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
-        uint8_t *mac_addr = sc->dev->dev_addr;
-        uint32_t val;
-        uint16_t pmc;
-
-        /*
-         * The mac address is written to entries 1-4 to
-         * preserve entry 0 which is used by the PMF
-         */
-        uint8_t entry = (SC_VN(sc) + 1)*8;
-
-        val = (mac_addr[0] << 8) | mac_addr[1];
-        EMAC_WR(sc, EMAC_REG_EMAC_MAC_MATCH + entry, val);
-
-        val = (mac_addr[2] << 24) | (mac_addr[3] << 16) |
-              (mac_addr[4] << 8) | mac_addr[5];
-        EMAC_WR(sc, EMAC_REG_EMAC_MAC_MATCH + entry + 4, val);
-
-        /* Enable the PME and clear the status */
-        pmc = pci_read_config(sc->dev,
-                              (sc->devinfo.pcie_pm_cap_reg +
-                               PCIR_POWER_STATUS),
-                              2);
-        pmc |= PCIM_PSTAT_PMEENABLE | PCIM_PSTAT_PME;
-        pci_write_config(sc->dev,
-                         (sc->devinfo.pcie_pm_cap_reg +
-                          PCIR_POWER_STATUS),
-                         pmc, 4);
-
-        reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_EN;
-    }
-#endif
-    else {
+    } else {
         reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
     }
 
@@ -4221,7 +3958,7 @@ bxe_func_stop(struct bxe_softc *sc)
     rc = ecore_func_state_change(sc, &func_params);
     if (rc) {
         BLOGE(sc, "FUNC_STOP ramrod failed. "
-                  "Running a dry transaction\n");
+                  "Running a dry transaction (%d)\n", rc);
         bxe_set_bit(RAMROD_DRV_CLR_ONLY, &func_params.ramrod_flags);
         return (ecore_func_state_change(sc, &func_params));
     }
@@ -4332,7 +4069,7 @@ bxe_chip_cleanup(struct bxe_softc *sc,
      */
     rc = bxe_func_wait_started(sc);
     if (rc) {
-        BLOGE(sc, "bxe_func_wait_started failed\n");
+        BLOGE(sc, "bxe_func_wait_started failed (%d)\n", rc);
     }
 
     /*
@@ -4350,14 +4087,14 @@ bxe_chip_cleanup(struct bxe_softc *sc,
      * very wrong has happen.
      */
     if (!bxe_wait_sp_comp(sc, ~0x0UL)) {
-        BLOGE(sc, "Common slow path ramrods got stuck!\n");
+        BLOGE(sc, "Common slow path ramrods got stuck!(%d)\n", rc);
     }
 
 unload_error:
 
     rc = bxe_func_stop(sc);
     if (rc) {
-        BLOGE(sc, "Function stop failed!\n");
+        BLOGE(sc, "Function stop failed!(%d)\n", rc);
     }
 
     /* disable HW interrupts */
@@ -4369,7 +4106,7 @@ unload_error:
     /* Reset the chip */
     rc = bxe_reset_hw(sc, reset_code);
     if (rc) {
-        BLOGE(sc, "Hardware reset failed\n");
+        BLOGE(sc, "Hardware reset failed(%d)\n", rc);
     }
 
     /* Report UNLOAD_DONE to MCP */
@@ -4495,7 +4232,8 @@ bxe_nic_unload(struct bxe_softc *sc,
         mb();
 
         BLOGD(sc, DBG_LOAD, "Releasing a leadership...\n");
-        BLOGE(sc, "Can't unload in closed or error state\n");
+        BLOGE(sc, "Can't unload in closed or error state recover_state 0x%x"
+            " state = 0x%x\n", sc->recovery_state, sc->state);
         return (-1);
     }
 
@@ -4702,7 +4440,8 @@ bxe_ioctl_nvram(struct bxe_softc *sc,
         if ((nvdata = (struct bxe_nvram_data *)
                  malloc(len, M_DEVBUF,
                         (M_NOWAIT | M_ZERO))) == NULL) {
-            BLOGE(sc, "BXE_IOC_RD_NVRAM malloc failed\n");
+            BLOGE(sc, "BXE_IOC_RD_NVRAM malloc failed priv_op 0x%x "
+                " len = 0x%x\n", priv_op, len);
             return (1);
         }
         memcpy(nvdata, &nvdata_base, sizeof(struct bxe_nvram_data));
@@ -5393,11 +5132,6 @@ bxe_set_pbd_lso_e2(struct mbuf *m,
                       ETH_TX_PARSE_BD_E2_LSO_MSS);
 
     /* XXX test for IPv6 with extension header... */
-#if 0
-    struct ip6_hdr *ip6;
-    if (ip6 && ip6->ip6_nxt == 'some ipv6 extension header')
-        *parsing_data |= ETH_TX_PARSE_BD_E2_IPV6_WITH_EXT_HDR;
-#endif
 }
 
 static void
@@ -5658,17 +5392,6 @@ bxe_tx_encap_continue:
         } else {
             /* used by FW for packet accounting */
             tx_start_bd->vlan_or_ethertype = htole16(fp->tx_pkt_prod);
-#if 0
-            /*
-             * If NPAR-SD is active then FW should do the tagging regardless
-             * of value of priority. Otherwise, if priority indicates this is
-             * a control packet we need to indicate to FW to avoid tagging.
-             */
-            if (!IS_MF_AFEX(sc) && (mbuf priority == PRIO_CONTROL)) {
-                SET_FLAG(tx_start_bd->general_data,
-                         ETH_TX_START_BD_FORCE_VLAN_MODE, 1);
-            }
-#endif
         }
     }
 
@@ -5707,25 +5430,6 @@ bxe_tx_encap_continue:
         if (m0->m_pkthdr.csum_flags) {
             hlen = bxe_set_pbd_csum_e2(fp, m0, &pbd_e2_parsing_data);
         }
-
-#if 0
-        /*
-         * Add the MACs to the parsing BD if the module param was
-         * explicitly set, if this is a vf, or in switch independent
-         * mode.
-         */
-        if (sc->flags & BXE_TX_SWITCHING || IS_VF(sc) || IS_MF_SI(sc)) {
-            eh = mtod(m0, struct ether_vlan_header *);
-            bxe_set_fw_mac_addr(&pbd_e2->data.mac_addr.src_hi,
-                                &pbd_e2->data.mac_addr.src_mid,
-                                &pbd_e2->data.mac_addr.src_lo,
-                                eh->evl_shost);
-            bxe_set_fw_mac_addr(&pbd_e2->data.mac_addr.dst_hi,
-                                &pbd_e2->data.mac_addr.dst_mid,
-                                &pbd_e2->data.mac_addr.dst_lo,
-                                eh->evl_dhost);
-        }
-#endif
 
         SET_FLAG(pbd_e2_parsing_data, ETH_TX_PARSE_BD_E2_ETH_ADDR_TYPE,
                  mac_type);
@@ -6353,13 +6057,6 @@ bxe_free_mem(struct bxe_softc *sc)
 {
     int i;
 
-#if 0
-    if (!CONFIGURE_NIC_MODE(sc)) {
-        /* free searcher T2 table */
-        bxe_dma_free(sc, &sc->t2);
-    }
-#endif
-
     for (i = 0; i < L2_ILT_LINES(sc); i++) {
         bxe_dma_free(sc, &sc->context[i].vcxt_dma);
         sc->context[i].vcxt = NULL;
@@ -6370,9 +6067,6 @@ bxe_free_mem(struct bxe_softc *sc)
 
     bxe_free_ilt_lines_mem(sc);
 
-#if 0
-    bxe_iov_free_mem(sc);
-#endif
 }
 
 static int
@@ -6381,16 +6075,6 @@ bxe_alloc_mem(struct bxe_softc *sc)
     int context_size;
     int allocated;
     int i;
-
-#if 0
-    if (!CONFIGURE_NIC_MODE(sc)) {
-        /* allocate searcher T2 table */
-        if (bxe_dma_alloc(sc, SRC_T2_SZ,
-                          &sc->t2, "searcher t2 table") != 0) {
-            return (-1);
-        }
-    }
-#endif
 
     /*
      * Allocate memory for CDU context:
@@ -6445,14 +6129,6 @@ bxe_alloc_mem(struct bxe_softc *sc)
         bxe_free_mem(sc);
         return (-1);
     }
-
-#if 0
-    if (bxe_iov_alloc_mem(sc)) {
-        BLOGE(sc, "Failed to allocate memory for SRIOV\n");
-        bxe_free_mem(sc);
-        return (-1);
-    }
-#endif
 
     return (0);
 }
@@ -8331,26 +8007,8 @@ bxe_attn_int_deasserted3(struct bxe_softc *sc,
             if (val & DRV_STATUS_DRV_INFO_REQ)
                 bxe_handle_drv_info_req(sc);
 
-#if 0
-            if (val & DRV_STATUS_VF_DISABLED)
-                bxe_vf_handle_flr_event(sc);
-#endif
-
             if ((sc->port.pmf == 0) && (val & DRV_STATUS_PMF))
                 bxe_pmf_update(sc);
-
-#if 0
-            if (sc->port.pmf &&
-                (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS) &&
-                (sc->dcbx_enabled > 0))
-                /* start dcbx state machine */
-                bxe_dcbx_set_params(sc, BXE_DCBX_STATE_NEG_RECEIVED);
-#endif
-
-#if 0
-            if (val & DRV_STATUS_AFEX_EVENT_MASK)
-                bxe_handle_afex_cmd(sc, val & DRV_STATUS_AFEX_EVENT_MASK);
-#endif
 
             if (val & DRV_STATUS_EEE_NEGOTIATION_RESULTS)
                 bxe_handle_eee_event(sc);
@@ -8752,8 +8410,7 @@ bxe_handle_mcast_eqe(struct bxe_softc *sc)
         rc = ecore_config_mcast(sc, &rparam, ECORE_MCAST_CMD_CONT);
         if (rc < 0) {
             BLOGD(sc, DBG_SP,
-                  "ERROR: Failed to send pending mcast commands (%d)\n",
-                  rc);
+                "ERROR: Failed to send pending mcast commands (%d)\n", rc);
         }
     }
 
@@ -8813,16 +8470,6 @@ bxe_handle_rx_mode_eqe(struct bxe_softc      *sc,
                                &sc->sp_state)) {
         bxe_set_storm_rx_mode(sc);
     }
-#if 0
-    else if (bxe_test_and_clear_bit(ECORE_FILTER_ISCSI_ETH_START_SCHED,
-                                    &sc->sp_state)) {
-        bxe_set_iscsi_eth_rx_mode(sc, TRUE);
-    }
-    else if (bxe_test_and_clear_bit(ECORE_FILTER_ISCSI_ETH_STOP_SCHED,
-                                    &sc->sp_state)) {
-        bxe_set_iscsi_eth_rx_mode(sc, FALSE);
-    }
-#endif
 }
 
 static void
@@ -8874,27 +8521,12 @@ bxe_eq_int(struct bxe_softc *sc)
 
         elem = &sc->eq[EQ_DESC(sw_cons)];
 
-#if 0
-        int rc;
-        rc = bxe_iov_eq_sp_event(sc, elem);
-        if (!rc) {
-            BLOGE(sc, "bxe_iov_eq_sp_event returned %d\n", rc);
-            goto next_spqe;
-        }
-#endif
-
         /* elem CID originates from FW, actually LE */
         cid = SW_CID(elem->message.data.cfc_del_event.cid);
         opcode = elem->message.opcode;
 
         /* handle eq element */
         switch (opcode) {
-#if 0
-        case EVENT_RING_OPCODE_VF_PF_CHANNEL:
-            BLOGD(sc, DBG_SP, "vf/pf channel element on eq\n");
-            bxe_vf_mbx(sc, &elem->message.data.vf_pf_event);
-            continue;
-#endif
 
         case EVENT_RING_OPCODE_STAT_QUERY:
             BLOGD(sc, DBG_SP, "got statistics completion event %d\n",
@@ -8940,24 +8572,8 @@ bxe_eq_int(struct bxe_softc *sc)
             else {
                 BLOGD(sc, DBG_SP,
                       "AFEX: ramrod completed FUNCTION_UPDATE\n");
-#if 0
-                f_obj->complete_cmd(sc, f_obj, ECORE_F_CMD_AFEX_UPDATE);
-                /*
-                 * We will perform the queues update from the sp_core_task as
-                 * all queue SP operations should run with CORE_LOCK.
-                 */
-                bxe_set_bit(BXE_SP_CORE_AFEX_F_UPDATE, &sc->sp_core_state);
-                taskqueue_enqueue(sc->sp_tq, &sc->sp_tq_task);
-#endif
             }
             goto next_spqe;
-
-#if 0
-        case EVENT_RING_OPCODE_AFEX_VIF_LISTS:
-            f_obj->complete_cmd(sc, f_obj, ECORE_F_CMD_AFEX_VIFLISTS);
-            bxe_after_afex_vif_lists(sc, elem);
-            goto next_spqe;
-#endif
 
         case EVENT_RING_OPCODE_FORWARD_SETUP:
             q_obj = &bxe_fwd_sp_obj(sc, q_obj);
@@ -9085,14 +8701,6 @@ bxe_handle_sp_tq(void *context,
      */
     // XXX bxe_iov_sp_task(sc);
 
-#if 0
-    /* AFEX - poll to check if VIFSET_ACK should be sent to MFW */
-    if (bxe_test_and_clear_bit(ECORE_AFEX_PENDING_VIFSET_MCP_ACK,
-                               &sc->sp_state)) {
-        bxe_link_report(sc);
-        bxe_fw_command(sc, DRV_MSG_CODE_AFEX_VIFSET_ACK, 0);
-    }
-#endif
 }
 
 static void
@@ -9201,13 +8809,6 @@ bxe_intr_legacy(void *xsc)
 
     BLOGD(sc, DBG_INTR, "---> BXE INTx <---\n");
 
-#if 0
-    /* Don't handle any interrupts if we're not ready. */
-    if (__predict_false(sc->intr_sem != 0)) {
-        return;
-    }
-#endif
-
     /*
      * 0 for ustorm, 1 for cstorm
      * the bits returned from ack_int() are 0-15
@@ -9237,16 +8838,6 @@ bxe_intr_legacy(void *xsc)
             status &= ~mask;
         }
     }
-
-#if 0
-    if (CNIC_SUPPORT(sc)) {
-        mask = 0x2;
-        if (status & (mask | 0x1)) {
-            ...
-            status &= ~mask;
-        }
-    }
-#endif
 
     if (__predict_false(status & 0x1)) {
         /* acknowledge and disable further slowpath interrupts */
@@ -9290,13 +8881,6 @@ bxe_intr_fp(void *xfp)
     BLOGD(sc, DBG_INTR,
           "(cpu=%d) MSI-X fp=%d fw_sb=%d igu_sb=%d\n",
           curcpu, fp->index, fp->fw_sb_id, fp->igu_sb_id);
-
-#if 0
-    /* Don't handle any interrupts if we're not ready. */
-    if (__predict_false(sc->intr_sem != 0)) {
-        return;
-    }
-#endif
 
     /* acknowledge and disable further fastpath interrupts */
     bxe_ack_sb(sc, fp->igu_sb_id, USTORM_ID, 0, IGU_INT_DISABLE, 0);
@@ -10016,13 +9600,6 @@ bxe_rx_ustorm_prods_offset(struct bxe_softc    *sc,
 {
     uint32_t offset = BAR_USTRORM_INTMEM;
 
-#if 0
-    if (IS_VF(sc)) {
-        return (PXP_VF_ADDR_USDM_QUEUES_START +
-                (sc->acquire_resp.resc.hw_qid[fp->index] *
-                 sizeof(struct ustorm_queue_zone_data)));
-    } else
-#endif
     if (!CHIP_IS_E1x(sc)) {
         offset += USTORM_RX_PRODS_E2_OFFSET(fp->cl_qzone_id);
     } else {
@@ -10221,14 +9798,7 @@ bxe_init_tx_rings(struct bxe_softc *sc)
     int i;
 
     for (i = 0; i < sc->num_queues; i++) {
-#if 0
-        uint8_t cos;
-        for (cos = 0; cos < sc->max_cos; cos++) {
-            bxe_init_tx_ring_one(&sc->fp[i].txdata[cos]);
-        }
-#else
         bxe_init_tx_ring_one(&sc->fp[i]);
-#endif
     }
 }
 
@@ -11097,7 +10667,8 @@ bxe_set_power_state(struct bxe_softc *sc,
         break;
 
     default:
-        BLOGE(sc, "Can't support PCI power state = %d\n", state);
+        BLOGE(sc, "Can't support PCI power state = 0x%x pmcsr 0x%x\n",
+            state, pmcsr);
         return (-1);
     }
 
@@ -11138,7 +10709,9 @@ bxe_trylock_hw_lock(struct bxe_softc *sc,
         return (TRUE);
     }
 
-    BLOGE(sc, "Failed to get a resource lock 0x%x\n", resource);
+    BLOGE(sc, "Failed to get a resource lock 0x%x func %d "
+        "lock_status 0x%x resource_bit 0x%x\n", resource, func,
+        lock_status, resource_bit);
 
     return (FALSE);
 }
@@ -11726,10 +11299,6 @@ bxe_get_q_flags(struct bxe_softc    *sc,
     if (sc->ifnet->if_capenable & IFCAP_LRO) {
         bxe_set_bit(ECORE_Q_FLG_TPA, &flags);
         bxe_set_bit(ECORE_Q_FLG_TPA_IPV6, &flags);
-#if 0
-        if (fp->mode == TPA_MODE_GRO)
-            __set_bit(ECORE_Q_FLG_TPA_GRO, &flags);
-#endif
     }
 
     if (leading) {
@@ -11738,13 +11307,6 @@ bxe_get_q_flags(struct bxe_softc    *sc,
     }
 
     bxe_set_bit(ECORE_Q_FLG_VLAN, &flags);
-
-#if 0
-    /* configure silent vlan removal */
-    if (IS_MF_AFEX(sc)) {
-        bxe_set_bit(ECORE_Q_FLG_SILENT_VLAN_REM, &flags);
-    }
-#endif
 
     /* merge with common flags */
     return (flags | bxe_get_common_flags(sc, fp, TRUE));
@@ -11896,11 +11458,6 @@ bxe_setup_queue(struct bxe_softc    *sc,
     struct ecore_queue_state_params q_params = { NULL };
     struct ecore_queue_setup_params *setup_params =
                         &q_params.params.setup;
-#if 0
-    struct ecore_queue_setup_tx_only_params *tx_only_params =
-                        &q_params.params.tx_only;
-    uint8_t tx_index;
-#endif
     int rc;
 
     BLOGD(sc, DBG_LOAD, "setting up queue %d\n", fp->index);
@@ -11921,7 +11478,7 @@ bxe_setup_queue(struct bxe_softc    *sc,
     /* Change the state to INIT */
     rc = ecore_queue_state_change(sc, &q_params);
     if (rc) {
-        BLOGE(sc, "Queue(%d) INIT failed\n", fp->index);
+        BLOGE(sc, "Queue(%d) INIT failed rc = %d\n", fp->index, rc);
         return (rc);
     }
 
@@ -11951,25 +11508,9 @@ bxe_setup_queue(struct bxe_softc    *sc,
     /* change the state to SETUP */
     rc = ecore_queue_state_change(sc, &q_params);
     if (rc) {
-        BLOGE(sc, "Queue(%d) SETUP failed\n", fp->index);
+        BLOGE(sc, "Queue(%d) SETUP failed (rc = %d)\n", fp->index, rc);
         return (rc);
     }
-
-#if 0
-    /* loop through the relevant tx-only indices */
-    for (tx_index = FIRST_TX_ONLY_COS_INDEX;
-         tx_index < sc->max_cos;
-         tx_index++) {
-        /* prepare and send tx-only ramrod*/
-        rc = bxe_setup_tx_only(sc, fp, &q_params,
-                               tx_only_params, tx_index, leading);
-        if (rc) {
-            BLOGE(sc, "Queue(%d.%d) TX_ONLY_SETUP failed\n",
-                  fp->index, tx_index);
-            return (rc);
-        }
-    }
-#endif
 
     return (rc);
 }
@@ -12120,27 +11661,6 @@ bxe_set_eth_mac(struct bxe_softc *sc,
                             &sc->sp_objs->mac_obj,
                             set, ECORE_ETH_MAC, &ramrod_flags));
 }
-
-#if 0
-static void
-bxe_update_max_mf_config(struct bxe_softc *sc,
-                         uint32_t         value)
-{
-    /* load old values */
-    uint32_t mf_cfg = sc->devinfo.mf_info.mf_config[SC_VN(sc)];
-
-    if (value != bxe_extract_max_cfg(sc, mf_cfg)) {
-        /* leave all but MAX value */
-        mf_cfg &= ~FUNC_MF_CFG_MAX_BW_MASK;
-
-        /* set new MAX value */
-        mf_cfg |= ((value << FUNC_MF_CFG_MAX_BW_SHIFT) &
-                   FUNC_MF_CFG_MAX_BW_MASK);
-
-        bxe_fw_command(sc, DRV_MSG_CODE_SET_MF_BW, mf_cfg);
-    }
-}
-#endif
 
 static int
 bxe_get_cur_phy_idx(struct bxe_softc *sc)
@@ -12380,12 +11900,6 @@ bxe_link_status_update(struct bxe_softc *sc)
     if (sc->state != BXE_STATE_OPEN) {
         return;
     }
-
-#if 0
-    /* read updated dcb configuration */
-    if (IS_PF(sc))
-        bxe_dcbx_pmf_update(sc);
-#endif
 
     if (IS_PF(sc) && !CHIP_REV_IS_SLOW(sc)) {
         elink_link_status_update(&sc->link_params, &sc->link_vars);
@@ -12726,18 +12240,6 @@ bxe_set_rx_mode(struct bxe_softc *sc)
                 rx_mode = BXE_RX_MODE_PROMISC;
             }
         }
-#if 0
-        else {
-            /*
-             * Configuring mcast to a VF involves sleeping (when we
-             * wait for the PF's response). Since this function is
-             * called from a non sleepable context we must schedule
-             * a work item for this purpose
-             */
-            bxe_set_bit(BXE_SP_RTNL_VFPF_MCAST, &sc->sp_rtnl_state);
-            schedule_delayed_work(&sc->sp_rtnl_task, 0);
-        }
-#endif
     }
 
     sc->rx_mode = rx_mode;
@@ -12752,19 +12254,6 @@ bxe_set_rx_mode(struct bxe_softc *sc)
     if (IS_PF(sc)) {
         bxe_set_storm_rx_mode(sc);
     }
-#if 0
-    else {
-        /*
-         * Configuring mcast to a VF involves sleeping (when we
-         * wait for the PF's response). Since this function is
-         * called from a non sleepable context we must schedule
-         * a work item for this purpose
-         */
-        bxe_set_bit(BXE_SP_RTNL_VFPF_STORM_RX_MODE, &sc->sp_rtnl_state);
-        schedule_delayed_work(&sc->sp_rtnl_task, 0);
-    }
-#endif
-
 }
 
 
@@ -12871,13 +12360,6 @@ bxe_periodic_callout_func(void *xsc)
 
     /* state is BXE_STATE_OPEN */
     bxe_stats_handle(sc, STATS_EVENT_UPDATE);
-
-#if 0
-    /* sample VF bulletin board for new posts from PF */
-    if (IS_VF(sc)) {
-        bxe_sample_bulletin(sc);
-    }
-#endif
 
     BXE_CORE_UNLOCK(sc);
 
@@ -13013,7 +12495,7 @@ bxe_nic_load(struct bxe_softc *sc,
         sc->state = BXE_STATE_OPENING_WAITING_PORT;
         rc = bxe_func_start(sc);
         if (rc) {
-            BLOGE(sc, "Function start failed!\n");
+            BLOGE(sc, "Function start failed! rc = %d\n", rc);
             bxe_fw_command(sc, DRV_MSG_CODE_LOAD_DONE, 0);
             sc->state = BXE_STATE_ERROR;
             goto bxe_nic_load_error3;
@@ -13032,7 +12514,7 @@ bxe_nic_load(struct bxe_softc *sc,
 
         rc = bxe_setup_leading(sc);
         if (rc) {
-            BLOGE(sc, "Setup leading failed!\n");
+            BLOGE(sc, "Setup leading failed! rc = %d\n", rc);
             sc->state = BXE_STATE_ERROR;
             goto bxe_nic_load_error3;
         }
@@ -13040,7 +12522,7 @@ bxe_nic_load(struct bxe_softc *sc,
         FOR_EACH_NONDEFAULT_ETH_QUEUE(sc, i) {
             rc = bxe_setup_queue(sc, &sc->fp[i], FALSE);
             if (rc) {
-                BLOGE(sc, "Queue(%d) setup failed\n", i);
+                BLOGE(sc, "Queue(%d) setup failed rc = %d\n", i, rc);
                 sc->state = BXE_STATE_ERROR;
                 goto bxe_nic_load_error3;
             }
@@ -13054,18 +12536,6 @@ bxe_nic_load(struct bxe_softc *sc,
         }
     }
     /* XXX VF */
-#if 0
-    else { /* VF */
-        FOR_EACH_ETH_QUEUE(sc, i) {
-            rc = bxe_vfpf_setup_q(sc, i);
-            if (rc) {
-                BLOGE(sc, "Queue(%d) setup failed\n", i);
-                sc->state = BXE_STATE_ERROR;
-                goto bxe_nic_load_error3;
-            }
-        }
-    }
-#endif
 
     /* now when Clients are configured we are ready to work */
     sc->state = BXE_STATE_OPEN;
@@ -13074,24 +12544,11 @@ bxe_nic_load(struct bxe_softc *sc,
     if (IS_PF(sc)) {
         rc = bxe_set_eth_mac(sc, TRUE);
     }
-#if 0
-    else { /* IS_VF(sc) */
-        rc = bxe_vfpf_set_mac(sc);
-    }
-#endif
     if (rc) {
-        BLOGE(sc, "Setting Ethernet MAC failed\n");
+        BLOGE(sc, "Setting Ethernet MAC failed rc = %d\n", rc);
         sc->state = BXE_STATE_ERROR;
         goto bxe_nic_load_error3;
     }
-
-#if 0
-    if (IS_PF(sc) && sc->pending_max) {
-        /* for AFEX */
-        bxe_update_max_mf_config(sc, sc->pending_max);
-        sc->pending_max = 0;
-    }
-#endif
 
     if (sc->port.pmf) {
         rc = bxe_initial_phy_init(sc, /* XXX load_mode */LOAD_OPEN);
@@ -13149,13 +12606,6 @@ bxe_nic_load(struct bxe_softc *sc,
         bxe_nic_unload(sc, UNLOAD_CLOSE, FALSE);
         return (ENXIO);
     }
-
-#if 0
-    /* If PMF - send ADMIN DCBX msg to MFW to initiate DCBX FSM */
-    if (sc->port.pmf && (sc->state != BXE_STATE_DIAG)) {
-        bxe_dcbx_init(sc, FALSE);
-    }
-#endif
 
     /* Tell the stack the driver is running! */
     sc->ifnet->if_drv_flags = IFF_DRV_RUNNING;
@@ -13434,11 +12884,6 @@ bxe_allocate_bars(struct bxe_softc *sc)
                                     SYS_RES_MEMORY,
                                     &sc->bar[i].rid,
                                     flags)) == NULL) {
-#if 0
-            /* BAR4 doesn't exist for E1 */
-            BLOGE(sc, "PCI BAR%d [%02x] memory allocation failed\n",
-                  i, PCIR_BAR(i));
-#endif
             return (0);
         }
 
@@ -14085,19 +13530,6 @@ bxe_get_shmem_info(struct bxe_softc *sc)
                  sc->link_params.mac_addr[4], sc->link_params.mac_addr[5]);
         BLOGD(sc, DBG_LOAD, "Ethernet address: %s\n", sc->mac_addr_str);
     }
-
-#if 0
-    if (!IS_MF(sc) &&
-        ((sc->port.config & PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK) ==
-         PORT_FEAT_CFG_STORAGE_PERSONALITY_FCOE)) {
-        sc->flags |= BXE_NO_ISCSI;
-    }
-    if (!IS_MF(sc) &&
-        ((sc->port.config & PORT_FEAT_CFG_STORAGE_PERSONALITY_MASK) ==
-         PORT_FEAT_CFG_STORAGE_PERSONALITY_ISCSI)) {
-        sc->flags |= BXE_NO_FCOE_FLAG;
-    }
-#endif
 
     return (0);
 }
@@ -15271,8 +14703,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
         if (rc != 0) {
             /* XXX unwind and free previous fastpath allocations */
             BLOGE(sc, "Failed to create dma tag for "
-                      "'fp %d tx mbufs' (%d)\n",
-                  i, rc);
+                      "'fp %d tx mbufs' (%d)\n", i, rc);
             return (1);
         }
 
@@ -15283,8 +14714,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
                                   &fp->tx_mbuf_chain[j].m_map)) {
                 /* XXX unwind and free previous fastpath allocations */
                 BLOGE(sc, "Failed to create dma map for "
-                          "'fp %d tx mbuf %d' (%d)\n",
-                      i, j, rc);
+                          "'fp %d tx mbuf %d' (%d)\n", i, j, rc);
                 return (1);
             }
         }
@@ -15311,8 +14741,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
         if (rc != 0) {
             /* XXX unwind and free previous fastpath allocations */
             BLOGE(sc, "Failed to create dma tag for "
-                      "'fp %d rx mbufs' (%d)\n",
-                  i, rc);
+                      "'fp %d rx mbufs' (%d)\n", i, rc);
             return (1);
         }
 
@@ -15323,8 +14752,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
                                   &fp->rx_mbuf_chain[j].m_map)) {
                 /* XXX unwind and free previous fastpath allocations */
                 BLOGE(sc, "Failed to create dma map for "
-                          "'fp %d rx mbuf %d' (%d)\n",
-                      i, j, rc);
+                          "'fp %d rx mbuf %d' (%d)\n", i, j, rc);
                 return (1);
             }
         }
@@ -15335,8 +14763,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
                               &fp->rx_mbuf_spare_map)) {
             /* XXX unwind and free previous fastpath allocations */
             BLOGE(sc, "Failed to create dma map for "
-                      "'fp %d spare rx mbuf' (%d)\n",
-                  i, rc);
+                      "'fp %d spare rx mbuf' (%d)\n", i, rc);
             return (1);
         }
 
@@ -15362,8 +14789,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
         if (rc != 0) {
             /* XXX unwind and free previous fastpath allocations */
             BLOGE(sc, "Failed to create dma tag for "
-                      "'fp %d rx sge mbufs' (%d)\n",
-                  i, rc);
+                      "'fp %d rx sge mbufs' (%d)\n", i, rc);
             return (1);
         }
 
@@ -15374,8 +14800,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
                                   &fp->rx_sge_mbuf_chain[j].m_map)) {
                 /* XXX unwind and free previous fastpath allocations */
                 BLOGE(sc, "Failed to create dma map for "
-                          "'fp %d rx sge mbuf %d' (%d)\n",
-                      i, j, rc);
+                          "'fp %d rx sge mbuf %d' (%d)\n", i, j, rc);
                 return (1);
             }
         }
@@ -15386,8 +14811,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
                               &fp->rx_sge_mbuf_spare_map)) {
             /* XXX unwind and free previous fastpath allocations */
             BLOGE(sc, "Failed to create dma map for "
-                      "'fp %d spare rx sge mbuf' (%d)\n",
-                  i, rc);
+                      "'fp %d spare rx sge mbuf' (%d)\n", i, rc);
             return (1);
         }
 
@@ -15404,8 +14828,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
                                   &fp->rx_tpa_info[j].bd.m_map)) {
                 /* XXX unwind and free previous fastpath allocations */
                 BLOGE(sc, "Failed to create dma map for "
-                          "'fp %d rx tpa mbuf %d' (%d)\n",
-                      i, j, rc);
+                          "'fp %d rx tpa mbuf %d' (%d)\n", i, j, rc);
                 return (1);
             }
         }
@@ -15416,8 +14839,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
                               &fp->rx_tpa_info_mbuf_spare_map)) {
             /* XXX unwind and free previous fastpath allocations */
             BLOGE(sc, "Failed to create dma map for "
-                      "'fp %d spare rx tpa mbuf' (%d)\n",
-                  i, rc);
+                      "'fp %d spare rx tpa mbuf' (%d)\n", i, rc);
             return (1);
         }
 
@@ -16100,7 +15522,8 @@ bxe_prev_unload(struct bxe_softc *sc)
     } while (--time_counter);
 
     if (!time_counter || rc) {
-        BLOGE(sc, "Failed to unload previous driver!\n");
+        BLOGE(sc, "Failed to unload previous driver!"
+            " time_counter %d rc %d\n", time_counter, rc);
         rc = -1;
     }
 
@@ -16877,88 +16300,12 @@ static void
 bxe_iov_init_dmae(struct bxe_softc *sc)
 {
     return;
-#if 0
-    BLOGD(sc, DBG_LOAD, "SRIOV is %s\n", IS_SRIOV(sc) ? "ON" : "OFF");
-
-    if (!IS_SRIOV(sc)) {
-        return;
-    }
-
-    REG_WR(sc, DMAE_REG_BACKWARD_COMP_EN, 0);
-#endif
 }
-
-#if 0
-static int
-bxe_iov_init_ilt(struct bxe_softc *sc,
-                 uint16_t         line)
-{
-    return (line);
-#if 0
-    int i;
-    struct ecore_ilt* ilt = sc->ilt;
-
-    if (!IS_SRIOV(sc)) {
-        return (line);
-    }
-
-    /* set vfs ilt lines */
-    for (i = 0; i < BXE_VF_CIDS/ILT_PAGE_CIDS ; i++) {
-        struct hw_dma *hw_cxt = SC_VF_CXT_PAGE(sc,i);
-        ilt->lines[line+i].page = hw_cxt->addr;
-        ilt->lines[line+i].page_mapping = hw_cxt->mapping;
-        ilt->lines[line+i].size = hw_cxt->size; /* doesn't matter */
-    }
-    return (line+i);
-#endif
-}
-#endif
 
 static void
 bxe_iov_init_dq(struct bxe_softc *sc)
 {
     return;
-#if 0
-    if (!IS_SRIOV(sc)) {
-        return;
-    }
-
-    /* Set the DQ such that the CID reflect the abs_vfid */
-    REG_WR(sc, DORQ_REG_VF_NORM_VF_BASE, 0);
-    REG_WR(sc, DORQ_REG_MAX_RVFID_SIZE, ilog2(BNX2X_MAX_NUM_OF_VFS));
-
-    /*
-     * Set VFs starting CID. If its > 0 the preceding CIDs are belong to
-     * the PF L2 queues
-     */
-    REG_WR(sc, DORQ_REG_VF_NORM_CID_BASE, BNX2X_FIRST_VF_CID);
-
-    /* The VF window size is the log2 of the max number of CIDs per VF */
-    REG_WR(sc, DORQ_REG_VF_NORM_CID_WND_SIZE, BNX2X_VF_CID_WND);
-
-    /*
-     * The VF doorbell size  0 - *B, 4 - 128B. We set it here to match
-     * the Pf doorbell size although the 2 are independent.
-     */
-    REG_WR(sc, DORQ_REG_VF_NORM_CID_OFST,
-           BNX2X_DB_SHIFT - BNX2X_DB_MIN_SHIFT);
-
-    /*
-     * No security checks for now -
-     * configure single rule (out of 16) mask = 0x1, value = 0x0,
-     * CID range 0 - 0x1ffff
-     */
-    REG_WR(sc, DORQ_REG_VF_TYPE_MASK_0, 1);
-    REG_WR(sc, DORQ_REG_VF_TYPE_VALUE_0, 0);
-    REG_WR(sc, DORQ_REG_VF_TYPE_MIN_MCID_0, 0);
-    REG_WR(sc, DORQ_REG_VF_TYPE_MAX_MCID_0, 0x1ffff);
-
-    /* set the number of VF alllowed doorbells to the full DQ range */
-    REG_WR(sc, DORQ_REG_VF_NORM_MAX_CID_COUNT, 0x20000);
-
-    /* set the VF doorbell threshold */
-    REG_WR(sc, DORQ_REG_VF_USAGE_CT_LIMIT, 4);
-#endif
 }
 
 /* send a NIG loopback debug packet */
@@ -17112,7 +16459,7 @@ bxe_int_mem_test(struct bxe_softc *sc)
 
     val = REG_RD(sc, NIG_REG_INGRESS_EOP_LB_EMPTY);
     if (val != 1) {
-        BLOGE(sc, "clear of NIG failed\n");
+        BLOGE(sc, "clear of NIG failed val=0x%x\n", val);
         return (-4);
     }
 
@@ -17353,12 +16700,13 @@ bxe_init_hw_common(struct bxe_softc *sc)
     /* finish PXP init */
     val = REG_RD(sc, PXP2_REG_RQ_CFG_DONE);
     if (val != 1) {
-        BLOGE(sc, "PXP2 CFG failed\n");
+        BLOGE(sc, "PXP2 CFG failed PXP2_REG_RQ_CFG_DONE val = 0x%x\n",
+            val);
         return (-1);
     }
     val = REG_RD(sc, PXP2_REG_RD_INIT_DONE);
     if (val != 1) {
-        BLOGE(sc, "PXP2 RD_INIT failed\n");
+        BLOGE(sc, "PXP2 RD_INIT failed val = 0x%x\n", val);
         return (-1);
     }
 
@@ -17483,7 +16831,7 @@ bxe_init_hw_common(struct bxe_softc *sc)
         } while (factor-- && (val != 1));
 
         if (val != 1) {
-            BLOGE(sc, "ATC_INIT failed\n");
+            BLOGE(sc, "ATC_INIT failed val = 0x%x\n", val);
             return (-1);
         }
     }
@@ -17692,17 +17040,17 @@ bxe_init_hw_common(struct bxe_softc *sc)
     /* finish CFC init */
     val = reg_poll(sc, CFC_REG_LL_INIT_DONE, 1, 100, 10);
     if (val != 1) {
-        BLOGE(sc, "CFC LL_INIT failed\n");
+        BLOGE(sc, "CFC LL_INIT failed val=0x%x\n", val);
         return (-1);
     }
     val = reg_poll(sc, CFC_REG_AC_INIT_DONE, 1, 100, 10);
     if (val != 1) {
-        BLOGE(sc, "CFC AC_INIT failed\n");
+        BLOGE(sc, "CFC AC_INIT failed val=0x%x\n", val);
         return (-1);
     }
     val = reg_poll(sc, CFC_REG_CAM_INIT_DONE, 1, 100, 10);
     if (val != 1) {
-        BLOGE(sc, "CFC CAM_INIT failed\n");
+        BLOGE(sc, "CFC CAM_INIT failed val=0x%x\n", val);
         return (-1);
     }
     REG_WR(sc, CFC_REG_DEBUG0, 0);
@@ -17714,7 +17062,7 @@ bxe_init_hw_common(struct bxe_softc *sc)
 
         /* do internal memory self test */
         if ((val == 0) && bxe_int_mem_test(sc)) {
-            BLOGE(sc, "internal mem self test failed\n");
+            BLOGE(sc, "internal mem self test failed val=0x%x\n", val);
             return (-1);
         }
     }
@@ -17750,6 +17098,7 @@ bxe_init_hw_common_chip(struct bxe_softc *sc)
     int rc = bxe_init_hw_common(sc);
 
     if (rc) {
+        BLOGE(sc, "bxe_init_hw_common failed rc=%d\n", rc);
         return (rc);
     }
 
@@ -18338,17 +17687,6 @@ bxe_pf_flr_clnup(struct bxe_softc *sc)
     return (0);
 }
 
-#if 0
-static void
-bxe_init_searcher(struct bxe_softc *sc)
-{
-    int port = SC_PORT(sc);
-    ecore_src_init_t2(sc, sc->t2, sc->t2_mapping, SRC_CONN_NUM);
-    /* T1 hash bits value determines the T1 number of entries */
-    REG_WR(sc, SRC_REG_NUMBER_HASH_BITS0 + port*4, SRC_HASH_BITS);
-}
-#endif
-
 static int
 bxe_init_hw_func(struct bxe_softc *sc)
 {
@@ -18388,21 +17726,6 @@ bxe_init_hw_func(struct bxe_softc *sc)
     ilt = sc->ilt;
     cdu_ilt_start = ilt->clients[ILT_CLIENT_CDU].start;
 
-#if 0
-    if (IS_SRIOV(sc)) {
-        cdu_ilt_start += BXE_FIRST_VF_CID/ILT_PAGE_CIDS;
-    }
-    cdu_ilt_start = bxe_iov_init_ilt(sc, cdu_ilt_start);
-
-#if (BXE_FIRST_VF_CID > 0)
-    /*
-     * If BXE_FIRST_VF_CID > 0 then the PF L2 cids precedes
-     * those of the VFs, so start line should be reset
-     */
-    cdu_ilt_start = ilt->clients[ILT_CLIENT_CDU].start;
-#endif
-#endif
-
     for (i = 0; i < L2_ILT_LINES(sc); i++) {
         ilt->lines[cdu_ilt_start + i].page = sc->context[i].vcxt;
         ilt->lines[cdu_ilt_start + i].page_mapping =
@@ -18411,18 +17734,9 @@ bxe_init_hw_func(struct bxe_softc *sc)
     }
     ecore_ilt_init_op(sc, INITOP_SET);
 
-#if 0
-    if (!CONFIGURE_NIC_MODE(sc)) {
-        bxe_init_searcher(sc);
-        REG_WR(sc, PRS_REG_NIC_MODE, 0);
-        BLOGD(sc, DBG_LOAD, "NIC MODE disabled\n");
-    } else
-#endif
-    {
-        /* Set NIC mode */
-        REG_WR(sc, PRS_REG_NIC_MODE, 1);
-        BLOGD(sc, DBG_LOAD, "NIC MODE configured\n");
-    }
+    /* Set NIC mode */
+    REG_WR(sc, PRS_REG_NIC_MODE, 1);
+    BLOGD(sc, DBG_LOAD, "NIC MODE configured\n");
 
     if (!CHIP_IS_E1x(sc)) {
         uint32_t pf_conf = IGU_PF_CONF_FUNC_EN;
@@ -18774,15 +18088,6 @@ bxe_reset_func(struct bxe_softc *sc)
                 CSTORM_STATUS_BLOCK_DATA_STATE_OFFSET(fp->fw_sb_id),
                 SB_DISABLED);
     }
-
-#if 0
-    if (CNIC_LOADED(sc)) {
-        /* CNIC SB */
-        REG_WR8(sc, BAR_CSTRORM_INTMEM +
-                CSTORM_STATUS_BLOCK_DATA_STATE_OFFSET
-                (bxe_cnic_fw_sb_id(sc)), SB_DISABLED);
-    }
-#endif
 
     /* SP SB */
     REG_WR8(sc, BAR_CSTRORM_INTMEM +
