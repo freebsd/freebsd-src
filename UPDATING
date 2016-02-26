@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150107:
+	The ELF object manipulation tool objcopy is now provided by the
+	ELF Tool Chain project rather than by GNU binutils. It should be a
+	drop-in replacement, with the addition of arm64 support. The
+	(temporary) src.conf knob WITHOUT_ELFCOPY_AS_OBJCOPY knob may be set
+	to obtain the GNU version if necessary.
+
 20160129:
 	Building ZFS pools on top of zvols is prohibited by default.  That
 	feature has never worked safely; it's always been prone to deadlocks.
