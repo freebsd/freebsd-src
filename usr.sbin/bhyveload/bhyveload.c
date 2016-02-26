@@ -674,7 +674,7 @@ main(int argc, char** argv)
 	consin_fd = STDIN_FILENO;
 	consout_fd = STDOUT_FILENO;
 
-	while ((opt = getopt(argc, argv, "Sc:d:e:h:l:m:")) != -1) {
+	while ((opt = getopt(argc, argv, "CSc:d:e:h:l:m:")) != -1) {
 		switch (opt) {
 		case 'c':
 			error = altcons_open(optarg);
@@ -708,6 +708,9 @@ main(int argc, char** argv)
 			error = vm_parse_memsize(optarg, &mem_size);
 			if (error != 0)
 				errx(EX_USAGE, "Invalid memsize '%s'", optarg);
+			break;
+		case 'C':
+			memflags |= VM_MEM_F_INCORE;
 			break;
 		case 'S':
 			memflags |= VM_MEM_F_WIRED;
