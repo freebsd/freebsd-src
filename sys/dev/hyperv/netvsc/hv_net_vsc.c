@@ -679,7 +679,7 @@ hv_nv_on_device_add(struct hv_device *device, void *additional_info)
 	 */
 	ret = hv_vmbus_channel_open(device->channel,
 	    NETVSC_DEVICE_RING_BUFFER_SIZE, NETVSC_DEVICE_RING_BUFFER_SIZE,
-	    NULL, 0, hv_nv_on_channel_callback, device);
+	    NULL, 0, hv_nv_on_channel_callback, device->channel);
 	if (ret != 0)
 		goto cleanup;
 
@@ -972,9 +972,10 @@ retry_send_cmplt:
  * Net VSC on channel callback
  */
 static void
-hv_nv_on_channel_callback(void *context)
+hv_nv_on_channel_callback(void *xchan)
 {
-	struct hv_device *device = (struct hv_device *)context;
+	struct hv_vmbus_channel *chan = xchan;
+	struct hv_device *device = chan->device;
 	netvsc_dev *net_dev;
 	device_t dev = device->device;
 	uint32_t bytes_rxed;
@@ -991,7 +992,7 @@ hv_nv_on_channel_callback(void *context)
 	buffer = net_dev->callback_buf;
 
 	do {
-		ret = hv_vmbus_channel_recv_packet_raw(device->channel,
+		ret = hv_vmbus_channel_recv_packet_raw(chan,
 		    buffer, bufferlen, &bytes_rxed, &request_id);
 		if (ret == 0) {
 			if (bytes_rxed > 0) {
