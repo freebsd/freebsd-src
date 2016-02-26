@@ -3237,9 +3237,11 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = em_ioctl;
+
 	/* TSO parameters */
 	ifp->if_hw_tsomax = IP_MAXPACKET;
-	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER;
+	/* Take m_pullup(9)'s in em_xmit() w/ TSO into acount. */
+	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER - 5;
 	ifp->if_hw_tsomaxsegsize = EM_TSO_SEG_SIZE;
 
 #ifdef EM_MULTIQUEUE
