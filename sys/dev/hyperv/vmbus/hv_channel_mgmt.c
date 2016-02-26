@@ -211,6 +211,7 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			 * It is a sub channel offer, process it.
 			 */
 			new_channel->primary_channel = channel;
+			new_channel->device = channel->device;
 			mtx_lock(&channel->sc_lock);
 			TAILQ_INSERT_TAIL(
 			    &channel->sc_list_anchor,
@@ -451,7 +452,10 @@ vmbus_channel_on_offer_rescind_internal(void *context)
 	hv_vmbus_channel*               channel;
 
 	channel = (hv_vmbus_channel*)context;
-	hv_vmbus_child_device_unregister(channel->device);
+	if (HV_VMBUS_CHAN_ISPRIMARY(channel)) {
+		/* Only primary channel owns the hv_device */
+		hv_vmbus_child_device_unregister(channel->device);
+	}
 }
 
 /**
@@ -672,7 +676,10 @@ hv_vmbus_release_unattached_channels(void)
 	    TAILQ_REMOVE(&hv_vmbus_g_connection.channel_anchor,
 			    channel, list_entry);
 
-	    hv_vmbus_child_device_unregister(channel->device);
+	    if (HV_VMBUS_CHAN_ISPRIMARY(channel)) {
+		/* Only primary channel owns the hv_device */
+		hv_vmbus_child_device_unregister(channel->device);
+	    }
 	    hv_vmbus_free_vmbus_channel(channel);
 	}
 	bzero(hv_vmbus_g_connection.channels, 
