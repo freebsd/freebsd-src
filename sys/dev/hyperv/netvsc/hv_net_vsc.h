@@ -1000,6 +1000,7 @@ struct buf_ring;
 #endif
 
 struct hn_rx_ring {
+	struct ifnet	*hn_ifp;
 	struct lro_ctrl	hn_lro;
 
 	/* Trust csum verification on host side */

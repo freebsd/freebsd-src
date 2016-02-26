@@ -822,10 +822,12 @@ typedef struct hv_vmbus_channel {
 	 * This will be NULL for the primary channel.
 	 */
 	struct hv_vmbus_channel		*primary_channel;
+
 	/*
-	 * Support per channel state for use by vmbus drivers.
+	 * Driver private data
 	 */
-	void				*per_channel_state;
+	void				*hv_chan_priv1;
+	void				*hv_chan_priv2;
 } hv_vmbus_channel;
 
 #define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
