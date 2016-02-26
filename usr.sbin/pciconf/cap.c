@@ -657,13 +657,13 @@ cap_ea(int fd, struct pci_conf *p, uint8_t ptr)
 			b++;
 		}
 
-		printf("\n\t\t [%d] %s, %s, %s, base [0x%lx], size [0x%lx]"
+		printf("\n\t\t [%d] %s, %s, %s, base [0x%jx], size [0x%jx]"
 		    "\n\t\t\tPrimary properties [0x%x] (%s)"
 		    "\n\t\t\tSecondary properties [0x%x] (%s)",
 		    bei, ea_bei_to_name(bei),
 		    (flags & PCIM_EA_ENABLE ? "Enabled" : "Disabled"),
-			(flags & PCIM_EA_WRITABLE ? "Writable" : "Read-only"),
-		    base, max_offset + 1,
+		    (flags & PCIM_EA_WRITABLE ? "Writable" : "Read-only"),
+		    (uintmax_t)base, (uintmax_t)(max_offset + 1),
 		    flags_pp, ea_prop_to_name(flags_pp),
 		    flags_sp, ea_prop_to_name(flags_sp));
 	}
