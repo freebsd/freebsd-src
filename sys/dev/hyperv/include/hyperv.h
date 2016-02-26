@@ -753,8 +753,6 @@ typedef struct hv_vmbus_channel {
 	 */
 	hv_vmbus_ring_buffer_info	inbound;
 
-	struct mtx			inbound_lock;
-
 	struct taskqueue *		rxq;
 	struct task			channel_task;
 	hv_vmbus_pfn_channel_callback	on_channel_callback;
