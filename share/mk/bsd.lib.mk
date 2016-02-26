@@ -325,7 +325,7 @@ CLEANFILES+=	${_LIBS}
 .endif
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
-all: _manpages
+all: all-man
 .endif
 .endif
 
@@ -433,8 +433,8 @@ _libinstall:
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
-realinstall: _maninstall
-.ORDER: beforeinstall _maninstall
+realinstall: maninstall
+.ORDER: beforeinstall maninstall
 .endif
 
 .endif
