@@ -26,4 +26,5 @@ CFLAGS+=	-m32
 
 CFLAGS+=	-Wformat -Wall
 
+.include <bsd.stand.mk>
 .include <bsd.lib.mk>
