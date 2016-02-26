@@ -129,8 +129,8 @@ a31_clk_pll6_enable(void)
 
 	/* Wait for PLL to be stable */
 	for (i = 0; i < PLL6_TIMEOUT; i++)
-		if (!(ccm_read_4(sc, A31_CCM_PLL6_CFG) &
-			A31_CCM_PLL6_CFG_REG_LOCK))
+		if ((ccm_read_4(sc, A31_CCM_PLL6_CFG) &
+		    A31_CCM_PLL6_CFG_REG_LOCK) == A31_CCM_PLL6_CFG_REG_LOCK)
 			break;
 	if (i == PLL6_TIMEOUT)
 		return (ENXIO);
