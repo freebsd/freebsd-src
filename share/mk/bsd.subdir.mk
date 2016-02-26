@@ -39,7 +39,7 @@
 __<bsd.subdir.mk>__:
 
 SUBDIR_TARGETS+= \
-		all all-man buildconfig buildfiles buildincludes \
+		all all-man analyze buildconfig buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanilinks \
 		cleanobj depend distribute files includes installconfig \
 		installfiles installincludes realinstall lint maninstall \

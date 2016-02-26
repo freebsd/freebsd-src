@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2015
+.Dd February 26, 2016
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -107,6 +107,8 @@ section below, and by the variables documented in
 The following list provides the names and actions for the targets
 supported by the build system:
 .Bl -tag -width ".Cm cleandepend"
+.It Cm analyze
+Run Clang static analyzer against all objects and present output on stdout.
 .It Cm check
 Run tests for a given subdirectory.
 The default directory used is
