@@ -73,7 +73,7 @@ gettable(const char *name, char *buf)
 	static int firsttime = 1;
 
 	dba[0] = _PATH_GETTYTAB;
-	dba[1] = 0;
+	dba[1] = NULL;
 
 	if (firsttime) {
 		/*
@@ -212,7 +212,8 @@ charvars[] = {
 	&tmode.c_cc[VQUIT], &tmode.c_cc[VSTART], &tmode.c_cc[VSTOP],
 	&tmode.c_cc[VEOF], &tmode.c_cc[VEOL], &tmode.c_cc[VSUSP],
 	&tmode.c_cc[VDSUSP], &tmode.c_cc[VREPRINT], &tmode.c_cc[VDISCARD],
-	&tmode.c_cc[VWERASE], &tmode.c_cc[VLNEXT], 0
+	&tmode.c_cc[VWERASE], &tmode.c_cc[VLNEXT], &tmode.c_cc[VSTATUS],
+	&tmode.c_cc[VEOL2], 0
 };
 
 void
@@ -595,7 +596,7 @@ struct	portselect {
 	{ "B4800",	"std.4800" },
 	{ "B9600",	"std.9600" },
 	{ "B19200",	"std.19200" },
-	{ 0 }
+	{ NULL, NULL }
 };
 
 const char *
@@ -604,7 +605,7 @@ portselector(void)
 	char c, baud[20];
 	const char *type = "default";
 	struct portselect *ps;
-	int len;
+	size_t len;
 
 	alarm(5*60);
 	for (len = 0; len < sizeof (baud) - 1; len++) {
