@@ -45,7 +45,6 @@ int	pic_ipi_read(int arg);
 
 /* Platform interface */
 void	platform_mp_setmaxid(void);
-int	platform_mp_probe(void);
 void	platform_mp_start_ap(void);
 void	platform_mp_init_secondary(void);
 
