@@ -47,6 +47,10 @@ __ENV_ONLY_OPTIONS:= \
 .elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
 # verbose will show .MAKE.META.PREFIX for each target.
 META_MODE=	meta verbose
+# silent will hide command output if a .meta file is created.
+.if !defined(NO_SILENT)
+META_MODE+=	silent=yes
+.endif
 .if !exists(/dev/filemon)
 META_MODE+= nofilemon
 .endif
