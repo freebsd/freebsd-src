@@ -535,7 +535,7 @@ cap_pciaf(int fd, struct pci_conf *p, uint8_t ptr)
 }
 
 static const char *
-ea_bei_to_name(uint8_t bei)
+ea_bei_to_name(int bei)
 {
 	static const char *barstr[] = {
 		"BAR0", "BAR1", "BAR2", "BAR3", "BAR4", "BAR5"
