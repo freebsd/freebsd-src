@@ -65,7 +65,7 @@ MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE= ${DEPENDFILE}
 .endif
-CLEANDEPENDFILES=	${DEPENDFILE} ${DEPENDFILE}.*
+CLEANDEPENDFILES+=	${DEPENDFILE} ${DEPENDFILE}.*
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
