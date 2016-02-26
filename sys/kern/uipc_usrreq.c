@@ -280,7 +280,7 @@ static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct mbuf *);
 static void	unp_dispose_so(struct socket *so);
 static void	unp_shutdown(struct unpcb *);
-static void	unp_drop(struct unpcb *, int);
+static void	unp_drop(struct unpcb *);
 static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
 static void	unp_discard(struct file *);
@@ -354,7 +354,7 @@ uipc_abort(struct socket *so)
 	unp2 = unp->unp_conn;
 	if (unp2 != NULL) {
 		UNP_PCB_LOCK(unp2);
-		unp_drop(unp2, ECONNRESET);
+		unp_drop(unp2);
 		UNP_PCB_UNLOCK(unp2);
 	}
 	UNP_PCB_UNLOCK(unp);
@@ -682,7 +682,7 @@ uipc_detach(struct socket *so)
 		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
 
 		UNP_PCB_LOCK(ref);
-		unp_drop(ref, ECONNRESET);
+		unp_drop(ref);
 		UNP_PCB_UNLOCK(ref);
 	}
 	local_unp_rights = unp_rights;
@@ -1698,7 +1698,7 @@ unp_shutdown(struct unpcb *unp)
 }
 
 static void
-unp_drop(struct unpcb *unp, int errno)
+unp_drop(struct unpcb *unp)
 {
 	struct socket *so = unp->unp_socket;
 	struct unpcb *unp2;
@@ -1706,7 +1706,12 @@ unp_drop(struct unpcb *unp, int errno)
 	UNP_LINK_WLOCK_ASSERT();
 	UNP_PCB_LOCK_ASSERT(unp);
 
-	so->so_error = errno;
+	/*
+	 * Regardless of whether the socket's peer dropped the connection
+	 * with this socket by aborting or disconnecting, POSIX requires
+	 * that ECONNRESET is returned.
+	 */
+	so->so_error = ECONNRESET;
 	unp2 = unp->unp_conn;
 	if (unp2 == NULL)
 		return;
