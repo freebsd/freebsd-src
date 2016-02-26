@@ -59,11 +59,19 @@ all: ${PROGS}
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO
+
+.if ${MK_STAGING} != "no"
+.if !empty(PROGS)
+stage_files.prog: ${PROGS}
+.endif
+.endif	# ${MK_STAGING} != "no"
 .endif
 .endif	# PROGS || PROGS_CXX
 
 # These are handled by the main make process.
 .ifdef _RECURSING_PROGS
+MK_STAGING= no
+
 _PROGS_GLOBAL_VARS= CLEANFILES CLEANDIRS CONFGROUPS FILESGROUPS INCSGROUPS \
 		    SCRIPTS
 .for v in ${_PROGS_GLOBAL_VARS}
