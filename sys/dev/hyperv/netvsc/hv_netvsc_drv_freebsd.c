@@ -436,6 +436,7 @@ netvsc_attach(device_t dev)
 	chan = device_ctx->channel;
 	chan->hv_chan_rxr = &sc->hn_rx_ring[0];
 	chan->hv_chan_txr = &sc->hn_tx_ring[0];
+	sc->hn_tx_ring[0].hn_chan = chan;
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_dunit = unit;
@@ -854,6 +855,8 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 
 	/*
 	 * Chimney send, if the packet could fit into one chimney buffer.
+	 *
+	 * TODO: vRSS, chimney buffer should be per-channel.
 	 */
 	if (packet->tot_data_buf_len < txr->hn_tx_chimney_size) {
 		netvsc_dev *net_dev = txr->hn_sc->net_dev;
@@ -940,8 +943,7 @@ done:
  * associated w/ the txd will _not_ be freed.
  */
 static int
-hn_send_pkt(struct ifnet *ifp, struct hv_device *device_ctx,
-    struct hn_tx_ring *txr, struct hn_txdesc *txd)
+hn_send_pkt(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd)
 {
 	int error, send_failed = 0;
 
@@ -950,7 +952,7 @@ again:
 	 * Make sure that txd is not freed before ETHER_BPF_MTAP.
 	 */
 	hn_txdesc_hold(txd);
-	error = hv_nv_on_send(device_ctx, &txd->netvsc_pkt);
+	error = hv_nv_on_send(txr->hn_chan, &txd->netvsc_pkt);
 	if (!error) {
 		ETHER_BPF_MTAP(ifp, txd->m);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
@@ -1010,7 +1012,6 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 {
 	struct hn_softc *sc = txr->hn_sc;
 	struct ifnet *ifp = sc->hn_ifp;
-	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 
 	KASSERT(hn_use_if_start,
 	    ("hn_start_locked is called, when if_start is disabled"));
@@ -1054,7 +1055,7 @@ hn_start_locked(struct hn_tx_ring *txr, int len)
 			continue;
 		}
 
-		error = hn_send_pkt(ifp, device_ctx, txr, txd);
+		error = hn_send_pkt(ifp, txr, txd);
 		if (__predict_false(error)) {
 			/* txd is freed, but m_head is not */
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
@@ -2497,7 +2498,6 @@ hn_xmit(struct hn_tx_ring *txr, int len)
 {
 	struct hn_softc *sc = txr->hn_sc;
 	struct ifnet *ifp = sc->hn_ifp;
-	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	struct mbuf *m_head;
 
 	mtx_assert(&txr->hn_tx_lock, MA_OWNED);
@@ -2536,7 +2536,7 @@ hn_xmit(struct hn_tx_ring *txr, int len)
 			continue;
 		}
 
-		error = hn_send_pkt(ifp, device_ctx, txr, txd);
+		error = hn_send_pkt(ifp, txr, txd);
 		if (__predict_false(error)) {
 			/* txd is freed, but m_head is not */
 			drbr_putback(ifp, txr->hn_mbuf_br, m_head);
