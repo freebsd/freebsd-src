@@ -893,7 +893,6 @@ typedef struct nvsp_msg_ {
  */
 typedef struct netvsc_dev_ {
 	struct hv_device			*dev;
-	int					num_outstanding_sends;
 
 	/* Send buffer allocated by us but manages by NetVSP */
 	void					*send_buf;
