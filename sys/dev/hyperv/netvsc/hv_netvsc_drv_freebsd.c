@@ -684,8 +684,9 @@ hn_tx_done(void *xpkt)
 }
 
 void
-netvsc_channel_rollup(struct hv_device *device_ctx)
+netvsc_channel_rollup(struct hv_vmbus_channel *chan)
 {
+	struct hv_device *device_ctx = chan->device;
 	struct hn_softc *sc = device_get_softc(device_ctx->device);
 	struct hn_tx_ring *txr = &sc->hn_tx_ring[0]; /* TODO: vRSS */
 #if defined(INET) || defined(INET6)
@@ -1135,9 +1136,10 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
  * Note:  This is no longer used as a callback
  */
 int
-netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet,
+netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
     rndis_tcp_ip_csum_info *csum_info)
 {
+	struct hv_device *device_ctx = chan->device;
 	struct hn_softc *sc = device_get_softc(device_ctx->device);
 	struct hn_rx_ring *rxr = &sc->hn_rx_ring[0]; /* TODO: vRSS */
 	struct mbuf *m_new;
@@ -1303,11 +1305,6 @@ skip:
 	(*ifp->if_input)(ifp, m_new);
 
 	return (0);
-}
-
-void
-netvsc_recv_rollup(struct hv_device *device_ctx __unused)
-{
 }
 
 /*
