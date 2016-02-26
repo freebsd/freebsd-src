@@ -179,11 +179,10 @@ CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildconfig buildfiles \
 		buildincludes check checkdpadd clean cleandepend cleandir \
-		cleanobj configure depend dependall distclean distribute exe \
+		cleanobj configure depend distclean distribute exe \
 		files html includes install installconfig installfiles \
-		installincludes lint obj objlink objs objwarn realall \
-		realdepend realinstall subdir-all subdir-depend \
-		subdir-install tags whereobj
+		installincludes lint obj objlink objs objwarn \
+		realinstall tags whereobj
 
 # we don't want ${PROG} to be PHONY
 .PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
