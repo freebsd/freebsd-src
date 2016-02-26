@@ -53,7 +53,9 @@ UPDATE_DEPENDFILE ?= NO
 
 # prog.mk will do the rest
 .else # !defined(PROG)
+.if !defined(_SKIP_BUILD)
 all: ${PROGS}
+.endif
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO

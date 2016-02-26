@@ -16,7 +16,9 @@ ${${group}}:= ${${group}:O:u}
 buildfiles: ${${group}}
 .endfor
 
+.if !defined(_SKIP_BUILD)
 all: buildfiles
+.endif
 
 .for group in ${FILESGROUPS}
 .if defined(${group}) && !empty(${group})
