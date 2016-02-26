@@ -969,7 +969,7 @@ getrpc(int (*fn)(union key, struct rpcent *, char *, size_t, struct rpcent **),
 }
 
 struct rpcent *
-getrpcbyname(char *name)
+getrpcbyname(const char *name)
 {
 	union key key;
 
