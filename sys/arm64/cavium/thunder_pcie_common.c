@@ -52,8 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_pci.h>
 #endif
 
-#include <dev/pci/pcivar.h>
+#include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pci_private.h>
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
 
@@ -142,3 +144,42 @@ thunder_pcie_identify_ecam(device_t dev, int *ecam)
 
 	return (0);
 }
+
+#ifdef THUNDERX_PASS_1_1_ERRATA
+struct resource *
+thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	pci_addr_t map, testval;
+
+	/*
+	 * If Enhanced Allocation is not used, we can't allocate any random
+	 * range. All internal devices have hardcoded place where they can
+	 * be located within PCI address space. Fortunately, we can read
+	 * this value from BAR.
+	 */
+	if (((type == SYS_RES_IOPORT) || (type == SYS_RES_MEMORY)) &&
+	    RMAN_IS_DEFAULT_RANGE(start, end)) {
+
+		/* Read BAR manually to get resource address and size */
+		pci_read_bar(child, *rid, &map, &testval, NULL);
+
+		/* Mask the information bits */
+		if (PCI_BAR_MEM(map))
+			map &= PCIM_BAR_MEM_BASE;
+		else
+			map &= PCIM_BAR_IO_BASE;
+
+		if (PCI_BAR_MEM(testval))
+			testval &= PCIM_BAR_MEM_BASE;
+		else
+			testval &= PCIM_BAR_IO_BASE;
+
+		start = map;
+		end = start + count - 1;
+	}
+
+	return (pci_host_generic_alloc_resource(dev, child, type, rid, start,
+	    end, count, flags));
+}
+#endif
