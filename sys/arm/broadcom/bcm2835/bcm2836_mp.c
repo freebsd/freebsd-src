@@ -77,12 +77,6 @@ static bus_space_handle_t bs_periph;
 	bus_space_write_4(fdtbus_bs_tag, bs_periph, (addr), (val))
 
 void
-platform_mp_init_secondary(void)
-{
-
-}
-
-void
 platform_mp_setmaxid(void)
 {
 

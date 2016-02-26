@@ -43,12 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/omap4/omap4_smc.h>
 
 void
-platform_mp_init_secondary(void)
-{
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 

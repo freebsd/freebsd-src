@@ -59,13 +59,6 @@ __FBSDID("$FreeBSD$");
 #define	CPUCFG_DBGCTL1		0x1e4
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 	int ncpu;

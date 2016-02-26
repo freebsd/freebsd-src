@@ -71,13 +71,6 @@ exynos_get_soc_id(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 
