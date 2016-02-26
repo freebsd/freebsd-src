@@ -46,13 +46,6 @@ __FBSDID("$FreeBSD$");
 
 static int running_cpus;
 
-int
-platform_mp_probe(void)
-{
-
-	return (mp_ncpus > 1);
-}
-
 static boolean_t
 virt_maxid(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 {
