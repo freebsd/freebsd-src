@@ -809,7 +809,7 @@ hv_nv_on_send_completion(netvsc_dev *net_dev,
  * Returns 0 on success, non-zero on failure.
  */
 int
-hv_nv_on_send(struct hv_device *device, netvsc_packet *pkt)
+hv_nv_on_send(struct hv_vmbus_channel *chan, netvsc_packet *pkt)
 {
 	nvsp_msg send_msg;
 	int ret;
@@ -829,11 +829,11 @@ hv_nv_on_send(struct hv_device *device, netvsc_packet *pkt)
 	    pkt->send_buf_section_size;
 
 	if (pkt->page_buf_count) {
-		ret = hv_vmbus_channel_send_packet_pagebuffer(device->channel,
+		ret = hv_vmbus_channel_send_packet_pagebuffer(chan,
 		    pkt->page_buffers, pkt->page_buf_count,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
 	} else {
-		ret = hv_vmbus_channel_send_packet(device->channel,
+		ret = hv_vmbus_channel_send_packet(chan,
 		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt,
 		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 		    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);

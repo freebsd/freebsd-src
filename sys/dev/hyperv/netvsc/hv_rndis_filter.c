@@ -250,7 +250,7 @@ hv_rf_send_request(rndis_device *device, rndis_request *request,
 	    NVSP_1_CHIMNEY_SEND_INVALID_SECTION_INDEX;
 	packet->send_buf_section_size = 0;
 
-	ret = hv_nv_on_send(device->net_dev->dev, packet);
+	ret = hv_nv_on_send(device->net_dev->dev->channel, packet);
 
 	return (ret);
 }
