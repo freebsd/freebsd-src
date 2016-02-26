@@ -212,8 +212,7 @@ charvars[] = {
 	&tmode.c_cc[VQUIT], &tmode.c_cc[VSTART], &tmode.c_cc[VSTOP],
 	&tmode.c_cc[VEOF], &tmode.c_cc[VEOL], &tmode.c_cc[VSUSP],
 	&tmode.c_cc[VDSUSP], &tmode.c_cc[VREPRINT], &tmode.c_cc[VDISCARD],
-	&tmode.c_cc[VWERASE], &tmode.c_cc[VLNEXT], &tmode.c_cc[VSTATUS],
-	&tmode.c_cc[VEOL2], 0
+	&tmode.c_cc[VWERASE], &tmode.c_cc[VLNEXT], 0
 };
 
 void
