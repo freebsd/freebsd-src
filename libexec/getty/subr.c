@@ -38,14 +38,16 @@ static const char rcsid[] =
 /*
  * Melbourne getty.
  */
-#include <stdlib.h>
-#include <string.h>
-#include <termios.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/time.h>
+
+#include <poll.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "gettytab.h"
 #include "pathnames.h"
@@ -633,24 +635,21 @@ portselector(void)
 const char *
 autobaud(void)
 {
-	int rfds;
-	struct timeval timeout;
+struct pollfd set[1];
+	struct timespec timeout;
 	char c;
 	const char *type = "9600-baud";
 
 	(void)tcflush(0, TCIOFLUSH);
-	rfds = 1 << 0;
-	timeout.tv_sec = 5;
-	timeout.tv_usec = 0;
-	if (select(32, (fd_set *)&rfds, (fd_set *)NULL,
-	    (fd_set *)NULL, &timeout) <= 0)
+	set[0].fd = STDIN_FILENO;
+	set[0].events = POLLIN;
+	if (poll(set, 1, 5000) <= 0)
 		return (type);
 	if (read(STDIN_FILENO, &c, sizeof(char)) != sizeof(char))
 		return (type);
 	timeout.tv_sec = 0;
-	timeout.tv_usec = 20;
-	(void) select(32, (fd_set *)NULL, (fd_set *)NULL,
-	    (fd_set *)NULL, &timeout);
+	timeout.tv_nsec = 20000;
+	(void)nanosleep(&timeout, NULL);
 	(void)tcflush(0, TCIOFLUSH);
 	switch (c & 0377) {
 
