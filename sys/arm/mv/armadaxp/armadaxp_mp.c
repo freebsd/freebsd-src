@@ -87,13 +87,6 @@ platform_mp_setmaxid(void)
 	mp_maxid = mp_ncpus - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-
-	return (mp_ncpus > 1);
-}
-
 void
 platform_mp_init_secondary(void)
 {

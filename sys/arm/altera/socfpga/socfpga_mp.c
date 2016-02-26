@@ -111,16 +111,6 @@ platform_mp_setmaxid(void)
 	mp_maxid = ncpu - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-
-	return (mp_ncpus > 1);
-}
-
 void
 platform_mp_start_ap(void)
 {

@@ -95,17 +95,6 @@ platform_mp_setmaxid(void)
 	DPRINTF("mp_maxid=%d\n", mp_maxid);
 }
 
-int
-platform_mp_probe(void)
-{
-
-	DPRINTF("platform_mp_probe\n");
-	CPU_SETOF(0, &all_cpus);
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-	return (mp_ncpus > 1);
-}
-
 void
 platform_mp_start_ap(void)
 {
