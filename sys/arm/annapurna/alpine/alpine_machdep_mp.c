@@ -119,13 +119,6 @@ platform_mp_get_core_cnt(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 

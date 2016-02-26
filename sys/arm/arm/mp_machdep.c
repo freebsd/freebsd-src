@@ -234,7 +234,7 @@ init_secondary(int cpu)
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
-	platform_mp_init_secondary();
+	intr_pic_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);
