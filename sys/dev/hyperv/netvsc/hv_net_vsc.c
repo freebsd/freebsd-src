@@ -720,9 +720,7 @@ hv_nv_on_device_remove(struct hv_device *device, boolean_t destroy_channel)
 	netvsc_dev *net_dev = sc->net_dev;;
 	
 	/* Stop outbound traffic ie sends and receives completions */
-	mtx_lock(&device->channel->inbound_lock);
 	net_dev->destroy = TRUE;
-	mtx_unlock(&device->channel->inbound_lock);
 
 	/* Wait for all send completions */
 	while (net_dev->num_outstanding_sends) {
