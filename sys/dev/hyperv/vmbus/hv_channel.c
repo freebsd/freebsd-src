@@ -384,17 +384,22 @@ hv_vmbus_channel_establish_gpadl(
 	hv_vmbus_channel_msg_info*	curr;
 	uint32_t			next_gpadl_handle;
 
-	next_gpadl_handle = hv_vmbus_g_connection.next_gpadl_handle;
-	atomic_add_int((int*) &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	next_gpadl_handle = atomic_fetchadd_int(
+	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
 
 	ret = vmbus_channel_create_gpadl_header(
 		contig_buffer, size, &msg_info, &msg_count);
 
-	if(ret != 0) { /* if(allocation failed) return immediately */
-	    /* reverse atomic_add_int above */
-	    atomic_subtract_int((int*)
-		    &hv_vmbus_g_connection.next_gpadl_handle, 1);
-	    return ret;
+	if(ret != 0) {
+		/*
+		 * XXX
+		 * We can _not_ even revert the above incremental,
+		 * if multiple GPADL establishments are running
+		 * parallelly, decrement the global next_gpadl_handle
+		 * is calling for _big_ trouble.  A better solution
+		 * is to have a 0-based GPADL id bitmap ...
+		 */
+		return ret;
 	}
 
 	sema_init(&msg_info->wait_sema, 0, "Open Info Sema");
