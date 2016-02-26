@@ -41,6 +41,7 @@
 #ifndef LOCORE
 typedef	uint64_t	pd_entry_t;		/* page directory entry */
 typedef	uint64_t	pt_entry_t;		/* page table entry */
+typedef	uint64_t	pn_t;			/* page number */
 #endif
 
 /* Level 0 table, 512GiB per entry */
