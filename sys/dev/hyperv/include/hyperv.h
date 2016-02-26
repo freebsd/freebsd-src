@@ -828,6 +828,8 @@ typedef struct hv_vmbus_channel {
 	void				*per_channel_state;
 } hv_vmbus_channel;
 
+#define HV_VMBUS_CHAN_ISPRIMARY(chan)	((chan)->primary_channel == NULL)
+
 static inline void
 hv_set_channel_read_state(hv_vmbus_channel* channel, boolean_t state)
 {
