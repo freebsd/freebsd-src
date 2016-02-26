@@ -1153,9 +1153,7 @@ storvsc_detach(device_t dev)
 	struct hv_sgl_node *sgl_node = NULL;
 	int j = 0;
 
-	mtx_lock(&hv_device->channel->inbound_lock);
 	sc->hs_destroy = TRUE;
-	mtx_unlock(&hv_device->channel->inbound_lock);
 
 	/*
 	 * At this point, all outbound traffic should be disabled. We

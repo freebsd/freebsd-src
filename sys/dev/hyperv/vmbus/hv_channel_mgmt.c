@@ -140,9 +140,7 @@ hv_vmbus_allocate_channel(void)
 					M_DEVBUF,
 					M_WAITOK | M_ZERO);
 
-	mtx_init(&channel->inbound_lock, "channel inbound", NULL, MTX_DEF);
 	mtx_init(&channel->sc_lock, "vmbus multi channel", NULL, MTX_DEF);
-
 	TAILQ_INIT(&channel->sc_list_anchor);
 
 	return (channel);
@@ -155,8 +153,6 @@ void
 hv_vmbus_free_vmbus_channel(hv_vmbus_channel* channel)
 {
 	mtx_destroy(&channel->sc_lock);
-	mtx_destroy(&channel->inbound_lock);
-
 	free(channel, M_DEVBUF);
 }
 

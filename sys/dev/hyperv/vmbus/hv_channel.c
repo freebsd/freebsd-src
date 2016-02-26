@@ -537,13 +537,7 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	 */
 	channel->rxq = NULL;
 	taskqueue_drain(rxq, &channel->channel_task);
-	/*
-	 * Grab the lock to prevent race condition when a packet received
-	 * and unloading driver is in the process.
-	 */
-	mtx_lock(&channel->inbound_lock);
 	channel->on_channel_callback = NULL;
-	mtx_unlock(&channel->inbound_lock);
 
 	/**
 	 * Send a closing message
@@ -920,12 +914,6 @@ VmbusProcessChannelEvent(void* context, int pending)
 	 * callback to NULL. This closes the window.
 	 */
 
-	/*
-	 * Disable the lock due to newly added WITNESS check in r277723.
-	 * Will seek other way to avoid race condition.
-	 * -- whu
-	 */
-	// mtx_lock(&channel->inbound_lock);
 	if (channel->on_channel_callback != NULL) {
 		arg = channel->channel_callback_context;
 		is_batched_reading = channel->batched_reading;
@@ -952,5 +940,4 @@ VmbusProcessChannelEvent(void* context, int pending)
 				bytes_to_read = 0;
 		} while (is_batched_reading && (bytes_to_read != 0));
 	}
-	// mtx_unlock(&channel->inbound_lock);
 }
