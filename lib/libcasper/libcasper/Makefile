@@ -18,8 +18,6 @@ LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
 
-WARNS?=	6
-
 MAN+=	libcasper.3
 
 MLINKS+=libcasper.3 cap_init.3
