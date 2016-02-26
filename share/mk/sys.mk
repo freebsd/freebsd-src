@@ -45,12 +45,15 @@ __ENV_ONLY_OPTIONS:= \
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
 .elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
-.MAKE.MODE= meta verbose
+# verbose will show .MAKE.META.PREFIX for each target.
+META_MODE=	meta verbose
 .if !exists(/dev/filemon)
-.MAKE.MODE+= nofilemon
+META_MODE+= nofilemon
 .endif
 .endif
-.MAKE.MODE?= normal
+META_MODE?= normal
+.export META_MODE
+.MAKE.MODE?= ${META_MODE}
 
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
