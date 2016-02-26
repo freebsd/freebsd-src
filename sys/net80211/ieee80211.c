@@ -266,21 +266,24 @@ static int
 sysctl_ieee80211coms(SYSCTL_HANDLER_ARGS)
 {
 	struct ieee80211com *ic;
-	struct sbuf *sb;
+	struct sbuf sb;
 	char *sp;
 	int error;
 
-	sb = sbuf_new_auto();
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
+	sbuf_new_for_sysctl(&sb, NULL, 8, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	sp = "";
 	mtx_lock(&ic_list_mtx);
 	LIST_FOREACH(ic, &ic_head, ic_next) {
-		sbuf_printf(sb, "%s%s", sp, ic->ic_name);
+		sbuf_printf(&sb, "%s%s", sp, ic->ic_name);
 		sp = " ";
 	}
 	mtx_unlock(&ic_list_mtx);
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
-	sbuf_delete(sb);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
