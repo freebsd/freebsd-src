@@ -90,10 +90,3 @@ platform_mp_start_ap(void)
 
 	ofw_cpu_early_foreach(virt_start_ap, true);
 }
-
-void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}

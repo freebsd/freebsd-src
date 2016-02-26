@@ -85,13 +85,6 @@ socfpga_trampoline(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 	int hwcpu, ncpu;

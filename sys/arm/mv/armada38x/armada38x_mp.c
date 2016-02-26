@@ -131,13 +131,6 @@ platform_mp_setmaxid(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_start_ap(void)
 {
 	int rv;
