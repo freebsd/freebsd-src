@@ -31,6 +31,4 @@ MLINKS=	gpio.3 gpio_open.3 \
 	gpio.3 gpio_pin_invout.3 \
 	gpio.3 gpio_pin_pulsate.3
 
-WARNS?=	6
-
 .include <bsd.lib.mk>

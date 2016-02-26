@@ -16,6 +16,4 @@ CFLAGS+=	-I${.CURDIR}
 
 SRCS=		figpar.c string_m.c
 
-WARNS?=		6
-
 .include <bsd.lib.mk>
