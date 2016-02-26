@@ -84,7 +84,7 @@ tags: ${SRCS}
 # Skip reading .depend when not needed to speed up tree-walks
 # and simple lookups.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*)
+    make(install*) || make(analyze)
 _SKIP_READ_DEPEND=	1
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE=	/dev/null
