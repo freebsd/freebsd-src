@@ -49,6 +49,10 @@ __FBSDID("$FreeBSD$");
 
 #include "thunder_pcie_common.h"
 
+#ifdef THUNDERX_PASS_1_1_ERRATA
+static struct resource * thunder_pcie_fdt_alloc_resource(device_t, device_t,
+    int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+#endif
 static int thunder_pcie_fdt_attach(device_t);
 static int thunder_pcie_fdt_probe(device_t);
 
@@ -56,6 +60,9 @@ static device_method_t thunder_pcie_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		thunder_pcie_fdt_probe),
 	DEVMETHOD(device_attach,	thunder_pcie_fdt_attach),
+#ifdef THUNDERX_PASS_1_1_ERRATA
+	DEVMETHOD(bus_alloc_resource,	thunder_pcie_fdt_alloc_resource),
+#endif
 
 	/* End */
 	DEVMETHOD_END
@@ -105,3 +112,17 @@ thunder_pcie_fdt_attach(device_t dev)
 	return (pci_host_generic_attach(dev));
 }
 
+#ifdef THUNDERX_PASS_1_1_ERRATA
+static struct resource *
+thunder_pcie_fdt_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+
+	if ((int)ofw_bus_get_node(child) > 0)
+		return (pci_host_generic_alloc_resource(dev, child,
+		    type, rid, start, end, count, flags));
+
+	return (thunder_pcie_alloc_resource(dev, child,
+	    type, rid, start, end, count, flags));
+}
+#endif

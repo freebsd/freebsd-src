@@ -39,5 +39,9 @@ uint32_t range_addr_is_phys(struct pcie_range *, uint64_t, uint64_t);
 uint64_t range_addr_pci_to_phys(struct pcie_range *, uint64_t);
 
 int thunder_pcie_identify_ecam(device_t, int *);
+#ifdef THUNDERX_PASS_1_1_ERRATA
+struct resource *thunder_pcie_alloc_resource(device_t,
+    device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+#endif
 
 #endif /* _CAVIUM_THUNDER_PCIE_COMMON_H_ */

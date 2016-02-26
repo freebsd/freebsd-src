@@ -104,9 +104,6 @@ static int generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result);
 static int generic_pcie_write_ivar(device_t dev, device_t child, int index,
     uintptr_t value);
-static struct resource *generic_pcie_alloc_resource(device_t dev,
-    device_t child, int type, int *rid, rman_res_t start, rman_res_t end,
-    rman_res_t count, u_int flags);
 static struct resource *generic_pcie_alloc_resource_ofw(device_t, device_t,
     int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static struct resource *generic_pcie_alloc_resource_pcie(device_t dev,
@@ -508,8 +505,8 @@ generic_pcie_release_resource(device_t dev, device_t child, int type,
 	    child, type, rid, res));
 }
 
-static struct resource *
-generic_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
+struct resource *
+pci_host_generic_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
@@ -661,7 +658,7 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(device_attach,		pci_host_generic_attach),
 	DEVMETHOD(bus_read_ivar,		generic_pcie_read_ivar),
 	DEVMETHOD(bus_write_ivar,		generic_pcie_write_ivar),
-	DEVMETHOD(bus_alloc_resource,		generic_pcie_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,		pci_host_generic_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,		generic_pcie_adjust_resource),
 	DEVMETHOD(bus_release_resource,		generic_pcie_release_resource),
 	DEVMETHOD(bus_activate_resource,	generic_pcie_activate_resource),
