@@ -99,17 +99,6 @@ platform_mp_setmaxid(void)
 	mp_maxid = ncpu - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-
-	/* I think platform_mp_setmaxid must get called first, but be safe. */
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-
-	return (mp_ncpus > 1);
-}
-
 void    
 platform_mp_start_ap(void)
 {

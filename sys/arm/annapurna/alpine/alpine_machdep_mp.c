@@ -133,12 +133,6 @@ platform_mp_setmaxid(void)
 	mp_maxid = mp_ncpus - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-	return (1);
-}
-
 static int
 alpine_get_cpu_resume_base(u_long *pbase, u_long *psize)
 {
