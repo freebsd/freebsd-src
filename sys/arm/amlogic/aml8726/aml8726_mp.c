@@ -341,21 +341,6 @@ power_on_cpu(int cpu)
 	}
 }
 
-
-void
-platform_mp_init_secondary(void)
-{
-
-	/*
-	 * Consider modifying the timer driver to support
-	 * per-cpu timers and then enabling the timer for
-	 * each AP.
-	 */
-
-	 intr_pic_init_secondary();
-}
-
-
 void
 platform_mp_setmaxid(void)
 {

@@ -67,13 +67,6 @@ __FBSDID("$FreeBSD$");
 #define	SRC_GPR1_C1ARG			0x24	/* Register for Core 1 entry arg */
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 	bus_space_handle_t scu;
