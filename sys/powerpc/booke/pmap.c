@@ -340,6 +340,8 @@ static void		mmu_booke_dumpsys_unmap(mmu_t, vm_paddr_t pa, size_t,
 static void		mmu_booke_scan_init(mmu_t);
 static vm_offset_t	mmu_booke_quick_enter_page(mmu_t mmu, vm_page_t m);
 static void		mmu_booke_quick_remove_page(mmu_t mmu, vm_offset_t addr);
+static int		mmu_booke_change_attr(mmu_t mmu, vm_offset_t addr,
+    vm_size_t sz, vm_memattr_t mode);
 
 static mmu_method_t mmu_booke_methods[] = {
 	/* pmap dispatcher interface */
@@ -392,6 +394,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_kextract,		mmu_booke_kextract),
 /*	MMUMETHOD(mmu_kremove,		mmu_booke_kremove),	*/
 	MMUMETHOD(mmu_unmapdev,		mmu_booke_unmapdev),
+	MMUMETHOD(mmu_change_attr,	mmu_booke_change_attr),
 
 	/* dumpsys() support */
 	MMUMETHOD(mmu_dumpsys_map,	mmu_booke_dumpsys_map),
@@ -419,6 +422,8 @@ tlb_calc_wimg(vm_paddr_t pa, vm_memattr_t ma)
 			return (MAS2_I);
 		case VM_MEMATTR_WRITE_THROUGH:
 			return (MAS2_W | MAS2_M);
+		case VM_MEMATTR_CACHEABLE:
+			return (MAS2_M);
 		}
 	}
 
@@ -2898,6 +2903,63 @@ mmu_booke_mincore(mmu_t mmu, pmap_t pmap, vm_offset_t addr,
 
 	/* XXX: this should be implemented at some point */
 	return (0);
+}
+
+static int
+mmu_booke_change_attr(mmu_t mmu, vm_offset_t addr, vm_size_t sz,
+    vm_memattr_t mode)
+{
+	vm_offset_t va;
+	pte_t *pte;
+	int i, j;
+
+	/* Check TLB1 mappings */
+	for (i = 0; i < tlb1_idx; i++) {
+		if (!(tlb1[i].mas1 & MAS1_VALID))
+			continue;
+		if (addr >= tlb1[i].virt && addr < tlb1[i].virt + tlb1[i].size)
+			break;
+	}
+	if (i < tlb1_idx) {
+		/* Only allow full mappings to be modified for now. */
+		/* Validate the range. */
+		for (j = i, va = addr; va < addr + sz; va += tlb1[j].size, j++) {
+			if (va != tlb1[j].virt || (sz - (va - addr) < tlb1[j].size))
+				return (EINVAL);
+		}
+		for (va = addr; va < addr + sz; va += tlb1[i].size, i++) {
+			tlb1[i].mas2 &= ~MAS2_WIMGE_MASK;
+			tlb1[i].mas2 |= tlb_calc_wimg(tlb1[i].phys, mode);
+
+			/*
+			 * Write it out to the TLB.  Should really re-sync with other
+			 * cores.
+			 */
+			tlb1_write_entry(i);
+		}
+		return (0);
+	}
+
+	/* Not in TLB1, try through pmap */
+	/* First validate the range. */
+	for (va = addr; va < addr + sz; va += PAGE_SIZE) {
+		pte = pte_find(mmu, kernel_pmap, va);
+		if (pte == NULL || !PTE_ISVALID(pte))
+			return (EINVAL);
+	}
+
+	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
+	for (va = addr; va < addr + sz; va += PAGE_SIZE) {
+		pte = pte_find(mmu, kernel_pmap, va);
+		*pte &= ~(PTE_MAS2_MASK << PTE_MAS2_SHIFT);
+		*pte |= tlb_calc_wimg(PTE_PA(pte), mode << PTE_MAS2_SHIFT);
+		tlb0_flush_entry(va);
+	}
+	tlb_miss_unlock();
+	mtx_unlock_spin(&tlbivax_mutex);
+
+	return (pte_vatopa(mmu, kernel_pmap, va));
 }
 
 /**************************************************************************/
