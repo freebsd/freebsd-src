@@ -86,6 +86,7 @@ struct a10_mmc_softc {
 	uint32_t		a10_intr;
 	uint32_t		a10_intr_wait;
 	void *			a10_intrhand;
+	bus_size_t		a10_fifo_reg;
 
 	/* Fields required for DMA access. */
 	bus_addr_t	  	a10_dma_desc_phys;
@@ -168,6 +169,21 @@ a10_mmc_attach(device_t dev)
 		bus_release_resources(dev, a10_mmc_res_spec, sc->a10_res);
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
+	}
+
+	/*
+	 * Later chips use a different FIFO offset. Unfortunately the FDT
+	 * uses the same compatible string for old and new implementations.
+	 */
+	switch (allwinner_soc_family()) {
+	case ALLWINNERSOC_SUN4I:
+	case ALLWINNERSOC_SUN5I:
+	case ALLWINNERSOC_SUN7I:
+		sc->a10_fifo_reg = A10_MMC_FIFO;
+		break;
+	default:
+		sc->a10_fifo_reg = A31_MMC_FIFO;
+		break;
 	}
 
 	/* Activate the module clock. */
@@ -513,9 +529,9 @@ a10_mmc_pio_transfer(struct a10_mmc_softc *sc, struct mmc_data *data)
 		if ((A10_MMC_READ_4(sc, A10_MMC_STAS) & bit))
 			return (1);
 		if (write)
-			A10_MMC_WRITE_4(sc, A10_MMC_FIFO, buf[i]);
+			A10_MMC_WRITE_4(sc, sc->a10_fifo_reg, buf[i]);
 		else
-			buf[i] = A10_MMC_READ_4(sc, A10_MMC_FIFO);
+			buf[i] = A10_MMC_READ_4(sc, sc->a10_fifo_reg);
 		sc->a10_resid = i + 1;
 	}
 
