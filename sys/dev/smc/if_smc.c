@@ -234,7 +234,7 @@ smc_probe(device_t dev)
 	if (sc->smc_usemem)
 		type = SYS_RES_MEMORY;
 
-	reg = bus_alloc_resource(dev, type, &rid, 0, ~0, 16, RF_ACTIVE);
+	reg = bus_alloc_resource_anywhere(dev, type, &rid, 16, RF_ACTIVE);
 	if (reg == NULL) {
 		if (bootverbose)
 			device_printf(dev,
@@ -328,15 +328,15 @@ smc_attach(device_t dev)
 		type = SYS_RES_MEMORY;
 
 	sc->smc_reg_rid = 0;
-	sc->smc_reg = bus_alloc_resource(dev, type, &sc->smc_reg_rid, 0, ~0,
+	sc->smc_reg = bus_alloc_resource_anywhere(dev, type, &sc->smc_reg_rid,
 	    16, RF_ACTIVE);
 	if (sc->smc_reg == NULL) {
 		error = ENXIO;
 		goto done;
 	}
 
-	sc->smc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->smc_irq_rid, 0,
-	    ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->smc_irq = bus_alloc_resource_anywhere(dev, SYS_RES_IRQ,
+	    &sc->smc_irq_rid, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->smc_irq == NULL) {
 		error = ENXIO;
 		goto done;
