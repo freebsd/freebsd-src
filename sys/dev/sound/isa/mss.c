@@ -1289,8 +1289,8 @@ mss_probe(device_t dev)
     	mss->irq_rid = 0;
     	mss->drq1_rid = 0;
     	mss->drq2_rid = -1;
-    	mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->io_rid,
-				      	0, ~0, 8, RF_ACTIVE);
+    	mss->io_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+    						&mss->io_rid, 8, RF_ACTIVE);
     	if (!mss->io_base) {
         	BVDDB(printf("mss_probe: no address given, try 0x%x\n", 0x530));
 		mss->io_rid = 0;
@@ -1298,8 +1298,9 @@ mss_probe(device_t dev)
 		setres = 1;
 		bus_set_resource(dev, SYS_RES_IOPORT, mss->io_rid,
     		         	0x530, 8);
-		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->io_rid,
-					  	0, ~0, 8, RF_ACTIVE);
+		mss->io_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+							&mss->io_rid,
+							8, RF_ACTIVE);
     	}
     	if (!mss->io_base) goto no;
 
@@ -2091,8 +2092,8 @@ opti_init(device_t dev, struct mss_info *mss)
 		return ENXIO;
 
 	if (!mss->io_base)
-		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
-			&mss->io_rid, 0, ~0, 8, RF_ACTIVE);
+		mss->io_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+			&mss->io_rid, 8, RF_ACTIVE);
 
 	if (!mss->io_base)	/* No hint specified, use 0x530 */
 		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
@@ -2275,8 +2276,9 @@ guspcm_attach(device_t dev)
 	if (flags & DV_F_DUAL_DMA)
 		mss->drq2_rid = 0;
 
-	mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT, &mss->conf_rid,
-					    0, ~0, 8, RF_ACTIVE);
+	mss->conf_base = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+						     &mss->conf_rid,
+						     8, RF_ACTIVE);
 
 	if (mss->conf_base == NULL) {
 		mss_release_resources(mss, dev);

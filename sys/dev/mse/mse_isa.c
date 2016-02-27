@@ -206,8 +206,8 @@ mse_isa_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 	rid = 0;
-	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-					 MSE_IOSIZE, RF_ACTIVE);
+	sc->sc_port = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+						  MSE_IOSIZE, RF_ACTIVE);
 	if (sc->sc_port == NULL)
 		return ENXIO;
 
@@ -243,8 +243,8 @@ mse_isa_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-					 MSE_IOSIZE, RF_ACTIVE);
+	sc->sc_port = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+						  MSE_IOSIZE, RF_ACTIVE);
 	if (sc->sc_port == NULL)
 		return ENXIO;
 

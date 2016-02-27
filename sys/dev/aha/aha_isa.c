@@ -120,8 +120,8 @@ aha_isa_probe(device_t dev)
 		return (ENXIO);
 
 	port_rid = 0;
-	aha->port = bus_alloc_resource(dev, SYS_RES_IOPORT, &port_rid,
-	    0ul, ~0ul, AHA_NREGS, RF_ACTIVE);
+	aha->port = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &port_rid,
+	    AHA_NREGS, RF_ACTIVE);
 
 	if (aha->port == NULL)
 		return (ENXIO);
@@ -191,8 +191,8 @@ aha_isa_attach(device_t dev)
 
 	aha->dev = dev;
 	aha->portrid = 0;
-	aha->port = bus_alloc_resource(dev, SYS_RES_IOPORT, &aha->portrid,
-	    0ul, ~0ul, AHA_NREGS, RF_ACTIVE);
+	aha->port = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+	    &aha->portrid, AHA_NREGS, RF_ACTIVE);
 	if (!aha->port) {
 		device_printf(dev, "Unable to allocate I/O ports\n");
 		goto fail;

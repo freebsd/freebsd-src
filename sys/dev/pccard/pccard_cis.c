@@ -140,7 +140,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 	 * would make cards work better, but it is easy enough to test.
 	 */
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0,
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY, &rid,
 	    PCCARD_CIS_SIZE, RF_ACTIVE | rman_make_alignment_flags(64*1024));
 	if (res == NULL) {
 		device_printf(dev, "can't alloc memory to read attributes\n");

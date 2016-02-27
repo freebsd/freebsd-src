@@ -72,8 +72,8 @@ snc_alloc_port(device_t dev, int rid)
 	struct snc_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				 0ul, ~0ul, SNEC_NREGS, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+					  SNEC_NREGS, RF_ACTIVE);
 	if (res) {
 		sc->ioport = res;
 		sc->ioport_rid = rid;
@@ -95,8 +95,8 @@ snc_alloc_memory(device_t dev, int rid)
 	struct snc_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				 0ul, ~0ul, SNEC_NMEMS, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY, &rid,
+					  SNEC_NMEMS, RF_ACTIVE);
 	if (res) {
 		sc->iomem = res;
 		sc->iomem_rid = rid;
