@@ -1780,8 +1780,8 @@ aac_check_firmware(struct aac_softc *sc)
 		rid = rman_get_rid(sc->aac_regs_res1);
 		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY, rid,
 		    sc->aac_regs_res1);
-		sc->aac_regs_res1 = bus_alloc_resource(sc->aac_dev,
-		    SYS_RES_MEMORY, &rid, 0ul, ~0ul, atu_size, RF_ACTIVE);
+		sc->aac_regs_res1 = bus_alloc_resource_anywhere(sc->aac_dev,
+		    SYS_RES_MEMORY, &rid, atu_size, RF_ACTIVE);
 		if (sc->aac_regs_res1 == NULL) {
 			sc->aac_regs_res1 = bus_alloc_resource_any(
 			    sc->aac_dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);

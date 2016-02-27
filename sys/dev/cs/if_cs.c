@@ -406,8 +406,8 @@ cs_alloc_port(device_t dev, int rid, int size)
 	struct cs_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-	    0ul, ~0ul, size, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+	    size, RF_ACTIVE);
 	if (res == NULL)
 		return (ENOENT);
 	sc->port_rid = rid;
