@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -51,10 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
-
-#if __FreeBSD_version >= 900041
-#include <sys/capsicum.h>
-#endif
 
 #include "filemon.h"
 
@@ -158,9 +155,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	int error = 0;
 	struct filemon *filemon;
 	struct proc *p;
-#if __FreeBSD_version >= 900041
 	cap_rights_t rights;
-#endif
 
 	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
 		return (error);
@@ -174,9 +169,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 			fdrop(filemon->fp, td);
 
 		error = fget_write(td, *(int *)data,
-#if __FreeBSD_version >= 900041
 		    cap_rights_init(&rights, CAP_PWRITE),
-#endif
 		    &filemon->fp);
 		if (error == 0)
 			/* Write the file header. */
