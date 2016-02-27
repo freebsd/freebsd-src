@@ -674,7 +674,7 @@ lbc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int needactivate;
 
 	/* We only support default allocations. */
-	if (start != 0ul || end != ~0ul)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
 	sc = device_get_softc(bus);
