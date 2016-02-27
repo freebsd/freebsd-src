@@ -635,7 +635,7 @@ portselector(void)
 const char *
 autobaud(void)
 {
-struct pollfd set[1];
+	struct pollfd set[1];
 	struct timespec timeout;
 	char c;
 	const char *type = "9600-baud";
