@@ -185,6 +185,9 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
+		if (filemon->fp != NULL)
+			fdrop(filemon->fp, td);
+
 #if __FreeBSD_version < 900041
 #define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), (a3))
 #else
