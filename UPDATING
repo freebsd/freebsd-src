@@ -31,7 +31,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20150107:
+20160226:
 	The ELF object manipulation tool objcopy is now provided by the
 	ELF Tool Chain project rather than by GNU binutils. It should be a
 	drop-in replacement, with the addition of arm64 support. The
