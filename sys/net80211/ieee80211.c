@@ -714,7 +714,8 @@ ieee80211_promisc(struct ieee80211vap *vap, bool on)
 	       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
 			return;
 
-	IEEE80211_LOCK(ic);
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (on) {
 		if (++ic->ic_promisc == 1)
 			ieee80211_runtask(ic, &ic->ic_promisc_task);
@@ -724,7 +725,6 @@ ieee80211_promisc(struct ieee80211vap *vap, bool on)
 		if (--ic->ic_promisc == 0)
 			ieee80211_runtask(ic, &ic->ic_promisc_task);
 	}
-	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -736,7 +736,8 @@ ieee80211_allmulti(struct ieee80211vap *vap, bool on)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
-	IEEE80211_LOCK(ic);
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (on) {
 		if (++ic->ic_allmulti == 1)
 			ieee80211_runtask(ic, &ic->ic_mcast_task);
@@ -746,7 +747,6 @@ ieee80211_allmulti(struct ieee80211vap *vap, bool on)
 		if (--ic->ic_allmulti == 0)
 			ieee80211_runtask(ic, &ic->ic_mcast_task);
 	}
-	IEEE80211_UNLOCK(ic);
 }
 
 /*
