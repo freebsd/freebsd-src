@@ -13,9 +13,9 @@
             ..
         ..
         lib
-            geom
-            ..
             casper
+            ..
+            geom
             ..
         ..
         libexec
