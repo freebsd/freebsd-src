@@ -65,7 +65,7 @@ typedef struct {
  * transmission operations throughout the stack.
  */
 typedef struct {
-	char		name[16];		/* e.g. "ath0_com_lock" */
+	char		name[16];		/* e.g. "ath0_tx_lock" */
 	struct mtx	mtx;
 } ieee80211_tx_lock_t;
 #define	IEEE80211_TX_LOCK_INIT(_ic, _name) do {				\
