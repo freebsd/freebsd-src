@@ -10,6 +10,10 @@ PROG=	athstats
 
 SRCS=	main.c athstats.c opt_ah.h ah_osdep.h
 
+CFLAGS+=	-I${.CURDIR}/../common/
+.PATH.c: ${.CURDIR}/../common/
+SRCS+=	ctrl.c
+
 CLEANFILES+=	opt_ah.h
 
 .include <../Makefile.inc>
