@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-#include <machine/vmparam.h>
 #include <machine/riscvreg.h>
 #include <machine/frame.h>
 #include <machine/pcb.h>
@@ -76,6 +75,7 @@ ASSYM(PCB_A, offsetof(struct pcb, pcb_a));
 ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
 
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
+ASSYM(PC_SPTBR, offsetof(struct pcpu, pc_sptbr));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));

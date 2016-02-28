@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "htif.h"
 
 static struct resource_spec htif_spec[] = {
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE},
 	{ -1, 0 }
 };
 
@@ -126,9 +126,9 @@ htif_intr(void *arg)
 
 	sc = arg;
 
-	htif_handle_entry(sc);
+	csr_clear(sip, SIP_SSIP);
 
-	csr_clear(sip, SIE_SSIE);
+	htif_handle_entry(sc);
 
 	return (FILTER_HANDLED);
 }

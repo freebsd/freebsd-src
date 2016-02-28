@@ -11,8 +11,10 @@ CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
 LIBADD=		sysdecode
 .if ${MK_CASPER} != "no"
-LIBADD+=	capsicum
-CFLAGS+=-DHAVE_LIBCAPSICUM
+LIBADD+=	casper
+LIBADD+=	cap_grp
+LIBADD+=	cap_pwd
+CFLAGS+=-DHAVE_LIBCASPER
 .endif
 
 NO_WERROR?=	YES

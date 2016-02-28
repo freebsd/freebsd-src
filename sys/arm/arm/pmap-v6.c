@@ -121,7 +121,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <machine/physmem.h>
-#include <machine/vmparam.h>
 
 #include <vm/vm.h>
 #include <vm/uma.h>

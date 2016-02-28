@@ -1,6 +1,15 @@
 /*-
  * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by the University of Cambridge
+ * Computer Laboratory as part of the CTSRD Project, with support from the
+ * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +45,10 @@
 #define	ALT_STACK_SIZE	128
 
 #define	PCPU_MD_FIELDS							\
-	char __pad[129]
+	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */	\
+	uint64_t pc_sptbr;		/* L0 page table base (VA) */	\
+	uint64_t pc_reg;		/* CPU MMIO base (PA) */	\
+	char __pad[109]
 
 #ifdef _KERNEL
 

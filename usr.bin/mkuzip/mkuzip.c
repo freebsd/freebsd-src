@@ -1,14 +1,32 @@
 /*
- * ----------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * <sobomax@FreeBSD.ORG> wrote this file. As long as you retain this notice you
- * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.       Maxim Sobolev
- * ----------------------------------------------------------------------------
+ * Copyright (c) 2004-2016 Maxim Sobolev <sobomax@FreeBSD.org>
+ * All rights reserved.
  *
- * $FreeBSD$
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/disk.h>
@@ -17,7 +35,7 @@
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <netinet/in.h>
-#include <zlib.h>
+#include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -26,18 +44,44 @@
 #include <string.h>
 #include <unistd.h>
 
-#define CLSTSIZE	16384
-#define DEFAULT_SUFX	".uzip"
+#include "mkuzip.h"
+#include "mkuz_cloop.h"
+#include "mkuz_blockcache.h"
+#include "mkuz_zlib.h"
+#include "mkuz_lzma.h"
 
-#define CLOOP_MAGIC_LEN 128
-static char CLOOP_MAGIC_START[] = "#!/bin/sh\n#V2.0 Format\n"
-    "(kldstat -qm g_uzip||kldload geom_uzip)>&-&&"
-    "mount_cd9660 /dev/`mdconfig -af $0`.uzip $1\nexit $?\n";
+#define DEFINE_RAW_METHOD(func, rval, args...) typedef rval (*func##_t)(args)
+
+#define DEFAULT_CLSTSIZE	16384
+
+DEFINE_RAW_METHOD(f_init, void *, uint32_t);
+DEFINE_RAW_METHOD(f_compress, void, const char *, uint32_t *);
+
+struct mkuz_format {
+	const char *magic;
+	const char *default_sufx;
+	f_init_t f_init;
+	f_compress_t f_compress;
+};
+
+static struct mkuz_format uzip_fmt = {
+	.magic = CLOOP_MAGIC_ZLIB,
+	.default_sufx = DEFAULT_SUFX_ZLIB,
+	.f_init = &mkuz_zlib_init,
+	.f_compress = &mkuz_zlib_compress
+};
+
+static struct mkuz_format ulzma_fmt = {
+        .magic = CLOOP_MAGIC_LZMA,
+        .default_sufx = DEFAULT_SUFX_LZMA,
+        .f_init = &mkuz_lzma_init,
+        .f_compress = &mkuz_lzma_compress
+};
 
 static char *readblock(int, char *, u_int32_t);
 static void usage(void);
-static void *safe_malloc(size_t);
 static void cleanup(void);
+static int  memvcmp(const void *, unsigned char, size_t);
 
 static char *cleanfile = NULL;
 
@@ -45,24 +89,24 @@ int main(int argc, char **argv)
 {
 	char *iname, *oname, *obuf, *ibuf;
 	uint64_t *toc;
-	int fdr, fdw, i, opt, verbose, tmp;
+	int fdr, fdw, i, opt, verbose, no_zcomp, tmp, en_dedup;
 	struct iovec iov[2];
 	struct stat sb;
-	uLongf destlen;
-	uint64_t offset;
-	struct cloop_header {
-		char magic[CLOOP_MAGIC_LEN];    /* cloop magic */
-		uint32_t blksz;                 /* block size */
-		uint32_t nblocks;               /* number of blocks */
-	} hdr;
+	uint32_t destlen;
+	uint64_t offset, last_offset;
+	struct cloop_header hdr;
+	struct mkuz_blkcache_hit *chit;
+	const struct mkuz_format *handler;
 
 	memset(&hdr, 0, sizeof(hdr));
-	hdr.blksz = CLSTSIZE;
-	strcpy(hdr.magic, CLOOP_MAGIC_START);
+	hdr.blksz = DEFAULT_CLSTSIZE;
 	oname = NULL;
 	verbose = 0;
+	no_zcomp = 0;
+	en_dedup = 0;
+	handler = &uzip_fmt;
 
-	while((opt = getopt(argc, argv, "o:s:v")) != -1) {
+	while((opt = getopt(argc, argv, "o:s:vZdL")) != -1) {
 		switch(opt) {
 		case 'o':
 			oname = optarg;
@@ -75,20 +119,23 @@ int main(int argc, char **argv)
 				    optarg);
 				/* Not reached */
 			}
-			if (tmp % DEV_BSIZE != 0) {
-				errx(1, "cluster size should be multiple of %d",
-				    DEV_BSIZE);
-				/* Not reached */
-			}
-			if (compressBound(tmp) > MAXPHYS) {
-				errx(1, "cluster size is too large");
-				    /* Not reached */
-			}
 			hdr.blksz = tmp;
 			break;
 
 		case 'v':
 			verbose = 1;
+			break;
+
+		case 'Z':
+			no_zcomp = 1;
+			break;
+
+		case 'd':
+			en_dedup = 1;
+			break;
+
+		case 'L':
+			handler = &ulzma_fmt;
 			break;
 
 		default:
@@ -104,17 +151,26 @@ int main(int argc, char **argv)
 		/* Not reached */
 	}
 
+	strcpy(hdr.magic, handler->magic);
+
+	if (en_dedup != 0) {
+		hdr.magic[CLOOP_OFS_VERSN] = CLOOP_MAJVER_3;
+		hdr.magic[CLOOP_OFS_COMPR] =
+		    tolower(hdr.magic[CLOOP_OFS_COMPR]);
+	}
+
+	obuf = handler->f_init(hdr.blksz);
+
 	iname = argv[0];
 	if (oname == NULL) {
-		asprintf(&oname, "%s%s", iname, DEFAULT_SUFX);
+		asprintf(&oname, "%s%s", iname, handler->default_sufx);
 		if (oname == NULL) {
 			err(1, "can't allocate memory");
 			/* Not reached */
 		}
 	}
 
-	obuf = safe_malloc(compressBound(hdr.blksz));
-	ibuf = safe_malloc(hdr.blksz);
+	ibuf = mkuz_safe_malloc(hdr.blksz);
 
 	signal(SIGHUP, exit);
 	signal(SIGINT, exit);
@@ -152,7 +208,7 @@ int main(int argc, char **argv)
 			"of %d, padding data\n", hdr.blksz);
 		hdr.nblocks++;
 	}
-	toc = safe_malloc((hdr.nblocks + 1) * sizeof(*toc));
+	toc = mkuz_safe_malloc((hdr.nblocks + 1) * sizeof(*toc));
 
 	fdw = open(oname, O_WRONLY | O_TRUNC | O_CREAT,
 		   S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
@@ -177,40 +233,73 @@ int main(int argc, char **argv)
 		    "%u, index length %zu bytes\n", sb.st_size,
 		    hdr.nblocks, iov[1].iov_len);
 
+	last_offset = 0;
 	for(i = 0; i == 0 || ibuf != NULL; i++) {
 		ibuf = readblock(fdr, ibuf, hdr.blksz);
 		if (ibuf != NULL) {
-			destlen = compressBound(hdr.blksz);
-			if (compress2(obuf, &destlen, ibuf, hdr.blksz,
-			    Z_BEST_COMPRESSION) != Z_OK) {
-				errx(1, "can't compress data: compress2() "
-				    "failed");
-				/* Not reached */
+			if (no_zcomp == 0 && \
+			    memvcmp(ibuf, '\0', hdr.blksz) != 0) {
+				/* All zeroes block */
+				destlen = 0;
+			} else {
+				handler->f_compress(ibuf, &destlen);
 			}
-			if (verbose != 0)
-				fprintf(stderr, "cluster #%d, in %u bytes, "
-				    "out %lu bytes\n", i, hdr.blksz, destlen);
 		} else {
 			destlen = DEV_BSIZE - (offset % DEV_BSIZE);
 			memset(obuf, 0, destlen);
 			if (verbose != 0)
-				fprintf(stderr, "padding data with %lu bytes so "
-				    "that file size is multiple of %d\n", destlen,
-				    DEV_BSIZE);
+				fprintf(stderr, "padding data with %lu bytes "
+				    "so that file size is multiple of %d\n",
+				    (u_long)destlen, DEV_BSIZE);
 		}
-		if (write(fdw, obuf, destlen) < 0) {
-			err(1, "write(%s)", oname);
-			/* Not reached */
+		if (destlen > 0 && en_dedup != 0) {
+			chit = mkuz_blkcache_regblock(fdw, i, offset, destlen,
+			    obuf);
+			/*
+			 * There should be at least one non-empty block
+			 * between us and the backref'ed offset, otherwise
+			 * we won't be able to parse that sequence correctly
+			 * as it would be indistinguishible from another
+			 * empty block.
+			 */
+			if (chit != NULL && chit->offset == last_offset) {
+				chit = NULL;
+			}
+		} else {
+			chit = NULL;
 		}
-		toc[i] = htobe64(offset);
-		offset += destlen;
+		if (chit != NULL) {
+			toc[i] = htobe64(chit->offset);
+		} else {
+			if (destlen > 0 && write(fdw, obuf, destlen) < 0) {
+				err(1, "write(%s)", oname);
+				/* Not reached */
+			}
+			toc[i] = htobe64(offset);
+			last_offset = offset;
+			offset += destlen;
+		}
+		if (ibuf != NULL && verbose != 0) {
+			fprintf(stderr, "cluster #%d, in %u bytes, "
+			    "out len=%lu offset=%lu", i, hdr.blksz,
+			    chit == NULL ? (u_long)destlen : 0,
+			    (u_long)be64toh(toc[i]));
+			if (chit != NULL) {
+				fprintf(stderr, " (backref'ed to #%d)",
+				    chit->blkno);
+			}
+			fprintf(stderr, "\n");
+
+		}
 	}
 	close(fdr);
 
 	if (verbose != 0)
 		fprintf(stderr, "compressed data to %ju bytes, saved %lld "
-		    "bytes, %.2f%% decrease.\n", offset, (long long)(sb.st_size - offset),
-		    100.0 * (long long)(sb.st_size - offset) / (float)sb.st_size);
+		    "bytes, %.2f%% decrease.\n", offset,
+		    (long long)(sb.st_size - offset),
+		    100.0 * (long long)(sb.st_size - offset) /
+		    (float)sb.st_size);
 
 	/* Convert to big endian */
 	hdr.blksz = htonl(hdr.blksz);
@@ -248,12 +337,13 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: mkuzip [-v] [-o outfile] [-s cluster_size] infile\n");
+	fprintf(stderr, "usage: mkuzip [-vZdL] [-o outfile] [-s cluster_size] "
+	    "infile\n");
 	exit(1);
 }
 
-static void *
-safe_malloc(size_t size)
+void *
+mkuz_safe_malloc(size_t size)
 {
 	void *retval;
 
@@ -271,4 +361,13 @@ cleanup(void)
 
 	if (cleanfile != NULL)
 		unlink(cleanfile);
+}
+
+static int
+memvcmp(const void *memory, unsigned char val, size_t size)
+{
+    const u_char *mm;
+
+    mm = (const u_char *)memory;
+    return (*mm == val) && memcmp(mm, mm + 1, size - 1) == 0;
 }

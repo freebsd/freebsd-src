@@ -17,10 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-ftp.So: ftperr.h
-ftp.o: ftperr.h
-ftp.po: ftperr.h
-http.So: httperr.h
-http.o: httperr.h
-http.po: httperr.h
 .endif

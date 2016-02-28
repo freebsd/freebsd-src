@@ -5,7 +5,6 @@
 
 SUBDIR=	${_atf} \
 	${_atrun} \
-	${_casper} \
 	${_comsat} \
 	${_dma} \
 	getty \
@@ -36,10 +35,6 @@ _atrun=		atrun
 
 .if ${MK_BOOTPD} != "no"
 SUBDIR+=	bootpd
-.endif
-
-.if ${MK_CASPER} != "no"
-_casper=	casper
 .endif
 
 .if ${MK_FINGER} != "no"

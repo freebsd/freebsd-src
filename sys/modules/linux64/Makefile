@@ -27,9 +27,9 @@ linux_assym.h: linux_genassym.o
 
 linux_locore.o: linux_locore.s linux_assym.h
 	${CC} -x assembler-with-cpp -DLOCORE -shared -mcmodel=small	\
-	-pipe -I. -I${SYSDIR} -Werror -Wall -fno-common -nostdinc 	\
+	-pipe -I. -I${SYSDIR} -Werror -Wall -fno-common -fPIC -nostdinc	\
 	-Wl,-T${.CURDIR}/../../${MACHINE_CPUARCH}/linux/${VDSO}.lds.s	\
-	-Wl,-soname=${VDSO}.so.1,-fPIC,-warn-common -nostdlib		\
+	-Wl,-soname=${VDSO}.so.1,-warn-common -nostdlib			\
 	    ${.IMPSRC} -o ${.TARGET}
 
 ${VDSO}.so: linux_locore.o

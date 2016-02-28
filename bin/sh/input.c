@@ -212,8 +212,6 @@ preadbuffer(void)
 	}
 	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
 		return PEOF;
-	flushout(&output);
-	flushout(&errout);
 
 again:
 	if (parselleft <= 0) {
@@ -244,7 +242,8 @@ again:
 		parsenleft = parselleft;
 		parselleft = 0;
 	} else /* *q == '\n' */ {
-		parsenleft = q - parsenextc + 1;
+		q++;
+		parsenleft = q - parsenextc;
 		parselleft -= parsenleft;
 	}
 	parsenleft--;

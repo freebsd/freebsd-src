@@ -66,7 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#include <netinet/tcp_lro.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -193,6 +195,9 @@ nicvf_attach(device_t dev)
 	nic->pnicvf = nic;
 
 	NICVF_CORE_LOCK_INIT(nic);
+	/* Enable HW TSO on Pass2 */
+	if (!pass1_silicon(dev))
+		nic->hw_tso = TRUE;
 
 	rid = VNIC_VF_REG_RID;
 	nic->reg_base = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -347,18 +352,33 @@ nicvf_setup_ifnet(struct nicvf *nic)
 	if_setinitfn(ifp, nicvf_if_init);
 	if_setgetcounterfn(ifp, nicvf_if_getcounter);
 
-	/* Set send queue len to number to default maximum */
-	if_setsendqlen(ifp, IFQ_MAXLEN);
-	if_setsendqready(ifp);
 	if_setmtu(ifp, ETHERMTU);
 
-	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
-#ifdef DEVICE_POLLING
-#error "DEVICE_POLLING not supported in VNIC driver yet"
-	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
-#endif
+	/* Reset caps */
+	if_setcapabilities(ifp, 0);
+
+	/* Set the default values */
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_LRO, 0);
+	if (nic->hw_tso) {
+		/* TSO */
+		if_setcapabilitiesbit(ifp, IFCAP_TSO4, 0);
+		/* TSO parameters */
+		ifp->if_hw_tsomax = NICVF_TSO_MAXSIZE;
+		ifp->if_hw_tsomaxsegcount = NICVF_TSO_NSEGS;
+		ifp->if_hw_tsomaxsegsize = MCLBYTES;
+	}
+	/* IP/TCP/UDP HW checksums */
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS, 0);
+	/*
+	 * HW offload enable
+	 */
+	if_clearhwassist(ifp);
+	if_sethwassistbits(ifp, (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP), 0);
+	if (nic->hw_tso)
+		if_sethwassistbits(ifp, (CSUM_TSO), 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
-	if_setmtu(ifp, ETHERMTU);
 
 	return (0);
 }
@@ -397,9 +417,11 @@ static int
 nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct nicvf *nic;
+	struct rcv_queue *rq;
 	struct ifreq *ifr;
 	uint32_t flags;
 	int mask, err;
+	int rq_idx;
 #if defined(INET) || defined(INET6)
 	struct ifaddr *ifa;
 	boolean_t avoid_reset = FALSE;
@@ -500,6 +522,36 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* No work to do except acknowledge the change took. */
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
 		}
+		if (mask & IFCAP_TXCSUM)
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+		if (mask & IFCAP_RXCSUM)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_TSO4) && nic->hw_tso)
+			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_LRO) {
+			/*
+			 * Lock the driver for a moment to avoid
+			 * mismatch in per-queue settings.
+			 */
+			NICVF_CORE_LOCK(nic);
+			ifp->if_capenable ^= IFCAP_LRO;
+			if ((if_getdrvflags(nic->ifp) & IFF_DRV_RUNNING) != 0) {
+				/*
+				 * Now disable LRO for subsequent packets.
+				 * Atomicity of this change is not necessary
+				 * as we don't need precise toggle of this
+				 * feature for all threads processing the
+				 * completion queue.
+				 */
+				for (rq_idx = 0;
+				    rq_idx < nic->qs->rq_cnt; rq_idx++) {
+					rq = &nic->qs->rq[rq_idx];
+					rq->lro_enabled = !rq->lro_enabled;
+				}
+			}
+			NICVF_CORE_UNLOCK(nic);
+		}
+
 		break;
 
 	default:
@@ -591,6 +643,7 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 	struct nicvf *nic = if_getsoftc(ifp);
 	struct queue_set *qs = nic->qs;
 	struct snd_queue *sq;
+	struct mbuf *mtmp;
 	int qidx;
 	int err = 0;
 
@@ -610,18 +663,33 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 
 	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING) {
-		if (mbuf != NULL)
-			err = drbr_enqueue(ifp, sq->br, mbuf);
+		err = drbr_enqueue(ifp, sq->br, mbuf);
 		return (err);
 	}
 
-	if (mbuf != NULL) {
+	if (mbuf->m_next != NULL &&
+	    (mbuf->m_pkthdr.csum_flags &
+	    (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)) != 0) {
+		if (M_WRITABLE(mbuf) == 0) {
+			mtmp = m_dup(mbuf, M_NOWAIT);
+			m_freem(mbuf);
+			if (mtmp == NULL)
+				return (ENOBUFS);
+			mbuf = mtmp;
+		}
+	}
+
+	if (NICVF_TX_TRYLOCK(sq) != 0) {
+		err = nicvf_tx_mbuf_locked(sq, mbuf);
+		NICVF_TX_UNLOCK(sq);
+		return (err);
+	} else {
 		err = drbr_enqueue(ifp, sq->br, mbuf);
 		if (err != 0)
 			return (err);
-	}
 
-	taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
+		taskqueue_enqueue(sq->snd_taskq, &sq->snd_task);
+	}
 
 	return (0);
 }

@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun4i-a10-pinctrl", 1},
 	{"allwinner,sun7i-a20-pinctrl", 1},
+	{"allwinner,sun6i-a31-pinctrl", 1},
+	{"allwinner,sun6i-a31s-pinctrl", 1},
 	{NULL,             0}
 };
 
@@ -104,6 +106,16 @@ extern const struct allwinner_padconf a10_padconf;
 /* Defined in a20_padconf.c */
 #ifdef SOC_ALLWINNER_A20
 extern const struct allwinner_padconf a20_padconf;
+#endif
+
+/* Defined in a31_padconf.c */
+#ifdef SOC_ALLWINNER_A31
+extern const struct allwinner_padconf a31_padconf;
+#endif
+
+/* Defined in a31s_padconf.c */
+#ifdef SOC_ALLWINNER_A31S
+extern const struct allwinner_padconf a31s_padconf;
 #endif
 
 #define	A10_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -566,6 +578,16 @@ a10_gpio_attach(device_t dev)
 #ifdef SOC_ALLWINNER_A20
 	case ALLWINNERSOC_A20:
 		sc->padconf = &a20_padconf;
+		break;
+#endif
+#ifdef SOC_ALLWINNER_A31
+	case ALLWINNERSOC_A31:
+		sc->padconf = &a31_padconf;
+		break;
+#endif
+#ifdef SOC_ALLWINNER_A31S
+	case ALLWINNERSOC_A31S:
+		sc->padconf = &a31s_padconf;
 		break;
 #endif
 	default:

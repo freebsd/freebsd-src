@@ -263,8 +263,19 @@ static struct tcp_function_block tcp_def_funcblk = {
 	0
 };
 
+int t_functions_inited = 0;
 struct tcp_funchead t_functions;
 static struct tcp_function_block *tcp_func_set_ptr = &tcp_def_funcblk;
+
+static void
+init_tcp_functions(void)
+{
+	if (t_functions_inited == 0) {
+		TAILQ_INIT(&t_functions);
+		rw_init_flags(&tcp_function_lock, "tcp_func_lock" , 0);
+		t_functions_inited = 1;
+	}
+}
 
 static struct tcp_function_block *
 find_tcp_functions_locked(struct tcp_function_set *fs)
@@ -503,6 +514,9 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
 	struct tcp_function *n;
 	struct tcp_function_set fs;
 
+	if (t_functions_inited == 0) {
+		init_tcp_functions();
+	}
 	if ((blk->tfb_tcp_output == NULL) ||
 	    (blk->tfb_tcp_do_segment == NULL) ||
 	    (blk->tfb_tcp_ctloutput == NULL) ||
@@ -681,8 +695,7 @@ tcp_init(void)
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
 	/* Setup the tcp function block list */
-	TAILQ_INIT(&t_functions);
-	rw_init_flags(&tcp_function_lock, "tcp_func_lock" , 0);
+	init_tcp_functions();
 	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
 
 	if (tcp_soreceive_stream) {

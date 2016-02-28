@@ -10,7 +10,7 @@ arm/allwinner/a10_ehci.c		optional	ehci
 arm/allwinner/a10_gpio.c		optional	gpio
 arm/allwinner/a10_mmc.c			optional	mmc
 arm/allwinner/a10_sramc.c		standard
-arm/allwinner/a10_wdog.c		standard
+arm/allwinner/aw_wdog.c			standard
 arm/allwinner/a20/a20_cpu_cfg.c 	standard
 arm/allwinner/allwinner_machdep.c	standard
 arm/allwinner/axp209.c			optional	axp209
@@ -18,3 +18,8 @@ arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/sunxi_dma_if.m		standard
 dev/iicbus/twsi/a10_twsi.c		optional	twsi
 #arm/allwinner/console.c		standard
+
+arm/allwinner/a10_fb.c			optional	vt
+arm/allwinner/a10_hdmi.c		optional	hdmi
+arm/allwinner/a10_hdmiaudio.c		optional	hdmi sound
+arm/arm/hdmi_if.m			optional	hdmi

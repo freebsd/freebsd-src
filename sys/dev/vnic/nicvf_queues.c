@@ -29,6 +29,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitset.h>
@@ -64,6 +67,16 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/ifq.h>
 
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/sctp.h>
+#include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
+#include <netinet/udp.h>
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -85,7 +98,6 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_NICVF);
 
 static void nicvf_free_snd_queue(struct nicvf *, struct snd_queue *);
-static int nicvf_tx_mbuf_locked(struct snd_queue *, struct mbuf *);
 static struct mbuf * nicvf_get_rcv_mbuf(struct nicvf *, struct cqe_rx_t *);
 static void nicvf_sq_disable(struct nicvf *, int);
 static void nicvf_sq_enable(struct nicvf *, struct snd_queue *, int);
@@ -624,10 +636,12 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
     struct cqe_rx_t *cqe_rx, int cqe_type)
 {
 	struct mbuf *mbuf;
+	struct rcv_queue *rq;
 	int rq_idx;
 	int err = 0;
 
 	rq_idx = cqe_rx->rq_idx;
+	rq = &nic->qs->rq[rq_idx];
 
 	/* Check for errors */
 	err = nicvf_check_cqe_rx_errs(nic, cq, cqe_rx);
@@ -646,6 +660,19 @@ nicvf_rcv_pkt_handler(struct nicvf *nic, struct cmp_queue *cq,
 		return (0);
 	}
 
+	if (rq->lro_enabled &&
+	    ((cqe_rx->l3_type == L3TYPE_IPV4) && (cqe_rx->l4_type == L4TYPE_TCP)) &&
+	    (mbuf->m_pkthdr.csum_flags & (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) ==
+            (CSUM_DATA_VALID | CSUM_PSEUDO_HDR)) {
+		/*
+		 * At this point it is known that there are no errors in the
+		 * packet. Attempt to LRO enqueue. Send to stack if no resources
+		 * or enqueue error.
+		 */
+		if ((rq->lro.lro_cnt != 0) &&
+		    (tcp_lro_rx(&rq->lro, mbuf, 0) == 0))
+			return (0);
+	}
 	/*
 	 * Push this packet to the stack later to avoid
 	 * unlocking completion task in the middle of work.
@@ -713,7 +740,11 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 	int cqe_count, cqe_head;
 	struct queue_set *qs = nic->qs;
 	struct cmp_queue *cq = &qs->cq[cq_idx];
+	struct rcv_queue *rq;
 	struct cqe_rx_t *cq_desc;
+	struct lro_ctrl	*lro;
+	struct lro_entry *queued;
+	int rq_idx;
 	int cmp_err;
 
 	NICVF_CMP_LOCK(cq);
@@ -736,6 +767,8 @@ nicvf_cq_intr_handler(struct nicvf *nic, uint8_t cq_idx)
 		cq_desc = (struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head);
 		cqe_head++;
 		cqe_head &= (cq->dmem.q_len - 1);
+		/* Prefetch next CQ descriptor */
+		__builtin_prefetch((struct cqe_rx_t *)GET_CQ_DESC(cq, cqe_head));
 
 		dprintf(nic->dev, "CQ%d cq_desc->cqe_type %d\n", cq_idx,
 		    cq_desc->cqe_type);
@@ -788,6 +821,17 @@ done:
 		if_setdrvflagbits(nic->ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	}
 out:
+	/*
+	 * Flush any outstanding LRO work
+	 */
+	rq_idx = cq_idx;
+	rq = &nic->qs->rq[rq_idx];
+	lro = &rq->lro;
+	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
+		SLIST_REMOVE_HEAD(&lro->lro_active, next);
+		tcp_lro_flush(lro, queued);
+	}
+
 	NICVF_CMP_UNLOCK(cq);
 
 	ifp = nic->ifp;
@@ -896,7 +940,7 @@ nicvf_init_cmp_queue(struct nicvf *nic, struct cmp_queue *cq, int q_len,
 	}
 
 	cq->desc = cq->dmem.base;
-	cq->thresh = CMP_QUEUE_CQE_THRESH;
+	cq->thresh = pass1_silicon(nic->dev) ? 0 : CMP_QUEUE_CQE_THRESH;
 	cq->nic = nic;
 	cq->idx = qidx;
 	nic->cq_coalesce_usecs = (CMP_QUEUE_TIMER_THRESH * 0.05) - 1;
@@ -1026,8 +1070,8 @@ nicvf_init_snd_queue(struct nicvf *nic, struct snd_queue *sq, int q_len,
 	    BUS_SPACE_MAXADDR,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL, NULL,				/* filtfunc, filtfuncarg */
-	    NICVF_TXBUF_MAXSIZE,		/* maxsize */
-	    NICVF_TXBUF_NSEGS,			/* nsegments */
+	    NICVF_TSO_MAXSIZE,			/* maxsize */
+	    NICVF_TSO_NSEGS,			/* nsegments */
 	    MCLBYTES,				/* maxsegsize */
 	    0,					/* flags */
 	    NULL, NULL,				/* lockfunc, lockfuncarg */
@@ -1228,16 +1272,37 @@ nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	union nic_mbx mbx = {};
 	struct rcv_queue *rq;
 	struct rq_cfg rq_cfg;
+	struct ifnet *ifp;
+	struct lro_ctrl	*lro;
+
+	ifp = nic->ifp;
 
 	rq = &qs->rq[qidx];
 	rq->enable = enable;
+
+	lro = &rq->lro;
 
 	/* Disable receive queue */
 	nicvf_queue_reg_write(nic, NIC_QSET_RQ_0_7_CFG, qidx, 0);
 
 	if (!rq->enable) {
 		nicvf_reclaim_rcv_queue(nic, qs, qidx);
+		/* Free LRO memory */
+		tcp_lro_free(lro);
+		rq->lro_enabled = FALSE;
 		return;
+	}
+
+	/* Configure LRO if enabled */
+	rq->lro_enabled = FALSE;
+	if ((if_getcapenable(ifp) & IFCAP_LRO) != 0) {
+		if (tcp_lro_init(lro) != 0) {
+			device_printf(nic->dev,
+			    "Failed to initialize LRO for RXQ%d\n", qidx);
+		} else {
+			rq->lro_enabled = TRUE;
+			lro->ifp = nic->ifp;
+		}
 	}
 
 	rq->cq_qs = qs->vnic_id;
@@ -1658,11 +1723,21 @@ nicvf_sq_free_used_descs(struct nicvf *nic, struct snd_queue *sq, int qidx)
  * Add SQ HEADER subdescriptor.
  * First subdescriptor for every send descriptor.
  */
-static __inline void
+static __inline int
 nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 			 int subdesc_cnt, struct mbuf *mbuf, int len)
 {
+	struct nicvf *nic;
 	struct sq_hdr_subdesc *hdr;
+	struct ether_vlan_header *eh;
+#ifdef INET
+	struct ip *ip;
+	struct tcphdr *th;
+#endif
+	uint16_t etype;
+	int ehdrlen, iphlen, poff;
+
+	nic = sq->nic;
 
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
 	sq->snd_buff[qentry].mbuf = mbuf;
@@ -1675,7 +1750,103 @@ nicvf_sq_add_hdr_subdesc(struct snd_queue *sq, int qentry,
 	hdr->subdesc_cnt = subdesc_cnt;
 	hdr->tot_len = len;
 
-	/* ARM64TODO: Implement HW checksums calculation */
+	eh = mtod(mbuf, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		etype = ntohs(eh->evl_proto);
+	} else {
+		ehdrlen = ETHER_HDR_LEN;
+		etype = ntohs(eh->evl_encap_proto);
+	}
+
+	switch (etype) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		/* ARM64TODO: Add support for IPv6 */
+		hdr->csum_l3 = 0;
+		sq->snd_buff[qentry].mbuf = NULL;
+		return (ENXIO);
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		if (mbuf->m_len < ehdrlen + sizeof(struct ip)) {
+			mbuf = m_pullup(mbuf, ehdrlen + sizeof(struct ip));
+			sq->snd_buff[qentry].mbuf = mbuf;
+			if (mbuf == NULL)
+				return (ENOBUFS);
+		}
+
+		ip = (struct ip *)(mbuf->m_data + ehdrlen);
+		ip->ip_sum = 0;
+		iphlen = ip->ip_hl << 2;
+		poff = ehdrlen + iphlen;
+
+		if (mbuf->m_pkthdr.csum_flags != 0) {
+			hdr->csum_l3 = 1; /* Enable IP csum calculation */
+			switch (ip->ip_p) {
+			case IPPROTO_TCP:
+				if ((mbuf->m_pkthdr.csum_flags & CSUM_TCP) == 0)
+					break;
+
+				if (mbuf->m_len < (poff + sizeof(struct tcphdr))) {
+					mbuf = m_pullup(mbuf, poff + sizeof(struct tcphdr));
+					sq->snd_buff[qentry].mbuf = mbuf;
+					if (mbuf == NULL)
+						return (ENOBUFS);
+				}
+				hdr->csum_l4 = SEND_L4_CSUM_TCP;
+				break;
+			case IPPROTO_UDP:
+				if ((mbuf->m_pkthdr.csum_flags & CSUM_UDP) == 0)
+					break;
+
+				if (mbuf->m_len < (poff + sizeof(struct udphdr))) {
+					mbuf = m_pullup(mbuf, poff + sizeof(struct udphdr));
+					sq->snd_buff[qentry].mbuf = mbuf;
+					if (mbuf == NULL)
+						return (ENOBUFS);
+				}
+				hdr->csum_l4 = SEND_L4_CSUM_UDP;
+				break;
+			case IPPROTO_SCTP:
+				if ((mbuf->m_pkthdr.csum_flags & CSUM_SCTP) == 0)
+					break;
+
+				if (mbuf->m_len < (poff + sizeof(struct sctphdr))) {
+					mbuf = m_pullup(mbuf, poff + sizeof(struct sctphdr));
+					sq->snd_buff[qentry].mbuf = mbuf;
+					if (mbuf == NULL)
+						return (ENOBUFS);
+				}
+				hdr->csum_l4 = SEND_L4_CSUM_SCTP;
+				break;
+			default:
+				break;
+			}
+			hdr->l3_offset = ehdrlen;
+			hdr->l4_offset = ehdrlen + iphlen;
+		}
+
+		if ((mbuf->m_pkthdr.tso_segsz != 0) && nic->hw_tso) {
+			/*
+			 * Extract ip again as m_data could have been modified.
+			 */
+			ip = (struct ip *)(mbuf->m_data + ehdrlen);
+			th = (struct tcphdr *)((caddr_t)ip + iphlen);
+
+			hdr->tso = 1;
+			hdr->tso_start = ehdrlen + iphlen + (th->th_off * 4);
+			hdr->tso_max_paysize = mbuf->m_pkthdr.tso_segsz;
+			hdr->inner_l3_offset = ehdrlen - 2;
+			nic->drv_stats.tx_tso++;
+		}
+		break;
+#endif
+	default:
+		hdr->csum_l3 = 0;
+	}
+
+	return (0);
 }
 
 /*
@@ -1698,14 +1869,15 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 }
 
 /* Put an mbuf to a SQ for packet transfer. */
-static int
+int
 nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 {
 	bus_dma_segment_t segs[256];
+	struct nicvf *nic;
 	struct snd_buff *snd_buff;
 	size_t seg;
 	int nsegs, qentry;
-	int subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT - 1;
+	int subdesc_cnt;
 	int err;
 
 	NICVF_TX_LOCK_ASSERT(sq);
@@ -1723,7 +1895,11 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 	}
 
 	/* Set how many subdescriptors is required */
-	subdesc_cnt += nsegs;
+	nic = sq->nic;
+	if (mbuf->m_pkthdr.tso_segsz != 0 && nic->hw_tso)
+		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT;
+	else
+		subdesc_cnt = MIN_SQ_DESC_PER_PKT_XMIT + nsegs - 1;
 
 	if (subdesc_cnt > sq->free_cnt) {
 		/* ARM64TODO: Add mbuf defragmentation if we lack descriptors */
@@ -1734,8 +1910,12 @@ nicvf_tx_mbuf_locked(struct snd_queue *sq, struct mbuf *mbuf)
 	qentry = nicvf_get_sq_desc(sq, subdesc_cnt);
 
 	/* Add SQ header subdesc */
-	nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, mbuf,
+	err = nicvf_sq_add_hdr_subdesc(sq, qentry, subdesc_cnt - 1, mbuf,
 	    mbuf->m_pkthdr.len);
+	if (err != 0) {
+		bus_dmamap_unload(sq->snd_buff_dmat, snd_buff->dmap);
+		return (err);
+	}
 
 	/* Add SQ gather subdescs */
 	for (seg = 0; seg < nsegs; seg++) {
@@ -1806,6 +1986,25 @@ nicvf_get_rcv_mbuf(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 		m_fixhdr(mbuf);
 		mbuf->m_pkthdr.flowid = cqe_rx->rq_idx;
 		M_HASHTYPE_SET(mbuf, M_HASHTYPE_OPAQUE);
+		if (__predict_true((if_getcapenable(nic->ifp) & IFCAP_RXCSUM) != 0)) {
+			/*
+			 * HW by default verifies IP & TCP/UDP/SCTP checksums
+			 */
+
+			/* XXX: Do we need to include IP with options too? */
+			if (__predict_true(cqe_rx->l3_type == L3TYPE_IPV4 ||
+			    cqe_rx->l3_type == L3TYPE_IPV6)) {
+				mbuf->m_pkthdr.csum_flags =
+				    (CSUM_IP_CHECKED | CSUM_IP_VALID);
+			}
+			if (cqe_rx->l4_type == L4TYPE_TCP ||
+			    cqe_rx->l4_type == L4TYPE_UDP ||
+			    cqe_rx->l4_type == L4TYPE_SCTP) {
+				mbuf->m_pkthdr.csum_flags |=
+				    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+				mbuf->m_pkthdr.csum_data = htons(0xffff);
+			}
+		}
 	}
 
 	return (mbuf);

@@ -334,7 +334,7 @@ storvsc_handle_sc_creation(void *context)
 	int ret = 0;
 
 	new_channel = (hv_vmbus_channel *)context;
-	device = new_channel->primary_channel->device;
+	device = new_channel->device;
 	sc = get_stor_device(device, TRUE);
 	if (sc == NULL)
 		return;
@@ -810,8 +810,8 @@ hv_storvsc_rescan_target(struct storvsc_softc *sc)
 
 	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid, targetid,
 	    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		printf("unable to create path for rescan, pathid: %d,"
-		    "targetid: %d\n", pathid, targetid);
+		printf("unable to create path for rescan, pathid: %u,"
+		    "targetid: %u\n", pathid, targetid);
 		xpt_free_ccb(ccb);
 		return;
 	}
@@ -837,12 +837,7 @@ hv_storvsc_on_channel_callback(void *context)
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
 
-	if (channel->primary_channel != NULL){
-		device = channel->primary_channel->device;
-	} else {
-		device = channel->device;
-	}
-
+	device = channel->device;
 	KASSERT(device, ("device is NULL"));
 
 	sc = get_stor_device(device, FALSE);
@@ -1153,9 +1148,7 @@ storvsc_detach(device_t dev)
 	struct hv_sgl_node *sgl_node = NULL;
 	int j = 0;
 
-	mtx_lock(&hv_device->channel->inbound_lock);
 	sc->hs_destroy = TRUE;
-	mtx_unlock(&hv_device->channel->inbound_lock);
 
 	/*
 	 * At this point, all outbound traffic should be disabled. We

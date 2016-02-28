@@ -61,11 +61,10 @@ _MKDEPCC:=	${CC:N${CCACHE_BIN}}
 _MKDEPCC+=	${DEPFLAGS}
 .endif
 MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
-DEPENDFILE?=	.depend
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE= ${DEPENDFILE}
 .endif
-CLEANDEPENDFILES=	${DEPENDFILE} ${DEPENDFILE}.*
+CLEANDEPENDFILES+=	${DEPENDFILE} ${DEPENDFILE}.*
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
@@ -84,7 +83,7 @@ tags: ${SRCS}
 # Skip reading .depend when not needed to speed up tree-walks
 # and simple lookups.
 .if !empty(.MAKEFLAGS:M-V${_V_READ_DEPEND}) || make(obj) || make(clean*) || \
-    make(install*)
+    make(install*) || make(analyze)
 _SKIP_READ_DEPEND=	1
 .if ${MK_DIRDEPS_BUILD} == "no"
 .MAKE.DEPENDFILE=	/dev/null
@@ -94,19 +93,21 @@ _SKIP_READ_DEPEND=	1
 .if defined(SRCS)
 CLEANFILES?=
 
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .for _S in ${SRCS:N*.[dhly]}
-${_S:R}.o: ${_S}
-.endfor
+OBJS_DEPEND_GUESS.${_S:R}.o=	${_S}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_S:R}.o: ${OBJS_DEPEND_GUESS.${_S:R}.o}
 .endif
+.endfor
 
 # Lexical analyzers
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
-${_LC:R}.o: ${_LC}
+OBJS_DEPEND_GUESS.${_LC:R}.o=	${_LC}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_LC:R}.o: ${OBJS_DEPEND_GUESS.${_LC:R}.o}
 .endif
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
 CLEANFILES+= ${_LC}
@@ -136,8 +137,9 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
-${_YC:R}.o: ${_YC}
+OBJS_DEPEND_GUESS.${_YC:R}.o=	${_YC}
+.if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
+${_YC:R}.o: ${OBJS_DEPEND_GUESS.${_YC:R}.o}
 .endif
 .endfor
 .endfor
@@ -170,14 +172,24 @@ ${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
 .endfor
 
 
-.if ${MK_FAST_DEPEND} == "yes" && \
-    (${.MAKE.MODE:Mmeta} == "" || ${.MAKE.MODE:Mnofilemon} != "")
+.if !empty(.MAKE.MODE:Mmeta) && empty(.MAKE.MODE:Mnofilemon)
+_meta_filemon=	1
+.endif
+.if ${MK_FAST_DEPEND} == "yes"
 DEPEND_MP?=	-MP
 # Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
 # avoid collisions.
 DEPEND_FILTER=	C,/,_,g
+DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
+.if !empty(DEPENDSRCS)
+DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
+.endif
+DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
+# Skip generating or including .depend.* files if in meta+filemon mode since
+# it will track dependencies itself.  OBJS_DEPEND_GUESS is still used though.
+.if !defined(_meta_filemon)
 .if defined(.PARSEDIR)
 # Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
 # as those are the only ones we will include.
@@ -186,27 +198,48 @@ CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
 .else
 CFLAGS+=	${DEPEND_CFLAGS}
 .endif
-DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
-.if !empty(DEPENDSRCS)
-DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
-.endif
-DEPENDFILES_OBJS=	${DEPENDOBJS:O:u:${DEPEND_FILTER}:C/^/${DEPENDFILE}./}
 .if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
 .sinclude "${__depend_obj}"
 .endfor
-.endif
+.endif	# !defined(_SKIP_READ_DEPEND)
+.endif	# !defined(_meta_filemon)
 .endif	# ${MK_FAST_DEPEND} == "yes"
 .endif	# defined(SRCS)
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
+# Prevent meta.autodep.mk from tracking "local dependencies".
+.depend:
 .include <meta.autodep.mk>
+# If using filemon then _EXTRADEPEND is skipped since it is not needed.
+.if empty(.MAKE.MODE:Mnofilemon)
 # this depend: bypasses that below
 # the dependency helps when bootstrapping
 depend: beforedepend ${DPSRCS} ${SRCS} afterdepend
 beforedepend:
 afterdepend: beforedepend
 .endif
+.endif
+
+# Guess some dependencies for when no ${DEPENDFILE}.OBJ is generated yet.
+# For meta+filemon the .meta file is checked for since it is the dependency
+# file used.
+.if ${MK_FAST_DEPEND} == "yes"
+.for __obj in ${DEPENDOBJS:O:u}
+.if (defined(_meta_filemon) && !exists(${.OBJDIR}/${__obj}.meta)) || \
+    (!defined(_meta_filemon) && !exists(${.OBJDIR}/${DEPENDFILE}.${__obj}))
+${__obj}: ${OBJS_DEPEND_GUESS}
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.endif
+.endfor
+
+# Always run 'make depend' to generate dependencies early and to avoid the
+# need for manually running it.  The dirdeps build should only do this in
+# sub-makes though since MAKELEVEL0 is for dirdeps calculations.
+.if ${MK_DIRDEPS_BUILD} == "no" || ${.MAKE.LEVEL} > 0
+beforebuild: depend
+.endif
+.endif	# ${MK_FAST_DEPEND} == "yes"
 
 .if !target(depend)
 .if defined(SRCS)
@@ -231,9 +264,13 @@ MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
 .endif	# ${MK_FAST_DEPEND} == "no"
 
 DPSRCS+= ${SRCS}
+# FAST_DEPEND will only generate a .depend if _EXTRADEPEND is used but
+# the target is created to allow 'make depend' to generate files.
 ${DEPENDFILE}: ${DPSRCS}
-.if ${MK_FAST_DEPEND} == "no"
+.if exists(${.OBJDIR}/${DEPENDFILE})
 	rm -f ${DEPENDFILE}
+.endif
+.if ${MK_FAST_DEPEND} == "no"
 .if !empty(DPSRCS:M*.[cS])
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${MKDEP_CFLAGS} ${.ALLSRC:M*.[cS]}
@@ -245,8 +282,6 @@ ${DEPENDFILE}: ${DPSRCS}
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
 .else
 .endif
-.else
-	: > ${.TARGET}
 .endif	# ${MK_FAST_DEPEND} == "no"
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
@@ -268,6 +303,7 @@ afterdepend:
 .endif
 .endif
 
+.if defined(SRCS)
 .if ${CTAGS:T} == "gtags"
 CLEANDEPENDFILES+=	GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
@@ -276,13 +312,14 @@ CLEANDEPENDDIRS+=	HTML
 .else
 CLEANDEPENDFILES+=	tags
 .endif
+.endif
 .if !target(cleandepend)
 cleandepend:
-.if defined(SRCS)
+.if !empty(CLEANDEPENDFILES)
 	rm -f ${CLEANDEPENDFILES}
+.endif
 .if !empty(CLEANDEPENDDIRS)
 	rm -rf ${CLEANDEPENDDIRS}
-.endif
 .endif
 .endif
 

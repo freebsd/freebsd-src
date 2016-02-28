@@ -17,10 +17,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-lexer.o: lexer.c
-lexer.o: parser.h
-lexer.po: lexer.c
-lexer.po: parser.h
-parser.o: parser.c
-parser.po: parser.c
 .endif

@@ -36,7 +36,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libbz2 \
 	libcalendar \
 	libcam \
-	${_libcapsicum} \
 	${_libcasper} \
 	${_libcom_err} \
 	libcompat \
@@ -135,8 +134,7 @@ SUBDIR_DEPEND_libbsnmp= ${_libnetgraph}
 SUBDIR_DEPEND_libc++:= libcxxrt
 SUBDIR_DEPEND_libc= libcompiler_rt
 SUBDIR_DEPEND_libcam= libsbuf
-SUBDIR_DEPEND_libcapsicum= libnv
-SUBDIR_DEPEND_libcasper= libcapsicum libnv libpjdlog
+SUBDIR_DEPEND_libcasper= libnv
 SUBDIR_DEPEND_libdevstat= libkvm
 SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
@@ -171,7 +169,6 @@ _libbsnmp=	libbsnmp
 .endif
 
 .if ${MK_CASPER} != "no"
-_libcapsicum=	libcapsicum
 _libcasper=	libcasper
 .endif
 

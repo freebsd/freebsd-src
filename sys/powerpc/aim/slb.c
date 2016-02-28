@@ -44,7 +44,6 @@
 
 #include <machine/md_var.h>
 #include <machine/platform.h>
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 
 uintptr_t moea64_get_unique_vsid(void);

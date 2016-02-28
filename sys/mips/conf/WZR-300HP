@@ -26,9 +26,9 @@ options 	BOOTVERBOSE
 
 # GEOM modules
 device		geom_map	# to get access to the SPI flash partitions
-device		geom_uncompress	# compressed in-memory filesystem hackery!
+device		geom_uzip	# compressed in-memory filesystem hackery!
 
-options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
 
 options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash
 options 	ATH_EEPROM_FIRMWARE	# Use EEPROM from flash

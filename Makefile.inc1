@@ -145,6 +145,16 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
+# FAST_DEPEND can skip depend tree-walks.
+.if ${MK_FAST_DEPEND} == "yes"
+NO_DEPEND=	t
+NO_KERNELDEPEND=t
+.endif
+# Ensure shell checks later have a value.
+.if defined(NO_DEPEND)
+NO_DEPEND=	t
+.endif
+
 LOCAL_TOOL_DIRS?=
 PACKAGEDIR?=	${DESTDIR}/${DISTDIR}
 
@@ -575,7 +585,7 @@ _worldtmp: .PHONY
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
 .endif
 .for _dir in \
-    lib usr legacy/bin legacy/usr
+    lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -772,7 +782,11 @@ WMAKE_TGTS+=	_worldtmp _legacy
 WMAKE_TGTS+=	_bootstrap-tools
 .endif
 WMAKE_TGTS+=	_cleanobj _obj _build-tools _cross-tools
-WMAKE_TGTS+=	_includes _libraries _depend everything
+WMAKE_TGTS+=	_includes _libraries
+.if !defined(NO_DEPEND)
+WMAKE_TGTS+=	_depend
+.endif
+WMAKE_TGTS+=	everything
 .if defined(LIB32TMP) && ${MK_LIB32} != "no" && empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	build32
 .endif
@@ -1403,7 +1417,7 @@ legacy:
 	    cd ${.CURDIR}/${_tool}; \
 	    ${MAKE} DIRPRFX=${_tool}/ obj; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
-	    ${MAKE} DIRPRFX=${_tool}/ depend; \
+	    if [ -z "${NO_DEPEND}" ]; then ${MAKE} DIRPRFX=${_tool}/ depend; fi; \
 	    ${MAKE} DIRPRFX=${_tool}/ all; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
@@ -1551,7 +1565,7 @@ ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
+		if [ -z "${NO_DEPEND}" ]; then ${MAKE} DIRPRFX=${_tool}/ depend; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 
@@ -1600,7 +1614,7 @@ build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
+		if [ -z "${NO_DEPEND}" ]; then ${MAKE} DIRPRFX=${_tool}/ depend; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all
 build-tools: build-tools_${_tool}
 .endfor
@@ -1684,7 +1698,7 @@ cross-tools: .MAKE .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
+		if [ -z "${NO_DEPEND}" ]; then ${MAKE} DIRPRFX=${_tool}/ depend; fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
@@ -1716,7 +1730,7 @@ native-xtools: .PHONY
 	${_+_}@${ECHODIR} "===> ${_gperf} (obj,depend,all,install)"; \
 	cd ${.CURDIR}/${_gperf}; \
 	${NXBMAKE} DIRPRFX=${_gperf}/ obj; \
-	${NXBMAKE} DIRPRFX=${_gperf}/ depend; \
+	if [ -z "${NO_DEPEND}" ]; then ${NXBMAKE} DIRPRFX=${_gperf}/ depend; fi; \
 	${NXBMAKE} DIRPRFX=${_gperf}/ all; \
 	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
 .endif
@@ -1791,7 +1805,7 @@ native-xtools: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${NXBMAKE} DIRPRFX=${_tool}/ obj; \
-		${NXBMAKE} DIRPRFX=${_tool}/ depend; \
+		if [ -z "${NO_DEPEND}" ]; then ${NXBMAKE} DIRPRFX=${_tool}/ depend; fi; \
 		${NXBMAKE} DIRPRFX=${_tool}/ all; \
 		${NXBMAKE} DIRPRFX=${_tool}/ DESTDIR=${NXBDESTDIR} install
 .endfor
@@ -1856,7 +1870,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libfigpar \
 		${_lib_libgssapi} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
-		${_lib_libcapsicum} \
+		${_lib_casper} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
@@ -1896,11 +1910,11 @@ _ofed_lib=	contrib/ofed/usr.lib/
 .endif
 
 .if ${MK_CASPER} != "no"
-_lib_libcapsicum=lib/libcapsicum
+_lib_casper=	lib/libcasper
 .endif
 
-lib/libcapsicum__L: lib/libnv__L
 lib/libpjdlog__L: lib/libutil__L
+lib/libcasper__L: lib/libnv__L
 lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
@@ -2021,7 +2035,7 @@ ${_lib}__PL: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend; \
+		if [ -z "${NO_DEPEND}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend; fi; \
 		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all; \
 		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
@@ -2035,7 +2049,7 @@ ${_lib}__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend; \
+		if [ -z "${NO_DEPEND}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend; fi; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ all; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
 .endif
@@ -2048,7 +2062,7 @@ lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
 		cd ${.CURDIR}/lib/libpam; \
 		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ obj; \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ depend; \
+		if [ -z "${NO_DEPEND}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ depend; fi; \
 		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
 		    -D_NO_LIBPAM_SO_YET all; \
 		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
@@ -2346,7 +2360,7 @@ _xb-bootstrap-tools: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
-	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	if [ -z "${NO_DEPEND}" ]; then ${CDMAKE} DIRPRFX=${_tool}/ depend; fi; \
 	${CDMAKE} DIRPRFX=${_tool}/ all; \
 	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
 .endfor
@@ -2366,7 +2380,7 @@ _xb-cross-tools: .PHONY
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
-	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	if [ -z "${NO_DEPEND}" ]; then ${CDMAKE} DIRPRFX=${_tool}/ depend; fi; \
 	${CDMAKE} DIRPRFX=${_tool}/ all
 .endfor
 

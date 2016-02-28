@@ -46,13 +46,6 @@ __FBSDID("$FreeBSD$");
 
 static int running_cpus;
 
-int
-platform_mp_probe(void)
-{
-
-	return (mp_ncpus > 1);
-}
-
 static boolean_t
 virt_maxid(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 {
@@ -96,18 +89,4 @@ platform_mp_start_ap(void)
 {
 
 	ofw_cpu_early_foreach(virt_start_ap, true);
-}
-
-void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

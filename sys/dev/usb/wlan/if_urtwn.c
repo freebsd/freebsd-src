@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_wlan.h"
+#include "opt_urtwn.h"
 
 #include <sys/param.h>
 #include <sys/sockio.h>
@@ -175,6 +176,7 @@ static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 	URTWN_DEV(TRENDNET,	RTL8192CU),
 	URTWN_DEV(ZYXEL,	RTL8192CU),
 	/* URTWN_RTL8188E */
+	URTWN_RTL8188E_DEV(ABOCOM,	RTL8188EU),
 	URTWN_RTL8188E_DEV(DLINK,	DWA123D1),
 	URTWN_RTL8188E_DEV(DLINK,	DWA125D1),
 	URTWN_RTL8188E_DEV(ELECOM,	WDC150SU2M),
@@ -307,12 +309,16 @@ static void		urtwn_start(struct urtwn_softc *);
 static void		urtwn_parent(struct ieee80211com *);
 static int		urtwn_r92c_power_on(struct urtwn_softc *);
 static int		urtwn_r88e_power_on(struct urtwn_softc *);
+static void		urtwn_r92c_power_off(struct urtwn_softc *);
+static void		urtwn_r88e_power_off(struct urtwn_softc *);
 static int		urtwn_llt_init(struct urtwn_softc *);
+#ifndef URTWN_WITHOUT_UCODE
 static void		urtwn_fw_reset(struct urtwn_softc *);
 static void		urtwn_r88e_fw_reset(struct urtwn_softc *);
 static int		urtwn_fw_loadpage(struct urtwn_softc *, int,
 			    const uint8_t *, int);
 static int		urtwn_load_firmware(struct urtwn_softc *);
+#endif
 static int		urtwn_dma_init(struct urtwn_softc *);
 static int		urtwn_mac_init(struct urtwn_softc *);
 static void		urtwn_bb_init(struct urtwn_softc *);
@@ -1376,6 +1382,13 @@ urtwn_fw_cmd(struct urtwn_softc *sc, uint8_t id, const void *buf, int len)
 	usb_error_t error;
 	int ntries;
 
+	if (!(sc->sc_flags & URTWN_FW_LOADED)) {
+		URTWN_DPRINTF(sc, URTWN_DEBUG_FIRMWARE, "%s: firmware "
+		    "was not loaded; command (id %d) will be discarded\n",
+		    __func__, id);
+		return (0);
+	}
+
 	/* Wait for current FW box to be empty. */
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (!(urtwn_read_1(sc, R92C_HMETFR) & (1 << sc->fwcur)))
@@ -1772,6 +1785,7 @@ urtwn_read_rom(struct urtwn_softc *sc)
 
 	sc->sc_rf_write = urtwn_r92c_rf_write;
 	sc->sc_power_on = urtwn_r92c_power_on;
+	sc->sc_power_off = urtwn_r92c_power_off;
 
 	return (0);
 }
@@ -1799,6 +1813,7 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 
 	sc->sc_rf_write = urtwn_r88e_rf_write;
 	sc->sc_power_on = urtwn_r88e_power_on;
+	sc->sc_power_off = urtwn_r88e_power_off;
 
 	return (0);
 }
@@ -3225,7 +3240,7 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 
 	/* Enable LDO normal mode. */
 	error = urtwn_write_1(sc, R92C_LPLDO_CTRL,
-	    urtwn_read_1(sc, R92C_LPLDO_CTRL) & ~0x10);
+	    urtwn_read_1(sc, R92C_LPLDO_CTRL) & ~R92C_LPLDO_CTRL_SLEEP);
 	if (error != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
 
@@ -3242,6 +3257,269 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 		return (EIO);
 
 	return (0);
+}
+
+static __inline void
+urtwn_power_off(struct urtwn_softc *sc)
+{
+
+	return sc->sc_power_off(sc);
+}
+
+static void
+urtwn_r92c_power_off(struct urtwn_softc *sc)
+{
+	uint32_t reg;
+
+	/* Block all Tx queues. */
+	urtwn_write_1(sc, R92C_TXPAUSE, R92C_TX_QUEUE_ALL);
+
+	/* Disable RF */
+	urtwn_rf_write(sc, 0, 0, 0);
+
+	urtwn_write_1(sc, R92C_APSD_CTRL, R92C_APSD_CTRL_OFF);
+
+	/* Reset BB state machine */
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN,
+	    R92C_SYS_FUNC_EN_USBD | R92C_SYS_FUNC_EN_USBA |
+	    R92C_SYS_FUNC_EN_BB_GLB_RST);
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN,
+	    R92C_SYS_FUNC_EN_USBD | R92C_SYS_FUNC_EN_USBA);
+
+	/*
+	 * Reset digital sequence
+	 */
+#ifndef URTWN_WITHOUT_UCODE
+	if (urtwn_read_1(sc, R92C_MCUFWDL) & R92C_MCUFWDL_RDY) {
+		/* Reset MCU ready status */
+		urtwn_write_1(sc, R92C_MCUFWDL, 0);
+
+		/* If firmware in ram code, do reset */
+		urtwn_fw_reset(sc);
+	}
+#endif
+
+	/* Reset MAC and Enable 8051 */
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN + 1,
+	    (R92C_SYS_FUNC_EN_CPUEN |
+	     R92C_SYS_FUNC_EN_ELDR |
+	     R92C_SYS_FUNC_EN_HWPDN) >> 8);
+
+	/* Reset MCU ready status */
+	urtwn_write_1(sc, R92C_MCUFWDL, 0);
+
+	/* Disable MAC clock */
+	urtwn_write_2(sc, R92C_SYS_CLKR,
+	    R92C_SYS_CLKR_ANAD16V_EN |
+	    R92C_SYS_CLKR_ANA8M |
+	    R92C_SYS_CLKR_LOADER_EN | 
+	    R92C_SYS_CLKR_80M_SSC_DIS |
+	    R92C_SYS_CLKR_SYS_EN |
+	    R92C_SYS_CLKR_RING_EN |
+	    0x4000);
+
+	/* Disable AFE PLL */
+	urtwn_write_1(sc, R92C_AFE_PLL_CTRL, 0x80);
+
+	/* Gated AFE DIG_CLOCK */
+	urtwn_write_2(sc, R92C_AFE_XTAL_CTRL, 0x880F);
+
+	/* Isolated digital to PON */
+	urtwn_write_1(sc, R92C_SYS_ISO_CTRL,
+	    R92C_SYS_ISO_CTRL_MD2PP |
+	    R92C_SYS_ISO_CTRL_PA2PCIE |
+	    R92C_SYS_ISO_CTRL_PD2CORE |
+	    R92C_SYS_ISO_CTRL_IP2MAC |
+	    R92C_SYS_ISO_CTRL_DIOP |
+	    R92C_SYS_ISO_CTRL_DIOE);
+
+	/*
+	 * Pull GPIO PIN to balance level and LED control
+	 */
+	/* 1. Disable GPIO[7:0] */
+	urtwn_write_2(sc, R92C_GPIO_IOSEL, 0x0000);
+
+	reg = urtwn_read_4(sc, R92C_GPIO_PIN_CTRL) & ~0x0000ff00;
+	reg |= ((reg << 8) & 0x0000ff00) | 0x00ff0000;
+	urtwn_write_4(sc, R92C_GPIO_PIN_CTRL, reg);
+
+	/* Disable GPIO[10:8] */
+	urtwn_write_1(sc, R92C_MAC_PINMUX_CFG, 0x00);
+
+	reg = urtwn_read_2(sc, R92C_GPIO_IO_SEL) & ~0x00f0;
+	reg |= (((reg & 0x000f) << 4) | 0x0780);
+	urtwn_write_2(sc, R92C_GPIO_IO_SEL, reg);
+
+	/* Disable LED0 & 1 */
+	urtwn_write_2(sc, R92C_LEDCFG0, 0x8080);
+
+	/*
+	 * Reset digital sequence
+	 */
+	/* Disable ELDR clock */
+	urtwn_write_2(sc, R92C_SYS_CLKR,
+	    R92C_SYS_CLKR_ANAD16V_EN |
+	    R92C_SYS_CLKR_ANA8M |
+	    R92C_SYS_CLKR_LOADER_EN |
+	    R92C_SYS_CLKR_80M_SSC_DIS |
+	    R92C_SYS_CLKR_SYS_EN |
+	    R92C_SYS_CLKR_RING_EN |
+	    0x4000);
+
+	/* Isolated ELDR to PON */
+	urtwn_write_1(sc, R92C_SYS_ISO_CTRL + 1,
+	    (R92C_SYS_ISO_CTRL_DIOR |
+	     R92C_SYS_ISO_CTRL_PWC_EV12V) >> 8);
+
+	/*
+	 * Disable analog sequence
+	 */
+	/* Disable A15 power */
+	urtwn_write_1(sc, R92C_LDOA15_CTRL, R92C_LDOA15_CTRL_OBUF);
+	/* Disable digital core power */
+	urtwn_write_1(sc, R92C_LDOV12D_CTRL,
+	    urtwn_read_1(sc, R92C_LDOV12D_CTRL) &
+	      ~R92C_LDOV12D_CTRL_LDV12_EN);
+
+	/* Enter PFM mode */
+	urtwn_write_1(sc, R92C_SPS0_CTRL, 0x23);
+
+	/* Set USB suspend */
+	urtwn_write_2(sc, R92C_APS_FSMCO,
+	    R92C_APS_FSMCO_APDM_HOST |
+	    R92C_APS_FSMCO_AFSM_HSUS |
+	    R92C_APS_FSMCO_PFM_ALDN);
+
+	/* Lock ISO/CLK/Power control register. */
+	urtwn_write_1(sc, R92C_RSV_CTRL, 0x0E);
+}
+
+static void
+urtwn_r88e_power_off(struct urtwn_softc *sc)
+{
+	uint8_t reg;
+	int ntries;
+
+	/* Disable any kind of TX reports. */
+	urtwn_write_1(sc, R88E_TX_RPT_CTRL,
+	    urtwn_read_1(sc, R88E_TX_RPT_CTRL) &
+	      ~(R88E_TX_RPT1_ENA | R88E_TX_RPT2_ENA));
+
+	/* Stop Rx. */
+	urtwn_write_1(sc, R92C_CR, 0);
+
+	/* Move card to Low Power State. */
+	/* Block all Tx queues. */
+	urtwn_write_1(sc, R92C_TXPAUSE, R92C_TX_QUEUE_ALL);
+
+	for (ntries = 0; ntries < 20; ntries++) {
+		/* Should be zero if no packet is transmitting. */
+		if (urtwn_read_4(sc, R88E_SCH_TXCMD) == 0)
+			break;
+
+		urtwn_ms_delay(sc);
+	}
+	if (ntries == 20) {
+		device_printf(sc->sc_dev, "%s: failed to block Tx queues\n",
+		    __func__);
+		return;
+	}
+
+	/* CCK and OFDM are disabled, and clock are gated. */
+	urtwn_write_1(sc, R92C_SYS_FUNC_EN,
+	    urtwn_read_1(sc, R92C_SYS_FUNC_EN) & ~R92C_SYS_FUNC_EN_BBRSTB);
+
+	urtwn_ms_delay(sc);
+
+	/* Reset MAC TRX */
+	urtwn_write_1(sc, R92C_CR,
+	    R92C_CR_HCI_TXDMA_EN | R92C_CR_HCI_RXDMA_EN |
+	    R92C_CR_TXDMA_EN | R92C_CR_RXDMA_EN |
+	    R92C_CR_PROTOCOL_EN | R92C_CR_SCHEDULE_EN);
+
+	/* check if removed later */
+	urtwn_write_1(sc, R92C_CR + 1,
+	    urtwn_read_1(sc, R92C_CR + 1) & ~(R92C_CR_ENSEC >> 8));
+
+	/* Respond TxOK to scheduler */
+	urtwn_write_1(sc, R92C_DUAL_TSF_RST,
+	    urtwn_read_1(sc, R92C_DUAL_TSF_RST) | 0x20);
+
+	/* If firmware in ram code, do reset. */
+#ifndef URTWN_WITHOUT_UCODE
+	if (urtwn_read_1(sc, R92C_MCUFWDL) & R92C_MCUFWDL_RDY)
+		urtwn_r88e_fw_reset(sc);
+#endif
+
+	/* Reset MCU ready status. */
+	urtwn_write_1(sc, R92C_MCUFWDL, 0x00);
+
+	/* Disable 32k. */
+	urtwn_write_1(sc, R88E_32K_CTRL,
+	    urtwn_read_1(sc, R88E_32K_CTRL) & ~0x01);
+
+	/* Move card to Disabled state. */
+	/* Turn off RF. */
+	urtwn_write_1(sc, R92C_RF_CTRL, 0);
+
+	/* LDO Sleep mode. */
+	urtwn_write_1(sc, R92C_LPLDO_CTRL, 
+	    urtwn_read_1(sc, R92C_LPLDO_CTRL) | R92C_LPLDO_CTRL_SLEEP);
+
+	/* Turn off MAC by HW state machine */
+	urtwn_write_1(sc, R92C_APS_FSMCO + 1,
+	    urtwn_read_1(sc, R92C_APS_FSMCO + 1) |
+	    (R92C_APS_FSMCO_APFM_OFF >> 8));
+
+	for (ntries = 0; ntries < 20; ntries++) {
+		/* Wait until it will be disabled. */
+		if ((urtwn_read_1(sc, R92C_APS_FSMCO + 1) &
+		    (R92C_APS_FSMCO_APFM_OFF >> 8)) == 0)
+			break;
+
+		urtwn_ms_delay(sc);
+	}
+	if (ntries == 20) {
+		device_printf(sc->sc_dev, "%s: could not turn off MAC\n",
+		    __func__);
+		return;
+	}
+
+	/* schmit trigger */
+	urtwn_write_1(sc, R92C_AFE_XTAL_CTRL + 2,
+	    urtwn_read_1(sc, R92C_AFE_XTAL_CTRL + 2) | 0x80);
+
+	/* Enable WL suspend. */
+	urtwn_write_1(sc, R92C_APS_FSMCO + 1,
+	    (urtwn_read_1(sc, R92C_APS_FSMCO + 1) & ~0x10) | 0x08);
+
+	/* Enable bandgap mbias in suspend. */
+	urtwn_write_1(sc, R92C_APS_FSMCO + 3, 0);
+
+	/* Clear SIC_EN register. */
+	urtwn_write_1(sc, R92C_GPIO_MUXCFG + 1,
+	    urtwn_read_1(sc, R92C_GPIO_MUXCFG + 1) & ~0x10);
+
+	/* Set USB suspend enable local register */
+	urtwn_write_1(sc, R92C_USB_SUSPEND,
+	    urtwn_read_1(sc, R92C_USB_SUSPEND) | 0x10);
+
+	/* Reset MCU IO Wrapper. */
+	reg = urtwn_read_1(sc, R92C_RSV_CTRL + 1);
+	urtwn_write_1(sc, R92C_RSV_CTRL + 1, reg & ~0x08);
+	urtwn_write_1(sc, R92C_RSV_CTRL + 1, reg | 0x08);
+
+	/* marked as 'For Power Consumption' code. */
+	urtwn_write_1(sc, R92C_GPIO_OUT, urtwn_read_1(sc, R92C_GPIO_IN));
+	urtwn_write_1(sc, R92C_GPIO_IOSEL, 0xff);
+
+	urtwn_write_1(sc, R92C_GPIO_IO_SEL,
+	    urtwn_read_1(sc, R92C_GPIO_IO_SEL) << 4);
+	urtwn_write_1(sc, R92C_GPIO_MOD,
+	    urtwn_read_1(sc, R92C_GPIO_MOD) | 0x0f);
+
+	/* Set LNA, TRSW, EX_PA Pin to output mode. */
+	urtwn_write_4(sc, R88E_BB_PAD_CTRL, 0x00080808);
 }
 
 static int
@@ -3275,6 +3553,7 @@ urtwn_llt_init(struct urtwn_softc *sc)
 	return (error);
 }
 
+#ifndef URTWN_WITHOUT_UCODE
 static void
 urtwn_fw_reset(struct urtwn_softc *sc)
 {
@@ -3457,6 +3736,7 @@ fail:
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	return (error);
 }
+#endif
 
 static int
 urtwn_dma_init(struct urtwn_softc *sc)
@@ -4786,10 +5066,12 @@ urtwn_init(struct urtwn_softc *sc)
 		urtwn_write_1(sc, R92C_BCN_MAX_ERR, 0xff);
 	}
 
+#ifndef URTWN_WITHOUT_UCODE
 	/* Load 8051 microcode. */
 	error = urtwn_load_firmware(sc);
-	if (error != 0)
-		goto fail;
+	if (error == 0)
+		sc->sc_flags |= URTWN_FW_LOADED;
+#endif
 
 	/* Initialize MAC/BB/RF blocks. */
 	error = urtwn_mac_init(sc);
@@ -4892,12 +5174,14 @@ urtwn_stop(struct urtwn_softc *sc)
 		return;
 	}
 
-	sc->sc_flags &= ~(URTWN_RUNNING | URTWN_TEMP_MEASURED);
+	sc->sc_flags &= ~(URTWN_RUNNING | URTWN_FW_LOADED |
+	    URTWN_TEMP_MEASURED);
 	sc->thcal_lctemp = 0;
 	callout_stop(&sc->sc_watchdog_ch);
-	urtwn_abort_xfers(sc);
 
+	urtwn_abort_xfers(sc);
 	urtwn_drain_mbufq(sc);
+	urtwn_power_off(sc);
 	URTWN_UNLOCK(sc);
 }
 
@@ -4991,6 +5275,8 @@ static devclass_t urtwn_devclass;
 DRIVER_MODULE(urtwn, uhub, urtwn_driver, urtwn_devclass, NULL, NULL);
 MODULE_DEPEND(urtwn, usb, 1, 1, 1);
 MODULE_DEPEND(urtwn, wlan, 1, 1, 1);
+#ifndef URTWN_WITHOUT_UCODE
 MODULE_DEPEND(urtwn, firmware, 1, 1, 1);
+#endif
 MODULE_VERSION(urtwn, 1);
 USB_PNP_HOST_INFO(urtwn_devs);

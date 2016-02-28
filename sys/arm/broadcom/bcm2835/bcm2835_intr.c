@@ -240,3 +240,10 @@ arm_unmask_irq(uintptr_t nb)
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }
+
+#ifdef SMP
+void
+intr_pic_init_secondary(void)
+{
+}
+#endif

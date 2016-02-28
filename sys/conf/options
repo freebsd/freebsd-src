@@ -132,9 +132,8 @@ GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
-GEOM_UNCOMPRESS	opt_geom.h
-GEOM_UNCOMPRESS_DEBUG	opt_geom.h
 GEOM_UZIP	opt_geom.h
+GEOM_UZIP_DEBUG	opt_geom.h
 GEOM_VINUM	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
@@ -672,6 +671,9 @@ UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
+
+# options for the Realtek RTL8188*U/RTL8192CU driver (urtwn)
+URTWN_WITHOUT_UCODE	opt_urtwn.h
 
 # Embedded system options
 INIT_PATH

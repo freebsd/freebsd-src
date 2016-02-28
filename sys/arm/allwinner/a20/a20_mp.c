@@ -59,13 +59,6 @@ __FBSDID("$FreeBSD$");
 #define	CPUCFG_DBGCTL1		0x1e4
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 	int ncpu;
@@ -79,16 +72,6 @@ platform_mp_setmaxid(void)
 
 	mp_ncpus = ncpu;
 	mp_maxid = ncpu - 1;
-}
-
-int
-platform_mp_probe(void)
-{
-
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-
-	return (mp_ncpus > 1);
 }
 
 void
@@ -152,11 +135,4 @@ platform_mp_start_ap(void)
 
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, cpucfg, CPUCFG_SIZE);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

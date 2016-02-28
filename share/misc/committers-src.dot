@@ -200,6 +200,7 @@ jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jkoshy [label="A. Joseph Koshy\njkoshy@FreeBSD.org\n1998/05/13"]
 jlh [label="Jeremie Le Hen\njlh@FreeBSD.org\n2012/04/22"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
+jmcneill [label="Jared McNeill\njmcneill@FreeBSD.org\n2016/02/24"]
 jmg [label="John-Mark Gurney\njmg@FreeBSD.org\n1997/02/13"]
 jmmv [label="Julio Merino\njmmv@FreeBSD.org\n2013/11/02"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
@@ -286,6 +287,7 @@ scottl [label="Scott Long\nscottl@FreeBSD.org\n2000/09/28"]
 se [label="Stefan Esser\nse@FreeBSD.org\n1994/08/26"]
 sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
+sgalabov [label="Stanislav Galabov\nsgalabov@FreeBSD.org\n2016/02/24"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
 skra [label="Svatopluk Kraus\nskra@FreeBSD.org\n2015/10/28"]
@@ -340,12 +342,14 @@ day1 -> alm
 day1 -> dg
 
 adrian -> avos
+adrian -> jmcneill
 adrian -> lidl
 adrian -> loos
 adrian -> monthadar
 adrian -> ray
 adrian -> rmh
 adrian -> sephe
+adrian -> sgalabov
 
 ae -> melifaro
 
@@ -469,6 +473,8 @@ gnn -> arybchik
 gnn -> erj
 gnn -> kp
 gnn -> jtl
+
+gonzo -> jmcneill
 
 grehan -> bryanv
 

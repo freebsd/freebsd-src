@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -194,7 +195,7 @@ hv_vmbus_channel_open(
 	if (ret != 0)
 	    goto cleanup;
 
-	ret = sema_timedwait(&open_info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&open_info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 	if (ret) {
 	    if(bootverbose)
@@ -383,17 +384,22 @@ hv_vmbus_channel_establish_gpadl(
 	hv_vmbus_channel_msg_info*	curr;
 	uint32_t			next_gpadl_handle;
 
-	next_gpadl_handle = hv_vmbus_g_connection.next_gpadl_handle;
-	atomic_add_int((int*) &hv_vmbus_g_connection.next_gpadl_handle, 1);
+	next_gpadl_handle = atomic_fetchadd_int(
+	    &hv_vmbus_g_connection.next_gpadl_handle, 1);
 
 	ret = vmbus_channel_create_gpadl_header(
 		contig_buffer, size, &msg_info, &msg_count);
 
-	if(ret != 0) { /* if(allocation failed) return immediately */
-	    /* reverse atomic_add_int above */
-	    atomic_subtract_int((int*)
-		    &hv_vmbus_g_connection.next_gpadl_handle, 1);
-	    return ret;
+	if(ret != 0) {
+		/*
+		 * XXX
+		 * We can _not_ even revert the above incremental,
+		 * if multiple GPADL establishments are running
+		 * parallelly, decrement the global next_gpadl_handle
+		 * is calling for _big_ trouble.  A better solution
+		 * is to have a 0-based GPADL id bitmap ...
+		 */
+		return ret;
 	}
 
 	sema_init(&msg_info->wait_sema, 0, "Open Info Sema");
@@ -439,7 +445,7 @@ hv_vmbus_channel_establish_gpadl(
 	    }
 	}
 
-	ret = sema_timedwait(&msg_info->wait_sema, 500); /* KYS 5 seconds*/
+	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds*/
 	if (ret != 0)
 	    goto cleanup;
 
@@ -499,7 +505,7 @@ hv_vmbus_channel_teardown_gpdal(
 	if (ret != 0) 
 	    goto cleanup;
 	
-	ret = sema_timedwait(&info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 cleanup:
 	/*
@@ -531,13 +537,7 @@ hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 	 */
 	channel->rxq = NULL;
 	taskqueue_drain(rxq, &channel->channel_task);
-	/*
-	 * Grab the lock to prevent race condition when a packet received
-	 * and unloading driver is in the process.
-	 */
-	mtx_lock(&channel->inbound_lock);
 	channel->on_channel_callback = NULL;
-	mtx_unlock(&channel->inbound_lock);
 
 	/**
 	 * Send a closing message
@@ -914,12 +914,6 @@ VmbusProcessChannelEvent(void* context, int pending)
 	 * callback to NULL. This closes the window.
 	 */
 
-	/*
-	 * Disable the lock due to newly added WITNESS check in r277723.
-	 * Will seek other way to avoid race condition.
-	 * -- whu
-	 */
-	// mtx_lock(&channel->inbound_lock);
 	if (channel->on_channel_callback != NULL) {
 		arg = channel->channel_callback_context;
 		is_batched_reading = channel->batched_reading;
@@ -946,5 +940,4 @@ VmbusProcessChannelEvent(void* context, int pending)
 				bytes_to_read = 0;
 		} while (is_batched_reading && (bytes_to_read != 0));
 	}
-	// mtx_unlock(&channel->inbound_lock);
 }
