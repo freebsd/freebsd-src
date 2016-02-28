@@ -38,6 +38,9 @@
 
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
+#ifdef CPU_CHERI
+#include <machine/cheri.h>
+#endif
 
 /* User visible parameters */
 #define UMA_SMALLEST_UNIT       (PAGE_SIZE / 256) /* Smallest item allocated */
@@ -290,7 +293,11 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
     UMA_ZONE_HASH | UMA_ZONE_REFCNT | UMA_ZONE_VTOSLAB | UMA_ZONE_PCPU)
 
 /* Definitions for align */
+#ifndef CPU_CHERI
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
+#else
+#define	UMA_ALIGN_PTR	(CHERICAP_SIZE - 1)
+#endif
 #define UMA_ALIGN_LONG	(sizeof(long) - 1)	/* "" long */
 #define UMA_ALIGN_INT	(sizeof(int) - 1)	/* "" int */
 #define UMA_ALIGN_SHORT	(sizeof(short) - 1)	/* "" short */
