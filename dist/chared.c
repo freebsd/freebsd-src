@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.c,v 1.40 2014/06/18 18:12:28 christos Exp $	*/
+/*	$NetBSD: chared.c,v 1.49 2016/02/24 14:29:21 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,15 +37,19 @@
 #if 0
 static char sccsid[] = "@(#)chared.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: chared.c,v 1.40 2014/06/18 18:12:28 christos Exp $");
+__RCSID("$NetBSD: chared.c,v 1.49 2016/02/24 14:29:21 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
 /*
  * chared.c: Character editor utilities
  */
+#include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "el.h"
+#include "common.h"
 
 private void ch__clearmacro (EditLine *);
 
@@ -199,7 +203,7 @@ c_delbefore1(EditLine *el)
  *	Return if p is part of a word according to emacs
  */
 protected int
-ce__isword(Int p)
+ce__isword(wint_t p)
 {
 	return Isalnum(p) || Strchr(STR("*?_-.[]~="), p) != NULL;
 }
@@ -209,7 +213,7 @@ ce__isword(Int p)
  *	Return if p is part of a word according to vi
  */
 protected int
-cv__isword(Int p)
+cv__isword(wint_t p)
 {
 	if (Isalnum(p) || p == '_')
 		return 1;
@@ -223,7 +227,7 @@ cv__isword(Int p)
  *	Return if p is part of a big word according to vi
  */
 protected int
-cv__isWord(Int p)
+cv__isWord(wint_t p)
 {
 	return !Isspace(p);
 }
@@ -233,7 +237,7 @@ cv__isWord(Int p)
  *	Find the previous word
  */
 protected Char *
-c__prev_word(Char *p, Char *low, int n, int (*wtest)(Int))
+c__prev_word(Char *p, Char *low, int n, int (*wtest)(wint_t))
 {
 	p--;
 
@@ -257,7 +261,7 @@ c__prev_word(Char *p, Char *low, int n, int (*wtest)(Int))
  *	Find the next word
  */
 protected Char *
-c__next_word(Char *p, Char *high, int n, int (*wtest)(Int))
+c__next_word(Char *p, Char *high, int n, int (*wtest)(wint_t))
 {
 	while (n--) {
 		while ((p < high) && !(*wtest)(*p))
@@ -275,7 +279,7 @@ c__next_word(Char *p, Char *high, int n, int (*wtest)(Int))
  *	Find the next word vi style
  */
 protected Char *
-cv_next_word(EditLine *el, Char *p, Char *high, int n, int (*wtest)(Int))
+cv_next_word(EditLine *el, Char *p, Char *high, int n, int (*wtest)(wint_t))
 {
 	int test;
 
@@ -304,7 +308,7 @@ cv_next_word(EditLine *el, Char *p, Char *high, int n, int (*wtest)(Int))
  *	Find the previous word vi style
  */
 protected Char *
-cv_prev_word(Char *p, Char *low, int n, int (*wtest)(Int))
+cv_prev_word(Char *p, Char *low, int n, int (*wtest)(wint_t))
 {
 	int test;
 
@@ -368,7 +372,7 @@ cv_delfini(EditLine *el)
  *	Go to the end of this word according to vi
  */
 protected Char *
-cv__endword(Char *p, Char *high, int n, int (*wtest)(Int))
+cv__endword(Char *p, Char *high, int n, int (*wtest)(wint_t))
 {
 	int test;
 
@@ -522,7 +526,7 @@ ch_enlargebufs(EditLine *el, size_t addlen)
 
 	/* zero the newly added memory, leave old data in */
 	(void) memset(&newbuffer[sz], 0, (newsz - sz) * sizeof(*newbuffer));
-	    
+
 	oldbuf = el->el_line.buffer;
 
 	el->el_line.buffer = newbuffer;
@@ -571,7 +575,7 @@ ch_enlargebufs(EditLine *el, size_t addlen)
 	el->el_chared.c_redo.lim = newbuffer +
 			(el->el_chared.c_redo.lim - el->el_chared.c_redo.buf);
 	el->el_chared.c_redo.buf = newbuffer;
-	
+
 	if (!hist_enlargebuf(el, sz, newsz))
 		return 0;
 
@@ -671,9 +675,9 @@ out:
 protected int
 c_gets(EditLine *el, Char *buf, const Char *prompt)
 {
-	Char ch;
+	wchar_t wch;
 	ssize_t len;
-	Char *cp = el->el_line.buffer;
+	Char *cp = el->el_line.buffer, ch;
 
 	if (prompt) {
 		len = (ssize_t)Strlen(prompt);
@@ -688,26 +692,28 @@ c_gets(EditLine *el, Char *buf, const Char *prompt)
 		el->el_line.lastchar = cp + 1;
 		re_refresh(el);
 
-		if (FUN(el,getc)(el, &ch) != 1) {
+		if (el_wgetc(el, &wch) != 1) {
 			ed_end_of_file(el, 0);
 			len = -1;
 			break;
 		}
+		ch = (Char)wch;
 
 		switch (ch) {
 
-		case 0010:	/* Delete and backspace */
+		case L'\b':	/* Delete and backspace */
 		case 0177:
 			if (len == 0) {
 				len = -1;
 				break;
 			}
+			len--;
 			cp--;
 			continue;
 
 		case 0033:	/* ESC */
-		case '\r':	/* Newline */
-		case '\n':
+		case L'\r':	/* Newline */
+		case L'\n':
 			buf[len] = ch;
 			break;
 

@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.7 2003/08/03 09:23:15 lukem Exp $	
+#	$NetBSD: Makefile,v 1.8 2016/02/17 19:47:49 christos Exp $
 
 NOOBJ=		# defined
 

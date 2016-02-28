@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.c,v 1.17 2011/07/28 20:50:55 christos Exp $	*/
+/*	$NetBSD: sig.c,v 1.24 2016/02/16 19:08:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: sig.c,v 1.17 2011/07/28 20:50:55 christos Exp $");
+__RCSID("$NetBSD: sig.c,v 1.24 2016/02/16 19:08:41 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -46,8 +46,11 @@ __RCSID("$NetBSD: sig.c,v 1.17 2011/07/28 20:50:55 christos Exp $");
  *	  our policy is to trap all signals, set a good state
  *	  and pass the ball to our caller.
  */
-#include "el.h"
+#include <errno.h>
 #include <stdlib.h>
+
+#include "el.h"
+#include "common.h"
 
 private EditLine *sel = NULL;
 
@@ -68,9 +71,10 @@ private void sig_handler(int);
 private void
 sig_handler(int signo)
 {
-	int i;
+	int i, save_errno;
 	sigset_t nset, oset;
 
+	save_errno = errno;
 	(void) sigemptyset(&nset);
 	(void) sigaddset(&nset, signo);
 	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
@@ -104,6 +108,7 @@ sig_handler(int signo)
 	sigemptyset(&sel->el_signal->sig_action[i].sa_mask);
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 	(void) kill(0, signo);
+	errno = save_errno;
 }
 
 

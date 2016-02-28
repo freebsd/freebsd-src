@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.53 2015/01/29 20:30:02 joerg Exp $
+#	$NetBSD: Makefile,v 1.55 2016/02/24 14:25:38 christos Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 USE_SHLIBDIR=	yes
@@ -15,7 +15,7 @@ COPTS+=	-Wunused-parameter
 CWARNFLAGS.gcc+=	-Wconversion
 CWARNFLAGS.clang+=	-Wno-cast-qual
 
-OSRCS=	chared.c common.c el.c emacs.c fcns.c filecomplete.c help.c \
+OSRCS=	chared.c common.c el.c eln.c emacs.c fcns.c filecomplete.c help.c \
 	hist.c keymacro.c map.c chartype.c \
 	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
 
@@ -37,7 +37,6 @@ MLINKS=	editline.3 el_init.3 editline.3 el_end.3 editline.3 el_reset.3 \
 SRCS=	editline.c readline.c tokenizer.c history.c
 
 .if ${WIDECHAR} == "yes"
-OSRCS += eln.c
 SRCS += tokenizern.c historyn.c
 CLEANFILES+=tokenizern.c.tmp tokenizern.c historyn.c.tmp historyn.c
 CPPFLAGS+=-DWIDECHAR
@@ -52,12 +51,12 @@ CLEANFILES+=editline.c
 CLEANFILES+=common.h.tmp editline.c.tmp emacs.h.tmp fcns.c.tmp fcns.h.tmp
 CLEANFILES+=help.c.tmp help.h.tmp vi.h.tmp tc1.o tc1
 CLEANFILES+=tokenizern.c.tmp tokenizern.c tokenizerw.c.tmp tokenizerw.c
-CPPFLAGS+=-I. -I${LIBEDITDIR} 
+CPPFLAGS+=-I. -I${LIBEDITDIR}
 CPPFLAGS+=-I. -I${.CURDIR}
 CPPFLAGS+=#-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
 CPPFLAGS+=#-DDEBUG_PASTE -DDEBUG_EDIT
 
-AHDR=vi.h emacs.h common.h 
+AHDR=vi.h emacs.h common.h
 ASRC=${LIBEDITDIR}/vi.c ${LIBEDITDIR}/emacs.c ${LIBEDITDIR}/common.c
 
 DPSRCS+=	${AHDR} fcns.h help.h fcns.c help.c
@@ -120,7 +119,7 @@ historyn.c: makelist Makefile
 
 tc1.o:	${LIBEDITDIR}/TEST/tc1.c
 
-tc1:	libedit.a tc1.o 
+tc1:	libedit.a tc1.o
 	${_MKTARGET_LINK}
 	${CC} ${LDFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD} -ltermlib
 
