@@ -26,6 +26,7 @@ include 	"../qemu/std.virt"
 options 	HZ=100
 options 	SCHED_ULE		# 4BSD scheduler
 options 	PLATFORM
+options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
 
 # Debugging for use in -current

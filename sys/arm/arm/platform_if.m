@@ -57,6 +57,12 @@ CODE {
 	{
 		return;
 	}
+
+	static void platform_default_mp_setmaxid(platform_t plat)
+	{
+		mp_ncpus = 1;
+		mp_maxid = 0;
+	}
 };
 
 /**
@@ -114,3 +120,16 @@ METHOD void late_init {
 	platform_t	_plat;
 };
 
+/**
+ * @brief Called by cpu_mp_setmaxid() to set mp_maxid and mp_ncpus.
+ */
+METHOD void mp_setmaxid {
+	platform_t	_plat;
+} DEFAULT platform_default_mp_setmaxid;
+
+/**
+ * @brief Called by cpu_mp_start to start the secondary processors.
+ */
+METHOD void mp_start_ap {
+	platform_t	_plat;
+};

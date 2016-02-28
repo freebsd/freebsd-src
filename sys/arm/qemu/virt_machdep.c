@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 
+#include <arm/qemu/virt_mp.h>
+
 #include "platform_if.h"
 
 struct arm32_dma_range *
@@ -85,6 +87,11 @@ virt_devmap_init(platform_t plat)
 static platform_method_t virt_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	virt_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	virt_lastaddr),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	virt_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	virt_mp_setmaxid),
+#endif
 
 	PLATFORMMETHOD_END,
 };

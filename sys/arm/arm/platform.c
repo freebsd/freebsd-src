@@ -177,3 +177,18 @@ platform_late_init(void)
 	PLATFORM_LATE_INIT(plat_obj);
 }
 
+#if defined(SMP) && defined(PLATFORM_SMP)
+void
+platform_mp_setmaxid(void)
+{
+
+	PLATFORM_MP_SETMAXID(plat_obj);
+}
+
+void
+platform_mp_start_ap(void)
+{
+
+	PLATFORM_MP_START_AP(plat_obj);
+}
+#endif
