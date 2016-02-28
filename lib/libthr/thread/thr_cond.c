@@ -1,6 +1,10 @@
 /*
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
+ * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,29 +67,45 @@ __weak_reference(_pthread_cond_broadcast, pthread_cond_broadcast);
 
 #define CV_PSHARED(cvp)	(((cvp)->__flags & USYNC_PROCESS_SHARED) != 0)
 
+static void
+cond_init_body(struct pthread_cond *cvp, const struct pthread_cond_attr *cattr)
+{
+
+	if (cattr == NULL) {
+		cvp->__clock_id = CLOCK_REALTIME;
+	} else {
+		if (cattr->c_pshared)
+			cvp->__flags |= USYNC_PROCESS_SHARED;
+		cvp->__clock_id = cattr->c_clockid;
+	}
+}
+
 static int
 cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 {
-	struct pthread_cond	*cvp;
-	int	error = 0;
+	struct pthread_cond *cvp;
+	const struct pthread_cond_attr *cattr;
+	int pshared;
 
-	if ((cvp = (pthread_cond_t)
-	    calloc(1, sizeof(struct pthread_cond))) == NULL) {
-		error = ENOMEM;
+	cattr = cond_attr != NULL ? *cond_attr : NULL;
+	if (cattr == NULL || cattr->c_pshared == PTHREAD_PROCESS_PRIVATE) {
+		pshared = 0;
+		cvp = calloc(1, sizeof(struct pthread_cond));
+		if (cvp == NULL)
+			return (ENOMEM);
 	} else {
-		/*
-		 * Initialise the condition variable structure:
-		 */
-		if (cond_attr == NULL || *cond_attr == NULL) {
-			cvp->__clock_id = CLOCK_REALTIME;
-		} else {
-			if ((*cond_attr)->c_pshared)
-				cvp->__flags |= USYNC_PROCESS_SHARED;
-			cvp->__clock_id = (*cond_attr)->c_clockid;
-		}
-		*cond = cvp;
+		pshared = 1;
+		cvp = __thr_pshared_offpage(cond, 1);
+		if (cvp == NULL)
+			return (EFAULT);
 	}
-	return (error);
+
+	/*
+	 * Initialise the condition variable structure:
+	 */
+	cond_init_body(cvp, cattr);
+	*cond = pshared ? THR_PSHARED_PTR : cvp;
+	return (0);
 }
 
 static int
@@ -106,7 +126,11 @@ init_static(struct pthread *thread, pthread_cond_t *cond)
 }
 
 #define CHECK_AND_INIT_COND							\
-	if (__predict_false((cvp = (*cond)) <= THR_COND_DESTROYED)) {		\
+	if (*cond == THR_PSHARED_PTR) {						\
+		cvp = __thr_pshared_offpage(cond, 0);				\
+		if (cvp == NULL)						\
+			return (EINVAL);					\
+	} else if (__predict_false((cvp = (*cond)) <= THR_COND_DESTROYED)) {	\
 		if (cvp == THR_COND_INITIALIZER) {				\
 			int ret;						\
 			ret = init_static(_get_curthread(), cond);		\
@@ -129,21 +153,22 @@ _pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 int
 _pthread_cond_destroy(pthread_cond_t *cond)
 {
-	struct pthread_cond	*cvp;
-	int			error = 0;
+	struct pthread_cond *cvp;
+	int error;
 
-	if ((cvp = *cond) == THR_COND_INITIALIZER)
-		error = 0;
-	else if (cvp == THR_COND_DESTROYED)
+	error = 0;
+	if (*cond == THR_PSHARED_PTR) {
+		cvp = __thr_pshared_offpage(cond, 0);
+		if (cvp != NULL)
+			__thr_pshared_destroy(cond);
+		*cond = THR_COND_DESTROYED;
+	} else if ((cvp = *cond) == THR_COND_INITIALIZER) {
+		/* nothing */
+	} else if (cvp == THR_COND_DESTROYED) {
 		error = EINVAL;
-	else {
+	} else {
 		cvp = *cond;
 		*cond = THR_COND_DESTROYED;
-
-		/*
-		 * Free the memory allocated for the condition
-		 * variable structure:
-		 */
 		free(cvp);
 	}
 	return (error);
@@ -297,7 +322,13 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 	CHECK_AND_INIT_COND
 
-	mp = *mutex;
+	if (*mutex == THR_PSHARED_PTR) {
+		mp = __thr_pshared_offpage(mutex, 0);
+		if (mp == NULL)
+			return (EINVAL);
+	} else {
+		mp = *mutex;
+	}
 
 	if ((error = _mutex_owned(curthread, mp)) != 0)
 		return (error);
@@ -385,7 +416,7 @@ cond_signal_common(pthread_cond_t *cond)
 	td = _sleepq_first(sq);
 	mp = td->mutex_obj;
 	cvp->__has_user_waiters = _sleepq_remove(sq, td);
-	if (mp->m_owner == curthread) {
+	if (mp->m_owner == TID(curthread)) {
 		if (curthread->nwaiter_defer >= MAX_DEFER_WAITERS) {
 			_thr_wake_all(curthread->defer_waiters,
 					curthread->nwaiter_defer);
@@ -417,7 +448,7 @@ drop_cb(struct pthread *td, void *arg)
 	struct pthread *curthread = ba->curthread;
 
 	mp = td->mutex_obj;
-	if (mp->m_owner == curthread) {
+	if (mp->m_owner == TID(curthread)) {
 		if (curthread->nwaiter_defer >= MAX_DEFER_WAITERS) {
 			_thr_wake_all(curthread->defer_waiters,
 				curthread->nwaiter_defer);

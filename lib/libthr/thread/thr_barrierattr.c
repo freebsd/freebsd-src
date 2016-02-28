@@ -56,7 +56,7 @@ _pthread_barrierattr_destroy(pthread_barrierattr_t *attr)
 
 int
 _pthread_barrierattr_getpshared(const pthread_barrierattr_t *attr,
-	int *pshared)
+    int *pshared)
 {
 
 	if (attr == NULL || *attr == NULL)
@@ -84,11 +84,9 @@ int
 _pthread_barrierattr_setpshared(pthread_barrierattr_t *attr, int pshared)
 {
 
-	if (attr == NULL || *attr == NULL)
-		return (EINVAL);
-
-	/* Only PTHREAD_PROCESS_PRIVATE is supported. */
-	if (pshared != PTHREAD_PROCESS_PRIVATE)
+	if (attr == NULL || *attr == NULL ||
+	    (pshared != PTHREAD_PROCESS_PRIVATE &&
+	    pshared != PTHREAD_PROCESS_SHARED))
 		return (EINVAL);
 
 	(*attr)->pshared = pshared;

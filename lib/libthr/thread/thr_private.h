@@ -126,6 +126,10 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 		}						\
 	} while (0)
 
+/* Magic cookie set for shared pthread locks and cv's pointers */
+#define	THR_PSHARED_PTR						\
+    ((void *)(uintptr_t)((1ULL << (NBBY * sizeof(long) - 1)) | 1))
+
 /* XXX These values should be same as those defined in pthread.h */
 #define	THR_MUTEX_INITIALIZER		((struct pthread_mutex *)NULL)
 #define	THR_ADAPTIVE_MUTEX_INITIALIZER	((struct pthread_mutex *)1)
@@ -148,20 +152,24 @@ struct pthread_mutex {
 	 */
 	struct umutex			m_lock;
 	int				m_flags;
-	struct pthread			*m_owner;
+	uint32_t			m_owner;
 	int				m_count;
 	int				m_spinloops;
 	int				m_yieldloops;
 	/*
-	 * Link for all mutexes a thread currently owns.
+	 * Link for all mutexes a thread currently owns, of the same
+	 * prio type.
 	 */
 	TAILQ_ENTRY(pthread_mutex)	m_qe;
+	/* Link for all private mutexes a thread currently owns. */
+	TAILQ_ENTRY(pthread_mutex)	m_pqe;
 };
 
 struct pthread_mutex_attr {
 	enum pthread_mutextype	m_type;
 	int			m_protocol;
 	int			m_ceiling;
+	int			m_pshared;
 };
 
 #define PTHREAD_MUTEXATTR_STATIC_INITIALIZER \
@@ -313,7 +321,7 @@ struct pthread_rwlockattr {
 
 struct pthread_rwlock {
 	struct urwlock 	lock;
-	struct pthread	*owner;
+	uint32_t	owner;
 };
 
 /*
@@ -467,11 +475,16 @@ struct pthread {
 #define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
 #define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
 
-	/* Queue of currently owned NORMAL or PRIO_INHERIT type mutexes. */
-	struct mutex_queue	mutexq;
-
-	/* Queue of all owned PRIO_PROTECT mutexes. */
-	struct mutex_queue	pp_mutexq;
+	/*
+	 * Queues of the owned mutexes.  Private queue must have index
+	 * + 1 of the corresponding full queue.
+	 */
+#define	TMQ_NORM		0	/* NORMAL or PRIO_INHERIT normal */
+#define	TMQ_NORM_PRIV		1	/* NORMAL or PRIO_INHERIT normal priv */
+#define	TMQ_NORM_PP		2	/* PRIO_PROTECT normal mutexes */
+#define	TMQ_NORM_PP_PRIV	3	/* PRIO_PROTECT normal priv */
+#define	TMQ_NITEMS		4
+	struct mutex_queue	mq[TMQ_NITEMS];
 
 	void				*ret;
 	struct pthread_specific_elem	*specific;
@@ -935,6 +948,10 @@ void __thr_spinlock(struct _spinlock *lck);
 
 struct tcb *_tcb_ctor(struct pthread *, int);
 void	_tcb_dtor(struct tcb *);
+
+void __thr_pshared_init(void) __hidden;
+void *__thr_pshared_offpage(void *key, int doalloc) __hidden;
+void __thr_pshared_destroy(void *key) __hidden;
 
 __END_DECLS
 

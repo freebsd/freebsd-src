@@ -1,7 +1,11 @@
 /*-
+ * Copyright (c) 2015 The FreeBSD Foundation
  * Copyright (c) 2004, David Xu <davidxu@freebsd.org>
  * Copyright (c) 2002, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,12 +37,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -47,8 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/syscallsubr.h>
+#include <sys/taskqueue.h>
 #include <sys/eventhandler.h>
 #include <sys/umtx.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -213,6 +227,7 @@ SYSCTL_LONG(_debug_umtx, OID_AUTO, max_length, CTLFLAG_RD, &max_length, 0, "max_
 static SYSCTL_NODE(_debug_umtx, OID_AUTO, chains, CTLFLAG_RD, 0, "umtx chain stats");
 #endif
 
+static void umtx_shm_init(void);
 static void umtxq_sysinit(void *);
 static void umtxq_hash(struct umtx_key *key);
 static struct umtxq_chain *umtxq_getchain(struct umtx_key *key);
@@ -399,6 +414,7 @@ umtxq_sysinit(void *arg __unused)
 	mtx_init(&umtx_lock, "umtx lock", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(process_exec, umtx_exec_hook, NULL,
 	    EVENTHANDLER_PRI_ANY);
+	umtx_shm_init();
 }
 
 struct umtx_q *
@@ -3448,6 +3464,310 @@ __umtx_op_sem2_wake(struct thread *td, struct _umtx_op_args *uap)
 	return (do_sem2_wake(td, uap->obj));
 }
 
+#define	USHM_OBJ_UMTX(o)						\
+    ((struct umtx_shm_obj_list *)(&(o)->umtx_data))
+
+#define	USHMF_REG_LINKED	0x0001
+#define	USHMF_OBJ_LINKED	0x0002
+struct umtx_shm_reg {
+	TAILQ_ENTRY(umtx_shm_reg) ushm_reg_link;
+	LIST_ENTRY(umtx_shm_reg) ushm_obj_link;
+	struct umtx_key		ushm_key;
+	struct ucred		*ushm_cred;
+	struct shmfd		*ushm_obj;
+	u_int			ushm_refcnt;
+	u_int			ushm_flags;
+};
+
+LIST_HEAD(umtx_shm_obj_list, umtx_shm_reg);
+TAILQ_HEAD(umtx_shm_reg_head, umtx_shm_reg);
+
+static uma_zone_t umtx_shm_reg_zone;
+static struct umtx_shm_reg_head umtx_shm_registry[UMTX_CHAINS];
+static struct mtx umtx_shm_lock;
+static struct umtx_shm_reg_head umtx_shm_reg_delfree =
+    TAILQ_HEAD_INITIALIZER(umtx_shm_reg_delfree);
+
+static void umtx_shm_free_reg(struct umtx_shm_reg *reg);
+
+static void
+umtx_shm_reg_delfree_tq(void *context __unused, int pending __unused)
+{
+	struct umtx_shm_reg_head d;
+	struct umtx_shm_reg *reg, *reg1;
+
+	TAILQ_INIT(&d);
+	mtx_lock(&umtx_shm_lock);
+	TAILQ_CONCAT(&d, &umtx_shm_reg_delfree, ushm_reg_link);
+	mtx_unlock(&umtx_shm_lock);
+	TAILQ_FOREACH_SAFE(reg, &d, ushm_reg_link, reg1) {
+		TAILQ_REMOVE(&d, reg, ushm_reg_link);
+		umtx_shm_free_reg(reg);
+	}
+}
+
+static struct task umtx_shm_reg_delfree_task =
+    TASK_INITIALIZER(0, umtx_shm_reg_delfree_tq, NULL);
+
+static struct umtx_shm_reg *
+umtx_shm_find_reg_locked(const struct umtx_key *key)
+{
+	struct umtx_shm_reg *reg;
+	struct umtx_shm_reg_head *reg_head;
+
+	KASSERT(key->shared, ("umtx_p_find_rg: private key"));
+	mtx_assert(&umtx_shm_lock, MA_OWNED);
+	reg_head = &umtx_shm_registry[key->hash];
+	TAILQ_FOREACH(reg, reg_head, ushm_reg_link) {
+		KASSERT(reg->ushm_key.shared,
+		    ("non-shared key on reg %p %d", reg, reg->ushm_key.shared));
+		if (reg->ushm_key.info.shared.object ==
+		    key->info.shared.object &&
+		    reg->ushm_key.info.shared.offset ==
+		    key->info.shared.offset) {
+			KASSERT(reg->ushm_key.type == TYPE_SHM, ("TYPE_USHM"));
+			KASSERT(reg->ushm_refcnt > 0,
+			    ("reg %p refcnt 0 onlist", reg));
+			KASSERT((reg->ushm_flags & USHMF_REG_LINKED) != 0,
+			    ("reg %p not linked", reg));
+			reg->ushm_refcnt++;
+			return (reg);
+		}
+	}
+	return (NULL);
+}
+
+static struct umtx_shm_reg *
+umtx_shm_find_reg(const struct umtx_key *key)
+{
+	struct umtx_shm_reg *reg;
+
+	mtx_lock(&umtx_shm_lock);
+	reg = umtx_shm_find_reg_locked(key);
+	mtx_unlock(&umtx_shm_lock);
+	return (reg);
+}
+
+static void
+umtx_shm_free_reg(struct umtx_shm_reg *reg)
+{
+
+	chgumtxcnt(reg->ushm_cred->cr_ruidinfo, -1, 0);
+	crfree(reg->ushm_cred);
+	shm_drop(reg->ushm_obj);
+	uma_zfree(umtx_shm_reg_zone, reg);
+}
+
+static bool
+umtx_shm_unref_reg_locked(struct umtx_shm_reg *reg, bool force)
+{
+	bool res;
+
+	mtx_assert(&umtx_shm_lock, MA_OWNED);
+	KASSERT(reg->ushm_refcnt > 0, ("ushm_reg %p refcnt 0", reg));
+	reg->ushm_refcnt--;
+	res = reg->ushm_refcnt == 0;
+	if (res || force) {
+		if ((reg->ushm_flags & USHMF_REG_LINKED) != 0) {
+			TAILQ_REMOVE(&umtx_shm_registry[reg->ushm_key.hash],
+			    reg, ushm_reg_link);
+			reg->ushm_flags &= ~USHMF_REG_LINKED;
+		}
+		if ((reg->ushm_flags & USHMF_OBJ_LINKED) != 0) {
+			LIST_REMOVE(reg, ushm_obj_link);
+			reg->ushm_flags &= ~USHMF_OBJ_LINKED;
+		}
+	}
+	return (res);
+}
+
+static void
+umtx_shm_unref_reg(struct umtx_shm_reg *reg, bool force)
+{
+	vm_object_t object;
+	bool dofree;
+
+	if (force) {
+		object = reg->ushm_obj->shm_object;
+		VM_OBJECT_WLOCK(object);
+		object->flags |= OBJ_UMTXDEAD;
+		VM_OBJECT_WUNLOCK(object);
+	}
+	mtx_lock(&umtx_shm_lock);
+	dofree = umtx_shm_unref_reg_locked(reg, force);
+	mtx_unlock(&umtx_shm_lock);
+	if (dofree)
+		umtx_shm_free_reg(reg);
+}
+
+void
+umtx_shm_object_init(vm_object_t object)
+{
+
+	LIST_INIT(USHM_OBJ_UMTX(object));
+}
+
+void
+umtx_shm_object_terminated(vm_object_t object)
+{
+	struct umtx_shm_reg *reg, *reg1;
+	bool dofree;
+
+	dofree = false;
+	mtx_lock(&umtx_shm_lock);
+	LIST_FOREACH_SAFE(reg, USHM_OBJ_UMTX(object), ushm_obj_link, reg1) {
+		if (umtx_shm_unref_reg_locked(reg, true)) {
+			TAILQ_INSERT_TAIL(&umtx_shm_reg_delfree, reg,
+			    ushm_reg_link);
+			dofree = true;
+		}
+	}
+	mtx_unlock(&umtx_shm_lock);
+	if (dofree)
+		taskqueue_enqueue(taskqueue_thread, &umtx_shm_reg_delfree_task);
+}
+
+static int
+umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
+    struct umtx_shm_reg **res)
+{
+	struct umtx_shm_reg *reg, *reg1;
+	struct ucred *cred;
+	int error;
+
+	reg = umtx_shm_find_reg(key);
+	if (reg != NULL) {
+		*res = reg;
+		return (0);
+	}
+	cred = td->td_ucred;
+	if (!chgumtxcnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_UMTXP)))
+		return (ENOMEM);
+	reg = uma_zalloc(umtx_shm_reg_zone, M_WAITOK | M_ZERO);
+	reg->ushm_refcnt = 1;
+	bcopy(key, &reg->ushm_key, sizeof(*key));
+	reg->ushm_obj = shm_alloc(td->td_ucred, O_RDWR);
+	reg->ushm_cred = crhold(cred);
+	error = shm_dotruncate(reg->ushm_obj, PAGE_SIZE);
+	if (error != 0) {
+		umtx_shm_free_reg(reg);
+		return (error);
+	}
+	mtx_lock(&umtx_shm_lock);
+	reg1 = umtx_shm_find_reg_locked(key);
+	if (reg1 != NULL) {
+		mtx_unlock(&umtx_shm_lock);
+		umtx_shm_free_reg(reg);
+		*res = reg1;
+		return (0);
+	}
+	reg->ushm_refcnt++;
+	TAILQ_INSERT_TAIL(&umtx_shm_registry[key->hash], reg, ushm_reg_link);
+	LIST_INSERT_HEAD(USHM_OBJ_UMTX(key->info.shared.object), reg,
+	    ushm_obj_link);
+	reg->ushm_flags = USHMF_REG_LINKED | USHMF_OBJ_LINKED;
+	mtx_unlock(&umtx_shm_lock);
+	*res = reg;
+	return (0);
+}
+
+static int
+umtx_shm_alive(struct thread *td, void *addr)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t object;
+	vm_pindex_t pindex;
+	vm_prot_t prot;
+	int res, ret;
+	boolean_t wired;
+
+	map = &td->td_proc->p_vmspace->vm_map;
+	res = vm_map_lookup(&map, (uintptr_t)addr, VM_PROT_READ, &entry,
+	    &object, &pindex, &prot, &wired);
+	if (res != KERN_SUCCESS)
+		return (EFAULT);
+	if (object == NULL)
+		ret = EINVAL;
+	else
+		ret = (object->flags & OBJ_UMTXDEAD) != 0 ? ENOTTY : 0;
+	vm_map_lookup_done(map, entry);
+	return (ret);
+}
+
+static void
+umtx_shm_init(void)
+{
+	int i;
+
+	umtx_shm_reg_zone = uma_zcreate("umtx_shm", sizeof(struct umtx_shm_reg),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	mtx_init(&umtx_shm_lock, "umtxshm", NULL, MTX_DEF);
+	for (i = 0; i < nitems(umtx_shm_registry); i++)
+		TAILQ_INIT(&umtx_shm_registry[i]);
+}
+
+static int
+umtx_shm(struct thread *td, void *addr, u_int flags)
+{
+	struct umtx_key key;
+	struct umtx_shm_reg *reg;
+	struct file *fp;
+	int error, fd;
+
+	if (__bitcount(flags & (UMTX_SHM_CREAT | UMTX_SHM_LOOKUP |
+	    UMTX_SHM_DESTROY| UMTX_SHM_ALIVE)) != 1)
+		return (EINVAL);
+	if ((flags & UMTX_SHM_ALIVE) != 0)
+		return (umtx_shm_alive(td, addr));
+	error = umtx_key_get(addr, TYPE_SHM, PROCESS_SHARE, &key);
+	if (error != 0)
+		return (error);
+	KASSERT(key.shared == 1, ("non-shared key"));
+	if ((flags & UMTX_SHM_CREAT) != 0) {
+		error = umtx_shm_create_reg(td, &key, &reg);
+	} else {
+		reg = umtx_shm_find_reg(&key);
+		if (reg == NULL)
+			error = ESRCH;
+	}
+	umtx_key_release(&key);
+	if (error != 0)
+		return (error);
+	KASSERT(reg != NULL, ("no reg"));
+	if ((flags & UMTX_SHM_DESTROY) != 0) {
+		umtx_shm_unref_reg(reg, true);
+	} else {
+#if 0
+#ifdef MAC
+		error = mac_posixshm_check_open(td->td_ucred,
+		    reg->ushm_obj, FFLAGS(O_RDWR));
+		if (error == 0)
+#endif
+			error = shm_access(reg->ushm_obj, td->td_ucred,
+			    FFLAGS(O_RDWR));
+		if (error == 0)
+#endif
+			error = falloc_caps(td, &fp, &fd, O_CLOEXEC, NULL);
+		if (error == 0) {
+			shm_hold(reg->ushm_obj);
+			finit(fp, FFLAGS(O_RDWR), DTYPE_SHM, reg->ushm_obj,
+			    &shm_ops);
+			td->td_retval[0] = fd;
+			fdrop(fp, td);
+		}
+	}
+	umtx_shm_unref_reg(reg, false);
+	return (error);
+}
+
+static int
+__umtx_op_shm(struct thread *td, struct _umtx_op_args *uap)
+{
+
+	return (umtx_shm(td, uap->uaddr1, uap->val));
+}
+
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
 
 static const _umtx_op_func op_table[] = {
@@ -3481,6 +3801,7 @@ static const _umtx_op_func op_table[] = {
 	[UMTX_OP_MUTEX_WAKE2]	= __umtx_op_wake2_umutex,
 	[UMTX_OP_SEM2_WAIT]	= __umtx_op_sem2_wait,
 	[UMTX_OP_SEM2_WAKE]	= __umtx_op_sem2_wake,
+	[UMTX_OP_SHM]		= __umtx_op_shm,
 };
 
 int
@@ -3776,6 +4097,7 @@ static const _umtx_op_func op_table_compat32[] = {
 	[UMTX_OP_MUTEX_WAKE2]	= __umtx_op_wake2_umutex,
 	[UMTX_OP_SEM2_WAIT]	= __umtx_op_sem2_wait_compat32,
 	[UMTX_OP_SEM2_WAKE]	= __umtx_op_sem2_wake,
+	[UMTX_OP_SHM]		= __umtx_op_shm,
 };
 
 int
