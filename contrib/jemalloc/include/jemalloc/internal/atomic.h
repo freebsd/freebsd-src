@@ -11,7 +11,9 @@
 
 #define	atomic_read_uint64(p)	atomic_add_uint64(p, 0)
 #define	atomic_read_uint32(p)	atomic_add_uint32(p, 0)
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	atomic_read_p(p)	atomic_add_p(p, NULL)
+#endif
 #define	atomic_read_z(p)	atomic_add_z(p, 0)
 #define	atomic_read_u(p)	atomic_add_u(p, 0)
 
@@ -164,7 +166,12 @@ atomic_add_uint64(uint64_t *p, uint64_t x)
 	 */
 	assert(sizeof(uint64_t) == sizeof(unsigned long));
 
+#ifndef __CHERI_PURE_CAPABILITY__
 	return (atomic_fetchadd_long(p, (unsigned long)x) + x);
+#else
+	/* XXX: not atomic! */
+	return (*p += x);
+#endif
 }
 
 JEMALLOC_INLINE uint64_t
@@ -173,7 +180,12 @@ atomic_sub_uint64(uint64_t *p, uint64_t x)
 
 	assert(sizeof(uint64_t) == sizeof(unsigned long));
 
+#ifndef __CHERI_PURE_CAPABILITY__
 	return (atomic_fetchadd_long(p, (unsigned long)(-(long)x)) - x);
+#else
+	/* XXX: not atomic! */
+	return (*p -= x);
+#endif
 }
 
 JEMALLOC_INLINE bool
@@ -502,6 +514,7 @@ atomic_write_uint32(uint32_t *p, uint32_t x)
 
 /******************************************************************************/
 /* Pointer operations. */
+#ifndef __CHERI_PURE_CAPABILITY__
 JEMALLOC_INLINE void *
 atomic_add_p(void **p, void *x)
 {
@@ -525,26 +538,50 @@ atomic_sub_p(void **p, void *x)
 	    (uint32_t)-((int32_t)x)));
 #endif
 }
+#endif /* !__CHERI_PURE_CAPABILITY__ */
 
 JEMALLOC_INLINE bool
 atomic_cas_p(void **p, void *c, void *s)
 {
 
+#ifndef __CHERI_PURE_CAPABILITY__
 #if (LG_SIZEOF_PTR == 3)
 	return (atomic_cas_uint64((uint64_t *)p, (uint64_t)c, (uint64_t)s));
 #elif (LG_SIZEOF_PTR == 2)
 	return (atomic_cas_uint32((uint32_t *)p, (uint32_t)c, (uint32_t)s));
 #endif
+#else
+	/* XXX: not atomic! */
+	if (*p != c)
+		return (true);
+	*p = s;
+		return (false);
+#endif
 }
+
+#ifdef __CHERI_PURE_CAPABILITY__
+JEMALLOC_INLINE void *
+atomic_read_p(void **p)
+{
+
+	/* XXX: not atomic! */
+	return (*p);
+}
+#endif
 
 JEMALLOC_INLINE void
 atomic_write_p(void **p, const void *x)
 {
 
+#ifndef __CHERI_PURE_CAPABILITY__
 #if (LG_SIZEOF_PTR == 3)
 	atomic_write_uint64((uint64_t *)p, (uint64_t)x);
 #elif (LG_SIZEOF_PTR == 2)
 	atomic_write_uint32((uint32_t *)p, (uint32_t)x);
+#endif
+#else
+	/* XXX: not atomic! */
+	*p = (void *)(uintptr_t)x;
 #endif
 }
 
