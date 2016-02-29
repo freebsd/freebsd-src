@@ -30,6 +30,14 @@ Items affecting the ports and packages system can be found in
 	sendmail default for client connections has been raised to
 	1024 bits.
 
+20140922:
+	At svn r271982, The default linux compat kernel ABI has been adjusted
+	to 2.6.18 in support of the linux-c6 compat ports infrastructure
+	update.  If you wish to continue using the linux-f10 compat ports,
+	add compat.linux.osrelease=2.6.16 to your local sysctl.conf.  Users are
+	encouraged to update their linux-compat packages to linux-c6 during
+	their next update cycle.
+
 20140717:
 	It is no longer necessary to include the dwarf version in your DEBUG
 	options in your kernel config file. The bug that required it to be
