@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2014-2015 SRI International
  * All rights reserved.
  *
@@ -294,12 +294,68 @@ invoke_libcheri_userfn_setstack(register_t arg)
 }
 
 static void *saved_capability;
-int
-invoke_libcheri_save_capability_in_heap(void *data_input)
+
+/*
+ * These calls expect a global capability as a passed argument.
+ */
+register_t
+invoke_store_capability_in_bss(void *data_input)
 {
 
 	saved_capability = data_input;
 	return (0);
+}
+
+register_t
+invoke_store_local_capability_in_bss(void *data_input)
+{
+
+	saved_capability = cheri_local(data_input);
+	return (0);
+}
+
+/*
+ * These calls are a bit messy: we need to force an actual store into the
+ * stack, but also can't easily expose a pointer to the stack via a global
+ * because stack pointers are local, and globals don't permit store local.
+ * Use a lot of volatile and hope for the best?
+ *
+ * XXXRW: Compilers are getting pretty smart, we may need to revisit these two
+ * tests to make sure they generate the code we need them to -- even when
+ * optimised.
+ */
+register_t
+invoke_store_capability_in_stack(void *data_input)
+{
+	volatile void *ptr_in_stack;
+	volatile void * volatile *ptr_to_ptr_in_stack = &ptr_in_stack;
+
+	*ptr_to_ptr_in_stack = data_input;
+	return (0);
+}
+
+register_t
+invoke_store_local_capability_in_stack(void *data_input)
+{
+	volatile void *ptr_in_stack;
+	volatile void * volatile *ptr_to_ptr_in_stack = &ptr_in_stack;
+
+	*ptr_to_ptr_in_stack = cheri_local(data_input);
+	return (0);
+}
+
+void *
+invoke_return_capability(void *data_input)
+{
+
+	return (data_input);
+}
+
+void *
+invoke_return_local_capability(void *data_input)
+{
+
+	return (cheri_local(data_input));
 }
 
 /*

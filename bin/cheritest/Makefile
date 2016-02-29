@@ -10,6 +10,7 @@ SRCS+=	cheritest_bounds_stack.c					\
 	cheritest_fd.c							\
 	cheritest_inflate.c						\
 	cheritest_libcheri.c						\
+	cheritest_local.c						\
 	cheritest_registers.c						\
 	cheritest_sandbox.S						\
 	cheritest_string.c						\

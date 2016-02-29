@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015 Robert N. M. Watson
+ * Copyright (c) 2013-2016 Robert N. M. Watson
  * Copyright (c) 2014-2015 SRI International
  * All rights reserved.
  *
@@ -128,6 +128,13 @@ CHERITEST_CCALL int	invoke_libcheri_userfn(register_t arg, size_t len);
 CHERITEST_CCALL int	invoke_libcheri_userfn_setstack(register_t arg);
 CHERITEST_CCALL int	invoke_libcheri_save_capability_in_heap(
 			    void *data_input);
+
+CHERITEST_CCALL register_t	invoke_store_capability_in_bss(void *);
+CHERITEST_CCALL register_t	invoke_store_local_capability_in_bss(void *);
+CHERITEST_CCALL register_t	invoke_store_capability_in_stack(void *);
+CHERITEST_CCALL register_t	invoke_store_local_capability_in_stack(void *);
+CHERITEST_CCALL void	*invoke_return_capability(void *);
+CHERITEST_CCALL void	*invoke_return_local_capability(void *);
 
 CHERITEST_CCALL register_t	invoke_get_var_bss(void);
 CHERITEST_CCALL register_t	invoke_get_var_data(void);

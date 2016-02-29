@@ -131,6 +131,7 @@ struct cheri_test {
 void	cheritest_failure_err(const char *msg, ...) __dead2;
 void	cheritest_failure_errx(const char *msg, ...) __dead2;
 void	cheritest_success(void) __dead2;
+void	signal_handler_clear(int sig);
 
 /* cheritest_bounds.c */
 void	test_bounds_stack_static_uint8(const struct cheri_test *ctp);
@@ -269,6 +270,24 @@ void	test_2sandbox_newdestroy(const struct cheri_test *ctp);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 
+/* cheritest_local.c */
+void	test_sandbox_store_global_capability_in_bss(
+	    const struct cheri_test *ctp);
+void	test_sandbox_store_local_capability_in_bss_catch(
+	    const struct cheri_test *ctp);
+void	test_sandbox_store_local_capability_in_bss_nocatch(
+	    const struct cheri_test *ctp);
+void	test_sandbox_store_global_capability_in_stack(
+	    const struct cheri_test *ctp);
+void	test_sandbox_store_local_capability_in_stack(
+	    const struct cheri_test *ctp);
+void	test_sandbox_return_global_capability(const struct cheri_test *ctp);
+void	test_sandbox_return_local_capability_catch(
+	    const struct cheri_test *ctp);
+void	test_sandbox_return_local_capability_nocatch(
+	    const struct cheri_test *ctp);
+void	test_sandbox_pass_local_capability_arg(const struct cheri_test *ctp);
+
 /* cheritest_stack.c */
 register_t	cheritest_libcheri_userfn_getstack(void);
 register_t	cheritest_libcheri_userfn_setstack(register_t arg);
@@ -294,8 +313,6 @@ void	test_copyregs(const struct cheri_test *ctp);
 void	test_listregs(const struct cheri_test *ctp);
 
 /* cheritest_var.c */
-void	test_sandbox_save_global(const struct cheri_test *ctp);
-void	test_sandbox_save_local(const struct cheri_test *ctp);
 void	test_sandbox_var_bss(const struct cheri_test *ctp);
 void	test_sandbox_var_data(const struct cheri_test *ctp);
 void	test_sandbox_var_data_getset(const struct cheri_test *ctp);

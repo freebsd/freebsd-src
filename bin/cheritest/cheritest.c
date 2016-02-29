@@ -47,6 +47,7 @@
 #ifndef LIST_ONLY
 #include <machine/cheri.h>
 #include <machine/cheric.h>
+#include <machine/cherireg.h>
 #include <machine/cpuregs.h>
 #include <machine/frame.h>
 #include <machine/trap.h>
@@ -814,18 +815,60 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise CHERI_SET_STACK sysarch() to change stack",
 	  .ct_func = test_sandbox_setstack },
 
-	{ .ct_name = "test_sandbox_save_global",
-	  .ct_desc = "Try to save global argument to sandbox heap",
-	  .ct_func = test_sandbox_save_global },
+	/*
+	 * Check various properties to do with global vs. local capabilities
+	 * passed into (and out of) sandboxes.
+	 */
+	{ .ct_name = "test_sandbox_store_global_capability_in_bss",
+	  .ct_desc = "Try to store global capability to sandbox bss",
+	  .ct_func = test_sandbox_store_global_capability_in_bss },
 
-	{ .ct_name = "test_sandbox_save_local",
-	  .ct_desc = "Try to save local argument to sandbox heap",
-	  .ct_func = test_sandbox_save_local,
+	{ .ct_name = "test_sandbox_store_local_capability_in_bss_catch",
+	  .ct_desc = "Try to store local capability to sandbox bss; caught",
+	  .ct_func = test_sandbox_store_local_capability_in_bss_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_STORE_LOCALCAP },
+
+	{ .ct_name = "test_sandbox_store_local_capability_in_bss",
+	  .ct_desc = "Try to store local capability to sandbox bss; uncaught",
+	  .ct_func = test_sandbox_store_local_capability_in_bss_nocatch },
+
+	{ .ct_name = "test_sandbox_store_global_capability_in_stack",
+	  .ct_desc = "Try to store global capability to sandbox stack",
+	  .ct_func = test_sandbox_store_global_capability_in_stack },
+
+	{ .ct_name = "test_sandbox_store_local_capability_in_stack",
+	  .ct_desc = "Try to store local capability to sandbox stack",
+	  .ct_func = test_sandbox_store_local_capability_in_stack },
+
+	{ .ct_name = "test_sandbox_return_global_capability",
+	  .ct_desc = "Try to return global capability from sandbox",
+	  .ct_func = test_sandbox_return_global_capability },
+
+	{ .ct_name = "test_sandbox_return_local_capability_catch",
+	  .ct_desc = "Try to return a local capability from a sandbox; caught",
+	  .ct_func = test_sandbox_return_local_capability_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE | CT_FLAG_SIGNAL_UNWIND,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_SW_LOCALRET },
+
+	{ .ct_name = "test_sandbox_return_local_capability_nocatch",
+	  .ct_desc = "Try to return a local capability from a sandbox; uncaught",
+	  .ct_func = test_sandbox_return_local_capability_nocatch },
+
+	{ .ct_name = "test_sandbox_pass_local_capability_arg",
+	  .ct_desc = "Try to pass a local capability to a sandbox",
+	  .ct_func = test_sandbox_pass_local_capability_arg,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_SW_LOCALARG },
 
 	/*
 	 * libcheri + inflate/deflate tests.
@@ -1019,6 +1062,20 @@ signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 		 */
 		_exit(EX_SOFTWARE);
 	}
+}
+
+void
+signal_handler_clear(int sig)
+{
+	struct sigaction sa;
+
+	/* XXXRW: Possibly should just not be registering it? */
+	bzero(&sa, sizeof(sa));
+	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+	sa.sa_handler = SIG_DFL;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(sig, &sa, NULL) < 0)
+		cheritest_failure_err("clearing handler for sig %d", sig);
 }
 
 /* Maximum size of stdout data we will check if called for by a test. */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2016 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -61,6 +61,8 @@
 #define	CHERI_EXCCODE_PERM_EXECUTE	0
 #define	CHERI_EXCCODE_PERM_SEAL		0
 #define	CHERI_EXCCODE_STORE_LOCALCAP	0
+#define	CHERI_EXCCODE_SW_LOCALARG	0
+#define	CHERI_EXCCODE_SW_LOCALRET	0
 
 #define	test_initregs_default				NULL
 #define	test_initregs_stack				NULL
@@ -181,7 +183,6 @@
 #define	test_sandbox_ptrdiff				NULL
 #define	test_sandbox_varargs				NULL
 #define	test_sandbox_va_copy				NULL
-#define	test_2sandbox_newdestroy			NULL
 #define	test_sandbox_fd_fstat				NULL
 #define	test_sandbox_fd_lseek				NULL
 #define	test_sandbox_fd_read				NULL
@@ -189,11 +190,19 @@
 #define	test_sandbox_fd_write				NULL
 #define	test_sandbox_fd_write_revoke			NULL
 #define	test_sandbox_userfn				NULL
+#define	test_2sandbox_newdestroy			NULL
+#define	test_sandbox_store_global_capability_in_bss	NULL
+#define	test_sandbox_store_local_capability_in_bss_catch	NULL
+#define	test_sandbox_store_local_capability_in_bss_nocatch	NULL
+#define	test_sandbox_store_global_capability_in_stack	NULL
+#define	test_sandbox_store_local_capability_in_stack	NULL
+#define	test_sandbox_return_global_capability		NULL
+#define	test_sandbox_return_local_capability_catch	NULL
+#define	test_sandbox_return_local_capability_nocatch	NULL
+#define	test_sandbox_pass_local_capability_arg		NULL
 #define	test_sandbox_getstack				NULL
 #define	test_sandbox_setstack_nop			NULL
 #define	test_sandbox_setstack				NULL
-#define	test_sandbox_save_global			NULL
-#define	test_sandbox_save_local				NULL
 #define	test_sandbox_inflate_zeros			NULL
 #define	test_sandbox_var_bss				NULL
 #define	test_sandbox_var_data				NULL

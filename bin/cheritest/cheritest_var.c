@@ -62,32 +62,6 @@
 #include "cheritest.h"
 
 void
-test_sandbox_save_global(const struct cheri_test *ctp __unused)
-{
-	__capability void *carg;
-	register_t v;
-
-	carg = (__capability void *)&v;
-	v = invoke_libcheri_save_capability_in_heap(carg);
-	if (v != 0)
-		cheritest_failure_errx("Incorrect return value 0x%lx "
-		    "(expected 0)\n", v);
-	cheritest_success();
-}
-
-void
-test_sandbox_save_local(const struct cheri_test *ctp __unused)
-{
-	__capability void *carg;
-	register_t v;
-
-	carg = (__capability void *)&v;
-	carg = cheri_local(carg);
-	v = invoke_libcheri_save_capability_in_heap(carg);
-	cheritest_failure_errx("Method failed to properly fail\n");
-}
-
-void
 test_sandbox_var_bss(const struct cheri_test *ctp __unused)
 {
 	register_t v;

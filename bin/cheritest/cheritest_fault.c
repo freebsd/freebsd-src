@@ -211,20 +211,6 @@ test_fault_read_epcc(const struct cheri_test *ctp __unused)
  * Second batch of tests exercises various faults inside of sandboxes,
  * including VM faults, arithmetic faults, etc.
  */
-static void
-signal_handler_clear(int sig)
-{
-	struct sigaction sa;
-
-	/* XXXRW: Possibly should just not be registering it? */
-	bzero(&sa, sizeof(sa));
-	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
-	sa.sa_handler = SIG_DFL;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, NULL) < 0)
-		cheritest_failure_err("clearing handler for sig %d", sig);
-}
-
 void
 test_sandbox_cp2_bound_catch(const struct cheri_test *ctp __unused)
 {
