@@ -122,8 +122,14 @@ hv_vmbus_channel_stat(hv_vmbus_channel* channel)
 		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
 			SYSCTL_CHILDREN(devch_sub_sysctl),
 			OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl),
+		    OID_AUTO, "chanid", CTLFLAG_RD,
+		    &channel->offer_msg.child_rel_id, 0, "channel id");
 	}
-	
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
+	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
+
 	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
                     SYSCTL_CHILDREN(devch_id_sysctl),
                     OID_AUTO,
