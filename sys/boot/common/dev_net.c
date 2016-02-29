@@ -164,8 +164,7 @@ net_open(struct open_file *f, ...)
 		 * info from bootp or other sources.
 		 */
 		d = socktodesc(netdev_sock);
-		sprintf(temp, "%6D", d->myea, ":");
-		setenv("boot.netif.hwaddr", temp, 1);
+		setenv("boot.netif.hwaddr", ether_sprintf(d->myea), 1);
 		setenv("boot.netif.ip", inet_ntoa(myip), 1);
 		setenv("boot.netif.netmask", intoa(netmask), 1);
 		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
