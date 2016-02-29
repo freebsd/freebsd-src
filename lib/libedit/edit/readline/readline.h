@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.37 2015/06/02 15:36:45 christos Exp $	*/
+/*	$NetBSD: readline.h,v 1.39 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -55,7 +55,7 @@ typedef void *histdata_t;
 
 typedef struct _hist_entry {
 	const char	*line;
-	histdata_t 	 data;
+	histdata_t	 data;
 } HIST_ENTRY;
 
 typedef struct _keymap_entry {
@@ -89,7 +89,7 @@ typedef KEYMAP_ENTRY *Keymap;
 
 #define RUBOUT		0x7f
 #define ABORT_CHAR	CTRL('G')
-#define RL_READLINE_VERSION 	0x0402
+#define RL_READLINE_VERSION	0x0402
 #define RL_PROMPT_START_IGNORE	'\1'
 #define RL_PROMPT_END_IGNORE	'\2'
 
@@ -98,7 +98,7 @@ typedef KEYMAP_ENTRY *Keymap;
 extern "C" {
 #endif
 extern const char	*rl_library_version;
-extern int 		rl_readline_version; 
+extern int		rl_readline_version;
 extern char		*rl_readline_name;
 extern FILE		*rl_instream;
 extern FILE		*rl_outstream;
@@ -199,10 +199,10 @@ int		 rl_add_defun(const char *, rl_command_func_t *, int);
 HISTORY_STATE	*history_get_history_state(void);
 void		 rl_get_screen_size(int *, int *);
 void		 rl_set_screen_size(int, int);
-char 		*rl_filename_completion_function (const char *, int);
+char		*rl_filename_completion_function (const char *, int);
 int		 _rl_abort_internal(void);
 int		 _rl_qsort_string_compare(char **, char **);
-char 	       **rl_completion_matches(const char *, rl_compentry_func_t *);
+char	       **rl_completion_matches(const char *, rl_compentry_func_t *);
 void		 rl_forced_update_display(void);
 int		 rl_set_prompt(const char *);
 int		 rl_on_new_line(void);
@@ -218,6 +218,8 @@ int		 rl_generic_bind(int, const char *, const char *, Keymap);
 int		 rl_bind_key_in_map(int, rl_command_func_t *, Keymap);
 void		 rl_cleanup_after_signal(void);
 void		 rl_free_line_state(void);
+int		 rl_set_keyboard_input_timeout(int);
+
 #ifdef __cplusplus
 }
 #endif
