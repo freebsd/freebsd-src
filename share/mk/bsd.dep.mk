@@ -201,7 +201,7 @@ CFLAGS+=	${DEPEND_CFLAGS}
 .endif
 .if !defined(_SKIP_READ_DEPEND)
 .for __depend_obj in ${DEPENDFILES_OBJS}
-.sinclude "${__depend_obj}"
+.sinclude "${.OBJDIR}/${__depend_obj}"
 .endfor
 .endif	# !defined(_SKIP_READ_DEPEND)
 .endif	# !defined(_meta_filemon)
