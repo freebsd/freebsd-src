@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.23 2014/04/09 12:15:52 tom Exp $
+# $Id: makefile.in,v 1.24 2015/07/05 22:12:29 tom Exp $
 #
 # UNIX template-makefile for Berkeley Yacc
 
@@ -134,7 +134,7 @@ clean :: mostlyclean
 	- rm -f $(THIS)$x
 
 distclean :: clean
-	- rm -f config.log config.cache config.status config.h makefile
+	- rm -f config.log config.cache config.status config.h makefile man2html.tmp
 	- rm -f $(testdir)/yacc/test-* $(testdir)/btyacc/test-*
 
 realclean :: distclean
