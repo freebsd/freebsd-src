@@ -597,7 +597,7 @@ scan_task(void *arg, int pending)
 	struct ieee80211vap *vap = ss->ss_vap;
 	struct ieee80211com *ic = ss->ss_ic;
 	struct ieee80211_channel *chan;
-	unsigned long maxdwell, scanend;
+	unsigned long maxdwell;
 	int scandone = 0;
 
 	IEEE80211_LOCK(ic);
@@ -631,7 +631,7 @@ scan_task(void *arg, int pending)
 		}
 	}
 
-	scanend = ticks + ss_priv->ss_duration;
+	ss_priv->ss_scanend = ticks + ss_priv->ss_duration;
 
 	/* XXX scan state can change! Re-validate scan state! */
 
@@ -651,7 +651,7 @@ scan_task(void *arg, int pending)
 
 		if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
 		    (ss_priv->ss_iflags & ISCAN_ABORT) ||
-		     time_after(ticks + ss->ss_mindwell, scanend))
+		     time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend))
 			break;
 
 		chan = ss->ss_chans[ss->ss_next++];
@@ -659,8 +659,8 @@ scan_task(void *arg, int pending)
 		/*
 		 * Watch for truncation due to the scan end time.
 		 */
-		if (time_after(ticks + ss->ss_maxdwell, scanend))
-			maxdwell = scanend - ticks;
+		if (time_after(ticks + ss->ss_maxdwell, ss_priv->ss_scanend))
+			maxdwell = ss_priv->ss_scanend - ticks;
 		else
 			maxdwell = ss->ss_maxdwell;
 
@@ -771,12 +771,12 @@ scan_task(void *arg, int pending)
 	if ((ss_priv->ss_iflags & ISCAN_CANCEL) == 0 &&
 	    !ss->ss_ops->scan_end(ss, vap) &&
 	    (ss->ss_flags & IEEE80211_SCAN_ONCE) == 0 &&
-	    time_before(ticks + ss->ss_mindwell, scanend)) {
+	    time_before(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: done, restart "
 		    "[ticks %u, dwell min %lu scanend %lu]\n",
 		    __func__,
-		    ticks, ss->ss_mindwell, scanend);
+		    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
 		ss->ss_next = 0;	/* reset to begining */
 		if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 			vap->iv_stats.is_scan_active++;
@@ -796,7 +796,7 @@ scan_task(void *arg, int pending)
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 	    "%s: %s, [ticks %u, dwell min %lu scanend %lu]\n",
 	    __func__, scandone ? "done" : "stopped",
-	    ticks, ss->ss_mindwell, scanend);
+	    ticks, ss->ss_mindwell, ss_priv->ss_scanend);
 
 	/*
 	 * Since a cancellation may have occured during one of the
@@ -835,6 +835,7 @@ done:
 		}
 	}
 	ss_priv->ss_iflags &= ~(ISCAN_CANCEL|ISCAN_ABORT);
+	ss_priv->ss_scanend = 0;
 	ss->ss_flags &= ~(IEEE80211_SCAN_ONCE | IEEE80211_SCAN_PICK1ST);
 	IEEE80211_UNLOCK(ic);
 #undef ISCAN_REP
