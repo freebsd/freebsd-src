@@ -100,6 +100,7 @@ static	void scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static	void scan_mindwell(struct ieee80211_scan_state *);
 static	void scan_signal(void *);
 static	void scan_task(void *, int);
+static	void scan_done(struct ieee80211_scan_state *, int);
 
 MALLOC_DEFINE(M_80211_SCAN, "80211scan", "802.11 scan state");
 
@@ -604,14 +605,15 @@ scan_task(void *arg, int pending)
 	if (vap == NULL || (ic->ic_flags & IEEE80211_F_SCAN) == 0 ||
 	    (ss_priv->ss_iflags & ISCAN_ABORT)) {
 		/* Cancelled before we started */
-		goto done;
+		scan_done(ss, 0);
+		return;
 	}
 
 	if (ss->ss_next == ss->ss_last) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 			"%s: no channels to scan\n", __func__);
-		scandone = 1;
-		goto done;
+		scan_done(ss, 1);
+		return;
 	}
 
 	if (vap->iv_opmode == IEEE80211_M_STA &&
@@ -626,8 +628,10 @@ scan_task(void *arg, int pending)
 			 */
 			cv_timedwait(&ss_priv->ss_scan_cv,
 			    IEEE80211_LOCK_OBJ(ic), msecs_to_ticks(1));
-			if (ss_priv->ss_iflags & ISCAN_ABORT)
-				goto done;
+			if (ss_priv->ss_iflags & ISCAN_ABORT) {
+				scan_done(ss, 0);
+				return;
+			}
 		}
 	}
 
@@ -721,8 +725,10 @@ scan_task(void *arg, int pending)
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: out\n", __func__);
 
-	if (ss_priv->ss_iflags & ISCAN_ABORT)
-		goto done;
+	if (ss_priv->ss_iflags & ISCAN_ABORT) {
+		scan_done(ss, scandone);
+		return;
+	}
 
 	IEEE80211_UNLOCK(ic);
 	ic->ic_scan_end(ic);		/* notify driver */
@@ -810,14 +816,26 @@ scan_task(void *arg, int pending)
 		scandone = 1;
 	}
 
+	scan_done(ss, scandone);
+}
+
+static void
+scan_done(struct ieee80211_scan_state *ss, int scandone)
+{
+	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
+	struct ieee80211com *ic = ss->ss_ic;
+	struct ieee80211vap *vap = ss->ss_vap;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
 	/*
 	 * Clear the SCAN bit first in case frames are
 	 * pending on the station power save queue.  If
 	 * we defer this then the dispatch of the frames
 	 * may generate a request to cancel scanning.
 	 */
-done:
 	ic->ic_flags &= ~IEEE80211_F_SCAN;
+
 	/*
 	 * Drop out of power save mode when a scan has
 	 * completed.  If this scan was prematurely terminated
