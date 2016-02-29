@@ -810,7 +810,7 @@ nvme_ctrlr_intx_handler(void *arg)
 
 	nvme_qpair_process_completions(&ctrlr->adminq);
 
-	if (ctrlr->ioq[0].cpl)
+	if (ctrlr->ioq && ctrlr->ioq[0].cpl)
 		nvme_qpair_process_completions(&ctrlr->ioq[0]);
 
 	nvme_mmio_write_4(ctrlr, intmc, 1);
