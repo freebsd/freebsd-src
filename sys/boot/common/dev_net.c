@@ -111,7 +111,6 @@ net_init(void)
 static int
 net_open(struct open_file *f, ...)
 {
-	char temp[FNAME_SIZE];
 	struct iodesc *d;
 	va_list args;
 	char *devname;		/* Device part of file name (or NULL). */
