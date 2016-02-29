@@ -291,23 +291,23 @@ notify 0 {
 To see
 .Nm
 packets decoded in
-.Xr tcpdump 8
+.Xr tcpdump 1
 output, one needs to specify
 .Fl T Ar carp
 option, otherwise
-.Xr tcpdump 8
+.Xr tcpdump 1
 tries to interpret them as VRRP packets:
 .Bd -literal -offset indent
 tcpdump -npi vlan0 -T carp
 .Ed
 .Sh SEE ALSO
+.Xr tcpdump 1 ,
 .Xr inet 4 ,
 .Xr pfsync 4 ,
 .Xr devd.conf 5 ,
 .Xr rc.conf 5 ,
 .Xr ifconfig 8 ,
-.Xr sysctl 8 ,
-.Xr tcpdump 8
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
