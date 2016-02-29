@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -80,6 +81,68 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 
 }
 
+static void
+hv_vmbus_channel_stat(hv_vmbus_channel* channel)
+{
+	device_t dev;
+	struct sysctl_oid *devch_sysctl;
+	struct sysctl_oid *devch_id_sysctl, *devch_sub_sysctl;
+	struct sysctl_oid *devch_id_in_sysctl, *devch_id_out_sysctl;
+	struct sysctl_ctx_list *ctx;
+	uint32_t ch_id;
+	uint16_t sub_ch_id;
+	char name[16];
+	
+	hv_vmbus_channel* primary_ch = channel->primary_channel;
+
+	if (primary_ch == NULL) {
+		dev = channel->device->device;
+		ch_id = channel->offer_msg.child_rel_id;
+	} else {
+		dev = primary_ch->device->device;
+		ch_id = primary_ch->offer_msg.child_rel_id;
+		sub_ch_id = channel->offer_msg.offer.sub_channel_index;
+	}
+	ctx = device_get_sysctl_ctx(dev);
+	/* This creates dev.DEVNAME.DEVUNIT.channel tree */
+	devch_sysctl = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "channel", CTLFLAG_RD, 0, "");
+	/* This creates dev.DEVNAME.DEVUNIT.channel.CHANID tree */
+	snprintf(name, sizeof(name), "%d", ch_id);
+	devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
+	    	    SYSCTL_CHILDREN(devch_sysctl),
+	    	    OID_AUTO, name, CTLFLAG_RD, 0, "");
+
+	if (primary_ch != NULL) {
+		devch_sub_sysctl = SYSCTL_ADD_NODE(ctx,
+			SYSCTL_CHILDREN(devch_id_sysctl),
+			OID_AUTO, "sub", CTLFLAG_RD, 0, "");
+		snprintf(name, sizeof(name), "%d", sub_ch_id);
+		devch_id_sysctl = SYSCTL_ADD_NODE(ctx,
+			SYSCTL_CHILDREN(devch_sub_sysctl),
+			OID_AUTO, name, CTLFLAG_RD, 0, "");
+	}
+	
+	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
+                    SYSCTL_CHILDREN(devch_id_sysctl),
+                    OID_AUTO,
+		    "in",
+		    CTLFLAG_RD, 0, "");
+	devch_id_out_sysctl = SYSCTL_ADD_NODE(ctx,
+                    SYSCTL_CHILDREN(devch_id_sysctl),
+                    OID_AUTO,
+		    "out",
+		    CTLFLAG_RD, 0, "");
+	hv_ring_buffer_stat(ctx,
+		SYSCTL_CHILDREN(devch_id_in_sysctl),
+		&(channel->inbound),
+		"inbound ring buffer stats");
+	hv_ring_buffer_stat(ctx,
+		SYSCTL_CHILDREN(devch_id_out_sysctl),
+		&(channel->outbound),
+		"outbound ring buffer stats");
+}
 /**
  * @brief Open the specified channel
  */
@@ -142,6 +205,9 @@ hv_vmbus_channel_open(
 		&new_channel->inbound,
 		in,
 		recv_ring_buffer_size);
+
+	/* setup statistic tracking for this channel */
+	hv_vmbus_channel_stat(new_channel);
 
 	/**
 	 * Establish the gpadl for the ring buffer
