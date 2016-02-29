@@ -86,6 +86,13 @@ void	__free(void *ptr);
 int	__posix_memalign(void **ptr, size_t alignment, size_t size);
 void	*__aligned_alloc(size_t alignment, size_t size);
 size_t	__malloc_usable_size(const void *ptr);
+void	__malloc_stats_print(void (*write_cb)(void *, const char *),
+    void *cbopaque, const char *opts);
+int	__mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
+    size_t newlen);
+int	__mallctlnametomib(const char *name, size_t *mibp, size_t *miblenp);
+int	__mallctlbymib(const size_t *mib, size_t miblen, void *oldp,
+    size_t *oldlenp, void *newp, size_t newlen);
 void	*__mallocx(size_t size, int flags);
 void	*__rallocx(void *ptr, size_t size, int flags);
 size_t	__xallocx(void *ptr, size_t size, size_t extra, int flags);
