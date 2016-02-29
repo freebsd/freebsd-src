@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.h,v 1.15 2014/05/19 19:54:12 christos Exp $	*/
+/*	$NetBSD: tty.h,v 1.19 2016/02/27 18:13:21 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -41,8 +41,6 @@
 #ifndef _h_el_tty
 #define	_h_el_tty
 
-#include "sys.h"
-#include "histedit.h"
 #include <termios.h>
 #include <unistd.h>
 
@@ -475,8 +473,9 @@ typedef struct {
     int t_tabs;
     int t_eight;
     speed_t t_speed;
-    int t_mode;
+    unsigned char t_mode;
     unsigned char t_vdisable;
+    unsigned char t_initialized;
 } el_tty_t;
 
 

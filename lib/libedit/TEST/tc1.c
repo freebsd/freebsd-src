@@ -1,4 +1,4 @@
-/*	$NetBSD: tc1.c,v 1.6 2014/06/18 20:12:15 christos Exp $	*/
+/*	$NetBSD: tc1.c,v 1.7 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -42,7 +42,7 @@ __COPYRIGHT("@(#) Copyright (c) 1992, 1993\n\
 #if 0
 static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tc1.c,v 1.6 2014/06/18 20:12:15 christos Exp $");
+__RCSID("$NetBSD: tc1.c,v 1.7 2016/02/17 19:47:49 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 __FBSDID("$FreeBSD$");
@@ -50,15 +50,15 @@ __FBSDID("$FreeBSD$");
 /*
  * test.c: A little test program
  */
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <locale.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "histedit.h"
 
@@ -158,7 +158,7 @@ main(int argc, char *argv[])
 					/* Add a user-defined function	*/
 	el_set(el, EL_ADDFN, "ed-complete", "Complete argument", complete);
 
-					/* Bind tab to it 		*/
+					/* Bind tab to it		*/
 	el_set(el, EL_BIND, "^I", "ed-complete", NULL);
 
 	/*
