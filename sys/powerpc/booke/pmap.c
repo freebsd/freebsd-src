@@ -198,7 +198,6 @@ static void tid_flush(tlbtid_t tid);
 
 static void tlb_print_entry(int, uint32_t, uint32_t, uint32_t, uint32_t);
 
-static int tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 static void tlb1_write_entry(unsigned int);
 static int tlb1_iomapped(int, vm_paddr_t, vm_size_t, vm_offset_t *);
 static vm_size_t tlb1_mapin_region(vm_offset_t, vm_paddr_t, vm_size_t);
@@ -3203,7 +3202,7 @@ size2tsize(vm_size_t size)
  * Entries are created starting from index 0 (current free entry is
  * kept in tlb1_idx) and are not supposed to be invalidated.
  */
-static int
+int
 tlb1_set_entry(vm_offset_t va, vm_paddr_t pa, vm_size_t size,
     uint32_t flags)
 {
