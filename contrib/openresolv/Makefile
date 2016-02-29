@@ -1,5 +1,5 @@
 PKG=		openresolv
-VERSION=	3.7.1
+VERSION=	3.7.3
 
 # Nasty hack so that make clean works without configure being run
 _CONFIG_MK!=	test -e config.mk && echo config.mk || echo config-null.mk
