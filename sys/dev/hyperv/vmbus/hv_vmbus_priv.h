@@ -639,6 +639,14 @@ extern hv_vmbus_channel_msg_table_entry	g_channel_message_table[];
 /*
  * Private, VM Bus functions
  */
+struct sysctl_ctx_list;
+struct sysctl_oid_list;
+
+void			hv_ring_buffer_stat(
+				struct sysctl_ctx_list		*ctx,
+				struct sysctl_oid_list		*tree_node,
+				hv_vmbus_ring_buffer_info	*rbi,
+				const char			*desc);
 
 int			hv_vmbus_ring_buffer_init(
 				hv_vmbus_ring_buffer_info	*ring_info,
