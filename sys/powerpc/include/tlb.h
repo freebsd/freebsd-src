@@ -121,11 +121,7 @@
 #define KERNEL_REGION_MAX_TLB_ENTRIES   4
 
 #define _TLB_ENTRY_IO	(MAS2_I | MAS2_G)
-#ifdef SMP
 #define _TLB_ENTRY_MEM	(MAS2_M)
-#else
-#define _TLB_ENTRY_MEM	(0)
-#endif
 
 #if !defined(LOCORE)
 typedef struct tlb_entry {
@@ -215,6 +211,7 @@ struct pmap;
 
 void tlb_lock(uint32_t *);
 void tlb_unlock(uint32_t *);
+int  tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 
 #endif /* !LOCORE */
 
