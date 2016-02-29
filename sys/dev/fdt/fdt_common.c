@@ -647,12 +647,12 @@ out:
 }
 
 int
-fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
+fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, u_long *memsize)
 {
 	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
 	pcell_t *regp;
 	phandle_t memory;
-	uint32_t memory_size;
+	u_long memory_size;
 	int addr_cells, size_cells;
 	int i, max_size, reg_len, rv, tuple_size, tuples;
 

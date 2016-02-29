@@ -90,7 +90,8 @@ mips_init(void)
 	int i;
 #ifdef FDT
 	struct mem_region mr[FDT_MEM_REGIONS];
-	int mr_cnt, val;
+	int mr_cnt;
+	u_long val;
 	int j;
 #endif
 
