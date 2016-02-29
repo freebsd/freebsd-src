@@ -1800,13 +1800,19 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 * We have been requested to drop back to the INIT before
 		 * proceeding to the new state.
 		 */
+		/* Deny any state changes while we are here. */
+		vap->iv_nstate = IEEE80211_S_INIT;
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
 		    "%s: %s -> %s arg %d\n", __func__,
 		    ieee80211_state_name[vap->iv_state],
-		    ieee80211_state_name[IEEE80211_S_INIT], arg);
-		vap->iv_newstate(vap, IEEE80211_S_INIT, arg);
+		    ieee80211_state_name[vap->iv_nstate], arg);
+		vap->iv_newstate(vap, vap->iv_nstate, 0);
 		IEEE80211_LOCK_ASSERT(ic);
-		vap->iv_flags_ext &= ~IEEE80211_FEXT_REINIT;
+		vap->iv_flags_ext &= ~(IEEE80211_FEXT_REINIT |
+		    IEEE80211_FEXT_STATEWAIT);
+		/* enqueue new state transition after cancel_scan() task */
+		ieee80211_new_state_locked(vap, nstate, arg);
+		goto done;
 	}
 
 	ostate = vap->iv_state;
@@ -1917,11 +1923,22 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if (vap->iv_flags_ext & IEEE80211_FEXT_STATEWAIT) {
-		if (vap->iv_nstate == IEEE80211_S_INIT) {
+		if (vap->iv_nstate == IEEE80211_S_INIT ||
+		    ((vap->iv_state == IEEE80211_S_INIT ||
+		    (vap->iv_flags_ext & IEEE80211_FEXT_REINIT)) &&
+		    vap->iv_nstate == IEEE80211_S_SCAN &&
+		    nstate > IEEE80211_S_SCAN)) {
 			/*
-			 * XXX The vap is being stopped, do no allow any other
-			 * state changes until this is completed.
+			 * XXX The vap is being stopped/started,
+			 * do not allow any other state changes
+			 * until this is completed.
 			 */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+			    "%s: %s -> %s (%s) transition discarded\n",
+			    __func__,
+			    ieee80211_state_name[vap->iv_state],
+			    ieee80211_state_name[nstate],
+			    ieee80211_state_name[vap->iv_nstate]);
 			return -1;
 		} else if (vap->iv_state != vap->iv_nstate) {
 #if 0
