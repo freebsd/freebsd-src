@@ -629,13 +629,9 @@ scan_start(void *arg, int pending)
 		if ((vap->iv_bss->ni_flags & IEEE80211_NODE_PWR_MGT) == 0) {
 			/* Enable station power save mode */
 			vap->iv_sta_ps(vap, 1);
-			/*
-			 * Use an 1ms delay so the null data frame has a chance
-			 * to go out.
-			 * XXX Should use M_TXCB mechanism to eliminate this.
-			 */
+			/* Wait until null data frame will be ACK'ed */
 			mtx_sleep(vap, IEEE80211_LOCK_OBJ(ic), PCATCH,
-			    "sta_ps", msecs_to_ticks(1));
+			    "sta_ps", msecs_to_ticks(10));
 			if (ss_priv->ss_iflags & ISCAN_ABORT) {
 				scan_done(ss, 0);
 				return;
