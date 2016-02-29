@@ -100,6 +100,7 @@ static	void scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static	void scan_mindwell(struct ieee80211_scan_state *);
 static	void scan_signal(void *);
 static	void scan_task(void *, int);
+static	void scan_end(struct ieee80211_scan_state *, int);
 static	void scan_done(struct ieee80211_scan_state *, int);
 
 MALLOC_DEFINE(M_80211_SCAN, "80211scan", "802.11 scan state");
@@ -655,8 +656,10 @@ scan_task(void *arg, int pending)
 
 		if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
 		    (ss_priv->ss_iflags & ISCAN_ABORT) ||
-		     time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend))
-			break;
+		     time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
+			scan_end(ss, scandone);
+			return;
+		}
 
 		chan = ss->ss_chans[ss->ss_next++];
 
@@ -722,6 +725,16 @@ scan_task(void *arg, int pending)
 		/* Wait to be signalled to scan the next channel */
 		cv_wait(&ss_priv->ss_scan_cv, IEEE80211_LOCK_OBJ(ic));
 	}
+}
+
+static void
+scan_end(struct ieee80211_scan_state *ss, int scandone)
+{
+	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
+	struct ieee80211vap *vap = ss->ss_vap;
+	struct ieee80211com *ic = ss->ss_ic;
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: out\n", __func__);
 
