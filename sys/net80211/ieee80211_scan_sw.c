@@ -595,9 +595,9 @@ scan_signal_locked(struct ieee80211_scan_state *ss, int iflags)
 static void
 scan_mindwell(struct ieee80211_scan_state *ss)
 {
-	struct ieee80211vap *vap = ss->ss_vap;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
+	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: called\n",
+	    __func__);
 
 	scan_signal(ss, 0);
 }
@@ -657,7 +657,6 @@ scan_curchan_task(void *arg, int pending)
 {
 	struct ieee80211_scan_state *ss = arg;
 	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
-	struct ieee80211vap *vap = ss->ss_vap;
 	struct ieee80211com *ic = ss->ss_ic;
 	struct ieee80211_channel *chan;
 	unsigned long maxdwell;
@@ -668,7 +667,7 @@ end:
 	scandone = (ss->ss_next >= ss->ss_last) ||
 	    (ss_priv->ss_iflags & ISCAN_CANCEL) != 0;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN,
 	    "%s: loop start; scandone=%d\n",
 	    __func__,
 	    scandone);
@@ -692,7 +691,7 @@ end:
 	else
 		maxdwell = ss->ss_maxdwell;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN,
 	    "%s: chan %3d%c -> %3d%c [%s, dwell min %lums max %lums]\n",
 	    __func__,
 	    ieee80211_chan2ieee(ic, ic->ic_curchan),
@@ -740,7 +739,8 @@ end:
 	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT))
 		goto end;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: waiting\n", __func__);
+	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: waiting\n",
+	    __func__);
 	IEEE80211_UNLOCK(ic);
 }
 
