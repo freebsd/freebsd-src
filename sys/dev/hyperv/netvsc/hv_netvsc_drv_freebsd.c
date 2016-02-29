@@ -290,8 +290,10 @@ static void hn_start(struct ifnet *ifp);
 static void hn_start_txeof(struct hn_tx_ring *);
 static int hn_ifmedia_upd(struct ifnet *ifp);
 static void hn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
+#if __FreeBSD_version >= 1100099
 static int hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS);
+#endif
 static int hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_tx_chimney_size_sysctl(SYSCTL_HANDLER_ARGS);
 static int hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
@@ -1368,6 +1370,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* Obtain and record requested MTU */
 		ifp->if_mtu = ifr->ifr_mtu;
 
+#if __FreeBSD_version >= 1100099
 		/*
 		 * Make sure that LRO aggregation length limit is still
 		 * valid, after the MTU change.
@@ -1383,6 +1386,7 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 		}
 		NV_UNLOCK(sc);
+#endif
 
 		do {
 			NV_LOCK(sc);
@@ -1705,6 +1709,8 @@ hn_watchdog(struct ifnet *ifp)
 }
 #endif
 
+#if __FreeBSD_version >= 1100099
+
 static int
 hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -1757,6 +1763,8 @@ hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 	NV_UNLOCK(sc);
 	return 0;
 }
+
+#endif
 
 static int
 hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
@@ -2040,8 +2048,10 @@ hn_create_rx_data(struct hn_softc *sc)
 		tcp_lro_init(&rxr->hn_lro);
 		rxr->hn_lro.ifp = sc->hn_ifp;
 #endif
+#if __FreeBSD_version >= 1100099
 		rxr->hn_lro.lro_length_lim = HN_LRO_LENLIM_DEF;
 		rxr->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
+#endif
 #endif	/* INET || INET6 */
 	}
 
@@ -2060,12 +2070,14 @@ hn_create_rx_data(struct hn_softc *sc)
 	    CTLTYPE_ULONG | CTLFLAG_RW, sc,
 	    __offsetof(struct hn_rx_ring, hn_lro_tried),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of LRO tries");
+#if __FreeBSD_version >= 1100099
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
 	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_lro_lenlim_sysctl, "IU",
 	    "Max # of data bytes to be aggregated by LRO");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_ackcnt_lim",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, hn_lro_ackcnt_sysctl, "I",
 	    "Max # of ACKs to be aggregated by LRO");
+#endif
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
 	    CTLTYPE_INT | CTLFLAG_RW, sc, HN_TRUST_HCSUM_TCP,
 	    hn_trust_hcsum_sysctl, "I",
