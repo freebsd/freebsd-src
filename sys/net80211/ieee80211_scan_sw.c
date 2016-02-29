@@ -426,21 +426,18 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 	return (ic->ic_flags & IEEE80211_F_SCAN);
 }
 
-/*
- * Cancel any scan currently going on for the specified vap.
- */
 static void
-ieee80211_swscan_cancel_scan(struct ieee80211vap *vap)
+cancel_scan(struct ieee80211vap *vap, int any, const char *func)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
 
 	IEEE80211_LOCK(ic);
 	if ((ic->ic_flags & IEEE80211_F_SCAN) &&
-	    ss->ss_vap == vap &&
+	    (any || ss->ss_vap == vap) &&
 	    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) == 0) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: cancel %s scan\n", __func__,
+		    "%s: cancel %s scan\n", func,
 		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ?
 			"active" : "passive");
 
@@ -452,7 +449,7 @@ ieee80211_swscan_cancel_scan(struct ieee80211vap *vap)
 	} else {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
-		        __func__,
+			func,
 			!! (ic->ic_flags & IEEE80211_F_SCAN),
 			(ss->ss_vap == vap ? "match" : "nomatch"),
 			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
@@ -461,36 +458,21 @@ ieee80211_swscan_cancel_scan(struct ieee80211vap *vap)
 }
 
 /*
+ * Cancel any scan currently going on for the specified vap.
+ */
+static void
+ieee80211_swscan_cancel_scan(struct ieee80211vap *vap)
+{
+	cancel_scan(vap, 0, __func__);
+}
+
+/*
  * Cancel any scan currently going on.
  */
 static void
 ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
 {
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_scan_state *ss = ic->ic_scan;
-
-	IEEE80211_LOCK(ic);
-	if ((ic->ic_flags & IEEE80211_F_SCAN) &&
-	    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) == 0) {
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: cancel %s scan\n", __func__,
-		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ?
-			"active" : "passive");
-
-		/* clear bg scan NOPICK and mark cancel request */
-		ss->ss_flags &= ~IEEE80211_SCAN_NOPICK;
-		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_CANCEL;
-		/* wake up the scan task */
-		scan_signal(ss);
-	} else {
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
-		        __func__,
-			!! (ic->ic_flags & IEEE80211_F_SCAN),
-			(ss->ss_vap == vap ? "match" : "nomatch"),
-			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
-	}
-	IEEE80211_UNLOCK(ic);
+	cancel_scan(vap, 1, __func__);
 }
 
 /*
