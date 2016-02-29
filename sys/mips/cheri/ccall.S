@@ -311,11 +311,7 @@ ccall_check_globals:
 	movn		AT, t0, k0		/* Clear if true. */
 #endif
 	/* One branch to rule them all. */
-#if defined(NOTYET)
 	bnez		AT, CCall_local_argument
-#else
-	nop
-#endif
 	nop
 
 	/*
@@ -624,7 +620,7 @@ creturn_check_global:
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	beqz		k1, CReturn_local_retval
+	bnez		k0, CReturn_local_retval
 	nop
 
 	/* Increment the exception counter for creturn, if enabled. */
@@ -843,8 +839,9 @@ creturn_exception_return:
 
 CReturn_local_retval:
 	dli	k0, ((CHERI_EXCCODE_SW_LOCALRET << 8) | 3)
-	b	CCall_throw_exception
-	csetcause	k0		/* Branch-delay slot. */
+	csetcause	k0
+	j	_C_LABEL(MipsUserGenException)
+	nop
 
 CReturn_stack_underflow:
 	dli	k0, ((CHERI_EXCCODE_RETURN << 8) | 0)
