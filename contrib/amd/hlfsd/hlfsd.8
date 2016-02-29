@@ -43,7 +43,7 @@
 .\" Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@smarts.com>
 .\" It is distributed under the same terms and conditions as AMD.
 .\"
-.Dd January 2, 2006
+.Dd February 26, 2016
 .Dt HLFSD 8
 .Os
 .Sh NAME
@@ -63,6 +63,13 @@
 .Op Fl P Ar password-file
 .Op Ar linkname Op Ar subdir
 .Sh DESCRIPTION
+.Bf -symbolic
+This daemon is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
 The
 .Nm
 utility

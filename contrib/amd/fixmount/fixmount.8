@@ -41,7 +41,7 @@
 .\" $Id: fixmount.8,v 1.12.2.1 2006/01/02 18:48:25 ezk Exp $
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2006
+.Dd February 26, 2016
 .Dt FIXMOUNT 8
 .Os
 .Sh NAME
@@ -53,6 +53,13 @@
 .Op Fl h Ar name
 .Ar host ...
 .Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
 The
 .Nm
 utility
