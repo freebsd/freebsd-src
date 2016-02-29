@@ -59,12 +59,12 @@ struct scan_state {
 #define	ISCAN_DISCARD	0x0002		/* discard rx'd frames */
 #define	ISCAN_CANCEL	0x0004		/* cancel current scan */
 #define	ISCAN_ABORT	0x0008		/* end the scan immediately */
+#define	ISCAN_RUNNING	0x0010		/* scan was started */
 	unsigned long	ss_chanmindwell;	/* min dwell on curchan */
 	unsigned long	ss_scanend;		/* time scan must stop */
 	u_int		ss_duration;		/* duration for next scan */
-	struct task	ss_scan_task;		/* scan execution */
-	struct cv	ss_scan_cv;		/* scan signal */
-	struct callout	ss_scan_timer;		/* scan timer */
+	struct task	ss_scan_start;		/* scan start */
+	struct timeout_task ss_scan_curchan;	/* scan execution */
 };
 #define	SCAN_PRIVATE(ss)	((struct scan_state *) ss)
 
@@ -99,7 +99,8 @@ struct scan_state {
 static	void scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static	void scan_mindwell(struct ieee80211_scan_state *);
 static	void scan_signal(void *);
-static	void scan_task(void *, int);
+static	void scan_start(void *, int);
+static	void scan_curchan_task(void *, int);
 static	void scan_end(struct ieee80211_scan_state *, int);
 static	void scan_done(struct ieee80211_scan_state *, int);
 
@@ -115,8 +116,9 @@ ieee80211_swscan_detach(struct ieee80211com *ic)
 		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_ABORT;
 		scan_signal(ss);
 		IEEE80211_UNLOCK(ic);
-		ieee80211_draintask(ic, &SCAN_PRIVATE(ss)->ss_scan_task);
-		callout_drain(&SCAN_PRIVATE(ss)->ss_scan_timer);
+		ieee80211_draintask(ic, &SCAN_PRIVATE(ss)->ss_scan_start);
+		taskqueue_drain_timeout(ic->ic_tq,
+		    &SCAN_PRIVATE(ss)->ss_scan_curchan);
 		KASSERT((ic->ic_flags & IEEE80211_F_SCAN) == 0,
 		    ("scan still running"));
 
@@ -238,7 +240,7 @@ ieee80211_swscan_start_scan_locked(const struct ieee80211_scanner *scan,
 			ic->ic_flags |= IEEE80211_F_SCAN;
 
 			/* Start scan task */
-			ieee80211_runtask(ic, &SCAN_PRIVATE(ss)->ss_scan_task);
+			ieee80211_runtask(ic, &SCAN_PRIVATE(ss)->ss_scan_start);
 		}
 		return 1;
 	} else {
@@ -413,7 +415,8 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 			ss->ss_maxdwell = duration;
 			ic->ic_flags |= IEEE80211_F_SCAN;
 			ic->ic_flags_ext |= IEEE80211_FEXT_BGSCAN;
-			ieee80211_runtask(ic, &SCAN_PRIVATE(ss)->ss_scan_task);
+			ieee80211_runtask(ic,
+			    &SCAN_PRIVATE(ss)->ss_scan_start);
 		} else {
 			/* XXX msg+stat */
 		}
@@ -560,8 +563,8 @@ scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 		ieee80211_probe_curchan(vap, 0);
-	callout_reset(&SCAN_PRIVATE(ss)->ss_scan_timer,
-	    maxdwell, scan_signal, ss);
+	taskqueue_enqueue_timeout(vap->iv_ic->ic_tq,
+	    &SCAN_PRIVATE(ss)->ss_scan_curchan, maxdwell);
 	IEEE80211_UNLOCK(vap->iv_ic);
 }
 
@@ -569,9 +572,16 @@ static void
 scan_signal(void *arg)
 {
 	struct ieee80211_scan_state *ss = (struct ieee80211_scan_state *) arg;
+	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
+	struct timeout_task *scan_task = &ss_priv->ss_scan_curchan;
+	struct ieee80211com *ic = ss->ss_ic;
 
-	IEEE80211_LOCK_ASSERT(ss->ss_ic);
-	cv_signal(&SCAN_PRIVATE(ss)->ss_scan_cv);
+	IEEE80211_LOCK_ASSERT(ic);
+
+	if (ss_priv->ss_iflags & ISCAN_RUNNING) {
+		if (taskqueue_cancel_timeout(ic->ic_tq, scan_task, NULL) == 0)
+			taskqueue_enqueue_timeout(ic->ic_tq, scan_task, 0);
+	}
 }
 
 /*
@@ -591,16 +601,13 @@ scan_mindwell(struct ieee80211_scan_state *ss)
 }
 
 static void
-scan_task(void *arg, int pending)
+scan_start(void *arg, int pending)
 {
 #define	ISCAN_REP	(ISCAN_MINDWELL | ISCAN_DISCARD)
 	struct ieee80211_scan_state *ss = (struct ieee80211_scan_state *) arg;
 	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
 	struct ieee80211vap *vap = ss->ss_vap;
 	struct ieee80211com *ic = ss->ss_ic;
-	struct ieee80211_channel *chan;
-	unsigned long maxdwell;
-	int scandone = 0;
 
 	IEEE80211_LOCK(ic);
 	if (vap == NULL || (ic->ic_flags & IEEE80211_F_SCAN) == 0 ||
@@ -627,8 +634,8 @@ scan_task(void *arg, int pending)
 			 * to go out.
 			 * XXX Should use M_TXCB mechanism to eliminate this.
 			 */
-			cv_timedwait(&ss_priv->ss_scan_cv,
-			    IEEE80211_LOCK_OBJ(ic), msecs_to_ticks(1));
+			mtx_sleep(vap, IEEE80211_LOCK_OBJ(ic), PCATCH,
+			    "sta_ps", msecs_to_ticks(1));
 			if (ss_priv->ss_iflags & ISCAN_ABORT) {
 				scan_done(ss, 0);
 				return;
@@ -641,90 +648,102 @@ scan_task(void *arg, int pending)
 	/* XXX scan state can change! Re-validate scan state! */
 
 	IEEE80211_UNLOCK(ic);
+
 	ic->ic_scan_start(ic);		/* notify driver */
+
+	scan_curchan_task(ss, 0);
+}
+
+static void
+scan_curchan_task(void *arg, int pending)
+{
+	struct ieee80211_scan_state *ss = arg;
+	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
+	struct ieee80211vap *vap = ss->ss_vap;
+	struct ieee80211com *ic = ss->ss_ic;
+	struct ieee80211_channel *chan;
+	unsigned long maxdwell;
+	int scandone;
+
+	IEEE80211_LOCK(ic);
+end:
+	scandone = (ss->ss_next >= ss->ss_last) ||
+	    (ss_priv->ss_iflags & ISCAN_CANCEL) != 0;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+	    "%s: loop start; scandone=%d\n",
+	    __func__,
+	    scandone);
+
+	if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
+	    (ss_priv->ss_iflags & ISCAN_ABORT) ||
+	     time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
+		ss_priv->ss_iflags &= ~ISCAN_RUNNING;
+		scan_end(ss, scandone);
+		return;
+	} else
+		ss_priv->ss_iflags |= ISCAN_RUNNING;
+
+	chan = ss->ss_chans[ss->ss_next++];
+
+	/*
+	 * Watch for truncation due to the scan end time.
+	 */
+	if (time_after(ticks + ss->ss_maxdwell, ss_priv->ss_scanend))
+		maxdwell = ss_priv->ss_scanend - ticks;
+	else
+		maxdwell = ss->ss_maxdwell;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+	    "%s: chan %3d%c -> %3d%c [%s, dwell min %lums max %lums]\n",
+	    __func__,
+	    ieee80211_chan2ieee(ic, ic->ic_curchan),
+	    ieee80211_channel_type_char(ic->ic_curchan),
+	    ieee80211_chan2ieee(ic, chan),
+	    ieee80211_channel_type_char(chan),
+	    (ss->ss_flags & IEEE80211_SCAN_ACTIVE) &&
+		(chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0 ?
+		"active" : "passive",
+	    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(maxdwell));
+
+	/*
+	 * Potentially change channel and phy mode.
+	 */
+	ic->ic_curchan = chan;
+	ic->ic_rt = ieee80211_get_ratetable(chan);
+	IEEE80211_UNLOCK(ic);
+	/*
+	 * Perform the channel change and scan unlocked so the driver
+	 * may sleep. Once set_channel returns the hardware has
+	 * completed the channel change.
+	 */
+	ic->ic_set_channel(ic);
+	ieee80211_radiotap_chan_change(ic);
+
+	/*
+	 * Scan curchan.  Drivers for "intelligent hardware"
+	 * override ic_scan_curchan to tell the device to do
+	 * the work.  Otherwise we manage the work ourselves;
+	 * sending a probe request (as needed), and arming the
+	 * timeout to switch channels after maxdwell ticks.
+	 *
+	 * scan_curchan should only pause for the time required to
+	 * prepare/initiate the hardware for the scan (if at all).
+	 */
+	ic->ic_scan_curchan(ss, maxdwell);
 	IEEE80211_LOCK(ic);
 
-	for (;;) {
+	/* XXX scan state can change! Re-validate scan state! */
 
-		scandone = (ss->ss_next >= ss->ss_last) ||
-		    (ss_priv->ss_iflags & ISCAN_CANCEL) != 0;
+	ss_priv->ss_chanmindwell = ticks + ss->ss_mindwell;
+	/* clear mindwell lock and initial channel change flush */
+	ss_priv->ss_iflags &= ~ISCAN_REP;
 
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: loop start; scandone=%d\n",
-		    __func__,
-		    scandone);
+	if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT))
+		goto end;
 
-		if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
-		    (ss_priv->ss_iflags & ISCAN_ABORT) ||
-		     time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
-			scan_end(ss, scandone);
-			return;
-		}
-
-		chan = ss->ss_chans[ss->ss_next++];
-
-		/*
-		 * Watch for truncation due to the scan end time.
-		 */
-		if (time_after(ticks + ss->ss_maxdwell, ss_priv->ss_scanend))
-			maxdwell = ss_priv->ss_scanend - ticks;
-		else
-			maxdwell = ss->ss_maxdwell;
-
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: chan %3d%c -> %3d%c [%s, dwell min %lums max %lums]\n",
-		    __func__,
-		    ieee80211_chan2ieee(ic, ic->ic_curchan),
-		    ieee80211_channel_type_char(ic->ic_curchan),
-		    ieee80211_chan2ieee(ic, chan),
-		    ieee80211_channel_type_char(chan),
-		    (ss->ss_flags & IEEE80211_SCAN_ACTIVE) &&
-			(chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0 ?
-			"active" : "passive",
-		    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(maxdwell));
-
-		/*
-		 * Potentially change channel and phy mode.
-		 */
-		ic->ic_curchan = chan;
-		ic->ic_rt = ieee80211_get_ratetable(chan);
-		IEEE80211_UNLOCK(ic);
-		/*
-		 * Perform the channel change and scan unlocked so the driver
-		 * may sleep. Once set_channel returns the hardware has
-		 * completed the channel change.
-		 */
-		ic->ic_set_channel(ic);
-		ieee80211_radiotap_chan_change(ic);
-
-		/*
-		 * Scan curchan.  Drivers for "intelligent hardware"
-		 * override ic_scan_curchan to tell the device to do
-		 * the work.  Otherwise we manage the work outselves;
-		 * sending a probe request (as needed), and arming the
-		 * timeout to switch channels after maxdwell ticks.
-		 *
-		 * scan_curchan should only pause for the time required to
-		 * prepare/initiate the hardware for the scan (if at all), the
-		 * below condvar is used to sleep for the channels dwell time
-		 * and allows it to be signalled for abort.
-		 */
-		ic->ic_scan_curchan(ss, maxdwell);
-		IEEE80211_LOCK(ic);
-
-		/* XXX scan state can change! Re-validate scan state! */
-
-		ss_priv->ss_chanmindwell = ticks + ss->ss_mindwell;
-		/* clear mindwell lock and initial channel change flush */
-		ss_priv->ss_iflags &= ~ISCAN_REP;
-
-		if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT))
-			continue;
-
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: waiting\n", __func__);
-		/* Wait to be signalled to scan the next channel */
-		cv_wait(&ss_priv->ss_scan_cv, IEEE80211_LOCK_OBJ(ic));
-	}
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: waiting\n", __func__);
+	IEEE80211_UNLOCK(ic);
 }
 
 static void
@@ -803,7 +822,7 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 			vap->iv_stats.is_scan_passive++;
 
 		ss->ss_ops->scan_restart(ss, vap);	/* XXX? */
-		ieee80211_runtask(ic, &ss_priv->ss_scan_task);
+		ieee80211_runtask(ic, &ss_priv->ss_scan_start);
 		IEEE80211_UNLOCK(ic);
 		return;
 	}
@@ -960,9 +979,9 @@ ieee80211_swscan_attach(struct ieee80211com *ic)
 		ic->ic_scan = NULL;
 		return;
 	}
-	callout_init_mtx(&ss->ss_scan_timer, IEEE80211_LOCK_OBJ(ic), 0);
-	cv_init(&ss->ss_scan_cv, "scan");
-	TASK_INIT(&ss->ss_scan_task, 0, scan_task, ss);
+	TASK_INIT(&ss->ss_scan_start, 0, scan_start, ss);
+	TIMEOUT_TASK_INIT(ic->ic_tq, &ss->ss_scan_curchan, 0,
+	    scan_curchan_task, ss);
 
 	ic->ic_scan = &ss->base;
 	ss->base.ss_ic = ic;
