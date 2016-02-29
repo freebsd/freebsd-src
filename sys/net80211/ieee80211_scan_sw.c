@@ -54,17 +54,18 @@ __FBSDID("$FreeBSD$");
 struct scan_state {
 	struct ieee80211_scan_state base;	/* public state */
 
-	u_int		ss_iflags;		/* flags used internally */
-#define	ISCAN_MINDWELL 	0x0001		/* min dwell time reached */
-#define	ISCAN_DISCARD	0x0002		/* discard rx'd frames */
-#define	ISCAN_CANCEL	0x0004		/* cancel current scan */
-#define	ISCAN_ABORT	0x0008		/* end the scan immediately */
-#define	ISCAN_RUNNING	0x0010		/* scan was started */
-	unsigned long	ss_chanmindwell;	/* min dwell on curchan */
-	unsigned long	ss_scanend;		/* time scan must stop */
-	u_int		ss_duration;		/* duration for next scan */
-	struct task	ss_scan_start;		/* scan start */
-	struct timeout_task ss_scan_curchan;	/* scan execution */
+	u_int			ss_iflags;	/* flags used internally */
+#define	ISCAN_MINDWELL 		0x0001		/* min dwell time reached */
+#define	ISCAN_DISCARD		0x0002		/* discard rx'd frames */
+#define	ISCAN_CANCEL		0x0004		/* cancel current scan */
+#define	ISCAN_ABORT		0x0008		/* end the scan immediately */
+#define	ISCAN_RUNNING		0x0010		/* scan was started */
+
+	unsigned long		ss_chanmindwell;  /* min dwell on curchan */
+	unsigned long		ss_scanend;	/* time scan must stop */
+	u_int			ss_duration;	/* duration for next scan */
+	struct task		ss_scan_start;	/* scan start */
+	struct timeout_task	ss_scan_curchan;  /* scan execution */
 };
 #define	SCAN_PRIVATE(ss)	((struct scan_state *) ss)
 
@@ -150,14 +151,13 @@ static void
 ieee80211_swscan_vdetach(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_scan_state *ss;
+	struct ieee80211_scan_state *ss = ic->ic_scan;
 
 	IEEE80211_LOCK_ASSERT(ic);
-	ss = ic->ic_scan;
-	if (ss != NULL && ss->ss_vap == vap) {
-		if (ic->ic_flags & IEEE80211_F_SCAN)
-			scan_signal_locked(ss, ISCAN_ABORT);
-	}
+
+	if (ss != NULL && ss->ss_vap == vap &&
+	    (ic->ic_flags & IEEE80211_F_SCAN))
+		scan_signal_locked(ss, ISCAN_ABORT);
 }
 
 static void
@@ -498,11 +498,10 @@ static void
 ieee80211_swscan_scan_done(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_scan_state *ss;
+	struct ieee80211_scan_state *ss = ic->ic_scan;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
-	ss = ic->ic_scan;
 	scan_signal_locked(ss, 0);
 }
 
@@ -547,17 +546,18 @@ static void
 scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 {
 	struct ieee80211vap *vap  = ss->ss_vap;
+	struct ieee80211com *ic = ss->ss_ic;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 	    "%s: calling; maxdwell=%lu\n",
 	    __func__,
 	    maxdwell);
-	IEEE80211_LOCK(vap->iv_ic);
+	IEEE80211_LOCK(ic);
 	if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 		ieee80211_probe_curchan(vap, 0);
-	taskqueue_enqueue_timeout(vap->iv_ic->ic_tq,
+	taskqueue_enqueue_timeout(ic->ic_tq,
 	    &SCAN_PRIVATE(ss)->ss_scan_curchan, maxdwell);
-	IEEE80211_UNLOCK(vap->iv_ic);
+	IEEE80211_UNLOCK(ic);
 }
 
 static void
