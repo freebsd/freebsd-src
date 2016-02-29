@@ -1000,10 +1000,11 @@ struct buf_ring;
 
 struct hn_rx_ring {
 	struct ifnet	*hn_ifp;
-	struct lro_ctrl	hn_lro;
+	int		hn_rx_idx;
 
 	/* Trust csum verification on host side */
 	int		hn_trust_hcsum;	/* HN_TRUST_HCSUM_ */
+	struct lro_ctrl	hn_lro;
 
 	u_long		hn_csum_ip;
 	u_long		hn_csum_tcp;
