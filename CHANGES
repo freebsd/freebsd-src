@@ -1,3 +1,25 @@
+2014-11-28  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* lr0.c: coverity #39181: memory leak
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2014-11-13  Jouk.Jansen
+
+	* descrip.mms:
+	I sucessfully compiled byacc on my OpenVMS systems. However, I had to update
+	the descrip.mms to include some extra c-source files and some dependenxcies
+	so that it also works when the distribution is located on an ODS5 disk.
+
+	The patched descrip.mms file can be found at:
+	  http://nchrem.tnw.tudelft.nl/openvms/software2.html#BYACC
+
+	Please feel free to insert the file in your distribution.
+
+	             Regards
+	                 Jouk.
+
 2014-10-06  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* package/debian/source/format:
