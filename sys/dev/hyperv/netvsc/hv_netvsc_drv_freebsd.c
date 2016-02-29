@@ -274,7 +274,7 @@ static int hn_bind_tx_taskq = -1;
 SYSCTL_INT(_hw_hn, OID_AUTO, bind_tx_taskq, CTLFLAG_RDTUN,
     &hn_bind_tx_taskq, 0, "Bind TX taskqueue to the specified cpu");
 
-static int hn_use_if_start = 1;
+static int hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
 
