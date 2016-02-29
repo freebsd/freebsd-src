@@ -98,7 +98,8 @@ struct scan_state {
 
 static	void scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static	void scan_mindwell(struct ieee80211_scan_state *);
-static	void scan_signal(void *);
+static	void scan_signal(struct ieee80211_scan_state *, int);
+static	void scan_signal_locked(struct ieee80211_scan_state *, int);
 static	void scan_start(void *, int);
 static	void scan_curchan_task(void *, int);
 static	void scan_end(struct ieee80211_scan_state *, int);
@@ -112,10 +113,7 @@ ieee80211_swscan_detach(struct ieee80211com *ic)
 	struct ieee80211_scan_state *ss = ic->ic_scan;
 
 	if (ss != NULL) {
-		IEEE80211_LOCK(ic);
-		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_ABORT;
-		scan_signal(ss);
-		IEEE80211_UNLOCK(ic);
+		scan_signal(ss, ISCAN_ABORT);
 		ieee80211_draintask(ic, &SCAN_PRIVATE(ss)->ss_scan_start);
 		taskqueue_drain_timeout(ic->ic_tq,
 		    &SCAN_PRIVATE(ss)->ss_scan_curchan);
@@ -157,10 +155,8 @@ ieee80211_swscan_vdetach(struct ieee80211vap *vap)
 	IEEE80211_LOCK_ASSERT(ic);
 	ss = ic->ic_scan;
 	if (ss != NULL && ss->ss_vap == vap) {
-		if (ic->ic_flags & IEEE80211_F_SCAN) {
-			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_ABORT;
-			scan_signal(ss);
-		}
+		if (ic->ic_flags & IEEE80211_F_SCAN)
+			scan_signal_locked(ss, ISCAN_ABORT);
 	}
 }
 
@@ -446,11 +442,10 @@ cancel_scan(struct ieee80211vap *vap, int any, const char *func)
 		    ss->ss_flags & IEEE80211_SCAN_ACTIVE ?
 			"active" : "passive");
 
-		/* clear bg scan NOPICK and mark cancel request */
+		/* clear bg scan NOPICK */
 		ss->ss_flags &= ~IEEE80211_SCAN_NOPICK;
-		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_CANCEL;
-		/* wake up the scan task */
-		scan_signal(ss);
+		/* mark cancel request and wake up the scan task */
+		scan_signal_locked(ss, ISCAN_CANCEL);
 	} else {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
@@ -487,15 +482,12 @@ ieee80211_swscan_cancel_anyscan(struct ieee80211vap *vap)
 static void
 ieee80211_swscan_scan_next(struct ieee80211vap *vap)
 {
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_scan_state *ss = ic->ic_scan;
+	struct ieee80211_scan_state *ss = vap->iv_ic->ic_scan;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
 
 	/* wake up the scan task */
-	IEEE80211_LOCK(ic);
-	scan_signal(ss);
-	IEEE80211_UNLOCK(ic);
+	scan_signal(ss, 0);
 }
 
 /*
@@ -511,7 +503,7 @@ ieee80211_swscan_scan_done(struct ieee80211vap *vap)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	ss = ic->ic_scan;
-	scan_signal(ss);
+	scan_signal_locked(ss, 0);
 }
 
 /*
@@ -569,15 +561,27 @@ scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 }
 
 static void
-scan_signal(void *arg)
+scan_signal(struct ieee80211_scan_state *ss, int iflags)
 {
-	struct ieee80211_scan_state *ss = (struct ieee80211_scan_state *) arg;
+	struct ieee80211com *ic = ss->ss_ic;
+
+	IEEE80211_UNLOCK_ASSERT(ic);
+
+	IEEE80211_LOCK(ic);
+	scan_signal_locked(ss, iflags);
+	IEEE80211_UNLOCK(ic);
+}
+
+static void
+scan_signal_locked(struct ieee80211_scan_state *ss, int iflags)
+{
 	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
 	struct timeout_task *scan_task = &ss_priv->ss_scan_curchan;
 	struct ieee80211com *ic = ss->ss_ic;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
+	ss_priv->ss_iflags |= iflags;
 	if (ss_priv->ss_iflags & ISCAN_RUNNING) {
 		if (taskqueue_cancel_timeout(ic->ic_tq, scan_task, NULL) == 0)
 			taskqueue_enqueue_timeout(ic->ic_tq, scan_task, 0);
@@ -591,13 +595,11 @@ scan_signal(void *arg)
 static void
 scan_mindwell(struct ieee80211_scan_state *ss)
 {
-	struct ieee80211com *ic = ss->ss_ic;
+	struct ieee80211vap *vap = ss->ss_vap;
 
-	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
 
-	IEEE80211_LOCK(ic);
-	scan_signal(ss);
-	IEEE80211_UNLOCK(ic);
+	scan_signal(ss, 0);
 }
 
 static void
