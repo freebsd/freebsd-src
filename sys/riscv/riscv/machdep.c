@@ -739,7 +739,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	vm_offset_t lastaddr;
 	int mem_regions_sz;
 	vm_size_t kernlen;
-	uint32_t memsize;
+	u_long memsize;
 	caddr_t kmdp;
 	int i;
 
