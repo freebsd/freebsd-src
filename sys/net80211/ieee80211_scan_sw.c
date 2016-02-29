@@ -593,6 +593,7 @@ scan_task(void *arg, int pending)
 {
 #define	ISCAN_REP	(ISCAN_MINDWELL | ISCAN_DISCARD)
 	struct ieee80211_scan_state *ss = (struct ieee80211_scan_state *) arg;
+	struct scan_state *ss_priv = SCAN_PRIVATE(ss);
 	struct ieee80211vap *vap = ss->ss_vap;
 	struct ieee80211com *ic = ss->ss_ic;
 	struct ieee80211_channel *chan;
@@ -601,7 +602,7 @@ scan_task(void *arg, int pending)
 
 	IEEE80211_LOCK(ic);
 	if (vap == NULL || (ic->ic_flags & IEEE80211_F_SCAN) == 0 ||
-	    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT)) {
+	    (ss_priv->ss_iflags & ISCAN_ABORT)) {
 		/* Cancelled before we started */
 		goto done;
 	}
@@ -623,14 +624,14 @@ scan_task(void *arg, int pending)
 			 * to go out.
 			 * XXX Should use M_TXCB mechanism to eliminate this.
 			 */
-			cv_timedwait(&SCAN_PRIVATE(ss)->ss_scan_cv,
+			cv_timedwait(&ss_priv->ss_scan_cv,
 			    IEEE80211_LOCK_OBJ(ic), msecs_to_ticks(1));
-			if (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT)
+			if (ss_priv->ss_iflags & ISCAN_ABORT)
 				goto done;
 		}
 	}
 
-	scanend = ticks + SCAN_PRIVATE(ss)->ss_duration;
+	scanend = ticks + ss_priv->ss_duration;
 
 	/* XXX scan state can change! Re-validate scan state! */
 
@@ -641,7 +642,7 @@ scan_task(void *arg, int pending)
 	for (;;) {
 
 		scandone = (ss->ss_next >= ss->ss_last) ||
-		    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0;
+		    (ss_priv->ss_iflags & ISCAN_CANCEL) != 0;
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: loop start; scandone=%d\n",
@@ -649,7 +650,7 @@ scan_task(void *arg, int pending)
 		    scandone);
 
 		if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
-		    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT) ||
+		    (ss_priv->ss_iflags & ISCAN_ABORT) ||
 		     time_after(ticks + ss->ss_mindwell, scanend))
 			break;
 
@@ -706,21 +707,21 @@ scan_task(void *arg, int pending)
 
 		/* XXX scan state can change! Re-validate scan state! */
 
-		SCAN_PRIVATE(ss)->ss_chanmindwell = ticks + ss->ss_mindwell;
+		ss_priv->ss_chanmindwell = ticks + ss->ss_mindwell;
 		/* clear mindwell lock and initial channel change flush */
-		SCAN_PRIVATE(ss)->ss_iflags &= ~ISCAN_REP;
+		ss_priv->ss_iflags &= ~ISCAN_REP;
 
-		if ((SCAN_PRIVATE(ss)->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT)))
+		if (ss_priv->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT))
 			continue;
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: waiting\n", __func__);
 		/* Wait to be signalled to scan the next channel */
-		cv_wait(&SCAN_PRIVATE(ss)->ss_scan_cv, IEEE80211_LOCK_OBJ(ic));
+		cv_wait(&ss_priv->ss_scan_cv, IEEE80211_LOCK_OBJ(ic));
 	}
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: out\n", __func__);
 
-	if (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT)
+	if (ss_priv->ss_iflags & ISCAN_ABORT)
 		goto done;
 
 	IEEE80211_UNLOCK(ic);
@@ -732,8 +733,7 @@ scan_task(void *arg, int pending)
 	 * Since a cancellation may have occured during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
-	if (scandone == 0 &&
-	    ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0)) {
+	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
 		/* XXX printf? */
 		if_printf(vap->iv_ifp,
 		    "%s: OOPS! scan cancelled during driver call (1)!\n",
@@ -758,7 +758,7 @@ scan_task(void *arg, int pending)
 		IEEE80211_LOCK(ic);
 	}
 	/* clear internal flags and any indication of a pick */
-	SCAN_PRIVATE(ss)->ss_iflags &= ~ISCAN_REP;
+	ss_priv->ss_iflags &= ~ISCAN_REP;
 	ss->ss_flags &= ~IEEE80211_SCAN_GOTPICK;
 
 	/*
@@ -768,7 +768,7 @@ scan_task(void *arg, int pending)
 	 * notify the driver to end the scan above to avoid having
 	 * rx frames alter the scan candidate list.
 	 */
-	if ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) == 0 &&
+	if ((ss_priv->ss_iflags & ISCAN_CANCEL) == 0 &&
 	    !ss->ss_ops->scan_end(ss, vap) &&
 	    (ss->ss_flags & IEEE80211_SCAN_ONCE) == 0 &&
 	    time_before(ticks + ss->ss_mindwell, scanend)) {
@@ -784,7 +784,7 @@ scan_task(void *arg, int pending)
 			vap->iv_stats.is_scan_passive++;
 
 		ss->ss_ops->scan_restart(ss, vap);	/* XXX? */
-		ieee80211_runtask(ic, &SCAN_PRIVATE(ss)->ss_scan_task);
+		ieee80211_runtask(ic, &ss_priv->ss_scan_task);
 		IEEE80211_UNLOCK(ic);
 		return;
 	}
@@ -802,8 +802,7 @@ scan_task(void *arg, int pending)
 	 * Since a cancellation may have occured during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
-	if (scandone == 0 &&
-	    ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0)) {
+	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
 		/* XXX printf? */
 		if_printf(vap->iv_ifp,
 		    "%s: OOPS! scan cancelled during driver call (2)!\n",
@@ -835,7 +834,7 @@ done:
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_BGSCAN;
 		}
 	}
-	SCAN_PRIVATE(ss)->ss_iflags &= ~(ISCAN_CANCEL|ISCAN_ABORT);
+	ss_priv->ss_iflags &= ~(ISCAN_CANCEL|ISCAN_ABORT);
 	ss->ss_flags &= ~(IEEE80211_SCAN_ONCE | IEEE80211_SCAN_PICK1ST);
 	IEEE80211_UNLOCK(ic);
 #undef ISCAN_REP
