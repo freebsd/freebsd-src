@@ -1,4 +1,4 @@
-/* $Id: lr0.c,v 1.16 2014/04/07 21:53:50 tom Exp $ */
+/* $Id: lr0.c,v 1.18 2015/07/11 00:53:38 tom Exp $ */
 
 #include "defs.h"
 
@@ -29,6 +29,8 @@ static reductions *last_reduction;
 
 static int nshifts;
 static Value_t *shift_symbol;
+
+static Value_t *rules;
 
 static Value_t *redset;
 static Value_t *shiftset;
@@ -483,7 +485,6 @@ set_derives(void)
 {
     Value_t i, k;
     int lhs;
-    Value_t *rules;
 
     derives = NEW2(nsyms, Value_t *);
     rules = NEW2(nvars + nrules, Value_t);
@@ -595,8 +596,12 @@ lr0_leaks(void)
 {
     if (derives)
     {
-	DO_FREE(derives[start_symbol]);
+	if (derives[start_symbol] != rules)
+	{
+	    DO_FREE(derives[start_symbol]);
+	}
 	DO_FREE(derives);
+	DO_FREE(rules);
     }
     DO_FREE(nullable);
 }
