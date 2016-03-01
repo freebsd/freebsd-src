@@ -112,6 +112,9 @@
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
+	# disable TP_PARA_REG3.RxFragEn
+	reg[0x7d6c] = 0x00000000/0x00007000
+
 	reg[0x7dc0] = 0x0e2f8849		# TP_SHIFT_CNT
 
 	# TP_VLAN_PRI_MAP to select filter tuples
@@ -548,7 +551,7 @@
 
 [fini]
 	version = 0x1425001c
-	checksum = 0x63a652b3
+	checksum = 0x5ceab41e
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

@@ -5218,13 +5218,14 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok)
 {
 	struct fw_vi_mac_cmd c;
+	u32 val;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_MAC_CMD) | F_FW_CMD_REQUEST |
 			     F_FW_CMD_WRITE | V_FW_VI_ENABLE_CMD_VIID(viid));
-	c.freemacs_to_len16 = htonl(F_FW_VI_MAC_CMD_HASHVECEN |
-				    V_FW_VI_MAC_CMD_HASHUNIEN(ucast) |
-				    V_FW_CMD_LEN16(1));
+	val = V_FW_VI_MAC_CMD_ENTRY_TYPE(FW_VI_MAC_TYPE_HASHVEC) |
+	      V_FW_VI_MAC_CMD_HASHUNIEN(ucast) | V_FW_CMD_LEN16(1);
+	c.freemacs_to_len16 = cpu_to_be32(val);
 	c.u.hash.hashvec = cpu_to_be64(vec);
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
 }
