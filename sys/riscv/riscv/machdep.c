@@ -739,7 +739,6 @@ initriscv(struct riscv_bootparams *rvbp)
 	vm_offset_t lastaddr;
 	int mem_regions_sz;
 	vm_size_t kernlen;
-	u_long memsize;
 	caddr_t kmdp;
 	int i;
 
@@ -763,7 +762,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	physmap_idx = 0;
 
 	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)
+	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
 		panic("Cannot get physical memory regions");
 	for (i = 0; i < mem_regions_sz; i++)
 		add_physmap_entry(mem_regions[i].mr_start,
