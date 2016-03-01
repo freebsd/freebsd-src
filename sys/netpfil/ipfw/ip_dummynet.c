@@ -84,7 +84,7 @@ dummynet(void *arg)
 {
 
 	(void)arg;	/* UNUSED */
-	taskqueue_enqueue_fast(dn_tq, &dn_task);
+	taskqueue_enqueue(dn_tq, &dn_task);
 }
 
 void
