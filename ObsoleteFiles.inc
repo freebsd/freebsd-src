@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20160301: Remove taskqueue_enqueue_fast
+OLD_FILES+=usr/share/man/man9/taskqueue_enqueue_fast.9.gz
 # 20160225: Remove casperd and libcapsicum.
 OLD_FILES+=sbin/casperd
 OLD_FILES+=etc/rc.d/casperd

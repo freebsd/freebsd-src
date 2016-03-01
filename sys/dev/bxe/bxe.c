@@ -8737,7 +8737,7 @@ bxe_handle_fp_tq(void *context,
 
     if (more_rx /*|| more_tx*/) {
         /* still more work to do */
-        taskqueue_enqueue_fast(fp->tq, &fp->tq_task);
+        taskqueue_enqueue(fp->tq, &fp->tq_task);
         return;
     }
 
@@ -8771,7 +8771,7 @@ bxe_task_fp(struct bxe_fastpath *fp)
 
     if (more_rx /*|| more_tx*/) {
         /* still more work to do, bail out if this ISR and process later */
-        taskqueue_enqueue_fast(fp->tq, &fp->tq_task);
+        taskqueue_enqueue(fp->tq, &fp->tq_task);
         return;
     }
 
@@ -8838,7 +8838,7 @@ bxe_intr_legacy(void *xsc)
         bxe_ack_sb(sc, sc->igu_dsb_id, USTORM_ID, 0, IGU_INT_DISABLE, 0);
 
         /* schedule slowpath handler */
-        taskqueue_enqueue_fast(sc->sp_tq, &sc->sp_tq_task);
+        taskqueue_enqueue(sc->sp_tq, &sc->sp_tq_task);
 
         status &= ~0x1;
     }
@@ -8860,7 +8860,7 @@ bxe_intr_sp(void *xsc)
     bxe_ack_sb(sc, sc->igu_dsb_id, USTORM_ID, 0, IGU_INT_DISABLE, 0);
 
     /* schedule slowpath handler */
-    taskqueue_enqueue_fast(sc->sp_tq, &sc->sp_tq_task);
+    taskqueue_enqueue(sc->sp_tq, &sc->sp_tq_task);
 }
 
 /* fastpath interrupt entry point */

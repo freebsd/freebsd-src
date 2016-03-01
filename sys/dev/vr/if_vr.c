@@ -1671,7 +1671,7 @@ vr_intr(void *arg)
 	/* Disable interrupts. */
 	CSR_WRITE_2(sc, VR_IMR, 0x0000);
 
-	taskqueue_enqueue_fast(taskqueue_fast, &sc->vr_inttask);
+	taskqueue_enqueue(taskqueue_fast, &sc->vr_inttask);
 
 	return (FILTER_HANDLED);
 }

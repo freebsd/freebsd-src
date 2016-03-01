@@ -710,7 +710,7 @@ oce_fast_isr(void *arg)
 
 	oce_arm_eq(sc, ii->eq->eq_id, 0, FALSE, TRUE);
 
-	taskqueue_enqueue_fast(ii->tq, &ii->task);
+	taskqueue_enqueue(ii->tq, &ii->task);
 
  	ii->eq->intr++;	
 
@@ -1068,7 +1068,7 @@ oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq)
 #else
 	if (!IFQ_DRV_IS_EMPTY(&sc->ifp->if_snd))
 #endif
-		taskqueue_enqueue_fast(taskqueue_swi, &wq->txtask);
+		taskqueue_enqueue(taskqueue_swi, &wq->txtask);
 
 }
 
