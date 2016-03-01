@@ -127,8 +127,15 @@ atomic_dec_64_nv(volatile uint64_t *target)
 static __inline void *
 atomic_cas_ptr(volatile void *target, void *cmp,  void *newval)
 {
+#ifndef __CHERI_PURE_CAPABILITY__
 	return ((void *)atomic_cas_64((volatile uint64_t *)target,
 	    (uint64_t)cmp, (uint64_t)newval));
+#else
+	/* XXX: not atomic */
+	if (target == cmp)
+		target = newval;
+	return (cmp);
+#endif
 }
 #else
 static __inline void *
