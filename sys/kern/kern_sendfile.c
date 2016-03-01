@@ -119,31 +119,6 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
     NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
 
 /*
- * Add more references to a vm_page + sf_buf + sendfile_sync.  Called
- * by mbuf(9) code to add extra references to a page.
- */
-void
-sf_ext_ref(void *arg1, void *arg2)
-{
-	struct sf_buf *sf = arg1;
-	struct sendfile_sync *sfs = arg2;
-	vm_page_t pg = sf_buf_page(sf);
-
-	sf_buf_ref(sf);
-
-	vm_page_lock(pg);
-	vm_page_wire(pg);
-	vm_page_unlock(pg);
-
-	if (sfs != NULL) {
-		mtx_lock(&sfs->mtx);
-		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
-		sfs->count++;
-		mtx_unlock(&sfs->mtx);
-	}
-}
-
-/*
  * Detach mapped page and release resources back to the system.  Called
  * by mbuf(9) code when last reference to a page is freed.
  */
@@ -807,7 +782,8 @@ retry_space:
 				m0->m_ext.ext_type = EXT_SFBUF;
 			else
 				m0->m_ext.ext_type = EXT_SFBUF_NOCACHE;
-			m0->m_ext.ext_flags = 0;
+			m0->m_ext.ext_flags = EXT_FLAG_EMBREF;
+			m0->m_ext.ext_count = 1;
 			m0->m_flags |= (M_EXT | M_RDONLY);
 			if (nios)
 				m0->m_flags |= M_NOTREADY;

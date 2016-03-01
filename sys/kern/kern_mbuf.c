@@ -269,7 +269,6 @@ uma_zone_t	zone_pack;
 uma_zone_t	zone_jumbop;
 uma_zone_t	zone_jumbo9;
 uma_zone_t	zone_jumbo16;
-uma_zone_t	zone_ext_refcnt;
 
 /*
  * Local prototypes.
@@ -278,7 +277,6 @@ static int	mb_ctor_mbuf(void *, int, void *, int);
 static int	mb_ctor_clust(void *, int, void *, int);
 static int	mb_ctor_pack(void *, int, void *, int);
 static void	mb_dtor_mbuf(void *, int, void *);
-static void	mb_dtor_clust(void *, int, void *);
 static void	mb_dtor_pack(void *, int, void *);
 static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
@@ -312,13 +310,13 @@ mbuf_init(void *dummy)
 	uma_zone_set_maxaction(zone_mbuf, mb_reclaim);
 
 	zone_clust = uma_zcreate(MBUF_CLUSTER_MEM_NAME, MCLBYTES,
-	    mb_ctor_clust, mb_dtor_clust,
+	    mb_ctor_clust,
 #ifdef INVARIANTS
-	    trash_init, trash_fini,
+	    trash_dtor, trash_init, trash_fini,
 #else
-	    NULL, NULL,
+	    NULL, NULL, NULL,
 #endif
-	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	    UMA_ALIGN_PTR, 0);
 	if (nmbclusters > 0)
 		nmbclusters = uma_zone_set_max(zone_clust, nmbclusters);
 	uma_zone_set_warning(zone_clust, "kern.ipc.nmbclusters limit reached");
@@ -329,26 +327,26 @@ mbuf_init(void *dummy)
 
 	/* Make jumbo frame zone too. Page size, 9k and 16k. */
 	zone_jumbop = uma_zcreate(MBUF_JUMBOP_MEM_NAME, MJUMPAGESIZE,
-	    mb_ctor_clust, mb_dtor_clust,
+	    mb_ctor_clust,
 #ifdef INVARIANTS
-	    trash_init, trash_fini,
+	    trash_dtor, trash_init, trash_fini,
 #else
-	    NULL, NULL,
+	    NULL, NULL, NULL,
 #endif
-	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	    UMA_ALIGN_PTR, 0);
 	if (nmbjumbop > 0)
 		nmbjumbop = uma_zone_set_max(zone_jumbop, nmbjumbop);
 	uma_zone_set_warning(zone_jumbop, "kern.ipc.nmbjumbop limit reached");
 	uma_zone_set_maxaction(zone_jumbop, mb_reclaim);
 
 	zone_jumbo9 = uma_zcreate(MBUF_JUMBO9_MEM_NAME, MJUM9BYTES,
-	    mb_ctor_clust, mb_dtor_clust,
+	    mb_ctor_clust,
 #ifdef INVARIANTS
-	    trash_init, trash_fini,
+	    trash_dtor, trash_init, trash_fini,
 #else
-	    NULL, NULL,
+	    NULL, NULL, NULL,
 #endif
-	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	    UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(zone_jumbo9, mbuf_jumbo_alloc);
 	if (nmbjumbo9 > 0)
 		nmbjumbo9 = uma_zone_set_max(zone_jumbo9, nmbjumbo9);
@@ -356,23 +354,18 @@ mbuf_init(void *dummy)
 	uma_zone_set_maxaction(zone_jumbo9, mb_reclaim);
 
 	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
-	    mb_ctor_clust, mb_dtor_clust,
+	    mb_ctor_clust,
 #ifdef INVARIANTS
-	    trash_init, trash_fini,
+	    trash_dtor, trash_init, trash_fini,
 #else
-	    NULL, NULL,
+	    NULL, NULL, NULL,
 #endif
-	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
+	    UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(zone_jumbo16, mbuf_jumbo_alloc);
 	if (nmbjumbo16 > 0)
 		nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 	uma_zone_set_warning(zone_jumbo16, "kern.ipc.nmbjumbo16 limit reached");
 	uma_zone_set_maxaction(zone_jumbo16, mb_reclaim);
-
-	zone_ext_refcnt = uma_zcreate(MBUF_EXTREFCNT_MEM_NAME, sizeof(u_int),
-	    NULL, NULL,
-	    NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 
 	/*
 	 * Hook event handler for low-memory situation, used to
@@ -477,7 +470,6 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	KASSERT(m->m_ext.ext_arg2 == NULL, ("%s: ext_arg2 != NULL", __func__));
 	KASSERT(m->m_ext.ext_size == MCLBYTES, ("%s: ext_size != MCLBYTES", __func__));
 	KASSERT(m->m_ext.ext_type == EXT_PACKET, ("%s: ext_type != EXT_PACKET", __func__));
-	KASSERT(*m->m_ext.ext_cnt == 1, ("%s: ext_cnt != 1", __func__));
 #ifdef INVARIANTS
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
 #endif
@@ -505,40 +497,11 @@ static int
 mb_ctor_clust(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
-	u_int *refcnt;
-	int type;
-	uma_zone_t zone;
 
 #ifdef INVARIANTS
 	trash_ctor(mem, size, arg, how);
 #endif
-	switch (size) {
-	case MCLBYTES:
-		type = EXT_CLUSTER;
-		zone = zone_clust;
-		break;
-#if MJUMPAGESIZE != MCLBYTES
-	case MJUMPAGESIZE:
-		type = EXT_JUMBOP;
-		zone = zone_jumbop;
-		break;
-#endif
-	case MJUM9BYTES:
-		type = EXT_JUMBO9;
-		zone = zone_jumbo9;
-		break;
-	case MJUM16BYTES:
-		type = EXT_JUMBO16;
-		zone = zone_jumbo16;
-		break;
-	default:
-		panic("unknown cluster size");
-		break;
-	}
-
 	m = (struct mbuf *)arg;
-	refcnt = uma_find_refcnt(zone, mem);
-	*refcnt = 1;
 	if (m != NULL) {
 		m->m_ext.ext_buf = (caddr_t)mem;
 		m->m_data = m->m_ext.ext_buf;
@@ -547,30 +510,12 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 		m->m_ext.ext_arg1 = NULL;
 		m->m_ext.ext_arg2 = NULL;
 		m->m_ext.ext_size = size;
-		m->m_ext.ext_type = type;
-		m->m_ext.ext_flags = 0;
-		m->m_ext.ext_cnt = refcnt;
+		m->m_ext.ext_type = m_gettype(size);
+		m->m_ext.ext_flags = EXT_FLAG_EMBREF;
+		m->m_ext.ext_count = 1;
 	}
 
 	return (0);
-}
-
-/*
- * The Mbuf Cluster zone destructor.
- */
-static void
-mb_dtor_clust(void *mem, int size, void *arg)
-{
-#ifdef INVARIANTS
-	uma_zone_t zone;
-
-	zone = m_getzone(size);
-	KASSERT(*(uma_find_refcnt(zone, mem)) <= 1,
-		("%s: refcnt incorrect %u", __func__,
-		 *(uma_find_refcnt(zone, mem))) );
-
-	trash_dtor(mem, size, arg);
-#endif
 }
 
 /*
@@ -670,58 +615,69 @@ mb_reclaim(uma_zone_t zone __unused, int pending __unused)
 void
 mb_free_ext(struct mbuf *m)
 {
+	volatile u_int *refcnt;
+	struct mbuf *mref;
 	int freembuf;
 
 	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
 
+	/* See if this is the mbuf that holds the embedded refcount. */
+	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
+		refcnt = &m->m_ext.ext_count;
+		mref = m;
+	} else {
+		KASSERT(m->m_ext.ext_cnt != NULL,
+		    ("%s: no refcounting pointer on %p", __func__, m));
+		refcnt = m->m_ext.ext_cnt;
+		mref = __containerof(refcnt, struct mbuf, m_ext.ext_count);
+	}
+
 	/*
-	 * Check if the header is embedded in the cluster.
+	 * Check if the header is embedded in the cluster.  It is
+	 * important that we can't touch any of the mbuf fields
+	 * after we have freed the external storage, since mbuf
+	 * could have been embedded in it.
 	 */
 	freembuf = (m->m_flags & M_NOFREE) ? 0 : 1;
 
-	switch (m->m_ext.ext_type) {
-	case EXT_SFBUF:
-		sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-		break;
-	case EXT_SFBUF_NOCACHE:
-		sf_ext_free_nocache(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-		break;
-	default:
-		KASSERT(m->m_ext.ext_cnt != NULL,
-		    ("%s: no refcounting pointer on %p", __func__, m));
-		/* 
-		 * Free attached storage if this mbuf is the only
-		 * reference to it.
-		 */
-		if (*(m->m_ext.ext_cnt) != 1) {
-			if (atomic_fetchadd_int(m->m_ext.ext_cnt, -1) != 1)
-				break;
-		}
-
+	/* Free attached storage if this mbuf is the only reference to it. */
+	if (*refcnt == 1 || atomic_fetchadd_int(refcnt, -1) == 1) {
 		switch (m->m_ext.ext_type) {
-		case EXT_PACKET:	/* The packet zone is special. */
-			if (*(m->m_ext.ext_cnt) == 0)
-				*(m->m_ext.ext_cnt) = 1;
-			uma_zfree(zone_pack, m);
-			return;		/* Job done. */
+		case EXT_PACKET:
+			/* The packet zone is special. */
+			if (*refcnt == 0)
+				*refcnt = 1;
+			uma_zfree(zone_pack, mref);
+			break;
 		case EXT_CLUSTER:
 			uma_zfree(zone_clust, m->m_ext.ext_buf);
+			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_JUMBOP:
 			uma_zfree(zone_jumbop, m->m_ext.ext_buf);
+			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_JUMBO9:
 			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
+			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_JUMBO16:
 			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
+			uma_zfree(zone_mbuf, mref);
+			break;
+		case EXT_SFBUF:
+			sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
+			uma_zfree(zone_mbuf, mref);
+			break;
+		case EXT_SFBUF_NOCACHE:
+			sf_ext_free_nocache(m->m_ext.ext_arg1,
+			    m->m_ext.ext_arg2);
+			uma_zfree(zone_mbuf, mref);
 			break;
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
-			*(m->m_ext.ext_cnt) = 0;
-			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
-				m->m_ext.ext_cnt));
+			uma_zfree(zone_mbuf, mref);
 			/* FALLTHROUGH */
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
@@ -735,7 +691,7 @@ mb_free_ext(struct mbuf *m)
 		}
 	}
 
-	if (freembuf)
+	if (freembuf && m != mref)
 		uma_zfree(zone_mbuf, m);
 }
 
@@ -925,9 +881,7 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 
 /*-
  * Configure a provided mbuf to refer to the provided external storage
- * buffer and setup a reference count for said buffer.  If the setting
- * up of the reference count fails, the M_EXT bit will not be set.  If
- * successfull, the M_EXT bit is set in the mbuf's flags.
+ * buffer and setup a reference count for said buffer.
  *
  * Arguments:
  *    mb     The existing mbuf to which to attach the provided buffer.
@@ -944,20 +898,14 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
  * Returns:
  *    Nothing.
  */
-int
+void
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
     void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
-    int flags, int type, int wait)
+    int flags, int type)
 {
+
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
 
-	if (type != EXT_EXTREF)
-		mb->m_ext.ext_cnt = uma_zalloc(zone_ext_refcnt, wait);
-
-	if (mb->m_ext.ext_cnt == NULL)
-		return (ENOMEM);
-
-	*(mb->m_ext.ext_cnt) = 1;
 	mb->m_flags |= (M_EXT | flags);
 	mb->m_ext.ext_buf = buf;
 	mb->m_data = mb->m_ext.ext_buf;
@@ -966,9 +914,12 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 	mb->m_ext.ext_arg1 = arg1;
 	mb->m_ext.ext_arg2 = arg2;
 	mb->m_ext.ext_type = type;
-	mb->m_ext.ext_flags = 0;
 
-	return (0);
+	if (type != EXT_EXTREF) {
+		mb->m_ext.ext_count = 1;
+		mb->m_ext.ext_flags = EXT_FLAG_EMBREF;
+	} else
+		mb->m_ext.ext_flags = 0;
 }
 
 /*

@@ -164,7 +164,7 @@ static void	xnb_txpkt2rsp(const struct xnb_pkt *pkt,
 			      netif_tx_back_ring_t *ring, int error);
 static struct mbuf *xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp);
 static int	xnb_txpkt2gnttab(const struct xnb_pkt *pkt,
-				 const struct mbuf *mbufc,
+				 struct mbuf *mbufc,
 				 gnttab_copy_table gnttab,
 				 const netif_tx_back_ring_t *txb,
 				 domid_t otherend_id);
@@ -1709,12 +1709,12 @@ xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp)
  * \return 		The number of gnttab entries filled
  */
 static int
-xnb_txpkt2gnttab(const struct xnb_pkt *pkt, const struct mbuf *mbufc,
+xnb_txpkt2gnttab(const struct xnb_pkt *pkt, struct mbuf *mbufc,
 		 gnttab_copy_table gnttab, const netif_tx_back_ring_t *txb,
 		 domid_t otherend_id)
 {
 
-	const struct mbuf *mbuf = mbufc;/* current mbuf within the chain */
+	struct mbuf *mbuf = mbufc;/* current mbuf within the chain */
 	int gnt_idx = 0;		/* index into grant table */
 	RING_IDX r_idx = pkt->car;	/* index into tx ring buffer */
 	int r_ofs = 0;	/* offset of next data within tx request's data area */

@@ -2972,7 +2972,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
  * pointer that might NOT be &loif -- easier than replicating that code here.
  */
 void
-ip6_mloopback(struct ifnet *ifp, const struct mbuf *m)
+ip6_mloopback(struct ifnet *ifp, struct mbuf *m)
 {
 	struct mbuf *copym;
 	struct ip6_hdr *ip6;
