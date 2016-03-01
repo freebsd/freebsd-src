@@ -918,11 +918,10 @@ decode_win_sdram_fixup(void)
 	struct mem_region mr[FDT_MEM_REGIONS];
 	uint8_t window_valid[MV_WIN_DDR_MAX];
 	int mr_cnt, err, i, j;
-	u_long memsize;
 	uint32_t valid_win_num = 0;
 
 	/* Grab physical memory regions information from device tree. */
-	err = fdt_get_mem_regions(mr, &mr_cnt, &memsize);
+	err = fdt_get_mem_regions(mr, &mr_cnt, NULL);
 	if (err != 0)
 		return (err);
 
