@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2012 Robert N. M. Watson
+.\" Copyright (c) 2012, 2016 Robert N. M. Watson
 .\" Copyright (c) 2015 SRI International
 .\" All rights reserved.
 .\"
@@ -46,15 +46,21 @@ In
 .Cd hint.altera_avgen.0.msize=20
 .Cd hint.altera_avgen.0.width=4
 .Cd hint.altera_avgen.0.fileio="rw"
+.Cd hint.altera_avgen.0.geomio="rw"
+.Cd hint.altera_avgen.0.mmapio="rwx"
 .Cd hint.altera_avgen.0.devname="berirom"
+.Cd hint.altera_avgen.0.devunit="0"
 .Pp
 In DTS file:
 .Cd avgen@0x7f00a000 {
-.Cd "	compatible =" Qo Cd sri-cambridge,avgen Qc ;
-.Cd "	reg = <0x7f00a000 0x14>;
-.Cd "	sri-cambridge,width = <4>;
-.Cd "	sri-cambridge,fileio = "rw";
-.Cd "	sri-cambridge,devname = "berirom";
+.D1 Cd compatible="sri-cambridge,avgen";
+.D1 Cd reg=<0x7f00a000 0x14>;
+.D1 Cd sri-cambridge,width=<4>;
+.D1 Cd sri-cambridge,fileio="rw";
+.D1 Cd sri-cambridge,geomio="rw";
+.D1 Cd sri-cambridge,mmapio="rwx";
+.D1 Cd sri-cambridge,devname="berirom";
+.D1 Cd sri-cambridge,devunit="0";
 .Cd };
 .Sh DESCRIPTION
 The
@@ -66,6 +72,7 @@ entries configure the address, size, I/O disposition, and
 .Pa /dev
 device node name that will be used.
 The
+.Xr mount 2 ,
 .Xr open 2 ,
 .Xr read 2 ,
 .Xr write 2 ,
@@ -75,14 +82,14 @@ system calls (and variations) may be used on
 .Nm
 device nodes, subject to constraints imposed using
 .Pa device.hints
-entries.
+or FDT entries.
 Although reading and writing mapped memory is supported,
 .Nm
 does not currently support directing device interrupts to userspace.
 .Pp
 A number of
 .Pa device.hints
-sub-fields are available to configure
+sub-fields or FDT configuration entries are available to configure
 .Nm
 device instances:
 .Bl -tag -width devunit
@@ -111,6 +118,15 @@ authorizes
 .Li w
 authorizes
 .Xr write 2 .
+.It geomio
+configures the special device to be exposed using the
+.Xr disk 9
+interface, permitting filesystem mounting using
+.Xr mount 2 .
+.Li w
+authorizes block write, and
+.Li r
+authorizes block read.
 .It mmapio
 allowed
 .Xr mmap 2
@@ -130,11 +146,19 @@ specifies a device name relative to
 .It devunit
 specifies a device unit number; no unit number is used if this is unspecified.
 .El
+.Pp
+.Nm
+devices may be exposed via only one of file/memory-mapped I/O or
+.Nm geom
+I/O.
 .Sh SEE ALSO
 .Xr mmap 2 ,
+.Xr mount 2 ,
 .Xr open 2 ,
 .Xr read 2 ,
-.Xr write 2
+.Xr unmount 2 ,
+.Xr write 2 ,
+.Xr geom 4
 .Sh HISTORY
 The
 .Nm
@@ -155,11 +179,3 @@ This device driver was written by
 .Nm
 is intended to support the writing of userspace device drivers; however, it
 does not permit directing interrupts to userspace, only memory-mapped I/O.
-.Pp
-.Nm
-supports only a
-.Li nexus
-bus attachment, which is appropriate for system-on-chip busses such as
-Altera's Avalon bus.
-If the target device is off of another bus type, then additional bus
-attachments will be required.

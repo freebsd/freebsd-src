@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2012-2013, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -76,7 +76,7 @@ static int
 altera_avgen_fdt_attach(device_t dev)
 {
 	struct altera_avgen_softc *sc;
-	char *str_fileio, *str_mmapio;
+	char *str_fileio, *str_geomio, *str_mmapio;
 	char *str_devname;
 	phandle_t node;
 	pcell_t cell;
@@ -91,6 +91,7 @@ altera_avgen_fdt_attach(device_t dev)
 	 * expose the device via /dev.
 	 */
 	str_fileio = NULL;
+	str_geomio = NULL;
 	str_mmapio = NULL;
 	str_devname = NULL;
 	devunit = -1;
@@ -100,6 +101,8 @@ altera_avgen_fdt_attach(device_t dev)
 		sc->avg_width = cell;
 	(void)OF_getprop_alloc(node, "sri-cambridge,fileio", sizeof(char),
 	    (void **)&str_fileio);
+	(void)OF_getprop_alloc(node, "sri-cambridge,geomio", sizeof(char),
+	    (void **)&str_geomio);
 	(void)OF_getprop_alloc(node, "sri-cambridge,mmapio", sizeof(char),
 	    (void **)&str_mmapio);
 	(void)OF_getprop_alloc(node,  "sri-cambridge,devname", sizeof(char),
@@ -115,13 +118,15 @@ altera_avgen_fdt_attach(device_t dev)
 		device_printf(dev, "couldn't map memory\n");
 		return (ENXIO);
 	}
-	error = altera_avgen_attach(sc, str_fileio, str_mmapio, str_devname,
-	    devunit);
+	error = altera_avgen_attach(sc, str_fileio, str_geomio, str_mmapio,
+	    str_devname, devunit);
 	if (error != 0)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->avg_rid,
 		    sc->avg_res);
 	if (str_fileio != NULL)
 		free(str_fileio, M_OFWPROP);
+	if (str_geomio != NULL)
+		free(str_geomio, M_OFWPROP);
 	if (str_mmapio != NULL)
 		free(str_mmapio, M_OFWPROP);
 	if (str_devname != NULL)
