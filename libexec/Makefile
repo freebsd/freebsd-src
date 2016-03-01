@@ -50,7 +50,7 @@ _casper=	casper
 _cheri_bench_helper=	cheri_bench-helper
 _cheritest_helper=	cheritest-helper
 _libpng_sb_helper=	libpng_sb-helper
-_rtld-cheri-elf=	rtld-cheri-elf
+#_rtld-cheri-elf=	rtld-cheri-elf
 _tcpdump_helper=	tcpdump-helper
 .endif
 
