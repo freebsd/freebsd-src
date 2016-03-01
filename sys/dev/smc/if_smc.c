@@ -560,7 +560,7 @@ smc_start_locked(struct ifnet *ifp)
 		return;
 	}
 
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 }
 
 static void
@@ -797,7 +797,7 @@ smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	SMC_UNLOCK(sc);
 
 	if (cmd == POLL_AND_CHECK_STATUS)
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 }
 #endif
 
@@ -823,7 +823,7 @@ smc_intr(void *context)
 	/* Restore bank */
 	smc_select_bank(sc, curbank);
 
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 	return (FILTER_HANDLED);
 }
 
@@ -877,7 +877,7 @@ smc_task_intr(void *context, int pending)
 			tcr |= TCR_TXENA | TCR_PAD_EN;
 			smc_write_2(sc, TCR, tcr);
 			smc_select_bank(sc, 2);
-			taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+			taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 		}
 
 		/*
@@ -892,7 +892,7 @@ smc_task_intr(void *context, int pending)
 	if (status & RCV_INT) {
 		smc_write_1(sc, ACK, RCV_INT);
 		sc->smc_mask &= ~RCV_INT;
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_rx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_rx);
 	}
 
 	/*
@@ -901,7 +901,7 @@ smc_task_intr(void *context, int pending)
 	if (status & ALLOC_INT) {
 		smc_write_1(sc, ACK, ALLOC_INT);
 		sc->smc_mask &= ~ALLOC_INT;
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 	}
 
 	/*
@@ -933,7 +933,7 @@ smc_task_intr(void *context, int pending)
 		/*
 		 * See if there are any packets to transmit.
 		 */
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 	}
 
 	/*
@@ -1233,7 +1233,7 @@ smc_watchdog(void *arg)
 	
 	sc = (struct smc_softc *)arg;
 	device_printf(sc->smc_dev, "watchdog timeout\n");
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 }
 
 static void

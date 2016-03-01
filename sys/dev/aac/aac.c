@@ -915,7 +915,7 @@ aac_filter(void *arg)
 
 	/* handle completion processing */
 	if (reason & AAC_DB_RESPONSE_READY)
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->aac_task_complete);
+		taskqueue_enqueue(taskqueue_fast, &sc->aac_task_complete);
 
 	/* controller wants to talk to us */
 	if (reason & (AAC_DB_PRINTF | AAC_DB_COMMAND_READY)) {
