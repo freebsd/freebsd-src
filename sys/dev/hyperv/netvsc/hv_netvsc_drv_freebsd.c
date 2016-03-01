@@ -138,6 +138,7 @@ __FBSDID("$FreeBSD$");
 
 #define HN_RNDIS_MSG_LEN		\
     (sizeof(rndis_msg) +		\
+     RNDIS_HASH_PPI_SIZE +		\
      RNDIS_VLAN_PPI_SIZE +		\
      RNDIS_TSO_PPI_SIZE +		\
      RNDIS_CSUM_PPI_SIZE)
@@ -737,6 +738,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
 	rndis_per_packet_info *rppi;
+	struct ndis_hash_info *hash_info;
 	uint32_t rndis_msg_size;
 
 	packet = &txd->netvsc_pkt;
@@ -760,6 +762,18 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	rndis_pkt->per_pkt_info_offset = sizeof(rndis_packet);
 
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
+
+	/*
+	 * Set the hash info for this packet, so that the host could
+	 * dispatch the TX done event for this packet back to this TX
+	 * ring's channel.
+	 */
+	rndis_msg_size += RNDIS_HASH_PPI_SIZE;
+	rppi = hv_set_rppi_data(rndis_mesg, RNDIS_HASH_PPI_SIZE,
+	    nbl_hash_value);
+	hash_info = (struct ndis_hash_info *)((uint8_t *)rppi +
+	    rppi->per_packet_info_offset);
+	hash_info->hash = txr->hn_tx_idx;
 
 	if (m_head->m_flags & M_VLANTAG) {
 		ndis_8021q_info *rppi_vlan_info;
@@ -2148,6 +2162,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 	int error, i;
 
 	txr->hn_sc = sc;
+	txr->hn_tx_idx = id;
 
 #ifndef HN_USE_TXDESC_BUFRING
 	mtx_init(&txr->hn_txlist_spin, "hn txlist", NULL, MTX_SPIN);
