@@ -176,11 +176,13 @@ int
 invoke_fd_fstat_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
-	struct stat sb;
-	void *sb_c;
+	struct stat *sbp;
 
-	sb_c = cheri_ptr(&sb, sizeof(sb));
-	ret = cheri_fd_fstat_c(fd_object, sb_c);
+	sbp = malloc(sizeof(*sbp));
+	if (sbp == NULL)
+		return (-1);
+	ret = cheri_fd_fstat_c(fd_object, sbp);
+	free(sbp);
 	return (ret.cfr_retval0);
 }
 
@@ -234,30 +236,30 @@ invoke_spin()
 	abort();
 }
 
+static void *calloc_allocation;
 int
 invoke_system_calloc(void)
 {
 	size_t i;
-	void *tmp;
 	const size_t sizes[] = {1, 2, 4, 8, 16, 32, 64, 128, 1024, 4096, 10000};
 
 	for (i = 0; i < sizeof(sizes) / sizeof(*sizes); i++) {
-		if (cheri_system_calloc(1, sizes[i], &tmp) != 0)
+		if (cheri_system_calloc(1, sizes[i], &calloc_allocation) != 0)
 			return (-1);
-		if (tmp == NULL)
+		if (calloc_allocation == NULL)
 			return (-1);
-		if (cheri_getlen(tmp) != sizes[i])
+		if (cheri_getlen(calloc_allocation) != sizes[i])
 			return (-1);
-		if (cheri_system_free(tmp) != 0)
+		if (cheri_system_free(calloc_allocation) != 0)
 			return (-1);
 	}
 	return (0);
 }
 
+static struct timespec t;
 int
 invoke_clock_gettime(void)
 {
-	struct timespec t;
 
 	if (clock_gettime(CLOCK_REALTIME, &t) == -1)
 		return (-1);
