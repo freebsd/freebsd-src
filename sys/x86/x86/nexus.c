@@ -261,11 +261,15 @@ nexus_init_resources(void)
 		panic("nexus_init_resources port_rman");
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+#ifndef PAE
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
+#else
+	mem_rman.rm_end = ((1ULL << cpu_maxphyaddr) - 1);
+#endif
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory addresses";
 	if (rman_init(&mem_rman)
-	    || rman_manage_region(&mem_rman, 0, ~0))
+	    || rman_manage_region(&mem_rman, 0, mem_rman.rm_end))
 		panic("nexus_init_resources mem_rman");
 }
 

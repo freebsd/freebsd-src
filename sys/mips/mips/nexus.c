@@ -185,11 +185,11 @@ nexus_probe(device_t dev)
 	}
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0ul;
+	mem_rman.rm_end = BUS_SPACE_MAXADDR;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "Memory addresses";
 	if (rman_init(&mem_rman) != 0 ||
-	    rman_manage_region(&mem_rman, 0, ~0) != 0) {
+	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR) != 0) {
 		panic("%s: mem_rman", __func__);
 	}
 
