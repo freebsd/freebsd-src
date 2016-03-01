@@ -164,12 +164,14 @@ ishtinfooui(const uint8_t *frm)
  * but a retransmit since the initial packet didn't make it.
  */
 static __inline int
-ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
+ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
+    uint8_t *bssid)
 {
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	SEQ_EQ(a,b)	((int)((a)-(b)) == 0)
 #define	SEQNO(a)	((a) >> IEEE80211_SEQ_SEQ_SHIFT)
 #define	FRAGNO(a)	((a) & IEEE80211_SEQ_FRAG_MASK)
+	struct ieee80211vap *vap = ni->ni_vap;
 	uint16_t rxseq;
 	uint8_t type, subtype;
 	uint8_t tid;
@@ -198,7 +200,7 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
 		/* HT nodes currently doing RX AMPDU are always valid */
 		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
 		    (rap->rxa_flags & IEEE80211_AGGR_RUNNING))
-			return 1;
+			goto ok;
 	}
 
 	/*	
@@ -216,7 +218,7 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
 		 */
 		if (SEQ_EQ(rxseq, ni->ni_rxseqs[tid]) &&
 		    (wh->i_fc[1] & IEEE80211_FC1_RETRY))
-			return 0;
+			goto fail;
 		/*
 		 * Treat any subsequent frame as fine if the last seen frame
 		 * is 4095 and it's not a retransmit for the same sequence
@@ -224,7 +226,7 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
 	 	 * fragments w/ sequence number 4095. It shouldn't be seen
 		 * in practice, but see the comment above for further info.
 		 */
-		return 1;
+		goto ok;
 	}
 
 	/*
@@ -233,9 +235,23 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh)
 	 */
 	if ((wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
 	    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid]))
-		return 0;
+		goto fail;
+
+ok:
+	ni->ni_rxseqs[tid] = rxseq;
 
 	return 1;
+
+fail:
+	/* duplicate, discard */
+	IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT, bssid, "duplicate",
+	    "seqno <%u,%u> fragno <%u,%u> tid %u",
+	     SEQNO(rxseq),  SEQNO(ni->ni_rxseqs[tid]),
+	    FRAGNO(rxseq), FRAGNO(ni->ni_rxseqs[tid]), tid);
+	vap->iv_stats.is_rx_dup++;
+	IEEE80211_NODE_STAT(ni, rx_dup);
+
+	return 0;
 #undef	SEQ_LEQ
 #undef	SEQ_EQ
 #undef	SEQNO
