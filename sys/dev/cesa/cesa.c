@@ -1642,11 +1642,10 @@ decode_win_cesa_setup(struct cesa_softc *sc)
 	struct mem_region availmem_regions[FDT_MEM_REGIONS];
 	int availmem_regions_sz;
 	uint32_t br, cr, i;
-	u_long memsize;
 
 	/* Grab physical memory regions information from DTS */
 	if (fdt_get_mem_regions(availmem_regions, &availmem_regions_sz,
-	    &memsize) != 0)
+	    NULL) != 0)
 		return (ENXIO);
 
 	if (availmem_regions_sz > MV_WIN_CESA_MAX) {
