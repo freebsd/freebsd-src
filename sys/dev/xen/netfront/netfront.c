@@ -1400,7 +1400,7 @@ xn_rxq_intr(void *xrxq)
 {
 	struct netfront_rxq *rxq = xrxq;
 
-	taskqueue_enqueue_fast(rxq->tq, &rxq->intrtask);
+	taskqueue_enqueue(rxq->tq, &rxq->intrtask);
 }
 
 static void
@@ -1408,7 +1408,7 @@ xn_txq_intr(void *xtxq)
 {
 	struct netfront_txq *txq = xtxq;
 
-	taskqueue_enqueue_fast(txq->tq, &txq->intrtask);
+	taskqueue_enqueue(txq->tq, &txq->intrtask);
 }
 
 static int

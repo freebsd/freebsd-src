@@ -350,7 +350,7 @@ hv_vmbus_on_events(int cpu)
 
 				if (channel->batched_reading)
 					hv_ring_buffer_read_begin(&channel->inbound);
-				taskqueue_enqueue_fast(channel->rxq, &channel->channel_task);
+				taskqueue_enqueue(channel->rxq, &channel->channel_task);
 			    }
 			}
 		    }
