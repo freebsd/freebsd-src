@@ -48,7 +48,9 @@ __FBSDID("$FreeBSD$");
 
 struct a31_ccm_softc {
 	struct resource		*res;
+	struct mtx		mtx;
 	int			pll6_enabled;
+	int			ehci_refcnt;
 };
 
 static struct a31_ccm_softc *a31_ccm_sc = NULL;
@@ -57,6 +59,9 @@ static struct a31_ccm_softc *a31_ccm_sc = NULL;
 	bus_read_4((sc)->res, (reg))
 #define ccm_write_4(sc, reg, val)	\
 	bus_write_4((sc)->res, (reg), (val))
+
+#define	CCM_LOCK(sc)	mtx_lock(&(sc)->mtx)
+#define	CCM_UNLOCK(sc)	mtx_unlock(&(sc)->mtx)
 
 #define PLL6_TIMEOUT	10
 
@@ -89,6 +94,8 @@ a31_ccm_attach(device_t dev)
 		device_printf(dev, "could not allocate resource\n");
 		return (ENXIO);
 	}
+
+	mtx_init(&sc->mtx, "a31 ccm", NULL, MTX_DEF);
 
 	a31_ccm_sc = sc;
 
@@ -290,6 +297,82 @@ a31_clk_i2c_activate(int devid)
 	reg_value = ccm_read_4(sc, A31_CCM_APB2_RST);
 	reg_value |= A31_CCM_APB2_RST_TWI << devid;
 	ccm_write_4(sc, A31_CCM_APB2_RST, reg_value);
+
+	return (0);
+}
+
+int
+a31_clk_ehci_activate(void)
+{
+	struct a31_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a31_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	CCM_LOCK(sc);
+	if (++sc->ehci_refcnt == 1) {
+		/* Enable USB PHY */
+		reg_value = ccm_read_4(sc, A31_CCM_USBPHY_CLK);
+		reg_value |= A31_CCM_USBPHY_CLK_GATING_USBPHY0;
+		reg_value |= A31_CCM_USBPHY_CLK_GATING_USBPHY1;
+		reg_value |= A31_CCM_USBPHY_CLK_GATING_USBPHY2;
+		reg_value |= A31_CCM_USBPHY_CLK_USBPHY1_RST;
+		reg_value |= A31_CCM_USBPHY_CLK_USBPHY2_RST;
+		ccm_write_4(sc, A31_CCM_USBPHY_CLK, reg_value);
+
+		/* Gating AHB clock for EHCI */
+		reg_value = ccm_read_4(sc, A31_CCM_AHB_GATING0);
+		reg_value |= A31_CCM_AHB_GATING_EHCI0;
+		reg_value |= A31_CCM_AHB_GATING_EHCI1;
+		ccm_write_4(sc, A31_CCM_AHB_GATING0, reg_value);
+
+		/* De-assert reset */
+		reg_value = ccm_read_4(sc, A31_CCM_AHB1_RST_REG0);
+		reg_value |= A31_CCM_AHB1_RST_REG0_EHCI0;
+		reg_value |= A31_CCM_AHB1_RST_REG0_EHCI1;
+		ccm_write_4(sc, A31_CCM_AHB1_RST_REG0, reg_value);
+	}
+	CCM_UNLOCK(sc);
+
+	return (0);
+}
+
+int
+a31_clk_ehci_deactivate(void)
+{
+	struct a31_ccm_softc *sc;
+	uint32_t reg_value;
+
+	sc = a31_ccm_sc;
+	if (sc == NULL)
+		return (ENXIO);
+
+	CCM_LOCK(sc);
+	if (--sc->ehci_refcnt == 0) {
+		/* Disable USB PHY */
+		reg_value = ccm_read_4(sc, A31_CCM_USBPHY_CLK);
+		reg_value &= ~A31_CCM_USBPHY_CLK_GATING_USBPHY0;
+		reg_value &= ~A31_CCM_USBPHY_CLK_GATING_USBPHY1;
+		reg_value &= ~A31_CCM_USBPHY_CLK_GATING_USBPHY2;
+		reg_value &= ~A31_CCM_USBPHY_CLK_USBPHY1_RST;
+		reg_value &= ~A31_CCM_USBPHY_CLK_USBPHY2_RST;
+		ccm_write_4(sc, A31_CCM_USBPHY_CLK, reg_value);
+
+		/* Gating AHB clock for EHCI */
+		reg_value = ccm_read_4(sc, A31_CCM_AHB_GATING0);
+		reg_value &= ~A31_CCM_AHB_GATING_EHCI0;
+		reg_value &= ~A31_CCM_AHB_GATING_EHCI1;
+		ccm_write_4(sc, A31_CCM_AHB_GATING0, reg_value);
+
+		/* Assert reset */
+		reg_value = ccm_read_4(sc, A31_CCM_AHB1_RST_REG0);
+		reg_value &= ~A31_CCM_AHB1_RST_REG0_EHCI0;
+		reg_value &= ~A31_CCM_AHB1_RST_REG0_EHCI1;
+		ccm_write_4(sc, A31_CCM_AHB1_RST_REG0, reg_value);
+	}
+	CCM_UNLOCK(sc);
 
 	return (0);
 }
