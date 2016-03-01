@@ -631,7 +631,7 @@ literal:
 				res = (*ccfn)(buf, (char **)NULL, base);
 				if (flags & POINTER)
 					*SM_VA_ARG(ap, void **) =
-					    (void *)(long) res;
+					    (void *)(intptr_t) res;
 				else if (flags & QUAD)
 					*SM_VA_ARG(ap, LONGLONG_T *) = res;
 				else if (flags & LONG)

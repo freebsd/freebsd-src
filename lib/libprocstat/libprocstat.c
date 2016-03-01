@@ -2120,8 +2120,8 @@ procstat_getrlimit_kvm(kvm_t *kd, struct kinfo_proc *kp, int which,
 		return (-1);
 	offset = (unsigned long)proc.p_limit + sizeof(struct rlimit) * which;
 	if (!kvm_read_all(kd, offset, rlimit, sizeof(*rlimit))) {
-		warnx("can't read rlimit struct at %p for pid %d",
-		    (void *)offset, kp->ki_pid);
+		warnx("can't read rlimit struct at %lx for pid %d",
+		    offset, kp->ki_pid);
 		return (-1);
 	}
 	return (0);

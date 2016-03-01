@@ -279,10 +279,10 @@ files_servent(void *retval, void *mdata, va_list ap)
 	};
 	ns_dtab compat_dtab[] = {
 		{ NSSRC_DB, db_servent,
-			(void *)((struct servent_mdata *)mdata)->how },
+			(void *)(intptr_t)((struct servent_mdata *)mdata)->how },
 #ifdef YP
 		{ NSSRC_NIS, nis_servent,
-			(void *)((struct servent_mdata *)mdata)->how },
+			(void *)(intptr_t)((struct servent_mdata *)mdata)->how },
 #endif
 		{ NULL, NULL, NULL }
 	};

@@ -34,6 +34,9 @@
 #define	_PTHREAD_MD_H_
 
 #include <sys/types.h>
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <machine/cheric.h>
+#endif
 #include <machine/sysarch.h>
 #include <machine/tls.h>
 #include <stddef.h>
@@ -93,7 +96,12 @@ _tcb_get(void)
 	 * pointer via sysarch() (in theory).  Of course, this may go away
 	 * once the TLS code is rewritten.
 	 */
+#ifndef __CHERI_PURE_CAPABILITY__
 	return (struct tcb *)(_rv - TLS_TP_OFFSET - TLS_TCB_SIZE);
+#else
+	return (struct tcb *)cheri_setoffset(cheri_getdefault(),
+	    _rv - TLS_TP_OFFSET - TLS_TCB_SIZE);
+#endif
 }
 #  else /* mips 32 */
 static __inline struct tcb *

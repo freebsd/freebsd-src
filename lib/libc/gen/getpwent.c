@@ -1610,7 +1610,7 @@ compat_redispatch(struct compat_state *st, enum nss_lookup_type how,
 	int		 e, i, rv;
 
 	for (i = 0; i < (int)(nitems(dtab) - 1); i++)
-		dtab[i].mdata = (void *)lookup_how;
+		dtab[i].mdata = (void *)(intptr_t)lookup_how;
 more:
 	pwd_init(pwd);
 	switch (lookup_how) {

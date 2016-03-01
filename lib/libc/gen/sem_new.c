@@ -361,7 +361,7 @@ usem_wait(struct _usem2 *sem, const struct timespec *abstime)
 		tm_size = sizeof(timeout);
 	}
 	return _umtx_op(sem, UMTX_OP_SEM2_WAIT, 0, 
-		    (void *)tm_size, __DECONST(void*, tm_p));
+		    (void *)(uintptr_t)tm_size, __DECONST(void*, tm_p));
 }
 
 int

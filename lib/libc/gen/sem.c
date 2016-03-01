@@ -329,7 +329,7 @@ _umtx_wait_uint(volatile unsigned *mtx, unsigned id, const struct timespec *abst
 	}
 	return _umtx_op(__DEVOLATILE(void *, mtx),
 		UMTX_OP_WAIT_UINT_PRIVATE, id, 
-		(void *)tm_size, __DECONST(void*, tm_p));
+		(void *)(uintptr_t)tm_size, __DECONST(void*, tm_p));
 }
 
 static int

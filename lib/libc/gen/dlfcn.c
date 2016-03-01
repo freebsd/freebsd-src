@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
  * Linkage to services provided by the dynamic linker.
  */
 #include <sys/mman.h>
+#ifdef __CHERI_PURE_CAPABILITY__
+#include <machine/cheric.h>
+#endif
 #include <dlfcn.h>
 #include <link.h>
 #include <stddef.h>
@@ -176,7 +179,14 @@ dl_init_phdr_info(void)
 		if (phdr_info.dlpi_phdr[i].p_type == PT_TLS) {
 			phdr_info.dlpi_tls_modid = 1;
 			phdr_info.dlpi_tls_data =
+#ifndef __CHERI_PURE_CAPABILITY__
 			    (void*)phdr_info.dlpi_phdr[i].p_vaddr;
+#else
+			    cheri_csetbounds(cheri_setoffset(cheri_getdefault(),
+				phdr_info.dlpi_phdr[i].p_vaddr),
+				phdr_info.dlpi_phdr[i].p_filesz);
+
+#endif
 		}
 	}
 	phdr_info.dlpi_adds = 1;

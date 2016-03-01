@@ -189,7 +189,7 @@ proc_read(struct proc_handle *phdl, void *buf, size_t size, size_t addr)
 	piod.piod_op = PIOD_READ_D;
 	piod.piod_len = size;
 	piod.piod_addr = (void *)buf;
-	piod.piod_offs = (void *)addr;
+	piod.piod_offs = (void *)(uintptr_t)addr;
 
 	if (ptrace(PT_IO, phdl->pid, (caddr_t)&piod, 0) < 0)
 		return (-1);

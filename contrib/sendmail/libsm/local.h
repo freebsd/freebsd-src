@@ -98,7 +98,7 @@ extern bool Sm_IO_DidInit;
 
 extern const char SmFileMagic[];
 
-#define SM_ALIGN(p)	(((unsigned long)(p) + SM_ALIGN_BITS) & ~SM_ALIGN_BITS)
+#define SM_ALIGN(p)	(((uintptr_t)(p) + SM_ALIGN_BITS) & (uintptr_t)~SM_ALIGN_BITS)
 
 #define sm_io_flockfile(fp)	((void) 0)
 #define sm_io_funlockfile(fp)	((void) 0)

@@ -92,7 +92,7 @@ proc_bkptset(struct proc_handle *phdl, uintptr_t address,
     unsigned long *saved)
 {
 	struct ptrace_io_desc piod;
-	unsigned long paddr, caddr;
+	uintptr_t paddr, caddr;
 	int ret = 0, stopped;
 
 	*saved = 0;
@@ -156,7 +156,7 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
     unsigned long saved)
 {
 	struct ptrace_io_desc piod;
-	unsigned long paddr, caddr;
+	uintptr_t paddr, caddr;
 	int ret = 0, stopped;
 
 	if (phdl->status == PS_DEAD || phdl->status == PS_UNDEAD ||

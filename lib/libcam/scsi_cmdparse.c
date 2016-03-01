@@ -125,7 +125,7 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 			if (arg_put) \
 				(*arg_put)(puthook, (letter == 't' ? \
 					'b' : letter), \
-					(void *)((long)(ARG)), width, \
+					(void *)((intptr_t)(ARG)), width, \
 					field_name); \
 			else \
 				*(va_arg(ap, int *)) = (ARG); \
