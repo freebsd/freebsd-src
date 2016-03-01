@@ -608,6 +608,8 @@ typedef enum ndis_per_pkt_infotype_ {
 	max_perpkt_info
 } ndis_per_pkt_infotype;
 
+#define nbl_hash_value	pkt_cancel_id
+
 typedef struct ndis_8021q_info_ {
 	union {
 		struct {
@@ -619,6 +621,10 @@ typedef struct ndis_8021q_info_ {
 		uint32_t    value;
 	} u1;
 } ndis_8021q_info;
+
+struct ndis_hash_info {
+	uint32_t	hash;
+} __packed;
 
 struct rndis_object_header {
 	uint8_t type;
@@ -712,6 +718,9 @@ typedef struct rndis_tcp_tso_info_ {
 		uint32_t  value;
 	};
 } rndis_tcp_tso_info;
+
+#define RNDIS_HASH_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
+				sizeof(struct ndis_hash_info))
 
 #define RNDIS_VLAN_PPI_SIZE	(sizeof(rndis_per_packet_info) + \
 				sizeof(ndis_8021q_info))
