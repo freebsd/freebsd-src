@@ -795,6 +795,8 @@ cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack
 	if (PCPU_GET(fpcurthread) == td)
 		PCPU_SET(fpcurthread, (struct thread *)0);
 	td->td_md.md_ss_addr = 0;
+
+	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE_C;
 }
 
 void
