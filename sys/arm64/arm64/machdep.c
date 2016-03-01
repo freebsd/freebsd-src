@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
 
@@ -668,6 +669,20 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	return (1);
 }
 
+#ifdef FDT
+static void
+add_fdt_mem_regions(struct mem_region *mr, int mrcnt, vm_paddr_t *physmap,
+    u_int *physmap_idxp)
+{
+
+	for (int i = 0; i < mrcnt; i++) {
+		if (!add_physmap_entry(mr[i].mr_start, mr[i].mr_size, physmap,
+		    physmap_idxp))
+			break;
+	}
+}
+#endif
+
 #define efi_next_descriptor(ptr, size) \
 	((struct efi_md *)(((uint8_t *) ptr) + size))
 
@@ -807,6 +822,10 @@ initarm(struct arm64_bootparams *abp)
 {
 	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
+#ifdef FDT
+	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	int mem_regions_sz;
+#endif
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
 	vm_paddr_t mem_len;
@@ -834,7 +853,18 @@ initarm(struct arm64_bootparams *abp)
 	physmap_idx = 0;
 	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
-	add_efi_map_entries(efihdr, physmap, &physmap_idx);
+	if (efihdr != NULL)
+		add_efi_map_entries(efihdr, physmap, &physmap_idx);
+#ifdef FDT
+	else {
+		/* Grab physical memory regions information from device tree. */
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
+		    NULL) != 0)
+			panic("Cannot get physical memory regions");
+		add_fdt_mem_regions(mem_regions, mem_regions_sz, physmap,
+		    &physmap_idx);
+	}
+#endif
 
 	/* Print the memory map */
 	mem_len = 0;
