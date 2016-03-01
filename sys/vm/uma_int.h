@@ -250,17 +250,7 @@ struct uma_slab {
 #define	us_link	us_type._us_link
 #define	us_size	us_type._us_size
 
-/*
- * The slab structure for UMA_ZONE_REFCNT zones for whose items we
- * maintain reference counters in the slab for.
- */
-struct uma_slab_refcnt {
-	struct uma_slab		us_head;	/* slab header data */
-	uint32_t		us_refcnt[0];	/* Actually larger. */
-};
-
 typedef struct uma_slab * uma_slab_t;
-typedef struct uma_slab_refcnt * uma_slabrefcnt_t;
 typedef uma_slab_t (*uma_slaballoc)(uma_zone_t, uma_keg_t, int);
 
 struct uma_klink {
