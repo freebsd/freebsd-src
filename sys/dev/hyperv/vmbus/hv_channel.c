@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -192,7 +193,7 @@ hv_vmbus_channel_open(
 	if (ret != 0)
 	    goto cleanup;
 
-	ret = sema_timedwait(&open_info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&open_info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 	if (ret) {
 	    if(bootverbose)
@@ -437,7 +438,7 @@ hv_vmbus_channel_establish_gpadl(
 	    }
 	}
 
-	ret = sema_timedwait(&msg_info->wait_sema, 500); /* KYS 5 seconds*/
+	ret = sema_timedwait(&msg_info->wait_sema, 5 * hz); /* KYS 5 seconds*/
 	if (ret != 0)
 	    goto cleanup;
 
@@ -497,7 +498,7 @@ hv_vmbus_channel_teardown_gpdal(
 	if (ret != 0) 
 	    goto cleanup;
 	
-	ret = sema_timedwait(&info->wait_sema, 500); /* KYS 5 seconds */
+	ret = sema_timedwait(&info->wait_sema, 5 * hz); /* KYS 5 seconds */
 
 cleanup:
 	/*

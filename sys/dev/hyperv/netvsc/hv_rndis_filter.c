@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/lock.h>
@@ -358,7 +359,7 @@ hv_rf_send_offload_request(struct hv_device *device,
 		goto cleanup;
 	}
 
-	ret = sema_timedwait(&request->wait_sema, 500);
+	ret = sema_timedwait(&request->wait_sema, 5 * hz);
 	if (ret != 0) {
 		device_printf(dev, "hv send offload request timeout\n");
 		goto cleanup;
@@ -625,7 +626,7 @@ hv_rf_set_packet_filter(rndis_device *device, uint32_t new_filter)
 	 * us when the response has arrived.  In the failure case,
 	 * sema_timedwait() returns a non-zero status after waiting 5 seconds.
 	 */
-	ret = sema_timedwait(&request->wait_sema, 500);
+	ret = sema_timedwait(&request->wait_sema, 5 * hz);
 	if (ret == 0) {
 		/* Response received, check status */
 		set_complete = &request->response_msg.msg.set_complete;
