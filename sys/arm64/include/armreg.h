@@ -131,6 +131,7 @@
 #define	ICC_SRE_EL1_SRE		(1U << 0)
 
 /* ICC_SRE_EL2 */
+#define	ICC_SRE_EL2_SRE		(1U << 0)
 #define	ICC_SRE_EL2_EN		(1U << 3)
 
 /* ID_AA64DFR0_EL1 */
