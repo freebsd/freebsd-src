@@ -79,7 +79,9 @@ struct intr_irqsrc {
 	u_long *		isrc_count;
 	u_int			isrc_handlers;
 	struct intr_event *	isrc_event;
+#ifdef INTR_SOLO
 	intr_irq_filter_t *	isrc_filter;
+#endif
 	intr_ipi_filter_t *	isrc_ipifilter;
 	void *			isrc_arg;
 #ifdef FDT

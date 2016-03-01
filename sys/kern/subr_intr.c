@@ -713,7 +713,11 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	 * Make sure that we do not mix the two ways
 	 * how we handle interrupt sources. Let contested event wins.
 	 */
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
+#else
+	if (isrc->isrc_event != NULL) {
+#endif
 		mtx_unlock(&isrc_table_lock);
 		intr_event_destroy(ie);
 		return (isrc->isrc_event != NULL ? EBUSY : 0);
@@ -1013,7 +1017,7 @@ intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
 			return (EINVAL);
@@ -1028,7 +1032,7 @@ intr_irq_remove_handler(device_t dev, u_int irq, void *cookie)
 		mtx_unlock(&isrc_table_lock);
 		return (0);
 	}
-
+#endif
 	if (isrc != intr_handler_source(cookie))
 		return (EINVAL);
 
@@ -1079,7 +1083,7 @@ intr_irq_describe(u_int irq, void *cookie, const char *descr)
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
 			return (EINVAL);
@@ -1089,7 +1093,7 @@ intr_irq_describe(u_int irq, void *cookie, const char *descr)
 		mtx_unlock(&isrc_table_lock);
 		return (0);
 	}
-
+#endif
 	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
@@ -1108,10 +1112,10 @@ intr_irq_bind(u_int irq, int cpu)
 	isrc = isrc_lookup(irq);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-
+#ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL)
 		return (intr_isrc_assign_cpu(isrc, cpu));
-
+#endif
 	return (intr_event_bind(isrc->isrc_event, cpu));
 }
 
