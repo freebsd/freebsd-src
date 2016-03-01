@@ -88,7 +88,6 @@ MALLOC_DEFINE(M_INTRNG, "intr", "intr interrupt handling");
 void intr_irq_handler(struct trapframe *tf);
 
 /* Root interrupt controller stuff. */
-static struct intr_irqsrc *irq_root_isrc;
 device_t intr_irq_root_dev;
 static intr_irq_filter_t *irq_root_filter;
 static void *irq_root_arg;
@@ -894,8 +893,6 @@ int
 intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
     void *arg, u_int ipicount)
 {
-	int error;
-	u_int rootirq;
 
 	if (pic_lookup(dev, xref) == NULL) {
 		device_printf(dev, "not registered\n");
@@ -916,24 +913,6 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 		return (EBUSY);
 	}
 
-	rootirq = intr_namespace_map_irq(device_get_parent(dev), 0, 0);
-	if (rootirq == IRQ_INVALID) {
-		device_printf(dev, "failed to map an irq for the root pic\n");
-		return (ENOMEM);
-	}
-
-        /* Create the isrc. */
-	irq_root_isrc = isrc_lookup(rootirq);
-
-        /* XXX "register" with the PIC.  We are the "pic" here, so fake it. */
-	irq_root_isrc->isrc_flags |= INTR_ISRCF_REGISTERED;
-
-	error = intr_irq_add_handler(device_get_parent(dev), 
-		(void*)filter, NULL, arg, rootirq, INTR_TYPE_CLK, NULL);
-	if (error != 0) {
-		device_printf(dev, "failed to install root pic handler\n");
-		return (error);
-	}
 	intr_irq_root_dev = dev;
 	irq_root_filter = filter;
 	irq_root_arg = arg;
