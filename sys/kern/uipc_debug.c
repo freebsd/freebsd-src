@@ -416,6 +416,9 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_printf("sb_flags: 0x%x (", sb->sb_flags);
 	db_print_sbflags(sb->sb_flags);
 	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("sb_aiojobq first: %p\n", TAILQ_FIRST(&sb->sb_aiojobq));
 }
 
 static void
@@ -470,7 +473,6 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 	db_print_indent(indent);
 	db_printf("so_sigio: %p   ", so->so_sigio);
 	db_printf("so_oobmark: %lu   ", so->so_oobmark);
-	db_printf("so_aiojobq first: %p\n", TAILQ_FIRST(&so->so_aiojobq));
 
 	db_print_sockbuf(&so->so_rcv, "so_rcv", indent);
 	db_print_sockbuf(&so->so_snd, "so_snd", indent);
