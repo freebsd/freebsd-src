@@ -928,7 +928,6 @@ hv_vmbus_channel_recv_packet_raw(
 {
 	int		ret;
 	uint32_t	packetLen;
-	uint32_t	userLen;
 	hv_vm_packet_descriptor	desc;
 
 	*buffer_actual_len = 0;
@@ -942,8 +941,6 @@ hv_vmbus_channel_recv_packet_raw(
 	    return (0);
 
 	packetLen = desc.length8 << 3;
-	userLen = packetLen - (desc.data_offset8 << 3);
-
 	*buffer_actual_len = packetLen;
 
 	if (packetLen > buffer_len)
