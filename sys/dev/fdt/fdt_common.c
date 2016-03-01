@@ -705,7 +705,8 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, u_long *memsize)
 	}
 
 	*mrcnt = i;
-	*memsize = memory_size;
+	if (memsize != NULL)
+		*memsize = memory_size;
 	rv = 0;
 out:
 	return (rv);
