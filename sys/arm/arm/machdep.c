@@ -1443,7 +1443,7 @@ initarm(struct arm_boot_params *abp)
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	u_long memsize;
+	uint64_t memsize;
 	uint32_t l2size;
 	char *env;
 	void *kmdp;
