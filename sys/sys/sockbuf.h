@@ -36,6 +36,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
+#include <sys/_task.h>
 
 #define	SB_MAX		(2*1024*1024)	/* default for max chars in sockbuf */
 
@@ -53,6 +54,7 @@
 #define	SB_IN_TOE	0x400		/* socket buffer is in the middle of an operation */
 #define	SB_AUTOSIZE	0x800		/* automatically size socket buffer */
 #define	SB_STOP		0x1000		/* backpressure indicator */
+#define	SB_AIO_RUNNING	0x2000		/* AIO operation running */
 
 #define	SBS_CANTSENDMORE	0x0010	/* can't send more data to peer */
 #define	SBS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
@@ -107,6 +109,8 @@ struct	sockbuf {
 	short	sb_flags;	/* (a) flags, see below */
 	int	(*sb_upcall)(struct socket *, void *, int); /* (a) */
 	void	*sb_upcallarg;	/* (a) */
+	TAILQ_HEAD(, kaiocb) sb_aiojobq; /* (a) pending AIO ops */
+	struct	task sb_aiotask; /* AIO task */
 };
 
 #ifdef _KERNEL

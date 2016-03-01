@@ -73,6 +73,7 @@ struct socket;
 
 struct file;
 struct filecaps;
+struct kaiocb;
 struct kinfo_file;
 struct ucred;
 
@@ -120,6 +121,7 @@ typedef int fo_mmap_t(struct file *fp, vm_map_t map, vm_offset_t *addr,
 		    vm_offset_t max_addr, vm_size_t size, vm_prot_t prot,
 		    vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
 		    struct thread *td);
+typedef int fo_aio_queue_t(struct file *fp, struct kaiocb *job);
 typedef	int fo_flags_t;
 
 struct fileops {
@@ -137,6 +139,7 @@ struct fileops {
 	fo_seek_t	*fo_seek;
 	fo_fill_kinfo_t	*fo_fill_kinfo;
 	fo_mmap_t	*fo_mmap;
+	fo_aio_queue_t	*fo_aio_queue;
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 
@@ -405,6 +408,13 @@ fo_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_offset_t max_addr,
 		return (ENODEV);
 	return ((*fp->f_ops->fo_mmap)(fp, map, addr, max_addr, size, prot,
 	    cap_maxprot, flags, foff, td));
+}
+
+static __inline int
+fo_aio_queue(struct file *fp, struct kaiocb *job)
+{
+
+	return ((*fp->f_ops->fo_aio_queue)(fp, job));
 }
 
 #endif /* _KERNEL */

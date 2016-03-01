@@ -1130,11 +1130,6 @@ options 	EXT2FS
 #
 options 	REISERFS
 
-# Use real implementations of the aio_* system calls.  There are numerous
-# stability and security issues in the current aio code that make it
-# unsuitable for inclusion on machines with untrusted local users.
-options 	VFS_AIO
-
 # Cryptographically secure random number generator; /dev/random
 device		random
 
