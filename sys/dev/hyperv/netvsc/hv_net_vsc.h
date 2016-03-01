@@ -1039,6 +1039,7 @@ struct hn_tx_ring {
 
 	struct buf_ring	*hn_mbuf_br;
 	int		hn_oactive;
+	int		hn_tx_idx;
 
 	struct mtx	hn_tx_lock;
 	struct hn_softc	*hn_sc;
