@@ -1625,7 +1625,7 @@ Camellia_cbc_encrypt:
 	leaq	-64-63(%rcx),%r10
 	subq	%rsp,%r10
 	negq	%r10
-	andq	$960,%r10
+	andq	$0x3C0,%r10
 	subq	%r10,%rsp
 
 
