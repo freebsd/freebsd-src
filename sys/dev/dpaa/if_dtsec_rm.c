@@ -375,7 +375,7 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 	if (m == NULL)
 		goto err;
 
-	MEXTADD(m, DPAA_FD_GET_ADDR(frame), FM_PORT_BUFFER_SIZE,
+	m_extadd(m, DPAA_FD_GET_ADDR(frame), FM_PORT_BUFFER_SIZE,
 	    dtsec_rm_fqr_mext_free, DPAA_FD_GET_ADDR(frame), sc, 0,
 	    EXT_NET_DRV);
 
