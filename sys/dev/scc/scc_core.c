@@ -417,7 +417,7 @@ scc_bus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		return (NULL);
 
 	/* We only support default allocations. */
-	if (start != 0UL || end != ~0UL)
+	if (!RMAN_IS_DEFAULT_RANGE(start, end))
 		return (NULL);
 
 	m = device_get_ivars(child);

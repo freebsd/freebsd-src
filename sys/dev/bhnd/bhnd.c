@@ -654,7 +654,7 @@ bhnd_generic_alloc_bhnd_resource(device_t dev, device_t child, int type,
 	bool				 passthrough;
 
 	passthrough = (device_get_parent(child) != dev);
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 
 	/* the default RID must always be the first device port/region. */
 	if (!passthrough && *rid == 0) {
