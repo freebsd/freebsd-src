@@ -63,6 +63,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#ifdef PCI_IOV
+#include <sys/nv.h>
+#include <dev/pci/pci_iov_private.h>
+#endif
+
 #include <dev/usb/controller/xhcireg.h>
 #include <dev/usb/controller/ehcireg.h>
 #include <dev/usb/controller/ohcireg.h>
@@ -694,6 +699,81 @@ pci_fill_devinfo(device_t pcib, int d, int b, int s, int f, uint16_t vid,
 #undef REG
 
 static void
+pci_ea_fill_info(device_t pcib, pcicfgregs *cfg)
+{
+#define	REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, \
+    cfg->ea.ea_location + (n), w)
+	int num_ent;
+	int ptr;
+	int a, b;
+	uint32_t val;
+	int ent_size;
+	uint32_t dw[4];
+	uint64_t base, max_offset;
+	struct pci_ea_entry *eae;
+
+	if (cfg->ea.ea_location == 0)
+		return;
+
+	STAILQ_INIT(&cfg->ea.ea_entries);
+
+	/* Determine the number of entries */
+	num_ent = REG(PCIR_EA_NUM_ENT, 2);
+	num_ent &= PCIM_EA_NUM_ENT_MASK;
+
+	/* Find the first entry to care of */
+	ptr = PCIR_EA_FIRST_ENT;
+
+	/* Skip DWORD 2 for type 1 functions */
+	if ((cfg->hdrtype & PCIM_HDRTYPE) == PCIM_HDRTYPE_BRIDGE)
+		ptr += 4;
+
+	for (a = 0; a < num_ent; a++) {
+
+		eae = malloc(sizeof(*eae), M_DEVBUF, M_WAITOK | M_ZERO);
+		eae->eae_cfg_offset = cfg->ea.ea_location + ptr;
+
+		/* Read a number of dwords in the entry */
+		val = REG(ptr, 4);
+		ptr += 4;
+		ent_size = (val & PCIM_EA_ES);
+
+		for (b = 0; b < ent_size; b++) {
+			dw[b] = REG(ptr, 4);
+			ptr += 4;
+		}
+
+		eae->eae_flags = val;
+		eae->eae_bei = (PCIM_EA_BEI & val) >> PCIM_EA_BEI_OFFSET;
+
+		base = dw[0] & PCIM_EA_FIELD_MASK;
+		max_offset = dw[1] | ~PCIM_EA_FIELD_MASK;
+		b = 2;
+		if (((dw[0] & PCIM_EA_IS_64) != 0) && (b < ent_size)) {
+			base |= (uint64_t)dw[b] << 32UL;
+			b++;
+		}
+		if (((dw[1] & PCIM_EA_IS_64) != 0)
+		    && (b < ent_size)) {
+			max_offset |= (uint64_t)dw[b] << 32UL;
+			b++;
+		}
+
+		eae->eae_base = base;
+		eae->eae_max_offset = max_offset;
+
+		STAILQ_INSERT_TAIL(&cfg->ea.ea_entries, eae, eae_link);
+
+		if (bootverbose) {
+			printf("PCI(EA) dev %04x:%04x, bei %d, flags #%x, base #%jx, max_offset #%jx\n",
+			    cfg->vendor, cfg->device, eae->eae_bei, eae->eae_flags,
+			    (uintmax_t)eae->eae_base, (uintmax_t)eae->eae_max_offset);
+		}
+	}
+}
+#undef REG
+
+static void
 pci_read_cap(device_t pcib, pcicfgregs *cfg)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
@@ -829,6 +909,10 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 			cfg->pcie.pcie_location = ptr;
 			val = REG(ptr + PCIER_FLAGS, 2);
 			cfg->pcie.pcie_type = val & PCIEM_FLAGS_TYPE;
+			break;
+		case PCIY_EA:		/* Enhanced Allocation */
+			cfg->ea.ea_location = ptr;
+			pci_ea_fill_info(pcib, cfg);
 			break;
 		default:
 			break;
@@ -3504,6 +3588,176 @@ pci_alloc_secbus(device_t dev, device_t child, int *rid, rman_res_t start,
 }
 #endif
 
+static int
+pci_ea_bei_to_rid(device_t dev, int bei)
+{
+#ifdef PCI_IOV
+	struct pci_devinfo *dinfo;
+	int iov_pos;
+	struct pcicfg_iov *iov;
+
+	dinfo = device_get_ivars(dev);
+	iov = dinfo->cfg.iov;
+	if (iov != NULL)
+		iov_pos = iov->iov_pos;
+	else
+		iov_pos = 0;
+#endif
+
+	/* Check if matches BAR */
+	if ((bei >= PCIM_EA_BEI_BAR_0) &&
+	    (bei <= PCIM_EA_BEI_BAR_5))
+		return (PCIR_BAR(bei));
+
+	/* Check ROM */
+	if (bei == PCIM_EA_BEI_ROM)
+		return (PCIR_BIOS);
+
+#ifdef PCI_IOV
+	/* Check if matches VF_BAR */
+	if ((iov != NULL) && (bei >= PCIM_EA_BEI_VF_BAR_0) &&
+	    (bei <= PCIM_EA_BEI_VF_BAR_5))
+		return (PCIR_SRIOV_BAR(bei - PCIM_EA_BEI_VF_BAR_0) +
+		    iov_pos);
+#endif
+
+	return (-1);
+}
+
+int
+pci_ea_is_enabled(device_t dev, int rid)
+{
+	struct pci_ea_entry *ea;
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+
+	STAILQ_FOREACH(ea, &dinfo->cfg.ea.ea_entries, eae_link) {
+		if (pci_ea_bei_to_rid(dev, ea->eae_bei) == rid)
+			return ((ea->eae_flags & PCIM_EA_ENABLE) > 0);
+	}
+
+	return (0);
+}
+
+void
+pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov)
+{
+	struct pci_ea_entry *ea;
+	struct pci_devinfo *dinfo;
+	pci_addr_t start, end, count;
+	struct resource_list *rl;
+	int type, flags, rid;
+	struct resource *res;
+	uint32_t tmp;
+#ifdef PCI_IOV
+	struct pcicfg_iov *iov;
+#endif
+
+	dinfo = device_get_ivars(dev);
+	rl = &dinfo->resources;
+	flags = 0;
+
+#ifdef PCI_IOV
+	iov = dinfo->cfg.iov;
+#endif
+
+	if (dinfo->cfg.ea.ea_location == 0)
+		return;
+
+	STAILQ_FOREACH(ea, &dinfo->cfg.ea.ea_entries, eae_link) {
+
+		/*
+		 * TODO: Ignore EA-BAR if is not enabled.
+		 *   Currently the EA implementation supports
+		 *   only situation, where EA structure contains
+		 *   predefined entries. In case they are not enabled
+		 *   leave them unallocated and proceed with
+		 *   a legacy-BAR mechanism.
+		 */
+		if ((ea->eae_flags & PCIM_EA_ENABLE) == 0)
+			continue;
+
+		switch ((ea->eae_flags & PCIM_EA_PP) >> PCIM_EA_PP_OFFSET) {
+		case PCIM_EA_P_MEM_PREFETCH:
+		case PCIM_EA_P_VF_MEM_PREFETCH:
+			flags = RF_PREFETCHABLE;
+		case PCIM_EA_P_VF_MEM:
+		case PCIM_EA_P_MEM:
+			type = SYS_RES_MEMORY;
+			break;
+		case PCIM_EA_P_IO:
+			type = SYS_RES_IOPORT;
+			break;
+		default:
+			continue;
+		}
+
+		if (alloc_iov != 0) {
+#ifdef PCI_IOV
+			/* Allocating IOV, confirm BEI matches */
+			if ((ea->eae_bei < PCIM_EA_BEI_VF_BAR_0) ||
+			    (ea->eae_bei > PCIM_EA_BEI_VF_BAR_5))
+				continue;
+#else
+			continue;
+#endif
+		} else {
+			/* Allocating BAR, confirm BEI matches */
+			if (((ea->eae_bei < PCIM_EA_BEI_BAR_0) ||
+			    (ea->eae_bei > PCIM_EA_BEI_BAR_5)) &&
+			    (ea->eae_bei != PCIM_EA_BEI_ROM))
+				continue;
+		}
+
+		rid = pci_ea_bei_to_rid(dev, ea->eae_bei);
+		if (rid < 0)
+			continue;
+
+		/* Skip resources already allocated by EA */
+		if ((resource_list_find(rl, SYS_RES_MEMORY, rid) != NULL) ||
+		    (resource_list_find(rl, SYS_RES_IOPORT, rid) != NULL))
+			continue;
+
+		start = ea->eae_base;
+		count = ea->eae_max_offset + 1;
+#ifdef PCI_IOV
+		if (iov != NULL)
+			count = count * iov->iov_num_vfs;
+#endif
+		end = start + count - 1;
+		if (count == 0)
+			continue;
+
+		resource_list_add(rl, type, rid, start, end, count);
+		res = resource_list_reserve(rl, bus, dev, type, &rid, start, end, count,
+		    flags);
+		if (res == NULL) {
+			resource_list_delete(rl, type, rid);
+
+			/*
+			 * Failed to allocate using EA, disable entry.
+			 * Another attempt to allocation will be performed
+			 * further, but this time using legacy BAR registers
+			 */
+			tmp = pci_read_config(dev, ea->eae_cfg_offset, 4);
+			tmp &= ~PCIM_EA_ENABLE;
+			pci_write_config(dev, ea->eae_cfg_offset, tmp, 4);
+
+			/*
+			 * Disabling entry might fail in case it is hardwired.
+			 * Read flags again to match current status.
+			 */
+			ea->eae_flags = pci_read_config(dev, ea->eae_cfg_offset, 4);
+
+			continue;
+		}
+
+		/* As per specification, fill BAR with zeros */
+		pci_write_config(dev, rid, 0, 4);
+	}
+}
+
 void
 pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 {
@@ -3519,6 +3773,9 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 	rl = &dinfo->resources;
 	devid = (cfg->device << 16) | cfg->vendor;
 
+	/* Allocate resources using Enhanced Allocation */
+	pci_add_resources_ea(bus, dev, 0);
+
 	/* ATA devices needs special map treatment */
 	if ((pci_get_class(dev) == PCIC_STORAGE) &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
@@ -3528,6 +3785,14 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 		pci_ata_maps(bus, dev, rl, force, prefetchmask);
 	else
 		for (i = 0; i < cfg->nummaps;) {
+			/* Skip resources already managed by EA */
+			if ((resource_list_find(rl, SYS_RES_MEMORY, PCIR_BAR(i)) != NULL) ||
+			    (resource_list_find(rl, SYS_RES_IOPORT, PCIR_BAR(i)) != NULL) ||
+			    pci_ea_is_enabled(dev, PCIR_BAR(i))) {
+				i++;
+				continue;
+			}
+
 			/*
 			 * Skip quirked resources.
 			 */
@@ -4629,6 +4894,11 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	int mapsize;
 
 	res = NULL;
+
+	/* If rid is managed by EA, ignore it */
+	if (pci_ea_is_enabled(child, *rid))
+		goto out;
+
 	pm = pci_find_bar(child, *rid);
 	if (pm != NULL) {
 		/* This is a BAR that we failed to allocate earlier. */
