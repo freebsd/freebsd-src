@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ssl 3"
-.TH ssl 3 "2016-01-28" "1.0.1r" "OpenSSL"
+.TH ssl 3 "2016-03-01" "1.0.1s" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -239,33 +239,69 @@ They are documented in the following:
 .IX Subsection "DEALING WITH PROTOCOL METHODS"
 Here we document the various \s-1API\s0 functions which deal with the \s-1SSL/TLS\s0
 protocol methods defined in \fB\s-1SSL_METHOD\s0\fR structures.
-.IP "const \s-1SSL_METHOD\s0 *\fBSSLv2_client_method\fR(void);" 4
-.IX Item "const SSL_METHOD *SSLv2_client_method(void);"
-Constructor for the SSLv2 \s-1SSL_METHOD\s0 structure for a dedicated client.
-.IP "const \s-1SSL_METHOD\s0 *\fBSSLv2_server_method\fR(void);" 4
-.IX Item "const SSL_METHOD *SSLv2_server_method(void);"
-Constructor for the SSLv2 \s-1SSL_METHOD\s0 structure for a dedicated server.
-.IP "const \s-1SSL_METHOD\s0 *\fBSSLv2_method\fR(void);" 4
-.IX Item "const SSL_METHOD *SSLv2_method(void);"
-Constructor for the SSLv2 \s-1SSL_METHOD\s0 structure for combined client and server.
-.IP "const \s-1SSL_METHOD\s0 *\fBSSLv3_client_method\fR(void);" 4
-.IX Item "const SSL_METHOD *SSLv3_client_method(void);"
-Constructor for the SSLv3 \s-1SSL_METHOD\s0 structure for a dedicated client.
-.IP "const \s-1SSL_METHOD\s0 *\fBSSLv3_server_method\fR(void);" 4
-.IX Item "const SSL_METHOD *SSLv3_server_method(void);"
-Constructor for the SSLv3 \s-1SSL_METHOD\s0 structure for a dedicated server.
-.IP "const \s-1SSL_METHOD\s0 *\fBSSLv3_method\fR(void);" 4
-.IX Item "const SSL_METHOD *SSLv3_method(void);"
-Constructor for the SSLv3 \s-1SSL_METHOD\s0 structure for combined client and server.
-.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_client_method\fR(void);" 4
-.IX Item "const SSL_METHOD *TLSv1_client_method(void);"
-Constructor for the TLSv1 \s-1SSL_METHOD\s0 structure for a dedicated client.
-.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_server_method\fR(void);" 4
-.IX Item "const SSL_METHOD *TLSv1_server_method(void);"
-Constructor for the TLSv1 \s-1SSL_METHOD\s0 structure for a dedicated server.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv23_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv23_method(void);"
+Constructor for the \fIversion-flexible\fR \s-1SSL_METHOD\s0 structure for
+clients, servers or both.
+See \fISSL_CTX_new\fR\|(3) for details.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv23_client_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv23_client_method(void);"
+Constructor for the \fIversion-flexible\fR \s-1SSL_METHOD\s0 structure for
+clients.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv23_client_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv23_client_method(void);"
+Constructor for the \fIversion-flexible\fR \s-1SSL_METHOD\s0 structure for
+servers.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_2_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_2_method(void);"
+Constructor for the TLSv1.2 \s-1SSL_METHOD\s0 structure for clients, servers
+or both.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_2_client_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_2_client_method(void);"
+Constructor for the TLSv1.2 \s-1SSL_METHOD\s0 structure for clients.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_2_server_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_2_server_method(void);"
+Constructor for the TLSv1.2 \s-1SSL_METHOD\s0 structure for servers.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_1_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_1_method(void);"
+Constructor for the TLSv1.1 \s-1SSL_METHOD\s0 structure for clients, servers
+or both.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_1_client_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_1_client_method(void);"
+Constructor for the TLSv1.1 \s-1SSL_METHOD\s0 structure for clients.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_1_server_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_1_server_method(void);"
+Constructor for the TLSv1.1 \s-1SSL_METHOD\s0 structure for servers.
 .IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_method\fR(void);" 4
 .IX Item "const SSL_METHOD *TLSv1_method(void);"
-Constructor for the TLSv1 \s-1SSL_METHOD\s0 structure for combined client and server.
+Constructor for the TLSv1 \s-1SSL_METHOD\s0 structure for clients, servers
+or both.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_client_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_client_method(void);"
+Constructor for the TLSv1 \s-1SSL_METHOD\s0 structure for clients.
+.IP "const \s-1SSL_METHOD\s0 *\fBTLSv1_server_method\fR(void);" 4
+.IX Item "const SSL_METHOD *TLSv1_server_method(void);"
+Constructor for the TLSv1 \s-1SSL_METHOD\s0 structure for servers.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv3_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv3_method(void);"
+Constructor for the SSLv3 \s-1SSL_METHOD\s0 structure for clients, servers
+or both.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv3_client_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv3_client_method(void);"
+Constructor for the SSLv3 \s-1SSL_METHOD\s0 structure for clients.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv3_server_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv3_server_method(void);"
+Constructor for the SSLv3 \s-1SSL_METHOD\s0 structure for servers.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv2_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv2_method(void);"
+Constructor for the SSLv2 \s-1SSL_METHOD\s0 structure for clients, servers
+or both.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv2_client_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv2_client_method(void);"
+Constructor for the SSLv2 \s-1SSL_METHOD\s0 structure for clients.
+.IP "const \s-1SSL_METHOD\s0 *\fBSSLv2_server_method\fR(void);" 4
+.IX Item "const SSL_METHOD *SSLv2_server_method(void);"
+Constructor for the SSLv2 \s-1SSL_METHOD\s0 structure for servers.
 .SS "\s-1DEALING WITH CIPHERS\s0"
 .IX Subsection "DEALING WITH CIPHERS"
 Here we document the various \s-1API\s0 functions which deal with the \s-1SSL/TLS\s0
