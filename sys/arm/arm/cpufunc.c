@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/uma.h>
 
+#include <machine/acle-compat.h>
 #include <machine/cpuconf.h>
 #include <machine/cpufunc.h>
 
@@ -559,7 +560,9 @@ struct cpu_functions cortexa_cpufuncs = {
 
 struct cpu_functions cpufuncs;
 u_int cputype;
-u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
+#if __ARM_ARCH <= 5
+u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
+#endif
 
 #if defined(CPU_ARM9) ||	\
   defined (CPU_ARM9E) ||	\
@@ -754,7 +757,6 @@ set_cpufuncs()
 #if defined(CPU_ARM1176)
 	if (cputype == CPU_ID_ARM1176JZS) {
 		cpufuncs = arm1176_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
 		goto out;
 	}
@@ -777,7 +779,6 @@ set_cpufuncs()
 	    cputype == CPU_ID_KRAIT300R0 ||
 	    cputype == CPU_ID_KRAIT300R1 ) {
 		cpufuncs = cortexa_cpufuncs;
-		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
 		goto out;
 	}
