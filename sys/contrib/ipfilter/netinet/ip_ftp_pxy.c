@@ -1951,10 +1951,6 @@ ipf_p_ftp_epsv(softf, fin, ip, nat, ftp, dlen)
 		ap += *s++ - '0';
 	}
 
-	if (!s) {
-		return 0;
-}
-
 	if (*s == '|')
 		s++;
 	if (*s == ')')
