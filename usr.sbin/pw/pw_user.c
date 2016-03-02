@@ -1654,7 +1654,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 		}
 	}
 
-	if (id > 0 && pwd->pw_uid != id) {
+	if (id >= 0 && pwd->pw_uid != id) {
 		pwd->pw_uid = id;
 		edited = true;
 		if (pwd->pw_uid != 0 && strcmp(pwd->pw_name, "root") == 0)
