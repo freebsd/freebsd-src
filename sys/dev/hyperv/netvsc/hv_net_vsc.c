@@ -49,7 +49,7 @@
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
 
-/* priv1 and priv1 are consumed by the main driver */
+/* priv1 and priv2 are consumed by the main driver */
 #define hv_chan_rdbuf	hv_chan_priv3
 
 MALLOC_DEFINE(M_NETVSC, "netvsc", "Hyper-V netvsc driver");
