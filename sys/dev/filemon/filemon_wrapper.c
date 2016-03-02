@@ -79,7 +79,7 @@ filemon_pid_check(struct proc *p)
 		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
 			if (p == filemon->p) {
 				sx_sunlock(&proctree_lock);
-				filemon_filemon_lock(filemon);
+				sx_xlock(&filemon->lock);
 				filemon_unlock_read();
 				return (filemon);
 			}
@@ -110,8 +110,7 @@ filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -139,8 +138,7 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
-		/* Unlock the found filemon structure. */
-		filemon_filemon_unlock(filemon);
+		sx_xunlock(&filemon->lock);
 
 		free(freepath, M_TEMP);
 	}
@@ -178,8 +176,7 @@ filemon_wrapper_open(struct thread *td, struct open_args *uap)
 			    curproc->p_pid, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -231,8 +228,7 @@ filemon_wrapper_openat(struct thread *td, struct openat_args *uap)
 			    curproc->p_pid, filemon->fname2, filemon->fname1);
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -260,8 +256,7 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -289,8 +284,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -318,8 +312,7 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -347,8 +340,7 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -374,8 +366,7 @@ filemon_wrapper_stat(struct thread *td, struct stat_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -403,8 +394,7 @@ filemon_wrapper_freebsd32_stat(struct thread *td,
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -439,8 +429,7 @@ filemon_event_process_exit(void *arg __unused, struct proc *p)
 			filemon->p = NULL;
 		}
 
-		/* Unlock the found filemon structure. */
-		filemon_filemon_unlock(filemon);
+		sx_xunlock(&filemon->lock);
 	}
 }
 
@@ -463,8 +452,7 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 
 			filemon_output(filemon, filemon->msgbufr, len);
 
-			/* Unlock the found filemon structure. */
-			filemon_filemon_unlock(filemon);
+			sx_xunlock(&filemon->lock);
 		}
 	}
 
@@ -485,8 +473,7 @@ filemon_event_process_fork(void *arg __unused, struct proc *p1,
 
 		filemon_output(filemon, filemon->msgbufr, len);
 
-		/* Unlock the found filemon structure. */
-		filemon_filemon_unlock(filemon);
+		sx_xunlock(&filemon->lock);
 	}
 }
 
