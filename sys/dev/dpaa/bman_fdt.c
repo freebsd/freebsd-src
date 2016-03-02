@@ -203,16 +203,12 @@ bman_portals_fdt_attach(device_t dev)
 
 		portal_size = rle->end + 1;
 		rle = resource_list_find(&di.di_res, SYS_RES_MEMORY, 1);
-		device_printf(dev, "portal size 1: %jx\n", (uintmax_t)portal_size);
-		device_printf(dev, "portal size 2: %jx\n", (uintmax_t)rle->end + 1);
 		portal_size = ulmax(rle->end + 1, portal_size);
 		sc->sc_dp_size = ulmax(sc->sc_dp_size, portal_size);
-		device_printf(dev, "winner: %jx\n", (uintmax_t)sc->sc_dp_size);
 
 		if (dpaa_portal_alloc_res(dev, &di, cpu_num))
 			goto err;
 	}
-	device_printf(dev, "portal start: %jx, size: %jx\n", (uintmax_t)sc->sc_dp_pa, (uintmax_t)sc->sc_dp_size);
 
 	ofw_bus_gen_destroy_devinfo(&ofw_di);
 
