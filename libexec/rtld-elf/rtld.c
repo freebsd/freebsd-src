@@ -2627,6 +2627,40 @@ relocate_object_dag(Obj_Entry *root, bool bind_now, Obj_Entry *rtldobj,
 }
 
 /*
+ * Prepare for, or clean after, relocating an object marked with
+ * DT_TEXTREL or DF_TEXTREL.  Before relocating, all read-only
+ * segments are remapped read-write.  After relocations are done, the
+ * segment's permissions are returned back to the modes specified in
+ * the phdrs.  If any relocation happened, or always for wired
+ * program, COW is triggered.
+ */
+static int
+reloc_textrel_prot(Obj_Entry *obj, bool before)
+{
+	const Elf_Phdr *ph;
+	void *base;
+	size_t l, sz;
+	int prot;
+
+	for (l = obj->phsize / sizeof(*ph), ph = obj->phdr; l > 0;
+	    l--, ph++) {
+		if (ph->p_type != PT_LOAD || (ph->p_flags & PF_W) != 0)
+			continue;
+		base = obj->relocbase + trunc_page(ph->p_vaddr);
+		sz = round_page(ph->p_vaddr + ph->p_filesz) -
+		    trunc_page(ph->p_vaddr);
+		prot = convert_prot(ph->p_flags) | (before ? PROT_WRITE : 0);
+		if (mprotect(base, sz, prot) == -1) {
+			_rtld_error("%s: Cannot write-%sable text segment: %s",
+			    obj->path, before ? "en" : "dis",
+			    rtld_strerror(errno));
+			return (-1);
+		}
+	}
+	return (0);
+}
+
+/*
  * Relocate single object.
  * Returns 0 on success, or -1 on failure.
  */
@@ -2648,28 +2682,17 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		return (-1);
 	}
 
-	if (obj->textrel) {
-		/* There are relocations to the write-protected text segment. */
-		if (mprotect(obj->mapbase, obj->textsize,
-		    PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
-			_rtld_error("%s: Cannot write-enable text segment: %s",
-			    obj->path, rtld_strerror(errno));
-			return (-1);
-		}
-	}
+	/* There are relocations to the write-protected text segment. */
+	if (obj->textrel && reloc_textrel_prot(obj, true) != 0)
+		return (-1);
 
 	/* Process the non-PLT non-IFUNC relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
 		return (-1);
 
-	if (obj->textrel) {	/* Re-protected the text segment. */
-		if (mprotect(obj->mapbase, obj->textsize,
-		    PROT_READ|PROT_EXEC) == -1) {
-			_rtld_error("%s: Cannot write-protect text segment: %s",
-			    obj->path, rtld_strerror(errno));
-			return (-1);
-		}
-	}
+	/* Re-protected the text segment. */
+	if (obj->textrel && reloc_textrel_prot(obj, false) != 0)
+		return (-1);
 
 	/* Set the special PLT or GOT entries. */
 	init_pltgot(obj);
