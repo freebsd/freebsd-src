@@ -93,7 +93,7 @@ vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-hv_vmbus_channel_stat(hv_vmbus_channel* channel)
+vmbus_channel_sysctl_create(hv_vmbus_channel* channel)
 {
 	device_t dev;
 	struct sysctl_oid *devch_sysctl;
@@ -164,6 +164,7 @@ hv_vmbus_channel_stat(hv_vmbus_channel* channel)
 		&(channel->outbound),
 		"outbound ring buffer stats");
 }
+
 /**
  * @brief Open the specified channel
  */
@@ -227,8 +228,8 @@ hv_vmbus_channel_open(
 		in,
 		recv_ring_buffer_size);
 
-	/* setup statistic tracking for this channel */
-	hv_vmbus_channel_stat(new_channel);
+	/* Create sysctl tree for this channel */
+	vmbus_channel_sysctl_create(new_channel);
 
 	/**
 	 * Establish the gpadl for the ring buffer
