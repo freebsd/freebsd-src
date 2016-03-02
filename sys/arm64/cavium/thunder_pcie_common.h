@@ -36,6 +36,7 @@ MALLOC_DECLARE(M_THUNDER_PCIE);
 
 uint32_t range_addr_is_pci(struct pcie_range *, uint64_t, uint64_t);
 uint32_t range_addr_is_phys(struct pcie_range *, uint64_t, uint64_t);
+uint64_t range_addr_phys_to_pci(struct pcie_range *, uint64_t);
 uint64_t range_addr_pci_to_phys(struct pcie_range *, uint64_t);
 
 int thunder_pcie_identify_ecam(device_t, int *);
