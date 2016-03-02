@@ -1678,7 +1678,7 @@ do {								\
 					break;
 
 				/* DSCP bitmask is stored as low_u32 high_u32 */
-				if (x > 32)
+				if (x >= 32)
 					match = *(p + 1) & (1 << (x - 32));
 				else
 					match = *p & (1 << x);
