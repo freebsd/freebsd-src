@@ -81,6 +81,17 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 
 }
 
+static int
+vmbus_channel_sysctl_monalloc(SYSCTL_HANDLER_ARGS)
+{
+	struct hv_vmbus_channel *chan = arg1;
+	int alloc = 0;
+
+	if (chan->offer_msg.monitor_allocated)
+		alloc = 1;
+	return sysctl_handle_int(oidp, &alloc, 0, req);
+}
+
 static void
 hv_vmbus_channel_stat(hv_vmbus_channel* channel)
 {
@@ -129,6 +140,10 @@ hv_vmbus_channel_stat(hv_vmbus_channel* channel)
 	}
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
 	    "cpu", CTLFLAG_RD, &channel->target_cpu, 0, "owner CPU id");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(devch_id_sysctl), OID_AUTO,
+	    "monitor_allocated", CTLTYPE_INT | CTLFLAG_RD, channel, 0,
+	    vmbus_channel_sysctl_monalloc, "I",
+	    "is monitor allocated to this channel");
 
 	devch_id_in_sysctl = SYSCTL_ADD_NODE(ctx,
                     SYSCTL_CHILDREN(devch_id_sysctl),
